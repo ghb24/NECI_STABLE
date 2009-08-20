@@ -40,19 +40,21 @@ contains
 !   DIAGSHIFT XXX    Will change the shift
 !   SHIFTDAMP XXX    Will change the damping parameter
 !   STEPSSHIFT XXX   Will change the length of the update cycle
+!   SINGLESBIAS XXX  Will change the singles bias for the non-uniform random excitation generator
 
-    subroutine ChangeVars(Iter,NEl,Tau,DiagSft,SftDamp,StepsSft,ICILevel,tTruncSpace,tSoftExitFound,tWritePopsFound,tSinglePartPhase)
+    subroutine ChangeVars(Iter,NEl,Tau,DiagSft,SftDamp,StepsSft,ICILevel,SinglesBias,tSingBiasChange,tTruncSpace,tSoftExitFound,tWritePopsFound,tSinglePartPhase)
        use Parallel
        use Input
        implicit none
        integer :: Iter,NEl,StepsSft,ICILevel,error,i,ios
        logical :: tSoftExitFound,tWritePopsFound,tSinglePartPhase,exists,AnyExist,deleted_file,tTruncSpace
-       logical :: tEof,any_deleted_file,tChangeParams(8)
-       real*8 :: DiagSft,Tau,SftDamp
+       logical :: tEof,any_deleted_file,tChangeParams(9),tSingBiasChange
+       real*8 :: DiagSft,Tau,SftDamp,SinglesBias
        Character(len=100) :: w
 
        tSoftExitFound=.false.
        tWritePopsFound=.false.
+       tSingBiasChange=.false.
        ios=0
        inquire(file='CHANGEVARS',exist=exists)
        !This collective will check the exists logical on all nodes, and perform a logical or operation,
@@ -63,7 +65,7 @@ contains
                WRITE(6,*) "CHANGEVARS file detected on iteration ",Iter
            ENDIF
 !Set the defaults
-           tChangeParams(1:8)=.false.
+           tChangeParams(1:9)=.false.
 
            deleted_file=.false.
            do i=0,nProcessors-1
@@ -102,6 +104,9 @@ contains
                            tChangeParams(7)=.true.
                        CASE("VARYSHIFT")
                            tChangeParams(8)=.true.
+                       CASE("SINGLESBIAS")
+                           tChangeParams(9)=.true.
+                           CALL Readf(SinglesBias)
                        END SELECT
 
                    End Do
@@ -111,7 +116,7 @@ contains
                call MPI_AllReduce(deleted_file,any_deleted_file,1,MPI_LOGICAL,MPI_LOR,MPI_COMM_WORLD,error)
                if (any_deleted_file) exit
            end do
-           CALL MPI_BCast(tChangeParams,8,MPI_LOGICAL,i,MPI_COMM_WORLD,error)
+           CALL MPI_BCast(tChangeParams,9,MPI_LOGICAL,i,MPI_COMM_WORLD,error)
 
            IF(tChangeParams(1)) THEN
 !Change Tau
@@ -189,6 +194,14 @@ contains
                        WRITE(6,*) "Request to vary the shift detected on a node..."
                    ENDIF
                ENDIF
+           ENDIF
+           IF(tChangeParams(9)) THEN
+!Vary SinglesBias
+               CALL MPI_BCast(SinglesBias,1,MPI_DOUBLE_PRECISION,i,MPI_COMM_WORLD,error)
+               IF(iProcIndex.eq.0) THEN
+                   WRITE(6,*) "SINGLESBIAS changed to a value of : ",SinglesBias
+               ENDIF
+               tSingBiasChange=.true.
            ENDIF
        endif
 

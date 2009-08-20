@@ -238,10 +238,10 @@ MODULE FciMCParMod
         use UMatCache, only : UMatInd
         use FciMCLoggingMOD , only : PrintTriConnHist,PrintTriConnHElHist
         TYPE(HDElement) :: Weight,Energyxw
-        INTEGER :: i,j,error
+        INTEGER :: i,j,error,HFConn
         CHARACTER(len=*), PARAMETER :: this_routine='FciMCPar'
         TYPE(HElement) :: Hamii
-        LOGICAL :: TIncrement,tWritePopsFound,tSoftExitFound
+        LOGICAL :: TIncrement,tWritePopsFound,tSoftExitFound,tSingBiasChange
         REAL(4) :: s,etime,tstart(2),tend(2)
 
         TDebug=.false.  !Set debugging flag
@@ -291,7 +291,7 @@ MODULE FciMCParMod
                 ENDIF
 
 !This routine will check for a CHANGEVARS file and change the parameters of the calculation accordingly.
-                CALL ChangeVars(Iter,NEl,Tau,DiagSft,SftDamp,StepsSft,ICILevel,tTruncSpace,tSoftExitFound,tWritePopsFound,tSinglePartPhase)
+                CALL ChangeVars(Iter,NEl,Tau,DiagSft,SftDamp,StepsSft,ICILevel,SinglesBias,tSingBiasChange,tTruncSpace,tSoftExitFound,tWritePopsFound,tSinglePartPhase)
                 IF(tSoftExitFound) THEN
                     TIncrement=.false.
                     EXIT
@@ -304,6 +304,11 @@ MODULE FciMCParMod
                         CALL WriteToPopsFilePar()
                     ENDIF
                 ENDIF
+                IF(tSingBiasChange) THEN
+                    CALL GetSymExcitCount(HFExcit%ExcitData,HFConn)
+                    CALL CalcApproxpDoubles(HFConn)
+                ENDIF
+
                 
             ENDIF
 
