@@ -311,7 +311,8 @@ MODULE UMatCache
 
 ! Get the prospective size of a UMat (not a UMatCache) for completely storing FCIDUMP 2-e integrals
 ! The UMat is currently passed as a parameter, but in future be absorbed into UMatCache.
-      SUBROUTINE GetUMatSize(nBasis,nEl,iSS,iSize)
+      SUBROUTINE GetUMatSize(nBasis,nEl,iSSOld,iSize)
+        use SystemData, only: tStoreSpinOrbs
       ! In:
       !    nBasis: as above.
       !    nEl: # electrons.
@@ -323,9 +324,15 @@ MODULE UMatCache
       ! Out:
       !    iSize: size of UMAT.
          IMPLICIT NONE
-         INTEGER nBasis,iSS
+         INTEGER nBasis,iSSOld,iSS
          INTEGER iPairs,nBi,nEl,noccup
          INTEGER :: iSize
+         IF(tStoreSpinOrbs) THEN
+             iSS=1
+         ELSE
+             iSS=2
+         ENDIF
+
          nBi=nBasis/iSS
 !         WRITE(6,*) iSS,nBasis,nBi
 !         CALL FLUSH(6)

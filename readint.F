@@ -1,6 +1,7 @@
       SUBROUTINE INITFROMFCID(NEL,NBASISMAX,LEN,LMS,TBIN)
          use SystemData , only : tNoSymGenRandExcits,lNoSymmetry,tROHF
          use SystemData , only : tStoreSpinOrbs
+         use Parallel
          IMPLICIT NONE
          INTEGER NEL,nBasisMax(5,*),LEN,LMS
          INTEGER NORB,NELEC,MS2,ORBSYM(1000),ISYM,i
@@ -9,26 +10,47 @@
          NAMELIST /FCI/ NORB,NELEC,MS2,ORBSYM,ISYM,UHF
          UHF=.FALSE.
          fmat='NO'
-         IF(TBIN) THEN
-            INQUIRE(FILE='FCISYM',EXIST=exists)
-            IF(.not.exists) STOP 'FCISYM file does not exist'
-            INQUIRE(FILE='FCIDUMP',EXIST=exists,FORMATTED=fmat)
-            IF(.not.exists) STOP 'FCIDUMP file does not exist'
-!            IF(fmat=='YES') THEN
-!                STOP 'FCIDUMP is not unformatted, but TBIN true'
-!            ENDIF
-            OPEN(8,FILE='FCISYM',STATUS='OLD',FORM='FORMATTED')
-            READ(8,FCI)
-         ELSE
-            INQUIRE(FILE='FCIDUMP',EXIST=exists,UNFORMATTED=fmat)
-            IF(.not.exists) STOP 'FCIDUMP file does not exist'
-!            IF(fmat=='YES') THEN
-!                STOP 'FCIDUMP is not formatted, but TBIN false'
-!            ENDIF
-            OPEN(8,FILE='FCIDUMP',STATUS='OLD',FORM='FORMATTED')
-            READ(8,FCI)
+         IF(iProcIndex.eq.0) THEN
+             IF(TBIN) THEN
+                INQUIRE(FILE='FCISYM',EXIST=exists)
+                IF(.not.exists) THEN
+                    CALL Stop_All('InitFromFCID',                       &
+     &                   'FCISYM file does not exist')
+                ENDIF
+                INQUIRE(FILE='FCIDUMP',EXIST=exists,FORMATTED=fmat)
+                IF(.not.exists) THEN
+                    CALL Stop_All('INITFROMFCID',                       &
+     &                    'FCIDUMP file does not exist')
+                ENDIF
+!                IF(fmat=='YES') THEN
+!                    STOP 'FCIDUMP is not unformatted, but TBIN true'
+!                ENDIF
+                OPEN(8,FILE='FCISYM',STATUS='OLD',FORM='FORMATTED')
+                READ(8,FCI)
+             ELSE
+                INQUIRE(FILE='FCIDUMP',EXIST=exists,UNFORMATTED=fmat)
+                IF(.not.exists) THEN
+                    CALL Stop_All('InitFromFCID',                       &
+     &                  'FCIDUMP file does not exist')
+                ENDIF
+!                IF(fmat=='YES') THEN
+!                    STOP 'FCIDUMP is not formatted, but TBIN false'
+!                ENDIF
+                OPEN(8,FILE='FCIDUMP',STATUS='OLD',FORM='FORMATTED')
+                READ(8,FCI)
+             ENDIF
+             CLOSE(8)
          ENDIF
-         CLOSE(8)
+
+!Now broadcast these values to the other processors
+         CALL MPIIBCast_Scal(NORB,0)
+         CALL MPIIBCast_Scal(NELEC,0)
+         CALL MPIIBCast_Scal(MS2,0)
+         CALL MPIIBCast(ORBSYM,1000,0)
+         CALL MPIIBCast_Scal(ISYM,0)
+         CALL MPILBCast_Scal(UHF,0)
+
+
          DO i=1,NORB
              IF(ORBSYM(i).eq.0) THEN
                  WRITE(6,*) "*** WARNING ***"
@@ -81,6 +103,7 @@ C.. SHow that there's no momentum conservation
          use SystemData, only: tCacheFCIDUMPInts,tROHF
          use UMatCache, only: nSlotsInit,CalcNSlotsInit
          use UMatCache, only: GetCacheIndexStates,GTID
+         use Parallel
          IMPLICIT NONE
          INTEGER nBasisMax(5,*),BRR(LEN),LEN
          TYPE(BasisFN) G1(LEN)
@@ -95,15 +118,26 @@ C.. SHow that there's no momentum conservation
          LOGICAL TBIN,UHF
          NAMELIST /FCI/ NORB,NELEC,MS2,ORBSYM,ISYM,UHF
          UHF=.FALSE.
-         IF(TBIN) THEN
-            OPEN(8,FILE='FCISYM',STATUS='OLD',FORM='FORMATTED')
-            READ(8,FCI)
-            CLOSE(8)
-            OPEN(8,FILE='FCIDUMP',STATUS='OLD',FORM='UNFORMATTED')
-         ELSE
-            OPEN(8,FILE='FCIDUMP',STATUS='OLD',FORM='FORMATTED')
-            READ(8,FCI)
+         IF(iProcIndex.eq.0) THEN
+             IF(TBIN) THEN
+                OPEN(8,FILE='FCISYM',STATUS='OLD',FORM='FORMATTED')
+                READ(8,FCI)
+                CLOSE(8)
+                OPEN(8,FILE='FCIDUMP',STATUS='OLD',FORM='UNFORMATTED')
+             ELSE
+                OPEN(8,FILE='FCIDUMP',STATUS='OLD',FORM='FORMATTED')
+                READ(8,FCI)
+             ENDIF
          ENDIF
+
+!Now broadcast these values to the other processors (the values are only read in on root)
+         CALL MPIIBCast_Scal(NORB,0)
+         CALL MPIIBCast_Scal(NELEC,0)
+         CALL MPIIBCast_Scal(MS2,0)
+         CALL MPIIBCast(ORBSYM,1000,0)
+         CALL MPIIBCast_Scal(ISYM,0)
+         CALL MPILBCast_Scal(UHF,0)
+
          ISYMNUM=0
          ISNMAX=0
          ISPINS=2
@@ -189,92 +223,105 @@ C.. SHow that there's no momentum conservation
          ENDIF
 
 
-         IF(TBIN) THEN
-            IF(UHF.or.tROHF) STOP 'UHF Bin read not functional'
-            MASK=(2**16)-1
-            
-            !IND contains all the indices in an integer*8 - use mask of 16bit to extract them
-2           READ(8,END=99) Z,IND
-            L=iand(IND,MASK)
-            IND=Ishft(IND,-16)
-            K=iand(IND,MASK)
-            IND=Ishft(IND,-16)
-            J=iand(IND,MASK)
-            IND=Ishft(IND,-16)
-            I=iand(IND,MASK)
+         IF(iProcIndex.eq.0) THEN
+!Just read in integrals on head node.
 
-!            I=Index(I)
-!            J=Index(J)
-!            K=Index(K)
-!            L=Index(L)
+             IF(TBIN) THEN
+                IF(UHF.or.tROHF) STOP 'UHF Bin read not functional'
+                MASK=(2**16)-1
+                
+                !IND contains all the indices in an integer*8 - use mask of 16bit to extract them
+2               READ(8,END=99) Z,IND
+                L=iand(IND,MASK)
+                IND=Ishft(IND,-16)
+                K=iand(IND,MASK)
+                IND=Ishft(IND,-16)
+                J=iand(IND,MASK)
+                IND=Ishft(IND,-16)
+                I=iand(IND,MASK)
+
+!                I=Index(I)
+!                J=Index(J)
+!                K=Index(K)
+!                L=Index(L)
             
 C.. Each orbital in the file corresponds to alpha and beta spinorbitals
-         !Fill ARR with the energy levels
-            IF(I.NE.0.AND.K.EQ.0.AND.I.EQ.J) THEN
-                IF(I.GT.1) THEN
-                    IF(ORBSYM(I).NE.ORBSYM(I-1)) THEN
-                        IF(ISYMNUM.GT.ISNMAX) ISNMAX=ISYMNUM
-                        ISYMNUM=0
+             !Fill ARR with the energy levels
+                IF(I.NE.0.AND.K.EQ.0.AND.I.EQ.J) THEN
+                    IF(I.GT.1) THEN
+                        IF(ORBSYM(I).NE.ORBSYM(I-1)) THEN
+                            IF(ISYMNUM.GT.ISNMAX) ISNMAX=ISYMNUM
+                            ISYMNUM=0
+                        ENDIF
                     ENDIF
+                    ISYMNUM=ISYMNUM+1
+                    ARR(2*I-1,1)=Z
+                    ARR(2*I,1)=Z
+                ELSEIF(I.NE.0.AND.K.EQ.0.AND.J.EQ.0) THEN
+                    ARR(2*I-1,1)=Z
+                    ARR(2*I,1)=Z
                 ENDIF
-                ISYMNUM=ISYMNUM+1
-                ARR(2*I-1,1)=Z
-                ARR(2*I,1)=Z
-            ELSEIF(I.NE.0.AND.K.EQ.0.AND.J.EQ.0) THEN
-                ARR(2*I-1,1)=Z
-                ARR(2*I,1)=Z
-            ENDIF
 C.. At the moment we're ignoring the core energy
-            IF(I.NE.0) GOTO 2
-         ELSE
-1           READ(8,'(1X,G20.12,4I3)',END=99) Z,I,J,K,L
+                IF(I.NE.0) GOTO 2
+             ELSE
+1               READ(8,'(1X,G20.12,4I3)',END=99) Z,I,J,K,L
 
-            IF(tROHF) THEN
+                IF(tROHF) THEN
 !The FCIDUMP file is in spin-orbitals - we need to transfer them to spatial orbitals.
-                IF(I.ne.0) THEN
-                    CALL GTID(NBASISMAX,I,I)
-                ENDIF
-                IF(J.ne.0) THEN
-                    CALL GTID(NBASISMAX,J,J)
-                ENDIF
-                IF(K.ne.0) THEN
-                    CALL GTID(NBASISMAX,K,K)
-                ENDIF
-                IF(L.ne.0) THEN
-                    CALL GTID(NBASISMAX,L,L)
-                ENDIF
-            ENDIF
-
-            IF(tCacheFCIDUMPInts) THEN
-                CALL CalcNSlotsInit(I,J,K,L,Z,nPairs,MaxSlots)
-            ENDIF
-
-!            I=Index(I)
-!            J=Index(J)
-!            K=Index(K)
-!            L=Index(L)
-C.. Each orbital in the file corresponds to alpha and beta spinorbitals
-         !Fill ARR with the energy levels
-            IF(I.NE.0.AND.K.EQ.0.AND.I.EQ.J) THEN
-                IF(I.GT.1) THEN
-                    IF(ORBSYM(I).NE.ORBSYM(I-1)) THEN
-                        IF(ISYMNUM.GT.ISNMAX) ISNMAX=ISYMNUM
-                        ISYMNUM=0
+                    IF(I.ne.0) THEN
+                        CALL GTID(NBASISMAX,I,I)
+                    ENDIF
+                    IF(J.ne.0) THEN
+                        CALL GTID(NBASISMAX,J,J)
+                    ENDIF
+                    IF(K.ne.0) THEN
+                        CALL GTID(NBASISMAX,K,K)
+                    ENDIF
+                    IF(L.ne.0) THEN
+                        CALL GTID(NBASISMAX,L,L)
                     ENDIF
                 ENDIF
-                ISYMNUM=ISYMNUM+1
-                DO ISPN=1,ISPINS
-                    ARR(ISPINS*I-ISPN+1,1)=Z
-                ENDDO
-            ELSEIF(I.NE.0.AND.K.EQ.0.AND.J.EQ.0) THEN
-                DO ISPN=1,ISPINS
-                    ARR(ISPINS*I-ISPN+1,1)=Z
-                ENDDO
-            ENDIF
+
+                IF(tCacheFCIDUMPInts) THEN
+                    CALL CalcNSlotsInit(I,J,K,L,Z,nPairs,MaxSlots)
+                ENDIF
+
+!                I=Index(I)
+!                J=Index(J)
+!                K=Index(K)
+!                L=Index(L)
+C.. Each orbital in the file corresponds to alpha and beta spinorbitals
+             !Fill ARR with the energy levels
+                IF(I.NE.0.AND.K.EQ.0.AND.I.EQ.J) THEN
+                    IF(I.GT.1) THEN
+                        IF(ORBSYM(I).NE.ORBSYM(I-1)) THEN
+                            IF(ISYMNUM.GT.ISNMAX) ISNMAX=ISYMNUM
+                            ISYMNUM=0
+                        ENDIF
+                    ENDIF
+                    ISYMNUM=ISYMNUM+1
+                    DO ISPN=1,ISPINS
+                        ARR(ISPINS*I-ISPN+1,1)=Z
+                    ENDDO
+                ELSEIF(I.NE.0.AND.K.EQ.0.AND.J.EQ.0) THEN
+                    DO ISPN=1,ISPINS
+                        ARR(ISPINS*I-ISPN+1,1)=Z
+                    ENDDO
+                ENDIF
 C.. At the moment we're ignoring the core energy
-            IF(I.NE.0) GOTO 1
+                IF(I.NE.0) GOTO 1
+             ENDIF
+99           CONTINUE
+             CLOSE(8)
+
          ENDIF
-99       CONTINUE
+
+!We now need to broadcast all the information we've just read in...
+         CALL MPIIBCast(MaxSlots,nPairs,0)
+         CALL MPIIBCast_Scal(ISNMAX,0)
+         CALL MPIIBCast_Scal(ISYMNUM,0)
+         CALL MPIDBCast(Arr,LEN*2,0)
+
          SYMMAX=1
          DO I=1,NORB
             DO ISPN=1,ISPINS
@@ -302,7 +349,6 @@ C.. set momentum to 0
          NBASISMAX(5,2)=SYMMAX-1
          NBASISMAX(2,1)=0
          NBASISMAX(2,2)=0
-         CLOSE(8)
          IF(tCacheFCIDUMPInts) THEN
 !Calculate the minimum required value for nSlotsInit
              MaxnSlot=0
@@ -334,13 +380,16 @@ C.. set momentum to 0
       SUBROUTINE READFCIINT(UMAT,NBASIS,ECORE,ARR,BRR,G1,               &
      &   tReadFreezeInts)
          USE HElem
-         use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
+         use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB,NEl
          use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
          use SystemData, only: UMatEps,tUMatEps,tCacheFCIDUMPInts
          use SystemData, only: tRIIntegrals,nBasisMax,tROHF
          USE UMatCache, only: UMatInd,UMAT2D,TUMAT2D,nPairs,CacheFCIDUMP
-         USE UMatCache, only: FillUpCache,GTID
+         USE UMatCache, only: FillUpCache,GTID,nStates,nSlots,nTypes
+         USE UMatCache, only: UMatCacheData,UMatLabels,GetUMatSize
          use OneEInts, only: TMatind,TMat2D,TMATSYM,TSTARSTORE
+         use OneEInts, only: CalcTMatSize
+         use Parallel
          IMPLICIT NONE
          INTEGER NBASIS,ZeroedInt,NonZeroInt
          REAL*8 ECORE,ARR(NBASIS,2)
@@ -352,7 +401,7 @@ C.. set momentum to 0
          INTEGER NORB,NELEC,MS2,ORBSYM(1000),ISYM,SYMMAX
          LOGICAL LWRITE,UHF,tAddtoCache,GetCachedUMatEl,tReadFreezeInts
          INTEGER ISPINS,ISPN,ISPN2,ierr!,IDI,IDJ,IDK,IDL
-         INTEGER Counter(1:8),Index(1000)
+         INTEGER Counter(1:8),Index(1000),UMatSize,TMatSize
          INTEGER , ALLOCATABLE :: CacheInd(:)
          NAMELIST /FCI/ NORB,NELEC,MS2,ORBSYM,ISYM,UHF
          LWRITE=.FALSE.
@@ -360,8 +409,18 @@ C.. set momentum to 0
          ZeroedInt=0
          NonZeroInt=0
          
-         OPEN(8,FILE='FCIDUMP',STATUS='OLD')
-         READ(8,FCI)
+         IF(iProcIndex.eq.0) THEN
+             OPEN(8,FILE='FCIDUMP',STATUS='OLD')
+             READ(8,FCI)
+         ENDIF
+!Now broadcast these values to the other processors (the values are only read in on root)
+         CALL MPIIBCast_Scal(NORB,0)
+         CALL MPIIBCast_Scal(NELEC,0)
+         CALL MPIIBCast_Scal(MS2,0)
+         CALL MPIIBCast(ORBSYM,1000,0)
+         CALL MPIIBCast_Scal(ISYM,0)
+         CALL MPILBCast_Scal(UHF,0)
+
          ISPINS=2
          IF(UHF.and.(.not.tROHF)) ISPINS=1
 
@@ -410,114 +469,143 @@ C.. set momentum to 0
          ENDIF
 
 
-
-101      READ(8,'(1X,G20.12,4I3)',END=199) Z,I,J,K,L
-         IF(tROHF) THEN
+         IF(iProcIndex.eq.0) THEN
+101          READ(8,'(1X,G20.12,4I3)',END=199) Z,I,J,K,L
+             IF(tROHF) THEN
 !The FCIDUMP file is in spin-orbitals - we need to transfer them to spatial orbitals.
-            IF(I.ne.0) THEN
-                CALL GTID(NBASISMAX,I,I)
-            ENDIF
-            IF(J.ne.0) THEN
-                CALL GTID(NBASISMAX,J,J)
-            ENDIF
-            IF(K.ne.0) THEN
-                CALL GTID(NBASISMAX,K,K)
-            ENDIF
-            IF(L.ne.0) THEN
-                CALL GTID(NBASISMAX,L,L)
-            ENDIF
-         ENDIF
-!         I=Index(I)
-!         J=Index(J)
-!         K=Index(K)
-!         L=Index(L)
+                IF(I.ne.0) THEN
+                    CALL GTID(NBASISMAX,I,I)
+                ENDIF
+                IF(J.ne.0) THEN
+                    CALL GTID(NBASISMAX,J,J)
+                ENDIF
+                IF(K.ne.0) THEN
+                    CALL GTID(NBASISMAX,K,K)
+                ENDIF
+                IF(L.ne.0) THEN
+                    CALL GTID(NBASISMAX,L,L)
+                ENDIF
+             ENDIF
+!             I=Index(I)
+!             J=Index(J)
+!             K=Index(K)
+!             L=Index(L)
 C.. Each orbital in the file corresponds to alpha and beta spinorbitalsa
-         IF(I.EQ.0) THEN
+             IF(I.EQ.0) THEN
 C.. Core energy
-            ECORE=Z
-         ELSEIF(J.EQ.0) THEN
+                ECORE=Z
+             ELSEIF(J.EQ.0) THEN
 !C.. HF Eigenvalues
-!            ARR(I*2-1,2)=Z
-!            ARR(I*2,2)=Z
-!            ARR(BRR(I*2-1),1)=Z
-!            ARR(BRR(I*2),1)=Z
-!            LWRITE=.TRUE.
-         ELSEIF(K.EQ.0) THEN
+!                ARR(I*2-1,2)=Z
+!                ARR(I*2,2)=Z
+!                ARR(BRR(I*2-1),1)=Z
+!                ARR(BRR(I*2),1)=Z
+!                LWRITE=.TRUE.
+             ELSEIF(K.EQ.0) THEN
 C.. 1-e integrals
-            IF(TSTARSTORE) THEN
+                IF(TSTARSTORE) THEN
 ! If TSTARSTORE, the one-el integrals are stored in symmetry classes, as spatial orbitals
-                TMATSYM(TMatInd(2*J,2*I))=Z
-            ELSE
+                    TMATSYM(TMatInd(2*J,2*I))=Z
+                ELSE
 C.. These are stored as spinorbitals (with elements between different spins being 0
-                DO ISPN=1,ISPINS
-                   TMAT2D(ISPINS*I-ISPN+1,ISPINS*J-ISPN+1)=Z
-                   TMAT2D(ISPINS*J-ISPN+1,ISPINS*I-ISPN+1)=Z
-                enddo
-            ENDIF
-         ELSE
+                    DO ISPN=1,ISPINS
+                       TMAT2D(ISPINS*I-ISPN+1,ISPINS*J-ISPN+1)=Z
+                       TMAT2D(ISPINS*J-ISPN+1,ISPINS*I-ISPN+1)=Z
+                    enddo
+                ENDIF
+             ELSE
 C.. 2-e integrals
 C.. UMAT is stored as just spatial orbitals (not spinorbitals)
 C..  we're reading in (IJ|KL), but we store <..|..> which is <IK|JL>
 C.. AJWT removed the restriction to TSTARSTORE
-            IF(TUMAT2D) THEN
-                IF(I.eq.J.and.I.eq.K.and.I.eq.L) THEN
-                    !<ii|ii>
-                    UMAT2D(I,I)=Z
-                ELSEIF((I.eq.J.and.K.eq.L)) THEN
-                    !<ij|ij> - coulomb - 1st arg > 2nd arg
-                    X=MAX(I,K)
-                    Y=MIN(I,K)
-                    UMAT2D(Y,X)=Z
-                ELSEIF(I.eq.L.and.J.eq.K) THEN
-                    !<ij|ji> - exchange - 1st arg < 2nd arg
-                    X=MIN(I,J)
-                    Y=MAX(I,J)
-                    UMAT2D(Y,X)=Z
-                ELSEIF(I.eq.K.and.J.eq.L) THEN
-                    !<ii|jj> - equivalent exchange for real orbs
-                    X=MIN(I,J)
-                    Y=MAX(I,J)
-                    UMAT2D(Y,X)=Z
-                ELSEIF(tRIIntegrals) THEN
-                    CALL Stop_All("ReadFCIINTS","we should not be "     &
-     /                    //"reading in generic 2e integrals from "     &
-     &                    //"the FCIDUMP file with ri.")
-                ELSEIF(tCacheFCIDUMPInts) THEN
+                IF(TUMAT2D) THEN
+                    IF(I.eq.J.and.I.eq.K.and.I.eq.L) THEN
+                        !<ii|ii>
+                        UMAT2D(I,I)=Z
+                    ELSEIF((I.eq.J.and.K.eq.L)) THEN
+                        !<ij|ij> - coulomb - 1st arg > 2nd arg
+                        X=MAX(I,K)
+                        Y=MIN(I,K)
+                        UMAT2D(Y,X)=Z
+                    ELSEIF(I.eq.L.and.J.eq.K) THEN
+                        !<ij|ji> - exchange - 1st arg < 2nd arg
+                        X=MIN(I,J)
+                        Y=MAX(I,J)
+                        UMAT2D(Y,X)=Z
+                    ELSEIF(I.eq.K.and.J.eq.L) THEN
+                        !<ii|jj> - equivalent exchange for real orbs
+                        X=MIN(I,J)
+                        Y=MAX(I,J)
+                        UMAT2D(Y,X)=Z
+                    ELSEIF(tRIIntegrals) THEN
+                        CALL Stop_All("ReadFCIINTS","we should not be " &
+     &                        //"reading in generic 2e integrals from " &
+     &                        //"the FCIDUMP file with ri.")
+                    ELSEIF(tCacheFCIDUMPInts) THEN
 !Read in the FCIDUMP integrals to a cache.
-                    IF(tReadFreezeInts) THEN
+                        IF(tReadFreezeInts) THEN
 !Here, we only want to cache the <ij|kj> integrals, since they are the only integrals which are needed for the freezing process.
-                        CALL Stop_All("READFCIINTS","Freezing is not "  &
+                          CALL Stop_All("READFCIINTS","Freezing is not "&
      &                 //"yet compatible with caching the FCIDUMP file")
-                    ELSE
-                        CALL CacheFCIDUMP(I,K,J,L,Z,CacheInd,ZeroedInt, &
+                        ELSE
+                         CALL CacheFCIDUMP(I,K,J,L,Z,CacheInd,ZeroedInt,&
      &                          NonZeroInt)
 
-                    ENDIF
-                ELSE
+                        ENDIF
+                    ELSE
 !Read in all integrals as normal.
-                    UMAT(UMatInd(I,K,J,L,0,0))=Z
-                ENDIF
-            ELSEIF(TSTARSTORE.and.(.not.TUMAT2D)) THEN
-                STOP 'Need UMAT2D with TSTARSTORE'
-            ELSEIF(tCacheFCIDUMPInts.or.tRIIntegrals) THEN
-                CALL Stop_All("ReadFCIInts","TUMAT2D should be set...")
-            ELSE
-                IF(tUMatEps) THEN
+                        UMAT(UMatInd(I,K,J,L,0,0))=Z
+                    ENDIF
+                ELSEIF(TSTARSTORE.and.(.not.TUMAT2D)) THEN
+                    STOP 'Need UMAT2D with TSTARSTORE'
+                ELSEIF(tCacheFCIDUMPInts.or.tRIIntegrals) THEN
+                    CALL Stop_All("ReadFCIInts","TUMAT2D should be set")
+                ELSE
+                    IF(tUMatEps) THEN
 !We have an epsilon cutoff for the size of the two-electron integrals - UMatEps
-                    IF(abs(Z).lt.UMatEps) THEN
-                        UMAT(UMatInd(I,K,J,L,0,0))=0.D0
-                        ZeroedInt=ZeroedInt+1
+                        IF(abs(Z).lt.UMatEps) THEN
+                            UMAT(UMatInd(I,K,J,L,0,0))=0.D0
+                            ZeroedInt=ZeroedInt+1
+                        ELSE
+                            UMAT(UMatInd(I,K,J,L,0,0))=Z
+                            NonZeroInt=NonZeroInt+1
+                        ENDIF
                     ELSE
                         UMAT(UMatInd(I,K,J,L,0,0))=Z
-                        NonZeroInt=NonZeroInt+1
                     ENDIF
-                ELSE
-                    UMAT(UMatInd(I,K,J,L,0,0))=Z
                 ENDIF
-            ENDIF
+             ENDIF
+             IF(I.NE.0) GOTO 101
+199          CONTINUE
+             CLOSE(8)
          ENDIF
-         IF(I.NE.0) GOTO 101
-199      CONTINUE
+
+!Now broadcast the data read in
+         CALL MPIIBCast_Scal(ZeroedInt,0)
+         CALL MPIIBCast_Scal(NonZeroInt,0)
+         CALL MPIDBCast_Scal(ECore,0)
+!Need to find out size of TMAT before we can BCast
+         CALL CalcTMATSize(nBasis,TMATSize)
+         IF(tStarStore) THEN
+             CALL MPIHElemBCast(TMATSYM,TMATSize,0)
+         ELSE
+             CALL MPIHElemBCast(TMAT2D,TMATSize,0)
+         ENDIF
+         IF(TUMAT2D) THEN
+!Broadcast TUMAT2D...
+             CALL MPIHElemBCast(UMAT2D,nStates**2,0)
+         ENDIF
+         IF((.not.tRIIntegrals).and.(.not.tCacheFCIDUMPInts)) THEN
+             CALL GetUMATSize(nBasis,NEl,iSpins,UMatSize)
+             CALL MPIDBCast(UMAT,UMatSize,0)    !This is not an HElement, as it is actually passed in as a real*8, even though it is HElem in IntegralsData
+         ENDIF
+         IF(tCacheFCIDUMPInts) THEN
+!Need to broadcast the cache...
+             CALL MPIIBCast(UMATLABELS,nSlots*nPairs,0)
+             CALL MPIHElemBCast(UMatCacheData,nTypes*nSlots*nPairs,0)
+         ENDIF
+             
+
          IF(tUMatEps) THEN
 !Write out statistics from zeroed integrals.
              WRITE(6,"(A,G20.10,A)") "*** Zeroing all two-electron "    &
@@ -527,7 +615,6 @@ C.. AJWT removed the restriction to TSTARSTORE
              WRITE(6,*) REAL(100*ZeroedInt)/REAL(NonZeroInt+ZeroedInt), &
      %          " percent of 2E integrals zeroed."
          ENDIF
-         CLOSE(8)
          IF(tCacheFCIDUMPInts) THEN
              WRITE(6,*) "Ordering cache..."
              CALL FillUpCache()

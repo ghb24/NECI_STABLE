@@ -292,7 +292,25 @@ contains
         CALL FLUSH(12)
       END SUBROUTINE WriteTMat
         
+!Routine to calculate number of elements allocated for TMAT matrix
+      SUBROUTINE CalcTMATSize(nBasis,iSize)
+      use SymData, only: SymLabelCounts,nSymLabels
+      INTEGER :: iSize,nBasis,basirrep,i,Nirrep
 
+          IF(TSTARSTORE.or.tCPMDSymTMat) THEN 
+              iSize=0
+              Nirrep=NSYMLABELS
+              do i=1,Nirrep
+                  basirrep=SYMLABELCOUNTS(2,i)
+                  ! Block diagonal.
+                  iSize=iSize+(basirrep*(basirrep+1))/2
+              enddo
+              iSize=iSize+2     !lower index is -1
+          ELSE
+              iSize=nBasis*nBasis
+          ENDIF
+
+      END SUBROUTINE CalcTMATSize
 
       SUBROUTINE SetupTMAT(nBASIS,iSS,iSize)   
         ! In:
