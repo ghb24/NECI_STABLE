@@ -5937,12 +5937,13 @@ MODULE FciMCParMod
 
 !This initialises the calculation, by allocating memory, setting up the initial walkers, and reading from a file if needed
     SUBROUTINE InitFCIMCCalcPar()
-        use SystemData, only : tUseBrillouin,iRanLuxLev,tSpn,tHPHFInts
+        use SystemData, only : tUseBrillouin,iRanLuxLev,tSpn,tHPHFInts,tRotateOrbs
         USE mt95 , only : genrand_init
         use CalcData, only : EXCITFUNCS
         use Calc, only : VirtCASorbs,OccCASorbs,FixShift,G_VMC_Seed
         use Determinants , only : GetH0Element3
         use SymData , only : nSymLabels,SymLabelList,SymLabelCounts
+        use Logging , only : tTruncRODump
         use GenRandSymExcitNUMod , only : SpinOrbSymSetup,tNoSingsPossible
         use FciMCLoggingMOD , only : InitTriHElStats
         INTEGER :: ierr,i,j,k,l,DetCurr(NEl),ReadWalkers,TotWalkersDet,HFDetTest(NEl),Seed,alpha,beta,symalpha,symbeta,endsymstate,Proc
@@ -6914,6 +6915,9 @@ MODULE FciMCParMod
         ENDIF
 
         IF(tPrintTriConnections.or.tHistTriConHEls.or.tPrintHElAccept) CALL InitTriHElStats()
+
+        IF((NMCyc.ne.0).and.(tRotateOrbs.and.tTruncRODump)) CALL Stop_All(this_routine,"Cannot rotate and then truncate the orbitals and go straight into a spawning &
+                                                                                       & calculation.  Ordering of orbitals in incorrect.")
 
         CullInfo(1:10,1:3)=0
         NoCulls=0
