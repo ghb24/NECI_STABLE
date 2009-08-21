@@ -139,6 +139,13 @@ MODULE RotateOrbsMod
 
 
     SUBROUTINE UseMP2VarDenMat()
+! This routine simply takes a transformation matrix and rotates the integrals to produce a new FCIDUMP file.
+! In one case the transformation matrix is read in from a file TRANSFORMMAT.
+! In the other, the transformation matrix is calculated from the MP2 variational density matrix.
+
+! MP2VDM = D2_ab = sum_ijc [ t_ij^ac ( 2 t_ij^bc - t_ji^bc ) ]
+! Where :  t_ij^ac = - < ab | ij > / ( E_a - E_i + E_b - Ej )
+! Ref : J. Chem. Phys. 131, 034113 (2009) - note: in Eqn 1, the cb indices are the wrong way round (should be bc).
         INTEGER :: i,a,ierr,MinReadIn,MaxReadIn
         CHARACTER(len=*) , PARAMETER :: this_routine='UseMP1VarDenMat'
 
@@ -295,13 +302,13 @@ MODULE RotateOrbsMod
         CALL CalcFOCKMatrix()
 
         WRITE(6,*) 'Refilling the UMAT and TMAT2D'
+! The ROFCIDUMP is also printed out in here.        
         CALL RefillUMATandTMAT2D()        
  
-        WRITE(6,*) 'Printing the new FCIDUMP file'
-        CALL PrintROFCIDUMP()
-
         CALL FLUSH(6)
  
+! If a truncation is being made, the new basis will not be in the correct energetic ordering - this does not matter, as we
+! never go straight into a spawning and they will be reordered when the ROFCIDUMP file is read in again. 
         IF(iProcIndex.eq.Root) CALL WRITEBASIS(6,G1,nBasis,ARR,BRR)
 
         DEALLOCATE(CoeffT1)
@@ -339,6 +346,9 @@ MODULE RotateOrbsMod
 
         Evalues(:)=0.D0
 
+! Calculating the MP2VDM (D2_ab) matrix whose eigenvectors become the transformation matrix.        
+! The eigenvalues are the occupation numbers of the new orbitals.  These should decrease exponentially so that when we remove the 
+! orbitals with small occupation numbers we should have little affect on the energy.
         do a2=NoOcc+1,NoOrbs
             a=SymLabelList2(a2)
             do b2=NoOcc+1,NoOrbs
@@ -379,15 +389,13 @@ MODULE RotateOrbsMod
         CALL FLUSH(6)
 
         
-        OPEN(83,file='D2MATRIX-sym',status='unknown')
-        do a=1,NoOrbs
-            do b=1,NoOrbs
-                WRITE(83,'(4I3,F20.10)') a,INT(G1(SymLabelList2(a)*2)%sym%S,4),b,INT(G1(SymLabelList2(b)*2)%sym%S,4),MP2VDM(a,b)
-            enddo
-        enddo
-        CLOSE(83)
-!        CALL FLUSH(6)
-!        stop
+!        OPEN(83,file='D2MATRIX-sym',status='unknown')
+!        do a=1,NoOrbs
+!            do b=1,NoOrbs
+!                WRITE(83,'(4I3,F20.10)') a,INT(G1(SymLabelList2(a)*2)%sym%S,4),b,INT(G1(SymLabelList2(b)*2)%sym%S,4),MP2VDM(a,b)
+!            enddo
+!        enddo
+!        CLOSE(83)
 
         WRITE(6,*) 'Calculating eigenvectors and eigenvalues of MP2VDM'
         CALL FLUSH(6)
@@ -400,6 +408,9 @@ MODULE RotateOrbsMod
             CALL DSYEV( 'V', 'L', (NoOrbs-NoOcc), MP2VDM((NoOcc+1):NoOrbs,(NoOcc+1):NoOrbs), (NoOrbs-NoOcc), Evalues((NoOcc+1):NoOrbs), WORK2, LWORK2, INFO )
             ! MP2VDM goes in as the D2 matrix, comes out as the eigenvectors.
             ! Evalues come out in ascending order.
+            ! The transformed orbitals are now all jumbled up as the eigenvectors are ordered according to the eigenvalues.  When symmetry is turned off, this
+            ! doesn't matter.  However we like to see the eigenvalues from largest to smallest so that we can see the occupation numbers decrease, so they are 
+            ! reordered to be in descending order below.
 
             DEALLOCATE(WORK2)
             CALL LogMemDealloc(this_routine,WORK2Tag)
@@ -407,12 +418,13 @@ MODULE RotateOrbsMod
             WRITE(6,*) 'Matrix diagonalised'
             CALL FLUSH(6)
 
+            ! Eigenvalues come out in descending order, with the corresponding eigenvectors.
             CALL SortEvecbyEval((NoOrbs-NoOcc),Evalues((NoOcc+1):NoOrbs),(NoOrbs-NoOcc),MP2VDM((NoOcc+1):NoOrbs,(NoOcc+1):NoOrbs))
 
         ELSE
 ! If we want to maintain the symmetry, we cannot have all the orbitals jumbled up when the diagonaliser reorders the eigenvectors.
 ! Must instead feed each symmetry block in separately.
-!            CALL Stop_All(this_routine,"Have not finished the routine for keeping symmetry.") 
+! This means that although the transformed orbitals are jumbled within the symmetry blocks, the symmetry labels are all that are relevant and this is unaffected.
       
             ALLOCATE(MP2VDMTemp(NoOrbs,NoOrbs),stat=ierr)
             CALL LogMemAlloc('MP2VDMTemp',NoOrbs**2,8,this_routine,MP2VDMTempTag,ierr)
@@ -498,9 +510,10 @@ MODULE RotateOrbsMod
                     CALL LogMemDealloc(this_routine,EvaluesSymTag)
 
                 ELSEIF(NoSymBlock.eq.1) THEN
+                    ! The eigenvalue is the lone value, while the eigenvector is 1.
 
                     Evalues(SymStartInd+1)=MP2VDM(SymStartInd+1,SymStartInd+1)
-                    MP2VDMTemp(SymStartInd+1,SymStartInd+1)=MP2VDM(SymStartInd+1,SymStartInd+1)
+                    MP2VDMTemp(SymStartInd+1,SymStartInd+1)=1.D0
                     WRITE(6,*) '*****'
                     WRITE(6,*) 'Symmetry ',Sym,' has only one orbital.'
                     WRITE(6,*) 'Copying diagonal element ,',SymStartInd+1,'to MP2VDM'
@@ -5093,6 +5106,7 @@ MODULE RotateOrbsMod
 
         IF(tROHistSingExc) CALL WriteSingHisttofile()
 
+        WRITE(6,*) 'Printing the new ROFCIDUMP file.'
         IF(tROFciDump) CALL PrintROFCIDUMP()
 
 
