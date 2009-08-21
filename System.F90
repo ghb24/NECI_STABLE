@@ -596,8 +596,8 @@ MODULE System
             tSpinOrbs=.true.
 
         case("READINTRANSMAT")
-! This sets the rotation routine to read in a transformation matrix (coefft1) and use the transformation routine and print rofcidump routines
-! to transform the orbitals and print out a new dump file.
+! This sets the rotation routine to read in a transformation matrix (coefft1) given by the file TRANSFORMMAT, and use the transformation 
+! routine and print rofcidump routines to transform the orbitals and print out a new dump file.
             tReadInCoeff=.true.
 
         case("USEMP2VDM")

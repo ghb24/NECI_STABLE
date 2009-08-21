@@ -466,6 +466,24 @@ Type of rotation / localisation:
     HF LUMO.  
     Alpha is a real value specified in the input, with a default value of 1.0.
 
+**READINTRANSMAT**
+    With this option, a TRANSFORMMAT file must be provided which contains the transformation 
+    matrix to be used for the orbital rotation.  When this keyword is present, the coefficient 
+    matrix is simply read in from the file, and used to transform the relevant integrals and 
+    print a new ROFCIDUMP file.  
+    
+**USEMP2VDM**
+    With this option, the MP2 variational density matrix is calculated and then used to transform
+    the orbitals and produce a new ROFCIDUMP file.  The MP2VDM is given as follows:
+    MP2VDM = D2_ab = sum_ijc [ t_ij^ac ( 2 t_ij^bc - t_ji^bc ) ]
+    Where: t_ij^ac = - < a c | i j > / ( E_a - E_i + E_b - E_j )
+    Ref: J. Chem. Phys. 131, 034113 (2009) (note Eqn 1 is mis-printed, the cb indices should be bc).
+    Having calculated the MP2VDM matrix, this is diagonalised.  The eigenvectors correspond to the 
+    transformation matrix, which produce orbitals whose occupation numbers are given by the 
+    respective eigenvalues.  These eigenvalues ideally decay exponentially, so in principle we 
+    may remove some of the low occupancy virtual orbitals without loosing much accuracy in the
+    energy calculation.  This truncation of the virtuals is done using the Logging option 
+    **TRUNCROFCIDUMP** [NoFrozenVirt].
 
 Each of these methods may be applied for both the cases where symmetry as kept and broken.
 This is controlled by the absence or presence of the NOSYMMETRY keyword respectively.

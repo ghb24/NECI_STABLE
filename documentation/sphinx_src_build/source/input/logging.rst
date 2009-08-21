@@ -328,3 +328,11 @@ Rotate Orbs Options
     Histograms the one particle orbital energies, epsilon_i = <i|h|i> + sum_j [<ij||ij>],
     where j is over the occupied orbitals only.
     
+**TRUNCROFCIDUMP** [NoFrozenOrbs]    
+    This option goes along with the **USEMP2VDM** rotation option.  Having diagonalised the MP2VDM
+    matrix to get the transformation matrix.  This option truncates the virtual orbital space by removing
+    the NoFrozenOrbs SPIN orbitals with the lowest occupation numbers (MP2VDM eigenvalues).  Only the 
+    remaining orbitals are transformed and included in the ROFCIDUMP that is printed.
+    This kind of transformation requires different ordering of the orbitals to that which is standard for 
+    spawning calculation, so it is not possible to go straight from this rotation into a spawning calc.
+    The ROFCIDUMP must be printed out then read back in.
