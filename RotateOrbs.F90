@@ -5112,7 +5112,7 @@ MODULE RotateOrbsMod
         WRITE(48,'(A9)',advance='no') 'ORBSYM='
         do i=1,(SpatOrbs-(NoFrozenVirt/2))
             IF(tUseMP2VarDenMat.and.(.not.lNoSymmetry).and.tTruncRODump) THEN
-                WRITE(48,'(I1,A1)',advance='no') (SymOrbs(SymLabelList3(i))+1),','
+                WRITE(48,'(I1,A1)',advance='no') (SymOrbs(i)+1),','
             ELSE
                 WRITE(48,'(I1,A1)',advance='no') (INT(G1(i*2)%sym%S,4)+1),','
             ENDIF
@@ -5124,12 +5124,13 @@ MODULE RotateOrbsMod
         do i=1,(SpatOrbs-(NoFrozenVirt/2))
             do k=1,i
                 do j=1,(SpatOrbs-(NoFrozenVirt/2))
-                    Sym=IEOR(INT(G1(j*2)%sym%S,4),IEOR(INT(G1(k*2)%sym%S,4),INT(G1(i*2)%sym%S,4)))
-!                    do l=SymLabelCounts2(1,Sym+SymMin),(SymLabelCounts2(1,Sym+SymMin)+SymLabelCounts2(2,Sym+SymMin)-1)
-                    ! Potential to put symmetry in here.
+!                    Sym=IEOR(INT(G1(j*2)%sym%S,4),IEOR(INT(G1(k*2)%sym%S,4),INT(G1(i*2)%sym%S,4)))
+                    ! Potential to put symmetry in here, have currently taken it out, because when we're only printing non-zero values,
+                    ! it is kind of unnecessary - although it may be used to speed things up.
                     do l=1,j
-                        Syml=INT(G1(l*2)%sym%S,4)
-                        IF((Syml.eq.Sym).and.((REAL(UMat(UMatInd(i,j,k,l,0,0))%v,8)).ne.0.D0)) &
+!                        Syml=INT(G1(l*2)%sym%S,4)
+!                        IF((Syml.eq.Sym).and.((REAL(UMat(UMatInd(i,j,k,l,0,0))%v,8)).ne.0.D0)) &
+                        IF(((REAL(UMat(UMatInd(i,j,k,l,0,0))%v,8)).ne.0.D0)) &
                                         &WRITE(48,'(F21.12,4I3)') REAL(UMat(UMatInd(i,j,k,l,0,0))%v,8),i,k,j,l 
                     enddo
                 enddo
