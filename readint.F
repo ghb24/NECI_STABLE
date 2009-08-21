@@ -50,6 +50,11 @@
          CALL MPIIBCast_Scal(ISYM,0)
          CALL MPILBCast_Scal(UHF,0)
 
+         IF(tROHF.and.(.not.UHF)) THEN
+             CALL Stop_All("INITFROMFCID","ROHF specified, but FCIDUMP "&
+     &         //"is not in a high-spin format.")
+         ENDIF
+
 
          DO i=1,NORB
              IF(ORBSYM(i).eq.0) THEN
