@@ -1179,7 +1179,7 @@ MODULE FciMCParMod
         TotWalkersNew=VecSlot-1
 
 !Output if there has been a particle bloom this iteration. A negative number indicates that particles were created from a single excitation.
-        IF(iPartBloom.ne.0) THEN
+        IF((iPartBloom.ne.0).and.(iProcIndex.eq.0)) THEN
             WRITE(6,"(A,I10,A)") "LARGE PARTICLE BLOOMS in iteration ",Iter
             IF(iPartBloom.gt.0) THEN
                 WRITE(6,"(A,I10,A)") "A max of ",abs(iPartBloom)," particles created in one attempt from double excit."
