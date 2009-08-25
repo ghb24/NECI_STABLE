@@ -251,7 +251,7 @@ CONTAINS
       use SystemData, only : Alat, arr, brr, boa, box, coa, ecore, g1,Beta
       use SystemData, only : nBasis, nBasisMax,nEl,nMsh
       use IntegralsData, only: FCK,NMAX, UMat
-      Use Logging, only: iLogging,tHistSpawn
+      Use Logging, only: iLogging,tHistSpawn,tCalcFCIMCPsi
       use SystemData, only  : tCSF
       use Parallel, only : iProcIndex
       use CalcData, only : tFindDets
@@ -275,7 +275,7 @@ CONTAINS
         INTEGER nKry1,ilut(0:nBasis/32),nK(NEl)!,iLutSym(0:nBasis/32),nJ(NEl)
         
         INTEGER J,JR,iGetExcitLevel_2,ExcitLevel
-        INTEGER LSCR,LISCR
+        INTEGER LSCR,LISCR,MaxIndex
         LOGICAL tMC!,DetBitEQ,TestClosedShellDet,Found,tSign
         real*8 GetHElement, calct, calcmcen, calcdlwdb,norm
 ! Doesn't seem to have been inited
@@ -492,7 +492,7 @@ CONTAINS
 !C.. IF ENERGY CALC
       IF (TENERGY) THEN
          
-         IF(tHistSpawn) THEN
+         IF(tHistSpawn.or.tCalcFCIMCPsi) THEN
 
             IF(.not.associated(NMRKS)) THEN
                 WRITE(6,*) "NMRKS not allocated"
@@ -543,7 +543,12 @@ CONTAINS
                     ENDIF
                 ENDIF
             enddo
-            do i=1,NEl
+            IF(ICILevel.le.0) THEN
+                MaxIndex=NEl
+            ELSE
+                MaxIndex=MIN(ICILevel,NEl)
+            ENDIF
+            do i=1,MaxIndex
                 WRITE(6,*) "Number at excitation level: ",i," is: ",FCIDetIndex(i)
             enddo
 
@@ -575,8 +580,10 @@ CONTAINS
             ENDIF
 
 !We now need to sort within the excitation level by the "number" of the determinant
-            do i=1,NEl-1
+            do i=1,MaxIndex-1
                 IF(tFindDets) THEN
+!                    WRITE(6,*) i,FCIDetIndex(i),FCIDetIndex(i+1)-1
+!                    CALL FLUSH(6)
                     CALL SortBitDets(FCIDetIndex(i+1)-FCIDetIndex(i),FCIDets(0:nBasis/32,FCIDetIndex(i):(FCIDetIndex(i+1)-1)),nBasis/32,temp(FCIDetIndex(i):(FCIDetIndex(i+1)-1)))
                 ELSE
                     CALL SortBitDetswH(FCIDetIndex(i+1)-FCIDetIndex(i),FCIDets(0:nBasis/32,FCIDetIndex(i):(FCIDetIndex(i+1)-1)),nBasis/32,temp(FCIDetIndex(i):(FCIDetIndex(i+1)-1)),FCIGS(FCIDetIndex(i):(FCIDetIndex(i+1)-1)))
@@ -584,9 +591,9 @@ CONTAINS
             enddo
 !Now sort highest excitation level
             IF(tFindDets) THEN
-                CALL SortBitDets((Det+1)-FCIDetIndex(NEl),FCIDets(0:nBasis/32,FCIDetIndex(NEl):Det),nBasis/32,temp(FCIDetIndex(NEl):Det))
+                CALL SortBitDets((Det+1)-FCIDetIndex(MaxIndex),FCIDets(0:nBasis/32,FCIDetIndex(MaxIndex):Det),nBasis/32,temp(FCIDetIndex(MaxIndex):Det))
             ELSE
-                CALL SortBitDetswH((Det+1)-FCIDetIndex(NEl),FCIDets(0:nBasis/32,FCIDetIndex(NEl):Det),nBasis/32,temp(FCIDetIndex(NEl):Det),FCIGS(FCIDetIndex(NEl):Det))
+                CALL SortBitDetswH((Det+1)-FCIDetIndex(MaxIndex),FCIDets(0:nBasis/32,FCIDetIndex(MaxIndex):Det),nBasis/32,temp(FCIDetIndex(MaxIndex):Det),FCIGS(FCIDetIndex(MaxIndex):Det))
             ENDIF
 
 
@@ -657,6 +664,16 @@ CONTAINS
                     CLOSE(17)
                 ENDIF
                 DEALLOCATE(FCIGS)
+            ELSE
+                IF(iProcIndex.eq.0) THEN
+                    OPEN(17,FILE='SymDETS',STATUS='UNKNOWN')
+                    WRITE(17,*) "FCIDETIndex: ",FCIDetIndex(:)
+                    WRITE(17,*) "***"
+                    do i=1,Det
+                        WRITE(17,*) i, temp(i),FCIDets(0:nBasis/32,i)
+                    enddo
+                    CLOSE(17)
+                ENDIF
             ENDIF
             DEALLOCATE(Temp)
 !            do i=1,Det
@@ -817,13 +834,14 @@ CONTAINS
 END MODULE DetCalc
 
 ! If we have a list of determinants NMRKS calculate 'PATHS' for NPATHS of them.
-      SUBROUTINE CALCRHOPII2(NMRKS,BETA,I_P,I_HMAX,I_VMAX,NEL,NDET, &
+      SUBROUTINE CALCRHOPII2(BETA,I_P,I_HMAX,I_VMAX,NEL,NDET,       &
      &            NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,  &
      &   NTAY,RHOEPS,NWHTAY,NPATHS,ILOGGING,ECORE,TNPDERIV,DBETA,   &
      &   DETINV,TSPECDET,SPECDET)
          use HElem
          use SystemData, only: BasisFN
          use global_utilities
+         use DetCalc, only: NMRKS
          implicit none
          include 'irat.inc'
          character(25), parameter :: this_routine = 'CalcRhoPII2'
@@ -840,7 +858,7 @@ END MODULE DetCalc
          INTEGER, ALLOCATABLE :: LSTE(:),ICE(:)
          REAL*8 , ALLOCATABLE :: RIJLIST(:,:)
          INTEGER,SAVE :: RIJLISTTag=0,LSTEtag=0,ICEtag=0
-         INTEGER NMRKS(NEL,NDET),NPATHS,ierr
+         INTEGER NPATHS,ierr
          INTEGER III,NWHTAY,I,IMAX,ILMAX
          REAL*8 WLRI,WLSI,ECORE,DBETA,WLRI1,WLRI2,WLSI1,WLSI2,WI
          REAL*8 TOT, NORM,WLRI0,WLSI0,WINORM

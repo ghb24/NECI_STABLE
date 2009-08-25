@@ -10,6 +10,7 @@ MODULE Logging
     LOGICAL TDistrib,TPopsFile,TCalcWavevector,TDetPops,tROFciDump,tROHistOffDiag,tROHistDoubExc,tROHistOnePartOrbEn
     LOGICAL TZeroProjE,TWriteDetE,TAutoCorr,tBinPops,tROHistogramAll,tROHistER,tHistSpawn,tROHistSingExc,tRoHistOneElInts
     LOGICAL tROHistVirtCoulomb,tPrintInts,tHistEnergies,tPrintTriConnections,tHistTriConHEls,tPrintHElAccept,tTruncRODump
+    LOGICAL tPrintFCIMCPsi,tCalcFCIMCPsi
     INTEGER NoACDets(2:4),iPopsPartEvery,iWriteHistEvery,iNoBins,NoTriConBins,NoTriConHElBins,NoFrozenVirt
 
     contains
@@ -65,6 +66,8 @@ MODULE Logging
       TriConHElSingMax=1.D0
       TriConHElDoubMax=0.50
       tPrintHElAccept=.false.
+      tPrintFCIMCPsi=.false.
+      tCalcFCIMCPsi=.false.
 
 ! Feb08 defaults
       IF(Feb08) THEN
@@ -266,6 +269,9 @@ MODULE Logging
 !which can be diagonalized. It requires a diagonalization initially to work. It can write out the average wavevector every iWriteHistEvery.
             tHistSpawn=.true.
             IF(item.lt.nitems) call readi(iWriteHistEvery)
+        case("PRINTFCIMCPSI")
+            tPrintFCIMCPsi=.true.
+            tCalcFCIMCPsi=.true.
         case("POPSFILE")
 ! This is so that the determinants at the end of the MC run are written
 ! out, to enable them to be read back in using READPOPS in the Calc section,

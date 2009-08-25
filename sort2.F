@@ -291,6 +291,105 @@ C.. This version has ARR as an int and BRR as an array of length BD of reals
       GOTO 10
       RETURN
       END 
+C.. This would seem to sort both ARR and BRR into ascending ARR order [AJWT20031001]
+C.. Further investigation shows it is the quicksort from Numerical Recipes, taking two arrays to be sorted, ARR, BRR according to the order of ARR [AJWT20040407]
+C.. This version has ARR as a real and BRR as an array of length BD of integers
+      SUBROUTINE SORTRNI(N,ARR,BRR,BD)
+      IMPLICIT NONE
+      INTEGER, PARAMETER :: M=7,NSTACK=50
+      INTEGER L,IR,N,JSTACK,ISTACK(NSTACK),I,J,K
+      INTEGER BD
+      INTEGER BRR(BD,N),B(BD),TEMP(BD)
+      REAL*8 ARR(N),A,ITEMP
+      JSTACK=0
+      L=1
+      IR=N
+10    IF(IR-L.LT.M) THEN
+        DO J=L+1,IR
+          A=ARR(J)
+          B=BRR(:,J)
+          DO I=J-1,1,-1
+            IF(ARR(I).LE.A) GOTO 20
+            ARR(I+1)=ARR(I)
+            BRR(:,I+1)=BRR(:,I)
+          ENDDO
+          I=0
+20        ARR(I+1)=A
+          BRR(:,I+1)=B
+        ENDDO
+        IF(JSTACK.EQ.0) RETURN
+        IR=ISTACK(JSTACK)
+        L=ISTACK(JSTACK-1)
+        JSTACK=JSTACK-2
+      ELSE
+        K=(L+IR)/2
+        ITEMP=ARR(K)
+        ARR(K)=ARR(L+1)
+        ARR(L+1)=ITEMP	
+        TEMP(:)=BRR(:,K)
+        BRR(:,K)=BRR(:,L+1)
+        BRR(:,L+1)=TEMP
+        IF(ARR(L+1).GT.ARR(IR)) THEN
+          ITEMP=ARR(L+1)
+          ARR(L+1)=ARR(IR)
+          ARR(IR)=ITEMP
+          TEMP=BRR(:,L+1)
+          BRR(:,L+1)=BRR(:,IR)
+          BRR(:,IR)=TEMP(:)
+        ENDIF
+        IF(ARR(L).GT.ARR(IR)) THEN
+          ITEMP=ARR(L)
+          ARR(L)=ARR(IR)
+          ARR(IR)=ITEMP
+          TEMP=BRR(:,L)
+          BRR(:,L)=BRR(:,IR)
+          BRR(:,IR)=TEMP
+        ENDIF 
+        IF(ARR(L+1).GT.ARR(L)) THEN
+          ITEMP=ARR(L+1)
+          ARR(L+1)=ARR(L)
+          ARR(L)=ITEMP
+          TEMP(:)=BRR(:,L+1)
+          BRR(:,L+1)=BRR(:,L)
+          BRR(:,L)=TEMP(:)
+        ENDIF
+        I=L+1
+        J=IR
+        A=ARR(L)
+        B=BRR(:,L)
+30      CONTINUE
+        I=I+1
+        IF(ARR(I).LT.A) GOTO 30
+40      CONTINUE
+        J=J-1
+        IF(ARR(J).GT.A) GOTO 40
+        IF(J.LT.I) GOTO 50
+        ITEMP=ARR(I)
+        ARR(I)=ARR(J)
+        ARR(J)=ITEMP
+        TEMP(:)=BRR(:,I)
+        BRR(:,I)=BRR(:,J)
+        BRR(:,J)=TEMP(:)
+        GOTO 30
+50      ARR(L)=ARR(J)
+        ARR(J)=A
+        BRR(:,L)=BRR(:,J)
+        BRR(:,J)=B
+        JSTACK=JSTACK+2
+        IF(JSTACK.GT.NSTACK) STOP ' NSTACK TOO SMALL INSORT2 '
+        IF(IR-I+1.GE.J-L) THEN
+          ISTACK(JSTACK)=IR
+          ISTACK(JSTACK-1)=I
+          IR=J-1
+        ELSE
+          ISTACK(JSTACK)=J-1
+          ISTACK(JSTACK-1)=L
+          L=I
+        ENDIF
+      ENDIF
+      GOTO 10
+      RETURN
+      END 
 
       SUBROUTINE SORT3R(N,ARR,BRR,CRR)
       IMPLICIT REAL*8 (A-H,O-Z)

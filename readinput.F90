@@ -160,17 +160,28 @@ MODULE ReadInput
       use CalcData , only : I_VMAX,NPATHS,                 &
      &  G_VMC_EXCITWEIGHT,G_VMC_EXCITWEIGHTS,EXCITFUNCS,TMCDIRECTSUM,   &
      & TDIAGNODES,TSTARSTARS,TBiasing,TMoveDets,TNoSameExcit,TInitStar,tMP2Standalone, &
-     & GrowMaxFactor,MemoryFacPart
+     & GrowMaxFactor,MemoryFacPart,tFindDets
       Use Determinants, only : SpecDet,tagSpecDet
       use IntegralsData , only : NFROZEN,TDISCONODES,TQuadValMax,TQuadVecMax,TCalcExcitStar,TJustQuads,TNoDoubs,TDiagStarStars,TExcitStarsRootChange,TRmRootExcitStarsRootChange,TLinRootChange
-      USE Logging , only : ILOGGING
+      USE Logging , only : ILOGGING,tCalcFCIMCPsi,tHistSpawn
       use SystemData, only : TNoRenormRandExcits
+      use DetCalc, only : tEnergy
       USE input
       use global_utilities
       IMPLICIT NONE
       INTEGER :: vv,kk,cc,ierr
       LOGICAL :: CHECK
       character(*), parameter :: t_r='checkinput'
+
+      IF(tCalcFCIMCPsi) THEN
+          tEnergy=.true.
+          IF((.not.tFindDets).and.tEnergy) THEN
+              tFindDets=.false.
+          ELSE
+              tFindDets=.true.
+          ENDIF
+      ENDIF
+
 
 !      IF(GrowMaxFactor.gt.MemoryFacPart) THEN
 !          CALL report("GrowMaxFactor is larger than MemoryFacPart - there will not be enough memory allocated if the walker number grows large. Think about increasing MemoryFacPart or reducing GrowMaxFactor.",.true.)

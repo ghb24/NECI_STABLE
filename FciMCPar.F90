@@ -16,13 +16,13 @@ MODULE FciMCParMod
     use CalcData , only : tCCMC
     use HPHFRandExcitMod , only : FindExcitBitDetSym,GenRandHPHFExcit,GenRandHPHFExcit2Scratch 
     USE Determinants , only : FDet,GetHElement2,GetHElement4
-    USE DetCalc , only : NMRKS,ICILevel,nDet,Det,FCIDetIndex
+    USE DetCalc , only : ICILevel,nDet,Det,FCIDetIndex
     use GenRandSymExcitNUMod , only : GenRandSymExcitScratchNU,GenRandSymExcitNU
     use IntegralsData , only : fck,NMax,UMat
     USE UMatCache , only : GTID
     USE Logging , only : iWritePopsEvery,TPopsFile,TZeroProjE,iPopsPartEvery,tBinPops,tHistSpawn,iWriteHistEvery,tHistEnergies
     USE Logging , only : NoACDets,BinRange,iNoBins,OffDiagBinRange,OffDiagMax!,iLagMin,iLagMax,iLagStep,tAutoCorr
-    USE Logging , only : tPrintTriConnections,tHistTriConHels,tPrintHElAccept
+    USE Logging , only : tPrintTriConnections,tHistTriConHels,tPrintHElAccept,tPrintFCIMCPsi,tCalcFCIMCPsi
     USE SymData , only : nSymLabels
     USE mt95 , only : genrand_real2
     USE global_utilities
@@ -283,10 +283,14 @@ MODULE FciMCParMod
 
                 IF(tTruncSpace.and.(Iter.gt.iFullSpaceIter).and.(iFullSpaceIter.ne.0)) THEN
 !Test if we want to expand to the full space if an EXPANDSPACE variable has been set
-                    ICILevel=0
-                    tTruncSpace=.false.
-                    IF(iProcIndex.eq.0) THEN
-                        WRITE(6,*) "Expanding to the full space on iteration ",Iter
+                    IF(tHistSpawn.or.tCalcFCIMCPsi) THEN
+                        IF(iProcIndex.eq.0) WRITE(6,*) "Unable to expand space since histgramming the wavefunction..."
+                    ELSE
+                        ICILevel=0
+                        tTruncSpace=.false.
+                        IF(iProcIndex.eq.0) THEN
+                            WRITE(6,*) "Expanding to the full space on iteration ",Iter
+                        ENDIF
                     ENDIF
                 ENDIF
 
@@ -337,6 +341,10 @@ MODULE FciMCParMod
                 CALL WriteToPopsFilePar()
             ENDIF
         ENDIF
+        IF(tCalcFCIMCPsi) THEN
+!This routine will actually only print the matrix if tPrintFCIMCPsi is on
+            CALL PrintFCIMCPsi()
+        ENDIF
 
 !        IF(tHistSpawn) CALL WriteHistogram()
 
@@ -356,11 +364,11 @@ MODULE FciMCParMod
 
         IF(tPrintTriConnections) CALL PrintTriConnHist
         IF(tHistTriConHEls) CALL PrintTriConnHElHist
+        
+!        IF(TAutoCorr) CALL CalcAutoCorr()
 
 !Deallocate memory
         CALL DeallocFCIMCMemPar()
-        
-!        IF(TAutoCorr) CALL CalcAutoCorr()
 
         IF(iProcIndex.eq.Root) THEN
             CLOSE(15)
@@ -633,7 +641,7 @@ MODULE FciMCParMod
         IF(.not.tStarOrbs) tStarDet=.false.
         ParticleWeight=1    !This will always be the same unless we are 'spawning as determinants'
 
-        IF(tHistSpawn) HistMinInd(1:NEl)=FCIDetIndex(1:NEl)    !This is for the binary search when histogramming
+        IF(tHistSpawn.or.tCalcFCIMCPsi) HistMinInd(1:NEl)=FCIDetIndex(1:NEl)    !This is for the binary search when histogramming
         
         do j=1,TotWalkers
 !j runs through all current walkers
@@ -665,7 +673,7 @@ MODULE FciMCParMod
 
 !Also, we want to find out the excitation level - we only need to find out if its connected or not (so excitation level of 3 or more is ignored.
 !This can be changed easily by increasing the final argument.
-            IF(tTruncSpace.or.tHighExcitsSing.or.tHistSpawn) THEN
+            IF(tTruncSpace.or.tHighExcitsSing.or.tHistSpawn.or.tCalcFCIMCPsi) THEN
 !We need to know the exact excitation level for truncated calculations.
                 CALL FindBitExcitLevel(iLutHF,CurrentDets(:,j),NIfD,WalkExcitLevel,NEl)
             ELSE
@@ -5298,7 +5306,7 @@ MODULE FciMCParMod
 
         
 !Histogramming diagnostic options...
-        IF(tHistSpawn) THEN
+        IF(tHistSpawn.or.tCalcFCIMCPsi) THEN
             IF(ExcitLevel.eq.NEl) THEN
                 CALL BinSearchParts2(iLutCurr,HistMinInd(ExcitLevel),Det,PartInd,tSuccess)
                 HistMinInd(ExcitLevel)=PartInd
@@ -5312,10 +5320,10 @@ MODULE FciMCParMod
             IF(tSuccess) THEN
                 IF(tFlippedSign) THEN
                     Histogram(PartInd)=Histogram(PartInd)-REAL(WSign,r2)
-                    InstHist(PartInd)=InstHist(PartInd)-REAL(WSign,r2)
+                    IF(tHistSpawn) InstHist(PartInd)=InstHist(PartInd)-REAL(WSign,r2)
                 ELSE
                     Histogram(PartInd)=Histogram(PartInd)+REAL(WSign,r2)
-                    InstHist(PartInd)=InstHist(PartInd)+REAL(WSign,r2)
+                    IF(tHistSpawn) InstHist(PartInd)=InstHist(PartInd)+REAL(WSign,r2)
                 ENDIF
             ELSE
                 WRITE(6,*) DetCurr(:)
@@ -5339,18 +5347,18 @@ MODULE FciMCParMod
                     IF(tFlippedSign) THEN
                         IF(mod(OpenOrbs,2).eq.1) THEN
                             Histogram(PartInd)=Histogram(PartInd)+REAL(WSign,r2)
-                            InstHist(PartInd)=InstHist(PartInd)+REAL(WSign,r2)
+                            IF(tHistSpawn) InstHist(PartInd)=InstHist(PartInd)+REAL(WSign,r2)
                         ELSE
                             Histogram(PartInd)=Histogram(PartInd)-REAL(WSign,r2)
-                            InstHist(PartInd)=InstHist(PartInd)-REAL(WSign,r2)
+                            IF(tHistSpawn) InstHist(PartInd)=InstHist(PartInd)-REAL(WSign,r2)
                         ENDIF
                     ELSE
                         IF(mod(OpenOrbs,2).eq.1) THEN
                             Histogram(PartInd)=Histogram(PartInd)-REAL(WSign,r2)
-                            InstHist(PartInd)=InstHist(PartInd)-REAL(WSign,r2)
+                            IF(tHistSpawn) InstHist(PartInd)=InstHist(PartInd)-REAL(WSign,r2)
                         ELSE
                             Histogram(PartInd)=Histogram(PartInd)+REAL(WSign,r2)
-                            InstHist(PartInd)=InstHist(PartInd)+REAL(WSign,r2)
+                            IF(tHistSpawn) InstHist(PartInd)=InstHist(PartInd)+REAL(WSign,r2)
                         ENDIF
                     ENDIF
                 ELSE
@@ -5952,6 +5960,7 @@ MODULE FciMCParMod
         use Logging , only : tTruncRODump
         use GenRandSymExcitNUMod , only : SpinOrbSymSetup,tNoSingsPossible
         use FciMCLoggingMOD , only : InitTriHElStats
+        use DetCalc, only : NMRKS,tagNMRKS,FCIDets
         INTEGER :: ierr,i,j,k,l,DetCurr(NEl),ReadWalkers,TotWalkersDet,HFDetTest(NEl),Seed,alpha,beta,symalpha,symbeta,endsymstate,Proc
         INTEGER :: DetLT,VecSlot,error,HFConn,MemoryAlloc,iMaxExcit,nStore(6),nJ(Nel),BRR2(nBasis),LargestOrb,nBits,HighEDet(NEl),iLutTemp(0:NIfD)
         TYPE(HElement) :: rh,TempHii
@@ -6238,40 +6247,53 @@ MODULE FciMCParMod
 !        AllDetsNorm=0.D0
         tCleanRun=.false.
 
-        IF(tHistSpawn) THEN
+        IF(tHistSpawn.or.tCalcFCIMCPsi) THEN
             ALLOCATE(HistMinInd(NEl))
             ALLOCATE(HistMinInd2(NEl))
             maxdet=0
             do i=1,nel
                 maxdet=maxdet+2**(nbasis-i)
             enddo
+
+!Deallocate NMRKS - We no longer need this right?
+            DEALLOCATE(NMRKS)
+            CALL LogMemDealloc(this_routine,tagNMRKS)
+            IF(.not.allocated(FCIDets)) THEN
+                CALL Stop_All(this_routine,"A Full Diagonalization is required in the same calculation before histogramming can occur.")
+            ENDIF
+
             WRITE(6,*) "Histogramming spawning wavevector, with Dets=", Det
             ALLOCATE(Histogram(1:det),stat=ierr)
             IF(ierr.ne.0) THEN
                 CALL Stop_All("InitFCIMCCalcPar","Error assigning memory for histogramming arrays (could deallocate NMRKS to save memory?)")
             ENDIF
             Histogram(:)=0.D0
-            ALLOCATE(InstHist(1:det),stat=ierr)
-            IF(ierr.ne.0) THEN
-                CALL Stop_All("InitFCIMCCalcPar","Error assigning memory for histogramming arrays (could deallocate NMRKS to save memory?)")
+            IF(tHistSpawn) THEN
+                ALLOCATE(InstHist(1:det),stat=ierr)
+                IF(ierr.ne.0) THEN
+                    CALL Stop_All("InitFCIMCCalcPar","Error assigning memory for histogramming arrays (could deallocate NMRKS to save memory?)")
+                ENDIF
+                InstHist(:)=0.D0
+                ALLOCATE(AvAnnihil(1:det),stat=ierr)
+                IF(ierr.ne.0) THEN
+                    CALL Stop_All("InitFCIMCCalcPar","Error assigning memory for histogramming arrays (could deallocate NMRKS to save memory?)")
+                ENDIF
+                AvAnnihil(:)=0.D0
+                ALLOCATE(InstAnnihil(1:det),stat=ierr)
+                IF(ierr.ne.0) THEN
+                    CALL Stop_All("InitFCIMCCalcPar","Error assigning memory for histogramming arrays (could deallocate NMRKS to save memory?)")
+                ENDIF
+                InstAnnihil(:)=0.D0
             ENDIF
-            InstHist(:)=0.D0
-            ALLOCATE(AvAnnihil(1:det),stat=ierr)
-            IF(ierr.ne.0) THEN
-                CALL Stop_All("InitFCIMCCalcPar","Error assigning memory for histogramming arrays (could deallocate NMRKS to save memory?)")
-            ENDIF
-            AvAnnihil(:)=0.D0
-            ALLOCATE(InstAnnihil(1:det),stat=ierr)
-            IF(ierr.ne.0) THEN
-                CALL Stop_All("InitFCIMCCalcPar","Error assigning memory for histogramming arrays (could deallocate NMRKS to save memory?)")
-            ENDIF
-            InstAnnihil(:)=0.D0
 
+            ALLOCATE(AllHistogram(1:det),stat=ierr)
+            IF(ierr.ne.0) CALL Stop_All("InitFCIMCCalcPar","Error assigning memory for histogramming arrays (could deallocate NMRKS to save memory?)")
             IF(iProcIndex.eq.0) THEN
-                ALLOCATE(AllHistogram(1:det),stat=ierr)
-                ALLOCATE(AllInstHist(1:det),stat=ierr)
-                ALLOCATE(AllInstAnnihil(1:det),stat=ierr)
-                ALLOCATE(AllAvAnnihil(1:det),stat=ierr)
+                IF(tHistSpawn) THEN
+                    ALLOCATE(AllInstHist(1:det),stat=ierr)
+                    ALLOCATE(AllInstAnnihil(1:det),stat=ierr)
+                    ALLOCATE(AllAvAnnihil(1:det),stat=ierr)
+                ENDIF
                 IF(ierr.ne.0) THEN
                     CALL Stop_All("InitFCIMCCalcPar","Error assigning memory for histogramming arrays (could deallocate NMRKS to save memory?)")
                 ENDIF
@@ -6341,7 +6363,7 @@ MODULE FciMCParMod
 !This is a list of options which cannot be used with the stripped-down spawning routine. New options not added to this routine should be put in this list.
         IF(tHighExcitsSing.or.tHistSpawn.or.tRegenDiagHEls.or.tFindGroundDet.or.tStarOrbs.or.tResumFCIMC.or.tSpawnAsDet.or.tImportanceSample    &
      &      .or.(.not.tRegenExcitgens).or.(.not.tNonUniRandExcits).or.(.not.tDirectAnnihil).or.tMinorDetsStar.or.tSpawnDominant.or.(DiagSft.gt.0.D0).or.   &
-     &      tPrintTriConnections.or.tHistTriConHEls) THEN
+     &      tPrintTriConnections.or.tHistTriConHEls.or.tCalcFCIMCPsi) THEN
             WRITE(6,*) "It is not possible to use to clean spawning routine..."
         ELSE
             WRITE(6,*) "Clean spawning routine in use..."
@@ -10208,16 +10230,20 @@ MODULE FciMCParMod
         CHARACTER(len=*), PARAMETER :: this_routine='DeallocFciMCMemPar'
         CHARACTER(LEN=MPI_MAX_ERROR_STRING) :: message
             
-        IF(tHistSpawn) THEN
+        IF(tHistSpawn.or.tCalcFCIMCPsi) THEN
             DEALLOCATE(Histogram)
-            DEALLOCATE(InstHist)
-            DEALLOCATE(InstAnnihil)
-            DEALLOCATE(AvAnnihil)
+            DEALLOCATE(AllHistogram)
+            IF(tHistSpawn) THEN
+                DEALLOCATE(InstHist)
+                DEALLOCATE(InstAnnihil)
+                DEALLOCATE(AvAnnihil)
+            ENDIF
             IF(iProcIndex.eq.0) THEN
-                DEALLOCATE(AllHistogram)
-                DEALLOCATE(AllInstHist)
-                DEALLOCATE(AllAvAnnihil)
-                DEALLOCATE(AllInstAnnihil)
+                IF(tHistSpawn) THEN
+                    DEALLOCATE(AllInstHist)
+                    DEALLOCATE(AllAvAnnihil)
+                    DEALLOCATE(AllInstAnnihil)
+                ENDIF
             ENDIF
         ELSEIF(tHistEnergies) THEN
             DEALLOCATE(Histogram)
@@ -11900,7 +11926,53 @@ MODULE FciMCParMod
 
     END SUBROUTINE InitMinorDetsStar
 
+!Similar to WriteHistogram, but will only print out in order of maximum component, and only the averaged wavefunction
+    SUBROUTINE PrintFCIMCPsi()
+        use DetCalc , only : FCIDets
+        INTEGER :: error,i,nI(NEl),ExcitLevel,j
+        REAL*8 :: norm,norm1
 
+        CALL MPI_AllReduce(Histogram,AllHistogram,Det,MPI_DOUBLE_PRECISION,MPI_SUM,MPI_COMM_WORLD,error)
+        norm1=0.D0
+        do i=1,Det
+            norm1=norm1+AllHistogram(i)**2
+        enddo
+        norm1=SQRT(norm1)
+        WRITE(6,*) "Total FCIMC Wavefuction normalisation:",norm1
+        do i=1,Det
+            AllHistogram(i)=AllHistogram(i)/norm1
+        enddo
+
+        IF(tPrintFCIMCPsi) THEN
+!Order and print wavefunction
+
+            
+            IF(iProcIndex.eq.0) THEN
+
+!We now want to order AllHistogram, taking the corresponding element(s) of FCIDets with it...
+                CALL SortRNI(Det,AllHistogram,FCIDets,NIfD+1)
+                
+                OPEN(17,FILE='FCIMCPsi',STATUS='UNKNOWN')
+
+                norm=0.D0
+                do i=1,Det
+                    norm=norm+AllHistogram(i)**2
+!write out FCIMC Component weight (normalised), current normalisation, excitation level
+                    CALL FindBitExcitLevel(iLutHF,FCIDets(0:NIfD,i),NIfD,ExcitLevel,NEl)
+                    CALL DecodeBitDet(nI,FCIDets(0:NIfD,i),NEl,NIfD)
+                    WRITE(17,"(I13,G25.16,I6,G20.10)",advance='no') i,AllHistogram(i),ExcitLevel,norm
+                    do j=1,NEl-1
+                        WRITE(17,"(I5)",advance='no') nI(j)
+                    enddo
+                    WRITE(17,"(I5)") nI(NEl)
+                enddo
+
+                CLOSE(17)
+
+            ENDIF
+        ENDIF
+
+    END SUBROUTINE PrintFCIMCPsi
 
 
 
@@ -11942,9 +12014,9 @@ MODULE FciMCParMod
         
         IF(iProcIndex.eq.0) THEN
 
-            IF(.not.associated(NMRKS)) THEN
-                CALL Stop_All("WriteHistogram","A Full Diagonalization is required in the same calculation before histogramming can occur.")
-            ENDIF
+!            IF(.not.associated(NMRKS)) THEN
+!                CALL Stop_All("WriteHistogram","A Full Diagonalization is required in the same calculation before histogramming can occur.")
+!            ENDIF
 
             norm=0.D0
             norm1=0.D0
@@ -13149,7 +13221,7 @@ MODULE FciMCParMod
     use CalcData , only : GrowMaxFactor,CullFactor
     use CalcData , only : RhoApp,TResumFCIMC
     USE Determinants , only : FDet,GetHElement2
-    USE DetCalc , only : NMRKS
+!    USE DetCalc , only : NMRKS
     use IntegralsData , only : fck,NMax,UMat
     USE global_utilities
     USE HElem

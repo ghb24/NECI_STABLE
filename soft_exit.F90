@@ -45,6 +45,7 @@ contains
     subroutine ChangeVars(Iter,NEl,Tau,DiagSft,SftDamp,StepsSft,ICILevel,SinglesBias,tSingBiasChange,tTruncSpace,tSoftExitFound,tWritePopsFound,tSinglePartPhase)
        use Parallel
        use Input
+       use Logging, only: tHistSpawn,tCalcFCIMCPsi
        implicit none
        integer :: Iter,NEl,StepsSft,ICILevel,error,i,ios
        logical :: tSoftExitFound,tWritePopsFound,tSinglePartPhase,exists,AnyExist,deleted_file,tTruncSpace
@@ -153,15 +154,19 @@ contains
                        WRITE(6,*) "The space is not truncated, so EXCITE keyword in the CHANGEVARS file will not affect run."
                    ENDIF
                ELSE
-                   CALL MPI_BCast(ICILevel,1,MPI_INTEGER,i,MPI_COMM_WORLD,error)
-                   IF((ICILevel.le.0).or.(ICILevel.ge.NEl)) THEN
-                       tTruncSpace=.false.
-                       IF(iProcIndex.eq.0) THEN
-                           WRITE(6,*) "Expanding the space to the full space."
-                       ENDIF
+                   IF(tHistSpawn.or.tCalcFCIMCPsi) THEN
+                       IF(iProcIndex.eq.0) WRITE(6,*) "Cannot increase truncation level, since histogramming wavefunction..."
                    ELSE
-                       IF(iProcIndex.eq.0) THEN
-                           WRITE(6,*) "Increasing truncation level of space to a value of ",ICILevel
+                       CALL MPI_BCast(ICILevel,1,MPI_INTEGER,i,MPI_COMM_WORLD,error)
+                       IF((ICILevel.le.0).or.(ICILevel.ge.NEl)) THEN
+                           tTruncSpace=.false.
+                           IF(iProcIndex.eq.0) THEN
+                               WRITE(6,*) "Expanding the space to the full space."
+                           ENDIF
+                       ELSE
+                           IF(iProcIndex.eq.0) THEN
+                               WRITE(6,*) "Increasing truncation level of space to a value of ",ICILevel
+                           ENDIF
                        ENDIF
                    ENDIF
                ENDIF

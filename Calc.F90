@@ -1198,10 +1198,12 @@ MODULE Calc
                 IF(TENERGY) THEN
 !C.. If we've generated a list of dets
 !C.. Instead of NMAX, we put ARR
-                     CALL CALCRHOPII2(NMRKS,BETA,I_P,I_HMAX,I_VMAX,NEL,NDET,         &
+                     CALL CALCRHOPII2(BETA,I_P,I_HMAX,I_VMAX,NEL,NDET,               &
      &                 NBASISMAX,G1,nBasis,BRR,NMSH,FCK,ARR,ALAT,UMAT,NTAY,          &
      &                 RHOEPS,NWHTAY,NPATHS,ILOGGING,ECORE,TNPDERIV,DBETA,           &
      &                 DETINV,TSPECDET,SPECDET)
+!                      WRITE(6,*) "Out Here 2"
+!                      CALL FLUSH(6)
                 ELSE
                    IF(TCSF) THEN
                       IF(.NOT.TSPECDET) THEN
@@ -1360,7 +1362,7 @@ MODULE Calc
 !C..          UMAT=NDET
 !C..          ALAT=NMRKS
 !C..          NMAX=ARR
-              CALL CALCRHOPII2(NMRKS,BETA,I_P,I_HMAX,I_VMAX,NEL,NDET,           &
+              CALL CALCRHOPII2(BETA,I_P,I_HMAX,I_VMAX,NEL,NDET,                        &
      &               NBASISMAX,G1,nBasis,BRR,NEVAL,W,CK,ARR,NMRKS,NDET,NTAY,           &
      &                RHOEPS,NWHTAY,NPATHS,ILOGGING,ECORE,TNPDERIV,DBETA,           &
      &                DETINV,TSPECDET,SPECDET)
