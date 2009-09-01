@@ -165,7 +165,7 @@ MODULE ReadInput
       use IntegralsData , only : NFROZEN,TDISCONODES,TQuadValMax,TQuadVecMax,TCalcExcitStar,TJustQuads,TNoDoubs,TDiagStarStars,TExcitStarsRootChange,TRmRootExcitStarsRootChange,TLinRootChange
       USE Logging , only : ILOGGING,tCalcFCIMCPsi,tHistSpawn
       use SystemData, only : TNoRenormRandExcits
-      use DetCalc, only : tEnergy
+      use DetCalc, only : tEnergy,tCalcHMat
       USE input
       use global_utilities
       IMPLICIT NONE
@@ -174,13 +174,15 @@ MODULE ReadInput
       character(*), parameter :: t_r='checkinput'
 
       IF(tCalcFCIMCPsi) THEN
-          tEnergy=.true.
           IF((.not.tFindDets).and.tEnergy) THEN
               tFindDets=.false.
           ELSE
               tFindDets=.true.
           ENDIF
+          tEnergy=.true.
+          tCalcHMat=.true.
       ENDIF
+!      WRITE(6,*) "TFINDDETS: ",tFindDets
 
 
 !      IF(GrowMaxFactor.gt.MemoryFacPart) THEN
