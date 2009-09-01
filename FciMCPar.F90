@@ -5951,7 +5951,7 @@ MODULE FciMCParMod
 
 !This initialises the calculation, by allocating memory, setting up the initial walkers, and reading from a file if needed
     SUBROUTINE InitFCIMCCalcPar()
-        use SystemData, only : tUseBrillouin,iRanLuxLev,tSpn,tHPHFInts,tRotateOrbs
+        use SystemData, only : tUseBrillouin,iRanLuxLev,tSpn,tHPHFInts,tRotateOrbs,tNoBrillouin
         USE mt95 , only : genrand_init
         use CalcData, only : EXCITFUNCS
         use Calc, only : VirtCASorbs,OccCASorbs,FixShift,G_VMC_Seed
@@ -6188,11 +6188,16 @@ MODULE FciMCParMod
 !            WRITE(6,*) "Spawning on symmetric determinants for each spawning step"
 !        ENDIF
 
-        IF(tSpn) THEN
-            WRITE(6,*) "ROHF or UHF in use. Single excitations will also be used to calculate energy."
-            tRotatedOrbs=.true.
-        ELSEIF(LMS.ne.0) THEN
-            CALL Stop_All("InitFciMCCalcPar","Ms not equal to zero, but tSpn is false. Error here")
+        IF(LMS.ne.0) THEN
+            IF(tNoBrillouin.or.(tHub.and.tReal).or.tRotatedOrbs) THEN
+                WRITE(6,*) "High spin calculation with single excitations also used to calculate energy."
+            ELSE
+                WRITE(6,*) "WARNING!! High-spin calculation detected but single excitations will *not* be used to calculate energy."
+                WRITE(6,*) "This is ok for UHF, but not ROHF."
+            ENDIF
+!            tRotatedOrbs=.true.
+!        ELSEIF(LMS.ne.0) THEN
+!            CALL Stop_All("InitFciMCCalcPar","Ms not equal to zero, but tSpn is false. Error here")
         ENDIF
 
         TBalanceNodes=.false.   !Assume that the nodes are initially load-balanced
