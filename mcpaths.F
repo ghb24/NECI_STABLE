@@ -260,7 +260,9 @@ C.. forcing them to be disconnected.
                ELSEIF(TFCIMC) THEN
 !A MC simulation involving replicating particles is run
 #ifdef PARALLEL
+!                    WRITE(6,*) "Get Here!: ",I_V,F(I_V),DLWDB2
                     CALL FciMCPar(F(I_V),DLWDB2)
+!                    WRITE(6,*) "Get Here!: ",I_V,F(I_V),DLWDB2
 #else
                     CALL FciMC(F(I_V),DLWDB2)
 #endif
@@ -398,6 +400,7 @@ C.. setup spin excitation generator
             NTIME=etime(tarr)
             TOTAL=TOTAL+F(I_V)
             DLWDB=DLWDB+DLWDB2
+!            WRITE(6,*) "Get Here2: ",TOTAL,DLWDB
 !            WRITE(6,*) "MCP",I_V,TOTAL,DLWDB
             IF(TLOG.AND.I_V1.EQ.0) THEN
                 WRITE(11,"(I12,2G25.16,F19.7,I12,2G25.12)") I_V,F(I_V),
@@ -458,6 +461,7 @@ C         WRITE(6,*) DLWDB,TOTAL,EXP(WLRI), HIJS(0)
          endif
          call halt_timer(proc_timer)
          CALL N_MEMORY_CHECK()
+!         WRITE(6,*) "Get Here 3",WLSI,TOTAL,DLWDB
          RETURN
       END
 C.. Calculate RHO^(P)_II without having a stored H matrix
@@ -589,6 +593,7 @@ C.. Pick the largest cluster
             RETURN
          ELSEIF(I_HMAX.EQ.-10) THEN
 C.. Use a different method at each vertex level
+!            WRITE(6,*) "Do we go in here?"
             CALL MCPATHSR10(NI,BETA,I_P,I_HMAX,I_VMAX,NEL,NBASISMAX,G1,
      &              NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,RHOEPS,
      &               LSTE,ICE,RIJLIST,NWHTAY,ILOGGING,ECORE,ILMAX,
@@ -704,7 +709,9 @@ C.. forcing them to be disconnected.
                ELSEIF(TFCIMC) THEN
 !A MC simulation involving replicating particles is run
 #ifdef PARALLEL
+!                    WRITE(6,*) "Get Here?!"
                     CALL FciMCPar(F(I_V),DLWDB2)
+!                    WRITE(6,*) "Get Here??!"
 #else
                     CALL FciMC(F(I_V),DLWDB2)
 #endif

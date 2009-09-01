@@ -350,6 +350,8 @@ MODULE FciMCParMod
 
         Weight=HDElement(0.D0)
         Energyxw=HDElement(ProjectionE)
+!        WRITE(6,*) "Weight, Energyxw: ", Weight, Energyxw
+        CALL FLUSH(6)
 
         IF(tConstructNos) CALL NormandDiagOneRDM()
 

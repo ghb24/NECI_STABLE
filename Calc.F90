@@ -1741,6 +1741,8 @@ MODULE Calc
                III=III-1
            ENDIF
           ENDDO
+!          WRITE(6,*) "Get Here 4: ",TOT,NORM
+
          IF(TLOG) CLOSE(15)
          IF(TFIRST) THEN
             WRITE(6,*) "*** NO determinants found to calculate***"

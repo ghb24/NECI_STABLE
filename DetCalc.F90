@@ -41,7 +41,7 @@ CONTAINS
         Use Determinants, only:  FDet, specdet, tSpecDet
         use SystemData, only : tCSF,lms, lms2, nBasis, nBasisMax, nEl, SymRestrict
         use SystemData, only : Alat, arr, brr, boa, box, coa, ecore, g1,Beta
-        use SystemData, only : tParity, tSpn,Symmetry
+        use SystemData, only : tParity, tSpn,Symmetry,STot
         use CalcData, only : tFindDets
         Type(BasisFn) ISym
 
@@ -49,6 +49,7 @@ CONTAINS
         integer ierr
         include 'irat.inc'
         integer nDetTot
+        logical isvaliddet
         
         character(25), parameter :: this_routine='DetCalcInit'
         
@@ -65,6 +66,22 @@ CONTAINS
             TENERGY=.FALSE.
          ENDIF
       ENDIF
+
+!Copied Specdet information from Calc.F, so if inspect is present, but no determinant/csf specified, it will still run.
+      IF(TCSF.AND.TSPECDET) THEN
+         WRITE(6,*) "TSPECDET set.  SPECDET is"
+         CALL WRITEDET(6,SPECDET,NEL,.TRUE.)
+         CALL NECI_ICOPY(NEL,SPECDET,1,FDET,1)
+         CALL GETCSFFROMDET(FDET,SPECDET,NEL,STOT,LMS)
+         WRITE(6,*) "CSF with 2S=",STOT," and 2Sz=",LMS," now in SPECDET is"
+         CALL WRITEDET(6,SPECDET,NEL,.TRUE.)
+      ELSEIF(TSPECDET.AND.(.not.ISVALIDDET(SPECDET,NEL))) THEN
+         WRITE(6,*) "TSPECDET set, but invalid.  using FDET"
+!         tSpecDet=.false.
+         CALL NECI_ICOPY(NEL,FDET,1,SPECDET,1)
+      ENDIF
+
+
 !C      IF(TCALCHMAT.OR.NPATHS.NE.0.OR.DETINV.GT.0.OR.TBLOCK) THEN
       IF(TENERGY.OR.TCALCHMAT) THEN
 !C..Need to determine the determinants
@@ -842,6 +859,7 @@ END MODULE DetCalc
          use SystemData, only: BasisFN
          use global_utilities
          use DetCalc, only: NMRKS
+         use CalcData, only: tFCIMC
          implicit none
          include 'irat.inc'
          character(25), parameter :: this_routine = 'CalcRhoPII2'
@@ -902,7 +920,7 @@ END MODULE DetCalc
             WRITE(11,*) "Calculating ",NPATHS," W_Is..."
             CLOSE(11)
          ENDIF
-         OPEN(15,FILE='RHOPII',STATUS='UNKNOWN')
+         OPEN(42,FILE='RHOPII',STATUS='UNKNOWN')
          IF(DETINV.NE.0) THEN
             ISTART=ABS(DETINV)
             IEND=ABS(DETINV)
@@ -918,23 +936,28 @@ END MODULE DetCalc
          DO III=ISTART,IEND
             IF(III.NE.0) THEN
               IF(NPATHS.EQ.1)  CALL WRITEDET(6,NMRKS(1,III),NEL,.TRUE.) 
+!                WRITE(6,*) "Entering MCPATHSR3...",NMRKS(:,III),III
                CALL MCPATHSR3(NMRKS(1,III),BETA,I_P,I_HMAX,I_VMAX,NEL, NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT, &
      &         UMAT,NTAY, RHOEPS,LSTE,ICE,RIJLIST,NWHTAY,ILOGGING,ECORE,ILMAX, WLRI,WLSI,DBETA,DLWDB2)
+!                WRITE(6,*) "Exitring MCPATHSR3...",NMRKS(:,III),III
             ELSE
                CALL MCPATHSR3(SPECDET,BETA,I_P,I_HMAX,I_VMAX,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY, &
      &         RHOEPS,LSTE,ICE,RIJLIST,NWHTAY,ILOGGING,ECORE,ILMAX, WLRI,WLSI,DBETA,DLWDB2)
             ENDIF
-            WRITE(15,"(I12)",advance='no') III
+!            WRITE(6,*) "III: ",III
+            WRITE(42,"(I12)",advance='no') III
             IF(TSPECDET) THEN
-               CALL WRITEDET(15,SPECDET,NEL,.FALSE.)
+               CALL WRITEDET(42,SPECDET,NEL,.FALSE.)
             ELSE
-               CALL WRITEDET(15,NMRKS(1,III),NEL,.FALSE.)
+               CALL WRITEDET(42,NMRKS(1,III),NEL,.FALSE.)
             ENDIF
-            WRITE(15,"(A,3G25.16)",advance='no') " ",EXP(WLSI+I_P*WLRI),WLRI*I_P,WLSI
-            IF(III.EQ.1) THEN
+            WRITE(42,"(A,3G25.16)",advance='no') " ",EXP(WLSI+I_P*WLRI),WLRI*I_P,WLSI
+            IF((III.EQ.1).or.tFCIMC) THEN
+!               WRITE(6,*) "WLRIs", WLRI0,WLRI
                WLRI0=WLRI
                WLSI0=WLSI
-           else
+!               WRITE(6,*) "WLRIs", WLRI0,WLRI
+            else
                WLRI0=0.d0
                WLSI0=0.d0
             ENDIF  
@@ -966,18 +989,20 @@ END MODULE DetCalc
 !.. we calculate the energy with weightings normalized to the weight of
 !.. the Fermi determinant, otherwise the numbers blow up
             WINORM=EXP(I_P*(WLRI-WLRI0)+(WLSI-WLSI0))
+!            WRITE(6,*) "Get HerE", I_P,WLRI,WLRI0,WLSI,WLSI0
             NORM=NORM+WINORM
             TOT=TOT+WINORM*DREAL(DLWDB)
-            WRITE(15,*) DLWDB
+!            WRITE(6,*) "Get Here 4",DLWDB,NORM,TOT,WINORM
+            WRITE(42,*) DLWDB
             IF(DETINV.EQ.III.AND.III.NE.0) THEN
-               CALL FLUSH(15)
+               CALL FLUSH(42)
                WRITE(6,*) "Investigating det ",DETINV
                CALL FLUSH(6)
                CALL WIRD_SUBSET(NMRKS(1,DETINV),BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY, &
      &       RHOEPS,ILOGGING,TSYM,ECORE)
             ENDIF
           ENDDO
-         CLOSE(15)
+         CLOSE(42)
          WRITE(6,*) "Summed approx E(Beta)=",TOT/NORM
          DEALLOCATE(RIJLIST,ICE,LSTE)
          CALL LogMemDealloc(this_routine,RIJLISTTag)
