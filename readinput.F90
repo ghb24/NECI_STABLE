@@ -160,12 +160,12 @@ MODULE ReadInput
       use CalcData , only : I_VMAX,NPATHS,                 &
      &  G_VMC_EXCITWEIGHT,G_VMC_EXCITWEIGHTS,EXCITFUNCS,TMCDIRECTSUM,   &
      & TDIAGNODES,TSTARSTARS,TBiasing,TMoveDets,TNoSameExcit,TInitStar,tMP2Standalone, &
-     & GrowMaxFactor,MemoryFacPart,tFindDets
+     & GrowMaxFactor,MemoryFacPart
       Use Determinants, only : SpecDet,tagSpecDet
       use IntegralsData , only : NFROZEN,TDISCONODES,TQuadValMax,TQuadVecMax,TCalcExcitStar,TJustQuads,TNoDoubs,TDiagStarStars,TExcitStarsRootChange,TRmRootExcitStarsRootChange,TLinRootChange
       USE Logging , only : ILOGGING,tCalcFCIMCPsi,tHistSpawn
       use SystemData, only : TNoRenormRandExcits
-      use DetCalc, only : tEnergy,tCalcHMat
+      use DetCalc, only : tEnergy,tCalcHMat,tFindDets,tCompressDets
       USE input
       use global_utilities
       IMPLICIT NONE
@@ -173,16 +173,11 @@ MODULE ReadInput
       LOGICAL :: CHECK
       character(*), parameter :: t_r='checkinput'
 
-      IF(tCalcFCIMCPsi) THEN
-          IF((.not.tFindDets).and.tEnergy) THEN
-              tFindDets=.false.
-          ELSE
-              tFindDets=.true.
-          ENDIF
-          tEnergy=.true.
-          tCalcHMat=.true.
+      IF (tCalcFCIMCPsi.or.tHistSpawn) THEN  !Used in the FCIMc.  We find dets and compress them for later use
+         tFindDets=.true.
+         tCompressDets=.true.
       ENDIF
-!      WRITE(6,*) "TFINDDETS: ",tFindDets
+      if (tCalcHMat) tFindDets=.true.   !We need to have found the dets before calculating the H mat.
 
 
 !      IF(GrowMaxFactor.gt.MemoryFacPart) THEN

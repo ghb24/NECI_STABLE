@@ -350,8 +350,6 @@ MODULE FciMCParMod
 
         Weight=HDElement(0.D0)
         Energyxw=HDElement(ProjectionE)
-!        WRITE(6,*) "Weight, Energyxw: ", Weight, Energyxw
-        CALL FLUSH(6)
 
         IF(tConstructNos) CALL NormandDiagOneRDM()
 
@@ -6262,9 +6260,6 @@ MODULE FciMCParMod
                 maxdet=maxdet+2**(nbasis-i)
             enddo
 
-!Deallocate NMRKS - We no longer need this right?
-            DEALLOCATE(NMRKS)
-            CALL LogMemDealloc(this_routine,tagNMRKS)
             IF(.not.allocated(FCIDets)) THEN
                 CALL Stop_All(this_routine,"A Full Diagonalization is required in the same calculation before histogramming can occur.")
             ENDIF

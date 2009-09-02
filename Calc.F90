@@ -13,7 +13,7 @@ MODULE Calc
           Use Determinants, only : tDefineDet
           Use DetCalc, only: iObs, jObs, kObs, tCorr, B2L, tRhoOfR, tFodM, DETINV
           Use DetCalc, only: icilevel, nBlk, nCycle, nEval, nKry, tBlock, tCalcHMat
-          Use DetCalc, only: tEnergy, tRead
+          Use DetCalc, only: tEnergy, tRead,tFindDets
           use IntegralsData, only: tNeedsVirts
           use SystemData, only : Beta,nEl
           use default_sets
@@ -233,7 +233,7 @@ MODULE Calc
           use SystemData, only : Beta,nEl
           Use DetCalc, only: iObs, jObs, kObs, tCorr, B2L, tRhoOfR, tFodM, DETINV
           Use DetCalc, only: icilevel, nBlk, nCycle, nEval, nKry, tBlock, tCalcHMat
-          Use DetCalc, only: tEnergy, tRead
+          Use DetCalc, only: tEnergy, tRead,tFindDets
           use IntegralsData, only: tNeedsVirts,NFROZEN
           use UMatCache, only: gen2CPMDInts
           use global_utilities
@@ -1273,7 +1273,7 @@ MODULE Calc
           Use DetCalc, only: cK, nDet, nEval, tEnergy, tRead, W, NMRKS, DetInv
           Use Determinants, only: specdet, tSpecDet
           Use Logging, only: iLogging
-          Use CalcData, only: tFindDets
+          Use DetCalc, only: tFindDets
           real*8 flri, flsi
           REAL*8 En, ExEn, GSEn
           REAL*8 RH
@@ -1741,8 +1741,6 @@ MODULE Calc
                III=III-1
            ENDIF
           ENDDO
-!          WRITE(6,*) "Get Here 4: ",TOT,NORM
-
          IF(TLOG) CLOSE(15)
          IF(TFIRST) THEN
             WRITE(6,*) "*** NO determinants found to calculate***"

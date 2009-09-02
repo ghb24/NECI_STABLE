@@ -19,6 +19,9 @@ MODULE DetCalc
 
 
       LOGICAL TCALCHMAT,TENERGY,TREAD,TBLOCK
+      LOGICAL tFindDets           !Set if we are to enumerate all determinants within given constraints
+      LOGICAL tCompressDets       !Set if once we've found the dets we compress to bit format
+   
       TYPE(BasisFN), pointer :: BLOCKSYM(:)
       INTEGER tagBlockSym
       INTEGER,ALLOCATABLE :: NBLOCKSTARTS(:),FCIDets(:,:), FCIDetIndex(:)!This indicates where the excitation levels start in the FCIDets array(will go from 1->NEl).
@@ -42,7 +45,6 @@ CONTAINS
         use SystemData, only : tCSF,lms, lms2, nBasis, nBasisMax, nEl, SymRestrict
         use SystemData, only : Alat, arr, brr, boa, box, coa, ecore, g1,Beta
         use SystemData, only : tParity, tSpn,Symmetry,STot
-        use CalcData, only : tFindDets
         Type(BasisFn) ISym
 
         integer i,ii,j
@@ -83,7 +85,7 @@ CONTAINS
 
 
 !C      IF(TCALCHMAT.OR.NPATHS.NE.0.OR.DETINV.GT.0.OR.TBLOCK) THEN
-      IF(TENERGY.OR.TCALCHMAT) THEN
+      IF(tFindDets) THEN
 !C..Need to determine the determinants
          IF(ICILEVEL.NE.0) THEN
             WRITE(6,*) "Performing truncated CI at level ",ICILEVEL
@@ -227,7 +229,7 @@ CONTAINS
     
 !C ==----------------------------------------------------------------==
 !C..Set up memory for c's, nrow and the label
-         IF(TCALCHMAT.and.(.not.tFindDets)) THEN
+         IF(TCALCHMAT) THEN
             WRITE(6,*) "CK Size",NDET*NEVAL*HElementSize
             Allocate(CkN(nDet*nEval), stat=ierr)
             LogAlloc(ierr,'CKN',nDet*nEval, HElementSizeB, tagCKN)
@@ -251,13 +253,7 @@ CONTAINS
          ENDIF
       ENDIF
 
-      
-
-
-
 !      TMC=TCALCHMAT.AND.(.NOT.TENERGY)
-
-
     
     End Subroutine DetCalcInit
     
@@ -271,7 +267,6 @@ CONTAINS
       Use Logging, only: iLogging,tHistSpawn,tCalcFCIMCPsi
       use SystemData, only  : tCSF
       use Parallel, only : iProcIndex
-      use CalcData, only : tFindDets
 
       REAL*8 , ALLOCATABLE :: TKE(:),A(:,:),V(:),AM(:),BM(:),T(:),WT(:),SCR(:),WH(:),WORK2(:),V2(:,:),FCIGS(:)
       TYPE(HElement), ALLOCATABLE :: WORK(:)
@@ -317,7 +312,7 @@ CONTAINS
       ENDIF
 
 !C.. now back to the storing H
-      IF(TCALCHMAT.and.(.not.tFindDets)) THEN
+      IF(TCALCHMAT) THEN
          WRITE(6,*) "Calculating H matrix"
 !C..We need to measure HAMIL and LAB first 
          ALLOCATE(NROW(NDET),stat=ierr)
@@ -383,7 +378,7 @@ CONTAINS
 !C.. We've now finished calculating H if we were going to.
 !C.. IF ENERGY CALC (for which we need to have calced H)
 ! 
-      IF(TENERGY.and.(.not.tFindDets)) THEN
+      IF(TENERGY) THEN
          IF(NBLK.NE.0) THEN
 !C..Things needed for Friesner-Pollard diagonalisation
             IF(TMC) STOP 'TMC and TENERGY set - Stopping'
@@ -481,14 +476,13 @@ CONTAINS
          CALL LogMemDealloc(this_routine,LabTag)
          ALLOCATE(TKE(NEVAL),stat=ierr)
          CALL LogMemAlloc('TKE',NEVAL,8,this_routine,TKETag,ierr)
-!C.. END ENERGY CALC
-      ENDIF
-      IF(TENERGY.and.(.not.tFindDets)) THEN
+
          EXEN=CALCMCEN(NDET,NEVAL,CK,W,BETA,0.D0)
          WRITE(6,"(A,F19.9)") "EXACT E(BETA)=",EXEN
          GSEN=CALCDLWDB(IFDET,NDET,NEVAL,CK,W,BETA,0.D0)
          WRITE(6,"(A,F19.9)") "EXACT DLWDB(D0)=",GSEN
          WRITE(6,"(A,F19.9)") "GROUND E=",W(1)
+!C.. END ENERGY CALC
       ENDIF
 
       call FLUSH(6)
@@ -506,14 +500,13 @@ CONTAINS
 !      IF(TCALCHMAT.AND..NOT.(TMONTE.AND.TMC)) THEN
 !      ENDIF
 
-!C.. IF ENERGY CALC
-      IF (TENERGY) THEN
-         
-         IF(tHistSpawn.or.tCalcFCIMCPsi) THEN
-
+!C.. IF we want to compress the found determinants for use later...
+      IF(tFindDets) THEN 
+         IF(tCompressDets) THEN
             IF(.not.associated(NMRKS)) THEN
                 WRITE(6,*) "NMRKS not allocated"
-                CALL FLUSH(6)
+                CALL FLUSH(6) 
+                CALL Stop_All("DoDetCalc","NMRKS not allocated so cannot compress dets.")
             ENDIF
 !First, we want to count the number of determinants of the correct symmetry...
             Det=0
@@ -570,7 +563,7 @@ CONTAINS
             enddo
 
 !We now want to sort the determinants according to the excitation level (stored in Temp)
-            IF(tFindDets) THEN
+            IF(.not.tEnergy) THEN
                 CALL SORTDETS(Det,Temp(1:Det),1,FCIDets(0:nBasis/32,1:Det),(nBasis/32)+1)
             ELSE
                 CALL SORTDETSwREALS(Det,Temp(1:Det),1,FCIDets(0:nBasis/32,1:Det),(nBasis/32)+1,FCIGS(1:Det),1)
@@ -598,7 +591,7 @@ CONTAINS
 
 !We now need to sort within the excitation level by the "number" of the determinant
             do i=1,MaxIndex-1
-                IF(tFindDets) THEN
+                IF(.not.tEnergy) THEN
 !                    WRITE(6,*) i,FCIDetIndex(i),FCIDetIndex(i+1)-1
 !                    CALL FLUSH(6)
                     CALL SortBitDets(FCIDetIndex(i+1)-FCIDetIndex(i),FCIDets(0:nBasis/32,FCIDetIndex(i):(FCIDetIndex(i+1)-1)),nBasis/32,temp(FCIDetIndex(i):(FCIDetIndex(i+1)-1)))
@@ -607,7 +600,7 @@ CONTAINS
                 ENDIF
             enddo
 !Now sort highest excitation level
-            IF(tFindDets) THEN
+            IF(.not.tEnergy) THEN
                 CALL SortBitDets((Det+1)-FCIDetIndex(MaxIndex),FCIDets(0:nBasis/32,FCIDetIndex(MaxIndex):Det),nBasis/32,temp(FCIDetIndex(MaxIndex):Det))
             ELSE
                 CALL SortBitDetswH((Det+1)-FCIDetIndex(MaxIndex),FCIDets(0:nBasis/32,FCIDetIndex(MaxIndex):Det),nBasis/32,temp(FCIDetIndex(MaxIndex):Det),FCIGS(FCIDetIndex(MaxIndex):Det))
@@ -669,9 +662,8 @@ CONTAINS
 !                ENDIF
 !            enddo
 !            CLOSE(23)
-
             
-            IF(.not.tFindDets) THEN
+            IF(tEnergy) THEN
                 IF(iProcIndex.eq.0) THEN
                     OPEN(17,FILE='SymDETS',STATUS='UNKNOWN')
 
@@ -691,7 +683,7 @@ CONTAINS
                     enddo
                     CLOSE(17)
                 ENDIF
-            ENDIF
+            ENDIF !tEnergy - for dumping compressed ordered GS wavefunction
             DEALLOCATE(Temp)
 !            do i=1,Det
 !                CALL DecodeBitDet(nK,iLut,NEl,nBasis/32)
@@ -742,30 +734,30 @@ CONTAINS
 !
 !             ENDDO
 !             CLOSE(17)
-         ENDIF
+         ENDIF !tCompressDets
+      ENDIF !tFindDets
 !C..
-         IF(.not.tFindDets) THEN
-             IF(.NOT.TCSF) THEN
-                CALL CFF_CHCK(NDET,NEVAL,NMRKS,NBASISMAX,NEL,G1,CK,ALAT,TKE,nBasis,ILOGGING)
-             ELSE
-                DO I=1,NEVAL
-                   TKE(I)=0.D0
-                ENDDO 
-             ENDIF
-             IF(BTEST(ILOGGING,7)) CALL WRITE_PSI(BOX,BOA,COA,NDET,NEVAL,NBASISMAX,NEL,CK,W)
-             IF(BTEST(ILOGGING,8)) CALL WRITE_PSI_COMP(BOX,BOA,COA,NDET,NEVAL,NBASISMAX,NEL,CK,W)
-             WRITE(6,*) '       ==--------------------------------------------------== '
-             WRITE(6,'(A5,5X,A15,1X,A18,1x,A20)') 'STATE','KINETIC ENERGY', 'COULOMB ENERGY', 'TOTAL ENERGY'
-             OPEN(15,FILE='ENERGIES',STATUS='UNKNOWN')
-             DO IN=1,NEVAL
-                WRITE(6,'(I5,2X,3(F19.11,2x))') IN,TKE(IN),W(IN)-TKE(IN),W(IN)
-    !            WRITE(15,"(I7)",advance='no') IN
-    !            CALL WRITEDET(15,NMRKS(1,IN),NEL,.FALSE.)
-                WRITE(15,"(F19.11)") W(IN)
-             ENDDO
-             CLOSE(15)
-             WRITE(6,*)   '       ==--------------------------------------------------== '
-         ENDIF
+      IF(TEnergy) THEN
+          IF(.NOT.TCSF) THEN
+             CALL CFF_CHCK(NDET,NEVAL,NMRKS,NBASISMAX,NEL,G1,CK,ALAT,TKE,nBasis,ILOGGING)
+          ELSE
+             DO I=1,NEVAL
+                TKE(I)=0.D0
+             ENDDO 
+          ENDIF
+          IF(BTEST(ILOGGING,7)) CALL WRITE_PSI(BOX,BOA,COA,NDET,NEVAL,NBASISMAX,NEL,CK,W)
+          IF(BTEST(ILOGGING,8)) CALL WRITE_PSI_COMP(BOX,BOA,COA,NDET,NEVAL,NBASISMAX,NEL,CK,W)
+          WRITE(6,*) '       ==--------------------------------------------------== '
+          WRITE(6,'(A5,5X,A15,1X,A18,1x,A20)') 'STATE','KINETIC ENERGY', 'COULOMB ENERGY', 'TOTAL ENERGY'
+          OPEN(15,FILE='ENERGIES',STATUS='UNKNOWN')
+          DO IN=1,NEVAL
+             WRITE(6,'(I5,2X,3(F19.11,2x))') IN,TKE(IN),W(IN)-TKE(IN),W(IN)
+ !            WRITE(15,"(I7)",advance='no') IN
+ !            CALL WRITEDET(15,NMRKS(1,IN),NEL,.FALSE.)
+             WRITE(15,"(F19.11)") W(IN)
+          ENDDO
+          CLOSE(15)
+          WRITE(6,*)   '       ==--------------------------------------------------== '
 !C., END energy calc
       ENDIF
 
@@ -778,6 +770,12 @@ CONTAINS
       IF(TFODM) THEN
         Call CalcFoDM()
       ENDIF
+
+      !Now deallocate NMRKS if tFindDets and not tEnergy
+      if (tFindDets.and.tCompressDets) then
+         DEALLOCATE(NMRKS)
+         CALL LogMemDealloc(this_routine,tagNMRKS)
+      endif 
 
         End Subroutine DoDetCalc
 
@@ -859,7 +857,6 @@ END MODULE DetCalc
          use SystemData, only: BasisFN
          use global_utilities
          use DetCalc, only: NMRKS
-         use CalcData, only: tFCIMC
          implicit none
          include 'irat.inc'
          character(25), parameter :: this_routine = 'CalcRhoPII2'
@@ -936,31 +933,32 @@ END MODULE DetCalc
          DO III=ISTART,IEND
             IF(III.NE.0) THEN
               IF(NPATHS.EQ.1)  CALL WRITEDET(6,NMRKS(1,III),NEL,.TRUE.) 
-!                WRITE(6,*) "Entering MCPATHSR3...",NMRKS(:,III),III
                CALL MCPATHSR3(NMRKS(1,III),BETA,I_P,I_HMAX,I_VMAX,NEL, NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT, &
      &         UMAT,NTAY, RHOEPS,LSTE,ICE,RIJLIST,NWHTAY,ILOGGING,ECORE,ILMAX, WLRI,WLSI,DBETA,DLWDB2)
-!                WRITE(6,*) "Exitring MCPATHSR3...",NMRKS(:,III),III
             ELSE
                CALL MCPATHSR3(SPECDET,BETA,I_P,I_HMAX,I_VMAX,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY, &
      &         RHOEPS,LSTE,ICE,RIJLIST,NWHTAY,ILOGGING,ECORE,ILMAX, WLRI,WLSI,DBETA,DLWDB2)
             ENDIF
-!            WRITE(6,*) "III: ",III
+!           WRITE(6,*) "III:",III
             WRITE(42,"(I12)",advance='no') III
             IF(TSPECDET) THEN
-               CALL WRITEDET(42,SPECDET,NEL,.FALSE.)
+!             WRITE(6,*) "Writedet",NEL,III
+              CALL WRITEDET(42,SPECDET,NEL,.FALSE.)
             ELSE
+!               WRITE(6,*) "Writedet",NEL,III
+!               WRITE(6,*) NMRKS(1:NEL,III)
                CALL WRITEDET(42,NMRKS(1,III),NEL,.FALSE.)
             ENDIF
             WRITE(42,"(A,3G25.16)",advance='no') " ",EXP(WLSI+I_P*WLRI),WLRI*I_P,WLSI
-            IF((III.EQ.1).or.tFCIMC) THEN
-!               WRITE(6,*) "WLRIs", WLRI0,WLRI
+!            WRITE(6,*) "After Exp"
+            IF(III.EQ.1) THEN
                WLRI0=WLRI
                WLSI0=WLSI
-!               WRITE(6,*) "WLRIs", WLRI0,WLRI
             else
                WLRI0=0.d0
                WLSI0=0.d0
             ENDIF  
+!            WRITE(6,*) "Before deriv"
             IF(TNPDERIV) THEN
 !.. if we're calculating the derivatives too
                IF(III.NE.0) THEN
@@ -989,10 +987,8 @@ END MODULE DetCalc
 !.. we calculate the energy with weightings normalized to the weight of
 !.. the Fermi determinant, otherwise the numbers blow up
             WINORM=EXP(I_P*(WLRI-WLRI0)+(WLSI-WLSI0))
-!            WRITE(6,*) "Get HerE", I_P,WLRI,WLRI0,WLSI,WLSI0
             NORM=NORM+WINORM
             TOT=TOT+WINORM*DREAL(DLWDB)
-!            WRITE(6,*) "Get Here 4",DLWDB,NORM,TOT,WINORM
             WRITE(42,*) DLWDB
             IF(DETINV.EQ.III.AND.III.NE.0) THEN
                CALL FLUSH(42)
