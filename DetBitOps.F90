@@ -197,7 +197,7 @@
             BitExcitMat(i)=IEOR(iLutnI(i),iLutnJ(i))
             BitCommonOrbs(i)=IAND(iLutnI(i),iLutnJ(i))
             
-            IF((BitExcitMat(i).eq.2).and.(BitCommonOrbs(i).eq.0)) CYCLE
+            IF((BitExcitMat(i).eq.0).and.(BitCommonOrbs(i).eq.0)) CYCLE
 
 !            WRITE(6,*) "BitExcitMat: "
 !            do j=0,31
