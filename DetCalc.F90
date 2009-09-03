@@ -515,7 +515,7 @@ CONTAINS
                 CALL GETSYM(NMRKS(1,i),NEL,G1,NBASISMAX,ISYM)
                 IF(ISym%Sym%S.eq.0) THEN
                     Det=Det+1
-                    IF(.not.tFindDets) norm=norm+(REAL(CK(i)%v,8))**2
+                    IF(tEnergy) norm=norm+(REAL(CK(i)%v,8))**2
                 ENDIF
             enddo
             WRITE(6,*) Det," determinants of A1 symmetry found."
