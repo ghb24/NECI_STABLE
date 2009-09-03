@@ -933,12 +933,19 @@ The following option are only available in **MCSTAR** calculations:
     Default=0
     
     This is a parallel FCIMC option. When this is set, the space initially is truncated at excitation level of ICIlevel,
-    set by the value of the EXCITE parameter. If EXPANDFULLSPACE is set, then the 
-    system will continue to be truncated at the value set by EXCITE, but will
+    set by the value of the EXCITE parameter, or the CAS space given by TRUNCATECAS. If EXPANDFULLSPACE is set, then the 
+    system will continue to be truncated, but will
     expand to the full space after iteration iFullSpaceIter.
     Hopefully expanding the space in this way will allow quicker
     convergence, without needing to do this dynamically through the use of CHANGEVARS which may be difficult for
     long/queued jobs.
+
+**TRUNCATECAS** [OccCASOrbs] [VirtCASOrbs]
+
+    This is a parallel FCIMC option, whereby the space will be truncated according to the specified CAS.
+    The arguments indicate the active electrons, and then the number of active virtual orbitals.
+    These values can be dynamically updated throughout the simulation via use of the CHANGEVARS facility.
+
 
 Return Path Monte Carlo options
 -------------------------------

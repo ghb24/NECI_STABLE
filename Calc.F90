@@ -33,6 +33,7 @@ MODULE Calc
 
 
 !       Calc defaults 
+          tTruncCAS=.false.
           iFullSpaceIter=0
           tDirectAnnihil=.false.
           tMultipleDetsSpawn=.false.
@@ -854,6 +855,17 @@ MODULE Calc
                 call Geti(OccCASorbs)
                 call Geti(VirtCASorbs)
                 call Getf(FixShift)
+
+            case("TRUNCATECAS")
+!A Parallel FCIMC option. With this, the excitation space of the determinants will only include the determinants accessible to the CAS
+!space as specified here. 
+!In this option, an active space is chosen containing a certain number of highest occupied spin orbitals (OccCASorbs) and
+!lowest unoccupied spin orbitals (VirtCASorbs).  The determinant only for determinants 
+!which have completely occupied spin orbitals for those lower in energy than the active space, 
+!and completely unoccupied spin orbitals above the active space.  i.e. the electrons are only excited within the active space.  
+                tTruncCAS=.true.
+                call Geti(OccCASOrbs)
+                call Geti(VirtCASOrbs)
 
             case("UNBIASPGENINPROJE")
 !A FCIMC serial option. With this, walkers will be accepted with probability tau*hij. i.e. they will not unbias for PGen in the acceptance criteria, but in the term for the projected energy.

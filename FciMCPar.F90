@@ -13,7 +13,7 @@ MODULE FciMCParMod
     use CalcData , only : FixedKiiCutoff,tFixShiftKii,tFixCASShift,tMagnetize,BField,NoMagDets,tSymmetricField,tStarOrbs,SinglesBias
     use CalcData , only : tHighExcitsSing,iHighExcitsSing,tFindGuide,iGuideDets,tUseGuide,iInitGuideParts,tNoDomSpinCoup
     use CalcData , only : tPrintDominant,iNoDominantDets,MaxExcDom,MinExcDom,tSpawnDominant,tMinorDetsStar
-    use CalcData , only : tCCMC
+    use CalcData , only : tCCMC,tTruncCAS
     use HPHFRandExcitMod , only : FindExcitBitDetSym,GenRandHPHFExcit,GenRandHPHFExcit2Scratch 
     USE Determinants , only : FDet,GetHElement2,GetHElement4
     USE DetCalc , only : ICILevel,nDet,Det,FCIDetIndex
@@ -281,13 +281,14 @@ MODULE FciMCParMod
 !This will communicate between all nodes, find the new shift (and other parameters) and broadcast them to the other nodes.
                 CALL CalcNewShift()
 
-                IF(tTruncSpace.and.(Iter.gt.iFullSpaceIter).and.(iFullSpaceIter.ne.0)) THEN
+                IF((tTruncCAS.or.tTruncSpace).and.(Iter.gt.iFullSpaceIter).and.(iFullSpaceIter.ne.0)) THEN
 !Test if we want to expand to the full space if an EXPANDSPACE variable has been set
                     IF(tHistSpawn.or.tCalcFCIMCPsi) THEN
                         IF(iProcIndex.eq.0) WRITE(6,*) "Unable to expand space since histgramming the wavefunction..."
                     ELSE
                         ICILevel=0
                         tTruncSpace=.false.
+                        tTruncCAS=.false.
                         IF(iProcIndex.eq.0) THEN
                             WRITE(6,*) "Expanding to the full space on iteration ",Iter
                         ENDIF
@@ -295,7 +296,7 @@ MODULE FciMCParMod
                 ENDIF
 
 !This routine will check for a CHANGEVARS file and change the parameters of the calculation accordingly.
-                CALL ChangeVars(Iter,NEl,Tau,DiagSft,SftDamp,StepsSft,ICILevel,SinglesBias,tSingBiasChange,tTruncSpace,tSoftExitFound,tWritePopsFound,tSinglePartPhase)
+                CALL ChangeVars(Iter,NEl,Tau,DiagSft,SftDamp,StepsSft,ICILevel,SinglesBias,OccCASOrbs,VirtCASOrbs,CASMin,CASMax,tSingBiasChange,tTruncSpace,tTruncCAS,tSoftExitFound,tWritePopsFound,tSinglePartPhase)
                 IF(tSoftExitFound) THEN
                     TIncrement=.false.
                     EXIT
@@ -445,7 +446,7 @@ MODULE FciMCParMod
 
 
 !Calculate number of children to spawn
-                IF(TTruncSpace) THEN
+                IF(TTruncSpace.or.tTruncCAS) THEN
 !We have truncated the excitation space at a given excitation level. See if the spawn should be allowed.
                     IF(CheckAllowedTruncSpawn(WalkExcitLevel,nJ,iLutnJ,IC)) THEN
 !The excitation is allowed - it is below the ICILevel cutoff.
@@ -771,7 +772,7 @@ MODULE FciMCParMod
                 IF(tPrintTriConnections) CALL FindTriConnections(DetCurr,CurrentDets(:,j),iLutHF,nJ,IC,Ex,pDoubles,tFilled,tParity,Scratch1,Scratch2,exflag)
 
 !Calculate number of children to spawn
-                IF(TTruncSpace) THEN
+                IF(TTruncSpace.or.tTruncCAS) THEN
 !We have truncated the excitation space at a given excitation level. See if the spawn should be allowed.
                     IF(tImportanceSample) CALL Stop_All("PerformFCIMCyc","Truncated calculations not yet working with importance sampling")
 
@@ -6505,6 +6506,25 @@ MODULE FciMCParMod
             WRITE(6,'(A,I4)') "Truncating the S.D. space at determinants will an excitation level w.r.t. HF of: ",ICILevel
             IF(TResumFciMC) CALL Stop_All("InitFciMCPar","Space cannot be truncated with ResumFCIMC")
         ENDIF
+        IF(tTruncCAS) THEN
+!We are truncating the FCI space by only allowing excitations in a predetermined CAS space.
+            WRITE(6,'(A,I4,A,I5)') "Truncating the S.D. space as determinants must be within a CAS of ",OccCASOrbs," , ",VirtCASOrbs
+!The SpinInvBRR array is required for the tTruncCAS option. Its properties are explained more fully in the subroutine. 
+
+            CALL CreateSpinInvBRR()
+
+            CASmax=NEl+VirtCASorbs
+! CASmax is the max spin orbital number (when ordered energetically) within the chosen active space.
+! Spin orbitals with energies larger than this maximum value must be unoccupied for the determinant
+! to be in the active space.
+            CASmin=NEl-OccCASorbs
+! CASmin is the max spin orbital number below the active space.  As well as the above criteria, spin 
+! orbitals with energies equal to, or below that of the CASmin orbital must be completely occupied for 
+! the determinant to be in the active space.
+
+            IF(OccCASOrbs.gt.NEl) CALL Stop_All("InitFCIMCPar","Occupied orbitals in CAS space specified is greater than number of electrons")
+            IF(VirtCASOrbs.gt.(nBasis-NEl)) CALL Stop_All("InitFCIMCPar","Virtual orbitals in CAS space specified is greater than number of unoccupied orbitals")
+        ENDIF
 
 !        IF(TAutoCorr) THEN
 !!We want to calculate the autocorrelation function over the determinants
@@ -6565,7 +6585,7 @@ MODULE FciMCParMod
             ELSEIF(iHighExcitsSing.eq.NEl) THEN
                 CALL Warning("InitFciMCCalcPar","iHighExcitsSing = NEl - this will no longer have any effect.")
             ENDIF
-            IF((.not.tNonUniRandExcits).or.tStarOrbs.or.tTruncSpace) THEN
+            IF((.not.tNonUniRandExcits).or.tStarOrbs.or.tTruncSpace.or.tTruncCAS) THEN
                 CALL Stop_All("InitFCIMCCalcPar","Cannot use HighExcitsSing without Nonuniformrandexcits, or with starorbs or truncated spaces...")
             ENDIF
         ENDIF
@@ -8356,47 +8376,64 @@ MODULE FciMCParMod
     LOGICAL FUNCTION CheckAllowedTruncSpawn(WalkExcitLevel,nJ,iLutnJ,IC)
         INTEGER :: nJ(NEl),WalkExcitLevel,iLutnJ(0:NIfD),ExcitLevel,IC,iGetExcitLevel_2
 
-        IF(tHPHF) THEN
-!With HPHF, we can't rely on this, since one excitation could be a single, and one a double. Also, IC is not returned.
-            CALL FindBitExcitLevel(iLutHF,iLutnJ,NIfD,ExcitLevel,ICILevel)
-            IF(ExcitLevel.gt.ICILevel) THEN
-                CheckAllowedTruncSpawn=.false.
-            ELSE
-                CheckAllowedTruncSpawn=.true.
-            ENDIF
+        CheckAllowedTruncSpawn=.true.
 
-        ELSE
+        IF(tTruncSpace) THEN
+!We are truncating the space by excitation level
+            IF(tHPHF) THEN
+!With HPHF, we can't rely on this, since one excitation could be a single, and one a double. Also, IC is not returned.
+                CALL FindBitExcitLevel(iLutHF,iLutnJ,NIfD,ExcitLevel,ICILevel)
+                IF(ExcitLevel.gt.ICILevel) THEN
+                    CheckAllowedTruncSpawn=.false.
+                ENDIF
+
+            ELSE
 !Determinant representation.
 
-            IF(WalkExcitLevel.eq.(ICILevel-1)) THEN
+                IF(WalkExcitLevel.eq.(ICILevel-1)) THEN
 !The current walker is one below the excitation cutoff - if IC is a double, then could go over - we need to check
-                
-                IF(IC.eq.2) THEN
-                    ExcitLevel=iGetExcitLevel_2(HFDet,nJ,NEl,ICILevel)
-                ELSE
+                    
+                    IF(IC.eq.2) THEN
+                        ExcitLevel=iGetExcitLevel_2(HFDet,nJ,NEl,ICILevel)
+                    ELSE
 !Always allow this - a single cannot put us over the truncated excitation level
-                    CheckAllowedTruncSpawn=.true.
-                    RETURN
-                ENDIF
-                IF(ExcitLevel.gt.ICILevel) THEN
-                    CheckAllowedTruncSpawn=.false.
-                ELSE
-                    CheckAllowedTruncSpawn=.true.
-                ENDIF
+                        ExcitLevel=0
+!                        CheckAllowedTruncSpawn=.true.
+!                        RETURN
+                    ENDIF
+                    IF(ExcitLevel.gt.ICILevel) THEN
+                        CheckAllowedTruncSpawn=.false.
+!                    ELSE
+!                        CheckAllowedTruncSpawn=.true.
+                    ENDIF
 
-            ELSEIF(WalkExcitLevel.eq.ICILevel) THEN
+                ELSEIF(WalkExcitLevel.eq.ICILevel) THEN
 !Walker is at the excitation cutoff level - all possible excitations could be disallowed - check the actual excitation level
-                ExcitLevel=iGetExcitLevel_2(HFDet,nJ,NEl,ICILevel)
-                IF(ExcitLevel.gt.ICILevel) THEN
+                    ExcitLevel=iGetExcitLevel_2(HFDet,nJ,NEl,ICILevel)
+                    IF(ExcitLevel.gt.ICILevel) THEN
 !Attempted excitation is above the excitation level cutoff - do not allow the creation of children
-                    CheckAllowedTruncSpawn=.false.
-                ELSE
-                    CheckAllowedTruncSpawn=.true.
-                ENDIF
-            ELSE
-!Excitation cannot be in a dissallowed excitation level - allow it as normal
-                CheckAllowedTruncSpawn=.true.
-            ENDIF 
+                        CheckAllowedTruncSpawn=.false.
+!                    ELSE
+!                        CheckAllowedTruncSpawn=.true.
+                    ENDIF
+!                ELSE
+!!Excitation cannot be in a dissallowed excitation level - allow it as normal
+!                    CheckAllowedTruncSpawn=.true.
+                ENDIF 
+
+            ENDIF   !endif tHPHF
+
+        ENDIF   !endif tTruncSpace
+
+        IF(tTruncCAS.and.CheckAllowedTruncSpawn) THEN
+!This flag determines if the FCI space is restricted by whether the determinants are in the predescribed CAS.
+            IF(.not.TestifDetinCAS(nJ)) THEN
+!Excitation not in allowed CAS space.
+!                WRITE(6,*) "Not in CAS:",nJ(:)
+                CheckAllowedTruncSpawn=.false.
+!            ELSE
+!                WRITE(6,*) "In Cas:",nJ(:)
+            ENDIF
 
         ENDIF
 
@@ -8867,11 +8904,11 @@ MODULE FciMCParMod
         CALL LogMemAlloc('SpinInvBRR',NBASIS,4,this_routine,SpinInvBRRTag,ierr)
             
 
-        IF(iProcIndex.eq.root) THEN
-            WRITE(6,*) "================================"
-            WRITE(6,*) "BRR is "
-            WRITE(6,*) BRR(:)
-        ENDIF
+!        IF(iProcIndex.eq.root) THEN
+!            WRITE(6,*) "================================"
+!            WRITE(6,*) "BRR is "
+!            WRITE(6,*) BRR(:)
+!        ENDIF
         
         SpinInvBRR(:)=0
         
@@ -8881,11 +8918,11 @@ MODULE FciMCParMod
             SpinInvBRR(BRR(I))=t
         ENDDO
 
-        IF(iProcIndex.eq.root) THEN
-            WRITE(6,*) "================================"
-            WRITE(6,*) "SpinInvBRR is "
-            WRITE(6,*) SpinInvBRR(:)
-        ENDIF
+!        IF(iProcIndex.eq.root) THEN
+!            WRITE(6,*) "================================"
+!            WRITE(6,*) "SpinInvBRR is "
+!            WRITE(6,*) SpinInvBRR(:)
+!        ENDIF
         
         RETURN
         

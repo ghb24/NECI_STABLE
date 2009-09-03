@@ -195,6 +195,11 @@ FCIMC options
     values initially, and then print out the running wavevector every
     WavevectorPrint MC steps. However, this is slower.
 
+**PRINTFCIMCPSI**
+    This works for parallel FCIMC. This will enumerate all excitations (up to the truncation level specified,
+    or the full space if not specified), and then histogram the spawning run, writing out the final
+    averaged wavefunction at the end.
+
 **WRITEDETE** [NoHistBins] [MaxHistE]
     This is an FCIMC option and will write out a histogram of the energies of determinants which have
     had particles spawned at them and their excitation level. The histogram logs the total

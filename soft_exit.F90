@@ -33,6 +33,7 @@ contains
 !This will work with FCIMCPar, and if a file is created called CHANGEVARS in one of the working directories of the run, multiple values can be changed
 !Ways that the simulation can be affected are:
 !   EXCITE  XXX      Will change the excitation level of the simulation (< 0 or > NEl sets it to the full space.)
+!   TRUNCATECAS  XXX XXX    Will change the CAS of the simulation (< 0 or > NEl sets it to the full space.)
 !   SOFTEXIT         Will exit cleanly from the program
 !   WRITEPOPS        Will write a current popsfile
 !   VARYSHIFT        Will exit out of fixed shift phase
@@ -42,14 +43,15 @@ contains
 !   STEPSSHIFT XXX   Will change the length of the update cycle
 !   SINGLESBIAS XXX  Will change the singles bias for the non-uniform random excitation generator
 
-    subroutine ChangeVars(Iter,NEl,Tau,DiagSft,SftDamp,StepsSft,ICILevel,SinglesBias,tSingBiasChange,tTruncSpace,tSoftExitFound,tWritePopsFound,tSinglePartPhase)
+    subroutine ChangeVars(Iter,NEl,Tau,DiagSft,SftDamp,StepsSft,ICILevel,SinglesBias,OccCASOrbs,VirtCASOrbs,CASMin,CASMax,tSingBiasChange,tTruncSpace,tTruncCAS,tSoftExitFound,tWritePopsFound,tSinglePartPhase)
        use Parallel
        use Input
        use Logging, only: tHistSpawn,tCalcFCIMCPsi
+       use SystemData, only: nBasis
        implicit none
-       integer :: Iter,NEl,StepsSft,ICILevel,error,i,ios
+       integer :: Iter,NEl,StepsSft,ICILevel,error,i,ios,CASMin,CASMax,OccCASOrbs,VirtCASOrbs
        logical :: tSoftExitFound,tWritePopsFound,tSinglePartPhase,exists,AnyExist,deleted_file,tTruncSpace
-       logical :: tEof,any_deleted_file,tChangeParams(9),tSingBiasChange
+       logical :: tEof,any_deleted_file,tChangeParams(10),tSingBiasChange,tTruncCAS
        real*8 :: DiagSft,Tau,SftDamp,SinglesBias
        Character(len=100) :: w
 
@@ -66,7 +68,7 @@ contains
                WRITE(6,*) "CHANGEVARS file detected on iteration ",Iter
            ENDIF
 !Set the defaults
-           tChangeParams(1:9)=.false.
+           tChangeParams(1:10)=.false.
 
            deleted_file=.false.
            do i=0,nProcessors-1
@@ -108,6 +110,10 @@ contains
                        CASE("SINGLESBIAS")
                            tChangeParams(9)=.true.
                            CALL Readf(SinglesBias)
+                       CASE("TRUNCATECAS")
+                           tChangeParams(10)=.true.
+                           CALL Geti(OccCASOrbs)
+                           CALL Geti(VirtCASOrbs)
                        END SELECT
 
                    End Do
@@ -117,7 +123,7 @@ contains
                call MPI_AllReduce(deleted_file,any_deleted_file,1,MPI_LOGICAL,MPI_LOR,MPI_COMM_WORLD,error)
                if (any_deleted_file) exit
            end do
-           CALL MPI_BCast(tChangeParams,9,MPI_LOGICAL,i,MPI_COMM_WORLD,error)
+           CALL MPI_BCast(tChangeParams,10,MPI_LOGICAL,i,MPI_COMM_WORLD,error)
 
            IF(tChangeParams(1)) THEN
 !Change Tau
@@ -207,6 +213,30 @@ contains
                    WRITE(6,*) "SINGLESBIAS changed to a value of : ",SinglesBias
                ENDIF
                tSingBiasChange=.true.
+           ENDIF
+           IF(tChangeParams(10)) THEN
+!Change CAS space
+               IF(.not.tTruncCAS) THEN
+                   IF(iProcIndex.eq.0) THEN
+                       WRITE(6,*) "The space is not truncated by CAS, so TRUNCATECAS keyword in the CHANGEVARS file will not affect run."
+                   ENDIF
+               ELSE
+                   CALL MPI_BCast(OccCASOrbs,1,MPI_INTEGER,i,MPI_COMM_WORLD,error)
+                   CALL MPI_BCast(VirtCASOrbs,1,MPI_INTEGER,i,MPI_COMM_WORLD,error)
+                   IF(((OccCASOrbs.ge.NEl).and.(VirtCASOrbs.ge.(nBasis-NEl))).or.(OccCASOrbs.le.0).or.(VirtCASOrbs.le.0)) THEN
+!CAS space is equal to or greater than the full space, or one of the arguments is less than zero.
+                       tTruncCAS=.false.
+                       IF(iProcIndex.eq.0) THEN
+                           WRITE(6,*) "Expanding CAS to the full space"
+                       ENDIF
+                   ELSE
+                       CASMax=NEl+VirtCASOrbs
+                       CASMin=NEl-OccCASOrbs
+                       IF(iProcIndex.eq.0) THEN
+                           WRITE(6,"(A,I5,A,I6)") "Increasing CAS space accessible to ",OccCASOrbs," , ",VirtCASOrbs
+                       ENDIF
+                   ENDIF
+               ENDIF
            ENDIF
        endif
 
