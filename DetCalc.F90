@@ -264,7 +264,7 @@ CONTAINS
       use SystemData, only : Alat, arr, brr, boa, box, coa, ecore, g1,Beta
       use SystemData, only : nBasis, nBasisMax,nEl,nMsh
       use IntegralsData, only: FCK,NMAX, UMat
-      Use Logging, only: iLogging,tHistSpawn,tCalcFCIMCPsi
+      Use Logging, only: iLogging,tHistSpawn
       use SystemData, only  : tCSF
       use Parallel, only : iProcIndex
 
@@ -771,7 +771,7 @@ CONTAINS
       ENDIF
 
       !Now deallocate NMRKS if tFindDets and not tEnergy
-      if (tFindDets.and.tCompressDets) then
+      if (tFindDets.and.tCompressDets.and.(.not.tEnergy)) then
          DEALLOCATE(NMRKS)
          CALL LogMemDealloc(this_routine,tagNMRKS)
       endif 
