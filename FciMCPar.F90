@@ -5952,7 +5952,7 @@ MODULE FciMCParMod
 
 !This initialises the calculation, by allocating memory, setting up the initial walkers, and reading from a file if needed
     SUBROUTINE InitFCIMCCalcPar()
-        use SystemData, only : tUseBrillouin,iRanLuxLev,tSpn,tHPHFInts,tRotateOrbs,tNoBrillouin
+        use SystemData, only : tUseBrillouin,iRanLuxLev,tSpn,tHPHFInts,tRotateOrbs,tNoBrillouin,tROHF
         USE mt95 , only : genrand_init
         use CalcData, only : EXCITFUNCS
         use Calc, only : VirtCASorbs,OccCASorbs,FixShift,G_VMC_Seed
@@ -6135,7 +6135,7 @@ MODULE FciMCParMod
         ENDIF
         
         IF(tHPHF) THEN
-            IF(tSpn) CALL Stop_All("InitFCIMCCalcPar","Cannot use HPHF with high-spin systems.")
+            IF(tROHF.or.(LMS.ne.0)) CALL Stop_All("InitFCIMCCalcPar","Cannot use HPHF with high-spin systems.")
             tHPHFInts=.true.
         ENDIF
 
