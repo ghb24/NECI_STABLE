@@ -363,10 +363,10 @@ END SUBROUTINE AddBitExcitor
                      CALL DecodeBitDet(DetCurr,iLutnI(:),NEl,NIfD)
                      Htmp=GetHElement3(HFDet, DetCurr,2)
                      dT1Sq=dT1Sq+(Real(Htmp%v,r2)*iSgn)
-                     WRITE(6,'(A,I,2G)', advance='no') 'T1',iSgn,real(Htmp%v,r2),dT1Sq
-                     call WriteBitEx(6,iLutHF,CurrentDets(:,j),.false.)
-                     call WriteBitEx(6,iLutHF,CurrentDets(:,l),.false.)
-                     call WriteBitEx(6,iLutHF,iLutnI,.true.)
+                     !WRITE(6,'(A,I,2G)', advance='no') 'T1',iSgn,real(Htmp%v,r2),dT1Sq
+                     !call WriteBitEx(6,iLutHF,CurrentDets(:,j),.false.)
+                     !call WriteBitEx(6,iLutHF,CurrentDets(:,l),.false.)
+                     !call WriteBitEx(6,iLutHF,iLutnI,.true.)
                   endif
                endif
             enddo
