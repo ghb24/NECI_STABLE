@@ -291,7 +291,7 @@ C.. This version has ARR as an int and BRR as an array of length BD of reals
       GOTO 10
       RETURN
       END 
-C.. This would seem to sort both ARR and BRR into ascending ARR order [AJWT20031001]
+C.. This would seem to sort both ABS(ARR) and BRR into ascending ARR order [AJWT20031001]
 C.. Further investigation shows it is the quicksort from Numerical Recipes, taking two arrays to be sorted, ARR, BRR according to the order of ARR [AJWT20040407]
 C.. This version has ARR as a real and BRR as an array of length BD of integers
       SUBROUTINE SORTRNI(N,ARR,BRR,BD)
@@ -309,7 +309,7 @@ C.. This version has ARR as a real and BRR as an array of length BD of integers
           A=ARR(J)
           B=BRR(:,J)
           DO I=J-1,1,-1
-            IF(ARR(I).LE.A) GOTO 20
+            IF(ABS(ARR(I)).LE.ABS(A)) GOTO 20
             ARR(I+1)=ARR(I)
             BRR(:,I+1)=BRR(:,I)
           ENDDO
@@ -329,7 +329,7 @@ C.. This version has ARR as a real and BRR as an array of length BD of integers
         TEMP(:)=BRR(:,K)
         BRR(:,K)=BRR(:,L+1)
         BRR(:,L+1)=TEMP
-        IF(ARR(L+1).GT.ARR(IR)) THEN
+        IF(ABS(ARR(L+1)).GT.ABS(ARR(IR))) THEN
           ITEMP=ARR(L+1)
           ARR(L+1)=ARR(IR)
           ARR(IR)=ITEMP
@@ -337,7 +337,7 @@ C.. This version has ARR as a real and BRR as an array of length BD of integers
           BRR(:,L+1)=BRR(:,IR)
           BRR(:,IR)=TEMP(:)
         ENDIF
-        IF(ARR(L).GT.ARR(IR)) THEN
+        IF(ABS(ARR(L)).GT.ABS(ARR(IR))) THEN
           ITEMP=ARR(L)
           ARR(L)=ARR(IR)
           ARR(IR)=ITEMP
@@ -345,7 +345,7 @@ C.. This version has ARR as a real and BRR as an array of length BD of integers
           BRR(:,L)=BRR(:,IR)
           BRR(:,IR)=TEMP
         ENDIF 
-        IF(ARR(L+1).GT.ARR(L)) THEN
+        IF(ABS(ARR(L+1)).GT.ABS(ARR(L))) THEN
           ITEMP=ARR(L+1)
           ARR(L+1)=ARR(L)
           ARR(L)=ITEMP
@@ -359,10 +359,10 @@ C.. This version has ARR as a real and BRR as an array of length BD of integers
         B=BRR(:,L)
 30      CONTINUE
         I=I+1
-        IF(ARR(I).LT.A) GOTO 30
+        IF(ABS(ARR(I)).LT.ABS(A)) GOTO 30
 40      CONTINUE
         J=J-1
-        IF(ARR(J).GT.A) GOTO 40
+        IF(ABS(ARR(J)).GT.ABS(A)) GOTO 40
         IF(J.LT.I) GOTO 50
         ITEMP=ARR(I)
         ARR(I)=ARR(J)
