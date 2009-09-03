@@ -527,7 +527,7 @@ CONTAINS
             ALLOCATE(FCIDetIndex(NEl),stat=ierr)
             ALLOCATE(Temp(Det),stat=ierr)
             IF(ierr.ne.0) CALL Stop_All("DetCalc","Cannot allocate memory to hold vector")
-            IF(.not.tFindDets) THEN
+            IF(tEnergy) THEN
                 ALLOCATE(FCIGS(Det),stat=ierr)
                 IF(ierr.ne.0) CALL Stop_All("DetCalc","Cannot allocate memory to hold vector")
             ENDIF
@@ -548,7 +548,7 @@ CONTAINS
                     ENDIF
                     Temp(Det)=ExcitLevel    !Temp will now temporarily hold the excitation level of the determinant.
                     CALL EncodeBitDet(NMRKS(:,i),FCIDets(0:nBasis/32,Det),NEl,nBasis/32)
-                    IF(.not.tFindDets) THEN
+                    IF(tEnergy) THEN
                         FCIGS(Det)=REAL(CK(i)%v,8)/norm
                     ENDIF
                 ENDIF
@@ -605,7 +605,6 @@ CONTAINS
             ELSE
                 CALL SortBitDetswH((Det+1)-FCIDetIndex(MaxIndex),FCIDets(0:nBasis/32,FCIDetIndex(MaxIndex):Det),nBasis/32,temp(FCIDetIndex(MaxIndex):Det),FCIGS(FCIDetIndex(MaxIndex):Det))
             ENDIF
-
 
 
 !This will sort the determinants into ascending order, for quick binary searching later on.
