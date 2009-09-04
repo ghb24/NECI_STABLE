@@ -3,7 +3,7 @@
 \usepackage[utf8]{inputenc}
 \usepackage[T1]{fontenc}
 \title{NECI Documentation}
-\date{August 14, 2009}
+\date{September 04, 2009}
 \release{0.1}
 \author{James Spencer, with contributions from the Alavi Group}
 \newcommand{\sphinxlogo}{}
@@ -1107,6 +1107,12 @@ Apply Brillouin's theorem: the net effect of single-excitations of
 the Hartree--Fock determinant coupled to the Hartree--Fock determinant
 is zero, so explicitly exclude such single excitations.
 
+\item[\textbf{NOBRILLOUINTHEOREM}]
+For the FCIMC parallel calculations, brillouins theorem is on by default. To disable
+this, this keyword is required (for say non-HF orbitals, ROHF orbitals, rotated orbitals...).
+This is automatically turned on if the \textbf{ROHF} or \textbf{ROTATEDORBS} keyword is
+also supplied.
+
 \item[\textbf{ROTATEORBS} {[}TimeStep{]} {[}ConvergedForce{]}]
 This keyword initiates an iterative rotation of the HF orbitals to find the
 coefficients that best fit a particular criteria (e.g those which maximise
@@ -1126,6 +1132,20 @@ incorporated into the core energy in the ROFCIDUMP file.  So the number of elect
 specified in an input file which reads in an ROFCIDUMP, needs to be the NEl-No.FrozenEl,
 and the number frozen in the INTEGRAL block needs to be set to 0.
 This will hopefully be fixed in the near future.
+
+\item[\textbf{ROHF}]
+This is to be used when we are reading in integrals from an FCIDUMP interface for a
+\emph{restricted} open-shell system. Without this keyword, ROHF and UHF are treated the
+same and the integral file and calculations are performed on spin-orbitals. However,
+for ROHF, this results in a duplication in the storage of the integrals, since integrals
+of the same spatial orbitals are stored multiple times. With this option, the integrals
+for ROHF systems are stored as spatial orbitals, not spin orbtials, which leads to a
+\textasciitilde{}16x memory saving! The results should be unchanged by this option, and the integral file
+can remain in spin-orbitals. A word of warning is that with ROHF systems, the fock
+eigenvalues for the orbitals are different between alpha and beta spins, but with this,
+the eigenvalues are written out as the same (the value of the alpha one). This means that
+the eigenvalues cannot be trusted and values derived from them will be wrong (such as the
+chemical potential which is printed out.)
 
 \end{description}
 
@@ -1324,6 +1344,25 @@ This maximises the sum of (e\_i - e\_min)\textasciicircum{}alpha, where e\_i are
 energies ( e\_i = \textless{}i|h|i\textgreater{} + sum\_j {[}\textless{}ij||ij\textgreater{}{]} ), and e\_min is currently the energy of the
 HF LUMO.
 Alpha is a real value specified in the input, with a default value of 1.0.
+
+\item[\textbf{READINTRANSMAT}]
+With this option, a TRANSFORMMAT file must be provided which contains the transformation
+matrix to be used for the orbital rotation.  When this keyword is present, the coefficient
+matrix is simply read in from the file, and used to transform the relevant integrals and
+print a new ROFCIDUMP file.
+
+\item[\textbf{USEMP2VDM}]
+With this option, the MP2 variational density matrix is calculated and then used to transform
+the orbitals and produce a new ROFCIDUMP file.  The MP2VDM is given as follows:
+MP2VDM = D2\_ab = sum\_ijc {[} t\_ij\textasciicircum{}ac ( 2 t\_ij\textasciicircum{}bc - t\_ji\textasciicircum{}bc ) {]}
+Where: t\_ij\textasciicircum{}ac = - \textless{} a c | i j \textgreater{} / ( E\_a - E\_i + E\_b - E\_j )
+Ref: J. Chem. Phys. 131, 034113 (2009) (note Eqn 1 is mis-printed, the cb indices should be bc).
+Having calculated the MP2VDM matrix, this is diagonalised.  The eigenvectors correspond to the
+transformation matrix, which produce orbitals whose occupation numbers are given by the
+respective eigenvalues.  These eigenvalues ideally decay exponentially, so in principle we
+may remove some of the low occupancy virtual orbitals without loosing much accuracy in the
+energy calculation.  This truncation of the virtuals is done using the Logging option
+\textbf{TRUNCROFCIDUMP} {[}NoFrozenVirt{]}.
 
 \end{description}
 
@@ -3838,6 +3877,15 @@ Histograms the one electron integral terms, \textless{}i|h|i\textgreater{}.
 \item[\textbf{ROHISTONEPARTORBEN} {[}OFF{]}]
 Histograms the one particle orbital energies, epsilon\_i = \textless{}i|h|i\textgreater{} + sum\_j {[}\textless{}ij||ij\textgreater{}{]},
 where j is over the occupied orbitals only.
+
+\item[\textbf{TRUNCROFCIDUMP} {[}NoFrozenOrbs{]}]
+This option goes along with the \textbf{USEMP2VDM} rotation option.  Having diagonalised the MP2VDM
+matrix to get the transformation matrix.  This option truncates the virtual orbital space by removing
+the NoFrozenOrbs SPIN orbitals with the lowest occupation numbers (MP2VDM eigenvalues).  Only the
+remaining orbitals are transformed and included in the ROFCIDUMP that is printed.
+This kind of transformation requires different ordering of the orbitals to that which is standard for
+spawning calculation, so it is not possible to go straight from this rotation into a spawning calc.
+The ROFCIDUMP must be printed out then read back in.
 
 \end{description}
 

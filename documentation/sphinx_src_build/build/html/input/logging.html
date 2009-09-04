@@ -360,6 +360,14 @@ excitations.</dd>
 <dt><strong>ROHISTONEPARTORBEN</strong> [OFF]</dt>
 <dd>Histograms the one particle orbital energies, epsilon_i = &lt;i|h|i&gt; + sum_j [&lt;ij||ij&gt;],
 where j is over the occupied orbitals only.</dd>
+<dt><strong>TRUNCROFCIDUMP</strong> [NoFrozenOrbs]</dt>
+<dd>This option goes along with the <strong>USEMP2VDM</strong> rotation option.  Having diagonalised the MP2VDM
+matrix to get the transformation matrix.  This option truncates the virtual orbital space by removing
+the NoFrozenOrbs SPIN orbitals with the lowest occupation numbers (MP2VDM eigenvalues).  Only the
+remaining orbitals are transformed and included in the ROFCIDUMP that is printed.
+This kind of transformation requires different ordering of the orbitals to that which is standard for
+spawning calculation, so it is not possible to go straight from this rotation into a spawning calc.
+The ROFCIDUMP must be printed out then read back in.</dd>
 </dl>
 </div>
 </div>
@@ -419,7 +427,7 @@ where j is over the occupied orbitals only.</dd>
     </div>
     <div class="footer">
       &copy; Copyright 2008, Alavi Group.
-      Last updated on Aug 14, 2009.
+      Last updated on Sep 04, 2009.
       Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 0.5.
     </div>
   </body>
