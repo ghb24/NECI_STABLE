@@ -188,8 +188,8 @@ cat << END >&3
 SHELL = /bin/bash
 #
 #--------------- Default Configuration for $Configuration ---------------
-VCS_VER:= \$(shell set -o pipefail && echo -n \" && ( ( (svn info || git svn info) | grep 'Revision' | sed -e 's/Revision: //' ) ||  git log --max-count=1 --pretty=format:%H || echo -n 'Not under version control.' ) 2> /dev/null | tr -d '\r\n'  && echo -n \")
-WORKING_DIR_CHANGES := \$(shell (if [[ -e .svn ]]; then svn st -q | xargs -i test -z {} ; else (git diff-index --quiet --cached HEAD --ignore-submodules -- && git diff-files --quiet --ignore-submodules) 2> /dev/null ; fi) || echo -n "-D_WORKING_DIR_CHANGES")
+VCS_VER:= \$(shell set -o pipefail && echo -n \" && ( if [[ -e .svn ]]; then svnversion; else (git svn info | grep 'Revision' | sed -e 's/Revision: //' ) ||  git log --max-count=1 --pretty=format:%H || echo -n 'Not under version control.'; fi) 2> /dev/null | tr -d '\r\n'  && echo -n \")
+WORKING_DIR_CHANGES := \$(shell (if [[ -e .svn ]]; then svn st -q | xargs -i test -z {} ; else (git diff --quiet --cached && git diff --quiet) 2> /dev/null ; fi) || echo -n "-D_WORKING_DIR_CHANGES")
 MAXMEM := 2048 # RAM available, in MB.
 compiler = ${compiler}
 SRC  = .
