@@ -31,7 +31,8 @@ OBJ_F90 = readdf.o df_common.o df_record_handler.o input.o HElem.o \
          SystemData.o CalcData.o IntegralsData.o timing.o global_utilities.o \
          sortiLong.o soft_exit.o Parallel_Calc.o precalcData.o symrandexcit2.o \
          DetBitOps.o NatOrbs.o RotateOrbs.o Orthonorm.o SortMerge.o MerTwistRan.o \
-         HPHFRandExcit.o HPHFIntegrals.o readri.o CCMC.o FciMCLogging.o CCMCData.o
+         HPHFRandExcit.o HPHFIntegrals.o readri.o CCMC.o FciMCLogging.o CCMCData.o \
+         FciMCData.o
 
 OBJ_CC  = MurmurHash2.o
 
