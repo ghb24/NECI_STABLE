@@ -12,6 +12,7 @@ MODULE Logging
     LOGICAL tROHistVirtCoulomb,tPrintInts,tHistEnergies,tPrintTriConnections,tHistTriConHEls,tPrintHElAccept,tTruncRODump
     LOGICAL tPrintFCIMCPsi,tCalcFCIMCPsi
     INTEGER NoACDets(2:4),iPopsPartEvery,iWriteHistEvery,iNoBins,NoTriConBins,NoTriConHElBins,NoFrozenVirt
+    INTEGER CCMCDebug !CCMC Debugging Level 0-6.  Default 0
 
     contains
 
@@ -68,6 +69,7 @@ MODULE Logging
       tPrintHElAccept=.false.
       tPrintFCIMCPsi=.false.
       tCalcFCIMCPsi=.false.
+      CCMCDebug=0
 
 ! Feb08 defaults
       IF(Feb08) THEN
@@ -294,6 +296,9 @@ MODULE Logging
         case("BINARYPOPS")
 !This means that the popsfile (full or reduced) will now be written out in binary format. This should now take up less space, and be written quicker.
             tBinPops=.true.
+        case("CCMCDEBUG")
+!CCMC debugging level. Takes an integer 0-6
+            call readi(CCMCDebug)
         case("WRITEDETE")
 !This logging option will write out the energies of all determinants which have been spawned at in the simulation
 ! The two input options are the number of bins, and the maximum determinant energy to be histogrammed.

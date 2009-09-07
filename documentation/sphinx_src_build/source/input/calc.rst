@@ -445,12 +445,20 @@ Experimental methods
     This reduces to the original spawning algorithm when **GRAPHSIZE** is 2 and
     **HAPP** is 1. Uses many of the same options as **FCIMC**.
 
-**VERTEX** **CCMC**
+**VERTEX** **CCMC** [**FCI**] [**EXACTCLUSTER**]
     Perform Monte Carlo calculations over coupled cluster excitation space, which
     is sampled using a series of 'particles' (or 'walkers').
 
     The walkers are not necessarily unique and must be sorted at every
     iteration.  Each walker has its own excitation generator.
+    **DIRECTANNIHILATION** (in CALC) and **NONUNIFORMRANDEXCITS** (in the SYSTEM section)
+    must also be specified.
+    
+    If **FCI** is specified, then the code runs an equivalent of the **VERTEX** **FCIMC**
+    for testing
+
+    **EXACTCLUSTER** is an exponentially scaling (with number of walkers) algorithm for testing
+    the stochastic sampling.
 
     Extremely experimental.
 

@@ -228,6 +228,7 @@ END SUBROUTINE AddBitExcitor
       USe FCIMCParMod
       use CCMCData
       Use Determinants, only: GetHElement3
+      Use Logging, only: CCMCDebug
         IMPLICIT NONE
         INTEGER :: VecSlot,i,j,k,l,CopySign,iPartBloom
         INTEGER :: nJ(NEl),ierr,IC,Child,DetCurr(NEl),iLutnJ(0:NIfD)
@@ -275,9 +276,9 @@ END SUBROUTINE AddBitExcitor
         INTEGER iDebug
 
         INTEGER TotRealWalkers
-        REAL*8 dProbNorm,dProb
+        REAL*8 dProbNorm,dClusterProb,dProb
         INTEGER iExcitor
-        INTEGER iMinEx,iMaxEx
+        INTEGER iMinEx,iMaxEx,iMaxExTemp
 !iMaxExcitorSelections is the number of times we decide to loop for each particle.
 !  it includes the first (exact) loop where we consider the particle by itself.
         INTEGER iMaxExcitorSelections
@@ -287,10 +288,23 @@ END SUBROUTINE AddBitExcitor
 
         REAL*8 dT1Sq
         INTEGER AttemptDieProbPar
-        REAL*8 AJWTProjE
-        INTEGER iCumlExcits,iLeftHere
+!        REAL*8 AJWTProjE
+        INTEGER iCumlExcits,iLeftHere(nEl)
+        INTEGER iCurrentCompositeSize
+        INTEGER,save :: nClusterBirths
+        INTEGER,save :: nClusterDeaths   
+        INTEGER,save :: nClusterChildren
+        INTEGER nClusters
+        REAL*8 dClusterProbs
+        nClusters=0
+        dClusterProbs=0
 
-  
+        IF(mod(Iter,StepsSft).eq.0) THEN
+    
+           nClusterBirths=0 
+           nClusterDeaths=0 
+           nClusterChildren=0 
+        endif
         if(tCCMCFCI) then
          iMaxExcitorSelections=1
         else
@@ -298,11 +312,11 @@ END SUBROUTINE AddBitExcitor
         endif
 
         if(Iter.eq.1) dT1SqCuml=0 
-        iDebug=0
+        iDebug=CCMCDebug
 !Number of excitors dying
         iDeaths=0
 
-        AJWTProjE=0
+!        AJWTProjE=0
         dT1Sq=0
         IF(iDebug.gt.0) WRITE(6,*) "Entering CCMC Cycle"
         iHFDet=1
@@ -335,8 +349,13 @@ END SUBROUTINE AddBitExcitor
 ! over each walker there and use it a number of times
 ! We take the number of walkers as the number of samples to begin with.
         CALL BinSearchParts(iLutHF,1,TotWalkers,iHFDet,tSuccess)
-        if(.not.tSuccess) STOP "Cannot find HF det in particle list"
-        HFcount=abs(CurrentSign(iHFDet))
+        if(.not.tSuccess) then
+            WRITE(6,*) "WARNING: Cannot find HF det in particle list"
+            HFcount=1
+            iHFDet=-1
+        else
+            HFcount=abs(CurrentSign(iHFDet))
+        endif
 
         allocate(iKillDetIndices(2,TotParts*2))
 
@@ -347,10 +366,10 @@ END SUBROUTINE AddBitExcitor
          do j=1,TotWalkers
             write(6,'(i)',advance='no') CurrentSign(j)
             call WriteBitEx(6,iLutHF,CurrentDets(:,j),.true.)
-            do l=0,nIfD
-               Write(6,'(i)', advance='no') CurrentDets(l,j)
-            enddo
-            write(6,*)
+!            do l=0,nIfD
+!               Write(6,'(i)', advance='no') CurrentDets(l,j)
+!            enddo
+!            write(6,*)
          enddo
         endif
 !TotRealWalkers gets updated with the number of non-zero walkers at each stage.
@@ -381,11 +400,11 @@ END SUBROUTINE AddBitExcitor
                endif
             enddo
           endif 
-          if(WalkExcitLevel.eq.1.or.WalkExcitLevel.eq.2) then
-            CALL DecodeBitDet(DetCurr,CurrentDets(:,j),NEl,NIfD)
-            Htmp=GetHElement3(HFDet, DetCurr,WalkExcitLevel)
-            AJWTProjE=AJWTProjE+(Real(Htmp%v,r2)*CurrentSign(j))
-          endif
+!          if(WalkExcitLevel.eq.1.or.WalkExcitLevel.eq.2) then
+!            CALL DecodeBitDet(DetCurr,CurrentDets(:,j),NEl,NIfD)
+!            Htmp=GetHElement3(HFDet, DetCurr,WalkExcitLevel)
+!            AJWTProjE=AJWTProjE+(Real(Htmp%v,r2)*CurrentSign(j))
+!          endif
 !#endif
 !Go through all particles on the current walker det
           do l=1,abs(CurrentSign(j))
@@ -399,11 +418,16 @@ END SUBROUTINE AddBitExcitor
                   ELSE
                      nMaxSelExcitors=nEl
                   ENDIF
-                  iMaxEx=1
-                  k=TotParts-iCumlExcits
+                  iMaxExTemp=1
+                  iMaxEx=0
+                  k=TotParts-iCumlExcits  !iCumlExcits includes this det.
                   if(j.lt.iHFDet) k=k-HFcount
+!Count the number of allowed composites - this allows for all numbers of composites
+                  if(iDebug.gt.5) WRITE(6,*) "Counting Excitations:  Level,#, Cuml"
                   do i=k,max(k-(nMaxSelExcitors-1)+1,1),-1  !-1 because we've already chosen this excitor.  +1 to exclude the end (off by 1 problem)
-                     iMaxEx=iMaxEx*i
+                     iMaxExTemp=(iMaxExTemp*i)/(k+1-i)
+                     iMaxEx=iMaxEx+iMaxExTemp
+                     if(iDebug.gt.5) WRITE(6,*) k+1-i,iMaxExTemp,iMaxEx
                   enddo
                   if(k.eq.0) iMaxEx=0
                   iMaxEx=iMaxEx+1  !Account for the non-cluster
@@ -422,7 +446,7 @@ END SUBROUTINE AddBitExcitor
 !just select the single excitor
                   iLutnI(:)=CurrentDets(:,j)
                   iSgn=sign(1,CurrentSign(j))
-                  dProb=1 
+                  dClusterProb=1 
                   dProbNorm=1
                   iCompositeSize=0
                   CALL DecodeBitDet(DetCurr,iLutnI(:),NEl,NIfD)
@@ -448,7 +472,7 @@ END SUBROUTINE AddBitExcitor
                   if(nMaxSelExcitors.gt.(TotWalkers-1)) nMaxSelExcitors=TotWalkers-1
                   IF(iDebug.gt.4) write(6,*) "Max excitors can be selected.", nMaxSelExcitors
                   if(nMaxSelExcitors.lt.2) exit  !If we can't choose a new excit, we leave the loop
-                  dProb=1           !prob of these excitors given this number of excitors goes here
+                  dClusterProb=1           !prob of these excitors given this number of excitors goes here
    !NB it's possible to select no excitors with this loop.
                   dProbNorm=1
 !We force the first excitor to be the current det.
@@ -458,6 +482,96 @@ END SUBROUTINE AddBitExcitor
 !We keep track of the number of ways we could've generated this composite
                   dNGenComposite=abs(CurrentSign(j))
 
+
+                  if(tExactCluster) then  !Each time we're here, generate another cluster, up to all of them.
+                     if(iExcitor.eq.2) then
+!Setup the exact cluster if we need to 
+!Pretend we've just finished a single excitor
+                        iCurrentCompositeSize=1
+                        iLeftHere(1)=abs(CurrentSign(j))-1
+                     endif
+                     if(iDebug.gt.5) then
+                       WRITE(6,*) "EXACT CLUSTER IN"
+                        do k=2,iCurrentCompositeSize 
+                           if(iDebug.gt.5) WRITE(6,'(A1,I5,A1,I5,A1)',advance='no') '[',SelectedExcitorIndices(k),',',iLeftHere(k),'] '
+                        enddo
+                        WRITE(6,*)
+                     endif
+!For a given CompositeSize we generate all clusters, then increase composite size.
+!To generate a new cluster, we start from the end and try to point to the next excitor.  This is complicated by the indexing
+!SelectedExcitors(i) is the excitor, and iLeftHere(i) is the index of the current excitor in that list of excitors
+! (counting down from abs(CurrentSigns(SelectedExcitors(i)))-1 to 0.  
+!If there are no more of the selectedexcitor, then we try the next excitor.
+!If there are no more excitors to choose from, we step back in the selectedexcitor list to the previous index and try to increment that.
+! After having incremented somewhere in the list, we fill in up to the composite size from then on.
+! If this isn't possible (because we've enumerated all composite excitors of that composite size), we move to a larger composite size, and fill that in afresh.
+
+!Go from the end and try to increment
+                     do i=iCurrentCompositeSize,2,-1
+                        if(iLeftHere(i).gt.0) then  !We've got at least one  more at this level, so just use that
+                           iLeftHere(i)=iLeftHere(i)-1
+                           exit
+                        else  !try to get the next excitor
+                           SelectedExcitorIndices(i)=SelectedExcitorIndices(i)+1
+                           !we're not allowed to select the HF det.
+                           if (SelectedExcitorIndices(i).eq.iHFDet) SelectedExcitorIndices(i)=SelectedExcitorIndices(i)+1
+                           !if we've reached the end, then we need to go back up and try to increment that one.
+                           if (SelectedExcitorIndices(i).gt.TotWalkers) cycle
+                           !Hooray - we've got an allowed excitor
+                           iLeftHere(i)=abs(CurrentSign(SelectedExcitorIndices(i)))-1
+                           SelectedExcitors(:,i)=CurrentDets(:,SelectedExcitorIndices(i))
+                           exit
+                        endif
+                     enddo
+
+                     k=i
+
+                     do while (k.le.iCurrentCompositeSize)
+                        !If we fell off the end of the previous loop, then we need to increase the composite size.
+                        if (i.eq.1) iCurrentCompositeSize=iCurrentCompositeSize+1
+                        if (iCurrentCompositeSize.gt.nMaxSelExcitors) exit
+                        if (iDebug.gt.5) WRITE(6,*) "Filling from ",i+1," to ",iCurrentCompositeSize
+                        ! now go through from the one after the one we incrememented and fill the rest in sequentially
+                        do k=i+1,iCurrentCompositeSize
+                           if(iLeftHere(k-1).gt.0) then  !We've got at least one  more at this level, so just use that
+                              iLeftHere(k)=iLeftHere(k-1)-1
+                              SelectedExcitorIndices(k)=SelectedExcitorIndices(k-1)
+                              SelectedExcitors(:,k)=CurrentDets(:,SelectedExcitorIndices(k))
+                              cycle
+                           else  !try to get the next excitor
+                              SelectedExcitorIndices(k)=SelectedExcitorIndices(k-1)+1
+                              !we're not allowed to select the HF det.
+                              if (SelectedExcitorIndices(k).eq.iHFDet) SelectedExcitorIndices(k)=SelectedExcitorIndices(k)+1
+                              !if we've reached the end, then we need to increase increase the composite size.
+                              ! we do this by exiting the k loop, which will loop us round again, incrementing the composite size if i=1
+                              if (SelectedExcitorIndices(k).gt.TotWalkers) then
+                                 if(iDebug.gt.5) WRITE(6,*) "Out of excitors.  Increasing loop size."
+                                 i=1
+                                 exit
+                              endif
+                              !Hooray - we've got an allowed excitor
+                              iLeftHere(k)=abs(CurrentSign(SelectedExcitorIndices(k)))-1
+                              SelectedExcitors(:,k)=CurrentDets(:,SelectedExcitorIndices(k))
+                           endif
+                        enddo !for k
+                     enddo !for having successfully filled out the excitor list
+   
+                     if (iCurrentCompositeSize.gt.nMaxSelExcitors) then
+                        if(iDebug.gt.5) WRITE(6,*) "Not allowed >",nMaxSelExcitors," so exiting this excitor." 
+                        exit  !we've reached the end prematurely.  This is allowed
+                     endif
+                     dClusterProb=1
+!Account for intermediate Normalization
+
+                     iCompositeSize=iCurrentCompositeSize
+                     if(iDebug.gt.5) WRITE(6,*) "EXACT CLUSTER OUT"
+                     do k=2,iCompositeSize 
+                        if(iDebug.gt.5) WRITE(6,'(A1,I5,A1,I5,A1)',advance='no') '[',SelectedExcitorIndices(k),',',iLeftHere(k),'] '
+                        dProbNorm=dProbNorm*HFCount
+                        dNGenComposite=dNGenComposite*abs(CurrentSign(SelectedExcitorIndices(k)))  !For each new excit added to the composite, we multiply up to count the number of ways we could've generated it.
+                     enddo
+                     if(iDebug.gt.5) WRITE(6,*)
+                  else
 ! We wish to sum:
 ! sum_A [ (1/2) sum_{B\ne A} [ (1/3) sum_{C\ne A,B} ... ]]
 !  since the sums over B and C are too large a space to do fully, we stochastically sum them:
@@ -477,23 +591,8 @@ END SUBROUTINE AddBitExcitor
 !  In fact, we need the contribution of the composite excitor to vary as (HFcount)^-(iCompositeSize-1)
 !    to account for the intermediate normalization.  We make this happen by multiplying the probability of 
 !    having generated the excitor by (HFcount)^(iCompositeSize-1)  (i.e. one HFcount for each level)
-
-                  do i=2,nMaxSelExcitors
+                     do i=2,nMaxSelExcitors
    ! Calculate the probability that we've reached this far in the loop
-                     if(tExactCluster) then
-!This only works for up to pairs of clusters
-                        if(iExcitor.eq.2) then
-                           iLeftHere=abs(CurrentSign(j))-l
-                           SelectedExcitorIndices(2)=j
-                        else
-                           iLeftHere=iLeftHere-1
-                        endif
-                        k=SelectedExcitorIndices(2)
-                        if(iLeftHere.eq.0) then
-                           k=k+1
-                           iLeftHere=abs(CurrentSign(k))
-                        endif
-                     else
                         !We must have at least one excitor, so we cannot exit here.
                         if(i.gt.2) then
                            call genrand_real2(r)  !On GHB's advice
@@ -511,35 +610,29 @@ END SUBROUTINE AddBitExcitor
                            if(CurrentSign(k).eq.0) k=0
                         enddo
                         dNGenComposite=dNGenComposite*abs(CurrentSign(k))  !For each new excit added to the composite, we multiply up to count the number of ways we could've generated it.
-                     endif
-                     IF(iDebug.gt.5) Write(6,*) "Selected excitor",k
-                     SelectedExcitorIndices(i)=k
-                     SelectedExcitors(:,i)=CurrentDets(:,k)
-                     if(tExactCluster) then
-                        dProb=1
-!Account for intermediate Normalization
-                        dProbNorm=dProbNorm*HFCount
-                     else
-                        dProb=(dProb*abs(CurrentSign(k)))/((TotParts-HFcount))
+                        IF(iDebug.gt.5) Write(6,*) "Selected excitor",k
+                        SelectedExcitorIndices(i)=k
+                        SelectedExcitors(:,i)=CurrentDets(:,k)
+                        dClusterProb=(dClusterProb*abs(CurrentSign(k)))/((TotParts-HFcount))
 
 !Account for intermediate Normalization
                         dProbNorm=dProbNorm*HFCount
 
 !Account for possible orderings of selection
-                        dProbNorm=dProbNorm/i
-                     endif
-                     IF(iDebug.gt.5) WRITE(6,*) "TotParts,HFCount:",TotParts,HFcount
-                     IF(iDebug.gt.5) write(6,*) "Prob ",i,": ",(abs(CurrentSign(k))+0.d0)/(TotParts-HFcount)," Cuml:", dProb
-                  enddo
-                  IF(iDebug.gt.5) WRITE(6,*) 'prob out of sel routine.',dProbNumExcit
-                  if(i.gt.nMaxSelExcitors) THEN !We've been limited by the max number of excitations
-                     ! Let s be dProbSelNewExcitor, and X be nMaxSelExcitors
-                     !  The sum of all levels up to X-1 is
-                     !  (s - s^X) / (1 - s).  We take 1-this to be the prob of
-                     !  choosing this level
-                     dProbNumExcit= 1- (dProbSelNewExcitor - dProbNumExcit) / (1-dProbSelNewExcitor)
-                  ENDIF
-                  iCompositeSize=i-1  !Save the number of excitors we've selected
+                        dProbNorm=dProbNorm*i
+                        IF(iDebug.gt.5) WRITE(6,*) "TotParts,HFCount:",TotParts,HFcount
+                        IF(iDebug.gt.5) write(6,*) "Prob ",i,": ",(abs(CurrentSign(k))+0.d0)/(TotParts-HFcount)," Cuml:", dClusterProb
+                     enddo
+                     IF(iDebug.gt.5) WRITE(6,*) 'prob out of sel routine.',dProbNumExcit
+                     if(i.gt.nMaxSelExcitors) THEN !We've been limited by the max number of excitations
+                        ! Let s be dProbSelNewExcitor, and X be nMaxSelExcitors
+                        !  The sum of all levels up to X-1 is
+                        !  (s - s^X) / (1 - s).  We take 1-this to be the prob of
+                        !  choosing this level
+                        dProbNumExcit= 1- (dProbSelNewExcitor - dProbNumExcit) / (1-dProbSelNewExcitor)
+                     ENDIF
+                     iCompositeSize=i-1  !Save the number of excitors we've selected   
+                  endif
                   IF(iDebug.gt.3) then
                      WRITE(6,*) " Excitors in composite:", iCompositeSize
                      do i=1,iCompositeSize
@@ -547,10 +640,13 @@ END SUBROUTINE AddBitExcitor
                         call WriteBitEx(6,iLutHF,SelectedExcitors(:,i),.true.)
                      enddo
                      Write(6,*) "Level chosen Prob      : ",dProbNumExcit
-                     Write(6,*) "Select Prob given level: ",dProb
+                     Write(6,*) "Select Prob given level: ",dClusterProb
                      Write(6,*) "Prob norm              : ",dProbNorm
                   endif
-                  dProb=dProbNumExcit*dProb
+                  dClusterProb=dProbNumExcit*dClusterProb
+! Lets check the probs
+                  nClusters=nClusters+1
+                  dClusterProbs=dClusterProbs+1/dClusterProb
                   iLutnI(:)=CurrentDets(:,j)
                   iSgn=sign(1,CurrentSign(j)) !The sign of the first excitor
                   do i=2,iCompositeSize 
@@ -589,7 +685,10 @@ END SUBROUTINE AddBitExcitor
                    call WriteDet(6,nJ,nEl,.true.)
                    Write(6,*) "Prob ex|from",Prob
                endif
-               Prob=Prob*dProb*dProbNorm  !Now include the prob of choosing the det we spawned from
+!Prob is the Prob of choosing nJ from nI
+!dClusterProb is the Probability of having chosen this cluster excitor (normalized such that <1/dClusterProb> = 1)
+!dProbNorm is the renormalization factor for this level of excitors - decreasing by HFcount for each extra level of excitors
+               Prob=Prob*dClusterProb*dProbNorm  !Now include the prob of choosing the det we spawned from
                if(iDebug.gt.4) Write(6,*) "Prob ex tot",Prob
 !Calculate number of children to spawn
                IF(TTruncSpace) THEN
@@ -620,6 +719,7 @@ END SUBROUTINE AddBitExcitor
                endif
 
                IF(Child.ne.0) THEN
+                  if(iCompositeSize.gt.1) nClusterChildren=nClusterChildren+1 
    !We want to spawn a child - find its information to store
 
    !                    WRITE(6,*) "Spawning particle to:",nJ(:)
@@ -665,7 +765,7 @@ END SUBROUTINE AddBitExcitor
    ! We have to decompose our composite excitor into one of its parts.  
                IF(iCompositeSize.GT.0) THEN
                   dProbDecompose=dNGenComposite
-                  dProb=dProb*dProbDecompose
+!                  dProb=dProb/HFcount
                   call genrand_real2(r)  !On GHB's advice
                   k=1+floor(r*iCompositeSize)
                   iPartDie=SelectedExcitorIndices(k)
@@ -680,6 +780,7 @@ END SUBROUTINE AddBitExcitor
                   iPartDie=j
                   HDiagCurr=CurrentH(j)
                ENDIF 
+               dProb=dClusterProb*dProbDecompose
 
 !Also, we want to find out the excitation level of the determinant - we only need to find out if its connected or not (so excitation level of 3 or more is ignored.
 !This can be changed easily by increasing the final argument.
@@ -725,6 +826,8 @@ END SUBROUTINE AddBitExcitor
                   if(iDebug.eq.4) Write(6,'(A,G)') "Prob: ",dProb*dProbNorm
                endif
                NoDied=NoDied+iDie          !Update death counter
+               if(iCompositeSize.gt.1.and.iDie.gt.0) nClusterDeaths=nClusterDeaths+1 
+               if(iCompositeSize.gt.1.and.iDie.lt.0) nClusterBirths=nClusterBirths+1 
                
                iDie=iDie*iSgn
                if(iDie.ne.0) then
@@ -743,13 +846,18 @@ END SUBROUTINE AddBitExcitor
 !Finish cycling over determinants
         enddo
 !#if 0
-        dT1Sq=(dT1Sq/HFCount)
+        if(iDebug.gt.2) then
+           write(6,*) "nClusters:",nClusters
+           write(6,*) "<1/dClusterProb>",dClusterProbs/nClusters
+        endif
+        dT1Sq=(dT1Sq/HFCount)/HFCount
+        if(.not.tCCMCFCI) ENumCyc=ENumCyc+dT1Sq
         dT1SqCuml=dT1SqCuml+dT1Sq
         if (iMaxExcitorSelections.gt.1) then
 !            ENumCyc=ENumCyc+dT1Sq
 !            IF(Iter.gt.NEquilSteps) SumENum=SumENum+dT1Sq
         endif
-        write(78,'(I,4G)') Iter, dT1Sq/HFCount,AJWTProjE/HFCount,AJWTProjE,dT1SqCuml/Iter
+!        write(78,'(I,4G)') Iter, dT1Sq,AJWTProjE/HFCount,AJWTProjE,dT1SqCuml/Iter
 !#endif
 
 !Now we know what needs to die, we kill it.
@@ -789,7 +897,7 @@ END SUBROUTINE AddBitExcitor
             iSgn=CurrentSign(j)
 !            CALL SumEContrib(DetCurr,WalkExcitLevel,iSgn,CurrentDets(:,j),HDiagCurr,1.d0)
             CopySign=CurrentSign(j)
-            IF(CopySign.ne.0) THEN
+            IF(CopySign.ne.0.or.WalkExcitLevel.eq.0) THEN
                 CurrentDets(:,VecSlot)=CurrentDets(:,j)
                 CurrentSign(VecSlot)=CopySign
                 CurrentH(VecSlot)=CurrentH(j)
@@ -806,6 +914,8 @@ END SUBROUTINE AddBitExcitor
         SumWalkersCyc=SumWalkersCyc+(INT(TotParts,i2))
 !        WRITE(6,*) "Born, Die: ",NoBorn, NoDied
 
+
+        write(79,'(5I)') NoBorn,NoDied,nClusterChildren,nClusterDeaths,nClusterBirths
 
 !Output if there has been a particle bloom this iteration. A negative number indicates that particles were created from a single excitation.
         IF(iPartBloom.ne.0) THEN

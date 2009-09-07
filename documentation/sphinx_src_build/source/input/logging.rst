@@ -231,6 +231,10 @@ FCIMC options
     resulting in accepted and not accepted spawns.  This includes the number of not accepted spawns vs accepted, 
     and the average size of the H element involved in accepted and not accepted spawns. 
 
+**CCMCDEBUG** iCCMCDebug
+    Specify the CCMC debug level.  Default 0 (no debugging information printed).  Higher numbers will generate more
+    information.
+
 GraphMorph options
 ------------------
 

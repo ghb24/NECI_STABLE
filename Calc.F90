@@ -1437,6 +1437,8 @@ MODULE Calc
                        tExactCluster=.true.
                     case("FCI")
                        tCCMCFCI=.true.
+                    case default
+                       call report("Keyword error with "//trim(w),.true.)
                     end select
                   enddo
                case("RETURNPATHMC")
