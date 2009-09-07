@@ -5514,7 +5514,11 @@ MODULE FciMCParMod
 !We now want to find how the shift should change for the entire ensemble of processors
         IF(iProcIndex.eq.Root) THEN
             IF(.not.TSinglePartPhase) DiagSft=DiagSft-(log(AllGrowRate)*SftDamp)/(Tau*(StepsSft+0.D0))
-            ProjectionE=AllSumENum/AllSumNoatHF
+
+            IF(AllSumNoatHF.ne.0.D0) THEN
+!AllSumNoatHF can actually be 0 if we have equilsteps on.
+                ProjectionE=AllSumENum/AllSumNoatHF
+            ENDIF
 
 !Calculate the projected energy where each update cycle contributes the same weight to the average for its estimator for the energy
             IF(AllHFCyc.ne.0.D0) THEN
