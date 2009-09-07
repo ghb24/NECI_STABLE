@@ -364,7 +364,7 @@
 ! FCIDetIndex(1:NEl) contains the index of FCIDets where each excitation level starts.
 ! As in FCIDetIndex(1) = 2 always I think - Excitation level 1 starts at the second determinant (after HF).
 ! Pretty sure FCIDetIndex always goes from 1:NEl even from truncated excite calculations.
-        USE FciMCParMod , only : AllHistogram
+        USE FciMCData , only : AllHistogram
 ! The elements of AllHistogram correspond to the rows of FCIDets - i.e to each determinant in the system.
 ! AllHistogram contains the final (normalised) amplitude of the determinant - with sign.
         USE SystemData , only : NEl,NIfD,tStoreSpinOrbs,tRotateVirtOnly,tSeparateOccVirt,G1
@@ -970,9 +970,10 @@
 
 
     SUBROUTINE HistNatOrbEvalues(Evalues,OneRDM)
-        USE SystemData , only : ARR,G1,tSeparateOccVirt,tRotateOccOnly,tRotateVirtOnly,NEl,tStoreSpinOrbs
+        USE SystemData , only : ARR,G1,tSeparateOccVirt,tRotateOccOnly,tRotateVirtOnly,NEl,tStoreSpinOrbs,nOccAlpha,nOccBeta
         USE RotateOrbsMod , only : NoOrbs,SymLabelList2,SymLabelListInv
-        INTEGER :: i,k,x,w,NoEvalues
+        IMPLICIT NONE
+        INTEGER :: i,k,x,w,NoEvalues,a,b,NoOcc
         REAL*8 :: EvaluesCount(NoOrbs,2),Evalues(1:NoOrbs),OrbEnergies(1:NoOrbs),EvalueEnergies(1:NoOrbs)
         REAL*8 :: OneRDM(NoOrbs,NoOrbs),SumEvalues
 
