@@ -110,6 +110,7 @@ MODULE System
       tSpinOrbs=.false.
       tReadInCoeff=.false.
       tUseMP2VarDenMat=.false.
+      tFindCINatOrbs=.false.
       DiagWeight=1.D0
       OffDiagWeight=1.D0
       OneElWeight=1.D0
@@ -605,6 +606,12 @@ MODULE System
 ! new FCIDUMP file.
             tUseMP2VarDenMat=.true.
 
+        case("USECINATORBS")            
+! This rotation option is slightly different, it first requires a spawning calculation from which the amplitudes of the wavefunction are 
+! obtained.  From here, the one electron reduced density matrix is calculated, and the eigenvectors of this are used to rotate the HF orbitals.
+! A new ROFCIDUMP file is then produced in the new natural orbitals.
+            tFindCINatOrbs=.true.
+
         case("RANLUXLEV")
 !This is the level of quality for the random number generator. Values go from 1 -> 4. 3 is default.
             call readi(iRanLuxLev)
@@ -658,6 +665,9 @@ MODULE System
 !This will save memory (around a factor of 16) for the integral storage, but the FCIDUMP file should be the same as before (ie in UHF form).
             tROHF=.true.
             tNoBrillouin=.true.
+            IF(tFindCINatOrbs) CALL Stop_All("ReadSysInp","For orbital rotations of open shell systems, UMAT must be stored in spin &
+                                                           & orbitals - cannot be compressed using ROHF.") 
+                                             
         case("ENDSYS") 
             exit system
         case default

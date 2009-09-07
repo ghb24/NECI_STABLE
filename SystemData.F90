@@ -11,7 +11,7 @@ LOGICAL :: TSPN,TCSF,TPARITY,TUSEBRILLOUIN,TEXCH,TREAL,TTILT,tUMatEps,tOneElIntM
 LOGICAL :: tStoreSpinOrbs   !This is set when the orbitals are stored in spin-orbital notation
 LOGICAL :: tVirtCoulombMax,tVirtExchangeMin,tHijSqrdMin,tDiagonalizehij,tHFSingDoubExcMax,tSpinOrbs,tReadInCoeff,tUseMP2VarDenMat
 LOGICAL :: TALPHA,TSTOREASEXCITATIONS,TBIN,tStarStore,tVASP,tOffDiagSqrdMin,tOffDiagSqrdMax,tOffDiagMax,tShakeDelay
-LOGICAL :: tSeparateOccVirt,tMerTwist,tExactSizeSpace,tRotatedOrbs,tImportanceSample,tERLocalization,tOffDiagMin
+LOGICAL :: tSeparateOccVirt,tMerTwist,tExactSizeSpace,tRotatedOrbs,tImportanceSample,tERLocalization,tOffDiagMin,tFindCINatOrbs
 LOGICAL :: TNoRenormRandExcits,tAssumeSizeExcitgen,tCycleOrbs,tROIteration,tShakeIter,tRotateOccOnly,tDoubExcMin
 LOGICAL :: tNonUniRandExcits,tNoSymGenRandExcits,tRotateOrbs,tLagrange,tShake,tShakeApprox,tRotateVirtOnly,tMaxHLGap,tCacheFCIDUMPInts
 INTEGER :: LMS,STOT,IPARITY(5),NMAXX,NMAXY,NMAXZ,NMSH,COULDAMPORB,ElecPairs,ROIterMax,iRanLuxLev,DiagMaxMinFac,OneElMaxMinFac

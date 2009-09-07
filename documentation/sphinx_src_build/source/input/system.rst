@@ -485,6 +485,20 @@ Type of rotation / localisation:
     energy calculation.  This truncation of the virtuals is done using the Logging option 
     **TRUNCROFCIDUMP** [NoFrozenVirt].
 
+**USECINATORBS**
+    This option is similar to **USEMP2VDM** except that the one electron reduced density matrix is
+    used instead of the MP2VDM to transform the orbitals.
+    The 1-RDM has the form: < Psi | a_p+ a_q | Psi >, where a_q is an annihilation and a_p+ the 
+    creation operator acting on a determinant in Psi.  
+    In order to form this one electron reduced density matrix, we must first find Psi within the 
+    required truncation.  This is done by performing a spawning calculation and histogramming the 
+    occupation at the determinants.  The required histogramming is automatically turned on by using the 
+    **USECINATORBS** keyword, and at the end of the spawning, the 1-RDM is found from the amplitudes. 
+    The orbitals are then rotated using this matrix, and a ROFCIDUMP file of the resulting approximate 
+    natural orbitals is printed. The level of natural orbitals found is controlled by truncation of 
+    the excitation level in the spawning calculation.  E.g. an excite 2 calculation results in the CISD 
+    natural orbitals etc.
+
 Each of these methods may be applied for both the cases where symmetry as kept and broken.
 This is controlled by the absence or presence of the NOSYMMETRY keyword respectively.
 Also, the default option is to mix all orbitals (occupied and virtual) together.

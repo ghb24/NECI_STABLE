@@ -4,7 +4,7 @@
 
 MODULE FciMCParMod
     use SystemData , only : NEl,Alat,Brr,ECore,G1,nBasis,nBasisMax,nMsh,Arr,LMS,NIfD,tHPHF
-    use SystemData , only : tHub,tReal,tNonUniRandExcits,tMerTwist,tRotatedOrbs,tImportanceSample
+    use SystemData , only : tHub,tReal,tNonUniRandExcits,tMerTwist,tRotatedOrbs,tImportanceSample,tFindCINatOrbs
     use CalcData , only : InitWalkers,NMCyc,DiagSft,Tau,SftDamp,StepsSft,OccCASorbs,VirtCASorbs,tFindGroundDet,tDirectAnnihil
     use CalcData , only : TStartMP1,NEquilSteps,TReadPops,TRegenExcitgens,TFixShiftShell,ShellFix,FixShift,tMultipleDetsSpawn
     use CalcData , only : tConstructNOs,tAnnihilatebyRange,tRotoAnnihil,MemoryFacSpawn,tRegenDiagHEls,tSpawnAsDet
@@ -38,6 +38,7 @@ MODULE FciMCParMod
         use CalcData, only : iFullSpaceIter
         use UMatCache, only : UMatInd
         use FciMCLoggingMOD , only : PrintTriConnHist,PrintTriConnHElHist
+        use RotateOrbsMod , only : RotateOrbs
         TYPE(HDElement) :: Weight,Energyxw
         INTEGER :: i,j,error,HFConn
         CHARACTER(len=*), PARAMETER :: this_routine='FciMCPar'
@@ -146,6 +147,12 @@ MODULE FciMCParMod
         IF(tCalcFCIMCPsi) THEN
 !This routine will actually only print the matrix if tPrintFCIMCPsi is on
             CALL PrintFCIMCPsi()
+
+            IF(tFindCINatOrbs) THEN
+!This routine takes the wavefunction Psi, calculates the one electron density matrix, and rotates the HF orbitals to produce a new ROFCIDUMP file.
+                IF(iProcIndex.eq.0) CALL RotateOrbs() 
+                CALL MPI_Barrier(MPI_COMM_WORLD,error)
+            ENDIF
         ENDIF
 
 !        IF(tHistSpawn) CALL WriteHistogram()
@@ -5753,7 +5760,7 @@ MODULE FciMCParMod
 
 !This initialises the calculation, by allocating memory, setting up the initial walkers, and reading from a file if needed
     SUBROUTINE InitFCIMCCalcPar()
-        use SystemData, only : tUseBrillouin,iRanLuxLev,tSpn,tHPHFInts,tRotateOrbs,tNoBrillouin,tROHF
+        use SystemData, only : tUseBrillouin,iRanLuxLev,tSpn,tHPHFInts,tRotateOrbs,tNoBrillouin,tROHF,tFindCINatOrbs
         USE mt95 , only : genrand_init
         use CalcData, only : EXCITFUNCS
         use Calc, only : VirtCASorbs,OccCASorbs,FixShift,G_VMC_Seed
@@ -6054,6 +6061,9 @@ MODULE FciMCParMod
 !        AllDetsNorm=0.D0
         tCleanRun=.false.
 
+        IF(tFindCINatOrbs) tCalcFCIMCPsi=.true.
+!If we are doing a rotation based on the CI natural orbitals, we first need to calculate the final wavefunction Psi during the spawning calculation.         
+
         IF(tHistSpawn.or.tCalcFCIMCPsi) THEN
             ALLOCATE(HistMinInd(NEl))
             ALLOCATE(HistMinInd2(NEl))
@@ -6144,7 +6154,6 @@ MODULE FciMCParMod
             ENDIF
         ENDIF
 
-
 !Need to declare a new MPI type to deal with the long integers we use in the hashing, and when reading in from POPSFILEs
 !        CALL MPI_Type_create_f90_integer(18,mpilongintegertype,error)
 !        CALL MPI_Type_commit(mpilongintegertype,error)
@@ -6175,6 +6184,8 @@ MODULE FciMCParMod
         ENDIF
     
         IF(tConstructNOs) THEN
+! This is the option for constructing the natural orbitals actually during a NECI calculation.  This is different (and probably a lot more complicated and doesn't 
+! currently work) from the FINDCINATORBS option which finds the natural orbitals given a final wavefunction.
             ALLOCATE(OneRDM(nBasis,nBasis),stat=ierr)
             CALL LogMemAlloc('OneRDM',nBasis*nBasis,8,this_routine,OneRDMTag,ierr)
             OneRDM(:,:)=0.D0
@@ -6767,7 +6778,7 @@ MODULE FciMCParMod
 
         IF(tPrintTriConnections.or.tHistTriConHEls.or.tPrintHElAccept) CALL InitTriHElStats()
 
-        IF((NMCyc.ne.0).and.(tRotateOrbs.and.tTruncRODump)) CALL Stop_All(this_routine,"Cannot rotate and then truncate the orbitals and go straight into a spawning &
+        IF((NMCyc.ne.0).and.(tRotateOrbs.and.tTruncRODump.and.(.not.tFindCINatOrbs))) CALL Stop_All(this_routine,"Cannot rotate and then truncate the orbitals and go straight into a spawning &
                                                                                        & calculation.  Ordering of orbitals in incorrect.")
 
         CullInfo(1:10,1:3)=0
@@ -12714,7 +12725,7 @@ MODULE FciMCParMod
             OneRDM(HFDet(i),HFDet(i))=1.D0
         enddo
     
-        CALL FindNatOrbs(OneRDM)           !Diagonalise the 1-RDM
+        CALL FindNatOrbsOld(OneRDM)           !Diagonalise the 1-RDM
 
     END SUBROUTINE NormandDiagOneRDM
     

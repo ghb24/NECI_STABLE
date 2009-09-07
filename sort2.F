@@ -966,16 +966,13 @@ C.. This version has ARR as an int and BRR as a real
       END 
 
 ! Based on SortBitSign SortEvecbyEval, however in SortEvecbyEval, RA is an array of reals (evalues) to be sorted in descending order of absolute size, and
-! RB is an array of elements going from 0:NVec (evectors) to be taken with the element of RA. 
+! RB is an array of elements going from 1:NVec (evectors) to be taken with the element of RA. 
 ! RA has length N.
       SUBROUTINE SortEvecbyEval(N,RA,NVec,RB)
       INTEGER N,NVec,I,L,IR,J
       REAL*8 RA(N)
       REAL*8 RB(1:NVec,N)
       REAL*8 RRA,RRB(1:NVec)
-
-      WRITE(6,*) RA 
-      CALL FLUSH(6)
 
       IF(N.LE.1) RETURN
       L=N/2+1
@@ -1020,6 +1017,59 @@ C.. This version has ARR as an int and BRR as a real
 
       END SUBROUTINE SortEvecbyEval
  
+! RA and RB have length N.
+! Based on all the other sorts - (but in this case modified from SortEvecbyEval) - this sorts 2 REAL arrays based on descending order of RA.
+! No absolutes are taken so -ve's appear before +ve values.
+      SUBROUTINE Sort2Real(N,RA,RB)
+      INTEGER N,I,L,IR,J
+      REAL*8 RA(N)
+      REAL*8 RB(N)
+      REAL*8 RRA,RRB
+
+      IF(N.LE.1) RETURN
+      L=N/2+1
+      IR=N
+10    CONTINUE
+        IF(L.GT.1)THEN
+          L=L-1
+          RRA=RA(L)
+          RRB=RB(L)
+        ELSE
+          RRA=RA(IR)
+          RA(IR)=RA(1)
+          RRB=RB(IR)
+          RB(IR)=RB(1)
+          IR=IR-1
+          IF(IR.EQ.1)THEN
+            RA(1)=RRA
+            RB(1)=RRB
+            RETURN
+          ENDIF
+        ENDIF
+        I=L
+        J=L+L
+20      IF(J.LE.IR)THEN
+          IF(J.LT.IR)THEN
+            IF(RA(J).gt.RA(J+1)) J=J+1
+          ENDIF
+          IF(RRA.gt.RA(J)) THEN
+            RA(I)=RA(J)
+            RB(I)=RB(J)
+            I=J
+            J=J+J
+          ELSE
+            J=IR+1
+          ENDIF
+        GO TO 20
+        ENDIF
+        RA(I)=RRA
+        RB(I)=RRB
+
+      GO TO 10
+
+      END SUBROUTINE Sort2Real
+ 
+
 ! Based on SortBitSign SortEvecbyEvalPlus1, however in SortEvecbyEvalPlus1, RA is an array of reals (evalues) to be sorted in descending order of absolute size, and
 ! RB is an array of elements going from 0:NVec (evectors) to be taken with the element of RA.  RC is a third array of integers also to be taken with the element of RA.
 ! RA has length N.

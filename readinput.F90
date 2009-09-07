@@ -154,7 +154,7 @@ MODULE ReadInput
 
 
       subroutine checkinput()
-      use SystemData , only : NEL,TSTARSTORE,TUseBrillouin, Beta
+      use SystemData , only : NEL,TSTARSTORE,TUseBrillouin, Beta,tFindCINatOrbs
       USE PrecalcData , only : PREIV_MAX,USEVAR,PRE_TAYLOG,             &
      &  TGRIDVAR,TLINEVAR,TOTALERROR,TRUECYCLES
       use CalcData , only : I_VMAX,NPATHS,                 &
@@ -172,6 +172,8 @@ MODULE ReadInput
       INTEGER :: vv,kk,cc,ierr
       LOGICAL :: CHECK
       character(*), parameter :: t_r='checkinput'
+
+      IF(tFindCINatOrbs) tCalcFCIMCPsi=.true.   !turn on histogramming of fcimc wavefunction in order to find density matrix
 
       IF (tCalcFCIMCPsi.or.tHistSpawn) THEN  !Used in the FCIMc.  We find dets and compress them for later use
          tFindDets=.true.

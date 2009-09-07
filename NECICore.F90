@@ -136,7 +136,8 @@ subroutine NECICalcInit(iCacheFlag)
     !=                                calculation from within the same CPMD/VASP 
     !=                                calculation.
 
-    use System, only : SysInit,tRotateOrbs
+    use System, only : SysInit
+    use SystemData, only : tRotateOrbs,tFindCINatOrbs
     use Integrals, only : IntInit,IntFreeze,tPostFreezeHF
     use DetCalc, only : DetCalcInit,DoDetCalc
     use Determinants, only : DetPreFreezeInit,DetInit
@@ -167,7 +168,7 @@ subroutine NECICalcInit(iCacheFlag)
     if (tPostFreezeHF) call HFDoCalc()
 
     
-    IF(tRotateOrbs) THEN
+    IF(tRotateOrbs.and.(.not.tFindCINatOrbs)) THEN
         CALL RotateOrbs()
     ENDIF
 
