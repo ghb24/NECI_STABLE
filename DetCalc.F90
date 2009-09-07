@@ -278,7 +278,7 @@ CONTAINS
       integer :: ierr
       character(25), parameter :: this_routine = 'DoDetCalc'
       REAL*8 EXEN,GSEN,FLRI,FLSI
-        Type(BasisFn) ISym
+        Type(BasisFn) ISym,IHFSYM
 
         INTEGER GC,I,ICMAX,MaxDet,Bits
         INTEGER iDeg,III,IN
@@ -292,23 +292,25 @@ CONTAINS
         real*8 GetHElement, calct, calcmcen, calcdlwdb,norm
 ! Doesn't seem to have been inited
 
-      WRITE(6,'(1X,A,E19.3)') ' B2LIMIT : ' , B2L
-      WRITE(6,*) ' NBLK : ' , NBLK 
-      WRITE(6,*) ' NKRY : ' , NKRY
-      WRITE(6,*) ' NEVAL : ' , NEVAL
+      IF(tEnergy) THEN
+          WRITE(6,'(1X,A,E19.3)') ' B2LIMIT : ' , B2L
+          WRITE(6,*) ' NBLK : ' , NBLK 
+          WRITE(6,*) ' NKRY : ' , NKRY
+          WRITE(6,*) ' NEVAL : ' , NEVAL
 
-              WRITE(6,*) ' NCYCLE : ' , NCYCLE
-            WRITE(6,*) ' TCORR : ' , TCORR
-      WRITE(6,*) ' TENERGY : ' , TENERGY
-      IF(TCORR) THEN
-        WRITE(6,*) ' *** EXCHANGE-CORRELATION HOLE WILL BE CALCULATED *** ' 
-      ENDIF
-      WRITE(6,*) ' IOBS : ' , IOBS 
-      WRITE(6,*) ' JOBS : ' , JOBS 
-      WRITE(6,*) ' KOBS : ' , KOBS 
-      WRITE(6,*) ' NMSH : ' , NMSH 
-      IF(IOBS.GT.NMSH.OR.IOBS.LE.0.OR.JOBS.GT.NMSH.OR.JOBS.LE.0.OR.KOBS.GT.NMSH.OR.KOBS.LE.0) THEN
-        STOP ' !!! REFERENCE PARTICLE NOT IN BOX !!! '
+          WRITE(6,*) ' NCYCLE : ' , NCYCLE
+          WRITE(6,*) ' TCORR : ' , TCORR
+          WRITE(6,*) ' TENERGY : ' , TENERGY
+          IF(TCORR) THEN
+            WRITE(6,*) ' *** EXCHANGE-CORRELATION HOLE WILL BE CALCULATED *** ' 
+          ENDIF
+          WRITE(6,*) ' IOBS : ' , IOBS 
+          WRITE(6,*) ' JOBS : ' , JOBS 
+          WRITE(6,*) ' KOBS : ' , KOBS 
+          WRITE(6,*) ' NMSH : ' , NMSH 
+          IF(IOBS.GT.NMSH.OR.IOBS.LE.0.OR.JOBS.GT.NMSH.OR.JOBS.LE.0.OR.KOBS.GT.NMSH.OR.KOBS.LE.0) THEN
+            STOP ' !!! REFERENCE PARTICLE NOT IN BOX !!! '
+          ENDIF
       ENDIF
 
 !C.. now back to the storing H
@@ -503,6 +505,8 @@ CONTAINS
 !C.. IF we want to compress the found determinants for use later...
       IF(tFindDets) THEN 
          IF(tCompressDets) THEN
+!Need to find symmetry of the reference determinant, so that we can only look for determinants of the correct symmetry.
+            CALL GETSYM(FDET,NEL,G1,NBASISMAX,IHFSYM)
             IF(.not.associated(NMRKS)) THEN
                 WRITE(6,*) "NMRKS not allocated"
                 CALL FLUSH(6) 
@@ -513,12 +517,12 @@ CONTAINS
             norm=0.D0
             do i=1,NDET
                 CALL GETSYM(NMRKS(1,i),NEL,G1,NBASISMAX,ISYM)
-                IF(ISym%Sym%S.eq.0) THEN
+                IF(ISym%Sym%S.eq.IHFSYM%Sym%S) THEN
                     Det=Det+1
                     IF(tEnergy) norm=norm+(REAL(CK(i)%v,8))**2
                 ENDIF
             enddo
-            WRITE(6,*) Det," determinants of A1 symmetry found."
+            WRITE(6,"(I25,A,I4,A)") Det," determinants of symmetry ",IHFSym%Sym%S," found."
             WRITE(6,*) "Normalization of those determinants is: ", norm
             CALL FLUSH(6)
 
@@ -540,7 +544,7 @@ CONTAINS
 !                    WRITE(6,*) "Found Det: ",NMRKS(:,i)
 !                    WRITE(6,*) i,iSym%Sym%S,REAL(CK(i)%v,8)
 !                ENDIF
-                IF(ISym%Sym%S.eq.0) THEN
+                IF(ISym%Sym%S.eq.IHFSYM%Sym%S) THEN
                     Det=Det+1
                     ExcitLevel=iGetExcitLevel_2(FDet,NMRKS(:,i),NEl,NEl)
                     IF(ExcitLevel.ne.0) THEN
