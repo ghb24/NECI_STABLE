@@ -283,6 +283,8 @@ END SUBROUTINE AddBitExcitor
         INTEGER iMaxExcitorSelections
         LOGICAL tSuccess
 
+        REAL*8 dNGenComposite  ! The number of ways the composite could've been generated.
+
         REAL*8 dT1Sq
         INTEGER AttemptDieProbPar
         REAL*8 AJWTProjE
@@ -296,7 +298,7 @@ END SUBROUTINE AddBitExcitor
         endif
 
         if(Iter.eq.1) dT1SqCuml=0 
-        iDebug=2
+        iDebug=0
 !Number of excitors dying
         iDeaths=0
 
@@ -311,6 +313,10 @@ END SUBROUTINE AddBitExcitor
             WRITE(11,*) Iter,TotWalkers,NoatHF,NoatDoubs,MaxIndex,TotParts
             CALL FLUSH(11)
         ENDIF
+
+
+        IF(tHistSpawn.or.tCalcFCIMCPsi) HistMinInd(1:NEl)=FCIDetIndex(1:NEl)    !This is for the binary search when histogramming
+         !This info is destroyed by SumEContrib and needs to be reset each cycle
         
         CALL set_timer(Walker_Time,30)
         IF(iDebug.gt.0) WRITE(6,*) "Number of particles, excitors:",TotParts, TotWalkers
@@ -339,8 +345,12 @@ END SUBROUTINE AddBitExcitor
          call WriteBitDet(6,iLutHF,.true.)
          write(6,*) "Particle list"
          do j=1,TotWalkers
-          write(6,'(i)',advance='no') CurrentSign(j)
-          call WriteBitEx(6,iLutHF,CurrentDets(:,j),.true.)
+            write(6,'(i)',advance='no') CurrentSign(j)
+            call WriteBitEx(6,iLutHF,CurrentDets(:,j),.true.)
+            do l=0,nIfD
+               Write(6,'(i)', advance='no') CurrentDets(l,j)
+            enddo
+            write(6,*)
          enddo
         endif
 !TotRealWalkers gets updated with the number of non-zero walkers at each stage.
@@ -405,7 +415,9 @@ END SUBROUTINE AddBitExcitor
             endif
 ! tNewExcitor will be set at the end of this loop if we decide to come 
             do iExcitor=1,iMaxEx
-               if(iExcitor.eq.1) then
+
+
+               if(iExcitor.eq.1) then  !Deal with all excitors singly
                   if(iDebug.gt.4) write(6,*) 'Plain old excitor.'
 !just select the single excitor
                   iLutnI(:)=CurrentDets(:,j)
@@ -413,6 +425,15 @@ END SUBROUTINE AddBitExcitor
                   dProb=1 
                   dProbNorm=1
                   iCompositeSize=0
+                  CALL DecodeBitDet(DetCurr,iLutnI(:),NEl,NIfD)
+!Also take into account the contributions from the dets in the list
+                  HDiagCurr=CurrentH(j)
+                  if(tHistSpawn) then
+                     CALL FindBitExcitLevel(iLutHF,iLutnI,NIfD,WalkExcitLevel,nEl)
+                  else
+                     CALL FindBitExcitLevel(iLutHF,iLutnI,NIfD,WalkExcitLevel,2)
+                  endif
+                  CALL SumEContrib(DetCurr,WalkExcitLevel,iSgn,iLutnI,HDiagCurr,1.d0)
                else
                   if(iDebug.gt.4) write(6,*) 'Excitor composite number ',iExcitor
 ! Now select a sample of walkers.  We need up to as many walkers as electrons.
@@ -433,6 +454,9 @@ END SUBROUTINE AddBitExcitor
 !We force the first excitor to be the current det.
                   SelectedExcitorIndices(1)=j
                   SelectedExcitors(:,1)=CurrentDets(:,j)
+
+!We keep track of the number of ways we could've generated this composite
+                  dNGenComposite=abs(CurrentSign(j))
 
 ! We wish to sum:
 ! sum_A [ (1/2) sum_{B\ne A} [ (1/3) sum_{C\ne A,B} ... ]]
@@ -475,7 +499,7 @@ END SUBROUTINE AddBitExcitor
                            call genrand_real2(r)  !On GHB's advice
                            if(r.lt.dProbSelNewExcitor) exit
                         endif
-
+            
       ! decide not to choose another walker with this prob.
                         dProbNumExcit=dProbNumExcit*dProbSelNewExcitor
       ! Select a new random walker
@@ -486,6 +510,7 @@ END SUBROUTINE AddBitExcitor
                            if(k.ge.iHFDet) k=k+1          !We're not allowed to select the HF det
                            if(CurrentSign(k).eq.0) k=0
                         enddo
+                        dNGenComposite=dNGenComposite*abs(CurrentSign(k))  !For each new excit added to the composite, we multiply up to count the number of ways we could've generated it.
                      endif
                      IF(iDebug.gt.5) Write(6,*) "Selected excitor",k
                      SelectedExcitorIndices(i)=k
@@ -639,7 +664,8 @@ END SUBROUTINE AddBitExcitor
 
    ! We have to decompose our composite excitor into one of its parts.  
                IF(iCompositeSize.GT.0) THEN
-                  dProbDecompose=1.0/iCompositeSize
+                  dProbDecompose=dNGenComposite
+                  dProb=dProb*dProbDecompose
                   call genrand_real2(r)  !On GHB's advice
                   k=1+floor(r*iCompositeSize)
                   iPartDie=SelectedExcitorIndices(k)
@@ -653,7 +679,6 @@ END SUBROUTINE AddBitExcitor
                   dProbDecompose=1
                   iPartDie=j
                   HDiagCurr=CurrentH(j)
-!                  CALL SumEContrib(DetCurr,WalkExcitLevel,iSgn,iLutnI,HDiagCurr,1.d0)
                ENDIF 
 
 !Also, we want to find out the excitation level of the determinant - we only need to find out if its connected or not (so excitation level of 3 or more is ignored.
@@ -666,8 +691,14 @@ END SUBROUTINE AddBitExcitor
                ENDIF
 !Sum in any energy contribution from the determinant, including other parameters, such as excitlevel info
 !               WRITE(6,'(A,3G,2I)') "PPP",dProb,dProbNorm,dProb*dProbNorm,WalkExcitLevel,iCompositeSize
-               CALL SumEContrib(DetCurr,WalkExcitLevel,iSgn,iLutnI,HDiagCurr,(dProb*dProbNorm))
+!               CALL SumEContrib(DetCurr,WalkExcitLevel,iSgn,iLutnI,HDiagCurr,(dProb*dProbNorm))
+!HDiags are stored.
+!               if(iExcitor.eq.1) THEN
+!                  HDiagCurr=CurrentH(j)
 
+!Sum in any energy contribution from the determinant, including other parameters, such as excitlevel info
+!                  CALL SumEContrib(DetCurr,WalkExcitLevel,CurrentSign(j),CurrentDets(:,j),HDiagCurr,1.D0)
+!               endif
 
 
                IF(iDebug.gt.4) then

@@ -155,7 +155,7 @@ MODULE FciMCParMod
             ENDIF
         ENDIF
 
-!        IF(tHistSpawn) CALL WriteHistogram()
+        IF(tHistSpawn) CALL WriteHistogram()
 
         Weight=HDElement(0.D0)
         Energyxw=HDElement(ProjectionE)
@@ -4046,6 +4046,7 @@ MODULE FciMCParMod
                                 InstAnnihil(PartIndex)=InstAnnihil(PartIndex)+REAL(2*(abs(CurrentSign(PartInd))),r2)
                             ELSE
                                 WRITE(6,*) "***",SpawnedParts(0:NIfD,i)
+                                Call WriteBitDet(6,SpawnedParts(0:NIfD,i),.true.)
                                 CALL Stop_All("AnnihilateSpawnedParts","Cannot find corresponding FCI determinant when histogramming")
                             ENDIF
                         ENDIF
@@ -5138,6 +5139,7 @@ MODULE FciMCParMod
                 WRITE(6,*) DetCurr(:)
                 WRITE(6,*) "***",iLutCurr(0:NIfD)
                 WRITE(6,*) "***",ExcitLevel,HistMinInd(ExcitLevel),Det
+                Call WriteBitDet(6,iLutCurr(0:NIfD),.true.)
                 CALL Stop_All("SumEContrib","Cannot find corresponding FCI determinant when histogramming")
             ENDIF
             IF(tHPHF) THEN

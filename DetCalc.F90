@@ -671,8 +671,13 @@ CONTAINS
                     OPEN(17,FILE='SymDETS',STATUS='UNKNOWN')
 
                     do i=1,Det
-                        WRITE(17,"(3I13,G25.16)") i,temp(i),FCIDets(0:nBasis/32,i),FCIGS(i)
-                    enddo
+                        WRITE(17,"(2I13)",advance='no') i,temp(i)
+                        do j=0,nBasis/32
+                           WRITE(17,"(I13)",advance='no') FCIDets(j,i)
+                        enddo
+                        WRITE(17,"(A,G25.16)",advance='no') " ",FCIGS(i)
+                        Call WriteBitDet(17,FCIDets(:,i),.true.)
+                   enddo
                     CLOSE(17)
                 ENDIF
                 DEALLOCATE(FCIGS)
