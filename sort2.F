@@ -1076,7 +1076,7 @@ C.. This version has ARR as an int and BRR as a real
       SUBROUTINE SortEvecbyEvalPlus1(N,RA,NVec,RB,RC)
       INTEGER N,NVec,I,L,IR,J
       REAL*8 RA(N)
-      REAL*8 RB(1:NVec,N)
+      REAL*8 RB(1:NVec,1:N)
       INTEGER RC(N)
       REAL*8 RRA,RRB(1:NVec)
       INTEGER RRC

@@ -816,7 +816,7 @@
         USE SystemData , only : G1,tStoreSpinOrbs,nOccAlpha,nOccBeta,NEl,tRotateOccOnly,tRotateVirtOnly,tSeparateOccVirt
         USE Logging , only : tTruncRODump,NoFrozenVirt
         IMPLICIT NONE
-        REAL*8 :: OneRDM(NoOrbs,NoOrbs),Evalues(NoOrbs)
+        REAL*8 :: OneRDM(NoOrbs,NoOrbs),Evalues(NoOrbs),EvaluesTrunc(NoOrbs-NoFrozenVirt)
         INTEGER :: w,x,i,j,ier,ierr,StartSort,EndSort,NoRotAlphBet,NoOcc
         CHARACTER(len=*), PARAMETER :: this_routine='OrderandFillCoeffT1'
         
@@ -833,6 +833,8 @@
             ALLOCATE(SymOrbs(NoOrbs),stat=ierr)
             CALL LogMemAlloc('SymOrbs',NoOrbs,4,this_routine,SymOrbsTag,ierr)
             SymOrbs(:)=0
+            CoeffT1(:,:)=0.D0
+            EvaluesTrunc(:)=0.D0
 
             IF(tStoreSpinOrbs) THEN
                 do i=1,NoOrbs
@@ -879,11 +881,10 @@
                 CALL SortEvecbyEvalPlus1(((EndSort-StartSort)+1),Evalues(StartSort:EndSort),((EndSort-StartSort)+1),OneRDM(StartSort:EndSort,&
                                             &StartSort:EndSort),SymOrbs(StartSort:EndSort))
 
-                CoeffT1(:,:)=0.D0
-                
                 IF(x.eq.1) THEN
                     do i=1,NoRotAlphBet
                         CoeffT1(:,i)=OneRDM(:,i)
+                        EvaluesTrunc(i)=Evalues(i)
                     enddo
                 ELSEIF(x.eq.2) THEN
                     j=SpatOrbs
@@ -891,6 +892,7 @@
                         j=j+1
                         CoeffT1(:,i)=OneRDM(:,j)
                         SymOrbs(i)=SymOrbs(j)
+                        EvaluesTrunc(i)=Evalues(j)
                     enddo
                 ENDIF
             enddo
@@ -904,6 +906,8 @@
             ELSE
                 w=1
             ENDIF
+
+            CoeffT1(:,:)=0.D0
 
             do x=1,w
 
@@ -934,11 +938,9 @@
                     IF(tRotateVirtOnly) StartSort=SpatOrbs+NoOcc+1
                 ENDIF
 
-                CALL SortEvecbyEvalPlus1(((EndSort-StartSort)+1),Evalues(StartSort:EndSort),((EndSort-StartSort)+1),OneRDM(StartSort:EndSort,&
-                                            &StartSort:EndSort),SymLabelList3(StartSort:EndSort))
+                CALL SortEvecbyEvalPlus1(((EndSort-StartSort)+1),Evalues(StartSort:EndSort),((EndSort-StartSort)+1),&
+                                            &OneRDM(StartSort:EndSort,StartSort:EndSort),SymLabelList3(StartSort:EndSort))
             enddo 
-
-            CoeffT1(:,:)=0.D0
             
             do i=1,NoOrbs
                 CoeffT1(:,i)=OneRDM(:,i)
@@ -965,6 +967,13 @@
             ENDIF
         enddo
         CLOSE(73)
+
+        OPEN(74,FILE='EVALUES-TRUNC',status='unknown')
+        WRITE(74,*) NoOrbs-NoFrozenVirt
+        do i=1,NoOrbs-NoFrozenVirt
+            WRITE(74,*) EvaluesTrunc(i)
+        enddo
+        CLOSE(74)
 
         CALL HistNatOrbEvalues(Evalues,OneRDM)
 
@@ -1012,6 +1021,8 @@
         OPEN(73,FILE='EVALUES-plot',status='unknown')
         OPEN(74,FILE='EVALUES-plot-rat',status='unknown')
 
+        EvaluesCount(:,:)=0.D0
+
         do x=1,w
 
             IF(tSeparateOccVirt) THEN
@@ -1027,8 +1038,6 @@
             ELSE
                 NoOcc=0
             ENDIF
-
-            EvaluesCount(:,:)=0.D0
 
             k=1
             EvaluesCount(k,1)=Evalues(1)
