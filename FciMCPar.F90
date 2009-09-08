@@ -59,7 +59,8 @@ MODULE FciMCParMod
 
 !Start MC simulation...
         TIncrement=.true.   !If TIncrement is true, it means that when it comes out of the loop, it wants to subtract 1 from the Iteration count to get the true number of iterations
-        do Iter=1,NMCyc
+        Iter=1
+        do while(Iter.le.NMCyc)   !Iter=1,NMCyc
 !Main iteration loop...
 
             IF(TBalanceNodes) THEN 
@@ -98,7 +99,7 @@ MODULE FciMCParMod
                 ENDIF
 
 !This routine will check for a CHANGEVARS file and change the parameters of the calculation accordingly.
-                CALL ChangeVars(Iter,NEl,Tau,DiagSft,SftDamp,StepsSft,ICILevel,SinglesBias,OccCASOrbs,VirtCASOrbs,CASMin,CASMax,tSingBiasChange,tTruncSpace,tTruncCAS,tSoftExitFound,tWritePopsFound,tSinglePartPhase)
+                CALL ChangeVars(Iter,NEl,Tau,DiagSft,SftDamp,StepsSft,ICILevel,SinglesBias,OccCASOrbs,VirtCASOrbs,CASMin,CASMax,NMCyc,tSingBiasChange,tTruncSpace,tTruncCAS,tSoftExitFound,tWritePopsFound,tSinglePartPhase)
                 IF(tSoftExitFound) THEN
                     TIncrement=.false.
                     EXIT
@@ -133,6 +134,7 @@ MODULE FciMCParMod
                 CALL WriteHistogram()
             ENDIF
 
+            Iter=Iter+1
 !End of MC cycle
         enddo
 

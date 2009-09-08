@@ -37,21 +37,22 @@ contains
 !   SOFTEXIT         Will exit cleanly from the program
 !   WRITEPOPS        Will write a current popsfile
 !   VARYSHIFT        Will exit out of fixed shift phase
+!   NMCYC XXX        Will change the number of monte carlo cycles to perform
 !   TAU XXX          Will change the value of tau for the simulation
 !   DIAGSHIFT XXX    Will change the shift
 !   SHIFTDAMP XXX    Will change the damping parameter
 !   STEPSSHIFT XXX   Will change the length of the update cycle
 !   SINGLESBIAS XXX  Will change the singles bias for the non-uniform random excitation generator
 
-    subroutine ChangeVars(Iter,NEl,Tau,DiagSft,SftDamp,StepsSft,ICILevel,SinglesBias,OccCASOrbs,VirtCASOrbs,CASMin,CASMax,tSingBiasChange,tTruncSpace,tTruncCAS,tSoftExitFound,tWritePopsFound,tSinglePartPhase)
+    subroutine ChangeVars(Iter,NEl,Tau,DiagSft,SftDamp,StepsSft,ICILevel,SinglesBias,OccCASOrbs,VirtCASOrbs,CASMin,CASMax,NMCyc,tSingBiasChange,tTruncSpace,tTruncCAS,tSoftExitFound,tWritePopsFound,tSinglePartPhase)
        use Parallel
        use Input
        use Logging, only: tHistSpawn,tCalcFCIMCPsi
        use SystemData, only: nBasis
        implicit none
-       integer :: Iter,NEl,StepsSft,ICILevel,error,i,ios,CASMin,CASMax,OccCASOrbs,VirtCASOrbs
+       integer :: Iter,NEl,StepsSft,ICILevel,error,i,ios,CASMin,CASMax,OccCASOrbs,VirtCASOrbs,NMCyc,NewNMCyc
        logical :: tSoftExitFound,tWritePopsFound,tSinglePartPhase,exists,AnyExist,deleted_file,tTruncSpace
-       logical :: tEof,any_deleted_file,tChangeParams(10),tSingBiasChange,tTruncCAS
+       logical :: tEof,any_deleted_file,tChangeParams(11),tSingBiasChange,tTruncCAS
        real*8 :: DiagSft,Tau,SftDamp,SinglesBias
        Character(len=100) :: w
 
@@ -114,6 +115,9 @@ contains
                            tChangeParams(10)=.true.
                            CALL Geti(OccCASOrbs)
                            CALL Geti(VirtCASOrbs)
+                       CASE("NMCYC")
+                           tChangeParams(11)=.true.
+                           CALL Geti(NewNMCyc)
                        END SELECT
 
                    End Do
@@ -123,7 +127,7 @@ contains
                call MPI_AllReduce(deleted_file,any_deleted_file,1,MPI_LOGICAL,MPI_LOR,MPI_COMM_WORLD,error)
                if (any_deleted_file) exit
            end do
-           CALL MPI_BCast(tChangeParams,10,MPI_LOGICAL,i,MPI_COMM_WORLD,error)
+           CALL MPI_BCast(tChangeParams,11,MPI_LOGICAL,i,MPI_COMM_WORLD,error)
 
            IF(tChangeParams(1)) THEN
 !Change Tau
@@ -236,6 +240,20 @@ contains
                            WRITE(6,"(A,I5,A,I6)") "Increasing CAS space accessible to ",OccCASOrbs," , ",VirtCASOrbs
                        ENDIF
                    ENDIF
+               ENDIF
+           ENDIF
+           IF(tChangeParams(11)) THEN
+!Change number of MC steps
+               CALL MPI_BCast(NewNMCyc,1,MPI_INTEGER,i,MPI_COMM_WORLD,error)
+               IF((iProcIndex.eq.0).and.(NewNMCyc.lt.Iter)) THEN
+                   WRITE(6,*) "New value of NMCyc is LESS than the current iteration number."
+                   WRITE(6,*) "Therefore, the number of iterations has been left at ",NMCyc
+               ELSEIF(iProcIndex.eq.0) THEN
+!Only update if new number of cycles is greater than old set.
+                   NMCyc=NewNMCyc
+                   WRITE(6,*) "Total number of MC Cycles has been changed to ",NMCyc
+               ELSEIF(NewNMCyc.ge.Iter) THEN
+                   NMCyc=NewNMCyc
                ENDIF
            ENDIF
        endif
