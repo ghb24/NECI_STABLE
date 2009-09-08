@@ -22,7 +22,7 @@ MODULE FciMCParMod
     USE UMatCache , only : GTID
     USE Logging , only : iWritePopsEvery,TPopsFile,TZeroProjE,iPopsPartEvery,tBinPops,tHistSpawn,iWriteHistEvery,tHistEnergies
     USE Logging , only : NoACDets,BinRange,iNoBins,OffDiagBinRange,OffDiagMax!,iLagMin,iLagMax,iLagStep,tAutoCorr
-    USE Logging , only : tPrintTriConnections,tHistTriConHels,tPrintHElAccept,tPrintFCIMCPsi,tCalcFCIMCPsi
+    USE Logging , only : tPrintTriConnections,tHistTriConHels,tPrintHElAccept,tPrintFCIMCPsi,tCalcFCIMCPsi,NHistEquilSteps
     USE SymData , only : nSymLabels
     USE mt95 , only : genrand_real2
     USE Parallel
@@ -150,7 +150,7 @@ MODULE FciMCParMod
 
             IF(tFindCINatOrbs) THEN
 !This routine takes the wavefunction Psi, calculates the one electron density matrix, and rotates the HF orbitals to produce a new ROFCIDUMP file.
-                IF(iProcIndex.eq.0) CALL RotateOrbs() 
+                CALL RotateOrbs() 
                 CALL MPI_Barrier(MPI_COMM_WORLD,error)
             ENDIF
         ENDIF
@@ -450,7 +450,12 @@ MODULE FciMCParMod
         IF(.not.tStarOrbs) tStarDet=.false.
         ParticleWeight=1    !This will always be the same unless we are 'spawning as determinants'
 
-        IF(tHistSpawn.or.tCalcFCIMCPsi) HistMinInd(1:NEl)=FCIDetIndex(1:NEl)    !This is for the binary search when histogramming
+        IF(tHistSpawn.or.tCalcFCIMCPsi.and.(Iter.ge.NHistEquilSteps)) THEN
+            IF(Iter.eq.NHistEquilSteps) THEN
+                IF(iProcIndex.eq.Root) WRITE(6,*) 'The iteration is equal to HISTEQUILSTEPS.  Beginning to histogram.'
+            ENDIF
+            HistMinInd(1:NEl)=FCIDetIndex(1:NEl)    !This is for the binary search when histogramming
+        ENDIF
         
         do j=1,TotWalkers
 !j runs through all current walkers
@@ -482,7 +487,7 @@ MODULE FciMCParMod
 
 !Also, we want to find out the excitation level - we only need to find out if its connected or not (so excitation level of 3 or more is ignored.
 !This can be changed easily by increasing the final argument.
-            IF(tTruncSpace.or.tHighExcitsSing.or.tHistSpawn.or.tCalcFCIMCPsi) THEN
+            IF(tTruncSpace.or.tHighExcitsSing.or.((tHistSpawn.or.tCalcFCIMCPsi).and.(Iter.ge.NHistEquilSteps))) THEN
 !We need to know the exact excitation level for truncated calculations.
                 CALL FindBitExcitLevel(iLutHF,CurrentDets(:,j),NIfD,WalkExcitLevel,NEl)
             ELSE
@@ -5116,7 +5121,7 @@ MODULE FciMCParMod
 
         
 !Histogramming diagnostic options...
-        IF(tHistSpawn.or.tCalcFCIMCPsi) THEN
+        IF(tHistSpawn.or.tCalcFCIMCPsi.and.(Iter.ge.NHistEquilSteps)) THEN
             IF(ExcitLevel.eq.NEl) THEN
                 CALL BinSearchParts2(iLutCurr,HistMinInd(ExcitLevel),Det,PartInd,tSuccess)
                 HistMinInd(ExcitLevel)=PartInd

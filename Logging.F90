@@ -11,7 +11,7 @@ MODULE Logging
     LOGICAL TZeroProjE,TWriteDetE,TAutoCorr,tBinPops,tROHistogramAll,tROHistER,tHistSpawn,tROHistSingExc,tRoHistOneElInts
     LOGICAL tROHistVirtCoulomb,tPrintInts,tHistEnergies,tPrintTriConnections,tHistTriConHEls,tPrintHElAccept,tTruncRODump
     LOGICAL tPrintFCIMCPsi,tCalcFCIMCPsi
-    INTEGER NoACDets(2:4),iPopsPartEvery,iWriteHistEvery,iNoBins,NoTriConBins,NoTriConHElBins,NoFrozenVirt
+    INTEGER NoACDets(2:4),iPopsPartEvery,iWriteHistEvery,iNoBins,NoTriConBins,NoTriConHElBins,NoFrozenVirt,NHistEquilSteps
     INTEGER CCMCDebug !CCMC Debugging Level 0-6.  Default 0
 
     contains
@@ -69,6 +69,7 @@ MODULE Logging
       tPrintHElAccept=.false.
       tPrintFCIMCPsi=.false.
       tCalcFCIMCPsi=.false.
+      NHistEquilSteps=0
       CCMCDebug=0
 
 ! Feb08 defaults
@@ -274,6 +275,9 @@ MODULE Logging
         case("PRINTFCIMCPSI")
             tPrintFCIMCPsi=.true.
             tCalcFCIMCPsi=.true.
+        case("HISTEQUILSTEPS")
+!This option sets the histogramming to only be done after the specified number of iterations.            
+            call readi(NHistEquilSteps)
         case("POPSFILE")
 ! This is so that the determinants at the end of the MC run are written
 ! out, to enable them to be read back in using READPOPS in the Calc section,
