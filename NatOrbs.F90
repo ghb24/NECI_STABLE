@@ -64,7 +64,6 @@
         USE Global_utilities
         USE Parallel
         USE SystemData , only : NEl,G1,ARR,BRR,lNoSymmetry,LMS,tStoreSpinOrbs,nOccAlpha,nOccBeta,tSeparateOccVirt,tRotateVirtOnly
-        USE SymData , only : SymLabelList,SymLabelCounts
         USE RotateOrbsMod , only : SymLabelList2,SymLabelCounts2,SymLabelListInv,NoOrbs,SpatOrbs
         IMPLICIT NONE
         INTEGER :: w,x,i,j,ierr,NoOcc,StartFill01,StartFill02,Symi,SymCurr,Prev,EndFill01,EndFill02
@@ -157,7 +156,7 @@
                 IF(x.eq.1) THEN
                     IF(tStoreSpinOrbs) THEN
                         IF(tSeparateOccVirt) THEN
-                            LabVirtOrbs(i)=BRR((2*i)+NEl)-1
+                            LabVirtOrbs(i)=BRR((2*i)+(NoOcc*2))-1
                             SymVirtOrbs(i)=INT(G1(LabVirtOrbs(i))%sym%S,4)
                         ELSE
                             LabVirtOrbs(i)=BRR((2*i))-1
@@ -165,7 +164,7 @@
                         ENDIF
                     ELSE
                         IF(tSeparateOccVirt) THEN
-                            LabVirtOrbs(i)=BRR((2*i)+NEl)/2
+                            LabVirtOrbs(i)=BRR((2*i)+(NoOcc*2))/2
                             SymVirtOrbs(i)=INT(G1(LabVirtOrbs(i)*2)%sym%S,4)
                         ELSE
                             LabVirtOrbs(i)=BRR((2*i))/2
@@ -174,7 +173,7 @@
                     ENDIF
                 ELSEIF(x.eq.2) THEN
                     IF(tSeparateOccVirt) THEN
-                        LabVirtOrbs(i)=BRR((2*i)+NEl)
+                        LabVirtOrbs(i)=BRR((2*i)+(NoOcc*2))
                         SymVirtOrbs(i)=INT(G1(LabVirtOrbs(i))%sym%S,4)
                     ELSE
                         LabVirtOrbs(i)=BRR((2*i))
@@ -265,7 +264,7 @@
                         Symi=INT(G1((SymLabelList2(i+Prev)*2))%sym%S,4)
                     ENDIF
                     SymLabelCounts2(2,(Symi+StartFill01))=SymLabelCounts2(2,(Symi+StartFill01))+1
-                    IF(Symi.gt.SymCurr) THEN
+                    IF(Symi.ne.SymCurr) THEN
                         SymLabelCounts2(1,(Symi+StartFill01))=i+Prev
                         SymCurr=Symi
                     ENDIF
@@ -280,24 +279,24 @@
                         Symi=INT(G1((SymLabelList2(i+Prev)*2))%sym%S,4)
                     ENDIF
                     SymLabelCounts2(2,(Symi+StartFill02))=SymLabelCounts2(2,(Symi+StartFill02))+1
-                    IF(Symi.gt.SymCurr) THEN
+                    IF(Symi.ne.SymCurr) THEN
                         SymLabelCounts2(1,(Symi+StartFill02))=i+Prev
                         SymCurr=Symi
                     ENDIF
                 enddo
             ENDIF
-
+     
             ! Go through each symmetry group, making sure the orbital pairs are ordered lowest to highest.
             IF(x.eq.1) THEN
                 do i=1,16
                     IF(SymLabelCounts2(2,i).ne.0) THEN
-                        CALL NECI_SORTI(SymLabelCounts2(2,i),SymLabelList2(SymLabelCounts2(1,i):(SymLabelCounts(1,i)+SymLabelCounts2(2,i)-1)))
+                        CALL NECI_SORTI(SymLabelCounts2(2,i),SymLabelList2(SymLabelCounts2(1,i):(SymLabelCounts2(1,i)+SymLabelCounts2(2,i)-1)))
                     ENDIF
                 enddo
             ELSEIF(x.eq.2) THEN
                 do i=17,32
                     IF(SymLabelCounts2(2,i).ne.0) THEN
-                        CALL NECI_SORTI(SymLabelCounts2(2,i),SymLabelList2(SymLabelCounts2(1,i):(SymLabelCounts(1,i)+SymLabelCounts2(2,i)-1)))
+                        CALL NECI_SORTI(SymLabelCounts2(2,i),SymLabelList2(SymLabelCounts2(1,i):(SymLabelCounts2(1,i)+SymLabelCounts2(2,i)-1)))
                     ENDIF
                 enddo
             ENDIF
@@ -331,8 +330,8 @@
         
 
 !        WRITE(6,*) 'Sym Label Counts'
-!        do i=1,16
-!            WRITE(6,*) SymLabelCounts2(1,i),SymLabelCounts2(2,i)
+!        do i=1,32
+!            WRITE(6,*) i,SymLabelCounts2(1,i),SymLabelCounts2(2,i)
 !        enddo
 !        WRITE(6,*) 'Sym label list (i.e the orbitals in symm order), and their symmetries according to G1'
 !        do i=1,NoOrbs
@@ -371,7 +370,7 @@
         USE RotateOrbsMod , only : SymLabelListInv,NoOrbs,SpatOrbs,SymLabelList2
         IMPLICIT NONE
         INTEGER :: w,x,excit,i,j,NoOcc,Starti,Endi,Startj,Endj,ExcitLevel,Ex(2,1),Ex2(2,1),Orbi,Orbj,nJ(NEl),Orbk,k,nI(NEl),MaxExcit
-        INTEGER :: FCIDetIndex2(0:(NEl+1))
+        INTEGER :: FCIDetIndex2(0:(NEl+1)),Spins
         LOGICAL :: tSign
         REAL*8 :: OneRDM(NoOrbs,NoOrbs),SignDet
 
@@ -407,12 +406,14 @@
 !        enddo
 !        CALL FLUSH(6)
 !        stop
+        WRITE(6,*) '*** The weight of the HF determinant is : ', AllHistogram(1)
 
         IF(ICILevel.eq.0) THEN
             MaxExcit=NEl
         ELSE
             MaxExcit=ICILevel
         ENDIF
+!        WRITE(6,*) 'MaxExcit',MaxExcit
 
         do excit=0,MaxExcit         
         ! Run through all determinants D_i, in the final wavefunction, Psi. 
@@ -448,6 +449,10 @@
                     Endj=FCIDetIndex(excit+2)-1
                 ENDIF
             ENDIF
+!            WRITE(6,*) 'Starti',Starti
+!            WRITE(6,*) 'Endi',Endi
+!            WRITE(6,*) 'Startj',Startj
+!            WRITE(6,*) 'Endj',Endj
 
             do i=Starti,Endi
             ! Then run through the determinants in that excitation level.
@@ -455,7 +460,8 @@
                 do j=Startj,i
 !                do j=Startj,Endj
                 ! Run through all determinants D_j, with the potential to be connected to i by a single excitation, i.e from one excitation
-                ! lower to one excitation higher.
+!               ! lower to one excitation higher.
+                    IF((i.gt.Det).or.(j.gt.Det)) CALL Stop_All('FillOneRDM','Running through i or j larger than the number of determinants.')
 
                     CALL FindBitExcitLevel(FCIDets(0:NIfD,i),FCIDets(0:NIfD,j),NIfD,ExcitLevel,2)
                     ! Need to find the excitation level between D_i and D_j. If this is 1 - go on to add their contributions to the OneRDM.
@@ -498,9 +504,11 @@
                             ! OneRDM will be in spin orbitals - simply add the orbitals involved.
                             Orbi=SymLabelListInv(Ex(1,1))
                             Orbj=SymLabelListInv(Ex(2,1))
+                            Spins=1
                         ELSE
                             Orbi=SymLabelListInv(CEILING(REAL(Ex(1,1))/2.D0))
                             Orbj=SymLabelListInv(CEILING(REAL(Ex(2,1))/2.D0))
+                            Spins=2
                         ENDIF
                         IF(tSign) THEN
                             SignDet=(-1.D0)
@@ -515,12 +523,12 @@
 !                        IF(((AllHistogram(i)*AllHistogram(j).ne.0.D0).and.(INT(G1(SymLabelList2(Orbi)*2)%sym%S,4).ne.INT(G1(SymLabelList2(Orbj)*2)%sym%S,4)))&
 !                        &.or.(Ex(1,1).gt.(SpatOrbs*2)).or.(Ex(2,1).gt.(SpatOrbs*2))) THEN
 
-                        IF((AllHistogram(i)*AllHistogram(j).ne.0.D0).and.(INT(G1(SymLabelList2(Orbi)*2)%sym%S,4).ne.INT(G1(SymLabelList2(Orbj)*2)%sym%S,4))) THEN
+                        IF((AllHistogram(i)*AllHistogram(j).ne.0.D0).and.(INT(G1(SymLabelList2(Orbi)*Spins)%sym%S,4).ne.INT(G1(SymLabelList2(Orbj)*Spins)%sym%S,4))) THEN
                             WRITE(6,*) 'ERROR in symmetries'
                             WRITE(6,*) 'Ex,',Ex(1,1),Ex(2,1)
                             WRITE(6,*) CEILING(REAL(Ex(1,1)/2.D0)),CEILING(REAL(Ex(2,1)/2.D0))
                             WRITE(6,*) 'Orbi,',Orbi,'Orbj,',Orbj
-                            WRITE(6,*) 'Sym(Orbi)',INT(G1(SymLabelList2(Orbi)*2)%sym%S,4),'Sym(Orbj)',INT(G1(SymLabelList2(Orbj)*2)%sym%S,4)
+                            WRITE(6,*) 'Sym(Orbi)',INT(G1(SymLabelList2(Orbi)*Spins)%sym%S,4),'Sym(Orbj)',INT(G1(SymLabelList2(Orbj)*Spins)%sym%S,4)
                             CALL DecodeBitDet(nI,FCIDets(0:NIfD,i),NEl,NIfD)
                             WRITE(6,*) 'i',nI
                             CALL DecodeBitDet(nJ,FCIDets(0:NIfD,j),NEl,NIfD)
@@ -534,6 +542,7 @@
                     ELSEIF(ExcitLevel.eq.0) THEN
                         CALL DecodeBitDet(nJ,FCIDets(0:NIfD,j),NEl,NIfD)
                         do k=1,NEl
+!                            WRITE(6,*) 'k',k
                             IF(tStoreSpinOrbs) THEN
                                 Orbk=SymLabelListInv(nJ(k))
                             ELSE
@@ -550,7 +559,7 @@
             enddo
         enddo
 
-!        WRITE(6,*) 'Filled OneRDM'
+        WRITE(6,*) 'Filled OneRDM'
 !        do i=1,NoOrbs
 !            do j=1,NoOrbs
 !                WRITE(6,'(F10.5)',advance='no') OneRDM(j,i)
@@ -577,7 +586,7 @@
         USE RotateOrbsMod , only : SymLabelCounts2,NoOrbs,SymLabelList2,SpatOrbs
         USE Global_Utilities
         IMPLICIT NONE
-        REAL*8 :: OneRDM(NoOrbs,NoOrbs),Evalues(NoOrbs)
+        REAL*8 :: OneRDM(NoOrbs,NoOrbs),Evalues(NoOrbs),SumTrace,SumDiagTrace
         REAL*8 , ALLOCATABLE :: Work(:),WORK2(:),EvaluesSym(:),OneRDMSym(:,:)
         INTEGER :: ierr,i,j,x,w,z,Sym,LWORK2,WORK2Tag,SymStartInd,NoSymBlock,PrevSym,StartOccVirt,EndOccVirt,Prev,NoOcc
         INTEGER :: EvaluesSymTag,OneRDMSymTag
@@ -588,6 +597,7 @@
         ELSE
             w=1
         ENDIF
+
 
         do x=1,w
             IF(tSeparateOccVirt) THEN
@@ -650,6 +660,11 @@
                     ENDIF
                 ENDIF
             enddo
+        enddo
+
+        SumTrace=0.D0
+        do i=1,NoOrbs
+            SumTrace=SumTrace+OneRDM(i,i)
         enddo
 
         WRITE(6,*) 'Calculating eigenvectors and eigenvalues of OneRDM'
@@ -779,6 +794,16 @@
 
         WRITE(6,*) 'Matrix diagonalised'
         CALL FLUSH(6)
+
+        SumDiagTrace=0.D0
+        do i=1,NoOrbs
+            SumDiagTrace=SumDiagTrace+Evalues(i)
+        enddo
+        IF((ABS(SumDiagTrace-SumTrace)).gt.1E-10) THEN
+            WRITE(6,*) 'Sum of diagonal OneRDM elements : ',SumTrace
+            WRITE(6,*) 'Sum of eigenvalues : ',SumDiagTrace
+            CALL Stop_All('Diag1RDM','The trace of the 1RDM matrix before diagonalisation is not equal to that after.')
+        ENDIF
 
 
     END SUBROUTINE Diag1RDM

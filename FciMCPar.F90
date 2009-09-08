@@ -6067,9 +6067,6 @@ MODULE FciMCParMod
 !        AllDetsNorm=0.D0
         tCleanRun=.false.
 
-        IF(tFindCINatOrbs) tCalcFCIMCPsi=.true.
-!If we are doing a rotation based on the CI natural orbitals, we first need to calculate the final wavefunction Psi during the spawning calculation.         
-
         IF(tHistSpawn.or.tCalcFCIMCPsi) THEN
             ALLOCATE(HistMinInd(NEl))
             ALLOCATE(HistMinInd2(NEl))
@@ -6784,8 +6781,8 @@ MODULE FciMCParMod
 
         IF(tPrintTriConnections.or.tHistTriConHEls.or.tPrintHElAccept) CALL InitTriHElStats()
 
-        IF((NMCyc.ne.0).and.(tRotateOrbs.and.tTruncRODump.and.(.not.tFindCINatOrbs))) CALL Stop_All(this_routine,"Cannot rotate and then truncate the orbitals and go straight into a spawning &
-                                                                                       & calculation.  Ordering of orbitals in incorrect.")
+        IF((NMCyc.ne.0).and.(tRotateOrbs.and.(.not.tFindCINatOrbs))) CALL Stop_All(this_routine,"Currently not set up to rotate and then go straight into a spawning &
+                                                                                    & calculation.  Ordering of orbitals is incorrect.  This may be fixed if needed.")
 
         CullInfo(1:10,1:3)=0
         NoCulls=0
