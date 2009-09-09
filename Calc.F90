@@ -217,6 +217,7 @@ MODULE Calc
           tNeedsVirts=.true.! Set if we need virtual orbitals  (usually set).  Will be unset (by Calc readinput) if I_VMAX=1 and TENERGY is false
 
           lNoTriples=.false.
+          tFCIMCSerial=.false.  !If set we force the parallel version to run the serial code.
 
 !Feb 08 default set.
           IF(Feb08) THEN
@@ -1390,7 +1391,7 @@ MODULE Calc
          use UMatCache , only : TSTARSTORE
          use CalcData , only : CALCP_SUB2VSTAR,CALCP_LOGWEIGHT,TMCDIRECTSUM,g_Multiweight,G_VMC_FAC,TMPTHEORY
          use CalcData, only : STARPROD,TDIAGNODES,TSTARSTARS,TGraphMorph,TStarTrips,THDiag,TMCStar,TFCIMC,TMCDets,TMCDiffusion,tCCMC
-         use CalcData , only : TRhoElems,TReturnPathMC, TResumFCIMC
+         use CalcData , only : TRhoElems,TReturnPathMC, TResumFCIMC, tFCIMCSerial
          use CCMCData, only: tExactCluster,tCCMCFCI
          implicit none
          integer I_HMAX,NWHTAY,I_V
@@ -1404,13 +1405,19 @@ MODULE Calc
                case("FCIMC")
                    I_HMAX=-21
                    TFCIMC=.true.
-                   call readu(w)
-                   select case(w)
-                   case("MCDIFFUSION")
-                       TMCDiffusion=.true.
-                   case("RESUMFCIMC")
-                       TResumFCIMC=.true.
-                   endselect
+                   do while(item.lt.nitems)
+                      call readu(w)
+                      select case(w)
+                      case("MCDIFFUSION")
+                          TMCDiffusion=.true.
+                      case("RESUMFCIMC")
+                          TResumFCIMC=.true.
+                      case("SERIAL")
+                          tFCIMCSerial=.true.
+                      case default
+                          call report("Keyword error with "//trim(w),.true.)
+                      endselect
+                   enddo
                case("CCMC")
                   !Piggy-back on the FCIMC code
                   I_HMAX=-21

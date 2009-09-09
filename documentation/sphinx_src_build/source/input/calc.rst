@@ -427,7 +427,7 @@ Method options
 Experimental methods
 ^^^^^^^^^^^^^^^^^^^^
 
-**VERTEX** **FCIMC** [**MCDIFFUSION**] [**RESUMFCIMC**]
+**VERTEX** **FCIMC** [**MCDIFFUSION**] [**RESUMFCIMC**] [**SERIAL**]
     Perform Monte Carlo calculations over pure determinant space, which
     is sampled using a series of 'particles' (or 'walkers').
 
@@ -444,6 +444,9 @@ Experimental methods
     the H-matrix successively in order to achieve a local spawning algorithm.
     This reduces to the original spawning algorithm when **GRAPHSIZE** is 2 and
     **HAPP** is 1. Uses many of the same options as **FCIMC**.
+
+    **SERIAL** will force NECI to run the serial FCIMC code (which differs
+    substantially from the parallel) even if the code was compiled in parallel.
 
 **VERTEX** **CCMC** [**FCI**] [**EXACTCLUSTER**]
     Perform Monte Carlo calculations over coupled cluster excitation space, which

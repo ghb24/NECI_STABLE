@@ -52,4 +52,6 @@ REAL*8 :: RHOEPS ! calculated from RHOEPSILON
 !// set if we include no triple-excitations as the 3rd vertex in 3+ vertex graphs.
 LOGICAL :: lNoTriples
 
+LOGICAL tFCIMCSerial
+
 end module CalcData

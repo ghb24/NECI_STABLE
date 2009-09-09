@@ -33,14 +33,13 @@ C.. DLWDB = d ln (wi) / d Beta.
          USE StarDiagTripMod , only : StarDiagTrips
 #ifdef PARALLEL
          USE FciMCParMod , only : FciMCPar
-#else         
-         USE FciMCMod , only : FciMC
 #endif
+         USE FciMCMod , only : FciMC
          USE ReturnPathMCMod , only : ReturnPathMC
          USE NODEDIAG , only : fMCPR3StarNodes
          use CalcData , only : G_VMC_FAC,CUR_VERT,g_MultiWeight,
      &          TMPTHEORY,TMCDIRECTSUM,TDIAGNODES,TGraphMorph,
-     &          calcp_logweight,TFCIMC,TReturnPathMC
+     &          calcp_logweight,TFCIMC,TReturnPathMC,tFCIMCSerial
          use Calc, only: TStarTrips
          USE Logging , only : G_VMC_LOGCOUNT
          USE PrecalcData , only : PREIV_MAX,TPREVAR
@@ -261,7 +260,11 @@ C.. forcing them to be disconnected.
 !A MC simulation involving replicating particles is run
 #ifdef PARALLEL
 !                    WRITE(6,*) "Get Here!: ",I_V,F(I_V),DLWDB2
+                  IF(tFCIMCSerial) THEN
+                    CALL FciMC(F(I_V),DLWDB2)
+                  ELSE
                     CALL FciMCPar(F(I_V),DLWDB2)
+                  ENDIF
 !                    WRITE(6,*) "Get Here!: ",I_V,F(I_V),DLWDB2
 #else
                     CALL FciMC(F(I_V),DLWDB2)
