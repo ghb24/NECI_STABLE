@@ -81,6 +81,14 @@ CONTAINS
          WRITE(6,*) "TSPECDET set, but invalid.  using FDET"
 !         tSpecDet=.false.
          CALL NECI_ICOPY(NEL,FDET,1,SPECDET,1)
+      ELSEIF(TCSF) THEN  !No help given on generating this CSF.  Let's just get a single one out of GNCSFs
+         NDET=1
+         CALL GNCSFS(NEL,nBasis,BRR,NBASISMAX,FDET,.FALSE.,G1,TSPN,LMS2,TPARITY, &
+     &      SymRestrict,NDET,IFDET,.FALSE.,0,II,.FALSE.,0)   !II is just a dummmy to receive IC
+         WRITE(6,*) "CSF with 2S=",STOT," and 2Sz=",LMS," now in FDET is"
+         IFDET=0
+         NDET=0
+         CALL WRITEDET(6,FDET,NEL,.TRUE.)
       ENDIF
 
 
@@ -97,8 +105,10 @@ CONTAINS
                WRITE(6,*) "Using Fermi DET:"
                CALL WRITEDET(6,FDET,NEL,.TRUE.)
             ENDIF 
+            IF(TCSF) WRITE(6,*) "Determining CSFs."
 !C.. if we're doing a truncated CI expansion
             CALL GENEXCIT(FDET,ICILEVEL,NBASIS,NEL,0,0,NDET,1,G1,.TRUE.,NBASISMAX,.TRUE.)
+            WRITE(6,*) "NDET out of GENEXCIT ",NDET
 !C.. We need to add in the FDET
             NDET=NDET+1
             II=NDET
@@ -127,6 +137,7 @@ CONTAINS
             IF(TSPN) THEN
                WRITE(6,*) "Using spin restriction:",LMS
             ENDIF
+            NDET=0
             CALL GNCSFS(NEL,nBasis,BRR,NBASISMAX,NMRKS,.TRUE.,G1,TSPN,LMS2,TPARITY,        &
      &         SymRestrict,NDET,IFDET,.FALSE.,0,0,.FALSE.,0)
             NBLOCKS=1
@@ -173,6 +184,7 @@ CONTAINS
             CALL NECI_ICOPY(NEL,FDET,1,NMRKS,1)
             Allocate(Hamil(II), stat=ierr)
             LogAlloc(ierr, 'HAMIL', II, HElementSizeB, tagHamil)
+            NDET=0
             CALL GENEXCIT(FDET,ICILEVEL,NBASIS,NEL,NMRKS(1,2),HAMIL,NDET,1,G1,.TRUE.,NBASISMAX,.FALSE.)
             Deallocate(Hamil)
             LogDealloc(tagHamil)
@@ -184,6 +196,7 @@ CONTAINS
             CALL GNDTS_BLK(NEL,nBasis,BRR,NBASISMAX,NMRKS, .FALSE.,NDET,G1,II,NBLOCKSTARTS,NBLOCKS,TSPN,LMS2,TPARITY, &
      &           SymRestrict,IFDET,.NOT.TREAD,NDETTOT,BLOCKSYM,TCSF)
          ELSEIF(TCSF) THEN
+            NDET=0  !This will be reset by GNCSFS
             CALL GNCSFS(NEL,nBasis,BRR,NBASISMAX,NMRKS,.FALSE.,G1,TSPN,LMS2,TPARITY, &
      &         SymRestrict,NDET,IFDET,.FALSE.,0,0,.FALSE.,0)
                NBLOCKSTARTS(1)=1

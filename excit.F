@@ -356,7 +356,7 @@ C.. determinants within double excitations, which will end up fairly inefficient
          IF(NO.EQ.0) NO=NEL
          IF(TSYM) CALL GETSYM(NI,NEL,G1,NBASISMAX,ISYM)
          IF(NBASISMAX(4,7).EQ.1) THEN
-            NLIST=1
+            NLIST=0
 C.. If we're actually using CSFs
             CALL GNCSFS(NEL,NBASIS,0,NBASISMAX,
      &         LIST,TCOUNT,G1,TSYM,ISYM%MS,TSYM,ISYM,NLIST,IFDET,

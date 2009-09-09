@@ -1020,7 +1020,7 @@ MODULE Calc
           REAL*8 CalcT, CalcT2, GetRhoEps
           
           
-          INTEGER I, IC
+          INTEGER I, IC,J
           INTEGER nList
           TYPE(HElement) HDiagTemp
           character(*), parameter :: this_routine='CalcInit'
@@ -1037,19 +1037,6 @@ MODULE Calc
              WRITE(6,*) 'Setting DETINV and NPATHS to 0'
              DETINV=0
              NPATHS=0
-          ENDIF
-
-          IF(TCSF.AND.TSPECDET) THEN
-             WRITE(6,*) "TSPECDET set.  SPECDET is"
-             CALL WRITEDET(6,SPECDET,NEL,.TRUE.)
-             CALL NECI_ICOPY(NEL,SPECDET,1,FDET,1)
-             CALL GETCSFFROMDET(FDET,SPECDET,NEL,STOT,LMS)
-             WRITE(6,*) "CSF with 2S=",STOT," and 2Sz=",LMS," now in SPECDET is"
-             CALL WRITEDET(6,SPECDET,NEL,.TRUE.)
-          ENDIF
-          IF(TSPECDET.AND.SPECDET(1).EQ.0) THEN
-             WRITE(6,*) "TSPECDET set, but invalid.  using FDET"
-             CALL NECI_ICOPY(NEL,FDET,1,SPECDET,1)
           ENDIF
 
           IF(THFCALC) THEN
@@ -1097,7 +1084,8 @@ MODULE Calc
           nOccAlpha=0
           nOccBeta=0
           do i=1,NEl
-              IF(G1(FDET(i))%Ms.eq.1) THEN
+              CALL GETUNCSFELEC(FDET(I),J,IC)
+              IF(G1(J)%Ms.eq.1) THEN
 !Orbital is an alpha orbital
                  nOccAlpha=nOccAlpha+1
               ELSE

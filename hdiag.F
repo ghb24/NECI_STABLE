@@ -11,7 +11,7 @@
 !         TYPE(HElement) CopyCK(NDET,NDET)
          REAL*8 W(NDET)
          INTEGER I,J,IND,INDZ,INFO,LDA,NBS
-         INTEGER NBLOCKS,NBLOCKSTARTS(NBLOCKS)
+         INTEGER NBLOCKS,NBLOCKSTARTS(NBLOCKS+1)
          type(timer), save :: proc_timer
          TYPE(BasisFN) BLOCKSYM(NBLOCKS)
          REAL*8 GSEN

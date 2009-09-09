@@ -339,7 +339,7 @@ C.. go and create a set of CSFs from these electrons
 !   Warning: code divergence has meant this hasn't been tested in a long
 !   time.  At the very least, the number of arguments is wrong. (JSS)
      &           CALL CSFGENCSFS(NI,NEL,NOPEN,NCLOSED,NMRKS,NDET,TCOUNT,
-     &            TSPN,SFORCE,SZFORCE)
+     &            TSPN,SFORCE,SZFORCE,.false.,0,0,0,0)
             ENDIF
 C.. We've now added some electrons, so we need to now check that the new
 C.. places our orbitals are pointing at have not been used up already.
@@ -422,6 +422,8 @@ C.. find I in sorted LST of size N, returning index or 0 if not there
 C.. Generate all the CSFs of a system
 C.. TCHKEX set if checking whether excitations are at most of order
 C.. IEXLEV from NDCH
+C..  If NDET is non-zero on entry, then only that many CSFs will be generated
+C..    Otherwise all will.
       SUBROUTINE GNCSFS(NEL,NBASIS,BRR,NBASISMAX,
      &  NMRKS,TCOUNT,G1,TSPN,LMS,TPARITY,
      &  IPARITY,NDET,IFDET,TCHKEX,NDCH,ICLIST,TORDER,IEXLEV)
@@ -457,6 +459,7 @@ C.. IEXLEV from NDCH
          LOGICAL LCHKSYM
          INTEGER IGETEXCITLEVEL,IFIND
          INTEGER IEXLEV
+         INTEGER maxNDET
 
 
          IF(TCHKEX) CALL CSFGETCSFDATA(NDCH,NEL,ICLOSEDD,NCLOSEDD,
@@ -475,6 +478,7 @@ C.. IEXLEV from NDCH
 C.. ensure Ms=0 as this is dealt with later
          ISYM%MS=0
          IFDET=1
+         maxNDET=NDET  !save this as it's the number of CSFs to generate
          NDET=0
          NORBS=NBASIS/2
          IEXCITS(1)=0
@@ -572,7 +576,8 @@ C.. go and create a set of CSFs from these electrons
                 IF(TCHKEX) IC=IGETEXCITLEVEL(NDCH,NJ,NEL)
                 IF(.NOT.TCHKEX.OR.IC.LE.IEXLEV)
      &           CALL CSFGENCSFS(NJ,NEL,NOPEN,NCLOSED,NMRKS,NDET,TCOUNT,
-     &            TSPN,SFORCE,SZFORCE,TCHKEX,ICLIST,IC,NDCH)
+     &            TSPN,SFORCE,SZFORCE,TCHKEX,ICLIST,IC,NDCH,maxNDET)
+                  IF(maxNDET.ne.0.and.NDET.EQ.maxNDET) RETURN  !If we're full, leave.
                ENDIF
             ENDIF
 C.. We've now added some electrons, so we need to now check that the new
@@ -653,8 +658,9 @@ C.. we've run out of electrons to go back entirely, so we're done
 
 C.. From a given closed/open orbital configuration, generate all allowed
 C.. CSFs in order
+C.. maxNDET is the maximum number of CSFs that can be stored in NMRKS
       SUBROUTINE CSFGENCSFS(NI,NEL,NOPEN,NCLOSED,NMRKS,NDET,TCOUNT,
-     &            TSPN,SFORCE,SZFORCE,TCHKEX,ICLIST,IC,NDCH)
+     &            TSPN,SFORCE,SZFORCE,TCHKEX,ICLIST,IC,NDCH,maxNDET)
          IMPLICIT NONE
          INTEGER NI(NEL),NEL,NOPEN,NCLOSED
          INTEGER NMRKS(NEL,*),NDET
@@ -671,8 +677,10 @@ C.. the DORDER (list of betas then alphas which gives the total M
          INTEGER I,J         
          INTEGER IELEC
          LOGICAL TBR,TGEN,TADD,TBR2,TCLOSED
+         INTEGER maxNDET
 
          INTEGER ICMPDETS
+         INTEGER NTEMP(NEL)
          
          TCLOSED=(NOPEN.EQ.0)
          IF(TCLOSED.AND.TSPN.AND.(SZFORCE.NE.0.OR.SFORCE.NE.0)) RETURN
@@ -792,15 +800,17 @@ C.. Check the spin is correct if we're forcing it
                IF(TCLOSED.OR..NOT.TSPN.OR.(DORDERC(IELEC).EQ.SZFORCE
      &            .AND.SORDERC(IELEC).EQ.SFORCE)) THEN
 C.. We have found a good combination.  Add it
+                  IF(maxNDET.ne.0.and.NDET.EQ.maxNDET) RETURN  !end if we've a full list
                   NDET=NDET+1
-                  IF(.NOT.TCOUNT) THEN
 C.. Copy the closed orbitals
-                     CALL NECI_ICOPY(NCLOSED,NI,1,NMRKS(1,NDET),1)
+                  CALL NECI_ICOPY(NCLOSED,NI,1,NTEMP,1)
 C.. now put in the open orbitals
-                     DO I=1,NOPEN
-                        NMRKS(NCLOSED+I,NDET)=NI(NCLOSED+I)+SORDER(I)*2
+                  DO I=1,NOPEN
+                     NTEMP(NCLOSED+I)=NI(NCLOSED+I)+SORDER(I)*2
      &                                       +DORDER(I)
-                     ENDDO
+                  ENDDO
+!                  WRITE(6,'(I)',advance='no') ndet
+!                  CALL WRITEDET(6,NTEMP,NEL,.TRUE.)
 C                     CALL WRITEDET(6,NMRKS(1,NDET),NEL,.TRUE.)
 C                     IF(NDET.GT.1.AND.ICMPDETS(NMRKS(1,NDET),
 C     &                  NMRKS(1,NDET-1),NEL).LT.1) THEN
@@ -810,20 +820,19 @@ C                        WRITE(6,*) NDET,ICMPDETS(NMRKS(1,NDET),
 C     &                     NMRKS(1,NDET-1),NEL)
 C                        STOP "Sort Error"
 C                     ENDIF
-                     IF(TCHKEX) THEN
-                        ICLIST(NDET)=IC
 C.. remove NDCH if necessary
-                        IF(IC.LE.1
-     &                     .AND.ICMPDETS(NMRKS(1,NDET),NDCH,NEL).EQ.0)
-     &                        NDET=NDET-1
+                  IF(TCHKEX.AND.
+     &               (IC.LE.1.AND.ICMPDETS(NTEMP,NDCH,NEL).EQ.0)) THEN
+                     NDET=NDET-1
+                  ELSE
+                     IF(.NOT.TCOUNT) THEN
+                        CALL NECI_ICOPY(NEL,NTEMP,1,NMRKS(1,NDET),1)
+                        ICLIST(NDET)=IC
                      ENDIF
                   ENDIF
                ENDIF
             ENDIF
          ENDDO
-C.. If we're only counting, we haven't had a change to exclude NI, so we
-C.. do it now.
-         IF(TCHKEX.AND.TCOUNT.AND.IC.EQ.0) NDET=NDET-1
          RETURN
       END
 
