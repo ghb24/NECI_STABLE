@@ -1705,24 +1705,24 @@ MODULE RotateOrbsMod
         enddo
         
 
-        WRITE(6,*) 'Sym Label Counts'
-        do i=1,16
-            WRITE(6,*) SymLabelCounts2(1,i),SymLabelCounts2(2,i)
-        enddo
-        WRITE(6,*) 'Sym label list (i.e the orbitals in symm order), and their symmetries according to G1'
-        do i=1,NoOrbs
-            IF(tSpinOrbs) THEN
-                WRITE(6,*) i,SymLabelList2(i),INT(G1(SymLabelList2(i))%sym%S,4)
-            ELSE
-                WRITE(6,*) i,SymLabelList2(i),INT(G1(SymLabelList2(i)*2)%sym%S,4)
-            ENDIF
-        enddo
+!        WRITE(6,*) 'Sym Label Counts'
+!        do i=1,16
+!            WRITE(6,*) SymLabelCounts2(1,i),SymLabelCounts2(2,i)
+!        enddo
+!        WRITE(6,*) 'Sym label list (i.e the orbitals in symm order), and their symmetries according to G1'
+!        do i=1,NoOrbs
+!            IF(tSpinOrbs) THEN
+!                WRITE(6,*) i,SymLabelList2(i),INT(G1(SymLabelList2(i))%sym%S,4)
+!            ELSE
+!                WRITE(6,*) i,SymLabelList2(i),INT(G1(SymLabelList2(i)*2)%sym%S,4)
+!            ENDIF
+!        enddo
 !        WRITE(6,*) 'Sym label list (i.e the orbitals in symm order), and its inverse'
 !        do i=1,NoOrbs
 !            WRITE(6,*) SymLabelList2(i),SymLabelListInv(i)
 !        enddo
-        CALL FLUSH(6)
-        CALL Stop_All('InitSymmArrays','Checking orbital labels.')
+!        CALL FLUSH(6)
+!        CALL Stop_All('InitSymmArrays','Checking orbital labels.')
 
 
     ENDSUBROUTINE InitSymmArrays
