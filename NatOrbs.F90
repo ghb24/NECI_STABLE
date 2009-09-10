@@ -146,7 +146,7 @@ MODULE NatOrbsMod
 !                WRITE(6,*) BRR(i)
 !            enddo
 !            CALL FLUSH(6)
-!            stop
+!            CALL Stop_All('','')
 
 ! this picks out the NoOcc lowest energy orbitals from BRR as these will be the occupied.
 ! these are then ordered according to symmetry, and the same done to the virtual.
@@ -347,7 +347,7 @@ MODULE NatOrbsMod
         
 
 !        WRITE(6,*) 'Sym Label Counts'
-!        do i=1,16
+!        do i=1,32
 !            WRITE(6,*) i,SymLabelCounts2(1,i),SymLabelCounts2(2,i)
 !        enddo
 !        WRITE(6,*) 'Sym label list (i.e the orbitals in symm order), and their symmetries according to G1'
@@ -364,7 +364,6 @@ MODULE NatOrbsMod
 !        enddo
 !        CALL FLUSH(6)
 !        CALL Stop_All('SetupNatOrbLabels','Checking orbital labelling.')
-
 
 
     END SUBROUTINE SetupNatOrbLabels
@@ -611,7 +610,6 @@ MODULE NatOrbsMod
 ! otherwise they go occupied beta, virtual beta, occupied alpha, virtual alpha.
 ! This is so the alpha and beta spins can be diagonalised separately and we can keep track of which is which when the evectors are reordered 
 ! and maintain spin symmetry.
-        WRITE(6,*) 'NoSpinCyc',NoSpinCyc
 
         do x=1,NoSpinCyc
             IF(x.eq.1) THEN
@@ -627,10 +625,6 @@ MODULE NatOrbsMod
                 Startab=SpatOrbs+NoOcc+1
                 Endab=NoOrbs
             ENDIF
-            WRITE(6,*) 'x',x
-            WRITE(6,*) 'Startab',Startab
-            WRITE(6,*) 'Endab',Endab
-
 
             ! a and b must be of the same spin to mix, so only need to run over both beta then both beta.
             do a2=Startab,Endab
@@ -676,7 +670,7 @@ MODULE NatOrbsMod
                                     ENDIF
                                 ELSEIF(z.eq.2) THEN
                                     Starti=1+SpatOrbs
-                                    Endi=nOccAlpha
+                                    Endi=SpatOrbs+nOccAlpha
                                 ENDIF
 
                                 do i2=Starti,Endi
@@ -692,7 +686,7 @@ MODULE NatOrbsMod
                                             ENDIF
                                         ELSEIF(w.eq.2) THEN
                                             Startj=1+SpatOrbs
-                                            Endj=nOccAlpha
+                                            Endj=SpatOrbs+nOccAlpha
                                         ENDIF
 
 
@@ -737,12 +731,12 @@ MODULE NatOrbsMod
 
         WRITE(6,*) 'Finished filling MP2VDM'
 
-        do i=1,NoOrbs
-            do j=1,NoOrbs
-                WRITE(6,*) NatOrbMat(i,j)
-            enddo
-        enddo
-        CALL FLUSH(6)
+!        do i=1,NoOrbs
+!            do j=1,NoOrbs
+!                WRITE(6,*) NatOrbMat(i,j)
+!            enddo
+!        enddo
+!        CALL FLUSH(6)
 !        CALL Stop_All('','')
 
 

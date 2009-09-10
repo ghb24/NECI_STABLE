@@ -167,11 +167,6 @@ subroutine NECICalcInit(iCacheFlag)
     call IntFreeze()
     if (tPostFreezeHF) call HFDoCalc()
 
-    
-    IF(tRotateOrbs.and.(.not.tFindCINatOrbs)) THEN
-        CALL RotateOrbs()
-    ENDIF
-
     call DetInit()
 
 ! Deal with the many-electron basis, setting up sym etc.
@@ -184,6 +179,11 @@ subroutine NECICalcInit(iCacheFlag)
 
 !   Do any initializations we need to do for calculations (e.g. ...?)
     call CalcInit()
+    
+    IF(tRotateOrbs.and.(.not.tFindCINatOrbs)) THEN
+        CALL RotateOrbs()
+    ENDIF
+
 
 end subroutine NECICalcInit
 

@@ -149,11 +149,6 @@ MODULE RotateOrbsMod
             IF(tROHF) CALL Stop_All(this_routine,"Cannot compress open shell systems into spatial orbitals when rotating, turn off ROHF.")
         ENDIF
 
-!        do i=1,nBasis
-!            WRITE(6,*) i,BRR(i),ARR(i,1),ARR(BRR(i),2)
-!        enddo
-!        CALL FLUSH(6)
-
         SpatOrbs=nBasis/2
         IF(tSpinOrbs) THEN
             NoOrbs=nBasis
@@ -186,6 +181,12 @@ MODULE RotateOrbsMod
 
         ENDIF
         NoRotOrbs=NoOrbs
+
+!        do i=1,nBasis
+!            WRITE(6,*) i,BRR(i),ARR(i,1),ARR(BRR(i),2)
+!        enddo
+!        CALL FLUSH(6)
+!        CALL Stop_All('','')
 
 
         ALLOCATE(SymLabelList2(NoOrbs),stat=ierr)
