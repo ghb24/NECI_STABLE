@@ -33,7 +33,7 @@ ifeq ($(dbg_on),'y')
 endif
 
 # Destination for compiling the complex code.
-kdest:='k'$(dest)
+kdest:=k$(dest)
 
 # Targets.
 
@@ -78,8 +78,8 @@ newall:
 	${MAKE} neci-vasp
 
 clean:
-	cd $(dest); ${MAKE} clean
-	cd $(kdest); ${MAKE} clean
+	test -e $(dest)/Makefile && (cd $(dest) && ${MAKE} clean) || rm -f $(dest)/*
+	test -e $(kdest)/Makefile && (cd $(kdest) && ${MAKE} clean) || rm -f $(kdest)/*
 
 $(dest)/Makefile mkfiles:
 	./compile $(dbg_flag) -m
