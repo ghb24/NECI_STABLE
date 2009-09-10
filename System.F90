@@ -410,9 +410,14 @@ MODULE System
 ! and finds the optimal set of transformation coefficients to fit a particular criteria specified below.
 ! This new set of orbitals can then used to produce a ROFCIDUMP file and perform the FCIMC calculation.
             tRotateOrbs=.true.
-            call Getf(TimeStep)
-            call Getf(ConvergedForce)
-
+            if (item.lt.nitems) then
+                call Getf(TimeStep)
+                call Getf(ConvergedForce)
+            end if
+! The SHAKE orthonormalisation algorithm is automatically turned on with a default of 5 iterations.            
+            tShake=.true.
+            tShakeIter=.true.
+ 
         case("DIAGONALIZEHIJ")
 ! Instead of doing an orbital rotation according to the P.E's below, this keyword sets the rotate orbs routine to 
 ! take the input <i|h|j>, and diagonalise it to give the rotation coefficients.
@@ -542,6 +547,7 @@ MODULE System
 ! This turns on the shake approximation algorithm.  To be used if the matrix inversion required in the full shake algorithm cannot 
 ! be performed.
 ! The approximation applies the iterative scheme to find lambda, to each constraint in succession, rather than simultaneously.
+            tShake=.false.
             tShakeApprox=.true.
         
         case("SHAKEITER")
@@ -560,6 +566,7 @@ MODULE System
         case("LAGRANGE")
 ! This will use a non-iterative lagrange multiplier for each component of each rotated vector in the rotateorbs routines in order to 
 ! attempt to maintain orthogonality. This currently does not seem to work too well!
+            tShake=.false.
             tLagrange=.true.
 
         case("SEPARATEOCCVIRT")
@@ -570,10 +577,12 @@ MODULE System
         case("ROTATEOCCONLY")
 ! This option applies to orbital rotation.  It separates the orbitals into occupied and virtual, and rotates the occupied while keeping the 
 ! virtual as the HF.
+            tSeparateOccVirt=.true.
             tRotateOccOnly=.true.
 
         case("ROTATEVIRTONLY")
 ! This option rotates the virtual orbitals while keeping the occupied as the HF.            
+            tSeparateOccVirt=.true.
             tRotateVirtOnly=.true.
 
         case("ROITERATION")
@@ -605,12 +614,16 @@ MODULE System
 ! Once in the rotation routine, the MP2 variational density matrix is calculated, and this is used to transform the orbitals and print and 
 ! new FCIDUMP file.
             tUseMP2VarDenMat=.true.
+            tSeparateOccVirt=.true.
+            tRotateVirtOnly=.true.
+            tShake=.false.
 
         case("USECINATORBS")            
 ! This rotation option is slightly different, it first requires a spawning calculation from which the amplitudes of the wavefunction are 
 ! obtained.  From here, the one electron reduced density matrix is calculated, and the eigenvectors of this are used to rotate the HF orbitals.
 ! A new ROFCIDUMP file is then produced in the new natural orbitals.
             tFindCINatOrbs=.true.
+            tShake=.false.
 
         case("RANLUXLEV")
 !This is the level of quality for the random number generator. Values go from 1 -> 4. 3 is default.
