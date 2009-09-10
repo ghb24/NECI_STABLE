@@ -1,16 +1,26 @@
+MODULE NatOrbsMod
 ! This file is primarily concerned with finding the one electron reduced density matrix, from the wavefunction
 ! constructed by a previous spawning calculation.
 ! Diagonalisation of this density matrix gives a set of eigenvectors which rotate the HF orbitals into the 
 ! CI natural orbitals within the given excitation level.
 ! Once these eigenvectors have been obtained, the relevant routines from RotateOrbs are called to transform the 
 ! integrals and produce a ROFCIDUMP file in the natural orbital basis.
-
-    SUBROUTINE FindNatOrbs()
+        
         USE Global_utilities
-        USE RotateOrbsMod , only : NoOrbs
+        USE Parallel
+        USE SystemData , only : NEl,nBasis,NIfD,G1,ARR,BRR,lNoSymmetry,LMS,tStoreSpinOrbs,nOccAlpha,nOccBeta,tSeparateOccVirt
+        USE SystemData , only : tRotateOccOnly,tRotateVirtOnly
+        USE RotateOrbsData , only : SymLabelList2,SymLabelCounts2,SymLabelListInv,NoOrbs,SpatOrbs
         IMPLICIT NONE
-        INTEGER :: i,j,OneRDMTag,ierr,EvaluesTag
+        INTEGER :: NoSpinCyc
         REAL*8 , ALLOCATABLE :: OneRDM(:,:),Evalues(:)
+        INTEGER :: OneRDMTag,ierr,EvaluesTag
+
+    contains
+    
+    SUBROUTINE FindNatOrbs()
+        IMPLICIT NONE
+        INTEGER :: ierr
         CHARACTER(len=*) , PARAMETER :: this_routine='FindNatOrbs'
 
 ! Fed into this routine will be the wavefunction, Psi, and its amplitudes within the given excitation level.    
@@ -31,16 +41,14 @@
         IF(ierr.ne.0) CALL Stop_All(this_routine,"Mem allocation for Evalues failed.")
         Evalues(:)=0.D0
 
-
-
 ! First need to fill the one electron reduced density matrix.
-        CALL FillOneRDM(OneRDM)
+        CALL FillOneRDM()
 
 ! Then need to diagonalise this, maintaining the various symmetries (spin and spatial).    
-        CALL Diag1RDM(OneRDM,Evalues)
+        CALL Diag1RDM()
 
 ! We then need to put the resulting eigenvectors back into the ordering we want, and copy these over to CoeffT1.
-        CALL OrderandFillCoeffT1(OneRDM,Evalues)
+        CALL OrderandFillCoeffT1()
 
 
 ! Deallocate OneRDM.    
@@ -61,12 +69,8 @@
 
 
     SUBROUTINE SetupNatOrbLabels()
-        USE Global_utilities
-        USE Parallel
-        USE SystemData , only : NEl,G1,ARR,BRR,lNoSymmetry,LMS,tStoreSpinOrbs,nOccAlpha,nOccBeta,tSeparateOccVirt,tRotateVirtOnly
-        USE RotateOrbsMod , only : SymLabelList2,SymLabelCounts2,SymLabelListInv,NoOrbs,SpatOrbs
         IMPLICIT NONE
-        INTEGER :: w,x,i,j,ierr,NoOcc,StartFill01,StartFill02,Symi,SymCurr,Prev,EndFill01,EndFill02
+        INTEGER :: x,i,j,ierr,NoOcc,StartFill01,StartFill02,Symi,SymCurr,Prev,EndFill01,EndFill02
         CHARACTER(len=*) , PARAMETER :: this_routine='SetupNatOrbLabels'
         INTEGER , ALLOCATABLE :: LabVirtOrbs(:),LabOccOrbs(:),SymVirtOrbs(:),SymOccOrbs(:)
         INTEGER :: LabVirtOrbsTag,LabOccOrbsTag,SymVirtOrbsTag,SymOccOrbsTag
@@ -82,12 +86,12 @@
 ! Then we want two values for the number of occupied orbitals to allow for high spin cases.
 ! With spatial, it is equivalent to just keeping the beta spin.
         IF(tStoreSpinOrbs) THEN
-            w=2
+            NoSpinCyc=2
         ELSE
-            w=1
+            NoSpinCyc=1
         ENDIF
 
-        do x=1,w
+        do x=1,NoSpinCyc
             IF(.not.tSeparateOccVirt) THEN
                 NoOcc=0
             ELSE
@@ -354,8 +358,7 @@
 
 
 
-    SUBROUTINE FillOneRDM(OneRDM)
-        USE Global_utilities
+    SUBROUTINE FillOneRDM()
         USE DetCalc , only : Det,FCIDets,FCIDetIndex,ICILevel
 ! Det is the number of determinants in FCIDets.
 ! FCIDets contains the list of all determinants in the system in bit string representation, FCIDets(0:nBasis/32,1:Det) 
@@ -366,13 +369,11 @@
         USE FciMCData , only : AllHistogram
 ! The elements of AllHistogram correspond to the rows of FCIDets - i.e to each determinant in the system.
 ! AllHistogram contains the final (normalised) amplitude of the determinant - with sign.
-        USE SystemData , only : NEl,NIfD,tStoreSpinOrbs,tRotateVirtOnly,tSeparateOccVirt,G1
-        USE RotateOrbsMod , only : SymLabelListInv,NoOrbs,SpatOrbs,SymLabelList2
         IMPLICIT NONE
-        INTEGER :: w,x,excit,i,j,NoOcc,Starti,Endi,Startj,Endj,ExcitLevel,Ex(2,1),Ex2(2,1),Orbi,Orbj,nJ(NEl),Orbk,k,nI(NEl),MaxExcit
+        INTEGER :: x,excit,i,j,NoOcc,Starti,Endi,Startj,Endj,ExcitLevel,Ex(2,1),Ex2(2,1),Orbi,Orbj,nJ(NEl),Orbk,k,nI(NEl),MaxExcit
         INTEGER :: FCIDetIndex2(0:(NEl+1)),Spins
         LOGICAL :: tSign
-        REAL*8 :: OneRDM(NoOrbs,NoOrbs),SignDet
+        REAL*8 :: SignDet
 
 ! Density matrix    = D_pq = < Psi | a_q+ a_p | Psi > 
 !                   = sum_ij [ c_i* c_j < D_i | a_q+ a_p | D_j > ]
@@ -575,31 +576,20 @@
 
 
 
-    SUBROUTINE Diag1RDM(OneRDM,Evalues)
+    SUBROUTINE Diag1RDM()
 ! The diagonalisation routine reorders the orbitals in such a way that the corresponding orbital labels are lost.
 ! In order to keep the spin and spatial symmetries, each symmetry must be fed into the diagonalisation routine separately.
 ! The best way to do this is to order the orbitals so that all the alpha orbitals follow all the beta orbitals, with the 
 ! occupied orbitals first, in terms of symmetry, and the virtual second, also ordered by symmetry.
 ! This gives us flexibility w.r.t rotating only the occupied or only virtual and looking at high spin states.
-        USE SystemData , only : NEl,G1,nBasis,tStoreSpinOrbs,tRotateVirtOnly,tRotateOccOnly
-        USE SystemData , only : nOccAlpha,nOccBeta,tSeparateOccVirt
-        USE RotateOrbsMod , only : SymLabelCounts2,NoOrbs,SymLabelList2,SpatOrbs
-        USE Global_Utilities
         IMPLICIT NONE
-        REAL*8 :: OneRDM(NoOrbs,NoOrbs),Evalues(NoOrbs),SumTrace,SumDiagTrace
+        REAL*8 :: SumTrace,SumDiagTrace
         REAL*8 , ALLOCATABLE :: Work(:),WORK2(:),EvaluesSym(:),OneRDMSym(:,:)
-        INTEGER :: ierr,i,j,x,w,z,Sym,LWORK2,WORK2Tag,SymStartInd,NoSymBlock,PrevSym,StartOccVirt,EndOccVirt,Prev,NoOcc
+        INTEGER :: ierr,i,j,x,z,Sym,LWORK2,WORK2Tag,SymStartInd,NoSymBlock,PrevSym,StartOccVirt,EndOccVirt,Prev,NoOcc
         INTEGER :: EvaluesSymTag,OneRDMSymTag
         CHARACTER(len=*), PARAMETER :: this_routine='Diag1RDM'
 
-        IF(tStoreSpinOrbs) THEN
-            w=2
-        ELSE
-            w=1
-        ENDIF
-
-
-        do x=1,w
+        do x=1,NoSpinCyc
             IF(tSeparateOccVirt) THEN
                 IF(x.eq.1) THEN
                     IF(tStoreSpinOrbs) THEN
@@ -674,7 +664,7 @@
         ! Otherwise these jumble up and the final ordering is uncorrect. 
         ! There should be no non-zero values between these, but can put a check in for this.
 
-        do x=1,w
+        do x=1,NoSpinCyc
 
 ! If we want to maintain the symmetry, we cannot have all the orbitals jumbled up when the diagonaliser reorders the eigenvectors.
 ! Must instead feed each symmetry block in separately.
@@ -810,14 +800,12 @@
 
 
 
-    SUBROUTINE OrderandFillCoeffT1(OneRDM,Evalues)
-        USE Global_utilities
-        USE RotateOrbsMod , only : NoOrbs,SpatOrbs,CoeffT1,SymLabelList2,SymLabelList3,SymOrbs,SymOrbsTag
-        USE SystemData , only : G1,tStoreSpinOrbs,nOccAlpha,nOccBeta,NEl,tRotateOccOnly,tRotateVirtOnly,tSeparateOccVirt
+    SUBROUTINE OrderandFillCoeffT1()
+        USE RotateOrbsData , only : CoeffT1,SymLabelList3,SymOrbs,SymOrbsTag
         USE Logging , only : tTruncRODump,NoFrozenVirt
         IMPLICIT NONE
-        REAL*8 :: OneRDM(NoOrbs,NoOrbs),Evalues(NoOrbs),EvaluesTrunc(NoOrbs-NoFrozenVirt)
-        INTEGER :: w,x,i,j,ier,ierr,StartSort,EndSort,NoRotAlphBet,NoOcc
+        REAL*8 :: EvaluesTrunc(NoOrbs-NoFrozenVirt)
+        INTEGER :: x,i,j,ier,ierr,StartSort,EndSort,NoRotAlphBet,NoOcc
         CHARACTER(len=*), PARAMETER :: this_routine='OrderandFillCoeffT1'
         
 
@@ -840,17 +828,15 @@
                 do i=1,NoOrbs
                     SymOrbs(i)=INT(G1(SymLabelList2(i))%sym%S,4)
                 enddo
-                w=2
                 NoRotAlphBet=SpatOrbs-(NoFrozenVirt/2)
             ELSE 
                 do i=1,NoOrbs
                     SymOrbs(i)=INT(G1(SymLabelList2(i)*2)%sym%S,4)
                 enddo
-                w=1
                 NoRotAlphBet=NoOrbs-NoFrozenVirt
             ENDIF
 
-            do x=1,w
+            do x=1,NoSpinCyc
 
                 IF(x.eq.1) THEN
                     IF(tSeparateOccVirt) THEN
@@ -901,15 +887,9 @@
             ! If we are not truncating, they orbitals get put back into their original order, so the symmetry information is still 
             ! correct, no need for the SymOrbs array.
             ! Instead, just take the labels of SymLabelList3 with them.
-            IF(tStoreSpinOrbs) THEN
-                w=2
-            ELSE
-                w=1
-            ENDIF
-
             CoeffT1(:,:)=0.D0
 
-            do x=1,w
+            do x=1,NoSpinCyc
 
                 IF(x.eq.1) THEN
                     IF(tSeparateOccVirt) THEN
@@ -975,7 +955,7 @@
         enddo
         CLOSE(74)
 
-        CALL HistNatOrbEvalues(Evalues,OneRDM)
+        CALL HistNatOrbEvalues()
 
         WRITE(6,*) 'Eigen-values: '
         do i=1,NoOrbs
@@ -1003,27 +983,19 @@
 
 
 
-    SUBROUTINE HistNatOrbEvalues(Evalues,OneRDM)
-        USE SystemData , only : ARR,G1,tSeparateOccVirt,tRotateOccOnly,tRotateVirtOnly,NEl,tStoreSpinOrbs,nOccAlpha,nOccBeta
-        USE RotateOrbsMod , only : NoOrbs,SymLabelList2,SymLabelListInv
+    SUBROUTINE HistNatOrbEvalues()
         IMPLICIT NONE
-        INTEGER :: i,k,x,w,NoEvalues,a,b,NoOcc
-        REAL*8 :: EvaluesCount(NoOrbs,2),Evalues(1:NoOrbs),OrbEnergies(1:NoOrbs),EvalueEnergies(1:NoOrbs)
-        REAL*8 :: OneRDM(NoOrbs,NoOrbs),SumEvalues
+        INTEGER :: i,k,x,NoEvalues,a,b,NoOcc
+        REAL*8 :: EvaluesCount(NoOrbs,2),OrbEnergies(1:NoOrbs),EvalueEnergies(1:NoOrbs)
+        REAL*8 :: SumEvalues
 
-
-        IF(tStoreSpinOrbs) THEN
-            w=2
-        ELSE
-            w=1
-        ENDIF
 
         OPEN(73,FILE='EVALUES-plot',status='unknown')
         OPEN(74,FILE='EVALUES-plot-rat',status='unknown')
 
         EvaluesCount(:,:)=0.D0
 
-        do x=1,w
+        do x=1,NoSpinCyc
 
             IF(tSeparateOccVirt) THEN
                 IF(x.eq.1) THEN
@@ -1185,10 +1157,8 @@
 !This file was primarily concerned with the creation of natural orbitals from a rotation of the previous orbitals.
 !The 1-electron Reduced density matrix was inputted, and the natural orbitals constructed. From there, the
 !1 and 2 electron integrals were transformed and replaced into UMat.
-    SUBROUTINE FindNatOrbsOld(OneRDM)
-        use SystemData , only : nBasis
+    SUBROUTINE FindNatOrbsOld()
         IMPLICIT NONE
-        REAL*8 :: OneRDM(nBasis,nBasis)
         INTEGER :: i,j
 
         OPEN(12,FILE='ONEEL-RDM',STATUS='UNKNOWN')
@@ -1203,7 +1173,7 @@
         CALL Stop_All('FindNatOrbsOld','This is the old routine for finding the natural orbitals - likely buggy.')
 
 !First, diagonalize the 1-RDM...
-        CALL Diag1RDM(OneRDM)
+        CALL Diag1RDMOld()
 
 !Setup symmetry information needed...
 !    CALL SetupSymNO()
@@ -1217,16 +1187,13 @@
     END SUBROUTINE FindNatOrbsOld
 
 
-    SUBROUTINE Diag1RDMOld(OneRDM)
+    SUBROUTINE Diag1RDMOld()
 ! The diagonalisation routine reorders the orbitals in such a way that the corresponding orbital labels are lost.
 ! In order to keep the spin and spatial symmetries, each symmetry must be fed into the diagonalisation routine separately.
 ! The best way to do this is to order the orbitals so that all the alpha orbitals follow all the beta orbitals, with the 
 ! occupied orbitals first, in terms of symmetry, and the virtual second, also ordered by symmetry.
 ! This gives us flexibility w.r.t rotating only the occupied or only virtual and looking at high spin states.
-        USE SystemData , only : NEl,nBasis
-        USE Global_Utilities
         IMPLICIT NONE
-        REAL*8 :: OneRDM(nBasis,nBasis)
         REAL*8 , ALLOCATABLE :: NOccNums(:),Work(:)
         INTEGER :: nOccNumsTag=0,iErr,WorkSize,WorkCheck,WorkTag=0,i
         CHARACTER(len=*), PARAMETER :: this_routine='Diag1RDM'
@@ -1271,4 +1238,4 @@
 
     END SUBROUTINE Diag1RDMOld
 
-
+END MODULE NatOrbsMod

@@ -16,10 +16,11 @@ MODULE RotateOrbsMod
     USE SymData , only : TwoCycleSymGens,SymLabelList,SymLabelCounts
     USE Timing , only : end_timing,print_timing_report
     USE Soft_exit, only : test_SOFTEXIT
+    USE RotateOrbsData 
     IMPLICIT NONE
     INTEGER , PARAMETER :: Root=0   !This is the rank of the root processor
-    INTEGER , ALLOCATABLE :: Lab(:,:),LabVirtOrbs(:),LabOccOrbs(:),SymLabelCounts2(:,:),SymLabelList2(:),SymLabelListInv(:),SymOrbs(:),SymLabelList3(:)
-    REAL*8 , ALLOCATABLE :: CoeffT1(:,:),CoeffCorT2(:,:),CoeffUncorT2(:,:)
+    INTEGER , ALLOCATABLE :: Lab(:,:),LabVirtOrbs(:),LabOccOrbs(:)
+    REAL*8 , ALLOCATABLE :: CoeffCorT2(:,:),CoeffUncorT2(:,:)
     REAL*8 , ALLOCATABLE :: Lambdas(:,:),ArrNew(:,:),TMAT2DTemp(:,:),TMAT2DRot(:,:),TMAT2DPartRot01(:,:),TMAT2DPartRot02(:,:)
     REAL*8 , ALLOCATABLE :: DerivCoeff(:,:),UMATTemp01(:,:,:,:),UMATTemp02(:,:,:,:)
     REAL*8 , ALLOCATABLE :: DerivLambda(:,:),ForceCorrect(:,:),Correction(:,:),ShakeLambdaNew(:),ConstraintCor(:)
@@ -28,13 +29,13 @@ MODULE RotateOrbsMod
     REAL*8 , ALLOCATABLE :: ThreeIndInts02(:,:,:,:),ThreeIndInts03(:,:,:,:),ThreeIndInts04(:,:,:,:)  
     REAL*8 , ALLOCATABLE :: DiagTMAT2Dfull(:)   
     REAL*8 , ALLOCATABLE :: TwoIndIntsER(:,:,:),ThreeIndInts01ER(:,:),ThreeIndInts02ER(:,:),FourIndIntsER(:)
-    INTEGER :: TwoIndIntsERTag,ThreeIndInts01ERTag,ThreeIndInts02ERTag,FourIndIntsERTag,SymLabelList3Tag,SymOrbsTag
+    INTEGER :: TwoIndIntsERTag,ThreeIndInts01ERTag,ThreeIndInts02ERTag,FourIndIntsERTag
     INTEGER :: TwoIndInts01Tag,TwoIndInts02Tag,ThreeIndInts01Tag,ThreeIndInts02Tag,ThreeIndInts03Tag,ThreeIndInts04Tag,FourIndInts02Tag
     INTEGER :: LowBound02,HighBound02,TMAT2DTempTag,TMAT2DRotTag,TMAT2DPartRot01Tag,TMAT2DPartRot02Tag
-    INTEGER :: LabTag,ForceCorrectTag,CorrectionTag,SpatOrbs,FourIndIntsTag,ArrNewTag,UMATTemp01Tag,UMATTemp02Tag,ShakeIterInput,NoOrbs,NoOcc
-    INTEGER :: CoeffT1Tag,CoeffCorT2Tag,CoeffUncorT2Tag,LambdasTag,DerivCoeffTag,DerivLambdaTag,Iteration,TotNoConstraints,ShakeLambdaNewTag
+    INTEGER :: LabTag,ForceCorrectTag,CorrectionTag,FourIndIntsTag,ArrNewTag,UMATTemp01Tag,UMATTemp02Tag,ShakeIterInput,NoOcc
+    INTEGER :: CoeffCorT2Tag,CoeffUncorT2Tag,LambdasTag,DerivCoeffTag,DerivLambdaTag,Iteration,TotNoConstraints,ShakeLambdaNewTag
     INTEGER :: ShakeLambdaTag,ConstraintTag,ConstraintCorTag,DerivConstrT1Tag,DerivConstrT2Tag,DerivConstrT1T2Tag,DerivConstrT1T2DiagTag
-    INTEGER :: LabVirtOrbsTag,LabOccOrbsTag,MinOccVirt,MaxOccVirt,MinMZ,MaxMZ,SymLabelCounts2Tag,SymLabelList2Tag,SymLabelListInvTag,error,LowBound,HighBound
+    INTEGER :: LabVirtOrbsTag,LabOccOrbsTag,MinOccVirt,MaxOccVirt,MinMZ,MaxMZ,error,LowBound,HighBound
     INTEGER :: NoInts01,NoInts02,NoInts03,NoInts04,NoInts05,NoInts06,DiagTMAT2DfullTag,NoRotOrbs
     LOGICAL :: tNotConverged,tInitIntValues
     REAL*8 :: OrthoNorm,ERPotEnergy,HijSqrdPotEnergy,OffDiagPotEnergy,CoulPotEnergy,PotEnergy,Force,TwoEInts,DistCs,OrthoForce,DistLs,LambdaMag,PEInts,PEOrtho
@@ -135,6 +136,7 @@ MODULE RotateOrbsMod
 ! MP2VDM = D2_ab = sum_ijc [ t_ij^ac ( 2 t_ij^bc - t_ji^bc ) ]
 ! Where :  t_ij^ac = - < ab | ij > / ( E_a - E_i + E_b - Ej )
 ! Ref : J. Chem. Phys. 131, 034113 (2009) - note: in Eqn 1, the cb indices are the wrong way round (should be bc).
+        USE NatOrbsMod , only : SetUpNatOrbLabels,FindNatOrbs
         INTEGER :: i,j,k,l,a,ierr,MinReadIn,MaxReadIn
         CHARACTER(len=*) , PARAMETER :: this_routine='UseMP1VarDenMat'
 
@@ -939,10 +941,10 @@ MODULE RotateOrbsMod
         enddo
 ! ARR(:,1) - ordered by energy, ARR(:,2) - ordered by spin-orbital index.
 
-        WRITE(6,*) 'OrbEnergies'
-        do i=1,NoOrbs
-            WRITE(6,*) OrbEnergies(i)
-        enddo
+!        WRITE(6,*) 'OrbEnergies'
+!        do i=1,NoOrbs
+!            WRITE(6,*) OrbEnergies(i)
+!        enddo
         WRITE(6,*) 'EvalueEnergies'
         SumEvalues=0.D0
         do i=1,NoOrbs
@@ -1645,10 +1647,9 @@ MODULE RotateOrbsMod
         INTEGER :: j,i,ierr,SymSum
         CHARACTER(len=*) , PARAMETER :: this_routine='InitSymmArrays'
 
-        SymLabelCounts(:,:)=0
-        SymLabelList(:)=0
-
         IF(.not.tSeparateOccVirt) THEN
+            SymLabelCounts(:,:)=0
+            SymLabelList(:)=0
             IF(tSpinOrbs) CALL Stop_All(this_routine,"There may be a problem with GENSymStatePairs when using spin orbitals.")
             CALL GENSymStatePairs(SpatOrbs,.false.)
         ENDIF
@@ -1704,24 +1705,24 @@ MODULE RotateOrbsMod
         enddo
         
 
-!        WRITE(6,*) 'Sym Label Counts'
-!        do i=1,16
-!            WRITE(6,*) SymLabelCounts2(1,i),SymLabelCounts2(2,i)
-!        enddo
-!        WRITE(6,*) 'Sym label list (i.e the orbitals in symm order), and their symmetries according to G1'
-!        do i=1,NoOrbs
-!            IF(tSpinOrbs) THEN
-!                WRITE(6,*) i,SymLabelList2(i),INT(G1(SymLabelList2(i))%sym%S,4)
-!            ELSE
-!                WRITE(6,*) i,SymLabelList2(i),INT(G1(SymLabelList2(i)*2)%sym%S,4)
-!            ENDIF
-!        enddo
+        WRITE(6,*) 'Sym Label Counts'
+        do i=1,16
+            WRITE(6,*) SymLabelCounts2(1,i),SymLabelCounts2(2,i)
+        enddo
+        WRITE(6,*) 'Sym label list (i.e the orbitals in symm order), and their symmetries according to G1'
+        do i=1,NoOrbs
+            IF(tSpinOrbs) THEN
+                WRITE(6,*) i,SymLabelList2(i),INT(G1(SymLabelList2(i))%sym%S,4)
+            ELSE
+                WRITE(6,*) i,SymLabelList2(i),INT(G1(SymLabelList2(i)*2)%sym%S,4)
+            ENDIF
+        enddo
 !        WRITE(6,*) 'Sym label list (i.e the orbitals in symm order), and its inverse'
 !        do i=1,NoOrbs
 !            WRITE(6,*) SymLabelList2(i),SymLabelListInv(i)
 !        enddo
-!        CALL FLUSH(6)
-!        stop
+        CALL FLUSH(6)
+        CALL Stop_All('InitSymmArrays','Checking orbital labels.')
 
 
     ENDSUBROUTINE InitSymmArrays
@@ -2024,7 +2025,7 @@ MODULE RotateOrbsMod
         ! Go through each symmetry group, making sure the orbital pairs are ordered lowest to highest.
         do i=1,16
             IF(SymLabelCounts2(2,i).ne.0) THEN
-                CALL NECI_SORTI(SymLabelCounts2(2,i),SymLabelList2(SymLabelCounts2(1,i):(SymLabelCounts(1,i)+SymLabelCounts2(2,i)-1)))
+                CALL NECI_SORTI(SymLabelCounts2(2,i),SymLabelList2(SymLabelCounts2(1,i):(SymLabelCounts2(1,i)+SymLabelCounts2(2,i)-1)))
             ENDIF
         enddo
 

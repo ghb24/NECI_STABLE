@@ -12706,6 +12706,7 @@ MODULE FciMCParMod
 !and normalises it according to the number of walkers on the HF determinant.
 !It then diagonalises the 1-RDM to find linear combinations of the HF orbitals that are closer to the natural orbitals,
 !and the occupation numbers of these new orbitals (e-values).
+        USE NatOrbsMod , only : FindNatOrbsOld
         INTEGER :: i,j,error,ierr
         REAL*8 :: TempSumNoatHF
         REAL*8 , ALLOCATABLE :: Temp1RDM(:,:)
@@ -12735,7 +12736,7 @@ MODULE FciMCParMod
             OneRDM(HFDet(i),HFDet(i))=1.D0
         enddo
     
-        CALL FindNatOrbsOld(OneRDM)           !Diagonalise the 1-RDM
+        CALL FindNatOrbsOld()           !Diagonalise the 1-RDM
 
     END SUBROUTINE NormandDiagOneRDM
     
