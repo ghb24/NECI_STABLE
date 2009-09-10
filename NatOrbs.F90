@@ -8,13 +8,15 @@ MODULE NatOrbsMod
         
         USE Global_utilities
         USE Parallel
+        USE IntegralsData , only : UMAT
+        USE UMatCache , only : UMatInd
         USE SystemData , only : NEl,nBasis,NIfD,G1,ARR,BRR,lNoSymmetry,LMS,tStoreSpinOrbs,nOccAlpha,nOccBeta,tSeparateOccVirt
-        USE SystemData , only : tRotateOccOnly,tRotateVirtOnly
-        USE RotateOrbsData , only : SymLabelList2,SymLabelCounts2,SymLabelListInv,NoOrbs,SpatOrbs
+        USE SystemData , only : tRotateOccOnly,tRotateVirtOnly,tFindCINatOrbs,tUseMP2VarDenMat
+        USE RotateOrbsData , only : SymLabelList2,SymLabelCounts2,SymLabelCounts2Tag,SymLabelListInv,NoOrbs,SpatOrbs
         IMPLICIT NONE
         INTEGER :: NoSpinCyc
-        REAL*8 , ALLOCATABLE :: OneRDM(:,:),Evalues(:)
-        INTEGER :: OneRDMTag,ierr,EvaluesTag
+        REAL*8 , ALLOCATABLE :: NatOrbMat(:,:),Evalues(:)
+        INTEGER :: NatOrbMatTag,ierr,EvaluesTag
 
     contains
     
@@ -29,32 +31,43 @@ MODULE NatOrbsMod
 ! This is done slightly differently for spin and spatial and whether or not we are truncating the virtual space when
 ! writing out the final ROFCIDUMP file.
 
-! Allocate OneRDM.
+! Allocate the matrix used to find the natural orbitals.
 
-        ALLOCATE(OneRDM(NoOrbs,NoOrbs),stat=ierr)
-        CALL LogMemAlloc('OneRDM',NoOrbs**2,8,this_routine,OneRDMTag,ierr)
-        IF(ierr.ne.0) CALL Stop_All(this_routine,"Mem allocation for OneRDM failed.")
-        OneRDM(:,:)=0.D0
+        ALLOCATE(NatOrbMat(NoOrbs,NoOrbs),stat=ierr)
+        CALL LogMemAlloc('NatOrbMati',NoOrbs**2,8,this_routine,NatOrbMatTag,ierr)
+        IF(ierr.ne.0) CALL Stop_All(this_routine,"Mem allocation for NatOrbMat failed.")
+        NatOrbMat(:,:)=0.D0
 
         ALLOCATE(Evalues(NoOrbs),stat=ierr)
         CALL LogMemAlloc('Evalues',NoOrbs,8,this_routine,EvaluesTag,ierr)
         IF(ierr.ne.0) CALL Stop_All(this_routine,"Mem allocation for Evalues failed.")
         Evalues(:)=0.D0
 
-! First need to fill the one electron reduced density matrix.
-        CALL FillOneRDM()
+! First need to fill the relevant matrix for calculating the type of natural orbitals we want.
+        IF(tFindCINatOrbs) THEN
+
+            ! For the CISD, CISDT etc natural orbitals, the relevant matrix is the one electron reduced density matrix
+            ! from the previous spawning calculation (trucated at a certain excitation).
+            CALL FillOneRDM()
+
+        ELSEIF(tUseMP2VarDenMat) THEN
+
+            ! For the MP2 natural orbitals, the natural orbital matrix is the MP2 variational density matrix.
+            CALL FillMP2VDM()
+
+        ENDIF
 
 ! Then need to diagonalise this, maintaining the various symmetries (spin and spatial).    
-        CALL Diag1RDM()
+        CALL DiagNatOrbMat()
 
 ! We then need to put the resulting eigenvectors back into the ordering we want, and copy these over to CoeffT1.
         CALL OrderandFillCoeffT1()
 
 
-! Deallocate OneRDM.    
+! Deallocate the natural orbitals matrix.    
 
-        DEALLOCATE(OneRDM)
-        CALL LogMemDeAlloc(this_routine,OneRDMTag)
+        DEALLOCATE(NatOrbMat)
+        CALL LogMemDeAlloc(this_routine,NatOrbMatTag)
 
         DEALLOCATE(Evalues)
         CALL LogMemDeAlloc(this_routine,EvaluesTag)
@@ -334,7 +347,7 @@ MODULE NatOrbsMod
         
 
 !        WRITE(6,*) 'Sym Label Counts'
-!        do i=1,32
+!        do i=1,16
 !            WRITE(6,*) i,SymLabelCounts2(1,i),SymLabelCounts2(2,i)
 !        enddo
 !        WRITE(6,*) 'Sym label list (i.e the orbitals in symm order), and their symmetries according to G1'
@@ -350,7 +363,7 @@ MODULE NatOrbsMod
 !            WRITE(6,*) SymLabelList2(i),SymLabelListInv(i)
 !        enddo
 !        CALL FLUSH(6)
-!        stop
+!        CALL Stop_All('SetupNatOrbLabels','Checking orbital labelling.')
 
 
 
@@ -517,8 +530,8 @@ MODULE NatOrbsMod
                             SignDet=1.D0
                         ENDIF
 
-                        OneRDM(Orbi,Orbj)=OneRDM(Orbi,Orbj)+(SignDet*AllHistogram(i)*AllHistogram(j))
-                        OneRDM(Orbj,Orbi)=OneRDM(Orbj,Orbi)+(SignDet*AllHistogram(i)*AllHistogram(j))
+                        NatOrbMat(Orbi,Orbj)=NatOrbMat(Orbi,Orbj)+(SignDet*AllHistogram(i)*AllHistogram(j))
+                        NatOrbMat(Orbj,Orbi)=NatOrbMat(Orbj,Orbi)+(SignDet*AllHistogram(i)*AllHistogram(j))
 
                         ! AllHistogram are the normalised amplitudes of the determinants.
 !                        IF(((AllHistogram(i)*AllHistogram(j).ne.0.D0).and.(INT(G1(SymLabelList2(Orbi)*2)%sym%S,4).ne.INT(G1(SymLabelList2(Orbj)*2)%sym%S,4)))&
@@ -549,8 +562,8 @@ MODULE NatOrbsMod
                             ELSE
                                 Orbk=SymLabelListInv(CEILING(REAL(nJ(k))/2.D0))
                             ENDIF
-                            OneRDM(Orbk,Orbk)=OneRDM(Orbk,Orbk)+(AllHistogram(j)**2)
-!                            OneRDM(Orbk,Orbk)=OneRDM(Orbk,Orbk)+(0.5 * (AllHistogram(j)**2))
+                            NatOrbMat(Orbk,Orbk)=NatOrbMat(Orbk,Orbk)+(AllHistogram(j)**2)
+!                            NatOrbMat(Orbk,Orbk)=NatOrbMat(Orbk,Orbk)+(0.5 * (AllHistogram(j)**2))
                             ! 0.5 x because this will be added twice since we are not currently restricting i<k or anything.
                         enddo
                     ENDIF
@@ -563,7 +576,7 @@ MODULE NatOrbsMod
         WRITE(6,*) 'Filled OneRDM'
 !        do i=1,NoOrbs
 !            do j=1,NoOrbs
-!                WRITE(6,'(F10.5)',advance='no') OneRDM(j,i)
+!                WRITE(6,'(F10.5)',advance='no') NatOrbMat(j,i)
 !            enddo
 !            WRITE(6,*) ''
 !        enddo
@@ -576,7 +589,169 @@ MODULE NatOrbsMod
 
 
 
-    SUBROUTINE Diag1RDM()
+    SUBROUTINE FillMP2VDM()
+! In this routine, the natural orbital matrix is calculated from the MP2 variational density matrix.
+
+! MP2VDM = D2_ab = sum_ijc [ t_ij^ac ( 2 t_ij^bc - t_ji^bc ) ]
+! Where :  t_ij^ac = - < ab | ij > / ( E_a - E_i + E_b - Ej )
+! Ref : J. Chem. Phys. 131, 034113 (2009) - note: in Eqn 1, the cb indices are the wrong way round (should be bc).
+        INTEGER :: a,b,c,i,j,a2,b2,c2,i2,j2,x,y,z,w
+        INTEGER :: Startab,Endab,NoOcc,NoOccC,Startc,Endc,Starti,Endi,Startj,Endj
+        REAL*8 :: MP2VDMSum
+        CHARACTER(len=*), PARAMETER :: this_routine='FillMP2VDM'
+
+! Calculating the MP2VDM (D2_ab) matrix whose eigenvectors become the transformation matrix.        
+! This goes in the natural orbital matrix of this module.
+! The eigenvalues are the occupation numbers of the new orbitals.  These should decrease exponentially so that when we remove the 
+! orbitals with small occupation numbers we should have little affect on the energy.
+
+
+! For the MP2VDM, we always only rotate the virtual orbitals - denomonator term of the above expression would be 0 if a and b were occupied.
+! The orbital labels are ordered occupied then virtual if spatial orbitals are being used,
+! otherwise they go occupied beta, virtual beta, occupied alpha, virtual alpha.
+! This is so the alpha and beta spins can be diagonalised separately and we can keep track of which is which when the evectors are reordered 
+! and maintain spin symmetry.
+        WRITE(6,*) 'NoSpinCyc',NoSpinCyc
+
+        do x=1,NoSpinCyc
+            IF(x.eq.1) THEN
+                IF(tStoreSpinOrbs) THEN
+                    NoOcc=nOccBeta
+                ELSE
+                    NoOcc=NEl/2
+                ENDIF
+                Startab=NoOcc+1
+                Endab=SpatOrbs
+            ELSEIF(x.eq.2) THEN
+                NoOcc=nOccAlpha
+                Startab=SpatOrbs+NoOcc+1
+                Endab=NoOrbs
+            ENDIF
+            WRITE(6,*) 'x',x
+            WRITE(6,*) 'Startab',Startab
+            WRITE(6,*) 'Endab',Endab
+
+
+            ! a and b must be of the same spin to mix, so only need to run over both beta then both beta.
+            do a2=Startab,Endab
+                a=SymLabelList2(a2)
+!                do b2=Startab,Endab
+                do b2=Startab,a2
+                    b=SymLabelList2(b2)
+!                    WRITE(6,*) 'a2',a2,'b2',b2
+                    
+
+                    MP2VDMSum=0.D0
+
+                    ! when a and b beta, run over both alpha and beta virtual for c, then both alpha and beta virtual for both i and j etc. 
+
+                    do y=1,NoSpinCyc
+                        IF(y.eq.1) THEN
+                            IF(tStoreSpinOrbs) THEN
+                                NoOccC=nOccBeta
+                            ELSE
+                                NoOccC=NEl/2
+                            ENDIF
+                            Startc=NoOccC+1
+                            Endc=SpatOrbs
+                        ELSEIF(y.eq.2) THEN
+                            NoOccC=nOccAlpha
+                            Startc=SpatOrbs+NoOccC+1
+                            Endc=NoOrbs
+                        ENDIF
+
+
+                        do c2=Startc,Endc
+                            c=SymLabelList2(c2)
+
+!                            WRITE(6,*) 'c2',c2
+
+                            do z=1,NoSpinCyc
+                                IF(z.eq.1) THEN
+                                    Starti=1
+                                    IF(tStoreSpinOrbs) THEN
+                                        Endi=nOccBeta
+                                    ELSE
+                                        Endi=NEl/2
+                                    ENDIF
+                                ELSEIF(z.eq.2) THEN
+                                    Starti=1+SpatOrbs
+                                    Endi=nOccAlpha
+                                ENDIF
+
+                                do i2=Starti,Endi
+                                    i=SymLabelList2(i2)
+
+                                    do w=1,NoSpinCyc
+                                        IF(w.eq.1) THEN
+                                            Startj=1
+                                            IF(tStoreSpinOrbs) THEN
+                                                Endj=nOccBeta
+                                            ELSE
+                                                Endj=NEl/2
+                                            ENDIF
+                                        ELSEIF(w.eq.2) THEN
+                                            Startj=1+SpatOrbs
+                                            Endj=nOccAlpha
+                                        ENDIF
+
+
+                                        do j2=Startj,Endj
+                                            j=SymLabelList2(j2)
+
+!                                            WRITE(6,*) 'i2',i2,'j2',j2
+
+                                            IF(tStoreSpinOrbs) THEN
+                                                IF((ARR(i,2)+ARR(j,2)-ARR(a,2)-ARR(c,2)).eq.0.D0) THEN
+                                                    IF((REAL(UMAT(UMatInd(a,c,i,j,0,0))%v,8)).ne.0.D0) THEN
+                                                        WRITE(6,*) i,j,a,c,REAL(UMAT(UMatInd(a,c,i,j,0,0))%v,8)
+                                                        CALL Stop_All(this_routine,"Dividing a non-zero by zero.")
+                                                    ENDIF
+                                                ENDIF
+                                                MP2VDMSum=MP2VDMSum+&
+                                                            &(( (REAL(UMAT(UMatInd(a,c,i,j,0,0))%v,8)) * (2.D0*(REAL(UMAT(UMatInd(b,c,i,j,0,0))%v,8))) )/&
+                                                            &( (ARR(i,2)+ARR(j,2)-ARR(a,2)-ARR(c,2)) * (ARR(i,2)+ARR(j,2)-ARR(b,2)-ARR(c,2)) ) )
+                                                MP2VDMSum=MP2VDMSum-&                                            
+                                                            &(( (REAL(UMAT(UMatInd(a,c,i,j,0,0))%v,8)) * (REAL(UMAT(UMatInd(c,b,i,j,0,0))%v,8)) )/&
+                                                            &( (ARR(i,2)+ARR(j,2)-ARR(a,2)-ARR(c,2)) * (ARR(i,2)+ARR(j,2)-ARR(c,2)-ARR(b,2)) ) )
+                 
+                                            ELSE
+                                                MP2VDMSum=MP2VDMSum+&
+                                                            &(( (REAL(UMAT(UMatInd(a,c,i,j,0,0))%v,8)) * (2.D0*(REAL(UMAT(UMatInd(b,c,i,j,0,0))%v,8))) )/&
+                                                            &( (ARR(2*i,2)+ARR(2*j,2)-ARR(2*a,2)-ARR(2*c,2)) * (ARR(2*i,2)+ARR(2*j,2)-ARR(2*b,2)-ARR(2*c,2)) ) )
+                                                MP2VDMSum=MP2VDMSum-&                                            
+                                                            &(( (REAL(UMAT(UMatInd(a,c,i,j,0,0))%v,8)) * (REAL(UMAT(UMatInd(c,b,i,j,0,0))%v,8)) )/&
+                                                            &( (ARR(2*i,2)+ARR(2*j,2)-ARR(2*a,2)-ARR(2*c,2)) * (ARR(2*i,2)+ARR(2*j,2)-ARR(2*c,2)-ARR(2*b,2)) ) )
+                                            ENDIF
+                                        enddo
+                                    enddo
+                                enddo
+                            enddo
+                        enddo
+                    enddo
+                    NatOrbMat(a2,b2)=MP2VDMSum
+                    NatOrbMat(b2,a2)=MP2VDMSum
+                enddo
+            enddo
+        enddo
+
+        WRITE(6,*) 'Finished filling MP2VDM'
+
+        do i=1,NoOrbs
+            do j=1,NoOrbs
+                WRITE(6,*) NatOrbMat(i,j)
+            enddo
+        enddo
+        CALL FLUSH(6)
+!        CALL Stop_All('','')
+
+
+    END SUBROUTINE FillMP2VDM
+
+
+
+
+    SUBROUTINE DiagNatOrbMat()
 ! The diagonalisation routine reorders the orbitals in such a way that the corresponding orbital labels are lost.
 ! In order to keep the spin and spatial symmetries, each symmetry must be fed into the diagonalisation routine separately.
 ! The best way to do this is to order the orbitals so that all the alpha orbitals follow all the beta orbitals, with the 
@@ -584,10 +759,10 @@ MODULE NatOrbsMod
 ! This gives us flexibility w.r.t rotating only the occupied or only virtual and looking at high spin states.
         IMPLICIT NONE
         REAL*8 :: SumTrace,SumDiagTrace
-        REAL*8 , ALLOCATABLE :: Work(:),WORK2(:),EvaluesSym(:),OneRDMSym(:,:)
+        REAL*8 , ALLOCATABLE :: Work(:),WORK2(:),EvaluesSym(:),NOMSym(:,:)
         INTEGER :: ierr,i,j,x,z,Sym,LWORK2,WORK2Tag,SymStartInd,NoSymBlock,PrevSym,StartOccVirt,EndOccVirt,Prev,NoOcc
-        INTEGER :: EvaluesSymTag,OneRDMSymTag
-        CHARACTER(len=*), PARAMETER :: this_routine='Diag1RDM'
+        INTEGER :: EvaluesSymTag,NOMSymTag
+        CHARACTER(len=*), PARAMETER :: this_routine='DiagNatOrbMat'
 
         do x=1,NoSpinCyc
             IF(tSeparateOccVirt) THEN
@@ -608,26 +783,26 @@ MODULE NatOrbsMod
             IF(tRotateVirtOnly) THEN
                 do i=1,NoOcc
                     do j=1,SpatOrbs
-                        OneRDM(i+Prev,j+Prev)=0.D0
-                        OneRDM(j+Prev,i+Prev)=0.D0
-                        IF(i.eq.j) OneRDM(i+Prev,j+Prev)=1.D0
+                        NatOrbMat(i+Prev,j+Prev)=0.D0
+                        NatOrbMat(j+Prev,i+Prev)=0.D0
+                        IF(i.eq.j) NatOrbMat(i+Prev,j+Prev)=1.D0
                     enddo
                     Evalues(i+Prev)=1.D0
                 enddo
             ELSEIF(tRotateOccOnly) THEN
                 do i=NoOcc+1,SpatOrbs
                     do j=1,SpatOrbs
-                        OneRDM(i+Prev,j+Prev)=0.D0
-                        OneRDM(j+Prev,i+Prev)=0.D0
-                        IF(i.eq.j) OneRDM(i+Prev,j+Prev)=1.D0
+                        NatOrbMat(i+Prev,j+Prev)=0.D0
+                        NatOrbMat(j+Prev,i+Prev)=0.D0
+                        IF(i.eq.j) NatOrbMat(i+Prev,j+Prev)=1.D0
                     enddo
                     Evalues(i+Prev)=1.D0
                 enddo
             ELSEIF(tSeparateOccVirt) THEN
                 do i=1,NoOcc
                     do j=NoOcc+1,SpatOrbs
-                        OneRDM(i+Prev,j+Prev)=0.D0
-                        OneRDM(j+Prev,i+Prev)=0.D0
+                        NatOrbMat(i+Prev,j+Prev)=0.D0
+                        NatOrbMat(j+Prev,i+Prev)=0.D0
                     enddo
                 enddo
             ENDIF
@@ -637,16 +812,16 @@ MODULE NatOrbsMod
         do i=1,NoOrbs
             do j=1,NoOrbs
                 IF(tStoreSpinOrbs) THEN
-!                    WRITE(6,*) INT(G1(SymLabelList2(i))%sym%S,4),INT(G1(SymLabelList2(j))%sym%S,4),OneRDM(i,j)
-                    IF((INT(G1(SymLabelList2(i))%sym%S,4).ne.INT(G1(SymLabelList2(j))%sym%S,4)).and.(OneRDM(i,j).ne.0.D0)) THEN
-                        WRITE(6,'(6I3,F20.10)') i,j,SymLabelList2(i),SymLabelList2(j),INT(G1(SymLabelList2(i))%sym%S,4),INT(G1(SymLabelList2(j))%sym%S,4),OneRDM(i,j)
-                        CALL Stop_All(this_routine,'Non-zero OneRDM value between different symmetries.')
+!                    WRITE(6,*) INT(G1(SymLabelList2(i))%sym%S,4),INT(G1(SymLabelList2(j))%sym%S,4),NatOrbMat(i,j)
+                    IF((INT(G1(SymLabelList2(i))%sym%S,4).ne.INT(G1(SymLabelList2(j))%sym%S,4)).and.(NatOrbMat(i,j).ne.0.D0)) THEN
+                        WRITE(6,'(6I3,F20.10)') i,j,SymLabelList2(i),SymLabelList2(j),INT(G1(SymLabelList2(i))%sym%S,4),INT(G1(SymLabelList2(j))%sym%S,4),NatOrbMat(i,j)
+                        CALL Stop_All(this_routine,'Non-zero NatOrbMat value between different symmetries.')
                     ENDIF
                 ELSE
-!                    WRITE(6,*) INT(G1(SymLabelList2(i)*2)%sym%S,4),INT(G1(SymLabelList2(j)*2)%sym%S,4),OneRDM(i,j)
-                    IF((INT(G1(SymLabelList2(i)*2)%sym%S,4).ne.INT(G1(SymLabelList2(j)*2)%sym%S,4)).and.(OneRDM(i,j).ne.0.D0)) THEN
-                        WRITE(6,'(6I3,F20.10)') i,j,SymLabelList2(i),SymLabelList2(j),INT(G1(SymLabelList2(i)*2)%sym%S,4),INT(G1(SymLabelList2(j)*2)%sym%S,4),OneRDM(i,j)
-                        CALL Stop_All(this_routine,'Non-zero OneRDM value between different symmetries.')
+!                    WRITE(6,*) INT(G1(SymLabelList2(i)*2)%sym%S,4),INT(G1(SymLabelList2(j)*2)%sym%S,4),NatOrbMat(i,j)
+                    IF((INT(G1(SymLabelList2(i)*2)%sym%S,4).ne.INT(G1(SymLabelList2(j)*2)%sym%S,4)).and.(NatOrbMat(i,j).ne.0.D0)) THEN
+                        WRITE(6,'(6I3,F20.10)') i,j,SymLabelList2(i),SymLabelList2(j),INT(G1(SymLabelList2(i)*2)%sym%S,4),INT(G1(SymLabelList2(j)*2)%sym%S,4),NatOrbMat(i,j)
+                        CALL Stop_All(this_routine,'Non-zero NatOrbMat value between different symmetries.')
                     ENDIF
                 ENDIF
             enddo
@@ -654,10 +829,10 @@ MODULE NatOrbsMod
 
         SumTrace=0.D0
         do i=1,NoOrbs
-            SumTrace=SumTrace+OneRDM(i,i)
+            SumTrace=SumTrace+NatOrbMat(i,i)
         enddo
 
-        WRITE(6,*) 'Calculating eigenvectors and eigenvalues of OneRDM'
+        WRITE(6,*) 'Calculating eigenvectors and eigenvalues of NatOrbMat'
         CALL FLUSH(6)
 
         ! If we are using spin orbitals, need to feed in the alpha and beta spins separately.
@@ -695,9 +870,9 @@ MODULE NatOrbsMod
 
                     IF(NoSymBlock.gt.1) THEN
 
-                        ALLOCATE(OneRDMSym(NoSymBlock,NoSymBlock),stat=ierr)
-                        CALL LogMemAlloc('OneRDMSym',NoSymBlock**2,8,this_routine,OneRDMSymTag,ierr)
-                        IF(ierr.ne.0) CALL Stop_All(this_routine,"Problem allocating OneRDMSym.")
+                        ALLOCATE(NOMSym(NoSymBlock,NoSymBlock),stat=ierr)
+                        CALL LogMemAlloc('NOMSym',NoSymBlock**2,8,this_routine,NOMSymTag,ierr)
+                        IF(ierr.ne.0) CALL Stop_All(this_routine,"Problem allocating NOMSym.")
                         ALLOCATE(EvaluesSym(NoSymBlock),stat=ierr)
                         CALL LogMemAlloc('EvaluesSym',NoSymBlock,8,this_routine,EvaluesSymTag,ierr)
                         IF(ierr.ne.0) CALL Stop_All(this_routine,"Problem allocating EvaluesSym.")
@@ -709,23 +884,23 @@ MODULE NatOrbsMod
 
                         do j=1,NoSymBlock
                             do i=1,NoSymBlock
-                                OneRDMSym(i,j)=OneRDM(SymStartInd+i,SymStartInd+j)
+                                NOMSym(i,j)=NatOrbMat(SymStartInd+i,SymStartInd+j)
                             enddo
                         enddo
 
 
                         WRITE(6,*) '*****'
                         WRITE(6,*) 'Symmetry ',Sym, 'with x ',x,' and z ',z,' has ',NoSymBlock,' orbitals.'
-                        WRITE(6,*) 'The OneRDM for this symmetry block is '
+                        WRITE(6,*) 'The NatOrbMat for this symmetry block is '
                         do i=1,NoSymBlock
                             do j=1,NoSymBlock
-                                WRITE(6,'(F20.10)',advance='no') OneRDMSym(j,i)
+                                WRITE(6,'(F20.10)',advance='no') NOMSym(j,i)
                             enddo
                             WRITE(6,*) ''
                         enddo
 
-                        CALL DSYEV('V','L',NoSymBlock,OneRDMSym,NoSymBlock,EvaluesSym,WORK2,LWORK2,ierr)
-                        ! OneRDMSym goes in as the original OneRDMSym, comes out as the eigenvectors (Coefficients).
+                        CALL DSYEV('V','L',NoSymBlock,NOMSym,NoSymBlock,EvaluesSym,WORK2,LWORK2,ierr)
+                        ! NOMSym goes in as the original NOMSym, comes out as the eigenvectors (Coefficients).
                         ! EvaluesSym comes out as the eigenvalues in ascending order.
 
                         WRITE(6,*) 'After diagonalization, the e-vectors (diagonal elements) of this matrix are ,'
@@ -746,14 +921,14 @@ MODULE NatOrbsMod
                         WRITE(6,*) 'The eigenvectors (coefficients) for symmetry block ',Sym
                         do i=1,NoSymBlock
                             do j=1,NoSymBlock
-                                WRITE(6,'(F20.10)',advance='no') OneRDMSym(j,i)
+                                WRITE(6,'(F20.10)',advance='no') NOMSym(j,i)
                             enddo
                             WRITE(6,*) ''
                         enddo
                  
                         do j=1,NoSymBlock
                             do i=1,NoSymBlock
-                                OneRDM(SymStartInd+i,SymStartInd+j)=OneRDMSym(i,j)
+                                NatOrbMat(SymStartInd+i,SymStartInd+j)=NOMSym(i,j)
                             enddo
                         enddo
                         ! Directly fill the coefficient matrix with the eigenvectors from the diagonalization.
@@ -761,8 +936,8 @@ MODULE NatOrbsMod
                         DEALLOCATE(WORK2)
                         CALL LogMemDealloc(this_routine,WORK2Tag)
 
-                        DEALLOCATE(OneRDMSym)
-                        CALL LogMemDealloc(this_routine,OneRDMSymTag)
+                        DEALLOCATE(NOMSym)
+                        CALL LogMemDealloc(this_routine,NOMSymTag)
 
                         DEALLOCATE(EvaluesSym)
                         CALL LogMemDealloc(this_routine,EvaluesSymTag)
@@ -770,11 +945,11 @@ MODULE NatOrbsMod
                     ELSEIF(NoSymBlock.eq.1) THEN
                         ! The eigenvalue is the lone value, while the eigenvector is 1.
 
-                        Evalues(SymStartInd+1)=OneRDM(SymStartInd+1,SymStartInd+1)
-                        OneRDM(SymStartInd+1,SymStartInd+1)=1.D0
+                        Evalues(SymStartInd+1)=NatOrbMat(SymStartInd+1,SymStartInd+1)
+                        NatOrbMat(SymStartInd+1,SymStartInd+1)=1.D0
                         WRITE(6,*) '*****'
                         WRITE(6,*) 'Symmetry ',Sym,' has only one orbital.'
-                        WRITE(6,*) 'Copying diagonal element ,',SymStartInd+1,'to OneRDM'
+                        WRITE(6,*) 'Copying diagonal element ,',SymStartInd+1,'to NatOrbMat'
                     ENDIF
 
                     Sym=Sym+1
@@ -790,13 +965,13 @@ MODULE NatOrbsMod
             SumDiagTrace=SumDiagTrace+Evalues(i)
         enddo
         IF((ABS(SumDiagTrace-SumTrace)).gt.1E-10) THEN
-            WRITE(6,*) 'Sum of diagonal OneRDM elements : ',SumTrace
+            WRITE(6,*) 'Sum of diagonal NatOrbMat elements : ',SumTrace
             WRITE(6,*) 'Sum of eigenvalues : ',SumDiagTrace
-            CALL Stop_All('Diag1RDM','The trace of the 1RDM matrix before diagonalisation is not equal to that after.')
+            CALL Stop_All(this_routine,'The trace of the 1RDM matrix before diagonalisation is not equal to that after.')
         ENDIF
 
 
-    END SUBROUTINE Diag1RDM
+    END SUBROUTINE DiagNatOrbMat
 
 
 
@@ -864,19 +1039,19 @@ MODULE NatOrbsMod
                     IF(tRotateOccOnly) EndSort=NoOcc+SpatOrbs
                 ENDIF
 
-                CALL SortEvecbyEvalPlus1(((EndSort-StartSort)+1),Evalues(StartSort:EndSort),((EndSort-StartSort)+1),OneRDM(StartSort:EndSort,&
+                CALL SortEvecbyEvalPlus1(((EndSort-StartSort)+1),Evalues(StartSort:EndSort),((EndSort-StartSort)+1),NatOrbMat(StartSort:EndSort,&
                                             &StartSort:EndSort),SymOrbs(StartSort:EndSort))
 
                 IF(x.eq.1) THEN
                     do i=1,NoRotAlphBet
-                        CoeffT1(:,i)=OneRDM(:,i)
+                        CoeffT1(:,i)=NatOrbMat(:,i)
                         EvaluesTrunc(i)=Evalues(i)
                     enddo
                 ELSEIF(x.eq.2) THEN
                     j=SpatOrbs
                     do i=NoRotAlphBet+1,(NoOrbs-NoFrozenVirt)
                         j=j+1
-                        CoeffT1(:,i)=OneRDM(:,j)
+                        CoeffT1(:,i)=NatOrbMat(:,j)
                         SymOrbs(i)=SymOrbs(j)
                         EvaluesTrunc(i)=Evalues(j)
                     enddo
@@ -919,11 +1094,11 @@ MODULE NatOrbsMod
                 ENDIF
 
                 CALL SortEvecbyEvalPlus1(((EndSort-StartSort)+1),Evalues(StartSort:EndSort),((EndSort-StartSort)+1),&
-                                            &OneRDM(StartSort:EndSort,StartSort:EndSort),SymLabelList3(StartSort:EndSort))
+                                            &NatOrbMat(StartSort:EndSort,StartSort:EndSort),SymLabelList3(StartSort:EndSort))
             enddo 
             
             do i=1,NoOrbs
-                CoeffT1(:,i)=OneRDM(:,i)
+                CoeffT1(:,i)=NatOrbMat(:,i)
             enddo
 
         ENDIF
@@ -932,7 +1107,7 @@ MODULE NatOrbsMod
 !            WRITE(6,*) Evalues(i)
 !        enddo
 !        do i=1,NoOrbs
-!            WRITE(6,*) OneRDM(:,i)
+!            WRITE(6,*) NatOrbMat(:,i)
 !        enddo
 !        CALL FLUSH(6)
 !        stop
@@ -962,12 +1137,9 @@ MODULE NatOrbsMod
             WRITE(6,*) Evalues(i)
         enddo
 
-        WRITE(6,*) 'OneRDM matrix'
+        WRITE(6,*) 'NatOrbMat matrix'
         do i=1,NoOrbs
-            do j=1,NoOrbs
-                WRITE(6,'(F15.8)',advance='no') OneRDM(j,i)
-            enddo
-            WRITE(6,*) ''
+            WRITE(6,*) NatOrbMat(:,i)
         enddo
 
         OPEN(74,FILE='TRANSFORMMAT',status='unknown')
@@ -1082,9 +1254,9 @@ MODULE NatOrbsMod
             do a=1,NoOrbs
                 b=SymLabelList2(a)
                 IF(tStoreSpinOrbs) THEN
-                    OrbEnergies(i)=OrbEnergies(i)+(OneRDM(a,i)*ARR(b,2)*OneRDM(a,i))
+                    OrbEnergies(i)=OrbEnergies(i)+(NatOrbMat(a,i)*ARR(b,2)*NatOrbMat(a,i))
                 ELSE
-                    OrbEnergies(i)=OrbEnergies(i)+(OneRDM(a,i)*ARR(2*b,2)*OneRDM(a,i))
+                    OrbEnergies(i)=OrbEnergies(i)+(NatOrbMat(a,i)*ARR(2*b,2)*NatOrbMat(a,i))
                 ENDIF
             enddo
         enddo
@@ -1138,7 +1310,7 @@ MODULE NatOrbsMod
                         WRITE(73,*) ''
                         EXIT
                     ENDIF
-                    WRITE(73,'(F16.10)',advance='no') OneRDM(b,i)
+                    WRITE(73,'(F16.10)',advance='no') NatOrbMat(b,i)
                 enddo
                 WRITE(73,*) ''
             enddo
@@ -1164,7 +1336,7 @@ MODULE NatOrbsMod
         OPEN(12,FILE='ONEEL-RDM',STATUS='UNKNOWN')
         do i=1,nBasis
             do j=1,nBasis
-                WRITE(12,"(F18.7)",advance='no') OneRDM(i,j)
+                WRITE(12,"(F18.7)",advance='no') NatOrbMat(i,j)
             enddo
             WRITE(12,*) ""
         enddo
@@ -1204,7 +1376,7 @@ MODULE NatOrbsMod
 !Find desired optimal workspace size
         WorkSize=-1
         WorkCheck=3*nBasis+1
-!    CALL DSYEV('V','U',nBasis,OneRDM,nBasis,NOccNums,WorkCheck,WorkSize,iErr)
+!    CALL DSYEV('V','U',nBasis,NatOrbMat,nBasis,NOccNums,WorkCheck,WorkSize,iErr)
 !    IF(iErr.ne.0) THEN
 !        CALL Stop_All(this_routine,"Error in finding scratch space size")
 !    ENDIF
@@ -1219,7 +1391,7 @@ MODULE NatOrbsMod
         CALL FLUSH(6)
 
 !Diagonalize... Matrix must be symmetric
-        CALL DSYEV('V','U',nBasis,OneRDM,nBasis,NOccNums,Work,WorkSize,iErr)
+        CALL DSYEV('V','U',nBasis,NatOrbMat,nBasis,NOccNums,Work,WorkSize,iErr)
         IF(iErr.eq.0) THEN
             WRITE(6,"(A)") "DONE!"
         ELSE
