@@ -44,16 +44,19 @@ contains
 !   STEPSSHIFT XXX   Will change the length of the update cycle
 !   SINGLESBIAS XXX  Will change the singles bias for the non-uniform random excitation generator
 
-    subroutine ChangeVars(Iter,NEl,Tau,DiagSft,SftDamp,StepsSft,ICILevel,SinglesBias,OccCASOrbs,VirtCASOrbs,CASMin,CASMax,NMCyc,tSingBiasChange,tTruncSpace,tTruncCAS,tSoftExitFound,tWritePopsFound,tSinglePartPhase)
+    subroutine ChangeVars(tSingBiasChange,tSoftExitFound,tWritePopsFound)
+       use SystemData, only : NEl
+       use FciMCData, only : Iter,CASMin,CASMax,tTruncSpace,tSinglePartPhase
+       use CalcData, only : Tau,DiagSft,SftDamp,StepsSft,SinglesBias,OccCASOrbs,VirtCASOrbs,NMCyc,tTruncCAS
+       use DetCalc, only : ICILevel 
        use Parallel
        use Input
        use Logging, only: tHistSpawn,tCalcFCIMCPsi
        use SystemData, only: nBasis
        implicit none
-       integer :: Iter,NEl,StepsSft,ICILevel,error,i,ios,CASMin,CASMax,OccCASOrbs,VirtCASOrbs,NMCyc,NewNMCyc
-       logical :: tSoftExitFound,tWritePopsFound,tSinglePartPhase,exists,AnyExist,deleted_file,tTruncSpace
-       logical :: tEof,any_deleted_file,tChangeParams(11),tSingBiasChange,tTruncCAS
-       real*8 :: DiagSft,Tau,SftDamp,SinglesBias
+       integer :: error,i,ios,NewNMCyc
+       logical :: tSoftExitFound,tWritePopsFound,exists,AnyExist,deleted_file
+       logical :: tEof,any_deleted_file,tChangeParams(11),tSingBiasChange
        Character(len=100) :: w
 
        tSoftExitFound=.false.

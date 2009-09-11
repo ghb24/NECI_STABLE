@@ -99,7 +99,7 @@ MODULE FciMCParMod
                 ENDIF
 
 !This routine will check for a CHANGEVARS file and change the parameters of the calculation accordingly.
-                CALL ChangeVars(Iter,NEl,Tau,DiagSft,SftDamp,StepsSft,ICILevel,SinglesBias,OccCASOrbs,VirtCASOrbs,CASMin,CASMax,NMCyc,tSingBiasChange,tTruncSpace,tTruncCAS,tSoftExitFound,tWritePopsFound,tSinglePartPhase)
+                CALL ChangeVars(tSingBiasChange,tSoftExitFound,tWritePopsFound)
                 IF(tSoftExitFound) THEN
                     TIncrement=.false.
                     EXIT
