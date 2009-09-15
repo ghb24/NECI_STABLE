@@ -43,10 +43,11 @@ contains
 !   SHIFTDAMP XXX    Will change the damping parameter
 !   STEPSSHIFT XXX   Will change the length of the update cycle
 !   SINGLESBIAS XXX  Will change the singles bias for the non-uniform random excitation generator
+!   ZEROPROJE        Will rezero the averaged energy estimators
 
     subroutine ChangeVars(tSingBiasChange,tSoftExitFound,tWritePopsFound)
        use SystemData, only : NEl
-       use FciMCData, only : Iter,CASMin,CASMax,tTruncSpace,tSinglePartPhase
+       use FciMCData, only : Iter,CASMin,CASMax,tTruncSpace,tSinglePartPhase,SumENum,SumNoatHF,HFPopCyc,ProjEIterSum
        use CalcData, only : Tau,DiagSft,SftDamp,StepsSft,SinglesBias,OccCASOrbs,VirtCASOrbs,NMCyc,tTruncCAS
        use DetCalc, only : ICILevel 
        use Parallel
@@ -56,7 +57,7 @@ contains
        implicit none
        integer :: error,i,ios,NewNMCyc
        logical :: tSoftExitFound,tWritePopsFound,exists,AnyExist,deleted_file
-       logical :: tEof,any_deleted_file,tChangeParams(11),tSingBiasChange
+       logical :: tEof,any_deleted_file,tChangeParams(12),tSingBiasChange
        Character(len=100) :: w
 
        tSoftExitFound=.false.
@@ -72,7 +73,7 @@ contains
                WRITE(6,*) "CHANGEVARS file detected on iteration ",Iter
            ENDIF
 !Set the defaults
-           tChangeParams(1:10)=.false.
+           tChangeParams(1:12)=.false.
 
            deleted_file=.false.
            do i=0,nProcessors-1
@@ -121,6 +122,8 @@ contains
                        CASE("NMCYC")
                            tChangeParams(11)=.true.
                            CALL Geti(NewNMCyc)
+                       CASE("ZEROPROJE")
+                           tChangeParams(12)=.true.
                        END SELECT
 
                    End Do
@@ -130,7 +133,7 @@ contains
                call MPI_AllReduce(deleted_file,any_deleted_file,1,MPI_LOGICAL,MPI_LOR,MPI_COMM_WORLD,error)
                if (any_deleted_file) exit
            end do
-           CALL MPI_BCast(tChangeParams,11,MPI_LOGICAL,i,MPI_COMM_WORLD,error)
+           CALL MPI_BCast(tChangeParams,12,MPI_LOGICAL,i,MPI_COMM_WORLD,error)
 
            IF(tChangeParams(1)) THEN
 !Change Tau
@@ -257,6 +260,15 @@ contains
                    WRITE(6,*) "Total number of MC Cycles has been changed to ",NMCyc
                ELSEIF(NewNMCyc.ge.Iter) THEN
                    NMCyc=NewNMCyc
+               ENDIF
+           ENDIF
+           IF(tChangeParams(12)) THEN
+               SumENum=0.D0
+               SumNoatHF=0
+               HFPopCyc=0
+               ProjEIterSum=0.D0
+               IF(iProcIndex.eq.0) THEN
+                   WRITE(6,*) "Zeroing all average energy estimators..."
                ENDIF
            ENDIF
        endif
