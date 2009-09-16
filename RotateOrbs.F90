@@ -235,10 +235,10 @@ MODULE RotateOrbsMod
          
 ! Need to read to convert the UMAT matrix from UMATInd to the appropriate indexing for Transform2ElInts.        
 ! This just contains all the untransformed orbitals.
-        ALLOCATE(UMATTemp01(NoOrbs,NoOrbs,NoOrbs,NoOrbs),stat=ierr)
-        CALL LogMemAlloc('UMATTemp01',NoOrbs**4,8,this_routine,UMATTemp01Tag,ierr)
+!        ALLOCATE(UMATTemp01(NoOrbs,NoOrbs,NoOrbs,NoOrbs),stat=ierr)
+!        CALL LogMemAlloc('UMATTemp01',NoOrbs**4,8,this_routine,UMATTemp01Tag,ierr)
 
-        CALL CopyAcrossUMAT()
+!        CALL CopyAcrossUMAT()
         
 
 ! Yet another labelling system, SymLabelList3 is created here.
@@ -279,8 +279,8 @@ MODULE RotateOrbsMod
 
 ! The last two indices of these are the transformed and possibly truncated orbitals.        
 
-        ALLOCATE(TwoIndInts01(NoOrbs,NoOrbs,NoRotOrbs,NoRotOrbs),stat=ierr)
-        CALL LogMemAlloc('TwoIndInts01',(NoOrbs**4)*(NoRotOrbs**2),8,this_routine,TwoIndInts01Tag,ierr)
+!        ALLOCATE(TwoIndInts01(NoOrbs,NoOrbs,NoRotOrbs,NoRotOrbs),stat=ierr)
+!        CALL LogMemAlloc('TwoIndInts01',(NoOrbs**4)*(NoRotOrbs**2),8,this_routine,TwoIndInts01Tag,ierr)
 
         ALLOCATE(FourIndInts(NoRotOrbs,NoRotOrbs,NoRotOrbs,NoRotOrbs),stat=ierr)
         CALL LogMemAlloc('FourIndInts',NoRotOrbs**4,8,this_routine,FourIndIntsTag,ierr)
@@ -328,7 +328,7 @@ MODULE RotateOrbsMod
 
 ! Then, transform2ElInts
         WRITE(6,*) 'Transforming the four index integrals'
-        CALL Transform2ElInts()
+        CALL Transform2ElIntsMemSave()
 
         WRITE(6,*) 'Re-calculating the fock matrix'
         CALL CalcFOCKMatrix()
@@ -349,13 +349,13 @@ MODULE RotateOrbsMod
         CALL LogMemDeAlloc(this_routine,SymLabelList2Tag)
         DEALLOCATE(SymLabelListInv)
         CALL LogMemDeAlloc(this_routine,SymLabelListInvTag)
-        DEALLOCATE(UMATTemp01)
-        CALL LogMemDeAlloc(this_routine,UMATTemp01Tag)
-        DEALLOCATE(TwoIndInts01)
-        CALL LogMemDeAlloc(this_routine,TwoIndInts01Tag)
         DEALLOCATE(FourIndInts)
         CALL LogMemDeAlloc(this_routine,FourIndIntsTag)
 
+!        DEALLOCATE(UMATTemp01)
+!        CALL LogMemDeAlloc(this_routine,UMATTemp01Tag)
+!        DEALLOCATE(TwoIndInts01)
+!        CALL LogMemDeAlloc(this_routine,TwoIndInts01Tag)
 
     END SUBROUTINE FindNatOrbitals 
 
@@ -1817,6 +1817,103 @@ MODULE RotateOrbsMod
 
 
     END SUBROUTINE Transform2ElInts
+
+
+    
+!This is an M^5 transform, which transforms all the two-electron integrals into the new basis described by the Coeff matrix.
+!This is v memory inefficient and currently does not use any spatial symmetry information.
+    SUBROUTINE Transform2ElIntsMemSave()
+        INTEGER :: i,j,k,l,a,b,g,d,ierr,Temp4indintsTag,Temp4indints02Tag,a2,b2,g2,d2
+        REAL*8 , ALLOCATABLE :: t,Temp4indints(:,:)
+        REAL*8 , ALLOCATABLE :: Temp4indints02(:,:)  
+        
+        CALL set_timer(Transform2ElInts_time,30)
+
+!Zero arrays from previous transform
+
+ 
+        ALLOCATE(Temp4indints(NoRotOrbs,NoOrbs),stat=ierr)
+        CALL LogMemAlloc('Temp4indints',NoRotOrbs*NoOrbs,8,'Transform2ElIntsMemSave',Temp4indintsTag,ierr)
+        IF(ierr.ne.0) CALL Stop_All('Transform2ElIntsMemSave','Problem allocating memory to Temp4indints.')
+ 
+        ALLOCATE(Temp4indints02(NoOrbs,NoOrbs),stat=ierr)
+        CALL LogMemAlloc('Temp4indints02',NoOrbs**2,8,'Transform2ElIntsMemSave',Temp4indints02Tag,ierr)
+        IF(ierr.ne.0) CALL Stop_All('Transform2ElIntsMemSave','Problem allocating memory to Temp4indints02.')
+
+        FourIndInts(:,:,:,:)=0.D0
+
+! **************
+! Calculating the two-transformed, four index integrals.
+
+! The untransformed <alpha beta | gamma delta> integrals are found from UMAT(UMatInd(i,j,k,l,0,0)
+
+        do b=1,NoOrbs
+            b2=SymLabelList2(b)
+            do d=1,b
+                d2=SymLabelList2(d)
+                Temp4indints02(:,:)=0.D0
+                do a=1,NoOrbs
+                    a2=SymLabelList2(a)
+                    do g=1,a
+                        g2=SymLabelList2(g)
+                        Temp4indints02(a,g)=REAL(UMAT(UMatInd(a2,b2,g2,d2,0,0))%v,8)
+                        Temp4indints02(g,a)=REAL(UMAT(UMatInd(a2,b2,g2,d2,0,0))%v,8)
+                    enddo
+                enddo
+                Temp4indints(:,:)=0.D0
+                CALL DGEMM('T','N',NoRotOrbs,NoOrbs,NoOrbs,1.0,CoeffT1(:,:),NoOrbs,Temp4indints02(:,:),NoOrbs,0.0,Temp4indints(:,:),NoRotOrbs)
+                ! Temp4indints(i,g) comes out of here, so to transform g to k, we need the transpose of this.
+
+                Temp4indints02(:,:)=0.D0
+                CALL DGEMM('T','T',NoRotOrbs,NoRotOrbs,NoOrbs,1.0,CoeffT1(:,:),NoOrbs,Temp4indints(:,:),NoRotOrbs,0.0,Temp4indints02(1:NoRotOrbs,1:NoRotOrbs),NoRotOrbs)
+                ! Get Temp4indits02(i,k)
+
+                do i=1,NoRotOrbs
+                    do k=1,i
+                        FourIndInts(i,k,b,d)=Temp4indints02(k,i)
+                        FourIndInts(i,k,d,b)=Temp4indints02(k,i)
+                        FourIndInts(k,i,b,d)=Temp4indints02(k,i)
+                        FourIndInts(k,i,d,b)=Temp4indints02(k,i)
+
+                    enddo
+                enddo
+            enddo
+        enddo
+        
+
+! Calculating the 3 transformed, 4 index integrals. 01=a untransformed,02=b,03=g,04=d
+        do i=1,NoRotOrbs
+            do k=1,i
+
+                Temp4indints(:,:)=0.D0
+                CALL DGEMM('T','N',NoRotOrbs,NoOrbs,NoOrbs,1.0,CoeffT1(:,:),NoOrbs,FourIndInts(i,k,:,:),NoOrbs,0.0,Temp4indints(:,:),NoRotOrbs)
+
+                Temp4indints02(:,:)=0.D0
+                CALL DGEMM('T','T',NoRotOrbs,NoRotOrbs,NoOrbs,1.0,CoeffT1(:,:),NoOrbs,Temp4indints(:,:),NoRotOrbs,0.0,Temp4indints02(1:NoRotOrbs,1:NoRotOrbs),NoRotOrbs)
+                do l=1,NoRotOrbs
+                    do j=1,l
+                        FourIndInts(i,k,j,l)=Temp4indints02(j,l)
+                        FourIndInts(i,k,l,j)=Temp4indints02(j,l)
+                        FourIndInts(k,i,j,l)=Temp4indints02(j,l)
+                        FourIndInts(k,i,l,j)=Temp4indints02(j,l)
+                    enddo
+                enddo
+            enddo
+        enddo
+ 
+        DEALLOCATE(Temp4indints)
+        CALL LogMemDeAlloc('Transform2ElIntsMemSave',Temp4indintsTag)
+ 
+        DEALLOCATE(Temp4indints02)
+        CALL LogMemDeAlloc('Transform2ElIntsMemSave',Temp4indints02Tag)
+
+
+        CALL halt_timer(Transform2ElInts_Time)
+
+
+    END SUBROUTINE Transform2ElIntsMemSave
+
+
 
    
 ! This is a transformation of the four index integrals for the ERlocalisation, in this only the <ii|ii> integrals are needed 
@@ -4612,7 +4709,11 @@ MODULE RotateOrbsMod
 !                            UMAT(UMatInd(a,b,g,d,0,0))=HElement(FourIndInts(i2,j2,k2,l2))
 !                        ELSE
                             a=SymLabelList3(i)
-                            UMAT(UMatInd(a,b,g,d,0,0))=HElement(FourIndInts(i,j,k,l))
+                            IF(tUseMP2VarDenMat.or.tFindCINatOrbs.or.tReadInCoeff) THEN
+                                UMAT(UMatInd(a,b,g,d,0,0))=HElement(FourIndInts(i,k,j,l))
+                            ELSE
+                                UMAT(UMatInd(a,b,g,d,0,0))=HElement(FourIndInts(i,j,k,l))
+                            ENDIF
 !                        ENDIF
                     enddo
                 enddo
