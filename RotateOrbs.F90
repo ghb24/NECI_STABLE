@@ -282,8 +282,8 @@ MODULE RotateOrbsMod
 !        ALLOCATE(TwoIndInts01(NoOrbs,NoOrbs,NoRotOrbs,NoRotOrbs),stat=ierr)
 !        CALL LogMemAlloc('TwoIndInts01',(NoOrbs**4)*(NoRotOrbs**2),8,this_routine,TwoIndInts01Tag,ierr)
 
-        ALLOCATE(FourIndInts(NoRotOrbs,NoRotOrbs,NoRotOrbs,NoRotOrbs),stat=ierr)
-        CALL LogMemAlloc('FourIndInts',NoRotOrbs**4,8,this_routine,FourIndIntsTag,ierr)
+        ALLOCATE(FourIndInts(NoRotOrbs,NoRotOrbs,NoOrbs,NoOrbs),stat=ierr)
+        CALL LogMemAlloc('FourIndInts',(NoOrbs**2)*(NoRotOrbs**2),8,this_routine,FourIndIntsTag,ierr)
 
 
         IF(tReadInCoeff) THEN
