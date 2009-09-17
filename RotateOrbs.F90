@@ -48,6 +48,7 @@ MODULE RotateOrbsMod
     REAL*8 :: ROHistSCikOcjVir(2,4002),ROHistSEikOcjVir(2,4002),ROHistSCkOcijVir(2,4002),ROHistSEkOcijVir(2,4002),ROHistSCijkVir(2,4002),ROHistSEijkVir(2,4002)
     REAL*8 :: ROHistSASikOcjVir(2,4002),ROHistSASkOcijVir(2,4002),ROHistSASijkVir(2,4002),ROHistASijklVir(2,4002),ROHistASijOcklVir(2,4002)
     TYPE(timer), save :: Rotation_Time,FullShake_Time,Shake_Time,Findtheforce_Time,Transform2ElInts_Time,findandusetheforce_time,CalcDerivConstr_Time,TestOrthoConver_Time
+    TYPE(timer), save :: RefillUMAT_Time,PrintROFCIDUMP_Time
 ! In this routine, alpha (a), beta (b), gamma (g) and delta (d) refer to the unrotated (HF) orbitals where possible such that < a b | g d > is an unrotated four index integral.   
 ! For the rotated orbitals, the letter i,j,k and l are generally used, i.e. < i j | k l > refers to a transformed four index integral.
 ! Differentiation of the potential energy (to find the force) is done with respect to coefficient c(z,m) (or c(a,m)), where zeta (z) or a refers to the HF index, and m to the rotated.
@@ -1881,6 +1882,7 @@ MODULE RotateOrbsMod
         INTEGER :: i,j,k,l,a,b,g,d,ierr,Temp4indintsTag,a2,b2,g2,d2
         REAL*8 , ALLOCATABLE :: Temp4indints(:,:)
         
+        Transform2ElInts_Time%timer_name='Transform2ElIntsTime'
         CALL set_timer(Transform2ElInts_time,30)
 
 !Zero arrays from previous transform
@@ -4747,6 +4749,10 @@ MODULE RotateOrbsMod
         REAL*8 :: NewTMAT,NewTMAT02,TMAT2DPart((nBasis-(NoFrozenVirt*2)),nBasis)
 
 
+        RefillUMAT_Time%timer_name='RefillUMATandTMAT'
+        CALL set_timer(RefillUMAT_Time,30)
+
+
 ! Make the UMAT elements the four index integrals.  These are calculated by transforming the HF orbitals using the
 ! coefficients that have been found
         do l=1,(NoOrbs-(NoFrozenVirt))
@@ -4881,6 +4887,8 @@ MODULE RotateOrbsMod
 
         IF(tROHistSingExc) CALL WriteSingHisttofile()
 
+        CALL set_timer(RefillUMAT_Time,30)
+
         WRITE(6,*) 'Printing the new ROFCIDUMP file.'
         IF(tROFciDump) CALL PrintROFCIDUMP()
 
@@ -4893,6 +4901,10 @@ MODULE RotateOrbsMod
     SUBROUTINE PrintROFCIDUMP()
 !This prints out a new FCIDUMP file in the same format as the old one.
         INTEGER :: i,j,k,l,Sym,Syml,Symk
+
+
+        PrintROFCIDUMP_Time%timer_name='PrintROFCIDUMP'
+        CALL set_timer(PrintROFCIDUMP_Time,30)
 
 
         OPEN(48,FILE='ROFCIDUMP',STATUS='unknown')
@@ -4976,6 +4988,8 @@ MODULE RotateOrbsMod
         WRITE(48,'(F21.12,4I3)') ECore,0,0,0,0
         
         CLOSE(48)
+
+        CALL halt_timer(PrintROFCIDUMP_Time)
 
 
     ENDSUBROUTINE PrintROFCIDUMP

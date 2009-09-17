@@ -12,7 +12,8 @@ MODULE NatOrbsMod
         USE UMatCache , only : UMatInd
         USE SystemData , only : NEl,nBasis,NIfD,G1,ARR,BRR,lNoSymmetry,LMS,tStoreSpinOrbs,nOccAlpha,nOccBeta,tSeparateOccVirt
         USE SystemData , only : tRotateOccOnly,tRotateVirtOnly,tFindCINatOrbs,tUseMP2VarDenMat
-        USE RotateOrbsData , only : SymLabelList2,SymLabelCounts2,SymLabelCounts2Tag,SymLabelListInv,NoOrbs,SpatOrbs
+        USE RotateOrbsData , only : SymLabelList2,SymLabelCounts2,SymLabelCounts2Tag,SymLabelListInv,NoOrbs,SpatOrbs,FillOneRDM_time
+        USE RotateOrbsData , only : FillMP2VDM_Time,DiagNatOrbMat_Time,OrderandFillCoeff_Time
         IMPLICIT NONE
         INTEGER :: NoSpinCyc
         REAL*8 , ALLOCATABLE :: NatOrbMat(:,:),Evalues(:)
@@ -413,6 +414,12 @@ MODULE NatOrbsMod
 
 ! Depending on the type of reduced density matrix want to:
 ! Run through the determinants with excitation level one less, the same and one more.
+
+        
+        FillOneRDM_Time%timer_name='FillOneRDM'
+        CALL set_timer(FillOneRDM_Time,30)
+
+
 !        WRITE(6,*) 'ICIIndex',ICILevel
 !        WRITE(6,*) 'Det',Det
 !        WRITE(6,*) 'FCIDetIndex'
@@ -588,6 +595,8 @@ MODULE NatOrbsMod
 !        CALL FLUSH(6)
 !        stop
 
+        CALL halt_timer(FillOneRDM_Time)
+
 
 
     END SUBROUTINE FillOneRDM
@@ -616,6 +625,12 @@ MODULE NatOrbsMod
 ! otherwise they go occupied beta, virtual beta, occupied alpha, virtual alpha.
 ! This is so the alpha and beta spins can be diagonalised separately and we can keep track of which is which when the evectors are reordered 
 ! and maintain spin symmetry.
+
+        
+        FillMP2VDM_Time%timer_name='FillMP2VDM'
+        CALL set_timer(FillMP2VDM_Time,30)
+
+
 
 !        WRITE(6,*) 'nOccBeta',nOccBeta
 !        WRITE(6,*) 'nOccAlpha',nOccAlpha
@@ -743,6 +758,8 @@ MODULE NatOrbsMod
 !        CALL FLUSH(6)
 !        CALL Stop_All('','')
 
+        CALL halt_timer(FillMP2VDM_Time)
+
 
     END SUBROUTINE FillMP2VDM
 
@@ -761,6 +778,10 @@ MODULE NatOrbsMod
         INTEGER :: ierr,i,j,x,z,Sym,LWORK2,WORK2Tag,SymStartInd,NoSymBlock,PrevSym,StartOccVirt,EndOccVirt,Prev,NoOcc
         INTEGER :: EvaluesSymTag,NOMSymTag
         CHARACTER(len=*), PARAMETER :: this_routine='DiagNatOrbMat'
+
+ 
+        DiagNatOrbMat_Time%timer_name='DiagNatOrb'
+        CALL set_timer(DiagNatOrbMat_Time,30)
 
         do x=1,NoSpinCyc
             IF(tSeparateOccVirt) THEN
@@ -975,6 +996,7 @@ MODULE NatOrbsMod
             CALL Stop_All(this_routine,'The trace of the 1RDM matrix before diagonalisation is not equal to that after.')
         ENDIF
 
+        CALL halt_timer(DiagNatOrbMat_Time)
 
     END SUBROUTINE DiagNatOrbMat
 
@@ -994,6 +1016,11 @@ MODULE NatOrbsMod
 
 ! Want to reorder the eigenvalues from largest to smallest, taking the eigenvectors with them and the symmetry as well.  
 ! If using spin orbitals, do this for the alpha spin and then the beta.
+ 
+        OrderandFillCoeff_Time%timer_name='OrderandFillCoeff'
+        CALL set_timer(OrderandFillCoeff_Time,30)
+
+
 
         IF(tTruncRODump) THEN
             ! If we are truncating, the orbitals stay in this order, so we want to take their symmetries with them.
@@ -1154,6 +1181,8 @@ MODULE NatOrbsMod
             enddo
         enddo
         CLOSE(74)
+
+        CALL halt_timer(OrderandFillCoeff_Time)
         
 
     END SUBROUTINE OrderandFillCoeffT1

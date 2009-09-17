@@ -16,4 +16,6 @@ MODULE RotateOrbsData
 ! NoOrbs is either nBasis or SpatOrbs depending on whether we are using spin or spatial orbitals.    
     INTEGER :: NoOrbs,SpatOrbs
 
+    TYPE(timer) , save :: FillOneRDM_Time,FillMP2VDM_Time,DiagNatOrbMat_Time,OrderandFillCoeff_Time
+
 END MODULE RotateOrbsData
