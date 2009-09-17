@@ -8229,7 +8229,7 @@ MODULE FciMCParMod
 !                        CheckAllowedTruncSpawn=.true.
                     ENDIF
 
-                ELSEIF(WalkExcitLevel.eq.ICILevel) THEN
+                ELSEIF(WalkExcitLevel.ge.ICILevel) THEN
 !Walker is at the excitation cutoff level - all possible excitations could be disallowed - check the actual excitation level
                     ExcitLevel=iGetExcitLevel_2(HFDet,nJ,NEl,ICILevel)
                     IF(ExcitLevel.gt.ICILevel) THEN
@@ -8265,6 +8265,7 @@ MODULE FciMCParMod
 !It returns zero if we are not going to create a child, or -1/+1 if we are to create a child, giving the sign of the new particle
     INTEGER FUNCTION AttemptCreatePar(DetCurr,iLutCurr,WSign,nJ,iLutnJ,Prob,IC,Ex,tParity,nParts,tMinorDetList)
         use GenRandSymExcitNUMod , only : GenRandSymExcitBiased
+        use Logging, only : CCMCDebug
         INTEGER :: DetCurr(NEl),nJ(NEl),IC,StoreNumTo,StoreNumFrom,DetLT,i,ExtraCreate,Ex(2,2),WSign,nParts
         INTEGER :: iLutCurr(0:NIfD),Bin,iLutnJ(0:NIfD),PartInd,ExcitLev,iLut(0:NIfD),iLut2(0:NIfD)
         LOGICAL :: tParity,SymAllowed,tSuccess,tMinorDetList,DetBitEQ
@@ -8313,7 +8314,7 @@ MODULE FciMCParMod
             rh=GetHElement4(DetCurr,nJ,IC,Ex,tParity)
 !            WRITE(6,*) rh%v
         ENDIF
-
+        IF(CCMCDebug.gt.5) WRITE(6,*) "Connection H-element to spawnee:",rh
 !        CALL IsSymAllowedExcit(DetCurr,nJ,IC,Ex,SymAllowed) 
 !        IF((.not.SymAllowed).and.(abs(rh%v).gt.0.D0)) THEN
 !            WRITE(17,*) rh%v

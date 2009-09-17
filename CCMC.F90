@@ -414,7 +414,7 @@ END SUBROUTINE AddBitExcitor
             else
                if(tExactCluster) then  !Go through all possible clusters explicitly
                   IF (tTruncSpace) THEN
-                     nMaxSelExcitors=ICILevel
+                     nMaxSelExcitors=ICILevel+2  !We need to be able to couple (say) 4 singles to make a quad and then spawn back to the sdoubles space
                   ELSE
                      nMaxSelExcitors=nEl
                   ENDIF
@@ -464,7 +464,7 @@ END SUBROUTINE AddBitExcitor
                   dProbNumExcit=1
 !dProbSelNewExcitor   !prob of this number of excitors will go here
                   IF (tTruncSpace) THEN
-                     nMaxSelExcitors=ICILevel
+                     nMaxSelExcitors=ICILevel+2  !We need to be able to couple (say) 4 singles to make a quad and then spawn back to the sdoubles space
                   ELSE
                      nMaxSelExcitors=nEl
                   ENDIF
@@ -632,6 +632,7 @@ END SUBROUTINE AddBitExcitor
                         dProbNumExcit= 1- (dProbSelNewExcitor - dProbNumExcit) / (1-dProbSelNewExcitor)
                      ENDIF
                      iCompositeSize=i-1  !Save the number of excitors we've selected   
+                     dClusterProb=dClusterProb*(iMaxEx-1)
                   endif
                   IF(iDebug.gt.3) then
                      WRITE(6,*) " Excitors in composite:", iCompositeSize
@@ -668,6 +669,8 @@ END SUBROUTINE AddBitExcitor
 
 !First, decode the bit-string representation of the determinant the walker is on, into a string of naturally-ordered integers
                CALL DecodeBitDet(DetCurr,iLutnI(:),NEl,NIfD)
+               CALL FindBitExcitLevel(iLutHF,iLutnI(:),NIfD,WalkExcitLevel,nEl)
+               if(iDebug.gt.4) WRITE(6,*) "Excitation Level ", WalkExcitLevel
 
 
 
@@ -690,6 +693,7 @@ END SUBROUTINE AddBitExcitor
 !dProbNorm is the renormalization factor for this level of excitors - decreasing by HFcount for each extra level of excitors
                Prob=Prob*dClusterProb*dProbNorm  !Now include the prob of choosing the det we spawned from
                if(iDebug.gt.4) Write(6,*) "Prob ex tot",Prob
+               if(iCompositeSize.gt.1) dProb=dProb
 !Calculate number of children to spawn
                IF(TTruncSpace) THEN
 !We have truncated the excitation space at a given excitation level. See if the spawn should be allowed.
@@ -810,6 +814,7 @@ END SUBROUTINE AddBitExcitor
 
    !Die with a probability as normal, but biased because we only selected this set
    !of excitors with dProb.
+               if(iCompositeSize.gt.1) dProb=dProb
                iDie=AttemptDieProbPar(DetCurr,HDiagCurr,WalkExcitLevel,iSgn,1/(dProb*dProbNorm))
                IF(iDebug.gt.4.or.((iDebug.eq.3.or.iDebug.eq.4).and.iDie.ne.0)) then
                   Write(6,'(A,I)',advance='no') " Killing at excitor: ",iPartDie
