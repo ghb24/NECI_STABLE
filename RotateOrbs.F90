@@ -1824,7 +1824,7 @@ MODULE RotateOrbsMod
 !This is v memory inefficient and currently does not use any spatial symmetry information.
     SUBROUTINE Transform2ElIntsMemSave()
         INTEGER :: i,j,k,l,a,b,g,d,ierr,Temp4indintsTag,Temp4indints02Tag,a2,b2,g2,d2
-        REAL*8 , ALLOCATABLE :: t,Temp4indints(:,:)
+        REAL*8 , ALLOCATABLE :: Temp4indints(:,:)
         REAL*8 , ALLOCATABLE :: Temp4indints02(:,:)  
         
         CALL set_timer(Transform2ElInts_time,30)
