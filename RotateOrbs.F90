@@ -21,7 +21,7 @@ MODULE RotateOrbsMod
     INTEGER , PARAMETER :: Root=0   !This is the rank of the root processor
     INTEGER , ALLOCATABLE :: Lab(:,:),LabVirtOrbs(:),LabOccOrbs(:)
     REAL*8 , ALLOCATABLE :: CoeffCorT2(:,:),CoeffUncorT2(:,:)
-    REAL*8 , ALLOCATABLE :: Lambdas(:,:),ArrNew(:,:),TMAT2DTemp(:,:),TMAT2DRot(:,:),TMAT2DPartRot01(:,:),TMAT2DPartRot02(:,:)
+    REAL*8 , ALLOCATABLE :: Lambdas(:,:),ArrNew(:,:),ArrDiagNew(:),TMAT2DTemp(:,:),TMAT2DRot(:,:),TMAT2DPartRot01(:,:),TMAT2DPartRot02(:,:)
     REAL*8 , ALLOCATABLE :: DerivCoeff(:,:),UMATTemp01(:,:,:,:),UMATTemp02(:,:,:,:)
     REAL*8 , ALLOCATABLE :: DerivLambda(:,:),ForceCorrect(:,:),Correction(:,:),ShakeLambdaNew(:),ConstraintCor(:)
     REAL*8 , ALLOCATABLE :: Constraint(:),ShakeLambda(:),DerivConstrT1(:,:,:),DerivConstrT2(:,:,:),DerivConstrT1T2(:,:),DerivConstrT1T2Diag(:),FourIndInts(:,:,:,:)
@@ -32,7 +32,7 @@ MODULE RotateOrbsMod
     INTEGER :: TwoIndIntsERTag,ThreeIndInts01ERTag,ThreeIndInts02ERTag,FourIndIntsERTag
     INTEGER :: TwoIndInts01Tag,TwoIndInts02Tag,ThreeIndInts01Tag,ThreeIndInts02Tag,ThreeIndInts03Tag,ThreeIndInts04Tag,FourIndInts02Tag
     INTEGER :: LowBound02,HighBound02,TMAT2DTempTag,TMAT2DRotTag,TMAT2DPartRot01Tag,TMAT2DPartRot02Tag
-    INTEGER :: LabTag,ForceCorrectTag,CorrectionTag,FourIndIntsTag,ArrNewTag,UMATTemp01Tag,UMATTemp02Tag,ShakeIterInput,NoOcc
+    INTEGER :: LabTag,ForceCorrectTag,CorrectionTag,FourIndIntsTag,ArrDiagNewTag,ArrNewTag,UMATTemp01Tag,UMATTemp02Tag,ShakeIterInput,NoOcc
     INTEGER :: CoeffCorT2Tag,CoeffUncorT2Tag,LambdasTag,DerivCoeffTag,DerivLambdaTag,Iteration,TotNoConstraints,ShakeLambdaNewTag
     INTEGER :: ShakeLambdaTag,ConstraintTag,ConstraintCorTag,DerivConstrT1Tag,DerivConstrT2Tag,DerivConstrT1T2Tag,DerivConstrT1T2DiagTag
     INTEGER :: LabVirtOrbsTag,LabOccOrbsTag,MinOccVirt,MaxOccVirt,MinMZ,MaxMZ,error,LowBound,HighBound
@@ -141,6 +141,12 @@ MODULE RotateOrbsMod
         CHARACTER(len=*) , PARAMETER :: this_routine='FindNatOrbitals'
 
 
+        IF(tUseMP2VarDenMat) WRITE(6,*) 'Transforming the HF orbitals into the MP2 approximate natural orbitals.'
+        IF(tFindCINatOrbs) THEN
+            WRITE(6,*) 'Transforming the HF orbitals into approximate natural orbitals'
+            WRITE(6,*) 'based on the one-electron density matrix found from the wavefunction calculated above.'
+        ENDIF
+
         IF(tStoreSpinOrbs) THEN 
             IF(.not.tSpinOrbs) THEN
                 WRITE(6,*) "FCIDUMP and therefore UMAT are in spin orbitals - turning on SPINORBS keyword."
@@ -148,6 +154,7 @@ MODULE RotateOrbsMod
             ENDIF
             IF(tROHF) CALL Stop_All(this_routine,"Cannot compress open shell systems into spatial orbitals when rotating, turn off ROHF.")
         ENDIF
+
 
         SpatOrbs=nBasis/2
         IF(tSpinOrbs) THEN
@@ -181,6 +188,8 @@ MODULE RotateOrbsMod
 
         ENDIF
         NoRotOrbs=NoOrbs
+
+        CALL ApproxMemReq()
 
 !        do i=1,nBasis
 !            WRITE(6,*) i,BRR(i),ARR(i,1),ARR(BRR(i),2)
@@ -282,8 +291,12 @@ MODULE RotateOrbsMod
 !        ALLOCATE(TwoIndInts01(NoOrbs,NoOrbs,NoRotOrbs,NoRotOrbs),stat=ierr)
 !        CALL LogMemAlloc('TwoIndInts01',(NoOrbs**4)*(NoRotOrbs**2),8,this_routine,TwoIndInts01Tag,ierr)
 
-        ALLOCATE(FourIndInts(NoRotOrbs,NoRotOrbs,NoOrbs,NoOrbs),stat=ierr)
-        CALL LogMemAlloc('FourIndInts',(NoOrbs**2)*(NoRotOrbs**2),8,this_routine,FourIndIntsTag,ierr)
+!        ALLOCATE(FourIndInts(NoRotOrbs,NoRotOrbs,NoOrbs,NoOrbs),stat=ierr)
+!        CALL LogMemAlloc('FourIndInts',(NoOrbs**2)*(NoRotOrbs**2),8,this_routine,FourIndIntsTag,ierr)
+
+        ALLOCATE(FourIndInts(NoOrbs,NoOrbs,NoOrbs,NoOrbs),stat=ierr)
+        CALL LogMemAlloc('FourIndInts',(NoOrbs**4),8,this_routine,FourIndIntsTag,ierr)
+
 
 
         IF(tReadInCoeff) THEN
@@ -358,6 +371,32 @@ MODULE RotateOrbsMod
 !        CALL LogMemDeAlloc(this_routine,TwoIndInts01Tag)
 
     END SUBROUTINE FindNatOrbitals 
+
+
+
+    SUBROUTINE ApproxMemReq()
+! This routine makes a quick sum of the memory that will be require to transform the integrals from the HF to the new basis.
+
+! Main arrays required are:
+! Symmetry / labelling stuff
+!   - SymLabelLists(NoOrbs) x 3 
+!   - SymLabelCounts(32/16 - Spin/Spat)
+! Finding transformation matrices
+!   - NatOrbsMat(NoOrbs,NoOrbs)
+!   - Evalues(NoOrbs) x 2
+
+! Transformation of integrals
+!   - CoeffT1(NoOrbs,NoRotOrbs) 
+!   - FourIndInts(NoRotOrbs,NoRotOrbs,NoOrbs,NoOrbs)
+!   - Temp4indints(NoRotOrbs,NoOrbs)
+! Transform fock
+!   - ArrNew(NoOrbs) - reduce this?
+! RefillTMAT2D
+!   - TMAT2D(nBasis,nBasis) 
+
+
+    END SUBROUTINE ApproxMemReq
+
 
    
     SUBROUTINE InitLocalOrbs()
@@ -1823,9 +1862,8 @@ MODULE RotateOrbsMod
 !This is an M^5 transform, which transforms all the two-electron integrals into the new basis described by the Coeff matrix.
 !This is v memory inefficient and currently does not use any spatial symmetry information.
     SUBROUTINE Transform2ElIntsMemSave()
-        INTEGER :: i,j,k,l,a,b,g,d,ierr,Temp4indintsTag,Temp4indints02Tag,a2,b2,g2,d2
+        INTEGER :: i,j,k,l,a,b,g,d,ierr,Temp4indintsTag,a2,b2,g2,d2
         REAL*8 , ALLOCATABLE :: Temp4indints(:,:)
-        REAL*8 , ALLOCATABLE :: Temp4indints02(:,:)  
         
         CALL set_timer(Transform2ElInts_time,30)
 
@@ -1836,10 +1874,6 @@ MODULE RotateOrbsMod
         CALL LogMemAlloc('Temp4indints',NoRotOrbs*NoOrbs,8,'Transform2ElIntsMemSave',Temp4indintsTag,ierr)
         IF(ierr.ne.0) CALL Stop_All('Transform2ElIntsMemSave','Problem allocating memory to Temp4indints.')
  
-        ALLOCATE(Temp4indints02(NoOrbs,NoOrbs),stat=ierr)
-        CALL LogMemAlloc('Temp4indints02',NoOrbs**2,8,'Transform2ElIntsMemSave',Temp4indints02Tag,ierr)
-        IF(ierr.ne.0) CALL Stop_All('Transform2ElIntsMemSave','Problem allocating memory to Temp4indints02.')
-
         FourIndInts(:,:,:,:)=0.D0
 
 ! **************
@@ -1851,30 +1885,27 @@ MODULE RotateOrbsMod
             b2=SymLabelList2(b)
             do d=1,b
                 d2=SymLabelList2(d)
-                Temp4indints02(:,:)=0.D0
                 do a=1,NoOrbs
                     a2=SymLabelList2(a)
                     do g=1,a
                         g2=SymLabelList2(g)
-                        Temp4indints02(a,g)=REAL(UMAT(UMatInd(a2,b2,g2,d2,0,0))%v,8)
-                        Temp4indints02(g,a)=REAL(UMAT(UMatInd(a2,b2,g2,d2,0,0))%v,8)
+                        FourIndInts(a,g,b,d)=REAL(UMAT(UMatInd(a2,b2,g2,d2,0,0))%v,8)
+                        FourIndInts(g,a,b,d)=REAL(UMAT(UMatInd(a2,b2,g2,d2,0,0))%v,8)
+                        FourIndInts(a,g,d,b)=REAL(UMAT(UMatInd(a2,b2,g2,d2,0,0))%v,8)
+                        FourIndInts(g,a,d,b)=REAL(UMAT(UMatInd(a2,b2,g2,d2,0,0))%v,8)
                     enddo
                 enddo
                 Temp4indints(:,:)=0.D0
-                CALL DGEMM('T','N',NoRotOrbs,NoOrbs,NoOrbs,1.0,CoeffT1(:,:),NoOrbs,Temp4indints02(:,:),NoOrbs,0.0,Temp4indints(:,:),NoRotOrbs)
+                CALL DGEMM('T','N',NoRotOrbs,NoOrbs,NoOrbs,1.0,CoeffT1(:,:),NoOrbs,FourIndInts(1:NoOrbs,1:NoOrbs,b,d),NoOrbs,0.0,Temp4indints(1:NoRotOrbs,1:NoOrbs),NoRotOrbs)
                 ! Temp4indints(i,g) comes out of here, so to transform g to k, we need the transpose of this.
 
-                Temp4indints02(:,:)=0.D0
-                CALL DGEMM('T','T',NoRotOrbs,NoRotOrbs,NoOrbs,1.0,CoeffT1(:,:),NoOrbs,Temp4indints(:,:),NoRotOrbs,0.0,Temp4indints02(1:NoRotOrbs,1:NoRotOrbs),NoRotOrbs)
+                CALL DGEMM('T','T',NoRotOrbs,NoRotOrbs,NoOrbs,1.0,CoeffT1(:,:),NoOrbs,Temp4indints(1:NoRotOrbs,1:NoOrbs),NoRotOrbs,0.0,FourIndInts(1:NoRotOrbs,1:NoRotOrbs,b,d),NoRotOrbs)
                 ! Get Temp4indits02(i,k)
 
                 do i=1,NoRotOrbs
                     do k=1,i
-                        FourIndInts(i,k,b,d)=Temp4indints02(k,i)
-                        FourIndInts(i,k,d,b)=Temp4indints02(k,i)
-                        FourIndInts(k,i,b,d)=Temp4indints02(k,i)
-                        FourIndInts(k,i,d,b)=Temp4indints02(k,i)
-
+                        FourIndInts(i,k,d,b)=FourIndInts(i,k,b,d)
+                        FourIndInts(k,i,d,b)=FourIndInts(k,i,b,d)
                     enddo
                 enddo
             enddo
@@ -1886,16 +1917,13 @@ MODULE RotateOrbsMod
             do k=1,i
 
                 Temp4indints(:,:)=0.D0
-                CALL DGEMM('T','N',NoRotOrbs,NoOrbs,NoOrbs,1.0,CoeffT1(:,:),NoOrbs,FourIndInts(i,k,:,:),NoOrbs,0.0,Temp4indints(:,:),NoRotOrbs)
+                CALL DGEMM('T','N',NoRotOrbs,NoOrbs,NoOrbs,1.0,CoeffT1(:,:),NoOrbs,FourIndInts(i,k,1:NoOrbs,1:NoOrbs),NoOrbs,0.0,Temp4indints(1:NoRotOrbs,1:NoOrbs),NoRotOrbs)
 
-                Temp4indints02(:,:)=0.D0
-                CALL DGEMM('T','T',NoRotOrbs,NoRotOrbs,NoOrbs,1.0,CoeffT1(:,:),NoOrbs,Temp4indints(:,:),NoRotOrbs,0.0,Temp4indints02(1:NoRotOrbs,1:NoRotOrbs),NoRotOrbs)
+                CALL DGEMM('T','T',NoRotOrbs,NoRotOrbs,NoOrbs,1.0,CoeffT1(:,:),NoOrbs,Temp4indints(1:NoRotOrbs,1:NoOrbs),NoRotOrbs,0.0,FourIndInts(i,k,1:NoRotOrbs,1:NoRotOrbs),NoRotOrbs)
                 do l=1,NoRotOrbs
                     do j=1,l
-                        FourIndInts(i,k,j,l)=Temp4indints02(j,l)
-                        FourIndInts(i,k,l,j)=Temp4indints02(j,l)
-                        FourIndInts(k,i,j,l)=Temp4indints02(j,l)
-                        FourIndInts(k,i,l,j)=Temp4indints02(j,l)
+                        FourIndInts(k,i,j,l)=FourIndInts(i,k,j,l)
+                        FourIndInts(k,i,l,j)=FourIndInts(i,k,l,j)
                     enddo
                 enddo
             enddo
@@ -1904,10 +1932,6 @@ MODULE RotateOrbsMod
         DEALLOCATE(Temp4indints)
         CALL LogMemDeAlloc('Transform2ElIntsMemSave',Temp4indintsTag)
  
-        DEALLOCATE(Temp4indints02)
-        CALL LogMemDeAlloc('Transform2ElIntsMemSave',Temp4indints02Tag)
-
-
         CALL halt_timer(Transform2ElInts_Time)
 
 
@@ -4538,7 +4562,7 @@ MODULE RotateOrbsMod
     SUBROUTINE CalcFOCKMatrix()
         USE SystemData , only : nBasis
         INTEGER :: i,j,k,l,a,b,ierr
-        REAL*8 :: FOCKDiagSumHF,FOCKDiagSumNew,ArrTemp(nBasis)
+        REAL*8 :: FOCKDiagSumHF,FOCKDiagSumNew
         CHARACTER(len=*) , PARAMETER :: this_routine='CalcFOCKMatrix'
         !NEED TO FIX THIS!
 
@@ -4546,10 +4570,19 @@ MODULE RotateOrbsMod
 ! ARR is originally the fock matrix in the HF basis.
 ! ARR(:,1) - ordered by energy, ARR(:,2) - ordered by spin-orbital index.
 
+! When transforming the orbitals into approximate natural orbitals, we want to save memory, so don't bother
+! calculating the whole matrix, just the diagonal elements that we actually need.
+
     
-        ALLOCATE(ArrNew(nBasis,nBasis),stat=ierr)
-        CALL LogMemAlloc('ArrNew',nBasis**2,8,this_routine,ArrNewTag,ierr)
-        ArrNew(:,:)=0.D0                     
+        IF(tUseMP2VarDenMat.or.tFindCINatOrbs) THEN
+            ALLOCATE(ArrDiagNew(NoOrbs),stat=ierr)
+            CALL LogMemAlloc('ArrDiagNew',NoOrbs,8,this_routine,ArrDiagNewTag,ierr)
+            ArrDiagNew(:)=0.D0                     
+        ELSE
+            ALLOCATE(ArrNew(NoOrbs,NoOrbs),stat=ierr)
+            CALL LogMemAlloc('ArrNew',NoOrbs**2,8,this_routine,ArrNewTag,ierr)
+            ArrNew(:,:)=0.D0                     
+        ENDIF
 
 !        WRITE(6,*) 'The diagonal fock elements in the HF basis set'
 !        do a=1,nBasis
@@ -4581,26 +4614,43 @@ MODULE RotateOrbsMod
 !        enddo
 
         FOCKDiagSumNew=0.D0
-        do j=1,NoRotOrbs
+        do j=1,NoOrbs
             l=SymLabelList3(j)
-            do i=1,NoRotOrbs
-                k=SymLabelList3(i)
-                ArrNew(k,l)=0.D0
+            IF(tUseMP2VarDenMat.or.tFindCINatOrbs) THEN
+                ArrDiagNew(l)=0.D0
                 do a=1,NoOrbs
                     b=SymLabelList2(a)
                     IF(tSpinOrbs) THEN
-                        ArrNew(k,l)=ArrNew(k,l)+(CoeffT1(a,i)*Arr(b,2)*CoeffT1(a,j))
+                        ArrDiagNew(l)=ArrDiagNew(l)+(CoeffT1(a,j)*ARR(b,2)*CoeffT1(a,j))
                     ELSE
-                        ArrNew(k,l)=ArrNew(k,l)+(CoeffT1(a,i)*Arr(2*b,2)*CoeffT1(a,j))
+                        ArrDiagNew(l)=ArrDiagNew(l)+(CoeffT1(a,j)*ARR(2*b,2)*CoeffT1(a,j))
                     ENDIF
                 enddo
-            enddo
-            IF(tSpinOrbs) THEN
-                FOCKDiagSumNew=FOCKDiagSumNew+(ArrNew(j,j))
+                IF(tSpinOrbs) THEN
+                    FOCKDiagSumNew=FOCKDiagSumNew+(ArrDiagNew(l))
+                ELSE
+                    FOCKDiagSumNew=FOCKDiagSumNew+(ArrDiagNew(l)*2)
+                ENDIF
             ELSE
-                FOCKDiagSumNew=FOCKDiagSumNew+(ArrNew(j,j)*2)
+                do i=1,NoRotOrbs
+                    k=SymLabelList3(i)
+                    ArrNew(k,l)=0.D0
+                    do a=1,NoOrbs
+                        b=SymLabelList2(a)
+                        IF(tSpinOrbs) THEN
+                            ArrNew(k,l)=ArrNew(k,l)+(CoeffT1(a,i)*Arr(b,2)*CoeffT1(a,j))
+                        ELSE
+                            ArrNew(k,l)=ArrNew(k,l)+(CoeffT1(a,i)*Arr(2*b,2)*CoeffT1(a,j))
+                        ENDIF
+                    enddo
+                enddo
+                IF(tSpinOrbs) THEN
+                    FOCKDiagSumNew=FOCKDiagSumNew+(ArrNew(l,l))
+                ELSE
+                    FOCKDiagSumNew=FOCKDiagSumNew+(ArrNew(l,l)*2)
+                ENDIF
+                !only running through spat orbitals, count each twice to compare to above.
             ENDIF
-            !only running through spat orbitals, count each twice to compare to above.
         enddo
         ! If we are truncation the virtual space, only the unfrozen entries will be transformed.
         
@@ -4625,39 +4675,35 @@ MODULE RotateOrbsMod
 ! ARR(:,2) needs to be ordered in terms of symmetry and then energy (like SymLabelList), so currently this ordering will not be 
 ! correct when reading in qchem INTDUMPS as the orbital number ordering is by energy.
 
-        IF(tSpinOrbs) THEN
-            do j=1,NoRotOrbs
-                ARR(j,2)=ArrNew(j,j)
-                ARRTemp(j)=ArrNew(BRR(j),BRR(j))
-            enddo
+        IF(tUseMP2VarDenMat.or.tFindCINatOrbs) THEN
+            IF(tSpinOrbs) THEN
+                do j=1,NoOrbs
+                    ARR(j,2)=ArrDiagNew(j)
+                    ARR(j,1)=ArrDiagNew(BRR(j))
+                enddo
+            ELSE
+                do j=1,NoOrbs
+                    ARR(2*j,2)=ArrDiagNew(j)
+                    ARR(2*j-1,2)=ArrDiagNew(j)
+                    ARR(2*j,1)=ArrDiagNew(BRR(2*j)/2)
+                    ARR(2*j-1,1)=ArrDiagNew(BRR(2*j)/2)
+                enddo
+            ENDIF
         ELSE
-            do j=1,NoRotOrbs
-                ARR(2*j,2)=ArrNew(j,j)
-                ARR(2*j-1,2)=ArrNew(j,j)
-                ARRTemp(2*j)=ArrNew(BRR(2*j)/2,BRR(2*j)/2)
-                ARRTemp(2*j-1)=ArrNew(BRR(2*j)/2,BRR(2*j)/2)
-            enddo
+            IF(tSpinOrbs) THEN
+                do j=1,NoRotOrbs
+                    ARR(j,2)=ArrNew(j,j)
+                    ARR(j,1)=ArrNew(BRR(j),BRR(j))
+                enddo
+            ELSE
+                do j=1,NoRotOrbs
+                    ARR(2*j,2)=ArrNew(j,j)
+                    ARR(2*j-1,2)=ArrNew(j,j)
+                    ARR(2*j,1)=ArrNew(BRR(2*j)/2,BRR(2*j)/2)
+                    ARR(2*j-1,1)=ArrNew(BRR(2*j)/2,BRR(2*j)/2)
+                enddo
+            ENDIF
         ENDIF
-! fill both ARR(:,1) and ARR(:,2) with the diagonal values, then sort ARR(:,1) according to the values (energies), 
-! taking the orbital labels (BRR) with them.
-
-!        WRITE(6,*) 'ARRtemp'
-!        do i=1,nBasis
-!            WRITE(6,*) BRR(i),ARRTemp(i)
-!        enddo
-
-!        CALL NECI_SORT2(nBasis,ARRTemp,BRR)
-
-        IF(tSpinOrbs) THEN
-            do j=1,(nBasis-NoFrozenVirt)
-                ARR(j,1)=ArrTemp(j)
-            enddo
-        ELSE
-            do j=1,(nBasis-(NoFrozenVirt*2))
-                ARR(j,1)=ArrTemp(j)
-            enddo
-        ENDIF
-
 
 !        WRITE(6,*) 'BRR then ARR after being changed'
 !        do i=1,nBasis
@@ -4666,8 +4712,15 @@ MODULE RotateOrbsMod
 !        CALL FLUSH(6)
 !        stop       
 
-        DEALLOCATE(ArrNew)
-        CALL LogMemDealloc(this_routine,ArrNewTag)
+        IF(tUseMP2VarDenMat.or.tFindCINatOrbs) THEN
+            DEALLOCATE(ArrDiagNew)
+            CALL LogMemDealloc(this_routine,ArrDiagNewTag)
+        ELSE
+            DEALLOCATE(ArrNew)
+            CALL LogMemDealloc(this_routine,ArrNewTag)
+        ENDIF
+
+
 
 
     ENDSUBROUTINE CalcFOCKMatrix
@@ -4675,46 +4728,25 @@ MODULE RotateOrbsMod
 
     SUBROUTINE RefillUMATandTMAT2D()
         INTEGER :: l,k,j,i,a,b,g,d,c,BinNo,l2,k2,j2,i2,nBasis2
-        REAL*8 :: NewTMAT,TMAT2DPart((nBasis-(NoFrozenVirt*2)),nBasis)
+        REAL*8 :: NewTMAT,NewTMAT02,TMAT2DPart((nBasis-(NoFrozenVirt*2)),nBasis)
 
 
 ! Make the UMAT elements the four index integrals.  These are calculated by transforming the HF orbitals using the
 ! coefficients that have been found
         do l=1,(NoOrbs-(NoFrozenVirt))
-!            IF(tSpinOrbs) THEN
-!                l2=l*2-1
-!                d=CEILING(SymLabelList3(2*l)/2.0)
-!            ELSE
-                d=SymLabelList3(l)
-!            ENDIF
+            d=SymLabelList3(l)
             do k=1,(NoOrbs-(NoFrozenVirt))
-!                IF(tSpinOrbs) THEN
-!                    k2=k*2
-!                    g=CEILING(SymLabelList3(2*k)/2.0)
-!                ELSE
-                    g=SymLabelList3(k)
-!                ENDIF
+                g=SymLabelList3(k)
  
                 do j=1,(NoOrbs-(NoFrozenVirt))
-!                    IF(tSpinOrbs) THEN
-!                        j2=j*2-1
-!                        b=CEILING(SymLabelList3(2*j)/2.0)
-!                    ELSE
-                        b=SymLabelList3(j)
-!                    ENDIF
+                    b=SymLabelList3(j)
                     do i=1,(NoOrbs-(NoFrozenVirt))
-!                        IF(tSpinOrbs) THEN
-!                            i2=i*2
-!                            a=CEILING(SymLabelList3(2*i)/2.0)
-!                            UMAT(UMatInd(a,b,g,d,0,0))=HElement(FourIndInts(i2,j2,k2,l2))
-!                        ELSE
-                            a=SymLabelList3(i)
-                            IF(tUseMP2VarDenMat.or.tFindCINatOrbs.or.tReadInCoeff) THEN
-                                UMAT(UMatInd(a,b,g,d,0,0))=HElement(FourIndInts(i,k,j,l))
-                            ELSE
-                                UMAT(UMatInd(a,b,g,d,0,0))=HElement(FourIndInts(i,j,k,l))
-                            ENDIF
-!                        ENDIF
+                        a=SymLabelList3(i)
+                        IF(tUseMP2VarDenMat.or.tFindCINatOrbs.or.tReadInCoeff) THEN
+                            UMAT(UMatInd(a,b,g,d,0,0))=HElement(FourIndInts(i,k,j,l))
+                        ELSE
+                            UMAT(UMatInd(a,b,g,d,0,0))=HElement(FourIndInts(i,j,k,l))
+                        ENDIF
                     enddo
                 enddo
             enddo
@@ -4730,6 +4762,44 @@ MODULE RotateOrbsMod
 !            enddo
 !            WRITE(6,*) ''
 !        enddo
+
+!        WRITE(6,*) 'SpatOrbs',SpatOrbs
+!        WRITE(6,*) 'NoRotOrbs',NoRotOrbs
+!        CALL FLUSH(6)
+
+!        do l=1,NoRotOrbs
+!            j=SymLabelList3(l)
+!            do k=1,NoRotOrbs
+!                i=SymLabelList3(k)
+!                NewTMAT02=0.D0
+!
+!                do b=1,NoOrbs
+!                    d=SymLabelList2(b)
+!                    NewTMAT=0.D0
+!                    ! for a particular beta, find the transformed integral <i|h|b>
+!                    do a=1,NoOrbs
+!                        c=SymLabelList2(a)
+!                        IF(tSpinOrbs) THEN
+!                            NewTMAT=NewTMAT+(CoeffT1(a,k)*REAL(TMAT2D(c,d)%v,8))
+!                        ELSE
+!                            NewTMAT=NewTMAT+(CoeffT1(a,k)*REAL(TMAT2D(2*c,2*d)%v,8))
+!                        ENDIF
+!                    enddo
+                    ! NewTMAT is then <i|h|b> for a particular i and b.
+
+                    ! then transform the beta part as well.
+!                    NewTMAT02=NewTMAT02+(CoeffT1(b,l)*NewTMAT)
+                    ! NewTMAT02 become <i|h|j> for a particular i and j.
+!                enddo
+!                IF(tSpinOrbs) THEN
+!                    TMAT2D(i,j)=HElement(NewTMAT02)
+!                ELSE
+!                    TMAT2D(2*i,2*j)=HElement(NewTMAT02)
+!                    TMAT2D(2*i-1,2*j-1)=HElement(NewTMAT02)
+!                ENDIF
+!            enddo
+!        enddo
+
 
 
         do a=1,nBasis
@@ -4752,6 +4822,9 @@ MODULE RotateOrbsMod
                 ENDIF
             enddo
         enddo
+
+
+
         IF(tSpinOrbs) THEN
             nBasis2=nBasis-NoFrozenVirt
         ELSE
