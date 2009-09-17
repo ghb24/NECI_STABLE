@@ -10,7 +10,7 @@ MODULE Logging
     LOGICAL TDistrib,TPopsFile,TCalcWavevector,TDetPops,tROFciDump,tROHistOffDiag,tROHistDoubExc,tROHistOnePartOrbEn
     LOGICAL TZeroProjE,TWriteDetE,TAutoCorr,tBinPops,tROHistogramAll,tROHistER,tHistSpawn,tROHistSingExc,tRoHistOneElInts
     LOGICAL tROHistVirtCoulomb,tPrintInts,tHistEnergies,tPrintTriConnections,tHistTriConHEls,tPrintHElAccept,tTruncRODump
-    LOGICAL tPrintFCIMCPsi,tCalcFCIMCPsi
+    LOGICAL tPrintFCIMCPsi,tCalcFCIMCPsi,tPrintSpinCoupHEl
     INTEGER NoACDets(2:4),iPopsPartEvery,iWriteHistEvery,iNoBins,NoTriConBins,NoTriConHElBins,NoFrozenVirt,NHistEquilSteps
     INTEGER CCMCDebug !CCMC Debugging Level 0-6.  Default 0
 
@@ -67,6 +67,7 @@ MODULE Logging
       TriConHElSingMax=1.D0
       TriConHElDoubMax=0.50
       tPrintHElAccept=.false.
+      tPrintSpinCoupHEl=.false.
       tPrintFCIMCPsi=.false.
       tCalcFCIMCPsi=.false.
       NHistEquilSteps=0
@@ -242,6 +243,10 @@ MODULE Logging
 !This keyword prints out an extra file that keeps track of the H elements involved in spawning attempts that are accepted or not accepted.
 !It prints out the average H elements where spawning is accepted and the average where it is not accepted.
             tPrintHElAccept=.true.
+
+        case("PRINTSPINCOUPHELS")
+!This option prints out the number of positive and negative (and their sums) H elements connecting two spin coupled determinants.            
+            tPrintSpinCoupHEl=.true.
         
         case("AUTOCORR")
 !This is a Parallel FCIMC option - it will calculate the largest weight MP1 determinants and histogramm them

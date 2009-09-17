@@ -21,7 +21,7 @@ MODULE FciMCParMod
     use IntegralsData , only : fck,NMax,UMat
     USE UMatCache , only : GTID
     USE Logging , only : iWritePopsEvery,TPopsFile,TZeroProjE,iPopsPartEvery,tBinPops,tHistSpawn,iWriteHistEvery,tHistEnergies
-    USE Logging , only : NoACDets,BinRange,iNoBins,OffDiagBinRange,OffDiagMax!,iLagMin,iLagMax,iLagStep,tAutoCorr
+    USE Logging , only : NoACDets,BinRange,iNoBins,OffDiagBinRange,OffDiagMax,tPrintSpinCoupHEl!,iLagMin,iLagMax,iLagStep,tAutoCorr
     USE Logging , only : tPrintTriConnections,tHistTriConHels,tPrintHElAccept,tPrintFCIMCPsi,tCalcFCIMCPsi,NHistEquilSteps
     USE SymData , only : nSymLabels
     USE mt95 , only : genrand_real2
@@ -62,6 +62,7 @@ MODULE FciMCParMod
         Iter=1
         do while(Iter.le.NMCyc)   !Iter=1,NMCyc
 !Main iteration loop...
+!            WRITE(6,*) 'Iter',Iter
 
             IF(TBalanceNodes) THEN 
                 CALL BalanceWalkersonProcs()      !This routine is call periodically when the nodes need to be balanced. However, this will not be called with direct annihilation.
@@ -412,7 +413,7 @@ MODULE FciMCParMod
     SUBROUTINE PerformFCIMCycPar()
 !        use HPHFRandExcitMod , only : TestGenRandHPHFExcit 
         USE Determinants , only : GetHElement3
-        USE FciMCLoggingMOD , only : FindTriConnections,TrackSpawnAttempts
+        USE FciMCLoggingMOD , only : FindTriConnections,TrackSpawnAttempts,FindSpinCoupHEl
         INTEGER :: MinorVecSlot,VecSlot,i,j,k,l,MinorValidSpawned,ValidSpawned,CopySign,ParticleWeight,Loop,iPartBloom
         INTEGER :: nJ(NEl),ierr,IC,Child,iCount,DetCurr(NEl),iLutnJ(0:NIfD),NoMinorWalkersNew
         REAL*8 :: Prob,rat,HDiag,HDiagCurr
@@ -489,9 +490,10 @@ MODULE FciMCParMod
 
 !Also, we want to find out the excitation level - we only need to find out if its connected or not (so excitation level of 3 or more is ignored.
 !This can be changed easily by increasing the final argument.
-            IF(tTruncSpace.or.tHighExcitsSing.or.tHistSpawn.or.tCalcFCIMCPsi) THEN
+            IF(tTruncSpace.or.tHighExcitsSing.or.tHistSpawn.or.tCalcFCIMCPsi.or.tPrintSpinCoupHEl) THEN
 !We need to know the exact excitation level for truncated calculations.
                 CALL FindBitExcitLevel(iLutHF,CurrentDets(:,j),NIfD,WalkExcitLevel,NEl)
+                IF((WalkExcitLevel.eq.2).and.tPrintSpinCoupHEl) CALL FindSpinCoupHEl(iLutHF,CurrentDets(:,j),NIfD,NEl)
             ELSE
                 CALL FindBitExcitLevel(iLutHF,CurrentDets(:,j),NIfD,WalkExcitLevel,2)
             ENDIF
@@ -5246,7 +5248,7 @@ MODULE FciMCParMod
 !Every StepsSft steps, update the diagonal shift value (the running value for the correlation energy)
 !We don't want to do this too often, since we want the population levels to acclimatise between changing the shifts
     SUBROUTINE CalcNewShift()
-        USE FciMCLoggingMOD , only : PrintSpawnAttemptStats,PrintTriConnStats
+        USE FciMCLoggingMOD , only : PrintSpawnAttemptStats,PrintTriConnStats,PrintSpinCoupHEl
         INTEGER :: error,rc,MaxAllowedWalkers,MaxWalkersProc,MinWalkersProc
         INTEGER :: inpair(9),outpair(9)
         REAL*8 :: TempTotWalkers,TempTotParts
@@ -5554,6 +5556,7 @@ MODULE FciMCParMod
         CALL WriteFCIMCStats()
 
         IF(tPrintTriConnections) CALL PrintTriConnStats(Iter+PreviousCycles)
+        IF(tPrintSpinCoupHEl) CALL PrintSpinCoupHEl(Iter+PreviousCycles)
 
         IF(tPrintHElAccept) CALL PrintSpawnAttemptStats(Iter+PreviousCycles)
 
@@ -5781,7 +5784,7 @@ MODULE FciMCParMod
         use SymData , only : nSymLabels,SymLabelList,SymLabelCounts
         use Logging , only : tTruncRODump
         use GenRandSymExcitNUMod , only : SpinOrbSymSetup,tNoSingsPossible
-        use FciMCLoggingMOD , only : InitTriHElStats
+        use FciMCLoggingMOD , only : InitTriHElStats,InitSpinCoupHel
         use DetCalc, only : NMRKS,tagNMRKS,FCIDets
         INTEGER :: ierr,i,j,k,l,DetCurr(NEl),ReadWalkers,TotWalkersDet,HFDetTest(NEl),Seed,alpha,beta,symalpha,symbeta,endsymstate,Proc
         INTEGER :: DetLT,VecSlot,error,HFConn,MemoryAlloc,iMaxExcit,nStore(6),nJ(Nel),BRR2(nBasis),LargestOrb,nBits,HighEDet(NEl),iLutTemp(0:NIfD)
@@ -6787,6 +6790,7 @@ MODULE FciMCParMod
         ENDIF
 
         IF(tPrintTriConnections.or.tHistTriConHEls.or.tPrintHElAccept) CALL InitTriHElStats()
+        IF(tPrintSpinCoupHEl) CALL InitSpinCoupHEl()
 
         IF((NMCyc.ne.0).and.(tRotateOrbs.and.(.not.tFindCINatOrbs))) CALL Stop_All(this_routine,"Currently not set up to rotate and then go straight into a spawning &
                                                                                     & calculation.  Ordering of orbitals is incorrect.  This may be fixed if needed.")
@@ -10091,6 +10095,8 @@ MODULE FciMCParMod
         INTEGER :: i,error,length,temp
         CHARACTER(len=*), PARAMETER :: this_routine='DeallocFciMCMemPar'
         CHARACTER(LEN=MPI_MAX_ERROR_STRING) :: message
+
+        IF(tPrintSpinCoupHEl) CLOSE(87)
             
         IF(tHistSpawn.or.tCalcFCIMCPsi) THEN
             DEALLOCATE(Histogram)

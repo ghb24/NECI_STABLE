@@ -27,6 +27,9 @@ MODULE FciMCLoggingMod
     INTEGER :: AllSignCohTriHistTag,AllSignIncohTriHistTag,AllSignCohHFTriHistTag,AllSignIncohHFTriHistTag
     INTEGER :: AllTriConnHElHistSingTag,AllTriConnHElHistDoubTag,TriHjkHistSingTag,TriHjkHistDoubTag,AllTriHjkHistSingTag,AllTriHjkHistDoubTag
     REAL*8 :: NoNotAccept,NoAccept,TotHElNotAccept,TotHElAccept,MaxHElNotAccept,MinHElAccept
+    REAL*8 :: NoPosSpinCoup,NoNegSpinCoup,SumPosSpinCoup,SumNegSpinCoup,SumHFCon,SumSpinCon
+
+
 
 
     contains
@@ -164,6 +167,148 @@ MODULE FciMCLoggingMod
         ENDIF
 
     ENDSUBROUTINE InitTriHElStats
+
+
+    SUBROUTINE InitSpinCoupHEl()
+
+        NoNegSpinCoup=0.D0
+        NoPosSpinCoup=0.D0
+        SumNegSpinCoup=0.D0
+        SumPosSpinCoup=0.D0
+        SumHFCon=0.D0
+        SumSpinCon=0.D0
+        
+        IF(iProcIndex.eq.root) THEN
+            OPEN(87,file='SpinCoupHEl',status='unknown')
+!            WRITE(87,'(A8,10A19)') "1.Iter","2.No.Pos HEls","3.No.Neg HEls","4.Sum Pos HEl","5.Sum Neg HEl","6.Net Sum HEl","7.No.Pos/Iter","8.No.Neg/Iter","9.Sum Pos/Iter","10.Sum Neg/Iter","11.Net Sum/Iter"
+            WRITE(87,'(A8,11A18)') "1.Iter","2.No.Pos HEls","3.No.Neg HEls","4.Sum Pos HEl","5.Sum Neg HEl","6.No.Pos/Iter","7.No.Neg/Iter","8.Sum Pos/Iter","9.Sum Neg/Iter",&
+            &"10.Sum HF HEls","11.Sum SpinCoup","12.HF HEl/SpinHEl"
+        ENDIF
+
+    ENDSUBROUTINE InitSpinCoupHEl
+
+
+    SUBROUTINE FindSpinCoupHEl(iLutHF,iLutCurr,NIfD,NEl)
+! Fed into here is a doubly excited occupied determinant - want to take the two excited orbitals and flip their spins.
+! Then find the coupling H element between the original and spin-flipped determinants and add it to the stats.
+        USE HPHFRandExcitMod , only : FindExcitBitDetSym 
+        INTEGER :: NIfD,NEl,iLutCurr(0:NIfD),iLutHF(0:NIfD),i
+        INTEGER :: iLutSym(0:NIfD),nI(NEl),nJ(NEl),nHF(NEl),Ex(2,2)
+        TYPE(HElement) :: SpinCoupHEl,HElHFI,HElHFJ
+        LOGICAL :: DetsEqSpinCoup,DetBitEQ,tSign
+
+! First get the spin flipped determinant.
+! Can do this in two ways.  Either flip the spin of all electrons - this means that doubly occupied spat orbs will be unchanged or
+
+        CALL FindExcitBitDetSym(iLutCurr(0:NIfD),iLutSym(0:NIfD))
+
+
+! - just flip the sign of the two excited electrons.
+!        CALL GetBitExcitation(iLutHF(0:NIfD),iLutCurr(0:NIfD),NIfD,NEl,Ex,tSign)
+        ! Electrons Ex(1,1) and Ex(1,2) are excited to Ex(2,1) and Ex(2,2)
+
+
+! Now find the HElement between these two determinants.        
+        
+        CALL DecodeBitDet(nI,iLutCurr(0:NIfD),NEl,NIfD)
+        CALL DecodeBitDet(nJ,iLutSym(0:NIfD),NEl,NIfD)
+
+        CALL DecodeBitDet(nHF,iLutHF(0:NIfD),NEl,NIfD)
+
+! Want to replace the excited electrons in nI with the spin flipped versions.
+!        nJ(:)=nI(:)
+!        do i=1,NEl
+!            IF(nJ(i).eq.Ex(2,1)) THEN
+!                IF(MOD(nJ(i),2).eq.0) THEN
+!                    nJ(i)=Ex(2,1)-1
+!                ELSE
+!                    nJ(i)=Ex(2,1)+1
+!                ENDIF
+!            ELSEIF(nJ(i).eq.Ex(2,2)) THEN
+!                IF(MOD(nJ(i),2).eq.0) THEN
+!                    nJ(i)=Ex(2,2)-1
+!                ELSE
+!                    nJ(i)=Ex(2,2)+1
+!                ENDIF
+!            ENDIF
+!        enddo
+
+
+        DetsEqSpinCoup=.false.
+        DetsEqSpinCoup=DetBitEQ(iLutCurr(0:NIfD),iLutSym(0:NIfD),NIfD)
+
+        HElHFI=GetHElement3(nHF,nI,-1)
+        HElHFJ=GetHElement3(nHF,nJ,-1)
+
+        IF(.not.DetsEqSpinCoup) THEN
+
+            SpinCoupHEl=GetHElement3(nI,nJ,-1)
+
+            IF((((REAL(HElHFI%v,r2)).lt.0.D0).and.((REAL(HElHFJ%v,r2)).gt.0.D0)).or.(((REAL(HElHFI%v,r2)).gt.0.D0).and.((REAL(HElHFJ%v,r2)).lt.0.D0))) THEN
+!                WRITE(6,*) '*'
+!                WRITE(6,'(A30,F15.6,A30,F15.6)') 'HEl between HF and one det : ',REAL(HElHFI%v,r2),' and to the spin coupled : ',REAL(HElHFJ%v,r2)
+!                WRITE(6,*) 'HFDet',nHF(:)
+!                WRITE(6,*) 'First Det',nI(:)
+!                WRITE(6,*) 'Second Det',nJ(:)
+
+                IF((REAL(SpinCoupHEl%v,r2)).lt.0.D0) THEN
+                    NoNegSpinCoup=NoNegSpinCoup+1.D0
+                    SumNegSpinCoup=SumNegSpinCoup+REAL(SpinCoupHEl%v,r2)
+                ELSEIF((REAL(SpinCoupHEl%v,r2)).gt.0.D0) THEN
+                    NoPosSpinCoup=NoPosSpinCoup+1.D0
+                    SumPosSpinCoup=SumPosSpinCoup+REAL(SpinCoupHEl%v,r2)
+                ENDIF
+!                WRITE(6,*) 'Spin coupled HEl',REAL(SpinCoupHEl%v,r2)            
+                SumHFCon=SumHFCon+ABS(REAL(HElHFI%v,r2))
+                SumSpinCon=SumSpinCon+ABS(REAL(SpinCoupHEl%v,r2))
+
+            ENDIF
+
+            IF(((((REAL(HElHFI%v,r2)).lt.0.D0).and.((REAL(HElHFJ%v,r2)).lt.0.D0)).or.(((REAL(HElHFI%v,r2)).gt.0.D0).and.((REAL(HElHFJ%v,r2)).gt.0.D0)))&
+            &.and.(REAL(SpinCoupHEl%v,r2).ne.0.D0)) THEN
+                WRITE(6,*) '*'
+                WRITE(6,'(A30,F15.6,A30,F15.6)') 'HEl between HF and one det : ',REAL(HElHFI%v,r2),' and to the spin coupled : ',REAL(HElHFJ%v,r2)
+                WRITE(6,*) 'HFDet',nHF(:)
+                WRITE(6,*) 'First Det',nI(:)
+                WRITE(6,*) 'Second Det',nJ(:)
+
+                WRITE(6,*) 'Spin coupled HEl',REAL(SpinCoupHEl%v,r2)            
+                CALL FLUSH(6)
+                WRITE(6,*) '******* Determinants have the same sign with HF, but non-zero connecting element.'
+!                CALL Stop_All("FindSpinCoupHEl","Determinants have the same sign with HF, but non-zero connecting element.")
+            ENDIF
+        ENDIF
+
+
+    ENDSUBROUTINE FindSpinCoupHEl
+
+
+
+    SUBROUTINE PrintSpinCoupHEl(Iteration)
+        REAL*8 :: SpinCoupHElStats(4),AllSpinCoupHElStats(4)
+        INTEGER :: error,Iteration
+
+!Write to files the sum of the sign coherent and incoherent triangles. 
+        SpinCoupHElStats(1)=NoPosSpinCoup
+        SpinCoupHElStats(2)=NoNegSpinCoup
+        SpinCoupHElStats(3)=SumPosSpinCoup
+        SpinCoupHElStats(4)=SumNegSpinCoup
+        AllSpinCoupHElStats(:)=0.D0
+
+        CALL MPI_Reduce(SpinCoupHElStats,AllSpinCoupHElStats,4,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
+
+        IF(iProcIndex.eq.Root) THEN
+
+!            WRITE(87,'(I8,10F19.6)') Iteration,AllSpinCoupHElStats(1),AllSpinCoupHElStats(2),AllSpinCoupHElStats(3),AllSpinCoupHElStats(4),(AllSpinCoupHElStats(3)+AllSpinCoupHElStats(4)),&
+            WRITE(87,'(I8,11F18.6)') Iteration,AllSpinCoupHElStats(1),AllSpinCoupHElStats(2),AllSpinCoupHElStats(3),AllSpinCoupHElStats(4),&
+                                             &(AllSpinCoupHElStats(1)/REAL(Iteration)),(AllSpinCoupHElStats(2)/REAL(Iteration)),(AllSpinCoupHElStats(3)/REAL(Iteration)),&
+!                                             &(AllSpinCoupHElStats(4)/REAL(Iteration)),((AllSpinCoupHElStats(3)+AllSpinCoupHElStats(4))/REAL(Iteration))
+                                             &(AllSpinCoupHElStats(4)/REAL(Iteration)),SumHFCon,SumSpinCon,SumSpinCon/SumHFCon
+        ENDIF
+
+    ENDSUBROUTINE PrintSpinCoupHEl
+ 
+
 
 
     SUBROUTINE FindTriConnections(DetCurr,iLutnJ,iLutHF,nJ,IC,Ex,pDoubles,tFilled,tParity,Scratch1,Scratch2,exflag)
