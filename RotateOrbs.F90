@@ -141,10 +141,10 @@ MODULE RotateOrbsMod
         CHARACTER(len=*) , PARAMETER :: this_routine='FindNatOrbitals'
 
 
-        IF(tUseMP2VarDenMat) WRITE(6,*) 'Transforming the HF orbitals into the MP2 approximate natural orbitals.'
+        IF(tUseMP2VarDenMat) WRITE(6,*) '*** Transforming the HF orbitals into the MP2 approximate natural orbitals. ***'
         IF(tFindCINatOrbs) THEN
-            WRITE(6,*) 'Transforming the HF orbitals into approximate natural orbitals'
-            WRITE(6,*) 'based on the one-electron density matrix found from the wavefunction calculated above.'
+            WRITE(6,*) '*** Transforming the HF orbitals into approximate natural orbitals'
+            WRITE(6,*) 'based on the one-electron density matrix found from the wavefunction calculated above. ***'
         ENDIF
 
         IF(tStoreSpinOrbs) THEN 
@@ -378,21 +378,37 @@ MODULE RotateOrbsMod
 ! This routine makes a quick sum of the memory that will be require to transform the integrals from the HF to the new basis.
 
 ! Main arrays required are:
-! Symmetry / labelling stuff
+        MemAllocRot=0
+        
+! Symmetry/Labelling:
 !   - SymLabelLists(NoOrbs) x 3 
 !   - SymLabelCounts(32/16 - Spin/Spat)
+        MemAllocRot=MemAllocRot+(3*NoOrbs*4)
+        MemAllocRot=MemAllocRot+(32*4)
+        
 ! Finding transformation matrices
 !   - NatOrbsMat(NoOrbs,NoOrbs)
 !   - Evalues(NoOrbs) x 2
+        MemAllocRot=MemAllocRot+((NoOrbs**2)*8)
+        MemAllocRot=MemAllocRot+(2*NoOrbs*8)
+
 
 ! Transformation of integrals
 !   - CoeffT1(NoOrbs,NoRotOrbs) 
 !   - FourIndInts(NoRotOrbs,NoRotOrbs,NoOrbs,NoOrbs)
 !   - Temp4indints(NoRotOrbs,NoOrbs)
+        MemAllocRot=MemAllocRot+(NoOrbs*NoRotOrbs*8*2)
+        MemAllocRot=MemAllocRot+((NoRotOrbs**2)*(NoOrbs**2)*8)
+
 ! Transform fock
 !   - ArrNew(NoOrbs) - reduce this?
+        MemAllocRot=MemAllocRot+(NoOrbs*8)
+
 ! RefillTMAT2D
 !   - TMAT2D(nBasis,nBasis) 
+        MemAllocRot=MemAllocRot+((nBasis**2)*8)
+
+        WRITE(6,'(A72,F20.10,A15)') "Rough estimate of the memory required for the orbital transformation = ",REAL(MemAllocRot,8)/1048576.D0," Mb/Processor"
 
 
     END SUBROUTINE ApproxMemReq

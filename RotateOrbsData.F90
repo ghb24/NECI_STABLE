@@ -6,7 +6,7 @@ MODULE RotateOrbsData
 
 
     REAL*8 , ALLOCATABLE :: CoeffT1(:,:)  ! This contains the transformation matrix which rotates the HF orbitals into their new basis.
-    INTEGER :: CoeffT1Tag
+    INTEGER :: CoeffT1Tag,MemAllocRot
 
 ! These are the labelling arrays which allow us to separate the occupied and virtual orbitals, mix all together, use spin or spatial 
 ! orbitals and maitain symmetry etc.
