@@ -275,7 +275,11 @@ C               WRITE(6,*) "SL",I,SymClasses(I)
                 Symreps(1,i)=NSL(i)
             enddo
         ENDIF
-            
+!        WRITE(6,*) "Sym Reps after Freezing"
+!         DO i=1,nbasis
+!             WRITE(6,*) i,Symreps(1,i),Symreps(2,i)
+!         enddo
+         
       END
 
       SUBROUTINE GENMOLPSYMREPS(NSYMMAX)
@@ -291,29 +295,39 @@ C               WRITE(6,*) "SL",I,SymClasses(I)
 !         INTEGER NBASIS,BRR(NBASIS)
 !         REAL*8 ARR(NBASIS)
          character(*), parameter :: this_routine='GENMOLPSYMREPS'
+         LOGICAL tNew
          
 C.. now work out which reps are degenerate and label them
          allocate(SymReps(2,nBasis))
          call LogMemAlloc('SymReps',2*nBasis,4,this_routine,tagSymReps)
+         SymReps(:,:)=0
          J=0
          DO I=1,NBASIS
 !             WRITE(6,*) I,nbasis
+            tNew=.true.
             IF(tSymIgnoreEnergies.AND.MOD(I,2).EQ.0) THEN
 !Pair even orbs up with the odd ones.
                SYMREPS(2,J)=SYMREPS(2,J)+1
-            ELSEIF(I.GT.1) THEN
-                IF((ABS(ARR(I,1)-ARR(I-1,1)).LT.1.D-5
-     &         .AND.G1(BRR(I))%Sym%s.EQ.G1(BRR(I-1))%Sym%s)) THEN
+               tNew=.false.
+            ELSEIF(I.gt.1) THEN
+                IF((ABS(ARR(I,1)-ARR(I-1,1)).LT.1.D-5)
+     &       .AND.(G1(BRR(I))%Sym%s.EQ.G1(BRR(I-1))%Sym%s)) THEN
 C.. we have the same degenerate rep as the previous entry
                     SYMREPS(2,J)=SYMREPS(2,J)+1
+                  tNew=.false.
                 ENDIF
-            ELSE
+            ENDIF
+            IF(tNew) THEN
 C.. we have a new rep
                J=J+1
                SYMREPS(2,J)=1
             ENDIF
             SYMREPS(1,BRR(I))=J
          ENDDO
+!         WRITE(6,*) "Sym Reps MOLPRO"
+!         DO i=1,nbasis
+!             WRITE(6,*) i,Symreps(1,i),Symreps(2,i)
+!         enddo
       END
 
 C.. delete a symmetry table if one existed.

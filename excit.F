@@ -443,12 +443,14 @@ C.. if we've excited at least one elec
 C.. we check whether we're allowed this excitation owing to sym
 C                  CALL WRITEDET(6,NEXCIT,NEL,.TRUE.)
                   IF(TSYM) THEN
-                     CALL GETSYM(NEXCIT,NEL,G1,NBASISMAX,ISYM2)
+                     CALL GETSYM(NEXCIT,NEL,G1,NBASISMAX,ISYM2)   
                      LSYM=LCHKSYM(ISYM,ISYM2)
                   ELSE
                      LSYM=.TRUE.
                   ENDIF
-C                  WRITE(6,*) ISYM,ISYM2,LSYM
+!                  WRITE(6,*) "ISym:",ISYM
+!                  WRITE(6,*) "ISym2",ISYM2
+!                  WRITE(6,*) "LSYM",LSYM
                   IF(LSYM) THEN
                      IF(.NOT.TCOUNT) THEN
                         CALL NECI_ICOPY(NEL,NEXCIT,1,
