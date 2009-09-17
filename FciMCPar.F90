@@ -3,7 +3,7 @@
 !All variables refer to values per processor
 
 MODULE FciMCParMod
-    use SystemData , only : NEl,Alat,Brr,ECore,G1,nBasis,nBasisMax,nMsh,Arr,LMS,NIfD,tHPHF
+    use SystemData , only : NEl,Alat,Brr,ECore,G1,nBasis,nBasisMax,nMsh,Arr,LMS,NIfD,tHPHF,tListDets
     use SystemData , only : tHub,tReal,tNonUniRandExcits,tMerTwist,tRotatedOrbs,tImportanceSample,tFindCINatOrbs
     use CalcData , only : InitWalkers,NMCyc,DiagSft,Tau,SftDamp,StepsSft,OccCASorbs,VirtCASorbs,tFindGroundDet,tDirectAnnihil
     use CalcData , only : TStartMP1,NEquilSteps,TReadPops,TRegenExcitgens,TFixShiftShell,ShellFix,FixShift,tMultipleDetsSpawn
@@ -257,7 +257,7 @@ MODULE FciMCParMod
 
 
 !Calculate number of children to spawn
-                IF(TTruncSpace.or.tTruncCAS) THEN
+                IF(TTruncSpace) THEN
 !We have truncated the excitation space at a given excitation level. See if the spawn should be allowed.
                     IF(CheckAllowedTruncSpawn(WalkExcitLevel,nJ,iLutnJ,IC)) THEN
 !The excitation is allowed - it is below the ICILevel cutoff.
@@ -589,7 +589,7 @@ MODULE FciMCParMod
                 IF(tPrintTriConnections) CALL FindTriConnections(DetCurr,CurrentDets(:,j),iLutHF,nJ,IC,Ex,pDoubles,tFilled,tParity,Scratch1,Scratch2,exflag)
 
 !Calculate number of children to spawn
-                IF(TTruncSpace.or.tTruncCAS) THEN
+                IF(TTruncSpace.or.tTruncCAS.or.tListDets) THEN
 !We have truncated the excitation space at a given excitation level. See if the spawn should be allowed.
                     IF(tImportanceSample) CALL Stop_All("PerformFCIMCyc","Truncated calculations not yet working with importance sampling")
 
@@ -6189,13 +6189,18 @@ MODULE FciMCParMod
 !This is a list of options which cannot be used with the stripped-down spawning routine. New options not added to this routine should be put in this list.
         IF(tHighExcitsSing.or.tHistSpawn.or.tRegenDiagHEls.or.tFindGroundDet.or.tStarOrbs.or.tResumFCIMC.or.tSpawnAsDet.or.tImportanceSample    &
      &      .or.(.not.tRegenExcitgens).or.(.not.tNonUniRandExcits).or.(.not.tDirectAnnihil).or.tMinorDetsStar.or.tSpawnDominant.or.(DiagSft.gt.0.D0).or.   &
-     &      tPrintTriConnections.or.tHistTriConHEls.or.tCalcFCIMCPsi) THEN
+     &      tPrintTriConnections.or.tHistTriConHEls.or.tCalcFCIMCPsi.or.tTruncCAS.or.tListDets) THEN
             WRITE(6,*) "It is not possible to use to clean spawning routine..."
         ELSE
             WRITE(6,*) "Clean spawning routine in use..."
             tCleanRun=.true.
         ENDIF
-    
+
+        IF(tListDets) THEN
+! When this is on, we have to read the list of determinants which we are allowed to spawn at from a file called SpawnOnlyDets.
+            CALL ReadSpawnListDets()
+        ENDIF
+
         IF(tConstructNOs) THEN
 ! This is the option for constructing the natural orbitals actually during a NECI calculation.  This is different (and probably a lot more complicated and doesn't 
 ! currently work) from the FINDCINATORBS option which finds the natural orbitals given a final wavefunction.
@@ -6410,7 +6415,7 @@ MODULE FciMCParMod
             ELSEIF(iHighExcitsSing.eq.NEl) THEN
                 CALL Warning("InitFciMCCalcPar","iHighExcitsSing = NEl - this will no longer have any effect.")
             ENDIF
-            IF((.not.tNonUniRandExcits).or.tStarOrbs.or.tTruncSpace.or.tTruncCAS) THEN
+            IF((.not.tNonUniRandExcits).or.tStarOrbs.or.tTruncSpace.or.tTruncCAS.or.tListDets) THEN
                 CALL Stop_All("InitFCIMCCalcPar","Cannot use HighExcitsSing without Nonuniformrandexcits, or with starorbs or truncated spaces...")
             ENDIF
         ENDIF
@@ -6833,6 +6838,67 @@ MODULE FciMCParMod
         RETURN
 
     END SUBROUTINE InitFCIMCCalcPar
+
+    
+! This is called if tListDets is set, and will read a list of NAllowedDetList determinants in natural order from the SpawnOnlyDets file, 
+! store them in AllowedDetList (compressed), and only allow spawning at these determinants.
+    SUBROUTINE ReadSpawnListDets()
+        use Parallel, only : MPIIBCast_Scal,MPIIBCast
+        LOGICAL :: exists
+        INTEGER :: i,nI(NEl),ierr
+
+        IF(iProcIndex.eq.Root) THEN
+
+            INQUIRE(FILE='SpawnOnlyDets',EXIST=exists)
+            IF(.not.exists) THEN
+                CALL Stop_All('ReadSpawnListDets',"No SpawnOnlyDets file to read in allowed determinants...")
+            ENDIF
+
+            WRITE(6,*) "Reading in the allowed determinant list from SpawnOnlyDets..."
+            OPEN(17,FILE='SpawnOnlyDets',Status='old')
+
+            NAllowedDetList=0
+                
+            do while(.true.)
+
+                READ(17,*,END=199) nI(1:NEl)
+!                WRITE(6,*) nI
+
+                NAllowedDetList=NAllowedDetList+1
+                    
+            enddo
+
+199         CONTINUE
+        ENDIF
+
+        CALL MPIIBCast_Scal(NAllowedDetList,Root)
+        WRITE(6,*) NAllowedDetList, " determinants read in from SpawnOnlyDets file..."
+
+        ALLOCATE(AllowedDetList(0:NIfD,NAllowedDetList),stat=ierr)
+        IF(ierr.ne.0) THEN
+            CALL Stop_All("ReadSpawnListDets","Error allocating AllowedDetList array")
+        ENDIF
+
+        IF(iProcIndex.eq.Root) THEN
+            REWIND(17)
+
+            do i=1,NAllowedDetList
+                READ(17,*) nI(1:NEl)
+                CALL EncodeBitDet(nI,AllowedDetList(0:NIfD,i),NEl,NIfD)
+!                WRITE(6,*) AllowedDetList(0:NIfD,i)
+            enddo
+
+            CLOSE(17)
+        ENDIF
+
+        CALL MPIIBCast(AllowedDetList,NAllowedDetList*(NIfD+1),Root)
+!        do i=1,NAllowedDetList
+!            CALL DecodeBitDet(nI,AllowedDetList(0:NIfD,i),NEl,NIfD)
+!            WRITE(6,*) nI(:)
+!        enddo
+
+    END SUBROUTINE ReadSpawnListDets
+
 
 !This routine is the same as WriteToPopsfilePar, but does not require two main arrays to hold the data.
 !The root processors data will be stored in a temporary array while it recieves the data from the other processors.
@@ -8200,7 +8266,8 @@ MODULE FciMCParMod
 !We pass in the excitation level of the original particle, the two representations of the excitation (we only need the bit-representation of the excitation
 !for HPHF) and the magnitude of the excitation (for determinant representation).
     LOGICAL FUNCTION CheckAllowedTruncSpawn(WalkExcitLevel,nJ,iLutnJ,IC)
-        INTEGER :: nJ(NEl),WalkExcitLevel,iLutnJ(0:NIfD),ExcitLevel,IC,iGetExcitLevel_2
+        INTEGER :: nJ(NEl),WalkExcitLevel,iLutnJ(0:NIfD),ExcitLevel,IC,iGetExcitLevel_2,i
+        LOGICAL :: DetBitEQ
 
         CheckAllowedTruncSpawn=.true.
 
@@ -8261,6 +8328,22 @@ MODULE FciMCParMod
 !                WRITE(6,*) "In Cas:",nJ(:)
             ENDIF
 
+        ENDIF
+
+        IF(tListDets) THEN
+!This will check to see if the determinants are in a list of determinants in AllowedDetList
+            CheckAllowedTruncSpawn=.false.
+            IF(.not.tHPHF) THEN
+                CALL EncodeBitDet(nJ,iLutnJ,NEl,NIfD)
+            ENDIF
+            do i=1,NAllowedDetList
+!                WRITE(6,*) ILutnJ,AllowedDetList(0:NIfD,i)
+                IF(DetBitEQ(iLutnJ,AllowedDetList(0:NIfD,i),NIfD)) THEN
+!                    WRITE(6,*) "Allowed Det"
+                    CheckAllowedTruncSpawn=.true.
+                    EXIT
+                ENDIF
+            enddo
         ENDIF
 
     END FUNCTION CheckAllowedTruncSpawn

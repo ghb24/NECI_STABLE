@@ -18,6 +18,7 @@ MODULE System
 !     SYSTEM defaults - leave these as the default defaults
 !     Any further addition of defaults should change these after via
 !     specifying a new set of DEFAULTS.
+      tListDets=.false.
       tStoreSpinOrbs=.false.    !by default we store/lookup integrals as spatial integrals
       tNoBrillouin=.false.
       tROHF=.false.
@@ -668,6 +669,9 @@ MODULE System
                         call Stop_All("ReadSysInp",trim(w)//" not a valid keyword")
                 end select
             enddo
+        case("SPAWNLISTDETS")
+!This option will mean that a file called SpawnOnlyDets will be read in, and only these determinants will be allowed to be spawned at.
+            tListDets=.true.
         case("UMATEPSILON")
 !This is an option for systems which are reaad in from an FCIDUMP file. Any two-electron integrals which are smaller in
 !magnitude than the value set for UMatEps will be set to zero.

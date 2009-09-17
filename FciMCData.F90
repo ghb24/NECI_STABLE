@@ -202,4 +202,7 @@ MODULE FciMCData
 
       INTEGER :: WalkersDiffProc
 
+      INTEGER , ALLOCATABLE :: AllowedDetList(:,:) !If tListDets is on, this array will fill with allowed determinants to spawn at
+      INTEGER :: NAllowedDetList   !This is the number of allowed determinants to spawn at in the AllowedDetList.
+
 END MODULE FciMCData

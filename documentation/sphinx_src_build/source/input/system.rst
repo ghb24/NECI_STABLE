@@ -257,6 +257,11 @@ General options
     The default time step is 0.01, and convergence value is 0.001.
     Further options are described below.
 
+**SPAWNLISTDETS**
+    This means that a file called SpawnOnlyDets will be read in before a spawning calculation, 
+    and only the determinants listed in this file will be able to be spawned at. Currently,
+    this only works for FCIMCPar calculation. 
+
 **ROTATEDORBS**
     This keyword is required in the system block if a ROFCIDUMP file is being read in 
     (after orbital rotation).  As the orbitals are no longer the HF orbitals, Brillouin's 

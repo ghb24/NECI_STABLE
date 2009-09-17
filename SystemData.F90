@@ -19,6 +19,8 @@ INTEGER :: iPeriodicDampingType,ISTATE,NEL,ITILTX,ITILTY,nOccAlpha,nOccBeta,Shak
 REAL*8 :: BOX,BOA,COA,FUEGRS,fRc,FCOUL,OrbECutoff,UHUB,BHUB,DiagWeight,OffDiagWeight,OrbEnMaxAlpha
 REAL*8 :: ALPHA,FCOULDAMPBETA,FCOULDAMPMU,TimeStep,ConvergedForce,ShakeConverged,UMatEps,OneElWeight
 
+LOGICAL :: tListDets    !Means that a list of allowed determinants in FciMC will be read in an particles are only allowed here.
+
 ! Used to be stored in Integrals
 INTEGER :: ORBORDER(8,2)
 
