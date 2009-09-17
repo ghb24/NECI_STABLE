@@ -32,9 +32,9 @@ MODULE NatOrbsMod
 ! writing out the final ROFCIDUMP file.
 
 ! Allocate the matrix used to find the natural orbitals.
-
+        
         ALLOCATE(NatOrbMat(NoOrbs,NoOrbs),stat=ierr)
-        CALL LogMemAlloc('NatOrbMati',NoOrbs**2,8,this_routine,NatOrbMatTag,ierr)
+        CALL LogMemAlloc('NatOrbMat',NoOrbs**2,8,this_routine,NatOrbMatTag,ierr)
         IF(ierr.ne.0) CALL Stop_All(this_routine,"Mem allocation for NatOrbMat failed.")
         NatOrbMat(:,:)=0.D0
 
@@ -358,6 +358,13 @@ MODULE NatOrbsMod
 !                WRITE(6,*) i,SymLabelList2(i),INT(G1(SymLabelList2(i)*2)%sym%S,4)
 !            ENDIF
 !        enddo
+!        WRITE(6,*) 'i','ARR(SymLabelList2(i),1)','ARR(SymLabelList2(i),2)','Sym'
+!        do i=1,NoOrbs
+!            IF(tStoreSpinOrbs) THEN
+!                WRITE(6,*) i,ARR(SymLabelList2(i),1),ARR(SymLabelList2(i),2),INT(G1(SymLabelList2(i))%sym%S,4)
+!            ENDIF
+!        enddo
+!
 !        WRITE(6,*) 'Sym label list (i.e the orbitals in symm order), and its inverse'
 !        do i=1,NoOrbs
 !            WRITE(6,*) SymLabelList2(i),SymLabelListInv(i)
@@ -426,7 +433,6 @@ MODULE NatOrbsMod
         ELSE
             MaxExcit=ICILevel
         ENDIF
-!        WRITE(6,*) 'MaxExcit',MaxExcit
 
         do excit=0,MaxExcit         
         ! Run through all determinants D_i, in the final wavefunction, Psi. 
@@ -611,6 +617,9 @@ MODULE NatOrbsMod
 ! This is so the alpha and beta spins can be diagonalised separately and we can keep track of which is which when the evectors are reordered 
 ! and maintain spin symmetry.
 
+!        WRITE(6,*) 'nOccBeta',nOccBeta
+!        WRITE(6,*) 'nOccAlpha',nOccAlpha
+
         do x=1,NoSpinCyc
             IF(x.eq.1) THEN
                 IF(tStoreSpinOrbs) THEN
@@ -626,14 +635,13 @@ MODULE NatOrbsMod
                 Endab=NoOrbs
             ENDIF
 
-            ! a and b must be of the same spin to mix, so only need to run over both beta then both beta.
+            ! a and b must be of the same spin to mix, so only need to run over both beta then both alpha.
             do a2=Startab,Endab
                 a=SymLabelList2(a2)
 !                do b2=Startab,Endab
                 do b2=Startab,a2
+
                     b=SymLabelList2(b2)
-!                    WRITE(6,*) 'a2',a2,'b2',b2
-                    
 
                     MP2VDMSum=0.D0
 
@@ -657,8 +665,6 @@ MODULE NatOrbsMod
 
                         do c2=Startc,Endc
                             c=SymLabelList2(c2)
-
-!                            WRITE(6,*) 'c2',c2
 
                             do z=1,NoSpinCyc
                                 IF(z.eq.1) THEN
@@ -692,8 +698,6 @@ MODULE NatOrbsMod
 
                                         do j2=Startj,Endj
                                             j=SymLabelList2(j2)
-
-!                                            WRITE(6,*) 'i2',i2,'j2',j2
 
                                             IF(tStoreSpinOrbs) THEN
                                                 IF((ARR(i,2)+ARR(j,2)-ARR(a,2)-ARR(c,2)).eq.0.D0) THEN
@@ -807,14 +811,21 @@ MODULE NatOrbsMod
             do j=1,NoOrbs
                 IF(tStoreSpinOrbs) THEN
 !                    WRITE(6,*) INT(G1(SymLabelList2(i))%sym%S,4),INT(G1(SymLabelList2(j))%sym%S,4),NatOrbMat(i,j)
-                    IF((INT(G1(SymLabelList2(i))%sym%S,4).ne.INT(G1(SymLabelList2(j))%sym%S,4)).and.(NatOrbMat(i,j).ne.0.D0)) THEN
-                        WRITE(6,'(6I3,F20.10)') i,j,SymLabelList2(i),SymLabelList2(j),INT(G1(SymLabelList2(i))%sym%S,4),INT(G1(SymLabelList2(j))%sym%S,4),NatOrbMat(i,j)
-                        CALL Stop_All(this_routine,'Non-zero NatOrbMat value between different symmetries.')
+                    IF((INT(G1(SymLabelList2(i))%sym%S,4).ne.INT(G1(SymLabelList2(j))%sym%S,4)).and.(ABS(NatOrbMat(i,j)).ge.1.0E-15)) THEN
+                        WRITE(6,'(6A8,A20)') 'i','j','Label i','Label j','Sym i','Sym j','Matrix value'
+                        WRITE(6,'(6I3,F40.20)') i,j,SymLabelList2(i),SymLabelList2(j),INT(G1(SymLabelList2(i))%sym%S,4),INT(G1(SymLabelList2(j))%sym%S,4),NatOrbMat(i,j)
+                        IF(tUseMP2VarDenMat) THEN
+                            WRITE(6,*) '**WARNING** - There is a non-zero NatOrbMat value between orbitals of different symmetry.'
+                            WRITE(6,*) 'These elements will be ignored, and the symmetry maintained in the final transformation matrix.'
+                        ELSE
+                            CALL Stop_All(this_routine,'Non-zero NatOrbMat value between different symmetries.')
+                        ENDIF
                     ENDIF
                 ELSE
 !                    WRITE(6,*) INT(G1(SymLabelList2(i)*2)%sym%S,4),INT(G1(SymLabelList2(j)*2)%sym%S,4),NatOrbMat(i,j)
-                    IF((INT(G1(SymLabelList2(i)*2)%sym%S,4).ne.INT(G1(SymLabelList2(j)*2)%sym%S,4)).and.(NatOrbMat(i,j).ne.0.D0)) THEN
-                        WRITE(6,'(6I3,F20.10)') i,j,SymLabelList2(i),SymLabelList2(j),INT(G1(SymLabelList2(i)*2)%sym%S,4),INT(G1(SymLabelList2(j)*2)%sym%S,4),NatOrbMat(i,j)
+                    IF((INT(G1(SymLabelList2(i)*2)%sym%S,4).ne.INT(G1(SymLabelList2(j)*2)%sym%S,4)).and.(ABS(NatOrbMat(i,j)).ge.1.0E-15)) THEN
+                        WRITE(6,'(6A8,A20)') 'i','j','Label i','Label j','Sym i','Sym j','Matrix value'
+                        WRITE(6,'(6I3,F40.20)') i,j,SymLabelList2(i),SymLabelList2(j),INT(G1(SymLabelList2(i)*2)%sym%S,4),INT(G1(SymLabelList2(j)*2)%sym%S,4),NatOrbMat(i,j)
                         CALL Stop_All(this_routine,'Non-zero NatOrbMat value between different symmetries.')
                     ENDIF
                 ENDIF
