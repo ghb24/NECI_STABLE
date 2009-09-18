@@ -1196,9 +1196,36 @@ MODULE NatOrbsMod
         REAL*8 :: SumEvalues
 
 
-        OPEN(73,FILE='EVALUES-plot',status='unknown')
         OPEN(74,FILE='EVALUES-plot-rat',status='unknown')
+        IF(tStoreSpinOrbs) THEN
+            k=0
+            do i=1,SpatOrbs
+                k=k+2
+                WRITE(74,*) REAL(k-1)/REAL(NoOrbs),Evalues(i)
+                WRITE(74,*) REAL(k)/REAL(NoOrbs),Evalues(SpatOrbs+i)
+            enddo
+        ELSEIF(tRotateOccOnly) THEN
+            k=0
+            do i=1,NoOcc
+                k=k+1
+                WRITE(74,*) REAL(k)/REAL(NoOcc),Evalues(i)
+            enddo
+        ELSEIF(tRotateVirtOnly) THEN
+            k=NoOcc
+            do i=NoOcc+1,NoOrbs
+                k=k+1
+                WRITE(74,*) REAL(k-NoOcc)/REAL(NoOrbs-NoOcc),Evalues(i)
+            enddo
+        ELSE
+            k=0
+            do i=1,SpatOrbs
+                k=k+1
+                WRITE(74,*) REAL(k)/REAL(NoOrbs),Evalues(i)
+            enddo
+        ENDIF
+        CLOSE(74)
 
+        OPEN(73,FILE='EVALUES-plot',status='unknown')
         EvaluesCount(:,:)=0.D0
 
         do x=1,NoSpinCyc
@@ -1236,30 +1263,9 @@ MODULE NatOrbsMod
             enddo
 
 
-            IF(tRotateOccOnly) THEN
-                k=0
-                do i=1,NoOcc
-                    k=k+1
-                    WRITE(74,*) REAL(k)/REAL(NoOcc),Evalues(i)
-                enddo
-            ELSEIF(tRotateVirtOnly) THEN
-                k=NoOcc
-                do i=NoOcc+1,NoOrbs
-                    k=k+1
-                    WRITE(74,*) REAL(k-NoOcc)/REAL(NoOrbs-NoOcc),Evalues(i)
-                enddo
-            ELSE
-                k=0
-                do i=1,NoOrbs
-                    k=k+1
-                    WRITE(74,*) REAL(k)/REAL(NoOrbs),Evalues(i)
-                enddo
-            ENDIF
-
         enddo
 
         CLOSE(73)
-        CLOSE(74)
 
 ! Want to write out the eigenvectors in order of the energy of the new orbitals - so that we can see the occupations 
 ! of the type of orbital.
