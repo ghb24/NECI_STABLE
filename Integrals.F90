@@ -45,6 +45,9 @@ MODULE Integrals
       NTFROZEN=0
       NFROZENIN=0
       NTFROZENIN=0
+      NPartFrozen=0
+      NHolesFrozen=0
+      tPartFreezeCore=.false.
       OrbOrder(:,:)=0
       OrbOrder2(:)=0.d0
       nSlotsInit=1024
@@ -214,6 +217,10 @@ MODULE Integrals
                 call report("NFROZENIN and NTFROZENIN must be"      &
      &          //"multiples of 2",.true.)
             end if
+        case("PARTIALLYFREEZE")
+            tPartFreezeCore=.true.
+            call readi(NPartFrozen)
+            call readi(NHolesFrozen)
         case("ORDER")
             I = 1
             do while ( item .lt. nitems )

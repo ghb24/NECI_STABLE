@@ -18,7 +18,7 @@ MODULE FciMCParMod
     USE Determinants , only : FDet,GetHElement2,GetHElement4
     USE DetCalc , only : ICILevel,nDet,Det,FCIDetIndex
     use GenRandSymExcitNUMod , only : GenRandSymExcitScratchNU,GenRandSymExcitNU
-    use IntegralsData , only : fck,NMax,UMat
+    use IntegralsData , only : fck,NMax,UMat,tPartFreezeCore
     USE UMatCache , only : GTID
     USE Logging , only : iWritePopsEvery,TPopsFile,TZeroProjE,iPopsPartEvery,tBinPops,tHistSpawn,iWriteHistEvery,tHistEnergies
     USE Logging , only : NoACDets,BinRange,iNoBins,OffDiagBinRange,OffDiagMax,tPrintSpinCoupHEl!,iLagMin,iLagMax,iLagStep,tAutoCorr
@@ -589,7 +589,7 @@ MODULE FciMCParMod
                 IF(tPrintTriConnections) CALL FindTriConnections(DetCurr,CurrentDets(:,j),iLutHF,nJ,IC,Ex,pDoubles,tFilled,tParity,Scratch1,Scratch2,exflag)
 
 !Calculate number of children to spawn
-                IF(TTruncSpace.or.tTruncCAS.or.tListDets) THEN
+                IF(TTruncSpace.or.tTruncCAS.or.tListDets.or.tPartFreezeCore) THEN
 !We have truncated the excitation space at a given excitation level. See if the spawn should be allowed.
                     IF(tImportanceSample) CALL Stop_All("PerformFCIMCyc","Truncated calculations not yet working with importance sampling")
 
@@ -6189,7 +6189,7 @@ MODULE FciMCParMod
 !This is a list of options which cannot be used with the stripped-down spawning routine. New options not added to this routine should be put in this list.
         IF(tHighExcitsSing.or.tHistSpawn.or.tRegenDiagHEls.or.tFindGroundDet.or.tStarOrbs.or.tResumFCIMC.or.tSpawnAsDet.or.tImportanceSample    &
      &      .or.(.not.tRegenExcitgens).or.(.not.tNonUniRandExcits).or.(.not.tDirectAnnihil).or.tMinorDetsStar.or.tSpawnDominant.or.(DiagSft.gt.0.D0).or.   &
-     &      tPrintTriConnections.or.tHistTriConHEls.or.tCalcFCIMCPsi.or.tTruncCAS.or.tListDets) THEN
+     &      tPrintTriConnections.or.tHistTriConHEls.or.tCalcFCIMCPsi.or.tTruncCAS.or.tListDets.or.tPartFreezeCore) THEN
             WRITE(6,*) "It is not possible to use to clean spawning routine..."
         ELSE
             WRITE(6,*) "Clean spawning routine in use..."
@@ -6415,7 +6415,7 @@ MODULE FciMCParMod
             ELSEIF(iHighExcitsSing.eq.NEl) THEN
                 CALL Warning("InitFciMCCalcPar","iHighExcitsSing = NEl - this will no longer have any effect.")
             ENDIF
-            IF((.not.tNonUniRandExcits).or.tStarOrbs.or.tTruncSpace.or.tTruncCAS.or.tListDets) THEN
+            IF((.not.tNonUniRandExcits).or.tStarOrbs.or.tTruncSpace.or.tTruncCAS.or.tListDets.or.tPartFreezeCore) THEN
                 CALL Stop_All("InitFCIMCCalcPar","Cannot use HighExcitsSing without Nonuniformrandexcits, or with starorbs or truncated spaces...")
             ENDIF
         ENDIF
@@ -8266,7 +8266,8 @@ MODULE FciMCParMod
 !We pass in the excitation level of the original particle, the two representations of the excitation (we only need the bit-representation of the excitation
 !for HPHF) and the magnitude of the excitation (for determinant representation).
     LOGICAL FUNCTION CheckAllowedTruncSpawn(WalkExcitLevel,nJ,iLutnJ,IC)
-        INTEGER :: nJ(NEl),WalkExcitLevel,iLutnJ(0:NIfD),ExcitLevel,IC,iGetExcitLevel_2,i
+        USE IntegralsData , only : NPartFrozen,NHolesFrozen
+        INTEGER :: nJ(NEl),WalkExcitLevel,iLutnJ(0:NIfD),ExcitLevel,IC,iGetExcitLevel_2,i,NoInFrozenCore
         LOGICAL :: DetBitEQ
 
         CheckAllowedTruncSpawn=.true.
@@ -8344,6 +8345,28 @@ MODULE FciMCParMod
                     EXIT
                 ENDIF
             enddo
+        ENDIF
+
+        IF(tPartFreezeCore) THEN
+!Want to check if the determinant we're about to spawn on has more than the restricted number of holes in the partially frozen core.            
+
+!Run through the electrons in nJ, count the number in the partially frozen core - ie those occupying orbitals with energy (from BRR) 
+!less than that of the partially frozen core limit.
+!If this is less than NPartFrozen-NHolesFrozen then spawning is forbidden.
+            NoInFrozenCore=0
+!BRR(i)=j: orbital i is the j-th lowest in energy  
+            do i=1,NEl
+                IF(BRR(nJ(i)).le.NPartFrozen) NoInFrozenCore=NoInFrozenCore+1
+            enddo
+            IF(NoInFrozenCore.lt.(NPartFrozen-NHolesFrozen)) THEN
+!There are more holes in the partially frozen core than has been specified as allowed.
+                CheckAllowedTruncSpawn=.false.
+            ELSE
+!Either the 'partially frozen core' is completely full, or it has the allowed number of holes or less.                
+!Allowed to spawn, CheckAllowedTruncSpawn=.true.
+                CheckAllowedTruncSpawn=.true.
+            ENDIF
+
         ENDIF
 
     END FUNCTION CheckAllowedTruncSpawn
