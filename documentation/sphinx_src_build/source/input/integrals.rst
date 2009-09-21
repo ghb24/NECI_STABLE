@@ -25,6 +25,12 @@ General options
     calculation does not include determinants which contain excitations from 
     frozen core states or excitations to frozen excited states.
 
+**PARTIALLYFREEZE** [NPartFrozen NHolesFrozen]
+    Sets the number of spin orbitals in the partially frozen core, and the
+    maximum number of holes that are allowed within this core.  
+    Excitations which remove more than NHolesFrozen from the core are forbidden.
+    This is a parallel FCIMC option.
+
 **INSPECT** [SPECDET(I), I=1,NEL-NFROZEN]
     Investigate the specified determinant.
 
