@@ -3,11 +3,11 @@
          use SystemData , only : tStoreSpinOrbs
          use Parallel
          IMPLICIT NONE
-         INTEGER NEL,nBasisMax(5,*),LEN,LMS
-         INTEGER NORB,NELEC,MS2,ORBSYM(1000),ISYM,i
+         INTEGER NEL,nBasisMax(5,*),LEN,LMS,SYMLZ(1000)
+         INTEGER NORB,NELEC,MS2,ORBSYM(1000),ISYM,i,SYML(1000)
          LOGICAL TBIN,exists,UHF
          CHARACTER*3 :: fmat
-         NAMELIST /FCI/ NORB,NELEC,MS2,ORBSYM,ISYM,UHF
+         NAMELIST /FCI/ NORB,NELEC,MS2,ORBSYM,ISYM,UHF,SYML,SYMLZ
          UHF=.FALSE.
          fmat='NO'
          IF(iProcIndex.eq.0) THEN
@@ -47,6 +47,8 @@
          CALL MPIIBCast_Scal(NELEC,0)
          CALL MPIIBCast_Scal(MS2,0)
          CALL MPIIBCast(ORBSYM,1000,0)
+         CALL MPIIBCast(SYML,1000,0)
+         CALL MPIIBCast(SYMLZ,1000,0)
          CALL MPIIBCast_Scal(ISYM,0)
          CALL MPILBCast_Scal(UHF,0)
 
@@ -116,12 +118,12 @@ C.. SHow that there's no momentum conservation
          REAL*8 Z
          INTEGER*8 IND,MASK
          INTEGER I,J,K,L
-         INTEGER ISYMNUM,ISNMAX,SYMMAX
-         INTEGER NORB,NELEC,MS2,ORBSYM(1000),ISYM,ISPINS,ISPN
+         INTEGER ISYMNUM,ISNMAX,SYMMAX,SYMLZ(1000)
+         INTEGER NORB,NELEC,MS2,ORBSYM(1000),ISYM,ISPINS,ISPN,SYML(1000)
          INTEGER Counter(1:8),Index(1000),nPairs,iErr,MaxnSlot,MaxIndex
          INTEGER , ALLOCATABLE :: MaxSlots(:)
          LOGICAL TBIN,UHF
-         NAMELIST /FCI/ NORB,NELEC,MS2,ORBSYM,ISYM,UHF
+         NAMELIST /FCI/ NORB,NELEC,MS2,ORBSYM,ISYM,UHF,SYML,SYMLZ
          UHF=.FALSE.
          IF(iProcIndex.eq.0) THEN
              IF(TBIN) THEN
@@ -140,6 +142,8 @@ C.. SHow that there's no momentum conservation
          CALL MPIIBCast_Scal(NELEC,0)
          CALL MPIIBCast_Scal(MS2,0)
          CALL MPIIBCast(ORBSYM,1000,0)
+         CALL MPIIBCast(SYML,1000,0)
+         CALL MPIIBCast(SYMLZ,1000,0)
          CALL MPIIBCast_Scal(ISYM,0)
          CALL MPILBCast_Scal(UHF,0)
 
@@ -403,12 +407,12 @@ C.. set momentum to 0
          TYPE(HElement) UMatEl
          TYPE(BasisFN) G1(*)
          INTEGER I,J,K,L,BRR(NBASIS),X,Y,A,B,iCache,iCacheI,iType
-         INTEGER NORB,NELEC,MS2,ORBSYM(1000),ISYM,SYMMAX
+         INTEGER NORB,NELEC,MS2,ORBSYM(1000),ISYM,SYMMAX,SYML(1000)
          LOGICAL LWRITE,UHF,tAddtoCache,GetCachedUMatEl,tReadFreezeInts
-         INTEGER ISPINS,ISPN,ISPN2,ierr!,IDI,IDJ,IDK,IDL
+         INTEGER ISPINS,ISPN,ISPN2,ierr,SYMLZ(1000)!,IDI,IDJ,IDK,IDL
          INTEGER Counter(1:8),Index(1000),UMatSize,TMatSize
          INTEGER , ALLOCATABLE :: CacheInd(:)
-         NAMELIST /FCI/ NORB,NELEC,MS2,ORBSYM,ISYM,UHF
+         NAMELIST /FCI/ NORB,NELEC,MS2,ORBSYM,ISYM,UHF,SYML,SYMLZ
          LWRITE=.FALSE.
          UHF=.FALSE.
          ZeroedInt=0
@@ -423,6 +427,8 @@ C.. set momentum to 0
          CALL MPIIBCast_Scal(NELEC,0)
          CALL MPIIBCast_Scal(MS2,0)
          CALL MPIIBCast(ORBSYM,1000,0)
+         CALL MPIIBCast(SYML,1000,0)
+         CALL MPIIBCast(SYMLZ,1000,0)
          CALL MPIIBCast_Scal(ISYM,0)
          CALL MPILBCast_Scal(UHF,0)
 
