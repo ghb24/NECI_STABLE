@@ -8334,7 +8334,7 @@ MODULE FciMCParMod
 
         ENDIF
 
-        IF(tListDets) THEN
+        IF(tListDets.and.CheckAllowedTruncSpawn) THEN
 !This will check to see if the determinants are in a list of determinants in AllowedDetList
             CheckAllowedTruncSpawn=.false.
             IF(.not.tHPHF) THEN
@@ -8360,6 +8360,7 @@ MODULE FciMCParMod
 !BRR(i)=j: orbital i is the j-th lowest in energy  
             do i=1,NEl
                 IF(SpinInvBRR(nJ(i)).le.NPartFrozen) NoInFrozenCore=NoInFrozenCore+1
+                IF(NoInFrozenCore.eq.(NPartFrozen-NHolesFrozen)) EXIT   ! Can exit out of the loop if this is satisfied, since excitation will definitely be accepted.
             enddo
             IF(NoInFrozenCore.lt.(NPartFrozen-NHolesFrozen)) THEN
 !There are more holes in the partially frozen core than has been specified as allowed.
