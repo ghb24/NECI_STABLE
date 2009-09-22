@@ -18,7 +18,7 @@ MODULE FciMCParMod
     USE Determinants , only : FDet,GetHElement2,GetHElement4
     USE DetCalc , only : ICILevel,nDet,Det,FCIDetIndex
     use GenRandSymExcitNUMod , only : GenRandSymExcitScratchNU,GenRandSymExcitNU
-    use IntegralsData , only : fck,NMax,UMat,tPartFreezeCore
+    use IntegralsData , only : fck,NMax,UMat,tPartFreezeCore,NPartFrozen,NHolesFrozen
     USE UMatCache , only : GTID
     USE Logging , only : iWritePopsEvery,TPopsFile,TZeroProjE,iPopsPartEvery,tBinPops,tHistSpawn,iWriteHistEvery,tHistEnergies
     USE Logging , only : NoACDets,BinRange,iNoBins,OffDiagBinRange,OffDiagMax,tPrintSpinCoupHEl!,iLagMin,iLagMax,iLagStep,tAutoCorr
@@ -6355,6 +6355,10 @@ MODULE FciMCParMod
             IF(OccCASOrbs.gt.NEl) CALL Stop_All("InitFCIMCPar","Occupied orbitals in CAS space specified is greater than number of electrons")
             IF(VirtCASOrbs.gt.(nBasis-NEl)) CALL Stop_All("InitFCIMCPar","Virtual orbitals in CAS space specified is greater than number of unoccupied orbitals")
         ENDIF
+        IF(tPartFreezeCore) THEN
+            WRITE(6,'(A,I4,A,I5)') 'Partially freezing the lowest ',NPartFrozen,' spin orbitals so that no more than ',NHolesFrozen,' holes exist within this core.'
+            CALL CreateSpinInvBRR()
+        ENDIF
 
 !        IF(TAutoCorr) THEN
 !!We want to calculate the autocorrelation function over the determinants
@@ -8266,7 +8270,6 @@ MODULE FciMCParMod
 !We pass in the excitation level of the original particle, the two representations of the excitation (we only need the bit-representation of the excitation
 !for HPHF) and the magnitude of the excitation (for determinant representation).
     LOGICAL FUNCTION CheckAllowedTruncSpawn(WalkExcitLevel,nJ,iLutnJ,IC)
-        USE IntegralsData , only : NPartFrozen,NHolesFrozen
         INTEGER :: nJ(NEl),WalkExcitLevel,iLutnJ(0:NIfD),ExcitLevel,IC,iGetExcitLevel_2,i,NoInFrozenCore
         LOGICAL :: DetBitEQ
 
@@ -8356,7 +8359,7 @@ MODULE FciMCParMod
             NoInFrozenCore=0
 !BRR(i)=j: orbital i is the j-th lowest in energy  
             do i=1,NEl
-                IF(BRR(nJ(i)).le.NPartFrozen) NoInFrozenCore=NoInFrozenCore+1
+                IF(SpinInvBRR(nJ(i)).le.NPartFrozen) NoInFrozenCore=NoInFrozenCore+1
             enddo
             IF(NoInFrozenCore.lt.(NPartFrozen-NHolesFrozen)) THEN
 !There are more holes in the partially frozen core than has been specified as allowed.
