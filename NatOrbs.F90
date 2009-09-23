@@ -1154,7 +1154,7 @@ MODULE NatOrbsMod
             enddo
         ELSE
             do i=1,SpatOrbs
-                WRITE(73,'(2I5,E20.10)') i,NoOrbs-i+1,(NoOrbs-i+1)*2,Evalues(i)
+                WRITE(73,*) i,NoOrbs-i+1,(NoOrbs-i+1)*2,Evalues(i)
             enddo
         ENDIF
         CLOSE(73)

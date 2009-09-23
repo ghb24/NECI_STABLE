@@ -10,9 +10,12 @@ MODULE Logging
     LOGICAL TDistrib,TPopsFile,TCalcWavevector,TDetPops,tROFciDump,tROHistOffDiag,tROHistDoubExc,tROHistOnePartOrbEn
     LOGICAL TZeroProjE,TWriteDetE,TAutoCorr,tBinPops,tROHistogramAll,tROHistER,tHistSpawn,tROHistSingExc,tRoHistOneElInts
     LOGICAL tROHistVirtCoulomb,tPrintInts,tHistEnergies,tPrintTriConnections,tHistTriConHEls,tPrintHElAccept,tTruncRODump
-    LOGICAL tPrintFCIMCPsi,tCalcFCIMCPsi,tPrintSpinCoupHEl
+    LOGICAL tPrintFCIMCPsi,tCalcFCIMCPsi,tPrintSpinCoupHEl,tIterStartBlock,tHFPopStartBlock
     INTEGER NoACDets(2:4),iPopsPartEvery,iWriteHistEvery,iNoBins,NoTriConBins,NoTriConHElBins,NoFrozenVirt,NHistEquilSteps
     INTEGER CCMCDebug !CCMC Debugging Level 0-6.  Default 0
+    INTEGER IterStartBlocking,HFPopStartBlocking
+
+
 
     contains
 
@@ -72,6 +75,11 @@ MODULE Logging
       tCalcFCIMCPsi=.false.
       NHistEquilSteps=0
       CCMCDebug=0
+      tHFPopStartBlock=.true.
+      tIterStartBlock=.false.
+      IterStartBlocking=0
+      HFPopStartBlocking=1000
+
 
 ! Feb08 defaults
       IF(Feb08) THEN
@@ -99,6 +107,31 @@ MODULE Logging
         end if
         call readu(w)
         select case(w)
+
+        case("ERRORBLOCKING")
+!Performs blocking analysis on the errors in the instantaneous projected energy to get the error involved.
+!This is default on, but can be turned off with this keyword followed by OFF.
+            IF(item.lt.nitems) THEN
+                call readu(w)
+                select case(w)
+                    case("OFF")
+                        tHFPopStartBlock=.false.
+                end select
+            ELSE
+                tHFPopStartBlock=.true.
+            ENDIF
+
+        case("BLOCKINGSTARTITER")
+!This keyword can be used if we want to start the blocking error analysis at a particular iteration.            
+            tIterStartBlock=.true.
+            tHFPopStartBlock=.false.
+            call readi(IterStartBlocking)
+
+        case("BLOCKINGSTARTHFPOP")            
+!This keyword can be used if we want to start the blocking error analysis at a particular HF population.
+!The current default is 100.
+            tHFPopStartBlock=.true.
+            call readi(HFPopStartBlocking)
  
         case("ROFCIDUMP")
 !Turning this option on prints out a new FCIDUMP file at the end of the orbital rotation.  At the moment, the rotation is very slow

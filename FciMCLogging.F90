@@ -13,6 +13,7 @@ MODULE FciMCLoggingMod
     USE SymData , only : nSymLabels
     USE Determinants , only : GetHElement3,GetHElement4
     use GenRandSymExcitNUMod , only : GenRandSymExcitScratchNU
+    USE CalcData , only : NMCyc,StepsSft
 
     IMPLICIT NONE
     save
@@ -29,10 +30,161 @@ MODULE FciMCLoggingMod
     REAL*8 :: NoNotAccept,NoAccept,TotHElNotAccept,TotHElAccept,MaxHElNotAccept,MinHElAccept
     REAL*8 :: NoPosSpinCoup,NoNegSpinCoup,SumPosSpinCoup,SumNegSpinCoup,SumHFCon,SumSpinCon
 
+    REAL*8 , ALLOCATABLE :: CurrBlockSum(:),BlockSum(:),BlockSqrdSum(:)
+    INTEGER :: CurrBlockSumTag,BlockSumTag,BlockSqrdSumTag,TotNoBlockSizes,StartBlockIter
 
 
 
     contains
+
+
+    SUBROUTINE InitErrorBlocking(Iter)
+        CHARACTER(len=*), PARAMETER :: this_routine='InitErrorBlocking'
+        INTEGER :: ierr,Iter
+
+! First want to find out how many different block sizes we will get if the calculation goes to completion. 
+! The number of iterations we are doing the blocking for is NMCYC - the current iteration.
+! The current iteration is the iteration when this routine is called - i.e. when the blocking analysis starts - the default will
+! be when the HF population reaches 100.  This prevents problems faced when the HF walker dies.
+
+! The block sizes increase in powers of 2.  The number of blocks is therefore log base 2 of the number of iterations.
+
+! log_2(Iteration) = log_10(Iteration) / log_10(2)
+
+        StartBlockIter=Iter 
+        ! This is the iteration the blocking was started.
+
+        TotNoBlockSizes=FLOOR( (LOG10((REAL(NMCyc-StartBlockIter))/(REAL(StepsSft)))) / (LOG10(2.D0)) )
+        WRITE(6,*) 'Beginning blocking analysis of the errors in the projected energies.'
+        WRITE(6,"(A,I6)") "The total number of different block sizes possible is: ",TotNoBlockSizes
+        ! The blocks will have size 1,2,4,8,....,2**TotNoBlockSizes
+        ! In the below arrays, the element i will correspond to block size 2**(i), but the arrays go from 0 -> TotNoBlockSizes.
+
+! Then need to allocate three arrays of this size - one for the current block, one for the sum of the blocks over the elapsed cycles,
+! and one for the sum of the squares of the blocks over the elapsed iterations.
+
+        ALLOCATE(CurrBlockSum(0:TotNoBlockSizes),stat=ierr)
+        CALL LogMemAlloc('CurrBlockSum',TotNoBlockSizes,8,this_routine,CurrBlockSumTag,ierr)
+        IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating CurrBlockSum.')
+        CurrBlockSum(:)=0.D0
+ 
+        ALLOCATE(BlockSum(0:TotNoBlockSizes),stat=ierr)
+        CALL LogMemAlloc('BlockSum',TotNoBlockSizes,8,this_routine,BlockSumTag,ierr)
+        IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating BlockSum.')
+        BlockSum(:)=0.D0
+ 
+        ALLOCATE(BlockSqrdSum(0:TotNoBlockSizes),stat=ierr)
+        CALL LogMemAlloc('BlockSqrdSum',TotNoBlockSizes,8,this_routine,BlockSqrdSumTag,ierr)
+        IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating BlockSqrdSum.')
+        BlockSqrdSum(:)=0.D0
+
+    END SUBROUTINE InitErrorBlocking
+
+
+
+
+    SUBROUTINE SumInErrorContrib(Iter,AllENumCyc,AllHFCyc)
+        INTEGER :: i,Iter,NoContrib
+        REAL*8 :: AllENumCyc,AllHFCyc
+
+! First we need to find out what number contribution to the blocking this is.
+        NoContrib=((Iter-StartBlockIter)/StepsSft)+1
+
+! We then need to add the contribution from this cycle to all the relevant blocks.        
+        
+        do i=0,TotNoBlockSizes
+
+! First of all sum the energy contributions into each of the blocks.
+            CurrBlockSum(i)=CurrBlockSum(i)+(AllENumCyc/AllHFCyc)
+            ! The values contained in this array is the sum of the energy contributions to that block.
+            ! They have not been divided by the number of contributions yet.
+
+            ! Find out if we have completed a block.
+            ! If we have, then add the average value from that block to the overall sum array (BlockSum),
+            ! and zero the CurrBlockSum.
+            IF(MOD(NoContrib,(2**i)).eq.0) THEN
+                BlockSum(i)=BlockSum(i)+(CurrBlockSum(i)/(2**i))
+                BlockSqrdSum(i)=BlockSqrdSum(i)+((CurrBlockSum(i)/(2**i))**2)
+                CurrBlockSum(i)=0.D0
+            ENDIF
+
+        enddo
+
+    END SUBROUTINE SumInErrorContrib
+
+
+
+    SUBROUTINE PrintBlocking(Iter)
+        INTEGER :: i,NoBlocks,Iter,NoBlockSizes,NoContrib
+        REAL*8 :: MeanEn,MeanEnSqrd,StandardDev,Error,ErrorinError
+
+!First find out how many blocks would have been formed with the number of iterations actually performed. 
+
+        NoContrib=0
+        NoContrib=((Iter-StartBlockIter)/StepsSft)+1
+
+        NoBlockSizes=0
+        NoBlockSizes=FLOOR( (LOG10(REAL(NoContrib-1)))/ (LOG10(2.D0)))
+
+        OPEN(62,file='BLOCKINGANALYSIS',status='unknown')
+        WRITE(62,'(I4,A,I4)') NoBlockSizes,' blocks were formed with sizes from 1 to ',(2**(NoBlockSizes))
+        WRITE(62,'(3A16,5A20)') '1.Block No.','2.Block Size  ','3.No. of Blocks','4.Mean E','5.Mean E^2','6.SD','7.Error','8.ErrorinError'
+
+        do i=0,NoBlockSizes
+            
+            ! First need to find out how many blocks of this particular size contributed to the final sum in BlockSum.
+            ! NoContrib is the total number of contributions to the blocking throughout the simulation.
+
+            NoBlocks=0
+            NoBlocks=FLOOR(REAL(NoContrib/(2**i)))
+            ! This finds the lowest integer multiple of 2**i (the block size). 
+
+            MeanEn=BlockSum(i)/REAL(NoBlocks)
+            MeanEnSqrd=BlockSqrdSum(i)/REAL(NoBlocks)
+
+            StandardDev=SQRT(MeanEnSqrd-(MeanEn**2))
+            IF(StandardDev.eq.0.D0) THEN
+                Error=0.D0
+                ErrorinError=0.D0
+            ELSE
+                Error=StandardDev/SQRT(REAL(NoBlocks-1))
+                ErrorinError=Error/SQRT(2.D0*(REAL(NoBlocks-1)))
+            ENDIF
+
+!This is from the blocking paper, and indicates the error in the blocking error, due to the limited number of blocks available.
+
+            WRITE(62,'(3I16,5F20.10)') i,(2**i),NoBlocks,MeanEn,MeanEnSqrd,StandardDev,Error,ErrorinError
+            
+        enddo
+
+        CLOSE(62)
+
+
+    END SUBROUTINE PrintBlocking
+
+
+
+
+    SUBROUTINE FinaliseBlocking(Iter)
+        INTEGER :: Iter
+        CHARACTER(len=*), PARAMETER :: this_routine='FinaliseBlocking'
+
+
+        CALL PrintBlocking(Iter)
+
+        DEALLOCATE(CurrBlockSum)
+        CALL LogMemDeAlloc(this_routine,CurrBlockSumTag)
+ 
+        DEALLOCATE(BlockSum)
+        CALL LogMemDeAlloc(this_routine,BlockSumTag)
+ 
+        DEALLOCATE(BlockSqrdSum)
+        CALL LogMemDeAlloc(this_routine,BlockSqrdSumTag)
+ 
+
+    END SUBROUTINE FinaliseBlocking
+
+
 
 
     SUBROUTINE InitTriHElStats()

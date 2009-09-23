@@ -23,6 +23,7 @@ MODULE FciMCParMod
     USE Logging , only : iWritePopsEvery,TPopsFile,TZeroProjE,iPopsPartEvery,tBinPops,tHistSpawn,iWriteHistEvery,tHistEnergies
     USE Logging , only : NoACDets,BinRange,iNoBins,OffDiagBinRange,OffDiagMax,tPrintSpinCoupHEl!,iLagMin,iLagMax,iLagStep,tAutoCorr
     USE Logging , only : tPrintTriConnections,tHistTriConHels,tPrintHElAccept,tPrintFCIMCPsi,tCalcFCIMCPsi,NHistEquilSteps
+    USE Logging , only : tHFPopStartBlock,tIterStartBlock,IterStartBlocking,HFPopStartBlocking
     USE SymData , only : nSymLabels
     USE mt95 , only : genrand_real2
     USE Parallel
@@ -37,7 +38,7 @@ MODULE FciMCParMod
         use soft_exit, only : ChangeVars 
         use CalcData, only : iFullSpaceIter
         use UMatCache, only : UMatInd
-        use FciMCLoggingMOD , only : PrintTriConnHist,PrintTriConnHElHist
+        use FciMCLoggingMOD , only : PrintTriConnHist,PrintTriConnHElHist,FinaliseBlocking
         use RotateOrbsMod , only : RotateOrbs
         TYPE(HDElement) :: Weight,Energyxw
         INTEGER :: i,j,error,HFConn
@@ -158,6 +159,8 @@ MODULE FciMCParMod
             ENDIF
         ENDIF
 
+        IF(tErrorBlocking) CALL FinaliseBlocking(Iter)
+
         IF(tHistSpawn) CALL WriteHistogram()
 
         Weight=HDElement(0.D0)
@@ -176,7 +179,7 @@ MODULE FciMCParMod
 
         IF(tPrintTriConnections) CALL PrintTriConnHist
         IF(tHistTriConHEls) CALL PrintTriConnHElHist
-        
+
 !        IF(TAutoCorr) CALL CalcAutoCorr()
 
 !Deallocate memory
@@ -5248,7 +5251,7 @@ MODULE FciMCParMod
 !Every StepsSft steps, update the diagonal shift value (the running value for the correlation energy)
 !We don't want to do this too often, since we want the population levels to acclimatise between changing the shifts
     SUBROUTINE CalcNewShift()
-        USE FciMCLoggingMOD , only : PrintSpawnAttemptStats,PrintTriConnStats,PrintSpinCoupHEl
+        USE FciMCLoggingMOD , only : PrintSpawnAttemptStats,PrintTriConnStats,PrintSpinCoupHEl,InitErrorBlocking,SumInErrorContrib
         INTEGER :: error,rc,MaxAllowedWalkers,MaxWalkersProc,MinWalkersProc
         INTEGER :: inpair(9),outpair(9)
         REAL*8 :: TempTotWalkers,TempTotParts
@@ -5554,6 +5557,27 @@ MODULE FciMCParMod
         AccRat=(REAL(Acceptances,r2))/TempSumWalkersCyc      !The acceptance ratio which is printed is only for the current node - not summed over all nodes
 
         CALL WriteFCIMCStats()
+
+
+!This first bit checks if it is time to set up the blocking analysis.  This is obviously only done once, so these logicals become false once it is done. 
+        IF(iProcIndex.eq.Root) THEN
+            IF(tIterStartBlock) THEN
+                IF(Iter.ge.IterStartBlocking) THEN 
+                    CALL InitErrorBlocking(Iter)
+                    tIterStartBlock=.false.
+                    tErrorBlocking=.true.
+                ENDIF
+            ELSEIF(tHFPopStartBlock) THEN
+                IF(AllHFCyc.ge.HFPopStartBlocking) THEN
+                    CALL InitErrorBlocking(Iter)
+                    tHFPopStartBlock=.false.
+                    tErrorBlocking=.true.
+                ENDIF
+            ENDIF
+
+!Then we perform the blocking at the end of each update cycle.         
+            IF(tErrorBlocking) CALL SumInErrorContrib(Iter,AllENumCyc,AllHFCyc)
+        ENDIF
 
         IF(tPrintTriConnections) CALL PrintTriConnStats(Iter+PreviousCycles)
         IF(tPrintSpinCoupHEl) CALL PrintSpinCoupHEl(Iter+PreviousCycles)

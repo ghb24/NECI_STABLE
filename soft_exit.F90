@@ -54,12 +54,13 @@ contains
        use IntegralsData , only : tPartFreezeCore,NPartFrozen,NHolesFrozen
        use Parallel
        use Input
-       use Logging, only: tHistSpawn,tCalcFCIMCPsi
+       use Logging, only: tHistSpawn,tCalcFCIMCPsi,tIterStartBlock,IterStartBlocking,tHFPopStartBlock
+       use FCIMCLoggingMOD, only : PrintBlocking
        use SystemData, only: nBasis
        implicit none
        integer :: error,i,ios,NewNMCyc
        logical :: tSoftExitFound,tWritePopsFound,exists,AnyExist,deleted_file
-       logical :: tEof,any_deleted_file,tChangeParams(14),tSingBiasChange
+       logical :: tEof,any_deleted_file,tChangeParams(16),tSingBiasChange
        Character(len=100) :: w
 
        tSoftExitFound=.false.
@@ -75,8 +76,7 @@ contains
                WRITE(6,*) "CHANGEVARS file detected on iteration ",Iter
            ENDIF
 !Set the defaults
-           tChangeParams(1:14)=.false.
-
+           tChangeParams(1:16)=.false.
            deleted_file=.false.
            do i=0,nProcessors-1
                ! This causes each processor to attempt to delete
@@ -132,6 +132,10 @@ contains
                            tChangeParams(14)=.true.
                            CALL Readi(NPartFrozen)
                            CALL Readi(NHolesFrozen)
+                       CASE("PRINTERRORBLOCKING")
+                           tChangeParams(15)=.true.
+                       CASE("STARTERRORBLOCKING")
+                           tChangeParams(16)=.true.
                        END SELECT
                    End Do
                    close(13,status='delete')
@@ -140,7 +144,7 @@ contains
                call MPI_AllReduce(deleted_file,any_deleted_file,1,MPI_LOGICAL,MPI_LOR,MPI_COMM_WORLD,error)
                if (any_deleted_file) exit
            end do
-           CALL MPI_BCast(tChangeParams,14,MPI_LOGICAL,i,MPI_COMM_WORLD,error)
+           CALL MPI_BCast(tChangeParams,16,MPI_LOGICAL,i,MPI_COMM_WORLD,error)
 
            IF(tChangeParams(1)) THEN
 !Change Tau
@@ -294,6 +298,20 @@ contains
                    ENDIF
                ELSE
                    tPartFreezeCore=.true.
+               ENDIF
+           ENDIF
+           IF(tChangeParams(15)) THEN
+               WRITE(6,*) 'Printing blocking analysis at this point.'
+               IF(iProcIndex.eq.0) CALL PrintBlocking(Iter)
+           ENDIF
+           IF(tChangeParams(16)) THEN
+               IF((.not.tHFPopStartBlock).and.(.not.tIterStartBlock)) THEN
+                   WRITE(6,*) 'Error blocking already started'
+                   ! Don't want to re-call the init routine.
+                   ! If both have these have been turned off, then this is true.
+               ELSE
+                   tIterStartBlock=.true.
+                   IterStartBlocking=Iter
                ENDIF
            ENDIF
        endif
