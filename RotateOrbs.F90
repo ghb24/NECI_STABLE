@@ -4632,7 +4632,7 @@ MODULE RotateOrbsMod
 !        enddo
 
         FOCKDiagSumNew=0.D0
-        do j=1,NoOrbs
+        do j=1,NoRotOrbs
             l=SymLabelList3(j)
             IF(tUseMP2VarDenMat.or.tFindCINatOrbs) THEN
                 ArrDiagNew(l)=0.D0
@@ -4745,9 +4745,18 @@ MODULE RotateOrbsMod
 
 
     SUBROUTINE RefillUMATandTMAT2D()
-        INTEGER :: l,k,j,i,a,b,g,d,c,BinNo,l2,k2,j2,i2,nBasis2
-        REAL*8 :: NewTMAT,NewTMAT02,TMAT2DPart((nBasis-(NoFrozenVirt*2)),nBasis)
+        INTEGER :: l,k,j,i,a,b,g,d,c,BinNo,l2,k2,j2,i2,nBasis2,TMAT2DPartTag,ierr
+        REAL*8 :: NewTMAT,NewTMAT02
+        REAL*8 , ALLOCATABLE :: TMAT2DPart(:,:)
 
+        IF(tStoreSpinOrbs) THEN
+            ALLOCATE(TMAT2DPart((nBasis-NoFrozenVirt),nBasis),stat=ierr)
+            CALL LogMemAlloc('TMAT2DPart',(nBasis-NoFrozenVirt)*nBasis,8,'RefillUMAT',TMAT2DPartTag,ierr)
+        ELSE
+            ALLOCATE(TMAT2DPart((nBasis-(NoFrozenVirt*2)),nBasis),stat=ierr)
+            CALL LogMemAlloc('TMAT2DPart',(nBasis-(NoFrozenVirt*2))*nBasis,8,'RefillUMAT',TMAT2DPartTag,ierr)
+        ENDIF
+        TMAT2DPart(:,:)=0.D0
 
         RefillUMAT_Time%timer_name='RefillUMATandTMAT'
         CALL set_timer(RefillUMAT_Time,30)
@@ -4883,6 +4892,9 @@ MODULE RotateOrbsMod
 !        enddo
 !        CALL FLUSH(6)
 !        stop
+
+        DEALLOCATE(TMAT2DPart)
+        CALL LogMemDeAlloc('RefillUMAT',TMAT2DPartTag)
 
 
         IF(tROHistSingExc) CALL WriteSingHisttofile()

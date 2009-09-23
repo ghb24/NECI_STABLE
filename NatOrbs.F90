@@ -1007,7 +1007,7 @@ MODULE NatOrbsMod
         USE Logging , only : tTruncRODump,NoFrozenVirt
         IMPLICIT NONE
         REAL*8 :: EvaluesTrunc(NoOrbs-NoFrozenVirt)
-        INTEGER :: x,i,j,ier,ierr,StartSort,EndSort,NoRotAlphBet,NoOcc
+        INTEGER :: x,i,j,k,ier,ierr,StartSort,EndSort,NoRotAlphBet,NoOcc
         CHARACTER(len=*), PARAMETER :: this_routine='OrderandFillCoeffT1'
         
 
@@ -1146,13 +1146,17 @@ MODULE NatOrbsMod
 
         OPEN(73,FILE='EVALUES',status='unknown')
         WRITE(73,*) NoOrbs
-        do i=1,NoOrbs
-            IF(tStoreSpinOrbs) THEN
-                WRITE(73,*) i,NoOrbs-i+1,Evalues(i)
-            ELSE
-                WRITE(73,*) i,NoOrbs-i+1,(NoOrbs-i+1)*2,Evalues(i)
-            ENDIF
-        enddo
+        IF(tStoreSpinOrbs) THEN
+            k=0
+            do i=1,NoOrbs,2
+                k=k+1
+                WRITE(73,'(I5,E20.10,I5,E20.10)') i,Evalues(k),i+1,Evalues(k+SpatOrbs)
+            enddo
+        ELSE
+            do i=1,SpatOrbs
+                WRITE(73,'(2I5,E20.10)') i,NoOrbs-i+1,(NoOrbs-i+1)*2,Evalues(i)
+            enddo
+        ENDIF
         CLOSE(73)
 
         OPEN(74,FILE='EVALUES-TRUNC',status='unknown')
