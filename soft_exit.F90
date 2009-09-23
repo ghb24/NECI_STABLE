@@ -51,6 +51,7 @@ contains
        use FciMCData, only : Iter,CASMin,CASMax,tTruncSpace,tSinglePartPhase,SumENum,SumNoatHF,HFPopCyc,ProjEIterSum,Histogram,AvAnnihil
        use CalcData, only : Tau,DiagSft,SftDamp,StepsSft,SinglesBias,OccCASOrbs,VirtCASOrbs,NMCyc,tTruncCAS
        use DetCalc, only : ICILevel 
+       use IntegralsData , only : tPartFreezeCore,NPartFrozen,NHolesFrozen
        use Parallel
        use Input
        use Logging, only: tHistSpawn,tCalcFCIMCPsi
@@ -58,7 +59,7 @@ contains
        implicit none
        integer :: error,i,ios,NewNMCyc
        logical :: tSoftExitFound,tWritePopsFound,exists,AnyExist,deleted_file
-       logical :: tEof,any_deleted_file,tChangeParams(13),tSingBiasChange
+       logical :: tEof,any_deleted_file,tChangeParams(14),tSingBiasChange
        Character(len=100) :: w
 
        tSoftExitFound=.false.
@@ -74,7 +75,7 @@ contains
                WRITE(6,*) "CHANGEVARS file detected on iteration ",Iter
            ENDIF
 !Set the defaults
-           tChangeParams(1:13)=.false.
+           tChangeParams(1:14)=.false.
 
            deleted_file=.false.
            do i=0,nProcessors-1
@@ -127,8 +128,11 @@ contains
                            tChangeParams(12)=.true.
                        CASE("ZEROHIST")
                            tChangeParams(13)=.true.
+                       CASE("PARTIALLYFREEZE")
+                           tChangeParams(14)=.true.
+                           CALL Readi(NPartFrozen)
+                           CALL Readi(NHolesFrozen)
                        END SELECT
-
                    End Do
                    close(13,status='delete')
                    deleted_file=.true.
@@ -136,7 +140,7 @@ contains
                call MPI_AllReduce(deleted_file,any_deleted_file,1,MPI_LOGICAL,MPI_LOR,MPI_COMM_WORLD,error)
                if (any_deleted_file) exit
            end do
-           CALL MPI_BCast(tChangeParams,13,MPI_LOGICAL,i,MPI_COMM_WORLD,error)
+           CALL MPI_BCast(tChangeParams,14,MPI_LOGICAL,i,MPI_COMM_WORLD,error)
 
            IF(tChangeParams(1)) THEN
 !Change Tau
@@ -277,6 +281,20 @@ contains
            IF(tChangeParams(13)) THEN
                Histogram(:)=0.D0
                IF(tHistSpawn) AvAnnihil(:)=0.D0
+           ENDIF
+           IF(tChangeParams(14)) THEN
+               CALL MPI_BCast(NPartFrozen,1,MPI_INTEGER,i,MPI_COMM_WORLD,error)
+               CALL MPI_BCast(NHolesFrozen,1,MPI_INTEGER,i,MPI_COMM_WORLD,error)
+               IF(iProcIndex.eq.0) WRITE(6,'(A,I4,A,I4,A)') 'Allowing ',NHolesFrozen,' holes in ',NPartFrozen,' partially frozen orbitals.'
+               IF(NHolesFrozen.eq.NPartFrozen) THEN
+                   ! Allowing as many holes as there are orbitals - equivalent to not freezing at all.
+                   tPartFreezeCore=.false.
+                   IF(iProcIndex.eq.0) THEN
+                       WRITE(6,*) 'Unfreezing any partially frozen core.'
+                   ENDIF
+               ELSE
+                   tPartFreezeCore=.true.
+               ENDIF
            ENDIF
        endif
 
