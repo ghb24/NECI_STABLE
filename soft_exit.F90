@@ -55,12 +55,12 @@ contains
        use Parallel
        use Input
        use Logging, only: tHistSpawn,tCalcFCIMCPsi,tIterStartBlock,IterStartBlocking,tHFPopStartBlock
-       use FCIMCLoggingMOD, only : PrintBlocking
+       use FCIMCLoggingMOD, only : PrintBlocking,RestartBlocking
        use SystemData, only: nBasis
        implicit none
        integer :: error,i,ios,NewNMCyc
        logical :: tSoftExitFound,tWritePopsFound,exists,AnyExist,deleted_file
-       logical :: tEof,any_deleted_file,tChangeParams(16),tSingBiasChange
+       logical :: tEof,any_deleted_file,tChangeParams(17),tSingBiasChange
        Character(len=100) :: w
 
        tSoftExitFound=.false.
@@ -76,7 +76,7 @@ contains
                WRITE(6,*) "CHANGEVARS file detected on iteration ",Iter
            ENDIF
 !Set the defaults
-           tChangeParams(1:16)=.false.
+           tChangeParams(1:17)=.false.
            deleted_file=.false.
            do i=0,nProcessors-1
                ! This causes each processor to attempt to delete
@@ -136,6 +136,8 @@ contains
                            tChangeParams(15)=.true.
                        CASE("STARTERRORBLOCKING")
                            tChangeParams(16)=.true.
+                       CASE("RESTARTERRORBLOCKING")
+                           tChangeParams(17)=.true.
                        END SELECT
                    End Do
                    close(13,status='delete')
@@ -144,7 +146,7 @@ contains
                call MPI_AllReduce(deleted_file,any_deleted_file,1,MPI_LOGICAL,MPI_LOR,MPI_COMM_WORLD,error)
                if (any_deleted_file) exit
            end do
-           CALL MPI_BCast(tChangeParams,16,MPI_LOGICAL,i,MPI_COMM_WORLD,error)
+           CALL MPI_BCast(tChangeParams,17,MPI_LOGICAL,i,MPI_COMM_WORLD,error)
 
            IF(tChangeParams(1)) THEN
 !Change Tau
@@ -313,6 +315,10 @@ contains
                    tIterStartBlock=.true.
                    IterStartBlocking=Iter
                ENDIF
+           ENDIF
+           IF(tChangeParams(17)) THEN
+               WRITE(6,*) 'Restarting the error calculations.  All blocking arrays are re-set to zero.'
+               IF(iProcIndex.eq.0) CALL RestartBlocking(Iter)
            ENDIF
        endif
 

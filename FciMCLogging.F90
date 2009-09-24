@@ -82,6 +82,24 @@ MODULE FciMCLoggingMod
 
 
 
+    SUBROUTINE RestartBlocking(Iter)
+        INTEGER :: Iter
+
+        StartBlockIter=0
+        StartBlockIter=Iter+StepsSft
+        ! ChangeVars gets called at the end of the run, wont actually start until the next iteration.
+
+        TotNoBlockSizes=0
+        TotNoBlockSizes=FLOOR( (LOG10((REAL(NMCyc-StartBlockIter))/(REAL(StepsSft)))) / (LOG10(2.D0)) )
+
+        CurrBlockSum(:)=0.D0
+        BlockSum(:)=0.D0
+        BlockSqrdSum(:)=0.D0
+
+    END SUBROUTINE RestartBlocking
+
+
+
 
     SUBROUTINE SumInErrorContrib(Iter,AllENumCyc,AllHFCyc)
         INTEGER :: i,Iter,NoContrib
@@ -161,6 +179,7 @@ MODULE FciMCLoggingMod
 
 
     END SUBROUTINE PrintBlocking
+
 
 
 
