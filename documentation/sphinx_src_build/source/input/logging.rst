@@ -200,6 +200,13 @@ FCIMC options
     or the full space if not specified), and then histogram the spawning run, writing out the final
     averaged wavefunction at the end.
 
+**HISTEQUILSTEPS** [NHistEquilSteps]
+    Default=.false. [0]
+    This works when the evolving wavefunction is to be histogrammed (for example using the above 
+    **PRINTFCIMCPSI** option, or the **USECINATORBS** orbital rotation option).  
+    This sets the histogramming to only begin after NHistEquilSteps iterations.  This is so that the 
+    fluctuation populations at the beginning of a calculation may be left out.
+
 **WRITEDETE** [NoHistBins] [MaxHistE]
     This is an FCIMC option and will write out a histogram of the energies of determinants which have
     had particles spawned at them and their excitation level. The histogram logs the total
@@ -230,6 +237,12 @@ FCIMC options
     This option prints out a file (HElsAcceptance) containing information about the nature of the H elements 
     resulting in accepted and not accepted spawns.  This includes the number of not accepted spawns vs accepted, 
     and the average size of the H element involved in accepted and not accepted spawns. 
+
+**PRINTSPINCOUPHELS**
+    Default=.false.
+    When attempting to spawn on a determinant i, this option finds the determinant j which is spin coupled to i, and 
+    prints out a set of stats relating to the sign and magnitude of the H element connecting i and j, Hij.
+    These stats are printed in a file named SpinCoupHEl.
 
 **CCMCDEBUG** iCCMCDebug
     Specify the CCMC debug level.  Default 0 (no debugging information printed).  Higher numbers will generate more
@@ -271,6 +284,36 @@ Monte Carlo options
     the error in the blocks(where the blocks are the energy ratio),
     and the full error, treating the energy estimator as a correlated
     ratio of two quantities.
+
+**ERRORBLOCKING** [OFF]
+    Default= ErrorBlocking.true. 
+    This can be used to turn off the error blocking analysis that is peformed 
+    by default on parallel FCIMC calculations.  The default error blocking 
+    begins when the sum of the HF population over an update cycle reaches 1000.  
+    At the end of the simulation a BLOCKINGANALYSIS file is printed containing
+    a list of block sizes with the resulting average of the projected energies 
+    calculated over an update cycle, the error in this energy and the error on 
+    the calculated error due to the block size.
+
+**BLOCKINGSTARTHFPOP** [HFPopStartBlocking]
+    Default=1000
+    This can be used to change the HF population that triggers the start of the
+    error blocking analysis.  Using this keyword over rides the default, and 
+    the blocking starts when the sum of the HF pop over an update cycle reaches 
+    HFPopStartBlocking.
+
+**BLOCKINGSTARTITER** [IterStartBlocking]
+    Default=.false.
+    This can be used to set the error blocking to begin at iteration number 
+    IterStartBlocking, rather than a particular HF population.
+
+    The error blocking may also be initiated instantly by using **STARTERRORBLOCKING**
+    in the CHANGEVARS file.  Additionally, **PRINTERRORBLOCKING** will print the 
+    BLOCKINGANALYSIS file at that point, yet the calculation (and blocking) will 
+    continue (note - this file will be overwritten when the calculation ends and the 
+    final blocking stats are printed, so it must be renamed if it is to be kept).  
+    **RESTARTERRORBLOCKING** in the CHANGEVARS file zeroes all the 
+    blocking arrays and starts again from that point in the calculation.
 
 **VERTEX** [**EVERY** n]
     Log the vertex MC with :math:`\tilde{E}` every n (real) cycles
@@ -336,6 +379,10 @@ Rotate Orbs Options
 **ROHISTONEPARTORBEN** [OFF]
     Histograms the one particle orbital energies, epsilon_i = <i|h|i> + sum_j [<ij||ij>],
     where j is over the occupied orbitals only.
+
+**ROHISTVIRTCOULOMB** [OFF]
+    Histograms the two electron coulomb integrals <ij|ij> where i and j are both virtual spatial orbitals
+    and i<j.
     
 **TRUNCROFCIDUMP** [NoFrozenOrbs]    
     This option goes along with the **USEMP2VDM** rotation option.  Having diagonalised the MP2VDM

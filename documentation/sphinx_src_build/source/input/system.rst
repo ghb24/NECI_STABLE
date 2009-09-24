@@ -449,6 +449,18 @@ Type of rotation / localisation:
     This method finds the linear combination that minimise the antisymmetrised double excitation 
     hamiltonian elements, <ij|kl> - <ij|lk>.
 
+**HFSINGDOUBEXCMAX** 
+    This minimises the square of the four index integrals corresponding to single or double
+    excitations from the HF determinant.  I.e. Integrals of the form <ij|kl> where i and j
+    are orbitals occupied in the HF determinant, and either k and l are both virtual, or k=i
+    or l=j, but not both at once.
+
+**VIRTCOULOMBMAX**
+    This maximises the sum of the <ij|ij> terms where i and j are both virtual spatial orbitals.
+
+**VIRTEXCHANGEMIN**
+    This minimises the sum of the <ij|ji> terms where i and j are both virtual spatial orbitals.
+
 **ERLOCALIZATION** [ERWeight](optional)
     This method performs a Edmiston-Reudenberg localisation.  It finds the coefficients 
     that maximise the sum of the self-repulsion (<ii|ii>) terms.
@@ -462,14 +474,24 @@ Type of rotation / localisation:
     will be used.
     These weights are also redundant if only one of the keywords is present.
 
-**ONEELINTMAX** 
-    This maximises the sum of the <i|h|i>, one electron integral values.
-
 **ONEPARTORBENMAX** [Alpha]
     This maximises the sum of (e_i - e_min)^alpha, where e_i are the fock, one particle orbital
     energies ( e_i = <i|h|i> + sum_j [<ij||ij>] ), and e_min is currently the energy of the 
     HF LUMO.  
     Alpha is a real value specified in the input, with a default value of 1.0.
+
+**ONEELINTMAX** 
+    This maximises the sum of the <i|h|i>, one electron integral values.
+
+**HIJSQRDMIN**
+    This minimises the square of the one electron integrals, <i|h|j>.  Currently i can be occupied 
+    or virtual, but j can only be virtual, i=<j.
+
+**DIAGONALIZEHIJ**
+    This option takes the <i|h|j> matrix of one electron integrals in the HF orbital basis and 
+    diagonalises it.  It then uses the eigenvectors as the transformation matrix to form a set
+    of new orbitals which have a diagonal <i|h|j> matrix.  This is the extreme case of minimising
+    the off diagonal <i|h|j> matrix elements.
 
 **READINTRANSMAT**
     With this option, a TRANSFORMMAT file must be provided which contains the transformation 
@@ -546,6 +568,13 @@ Additional options:
     Much like **SHAKEITER**, the presence of this keyword overrides the convergence criteria 
     on the force, and instead runs for the number of iterations specified here.
     Note: A SOFTEXIT is also an option in this method.
+
+**SPINORBS** 
+    Default=.false.
+    This option ensures that spin orbitals are used in the rotation - as is required for open shell
+    systems for example.
+    IF UHF=.true. is present in the FCIDUMP file, this will be turned on automatically, but in special
+    cases where this is not present and we still want to use spin orbitals, this keyword should be used.
 
 **SEPARATEOCCVIRT** 
     If present, this keyword separates the orbitals into occupied and virtual and does not 

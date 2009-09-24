@@ -604,6 +604,7 @@ MODULE System
 
         case("SPINORBS")
 ! This flag simply uses spin orbitals to perform the rotation rather than spatial orbitals.
+! IF UHF=.true. is present in the FCIDUMP file, this will happen automatically, otherwise this keyword is required.
             tSpinOrbs=.true.
 
         case("READINTRANSMAT")

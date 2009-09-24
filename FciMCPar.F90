@@ -10614,7 +10614,7 @@ MODULE FciMCParMod
 
     SUBROUTINE InitGuidingFunction()
 !This routine reads in the guiding function from the GUIDINGFUNC file printed in a previous calculation.
-!It then scales the number of walkers on each determinant up so that the total is that specified in the input for iInitGuideParts. 
+!It then scales the number of walkers on each determinant up so that the HF population is that specified in the input for iInitGuideParts. 
 !The result is an array of determinats and a corresponding array of populations (with sign) for the guiding function.
         INTEGER :: i,j,ierr,CurrentGuideParts,NewGuideParts,error,ExcitLevel,DoubDet(NEl),HFPop,PartInd
         CHARACTER(len=*), PARAMETER :: this_routine='InitGuidingFunction'

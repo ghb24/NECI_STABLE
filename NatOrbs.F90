@@ -435,6 +435,8 @@ MODULE NatOrbsMod
 !        stop
         WRITE(6,*) '*** The weight of the HF determinant is : ', AllHistogram(1)
 
+        WRITE(6,*) 'Beginning to fill the one-electron reduced density matrix.'
+
         IF(ICILevel.eq.0) THEN
             MaxExcit=NEl
         ELSE
@@ -1173,10 +1175,10 @@ MODULE NatOrbsMod
             WRITE(6,*) Evalues(i)
         enddo
 
-        WRITE(6,*) 'NatOrbMat matrix'
-        do i=1,NoOrbs
-            WRITE(6,*) NatOrbMat(:,i)
-        enddo
+!        WRITE(6,*) 'NatOrbMat matrix'
+!        do i=1,NoOrbs
+!            WRITE(6,*) NatOrbMat(:,i)
+!        enddo
 
         OPEN(74,FILE='TRANSFORMMAT',status='unknown')
         do i=1,NoOrbs

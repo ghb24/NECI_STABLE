@@ -83,6 +83,9 @@ General options
     is diagonalised to get linear combinations of the HF orbitals which
     approximate the natural orbitals.  The occupation numbers (e-values)
     of these are printed in the OUTPUT file.
+    This is now a very old option, a much more efficient equivalent has 
+    been added under the **ROTATEORBS** option.  See **USECINATORBS** in the
+    system file.
 
 
 **METHOD** [Method option(s)]
@@ -722,12 +725,20 @@ The following options are only available in **FCIMC** calculations:
     SinglesBias can be set to less than 1 to bias towards doubles.
 
 **FINDGROUNDDET**
-    Default=false.
+    Default=.false.
 
     A parallel FCIMC option. If this is on, then if a determinant is found with an energy lower 
     than the energy of the current reference determinant, the energies are rezeroed and the
     reference changed to the new determinant. For a HF basis, this cannot happen, but with 
     rotated orbital may be important.
+
+**DEFINEDET** [DefDet(NEl)]
+    Default=.false.
+
+    A parallel FCIMC option.  This allows the reference determinant to be chosen based on that specified in
+    the input with this keyword - rather than the default HF determinant chosen according to the energies of 
+    the orbitals.  The determinant is specified by a series of NEl integers (separated by spaces) 
+    which represent the occupied spin orbitals.
 
 **DIRECTANNIHILATION**
     Default=.false.
@@ -908,6 +919,26 @@ The following options are only available in **FCIMC** calculations:
     to spawn back to the parent from which they came.  The walkers undergo death and annihilation
     like usual (however, the walkers for annihilation are chosen randomly as they differ depending
     on their parent).
+
+**FINDGUIDINGFUNCTION** [iGuideDets]
+    Default=.false. [100]
+
+    This is a parallel FCIMC option.  At the end of a spawning calculation, the iGuideDets most populated
+    determinants are found and these and their final walker populations (with sign) are printed out 
+    (in order of their bit strings) to a file named GUIDINGFUNC to be used in the subsequent calculation.
+
+**USEGUIDINGFUNCTION** [iInitGuideParts]    
+    Default=.false.
+
+    This is a parallel FCIMC option.  This option takes the GUIDINGFUNC file produced in a previous calculation
+    and reads in the guiding (or annihilating) function from it.  The population on the HF determinant in this 
+    guiding function is then set to be iInitGuideParts, and the remaining determinants are populated based on 
+    their occupations from the previous calculation (in GUIDINGFUNC) relative to the HF determinant.
+    The function of this guiding function is then to sit in the background of a calculation, able to annihilate
+    walkers, but unable to itself spawn of have its walkers die.
+    Assuming the GUIDINGFUNC from the previous calculation has the correct nodal structure, this guiding function
+    should serve to instantly remove walkers spawned with the incorrect sign.
+    
 
 The following option are only available in **MCSTAR** calculations:
 

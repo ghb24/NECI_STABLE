@@ -595,6 +595,9 @@ MODULE Calc
                 endif
             
             case("DEFINEDET")
+!This defines the reference determinant to be that specified in the input here, rather than the determinant 
+!chosen from the lowest energy orbitals.
+!The 'HF' energy calculated should the be that of the defined determinant.
                 tDefineDet=.true.
                 ALLOCATE(DefDet(NEl),stat=ierr)
                 CALL LogMemAlloc('DefDet',NEl,4,t_r,tagDefDet,ierr)
@@ -612,7 +615,8 @@ MODULE Calc
             case("USEGUIDINGFUNCTION")
 ! This keyword sets the calculationg to read in a guiding function from a file GUIDINGFUNC.  This function then sits
 ! in the back of a calculation, able to annihilate particle, but not allowed to spawn or die.
-! The number of particles initially distributed amongst the guiding function determinants is specified by iInitGuideParts.
+! iInitGuideParts specifies how many walkers start on the HF determinant, and the remaining determinants are populated
+! based on their populations from the previous calculation relative to the HF.
                 tUseGuide=.true.
                 call geti(iInitGuideParts)
 

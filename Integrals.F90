@@ -209,6 +209,11 @@ MODULE Integrals
      &          //"as NEL",.true.)
             end if
         case("FREEZEINNER")
+!This option allows us to freeze orbitals 'from the inside'.  This means that rather than freezing
+!the lowest energy occupied orbitals, the NFROZENIN occupied (spin) orbitals with the highest energy are 
+!frozen, along with the NTFROZENIN lowest energy virtual (spin) orbitals.
+!The main purpose of this is to select an active space and calculate the energy of the orbitals NOT in this
+!active space.
             call readi(NFROZENIN)
             call readi(NTFROZENIN)
             NFROZENIN=ABS(NFROZENIN)
@@ -218,6 +223,10 @@ MODULE Integrals
      &          //"multiples of 2",.true.)
             end if
         case("PARTIALLYFREEZE")
+!This option chooses a set of NPartFrozen SPIN orbitals as a core, and partially freezes the electrons 
+!in these orbitals so that no more than NHolesFrozen holes may exist in this core at a time.
+!In practice, a walker attempts to spawn on a determinant - if this determinant has more than the 
+!allowed number of holes in the partially frozen core, the spawning is forbidden.  
             tPartFreezeCore=.true.
             call readi(NPartFrozen)
             call readi(NHolesFrozen)
