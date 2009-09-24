@@ -3,7 +3,7 @@
 \usepackage[utf8]{inputenc}
 \usepackage[T1]{fontenc}
 \title{NECI Documentation}
-\date{September 04, 2009}
+\date{September 24, 2009}
 \release{0.1}
 \author{James Spencer, with contributions from the Alavi Group}
 \newcommand{\sphinxlogo}{}
@@ -329,7 +329,7 @@ directory as well as the CPMD/CONFIGURE directory.  It is easy to make
 your own configuration files using existing ones as a template.
 
 Note that some of the platforms obtain LAPACK and BLAS as part of atlas,
-ACML or MKL, so this will need to bechanged if different source libraries
+ACML or MKL, so this will need to be changed if different source libraries
 are used.
 
 Two versions of CPMD (and the corresponding NECI library) exist, gcpmd.x
@@ -403,7 +403,7 @@ k-point code.
 
 Both the NECI and CPMD scripts default to compiling the codebases using
 the Portland 64-bit compiler, if a platform is not specified either via
-the command line or given in .compileconf, which is a text file which
+the command line or given in .compileconf, a text file which
 contains the name of the desired platform.  Note that runmake.sh will
 use the same platform for both the CPMD and NECI makefiles.
 
@@ -1122,6 +1122,11 @@ iterative steps, and the second is the force value chosen to indicate convergenc
 The default time step is 0.01, and convergence value is 0.001.
 Further options are described below.
 
+\item[\textbf{SPAWNLISTDETS}]
+This means that a file called SpawnOnlyDets will be read in before a spawning calculation,
+and only the determinants listed in this file will be able to be spawned at. Currently,
+this only works for FCIMCPar calculation.
+
 \item[\textbf{ROTATEDORBS}]
 This keyword is required in the system block if a ROFCIDUMP file is being read in
 (after orbital rotation).  As the orbitals are no longer the HF orbitals, Brillouin's
@@ -1323,6 +1328,18 @@ squaring).
 This method finds the linear combination that minimise the antisymmetrised double excitation
 hamiltonian elements, \textless{}ij|kl\textgreater{} - \textless{}ij|lk\textgreater{}.
 
+\item[\textbf{HFSINGDOUBEXCMAX}]
+This minimises the square of the four index integrals corresponding to single or double
+excitations from the HF determinant.  I.e. Integrals of the form \textless{}ij|kl\textgreater{} where i and j
+are orbitals occupied in the HF determinant, and either k and l are both virtual, or k=i
+or l=j, but not both at once.
+
+\item[\textbf{VIRTCOULOMBMAX}]
+This maximises the sum of the \textless{}ij|ij\textgreater{} terms where i and j are both virtual spatial orbitals.
+
+\item[\textbf{VIRTEXCHANGEMIN}]
+This minimises the sum of the \textless{}ij|ji\textgreater{} terms where i and j are both virtual spatial orbitals.
+
 \item[\textbf{ERLOCALIZATION} {[}ERWeight{]}(optional)]
 This method performs a Edmiston-Reudenberg localisation.  It finds the coefficients
 that maximise the sum of the self-repulsion (\textless{}ii|ii\textgreater{}) terms.
@@ -1336,14 +1353,24 @@ In the absence of values for ERWeight and/or OffDiagWeight, the defaults of 1.0 
 will be used.
 These weights are also redundant if only one of the keywords is present.
 
-\item[\textbf{ONEELINTMAX}]
-This maximises the sum of the \textless{}i|h|i\textgreater{}, one electron integral values.
-
 \item[\textbf{ONEPARTORBENMAX} {[}Alpha{]}]
 This maximises the sum of (e\_i - e\_min)\textasciicircum{}alpha, where e\_i are the fock, one particle orbital
 energies ( e\_i = \textless{}i|h|i\textgreater{} + sum\_j {[}\textless{}ij||ij\textgreater{}{]} ), and e\_min is currently the energy of the
 HF LUMO.
 Alpha is a real value specified in the input, with a default value of 1.0.
+
+\item[\textbf{ONEELINTMAX}]
+This maximises the sum of the \textless{}i|h|i\textgreater{}, one electron integral values.
+
+\item[\textbf{HIJSQRDMIN}]
+This minimises the square of the one electron integrals, \textless{}i|h|j\textgreater{}.  Currently i can be occupied
+or virtual, but j can only be virtual, i=\textless{}j.
+
+\item[\textbf{DIAGONALIZEHIJ}]
+This option takes the \textless{}i|h|j\textgreater{} matrix of one electron integrals in the HF orbital basis and
+diagonalises it.  It then uses the eigenvectors as the transformation matrix to form a set
+of new orbitals which have a diagonal \textless{}i|h|j\textgreater{} matrix.  This is the extreme case of minimising
+the off diagonal \textless{}i|h|j\textgreater{} matrix elements.
 
 \item[\textbf{READINTRANSMAT}]
 With this option, a TRANSFORMMAT file must be provided which contains the transformation
@@ -1363,6 +1390,20 @@ respective eigenvalues.  These eigenvalues ideally decay exponentially, so in pr
 may remove some of the low occupancy virtual orbitals without loosing much accuracy in the
 energy calculation.  This truncation of the virtuals is done using the Logging option
 \textbf{TRUNCROFCIDUMP} {[}NoFrozenVirt{]}.
+
+\item[\textbf{USECINATORBS}]
+This option is similar to \textbf{USEMP2VDM} except that the one electron reduced density matrix is
+used instead of the MP2VDM to transform the orbitals.
+The 1-RDM has the form: \textless{} Psi | a\_p+ a\_q | Psi \textgreater{}, where a\_q is an annihilation and a\_p+ the
+creation operator acting on a determinant in Psi.
+In order to form this one electron reduced density matrix, we must first find Psi within the
+required truncation.  This is done by performing a spawning calculation and histogramming the
+occupation at the determinants.  The required histogramming is automatically turned on by using the
+\textbf{USECINATORBS} keyword, and at the end of the spawning, the 1-RDM is found from the amplitudes.
+The orbitals are then rotated using this matrix, and a ROFCIDUMP file of the resulting approximate
+natural orbitals is printed. The level of natural orbitals found is controlled by truncation of
+the excitation level in the spawning calculation.  E.g. an excite 2 calculation results in the CISD
+natural orbitals etc.
 
 \end{description}
 
@@ -1412,6 +1453,13 @@ Additional options:
 Much like \textbf{SHAKEITER}, the presence of this keyword overrides the convergence criteria
 on the force, and instead runs for the number of iterations specified here.
 Note: A SOFTEXIT is also an option in this method.
+
+\item[\textbf{SPINORBS}]
+Default=.false.
+This option ensures that spin orbitals are used in the rotation - as is required for open shell
+systems for example.
+IF UHF=.true. is present in the FCIDUMP file, this will be turned on automatically, but in special
+cases where this is not present and we still want to use spin orbitals, this keyword should be used.
 
 \item[\textbf{SEPARATEOCCVIRT}]
 If present, this keyword separates the orbitals into occupied and virtual and does not
@@ -1758,6 +1806,9 @@ calculation progresses.  At the end of the iterations, this matrix
 is diagonalised to get linear combinations of the HF orbitals which
 approximate the natural orbitals.  The occupation numbers (e-values)
 of these are printed in the OUTPUT file.
+This is now a very old option, a much more efficient equivalent has
+been added under the \textbf{ROTATEORBS} option.  See \textbf{USECINATORBS} in the
+system file.
 
 \item[\textbf{METHOD} {[}Method option(s){]}]
 Specify the method for a graph theory calculation.  See Method
@@ -2146,7 +2197,7 @@ the complete star. Currently only available with `\textbf{NEW}`,
 
 \subsubsection{Experimental methods}
 \begin{description}
-\item[\textbf{VERTEX} \textbf{FCIMC} {[}\textbf{MCDIFFUSION}{]} {[}\textbf{RESUMFCIMC}{]}]
+\item[\textbf{VERTEX} \textbf{FCIMC} {[}\textbf{MCDIFFUSION}{]} {[}\textbf{RESUMFCIMC}{]} {[}\textbf{SERIAL}{]}]
 Perform Monte Carlo calculations over pure determinant space, which
 is sampled using a series of `particles' (or `walkers').
 
@@ -2164,12 +2215,23 @@ the H-matrix successively in order to achieve a local spawning algorithm.
 This reduces to the original spawning algorithm when \textbf{GRAPHSIZE} is 2 and
 \textbf{HAPP} is 1. Uses many of the same options as \textbf{FCIMC}.
 
-\item[\textbf{VERTEX} \textbf{CCMC}]
+\textbf{SERIAL} will force NECI to run the serial FCIMC code (which differs
+substantially from the parallel) even if the code was compiled in parallel.
+
+\item[\textbf{VERTEX} \textbf{CCMC} {[}\textbf{FCI}{]} {[}\textbf{EXACTCLUSTER}{]}]
 Perform Monte Carlo calculations over coupled cluster excitation space, which
 is sampled using a series of `particles' (or `walkers').
 
 The walkers are not necessarily unique and must be sorted at every
 iteration.  Each walker has its own excitation generator.
+\textbf{DIRECTANNIHILATION} (in CALC) and \textbf{NONUNIFORMRANDEXCITS} (in the SYSTEM section)
+must also be specified.
+
+If \textbf{FCI} is specified, then the code runs an equivalent of the \textbf{VERTEX} \textbf{FCIMC}
+for testing
+
+\textbf{EXACTCLUSTER} is an exponentially scaling (with number of walkers) algorithm for testing
+the stochastic sampling.
 
 Extremely experimental.
 
@@ -2454,12 +2516,20 @@ the number of singles in the total excitations term is multiplied by SinglesBias
 SinglesBias can be set to less than 1 to bias towards doubles.
 
 \item[\textbf{FINDGROUNDDET}]
-Default=false.
+Default=.false.
 
 A parallel FCIMC option. If this is on, then if a determinant is found with an energy lower
 than the energy of the current reference determinant, the energies are rezeroed and the
 reference changed to the new determinant. For a HF basis, this cannot happen, but with
 rotated orbital may be important.
+
+\item[\textbf{DEFINEDET} {[}DefDet(NEl){]}]
+Default=.false.
+
+A parallel FCIMC option.  This allows the reference determinant to be chosen based on that specified in
+the input with this keyword - rather than the default HF determinant chosen according to the energies of
+the orbitals.  The determinant is specified by a series of NEl integers (separated by spaces)
+which represent the occupied spin orbitals.
 
 \item[\textbf{DIRECTANNIHILATION}]
 Default=.false.
@@ -2645,6 +2715,25 @@ to spawn back to the parent from which they came.  The walkers undergo death and
 like usual (however, the walkers for annihilation are chosen randomly as they differ depending
 on their parent).
 
+\item[\textbf{FINDGUIDINGFUNCTION} {[}iGuideDets{]}]
+Default=.false. {[}100{]}
+
+This is a parallel FCIMC option.  At the end of a spawning calculation, the iGuideDets most populated
+determinants are found and these and their final walker populations (with sign) are printed out
+(in order of their bit strings) to a file named GUIDINGFUNC to be used in the subsequent calculation.
+
+\item[\textbf{USEGUIDINGFUNCTION} {[}iInitGuideParts{]}]
+Default=.false.
+
+This is a parallel FCIMC option.  This option takes the GUIDINGFUNC file produced in a previous calculation
+and reads in the guiding (or annihilating) function from it.  The population on the HF determinant in this
+guiding function is then set to be iInitGuideParts, and the remaining determinants are populated based on
+their occupations from the previous calculation (in GUIDINGFUNC) relative to the HF determinant.
+The function of this guiding function is then to sit in the background of a calculation, able to annihilate
+walkers, but unable to itself spawn of have its walkers die.
+Assuming the GUIDINGFUNC from the previous calculation has the correct nodal structure, this guiding function
+should serve to instantly remove walkers spawned with the incorrect sign.
+
 \end{description}
 
 The following option are only available in \textbf{MCSTAR} calculations:
@@ -2682,14 +2771,22 @@ at least one of the determinants is above iHighExcitsSing will be restricted to 
 Default=0
 
 This is a parallel FCIMC option. When this is set, the space initially is truncated at excitation level of ICIlevel,
-set by the value of the EXCITE parameter. If EXPANDFULLSPACE is set, then the
-system will continue to be truncated at the value set by EXCITE, but will
+set by the value of the EXCITE parameter, or the CAS space given by TRUNCATECAS. If EXPANDFULLSPACE is set, then the
+system will continue to be truncated, but will
 expand to the full space after iteration iFullSpaceIter.
 Hopefully expanding the space in this way will allow quicker
 convergence, without needing to do this dynamically through the use of CHANGEVARS which may be difficult for
 long/queued jobs.
 
 \end{description}
+
+\textbf{TRUNCATECAS} {[}OccCASOrbs{]} {[}VirtCASOrbs{]}
+\begin{quote}
+
+This is a parallel FCIMC option, whereby the space will be truncated according to the specified CAS.
+The arguments indicate the active electrons, and then the number of active virtual orbitals.
+These values can be dynamically updated throughout the simulation via use of the CHANGEVARS facility.
+\end{quote}
 
 
 \subsection{Return Path Monte Carlo options}
@@ -3203,6 +3300,26 @@ respectively.  Both must be a multiple of two - an error is returned
 if this is not the case.  The Slater determinant space of a
 calculation does not include determinants which contain excitations from
 frozen core states or excitations to frozen excited states.
+
+\item[\textbf{FREEZEINNER} {[}NFROZEN NTFROZEN{]}]
+Default=.false.{[}0 0{]}
+Allows orbitals to be frozen `from the inside'.  Meaning the NFROZEN occupied
+spin orbitals with the highest energy are frozen, along with the NTFROZEN
+lowest energy virtual spin orbitals.  I.e. freezing from the fermi energy
+outwards.
+The main aim of this was to allow us to select an active space of HOMO and
+LUMO's, and freeze these to find the energy contained in the orbitals outside
+the active space.
+
+\item[\textbf{PARTIALLYFREEZE} {[}NPartFrozen NHolesFrozen{]}]
+Sets the number of spin orbitals in the partially frozen core, and the
+maximum number of holes that are allowed within this core.
+Excitations which remove more than NHolesFrozen from the core are forbidden.
+This is a parallel FCIMC option.
+
+This option may be changed dynamically using \textbf{PARTIALLYFREEZE} {[}NPartFrozen
+NHolesFrozen{]} in the CHANGEVARS file.  The partially frozen core may be
+completely unfrozen in this way by simply setting the NHolesFrozen = NPartFrozen.
 
 \item[\textbf{INSPECT} {[}SPECDET(I), I=1,NEL-NFROZEN{]}]
 Investigate the specified determinant.
@@ -3728,6 +3845,18 @@ This is for Star FCIMC only - if on, it will calculate the exact eigenvector and
 values initially, and then print out the running wavevector every
 WavevectorPrint MC steps. However, this is slower.
 
+\item[\textbf{PRINTFCIMCPSI}]
+This works for parallel FCIMC. This will enumerate all excitations (up to the truncation level specified,
+or the full space if not specified), and then histogram the spawning run, writing out the final
+averaged wavefunction at the end.
+
+\item[\textbf{HISTEQUILSTEPS} {[}NHistEquilSteps{]}]
+Default=.false. {[}0{]}
+This works when the evolving wavefunction is to be histogrammed (for example using the above
+\textbf{PRINTFCIMCPSI} option, or the \textbf{USECINATORBS} orbital rotation option).
+This sets the histogramming to only begin after NHistEquilSteps iterations.  This is so that the
+fluctuation populations at the beginning of a calculation may be left out.
+
 \item[\textbf{WRITEDETE} {[}NoHistBins{]} {[}MaxHistE{]}]
 This is an FCIMC option and will write out a histogram of the energies of determinants which have
 had particles spawned at them and their excitation level. The histogram logs the total
@@ -3758,6 +3887,16 @@ elements.
 This option prints out a file (HElsAcceptance) containing information about the nature of the H elements
 resulting in accepted and not accepted spawns.  This includes the number of not accepted spawns vs accepted,
 and the average size of the H element involved in accepted and not accepted spawns.
+
+\item[\textbf{PRINTSPINCOUPHELS}]
+Default=.false.
+When attempting to spawn on a determinant i, this option finds the determinant j which is spin coupled to i, and
+prints out a set of stats relating to the sign and magnitude of the H element connecting i and j, Hij.
+These stats are printed in a file named SpinCoupHEl.
+
+\item[\textbf{CCMCDEBUG} iCCMCDebug]
+Specify the CCMC debug level.  Default 0 (no debugging information printed).  Higher numbers will generate more
+information.
 
 \end{description}
 
@@ -3801,6 +3940,36 @@ produced, which lists log(2){[}blocksize{]}, the average of the blocks,
 the error in the blocks(where the blocks are the energy ratio),
 and the full error, treating the energy estimator as a correlated
 ratio of two quantities.
+
+\item[\textbf{ERRORBLOCKING} {[}OFF{]}]
+Default= ErrorBlocking.true.
+This can be used to turn off the error blocking analysis that is peformed
+by default on parallel FCIMC calculations.  The default error blocking
+begins when the sum of the HF population over an update cycle reaches 1000.
+At the end of the simulation a BLOCKINGANALYSIS file is printed containing
+a list of block sizes with the resulting average of the projected energies
+calculated over an update cycle, the error in this energy and the error on
+the calculated error due to the block size.
+
+\item[\textbf{BLOCKINGSTARTHFPOP} {[}HFPopStartBlocking{]}]
+Default=1000
+This can be used to change the HF population that triggers the start of the
+error blocking analysis.  Using this keyword over rides the default, and
+the blocking starts when the sum of the HF pop over an update cycle reaches
+HFPopStartBlocking.
+
+\item[\textbf{BLOCKINGSTARTITER} {[}IterStartBlocking{]}]
+Default=.false.
+This can be used to set the error blocking to begin at iteration number
+IterStartBlocking, rather than a particular HF population.
+
+The error blocking may also be initiated instantly by using \textbf{STARTERRORBLOCKING}
+in the CHANGEVARS file.  Additionally, \textbf{PRINTERRORBLOCKING} will print the
+BLOCKINGANALYSIS file at that point, yet the calculation (and blocking) will
+continue (note - this file will be overwritten when the calculation ends and the
+final blocking stats are printed, so it must be renamed if it is to be kept).
+\textbf{RESTARTERRORBLOCKING} in the CHANGEVARS file zeroes all the
+blocking arrays and starts again from that point in the calculation.
 
 \item[\textbf{VERTEX} {[}\textbf{EVERY} n{]}]
 Log the vertex MC with $\tilde{E}$ every n (real) cycles
@@ -3877,6 +4046,10 @@ Histograms the one electron integral terms, \textless{}i|h|i\textgreater{}.
 \item[\textbf{ROHISTONEPARTORBEN} {[}OFF{]}]
 Histograms the one particle orbital energies, epsilon\_i = \textless{}i|h|i\textgreater{} + sum\_j {[}\textless{}ij||ij\textgreater{}{]},
 where j is over the occupied orbitals only.
+
+\item[\textbf{ROHISTVIRTCOULOMB} {[}OFF{]}]
+Histograms the two electron coulomb integrals \textless{}ij|ij\textgreater{} where i and j are both virtual spatial orbitals
+and i\textless{}j.
 
 \item[\textbf{TRUNCROFCIDUMP} {[}NoFrozenOrbs{]}]
 This option goes along with the \textbf{USEMP2VDM} rotation option.  Having diagonalised the MP2VDM

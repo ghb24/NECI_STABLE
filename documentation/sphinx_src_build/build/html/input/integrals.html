@@ -70,6 +70,24 @@ respectively.  Both must be a multiple of two - an error is returned
 if this is not the case.  The Slater determinant space of a
 calculation does not include determinants which contain excitations from
 frozen core states or excitations to frozen excited states.</dd>
+<dt><strong>FREEZEINNER</strong> [NFROZEN NTFROZEN]</dt>
+<dd>Default=.false.[0 0]
+Allows orbitals to be frozen &#8216;from the inside&#8217;.  Meaning the NFROZEN occupied
+spin orbitals with the highest energy are frozen, along with the NTFROZEN
+lowest energy virtual spin orbitals.  I.e. freezing from the fermi energy
+outwards.
+The main aim of this was to allow us to select an active space of HOMO and
+LUMO&#8217;s, and freeze these to find the energy contained in the orbitals outside
+the active space.</dd>
+<dt><strong>PARTIALLYFREEZE</strong> [NPartFrozen NHolesFrozen]</dt>
+<dd><p class="first">Sets the number of spin orbitals in the partially frozen core, and the
+maximum number of holes that are allowed within this core.
+Excitations which remove more than NHolesFrozen from the core are forbidden.
+This is a parallel FCIMC option.</p>
+<p class="last">This option may be changed dynamically using <strong>PARTIALLYFREEZE</strong> [NPartFrozen
+NHolesFrozen] in the CHANGEVARS file.  The partially frozen core may be
+completely unfrozen in this way by simply setting the NHolesFrozen = NPartFrozen.</p>
+</dd>
 <dt><strong>INSPECT</strong> [SPECDET(I), I=1,NEL-NFROZEN]</dt>
 <dd>Investigate the specified determinant.</dd>
 <dt><strong>ORDER</strong> [ORBORDER(I), I=1,8)]</dt>
@@ -372,7 +390,7 @@ the root is removed as an excited determinant in each excited star.</dd>
     </div>
     <div class="footer">
       &copy; Copyright 2008, Alavi Group.
-      Last updated on Jul 05, 2009.
+      Last updated on Sep 24, 2009.
       Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 0.5.
     </div>
   </body>

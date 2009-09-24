@@ -83,7 +83,7 @@ directory as well as the CPMD/CONFIGURE directory.  It is easy to make
 your own configuration files using existing ones as a template.
 
 Note that some of the platforms obtain LAPACK and BLAS as part of atlas,
-ACML or MKL, so this will need to bechanged if different source libraries
+ACML or MKL, so this will need to be changed if different source libraries
 are used.
 
 Two versions of CPMD (and the corresponding NECI library) exist, gcpmd.x
@@ -153,7 +153,7 @@ k-point code.
 
 Both the NECI and CPMD scripts default to compiling the codebases using
 the Portland 64-bit compiler, if a platform is not specified either via
-the command line or given in .compileconf, which is a text file which
+the command line or given in .compileconf, a text file which
 contains the name of the desired platform.  Note that runmake.sh will
 use the same platform for both the CPMD and NECI makefiles.
 

@@ -83,6 +83,9 @@ General options
     is diagonalised to get linear combinations of the HF orbitals which
     approximate the natural orbitals.  The occupation numbers (e-values)
     of these are printed in the OUTPUT file.
+    This is now a very old option, a much more efficient equivalent has 
+    been added under the **ROTATEORBS** option.  See **USECINATORBS** in the
+    system file.
 
 
 **METHOD** [Method option(s)]
@@ -427,7 +430,7 @@ Method options
 Experimental methods
 ^^^^^^^^^^^^^^^^^^^^
 
-**VERTEX** **FCIMC** [**MCDIFFUSION**] [**RESUMFCIMC**]
+**VERTEX** **FCIMC** [**MCDIFFUSION**] [**RESUMFCIMC**] [**SERIAL**]
     Perform Monte Carlo calculations over pure determinant space, which
     is sampled using a series of 'particles' (or 'walkers').
 
@@ -445,12 +448,23 @@ Experimental methods
     This reduces to the original spawning algorithm when **GRAPHSIZE** is 2 and
     **HAPP** is 1. Uses many of the same options as **FCIMC**.
 
-**VERTEX** **CCMC**
+    **SERIAL** will force NECI to run the serial FCIMC code (which differs
+    substantially from the parallel) even if the code was compiled in parallel.
+
+**VERTEX** **CCMC** [**FCI**] [**EXACTCLUSTER**]
     Perform Monte Carlo calculations over coupled cluster excitation space, which
     is sampled using a series of 'particles' (or 'walkers').
 
     The walkers are not necessarily unique and must be sorted at every
     iteration.  Each walker has its own excitation generator.
+    **DIRECTANNIHILATION** (in CALC) and **NONUNIFORMRANDEXCITS** (in the SYSTEM section)
+    must also be specified.
+    
+    If **FCI** is specified, then the code runs an equivalent of the **VERTEX** **FCIMC**
+    for testing
+
+    **EXACTCLUSTER** is an exponentially scaling (with number of walkers) algorithm for testing
+    the stochastic sampling.
 
     Extremely experimental.
 
@@ -711,12 +725,20 @@ The following options are only available in **FCIMC** calculations:
     SinglesBias can be set to less than 1 to bias towards doubles.
 
 **FINDGROUNDDET**
-    Default=false.
+    Default=.false.
 
     A parallel FCIMC option. If this is on, then if a determinant is found with an energy lower 
     than the energy of the current reference determinant, the energies are rezeroed and the
     reference changed to the new determinant. For a HF basis, this cannot happen, but with 
     rotated orbital may be important.
+
+**DEFINEDET** [DefDet(NEl)]
+    Default=.false.
+
+    A parallel FCIMC option.  This allows the reference determinant to be chosen based on that specified in
+    the input with this keyword - rather than the default HF determinant chosen according to the energies of 
+    the orbitals.  The determinant is specified by a series of NEl integers (separated by spaces) 
+    which represent the occupied spin orbitals.
 
 **DIRECTANNIHILATION**
     Default=.false.
@@ -898,6 +920,26 @@ The following options are only available in **FCIMC** calculations:
     like usual (however, the walkers for annihilation are chosen randomly as they differ depending
     on their parent).
 
+**FINDGUIDINGFUNCTION** [iGuideDets]
+    Default=.false. [100]
+
+    This is a parallel FCIMC option.  At the end of a spawning calculation, the iGuideDets most populated
+    determinants are found and these and their final walker populations (with sign) are printed out 
+    (in order of their bit strings) to a file named GUIDINGFUNC to be used in the subsequent calculation.
+
+**USEGUIDINGFUNCTION** [iInitGuideParts]    
+    Default=.false.
+
+    This is a parallel FCIMC option.  This option takes the GUIDINGFUNC file produced in a previous calculation
+    and reads in the guiding (or annihilating) function from it.  The population on the HF determinant in this 
+    guiding function is then set to be iInitGuideParts, and the remaining determinants are populated based on 
+    their occupations from the previous calculation (in GUIDINGFUNC) relative to the HF determinant.
+    The function of this guiding function is then to sit in the background of a calculation, able to annihilate
+    walkers, but unable to itself spawn of have its walkers die.
+    Assuming the GUIDINGFUNC from the previous calculation has the correct nodal structure, this guiding function
+    should serve to instantly remove walkers spawned with the incorrect sign.
+    
+
 The following option are only available in **MCSTAR** calculations:
 
 **BINCANCEL** 
@@ -933,12 +975,19 @@ The following option are only available in **MCSTAR** calculations:
     Default=0
     
     This is a parallel FCIMC option. When this is set, the space initially is truncated at excitation level of ICIlevel,
-    set by the value of the EXCITE parameter. If EXPANDFULLSPACE is set, then the 
-    system will continue to be truncated at the value set by EXCITE, but will
+    set by the value of the EXCITE parameter, or the CAS space given by TRUNCATECAS. If EXPANDFULLSPACE is set, then the 
+    system will continue to be truncated, but will
     expand to the full space after iteration iFullSpaceIter.
     Hopefully expanding the space in this way will allow quicker
     convergence, without needing to do this dynamically through the use of CHANGEVARS which may be difficult for
     long/queued jobs.
+
+**TRUNCATECAS** [OccCASOrbs] [VirtCASOrbs]
+
+    This is a parallel FCIMC option, whereby the space will be truncated according to the specified CAS.
+    The arguments indicate the active electrons, and then the number of active virtual orbitals.
+    These values can be dynamically updated throughout the simulation via use of the CHANGEVARS facility.
+
 
 Return Path Monte Carlo options
 -------------------------------

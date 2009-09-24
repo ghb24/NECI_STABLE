@@ -122,7 +122,10 @@ conjunction with a <strong>METHODS</strong> block.</dd>
 calculation progresses.  At the end of the iterations, this matrix
 is diagonalised to get linear combinations of the HF orbitals which
 approximate the natural orbitals.  The occupation numbers (e-values)
-of these are printed in the OUTPUT file.</dd>
+of these are printed in the OUTPUT file.
+This is now a very old option, a much more efficient equivalent has
+been added under the <strong>ROTATEORBS</strong> option.  See <strong>USECINATORBS</strong> in the
+system file.</dd>
 <dt><strong>METHOD</strong> [Method option(s)]</dt>
 <dd><p class="first">Specify the method for a graph theory calculation.  See Method
 options for the available methods.</p>
@@ -453,7 +456,7 @@ the complete star. Currently only available with &#8216;<strong>NEW</strong>&#82
 <div class="section" id="experimental-methods">
 <h3 id="experimental-methods">Experimental methods<a class="headerlink" href="#experimental-methods" title="Permalink to this headline">¶</a></h3>
 <dl class="docutils">
-<dt><strong>VERTEX</strong> <strong>FCIMC</strong> [<strong>MCDIFFUSION</strong>] [<strong>RESUMFCIMC</strong>]</dt>
+<dt><strong>VERTEX</strong> <strong>FCIMC</strong> [<strong>MCDIFFUSION</strong>] [<strong>RESUMFCIMC</strong>] [<strong>SERIAL</strong>]</dt>
 <dd><p class="first">Perform Monte Carlo calculations over pure determinant space, which
 is sampled using a series of &#8216;particles&#8217; (or &#8216;walkers&#8217;).</p>
 <p>The walkers are not necessarily unique and must be sorted at every
@@ -462,16 +465,24 @@ iteration.  Each walker has its own excitation generator.</p>
 algorithm and is much more experimental.</p>
 <p><strong>FCIMC</strong> and <strong>MCDETS</strong> calculations share many of the same options
 (see Walker Monte Carlo options, below).</p>
-<p class="last"><strong>RESUMFCIMC</strong> creates graphs out of connected determinants, and applies
+<p><strong>RESUMFCIMC</strong> creates graphs out of connected determinants, and applies
 the H-matrix successively in order to achieve a local spawning algorithm.
 This reduces to the original spawning algorithm when <strong>GRAPHSIZE</strong> is 2 and
 <strong>HAPP</strong> is 1. Uses many of the same options as <strong>FCIMC</strong>.</p>
+<p class="last"><strong>SERIAL</strong> will force NECI to run the serial FCIMC code (which differs
+substantially from the parallel) even if the code was compiled in parallel.</p>
 </dd>
-<dt><strong>VERTEX</strong> <strong>CCMC</strong></dt>
+<dt><strong>VERTEX</strong> <strong>CCMC</strong> [<strong>FCI</strong>] [<strong>EXACTCLUSTER</strong>]</dt>
 <dd><p class="first">Perform Monte Carlo calculations over coupled cluster excitation space, which
 is sampled using a series of &#8216;particles&#8217; (or &#8216;walkers&#8217;).</p>
 <p>The walkers are not necessarily unique and must be sorted at every
-iteration.  Each walker has its own excitation generator.</p>
+iteration.  Each walker has its own excitation generator.
+<strong>DIRECTANNIHILATION</strong> (in CALC) and <strong>NONUNIFORMRANDEXCITS</strong> (in the SYSTEM section)
+must also be specified.</p>
+<p>If <strong>FCI</strong> is specified, then the code runs an equivalent of the <strong>VERTEX</strong> <strong>FCIMC</strong>
+for testing</p>
+<p><strong>EXACTCLUSTER</strong> is an exponentially scaling (with number of walkers) algorithm for testing
+the stochastic sampling.</p>
 <p class="last">Extremely experimental.</p>
 </dd>
 <dt><strong>VERTEX</strong> <strong>GRAPHMORPH</strong> [<strong>HDIAG</strong>]</dt>
@@ -709,11 +720,18 @@ the number of singles in the total excitations term is multiplied by SinglesBias
 SinglesBias can be set to less than 1 to bias towards doubles.</p>
 </dd>
 <dt><strong>FINDGROUNDDET</strong></dt>
-<dd><p class="first">Default=false.</p>
+<dd><p class="first">Default=.false.</p>
 <p class="last">A parallel FCIMC option. If this is on, then if a determinant is found with an energy lower
 than the energy of the current reference determinant, the energies are rezeroed and the
 reference changed to the new determinant. For a HF basis, this cannot happen, but with
 rotated orbital may be important.</p>
+</dd>
+<dt><strong>DEFINEDET</strong> [DefDet(NEl)]</dt>
+<dd><p class="first">Default=.false.</p>
+<p class="last">A parallel FCIMC option.  This allows the reference determinant to be chosen based on that specified in
+the input with this keyword - rather than the default HF determinant chosen according to the energies of
+the orbitals.  The determinant is specified by a series of NEl integers (separated by spaces)
+which represent the occupied spin orbitals.</p>
 </dd>
 <dt><strong>DIRECTANNIHILATION</strong></dt>
 <dd><p class="first">Default=.false.</p>
@@ -871,6 +889,23 @@ to spawn back to the parent from which they came.  The walkers undergo death and
 like usual (however, the walkers for annihilation are chosen randomly as they differ depending
 on their parent).</p>
 </dd>
+<dt><strong>FINDGUIDINGFUNCTION</strong> [iGuideDets]</dt>
+<dd><p class="first">Default=.false. [100]</p>
+<p class="last">This is a parallel FCIMC option.  At the end of a spawning calculation, the iGuideDets most populated
+determinants are found and these and their final walker populations (with sign) are printed out
+(in order of their bit strings) to a file named GUIDINGFUNC to be used in the subsequent calculation.</p>
+</dd>
+<dt><strong>USEGUIDINGFUNCTION</strong> [iInitGuideParts]</dt>
+<dd><p class="first">Default=.false.</p>
+<p class="last">This is a parallel FCIMC option.  This option takes the GUIDINGFUNC file produced in a previous calculation
+and reads in the guiding (or annihilating) function from it.  The population on the HF determinant in this
+guiding function is then set to be iInitGuideParts, and the remaining determinants are populated based on
+their occupations from the previous calculation (in GUIDINGFUNC) relative to the HF determinant.
+The function of this guiding function is then to sit in the background of a calculation, able to annihilate
+walkers, but unable to itself spawn of have its walkers die.
+Assuming the GUIDINGFUNC from the previous calculation has the correct nodal structure, this guiding function
+should serve to instantly remove walkers spawned with the incorrect sign.</p>
+</dd>
 </dl>
 <p>The following option are only available in <strong>MCSTAR</strong> calculations:</p>
 <dl class="docutils">
@@ -903,14 +938,19 @@ at least one of the determinants is above iHighExcitsSing will be restricted to 
 <dt><strong>EXPANDFULLSPACE</strong> [iFullSpaceIter]</dt>
 <dd><p class="first">Default=0</p>
 <p class="last">This is a parallel FCIMC option. When this is set, the space initially is truncated at excitation level of ICIlevel,
-set by the value of the EXCITE parameter. If EXPANDFULLSPACE is set, then the
-system will continue to be truncated at the value set by EXCITE, but will
+set by the value of the EXCITE parameter, or the CAS space given by TRUNCATECAS. If EXPANDFULLSPACE is set, then the
+system will continue to be truncated, but will
 expand to the full space after iteration iFullSpaceIter.
 Hopefully expanding the space in this way will allow quicker
 convergence, without needing to do this dynamically through the use of CHANGEVARS which may be difficult for
 long/queued jobs.</p>
 </dd>
 </dl>
+<p><strong>TRUNCATECAS</strong> [OccCASOrbs] [VirtCASOrbs]</p>
+<blockquote>
+This is a parallel FCIMC option, whereby the space will be truncated according to the specified CAS.
+The arguments indicate the active electrons, and then the number of active virtual orbitals.
+These values can be dynamically updated throughout the simulation via use of the CHANGEVARS facility.</blockquote>
 </div>
 <div class="section" id="return-path-monte-carlo-options">
 <h2 id="return-path-monte-carlo-options">Return Path Monte Carlo options<a class="headerlink" href="#return-path-monte-carlo-options" title="Permalink to this headline">¶</a></h2>
@@ -1408,7 +1448,7 @@ in <strong>HDIAG</strong> calculations at the third vertex level and higher.</dd
     </div>
     <div class="footer">
       &copy; Copyright 2008, Alavi Group.
-      Last updated on Aug 14, 2009.
+      Last updated on Sep 24, 2009.
       Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 0.5.
     </div>
   </body>

@@ -25,6 +25,26 @@ General options
     calculation does not include determinants which contain excitations from 
     frozen core states or excitations to frozen excited states.
 
+**FREEZEINNER** [NFROZEN NTFROZEN]
+    Default=.false.[0 0]
+    Allows orbitals to be frozen 'from the inside'.  Meaning the NFROZEN occupied 
+    spin orbitals with the highest energy are frozen, along with the NTFROZEN 
+    lowest energy virtual spin orbitals.  I.e. freezing from the fermi energy
+    outwards.
+    The main aim of this was to allow us to select an active space of HOMO and 
+    LUMO's, and freeze these to find the energy contained in the orbitals outside
+    the active space.
+
+**PARTIALLYFREEZE** [NPartFrozen NHolesFrozen]
+    Sets the number of spin orbitals in the partially frozen core, and the
+    maximum number of holes that are allowed within this core.  
+    Excitations which remove more than NHolesFrozen from the core are forbidden.
+    This is a parallel FCIMC option.
+
+    This option may be changed dynamically using **PARTIALLYFREEZE** [NPartFrozen
+    NHolesFrozen] in the CHANGEVARS file.  The partially frozen core may be 
+    completely unfrozen in this way by simply setting the NHolesFrozen = NPartFrozen.
+
 **INSPECT** [SPECDET(I), I=1,NEL-NFROZEN]
     Investigate the specified determinant.
 

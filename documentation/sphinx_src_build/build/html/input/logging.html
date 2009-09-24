@@ -231,6 +231,16 @@ estimator will be restarted.</dd>
 <dd>This is for Star FCIMC only - if on, it will calculate the exact eigenvector and
 values initially, and then print out the running wavevector every
 WavevectorPrint MC steps. However, this is slower.</dd>
+<dt><strong>PRINTFCIMCPSI</strong></dt>
+<dd>This works for parallel FCIMC. This will enumerate all excitations (up to the truncation level specified,
+or the full space if not specified), and then histogram the spawning run, writing out the final
+averaged wavefunction at the end.</dd>
+<dt><strong>HISTEQUILSTEPS</strong> [NHistEquilSteps]</dt>
+<dd>Default=.false. [0]
+This works when the evolving wavefunction is to be histogrammed (for example using the above
+<strong>PRINTFCIMCPSI</strong> option, or the <strong>USECINATORBS</strong> orbital rotation option).
+This sets the histogramming to only begin after NHistEquilSteps iterations.  This is so that the
+fluctuation populations at the beginning of a calculation may be left out.</dd>
 <dt><strong>WRITEDETE</strong> [NoHistBins] [MaxHistE]</dt>
 <dd>This is an FCIMC option and will write out a histogram of the energies of determinants which have
 had particles spawned at them and their excitation level. The histogram logs the total
@@ -258,6 +268,14 @@ elements.</dd>
 <dd>This option prints out a file (HElsAcceptance) containing information about the nature of the H elements
 resulting in accepted and not accepted spawns.  This includes the number of not accepted spawns vs accepted,
 and the average size of the H element involved in accepted and not accepted spawns.</dd>
+<dt><strong>PRINTSPINCOUPHELS</strong></dt>
+<dd>Default=.false.
+When attempting to spawn on a determinant i, this option finds the determinant j which is spin coupled to i, and
+prints out a set of stats relating to the sign and magnitude of the H element connecting i and j, Hij.
+These stats are printed in a file named SpinCoupHEl.</dd>
+<dt><strong>CCMCDEBUG</strong> iCCMCDebug</dt>
+<dd>Specify the CCMC debug level.  Default 0 (no debugging information printed).  Higher numbers will generate more
+information.</dd>
 </dl>
 </div>
 <div class="section" id="graphmorph-options">
@@ -297,6 +315,33 @@ produced, which lists log(2)[blocksize], the average of the blocks,
 the error in the blocks(where the blocks are the energy ratio),
 and the full error, treating the energy estimator as a correlated
 ratio of two quantities.</dd>
+<dt><strong>ERRORBLOCKING</strong> [OFF]</dt>
+<dd>Default= ErrorBlocking.true.
+This can be used to turn off the error blocking analysis that is peformed
+by default on parallel FCIMC calculations.  The default error blocking
+begins when the sum of the HF population over an update cycle reaches 1000.
+At the end of the simulation a BLOCKINGANALYSIS file is printed containing
+a list of block sizes with the resulting average of the projected energies
+calculated over an update cycle, the error in this energy and the error on
+the calculated error due to the block size.</dd>
+<dt><strong>BLOCKINGSTARTHFPOP</strong> [HFPopStartBlocking]</dt>
+<dd>Default=1000
+This can be used to change the HF population that triggers the start of the
+error blocking analysis.  Using this keyword over rides the default, and
+the blocking starts when the sum of the HF pop over an update cycle reaches
+HFPopStartBlocking.</dd>
+<dt><strong>BLOCKINGSTARTITER</strong> [IterStartBlocking]</dt>
+<dd><p class="first">Default=.false.
+This can be used to set the error blocking to begin at iteration number
+IterStartBlocking, rather than a particular HF population.</p>
+<p class="last">The error blocking may also be initiated instantly by using <strong>STARTERRORBLOCKING</strong>
+in the CHANGEVARS file.  Additionally, <strong>PRINTERRORBLOCKING</strong> will print the
+BLOCKINGANALYSIS file at that point, yet the calculation (and blocking) will
+continue (note - this file will be overwritten when the calculation ends and the
+final blocking stats are printed, so it must be renamed if it is to be kept).
+<strong>RESTARTERRORBLOCKING</strong> in the CHANGEVARS file zeroes all the
+blocking arrays and starts again from that point in the calculation.</p>
+</dd>
 <dt><strong>VERTEX</strong> [<strong>EVERY</strong> n]</dt>
 <dd><p class="first">Log the vertex MC with <img src="../mathimg/math-7df5be85f7.png" /> every n (real) cycles
 and/or log the vertex MC contribution every cycle.  Setting
@@ -360,6 +405,9 @@ excitations.</dd>
 <dt><strong>ROHISTONEPARTORBEN</strong> [OFF]</dt>
 <dd>Histograms the one particle orbital energies, epsilon_i = &lt;i|h|i&gt; + sum_j [&lt;ij||ij&gt;],
 where j is over the occupied orbitals only.</dd>
+<dt><strong>ROHISTVIRTCOULOMB</strong> [OFF]</dt>
+<dd>Histograms the two electron coulomb integrals &lt;ij|ij&gt; where i and j are both virtual spatial orbitals
+and i&lt;j.</dd>
 <dt><strong>TRUNCROFCIDUMP</strong> [NoFrozenOrbs]</dt>
 <dd>This option goes along with the <strong>USEMP2VDM</strong> rotation option.  Having diagonalised the MP2VDM
 matrix to get the transformation matrix.  This option truncates the virtual orbital space by removing
@@ -427,7 +475,7 @@ The ROFCIDUMP must be printed out then read back in.</dd>
     </div>
     <div class="footer">
       &copy; Copyright 2008, Alavi Group.
-      Last updated on Sep 04, 2009.
+      Last updated on Sep 24, 2009.
       Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 0.5.
     </div>
   </body>

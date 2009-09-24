@@ -296,6 +296,10 @@ This is followed by two real values, the first indicates the size of the
 iterative steps, and the second is the force value chosen to indicate convergence.
 The default time step is 0.01, and convergence value is 0.001.
 Further options are described below.</dd>
+<dt><strong>SPAWNLISTDETS</strong></dt>
+<dd>This means that a file called SpawnOnlyDets will be read in before a spawning calculation,
+and only the determinants listed in this file will be able to be spawned at. Currently,
+this only works for FCIMCPar calculation.</dd>
 <dt><strong>ROTATEDORBS</strong></dt>
 <dd>This keyword is required in the system block if a ROFCIDUMP file is being read in
 (after orbital rotation).  As the orbitals are no longer the HF orbitals, Brillouin&#8217;s
@@ -488,6 +492,15 @@ squaring).</dd>
 <dt><strong>DOUBEXCITEMIN</strong> [OffDiagWeight](optional)</dt>
 <dd>This method finds the linear combination that minimise the antisymmetrised double excitation
 hamiltonian elements, &lt;ij|kl&gt; - &lt;ij|lk&gt;.</dd>
+<dt><strong>HFSINGDOUBEXCMAX</strong></dt>
+<dd>This minimises the square of the four index integrals corresponding to single or double
+excitations from the HF determinant.  I.e. Integrals of the form &lt;ij|kl&gt; where i and j
+are orbitals occupied in the HF determinant, and either k and l are both virtual, or k=i
+or l=j, but not both at once.</dd>
+<dt><strong>VIRTCOULOMBMAX</strong></dt>
+<dd>This maximises the sum of the &lt;ij|ij&gt; terms where i and j are both virtual spatial orbitals.</dd>
+<dt><strong>VIRTEXCHANGEMIN</strong></dt>
+<dd>This minimises the sum of the &lt;ij|ji&gt; terms where i and j are both virtual spatial orbitals.</dd>
 <dt><strong>ERLOCALIZATION</strong> [ERWeight](optional)</dt>
 <dd><p class="first">This method performs a Edmiston-Reudenberg localisation.  It finds the coefficients
 that maximise the sum of the self-repulsion (&lt;ii|ii&gt;) terms.
@@ -500,13 +513,21 @@ In the absence of values for ERWeight and/or OffDiagWeight, the defaults of 1.0 
 will be used.
 These weights are also redundant if only one of the keywords is present.</p>
 </dd>
-<dt><strong>ONEELINTMAX</strong></dt>
-<dd>This maximises the sum of the &lt;i|h|i&gt;, one electron integral values.</dd>
 <dt><strong>ONEPARTORBENMAX</strong> [Alpha]</dt>
 <dd>This maximises the sum of (e_i - e_min)^alpha, where e_i are the fock, one particle orbital
 energies ( e_i = &lt;i|h|i&gt; + sum_j [&lt;ij||ij&gt;] ), and e_min is currently the energy of the
 HF LUMO.
 Alpha is a real value specified in the input, with a default value of 1.0.</dd>
+<dt><strong>ONEELINTMAX</strong></dt>
+<dd>This maximises the sum of the &lt;i|h|i&gt;, one electron integral values.</dd>
+<dt><strong>HIJSQRDMIN</strong></dt>
+<dd>This minimises the square of the one electron integrals, &lt;i|h|j&gt;.  Currently i can be occupied
+or virtual, but j can only be virtual, i=&lt;j.</dd>
+<dt><strong>DIAGONALIZEHIJ</strong></dt>
+<dd>This option takes the &lt;i|h|j&gt; matrix of one electron integrals in the HF orbital basis and
+diagonalises it.  It then uses the eigenvectors as the transformation matrix to form a set
+of new orbitals which have a diagonal &lt;i|h|j&gt; matrix.  This is the extreme case of minimising
+the off diagonal &lt;i|h|j&gt; matrix elements.</dd>
 <dt><strong>READINTRANSMAT</strong></dt>
 <dd>With this option, a TRANSFORMMAT file must be provided which contains the transformation
 matrix to be used for the orbital rotation.  When this keyword is present, the coefficient
@@ -524,6 +545,19 @@ respective eigenvalues.  These eigenvalues ideally decay exponentially, so in pr
 may remove some of the low occupancy virtual orbitals without loosing much accuracy in the
 energy calculation.  This truncation of the virtuals is done using the Logging option
 <strong>TRUNCROFCIDUMP</strong> [NoFrozenVirt].</dd>
+<dt><strong>USECINATORBS</strong></dt>
+<dd>This option is similar to <strong>USEMP2VDM</strong> except that the one electron reduced density matrix is
+used instead of the MP2VDM to transform the orbitals.
+The 1-RDM has the form: &lt; Psi | a_p+ a_q | Psi &gt;, where a_q is an annihilation and a_p+ the
+creation operator acting on a determinant in Psi.
+In order to form this one electron reduced density matrix, we must first find Psi within the
+required truncation.  This is done by performing a spawning calculation and histogramming the
+occupation at the determinants.  The required histogramming is automatically turned on by using the
+<strong>USECINATORBS</strong> keyword, and at the end of the spawning, the 1-RDM is found from the amplitudes.
+The orbitals are then rotated using this matrix, and a ROFCIDUMP file of the resulting approximate
+natural orbitals is printed. The level of natural orbitals found is controlled by truncation of
+the excitation level in the spawning calculation.  E.g. an excite 2 calculation results in the CISD
+natural orbitals etc.</dd>
 </dl>
 <p>Each of these methods may be applied for both the cases where symmetry as kept and broken.
 This is controlled by the absence or presence of the NOSYMMETRY keyword respectively.
@@ -565,6 +599,12 @@ than an explicit reorthogonalization step each iteration.</dd>
 <dd>Much like <strong>SHAKEITER</strong>, the presence of this keyword overrides the convergence criteria
 on the force, and instead runs for the number of iterations specified here.
 Note: A SOFTEXIT is also an option in this method.</dd>
+<dt><strong>SPINORBS</strong></dt>
+<dd>Default=.false.
+This option ensures that spin orbitals are used in the rotation - as is required for open shell
+systems for example.
+IF UHF=.true. is present in the FCIDUMP file, this will be turned on automatically, but in special
+cases where this is not present and we still want to use spin orbitals, this keyword should be used.</dd>
 <dt><strong>SEPARATEOCCVIRT</strong></dt>
 <dd><p class="first">If present, this keyword separates the orbitals into occupied and virtual and does not
 allow mixing between the two.
@@ -638,7 +678,7 @@ the HF.</dd>
     </div>
     <div class="footer">
       &copy; Copyright 2008, Alavi Group.
-      Last updated on Sep 04, 2009.
+      Last updated on Sep 24, 2009.
       Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 0.5.
     </div>
   </body>
