@@ -78,7 +78,7 @@ MODULE Logging
       tHFPopStartBlock=.true.
       tIterStartBlock=.false.
       IterStartBlocking=0
-      HFPopStartBlocking=1000
+      HFPopStartBlocking=100
 
 
 ! Feb08 defaults

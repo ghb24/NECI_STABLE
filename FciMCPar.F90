@@ -5568,7 +5568,7 @@ MODULE FciMCParMod
                     tErrorBlocking=.true.
                 ENDIF
             ELSEIF(tHFPopStartBlock) THEN
-                IF(AllHFCyc.ge.HFPopStartBlocking) THEN
+                IF((AllHFCyc/StepsSft).ge.HFPopStartBlocking) THEN
                     CALL InitErrorBlocking(Iter)
                     tHFPopStartBlock=.false.
                     tErrorBlocking=.true.
