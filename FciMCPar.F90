@@ -5805,7 +5805,7 @@ MODULE FciMCParMod
     SUBROUTINE SetupParameters()
         use SystemData, only : tUseBrillouin,iRanLuxLev,tSpn,tHPHFInts,tRotateOrbs,tNoBrillouin,tROHF,tFindCINatOrbs
         USE mt95 , only : genrand_init
-        use CalcData, only : EXCITFUNCS
+        use CalcData, only : EXCITFUNCS,tFCIMC
         use Calc, only : VirtCASorbs,OccCASorbs,FixShift,G_VMC_Seed
         use Determinants , only : GetH0Element3
         use SymData , only : nSymLabels,SymLabelList,SymLabelCounts
@@ -5817,7 +5817,7 @@ MODULE FciMCParMod
         INTEGER :: DetLT,VecSlot,error,HFConn,MemoryAlloc,iMaxExcit,nStore(6),nJ(Nel),BRR2(nBasis),LargestOrb,nBits,HighEDet(NEl),iLutTemp(0:NIfD)
         TYPE(HElement) :: rh,TempHii
         REAL*8 :: TotDets,SymFactor,Choose
-        CHARACTER(len=*), PARAMETER :: this_routine='InitFCIMCPar'
+        CHARACTER(len=*), PARAMETER :: this_routine='SetupParameters'
         CHARACTER(len=12) :: abstr
         LOGICAL :: tSuccess,tFoundOrbs(nBasis),tTurnBackBrillouin
         REAL :: Gap
@@ -5862,7 +5862,7 @@ MODULE FciMCParMod
         
 !test the encoding of the HFdet to bit representation.
         ALLOCATE(iLutHF(0:NIfD),stat=ierr)
-        IF(ierr.ne.0) CALL Stop_All("InitFciMCPar","Cannot allocate memory for iLutHF")
+        IF(ierr.ne.0) CALL Stop_All(this_routine,"Cannot allocate memory for iLutHF")
         CALL EncodeBitDet(HFDet,iLutHF,NEl,NIfD)
 !Test that the bit operations are working correctly...
         CALL DecodeBitDet(HFDetTest,iLutHF,NEl,NIfD)
@@ -5870,12 +5870,12 @@ MODULE FciMCParMod
             IF(HFDetTest(i).ne.HFDet(i)) THEN
                 WRITE(6,*) "HFDet: ",HFDet(:)
                 WRITE(6,*) "HFDetTest: ",HFDetTest(:)
-                CALL Stop_All("InitFciMCPar","HF Determinant incorrectly decoded.")
+                CALL Stop_All(this_routine,"HF Determinant incorrectly decoded.")
             ENDIF
         enddo
         CALL LargestBitSet(iLutHF,NIfD,LargestOrb)
         IF(LargestOrb.ne.HFDet(NEl)) THEN
-            CALL Stop_All("InitFciMCPar","LargestBitSet FAIL")
+            CALL Stop_All(this_routine,"LargestBitSet FAIL")
         ENDIF
         CALL CountBits(iLutHF,NIfD,nBits,NEl)
         IF(nBits.ne.NEl) THEN
@@ -5960,7 +5960,7 @@ MODULE FciMCParMod
         nStore(1:6)=0
         CALL GenSymExcitIt2(HFDet,NEl,G1,nBasis,nBasisMax,.TRUE.,HFExcit%nExcitMemLen,nJ,iMaxExcit,0,nStore,3)
         ALLOCATE(HFExcit%ExcitData(HFExcit%nExcitMemLen),stat=ierr)
-        IF(ierr.ne.0) CALL Stop_All("InitFCIMC","Problem allocating excitation generator")
+        IF(ierr.ne.0) CALL Stop_All(this_routine,"Problem allocating excitation generator")
         HFExcit%ExcitData(1)=0
         CALL GenSymExcitIt2(HFDet,NEl,G1,nBasis,nBasisMax,.TRUE.,HFExcit%ExcitData,nJ,iMaxExcit,0,nStore,3)
         HFExcit%nPointed=0
@@ -6048,7 +6048,7 @@ MODULE FciMCParMod
             ENDIF
 !            tRotatedOrbs=.true.
 !        ELSEIF(LMS.ne.0) THEN
-!            CALL Stop_All("InitFciMCCalcPar","Ms not equal to zero, but tSpn is false. Error here")
+!            CALL Stop_All(this_routine,"Ms not equal to zero, but tSpn is false. Error here")
         ENDIF
 
         TBalanceNodes=.false.   !Assume that the nodes are initially load-balanced
@@ -6106,7 +6106,7 @@ MODULE FciMCParMod
         NoCulls=0
         
 
-        IF(tHistSpawn.or.tCalcFCIMCPsi) THEN
+        IF((tHistSpawn.or.tCalcFCIMCPsi).and.tFCIMC) THEN
             ALLOCATE(HistMinInd(NEl))
             ALLOCATE(HistMinInd2(NEl))
             maxdet=0
@@ -6239,7 +6239,7 @@ MODULE FciMCParMod
         ENDIF
 
         IF(TPopsFile.and.(mod(iWritePopsEvery,StepsSft).ne.0)) THEN
-            CALL Warning("InitFCIMCCalc","POPSFILE writeout should be a multiple of the update cycle length.")
+            CALL Warning(this_routine,"POPSFILE writeout should be a multiple of the update cycle length.")
         ENDIF
 
         IF(TNoAnnihil) THEN
@@ -6314,10 +6314,10 @@ MODULE FciMCParMod
         IF(TStartSinglePart) THEN
             TSinglePartPhase=.true.
             IF(TReadPops) THEN
-                CALL Stop_All("InitFciMCCalcPar","Cannot read in POPSFILE as well as starting with a single particle")
+                CALL Stop_All("SetupParameters","Cannot read in POPSFILE as well as starting with a single particle")
             ENDIF
             IF(TStartMP1) THEN
-                CALL Stop_All("InitFciMCCalcPar","Cannot start with a single particle, and as the MP1 wavefunction")
+                CALL Stop_All("SetupParameters","Cannot start with a single particle, and as the MP1 wavefunction")
             ENDIF
         ELSE
             TSinglePartPhase=.false.
@@ -6363,7 +6363,7 @@ MODULE FciMCParMod
 !We are truncating the excitations at a certain value
             TTruncSpace=.true.
             WRITE(6,'(A,I4)') "Truncating the S.D. space at determinants will an excitation level w.r.t. HF of: ",ICILevel
-            IF(TResumFciMC) CALL Stop_All("InitFciMCPar","Space cannot be truncated with ResumFCIMC")
+            IF(TResumFciMC) CALL Stop_All("SetupParameters","Space cannot be truncated with ResumFCIMC")
         ENDIF
         IF(tTruncCAS) THEN
 !We are truncating the FCI space by only allowing excitations in a predetermined CAS space.
@@ -6381,8 +6381,8 @@ MODULE FciMCParMod
 ! orbitals with energies equal to, or below that of the CASmin orbital must be completely occupied for 
 ! the determinant to be in the active space.
 
-            IF(OccCASOrbs.gt.NEl) CALL Stop_All("InitFCIMCPar","Occupied orbitals in CAS space specified is greater than number of electrons")
-            IF(VirtCASOrbs.gt.(nBasis-NEl)) CALL Stop_All("InitFCIMCPar","Virtual orbitals in CAS space specified is greater than number of unoccupied orbitals")
+            IF(OccCASOrbs.gt.NEl) CALL Stop_All("SetupParameters","Occupied orbitals in CAS space specified is greater than number of electrons")
+            IF(VirtCASOrbs.gt.(nBasis-NEl)) CALL Stop_All("SetupParameters","Virtual orbitals in CAS space specified is greater than number of unoccupied orbitals")
         ENDIF
         IF(tPartFreezeCore) THEN
             WRITE(6,'(A,I4,A,I5)') 'Partially freezing the lowest ',NPartFrozen,' spin orbitals so that no more than ',NHolesFrozen,' holes exist within this core.'
@@ -6392,11 +6392,11 @@ MODULE FciMCParMod
 !        IF(TAutoCorr) THEN
 !!We want to calculate the autocorrelation function over the determinants
 !            IF(iLagMin.lt.0) THEN
-!                CALL Stop_All("InitFciMCPar","LagMin cannot be less than zero (and when equal 0 should be strictly 1")
+!                CALL Stop_All("SetupParameters","LagMin cannot be less than zero (and when equal 0 should be strictly 1")
 !            ELSEIF(iLagMax.gt.NMCyc) THEN
-!                CALL Stop_All("InitFciMCPar","LagMax cannot be greater than the number of cycles.")
+!                CALL Stop_All("SetupParameters","LagMax cannot be greater than the number of cycles.")
 !            ELSEIF(iLagStep.lt.1) THEN
-!                CALL Stop_All("InitFciMCPar","LagStep cannot be less than 1")
+!                CALL Stop_All("SetupParameters","LagStep cannot be less than 1")
 !            ENDIF
 !
 !            CALL ChooseACFDets()
@@ -6444,9 +6444,9 @@ MODULE FciMCParMod
         IF(tHighExcitsSing) THEN
             WRITE(6,*) "Only allowing single excitations between determinants where one of them has an excitation level w.r.t. HF of more than ",iHighExcitsSing
             IF(iHighExcitsSing.gt.NEl) THEN
-                CALL Stop_All("InitFciMCCalcPar","iHighExcitsSing.ge.NEl")
+                CALL Stop_All("SetupParameters","iHighExcitsSing.ge.NEl")
             ELSEIF(iHighExcitsSing.eq.NEl) THEN
-                CALL Warning("InitFciMCCalcPar","iHighExcitsSing = NEl - this will no longer have any effect.")
+                CALL Warning("SetupParameters","iHighExcitsSing = NEl - this will no longer have any effect.")
             ENDIF
             IF((.not.tNonUniRandExcits).or.tStarOrbs.or.tTruncSpace.or.tTruncCAS.or.tListDets.or.tPartFreezeCore) THEN
                 CALL Stop_All("SetupParameters","Cannot use HighExcitsSing without Nonuniformrandexcits, or with starorbs or truncated spaces...")
@@ -8475,7 +8475,7 @@ MODULE FciMCParMod
                 rh%v=Prob ! to get the signs right for later on.
 !                WRITE(6,*) Prob, DetCurr(:),"***",nJ(:)
 !                WRITE(6,*) "******"
-                CALL HPHFGetOffDiagHElement(DetCurr,nJ,iLutCurr,iLutnJ,rh)
+!                CALL HPHFGetOffDiagHElement(DetCurr,nJ,iLutCurr,iLutnJ,rh)
 
             ELSE
 !The IC given doesn't really matter. It just needs to know whether it is a diagonal or off-diagonal matrix element.

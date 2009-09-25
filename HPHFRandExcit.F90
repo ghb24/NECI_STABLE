@@ -164,10 +164,10 @@ MODULE HPHFRandExcitMod
     SUBROUTINE GenRandHPHFExcit2Scratch(nI,iLutnI,nJ,iLutnJ,pDoub,exFlag,pGen,ClassCount2,ClassCountUnocc2,tGenClassCountnI,tGenMatEl)
         use SystemData , only : Alat,G1,nBasis,nBasisMax,nMsh,Arr
         use IntegralsData, only : UMat,FCK,NMAX
-        INTEGER :: nI(NEl),iLutnI(0:NIfD),iLutnJ(0:NIfD),nJ(NEl),exFlag,IC,ExcitMat(2,2)
-        INTEGER :: iLutnJ2(0:NIfD),nJ2(NEl),Ex2(2,2),ExcitLevel,OpenOrbsI,OpenOrbsJ,nI2(NEl),iLutnI2(0:NIfD)
+        INTEGER :: nI(NEl),iLutnI(0:NIfD),iLutnJ(0:NIfD),nJ(NEl),exFlag,IC,ExcitMat(2,2)!,ExcitLevel2
+        INTEGER :: iLutnJ2(0:NIfD),nJ2(NEl),Ex2(2,2),ExcitLevel,OpenOrbsI,OpenOrbsJ,nI2(NEl),iLutnI2(0:NIfD)!,IC1
         REAL*8 :: pDoub,pGen,pGen2
-        TYPE(HElement) :: MatEl,MatEl2,MatEl3
+        TYPE(HElement) :: MatEl,MatEl2!,MatEl3
         INTEGER :: ClassCount2(2,0:nSymLabels-1)
         INTEGER :: ClassCountUnocc2(2,0:nSymLabels-1)
         LOGICAL :: tGenClassCountnI,TestClosedShellDet,tSign,tSignOrig,tGenMatEl,tSwapped
@@ -211,21 +211,24 @@ MODULE HPHFRandExcitMod
             CALL ReturnAlphaOpenDet(nJ,nJ2,iLutnJ,iLutnJ2,.true.,.true.,tSwapped)
 
 !            CALL FindExcitBitDetSym(iLutnJ,iLutnJ2)
+!Try and find if spin-coupled determinant from excitation is attached.
             IF(tSwapped) THEN
                 CALL FindBitExcitLevel(iLutnI,iLutnJ,NIfD,ExcitLevel,2)
             ELSE
                 CALL FindBitExcitLevel(iLutnI,iLutnJ2,NIfD,ExcitLevel,2)
             ENDIF
 
-            IF((ExcitLevel.eq.2).or.(ExcitLevel.eq.1)) THEN
+            IF((ExcitLevel.eq.2).or.(ExcitLevel.eq.1)) THEN     !This is if we have all determinants in the two HPHFs connected...
 
                 Ex2(1,1)=ExcitLevel
 !                CALL DecodeBitDet(nJ2,iLutnJ2,NEl,NIfD)     !This could be done better !***!
 
                 IF(tSwapped) THEN
-                    CALL GetExcitation(nI,nJ,NEl,Ex2,tSign) !This could be done more efficiently... !***!
+!                    CALL GetExcitation(nI,nJ,NEl,Ex2,tSign) !This could be done more efficiently... !***!
+                    CALL GetBitExcitation(iLutnI,iLutnJ,NIfD,NEl,Ex2,tSign)
                 ELSE
-                    CALL GetExcitation(nI,nJ2,NEl,Ex2,tSign)
+!                    CALL GetExcitation(nI,nJ2,NEl,Ex2,tSign)
+                    CALL GetBitExcitation(iLutnI,iLutnJ2,NIfD,NEl,Ex2,tSign)
                 ENDIF
                 CALL CalcNonUniPGen(Ex2,ExcitLevel,ClassCount2,ClassCountUnocc2,pDoub,pGen2)    
 !!We cannot guarentee that the pGens are going to be the same - in fact, generally, they wont be.
@@ -233,24 +236,24 @@ MODULE HPHFRandExcitMod
 
                 IF(tGenMatEl) THEN
 !Generate matrix element to open shell excitation
-                    IF(TestClosedShellDet(iLutnI,NIfD)) THEN
-                        !Closed shell -> Open shell : Want to sum in SQRT(2)* Hij
+                    IF(TestClosedShellDet(iLutnI,NIfD)) THEN    !Closed shell -> Open shell : Want to sum in SQRT(2)* Hij
+                        
                         MatEl%v=0.D0
                         IF(tSwapped) THEN
-                            CALL FindBitExcitLevel(iLutnI,iLutnJ,NIfD,IC,2)
-                            Ex2(1,1)=IC
-                            CALL GetExcitation(nI,nJ,NEl,Ex2,tSign)
                             CALL SltCndExcit2(NEl,nBasisMax,nBasis,nI,nJ,G1,NEl-IC,NMSH,FCK,NMAX,ALAT,UMat,MatEl,Ex2,tSign)
+
+!                            CALL FindBitExcitLevel(iLutnI,iLutnJ,NIfD,IC1,2)
+!                            Ex2(1,1)=IC1
+!                            CALL GetExcitation(nI,nJ,NEl,Ex2,tSign)
+!                            CALL SltCndExcit2(NEl,nBasisMax,nBasis,nI,nJ,G1,NEl-IC1,NMSH,FCK,NMAX,ALAT,UMat,MatEl,Ex2,tSign)
+
                         ELSE
                             CALL SltCndExcit2(NEl,nBasisMax,nBasis,nI,nJ,G1,NEl-IC,NMSH,FCK,NMAX,ALAT,UMat,MatEl,ExcitMat,tSignOrig)
                         ENDIF
                         pGen=pGen/(REAL(MatEl%v,8)*SQRT(2.D0))
 
-
-
-
-                    ELSE
-                        !Open shell -> Open shell
+                    ELSE     !Open shell -> Open shell
+                        
                         MatEl%v=0.D0
                         MatEl2%v=0.D0
 
@@ -262,34 +265,39 @@ MODULE HPHFRandExcitMod
                         ENDIF
 
                         !now nI2 -> nJ (modelled as nI -> nJ2 with appropriate sign modifications)
-!Explicitly do nI2 -> nJ
-                        CALL FindDetSpinSym(nI,nI2,NEl)
-                        CALL FindExcitBitDetSym(iLutnI,iLutnI2)
-                        CALL FindBitExcitLevel(iLutnI2,iLutnJ,NIfD,ExcitLevel,2)
+
+!                        CALL FindDetSpinSym(nI,nI2,NEl)
+!                        CALL FindExcitBitDetSym(iLutnI,iLutnI2)
+!                        CALL FindBitExcitLevel(iLutnI2,iLutnJ,NIfD,ExcitLevel2,2)
 
                         IF((ExcitLevel.eq.2).or.(ExcitLevel.eq.1)) THEN
-
-!                            IF(tSwapped) THEN
-!                                CALL SltCndExcit2(NEl,nBasisMax,nBasis,nI,nJ2,G1,NEl-IC,NMSH,FCK,NMAX,ALAT,UMat,MatEl3,ExcitMat,tSignOrig)
-!                            ELSE
-!                                CALL SltCndExcit2(NEl,nBasisMax,nBasis,nI,nJ2,G1,NEl-Excitlevel,NMSH,FCK,NMAX,ALAT,UMat,MatEl3,Ex2,tSign)
-!                            ENDIF
-
-
+                            
                             CALL CalcOpenOrbs(iLutnJ,NIfD,NEl,OpenOrbsJ)
                             CALL CalcOpenOrbs(iLutnI,NIfD,NEl,OpenOrbsI)
-                            Ex2(1,1)=ExcitLevel
-                            CALL GetExcitation(nI2,nJ,NEl,Ex2,tSign)
-                            CALL SltCndExcit2(NEl,nBasisMax,nBasis,nI2,nJ,G1,NEl-ExcitLevel,NMSH,FCK,NMAX,ALAT,UMat,MatEl2,Ex2,tSign)
 
-!                            IF((MatEl3%v-MatEl2%v).gt.1.D-7.and..not.tSwapped) THEN
+                            IF(tSwapped) THEN
+                                IF((OpenOrbsJ+OpenOrbsI).eq.3) tSignOrig=.not.tSignOrig  !I.e. J odd and I even or vice versa, but since these can only be at max quads, then they can only have 1/2 open orbs
+
+                                CALL SltCndExcit2(NEl,nBasisMax,nBasis,nI,nJ2,G1,NEl-IC,NMSH,FCK,NMAX,ALAT,UMat,MatEl2,ExcitMat,tSignOrig)
+                            ELSE
+                                IF((OpenOrbsJ+OpenOrbsI).eq.3) tSign=.not.tSign     !I.e. J odd and I even or vice versa, but since these can only be at max quads, then they can only have 1/2 open orbs
+
+                                CALL SltCndExcit2(NEl,nBasisMax,nBasis,nI,nJ2,G1,NEl-Excitlevel,NMSH,FCK,NMAX,ALAT,UMat,MatEl2,Ex2,tSign)
+                            ENDIF
+
+
+!                            Ex2(1,1)=ExcitLevel
+!                            CALL GetExcitation(nI2,nJ,NEl,Ex2,tSign)
+!                            CALL SltCndExcit2(NEl,nBasisMax,nBasis,nI2,nJ,G1,NEl-ExcitLevel,NMSH,FCK,NMAX,ALAT,UMat,MatEl2,Ex2,tSign)
+
+!                            IF((MatEl3%v-MatEl2%v).gt.1.D-7) THEN!.and..not.tSwapped.and.((mod(OpenOrbsJ,2).eq.0.and.mod(OpenOrbsI,2).eq.1).or.(mod(OpenOrbsJ,2).eq.1.and.mod(OpenOrbsI,2).eq.0))) THEN
 !                                WRITE(6,*) MatEl3,MatEl2,ExcitLevel,IC,tSwapped,OpenOrbsI,OpenOrbsJ
 !                                WRITE(6,*) "***********, ERROR"
 !                                CALL Stop_All("ikb","Error in getting correct HEl - 2")
 !                            ENDIF
 
-
-                            IF(((mod(OpenOrbsI,2).eq.0).and.(mod(OpenOrbsJ,2).eq.0)).or.((mod(OpenOrbsI,2).eq.0).and.(mod(OpenOrbsJ,2).eq.1))) THEN
+!                            IF(((mod(OpenOrbsI,2).eq.0).and.(mod(OpenOrbsJ,2).eq.0)).or.((mod(OpenOrbsI,2).eq.0).and.(mod(OpenOrbsJ,2).eq.1))) THEN
+                            IF(OpenOrbsI.eq.2) THEN     !again, since these can only be at max quads, then they can only have 1/2 open orbs...
                                 MatEl=MatEl+MatEl2
                             ELSE
                                 MatEl=MatEl-MatEl2
@@ -298,18 +306,9 @@ MODULE HPHFRandExcitMod
                         ENDIF
                         pGen=pGen/(REAL(MatEl%v,8))
                     
-!                        MatEl3%v=0.D0
-!                        CALL HPHFGetOffDiagHElement(nI,nJ,iLutnI,iLutnJ,MatEl3)
-!                        IF((MatEl3%v-MatEl%v).gt.1.D-7) THEN
-!                            WRITE(6,*) MatEl3,MatEl,MatEl2,ExcitLevel,tSwapped,IC,OpenOrbsI,OpenOrbsJ
-!                            WRITE(6,*) "***********, ERROR"
-!                            CALL Stop_All("ikb","Error in getting correct HEl - 2")
-!                        ENDIF
-                
+                    ENDIF   !Endif from open/closed shell det
 
-                    ENDIF
-
-                ENDIF
+                ENDIF   !Endif want to generate matrix element
 
 !                CALL ReturnAlphaOpenDet(nJ,nJ2,iLutnJ,iLutnJ2,.false.,.false.,tSwapped)  !Here, we actually know nJ, so don't need to regenerate it...
 
@@ -325,8 +324,9 @@ MODULE HPHFRandExcitMod
 !iLutnI MUST be open-shell here, since otherwise it would have been connected to iLutnJ2. Also, we know the cross connection (i.e. MatEl2 = 0)
                     IF(tSwapped) THEN
                         CALL CalcOpenOrbs(iLutnJ,NIfD,NEl,OpenOrbsJ)
-                        CALL CalcOpenOrbs(iLutnI,NIfD,NEl,OpenOrbsI)
-                        IF(((mod(OpenOrbsI,2).eq.1).and.(mod(OpenOrbsJ,2).eq.1)).or.((mod(OpenOrbsI,2).eq.0).and.(mod(OpenOrbsJ,2).eq.1))) THEN
+!                        CALL CalcOpenOrbs(iLutnI,NIfD,NEl,OpenOrbsI)
+!                        IF(((mod(OpenOrbsI,2).eq.1).and.(mod(OpenOrbsJ,2).eq.1)).or.((mod(OpenOrbsI,2).eq.0).and.(mod(OpenOrbsJ,2).eq.1))) THEN
+                        IF(mod(OpenOrbsJ,2).eq.1) THEN
 !                            WRITE(6,*) "Swapped parity"
                             tSignOrig=.not.tSignOrig
                         ENDIF

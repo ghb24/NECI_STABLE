@@ -207,6 +207,6 @@ MODULE FciMCData
       INTEGER , ALLOCATABLE :: AllowedDetList(:,:) !If tListDets is on, this array will fill with allowed determinants to spawn at
       INTEGER :: NAllowedDetList   !This is the number of allowed determinants to spawn at in the AllowedDetList.
 
-      LOGICAL :: tGenMatHEl=.false.     !This is whether to generate matrix elements as generating excitations for the HPHF option
+      LOGICAL :: tGenMatHEl=.true.      !This is whether to generate matrix elements as generating excitations for the HPHF option
 
 END MODULE FciMCData
