@@ -155,6 +155,8 @@ SUBROUTINE HPHFGetOffDiagHElement(nI,nJ,iLutnI,iLutnJ,MatEl)
                 CALL GetExcitation(nI,nJ,NEl,Ex,tSign)
 !                CALL GetBitExcitation(iLutnI,iLutnJ,NIfD,NEl,Ex,tSign)
                 CALL SltCndExcit2(NEl,nBasisMax,nBasis,nI,nJ,G1,NEl-ExcitLevel,NMSH,FCK,NMAX,ALAT,UMat,MatEl,Ex,tSign)
+!                WRITE(6,*) "MatEl Old: ",MatEl
+!                CALL FLUSH(6)
 !                CALL SltCnd(NEl,nBasisMax,nBasis,nI,nJ,G1,NEl-ExcitLevel,NMSH,FCK,NMAX,ALAT,UMat,MatEl)
 !                WRITE(6,*) 1,REAL(MatEl2%v,8),ExcitLevel
 !                WRITE(6,*) 4,REAL(MatEl2%v,8),ExcitLevel
@@ -181,6 +183,7 @@ SUBROUTINE HPHFGetOffDiagHElement(nI,nJ,iLutnI,iLutnJ,MatEl)
 !                IF(ExcitLevel.le.0) CALL Stop_All("HPHFGetOffDiagHElement","Determinants are a forbidden excitation level apart3")
                 MatEl2%v=0.D0
                 CALL SltCndExcit2(NEl,nBasisMax,nBasis,nI2,nJ,G1,NEl-ExcitLevel,NMSH,FCK,NMAX,ALAT,UMat,MatEl2,Ex,tSign)
+!                WRITE(6,*) "MatEl2 Old: ",MatEl2
 !                CALL SltCnd(NEl,nBasisMax,nBasis,nI2,nJ,G1,NEl-ExcitLevel,NMSH,FCK,NMAX,ALAT,UMat,MatEl2)
                 IF(((mod(OpenOrbsI,2).eq.0).and.(mod(OpenOrbsJ,2).eq.0)).or.((mod(OpenOrbsI,2).eq.0).and.(mod(OpenOrbsJ,2).eq.1))) THEN
 !                    WRITE(6,*) 2,REAL(MatEl2%v,8),ExcitLevel

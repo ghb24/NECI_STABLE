@@ -54,7 +54,9 @@ MODULE FciMCParMod
 !        CALL MPI_Comm_set_errhandler(MPI_COMM_WORLD,MPI_ERRORS_RETURN,error)
 !        CALL MPI_Comm_set_errhandler(MPI_COMM_WORLD,MPI_ERRORS_ARE_FATAL,error)
         
+        CALL SetupParameters()
         CALL InitFCIMCCalcPar()
+        CALL WriteFciMCStatsHeader()
 
         CALL WriteFCIMCStats()
 
@@ -252,7 +254,7 @@ MODULE FciMCParMod
 !This will only be a help if most determinants are multiply occupied.
 
                 IF(tHPHF) THEN
-                    CALL GenRandHPHFExcit2Scratch(DetCurr,CurrentDets(:,j),nJ,iLutnJ,pDoubles,exFlag,Prob,Scratch1,Scratch2,tFilled)
+                    CALL GenRandHPHFExcit2Scratch(DetCurr,CurrentDets(:,j),nJ,iLutnJ,pDoubles,exFlag,Prob,Scratch1,Scratch2,tFilled,tGenMatHEl)
                 ELSE
                     CALL GenRandSymExcitScratchNU(DetCurr,CurrentDets(:,j),nJ,pDoubles,IC,Ex,tParity,exFlag,Prob,Scratch1,Scratch2,tFilled)
                 ENDIF
@@ -331,11 +333,13 @@ MODULE FciMCParMod
 !If we are copying to the main array, we have to ensure that we maintain sign-coherence in the array. Therefore, if we are spawning anti-particles,
 !it wants to go in the spawning array, rather than the main array, so it has a chance to annihilate. However, since anti-particles should not be created
 !in normal circumstances, we will remove this possibility.
+                    WRITE(6,*) "***",Iter,CopySign,HDiagCurr,iDie,DetCurr(:)
                     CALL Stop_All("PerformFCIMCyc","Creating anti-particles")
                 ENDIF
             ELSE
                 CopySign=CurrentSign(j)-iDie
                 IF(CopySign.lt.0) THEN
+                    WRITE(6,*) "***",Iter,CopySign,HDiagCurr,iDie,DetCurr(:)
                     CALL Stop_All("PerformFCIMCyc","Creating anti-particles")
                 ENDIF
             ENDIF
@@ -576,7 +580,7 @@ MODULE FciMCParMod
 !This will only be a help if most determinants are multiply occupied.
                                 IF(tHPHF) THEN
 !                                    CALL GenRandHPHFExcit(DetCurr,CurrentDets(:,j),nJ,iLutnJ,pDoubles,exFlag,Prob)
-                                    CALL GenRandHPHFExcit2Scratch(DetCurr,CurrentDets(:,j),nJ,iLutnJ,pDoubles,exFlag,Prob,Scratch1,Scratch2,tFilled)
+                                    CALL GenRandHPHFExcit2Scratch(DetCurr,CurrentDets(:,j),nJ,iLutnJ,pDoubles,exFlag,Prob,Scratch1,Scratch2,tFilled,tGenMatHEl)
                                 ELSE
                                     CALL GenRandSymExcitScratchNU(DetCurr,CurrentDets(:,j),nJ,pDoubles,IC,Ex,tParity,exFlag,Prob,Scratch1,Scratch2,tFilled)
                                 ENDIF
@@ -5796,10 +5800,9 @@ MODULE FciMCParMod
 !        ENDIF
 
     END SUBROUTINE UpdateDiagSftPar
-
-
-!This initialises the calculation, by allocating memory, setting up the initial walkers, and reading from a file if needed
-    SUBROUTINE InitFCIMCCalcPar()
+        
+    
+    SUBROUTINE SetupParameters()
         use SystemData, only : tUseBrillouin,iRanLuxLev,tSpn,tHPHFInts,tRotateOrbs,tNoBrillouin,tROHF,tFindCINatOrbs
         USE mt95 , only : genrand_init
         use CalcData, only : EXCITFUNCS
@@ -5810,15 +5813,14 @@ MODULE FciMCParMod
         use GenRandSymExcitNUMod , only : SpinOrbSymSetup,tNoSingsPossible
         use FciMCLoggingMOD , only : InitTriHElStats,InitSpinCoupHel
         use DetCalc, only : NMRKS,tagNMRKS,FCIDets
-        INTEGER :: ierr,i,j,k,l,DetCurr(NEl),ReadWalkers,TotWalkersDet,HFDetTest(NEl),Seed,alpha,beta,symalpha,symbeta,endsymstate,Proc
+        INTEGER :: ierr,i,j,k,l,DetCurr(NEl),ReadWalkers,TotWalkersDet,HFDetTest(NEl),Seed,alpha,beta,symalpha,symbeta,endsymstate
         INTEGER :: DetLT,VecSlot,error,HFConn,MemoryAlloc,iMaxExcit,nStore(6),nJ(Nel),BRR2(nBasis),LargestOrb,nBits,HighEDet(NEl),iLutTemp(0:NIfD)
         TYPE(HElement) :: rh,TempHii
         REAL*8 :: TotDets,SymFactor,Choose
         CHARACTER(len=*), PARAMETER :: this_routine='InitFCIMCPar'
         CHARACTER(len=12) :: abstr
-        LOGICAL :: exists,tSuccess,tFoundOrbs(nBasis),tTurnBackBrillouin
+        LOGICAL :: tSuccess,tFoundOrbs(nBasis),tTurnBackBrillouin
         REAL :: Gap
-
 
 !        CALL MPIInit(.false.)       !Initialises MPI - now have variables iProcIndex and nProcessors
         WRITE(6,*) ""
@@ -5900,12 +5902,12 @@ MODULE FciMCParMod
                     IF(.not.tFoundOrbs(Beta)) THEN
                         tFoundOrbs(Beta)=.true.
                     ELSE
-                        CALL Stop_All("InitFCIMCCalcPar","Orbital specified twice")
+                        CALL Stop_All("SetupParameters","Orbital specified twice")
                     ENDIF
                     IF(.not.tFoundOrbs(Alpha)) THEN
                         tFoundOrbs(Alpha)=.true.
                     ELSE
-                        CALL Stop_All("InitFCIMCCalcPar","Orbital specified twice")
+                        CALL Stop_All("SetupParameters","Orbital specified twice")
                     ENDIF
 
                     IF(G1(Beta)%Ms.ne.-1) THEN
@@ -5920,7 +5922,7 @@ MODULE FciMCParMod
             do i=1,nBasis
                 IF(.not.tFoundOrbs(i)) THEN
                     WRITE(6,*) "Orbital: ",i, " not found."
-                    CALL Stop_All("InitFCIMCCalcPar","Orbital not found")
+                    CALL Stop_All("SetupParameters","Orbital not found")
                 ENDIF
             enddo
         ENDIF
@@ -5931,7 +5933,7 @@ MODULE FciMCParMod
             WRITE(6,*) "Symmetry information not set up correctly in NECI initialisation"
             WRITE(6,*) "Will attempt to set up the symmetry again, but now in terms of spin orbitals"
             WRITE(6,*) "I strongly suggest you check that the reference energy is correct."
-!            CALL Stop_All("InitFCIMCCalcPar","Error in the setup of the symmetry/spin ordering of the orbitals. This configuration will not work with spawning excitation generators")
+!            CALL Stop_All("SetupParameters","Error in the setup of the symmetry/spin ordering of the orbitals. This configuration will not work with spawning excitation generators")
             CALL SpinOrbSymSetup(.true.) 
         ELSE
             WRITE(6,*) "Symmetry and spin of orbitals correctly set up for spawning excitation generators."
@@ -5983,7 +5985,7 @@ MODULE FciMCParMod
         ENDIF
         
         IF(tHPHF) THEN
-            IF(tROHF.or.(LMS.ne.0)) CALL Stop_All("InitFCIMCCalcPar","Cannot use HPHF with high-spin systems.")
+            IF(tROHF.or.(LMS.ne.0)) CALL Stop_All("SetupParameters","Cannot use HPHF with high-spin systems.")
             tHPHFInts=.true.
         ENDIF
 
@@ -6029,10 +6031,10 @@ MODULE FciMCParMod
 !!This option will spawn on determinants where the alpha and beta strings are swapped for S=0 RHF systems.
 !!These determinants should have the same amplitude in the CI wavefunction - see Helgakker for details.
 !            IF(tSpn) THEN
-!                CALL Stop_All("InitFCIMCCalcPar","SpawnSymDets cannot work with ROHF or UHF systems (currently?)")
+!                CALL Stop_All("SetupParameters","SpawnSymDets cannot work with ROHF or UHF systems (currently?)")
 !            ENDIF
 !            IF(.not.tRotoAnnihil) THEN
-!                CALL Stop_All("InitFCIMCCalcPar","SpawnSymDets must be used with RotoAnnihilation currently")
+!                CALL Stop_All("SetupParameters","SpawnSymDets must be used with RotoAnnihilation currently")
 !            ENDIF
 !            WRITE(6,*) "Spawning on symmetric determinants for each spawning step"
 !        ENDIF
@@ -6100,6 +6102,9 @@ MODULE FciMCParMod
         AllHFCyc=0.D0
 !        AllDetsNorm=0.D0
         tCleanRun=.false.
+        CullInfo(1:10,1:3)=0
+        NoCulls=0
+        
 
         IF(tHistSpawn.or.tCalcFCIMCPsi) THEN
             ALLOCATE(HistMinInd(NEl))
@@ -6116,29 +6121,29 @@ MODULE FciMCParMod
             WRITE(6,*) "Histogramming spawning wavevector, with Dets=", Det
             ALLOCATE(Histogram(1:det),stat=ierr)
             IF(ierr.ne.0) THEN
-                CALL Stop_All("InitFCIMCCalcPar","Error assigning memory for histogramming arrays (could deallocate NMRKS to save memory?)")
+                CALL Stop_All("SetupParameters","Error assigning memory for histogramming arrays (could deallocate NMRKS to save memory?)")
             ENDIF
             Histogram(:)=0.D0
             IF(tHistSpawn) THEN
                 ALLOCATE(InstHist(1:det),stat=ierr)
                 IF(ierr.ne.0) THEN
-                    CALL Stop_All("InitFCIMCCalcPar","Error assigning memory for histogramming arrays (could deallocate NMRKS to save memory?)")
+                    CALL Stop_All("SetupParameters","Error assigning memory for histogramming arrays (could deallocate NMRKS to save memory?)")
                 ENDIF
                 InstHist(:)=0.D0
                 ALLOCATE(AvAnnihil(1:det),stat=ierr)
                 IF(ierr.ne.0) THEN
-                    CALL Stop_All("InitFCIMCCalcPar","Error assigning memory for histogramming arrays (could deallocate NMRKS to save memory?)")
+                    CALL Stop_All("SetupParameters","Error assigning memory for histogramming arrays (could deallocate NMRKS to save memory?)")
                 ENDIF
                 AvAnnihil(:)=0.D0
                 ALLOCATE(InstAnnihil(1:det),stat=ierr)
                 IF(ierr.ne.0) THEN
-                    CALL Stop_All("InitFCIMCCalcPar","Error assigning memory for histogramming arrays (could deallocate NMRKS to save memory?)")
+                    CALL Stop_All("SetupParameters","Error assigning memory for histogramming arrays (could deallocate NMRKS to save memory?)")
                 ENDIF
                 InstAnnihil(:)=0.D0
             ENDIF
 
             ALLOCATE(AllHistogram(1:det),stat=ierr)
-            IF(ierr.ne.0) CALL Stop_All("InitFCIMCCalcPar","Error assigning memory for histogramming arrays (could deallocate NMRKS to save memory?)")
+            IF(ierr.ne.0) CALL Stop_All("SetupParameters","Error assigning memory for histogramming arrays (could deallocate NMRKS to save memory?)")
             IF(iProcIndex.eq.0) THEN
                 IF(tHistSpawn) THEN
                     ALLOCATE(AllInstHist(1:det),stat=ierr)
@@ -6146,7 +6151,7 @@ MODULE FciMCParMod
                     ALLOCATE(AllAvAnnihil(1:det),stat=ierr)
                 ENDIF
                 IF(ierr.ne.0) THEN
-                    CALL Stop_All("InitFCIMCCalcPar","Error assigning memory for histogramming arrays (could deallocate NMRKS to save memory?)")
+                    CALL Stop_All("SetupParameters","Error assigning memory for histogramming arrays (could deallocate NMRKS to save memory?)")
                 ENDIF
             ENDIF
         ELSEIF(tHistEnergies) THEN
@@ -6207,7 +6212,7 @@ MODULE FciMCParMod
             CALL CalcApproxpDoubles(HFConn)
         ENDIF
         IF((.not.tRegenExcitgens).and.(tRotoAnnihil)) THEN
-            CALL Stop_All("InitFCIMCCalcPar","Storage of excitation generators is incompatable with RotoAnnihilation. Regenerate excitation generators.")
+            CALL Stop_All("SetupParameters","Storage of excitation generators is incompatable with RotoAnnihilation. Regenerate excitation generators.")
         ENDIF
 
 !This is a list of options which cannot be used with the stripped-down spawning routine. New options not added to this routine should be put in this list.
@@ -6240,12 +6245,12 @@ MODULE FciMCParMod
         IF(TNoAnnihil) THEN
             WRITE(6,*) "No Annihilation to occur. Results are likely not to converge on right value. Proceed with caution. "
         ELSEIF(TAnnihilonproc) THEN
-            CALL Stop_All("InitFCIMCCalcPar","Annihilonproc feature is currently disabled")
+            CALL Stop_All("SetupParameters","Annihilonproc feature is currently disabled")
             WRITE(6,*) "Annihilation will occur on each processors' walkers only. This should be faster, but result in less annihilation."
             WRITE(6,*) "This is equivalent to running seperate calculations."
         ELSEIF(tRotoAnnihil) THEN
             IF(tDirectAnnihil) THEN
-                CALL Stop_All("InitFCIMCCalcPar","Cannot specify both direct annihilation and rotoannihilation.")
+                CALL Stop_All("SetupParameters","Cannot specify both direct annihilation and rotoannihilation.")
             ENDIF
             WRITE(6,*) "RotoAnnihilation in use...!"
         ELSEIF(tDirectAnnihil) THEN
@@ -6262,16 +6267,16 @@ MODULE FciMCParMod
         IF(TReadPops) THEN
 !List of things that readpops can't work with...
             IF(TStartSinglePart.or.TStartMP1) THEN
-                CALL Stop_All("InitFCIMCCalcPar","ReadPOPS cannot work with StartSinglePart or StartMP1")
+                CALL Stop_All("SetupParameters","ReadPOPS cannot work with StartSinglePart or StartMP1")
             ENDIF
         ENDIF
 
         IF(TResumFciMC) THEN
-            CALL Stop_All("InitFCIMCCalcPar","ResumFCIMC code is currently disabled")
+            CALL Stop_All("SetupParameters","ResumFCIMC code is currently disabled")
             IF(NDets.ge.2) THEN
                 IF(.not.EXCITFUNCS(10)) THEN
                     WRITE(6,*) "Cannot have an excitation bias with multiple determinant graphs...exiting."
-                    CALL Stop_All("InitFCIMCCalcPar","Cannot have biasing with Graphsizes > 2")
+                    CALL Stop_All("SetupParameters","Cannot have biasing with Graphsizes > 2")
                 ENDIF
 
 !Allocate memory for graphs...
@@ -6286,9 +6291,9 @@ MODULE FciMCParMod
                 
             ELSEIF(NDets.lt.2) THEN
                 WRITE(6,*) "Graphs cannot be smaller than two vertices. Exiting."
-                CALL Stop_All("InitFCIMCCalcPar","Graphs cannot be smaller than two vertices")
+                CALL Stop_All("SetupParameters","Graphs cannot be smaller than two vertices")
             ELSEIF(TFixShiftShell.or.tFixShiftKii.or.tFixCASShift) THEN
-                CALL Stop_All("InitFCIMCCalcPar","Fixing the shift of the certain excitation levels cannot be used within ResumFCIMC")
+                CALL Stop_All("SetupParameters","Fixing the shift of the certain excitation levels cannot be used within ResumFCIMC")
             ENDIF
             IF(iProcIndex.eq.root) THEN
                 WRITE(6,*) "Resumming in multiple transitions to/from each excitation"
@@ -6350,7 +6355,7 @@ MODULE FciMCParMod
         ENDIF
         IF(tStarOrbs) THEN
             IF(tImportanceSample.or.(ICILevel.ne.0).or.(.not.tRegenExcitgens)) THEN
-                CALL Stop_All("InitFCIMCCalcPar","Cannot use star orbs while storing excitation generators, or truncation or importance sampling...")
+                CALL Stop_All("SetupParameters","Cannot use star orbs while storing excitation generators, or truncation or importance sampling...")
             ENDIF
             CALL CreateSpinInvBrr()
         ENDIF
@@ -6403,7 +6408,7 @@ MODULE FciMCParMod
         IF(tMagnetize) THEN
 
             IF(tRotoAnnihil) THEN
-                CALL Stop_All("InitFCIMCCalcPar","Rotoannihilation not currently supporting Magnetization")
+                CALL Stop_All("SetupParameters","Rotoannihilation not currently supporting Magnetization")
             ENDIF
             CALL FindMagneticDets()
         ENDIF
@@ -6411,7 +6416,7 @@ MODULE FciMCParMod
         IF(TLocalAnnihilation) THEN
 !If we are locally annihilating, then we need to know the walker density for a given excitation level, for which we need to approximate number of determinants
 !in each excitation level
-            CALL Stop_All("InitFCIMCCalcPar","LocalAnnihilation is currently disabled")
+            CALL Stop_All("SetupParameters","LocalAnnihilation is currently disabled")
             ALLOCATE(ApproxExcitDets(0:NEl))
             ALLOCATE(PartsinExcitLevel(0:NEl))
             TotDets=1.D0
@@ -6444,7 +6449,7 @@ MODULE FciMCParMod
                 CALL Warning("InitFciMCCalcPar","iHighExcitsSing = NEl - this will no longer have any effect.")
             ENDIF
             IF((.not.tNonUniRandExcits).or.tStarOrbs.or.tTruncSpace.or.tTruncCAS.or.tListDets.or.tPartFreezeCore) THEN
-                CALL Stop_All("InitFCIMCCalcPar","Cannot use HighExcitsSing without Nonuniformrandexcits, or with starorbs or truncated spaces...")
+                CALL Stop_All("SetupParameters","Cannot use HighExcitsSing without Nonuniformrandexcits, or with starorbs or truncated spaces...")
             ENDIF
         ENDIF
 
@@ -6452,6 +6457,21 @@ MODULE FciMCParMod
 !We need to store a list of all double excitations of HF.
             CALL StoreDoubs()
         ENDIF
+
+    END SUBROUTINE SetupParameters
+
+
+!This initialises the calculation, by allocating memory, setting up the initial walkers, and reading from a file if needed
+    SUBROUTINE InitFCIMCCalcPar()
+        use FciMCLoggingMOD , only : InitTriHElStats,InitSpinCoupHel
+        use SystemData , only : tRotateOrbs
+        INTEGER :: ierr,i,j,k,l,DetCurr(NEl),ReadWalkers,TotWalkersDet
+        INTEGER :: DetLT,VecSlot,error,MemoryAlloc,Proc
+        TYPE(HElement) :: rh,TempHii
+        LOGICAL :: exists
+        REAL*8 :: TotDets
+        CHARACTER(len=*), PARAMETER :: this_routine='InitFCIMCPar'
+
 
         IF(TStartMP1) THEN
 !Start the initial distribution off at the distribution of the MP1 eigenvector
@@ -6828,9 +6848,15 @@ MODULE FciMCParMod
         IF((NMCyc.ne.0).and.(tRotateOrbs.and.(.not.tFindCINatOrbs))) CALL Stop_All(this_routine,"Currently not set up to rotate and then go straight into a spawning &
                                                                                     & calculation.  Ordering of orbitals is incorrect.  This may be fixed if needed.")
 
-        CullInfo(1:10,1:3)=0
-        NoCulls=0
-        
+!Put a barrier here so all processes synchronise
+        CALL MPI_Barrier(MPI_COMM_WORLD,error)
+        RETURN
+
+    END SUBROUTINE InitFCIMCCalcPar
+
+
+    SUBROUTINE WriteFciMCStatsHeader()
+
         IF(iProcIndex.eq.root) THEN
 !Print out initial starting configurations
             WRITE(6,*) ""
@@ -6860,12 +6886,9 @@ MODULE FciMCParMod
             
             ENDIF
         ENDIF
-        
-!Put a barrier here so all processes synchronise
-        CALL MPI_Barrier(MPI_COMM_WORLD,error)
-        RETURN
 
-    END SUBROUTINE InitFCIMCCalcPar
+    END SUBROUTINE WriteFciMCStatsHeader
+        
 
     
 ! This is called if tListDets is set, and will read a list of NAllowedDetList determinants in natural order from the SpawnOnlyDets file, 
@@ -8444,13 +8467,35 @@ MODULE FciMCParMod
 !Calculate off diagonal hamiltonian matrix element between determinants
 !        rh=GetHElement2(DetCurr,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,IC,ECore)
         IF(tHPHF) THEN
+            IF(tGenMatHEl) THEN
+!The prob is actually prob/HEl, since the matrix element was generated at the same time as the excitation
+
+                rat=Tau*REAL(nParts,r2)/abs(Prob)
+
+                rh%v=Prob ! to get the signs right for later on.
+!                WRITE(6,*) Prob, DetCurr(:),"***",nJ(:)
+!                WRITE(6,*) "******"
+                CALL HPHFGetOffDiagHElement(DetCurr,nJ,iLutCurr,iLutnJ,rh)
+
+            ELSE
 !The IC given doesn't really matter. It just needs to know whether it is a diagonal or off-diagonal matrix element.
 !However, the excitation generator can generate the same HPHF again. If this is done, the routine will send the matrix element back as zero.
-!            rh=GetHElement2(DetCurr,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,2,ECore)
-            CALL HPHFGetOffDiagHElement(DetCurr,nJ,iLutCurr,iLutnJ,rh)
+                CALL HPHFGetOffDiagHElement(DetCurr,nJ,iLutCurr,iLutnJ,rh)
+!Divide by the probability of creating the excitation to negate the fact that we are only creating a few determinants
+                rat=Tau*abs(rh%v)*REAL(nParts,r2)/Prob
+!                WRITE(6,*) Prob/rh%v, DetCurr(:),"***",nJ(:)
+!                WRITE(6,*) "******"
+
+            ENDIF
         ELSE
+!Normal determinant spawn
+
             rh=GetHElement4(DetCurr,nJ,IC,Ex,tParity)
 !            WRITE(6,*) rh%v
+
+!Divide by the probability of creating the excitation to negate the fact that we are only creating a few determinants
+            rat=Tau*abs(rh%v)*REAL(nParts,r2)/Prob
+
         ENDIF
         IF(CCMCDebug.gt.5) WRITE(6,*) "Connection H-element to spawnee:",rh
 !        CALL IsSymAllowedExcit(DetCurr,nJ,IC,Ex,SymAllowed) 
@@ -8473,8 +8518,6 @@ MODULE FciMCParMod
 !        ENDIF
 
 
-!Divide by the probability of creating the excitation to negate the fact that we are only creating a few determinants
-        rat=Tau*abs(rh%v)*REAL(nParts,r2)/Prob
 !If probability is > 1, then we can just create multiple children at the chosen determinant
         ExtraCreate=INT(rat)
         rat=rat-REAL(ExtraCreate)
@@ -9142,7 +9185,7 @@ MODULE FciMCParMod
 !This will only be a help if most determinants are multiply occupied.
                         IF(tHPHF) THEN
 !                            CALL GenRandHPHFExcit(DetCurr,CurrentDets(:,j),nJ,iLutnJ,pDoubles,exFlag,Prob)
-                            CALL GenRandHPHFExcit2Scratch(DetCurr,CurrentDets(:,j),nJ,iLutnJ,pDoubles,exFlag,Prob,Scratch1,Scratch2,tFilled)
+                            CALL GenRandHPHFExcit2Scratch(DetCurr,CurrentDets(:,j),nJ,iLutnJ,pDoubles,exFlag,Prob,Scratch1,Scratch2,tFilled,tGenMatHEl)
                         ELSE
                             CALL GenRandSymExcitScratchNU(DetCurr,CurrentDets(:,j),nJ,pDoubles,IC,Ex,tParity,exFlag,Prob,Scratch1,Scratch2,tFilled)
                         ENDIF
