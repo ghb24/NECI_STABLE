@@ -1019,7 +1019,7 @@ MODULE Calc
           use IntegralsData, only: FCK, CST, nMax, UMat
           use IntegralsData, only: HFEDelta, HFMix, NHFIt, tHFCalc
           Use Determinants, only: FDet, tSpecDet, SpecDet, GetHElement2
-          Use DetCalc, only: DetInv, nDet, tRead
+          Use DetCalc, only: DetInv, nDet, tRead, ICILevel
           use global_utilities
           
           REAL*8 CalcT, CalcT2, GetRhoEps
@@ -1101,7 +1101,11 @@ MODULE Calc
           ElecPairs=(NEl*(NEl-1))/2
 
           IF(tExactSizeSpace) THEN
-              CALL FindSymSizeofSpace(6)
+              IF(ICILevel.eq.0) THEN
+                  CALL FindSymSizeofSpace(6)
+              ELSE
+                  CALL FindSymSizeofTruncSpace(6)
+              ENDIF
           ENDIF
 
           IF(TMCDET) THEN

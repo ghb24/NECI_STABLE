@@ -2234,3 +2234,314 @@ C.. Set to be totally symmetric
 
       END SUBROUTINE FindSymSizeofSpace
 
+
+!This routine finds the size of the determinant space in terms, including all symmetry allowed determinants.
+!This is written to IUNIT. This is only available for molecular (i.e. abelian) systems with a maximum of eigth irreps.
+!This is done in a very crude way. Feel free to optimise it!
+      SUBROUTINE FindSymSizeofTruncSpace(IUNIT)
+         use SymData , only : TwoCycleSymGens
+         use SystemData , only : nEl,G1,nBasis,nOccAlpha,nOccBeta,Brr
+         use Determinants , only : FDet
+         use DetCalc , only : ICILevel
+         IMPLICIT NONE
+         INTEGER :: ClassCountsOcc(0:7),Lim0a,Lim0b,Lim1a,Lim1b,Lim2a
+         INTEGER :: ClassCountsVirt(0:7),Lim2b,NAlphOcc,NAlphVirt
+         INTEGER :: ClassCountsOccMax(0:7),ClassCountsVirtMax(0:7)
+         INTEGER :: LimaOcc(0:7),LimbOcc(0:7),LimaVirt(0:7)
+         INTEGER :: LimbVirt(0:7)
+         INTEGER :: a0o,a1o,a2o,a3o,a4o,a5o,a6o,a7o
+         INTEGER :: a0v,a1v,a2v,a3v,a4v,a5v,a6v,a7v
+         INTEGER :: b0o,b1o,b2o,b3o,b4o,b5o,b6o,b7o,OverallSym
+         INTEGER :: b0v,b1v,b2v,b3v,b4v,b5v,b6v,b7v,NBetOcc,i,IUNIT
+         INTEGER :: FDetSym,NBetVirt
+         REAL*8 :: Choose,Space,SpaceGrow,SpaceGrow2
+         LOGICAL :: Sym(0:7)
+
+         IF(.not.TwoCycleSymGens) THEN
+             WRITE(IUNIT,*) "Only for molecular abelian symmetry "      &
+     &      //" calculations can the exact size of the determinant "    &
+     &      //" space be calculated currently..."
+             WRITE(IUNIT,*) "Skipping size of space calculation..."
+             RETURN
+         ENDIF
+
+         WRITE(IUNIT,*) "Calculating exact size of symmetry-allowed "   &
+     &       //"determinant space..."
+         FDetSym=0
+         do i=1,NEl
+            FDetSym=IEOR(FDetSym,INT(G1(FDet(i))%Sym%S,4))
+         enddo
+         WRITE(6,*) "Symmetry of HF determinant is: ",FDetSym
+         CALL FLUSH(IUNIT)
+         ClassCountsOcc(:)=0
+         ClassCountsVirt(:)=0
+!First, we need to find the number of spatial orbitals in each symmetry irrep.
+!We need to separate this into occupied and virtual. 
+         do i=1,NEl,1
+             ClassCountsOcc(INT(G1(BRR(i))%Sym%S,4))=                   &
+     &           ClassCountsOcc(INT(G1(BRR(i))%Sym%S,4))+1
+         enddo
+ 
+         do i=NEL+1,nBasis,1
+             ClassCountsVirt(INT(G1(BRR(i))%Sym%S,4))=                  &
+     &           ClassCountsVirt(INT(G1(BRR(i))%Sym%S,4))+1
+         enddo
+
+!These are still in spin orbitals, so check there are multiple of 2 values in 
+!each symmetry irrep and then divide by two because we deal with alpha and beta separately.         
+         do i=0,7
+         IF(mod((ClassCountsOcc(i)+ClassCountsVirt(i)),2).ne.0) THEN
+             STOP 'Error counting determinants'
+         ENDIF
+         ClassCountsOccMax(i)=CEILING(REAL(ClassCountsOcc(i))/2.D0)
+         ClassCountsVirtMax(i)=CEILING(REAL(ClassCountsVirt(i))/2.D0)
+         ClassCountsOcc(i)=FLOOR(REAL(ClassCountsOcc(i))/2.D0)
+         ClassCountsVirt(i)=FLOOR(REAL(ClassCountsVirt(i))/2.D0)
+         
+!         ClassCounts(i)=ClassCounts(i)/2
+         enddo
+
+         IF(nOccAlpha.gt.nOccBeta) THEN
+             do i=0,7
+                 LimaOcc(i)=min(nOccAlpha,ClassCountsOccMax(i))
+                 LimbOcc(i)=min(nOccBeta,ClassCountsOcc(i))
+                 LimaVirt(i)=min(ICILevel,ClassCountsVirtMax(i))
+                 LimbVirt(i)=min(ICILevel,ClassCountsVirt(i))
+             enddo
+         ELSE
+             do i=0,7
+                 LimaOcc(i)=min(nOccAlpha,ClassCountsOcc(i))
+                 LimbOcc(i)=min(nOccBeta,ClassCountsOccMax(i))
+                 LimaVirt(i)=min(ICILevel,ClassCountsVirt(i))
+                 LimbVirt(i)=min(ICILevel,ClassCountsVirtMax(i))
+             enddo
+         ENDIF
+ 
+         Space=0.D0
+
+!Loop over each irrep twice, once for alpha electrons and once for beta.
+!a0 is the number of alpha electrons in symmetry 0.
+!b0 is the number of beta electrons in symmetry 0.         
+         do a0o=0,LimaOcc(0)
+         do b0o=0,LimbOcc(0)
+         do a0v=0,LimaVirt(0)
+         do b0v=0,LimbVirt(0)
+             IF(mod(a0o+b0o+a0v+b0v,2).eq.1) THEN
+                 Sym(0)=.true.
+             ELSE
+                 Sym(0)=.false.
+             ENDIF
+         do a1o=0,LimaOcc(1)
+         do b1o=0,LimbOcc(1)
+         do a1v=0,LimaVirt(1)
+         do b1v=0,LimbVirt(1)
+             IF(mod(a1o+b1o+a1v+b1v,2).eq.1) THEN
+                 Sym(1)=.true.
+             ELSE
+                 Sym(1)=.false.
+             ENDIF
+         do a2o=0,LimaOcc(2)
+         do b2o=0,LimbOcc(2)
+         do a2v=0,LimaVirt(2)
+         do b2v=0,LimbVirt(2)
+             IF(mod(a2o+b2o+a2v+b2v,2).eq.1) THEN
+                 Sym(2)=.true.
+             ELSE
+                 Sym(2)=.false.
+             ENDIF
+
+         do a3o=0,LimaOcc(3)
+         do b3o=0,LimbOcc(3)
+         do a3v=0,LimaVirt(3)
+         do b3v=0,LimbVirt(3)
+             IF(mod(a3o+b3o+a3v+b3v,2).eq.1) THEN
+                 Sym(3)=.true.
+             ELSE
+                 Sym(3)=.false.
+             ENDIF
+         do a4o=0,LimaOcc(4)
+         do b4o=0,LimbOcc(4)
+         do a4v=0,LimaVirt(4)
+         do b4v=0,LimbVirt(4)
+             IF(mod(a4o+b4o+a4v+b4v,2).eq.1) THEN
+                 Sym(4)=.true.
+             ELSE
+                 Sym(4)=.false.
+             ENDIF
+         do a5o=0,LimaOcc(5)
+         do b5o=0,LimbOcc(5)
+         do a5v=0,LimaVirt(5)
+         do b5v=0,LimbVirt(5)
+             IF(mod(a5o+b5o+a5v+b5v,2).eq.1) THEN
+                 Sym(5)=.true.
+             ELSE
+                 Sym(5)=.false.
+             ENDIF
+         do a6o=0,LimaOcc(6)
+         do b6o=0,LimbOcc(6)
+         do a6v=0,LimaVirt(6)
+         do b6v=0,LimbVirt(6)
+             IF(mod(a6o+b6o+a6v+b6v,2).eq.1) THEN
+                 Sym(6)=.true.
+             ELSE
+                 Sym(6)=.false.
+             ENDIF
+         do a7o=0,LimaOcc(7)
+         do b7o=0,LimbOcc(7)
+         do a7v=0,LimaVirt(7)
+         do b7v=0,LimbVirt(7)
+             IF(mod(a7o+b7o+a7v+b7v,2).eq.1) THEN
+                 Sym(7)=.true.
+             ELSE
+                 Sym(7)=.false.
+             ENDIF
+
+             OverallSym=0
+             do i=0,7
+                IF(Sym(i)) THEN
+                    OverallSym=IEOR(OverallSym,i)
+                ENDIF
+             enddo
+             IF(OverallSym.eq.FDetSym) THEN
+                NAlphOcc=a0o+a1o+a2o+a3o+a4o+a5o+a6o+a7o
+                NBetOcc=b0o+b1o+b2o+b3o+b4o+b5o+b6o+b7o
+                NAlphVirt=a0v+a1v+a2v+a3v+a4v+a5v+a6v+a7v
+                NBetVirt=b0v+b1v+b2v+b3v+b4v+b5v+b6v+b7v
+
+
+                IF(((NAlphOcc+NAlphVirt).eq.NOccAlpha)                  &
+     &          .and.((NBetOcc+NBetVirt).eq.NOccBeta)) THEN
+                IF((NAlphVirt+NBetVirt).le.ICILevel) THEN
+
+                IF(nOccAlpha.gt.nOccBeta) THEN
+
+                SpaceGrow=SpaceGrow*Choose(ClassCountsOccMax(0),a0o)
+                SpaceGrow=SpaceGrow*Choose(ClassCountsOcc(0),b0o)
+                SpaceGrow=SpaceGrow*Choose(ClassCountsVirtMax(0),a0v)
+                SpaceGrow=SpaceGrow*Choose(ClassCountsVirt(0),b0v)
+
+                SpaceGrow=SpaceGrow*Choose(ClassCountsOccMax(1),a1o)
+                SpaceGrow=SpaceGrow*Choose(ClassCountsOcc(1),b1o)
+                SpaceGrow=SpaceGrow*Choose(ClassCountsVirtMax(1),a1v)
+                SpaceGrow=SpaceGrow*Choose(ClassCountsVirt(1),b1v)
+
+                SpaceGrow=SpaceGrow*Choose(ClassCountsOccMax(2),a2o)
+                SpaceGrow=SpaceGrow*Choose(ClassCountsOcc(2),b2o)
+                SpaceGrow=SpaceGrow*Choose(ClassCountsVirtMax(2),a2v)
+                SpaceGrow=SpaceGrow*Choose(ClassCountsVirt(2),b2v)
+
+                SpaceGrow=SpaceGrow*Choose(ClassCountsOccMax(3),a3o)
+                SpaceGrow=SpaceGrow*Choose(ClassCountsOcc(3),b3o)
+                SpaceGrow=SpaceGrow*Choose(ClassCountsVirtMax(3),a3v)
+                SpaceGrow=SpaceGrow*Choose(ClassCountsVirt(3),b3v)
+
+                SpaceGrow=SpaceGrow*Choose(ClassCountsOccMax(4),a4o)
+                SpaceGrow=SpaceGrow*Choose(ClassCountsOcc(4),b4o)
+                SpaceGrow=SpaceGrow*Choose(ClassCountsVirtMax(4),a4v)
+                SpaceGrow=SpaceGrow*Choose(ClassCountsVirt(4),b4v)
+
+                SpaceGrow=SpaceGrow*Choose(ClassCountsOccMax(5),a5o)
+                SpaceGrow=SpaceGrow*Choose(ClassCountsOcc(5),b5o)
+                SpaceGrow=SpaceGrow*Choose(ClassCountsVirtMax(5),a5v)
+                SpaceGrow=SpaceGrow*Choose(ClassCountsVirt(5),b5v)
+
+                SpaceGrow=SpaceGrow*Choose(ClassCountsOccMax(6),a6o)
+                SpaceGrow=SpaceGrow*Choose(ClassCountsOcc(6),b6o)
+                SpaceGrow=SpaceGrow*Choose(ClassCountsVirtMax(6),a6v)
+                SpaceGrow=SpaceGrow*Choose(ClassCountsVirt(6),b6v)
+
+                SpaceGrow=SpaceGrow*Choose(ClassCountsOccMax(7),a7o)
+                SpaceGrow=SpaceGrow*Choose(ClassCountsOcc(7),b7o)
+                SpaceGrow=SpaceGrow*Choose(ClassCountsVirtMax(7),a7v)
+                SpaceGrow=SpaceGrow*Choose(ClassCountsVirt(7),b7v)
+
+                Space=Space+SpaceGrow
+
+                ELSE
+
+                SpaceGrow=1.D0
+                SpaceGrow=SpaceGrow*Choose(ClassCountsOcc(0),a0o)
+                SpaceGrow=SpaceGrow*Choose(ClassCountsOccMax(0),b0o)
+                SpaceGrow=SpaceGrow*Choose(ClassCountsVirt(0),a0v)
+                SpaceGrow=SpaceGrow*Choose(ClassCountsVirtMax(0),b0v)
+
+                SpaceGrow=SpaceGrow*Choose(ClassCountsOcc(1),a1o)
+                SpaceGrow=SpaceGrow*Choose(ClassCountsOccMax(1),b1o)
+                SpaceGrow=SpaceGrow*Choose(ClassCountsVirt(1),a1v)
+                SpaceGrow=SpaceGrow*Choose(ClassCountsVirtMax(1),b1v)
+
+                SpaceGrow=SpaceGrow*Choose(ClassCountsOcc(2),a2o)
+                SpaceGrow=SpaceGrow*Choose(ClassCountsOccMax(2),b2o)
+                SpaceGrow=SpaceGrow*Choose(ClassCountsVirt(2),a2v)
+                SpaceGrow=SpaceGrow*Choose(ClassCountsVirtMax(2),b2v)
+
+                SpaceGrow=SpaceGrow*Choose(ClassCountsOcc(3),a3o)
+                SpaceGrow=SpaceGrow*Choose(ClassCountsOccMax(3),b3o)
+                SpaceGrow=SpaceGrow*Choose(ClassCountsVirt(3),a3v)
+                SpaceGrow=SpaceGrow*Choose(ClassCountsVirtMax(3),b3v)
+
+                SpaceGrow=SpaceGrow*Choose(ClassCountsOcc(4),a4o)
+                SpaceGrow=SpaceGrow*Choose(ClassCountsOccMax(4),b4o)
+                SpaceGrow=SpaceGrow*Choose(ClassCountsVirt(4),a4v)
+                SpaceGrow=SpaceGrow*Choose(ClassCountsVirtMax(4),b4v)
+
+                SpaceGrow=SpaceGrow*Choose(ClassCountsOcc(5),a5o)
+                SpaceGrow=SpaceGrow*Choose(ClassCountsOccMax(5),b5o)
+                SpaceGrow=SpaceGrow*Choose(ClassCountsVirt(5),a5v)
+                SpaceGrow=SpaceGrow*Choose(ClassCountsVirtMax(5),b5v)
+
+                SpaceGrow=SpaceGrow*Choose(ClassCountsOcc(6),a6o)
+                SpaceGrow=SpaceGrow*Choose(ClassCountsOccMax(6),b6o)
+                SpaceGrow=SpaceGrow*Choose(ClassCountsVirt(6),a6v)
+                SpaceGrow=SpaceGrow*Choose(ClassCountsVirtMax(6),b6v)
+
+                SpaceGrow=SpaceGrow*Choose(ClassCountsOcc(7),a7o)
+                SpaceGrow=SpaceGrow*Choose(ClassCountsOccMax(7),b7o)
+                SpaceGrow=SpaceGrow*Choose(ClassCountsVirt(7),a7v)
+                SpaceGrow=SpaceGrow*Choose(ClassCountsVirtMax(7),b7v)
+
+                Space=Space+SpaceGrow
+                ENDIF
+                ENDIF
+                ENDIF
+            ENDIF
+
+         enddo
+         enddo
+         enddo
+         enddo
+         enddo
+         enddo
+         enddo
+         enddo
+         enddo
+         enddo
+         enddo
+         enddo
+         enddo
+         enddo
+         enddo
+         enddo
+         enddo
+         enddo
+         enddo
+         enddo
+         enddo
+         enddo
+         enddo
+         enddo
+         enddo
+         enddo
+         enddo
+         enddo
+         enddo
+         enddo
+         enddo
+         enddo
+
+         WRITE(IUNIT,"(A,G25.16)") " *EXACT* size of symmetry allowed " &
+     &       //"space of determinants is: ",Space
+         CALL FLUSH(IUNIT)
+
+      END SUBROUTINE FindSymSizeofTruncSpace
+
