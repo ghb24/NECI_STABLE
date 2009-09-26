@@ -314,7 +314,10 @@ MODULE HPHFRandExcitMod
 
             ELSEIF(ExcitLevel.eq.0) THEN
 !We have generated the same HPHF. MatEl wants to be zero.
-                IF(tGenMatEl) pGen=1.D0/0.D0
+                IF(tGenMatEl) THEN
+                    MatEl%v=0.D0
+                    pGen=1.D0/(REAL(MatEl%v,8))
+                ENDIF
 
             ELSE
                 
