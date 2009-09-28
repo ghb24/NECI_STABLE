@@ -1160,7 +1160,7 @@ MODULE NatOrbsMod
             k=0
             do i=1,NoOrbs,2
                 k=k+1
-                WRITE(73,'(I5,E20.10,I5,E20.10)') (NoOrbs-i+1)*2 i,Evalues(k),i+1,Evalues(k+SpatOrbs)
+                WRITE(73,'(I5,E20.10,I5,E20.10)') (NoOrbs-i+1)*2,i,Evalues(k),i+1,Evalues(k+SpatOrbs)
             enddo
         ELSE
             do i=1,SpatOrbs
