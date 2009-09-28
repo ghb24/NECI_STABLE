@@ -1076,21 +1076,29 @@ MODULE NatOrbsMod
                 CALL SortEvecbyEvalPlus1(((EndSort-StartSort)+1),Evalues(StartSort:EndSort),((EndSort-StartSort)+1),NatOrbMat(StartSort:EndSort,&
                                             &StartSort:EndSort),SymOrbs(StartSort:EndSort))
 
-                IF(x.eq.1) THEN
-                    do i=1,NoRotAlphBet
-                        CoeffT1(:,i)=NatOrbMat(:,i)
-                        EvaluesTrunc(i)=Evalues(i)
-                    enddo
-                ELSEIF(x.eq.2) THEN
-                    j=SpatOrbs
-                    do i=NoRotAlphBet+1,(NoOrbs-NoFrozenVirt)
-                        j=j+1
-                        CoeffT1(:,i)=NatOrbMat(:,j)
-                        SymOrbs(i)=SymOrbs(j)
-                        EvaluesTrunc(i)=Evalues(j)
-                    enddo
-                ENDIF
             enddo
+
+            IF(tStoreSpinOrbs) THEN                                            
+                k=1
+                do i=1,NoRotAlphBet
+                    CoeffT1(:,k)=NatOrbMat(:,i)
+                    EvaluesTrunc(k)=Evalues(i)
+                    SymOrbs(k)=SymOrbs(i)
+                    k=k+2
+                enddo
+                k=2
+                do i=SpatOrbs+1,SpatOrbs+NoRotAlphBet
+                    CoeffT1(:,k)=NatOrbMat(:,i)
+                    SymOrbs(k)=SymOrbs(i)
+                    EvaluesTrunc(k)=Evalues(i)
+                    k=k+2
+                enddo
+            ELSE
+                do i=1,NoRotAlphBet
+                    CoeffT1(:,i)=NatOrbMat(:,i)
+                    EvaluesTrunc(i)=Evalues(i)
+                enddo
+            ENDIF
                 
         ELSE
             ! If we are not truncating, they orbitals get put back into their original order, so the symmetry information is still 
@@ -1152,7 +1160,7 @@ MODULE NatOrbsMod
             k=0
             do i=1,NoOrbs,2
                 k=k+1
-                WRITE(73,'(I5,E20.10,I5,E20.10)') i,Evalues(k),i+1,Evalues(k+SpatOrbs)
+                WRITE(73,'(I5,E20.10,I5,E20.10)') (NoOrbs-i+1)*2 i,Evalues(k),i+1,Evalues(k+SpatOrbs)
             enddo
         ELSE
             do i=1,SpatOrbs
@@ -1161,12 +1169,21 @@ MODULE NatOrbsMod
         ENDIF
         CLOSE(73)
 
-        OPEN(74,FILE='EVALUES-TRUNC',status='unknown')
-        WRITE(74,*) NoOrbs-NoFrozenVirt
-        do i=1,NoOrbs-NoFrozenVirt
-            WRITE(74,*) EvaluesTrunc(i)
-        enddo
-        CLOSE(74)
+        IF(tTruncRODump) THEN
+            OPEN(74,FILE='EVALUES-TRUNC',status='unknown')
+            IF(tStoreSpinOrbs) THEN
+                WRITE(74,*) NoOrbs-NoFrozenVirt
+                do i=1,NoOrbs-NoFrozenVirt,2
+                    WRITE(74,*) i,EvaluesTrunc(i),i+1,EvaluesTrunc(i+1)
+                enddo
+            ELSE
+                WRITE(74,*) NoOrbs-NoFrozenVirt
+                do i=1,NoOrbs-NoFrozenVirt
+                    WRITE(74,*) EvaluesTrunc(i)
+                enddo
+            ENDIF
+            CLOSE(74) 
+        ENDIF
 
         CALL HistNatOrbEvalues()
 
@@ -1202,7 +1219,7 @@ MODULE NatOrbsMod
         REAL*8 :: SumEvalues
 
 
-        OPEN(74,FILE='EVALUES-plot-rat',status='unknown')
+        OPEN(74,FILE='EVALUES-PLOTRAT',status='unknown')
         IF(tStoreSpinOrbs) THEN
             k=0
             do i=1,SpatOrbs
@@ -1231,47 +1248,47 @@ MODULE NatOrbsMod
         ENDIF
         CLOSE(74)
 
-        OPEN(73,FILE='EVALUES-plot',status='unknown')
-        EvaluesCount(:,:)=0.D0
+!        OPEN(73,FILE='EVALUES-plot',status='unknown')
+!        EvaluesCount(:,:)=0.D0
 
-        do x=1,NoSpinCyc
+!        do x=1,NoSpinCyc
 
-            IF(tSeparateOccVirt) THEN
-                IF(x.eq.1) THEN
-                    IF(tStoreSpinOrbs) THEN
-                        NoOcc=nOccBeta
-                    ELSE
-                        NoOcc=NEl/2
-                    ENDIF
-                ELSEIF(x.eq.2) THEN
-                    NoOcc=nOccAlpha
-                ENDIF
-            ELSE
-                NoOcc=0
-            ENDIF
+!            IF(tSeparateOccVirt) THEN
+!                IF(x.eq.1) THEN
+!                    IF(tStoreSpinOrbs) THEN
+!                        NoOcc=nOccBeta
+!                    ELSE
+!                        NoOcc=NEl/2
+!                    ENDIF
+!                ELSEIF(x.eq.2) THEN
+!                    NoOcc=nOccAlpha
+!                ENDIF
+!            ELSE
+!                NoOcc=0
+!            ENDIF
 
-            k=1
-            EvaluesCount(k,1)=Evalues(1)
-            EvaluesCount(k,2)=1.D0
-            do i=2,NoOrbs
-                IF((ABS(Evalues(i)-Evalues(i-1))).ge.(1E-10)) THEN
-                    k=k+1
-                    EvaluesCount(k,1)=Evalues(i)
-                    EvaluesCount(k,2)=1.D0
-                ELSE
-                    EvaluesCount(k,2)=EvaluesCount(k,2)+1.D0
-                ENDIF
-            enddo
-            NoEvalues=k
+!            k=1
+!            EvaluesCount(k,1)=Evalues(1)
+!            EvaluesCount(k,2)=1.D0
+!            do i=2,NoOrbs
+!                IF((ABS(Evalues(i)-Evalues(i-1))).ge.(1E-10)) THEN
+!                    k=k+1
+!                    EvaluesCount(k,1)=Evalues(i)
+!                    EvaluesCount(k,2)=1.D0
+!                ELSE
+!                    EvaluesCount(k,2)=EvaluesCount(k,2)+1.D0
+!                ENDIF
+!            enddo
+!            NoEvalues=k
 
-            do i=1,NoEvalues
-                WRITE(73,*) EvaluesCount(i,1),Evaluescount(i,2)
-            enddo
+!            do i=1,NoEvalues
+!                WRITE(73,*) EvaluesCount(i,1),Evaluescount(i,2)
+!            enddo
 
 
-        enddo
+!        enddo
 
-        CLOSE(73)
+!        CLOSE(73)
 
 ! Want to write out the eigenvectors in order of the energy of the new orbitals - so that we can see the occupations 
 ! of the type of orbital.
