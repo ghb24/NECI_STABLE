@@ -1076,6 +1076,7 @@ MODULE NatOrbsMod
                 CALL SortEvecbyEvalPlus1(((EndSort-StartSort)+1),Evalues(StartSort:EndSort),((EndSort-StartSort)+1),NatOrbMat(StartSort:EndSort,&
                                             &StartSort:EndSort),SymOrbs(StartSort:EndSort))
 
+
             enddo
 
             IF(tStoreSpinOrbs) THEN                                            
@@ -1099,6 +1100,10 @@ MODULE NatOrbsMod
                     EvaluesTrunc(i)=Evalues(i)
                 enddo
             ENDIF
+
+!            WRITE(6,*) SymOrbs(:)
+!            CALL FLUSH(6)
+!            CALL Stop_All('','')
                 
         ELSE
             ! If we are not truncating, they orbitals get put back into their original order, so the symmetry information is still 
@@ -1160,11 +1165,16 @@ MODULE NatOrbsMod
             k=0
             do i=1,NoOrbs,2
                 k=k+1
-                WRITE(73,'(I5,E20.10,I5,E20.10)') (NoOrbs-i+1)*2,i,Evalues(k),i+1,Evalues(k+SpatOrbs)
+                IF(tTruncRODump) THEN
+                    WRITE(73,'(2I5,ES20.10,I5,A5,I5,ES20.10,I5)') (NoOrbs-i+1),i,Evalues(k),SymOrbs(i),'*',i+1,Evalues(k+SpatOrbs),SymOrbs(i+1)
+                ELSE
+                    WRITE(73,'(2I5,ES20.10,I5,A5,I5,ES20.10,I5)') (NoOrbs-i+1),i,Evalues(k),INT(G1(SymLabelList3(k))%Sym%S,4),'*',&
+                                                         &i+1,Evalues(k+SpatOrbs),INT(G1(SymLabelList3(k+SpatOrbs))%Sym%S,4)
+                ENDIF
             enddo
         ELSE
             do i=1,SpatOrbs
-                WRITE(73,*) i,NoOrbs-i+1,(NoOrbs-i+1)*2,Evalues(i)
+                WRITE(73,'(3I5,ES20.10)') i,NoOrbs-i+1,(NoOrbs-i+1)*2,Evalues(i)
             enddo
         ENDIF
         CLOSE(73)
@@ -1174,12 +1184,12 @@ MODULE NatOrbsMod
             IF(tStoreSpinOrbs) THEN
                 WRITE(74,*) NoOrbs-NoFrozenVirt
                 do i=1,NoOrbs-NoFrozenVirt,2
-                    WRITE(74,*) i,EvaluesTrunc(i),i+1,EvaluesTrunc(i+1)
+                    WRITE(74,'(I5,ES20.10,I5,ES20.10)') i,EvaluesTrunc(i),i+1,EvaluesTrunc(i+1)
                 enddo
             ELSE
                 WRITE(74,*) NoOrbs-NoFrozenVirt
                 do i=1,NoOrbs-NoFrozenVirt
-                    WRITE(74,*) EvaluesTrunc(i)
+                    WRITE(74,'(ES20.10)') EvaluesTrunc(i)
                 enddo
             ENDIF
             CLOSE(74) 
@@ -1224,26 +1234,26 @@ MODULE NatOrbsMod
             k=0
             do i=1,SpatOrbs
                 k=k+2
-                WRITE(74,*) REAL(k-1)/REAL(NoOrbs),Evalues(i)
-                WRITE(74,*) REAL(k)/REAL(NoOrbs),Evalues(SpatOrbs+i)
+                WRITE(74,'(F20.10,ES20.10)') REAL(k-1)/REAL(NoOrbs),Evalues(i)
+                WRITE(74,'(F20.10,ES20.10)') REAL(k)/REAL(NoOrbs),Evalues(SpatOrbs+i)
             enddo
         ELSEIF(tRotateOccOnly) THEN
             k=0
             do i=1,NoOcc
                 k=k+1
-                WRITE(74,*) REAL(k)/REAL(NoOcc),Evalues(i)
+                WRITE(74,'(F20.10,ES20.10)') REAL(k)/REAL(NoOcc),Evalues(i)
             enddo
         ELSEIF(tRotateVirtOnly) THEN
             k=NoOcc
             do i=NoOcc+1,NoOrbs
                 k=k+1
-                WRITE(74,*) REAL(k-NoOcc)/REAL(NoOrbs-NoOcc),Evalues(i)
+                WRITE(74,'(F20.10,ES20.10)') REAL(k-NoOcc)/REAL(NoOrbs-NoOcc),Evalues(i)
             enddo
         ELSE
             k=0
             do i=1,SpatOrbs
                 k=k+1
-                WRITE(74,*) REAL(k)/REAL(NoOrbs),Evalues(i)
+                WRITE(74,'(F20.10,ES20.10)') REAL(k)/REAL(NoOrbs),Evalues(i)
             enddo
         ENDIF
         CLOSE(74)
