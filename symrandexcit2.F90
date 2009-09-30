@@ -47,12 +47,14 @@ MODULE GenRandSymExcitNUMod
 !Sometimes (especially UHF orbitals), the symmetry routines will not set up the orbitals correctly. Therefore, this routine will set up symlabellist and symlabelcounts
 !to be cast in terms of spin orbitals, and the symrandexcit2 routines will use these arrays.
     SUBROUTINE SpinOrbSymSetup(tRedoSym)
-        INTEGER :: AlphaCounter,BetaCounter,i,j,Sym,CountSymAlpha,CountSymBeta
+        INTEGER :: AlphaCounter,BetaCounter,i,j,Sym,CountSymAlpha,CountSymBeta,x
         LOGICAL :: tFirstSymBeta,tFirstSymAlpha,tRedoSym
 
 
-        Allocate(SymLabelList2(2,nBasis))   !This will seperate the alpha and beta states.
+        Allocate(SymLabelList2(2,(nBasis/2)))   !This will seperate the alpha and beta states.
+        SymLabelList2(:,:)=0
         Allocate(SymLabelCounts2(2,2,nSymLabels))     !Indices: (Alpha:Beta, Index:Number , Symmetry)
+        SymLabelCounts2(:,:,:)=0
         IF(tRedoSym) THEN
             AlphaCounter=1
             BetaCounter=1
@@ -103,12 +105,28 @@ MODULE GenRandSymExcitNUMod
             enddo
         ENDIF
 
+
+        WRITE(6,*) 'Symmetries of orbitals 1:nBasis'
         WRITE(6,*) G1(1:nBasis)%Sym%S
-        WRITE(6,*) "***"
-        WRITE(6,*) "***",SymLabelList2(1,1:nBasis)
-        WRITE(6,*) SymLabelCounts2(1,1,1:nBasis)
-        WRITE(6,*) "***"
-        WRITE(6,*) SymLabelCounts2(2,1,1:nBasis)
+
+        do x=1,2
+            IF(x.eq.1) WRITE(6,*) '******* ALPHA ********'
+            IF(x.eq.2) WRITE(6,*) '******* BETA ********'
+            WRITE(6,*) "***"
+            WRITE(6,*) 'SymLabelList2(1:nBasis) - the orbitals in the correct symmetry order, followed by their symmetry'
+            do i=1,(nBasis/2)
+                WRITE(6,*) SymLabelList2(x,i),G1(SymLabelList2(x,i))%Sym%S
+            enddo
+            WRITE(6,*) 'SymLabelCounts2(1,1,S) - the index in SymLabelList2 where symmetry S starts'
+            do i=1,nSymLabels
+                WRITE(6,*) SymLabelCounts2(x,1,i)
+            enddo
+            WRITE(6,*) "***"
+            WRITE(6,*) 'SymLabelCounts2(1,2,S) - the number of orbitals in SymLabelList2 with symmetry S'
+            do i=1,nSymLabels
+                WRITE(6,*) SymLabelCounts2(x,2,i)
+            enddo
+        enddo
 
     END SUBROUTINE SpinOrbSymSetup
         

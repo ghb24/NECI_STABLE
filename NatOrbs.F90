@@ -1009,8 +1009,9 @@ MODULE NatOrbsMod
         USE Logging , only : tTruncRODump,NoFrozenVirt
         IMPLICIT NONE
         REAL*8 :: EvaluesTrunc(NoOrbs-NoFrozenVirt)
-        INTEGER :: x,i,j,k,ier,ierr,StartSort,EndSort,NoRotAlphBet,NoOcc
+        INTEGER :: x,i,j,k,ier,ierr,StartSort,EndSort,NoRotAlphBet,NoOcc,SymOrbsTempTag,SymLabelList3Temp(NoOrbs),SymFirst
         CHARACTER(len=*), PARAMETER :: this_routine='OrderandFillCoeffT1'
+        INTEGER , ALLOCATABLE :: SymOrbsTemp(:)
         
 
 ! Here, if symmetry is kept, we are going to have to reorder the eigenvectors according to the size of the eigenvalues, while taking
@@ -1023,27 +1024,33 @@ MODULE NatOrbsMod
         CALL set_timer(OrderandFillCoeff_Time,30)
 
 
-
         IF(tTruncRODump) THEN
             ! If we are truncating, the orbitals stay in this order, so we want to take their symmetries with them.
 
             ALLOCATE(SymOrbs(NoOrbs),stat=ierr)
             CALL LogMemAlloc('SymOrbs',NoOrbs,4,this_routine,SymOrbsTag,ierr)
             SymOrbs(:)=0
+
+            ALLOCATE(SymOrbsTemp(NoOrbs),stat=ierr)
+            CALL LogMemAlloc('SymOrbsTemp',NoOrbs,4,this_routine,SymOrbsTempTag,ierr)
+            SymOrbsTemp(:)=0
+
             CoeffT1(:,:)=0.D0
             EvaluesTrunc(:)=0.D0
+            
 
             IF(tStoreSpinOrbs) THEN
                 do i=1,NoOrbs
-                    SymOrbs(i)=INT(G1(SymLabelList2(i))%sym%S,4)
+                    SymOrbsTemp(i)=INT(G1(SymLabelList2(i))%sym%S,4)
                 enddo
                 NoRotAlphBet=SpatOrbs-(NoFrozenVirt/2)
             ELSE 
                 do i=1,NoOrbs
-                    SymOrbs(i)=INT(G1(SymLabelList2(i)*2)%sym%S,4)
+                    SymOrbsTemp(i)=INT(G1(SymLabelList2(i)*2)%sym%S,4)
                 enddo
                 NoRotAlphBet=NoOrbs-NoFrozenVirt
             ENDIF
+            SymLabelList3Temp(:)=SymLabelList3(:)
 
             do x=1,NoSpinCyc
 
@@ -1074,39 +1081,93 @@ MODULE NatOrbsMod
                 ENDIF
 
                 CALL SortEvecbyEvalPlus1(((EndSort-StartSort)+1),Evalues(StartSort:EndSort),((EndSort-StartSort)+1),NatOrbMat(StartSort:EndSort,&
-                                            &StartSort:EndSort),SymOrbs(StartSort:EndSort))
+                                            &StartSort:EndSort),SymOrbsTemp(StartSort:EndSort))
+
+!                CALL SortEvecbyEvalPlus1(((EndSort-StartSort)+1),Evalues(StartSort:EndSort),((EndSort-StartSort)+1),NatOrbMat(StartSort:EndSort,&
+!                                            &StartSort:EndSort),SymLabelList3(StartSort:EndSort))
 
 
             enddo
 
             IF(tStoreSpinOrbs) THEN                                            
-                k=1
-                do i=1,NoRotAlphBet
-                    CoeffT1(:,k)=NatOrbMat(:,i)
-                    EvaluesTrunc(k)=Evalues(i)
-                    SymOrbs(k)=SymOrbs(i)
-                    k=k+2
-                enddo
-                k=2
-                do i=SpatOrbs+1,SpatOrbs+NoRotAlphBet
-                    CoeffT1(:,k)=NatOrbMat(:,i)
-                    SymOrbs(k)=SymOrbs(i)
-                    EvaluesTrunc(k)=Evalues(i)
-                    k=k+2
-                enddo
+! As we reorder these so that they are truncated, we also need to pair up symmetries.
+
+! Get the beta symmetry - find the alpha to match etc.
+! 
+                IF(nOccBeta.ge.nOccAlpha) THEN
+                    k=1
+                    do i=1,NoRotAlphBet
+                        SymFirst=SymOrbsTemp(i)
+                        CoeffT1(:,k)=NatOrbMat(:,i)
+                        EvaluesTrunc(k)=Evalues(i)
+                        SymOrbs(k)=SymOrbsTemp(i)
+                        do j=SpatOrbs+1,NoOrbs
+                            IF(SymOrbsTemp(j).eq.SymFirst) THEN
+                                SymOrbs(k+1)=SymOrbsTemp(j)
+                                CoeffT1(:,k+1)=NatOrbMat(:,j)
+                                EvaluesTrunc(k+1)=Evalues(j)
+                                SymOrbsTemp(j)=9
+                                EXIT
+                            ENDIF
+                        enddo
+                        k=k+2
+                        IF(k.gt.(NoRotAlphBet*2)) EXIT
+                    enddo
+                ELSE
+                    k=2
+                    do i=SpatOrbs+1,SpatOrbs+NoRotAlphBet
+                        SymFirst=SymOrbsTemp(i)
+                        CoeffT1(:,k)=NatOrbMat(:,i)
+                        EvaluesTrunc(k)=Evalues(i)
+                        SymOrbs(k)=SymOrbsTemp(i)
+                        do j=1,SpatOrbs
+                            IF(SymOrbsTemp(j).eq.SymFirst) THEN
+                                SymOrbs(k-1)=SymOrbsTemp(j)
+                                CoeffT1(:,k-1)=NatOrbMat(:,j)
+                                EvaluesTrunc(k-1)=Evalues(j)
+                                SymOrbsTemp(j)=9
+                                EXIT
+                            ENDIF
+                        enddo
+                        k=k+2
+                        IF(k.gt.(NoRotAlphBet*2)) EXIT
+                    enddo
+                ENDIF
+
+!                k=1
+!                do i=1,NoRotAlphBet
+!                    CoeffT1(:,k)=NatOrbMat(:,i)
+!                    EvaluesTrunc(k)=Evalues(i)
+!                    SymOrbs(k)=SymOrbsTemp(i)
+!                    SymLabelList3(k)=SymLabelList3Temp(i)
+!                    k=k+2
+!                enddo
+!                k=2
+!                do i=SpatOrbs+1,SpatOrbs+NoRotAlphBet
+!                    CoeffT1(:,k)=NatOrbMat(:,i)
+!                    SymOrbs(k)=SymOrbsTemp(i)
+!                    EvaluesTrunc(k)=Evalues(i)
+!                    SymLabelList3(k)=SymLabelList3Temp(i)
+!                    k=k+2
+!                enddo
+
             ELSE
                 do i=1,NoRotAlphBet
                     CoeffT1(:,i)=NatOrbMat(:,i)
                     EvaluesTrunc(i)=Evalues(i)
+                    SymOrbs(i)=SymOrbsTemp(i)
                 enddo
             ENDIF
+
+            DEALLOCATE(SymOrbsTemp)
+            CALL LogMemDeAlloc(this_routine,SymOrbsTempTag)
 
 !            WRITE(6,*) SymOrbs(:)
 !            CALL FLUSH(6)
 !            CALL Stop_All('','')
                 
         ELSE
-            ! If we are not truncating, they orbitals get put back into their original order, so the symmetry information is still 
+            ! If we are not truncating, the orbitals get put back into their original order, so the symmetry information is still 
             ! correct, no need for the SymOrbs array.
             ! Instead, just take the labels of SymLabelList3 with them.
             CoeffT1(:,:)=0.D0
@@ -1159,40 +1220,40 @@ MODULE NatOrbsMod
 !        CALL FLUSH(6)
 !        stop
 
-        OPEN(73,FILE='EVALUES',status='unknown')
-        WRITE(73,*) NoOrbs
-        IF(tStoreSpinOrbs) THEN
-            k=0
-            do i=1,NoOrbs,2
-                k=k+1
-                IF(tTruncRODump) THEN
-                    WRITE(73,'(2I5,ES20.10,I5,A5,I5,ES20.10,I5)') (NoOrbs-i+1),i,Evalues(k),SymOrbs(i),'*',i+1,Evalues(k+SpatOrbs),SymOrbs(i+1)
-                ELSE
-                    WRITE(73,'(2I5,ES20.10,I5,A5,I5,ES20.10,I5)') (NoOrbs-i+1),i,Evalues(k),INT(G1(SymLabelList3(k))%Sym%S,4),'*',&
-                                                         &i+1,Evalues(k+SpatOrbs),INT(G1(SymLabelList3(k+SpatOrbs))%Sym%S,4)
-                ENDIF
-            enddo
-        ELSE
-            do i=1,SpatOrbs
-                WRITE(73,'(3I5,ES20.10)') i,NoOrbs-i+1,(NoOrbs-i+1)*2,Evalues(i)
-            enddo
-        ENDIF
-        CLOSE(73)
-
         IF(tTruncRODump) THEN
             OPEN(74,FILE='EVALUES-TRUNC',status='unknown')
             IF(tStoreSpinOrbs) THEN
                 WRITE(74,*) NoOrbs-NoFrozenVirt
                 do i=1,NoOrbs-NoFrozenVirt,2
-                    WRITE(74,'(I5,ES20.10,I5,ES20.10)') i,EvaluesTrunc(i),i+1,EvaluesTrunc(i+1)
+                    WRITE(74,'(I5,ES20.10,I5,A5,I5,ES20.10,I5)') i,EvaluesTrunc(i),SymOrbs(i),'  *  ',i+1,EvaluesTrunc(i+1),SymOrbs(i+1)
                 enddo
             ELSE
                 WRITE(74,*) NoOrbs-NoFrozenVirt
                 do i=1,NoOrbs-NoFrozenVirt
-                    WRITE(74,'(ES20.10)') EvaluesTrunc(i)
+                    WRITE(74,'(ES20.10,I5)') EvaluesTrunc(i),SymOrbs(i)
                 enddo
             ENDIF
             CLOSE(74) 
+        ELSE
+            OPEN(73,FILE='EVALUES',status='unknown')
+            WRITE(73,*) NoOrbs
+            IF(tStoreSpinOrbs) THEN
+                k=0
+                do i=1,NoOrbs,2
+                    k=k+1
+                    IF(tTruncRODump) THEN
+                        WRITE(73,'(2I5,ES20.10,I5,A5,I5,ES20.10,I5)') (NoOrbs-i+1),i,Evalues(k),SymOrbs(i),'  *  ',i+1,Evalues(k+SpatOrbs),SymOrbs(i+1)
+                    ELSE
+                        WRITE(73,'(2I5,ES20.10,I5,A5,I5,ES20.10,I5)') (NoOrbs-i+1),i,Evalues(k),INT(G1(SymLabelList3(k))%Sym%S,4),'  *  ',&
+                                                             &i+1,Evalues(k+SpatOrbs),INT(G1(SymLabelList3(k+SpatOrbs))%Sym%S,4)
+                    ENDIF
+                enddo
+            ELSE
+                do i=1,SpatOrbs
+                    WRITE(73,'(3I5,ES20.10)') i,NoOrbs-i+1,(NoOrbs-i+1)*2,Evalues(i)
+                enddo
+            ENDIF
+            CLOSE(73)
         ENDIF
 
         CALL HistNatOrbEvalues()
