@@ -56,7 +56,7 @@ contains
     subroutine ChangeVars(tSingBiasChange,tSoftExitFound,tWritePopsFound)
        use SystemData, only : NEl
        use FciMCData, only : Iter,CASMin,CASMax,tTruncSpace,tSinglePartPhase,SumENum,SumNoatHF,HFPopCyc,ProjEIterSum,Histogram,AvAnnihil
-       use FciMCData, only : VaryShiftCycles,SumDiagSft 
+       use FciMCData, only : VaryShiftCycles,SumDiagSft,VaryShiftIter 
        use CalcData, only : Tau,DiagSft,SftDamp,StepsSft,SinglesBias,OccCASOrbs,VirtCASOrbs,NMCyc,tTruncCAS,NEquilSteps
        use DetCalc, only : ICILevel 
        use IntegralsData , only : tPartFreezeCore,NPartFrozen,NHolesFrozen
@@ -239,6 +239,7 @@ contains
                    ENDIF
                ELSE
                    tSinglePartPhase=.false.
+                   VaryShiftIter=Iter
                    IF(iProcIndex.eq.0) THEN
                        WRITE(6,*) "Request to vary the shift detected on a node..."
                    ENDIF

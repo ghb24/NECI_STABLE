@@ -5271,6 +5271,7 @@ MODULE FciMCParMod
             IF(iProcIndex.eq.root) THEN     !Only exit phase if particle number is sufficient on head node.
                 IF(TotParts.gt.InitWalkers) THEN
                     WRITE(6,*) "Exiting the single particle growth phase - shift can now change"
+                    VaryShiftIter=Iter
                     TSinglePartPhase=.false.
                 ENDIF
             ENDIF
@@ -5534,6 +5535,7 @@ MODULE FciMCParMod
             IF(.not.TSinglePartPhase) THEN
                 DiagSft=DiagSft-(log(AllGrowRate)*SftDamp)/(Tau*(StepsSft+0.D0))
                 IF((Iter-VaryShiftIter).gt.(NEquilSteps*StepsSft)) THEN
+!                    WRITE(6,*) Iter-VaryShiftIter, NEquilSteps*StepsSft
                     VaryShiftCycles=VaryShiftCycles+1
                     SumDiagSft=SumDiagSft+DiagSft
                     AvDiagSft=SumDiagSft/REAL(VaryShiftCycles,r2)
