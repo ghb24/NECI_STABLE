@@ -45,10 +45,17 @@ contains
 !   SINGLESBIAS XXX  Will change the singles bias for the non-uniform random excitation generator
 !   ZEROPROJE        Will rezero the averaged energy estimators
 !   ZEROHIST         Will rezero the averaged histogramming vectors
+!   PARTIALLYFREEZE XXX XXX Will change the number of holes/electrons in the core valence region
+!   PRINTERRORBLOCKING  Will print the blocking analysis
+!   STARTERRORBLOCKING  Will start the blocking analysis
+!   RESTARTERRORBLOCKING    Will restart the blocking analysis
+!   PRINTSHIFTBLOCKING      Will print the shift blocking analysis
+!   RESTARTSHIFTBLOCKING    Will restart the shift blocking analysis
 
     subroutine ChangeVars(tSingBiasChange,tSoftExitFound,tWritePopsFound)
        use SystemData, only : NEl
        use FciMCData, only : Iter,CASMin,CASMax,tTruncSpace,tSinglePartPhase,SumENum,SumNoatHF,HFPopCyc,ProjEIterSum,Histogram,AvAnnihil
+       use FciMCData, only : VaryShiftCycles,SumDiagSft 
        use CalcData, only : Tau,DiagSft,SftDamp,StepsSft,SinglesBias,OccCASOrbs,VirtCASOrbs,NMCyc,tTruncCAS
        use DetCalc, only : ICILevel 
        use IntegralsData , only : tPartFreezeCore,NPartFrozen,NHolesFrozen
@@ -284,6 +291,8 @@ contains
                SumNoatHF=0
                HFPopCyc=0
                ProjEIterSum=0.D0
+               VaryShiftCycles=0
+               SumDiagSft=0.D0
                IF(iProcIndex.eq.0) THEN
                    WRITE(6,*) "Zeroing all average energy estimators..."
                ENDIF
@@ -291,6 +300,9 @@ contains
            IF(tChangeParams(13)) THEN
                Histogram(:)=0.D0
                IF(tHistSpawn) AvAnnihil(:)=0.D0
+               IF(iProcIndex.eq.0) THEN
+                   WRITE(6,*) "Zeroing all average histograms..."
+               ENDIF
            ENDIF
            IF(tChangeParams(14)) THEN
                CALL MPI_BCast(NPartFrozen,1,MPI_INTEGER,i,MPI_COMM_WORLD,error)

@@ -210,4 +210,9 @@ MODULE FciMCData
 
       LOGICAL :: tGenMatHEl=.true.      !This is whether to generate matrix elements as generating excitations for the HPHF option
 
+      INTEGER :: VaryShiftCycles                    !This is the number of update cycles that the shift has allowed to vary for.
+      INTEGER :: VaryShiftIter                     !This is the iteration that the shift can vary.
+      REAL*8 :: AvDiagSft,SumDiagSft                !This is the average diagonal shift value since it started varying, and the sum of the shifts since it started varying.
+
+
 END MODULE FciMCData

@@ -43,6 +43,7 @@ TYPE BasisFN
    SEQUENCE
    INTEGER :: k(3)
    INTEGER :: Ms
+!   INTEGER :: Ml            !This is the Ml symmetry of the orbital
    TYPE(Symmetry) :: sym
 END TYPE
 
