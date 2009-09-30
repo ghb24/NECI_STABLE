@@ -135,6 +135,7 @@ MODULE FciMCData
       INTEGER :: MaxIndex
 
       LOGICAL :: tErrorBlocking=.false.           !This becomes true when the blocking error analysis begins, and initiates the calling of the blocking routine.
+      LOGICAL :: tShiftBlocking=.false.
 
       LOGICAL :: TTruncSpace=.false.              !This is a flag set as to whether the excitation space should be truncated or not.
       LOGICAL :: TFlippedSign=.false.             !This is to indicate when the sign of the particles have been flipped. This is needed for the calculation of the ACF

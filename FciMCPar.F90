@@ -23,7 +23,7 @@ MODULE FciMCParMod
     USE Logging , only : iWritePopsEvery,TPopsFile,TZeroProjE,iPopsPartEvery,tBinPops,tHistSpawn,iWriteHistEvery,tHistEnergies
     USE Logging , only : NoACDets,BinRange,iNoBins,OffDiagBinRange,OffDiagMax,tPrintSpinCoupHEl!,iLagMin,iLagMax,iLagStep,tAutoCorr
     USE Logging , only : tPrintTriConnections,tHistTriConHels,tPrintHElAccept,tPrintFCIMCPsi,tCalcFCIMCPsi,NHistEquilSteps
-    USE Logging , only : tHFPopStartBlock,tIterStartBlock,IterStartBlocking,HFPopStartBlocking
+    USE Logging , only : tHFPopStartBlock,tIterStartBlock,IterStartBlocking,HFPopStartBlocking,tInitShiftBlocking
     USE SymData , only : nSymLabels
     USE mt95 , only : genrand_real2
     USE Parallel
@@ -38,7 +38,7 @@ MODULE FciMCParMod
         use soft_exit, only : ChangeVars 
         use CalcData, only : iFullSpaceIter
         use UMatCache, only : UMatInd
-        use FciMCLoggingMOD , only : PrintTriConnHist,PrintTriConnHElHist,FinaliseBlocking
+        use FciMCLoggingMOD , only : PrintTriConnHist,PrintTriConnHElHist,FinaliseBlocking,FinaliseShiftBlocking
         use RotateOrbsMod , only : RotateOrbs
         TYPE(HDElement) :: Weight,Energyxw
         INTEGER :: i,j,error,HFConn
@@ -162,6 +162,7 @@ MODULE FciMCParMod
         ENDIF
 
         IF(tErrorBlocking) CALL FinaliseBlocking(Iter)
+        IF(tShiftBlocking) CALL FinaliseShiftBlocking(Iter)
 
         IF(tHistSpawn) CALL WriteHistogram()
 
@@ -5256,6 +5257,7 @@ MODULE FciMCParMod
 !We don't want to do this too often, since we want the population levels to acclimatise between changing the shifts
     SUBROUTINE CalcNewShift()
         USE FciMCLoggingMOD , only : PrintSpawnAttemptStats,PrintTriConnStats,PrintSpinCoupHEl,InitErrorBlocking,SumInErrorContrib
+        USE FciMCLoggingMOD , only : InitShiftErrorBlocking,SumInShiftErrorContrib
         INTEGER :: error,rc,MaxAllowedWalkers,MaxWalkersProc,MinWalkersProc
         INTEGER :: inpair(9),outpair(9)
         REAL*8 :: TempTotWalkers,TempTotParts
@@ -5579,8 +5581,15 @@ MODULE FciMCParMod
                 ENDIF
             ENDIF
 
+            IF((.not.TSinglePartPhase).and.tInitShiftBlocking) THEN
+                CALL InitShiftErrorBlocking(Iter)
+                tInitShiftBlocking=.false.
+                tShiftBlocking=.true.
+            ENDIF
+
 !Then we perform the blocking at the end of each update cycle.         
             IF(tErrorBlocking) CALL SumInErrorContrib(Iter,AllENumCyc,AllHFCyc)
+            IF(tShiftBlocking) CALL SumInShiftErrorContrib(Iter,DiagSft)
         ENDIF
 
         IF(tPrintTriConnections) CALL PrintTriConnStats(Iter+PreviousCycles)

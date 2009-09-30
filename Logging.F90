@@ -10,7 +10,7 @@ MODULE Logging
     LOGICAL TDistrib,TPopsFile,TCalcWavevector,TDetPops,tROFciDump,tROHistOffDiag,tROHistDoubExc,tROHistOnePartOrbEn
     LOGICAL TZeroProjE,TWriteDetE,TAutoCorr,tBinPops,tROHistogramAll,tROHistER,tHistSpawn,tROHistSingExc,tRoHistOneElInts
     LOGICAL tROHistVirtCoulomb,tPrintInts,tHistEnergies,tPrintTriConnections,tHistTriConHEls,tPrintHElAccept,tTruncRODump
-    LOGICAL tPrintFCIMCPsi,tCalcFCIMCPsi,tPrintSpinCoupHEl,tIterStartBlock,tHFPopStartBlock
+    LOGICAL tPrintFCIMCPsi,tCalcFCIMCPsi,tPrintSpinCoupHEl,tIterStartBlock,tHFPopStartBlock,tInitShiftBlocking
     INTEGER NoACDets(2:4),iPopsPartEvery,iWriteHistEvery,iNoBins,NoTriConBins,NoTriConHElBins,NoFrozenVirt,NHistEquilSteps
     INTEGER CCMCDebug !CCMC Debugging Level 0-6.  Default 0
     INTEGER IterStartBlocking,HFPopStartBlocking
@@ -79,6 +79,7 @@ MODULE Logging
       tIterStartBlock=.false.
       IterStartBlocking=0
       HFPopStartBlocking=100
+      tInitShiftBlocking=.true.
 
 
 ! Feb08 defaults
@@ -119,6 +120,19 @@ MODULE Logging
                 end select
             ELSE
                 tHFPopStartBlock=.true.
+            ENDIF
+
+        case("SHIFTERRORBLOCKING")
+!Performs blocking analysis on the errors in the instantaneous projected energy to get the error involved.
+!This is default on, but can be turned off with this keyword followed by OFF.
+            IF(item.lt.nitems) THEN
+                call readu(w)
+                select case(w)
+                    case("OFF")
+                        tInitShiftBlocking=.false.
+                end select
+            ELSE
+                tInitShiftBlocking=.true.
             ENDIF
 
         case("BLOCKINGSTARTITER")

@@ -315,6 +315,12 @@ Monte Carlo options
     **RESTARTERRORBLOCKING** in the CHANGEVARS file zeroes all the 
     blocking arrays and starts again from that point in the calculation.
 
+**SHIFTERRORBLOCKING** [OFF]    
+    Default= ShiftErrorblocking.true.
+    This can be used to turn off the default error blocking of the shift values.  
+    This only starts when the shift begins to vary, and may be restarted or the 
+    current SHIFTBLOCKINGANALYSIS file printed at that point using CHANGEVARS.
+
 **VERTEX** [**EVERY** n]
     Log the vertex MC with :math:`\tilde{E}` every n (real) cycles
     and/or log the vertex MC contribution every cycle.  Setting

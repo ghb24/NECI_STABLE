@@ -31,7 +31,9 @@ MODULE FciMCLoggingMod
     REAL*8 :: NoPosSpinCoup,NoNegSpinCoup,SumPosSpinCoup,SumNegSpinCoup,SumHFCon,SumSpinCon
 
     REAL*8 , ALLOCATABLE :: CurrBlockSum(:),BlockSum(:),BlockSqrdSum(:)
+    REAL*8 , ALLOCATABLE :: CurrShiftBlockSum(:),ShiftBlockSum(:),ShiftBlockSqrdSum(:)
     INTEGER :: CurrBlockSumTag,BlockSumTag,BlockSqrdSumTag,TotNoBlockSizes,StartBlockIter
+    INTEGER :: CurrShiftBlockSumTag,ShiftBlockSumTag,ShiftBlockSqrdSumTag,TotNoShiftBlockSizes,StartShiftBlockIter
 
 
 
@@ -82,6 +84,45 @@ MODULE FciMCLoggingMod
 
 
 
+
+    SUBROUTINE InitShiftErrorBlocking(Iter)
+        CHARACTER(len=*), PARAMETER :: this_routine='InitShiftErrorBlocking'
+        INTEGER :: ierr,Iter
+
+
+        StartShiftBlockIter=Iter 
+        ! This is the iteration the blocking was started.
+
+        TotNoShiftBlockSizes=FLOOR( (LOG10((REAL(NMCyc-StartShiftBlockIter))/(REAL(StepsSft)))) / (LOG10(2.D0)) )
+        WRITE(6,*) 'Beginning blocking analysis of the errors in the shift.'
+        WRITE(6,"(A,I6)") "The total number of different block sizes possible is: ",TotNoShiftBlockSizes
+        ! The blocks will have size 1,2,4,8,....,2**TotNoBlockSizes
+        ! In the below arrays, the element i will correspond to block size 2**(i), but the arrays go from 0 -> TotNoBlockSizes.
+
+! Then need to allocate three arrays of this size - one for the current block, one for the sum of the blocks over the elapsed cycles,
+! and one for the sum of the squares of the blocks over the elapsed iterations.
+
+        ALLOCATE(CurrShiftBlockSum(0:TotNoShiftBlockSizes),stat=ierr)
+        CALL LogMemAlloc('CurrShiftBlockSum',TotNoShiftBlockSizes,8,this_routine,CurrShiftBlockSumTag,ierr)
+        IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating CurrShiftBlockSum.')
+        CurrShiftBlockSum(:)=0.D0
+ 
+        ALLOCATE(ShiftBlockSum(0:TotNoShiftBlockSizes),stat=ierr)
+        CALL LogMemAlloc('ShiftBlockSum',TotNoShiftBlockSizes,8,this_routine,ShiftBlockSumTag,ierr)
+        IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating ShiftBlockSum.')
+        ShiftBlockSum(:)=0.D0
+ 
+        ALLOCATE(ShiftBlockSqrdSum(0:TotNoShiftBlockSizes),stat=ierr)
+        CALL LogMemAlloc('ShiftBlockSqrdSum',TotNoShiftBlockSizes,8,this_routine,ShiftBlockSqrdSumTag,ierr)
+        IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating ShiftBlockSqrdSum.')
+        ShiftBlockSqrdSum(:)=0.D0
+
+
+
+    END SUBROUTINE InitShiftErrorBlocking
+
+ 
+
     SUBROUTINE RestartBlocking(Iter)
         INTEGER :: Iter
 
@@ -97,7 +138,24 @@ MODULE FciMCLoggingMod
         BlockSqrdSum(:)=0.D0
 
     END SUBROUTINE RestartBlocking
+ 
 
+
+    SUBROUTINE RestartShiftBlocking(Iter)
+        INTEGER :: Iter
+
+        StartShiftBlockIter=0
+        StartShiftBlockIter=Iter+StepsSft
+        ! ChangeVars gets called at the end of the run, wont actually start until the next iteration.
+
+        TotNoShiftBlockSizes=0
+        TotNoShiftBlockSizes=FLOOR( (LOG10((REAL(NMCyc-StartShiftBlockIter))/(REAL(StepsSft)))) / (LOG10(2.D0)) )
+
+        CurrShiftBlockSum(:)=0.D0
+        ShiftBlockSum(:)=0.D0
+        ShiftBlockSqrdSum(:)=0.D0
+
+    END SUBROUTINE RestartShiftBlocking
 
 
 
@@ -129,6 +187,37 @@ MODULE FciMCLoggingMod
         enddo
 
     END SUBROUTINE SumInErrorContrib
+
+
+
+    SUBROUTINE SumInShiftErrorContrib(Iter,DiagSft)
+        INTEGER :: i,Iter,NoContrib
+        REAL*8 :: DiagSft
+
+! First we need to find out what number contribution to the blocking this is.
+        NoContrib=((Iter-StartShiftBlockIter)/StepsSft)+1
+
+! We then need to add the contribution from this cycle to all the relevant blocks.        
+        
+        do i=0,TotNoShiftBlockSizes
+
+! First of all sum the energy contributions into each of the blocks.
+            CurrShiftBlockSum(i)=CurrShiftBlockSum(i)+DiagSft
+            ! The values contained in this array is the sum of the energy contributions to that block.
+            ! They have not been divided by the number of contributions yet.
+
+            ! Find out if we have completed a block.
+            ! If we have, then add the average value from that block to the overall sum array (BlockSum),
+            ! and zero the CurrBlockSum.
+            IF(MOD(NoContrib,(2**i)).eq.0) THEN
+                ShiftBlockSum(i)=ShiftBlockSum(i)+(CurrShiftBlockSum(i)/(2**i))
+                ShiftBlockSqrdSum(i)=ShiftBlockSqrdSum(i)+((CurrShiftBlockSum(i)/(2**i))**2)
+                CurrShiftBlockSum(i)=0.D0
+            ENDIF
+
+        enddo
+
+    END SUBROUTINE SumInShiftErrorContrib
 
 
 
@@ -181,6 +270,52 @@ MODULE FciMCLoggingMod
     END SUBROUTINE PrintBlocking
 
 
+    SUBROUTINE PrintShiftBlocking(Iter)
+        INTEGER :: i,NoBlocks,Iter,NoBlockSizes,NoContrib
+        REAL*8 :: MeanShift,MeanShiftSqrd,StandardDev,Error,ErrorinError
+
+!First find out how many blocks would have been formed with the number of iterations actually performed. 
+
+        NoContrib=0
+        NoContrib=((Iter-StartShiftBlockIter)/StepsSft)+1
+
+        NoBlockSizes=0
+        NoBlockSizes=FLOOR( (LOG10(REAL(NoContrib-1)))/ (LOG10(2.D0)))
+
+        OPEN(62,file='SHIFTBLOCKINGANALYSIS',status='unknown')
+        WRITE(62,'(I4,A,I4)') NoBlockSizes,' blocks were formed with sizes from 1 to ',(2**(NoBlockSizes))
+        WRITE(62,'(3A16,5A20)') '1.Block No.','2.Block Size  ','3.No. of Blocks','4.Mean E','5.Mean E^2','6.SD','7.Error','8.ErrorinError'
+
+        do i=0,NoBlockSizes
+            
+            ! First need to find out how many blocks of this particular size contributed to the final sum in BlockSum.
+            ! NoContrib is the total number of contributions to the blocking throughout the simulation.
+
+            NoBlocks=0
+            NoBlocks=FLOOR(REAL(NoContrib/(2**i)))
+            ! This finds the lowest integer multiple of 2**i (the block size). 
+
+            MeanShift=ShiftBlockSum(i)/REAL(NoBlocks)
+            MeanShiftSqrd=ShiftBlockSqrdSum(i)/REAL(NoBlocks)
+
+            StandardDev=SQRT(MeanShiftSqrd-(MeanShift**2))
+            IF(StandardDev.eq.0.D0) THEN
+                Error=0.D0
+                ErrorinError=0.D0
+            ELSE
+                Error=StandardDev/SQRT(REAL(NoBlocks-1))
+                ErrorinError=Error/SQRT(2.D0*(REAL(NoBlocks-1)))
+            ENDIF
+
+!This is from the blocking paper, and indicates the error in the blocking error, due to the limited number of blocks available.
+
+            WRITE(62,'(3I16,5F20.10)') i,(2**i),NoBlocks,MeanShift,MeanShiftSqrd,StandardDev,Error,ErrorinError
+            
+        enddo
+
+        CLOSE(62)
+
+    END SUBROUTINE PrintShiftBlocking
 
 
 
@@ -203,6 +338,26 @@ MODULE FciMCLoggingMod
 
     END SUBROUTINE FinaliseBlocking
 
+
+
+    SUBROUTINE FinaliseShiftBlocking(Iter)
+        INTEGER :: Iter
+        CHARACTER(len=*), PARAMETER :: this_routine='FinaliseShiftBlocking'
+
+
+        CALL PrintShiftBlocking(Iter)
+
+        DEALLOCATE(CurrShiftBlockSum)
+        CALL LogMemDeAlloc(this_routine,CurrShiftBlockSumTag)
+ 
+        DEALLOCATE(ShiftBlockSum)
+        CALL LogMemDeAlloc(this_routine,ShiftBlockSumTag)
+ 
+        DEALLOCATE(ShiftBlockSqrdSum)
+        CALL LogMemDeAlloc(this_routine,ShiftBlockSqrdSumTag)
+ 
+
+    END SUBROUTINE FinaliseShiftBlocking
 
 
 
