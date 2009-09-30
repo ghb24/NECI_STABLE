@@ -51,12 +51,13 @@ contains
 !   RESTARTERRORBLOCKING    Will restart the blocking analysis
 !   PRINTSHIFTBLOCKING      Will print the shift blocking analysis
 !   RESTARTSHIFTBLOCKING    Will restart the shift blocking analysis
+!   EQUILSTEPS XXX          Will change the number of steps to ignore in the averaging of the energy and the shift.
 
     subroutine ChangeVars(tSingBiasChange,tSoftExitFound,tWritePopsFound)
        use SystemData, only : NEl
        use FciMCData, only : Iter,CASMin,CASMax,tTruncSpace,tSinglePartPhase,SumENum,SumNoatHF,HFPopCyc,ProjEIterSum,Histogram,AvAnnihil
        use FciMCData, only : VaryShiftCycles,SumDiagSft 
-       use CalcData, only : Tau,DiagSft,SftDamp,StepsSft,SinglesBias,OccCASOrbs,VirtCASOrbs,NMCyc,tTruncCAS
+       use CalcData, only : Tau,DiagSft,SftDamp,StepsSft,SinglesBias,OccCASOrbs,VirtCASOrbs,NMCyc,tTruncCAS,NEquilSteps
        use DetCalc, only : ICILevel 
        use IntegralsData , only : tPartFreezeCore,NPartFrozen,NHolesFrozen
        use Parallel
@@ -67,7 +68,7 @@ contains
        implicit none
        integer :: error,i,ios,NewNMCyc
        logical :: tSoftExitFound,tWritePopsFound,exists,AnyExist,deleted_file
-       logical :: tEof,any_deleted_file,tChangeParams(19),tSingBiasChange
+       logical :: tEof,any_deleted_file,tChangeParams(20),tSingBiasChange
        Character(len=100) :: w
 
        tSoftExitFound=.false.
@@ -83,7 +84,7 @@ contains
                WRITE(6,*) "CHANGEVARS file detected on iteration ",Iter
            ENDIF
 !Set the defaults
-           tChangeParams(1:19)=.false.
+           tChangeParams(1:20)=.false.
            deleted_file=.false.
            do i=0,nProcessors-1
                ! This causes each processor to attempt to delete
@@ -149,6 +150,9 @@ contains
                            tChangeParams(18)=.true.
                        CASE("RESTARTSHIFTBLOCKING")
                            tChangeParams(19)=.true.
+                       CASE("EQUILSTEPS")
+                           tChangeParams(20)=.true.
+                           CALL Readi(NEquilSteps)
                        END SELECT
                    End Do
                    close(13,status='delete')
@@ -157,7 +161,7 @@ contains
                call MPI_AllReduce(deleted_file,any_deleted_file,1,MPI_LOGICAL,MPI_LOR,MPI_COMM_WORLD,error)
                if (any_deleted_file) exit
            end do
-           CALL MPI_BCast(tChangeParams,19,MPI_LOGICAL,i,MPI_COMM_WORLD,error)
+           CALL MPI_BCast(tChangeParams,20,MPI_LOGICAL,i,MPI_COMM_WORLD,error)
 
            IF(tChangeParams(1)) THEN
 !Change Tau
@@ -343,6 +347,12 @@ contains
            IF(tChangeParams(19)) THEN
                WRITE(6,*) 'Restarting the shift error calculations.  All shift blocking arrays set to zero.'
                IF(iProcIndex.eq.0) CALL RestartShiftBlocking(Iter)
+           ENDIF
+           IF(tChangeParams(20)) THEN
+               CALL MPI_BCast(NEquilSteps,1,MPI_INTEGER,i,MPI_COMM_WORLD,error)
+               IF(iProcIndex.eq.0) THEN
+                   WRITE(6,*) "Changing the number of equilibration steps to: ",NEquilSteps
+               ENDIF
            ENDIF
        endif
 
