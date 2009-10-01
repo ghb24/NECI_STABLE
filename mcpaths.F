@@ -40,6 +40,7 @@ C.. DLWDB = d ln (wi) / d Beta.
          use CalcData , only : G_VMC_FAC,CUR_VERT,g_MultiWeight,
      &          TMPTHEORY,TMCDIRECTSUM,TDIAGNODES,TGraphMorph,
      &          calcp_logweight,TFCIMC,TReturnPathMC,tFCIMCSerial
+         use CalcData, only: tCCMC
          use Calc, only: TStarTrips
          USE Logging , only : G_VMC_LOGCOUNT
          USE PrecalcData , only : PREIV_MAX,TPREVAR
@@ -269,6 +270,8 @@ C.. forcing them to be disconnected.
 #else
                     CALL FciMC(F(I_V),DLWDB2)
 #endif
+               ELSEIF(tCCMC) THEN
+                  CALL CCMCStandAlone(F(I_V),DLWDB2)
                ELSEIF(TReturnPathMC) THEN
 !A MC simulation involving replicating particles, constrained to returning paths is run
                     CALL ReturnPathMC(F(I_V),DLWDB2)

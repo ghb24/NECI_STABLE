@@ -8,34 +8,43 @@ MODULE DetCalc
 
 !From input
       REAL*8 B2L  ! From Calc
-      INTEGER NEVAL,NBLK,NKRY,NCYCLE
-      INTEGER DETINV,ICILEVEL
+      INTEGER NEVAL  !The number of eigenvectors requested
+      INTEGER NBLK   !The number of Lanczos Blocks
+      INTEGER NKRY   !The number of Lanczos Krylov vectors
+      INTEGER NCYCLE !The Max number of Lanczos cycles
+      INTEGER DETINV !The index in the list of dets of a det to investigate
+      INTEGER ICILEVEL ! The maximum excitation level up to which to enumerate dets.  
       INTEGER IOBS,JOBS,KOBS
       LOGICAL TRHOOFR,TCORR,TFODM
 
 
-      INTEGER NDET,Det
-
-
+      INTEGER NDET  ! The total number of determinants we have listed
+      INTEGER Det   ! The number of determinants with the same sym
+                    ! as the reference det.  This is the number of
+                    ! dets in FCIDets
+      INTEGER, Allocatable :: FCIDets(:,:)  !This will contain a list of determinants of the same symmetry as the reference det, with dets in compressed form.  Usually (nBasis/32, Det)
+      INTEGER, Allocatable :: FCIDetIndex(:)!This indicates where the excitation levels start in the FCIDets array(will go from 0->NEl+1).
 
       LOGICAL TCALCHMAT,TENERGY,TREAD,TBLOCK
       LOGICAL tFindDets           !Set if we are to enumerate all determinants within given constraints
       LOGICAL tCompressDets       !Set if once we've found the dets we compress to bit format
    
-      TYPE(BasisFN), pointer :: BLOCKSYM(:)
+      TYPE(BasisFN), pointer :: BLOCKSYM(:)  !The Symmetry of each block.  nBlocks elements
       INTEGER tagBlockSym
-      INTEGER,ALLOCATABLE :: NBLOCKSTARTS(:),FCIDets(:,:), FCIDetIndex(:)!This indicates where the excitation levels start in the FCIDets array(will go from 1->NEl).
-      INTEGER NBLOCKS
-      Type(HElement), pointer :: HAMIL(:)
+      INTEGER,ALLOCATABLE :: NBLOCKSTARTS(:) !Index of the first det of different symmetry blocks in the complete list of dets
+      INTEGER :: tagNBLOCKSTARTS=0
+      INTEGER NBLOCKS                        !Number of Symmetry blocks
+      Type(HElement), pointer :: HAMIL(:)    !The Hamiltonian in compressed form.  Contains only non-zero elements.  The total number of elements is in LenHamil
       INTEGER :: tagHamil=0
-      INTEGER, pointer :: NMRKS(:,:)=>null()      !NEL-NFROZEN
+      INTEGER LenHamil                       !The Total number of non-zero elements in the compressed Hamiltonian
+      INTEGER, pointer :: NMRKS(:,:)=>null() !(NEL-NFROZEN,nDet)  A list of all determinants which have been enumerated.  
       INTEGER :: tagNMRKS=0
-      INTEGER iFDEt
-      TYPE(HElement), pointer :: CK(:), CKN(:)
-      INTEGER :: tagCK=0, tagCKN=0,tagNBLOCKSTARTS=0
-      REAL*8, pointer :: W(:)
+      INTEGER iFDet                       ! The index of the Fermi det in the list of dets.
+      TYPE(HElement), pointer :: CK(:,:)  !  (nDet,nEval) This will store the eventual eigenvectors
+      TYPE(HElement), pointer :: CKN(:,:) !  (nDet,nEval)  Temporary storage for the Lanczos routine
+      INTEGER :: tagCK=0, tagCKN=0
+      REAL*8, pointer :: W(:)  ! (nEval) This will contain the eigenvalues
       INTEGER tagW
-      INTEGER LenHamil
     
 CONTAINS
     Subroutine DetCalcInit
@@ -244,11 +253,11 @@ CONTAINS
 !C..Set up memory for c's, nrow and the label
          IF(TCALCHMAT) THEN
             WRITE(6,*) "CK Size",NDET*NEVAL*HElementSize
-            Allocate(CkN(nDet*nEval), stat=ierr)
+            Allocate(CkN(nDet,nEval), stat=ierr)
             LogAlloc(ierr,'CKN',nDet*nEval, HElementSizeB, tagCKN)
             CKN=HElement(0.d0)
 !C..
-            Allocate(Ck(nDet*nEval), stat=ierr)
+            Allocate(Ck(nDet,nEval), stat=ierr)
             LogAlloc(ierr,'CK',nDet*nEval, HElementSizeB, tagCK)
             CK=HElement(0.d0)
 !C..
@@ -532,16 +541,16 @@ CONTAINS
                 CALL GETSYM(NMRKS(1,i),NEL,G1,NBASISMAX,ISYM)
                 IF(ISym%Sym%S.eq.IHFSYM%Sym%S) THEN
                     Det=Det+1
-                    IF(tEnergy) norm=norm+(REAL(CK(i)%v,8))**2
+                    IF(tEnergy) norm=norm+(REAL(CK(i,1)%v,8))**2
                 ENDIF
             enddo
             WRITE(6,"(I25,A,I4,A)") Det," determinants of symmetry ",IHFSym%Sym%S," found."
-            WRITE(6,*) "Normalization of those determinants is: ", norm
+            WRITE(6,*) "Normalization of eigenvector 1 is: ", norm
             CALL FLUSH(6)
 
             ALLOCATE(FCIDets(0:nBasis/32,Det),stat=ierr)
             IF(ierr.ne.0) CALL Stop_All("DetCalc","Cannot allocate memory to hold vector")
-            ALLOCATE(FCIDetIndex(NEl),stat=ierr)
+            ALLOCATE(FCIDetIndex(0:NEl+1),stat=ierr) !+1 so we can store the end of the array too
             ALLOCATE(Temp(Det),stat=ierr)
             IF(ierr.ne.0) CALL Stop_All("DetCalc","Cannot allocate memory to hold vector")
             IF(tEnergy) THEN
@@ -560,13 +569,11 @@ CONTAINS
                 IF(ISym%Sym%S.eq.IHFSYM%Sym%S) THEN
                     Det=Det+1
                     ExcitLevel=iGetExcitLevel_2(FDet,NMRKS(:,i),NEl,NEl)
-                    IF(ExcitLevel.ne.0) THEN
-                        FCIDetIndex(ExcitLevel)=FCIDetIndex(ExcitLevel)+1
-                    ENDIF
+                    FCIDetIndex(ExcitLevel)=FCIDetIndex(ExcitLevel)+1
                     Temp(Det)=ExcitLevel    !Temp will now temporarily hold the excitation level of the determinant.
                     CALL EncodeBitDet(NMRKS(:,i),FCIDets(0:nBasis/32,Det),NEl,nBasis/32)
                     IF(tEnergy) THEN
-                        FCIGS(Det)=REAL(CK(i)%v,8)/norm
+                        FCIGS(Det)=REAL(CK(i,1)%v,8)/norm
                     ENDIF
                 ENDIF
             enddo
@@ -597,12 +604,13 @@ CONTAINS
 
 !Change it so that FCIDetIndex indexes the start of the block of that excitation level.
 !            FCIDetIndex(1)=2    !Singles start at index 2
-            FCIDetIndex(NEl)=Det-FCIDetIndex(NEl)+1
-            do i=NEl-1,1,-1
-                FCIDetIndex(i)=FCIDetIndex(i+1)-FCIDetIndex(i)
+            FCIDetIndex(0)=1
+            do i=1,NEl+1
+                FCIDetIndex(i)=FCIDetIndex(i-1)+FCIDetIndex(i)
             enddo
-!            WRITE(6,*) "FCIDETIndex:", FCIDetIndex(:)
-            IF(FCIDetIndex(1).ne.2) THEN
+            FCIDetIndex(nEl+1)=Det+1
+            IF(FCIDetIndex(nEl+1).ne.Det+1) THEN
+                WRITE(6,*) "FCIDETIndex:", FCIDetIndex(:)
                 CALL Stop_All("DetCalc","Error in the indexing of determinant excitation level")
             ENDIF
 

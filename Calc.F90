@@ -1400,7 +1400,8 @@ MODULE Calc
          use CalcData , only : CALCP_SUB2VSTAR,CALCP_LOGWEIGHT,TMCDIRECTSUM,g_Multiweight,G_VMC_FAC,TMPTHEORY
          use CalcData, only : STARPROD,TDIAGNODES,TSTARSTARS,TGraphMorph,TStarTrips,THDiag,TMCStar,TFCIMC,TMCDets,TMCDiffusion,tCCMC
          use CalcData , only : TRhoElems,TReturnPathMC, TResumFCIMC, tFCIMCSerial
-         use CCMCData, only: tExactCluster,tCCMCFCI
+         use CCMCData, only: tExactCluster,tCCMCFCI,tAmplitudes
+         use Logging, only: tCalcFCIMCPsi
          implicit none
          integer I_HMAX,NWHTAY,I_V
          CHARACTER(LEN=16) w
@@ -1433,9 +1434,14 @@ MODULE Calc
                   TCCMC=.true.
                   tExactCluster=.false.
                   tCCMCFCI=.false.
+                  tAmplitudes=.false.
                   do while(item.lt.nitems)
                     call readu(w)
                     select case(w)
+                    case("AMPLITUDE")
+                       tAmplitudes=.true.
+                       tFCIMC=.false.  !We don't use the FCIMC code, but use a standalone.
+                       tCalcFCIMCPsi=.true. !We want a full list of dets
                     case("EXACTCLUSTER")
                        tExactCluster=.true.
                     case("FCI")
