@@ -1,4 +1,5 @@
 !  necimain is the entry point for a standalone NECI.  It reads in an input, and then runs the NECI Core
+! this is just a test change.
 Program NECI
 
     implicit none
