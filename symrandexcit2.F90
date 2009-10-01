@@ -400,7 +400,7 @@ MODULE GenRandSymExcitNUMod
 !First, we need to pick an unbiased distinct electron pair.
 !These have symmetry product SymProduct, and spin pair iSpn = 1=beta/beta; 2=alpha/beta; 3=alpha/alpha
 !The probability for doing this is 1/ElecPairs.
-        CALL PickElecPair(nI,Elec1Ind,Elec2Ind,SymProduct,iSpn)
+        CALL PickElecPair(nI,Elec1Ind,Elec2Ind,SymProduct,iSpn,-1)
 
 !This routine runs through all distinct ab pairs for the chosen ij and stochastically chooses how many particles to create.
 !If spawning wants to occur, then it runs through the list again and chooses a pair, which it returns.
@@ -958,7 +958,7 @@ MODULE GenRandSymExcitNUMod
 
 !First, we need to pick an unbiased distinct electron pair.
 !These have symmetry product SymProduct, and spin pair iSpn = 1=beta/beta; 2=alpha/beta; 3=alpha/alpha
-        CALL PickElecPair(nI,Elec1Ind,Elec2Ind,SymProduct,iSpn)
+        CALL PickElecPair(nI,Elec1Ind,Elec2Ind,SymProduct,iSpn,-1)
 
 !This routine finds the number of orbitals which are allowed by spin, but not part of any spatial symmetry allowed unoccupied pairs.
 !This number is needed for the correct normalisation of the probability of drawing any given A orbital since these can be chucked and redrawn.
@@ -1542,8 +1542,8 @@ MODULE GenRandSymExcitNUMod
 
 !This routine takes determinant nI and returns two randomly chosen electrons, whose index in nI is Elec1Ind and Elec2Ind.
 !These electrons have symmetry product SymProduct and spin pairing iSpn.
-    SUBROUTINE PickElecPair(nI,Elec1Ind,Elec2Ind,SymProduct,iSpn)
-        INTEGER :: Ind,X,K,Elec1Ind,Elec2Ind,SymProduct
+    SUBROUTINE PickElecPair(nI,Elec1Ind,Elec2Ind,SymProduct,iSpn,IndInp)
+        INTEGER :: Ind,X,K,Elec1Ind,Elec2Ind,SymProduct,IndInp
         INTEGER :: nI(NEl),iSpn
         REAL*8 :: r
 !Triangular indexing system.
@@ -1567,13 +1567,19 @@ MODULE GenRandSymExcitNUMod
 
 !        ElecPairs=(NEl*(NEl-1))/2
 
+! If we want to find an index randomly, IndInp will be -1.
+        IF(IndInp.eq.-1) THEN
 !Find an index randomly.
-        IF(tMerTwist) THEN
-            CALL genrand_real2(r)
+            IF(tMerTwist) THEN
+                CALL genrand_real2(r)
+            ELSE
+                CALL RANLUX(r,1)
+            ENDIF
+            Ind=INT(ElecPairs*r)+1
         ELSE
-            CALL RANLUX(r,1)
+!Otherwise we are looking for a specific electron pair specified by IndInp            
+            Ind=IndInp
         ENDIF
-        Ind=INT(ElecPairs*r)+1
 
 !X is number of elements at positions larger than ind
         X=ElecPairs-Ind
