@@ -982,13 +982,15 @@ END SUBROUTINE AddBitExcitor
       use CalcData, only: NMCyc    ! The number of MC Cycles
       use FciMCData, only: pDoubles,exFlag,TTruncSpace,Hii
       use FciMCParMod, only: iLutHF
-      use FciMCParMod, only: CheckAllowedTruncSpawn
+      use FciMCParMod, only: CheckAllowedTruncSpawn, SetupParameters,BinSearchParts3
       Use Logging, only: CCMCDebug
       USE SymData , only : nSymLabels
       USE Determinants , only : FDet,GetHElement2,GetHElement4,GetHElement3
       USE DetCalc , only : ICILevel,Det,FCIDetIndex
-      use CalcData, only: Tau,DiagSft
+      use CalcData, only: Tau,DiagSft,InitWalkers
+      use GenRandSymExcitNUMod , only : GenRandSymExcitScratchNU
       USE HElem
+      USE mt95 , only : genrand_real2
       IMPLICIT NONE
       REAL*8 Weight,EnergyxW
       INTEGER , PARAMETER :: r2=kind(0.d0)
@@ -1027,6 +1029,8 @@ END SUBROUTINE AddBitExcitor
       TYPE(HElement) rh,HTmp
       REAL*8 HDiagCurr
       WRITE(6,*) "Entering CCMC Standalone..."
+      Call SetupParameters()
+      nSelects=InitWalkers
       iDebug=CCMCDebug
       dProbSelNewExcitor=0.5
       iCurAmpList=1  !Start with list 1
@@ -1054,7 +1058,7 @@ END SUBROUTINE AddBitExcitor
             call WriteBitDet(6,iLutHF,.true.)
             write(6,*) "Particle list"
             do j=1,Det
-               if(iDebug.gt.3.or.abs(Amplitude(j,iCurAmpList)).gt.1e-6) THEN
+               if(iDebug.gt.4.or.abs(Amplitude(j,iCurAmpList)).gt.1e-8) THEN
                   write(6,'(G14.6)',advance='no') Amplitude(j,iCurAmpList)
                   call WriteBitEx(6,iLutHF,FciDets(:,j),.true.)
                ENDIF
@@ -1064,7 +1068,18 @@ END SUBROUTINE AddBitExcitor
    !            write(6,*)
             enddo
          endif
-         
+         iNumExcitors=0
+         dTotAbsAmpl=0
+         do j=2,Det
+            if(abs(Amplitude(j,iCurAmpList)).gt.1e-8) then
+               iNumExcitors=iNumExcitors+1
+               dTotAbsAmpl=dTotAbsAmpl+abs(Amplitude(j,iCurAmpList))
+            ENDIF
+         enddo
+         IF(iDebug.gt.1) THEN
+            WRITE(6,*) "Total non-zero excitors: ",iNumExcitors
+            WRITE(6,*) "Total abs Amplitudes: ",dTotAbsAmpl
+         endif 
 !  First calculate the energy
          Iter=Iter+1
 !  Loop over cluster selections
@@ -1091,6 +1106,8 @@ END SUBROUTINE AddBitExcitor
 !    having generated the excitor by (HFcount)^(iCompositeSize-1)  (i.e. one HFcount for each level)
             dProbNumExcit=dProbSelNewExcitor
             dProbNorm=nSelects
+            dClusterProb=1
+            dNGenComposite=1
             do i=1,iNumExcitors
    ! Calculate the probability that we've reached this far in the loop
                         !We must have at least one excitor, so we cannot exit here.
@@ -1102,6 +1119,7 @@ END SUBROUTINE AddBitExcitor
 ! Select a new random walker
                call genrand_real2(r)  !On GHB's advice
                r=r*dTotAbsAmpl
+               dCurTot=0
                do k=2,Det
                   dCurTot=dCurTot+abs(Amplitude(k,iOldAmpList))
                   if(dCurTot.ge.r) exit
@@ -1111,6 +1129,7 @@ END SUBROUTINE AddBitExcitor
                SelectedExcitorIndices(i)=k
                SelectedExcitors(:,i)=FCIDets(:,k)
                dNGenComposite=dNGenComposite*abs(Amplitude(k,iOldAmpList))/dTotAbsAmpl  !For each new excit added to the composite, we multiply up to count the number of ways we could've generated it.
+               dClusterProb=dClusterProb*abs(Amplitude(k,iOldAmpList))/dTotAbsAmpl  !For each new excit added to the composite, we multiply up to count the number of ways we could've generated it.
                dProbNorm=dProbNorm/dTotAbsAmpl
             enddo
             IF(iDebug.gt.5) WRITE(6,*) 'prob out of sel routine.',dProbNumExcit
@@ -1139,7 +1158,7 @@ END SUBROUTINE AddBitExcitor
             endif
             iLutnI(:)=iLutHF(:)
             iSgn=1 !The sign of the first excitor
-            do i=2,iCompositeSize 
+            do i=1,iCompositeSize 
                iSgn=iSgn*int(sign(1.d0,Amplitude(SelectedExcitorIndices(i),iOldAmpList)))
                call AddBitExcitor(iLutnI,SelectedExcitors(:,i),iLutHF,iSgn)
                IF(iDebug.gt.3) Write(6,*) "Results of addition ",i, "Sign ",iSgn,':'
@@ -1199,7 +1218,7 @@ END SUBROUTINE AddBitExcitor
                call WriteBitEx(6,iLutHF,iLutnI,.false.)
                write(6,'(A)',advance='no') ,' ==> '
                call WriteBitEx(6,iLutHF,iLutnJ,.false.)
-               WRITE(6,'(A,I)',advance='no') "Children:",rat
+               WRITE(6,'(A,G)',advance='no') "Children:",rat
                if(iDebug.eq.3.and.iCompositeSize.gt.1) THEN
                   write(6,'(A)',advance='no') ' from '
                   do i=1,iCompositeSize
@@ -1210,19 +1229,21 @@ END SUBROUTINE AddBitExcitor
             endif
 !Now add in a contribution from the child
             CALL FindBitExcitLevel(iLutHF,iLutnJ(:),NIfD,IC,nEl)
-            IF(ExcitLevel.eq.NEl) THEN
-                CALL BinSearchParts3(iLutnJ(:),FCIDets(:,FCIDetIndex(IC):),Det,PartIndex,tSuc)
-            ELSEIF(ExcitLevel.eq.0) THEN
+            IF(IC.eq.NEl) THEN
+                CALL BinSearchParts3(iLutnJ(:),FCIDets(:,:),Det,FCIDetIndex(IC),Det,PartIndex,tSuc)
+            ELSEIF(IC.eq.0) THEN
                 PartIndex=1
                 tSuc=.true.
             ELSE
-                CALL BinSearchParts3(iLutnJ(:),FCIDets(:,FCIDetIndex(IC):),FCIDetIndex(IC+1)-1,PartIndex,tSuc)
+                CALL BinSearchParts3(iLutnJ(:),FCIDets(:,:),Det,FCIDetIndex(IC),FCIDetIndex(IC+1)-1,PartIndex,tSuc)
             ENDIF
          
             if(.not.tSuc) THEN      
                WRITE(6,*) "Cannot find excitor "
                call WriteBitEx(6,iLutHF,iLutnJ,.true.)
-               call WriteBitDet(6,iLutHF,iLutnJ,.true.)
+               call WriteBitDet(6,iLutnJ,.true.)
+               WRITE(6,*) "Excitation Level: ",IC
+               WRITE(6,*) "Dets ",FCIDetIndex(IC),' to ',FCIDetIndex(IC+1)-1
                call Stop_All("CCMCStandalone","Cannot find excitor in list.")
             endif
             Amplitude(PartIndex,iCurAmpList)=Amplitude(PartIndex,iCurAmpList)+rat
@@ -1272,7 +1293,7 @@ END SUBROUTINE AddBitExcitor
                Write(6,'(A,G)') "Prob: ",dProb*dProbNorm
             endif
 
-            rat=-Tau*(HDiagCurr-DiagSft)*abs(Amplitude(iPartDie,iOldAmpList))/(dProb*dProbNorm)
+            rat=-iSgn*Tau*(HDiagCurr-DiagSft)*abs(Amplitude(iPartDie,iOldAmpList))/(dProb*dProbNorm)
             Amplitude(iPartDie,iCurAmpList)=Amplitude(iPartDie,iCurAmpList)+rat
             IF(iDebug.gt.4.or.((iDebug.eq.3.or.iDebug.eq.4))) then
                Write(6,'(A,I)',advance='no') " Killing at excitor: ",iPartDie

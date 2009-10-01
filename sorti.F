@@ -270,17 +270,17 @@ C.. NRB is the length of each row in RB
 10    CONTINUE
         IF(L.GT.1)THEN
           L=L-1
-          CALL NECI_ICOPY(NRA,RA(1,L),1,RRA,1)
-          CALL NECI_ICOPY(NRB,RB(1,L),1,RRB,1)
+          RRA(:)=RA(:,L)
+          RRB(:)=RB(:,L)
         ELSE
-          CALL NECI_ICOPY(NRA,RA(1,IR),1,RRA,1)
-          CALL NECI_ICOPY(NRA,RA(1,1),1,RA(1,IR),1)
-          CALL NECI_ICOPY(NRB,RB(1,IR),1,RRB,1)
-          CALL NECI_ICOPY(NRB,RB(1,1),1,RB(1,IR),1)
+          RRA(:)=RA(:,IR)
+          RRB(:)=RB(:,IR)
+          RA(:,IR)=RA(:,1)
+          RB(:,IR)=RB(:,1)
           IR=IR-1
           IF(IR.EQ.1)THEN
-            CALL NECI_ICOPY(NRA,RRA,1,RA(1,1),1)
-            CALL NECI_ICOPY(NRB,RRB,1,RB(1,1),1)
+            RA(:,1)=RRA(:)
+            RB(:,1)=RRB(:)
             RETURN
           ENDIF
         ENDIF
@@ -291,8 +291,8 @@ C.. NRB is the length of each row in RB
             IF((DETLT(RA(1,J),RA(1,J+1),NRA)).eq.-1) J=J+1
           ENDIF
           IF((DETLT(RRA,RA(1,J),NRA)).eq.-1)THEN
-            CALL NECI_ICOPY(NRA,RA(1,J),1,RA(1,I),1)
-            CALL NECI_ICOPY(NRB,RB(1,J),1,RB(1,I),1)
+            RA(:,I)=RA(:,J)
+            RB(:,I)=RB(:,J)
             I=J
             J=J+J
           ELSE
@@ -300,8 +300,8 @@ C.. NRB is the length of each row in RB
           ENDIF
         GO TO 20
         ENDIF
-        CALL NECI_ICOPY(NRA,RRA,1,RA(1,I),1)
-        CALL NECI_ICOPY(NRB,RRB,1,RB(1,I),1)
+        RA(:,I)=RRA(:)
+        RB(:,I)=RRB(:)
       GO TO 10
       END
  

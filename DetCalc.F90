@@ -569,7 +569,8 @@ CONTAINS
                 IF(ISym%Sym%S.eq.IHFSYM%Sym%S) THEN
                     Det=Det+1
                     ExcitLevel=iGetExcitLevel_2(FDet,NMRKS(:,i),NEl,NEl)
-                    FCIDetIndex(ExcitLevel)=FCIDetIndex(ExcitLevel)+1
+! FCIDetIndex is off by one, for later cumulative indexing
+                    FCIDetIndex(ExcitLevel+1)=FCIDetIndex(ExcitLevel+1)+1
                     Temp(Det)=ExcitLevel    !Temp will now temporarily hold the excitation level of the determinant.
                     CALL EncodeBitDet(NMRKS(:,i),FCIDets(0:nBasis/32,Det),NEl,nBasis/32)
                     IF(tEnergy) THEN
@@ -582,8 +583,9 @@ CONTAINS
             ELSE
                 MaxIndex=MIN(ICILevel,NEl)
             ENDIF
+!NB FCIDetIndex is off by 1 for later cumulation
             do i=1,MaxIndex
-                WRITE(6,*) "Number at excitation level: ",i," is: ",FCIDetIndex(i)
+                WRITE(6,*) "Number at excitation level: ",i," is: ",FCIDetIndex(i+1)
             enddo
 
 !We now want to sort the determinants according to the excitation level (stored in Temp)
@@ -615,7 +617,8 @@ CONTAINS
             ENDIF
 
 !We now need to sort within the excitation level by the "number" of the determinant
-            do i=1,MaxIndex-1
+            do i=1,MaxIndex
+                WRITE(6,*) "Sorting ",i,FCIDetIndex(i),FCIDetIndex(i+1)-1
                 IF(.not.tEnergy) THEN
 !                    WRITE(6,*) i,FCIDetIndex(i),FCIDetIndex(i+1)-1
 !                    CALL FLUSH(6)
@@ -624,12 +627,6 @@ CONTAINS
                     CALL SortBitDetswH(FCIDetIndex(i+1)-FCIDetIndex(i),FCIDets(0:nBasis/32,FCIDetIndex(i):(FCIDetIndex(i+1)-1)),nBasis/32,temp(FCIDetIndex(i):(FCIDetIndex(i+1)-1)),FCIGS(FCIDetIndex(i):(FCIDetIndex(i+1)-1)))
                 ENDIF
             enddo
-!Now sort highest excitation level
-            IF(.not.tEnergy) THEN
-                CALL SortBitDets((Det+1)-FCIDetIndex(MaxIndex),FCIDets(0:nBasis/32,FCIDetIndex(MaxIndex):Det),nBasis/32,temp(FCIDetIndex(MaxIndex):Det))
-            ELSE
-                CALL SortBitDetswH((Det+1)-FCIDetIndex(MaxIndex),FCIDets(0:nBasis/32,FCIDetIndex(MaxIndex):Det),nBasis/32,temp(FCIDetIndex(MaxIndex):Det),FCIGS(FCIDetIndex(MaxIndex):Det))
-            ENDIF
 
 
 !This will sort the determinants into ascending order, for quick binary searching later on.
@@ -708,7 +705,11 @@ CONTAINS
                     WRITE(17,*) "FCIDETIndex: ",FCIDetIndex(:)
                     WRITE(17,*) "***"
                     do i=1,Det
-                        WRITE(17,*) i, temp(i),FCIDets(0:nBasis/32,i)
+                        WRITE(17,"(2I13)",advance='no') i,temp(i)
+                        do j=0,nBasis/32
+                           WRITE(17,"(I13)",advance='no') FCIDets(j,i)
+                        enddo
+                        Call WriteBitDet(17,FCIDets(:,i),.true.)
                     enddo
                     CLOSE(17)
                 ENDIF
