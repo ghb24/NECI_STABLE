@@ -120,7 +120,7 @@ C.. SHow that there's no momentum conservation
          INTEGER I,J,K,L
          INTEGER ISYMNUM,ISNMAX,SYMMAX,SYMLZ(1000)
          INTEGER NORB,NELEC,MS2,ORBSYM(1000),ISYM,ISPINS,ISPN,SYML(1000)
-         INTEGER Counter(1:8),Index(1000),nPairs,iErr,MaxnSlot,MaxIndex
+         INTEGER Counter(1:8),nPairs,iErr,MaxnSlot,MaxIndex
          INTEGER , ALLOCATABLE :: MaxSlots(:)
          LOGICAL TBIN,UHF
          NAMELIST /FCI/ NORB,NELEC,MS2,ORBSYM,ISYM,UHF,SYML,SYMLZ
@@ -272,7 +272,9 @@ C.. Each orbital in the file corresponds to alpha and beta spinorbitals
                 ENDIF
 C.. At the moment we're ignoring the core energy
                 IF(I.NE.0) GOTO 2
-             ELSE
+
+             ELSE   !Reading in formatted FCIDUMP file
+
 1               READ(8,'(1X,G20.12,4I3)',END=99) Z,I,J,K,L
 
                 IF(tROHF) THEN
@@ -309,9 +311,12 @@ C.. Each orbital in the file corresponds to alpha and beta spinorbitals
                         ENDIF
                     ENDIF
                     ISYMNUM=ISYMNUM+1
-                    DO ISPN=1,ISPINS
-                        ARR(ISPINS*I-ISPN+1,1)=Z
-                    ENDDO
+
+!                    WRITE(6,*) I,J,K,L,Z
+!                    DO ISPN=1,ISPINS
+!                        ARR(ISPINS*I-ISPN+1,1)=Z
+!                    ENDDO
+
                 ELSEIF(I.NE.0.AND.K.EQ.0.AND.J.EQ.0) THEN
                     DO ISPN=1,ISPINS
                         ARR(ISPINS*I-ISPN+1,1)=Z
@@ -410,7 +415,7 @@ C.. set momentum to 0
          INTEGER NORB,NELEC,MS2,ORBSYM(1000),ISYM,SYMMAX,SYML(1000)
          LOGICAL LWRITE,UHF,tAddtoCache,GetCachedUMatEl,tReadFreezeInts
          INTEGER ISPINS,ISPN,ISPN2,ierr,SYMLZ(1000)!,IDI,IDJ,IDK,IDL
-         INTEGER Counter(1:8),Index(1000),UMatSize,TMatSize
+         INTEGER Counter(1:8),UMatSize,TMatSize
          INTEGER , ALLOCATABLE :: CacheInd(:)
          NAMELIST /FCI/ NORB,NELEC,MS2,ORBSYM,ISYM,UHF,SYML,SYMLZ
          LWRITE=.FALSE.

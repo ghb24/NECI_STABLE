@@ -8516,7 +8516,6 @@ MODULE FciMCParMod
 
 !Divide by the probability of creating the excitation to negate the fact that we are only creating a few determinants
             rat=Tau*abs(rh%v)*REAL(nParts,r2)/Prob
-
         ENDIF
         IF(CCMCDebug.gt.5) WRITE(6,*) "Connection H-element to spawnee:",rh
 !        CALL IsSymAllowedExcit(DetCurr,nJ,IC,Ex,SymAllowed) 
@@ -8551,6 +8550,10 @@ MODULE FciMCParMod
             CALL RANLUX(r,1)
         ENDIF
         IF(rat.gt.r) THEN
+!            IF(Iter.eq.18925) THEN
+!                WRITE(6,*) "Created",rh%v,rat
+!            ENDIF
+
 !Child is created - what sign is it?
             IF(WSign.gt.0) THEN
 !Parent particle is positive
@@ -8571,6 +8574,9 @@ MODULE FciMCParMod
 
         ELSE
 !No child particle created
+!            IF(Iter.eq.18925) THEN
+!                WRITE(6,*) "Not Created",rh%v,rat
+!            ENDIF
             AttemptCreatePar=0
         ENDIF
 
