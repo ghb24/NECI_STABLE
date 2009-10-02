@@ -1541,7 +1541,8 @@ MODULE GenRandSymExcitNUMod
     END SUBROUTINE PickAOrb
 
 !This routine takes determinant nI and returns two randomly chosen electrons, whose index in nI is Elec1Ind and Elec2Ind.
-!These electrons have symmetry product SymProduct and spin pairing iSpn.
+!These electrons have symmetry product SymProduct and spin pairing iSpn, where iSpn = 1=beta/beta; 2=alpha/beta; 3=alpha/alpha.
+!If IndInp = -1, the pair is picked randomly with prob = 1/ElecPairs. Otherwise, it will choose electron pair given by index IndInp.
     SUBROUTINE PickElecPair(nI,Elec1Ind,Elec2Ind,SymProduct,iSpn,IndInp)
         INTEGER :: Ind,X,K,Elec1Ind,Elec2Ind,SymProduct,IndInp
         INTEGER :: nI(NEl),iSpn

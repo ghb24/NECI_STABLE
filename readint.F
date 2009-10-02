@@ -117,7 +117,7 @@ C.. SHow that there's no momentum conservation
          REAL*8 ARR(LEN,2)
          REAL*8 Z
          INTEGER*8 IND,MASK
-         INTEGER I,J,K,L
+         INTEGER I,J,K,L,I1
          INTEGER ISYMNUM,ISNMAX,SYMMAX,SYMLZ(1000)
          INTEGER NORB,NELEC,MS2,ORBSYM(1000),ISYM,ISPINS,ISPN,SYML(1000)
          INTEGER Counter(1:8),nPairs,iErr,MaxnSlot,MaxIndex
@@ -155,8 +155,8 @@ C.. SHow that there's no momentum conservation
          IF(tROHF) THEN
              WRITE(6,*) "Reading in Spin-orbital FCIDUMP but storing as"&
      &          //" spatial orbitals."
-             WRITE(6,*) "*** Warning - Fock energy of orbitals will be "&
-     &                //"incorrect ***"
+!             WRITE(6,*) "*** Warning - Fock energy of orbitals will be "&
+!     &                //"incorrect ***"
 !We are reading in the symmetry of the orbitals in spin-orbitals - we need to change this to spatial orbitals
              DO i=1,NORB-1,2
                  IF(ORBSYM(i).ne.ORBSYM(i+1)) THEN
@@ -280,7 +280,9 @@ C.. At the moment we're ignoring the core energy
                 IF(tROHF) THEN
 !The FCIDUMP file is in spin-orbitals - we need to transfer them to spatial orbitals.
                     IF(I.ne.0) THEN
-                        CALL GTID(NBASISMAX,I,I)
+                        CALL GTID(NBASISMAX,I,I1)
+                    ELSE
+                        I1=0
                     ENDIF
                     IF(J.ne.0) THEN
                         CALL GTID(NBASISMAX,J,J)
@@ -291,10 +293,13 @@ C.. At the moment we're ignoring the core energy
                     IF(L.ne.0) THEN
                         CALL GTID(NBASISMAX,L,L)
                     ENDIF
+                ELSE
+                    I1=I    !Create new I index, since ROHF wants both spin and spatial indicies to get the fock energies right.
                 ENDIF
 
+
                 IF(tCacheFCIDUMPInts) THEN
-                    CALL CalcNSlotsInit(I,J,K,L,Z,nPairs,MaxSlots)
+                    CALL CalcNSlotsInit(I1,J,K,L,Z,nPairs,MaxSlots)
                 ENDIF
 
 !                I=Index(I)
@@ -303,9 +308,9 @@ C.. At the moment we're ignoring the core energy
 !                L=Index(L)
 C.. Each orbital in the file corresponds to alpha and beta spinorbitals
              !Fill ARR with the energy levels
-                IF(I.NE.0.AND.K.EQ.0.AND.I.EQ.J) THEN
-                    IF(I.GT.1) THEN
-                        IF(ORBSYM(I).NE.ORBSYM(I-1)) THEN
+                IF(I1.NE.0.AND.K.EQ.0.AND.I1.EQ.J) THEN
+                    IF(I1.GT.1) THEN
+                        IF(ORBSYM(I1).NE.ORBSYM(I1-1)) THEN
                             IF(ISYMNUM.GT.ISNMAX) ISNMAX=ISYMNUM
                             ISYMNUM=0
                         ENDIF
@@ -317,13 +322,24 @@ C.. Each orbital in the file corresponds to alpha and beta spinorbitals
 !                        ARR(ISPINS*I-ISPN+1,1)=Z
 !                    ENDDO
 
-                ELSEIF(I.NE.0.AND.K.EQ.0.AND.J.EQ.0) THEN
-                    DO ISPN=1,ISPINS
-                        ARR(ISPINS*I-ISPN+1,1)=Z
-                    ENDDO
+                ELSEIF(I1.NE.0.AND.K.EQ.0.AND.J.EQ.0) THEN
+!                    WRITE(6,*) I
+                    IF(ISPINS.eq.1) THEN
+                        ARR(I1,1)=Z
+                    ELSEIF(tROHF) THEN
+                        ARR(I,1)=Z
+                    ELSE
+                        ARR(2*I1,1)=Z
+                        ARR(2*I1-1,1)=Z
+                    ENDIF
+
+!                    DO ISPN=1,ISPINS
+!                        ARR(ISPINS*I-ISPN+1,1)=Z
+!                    ENDDO
+
                 ENDIF
 C.. At the moment we're ignoring the core energy
-                IF(I.NE.0) GOTO 1
+                IF(I1.NE.0) GOTO 1
              ENDIF
 99           CONTINUE
              CLOSE(8)
@@ -331,11 +347,13 @@ C.. At the moment we're ignoring the core energy
          ENDIF
 
 !We now need to broadcast all the information we've just read in...
-         CALL MPIIBCast(MaxSlots,nPairs,0)
+         IF(tCacheFCIDUMPInts) THEN
+             CALL MPIIBCast(MaxSlots,nPairs,0)
+         ENDIF
          CALL MPIIBCast_Scal(ISNMAX,0)
          CALL MPIIBCast_Scal(ISYMNUM,0)
          CALL MPIDBCast(Arr,LEN*2,0)
-
+         
          SYMMAX=1
          DO I=1,NORB
             DO ISPN=1,ISPINS
