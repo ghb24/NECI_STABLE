@@ -1,7 +1,7 @@
 #include "macros.h"
 ! based on GHB's FciMCPar, this is a version in Coupled Cluster space.
 
-
+#ifdef PARALLEL
 
 !Note that the main routine called by FciMCPar is PerformCCMCCycPar and is outside the module, so
 !FciMCPar doesn't need to use the module
@@ -14,7 +14,12 @@
 !Multiple particles can be attempted to die at the same time - here, |WSign| > 1 and the probability of a death will be multiplied by |WSign|
 !dProb is an extra probability factor the death probability is multiplied by 
     INTEGER FUNCTION AttemptDieProbPar(DetCurr,Kii,IC,WSign,dProb)
-        USE FciMCParMod
+        use SystemData, only: nEl, tMerTwist
+        use CalcData , only : TFixShiftShell,ShellFix,FixShift,DiagSft,FixedKiiCutoff,Tau,tFixShiftKii
+        use CalcData , only : tFixCASShift
+        use FciMCData
+        use FciMCParMod, only: TestifDETinCAS
+        use mt95
         IMPLICIT NONE
         INTEGER :: DetCurr(NEl),iKill,IC,WSign
 !        TYPE(HElement) :: rh,rhij
@@ -85,131 +90,6 @@
     END FUNCTION AttemptDieProbPar
 
 
-
-!Add the excitation in iLutnJ to iLutnI and return it in iLutnI.  iSgn is
-!updated with the relevant permutation or set to zero if the excitation is
-!disallowed.
-SUBROUTINE AddBitExcitor(iLutnI,iLutnJ,iLutRef,iSgn)
-   use SystemData, only : nEl,nIfD
-   IMPLICIT NONE
-   INTEGER iLutnI(0:nIfD), iLutnJ(0:nIfD),iLutRef(0:nIfD)
-   INTEGER iLutTmp(0:nIfD)
-   INTEGER T1,T2,T3
-   INTEGER iSgn
-! We need to run through the bits of J and I concurrently, setting bits of I
-   INTEGER i,j
-
-   integer iIlevel,iJlevel,iTmpLevel,iI,iJ
-   CALL FindBitExcitLevel(iLutRef,iLutnI,nIfD,iIlevel,nEl)
-   CALL FindBitExcitLevel(iLutRef,iLutnJ,nIfD,iJlevel,nEl)
-   iI=iIlevel
-   iJ=iJlevel
-   iTmpLevel=0
-!   WRITE(6,'(A,I)',advance='no') 'x1,x2,s: ',iSgn
-!   call WriteBitEx(6,iLutRef,iLutnI,.false.)
-!   call WriteBitEx(6,iLutRef,iLutnJ,.true.)
-
-!We specify the definitions of the excitors in terms of creation and annihilation operators:
-
-!  e.g. t_ij^ab  means   a^+_a a^+_b a_j a_i  (where i<j and a<b).
-!  our determinants are specified by an ordered list of occupied orbitals:
-!    i,j,k  (i<j<k)
-!  This correpsonds to a^+_i a^+_j a^+_k |0>
-
-! Thus an excitor applied to the HF det will yield the postive determinant
-
-!To compose two excitors, we must move the annihilation operators to the right,
-! and the creation operators to the left.  Each switch of operators incurs a sign flip.
-
-!First the occ
-   do i=0,nIfD
-! First mask so we only have 'occupied' orbitals.  The occupieds which are zero
-! mean they have been excited from.
-      T1=IAND(iLutnI(i),iLutRef(i))
-      T2=IAND(iLutnJ(i),iLutRef(i))
-      IF(IAND(IEOR(T1,iLutRef(i)),IEOR(T2,iLutRef(i))).NE.0) THEN
-!The two excitors are exciting from at least one of the same orbitals.  This
-!gives a sign of zero.
-!         WRITE(6,'(A,B,B)') 'T1,T2: ',T1,T2
-!         WRITE(6,'(A,B)') "Overlapping from",IAND(IEOR(T1,iLutRef(i)),IEOR(T2,iLutRef(i)))
-         iSgn=0
-         return
-      ENDIF
-      iLutTmp(i)=IAND(T1,T2)  !Combine the excitors
-!We now (very naively, but I can't think of a better way to do it) work out the sign change for the occupied reorder.
-!  Tmp lies  between I and J, and will receive the eventual complete excitor.
-!  Tmp contains no creation operators as yet, so the right of I can move freely to the left of Tmp
-!  J contains a string of iILevel creation operators which must also be taken into account.
-! We step through both I and J simultaneously, and move any annihilation operators from either to Tmp,
-! with the appropriate sign change.
-! iI,iJ and iTmpLevel indicate the number of annihilators left in I J or Tmp.
-      T1=IAND(NOT(iLutnI(i)),iLutRef(i))
-      T2=IAND(NOT(iLutnJ(i)),iLutRef(i))
-      T3=0
-      do j=0,31
-!      WRITE(6,'(A,B33.32,B33.32,B33.32)') 'T1,T3,T2: ',T1,T3,T2
-         if(BTEST(T1,j)) THEN
-            iTmpLevel=iTmpLevel+1
-            iI=iI-1
-            T1=IBCLR(T1,j)
-            T3=IBSET(T3,j)
-         else if(BTest(T2,j)) then
-!Shift the relevant bit from J to tmp.
-            if(btest(iJLevel+iJ+iTmpLevel,0)) iSgn=-iSgn
-            iJ=iJ-1
-            T2=IBCLR(T2,j)
-            T3=IBSET(T3,j)
-         endif
-!         Write(6,*) j,iTmpLevel,iI,iJ,iSgn
-      enddo
-   enddo
-   iI=iILevel
-   iJ=iJLevel 
-   iTmpLevel=0
-!   WRITE(6,*) "Creation"
-   do i=nIfD,0,-1  !Go backwards for the sign
-! Now mask so we only have 'virtual' orbitals.  The virtuals which are set mean they have been excited to.
-      T3=NOT(iLutRef(i))
-      T1=IAND(iLutnI(i),T3)
-      T2=IAND(iLutnJ(i),T3)
-      IF(IAND(T1,T2).NE.0) THEN
-!The two excitors are exciting to at least one of the same orbitals.  This
-!gives a sign of zero.
-!         WRITE(6,'(A,B)') "Overlapping to",IAND(T1,T2)
-         iSgn=0
-      ENDIF
-      iLutnI(i)=IOR(iLutTmp(i),IOR(T1,T2)) 
-!Combine the excitors and the excitor from and put them back into where they should go
-!We now (very naively, but I can't think of a better way to do it) work out the sign change for the occupied reorder.
-!  Tmp lies  between I and J, and will receive the eventual complete excitor.
-!  The right of I can still move freely to the left of Tmp
-!  J contains a string of iJ creation operators which must also be taken into account,
-!   as well as the iJLevel+iILevel annihilation operators and iTmpLevel creation operators in Tmp
-!  totalling  (iILevel+iJLevel)+iI+iTmpLeel
-! We step through both I and J simultaneously, and move any annihilation operators from either to Tmp,
-! with the appropriate sign change.
-! iI,iJ and iTmpLevel indicate the number of annihilators left in I J or Tmp.
-      T3=0
-      do j=31,0,-1
-!      WRITE(6,'(A,B33.32,B33.32,B33.32)') 'T1,T3,T2: ',T1,IOR(T3,ieor(iLutTmp(i),iLutRef(i))),T2
-         if(BTEST(T1,j)) THEN
-            iTmpLevel=iTmpLevel+1
-            iI=iI-1
-            T1=IBCLR(T1,j)
-            T3=IBSET(T3,j)
-         else if(BTest(T2,j)) then
-!Shift the relevant bit from J to tmp. 
-            if(btest((iILevel+iJLevel+iJ)+iTmpLevel,0)) iSgn=-iSgn
-            iJ=iJ-1
-            T2=IBCLR(T2,j)
-            T3=IBSET(T3,j)
-         endif
-!         Write(6,*) j,iTmpLevel,iI,iJ,iSgn
-      enddo
-   enddo
-!   write(6,*) 'x final sign:',iSgn
-   return
-END SUBROUTINE AddBitExcitor
 
 !Note that the main routine called by FciMCPar is PerformCCMCCycPar and is outside the module, so
 !FciMCPar doesn't need to use the module
@@ -1317,3 +1197,134 @@ END SUBROUTINE AddBitExcitor
       LogDealloc(tagAmplitude)
       DeAllocate(Amplitude)
    END SUBROUTINE CCMCStandalone
+
+!Add the excitation in iLutnJ to iLutnI and return it in iLutnI.  iSgn is
+!updated with the relevant permutation or set to zero if the excitation is
+!disallowed.
+SUBROUTINE AddBitExcitor(iLutnI,iLutnJ,iLutRef,iSgn)
+   use SystemData, only : nEl,nIfD
+   IMPLICIT NONE
+   INTEGER iLutnI(0:nIfD), iLutnJ(0:nIfD),iLutRef(0:nIfD)
+   INTEGER iLutTmp(0:nIfD)
+   INTEGER T1,T2,T3
+   INTEGER iSgn
+! We need to run through the bits of J and I concurrently, setting bits of I
+   INTEGER i,j
+
+   integer iIlevel,iJlevel,iTmpLevel,iI,iJ
+   CALL FindBitExcitLevel(iLutRef,iLutnI,nIfD,iIlevel,nEl)
+   CALL FindBitExcitLevel(iLutRef,iLutnJ,nIfD,iJlevel,nEl)
+   iI=iIlevel
+   iJ=iJlevel
+   iTmpLevel=0
+!   WRITE(6,'(A,I)',advance='no') 'x1,x2,s: ',iSgn
+!   call WriteBitEx(6,iLutRef,iLutnI,.false.)
+!   call WriteBitEx(6,iLutRef,iLutnJ,.true.)
+
+!We specify the definitions of the excitors in terms of creation and annihilation operators:
+
+!  e.g. t_ij^ab  means   a^+_a a^+_b a_j a_i  (where i<j and a<b).
+!  our determinants are specified by an ordered list of occupied orbitals:
+!    i,j,k  (i<j<k)
+!  This correpsonds to a^+_i a^+_j a^+_k |0>
+
+! Thus an excitor applied to the HF det will yield the postive determinant
+
+!To compose two excitors, we must move the annihilation operators to the right,
+! and the creation operators to the left.  Each switch of operators incurs a sign flip.
+
+!First the occ
+   do i=0,nIfD
+! First mask so we only have 'occupied' orbitals.  The occupieds which are zero
+! mean they have been excited from.
+      T1=IAND(iLutnI(i),iLutRef(i))
+      T2=IAND(iLutnJ(i),iLutRef(i))
+      IF(IAND(IEOR(T1,iLutRef(i)),IEOR(T2,iLutRef(i))).NE.0) THEN
+!The two excitors are exciting from at least one of the same orbitals.  This
+!gives a sign of zero.
+!         WRITE(6,'(A,B,B)') 'T1,T2: ',T1,T2
+!         WRITE(6,'(A,B)') "Overlapping from",IAND(IEOR(T1,iLutRef(i)),IEOR(T2,iLutRef(i)))
+         iSgn=0
+         return
+      ENDIF
+      iLutTmp(i)=IAND(T1,T2)  !Combine the excitors
+!We now (very naively, but I can't think of a better way to do it) work out the sign change for the occupied reorder.
+!  Tmp lies  between I and J, and will receive the eventual complete excitor.
+!  Tmp contains no creation operators as yet, so the right of I can move freely to the left of Tmp
+!  J contains a string of iILevel creation operators which must also be taken into account.
+! We step through both I and J simultaneously, and move any annihilation operators from either to Tmp,
+! with the appropriate sign change.
+! iI,iJ and iTmpLevel indicate the number of annihilators left in I J or Tmp.
+      T1=IAND(NOT(iLutnI(i)),iLutRef(i))
+      T2=IAND(NOT(iLutnJ(i)),iLutRef(i))
+      T3=0
+      do j=0,31
+!      WRITE(6,'(A,B33.32,B33.32,B33.32)') 'T1,T3,T2: ',T1,T3,T2
+         if(BTEST(T1,j)) THEN
+            iTmpLevel=iTmpLevel+1
+            iI=iI-1
+            T1=IBCLR(T1,j)
+            T3=IBSET(T3,j)
+         else if(BTest(T2,j)) then
+!Shift the relevant bit from J to tmp.
+            if(btest(iJLevel+iJ+iTmpLevel,0)) iSgn=-iSgn
+            iJ=iJ-1
+            T2=IBCLR(T2,j)
+            T3=IBSET(T3,j)
+         endif
+!         Write(6,*) j,iTmpLevel,iI,iJ,iSgn
+      enddo
+   enddo
+   iI=iILevel
+   iJ=iJLevel 
+   iTmpLevel=0
+!   WRITE(6,*) "Creation"
+   do i=nIfD,0,-1  !Go backwards for the sign
+! Now mask so we only have 'virtual' orbitals.  The virtuals which are set mean they have been excited to.
+      T3=NOT(iLutRef(i))
+      T1=IAND(iLutnI(i),T3)
+      T2=IAND(iLutnJ(i),T3)
+      IF(IAND(T1,T2).NE.0) THEN
+!The two excitors are exciting to at least one of the same orbitals.  This
+!gives a sign of zero.
+!         WRITE(6,'(A,B)') "Overlapping to",IAND(T1,T2)
+         iSgn=0
+      ENDIF
+      iLutnI(i)=IOR(iLutTmp(i),IOR(T1,T2)) 
+!Combine the excitors and the excitor from and put them back into where they should go
+!We now (very naively, but I can't think of a better way to do it) work out the sign change for the occupied reorder.
+!  Tmp lies  between I and J, and will receive the eventual complete excitor.
+!  The right of I can still move freely to the left of Tmp
+!  J contains a string of iJ creation operators which must also be taken into account,
+!   as well as the iJLevel+iILevel annihilation operators and iTmpLevel creation operators in Tmp
+!  totalling  (iILevel+iJLevel)+iI+iTmpLeel
+! We step through both I and J simultaneously, and move any annihilation operators from either to Tmp,
+! with the appropriate sign change.
+! iI,iJ and iTmpLevel indicate the number of annihilators left in I J or Tmp.
+      T3=0
+      do j=31,0,-1
+!      WRITE(6,'(A,B33.32,B33.32,B33.32)') 'T1,T3,T2: ',T1,IOR(T3,ieor(iLutTmp(i),iLutRef(i))),T2
+         if(BTEST(T1,j)) THEN
+            iTmpLevel=iTmpLevel+1
+            iI=iI-1
+            T1=IBCLR(T1,j)
+            T3=IBSET(T3,j)
+         else if(BTest(T2,j)) then
+!Shift the relevant bit from J to tmp. 
+            if(btest((iILevel+iJLevel+iJ)+iTmpLevel,0)) iSgn=-iSgn
+            iJ=iJ-1
+            T2=IBCLR(T2,j)
+            T3=IBSET(T3,j)
+         endif
+!         Write(6,*) j,iTmpLevel,iI,iJ,iSgn
+      enddo
+   enddo
+!   write(6,*) 'x final sign:',iSgn
+   return
+END SUBROUTINE AddBitExcitor
+#else
+   SUBROUTINE CCMCStandalone(Weight,Energyxw)
+      STOP 'Broken CCMCStandalone'
+   END SUBROUTINE CCMCStandalone
+
+#endif
