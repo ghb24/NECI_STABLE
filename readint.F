@@ -318,9 +318,9 @@ C.. Each orbital in the file corresponds to alpha and beta spinorbitals
                     ISYMNUM=ISYMNUM+1
 
 !                    WRITE(6,*) I,J,K,L,Z
-!                    DO ISPN=1,ISPINS
-!                        ARR(ISPINS*I-ISPN+1,1)=Z
-!                    ENDDO
+                    DO ISPN=1,ISPINS
+                        ARR(ISPINS*I-ISPN+1,1)=Z
+                    ENDDO
 
                 ELSEIF(I1.NE.0.AND.K.EQ.0.AND.J.EQ.0) THEN
 !                    WRITE(6,*) I
