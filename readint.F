@@ -1,3 +1,4 @@
+
       SUBROUTINE INITFROMFCID(NEL,NBASISMAX,LEN,LMS,TBIN)
          use SystemData , only : tNoSymGenRandExcits,lNoSymmetry,tROHF
          use SystemData , only : tStoreSpinOrbs
