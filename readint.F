@@ -666,6 +666,7 @@ C.. If we've changed the eigenvalues, we write out the basis again
          RETURN
       END
 
+
       !This is a copy of the routine above, but now for reading in binary files of integrals
       SUBROUTINE READFCIINTBIN(UMAT,NBASIS,ECORE,ARR,BRR,G1)
          USE HElem
