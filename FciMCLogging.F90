@@ -1048,6 +1048,9 @@ MODULE FciMCLoggingMod
         CALL Stop_All("InitTriHElStats","Entering the wrong FCIMCPar parallel routine")
 
     ENDSUBROUTINE
+#endif
+
+!These are available to both serial and parallel
     SUBROUTINE InitSpinCoupHEl()
 
         NoNegSpinCoup=0.D0
@@ -1065,7 +1068,6 @@ MODULE FciMCLoggingMod
         ENDIF
 
     ENDSUBROUTINE InitSpinCoupHEl
-#endif
 
 ENDMODULE FciMCLoggingMod
 
