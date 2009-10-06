@@ -5846,7 +5846,7 @@ MODULE FciMCParMod
 !Start the initial distribution off at the distribution of the MP1 eigenvector
 
             WRITE(6,"(A)") "Starting run with particles populating double excitations proportionally to MP1 wavevector..."
-            IF(tRotoAnnihil) CALL Stop_All(this_routine,"MP1Start currently disabled with directannihilation")
+            IF(tDirectAnnihil) CALL Stop_All(this_routine,"MP1Start currently disabled with directannihilation")
             CALL InitWalkersMP1Par()
 
         ELSEIF(TReadPops) THEN
