@@ -1,7 +1,6 @@
 #include "macros.h"
 ! based on GHB's FciMCPar, this is a version in Coupled Cluster space.
 
-#ifdef PARALLEL
 
 !Note that the main routine called by FciMCPar is PerformCCMCCycPar and is outside the module, so
 !FciMCPar doesn't need to use the module
@@ -103,7 +102,7 @@
 
 !Then we go through the list of excitors which should die, and reduce their weight on the list, and remove if necessary.
 !Next we annihilate.
-
+#ifdef PARALLEL
     SUBROUTINE PerformCCMCCycPar()
       USe FCIMCParMod
       use CCMCData
@@ -851,6 +850,10 @@
         IF(iDebug.gt.0) WRITE(6,*) "Leaving CCMC Cycle"
         
     END SUBROUTINE PerformCCMCCycPar
+#else 
+    SUBROUTINE PerformCCMCCycPar()
+    END SUBROUTINE PerformCCMCCycPar
+#endif
 
 
    SUBROUTINE CCMCStandalone(Weight,Energyxw)
@@ -1322,9 +1325,3 @@ SUBROUTINE AddBitExcitor(iLutnI,iLutnJ,iLutRef,iSgn)
 !   write(6,*) 'x final sign:',iSgn
    return
 END SUBROUTINE AddBitExcitor
-#else
-   SUBROUTINE CCMCStandalone(Weight,Energyxw)
-      STOP 'Broken CCMCStandalone'
-   END SUBROUTINE CCMCStandalone
-
-#endif

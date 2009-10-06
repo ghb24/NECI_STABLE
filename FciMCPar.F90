@@ -1,7 +1,14 @@
-#ifdef PARALLEL
 !This is a parallel MPI version of the FciMC code.
 !All variables refer to values per processor
 
+! AJWT
+! Bringing you a better FciMCPar.  A vision for the future...
+!
+!   The module now has the same structure with and without PARALLEL being defined.
+!   Some routines require MPI and are enclosed in the #ifdef PARALLEL section.  These
+!   should have dummy replacements in the #else of this if required.
+!   At the end are functions which do not require parallel directives, and are accessible
+!   for both parallel and non-parallel.
 MODULE FciMCParMod
     use SystemData , only : NEl,Alat,Brr,ECore,G1,nBasis,nBasisMax,nMsh,Arr,LMS,NIfD,tHPHF,tListDets
     use SystemData , only : tHub,tReal,tNonUniRandExcits,tMerTwist,tRotatedOrbs,tImportanceSample,tFindCINatOrbs
@@ -33,6 +40,7 @@ MODULE FciMCParMod
 
     contains
 
+#ifdef PARALLEL
 
     SUBROUTINE FciMCPar(Weight,Energyxw)
         use soft_exit, only : ChangeVars 
@@ -5820,666 +5828,6 @@ MODULE FciMCParMod
     END SUBROUTINE UpdateDiagSftPar
         
     
-    SUBROUTINE SetupParameters()
-        use SystemData, only : tUseBrillouin,iRanLuxLev,tSpn,tHPHFInts,tRotateOrbs,tNoBrillouin,tROHF,tFindCINatOrbs
-        USE mt95 , only : genrand_init
-        use CalcData, only : EXCITFUNCS,tFCIMC
-        use Calc, only : VirtCASorbs,OccCASorbs,FixShift,G_VMC_Seed
-        use Determinants , only : GetH0Element3
-        use SymData , only : nSymLabels,SymLabelList,SymLabelCounts
-        use Logging , only : tTruncRODump
-        use GenRandSymExcitNUMod , only : SpinOrbSymSetup,tNoSingsPossible
-        use FciMCLoggingMOD , only : InitTriHElStats,InitSpinCoupHel
-        use DetCalc, only : NMRKS,tagNMRKS,FCIDets
-        INTEGER :: ierr,i,j,k,l,DetCurr(NEl),ReadWalkers,TotWalkersDet,HFDetTest(NEl),Seed,alpha,beta,symalpha,symbeta,endsymstate
-        INTEGER :: DetLT,VecSlot,error,HFConn,MemoryAlloc,iMaxExcit,nStore(6),nJ(Nel),BRR2(nBasis),LargestOrb,nBits,HighEDet(NEl),iLutTemp(0:NIfD)
-        TYPE(HElement) :: rh,TempHii
-        REAL*8 :: TotDets,SymFactor,Choose
-        CHARACTER(len=*), PARAMETER :: this_routine='SetupParameters'
-        CHARACTER(len=12) :: abstr
-        LOGICAL :: tSuccess,tFoundOrbs(nBasis),tTurnBackBrillouin
-        REAL :: Gap
-
-!        CALL MPIInit(.false.)       !Initialises MPI - now have variables iProcIndex and nProcessors
-        WRITE(6,*) ""
-        WRITE(6,*) "Performing Parallel FCIMC...."
-        
-!Set timed routine names
-        Walker_Time%timer_name='WalkerTime'
-        Annihil_Time%timer_name='AnnihilTime'
-        Sort_Time%timer_name='SortTime'
-        Comms_Time%timer_name='CommsTime'
-        ACF_Time%timer_name='ACFTime'
-        AnnSpawned_time%timer_name='AnnSpawnedTime'
-        AnnMain_time%timer_name='AnnMainTime'
-        BinSearch_time%timer_name='BinSearchTime'
-
-        IF(TDebug) THEN
-!This will open a file called LOCALPOPS-"iprocindex" on unit number 11 on every node.
-            abstr=''
-            write(abstr,'(I2)') iProcIndex
-            abstr='LOCALPOPS-'//adjustl(abstr)
-            OPEN(11,FILE=abstr,STATUS='UNKNOWN')
-        ENDIF
-
-        IF(HElementSize.gt.1) THEN
-            CALL Stop_All("FCIMCPar","FciMCPar cannot function with complex orbitals.")
-        ENDIF
-        
-        IF(iProcIndex.eq.Root) THEN
-            OPEN(15,file='FCIMCStats',status='unknown')
-        ENDIF
-
-!Store information specifically for the HF determinant
-        ALLOCATE(HFDet(NEl),stat=ierr)
-        CALL LogMemAlloc('HFDet',NEl,4,this_routine,HFDetTag)
-        do i=1,NEl
-            HFDet(i)=FDet(i)
-        enddo
-        HFHash=CreateHash(HFDet)
-        
-!test the encoding of the HFdet to bit representation.
-        ALLOCATE(iLutHF(0:NIfD),stat=ierr)
-        IF(ierr.ne.0) CALL Stop_All(this_routine,"Cannot allocate memory for iLutHF")
-        CALL EncodeBitDet(HFDet,iLutHF,NEl,NIfD)
-!Test that the bit operations are working correctly...
-        CALL DecodeBitDet(HFDetTest,iLutHF,NEl,NIfD)
-        do i=1,NEl
-            IF(HFDetTest(i).ne.HFDet(i)) THEN
-                WRITE(6,*) "HFDet: ",HFDet(:)
-                WRITE(6,*) "HFDetTest: ",HFDetTest(:)
-                CALL Stop_All(this_routine,"HF Determinant incorrectly decoded.")
-            ENDIF
-        enddo
-        CALL LargestBitSet(iLutHF,NIfD,LargestOrb)
-        IF(LargestOrb.ne.HFDet(NEl)) THEN
-            CALL Stop_All(this_routine,"LargestBitSet FAIL")
-        ENDIF
-        CALL CountBits(iLutHF,NIfD,nBits,NEl)
-        IF(nBits.ne.NEl) THEN
-            CALL Stop_All(this_routine,"CountBits FAIL")
-        ENDIF
-
-!Check that the symmetry routines have set the symmetry up correctly...
-        tSuccess=.true.
-        tFoundOrbs(:)=.false.
-
-        IF(.not.tHub) THEN
-            do i=1,nSymLabels
-!                WRITE(6,*) "NSymLabels: ",NSymLabels,i-1
-                EndSymState=SymLabelCounts(1,i)+SymLabelCounts(2,i)-1
-!                WRITE(6,*) "Number of states: ",SymLabelCounts(2,i)
-                do j=SymLabelCounts(1,i),EndSymState
-
-                    Beta=(2*SymLabelList(j))-1
-                    Alpha=(2*SymLabelList(j))
-                    SymAlpha=INT((G1(Alpha)%Sym%S),4)
-                    SymBeta=INT((G1(Beta)%Sym%S),4)
-!                    WRITE(6,*) "***",Alpha,Beta
-
-                    IF(.not.tFoundOrbs(Beta)) THEN
-                        tFoundOrbs(Beta)=.true.
-                    ELSE
-                        CALL Stop_All("SetupParameters","Orbital specified twice")
-                    ENDIF
-                    IF(.not.tFoundOrbs(Alpha)) THEN
-                        tFoundOrbs(Alpha)=.true.
-                    ELSE
-                        CALL Stop_All("SetupParameters","Orbital specified twice")
-                    ENDIF
-
-                    IF(G1(Beta)%Ms.ne.-1) THEN
-                        tSuccess=.false.
-                    ELSEIF(G1(Alpha)%Ms.ne.1) THEN
-                        tSuccess=.false.
-                    ELSEIF((SymAlpha.ne.(i-1)).or.(SymBeta.ne.(i-1))) THEN
-                        tSuccess=.false.
-                    ENDIF
-                enddo
-            enddo
-            do i=1,nBasis
-                IF(.not.tFoundOrbs(i)) THEN
-                    WRITE(6,*) "Orbital: ",i, " not found."
-                    CALL Stop_All("SetupParameters","Orbital not found")
-                ENDIF
-            enddo
-        ENDIF
-        IF(.not.tSuccess) THEN
-            WRITE(6,*) "************************************************"
-            WRITE(6,*) "**                 WARNING!!!                 **"
-            WRITE(6,*) "************************************************"
-            WRITE(6,*) "Symmetry information not set up correctly in NECI initialisation"
-            WRITE(6,*) "Will attempt to set up the symmetry again, but now in terms of spin orbitals"
-            WRITE(6,*) "I strongly suggest you check that the reference energy is correct."
-!            CALL Stop_All("SetupParameters","Error in the setup of the symmetry/spin ordering of the orbitals. This configuration will not work with spawning excitation generators")
-            CALL SpinOrbSymSetup(.true.) 
-        ELSE
-            WRITE(6,*) "Symmetry and spin of orbitals correctly set up for spawning excitation generators."
-!            CALL SpinOrbSymSetup(.false.) 
-!            CALL Stop_All("SSS","SKCJB")
-        ENDIF
-
-!Check whether it is possible to have a determinant where the electrons
-!can be arranged in a determinant so that there are no unoccupied
-!orbitals with any of the irreps of the occupied orbitals. If this can happen, we need to check for it before generating excitations.
-!NEED TO CREATE A TEST HERE
-       tNoSingsPossible=.true. 
-
-
-!Setup excitation generator for the HF determinant. If we are using assumed sized excitgens, this will also be assumed size.
-        IF(tUseBrillouin.and.tNonUniRandExcits) THEN
-            WRITE(6,*) "Temporarily turning brillouins theorem off in order to calculate pDoubles for non-uniform excitation generators"
-            tTurnBackBrillouin=.true.
-            tUseBrillouin=.false.
-        ELSE
-            tTurnBackBrillouin=.false.
-        ENDIF
-        iMaxExcit=0
-        nStore(1:6)=0
-        CALL GenSymExcitIt2(HFDet,NEl,G1,nBasis,nBasisMax,.TRUE.,HFExcit%nExcitMemLen,nJ,iMaxExcit,0,nStore,3)
-        ALLOCATE(HFExcit%ExcitData(HFExcit%nExcitMemLen),stat=ierr)
-        IF(ierr.ne.0) CALL Stop_All(this_routine,"Problem allocating excitation generator")
-        HFExcit%ExcitData(1)=0
-        CALL GenSymExcitIt2(HFDet,NEl,G1,nBasis,nBasisMax,.TRUE.,HFExcit%ExcitData,nJ,iMaxExcit,0,nStore,3)
-        HFExcit%nPointed=0
-!Indicate that the excitation generator is now correctly allocated.
-
-!        CALL SetupExitgenPar(HFDet,HFExcit)
-        CALL GetSymExcitCount(HFExcit%ExcitData,HFConn)
-
-        IF(tTurnBackBrillouin) THEN
-            tUseBrillouin=.true.
-            WRITE(6,*) "Turning back on brillouins theorem"
-        ENDIF
-
-!Initialise random number seed - since the seeds need to be different on different processors, subract processor rank from random number
-        Seed=abs(G_VMC_Seed-iProcIndex)
-        WRITE(6,*) "Value for seed is: ",Seed
-!Initialise...
-        IF(tMerTwist) THEN
-            CALL genrand_init(Seed)
-        ELSE
-            CALL RLUXGO(iRanLuxLev,Seed,0,0)
-        ENDIF
-        
-        IF(tHPHF) THEN
-            IF(tROHF.or.(LMS.ne.0)) CALL Stop_All("SetupParameters","Cannot use HPHF with high-spin systems.")
-            tHPHFInts=.true.
-        ENDIF
-
-!Calculate Hii
-        IF(tHPHF) THEN
-            CALL HPHFGetDiagHElement(HFDet,iLutHF,TempHii)
-        ELSE
-            TempHii=GetHElement2(HFDet,HFDet,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,NMax,ALat,UMat,0,ECore)
-        ENDIF
-        Hii=REAL(TempHii%v,r2)
-        WRITE(6,*) "Reference Energy set to: ",Hii
-        TempHii=GetH0Element3(HFDet)
-        Fii=REAL(TempHii%v,r2)
-
-!Find the highest energy determinant...
-        IF(.not.tSpn) THEN
-            do i=1,NEl
-                HighEDet(i)=Brr(nBasis-(i-1))
-            enddo
-            IF(tHPHF) THEN
-                CALL EncodeBitDet(HighEDet,iLutTemp,NEl,NIfD)
-                CALL HPHFGetDiagHElement(HighEDet,iLutTemp,TempHii)
-            ELSE
-                TempHii=GetHElement2(HighEDet,HighEDet,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,0,ECore)
-            ENDIF
-            WRITE(6,"(A,G25.15)") "Highest energy determinant is (approximately): ",TempHii%v
-            WRITE(6,"(A,F25.15)") "This means tau should be no more than about ",-2.D0/TempHii%v
-!            WRITE(6,*) "Highest energy determinant is: ", HighEDet(:)
-        ENDIF
-
-        IF(tHub) THEN
-            IF(tReal) THEN
-!We also know that in real-space hubbard calculations, there are only single excitations.
-                exFlag=1
-            ELSE
-!We are doing a momentum space hubbard calculation - set exFlag to 2 since only doubles are connected for momentum conservation.
-                exFlag=2
-            ENDIF
-        ENDIF
-
-
-!        IF(tSpawnSymDets) THEN
-!!This option will spawn on determinants where the alpha and beta strings are swapped for S=0 RHF systems.
-!!These determinants should have the same amplitude in the CI wavefunction - see Helgakker for details.
-!            IF(tSpn) THEN
-!                CALL Stop_All("SetupParameters","SpawnSymDets cannot work with ROHF or UHF systems (currently?)")
-!            ENDIF
-!            IF(.not.tRotoAnnihil) THEN
-!                CALL Stop_All("SetupParameters","SpawnSymDets must be used with RotoAnnihilation currently")
-!            ENDIF
-!            WRITE(6,*) "Spawning on symmetric determinants for each spawning step"
-!        ENDIF
-
-        IF(LMS.ne.0) THEN
-            IF(tNoBrillouin.or.(tHub.and.tReal).or.tRotatedOrbs) THEN
-                WRITE(6,*) "High spin calculation with single excitations also used to calculate energy."
-            ELSE
-                WRITE(6,*) "WARNING!! High-spin calculation detected but single excitations will *not* be used to calculate energy."
-                WRITE(6,*) "This is ok for UHF, but not ROHF."
-            ENDIF
-!            tRotatedOrbs=.true.
-!        ELSEIF(LMS.ne.0) THEN
-!            CALL Stop_All(this_routine,"Ms not equal to zero, but tSpn is false. Error here")
-        ENDIF
-
-        TBalanceNodes=.false.   !Assume that the nodes are initially load-balanced
-
-!Initialise variables for calculation on each node
-        IterTime=0.0
-        ProjectionE=0.D0
-        AvSign=0.D0
-        AvSignHFD=0.D0
-        SumENum=0.D0
-        SumNoatHF=0
-        NoatHF=0
-        NoatDoubs=0
-!        DetsNorm=0.D0
-!        MeanExcitLevel=0.D0
-!        MinExcitLevel=NEl+10
-!        MaxExcitLevel=0
-        LocalAnn=0
-        Annihilated=0
-        Annihilated=0
-        Acceptances=0
-        PreviousCycles=0
-        NoBorn=0
-        SpawnFromSing=0
-        NoDied=0
-        HFCyc=0
-        HFPopCyc=0
-        ENumCyc=0.D0
-        ProjEIter=0.D0
-        ProjEIterSum=0.D0
-        GuideFuncDoub=0.D0
-        GuideFuncHF=0
-        VaryShiftCycles=0
-        AvDiagSft=0.D0
-        SumDiagSft=0.D0
-
-!Also reinitialise the global variables - should not necessarily need to do this...
-        AllSumENum=0.D0
-        AllNoatHF=0
-        AllNoatDoubs=0
-        AllSumNoatHF=0.D0
-        AllGrowRate=0.D0
-!        AllMeanExcitLevel=0.D0
-        AllSumWalkersCyc=0
-        AllAvSign=0.D0
-        AllAvSignHFD=0.D0
-        AllNoBorn=0
-        AllSpawnFromSing=0
-        AllNoDied=0
-        AllLocalAnn=0
-        AllAnnihilated=0
-        AllMinorAnnihilated=0
-        AllENumCyc=0.D0
-        AllHFCyc=0.D0
-!        AllDetsNorm=0.D0
-        tCleanRun=.false.
-        CullInfo(1:10,1:3)=0
-        NoCulls=0
-        
-
-        IF((tHistSpawn.or.tCalcFCIMCPsi).and.tFCIMC) THEN
-            ALLOCATE(HistMinInd(NEl))
-            ALLOCATE(HistMinInd2(NEl))
-            maxdet=0
-            do i=1,nel
-                maxdet=maxdet+2**(nbasis-i)
-            enddo
-
-            IF(.not.allocated(FCIDets)) THEN
-                CALL Stop_All(this_routine,"A Full Diagonalization is required in the same calculation before histogramming can occur.")
-            ENDIF
-
-            WRITE(6,*) "Histogramming spawning wavevector, with Dets=", Det
-            ALLOCATE(Histogram(1:det),stat=ierr)
-            IF(ierr.ne.0) THEN
-                CALL Stop_All("SetupParameters","Error assigning memory for histogramming arrays (could deallocate NMRKS to save memory?)")
-            ENDIF
-            Histogram(:)=0.D0
-            IF(tHistSpawn) THEN
-                ALLOCATE(InstHist(1:det),stat=ierr)
-                IF(ierr.ne.0) THEN
-                    CALL Stop_All("SetupParameters","Error assigning memory for histogramming arrays (could deallocate NMRKS to save memory?)")
-                ENDIF
-                InstHist(:)=0.D0
-                ALLOCATE(AvAnnihil(1:det),stat=ierr)
-                IF(ierr.ne.0) THEN
-                    CALL Stop_All("SetupParameters","Error assigning memory for histogramming arrays (could deallocate NMRKS to save memory?)")
-                ENDIF
-                AvAnnihil(:)=0.D0
-                ALLOCATE(InstAnnihil(1:det),stat=ierr)
-                IF(ierr.ne.0) THEN
-                    CALL Stop_All("SetupParameters","Error assigning memory for histogramming arrays (could deallocate NMRKS to save memory?)")
-                ENDIF
-                InstAnnihil(:)=0.D0
-            ENDIF
-
-            ALLOCATE(AllHistogram(1:det),stat=ierr)
-            IF(ierr.ne.0) CALL Stop_All("SetupParameters","Error assigning memory for histogramming arrays (could deallocate NMRKS to save memory?)")
-            IF(iProcIndex.eq.0) THEN
-                IF(tHistSpawn) THEN
-                    ALLOCATE(AllInstHist(1:det),stat=ierr)
-                    ALLOCATE(AllInstAnnihil(1:det),stat=ierr)
-                    ALLOCATE(AllAvAnnihil(1:det),stat=ierr)
-                ENDIF
-                IF(ierr.ne.0) THEN
-                    CALL Stop_All("SetupParameters","Error assigning memory for histogramming arrays (could deallocate NMRKS to save memory?)")
-                ENDIF
-            ENDIF
-        ELSEIF(tHistEnergies) THEN
-            WRITE(6,*) "Histogramming the energies of the particles, with iNoBins=",iNoBins, " and BinRange=", BinRange
-            WRITE(6,*) "Histogramming spawning events from ",-OffDiagMax, " with BinRange = ", OffDiagBinRange
-            iOffDiagNoBins=INT((2.D0*OffDiagMax)/OffDiagBinRange)+1
-            WRITE(6,*) "This gives ",iOffDiagNoBins," bins to histogram the off-diagonal matrix elements."
-            ALLOCATE(Histogram(1:iNoBins))
-            ALLOCATE(AttemptHist(1:iNoBins))
-            ALLOCATE(SpawnHist(1:iNoBins))
-            ALLOCATE(SinglesHist(1:iOffDiagNoBins))
-            ALLOCATE(SinglesAttemptHist(1:iOffDiagNoBins))
-            ALLOCATE(SinglesHistOccOcc(1:iOffDiagNoBins))
-            ALLOCATE(SinglesHistOccVirt(1:iOffDiagNoBins))
-            ALLOCATE(SinglesHistVirtOcc(1:iOffDiagNoBins))
-            ALLOCATE(SinglesHistVirtVirt(1:iOffDiagNoBins))
-            ALLOCATE(DoublesHist(1:iOffDiagNoBins))
-            ALLOCATE(DoublesAttemptHist(1:iOffDiagNoBins))
-            Histogram(:)=0.D0
-            AttemptHist(:)=0.D0
-            SpawnHist(:)=0.D0
-            SinglesHist(:)=0.D0
-            SinglesAttemptHist(:)=0.D0
-            SinglesHistOccOcc(:)=0.D0
-            SinglesHistOccVirt(:)=0.D0
-            SinglesHistVirtOcc(:)=0.D0
-            SinglesHistVirtVirt(:)=0.D0
-            DoublesHist(:)=0.D0
-            DoublesAttemptHist(:)=0.D0
-            IF(iProcIndex.eq.0) THEN
-                ALLOCATE(AllHistogram(1:iNoBins))
-                ALLOCATE(AllAttemptHist(1:iNoBins))
-                ALLOCATE(AllSpawnHist(1:iNoBins))
-                ALLOCATE(AllSinglesHist(1:iNoBins))
-                ALLOCATE(AllDoublesHist(1:iNoBins))
-                ALLOCATE(AllSinglesAttemptHist(1:iNoBins))
-                ALLOCATE(AllDoublesAttemptHist(1:iNoBins))
-                ALLOCATE(AllSinglesHistOccOcc(1:iNoBins))
-                ALLOCATE(AllSinglesHistOccVirt(1:iNoBins))
-                ALLOCATE(AllSinglesHistVirtOcc(1:iNoBins))
-                ALLOCATE(AllSinglesHistVirtVirt(1:iNoBins))
-            ENDIF
-        ENDIF
-
-!Need to declare a new MPI type to deal with the long integers we use in the hashing, and when reading in from POPSFILEs
-!        CALL MPI_Type_create_f90_integer(18,mpilongintegertype,error)
-!        CALL MPI_Type_commit(mpilongintegertype,error)
-        IF(tNonUniRandExcits) THEN
-!These are the new random excitations which give non-uniform generation probabilities.
-            IF(tUseBrillouin) THEN
-                WRITE(6,*) "Brillouin theorem specified, but this will not be in use with the non-uniform excitation generators."
-            ENDIF
-            WRITE(6,*) "Non-uniform excitation generators in use."
-            IF(.not.tRegenExcitgens) THEN
-                WRITE(6,*) "Currently, we can not store the excitation generators with non-uniform excitations. Instead, they will be regenerated."
-                tRegenExcitgens=.true.
-            ENDIF
-            CALL CalcApproxpDoubles(HFConn)
-        ENDIF
-        IF((.not.tRegenExcitgens).and.(tRotoAnnihil)) THEN
-            CALL Stop_All("SetupParameters","Storage of excitation generators is incompatable with RotoAnnihilation. Regenerate excitation generators.")
-        ENDIF
-
-!This is a list of options which cannot be used with the stripped-down spawning routine. New options not added to this routine should be put in this list.
-        IF(tHighExcitsSing.or.tHistSpawn.or.tRegenDiagHEls.or.tFindGroundDet.or.tStarOrbs.or.tResumFCIMC.or.tSpawnAsDet.or.tImportanceSample    &
-     &      .or.(.not.tRegenExcitgens).or.(.not.tNonUniRandExcits).or.(.not.tDirectAnnihil).or.tMinorDetsStar.or.tSpawnDominant.or.(DiagSft.gt.0.D0).or.   &
-     &      tPrintTriConnections.or.tHistTriConHEls.or.tCalcFCIMCPsi.or.tTruncCAS.or.tListDets.or.tPartFreezeCore) THEN
-            WRITE(6,*) "It is not possible to use to clean spawning routine..."
-        ELSE
-            WRITE(6,*) "Clean spawning routine in use..."
-            tCleanRun=.true.
-        ENDIF
-
-        IF(tListDets) THEN
-! When this is on, we have to read the list of determinants which we are allowed to spawn at from a file called SpawnOnlyDets.
-            CALL ReadSpawnListDets()
-        ENDIF
-
-        IF(tConstructNOs) THEN
-! This is the option for constructing the natural orbitals actually during a NECI calculation.  This is different (and probably a lot more complicated and doesn't 
-! currently work) from the FINDCINATORBS option which finds the natural orbitals given a final wavefunction.
-            ALLOCATE(OneRDM(nBasis,nBasis),stat=ierr)
-            CALL LogMemAlloc('OneRDM',nBasis*nBasis,8,this_routine,OneRDMTag,ierr)
-            OneRDM(:,:)=0.D0
-        ENDIF
-
-        IF(TPopsFile.and.(mod(iWritePopsEvery,StepsSft).ne.0)) THEN
-            CALL Warning(this_routine,"POPSFILE writeout should be a multiple of the update cycle length.")
-        ENDIF
-
-        IF(TNoAnnihil) THEN
-            WRITE(6,*) "No Annihilation to occur. Results are likely not to converge on right value. Proceed with caution. "
-        ELSEIF(TAnnihilonproc) THEN
-            CALL Stop_All("SetupParameters","Annihilonproc feature is currently disabled")
-            WRITE(6,*) "Annihilation will occur on each processors' walkers only. This should be faster, but result in less annihilation."
-            WRITE(6,*) "This is equivalent to running seperate calculations."
-        ELSEIF(tRotoAnnihil) THEN
-            IF(tDirectAnnihil) THEN
-                CALL Stop_All("SetupParameters","Cannot specify both direct annihilation and rotoannihilation.")
-            ENDIF
-            WRITE(6,*) "RotoAnnihilation in use...!"
-        ELSEIF(tDirectAnnihil) THEN
-            WRITE(6,*) "Direct Annihilation in use...Explicit load-balancing disabled."
-            ALLOCATE(ValidSpawnedList(0:nProcessors-1),stat=ierr)
-            ALLOCATE(InitialSpawnedSlots(0:nProcessors-1),stat=ierr)
-!InitialSpawnedSlots now holds the first free position in the newly-spawned list for each processor, so it does not need to be reevaluated each iteration.
-            MaxSpawned=NINT(MemoryFacSpawn*InitWalkers)
-            Gap=REAL(MaxSpawned)/REAL(nProcessors)
-            do j=0,nProcessors-1
-                InitialSpawnedSlots(j)=NINT(Gap*j)+1
-            enddo
-        ENDIF
-        IF(TReadPops) THEN
-!List of things that readpops can't work with...
-            IF(TStartSinglePart.or.TStartMP1) THEN
-                CALL Stop_All("SetupParameters","ReadPOPS cannot work with StartSinglePart or StartMP1")
-            ENDIF
-        ENDIF
-
-        IF(TResumFciMC) THEN
-            CALL Stop_All("SetupParameters","ResumFCIMC code is currently disabled")
-            IF(NDets.ge.2) THEN
-                IF(.not.EXCITFUNCS(10)) THEN
-                    WRITE(6,*) "Cannot have an excitation bias with multiple determinant graphs...exiting."
-                    CALL Stop_All("SetupParameters","Cannot have biasing with Graphsizes > 2")
-                ENDIF
-
-!Allocate memory for graphs...
-                ALLOCATE(GraphRhoMat(NDets,NDets),stat=ierr)
-                CALL LogMemAlloc('GraphRhoMat',NDets**2,8,this_routine,GraphRhoMatTag,ierr)
-                ALLOCATE(GraphVec(NDets),stat=ierr)
-                CALL LogMemAlloc('GraphVec',NDets,8,this_routine,GraphVecTag,ierr)
-                ALLOCATE(GraphKii(NDets),stat=ierr)
-                CALL LogMemAlloc('GraphKii',NDets,8,this_routine,GraphKiiTag,ierr)
-                ALLOCATE(DetsinGraph(NEl,NDets),stat=ierr)
-                CALL LogMemAlloc('DetsinGraph',NDets*NEl,4,this_routine,DetsinGraphTag,ierr)
-                
-            ELSEIF(NDets.lt.2) THEN
-                WRITE(6,*) "Graphs cannot be smaller than two vertices. Exiting."
-                CALL Stop_All("SetupParameters","Graphs cannot be smaller than two vertices")
-            ELSEIF(TFixShiftShell.or.tFixShiftKii.or.tFixCASShift) THEN
-                CALL Stop_All("SetupParameters","Fixing the shift of the certain excitation levels cannot be used within ResumFCIMC")
-            ENDIF
-            IF(iProcIndex.eq.root) THEN
-                WRITE(6,*) "Resumming in multiple transitions to/from each excitation"
-                WRITE(6,"(A,I5,A)") "Graphs to resum will consist of ",NDets," determinants."
-            ENDIF
-        ENDIF
-        
-        IF(TStartSinglePart) THEN
-            WRITE(6,"(A,F9.3,A,I9)") "Initial number of particles set to 1, and shift will be held at ",DiagSft," until particle number on root node gets to ",InitWalkers
-        ELSE
-            WRITE(6,*) "Initial number of walkers per processor chosen to be: ", InitWalkers
-        ENDIF
-        WRITE(6,*) "Maximum connectivity of HF determinant is: ",HFConn
-        WRITE(6,*) "Damping parameter for Diag Shift set to: ", SftDamp
-        IF(.not.TReadPops) THEN
-            WRITE(6,*) "Initial Diagonal Shift (Ecorr guess) is: ", DiagSft
-        ENDIF
-        IF(TStartSinglePart) THEN
-            TSinglePartPhase=.true.
-            IF(TReadPops) THEN
-                CALL Stop_All("SetupParameters","Cannot read in POPSFILE as well as starting with a single particle")
-            ENDIF
-            IF(TStartMP1) THEN
-                CALL Stop_All("SetupParameters","Cannot start with a single particle, and as the MP1 wavefunction")
-            ENDIF
-        ELSE
-            TSinglePartPhase=.false.
-        ENDIF
-        IF(TFixShiftShell) THEN
-            IF(iProcIndex.eq.root) THEN
-                WRITE(6,"(A,I5,A,F20.10)") "All excitations up to ",ShellFix," will have their shift fixed at ",FixShift
-                WRITE(6,*) "With this option, results are going to be non-exact"
-            ENDIF
-        ELSEIF(tFixShiftKii) THEN
-            IF(iProcIndex.eq.root) THEN
-                WRITE(6,"(A,G25.16,A,F20.10)") "All excitations with Kii values less than ",FixedKiiCutoff," will have their shift fixed at ",FixShift
-                WRITE(6,*) "With this option, results are going to be non-exact"
-            ENDIF
-        ELSEIF(tFixCASShift) THEN
-            IF(iProcIndex.eq.root) THEN
-                WRITE(6,"(A,I5)") "All determinants containing excitations within the active space of ",OccCASorbs
-                WRITE(6,"(A,I5,A)")" highest energy, occupied spin orbitals, and ",VirtCASorbs," lowest energy, "
-                WRITE(6,"(A,F20.10)") "virtual spin orbitals, will have their shift fixed at ",FixShift
-                WRITE(6,*) "With this option, results are going to be non-exact"
-            ENDIF
-!The SpinInvBRR array is required for the FixCASShift option. Its properties are explained more fully in the subroutine. 
-
-            CALL CreateSpinInvBRR()
-
-            CASmax=NEl+VirtCASorbs
-! CASmax is the max spin orbital number (when ordered energetically) within the chosen active space.
-! Spin orbitals with energies larger than this maximum value must be unoccupied for the determinant
-! to be in the active space.
-            CASmin=NEl-OccCASorbs
-! CASmin is the max spin orbital number below the active space.  As well as the above criteria, spin 
-! orbitals with energies equal to, or below that of the CASmin orbital must be completely occupied for 
-! the determinant to be in the active space.
-
-        ENDIF
-        IF(tStarOrbs) THEN
-            IF(tImportanceSample.or.(ICILevel.ne.0).or.(.not.tRegenExcitgens)) THEN
-                CALL Stop_All("SetupParameters","Cannot use star orbs while storing excitation generators, or truncation or importance sampling...")
-            ENDIF
-            CALL CreateSpinInvBrr()
-        ENDIF
-        IF(ICILevel.ne.0) THEN
-!We are truncating the excitations at a certain value
-            TTruncSpace=.true.
-            WRITE(6,'(A,I4)') "Truncating the S.D. space at determinants will an excitation level w.r.t. HF of: ",ICILevel
-            IF(TResumFciMC) CALL Stop_All("SetupParameters","Space cannot be truncated with ResumFCIMC")
-        ENDIF
-        IF(tTruncCAS) THEN
-!We are truncating the FCI space by only allowing excitations in a predetermined CAS space.
-            WRITE(6,'(A,I4,A,I5)') "Truncating the S.D. space as determinants must be within a CAS of ",OccCASOrbs," , ",VirtCASOrbs
-!The SpinInvBRR array is required for the tTruncCAS option. Its properties are explained more fully in the subroutine. 
-
-            CALL CreateSpinInvBRR()
-
-            CASmax=NEl+VirtCASorbs
-! CASmax is the max spin orbital number (when ordered energetically) within the chosen active space.
-! Spin orbitals with energies larger than this maximum value must be unoccupied for the determinant
-! to be in the active space.
-            CASmin=NEl-OccCASorbs
-! CASmin is the max spin orbital number below the active space.  As well as the above criteria, spin 
-! orbitals with energies equal to, or below that of the CASmin orbital must be completely occupied for 
-! the determinant to be in the active space.
-
-            IF(OccCASOrbs.gt.NEl) CALL Stop_All("SetupParameters","Occupied orbitals in CAS space specified is greater than number of electrons")
-            IF(VirtCASOrbs.gt.(nBasis-NEl)) CALL Stop_All("SetupParameters","Virtual orbitals in CAS space specified is greater than number of unoccupied orbitals")
-        ENDIF
-        IF(tPartFreezeCore) THEN
-            WRITE(6,'(A,I4,A,I5)') 'Partially freezing the lowest ',NPartFrozen,' spin orbitals so that no more than ',NHolesFrozen,' holes exist within this core.'
-            CALL CreateSpinInvBRR()
-        ENDIF
-
-!        IF(TAutoCorr) THEN
-!!We want to calculate the autocorrelation function over the determinants
-!            IF(iLagMin.lt.0) THEN
-!                CALL Stop_All("SetupParameters","LagMin cannot be less than zero (and when equal 0 should be strictly 1")
-!            ELSEIF(iLagMax.gt.NMCyc) THEN
-!                CALL Stop_All("SetupParameters","LagMax cannot be greater than the number of cycles.")
-!            ELSEIF(iLagStep.lt.1) THEN
-!                CALL Stop_All("SetupParameters","LagStep cannot be less than 1")
-!            ENDIF
-!
-!            CALL ChooseACFDets()
-!            CALL Stop_All("ChooseACFDets","This code has been commented out...")
-!
-!!            WRITE(6,*) "Storing information to calculate the ACF at end of simulation..."
-!        ENDIF
-
-        IF(tMagnetize) THEN
-
-            IF(tRotoAnnihil) THEN
-                CALL Stop_All("SetupParameters","Rotoannihilation not currently supporting Magnetization")
-            ENDIF
-            CALL FindMagneticDets()
-        ENDIF
-
-        IF(TLocalAnnihilation) THEN
-!If we are locally annihilating, then we need to know the walker density for a given excitation level, for which we need to approximate number of determinants
-!in each excitation level
-            CALL Stop_All("SetupParameters","LocalAnnihilation is currently disabled")
-            ALLOCATE(ApproxExcitDets(0:NEl))
-            ALLOCATE(PartsinExcitLevel(0:NEl))
-            TotDets=1.D0
-            do i=0,NEl
-                ApproxExcitDets(i)=Choose(NEl,i)*Choose(nBasis-NEl,i)
-!                WRITE(6,*) "Excitation level: ",i,ApproxExcitDets(i)
-            enddo
-            SymFactor=ApproxExcitDets(2)/(HFConn+0.D0)
-            do i=1,NEl
-                ApproxExcitDets(i)=ApproxExcitDets(i)/SymFactor
-                WRITE(6,*) "Excitation level: ",i,ApproxExcitDets(i)
-                TotDets=TotDets+ApproxExcitDets(i)
-            enddo
-            WRITE(6,*) "Approximate size of determinant space is: ",TotDets
-            PartsinExcitLevel(:)=0  !Zero the array to hold the population of walkers in each excitation level
-        ELSE
-            SymFactor=(Choose(NEl,2)*Choose(nBasis-NEl,2))/(HFConn+0.D0)
-            TotDets=1.D0
-            do i=1,NEl
-                WRITE(6,*) "Approximate excitation level population: ",i,NINT((Choose(NEl,i)*Choose(nBasis-NEl,i))/SymFactor)
-                TotDets=TotDets+(Choose(NEl,i)*Choose(nBasis-NEl,i))/SymFactor
-            enddo
-            WRITE(6,*) "Approximate size of determinant space is: ",NINT(TotDets)
-        ENDIF
-        IF(tHighExcitsSing) THEN
-            WRITE(6,*) "Only allowing single excitations between determinants where one of them has an excitation level w.r.t. HF of more than ",iHighExcitsSing
-            IF(iHighExcitsSing.gt.NEl) THEN
-                CALL Stop_All("SetupParameters","iHighExcitsSing.ge.NEl")
-            ELSEIF(iHighExcitsSing.eq.NEl) THEN
-                CALL Warning("SetupParameters","iHighExcitsSing = NEl - this will no longer have any effect.")
-            ENDIF
-            IF((.not.tNonUniRandExcits).or.tStarOrbs.or.tTruncSpace.or.tTruncCAS.or.tListDets.or.tPartFreezeCore) THEN
-                CALL Stop_All("SetupParameters","Cannot use HighExcitsSing without Nonuniformrandexcits, or with starorbs or truncated spaces...")
-            ENDIF
-        ENDIF
-
-        IF(tMultipleDetsSpawn) THEN
-!We need to store a list of all double excitations of HF.
-            CALL StoreDoubs()
-        ENDIF
-
-    END SUBROUTINE SetupParameters
 
 
 !This initialises the calculation, by allocating memory, setting up the initial walkers, and reading from a file if needed
@@ -7805,62 +7153,6 @@ MODULE FciMCParMod
 
     END SUBROUTINE ReadFromPopsfilePar
 
-!This will store all the double excitations.
-    SUBROUTINE StoreDoubs()
-        use SystemData , only : tAssumeSizeExcitgen,tUseBrillouin
-        INTEGER :: iMaxExcit,nStore(6),ExcitLength,nJ(NEl),ierr,iExcit,VecSlot
-        INTEGER , ALLOCATABLE :: ExcitGenTemp(:)
-
-        IF(tAssumeSizeExcitgen) THEN
-            CALL Stop_All("StoreDoubs","Cannot have assumed sized excitation generators for full enumeration of determinants")
-        ENDIF
-        IF(tUseBrillouin) THEN
-            CALL Stop_All("StoreDoubs","Cannot have Brillouin theorem as now storing singles too...")
-        ENDIF
-
-        
-!NoDoubs here is actually the singles + doubles of HF
-        CALL GetSymExcitCount(HFExcit%ExcitData,NoDoubs)
-
-        ALLOCATE(DoublesDets(NEl,NoDoubs),stat=ierr)
-        CALL LogMemAlloc('DoublesDets',NoDoubs*NEl,4,"StoreDoubs",DoublesDetsTag,ierr)
-        DoublesDets(1:NEl,1:NoDoubs)=0
-        
-        VecSlot=1           !This is the next free slot in the DoublesDets array
-
-!Setup excit generators for HF Determinant
-        iMaxExcit=0
-        nStore(1:6)=0
-        CALL GenSymExcitIt2(HFDet,NEl,G1,nBasis,nBasisMax,.TRUE.,ExcitLength,nJ,iMaxExcit,0,nStore,3)
-        ALLOCATE(ExcitGenTemp(ExcitLength),stat=ierr)
-        IF(ierr.ne.0) CALL Stop_All("InitWalkersMP1","Problem allocating excitation generator")
-        ExcitGenTemp(1)=0
-        CALL GenSymExcitIt2(HFDet,NEl,G1,nBasis,nBasisMax,.TRUE.,ExcitGenTemp,nJ,iMaxExcit,0,nStore,3)
-
-        do while(.true.)
-!Generate double excitations
-            CALL GenSymExcitIt2(HFDet,NEl,G1,nBasis,nBasisMax,.false.,ExcitGenTemp,nJ,iExcit,0,nStore,3)
-            IF(nJ(1).eq.0) EXIT
-!            IF(iExcit.ne.2) THEN
-!                CALL Stop_All("StoreDoubles","Error - excitations other than doubles being generated in DoublesDets wavevector code")
-!            ENDIF
-
-            DoublesDets(1:NEl,VecSlot)=nJ(:)
-            VecSlot=VecSlot+1
-
-        enddo
-
-!This means that now NoDoubs is double excitations AND singles
-!        NoDoubs=VecSlot-1
-
-        IF(VecSlot.ne.(NoDoubs+1)) THEN
-            WRITE(6,*) VecSlot,NoDoubs
-            CALL Stop_All("StoreDoubs","Problem enumerating all double excitations")
-        ENDIF
-
-        DEALLOCATE(ExcitGenTemp)
-
-    END SUBROUTINE StoreDoubs
 
 !This will set up the initial walker distribution proportially to the MP1 wavevector.
     SUBROUTINE InitWalkersMP1Par()
@@ -8334,114 +7626,6 @@ MODULE FciMCParMod
     
     END SUBROUTINE FlipSign
 
-!This function will tell us whether we should allow attempted spawning at an excitation when we are truncating the space.
-!We pass in the excitation level of the original particle, the two representations of the excitation (we only need the bit-representation of the excitation
-!for HPHF) and the magnitude of the excitation (for determinant representation).
-    LOGICAL FUNCTION CheckAllowedTruncSpawn(WalkExcitLevel,nJ,iLutnJ,IC)
-        INTEGER :: nJ(NEl),WalkExcitLevel,iLutnJ(0:NIfD),ExcitLevel,IC,iGetExcitLevel_2,i,NoInFrozenCore
-        LOGICAL :: DetBitEQ
-
-        CheckAllowedTruncSpawn=.true.
-
-        IF(tTruncSpace) THEN
-!We are truncating the space by excitation level
-            IF(tHPHF) THEN
-!With HPHF, we can't rely on this, since one excitation could be a single, and one a double. Also, IC is not returned.
-                CALL FindBitExcitLevel(iLutHF,iLutnJ,NIfD,ExcitLevel,ICILevel)
-                IF(ExcitLevel.gt.ICILevel) THEN
-                    CheckAllowedTruncSpawn=.false.
-                ENDIF
-
-            ELSE
-!Determinant representation.
-
-                IF(WalkExcitLevel.eq.(ICILevel-1)) THEN
-!The current walker is one below the excitation cutoff - if IC is a double, then could go over - we need to check
-                    
-                    IF(IC.eq.2) THEN
-                        ExcitLevel=iGetExcitLevel_2(HFDet,nJ,NEl,ICILevel)
-                    ELSE
-!Always allow this - a single cannot put us over the truncated excitation level
-                        ExcitLevel=0
-!                        CheckAllowedTruncSpawn=.true.
-!                        RETURN
-                    ENDIF
-                    IF(ExcitLevel.gt.ICILevel) THEN
-                        CheckAllowedTruncSpawn=.false.
-!                    ELSE
-!                        CheckAllowedTruncSpawn=.true.
-                    ENDIF
-
-                ELSEIF(WalkExcitLevel.ge.ICILevel) THEN
-!Walker is at the excitation cutoff level - all possible excitations could be disallowed - check the actual excitation level
-                    ExcitLevel=iGetExcitLevel_2(HFDet,nJ,NEl,ICILevel)
-                    IF(ExcitLevel.gt.ICILevel) THEN
-!Attempted excitation is above the excitation level cutoff - do not allow the creation of children
-                        CheckAllowedTruncSpawn=.false.
-!                    ELSE
-!                        CheckAllowedTruncSpawn=.true.
-                    ENDIF
-!                ELSE
-!!Excitation cannot be in a dissallowed excitation level - allow it as normal
-!                    CheckAllowedTruncSpawn=.true.
-                ENDIF 
-
-            ENDIF   !endif tHPHF
-
-        ENDIF   !endif tTruncSpace
-
-        IF(tTruncCAS.and.CheckAllowedTruncSpawn) THEN
-!This flag determines if the FCI space is restricted by whether the determinants are in the predescribed CAS.
-            IF(.not.TestifDetinCAS(nJ)) THEN
-!Excitation not in allowed CAS space.
-!                WRITE(6,*) "Not in CAS:",nJ(:)
-                CheckAllowedTruncSpawn=.false.
-!            ELSE
-!                WRITE(6,*) "In Cas:",nJ(:)
-            ENDIF
-
-        ENDIF
-
-        IF(tListDets.and.CheckAllowedTruncSpawn) THEN
-!This will check to see if the determinants are in a list of determinants in AllowedDetList
-            CheckAllowedTruncSpawn=.false.
-            IF(.not.tHPHF) THEN
-                CALL EncodeBitDet(nJ,iLutnJ,NEl,NIfD)
-            ENDIF
-            do i=1,NAllowedDetList
-!                WRITE(6,*) ILutnJ,AllowedDetList(0:NIfD,i)
-                IF(DetBitEQ(iLutnJ,AllowedDetList(0:NIfD,i),NIfD)) THEN
-!                    WRITE(6,*) "Allowed Det"
-                    CheckAllowedTruncSpawn=.true.
-                    EXIT
-                ENDIF
-            enddo
-        ENDIF
-
-        IF(tPartFreezeCore) THEN
-!Want to check if the determinant we're about to spawn on has more than the restricted number of holes in the partially frozen core.            
-
-!Run through the electrons in nJ, count the number in the partially frozen core - ie those occupying orbitals with energy (from BRR) 
-!less than that of the partially frozen core limit.
-!If this is less than NPartFrozen-NHolesFrozen then spawning is forbidden.
-            NoInFrozenCore=0
-!BRR(i)=j: orbital i is the j-th lowest in energy  
-            do i=1,NEl
-                IF(SpinInvBRR(nJ(i)).le.NPartFrozen) NoInFrozenCore=NoInFrozenCore+1
-                IF(NoInFrozenCore.eq.(NPartFrozen-NHolesFrozen)) EXIT   ! Can exit out of the loop if this is satisfied, since excitation will definitely be accepted.
-            enddo
-            IF(NoInFrozenCore.lt.(NPartFrozen-NHolesFrozen)) THEN
-!There are more holes in the partially frozen core than has been specified as allowed.
-                CheckAllowedTruncSpawn=.false.
-            ELSE
-!Either the 'partially frozen core' is completely full, or it has the allowed number of holes or less.                
-!Allowed to spawn, CheckAllowedTruncSpawn=.true.
-                CheckAllowedTruncSpawn=.true.
-            ENDIF
-
-        ENDIF
-
-    END FUNCTION CheckAllowedTruncSpawn
 
 !This function tells us whether we should create a child particle on nJ, from a parent particle on DetCurr with sign WSign, created with probability Prob
 !It returns zero if we are not going to create a child, or -1/+1 if we are to create a child, giving the sign of the new particle
@@ -8873,277 +8057,7 @@ MODULE FciMCParMod
     END FUNCTION AttemptDiePar
    
     
-    LOGICAL FUNCTION TestifDETinCAS(DetCurr)
-        INTEGER :: k,z,DetCurr(NEl)
 
-!        CASmax=NEl+VirtCASorbs
-! CASmax is the max spin orbital number (when ordered energetically) within the chosen active space.
-! Spin orbitals with energies larger than this maximum value must be unoccupied for the determinant
-! to be in the active space.
-!        CASmin=NEl-OccCASorbs   (These have been moved to the InitCalc subroutine so they're not calculated
-! each time.
-! CASmin is the max spin orbital number below the active space.  As well as the above criteria, spin 
-! orbitals with energies equal to, or below that of the CASmin orbital must be completely occupied for 
-! the determinant to be in the active space.
-
-        z=0
-        do k=1,NEl      ! running over all electrons
-            if (SpinInvBRR(DetCurr(k)).gt.CASmax) THEN
-                TestifDETinCAS=.false.
-                EXIT            
-! if at any stage an electron has an energy greater than the CASmax value, the determinant can be ruled out
-! of the active space.  Upon identifying this, it is not necessary to check the remaining electrons.
-            else
-                if (SpinInvBRR(DetCurr(k)).le.CASmin) THEN
-                    z=z+1
-                endif
-! while running over all electrons, the number that occupy orbitals equal to or below the CASmin cutoff are
-! counted.
-            endif
-        enddo
-! the final number of electrons in this low energy region must be equal to the number of orbitals (CASmin), 
-! otherwise an orbital is unoccupied, and the determinant cannot be part of the active space.
-        if (z.eq.CASmin) THEN
-            TestifDETinCAS=.true.
-        else
-            TestifDETinCAS=.false.
-        endif
-        
-        RETURN
-
-    END FUNCTION TestifDETinCAS
-
-
-    SUBROUTINE CreateSpinInvBRR()
-    ! Create an SpinInvBRR containing spin orbitals, 
-    ! unlike 'createInvBRR' which only has spatial orbitals.
-    ! This is used for the FixCASshift option in establishing whether or not
-    ! a determinant is in the complete active space.
-    ! In:
-    !    BRR(i)=j: orbital i is the j-th lowest in energy.
-    !    nBasis: size of basis
-    ! SpinInvBRR is the inverse of BRR.  SpinInvBRR(j)=i: the j-th lowest energy
-    ! orbital corresponds to the i-th orbital in the original basis.
-    ! i.e the position in SpinInvBRR now corresponds to the orbital number and 
-    ! the value to the relative energy of this orbital. 
-    
-        IMPLICIT NONE
-        INTEGER :: I,t,ierr
-        CHARACTER(len=*), PARAMETER :: this_routine='CreateSpinInvBrr'
-            
-        ALLOCATE(SpinInvBRR(NBASIS),STAT=ierr)
-        CALL LogMemAlloc('SpinInvBRR',NBASIS,4,this_routine,SpinInvBRRTag,ierr)
-            
-
-!        IF(iProcIndex.eq.root) THEN
-!            WRITE(6,*) "================================"
-!            WRITE(6,*) "BRR is "
-!            WRITE(6,*) BRR(:)
-!        ENDIF
-        
-        SpinInvBRR(:)=0
-        
-        t=0
-        DO I=1,NBASIS
-            t=t+1
-            SpinInvBRR(BRR(I))=t
-        ENDDO
-
-!        IF(iProcIndex.eq.root) THEN
-!            WRITE(6,*) "================================"
-!            WRITE(6,*) "SpinInvBRR is "
-!            WRITE(6,*) SpinInvBRR(:)
-!        ENDIF
-        
-        RETURN
-        
-    END SUBROUTINE CreateSpinInvBRR
-
-
-    FUNCTION CreateHash(DetCurr)
-        INTEGER :: DetCurr(NEl),i
-        INTEGER(KIND=i2) :: CreateHash
-
-        CreateHash=0
-        do i=1,NEl
-!            CreateHash=13*CreateHash+i*DetCurr(i)
-            CreateHash=(1099511628211_8*CreateHash)+i*DetCurr(i)
-            
-!            CreateHash=mod(1099511628211*CreateHash,2**64)
-!            CreateHash=XOR(CreateHash,DetCurr(i))
-        enddo
-!        WRITE(6,*) CreateHash
-        RETURN
-
-    END FUNCTION CreateHash
-
-
-! This creates a hash based not only on one current determinant, but is also dependent on the 
-! determinant from which the walkers on this determinant came.
-    FUNCTION CreateHashBit(DetCurr)
-        INTEGER :: DetCurr(0:NIfD),i,Elecs,j
-        INTEGER(KIND=i2) :: CreateHashBit
-
-        CreateHashBit=0
-        Elecs=0
-        do i=0,NIfD
-            do j=0,31
-                IF(BTEST(DetCurr(i),j)) THEN
-                    CreateHashBit=(1099511628211_8*CreateHashBit)+((i*32)+(j+1))*j
-                    Elecs=Elecs+1
-                    IF(Elecs.eq.NEl) RETURN
-                ENDIF
-            enddo
-        enddo
-
-    END FUNCTION CreateHashBit
-
-
-!This routine copies an excitation generator from origExcit to NewExit, if the original claims that it is for the correct determinant
-    SUBROUTINE CopyExitgenPar(OrigExit,NewExit,DelOldCopy)
-        TYPE(ExcitPointer) :: OrigExit,NewExit
-        LOGICAL :: DelOldCopy
-        INTEGER :: ierr
-        
-        IF(ASSOCIATED(NewExit%PointToExcit)) THEN
-            CALL Stop_All("CopyExitgenPar","Trying to copy an excitation, but new pointer is already associated.")
-        ENDIF
-        IF(.not.ASSOCIATED(OrigExit%PointToExcit)) THEN
-!We have not got a new pointer - it hasn't been created yet.
-            RETURN
-        ENDIF
-
-        NewExit%PointToExcit => OrigExit%PointToExcit
-        NewExit%IndexinExArr=OrigExit%IndexinExArr
-
-        IF(DelOldCopy) THEN
-!Delete the old excitation - i.e. we are moving excitation generators, rather than copying them.
-            OrigExit%PointToExcit=>null()
-        ELSE
-! We are copying, so increment the number of objects pointing at the excitgen.
-            EXCITGENS(NewExit%IndexinExArr)%nPointed=EXCITGENS(NewExit%IndexinExArr)%nPointed+1
-        ENDIF
-
-        RETURN
-
-    END SUBROUTINE CopyExitgenPar
-
-    SUBROUTINE SetupExitgenPar(nI,ExcitGen)
-        TYPE(ExcitPointer) :: ExcitGen
-        INTEGER :: ierr,iMaxExcit,nExcitMemLen,nJ(NEl),MinIndex,i
-        INTEGER :: nI(NEl),nStore(6)
-
-        IF(ASSOCIATED(ExcitGen%PointToExcit)) THEN
-!The determinant already has an associated excitation generator set up.
-            RETURN
-        ELSE
-
-!First, we need to find the next free element in the excitgens array...
-!This is simply FreeIndArray(BackOfList)
-            MinIndex=FreeIndArray(BackOfList)
-!Increment BackOfList in a circular fashion.
-            IF(BackOfList.eq.MaxWalkersPart) THEN
-                BackOfList=1
-            ELSE
-                BackOfList=BackOfList+1
-            ENDIF
-
-            IF(associated(ExcitGens(MinIndex)%ExcitData)) THEN
-                CALL Stop_All("SetupExitgenPar","Index chosen to create excitation generator is not free.")
-            ENDIF
-
-!MinIndex is the array element we want to point our new excitation generator to.
-!Setup excit generators for this determinant
-            iMaxExcit=0
-            nStore(1:6)=0
-            CALL GenSymExcitIt2(nI,NEl,G1,nBasis,nBasisMax,.TRUE.,EXCITGENS(MinIndex)%nExcitMemLen,nJ,iMaxExcit,0,nStore,3)
-            ALLOCATE(EXCITGENS(MinIndex)%ExcitData(EXCITGENS(MinIndex)%nExcitMemLen),stat=ierr)
-            IF(ierr.ne.0) CALL Stop_All("SetupExcitGen","Problem allocating excitation generator")
-            EXCITGENS(MinIndex)%ExcitData(1)=0
-            CALL GenSymExcitIt2(nI,NEl,G1,nBasis,nBasisMax,.TRUE.,EXCITGENS(MinIndex)%ExcitData,nJ,iMaxExcit,0,nStore,3)
-
-!Indicate that the excitation generator is now correctly allocated and pointed to by one particle.
-            EXCITGENS(MinIndex)%nPointed=1
-
-!Now point Excitgen to this value
-            ExcitGen%PointToExcit=>EXCITGENS(MinIndex)%ExcitData
-            ExcitGen%IndexinExArr=MinIndex
-
-        ENDIF
-
-    END SUBROUTINE SetupExitgenPar
-                
-    SUBROUTINE DissociateExitgen(Exitgen)
-        TYPE(ExcitPointer) :: Exitgen
-        INTEGER :: ind
-
-        IF(.not.ASSOCIATED(Exitgen%PointToExcit)) THEN
-            RETURN
-        ENDIF
-        Ind=Exitgen%IndexinExArr
-
-        IF(Excitgens(Ind)%nPointed.eq.1) THEN
-!We want to delete this excitgen.
-            DEALLOCATE(Excitgens(Ind)%ExcitData)
-            Excitgens(Ind)%nPointed=0
-
-!Add removed excitgen to the front of the free index list
-            FreeIndArray(FrontOfList)=Ind
-!Increment frontoflist in a circular fashion.
-            IF(FrontOfList.eq.MaxWalkersPart) THEN
-                FrontOfList=1
-            ELSE
-                FrontOfList=FrontOfList+1
-            ENDIF
-
-        ELSE
-            Excitgens(Ind)%nPointed=Excitgens(Ind)%nPointed-1
-        ENDIF
-        Exitgen%PointToExcit=>null()    !Point to null to show that it is now free.
-
-    END SUBROUTINE DissociateExitgen
-
-!This routine gets a random excitation for when we want to generate the excitation generator on the fly, then chuck it.
-    SUBROUTINE GetPartRandExcitPar(DetCurr,iLutDet,nJ,IC,Frz,Prob,iCount,ExcitLevel,Ex,tParity)
-        use GenRandSymExcitNUMod , only : GenRandSymExcitNU
-        INTEGER :: DetCurr(NEl),nJ(NEl),IC,Frz,iCount,iMaxExcit,nStore(6),MemLength,ierr
-        INTEGER :: Excitlevel,Ex(2,2),iLutDet(0:NIfD)
-        REAL*8 :: Prob
-        LOGICAL :: tParity
-        INTEGER , ALLOCATABLE :: ExcitGenTemp(:)
-
-        IF(tNonUniRandExcits) THEN
-!Generate non-uniform random excitations
-            CALL GenRandSymExcitNU(DetCurr,iLutDet,nJ,pDoubles,IC,Ex,tParity,exFlag,Prob)
-
-        ELSE
-            IF(ExcitLevel.eq.0) THEN
-!            CALL GenRandSymExcitIt3(DetCurr,HFExcit%ExcitData,nJ,Seed,IC,Frz,Prob,iCount)
-                CALL GenRandSymExcitIt4(DetCurr,HFExcit%ExcitData,nJ,0,IC,Frz,Prob,iCount,Ex,tParity)
-                RETURN
-            ENDIF
-                
-!Need to generate excitation generator to find excitation.
-!Setup excit generators for this determinant 
-            iMaxExcit=0
-            nStore(1:6)=0
-            CALL GenSymExcitIt2(DetCurr,NEl,G1,nBasis,nBasisMax,.TRUE.,MemLength,nJ,iMaxExcit,0,nStore,3)
-            ALLOCATE(ExcitGenTemp(MemLength),stat=ierr)
-            IF(ierr.ne.0) CALL Stop_All("SetupExcitGen","Problem allocating excitation generator")
-            ExcitGenTemp(1)=0
-            CALL GenSymExcitIt2(DetCurr,NEl,G1,nBasis,nBasisMax,.TRUE.,ExcitGenTemp,nJ,iMaxExcit,0,nStore,3)
-
-!Now generate random excitation
-!        CALL GenRandSymExcitIt3(DetCurr,ExcitGenTemp,nJ,Seed,IC,Frz,Prob,iCount)
-            CALL GenRandSymExcitIt4(DetCurr,ExcitGenTemp,nJ,0,IC,Frz,Prob,iCount,Ex,tParity)
-
-!Deallocate when finished
-            DEALLOCATE(ExcitGenTemp)
-        ENDIF
-
-        RETURN
-
-    END SUBROUTINE GetPartRandExcitPar
 
 !This is the heart of FCIMC, where the MC Cycles are performed. However, this includes the 'inward spawning' attempt.
     SUBROUTINE MultipleConnFCIMCycPar()
@@ -9765,125 +8679,6 @@ MODULE FciMCParMod
 
 
 !This routine will find the largest weighted MP1 determinants, from which we can construct energy level splitting dependant on the sign.
-    SUBROUTINE FindMagneticDets()
-        use SystemData , only : tAssumeSizeExcitgen
-        INTEGER :: j,i,ierr,iMaxExcit,nStore(6),MinIndex,ExcitLength,nJ(NEl),iExcit
-        TYPE(HElement) :: Hij,Fjj,Kiitemp
-        LOGICAL :: TurnBackAssumeExGen
-        INTEGER , ALLOCATABLE :: ExcitGenTemp(:)
-        REAL*8 , ALLOCATABLE :: TempMax(:)
-        REAL*8 :: MP1Energy,Compt,Kii,MinCompt
-        CHARACTER(len=*), PARAMETER :: this_routine='FindMagneticDets'
-
-        WRITE(6,"(A,I8,A)") "Finding the sign of the ",NoMagDets," largest weighted MP1 determinants..."
-        IF(tSymmetricField) THEN
-            WRITE(6,"(A,F14.6)") "Magnetized determinants will raise/lower the energy of anti-parallel/parallel particles by ",BField
-        ELSE
-            WRITE(6,"(A,F14.6)") "Magnetized determinants will only raise the energy of anti-parallel particles by ",BField
-        ENDIF
-        IF(NoMagDets.lt.1) THEN
-            CALL Stop_All("FindMagneticDets","Number of determinant signs to find < 1 - exiting...")
-        ENDIF
-        IF(NoMagDets.eq.1) THEN
-            WRITE(6,*) "Only fixing the sign of HF determinant"
-        ENDIF
-        IF(BField.lt.0.D0) THEN
-            CALL Stop_All("FindMagneticDets","Magnetic field cannot be negative...")
-        ENDIF
-
-!First allocate memory for chosen determinants. HF path is already stored and has a positive sign by definition, so only store NoMagDets-1 of them
-        ALLOCATE(MagDets(NEl,NoMagDets-1),stat=ierr)
-        CALL LogMemAlloc('MagDets',NEl*(NoMagDets-1),4,this_routine,MagDetsTag,ierr)
-        ALLOCATE(MagDetsSign(NoMagDets-1),stat=ierr)
-        CALL LogMemAlloc('MagDetsSign',NoMagDets-1,4,this_routine,MagDetsSignTag,ierr)
-
-!Do an MP1 calculation to find determinants to fix the sign of...
-!We do not know if tAssumeSizeExcitgen is on - if it is, then we can't enumerate all determinants. Get around this by simply regenerating it anyway.
-!First, we need to turn off AssumeSizeExcitgen if it is on.
-        IF(tAssumeSizeExcitgen) THEN
-            TurnBackAssumeExGen=.true.
-            tAssumeSizeExcitgen=.false.
-        ELSE
-            TurnBackAssumeExGen=.false.
-        ENDIF
-
-        ALLOCATE(TempMax(NoMagDets-1),stat=ierr)   !This will temporarily hold the largest components
-        IF(ierr.ne.0) THEN
-            CALL Stop_All(this_routine,"Problem allocating memory")
-        ENDIF
-        TempMax(:)=0.D0
-        MP1Energy=0.D0
-
-!Setup excit generators for HF Determinant
-        iMaxExcit=0
-        nStore(1:6)=0
-        CALL GenSymExcitIt2(HFDet,NEl,G1,nBasis,nBasisMax,.TRUE.,ExcitLength,nJ,iMaxExcit,0,nStore,2)
-        ALLOCATE(ExcitGenTemp(ExcitLength),stat=ierr)
-        IF(ierr.ne.0) CALL Stop_All(this_routine,"Problem allocating excitation generator")
-        ExcitGenTemp(1)=0
-        CALL GenSymExcitIt2(HFDet,NEl,G1,nBasis,nBasisMax,.TRUE.,ExcitGenTemp,nJ,iMaxExcit,0,nStore,2)
-
-        i=0
-        do while(.true.)
-!Generate double excitations
-            CALL GenSymExcitIt2(HFDet,NEl,G1,nBasis,nBasisMax,.false.,ExcitGenTemp,nJ,iExcit,0,nStore,2)
-            IF(nJ(1).eq.0) EXIT
-            i=i+1
-            Hij=GetHElement2(HFDet,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,iExcit,ECore)
-            CALL GetH0Element(nJ,NEl,Arr,nBasis,ECore,Fjj)
-            Compt=real(Hij%v,r2)/(Fii-(REAL(Fjj%v,r2)))
-            MP1Energy=MP1Energy+((real(Hij%v,r2)**2)/(Fii-(REAL(Fjj%v,r2))))
-!Find position of minimum MP1 component stored
-            MinCompt=abs(TempMax(1))
-            MinIndex=1
-            do j=2,NoMagDets-1
-                IF(MinCompt.gt.abs(TempMax(j))) THEN
-                    MinIndex=j
-                    MinCompt=abs(TempMax(j))
-                ENDIF
-            enddo
-
-!Compare the minimum index MP1 component to the one found from this excitation generated.
-            IF(abs(Compt).gt.MinCompt) THEN
-                TempMax(MinIndex)=Compt
-                MagDets(:,MinIndex)=nJ(:)
-                IF(Compt.lt.0) THEN
-                    MagDetsSign(MinIndex)=-1
-                ELSE
-                    MagDetsSign(MinIndex)=1
-                ENDIF
-            ENDIF
-            
-        enddo
-        WRITE(6,*) i," double excitations found from HF"
-        IF(i.lt.NoMagDets-1) THEN
-            CALL Stop_All(this_routine,"Not enough double excitations to satisfy number of magnetic determinants requested.")
-        ENDIF
-        DEALLOCATE(ExcitGenTemp)
-
-        WRITE(6,*) "Determinants picked for magnetisation are (Det   MP1Comp   OrigKii   Kij) :"
-        CALL WRITEDET(6,HFDet,NEl,.false.)
-        WRITE(6,"(2F14.6)") 1.D0,0.D0
-        do j=1,NoMagDets-1
-            CALL WRITEDET(6,MagDets(:,j),NEl,.false.)
-            Kiitemp=GetHElement2(MagDets(:,j),MagDets(:,j),NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,0,ECore)
-            Kii=REAL(Kiitemp%v,r2)-Hii
-            Hij=GetHElement2(MagDets(:,j),HFDet,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,2,ECore)
-            WRITE(6,"(3F14.6)") TempMax(j),Kii,REAL(Hij%v,r2)
-        enddo
-
-        WRITE(6,*) "MP1 ENERGY is: ", MP1Energy
-
-        DEALLOCATE(TempMax)
-        
-        IF(TurnBackAssumeExGen) THEN
-!We turned off assumed sized excitation generators for this routine - turn it back on.
-            tAssumeSizeExcitgen=.true.
-        ENDIF
-
-        RETURN
-
-    END SUBROUTINE FindMagneticDets
     
 !This routine will move walkers between the processors, in order to balance the number of walkers on each node.
 !This could be made slightly faster by using an MPI_Reduce, rather than searching for the min and max by hand...
@@ -10214,87 +9009,6 @@ MODULE FciMCParMod
 
     END SUBROUTINE SortCompressListswH
 
-    SUBROUTINE CalcApproxpDoubles(HFConn)
-        use SystemData , only : tAssumeSizeExcitgen
-        use SymData , only : SymClassSize
-        INTEGER :: HFConn,PosExcittypes,iTotal,i
-        INTEGER :: nSing,nDoub,ExcitInd
-
-        IF(tHub) THEN
-            IF(tReal) THEN
-                WRITE(6,*) "Since we are using a real-space hubbard model, only single excitations are connected."
-                WRITE(6,*) "Setting pDoub to 0.D0"
-                pDoubles=0.D0
-                RETURN
-            ELSE
-                WRITE(6,*) "Since we are using a momentum-space hubbard model, only double excitaitons are connected."
-                WRITE(6,*) "Setting pDoub to 1.D0"
-                pDoubles=1.D0
-                RETURN
-            ENDIF
-        ENDIF
-
-        WRITE(6,"(A)") "Calculating approximate pDoubles for use with excitation generator by looking a excitations from HF."
-        IF(tAssumeSizeExcitgen) THEN
-            PosExcittypes=SymClassSize*NEL+NBASIS/32+4
-            iTotal=HFExcit%ExcitData(1)
-        ELSE
-            PosExcittypes=HFExcit%ExcitData(2)
-            iTotal=HFExcit%ExcitData(23)
-        ENDIF
-        IF(iTotal.ne.HFConn) THEN
-            CALL Stop_All("CalcApproxpDoubles","Number of excitations from HF determinant has been confused somewhere...")
-        ENDIF
-!        WRITE(6,*) "**********"
-!        do i=0,100
-!            WRITE(6,*) i,HFExcit%ExcitData(PosExcittypes+i)
-!        enddo
-        nSing=0
-        nDoub=0
-        i=iTotal
-!ExcitTypes is normally a (5,NExcitTypes) array, so we have to be a little careful with the indexing.
-        ExcitInd=4+PosExcittypes
-
-        do while((i.gt.0).and.HFExcit%ExcitData(ExcitInd).le.i)
-            IF(HFExcit%ExcitData(ExcitInd-4).eq.1) THEN
-!We are counting single excitations
-                NSing=NSing+HFExcit%ExcitData(ExcitInd)
-            ELSEIF(HFExcit%ExcitData(ExcitInd-4).eq.2) THEN
-                NDoub=NDoub+HFExcit%ExcitData(ExcitInd)
-            ELSE
-                CALL Stop_All("CalcApproxpDoubles","Cannot read excittypes")
-            ENDIF
-            i=i-HFExcit%ExcitData(ExcitInd)
-            ExcitInd=ExcitInd+5
-        enddo
-
-        WRITE(6,"(I7,A,I7,A)") NDoub, " double excitations, and ",NSing," single excitations found from HF. This will be used to calculate pDoubles."
-
-        IF(SinglesBias.ne.1.D0) THEN
-            WRITE(6,*) "Singles Bias detected. Multiplying single excitation connectivity of HF determinant by ",SinglesBias," to determine pDoubles."
-        ENDIF
-
-        IF((NSing+nDoub).ne.iTotal) THEN
-            CALL Stop_All("CalcApproxpDoubles","Sum of number of singles and number of doubles does not equal total number of excitations")
-        ENDIF
-        IF((NSing.eq.0).or.(NDoub.eq.0)) THEN
-            WRITE(6,*) "Number of singles or doubles found equals zero. pDoubles will be set to 0.95. Is this correct?"
-            pDoubles=0.95
-            RETURN
-        ELSEIF((NSing.lt.0).or.(NDoub.lt.0)) THEN
-            CALL Stop_All("CalcApproxpDoubles","Number of singles or doubles found to be a negative number. Error here.")
-        ENDIF
-
-!Set pDoubles to be the fraction of double excitations.
-        pDoubles=real(nDoub,r2)/((real(NSing,r2)*SinglesBias)+real(NDoub,r2))
-
-        IF(SinglesBias.ne.1.D0) THEN
-            WRITE(6,"(A,F14.6,A,F14.6)") "pDoubles set to: ",pDoubles, " rather than (without bias): ",real(nDoub,r2)/real(iTotal,r2)
-        ELSE
-            WRITE(6,"(A,F14.6)") "pDoubles set to: ",pDoubles
-        ENDIF
-
-    END SUBROUTINE CalcApproxpDoubles
     
     SUBROUTINE DeallocFCIMCMemPar()
         INTEGER :: i,error,length,temp
@@ -13197,7 +11911,839 @@ MODULE FciMCParMod
         PartInd=MAX(MinInd,i-1)
 
     END SUBROUTINE BinSearchParts2
-    
+
+#else
+! AJWT
+! Bringing you a better FciMCPar.  A vision for the future...
+!
+!  This section contains parts of FciMCPar which are not dependent on MPI commands.
+!  It's not yet complete, but at least compiles and runs
+
+    SUBROUTINE FciMCPar(Weight,Energyxw)
+    TYPE(HDElement) :: Weight,Energyxw
+
+        CALL Stop_All("FciMCPar","Entering the wrong FCIMCPar parallel routine")
+
+    END SUBROUTINE FciMCPar
+#endif
+! AJWT
+! Bringing you a better FciMCPar.  A vision for the future...
+!
+!  This section contains parts of FciMCPar which are not dependent on MPI commands.
+!  It's not yet complete, but at least compiles and runs
+
+    SUBROUTINE SetupParameters()
+        use SystemData, only : tUseBrillouin,iRanLuxLev,tSpn,tHPHFInts,tRotateOrbs,tNoBrillouin,tROHF,tFindCINatOrbs
+        USE mt95 , only : genrand_init
+        use CalcData, only : EXCITFUNCS,tFCIMC
+        use Calc, only : VirtCASorbs,OccCASorbs,FixShift,G_VMC_Seed
+        use Determinants , only : GetH0Element3
+        use SymData , only : nSymLabels,SymLabelList,SymLabelCounts
+        use Logging , only : tTruncRODump
+        use GenRandSymExcitNUMod , only : SpinOrbSymSetup,tNoSingsPossible
+        use FciMCLoggingMOD , only : InitTriHElStats,InitSpinCoupHel
+        use DetCalc, only : NMRKS,tagNMRKS,FCIDets
+        INTEGER :: ierr,i,j,k,l,DetCurr(NEl),ReadWalkers,TotWalkersDet,HFDetTest(NEl),Seed,alpha,beta,symalpha,symbeta,endsymstate
+        INTEGER :: DetLT,VecSlot,error,HFConn,MemoryAlloc,iMaxExcit,nStore(6),nJ(Nel),BRR2(nBasis),LargestOrb,nBits,HighEDet(NEl),iLutTemp(0:NIfD)
+        TYPE(HElement) :: rh,TempHii
+        REAL*8 :: TotDets,SymFactor,Choose
+        CHARACTER(len=*), PARAMETER :: this_routine='SetupParameters'
+        CHARACTER(len=12) :: abstr
+        LOGICAL :: tSuccess,tFoundOrbs(nBasis),tTurnBackBrillouin
+        REAL :: Gap
+
+!        CALL MPIInit(.false.)       !Initialises MPI - now have variables iProcIndex and nProcessors
+        WRITE(6,*) ""
+        WRITE(6,*) "Performing Parallel FCIMC...."
+        
+!Set timed routine names
+        Walker_Time%timer_name='WalkerTime'
+        Annihil_Time%timer_name='AnnihilTime'
+        Sort_Time%timer_name='SortTime'
+        Comms_Time%timer_name='CommsTime'
+        ACF_Time%timer_name='ACFTime'
+        AnnSpawned_time%timer_name='AnnSpawnedTime'
+        AnnMain_time%timer_name='AnnMainTime'
+        BinSearch_time%timer_name='BinSearchTime'
+
+        IF(TDebug) THEN
+!This will open a file called LOCALPOPS-"iprocindex" on unit number 11 on every node.
+            abstr=''
+            write(abstr,'(I2)') iProcIndex
+            abstr='LOCALPOPS-'//adjustl(abstr)
+            OPEN(11,FILE=abstr,STATUS='UNKNOWN')
+        ENDIF
+
+        IF(HElementSize.gt.1) THEN
+            CALL Stop_All("FCIMCPar","FciMCPar cannot function with complex orbitals.")
+        ENDIF
+        
+        IF(iProcIndex.eq.Root) THEN
+            OPEN(15,file='FCIMCStats',status='unknown')
+        ENDIF
+
+!Store information specifically for the HF determinant
+        ALLOCATE(HFDet(NEl),stat=ierr)
+        CALL LogMemAlloc('HFDet',NEl,4,this_routine,HFDetTag)
+        do i=1,NEl
+            HFDet(i)=FDet(i)
+        enddo
+        HFHash=CreateHash(HFDet)
+        
+!test the encoding of the HFdet to bit representation.
+        ALLOCATE(iLutHF(0:NIfD),stat=ierr)
+        IF(ierr.ne.0) CALL Stop_All(this_routine,"Cannot allocate memory for iLutHF")
+        CALL EncodeBitDet(HFDet,iLutHF,NEl,NIfD)
+!Test that the bit operations are working correctly...
+        CALL DecodeBitDet(HFDetTest,iLutHF,NEl,NIfD)
+        do i=1,NEl
+            IF(HFDetTest(i).ne.HFDet(i)) THEN
+                WRITE(6,*) "HFDet: ",HFDet(:)
+                WRITE(6,*) "HFDetTest: ",HFDetTest(:)
+                CALL Stop_All(this_routine,"HF Determinant incorrectly decoded.")
+            ENDIF
+        enddo
+        CALL LargestBitSet(iLutHF,NIfD,LargestOrb)
+        IF(LargestOrb.ne.HFDet(NEl)) THEN
+            CALL Stop_All(this_routine,"LargestBitSet FAIL")
+        ENDIF
+        CALL CountBits(iLutHF,NIfD,nBits,NEl)
+        IF(nBits.ne.NEl) THEN
+            CALL Stop_All(this_routine,"CountBits FAIL")
+        ENDIF
+
+!Check that the symmetry routines have set the symmetry up correctly...
+        tSuccess=.true.
+        tFoundOrbs(:)=.false.
+
+        IF(.not.tHub) THEN
+            do i=1,nSymLabels
+!                WRITE(6,*) "NSymLabels: ",NSymLabels,i-1
+                EndSymState=SymLabelCounts(1,i)+SymLabelCounts(2,i)-1
+!                WRITE(6,*) "Number of states: ",SymLabelCounts(2,i)
+                do j=SymLabelCounts(1,i),EndSymState
+
+                    Beta=(2*SymLabelList(j))-1
+                    Alpha=(2*SymLabelList(j))
+                    SymAlpha=INT((G1(Alpha)%Sym%S),4)
+                    SymBeta=INT((G1(Beta)%Sym%S),4)
+!                    WRITE(6,*) "***",Alpha,Beta
+
+                    IF(.not.tFoundOrbs(Beta)) THEN
+                        tFoundOrbs(Beta)=.true.
+                    ELSE
+                        CALL Stop_All("SetupParameters","Orbital specified twice")
+                    ENDIF
+                    IF(.not.tFoundOrbs(Alpha)) THEN
+                        tFoundOrbs(Alpha)=.true.
+                    ELSE
+                        CALL Stop_All("SetupParameters","Orbital specified twice")
+                    ENDIF
+
+                    IF(G1(Beta)%Ms.ne.-1) THEN
+                        tSuccess=.false.
+                    ELSEIF(G1(Alpha)%Ms.ne.1) THEN
+                        tSuccess=.false.
+                    ELSEIF((SymAlpha.ne.(i-1)).or.(SymBeta.ne.(i-1))) THEN
+                        tSuccess=.false.
+                    ENDIF
+                enddo
+            enddo
+            do i=1,nBasis
+                IF(.not.tFoundOrbs(i)) THEN
+                    WRITE(6,*) "Orbital: ",i, " not found."
+                    CALL Stop_All("SetupParameters","Orbital not found")
+                ENDIF
+            enddo
+        ENDIF
+        IF(.not.tSuccess) THEN
+            WRITE(6,*) "************************************************"
+            WRITE(6,*) "**                 WARNING!!!                 **"
+            WRITE(6,*) "************************************************"
+            WRITE(6,*) "Symmetry information not set up correctly in NECI initialisation"
+            WRITE(6,*) "Will attempt to set up the symmetry again, but now in terms of spin orbitals"
+            WRITE(6,*) "I strongly suggest you check that the reference energy is correct."
+!            CALL Stop_All("SetupParameters","Error in the setup of the symmetry/spin ordering of the orbitals. This configuration will not work with spawning excitation generators")
+            CALL SpinOrbSymSetup(.true.) 
+        ELSE
+            WRITE(6,*) "Symmetry and spin of orbitals correctly set up for spawning excitation generators."
+!            CALL SpinOrbSymSetup(.false.) 
+!            CALL Stop_All("SSS","SKCJB")
+        ENDIF
+
+!Check whether it is possible to have a determinant where the electrons
+!can be arranged in a determinant so that there are no unoccupied
+!orbitals with any of the irreps of the occupied orbitals. If this can happen, we need to check for it before generating excitations.
+!NEED TO CREATE A TEST HERE
+       tNoSingsPossible=.true. 
+
+
+!Setup excitation generator for the HF determinant. If we are using assumed sized excitgens, this will also be assumed size.
+        IF(tUseBrillouin.and.tNonUniRandExcits) THEN
+            WRITE(6,*) "Temporarily turning brillouins theorem off in order to calculate pDoubles for non-uniform excitation generators"
+            tTurnBackBrillouin=.true.
+            tUseBrillouin=.false.
+        ELSE
+            tTurnBackBrillouin=.false.
+        ENDIF
+        iMaxExcit=0
+        nStore(1:6)=0
+        CALL GenSymExcitIt2(HFDet,NEl,G1,nBasis,nBasisMax,.TRUE.,HFExcit%nExcitMemLen,nJ,iMaxExcit,0,nStore,3)
+        ALLOCATE(HFExcit%ExcitData(HFExcit%nExcitMemLen),stat=ierr)
+        IF(ierr.ne.0) CALL Stop_All(this_routine,"Problem allocating excitation generator")
+        HFExcit%ExcitData(1)=0
+        CALL GenSymExcitIt2(HFDet,NEl,G1,nBasis,nBasisMax,.TRUE.,HFExcit%ExcitData,nJ,iMaxExcit,0,nStore,3)
+        HFExcit%nPointed=0
+!Indicate that the excitation generator is now correctly allocated.
+
+!        CALL SetupExitgenPar(HFDet,HFExcit)
+        CALL GetSymExcitCount(HFExcit%ExcitData,HFConn)
+
+        IF(tTurnBackBrillouin) THEN
+            tUseBrillouin=.true.
+            WRITE(6,*) "Turning back on brillouins theorem"
+        ENDIF
+
+!Initialise random number seed - since the seeds need to be different on different processors, subract processor rank from random number
+        Seed=abs(G_VMC_Seed-iProcIndex)
+        WRITE(6,*) "Value for seed is: ",Seed
+!Initialise...
+        IF(tMerTwist) THEN
+            CALL genrand_init(Seed)
+        ELSE
+            CALL RLUXGO(iRanLuxLev,Seed,0,0)
+        ENDIF
+        
+        IF(tHPHF) THEN
+            IF(tROHF.or.(LMS.ne.0)) CALL Stop_All("SetupParameters","Cannot use HPHF with high-spin systems.")
+            tHPHFInts=.true.
+        ENDIF
+
+!Calculate Hii
+        IF(tHPHF) THEN
+            CALL HPHFGetDiagHElement(HFDet,iLutHF,TempHii)
+        ELSE
+            TempHii=GetHElement2(HFDet,HFDet,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,NMax,ALat,UMat,0,ECore)
+        ENDIF
+        Hii=REAL(TempHii%v,r2)
+        WRITE(6,*) "Reference Energy set to: ",Hii
+        TempHii=GetH0Element3(HFDet)
+        Fii=REAL(TempHii%v,r2)
+
+!Find the highest energy determinant...
+        IF(.not.tSpn) THEN
+            do i=1,NEl
+                HighEDet(i)=Brr(nBasis-(i-1))
+            enddo
+            IF(tHPHF) THEN
+                CALL EncodeBitDet(HighEDet,iLutTemp,NEl,NIfD)
+                CALL HPHFGetDiagHElement(HighEDet,iLutTemp,TempHii)
+            ELSE
+                TempHii=GetHElement2(HighEDet,HighEDet,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,0,ECore)
+            ENDIF
+            WRITE(6,"(A,G25.15)") "Highest energy determinant is (approximately): ",TempHii%v
+            WRITE(6,"(A,F25.15)") "This means tau should be no more than about ",-2.D0/TempHii%v
+!            WRITE(6,*) "Highest energy determinant is: ", HighEDet(:)
+        ENDIF
+
+        IF(tHub) THEN
+            IF(tReal) THEN
+!We also know that in real-space hubbard calculations, there are only single excitations.
+                exFlag=1
+            ELSE
+!We are doing a momentum space hubbard calculation - set exFlag to 2 since only doubles are connected for momentum conservation.
+                exFlag=2
+            ENDIF
+        ENDIF
+
+
+!        IF(tSpawnSymDets) THEN
+!!This option will spawn on determinants where the alpha and beta strings are swapped for S=0 RHF systems.
+!!These determinants should have the same amplitude in the CI wavefunction - see Helgakker for details.
+!            IF(tSpn) THEN
+!                CALL Stop_All("SetupParameters","SpawnSymDets cannot work with ROHF or UHF systems (currently?)")
+!            ENDIF
+!            IF(.not.tRotoAnnihil) THEN
+!                CALL Stop_All("SetupParameters","SpawnSymDets must be used with RotoAnnihilation currently")
+!            ENDIF
+!            WRITE(6,*) "Spawning on symmetric determinants for each spawning step"
+!        ENDIF
+
+        IF(LMS.ne.0) THEN
+            IF(tNoBrillouin.or.(tHub.and.tReal).or.tRotatedOrbs) THEN
+                WRITE(6,*) "High spin calculation with single excitations also used to calculate energy."
+            ELSE
+                WRITE(6,*) "WARNING!! High-spin calculation detected but single excitations will *not* be used to calculate energy."
+                WRITE(6,*) "This is ok for UHF, but not ROHF."
+            ENDIF
+!            tRotatedOrbs=.true.
+!        ELSEIF(LMS.ne.0) THEN
+!            CALL Stop_All(this_routine,"Ms not equal to zero, but tSpn is false. Error here")
+        ENDIF
+
+        TBalanceNodes=.false.   !Assume that the nodes are initially load-balanced
+
+!Initialise variables for calculation on each node
+        IterTime=0.0
+        ProjectionE=0.D0
+        AvSign=0.D0
+        AvSignHFD=0.D0
+        SumENum=0.D0
+        SumNoatHF=0
+        NoatHF=0
+        NoatDoubs=0
+!        DetsNorm=0.D0
+!        MeanExcitLevel=0.D0
+!        MinExcitLevel=NEl+10
+!        MaxExcitLevel=0
+        LocalAnn=0
+        Annihilated=0
+        Annihilated=0
+        Acceptances=0
+        PreviousCycles=0
+        NoBorn=0
+        SpawnFromSing=0
+        NoDied=0
+        HFCyc=0
+        HFPopCyc=0
+        ENumCyc=0.D0
+        ProjEIter=0.D0
+        ProjEIterSum=0.D0
+        GuideFuncDoub=0.D0
+        GuideFuncHF=0
+        VaryShiftCycles=0
+        AvDiagSft=0.D0
+        SumDiagSft=0.D0
+
+!Also reinitialise the global variables - should not necessarily need to do this...
+        AllSumENum=0.D0
+        AllNoatHF=0
+        AllNoatDoubs=0
+        AllSumNoatHF=0.D0
+        AllGrowRate=0.D0
+!        AllMeanExcitLevel=0.D0
+        AllSumWalkersCyc=0
+        AllAvSign=0.D0
+        AllAvSignHFD=0.D0
+        AllNoBorn=0
+        AllSpawnFromSing=0
+        AllNoDied=0
+        AllLocalAnn=0
+        AllAnnihilated=0
+        AllMinorAnnihilated=0
+        AllENumCyc=0.D0
+        AllHFCyc=0.D0
+!        AllDetsNorm=0.D0
+        tCleanRun=.false.
+        CullInfo(1:10,1:3)=0
+        NoCulls=0
+        
+
+        IF((tHistSpawn.or.tCalcFCIMCPsi).and.tFCIMC) THEN
+            ALLOCATE(HistMinInd(NEl))
+            ALLOCATE(HistMinInd2(NEl))
+            maxdet=0
+            do i=1,nel
+                maxdet=maxdet+2**(nbasis-i)
+            enddo
+
+            IF(.not.allocated(FCIDets)) THEN
+                CALL Stop_All(this_routine,"A Full Diagonalization is required in the same calculation before histogramming can occur.")
+            ENDIF
+
+            WRITE(6,*) "Histogramming spawning wavevector, with Dets=", Det
+            ALLOCATE(Histogram(1:det),stat=ierr)
+            IF(ierr.ne.0) THEN
+                CALL Stop_All("SetupParameters","Error assigning memory for histogramming arrays (could deallocate NMRKS to save memory?)")
+            ENDIF
+            Histogram(:)=0.D0
+            IF(tHistSpawn) THEN
+                ALLOCATE(InstHist(1:det),stat=ierr)
+                IF(ierr.ne.0) THEN
+                    CALL Stop_All("SetupParameters","Error assigning memory for histogramming arrays (could deallocate NMRKS to save memory?)")
+                ENDIF
+                InstHist(:)=0.D0
+                ALLOCATE(AvAnnihil(1:det),stat=ierr)
+                IF(ierr.ne.0) THEN
+                    CALL Stop_All("SetupParameters","Error assigning memory for histogramming arrays (could deallocate NMRKS to save memory?)")
+                ENDIF
+                AvAnnihil(:)=0.D0
+                ALLOCATE(InstAnnihil(1:det),stat=ierr)
+                IF(ierr.ne.0) THEN
+                    CALL Stop_All("SetupParameters","Error assigning memory for histogramming arrays (could deallocate NMRKS to save memory?)")
+                ENDIF
+                InstAnnihil(:)=0.D0
+            ENDIF
+
+            ALLOCATE(AllHistogram(1:det),stat=ierr)
+            IF(ierr.ne.0) CALL Stop_All("SetupParameters","Error assigning memory for histogramming arrays (could deallocate NMRKS to save memory?)")
+            IF(iProcIndex.eq.0) THEN
+                IF(tHistSpawn) THEN
+                    ALLOCATE(AllInstHist(1:det),stat=ierr)
+                    ALLOCATE(AllInstAnnihil(1:det),stat=ierr)
+                    ALLOCATE(AllAvAnnihil(1:det),stat=ierr)
+                ENDIF
+                IF(ierr.ne.0) THEN
+                    CALL Stop_All("SetupParameters","Error assigning memory for histogramming arrays (could deallocate NMRKS to save memory?)")
+                ENDIF
+            ENDIF
+        ELSEIF(tHistEnergies) THEN
+            WRITE(6,*) "Histogramming the energies of the particles, with iNoBins=",iNoBins, " and BinRange=", BinRange
+            WRITE(6,*) "Histogramming spawning events from ",-OffDiagMax, " with BinRange = ", OffDiagBinRange
+            iOffDiagNoBins=INT((2.D0*OffDiagMax)/OffDiagBinRange)+1
+            WRITE(6,*) "This gives ",iOffDiagNoBins," bins to histogram the off-diagonal matrix elements."
+            ALLOCATE(Histogram(1:iNoBins))
+            ALLOCATE(AttemptHist(1:iNoBins))
+            ALLOCATE(SpawnHist(1:iNoBins))
+            ALLOCATE(SinglesHist(1:iOffDiagNoBins))
+            ALLOCATE(SinglesAttemptHist(1:iOffDiagNoBins))
+            ALLOCATE(SinglesHistOccOcc(1:iOffDiagNoBins))
+            ALLOCATE(SinglesHistOccVirt(1:iOffDiagNoBins))
+            ALLOCATE(SinglesHistVirtOcc(1:iOffDiagNoBins))
+            ALLOCATE(SinglesHistVirtVirt(1:iOffDiagNoBins))
+            ALLOCATE(DoublesHist(1:iOffDiagNoBins))
+            ALLOCATE(DoublesAttemptHist(1:iOffDiagNoBins))
+            Histogram(:)=0.D0
+            AttemptHist(:)=0.D0
+            SpawnHist(:)=0.D0
+            SinglesHist(:)=0.D0
+            SinglesAttemptHist(:)=0.D0
+            SinglesHistOccOcc(:)=0.D0
+            SinglesHistOccVirt(:)=0.D0
+            SinglesHistVirtOcc(:)=0.D0
+            SinglesHistVirtVirt(:)=0.D0
+            DoublesHist(:)=0.D0
+            DoublesAttemptHist(:)=0.D0
+            IF(iProcIndex.eq.0) THEN
+                ALLOCATE(AllHistogram(1:iNoBins))
+                ALLOCATE(AllAttemptHist(1:iNoBins))
+                ALLOCATE(AllSpawnHist(1:iNoBins))
+                ALLOCATE(AllSinglesHist(1:iNoBins))
+                ALLOCATE(AllDoublesHist(1:iNoBins))
+                ALLOCATE(AllSinglesAttemptHist(1:iNoBins))
+                ALLOCATE(AllDoublesAttemptHist(1:iNoBins))
+                ALLOCATE(AllSinglesHistOccOcc(1:iNoBins))
+                ALLOCATE(AllSinglesHistOccVirt(1:iNoBins))
+                ALLOCATE(AllSinglesHistVirtOcc(1:iNoBins))
+                ALLOCATE(AllSinglesHistVirtVirt(1:iNoBins))
+            ENDIF
+        ENDIF
+
+!Need to declare a new MPI type to deal with the long integers we use in the hashing, and when reading in from POPSFILEs
+!        CALL MPI_Type_create_f90_integer(18,mpilongintegertype,error)
+!        CALL MPI_Type_commit(mpilongintegertype,error)
+        IF(tNonUniRandExcits) THEN
+!These are the new random excitations which give non-uniform generation probabilities.
+            IF(tUseBrillouin) THEN
+                WRITE(6,*) "Brillouin theorem specified, but this will not be in use with the non-uniform excitation generators."
+            ENDIF
+            WRITE(6,*) "Non-uniform excitation generators in use."
+            IF(.not.tRegenExcitgens) THEN
+                WRITE(6,*) "Currently, we can not store the excitation generators with non-uniform excitations. Instead, they will be regenerated."
+                tRegenExcitgens=.true.
+            ENDIF
+            CALL CalcApproxpDoubles(HFConn)
+        ENDIF
+        IF((.not.tRegenExcitgens).and.(tRotoAnnihil)) THEN
+            CALL Stop_All("SetupParameters","Storage of excitation generators is incompatable with RotoAnnihilation. Regenerate excitation generators.")
+        ENDIF
+
+!This is a list of options which cannot be used with the stripped-down spawning routine. New options not added to this routine should be put in this list.
+        IF(tHighExcitsSing.or.tHistSpawn.or.tRegenDiagHEls.or.tFindGroundDet.or.tStarOrbs.or.tResumFCIMC.or.tSpawnAsDet.or.tImportanceSample    &
+     &      .or.(.not.tRegenExcitgens).or.(.not.tNonUniRandExcits).or.(.not.tDirectAnnihil).or.tMinorDetsStar.or.tSpawnDominant.or.(DiagSft.gt.0.D0).or.   &
+     &      tPrintTriConnections.or.tHistTriConHEls.or.tCalcFCIMCPsi.or.tTruncCAS.or.tListDets.or.tPartFreezeCore) THEN
+            WRITE(6,*) "It is not possible to use to clean spawning routine..."
+        ELSE
+            WRITE(6,*) "Clean spawning routine in use..."
+            tCleanRun=.true.
+        ENDIF
+
+        IF(tListDets) THEN
+! When this is on, we have to read the list of determinants which we are allowed to spawn at from a file called SpawnOnlyDets.
+#ifdef PARALLEL
+            CALL ReadSpawnListDets()
+#else
+            Call Stop_All("FciMCPar/SetupParameters","AJWT disabled call to ReadSpawnList in Serial version.")
+#endif
+        ENDIF
+
+        IF(tConstructNOs) THEN
+! This is the option for constructing the natural orbitals actually during a NECI calculation.  This is different (and probably a lot more complicated and doesn't 
+! currently work) from the FINDCINATORBS option which finds the natural orbitals given a final wavefunction.
+            ALLOCATE(OneRDM(nBasis,nBasis),stat=ierr)
+            CALL LogMemAlloc('OneRDM',nBasis*nBasis,8,this_routine,OneRDMTag,ierr)
+            OneRDM(:,:)=0.D0
+        ENDIF
+
+        IF(TPopsFile.and.(mod(iWritePopsEvery,StepsSft).ne.0)) THEN
+            CALL Warning(this_routine,"POPSFILE writeout should be a multiple of the update cycle length.")
+        ENDIF
+
+        IF(TNoAnnihil) THEN
+            WRITE(6,*) "No Annihilation to occur. Results are likely not to converge on right value. Proceed with caution. "
+        ELSEIF(TAnnihilonproc) THEN
+            CALL Stop_All("SetupParameters","Annihilonproc feature is currently disabled")
+            WRITE(6,*) "Annihilation will occur on each processors' walkers only. This should be faster, but result in less annihilation."
+            WRITE(6,*) "This is equivalent to running seperate calculations."
+        ELSEIF(tRotoAnnihil) THEN
+            IF(tDirectAnnihil) THEN
+                CALL Stop_All("SetupParameters","Cannot specify both direct annihilation and rotoannihilation.")
+            ENDIF
+            WRITE(6,*) "RotoAnnihilation in use...!"
+        ELSEIF(tDirectAnnihil) THEN
+            WRITE(6,*) "Direct Annihilation in use...Explicit load-balancing disabled."
+            ALLOCATE(ValidSpawnedList(0:nProcessors-1),stat=ierr)
+            ALLOCATE(InitialSpawnedSlots(0:nProcessors-1),stat=ierr)
+!InitialSpawnedSlots now holds the first free position in the newly-spawned list for each processor, so it does not need to be reevaluated each iteration.
+            MaxSpawned=NINT(MemoryFacSpawn*InitWalkers)
+            Gap=REAL(MaxSpawned)/REAL(nProcessors)
+            do j=0,nProcessors-1
+                InitialSpawnedSlots(j)=NINT(Gap*j)+1
+            enddo
+        ENDIF
+        IF(TReadPops) THEN
+!List of things that readpops can't work with...
+            IF(TStartSinglePart.or.TStartMP1) THEN
+                CALL Stop_All("SetupParameters","ReadPOPS cannot work with StartSinglePart or StartMP1")
+            ENDIF
+        ENDIF
+
+        IF(TResumFciMC) THEN
+            CALL Stop_All("SetupParameters","ResumFCIMC code is currently disabled")
+            IF(NDets.ge.2) THEN
+                IF(.not.EXCITFUNCS(10)) THEN
+                    WRITE(6,*) "Cannot have an excitation bias with multiple determinant graphs...exiting."
+                    CALL Stop_All("SetupParameters","Cannot have biasing with Graphsizes > 2")
+                ENDIF
+
+!Allocate memory for graphs...
+                ALLOCATE(GraphRhoMat(NDets,NDets),stat=ierr)
+                CALL LogMemAlloc('GraphRhoMat',NDets**2,8,this_routine,GraphRhoMatTag,ierr)
+                ALLOCATE(GraphVec(NDets),stat=ierr)
+                CALL LogMemAlloc('GraphVec',NDets,8,this_routine,GraphVecTag,ierr)
+                ALLOCATE(GraphKii(NDets),stat=ierr)
+                CALL LogMemAlloc('GraphKii',NDets,8,this_routine,GraphKiiTag,ierr)
+                ALLOCATE(DetsinGraph(NEl,NDets),stat=ierr)
+                CALL LogMemAlloc('DetsinGraph',NDets*NEl,4,this_routine,DetsinGraphTag,ierr)
+                
+            ELSEIF(NDets.lt.2) THEN
+                WRITE(6,*) "Graphs cannot be smaller than two vertices. Exiting."
+                CALL Stop_All("SetupParameters","Graphs cannot be smaller than two vertices")
+            ELSEIF(TFixShiftShell.or.tFixShiftKii.or.tFixCASShift) THEN
+                CALL Stop_All("SetupParameters","Fixing the shift of the certain excitation levels cannot be used within ResumFCIMC")
+            ENDIF
+            IF(iProcIndex.eq.root) THEN
+                WRITE(6,*) "Resumming in multiple transitions to/from each excitation"
+                WRITE(6,"(A,I5,A)") "Graphs to resum will consist of ",NDets," determinants."
+            ENDIF
+        ENDIF
+        
+        IF(TStartSinglePart) THEN
+            WRITE(6,"(A,F9.3,A,I9)") "Initial number of particles set to 1, and shift will be held at ",DiagSft," until particle number on root node gets to ",InitWalkers
+        ELSE
+            WRITE(6,*) "Initial number of walkers per processor chosen to be: ", InitWalkers
+        ENDIF
+        WRITE(6,*) "Maximum connectivity of HF determinant is: ",HFConn
+        WRITE(6,*) "Damping parameter for Diag Shift set to: ", SftDamp
+        IF(.not.TReadPops) THEN
+            WRITE(6,*) "Initial Diagonal Shift (Ecorr guess) is: ", DiagSft
+        ENDIF
+        IF(TStartSinglePart) THEN
+            TSinglePartPhase=.true.
+            IF(TReadPops) THEN
+                CALL Stop_All("SetupParameters","Cannot read in POPSFILE as well as starting with a single particle")
+            ENDIF
+            IF(TStartMP1) THEN
+                CALL Stop_All("SetupParameters","Cannot start with a single particle, and as the MP1 wavefunction")
+            ENDIF
+        ELSE
+            TSinglePartPhase=.false.
+        ENDIF
+        IF(TFixShiftShell) THEN
+            IF(iProcIndex.eq.root) THEN
+                WRITE(6,"(A,I5,A,F20.10)") "All excitations up to ",ShellFix," will have their shift fixed at ",FixShift
+                WRITE(6,*) "With this option, results are going to be non-exact"
+            ENDIF
+        ELSEIF(tFixShiftKii) THEN
+            IF(iProcIndex.eq.root) THEN
+                WRITE(6,"(A,G25.16,A,F20.10)") "All excitations with Kii values less than ",FixedKiiCutoff," will have their shift fixed at ",FixShift
+                WRITE(6,*) "With this option, results are going to be non-exact"
+            ENDIF
+        ELSEIF(tFixCASShift) THEN
+            IF(iProcIndex.eq.root) THEN
+                WRITE(6,"(A,I5)") "All determinants containing excitations within the active space of ",OccCASorbs
+                WRITE(6,"(A,I5,A)")" highest energy, occupied spin orbitals, and ",VirtCASorbs," lowest energy, "
+                WRITE(6,"(A,F20.10)") "virtual spin orbitals, will have their shift fixed at ",FixShift
+                WRITE(6,*) "With this option, results are going to be non-exact"
+            ENDIF
+!The SpinInvBRR array is required for the FixCASShift option. Its properties are explained more fully in the subroutine. 
+
+            CALL CreateSpinInvBRR()
+
+            CASmax=NEl+VirtCASorbs
+! CASmax is the max spin orbital number (when ordered energetically) within the chosen active space.
+! Spin orbitals with energies larger than this maximum value must be unoccupied for the determinant
+! to be in the active space.
+            CASmin=NEl-OccCASorbs
+! CASmin is the max spin orbital number below the active space.  As well as the above criteria, spin 
+! orbitals with energies equal to, or below that of the CASmin orbital must be completely occupied for 
+! the determinant to be in the active space.
+
+        ENDIF
+        IF(tStarOrbs) THEN
+            IF(tImportanceSample.or.(ICILevel.ne.0).or.(.not.tRegenExcitgens)) THEN
+                CALL Stop_All("SetupParameters","Cannot use star orbs while storing excitation generators, or truncation or importance sampling...")
+            ENDIF
+            CALL CreateSpinInvBrr()
+        ENDIF
+        IF(ICILevel.ne.0) THEN
+!We are truncating the excitations at a certain value
+            TTruncSpace=.true.
+            WRITE(6,'(A,I4)') "Truncating the S.D. space at determinants will an excitation level w.r.t. HF of: ",ICILevel
+            IF(TResumFciMC) CALL Stop_All("SetupParameters","Space cannot be truncated with ResumFCIMC")
+        ENDIF
+        IF(tTruncCAS) THEN
+!We are truncating the FCI space by only allowing excitations in a predetermined CAS space.
+            WRITE(6,'(A,I4,A,I5)') "Truncating the S.D. space as determinants must be within a CAS of ",OccCASOrbs," , ",VirtCASOrbs
+!The SpinInvBRR array is required for the tTruncCAS option. Its properties are explained more fully in the subroutine. 
+
+            CALL CreateSpinInvBRR()
+
+            CASmax=NEl+VirtCASorbs
+! CASmax is the max spin orbital number (when ordered energetically) within the chosen active space.
+! Spin orbitals with energies larger than this maximum value must be unoccupied for the determinant
+! to be in the active space.
+            CASmin=NEl-OccCASorbs
+! CASmin is the max spin orbital number below the active space.  As well as the above criteria, spin 
+! orbitals with energies equal to, or below that of the CASmin orbital must be completely occupied for 
+! the determinant to be in the active space.
+
+            IF(OccCASOrbs.gt.NEl) CALL Stop_All("SetupParameters","Occupied orbitals in CAS space specified is greater than number of electrons")
+            IF(VirtCASOrbs.gt.(nBasis-NEl)) CALL Stop_All("SetupParameters","Virtual orbitals in CAS space specified is greater than number of unoccupied orbitals")
+        ENDIF
+        IF(tPartFreezeCore) THEN
+            WRITE(6,'(A,I4,A,I5)') 'Partially freezing the lowest ',NPartFrozen,' spin orbitals so that no more than ',NHolesFrozen,' holes exist within this core.'
+            CALL CreateSpinInvBRR()
+        ENDIF
+
+!        IF(TAutoCorr) THEN
+!!We want to calculate the autocorrelation function over the determinants
+!            IF(iLagMin.lt.0) THEN
+!                CALL Stop_All("SetupParameters","LagMin cannot be less than zero (and when equal 0 should be strictly 1")
+!            ELSEIF(iLagMax.gt.NMCyc) THEN
+!                CALL Stop_All("SetupParameters","LagMax cannot be greater than the number of cycles.")
+!            ELSEIF(iLagStep.lt.1) THEN
+!                CALL Stop_All("SetupParameters","LagStep cannot be less than 1")
+!            ENDIF
+!
+!            CALL ChooseACFDets()
+!            CALL Stop_All("ChooseACFDets","This code has been commented out...")
+!
+!!            WRITE(6,*) "Storing information to calculate the ACF at end of simulation..."
+!        ENDIF
+
+        IF(tMagnetize) THEN
+
+            IF(tRotoAnnihil) THEN
+                CALL Stop_All("SetupParameters","Rotoannihilation not currently supporting Magnetization")
+            ENDIF
+            CALL FindMagneticDets()
+        ENDIF
+
+        IF(TLocalAnnihilation) THEN
+!If we are locally annihilating, then we need to know the walker density for a given excitation level, for which we need to approximate number of determinants
+!in each excitation level
+            CALL Stop_All("SetupParameters","LocalAnnihilation is currently disabled")
+            ALLOCATE(ApproxExcitDets(0:NEl))
+            ALLOCATE(PartsinExcitLevel(0:NEl))
+            TotDets=1.D0
+            do i=0,NEl
+                ApproxExcitDets(i)=Choose(NEl,i)*Choose(nBasis-NEl,i)
+!                WRITE(6,*) "Excitation level: ",i,ApproxExcitDets(i)
+            enddo
+            SymFactor=ApproxExcitDets(2)/(HFConn+0.D0)
+            do i=1,NEl
+                ApproxExcitDets(i)=ApproxExcitDets(i)/SymFactor
+                WRITE(6,*) "Excitation level: ",i,ApproxExcitDets(i)
+                TotDets=TotDets+ApproxExcitDets(i)
+            enddo
+            WRITE(6,*) "Approximate size of determinant space is: ",TotDets
+            PartsinExcitLevel(:)=0  !Zero the array to hold the population of walkers in each excitation level
+        ELSE
+            SymFactor=(Choose(NEl,2)*Choose(nBasis-NEl,2))/(HFConn+0.D0)
+            TotDets=1.D0
+            do i=1,NEl
+                WRITE(6,*) "Approximate excitation level population: ",i,NINT((Choose(NEl,i)*Choose(nBasis-NEl,i))/SymFactor)
+                TotDets=TotDets+(Choose(NEl,i)*Choose(nBasis-NEl,i))/SymFactor
+            enddo
+            WRITE(6,*) "Approximate size of determinant space is: ",NINT(TotDets)
+        ENDIF
+        IF(tHighExcitsSing) THEN
+            WRITE(6,*) "Only allowing single excitations between determinants where one of them has an excitation level w.r.t. HF of more than ",iHighExcitsSing
+            IF(iHighExcitsSing.gt.NEl) THEN
+                CALL Stop_All("SetupParameters","iHighExcitsSing.ge.NEl")
+            ELSEIF(iHighExcitsSing.eq.NEl) THEN
+                CALL Warning("SetupParameters","iHighExcitsSing = NEl - this will no longer have any effect.")
+            ENDIF
+            IF((.not.tNonUniRandExcits).or.tStarOrbs.or.tTruncSpace.or.tTruncCAS.or.tListDets.or.tPartFreezeCore) THEN
+                CALL Stop_All("SetupParameters","Cannot use HighExcitsSing without Nonuniformrandexcits, or with starorbs or truncated spaces...")
+            ENDIF
+        ENDIF
+
+        IF(tMultipleDetsSpawn) THEN
+!We need to store a list of all double excitations of HF.
+            CALL StoreDoubs()
+        ENDIF
+
+    END SUBROUTINE SetupParameters
+    LOGICAL FUNCTION TestifDETinCAS(DetCurr)
+        INTEGER :: k,z,DetCurr(NEl)
+
+!        CASmax=NEl+VirtCASorbs
+! CASmax is the max spin orbital number (when ordered energetically) within the chosen active space.
+! Spin orbitals with energies larger than this maximum value must be unoccupied for the determinant
+! to be in the active space.
+!        CASmin=NEl-OccCASorbs   (These have been moved to the InitCalc subroutine so they're not calculated
+! each time.
+! CASmin is the max spin orbital number below the active space.  As well as the above criteria, spin 
+! orbitals with energies equal to, or below that of the CASmin orbital must be completely occupied for 
+! the determinant to be in the active space.
+
+        z=0
+        do k=1,NEl      ! running over all electrons
+            if (SpinInvBRR(DetCurr(k)).gt.CASmax) THEN
+                TestifDETinCAS=.false.
+                EXIT            
+! if at any stage an electron has an energy greater than the CASmax value, the determinant can be ruled out
+! of the active space.  Upon identifying this, it is not necessary to check the remaining electrons.
+            else
+                if (SpinInvBRR(DetCurr(k)).le.CASmin) THEN
+                    z=z+1
+                endif
+! while running over all electrons, the number that occupy orbitals equal to or below the CASmin cutoff are
+! counted.
+            endif
+        enddo
+! the final number of electrons in this low energy region must be equal to the number of orbitals (CASmin), 
+! otherwise an orbital is unoccupied, and the determinant cannot be part of the active space.
+        if (z.eq.CASmin) THEN
+            TestifDETinCAS=.true.
+        else
+            TestifDETinCAS=.false.
+        endif
+        
+        RETURN
+
+    END FUNCTION TestifDETinCAS
+
+!This function will tell us whether we should allow attempted spawning at an excitation when we are truncating the space.
+!We pass in the excitation level of the original particle, the two representations of the excitation (we only need the bit-representation of the excitation
+!for HPHF) and the magnitude of the excitation (for determinant representation).
+    LOGICAL FUNCTION CheckAllowedTruncSpawn(WalkExcitLevel,nJ,iLutnJ,IC)
+        INTEGER :: nJ(NEl),WalkExcitLevel,iLutnJ(0:NIfD),ExcitLevel,IC,iGetExcitLevel_2,i,NoInFrozenCore
+        LOGICAL :: DetBitEQ
+
+        CheckAllowedTruncSpawn=.true.
+
+        IF(tTruncSpace) THEN
+!We are truncating the space by excitation level
+            IF(tHPHF) THEN
+!With HPHF, we can't rely on this, since one excitation could be a single, and one a double. Also, IC is not returned.
+                CALL FindBitExcitLevel(iLutHF,iLutnJ,NIfD,ExcitLevel,ICILevel)
+                IF(ExcitLevel.gt.ICILevel) THEN
+                    CheckAllowedTruncSpawn=.false.
+                ENDIF
+
+            ELSE
+!Determinant representation.
+
+                IF(WalkExcitLevel.eq.(ICILevel-1)) THEN
+!The current walker is one below the excitation cutoff - if IC is a double, then could go over - we need to check
+                    
+                    IF(IC.eq.2) THEN
+                        ExcitLevel=iGetExcitLevel_2(HFDet,nJ,NEl,ICILevel)
+                    ELSE
+!Always allow this - a single cannot put us over the truncated excitation level
+                        ExcitLevel=0
+!                        CheckAllowedTruncSpawn=.true.
+!                        RETURN
+                    ENDIF
+                    IF(ExcitLevel.gt.ICILevel) THEN
+                        CheckAllowedTruncSpawn=.false.
+!                    ELSE
+!                        CheckAllowedTruncSpawn=.true.
+                    ENDIF
+
+                ELSEIF(WalkExcitLevel.ge.ICILevel) THEN
+!Walker is at the excitation cutoff level - all possible excitations could be disallowed - check the actual excitation level
+                    ExcitLevel=iGetExcitLevel_2(HFDet,nJ,NEl,ICILevel)
+                    IF(ExcitLevel.gt.ICILevel) THEN
+!Attempted excitation is above the excitation level cutoff - do not allow the creation of children
+                        CheckAllowedTruncSpawn=.false.
+!                    ELSE
+!                        CheckAllowedTruncSpawn=.true.
+                    ENDIF
+!                ELSE
+!!Excitation cannot be in a dissallowed excitation level - allow it as normal
+!                    CheckAllowedTruncSpawn=.true.
+                ENDIF 
+
+            ENDIF   !endif tHPHF
+
+        ENDIF   !endif tTruncSpace
+
+        IF(tTruncCAS.and.CheckAllowedTruncSpawn) THEN
+!This flag determines if the FCI space is restricted by whether the determinants are in the predescribed CAS.
+            IF(.not.TestifDetinCAS(nJ)) THEN
+!Excitation not in allowed CAS space.
+!                WRITE(6,*) "Not in CAS:",nJ(:)
+                CheckAllowedTruncSpawn=.false.
+!            ELSE
+!                WRITE(6,*) "In Cas:",nJ(:)
+            ENDIF
+
+        ENDIF
+
+        IF(tListDets.and.CheckAllowedTruncSpawn) THEN
+!This will check to see if the determinants are in a list of determinants in AllowedDetList
+            CheckAllowedTruncSpawn=.false.
+            IF(.not.tHPHF) THEN
+                CALL EncodeBitDet(nJ,iLutnJ,NEl,NIfD)
+            ENDIF
+            do i=1,NAllowedDetList
+!                WRITE(6,*) ILutnJ,AllowedDetList(0:NIfD,i)
+                IF(DetBitEQ(iLutnJ,AllowedDetList(0:NIfD,i),NIfD)) THEN
+!                    WRITE(6,*) "Allowed Det"
+                    CheckAllowedTruncSpawn=.true.
+                    EXIT
+                ENDIF
+            enddo
+        ENDIF
+
+        IF(tPartFreezeCore) THEN
+!Want to check if the determinant we're about to spawn on has more than the restricted number of holes in the partially frozen core.            
+
+!Run through the electrons in nJ, count the number in the partially frozen core - ie those occupying orbitals with energy (from BRR) 
+!less than that of the partially frozen core limit.
+!If this is less than NPartFrozen-NHolesFrozen then spawning is forbidden.
+            NoInFrozenCore=0
+!BRR(i)=j: orbital i is the j-th lowest in energy  
+            do i=1,NEl
+                IF(SpinInvBRR(nJ(i)).le.NPartFrozen) NoInFrozenCore=NoInFrozenCore+1
+                IF(NoInFrozenCore.eq.(NPartFrozen-NHolesFrozen)) EXIT   ! Can exit out of the loop if this is satisfied, since excitation will definitely be accepted.
+            enddo
+            IF(NoInFrozenCore.lt.(NPartFrozen-NHolesFrozen)) THEN
+!There are more holes in the partially frozen core than has been specified as allowed.
+                CheckAllowedTruncSpawn=.false.
+            ELSE
+!Either the 'partially frozen core' is completely full, or it has the allowed number of holes or less.                
+!Allowed to spawn, CheckAllowedTruncSpawn=.true.
+                CheckAllowedTruncSpawn=.true.
+            ENDIF
+
+        ENDIF
+
+    END FUNCTION CheckAllowedTruncSpawn
 !This is the same as BinSearchParts1, but this time, the list to search is passed in as an argument. The list goes from 1 to Length, but only between MinInd and MaxInd is actually searched.
     SUBROUTINE BinSearchParts3(iLut,List,Length,MinInd,MaxInd,PartInd,tSuccess)
         INTEGER :: iLut(0:NIfD),MinInd,MaxInd,PartInd
@@ -13282,121 +12828,492 @@ MODULE FciMCParMod
         PartInd=MAX(MinInd,i-1)
 
     END SUBROUTINE BinSearchParts3
+    FUNCTION CreateHash(DetCurr)
+        INTEGER :: DetCurr(NEl),i
+        INTEGER(KIND=i2) :: CreateHash
+
+        CreateHash=0
+        do i=1,NEl
+!            CreateHash=13*CreateHash+i*DetCurr(i)
+            CreateHash=(1099511628211_8*CreateHash)+i*DetCurr(i)
+            
+!            CreateHash=mod(1099511628211*CreateHash,2**64)
+!            CreateHash=XOR(CreateHash,DetCurr(i))
+        enddo
+!        WRITE(6,*) CreateHash
+        RETURN
+
+    END FUNCTION CreateHash
+    SUBROUTINE CalcApproxpDoubles(HFConn)
+        use SystemData , only : tAssumeSizeExcitgen
+        use SymData , only : SymClassSize
+        INTEGER :: HFConn,PosExcittypes,iTotal,i
+        INTEGER :: nSing,nDoub,ExcitInd
+
+        IF(tHub) THEN
+            IF(tReal) THEN
+                WRITE(6,*) "Since we are using a real-space hubbard model, only single excitations are connected."
+                WRITE(6,*) "Setting pDoub to 0.D0"
+                pDoubles=0.D0
+                RETURN
+            ELSE
+                WRITE(6,*) "Since we are using a momentum-space hubbard model, only double excitaitons are connected."
+                WRITE(6,*) "Setting pDoub to 1.D0"
+                pDoubles=1.D0
+                RETURN
+            ENDIF
+        ENDIF
+
+        WRITE(6,"(A)") "Calculating approximate pDoubles for use with excitation generator by looking a excitations from HF."
+        IF(tAssumeSizeExcitgen) THEN
+            PosExcittypes=SymClassSize*NEL+NBASIS/32+4
+            iTotal=HFExcit%ExcitData(1)
+        ELSE
+            PosExcittypes=HFExcit%ExcitData(2)
+            iTotal=HFExcit%ExcitData(23)
+        ENDIF
+        IF(iTotal.ne.HFConn) THEN
+            CALL Stop_All("CalcApproxpDoubles","Number of excitations from HF determinant has been confused somewhere...")
+        ENDIF
+!        WRITE(6,*) "**********"
+!        do i=0,100
+!            WRITE(6,*) i,HFExcit%ExcitData(PosExcittypes+i)
+!        enddo
+        nSing=0
+        nDoub=0
+        i=iTotal
+!ExcitTypes is normally a (5,NExcitTypes) array, so we have to be a little careful with the indexing.
+        ExcitInd=4+PosExcittypes
+
+        do while((i.gt.0).and.HFExcit%ExcitData(ExcitInd).le.i)
+            IF(HFExcit%ExcitData(ExcitInd-4).eq.1) THEN
+!We are counting single excitations
+                NSing=NSing+HFExcit%ExcitData(ExcitInd)
+            ELSEIF(HFExcit%ExcitData(ExcitInd-4).eq.2) THEN
+                NDoub=NDoub+HFExcit%ExcitData(ExcitInd)
+            ELSE
+                CALL Stop_All("CalcApproxpDoubles","Cannot read excittypes")
+            ENDIF
+            i=i-HFExcit%ExcitData(ExcitInd)
+            ExcitInd=ExcitInd+5
+        enddo
+
+        WRITE(6,"(I7,A,I7,A)") NDoub, " double excitations, and ",NSing," single excitations found from HF. This will be used to calculate pDoubles."
+
+        IF(SinglesBias.ne.1.D0) THEN
+            WRITE(6,*) "Singles Bias detected. Multiplying single excitation connectivity of HF determinant by ",SinglesBias," to determine pDoubles."
+        ENDIF
+
+        IF((NSing+nDoub).ne.iTotal) THEN
+            CALL Stop_All("CalcApproxpDoubles","Sum of number of singles and number of doubles does not equal total number of excitations")
+        ENDIF
+        IF((NSing.eq.0).or.(NDoub.eq.0)) THEN
+            WRITE(6,*) "Number of singles or doubles found equals zero. pDoubles will be set to 0.95. Is this correct?"
+            pDoubles=0.95
+            RETURN
+        ELSEIF((NSing.lt.0).or.(NDoub.lt.0)) THEN
+            CALL Stop_All("CalcApproxpDoubles","Number of singles or doubles found to be a negative number. Error here.")
+        ENDIF
+
+!Set pDoubles to be the fraction of double excitations.
+        pDoubles=real(nDoub,r2)/((real(NSing,r2)*SinglesBias)+real(NDoub,r2))
+
+        IF(SinglesBias.ne.1.D0) THEN
+            WRITE(6,"(A,F14.6,A,F14.6)") "pDoubles set to: ",pDoubles, " rather than (without bias): ",real(nDoub,r2)/real(iTotal,r2)
+        ELSE
+            WRITE(6,"(A,F14.6)") "pDoubles set to: ",pDoubles
+        ENDIF
+
+    END SUBROUTINE CalcApproxpDoubles
+    SUBROUTINE CreateSpinInvBRR()
+    ! Create an SpinInvBRR containing spin orbitals, 
+    ! unlike 'createInvBRR' which only has spatial orbitals.
+    ! This is used for the FixCASshift option in establishing whether or not
+    ! a determinant is in the complete active space.
+    ! In:
+    !    BRR(i)=j: orbital i is the j-th lowest in energy.
+    !    nBasis: size of basis
+    ! SpinInvBRR is the inverse of BRR.  SpinInvBRR(j)=i: the j-th lowest energy
+    ! orbital corresponds to the i-th orbital in the original basis.
+    ! i.e the position in SpinInvBRR now corresponds to the orbital number and 
+    ! the value to the relative energy of this orbital. 
+    
+        IMPLICIT NONE
+        INTEGER :: I,t,ierr
+        CHARACTER(len=*), PARAMETER :: this_routine='CreateSpinInvBrr'
+            
+        ALLOCATE(SpinInvBRR(NBASIS),STAT=ierr)
+        CALL LogMemAlloc('SpinInvBRR',NBASIS,4,this_routine,SpinInvBRRTag,ierr)
+            
+
+!        IF(iProcIndex.eq.root) THEN
+!            WRITE(6,*) "================================"
+!            WRITE(6,*) "BRR is "
+!            WRITE(6,*) BRR(:)
+!        ENDIF
+        
+        SpinInvBRR(:)=0
+        
+        t=0
+        DO I=1,NBASIS
+            t=t+1
+            SpinInvBRR(BRR(I))=t
+        ENDDO
+
+!        IF(iProcIndex.eq.root) THEN
+!            WRITE(6,*) "================================"
+!            WRITE(6,*) "SpinInvBRR is "
+!            WRITE(6,*) SpinInvBRR(:)
+!        ENDIF
+        
+        RETURN
+        
+    END SUBROUTINE CreateSpinInvBRR
+
+
+
+
+! This creates a hash based not only on one current determinant, but is also dependent on the 
+! determinant from which the walkers on this determinant came.
+    FUNCTION CreateHashBit(DetCurr)
+        INTEGER :: DetCurr(0:NIfD),i,Elecs,j
+        INTEGER(KIND=i2) :: CreateHashBit
+
+        CreateHashBit=0
+        Elecs=0
+        do i=0,NIfD
+            do j=0,31
+                IF(BTEST(DetCurr(i),j)) THEN
+                    CreateHashBit=(1099511628211_8*CreateHashBit)+((i*32)+(j+1))*j
+                    Elecs=Elecs+1
+                    IF(Elecs.eq.NEl) RETURN
+                ENDIF
+            enddo
+        enddo
+
+    END FUNCTION CreateHashBit
+
+
+!This routine copies an excitation generator from origExcit to NewExit, if the original claims that it is for the correct determinant
+    SUBROUTINE CopyExitgenPar(OrigExit,NewExit,DelOldCopy)
+        TYPE(ExcitPointer) :: OrigExit,NewExit
+        LOGICAL :: DelOldCopy
+        INTEGER :: ierr
+        
+        IF(ASSOCIATED(NewExit%PointToExcit)) THEN
+            CALL Stop_All("CopyExitgenPar","Trying to copy an excitation, but new pointer is already associated.")
+        ENDIF
+        IF(.not.ASSOCIATED(OrigExit%PointToExcit)) THEN
+!We have not got a new pointer - it hasn't been created yet.
+            RETURN
+        ENDIF
+
+        NewExit%PointToExcit => OrigExit%PointToExcit
+        NewExit%IndexinExArr=OrigExit%IndexinExArr
+
+        IF(DelOldCopy) THEN
+!Delete the old excitation - i.e. we are moving excitation generators, rather than copying them.
+            OrigExit%PointToExcit=>null()
+        ELSE
+! We are copying, so increment the number of objects pointing at the excitgen.
+            EXCITGENS(NewExit%IndexinExArr)%nPointed=EXCITGENS(NewExit%IndexinExArr)%nPointed+1
+        ENDIF
+
+        RETURN
+
+    END SUBROUTINE CopyExitgenPar
+
+    SUBROUTINE SetupExitgenPar(nI,ExcitGen)
+        TYPE(ExcitPointer) :: ExcitGen
+        INTEGER :: ierr,iMaxExcit,nExcitMemLen,nJ(NEl),MinIndex,i
+        INTEGER :: nI(NEl),nStore(6)
+
+        IF(ASSOCIATED(ExcitGen%PointToExcit)) THEN
+!The determinant already has an associated excitation generator set up.
+            RETURN
+        ELSE
+
+!First, we need to find the next free element in the excitgens array...
+!This is simply FreeIndArray(BackOfList)
+            MinIndex=FreeIndArray(BackOfList)
+!Increment BackOfList in a circular fashion.
+            IF(BackOfList.eq.MaxWalkersPart) THEN
+                BackOfList=1
+            ELSE
+                BackOfList=BackOfList+1
+            ENDIF
+
+            IF(associated(ExcitGens(MinIndex)%ExcitData)) THEN
+                CALL Stop_All("SetupExitgenPar","Index chosen to create excitation generator is not free.")
+            ENDIF
+
+!MinIndex is the array element we want to point our new excitation generator to.
+!Setup excit generators for this determinant
+            iMaxExcit=0
+            nStore(1:6)=0
+            CALL GenSymExcitIt2(nI,NEl,G1,nBasis,nBasisMax,.TRUE.,EXCITGENS(MinIndex)%nExcitMemLen,nJ,iMaxExcit,0,nStore,3)
+            ALLOCATE(EXCITGENS(MinIndex)%ExcitData(EXCITGENS(MinIndex)%nExcitMemLen),stat=ierr)
+            IF(ierr.ne.0) CALL Stop_All("SetupExcitGen","Problem allocating excitation generator")
+            EXCITGENS(MinIndex)%ExcitData(1)=0
+            CALL GenSymExcitIt2(nI,NEl,G1,nBasis,nBasisMax,.TRUE.,EXCITGENS(MinIndex)%ExcitData,nJ,iMaxExcit,0,nStore,3)
+
+!Indicate that the excitation generator is now correctly allocated and pointed to by one particle.
+            EXCITGENS(MinIndex)%nPointed=1
+
+!Now point Excitgen to this value
+            ExcitGen%PointToExcit=>EXCITGENS(MinIndex)%ExcitData
+            ExcitGen%IndexinExArr=MinIndex
+
+        ENDIF
+
+    END SUBROUTINE SetupExitgenPar
+                
+    SUBROUTINE DissociateExitgen(Exitgen)
+        TYPE(ExcitPointer) :: Exitgen
+        INTEGER :: ind
+
+        IF(.not.ASSOCIATED(Exitgen%PointToExcit)) THEN
+            RETURN
+        ENDIF
+        Ind=Exitgen%IndexinExArr
+
+        IF(Excitgens(Ind)%nPointed.eq.1) THEN
+!We want to delete this excitgen.
+            DEALLOCATE(Excitgens(Ind)%ExcitData)
+            Excitgens(Ind)%nPointed=0
+
+!Add removed excitgen to the front of the free index list
+            FreeIndArray(FrontOfList)=Ind
+!Increment frontoflist in a circular fashion.
+            IF(FrontOfList.eq.MaxWalkersPart) THEN
+                FrontOfList=1
+            ELSE
+                FrontOfList=FrontOfList+1
+            ENDIF
+
+        ELSE
+            Excitgens(Ind)%nPointed=Excitgens(Ind)%nPointed-1
+        ENDIF
+        Exitgen%PointToExcit=>null()    !Point to null to show that it is now free.
+
+    END SUBROUTINE DissociateExitgen
+
+!This routine gets a random excitation for when we want to generate the excitation generator on the fly, then chuck it.
+    SUBROUTINE GetPartRandExcitPar(DetCurr,iLutDet,nJ,IC,Frz,Prob,iCount,ExcitLevel,Ex,tParity)
+        use GenRandSymExcitNUMod , only : GenRandSymExcitNU
+        INTEGER :: DetCurr(NEl),nJ(NEl),IC,Frz,iCount,iMaxExcit,nStore(6),MemLength,ierr
+        INTEGER :: Excitlevel,Ex(2,2),iLutDet(0:NIfD)
+        REAL*8 :: Prob
+        LOGICAL :: tParity
+        INTEGER , ALLOCATABLE :: ExcitGenTemp(:)
+
+        IF(tNonUniRandExcits) THEN
+!Generate non-uniform random excitations
+            CALL GenRandSymExcitNU(DetCurr,iLutDet,nJ,pDoubles,IC,Ex,tParity,exFlag,Prob)
+
+        ELSE
+            IF(ExcitLevel.eq.0) THEN
+!            CALL GenRandSymExcitIt3(DetCurr,HFExcit%ExcitData,nJ,Seed,IC,Frz,Prob,iCount)
+                CALL GenRandSymExcitIt4(DetCurr,HFExcit%ExcitData,nJ,0,IC,Frz,Prob,iCount,Ex,tParity)
+                RETURN
+            ENDIF
+                
+!Need to generate excitation generator to find excitation.
+!Setup excit generators for this determinant 
+            iMaxExcit=0
+            nStore(1:6)=0
+            CALL GenSymExcitIt2(DetCurr,NEl,G1,nBasis,nBasisMax,.TRUE.,MemLength,nJ,iMaxExcit,0,nStore,3)
+            ALLOCATE(ExcitGenTemp(MemLength),stat=ierr)
+            IF(ierr.ne.0) CALL Stop_All("SetupExcitGen","Problem allocating excitation generator")
+            ExcitGenTemp(1)=0
+            CALL GenSymExcitIt2(DetCurr,NEl,G1,nBasis,nBasisMax,.TRUE.,ExcitGenTemp,nJ,iMaxExcit,0,nStore,3)
+
+!Now generate random excitation
+!        CALL GenRandSymExcitIt3(DetCurr,ExcitGenTemp,nJ,Seed,IC,Frz,Prob,iCount)
+            CALL GenRandSymExcitIt4(DetCurr,ExcitGenTemp,nJ,0,IC,Frz,Prob,iCount,Ex,tParity)
+
+!Deallocate when finished
+            DEALLOCATE(ExcitGenTemp)
+        ENDIF
+
+        RETURN
+
+    END SUBROUTINE GetPartRandExcitPar
+    SUBROUTINE FindMagneticDets()
+        use SystemData , only : tAssumeSizeExcitgen
+        INTEGER :: j,i,ierr,iMaxExcit,nStore(6),MinIndex,ExcitLength,nJ(NEl),iExcit
+        TYPE(HElement) :: Hij,Fjj,Kiitemp
+        LOGICAL :: TurnBackAssumeExGen
+        INTEGER , ALLOCATABLE :: ExcitGenTemp(:)
+        REAL*8 , ALLOCATABLE :: TempMax(:)
+        REAL*8 :: MP1Energy,Compt,Kii,MinCompt
+        CHARACTER(len=*), PARAMETER :: this_routine='FindMagneticDets'
+
+        WRITE(6,"(A,I8,A)") "Finding the sign of the ",NoMagDets," largest weighted MP1 determinants..."
+        IF(tSymmetricField) THEN
+            WRITE(6,"(A,F14.6)") "Magnetized determinants will raise/lower the energy of anti-parallel/parallel particles by ",BField
+        ELSE
+            WRITE(6,"(A,F14.6)") "Magnetized determinants will only raise the energy of anti-parallel particles by ",BField
+        ENDIF
+        IF(NoMagDets.lt.1) THEN
+            CALL Stop_All("FindMagneticDets","Number of determinant signs to find < 1 - exiting...")
+        ENDIF
+        IF(NoMagDets.eq.1) THEN
+            WRITE(6,*) "Only fixing the sign of HF determinant"
+        ENDIF
+        IF(BField.lt.0.D0) THEN
+            CALL Stop_All("FindMagneticDets","Magnetic field cannot be negative...")
+        ENDIF
+
+!First allocate memory for chosen determinants. HF path is already stored and has a positive sign by definition, so only store NoMagDets-1 of them
+        ALLOCATE(MagDets(NEl,NoMagDets-1),stat=ierr)
+        CALL LogMemAlloc('MagDets',NEl*(NoMagDets-1),4,this_routine,MagDetsTag,ierr)
+        ALLOCATE(MagDetsSign(NoMagDets-1),stat=ierr)
+        CALL LogMemAlloc('MagDetsSign',NoMagDets-1,4,this_routine,MagDetsSignTag,ierr)
+
+!Do an MP1 calculation to find determinants to fix the sign of...
+!We do not know if tAssumeSizeExcitgen is on - if it is, then we can't enumerate all determinants. Get around this by simply regenerating it anyway.
+!First, we need to turn off AssumeSizeExcitgen if it is on.
+        IF(tAssumeSizeExcitgen) THEN
+            TurnBackAssumeExGen=.true.
+            tAssumeSizeExcitgen=.false.
+        ELSE
+            TurnBackAssumeExGen=.false.
+        ENDIF
+
+        ALLOCATE(TempMax(NoMagDets-1),stat=ierr)   !This will temporarily hold the largest components
+        IF(ierr.ne.0) THEN
+            CALL Stop_All(this_routine,"Problem allocating memory")
+        ENDIF
+        TempMax(:)=0.D0
+        MP1Energy=0.D0
+
+!Setup excit generators for HF Determinant
+        iMaxExcit=0
+        nStore(1:6)=0
+        CALL GenSymExcitIt2(HFDet,NEl,G1,nBasis,nBasisMax,.TRUE.,ExcitLength,nJ,iMaxExcit,0,nStore,2)
+        ALLOCATE(ExcitGenTemp(ExcitLength),stat=ierr)
+        IF(ierr.ne.0) CALL Stop_All(this_routine,"Problem allocating excitation generator")
+        ExcitGenTemp(1)=0
+        CALL GenSymExcitIt2(HFDet,NEl,G1,nBasis,nBasisMax,.TRUE.,ExcitGenTemp,nJ,iMaxExcit,0,nStore,2)
+
+        i=0
+        do while(.true.)
+!Generate double excitations
+            CALL GenSymExcitIt2(HFDet,NEl,G1,nBasis,nBasisMax,.false.,ExcitGenTemp,nJ,iExcit,0,nStore,2)
+            IF(nJ(1).eq.0) EXIT
+            i=i+1
+            Hij=GetHElement2(HFDet,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,iExcit,ECore)
+            CALL GetH0Element(nJ,NEl,Arr,nBasis,ECore,Fjj)
+            Compt=real(Hij%v,r2)/(Fii-(REAL(Fjj%v,r2)))
+            MP1Energy=MP1Energy+((real(Hij%v,r2)**2)/(Fii-(REAL(Fjj%v,r2))))
+!Find position of minimum MP1 component stored
+            MinCompt=abs(TempMax(1))
+            MinIndex=1
+            do j=2,NoMagDets-1
+                IF(MinCompt.gt.abs(TempMax(j))) THEN
+                    MinIndex=j
+                    MinCompt=abs(TempMax(j))
+                ENDIF
+            enddo
+
+!Compare the minimum index MP1 component to the one found from this excitation generated.
+            IF(abs(Compt).gt.MinCompt) THEN
+                TempMax(MinIndex)=Compt
+                MagDets(:,MinIndex)=nJ(:)
+                IF(Compt.lt.0) THEN
+                    MagDetsSign(MinIndex)=-1
+                ELSE
+                    MagDetsSign(MinIndex)=1
+                ENDIF
+            ENDIF
+            
+        enddo
+        WRITE(6,*) i," double excitations found from HF"
+        IF(i.lt.NoMagDets-1) THEN
+            CALL Stop_All(this_routine,"Not enough double excitations to satisfy number of magnetic determinants requested.")
+        ENDIF
+        DEALLOCATE(ExcitGenTemp)
+
+        WRITE(6,*) "Determinants picked for magnetisation are (Det   MP1Comp   OrigKii   Kij) :"
+        CALL WRITEDET(6,HFDet,NEl,.false.)
+        WRITE(6,"(2F14.6)") 1.D0,0.D0
+        do j=1,NoMagDets-1
+            CALL WRITEDET(6,MagDets(:,j),NEl,.false.)
+            Kiitemp=GetHElement2(MagDets(:,j),MagDets(:,j),NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,0,ECore)
+            Kii=REAL(Kiitemp%v,r2)-Hii
+            Hij=GetHElement2(MagDets(:,j),HFDet,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,2,ECore)
+            WRITE(6,"(3F14.6)") TempMax(j),Kii,REAL(Hij%v,r2)
+        enddo
+
+        WRITE(6,*) "MP1 ENERGY is: ", MP1Energy
+
+        DEALLOCATE(TempMax)
+        
+        IF(TurnBackAssumeExGen) THEN
+!We turned off assumed sized excitation generators for this routine - turn it back on.
+            tAssumeSizeExcitgen=.true.
+        ENDIF
+
+        RETURN
+
+    END SUBROUTINE FindMagneticDets
+!This will store all the double excitations.
+    SUBROUTINE StoreDoubs()
+        use SystemData , only : tAssumeSizeExcitgen,tUseBrillouin
+        INTEGER :: iMaxExcit,nStore(6),ExcitLength,nJ(NEl),ierr,iExcit,VecSlot
+        INTEGER , ALLOCATABLE :: ExcitGenTemp(:)
+
+        IF(tAssumeSizeExcitgen) THEN
+            CALL Stop_All("StoreDoubs","Cannot have assumed sized excitation generators for full enumeration of determinants")
+        ENDIF
+        IF(tUseBrillouin) THEN
+            CALL Stop_All("StoreDoubs","Cannot have Brillouin theorem as now storing singles too...")
+        ENDIF
+
+        
+!NoDoubs here is actually the singles + doubles of HF
+        CALL GetSymExcitCount(HFExcit%ExcitData,NoDoubs)
+
+        ALLOCATE(DoublesDets(NEl,NoDoubs),stat=ierr)
+        CALL LogMemAlloc('DoublesDets',NoDoubs*NEl,4,"StoreDoubs",DoublesDetsTag,ierr)
+        DoublesDets(1:NEl,1:NoDoubs)=0
+        
+        VecSlot=1           !This is the next free slot in the DoublesDets array
+
+!Setup excit generators for HF Determinant
+        iMaxExcit=0
+        nStore(1:6)=0
+        CALL GenSymExcitIt2(HFDet,NEl,G1,nBasis,nBasisMax,.TRUE.,ExcitLength,nJ,iMaxExcit,0,nStore,3)
+        ALLOCATE(ExcitGenTemp(ExcitLength),stat=ierr)
+        IF(ierr.ne.0) CALL Stop_All("InitWalkersMP1","Problem allocating excitation generator")
+        ExcitGenTemp(1)=0
+        CALL GenSymExcitIt2(HFDet,NEl,G1,nBasis,nBasisMax,.TRUE.,ExcitGenTemp,nJ,iMaxExcit,0,nStore,3)
+
+        do while(.true.)
+!Generate double excitations
+            CALL GenSymExcitIt2(HFDet,NEl,G1,nBasis,nBasisMax,.false.,ExcitGenTemp,nJ,iExcit,0,nStore,3)
+            IF(nJ(1).eq.0) EXIT
+!            IF(iExcit.ne.2) THEN
+!                CALL Stop_All("StoreDoubles","Error - excitations other than doubles being generated in DoublesDets wavevector code")
+!            ENDIF
+
+            DoublesDets(1:NEl,VecSlot)=nJ(:)
+            VecSlot=VecSlot+1
+
+        enddo
+
+!This means that now NoDoubs is double excitations AND singles
+!        NoDoubs=VecSlot-1
+
+        IF(VecSlot.ne.(NoDoubs+1)) THEN
+            WRITE(6,*) VecSlot,NoDoubs
+            CALL Stop_All("StoreDoubs","Problem enumerating all double excitations")
+        ENDIF
+
+        DEALLOCATE(ExcitGenTemp)
+
+    END SUBROUTINE StoreDoubs
 
 END MODULE FciMCParMod
-
-#else
-
-MODULE FciMCParMod
-!Dummy module so we can use it in serial - contains all global variables
-    use SystemData , only : NEl,Alat,Brr,ECore,G1,nBasis,nBasisMax,Arr,nMsh
-    use CalcData , only : InitWalkers,NMCyc,G_VMC_Seed,DiagSft,Tau,SftDamp,StepsSft
-    use CalcData , only : TStartMP1
-    use CalcData , only : GrowMaxFactor,CullFactor
-    use CalcData , only : RhoApp,TResumFCIMC
-    USE Determinants , only : FDet,GetHElement2
-!    USE DetCalc , only : NMRKS
-    use IntegralsData , only : fck,NMax,UMat
-    USE global_utilities
-    USE HElem
-    USE Parallel
-    IMPLICIT NONE
-    SAVE
-
-    INTEGER , PARAMETER :: Root=0   !This is the rank of the root processor
-    INTEGER, PARAMETER :: r2=kind(0.d0)
     
-    TYPE ExcitGenerator
-        INTEGER , ALLOCATABLE :: ExcitData(:)      !This stores the excitation generator
-        INTEGER :: nExcitMemLen                    !This is the length of the excitation generator
-        LOGICAL :: ExitGenForDet=.false.           !This is true when the excitation generator stored corresponds to the determinant
-    END TYPE
-    
-    TYPE(ExcitGenerator) , ALLOCATABLE , TARGET :: WalkVecExcits(:),WalkVec2Excits(:)   !This will store the excitation generators for the particles on each node
-    INTEGER , ALLOCATABLE , TARGET :: WalkVecDets(:,:),WalkVec2Dets(:,:)    !Contains determinant list
-    LOGICAL , ALLOCATABLE , TARGET :: WalkVecSign(:),WalkVec2Sign(:)        !Contains sign list
-    INTEGER , ALLOCATABLE , TARGET :: WalkVecIC(:),WalkVec2IC(:)            !Contains excit level list
-    REAL*8 , ALLOCATABLE , TARGET :: WalkVecH(:),WalkVec2H(:)       !First element is diagonal hamiltonian element - second is the connection to HF determinant
-    INTEGER :: WalkVecDetsTag=0,WalkVec2DetsTag=0,WalkVecSignTag=0,WalkVec2SignTag=0
-    INTEGER :: WalkVecICTag=0,WalkVec2ICTag=0,WalkVecHTag=0,WalkVec2HTag=0
-
-!Pointers to point at the correct arrays for use
-    INTEGER , POINTER :: CurrentDets(:,:), NewDets(:,:)
-    INTEGER , POINTER :: CurrentSign(:), NewSign(:)
-    INTEGER , POINTER :: CurrentIC(:), NewIC(:)
-    REAL*8 , POINTER :: CurrentH(:), NewH(:)
-    TYPE(ExcitGenerator) , POINTER :: CurrentExcits(:), NewExcits(:)
-    
-    INTEGER , ALLOCATABLE :: HFDet(:)       !This will store the HF determinant
-    INTEGER :: HFDetTag=0
-    TYPE(ExcitGenerator) :: HFExcit         !This is the excitation generator for the HF determinant
-
-!MemoryFac is the factor by which space will be made available for extra walkers compared to InitWalkers
-    INTEGER :: MemoryFac=3000
-
-    INTEGER :: Seed,MaxWalkers,TotWalkers,TotWalkersOld,PreviousNMCyc,Iter,NoComps
-    INTEGER :: exFlag=3
-
-!This is information needed by the thermostating, so that the correct change in walker number can be calculated, and hence the correct shift change.
-!NoCulls is the number of culls in a given shift update cycle for each variable
-    INTEGER :: NoCulls=0
-!CullInfo is the number of walkers before and after the cull (elements 1&2), and the third element is the previous number of steps before this cull...
-!Only 10 culls/growth increases are allowed in a given shift cycle
-    INTEGER :: CullInfo(10,3)
-
-!The following variables are calculated as per processor, but at the end of each update cycle, are combined to the root processor
-    REAL*8 :: GrowRate,DieRat,ProjectionE,SumENum
-    INTEGER*8 :: SumNoatHF      !This is the sum over all previous cycles of the number of particles at the HF determinant
-    REAL*8 :: AvSign           !This is the fraction of positive particles on each node
-    REAL*8 :: AvSignHFD
-    INTEGER :: SumWalkersCyc    !This is the sum of all walkers over an update cycle on each processor
-!    REAL*8 :: MeanExcitLevel    
-!    INTEGER :: MinExcitLevel
-!    INTEGER :: MaxExcitLevel
-
-!These are the global variables, calculated on the root processor, from the values above
-    REAL*8 :: AllGrowRate,AllMeanExcitLevel
-    INTEGER :: AllMinExcitLevel,AllMaxExcitLevel,AllTotWalkers,AllTotWalkersOld,AllSumWalkersCyc
-    REAL*8 :: AllSumNoatHF,AllSumENum,AllAvSign,AllAvSignHFD
-
-    REAL*8 :: MPNorm        !MPNorm is used if TNodalCutoff is set, to indicate the normalisation of the MP Wavevector
-
-    TYPE(HElement) :: rhii
-    REAL*8 :: Hii
-
-    REAL*8 , ALLOCATABLE :: GraphRhoMat(:,:)    !This stores the rho matrix for the graphs in resumFCIMC
-    INTEGER :: GraphRhoMatTag=0
-
-    REAL*8 , ALLOCATABLE :: GraphVec(:)         !This stores the final components for the propagated graph in ResumFCIMC
-    INTEGER :: GraphVecTag=0
-
-    INTEGER , ALLOCATABLE :: DetsinGraph(:,:)   !This stores the determinants in the graph created for ResumFCIMC
-    INTEGER :: DetsinGraphTag=0
-    INTEGER , ALLOCATABLE :: iLutHF(:)          !This is the bit representation of the HF determinant.
-
-    INTEGER :: GuideFuncDetsTag,GuideFuncSignTag,DetstoRotateTag,SigntoRotateTag,DetstoRotate2Tag,SigntoRotate2Tag,AlliInitGuideParts,InitGuideFuncSignTag
-    INTEGER :: GuideFuncHFIndex,GuideFuncHF
-    REAL*8 :: GuideFuncDoub
-    INTEGER , ALLOCATABLE :: GuideFuncDets(:,:),GuideFuncSign(:),DetstoRotate(:,:),SigntoRotate(:),DetstoRotate2(:,:),SigntoRotate2(:),InitGuideFuncSign(:)
-
-    INTEGER , ALLOCATABLE :: DomExcIndex(:),DomDets(:,:)
-    INTEGER :: DomExcIndexTag,DomDetsTag,iMinDomLev,iMaxDomLev,iNoDomDets
-    INTEGER , ALLOCATABLE :: MinorStarDets(:,:),MinorSpawnDets(:,:),MinorStarParent(:,:),MinorSpawnParent(:,:),MinorStarSign(:),MinorSpawnSign(:)
-    INTEGER , ALLOCATABLE :: MinorSpawnDets2(:,:),MinorSpawnSign2(:),MinorSpawnParent2(:,:)
-    INTEGER :: MinorStarDetsTag,MinorSpawnDetsTag,MinorStarParentTag,MinorSpawnParentTag,MinorStarSignTag,MinorSpawnSignTag,MinorStarHiiTag,MinorStarHijTag,NoMinorWalkers
-    INTEGER :: MinorSpawnDets2Tag,MinorSpawnSign2Tag,MinorSpawnParent2Tag,MinorAnnihilated,AllMinorAnnihilated
-    TYPE(HElement), ALLOCATABLE :: MinorStarHii(:),MinorStarHij(:)
-    REAL*8 :: AllNoMinorWalkers
-
-    contains
-
-    SUBROUTINE FciMCPar(Weight,Energyxw)
-    TYPE(HDElement) :: Weight,Energyxw
-
-        CALL Stop_All("FciMCPar","Entering the wrong FCIMCPar parallel routine")
-
-    END SUBROUTINE FciMCPar
-
-END MODULE FciMCParMod
-    
-#endif
