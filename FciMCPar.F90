@@ -5534,7 +5534,7 @@ MODULE FciMCParMod
         IF(iProcIndex.eq.Root) THEN
             IF(.not.TSinglePartPhase) THEN
                 DiagSft=DiagSft-(log(AllGrowRate)*SftDamp)/(Tau*(StepsSft+0.D0))
-                IF((Iter-VaryShiftIter).gt.(NEquilSteps*StepsSft)) THEN
+                IF((Iter-VaryShiftIter).gt.NEquilSteps) THEN
 !                    WRITE(6,*) Iter-VaryShiftIter, NEquilSteps*StepsSft
                     VaryShiftCycles=VaryShiftCycles+1
                     SumDiagSft=SumDiagSft+DiagSft
