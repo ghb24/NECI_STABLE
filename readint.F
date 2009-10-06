@@ -318,10 +318,20 @@ C.. Each orbital in the file corresponds to alpha and beta spinorbitals
                     ENDIF
                     ISYMNUM=ISYMNUM+1
 
-!                    WRITE(6,*) I,J,K,L,Z
-                    DO ISPN=1,ISPINS
-                        ARR(ISPINS*I-ISPN+1,1)=Z
-                    ENDDO
+!This fills the single particle energy array (ARR) with the diagonal one-electron integrals, so that if
+!there are no fock energies printed out in the FCIDUMP, then we can still order the orbitals in some way.
+!If the fock energies are printed out before the one-electron integrals, this will cause problems.
+                    IF(ISPINS.eq.1) THEN
+                        ARR(I1,1)=Z
+                    ELSEIF(tROHF) THEN
+                        ARR(I,1)=Z
+                    ELSE
+                        ARR(2*I1,1)=Z
+                        ARR(2*I1-1,1)=Z
+                    ENDIF
+!                    DO ISPN=1,ISPINS
+!                        ARR(ISPINS*I1-ISPN+1,1)=Z
+!                    ENDDO
 
                 ELSEIF(I1.NE.0.AND.K.EQ.0.AND.J.EQ.0) THEN
 !                    WRITE(6,*) I
