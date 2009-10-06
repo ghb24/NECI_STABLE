@@ -1,4 +1,3 @@
-#ifdef PARALLEL
 !This is a parallel MPI version of the FciMC code.
 !All variables refer to values per processor
 
@@ -39,6 +38,7 @@ MODULE FciMCLoggingMod
 
     contains
 
+#ifdef PARALLEL
 
     SUBROUTINE InitErrorBlocking(Iter)
         CHARACTER(len=*), PARAMETER :: this_routine='InitErrorBlocking'
@@ -495,23 +495,6 @@ MODULE FciMCLoggingMod
     ENDSUBROUTINE InitTriHElStats
 
 
-    SUBROUTINE InitSpinCoupHEl()
-
-        NoNegSpinCoup=0.D0
-        NoPosSpinCoup=0.D0
-        SumNegSpinCoup=0.D0
-        SumPosSpinCoup=0.D0
-        SumHFCon=0.D0
-        SumSpinCon=0.D0
-        
-        IF(iProcIndex.eq.root) THEN
-            OPEN(87,file='SpinCoupHEl',status='unknown')
-!            WRITE(87,'(A8,10A19)') "1.Iter","2.No.Pos HEls","3.No.Neg HEls","4.Sum Pos HEl","5.Sum Neg HEl","6.Net Sum HEl","7.No.Pos/Iter","8.No.Neg/Iter","9.Sum Pos/Iter","10.Sum Neg/Iter","11.Net Sum/Iter"
-            WRITE(87,'(A8,11A18)') "1.Iter","2.No.Pos HEls","3.No.Neg HEls","4.Sum Pos HEl","5.Sum Neg HEl","6.No.Pos/Iter","7.No.Neg/Iter","8.Sum Pos/Iter","9.Sum Neg/Iter",&
-            &"10.Sum HF HEls","11.Sum SpinCoup","12.HF HEl/SpinHEl"
-        ENDIF
-
-    ENDSUBROUTINE InitSpinCoupHEl
 
 
     SUBROUTINE FindSpinCoupHEl(iLutHF,iLutCurr,NIfD,NEl)
@@ -1058,46 +1041,31 @@ MODULE FciMCLoggingMod
     ENDSUBROUTINE PrintTriConnHElHist
 
 
-END MODULE FciMCLoggingMod
-
 #else
-
-MODULE FciMCLoggingMod
-!Dummy module so we can use it in serial - contains all global variables
-
-    USE Global_utilities
-    USE Parallel
-    USE HElem , only : HElement
-    USE Logging , only : tPrintTriConnections,TriConMax,NoTriConBins,tHistTriConHEls,NoTriConHElBins,TriConHElSingMax,TriConHElDoubMax
-    USE Logging , only : tPrintHElAccept
-    USE SystemData , only : NEl,NIfD
-    USE SymData , only : nSymLabels
-    USE Determinants , only : GetHElement3,GetHElement4
-    use GenRandSymExcitNUMod , only : GenRandSymExcitScratchNU
-
-    IMPLICIT NONE
-    save
-
-    INTEGER , PARAMETER :: Root=0   !This is the rank of the root processor
-    INTEGER , PARAMETER :: r2=kind(0.d0)
-    REAL*8 , ALLOCATABLE :: SignCohTriHist(:,:),SignIncohTriHist(:,:),SignCohHFTriHist(:,:),SignIncohHFTriHist(:,:),TriConnHElHistSing(:,:),TriConnHElHistDoub(:,:)
-    REAL*8 , ALLOCATABLE :: AllSignCohTriHist(:,:),AllSignIncohTriHist(:,:),AllSignCohHFTriHist(:,:),AllSignIncohHFTriHist(:,:)
-    REAL*8 , ALLOCATABLE :: AllTriConnHElHistSing(:,:),AllTriConnHElHistDoub(:,:),TriHjkHistSing(:,:),TriHjkHistDoub(:,:),AllTriHjkHistSing(:,:),AllTriHjkHistDoub(:,:)
-    REAL*8 :: NoSignCohTri,NoSignInCohTri,SignCohTri,SignInCohTri,TriConHEls(3,2) 
-    INTEGER :: SignCohTriHistTag,SignIncohTriHistTag,SignCohHFTriHistTag,SignIncohHFTriHistTag,TriConnHElHistSingTag,TriConnHElHistDoubTag
-    INTEGER :: AllSignCohTriHistTag,AllSignIncohTriHistTag,AllSignCohHFTriHistTag,AllSignIncohHFTriHistTag
-    INTEGER :: AllTriConnHElHistSingTag,AllTriConnHElHistDoubTag,TriHjkHistSingTag,TriHjkHistDoubTag,AllTriHjkHistSingTag,AllTriHjkHistDoubTag
-    REAL*8 :: NoNotAccept,NoAccept,TotHElNotAccept,TotHElAccept,MaxHElNotAccept,MinHElAccept
-
-
-    contains
 
     SUBROUTINE InitTriHElStats()
 
         CALL Stop_All("InitTriHElStats","Entering the wrong FCIMCPar parallel routine")
 
     ENDSUBROUTINE
+    SUBROUTINE InitSpinCoupHEl()
+
+        NoNegSpinCoup=0.D0
+        NoPosSpinCoup=0.D0
+        SumNegSpinCoup=0.D0
+        SumPosSpinCoup=0.D0
+        SumHFCon=0.D0
+        SumSpinCon=0.D0
+        
+        IF(iProcIndex.eq.root) THEN
+            OPEN(87,file='SpinCoupHEl',status='unknown')
+!            WRITE(87,'(A8,10A19)') "1.Iter","2.No.Pos HEls","3.No.Neg HEls","4.Sum Pos HEl","5.Sum Neg HEl","6.Net Sum HEl","7.No.Pos/Iter","8.No.Neg/Iter","9.Sum Pos/Iter","10.Sum Neg/Iter","11.Net Sum/Iter"
+            WRITE(87,'(A8,11A18)') "1.Iter","2.No.Pos HEls","3.No.Neg HEls","4.Sum Pos HEl","5.Sum Neg HEl","6.No.Pos/Iter","7.No.Neg/Iter","8.Sum Pos/Iter","9.Sum Neg/Iter",&
+            &"10.Sum HF HEls","11.Sum SpinCoup","12.HF HEl/SpinHEl"
+        ENDIF
+
+    ENDSUBROUTINE InitSpinCoupHEl
+#endif
 
 ENDMODULE FciMCLoggingMod
 
-#endif
