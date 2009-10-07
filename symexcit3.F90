@@ -153,7 +153,7 @@ MODULE SymExcit3
         USE SymData, only: nSymLabels
         INTEGER :: i,a,nI(NEl),Orbi,Orba,Symi,Finala,iLut(0:NIfD),nJ(NEl)
         INTEGER :: Orbj,Orbb,NoOcc,k,ExcitMat3(2,2),exflag
-        LOGICAL :: tInitOrbsFound,tAllExcitFound,tParity,tAllExcitFound
+        LOGICAL :: tInitOrbsFound,tParity,tAllExcitFound
         INTEGER , SAVE :: OrbiIndex,OrbaIndex,Spini
 
 !        WRITE(6,*) 'Original Determinant',nI
