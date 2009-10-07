@@ -1,7 +1,7 @@
 ! To allow linking of code with the old GetHElement2, but which will give an error when run.
       REAL*8 FUNCTION GETHELEMENT2()
          STOP 'Wrong GETHELEMENT2'
-         GETHELEMENT2=1/0.0
+         GETHELEMENT2=huge(0.0d0)
          RETURN
       END
 
