@@ -1,9 +1,8 @@
 MODULE SymExcit3
 ! This module contains excitation generators able to enumerate all possible excitations given a starting determinant.
-! Unlike symexcit.F90, these excitation generators are able to deal with cases where the alpha and beta orbitals 
+! Unlike symexcit.F90 however, these excitation generators are able to deal with cases where the alpha and beta orbitals 
 ! have different symmetries.  This is particularly relevant when dealing with certain unrestricted cases, or when we
 ! are truncating (or freezing) orbitals in such a way as to remove different alpha symm irreps from the beta.
-
 
     USE SystemData, only: NEl,G1,NIfD,nBasis 
     USE GenRandSymExcitNUMod, only: SymLabelList2,SymLabelCounts2
@@ -13,49 +12,15 @@ MODULE SymExcit3
     CONTAINS
 
 
-    SUBROUTINE GenExcitations3(nI,iLut,tCountOnly,nSingles,nDoubles,Orbi,Orbj,Orba,Orbb,tAllExcitFound)
-! This is the main routine called.  
-! If tCountOnly is passed through as true, the single and double excitations are simply counted and passed back.
-! If tCountOnly is false, the single and then double excitations in the form of Orbi,Orbj -> Orba,Orbb are
-! found one by one.  
-! The first single is found by passing in 0,0,0,0, and from then on, depending on the Orbi,Orbj,Orba and Orbb passed
-! through, the next excitation in line will be found.
-! When there are no more symmetry allowed excitations, tAllExcitFound becomes true.
-        INTEGER :: nI(NEl),iLut(0:NIfD),Orbi,Orbj,Orba,Orbb,nSingles,nDoubles
-        LOGICAL :: tCountOnly,tAllExcitFound
-        
-        IF(tCountOnly) THEN
-
-            CALL CountExcitations(iLut,nI,nSingles,nDoubles)
-
-        ELSEIF((Orbj.eq.0).and.(Orbb.eq.0)) THEN
-! Generate singles, returning Orbi and Orba as non-zero, but keeping the others 0.        
-
-            CALL GenSingleExcit(nI,iLut,Orbi,Orbj,Orba,Orbb)
-            
-            ! When the last single is input, generate the first double.
-
-        ELSE
-! This double is then passed in and the subsequent doubles found here.            
-
-            CALL GenDoubleExcit(nI,iLut,Orbi,Orbj,Orba,Orbb,tAllExcitFound)
-
-        ENDIF
-
-
-    ENDSUBROUTINE GenExcitations3
-
-    
-
-
-
-    SUBROUTINE CountExcitations(iLut,nI,nSingleExcits,nDoubleExcits)
+    SUBROUTINE CountExcitations3(nI,exflag,nSingleExcits,nDoubleExcits)
 ! This routine simply counts the excitations in terms of single and doubles from the nI determinant.    
+! The exflag sent through indicates which should be counted - exflag=1 means only singles, exflag=2 means
+! only doubles, and anything else both are counted.
         USE SymData, only: nSymLabels
         USE SystemData , only: ElecPairs
         USE GenRandSymExcitNUMod , only: PickElecPair,ConstructClassCounts 
-        INTEGER :: nSingleExcits,nDoubleExcits,Symi,i,j,Spini,iLut(0:NIfD),nI(NEl)
-        INTEGER :: iSpn,Elec1Ind,Elec2Ind,SymProduct
+        INTEGER :: nSingleExcits,nDoubleExcits,Symi,i,j,Spini,nI(NEl)
+        INTEGER :: iSpn,Elec1Ind,Elec2Ind,SymProduct,exflag
         INTEGER :: Syma,Symb,Spina,Spinb,StartSpin,EndSpin
         INTEGER :: ClassCount2(2,0:nSymLabels-1)
         INTEGER :: ClassCountUnocc2(2,0:nSymLabels-1)
@@ -71,80 +36,131 @@ MODULE SymExcit3
 ! may be excited to.
         nSingleExcits=0
         nDoubleExcits=0
-        do i=1,NEl
-            Symi=INT(G1(nI(i))%Sym%S,4)
-            IF((G1(nI(i))%Ms).eq.-1) Spini=2        ! G1(i)%Ms is -1 for beta, and 1 for alpha.
-            IF((G1(nI(i))%Ms).eq.1) Spini=1         ! Translate this into 1 for alpha and 2 for beta.
+
+        IF(exflag.ne.2) THEN
+! Count the singles.            
+! Take each electron and find out the number of symmetry allowed orbitals it may be excited to.
+            do i=1,NEl
+                Symi=INT(G1(nI(i))%Sym%S,4)
+                IF((G1(nI(i))%Ms).eq.-1) Spini=2        ! G1(i)%Ms is -1 for beta, and 1 for alpha.
+                IF((G1(nI(i))%Ms).eq.1) Spini=1         ! Translate this into 1 for alpha and 2 for beta
+                                                        ! for the ClassCount arrays.
 
 ! This electron in orbital of SymI and SpinI can only be excited to orbitals with the same spin and symmetry.                
 ! Then add in the number of unoccupied orbitals with the same spin and symmetry to which each electron may be excited.
             
-            nSingleExcits=nSingleExcits+ClassCountUnocc2(Spini,Symi)
+                nSingleExcits=nSingleExcits+ClassCountUnocc2(Spini,Symi)
 
-        enddo
+            enddo
+        ENDIF
+
 ! This is the end of the singles.        
-        WRITE(6,*) 'Number of singles',nSingleExcits
+!            WRITE(6,*) 'Number of singles',nSingleExcits
 
 ! For the doubles, first pick an electron pair i,j.
 ! Based on these orbitals, run through each spin and each symmetry - take this to be orbital a.
 ! Multiply the number with these symmetries by the number of possible b orbitals which correspond.
 ! Do this for all a and then all i,j pairs.
-        do i=1,ElecPairs
-            CALL PickElecPair(nI,Elec1Ind,Elec2Ind,SymProduct,iSpn,i)
+        IF(exflag.ne.1) THEN
+            do i=1,ElecPairs
+                CALL PickElecPair(nI,Elec1Ind,Elec2Ind,SymProduct,iSpn,i)
 ! iSpn=2 for alpha beta pair, ispn=3 for alpha alpha pair and ispn=1 for beta beta pair.
 
-            StartSpin=1
-            EndSpin=2
-            IF(iSpn.eq.3) EndSpin=1
-            IF(iSpn.eq.1) StartSpin=2
-            do Spina=StartSpin,EndSpin            ! Run through both spins, orbital a may be alpha or beta.
-                IF(iSpn.eq.2) THEN
+                StartSpin=1
+                EndSpin=2
+                IF(iSpn.eq.3) EndSpin=1
+                IF(iSpn.eq.1) StartSpin=2
+                do Spina=StartSpin,EndSpin            ! Run through both spins, orbital a may be alpha or beta.
+                    IF(iSpn.eq.2) THEN
 ! Spin of orbital b should be opposite to orbital a.                    
-                    IF(Spina.eq.1) Spinb=2
-                    IF(Spina.eq.2) Spinb=1
-                ELSE
+                        IF(Spina.eq.1) Spinb=2
+                        IF(Spina.eq.2) Spinb=1
+                    ELSE
 ! Spin of orbital b should be opposite to orbital a.                    
-                    IF(Spina.eq.1) Spinb=1
-                    IF(Spina.eq.2) Spinb=2
-                ENDIF
+                        IF(Spina.eq.1) Spinb=1
+                        IF(Spina.eq.2) Spinb=2
+                    ENDIF
 
-                do Syma=0,nSymLabels-1
+                    do Syma=0,nSymLabels-1
 
 ! Need to work out the symmetry of b, given the symmetry of a (Sym).                    
-                    Symb=IEOR(Syma,SymProduct)
+                        Symb=IEOR(Syma,SymProduct)
 
-                    IF((Spina.eq.Spinb).and.(Syma.eq.Symb)) THEN
-                        ! There will exist a case where Orba = Orbb, want to remove this.
-                        nDoubleExcits=nDoubleExcits+(ClassCountUnocc2(Spina,Syma)*(ClassCountUnocc2(Spinb,Symb)-1))
-                    ELSE
-                        nDoubleExcits=nDoubleExcits+(ClassCountUnocc2(Spina,Syma)*ClassCountUnocc2(Spinb,Symb))
-                    ENDIF
+                        IF((Spina.eq.Spinb).and.(Syma.eq.Symb)) THEN
+                            ! If the spin and spatial symmetries of a and b are the same
+                            ! there will exist a case where Orba = Orbb, want to remove this.
+                            nDoubleExcits=nDoubleExcits+(ClassCountUnocc2(Spina,Syma)*(ClassCountUnocc2(Spinb,Symb)-1))
+                        ELSE
+                            nDoubleExcits=nDoubleExcits+(ClassCountUnocc2(Spina,Syma)*ClassCountUnocc2(Spinb,Symb))
+                        ENDIF
+                    enddo
+
                 enddo
-
             enddo
-        enddo
+            nDoubleExcits=nDoubleExcits/2
 
-        WRITE(6,*) 'Number of doubles',nDoubleExcits
+        ENDIF
 
-    ENDSUBROUTINE CountExcitations
+!        WRITE(6,*) 'Number of doubles',nDoubleExcits
+
+    ENDSUBROUTINE CountExcitations3
 
 
 
+    SUBROUTINE GenExcitations3(nI,iLut,nJ,exflag,ExcitMat3,tParity,tAllExcitFound)
+! This routine finds in turn, every possible excitation from determinant nI.
+! The excited determinant is then returned as nJ.
+! exflag indicates which excitations we want to find.  exflag=1 - only singles are returned, exflag=2 - only
+! doubles are returned and anything else returns the singles followed by the doubles.
+! ExcitMat3 holds the orbitals involved in the excitation.
+! If an excitation matrix of 0's is passed through, the first single or double is found.
+! After this, the routine reads in the ExcitMat and finds the next excitation after this.
+! ExcitMat(1,*) are the **indices** in the determinant to vacate from nI (the i,j pair)
+! ExcitMat(2,*) are the orbitals to occupy in nJ (the a,b pair) (not the index, but the actual orbital)
+! If tParity is true, two orbitals need to be switched in order to better represent the excitation, therefore a 
+! negative sign must be included when finding the H element.
+! When there are no more symmetry allowed excitations, tAllExcitFound becomes true.
+        INTEGER :: nI(NEl),iLut(0:NIfD),nJ(NEl),nSingles,nDoubles,ExcitMat3(2,2),exflag
+        LOGICAL :: tCountOnly,tAllExcitFound,tParity
 
-    SUBROUTINE GenSingleExcit(nI,iLut,Orbi,Orbj,Orba,Orbb)
+        IF(exflag.eq.2) THEN
+! Just generate doubles            
+
+            CALL GenDoubleExcit(nI,iLut,nJ,ExcitMat3,tParity,tAllExcitFound)
+
+        
+        ELSE 
+! Generate singles, returning Orbi and Orba as non-zero, but keeping the others 0.        
+
+            CALL GenSingleExcit(nI,iLut,nJ,exflag,ExcitMat3,tParity,tAllExcitFound)
+            
+            ! When the last single is input, providing exflag is not 1, the first double is then found
+            ! and from then on GenDoubleExcit is called.
+
+        ENDIF
+
+
+    ENDSUBROUTINE GenExcitations3
+
+
+
+    SUBROUTINE GenSingleExcit(nI,iLut,nJ,exflag,ExcitMat3,tParity,tAllExcitFound)
 ! Despite being fed four indices, this routine finds single excitations.  Orbi -> Orba. (Orbj and Orbb remain 0).
 ! Feeding in 0 indices indicates it is the first excitation that needs to be found.
 ! The single excitation goes from orbital i to a, from determinant nI to nJ.
-! When the last single is found it then finds the first double excitation.
+! When the last single is found it then finds the first double excitation, unless exflag=1 in which tAllExcitFound 
+! becomes true and no more excitations are generated.
         USE SymData, only: nSymLabels
-        INTEGER :: i,a,nI(NEl),Orbi,Orba,Symi,Finala,iLut(0:NIfD)
-        INTEGER :: Orbj,Orbb,NoOcc
-        LOGICAL :: tInitOrbsFound,tAllExcitFound
+        INTEGER :: i,a,nI(NEl),Orbi,Orba,Symi,Finala,iLut(0:NIfD),nJ(NEl)
+        INTEGER :: Orbj,Orbb,NoOcc,k,ExcitMat3(2,2),exflag
+        LOGICAL :: tInitOrbsFound,tAllExcitFound,tParity,tAllExcitFound
         INTEGER , SAVE :: OrbiIndex,OrbaIndex,Spini
 
-        WRITE(6,*) 'Original Determinant',nI
+!        WRITE(6,*) 'Original Determinant',nI
 
         tInitOrbsFound=.false.
+        Orbi=ExcitMat3(1,1)
+        Orba=ExcitMat3(2,1)
 
         IF((Orbi.eq.0).or.(Orba.eq.0)) THEN           ! Want to find the first excitation.
 
@@ -183,11 +199,13 @@ MODULE SymExcit3
 
             IF(OrbiIndex.gt.NEl) THEN
 ! If we've read in the last single, set orbi, orbj, orba, and orbb to 0 and call gendoubleexcit.        
-                Orbi=0
-                Orbj=0
-                Orba=0
-                Orbb=0
-                CALL GenDoubleExcit(nI,iLut,Orbi,Orbj,Orba,Orbb,tAllExcitFound)
+                IF(exflag.ne.1) THEN
+                    ExcitMat3(:,:)=0
+                    CALL GenDoubleExcit(nI,iLut,nJ,ExcitMat3,tParity,tAllExcitFound)
+                    exflag=2
+                ELSE
+                    tAllExcitFound=.true.
+                ENDIF
                 EXIT
             ENDIF
 
@@ -223,31 +241,40 @@ MODULE SymExcit3
             ENDIF
 
         enddo
-        WRITE(6,*) 'Excitation is from :',Orbi,' to ',Orba
-        CALL FLUSH(6)
+
+        IF(ExcitMat3(1,2).eq.0) CALL FindNewSingDet(nI,nJ,OrbiIndex,OrbA,ExcitMat3,tParity)
+            
+!        WRITE(6,*) 'Excitation is from :',ExcitMat3(1,1),' to ',ExcitMat3(2,1)
+!        CALL FLUSH(6)
+!        WRITE(6,*) 'The new determinant is :',nJ(:)
 
 
     ENDSUBROUTINE GenSingleExcit
 
 
 
-
-
-    SUBROUTINE GenDoubleExcit(nI,iLut,Orbi,Orbj,Orba,Orbb,tAllExcitFound)
+    SUBROUTINE GenDoubleExcit(nI,iLut,nJ,ExcitMat3,tParity,tAllExcitFound)
 ! This generates one by one, all possible double excitations.
 ! This involves a way of ordering the electron pairs i,j and a,b so that given an i,j and a,b we can find the next.
 ! The overall symmetry must also be maintained - i.e. if i and j are alpha and beta, a and b must be alpha and beta
 ! or vice versa.
         USE SystemData , only: ElecPairs
-        USE GenRandSymExcitNUMod , only: PickElecPair 
+        USE GenRandSymExcitNUMod , only: PickElecPair,FindNewDet 
         INTEGER :: nI(NEl),iLut(0:NIfD),Orbj,Orbi,Orba,Orbb,OrbbSpin,Syma,Symb
-        INTEGER :: Elec1Ind,Elec2Ind,SymProduct,iSpn,Spinb
+        INTEGER :: Elec1Ind,Elec2Ind,SymProduct,iSpn,Spinb,nJ(NEl),i,k,ExcitMat3(2,2)
         INTEGER , SAVE :: ijInd,OrbaIndex,OrbbIndex,Spina
-        LOGICAL :: tDoubleExcitFound,tFirsta,tFirstb,tNewij,tNewa,tAllExcitFound
+        LOGICAL :: tDoubleExcitFound,tFirsta,tFirstb,tNewij,tNewa,tAllExcitFound,tParity
 
         tDoubleExcitFound=.false.
         tFirsta=.false.
         tFirstb=.false.
+
+        Orbi=ExcitMat3(1,1)
+        Orbj=ExcitMat3(1,2)
+        Orba=ExcitMat3(2,1)
+        Orbb=ExcitMat3(2,2)
+!        WRITE(6,*) 'Orbi,Orbj,Orba,Orbb',Orbi,Orbj,Orba,Orbb
+!        CALL FLUSH(6)
 
         do while (.not.tDoubleExcitFound)
 
@@ -349,7 +376,9 @@ MODULE SymExcit3
 ! If the new b orbital is still within the limits, check it is unoccupied and move onto the next orbital if it is.                    
                     IF((OrbbIndex.le.(nBasis/2)).and.(INT(G1(SymLabelList2(Spinb,OrbbIndex))%Sym%S,4).eq.Symb)) THEN
                         Orbb=SymLabelList2(Spinb,OrbbIndex)
-                        do while ((BTEST(iLut((Orbb-1)/32),MOD((Orbb-1),32))).or.(Orbb.eq.Orba))
+
+! Checking the orbital b is unoccupied and > a.                        
+                        do while ((BTEST(iLut((Orbb-1)/32),MOD((Orbb-1),32))).or.(Orbb.le.Orba))
                             OrbbIndex=OrbbIndex+1
                             IF((OrbbIndex.gt.(nBasis/2)).or.(INT(G1(SymLabelList2(Spinb,OrbbIndex))%Sym%S,4).ne.Symb)) THEN
                                 tNewa=.true.
@@ -400,15 +429,34 @@ MODULE SymExcit3
 
         enddo
 
-        Orbi=nI(Elec1Ind)
-        Orbj=nI(Elec2Ind)
 
-        WRITE(6,*) 'Excitation from : ',Orbi,Orbj,' to ',Orba,Orbb
-        WRITE(6,*) 'These have symmetries : ',INT(G1(Orbi)%Sym%S,4),INT(G1(Orbj)%Sym%S,4),' to ',INT(G1(Orba)%Sym%S,4),INT(G1(Orbb)%Sym%S,4)
-        CALL FLUSH(6)
+        CALL FindNewDet(nI,nJ,Elec1Ind,Elec2Ind,Orba,Orbb,ExcitMat3,tParity)
+
+!        WRITE(6,*) 'From',ExcitMat3(1,:)
+!        WRITE(6,*) 'To',ExcitMat3(2,:)
+
+!        WRITE(6,*) 'Excitation from : ',ExcitMat3(1,1),ExcitMat3(1,2),' to ',Orba,Orbb
+!        WRITE(6,*) 'These have symmetries : ',INT(G1(ExcitMat3(1,1))%Sym%S,4),INT(G1(ExcitMat3(1,2))%Sym%S,4),' to ',INT(G1(Orba)%Sym%S,4),INT(G1(Orbb)%Sym%S,4)
+!        WRITE(6,*) 'The new determinant is : ',nJ(:)
+!        CALL FLUSH(6)
 
 
     ENDSUBROUTINE GenDoubleExcit
+
+!This routine creates the final determinant for a single excitation.
+    SUBROUTINE FindNewSingDet(nI,nJ,Elec1Ind,OrbA,ExcitMat3,tParity)
+        INTEGER :: nI(NEl),nJ(NEl),Elec1Ind,OrbA,ExcitMat3(2,2)
+        LOGICAL :: tParity
+
+!First construct ExcitMat3
+        ExcitMat3(1,1)=Elec1Ind
+        ExcitMat3(2,1)=OrbA
+        ExcitMat3(1,2)=0
+        ExcitMat3(2,2)=0
+        nJ(:)=nI(:)
+        CALL FindExcitDet(ExcitMat3,nJ,1,tParity)
+
+    END SUBROUTINE FindNewSingDet
 
 
 END MODULE SymExcit3
