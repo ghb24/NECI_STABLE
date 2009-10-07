@@ -58,7 +58,7 @@ MODULE GenRandSymExcitNUMod
         IF(tRedoSym) THEN
             AlphaCounter=1
             BetaCounter=1
-            do i=0,nSymLabels
+            do i=0,nSymLabels-1
                 tFirstSymAlpha=.true.
                 tFirstSymBeta=.true.
                 CountSymAlpha=0
@@ -106,27 +106,27 @@ MODULE GenRandSymExcitNUMod
         ENDIF
 
 
-        WRITE(6,*) 'Symmetries of orbitals 1:nBasis'
-        WRITE(6,*) G1(1:nBasis)%Sym%S
+!        WRITE(6,*) 'Symmetries of orbitals 1:nBasis'
+!        WRITE(6,*) G1(1:nBasis)%Sym%S
 
-        do x=1,2
-            IF(x.eq.1) WRITE(6,*) '******* ALPHA ********'
-            IF(x.eq.2) WRITE(6,*) '******* BETA ********'
-            WRITE(6,*) "***"
-            WRITE(6,*) 'SymLabelList2(1:nBasis) - the orbitals in the correct symmetry order, followed by their symmetry'
-            do i=1,(nBasis/2)
-                WRITE(6,*) SymLabelList2(x,i),G1(SymLabelList2(x,i))%Sym%S
-            enddo
-            WRITE(6,*) 'SymLabelCounts2(1,1,S) - the index in SymLabelList2 where symmetry S starts'
-            do i=1,nSymLabels
-                WRITE(6,*) SymLabelCounts2(x,1,i)
-            enddo
-            WRITE(6,*) "***"
-            WRITE(6,*) 'SymLabelCounts2(1,2,S) - the number of orbitals in SymLabelList2 with symmetry S'
-            do i=1,nSymLabels
-                WRITE(6,*) SymLabelCounts2(x,2,i)
-            enddo
-        enddo
+!        do x=1,2
+!            IF(x.eq.1) WRITE(6,*) '******* ALPHA ********'
+!            IF(x.eq.2) WRITE(6,*) '******* BETA ********'
+!            WRITE(6,*) "***"
+!            WRITE(6,*) 'SymLabelList2(1:nBasis) - the orbitals in the correct symmetry order, followed by their symmetry'
+!            do i=1,(nBasis/2)
+!                WRITE(6,*) SymLabelList2(x,i),G1(SymLabelList2(x,i))%Sym%S
+!            enddo
+!            WRITE(6,*) 'SymLabelCounts2(1,1,S) - the index in SymLabelList2 where symmetry S starts'
+!            do i=1,nSymLabels
+!                WRITE(6,*) SymLabelCounts2(x,1,i)
+!            enddo
+!            WRITE(6,*) "***"
+!            WRITE(6,*) 'SymLabelCounts2(1,2,S) - the number of orbitals in SymLabelList2 with symmetry S'
+!            do i=1,nSymLabels
+!                WRITE(6,*) SymLabelCounts2(x,2,i)
+!            enddo
+!        enddo
 
     END SUBROUTINE SpinOrbSymSetup
         
@@ -260,11 +260,11 @@ MODULE GenRandSymExcitNUMod
             IF(G1(nI(Eleci))%Ms.eq.1) THEN
 !Alpha orbital - see how many single excitations there are from this electron...
                 NExcit=ClassCountUnocc2(1,ElecSym)
-                ispn=1
+                ispn=1  !Alpha ispn=1, Beta ispn=2
             ELSE
 !Beta orbital
                 NExcit=ClassCountUnocc2(2,ElecSym)
-                ispn=-1
+                ispn=2
             ENDIF
 
             IF(NExcit.ne.0) EXIT    !Have found electron with allowed excitations
@@ -285,20 +285,23 @@ MODULE GenRandSymExcitNUMod
 
 !Now we want to run through all sym+spin allowed excitations of the chosen electron, and determine their matrix elements
 !To run just through the states of the required symmetry we want to use SymLabelCounts.
-        EndSymState=SymLabelCounts(1,ElecSym+1)+SymLabelCounts(2,ElecSym+1)-1
-        VecInd=1
-        NormProb=0.D0
 
 !We also want to take into account spin. We want the spin of the chosen unoccupied orbital to be the same as the chosen occupied orbital.
 !Run over all possible a orbitals
-        do j=SymLabelCounts(1,ElecSym+1),EndSymState
+        EndSymState=SymLabelCounts2(ispn,1,ElecSym+1)+SymLabelCounts2(ispn,2,ElecSym+1)-1
 
-            IF(ispn.eq.-1) THEN
+        VecInd=1
+        NormProb=0.D0
+
+       do j=SymLabelCounts2(ispn,1,ElecSym+1),EndSymState
+
+!            IF(ispn.eq.-1) THEN
 !We want to look through all beta orbitals
-                OrbA=(2*SymLabelList(j))-1     !This is the spin orbital chosen for a
-            ELSE
-                OrbA=(2*SymLabelList(j))
-            ENDIF
+            OrbA=SymLabelList2(ispn,j)     !This is the spin orbital chosen for a
+!                OrbA=(2*SymLabelList(j))-1     !This is the spin orbital chosen for a
+!            ELSE
+!                OrbA=SymLabelList(1,j)
+!            ENDIF
 
             IF(BTEST(ILUT((OrbA-1)/32),MOD((OrbA-1),32))) THEN
 !Orbital is in nI...not an unoccupied orbital
@@ -435,7 +438,7 @@ MODULE GenRandSymExcitNUMod
         INTEGER :: nI(NEl),iLut(0:NIfD),Elec1Ind,Elec2Ind,SymProduct,iSpn,OrbA,OrbB,iCreate
         INTEGER :: SpatOrbi,SpatOrbj,Spini,Spinj,i,aspn,bspn,SymA,SymB,SpatOrba,EndSymState,VecInd
         REAL*8 :: Tau,SpawnProb(MaxABPairs),NormProb,rat,r
-        INTEGER :: SpawnOrbs(2,MaxABPairs),j,nParts
+        INTEGER :: SpawnOrbs(2,MaxABPairs),j,nParts,SpinIndex
         TYPE(HElement) :: HEl
 
 !We want the spatial orbital number for the ij pair (Elec1Ind is the index in nI).
@@ -478,33 +481,40 @@ MODULE GenRandSymExcitNUMod
             SymB=IEOR(SymA,SymProduct)
             SpatOrba=((i-1)/2)+1
 
-!To run just through the states of the required symmetry we want to use SymLabelCounts.
-!            StartSymState=SymLabelCounts(1,SymB+1)
-            EndSymState=SymLabelCounts(1,SymB+1)+SymLabelCounts(2,SymB+1)-1
-
 !We also want to take into account spin.
             IF(ispn.eq.1) THEN
                 bspn=-1  !Want beta spin b orbitals
+                SpinIndex=2
             ELSEIF(ispn.eq.3) THEN
                 bspn=1  !Want alpha spin b orbitals
+                SpinIndex=1
             ELSE
 !ij pair is an alpha/beta spin pair, therefore b wants to be of opposite spin to a.
                 IF(aspn.eq.-1) THEN
 !a orbital is a beta orbital, therefore we want b to be an alpha orbital.
                     bspn=1
+                    SpinIndex=1
                 ELSE
                     bspn=-1
+                    SpinIndex=2
                 ENDIF
             ENDIF
 
-!Run over all possible b orbitals
-            do j=SymLabelCounts(1,SymB+1),EndSymState
+!To run just through the states of the required symmetry we want to use SymLabelCounts.
+!            StartSymState=SymLabelCounts(1,SymB+1)
+            EndSymState=SymLabelCounts2(SpinIndex,1,SymB+1)+SymLabelCounts2(SpinIndex,2,SymB+1)-1
 
-                IF(bspn.eq.-1) THEN
-                    OrbB=(2*SymLabelList(j))-1     !This is the spin orbital chosen for b
-                ELSE
-                    OrbB=(2*SymLabelList(j))
-                ENDIF
+
+!Run over all possible b orbitals
+            do j=SymLabelCounts2(SpinIndex,1,SymB+1),EndSymState
+
+!                IF(bspn.eq.-1) THEN
+!                    OrbB=(2*SymLabelList(j))-1     !This is the spin orbital chosen for b
+!                ELSE
+!                    OrbB=(2*SymLabelList(j))
+!                ENDIF
+
+                OrbB=SymLabelList2(SpinIndex,j)     !This is the spin orbital chosen for b
 
                 IF(OrbB.le.i) THEN
 !Since we only want unique ab pairs, ensure that b > a.
@@ -1043,23 +1053,24 @@ MODULE GenRandSymExcitNUMod
 !                WRITE(6,*) "NExcit",NExcit
                 NExcitOtherWay=ClassCountUnocc2(2,SymA)
 !                WRITE(6,*) "NExcitOtherWay:", NExcitOtherWay
-                SpinOrbB=0  !This is defined differently to SpinOrbA. 0=Alpha, -1=Beta.
+!                SpinOrbB=0  !This is defined differently to SpinOrbA. 0=Alpha, -1=Beta.
+                SpinOrbB=1  !This is defined differently to SpinOrbA. 1=Alpha, 2=Beta.
             ELSE
 !Want to pick an beta orbital.
                 NExcit=ClassCountUnocc2(2,SymB)
                 NExcitOtherWay=ClassCountUnocc2(1,SymA)
-                SpinOrbB=-1
+                SpinOrbB=2
             ENDIF
         ELSEIF(iSpn.eq.1) THEN
 !Definitely want a beta orbital
             NExcit=ClassCountUnocc2(2,SymB)
             NExcitOtherWay=ClassCountUnocc2(2,SymA)
-            SpinOrbB=-1
+            SpinOrbB=2
         ELSE
 !Definitely want an alpha orbital
             NExcit=ClassCountUnocc2(1,SymB)
             NExcitOtherWay=ClassCountUnocc2(1,SymA)
-            SpinOrbB=0
+            SpinOrbB=1
         ENDIF
 
         IF((iSpn.ne.2).and.(SymProduct.eq.0)) THEN
@@ -1091,15 +1102,16 @@ MODULE GenRandSymExcitNUMod
             IF(tNoSymGenRandExcits) THEN
                 nOrbs=nBasis/2      !No symmetry, therefore all orbitals of allowed spin possible to generate.
             ELSE
-                nOrbs=SymLabelCounts(2,SymB+1)
+                nOrbs=SymLabelCounts2(SpinOrbB,2,SymB+1)
             ENDIF
             z=0     !z is the counter for the number of allowed unoccupied orbitals we have gone through
             do i=0,nOrbs-1
                 IF(tNoSymGenRandExcits) THEN
-                    OrbB=(2*(i+1))+SpinOrbB
+                    OrbB=(2*(i+1))-(SpinOrbB-1)
                 ELSE
 !Find the spin orbital index. SymLabelCounts has the index of the state for the given symmetry.
-                    OrbB=(2*SymLabelList(SymLabelCounts(1,SymB+1)+i))+SpinOrbB
+!                    OrbB=(2*SymLabelList(SymLabelCounts(1,SymB+1)+i))+SpinOrbB
+                    OrbB=SymLabelList2(SpinOrbB,(SymLabelCounts2(SpinOrbB,1,SymB+1)+i))
                 ENDIF
 
 !Find out if the orbital is in the determinant, or is the other unocc picked
@@ -1126,7 +1138,7 @@ MODULE GenRandSymExcitNUMod
             IF(tNoSymGenRandExcits) THEN
                 nOrbs=nBasis/2
             ELSE
-                nOrbs=SymLabelCounts(2,SymB+1)
+                nOrbs=SymLabelCounts2(SpinOrbB,2,SymB+1)
             ENDIF
             Attempts=0
             do while(.true.)
@@ -1140,9 +1152,10 @@ MODULE GenRandSymExcitNUMod
                 ENDIF
                 ChosenUnocc=INT(nOrbs*r)
                 IF(tNoSymGenRandExcits) THEN
-                    OrbB=(2*(ChosenUnocc+1))+SpinOrbB
+                    OrbB=(2*(ChosenUnocc+1))-(SpinOrbB-1)
                 ELSE
-                    OrbB=(2*SymLabelList(SymLabelCounts(1,SymB+1)+ChosenUnocc))+SpinOrbB
+!                    OrbB=(2*SymLabelList(SymLabelCounts(1,SymB+1)+ChosenUnocc))+SpinOrbB
+                    OrbB=SymLabelList2(SpinOrbB,SymLabelCounts2(SpinOrbB,1,SymB+1)+ChosenUnocc)
                 ENDIF
 !                WRITE(6,*) "B: ",OrbB, nOrbs, SpinOrbB
 !                WRITE(6,*) "SymLabelList(1:nBasis): ",SymLabelList(1:nBasis)
@@ -1764,7 +1777,8 @@ MODULE GenRandSymExcitNUMod
             IF(tNoSymGenRandExcits) THEN
                 nOrbs=nBasis/2
             ELSE
-                nOrbs=SymLabelCounts(2,ElecSym+1)
+!                nOrbs=SymLabelCounts(2,ElecSym+1)
+                nOrbs=SymLabelCounts2(iSpn,2,ElecSym+1)
             ENDIF
             z=0     !z is the counter for the number of allowed unoccupied orbitals we have gone through
             do i=0,nOrbs-1
@@ -1772,7 +1786,8 @@ MODULE GenRandSymExcitNUMod
                 IF(tNoSymGenRandExcits) THEN
                     Orb=(2*(i+1))-(iSpn-1)
                 ELSE
-                    Orb=(2*SymLabelList(SymLabelCounts(1,ElecSym+1)+i))-(iSpn-1)
+!                    Orb=(2*SymLabelList(SymLabelCounts(1,ElecSym+1)+i))-(iSpn-1)
+                    Orb=SymLabelList2(iSpn,SymLabelCounts2(iSpn,1,ElecSym+1)+i)
                 ENDIF
 
 !Find out if the orbital is in the determinant.
@@ -1799,7 +1814,8 @@ MODULE GenRandSymExcitNUMod
             IF(tNoSymGenRandExcits) THEN
                 nOrbs=nBasis/2
             ELSE
-                nOrbs=SymLabelCounts(2,ElecSym+1)
+!                nOrbs=SymLabelCounts(2,ElecSym+1)
+                nOrbs=SymLabelCounts2(iSpn,2,ElecSym+1)
             ENDIF
             Attempts=0
             do while(.true.)
@@ -1815,7 +1831,8 @@ MODULE GenRandSymExcitNUMod
                 IF(tNoSymGenRandExcits) THEN
                     Orb=(2*(ChosenUnocc+1))-(iSpn-1)
                 ELSE
-                    Orb=(2*SymLabelList(SymLabelCounts(1,ElecSym+1)+ChosenUnocc))-(iSpn-1)
+!                    Orb=(2*SymLabelList(SymLabelCounts(1,ElecSym+1)+ChosenUnocc))-(iSpn-1)
+                    Orb=SymLabelList2(iSpn,SymLabelCounts2(iSpn,1,ElecSym+1)+ChosenUnocc)
                 ENDIF
 
 !Find out if orbital is in nI or not. Accept if it isn't in it.
@@ -1915,8 +1932,8 @@ MODULE GenRandSymExcitNUMod
 !Again, we store as 
 
             do i=1,nSymLabels
-                ClassCountUnocc2(1,i-1)=SymLabelCounts(2,i)-ClassCount2(1,i-1)
-                ClassCountUnocc2(2,i-1)=SymLabelCounts(2,i)-ClassCount2(2,i-1)
+                ClassCountUnocc2(1,i-1)=SymLabelCounts2(1,2,i)-ClassCount2(1,i-1)
+                ClassCountUnocc2(2,i-1)=SymLabelCounts2(2,2,i)-ClassCount2(2,i-1)
             enddo
 
 !            WRITE(6,*) "Alph=",alph,"Bet=",Bet
