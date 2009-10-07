@@ -748,6 +748,12 @@ The following options are only available in **FCIMC** calculations:
     respect to the number of processors. There are no explicit loops over processors, and newly-spawned
     particles are sent directly to their respective processors.
 
+**ANNIHILATEEVERY** [iAnnInterval]
+    Default=1
+
+    A parallel FCIMC option which can only be used with default annihilation algorihtm. This will
+    mean that annihilation will only occur every iAnnInterval iterations.
+
 **ANNIHILATDISTANCE** [Lambda]
     Default=0.D0
 
