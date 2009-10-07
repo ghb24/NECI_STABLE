@@ -33,6 +33,7 @@ MODULE Calc
 
 
 !       Calc defaults 
+          iAnnInterval=1
           tTruncCAS=.false.
           iFullSpaceIter=0
           tDirectAnnihil=.false.
@@ -909,6 +910,9 @@ MODULE Calc
 !This annihilation is governed by the parameter Lambda, which is also used in other circumstances as a variable, but should not be used at the same time.
                 TLocalAnnihilation=.true.
                 call Getf(Lambda)
+            case("ANNIHILATEEVERY")
+!In FCIMC, this will result in annihilation only every iAnnInterval iterations
+                call Geti(iAnnInterval)
             case("GLOBALSHIFT")
 !A parallel FCIMC option. It is generally recommended to have this option on. This will calculate the growth rate of the system as a simple ratio of the total walkers on all processors
 !before and after update cycle. This however is incompatable with culling, and so is removed for update cycles with this in. 

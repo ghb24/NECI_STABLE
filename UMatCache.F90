@@ -299,10 +299,8 @@ MODULE UMatCache
             ENDIF
             IF(A.GT.B) THEN
                 UMatInd=(A*(A-1))/2+B
-                RETURN
             ELSE
                 UMatInd=(B*(B-1))/2+A
-                RETURN
             ENDIF
          ENDIF
       END FUNCTION UMatInd

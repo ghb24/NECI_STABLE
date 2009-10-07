@@ -32,6 +32,7 @@ contains
 
 !This will work with FCIMCPar, and if a file is created called CHANGEVARS in one of the working directories of the run, multiple values can be changed
 !Ways that the simulation can be affected are:
+
 !   EXCITE  XXX      Will change the excitation level of the simulation (< 0 or > NEl sets it to the full space)
 !   TRUNCATECAS  XXX XXX    Will change the CAS of the simulation (< 0 or > NEl sets it to the full space)
 !   SOFTEXIT         Will exit cleanly from the program
