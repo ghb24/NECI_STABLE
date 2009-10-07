@@ -286,7 +286,7 @@ MODULE FciMCLoggingMod
         WRITE(62,'(I4,A,I4)') NoBlockSizes,' blocks were formed with sizes from 1 to ',(2**(NoBlockSizes))
         WRITE(62,'(3A16,5A20)') '1.Block No.','2.Block Size  ','3.No. of Blocks','4.Mean Shift','5.Mean Shift^2','6.SD','7.Error','8.ErrorinError'
 
-        do i=0,NoBlockSizes
+        do i=0,NoBlockSizes-1
             
             ! First need to find out how many blocks of this particular size contributed to the final sum in BlockSum.
             ! NoContrib is the total number of contributions to the blocking throughout the simulation.
