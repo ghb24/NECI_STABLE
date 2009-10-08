@@ -20,7 +20,7 @@ MODULE FciMCParMod
     use CalcData , only : FixedKiiCutoff,tFixShiftKii,tFixCASShift,tMagnetize,BField,NoMagDets,tSymmetricField,tStarOrbs,SinglesBias
     use CalcData , only : tHighExcitsSing,iHighExcitsSing,tFindGuide,iGuideDets,tUseGuide,iInitGuideParts,tNoDomSpinCoup
     use CalcData , only : tPrintDominant,iNoDominantDets,MaxExcDom,MinExcDom,tSpawnDominant,tMinorDetsStar
-    use CalcData , only : tCCMC,tTruncCAS,iAnnInterval
+    use CalcData , only : tCCMC,tTruncCAS
     use HPHFRandExcitMod , only : FindExcitBitDetSym,GenRandHPHFExcit,GenRandHPHFExcit2Scratch 
     USE Determinants , only : FDet,GetHElement2,GetHElement4
     USE DetCalc , only : ICILevel,nDet,Det,FCIDetIndex
@@ -1117,17 +1117,9 @@ MODULE FciMCParMod
         ELSE
 !This routine now cancels down the particles with opposing sign on each determinant
 
-            IF(mod(iAnnInterval,Iter).eq.0) THEN
-
-                CALL AnnihilatePartPar(TotWalkersNew)
-                Annihilated=Annihilated+(TotWalkersNew-TotWalkers)
-                TotParts=TotWalkers
-
-            ELSE
-                TotWalkersNew=TotWalkers
-                TotParts=TotWalkers
-                Annihilated=0
-            ENDIF
+            CALL AnnihilatePartPar(TotWalkersNew)
+            Annihilated=Annihilated+(TotWalkersNew-TotWalkers)
+            TotParts=TotWalkers
 
         ENDIF
 
@@ -12438,19 +12430,11 @@ MODULE FciMCParMod
 !This is a list of options which cannot be used with the stripped-down spawning routine. New options not added to this routine should be put in this list.
         IF(tHighExcitsSing.or.tHistSpawn.or.tRegenDiagHEls.or.tFindGroundDet.or.tStarOrbs.or.tResumFCIMC.or.tSpawnAsDet.or.tImportanceSample    &
      &      .or.(.not.tRegenExcitgens).or.(.not.tNonUniRandExcits).or.(.not.tDirectAnnihil).or.tMinorDetsStar.or.tSpawnDominant.or.(DiagSft.gt.0.D0).or.   &
-     &      tPrintTriConnections.or.tHistTriConHEls.or.tCalcFCIMCPsi.or.tTruncCAS.or.tListDets.or.tPartFreezeCore.or.(iAnnInterval.ne.1)) THEN
+     &      tPrintTriConnections.or.tHistTriConHEls.or.tCalcFCIMCPsi.or.tTruncCAS.or.tListDets.or.tPartFreezeCore) THEN
             WRITE(6,*) "It is not possible to use to clean spawning routine..."
         ELSE
             WRITE(6,*) "Clean spawning routine in use..."
             tCleanRun=.true.
-        ENDIF
-
-        IF(iAnnInterval.ne.1) THEN
-            WRITE(6,*) "Only annihilating every",iAnnInterval," steps. This will only be possible with default annihilation."
-            WRITE(6,*) "Warning - this is experimental!"
-            IF(tRotoAnnihil.or.tDirectAnnihil) THEN
-                CALL Stop_All(this_routine,"ANNIHILATEEVERY will only work with default annihilation...")
-            ENDIF
         ENDIF
 
         IF(tListDets) THEN
