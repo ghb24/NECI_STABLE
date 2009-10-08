@@ -2062,10 +2062,10 @@ C.. Set to be totally symmetric
          use SystemData , only : nEl,G1,nBasis,nOccAlpha,nOccBeta
          use Determinants , only : FDet
          IMPLICIT NONE
-         INTEGER :: ClassCounts(0:7),Lim0a,Lim0b,Lim1a,Lim1b,Lim2a,Lim2b
+         INTEGER :: ClassCounts(2,0:7),Lim0a,Lim0b,Lim1a,Lim1b,Lim2a
          INTEGER :: Lima(0:7),Limb(0:7),a0,a1,a2,a3,a4,a5,a6,a7,NAlph
          INTEGER :: b0,b1,b2,b3,b4,b5,b6,b7,NBet,i,IUNIT,OverallSym
-         INTEGER :: FDetSym
+         INTEGER :: FDetSym,Lim2b
          REAL*8 :: Choose,Space,SpaceGrow
          LOGICAL :: Sym(0:7)
 
@@ -2085,35 +2085,43 @@ C.. Set to be totally symmetric
          enddo
          WRITE(6,*) "Symmetry of HF determinant is: ",FDetSym
          CALL FLUSH(IUNIT)
-         ClassCounts(:)=0
+         ClassCounts(:,:)=0
 !First, we need to find the number of spatial orbitals in each symmetry irrep.
          do i=1,nBasis,1
-             ClassCounts(INT(G1(i)%Sym%S,4))=                           &
-     &           ClassCounts(INT(G1(i)%Sym%S,4))+1
+             IF(G1(i)%Ms.eq.1) THEN
+                 ClassCounts(1,INT(G1(i)%Sym%S,4))=                     &
+     &              ClassCounts(1,INT(G1(i)%Sym%S,4))+1
+             ELSE
+
+                 ClassCounts(2,INT(G1(i)%Sym%S,4))=                     &
+     &              ClassCounts(2,INT(G1(i)%Sym%S,4))+1
+             ENDIF
          enddo
          do i=0,7
-             IF(mod(ClassCounts(i),2).ne.0) THEN
-                 STOP 'Error counting determinants'
+             IF(mod((ClassCounts(1,i)+ClassCounts(2,i)),2).ne.0) THEN
+!                 STOP 'Error counting determinants'
+                 WRITE(6,*) 'WARNING: Different number of symmetries    &
+     &           between the alpha and beta orbitals.'
              ENDIF
-             ClassCounts(i)=ClassCounts(i)/2
+!             ClassCounts(i)=ClassCounts(i)/2
          enddo
 
-         Lima(0)=min(nOccAlpha,ClassCounts(0))
-         Limb(0)=min(nOccBeta,ClassCounts(0))
-         Lima(1)=min(nOccAlpha,ClassCounts(1))
-         Limb(1)=min(nOccBeta,ClassCounts(1))
-         Lima(2)=min(nOccAlpha,ClassCounts(2))
-         Limb(2)=min(nOccBeta,ClassCounts(2))
-         Lima(3)=min(nOccAlpha,ClassCounts(3))
-         Limb(3)=min(nOccBeta,ClassCounts(3))
-         Lima(4)=min(nOccAlpha,ClassCounts(4))
-         Limb(4)=min(nOccBeta,ClassCounts(4))
-         Lima(5)=min(nOccAlpha,ClassCounts(5))
-         Limb(5)=min(nOccBeta,ClassCounts(5))
-         Lima(6)=min(nOccAlpha,ClassCounts(6))
-         Limb(6)=min(nOccBeta,ClassCounts(6))
-         Lima(7)=min(nOccAlpha,ClassCounts(7))
-         Limb(7)=min(nOccBeta,ClassCounts(7))
+         Lima(0)=min(nOccAlpha,ClassCounts(1,0))
+         Limb(0)=min(nOccBeta,ClassCounts(2,0))
+         Lima(1)=min(nOccAlpha,ClassCounts(1,1))
+         Limb(1)=min(nOccBeta,ClassCounts(2,1))
+         Lima(2)=min(nOccAlpha,ClassCounts(1,2))
+         Limb(2)=min(nOccBeta,ClassCounts(2,2))
+         Lima(3)=min(nOccAlpha,ClassCounts(1,3))
+         Limb(3)=min(nOccBeta,ClassCounts(2,3))
+         Lima(4)=min(nOccAlpha,ClassCounts(1,4))
+         Limb(4)=min(nOccBeta,ClassCounts(2,4))
+         Lima(5)=min(nOccAlpha,ClassCounts(1,5))
+         Limb(5)=min(nOccBeta,ClassCounts(2,5))
+         Lima(6)=min(nOccAlpha,ClassCounts(1,6))
+         Limb(6)=min(nOccBeta,ClassCounts(2,6))
+         Lima(7)=min(nOccAlpha,ClassCounts(1,7))
+         Limb(7)=min(nOccBeta,ClassCounts(2,7))
          Space=0.D0
 
 !         WRITE(6,*) ClassCounts(:)
@@ -2191,22 +2199,22 @@ C.. Set to be totally symmetric
                 IF((NAlph.eq.NOccAlpha).and.(NBet.eq.NOccBeta)) THEN
 
                     SpaceGrow=1.D0
-                    SpaceGrow=SpaceGrow*Choose(ClassCounts(0),a0)
-                    SpaceGrow=SpaceGrow*Choose(ClassCounts(0),b0)
-                    SpaceGrow=SpaceGrow*Choose(ClassCounts(1),a1)
-                    SpaceGrow=SpaceGrow*Choose(ClassCounts(1),b1)
-                    SpaceGrow=SpaceGrow*Choose(ClassCounts(2),a2)
-                    SpaceGrow=SpaceGrow*Choose(ClassCounts(2),b2)
-                    SpaceGrow=SpaceGrow*Choose(ClassCounts(3),a3)
-                    SpaceGrow=SpaceGrow*Choose(ClassCounts(3),b3)
-                    SpaceGrow=SpaceGrow*Choose(ClassCounts(4),a4)
-                    SpaceGrow=SpaceGrow*Choose(ClassCounts(4),b4)
-                    SpaceGrow=SpaceGrow*Choose(ClassCounts(5),a5)
-                    SpaceGrow=SpaceGrow*Choose(ClassCounts(5),b5)
-                    SpaceGrow=SpaceGrow*Choose(ClassCounts(6),a6)
-                    SpaceGrow=SpaceGrow*Choose(ClassCounts(6),b6)
-                    SpaceGrow=SpaceGrow*Choose(ClassCounts(7),a7)
-                    SpaceGrow=SpaceGrow*Choose(ClassCounts(7),b7)
+                    SpaceGrow=SpaceGrow*Choose(ClassCounts(1,0),a0)
+                    SpaceGrow=SpaceGrow*Choose(ClassCounts(2,0),b0)
+                    SpaceGrow=SpaceGrow*Choose(ClassCounts(1,1),a1)
+                    SpaceGrow=SpaceGrow*Choose(ClassCounts(2,1),b1)
+                    SpaceGrow=SpaceGrow*Choose(ClassCounts(1,2),a2)
+                    SpaceGrow=SpaceGrow*Choose(ClassCounts(2,2),b2)
+                    SpaceGrow=SpaceGrow*Choose(ClassCounts(1,3),a3)
+                    SpaceGrow=SpaceGrow*Choose(ClassCounts(2,3),b3)
+                    SpaceGrow=SpaceGrow*Choose(ClassCounts(1,4),a4)
+                    SpaceGrow=SpaceGrow*Choose(ClassCounts(2,4),b4)
+                    SpaceGrow=SpaceGrow*Choose(ClassCounts(1,5),a5)
+                    SpaceGrow=SpaceGrow*Choose(ClassCounts(2,5),b5)
+                    SpaceGrow=SpaceGrow*Choose(ClassCounts(1,6),a6)
+                    SpaceGrow=SpaceGrow*Choose(ClassCounts(2,6),b6)
+                    SpaceGrow=SpaceGrow*Choose(ClassCounts(1,7),a7)
+                    SpaceGrow=SpaceGrow*Choose(ClassCounts(2,7),b7)
                     Space=Space+SpaceGrow
                 ENDIF
             ENDIF
