@@ -243,7 +243,7 @@
          call WriteBitDet(6,iLutHF,.true.)
          write(6,*) "Particle list"
          do j=1,TotWalkers
-            write(6,'(i)',advance='no') CurrentSign(j)
+            write(6,'(i7)',advance='no') CurrentSign(j)
             call WriteBitEx(6,iLutHF,CurrentDets(:,j),.true.)
 !            do l=0,nIfD
 !               Write(6,'(i)', advance='no') CurrentDets(l,j)
@@ -591,7 +591,7 @@
                   call WriteBitEx(6,iLutHF,iLutnI,.false.)
                   write(6,'(A)',advance='no') ,' ==> '
                   call WriteBitEx(6,iLutHF,iLutnJ,.false.)
-                  WRITE(6,'(A,I)',advance='no') "Children:",Child             
+                  WRITE(6,'(A,I7)',advance='no') "Children:",Child             
                   if(iDebug.eq.3.and.iCompositeSize.gt.1) THEN
                      write(6,'(A)',advance='no') ' from '
                      do i=1,iCompositeSize
@@ -686,9 +686,9 @@
 
 
                IF(iDebug.gt.4) then
-                  Write(6,'(A,I)',advance='no') "Killing at excitor: ",iPartDie
+                  Write(6,'(A,I7)',advance='no') "Killing at excitor: ",iPartDie
                   call WriteBitEx(6,iLutHF,CurrentDets(:,iPartDie),.false.)
-                  Write(6,'(A,G)') "Prob: ",dProb*dProbNorm
+                  Write(6,'(A,G25.16)') "Prob: ",dProb*dProbNorm
                endif
 
    !Die with a probability as normal, but biased because we only selected this set
@@ -696,10 +696,10 @@
                if(iCompositeSize.gt.1) dProb=dProb
                iDie=AttemptDieProbPar(DetCurr,HDiagCurr,WalkExcitLevel,iSgn,1/(dProb*dProbNorm))
                IF(iDebug.gt.4.or.((iDebug.eq.3.or.iDebug.eq.4).and.iDie.ne.0)) then
-                  Write(6,'(A,I)',advance='no') " Killing at excitor: ",iPartDie
+                  Write(6,'(A,I7)',advance='no') " Killing at excitor: ",iPartDie
                   Write(6,'(A)',advance='no') " chosen "
                   call WriteBitEx(6,iLutHF,CurrentDets(:,iPartDie),.false.)
-                  WRITE(6,'(A,I)',advance='no') "Number died ",iDie
+                  WRITE(6,'(A,I7)',advance='no') "Number died ",iDie
                   if(iCompositeSize.gt.1) then
                      WRITE(6,'(A)',advance='no') " from "
                      do i=1,iCompositeSize
@@ -707,7 +707,7 @@
                      enddo
                   endif
                   WRITE(6,*)
-                  if(iDebug.eq.4) Write(6,'(A,G)') "Prob: ",dProb*dProbNorm
+                  if(iDebug.eq.4) Write(6,'(A,G25.16)') "Prob: ",dProb*dProbNorm
                endif
                NoDied=NoDied+iDie          !Update death counter
                if(iCompositeSize.gt.1.and.iDie.gt.0) nClusterDeaths=nClusterDeaths+1 
@@ -799,7 +799,7 @@
 !        WRITE(6,*) "Born, Die: ",NoBorn, NoDied
 
 
-        write(79,'(5I)') NoBorn,NoDied,nClusterChildren,nClusterDeaths,nClusterBirths
+        write(79,'(5I7)') NoBorn,NoDied,nClusterChildren,nClusterDeaths,nClusterBirths
 
 !Output if there has been a particle bloom this iteration. A negative number indicates that particles were created from a single excitation.
         IF(iPartBloom.ne.0) THEN
@@ -1101,7 +1101,7 @@
                call WriteBitEx(6,iLutHF,iLutnI,.false.)
                write(6,'(A)',advance='no') ,' ==> '
                call WriteBitEx(6,iLutHF,iLutnJ,.false.)
-               WRITE(6,'(A,G)',advance='no') "Children:",rat
+               WRITE(6,'(A,G25.16)',advance='no') "Children:",rat
                if(iDebug.eq.3.and.iCompositeSize.gt.1) THEN
                   write(6,'(A)',advance='no') ' from '
                   do i=1,iCompositeSize
@@ -1171,18 +1171,18 @@
 
 
             IF(iDebug.gt.4) then
-               Write(6,'(A,I)',advance='no') "Killing at excitor: ",iPartDie
+               Write(6,'(A,I7)',advance='no') "Killing at excitor: ",iPartDie
                call WriteBitEx(6,iLutHF,FCIDets(:,iPartDie),.false.)
-               Write(6,'(A,G)') "Prob: ",dProb*dProbNorm
+               Write(6,'(A,G25.16)') "Prob: ",dProb*dProbNorm
             endif
 
             rat=-iSgn*Tau*(HDiagCurr-DiagSft)*abs(Amplitude(iPartDie,iOldAmpList))/(dProb*dProbNorm)
             Amplitude(iPartDie,iCurAmpList)=Amplitude(iPartDie,iCurAmpList)+rat
             IF(iDebug.gt.4.or.((iDebug.eq.3.or.iDebug.eq.4))) then
-               Write(6,'(A,I)',advance='no') " Killing at excitor: ",iPartDie
+               Write(6,'(A,I7)',advance='no') " Killing at excitor: ",iPartDie
                Write(6,'(A)',advance='no') " chosen "
                call WriteBitEx(6,iLutHF,FCIDets(:,iPartDie),.false.)
-               WRITE(6,'(A,G)',advance='no') "Number died ",rat
+               WRITE(6,'(A,G25.16)',advance='no') "Number died ",rat
                if(iCompositeSize.gt.1) then
                   WRITE(6,'(A)',advance='no') " from "
                   do i=1,iCompositeSize
@@ -1190,7 +1190,7 @@
                   enddo
                endif
                WRITE(6,*)
-               if(iDebug.eq.4) Write(6,'(A,G)') "Prob: ",dProb*dProbNorm
+               if(iDebug.eq.4) Write(6,'(A,G25.16)') "Prob: ",dProb*dProbNorm
             endif
              
 
