@@ -501,33 +501,6 @@ MODULE NatOrbsMod
                         CALL GetBitExcitation(FCIDets(0:NIfD,i),FCIDets(0:NIfD,j),NIfD,NEl,Ex,tSign)
                         ! Gives the orbitals involved in the excitation Ex(1,1) in i -> Ex(2,1) in j (in spin orbitals).
 
-!                        WRITE(6,*) '***'
-!                        WRITE(6,*) 'i',i,'j',j
-!                        WRITE(6,*) 'i',FCIDets(0:NIfD,i)
-!                        WRITE(6,*) 'j',FCIDets(0:NIfD,j)
-
-!                        nJ(:)=0
-!                        nI(:)=0
-!                        CALL DecodeBitDet(nI,FCIDets(0:NIfD,i),NEl,NIfD)
-!                        CALL DecodeBitDet(nJ,FCIDets(0:NIfD,j),NEl,NIfD)
-!                        WRITE(6,*) 'nI',nI
-!                        WRITE(6,*) 'nJ',nJ
-!                        WRITE(6,*) 'Ex - bit',Ex(1,1),Ex(2,1)
-!                        CALL FLUSH(6)
-!                        nJ(:)=0
-!                        nI(:)=0
-                        
-
-!                        CALL GetExcitation(nI(1:NEl),nJ(1:NEl),NEl,Ex2,tSign)
-!                        WRITE(6,*) 'Ex - decoded',Ex2(1,1),Ex2(2,1)
-!                        WRITE(6,*) 'tSign',tSign
-!                        CALL FLUSH(6)
-
-!                        tSign=.false.
-!                        CALL GetBitExcitation(FCIDets(0:NIfD,i),FCIDets(0:NIfD,j),NIfD,NEl,Ex3,tSign)
-
-!                        CALL FindSingleOrbs(FCIDets(0:NIfD,i),FCIDets(0:NIfD,j),NIfD,Ex)
-
                         IF(tStoreSpinOrbs) THEN
                             ! OneRDM will be in spin orbitals - simply add the orbitals involved.
                             Orbi=SymLabelListInv(Ex(1,1))
@@ -632,8 +605,6 @@ MODULE NatOrbsMod
         FillMP2VDM_Time%timer_name='FillMP2VDM'
         CALL set_timer(FillMP2VDM_Time,30)
 
-
-
 !        WRITE(6,*) 'nOccBeta',nOccBeta
 !        WRITE(6,*) 'nOccAlpha',nOccAlpha
 
@@ -641,6 +612,7 @@ MODULE NatOrbsMod
             IF(x.eq.1) THEN
                 IF(tStoreSpinOrbs) THEN
                     NoOcc=nOccBeta
+!                    NoOcc=MAX(nOccBeta,nOccAlpha)
                 ELSE
                     NoOcc=NEl/2
                 ENDIF
@@ -648,6 +620,7 @@ MODULE NatOrbsMod
                 Endab=SpatOrbs
             ELSEIF(x.eq.2) THEN
                 NoOcc=nOccAlpha
+!                NoOcc=MAX(nOccBeta,nOccAlpha)
                 Startab=SpatOrbs+NoOcc+1
                 Endab=NoOrbs
             ENDIF
@@ -668,15 +641,21 @@ MODULE NatOrbsMod
                         IF(y.eq.1) THEN
                             IF(tStoreSpinOrbs) THEN
                                 NoOccC=nOccBeta
+!                                NoOccC=MAX(nOccBeta,nOccAlpha)
                             ELSE
                                 NoOccC=NEl/2
                             ENDIF
                             Startc=NoOccC+1
                             Endc=SpatOrbs
+!                            Startc=1
+!                            Endc=SpatOrbs
                         ELSEIF(y.eq.2) THEN
                             NoOccC=nOccAlpha
+!                            NoOccC=MAX(nOccBeta,nOccAlpha)
                             Startc=SpatOrbs+NoOccC+1
                             Endc=NoOrbs
+!                            Startc=SpatOrbs+1
+!                            Endc=NoOrbs
                         ENDIF
 
 
@@ -688,12 +667,14 @@ MODULE NatOrbsMod
                                     Starti=1
                                     IF(tStoreSpinOrbs) THEN
                                         Endi=nOccBeta
+!                                        Endi=MAX(nOccBeta,nOccAlpha)
                                     ELSE
                                         Endi=NEl/2
                                     ENDIF
                                 ELSEIF(z.eq.2) THEN
                                     Starti=1+SpatOrbs
                                     Endi=SpatOrbs+nOccAlpha
+!                                    Endi=SpatOrbs+MAX(nOccBeta,nOccAlpha)
                                 ENDIF
 
                                 do i2=Starti,Endi
@@ -704,12 +685,14 @@ MODULE NatOrbsMod
                                             Startj=1
                                             IF(tStoreSpinOrbs) THEN
                                                 Endj=nOccBeta
+!                                                Endj=MAX(nOccBeta,nOccAlpha)
                                             ELSE
                                                 Endj=NEl/2
                                             ENDIF
                                         ELSEIF(w.eq.2) THEN
                                             Startj=1+SpatOrbs
                                             Endj=SpatOrbs+nOccAlpha
+!                                            Endj=SpatOrbs+MAX(nOccBeta,nOccAlpha)
                                         ENDIF
 
 
@@ -1009,9 +992,10 @@ MODULE NatOrbsMod
         USE Logging , only : tTruncRODump,NoFrozenVirt
         IMPLICIT NONE
         REAL*8 :: EvaluesTrunc(NoOrbs-NoFrozenVirt)
-        INTEGER :: x,i,j,k,ier,ierr,StartSort,EndSort,NoRotAlphBet,NoOcc,SymOrbsTempTag,SymLabelList3Temp(NoOrbs),SymFirst
+        INTEGER :: x,i,j,k,ier,ierr,StartSort,EndSort,NoRotAlphBet,NoOcc,SymOrbsTempTag,SymFirst
         CHARACTER(len=*), PARAMETER :: this_routine='OrderandFillCoeffT1'
         INTEGER , ALLOCATABLE :: SymOrbsTemp(:)
+        LOGICAL :: tSymFound
         
 
 ! Here, if symmetry is kept, we are going to have to reorder the eigenvectors according to the size of the eigenvalues, while taking
@@ -1050,7 +1034,6 @@ MODULE NatOrbsMod
                 enddo
                 NoRotAlphBet=NoOrbs-NoFrozenVirt
             ENDIF
-            SymLabelList3Temp(:)=SymLabelList3(:)
 
             do x=1,NoSpinCyc
 
@@ -1083,10 +1066,6 @@ MODULE NatOrbsMod
                 CALL SortEvecbyEvalPlus1(((EndSort-StartSort)+1),Evalues(StartSort:EndSort),((EndSort-StartSort)+1),NatOrbMat(StartSort:EndSort,&
                                             &StartSort:EndSort),SymOrbsTemp(StartSort:EndSort))
 
-!                CALL SortEvecbyEvalPlus1(((EndSort-StartSort)+1),Evalues(StartSort:EndSort),((EndSort-StartSort)+1),NatOrbMat(StartSort:EndSort,&
-!                                            &StartSort:EndSort),SymLabelList3(StartSort:EndSort))
-
-
             enddo
 
             IF(tStoreSpinOrbs) THEN                                            
@@ -1094,62 +1073,88 @@ MODULE NatOrbsMod
 
 ! Get the beta symmetry - find the alpha to match etc.
 ! 
-                IF(nOccBeta.ge.nOccAlpha) THEN
-                    k=1
-                    do i=1,NoRotAlphBet
-                        SymFirst=SymOrbsTemp(i)
-                        CoeffT1(:,k)=NatOrbMat(:,i)
-                        EvaluesTrunc(k)=Evalues(i)
-                        SymOrbs(k)=SymOrbsTemp(i)
-                        do j=SpatOrbs+1,NoOrbs
-                            IF(SymOrbsTemp(j).eq.SymFirst) THEN
-                                SymOrbs(k+1)=SymOrbsTemp(j)
-                                CoeffT1(:,k+1)=NatOrbMat(:,j)
-                                EvaluesTrunc(k+1)=Evalues(j)
-                                SymOrbsTemp(j)=9
-                                EXIT
-                            ENDIF
-                        enddo
-                        k=k+2
-                        IF(k.gt.(NoRotAlphBet*2)) EXIT
-                    enddo
-                ELSE
-                    k=2
-                    do i=SpatOrbs+1,SpatOrbs+NoRotAlphBet
-                        SymFirst=SymOrbsTemp(i)
-                        CoeffT1(:,k)=NatOrbMat(:,i)
-                        EvaluesTrunc(k)=Evalues(i)
-                        SymOrbs(k)=SymOrbsTemp(i)
-                        do j=1,SpatOrbs
-                            IF(SymOrbsTemp(j).eq.SymFirst) THEN
-                                SymOrbs(k-1)=SymOrbsTemp(j)
-                                CoeffT1(:,k-1)=NatOrbMat(:,j)
-                                EvaluesTrunc(k-1)=Evalues(j)
-                                SymOrbsTemp(j)=9
-                                EXIT
-                            ENDIF
-                        enddo
-                        k=k+2
-                        IF(k.gt.(NoRotAlphBet*2)) EXIT
-                    enddo
-                ENDIF
+!                IF(nOccBeta.ge.nOccAlpha) THEN
+!                    k=1
+!                    do i=1,NoRotAlphBet
+!                        tSymFound=.false.
+!                        SymFirst=SymOrbsTemp(i)
+!                        CoeffT1(:,k)=NatOrbMat(:,i)
+!                        EvaluesTrunc(k)=Evalues(i)
+!                        SymOrbs(k)=SymOrbsTemp(i)
+!                        do j=SpatOrbs+1,SpatOrbs+NoRotAlphBet
+!                            IF(SymOrbsTemp(j).eq.SymFirst) THEN
+!                                SymOrbs(k+1)=SymOrbsTemp(j)
+!                                CoeffT1(:,k+1)=NatOrbMat(:,j)
+!                                EvaluesTrunc(k+1)=Evalues(j)
+!                                SymOrbsTemp(j)=9
+!                                tSymFound=.true.
+!                                EXIT
+!                            ENDIF
+!                        enddo
+!                        IF(.not.tSymFound) THEN
+!                            do j=SpatOrbs+1,SpatOrbs+NoRotAlphBet
+!                                IF(SymOrbsTemp(j).lt.9) THEN
+!                                    SymOrbs(k+1)=SymOrbsTemp(j)
+!                                    CoeffT1(:,k+1)=NatOrbMat(:,j)
+!                                    EvaluesTrunc(k+1)=Evalues(j)
+!                                    SymOrbsTemp(j)=9
+!                                    EXIT
+!                                ENDIF
+!                            enddo
+!                        ENDIF
+!                        k=k+2
+!                        IF(k.gt.(NoRotAlphBet*2)) EXIT
+!                    enddo
+!                ELSE
+!                    k=2
+!                    do i=SpatOrbs+1,SpatOrbs+NoRotAlphBet
+!                        tSymFound=.false.
+!                        SymFirst=SymOrbsTemp(i)
+!                        CoeffT1(:,k)=NatOrbMat(:,i)
+!                        EvaluesTrunc(k)=Evalues(i)
+!                        SymOrbs(k)=SymOrbsTemp(i)
+!                        do j=1,NoRotAlphBet
+!                            IF(SymOrbsTemp(j).eq.SymFirst) THEN
+!                                SymOrbs(k-1)=SymOrbsTemp(j)
+!                                CoeffT1(:,k-1)=NatOrbMat(:,j)
+!                                EvaluesTrunc(k-1)=Evalues(j)
+!                                SymOrbsTemp(j)=9
+!                                tSymFound=.true.
+!                                EXIT
+!                            ENDIF
+!                        enddo
 
-!                k=1
-!                do i=1,NoRotAlphBet
-!                    CoeffT1(:,k)=NatOrbMat(:,i)
-!                    EvaluesTrunc(k)=Evalues(i)
-!                    SymOrbs(k)=SymOrbsTemp(i)
-!                    SymLabelList3(k)=SymLabelList3Temp(i)
-!                    k=k+2
-!                enddo
-!                k=2
-!                do i=SpatOrbs+1,SpatOrbs+NoRotAlphBet
-!                    CoeffT1(:,k)=NatOrbMat(:,i)
-!                    SymOrbs(k)=SymOrbsTemp(i)
-!                    EvaluesTrunc(k)=Evalues(i)
-!                    SymLabelList3(k)=SymLabelList3Temp(i)
-!                    k=k+2
-!                enddo
+!                        IF(.not.tSymFound) THEN
+!                            do j=1,NoRotAlphBet
+!                                IF(SymOrbsTemp(j).lt.9) THEN
+!                                    SymOrbs(k-1)=SymOrbsTemp(j)
+!                                    CoeffT1(:,k-1)=NatOrbMat(:,j)
+!                                    EvaluesTrunc(k-1)=Evalues(j)
+!                                    SymOrbsTemp(j)=9
+!                                    EXIT
+!                                ENDIF
+!                            enddo
+!                        ENDIF
+! 
+!                        k=k+2
+!                        IF(k.gt.(NoRotAlphBet*2)) EXIT
+!                    enddo
+!                ENDIF
+
+                k=1
+                do i=1,NoRotAlphBet
+                    CoeffT1(:,k)=NatOrbMat(:,i)
+                    EvaluesTrunc(k)=Evalues(i)
+                    SymOrbs(k)=SymOrbsTemp(i)
+                    k=k+2
+                enddo
+                k=2
+                do i=SpatOrbs+1,SpatOrbs+NoRotAlphBet
+                    CoeffT1(:,k)=NatOrbMat(:,i)
+                    SymOrbs(k)=SymOrbsTemp(i)
+                    EvaluesTrunc(k)=Evalues(i)
+                    k=k+2
+                enddo
 
             ELSE
                 do i=1,NoRotAlphBet
@@ -1268,13 +1273,13 @@ MODULE NatOrbsMod
 !            WRITE(6,*) NatOrbMat(:,i)
 !        enddo
 
-        OPEN(74,FILE='TRANSFORMMAT',status='unknown')
-        do i=1,NoOrbs
-            do j=1,NoOrbs-NoFrozenVirt
-                WRITE(74,*) i,j,CoeffT1(i,j)
-            enddo
-        enddo
-        CLOSE(74)
+!        OPEN(74,FILE='TRANSFORMMAT',status='unknown')
+!        do i=1,NoOrbs
+!            do j=1,NoOrbs-NoFrozenVirt
+!                WRITE(74,*) i,j,CoeffT1(i,j)
+!            enddo
+!        enddo
+!        CLOSE(74)
 
         CALL halt_timer(OrderandFillCoeff_Time)
         

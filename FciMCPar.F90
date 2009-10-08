@@ -5835,9 +5835,6 @@ MODULE FciMCParMod
 
     END SUBROUTINE UpdateDiagSftPar
         
-    
-
-
 !This initialises the calculation, by allocating memory, setting up the initial walkers, and reading from a file if needed
     SUBROUTINE InitFCIMCCalcPar()
         use FciMCLoggingMOD , only : InitTriHElStats,InitSpinCoupHel
@@ -6087,9 +6084,13 @@ MODULE FciMCParMod
                         enddo
                     ENDIF
                 ENDIF
-                MemoryAlloc=((HFExcit%nExcitMemLen)+8)*4*MaxWalkersPart    !This is the memory needed by all the excitation generator arrays
+                IF(tOddSymmetries) THEN
+                    MemoryAlloc=4*MaxWalkersPart    !This is the memory needed by all the excitation generator arrays
+                ELSE
+                    MemoryAlloc=((HFExcit%nExcitMemLen)+8)*4*MaxWalkersPart    !This is the memory needed by all the excitation generator arrays
+                ENDIF
 
-                WRITE(6,"(A,I12)") "Size of HF excitgen is: ",HFExcit%nExcitMemLen
+                IF(.not.tOddSymmetries) WRITE(6,"(A,I12)") "Size of HF excitgen is: ",HFExcit%nExcitMemLen
                 WRITE(6,"(A,F14.6,A)") "Probable maximum memory for excitgens is : ",REAL(MemoryAlloc,r2)/1048576.D0," Mb/Processor"
                 WRITE(6,*) "Initial allocation of excitation generators successful..."
             ELSE
@@ -7100,7 +7101,11 @@ MODULE FciMCParMod
             BackOfList=1    !I.e. first allocation should be at ExcitGens(FreeIndArray(1))
             FrontOfList=1   !i.e. first free index should be put at FreeIndArray(1)
 
-            MemoryAlloc=((HFExcit%nExcitMemLen)+8)*4*MaxWalkersPart
+            IF(.not.tOddSymmetries) THEN
+                MemoryAlloc=((HFExcit%nExcitMemLen)+8)*4*MaxWalkersPart
+            ELSE
+                MemoryAlloc=0
+            ENDIF
             WRITE(6,"(A,F14.6,A)") "Probable maximum memory for excitgens is : ",REAL(MemoryAlloc,r2)/1048576.D0," Mb/Processor"
             WRITE(6,*) "Initial allocation of excitation generators successful..."
 
@@ -7161,10 +7166,10 @@ MODULE FciMCParMod
 
     END SUBROUTINE ReadFromPopsfilePar
 
-
 !This will set up the initial walker distribution proportially to the MP1 wavevector.
     SUBROUTINE InitWalkersMP1Par()
         use SystemData , only : tAssumeSizeExcitgen
+        use symexcit3 , only : GenExcitations3,CountExcitations3 
         INTEGER :: HFConn,error,ierr,MemoryAlloc,VecSlot,nJ(NEl),nStore(6),iExcit,i,j,WalkersonHF,HFPointer,ExcitLevel,VecInd
         REAL*8 :: SumMP1Compts,MP2Energy,Compt,r,FracPart,TempTotWalkers,TempTotParts
         TYPE(HElement) :: Hij,Hjj,Fjj
@@ -7174,7 +7179,9 @@ MODULE FciMCParMod
         INTEGER :: MP1DetsTag,MP1SignTag,MP1CompsTag,SumWalkersonHF,ExcitLength,iMaxExcit,IntParts,MP1CompsNonCumTag
         CHARACTER(len=*), PARAMETER :: this_routine='InitWalkersMP1Par'
         LOGICAL :: First,TurnBackAssumeExGen
-        
+        INTEGER :: ExcitMat3(2,2),nSingles,nDoubles
+        LOGICAL :: tParity,tAllExcitFound
+
     
         IF(tHub.and.tReal) THEN
             CALL Stop_All(this_routine,"Cannot initialise walkers in MP1 for real space hubbard calculations.")
@@ -7302,8 +7309,15 @@ MODULE FciMCParMod
         NewSign=>WalkVec2Sign
 
 !Now calculate MP1 components - allocate memory for doubles
-        CALL GetSymExcitCount(HFExcit%ExcitData,HFConn)
-        HFConn=HFConn+1     !Add on one for the HF Det itself
+        IF(tOddSymmetries) THEN
+            exflag=3
+            CALL CountExcitations3(HFDet,exflag,nSingles,nDoubles)
+            HFConn=nSingles+nDoubles+1
+        ELSE
+            CALL GetSymExcitCount(HFExcit%ExcitData,HFConn)
+            HFConn=HFConn+1     !Add on one for the HF Det itself
+        ENDIF
+
 
         ALLOCATE(MP1Comps(HFConn),stat=ierr)    !This will store the cumulative absolute values of the mp1 wavevector components
         CALL LogMemAlloc('MP1Comps',HFConn,8,this_routine,MP1CompsTag,ierr)
@@ -7337,43 +7351,80 @@ MODULE FciMCParMod
         ENDIF
 
 !Setup excit generators for HF Determinant
-        iMaxExcit=0
-        nStore(1:6)=0
-        CALL GenSymExcitIt2(HFDet,NEl,G1,nBasis,nBasisMax,.TRUE.,ExcitLength,nJ,iMaxExcit,0,nStore,2)
-        ALLOCATE(ExcitGenTemp(ExcitLength),stat=ierr)
-        IF(ierr.ne.0) CALL Stop_All("InitWalkersMP1","Problem allocating excitation generator")
-        ExcitGenTemp(1)=0
-        CALL GenSymExcitIt2(HFDet,NEl,G1,nBasis,nBasisMax,.TRUE.,ExcitGenTemp,nJ,iMaxExcit,0,nStore,2)
+        IF(tOddSymmetries) THEN
 
-        do while(.true.)
+            tAllExcitFound=.false.
+            ExcitMat3(:,:)=0
+! exflag of 2 means only generate double excitations from the HF determinant.
+            exflag=2
+
+            do while (.not.tAllExcitFound)
+                CALL GenExcitations3(HFDet,iLutHF,nJ,exflag,ExcitMat3,tParity,tAllExcitFound)
+                IF(tAllExcitFound) EXIT
+
+                Hij=GetHElement2(HFDet,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,2,ECore)
+                CALL GetH0Element(nJ,NEl,Arr,nBasis,ECore,Fjj)
+!                WRITE(6,"(4I5,2G25.10)") nJ(:),real(Hij%v,r2),(Fii-(REAL(Fjj%v,r2)))
+
+                Compt=real(Hij%v,r2)/(Fii-(REAL(Fjj%v,r2)))
+                IF(Compt.lt.0.D0) THEN
+                    MP1Sign(VecSlot)=-1
+                ELSE
+                    MP1Sign(VecSlot)=1
+                ENDIF
+                MP1Dets(1:NEl,VecSlot)=nJ(:)
+                MP1Comps(VecSlot)=MP1Comps(VecSlot-1)+abs(Compt)
+                MP1CompsNonCum(VecSlot)=abs(Compt)
+                SumMP1Compts=SumMP1Compts+abs(Compt)
+                MP2Energy=MP2Energy+((real(Hij%v,r2))**2)/(Fii-(REAL(Fjj%v,r2)))
+
+                VecSlot=VecSlot+1
+
+            enddo
+
+        ELSE
+
+            iMaxExcit=0
+
+            nStore(1:6)=0
+            CALL GenSymExcitIt2(HFDet,NEl,G1,nBasis,nBasisMax,.TRUE.,ExcitLength,nJ,iMaxExcit,0,nStore,2)
+            ALLOCATE(ExcitGenTemp(ExcitLength),stat=ierr)
+            IF(ierr.ne.0) CALL Stop_All("InitWalkersMP1","Problem allocating excitation generator")
+            ExcitGenTemp(1)=0
+            CALL GenSymExcitIt2(HFDet,NEl,G1,nBasis,nBasisMax,.TRUE.,ExcitGenTemp,nJ,iMaxExcit,0,nStore,2)
+
+            do while(.true.)
 !Generate double excitations
-            CALL GenSymExcitIt2(HFDet,NEl,G1,nBasis,nBasisMax,.false.,ExcitGenTemp,nJ,iExcit,0,nStore,2)
-            IF(nJ(1).eq.0) EXIT
-            IF(iExcit.ne.2) THEN
-                CALL Stop_All("InitWalkersMP1","Error - excitations other than doubles being generated in MP1 wavevector code")
-            ENDIF
+                CALL GenSymExcitIt2(HFDet,NEl,G1,nBasis,nBasisMax,.false.,ExcitGenTemp,nJ,iExcit,0,nStore,2)
+                IF(nJ(1).eq.0) EXIT
+                IF(iExcit.ne.2) THEN
+                    CALL Stop_All("InitWalkersMP1","Error - excitations other than doubles being generated in MP1 wavevector code")
+                ENDIF
 
-            Hij=GetHElement2(HFDet,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,iExcit,ECore)
-            CALL GetH0Element(nJ,NEl,Arr,nBasis,ECore,Fjj)
-!            WRITE(6,"(8I5,2G25.10)") nJ(:),real(Hij%v,r2),(Fii-(REAL(Fjj%v,r2)))
+                Hij=GetHElement2(HFDet,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,iExcit,ECore)
+                CALL GetH0Element(nJ,NEl,Arr,nBasis,ECore,Fjj)
+!                WRITE(6,"(8I5,2G25.10)") nJ(:),real(Hij%v,r2),(Fii-(REAL(Fjj%v,r2)))
 
-            Compt=real(Hij%v,r2)/(Fii-(REAL(Fjj%v,r2)))
-            IF(Compt.lt.0.D0) THEN
-                MP1Sign(VecSlot)=-1
-            ELSE
-                MP1Sign(VecSlot)=1
-            ENDIF
-            MP1Dets(1:NEl,VecSlot)=nJ(:)
-            MP1Comps(VecSlot)=MP1Comps(VecSlot-1)+abs(Compt)
-            MP1CompsNonCum(VecSlot)=abs(Compt)
-            SumMP1Compts=SumMP1Compts+abs(Compt)
-            MP2Energy=MP2Energy+((real(Hij%v,r2))**2)/(Fii-(REAL(Fjj%v,r2)))
+                Compt=real(Hij%v,r2)/(Fii-(REAL(Fjj%v,r2)))
+                IF(Compt.lt.0.D0) THEN
+                    MP1Sign(VecSlot)=-1
+                ELSE
+                    MP1Sign(VecSlot)=1
+                ENDIF
+                MP1Dets(1:NEl,VecSlot)=nJ(:)
+                MP1Comps(VecSlot)=MP1Comps(VecSlot-1)+abs(Compt)
+                MP1CompsNonCum(VecSlot)=abs(Compt)
+                SumMP1Compts=SumMP1Compts+abs(Compt)
+                MP2Energy=MP2Energy+((real(Hij%v,r2))**2)/(Fii-(REAL(Fjj%v,r2)))
 
-            VecSlot=VecSlot+1
+                VecSlot=VecSlot+1
 
-        enddo
+            enddo
 
-        DEALLOCATE(ExcitGenTemp)
+            DEALLOCATE(ExcitGenTemp)
+
+        ENDIF
+
 
         WRITE(6,"(A,F15.7,A)") "Sum of absolute components of MP1 wavefunction is ",SumMP1Compts," with the HF being 1."
 
@@ -7579,7 +7630,11 @@ MODULE FciMCParMod
                     CurrentExcits(j)%PointToExcit=>null()
                 ENDIF
             enddo
-            MemoryAlloc=((HFExcit%nExcitMemLen)+8)*4*MaxWalkersPart
+            IF(.not.tOddSymmetries) THEN
+                MemoryAlloc=((HFExcit%nExcitMemLen)+8)*4*MaxWalkersPart
+            ELSE
+                MemoryAlloc=0
+            ENDIF
 
             WRITE(6,"(A,F14.6,A)") "Probable maximum memory for excitgens is : ",REAL(MemoryAlloc,r2)/1048576.D0," Mb/Processor"
             WRITE(6,*) "Initial allocation of excitation generators successful..."
@@ -9017,7 +9072,7 @@ MODULE FciMCParMod
 
     END SUBROUTINE SortCompressListswH
 
-    
+
     SUBROUTINE DeallocFCIMCMemPar()
         INTEGER :: i,error,length,temp
         CHARACTER(len=*), PARAMETER :: this_routine='DeallocFciMCMemPar'
@@ -9103,7 +9158,8 @@ MODULE FciMCParMod
         DEALLOCATE(HFDet)
         CALL LogMemDealloc(this_routine,HFDetTag)
         DEALLOCATE(iLutHF)
-        DEALLOCATE(HFExcit%ExcitData)
+
+        IF(.not.tOddSymmetries) DEALLOCATE(HFExcit%ExcitData)
         IF(.not.TRegenExcitgens) THEN
             do i=1,MaxWalkersPart
                 CALL DissociateExitgen(WalkVecExcits(i))
@@ -11941,7 +11997,7 @@ MODULE FciMCParMod
 !  It's not yet complete, but at least compiles and runs
 
     SUBROUTINE SetupParameters()
-        use SystemData, only : tUseBrillouin,iRanLuxLev,tSpn,tHPHFInts,tRotateOrbs,tNoBrillouin,tROHF,tFindCINatOrbs
+        use SystemData, only : tUseBrillouin,iRanLuxLev,tSpn,tHPHFInts,tRotateOrbs,tNoBrillouin,tROHF,tFindCINatOrbs,nOccBeta,nOccAlpha
         USE mt95 , only : genrand_init
         use CalcData, only : EXCITFUNCS,tFCIMC
         use Calc, only : VirtCASorbs,OccCASorbs,FixShift,G_VMC_Seed
@@ -11951,6 +12007,7 @@ MODULE FciMCParMod
         use GenRandSymExcitNUMod , only : SpinOrbSymSetup,tNoSingsPossible
         use FciMCLoggingMOD , only : InitTriHElStats,InitSpinCoupHel
         use DetCalc, only : NMRKS,tagNMRKS,FCIDets
+        use SymExcit3, only : CountExcitations3 
         INTEGER :: ierr,i,j,k,l,DetCurr(NEl),ReadWalkers,TotWalkersDet,HFDetTest(NEl),Seed,alpha,beta,symalpha,symbeta,endsymstate
         INTEGER :: DetLT,VecSlot,error,HFConn,MemoryAlloc,iMaxExcit,nStore(6),nJ(Nel),BRR2(nBasis),LargestOrb,nBits,HighEDet(NEl),iLutTemp(0:NIfD)
         TYPE(HElement) :: rh,TempHii
@@ -11959,6 +12016,7 @@ MODULE FciMCParMod
         CHARACTER(len=12) :: abstr
         LOGICAL :: tSuccess,tFoundOrbs(nBasis),tTurnBackBrillouin
         REAL :: Gap
+        INTEGER :: nSingles,nDoubles
 
 !        CALL MPIInit(.false.)       !Initialises MPI - now have variables iProcIndex and nProcessors
         WRITE(6,*) ""
@@ -12073,11 +12131,22 @@ MODULE FciMCParMod
             WRITE(6,*) "I strongly suggest you check that the reference energy is correct."
 !            CALL Stop_All("SetupParameters","Error in the setup of the symmetry/spin ordering of the orbitals. This configuration will not work with spawning excitation generators")
             CALL SpinOrbSymSetup(.true.) 
+
+            tOddSymmetries=.true.
+
+            IF(.not.tNonUniRandExcits) CALL Stop_All(this_routine,'ERROR. Need to use the non-uniform random excitation generators when &
+            & we have odd symmetries and the symmetry label lists are stored in spin orbitals.')
+
         ELSE
+!            WRITE(6,*) "Symmetry and spin of orbitals correctly set up for spawning excitation generators."
             WRITE(6,*) "Symmetry and spin of orbitals correctly set up for spawning excitation generators."
-!            CALL SpinOrbSymSetup(.false.) 
+            WRITE(6,*) "Simply transferring this into a spin orbital representation."
+            CALL SpinOrbSymSetup(.false.) 
+            tOddSymmetries=.true.
 !            CALL Stop_All("SSS","SKCJB")
         ENDIF
+! From now on, the orbitals are contained in symlabellist2 and symlabelcounts2 rather than the original arrays.
+! These are stored using spin orbitals.
 
 !Check whether it is possible to have a determinant where the electrons
 !can be arranged in a determinant so that there are no unoccupied
@@ -12087,30 +12156,40 @@ MODULE FciMCParMod
 
 
 !Setup excitation generator for the HF determinant. If we are using assumed sized excitgens, this will also be assumed size.
-        IF(tUseBrillouin.and.tNonUniRandExcits) THEN
-            WRITE(6,*) "Temporarily turning brillouins theorem off in order to calculate pDoubles for non-uniform excitation generators"
-            tTurnBackBrillouin=.true.
-            tUseBrillouin=.false.
-        ELSE
-            tTurnBackBrillouin=.false.
-        ENDIF
-        iMaxExcit=0
-        nStore(1:6)=0
-        CALL GenSymExcitIt2(HFDet,NEl,G1,nBasis,nBasisMax,.TRUE.,HFExcit%nExcitMemLen,nJ,iMaxExcit,0,nStore,3)
-        ALLOCATE(HFExcit%ExcitData(HFExcit%nExcitMemLen),stat=ierr)
-        IF(ierr.ne.0) CALL Stop_All(this_routine,"Problem allocating excitation generator")
-        HFExcit%ExcitData(1)=0
-        CALL GenSymExcitIt2(HFDet,NEl,G1,nBasis,nBasisMax,.TRUE.,HFExcit%ExcitData,nJ,iMaxExcit,0,nStore,3)
-        HFExcit%nPointed=0
+
+        IF(.not.tOddSymmetries) THEN
+            IF(tUseBrillouin.and.tNonUniRandExcits) THEN
+                WRITE(6,*) "Temporarily turning brillouins theorem off in order to calculate pDoubles for non-uniform excitation generators"
+                tTurnBackBrillouin=.true.
+                tUseBrillouin=.false.
+            ELSE
+                tTurnBackBrillouin=.false.
+            ENDIF
+            iMaxExcit=0
+            nStore(1:6)=0
+            CALL GenSymExcitIt2(HFDet,NEl,G1,nBasis,nBasisMax,.TRUE.,HFExcit%nExcitMemLen,nJ,iMaxExcit,0,nStore,3)
+            ALLOCATE(HFExcit%ExcitData(HFExcit%nExcitMemLen),stat=ierr)
+            IF(ierr.ne.0) CALL Stop_All(this_routine,"Problem allocating excitation generator")
+            HFExcit%ExcitData(1)=0
+            CALL GenSymExcitIt2(HFDet,NEl,G1,nBasis,nBasisMax,.TRUE.,HFExcit%ExcitData,nJ,iMaxExcit,0,nStore,3)
+            HFExcit%nPointed=0
 !Indicate that the excitation generator is now correctly allocated.
 
 !        CALL SetupExitgenPar(HFDet,HFExcit)
-        CALL GetSymExcitCount(HFExcit%ExcitData,HFConn)
+            CALL GetSymExcitCount(HFExcit%ExcitData,HFConn)
 
-        IF(tTurnBackBrillouin) THEN
-            tUseBrillouin=.true.
-            WRITE(6,*) "Turning back on brillouins theorem"
+            IF(tTurnBackBrillouin) THEN
+                tUseBrillouin=.true.
+                WRITE(6,*) "Turning back on brillouins theorem"
+            ENDIF
+
+        ELSE
+            exflag=3
+!Count all possible excitations - put into HFConn
+            CALL CountExcitations3(HFDet,exflag,nSingles,nDoubles)
+            HFConn=nSingles+nDoubles
         ENDIF
+
 
 !Initialise random number seed - since the seeds need to be different on different processors, subract processor rank from random number
         Seed=abs(G_VMC_Seed-iProcIndex)
@@ -12863,6 +12942,7 @@ MODULE FciMCParMod
     SUBROUTINE CalcApproxpDoubles(HFConn)
         use SystemData , only : tAssumeSizeExcitgen
         use SymData , only : SymClassSize
+        use SymExcit3 , only : CountExcitations3
         INTEGER :: HFConn,PosExcittypes,iTotal,i
         INTEGER :: nSing,nDoub,ExcitInd
 
@@ -12880,39 +12960,52 @@ MODULE FciMCParMod
             ENDIF
         ENDIF
 
-        WRITE(6,"(A)") "Calculating approximate pDoubles for use with excitation generator by looking a excitations from HF."
-        IF(tAssumeSizeExcitgen) THEN
-            PosExcittypes=SymClassSize*NEL+NBASIS/32+4
-            iTotal=HFExcit%ExcitData(1)
-        ELSE
-            PosExcittypes=HFExcit%ExcitData(2)
-            iTotal=HFExcit%ExcitData(23)
-        ENDIF
-        IF(iTotal.ne.HFConn) THEN
-            CALL Stop_All("CalcApproxpDoubles","Number of excitations from HF determinant has been confused somewhere...")
-        ENDIF
-!        WRITE(6,*) "**********"
-!        do i=0,100
-!            WRITE(6,*) i,HFExcit%ExcitData(PosExcittypes+i)
-!        enddo
-        nSing=0
-        nDoub=0
-        i=iTotal
-!ExcitTypes is normally a (5,NExcitTypes) array, so we have to be a little careful with the indexing.
-        ExcitInd=4+PosExcittypes
+        IF(tOddSymmetries) THEN
+!NSing=Number singles from HF, nDoub=No Doubles from HF
 
-        do while((i.gt.0).and.HFExcit%ExcitData(ExcitInd).le.i)
-            IF(HFExcit%ExcitData(ExcitInd-4).eq.1) THEN
-!We are counting single excitations
-                NSing=NSing+HFExcit%ExcitData(ExcitInd)
-            ELSEIF(HFExcit%ExcitData(ExcitInd-4).eq.2) THEN
-                NDoub=NDoub+HFExcit%ExcitData(ExcitInd)
+            WRITE(6,"(A)") "Calculating approximate pDoubles for use with excitation generator by looking a excitations from HF."
+            exflag=3
+            CALL CountExcitations3(HFDet,exflag,nSing,nDoub)
+            iTotal=nSing+nDoub
+
+
+        ELSE
+
+            WRITE(6,"(A)") "Calculating approximate pDoubles for use with excitation generator by looking a excitations from HF."
+            IF(tAssumeSizeExcitgen) THEN
+                PosExcittypes=SymClassSize*NEL+NBASIS/32+4
+                iTotal=HFExcit%ExcitData(1)
             ELSE
-                CALL Stop_All("CalcApproxpDoubles","Cannot read excittypes")
+                PosExcittypes=HFExcit%ExcitData(2)
+                iTotal=HFExcit%ExcitData(23)
             ENDIF
-            i=i-HFExcit%ExcitData(ExcitInd)
-            ExcitInd=ExcitInd+5
-        enddo
+            IF(iTotal.ne.HFConn) THEN
+                CALL Stop_All("CalcApproxpDoubles","Number of excitations from HF determinant has been confused somewhere...")
+            ENDIF
+!            WRITE(6,*) "**********"
+!            do i=0,100
+!                WRITE(6,*) i,HFExcit%ExcitData(PosExcittypes+i)
+!            enddo
+            nSing=0
+            nDoub=0
+            i=iTotal
+!ExcitTypes is normally a (5,NExcitTypes) array, so we have to be a little careful with the indexing.
+            ExcitInd=4+PosExcittypes
+
+            do while((i.gt.0).and.HFExcit%ExcitData(ExcitInd).le.i)
+                IF(HFExcit%ExcitData(ExcitInd-4).eq.1) THEN
+!We are counting single excitations
+                    NSing=NSing+HFExcit%ExcitData(ExcitInd)
+                ELSEIF(HFExcit%ExcitData(ExcitInd-4).eq.2) THEN
+                    NDoub=NDoub+HFExcit%ExcitData(ExcitInd)
+                ELSE
+                    CALL Stop_All("CalcApproxpDoubles","Cannot read excittypes")
+                ENDIF
+                i=i-HFExcit%ExcitData(ExcitInd)
+                ExcitInd=ExcitInd+5
+            enddo
+
+        ENDIF
 
         WRITE(6,"(I7,A,I7,A)") NDoub, " double excitations, and ",NSing," single excitations found from HF. This will be used to calculate pDoubles."
 
@@ -13277,8 +13370,11 @@ MODULE FciMCParMod
 !This will store all the double excitations.
     SUBROUTINE StoreDoubs()
         use SystemData , only : tAssumeSizeExcitgen,tUseBrillouin
-        INTEGER :: iMaxExcit,nStore(6),ExcitLength,nJ(NEl),ierr,iExcit,VecSlot
+        use SymExcit3 , only : CountExcitations3,GenExcitations3
+        INTEGER :: iMaxExcit,nStore(6),ExcitLength,nJ(NEl),ierr,iExcit,VecSlot,nSingles,ExcitMat3(2,2)
         INTEGER , ALLOCATABLE :: ExcitGenTemp(:)
+        LOGICAL :: tAllExcitFound,tParity
+
 
         IF(tAssumeSizeExcitgen) THEN
             CALL Stop_All("StoreDoubs","Cannot have assumed sized excitation generators for full enumeration of determinants")
@@ -13289,7 +13385,13 @@ MODULE FciMCParMod
 
         
 !NoDoubs here is actually the singles + doubles of HF
-        CALL GetSymExcitCount(HFExcit%ExcitData,NoDoubs)
+        IF(tOddSymmetries) THEN
+            exflag=3
+            CALL CountExcitations3(HFDet,exflag,nSingles,NoDoubs)
+            NoDoubs=nSingles+NoDoubs
+        ELSE
+            CALL GetSymExcitCount(HFExcit%ExcitData,NoDoubs)
+        ENDIF
 
         ALLOCATE(DoublesDets(NEl,NoDoubs),stat=ierr)
         CALL LogMemAlloc('DoublesDets',NoDoubs*NEl,4,"StoreDoubs",DoublesDetsTag,ierr)
@@ -13297,27 +13399,43 @@ MODULE FciMCParMod
         
         VecSlot=1           !This is the next free slot in the DoublesDets array
 
+        IF(tOddSymmetries) THEN
+
+            tAllExcitFound=.false.
+            ExcitMat3(:,:)=0
+!An exflag of anything but 1 or 2 indicates both the single and double excitations should be found.            
+            exflag=3
+
+            do while (.not.tAllExcitFound)
+                CALL GenExcitations3(HFDet,iLutHF,nJ,exflag,ExcitMat3,tParity,tAllExcitFound)
+                IF(tAllExcitFound) EXIT
+                DoublesDets(1:NEl,VecSlot)=nJ(:)
+                VecSlot=VecSlot+1
+            enddo
+
+        ELSE
 !Setup excit generators for HF Determinant
-        iMaxExcit=0
-        nStore(1:6)=0
-        CALL GenSymExcitIt2(HFDet,NEl,G1,nBasis,nBasisMax,.TRUE.,ExcitLength,nJ,iMaxExcit,0,nStore,3)
-        ALLOCATE(ExcitGenTemp(ExcitLength),stat=ierr)
-        IF(ierr.ne.0) CALL Stop_All("InitWalkersMP1","Problem allocating excitation generator")
-        ExcitGenTemp(1)=0
-        CALL GenSymExcitIt2(HFDet,NEl,G1,nBasis,nBasisMax,.TRUE.,ExcitGenTemp,nJ,iMaxExcit,0,nStore,3)
+            iMaxExcit=0
+            nStore(1:6)=0
+            CALL GenSymExcitIt2(HFDet,NEl,G1,nBasis,nBasisMax,.TRUE.,ExcitLength,nJ,iMaxExcit,0,nStore,3)
+            ALLOCATE(ExcitGenTemp(ExcitLength),stat=ierr)
+            IF(ierr.ne.0) CALL Stop_All("InitWalkersMP1","Problem allocating excitation generator")
+            ExcitGenTemp(1)=0
+            CALL GenSymExcitIt2(HFDet,NEl,G1,nBasis,nBasisMax,.TRUE.,ExcitGenTemp,nJ,iMaxExcit,0,nStore,3)
 
-        do while(.true.)
+            do while(.true.)
 !Generate double excitations
-            CALL GenSymExcitIt2(HFDet,NEl,G1,nBasis,nBasisMax,.false.,ExcitGenTemp,nJ,iExcit,0,nStore,3)
-            IF(nJ(1).eq.0) EXIT
-!            IF(iExcit.ne.2) THEN
-!                CALL Stop_All("StoreDoubles","Error - excitations other than doubles being generated in DoublesDets wavevector code")
-!            ENDIF
+                CALL GenSymExcitIt2(HFDet,NEl,G1,nBasis,nBasisMax,.false.,ExcitGenTemp,nJ,iExcit,0,nStore,3)
+                IF(nJ(1).eq.0) EXIT
+!                IF(iExcit.ne.2) THEN
+!                    CALL Stop_All("StoreDoubles","Error - excitations other than doubles being generated in DoublesDets wavevector code")
+!                ENDIF
 
-            DoublesDets(1:NEl,VecSlot)=nJ(:)
-            VecSlot=VecSlot+1
+                DoublesDets(1:NEl,VecSlot)=nJ(:)
+                VecSlot=VecSlot+1
 
-        enddo
+            enddo
+        ENDIF
 
 !This means that now NoDoubs is double excitations AND singles
 !        NoDoubs=VecSlot-1
