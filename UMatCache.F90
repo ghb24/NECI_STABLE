@@ -302,8 +302,30 @@ MODULE UMatCache
             ELSE
                 UMatInd=(B*(B-1))/2+A
             ENDIF
+#ifdef __CMPLX            
+            UMatInd = (UMatInd-1)*2 + 1
+            if ((((I.gt.K).and.(J.lt.L)) .or. ((I.lt.K).and.(J.gt.L))) .and.
+               (I.ne.J) .and. (K.ne.L)) then
+               UMatInd = UMatInd + 1
+            endif
+#endif
          ENDIF
       END FUNCTION UMatInd
+
+      type(HElement) function UMatConj(I,J,K,L,val)
+         integer, intent(in) :: I,J,K,L
+         type(HElement), intent(in) :: val
+#ifdef __CMPLX
+         if (((I.lt.J) .and. (K.ge.L)) .or.
+             ((K.lt.L) .and. (I.ge.J))) then
+            UMatConj = dconjg(val)
+         else
+            UMatConj = val
+         end if
+#else
+         UMatConj = val
+#endif
+      end function UMatConj
 
 
 
@@ -345,6 +367,9 @@ MODULE UMatCache
          ELSE
             iPairs=(nBi*(nBi+1))/2
             iSize=(iPairs*(iPairs+1))/2
+#ifdef __CMPLX
+            iSize = iSize * 2
+#endif
          ENDIF
       END SUBROUTINE GetUMatSize
       
