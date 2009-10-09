@@ -1157,8 +1157,8 @@ MODULE System
 !not reorder the orbitals by energy, so that they remain in symmetries.
 !The reason it fails it that it looks for a complete set of orbitals which are degenerate
 !and ignores those in the symmetry classification. Unfortunately in ROHF and UHF there aren't such things.
-          WRITE(6,*) "Open shell system - Orbitals will not be reordered and SYMIGNOREENERGIES set."
-          tHFNOORDER=.true.
+          WRITE(6,*) "Open shell system - SYMIGNOREENERGIES set."
+!          tHFNOORDER=.true.
           tSymIgnoreEnergies=.true.
       ENDIF
 
