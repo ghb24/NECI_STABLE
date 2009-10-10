@@ -417,8 +417,6 @@ Subroutine MPIDSumRoot(dValues,iLen,dReturn,Root)
 #endif
 end subroutine MPIDSumRoot
 
-
-
 Subroutine MPIHElSum(dValues, iLen, dReturn)
    !=  In:
    !=     dValues(iLen)  Array of Type(HElement).  The corresponding elements
@@ -442,7 +440,51 @@ Subroutine MPIHElSum(dValues, iLen, dReturn)
 #endif
 end Subroutine MPIHElSum
 
+Subroutine MPIAlltoAllI(SendBuf,SendSize,RecvBuf,RecvSize,ierr)
+    INTEGER :: SendBuf(:),RecvBuf(:)
+    INTEGER :: SendSize,ierr,RecvSize
+#ifdef PARALLEL
+    CALL MPI_AlltoAll(SendBuf,SendSize,MPI_INTEGER,RecvBuf,RecvSize,MPI_INTEGER,MPI_COMM_WORLD,ierr)
+#else
+    RecvBuf=SendBuf
+#endif
+End Subroutine MPIAlltoAllI
 
+Subroutine MPIAlltoAllvI(SendBuf,SendCounts,SendDisps,RecvBuf,RecvCounts,RecvDisps,ierr)
+    INTEGER :: SendBuf(:),SendCounts(:),SendDisps(:),RecvBuf(:),RecvCounts(:),RecvDisps(:),ierr
+#ifdef PARALLEL
+    CALL MPI_AlltoAllv(SendBuf,SendCounts,SendDisps,MPI_INTEGER,RecvBuf,RecvCounts,RecvDisps,MPI_INTEGER,MPI_COMM_WORLD,ierr)
+#else
+    RecvBuf=SendBuf
+#endif
+End Subroutine MPIAlltoAllvI
+
+Subroutine MPIAlltoAllvDP(SendBuf,SendCounts,SendDisps,RecvBuf,RecvCounts,RecvDisps,ierr)
+    INTEGER :: SendDisps(:),SendCounts(:),RecvCounts(:),RecvDisps(:),ierr
+    REAL*8 :: SendBuf(:),RecvBuf(:)
+#ifdef PARALLEL
+    CALL MPI_AlltoAllv(SendBuf,SendCounts,SendDisps,MPI_DOUBLE_PRECISION,RecvBuf,RecvCounts,RecvDisps,MPI_DOUBLE_PRECISION,MPI_COMM_WORLD,ierr)
+#else
+    RecvBuf=SendBuf
+#endif
+End Subroutine MPIAlltoAllvDP 
+
+Subroutine MPIBarrier(error)
+    INTEGER :: error
+#ifdef PARALLEL
+    CALL MPI_Barrier(MPI_COMM_WORLD,error)
+#endif
+End Subroutine MPIBarrier
+
+Subroutine MPIAllReduceLOR(SendBuf,RecvBuf,Length,error)
+    LOGICAL :: SendBuf(:),RecvBuf(:)
+    INTEGER :: Length,error
+#ifdef PARALLEL
+    CALL MPI_AllReduce(SendBuf,RecvBuf,Length,MPI_LOGICAL,MPI_LOR,MPI_COMM_WORLD,error)
+#else
+    RecvBuf=SendBuf
+#endif
+End Subroutine MPIAllReduceLOR
 
 Subroutine GetProcElectrons(iProcIndex,iMinElec,iMaxElec)
    !=  Choose min and max electrons such that ordered pairs are distributed evenly across processors

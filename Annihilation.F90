@@ -85,7 +85,7 @@ MODULE AnnihilationMod
         
         CALL set_timer(Comms_Time,30)
         
-        CALL MPI_AlltoAll(sendcounts,1,MPI_INTEGER,recvcounts,1,MPI_INTEGER,MPI_COMM_WORLD,error)
+        CALL MPIAlltoAllI(sendcounts,1,recvcounts,1,error)
 
 !We can now get recvdisps from recvcounts, since we want the data to be contiguous after the move.
         recvdisps(1)=0
@@ -109,7 +109,7 @@ MODULE AnnihilationMod
 !        enddo
         
 !This is the main send of newly-spawned particles and signs to each determinants correct processor.
-        CALL MPI_AlltoAllv(SpawnedSign(1:MaxSendIndex),sendcounts,disps,MPI_INTEGER,SpawnedSign2(1:MaxIndex),recvcounts,recvdisps,MPI_INTEGER,MPI_COMM_WORLD,error)
+        CALL MPIAlltoAllvI(SpawnedSign(1:MaxSendIndex),sendcounts,disps,SpawnedSign2(1:MaxIndex),recvcounts,recvdisps,error)
         
 !        WRITE(6,*) MaxIndex, "Recieved signs: "
 !        do i=1,MaxIndex
@@ -129,7 +129,7 @@ MODULE AnnihilationMod
 !            WRITE(6,*) i,"***",SpawnedParts(:,i)
 !        enddo
 
-        CALL MPI_AlltoAllv(SpawnedParts(0:NIfD,1:MaxSendIndex),sendcounts,disps,MPI_INTEGER,SpawnedParts2(0:NIfD,1:MaxIndex),recvcounts,recvdisps,MPI_INTEGER,MPI_COMM_WORLD,error)
+        CALL MPIAlltoAllvI(SpawnedParts(0:NIfD,1:MaxSendIndex),sendcounts,disps,SpawnedParts2(0:NIfD,1:MaxIndex),recvcounts,recvdisps,error)
 
 !        WRITE(6,*) MaxIndex, "Recieved particles: "
 !        do i=1,MaxSpawned
@@ -325,7 +325,7 @@ MODULE AnnihilationMod
         CALL CompressSpawnedList(ValidSpawned)
 
 !        CALL SortBitDets(ValidSpawned,SpawnedParts(0:NIfD,1:ValidSpawned),NIfD,SpawnedSign(1:ValidSpawned))
-        CALL MPI_Barrier(MPI_COMM_WORLD,error)
+        CALL MPIBarrier(error)
 !        WRITE(6,*) "Entering rotoannilation: ",Iter,InitialSpawned,TotWalkersNew
 !        CALL FLUSH(6)
 
@@ -355,7 +355,7 @@ MODULE AnnihilationMod
 !This routine annihilates the processors set of newly-spawned particles, with the complete set of particles on the processor.
         CALL AnnihilateSpawnedParts(ValidSpawned,TotWalkersNew)
 
-        CALL MPI_Barrier(MPI_COMM_WORLD,error)
+        CALL MPIBarrier(error)
 
 !Allocate a buffer here to hold particles when using a buffered send...
 !The buffer wants to be able to hold (MaxSpawned+1)x(NIfD+2) integers (*4 for in bytes). If we could work out the maximum ValidSpawned accross the determinants,
@@ -365,7 +365,9 @@ MODULE AnnihilationMod
             IF(ierr.ne.0) THEN
                 CALL Stop_All("RotoAnnihilation","Error allocating memory for transfer buffers...")
             ENDIF
+#ifdef PARALLEL
             CALL MPI_Buffer_attach(mpibuffer,8*(MaxSpawned+1)*(NIfD+2),error)
+#endif
             IF(error.ne.0) THEN
                 CALL Stop_All("RotoAnnihilation","Error allocating memory for transfer buffers...")
             ENDIF
@@ -391,8 +393,10 @@ MODULE AnnihilationMod
         IF(nProcessors.ne.1) THEN
             CALL RotateParticles(ValidSpawned)
 
+#ifdef PARALLEL
 !Detach buffers
             CALL MPI_Buffer_detach(mpibuffer,8*(MaxSpawned+1)*(NIfD+2),error)
+#endif
             DEALLOCATE(mpibuffer)
         ENDIF
         
@@ -915,7 +919,7 @@ MODULE AnnihilationMod
 !We now need to calculate the recvcounts and recvdisps - this is a job for AlltoAll
         recvcounts(1:nProcessors)=0
 
-        CALL MPI_AlltoAll(sendcounts,1,MPI_INTEGER,recvcounts,1,MPI_INTEGER,MPI_COMM_WORLD,error)
+        CALL MPIAlltoAllI(sendcounts,1,recvcounts,1,error)
 
 !We can now get recvdisps from recvcounts in the same way we obtained disps from sendcounts
         recvdisps(1)=0
@@ -959,12 +963,12 @@ MODULE AnnihilationMod
 !        ENDIF
 
 !Now send the chunks of hashes to the corresponding processors
-        CALL MPI_AlltoAllv(HashArray1(1:ValidSpawned),sendcounts,disps,MPI_DOUBLE_PRECISION,HashArray2(1:MaxIndex),recvcounts,recvdisps,MPI_DOUBLE_PRECISION,MPI_COMM_WORLD,error)
+        CALL MPIAlltoAllvDP(HashArray1(1:ValidSpawned),sendcounts,disps,HashArray2(1:MaxIndex),recvcounts,recvdisps,error)
 
 !The signs of the hashes, index and CPU also need to be taken with them.
-        CALL MPI_AlltoAllv(SpawnedSign(1:ValidSpawned),sendcounts,disps,MPI_INTEGER,SpawnedSign2(1:MaxIndex),recvcounts,recvdisps,MPI_INTEGER,MPI_COMM_WORLD,error)
-        CALL MPI_AlltoAllv(IndexTable1(1:ValidSpawned),sendcounts,disps,MPI_INTEGER,IndexTable2,recvcounts,recvdisps,MPI_INTEGER,MPI_COMM_WORLD,error)
-        CALL MPI_AlltoAllv(ProcessVec1(1:ValidSpawned),sendcounts,disps,MPI_INTEGER,ProcessVec2,recvcounts,recvdisps,MPI_INTEGER,MPI_COMM_WORLD,error)
+        CALL MPIAlltoAllvI(SpawnedSign(1:ValidSpawned),sendcounts,disps,SpawnedSign2(1:MaxIndex),recvcounts,recvdisps,error)
+        CALL MPIAlltoAllvI(IndexTable1(1:ValidSpawned),sendcounts,disps,IndexTable2,recvcounts,recvdisps,error)
+        CALL MPIAlltoAllvI(ProcessVec1(1:ValidSpawned),sendcounts,disps,ProcessVec2,recvcounts,recvdisps,error)
 
         IF(.not.tAnnihilatebyrange) THEN
 !The hashes now need to be sorted again - this time by their number
@@ -1168,7 +1172,7 @@ MODULE AnnihilationMod
 !We now need to calculate the recvcounts and recvdisps - this is a job for AlltoAll
         recvcounts(1:nProcessors)=0
 
-        CALL MPI_AlltoAll(sendcounts,1,MPI_INTEGER,recvcounts,1,MPI_INTEGER,MPI_COMM_WORLD,error)
+        CALL MPIAlltoAllI(sendcounts,1,recvcounts,1,error)
 
 !We can now get recvdisps from recvcounts in the same way we obtained disps from sendcounts
         recvdisps(1)=0
@@ -1178,8 +1182,8 @@ MODULE AnnihilationMod
 
         ToAnnihilateonProc=recvdisps(nProcessors)+recvcounts(nProcessors)
 
-        CALL MPI_AlltoAllv(IndexTable1(1:ToAnnihilateonProc),sendcounts,disps,MPI_INTEGER,IndexTable2,recvcounts,recvdisps,MPI_INTEGER,MPI_COMM_WORLD,error)
-        CALL MPI_AlltoAllv(SpawnedSign(1:ToAnnihilateonProc),sendcounts,disps,MPI_INTEGER,SpawnedSign2(1:),recvcounts,recvdisps,MPI_INTEGER,MPI_COMM_WORLD,error)
+        CALL MPIAlltoAllvI(IndexTable1(1:ToAnnihilateonProc),sendcounts,disps,IndexTable2,recvcounts,recvdisps,error)
+        CALL MPIAlltoAllvI(SpawnedSign(1:ToAnnihilateonProc),sendcounts,disps,SpawnedSign2(1:),recvcounts,recvdisps,error)
 
 !We now need to take with the index, the sign to remain on the entry, as it does not necessarily want to be totally annihilated.
         CALL NECI_SORT2I(ToAnnihilateonProc,IndexTable2(1:ToAnnihilateonProc),SpawnedSign2(1:ToAnnihilateonProc))
@@ -1735,6 +1739,7 @@ MODULE AnnihilationMod
 !       extra communication?
     SUBROUTINE RotateParticles(ValidSpawned)
         INTEGER :: error,ValidSpawned
+#ifdef PARALLEL
         INTEGER, DIMENSION(MPI_STATUS_SIZE) :: Stat 
         
         CALL set_timer(Comms_Time,30)
@@ -1796,6 +1801,8 @@ MODULE AnnihilationMod
 !        CALL FLUSH(6)
 
         CALL halt_timer(Comms_Time)
+
+#endif
 
     END SUBROUTINE RotateParticles
 
@@ -1966,10 +1973,10 @@ MODULE AnnihilationMod
 !We now need to calculate the recvcounts and recvdisps - this is a job for AlltoAll
         recvcounts(1:nProcessors)=0
 !Put a barrier here so all processes synchronise
-!        CALL MPI_Barrier(MPI_COMM_WORLD,error)
+!        CALL MPIBarrier(error)
         CALL set_timer(Comms_Time,30)
 
-        CALL MPI_AlltoAll(sendcounts,1,MPI_INTEGER,recvcounts,1,MPI_INTEGER,MPI_COMM_WORLD,error)
+        CALL MPIAlltoAllI(sendcounts,1,recvcounts,1,error)
 
 !We can now get recvdisps from recvcounts in the same way we obtained disps from sendcounts
         recvdisps(1)=0
@@ -2012,12 +2019,12 @@ MODULE AnnihilationMod
 !        ENDIF
         
 !Now send the chunks of hashes to the corresponding processors
-        CALL MPI_AlltoAllv(Hash2Array(1:TotWalkersNew),sendcounts,disps,MPI_DOUBLE_PRECISION,HashArray(1:MaxIndex),recvcounts,recvdisps,MPI_DOUBLE_PRECISION,MPI_COMM_WORLD,error)        
+        CALL MPIAlltoAllvDP(Hash2Array(1:TotWalkersNew),sendcounts,disps,HashArray(1:MaxIndex),recvcounts,recvdisps,error)        
 
 !The signs of the hashes, index and CPU also need to be taken with them.
-        CALL MPI_AlltoAllv(NewSign(1:TotWalkersNew),sendcounts,disps,MPI_INTEGER,CurrentSign,recvcounts,recvdisps,MPI_LOGICAL,MPI_COMM_WORLD,error)
-        CALL MPI_AlltoAllv(IndexTable(1:TotWalkersNew),sendcounts,disps,MPI_INTEGER,Index2Table,recvcounts,recvdisps,MPI_INTEGER,MPI_COMM_WORLD,error)
-        CALL MPI_AlltoAllv(ProcessVec(1:TotWalkersNew),sendcounts,disps,MPI_INTEGER,Process2Vec,recvcounts,recvdisps,MPI_INTEGER,MPI_COMM_WORLD,error)
+        CALL MPIAlltoAllvI(NewSign(1:TotWalkersNew),sendcounts,disps,CurrentSign,recvcounts,recvdisps,error)
+        CALL MPIAlltoAllvI(IndexTable(1:TotWalkersNew),sendcounts,disps,Index2Table,recvcounts,recvdisps,error)
+        CALL MPIAlltoAllvI(ProcessVec(1:TotWalkersNew),sendcounts,disps,Process2Vec,recvcounts,recvdisps,error)
 !        IF(TLocalAnnihilation) THEN
 !!If we are locally annihilating, then we need to take the excitation level of the particle with us.
 !!We can send the information to CurrentIC - this is where the final information will be stored, but currently, it is redundant.
@@ -2264,10 +2271,10 @@ MODULE AnnihilationMod
 !We now need to calculate the recvcounts and recvdisps - this is a job for AlltoAll
         recvcounts(1:nProcessors)=0
 !Put a barrier here so all processes synchronise
-!        CALL MPI_Barrier(MPI_COMM_WORLD,error)
+!        CALL MPIBarrier(error)
         CALL set_timer(Comms_Time,30)
 
-        CALL MPI_AlltoAll(sendcounts,1,MPI_INTEGER,recvcounts,1,MPI_INTEGER,MPI_COMM_WORLD,error)
+        CALL MPIAlltoAllI(sendcounts,1,recvcounts,1,error)
 
 !We can now get recvdisps from recvcounts in the same way we obtained disps from sendcounts
         recvdisps(1)=0
@@ -2300,7 +2307,7 @@ MODULE AnnihilationMod
 !            CALL Stop_All("AnnihilatePartPar","Error in sending back annihilated particles")
 !        ENDIF
 !        CALL MPI_AlltoAllv(IndexTable(1:TotWalkersNew),sendcounts,disps,MPI_INTEGER,Index2Table,recvcounts,recvdisps,MPI_INTEGER,MPI_COMM_WORLD,error)
-        CALL MPI_AlltoAllv(IndexTable(1:ToAnnihilateonProc),sendcounts,disps,MPI_INTEGER,Index2Table,recvcounts,recvdisps,MPI_INTEGER,MPI_COMM_WORLD,error)
+        CALL MPIAlltoAllvI(IndexTable(1:ToAnnihilateonProc),sendcounts,disps,Index2Table,recvcounts,recvdisps,error)
 !        IF(error.ne.MPI_SUCCESS) THEN
 !            WRITE(6,*) "Error in sending back annihilated particles"
 !            CALL Stop_All("AnnihilatePartPar","Error in sending back annihilated particles")
@@ -2449,7 +2456,7 @@ MODULE AnnihilationMod
 !        ENDIF
 
 ! Make sure all processors have done this before carrying on.
-        CALL MPI_Barrier(MPI_COMM_WORLD,error)
+        CALL MPIBarrier(error)
 
 
 ! Run through this list of determinants with walkers on it, and annihilate walkers on the same determinant.  Make sure the correct parent information is kept with
@@ -2491,12 +2498,14 @@ MODULE AnnihilationMod
             IF(ierr.ne.0) THEN
                 CALL Stop_All("RotoAnnihilateMinor","Error allocating memory for transfer buffers...")
             ENDIF
+#ifdef PARALLEL
             CALL MPI_Buffer_attach(mpibuffer,8*(MaxSpawned+1)*(NIfD+3),error)
+#endif
             IF(error.ne.0) THEN
                 CALL Stop_All("RotoAnnihilateMinor","Error allocating memory for transfer buffers...")
             ENDIF
         ENDIF
-        CALL MPI_Barrier(MPI_COMM_WORLD,error)
+        CALL MPIBarrier(error)
 
         do n=1,nProcessors-1
 
@@ -2523,7 +2532,7 @@ MODULE AnnihilationMod
 ! to the energy - may want to put in clause that we cannot select the dominant 2s).
         IF(nProcessors.gt.1) THEN
 
-            CALL MPI_Barrier(MPI_COMM_WORLD,error)
+            CALL MPIBarrier(error)
             CALL RotateMinorParticles(MinorValidSpawned)
  
 !            IF(Iter.gt.1220) THEN
@@ -2531,7 +2540,9 @@ MODULE AnnihilationMod
 !                CALL FLUSH(6)
 !            ENDIF
 !Detach buffers
+#ifdef PARALLEL
             CALL MPI_Buffer_detach(mpibuffer,8*(MaxSpawned+1)*(NIfD+3),error)
+#endif
             DEALLOCATE(mpibuffer)
 
         ENDIF
@@ -2655,9 +2666,9 @@ MODULE AnnihilationMod
 !We now need to calculate the recvcounts and recvdisps - this is a job for AlltoAll
         recvcounts(1:nProcessors)=0
 !Put a barrier here so all processes synchronise
-        CALL MPI_Barrier(MPI_COMM_WORLD,error)
+        CALL MPIBarrier(error)
 
-        CALL MPI_AlltoAll(sendcounts(1:nProcessors),1,MPI_INTEGER,recvcounts(1:nProcessors),1,MPI_INTEGER,MPI_COMM_WORLD,error)
+        CALL MPIAlltoAllI(sendcounts(1:nProcessors),1,recvcounts(1:nProcessors),1,error)
 
 !We can now get recvdisps from recvcounts in the same way we obtained disps from sendcounts
         recvdisps(1)=0
@@ -2699,12 +2710,12 @@ MODULE AnnihilationMod
 !            ENDIF
 !        ENDIF
 !
-        CALL MPI_Barrier(MPI_COMM_WORLD,error)
+        CALL MPIBarrier(error)
 
 !Now send the chunks of hashes to the corresponding processors
 !All the '2' arrays are like the 'All' arrays.
 !TempMinorSpawnSign is the Signs from each processor, when just MinorSpawnSign is the 'All' array.
-        CALL MPI_AlltoAllv(HashArray(1:MinorValidSpawned),sendcounts,disps,MPI_DOUBLE_PRECISION,Hash2Array(1:MaxIndex),recvcounts,recvdisps,MPI_DOUBLE_PRECISION,MPI_COMM_WORLD,error)        
+        CALL MPIAlltoAllvDP(HashArray(1:MinorValidSpawned),sendcounts,disps,Hash2Array(1:MaxIndex),recvcounts,recvdisps,error)        
 
 !        tWrite=.false.
 !        IF(MinorValidSpawned.gt.3) THEN
@@ -2716,9 +2727,9 @@ MODULE AnnihilationMod
 !        ENDIF
 
 !The signs of the hashes, index and CPU also need to be taken with them.
-        CALL MPI_AlltoAllv(TempMinorSpawnSign(1:MinorValidSpawned),sendcounts,disps,MPI_INTEGER,MinorSpawnSign(1:MaxIndex),recvcounts,recvdisps,MPI_LOGICAL,MPI_COMM_WORLD,error)
-        CALL MPI_AlltoAllv(IndexTable(1:MinorValidSpawned),sendcounts,disps,MPI_INTEGER,Index2Table(1:MaxIndex),recvcounts,recvdisps,MPI_INTEGER,MPI_COMM_WORLD,error)
-        CALL MPI_AlltoAllv(ProcessVec(1:MinorValidSpawned),sendcounts,disps,MPI_INTEGER,Process2Vec(1:MaxIndex),recvcounts,recvdisps,MPI_INTEGER,MPI_COMM_WORLD,error)
+        CALL MPIAlltoAllvI(TempMinorSpawnSign(1:MinorValidSpawned),sendcounts,disps,MinorSpawnSign(1:MaxIndex),recvcounts,recvdisps,error)
+        CALL MPIAlltoAllvI(IndexTable(1:MinorValidSpawned),sendcounts,disps,Index2Table(1:MaxIndex),recvcounts,recvdisps,error)
+        CALL MPIAlltoAllvI(ProcessVec(1:MinorValidSpawned),sendcounts,disps,Process2Vec(1:MaxIndex),recvcounts,recvdisps,error)
         
 !        IF(tWrite) THEN
 !            WRITE(6,*) 'MinorSpawnSign'
@@ -2994,9 +3005,9 @@ MODULE AnnihilationMod
 !We now need to calculate the recvcounts and recvdisps - this is a job for AlltoAll
         recvcounts(1:nProcessors)=0
 !Put a barrier here so all processes synchronise
-        CALL MPI_Barrier(MPI_COMM_WORLD,error)
+        CALL MPIBarrier(error)
 
-        CALL MPI_AlltoAll(sendcounts,1,MPI_INTEGER,recvcounts,1,MPI_INTEGER,MPI_COMM_WORLD,error)
+        CALL MPIAlltoAllI(sendcounts,1,recvcounts,1,error)
 
 !We can now get recvdisps from recvcounts in the same way we obtained disps from sendcounts
         recvdisps(1)=0
@@ -3015,12 +3026,12 @@ MODULE AnnihilationMod
 !            CALL FLUSH(6)
 !        ENDIF
 
-        CALL MPI_Barrier(MPI_COMM_WORLD,error)
+        CALL MPIBarrier(error)
 
 !Perform another matrix transpose of the annihilation data using MPI_AlltoAllv, to send the data back to its correct Processor
 !The signs of the hashes, index and CPU also need to be taken with them. (CPU does not need to be taken - every element of CPU should be equal to the rank of the processor+1)
 !Hash also does not need to be taken, but will be taken as a precaution
-        CALL MPI_AlltoAllv(IndexTable(1:ToAnnihilateonProc),sendcounts,disps,MPI_INTEGER,Index2Table,recvcounts,recvdisps,MPI_INTEGER,MPI_COMM_WORLD,error)
+        CALL MPIAlltoAllvI(IndexTable(1:ToAnnihilateonProc),sendcounts,disps,Index2Table,recvcounts,recvdisps,error)
 
 
 !TEST
@@ -3130,7 +3141,9 @@ MODULE AnnihilationMod
 
 
     SUBROUTINE RotateMinorParticles(MinorValidSpawned)
-        INTEGER :: i,MinorValidSpawned,error,Stat(MPI_STATUS_SIZE)
+        INTEGER :: i,MinorValidSpawned,error
+#ifdef PARALLEL
+        INTEGER :: Stat(MPI_STATUS_SIZE)
 
 ! This is the number of particles spawned (and still alive).  Must be sent with the arrays so the next processor knows the size.        
         MinorSpawnSign(0)=MinorValidSpawned
@@ -3154,7 +3167,7 @@ MODULE AnnihilationMod
             CALL Stop_All("RotateParticles","Error in sending particle parents")
         ENDIF
 
-        CALL MPI_Barrier(MPI_COMM_WORLD,error)
+        CALL MPIBarrier(error)
 
 !Receive signs (let it receive the maximum possible (only the first ValidSpawned will be updated.))
         CALL MPI_Recv(MinorSpawnSign2(0:MaxSpawned),MaxSpawned+1,MPI_INTEGER,MOD(iProcIndex+nProcessors-1,nProcessors),123,MPI_COMM_WORLD,Stat,error)
@@ -3197,7 +3210,7 @@ MODULE AnnihilationMod
 !            SpawnedSign2 => SpawnSignVec2
 !        ENDIF
 
-
+#endif
 
     END SUBROUTINE RotateMinorParticles
 
@@ -3868,10 +3881,13 @@ MODULE AnnihilationMod
         use IntegralsData , only : UMat,fck
         use Determinants , only : GetHElement2
         INTEGER :: i,j,n,ValidSpawned,InitNoDetstoRotate,NoDetstoRotate,CombSign,error
-        INTEGER :: Stat(MPI_STATUS_SIZE),ExcitLevel,DoubDet(NEl)
+        INTEGER :: ExcitLevel,DoubDet(NEl)
         TYPE(HElement) :: HDoubTemp
         REAL*8 :: Hdoub
         LOGICAL :: tRotateSpawnedTemp,tRotateSpawned,tDetinSpawnList,DetBitEQ,DetsEq
+#ifdef PARALLEL
+        INTEGER :: Stat(MPI_STATUS_SIZE)
+#endif
 
 
         NoDetstoRotate=0
@@ -3944,7 +3960,7 @@ MODULE AnnihilationMod
         !If NoDetstoRotate is 0, don't even have to worry about the rotating stuff.
 
         !If tRotateSpawnedTemp is true on any processor, this routine makes tRotateSpawned true on all processors.
-        CALL MPI_AllReduce(tRotateSpawnedTemp,tRotateSpawned,1,MPI_LOGICAL,MPI_LOR,MPI_COMM_WORLD,error)
+        CALL MPIAllReduceLOR(tRotateSpawnedTemp,tRotateSpawned,1,error)
 
 
 !The allocated DetstoRotate arrays are as big as iGuideDets (the number of determinants in the guiding function), but will only need to rotate 
@@ -3959,6 +3975,8 @@ MODULE AnnihilationMod
 
             do n=1,nProcessors-1
             !Rotate the DetstoRotate, SigntoRotate and NoDetstoRotate values.
+
+#ifdef PARALLEL
 
                 DetsEq=.false.
                 CombSign=0
@@ -3996,6 +4014,7 @@ MODULE AnnihilationMod
                     SigntoRotate(i)=SigntoRotate2(i)
                     DetstoRotate(0:NIfD,i)=DetstoRotate2(0:NIfD,i)
                 enddo
+#endif
 
                 !If a determinant has walkers in the guiding function on the same determinant with the same sign, add the spawned (rotate) walkers
                 !to the spawned list of that processor (no longer need to rotate).
@@ -4058,6 +4077,8 @@ MODULE AnnihilationMod
 
             SigntoRotate(0)=InitNoDetstoRotate
 
+#ifdef PARALLEL
+
             !Send the sign of those we want to rotate to the next processor.
             CALL MPI_BSend(SigntoRotate(0:InitNoDetstoRotate),InitNoDetstoRotate+1,MPI_INTEGER,MOD(iProcIndex+1,nProcessors),123,MPI_COMM_WORLD,error)
             IF(error.ne.MPI_SUCCESS) THEN
@@ -4088,6 +4109,8 @@ MODULE AnnihilationMod
                 SigntoRotate(i)=SigntoRotate2(i)
                 DetstoRotate(0:NIfD,i)=DetstoRotate2(0:NIfD,i)
             enddo
+
+#endif
 
             !Now add all the remaining DetstoRotate2 and their signs to the SpawnedPart and SpawnedSign lists.
             !Since I just copied the determinants from SpawnedPart to DetstoRotate, any in DetstoRotate will already been in SpawnedPart.
