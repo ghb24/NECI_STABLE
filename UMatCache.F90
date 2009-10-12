@@ -303,9 +303,9 @@ MODULE UMatCache
                 UMatInd=(B*(B-1))/2+A
             ENDIF
 #ifdef __CMPLX            
-            UMatInd = (UMatInd-1)*2 + 1
-            if ((((I.gt.K).and.(J.lt.L)) .or. ((I.lt.K).and.(J.gt.L))) .and.
-               (I.ne.J) .and. (K.ne.L)) then
+            UMatInd = (UmatInd-1)*2 + 1 
+            if ((((I.gt.J).and.(K.lt.L)) .or. ((I.lt.J).and.(K.gt.L))) .and.
+                (I.ne.K) .and. (J.ne.L)) then
                UMatInd = UMatInd + 1
             endif
 #endif
@@ -316,8 +316,19 @@ MODULE UMatCache
          integer, intent(in) :: I,J,K,L
          type(HElement), intent(in) :: val
 #ifdef __CMPLX
-         if (((I.lt.J) .and. (K.ge.L)) .or.
-             ((K.lt.L) .and. (I.ge.J))) then
+         logical tConj
+         tConj = .false.
+         if (((I.ne.K).and.((I+K)>(J+L))) .or. (J.eq.L)) then
+            if (I < K) then
+                tConj = .true.
+            endif
+         else
+            if (J < L) then
+                tConj = .true.
+            endif
+         endif
+
+         if (tConj) then
             UMatConj = dconjg(val)
          else
             UMatConj = val
