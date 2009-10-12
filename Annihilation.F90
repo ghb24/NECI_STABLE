@@ -128,8 +128,11 @@ MODULE AnnihilationMod
 !        do i=NINT(Gap)+1,NINT(Gap)+sendcounts(2)
 !            WRITE(6,*) i,"***",SpawnedParts(:,i)
 !        enddo
-
-        CALL MPIAlltoAllvI(SpawnedParts(0:NIfD,1:MaxSendIndex),sendcounts,disps,SpawnedParts2(0:NIfD,1:MaxIndex),recvcounts,recvdisps,error)
+#ifdef PARALLEL
+        CALL MPI_AlltoAllv(SpawnedParts(0:NIfD,1:MaxSendIndex),sendcounts,disps,MPI_INTEGER,SpawnedParts2(0:NIfD,1:MaxIndex),recvcounts,recvdisps,MPI_INTEGER,MPI_COMM_WORLD,error)
+#else
+        SpawnedParts2(0:NIfD,1:MaxIndex)=SpawnedParts(0:NIfD,1:MaxSendIndex)
+#endif
 
 !        WRITE(6,*) MaxIndex, "Recieved particles: "
 !        do i=1,MaxSpawned
@@ -963,7 +966,7 @@ MODULE AnnihilationMod
 !        ENDIF
 
 !Now send the chunks of hashes to the corresponding processors
-        CALL MPIAlltoAllvDP(HashArray1(1:ValidSpawned),sendcounts,disps,HashArray2(1:MaxIndex),recvcounts,recvdisps,error)
+        CALL MPIAlltoAllvI8(HashArray1(1:ValidSpawned),sendcounts,disps,HashArray2(1:MaxIndex),recvcounts,recvdisps,error)
 
 !The signs of the hashes, index and CPU also need to be taken with them.
         CALL MPIAlltoAllvI(SpawnedSign(1:ValidSpawned),sendcounts,disps,SpawnedSign2(1:MaxIndex),recvcounts,recvdisps,error)
@@ -2019,7 +2022,7 @@ MODULE AnnihilationMod
 !        ENDIF
         
 !Now send the chunks of hashes to the corresponding processors
-        CALL MPIAlltoAllvDP(Hash2Array(1:TotWalkersNew),sendcounts,disps,HashArray(1:MaxIndex),recvcounts,recvdisps,error)        
+        CALL MPIAlltoAllvI8(Hash2Array(1:TotWalkersNew),sendcounts,disps,HashArray(1:MaxIndex),recvcounts,recvdisps,error)        
 
 !The signs of the hashes, index and CPU also need to be taken with them.
         CALL MPIAlltoAllvI(NewSign(1:TotWalkersNew),sendcounts,disps,CurrentSign,recvcounts,recvdisps,error)
@@ -2715,7 +2718,7 @@ MODULE AnnihilationMod
 !Now send the chunks of hashes to the corresponding processors
 !All the '2' arrays are like the 'All' arrays.
 !TempMinorSpawnSign is the Signs from each processor, when just MinorSpawnSign is the 'All' array.
-        CALL MPIAlltoAllvDP(HashArray(1:MinorValidSpawned),sendcounts,disps,Hash2Array(1:MaxIndex),recvcounts,recvdisps,error)        
+        CALL MPIAlltoAllvI8(HashArray(1:MinorValidSpawned),sendcounts,disps,Hash2Array(1:MaxIndex),recvcounts,recvdisps,error)        
 
 !        tWrite=.false.
 !        IF(MinorValidSpawned.gt.3) THEN
@@ -3960,7 +3963,7 @@ MODULE AnnihilationMod
         !If NoDetstoRotate is 0, don't even have to worry about the rotating stuff.
 
         !If tRotateSpawnedTemp is true on any processor, this routine makes tRotateSpawned true on all processors.
-        CALL MPIAllReduceLOR(tRotateSpawnedTemp,tRotateSpawned,1,error)
+        CALL MPIAllReduceLORScal(tRotateSpawnedTemp,tRotateSpawned,error)
 
 
 !The allocated DetstoRotate arrays are as big as iGuideDets (the number of determinants in the guiding function), but will only need to rotate 

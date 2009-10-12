@@ -459,15 +459,15 @@ Subroutine MPIAlltoAllvI(SendBuf,SendCounts,SendDisps,RecvBuf,RecvCounts,RecvDis
 #endif
 End Subroutine MPIAlltoAllvI
 
-Subroutine MPIAlltoAllvDP(SendBuf,SendCounts,SendDisps,RecvBuf,RecvCounts,RecvDisps,ierr)
+Subroutine MPIAlltoAllvI8(SendBuf,SendCounts,SendDisps,RecvBuf,RecvCounts,RecvDisps,ierr)
     INTEGER :: SendDisps(:),SendCounts(:),RecvCounts(:),RecvDisps(:),ierr
-    REAL*8 :: SendBuf(:),RecvBuf(:)
+    INTEGER*8 :: SendBuf(:),RecvBuf(:)
 #ifdef PARALLEL
     CALL MPI_AlltoAllv(SendBuf,SendCounts,SendDisps,MPI_DOUBLE_PRECISION,RecvBuf,RecvCounts,RecvDisps,MPI_DOUBLE_PRECISION,MPI_COMM_WORLD,ierr)
 #else
     RecvBuf=SendBuf
 #endif
-End Subroutine MPIAlltoAllvDP 
+End Subroutine MPIAlltoAllvI8
 
 Subroutine MPIBarrier(error)
     INTEGER :: error
@@ -476,15 +476,15 @@ Subroutine MPIBarrier(error)
 #endif
 End Subroutine MPIBarrier
 
-Subroutine MPIAllReduceLOR(SendBuf,RecvBuf,Length,error)
-    LOGICAL :: SendBuf(:),RecvBuf(:)
+Subroutine MPIAllReduceLORScal(SendBuf,RecvBuf,error)
+    LOGICAL :: SendBuf,RecvBuf
     INTEGER :: Length,error
 #ifdef PARALLEL
-    CALL MPI_AllReduce(SendBuf,RecvBuf,Length,MPI_LOGICAL,MPI_LOR,MPI_COMM_WORLD,error)
+    CALL MPI_AllReduce(SendBuf,RecvBuf,1,MPI_LOGICAL,MPI_LOR,MPI_COMM_WORLD,error)
 #else
     RecvBuf=SendBuf
 #endif
-End Subroutine MPIAllReduceLOR
+End Subroutine MPIAllReduceLORScal
 
 Subroutine GetProcElectrons(iProcIndex,iMinElec,iMaxElec)
    !=  Choose min and max electrons such that ordered pairs are distributed evenly across processors
