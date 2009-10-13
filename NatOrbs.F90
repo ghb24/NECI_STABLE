@@ -589,18 +589,21 @@ MODULE NatOrbsMod
 ! This is so the alpha and beta spins can be diagonalised separately and we can keep track of which is which when the evectors are reordered 
 ! and maintain spin symmetry.
 
+
+        WRITE(6,*) 'Filling MP2VDM nat orb matrix'
+        CALL FLUSH(6)
         
         FillMP2VDM_Time%timer_name='FillMP2VDM'
         CALL set_timer(FillMP2VDM_Time,30)
 
 !        WRITE(6,*) 'nOccBeta',nOccBeta
 !        WRITE(6,*) 'nOccAlpha',nOccAlpha
+!        WRITE(6,*) 'tStoreSpinOrbs',tStoreSpinOrbs
 
         do x=1,NoSpinCyc
             IF(x.eq.1) THEN
                 IF(tStoreSpinOrbs) THEN
                     NoOcc=nOccBeta
-!                    NoOcc=MAX(nOccBeta,nOccAlpha)
                 ELSE
                     NoOcc=NEl/2
                 ENDIF
@@ -608,7 +611,6 @@ MODULE NatOrbsMod
                 Endab=SpatOrbs
             ELSEIF(x.eq.2) THEN
                 NoOcc=nOccAlpha
-!                NoOcc=MAX(nOccBeta,nOccAlpha)
                 Startab=SpatOrbs+NoOcc+1
                 Endab=NoOrbs
             ENDIF
@@ -715,6 +717,7 @@ MODULE NatOrbsMod
                             enddo
                         enddo
                     enddo
+!                    WRITE(6,*) 'MP2VDMSum',MP2VDMSum
                     NatOrbMat(a2,b2)=MP2VDMSum
                     NatOrbMat(b2,a2)=MP2VDMSum
                 enddo
@@ -1490,13 +1493,16 @@ MODULE NatOrbsMod
 
 
     SUBROUTINE DeallocateNatOrbs()
+        USE Logging , only : tTruncRODump
         IMPLICIT NONE
         CHARACTER(len=*), PARAMETER :: this_routine='DeallocateNatOrbs'
 
 ! Deallocate the natural orbitals matrix.    
 
-        DEALLOCATE(SymOrbsTemp)
-        CALL LogMemDeAlloc(this_routine,SymOrbsTempTag)
+        IF(tTruncRODump) THEN
+            DEALLOCATE(SymOrbsTemp)
+            CALL LogMemDeAlloc(this_routine,SymOrbsTempTag)
+        ENDIF
         DEALLOCATE(NatOrbMat)
         CALL LogMemDeAlloc(this_routine,NatOrbMatTag)
         DEALLOCATE(Evalues)
