@@ -304,7 +304,7 @@ MODULE UMatCache
             ENDIF
 #ifdef __CMPLX            
             UMatInd = (UmatInd-1)*2 + 1 
-            if ((((I.gt.J).and.(K.lt.L)) .or. ((I.lt.J).and.(K.gt.L))) .and.
+            if ((((I.gt.J).and.(K.lt.L)) .or. ((I.lt.J).and.(K.gt.L))) .and. &
                 (I.ne.K) .and. (J.ne.L)) then
                UMatInd = UMatInd + 1
             endif
