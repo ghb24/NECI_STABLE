@@ -14,8 +14,8 @@ MODULE RotateOrbsData
     INTEGER :: SymLabelList2Tag,SymLabelCounts2Tag,SymLabelListInvTag,SymLabelList3Tag,SymOrbsTag
 
 ! NoOrbs is either nBasis or SpatOrbs depending on whether we are using spin or spatial orbitals.    
-    INTEGER :: NoOrbs,SpatOrbs
+    INTEGER :: NoOrbs,SpatOrbs,NoFrozenVirt
 
-    TYPE(timer) , save :: FillOneRDM_Time,FillMP2VDM_Time,DiagNatOrbMat_Time,OrderandFillCoeff_Time
+    TYPE(timer) , save :: FillOneRDM_Time,FillMP2VDM_Time,DiagNatOrbMat_Time,OrderCoeff_Time,FillCoeff_Time
 
 END MODULE RotateOrbsData
