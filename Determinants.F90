@@ -31,9 +31,9 @@ MODULE Determinants
     contains
     Subroutine DetPreFreezeInit()
         Use global_utilities
-        use SystemData, only : nEl, ECore, Arr, Brr, G1, nBasis, LMS, nBasisMax
+        use SystemData, only : nEl, ECore, Arr, Brr, G1, nBasis, LMS, nBasisMax,tFixLz
         integer ierr
-        integer i
+        integer i,Lz
         type(BasisFn) s
    
         character(25), parameter :: this_routine='DetPreFreezeInit'
@@ -53,6 +53,10 @@ MODULE Determinants
       Call GetSym(FDet,nEl,G1,nBasisMax,s)
       WRITE(6,"(A)",advance='no') "Symmetry: "
       Call WriteSym(6,s%Sym,.true.)
+      IF(tFixLz) THEN
+         Call GetLz(FDet,nEl,Lz)
+         WRITE(6,"(A,I5)") "Lz of Fermi det:",Lz
+      ENDIF
       CALL NECI_ICOPY(NEL,FDET,1,NUHFDET,1)
       E0HFDET=ECORE
       DO I=1,NEL
@@ -308,11 +312,11 @@ END MODULE Determinants
 
       subroutine DetFreezeBasis(GG)
         Use Determinants, only: FDet, nUHFDet
-        use SystemData, only : nEl, nBasis, nBasisMax,BasisFN,G1
+        use SystemData, only : nEl, nBasis, nBasisMax,BasisFN,G1,tFixLz
         use IntegralsData, only : nFrozen,nFrozenIn
         implicit none
         integer i,j
-        INTEGER GG(*)
+        INTEGER GG(*),Lz
         Type(BasisFn) s
 !C.. Deal with FDET
 !C.. GG(I) is the new position in G of the (old) orb I
@@ -357,6 +361,11 @@ END MODULE Determinants
          WRITE(6,"(A)",advance='no') "Symmetry: "
          Call GetSym(FDet,nEl-nFrozen-nFrozenIn,G1,nBasisMax,s)
          Call WriteSym(6,s%Sym,.true.)
+         IF(tFixLz) THEN
+             Call GetLz(FDet,nEl-nFrozen-nFrozenIn,Lz)
+             WRITE(6,"(A,I5)") "Lz of Fermi det:",Lz
+         ENDIF
+
       end subroutine
 
 

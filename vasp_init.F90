@@ -109,7 +109,7 @@ subroutine VASPBasisInit(ARR,BRR,G1,LEN)
 
    call GenKPtIrreps(NKP,NKP,KPNTIND,NSTATES)
 
-   G1(1:LEN)=BasisFN((/0,0,0/),0,Symmetry(0))
+   G1(1:LEN)=BasisFN((/0,0,0/),0,0,Symmetry(0))
 
    do i=1,nStates
       IDECOMP%s=ComposeAbelianSym(KpntSym(:,KPntInd(I)))

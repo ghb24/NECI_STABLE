@@ -22,7 +22,7 @@ C.. Total number of determined determinants
          IF(TPARITY) THEN
             kJ=SymRestrict
          ELSE
-            kJ=BasisFN((/0,0,0/),0,Symmetry(0))
+            kJ=BasisFN((/0,0,0/),0,0,Symmetry(0))
          ENDIF
          IF(TSPN) THEN
             kJ%Ms=LMS

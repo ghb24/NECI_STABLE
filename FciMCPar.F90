@@ -11,7 +11,7 @@
 !   for both parallel and non-parallel.
 MODULE FciMCParMod
     use SystemData , only : NEl,Alat,Brr,ECore,G1,nBasis,nBasisMax,nMsh,Arr,LMS,NIfD,tHPHF,tListDets
-    use SystemData , only : tHub,tReal,tNonUniRandExcits,tMerTwist,tRotatedOrbs,tImportanceSample,tFindCINatOrbs
+    use SystemData , only : tHub,tReal,tNonUniRandExcits,tMerTwist,tRotatedOrbs,tImportanceSample,tFindCINatOrbs,tFixLz,LzTot
     use CalcData , only : InitWalkers,NMCyc,DiagSft,Tau,SftDamp,StepsSft,OccCASorbs,VirtCASorbs,tFindGroundDet,tDirectAnnihil
     use CalcData , only : TStartMP1,NEquilSteps,TReadPops,TRegenExcitgens,TFixShiftShell,ShellFix,FixShift,tMultipleDetsSpawn
     use CalcData , only : tConstructNOs,tAnnihilatebyRange,tRotoAnnihil,MemoryFacSpawn,tRegenDiagHEls,tSpawnAsDet
@@ -606,7 +606,7 @@ MODULE FciMCParMod
                 IF(tPrintTriConnections) CALL FindTriConnections(DetCurr,CurrentDets(:,j),iLutHF,nJ,IC,Ex,pDoubles,tFilled,tParity,Scratch1,Scratch2,exflag)
 
 !Calculate number of children to spawn
-                IF(TTruncSpace.or.tTruncCAS.or.tListDets.or.tPartFreezeCore) THEN
+                IF(TTruncSpace.or.tTruncCAS.or.tListDets.or.tPartFreezeCore.or.tFixLz) THEN
 !We have truncated the excitation space at a given excitation level. See if the spawn should be allowed.
                     IF(tImportanceSample) CALL Stop_All("PerformFCIMCyc","Truncated calculations not yet working with importance sampling")
 
@@ -8229,7 +8229,7 @@ MODULE FciMCParMod
 !This is a list of options which cannot be used with the stripped-down spawning routine. New options not added to this routine should be put in this list.
         IF(tHighExcitsSing.or.tHistSpawn.or.tRegenDiagHEls.or.tFindGroundDet.or.tStarOrbs.or.tResumFCIMC.or.tSpawnAsDet.or.tImportanceSample    &
      &      .or.(.not.tRegenExcitgens).or.(.not.tNonUniRandExcits).or.(.not.tDirectAnnihil).or.tMinorDetsStar.or.tSpawnDominant.or.(DiagSft.gt.0.D0).or.   &
-     &      tPrintTriConnections.or.tHistTriConHEls.or.tCalcFCIMCPsi.or.tTruncCAS.or.tListDets.or.tPartFreezeCore) THEN
+     &      tPrintTriConnections.or.tHistTriConHEls.or.tCalcFCIMCPsi.or.tTruncCAS.or.tListDets.or.tPartFreezeCore.or.tFixLz) THEN
             WRITE(6,*) "It is not possible to use to clean spawning routine..."
         ELSE
             WRITE(6,*) "Clean spawning routine in use..."
@@ -8518,7 +8518,7 @@ MODULE FciMCParMod
 !We pass in the excitation level of the original particle, the two representations of the excitation (we only need the bit-representation of the excitation
 !for HPHF) and the magnitude of the excitation (for determinant representation).
     LOGICAL FUNCTION CheckAllowedTruncSpawn(WalkExcitLevel,nJ,iLutnJ,IC)
-        INTEGER :: nJ(NEl),WalkExcitLevel,iLutnJ(0:NIfD),ExcitLevel,IC,iGetExcitLevel_2,i,NoInFrozenCore
+        INTEGER :: nJ(NEl),WalkExcitLevel,iLutnJ(0:NIfD),ExcitLevel,IC,iGetExcitLevel_2,i,NoInFrozenCore,TotalLz
         LOGICAL :: DetBitEQ
 
         CheckAllowedTruncSpawn=.true.
@@ -8620,6 +8620,18 @@ MODULE FciMCParMod
             ENDIF
 
         ENDIF
+
+        IF(tFixLz) THEN
+            CALL GetLz(nJ,NEl,TotalLz)
+            IF(TotalLz.ne.LzTot) THEN
+                CheckAllowedTruncSpawn=.false.
+!                WRITE(6,*) "FALSE ",TotalLz
+            ELSE
+                CheckAllowedTruncSpawn=.true.
+!                WRITE(6,*) "TRUE ",TotalLz
+            ENDIF
+        ENDIF
+
 
     END FUNCTION CheckAllowedTruncSpawn
 !This is the same as BinSearchParts1, but this time, the list to search is passed in as an argument. The list goes from 1 to Length, but only between MinInd and MaxInd is actually searched.

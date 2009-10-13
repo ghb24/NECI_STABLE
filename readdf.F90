@@ -260,7 +260,7 @@ SUBROUTINE InitDFBasis(nEl,nBasisMax,Len,lMs)
          open(11,file='HONEEL',status='unknown')
          i=1
          !TMat=0.d0
-         G1(1:nBasis)=BasisFN((/0,0,0/),0,Symmetry(0))
+         G1(1:nBasis)=BasisFN((/0,0,0/),0,0,Symmetry(0))
          do while(i.ne.0)
             read(11,*) i,j,val
 !"(2I5,F)"
@@ -301,7 +301,7 @@ SUBROUTINE InitDFBasis(nEl,nBasisMax,Len,lMs)
          tAbelian=.true.
          open(11,file='HONEEL',status='unknown')
          i=1
-         G1(1:nBasis)=BasisFN((/0,0,0/),0,Symmetry(0))
+         G1(1:nBasis)=BasisFN((/0,0,0/),0,0,Symmetry(0))
          do while(i.ne.0)
             read(11,*) i,j,val
             if(j.eq.0.and.i.ne.0) then

@@ -174,7 +174,7 @@ C.. SHow that there's no momentum conservation
          ENDIF
         
          IF(LEN.NE.ISPINS*NORB) STOP 'LEN .NE. NORB in GETFCIBASIS'
-         G1(1:LEN)=BasisFN((/0,0,0/),0,Symmetry(0))
+         G1(1:LEN)=BasisFN((/0,0,0/),0,0,Symmetry(0))
          ARR=0.d0
 
 !!Calculate a key, which will reorder the orbitals in symmetry order.
@@ -370,6 +370,7 @@ C.. At the moment we're ignoring the core energy
             DO ISPN=1,ISPINS
                 BRR(ISPINS*I-ISPN+1)=ISPINS*I-ISPN+1
                 G1(ISPINS*I-ISPN+1)%Sym%s=ORBSYM(I)-1
+                G1(ISPINS*I-ISPN+1)%Ml=SYMLZ(I)
 C.. set momentum to 0
                 G1(ISPINS*I-ISPN+1)%k(1)=0
                 G1(ISPINS*I-ISPN+1)%k(2)=0
