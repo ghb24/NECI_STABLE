@@ -500,9 +500,11 @@ END MODULE Determinants
 ! Calculate the one-electron part of the energy of a det
       REAL*8 FUNCTION CALCT(NI,NEL,G1,NBASIS)
          USE HElem
+         USE SystemData, only : BasisFN
          USE OneEInts, only : GetTMatEl
          IMPLICIT NONE
-         INTEGER NEL,NI(NEL),G1(*),NBASIS,I
+         INTEGER NEL,NI(NEL),NBASIS,I
+         TYPE(BasisFN) :: G1(*)
          LOGICAL ISCSF
          CALCT=0.D0
          IF(ISCSF(NI,NEL)) RETURN

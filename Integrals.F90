@@ -1238,6 +1238,7 @@ MODULE Integrals
 !   Otherwise we just look it up in umat
 !      WRITE(6,*) "INT",IDI,IDJ,IDK,IDL
 !      WRITE(6,*) NBASISMAX(2,3),ISS,tUMat2D
+
       IF(NBASISMAX(1,3).GE.0) THEN
 !   See if we need to calculate on the fly
          IF(ISS.EQ.0) THEN

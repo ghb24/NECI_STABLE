@@ -49,7 +49,7 @@ TYPE BasisFN
    TYPE(Symmetry) :: sym
 END TYPE
 
-integer, PARAMETER :: BasisFNSize=SymmetrySize+4
+integer, PARAMETER :: BasisFNSize=SymmetrySize+5
 integer, PARAMETER :: BasisFNSizeB=BasisFNSize*8
 
 
