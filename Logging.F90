@@ -1,6 +1,5 @@
 MODULE Logging
 
-    USE Global_Utilities
     IMPLICIT NONE
     Save
 
@@ -96,6 +95,7 @@ MODULE Logging
 
     SUBROUTINE LogReadInput()
       USE input
+      USE MemoryManager, only: LogMemAlloc,LogMemDealloc
       IMPLICIT NONE
       LOGICAL eof
       INTEGER :: i,ierr
