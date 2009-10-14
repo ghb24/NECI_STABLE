@@ -126,7 +126,7 @@ C.. singles and doubles of NI
          TYPE(BASISFN) G1(NBASIS),KI,KJ
          INTEGER NJ(NEL),nBasisMax(5,*)
          INTEGER I,J,NLMAX
-         KJ=BasisFN((/0,0,0/),0,Symmetry(0))
+         KJ=BasisFN((/0,0,0/),0,0,Symmetry(0))
          NJ(1:NEL)=0
          NLMAX=NLIST
          NLIST=0
@@ -148,7 +148,7 @@ C.. number of determinants available (even if LSTE doesn't hold them all).
          TYPE(BASISFN) G1(NBASIS),KI,KJ
          INTEGER NJ(NEL)
          INTEGER I,J,NLMAX
-         KJ=BasisFN((/0,0,0/),0,Symmetry(0))
+         KJ=BasisFN((/0,0,0/),0,0,Symmetry(0))
          CALL GETSYM(NI,NEL,G1,NBASISMAX,KI)
          NLMAX=NLIST
          NLIST=0
@@ -210,7 +210,7 @@ C.. Generate determinants with a given symmetry, given by KI, as GENSYMDETS
          TYPE(BASISFN) G1(NBASIS),KI,KJ
          INTEGER NJ(NEL),nBasisMax(5,*)
          INTEGER I,J,NLMAX
-         KJ=BasisFN((/0,0,0/),0,Symmetry(0))
+         KJ=BasisFN((/0,0,0/),0,0,Symmetry(0))
          NI(1:NEL)=0
          NLMAX=NLIST
          NLIST=0
@@ -319,7 +319,7 @@ C.. the first NLIST are stored.
          REAL*8 BETA,FCK(*),ALAT(*),UMAT(*),ECORE
          INTEGER I_P,NMSH,NMAX,NTAY
          TYPE(BASISFN) G1(NBASIS),KI,KJ
-         KJ=BasisFN((/0,0,0/),0,Symmetry(0))
+         KJ=BasisFN((/0,0,0/),0,0,Symmetry(0))
          NJ(1:NEL)=0
          NLMAX=NLIST
          NLIST=0

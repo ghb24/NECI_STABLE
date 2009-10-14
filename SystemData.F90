@@ -15,7 +15,7 @@ LOGICAL :: tSeparateOccVirt,tMerTwist,tExactSizeSpace,tRotatedOrbs,tImportanceSa
 LOGICAL :: TNoRenormRandExcits,tAssumeSizeExcitgen,tCycleOrbs,tROIteration,tShakeIter,tRotateOccOnly,tDoubExcMin
 LOGICAL :: tNonUniRandExcits,tNoSymGenRandExcits,tRotateOrbs,tLagrange,tShake,tShakeApprox,tRotateVirtOnly,tMaxHLGap,tCacheFCIDUMPInts
 INTEGER :: LMS,STOT,IPARITY(5),NMAXX,NMAXY,NMAXZ,NMSH,COULDAMPORB,ElecPairs,ROIterMax,iRanLuxLev,DiagMaxMinFac,OneElMaxMinFac
-INTEGER :: iPeriodicDampingType,ISTATE,NEL,ITILTX,ITILTY,nOccAlpha,nOccBeta,ShakeIterMax,ShakeStart,MaxMinFac
+INTEGER :: iPeriodicDampingType,ISTATE,NEL,ITILTX,ITILTY,nOccAlpha,nOccBeta,ShakeIterMax,ShakeStart,MaxMinFac,LzTot
 REAL*8 :: BOX,BOA,COA,FUEGRS,fRc,FCOUL,OrbECutoff,UHUB,BHUB,DiagWeight,OffDiagWeight,OrbEnMaxAlpha
 REAL*8 :: ALPHA,FCOULDAMPBETA,FCOULDAMPMU,TimeStep,ConvergedForce,ShakeConverged,UMatEps,OneElWeight
 
@@ -23,6 +23,8 @@ LOGICAL :: tListDets    !Means that a list of allowed determinants in FciMC will
 
 ! Used to be stored in Integrals
 INTEGER :: ORBORDER(8,2)
+
+LOGICAL :: tFixLz   !This indicates that in FCIMC, the Lz of the determinants is fixed at LzTot
 
 
 !This indicates the upper-bound for the determinants when expressed in bit-form. This will equal INT(nBasis/32).
@@ -43,7 +45,7 @@ TYPE BasisFN
    SEQUENCE
    INTEGER :: k(3)
    INTEGER :: Ms
-!   INTEGER :: Ml            !This is the Ml symmetry of the orbital
+   INTEGER :: Ml            !This is the Ml symmetry of the orbital
    TYPE(Symmetry) :: sym
 END TYPE
 

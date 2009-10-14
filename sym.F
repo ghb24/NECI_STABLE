@@ -775,6 +775,15 @@ C.. round the momentum
          RETURN
       END
 
+      SUBROUTINE GetLz(nI,NElec,Lz)
+        use SystemData , only : G1
+        INTEGER :: nI(NElec),NElec,Lz,i
+        Lz=0
+        do i=1,NElec
+            Lz=Lz+G1(nI(i))%Ml
+        enddo
+      END SUBROUTINE GetLz
+
 C.. Given a set of characters of states, generate all relevant irreps which span the set of characters.
       SUBROUTINE GENIRREPS(TKP,IMPROPER_OP,NROTOP)
          use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
@@ -1813,7 +1822,7 @@ C.. Set to be totally symmetric
          use SymData, only: FrozenSym
          IMPLICIT NONE
          TYPE(BasisFN) Sym
-         FrozenSym=BasisFN((/0,0,0/),0,Symmetry(0))
+         FrozenSym=BasisFN((/0,0,0/),0,0,Symmetry(0))
 C.. Set to be totally symmetric
          FrozenSym=Sym
       END

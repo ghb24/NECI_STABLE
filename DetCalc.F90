@@ -182,7 +182,7 @@ CONTAINS
          Allocate(BlockSym(NBLOCKS+1),stat=ierr)
          LogAlloc(ierr, 'BLOCKSYM', NBLOCKS+1,BasisFNSizeB, tagBlockSym)
 
-         BLOCKSYM(1:NBLOCKS)=BasisFN((/0,0,0/),0,Symmetry(0))
+         BLOCKSYM(1:NBLOCKS)=BasisFN((/0,0,0/),0,0,Symmetry(0))
 !C..
 
 

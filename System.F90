@@ -18,6 +18,7 @@ MODULE System
 !     SYSTEM defaults - leave these as the default defaults
 !     Any further addition of defaults should change these after via
 !     specifying a new set of DEFAULTS.
+      tFixLz=.false.
       tListDets=.false.
       tStoreSpinOrbs=.false.    !by default we store/lookup integrals as spatial integrals
       tNoBrillouin=.false.
@@ -686,6 +687,9 @@ MODULE System
             IF(tFindCINatOrbs) CALL Stop_All("ReadSysInp","For orbital rotations of open shell systems, UMAT must be stored in spin &
                                                            & orbitals - cannot be compressed using ROHF.") 
                                              
+        case("LZTOT")
+            tFixLz=.true.
+            call readi(LzTot)
         case("ENDSYS") 
             exit system
         case default
@@ -1064,7 +1068,7 @@ MODULE System
       BRR(1:LEN)=0
       Allocate(G1(Len),STAT=ierr)
       LogAlloc(ierr,'G1',LEN,BasisFNSizeB,tagG1)
-      G1(1:LEN)=BasisFN((/0,0,0/),0,Symmetry(0))
+      G1(1:LEN)=BasisFN((/0,0,0/),0,0,Symmetry(0))
       IF(TCPMD) THEN
          WRITE(6,*) ' *** INITIALIZING BASIS FNs FROM CPMD *** '
          CALL CPMDBASISINIT(NBASISMAX,ARR,BRR,G1,LEN) 
@@ -1164,7 +1168,7 @@ MODULE System
 
 !C..        (.NOT.TREADINT)
 !C.. Set the initial symmetry to be totally symmetric
-      FrzSym=BasisFN((/0,0,0/),0,Symmetry(0))
+      FrzSym=BasisFN((/0,0,0/),0,0,Symmetry(0))
       FrzSym%Sym=TotSymRep()
       CALL SetupFreezeSym(FrzSym)
 !C..Now we sort them using SORT2 and then SORT
@@ -1263,6 +1267,7 @@ SUBROUTINE WRITEBASIS(NUNIT,G1,NHG,ARR,BRR)
   DO I=1,NHG
       WRITE(NUNIT,'(6I7)',advance='no') I,BRR(I),G1(BRR(I))%K(1), G1(BRR(I))%K(2),G1(BRR(I))%K(3), G1(BRR(I))%MS
       CALL WRITESYM(NUNIT,G1(BRR(I))%SYM,.FALSE.)
+      WRITE(NUNIT,'(I4)',advance='no') G1(BRR(I))%Ml
       WRITE(NUNIT,'(2F19.9)')  ARR(I,1),ARR(BRR(I),2)
   ENDDO
   RETURN
