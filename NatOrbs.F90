@@ -1104,8 +1104,8 @@ MODULE NatOrbsMod
 
 
     SUBROUTINE FillCoeffT1
-        USE RotateOrbsData , only : CoeffT1,SymLabelList3,SymOrbs,SymOrbsTag
-        USE Logging , only : tTruncRODump
+        USE RotateOrbsData , only : CoeffT1,SymLabelList3,SymOrbs,SymOrbsTag,TruncEval,NoRotOrbs
+        USE Logging , only : tTruncRODump,tTruncDumpbyVal
         IMPLICIT NONE
         INTEGER :: k,i,j,NoRotAlphBet,SymFirst
         REAL*8 :: EvaluesTrunc(NoOrbs-NoFrozenVirt)
@@ -1118,6 +1118,25 @@ MODULE NatOrbsMod
         CALL set_timer(FillCoeff_Time,30)
 
         IF(tTruncRODump) THEN
+
+            IF(tTruncDumpbyVal) THEN
+                NoFrozenVirt=0
+                IF(tStoreSpinOrbs) THEN
+                    do i=SpatOrbs,1,-1
+                        IF(Evalues(i).gt.TruncEval) EXIT
+                        IF(Evalues(i+SpatOrbs).gt.TruncEval) EXIT
+                        NoFrozenVirt=NoFrozenVirt+2
+                    enddo
+                    IF(NoFrozenVirt.ge.(NoOrbs-NEl)) CALL Stop_All(this_routine,'Freezing all virtual orbitals.')
+                ELSE
+                    do i=SpatOrbs,1,-1
+                        IF(Evalues(i).gt.TruncEval) EXIT
+                        NoFrozenVirt=NoFrozenVirt+1
+                    enddo
+                    IF(NoFrozenVirt.ge.(SpatOrbs-(NEl/2))) CALL Stop_All(this_routine,'Freezing all virtual orbitals.')
+                ENDIF
+                NoRotOrbs=NoOrbs-NoFrozenVirt
+            ENDIF
 
             ALLOCATE(SymOrbs(NoOrbs),stat=ierr)
             CALL LogMemAlloc('SymOrbs',NoOrbs,4,this_routine,SymOrbsTag,ierr)

@@ -11,7 +11,7 @@ MODULE RotateOrbsMod
     USE SystemData, only : tShakeDelay,ShakeStart,tVirtCoulombMax,tVirtExchangeMin,MaxMinFac,tMaxHLGap,tHijSqrdMin,OneElWeight,DiagMaxMinFac,OneElMaxMinFac
     USE SystemData, only : tDiagonalizehij,tHFSingDoubExcMax,tSpinOrbs,tReadInCoeff,tUseMP2VarDenMat,tStoreSpinOrbs,tROHF,tFindCINatOrbs
     USE Logging , only : tROHistogramAll,tROFciDump,tROHistER,tROHistOffDiag,tROHistDoubExc,tROHistSingExc,tROHistOnePartOrbEn,tROHistOneElInts,tROHistVirtCoulomb
-    USE Logging , only : tPrintInts,tTruncRODump,NoTruncOrbs,NoDumpTruncs
+    USE Logging , only : tPrintInts,tTruncRODump,NoTruncOrbs,NoDumpTruncs,tTruncDumpbyVal,TruncEvalues
     USE OneEInts , only : TMAT2D
     USE SymData , only : TwoCycleSymGens,SymLabelList,SymLabelCounts
     USE Timing , only : end_timing,print_timing_report
@@ -36,7 +36,7 @@ MODULE RotateOrbsMod
     INTEGER :: CoeffCorT2Tag,CoeffUncorT2Tag,LambdasTag,DerivCoeffTag,DerivLambdaTag,Iteration,TotNoConstraints,ShakeLambdaNewTag
     INTEGER :: ShakeLambdaTag,ConstraintTag,ConstraintCorTag,DerivConstrT1Tag,DerivConstrT2Tag,DerivConstrT1T2Tag,DerivConstrT1T2DiagTag
     INTEGER :: LabVirtOrbsTag,LabOccOrbsTag,MinOccVirt,MaxOccVirt,MinMZ,MaxMZ,error,LowBound,HighBound
-    INTEGER :: NoInts01,NoInts02,NoInts03,NoInts04,NoInts05,NoInts06,DiagTMAT2DfullTag,NoRotOrbs,TMAT2DNewTag,SymLabelList3InvTag
+    INTEGER :: NoInts01,NoInts02,NoInts03,NoInts04,NoInts05,NoInts06,DiagTMAT2DfullTag,TMAT2DNewTag,SymLabelList3InvTag
     LOGICAL :: tNotConverged,tInitIntValues
     REAL*8 :: OrthoNorm,ERPotEnergy,HijSqrdPotEnergy,OffDiagPotEnergy,CoulPotEnergy,PotEnergy,Force,TwoEInts,DistCs,OrthoForce,DistLs,LambdaMag,PEInts,PEOrtho
     REAL*8 :: ForceInts,TotCorrectedForce
@@ -157,12 +157,14 @@ MODULE RotateOrbsMod
 
         IF(tROHF.and.tStoreSpinOrbs) CALL Stop_All(this_routine,"Cannot compress open shell systems into spatial orbitals when rotating, turn off ROHF.")
 
-        IF(tTruncRODump) THEN 
+        IF(tTruncRODump.and.(.not.tTruncDumpbyVal)) THEN 
             NoFrozenVirt=NoTruncOrbs(1)
         ELSE
+            ! If the 'number of frozen orbitals' is given as a cutoff - take NoFrozenVirt to be 0 for all the allocation purposes - will set this later when
+            ! we have the eigenvalues and know how many orbitals lie below it.
             NoFrozenVirt=0
+            TruncEval=TruncEvalues(1)
         ENDIF
-
 
         SpatOrbs=nBasis/2
         IF(tStoreSpinOrbs) THEN
@@ -416,13 +418,17 @@ MODULE RotateOrbsMod
             CALL LogMemDeAlloc(this_routine,TMAT2DNewTag)
 
 
-            IF(tStoreSpinOrbs) THEN
-                NoFrozenVirt=NoTruncOrbs(i)
-                NoRotOrbs=NoOrbs-NoFrozenVirt
+            IF(tTruncDumpbyVal) THEN
+                NoFrozenVirt=0
+                TruncEval=TruncEvalues(i)
             ELSE
-                NoFrozenVirt=NoTruncOrbs(i)/2
-                NoRotOrbs=NoOrbs-NoFrozenVirt
-            ENDIF            
+                IF(tStoreSpinOrbs) THEN
+                    NoFrozenVirt=NoTruncOrbs(i)
+                ELSE
+                    NoFrozenVirt=NoTruncOrbs(i)/2
+                ENDIF            
+            ENDIF
+            NoRotOrbs=NoOrbs-NoFrozenVirt
  
             IF(MOD(NoFrozenVirt,2).ne.0) CALL Stop_All(this_routine,"Must freeze virtual spin orbitals in pairs of 2.")
 
