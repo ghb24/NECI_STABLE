@@ -618,7 +618,6 @@ CONTAINS
 
 !We now need to sort within the excitation level by the "number" of the determinant
             do i=1,MaxIndex
-                WRITE(6,*) "Sorting ",i,FCIDetIndex(i),FCIDetIndex(i+1)-1
                 IF(.not.tEnergy) THEN
 !                    WRITE(6,*) i,FCIDetIndex(i),FCIDetIndex(i+1)-1
 !                    CALL FLUSH(6)
