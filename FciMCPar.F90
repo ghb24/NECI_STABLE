@@ -8059,6 +8059,11 @@ MODULE FciMCParMod
 !            CALL Stop_All(this_routine,"Ms not equal to zero, but tSpn is false. Error here")
         ENDIF
 
+        IF(tFixLz.and.(.not.tNoBrillouin)) THEN
+            WRITE(6,*) "Turning Brillouins theorem off since we are using non-canonical complex orbitals"
+            tNoBrillouin=.true.
+        ENDIF
+
         TBalanceNodes=.false.   !Assume that the nodes are initially load-balanced
 
 !Initialise variables for calculation on each node
@@ -8634,6 +8639,9 @@ MODULE FciMCParMod
 
 
     END FUNCTION CheckAllowedTruncSpawn
+
+
+
 !This is the same as BinSearchParts1, but this time, the list to search is passed in as an argument. The list goes from 1 to Length, but only between MinInd and MaxInd is actually searched.
     SUBROUTINE BinSearchParts3(iLut,List,Length,MinInd,MaxInd,PartInd,tSuccess)
         INTEGER :: iLut(0:NIfD),MinInd,MaxInd,PartInd

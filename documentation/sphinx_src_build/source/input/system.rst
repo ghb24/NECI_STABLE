@@ -194,6 +194,11 @@ General options
 **NEL** [NEL]
     Synonym for **ELECTRONS**.
 
+**LZTOT** [LzTot]
+    Constrain the z-component of the angular momentum for atomic, diatomic and linear molecules to be LzTot. This means
+    that the orbitals are complex, but the integrals are all real. The orbitals need to be transformed from the HF canonical
+    ones to the complex ones using LzTrans.x (on svn).
+
 **NOSYMMETRY**
     Ignore all spatial symmetry information. This does not apply to
     periodic calculations or the hubbard model.
