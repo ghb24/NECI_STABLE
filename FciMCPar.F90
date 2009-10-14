@@ -8196,14 +8196,14 @@ MODULE FciMCParMod
                 ALLOCATE(AllHistogram(1:iNoBins))
                 ALLOCATE(AllAttemptHist(1:iNoBins))
                 ALLOCATE(AllSpawnHist(1:iNoBins))
-                ALLOCATE(AllSinglesHist(1:iNoBins))
-                ALLOCATE(AllDoublesHist(1:iNoBins))
-                ALLOCATE(AllSinglesAttemptHist(1:iNoBins))
-                ALLOCATE(AllDoublesAttemptHist(1:iNoBins))
-                ALLOCATE(AllSinglesHistOccOcc(1:iNoBins))
-                ALLOCATE(AllSinglesHistOccVirt(1:iNoBins))
-                ALLOCATE(AllSinglesHistVirtOcc(1:iNoBins))
-                ALLOCATE(AllSinglesHistVirtVirt(1:iNoBins))
+                ALLOCATE(AllSinglesHist(1:iOffDiagNoBins))
+                ALLOCATE(AllDoublesHist(1:iOffDiagNoBins))
+                ALLOCATE(AllSinglesAttemptHist(1:iOffDiagNoBins))
+                ALLOCATE(AllDoublesAttemptHist(1:iOffDiagNoBins))
+                ALLOCATE(AllSinglesHistOccOcc(1:iOffDiagNoBins))
+                ALLOCATE(AllSinglesHistOccVirt(1:iOffDiagNoBins))
+                ALLOCATE(AllSinglesHistVirtOcc(1:iOffDiagNoBins))
+                ALLOCATE(AllSinglesHistVirtVirt(1:iOffDiagNoBins))
             ENDIF
         ENDIF
 
