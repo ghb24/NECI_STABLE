@@ -911,6 +911,7 @@
       INTEGER iSgn
       TYPE(HElement) rh,HTmp
       REAL*8 HDiagCurr
+      REAL*8 dTmp,dPsiTotAbsAmpl,dClusterNorm
       WRITE(6,*) "Entering CCMC Standalone..."
       Call SetupParameters()
       nSelects=InitWalkers
@@ -920,7 +921,7 @@
 
 ! Setup Memory
       Allocate(Amplitude(Det,2),stat=ierr)
-      LogAlloc(ierr,'Amplitude',Det,8,tagAmplitude)
+      LogAlloc(ierr,'Amplitude',Det*2,8,tagAmplitude)
 
 ! Now setup the amplitude list.  Let's start with nothing initially, and
       Amplitude(:,:)=0
@@ -934,9 +935,11 @@
       do while (Iter.le.NMCyc)
 ! Copy the old Amp list to the new
          iOldAmpList=iCurAmpList
-         iCurAmpList=2-iCurAmpList
+         iCurAmpList=3-iCurAmpList
          Amplitude(:,iCurAmpList)=Amplitude(:,iOldAmpList)
          IF(iDebug.gt.1) THEN
+            write(6,*) "Cycle ",Iter
+            write(6,*) "Current, Old Ampl list", iCurAmpList,iOldAmpList
             write(6,*) "HF det"
             call WriteBitDet(6,iLutHF,.true.)
             write(6,*) "Particle list"
@@ -965,9 +968,31 @@
          endif 
 !  First calculate the energy
          Iter=Iter+1
+!  The total cluster wavefunction has the following structure
+!
+!  Psi_CC = N_0 exp( T / N_0) = N_0 + T + T^2 / (2! N_0) + T^3 / (3! (N_0)^2) + ...
+!
+!  Instead of the full Psi_CC, we use |_ Psi_CC _| which is truncated at the excitation level corresponding to the number of excitation operators.
+!
+!  We pick clusters from each level of excitation separately.
+!  Were we to use Psi_CC, each level n would have an sum absolute amplitude of N_0 (T/N_0)^n, so the total sum absolute amplitude is N_0 exp(T/N_0).
+!  For |_ Psi_CC _| we must truncate this sum manually.
+         dPsiTotAbsAmpl=0
+         dTmp=Amplitude(1,iOldAmpList)
+         do i=0,iNumExcitors
+            if(dTmp.lt.1d-8) exit
+            dPsiTotAbsAmpl=dPsiTotAbsAmpl+dTmp
+            dTmp=dTmp*dTotAbsAmpl/Amplitude(1,iOldAmpList)
+            if(i.gt.0) dTmp=dTmp/i
+         enddo
+         if(iDebug.gt.2) WRITE(6,"(A,I5,A,I5)") "Finished calculating total cluster amplitude at level ",i-1,"/",iNumExcitors
+         if(iDebug.gt.1) WRITE(6,*) "Total cluster amplitude: ",dPsiTotAbsAmpl
 !  Loop over cluster selections
          do j=1,nSelects 
+            if(iDebug.gt.3) write(6,*) "Selection ",j
 !  Now pick the cluster
+
+! Old comments
 ! We wish to sum:
 ! sum_A [ (1/2) sum_{B\ne A} [ (1/3) sum_{C\ne A,B} ... ]]
 !  since the sums over B and C are too large a space to do fully, we stochastically sum them:
@@ -991,11 +1016,14 @@
             dProbNorm=nSelects
             dClusterProb=1
             dNGenComposite=1
+            dClusterNorm=Amplitude(1,iOldAmpList)
             do i=1,iNumExcitors
    ! Calculate the probability that we've reached this far in the loop
                         !We must have at least one excitor, so we cannot exit here.
                call genrand_real2(r)  !On GHB's advice
                if(r.lt.dProbSelNewExcitor) exit
+! Calculate the cluster noormalization for this level:
+               dClusterNorm=(dClusterNorm/i)*dTotAbsAmpl/Amplitude(1,iOldAmpList)
    
 ! decide not to choose another walker with this prob.
                dProbNumExcit=dProbNumExcit*dProbSelNewExcitor
@@ -1007,13 +1035,19 @@
                   dCurTot=dCurTot+abs(Amplitude(k,iOldAmpList))
                   if(dCurTot.ge.r) exit
                enddo
-               if(k.gt.Det) CALL Stop_All("Invalid Excitor selected")
+               if(k.gt.Det) THEN
+                  write(6,*) "Position in weight list: ", r
+                  write(6,*) "Current Total: ",dCurTot
+                  write(6,*) "Max Total: ", dTotAbsAmpl
+                  write(6,*) Amplitude
+                  CALL Stop_All("CCMCStandalone","Invalid Excitor selected")
+               endif
                IF(iDebug.gt.5) Write(6,*) "Selected excitor",k
                SelectedExcitorIndices(i)=k
                SelectedExcitors(:,i)=FCIDets(:,k)
                dNGenComposite=dNGenComposite*abs(Amplitude(k,iOldAmpList))/dTotAbsAmpl  !For each new excit added to the composite, we multiply up to count the number of ways we could've generated it.
                dClusterProb=dClusterProb*abs(Amplitude(k,iOldAmpList))/dTotAbsAmpl  !For each new excit added to the composite, we multiply up to count the number of ways we could've generated it.
-               dProbNorm=dProbNorm/dTotAbsAmpl
+!               dProbNorm=dProbNorm/dTotAbsAmpl
             enddo
             IF(iDebug.gt.5) WRITE(6,*) 'prob out of sel routine.',dProbNumExcit
             if(i.gt.iNumExcitors) THEN !We've been limited by the max number of excitations
@@ -1038,6 +1072,7 @@
                Write(6,*) "Level chosen Prob      : ",dProbNumExcit
                Write(6,*) "Select Prob given level: ",dClusterProb
                Write(6,*) "Prob norm              : ",dProbNorm
+               Write(6,*) "Cluster norm           : ",dClusterNorm
             endif
             iLutnI(:)=iLutHF(:)
             iSgn=1 !The sign of the first excitor
@@ -1048,7 +1083,7 @@
                if(iSgn.eq.0) exit
                IF(iDebug.gt.3) call WriteBitEx(6,iLutHF,iLutnI,.true.)
             enddo
-            IF(iDebug.gt.0) CALL FLUSH(6)
+            iF(iDebug.gt.0) CALL FLUSH(6)
             if(iSgn.eq.0) cycle
 
             IF(iDebug.gt.4) then
@@ -1079,7 +1114,7 @@
 !Prob is the Prob of choosing nJ from nI
 !dClusterProb is the Probability of having chosen this cluster excitor (normalized such that <1/dClusterProb> = 1)
 !dProbNorm is the renormalization factor for this level of excitors - decreasing by HFcount for each extra level of excitors
-            Prob=Prob*dProbNorm  !Now include the prob of choosing the det we spawned from
+            Prob=Prob*dProbNorm/dClusterProb  !Now include the prob of choosing the det we spawned from
             if(iDebug.gt.4) Write(6,*) "Prob ex tot",Prob
             if(iCompositeSize.gt.1) dProb=dProb
 !Calculate amplitude to spawn
@@ -1095,7 +1130,7 @@
                   rh=GetHElement4(DetCurr,nJ,IC,Ex,tParity)
             ENDIF
 
-            rat=-iSgn*Tau*rh%v/Prob
+            rat=-iSgn*Tau*rh%v*dClusterNorm/Prob
             IF(iDebug.gt.4.or.((iDebug.eq.3.or.iDebug.eq.4))) THEN
 !We've not printed this out before
                call WriteBitEx(6,iLutHF,iLutnI,.false.)
@@ -1110,27 +1145,28 @@
                endif
                write(6,*)
             endif
+            if(abs(rat).gt.1e-8) then
 !Now add in a contribution from the child
-            CALL FindBitExcitLevel(iLutHF,iLutnJ(:),NIfD,IC,nEl)
-            IF(IC.eq.NEl) THEN
-                CALL BinSearchParts3(iLutnJ(:),FCIDets(:,:),Det,FCIDetIndex(IC),Det,PartIndex,tSuc)
-            ELSEIF(IC.eq.0) THEN
-                PartIndex=1
-                tSuc=.true.
-            ELSE
-                CALL BinSearchParts3(iLutnJ(:),FCIDets(:,:),Det,FCIDetIndex(IC),FCIDetIndex(IC+1)-1,PartIndex,tSuc)
-            ENDIF
-         
-            if(.not.tSuc) THEN      
-               WRITE(6,*) "Cannot find excitor "
-               call WriteBitEx(6,iLutHF,iLutnJ,.true.)
-               call WriteBitDet(6,iLutnJ,.true.)
-               WRITE(6,*) "Excitation Level: ",IC
-               WRITE(6,*) "Dets ",FCIDetIndex(IC),' to ',FCIDetIndex(IC+1)-1
-               call Stop_All("CCMCStandalone","Cannot find excitor in list.")
+               CALL FindBitExcitLevel(iLutHF,iLutnJ(:),NIfD,IC,nEl)
+               IF(IC.eq.NEl) THEN
+                   CALL BinSearchParts3(iLutnJ(:),FCIDets(:,:),Det,FCIDetIndex(IC),Det,PartIndex,tSuc)
+               ELSEIF(IC.eq.0) THEN
+                   PartIndex=1
+                   tSuc=.true.
+               ELSE
+                   CALL BinSearchParts3(iLutnJ(:),FCIDets(:,:),Det,FCIDetIndex(IC),FCIDetIndex(IC+1)-1,PartIndex,tSuc)
+               ENDIF
+            
+               if(.not.tSuc) THEN      
+                  WRITE(6,*) "Cannot find excitor "
+                  call WriteBitEx(6,iLutHF,iLutnJ,.true.)
+                  call WriteBitDet(6,iLutnJ,.true.)
+                  WRITE(6,*) "Excitation Level: ",IC
+                  WRITE(6,*) "Dets ",FCIDetIndex(IC),' to ',FCIDetIndex(IC+1)-1
+                  call Stop_All("CCMCStandalone","Cannot find excitor in list.")
+               endif
+               Amplitude(PartIndex,iCurAmpList)=Amplitude(PartIndex,iCurAmpList)+rat
             endif
-            Amplitude(PartIndex,iCurAmpList)=Amplitude(PartIndex,iCurAmpList)+rat
-
 ! Now deal with birth/death.
    ! We have to decompose our composite excitor into one of its parts.  
             IF(iCompositeSize.GT.1) THEN
@@ -1148,7 +1184,7 @@
             Htmp=GetHElement3(DetCurr,DetCurr,0)
             HDiagCurr=REAL(Htmp%v,r2)
             HDiagCurr=HDiagCurr-Hii
-            dProb=dClusterProb*dProbDecompose
+            dProb=dProbDecompose !dClusterProb*dProbDecompose
 
 !Also, we want to find out the excitation level of the determinant - we only need to find out if its connected or not (so excitation level of 3 or more is ignored.
 !This can be changed easily by increasing the final argument.
@@ -1176,7 +1212,7 @@
                Write(6,'(A,G25.16)') "Prob: ",dProb*dProbNorm
             endif
 
-            rat=-iSgn*Tau*(HDiagCurr-DiagSft)*abs(Amplitude(iPartDie,iOldAmpList))/(dProb*dProbNorm)
+            rat=-iSgn*Tau*(HDiagCurr-DiagSft)*abs(Amplitude(iPartDie,iOldAmpList))*dClusterNorm/(dProb*dProbNorm)
             Amplitude(iPartDie,iCurAmpList)=Amplitude(iPartDie,iCurAmpList)+rat
             IF(iDebug.gt.4.or.((iDebug.eq.3.or.iDebug.eq.4))) then
                Write(6,'(A,I7)',advance='no') " Killing at excitor: ",iPartDie
