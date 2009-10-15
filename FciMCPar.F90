@@ -5265,7 +5265,7 @@ MODULE FciMCParMod
             DEALLOCATE(SinglesHistVirtOcc)
             DEALLOCATE(SinglesHistOccVirt)
             DEALLOCATE(SinglesHistVirtVirt)
-            IF(iProcIndex.eq.0) THEN
+            IF(iProcIndex.eq.Root) THEN
                 DEALLOCATE(AllHistogram)
                 DEALLOCATE(AllAttemptHist)
                 DEALLOCATE(AllSpawnHist)
@@ -5457,7 +5457,7 @@ MODULE FciMCParMod
         INTEGER :: error,i
         REAL*8 :: Norm,EnergyBin
 
-        IF(iProcIndex.eq.0) THEN
+        IF(iProcIndex.eq.Root) THEN
             AllHistogram(:)=0.D0
             AllAttemptHist(:)=0.D0
             AllSpawnHist(:)=0.D0
@@ -5473,16 +5473,17 @@ MODULE FciMCParMod
         CALL MPI_Reduce(Histogram,AllHistogram,iNoBins,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
         CALL MPI_Reduce(AttemptHist,AllAttemptHist,iNoBins,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
         CALL MPI_Reduce(SpawnHist,AllSpawnHist,iNoBins,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
-        CALL MPI_Reduce(SinglesHist,AllSinglesHist,iNoBins,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
-        CALL MPI_Reduce(SinglesAttemptHist,AllSinglesAttemptHist,iNoBins,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
-        CALL MPI_Reduce(DoublesHist,AllDoublesHist,iNoBins,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
-        CALL MPI_Reduce(DoublesAttemptHist,AllDoublesAttemptHist,iNoBins,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
-        CALL MPI_Reduce(SinglesHistOccOcc,AllSinglesHistOccOcc,iNoBins,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
-        CALL MPI_Reduce(SinglesHistOccVirt,AllSinglesHistOccVirt,iNoBins,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
-        CALL MPI_Reduce(SinglesHistVirtOcc,AllSinglesHistVirtOcc,iNoBins,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
-        CALL MPI_Reduce(SinglesHistVirtVirt,AllSinglesHistVirtVirt,iNoBins,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
+        CALL MPI_Reduce(SinglesHist,AllSinglesHist,iOffDiagNoBins,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
+        CALL MPI_Reduce(SinglesAttemptHist,AllSinglesAttemptHist,iOffDiagNoBins,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
+        CALL MPI_Reduce(DoublesHist,AllDoublesHist,iOffDiagNoBins,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
+        CALL MPI_Reduce(DoublesAttemptHist,AllDoublesAttemptHist,iOffDiagNoBins,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
+        CALL MPI_Reduce(SinglesHistOccOcc,AllSinglesHistOccOcc,iOffDiagNoBins,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
+        CALL MPI_Reduce(SinglesHistOccVirt,AllSinglesHistOccVirt,iOffDiagNoBins,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
+        CALL MPI_Reduce(SinglesHistVirtOcc,AllSinglesHistVirtOcc,iOffDiagNoBins,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
+        CALL MPI_Reduce(SinglesHistVirtVirt,AllSinglesHistVirtVirt,iOffDiagNoBins,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
   
-        IF(iProcIndex.eq.0) THEN
+
+        IF(iProcIndex.eq.Root) THEN
             Norm=0.D0
             do i=1,iNoBins
                 Norm=Norm+AllHistogram(i)
@@ -5574,9 +5575,9 @@ MODULE FciMCParMod
 
             EnergyBin=BinRange/2.D0
             do i=1,iNoBins
-                WRITE(17,*) EnergyBin, AllHistogram(i)
-                WRITE(18,*) EnergyBin, AllAttemptHist(i)
-                WRITE(19,*) EnergyBin, AllSpawnHist(i)
+                IF(AllHistogram(i).gt.0.D0) WRITE(17,*) EnergyBin, AllHistogram(i)
+                IF(AllAttemptHist(i).gt.0.D0) WRITE(18,*) EnergyBin, AllAttemptHist(i)
+                IF(AllSpawnHist(i).gt.0.D0) WRITE(19,*) EnergyBin, AllSpawnHist(i)
                 EnergyBin=EnergyBin+BinRange
             enddo
             CLOSE(17)
@@ -5593,14 +5594,14 @@ MODULE FciMCParMod
 
             EnergyBin=-OffDiagMax+OffDiagBinRange/2.D0
             do i=1,iOffDiagNoBins
-                WRITE(20,*) EnergyBin, AllSinglesHist(i)
-                WRITE(21,*) EnergyBin, AllSinglesAttemptHist(i)
-                WRITE(22,*) EnergyBin, AllDoublesHist(i)
-                WRITE(23,*) EnergyBin, AllDoublesAttemptHist(i)
-                WRITE(24,*) EnergyBin, AllSinglesHistOccOcc(i)
-                WRITE(25,*) EnergyBin, AllSinglesHistOccVirt(i)
-                WRITE(26,*) EnergyBin, AllSinglesHistVirtOcc(i)
-                WRITE(27,*) EnergyBin, AllSinglesHistVirtVirt(i)
+                IF(AllSinglesHist(i).gt.0.D0) WRITE(20,*) EnergyBin, AllSinglesHist(i)
+                IF(AllSinglesAttemptHist(i).gt.0.D0) WRITE(21,*) EnergyBin, AllSinglesAttemptHist(i)
+                IF(AllDoublesHist(i).gt.0.D0) WRITE(22,*) EnergyBin, AllDoublesHist(i)
+                IF(AllDoublesAttemptHist(i).gt.0.D0) WRITE(23,*) EnergyBin, AllDoublesAttemptHist(i)
+                IF(AllSinglesHistOccOcc(i).gt.0.D0) WRITE(24,*) EnergyBin, AllSinglesHistOccOcc(i)
+                IF(AllSinglesHistOccVirt(i).gt.0.D0) WRITE(25,*) EnergyBin, AllSinglesHistOccVirt(i)
+                IF(AllSinglesHistVirtOcc(i).gt.0.D0) WRITE(26,*) EnergyBin, AllSinglesHistVirtOcc(i)
+                IF(AllSinglesHistVirtVirt(i).gt.0.D0) WRITE(27,*) EnergyBin, AllSinglesHistVirtVirt(i)
                 EnergyBin=EnergyBin+OffDiagBinRange
 !                WRITE(6,*) i
             enddo
@@ -7788,7 +7789,7 @@ MODULE FciMCParMod
 !  It's not yet complete, but at least compiles and runs
 
     SUBROUTINE SetupParameters()
-        use SystemData, only : tUseBrillouin,iRanLuxLev,tSpn,tHPHFInts,tRotateOrbs,tNoBrillouin,tROHF,tFindCINatOrbs,nOccBeta,nOccAlpha
+        use SystemData, only : tUseBrillouin,iRanLuxLev,tSpn,tHPHFInts,tRotateOrbs,tNoBrillouin,tROHF,tFindCINatOrbs,nOccBeta,nOccAlpha,tUHF
         USE mt95 , only : genrand_init
         use CalcData, only : EXCITFUNCS,tFCIMC
         use Calc, only : VirtCASorbs,OccCASorbs,FixShift,G_VMC_Seed
@@ -8050,9 +8051,11 @@ MODULE FciMCParMod
         IF(LMS.ne.0) THEN
             IF(tNoBrillouin.or.(tHub.and.tReal).or.tRotatedOrbs) THEN
                 WRITE(6,*) "High spin calculation with single excitations also used to calculate energy."
+            ELSEIF(tUHF) THEN
+                WRITE(6,*) "High spin calculation - but single excitations will *NOT* be used to calculate energy as this is an unrestricted calculation."
             ELSE
-                WRITE(6,*) "WARNING!! High-spin calculation detected but single excitations will *not* be used to calculate energy."
-                WRITE(6,*) "This is ok for UHF, but not ROHF."
+                CALL Stop_All("SetupParameters","High-spin, restricted calculation detected, but single excitations are not being used to calculate the energy.  &
+                              & Either use the UHF keyword, or turn off brillouins theorem using NOBRILLOUINS, ROHF or ROTATEDORBS.")
             ENDIF
 !            tRotatedOrbs=.true.
 !        ELSEIF(LMS.ne.0) THEN
@@ -8197,7 +8200,7 @@ MODULE FciMCParMod
             SinglesHistVirtVirt(:)=0.D0
             DoublesHist(:)=0.D0
             DoublesAttemptHist(:)=0.D0
-            IF(iProcIndex.eq.0) THEN
+            IF(iProcIndex.eq.Root) THEN
                 ALLOCATE(AllHistogram(1:iNoBins))
                 ALLOCATE(AllAttemptHist(1:iNoBins))
                 ALLOCATE(AllSpawnHist(1:iNoBins))

@@ -62,6 +62,7 @@ MODULE System
       BOA=1.d0
       COA=1.d0
       TUSEBRILLOUIN=.false. 
+      tUHF=.false.
       FUEGRS=0.D0
       iPeriodicDampingType=0
       fRc=0.D0
@@ -290,6 +291,9 @@ MODULE System
           TUSEBRILLOUIN=.TRUE. 
         case("NOBRILLOUINTHEOREM")
             tNoBrillouin=.true.
+        case("UHF")
+! This keyword is required if we are doing an open shell calculation but do not want to include singles in the energy calculations.            
+            tUHF=.true.
         case("RS")
             call getf(FUEGRS)
         case("EXCHANGE-CUTOFF")
