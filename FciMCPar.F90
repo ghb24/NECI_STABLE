@@ -7788,7 +7788,7 @@ MODULE FciMCParMod
 !  It's not yet complete, but at least compiles and runs
 
     SUBROUTINE SetupParameters()
-        use SystemData, only : tUseBrillouin,iRanLuxLev,tSpn,tHPHFInts,tRotateOrbs,tNoBrillouin,tROHF,tFindCINatOrbs,nOccBeta,nOccAlpha
+        use SystemData, only : tUseBrillouin,iRanLuxLev,tSpn,tHPHFInts,tRotateOrbs,tNoBrillouin,tROHF,tFindCINatOrbs,nOccBeta,nOccAlpha,tUHF
         USE mt95 , only : genrand_init
         use CalcData, only : EXCITFUNCS,tFCIMC
         use Calc, only : VirtCASorbs,OccCASorbs,FixShift,G_VMC_Seed
@@ -8050,9 +8050,11 @@ MODULE FciMCParMod
         IF(LMS.ne.0) THEN
             IF(tNoBrillouin.or.(tHub.and.tReal).or.tRotatedOrbs) THEN
                 WRITE(6,*) "High spin calculation with single excitations also used to calculate energy."
+            ELSEIF(tUHF) THEN
+                WRITE(6,*) "High spin calculation - but single excitations will *NOT* be used to calculate energy as this is an unrestricted calculation."
             ELSE
-                WRITE(6,*) "WARNING!! High-spin calculation detected but single excitations will *not* be used to calculate energy."
-                WRITE(6,*) "This is ok for UHF, but not ROHF."
+                CALL Stop_All("SetupParameters","High-spin, restricted calculation detected, but single excitations are not being used to calculate the energy.  &
+                              & Either use the UHF keyword, or turn off brillouins theorem using NOBRILLOUINS, ROHF or ROTATEDORBS.")
             ENDIF
 !            tRotatedOrbs=.true.
 !        ELSEIF(LMS.ne.0) THEN
