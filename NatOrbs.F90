@@ -13,10 +13,11 @@ MODULE NatOrbsMod
         USE SystemData , only : NEl,nBasis,NIfD,G1,ARR,BRR,lNoSymmetry,LMS,tStoreSpinOrbs,nOccAlpha,nOccBeta,tSeparateOccVirt
         USE SystemData , only : tRotateOccOnly,tRotateVirtOnly,tFindCINatOrbs,tUseMP2VarDenMat
         USE RotateOrbsData , only : SymLabelList2,SymLabelCounts2,SymLabelCounts2Tag,SymLabelListInv,NoOrbs,SpatOrbs,FillOneRDM_time
-        USE RotateOrbsData , only : FillMP2VDM_Time,DiagNatOrbMat_Time,OrderandFillCoeff_Time
+        USE RotateOrbsData , only : FillMP2VDM_Time,DiagNatOrbMat_Time,OrderCoeff_Time,FillCoeff_Time,NoFrozenVirt
         IMPLICIT NONE
-        INTEGER :: NoSpinCyc
+        INTEGER :: NoSpinCyc,SymOrbsTempTag
         REAL*8 , ALLOCATABLE :: NatOrbMat(:,:),Evalues(:)
+        INTEGER , ALLOCATABLE :: SymOrbsTemp(:)
         INTEGER :: NatOrbMatTag,ierr,EvaluesTag
 
     contains
@@ -62,22 +63,9 @@ MODULE NatOrbsMod
         CALL DiagNatOrbMat()
 
 ! We then need to put the resulting eigenvectors back into the ordering we want, and copy these over to CoeffT1.
-        CALL OrderandFillCoeffT1()
+        CALL OrderCoeffT1()
 
-
-! Deallocate the natural orbitals matrix.    
-
-        DEALLOCATE(NatOrbMat)
-        CALL LogMemDeAlloc(this_routine,NatOrbMatTag)
-
-        DEALLOCATE(Evalues)
-        CALL LogMemDeAlloc(this_routine,EvaluesTag)
-
-!        WRITE(6,*) 'got to end of findnatorbs o.k!'
-!        CALL FLUSH(6)
-!        stop
-
-
+        
     END SUBROUTINE FindNatOrbs
 
 
@@ -601,18 +589,21 @@ MODULE NatOrbsMod
 ! This is so the alpha and beta spins can be diagonalised separately and we can keep track of which is which when the evectors are reordered 
 ! and maintain spin symmetry.
 
+
+        WRITE(6,*) 'Filling MP2VDM nat orb matrix'
+        CALL FLUSH(6)
         
         FillMP2VDM_Time%timer_name='FillMP2VDM'
         CALL set_timer(FillMP2VDM_Time,30)
 
 !        WRITE(6,*) 'nOccBeta',nOccBeta
 !        WRITE(6,*) 'nOccAlpha',nOccAlpha
+!        WRITE(6,*) 'tStoreSpinOrbs',tStoreSpinOrbs
 
         do x=1,NoSpinCyc
             IF(x.eq.1) THEN
                 IF(tStoreSpinOrbs) THEN
                     NoOcc=nOccBeta
-!                    NoOcc=MAX(nOccBeta,nOccAlpha)
                 ELSE
                     NoOcc=NEl/2
                 ENDIF
@@ -620,7 +611,6 @@ MODULE NatOrbsMod
                 Endab=SpatOrbs
             ELSEIF(x.eq.2) THEN
                 NoOcc=nOccAlpha
-!                NoOcc=MAX(nOccBeta,nOccAlpha)
                 Startab=SpatOrbs+NoOcc+1
                 Endab=NoOrbs
             ENDIF
@@ -727,6 +717,7 @@ MODULE NatOrbsMod
                             enddo
                         enddo
                     enddo
+!                    WRITE(6,*) 'MP2VDMSum',MP2VDMSum
                     NatOrbMat(a2,b2)=MP2VDMSum
                     NatOrbMat(b2,a2)=MP2VDMSum
                 enddo
@@ -817,22 +808,28 @@ MODULE NatOrbsMod
             do j=1,NoOrbs
                 IF(tStoreSpinOrbs) THEN
 !                    WRITE(6,*) INT(G1(SymLabelList2(i))%sym%S,4),INT(G1(SymLabelList2(j))%sym%S,4),NatOrbMat(i,j)
-                    IF((INT(G1(SymLabelList2(i))%sym%S,4).ne.INT(G1(SymLabelList2(j))%sym%S,4)).and.(ABS(NatOrbMat(i,j)).ge.1.0E-15)) THEN
-                        WRITE(6,'(6A8,A20)') 'i','j','Label i','Label j','Sym i','Sym j','Matrix value'
-                        WRITE(6,'(6I3,F40.20)') i,j,SymLabelList2(i),SymLabelList2(j),INT(G1(SymLabelList2(i))%sym%S,4),INT(G1(SymLabelList2(j))%sym%S,4),NatOrbMat(i,j)
-                        IF(tUseMP2VarDenMat) THEN
-                            WRITE(6,*) '**WARNING** - There is a non-zero NatOrbMat value between orbitals of different symmetry.'
-                            WRITE(6,*) 'These elements will be ignored, and the symmetry maintained in the final transformation matrix.'
-                        ELSE
-                            CALL Stop_All(this_routine,'Non-zero NatOrbMat value between different symmetries.')
+                    IF((INT(G1(SymLabelList2(i))%sym%S,4).ne.INT(G1(SymLabelList2(j))%sym%S,4))) THEN
+                        IF(ABS(NatOrbMat(i,j)).ge.1.0E-15) THEN
+                            WRITE(6,'(6A8,A20)') 'i','j','Label i','Label j','Sym i','Sym j','Matrix value'
+                            WRITE(6,'(6I3,F40.20)') i,j,SymLabelList2(i),SymLabelList2(j),INT(G1(SymLabelList2(i))%sym%S,4),INT(G1(SymLabelList2(j))%sym%S,4),NatOrbMat(i,j)
+                            IF(tUseMP2VarDenMat) THEN
+                                WRITE(6,*) '**WARNING** - There is a non-zero NatOrbMat value between orbitals of different symmetry.'
+                                WRITE(6,*) 'These elements will be ignored, and the symmetry maintained in the final transformation matrix.'
+                            ELSE
+                                CALL Stop_All(this_routine,'Non-zero NatOrbMat value between different symmetries.')
+                            ENDIF
                         ENDIF
+                        NatOrbMat(i,j)=0.D0
                     ENDIF
                 ELSE
 !                    WRITE(6,*) INT(G1(SymLabelList2(i)*2)%sym%S,4),INT(G1(SymLabelList2(j)*2)%sym%S,4),NatOrbMat(i,j)
-                    IF((INT(G1(SymLabelList2(i)*2)%sym%S,4).ne.INT(G1(SymLabelList2(j)*2)%sym%S,4)).and.(ABS(NatOrbMat(i,j)).ge.1.0E-15)) THEN
-                        WRITE(6,'(6A8,A20)') 'i','j','Label i','Label j','Sym i','Sym j','Matrix value'
-                        WRITE(6,'(6I3,F40.20)') i,j,SymLabelList2(i),SymLabelList2(j),INT(G1(SymLabelList2(i)*2)%sym%S,4),INT(G1(SymLabelList2(j)*2)%sym%S,4),NatOrbMat(i,j)
-                        CALL Stop_All(this_routine,'Non-zero NatOrbMat value between different symmetries.')
+                    IF((INT(G1(SymLabelList2(i)*2)%sym%S,4).ne.INT(G1(SymLabelList2(j)*2)%sym%S,4))) THEN
+                        IF(ABS(NatOrbMat(i,j)).ge.1.0E-15) THEN
+                            WRITE(6,'(6A8,A20)') 'i','j','Label i','Label j','Sym i','Sym j','Matrix value'
+                            WRITE(6,'(6I3,F40.20)') i,j,SymLabelList2(i),SymLabelList2(j),INT(G1(SymLabelList2(i)*2)%sym%S,4),INT(G1(SymLabelList2(j)*2)%sym%S,4),NatOrbMat(i,j)
+                            CALL Stop_All(this_routine,'Non-zero NatOrbMat value between different symmetries.')
+                        ENDIF
+                        NatOrbMat(i,j)=0.D0
                     ENDIF
                 ENDIF
             enddo
@@ -987,15 +984,12 @@ MODULE NatOrbsMod
 
 
 
-    SUBROUTINE OrderandFillCoeffT1()
-        USE RotateOrbsData , only : CoeffT1,SymLabelList3,SymOrbs,SymOrbsTag
-        USE Logging , only : tTruncRODump,NoFrozenVirt
+    SUBROUTINE OrderCoeffT1()
+        USE RotateOrbsData , only : SymLabelList3
+        USE Logging , only : tTruncRODump
         IMPLICIT NONE
-        REAL*8 :: EvaluesTrunc(NoOrbs-NoFrozenVirt)
-        INTEGER :: x,i,j,k,ier,ierr,StartSort,EndSort,NoRotAlphBet,NoOcc,SymOrbsTempTag,SymFirst
-        CHARACTER(len=*), PARAMETER :: this_routine='OrderandFillCoeffT1'
-        INTEGER , ALLOCATABLE :: SymOrbsTemp(:)
-        LOGICAL :: tSymFound
+        INTEGER :: x,i,ier,ierr,StartSort,EndSort,NoOcc
+        CHARACTER(len=*), PARAMETER :: this_routine='OrderCoeffT1'
         
 
 ! Here, if symmetry is kept, we are going to have to reorder the eigenvectors according to the size of the eigenvalues, while taking
@@ -1004,35 +998,24 @@ MODULE NatOrbsMod
 ! Want to reorder the eigenvalues from largest to smallest, taking the eigenvectors with them and the symmetry as well.  
 ! If using spin orbitals, do this for the alpha spin and then the beta.
  
-        OrderandFillCoeff_Time%timer_name='OrderandFillCoeff'
-        CALL set_timer(OrderandFillCoeff_Time,30)
+        OrderCoeff_Time%timer_name='OrderCoeff'
+        CALL set_timer(OrderCoeff_Time,30)
 
 
         IF(tTruncRODump) THEN
             ! If we are truncating, the orbitals stay in this order, so we want to take their symmetries with them.
-
-            ALLOCATE(SymOrbs(NoOrbs),stat=ierr)
-            CALL LogMemAlloc('SymOrbs',NoOrbs,4,this_routine,SymOrbsTag,ierr)
-            SymOrbs(:)=0
-
             ALLOCATE(SymOrbsTemp(NoOrbs),stat=ierr)
             CALL LogMemAlloc('SymOrbsTemp',NoOrbs,4,this_routine,SymOrbsTempTag,ierr)
             SymOrbsTemp(:)=0
-
-            CoeffT1(:,:)=0.D0
-            EvaluesTrunc(:)=0.D0
-            
 
             IF(tStoreSpinOrbs) THEN
                 do i=1,NoOrbs
                     SymOrbsTemp(i)=INT(G1(SymLabelList2(i))%sym%S,4)
                 enddo
-                NoRotAlphBet=SpatOrbs-(NoFrozenVirt/2)
             ELSE 
                 do i=1,NoOrbs
                     SymOrbsTemp(i)=INT(G1(SymLabelList2(i)*2)%sym%S,4)
                 enddo
-                NoRotAlphBet=NoOrbs-NoFrozenVirt
             ENDIF
 
             do x=1,NoSpinCyc
@@ -1067,6 +1050,87 @@ MODULE NatOrbsMod
                                             &StartSort:EndSort),SymOrbsTemp(StartSort:EndSort))
 
             enddo
+               
+        ELSE
+            ! If we are not truncating, the orbitals get put back into their original order, so the symmetry information is still 
+            ! correct, no need for the SymOrbs array.
+            ! Instead, just take the labels of SymLabelList3 with them.
+
+            do x=1,NoSpinCyc
+
+                IF(x.eq.1) THEN
+                    IF(tSeparateOccVirt) THEN
+                        IF(tStoreSpinOrbs) THEN
+                            NoOcc=nOccBeta
+                        ELSE
+                            NoOcc=NEl/2
+                        ENDIF
+                    ELSE
+                        NoOcc=0
+                    ENDIF
+                    StartSort=1
+                    EndSort=SpatOrbs
+                    IF(tRotateOccOnly) EndSort=NoOcc
+                    IF(tRotateVirtOnly) StartSort=NoOcc+1
+
+                ELSEIF(x.eq.2) THEN
+                    IF(tSeparateOccVirt) THEN
+                        NoOcc=nOccAlpha
+                    ELSE
+                        NoOcc=0
+                    ENDIF
+                    StartSort=SpatOrbs+1
+                    EndSort=NoOrbs
+                    IF(tRotateOccOnly) EndSort=SpatOrbs+NoOcc
+                    IF(tRotateVirtOnly) StartSort=SpatOrbs+NoOcc+1
+                ENDIF
+
+                CALL SortEvecbyEvalPlus1(((EndSort-StartSort)+1),Evalues(StartSort:EndSort),((EndSort-StartSort)+1),&
+                                            &NatOrbMat(StartSort:EndSort,StartSort:EndSort),SymLabelList3(StartSort:EndSort))
+            enddo 
+            
+        ENDIF
+
+        CALL halt_timer(OrderCoeff_Time)
+
+        WRITE(6,*) 'Eigen-values: '
+        do i=1,NoOrbs
+            WRITE(6,*) Evalues(i)
+        enddo
+       
+
+    END SUBROUTINE OrderCoeffT1
+
+
+
+    SUBROUTINE FillCoeffT1
+        USE RotateOrbsData , only : CoeffT1,SymLabelList3,SymOrbs,SymOrbsTag
+        USE Logging , only : tTruncRODump
+        IMPLICIT NONE
+        INTEGER :: k,i,j,NoRotAlphBet,SymFirst
+        REAL*8 :: EvaluesTrunc(NoOrbs-NoFrozenVirt)
+        CHARACTER(len=*), PARAMETER :: this_routine='FillCoeffT1'
+        CHARACTER(len=5) :: Label
+        CHARACTER(len=20) :: LabelFull
+        LOGICAL :: tSymFound
+  
+        FillCoeff_Time%timer_name='FillCoeff'
+        CALL set_timer(FillCoeff_Time,30)
+
+        IF(tTruncRODump) THEN
+
+            ALLOCATE(SymOrbs(NoOrbs),stat=ierr)
+            CALL LogMemAlloc('SymOrbs',NoOrbs,4,this_routine,SymOrbsTag,ierr)
+            SymOrbs(:)=0
+
+            EvaluesTrunc(:)=0.D0
+
+            IF(tStoreSpinOrbs) THEN
+                NoRotAlphBet=SpatOrbs-(NoFrozenVirt/2)
+            ELSE 
+                NoRotAlphBet=NoOrbs-NoFrozenVirt
+            ENDIF
+
 
             IF(tStoreSpinOrbs) THEN                                            
 ! As we reorder these so that they are truncated, we also need to pair up symmetries.
@@ -1164,52 +1228,13 @@ MODULE NatOrbsMod
                 enddo
             ENDIF
 
-            DEALLOCATE(SymOrbsTemp)
-            CALL LogMemDeAlloc(this_routine,SymOrbsTempTag)
-
 !            WRITE(6,*) SymOrbs(:)
 !            CALL FLUSH(6)
 !            CALL Stop_All('','')
-                
+
         ELSE
-            ! If we are not truncating, the orbitals get put back into their original order, so the symmetry information is still 
-            ! correct, no need for the SymOrbs array.
-            ! Instead, just take the labels of SymLabelList3 with them.
-            CoeffT1(:,:)=0.D0
 
-            do x=1,NoSpinCyc
 
-                IF(x.eq.1) THEN
-                    IF(tSeparateOccVirt) THEN
-                        IF(tStoreSpinOrbs) THEN
-                            NoOcc=nOccBeta
-                        ELSE
-                            NoOcc=NEl/2
-                        ENDIF
-                    ELSE
-                        NoOcc=0
-                    ENDIF
-                    StartSort=1
-                    EndSort=SpatOrbs
-                    IF(tRotateOccOnly) EndSort=NoOcc
-                    IF(tRotateVirtOnly) StartSort=NoOcc+1
-
-                ELSEIF(x.eq.2) THEN
-                    IF(tSeparateOccVirt) THEN
-                        NoOcc=nOccAlpha
-                    ELSE
-                        NoOcc=0
-                    ENDIF
-                    StartSort=SpatOrbs+1
-                    EndSort=NoOrbs
-                    IF(tRotateOccOnly) EndSort=SpatOrbs+NoOcc
-                    IF(tRotateVirtOnly) StartSort=SpatOrbs+NoOcc+1
-                ENDIF
-
-                CALL SortEvecbyEvalPlus1(((EndSort-StartSort)+1),Evalues(StartSort:EndSort),((EndSort-StartSort)+1),&
-                                            &NatOrbMat(StartSort:EndSort,StartSort:EndSort),SymLabelList3(StartSort:EndSort))
-            enddo 
-            
             do i=1,NoOrbs
                 CoeffT1(:,i)=NatOrbMat(:,i)
             enddo
@@ -1226,7 +1251,13 @@ MODULE NatOrbsMod
 !        stop
 
         IF(tTruncRODump) THEN
-            OPEN(74,FILE='EVALUES-TRUNC',status='unknown')
+
+            Label=''
+            LabelFull=''
+            WRITE(Label,'(I5)') NoFrozenVirt
+            LabelFull='EVALUES-TRUNC-'//adjustl(Label)
+
+            OPEN(74,FILE=LabelFull,status='unknown')
             IF(tStoreSpinOrbs) THEN
                 WRITE(74,*) NoOrbs-NoFrozenVirt
                 do i=1,NoOrbs-NoFrozenVirt,2
@@ -1263,11 +1294,6 @@ MODULE NatOrbsMod
 
         CALL HistNatOrbEvalues()
 
-        WRITE(6,*) 'Eigen-values: '
-        do i=1,NoOrbs
-            WRITE(6,*) Evalues(i)
-        enddo
-
 !        WRITE(6,*) 'NatOrbMat matrix'
 !        do i=1,NoOrbs
 !            WRITE(6,*) NatOrbMat(:,i)
@@ -1281,10 +1307,11 @@ MODULE NatOrbsMod
 !        enddo
 !        CLOSE(74)
 
-        CALL halt_timer(OrderandFillCoeff_Time)
-        
+        CALL halt_timer(FillCoeff_Time)
+ 
 
-    END SUBROUTINE OrderandFillCoeffT1
+    ENDSUBROUTINE FillCoeffT1
+
 
 
 
@@ -1462,6 +1489,27 @@ MODULE NatOrbsMod
         
 
     END SUBROUTINE HistNatOrbEvalues
+
+
+
+    SUBROUTINE DeallocateNatOrbs()
+        USE Logging , only : tTruncRODump
+        IMPLICIT NONE
+        CHARACTER(len=*), PARAMETER :: this_routine='DeallocateNatOrbs'
+
+! Deallocate the natural orbitals matrix.    
+
+        IF(tTruncRODump) THEN
+            DEALLOCATE(SymOrbsTemp)
+            CALL LogMemDeAlloc(this_routine,SymOrbsTempTag)
+        ENDIF
+        DEALLOCATE(NatOrbMat)
+        CALL LogMemDeAlloc(this_routine,NatOrbMatTag)
+        DEALLOCATE(Evalues)
+        CALL LogMemDeAlloc(this_routine,EvaluesTag)
+
+    END SUBROUTINE DeallocateNatOrbs
+
 
 
 

@@ -11,9 +11,10 @@ MODULE Logging
     LOGICAL TZeroProjE,TWriteDetE,TAutoCorr,tBinPops,tROHistogramAll,tROHistER,tHistSpawn,tROHistSingExc,tRoHistOneElInts
     LOGICAL tROHistVirtCoulomb,tPrintInts,tHistEnergies,tPrintTriConnections,tHistTriConHEls,tPrintHElAccept,tTruncRODump
     LOGICAL tPrintFCIMCPsi,tCalcFCIMCPsi,tPrintSpinCoupHEl,tIterStartBlock,tHFPopStartBlock,tInitShiftBlocking
-    INTEGER NoACDets(2:4),iPopsPartEvery,iWriteHistEvery,iNoBins,NoTriConBins,NoTriConHElBins,NoFrozenVirt,NHistEquilSteps
+    INTEGER NoACDets(2:4),iPopsPartEvery,iWriteHistEvery,iNoBins,NoTriConBins,NoTriConHElBins,NHistEquilSteps
     INTEGER CCMCDebug !CCMC Debugging Level 0-6.  Default 0
-    INTEGER IterStartBlocking,HFPopStartBlocking
+    INTEGER IterStartBlocking,HFPopStartBlocking,NoDumpTruncs,NoTruncOrbsTag
+    INTEGER , ALLOCATABLE :: NoTruncOrbs(:)
 
 
 
@@ -54,7 +55,6 @@ MODULE Logging
       tROHistogramAll=.false.
       tROFciDump=.true.
       tTruncRODump=.false.
-      NoFrozenVirt=0
       tROHistER=.false.
       tROHistDoubExc=.false.
       tROHistOffDiag=.false.
@@ -80,6 +80,7 @@ MODULE Logging
       IterStartBlocking=0
       HFPopStartBlocking=100
       tInitShiftBlocking=.true.
+      NoDumpTruncs=0
 
 
 ! Feb08 defaults
@@ -94,9 +95,10 @@ MODULE Logging
 
     SUBROUTINE LogReadInput()
       USE input
+      USE MemoryManager, only: LogMemAlloc,LogMemDealloc
       IMPLICIT NONE
       LOGICAL eof
-      INTEGER :: i
+      INTEGER :: i,ierr
       CHARACTER (LEN=100) w
 
       ILogging=iLoggingDef
@@ -164,7 +166,25 @@ MODULE Logging
 !This options truncates the rotated FCIDUMP file by removing the specified number of virtual orbitals, based on the occupation
 !numbers given by diagonalisation of the MP2 variational density matrix.
             tTruncRODump=.true.
-            call readi(NoFrozenVirt)
+            NoDumpTruncs=1
+            ALLOCATE(NoTruncOrbs(NoDumpTruncs),stat=ierr)
+            CALL LogMemAlloc('NoTruncOrbs',NoDumpTruncs,4,'Logging',NoTruncOrbsTag,ierr)
+            NoTruncOrbs(:)=0
+            do i=1,NoDumpTruncs
+                call readi(NoTruncOrbs(i))
+            enddo
+
+        case("MULTTRUNCROFCIDUMP")
+!This option allows us to specify multiple truncations, so that one calculation will print out multiple ROFCIDUMP files with different
+!levels of truncation - prevents us from having to do multiple identical CISD calculations to get the different truncations.
+            tTruncRODump=.true.
+            call readi(NoDumpTruncs)
+            ALLOCATE(NoTruncOrbs(NoDumpTruncs),stat=ierr)
+            CALL LogMemAlloc('NoTruncOrbs',NoDumpTruncs,4,'Logging',NoTruncOrbsTag,ierr)
+            NoTruncOrbs(:)=0
+            do i=1,NoDumpTruncs
+                call readi(NoTruncOrbs(i))
+            enddo
             
         case("ROHISTOGRAMALL")
 !This option goes with the orbital rotation routine.  If this keyword is included, all possible histograms are included.
