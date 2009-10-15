@@ -46,10 +46,11 @@ TYPE BasisFN
    INTEGER :: k(3)
    INTEGER :: Ms
    INTEGER :: Ml            !This is the Ml symmetry of the orbital
+   INTEGER :: spacer    ! The spacer is there to make sure we have a structure which is a multiple of 8-bytes for 64-bit machines.
    TYPE(Symmetry) :: sym
 END TYPE
 
-integer, PARAMETER :: BasisFNSize=SymmetrySize+5
+integer, PARAMETER :: BasisFNSize=SymmetrySize+6
 integer, PARAMETER :: BasisFNSizeB=BasisFNSize*8
 
 

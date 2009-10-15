@@ -1822,7 +1822,7 @@ C.. Set to be totally symmetric
          use SymData, only: FrozenSym
          IMPLICIT NONE
          TYPE(BasisFN) Sym
-         FrozenSym=BasisFN((/0,0,0/),0,0,Symmetry(0))
+!         FrozenSym=BasisFN((/0,0,0/),0,0,0,Symmetry(0))
 C.. Set to be totally symmetric
          FrozenSym=Sym
       END

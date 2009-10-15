@@ -702,7 +702,7 @@ MODULE Integrals
 
        IMPLICIT NONE
        INTEGER NHG,NBASIS,nBasisMax(5,*),ISS
-       TYPE(BASISFN) G1(NHG)
+       TYPE(BASISFN) G1(NHG),KSYM
        TYPE(HElement) UMAT(*)
 !!C.. was (NHG/ISS,NHG/ISS,NHG/ISS,NHG/ISS)
        TYPE(HElement) UMAT2(*)
@@ -720,7 +720,7 @@ MODULE Integrals
        INTEGER IDA,IDB,SGN
        INTEGER iSize,ierr
        INTEGER FDET(NEL),NEL
-       TYPE(Symmetry) KSYM
+!       TYPE(Symmetry) KSYM
        REAL*8 ALAT(3)
        character(*), parameter :: this_routine='IntFreezeBasis'
 
@@ -1146,6 +1146,10 @@ MODULE Integrals
        ENDIF
        IF(ISS.EQ.0) CALL SetupUMatTransTable(GG,nHG,nBasis)
 
+       do i=1,NBASIS
+           WRITE(6,*) i,G2(i)%Sym%S
+       enddo
+
        IF(.NOT.TSTARSTORE) THEN
           IF(NFROZENIN.gt.0) THEN
 !             CALL GETSYM(BRR,NFROZEN,BRR((NEL-NFROZENIN+1):NEL),G1,NBASISMAX,KSym)
@@ -1154,7 +1158,7 @@ MODULE Integrals
 !out as 0 anyway, unless we are breaking up a set of symmetry irreps somehow ... I think.
              WRITE(6,*) "WARNING: Setting the symmetry of the frozen orbitals to 0. This will be incorrect &
                         &if orbitals are frozen in the middle of a degenerate set of the same symmetery irrep."
-             KSym%S=0
+             KSym%Sym%S=0
              CALL SetupFREEZEALLSYM(KSym)
           ELSEIF(NFROZEN>0) THEN
              CALL GETSYM(BRR,NFROZEN,G1,NBASISMAX,KSym)
