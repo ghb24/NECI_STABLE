@@ -1214,7 +1214,7 @@ MODULE Integrals
       !    NHG: # basis functions.`
       !    G1: symmetry and momentum information on the basis functions.
       !    IDI,IDJ,IDK,IDL: indices for integral.
-      use SystemData, only: Symmetry,BasisFN,tVASP,tRIIntegrals,tCacheFCIDUMPInts,tStoreSpinOrbs
+      use SystemData, only: Symmetry,BasisFN,tVASP,tRIIntegrals,tCacheFCIDUMPInts,tStoreSpinOrbs,tFixLz
       use UMatCache
       use vasp_neci_interface, only: CONSTRUCT_IJAB_one
       IMPLICIT NONE
@@ -1238,6 +1238,23 @@ MODULE Integrals
 !   Otherwise we just look it up in umat
 !      WRITE(6,*) "INT",IDI,IDJ,IDK,IDL
 !      WRITE(6,*) NBASISMAX(2,3),ISS,tUMat2D
+
+      IF(tFixLz) THEN
+!If we are fixing Lz, then <ij|kl>!=<kj|il> necessarily, since we have complex orbitals (though real integrals) and 
+!want to ensure that we conserve momentum, i.e. momentum of bra = mom of ket
+          IF(tStoreSpinOrbs) THEN
+              IF((G1(IDI)%Ml+G1(IDJ)%Ml).ne.(G1(IDK)%Ml+G1(IDL)%Ml)) THEN
+                  GetUMatEl=HElement(0.D0)
+                  RETURN
+              ENDIF
+          ELSE
+              IF((G1(2*IDI)%Ml+G1(2*IDJ)%Ml).ne.(G1(2*IDK)%Ml+G1(2*IDL)%Ml)) THEN
+                  GetUMatEl=HElement(0.D0)
+                  RETURN
+              ENDIF
+          ENDIF
+      ENDIF
+
       IF(NBASISMAX(1,3).GE.0) THEN
 !   See if we need to calculate on the fly
          IF(ISS.EQ.0) THEN
