@@ -46,10 +46,16 @@ TYPE BasisFN
    INTEGER :: k(3)
    INTEGER :: Ms
    INTEGER :: Ml            !This is the Ml symmetry of the orbital
+   INTEGER :: spacer    ! The spacer is there to make sure we have a structure which is a multiple of 8-bytes for 64-bit machines.
    TYPE(Symmetry) :: sym
 END TYPE
 
-integer, PARAMETER :: BasisFNSize=SymmetrySize+5
+! Empty basis function is used in many places.
+! This is useful so if BasisFn changes, we don't have to go
+! through the code and change the explicit null statements.
+type(BasisFn) :: NullBasisFn=BasisFn((/0,0,0/),0,0,0,Symmetry(0))
+
+integer, PARAMETER :: BasisFNSize=SymmetrySize+6
 integer, PARAMETER :: BasisFNSizeB=BasisFNSize*8
 
 

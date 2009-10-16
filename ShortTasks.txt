@@ -14,7 +14,6 @@ Documentation
 Platforms
 =========
 
-* ifort, serial, 32-bit.
 * ifort, parallel (MPI).
 
 Testing
@@ -22,12 +21,8 @@ Testing
 
 * Fill in test_notes to give information regarding what part of the code each test tests.
 * Clean-up tests: improve coverage by making the tests more varied.
-* Start nightly tests in parallel.
-* Make nightly test directories writeable by the group, so anyone can produce new benchmarks, rather than just JSS.
-* Ability to run test suite over, e.g. 4 cores. (This might not be so quick.)
 
 Workflow
 ========
 
-* git repository/repositories.
 * python interface/job manager (not so short!).
