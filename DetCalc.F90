@@ -53,7 +53,7 @@ CONTAINS
         Use Determinants, only:  FDet, specdet, tSpecDet
         use SystemData, only : tCSF,lms, lms2, nBasis, nBasisMax, nEl, SymRestrict
         use SystemData, only : Alat, arr, brr, boa, box, coa, ecore, g1,Beta
-        use SystemData, only : tParity, tSpn,Symmetry,STot
+        use SystemData, only : tParity, tSpn,Symmetry,STot, NullBasisFn
         Type(BasisFn) ISym
 
         integer i,ii,j
@@ -182,7 +182,7 @@ CONTAINS
          Allocate(BlockSym(NBLOCKS+1),stat=ierr)
          LogAlloc(ierr, 'BLOCKSYM', NBLOCKS+1,BasisFNSizeB, tagBlockSym)
 
-         BLOCKSYM(1:NBLOCKS)=BasisFN((/0,0,0/),0,0,0,Symmetry(0))
+         BLOCKSYM(1:NBLOCKS)=NullBasisFn
 !C..
 
 

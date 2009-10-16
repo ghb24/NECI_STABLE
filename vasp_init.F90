@@ -1,7 +1,7 @@
 subroutine VaspSystemInit(ArrLEN)
    use global_utilities
    use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
-   use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
+   use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB,NullBasisFn
    use vasp_interface
    use SymData, only: nRot,PropBitLen,tAbelian,nProp,KPntSym,tagKPntSym
    implicit none
@@ -88,7 +88,7 @@ subroutine VASPBasisInit(ARR,BRR,G1,LEN)
    ! Largely lifted from the CPMD analogue.  Should be doing (roughly) the same
    ! thing to get going!
    use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
-   use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB,nBASISMax
+   use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB,nBASISMax,NullBasisFn
    use vasp_interface, only: q,nStates,nKP,KPntInd,eigv
    use SymData, only: KPntSym,nSym
    implicit none
@@ -109,7 +109,7 @@ subroutine VASPBasisInit(ARR,BRR,G1,LEN)
 
    call GenKPtIrreps(NKP,NKP,KPNTIND,NSTATES)
 
-   G1(1:LEN)=BasisFN((/0,0,0/),0,0,0,Symmetry(0))
+   G1(1:LEN)=NullBasisFn
 
    do i=1,nStates
       IDECOMP%s=ComposeAbelianSym(KpntSym(:,KPntInd(I)))

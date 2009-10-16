@@ -1072,7 +1072,7 @@ MODULE System
       BRR(1:LEN)=0
       Allocate(G1(Len),STAT=ierr)
       LogAlloc(ierr,'G1',LEN,BasisFNSizeB,tagG1)
-      G1(1:LEN)=BasisFN((/0,0,0/),0,0,0,Symmetry(0))
+      G1(1:LEN)=NullBasisFn
       IF(TCPMD) THEN
          WRITE(6,*) ' *** INITIALIZING BASIS FNs FROM CPMD *** '
          CALL CPMDBASISINIT(NBASISMAX,ARR,BRR,G1,LEN) 
@@ -1172,7 +1172,7 @@ MODULE System
 
 !C..        (.NOT.TREADINT)
 !C.. Set the initial symmetry to be totally symmetric
-      FrzSym=BasisFN((/0,0,0/),0,0,0,Symmetry(0))
+      FrzSym=NullBasisFn
       FrzSym%Sym=TotSymRep()
       CALL SetupFreezeSym(FrzSym)
 !C..Now we sort them using SORT2 and then SORT

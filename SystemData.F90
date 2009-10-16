@@ -50,6 +50,11 @@ TYPE BasisFN
    TYPE(Symmetry) :: sym
 END TYPE
 
+! Empty basis function is used in many places.
+! This is useful so if BasisFn changes, we don't have to go
+! through the code and change the explicit null statements.
+type(BasisFn) :: NullBasisFn=BasisFn((/0,0,0/),0,0,0,Symmetry(0))
+
 integer, PARAMETER :: BasisFNSize=SymmetrySize+6
 integer, PARAMETER :: BasisFNSizeB=BasisFNSize*8
 
