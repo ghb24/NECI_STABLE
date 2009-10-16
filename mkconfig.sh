@@ -188,8 +188,8 @@ cat << END >&3
 SHELL = /bin/bash
 #
 #--------------- Default Configuration for $Configuration ---------------
-VCS_VER:= \$(shell echo -n \" && git log --max-count=1 --pretty=format:%H || echo -n 'Not under version control.'; fi) 2> /dev/null | tr -d '\r\n'  && echo -n \")
-WORKING_DIR_CHANGES := \$(shell (git diff --quiet --cached && git diff --quiet) 2> /dev/null ; fi) || echo -n "-D_WORKING_DIR_CHANGES")
+VCS_VER:= \$(shell echo -n \" && (git log --max-count=1 --pretty=format:%H || echo -n 'Not under version control.') 2> /dev/null | tr -d '\r\n'  && echo -n \")
+WORKING_DIR_CHANGES := \$(shell (git diff --quiet --cached && git diff --quiet) 2> /dev/null || echo -n "-D_WORKING_DIR_CHANGES")
 MAXMEM := 2048 # RAM available, in MB.
 compiler = ${compiler}
 SRC  = .
