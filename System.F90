@@ -1170,6 +1170,11 @@ MODULE System
           tSymIgnoreEnergies=.true.
       ENDIF
 
+      IF(tFixLz) THEN
+          WRITE(6,*) "Pure spherical harmonics with complex orbitals used to constrain Lz to: ",LzTot
+          WRITE(6,*) "Due to the breaking of the Ml degeneracy, the fock energies are slightly wrong, on order of 1.D-4 - do not use for MP2!"
+      ENDIF
+
 !C..        (.NOT.TREADINT)
 !C.. Set the initial symmetry to be totally symmetric
       FrzSym=NullBasisFn
