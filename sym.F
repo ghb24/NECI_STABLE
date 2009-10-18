@@ -2070,6 +2070,7 @@ C.. Set to be totally symmetric
          use SystemData , only : nEl,G1,nBasis,nOccAlpha,nOccBeta,G1
          use Determinants , only : FDet
          use SystemData , only : CalcDetCycles, CalcDetPrint,tFixLz
+         use mt95 , only : genrand_real2 
          IMPLICIT NONE
          INTEGER :: i,IUNIT,OverallSym,j,SpatOrbs,FDetMom
          INTEGER :: FDetSym,Accept,TotalSym,TotalMom,alpha,beta
