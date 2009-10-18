@@ -21,6 +21,7 @@ REAL*8 :: ALPHA,FCOULDAMPBETA,FCOULDAMPMU,TimeStep,ConvergedForce,ShakeConverged
 
 LOGICAL :: tListDets    !Means that a list of allowed determinants in FciMC will be read in an particles are only allowed here.
 
+LOGICAL :: tMCSizeSpace
 INTEGER :: CalcDetPrint,CalcDetCycles   !parameters for the MC determination of the FCI determinant space size.
 
 ! Used to be stored in Integrals

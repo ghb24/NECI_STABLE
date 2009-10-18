@@ -1019,7 +1019,7 @@ MODULE Calc
         Subroutine CalcInit()
           use HElem , only : HElement
           use SystemData, only: G1, Alat, Beta, BRR, ECore, LMS, nBasis, nBasisMax, STot,tCSF,nMsh,nEl
-          use SystemData, only: tUEG,nOccAlpha,nOccBeta,ElecPairs,tExactSizeSpace
+          use SystemData, only: tUEG,nOccAlpha,nOccBeta,ElecPairs,tExactSizeSpace,tMCSizeSpace
           use IntegralsData, only: FCK, CST, nMax, UMat
           use IntegralsData, only: HFEDelta, HFMix, NHFIt, tHFCalc
           Use Determinants, only: FDet, tSpecDet, SpecDet, GetHElement2
@@ -1110,6 +1110,8 @@ MODULE Calc
               ELSE
                   CALL FindSymSizeofTruncSpace(6)
               ENDIF
+          ELSEIF(tMCSizeSpace) THEN
+              CALL FindSymMCSizeofSpace(6) 
           ENDIF
 
           IF(TMCDET) THEN

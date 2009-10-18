@@ -18,6 +18,9 @@ MODULE System
 !     SYSTEM defaults - leave these as the default defaults
 !     Any further addition of defaults should change these after via
 !     specifying a new set of DEFAULTS.
+      tMCSizeSpace=.false.
+      CalcDetPrint=1000
+      CalcDetCycles=10000
       tFixLz=.false.
       tListDets=.false.
       tStoreSpinOrbs=.false.    !by default we store/lookup integrals as spatial integrals
@@ -651,6 +654,11 @@ MODULE System
         case("CALCEXACTSIZESPACE")
 !This option will calculate the exact size of the symmetry allowed space of determinants. Will scale badly.
             tExactSizeSpace=.true.
+        case("CALCMCSIZESPACE")
+!This option will approximate the exact size of the symmetry allowed space of determinants by MC. The variance on the value will decrease as 1/N_steps
+            tMCSizeSpace=.true.
+            CALL Geti(CalcDetCycles)
+            CALL Geti(CalcDetPrint)
 
         case("NONUNIFORMRANDEXCITS")
 !This indicates that the new, non-uniform O[N] random excitation generators are to be used.

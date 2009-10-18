@@ -2067,13 +2067,13 @@ C.. Set to be totally symmetric
 !allowed size of the determinant space. However, it can be simply found using a MC technique.
       SUBROUTINE FindSymMCSizeofSpace(IUNIT)
          use SymData , only : TwoCycleSymGens
-         use SystemData , only : nEl,G1,nBasis,nOccAlpha,nOccBeta
+         use SystemData , only : nEl,G1,nBasis,nOccAlpha,nOccBeta,G1
          use Determinants , only : FDet
-         use System , only : CalcDetCycles, CalcDetPrint
+         use SystemData , only : CalcDetCycles, CalcDetPrint,tFixLz
          IMPLICIT NONE
-         INTEGER :: i,IUNIT,OverallSym
-         INTEGER :: FDetSym
-         REAL*8 :: FullSpace
+         INTEGER :: i,IUNIT,OverallSym,j,SpatOrbs,FDetMom
+         INTEGER :: FDetSym,Accept,TotalSym,TotalMom,alpha,beta
+         REAL*8 :: FullSpace,r,Choose,Frac
 
          IF(.not.TwoCycleSymGens) THEN
              WRITE(IUNIT,*) "Only for molecular abelian symmetry "      &
@@ -2088,28 +2088,81 @@ C.. Set to be totally symmetric
          WRITE(IUNIT,*) CalcDetCycles, " MC cycles will be used, and "  &
      &       //"statistics printed out every ",CalcDetPrint," cycles."
          FDetSym=0
+         FDetMom=0
          do i=1,NEl
             FDetSym=IEOR(FDetSym,INT(G1(FDet(i))%Sym%S,4))
+            FDetMom=FDetMom+G1(FDet(i))%Ml
          enddo
          WRITE(IUNIT,*) "Symmetry of HF determinant is: ",FDetSym
+         WRITE(IUNIT,*) "Momentum of HF determinant is: ",FDetMom
 
+         SpatOrbs=nBasis/2
+
+         Accept=0
+         
+         FullSpace=Choose(SpatOrbs,nOccAlpha)
+         FullSpace=FullSpace*Choose(SpatOrbs,nOccBeta)
+
+         WRITE(IUNIT,*) "Size of space neglecting all but Sz symmetry: "&
+     &      ,FullSpace
 
          CALL FLUSH(IUNIT)
 
-         WRITE(IUNIT,*) "Size of space neglecting all but Sz symmetry: "
+         OPEN(14,file="SpaceMCStats",status='unknown',form='formatted')
 
          do i=1,CalcDetCycles
 
              IF(mod(i,CalcDetPrint).eq.0) THEN
                  !Write out statistics
+                 Frac=REAL(Accept,8)/REAL(i,8)
+                 WRITE(14,*) i,Accept,Frac,Frac*FullSpace
 
              ENDIF
 
-             !Create random determinant (Correct Sz symmetry)
+             TotalSym=0
+             TotalMom=0
 
+             !Create random determinant (Correct Sz symmetry)
+             do j=1,nOccAlpha
+                 CALL genrand_real2(r)
+                 alpha=2*(INT(SpatOrbs*r)+1)
+
+                 TotalSym=IEOR(TotalSym,INT((G1(alpha)%Sym%S),4))
+                 IF(tFixLz) THEN
+                     TotalMom=TotalMom+G1(alpha)%Ml
+                 ENDIF
+
+             enddo
+             do j=1,nOccBeta
+                 CALL genrand_real2(r)
+                 beta=2*(INT(SpatOrbs*r)+1)-1
+
+                 TotalSym=IEOR(TotalSym,INT((G1(beta)%Sym%S),4))
+                 IF(tFixLz) THEN
+                     TotalMom=TotalMom+G1(beta)%Ml
+                 ENDIF
+             enddo
+
+             IF(TotalSym.eq.FDetSym) THEN
              !Allow/disallow the determinant
+                 IF(tFixLz) THEN
+                     IF(TotalMom.eq.FDetMom) THEN
+                         Accept=Accept+1
+                     ENDIF
+                 ELSE
+                     Accept=Accept+1
+                 ENDIF
+             ENDIF
 
          enddo
+
+         Frac=REAL(Accept,8)/REAL(i,8)
+         WRITE(14,*) i,Accept,Frac,Frac*FullSpace
+
+         WRITE(IUNIT,*) "Approx size of space: ",Frac*FullSpace
+         CLOSE(14)
+
+         CALL FLUSH(IUNIT)
 
       END SUBROUTINE FindSymMCSizeofSpace
 
