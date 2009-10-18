@@ -2063,6 +2063,56 @@ C.. Set to be totally symmetric
         CALL FLUSH(13)
       END
 
+!This routine *stochastically* finds the size of the determinant space. For certain symmetries, its hard to find the
+!allowed size of the determinant space. However, it can be simply found using a MC technique.
+      SUBROUTINE FindSymMCSizeofSpace(IUNIT)
+         use SymData , only : TwoCycleSymGens
+         use SystemData , only : nEl,G1,nBasis,nOccAlpha,nOccBeta
+         use Determinants , only : FDet
+         use System , only : CalcDetCycles, CalcDetPrint
+         IMPLICIT NONE
+         INTEGER :: i,IUNIT,OverallSym
+         INTEGER :: FDetSym
+         REAL*8 :: FullSpace
+
+         IF(.not.TwoCycleSymGens) THEN
+             WRITE(IUNIT,*) "Only for molecular abelian symmetry "      &
+     &      //" calculations can the exact size of the determinant "    &
+     &      //" space be calculated currently..."
+             WRITE(IUNIT,*) "Skipping size of space calculation..."
+             RETURN
+         ENDIF
+
+         WRITE(IUNIT,*) "Calculating exact size of symmetry-allowed "   &
+     &       //"determinant space using MC..."
+         WRITE(IUNIT,*) CalcDetCycles, " MC cycles will be used, and "  &
+     &       //"statistics printed out every ",CalcDetPrint," cycles."
+         FDetSym=0
+         do i=1,NEl
+            FDetSym=IEOR(FDetSym,INT(G1(FDet(i))%Sym%S,4))
+         enddo
+         WRITE(IUNIT,*) "Symmetry of HF determinant is: ",FDetSym
+
+
+         CALL FLUSH(IUNIT)
+
+         WRITE(IUNIT,*) "Size of space neglecting all but Sz symmetry: "
+
+         do i=1,CalcDetCycles
+
+             IF(mod(i,CalcDetPrint).eq.0) THEN
+                 !Write out statistics
+
+             ENDIF
+
+             !Create random determinant (Correct Sz symmetry)
+
+             !Allow/disallow the determinant
+
+         enddo
+
+      END SUBROUTINE FindSymMCSizeofSpace
+
 !This routine finds the size of the determinant space in terms, including all symmetry allowed determinants.
 !This is written to IUNIT. This is only available for molecular (i.e. abelian) systems with a maximum of eigth irreps.
 !This is done in a very crude way. Feel free to optimise it!
