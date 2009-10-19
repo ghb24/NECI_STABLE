@@ -129,11 +129,10 @@ FCIMC options
 
     This option will histogram the spawned wavevector, averaged over all previous iterations. 
     It scales horrifically and can only be done for small systems which can be diagonalized. 
-    It requires a diagonalization initially to work. It can write out the average wavevector every iWriteHistEvery.
-    If done, SymDets will also be written out, containing the exact wavevector in the same format from the 
-    diagonalization.
-    IF **JUSTFINDDETS** option is on, the exact wavevector will not be written out, but the determinants simply
-    enumerated and stored in a compressed form in FCIDets array.
+    It requires a enumeration of all determinants initially to work. It can write out the 
+    average wavevector every iWriteHistEvery.
+    If a diagonalization option is set, SymDets will also be written out, containing the exact 
+    wavevector in the same format from the diagonalization.
 
 **HISTPARTENERGIES** [BinRange] [iNoBins] [OffDiagBinRange] [OffDiagMax]
 
