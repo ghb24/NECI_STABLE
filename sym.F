@@ -1822,7 +1822,7 @@ C.. Set to be totally symmetric
          use SymData, only: FrozenSym
          IMPLICIT NONE
          TYPE(BasisFN) Sym
-         FrozenSym=BasisFN((/0,0,0/),0,0,Symmetry(0))
+!         FrozenSym=NullBasisFn
 C.. Set to be totally symmetric
          FrozenSym=Sym
       END
@@ -2062,6 +2062,191 @@ C.. Set to be totally symmetric
         WRITE(13,*) "******************"
         CALL FLUSH(13)
       END
+
+!This routine *stochastically* finds the size of the determinant space. For certain symmetries, its hard to find the
+!allowed size of the determinant space. However, it can be simply found using a MC technique.
+      SUBROUTINE FindSymMCSizeofSpace(IUNIT)
+         use SymData , only : TwoCycleSymGens
+         use SystemData , only : nEl,G1,nBasis,nOccAlpha,nOccBeta,G1
+         use Determinants , only : FDet
+         use DetCalc , only : ICILevel
+         use SystemData , only : CalcDetCycles, CalcDetPrint,tFixLz,NIfD
+         use mt95 , only : genrand_real2 
+         use Parallel
+         IMPLICIT NONE
+         INTEGER :: IUNIT,OverallSym,j,SpatOrbs,FDetMom
+         INTEGER :: FDetiLut(0:nBasis/32),ExcitLev
+         INTEGER :: FDetSym,TotalSym,TotalMom,alpha,beta,ierr
+         INTEGER*8 :: Accept,AcceptAll,i
+         REAL*8 :: FullSpace,r,Choose,Frac
+         LOGICAL :: tTruncSpace
+
+         IF(.not.TwoCycleSymGens) THEN
+             WRITE(IUNIT,*) "Only for molecular abelian symmetry "      &
+     &      //" calculations can the exact size of the determinant "    &
+     &      //" space be calculated currently..."
+             WRITE(IUNIT,*) "Skipping size of space calculation..."
+             RETURN
+         ENDIF
+
+         WRITE(IUNIT,*) "Calculating exact size of symmetry-allowed "   &
+     &       //"determinant space using MC..."
+         WRITE(IUNIT,*) CalcDetCycles, " MC cycles will be used, and "  &
+     &       //"statistics printed out every ",CalcDetPrint," cycles."
+         FDetSym=0
+         FDetMom=0
+         do i=1,NEl
+            FDetSym=IEOR(FDetSym,INT(G1(FDet(i))%Sym%S,4))
+            IF(tFixLz) FDetMom=FDetMom+G1(FDet(i))%Ml
+         enddo
+
+         IF(ICILevel.gt.0) THEN
+             tTruncSpace=.true.
+         ELSE
+             tTruncSpace=.false.
+         ENDIF
+
+         CALL EncodeBitDet(FDet,FDetiLut,NEl,NIfD)
+
+         WRITE(IUNIT,*) "Symmetry of HF determinant is: ",FDetSym
+         IF(tFixLz) THEN
+             WRITE(IUNIT,*) "Momentum of HF determinant is: ",FDetMom
+         ENDIF
+
+         SpatOrbs=nBasis/2
+
+         Accept=0
+         
+         FullSpace=Choose(SpatOrbs,nOccAlpha)
+         FullSpace=FullSpace*Choose(SpatOrbs,nOccBeta)
+
+         WRITE(IUNIT,*) "Size of space neglecting all but Sz symmetry: "&
+     &      ,FullSpace
+
+         CALL FLUSH(IUNIT)
+
+         IF(iProcIndex.eq.0) THEN
+             OPEN(14,file="SpaceMCStats",status='unknown',              &
+     &           form='formatted')
+         ENDIF
+
+         do i=1,CalcDetCycles
+
+             IF(mod(i,CalcDetPrint).eq.0) THEN
+                 !Write out statistics
+#ifdef PARALLEL
+!                 WRITE(6,*) Accept,AcceptAll
+                 CALL MPI_Reduce(Accept,AcceptAll,1,                    &
+     &            MPI_INTEGER8,MPI_SUM,0,MPI_COMM_WORLD,ierr)
+#else
+                 AcceptAll=Accept
+#endif
+                 Frac=REAL(AcceptAll,8)/REAL(i*nProcessors,8)
+                 IF(iProcIndex.eq.0) THEN
+                     WRITE(14,"(2I16,G25.10,F30.5)") i,AcceptAll,Frac,  &
+     &                  Frac*FullSpace
+                 ENDIF
+
+                 AcceptAll=0
+
+             ENDIF
+
+             TotalSym=0
+             TotalMom=0
+             ExcitLev=0
+
+             !Create random determinant (Correct Sz symmetry)
+             !Loop over alpha electrons
+             do j=1,nOccAlpha
+                 CALL genrand_real2(r)
+                 alpha=2*(INT(SpatOrbs*r)+1)
+
+                 TotalSym=IEOR(TotalSym,INT((G1(alpha)%Sym%S),4))
+                 IF(tFixLz) THEN
+                     TotalMom=TotalMom+G1(alpha)%Ml
+                 ENDIF
+                 IF(tTruncSpace) THEN
+           IF(.not.BTEST(FDetiLut((alpha-1)/32),mod((alpha-1),32))) THEN
+                         !orbital chosen is *not* in the reference determinant
+                         ExcitLev=ExcitLev+1
+                     ENDIF
+                 ENDIF
+
+                 !Test
+                 IF((alpha.lt.2).or.(alpha.gt.nBasis)) THEN
+                     CALL Stop_All("FindSymMCSizeofSpace","Error "      &
+     &                   //"calculating whether determinant is allowed")
+                 ENDIF
+
+             enddo
+
+             !Loop over beta electrons
+             do j=1,nOccBeta
+                 CALL genrand_real2(r)
+                 beta=2*(INT(SpatOrbs*r)+1)-1
+
+                 TotalSym=IEOR(TotalSym,INT((G1(beta)%Sym%S),4))
+                 IF(tFixLz) THEN
+                     TotalMom=TotalMom+G1(beta)%Ml
+                 ENDIF
+                 IF(tTruncSpace) THEN
+            IF(.not.BTEST(FDetiLut((beta-1)/32),mod((beta-1),32))) THEN
+                         !orbital chosen is *not* in the reference determinant
+                         ExcitLev=ExcitLev+1
+                     ENDIF
+                 ENDIF
+                 
+                 !Test
+                 IF((beta.lt.1).or.(beta.gt.(nBasis-1))) THEN
+                     CALL Stop_All("FindSymMCSizeofSpace","Error "      &
+     &                   //"calculating whether determinant is allowed")
+                 ENDIF
+
+             enddo
+
+             IF(TotalSym.eq.FDetSym) THEN
+             !Allow/disallow the determinant
+                 IF(tFixLz) THEN
+                     IF(TotalMom.eq.FDetMom) THEN
+                         IF(tTruncSpace) THEN
+                             IF(ExcitLev.le.ICILevel) THEN
+                                 Accept=Accept+1
+                             ENDIF
+                         ELSE
+                             Accept=Accept+1
+                         ENDIF
+                     ENDIF
+                 ELSE
+                     IF(tTruncSpace) THEN
+                         IF(ExcitLev.le.ICILevel) THEN
+                             Accept=Accept+1
+                         ENDIF
+                     ELSE
+                         Accept=Accept+1
+                     ENDIF
+                 ENDIF
+             ENDIF
+
+         enddo
+
+#ifdef PARALLEL
+         CALL MPI_Reduce(Accept,AcceptAll,1,                            &
+     &     MPI_INTEGER8,MPI_SUM,0,MPI_COMM_WORLD,ierr)
+#else
+         AcceptAll=Accept
+#endif
+         Frac=REAL(AcceptAll,8)/REAL(i*nProcessors,8)
+
+         IF(iProcIndex.eq.0) THEN
+             WRITE(14,"(2I16,G25.10,F30.5)") i,AcceptAll,Frac,          &
+     &           Frac*FullSpace
+             CLOSE(14)
+         ENDIF
+
+         WRITE(IUNIT,*) "Approx size of space: ",Frac*FullSpace
+         CALL FLUSH(IUNIT)
+
+      END SUBROUTINE FindSymMCSizeofSpace
 
 !This routine finds the size of the determinant space in terms, including all symmetry allowed determinants.
 !This is written to IUNIT. This is only available for molecular (i.e. abelian) systems with a maximum of eigth irreps.

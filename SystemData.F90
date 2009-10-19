@@ -4,7 +4,7 @@ implicit none
 
 save
 
-LOGICAL :: TSTARBIN,TREADINT,THFORDER,TDFREAD,TPBC,TUEG,TCPMD,THUB,tHPHF,tHPHFInts
+LOGICAL :: TSTARBIN,TREADINT,THFORDER,TDFREAD,TPBC,TUEG,TCPMD,THUB,tHPHF,tHPHFInts,tUHF
 LOGICAL tRIIntegrals  !Read in RI 2-e integrals from RIDUMP file
 ! Why is so little of this commented.  'tis horrific.  AJWT.
 LOGICAL :: TSPN,TCSF,TPARITY,TUSEBRILLOUIN,TEXCH,TREAL,TTILT,tUMatEps,tOneElIntMax,tOnePartOrbEnMax,tROHF,tNoBrillouin
@@ -20,6 +20,9 @@ REAL*8 :: BOX,BOA,COA,FUEGRS,fRc,FCOUL,OrbECutoff,UHUB,BHUB,DiagWeight,OffDiagWe
 REAL*8 :: ALPHA,FCOULDAMPBETA,FCOULDAMPMU,TimeStep,ConvergedForce,ShakeConverged,UMatEps,OneElWeight
 
 LOGICAL :: tListDets    !Means that a list of allowed determinants in FciMC will be read in an particles are only allowed here.
+
+LOGICAL :: tMCSizeSpace
+INTEGER*8 :: CalcDetPrint,CalcDetCycles   !parameters for the MC determination of the FCI determinant space size.
 
 ! Used to be stored in Integrals
 INTEGER :: ORBORDER(8,2)
@@ -46,10 +49,16 @@ TYPE BasisFN
    INTEGER :: k(3)
    INTEGER :: Ms
    INTEGER :: Ml            !This is the Ml symmetry of the orbital
+   INTEGER :: spacer    ! The spacer is there to make sure we have a structure which is a multiple of 8-bytes for 64-bit machines.
    TYPE(Symmetry) :: sym
 END TYPE
 
-integer, PARAMETER :: BasisFNSize=SymmetrySize+5
+! Empty basis function is used in many places.
+! This is useful so if BasisFn changes, we don't have to go
+! through the code and change the explicit null statements.
+type(BasisFn) :: NullBasisFn=BasisFn((/0,0,0/),0,0,0,Symmetry(0))
+
+integer, PARAMETER :: BasisFNSize=SymmetrySize+6
 integer, PARAMETER :: BasisFNSizeB=BasisFNSize*8
 
 

@@ -119,14 +119,14 @@ C.. Get the determinants of the same symmetry as KI, but which are only
 C.. singles and doubles of NI
       SUBROUTINE GENSYMDETSSD(NI,KI,NEL,G1,BRR,NBASIS,LSTE,
      &         NLIST,NBASISMAX)
-         use SystemData, only: BasisFN,BasisFNSize,Symmetry
+         use SystemData, only: BasisFN,BasisFNSize,Symmetry,NullBasisFn
          IMPLICIT NONE
          INTEGER NEL,NI(NEL),NBASIS,BRR(NBASIS)
          INTEGER NLIST,LSTE(NEL,NLIST)
          TYPE(BASISFN) G1(NBASIS),KI,KJ
          INTEGER NJ(NEL),nBasisMax(5,*)
          INTEGER I,J,NLMAX
-         KJ=BasisFN((/0,0,0/),0,0,Symmetry(0))
+         KJ=NullBasisFn
          NJ(1:NEL)=0
          NLMAX=NLIST
          NLIST=0
@@ -141,14 +141,14 @@ C.. As they are generated, they are placed in LSTE, which is of length
 C.. NLIST, up until LSTE is full.  NLIST at the end contains the total
 C.. number of determinants available (even if LSTE doesn't hold them all).
       SUBROUTINE GENSYMDETS(NI,NEL,G1,BRR,NBASIS,LSTE,NLIST,NBASISMAX)
-         use SystemData, only: BasisFN,BasisFNSize,Symmetry
+         use SystemData, only: BasisFN,BasisFNSize,Symmetry,NullBasisFn
          IMPLICIT NONE
          INTEGER NEL,NI(NEL),NBASIS,BRR(NBASIS)
          INTEGER NLIST,LSTE(NEL,NLIST),nBasisMax(5,*)
          TYPE(BASISFN) G1(NBASIS),KI,KJ
          INTEGER NJ(NEL)
          INTEGER I,J,NLMAX
-         KJ=BasisFN((/0,0,0/),0,0,Symmetry(0))
+         KJ=NullBasisFn
          CALL GETSYM(NI,NEL,G1,NBASISMAX,KI)
          NLMAX=NLIST
          NLIST=0
@@ -203,14 +203,14 @@ C.. otherwise we need to add more electrons:
       
 C.. Generate determinants with a given symmetry, given by KI, as GENSYMDETS
       SUBROUTINE GENSYMDETSS(KI,NEL,G1,BRR,NBASIS,LSTE,NLIST,NBASISMAX)
-         use SystemData, only: BasisFN,BasisFNSize,Symmetry
+         use SystemData, only: BasisFN,BasisFNSize,Symmetry,NullBasisFn
          IMPLICIT NONE
          INTEGER NEL,NI(NEL),NBASIS,BRR(NBASIS)
          INTEGER NLIST,LSTE(NEL,NLIST)
          TYPE(BASISFN) G1(NBASIS),KI,KJ
          INTEGER NJ(NEL),nBasisMax(5,*)
          INTEGER I,J,NLMAX
-         KJ=BasisFN((/0,0,0/),0,0,Symmetry(0))
+         KJ=NullBasisFn
          NI(1:NEL)=0
          NLMAX=NLIST
          NLIST=0
@@ -309,7 +309,7 @@ C.. the first NLIST are stored.
      &         NLIST,NBASISMAX,
      &         BETA,I_P,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,ECORE,RN,RP,
      &         PP,RHOEPS)
-         use SystemData, only: BasisFN,BasisFNSize,Symmetry
+         use SystemData, only: BasisFN,BasisFNSize,Symmetry,NullBasisFn
          IMPLICIT NONE
          INTEGER NEL,NI(NEL),NBASIS,BRR(NBASIS)
          INTEGER NLIST,LSTE(NEL,NLIST)
@@ -319,7 +319,7 @@ C.. the first NLIST are stored.
          REAL*8 BETA,FCK(*),ALAT(*),UMAT(*),ECORE
          INTEGER I_P,NMSH,NMAX,NTAY
          TYPE(BASISFN) G1(NBASIS),KI,KJ
-         KJ=BasisFN((/0,0,0/),0,0,Symmetry(0))
+         KJ=NullBasisFn
          NJ(1:NEL)=0
          NLMAX=NLIST
          NLIST=0

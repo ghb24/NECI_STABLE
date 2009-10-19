@@ -250,7 +250,7 @@ SUBROUTINE InitDFBasis(nEl,nBasisMax,Len,lMs)
       END
       SUBROUTINE ReadDalton1EIntegrals(G1,nBasis,Arr,Brr,ECore)
          USE HElem
-         use SystemData, only: BasisFN,BasisFNSize,Symmetry
+         use SystemData, only: BasisFN,BasisFNSize,Symmetry,NullBasisFn
          USE OneEInts, only : TMATind,TMAT2D,TMATSYM,TSTARSTORE
          implicit none
          integer nBasis,Brr(nBasis),i,j
@@ -260,7 +260,7 @@ SUBROUTINE InitDFBasis(nEl,nBasisMax,Len,lMs)
          open(11,file='HONEEL',status='unknown')
          i=1
          !TMat=0.d0
-         G1(1:nBasis)=BasisFN((/0,0,0/),0,0,Symmetry(0))
+         G1(1:nBasis)=NullBasisFn
          do while(i.ne.0)
             read(11,*) i,j,val
 !"(2I5,F)"
@@ -291,7 +291,7 @@ SUBROUTINE InitDFBasis(nEl,nBasisMax,Len,lMs)
          enddo
       END
       SUBROUTINE InitDaltonBasis(nBasisMax,Arr,Brr,G1,nBasis)
-         use SystemData, only: Symmetry,BasisFN,BasisFNSize
+         use SystemData, only: Symmetry,BasisFN,BasisFNSize,NullBasisFn
          use SymData , only : tAbelian
          implicit none
          integer nBasis,Brr(nBasis),i,j,nBasisMax(5,*)
@@ -301,7 +301,7 @@ SUBROUTINE InitDFBasis(nEl,nBasisMax,Len,lMs)
          tAbelian=.true.
          open(11,file='HONEEL',status='unknown')
          i=1
-         G1(1:nBasis)=BasisFN((/0,0,0/),0,0,Symmetry(0))
+         G1(1:nBasis)=NullBasisFn
          do while(i.ne.0)
             read(11,*) i,j,val
             if(j.eq.0.and.i.ne.0) then

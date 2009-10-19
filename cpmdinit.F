@@ -1,5 +1,6 @@
       SUBROUTINE CPMDBASISINIT(NBASISMAX,ARR,BRR,G1,LEN)
-         use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
+         use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB,
+     &                         NullBasisFn
          use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
          use SymData, only: KPntSym,tAbelian,nSym,SymClasses,
      &                      SymLabelChars
@@ -43,7 +44,7 @@ C.. set ISPINSKIP=0, to tell the SCRs that there's no UMAT
              CALL GENSYMTABLE
          END IF
 
-         G1(1:LEN)=BasisFN((/0,0,0/),0,0,Symmetry(0))
+         G1(1:LEN)=NullBasisFn
          ALL1D=.TRUE.
          DO I=1,NSTATES
            if (TAbelian) then

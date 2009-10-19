@@ -18,6 +18,9 @@ MODULE System
 !     SYSTEM defaults - leave these as the default defaults
 !     Any further addition of defaults should change these after via
 !     specifying a new set of DEFAULTS.
+      tMCSizeSpace=.false.
+      CalcDetPrint=1000
+      CalcDetCycles=10000
       tFixLz=.false.
       tListDets=.false.
       tStoreSpinOrbs=.false.    !by default we store/lookup integrals as spatial integrals
@@ -62,6 +65,7 @@ MODULE System
       BOA=1.d0
       COA=1.d0
       TUSEBRILLOUIN=.false. 
+      tUHF=.false.
       FUEGRS=0.D0
       iPeriodicDampingType=0
       fRc=0.D0
@@ -290,6 +294,9 @@ MODULE System
           TUSEBRILLOUIN=.TRUE. 
         case("NOBRILLOUINTHEOREM")
             tNoBrillouin=.true.
+        case("UHF")
+! This keyword is required if we are doing an open shell calculation but do not want to include singles in the energy calculations.            
+            tUHF=.true.
         case("RS")
             call getf(FUEGRS)
         case("EXCHANGE-CUTOFF")
@@ -647,6 +654,11 @@ MODULE System
         case("CALCEXACTSIZESPACE")
 !This option will calculate the exact size of the symmetry allowed space of determinants. Will scale badly.
             tExactSizeSpace=.true.
+        case("CALCMCSIZESPACE")
+!This option will approximate the exact size of the symmetry allowed space of determinants by MC. The variance on the value will decrease as 1/N_steps
+            tMCSizeSpace=.true.
+            CALL GetiLong(CalcDetCycles)
+            CALL GetiLong(CalcDetPrint)
 
         case("NONUNIFORMRANDEXCITS")
 !This indicates that the new, non-uniform O[N] random excitation generators are to be used.
@@ -1068,7 +1080,7 @@ MODULE System
       BRR(1:LEN)=0
       Allocate(G1(Len),STAT=ierr)
       LogAlloc(ierr,'G1',LEN,BasisFNSizeB,tagG1)
-      G1(1:LEN)=BasisFN((/0,0,0/),0,0,Symmetry(0))
+      G1(1:LEN)=NullBasisFn
       IF(TCPMD) THEN
          WRITE(6,*) ' *** INITIALIZING BASIS FNs FROM CPMD *** '
          CALL CPMDBASISINIT(NBASISMAX,ARR,BRR,G1,LEN) 
@@ -1166,9 +1178,14 @@ MODULE System
           tSymIgnoreEnergies=.true.
       ENDIF
 
+      IF(tFixLz) THEN
+          WRITE(6,*) "Pure spherical harmonics with complex orbitals used to constrain Lz to: ",LzTot
+          WRITE(6,*) "Due to the breaking of the Ml degeneracy, the fock energies are slightly wrong, on order of 1.D-4 - do not use for MP2!"
+      ENDIF
+
 !C..        (.NOT.TREADINT)
 !C.. Set the initial symmetry to be totally symmetric
-      FrzSym=BasisFN((/0,0,0/),0,0,Symmetry(0))
+      FrzSym=NullBasisFn
       FrzSym%Sym=TotSymRep()
       CALL SetupFreezeSym(FrzSym)
 !C..Now we sort them using SORT2 and then SORT

@@ -10,11 +10,12 @@ MODULE Logging
     LOGICAL TDistrib,TPopsFile,TCalcWavevector,TDetPops,tROFciDump,tROHistOffDiag,tROHistDoubExc,tROHistOnePartOrbEn
     LOGICAL TZeroProjE,TWriteDetE,TAutoCorr,tBinPops,tROHistogramAll,tROHistER,tHistSpawn,tROHistSingExc,tRoHistOneElInts
     LOGICAL tROHistVirtCoulomb,tPrintInts,tHistEnergies,tPrintTriConnections,tHistTriConHEls,tPrintHElAccept,tTruncRODump
-    LOGICAL tPrintFCIMCPsi,tCalcFCIMCPsi,tPrintSpinCoupHEl,tIterStartBlock,tHFPopStartBlock,tInitShiftBlocking
+    LOGICAL tPrintFCIMCPsi,tCalcFCIMCPsi,tPrintSpinCoupHEl,tIterStartBlock,tHFPopStartBlock,tInitShiftBlocking,tTruncDumpbyVal
     INTEGER NoACDets(2:4),iPopsPartEvery,iWriteHistEvery,iNoBins,NoTriConBins,NoTriConHElBins,NHistEquilSteps
     INTEGER CCMCDebug !CCMC Debugging Level 0-6.  Default 0
-    INTEGER IterStartBlocking,HFPopStartBlocking,NoDumpTruncs,NoTruncOrbsTag
+    INTEGER IterStartBlocking,HFPopStartBlocking,NoDumpTruncs,NoTruncOrbsTag,TruncEvaluesTag
     INTEGER , ALLOCATABLE :: NoTruncOrbs(:)
+    REAL*8 , ALLOCATABLE :: TruncEvalues(:)
 
 
 
@@ -55,6 +56,7 @@ MODULE Logging
       tROHistogramAll=.false.
       tROFciDump=.true.
       tTruncRODump=.false.
+      tTruncDumpbyVal=.false.
       tROHistER=.false.
       tROHistDoubExc=.false.
       tROHistOffDiag=.false.
@@ -185,7 +187,20 @@ MODULE Logging
             do i=1,NoDumpTruncs
                 call readi(NoTruncOrbs(i))
             enddo
-            
+
+        case("MULTTRUNCVALROFCIDUMP")     
+!This option allows us to specify particular cutoffs values for the eigenvalues - and print out multiply ROFCIDUMP files with orbitals
+!with eigenvalues below these removed.
+            tTruncRODump=.true.
+            tTruncDumpbyVal=.true.
+            call readi(NoDumpTruncs)
+            ALLOCATE(TruncEvalues(NoDumpTruncs),stat=ierr)
+            CALL LogMemAlloc('TruncEvalues',NoDumpTruncs,8,'Logging',TruncEvaluesTag,ierr)
+            TruncEvalues(:)=0.D0
+            do i=1,NoDumpTruncs
+                call readf(TruncEvalues(i))
+            enddo
+
         case("ROHISTOGRAMALL")
 !This option goes with the orbital rotation routine.  If this keyword is included, all possible histograms are included.
 !These maybe also turned off/on with individual keywords.
