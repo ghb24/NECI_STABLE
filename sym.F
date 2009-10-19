@@ -2072,14 +2072,16 @@ C.. Set to be totally symmetric
          use DetCalc , only : ICILevel
          use SystemData , only : CalcDetCycles, CalcDetPrint,tFixLz,NIfD
          use mt95 , only : genrand_real2 
+         use soft_exit , only : ChangeVars
          use Parallel
          IMPLICIT NONE
          INTEGER :: IUNIT,OverallSym,j,SpatOrbs,FDetMom
-         INTEGER :: FDetiLut(0:nBasis/32),ExcitLev
+         INTEGER :: FDetiLut(0:nBasis/32),ExcitLev,iLut(0:nBasis/32)
          INTEGER :: FDetSym,TotalSym,TotalMom,alpha,beta,ierr
          INTEGER*8 :: Accept,AcceptAll,i
          REAL*8 :: FullSpace,r,Choose,Frac
-         LOGICAL :: tTruncSpace
+         LOGICAL :: tTruncSpace,tDummy,tDummy2,tSoftExitFound
+         LOGICAL :: tNotAllowed
 
          IF(.not.TwoCycleSymGens) THEN
              WRITE(IUNIT,*) "Only for molecular abelian symmetry "      &
@@ -2132,34 +2134,28 @@ C.. Set to be totally symmetric
 
          do i=1,CalcDetCycles
 
-             IF(mod(i,CalcDetPrint).eq.0) THEN
-                 !Write out statistics
-#ifdef PARALLEL
-!                 WRITE(6,*) Accept,AcceptAll
-                 CALL MPI_Reduce(Accept,AcceptAll,1,                    &
-     &            MPI_INTEGER8,MPI_SUM,0,MPI_COMM_WORLD,ierr)
-#else
-                 AcceptAll=Accept
-#endif
-                 Frac=REAL(AcceptAll,8)/REAL(i*nProcessors,8)
-                 IF(iProcIndex.eq.0) THEN
-                     WRITE(14,"(2I16,G25.10,F30.5)") i,AcceptAll,Frac,  &
-     &                  Frac*FullSpace
-                 ENDIF
-
-                 AcceptAll=0
-
-             ENDIF
-
              TotalSym=0
              TotalMom=0
              ExcitLev=0
+             iLut(:)=0
 
              !Create random determinant (Correct Sz symmetry)
              !Loop over alpha electrons
              do j=1,nOccAlpha
-                 CALL genrand_real2(r)
-                 alpha=2*(INT(SpatOrbs*r)+1)
+
+                 tNotAllowed=.true.
+                 do while(tNotAllowed)
+
+                     CALL genrand_real2(r)
+                     alpha=2*(INT(SpatOrbs*r)+1)
+                     IF(.not.BTEST(iLut((alpha-1)/32)
+     &                      ,mod((alpha-1),32))) THEN
+                         !Has *not* been picked before
+                         iLut((alpha-1)/32)=
+     &                       IBSET(iLut((alpha-1)/32),mod(alpha-1,32))
+                         tNotAllowed=.false.
+                     ENDIF
+                 enddo
 
                  TotalSym=IEOR(TotalSym,INT((G1(alpha)%Sym%S),4))
                  IF(tFixLz) THEN
@@ -2173,17 +2169,28 @@ C.. Set to be totally symmetric
                  ENDIF
 
                  !Test
-                 IF((alpha.lt.2).or.(alpha.gt.nBasis)) THEN
-                     CALL Stop_All("FindSymMCSizeofSpace","Error "      &
-     &                   //"calculating whether determinant is allowed")
-                 ENDIF
+!                 IF((alpha.lt.2).or.(alpha.gt.nBasis)) THEN
+!                     CALL Stop_All("FindSymMCSizeofSpace","Error "      &
+!     &                   //"calculating whether determinant is allowed")
+!                 ENDIF
 
              enddo
 
              !Loop over beta electrons
              do j=1,nOccBeta
-                 CALL genrand_real2(r)
-                 beta=2*(INT(SpatOrbs*r)+1)-1
+
+                 tNotAllowed=.true.
+                 do while(tNotAllowed)
+                     CALL genrand_real2(r)
+                     beta=2*(INT(SpatOrbs*r)+1)-1
+                     IF(.not.BTEST(iLut((beta-1)/32)
+     &                      ,mod((beta-1),32))) THEN
+                         !Has *not* been picked before
+                         iLut((beta-1)/32)=
+     &                       IBSET(iLut((beta-1)/32),mod(beta-1,32))
+                         tNotAllowed=.false.
+                     ENDIF
+                 enddo
 
                  TotalSym=IEOR(TotalSym,INT((G1(beta)%Sym%S),4))
                  IF(tFixLz) THEN
@@ -2197,10 +2204,10 @@ C.. Set to be totally symmetric
                  ENDIF
                  
                  !Test
-                 IF((beta.lt.1).or.(beta.gt.(nBasis-1))) THEN
-                     CALL Stop_All("FindSymMCSizeofSpace","Error "      &
-     &                   //"calculating whether determinant is allowed")
-                 ENDIF
+!                 IF((beta.lt.1).or.(beta.gt.(nBasis-1))) THEN
+!                     CALL Stop_All("FindSymMCSizeofSpace","Error "      &
+!     &                   //"calculating whether determinant is allowed")
+!                 ENDIF
 
              enddo
 
@@ -2225,6 +2232,28 @@ C.. Set to be totally symmetric
                          Accept=Accept+1
                      ENDIF
                  ENDIF
+             ENDIF
+             
+             IF(mod(i,CalcDetPrint).eq.0) THEN
+                 !Write out statistics
+#ifdef PARALLEL
+!                 WRITE(6,*) Accept,AcceptAll
+                 CALL MPI_Reduce(Accept,AcceptAll,1,                    &
+     &            MPI_INTEGER8,MPI_SUM,0,MPI_COMM_WORLD,ierr)
+#else
+                 AcceptAll=Accept
+#endif
+                 Frac=REAL(AcceptAll,8)/REAL(i*nProcessors,8)
+                 IF(iProcIndex.eq.0) THEN
+                     WRITE(14,"(2I16,G25.10,F30.5)") i,AcceptAll,Frac,  &
+     &                  Frac*FullSpace
+                 ENDIF
+
+                 AcceptAll=0
+
+                 CALL ChangeVars(tDummy,tSoftExitFound,tDummy2)
+                 IF(tSoftExitFound) EXIT
+
              ENDIF
 
          enddo

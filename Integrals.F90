@@ -1146,9 +1146,9 @@ MODULE Integrals
        ENDIF
        IF(ISS.EQ.0) CALL SetupUMatTransTable(GG,nHG,nBasis)
 
-       do i=1,NBASIS
-           WRITE(6,*) i,G2(i)%Sym%S
-       enddo
+!       do i=1,NBASIS
+!           WRITE(6,*) i,G2(i)%Sym%S
+!       enddo
 
        IF(.NOT.TSTARSTORE) THEN
           IF(NFROZENIN.gt.0) THEN
