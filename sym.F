@@ -2074,9 +2074,10 @@ C.. Set to be totally symmetric
          use mt95 , only : genrand_real2 
          use Parallel
          IMPLICIT NONE
-         INTEGER :: i,IUNIT,OverallSym,j,SpatOrbs,FDetMom
-         INTEGER :: FDetiLut(0:nBasis/32),ExcitLev,AcceptAll
-         INTEGER :: FDetSym,Accept,TotalSym,TotalMom,alpha,beta
+         INTEGER :: IUNIT,OverallSym,j,SpatOrbs,FDetMom
+         INTEGER :: FDetiLut(0:nBasis/32),ExcitLev
+         INTEGER :: FDetSym,TotalSym,TotalMom,alpha,beta,ierr
+         INTEGER*8 :: Accept,AcceptAll,i
          REAL*8 :: FullSpace,r,Choose,Frac
          LOGICAL :: tTruncSpace
 
@@ -2133,10 +2134,17 @@ C.. Set to be totally symmetric
 
              IF(mod(i,CalcDetPrint).eq.0) THEN
                  !Write out statistics
-                 CALL MPIISum(Accept,1,AcceptAll)
+#ifdef PARALLEL
+!                 WRITE(6,*) Accept,AcceptAll
+                 CALL MPI_Reduce(Accept,AcceptAll,1,                    &
+     &            MPI_INTEGER8,MPI_SUM,0,MPI_COMM_WORLD,ierr)
+#else
+                 AcceptAll=Accept
+#endif
                  Frac=REAL(AcceptAll,8)/REAL(i*nProcessors,8)
                  IF(iProcIndex.eq.0) THEN
-                     WRITE(14,*) i,AcceptAll,Frac,Frac*FullSpace
+                     WRITE(14,"(2I16,G25.10,F30.5)") i,AcceptAll,Frac,  &
+     &                  Frac*FullSpace
                  ENDIF
 
                  AcceptAll=0
@@ -2221,11 +2229,17 @@ C.. Set to be totally symmetric
 
          enddo
 
-         CALL MPIISum(Accept,1,AcceptAll)
+#ifdef PARALLEL
+         CALL MPI_Reduce(Accept,AcceptAll,1,                            &
+     &     MPI_INTEGER8,MPI_SUM,0,MPI_COMM_WORLD,ierr)
+#else
+         AcceptAll=Accept
+#endif
          Frac=REAL(AcceptAll,8)/REAL(i*nProcessors,8)
 
          IF(iProcIndex.eq.0) THEN
-             WRITE(14,*) i,AcceptAll,Frac,Frac*FullSpace
+             WRITE(14,"(2I16,G25.10,F30.5)") i,AcceptAll,Frac,          &
+     &           Frac*FullSpace
              CLOSE(14)
          ENDIF
 

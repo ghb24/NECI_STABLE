@@ -657,8 +657,8 @@ MODULE System
         case("CALCMCSIZESPACE")
 !This option will approximate the exact size of the symmetry allowed space of determinants by MC. The variance on the value will decrease as 1/N_steps
             tMCSizeSpace=.true.
-            CALL Geti(CalcDetCycles)
-            CALL Geti(CalcDetPrint)
+            CALL GetiLong(CalcDetCycles)
+            CALL GetiLong(CalcDetPrint)
 
         case("NONUNIFORMRANDEXCITS")
 !This indicates that the new, non-uniform O[N] random excitation generators are to be used.

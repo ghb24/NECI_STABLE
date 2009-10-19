@@ -125,6 +125,16 @@ General options
     a cutoff for the magnitude of the two-electron integrals. If the integrals are larger
     than the size specified, they will be zeroed.
 
+**CALCMCSIZESPACE** [CalcDetCycles] [CalcDetPrint]
+
+    This option will calculation the exact size of the determinant space, including spin-
+    polarization, spatial symmetry, Lz symmetry, and truncation of the excitation level if 
+    included, in a MC fashion. It is parallelised, and takes the values (INTEGER*8s) CalcDetCycles 
+    - the number of MC cycles per processor, and CalcDetPrint - the number of cycles before 
+    the stats of the MC run are printed to a "SpaceMCStats" file. This file gives the iteration 
+    number, the number of allowed determinants generated, the fraction of generated determinants 
+    which were allowed, and finally, the expected size of the space from the run so far.
+
 **CALCEXACTSIZESPACE**
     Default false.
 

@@ -53,9 +53,9 @@ END INTERFACE
 
 PRIVATE
 PUBLIC :: item, nitems, read_line, stream, reada, readu, readl,        &
-    readf, readi, getf, geta, geti, reread, input_options,             &
-    upcase, locase, report, die, assert, find_io, read_colour,         &
-    getargs, parse, char, ir
+    readf, readi,readiLong, getf, geta, geti, getiLong, reread,        &
+    input_options, upcase, locase, report, die, assert, find_io,       &
+    read_colour, getargs, parse, char, ir
 !  AJWT - added , ir to above
 !  Free-format input routines
 
@@ -87,6 +87,7 @@ PUBLIC :: item, nitems, read_line, stream, reada, readu, readl,        &
 !  Read an item of type x from the buffer into variable V:
 !     CALL READF   single or double precision, depending on the type of V
 !     CALL READI   integer
+!     CALL READILONG integer*8
 !     CALL READA   character string
 !     CALL READU   character string, uppercased
 !     CALL READL   character string, lowercased
@@ -738,6 +739,39 @@ END SUBROUTINE readi
 
 !-----------------------------------------------------------------------
 
+SUBROUTINE readiLong(I)
+!  Read a long integer from the current record
+
+INTEGER*8, INTENT(INOUT) :: i
+
+CHARACTER(LEN=50) :: string
+
+if (clear) i=0
+
+!  If there are no more items on the line, I is unchanged
+if (item .ge. nitems) return
+
+string=""
+call reada(string)
+!  If the item is null, I is unchanged
+if (string == "") return
+read (unit=string,fmt=*,err=99) i
+return
+
+99 i=0
+select case(nerror)
+case(-1,0)
+  call report("Error while reading long integer",.true.)
+case(1)
+  print "(2a)", "Error while reading long integer. Input is ", trim(string)
+case(2)
+  nerror=-1
+end select
+
+END SUBROUTINE readiLong
+
+!-----------------------------------------------------------------------
+
 SUBROUTINE readu(m)
 CHARACTER(LEN=*) m
 
@@ -805,6 +839,28 @@ do
 end do
 
 END SUBROUTINE geti
+
+!-----------------------------------------------------------------------
+
+SUBROUTINE getiLong(I)
+!  Get an integer, reading new data records if necessary.
+INTEGER*8, INTENT(INOUT) :: i
+LOGICAL :: eof
+
+do
+  if (item .lt. nitems) then
+    call readiLong(i)
+    exit
+  else
+    call read_line(eof)
+    if (eof) then
+      print "(A)", "End of file while attempting to read a number"
+      stop
+    endif
+  endif
+end do
+
+END SUBROUTINE getiLong
 
 !-----------------------------------------------------------------------
 
