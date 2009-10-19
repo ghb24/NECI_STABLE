@@ -2096,7 +2096,7 @@ C.. Set to be totally symmetric
          FDetMom=0
          do i=1,NEl
             FDetSym=IEOR(FDetSym,INT(G1(FDet(i))%Sym%S,4))
-            FDetMom=FDetMom+G1(FDet(i))%Ml
+            IF(tFixLz) FDetMom=FDetMom+G1(FDet(i))%Ml
          enddo
 
          IF(ICILevel.gt.0) THEN
@@ -2108,7 +2108,9 @@ C.. Set to be totally symmetric
          CALL EncodeBitDet(FDet,FDetiLut,NEl,NIfD)
 
          WRITE(IUNIT,*) "Symmetry of HF determinant is: ",FDetSym
-         WRITE(IUNIT,*) "Momentum of HF determinant is: ",FDetMom
+         IF(tFixLz) THEN
+             WRITE(IUNIT,*) "Momentum of HF determinant is: ",FDetMom
+         ENDIF
 
          SpatOrbs=nBasis/2
 
@@ -2129,11 +2131,13 @@ C.. Set to be totally symmetric
 
          do i=1,CalcDetCycles
 
-             IF((mod(i,CalcDetPrint).eq.0).and.(iProcIndex.eq.0)) THEN
+             IF(mod(i,CalcDetPrint).eq.0) THEN
                  !Write out statistics
                  CALL MPIISum(Accept,1,AcceptAll)
                  Frac=REAL(AcceptAll,8)/REAL(i*nProcessors,8)
-                 WRITE(14,*) i,AcceptAll,Frac,Frac*FullSpace
+                 IF(iProcIndex.eq.0) THEN
+                     WRITE(14,*) i,AcceptAll,Frac,Frac*FullSpace
+                 ENDIF
 
                  AcceptAll=0
 
