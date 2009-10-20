@@ -8630,7 +8630,7 @@ MODULE FciMCParMod
         ENDIF
 
         IF(tFixLz) THEN
-            CALL GetLz(nJ,NEl,TotalLz)
+            CALL GetLz(nJ,NEl,TotalLz)      !This could be improved by just checking that the change in momentum from the excitation was zero.
             IF(TotalLz.ne.LzTot) THEN
                 CheckAllowedTruncSpawn=.false.
 !                WRITE(6,*) "FALSE ",TotalLz
