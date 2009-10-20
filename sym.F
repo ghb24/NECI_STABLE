@@ -714,7 +714,7 @@ C..   Use SYMPROD and ADDELECSYM to generate the resultant symmetry of these
 
       SUBROUTINE GETSYM(NI2,NEL,G1,NBASISMAX,ISYM)
          use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
-         use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
+         use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB,tFixLz
          use SymData, only: SymReps
          IMPLICIT NONE
          INTEGER NEL,NI(NEL),nBasisMax(5,*)
@@ -727,6 +727,7 @@ C..   Use SYMPROD and ADDELECSYM to generate the resultant symmetry of these
          NREPS(1:NEL)=0
          CALL SETUPSYM(NBASISMAX,ISYM)
          ISC=ISCSF(NI2,NEL)
+         IF(tFixLz) CALL GetLz(NI2,NEL,ISYM%Ml)
          IF(ISC) THEN
             DO I=1,NEL
                CALL GETUNCSFELEC(NI2(I),NI(I),SSYM)

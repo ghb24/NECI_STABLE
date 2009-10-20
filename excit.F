@@ -408,12 +408,12 @@ C.. NSTARTFN is the basis fn to start with for this electron
       RECURSIVE SUBROUTINE GENEXCIT_R(NI,NORDER,NEL,NELEC,NBASIS,LIST,
      &         ICLIST,NLISTPOS,NEXCIT,NLEFT,NSTARTFN,NMIN,G1,ISYM,TSYM,
      &         NBASISMAX,TCOUNT)
-         use SystemData, only: BasisFN
+         use SystemData, only: BasisFN,tFixLz
          IMPLICIT NONE
          INTEGER NEL,NELEC,NORDER,NLISTPOS,NLEFT,NBASIS,NSTARTFN,NNLEFT
          INTEGER NI(NEL),NEXCIT(NEL),LIST(NEL,*),ICLIST(*)
-         INTEGER I,J,I1,I2,NMIN,NMAXEX,K
-         LOGICAL LISINOLD,LSYM,TSYM,LCHKSYM,TCOUNT
+         INTEGER I,J,I1,I2,NMIN,NMAXEX,K,NExcitMl
+         LOGICAL LISINOLD,LSYM,TSYM,LCHKSYM,TCOUNT,LZSYM
          TYPE(BASISFN) G1(NBASIS),ISYM,ISYM2
          INTEGER nBasisMax(5,*)
 C.. NMAXEX is the maximum number of excitations we're allowed to  have
@@ -448,10 +448,23 @@ C                  CALL WRITEDET(6,NEXCIT,NEL,.TRUE.)
                   ELSE
                      LSYM=.TRUE.
                   ENDIF
+
+!We also want to check Lz symmetry
+                  IF(tFixLz) THEN
+                      CALL GetLz(NEXCIT,NEL,NExcitMl)
+                      IF(NExcitMl.eq.(ISYM%Ml)) THEN
+                          LZSYM=.true.
+                      ELSE
+                          LZSYM=.false.
+                      ENDIF
+                  ELSE
+                      LZSYM=.true.
+                  ENDIF
+
 !                  WRITE(6,*) "ISym:",ISYM
 !                  WRITE(6,*) "ISym2",ISYM2
 !                  WRITE(6,*) "LSYM",LSYM
-                  IF(LSYM) THEN
+                  IF(LSYM.and.LZSYM) THEN
                      IF(.NOT.TCOUNT) THEN
                         CALL NECI_ICOPY(NEL,NEXCIT,1,
      &                                           LIST(1:NEL,NLISTPOS),1)
