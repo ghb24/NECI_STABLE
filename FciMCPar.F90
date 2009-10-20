@@ -9,7 +9,6 @@
 !   should have dummy replacements in the #else of this if required.
 !   At the end are functions which do not require parallel directives, and are accessible
 !   for both parallel and non-parallel.
-
 MODULE FciMCParMod
     use SystemData , only : NEl,Alat,Brr,ECore,G1,nBasis,nBasisMax,nMsh,Arr,LMS,NIfD,tHPHF,tListDets
     use SystemData , only : tHub,tReal,tNonUniRandExcits,tMerTwist,tRotatedOrbs,tImportanceSample,tFindCINatOrbs,tFixLz,LzTot
