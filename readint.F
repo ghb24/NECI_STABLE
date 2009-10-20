@@ -165,11 +165,15 @@ C.. SHow that there's no momentum conservation
      &                  //" ordered in symmetry pairs")
                  ENDIF
                  ORBSYM((i+1)/2)=ORBSYM(i)
+                 SYML((i+1)/2)=SYML(i)
+                 SYMLZ((i+1)/2)=SYMLZ(i)
              ENDDO
 !NORB is the length in spatial orbitals, LEN is spin orbitals (both spin for UHF)
              NORB=NORB/2
              DO i=NORB+1,1000
                  ORBSYM(i)=0
+                 SYML(i)=0
+                 SYMLZ(i)=0
              ENDDO
          ENDIF
         
