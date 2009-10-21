@@ -11,7 +11,7 @@
 !   for both parallel and non-parallel.
 MODULE FciMCParMod
     use SystemData , only : NEl,Alat,Brr,ECore,G1,nBasis,nBasisMax,nMsh,Arr,LMS,NIfD,tHPHF,tListDets
-    use SystemData , only : tHub,tReal,tNonUniRandExcits,tMerTwist,tRotatedOrbs,tImportanceSample,tFindCINatOrbs,tFixLz,LzTot
+    use SystemData , only : tHub,tReal,tNonUniRandExcits,tMerTwist,tRotatedOrbs,tImportanceSample,tFindCINatOrbs,tFixLz,LzTot,tUEG
     use CalcData , only : InitWalkers,NMCyc,DiagSft,Tau,SftDamp,StepsSft,OccCASorbs,VirtCASorbs,tFindGroundDet,tDirectAnnihil
     use CalcData , only : TStartMP1,NEquilSteps,TReadPops,TRegenExcitgens,TFixShiftShell,ShellFix,FixShift,tMultipleDetsSpawn
     use CalcData , only : tConstructNOs,tAnnihilatebyRange,tRotoAnnihil,MemoryFacSpawn,tRegenDiagHEls,tSpawnAsDet
@@ -8529,6 +8529,8 @@ MODULE FciMCParMod
         INTEGER :: nJ(NEl),WalkExcitLevel,iLutnJ(0:NIfD),ExcitLevel,IC,iGetExcitLevel_2,i,NoInFrozenCore,TotalLz
         LOGICAL :: DetBitEQ
 
+        INTEGER :: kx,ky,kz ! For UEG
+
         CheckAllowedTruncSpawn=.true.
 
         IF(tTruncSpace) THEN
@@ -8638,6 +8640,21 @@ MODULE FciMCParMod
                 CheckAllowedTruncSpawn=.true.
 !                WRITE(6,*) "TRUE ",TotalLz
             ENDIF
+        ENDIF
+
+        IF(tUEG) THEN
+!Check to see if this is an allowed excitation
+!by summing kx, ky and kz to zero over all the electrons.
+            do i=1,NEl
+                kx=kx+G1(i)%k(1)
+                ky=ky+G1(i)%k(2)
+                kz=kz+G1(i)%k(3)
+                if( (kx.eq.0) .and. (ky.eq.0) .and. (kz.eq.0) ) then
+                    CheckAllowedTruncSpawn=.true.
+                else
+                    CheckAllowedTruncSpawn=.false.
+                endif
+            enddo
         ENDIF
 
 
