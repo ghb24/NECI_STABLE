@@ -38,8 +38,6 @@ MODULE FciMCLoggingMod
 
     contains
 
-#ifdef PARALLEL
-
     SUBROUTINE InitErrorBlocking(Iter)
         CHARACTER(len=*), PARAMETER :: this_routine='InitErrorBlocking'
         INTEGER :: ierr,Iter
@@ -604,7 +602,11 @@ MODULE FciMCLoggingMod
         SpinCoupHElStats(4)=SumNegSpinCoup
         AllSpinCoupHElStats(:)=0.D0
 
+#ifdef PARALLEL
         CALL MPI_Reduce(SpinCoupHElStats,AllSpinCoupHElStats,4,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
+#else        
+        AllSpinCoupHElStats=SpinCoupHElStats
+#endif
 
         IF(iProcIndex.eq.Root) THEN
 
@@ -838,9 +840,15 @@ MODULE FciMCLoggingMod
         CALL FLUSH(6)
 !        CALL MPI_Barrier(MPI_COMM_WORLD,error)
 
+#ifdef PARALLEL
         CALL MPI_Reduce(AcceptStats,AllStats,4,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
         CALL MPI_Gather(MaxHElNotAccept,1,MPI_DOUBLE_PRECISION,AllMaxHElNotAccept(1:nProcessors),1,MPI_DOUBLE_PRECISION,Root,MPI_COMM_WORLD,error)
         CALL MPI_Gather(MinHElAccept,1,MPI_DOUBLE_PRECISION,AllMinHElAccept(1:nProcessors),1,MPI_DOUBLE_PRECISION,Root,MPI_COMM_WORLD,error)
+#else
+        AllStats=AcceptStats
+        AllMaxHElNotAccept=MaxHElNotAccept
+        AllMinHElAccept=MinHElAccept
+#endif        
 
 
         IF(iProcIndex.eq.Root) THEN 
@@ -880,7 +888,11 @@ MODULE FciMCLoggingMod
         TriConStats(4)=SignIncohTri
         AllTriConStats(:)=0.D0
 
+#ifdef PARALLEL
         CALL MPI_Reduce(TriConStats,AllTriConStats,4,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
+#else
+        AllTriConStats=TriConStats
+#endif
 
         IF(iProcIndex.eq.Root) THEN
             WRITE(77,"(I12,2F24.2,8F20.10)") Iteration,AllTriConStats(1),AllTriConStats(2),AllTriConStats(3),AllTriConStats(4),(AllTriConStats(3)/(Iteration)),&
@@ -895,11 +907,18 @@ MODULE FciMCLoggingMod
         INTEGER :: error,i
         CHARACTER(len=*), PARAMETER :: this_routine='PrintTriConnHist'
 
+#ifdef PARALLEL
         CALL MPI_Reduce(SignCohTriHist,AllSignCohTriHist,2*NoTriConBins,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
         CALL MPI_Reduce(SignIncohTriHist,AllSignIncohTriHist,2*NoTriConBins,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
 
         CALL MPI_Reduce(SignCohHFTriHist,AllSignCohHFTriHist,2*NoTriConBins,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
         CALL MPI_Reduce(SignIncohHFTriHist,AllSignIncohHFTriHist,2*NoTriConBins,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
+#else
+        AllSignCohTriHist=SignCohTriHist
+        AllSignIncohTriHist=SignIncohTriHist
+        AllSignCohHFTriHist=SignCohHFTriHist
+        AllSignIncohHFTriHist=SignIncohHFTriHist
+#endif
 
         IF(iProcIndex.eq.Root) THEN
             OPEN(78,file='TriConnHistograms',status='unknown')
@@ -919,7 +938,9 @@ MODULE FciMCLoggingMod
             CLOSE(79)
         ENDIF
 
+#ifdef PARALLEL
         CALL MPI_Barrier(MPI_COMM_WORLD,error)
+#endif
 
         DEALLOCATE(SignIncohTriHist)
         CALL LogMemDealloc(this_routine,SignIncohTriHistTag)
@@ -952,7 +973,11 @@ MODULE FciMCLoggingMod
 
 
         AllTriConHEls(:,:)=0.D0
+#ifdef PARALLEL
         CALL MPI_Reduce(TriConHEls,AllTriConHEls,6,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
+#else
+        AllTriConHEls=TriConHEls
+#endif
         ! TriConHEls(1,1) - number of singles
         ! TriConHEls(1,2) - sum of single elements
         ! TriConHEls(2,1) - number of doubles
@@ -979,11 +1004,18 @@ MODULE FciMCLoggingMod
             WRITE(6,*) "***"
         ENDIF
 
+#ifdef PARALLEL
         CALL MPI_Reduce(TriConnHElHistSing,AllTriConnHElHistSing,2*NoTriConHElBins,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
         CALL MPI_Reduce(TriConnHElHistDoub,AllTriConnHElHistDoub,2*NoTriConHElBins,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
 
         CALL MPI_Reduce(TriHjkHistSing,AllTriHjkHistSing,2*NoTriConHElBins,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
         CALL MPI_Reduce(TriHjkHistDoub,AllTriHjkHistDoub,2*NoTriConHElBins,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
+#else
+        AllTriConnHElHistSing=TriConnHElHistSing
+        AllTriConnHElHistDoub=TriConnHElHistDoub
+        AllTriHjkHistSing=TriHjkHistSing
+        AllTriHjkHistDoub=TriHjkHistDoub
+#endif
 
         IF(iProcIndex.eq.Root) THEN
             OPEN(80,file='TriConHElHistSing',status='unknown')
@@ -1016,7 +1048,9 @@ MODULE FciMCLoggingMod
             CLOSE(83)
         ENDIF
 
+#ifdef PARALLEL
         CALL MPI_Barrier(MPI_COMM_WORLD,error)
+#endif
 
         DEALLOCATE(TriConnHElHistSing)
         CALL LogMemDealloc(this_routine,TriConnHElHistSingTag)
@@ -1040,15 +1074,6 @@ MODULE FciMCLoggingMod
         
     ENDSUBROUTINE PrintTriConnHElHist
 
-
-#else
-
-    SUBROUTINE InitTriHElStats()
-
-        CALL Stop_All("InitTriHElStats","Entering the wrong FCIMCPar parallel routine")
-
-    ENDSUBROUTINE
-#endif
 
 !These are available to both serial and parallel
     SUBROUTINE InitSpinCoupHEl()

@@ -18,6 +18,9 @@ MODULE System
 !     SYSTEM defaults - leave these as the default defaults
 !     Any further addition of defaults should change these after via
 !     specifying a new set of DEFAULTS.
+      tMCSizeSpace=.false.
+      CalcDetPrint=1000
+      CalcDetCycles=10000
       tFixLz=.false.
       tListDets=.false.
       tStoreSpinOrbs=.false.    !by default we store/lookup integrals as spatial integrals
@@ -651,6 +654,11 @@ MODULE System
         case("CALCEXACTSIZESPACE")
 !This option will calculate the exact size of the symmetry allowed space of determinants. Will scale badly.
             tExactSizeSpace=.true.
+        case("CALCMCSIZESPACE")
+!This option will approximate the exact size of the symmetry allowed space of determinants by MC. The variance on the value will decrease as 1/N_steps
+            tMCSizeSpace=.true.
+            CALL GetiLong(CalcDetCycles)
+            CALL GetiLong(CalcDetPrint)
 
         case("NONUNIFORMRANDEXCITS")
 !This indicates that the new, non-uniform O[N] random excitation generators are to be used.
@@ -1168,6 +1176,11 @@ MODULE System
           WRITE(6,*) "Open shell system - SYMIGNOREENERGIES set."
 !          tHFNOORDER=.true.
           tSymIgnoreEnergies=.true.
+      ENDIF
+
+      IF(tFixLz) THEN
+          WRITE(6,*) "Pure spherical harmonics with complex orbitals used to constrain Lz to: ",LzTot
+          WRITE(6,*) "Due to the breaking of the Ml degeneracy, the fock energies are slightly wrong, on order of 1.D-4 - do not use for MP2!"
       ENDIF
 
 !C..        (.NOT.TREADINT)
