@@ -1,5 +1,6 @@
 Subroutine NECICore(iCacheFlag,tCPMD,tVASP)
     != NECICore is the main outline of the NECI Program.
+    != NECICore is the main outline of the NECI Program.
     != It provides a route for calling NECI when accessed as a library, rather
     != than as a standalone program.
     != In:
