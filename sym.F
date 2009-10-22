@@ -2069,6 +2069,7 @@ C.. Set to be totally symmetric
       SUBROUTINE FindSymMCSizeofSpace(IUNIT)
          use SymData , only : TwoCycleSymGens
          use SystemData , only : nEl,G1,nBasis,nOccAlpha,nOccBeta,G1
+         use SystemData, only : tUEG
          use Determinants , only : FDet
          use DetCalc , only : ICILevel
          use SystemData , only : CalcDetCycles, CalcDetPrint,tFixLz,NIfD
@@ -2078,7 +2079,8 @@ C.. Set to be totally symmetric
          IMPLICIT NONE
          INTEGER :: IUNIT,OverallSym,j,SpatOrbs,FDetMom
          INTEGER :: FDetiLut(0:nBasis/32),ExcitLev,iLut(0:nBasis/32)
-         INTEGER :: FDetSym,TotalSym,TotalMom,alpha,beta,ierr
+         INTEGER :: FDetSym,TotalSym,TotalMom,alpha,beta,ierr,Momx,Momy
+         INTEGER :: Momz
          INTEGER*8 :: Accept,AcceptAll,i
          REAL*8 :: FullSpace,r,Choose,Frac
          LOGICAL :: tTruncSpace,tDummy,tDummy2,tSoftExitFound
@@ -2138,6 +2140,9 @@ C.. Set to be totally symmetric
              TotalSym=0
              TotalMom=0
              ExcitLev=0
+             Momx=0
+             Momy=0
+             Momz=0
              iLut(:)=0
 
              !Create random determinant (Correct Sz symmetry)
@@ -2161,6 +2166,11 @@ C.. Set to be totally symmetric
                  TotalSym=IEOR(TotalSym,INT((G1(alpha)%Sym%S),4))
                  IF(tFixLz) THEN
                      TotalMom=TotalMom+G1(alpha)%Ml
+                 ENDIF
+                 IF(tUEG) THEN
+                     Momx=Momx+G1(alpha)%k(1)
+                     Momy=Momy+G1(alpha)%k(2)
+                     Momz=Momz+G1(alpha)%k(3)
                  ENDIF
                  IF(tTruncSpace) THEN
            IF(.not.BTEST(FDetiLut((alpha-1)/32),mod((alpha-1),32))) THEN
@@ -2197,6 +2207,11 @@ C.. Set to be totally symmetric
                  IF(tFixLz) THEN
                      TotalMom=TotalMom+G1(beta)%Ml
                  ENDIF
+                 IF(tUEG) THEN
+                     Momx=Momx+G1(alpha)%k(1)
+                     Momy=Momy+G1(alpha)%k(2)
+                     Momz=Momz+G1(alpha)%k(3)
+                 ENDIF
                  IF(tTruncSpace) THEN
             IF(.not.BTEST(FDetiLut((beta-1)/32),mod((beta-1),32))) THEN
                          !orbital chosen is *not* in the reference determinant
@@ -2227,10 +2242,24 @@ C.. Set to be totally symmetric
                  ELSE
                      IF(tTruncSpace) THEN
                          IF(ExcitLev.le.ICILevel) THEN
-                             Accept=Accept+1
+                             IF(tUEG) THEN
+                                 IF((Momx.eq.0).and.(Momy.eq.0)         &
+     &                                 .and.(Momz.eq.0)) THEN
+                                    Accept=Accept+1
+                                 ENDIF
+                             ELSE
+                                 Accept=Accept+1
+                             ENDIF
                          ENDIF
                      ELSE
-                         Accept=Accept+1
+                         IF(tUEG) THEN
+                             IF((Momx.eq.0).and.(Momy.eq.0).and.        &
+     &                               (Momz.eq.0)) THEN
+                                Accept=Accept+1
+                             ENDIF
+                         ELSE
+                             Accept=Accept+1
+                         ENDIF
                      ENDIF
                  ENDIF
              ENDIF

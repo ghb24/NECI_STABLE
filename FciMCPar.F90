@@ -7874,7 +7874,7 @@ MODULE FciMCParMod
         tSuccess=.true.
         tFoundOrbs(:)=.false.
 
-        IF(.not.tHub) THEN
+        IF((.not.tHub).and.(.not.tUEG)) THEN
             do i=1,nSymLabels
 !                WRITE(6,*) "NSymLabels: ",NSymLabels,i-1
                 EndSymState=SymLabelCounts(1,i)+SymLabelCounts(2,i)-1
