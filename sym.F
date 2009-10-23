@@ -2086,7 +2086,7 @@ C.. Set to be totally symmetric
          LOGICAL :: tTruncSpace,tDummy,tDummy2,tSoftExitFound
          LOGICAL :: tNotAllowed
 
-         IF(.not.TwoCycleSymGens) THEN
+         IF((.not.TwoCycleSymGens).or.(.not.tUEG)) THEN
              WRITE(IUNIT,*) "Only for molecular abelian symmetry "      &
      &      //" calculations can the exact size of the determinant "    &
      &      //" space be calculated currently..."
