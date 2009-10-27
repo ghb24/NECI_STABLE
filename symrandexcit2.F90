@@ -24,7 +24,7 @@ MODULE GenRandSymExcitNUMod
       !  These are forbidden since they have no possible b orbital which will give rise to a symmetry and
       !  spin allowed unoccupied a,b pair. The number of these orbitals, Q, is needed to calculate the
       !  normalised probability of generating the excitation.
-    use SystemData, only: ALAT,iSpinSkip,NIfD
+    use SystemData, only: ALAT,iSpinSkip,NIfD,tFixLz
     use SystemData, only: nEl,G1, nBasis,nBasisMax,tNoSymGenRandExcits,tMerTwist
     use SystemData, only: Arr,nMax,tCycleOrbs,nOccAlpha,nOccBeta,ElecPairs
     use IntegralsData, only: UMat
@@ -41,6 +41,7 @@ MODULE GenRandSymExcitNUMod
     INTEGER , ALLOCATABLE :: SymLabelList2(:,:),SymLabelCounts2(:,:,:)
     INTEGER :: MaxABPairs
     LOGICAL :: tNoSingsPossible
+    INTEGER :: ScratchSize          !This indicates the upper bound of the arrays needed for the excitation generation. The array bounds are 0:ScratchSize.
 
     contains
 
@@ -128,6 +129,17 @@ MODULE GenRandSymExcitNUMod
 !            enddo
 !        enddo
 
+        IF(tFixLz) THEN
+!Calculate the upper array bound for the ClassCount2 arrays. This will be dependant on the number of symmetries needed.
+            ScratchSize=nSymLabels-1
+        ELSE
+            ScratchSize=nSymLabels-1
+        ENDIF
+
+        IF(tNoSymGenRandExcits) THEN
+            ScratchSize=1
+        ENDIF
+
     END SUBROUTINE SpinOrbSymSetup
         
     
@@ -139,8 +151,8 @@ MODULE GenRandSymExcitNUMod
 !The two arrays want to be integers, both of size (2,1:nSymLabels)
     SUBROUTINE GenRandSymExcitScratchNU(nI,iLut,nJ,pDoub,IC,ExcitMat,tParity,exFlag,pGen,ClassCount2,ClassCountUnocc2,tFilled)
         INTEGER :: nI(NEl),nJ(NEl),IC,ExcitMat(2,2),Attempts,exFlag
-        INTEGER :: ClassCount2(2,0:nSymLabels-1),ElecsWNoExcits
-        INTEGER :: ClassCountUnocc2(2,0:nSymLabels-1)
+        INTEGER :: ClassCount2(0:ScratchSize),ElecsWNoExcits
+        INTEGER :: ClassCountUnocc2(0:ScratchSize)
         INTEGER :: ILUT(0:NIfD),i!,DetSym
 !        INTEGER , SAVE :: Iter=0
         LOGICAL :: tNoSuccess,tParity,tFilled
@@ -244,8 +256,8 @@ MODULE GenRandSymExcitNUMod
 
     SUBROUTINE GenRandSymExcitNU(nI,iLut,nJ,pDoub,IC,ExcitMat,TParity,exFlag,pGen)
         INTEGER :: nI(NEl),nJ(NEl),IC,ExcitMat(2,2),Attempts,exFlag
-        INTEGER :: ClassCount2(2,0:nSymLabels-1),ElecsWNoExcits
-        INTEGER :: ClassCountUnocc2(2,0:nSymLabels-1)
+        INTEGER :: ClassCount2(0:ScratchSize),ElecsWNoExcits
+        INTEGER :: ClassCountUnocc2(0:ScratchSize)
         INTEGER :: ILUT(0:NIfD),i
         LOGICAL :: tNoSuccess,tParity
         REAL*8 :: pDoub,pGen,r
@@ -340,8 +352,8 @@ MODULE GenRandSymExcitNUMod
 
     SUBROUTINE CreateDoubExcit(nI,nJ,ClassCount2,ClassCountUnocc2,ILUT,ExcitMat,tParity,pGen)
         INTEGER :: nI(NEl),nJ(NEl),ExcitMat(2,2),NExcitOtherWay,OrbB
-        INTEGER :: ClassCount2(2,0:nSymLabels-1)
-        INTEGER :: ClassCountUnocc2(2,0:nSymLabels-1)
+        INTEGER :: ClassCount2(0:ScratchSize)
+        INTEGER :: ClassCountUnocc2(0:ScratchSize)
         INTEGER :: ILUT(0:NIfD),NExcitB,SpinOrbA,OrbA,SymB,NExcitA
         INTEGER :: Elec1Ind,Elec2Ind,SymProduct,iSpn,ForbiddenOrbs,SymA
         REAL*8 :: pGen
@@ -420,7 +432,7 @@ MODULE GenRandSymExcitNUMod
         INTEGER :: nI(NEl),iSpn,SpinOrbA,OrbA,SymB,NExcit,SymProduct,NExcitOtherWay
         INTEGER :: OrbB,Attempts,SpinOrbB,ChosenUnocc
         INTEGER :: ILUT(0:NIfD),SymA,nOrbs,z,i
-        INTEGER :: ClassCountUnocc2(2,0:nSymLabels-1)
+        INTEGER :: ClassCountUnocc2(0:ScratchSize)
         REAL*8 :: r
 
 !We want to calculate the number of possible B's given the symmetry and spin it has to be since we have already picked A.
@@ -430,27 +442,27 @@ MODULE GenRandSymExcitNUMod
 !If iSpn=2, then we want to find a spinorbital of the opposite spin of SpinOrbA
             IF(SpinOrbA.eq.-1) THEN
 !We have already picked a beta orbital, so now we want to pick an alpha orbital. Find out how many of these there are.
-                NExcit=ClassCountUnocc2(1,SymB)
+                NExcit=ClassCountUnocc2(ClassCountInd(1,SymB,0))
 !                WRITE(6,*) "NExcit",NExcit
-                NExcitOtherWay=ClassCountUnocc2(2,SymA)
+                NExcitOtherWay=ClassCountUnocc2(ClassCountInd(2,SymA,0))
 !                WRITE(6,*) "NExcitOtherWay:", NExcitOtherWay
 !                SpinOrbB=0  !This is defined differently to SpinOrbA. 0=Alpha, -1=Beta.
                 SpinOrbB=1  !This is defined differently to SpinOrbA. 1=Alpha, 2=Beta.
             ELSE
 !Want to pick an beta orbital.
-                NExcit=ClassCountUnocc2(2,SymB)
-                NExcitOtherWay=ClassCountUnocc2(1,SymA)
+                NExcit=ClassCountUnocc2(ClassCountInd(2,SymB,0))
+                NExcitOtherWay=ClassCountUnocc2(ClassCountInd(1,SymA,0))
                 SpinOrbB=2
             ENDIF
         ELSEIF(iSpn.eq.1) THEN
 !Definitely want a beta orbital
-            NExcit=ClassCountUnocc2(2,SymB)
-            NExcitOtherWay=ClassCountUnocc2(2,SymA)
+            NExcit=ClassCountUnocc2(ClassCountInd(2,SymB,0))
+            NExcitOtherWay=ClassCountUnocc2(ClassCountInd(2,SymA,0))
             SpinOrbB=2
         ELSE
 !Definitely want an alpha orbital
-            NExcit=ClassCountUnocc2(1,SymB)
-            NExcitOtherWay=ClassCountUnocc2(1,SymA)
+            NExcit=ClassCountUnocc2(ClassCountInd(1,SymB,0))
+            NExcitOtherWay=ClassCountUnocc2(ClassCountInd(1,SymA,0))
             SpinOrbB=1
         ENDIF
 
@@ -561,31 +573,31 @@ MODULE GenRandSymExcitNUMod
 
 !This routine does the same as the FindNumForbiddenOrbs routine, but is optimised for when there are no spatial symmetry considerations.    
     SUBROUTINE FindNumForbiddenOrbsNoSym(ForbiddenOrbs,ClassCountUnocc2,iSpn)
-        INTEGER :: ClassCountUnocc2(2,0:nSymLabels-1)
+        INTEGER :: ClassCountUnocc2(0:ScratchSize)
         INTEGER :: ForbiddenOrbs,SymProduct,iSpn,i,ConjSym
 
 !We know that all orbitals are totally symmetric, and that the symproduct=0
 
         ForbiddenOrbs=0
         IF(iSpn.eq.2) THEN
-            IF(ClassCountUnocc2(1,0).eq.0) THEN
+            IF(ClassCountUnocc2(ClassCountInd(1,0,0)).eq.0) THEN
 !There are no unoccupied alpha orbitals - are there any beta spins which are now forbidden?
-                ForbiddenOrbs=ForbiddenOrbs+ClassCountUnocc2(2,0)
+                ForbiddenOrbs=ForbiddenOrbs+ClassCountUnocc2(ClassCountInd(2,0,0))
             ENDIF
-            IF(ClassCountUnocc2(2,0).eq.0) THEN
+            IF(ClassCountUnocc2(ClassCountInd(2,0,0)).eq.0) THEN
 !There are no unoccupied beta orbitals - are there any alpha spins which are now forbidden?
-                ForbiddenOrbs=ForbiddenOrbs+ClassCountUnocc2(1,0)
+                ForbiddenOrbs=ForbiddenOrbs+ClassCountUnocc2(ClassCountInd(1,0,0))
             ENDIF
 
         ELSEIF(iSpn.eq.1) THEN
 !If the symmetry product of the occupied orbitals is 0, then the a,b pair want to be taken from the same class.
 !This means that if there is only one spin-allowed orbital in that class, it has no symmetry-allowed pairs, and so is forbidden.
-            IF(ClassCountUnocc2(2,0).eq.1) THEN
+            IF(ClassCountUnocc2(ClassCountInd(2,0,0)).eq.1) THEN
 !The one beta orbital in this class is forbidden, since it cannot form a pair.
                 ForbiddenOrbs=1
             ENDIF
         ELSEIF(iSpn.eq.3) THEN
-            IF(ClassCountUnocc2(1,0).eq.1) THEN
+            IF(ClassCountUnocc2(ClassCountInd(1,0,0)).eq.1) THEN
                 ForbiddenOrbs=1
             ENDIF
         ENDIF
@@ -595,7 +607,7 @@ MODULE GenRandSymExcitNUMod
 !This routine finds the number of orbitals which are allowed by spin, but not part of any spatial symmetry allowed unoccupied pairs.
 !This number is needed for the correct normalisation of the probability of drawing any given A orbital since these can be chucked and redrawn.
     SUBROUTINE FindNumForbiddenOrbs(ForbiddenOrbs,ClassCountUnocc2,SymProduct,iSpn)
-        INTEGER :: ClassCountUnocc2(2,0:nSymLabels-1)
+        INTEGER :: ClassCountUnocc2(0:ScratchSize)
         INTEGER :: ForbiddenOrbs,SymProduct,iSpn,i,ConjSym
 
         ForbiddenOrbs=0
@@ -604,18 +616,18 @@ MODULE GenRandSymExcitNUMod
 
             do i=0,nSymLabels-1
 !Run though all symmetries
-                IF(ClassCountUnocc2(1,i).eq.0) THEN
+                IF(ClassCountUnocc2(ClassCountInd(1,i,0)).eq.0) THEN
 !This symmetry has no unoccupied alpha orbitals - does its symmetry conjugate have any unoccupied beta orbitals which are now forbidden?
 !If there are no unoccupied orbitals in this conjugate symmetry, then it won't increase the forbidden orbital number, since it can never be chosen.
                     ConjSym=IEOR(SymProduct,i)
-                    ForbiddenOrbs=ForbiddenOrbs+ClassCountUnocc2(2,ConjSym) !No unocc alphas in i, therefore all betas in ConjSym are forbidden
+                    ForbiddenOrbs=ForbiddenOrbs+ClassCountUnocc2(ClassCountInd(2,ConjSym,0)) !No unocc alphas in i, therefore all betas in ConjSym are forbidden
 !                    WRITE(6,*) ClassCountUnocc2(2,ConjSym),i,ConjSym
                 ENDIF
-                IF(ClassCountUnocc2(2,i).eq.0) THEN
+                IF(ClassCountUnocc2(ClassCountInd(2,i,0)).eq.0) THEN
 !This symmetry has no unoccupied beta orbitals - does its symmetry conjugate have any unoccupied alpha orbitals which are now forbidden?
 !If there are no unoccupied orbitals in this conjugate symmetry, then it won't increase the forbidden orbital number, since it can never be chosen.
                     ConjSym=IEOR(SymProduct,i)
-                    ForbiddenOrbs=ForbiddenOrbs+ClassCountUnocc2(1,ConjSym)
+                    ForbiddenOrbs=ForbiddenOrbs+ClassCountUnocc2(ClassCountInd(1,ConjSym,0))
 !                    WRITE(6,*) ClassCountUnocc2(2,ConjSym),i,ConjSym
                 ENDIF
             enddo
@@ -624,9 +636,9 @@ MODULE GenRandSymExcitNUMod
             IF(SymProduct.ne.0) THEN
 !i,j are a beta/beta pair. The number of forbidden orbitals is just betas
                 do i=0,nSymLabels-1
-                    IF(ClassCountUnocc2(2,i).eq.0) THEN
+                    IF(ClassCountUnocc2(ClassCountInd(2,i,0)).eq.0) THEN
                         ConjSym=IEOR(SymProduct,i)
-                        ForbiddenOrbs=ForbiddenOrbs+ClassCountUnocc2(2,ConjSym)
+                        ForbiddenOrbs=ForbiddenOrbs+ClassCountUnocc2(ClassCountInd(2,ConjSym,0))
                     ENDIF
                 enddo
             ELSE
@@ -634,7 +646,7 @@ MODULE GenRandSymExcitNUMod
 !If the symmetry product of the occupied orbitals is 0, then the a,b pair want to be taken from the same class.
 !This means that if there is only one spin-allowed orbital in that class, it has no symmetry-allowed pairs, and so is forbidden.
                 do i=0,nSymLabels-1
-                    IF(ClassCountUnocc2(2,i).eq.1) THEN
+                    IF(ClassCountUnocc2(ClassCountInd(2,i,0)).eq.1) THEN
 !The one beta orbital in this class is forbidden, since it cannot form a pair.
                         ForbiddenOrbs=ForbiddenOrbs+1
                     ENDIF
@@ -644,9 +656,9 @@ MODULE GenRandSymExcitNUMod
             IF(SymProduct.ne.0) THEN
 !i,j are a alpha/alpha pair. The number of forbidden orbitals is just alphas
                 do i=0,nSymLabels-1
-                    IF(ClassCountUnocc2(1,i).eq.0) THEN
+                    IF(ClassCountUnocc2(ClassCountInd(1,i,0)).eq.0) THEN
                         ConjSym=IEOR(SymProduct,i)
-                        ForbiddenOrbs=ForbiddenOrbs+ClassCountUnocc2(1,ConjSym)
+                        ForbiddenOrbs=ForbiddenOrbs+ClassCountUnocc2(ClassCountInd(1,ConjSym,0))
                     ENDIF
                 enddo
             ELSE
@@ -654,7 +666,7 @@ MODULE GenRandSymExcitNUMod
 !If the symmetry product of the occupied orbitals is 0, then the a,b pair want to be taken from the same class.
 !This means that if there is only one spin-allowed orbital in that class, it has no symmetry-allowed pairs, and so is forbidden.
                 do i=0,nSymLabels-1
-                    IF(ClassCountUnocc2(1,i).eq.1) THEN
+                    IF(ClassCountUnocc2(ClassCountInd(1,i,0)).eq.1) THEN
 !The one alpha orbital in this class is forbidden, since it cannot form a pair.
                         ForbiddenOrbs=ForbiddenOrbs+1
                     ENDIF
@@ -676,7 +688,7 @@ MODULE GenRandSymExcitNUMod
         INTEGER :: nI(NEl),iSpn,Elec1Ind,Elec2Ind,SpinOrbA,AttemptsOverall,SymA
         INTEGER :: NExcit,ChosenUnocc,z,i,OrbA,Attempts,SymB,SymProduct
         INTEGER :: ILUT(0:NIfD)
-        INTEGER :: ClassCountUnocc2(2,0:nSymLabels-1)
+        INTEGER :: ClassCountUnocc2(0:ScratchSize)
         REAL*8 :: r
 
         IF(iSpn.eq.2) THEN
@@ -877,13 +889,13 @@ MODULE GenRandSymExcitNUMod
 !We want an alpha/beta unocc pair. 
                 IF(SpinOrbA.eq.1) THEN
 !We have picked an alpha orbital - check to see if there are allowed beta unoccupied orbitals from the SymB Class.
-                    IF(ClassCountUnocc2(2,SymB).ne.0) THEN
+                    IF(ClassCountUnocc2(ClassCountInd(2,SymB,0)).ne.0) THEN
 !Success! We have found an allowed A orbital! Exit from loop.
                         EXIT
                     ENDIF
                 ELSE
 !We have picked a beta orbital - check to see if there are allowed alpha unoccupied orbitals from the SymB Class.
-                    IF(ClassCountUnocc2(1,SymB).ne.0) THEN
+                    IF(ClassCountUnocc2(ClassCountInd(1,SymB,0)).ne.0) THEN
 !Success! We have found an allowed A orbital! Exit from loop.
                         EXIT
                     ENDIF
@@ -892,13 +904,13 @@ MODULE GenRandSymExcitNUMod
 !We want a beta/beta pair.
                 IF(SymProduct.ne.0) THEN
 !Check to see if there are any unoccupied beta orbitals in the SymB Class.
-                    IF(ClassCountUnocc2(2,SymB).ne.0) THEN
+                    IF(ClassCountUnocc2(ClassCountInd(2,SymB,0)).ne.0) THEN
 !Success! We have found an allowed A orbital! Exit from loop.
                         EXIT
                     ENDIF
                 ELSE
 !We want an orbital from the same class. Check that this isn't the only unoccupied beta orbital in the class.
-                    IF(ClassCountUnocc2(2,SymB).ne.1) THEN
+                    IF(ClassCountUnocc2(ClassCountInd(2,SymB,0)).ne.1) THEN
 !Success! We have found an allowed A orbital! Exit from loop.
                         EXIT
                     ENDIF
@@ -907,13 +919,13 @@ MODULE GenRandSymExcitNUMod
 !We want an alpha/alpha pair.
                 IF(SymProduct.ne.0) THEN
 !Check to see if there are any unoccupied alpha orbitals in the SymB Class.
-                    IF(ClassCountUnocc2(1,SymB).ne.0) THEN
+                    IF(ClassCountUnocc2(ClassCountInd(1,SymB,0)).ne.0) THEN
 !Success! We have found an allowed A orbital! Exit from loop.
                         EXIT
                     ENDIF
                 ELSE
 !We want an orbital from the same class. Check that this isn't the only unoccupied alpha orbital in the class.
-                    IF(ClassCountUnocc2(1,SymB).ne.1) THEN
+                    IF(ClassCountUnocc2(ClassCountInd(1,SymB,0)).ne.1) THEN
 !Success! We have found an allowed A orbital! Exit from loop.
                         EXIT
                     ENDIF
@@ -1006,7 +1018,7 @@ MODULE GenRandSymExcitNUMod
     END SUBROUTINE PickElecPair
 
     SUBROUTINE CheckIfSingleExcits(ElecsWNoExcits,ClassCount2,ClassCountUnocc2)
-        INTEGER :: ElecsWNoExcits,ClassCount2(2,0:nSymLabels-1),ClassCountUnocc2(2,0:nSymLabels-1),i
+        INTEGER :: ElecsWNoExcits,ClassCount2(0:ScratchSize),ClassCountUnocc2(0:ScratchSize),i
 
 
 !First, we need to find out if there are any electrons which have no possible excitations. This is because these will need to be redrawn and so 
@@ -1022,25 +1034,25 @@ MODULE GenRandSymExcitNUMod
 !            ENDIF
 !        ELSE
         IF(.not.tNoSymGenRandExcits) THEN
-            IF(tFixLz) THEN
+!            IF(tFixLz) THEN
 !Here, we also have to check that the electron is momentum allowed.
 
-            ELSE
+!            ELSE
 
 !Need to look for forbidden electrons through all the irreps.
 
                 do i=0,nSymLabels-1
 !Run through all labels
-                    IF((ClassCount2(1,i).ne.0).and.(ClassCountUnocc2(1,i).eq.0)) THEN
+                    IF((ClassCount2(ClassCountInd(1,i,0)).ne.0).and.(ClassCountUnocc2(ClassCountInd(1,i,0)).eq.0)) THEN
 !If there are alpha electrons in this class with no possible unoccupied alpha orbitals in the same class, these alpha electrons have no single excitations.
-                        ElecsWNoExcits=ElecsWNoExcits+ClassCount2(1,i)
+                        ElecsWNoExcits=ElecsWNoExcits+ClassCount2(ClassCountInd(1,i,0))
                     ENDIF
-                    IF((ClassCount2(2,i).ne.0).and.(ClassCountUnocc2(2,i).eq.0)) THEN
-                        ElecsWNoExcits=ElecsWNoExcits+ClassCount2(2,i)
+                    IF((ClassCount2(ClassCountInd(2,i,0)).ne.0).and.(ClassCountUnocc2(ClassCountInd(2,i,0)).eq.0)) THEN
+                        ElecsWNoExcits=ElecsWNoExcits+ClassCount2(ClassCountInd(2,i,0))
                     ENDIF
                 enddo
 
-            ENDIF
+!            ENDIF
 
             IF(ElecsWNoExcits.eq.NEl) THEN
 !There are no single excitations from this determinant at all. This means the probability to create a double excitation = 1
@@ -1058,8 +1070,8 @@ MODULE GenRandSymExcitNUMod
         INTEGER :: ElecsWNoExcits,i,Attempts,nOrbs,z,Orb
         INTEGER :: Eleci,ElecSym,nI(NEl),nJ(NEl),NExcit,iSpn,ChosenUnocc
         INTEGER :: ExcitMat(2,2),ExcitLevel,iGetExcitLevel
-        INTEGER :: ClassCount2(2,0:nSymLabels-1)
-        INTEGER :: ClassCountUnocc2(2,0:nSymLabels-1)
+        INTEGER :: ClassCount2(0:ScratchSize)
+        INTEGER :: ClassCountUnocc2(0:ScratchSize)
         INTEGER :: ILUT(0:NIfD)
         REAL*8 :: r,pGen
         LOGICAL :: tParity,IsValidDet,SymAllowed
@@ -1081,12 +1093,12 @@ MODULE GenRandSymExcitNUMod
 
             do i=0,nSymLabels-1
 !Run through all labels
-                IF((ClassCount2(1,i).ne.0).and.(ClassCountUnocc2(1,i).eq.0)) THEN
+                IF((ClassCount2(ClassCountInd(1,i,0)).ne.0).and.(ClassCountUnocc2(ClassCountInd(1,i,0)).eq.0)) THEN
 !If there are alpha electrons in this class with no possible unoccupied alpha orbitals in the same class, these alpha electrons have no single excitations.
-                    ElecsWNoExcits=ElecsWNoExcits+ClassCount2(1,i)
+                    ElecsWNoExcits=ElecsWNoExcits+ClassCount2(ClassCountInd(1,i,0))
                 ENDIF
-                IF((ClassCount2(2,i).ne.0).and.(ClassCountUnocc2(2,i).eq.0)) THEN
-                    ElecsWNoExcits=ElecsWNoExcits+ClassCount2(2,i)
+                IF((ClassCount2(ClassCountInd(2,i,0)).ne.0).and.(ClassCountUnocc2(ClassCountInd(2,i,0)).eq.0)) THEN
+                    ElecsWNoExcits=ElecsWNoExcits+ClassCount2(ClassCountInd(2,i,0))
                 ENDIF
             enddo
 
@@ -1122,11 +1134,11 @@ MODULE GenRandSymExcitNUMod
 
             IF(G1(nI(Eleci))%Ms.eq.1) THEN
 !Alpha orbital - see how many single excitations there are from this electron...
-                NExcit=ClassCountUnocc2(1,ElecSym)
+                NExcit=ClassCountUnocc2(ClassCountInd(1,ElecSym,0))
                 iSpn=1
             ELSE
 !Beta orbital
-                NExcit=ClassCountUnocc2(2,ElecSym)
+                NExcit=ClassCountUnocc2(ClassCountInd(2,ElecSym,0))
                 iSpn=2
             ENDIF
 
@@ -1135,11 +1147,11 @@ MODULE GenRandSymExcitNUMod
             IF(Attempts.gt.250) THEN
                 WRITE(6,*) "Cannot find single excitation from electrons after 250 attempts..."
                 CALL WRITEDET(6,nI,NEL,.true.)
-                WRITE(6,*) "ClassCount2(1,:)= ",ClassCount2(1,:)
-                WRITE(6,*) "ClassCount2(2,:)= ",ClassCount2(2,:)
+!                WRITE(6,*) "ClassCount2(1,:)= ",ClassCount2(1,:)
+!                WRITE(6,*) "ClassCount2(2,:)= ",ClassCount2(2,:)
                 WRITE(6,*) "***"
-                WRITE(6,*) "ClassCountUnocc2(1,:)= ",ClassCountUnocc2(1,:)
-                WRITE(6,*) "ClassCountUnocc2(2,:)= ",ClassCountUnocc2(2,:)
+!                WRITE(6,*) "ClassCountUnocc2(1,:)= ",ClassCountUnocc2(1,:)
+!                WRITE(6,*) "ClassCountUnocc2(2,:)= ",ClassCountUnocc2(2,:)
                 CALL Stop_All("CreateSingleExcit","Cannot find single excitation from electrons after 250 attempts...")
             ENDIF
 
@@ -1235,11 +1247,11 @@ MODULE GenRandSymExcitNUMod
                     WRITE(6,*) "Number of orbitals (of correct spin) in symmetry = ",nOrbs
                     WRITE(6,*) "Number of orbitals to legitimatly pick = ",NExcit
                     CALL WRITEDET(6,nI,NEL,.true.)
-                    WRITE(6,*) "ClassCount2(1,:)= ",ClassCount2(1,:)
-                    WRITE(6,*) "ClassCount2(2,:)= ",ClassCount2(2,:)
-                    WRITE(6,*) "***"
-                    WRITE(6,*) "ClassCountUnocc2(1,:)= ",ClassCountUnocc2(1,:)
-                    WRITE(6,*) "ClassCountUnocc2(2,:)= ",ClassCountUnocc2(2,:)
+!                    WRITE(6,*) "ClassCount2(1,:)= ",ClassCount2(1,:)
+!                    WRITE(6,*) "ClassCount2(2,:)= ",ClassCount2(2,:)
+!                    WRITE(6,*) "***"
+!                    WRITE(6,*) "ClassCountUnocc2(1,:)= ",ClassCountUnocc2(1,:)
+!                    WRITE(6,*) "ClassCountUnocc2(2,:)= ",ClassCountUnocc2(2,:)
                     CALL Stop_All("CreateSingleExcit","Cannot find single excitation unoccupied orbital after 250 attempts...")
                 ENDIF
 
@@ -1267,14 +1279,14 @@ MODULE GenRandSymExcitNUMod
 
     SUBROUTINE ConstructClassCounts(nI,ClassCount2,ClassCountUnocc2)
         INTEGER :: i,nI(NEl)
-        INTEGER :: ClassCount2(2,0:nSymLabels-1)
-        INTEGER :: ClassCountUnocc2(2,0:nSymLabels-1)
+        INTEGER :: ClassCount2(0:ScratchSize)
+        INTEGER :: ClassCountUnocc2(0:ScratchSize)
 !        INTEGER :: Alph,Bet
 
 !        Alph=0
 !        Bet=0
-        ClassCount2(:,:)=0
-        ClassCountUnocc2(:,:)=0
+        ClassCount2(:)=0
+        ClassCountUnocc2(:)=0
 !nOccAlpha and nOccBeta now set in the system block. Since we conserve Sz, these will not change.
 !        NOccAlpha=0
 !        NOccBeta=0
@@ -1286,10 +1298,10 @@ MODULE GenRandSymExcitNUMod
 !                ILUT((nI(I)-1)/32)=IBSET(ILUT((NI(I)-1)/32),MOD(NI(I)-1,32))
 !            enddo
 !All orbitals are in irrep 0
-            ClassCount2(1,0)=nOccAlpha
-            ClassCount2(2,0)=nOccBeta
-            ClassCountUnocc2(1,0)=(nBasis/2)-nOccAlpha
-            ClassCountUnocc2(2,0)=(nBasis/2)-nOccBeta
+            ClassCount2(ClassCountInd(1,0,0))=nOccAlpha
+            ClassCount2(ClassCountInd(2,0,0))=nOccBeta
+            ClassCountUnocc2(ClassCountInd(1,0,0))=(nBasis/2)-nOccAlpha
+            ClassCountUnocc2(ClassCountInd(2,0,0))=(nBasis/2)-nOccBeta
         
         ELSE
 
@@ -1301,14 +1313,14 @@ MODULE GenRandSymExcitNUMod
                 IF(G1(nI(i))%Ms.eq.1) THEN
 !orbital is an alpha orbital and symmetry of the orbital can be found in G1
 !                    WRITE(6,*) G1(nI(i))%Ms,G1(nI(i))%Sym%S
-                    ClassCount2(1,INT(G1(nI(i))%Sym%S,4))=ClassCount2(1,INT(G1(nI(i))%Sym%S,4))+1
+                    ClassCount2(ClassCountInd(1,INT(G1(nI(i))%Sym%S,4),0))=ClassCount2(ClassCountInd(1,INT(G1(nI(i))%Sym%S,4),0))+1
 !                    Alph=Alph+1
 !                    NOccAlpha=NOccAlpha+1
 
                 ELSE
 !orbital is a beta orbital
 !                    WRITE(6,*) G1(nI(i))%Ms,G1(nI(i))%Sym%S
-                    ClassCount2(2,INT(G1(nI(i))%Sym%S,4))=ClassCount2(2,INT(G1(nI(i))%Sym%S,4))+1
+                    ClassCount2(ClassCountInd(2,INT(G1(nI(i))%Sym%S,4),0))=ClassCount2(ClassCountInd(2,INT(G1(nI(i))%Sym%S,4),0))+1
 !                    Bet=Bet+1
 !                    NOccBeta=NOccBeta+1
                 ENDIF
@@ -1320,8 +1332,8 @@ MODULE GenRandSymExcitNUMod
 !Again, we store as 
 
             do i=1,nSymLabels
-                ClassCountUnocc2(1,i-1)=SymLabelCounts2(1,2,i)-ClassCount2(1,i-1)
-                ClassCountUnocc2(2,i-1)=SymLabelCounts2(2,2,i)-ClassCount2(2,i-1)
+                ClassCountUnocc2(ClassCountInd(1,i-1,0))=SymLabelCounts2(1,2,i)-ClassCount2(ClassCountInd(1,i-1,0))
+                ClassCountUnocc2(ClassCountInd(2,i-1,0))=SymLabelCounts2(2,2,i)-ClassCount2(ClassCountInd(2,i-1,0))
             enddo
 
 !            WRITE(6,*) "Alph=",alph,"Bet=",Bet
@@ -1340,8 +1352,8 @@ MODULE GenRandSymExcitNUMod
 !Therefore, make sure that they are at most double excitations of each other.
     SUBROUTINE CalcNonUniPGen(Ex,IC,ClassCount2,ClassCountUnocc2,pDoub,pGen)
         REAL*8 :: pDoub,pGen!,PabGivenij
-        INTEGER :: ClassCount2(2,0:nSymLabels-1),ForbiddenOrbs,SymA,SymB
-        INTEGER :: ClassCountUnocc2(2,0:nSymLabels-1),ElecsWNoExcits,i,NExcitOtherWay
+        INTEGER :: ClassCount2(0:ScratchSize),ForbiddenOrbs,SymA,SymB
+        INTEGER :: ClassCountUnocc2(0:ScratchSize),ElecsWNoExcits,i,NExcitOtherWay
         INTEGER :: SymProduct,OrbI,OrbJ,iSpn,NExcitA,NExcitB,IC,ElecSym,OrbA,OrbB,Ex(2,2)
             
         pDoubNew=pDoub
@@ -1360,11 +1372,11 @@ MODULE GenRandSymExcitNUMod
 
                 IF(.not.tNoSingsPossible) THEN
                     ElecsWNoExcits=0
-                    IF((ClassCount2(1,0).ne.0).and.(ClassCountUnocc2(1,0).eq.0)) THEN
-                        ElecsWNoExcits=ElecsWNoExcits+ClassCount2(1,0)
+                    IF((ClassCount2(ClassCountInd(1,0,0)).ne.0).and.(ClassCountUnocc2(ClassCountInd(1,0,0)).eq.0)) THEN
+                        ElecsWNoExcits=ElecsWNoExcits+ClassCount2(ClassCountInd(1,0,0))
                     ENDIF
-                    IF((ClassCount2(2,0).ne.0).and.(ClassCountUnocc2(2,0).eq.0)) THEN
-                        ElecsWNoExcits=ElecsWNoExcits+ClassCount2(2,0)
+                    IF((ClassCount2(ClassCountInd(2,0,0)).ne.0).and.(ClassCountUnocc2(ClassCountInd(2,0,0)).eq.0)) THEN
+                        ElecsWNoExcits=ElecsWNoExcits+ClassCount2(ClassCountInd(2,0,0))
                     ENDIF
                 ENDIF
                 
@@ -1377,12 +1389,12 @@ MODULE GenRandSymExcitNUMod
                     ElecsWNoExcits=0
                     do i=0,nSymLabels-1
 !Run through all labels
-                        IF((ClassCount2(1,i).ne.0).and.(ClassCountUnocc2(1,i).eq.0)) THEN
+                        IF((ClassCount2(ClassCountInd(1,i,0)).ne.0).and.(ClassCountUnocc2(ClassCountInd(1,i,0)).eq.0)) THEN
 !If there are alpha electrons in this class with no possible unoccupied alpha orbitals in the same class, these alpha electrons have no single excitations.
-                            ElecsWNoExcits=ElecsWNoExcits+ClassCount2(1,i)
+                            ElecsWNoExcits=ElecsWNoExcits+ClassCount2(ClassCountInd(1,i,0))
                         ENDIF
-                        IF((ClassCount2(2,i).ne.0).and.(ClassCountUnocc2(2,i).eq.0)) THEN
-                            ElecsWNoExcits=ElecsWNoExcits+ClassCount2(2,i)
+                        IF((ClassCount2(ClassCountInd(2,i,0)).ne.0).and.(ClassCountUnocc2(ClassCountInd(2,i,0)).eq.0)) THEN
+                            ElecsWNoExcits=ElecsWNoExcits+ClassCount2(ClassCountInd(2,i,0))
                         ENDIF
                     enddo
                 ENDIF
@@ -1393,10 +1405,10 @@ MODULE GenRandSymExcitNUMod
 
             IF(G1(Ex(1,1))%Ms.eq.1) THEN
 !Alpha orbital - see how many single excitations there are from this electron...
-                NExcitA=ClassCountUnocc2(1,ElecSym)
+                NExcitA=ClassCountUnocc2(ClassCountInd(1,ElecSym,0))
             ELSE
 !Beta orbital
-                NExcitA=ClassCountUnocc2(2,ElecSym)
+                NExcitA=ClassCountUnocc2(ClassCountInd(2,ElecSym,0))
             ENDIF
 
 !Now we need to find the probability of creating this excitation.
@@ -1456,21 +1468,21 @@ MODULE GenRandSymExcitNUMod
 !If iSpn=2, then we want to find a spinorbital of the opposite spin of SpinOrbA
                 IF((G1(OrbA)%Ms).eq.-1) THEN
 !We have already picked a beta orbital, so now we want to pick an alpha orbital. Find out how many of these there are.
-                    NExcitB=ClassCountUnocc2(1,SymB)
-                    NExcitOtherWay=ClassCountUnocc2(2,SymA)
+                    NExcitB=ClassCountUnocc2(ClassCountInd(1,SymB,0))
+                    NExcitOtherWay=ClassCountUnocc2(ClassCountInd(2,SymA,0))
                 ELSE
 !Want to pick an beta orbital.
-                    NExcitB=ClassCountUnocc2(2,SymB)
-                    NExcitOtherWay=ClassCountUnocc2(1,SymA)
+                    NExcitB=ClassCountUnocc2(ClassCountInd(2,SymB,0))
+                    NExcitOtherWay=ClassCountUnocc2(ClassCountInd(1,SymA,0))
                 ENDIF
             ELSEIF(iSpn.eq.1) THEN
 !Definitely want a beta orbital
-                NExcitB=ClassCountUnocc2(2,SymB)
-                NExcitOtherWay=ClassCountUnocc2(2,SymA)
+                NExcitB=ClassCountUnocc2(ClassCountInd(2,SymB,0))
+                NExcitOtherWay=ClassCountUnocc2(ClassCountInd(2,SymA,0))
             ELSE
 !Definitely want an alpha orbital
-                NExcitB=ClassCountUnocc2(1,SymB)
-                NExcitOtherWay=ClassCountUnocc2(1,SymA)
+                NExcitB=ClassCountUnocc2(ClassCountInd(1,SymB,0))
+                NExcitOtherWay=ClassCountUnocc2(ClassCountInd(1,SymA,0))
             ENDIF
 
             IF((iSpn.ne.2).and.(ElecSym.eq.0)) THEN
@@ -1488,6 +1500,23 @@ MODULE GenRandSymExcitNUMod
         ENDIF
 
     END SUBROUTINE CalcNonUniPGen
+
+!ClassCount arrays are not going to be 1D arrays, so that new symmetries can be added more easily.
+!This means that an indexing system is needed for the array.
+!For spin, alpha=1, beta=2. Sym goes from 0:nSymLabels-1 and Mom goes from -Lmax to Lmax.
+    INTEGER FUNCTION ClassCountInd(Spin,Sym,Mom)
+        INTEGER :: Spin,Sym,Mom
+
+        IF(tFixLz) THEN
+            ClassCountInd=2*Sym+Spin
+
+        ELSE
+
+            ClassCountInd=2*Sym+Spin
+
+        ENDIF
+
+    END FUNCTION ClassCountInd
 
 
 
@@ -1569,8 +1598,8 @@ MODULE GenRandSymExcitNUMod
 
     SUBROUTINE CreateSingleExcitBiased(nI,nJ,iLut,ExcitMat,tParity,ElecsWNoExcits,nParts,WSign,Tau,iCreate)
         Use SystemData, only: FCoul
-        INTEGER :: ClassCount2(2,0:nSymLabels-1),i,Attempts,OrbA
-        INTEGER :: ClassCountUnocc2(2,0:nSymLabels-1)
+        INTEGER :: ClassCount2(0:ScratchSize),i,Attempts,OrbA
+        INTEGER :: ClassCountUnocc2(0:ScratchSize)
         INTEGER :: ElecsWNoExcits,nParts,WSign,iCreate,nI(NEl),nJ(NEl),iLut(0:NIfD)
         INTEGER :: ExcitMat(2,2),SpawnOrb(nBasis),Eleci,ElecSym,NExcit,VecInd,ispn,EndSymState,j
         REAL*8 :: Tau,SpawnProb(nBasis),NormProb,r,rat
@@ -1591,12 +1620,12 @@ MODULE GenRandSymExcitNUMod
 !Need to look for forbidden electrons through all the irreps.
         do i=0,nSymLabels-1
 !Run through all labels
-            IF((ClassCount2(1,i).ne.0).and.(ClassCountUnocc2(1,i).eq.0)) THEN
+            IF((ClassCount2(ClassCountInd(1,i,0)).ne.0).and.(ClassCountUnocc2(ClassCountInd(1,i,0)).eq.0)) THEN
 !If there are alpha electrons in this class with no possible unoccupied alpha orbitals in the same class, these alpha electrons have no single excitations.
-                ElecsWNoExcits=ElecsWNoExcits+ClassCount2(1,i)
+                ElecsWNoExcits=ElecsWNoExcits+ClassCount2(ClassCountInd(1,i,0))
             ENDIF
-            IF((ClassCount2(2,i).ne.0).and.(ClassCountUnocc2(2,i).eq.0)) THEN
-                ElecsWNoExcits=ElecsWNoExcits+ClassCount2(2,i)
+            IF((ClassCount2(ClassCountInd(2,i,0)).ne.0).and.(ClassCountUnocc2(ClassCountInd(2,i,0)).eq.0)) THEN
+                ElecsWNoExcits=ElecsWNoExcits+ClassCount2(ClassCountInd(2,i,0))
             ENDIF
         enddo
 
@@ -1625,11 +1654,11 @@ MODULE GenRandSymExcitNUMod
 
             IF(G1(nI(Eleci))%Ms.eq.1) THEN
 !Alpha orbital - see how many single excitations there are from this electron...
-                NExcit=ClassCountUnocc2(1,ElecSym)
+                NExcit=ClassCountUnocc2(ClassCountInd(1,ElecSym,0))
                 ispn=1  !Alpha ispn=1, Beta ispn=2
             ELSE
 !Beta orbital
-                NExcit=ClassCountUnocc2(2,ElecSym)
+                NExcit=ClassCountUnocc2(ClassCountInd(2,ElecSym,0))
                 ispn=2
             ENDIF
 
@@ -1638,11 +1667,11 @@ MODULE GenRandSymExcitNUMod
             IF(Attempts.gt.250) THEN
                 WRITE(6,*) "Cannot find single excitation from electrons after 250 attempts..."
                 CALL WRITEDET(6,nI,NEL,.true.)
-                WRITE(6,*) "ClassCount2(1,:)= ",ClassCount2(1,:)
-                WRITE(6,*) "ClassCount2(2,:)= ",ClassCount2(2,:)
+!                WRITE(6,*) "ClassCount2(1,:)= ",ClassCount2(1,:)
+!                WRITE(6,*) "ClassCount2(2,:)= ",ClassCount2(2,:)
                 WRITE(6,*) "***"
-                WRITE(6,*) "ClassCountUnocc2(1,:)= ",ClassCountUnocc2(1,:)
-                WRITE(6,*) "ClassCountUnocc2(2,:)= ",ClassCountUnocc2(2,:)
+!                WRITE(6,*) "ClassCountUnocc2(1,:)= ",ClassCountUnocc2(1,:)
+!                WRITE(6,*) "ClassCountUnocc2(2,:)= ",ClassCountUnocc2(2,:)
                 CALL Stop_All("CreateSingleExcit","Cannot find single excitation from electrons after 250 attempts...")
             ENDIF
 
@@ -1967,13 +1996,13 @@ END MODULE GenRandSymExcitNUMod
 !number of excitations generated using the full enumeration excitation generation. This can be done for both doubles and singles, or one of them.
 SUBROUTINE TestGenRandSymExcitNU(nI,Iterations,pDoub,exFlag)
     Use SystemData , only : NEl,nBasis,G1,nBasisMax
-    Use GenRandSymExcitNUMod , only : GenRandSymExcitNU,ConstructClassCounts
+    Use GenRandSymExcitNUMod , only : GenRandSymExcitNU,ConstructClassCounts,ScratchSize
     Use SymData , only : nSymLabels
     IMPLICIT NONE
     INTEGER :: i,Iterations,exFlag,nI(NEl),nJ(NEl),IC,ExcitMat(2,2),DetConn
     REAL*8 :: pDoub,pGen
-    INTEGER :: ClassCount2(2,0:nSymLabels-1),iLut(0:nBasis/32)
-    INTEGER :: ClassCountUnocc2(2,0:nSymLabels-1)
+    INTEGER :: ClassCount2(0:ScratchSize),iLut(0:nBasis/32)
+    INTEGER :: ClassCountUnocc2(0:ScratchSize)
     LOGICAL :: tParity,SymAllowed
     REAL*8 , ALLOCATABLE :: DoublesHist(:,:,:,:),SinglesHist(:,:)
     INTEGER , ALLOCATABLE :: EXCITGEN(:)
@@ -2085,11 +2114,11 @@ SUBROUTINE TestGenRandSymExcitNU(nI,Iterations,pDoub,exFlag)
     IF((DetNum+DetNumS).ne.DetConn) THEN
         CALL ConstructClassCounts(nI,ClassCount2,ClassCountUnocc2)
         WRITE(6,*) "Total determinants = ", DetConn
-        WRITE(6,*) "ClassCount2(1,:)= ",ClassCount2(1,:)
-        WRITE(6,*) "ClassCount2(2,:)= ",ClassCount2(2,:)
+!        WRITE(6,*) "ClassCount2(1,:)= ",ClassCount2(1,:)
+!        WRITE(6,*) "ClassCount2(2,:)= ",ClassCount2(2,:)
         WRITE(6,*) "***"
-        WRITE(6,*) "ClassCountUnocc2(1,:)= ",ClassCountUnocc2(1,:)
-        WRITE(6,*) "ClassCountUnocc2(2,:)= ",ClassCountUnocc2(2,:)
+!        WRITE(6,*) "ClassCountUnocc2(1,:)= ",ClassCountUnocc2(1,:)
+!        WRITE(6,*) "ClassCountUnocc2(2,:)= ",ClassCountUnocc2(2,:)
         CALL Stop_All("TestGenRandSymExcitNU","Not all excitations accounted for...")
     ENDIF
 

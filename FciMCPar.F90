@@ -21,10 +21,10 @@ MODULE FciMCParMod
     use CalcData , only : tHighExcitsSing,iHighExcitsSing,tFindGuide,iGuideDets,tUseGuide,iInitGuideParts,tNoDomSpinCoup
     use CalcData , only : tPrintDominant,iNoDominantDets,MaxExcDom,MinExcDom,tSpawnDominant,tMinorDetsStar
     use CalcData , only : tCCMC,tTruncCAS
-    use HPHFRandExcitMod , only : FindExcitBitDetSym,GenRandHPHFExcit,GenRandHPHFExcit2Scratch 
+    use HPHFRandExcitMod , only : FindExcitBitDetSym,GenRandHPHFExcit,GenRandHPHFExcit2Scratch
     USE Determinants , only : FDet,GetHElement2,GetHElement4
     USE DetCalc , only : ICILevel,nDet,Det,FCIDetIndex
-    use GenRandSymExcitNUMod , only : GenRandSymExcitScratchNU,GenRandSymExcitNU
+    use GenRandSymExcitNUMod , only : GenRandSymExcitScratchNU,GenRandSymExcitNU,ScratchSize
     use IntegralsData , only : fck,NMax,UMat,tPartFreezeCore,NPartFrozen,NHolesFrozen
     USE UMatCache , only : GTID
     USE Logging , only : iWritePopsEvery,TPopsFile,TZeroProjE,iPopsPartEvery,tBinPops,tHistSpawn,iWriteHistEvery,tHistEnergies
@@ -214,7 +214,7 @@ MODULE FciMCParMod
         INTEGER :: nJ(NEl),ierr,IC,Child,DetCurr(NEl),iLutnJ(0:NIfD)
         REAL*8 :: Prob,rat,HDiagCurr
         INTEGER :: iDie,WalkExcitLevel,Proc
-        INTEGER :: ExcitLevel,TotWalkersNew,iGetExcitLevel_2,Ex(2,2),WSign,p,Scratch1(2,nSymLabels),Scratch2(2,nSymLabels)
+        INTEGER :: ExcitLevel,TotWalkersNew,iGetExcitLevel_2,Ex(2,2),WSign,p,Scratch1(0:ScratchSize),Scratch2(0:ScratchSize)
         LOGICAL :: tParity,tFilled
 
         IF(TDebug.and.(mod(Iter,10).eq.0)) THEN
@@ -435,7 +435,7 @@ MODULE FciMCParMod
         INTEGER :: nJ(NEl),ierr,IC,Child,iCount,DetCurr(NEl),iLutnJ(0:NIfD),NoMinorWalkersNew
         REAL*8 :: Prob,rat,HDiag,HDiagCurr
         INTEGER :: iDie,WalkExcitLevel,Proc             !Indicated whether a particle should self-destruct on DetCurr
-        INTEGER :: ExcitLevel,TotWalkersNew,iGetExcitLevel_2,error,length,temp,Ex(2,2),WSign,p,Scratch1(2,nSymLabels),Scratch2(2,nSymLabels),FDetSym,FDetSpin
+        INTEGER :: ExcitLevel,TotWalkersNew,iGetExcitLevel_2,error,length,temp,Ex(2,2),WSign,p,Scratch1(0:ScratchSize),Scratch2(0:ScratchSize),FDetSym,FDetSpin
         LOGICAL :: tParity,DetBitEQ,tMainArr,tFilled,tCheckStarGenDet,tStarDet,tMinorDetList,tAnnihilateMinorTemp,tAnnihilateMinor,TestClosedShellDet
         INTEGER(KIND=i2) :: HashTemp
         TYPE(HElement) :: HDiagTemp
@@ -2037,13 +2037,9 @@ MODULE FciMCParMod
                         enddo
                     ENDIF
                 ENDIF
-                IF(tOddSymmetries) THEN
-                    MemoryAlloc=4*MaxWalkersPart    !This is the memory needed by all the excitation generator arrays
-                ELSE
-                    MemoryAlloc=((HFExcit%nExcitMemLen)+8)*4*MaxWalkersPart    !This is the memory needed by all the excitation generator arrays
-                ENDIF
+                MemoryAlloc=((HFExcit%nExcitMemLen)+8)*4*MaxWalkersPart    !This is the memory needed by all the excitation generator arrays
 
-                IF(.not.tOddSymmetries) WRITE(6,"(A,I12)") "Size of HF excitgen is: ",HFExcit%nExcitMemLen
+                WRITE(6,"(A,I12)") "Size of HF excitgen is: ",HFExcit%nExcitMemLen
                 WRITE(6,"(A,F14.6,A)") "Probable maximum memory for excitgens is : ",REAL(MemoryAlloc,r2)/1048576.D0," Mb/Processor"
                 WRITE(6,*) "Initial allocation of excitation generators successful..."
             ELSE
@@ -3259,11 +3255,7 @@ MODULE FciMCParMod
             BackOfList=1    !I.e. first allocation should be at ExcitGens(FreeIndArray(1))
             FrontOfList=1   !i.e. first free index should be put at FreeIndArray(1)
 
-            IF(.not.tOddSymmetries) THEN
-                MemoryAlloc=((HFExcit%nExcitMemLen)+8)*4*MaxWalkersPart
-            ELSE
-                MemoryAlloc=0
-            ENDIF
+            MemoryAlloc=((HFExcit%nExcitMemLen)+8)*4*MaxWalkersPart
             WRITE(6,"(A,F14.6,A)") "Probable maximum memory for excitgens is : ",REAL(MemoryAlloc,r2)/1048576.D0," Mb/Processor"
             WRITE(6,*) "Initial allocation of excitation generators successful..."
 
@@ -3467,7 +3459,7 @@ MODULE FciMCParMod
         NewSign=>WalkVec2Sign
 
 !Now calculate MP1 components - allocate memory for doubles
-        IF(tOddSymmetries) THEN
+        IF(tNoSpinSymExcitgens) THEN
             exflag=3
             CALL CountExcitations3(HFDet,exflag,nSingles,nDoubles)
             HFConn=nSingles+nDoubles+1
@@ -3509,7 +3501,7 @@ MODULE FciMCParMod
         ENDIF
 
 !Setup excit generators for HF Determinant
-        IF(tOddSymmetries) THEN
+        IF(tNoSpinSymExcitgens) THEN
 
             tAllExcitFound=.false.
             ExcitMat3(:,:)=0
@@ -3788,11 +3780,7 @@ MODULE FciMCParMod
                     CurrentExcits(j)%PointToExcit=>null()
                 ENDIF
             enddo
-            IF(.not.tOddSymmetries) THEN
-                MemoryAlloc=((HFExcit%nExcitMemLen)+8)*4*MaxWalkersPart
-            ELSE
-                MemoryAlloc=0
-            ENDIF
+            MemoryAlloc=((HFExcit%nExcitMemLen)+8)*4*MaxWalkersPart
 
             WRITE(6,"(A,F14.6,A)") "Probable maximum memory for excitgens is : ",REAL(MemoryAlloc,r2)/1048576.D0," Mb/Processor"
             WRITE(6,*) "Initial allocation of excitation generators successful..."
@@ -4289,7 +4277,7 @@ MODULE FciMCParMod
         INTEGER :: nJ(NEl),ierr,IC,Child,iCount,DetCurr(NEl),iLutnJ(0:NIfD)
         REAL*8 :: Prob,rat,HDiag,HDiagCurr,r,HSum
         INTEGER :: iDie,WalkExcitLevel,iMaxExcit,ExcitLength,PartInd,iExcit
-        INTEGER :: ExcitLevel,TotWalkersNew,iGetExcitLevel_2,error,length,temp,Ex(2,2),WSign,p,Scratch1(2,nSymLabels),Scratch2(2,nSymLabels)
+        INTEGER :: ExcitLevel,TotWalkersNew,iGetExcitLevel_2,error,length,temp,Ex(2,2),WSign,p,Scratch1(0:ScratchSize),Scratch2(0:ScratchSize)
         LOGICAL :: tParity,DetBitEQ,tMainArr,tFilled,tSuccess,tMinorDetList
         TYPE(HElement) :: HDiagTemp,HElemTemp
         INTEGER , ALLOCATABLE :: ExcitGenTemp(:)
@@ -5317,7 +5305,7 @@ MODULE FciMCParMod
         CALL LogMemDealloc(this_routine,HFDetTag)
         DEALLOCATE(iLutHF)
 
-        IF(.not.tOddSymmetries) DEALLOCATE(HFExcit%ExcitData)
+        IF(.not.tNoSpinSymExcitgens) DEALLOCATE(HFExcit%ExcitData)
         IF(.not.TRegenExcitgens) THEN
             do i=1,MaxWalkersPart
                 CALL DissociateExitgen(WalkVecExcits(i))
@@ -7921,24 +7909,24 @@ MODULE FciMCParMod
             WRITE(6,*) "Symmetry information not set up correctly in NECI initialisation"
             WRITE(6,*) "Will attempt to set up the symmetry again, but now in terms of spin orbitals"
             WRITE(6,*) "I strongly suggest you check that the reference energy is correct."
-!            CALL Stop_All("SetupParameters","Error in the setup of the symmetry/spin ordering of the orbitals. This configuration will not work with spawning excitation generators")
             CALL SpinOrbSymSetup(.true.) 
-
-            tOddSymmetries=.true.
 
             IF(.not.tNonUniRandExcits) CALL Stop_All(this_routine,'ERROR. Need to use the non-uniform random excitation generators when &
             & we have odd symmetries and the symmetry label lists are stored in spin orbitals.')
 
         ELSE
-!            WRITE(6,*) "Symmetry and spin of orbitals correctly set up for spawning excitation generators."
             WRITE(6,*) "Symmetry and spin of orbitals correctly set up for spawning excitation generators."
             WRITE(6,*) "Simply transferring this into a spin orbital representation."
             CALL SpinOrbSymSetup(.false.) 
-            tOddSymmetries=.true.
-!            CALL Stop_All("SSS","SKCJB")
         ENDIF
 ! From now on, the orbitals are contained in symlabellist2 and symlabelcounts2 rather than the original arrays.
 ! These are stored using spin orbitals.
+
+        IF(tNonUniRandExcits) THEN
+!Assume that if we want to use the non-uniform random excitation generator, we also want to use the NoSpinSym full excitation generators if they are needed. 
+            tNoSpinSymExcitgens=.true.  
+        ENDIF
+                                        
 
 !Check whether it is possible to have a determinant where the electrons
 !can be arranged in a determinant so that there are no unoccupied
@@ -7948,8 +7936,7 @@ MODULE FciMCParMod
 
 
 !Setup excitation generator for the HF determinant. If we are using assumed sized excitgens, this will also be assumed size.
-
-        IF(.not.tOddSymmetries) THEN
+        IF(.not.tNoSpinSymExcitgens) THEN
             IF(tUseBrillouin.and.tNonUniRandExcits) THEN
                 WRITE(6,*) "Temporarily turning brillouins theorem off in order to calculate pDoubles for non-uniform excitation generators"
                 tTurnBackBrillouin=.true.
@@ -8768,7 +8755,7 @@ MODULE FciMCParMod
             ENDIF
         ENDIF
 
-        IF(tOddSymmetries) THEN
+        IF(tNoSpinSymExcitgens) THEN
 !NSing=Number singles from HF, nDoub=No Doubles from HF
 
             WRITE(6,"(A)") "Calculating approximate pDoubles for use with excitation generator by looking a excitations from HF."
@@ -9088,7 +9075,7 @@ MODULE FciMCParMod
 
         
 !NoDoubs here is actually the singles + doubles of HF
-        IF(tOddSymmetries) THEN
+        IF(tNoSpinSymExcitgens) THEN
             exflag=3
             CALL CountExcitations3(HFDet,exflag,nSingles,NoDoubs)
             NoDoubs=nSingles+NoDoubs
@@ -9102,7 +9089,7 @@ MODULE FciMCParMod
         
         VecSlot=1           !This is the next free slot in the DoublesDets array
 
-        IF(tOddSymmetries) THEN
+        IF(tNoSpinSymExcitgens) THEN
 
             tAllExcitFound=.false.
             ExcitMat3(:,:)=0
