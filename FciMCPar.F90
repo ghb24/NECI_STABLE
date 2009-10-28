@@ -8632,10 +8632,10 @@ MODULE FciMCParMod
         IF(tUEG) THEN
 !Check to see if this is an allowed excitation
 !by summing kx, ky and kz to zero over all the electrons.
-            kx=0
-            ky=0
-            kz=0
             do i=1,NEl
+                kx=0
+                ky=0
+                kz=0
                 kx=kx+G1(nJ(i))%k(1)
                 ky=ky+G1(nJ(i))%k(2)
                 kz=kz+G1(nJ(i))%k(3)
