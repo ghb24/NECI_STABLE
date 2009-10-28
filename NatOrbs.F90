@@ -11,9 +11,10 @@ MODULE NatOrbsMod
         USE IntegralsData , only : UMAT
         USE UMatCache , only : UMatInd
         USE SystemData , only : NEl,nBasis,NIfD,G1,ARR,BRR,lNoSymmetry,LMS,tStoreSpinOrbs,nOccAlpha,nOccBeta,tSeparateOccVirt
-        USE SystemData , only : tRotateOccOnly,tRotateVirtOnly,tFindCINatOrbs,tUseMP2VarDenMat
+        USE SystemData , only : tRotateOccOnly,tRotateVirtOnly,tFindCINatOrbs,tUseMP2VarDenMat,nBasisMax,ALAT,iSpinSkip
         USE RotateOrbsData , only : SymLabelList2,SymLabelCounts2,SymLabelCounts2Tag,SymLabelListInv,NoOrbs,SpatOrbs,FillOneRDM_time
         USE RotateOrbsData , only : FillMP2VDM_Time,DiagNatOrbMat_Time,OrderCoeff_Time,FillCoeff_Time,NoFrozenVirt
+        USE HElem
         IMPLICIT NONE
         INTEGER :: NoSpinCyc,SymOrbsTempTag
         REAL*8 , ALLOCATABLE :: NatOrbMat(:,:),Evalues(:)
@@ -572,10 +573,13 @@ MODULE NatOrbsMod
 ! MP2VDM = D2_ab = sum_ijc [ t_ij^ac ( 2 t_ij^bc - t_ji^bc ) ]
 ! Where :  t_ij^ac = - < ab | ij > / ( E_a - E_i + E_b - Ej )
 ! Ref : J. Chem. Phys. 131, 034113 (2009) - note: in Eqn 1, the cb indices are the wrong way round (should be bc).
+        USE Integrals , only : GetUMatEl
+        USE SystemData , only : tUEG
         INTEGER :: a,b,c,i,j,a2,b2,c2,i2,j2,x,y,z,w
         INTEGER :: Startab,Endab,NoOcc,NoOccC,Startc,Endc,Starti,Endi,Startj,Endj
         REAL*8 :: MP2VDMSum
         CHARACTER(len=*), PARAMETER :: this_routine='FillMP2VDM'
+        TYPE(HElement) :: HEl01,HEl02
 
 ! Calculating the MP2VDM (D2_ab) matrix whose eigenvectors become the transformation matrix.        
 ! This goes in the natural orbital matrix of this module.
@@ -690,7 +694,19 @@ MODULE NatOrbsMod
                                         do j2=Startj,Endj
                                             j=SymLabelList2(j2)
 
-                                            IF(tStoreSpinOrbs) THEN
+                                            IF(tUEG) THEN
+                                                HEl01=GETUMATEL(nBasisMax,UMAT,ALAT,nBasis,iSpinSkip,G1,a,c,i,j)
+                                                HEl02=GETUMATEL(nBasisMax,UMAT,ALAT,nBasis,iSpinSkip,G1,b,c,i,j)
+                                                MP2VDMSum=MP2VDMSum+&
+                                                            &(( (REAL(HEl01%v,8)) * (2.D0*(REAL(HEl02%v,8))) )/&
+                                                            &( (ARR(2*i,2)+ARR(2*j,2)-ARR(2*a,2)-ARR(2*c,2)) * (ARR(2*i,2)+ARR(2*j,2)-ARR(2*b,2)-ARR(2*c,2)) ) )
+
+                                                HEl02=GETUMATEL(nBasisMax,UMAT,ALAT,nBasis,iSpinSkip,G1,c,b,i,j)
+                                                MP2VDMSum=MP2VDMSum-&                                            
+                                                            &(( (REAL(HEl01%v,8)) * (REAL(HEl02%v,8)) )/&
+                                                            &( (ARR(2*i,2)+ARR(2*j,2)-ARR(2*a,2)-ARR(2*c,2)) * (ARR(2*i,2)+ARR(2*j,2)-ARR(2*c,2)-ARR(2*b,2)) ) )
+ 
+                                            ELSEIF(tStoreSpinOrbs) THEN
                                                 IF((ARR(i,2)+ARR(j,2)-ARR(a,2)-ARR(c,2)).eq.0.D0) THEN
                                                     IF((REAL(UMAT(UMatInd(a,c,i,j,0,0))%v,8)).ne.0.D0) THEN
                                                         WRITE(6,*) i,j,a,c,REAL(UMAT(UMatInd(a,c,i,j,0,0))%v,8)
@@ -712,6 +728,7 @@ MODULE NatOrbsMod
                                                             &(( (REAL(UMAT(UMatInd(a,c,i,j,0,0))%v,8)) * (REAL(UMAT(UMatInd(c,b,i,j,0,0))%v,8)) )/&
                                                             &( (ARR(2*i,2)+ARR(2*j,2)-ARR(2*a,2)-ARR(2*c,2)) * (ARR(2*i,2)+ARR(2*j,2)-ARR(2*c,2)-ARR(2*b,2)) ) )
                                             ENDIF
+ 
                                         enddo
                                     enddo
                                 enddo
