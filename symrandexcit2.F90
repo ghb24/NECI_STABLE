@@ -41,7 +41,7 @@ MODULE GenRandSymExcitNUMod
     INTEGER , ALLOCATABLE :: SymLabelList2(:,:),SymLabelCounts2(:,:,:)
     INTEGER :: MaxABPairs
     LOGICAL :: tNoSingsPossible
-    INTEGER :: ScratchSize          !This indicates the upper bound of the arrays needed for the excitation generation. The array bounds are 0:ScratchSize.
+    INTEGER :: ScratchSize          !This indicates the upper bound of the arrays needed for the excitation generation. The array bounds are ScratchSize.
 
     contains
 
@@ -131,13 +131,13 @@ MODULE GenRandSymExcitNUMod
 
         IF(tFixLz) THEN
 !Calculate the upper array bound for the ClassCount2 arrays. This will be dependant on the number of symmetries needed.
-            ScratchSize=nSymLabels-1
+            ScratchSize=2*nSymLabels
         ELSE
-            ScratchSize=nSymLabels-1
+            ScratchSize=2*nSymLabels
         ENDIF
 
         IF(tNoSymGenRandExcits) THEN
-            ScratchSize=1
+            ScratchSize=2
         ENDIF
 
     END SUBROUTINE SpinOrbSymSetup
@@ -151,8 +151,8 @@ MODULE GenRandSymExcitNUMod
 !The two arrays want to be integers, both of size (2,1:nSymLabels)
     SUBROUTINE GenRandSymExcitScratchNU(nI,iLut,nJ,pDoub,IC,ExcitMat,tParity,exFlag,pGen,ClassCount2,ClassCountUnocc2,tFilled)
         INTEGER :: nI(NEl),nJ(NEl),IC,ExcitMat(2,2),Attempts,exFlag
-        INTEGER :: ClassCount2(0:ScratchSize),ElecsWNoExcits
-        INTEGER :: ClassCountUnocc2(0:ScratchSize)
+        INTEGER :: ClassCount2(ScratchSize),ElecsWNoExcits
+        INTEGER :: ClassCountUnocc2(ScratchSize)
         INTEGER :: ILUT(0:NIfD),i!,DetSym
 !        INTEGER , SAVE :: Iter=0
         LOGICAL :: tNoSuccess,tParity,tFilled
@@ -256,8 +256,8 @@ MODULE GenRandSymExcitNUMod
 
     SUBROUTINE GenRandSymExcitNU(nI,iLut,nJ,pDoub,IC,ExcitMat,TParity,exFlag,pGen)
         INTEGER :: nI(NEl),nJ(NEl),IC,ExcitMat(2,2),Attempts,exFlag
-        INTEGER :: ClassCount2(0:ScratchSize),ElecsWNoExcits
-        INTEGER :: ClassCountUnocc2(0:ScratchSize)
+        INTEGER :: ClassCount2(ScratchSize),ElecsWNoExcits
+        INTEGER :: ClassCountUnocc2(ScratchSize)
         INTEGER :: ILUT(0:NIfD),i
         LOGICAL :: tNoSuccess,tParity
         REAL*8 :: pDoub,pGen,r
@@ -352,8 +352,8 @@ MODULE GenRandSymExcitNUMod
 
     SUBROUTINE CreateDoubExcit(nI,nJ,ClassCount2,ClassCountUnocc2,ILUT,ExcitMat,tParity,pGen)
         INTEGER :: nI(NEl),nJ(NEl),ExcitMat(2,2),NExcitOtherWay,OrbB
-        INTEGER :: ClassCount2(0:ScratchSize)
-        INTEGER :: ClassCountUnocc2(0:ScratchSize)
+        INTEGER :: ClassCount2(ScratchSize)
+        INTEGER :: ClassCountUnocc2(ScratchSize)
         INTEGER :: ILUT(0:NIfD),NExcitB,SpinOrbA,OrbA,SymB,NExcitA
         INTEGER :: Elec1Ind,Elec2Ind,SymProduct,iSpn,ForbiddenOrbs,SymA
         REAL*8 :: pGen
@@ -432,7 +432,7 @@ MODULE GenRandSymExcitNUMod
         INTEGER :: nI(NEl),iSpn,SpinOrbA,OrbA,SymB,NExcit,SymProduct,NExcitOtherWay
         INTEGER :: OrbB,Attempts,SpinOrbB,ChosenUnocc
         INTEGER :: ILUT(0:NIfD),SymA,nOrbs,z,i
-        INTEGER :: ClassCountUnocc2(0:ScratchSize)
+        INTEGER :: ClassCountUnocc2(ScratchSize)
         REAL*8 :: r
 
 !We want to calculate the number of possible B's given the symmetry and spin it has to be since we have already picked A.
@@ -573,7 +573,7 @@ MODULE GenRandSymExcitNUMod
 
 !This routine does the same as the FindNumForbiddenOrbs routine, but is optimised for when there are no spatial symmetry considerations.    
     SUBROUTINE FindNumForbiddenOrbsNoSym(ForbiddenOrbs,ClassCountUnocc2,iSpn)
-        INTEGER :: ClassCountUnocc2(0:ScratchSize)
+        INTEGER :: ClassCountUnocc2(ScratchSize)
         INTEGER :: ForbiddenOrbs,SymProduct,iSpn,i,ConjSym
 
 !We know that all orbitals are totally symmetric, and that the symproduct=0
@@ -607,7 +607,7 @@ MODULE GenRandSymExcitNUMod
 !This routine finds the number of orbitals which are allowed by spin, but not part of any spatial symmetry allowed unoccupied pairs.
 !This number is needed for the correct normalisation of the probability of drawing any given A orbital since these can be chucked and redrawn.
     SUBROUTINE FindNumForbiddenOrbs(ForbiddenOrbs,ClassCountUnocc2,SymProduct,iSpn)
-        INTEGER :: ClassCountUnocc2(0:ScratchSize)
+        INTEGER :: ClassCountUnocc2(ScratchSize)
         INTEGER :: ForbiddenOrbs,SymProduct,iSpn,i,ConjSym
 
         ForbiddenOrbs=0
@@ -688,7 +688,7 @@ MODULE GenRandSymExcitNUMod
         INTEGER :: nI(NEl),iSpn,Elec1Ind,Elec2Ind,SpinOrbA,AttemptsOverall,SymA
         INTEGER :: NExcit,ChosenUnocc,z,i,OrbA,Attempts,SymB,SymProduct
         INTEGER :: ILUT(0:NIfD)
-        INTEGER :: ClassCountUnocc2(0:ScratchSize)
+        INTEGER :: ClassCountUnocc2(ScratchSize)
         REAL*8 :: r
 
         IF(iSpn.eq.2) THEN
@@ -1018,7 +1018,7 @@ MODULE GenRandSymExcitNUMod
     END SUBROUTINE PickElecPair
 
     SUBROUTINE CheckIfSingleExcits(ElecsWNoExcits,ClassCount2,ClassCountUnocc2)
-        INTEGER :: ElecsWNoExcits,ClassCount2(0:ScratchSize),ClassCountUnocc2(0:ScratchSize),i
+        INTEGER :: ElecsWNoExcits,ClassCount2(ScratchSize),ClassCountUnocc2(ScratchSize),i
 
 
 !First, we need to find out if there are any electrons which have no possible excitations. This is because these will need to be redrawn and so 
@@ -1070,8 +1070,8 @@ MODULE GenRandSymExcitNUMod
         INTEGER :: ElecsWNoExcits,i,Attempts,nOrbs,z,Orb
         INTEGER :: Eleci,ElecSym,nI(NEl),nJ(NEl),NExcit,iSpn,ChosenUnocc
         INTEGER :: ExcitMat(2,2),ExcitLevel,iGetExcitLevel
-        INTEGER :: ClassCount2(0:ScratchSize)
-        INTEGER :: ClassCountUnocc2(0:ScratchSize)
+        INTEGER :: ClassCount2(ScratchSize)
+        INTEGER :: ClassCountUnocc2(ScratchSize)
         INTEGER :: ILUT(0:NIfD)
         REAL*8 :: r,pGen
         LOGICAL :: tParity,IsValidDet,SymAllowed
@@ -1279,8 +1279,8 @@ MODULE GenRandSymExcitNUMod
 
     SUBROUTINE ConstructClassCounts(nI,ClassCount2,ClassCountUnocc2)
         INTEGER :: i,nI(NEl)
-        INTEGER :: ClassCount2(0:ScratchSize)
-        INTEGER :: ClassCountUnocc2(0:ScratchSize)
+        INTEGER :: ClassCount2(ScratchSize)
+        INTEGER :: ClassCountUnocc2(ScratchSize)
 !        INTEGER :: Alph,Bet
 
 !        Alph=0
@@ -1340,6 +1340,12 @@ MODULE GenRandSymExcitNUMod
 
         ENDIF
 
+!        WRITE(6,*) nI(:)
+!        WRITE(6,*) "***"
+!        WRITE(6,*) ScratchSize
+!        WRITE(6,*) "***"
+!        WRITE(6,*) ClassCount2(:)
+
     END SUBROUTINE ConstructClassCounts
 
 
@@ -1352,8 +1358,8 @@ MODULE GenRandSymExcitNUMod
 !Therefore, make sure that they are at most double excitations of each other.
     SUBROUTINE CalcNonUniPGen(Ex,IC,ClassCount2,ClassCountUnocc2,pDoub,pGen)
         REAL*8 :: pDoub,pGen!,PabGivenij
-        INTEGER :: ClassCount2(0:ScratchSize),ForbiddenOrbs,SymA,SymB
-        INTEGER :: ClassCountUnocc2(0:ScratchSize),ElecsWNoExcits,i,NExcitOtherWay
+        INTEGER :: ClassCount2(ScratchSize),ForbiddenOrbs,SymA,SymB
+        INTEGER :: ClassCountUnocc2(ScratchSize),ElecsWNoExcits,i,NExcitOtherWay
         INTEGER :: SymProduct,OrbI,OrbJ,iSpn,NExcitA,NExcitB,IC,ElecSym,OrbA,OrbB,Ex(2,2)
             
         pDoubNew=pDoub
@@ -1598,8 +1604,8 @@ MODULE GenRandSymExcitNUMod
 
     SUBROUTINE CreateSingleExcitBiased(nI,nJ,iLut,ExcitMat,tParity,ElecsWNoExcits,nParts,WSign,Tau,iCreate)
         Use SystemData, only: FCoul
-        INTEGER :: ClassCount2(0:ScratchSize),i,Attempts,OrbA
-        INTEGER :: ClassCountUnocc2(0:ScratchSize)
+        INTEGER :: ClassCount2(ScratchSize),i,Attempts,OrbA
+        INTEGER :: ClassCountUnocc2(ScratchSize)
         INTEGER :: ElecsWNoExcits,nParts,WSign,iCreate,nI(NEl),nJ(NEl),iLut(0:NIfD)
         INTEGER :: ExcitMat(2,2),SpawnOrb(nBasis),Eleci,ElecSym,NExcit,VecInd,ispn,EndSymState,j
         REAL*8 :: Tau,SpawnProb(nBasis),NormProb,r,rat
@@ -2001,8 +2007,8 @@ SUBROUTINE TestGenRandSymExcitNU(nI,Iterations,pDoub,exFlag)
     IMPLICIT NONE
     INTEGER :: i,Iterations,exFlag,nI(NEl),nJ(NEl),IC,ExcitMat(2,2),DetConn
     REAL*8 :: pDoub,pGen
-    INTEGER :: ClassCount2(0:ScratchSize),iLut(0:nBasis/32)
-    INTEGER :: ClassCountUnocc2(0:ScratchSize)
+    INTEGER :: ClassCount2(ScratchSize),iLut(0:nBasis/32)
+    INTEGER :: ClassCountUnocc2(ScratchSize)
     LOGICAL :: tParity,SymAllowed
     REAL*8 , ALLOCATABLE :: DoublesHist(:,:,:,:),SinglesHist(:,:)
     INTEGER , ALLOCATABLE :: EXCITGEN(:)

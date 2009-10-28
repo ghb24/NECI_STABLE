@@ -214,7 +214,7 @@ MODULE FciMCParMod
         INTEGER :: nJ(NEl),ierr,IC,Child,DetCurr(NEl),iLutnJ(0:NIfD)
         REAL*8 :: Prob,rat,HDiagCurr
         INTEGER :: iDie,WalkExcitLevel,Proc
-        INTEGER :: ExcitLevel,TotWalkersNew,iGetExcitLevel_2,Ex(2,2),WSign,p,Scratch1(0:ScratchSize),Scratch2(0:ScratchSize)
+        INTEGER :: ExcitLevel,TotWalkersNew,iGetExcitLevel_2,Ex(2,2),WSign,p,Scratch1(ScratchSize),Scratch2(ScratchSize)
         LOGICAL :: tParity,tFilled
 
         IF(TDebug.and.(mod(Iter,10).eq.0)) THEN
@@ -435,7 +435,7 @@ MODULE FciMCParMod
         INTEGER :: nJ(NEl),ierr,IC,Child,iCount,DetCurr(NEl),iLutnJ(0:NIfD),NoMinorWalkersNew
         REAL*8 :: Prob,rat,HDiag,HDiagCurr
         INTEGER :: iDie,WalkExcitLevel,Proc             !Indicated whether a particle should self-destruct on DetCurr
-        INTEGER :: ExcitLevel,TotWalkersNew,iGetExcitLevel_2,error,length,temp,Ex(2,2),WSign,p,Scratch1(0:ScratchSize),Scratch2(0:ScratchSize),FDetSym,FDetSpin
+        INTEGER :: ExcitLevel,TotWalkersNew,iGetExcitLevel_2,error,length,temp,Ex(2,2),WSign,p,Scratch1(ScratchSize),Scratch2(ScratchSize),FDetSym,FDetSpin
         LOGICAL :: tParity,DetBitEQ,tMainArr,tFilled,tCheckStarGenDet,tStarDet,tMinorDetList,tAnnihilateMinorTemp,tAnnihilateMinor,TestClosedShellDet
         INTEGER(KIND=i2) :: HashTemp
         TYPE(HElement) :: HDiagTemp
@@ -606,7 +606,7 @@ MODULE FciMCParMod
                 IF(tPrintTriConnections) CALL FindTriConnections(DetCurr,CurrentDets(:,j),iLutHF,nJ,IC,Ex,pDoubles,tFilled,tParity,Scratch1,Scratch2,exflag)
 
 !Calculate number of children to spawn
-                IF(TTruncSpace.or.tTruncCAS.or.tListDets.or.tPartFreezeCore.or.tFixLz) THEN
+                IF(TTruncSpace.or.tTruncCAS.or.tListDets.or.tPartFreezeCore.or.tFixLz.or.tUEG) THEN
 !We have truncated the excitation space at a given excitation level. See if the spawn should be allowed.
                     IF(tImportanceSample) CALL Stop_All("PerformFCIMCyc","Truncated calculations not yet working with importance sampling")
 
@@ -4277,7 +4277,7 @@ MODULE FciMCParMod
         INTEGER :: nJ(NEl),ierr,IC,Child,iCount,DetCurr(NEl),iLutnJ(0:NIfD)
         REAL*8 :: Prob,rat,HDiag,HDiagCurr,r,HSum
         INTEGER :: iDie,WalkExcitLevel,iMaxExcit,ExcitLength,PartInd,iExcit
-        INTEGER :: ExcitLevel,TotWalkersNew,iGetExcitLevel_2,error,length,temp,Ex(2,2),WSign,p,Scratch1(0:ScratchSize),Scratch2(0:ScratchSize)
+        INTEGER :: ExcitLevel,TotWalkersNew,iGetExcitLevel_2,error,length,temp,Ex(2,2),WSign,p,Scratch1(ScratchSize),Scratch2(ScratchSize)
         LOGICAL :: tParity,DetBitEQ,tMainArr,tFilled,tSuccess,tMinorDetList
         TYPE(HElement) :: HDiagTemp,HElemTemp
         INTEGER , ALLOCATABLE :: ExcitGenTemp(:)
@@ -8224,7 +8224,7 @@ MODULE FciMCParMod
 !This is a list of options which cannot be used with the stripped-down spawning routine. New options not added to this routine should be put in this list.
         IF(tHighExcitsSing.or.tHistSpawn.or.tRegenDiagHEls.or.tFindGroundDet.or.tStarOrbs.or.tResumFCIMC.or.tSpawnAsDet.or.tImportanceSample    &
      &      .or.(.not.tRegenExcitgens).or.(.not.tNonUniRandExcits).or.(.not.tDirectAnnihil).or.tMinorDetsStar.or.tSpawnDominant.or.(DiagSft.gt.0.D0).or.   &
-     &      tPrintTriConnections.or.tHistTriConHEls.or.tCalcFCIMCPsi.or.tTruncCAS.or.tListDets.or.tPartFreezeCore.or.tFixLz) THEN
+     &      tPrintTriConnections.or.tHistTriConHEls.or.tCalcFCIMCPsi.or.tTruncCAS.or.tListDets.or.tPartFreezeCore.or.tFixLz.or.tUEG) THEN
             WRITE(6,*) "It is not possible to use to clean spawning routine..."
         ELSE
             WRITE(6,*) "Clean spawning routine in use..."
@@ -8633,12 +8633,13 @@ MODULE FciMCParMod
 !Check to see if this is an allowed excitation
 !by summing kx, ky and kz to zero over all the electrons.
             do i=1,NEl
+                kx=0
+                ky=0
+                kz=0
                 kx=kx+G1(nJ(i))%k(1)
                 ky=ky+G1(nJ(i))%k(2)
                 kz=kz+G1(nJ(i))%k(3)
-                if( (kx.eq.0) .and. (ky.eq.0) .and. (kz.eq.0) ) then
-                    CheckAllowedTruncSpawn=.true.
-                else
+                if( .not.((kx.eq.0) .and. (ky.eq.0) .and. (kz.eq.0)) ) then
                     CheckAllowedTruncSpawn=.false.
                 endif
             enddo
@@ -8762,7 +8763,6 @@ MODULE FciMCParMod
             exflag=3
             CALL CountExcitations3(HFDet,exflag,nSing,nDoub)
             iTotal=nSing+nDoub
-
 
         ELSE
 

@@ -8,7 +8,7 @@ MODULE HPHFRandExcitMod
     use SystemData, only: nEl,tMerTwist,NIfD
     use SymData, only: nSymLabels
     use mt95 , only : genrand_real2
-    use GenRandSymExcitNUMod , only : GenRandSymExcitScratchNU,ConstructClassCounts,CalcNonUniPGen 
+    use GenRandSymExcitNUMod , only : GenRandSymExcitScratchNU,ConstructClassCounts,CalcNonUniPGen,ScratchSize 
     use HElem
     IMPLICIT NONE
 !    SAVE
@@ -21,8 +21,8 @@ MODULE HPHFRandExcitMod
         INTEGER :: nI(NEl),iLutnI(0:NIfD),iLutnJ(0:NIfD),nJ(NEl),exFlag,ExcitMat(2,2),IC
         INTEGER :: iLutnJ2(0:NIfD),nI2(NEl),nJ2(NEl),Ex2(2,2),ExcitLevel,iLutnI2(0:NIfD)
         REAL*8 :: pDoub,pGen,r,pGen2
-        INTEGER :: ClassCount2(2,0:nSymLabels-1),ClassCount3(2,0:nSymLabels-1)
-        INTEGER :: ClassCountUnocc2(2,0:nSymLabels-1),ClassCountUnocc3(2,0:nSymLabels-1)
+        INTEGER :: ClassCount2(ScratchSize),ClassCount3(ScratchSize)
+        INTEGER :: ClassCountUnocc2(ScratchSize),ClassCountUnocc3(ScratchSize)
         LOGICAL :: tGenClassCountnI,tGenClassCountnI2,TestClosedShellDet,tParity,tSign,tSwapped
 
 !        Count=Count+1
@@ -168,8 +168,8 @@ MODULE HPHFRandExcitMod
         INTEGER :: iLutnJ2(0:NIfD),nJ2(NEl),Ex2(2,2),ExcitLevel,OpenOrbsI,OpenOrbsJ,nI2(NEl),iLutnI2(0:NIfD)!,IC1
         REAL*8 :: pDoub,pGen,pGen2
         TYPE(HElement) :: MatEl,MatEl2!,MatEl3
-        INTEGER :: ClassCount2(2,0:nSymLabels-1)
-        INTEGER :: ClassCountUnocc2(2,0:nSymLabels-1)
+        INTEGER :: ClassCount2(ScratchSize)
+        INTEGER :: ClassCountUnocc2(ScratchSize)
         LOGICAL :: tGenClassCountnI,TestClosedShellDet,tSign,tSignOrig,tGenMatEl,tSwapped
 
 !        Count=Count+1
@@ -506,8 +506,8 @@ MODULE HPHFRandExcitMod
     SUBROUTINE TestGenRandHPHFExcit(nI,Iterations,pDoub)
         Use SystemData , only : NEl,nBasis,G1,nBasisMax,NIfD
         IMPLICIT NONE
-        INTEGER :: ClassCount2(2,0:nSymLabels-1),nIX(NEl)
-        INTEGER :: ClassCountUnocc2(2,0:nSymLabels-1)
+        INTEGER :: ClassCount2(ScratchSize),nIX(NEl)
+        INTEGER :: ClassCountUnocc2(ScratchSize)
         INTEGER :: i,Iterations,nI(NEl),nJ(NEl),DetConn,nI2(NEl),nJ2(NEl),DetConn2,iUniqueHPHF,iUniqueBeta,PartInd,ierr,iExcit
         REAL*8 :: pDoub,pGen
         LOGICAL :: Unique,TestClosedShellDet,DetBitEQ,Die,tGenClassCountnI,tSwapped
