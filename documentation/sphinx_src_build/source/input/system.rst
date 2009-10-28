@@ -603,4 +603,8 @@ Additional options:
     **ROTATEVIRTONLY**
         This option allows mixing amongst the virtual orbitals only.
 
+**USEHFORBS**
+    This is mostly used for debugging as it just uses the identity matrix to 'transform' the HF orbitals.
+    Can be compared to original HF results.
+
 Note: With this method come logging options **ROFCIDUMP**, **ROHISTOGRAM**, and **ERHISTOGRAM**.

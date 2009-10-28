@@ -11,6 +11,7 @@ MODULE Logging
     LOGICAL TZeroProjE,TWriteDetE,TAutoCorr,tBinPops,tROHistogramAll,tROHistER,tHistSpawn,tROHistSingExc,tRoHistOneElInts
     LOGICAL tROHistVirtCoulomb,tPrintInts,tHistEnergies,tPrintTriConnections,tHistTriConHEls,tPrintHElAccept,tTruncRODump
     LOGICAL tPrintFCIMCPsi,tCalcFCIMCPsi,tPrintSpinCoupHEl,tIterStartBlock,tHFPopStartBlock,tInitShiftBlocking,tTruncDumpbyVal
+    LOGICAL tWriteTransMat
     INTEGER NoACDets(2:4),iPopsPartEvery,iWriteHistEvery,iNoBins,NoTriConBins,NoTriConHElBins,NHistEquilSteps
     INTEGER CCMCDebug !CCMC Debugging Level 0-6.  Default 0
     INTEGER IterStartBlocking,HFPopStartBlocking,NoDumpTruncs,NoTruncOrbsTag,TruncEvaluesTag
@@ -83,6 +84,7 @@ MODULE Logging
       HFPopStartBlocking=100
       tInitShiftBlocking=.true.
       NoDumpTruncs=0
+      tWriteTransMat=.false.
 
 
 ! Feb08 defaults
@@ -200,6 +202,14 @@ MODULE Logging
             do i=1,NoDumpTruncs
                 call readf(TruncEvalues(i))
             enddo
+
+        case("WRITETRANSFORMMAT")
+!This option writes out the transformation matrix used to convert the HF orbitals into the natural orbitals.  This can then be read into
+!QChem to produce the natural orbital cube files and then visualise them using VMD.  Note : Currently, because of Fortran 90's weird dealings
+!with writing and reading binary - this option is only compatible with QChem if the code is compiled using PGI - this will be fixed at 
+!some stage.  Also - QChem INTDUMP files must be used to be compatible.  
+            tWriteTransMat=.true.
+
 
         case("ROHISTOGRAMALL")
 !This option goes with the orbital rotation routine.  If this keyword is included, all possible histograms are included.

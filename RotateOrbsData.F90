@@ -11,7 +11,8 @@ MODULE RotateOrbsData
 ! These are the labelling arrays which allow us to separate the occupied and virtual orbitals, mix all together, use spin or spatial 
 ! orbitals and maitain symmetry etc.
     INTEGER , ALLOCATABLE :: SymLabelList2(:),SymLabelCounts2(:,:),SymLabelListInv(:),SymLabelList3(:),SymOrbs(:)
-    INTEGER :: SymLabelList2Tag,SymLabelCounts2Tag,SymLabelListInvTag,SymLabelList3Tag,SymOrbsTag
+    INTEGER :: SymLabelList2Tag,SymLabelCounts2Tag,SymLabelListInvTag,SymLabelList3Tag,SymOrbsTag,EvaluesTruncTag
+    REAL*8 , ALLOCATABLE :: EvaluesTrunc(:)
 
 ! NoOrbs is either nBasis or SpatOrbs depending on whether we are using spin or spatial orbitals.    
     INTEGER :: NoOrbs,SpatOrbs,NoFrozenVirt,NoRotOrbs
