@@ -624,6 +624,7 @@ MODULE NatOrbsMod
                     b=SymLabelList2(b2)
 
                     MP2VDMSum=0.D0
+!                    WRITE(6,*) 'a',a,'b',b,'a2',a2,'b2',b2
 
                     ! when a and b beta, run over both alpha and beta virtual for c, then both alpha and beta virtual for both i and j etc. 
 
@@ -1104,11 +1105,10 @@ MODULE NatOrbsMod
 
 
     SUBROUTINE FillCoeffT1
-        USE RotateOrbsData , only : CoeffT1,SymLabelList3,SymOrbs,SymOrbsTag,TruncEval,NoRotOrbs
+        USE RotateOrbsData , only : CoeffT1,SymLabelList3,SymOrbs,SymOrbsTag,TruncEval,NoRotOrbs,EvaluesTrunc,EvaluesTruncTag
         USE Logging , only : tTruncRODump,tTruncDumpbyVal
         IMPLICIT NONE
         INTEGER :: k,i,j,NoRotAlphBet,SymFirst
-        REAL*8 :: EvaluesTrunc(NoOrbs-NoFrozenVirt)
         CHARACTER(len=*), PARAMETER :: this_routine='FillCoeffT1'
         CHARACTER(len=5) :: Label
         CHARACTER(len=20) :: LabelFull
@@ -1142,6 +1142,8 @@ MODULE NatOrbsMod
             CALL LogMemAlloc('SymOrbs',NoOrbs,4,this_routine,SymOrbsTag,ierr)
             SymOrbs(:)=0
 
+            ALLOCATE(EvaluesTrunc(NoOrbs-NoFrozenVirt),stat=ierr)
+            CALL LogMemAlloc('EvaluesTrunc',NoOrbs-NoFrozenVirt,4,this_routine,EvaluesTruncTag,ierr)
             EvaluesTrunc(:)=0.D0
 
             IF(tStoreSpinOrbs) THEN
@@ -1335,6 +1337,8 @@ MODULE NatOrbsMod
 
 
     SUBROUTINE HistNatOrbEvalues()
+        USE Logging , only : tTruncRODump
+        USE RotateOrbsData , only : CoeffT1,EvaluesTrunc
         IMPLICIT NONE
         INTEGER :: i,k,x,NoEvalues,a,b,NoOcc
         REAL*8 :: EvaluesCount(NoOrbs,2),OrbEnergies(1:NoOrbs),EvalueEnergies(1:NoOrbs)
@@ -1434,14 +1438,18 @@ MODULE NatOrbsMod
             ELSE
                 SumEvalues=SumEvalues+(2*Evalues(i))
             ENDIF
-            EvalueEnergies(i)=Evalues(i)
+            IF(tTruncRODump) THEN
+                EvalueEnergies(i)=EvaluesTrunc(i)
+            ELSE
+                EvalueEnergies(i)=Evalues(i)
+            ENDIF
 ! We are only interested in the diagonal elements.            
             do a=1,NoOrbs
                 b=SymLabelList2(a)
                 IF(tStoreSpinOrbs) THEN
-                    OrbEnergies(i)=OrbEnergies(i)+(NatOrbMat(a,i)*ARR(b,2)*NatOrbMat(a,i))
+                    OrbEnergies(i)=OrbEnergies(i)+(CoeffT1(a,i)*ARR(b,2)*CoeffT1(a,i))
                 ELSE
-                    OrbEnergies(i)=OrbEnergies(i)+(NatOrbMat(a,i)*ARR(2*b,2)*NatOrbMat(a,i))
+                    OrbEnergies(i)=OrbEnergies(i)+(CoeffT1(a,i)*ARR(2*b,2)*CoeffT1(a,i))
                 ENDIF
             enddo
         enddo
@@ -1469,18 +1477,35 @@ MODULE NatOrbsMod
         CLOSE(73)
         CALL FLUSH(6)
 
+        CALL PrintOccTable()
+
+
+    END SUBROUTINE HistNatOrbEvalues
+
+
+    SUBROUTINE PrintOccTable()
+        USE Logging , only : tTruncRODump
+        USE RotateOrbsData , only : CoeffT1,EvaluesTrunc
+        USE SystemData , only : tUseHFOrbs
+        INTEGER x,i,a,b
 
         OPEN(73,FILE='OccupationTable',status='unknown')
         x=1
         do while (x.le.NoOrbs)
             WRITE(73,'(A16,A5)',advance='no') 'HF Orb En    ','Sym'
-            do i=x,x+9
-                IF(i.gt.NoOrbs) THEN
-                    WRITE(73,*) ''
-                    EXIT
-                ENDIF
-                WRITE(73,'(ES16.6)',advance='no') Evalues(i)
-            enddo
+            IF(.not.tUseHFOrbs) THEN
+                do i=x,x+9
+                    IF(i.gt.NoOrbs) THEN
+                        WRITE(73,*) ''
+                        EXIT
+                    ENDIF
+                    IF(tTruncRODump) THEN
+                        WRITE(73,'(ES16.6)',advance='no') EvaluesTrunc(i)
+                    ELSE
+                        WRITE(73,'(ES16.6)',advance='no') Evalues(i)
+                    ENDIF
+                enddo
+            ENDIF
             WRITE(73,*) ''
 
             do a=1,NoOrbs
@@ -1495,7 +1520,8 @@ MODULE NatOrbsMod
                         WRITE(73,*) ''
                         EXIT
                     ENDIF
-                    WRITE(73,'(F16.10)',advance='no') NatOrbMat(b,i)
+!                    WRITE(73,'(F16.10)',advance='no') NatOrbMat(b,i)
+                    WRITE(73,'(F16.10)',advance='no') CoeffT1(b,i)
                 enddo
                 WRITE(73,*) ''
             enddo
@@ -1507,7 +1533,7 @@ MODULE NatOrbsMod
         CALL FLUSH(6)
         
 
-    END SUBROUTINE HistNatOrbEvalues
+    END SUBROUTINE PrintOccTable
 
 
 
