@@ -214,7 +214,7 @@ MODULE FciMCParMod
         INTEGER :: nJ(NEl),ierr,IC,Child,DetCurr(NEl),iLutnJ(0:NIfD)
         REAL*8 :: Prob,rat,HDiagCurr
         INTEGER :: iDie,WalkExcitLevel,Proc
-        INTEGER :: ExcitLevel,TotWalkersNew,iGetExcitLevel_2,Ex(2,2),WSign,p,Scratch1(0:ScratchSize),Scratch2(0:ScratchSize)
+        INTEGER :: ExcitLevel,TotWalkersNew,iGetExcitLevel_2,Ex(2,2),WSign,p,Scratch1(ScratchSize),Scratch2(ScratchSize)
         LOGICAL :: tParity,tFilled
 
         IF(TDebug.and.(mod(Iter,10).eq.0)) THEN
@@ -435,7 +435,7 @@ MODULE FciMCParMod
         INTEGER :: nJ(NEl),ierr,IC,Child,iCount,DetCurr(NEl),iLutnJ(0:NIfD),NoMinorWalkersNew
         REAL*8 :: Prob,rat,HDiag,HDiagCurr
         INTEGER :: iDie,WalkExcitLevel,Proc             !Indicated whether a particle should self-destruct on DetCurr
-        INTEGER :: ExcitLevel,TotWalkersNew,iGetExcitLevel_2,error,length,temp,Ex(2,2),WSign,p,Scratch1(0:ScratchSize),Scratch2(0:ScratchSize),FDetSym,FDetSpin
+        INTEGER :: ExcitLevel,TotWalkersNew,iGetExcitLevel_2,error,length,temp,Ex(2,2),WSign,p,Scratch1(ScratchSize),Scratch2(ScratchSize),FDetSym,FDetSpin
         LOGICAL :: tParity,DetBitEQ,tMainArr,tFilled,tCheckStarGenDet,tStarDet,tMinorDetList,tAnnihilateMinorTemp,tAnnihilateMinor,TestClosedShellDet
         INTEGER(KIND=i2) :: HashTemp
         TYPE(HElement) :: HDiagTemp
@@ -4277,7 +4277,7 @@ MODULE FciMCParMod
         INTEGER :: nJ(NEl),ierr,IC,Child,iCount,DetCurr(NEl),iLutnJ(0:NIfD)
         REAL*8 :: Prob,rat,HDiag,HDiagCurr,r,HSum
         INTEGER :: iDie,WalkExcitLevel,iMaxExcit,ExcitLength,PartInd,iExcit
-        INTEGER :: ExcitLevel,TotWalkersNew,iGetExcitLevel_2,error,length,temp,Ex(2,2),WSign,p,Scratch1(0:ScratchSize),Scratch2(0:ScratchSize)
+        INTEGER :: ExcitLevel,TotWalkersNew,iGetExcitLevel_2,error,length,temp,Ex(2,2),WSign,p,Scratch1(ScratchSize),Scratch2(ScratchSize)
         LOGICAL :: tParity,DetBitEQ,tMainArr,tFilled,tSuccess,tMinorDetList
         TYPE(HElement) :: HDiagTemp,HElemTemp
         INTEGER , ALLOCATABLE :: ExcitGenTemp(:)

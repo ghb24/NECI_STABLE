@@ -22,8 +22,8 @@ MODULE SymExcit3
         INTEGER :: nSingleExcits,nDoubleExcits,Symi,i,j,Spini,nI(NEl)
         INTEGER :: iSpn,Elec1Ind,Elec2Ind,SymProduct,exflag
         INTEGER :: Syma,Symb,Spina,Spinb,StartSpin,EndSpin
-        INTEGER :: ClassCount2(0:ScratchSize)
-        INTEGER :: ClassCountUnocc2(0:ScratchSize)
+        INTEGER :: ClassCount2(ScratchSize)
+        INTEGER :: ClassCountUnocc2(ScratchSize)
 
 
         CALL ConstructClassCounts(nI,ClassCount2,ClassCountUnocc2)
