@@ -131,9 +131,9 @@ MODULE GenRandSymExcitNUMod
 
         IF(tFixLz) THEN
 !Calculate the upper array bound for the ClassCount2 arrays. This will be dependant on the number of symmetries needed.
-            ScratchSize=nSymLabels-1
+            ScratchSize=2*nSymLabels-1
         ELSE
-            ScratchSize=nSymLabels-1
+            ScratchSize=2*nSymLabels-1
         ENDIF
 
         IF(tNoSymGenRandExcits) THEN
@@ -1340,6 +1340,12 @@ MODULE GenRandSymExcitNUMod
 
         ENDIF
 
+!        WRITE(6,*) nI(:)
+!        WRITE(6,*) "***"
+!        WRITE(6,*) ScratchSize
+!        WRITE(6,*) "***"
+!        WRITE(6,*) ClassCount2(:)
+
     END SUBROUTINE ConstructClassCounts
 
 
@@ -1508,11 +1514,11 @@ MODULE GenRandSymExcitNUMod
         INTEGER :: Spin,Sym,Mom
 
         IF(tFixLz) THEN
-            ClassCountInd=2*Sym+Spin
+            ClassCountInd=2*Sym+Spin-1
 
         ELSE
 
-            ClassCountInd=2*Sym+Spin
+            ClassCountInd=2*Sym+Spin-1
 
         ENDIF
 

@@ -18,12 +18,12 @@ MODULE SymExcit3
 ! only doubles, and anything else both are counted.
         USE SymData, only: nSymLabels
         USE SystemData , only: ElecPairs
-        USE GenRandSymExcitNUMod , only: PickElecPair,ConstructClassCounts 
+        USE GenRandSymExcitNUMod , only: PickElecPair,ConstructClassCounts,ClassCountInd,ScratchSize 
         INTEGER :: nSingleExcits,nDoubleExcits,Symi,i,j,Spini,nI(NEl)
         INTEGER :: iSpn,Elec1Ind,Elec2Ind,SymProduct,exflag
         INTEGER :: Syma,Symb,Spina,Spinb,StartSpin,EndSpin
-        INTEGER :: ClassCount2(2,0:nSymLabels-1)
-        INTEGER :: ClassCountUnocc2(2,0:nSymLabels-1)
+        INTEGER :: ClassCount2(0:ScratchSize)
+        INTEGER :: ClassCountUnocc2(0:ScratchSize)
 
 
         CALL ConstructClassCounts(nI,ClassCount2,ClassCountUnocc2)
@@ -49,7 +49,7 @@ MODULE SymExcit3
 ! This electron in orbital of SymI and SpinI can only be excited to orbitals with the same spin and symmetry.                
 ! Then add in the number of unoccupied orbitals with the same spin and symmetry to which each electron may be excited.
             
-                nSingleExcits=nSingleExcits+ClassCountUnocc2(Spini,Symi)
+                nSingleExcits=nSingleExcits+ClassCountUnocc2(ClassCountInd(Spini,Symi,0))
 
             enddo
         ENDIF
@@ -89,9 +89,9 @@ MODULE SymExcit3
                         IF((Spina.eq.Spinb).and.(Syma.eq.Symb)) THEN
                             ! If the spin and spatial symmetries of a and b are the same
                             ! there will exist a case where Orba = Orbb, want to remove this.
-                            nDoubleExcits=nDoubleExcits+(ClassCountUnocc2(Spina,Syma)*(ClassCountUnocc2(Spinb,Symb)-1))
+                            nDoubleExcits=nDoubleExcits+(ClassCountUnocc2(ClassCountInd(Spina,Syma,0))*(ClassCountUnocc2(ClassCountInd(Spinb,Symb,0))-1))
                         ELSE
-                            nDoubleExcits=nDoubleExcits+(ClassCountUnocc2(Spina,Syma)*ClassCountUnocc2(Spinb,Symb))
+                            nDoubleExcits=nDoubleExcits+(ClassCountUnocc2(ClassCountInd(Spina,Syma,0))*ClassCountUnocc2(ClassCountInd(Spinb,Symb,0)))
                         ENDIF
                     enddo
 

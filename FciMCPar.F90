@@ -606,7 +606,7 @@ MODULE FciMCParMod
                 IF(tPrintTriConnections) CALL FindTriConnections(DetCurr,CurrentDets(:,j),iLutHF,nJ,IC,Ex,pDoubles,tFilled,tParity,Scratch1,Scratch2,exflag)
 
 !Calculate number of children to spawn
-                IF(TTruncSpace.or.tTruncCAS.or.tListDets.or.tPartFreezeCore.or.tFixLz) THEN
+                IF(TTruncSpace.or.tTruncCAS.or.tListDets.or.tPartFreezeCore.or.tFixLz.or.tUEG) THEN
 !We have truncated the excitation space at a given excitation level. See if the spawn should be allowed.
                     IF(tImportanceSample) CALL Stop_All("PerformFCIMCyc","Truncated calculations not yet working with importance sampling")
 
@@ -8224,7 +8224,7 @@ MODULE FciMCParMod
 !This is a list of options which cannot be used with the stripped-down spawning routine. New options not added to this routine should be put in this list.
         IF(tHighExcitsSing.or.tHistSpawn.or.tRegenDiagHEls.or.tFindGroundDet.or.tStarOrbs.or.tResumFCIMC.or.tSpawnAsDet.or.tImportanceSample    &
      &      .or.(.not.tRegenExcitgens).or.(.not.tNonUniRandExcits).or.(.not.tDirectAnnihil).or.tMinorDetsStar.or.tSpawnDominant.or.(DiagSft.gt.0.D0).or.   &
-     &      tPrintTriConnections.or.tHistTriConHEls.or.tCalcFCIMCPsi.or.tTruncCAS.or.tListDets.or.tPartFreezeCore.or.tFixLz) THEN
+     &      tPrintTriConnections.or.tHistTriConHEls.or.tCalcFCIMCPsi.or.tTruncCAS.or.tListDets.or.tPartFreezeCore.or.tFixLz.or.tUEG) THEN
             WRITE(6,*) "It is not possible to use to clean spawning routine..."
         ELSE
             WRITE(6,*) "Clean spawning routine in use..."
@@ -8760,7 +8760,6 @@ MODULE FciMCParMod
             exflag=3
             CALL CountExcitations3(HFDet,exflag,nSing,nDoub)
             iTotal=nSing+nDoub
-
 
         ELSE
 
