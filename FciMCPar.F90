@@ -8636,9 +8636,7 @@ MODULE FciMCParMod
                 kx=kx+G1(nJ(i))%k(1)
                 ky=ky+G1(nJ(i))%k(2)
                 kz=kz+G1(nJ(i))%k(3)
-                if( (kx.eq.0) .and. (ky.eq.0) .and. (kz.eq.0) ) then
-                    CheckAllowedTruncSpawn=.true.
-                else
+                if( .not.((kx.eq.0) .and. (ky.eq.0) .and. (kz.eq.0)) ) then
                     CheckAllowedTruncSpawn=.false.
                 endif
             enddo
