@@ -8519,7 +8519,6 @@ MODULE FciMCParMod
     LOGICAL FUNCTION CheckAllowedTruncSpawn(WalkExcitLevel,nJ,iLutnJ,IC)
         INTEGER :: nJ(NEl),WalkExcitLevel,iLutnJ(0:NIfD),ExcitLevel,IC,iGetExcitLevel_2,i,NoInFrozenCore,TotalLz
         LOGICAL :: DetBitEQ
-
         INTEGER :: kx,ky,kz ! For UEG
 
         CheckAllowedTruncSpawn=.true.
@@ -8636,17 +8635,17 @@ MODULE FciMCParMod
         IF(tUEG) THEN
 !Check to see if this is an allowed excitation
 !by summing kx, ky and kz to zero over all the electrons.
+            kx=0
+            ky=0
+            kz=0
             do i=1,NEl
-                kx=0
-                ky=0
-                kz=0
                 kx=kx+G1(nJ(i))%k(1)
                 ky=ky+G1(nJ(i))%k(2)
                 kz=kz+G1(nJ(i))%k(3)
-                if( .not.((kx.eq.0) .and. (ky.eq.0) .and. (kz.eq.0)) ) then
-                    CheckAllowedTruncSpawn=.false.
-                endif
             enddo
+            if( .not.((kx.eq.0) .and. (ky.eq.0) .and. (kz.eq.0)) ) then
+                CheckAllowedTruncSpawn=.false.
+            endif
         ENDIF
 
 
@@ -8746,14 +8745,14 @@ MODULE FciMCParMod
         INTEGER :: HFConn,PosExcittypes,iTotal,i
         INTEGER :: nSing,nDoub,ExcitInd
 
-        IF(tHub) THEN
+        IF(tHub.or.tUEG) THEN
             IF(tReal) THEN
                 WRITE(6,*) "Since we are using a real-space hubbard model, only single excitations are connected."
                 WRITE(6,*) "Setting pDoub to 0.D0"
                 pDoubles=0.D0
                 RETURN
             ELSE
-                WRITE(6,*) "Since we are using a momentum-space hubbard model, only double excitaitons are connected."
+                WRITE(6,*) "Since we are using a momentum-space hubbard model/UEG, only double excitaitons are connected."
                 WRITE(6,*) "Setting pDoub to 1.D0"
                 pDoubles=1.D0
                 RETURN
