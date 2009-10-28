@@ -1515,11 +1515,8 @@ MODULE GenRandSymExcitNUMod
 
         IF(tFixLz) THEN
             ClassCountInd=2*Sym+Spin
-
         ELSE
-
             ClassCountInd=2*Sym+Spin
-
         ENDIF
 
     END FUNCTION ClassCountInd

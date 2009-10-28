@@ -7963,7 +7963,11 @@ MODULE FciMCParMod
             ENDIF
 
         ELSE
-            exflag=3
+            IF(tUEG.or.tHub) THEN
+                exflag=2
+            ELSE
+                exflag=3
+            ENDIF
 !Count all possible excitations - put into HFConn
             CALL CountExcitations3(HFDet,exflag,nSingles,nDoubles)
             HFConn=nSingles+nDoubles

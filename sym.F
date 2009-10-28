@@ -1940,11 +1940,11 @@ C.. Set to be totally symmetric
           ! symmetry or the standard symmetry.  It's just a matter of
           ! convenience, rather than some deep theoretical insight!
           use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
-          use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
+          use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB,tUEG
           use SymData, only: tAbelian
           implicit none
           Type(Symmetry) TotSymRep 
-          if (TAbelian) then
+          if (TAbelian.or.tUEG) then
               TotSymRep%s=0
           else
               TotSymRep%s=1
