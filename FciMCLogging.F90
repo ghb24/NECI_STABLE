@@ -11,7 +11,7 @@ MODULE FciMCLoggingMod
     USE SystemData , only : NEl,NIfD
     USE SymData , only : nSymLabels
     USE Determinants , only : GetHElement3,GetHElement4
-    use GenRandSymExcitNUMod , only : GenRandSymExcitScratchNU
+    use GenRandSymExcitNUMod , only : GenRandSymExcitScratchNU,ScratchSize
     USE CalcData , only : NMCyc,StepsSft
 
     IMPLICIT NONE
@@ -624,7 +624,7 @@ MODULE FciMCLoggingMod
 
     SUBROUTINE FindTriConnections(DetCurr,iLutnJ,iLutHF,nJ,IC,Ex,pDoubles,tFilled,tParity,Scratch1,Scratch2,exflag)
         TYPE(HElement) :: Hjk,Hij,Hik,HEl
-        INTEGER :: iLutnJ(0:NIfD),k,DetCurr(NEl),nJ(NEl),IC,Ex(2,2),Scratch1(2,nSymLabels),Scratch2(2,nSymLabels)
+        INTEGER :: iLutnJ(0:NIfD),k,DetCurr(NEl),nJ(NEl),IC,Ex(2,2),Scratch1(ScratchSize),Scratch2(ScratchSize)
         INTEGER :: nK(NEl),IC2,IC3,Ex2(2,2),iLutnJ2(0:NIfD),iLutnK(0:NIfD),BinNo,NoPos,NoNeg,ICgen,iLutHF(0:NIfD),exflag
         LOGICAL :: tParity2,DetsEqTri,tHF,DetBitEQ,tFilled,tParity
         REAL*8 :: Prob2,pDoubles
