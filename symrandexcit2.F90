@@ -1178,15 +1178,18 @@ MODULE GenRandSymExcitNUMod
                 ElecSym=0
             ELSE
                 ElecSym=INT((G1(nI(Eleci))%Sym%S),4)
+                IF(tFixLz) THEN
+                    ElecK=G1(nI(Eleci))%Ml
+                ENDIF
             ENDIF
 
             IF(G1(nI(Eleci))%Ms.eq.1) THEN
 !Alpha orbital - see how many single excitations there are from this electron...
-                NExcit=ClassCountUnocc2(ClassCountInd(1,ElecSym,0))
+                NExcit=ClassCountUnocc2(ClassCountInd(1,ElecSym,-ElecK))
                 iSpn=1
             ELSE
 !Beta orbital
-                NExcit=ClassCountUnocc2(ClassCountInd(2,ElecSym,0))
+                NExcit=ClassCountUnocc2(ClassCountInd(2,ElecSym,-ElecK))
                 iSpn=2
             ENDIF
 
@@ -1226,8 +1229,10 @@ MODULE GenRandSymExcitNUMod
                 nOrbs=nBasis/2
             ELSE
 !                nOrbs=SymLabelCounts(2,ElecSym+1)
-                nOrbs=SymLabelCounts2(iSpn,2,ElecSym+1)
+!                nOrbs=SymLabelCounts2(iSpn,2,ElecSym+1)
+                nOrbs=OrbClassCount(ClassCountInd(iSpn,ElecSym,-ElecK))
             ENDIF
+
             z=0     !z is the counter for the number of allowed unoccupied orbitals we have gone through
             do i=0,nOrbs-1
 !Find the spin orbital index. SymLabelCounts has the index of the state for the given symmetry.
