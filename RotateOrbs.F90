@@ -9,9 +9,9 @@ MODULE RotateOrbsMod
     USE SystemData , only : G1,ARR,NEl,nBasis,LMS,ECore,tSeparateOccVirt,Brr,nBasisMax,OrbOrder,lNoSymmetry,tRotatedOrbs,tERLocalization,tRotateOccOnly
     USE SystemData, only : tOffDiagMin,DiagWeight,OffDiagWeight,tRotateVirtOnly,tOffDiagSqrdMax,tOffDiagSqrdMin,tOffDiagMax,tDoubExcMin,tOneElIntMax,tOnePartOrbEnMax
     USE SystemData, only : tShakeDelay,ShakeStart,tVirtCoulombMax,tVirtExchangeMin,MaxMinFac,tMaxHLGap,tHijSqrdMin,OneElWeight,DiagMaxMinFac,OneElMaxMinFac
-    USE SystemData, only : tDiagonalizehij,tHFSingDoubExcMax,tSpinOrbs,tReadInCoeff,tUseMP2VarDenMat,tStoreSpinOrbs,tROHF,tFindCINatOrbs
+    USE SystemData, only : tDiagonalizehij,tHFSingDoubExcMax,tSpinOrbs,tReadInCoeff,tUseMP2VarDenMat,tStoreSpinOrbs,tROHF,tFindCINatOrbs,tUseHFOrbs,tUEG
     USE Logging , only : tROHistogramAll,tROFciDump,tROHistER,tROHistOffDiag,tROHistDoubExc,tROHistSingExc,tROHistOnePartOrbEn,tROHistOneElInts,tROHistVirtCoulomb
-    USE Logging , only : tPrintInts,tTruncRODump,NoTruncOrbs,NoDumpTruncs,tTruncDumpbyVal,TruncEvalues
+    USE Logging , only : tPrintInts,tTruncRODump,NoTruncOrbs,NoDumpTruncs,tTruncDumpbyVal,TruncEvalues,tWriteTransMat
     USE OneEInts , only : TMAT2D
     USE SymData , only : TwoCycleSymGens,SymLabelList,SymLabelCounts
     USE Timing , only : end_timing,print_timing_report
@@ -63,7 +63,7 @@ MODULE RotateOrbsMod
         IF(iProcIndex.eq.Root) THEN
 
 ! If we are reading in our own transformation matrix (coeffT1) don't need a lot of the initialisation stuff.
-            IF(tReadInCoeff.or.tUseMP2VarDenMat.or.tFindCINatOrbs) THEN
+            IF(tReadInCoeff.or.tUseMP2VarDenMat.or.tFindCINatOrbs.or.tUseHFOrbs) THEN
 
                 tNotConverged=.false.
                 CALL FindNatOrbitals()
@@ -137,7 +137,7 @@ MODULE RotateOrbsMod
 ! MP2VDM = D2_ab = sum_ijc [ t_ij^ac ( 2 t_ij^bc - t_ji^bc ) ]
 ! Where :  t_ij^ac = - < ab | ij > / ( E_a - E_i + E_b - Ej )
 ! Ref : J. Chem. Phys. 131, 034113 (2009) - note: in Eqn 1, the cb indices are the wrong way round (should be bc).
-        USE NatOrbsMod , only : SetUpNatOrbLabels,FindNatOrbs,FillCoeffT1,DeallocateNatOrbs
+        USE NatOrbsMod , only : SetUpNatOrbLabels,FindNatOrbs,FillCoeffT1,DeallocateNatOrbs,PrintOccTable
         INTEGER :: i,j,k,l,a,ierr,MinReadIn,MaxReadIn
         CHARACTER(len=*) , PARAMETER :: this_routine='FindNatOrbitals'
 
@@ -159,11 +159,13 @@ MODULE RotateOrbsMod
 
         IF(tTruncRODump.and.(.not.tTruncDumpbyVal)) THEN 
             NoFrozenVirt=NoTruncOrbs(1)
-        ELSE
+        ELSEIF(tTruncRODump) THEN
             ! If the 'number of frozen orbitals' is given as a cutoff - take NoFrozenVirt to be 0 for all the allocation purposes - will set this later when
             ! we have the eigenvalues and know how many orbitals lie below it.
             NoFrozenVirt=0
             TruncEval=TruncEvalues(1)
+        ELSE
+            NoFrozenVirt=0
         ENDIF
 
         SpatOrbs=nBasis/2
@@ -220,7 +222,7 @@ MODULE RotateOrbsMod
         SymLabelListInv(:)=0                     
 
 
-        IF(tReadInCoeff) THEN
+        IF(tReadInCoeff.or.tUseHFOrbs) THEN
 ! No symmetry, so no reordering of the orbitals - symlabellist just goes from 1-NoOrbs.        
 ! When we are just reading in the coefficients and transforming, it does not matter about the ordering of the orbitals.
             do i=1,NoOrbs
@@ -294,101 +296,118 @@ MODULE RotateOrbsMod
 !        ALLOCATE(FourIndInts(NoRotOrbs,NoRotOrbs,NoOrbs,NoOrbs),stat=ierr)
 !        CALL LogMemAlloc('FourIndInts',(NoOrbs**2)*(NoRotOrbs**2),8,this_routine,FourIndIntsTag,ierr)
 
+        ALLOCATE(CoeffT1(NoOrbs,NoRotOrbs),stat=ierr)
+        CALL LogMemAlloc(this_routine,NoRotOrbs*NoOrbs,8,this_routine,CoeffT1Tag,ierr)
+        CoeffT1(:,:)=0.D0
+        IF(tSeparateOccVirt) THEN
+            do i=1,NoRotOrbs
+                CoeffT1(i,i)=1.D0
+            enddo
+        ENDIF
 
-        IF(tReadInCoeff) THEN
 
-            ALLOCATE(CoeffT1(NoOrbs,NoRotOrbs),stat=ierr)
-            CALL LogMemAlloc(this_routine,NoRotOrbs*NoOrbs,8,this_routine,CoeffT1Tag,ierr)
-            CoeffT1(:,:)=0.D0
-            IF(tSeparateOccVirt) THEN
-                do i=1,NoRotOrbs
-                    CoeffT1(i,i)=1.D0
-                enddo
-            ENDIF
+        IF(tUEG) THEN
 
-            WRITE(6,*) "Reading in the transformation matrix from TRANSFORMMAT, and using this to rotate the HF orbitals."
-
-            OPEN(72,FILE='TRANSFORMMAT',status='old')
-            READ(72,*) CoeffT1
-            CLOSE(72)
-
-!            OPEN(78,FILE='TRANSFORMMATORIG',status='unknown')
-!            do i=1,NoOrbs
-!                do a=1,NoOrbs
-!                    WRITE(78,*) i,a,CoeffT1(i,a)
-!                enddo
-!            enddo
-!            stop
-
-        ELSEIF(tFindCINatOrbs.or.tUseMP2VarDenMat) THEN
-            
             CALL FindNatOrbs()
-            
-            ! Fill the coefficient matrix with the eigenvectors of the OneRDM.
-            ! Find out the ordering ...need to read in according to symlabellist2, so that the transformation is all o.k.
-            ! If both the HF and transformed indices are done this way, the symmetries and everything should be fine.
-!            do i=1,NoRotOrbs
-!                i2=SymLabelList2(i)
-!                do a=1,NoOrbs
-!                    a2=SymLabelList2(a)
-!                    Coeff(a,i)=OneRDM(a2,i2)
-!                enddo
-!            enddo
-            
-
-!        ELSEIF(tUseMP2VarDenMat) THEN
-! This bit generates the MP2 variational density matrix, and uses this as the transformation matrix (CoeffT1).        
-    
-!            WRITE(6,*) "Calculating the MP2 vartiational density matrix, and using this to rotate the HF orbitals."
-!            CALL CalcMP2VarDenMat()
-            
-
-            ALLOCATE(CoeffT1(NoOrbs,NoRotOrbs),stat=ierr)
-            CALL LogMemAlloc(this_routine,NoRotOrbs*NoOrbs,8,this_routine,CoeffT1Tag,ierr)
-            CoeffT1(:,:)=0.D0
-            IF(tSeparateOccVirt) THEN
-                do i=1,NoRotOrbs
-                    CoeffT1(i,i)=1.D0
-                enddo
-            ENDIF
 
             CALL FillCoeffT1()
 
+
+        ELSE
+            IF(tReadInCoeff) THEN
+
+                WRITE(6,'(A)') " Reading in the transformation matrix from TRANSFORMMAT, and using this to rotate the HF orbitals."
+
+!                OPEN(72,FILE='TRANSFORMMAT',status='old')
+!                READ(72,*) CoeffT1
+!                CLOSE(72)
+
+                OPEN(72,FILE='TRANSFORMMAT',status='old')
+                do i=1,NoOrbs
+                    do a=1,NoOrbs
+                        READ(72,*) CoeffT1(a,i)
+                    enddo
+                enddo
+                CLOSE(72)
+          
+!                OPEN(78,FILE='TRANSFORMMATORIG',status='unknown')
+!                do i=1,NoOrbs
+!                    do a=1,NoOrbs
+!                        WRITE(78,*) i,a,CoeffT1(i,a)
+!                    enddo
+!                enddo
+!                stop
+
+            ELSEIF(tFindCINatOrbs.or.tUseMP2VarDenMat.or.tUseHFOrbs) THEN
+
+                
+                IF(.not.tUseHFOrbs) CALL FindNatOrbs()
+                
+                ! Fill the coefficient matrix with the eigenvectors of the OneRDM.
+                ! Find out the ordering ...need to read in according to symlabellist2, so that the transformation is all o.k.
+                ! If both the HF and transformed indices are done this way, the symmetries and everything should be fine.
+!                do i=1,NoRotOrbs
+!                    i2=SymLabelList2(i)
+!                    do a=1,NoOrbs
+!                        a2=SymLabelList2(a)
+!                        Coeff(a,i)=OneRDM(a2,i2)
+!                    enddo
+!                enddo
+            
+
+!           ELSEIF(tUseMP2VarDenMat) THEN
+! This bit generates the MP2 variational density matrix, and uses this as the transformation matrix (CoeffT1).        
+    
+!                WRITE(6,*) "Calculating the MP2 vartiational density matrix, and using this to rotate the HF orbitals."
+!                CALL CalcMP2VarDenMat()
+            
+                
+                IF(tUseHFOrbs) THEN
+                    CALL PrintOccTable()
+                ELSE
+                    CALL FillCoeffT1()
+                ENDIF
+
+            ENDIF
+
+            ALLOCATE(FourIndInts(NoOrbs,NoOrbs,NoOrbs,NoOrbs),stat=ierr)
+            CALL LogMemAlloc('FourIndInts',(NoOrbs**4),8,this_routine,FourIndIntsTag,ierr)
+
+    ! Then, transform2ElInts
+            WRITE(6,*) 'Transforming the four index integrals'
+            CALL Transform2ElIntsMemSave()
+
+            WRITE(6,*) 'Re-calculating the fock matrix'
+            CALL CalcFOCKMatrix()
+
+            WRITE(6,*) 'Refilling the UMAT and TMAT2D'
+    ! The ROFCIDUMP is also printed out in here.        
+            CALL RefillUMATandTMAT2D()        
+
+            CALL FLUSH(6)
+
+
+            IF((tFindCINatOrbs.or.tUseMP2VarDenMat).and.(NoDumpTruncs.gt.1)) CALL ReTruncROFciDump()
+
+            IF((.not.tUseHFOrbs).and.(.not.tReadInCoeff)) CALL DeallocateNatOrbs()
+
+            
+            IF(tWriteTransMat) CALL WriteTransformMat()
+
+     
+    ! If a truncation is being made, the new basis will not be in the correct energetic ordering - this does not matter, as we
+    ! never go straight into a spawning and they will be reordered when the ROFCIDUMP file is read in again. 
+            CALL WRITEBASIS(6,G1,nBasis,ARR,BRR)
+
+            DEALLOCATE(CoeffT1)
+            CALL LogMemDeAlloc(this_routine,CoeffT1Tag)
+            DEALLOCATE(SymLabelList2)
+            CALL LogMemDeAlloc(this_routine,SymLabelList2Tag)
+            DEALLOCATE(SymLabelListInv)
+            CALL LogMemDeAlloc(this_routine,SymLabelListInvTag)
+            DEALLOCATE(FourIndInts)
+            CALL LogMemDeAlloc(this_routine,FourIndIntsTag)
         ENDIF
-
-        ALLOCATE(FourIndInts(NoOrbs,NoOrbs,NoOrbs,NoOrbs),stat=ierr)
-        CALL LogMemAlloc('FourIndInts',(NoOrbs**4),8,this_routine,FourIndIntsTag,ierr)
-
-! Then, transform2ElInts
-        WRITE(6,*) 'Transforming the four index integrals'
-        CALL Transform2ElIntsMemSave()
-
-        WRITE(6,*) 'Re-calculating the fock matrix'
-        CALL CalcFOCKMatrix()
-
-        WRITE(6,*) 'Refilling the UMAT and TMAT2D'
-! The ROFCIDUMP is also printed out in here.        
-        CALL RefillUMATandTMAT2D()        
-
-        CALL FLUSH(6)
-
-
-        IF((tFindCINatOrbs.or.tUseMP2VarDenMat).and.(NoDumpTruncs.gt.1)) CALL ReTruncROFciDump()
-
-        CALL DeallocateNatOrbs()
- 
-! If a truncation is being made, the new basis will not be in the correct energetic ordering - this does not matter, as we
-! never go straight into a spawning and they will be reordered when the ROFCIDUMP file is read in again. 
-        CALL WRITEBASIS(6,G1,nBasis,ARR,BRR)
-
-        DEALLOCATE(CoeffT1)
-        CALL LogMemDeAlloc(this_routine,CoeffT1Tag)
-        DEALLOCATE(SymLabelList2)
-        CALL LogMemDeAlloc(this_routine,SymLabelList2Tag)
-        DEALLOCATE(SymLabelListInv)
-        CALL LogMemDeAlloc(this_routine,SymLabelListInvTag)
-        DEALLOCATE(FourIndInts)
-        CALL LogMemDeAlloc(this_routine,FourIndIntsTag)
 
 !        DEALLOCATE(UMATTemp01)
 !        CALL LogMemDeAlloc(this_routine,UMATTemp01Tag)
@@ -416,6 +435,8 @@ MODULE RotateOrbsMod
             CALL LogMemDeAlloc(this_routine,SymOrbsTag)
             DEALLOCATE(TMAT2DNew)
             CALL LogMemDeAlloc(this_routine,TMAT2DNewTag)
+            DEALLOCATE(EvaluesTrunc)
+            CALL LogMemDeAlloc(this_routine,EvaluesTruncTag)
 
 
             IF(tTruncDumpbyVal) THEN
@@ -506,6 +527,107 @@ MODULE RotateOrbsMod
 
 
     END SUBROUTINE ApproxMemReq
+
+
+
+    SUBROUTINE WriteTransformMat()
+        INTEGER :: w,x,i,j,a,b
+
+
+! This file is printed to be used to produce cube files from QChem.
+! Line 1 is the coefficients of HF spatial orbitals 1 2 3 ... which form transformed orbital 1 etc.
+
+        OPEN(66,FILE='MOTRANSFORM',FORM='UNFORMATTED',access='direct', recl=8)
+! Need to put this back into the original order. 
+
+        IF(tStoreSpinOrbs) THEN
+            do i=1,NoOrbs-1,2
+!                j=SymLabelListInv(i)
+                ! SymLabelList2(i) gives the orbital label (from Dalton or QChem) corresponding to our
+                ! label i.
+                ! SymLabelListInv(j) therefore gives the label used in CoeffT1 corresponding to the
+                ! Qchem/Dalton label j.
+                    
+                do a=1,NoOrbs-1,2
+                    b=SymLabelListInv(a)
+!                    WRITE(66,rec=x) CoeffT1(b,j)
+                    WRITE(66,rec=x) CoeffT1(b,i)
+                    ! a/b are the original (HF) orbitals, and i/j the transformed
+                enddo
+            enddo
+            do i=2,NoOrbs,2
+                do a=2,NoOrbs,2
+                    b=SymLabelListInv(a)
+!                    WRITE(66,rec=x) CoeffT1(b,j)
+                    WRITE(66,rec=x) CoeffT1(b,i)
+                    ! a/b are the original (HF) orbitals, and i/j the transformed
+                enddo
+            enddo
+        ELSE
+            w=1
+            x=1   !keep a counter of record number
+            do while (w.le.2)
+                do i=1,SpatOrbs
+!                    j=SymLabelListInv(i)
+                    ! SymLabelList2(i) gives the orbital label (from Dalton or QChem) corresponding to our
+                    ! label i.
+                    ! SymLabelListInv(j) therefore gives the label used in CoeffT1 corresponding to the
+                    ! Qchem/Dalton label j.
+                    do a=1,SpatOrbs
+                        b=SymLabelListInv(a)
+!                        WRITE(66,rec=x) CoeffT1(b,j)
+                        WRITE(66,rec=x) CoeffT1(b,i)
+                        x=x+1
+                        ! a/b are the original (HF) orbitals, and i/j the transformed
+                    enddo
+                enddo
+                w=w+1
+                ! print the whole matrix twice, once for alpha spin, once for beta.
+            enddo
+        ENDIF
+        CLOSE(66)
+ 
+        OPEN(67,FILE='MOTRANSFORM02')
+! Need to put this back into the original order. 
+        w=1
+        x=1   !keep a counter of record number
+        do while (w.le.2)
+            do i=1,SpatOrbs
+!                j=SymLabelListInv(i)
+                ! SymLabelList2(i) gives the orbital label (from Dalton or QChem) corresponding to our
+                ! label i.
+                ! SymLabelListInv(j) therefore gives the label used in CoeffT1 corresponding to the
+                ! Qchem/Dalton label j.
+                do a=1,SpatOrbs
+                    b=SymLabelListInv(a)
+!                    WRITE(67,'(F20.10)',advance='no') CoeffT1(b,j)
+                    WRITE(67,'(F20.10)',advance='no') CoeffT1(b,i)
+                    x=x+1
+                    ! a/b are the original (HF) orbitals, and i/j the transformed
+                enddo
+                WRITE(67,*) ''
+            enddo
+            w=w+1
+            ! print the whole matrix twice, once for alpha spin, once for beta.
+        enddo
+        CLOSE(67)
+
+        OPEN(71,FILE='TRANSFORMMAT',status='unknown')
+        do i=1,NoOrbs
+!            j=SymLabelListInv(i)
+            do a=1,NoOrbs
+                b=SymLabelListInv(a)
+!                WRITE(71,*) CoeffT1(b,j)
+                WRITE(71,*) CoeffT1(b,i)
+            enddo
+        enddo
+        CALL FLUSH(71)
+        CLOSE(71)
+      
+
+
+    END SUBROUTINE WriteTransformMat
+
 
 
    
@@ -905,7 +1027,7 @@ MODULE RotateOrbsMod
 ! Doing this now, rather than using UMatInd in each transform2elint routine proved a lot faster.
         DerivCoeff(:,:)=0.D0
         UMATTemp01(:,:,:,:)=0.D0
-        IF(((.not.tERLocalization).and.(.not.tReadInCoeff).and.(.not.tUseMP2VarDenMat).and.(.not.tFindCINatOrbs))&
+        IF(((.not.tERLocalization).and.(.not.tReadInCoeff).and.(.not.tUseMP2VarDenMat).and.(.not.tFindCINatOrbs).and.(.not.tUseHFOrbs))&
         &.or.(tERLocalization.and.tStoreSpinOrbs)) UMATTemp02(:,:,:,:)=0.D0
 
         CALL CopyAcrossUMAT()
@@ -1931,7 +2053,7 @@ MODULE RotateOrbsMod
 ! This can be sped up by merging the calculations of the potentials with the transformations, but while 
 ! we are playing around with different potentials, it is simpler to keep these separate.
     
-        IF((.not.tReadInCoeff).and.(.not.tUseMP2VarDenMat).and.(.not.tFindCINatOrbs)) THEN
+        IF((.not.tReadInCoeff).and.(.not.tUseMP2VarDenMat).and.(.not.tFindCINatOrbs).and.(.not.tUseHFOrbs)) THEN
             
             PotEnergy=0.D0
             TwoEInts=0.D0
@@ -3444,68 +3566,7 @@ MODULE RotateOrbsMod
             WRITE(6,*) ''
         enddo
 
-
-! This file is printed to be used to produce cube files from QChem.
-! Line 1 is the coefficients of HF spatial orbitals 1 2 3 ... which form transformed orbital 1 etc.
-
-        OPEN(66,FILE='MOTRANSFORM',FORM='UNFORMATTED',access='direct', recl=8)
-! Need to put this back into the original order. 
-        w=1
-        x=1   !keep a counter of record number
-        do while (w.le.2)
-            do i=1,SpatOrbs
-                j=SymLabelListInv(i)
-                ! SymLabelList2(i) gives the orbital label (from Dalton or QChem) corresponding to our
-                ! label i.
-                ! SymLabelListInv(j) therefore gives the label used in CoeffT1 corresponding to the
-                ! Qchem/Dalton label j.
-                do a=1,SpatOrbs
-                    b=SymLabelListInv(a)
-                    WRITE(66,rec=x) CoeffT1(b,j)
-                    x=x+1
-                    ! a/b are the original (HF) orbitals, and i/j the transformed
-                enddo
-            enddo
-            w=w+1
-            ! print the whole matrix twice, once for alpha spin, once for beta.
-        enddo
-        CLOSE(66)
- 
-        OPEN(67,FILE='MOTRANSFORM02')
-! Need to put this back into the original order. 
-        w=1
-        x=1   !keep a counter of record number
-        do while (w.le.2)
-            do i=1,SpatOrbs
-                j=SymLabelListInv(i)
-                ! SymLabelList2(i) gives the orbital label (from Dalton or QChem) corresponding to our
-                ! label i.
-                ! SymLabelListInv(j) therefore gives the label used in CoeffT1 corresponding to the
-                ! Qchem/Dalton label j.
-                do a=1,SpatOrbs
-                    b=SymLabelListInv(a)
-                    WRITE(67,'(F20.10)',advance='no') CoeffT1(b,j)
-                    x=x+1
-                    ! a/b are the original (HF) orbitals, and i/j the transformed
-                enddo
-                WRITE(67,*) ''
-            enddo
-            w=w+1
-            ! print the whole matrix twice, once for alpha spin, once for beta.
-        enddo
-        CLOSE(67)
-
-!        OPEN(71,FILE='TRANSFORMMAT',status='unknown')
-!        do i=1,NoOrbs
-!            j=SymLabelListInv(i)
-!            do a=1,NoOrbs
-!                b=SymLabelListInv(a)
-!                WRITE(71,*) CoeffT1(b,j)
-!            enddo
-!        enddo
-!        CALL FLUSH(71)
-!        CLOSE(71)
-      
+        CALL WriteTransformMat()
         
         CALL CalcConstraints(CoeffT1,GSConstraint,TotGSConstraints)  
 
@@ -4685,7 +4746,7 @@ MODULE RotateOrbsMod
 ! calculating the whole matrix, just the diagonal elements that we actually need.
 
     
-        IF(tUseMP2VarDenMat.or.tFindCINatOrbs) THEN
+        IF(tUseMP2VarDenMat.or.tFindCINatOrbs.or.tUseHFOrbs) THEN
             ALLOCATE(ArrDiagNew(NoOrbs),stat=ierr)
             CALL LogMemAlloc('ArrDiagNew',NoOrbs,8,this_routine,ArrDiagNewTag,ierr)
             ArrDiagNew(:)=0.D0                     
@@ -4727,7 +4788,7 @@ MODULE RotateOrbsMod
         FOCKDiagSumNew=0.D0
         do j=1,NoRotOrbs
             l=SymLabelList3(j)
-            IF(tUseMP2VarDenMat.or.tFindCINatOrbs) THEN
+            IF(tUseMP2VarDenMat.or.tFindCINatOrbs.or.tUseHFOrbs) THEN
                 ArrDiagNew(l)=0.D0
                 do a=1,NoOrbs
                     b=SymLabelList2(a)
@@ -4789,7 +4850,7 @@ MODULE RotateOrbsMod
         IF(NoDumpTruncs.le.1) THEN
 ! If we are only writing out 1 ROFCIDUMP or we are not truncating at all - can refill ARR etc.            
 
-            IF(tUseMP2VarDenMat.or.tFindCINatOrbs) THEN
+            IF(tUseMP2VarDenMat.or.tFindCINatOrbs.or.tUseHFOrbs) THEN
                 IF(tStoreSpinOrbs) THEN
                     do j=1,NoOrbs
                         ARR(j,2)=ArrDiagNew(j)
@@ -4828,7 +4889,7 @@ MODULE RotateOrbsMod
 !        CALL FLUSH(6)
 !        stop       
 
-        IF((tUseMP2VarDenMat.or.tFindCINatOrbs).and.(NoDumpTruncs.le.1)) THEN
+        IF((tUseMP2VarDenMat.or.tFindCINatOrbs.or.tUseHFOrbs).and.(NoDumpTruncs.le.1)) THEN
             DEALLOCATE(ArrDiagNew)
             CALL LogMemDealloc(this_routine,ArrDiagNewTag)
         ELSEIF(NoDumpTruncs.le.1) THEN
@@ -5228,7 +5289,7 @@ MODULE RotateOrbsMod
 ! ARR has the energies of the orbitals (eigenvalues).  ARR(:,2) has ordering we want.
 ! ARR is stored as spin orbitals.
 
-        IF(tUseMP2VarDenMat.or.tFindCINatOrbs) THEN
+        IF(tUseMP2VarDenMat.or.tFindCINatOrbs.or.tUseHFOrbs) THEN
             IF(tStoreSpinOrbs) THEN
                 do k=1,(NoOrbs-(NoFrozenVirt))
                     WRITE(48,'(F21.12,4I3)') ArrDiagNew(k),k,0,0,0

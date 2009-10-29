@@ -4,6 +4,7 @@ C.. This sets up variables, and calls the recursion
      &  NMRKS,TCOUNT,G1,TSPN,LMS,TPARITY,
      &  SymRestrict,II,IFDET)
          use SystemData, only: BasisFN,BasisFNSize,Symmetry,NullBasisFn
+         use SystemData, only: LzTot,tFixLz
          IMPLICIT NONE
          INTEGER NEL,NHG,LMS,II
          INTEGER NMRKS(NEL,*)
@@ -29,6 +30,9 @@ C.. Total number of determined determinants
          ELSE
             kJ%Ms=0 
          ENDIF
+         IF(tFixLz) THEN
+             kJ%Ml=LzTot
+         ENDIF
 C.. Start with the first electron
          CALL GNDTS_R(NEL,NHG,BRR,NBASISMAX,
      &      NMRKS,TCOUNT,G1,TSPN,LMS,TPARITY,
@@ -41,7 +45,7 @@ C.. The recursive routine in GNDTS.  IELEC is the current electron
       RECURSIVE SUBROUTINE GNDTS_R(NEL,NHG,BRR,NBASISMAX,
      &  NMRKS,TCOUNT,G1,TSPN,LMS,TPARITY,
      &  SymRestrict,II,IELECS,ISPINS,IELEC,KJ)
-      use SystemData, only: BasisFN
+      use SystemData, only: BasisFN,tFixLz
       IMPLICIT NONE
       INTEGER NEL,NHG,LMS,II
       INTEGER NMRKS(NEL,*)
@@ -71,6 +75,7 @@ C.. If we're on the last electron
             ENDDO
             CALL NECI_SORTI(NEL,NI)
             CALL GETSYM(NI,NEL,G1,NBASISMAX,KI)
+            CALL GetLz(NI,NEL,KI%Ml) 
             IF(.NOT.TPARITY) THEN
                DO I=1,3
                   KI%k(I)=0
@@ -80,10 +85,12 @@ C.. If we're on the last electron
             IF(.NOT.TSPN) KI%Ms=0
 !            WRITE(6,*) KI
             IF(LCHKSYM(KI,KJ)) THEN
-               II=II+1
+               IF((.not.tFixLz).or.(KI%Ml.eq.KJ%Ml)) THEN
+                   II=II+1
 C.. If we're generating rather than counting
-               IF(.NOT.TCOUNT) THEN
-                  CALL NECI_ICOPY(NEL,NI,1,NMRKS(1:NEL,II),1)
+                   IF(.NOT.TCOUNT) THEN
+                      CALL NECI_ICOPY(NEL,NI,1,NMRKS(1:NEL,II),1)
+                   ENDIF
                ENDIF
             ENDIF
          ELSE

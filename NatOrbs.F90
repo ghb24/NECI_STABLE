@@ -11,9 +11,10 @@ MODULE NatOrbsMod
         USE IntegralsData , only : UMAT
         USE UMatCache , only : UMatInd
         USE SystemData , only : NEl,nBasis,NIfD,G1,ARR,BRR,lNoSymmetry,LMS,tStoreSpinOrbs,nOccAlpha,nOccBeta,tSeparateOccVirt
-        USE SystemData , only : tRotateOccOnly,tRotateVirtOnly,tFindCINatOrbs,tUseMP2VarDenMat
+        USE SystemData , only : tRotateOccOnly,tRotateVirtOnly,tFindCINatOrbs,tUseMP2VarDenMat,nBasisMax,ALAT,iSpinSkip
         USE RotateOrbsData , only : SymLabelList2,SymLabelCounts2,SymLabelCounts2Tag,SymLabelListInv,NoOrbs,SpatOrbs,FillOneRDM_time
         USE RotateOrbsData , only : FillMP2VDM_Time,DiagNatOrbMat_Time,OrderCoeff_Time,FillCoeff_Time,NoFrozenVirt
+        USE HElem
         IMPLICIT NONE
         INTEGER :: NoSpinCyc,SymOrbsTempTag
         REAL*8 , ALLOCATABLE :: NatOrbMat(:,:),Evalues(:)
@@ -572,10 +573,13 @@ MODULE NatOrbsMod
 ! MP2VDM = D2_ab = sum_ijc [ t_ij^ac ( 2 t_ij^bc - t_ji^bc ) ]
 ! Where :  t_ij^ac = - < ab | ij > / ( E_a - E_i + E_b - Ej )
 ! Ref : J. Chem. Phys. 131, 034113 (2009) - note: in Eqn 1, the cb indices are the wrong way round (should be bc).
+        USE Integrals , only : GetUMatEl
+        USE SystemData , only : tUEG
         INTEGER :: a,b,c,i,j,a2,b2,c2,i2,j2,x,y,z,w
         INTEGER :: Startab,Endab,NoOcc,NoOccC,Startc,Endc,Starti,Endi,Startj,Endj
         REAL*8 :: MP2VDMSum
         CHARACTER(len=*), PARAMETER :: this_routine='FillMP2VDM'
+        TYPE(HElement) :: HEl01,HEl02
 
 ! Calculating the MP2VDM (D2_ab) matrix whose eigenvectors become the transformation matrix.        
 ! This goes in the natural orbital matrix of this module.
@@ -624,6 +628,7 @@ MODULE NatOrbsMod
                     b=SymLabelList2(b2)
 
                     MP2VDMSum=0.D0
+!                    WRITE(6,*) 'a',a,'b',b,'a2',a2,'b2',b2
 
                     ! when a and b beta, run over both alpha and beta virtual for c, then both alpha and beta virtual for both i and j etc. 
 
@@ -689,7 +694,19 @@ MODULE NatOrbsMod
                                         do j2=Startj,Endj
                                             j=SymLabelList2(j2)
 
-                                            IF(tStoreSpinOrbs) THEN
+                                            IF(tUEG) THEN
+                                                HEl01=GETUMATEL(nBasisMax,UMAT,ALAT,nBasis,iSpinSkip,G1,a,c,i,j)
+                                                HEl02=GETUMATEL(nBasisMax,UMAT,ALAT,nBasis,iSpinSkip,G1,b,c,i,j)
+                                                MP2VDMSum=MP2VDMSum+&
+                                                            &(( (REAL(HEl01%v,8)) * (2.D0*(REAL(HEl02%v,8))) )/&
+                                                            &( (ARR(2*i,2)+ARR(2*j,2)-ARR(2*a,2)-ARR(2*c,2)) * (ARR(2*i,2)+ARR(2*j,2)-ARR(2*b,2)-ARR(2*c,2)) ) )
+
+                                                HEl02=GETUMATEL(nBasisMax,UMAT,ALAT,nBasis,iSpinSkip,G1,c,b,i,j)
+                                                MP2VDMSum=MP2VDMSum-&                                            
+                                                            &(( (REAL(HEl01%v,8)) * (REAL(HEl02%v,8)) )/&
+                                                            &( (ARR(2*i,2)+ARR(2*j,2)-ARR(2*a,2)-ARR(2*c,2)) * (ARR(2*i,2)+ARR(2*j,2)-ARR(2*c,2)-ARR(2*b,2)) ) )
+ 
+                                            ELSEIF(tStoreSpinOrbs) THEN
                                                 IF((ARR(i,2)+ARR(j,2)-ARR(a,2)-ARR(c,2)).eq.0.D0) THEN
                                                     IF((REAL(UMAT(UMatInd(a,c,i,j,0,0))%v,8)).ne.0.D0) THEN
                                                         WRITE(6,*) i,j,a,c,REAL(UMAT(UMatInd(a,c,i,j,0,0))%v,8)
@@ -711,6 +728,7 @@ MODULE NatOrbsMod
                                                             &(( (REAL(UMAT(UMatInd(a,c,i,j,0,0))%v,8)) * (REAL(UMAT(UMatInd(c,b,i,j,0,0))%v,8)) )/&
                                                             &( (ARR(2*i,2)+ARR(2*j,2)-ARR(2*a,2)-ARR(2*c,2)) * (ARR(2*i,2)+ARR(2*j,2)-ARR(2*c,2)-ARR(2*b,2)) ) )
                                             ENDIF
+ 
                                         enddo
                                     enddo
                                 enddo
@@ -1104,11 +1122,10 @@ MODULE NatOrbsMod
 
 
     SUBROUTINE FillCoeffT1
-        USE RotateOrbsData , only : CoeffT1,SymLabelList3,SymOrbs,SymOrbsTag,TruncEval,NoRotOrbs
+        USE RotateOrbsData , only : CoeffT1,SymLabelList3,SymOrbs,SymOrbsTag,TruncEval,NoRotOrbs,EvaluesTrunc,EvaluesTruncTag
         USE Logging , only : tTruncRODump,tTruncDumpbyVal
         IMPLICIT NONE
         INTEGER :: k,i,j,NoRotAlphBet,SymFirst
-        REAL*8 :: EvaluesTrunc(NoOrbs-NoFrozenVirt)
         CHARACTER(len=*), PARAMETER :: this_routine='FillCoeffT1'
         CHARACTER(len=5) :: Label
         CHARACTER(len=20) :: LabelFull
@@ -1142,6 +1159,8 @@ MODULE NatOrbsMod
             CALL LogMemAlloc('SymOrbs',NoOrbs,4,this_routine,SymOrbsTag,ierr)
             SymOrbs(:)=0
 
+            ALLOCATE(EvaluesTrunc(NoOrbs-NoFrozenVirt),stat=ierr)
+            CALL LogMemAlloc('EvaluesTrunc',NoOrbs-NoFrozenVirt,4,this_routine,EvaluesTruncTag,ierr)
             EvaluesTrunc(:)=0.D0
 
             IF(tStoreSpinOrbs) THEN
@@ -1335,6 +1354,8 @@ MODULE NatOrbsMod
 
 
     SUBROUTINE HistNatOrbEvalues()
+        USE Logging , only : tTruncRODump
+        USE RotateOrbsData , only : CoeffT1,EvaluesTrunc
         IMPLICIT NONE
         INTEGER :: i,k,x,NoEvalues,a,b,NoOcc
         REAL*8 :: EvaluesCount(NoOrbs,2),OrbEnergies(1:NoOrbs),EvalueEnergies(1:NoOrbs)
@@ -1434,14 +1455,18 @@ MODULE NatOrbsMod
             ELSE
                 SumEvalues=SumEvalues+(2*Evalues(i))
             ENDIF
-            EvalueEnergies(i)=Evalues(i)
+            IF(tTruncRODump) THEN
+                EvalueEnergies(i)=EvaluesTrunc(i)
+            ELSE
+                EvalueEnergies(i)=Evalues(i)
+            ENDIF
 ! We are only interested in the diagonal elements.            
             do a=1,NoOrbs
                 b=SymLabelList2(a)
                 IF(tStoreSpinOrbs) THEN
-                    OrbEnergies(i)=OrbEnergies(i)+(NatOrbMat(a,i)*ARR(b,2)*NatOrbMat(a,i))
+                    OrbEnergies(i)=OrbEnergies(i)+(CoeffT1(a,i)*ARR(b,2)*CoeffT1(a,i))
                 ELSE
-                    OrbEnergies(i)=OrbEnergies(i)+(NatOrbMat(a,i)*ARR(2*b,2)*NatOrbMat(a,i))
+                    OrbEnergies(i)=OrbEnergies(i)+(CoeffT1(a,i)*ARR(2*b,2)*CoeffT1(a,i))
                 ENDIF
             enddo
         enddo
@@ -1469,18 +1494,35 @@ MODULE NatOrbsMod
         CLOSE(73)
         CALL FLUSH(6)
 
+        CALL PrintOccTable()
+
+
+    END SUBROUTINE HistNatOrbEvalues
+
+
+    SUBROUTINE PrintOccTable()
+        USE Logging , only : tTruncRODump
+        USE RotateOrbsData , only : CoeffT1,EvaluesTrunc
+        USE SystemData , only : tUseHFOrbs
+        INTEGER x,i,a,b
 
         OPEN(73,FILE='OccupationTable',status='unknown')
         x=1
         do while (x.le.NoOrbs)
             WRITE(73,'(A16,A5)',advance='no') 'HF Orb En    ','Sym'
-            do i=x,x+9
-                IF(i.gt.NoOrbs) THEN
-                    WRITE(73,*) ''
-                    EXIT
-                ENDIF
-                WRITE(73,'(ES16.6)',advance='no') Evalues(i)
-            enddo
+            IF(.not.tUseHFOrbs) THEN
+                do i=x,x+9
+                    IF(i.gt.NoOrbs) THEN
+                        WRITE(73,*) ''
+                        EXIT
+                    ENDIF
+                    IF(tTruncRODump) THEN
+                        WRITE(73,'(ES16.6)',advance='no') EvaluesTrunc(i)
+                    ELSE
+                        WRITE(73,'(ES16.6)',advance='no') Evalues(i)
+                    ENDIF
+                enddo
+            ENDIF
             WRITE(73,*) ''
 
             do a=1,NoOrbs
@@ -1495,7 +1537,8 @@ MODULE NatOrbsMod
                         WRITE(73,*) ''
                         EXIT
                     ENDIF
-                    WRITE(73,'(F16.10)',advance='no') NatOrbMat(b,i)
+!                    WRITE(73,'(F16.10)',advance='no') NatOrbMat(b,i)
+                    WRITE(73,'(F16.10)',advance='no') CoeffT1(b,i)
                 enddo
                 WRITE(73,*) ''
             enddo
@@ -1507,7 +1550,7 @@ MODULE NatOrbsMod
         CALL FLUSH(6)
         
 
-    END SUBROUTINE HistNatOrbEvalues
+    END SUBROUTINE PrintOccTable
 
 
 

@@ -714,7 +714,7 @@ C..   Use SYMPROD and ADDELECSYM to generate the resultant symmetry of these
 
       SUBROUTINE GETSYM(NI2,NEL,G1,NBASISMAX,ISYM)
          use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
-         use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
+         use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB,tFixLz
          use SymData, only: SymReps
          IMPLICIT NONE
          INTEGER NEL,NI(NEL),nBasisMax(5,*)
@@ -727,6 +727,7 @@ C..   Use SYMPROD and ADDELECSYM to generate the resultant symmetry of these
          NREPS(1:NEL)=0
          CALL SETUPSYM(NBASISMAX,ISYM)
          ISC=ISCSF(NI2,NEL)
+         IF(tFixLz) CALL GetLz(NI2,NEL,ISYM%Ml)
          IF(ISC) THEN
             DO I=1,NEL
                CALL GETUNCSFELEC(NI2(I),NI(I),SSYM)
@@ -1939,11 +1940,11 @@ C.. Set to be totally symmetric
           ! symmetry or the standard symmetry.  It's just a matter of
           ! convenience, rather than some deep theoretical insight!
           use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
-          use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
+          use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB,tUEG
           use SymData, only: tAbelian
           implicit none
           Type(Symmetry) TotSymRep 
-          if (TAbelian) then
+          if (TAbelian.or.tUEG) then
               TotSymRep%s=0
           else
               TotSymRep%s=1
@@ -2068,20 +2069,24 @@ C.. Set to be totally symmetric
       SUBROUTINE FindSymMCSizeofSpace(IUNIT)
          use SymData , only : TwoCycleSymGens
          use SystemData , only : nEl,G1,nBasis,nOccAlpha,nOccBeta,G1
+         use SystemData, only : tUEG
          use Determinants , only : FDet
          use DetCalc , only : ICILevel
          use SystemData , only : CalcDetCycles, CalcDetPrint,tFixLz,NIfD
          use mt95 , only : genrand_real2 
+         use soft_exit , only : ChangeVars
          use Parallel
          IMPLICIT NONE
          INTEGER :: IUNIT,OverallSym,j,SpatOrbs,FDetMom
-         INTEGER :: FDetiLut(0:nBasis/32),ExcitLev
-         INTEGER :: FDetSym,TotalSym,TotalMom,alpha,beta,ierr
+         INTEGER :: FDetiLut(0:nBasis/32),ExcitLev,iLut(0:nBasis/32)
+         INTEGER :: FDetSym,TotalSym,TotalMom,alpha,beta,ierr,Momx,Momy
+         INTEGER :: Momz
          INTEGER*8 :: Accept,AcceptAll,i
          REAL*8 :: FullSpace,r,Choose,Frac
-         LOGICAL :: tTruncSpace
+         LOGICAL :: tTruncSpace,tDummy,tDummy2,tSoftExitFound
+         LOGICAL :: tNotAllowed
 
-         IF(.not.TwoCycleSymGens) THEN
+         IF((.not.TwoCycleSymGens).and.(.not.tUEG)) THEN
              WRITE(IUNIT,*) "Only for molecular abelian symmetry "      &
      &      //" calculations can the exact size of the determinant "    &
      &      //" space be calculated currently..."
@@ -2132,38 +2137,40 @@ C.. Set to be totally symmetric
 
          do i=1,CalcDetCycles
 
-             IF(mod(i,CalcDetPrint).eq.0) THEN
-                 !Write out statistics
-#ifdef PARALLEL
-!                 WRITE(6,*) Accept,AcceptAll
-                 CALL MPI_Reduce(Accept,AcceptAll,1,                    &
-     &            MPI_INTEGER8,MPI_SUM,0,MPI_COMM_WORLD,ierr)
-#else
-                 AcceptAll=Accept
-#endif
-                 Frac=REAL(AcceptAll,8)/REAL(i*nProcessors,8)
-                 IF(iProcIndex.eq.0) THEN
-                     WRITE(14,"(2I16,G25.10,F30.5)") i,AcceptAll,Frac,  &
-     &                  Frac*FullSpace
-                 ENDIF
-
-                 AcceptAll=0
-
-             ENDIF
-
              TotalSym=0
              TotalMom=0
              ExcitLev=0
+             Momx=0
+             Momy=0
+             Momz=0
+             iLut(:)=0
 
              !Create random determinant (Correct Sz symmetry)
              !Loop over alpha electrons
              do j=1,nOccAlpha
-                 CALL genrand_real2(r)
-                 alpha=2*(INT(SpatOrbs*r)+1)
+
+                 tNotAllowed=.true.
+                 do while(tNotAllowed)
+
+                     CALL genrand_real2(r)
+                     alpha=2*(INT(SpatOrbs*r)+1)
+                     IF(.not.BTEST(iLut((alpha-1)/32)
+     &                      ,mod((alpha-1),32))) THEN
+                         !Has *not* been picked before
+                         iLut((alpha-1)/32)=
+     &                       IBSET(iLut((alpha-1)/32),mod(alpha-1,32))
+                         tNotAllowed=.false.
+                     ENDIF
+                 enddo
 
                  TotalSym=IEOR(TotalSym,INT((G1(alpha)%Sym%S),4))
                  IF(tFixLz) THEN
                      TotalMom=TotalMom+G1(alpha)%Ml
+                 ENDIF
+                 IF(tUEG) THEN
+                     Momx=Momx+G1(alpha)%k(1)
+                     Momy=Momy+G1(alpha)%k(2)
+                     Momz=Momz+G1(alpha)%k(3)
                  ENDIF
                  IF(tTruncSpace) THEN
            IF(.not.BTEST(FDetiLut((alpha-1)/32),mod((alpha-1),32))) THEN
@@ -2173,21 +2180,37 @@ C.. Set to be totally symmetric
                  ENDIF
 
                  !Test
-                 IF((alpha.lt.2).or.(alpha.gt.nBasis)) THEN
-                     CALL Stop_All("FindSymMCSizeofSpace","Error "      &
-     &                   //"calculating whether determinant is allowed")
-                 ENDIF
+!                 IF((alpha.lt.2).or.(alpha.gt.nBasis)) THEN
+!                     CALL Stop_All("FindSymMCSizeofSpace","Error "      &
+!     &                   //"calculating whether determinant is allowed")
+!                 ENDIF
 
              enddo
 
              !Loop over beta electrons
              do j=1,nOccBeta
-                 CALL genrand_real2(r)
-                 beta=2*(INT(SpatOrbs*r)+1)-1
+
+                 tNotAllowed=.true.
+                 do while(tNotAllowed)
+                     CALL genrand_real2(r)
+                     beta=2*(INT(SpatOrbs*r)+1)-1
+                     IF(.not.BTEST(iLut((beta-1)/32)
+     &                      ,mod((beta-1),32))) THEN
+                         !Has *not* been picked before
+                         iLut((beta-1)/32)=
+     &                       IBSET(iLut((beta-1)/32),mod(beta-1,32))
+                         tNotAllowed=.false.
+                     ENDIF
+                 enddo
 
                  TotalSym=IEOR(TotalSym,INT((G1(beta)%Sym%S),4))
                  IF(tFixLz) THEN
                      TotalMom=TotalMom+G1(beta)%Ml
+                 ENDIF
+                 IF(tUEG) THEN
+                     Momx=Momx+G1(beta)%k(1)
+                     Momy=Momy+G1(beta)%k(2)
+                     Momz=Momz+G1(beta)%k(3)
                  ENDIF
                  IF(tTruncSpace) THEN
             IF(.not.BTEST(FDetiLut((beta-1)/32),mod((beta-1),32))) THEN
@@ -2197,10 +2220,10 @@ C.. Set to be totally symmetric
                  ENDIF
                  
                  !Test
-                 IF((beta.lt.1).or.(beta.gt.(nBasis-1))) THEN
-                     CALL Stop_All("FindSymMCSizeofSpace","Error "      &
-     &                   //"calculating whether determinant is allowed")
-                 ENDIF
+!                 IF((beta.lt.1).or.(beta.gt.(nBasis-1))) THEN
+!                     CALL Stop_All("FindSymMCSizeofSpace","Error "      &
+!     &                   //"calculating whether determinant is allowed")
+!                 ENDIF
 
              enddo
 
@@ -2219,12 +2242,48 @@ C.. Set to be totally symmetric
                  ELSE
                      IF(tTruncSpace) THEN
                          IF(ExcitLev.le.ICILevel) THEN
-                             Accept=Accept+1
+                             IF(tUEG) THEN
+                                 IF((Momx.eq.0).and.(Momy.eq.0)         &
+     &                                 .and.(Momz.eq.0)) THEN
+                                    Accept=Accept+1
+                                 ENDIF
+                             ELSE
+                                 Accept=Accept+1
+                             ENDIF
                          ENDIF
                      ELSE
-                         Accept=Accept+1
+                         IF(tUEG) THEN
+                             IF((Momx.eq.0).and.(Momy.eq.0).and.        &
+     &                               (Momz.eq.0)) THEN
+                                Accept=Accept+1
+                             ENDIF
+                         ELSE
+                             Accept=Accept+1
+                         ENDIF
                      ENDIF
                  ENDIF
+             ENDIF
+             
+             IF(mod(i,CalcDetPrint).eq.0) THEN
+                 !Write out statistics
+#ifdef PARALLEL
+!                 WRITE(6,*) Accept,AcceptAll
+                 CALL MPI_Reduce(Accept,AcceptAll,1,                    &
+     &            MPI_INTEGER8,MPI_SUM,0,MPI_COMM_WORLD,ierr)
+#else
+                 AcceptAll=Accept
+#endif
+                 Frac=REAL(AcceptAll,8)/REAL(i*nProcessors,8)
+                 IF(iProcIndex.eq.0) THEN
+                     WRITE(14,"(2I16,G25.10,F30.5)") i,AcceptAll,Frac,  &
+     &                  Frac*FullSpace
+                 ENDIF
+
+                 AcceptAll=0
+
+                 CALL ChangeVars(tDummy,tSoftExitFound,tDummy2)
+                 IF(tSoftExitFound) EXIT
+
              ENDIF
 
          enddo

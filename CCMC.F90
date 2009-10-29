@@ -113,7 +113,7 @@
         INTEGER :: nJ(NEl),ierr,IC,Child,DetCurr(NEl),iLutnJ(0:NIfD)
         REAL*8 :: Prob,rat,HDiagCurr,r
         INTEGER :: iDie,WalkExcitLevel,Proc
-        INTEGER :: ExcitLevel,TotWalkersNew,iGetExcitLevel_2,Ex(2,2),WSign,p,Scratch1(2,nSymLabels),Scratch2(2,nSymLabels)
+        INTEGER :: ExcitLevel,TotWalkersNew,iGetExcitLevel_2,Ex(2,2),WSign,p,Scratch1(ScratchSize),Scratch2(ScratchSize)
         LOGICAL :: tParity,tFilled
         
 ! We select up to nEl excitors at a time and store them here
@@ -871,7 +871,7 @@
       USE Determinants , only : FDet,GetHElement2,GetHElement4,GetHElement3
       USE DetCalc , only : ICILevel,Det,FCIDetIndex
       use CalcData, only: Tau,DiagSft,InitWalkers
-      use GenRandSymExcitNUMod , only : GenRandSymExcitScratchNU
+      use GenRandSymExcitNUMod , only : GenRandSymExcitScratchNU,ScratchSize
       USE HElem
       USE mt95 , only : genrand_real2
       IMPLICIT NONE
@@ -904,7 +904,7 @@
       INTEGER iLutnI(0:nIfD),iLutnJ(0:nIfD)
       INTEGER nJ(nEl)
       INTEGER DetCurr(0:nIfD)
-      INTEGER :: ExcitLevel,iGetExcitLevel_2,Ex(2,2),Scratch1(2,nSymLabels),Scratch2(2,nSymLabels)
+      INTEGER :: ExcitLevel,iGetExcitLevel_2,Ex(2,2),Scratch1(ScratchSize),Scratch2(ScratchSize)
       INTEGER iCompositeSize,WalkExcitLevel,IC
       REAL*8 dNGenComposite,Prob
       LOGICAL :: tParity,tFilled

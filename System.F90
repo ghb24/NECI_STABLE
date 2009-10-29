@@ -116,6 +116,7 @@ MODULE System
       tSpinOrbs=.false.
       tReadInCoeff=.false.
       tUseMP2VarDenMat=.false.
+      tUseHFOrbs=.false.
       tFindCINatOrbs=.false.
       DiagWeight=1.D0
       OffDiagWeight=1.D0
@@ -634,6 +635,11 @@ MODULE System
 ! A new ROFCIDUMP file is then produced in the new natural orbitals.
             tFindCINatOrbs=.true.
             tShake=.false.
+
+        case("USEHFORBS")
+            tUseHFOrbs=.true.
+            tShake=.false.
+            tSeparateOccVirt=.true.
 
         case("RANLUXLEV")
 !This is the level of quality for the random number generator. Values go from 1 -> 4. 3 is default.

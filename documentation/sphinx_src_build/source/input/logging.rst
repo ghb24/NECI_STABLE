@@ -397,3 +397,11 @@ Rotate Orbs Options
     This kind of transformation requires different ordering of the orbitals to that which is standard for 
     spawning calculation, so it is not possible to go straight from this rotation into a spawning calc.
     The ROFCIDUMP must be printed out then read back in.
+
+**WRITETRANSFORMMAT** 
+    Default false.
+    This keyword must be included if we are doing a natural orbital rotation, and we want to print out
+    an MOTRANSFORM file.  This file contains the transformation matrix in binary which can be used with 
+    Qchem to get the cube files for the new orbitals.  NOTE: This file is only printed correctly if NECI
+    is compiled using PGI when the file is printed. 
+

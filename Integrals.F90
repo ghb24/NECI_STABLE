@@ -318,9 +318,9 @@ MODULE Integrals
 !who knows what for
       Use global_utilities
       use HElem
-      Use OneEInts, only: SetupTMat
+      Use OneEInts, only: SetupTMat!,GetTMatEl
       USE UMatCache, only : FreezeTransfer, CreateInvBRR, GetUMatSize, SetupUMat2D_df
-      Use UMatCache, only: InitStarStoreUMat,SetupUMatCache
+      Use UMatCache, only: InitStarStoreUMat,SetupUMatCache!,GTID,UMatInd
       use SystemData, only : nBasisMax, Alpha,BHub, BRR,nmsh,nEl
       use SystemData, only : Ecore,G1,iSpinSkip,nBasis,nMax,nMaxZ
       use SystemData, only: Omega,tAlpha,TBIN,tCPMD,tDFread,THFORDER,tRIIntegrals
@@ -332,7 +332,7 @@ MODULE Integrals
       INTEGER,SAVE :: tagZIA=0
       COMPLEX*16,ALLOCATABLE :: COEFF(:)
       INTEGER,SAVE :: tagCOEFF=0
-      INTEGER i
+      INTEGER i!,j,k,l,idi,idj,idk,idl,Index1
       INTEGER TmatInt,UMatInt
       REAL*8 :: UMatMem
       integer iErr
@@ -565,6 +565,29 @@ MODULE Integrals
          ENDIF
       ENDIF
       !ENDIF
+
+!      WRITE(6,*) "ONE ELECTRON"
+!      do i=1,nBasis
+!          do j=1,nBasis
+!              WRITE(36,"(2I5,G25.10)") i,j,DREAL(GetTMatEl(i,j))
+!          enddo
+!      enddo
+!      WRITE(6,*) "TWO ELECTRON"
+!      do i=1,nBasis
+!          do j=1,nBasis
+!              do k=1,nBasis
+!                  do l=1,nBasis
+!                     CALL GTID(NBASISMAX,i,IDi)
+!                     CALL GTID(NBASISMAX,j,IDj)
+!                     CALL GTID(NBASISMAX,k,IDk)
+!                     CALL GTID(NBASISMAX,l,IDl)
+!                     Index1=UMatInd(idi,idj,idk,idl,0,0)
+!                     WRITE(37,"(9I5,G25.10)") i,j,k,l,idi,idj,idk,idl,Index1,DREAL(GetUMatEl(NBasisMax,UMAT,ALAT,nBasis,ISpinSkip,G1,idi,idj,idk,idl))
+!                 enddo
+!             enddo
+!         enddo
+!     enddo
+
     End Subroutine IntInit
         
 
@@ -1146,9 +1169,9 @@ MODULE Integrals
        ENDIF
        IF(ISS.EQ.0) CALL SetupUMatTransTable(GG,nHG,nBasis)
 
-       do i=1,NBASIS
-           WRITE(6,*) i,G2(i)%Sym%S
-       enddo
+!       do i=1,NBASIS
+!           WRITE(6,*) i,G2(i)%Sym%S
+!       enddo
 
        IF(.NOT.TSTARSTORE) THEN
           IF(NFROZENIN.gt.0) THEN
