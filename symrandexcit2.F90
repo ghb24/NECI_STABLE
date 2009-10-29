@@ -51,61 +51,111 @@ MODULE GenRandSymExcitNUMod
     SUBROUTINE SpinOrbSymSetup(tRedoSym)
         INTEGER :: AlphaCounter,BetaCounter,i,j,Sym,CountSymAlpha,CountSymBeta,x
         LOGICAL :: tFirstSymBeta,tFirstSymAlpha,tRedoSym
-
-
-        Allocate(SymLabelList2(2,(nBasis/2)))   !This will seperate the alpha and beta states.
-        SymLabelList2(:,:)=0
-        Allocate(SymLabelCounts2(2,2,nSymLabels))     !Indices: (Alpha:Beta, Index:Number , Symmetry)
-        SymLabelCounts2(:,:,:)=0
-        IF(tRedoSym) THEN
-            AlphaCounter=1
-            BetaCounter=1
-            do i=0,nSymLabels-1
-                tFirstSymAlpha=.true.
-                tFirstSymBeta=.true.
-                CountSymAlpha=0
-                CountSymBeta=0
-                do j=1,nBasis
-                    Sym=INT(G1(j)%Sym%S,4)
-                    IF(G1(j)%Ms.eq.1) THEN
-    !Alpha orbital
-                        IF(Sym.eq.i) THEN
-                            IF(tFirstSymAlpha) THEN
-                                SymLabelCounts2(1,1,i+1)=AlphaCounter
-                                tFirstSymAlpha=.false.
-                            ENDIF
-                            SymLabelList2(1,AlphaCounter)=j
-                            AlphaCounter=AlphaCounter+1
-                            CountSymAlpha=CountSymAlpha+1
-                        ENDIF
-                    ELSE
-    !Beta orbital
-                        IF(Sym.eq.i) THEN
-                            IF(tFirstSymBeta) THEN
-                                SymLabelCounts2(2,1,i+1)=BetaCounter
-                                tFirstSymBeta=.false.
-                            ENDIF
-                            SymLabelList2(2,BetaCounter)=j
-                            BetaCounter=BetaCounter+1
-                            CountSymBeta=CountSymBeta+1
-                        ENDIF
-                    ENDIF
-                enddo
-                SymLabelCounts2(1,2,i+1)=CountSymAlpha
-                SymLabelCounts2(2,2,i+1)=CountSymBeta
-            enddo
+        INTEGER , ALLOCATABLE :: Temp(:)
+        
+        IF(tFixLz) THEN
+!Calculate the upper array bound for the ClassCount2 arrays. This will be dependant on the number of symmetries needed.
+            ScratchSize=2*nSymLabels*(2*iMaxLz+1)
         ELSE
-            do i=1,nBasis/2
-                SymLabelList2(1,i)=2*SymLabelList(i)
-                SymLabelList2(2,i)=(2*SymLabelList(i))-1
-            enddo
-            do i=1,nSymLabels
-                SymLabelCounts2(1,1,i)=SymLabelCounts(1,i)
-                SymLabelCounts2(2,1,i)=SymLabelCounts(1,i)
-                SymLabelCounts2(1,2,i)=SymLabelCounts(2,i)
-                SymLabelCounts2(2,2,i)=SymLabelCounts(2,i)
-            enddo
+            ScratchSize=2*nSymLabels
         ENDIF
+
+        IF(tNoSymGenRandExcits) THEN
+            ScratchSize=2
+        ENDIF
+
+!SymLabelList2 and SymLabelCounts2 are now organised differently, so that it is more efficient, and easier to add new symmetries.
+!SymLabelCounts is of size (2,ScratchSize), where 1,x gives the index in SymlabelList2 where the orbitals of symmetry x start.
+!SymLabelCounts(2,x) tells us the number of orbitals of spin & symmetry x there are.
+
+!Therefore, if you want to run over all orbitals of a specific symmetry, you want to run over SymLabelList from SymLabelCounts(1,sym) to SymLabelCounts(1,sym)+SymLabelCounts(2,sym)-1
+
+        Allocate(SymLabelList2(nBasis))
+        Allocate(SymLabelCounts2(2,ScratchSize))
+        SymLabelList2(:)=0          !Indices:   spin-orbital number
+        SymLabelCounts2(:,:)=0      !Indices:   index/Number , symmetry(inc. spin)
+        Allocate(Temp(ScratchSize))
+
+        do j=1,nBasis
+            IF(G1(j)%Ms.eq.1) THEN
+                Spin=1
+            ELSE
+                Spin=2
+            ENDIF
+            SymInd=ClassCountInd(Spin,INT(G1(j)%Sym%S,4),G1(j)%Ml)
+            SymLabelCounts2(2,SymInd)=SymLabelCounts2(2,SymInd)+1
+        enddo
+        SymLabelCounts2(1,1)=1
+        do j=2,ScratchSize
+            SymLabelCounts2(1,j)=SymLabelCounts2(1,j-1)+SymLabelCounts2(2,j-1)
+        enddo
+        Temp(:)=SymLabelCounts2(1,:)
+        do j=1,nBasis
+            IF(G1(j)%Ms.eq.1) THEN
+                Spin=1
+            ELSE
+                Spin=2
+            ENDIF
+            SymInd=ClassCountInd(Spin,INT(G1(j)%Sym%S,4),G1(j)%Ml)
+            SymLabelList2(Temp(SymInd))=j
+            Temp(SymInd)=Temp(SymInd)+1
+        enddo
+
+        Deallocate(Temp)
+
+!        Allocate(SymLabelList2(2,(nBasis/2)))   !This will seperate the alpha and beta states.
+!        SymLabelList2(:,:)=0
+!        Allocate(SymLabelCounts2(2,2,nSymLabels))     !Indices: (Alpha:Beta, Index:Number , Symmetry)
+!        SymLabelCounts2(:,:,:)=0
+!        IF(tRedoSym) THEN
+!            AlphaCounter=1
+!            BetaCounter=1
+!            do i=0,nSymLabels-1
+!                tFirstSymAlpha=.true.
+!                tFirstSymBeta=.true.
+!                CountSymAlpha=0
+!                CountSymBeta=0
+!                do j=1,nBasis
+!                    Sym=INT(G1(j)%Sym%S,4)
+!                    IF(G1(j)%Ms.eq.1) THEN
+!    !Alpha orbital
+!                        IF(Sym.eq.i) THEN
+!                            IF(tFirstSymAlpha) THEN
+!                                SymLabelCounts2(1,1,i+1)=AlphaCounter
+!                                tFirstSymAlpha=.false.
+!                            ENDIF
+!                            SymLabelList2(1,AlphaCounter)=j
+!                            AlphaCounter=AlphaCounter+1
+!                            CountSymAlpha=CountSymAlpha+1
+!                        ENDIF
+!                    ELSE
+!    !Beta orbital
+!                        IF(Sym.eq.i) THEN
+!                            IF(tFirstSymBeta) THEN
+!                                SymLabelCounts2(2,1,i+1)=BetaCounter
+!                                tFirstSymBeta=.false.
+!                            ENDIF
+!                            SymLabelList2(2,BetaCounter)=j
+!                            BetaCounter=BetaCounter+1
+!                            CountSymBeta=CountSymBeta+1
+!                        ENDIF
+!                    ENDIF
+!                enddo
+!                SymLabelCounts2(1,2,i+1)=CountSymAlpha
+!                SymLabelCounts2(2,2,i+1)=CountSymBeta
+!            enddo
+!        ELSE
+!            do i=1,nBasis/2
+!                SymLabelList2(1,i)=2*SymLabelList(i)
+!                SymLabelList2(2,i)=(2*SymLabelList(i))-1
+!            enddo
+!            do i=1,nSymLabels
+!                SymLabelCounts2(1,1,i)=SymLabelCounts(1,i)
+!                SymLabelCounts2(2,1,i)=SymLabelCounts(1,i)
+!                SymLabelCounts2(1,2,i)=SymLabelCounts(2,i)
+!                SymLabelCounts2(2,2,i)=SymLabelCounts(2,i)
+!            enddo
+!        ENDIF
 
 
 !        WRITE(6,*) 'Symmetries of orbitals 1:nBasis'
@@ -130,16 +180,6 @@ MODULE GenRandSymExcitNUMod
 !            enddo
 !        enddo
 
-        IF(tFixLz) THEN
-!Calculate the upper array bound for the ClassCount2 arrays. This will be dependant on the number of symmetries needed.
-            ScratchSize=2*nSymLabels*(2*iMaxLz+1)
-        ELSE
-            ScratchSize=2*nSymLabels
-        ENDIF
-
-        IF(tNoSymGenRandExcits) THEN
-            ScratchSize=2
-        ENDIF
 
         ALLOCATE(OrbClassCount(ScratchSize))
         OrbClassCount(:)=0
@@ -149,7 +189,7 @@ MODULE GenRandSymExcitNUMod
 !All orbitals are in irrep 0
             OrbClassCount(ClassCountInd(1,0,0))=(nBasis/2)
             OrbClassCount(ClassCountInd(2,0,0))=(nBasis/2)
-        ELSEIF(tFixLz) THEN
+        ELSE
             do i=1,nBasis
                 IF(G1(i)%Ms.eq.1) THEN
                     OrbClassCount(ClassCountInd(1,INT(G1(i)%Sym%S,4),G1(i)%Ml))=OrbClassCount(ClassCountInd(1,INT(G1(i)%Sym%S,4),G1(i)%Ml))+1
@@ -157,14 +197,17 @@ MODULE GenRandSymExcitNUMod
                     OrbClassCount(ClassCountInd(2,INT(G1(i)%Sym%S,4),G1(i)%Ml))=OrbClassCount(ClassCountInd(2,INT(G1(i)%Sym%S,4),G1(i)%Ml))+1
                 ENDIF
             enddo
-        ELSE
-!SymLabelCounts(2,1:nSymLabels) gives the number of *states* in each symmetry class.
-!There are therefore equal number of alpha and beta orbitals in each state from which to calculate the unoccupied classcount.
-            do i=1,nSymLabels
-                OrbClassCount(ClassCountInd(1,i-1,0))=SymLabelCounts2(1,2,i)
-                OrbClassCount(ClassCountInd(2,i-1,0))=SymLabelCounts2(2,2,i)
-            enddo
         ENDIF
+
+
+!        ELSE
+!!SymLabelCounts(2,1:nSymLabels) gives the number of *states* in each symmetry class.
+!!There are therefore equal number of alpha and beta orbitals in each state from which to calculate the unoccupied classcount.
+!            do i=1,nSymLabels
+!                OrbClassCount(ClassCountInd(1,i-1,0))=SymLabelCounts2(1,2,i)
+!                OrbClassCount(ClassCountInd(2,i-1,0))=SymLabelCounts2(2,2,i)
+!            enddo
+!        ENDIF
 
     END SUBROUTINE SpinOrbSymSetup
         
