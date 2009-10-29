@@ -1154,6 +1154,8 @@ MODULE GenRandSymExcitNUMod
 !                ElecsWNoExcits=ElecsWNoExcits+ClassCount2(2,0)
 !            ENDIF
 !        ELSE
+
+!This will not normally be called.
         IF((.not.tNoSingsPossible).and.(.not.tNoSymGenRandExcits)) THEN
 !First, we need to find out if there are any electrons which have no possible excitations. This is because these will need to be redrawn and so 
 !will affect the probabilities.
@@ -1162,14 +1164,22 @@ MODULE GenRandSymExcitNUMod
 
             IF(tFixLz) THEN
                 do k=-iMaxLz,iMaxLz,1
-                    do i=0,nSymLabels-1
-                        IF((ClassCount2(ClassCountInd(1,i,k)).ne.0).and.(ClassCountUnocc2(ClassCountInd(1,i,-k)).eq.0)) THEN
-                            ElecsWNoExcits=ElecsWNoExcits+ClassCount2(ClassCountInd(1,i,k))
-                        ENDIF
-                        IF((ClassCount2(ClassCountInd(2,i,k)).ne.0).and.(ClassCountUnocc2(ClassCountInd(2,i,-k)).eq.0)) THEN
-                            ElecsWNoExcits=ElecsWNoExcits+ClassCount2(ClassCountInd(2,i,k))
+                    Ind1=ClassCountInd(1,0,k)
+                    Ind2=ClassCountInd(1,0,-k)
+                    do i=0,nSymLabels*2-1
+                        IF((ClassCount2(i+Ind1).ne.0).and.(ClassCount2(i+Ind2).eq.0)) THEN
+                            ElecsWNoExcits=ElecsWNoExcits+ClassCount2(i+Ind1)
                         ENDIF
                     enddo
+
+!                    do i=0,nSymLabels-1
+!                        IF((ClassCount2(ClassCountInd(1,i,k)).ne.0).and.(ClassCountUnocc2(ClassCountInd(1,i,-k)).eq.0)) THEN
+!                            ElecsWNoExcits=ElecsWNoExcits+ClassCount2(ClassCountInd(1,i,k))
+!                        ENDIF
+!                        IF((ClassCount2(ClassCountInd(2,i,k)).ne.0).and.(ClassCountUnocc2(ClassCountInd(2,i,-k)).eq.0)) THEN
+!                            ElecsWNoExcits=ElecsWNoExcits+ClassCount2(ClassCountInd(2,i,k))
+!                        ENDIF
+!                    enddo
                 enddo
             ELSE
 
