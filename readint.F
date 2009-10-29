@@ -370,19 +370,26 @@ C.. At the moment we're ignoring the core energy
          CALL MPIDBCast(Arr,LEN*2,0)
          
          SYMMAX=1
+         iMaxLz=0
          DO I=1,NORB
             DO ISPN=1,ISPINS
                 BRR(ISPINS*I-ISPN+1)=ISPINS*I-ISPN+1
                 G1(ISPINS*I-ISPN+1)%Sym%s=ORBSYM(I)-1
-                G1(ISPINS*I-ISPN+1)%Ml=SYMLZ(I)
+                IF(tFixLz) THEN
+                    G1(ISPINS*I-ISPN+1)%Ml=SYMLZ(I)
+                ELSE
+                    G1(ISPINS*I-ISPN+1)%Ml=0
+                ENDIF
 C.. set momentum to 0
                 G1(ISPINS*I-ISPN+1)%k(1)=0
                 G1(ISPINS*I-ISPN+1)%k(2)=0
                 G1(ISPINS*I-ISPN+1)%k(3)=0
                 G1(ISPINS*I-ISPN+1)%Ms=-MOD(ISPINS*I-ISPN+1,2)*2+1
-               IF(SYMMAX.lt.ORBSYM(I)) SYMMAX=ORBSYM(I)
+                IF(SYMMAX.lt.ORBSYM(I)) SYMMAX=ORBSYM(I)
+                IF(abs(SYMLZ(I)).gt.iMaxLz) iMaxLz=abs(SYMLZ(I))
             ENDDO
          ENDDO
+         IF(.not.tFixLz) iMaxLz=0
          IF(SYMMAX.EQ.1) THEN
          ELSEIF(SYMMAX.LE.2) THEN
          ELSEIF(SYMMAX.LE.4) THEN
@@ -390,6 +397,7 @@ C.. set momentum to 0
          ELSEIF(SYMMAX.LE.8) THEN
             SYMMAX=8
          ENDIF
+         IF(tFixLz) THEN WRITE(6,"(A,I3)") "Maximum Lz orbital: ",iMaxLz
         WRITE(6,"(A,I3)") "Maximum number of symmetries: ",SYMMAX
          NBASISMAX(1,1)=0
          NBASISMAX(1,2)=0
