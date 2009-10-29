@@ -2208,9 +2208,9 @@ C.. Set to be totally symmetric
                      TotalMom=TotalMom+G1(beta)%Ml
                  ENDIF
                  IF(tUEG) THEN
-                     Momx=Momx+G1(alpha)%k(1)
-                     Momy=Momy+G1(alpha)%k(2)
-                     Momz=Momz+G1(alpha)%k(3)
+                     Momx=Momx+G1(beta)%k(1)
+                     Momy=Momy+G1(beta)%k(2)
+                     Momz=Momz+G1(beta)%k(3)
                  ENDIF
                  IF(tTruncSpace) THEN
             IF(.not.BTEST(FDetiLut((beta-1)/32),mod((beta-1),32))) THEN
