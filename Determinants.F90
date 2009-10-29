@@ -70,14 +70,18 @@ MODULE Determinants
         Use global_utilities
         Use HElem
         use SystemData, only: nel, Alat, Boa, Coa, BOX, BRR, ECore
-        use SystemData, only: G1, LMS, nBasis, STot, tCSF, Arr
+        use SystemData, only: G1, LMS, nBasis, STot, tCSF, Arr,tHub,tUEG
+        use SymData , only : nSymLabels,SymLabelList,SymLabelCounts
         use IntegralsData, only: nfrozen
+        use GenRandSymExcitNUMod , only : SpinOrbSymSetup
       
       real*8 DNDET
-      integer i,ii
+      integer i,ii,j
       integer*8 nDet
       integer ierr
+      integer :: alpha,beta,symalpha,symbeta,endsymstate
       character(25), parameter :: this_routine='DetInit'
+      LOGICAL :: tSuccess,tFoundOrbs(nBasis)
 
       WRITE(6,*) "SYMMETRY MULTIPLICATION TABLE"
       CALL WRITESYMTABLE(6)
@@ -136,6 +140,68 @@ MODULE Determinants
         ENDIF
       
 !C      CALL TC(I_HMAX,I_P,NWHTAY)
+
+        
+!Check that the symmetry routines have set the symmetry up correctly...
+        tSuccess=.true.
+        tFoundOrbs(:)=.false.
+
+        IF((.not.tHub).and.(.not.tUEG)) THEN
+            do i=1,nSymLabels
+!                WRITE(6,*) "NSymLabels: ",NSymLabels,i-1
+                EndSymState=SymLabelCounts(1,i)+SymLabelCounts(2,i)-1
+!                WRITE(6,*) "Number of states: ",SymLabelCounts(2,i)
+                do j=SymLabelCounts(1,i),EndSymState
+
+                    Beta=(2*SymLabelList(j))-1
+                    Alpha=(2*SymLabelList(j))
+                    SymAlpha=INT((G1(Alpha)%Sym%S),4)
+                    SymBeta=INT((G1(Beta)%Sym%S),4)
+!                    WRITE(6,*) "***",Alpha,Beta
+
+                    IF(.not.tFoundOrbs(Beta)) THEN
+                        tFoundOrbs(Beta)=.true.
+                    ELSE
+                        CALL Stop_All("SetupParameters","Orbital specified twice")
+                    ENDIF
+                    IF(.not.tFoundOrbs(Alpha)) THEN
+                        tFoundOrbs(Alpha)=.true.
+                    ELSE
+                        CALL Stop_All("SetupParameters","Orbital specified twice")
+                    ENDIF
+
+                    IF(G1(Beta)%Ms.ne.-1) THEN
+                        tSuccess=.false.
+                    ELSEIF(G1(Alpha)%Ms.ne.1) THEN
+                        tSuccess=.false.
+                    ELSEIF((SymAlpha.ne.(i-1)).or.(SymBeta.ne.(i-1))) THEN
+                        tSuccess=.false.
+                    ENDIF
+                enddo
+            enddo
+            do i=1,nBasis
+                IF(.not.tFoundOrbs(i)) THEN
+                    WRITE(6,*) "Orbital: ",i, " not found."
+                    CALL Stop_All("SetupParameters","Orbital not found")
+                ENDIF
+            enddo
+        ENDIF
+        IF(.not.tSuccess) THEN
+            WRITE(6,*) "************************************************"
+            WRITE(6,*) "**                 WARNING!!!                 **"
+            WRITE(6,*) "************************************************"
+            WRITE(6,*) "Symmetry information not set up correctly in NECI initialisation"
+            WRITE(6,*) "Will attempt to set up the symmetry again, but now in terms of spin orbitals"
+            WRITE(6,*) "Old excitation generators will not work"
+            WRITE(6,*) "I strongly suggest you check that the reference energy is correct."
+            CALL SpinOrbSymSetup(.true.) 
+        ELSE
+            WRITE(6,*) "Symmetry and spin of orbitals correctly set up for excitation generators."
+            WRITE(6,*) "Simply transferring this into a spin orbital representation."
+            CALL SpinOrbSymSetup(.false.) 
+        ENDIF
+! From now on, the orbitals are also contained in symlabellist2 and symlabelcounts2.
+! These are stored using spin orbitals.
 
 
     End Subroutine DetInit

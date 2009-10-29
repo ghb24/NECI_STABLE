@@ -7787,7 +7787,7 @@ MODULE FciMCParMod
         use Determinants , only : GetH0Element3
         use SymData , only : nSymLabels,SymLabelList,SymLabelCounts
         use Logging , only : tTruncRODump
-        use GenRandSymExcitNUMod , only : SpinOrbSymSetup,tNoSingsPossible
+        use GenRandSymExcitNUMod , only : tNoSingsPossible
         use FciMCLoggingMOD , only : InitTriHElStats,InitSpinCoupHel
         use DetCalc, only : NMRKS,tagNMRKS,FCIDets
         use SymExcit3, only : CountExcitations3 
@@ -7909,18 +7909,13 @@ MODULE FciMCParMod
             WRITE(6,*) "************************************************"
             WRITE(6,*) "**                 WARNING!!!                 **"
             WRITE(6,*) "************************************************"
-            WRITE(6,*) "Symmetry information not set up correctly in NECI initialisation"
-            WRITE(6,*) "Will attempt to set up the symmetry again, but now in terms of spin orbitals"
+            WRITE(6,*) "Symmetry information of orbitals not the same in alpha and beta pairs."
+            WRITE(6,*) "Symmetry now set up in terms of spin orbitals"
             WRITE(6,*) "I strongly suggest you check that the reference energy is correct."
-            CALL SpinOrbSymSetup(.true.) 
-
             IF(.not.tNonUniRandExcits) CALL Stop_All(this_routine,'ERROR. Need to use the non-uniform random excitation generators when &
             & we have odd symmetries and the symmetry label lists are stored in spin orbitals.')
-
         ELSE
-            WRITE(6,*) "Symmetry and spin of orbitals correctly set up for spawning excitation generators."
             WRITE(6,*) "Simply transferring this into a spin orbital representation."
-            CALL SpinOrbSymSetup(.false.) 
         ENDIF
 ! From now on, the orbitals are contained in symlabellist2 and symlabelcounts2 rather than the original arrays.
 ! These are stored using spin orbitals.
