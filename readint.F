@@ -108,7 +108,7 @@ C.. SHow that there's no momentum conservation
 
       SUBROUTINE GETFCIBASIS(NBASISMAX,ARR,BRR,G1,LEN,TBIN)
          use SystemData, only: BasisFN,BasisFNSize,Symmetry,NullBasisFn
-         use SystemData, only: tCacheFCIDUMPInts,tROHF
+         use SystemData, only: tCacheFCIDUMPInts,tROHF,tFixLz,iMaxLz
          use UMatCache, only: nSlotsInit,CalcNSlotsInit
          use UMatCache, only: GetCacheIndexStates,GTID
          use Parallel
@@ -397,8 +397,8 @@ C.. set momentum to 0
          ELSEIF(SYMMAX.LE.8) THEN
             SYMMAX=8
          ENDIF
-         IF(tFixLz) THEN WRITE(6,"(A,I3)") "Maximum Lz orbital: ",iMaxLz
-        WRITE(6,"(A,I3)") "Maximum number of symmetries: ",SYMMAX
+         IF(tFixLz) WRITE(6,"(A,I3)") "Maximum Lz orbital: ",iMaxLz
+         WRITE(6,"(A,I3)") "Maximum number of symmetries: ",SYMMAX
          NBASISMAX(1,1)=0
          NBASISMAX(1,2)=0
          NBASISMAX(5,1)=0

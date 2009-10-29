@@ -38,7 +38,7 @@ MODULE GenRandSymExcitNUMod
 
     REAL*8 :: pDoubNew
     INTEGER , PARAMETER :: r2=kind(0.d0)
-    INTEGER , ALLOCATABLE :: SymLabelList2(:,:),SymLabelCounts2(:,:,:)
+    INTEGER , ALLOCATABLE :: SymLabelList2(:),SymLabelCounts2(:,:)
     INTEGER :: MaxABPairs
     LOGICAL :: tNoSingsPossible
     INTEGER :: ScratchSize          !This indicates the upper bound of the arrays needed for the excitation generation. The array bounds are ScratchSize.
@@ -49,7 +49,8 @@ MODULE GenRandSymExcitNUMod
 !Sometimes (especially UHF orbitals), the symmetry routines will not set up the orbitals correctly. Therefore, this routine will set up symlabellist and symlabelcounts
 !to be cast in terms of spin orbitals, and the symrandexcit2 routines will use these arrays.
     SUBROUTINE SpinOrbSymSetup(tRedoSym)
-        INTEGER :: AlphaCounter,BetaCounter,i,j,Sym,CountSymAlpha,CountSymBeta,x
+        INTEGER :: i,j,SymInd
+        INTEGER :: Spin
         LOGICAL :: tFirstSymBeta,tFirstSymAlpha,tRedoSym
         INTEGER , ALLOCATABLE :: Temp(:)
         
@@ -499,7 +500,7 @@ MODULE GenRandSymExcitNUMod
 
     SUBROUTINE PickBOrb(nI,iSpn,ILUT,ClassCountUnocc2,SpinOrbA,OrbA,SymA,OrbB,SymB,NExcit,SymProduct,NExcitOtherWay)
         INTEGER :: nI(NEl),iSpn,SpinOrbA,OrbA,SymB,NExcit,SymProduct,NExcitOtherWay
-        INTEGER :: OrbB,Attempts,SpinOrbB,ChosenUnocc
+        INTEGER :: OrbB,Attempts,SpinOrbB,ChosenUnocc,Ind
         INTEGER :: ILUT(0:NIfD),SymA,nOrbs,z,i
         INTEGER :: ClassCountUnocc2(ScratchSize)
         REAL*8 :: r
@@ -564,7 +565,8 @@ MODULE GenRandSymExcitNUMod
             IF(tNoSymGenRandExcits) THEN
                 nOrbs=nBasis/2      !No symmetry, therefore all orbitals of allowed spin possible to generate.
             ELSE
-                nOrbs=SymLabelCounts2(SpinOrbB,2,SymB+1)
+                Ind=ClassCountInd(SpinOrbB,SymB,0)
+                nOrbs=SymLabelCounts2(2,Ind)
             ENDIF
             z=0     !z is the counter for the number of allowed unoccupied orbitals we have gone through
             do i=0,nOrbs-1
@@ -573,7 +575,8 @@ MODULE GenRandSymExcitNUMod
                 ELSE
 !Find the spin orbital index. SymLabelCounts has the index of the state for the given symmetry.
 !                    OrbB=(2*SymLabelList(SymLabelCounts(1,SymB+1)+i))+SpinOrbB
-                    OrbB=SymLabelList2(SpinOrbB,(SymLabelCounts2(SpinOrbB,1,SymB+1)+i))
+!                    OrbB=SymLabelList2(SpinOrbB,(SymLabelCounts2(SpinOrbB,1,SymB+1)+i))
+                    OrbB=SymLabelList2(SymLabelCounts2(1,Ind)+i)
                 ENDIF
 
 !Find out if the orbital is in the determinant, or is the other unocc picked
@@ -600,7 +603,9 @@ MODULE GenRandSymExcitNUMod
             IF(tNoSymGenRandExcits) THEN
                 nOrbs=nBasis/2
             ELSE
-                nOrbs=SymLabelCounts2(SpinOrbB,2,SymB+1)
+!                nOrbs=SymLabelCounts2(SpinOrbB,2,SymB+1)
+                Ind=ClassCountInd(SpinOrbB,SymB,0)
+                nOrbs=SymLabelCounts2(2,Ind)
             ENDIF
             Attempts=0
             do while(.true.)
@@ -617,7 +622,8 @@ MODULE GenRandSymExcitNUMod
                     OrbB=(2*(ChosenUnocc+1))-(SpinOrbB-1)
                 ELSE
 !                    OrbB=(2*SymLabelList(SymLabelCounts(1,SymB+1)+ChosenUnocc))+SpinOrbB
-                    OrbB=SymLabelList2(SpinOrbB,SymLabelCounts2(SpinOrbB,1,SymB+1)+ChosenUnocc)
+!                    OrbB=SymLabelList2(SpinOrbB,SymLabelCounts2(SpinOrbB,1,SymB+1)+ChosenUnocc)
+                     OrbB=SymLabelList2(SymLabelCounts2(1,Ind)+ChosenUnocc)
                 ENDIF
 !                WRITE(6,*) "B: ",OrbB, nOrbs, SpinOrbB
 !                WRITE(6,*) "SymLabelList(1:nBasis): ",SymLabelList(1:nBasis)
@@ -1140,8 +1146,8 @@ MODULE GenRandSymExcitNUMod
         INTEGER :: Eleci,ElecSym,nI(NEl),nJ(NEl),NExcit,iSpn,ChosenUnocc
         INTEGER :: ExcitMat(2,2),ExcitLevel,iGetExcitLevel
         INTEGER :: ClassCount2(ScratchSize)
-        INTEGER :: ClassCountUnocc2(ScratchSize)
-        INTEGER :: ILUT(0:NIfD)
+        INTEGER :: ClassCountUnocc2(ScratchSize),k,ElecK,Ind
+        INTEGER :: ILUT(0:NIfD),Ind1,Ind2
         REAL*8 :: r,pGen
         LOGICAL :: tParity,IsValidDet,SymAllowed
 
@@ -1283,7 +1289,11 @@ MODULE GenRandSymExcitNUMod
             ELSE
 !                nOrbs=SymLabelCounts(2,ElecSym+1)
 !                nOrbs=SymLabelCounts2(iSpn,2,ElecSym+1)
-                nOrbs=OrbClassCount(ClassCountInd(iSpn,ElecSym,-ElecK))
+                Ind=ClassCountInd(iSpn,ElecSym,-ElecK)
+                nOrbs=OrbClassCount(Ind)
+                IF(nOrbs.ne.SymLabelCounts2(2,Ind)) THEN
+                    CALL Stop_All("GetSingleExcit","Error in symmetry arrays")
+                ENDIF
             ENDIF
 
             z=0     !z is the counter for the number of allowed unoccupied orbitals we have gone through
@@ -1293,7 +1303,8 @@ MODULE GenRandSymExcitNUMod
                     Orb=(2*(i+1))-(iSpn-1)
                 ELSE
 !                    Orb=(2*SymLabelList(SymLabelCounts(1,ElecSym+1)+i))-(iSpn-1)
-                    Orb=SymLabelList2(iSpn,SymLabelCounts2(iSpn,1,ElecSym+1)+i)
+!                    Orb=SymLabelList2(iSpn,SymLabelCounts2(iSpn,1,ElecSym+1)+i)
+                    Orb=SymLabelList2(SymLabelCounts2(1,Ind)+i)
                 ENDIF
 
 !Find out if the orbital is in the determinant.
@@ -1320,8 +1331,12 @@ MODULE GenRandSymExcitNUMod
             IF(tNoSymGenRandExcits) THEN
                 nOrbs=nBasis/2
             ELSE
-!                nOrbs=SymLabelCounts(2,ElecSym+1)
-                nOrbs=SymLabelCounts2(iSpn,2,ElecSym+1)
+                Ind=ClassCountInd(iSpn,ElecSym,-ElecK)
+                nOrbs=OrbClassCount(Ind)
+                IF(nOrbs.ne.SymLabelCounts2(2,Ind)) THEN
+                    CALL Stop_All("GetSingleExcit","Error in symmetry arrays")
+                ENDIF
+!                nOrbs=SymLabelCounts2(iSpn,2,ElecSym+1)
             ENDIF
             Attempts=0
             do while(.true.)
@@ -1338,7 +1353,7 @@ MODULE GenRandSymExcitNUMod
                     Orb=(2*(ChosenUnocc+1))-(iSpn-1)
                 ELSE
 !                    Orb=(2*SymLabelList(SymLabelCounts(1,ElecSym+1)+ChosenUnocc))-(iSpn-1)
-                    Orb=SymLabelList2(iSpn,SymLabelCounts2(iSpn,1,ElecSym+1)+ChosenUnocc)
+                    Orb=SymLabelList2(SymLabelCounts2(1,Ind)+ChosenUnocc)
                 ENDIF
 
 !Find out if orbital is in nI or not. Accept if it isn't in it.
@@ -1435,9 +1450,7 @@ MODULE GenRandSymExcitNUMod
             enddo
 
 !We now want to find ClassCountUnocc2 - the unoccupied version of the array
-!SymLabelCounts(2,1:nSymLabels) gives the number of *states* in each symmetry class.
-!There are therefore equal number of alpha and beta orbitals in each state from which to calculate the unoccupied classcount.
-!Again, we store as 
+!SymLabelCounts(2,Sym) gives the number of *spin-orbitals* in each symmetry class.
 
 !We don't need to do this any more, since we store the whole space classcounts in OrbClassCount initially.
 !            do i=1,nSymLabels
@@ -1712,7 +1725,7 @@ MODULE GenRandSymExcitNUMod
         Use SystemData, only: FCoul
         INTEGER :: ClassCount2(ScratchSize),i,Attempts,OrbA
         INTEGER :: ClassCountUnocc2(ScratchSize)
-        INTEGER :: ElecsWNoExcits,nParts,WSign,iCreate,nI(NEl),nJ(NEl),iLut(0:NIfD)
+        INTEGER :: ElecsWNoExcits,nParts,WSign,iCreate,nI(NEl),nJ(NEl),iLut(0:NIfD),Ind
         INTEGER :: ExcitMat(2,2),SpawnOrb(nBasis),Eleci,ElecSym,NExcit,VecInd,ispn,EndSymState,j
         REAL*8 :: Tau,SpawnProb(nBasis),NormProb,r,rat
         LOGICAL :: tParity,SymAllowed
@@ -1795,16 +1808,17 @@ MODULE GenRandSymExcitNUMod
 
 !We also want to take into account spin. We want the spin of the chosen unoccupied orbital to be the same as the chosen occupied orbital.
 !Run over all possible a orbitals
-        EndSymState=SymLabelCounts2(ispn,1,ElecSym+1)+SymLabelCounts2(ispn,2,ElecSym+1)-1
+        Ind=ClassCountInd(ispn,ElecSym,0)
+        EndSymState=SymLabelCounts2(1,Ind)+SymLabelCounts2(2,Ind)-1
 
         VecInd=1
         NormProb=0.D0
 
-       do j=SymLabelCounts2(ispn,1,ElecSym+1),EndSymState
+       do j=SymLabelCounts2(1,Ind),EndSymState
 
 !            IF(ispn.eq.-1) THEN
 !We want to look through all beta orbitals
-            OrbA=SymLabelList2(ispn,j)     !This is the spin orbital chosen for a
+            OrbA=SymLabelList2(j)     !This is the spin orbital chosen for a
 !                OrbA=(2*SymLabelList(j))-1     !This is the spin orbital chosen for a
 !            ELSE
 !                OrbA=SymLabelList(1,j)
@@ -1945,7 +1959,7 @@ MODULE GenRandSymExcitNUMod
         INTEGER :: nI(NEl),iLut(0:NIfD),Elec1Ind,Elec2Ind,SymProduct,iSpn,OrbA,OrbB,iCreate
         INTEGER :: SpatOrbi,SpatOrbj,Spini,Spinj,i,aspn,bspn,SymA,SymB,SpatOrba,EndSymState,VecInd
         REAL*8 :: Tau,SpawnProb(MaxABPairs),NormProb,rat,r
-        INTEGER :: SpawnOrbs(2,MaxABPairs),j,nParts,SpinIndex
+        INTEGER :: SpawnOrbs(2,MaxABPairs),j,nParts,SpinIndex,Ind
         TYPE(HElement) :: HEl
 
 !We want the spatial orbital number for the ij pair (Elec1Ind is the index in nI).
@@ -2009,11 +2023,12 @@ MODULE GenRandSymExcitNUMod
 
 !To run just through the states of the required symmetry we want to use SymLabelCounts.
 !            StartSymState=SymLabelCounts(1,SymB+1)
-            EndSymState=SymLabelCounts2(SpinIndex,1,SymB+1)+SymLabelCounts2(SpinIndex,2,SymB+1)-1
+            Ind=ClassCountInd(SpinIndex,SymB,0)
+            EndSymState=SymLabelCounts2(1,Ind)+SymLabelCounts2(2,Ind)-1
 
 
 !Run over all possible b orbitals
-            do j=SymLabelCounts2(SpinIndex,1,SymB+1),EndSymState
+            do j=SymLabelCounts2(1,Ind),EndSymState
 
 !                IF(bspn.eq.-1) THEN
 !                    OrbB=(2*SymLabelList(j))-1     !This is the spin orbital chosen for b
@@ -2021,7 +2036,7 @@ MODULE GenRandSymExcitNUMod
 !                    OrbB=(2*SymLabelList(j))
 !                ENDIF
 
-                OrbB=SymLabelList2(SpinIndex,j)     !This is the spin orbital chosen for b
+                OrbB=SymLabelList2(j)     !This is the spin orbital chosen for b
 
                 IF(OrbB.le.i) THEN
 !Since we only want unique ab pairs, ensure that b > a.
