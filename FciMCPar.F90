@@ -1194,6 +1194,7 @@ MODULE FciMCParMod
 !  It defaults to 1, and weights the contribution of this det. (Only in the projected energy)
     SUBROUTINE SumEContrib(DetCurr,ExcitLevel,WSign,iLutCurr,HDiagCurr,dProbFin)
         use SystemData, only : tNoBrillouin
+        use CalcData, only: tFCIMC
         INTEGER :: DetCurr(NEl),ExcitLevel,i,HighIndex,LowIndex,iLutCurr(0:NIfD),WSign,Bin
         INTEGER :: PartInd,iLutSym(0:NIfD),OpenOrbs
         LOGICAL :: CompiPath,tSuccess,iLut2(0:NIfD),DetBitEQ
@@ -1225,6 +1226,8 @@ MODULE FciMCParMod
 !            AvSign=AvSign+REAL(WSign,r2)
 !            AvSignHFD=AvSignHFD+REAL(WSign,r2)
             ENumCyc=ENumCyc+(REAL(HOffDiag%v,r2)*WSign/dProbFin)     !This is simply the Hij*sign summed over the course of the update cycle
+!            WRITE(6,*) 2,SumENum,(REAL(HOffDiag%v,r2)*WSign/dProbFin)     !This is simply the Hij*sign summed over the course of the update cycle
+
             
             
 !        ELSE
@@ -1244,6 +1247,7 @@ MODULE FciMCParMod
 !            AvSign=AvSign+REAL(WSign,r2)
 !            AvSignHFD=AvSignHFD+REAL(WSign,r2)
             ENumCyc=ENumCyc+(REAL(HOffDiag%v,r2)*WSign/dProbFin)     !This is simply the Hij*sign summed over the course of the update cycle
+!            WRITE(6,*) 1,SumENum,(REAL(HOffDiag%v,r2)*WSign/dProbFin)     !This is simply the Hij*sign summed over the course of the update cycle
           endif 
 
           IF(tConstructNOs) THEN
@@ -1260,9 +1264,8 @@ MODULE FciMCParMod
             
         ENDIF
 
-        
 !Histogramming diagnostic options...
-        IF(tHistSpawn.or.tCalcFCIMCPsi.and.(Iter.ge.NHistEquilSteps)) THEN
+        IF((tHistSpawn.or.tCalcFCIMCPsi.and.(Iter.ge.NHistEquilSteps)).and.tFCIMC) THEN
             IF(ExcitLevel.eq.NEl) THEN
                 CALL BinSearchParts2(iLutCurr,HistMinInd(ExcitLevel),Det,PartInd,tSuccess)
                 HistMinInd(ExcitLevel)=PartInd

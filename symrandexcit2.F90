@@ -1952,7 +1952,8 @@ SUBROUTINE SpinOrbSymSetup(tRedoSym)
     use GenRandSymExcitNUMod , only : ClassCountInd
     use SymData, only: nSymLabels
     use SymData, only: SymLabelList,SymLabelCounts
-    use SystemData , only : G1,tFixLz,tNoSymGenRandExcits
+    use SystemData , only : G1,tFixLz,tNoSymGenRandExcits,nBasis,iMaxLz
+    IMPLICIT NONE
     INTEGER :: i,j,SymInd
     INTEGER :: Spin
     LOGICAL :: tFirstSymBeta,tFirstSymAlpha,tRedoSym
