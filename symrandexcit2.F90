@@ -1901,7 +1901,7 @@ SUBROUTINE SpinOrbSymSetup(tRedoSym)
     use SymData, only: SymLabelList,SymLabelCounts
     use SystemData , only : G1,tFixLz,tNoSymGenRandExcits,nBasis
     IMPLICIT NONE
-    INTEGER :: AlphaCounter,BetaCounter,i,j,Sym,CountSymAlpha,CountSymBeta,x
+    INTEGER :: AlphaCounter,BetaCounter,i,j,Sym,CountSymAlpha,CountSymBeta,x,LoopVar
     LOGICAL :: tFirstSymBeta,tFirstSymAlpha,tRedoSym
 
 
