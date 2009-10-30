@@ -1899,7 +1899,7 @@ SUBROUTINE SpinOrbSymSetup(tRedoSym)
     use SymExcitDataMod , only : ScratchSize,SymLabelList2,SymLabelCounts2
     use SymData, only: nSymLabels
     use SymData, only: SymLabelList,SymLabelCounts
-    use SystemData , only : G1
+    use SystemData , only : G1,tFixLz,tNoSymGenRandExcits
     INTEGER :: AlphaCounter,BetaCounter,i,j,Sym,CountSymAlpha,CountSymBeta,x
     LOGICAL :: tFirstSymBeta,tFirstSymAlpha,tRedoSym
 
