@@ -73,7 +73,6 @@ MODULE Determinants
         use SystemData, only: G1, LMS, nBasis, STot, tCSF, Arr,tHub,tUEG
         use SymData , only : nSymLabels,SymLabelList,SymLabelCounts
         use IntegralsData, only: nfrozen
-        use GenRandSymExcitNUMod , only : SpinOrbSymSetup
       
       real*8 DNDET
       integer i,ii,j
