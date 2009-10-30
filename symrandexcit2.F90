@@ -1467,6 +1467,14 @@ MODULE GenRandSymExcitNUMod
             ClassCountInd=2*Sym+Spin
         ENDIF
 
+        IF(tNoSymGenRandExcits) THEN
+            IF(Spin.eq.1) THEN
+                ClassCountInd=1
+            ELSE
+                ClassCountInd=0
+            ENDIF
+        ENDIF
+
     END FUNCTION ClassCountInd
 
 
@@ -1954,8 +1962,12 @@ SUBROUTINE SpinOrbSymSetup(tRedoSym)
     use SymData, only: SymLabelList,SymLabelCounts
     use SystemData , only : G1,tFixLz,tNoSymGenRandExcits,nBasis,iMaxLz
     IMPLICIT NONE
+<<<<<<< HEAD:symrandexcit2.F90
     INTEGER :: i,j,SymInd
     INTEGER :: Spin
+=======
+    INTEGER :: AlphaCounter,BetaCounter,i,j,Sym,CountSymAlpha,CountSymBeta,x,LoopVar
+>>>>>>> master:symrandexcit2.F90
     LOGICAL :: tFirstSymBeta,tFirstSymAlpha,tRedoSym
     INTEGER , ALLOCATABLE :: Temp(:)
     
