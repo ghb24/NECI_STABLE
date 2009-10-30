@@ -1912,13 +1912,22 @@ SUBROUTINE SpinOrbSymSetup(tRedoSym)
     IF(tRedoSym) THEN
         AlphaCounter=1
         BetaCounter=1
-        do i=0,nSymLabels-1
+        IF(tNoSymGenRandExcits) THEN
+            LoopVar=0
+        ELSE
+            LoopVar=nSymLabels-1
+        ENDIF
+        do i=0,LoopVar
             tFirstSymAlpha=.true.
             tFirstSymBeta=.true.
             CountSymAlpha=0
             CountSymBeta=0
             do j=1,nBasis
-                Sym=INT(G1(j)%Sym%S,4)
+                IF(tNoSymGenRandExcits) THEN
+                    Sym=0
+                ELSE
+                    Sym=INT(G1(j)%Sym%S,4)
+                ENDIF
                 IF(G1(j)%Ms.eq.1) THEN
 !Alpha orbital
                     IF(Sym.eq.i) THEN
@@ -1947,16 +1956,27 @@ SUBROUTINE SpinOrbSymSetup(tRedoSym)
             SymLabelCounts2(2,2,i+1)=CountSymBeta
         enddo
     ELSE
-        do i=1,nBasis/2
-            SymLabelList2(1,i)=2*SymLabelList(i)
-            SymLabelList2(2,i)=(2*SymLabelList(i))-1
-        enddo
-        do i=1,nSymLabels
-            SymLabelCounts2(1,1,i)=SymLabelCounts(1,i)
-            SymLabelCounts2(2,1,i)=SymLabelCounts(1,i)
-            SymLabelCounts2(1,2,i)=SymLabelCounts(2,i)
-            SymLabelCounts2(2,2,i)=SymLabelCounts(2,i)
-        enddo
+        IF(tNoSymGenRandExcits) THEN
+            do i=1,nBasis,2
+                SymLabelList2(2,(i+1)/2)=i
+                SymLabelList2(1,(i+1)/2)=i+1
+            enddo
+            SymLabelCounts2(1,1,1)=1
+            SymLabelCounts2(2,1,1)=1
+            SymLabelCounts2(1,2,1)=nBasis/2
+            SymLabelCounts2(2,2,1)=nBasis/2
+        ELSE
+            do i=1,nBasis/2
+                SymLabelList2(1,i)=2*SymLabelList(i)
+                SymLabelList2(2,i)=(2*SymLabelList(i))-1
+            enddo
+            do i=1,nSymLabels
+                SymLabelCounts2(1,1,i)=SymLabelCounts(1,i)
+                SymLabelCounts2(2,1,i)=SymLabelCounts(1,i)
+                SymLabelCounts2(1,2,i)=SymLabelCounts(2,i)
+                SymLabelCounts2(2,2,i)=SymLabelCounts(2,i)
+            enddo
+        ENDIF
     ENDIF
 
 
