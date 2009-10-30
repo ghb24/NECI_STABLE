@@ -907,7 +907,8 @@
       INTEGER iLutnI(0:nIfD),iLutnJ(0:nIfD)
       INTEGER nJ(nEl)
       INTEGER DetCurr(0:nIfD)
-      INTEGER :: ExcitLevel,iGetExcitLevel_2,Ex(2,2),Scratch1(ScratchSize),Scratch2(ScratchSize)
+      INTEGER :: ExcitLevel,iGetExcitLevel_2,Ex(2,2)
+      INTEGER , ALLOCATABLE :: Scratch1(:),Scratch2(:) !Both (ScratchSize)
       INTEGER iCompositeSize,WalkExcitLevel,IC,iMaxExcit
       REAL*8 dNGenComposite,Prob
       LOGICAL :: tParity,tFilled
@@ -945,6 +946,9 @@
       AllTotWalkersOld=WalkerScale*dTotAbsAmpl
       AllTotPartsOld=WalkerScale*dTotAbsAmpl
       Call SetupParameters()
+      ALLOCATE(Scratch1(ScratchSize))
+      ALLOCATE(Scratch2(ScratchSize))
+
 ! Each cycle we select combinations of excitors randomly, and spawn and birth/die from them
       Iter=1
       do while (Iter.le.NMCyc)
@@ -1161,7 +1165,7 @@
 !we are simply looping over all the particles on the determinant
 !This will only be a help if most determinants are multiply occupied.
 
-            call WriteDet(6,DetCurr,nEl,.true.)
+!            call WriteDet(6,DetCurr,nEl,.true.)
             CALL GenRandSymExcitScratchNU(DetCurr,iLutnI,nJ,pDoubles,IC,Ex,tParity,exFlag,Prob,Scratch1,Scratch2,tFilled)
 !We need to calculate the bit-representation of this new child. This can be done easily since the ExcitMat is known.
             CALL FindExcitBitDet(iLutnI,iLutnJ,IC,Ex,NIfD)
