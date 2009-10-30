@@ -32,115 +32,14 @@ MODULE GenRandSymExcitNUMod
     use SymData, only: nSymLabels,TwoCycleSymGens
     use SymData, only: SymLabelList,SymLabelCounts
     use mt95 , only : genrand_real2
+    use SymExcitDataMod 
     use HElem
     IMPLICIT NONE
     SAVE
 
-    REAL*8 :: pDoubNew
     INTEGER , PARAMETER :: r2=kind(0.d0)
-    INTEGER , ALLOCATABLE :: SymLabelList2(:,:),SymLabelCounts2(:,:,:)
-    INTEGER :: MaxABPairs
-    LOGICAL :: tNoSingsPossible
-    INTEGER :: ScratchSize          !This indicates the upper bound of the arrays needed for the excitation generation. The array bounds are ScratchSize.
 
     contains
-
-!Sometimes (especially UHF orbitals), the symmetry routines will not set up the orbitals correctly. Therefore, this routine will set up symlabellist and symlabelcounts
-!to be cast in terms of spin orbitals, and the symrandexcit2 routines will use these arrays.
-    SUBROUTINE SpinOrbSymSetup(tRedoSym)
-        INTEGER :: AlphaCounter,BetaCounter,i,j,Sym,CountSymAlpha,CountSymBeta,x
-        LOGICAL :: tFirstSymBeta,tFirstSymAlpha,tRedoSym
-
-
-        Allocate(SymLabelList2(2,(nBasis/2)))   !This will seperate the alpha and beta states.
-        SymLabelList2(:,:)=0
-        Allocate(SymLabelCounts2(2,2,nSymLabels))     !Indices: (Alpha:Beta, Index:Number , Symmetry)
-        SymLabelCounts2(:,:,:)=0
-        IF(tRedoSym) THEN
-            AlphaCounter=1
-            BetaCounter=1
-            do i=0,nSymLabels-1
-                tFirstSymAlpha=.true.
-                tFirstSymBeta=.true.
-                CountSymAlpha=0
-                CountSymBeta=0
-                do j=1,nBasis
-                    Sym=INT(G1(j)%Sym%S,4)
-                    IF(G1(j)%Ms.eq.1) THEN
-    !Alpha orbital
-                        IF(Sym.eq.i) THEN
-                            IF(tFirstSymAlpha) THEN
-                                SymLabelCounts2(1,1,i+1)=AlphaCounter
-                                tFirstSymAlpha=.false.
-                            ENDIF
-                            SymLabelList2(1,AlphaCounter)=j
-                            AlphaCounter=AlphaCounter+1
-                            CountSymAlpha=CountSymAlpha+1
-                        ENDIF
-                    ELSE
-    !Beta orbital
-                        IF(Sym.eq.i) THEN
-                            IF(tFirstSymBeta) THEN
-                                SymLabelCounts2(2,1,i+1)=BetaCounter
-                                tFirstSymBeta=.false.
-                            ENDIF
-                            SymLabelList2(2,BetaCounter)=j
-                            BetaCounter=BetaCounter+1
-                            CountSymBeta=CountSymBeta+1
-                        ENDIF
-                    ENDIF
-                enddo
-                SymLabelCounts2(1,2,i+1)=CountSymAlpha
-                SymLabelCounts2(2,2,i+1)=CountSymBeta
-            enddo
-        ELSE
-            do i=1,nBasis/2
-                SymLabelList2(1,i)=2*SymLabelList(i)
-                SymLabelList2(2,i)=(2*SymLabelList(i))-1
-            enddo
-            do i=1,nSymLabels
-                SymLabelCounts2(1,1,i)=SymLabelCounts(1,i)
-                SymLabelCounts2(2,1,i)=SymLabelCounts(1,i)
-                SymLabelCounts2(1,2,i)=SymLabelCounts(2,i)
-                SymLabelCounts2(2,2,i)=SymLabelCounts(2,i)
-            enddo
-        ENDIF
-
-
-!        WRITE(6,*) 'Symmetries of orbitals 1:nBasis'
-!        WRITE(6,*) G1(1:nBasis)%Sym%S
-
-!        do x=1,2
-!            IF(x.eq.1) WRITE(6,*) '******* ALPHA ********'
-!            IF(x.eq.2) WRITE(6,*) '******* BETA ********'
-!            WRITE(6,*) "***"
-!            WRITE(6,*) 'SymLabelList2(1:nBasis) - the orbitals in the correct symmetry order, followed by their symmetry'
-!            do i=1,(nBasis/2)
-!                WRITE(6,*) SymLabelList2(x,i),G1(SymLabelList2(x,i))%Sym%S
-!            enddo
-!            WRITE(6,*) 'SymLabelCounts2(1,1,S) - the index in SymLabelList2 where symmetry S starts'
-!            do i=1,nSymLabels
-!                WRITE(6,*) SymLabelCounts2(x,1,i)
-!            enddo
-!            WRITE(6,*) "***"
-!            WRITE(6,*) 'SymLabelCounts2(1,2,S) - the number of orbitals in SymLabelList2 with symmetry S'
-!            do i=1,nSymLabels
-!                WRITE(6,*) SymLabelCounts2(x,2,i)
-!            enddo
-!        enddo
-
-        IF(tFixLz) THEN
-!Calculate the upper array bound for the ClassCount2 arrays. This will be dependant on the number of symmetries needed.
-            ScratchSize=2*nSymLabels
-        ELSE
-            ScratchSize=2*nSymLabels
-        ENDIF
-
-        IF(tNoSymGenRandExcits) THEN
-            ScratchSize=2
-        ENDIF
-
-    END SUBROUTINE SpinOrbSymSetup
         
     
 
@@ -1993,6 +1892,109 @@ MODULE GenRandSymExcitNUMod
 
 
 END MODULE GenRandSymExcitNUMod
+
+!Sometimes (especially UHF orbitals), the symmetry routines will not set up the orbitals correctly. Therefore, this routine will set up symlabellist and symlabelcounts
+!to be cast in terms of spin orbitals, and the symrandexcit2 routines will use these arrays.
+SUBROUTINE SpinOrbSymSetup(tRedoSym)
+    use SymExcitDataMod , only : ScratchSize,SymLabelList2,SymLabelCounts2
+    use SymData, only: nSymLabels
+    use SymData, only: SymLabelList,SymLabelCounts
+    use SystemData , only : G1
+    INTEGER :: AlphaCounter,BetaCounter,i,j,Sym,CountSymAlpha,CountSymBeta,x
+    LOGICAL :: tFirstSymBeta,tFirstSymAlpha,tRedoSym
+
+
+    Allocate(SymLabelList2(2,(nBasis/2)))   !This will seperate the alpha and beta states.
+    SymLabelList2(:,:)=0
+    Allocate(SymLabelCounts2(2,2,nSymLabels))     !Indices: (Alpha:Beta, Index:Number , Symmetry)
+    SymLabelCounts2(:,:,:)=0
+    IF(tRedoSym) THEN
+        AlphaCounter=1
+        BetaCounter=1
+        do i=0,nSymLabels-1
+            tFirstSymAlpha=.true.
+            tFirstSymBeta=.true.
+            CountSymAlpha=0
+            CountSymBeta=0
+            do j=1,nBasis
+                Sym=INT(G1(j)%Sym%S,4)
+                IF(G1(j)%Ms.eq.1) THEN
+!Alpha orbital
+                    IF(Sym.eq.i) THEN
+                        IF(tFirstSymAlpha) THEN
+                            SymLabelCounts2(1,1,i+1)=AlphaCounter
+                            tFirstSymAlpha=.false.
+                        ENDIF
+                        SymLabelList2(1,AlphaCounter)=j
+                        AlphaCounter=AlphaCounter+1
+                        CountSymAlpha=CountSymAlpha+1
+                    ENDIF
+                ELSE
+!Beta orbital
+                    IF(Sym.eq.i) THEN
+                        IF(tFirstSymBeta) THEN
+                            SymLabelCounts2(2,1,i+1)=BetaCounter
+                            tFirstSymBeta=.false.
+                        ENDIF
+                        SymLabelList2(2,BetaCounter)=j
+                        BetaCounter=BetaCounter+1
+                        CountSymBeta=CountSymBeta+1
+                    ENDIF
+                ENDIF
+            enddo
+            SymLabelCounts2(1,2,i+1)=CountSymAlpha
+            SymLabelCounts2(2,2,i+1)=CountSymBeta
+        enddo
+    ELSE
+        do i=1,nBasis/2
+            SymLabelList2(1,i)=2*SymLabelList(i)
+            SymLabelList2(2,i)=(2*SymLabelList(i))-1
+        enddo
+        do i=1,nSymLabels
+            SymLabelCounts2(1,1,i)=SymLabelCounts(1,i)
+            SymLabelCounts2(2,1,i)=SymLabelCounts(1,i)
+            SymLabelCounts2(1,2,i)=SymLabelCounts(2,i)
+            SymLabelCounts2(2,2,i)=SymLabelCounts(2,i)
+        enddo
+    ENDIF
+
+
+!        WRITE(6,*) 'Symmetries of orbitals 1:nBasis'
+!        WRITE(6,*) G1(1:nBasis)%Sym%S
+
+!        do x=1,2
+!            IF(x.eq.1) WRITE(6,*) '******* ALPHA ********'
+!            IF(x.eq.2) WRITE(6,*) '******* BETA ********'
+!            WRITE(6,*) "***"
+!            WRITE(6,*) 'SymLabelList2(1:nBasis) - the orbitals in the correct symmetry order, followed by their symmetry'
+!            do i=1,(nBasis/2)
+!                WRITE(6,*) SymLabelList2(x,i),G1(SymLabelList2(x,i))%Sym%S
+!            enddo
+!            WRITE(6,*) 'SymLabelCounts2(1,1,S) - the index in SymLabelList2 where symmetry S starts'
+!            do i=1,nSymLabels
+!                WRITE(6,*) SymLabelCounts2(x,1,i)
+!            enddo
+!            WRITE(6,*) "***"
+!            WRITE(6,*) 'SymLabelCounts2(1,2,S) - the number of orbitals in SymLabelList2 with symmetry S'
+!            do i=1,nSymLabels
+!                WRITE(6,*) SymLabelCounts2(x,2,i)
+!            enddo
+!        enddo
+
+    IF(tFixLz) THEN
+!Calculate the upper array bound for the ClassCount2 arrays. This will be dependant on the number of symmetries needed.
+        ScratchSize=2*nSymLabels
+    ELSE
+        ScratchSize=2*nSymLabels
+    ENDIF
+
+    IF(tNoSymGenRandExcits) THEN
+        ScratchSize=2
+    ENDIF
+
+END SUBROUTINE SpinOrbSymSetup
+
+
 
 !This routine will take a determinant nI, and find Iterations number of excitations of it. It will then histogram these, summing in 1/pGen for every occurance of
 !the excitation. This means that all excitations should be 0 or 1 after enough iterations. It will then count the excitations and compare the number to the
