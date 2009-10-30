@@ -25,7 +25,6 @@ MODULE SymExcit3
         INTEGER :: ClassCount2(ScratchSize)
         INTEGER :: ClassCountUnocc2(ScratchSize)
 
-
         CALL ConstructClassCounts(nI,ClassCount2,ClassCountUnocc2)
 ! This sets up arrays containing the number of occupied and unoccupied in each symmetry.
 ! ClassCounts2(1,:)=No alpha occupied, ClassCounts2(2,:)=No Beta occupied.

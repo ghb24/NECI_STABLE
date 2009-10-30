@@ -426,6 +426,16 @@ MODULE FciMCParMod
         
     END SUBROUTINE PerformCleanFCIMCycPar
 
+!Initialize the Histogramming searching arrays if necessary
+    SUBROUTINE InitHistMin()
+        IF(tHistSpawn.or.tCalcFCIMCPsi.and.(Iter.ge.NHistEquilSteps)) THEN
+            IF(Iter.eq.NHistEquilSteps) THEN
+                IF(iProcIndex.eq.Root) WRITE(6,*) 'The iteration is equal to HISTEQUILSTEPS.  Beginning to histogram.'
+            ENDIF
+            HistMinInd(1:NEl)=FCIDetIndex(1:NEl)    !This is for the binary search when histogramming
+        ENDIF
+    END SUBROUTINE InitHistMin
+
 !This is the heart of FCIMC, where the MC Cycles are performed.
     SUBROUTINE PerformFCIMCycPar()
 !        use HPHFRandExcitMod , only : TestGenRandHPHFExcit 
@@ -470,12 +480,7 @@ MODULE FciMCParMod
         IF(.not.tStarOrbs) tStarDet=.false.
         ParticleWeight=1    !This will always be the same unless we are 'spawning as determinants'
 
-        IF(tHistSpawn.or.tCalcFCIMCPsi.and.(Iter.ge.NHistEquilSteps)) THEN
-            IF(Iter.eq.NHistEquilSteps) THEN
-                IF(iProcIndex.eq.Root) WRITE(6,*) 'The iteration is equal to HISTEQUILSTEPS.  Beginning to histogram.'
-            ENDIF
-            HistMinInd(1:NEl)=FCIDetIndex(1:NEl)    !This is for the binary search when histogramming
-        ENDIF
+        CALL InitHistMin()
         
         do j=1,TotWalkers
 !j runs through all current walkers
@@ -1265,16 +1270,16 @@ MODULE FciMCParMod
         ENDIF
 
 !Histogramming diagnostic options...
-        IF((tHistSpawn.or.tCalcFCIMCPsi.and.(Iter.ge.NHistEquilSteps)).and.tFCIMC) THEN
+        IF((tHistSpawn.or.(tCalcFCIMCPsi.and.tFCIMC).and.(Iter.ge.NHistEquilSteps))) THEN
             IF(ExcitLevel.eq.NEl) THEN
                 CALL BinSearchParts2(iLutCurr,HistMinInd(ExcitLevel),Det,PartInd,tSuccess)
-                HistMinInd(ExcitLevel)=PartInd
+                if(tFCIMC) HistMinInd(ExcitLevel)=PartInd  !CCMC doesn't sum particle contributions in order, so we must search the whole space again
             ELSEIF(ExcitLevel.eq.0) THEN
                 PartInd=1
                 tSuccess=.true.
             ELSE
                 CALL BinSearchParts2(iLutCurr,HistMinInd(ExcitLevel),FCIDetIndex(ExcitLevel+1)-1,PartInd,tSuccess)
-                HistMinInd(ExcitLevel)=PartInd
+                if(tFCIMC) HistMinInd(ExcitLevel)=PartInd  !CCMC doesn't sum particle contributions in order, so we must search the whole space again
             ENDIF
             IF(tSuccess) THEN
                 IF(tFlippedSign) THEN
@@ -7922,7 +7927,7 @@ MODULE FciMCParMod
 
         IF(tNonUniRandExcits) THEN
 !Assume that if we want to use the non-uniform random excitation generator, we also want to use the NoSpinSym full excitation generators if they are needed. 
-            tNoSpinSymExcitgens=.true.  
+            tNoSpinSymExcitgens=.false.  
         ENDIF
                                         
 
@@ -8114,7 +8119,7 @@ MODULE FciMCParMod
         NoCulls=0
         
 
-        IF((tHistSpawn.or.tCalcFCIMCPsi).and.tFCIMC) THEN
+        IF(tHistSpawn.or.(tCalcFCIMCPsi.and.tFCIMC)) THEN
             ALLOCATE(HistMinInd(NEl))
             ALLOCATE(HistMinInd2(NEl))
             maxdet=0

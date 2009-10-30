@@ -1970,6 +1970,8 @@ SUBROUTINE SpinOrbSymSetup(tRedoSym)
         ScratchSize=2
     ENDIF
 
+
+
 !SymLabelList2 and SymLabelCounts2 are now organised differently, so that it is more efficient, and easier to add new symmetries.
 !SymLabelCounts is of size (2,ScratchSize), where 1,x gives the index in SymlabelList2 where the orbitals of symmetry x start.
 !SymLabelCounts(2,x) tells us the number of orbitals of spin & symmetry x there are.
@@ -2009,47 +2011,68 @@ SUBROUTINE SpinOrbSymSetup(tRedoSym)
 
     Deallocate(Temp)
 
-!        Allocate(SymLabelList2(2,(nBasis/2)))   !This will seperate the alpha and beta states.
-!        SymLabelList2(:,:)=0
-!        Allocate(SymLabelCounts2(2,2,nSymLabels))     !Indices: (Alpha:Beta, Index:Number , Symmetry)
-!        SymLabelCounts2(:,:,:)=0
-!        IF(tRedoSym) THEN
-!            AlphaCounter=1
-!            BetaCounter=1
-!            do i=0,nSymLabels-1
-!                tFirstSymAlpha=.true.
-!                tFirstSymBeta=.true.
-!                CountSymAlpha=0
-!                CountSymBeta=0
-!                do j=1,nBasis
+
+!
+!    Allocate(SymLabelList2(2,(nBasis/2)))   !This will seperate the alpha and beta states.
+!    SymLabelList2(:,:)=0
+!    Allocate(SymLabelCounts2(2,2,nSymLabels))     !Indices: (Alpha:Beta, Index:Number , Symmetry)
+!    SymLabelCounts2(:,:,:)=0
+!    IF(tRedoSym) THEN
+!        AlphaCounter=1
+!        BetaCounter=1
+!        IF(tNoSymGenRandExcits) THEN
+!            LoopVar=0
+!        ELSE
+!            LoopVar=nSymLabels-1
+!        ENDIF
+!        do i=0,LoopVar
+!            tFirstSymAlpha=.true.
+!            tFirstSymBeta=.true.
+!            CountSymAlpha=0
+!            CountSymBeta=0
+!            do j=1,nBasis
+!                IF(tNoSymGenRandExcits) THEN
+!                    Sym=0
+!                ELSE
 !                    Sym=INT(G1(j)%Sym%S,4)
-!                    IF(G1(j)%Ms.eq.1) THEN
-!    !Alpha orbital
-!                        IF(Sym.eq.i) THEN
-!                            IF(tFirstSymAlpha) THEN
-!                                SymLabelCounts2(1,1,i+1)=AlphaCounter
-!                                tFirstSymAlpha=.false.
-!                            ENDIF
-!                            SymLabelList2(1,AlphaCounter)=j
-!                            AlphaCounter=AlphaCounter+1
-!                            CountSymAlpha=CountSymAlpha+1
+!                ENDIF
+!                IF(G1(j)%Ms.eq.1) THEN
+!!Alpha orbital
+!                    IF(Sym.eq.i) THEN
+!                        IF(tFirstSymAlpha) THEN
+!                            SymLabelCounts2(1,1,i+1)=AlphaCounter
+!                            tFirstSymAlpha=.false.
 !                        ENDIF
-!                    ELSE
-!    !Beta orbital
-!                        IF(Sym.eq.i) THEN
-!                            IF(tFirstSymBeta) THEN
-!                                SymLabelCounts2(2,1,i+1)=BetaCounter
-!                                tFirstSymBeta=.false.
-!                            ENDIF
-!                            SymLabelList2(2,BetaCounter)=j
-!                            BetaCounter=BetaCounter+1
-!                            CountSymBeta=CountSymBeta+1
-!                        ENDIF
+!                        SymLabelList2(1,AlphaCounter)=j
+!                        AlphaCounter=AlphaCounter+1
+!                        CountSymAlpha=CountSymAlpha+1
 !                    ENDIF
-!                enddo
-!                SymLabelCounts2(1,2,i+1)=CountSymAlpha
-!                SymLabelCounts2(2,2,i+1)=CountSymBeta
+!                ELSE
+!!Beta orbital
+!                    IF(Sym.eq.i) THEN
+!                        IF(tFirstSymBeta) THEN
+!                            SymLabelCounts2(2,1,i+1)=BetaCounter
+!                            tFirstSymBeta=.false.
+!                        ENDIF
+!                        SymLabelList2(2,BetaCounter)=j
+!                        BetaCounter=BetaCounter+1
+!                        CountSymBeta=CountSymBeta+1
+!                    ENDIF
+!                ENDIF
 !            enddo
+!            SymLabelCounts2(1,2,i+1)=CountSymAlpha
+!            SymLabelCounts2(2,2,i+1)=CountSymBeta
+!        enddo
+!    ELSE
+!        IF(tNoSymGenRandExcits) THEN
+!            do i=1,nBasis,2
+!                SymLabelList2(2,(i+1)/2)=i
+!                SymLabelList2(1,(i+1)/2)=i+1
+!            enddo
+!            SymLabelCounts2(1,1,1)=1
+!            SymLabelCounts2(2,1,1)=1
+!            SymLabelCounts2(1,2,1)=nBasis/2
+!            SymLabelCounts2(2,2,1)=nBasis/2
 !        ELSE
 !            do i=1,nBasis/2
 !                SymLabelList2(1,i)=2*SymLabelList(i)
@@ -2062,7 +2085,7 @@ SUBROUTINE SpinOrbSymSetup(tRedoSym)
 !                SymLabelCounts2(2,2,i)=SymLabelCounts(2,i)
 !            enddo
 !        ENDIF
-
+!    ENDIF
 
 !        WRITE(6,*) 'Symmetries of orbitals 1:nBasis'
 !        WRITE(6,*) G1(1:nBasis)%Sym%S
