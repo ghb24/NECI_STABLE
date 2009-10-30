@@ -2082,9 +2082,11 @@ C.. Set to be totally symmetric
          INTEGER :: FDetSym,TotalSym,TotalMom,alpha,beta,ierr,Momx,Momy
          INTEGER :: Momz
          INTEGER*8 :: Accept,AcceptAll,i
+         INTEGER*8 :: ExcitBin(0:NEl),ExcitBinAll(0:NEl)
          REAL*8 :: FullSpace,r,Choose,Frac
+         REAL*8 :: SizeLevel(0:NEl) 
          LOGICAL :: tTruncSpace,tDummy,tDummy2,tSoftExitFound
-         LOGICAL :: tNotAllowed
+         LOGICAL :: tNotAllowed,tAcc
 
          IF((.not.TwoCycleSymGens).and.(.not.tUEG)) THEN
              WRITE(IUNIT,*) "Only for molecular abelian symmetry "      &
@@ -2100,6 +2102,9 @@ C.. Set to be totally symmetric
      &       //"statistics printed out every ",CalcDetPrint," cycles."
          FDetSym=0
          FDetMom=0
+         ExcitBin(:)=0
+         ExcitBinAll(:)=0
+
          do i=1,NEl
             FDetSym=IEOR(FDetSym,INT(G1(FDet(i))%Sym%S,4))
             IF(tFixLz) FDetMom=FDetMom+G1(FDet(i))%Ml
@@ -2172,11 +2177,9 @@ C.. Set to be totally symmetric
                      Momy=Momy+G1(alpha)%k(2)
                      Momz=Momz+G1(alpha)%k(3)
                  ENDIF
-                 IF(tTruncSpace) THEN
            IF(.not.BTEST(FDetiLut((alpha-1)/32),mod((alpha-1),32))) THEN
-                         !orbital chosen is *not* in the reference determinant
-                         ExcitLev=ExcitLev+1
-                     ENDIF
+                     !orbital chosen is *not* in the reference determinant
+                     ExcitLev=ExcitLev+1
                  ENDIF
 
                  !Test
@@ -2212,11 +2215,9 @@ C.. Set to be totally symmetric
                      Momy=Momy+G1(beta)%k(2)
                      Momz=Momz+G1(beta)%k(3)
                  ENDIF
-                 IF(tTruncSpace) THEN
             IF(.not.BTEST(FDetiLut((beta-1)/32),mod((beta-1),32))) THEN
-                         !orbital chosen is *not* in the reference determinant
-                         ExcitLev=ExcitLev+1
-                     ENDIF
+                     !orbital chosen is *not* in the reference determinant
+                     ExcitLev=ExcitLev+1
                  ENDIF
                  
                  !Test
@@ -2227,6 +2228,7 @@ C.. Set to be totally symmetric
 
              enddo
 
+             tAcc=.false.
              IF(TotalSym.eq.FDetSym) THEN
              !Allow/disallow the determinant
                  IF(tFixLz) THEN
@@ -2234,9 +2236,11 @@ C.. Set to be totally symmetric
                          IF(tTruncSpace) THEN
                              IF(ExcitLev.le.ICILevel) THEN
                                  Accept=Accept+1
+                                 tAcc=.true.
                              ENDIF
                          ELSE
                              Accept=Accept+1
+                             tAcc=.true.
                          ENDIF
                      ENDIF
                  ELSE
@@ -2246,9 +2250,11 @@ C.. Set to be totally symmetric
                                  IF((Momx.eq.0).and.(Momy.eq.0)         &
      &                                 .and.(Momz.eq.0)) THEN
                                     Accept=Accept+1
+                                    tAcc=.true.
                                  ENDIF
                              ELSE
                                  Accept=Accept+1
+                                 tAcc=.true.
                              ENDIF
                          ENDIF
                      ELSE
@@ -2256,13 +2262,21 @@ C.. Set to be totally symmetric
                              IF((Momx.eq.0).and.(Momy.eq.0).and.        &
      &                               (Momz.eq.0)) THEN
                                 Accept=Accept+1
+                                tAcc=.true.
                              ENDIF
                          ELSE
                              Accept=Accept+1
+                             tAcc=.true.
                          ENDIF
                      ENDIF
                  ENDIF
              ENDIF
+
+             IF(tAcc) THEN
+!Add to correct bin for the excitation level
+                 ExcitBin(ExcitLev)=ExcitBin(ExcitLev)+1
+             ENDIF
+
              
              IF(mod(i,CalcDetPrint).eq.0) THEN
                  !Write out statistics
@@ -2270,16 +2284,28 @@ C.. Set to be totally symmetric
 !                 WRITE(6,*) Accept,AcceptAll
                  CALL MPI_Reduce(Accept,AcceptAll,1,                    &
      &            MPI_INTEGER8,MPI_SUM,0,MPI_COMM_WORLD,ierr)
+                 CALL MPI_Reduce(ExcitBin(0:NEl),ExcitBinAll(0:NEl),    &
+     &            NEl+1,MPI_INTEGER8,MPI_SUM,0,MPI_COMM_WORLD,ierr)
 #else
                  AcceptAll=Accept
+                 ExcitBinAll(0:NEl)=ExcitBin(0:NEl)
 #endif
                  Frac=REAL(AcceptAll,8)/REAL(i*nProcessors,8)
+                 do j=0,NEl
+                     SizeLevel(j)=(REAL(ExcitBinAll(j),8)/              &
+     &                 REAL(AcceptAll,8))*Frac*FullSpace
+                 enddo
                  IF(iProcIndex.eq.0) THEN
-                     WRITE(14,"(2I16,G25.10,F30.5)") i,AcceptAll,Frac,  &
-     &                  Frac*FullSpace
+                     WRITE(14,"(2I16,G25.10,F30.5)",advance='no') i,    &
+     &                  AcceptAll,Frac,Frac*FullSpace
+                     do j=0,NEl
+                         WRITE(14,"(F30.5)",advance='no') SizeLevel(j)
+                     enddo
+                     WRITE(14,"(A)") ""
                  ENDIF
 
                  AcceptAll=0
+                 ExcitBinAll(0:NEl)=0
 
                  CALL ChangeVars(tDummy,tSoftExitFound,tDummy2)
                  IF(tSoftExitFound) EXIT
@@ -2291,18 +2317,33 @@ C.. Set to be totally symmetric
 #ifdef PARALLEL
          CALL MPI_Reduce(Accept,AcceptAll,1,                            &
      &     MPI_INTEGER8,MPI_SUM,0,MPI_COMM_WORLD,ierr)
+         CALL MPI_Reduce(ExcitBin(0:NEl),ExcitBinAll(0:NEl),            &
+     &     NEl+1,MPI_INTEGER8,MPI_SUM,0,MPI_COMM_WORLD,ierr)
 #else
          AcceptAll=Accept
+         ExcitBinAll(0:NEl)=ExcitBin(0:NEl)
 #endif
          Frac=REAL(AcceptAll,8)/REAL(i*nProcessors,8)
+         do j=0,NEl
+             SizeLevel(j)=(REAL(ExcitBinAll(j),8)/                      &
+     &         REAL(AcceptAll,8))*Frac*FullSpace
+         enddo
 
          IF(iProcIndex.eq.0) THEN
-             WRITE(14,"(2I16,G25.10,F30.5)") i,AcceptAll,Frac,          &
-     &           Frac*FullSpace
+             WRITE(14,"(2I16,G25.10,F30.5)",advance='no') i,AcceptAll,  &
+     &           Frac,Frac*FullSpace
+                 do j=0,NEl
+                     WRITE(14,"(F30.5)",advance='no') SizeLevel(j)
+                 enddo
+                 WRITE(14,"(A)") ""
              CLOSE(14)
          ENDIF
 
-         WRITE(IUNIT,*) "Approx size of space: ",Frac*FullSpace
+         WRITE(IUNIT,*) "*** MC size of space: ",Frac*FullSpace
+         WRITE(IUNIT,*) "Individual excitation level contributions: "
+         do j=0,NEl
+             WRITE(IUNIT,"(I5,F30.5)") j,SizeLevel(j)
+         enddo
          CALL FLUSH(IUNIT)
 
       END SUBROUTINE FindSymMCSizeofSpace
