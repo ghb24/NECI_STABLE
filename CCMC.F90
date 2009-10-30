@@ -869,7 +869,7 @@
       use FciMCData, only : HFDet
       use FciMCParMod, only: iLutHF
       use FciMCParMod, only: CheckAllowedTruncSpawn, SetupParameters,BinSearchParts3
-      use FciMCParMod, only: CalcNewShift,SumEContrib
+      use FciMCParMod, only: CalcNewShift,SumEContrib,InitHistMin
       Use Logging, only: CCMCDebug
       USE SymData , only : nSymLabels
       USE Determinants , only : FDet,GetHElement2,GetHElement4,GetHElement3
@@ -946,6 +946,7 @@
       AllTotWalkersOld=WalkerScale*dTotAbsAmpl
       AllTotPartsOld=WalkerScale*dTotAbsAmpl
       Call SetupParameters()
+      Call InitHistMin() !Setup Histogramming arrays if needed 
       ALLOCATE(Scratch1(ScratchSize))
       ALLOCATE(Scratch2(ScratchSize))
 
