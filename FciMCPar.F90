@@ -426,15 +426,6 @@ MODULE FciMCParMod
         
     END SUBROUTINE PerformCleanFCIMCycPar
 
-!Initialize the Histogramming searching arrays if necessary
-    SUBROUTINE InitHistMin()
-        IF(tHistSpawn.or.tCalcFCIMCPsi.and.(Iter.ge.NHistEquilSteps)) THEN
-            IF(Iter.eq.NHistEquilSteps) THEN
-                IF(iProcIndex.eq.Root) WRITE(6,*) 'The iteration is equal to HISTEQUILSTEPS.  Beginning to histogram.'
-            ENDIF
-            HistMinInd(1:NEl)=FCIDetIndex(1:NEl)    !This is for the binary search when histogramming
-        ENDIF
-    END SUBROUTINE InitHistMin
 
 !This is the heart of FCIMC, where the MC Cycles are performed.
     SUBROUTINE PerformFCIMCycPar()
@@ -1193,201 +1184,6 @@ MODULE FciMCParMod
 
     END SUBROUTINE PerformFCIMCycPar
 
-
-!This routine sums in the energy contribution from a given walker and updates stats such as mean excit level
-!AJWT added optional argument dProb which is a probability that whatever gave this contribution as generated.
-!  It defaults to 1, and weights the contribution of this det. (Only in the projected energy)
-    SUBROUTINE SumEContrib(DetCurr,ExcitLevel,WSign,iLutCurr,HDiagCurr,dProbFin)
-        use SystemData, only : tNoBrillouin
-        use CalcData, only: tFCIMC
-        INTEGER :: DetCurr(NEl),ExcitLevel,i,HighIndex,LowIndex,iLutCurr(0:NIfD),WSign,Bin
-        INTEGER :: PartInd,iLutSym(0:NIfD),OpenOrbs
-        LOGICAL :: CompiPath,tSuccess,iLut2(0:NIfD),DetBitEQ
-        REAL*8 :: HDiagCurr
-        TYPE(HElement) :: HOffDiag
-        real*8 dProbFin
-!        write(81,*) DetCurr,ExcitLevel,WSign,iLutCurr,HDiagCurr,dProb
-
-!        MeanExcitLevel=MeanExcitLevel+real(ExcitLevel,r2)
-!        IF(MinExcitLevel.gt.ExcitLevel) MinExcitLevel=ExcitLevel
-!        IF(MaxExcitLevel.lt.ExcitLevel) MaxExcitLevel=ExcitLevel
-!        DetsNorm=DetsNorm+REAL((WSign**2),r2)
-        IF(ExcitLevel.eq.0) THEN
-            IF(Iter.gt.NEquilSteps) SumNoatHF=SumNoatHF+WSign
-            NoatHF=NoatHF+WSign
-            HFCyc=HFCyc+WSign      !This is simply the number at HF*sign over the course of the update cycle 
-!            AvSign=AvSign+REAL(WSign,r2)
-!            AvSignHFD=AvSignHFD+REAL(WSign,r2)
-            
-        ELSEIF(ExcitLevel.eq.2) THEN
-            NoatDoubs=NoatDoubs+abs(WSign)
-!At double excit - find and sum in energy
-            IF(tHPHF) THEN
-                CALL HPHFGetOffDiagHElement(HFDet,DetCurr,iLutHF,iLutCurr,HOffDiag)
-            ELSE
-                HOffDiag=GetHElement2(HFDet,DetCurr,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,ExcitLevel,ECore)
-            ENDIF
-            IF(Iter.gt.NEquilSteps) SumENum=SumENum+(REAL(HOffDiag%v,r2)*WSign/dProbFin)
-!            AvSign=AvSign+REAL(WSign,r2)
-!            AvSignHFD=AvSignHFD+REAL(WSign,r2)
-            ENumCyc=ENumCyc+(REAL(HOffDiag%v,r2)*WSign/dProbFin)     !This is simply the Hij*sign summed over the course of the update cycle
-!            WRITE(6,*) 2,SumENum,(REAL(HOffDiag%v,r2)*WSign/dProbFin)     !This is simply the Hij*sign summed over the course of the update cycle
-
-            
-            
-!        ELSE
-!            AvSign=AvSign+REAL(WSign,r2)
-
-        ELSEIF(ExcitLevel.eq.1) THEN
-          if(tNoBrillouin.or.(tHub.and.tReal).or.tRotatedOrbs) then
-!For the real-space hubbard model, determinants are only connected to excitations one level away, and brillouins theorem can not hold.
-!For Rotated orbitals, brillouins theorem also cannot hold, and energy contributions from walkers on singly excited determinants must
-!be included in the energy values along with the doubles.
-            IF(tHPHF) THEN
-                CALL HPHFGetOffDiagHElement(HFDet,DetCurr,iLutHF,iLutCurr,HOffDiag)
-            ELSE
-                HOffDiag=GetHElement2(HFDet,DetCurr,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,ExcitLevel,ECore)
-            ENDIF
-            IF(Iter.gt.NEquilSteps) SumENum=SumENum+(REAL(HOffDiag%v,r2)*WSign/dProbFin)
-!            AvSign=AvSign+REAL(WSign,r2)
-!            AvSignHFD=AvSignHFD+REAL(WSign,r2)
-            ENumCyc=ENumCyc+(REAL(HOffDiag%v,r2)*WSign/dProbFin)     !This is simply the Hij*sign summed over the course of the update cycle
-!            WRITE(6,*) 1,SumENum,(REAL(HOffDiag%v,r2)*WSign/dProbFin)     !This is simply the Hij*sign summed over the course of the update cycle
-          endif 
-
-          IF(tConstructNOs) THEN
-!Fill the 1-RDM to find natural orbital on-the-fly.
-!Find the orbitals that are involved in the excitation (those that differ in occupation to the ref orbital).
-                CALL FindSingleOrbs(iLutHF,iLutCurr,NIfD,Orbs)
-!Add 1.D0 (or -1.D0) to the off-diagonal element connecting the relevent orbitals.
-                IF(Iter.gt.NEquilSteps) THEN
-                    OneRDM(Orbs(1),Orbs(2))=OneRDM(Orbs(1),Orbs(2))+REAL(WSign,r2)
-                    OneRDM(Orbs(2),Orbs(1))=OneRDM(Orbs(1),Orbs(2))
-                ENDIF
-!At the end of all iterations, this OneRDM will contain only the unnormalised off-diagonal elements.
-          ENDIF
-            
-        ENDIF
-
-!Histogramming diagnostic options...
-        IF((tHistSpawn.or.(tCalcFCIMCPsi.and.tFCIMC).and.(Iter.ge.NHistEquilSteps))) THEN
-            IF(ExcitLevel.eq.NEl) THEN
-                CALL BinSearchParts2(iLutCurr,HistMinInd(ExcitLevel),Det,PartInd,tSuccess)
-                if(tFCIMC) HistMinInd(ExcitLevel)=PartInd  !CCMC doesn't sum particle contributions in order, so we must search the whole space again
-            ELSEIF(ExcitLevel.eq.0) THEN
-                PartInd=1
-                tSuccess=.true.
-            ELSE
-                CALL BinSearchParts2(iLutCurr,HistMinInd(ExcitLevel),FCIDetIndex(ExcitLevel+1)-1,PartInd,tSuccess)
-                if(tFCIMC) HistMinInd(ExcitLevel)=PartInd  !CCMC doesn't sum particle contributions in order, so we must search the whole space again
-            ENDIF
-            IF(tSuccess) THEN
-                IF(tFlippedSign) THEN
-                    Histogram(PartInd)=Histogram(PartInd)-REAL(WSign,r2)
-                    IF(tHistSpawn) InstHist(PartInd)=InstHist(PartInd)-REAL(WSign,r2)
-                ELSE
-                    Histogram(PartInd)=Histogram(PartInd)+REAL(WSign,r2)
-                    IF(tHistSpawn) InstHist(PartInd)=InstHist(PartInd)+REAL(WSign,r2)
-                ENDIF
-            ELSE
-                WRITE(6,*) DetCurr(:)
-                WRITE(6,*) "***",iLutCurr(0:NIfD)
-                WRITE(6,*) "***",ExcitLevel,HistMinInd(ExcitLevel),Det
-                Call WriteBitDet(6,iLutCurr(0:NIfD),.true.)
-                CALL Stop_All("SumEContrib","Cannot find corresponding FCI determinant when histogramming")
-            ENDIF
-            IF(tHPHF) THEN
-!With HPHF space, we need to also include the spin-coupled determinant, which will have the same amplitude as the original determinant, unless it is antisymmetric.
-                CALL FindExcitBitDetSym(iLutCurr,iLutSym)
-                IF(ExcitLevel.eq.NEl) THEN
-                    CALL BinSearchParts2(iLutSym,FCIDetIndex(ExcitLevel),Det,PartInd,tSuccess)
-                ELSEIF(ExcitLevel.eq.0) THEN
-                    PartInd=1
-                    tSuccess=.true.
-                ELSE
-                    CALL BinSearchParts2(iLutSym,FCIDetIndex(ExcitLevel),FCIDetIndex(ExcitLevel+1)-1,PartInd,tSuccess)
-                ENDIF
-                IF(tSuccess) THEN
-                    CALL CalcOpenOrbs(iLutSym,NIfD,NEl,OpenOrbs)
-                    IF(tFlippedSign) THEN
-                        IF(mod(OpenOrbs,2).eq.1) THEN
-                            Histogram(PartInd)=Histogram(PartInd)+REAL(WSign,r2)
-                            IF(tHistSpawn) InstHist(PartInd)=InstHist(PartInd)+REAL(WSign,r2)
-                        ELSE
-                            Histogram(PartInd)=Histogram(PartInd)-REAL(WSign,r2)
-                            IF(tHistSpawn) InstHist(PartInd)=InstHist(PartInd)-REAL(WSign,r2)
-                        ENDIF
-                    ELSE
-                        IF(mod(OpenOrbs,2).eq.1) THEN
-                            Histogram(PartInd)=Histogram(PartInd)-REAL(WSign,r2)
-                            IF(tHistSpawn) InstHist(PartInd)=InstHist(PartInd)-REAL(WSign,r2)
-                        ELSE
-                            Histogram(PartInd)=Histogram(PartInd)+REAL(WSign,r2)
-                            IF(tHistSpawn) InstHist(PartInd)=InstHist(PartInd)+REAL(WSign,r2)
-                        ENDIF
-                    ENDIF
-                ELSE
-                    WRITE(6,*) DetCurr(:)
-                    WRITE(6,*) "***",iLutSym(0:NIfD)
-                    WRITE(6,*) "***",ExcitLevel,Det
-                    CALL Stop_All("SumEContrib","Cannot find corresponding spin-coupled FCI determinant when histogramming")
-                ENDIF
-            ENDIF
-        ELSEIF(tHistEnergies) THEN
-!This wil histogramm the energies of the particles, rather than the determinants themselves.
-            Bin=INT(HDiagCurr/BinRange)+1
-            IF(Bin.gt.iNoBins) THEN
-                CALL Stop_All("SumEContrib","Histogramming energies higher than the arrays can cope with. Increase iNoBins or BinRange")
-            ENDIF
-            Histogram(Bin)=Histogram(Bin)+real(abs(WSign),r2)
-        ENDIF
-
-
-!        IF(TLocalAnnihilation) THEN
-!We need to count the population of walkers at each excitation level for each iteration
-!            PartsinExcitLevel(ExcitLevel)=PartsinExcitLevel(ExcitLevel)+1
-!        ENDIF
-
-!        IF(TAutoCorr) THEN
-!!First element is HF Det to histogram. Then come doubles, triples and quads
-!
-!            IF(ExcitLevel.eq.4) THEN
-!                LowIndex=2+NoACDets(2)+NoACDets(3)
-!                HighIndex=NoAutoDets
-!            ELSEIF(ExcitLevel.eq.3) THEN
-!                LowIndex=2+NoACDets(2)
-!                HighIndex=1+NoACDets(2)+NoACDets(3)
-!            ELSEIF(ExcitLevel.eq.2) THEN
-!                LowIndex=2
-!                HighIndex=1+NoACDets(2)
-!            ELSEIF(ExcitLevel.eq.0) THEN
-!                LowIndex=1
-!                HighIndex=1
-!            ELSE
-!                LowIndex=0
-!            ENDIF
-!
-!            IF(LowIndex.ne.0) THEN
-!
-!                do i=LowIndex,HighIndex
-!            
-!                    IF(CompiPath(DetCurr,AutoCorrDets(:,i),NEl)) THEN
-!!The walker is at a determinant for which we want to calculate the autocorrelation function
-!                        IF(TFlippedSign) THEN
-!                            WeightatDets(i)=WeightatDets(i)-WSign
-!                        ELSE
-!                            WeightatDets(i)=WeightatDets(i)+WSign
-!                        ENDIF
-!                        EXIT
-!                    ENDIF
-!
-!                enddo
-!            ENDIF
-!        ENDIF
-        
-        RETURN
-
-    END SUBROUTINE SumEContrib
 
     
 !Every StepsSft steps, update the diagonal shift value (the running value for the correlation energy)
@@ -7777,6 +7573,10 @@ MODULE FciMCParMod
         CALL Stop_All("FciMCPar","Entering the wrong FCIMCPar parallel routine")
 
     END SUBROUTINE FciMCPar
+!A dummy routine which won't currently work
+    SUBROUTINE CalcNewShift()
+        CALL Stop_All("CalcNewShift","CalcNewShift not currently coded for serial.")
+    END SUBROUTINE CalcNewShift
 #endif
 ! AJWT
 ! Bringing you a better FciMCPar.  A vision for the future...
@@ -9144,6 +8944,210 @@ MODULE FciMCParMod
         DEALLOCATE(ExcitGenTemp)
 
     END SUBROUTINE StoreDoubs
+!Initialize the Histogramming searching arrays if necessary
+    SUBROUTINE InitHistMin()
+        IF(tHistSpawn.or.tCalcFCIMCPsi.and.(Iter.ge.NHistEquilSteps)) THEN
+            IF(Iter.eq.NHistEquilSteps) THEN
+                IF(iProcIndex.eq.Root) WRITE(6,*) 'The iteration is equal to HISTEQUILSTEPS.  Beginning to histogram.'
+            ENDIF
+            HistMinInd(1:NEl)=FCIDetIndex(1:NEl)    !This is for the binary search when histogramming
+        ENDIF
+    END SUBROUTINE InitHistMin
+
+!This routine sums in the energy contribution from a given walker and updates stats such as mean excit level
+!AJWT added optional argument dProb which is a probability that whatever gave this contribution as generated.
+!  It defaults to 1, and weights the contribution of this det. (Only in the projected energy)
+    SUBROUTINE SumEContrib(DetCurr,ExcitLevel,WSign,iLutCurr,HDiagCurr,dProbFin)
+        use SystemData, only : tNoBrillouin
+        use CalcData, only: tFCIMC
+        INTEGER :: DetCurr(NEl),ExcitLevel,i,HighIndex,LowIndex,iLutCurr(0:NIfD),WSign,Bin
+        INTEGER :: PartInd,iLutSym(0:NIfD),OpenOrbs
+        LOGICAL :: CompiPath,tSuccess,iLut2(0:NIfD),DetBitEQ
+        REAL*8 :: HDiagCurr
+        TYPE(HElement) :: HOffDiag
+        real*8 dProbFin
+!        write(81,*) DetCurr,ExcitLevel,WSign,iLutCurr,HDiagCurr,dProb
+
+!        MeanExcitLevel=MeanExcitLevel+real(ExcitLevel,r2)
+!        IF(MinExcitLevel.gt.ExcitLevel) MinExcitLevel=ExcitLevel
+!        IF(MaxExcitLevel.lt.ExcitLevel) MaxExcitLevel=ExcitLevel
+!        DetsNorm=DetsNorm+REAL((WSign**2),r2)
+        IF(ExcitLevel.eq.0) THEN
+            IF(Iter.gt.NEquilSteps) SumNoatHF=SumNoatHF+WSign
+            NoatHF=NoatHF+WSign
+            HFCyc=HFCyc+WSign      !This is simply the number at HF*sign over the course of the update cycle 
+!            AvSign=AvSign+REAL(WSign,r2)
+!            AvSignHFD=AvSignHFD+REAL(WSign,r2)
+            
+        ELSEIF(ExcitLevel.eq.2) THEN
+            NoatDoubs=NoatDoubs+abs(WSign)
+!At double excit - find and sum in energy
+            IF(tHPHF) THEN
+                CALL HPHFGetOffDiagHElement(HFDet,DetCurr,iLutHF,iLutCurr,HOffDiag)
+            ELSE
+                HOffDiag=GetHElement2(HFDet,DetCurr,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,ExcitLevel,ECore)
+            ENDIF
+            IF(Iter.gt.NEquilSteps) SumENum=SumENum+(REAL(HOffDiag%v,r2)*WSign/dProbFin)
+!            AvSign=AvSign+REAL(WSign,r2)
+!            AvSignHFD=AvSignHFD+REAL(WSign,r2)
+            ENumCyc=ENumCyc+(REAL(HOffDiag%v,r2)*WSign/dProbFin)     !This is simply the Hij*sign summed over the course of the update cycle
+!            WRITE(6,*) 2,SumENum,(REAL(HOffDiag%v,r2)*WSign/dProbFin)     !This is simply the Hij*sign summed over the course of the update cycle
+
+            
+            
+!        ELSE
+!            AvSign=AvSign+REAL(WSign,r2)
+
+        ELSEIF(ExcitLevel.eq.1) THEN
+          if(tNoBrillouin.or.(tHub.and.tReal).or.tRotatedOrbs) then
+!For the real-space hubbard model, determinants are only connected to excitations one level away, and brillouins theorem can not hold.
+!For Rotated orbitals, brillouins theorem also cannot hold, and energy contributions from walkers on singly excited determinants must
+!be included in the energy values along with the doubles.
+            IF(tHPHF) THEN
+                CALL HPHFGetOffDiagHElement(HFDet,DetCurr,iLutHF,iLutCurr,HOffDiag)
+            ELSE
+                HOffDiag=GetHElement2(HFDet,DetCurr,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,ExcitLevel,ECore)
+            ENDIF
+            IF(Iter.gt.NEquilSteps) SumENum=SumENum+(REAL(HOffDiag%v,r2)*WSign/dProbFin)
+!            AvSign=AvSign+REAL(WSign,r2)
+!            AvSignHFD=AvSignHFD+REAL(WSign,r2)
+            ENumCyc=ENumCyc+(REAL(HOffDiag%v,r2)*WSign/dProbFin)     !This is simply the Hij*sign summed over the course of the update cycle
+!            WRITE(6,*) 1,SumENum,(REAL(HOffDiag%v,r2)*WSign/dProbFin)     !This is simply the Hij*sign summed over the course of the update cycle
+          endif 
+
+          IF(tConstructNOs) THEN
+!Fill the 1-RDM to find natural orbital on-the-fly.
+!Find the orbitals that are involved in the excitation (those that differ in occupation to the ref orbital).
+                CALL FindSingleOrbs(iLutHF,iLutCurr,NIfD,Orbs)
+!Add 1.D0 (or -1.D0) to the off-diagonal element connecting the relevent orbitals.
+                IF(Iter.gt.NEquilSteps) THEN
+                    OneRDM(Orbs(1),Orbs(2))=OneRDM(Orbs(1),Orbs(2))+REAL(WSign,r2)
+                    OneRDM(Orbs(2),Orbs(1))=OneRDM(Orbs(1),Orbs(2))
+                ENDIF
+!At the end of all iterations, this OneRDM will contain only the unnormalised off-diagonal elements.
+          ENDIF
+            
+        ENDIF
+
+!Histogramming diagnostic options...
+        IF((tHistSpawn.or.(tCalcFCIMCPsi.and.tFCIMC).and.(Iter.ge.NHistEquilSteps))) THEN
+            IF(ExcitLevel.eq.NEl) THEN
+                CALL BinSearchParts2(iLutCurr,HistMinInd(ExcitLevel),Det,PartInd,tSuccess)
+                if(tFCIMC) HistMinInd(ExcitLevel)=PartInd  !CCMC doesn't sum particle contributions in order, so we must search the whole space again
+            ELSEIF(ExcitLevel.eq.0) THEN
+                PartInd=1
+                tSuccess=.true.
+            ELSE
+                CALL BinSearchParts2(iLutCurr,HistMinInd(ExcitLevel),FCIDetIndex(ExcitLevel+1)-1,PartInd,tSuccess)
+                if(tFCIMC) HistMinInd(ExcitLevel)=PartInd  !CCMC doesn't sum particle contributions in order, so we must search the whole space again
+            ENDIF
+            IF(tSuccess) THEN
+                IF(tFlippedSign) THEN
+                    Histogram(PartInd)=Histogram(PartInd)-REAL(WSign,r2)
+                    IF(tHistSpawn) InstHist(PartInd)=InstHist(PartInd)-REAL(WSign,r2)
+                ELSE
+                    Histogram(PartInd)=Histogram(PartInd)+REAL(WSign,r2)
+                    IF(tHistSpawn) InstHist(PartInd)=InstHist(PartInd)+REAL(WSign,r2)
+                ENDIF
+            ELSE
+                WRITE(6,*) DetCurr(:)
+                WRITE(6,*) "***",iLutCurr(0:NIfD)
+                WRITE(6,*) "***",ExcitLevel,HistMinInd(ExcitLevel),Det
+                Call WriteBitDet(6,iLutCurr(0:NIfD),.true.)
+                CALL Stop_All("SumEContrib","Cannot find corresponding FCI determinant when histogramming")
+            ENDIF
+            IF(tHPHF) THEN
+!With HPHF space, we need to also include the spin-coupled determinant, which will have the same amplitude as the original determinant, unless it is antisymmetric.
+                CALL FindExcitBitDetSym(iLutCurr,iLutSym)
+                IF(ExcitLevel.eq.NEl) THEN
+                    CALL BinSearchParts2(iLutSym,FCIDetIndex(ExcitLevel),Det,PartInd,tSuccess)
+                ELSEIF(ExcitLevel.eq.0) THEN
+                    PartInd=1
+                    tSuccess=.true.
+                ELSE
+                    CALL BinSearchParts2(iLutSym,FCIDetIndex(ExcitLevel),FCIDetIndex(ExcitLevel+1)-1,PartInd,tSuccess)
+                ENDIF
+                IF(tSuccess) THEN
+                    CALL CalcOpenOrbs(iLutSym,NIfD,NEl,OpenOrbs)
+                    IF(tFlippedSign) THEN
+                        IF(mod(OpenOrbs,2).eq.1) THEN
+                            Histogram(PartInd)=Histogram(PartInd)+REAL(WSign,r2)
+                            IF(tHistSpawn) InstHist(PartInd)=InstHist(PartInd)+REAL(WSign,r2)
+                        ELSE
+                            Histogram(PartInd)=Histogram(PartInd)-REAL(WSign,r2)
+                            IF(tHistSpawn) InstHist(PartInd)=InstHist(PartInd)-REAL(WSign,r2)
+                        ENDIF
+                    ELSE
+                        IF(mod(OpenOrbs,2).eq.1) THEN
+                            Histogram(PartInd)=Histogram(PartInd)-REAL(WSign,r2)
+                            IF(tHistSpawn) InstHist(PartInd)=InstHist(PartInd)-REAL(WSign,r2)
+                        ELSE
+                            Histogram(PartInd)=Histogram(PartInd)+REAL(WSign,r2)
+                            IF(tHistSpawn) InstHist(PartInd)=InstHist(PartInd)+REAL(WSign,r2)
+                        ENDIF
+                    ENDIF
+                ELSE
+                    WRITE(6,*) DetCurr(:)
+                    WRITE(6,*) "***",iLutSym(0:NIfD)
+                    WRITE(6,*) "***",ExcitLevel,Det
+                    CALL Stop_All("SumEContrib","Cannot find corresponding spin-coupled FCI determinant when histogramming")
+                ENDIF
+            ENDIF
+        ELSEIF(tHistEnergies) THEN
+!This wil histogramm the energies of the particles, rather than the determinants themselves.
+            Bin=INT(HDiagCurr/BinRange)+1
+            IF(Bin.gt.iNoBins) THEN
+                CALL Stop_All("SumEContrib","Histogramming energies higher than the arrays can cope with. Increase iNoBins or BinRange")
+            ENDIF
+            Histogram(Bin)=Histogram(Bin)+real(abs(WSign),r2)
+        ENDIF
+
+
+!        IF(TLocalAnnihilation) THEN
+!We need to count the population of walkers at each excitation level for each iteration
+!            PartsinExcitLevel(ExcitLevel)=PartsinExcitLevel(ExcitLevel)+1
+!        ENDIF
+
+!        IF(TAutoCorr) THEN
+!!First element is HF Det to histogram. Then come doubles, triples and quads
+!
+!            IF(ExcitLevel.eq.4) THEN
+!                LowIndex=2+NoACDets(2)+NoACDets(3)
+!                HighIndex=NoAutoDets
+!            ELSEIF(ExcitLevel.eq.3) THEN
+!                LowIndex=2+NoACDets(2)
+!                HighIndex=1+NoACDets(2)+NoACDets(3)
+!            ELSEIF(ExcitLevel.eq.2) THEN
+!                LowIndex=2
+!                HighIndex=1+NoACDets(2)
+!            ELSEIF(ExcitLevel.eq.0) THEN
+!                LowIndex=1
+!                HighIndex=1
+!            ELSE
+!                LowIndex=0
+!            ENDIF
+!
+!            IF(LowIndex.ne.0) THEN
+!
+!                do i=LowIndex,HighIndex
+!            
+!                    IF(CompiPath(DetCurr,AutoCorrDets(:,i),NEl)) THEN
+!!The walker is at a determinant for which we want to calculate the autocorrelation function
+!                        IF(TFlippedSign) THEN
+!                            WeightatDets(i)=WeightatDets(i)-WSign
+!                        ELSE
+!                            WeightatDets(i)=WeightatDets(i)+WSign
+!                        ENDIF
+!                        EXIT
+!                    ENDIF
+!
+!                enddo
+!            ENDIF
+!        ENDIF
+        
+        RETURN
+
+    END SUBROUTINE SumEContrib
 
 END MODULE FciMCParMod
 
