@@ -11,16 +11,16 @@
      GLOBALS='GLOBALS-gfortran'
      if [ $debug ]; then
        FC='gfortran -m64 -c -g '
-       CC='gcc -c -g -sb -C -errtags'
+       CC='gcc -c -g'
        LD='gfortran -m64 -g'
        FCD='gfortran -m64 -c -g '
-       CCD='gcc -g -sb -C -errtags'
+       CCD='gcc -g -errtags'
        LDD='gfortran -m64 -g'
      else
        FC='gfortran -m64 -c -O4'
        CC='gcc -c -O'
        LD='gfortran -m64 -O4'
        FCD='gfortran -m64 -c -g'
-       CCD='gcc -g -sb -C -errtags'
+       CCD='gcc -g -errtags'
        LDD='gfortran -m64 -g'
      fi
