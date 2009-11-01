@@ -524,24 +524,43 @@ MODULE GenRandSymExcitNUMod
 !Run over all possible b symmetries, and count the a orbitals which would be disallow due to the unavailability of a corresponding b orbital.
             do k=-iMaxLz,iMaxLz
                 OrbAMl=SumMl-k
-                do i=0,nSymLabels-1
-                    ConjSym=IEOR(SymProduct,i)
-                    do j=1,2
-                        Ind=Ind+1
-                        IF(ClassCountUnocc2(Ind).eq.0) THEN
-                            !Ignore if already spin-forbidden
-                            IF(iSpn.eq.1.and.j.eq.2) CYCLE  !We are only interested in beta orbitals
-                            IF(iSpn.eq.3.and.j.eq.1) CYCLE  !We are only interested in alpha orbitals
-
-                            ForbiddenOrbs=ForbiddenOrbs+ClassCountUnocc2(ClassCountInd(j,ConjSym,OrbAMl))
-
-                        ELSEIF((ClassCountUnocc2(Ind).eq.1).and.(iSpn.ne.2).and.(SymProduct.eq.0).and.(OrbAMl.eq.k)) THEN
-                            !This is the situation where you actually need two orbitals of the given symmetry to allow this a orbital to be chosen.
-                            ForbiddenOrbs=ForbiddenOrbs+1
-                        ENDIF
-
+                IF(abs(OrbAMl).le.iMaxMl) THEN
+                    !If the OrbAMl which would be needed to require this B-symmetry is out of range, then there is no need to consider it - we cannot pick an A orb which would require this symmetry from the B orbital.
+                    do i=0,nSymLabels-1
+                        ConjSym=IEOR(SymProduct,i)
+                        do j=1,2
+                            Ind=Ind+1
+                            IF(ClassCountUnocc2(Ind).eq.0) THEN
+                                !Ignore if already spin-forbidden
+                                IF(iSpn.eq.1)
+                                    IF(j.eq.2) THEN
+                                        CYCLE  !We are only interested in beta orbitals
+                                    ELSE
+                                        ForbiddenOrbs=ForbiddenOrbs+ClassCountUnocc2(ClassCountInd(2,ConjSym,OrbAMl))
+                                    ENDIF
+                                ELSEIF(iSpn.eq.3) THEN
+                                    IF(j.eq.1) THEN
+                                        CYCLE   !We are only interested in alpha orbitals
+                                    ELSE
+                                        ForbiddenOrbs=ForbiddenOrbs+ClassCountUnocc2(ClassCountInd(1,ConjSym,OrbAMl))
+                                    ENDIF
+                                ELSEIF(iSpn.eq.2) THEN  !alpha/beta pair - can forbid orbitals both ways.
+                                    IF(j.eq.1) THEN
+                                        ForbiddenOrbs=ForbiddenOrbs+ClassCountUnocc2(ClassCountInd(2,ConjSym,OrbAMl))
+                                    ELSE
+                                        ForbiddenOrbs=ForbiddenOrbs+ClassCountUnocc2(ClassCountInd(1,ConjSym,OrbAMl))
+                                    ENDIF
+                                ENDIF
+                            ELSEIF((ClassCountUnocc2(Ind).eq.1).and.(iSpn.ne.2).and.(SymProduct.eq.0).and.(OrbAMl.eq.k)) THEN
+                                !This is the situation where you actually need two orbitals of the given symmetry to allow this a orbital to be chosen.
+                                ForbiddenOrbs=ForbiddenOrbs+1
+                            ENDIF
+                        enddo
                     enddo
-                enddo
+                ELSE
+                    !Move onto the next k-block of B orbitals.
+                    Ind=Ind+nSymLabels*2
+                ENDIF
             enddo
 
         ELSE
@@ -831,49 +850,52 @@ MODULE GenRandSymExcitNUMod
                 ENDIF
             ENDIF
             
-            IF(iSpn.eq.2) THEN
+            IF(abs(MlB).le.iMaxMl) THEN
+!Make sure that the B orbital that we would need to pick to conserve momentum is actually in the available range of Ml values.
+                IF(iSpn.eq.2) THEN
 !We want an alpha/beta unocc pair. 
-                IF(SpinOrbA.eq.1) THEN
+                    IF(SpinOrbA.eq.1) THEN
 !We have picked an alpha orbital - check to see if there are allowed beta unoccupied orbitals from the SymB Class.
-                    IF(ClassCountUnocc2(ClassCountInd(2,SymB,MlB)).ne.0) THEN
+                        IF(ClassCountUnocc2(ClassCountInd(2,SymB,MlB)).ne.0) THEN
 !Success! We have found an allowed A orbital! Exit from loop.
-                        EXIT
-                    ENDIF
-                ELSE
+                            EXIT
+                        ENDIF
+                    ELSE
 !We have picked a beta orbital - check to see if there are allowed alpha unoccupied orbitals from the SymB Class.
-                    IF(ClassCountUnocc2(ClassCountInd(1,SymB,MlB)).ne.0) THEN
+                        IF(ClassCountUnocc2(ClassCountInd(1,SymB,MlB)).ne.0) THEN
 !Success! We have found an allowed A orbital! Exit from loop.
-                        EXIT
+                            EXIT
+                        ENDIF
                     ENDIF
-                ENDIF
-            ELSEIF(iSpn.eq.1) THEN
+                ELSEIF(iSpn.eq.1) THEN
 !We want a beta/beta pair.
-                IF((SymProduct.ne.0).and.(MlA.ne.MlB)) THEN
+                    IF((SymProduct.ne.0).and.(MlA.ne.MlB)) THEN
 !Check to see if there are any unoccupied beta orbitals in the SymB Class.
-                    IF(ClassCountUnocc2(ClassCountInd(2,SymB,MlB)).ne.0) THEN
+                        IF(ClassCountUnocc2(ClassCountInd(2,SymB,MlB)).ne.0) THEN
 !Success! We have found an allowed A orbital! Exit from loop.
-                        EXIT
-                    ENDIF
-                ELSE
+                            EXIT
+                        ENDIF
+                    ELSE
 !We want an orbital from the same class. Check that this isn't the only unoccupied beta orbital in the class.
-                    IF(ClassCountUnocc2(ClassCountInd(2,SymB,MlB)).ne.1) THEN
+                        IF(ClassCountUnocc2(ClassCountInd(2,SymB,MlB)).ne.1) THEN
 !Success! We have found an allowed A orbital! Exit from loop.
-                        EXIT
-                    ENDIF
-                ENDIF
-            ELSE
-!We want an alpha/alpha pair.
-                IF((SymProduct.ne.0).and.(MlA.ne.MlB)) THEN
-!Check to see if there are any unoccupied alpha orbitals in the SymB Class.
-                    IF(ClassCountUnocc2(ClassCountInd(1,SymB,MlB)).ne.0) THEN
-!Success! We have found an allowed A orbital! Exit from loop.
-                        EXIT
+                            EXIT
+                        ENDIF
                     ENDIF
                 ELSE
-!We want an orbital from the same class. Check that this isn't the only unoccupied alpha orbital in the class.
-                    IF(ClassCountUnocc2(ClassCountInd(1,SymB,MlB)).ne.1) THEN
+!We want an alpha/alpha pair.
+                    IF((SymProduct.ne.0).and.(MlA.ne.MlB)) THEN
+!Check to see if there are any unoccupied alpha orbitals in the SymB Class.
+                        IF(ClassCountUnocc2(ClassCountInd(1,SymB,MlB)).ne.0) THEN
 !Success! We have found an allowed A orbital! Exit from loop.
-                        EXIT
+                            EXIT
+                        ENDIF
+                    ELSE
+!We want an orbital from the same class. Check that this isn't the only unoccupied alpha orbital in the class.
+                        IF(ClassCountUnocc2(ClassCountInd(1,SymB,MlB)).ne.1) THEN
+!Success! We have found an allowed A orbital! Exit from loop.
+                            EXIT
+                        ENDIF
                     ENDIF
                 ENDIF
             ENDIF
