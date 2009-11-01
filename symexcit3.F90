@@ -22,7 +22,7 @@ MODULE SymExcit3
         INTEGER :: nSingleExcits,nDoubleExcits,Symi,i,j,Spini,nI(NEl)
         INTEGER :: iSpn,Elec1Ind,Elec2Ind,SymProduct,exflag
         INTEGER :: Syma,Symb,Spina,Spinb,StartSpin,EndSpin
-        INTEGER :: ClassCount2(ScratchSize)
+        INTEGER :: ClassCount2(ScratchSize),SumMl
         INTEGER :: ClassCountUnocc2(ScratchSize)
 
         CALL ConstructClassCounts(nI,ClassCount2,ClassCountUnocc2)
@@ -68,7 +68,7 @@ MODULE SymExcit3
             do i=1,ElecPairs
 
 ! iSpn=2 for alpha beta pair, ispn=3 for alpha alpha pair and ispn=1 for beta beta pair.
-                CALL PickElecPair(nI,Elec1Ind,Elec2Ind,SymProduct,iSpn,i)
+                CALL PickElecPair(nI,Elec1Ind,Elec2Ind,SymProduct,iSpn,SumMl,i)
 
                 StartSpin=1
                 EndSpin=2
@@ -294,7 +294,7 @@ MODULE SymExcit3
         USE SystemData , only: ElecPairs
         USE GenRandSymExcitNUMod , only: PickElecPair,FindNewDet 
         INTEGER :: nI(NEl),iLut(0:NIfD),Orbj,Orbi,Orba,Orbb,OrbbSpin,Syma,Symb,NewSym
-        INTEGER :: Elec1Ind,Elec2Ind,SymProduct,iSpn,Spinb,nJ(NEl),i,k,ExcitMat3(2,2)
+        INTEGER :: Elec1Ind,Elec2Ind,SymProduct,iSpn,Spinb,nJ(NEl),i,k,ExcitMat3(2,2),SumMl
         INTEGER , SAVE :: ijInd,OrbaIndex,OrbbIndex,Spina
         LOGICAL :: tDoubleExcitFound,tFirsta,tFirstb,tNewij,tNewa,tAllExcitFound,tParity
 
@@ -324,7 +324,7 @@ MODULE SymExcit3
 ! The i and j orbitals are then given by nI(Elec1Ind) and nI(Elec2Ind), and the symmetry product of the two is 
 ! SymProduct and the spin iSpn.
 ! iSpn=2 for alpha beta pair, ispn=3 for alpha alpha pair and ispn=1 for beta beta pair.
-            CALL PickElecPair(nI,Elec1Ind,Elec2Ind,SymProduct,iSpn,ijInd)
+            CALL PickElecPair(nI,Elec1Ind,Elec2Ind,SymProduct,iSpn,SumMl,ijInd)
 
             tNewij=.false.
 ! This becomes true when we can no longer find an allowed orbital a for this ij pair and we need to move onto the next.
