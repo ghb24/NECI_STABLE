@@ -11,16 +11,16 @@
      GLOBALS='GLOBALS-gfortran'
      if [ $debug ]; then
        FC='mpif90 -m64 -c -g '
-       CC='mpicc -g -sb -C -errtags'
+       CC='mpicc -g -errtags'
        LD='mpif90 -m64 -g'
        FCD='mpif90 -m64 -c -g '
-       CCD='mpicc -g -sb -C -errtags'
+       CCD='mpicc -g -errtags'
        LDD='mpif90 -m64 -g'
      else
        FC='mpif90 -m64 -c -O4'
        CC='mpicc -O'
        LD='mpif90 -m64 -O4'
        FCD='mpif90 -m64 -c -g'
-       CCD='mpicc -g -sb -C -errtags'
+       CCD='mpicc -g -errtags'
        LDD='mpif90 -m64 -g'
      fi
