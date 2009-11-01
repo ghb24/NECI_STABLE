@@ -513,8 +513,8 @@ MODULE GenRandSymExcitNUMod
 !This routine finds the number of orbitals which are allowed by spin, but not part of any spatial symmetry allowed unoccupied pairs.
 !This number is needed for the correct normalisation of the probability of drawing any given A orbital since these can be chucked and redrawn.
     SUBROUTINE FindNumForbiddenOrbs(ForbiddenOrbs,ClassCountUnocc2,SymProduct,iSpn,SumMl)
-        INTEGER :: ClassCountUnocc2(ScratchSize),OrbAMl,SymMl,j,k
-        INTEGER :: ForbiddenOrbs,SymProduct,iSpn,i,ConjSym
+        INTEGER :: ClassCountUnocc2(ScratchSize),OrbAMl,SumMl,j,k
+        INTEGER :: ForbiddenOrbs,SymProduct,iSpn,i,ConjSym,Ind
 
         ForbiddenOrbs=0
 
@@ -524,7 +524,7 @@ MODULE GenRandSymExcitNUMod
 !Run over all possible b symmetries, and count the a orbitals which would be disallow due to the unavailability of a corresponding b orbital.
             do k=-iMaxLz,iMaxLz
                 OrbAMl=SumMl-k
-                IF(abs(OrbAMl).le.iMaxMl) THEN
+                IF(abs(OrbAMl).le.iMaxLz) THEN
                     !If the OrbAMl which would be needed to require this B-symmetry is out of range, then there is no need to consider it - we cannot pick an A orb which would require this symmetry from the B orbital.
                     do i=0,nSymLabels-1
                         ConjSym=IEOR(SymProduct,i)
@@ -532,7 +532,7 @@ MODULE GenRandSymExcitNUMod
                             Ind=Ind+1
                             IF(ClassCountUnocc2(Ind).eq.0) THEN
                                 !Ignore if already spin-forbidden
-                                IF(iSpn.eq.1)
+                                IF(iSpn.eq.1) THEN
                                     IF(j.eq.2) THEN
                                         CYCLE  !We are only interested in beta orbitals
                                     ELSE
@@ -850,7 +850,7 @@ MODULE GenRandSymExcitNUMod
                 ENDIF
             ENDIF
             
-            IF(abs(MlB).le.iMaxMl) THEN
+            IF(abs(MlB).le.iMaxLz) THEN
 !Make sure that the B orbital that we would need to pick to conserve momentum is actually in the available range of Ml values.
                 IF(iSpn.eq.2) THEN
 !We want an alpha/beta unocc pair. 
@@ -990,7 +990,8 @@ MODULE GenRandSymExcitNUMod
     END SUBROUTINE PickElecPair
 
     SUBROUTINE CheckIfSingleExcits(ElecsWNoExcits,ClassCount2,ClassCountUnocc2)
-        INTEGER :: ElecsWNoExcits,ClassCount2(ScratchSize),ClassCountUnocc2(ScratchSize),i
+        INTEGER :: ElecsWNoExcits,ClassCount2(ScratchSize),ClassCountUnocc2(ScratchSize),i,k
+        INTEGER :: Ind1,Ind2
 
 
 !First, we need to find out if there are any electrons which have no possible excitations. This is because these will need to be redrawn and so 
@@ -1039,7 +1040,7 @@ MODULE GenRandSymExcitNUMod
         INTEGER :: Eleci,ElecSym,nI(NEl),nJ(NEl),NExcit,iSpn,ChosenUnocc
         INTEGER :: ExcitMat(2,2),ExcitLevel,iGetExcitLevel
         INTEGER :: ClassCount2(ScratchSize)
-        INTEGER :: ClassCountUnocc2(ScratchSize),k,ElecK,Ind
+        INTEGER :: ClassCountUnocc2(ScratchSize),k,ElecK,Ind,SymIndex
         INTEGER :: ILUT(0:NIfD),Ind1,Ind2
         REAL*8 :: r,pGen
         LOGICAL :: tParity,IsValidDet,SymAllowed
@@ -1180,10 +1181,10 @@ MODULE GenRandSymExcitNUMod
             ELSE
 !                nOrbs=SymLabelCounts(2,ElecSym+1)
 !                nOrbs=SymLabelCounts2(iSpn,2,ElecSym+1)
-                nOrbs=OrbClassCount(SymInd)
+                nOrbs=OrbClassCount(SymIndex)
 
                 !!REMOVE THIS TEST ONCE WORKING!!
-                IF(nOrbs.ne.SymLabelCounts2(2,SymInd)) THEN
+                IF(nOrbs.ne.SymLabelCounts2(2,SymIndex)) THEN
                     CALL Stop_All("GetSingleExcit","Error in symmetry arrays")
                 ENDIF
             ENDIF
@@ -1196,7 +1197,7 @@ MODULE GenRandSymExcitNUMod
                 ELSE
 !                    Orb=(2*SymLabelList(SymLabelCounts(1,ElecSym+1)+i))-(iSpn-1)
 !                    Orb=SymLabelList2(iSpn,SymLabelCounts2(iSpn,1,ElecSym+1)+i)
-                    Orb=SymLabelList2(SymLabelCounts2(1,SymInd)+i)
+                    Orb=SymLabelList2(SymLabelCounts2(1,SymIndex)+i)
                 ENDIF
 
 !Find out if the orbital is in the determinant.
@@ -1223,10 +1224,10 @@ MODULE GenRandSymExcitNUMod
             IF(tNoSymGenRandExcits) THEN
                 nOrbs=nBasis/2
             ELSE
-                nOrbs=OrbClassCount(SymInd)
+                nOrbs=OrbClassCount(SymIndex)
 
                 !!REMOVE THIS TEST ONCE WORKING!!
-                IF(nOrbs.ne.SymLabelCounts2(2,SymInd)) THEN
+                IF(nOrbs.ne.SymLabelCounts2(2,SymIndex)) THEN
                     CALL Stop_All("GetSingleExcit","Error in symmetry arrays")
                 ENDIF
 !                nOrbs=SymLabelCounts2(iSpn,2,ElecSym+1)
@@ -1246,7 +1247,7 @@ MODULE GenRandSymExcitNUMod
                     Orb=(2*(ChosenUnocc+1))-(iSpn-1)
                 ELSE
 !                    Orb=(2*SymLabelList(SymLabelCounts(1,ElecSym+1)+ChosenUnocc))-(iSpn-1)
-                    Orb=SymLabelList2(SymLabelCounts2(1,SymInd)+ChosenUnocc)
+                    Orb=SymLabelList2(SymLabelCounts2(1,SymIndex)+ChosenUnocc)
                 ENDIF
 
 !Find out if orbital is in nI or not. Accept if it isn't in it.
@@ -1373,8 +1374,8 @@ MODULE GenRandSymExcitNUMod
 !Therefore, make sure that they are at most double excitations of each other.
     SUBROUTINE CalcNonUniPGen(Ex,IC,ClassCount2,ClassCountUnocc2,pDoub,pGen)
         REAL*8 :: pDoub,pGen!,PabGivenij
-        INTEGER :: ClassCount2(ScratchSize),ForbiddenOrbs,SymA,SymB,SumMl
-        INTEGER :: ClassCountUnocc2(ScratchSize),ElecsWNoExcits,i,NExcitOtherWay
+        INTEGER :: ClassCount2(ScratchSize),ForbiddenOrbs,SymA,SymB,SumMl,MlA,MlB,k,Elec1Ml
+        INTEGER :: ClassCountUnocc2(ScratchSize),ElecsWNoExcits,i,NExcitOtherWay,Ind1,Ind2
         INTEGER :: SymProduct,OrbI,OrbJ,iSpn,NExcitA,NExcitB,IC,ElecSym,OrbA,OrbB,Ex(2,2)
             
         pDoubNew=pDoub
@@ -1423,7 +1424,7 @@ MODULE GenRandSymExcitNUMod
                 ENDIF
 
                 ElecSym=INT((G1(Ex(1,1))%Sym%S),4)
-                Elec1Ml=G1(1,1)%Ml
+                Elec1Ml=G1(Ex(1,1))%Ml
 
             ELSE
 !Need to look for forbidden electrons through all the irreps.
