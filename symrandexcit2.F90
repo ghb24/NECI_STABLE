@@ -1006,7 +1006,7 @@ MODULE GenRandSymExcitNUMod
                     Ind1=ClassCountInd(1,0,k)
                     Ind2=ClassCountInd(1,0,-k)
                     do i=0,nSymLabels*2-1
-                        IF((ClassCount2(i+Ind1).ne.0).and.(ClassCount2(i+Ind2).eq.0)) THEN
+                        IF((ClassCount2(i+Ind1).ne.0).and.(ClassCountUnocc2(i+Ind2).eq.0)) THEN
                             ElecsWNoExcits=ElecsWNoExcits+ClassCount2(i+Ind1)
                         ENDIF
                     enddo
@@ -1068,7 +1068,7 @@ MODULE GenRandSymExcitNUMod
                     Ind1=ClassCountInd(1,0,k)
                     Ind2=ClassCountInd(1,0,-k)
                     do i=0,nSymLabels*2-1
-                        IF((ClassCount2(i+Ind1).ne.0).and.(ClassCount2(i+Ind2).eq.0)) THEN
+                        IF((ClassCount2(i+Ind1).ne.0).and.(ClassCountUnocc2(i+Ind2).eq.0)) THEN
                             ElecsWNoExcits=ElecsWNoExcits+ClassCount2(i+Ind1)
                         ENDIF
                     enddo
@@ -1416,7 +1416,7 @@ MODULE GenRandSymExcitNUMod
                         Ind1=ClassCountInd(1,0,k)
                         Ind2=ClassCountInd(1,0,-k)
                         do i=0,nSymLabels*2-1
-                            IF((ClassCount2(i+Ind1).ne.0).and.(ClassCount2(i+Ind2).eq.0)) THEN
+                            IF((ClassCount2(i+Ind1).ne.0).and.(ClassCountUnocc2(i+Ind2).eq.0)) THEN
                                 ElecsWNoExcits=ElecsWNoExcits+ClassCount2(i+Ind1)
                             ENDIF
                         enddo

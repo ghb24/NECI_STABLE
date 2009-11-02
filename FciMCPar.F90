@@ -3803,6 +3803,12 @@ MODULE FciMCParMod
                 ENDIF
             ENDIF
         ENDIF
+
+!        IF(Iter.eq.414) THEN
+!            WRITE(6,"(10I5)") DetCurr(:)
+!            WRITE(6,"(10I5,2F15.5,I5)") nJ(:),REAL(rh%v,8),Prob,AttemptCreatePar
+!        ENDIF
+
         
 !We know we want to create a particle. Return the bit-representation of this particle (if we have not already got it)
         IF(.not.tHPHF.and.AttemptCreatePar.ne.0) THEN
