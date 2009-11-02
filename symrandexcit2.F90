@@ -437,6 +437,7 @@ MODULE GenRandSymExcitNUMod
                 Ind=ClassCountInd(SpinOrbB,SymB,MlB)
                 nOrbs=SymLabelCounts2(2,Ind)
             ENDIF
+
             Attempts=0
             do while(.true.)
                 Attempts=Attempts+1
@@ -790,7 +791,7 @@ MODULE GenRandSymExcitNUMod
 !OrbA is the allowed orbital
 
                 ELSE
-! METHOD 2 (Keep drawing orbitals randomly until we find one unoccupied). This should be more efficient, unless we have v. small basis sets.
+! METHOD 2 (Keep drawing orbitals randomly until we find one unoccupied). This should be more efficient, unless we have small basis sets.
 ! =========================
 
                     Attempts=0
@@ -849,7 +850,7 @@ MODULE GenRandSymExcitNUMod
                     MlB=SumMl-MlA
                 ENDIF
             ENDIF
-            
+
             IF(abs(MlB).le.iMaxLz) THEN
 !Make sure that the B orbital that we would need to pick to conserve momentum is actually in the available range of Ml values.
                 IF(iSpn.eq.2) THEN
@@ -869,7 +870,7 @@ MODULE GenRandSymExcitNUMod
                     ENDIF
                 ELSEIF(iSpn.eq.1) THEN
 !We want a beta/beta pair.
-                    IF((SymProduct.ne.0).and.(MlA.ne.MlB)) THEN
+                    IF((SymProduct.ne.0).or.(MlA.ne.MlB)) THEN
 !Check to see if there are any unoccupied beta orbitals in the SymB Class.
                         IF(ClassCountUnocc2(ClassCountInd(2,SymB,MlB)).ne.0) THEN
 !Success! We have found an allowed A orbital! Exit from loop.
@@ -884,7 +885,7 @@ MODULE GenRandSymExcitNUMod
                     ENDIF
                 ELSE
 !We want an alpha/alpha pair.
-                    IF((SymProduct.ne.0).and.(MlA.ne.MlB)) THEN
+                    IF((SymProduct.ne.0).or.(MlA.ne.MlB)) THEN
 !Check to see if there are any unoccupied alpha orbitals in the SymB Class.
                         IF(ClassCountUnocc2(ClassCountInd(1,SymB,MlB)).ne.0) THEN
 !Success! We have found an allowed A orbital! Exit from loop.
