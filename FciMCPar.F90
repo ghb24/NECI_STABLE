@@ -7727,7 +7727,7 @@ MODULE FciMCParMod
 
         IF(tNonUniRandExcits) THEN
 !Assume that if we want to use the non-uniform random excitation generator, we also want to use the NoSpinSym full excitation generators if they are needed. 
-            tNoSpinSymExcitgens=.false.  
+            tNoSpinSymExcitgens=.true.   
         ENDIF
                                         
 
@@ -8428,6 +8428,7 @@ MODULE FciMCParMod
             CALL GetLz(nJ,NEl,TotalLz)      !This could be improved by just checking that the change in momentum from the excitation was zero.
             IF(TotalLz.ne.LzTot) THEN
                 CheckAllowedTruncSpawn=.false.
+                CALL Stop_All("CheckAllowedTruncSpawn","Should not get here with new excitation generators.")
 !                WRITE(6,*) "FALSE ",TotalLz
             ELSE
                 CheckAllowedTruncSpawn=.true.
