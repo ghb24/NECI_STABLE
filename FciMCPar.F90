@@ -7727,7 +7727,7 @@ MODULE FciMCParMod
 
         IF(tNonUniRandExcits) THEN
 !Assume that if we want to use the non-uniform random excitation generator, we also want to use the NoSpinSym full excitation generators if they are needed. 
-            tNoSpinSymExcitgens=.false.  
+            tNoSpinSymExcitgens=.true.   
         ENDIF
                                         
 
