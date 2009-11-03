@@ -1000,15 +1000,23 @@ MODULE GenRandSymExcitNUMod
         IF(.not.tNoSymGenRandExcits) THEN
             IF(tFixLz) THEN
 !Here, we also have to check that the electron is momentum allowed.
-                do k=-iMaxLz,iMaxLz,1
-                    Ind1=ClassCountInd(1,0,k)
-                    Ind2=ClassCountInd(1,0,-k)
-                    do i=0,nSymLabels*2-1
-                        IF((ClassCount2(i+Ind1).ne.0).and.(ClassCountUnocc2(i+Ind2).eq.0)) THEN
-                            ElecsWNoExcits=ElecsWNoExcits+ClassCount2(i+Ind1)
-                        ENDIF
-                    enddo
+                do i=1,ScratchSize
+!Run through all labels
+                    IF((ClassCount2(i).ne.0).and.(ClassCountUnocc2(i).eq.0)) THEN
+!If there are electrons in this class with no possible unoccupied orbitals in the same class, these electrons have no single excitations.
+                        ElecsWNoExcits=ElecsWNoExcits+ClassCount2(i)
+                    ENDIF
                 enddo
+                
+!                do k=-iMaxLz,iMaxLz,1
+!                    Ind1=ClassCountInd(1,0,k)
+!                    Ind2=ClassCountInd(1,0,-k)
+!                    do i=0,nSymLabels*2-1
+!                        IF((ClassCount2(i+Ind1).ne.0).and.(ClassCountUnocc2(i+Ind2).eq.0)) THEN
+!                            ElecsWNoExcits=ElecsWNoExcits+ClassCount2(i+Ind1)
+!                        ENDIF
+!                    enddo
+!                enddo
             ELSE
 
                 do i=1,ScratchSize
@@ -1061,26 +1069,26 @@ MODULE GenRandSymExcitNUMod
             ElecsWNoExcits=0
 !Need to look for forbidden electrons through all the irreps.
 
-            IF(tFixLz) THEN
-                do k=-iMaxLz,iMaxLz,1
-                    Ind1=ClassCountInd(1,0,k)
-                    Ind2=ClassCountInd(1,0,-k)
-                    do i=0,nSymLabels*2-1
-                        IF((ClassCount2(i+Ind1).ne.0).and.(ClassCountUnocc2(i+Ind2).eq.0)) THEN
-                            ElecsWNoExcits=ElecsWNoExcits+ClassCount2(i+Ind1)
-                        ENDIF
-                    enddo
-
-!                    do i=0,nSymLabels-1
-!                        IF((ClassCount2(ClassCountInd(1,i,k)).ne.0).and.(ClassCountUnocc2(ClassCountInd(1,i,-k)).eq.0)) THEN
-!                            ElecsWNoExcits=ElecsWNoExcits+ClassCount2(ClassCountInd(1,i,k))
-!                        ENDIF
-!                        IF((ClassCount2(ClassCountInd(2,i,k)).ne.0).and.(ClassCountUnocc2(ClassCountInd(2,i,-k)).eq.0)) THEN
-!                            ElecsWNoExcits=ElecsWNoExcits+ClassCount2(ClassCountInd(2,i,k))
+!            IF(tFixLz) THEN
+!                do k=-iMaxLz,iMaxLz,1
+!                    Ind1=ClassCountInd(1,0,k)
+!                    Ind2=ClassCountInd(1,0,-k)
+!                    do i=0,nSymLabels*2-1
+!                        IF((ClassCount2(i+Ind1).ne.0).and.(ClassCountUnocc2(i+Ind2).eq.0)) THEN
+!                            ElecsWNoExcits=ElecsWNoExcits+ClassCount2(i+Ind1)
 !                        ENDIF
 !                    enddo
-                enddo
-            ELSE
+!
+!!                    do i=0,nSymLabels-1
+!!                        IF((ClassCount2(ClassCountInd(1,i,k)).ne.0).and.(ClassCountUnocc2(ClassCountInd(1,i,-k)).eq.0)) THEN
+!!                            ElecsWNoExcits=ElecsWNoExcits+ClassCount2(ClassCountInd(1,i,k))
+!!                        ENDIF
+!!                        IF((ClassCount2(ClassCountInd(2,i,k)).ne.0).and.(ClassCountUnocc2(ClassCountInd(2,i,-k)).eq.0)) THEN
+!!                            ElecsWNoExcits=ElecsWNoExcits+ClassCount2(ClassCountInd(2,i,k))
+!!                        ENDIF
+!!                    enddo
+!                enddo
+!            ELSE
 
                 do i=1,ScratchSize
 !Run through all labels
@@ -1100,7 +1108,7 @@ MODULE GenRandSymExcitNUMod
 !                        ElecsWNoExcits=ElecsWNoExcits+ClassCount2(ClassCountInd(2,i,0))
 !                    ENDIF
 !                enddo
-            ENDIF
+!            ENDIF
 
         ENDIF
 
@@ -1140,7 +1148,7 @@ MODULE GenRandSymExcitNUMod
 !Beta orbital
                 iSpn=2
             ENDIF
-            SymIndex=ClassCountInd(iSpn,ElecSym,-ElecK)
+            SymIndex=ClassCountInd(iSpn,ElecSym,ElecK)
             NExcit=ClassCountUnocc2(SymIndex)
 
             IF(NExcit.ne.0) EXIT    !Have found electron with allowed excitations

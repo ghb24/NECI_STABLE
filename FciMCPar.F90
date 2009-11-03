@@ -8434,8 +8434,9 @@ MODULE FciMCParMod
             CALL GetLz(nJ,NEl,TotalLz)      !This could be improved by just checking that the change in momentum from the excitation was zero.
             IF(TotalLz.ne.LzTot) THEN
                 CheckAllowedTruncSpawn=.false.
+                WRITE(6,*) "FALSE ",TotalLz
+                WRITE(6,*) nJ(:)
                 CALL Stop_All("CheckAllowedTruncSpawn","Should not get here with new excitation generators.")
-!                WRITE(6,*) "FALSE ",TotalLz
             ELSE
                 CheckAllowedTruncSpawn=.true.
 !                WRITE(6,*) "TRUE ",TotalLz
