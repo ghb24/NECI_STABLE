@@ -48,8 +48,8 @@ MODULE GenRandSymExcitNUMod
         INTEGER :: nI(NEl),nJ(NEl),IC,ExcitMat(2,2),Attempts,exFlag
         INTEGER :: ClassCount2(ScratchSize),ElecsWNoExcits
         INTEGER :: ClassCountUnocc2(ScratchSize)
-        INTEGER :: ILUT(0:NIfD),i!,DetSym
 !        INTEGER , SAVE :: Iter=0
+        INTEGER :: ILUT(0:NIfD),i!,DetSym
         LOGICAL :: tNoSuccess,tParity,tFilled
         REAL*8 :: pDoub,pGen,r
         CHARACTER , PARAMETER :: this_routine='GenRandSymExcitNU'
@@ -79,11 +79,10 @@ MODULE GenRandSymExcitNUMod
 
             tFilled=.true.
         ENDIF
-!        IF(Iter.eq.13) WRITE(6,*) ClassCount2(:)
-!        IF(Iter.eq.13) WRITE(6,*) "***" 
-!        IF(Iter.eq.13) WRITE(6,*) ClassCountUnocc2(:)
-!        IF(Iter.eq.13) WRITE(6,*) "***" 
-
+!        WRITE(6,*) ClassCount2(:)
+!        WRITE(6,*) "***" 
+!        WRITE(6,*) ClassCountUnocc2(:)
+!        WRITE(6,*) "***" 
 
 !ExFlag is 1 for singles, 2 for just doubles, and 3 for both.
         IF(ExFlag.eq.3) THEN
@@ -247,7 +246,7 @@ MODULE GenRandSymExcitNUMod
         INTEGER :: ILUT(0:NIfD),NExcitB,SpinOrbA,OrbA,SymB,NExcitA
         INTEGER :: Elec1Ind,Elec2Ind,SymProduct,iSpn,ForbiddenOrbs,SymA
         REAL*8 :: pGen
-        LOGICAL :: tParity
+        LOGICAL :: tParity,tAOrbFail
 
 !First, we need to pick an unbiased distinct electron pair.
 !These have symmetry product SymProduct, and spin pair iSpn = 1=beta/beta; 2=alpha/beta; 3=alpha/alpha
@@ -271,7 +270,13 @@ MODULE GenRandSymExcitNUMod
 !               SumMl = Sum of the Ml values for the two picked electrons
 !               MlA = Ml of the a orbital chosen
 !               MlB = Required Ml of the b orbital still to be chosen
-        CALL PickAOrb(nI,iSpn,ILUT,ClassCountUnocc2,NExcitA,Elec1Ind,Elec2Ind,SpinOrbA,OrbA,SymA,SymB,SymProduct,SumMl,MlA,MlB)
+        CALL PickAOrb(nI,iSpn,ILUT,ClassCountUnocc2,NExcitA,Elec1Ind,Elec2Ind,SpinOrbA,OrbA,SymA,SymB,SymProduct,SumMl,MlA,MlB,ForbiddenOrbs,tAOrbFail)
+        IF(tAOrbFail) THEN
+!            WRITE(6,*) "A ORB FAIL"
+            nJ(1)=0
+            pGen=HUGE(0.D0)
+            RETURN
+        ENDIF
 
 !This routine will pick an unoccupied orbital at random from a specified spin and symmetry class.
 !There should definitely be a possible spinorbital, since A was chosen so that there was one.
@@ -508,7 +513,7 @@ MODULE GenRandSymExcitNUMod
 !This number is needed for the correct normalisation of the probability of drawing any given A orbital since these can be chucked and redrawn.
     SUBROUTINE FindNumForbiddenOrbs(ForbiddenOrbs,ClassCountUnocc2,SymProduct,iSpn,SumMl)
         INTEGER :: ClassCountUnocc2(ScratchSize),OrbAMl,SumMl,j,k
-        INTEGER :: ForbiddenOrbs,SymProduct,iSpn,i,ConjSym,Ind
+        INTEGER :: ForbiddenOrbs,SymProduct,iSpn,i,ConjSym,Ind,l
 
         ForbiddenOrbs=0
 
@@ -516,14 +521,19 @@ MODULE GenRandSymExcitNUMod
 
             Ind=0
 !Run over all possible b symmetries, and count the a orbitals which would be disallow due to the unavailability of a corresponding b orbital.
+!            WRITE(6,*) "iSpn: ",iSpn,SymProduct,SumMl
             do k=-iMaxLz,iMaxLz
                 OrbAMl=SumMl-k
+!                WRITE(6,*) "OrbAMl: ",OrbAMl
                 IF(abs(OrbAMl).le.iMaxLz) THEN
                     !If the OrbAMl which would be needed to require this B-symmetry is out of range, then there is no need to consider it - we cannot pick an A orb which would require this symmetry from the B orbital.
                     do i=0,nSymLabels-1
                         ConjSym=IEOR(SymProduct,i)
+!                        WRITE(6,*) "ConjSym: ",ConjSym,i
                         do j=1,2
                             Ind=Ind+1
+!                            WRITE(6,*) "Alpha/Beta: ",j
+!                            WRITE(6,*) "***i***"
                             IF(ClassCountUnocc2(Ind).eq.0) THEN
 !There is no point going in here if SymProduct=0
                                 !Ignore if already spin-forbidden
@@ -543,8 +553,10 @@ MODULE GenRandSymExcitNUMod
                                 ELSEIF(iSpn.eq.2) THEN  !alpha/beta pair - can forbid orbitals both ways.
                                     IF(j.eq.1) THEN
                                         ForbiddenOrbs=ForbiddenOrbs+ClassCountUnocc2(ClassCountInd(2,ConjSym,OrbAMl))
+!                                        WRITE(6,*) "***",ForbiddenOrbs
                                     ELSE
                                         ForbiddenOrbs=ForbiddenOrbs+ClassCountUnocc2(ClassCountInd(1,ConjSym,OrbAMl))
+!                                        WRITE(6,*) "***",ForbiddenOrbs
                                     ENDIF
                                 ENDIF
                             ELSEIF((ClassCountUnocc2(Ind).eq.1).and.(iSpn.ne.2).and.(SymProduct.eq.0).and.(OrbAMl.eq.k)) THEN
@@ -557,6 +569,29 @@ MODULE GenRandSymExcitNUMod
                         enddo
                     enddo
                 ELSE
+                    !All unoccupied orbitals in this Ml block are forbbidden
+                    IF(iSpn.eq.2) THEN
+                        do l=Ind+1,Ind+nSymLabels*2
+!                            WRITE(6,*) l
+                            IF(ClassCountUnocc2(l).ne.0) THEN
+                                ForbiddenOrbs=ForbiddenOrbs+ClassCountUnocc2(l)
+                            ENDIF
+                        enddo
+                    ELSEIF(iSpn.eq.1) THEN
+                    !Forbid all beta unoccupied orbitals (these are the second of the pair
+                        do l=Ind+2,Ind+nSymLabels*2,2
+                            IF(ClassCountUnocc2(l).ne.0) THEN
+                                ForbiddenOrbs=ForbiddenOrbs+ClassCountUnocc2(l)
+                            ENDIF
+                        enddo
+                    ELSE
+                        do l=Ind+1,Ind+nSymLabels*2-1,2
+                            IF(ClassCountUnocc2(l).ne.0) THEN
+                                ForbiddenOrbs=ForbiddenOrbs+ClassCountUnocc2(l)
+                            ENDIF
+                        enddo
+                    ENDIF
+
                     !Move onto the next k-block of B orbitals.
                     Ind=Ind+nSymLabels*2
                 ENDIF
@@ -640,11 +675,12 @@ MODULE GenRandSymExcitNUMod
 !               SumMl = Sum of the Ml values for the two picked electrons
 !               MlA = Ml of the a orbital chosen
 !               MlB = Required Ml of the b orbital still to be chosen
-    SUBROUTINE PickAOrb(nI,iSpn,ILUT,ClassCountUnocc2,NExcit,Elec1Ind,Elec2Ind,SpinOrbA,OrbA,SymA,SymB,SymProduct,SumMl,MlA,MlB)
-        INTEGER :: nI(NEl),iSpn,Elec1Ind,Elec2Ind,SpinOrbA,AttemptsOverall,SymA
+    SUBROUTINE PickAOrb(nI,iSpn,ILUT,ClassCountUnocc2,NExcit,Elec1Ind,Elec2Ind,SpinOrbA,OrbA,SymA,SymB,SymProduct,SumMl,MlA,MlB,ForbiddenOrbs,tAOrbFail)
+        INTEGER :: nI(NEl),iSpn,Elec1Ind,Elec2Ind,SpinOrbA,AttemptsOverall,SymA,ForbiddenOrbs
         INTEGER :: NExcit,ChosenUnocc,z,i,OrbA,Attempts,SymB,SymProduct,SumMl,MlA,MlB
         INTEGER :: ILUT(0:NIfD)
         INTEGER :: ClassCountUnocc2(ScratchSize)
+        LOGICAL :: tAOrbFail
         REAL*8 :: r
 
         IF(iSpn.eq.2) THEN
@@ -658,6 +694,13 @@ MODULE GenRandSymExcitNUMod
         ELSE    !iSpn is 3 - alpha/alpha pair.
             SpinOrbA=1 !Going to pick an alpha orb
             NExcit=(nBasis/2)-nOccAlpha !This is the number of unoccupied alpha spinorbitals there are.
+        ENDIF
+
+        IF(NExcit.eq.ForbiddenOrbs) THEN
+            tAOrbFail=.true.
+            RETURN
+        ELSE
+            tAOrbFail=.false.
         ENDIF
 
         AttemptsOverall=0
@@ -900,6 +943,7 @@ MODULE GenRandSymExcitNUMod
             ENDIF
 
             IF(AttemptsOverall.gt.300) THEN
+                WRITE(6,*) "***",NExcit,ForbiddenOrbs
                 WRITE(6,*) "Cannot find first allowed unoccupied orbital for given i,j pair after 300 attempts."
                 WRITE(6,*) "It may be that there are no possible excitations from this i,j pair, in which case "
                 WRITE(6,*) "the given algorithm is inadequate to describe excitations from such a small space."

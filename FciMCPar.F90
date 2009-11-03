@@ -270,9 +270,10 @@ MODULE FciMCParMod
                 ENDIF
 !                WRITE(6,"(A,7I5)") "Generated: ",nJ(:)
 
-
+                IF(nJ(1).eq.0) THEN
+                    Child=0
 !Calculate number of children to spawn
-                IF(TTruncSpace) THEN
+                ELSEIF(TTruncSpace) THEN
 !We have truncated the excitation space at a given excitation level. See if the spawn should be allowed.
                     IF(CheckAllowedTruncSpawn(WalkExcitLevel,nJ,iLutnJ,IC)) THEN
 !The excitation is allowed - it is below the ICILevel cutoff.
@@ -602,7 +603,9 @@ MODULE FciMCParMod
                 IF(tPrintTriConnections) CALL FindTriConnections(DetCurr,CurrentDets(:,j),iLutHF,nJ,IC,Ex,pDoubles,tFilled,tParity,Scratch1,Scratch2,exflag)
 
 !Calculate number of children to spawn
-                IF(TTruncSpace.or.tTruncCAS.or.tListDets.or.tPartFreezeCore.or.tFixLz.or.tUEG) THEN
+                IF(nJ(1).eq.0) THEN
+                    Child=0
+                ELSEIF(TTruncSpace.or.tTruncCAS.or.tListDets.or.tPartFreezeCore.or.tFixLz.or.tUEG) THEN
 !We have truncated the excitation space at a given excitation level. See if the spawn should be allowed.
                     IF(tImportanceSample) CALL Stop_All("PerformFCIMCyc","Truncated calculations not yet working with importance sampling")
 
