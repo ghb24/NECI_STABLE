@@ -3804,7 +3804,7 @@ MODULE FciMCParMod
             ENDIF
         ENDIF
 
-!        IF(Iter.eq.414) THEN
+!        IF(Iter.eq.463) THEN
 !            WRITE(6,"(10I5)") DetCurr(:)
 !            WRITE(6,"(10I5,2F15.5,I5)") nJ(:),REAL(rh%v,8),Prob,AttemptCreatePar
 !        ENDIF

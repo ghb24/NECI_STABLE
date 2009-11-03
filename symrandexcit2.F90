@@ -26,7 +26,7 @@ MODULE GenRandSymExcitNUMod
       !  normalised probability of generating the excitation.
     use SystemData, only: ALAT,iSpinSkip,NIfD,tFixLz,iMaxLz
     use SystemData, only: nEl,G1, nBasis,nBasisMax,tNoSymGenRandExcits,tMerTwist
-    use SystemData, only: Arr,nMax,tCycleOrbs,nOccAlpha,nOccBeta,ElecPairs
+    use SystemData, only: Arr,nMax,tCycleOrbs,nOccAlpha,nOccBeta,ElecPairs,MaxABPairs
     use IntegralsData, only: UMat
     use Determinants, only: GetHElement4
     use SymData, only: nSymLabels,TwoCycleSymGens
@@ -35,7 +35,6 @@ MODULE GenRandSymExcitNUMod
     use SymExcitDataMod 
     use HElem
     IMPLICIT NONE
-    SAVE
 
     INTEGER , PARAMETER :: r2=kind(0.d0)
 
@@ -57,8 +56,8 @@ MODULE GenRandSymExcitNUMod
 
 !        Iter=Iter+1
 !        WRITE(6,*) Iter,tFilled,nSymLabels
+!        IF(Iter.eq.24070) 
 
-        MaxABPairs=(nBasis*(nBasis-1)/2)
         IF(.not.tFilled) THEN
             IF(.not.TwoCycleSymGens) THEN
 !Currently only available for molecular systems, or without using symmetry.
@@ -77,16 +76,14 @@ MODULE GenRandSymExcitNUMod
 !For molecular systems, sym runs from 0 to 7. This is NOT general and should be made so using SymLabels.
 !This could be stored to save doing this multiple times, but shouldn't be too costly an operation.
             CALL ConstructClassCounts(nI,ClassCount2,ClassCountUnocc2)
-!            IF(Iter.eq.5436) THEN
-!                WRITE(6,*) "Ni:", nI(1:NEl)
-!                WRITE(6,*) "alphaocc:", ClassCount2(1,0:nSymLabels-1)
-!                WRITE(6,*) "betaocc:", ClassCount2(2,0:nSymLabels-1)
-!                WRITE(6,*) "AlphUnocc:", ClassCountUnocc2(1,0:nSymLabels-1)
-!                WRITE(6,*) "BetaUnocc:", ClassCountUnocc2(2,0:nSymLabels-1)
-!            ENDIF
 
             tFilled=.true.
         ENDIF
+!        IF(Iter.eq.13) WRITE(6,*) ClassCount2(:)
+!        IF(Iter.eq.13) WRITE(6,*) "***" 
+!        IF(Iter.eq.13) WRITE(6,*) ClassCountUnocc2(:)
+!        IF(Iter.eq.13) WRITE(6,*) "***" 
+
 
 !ExFlag is 1 for singles, 2 for just doubles, and 3 for both.
         IF(ExFlag.eq.3) THEN
@@ -121,8 +118,6 @@ MODULE GenRandSymExcitNUMod
         ELSE
             CALL Stop_All(this_routine,"Error in choosing excitations to create.")
         ENDIF
-
-!        IF(Iter.eq.5436) WRITE(6,*) "IC: ",IC
 
         IF(IC.eq.2) THEN
             CALL CreateDoubExcit(nI,nJ,ClassCount2,ClassCountUnocc2,ILUT,ExcitMat,tParity,pGen)
@@ -185,7 +180,6 @@ MODULE GenRandSymExcitNUMod
                 CALL Stop_All(this_routine,"GenRandSymExcitNU can only be used for molecular systems using symmetry")
             ENDIF
         ENDIF
-        MaxABPairs=(nBasis*(nBasis-1)/2)
 
 !First, we need to do an O[N] operation to find the number of occupied alpha electrons, number of occupied beta electrons
 !and number of occupied electrons of each symmetry class and spin. This is similar to the ClassCount array.
@@ -267,8 +261,6 @@ MODULE GenRandSymExcitNUMod
             CALL FindNumForbiddenOrbs(ForbiddenOrbs,ClassCountUnocc2,SymProduct,iSpn,SumMl)
         ENDIF
 
-!        WRITE(6,*) "***",Elec1Ind,Elec2Ind,SymProduct,iSpn,ForbiddenOrbs
-
 !Now we have to pick the first unoccupied orbital. If an orbital is not present in any allowed pairs, it is chucked and a new one drawn.
 !The number NExcit is the number of unoccupied orbitals that the orbital was chosen from (including symmetry-forbidden orbital pairs)
 !Arguments:     NExcit = Number of possible spin-allowed unoccupied spinorbitals, including forbidden orbs (these will be chucked)
@@ -281,8 +273,6 @@ MODULE GenRandSymExcitNUMod
 !               MlB = Required Ml of the b orbital still to be chosen
         CALL PickAOrb(nI,iSpn,ILUT,ClassCountUnocc2,NExcitA,Elec1Ind,Elec2Ind,SpinOrbA,OrbA,SymA,SymB,SymProduct,SumMl,MlA,MlB)
 
-!        WRITE(6,*) "()", SpinOrbA,OrbA,SymA,SymB,SymProduct
-
 !This routine will pick an unoccupied orbital at random from a specified spin and symmetry class.
 !There should definitely be a possible spinorbital, since A was chosen so that there was one.
 !We have to make sure with alpha/alpha or beta/beta pairs and when SymProduct=0, that we don't choose the same unoccupied orbital.
@@ -293,6 +283,9 @@ MODULE GenRandSymExcitNUMod
 
         CALL FindNewDet(nI,nJ,Elec1Ind,Elec2Ind,OrbA,OrbB,ExcitMat,tParity)
 
+!        IF(Iter.eq.13) THEN
+!            WRITE(6,*) "***",ForbiddenOrbs,NExcitA,NExcitB,NExcitOtherWay,SymProduct 
+!        ENDIF
         CALL FindDoubleProb(ForbiddenOrbs,NExcitA,NExcitB,NExcitOtherWay,pGen)
 
     END SUBROUTINE CreateDoubExcit
@@ -532,18 +525,20 @@ MODULE GenRandSymExcitNUMod
                         do j=1,2
                             Ind=Ind+1
                             IF(ClassCountUnocc2(Ind).eq.0) THEN
+!There is no point going in here if SymProduct=0
                                 !Ignore if already spin-forbidden
                                 IF(iSpn.eq.1) THEN
-                                    IF(j.eq.2) THEN
+                                    IF(j.eq.1) THEN
                                         CYCLE  !We are only interested in beta orbitals
                                     ELSE
                                         ForbiddenOrbs=ForbiddenOrbs+ClassCountUnocc2(ClassCountInd(2,ConjSym,OrbAMl))
                                     ENDIF
                                 ELSEIF(iSpn.eq.3) THEN
-                                    IF(j.eq.1) THEN
+                                    IF(j.eq.2) THEN
                                         CYCLE   !We are only interested in alpha orbitals
                                     ELSE
                                         ForbiddenOrbs=ForbiddenOrbs+ClassCountUnocc2(ClassCountInd(1,ConjSym,OrbAMl))
+!                                        IF(Iter.eq.13) WRITE(6,*) "Adding forbidden orb for sym ",i,ConjSym,ForbiddenOrbs
                                     ENDIF
                                 ELSEIF(iSpn.eq.2) THEN  !alpha/beta pair - can forbid orbitals both ways.
                                     IF(j.eq.1) THEN
@@ -554,7 +549,10 @@ MODULE GenRandSymExcitNUMod
                                 ENDIF
                             ELSEIF((ClassCountUnocc2(Ind).eq.1).and.(iSpn.ne.2).and.(SymProduct.eq.0).and.(OrbAMl.eq.k)) THEN
                                 !This is the situation where you actually need two orbitals of the given symmetry to allow this a orbital to be chosen.
+                                IF(iSpn.eq.1.and.j.eq.1) CYCLE
+                                IF(iSpn.eq.3.and.j.eq.2) CYCLE
                                 ForbiddenOrbs=ForbiddenOrbs+1
+!                                IF(Iter.eq.13) WRITE(6,*) "Extra forbidden orb for symmetry ",i,ForbiddenOrbs
                             ENDIF
                         enddo
                     enddo
@@ -1620,7 +1618,7 @@ MODULE GenRandSymExcitNUMod
         ELSEIF(tFixLz) THEN
             CALL Stop_All(this_routine,"GenRandSymExcitBiased can not be used with tFixLz currently")
         ENDIF
-        MaxABPairs=(nBasis*(nBasis-1)/2)
+!        MaxABPairs=(nBasis*(nBasis-1)/2)
 
 !ExFlag is 1 for singles, 2 for just doubles, and 3 for both.
         IF(ExFlag.eq.3) THEN
