@@ -71,7 +71,7 @@ MODULE Determinants
         Use HElem
         use SystemData, only: nel, Alat, Boa, Coa, BOX, BRR, ECore
         use SystemData, only: G1, LMS, nBasis, STot, tCSF, Arr,tHub,tUEG
-        use SymData , only : nSymLabels,SymLabelList,SymLabelCounts
+        use SymData , only : nSymLabels,SymLabelList,SymLabelCounts,TwoCycleSymGens
         use IntegralsData, only: nfrozen
       
       real*8 DNDET
@@ -145,7 +145,7 @@ MODULE Determinants
         tSuccess=.true.
         tFoundOrbs(:)=.false.
 
-        IF((.not.tHub).and.(.not.tUEG)) THEN
+        IF((.not.tHub).and.(.not.tUEG).and.TwoCycleSymGens) THEN
             do i=1,nSymLabels
 !                WRITE(6,*) "NSymLabels: ",NSymLabels,i-1
                 EndSymState=SymLabelCounts(1,i)+SymLabelCounts(2,i)-1

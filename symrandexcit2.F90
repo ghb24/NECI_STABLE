@@ -2120,9 +2120,9 @@ END MODULE GenRandSymExcitNUMod
 SUBROUTINE SpinOrbSymSetup(tRedoSym)
     use SymExcitDataMod , only : ScratchSize,SymLabelList2,SymLabelCounts2,OrbClassCount
     use GenRandSymExcitNUMod , only : ClassCountInd
-    use SymData, only: nSymLabels
+    use SymData, only: nSymLabels,TwoCycleSymGens
     use SymData, only: SymLabelList,SymLabelCounts
-    use SystemData , only : G1,tFixLz,tNoSymGenRandExcits,nBasis,iMaxLz
+    use SystemData , only : G1,tFixLz,tNoSymGenRandExcits,nBasis,iMaxLz,tUEG
     IMPLICIT NONE
     INTEGER :: i,j,SymInd
     INTEGER :: Spin
@@ -2136,7 +2136,7 @@ SUBROUTINE SpinOrbSymSetup(tRedoSym)
         ScratchSize=2*nSymLabels
     ENDIF
 
-    IF(tNoSymGenRandExcits) THEN
+    IF(tNoSymGenRandExcits.or.tUEG.or.(.not.TwoCycleSymGens)) THEN
         ScratchSize=2
     ENDIF
 
@@ -2153,14 +2153,18 @@ SUBROUTINE SpinOrbSymSetup(tRedoSym)
     SymLabelList2(:)=0          !Indices:   spin-orbital number
     SymLabelCounts2(:,:)=0      !Indices:   index/Number , symmetry(inc. spin)
     Allocate(Temp(ScratchSize))
-
+    
     do j=1,nBasis
         IF(G1(j)%Ms.eq.1) THEN
             Spin=1
         ELSE
             Spin=2
         ENDIF
-        SymInd=ClassCountInd(Spin,INT(G1(j)%Sym%S,4),G1(j)%Ml)
+        IF(tUEG.or.tNoSymGenRandExcits.or.(.not.TwoCycleSymGens)) THEN
+            SymInd=ClassCountInd(Spin,0,G1(j)%Ml)
+        ELSE
+            SymInd=ClassCountInd(Spin,INT(G1(j)%Sym%S,4),G1(j)%Ml)
+        ENDIF
         SymLabelCounts2(2,SymInd)=SymLabelCounts2(2,SymInd)+1
     enddo
     SymLabelCounts2(1,1)=1
@@ -2174,7 +2178,11 @@ SUBROUTINE SpinOrbSymSetup(tRedoSym)
         ELSE
             Spin=2
         ENDIF
-        SymInd=ClassCountInd(Spin,INT(G1(j)%Sym%S,4),G1(j)%Ml)
+        IF(tUEG.or.tNoSymGenRandExcits.or.(.not.TwoCycleSymGens)) THEN
+            SymInd=ClassCountInd(Spin,0,G1(j)%Ml)
+        ELSE
+            SymInd=ClassCountInd(Spin,INT(G1(j)%Sym%S,4),G1(j)%Ml)
+        ENDIF
         SymLabelList2(Temp(SymInd))=j
         Temp(SymInd)=Temp(SymInd)+1
     enddo
@@ -2284,7 +2292,7 @@ SUBROUTINE SpinOrbSymSetup(tRedoSym)
     OrbClassCount(:)=0
     
     
-    IF(tNoSymGenRandExcits) THEN
+    IF(tNoSymGenRandExcits.or.tUEG.or.(.not.TwoCycleSymGens)) THEN
 !All orbitals are in irrep 0
         OrbClassCount(ClassCountInd(1,0,0))=(nBasis/2)
         OrbClassCount(ClassCountInd(2,0,0))=(nBasis/2)
