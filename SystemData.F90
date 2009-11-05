@@ -30,10 +30,12 @@ INTEGER :: ORBORDER(8,2)
 LOGICAL :: tFixLz   !This indicates that in FCIMC, the Lz of the determinants is fixed at LzTot
 INTEGER :: LzTot,iMaxLz     !LzTot is the total Ml quantum number of the state to converge upon. iMaxLz is the abs(maximum Ml basis function).
 
-
-!This indicates the upper-bound for the determinants when expressed in bit-form. This will equal INT(nBasis/32).
-!The actual total length for a determinant in bit form will be NoIntforDet+1
-INTEGER :: NIfD
+! NIfTot indicates upper bound of determinants in bit form
+! NIfD is final byte used to represent determinants (NIfD+1 bytes total)
+! NIfY is the number of bytes used to represent a Yamanouchi symbol
+! NB. bit representations are zero indexed.
+INTEGER :: NIfD, NIfY
+integer :: NIfTot
 
 ! From NECICB
 integer :: lmsBasis

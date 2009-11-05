@@ -146,39 +146,116 @@
 
     END FUNCTION DetExcitBitLT
 
-
-!This is a routine to encode a determinant as natural ordered integers (nI) as a bit string (iLut(0:NIfD))
-!where NIfD=INT(nBasis/32)
-    SUBROUTINE EncodeBitDet(nI,iLut,NEl,NIfD)
-        IMPLICIT NONE
-        INTEGER :: nI(NEl),iLut(0:NIfD),NoIntforDet,i,NEl,NIfD
+! Start the process of modularising this bit!!
+module DetBitOps
+    use Systemdata, only: nel, NIfD, NIfY, NIfTot, tCSF
+    implicit none
+    contains
+    ! This is a routine to encode a determinant as natural ordered integers
+    ! (nI) as a bit string (iLut(0:NIfTot)) where NIfD=INT(nBasis/32)
+    ! If this is a csf, the csf is contained afterwards.
+    subroutine EncodeBitDet(nI,iLut)
+        use csf, only: iscsf, csf_yama_bit, csf_orbital_mask
+        implicit none
+        integer, intent(in) :: nI(nel)
+        integer, intent(out) :: iLut(0:NIfTot)
+        integer :: i, det, pos, nopen
+        logical :: open_shell
 
         iLut(:)=0
-        do i=1,NEl
-            iLut((nI(i)-1)/32)=IBSET(iLut((nI(i)-1)/32),mod(nI(i)-1,32))
-        enddo
+        nopen = 0
+        if (tCSF .and. iscsf (nI)) then
+            do i=1,nel
+                ! The first non-paired orbital has yama symbol = 1
+                if ((.not. open_shell) .and. &
+                    btest(nI(i), csf_yama_bit)) open_shell = .true.
 
-    END SUBROUTINE EncodeBitDet
+                ! Set the bit in the bit representation
+                det = iand(nI(i), csf_orbital_mask)
+                iLut((det-1)/32) = ibset(iLut((det-1)/32),mod(det-1,32))
 
-!This is a routine to take a determinant in bit form and construct the natural ordered NEl integer for of the det.
-    SUBROUTINE DecodeBitDet(nI,iLut,NEl,NIfD)
-        IMPLICIT NONE
-        INTEGER :: nI(NEl),iLut(0:NIfD),NIfD,NEl,i,j,Elec
-
-        Elec=0
-!        nI(:)=0
-        do i=0,NIfD
-            do j=0,31
-                IF(BTEST(iLut(i),j)) THEN
-!An electron is at this orbital
-                    Elec=Elec+1
-                    nI(Elec)=(i*32)+(j+1)
-                    IF(Elec.eq.NEl) RETURN
-                ENDIF
+                if (open_shell) then
+                    if (btest(nI(i), csf_yama_bit)) then
+                        pos = NIfD + 2 + (nopen/32)
+                        iLut(pos) = ibset(iLut(pos), mod(nopen,32))
+                    endif
+                    nopen = nopen + 1
+                endif
             enddo
-        enddo
+            iLut (NIfD+1) = nopen
+        else
+            do i=1,nel
+                iLut((nI(i)-1)/32)=IBSET(iLut((nI(i)-1)/32),mod(nI(i)-1,32))
+            enddo
+        endif
 
-    END SUBROUTINE DecodeBitDet
+    end subroutine EncodeBitDet
+
+    ! This is a routine to take a determinant in bit form and construct 
+    ! the natural ordered NEl integer for of the det.
+    ! If CSFs are enabled, transefer the yamanouchi symbol as well.
+    subroutine DecodeBitDet(nI,iLut)
+        use SystemData, only: nel, NIfD, NIfY, NIfTot, tCSF
+        use csf, only: csf_yama_bit, csf_test_bit
+        implicit none
+        integer, intent(in) :: iLut(0:NIfTot)
+        integer, intent(out) :: nI(nel)
+        integer :: i, j, elec, pos, nopen
+
+        elec=0
+        if (tCSF) then
+            ! Consider the closed shell electrons first
+            do i=0,NIfD
+                do j=0,30,2
+                    if (btest(iLut(i),j)) then
+                        if (btest(iLut(i),j+1)) then
+                            ! An electron pair is in this spacial orbital
+                            ! (2 matched spin orbitals)
+                            elec = elec + 2
+                            nI(elec-1) = (32*i) + (j+1)
+                            nI(elec) = (32*i) + (j+2)
+                            if (elec == nel) return
+                        endif
+                    endif
+                enddo
+            enddo
+
+            ! Now consider the open shell electrons
+            ! TODO: can we move in steps of two, to catch unmatched pairs?
+            nopen = 0
+            do i=0,NIfD
+                do j=0,31
+                    if (btest(iLut(i),j)) then
+                        if (.not.btest(iLut(i),xor(j,1))) then
+                            elec = elec + 1
+                            nI(elec) = (32*i) + (j+1)
+                            pos = NIfD + 2 + (nopen/32)
+                            if (btest(iLut(Pos),mod(nopen,32))) then
+                                nI(elec) = ibset(nI(elec),csf_yama_bit)
+                            endif
+                            nopen = nopen + 1
+                        endif
+                    endif
+                    if ((elec==nel) .or. (nopen==iLut(NIfD+1))) exit
+                enddo
+                if ((elec==nel) .or. (nopen==iLut(NIfD+1))) exit
+            enddo
+            ! If there are any open shell e-, set the csf bit
+            nI = ibset(nI, csf_test_bit)
+        else
+            do i=0,NIfD
+                do j=0,31
+                    if(btest(iLut(i),j)) then
+                        !An electron is at this orbital
+                        elec=elec+1
+                        nI(elec)=(i*32)+(j+1)
+                        if(elec.eq.nel) return
+                    endif
+                enddo
+            enddo
+        endif
+    end subroutine DecodeBitDet
+end module
 
     SUBROUTINE GetBitExcitation(iLutnI,iLutnJ,NIfD,NEl,Ex,tSign)
         IMPLICIT NONE
