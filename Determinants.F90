@@ -214,7 +214,8 @@ MODULE Determinants
       TYPE(HElement) FUNCTION GetHElement2(NI,NJ,nEl,nBasisMax,G1,nBasis,Brr,NMSH,FCK,NMAX,ALAT,UMat,iC2,ECore)
          Use HElem
          use SystemData , only : TSTOREASEXCITATIONS,tHPHFInts
-         use SystemData, only: BasisFN
+         use SystemData, only: BasisFN, tCSF
+         use csf, only: iscsf, CSFGetHelement
          use global_utilities
          IMPLICIT NONE
          INTEGER NMSH,NMAX
@@ -227,7 +228,6 @@ MODULE Determinants
          REAL*8 ECore
          TYPE(HElement) Sum,Sum2
          INTEGER IGETEXCITLEVEL_2
-         LOGICAL ISCSF
          type(timer), save :: proc_timer
          IF(tHPHFInts) THEN
 !             IF(IC2.eq.0) THEN
@@ -239,11 +239,12 @@ MODULE Determinants
 !             GetHElement2=Sum2
 !             RETURN
          ENDIF
-         IF(ISCSF(NI,NEL).OR.ISCSF(NJ,NEL)) THEN
-            CALL CSFGETHELEMENT(NI,NJ,nEl,nBasisMax,G1,nBasis,Brr,NMSH,FCK,NMAX,ALAT,UMat,ECore,Sum2)
-            GETHELEMENT2=SUM2
-            RETURN
-         ENDIF
+         if (tCSF) then
+             if (iscsf(NI) .or. iscsf(NJ)) then
+                 gethelement2 = CSFGetHelement (NI, NJ)
+                 return
+             endif
+         endif
          IF(tStoreAsExcitations.AND.nI(1).eq.-1.and.nJ(1).eq.-1) then
             if(ic2.ne.2) stop 'tStoreAsExcitations in GetHElement2 requires ic=2 (doubles).'
             Call SCR2Excit(nBasisMax,nJ,G1,nBasis,UMat,Alat,nBasisMax(2,3),Sum)
@@ -334,6 +335,15 @@ MODULE Determinants
       Subroutine DetCleanup()
       End Subroutine DetCleanup
 END MODULE Determinants
+
+      FUNCTION GetHElement3_wrapper (NI,NJ,iC)
+         Use HElem
+         use SystemData, only : neL
+         use Determinants, only: GetHElement3
+         type(HElement) GetHElement3_wrapper
+         INTEGER NI(nel),NJ(nel),iC
+         GetHElement3_wrapper = GetHElement3 (NI, NJ, -1)
+      END Function GetHElement3_wrapper
 
       subroutine GetH0Element(nI,nEl,Arr,nBasis,ECore,hEl)
          !  Get a matrix element of the unperturbed Hamiltonian.  This is just
