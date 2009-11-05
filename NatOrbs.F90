@@ -845,7 +845,12 @@ MODULE NatOrbsMod
                         IF(ABS(NatOrbMat(i,j)).ge.1.0E-15) THEN
                             WRITE(6,'(6A8,A20)') 'i','j','Label i','Label j','Sym i','Sym j','Matrix value'
                             WRITE(6,'(6I3,F40.20)') i,j,SymLabelList2(i),SymLabelList2(j),INT(G1(SymLabelList2(i)*2)%sym%S,4),INT(G1(SymLabelList2(j)*2)%sym%S,4),NatOrbMat(i,j)
-                            CALL Stop_All(this_routine,'Non-zero NatOrbMat value between different symmetries.')
+                            IF(tUseMP2VarDenMat) THEN
+                                WRITE(6,*) '**WARNING** - There is a non-zero NatOrbMat value between orbitals of different symmetry.'
+                                WRITE(6,*) 'These elements will be ignored, and the symmetry maintained in the final transformation matrix.'
+                            ELSE
+                                CALL Stop_All(this_routine,'Non-zero NatOrbMat value between different symmetries.')
+                            ENDIF
                         ENDIF
                         NatOrbMat(i,j)=0.D0
                     ENDIF
