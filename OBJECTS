@@ -12,7 +12,7 @@ OBJ_CU  = fcoul.o rhoofr.o write_rho.o \
           xchole.o rlsxc_sc.o rlsxc1_sc.o rlsxc2_sc.o \
           xcholes.o fodmat.o \
 	  read_psi.o gen_coul_ueg.o \
-          hfbasis.o scrtransf.o csf.o
+          hfbasis.o scrtransf.o csf_old.o
 
 OBJ_MC  = calcrho.o mcpaths.o montecarlo.o calcpath.o zsum.o \
           sorti.o calcpathnci.o factorpoly.o rhodiag.o \
