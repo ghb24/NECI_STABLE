@@ -345,6 +345,7 @@ C.. delete a symmetry table if one existed.
          use SymData, only: tagSymLabelCounts,tagSymLabelList
          use SymData, only: SymPairProds,tagSymPairProds
          use SymExcitDataMod , only : SymLabelList2,SymLabelCounts2
+         use SymExcitDataMod , only : OrbClassCount
          IMPLICIT NONE
          character(*), parameter :: this_routine='EndSym'
          if (allocated(SymTable)) then
@@ -398,6 +399,9 @@ C.. delete a symmetry table if one existed.
          end if
          if (allocated(SymLabelCounts2)) then
              deallocate(SymLabelCounts2)
+         end if
+         if (allocated(OrbClassCount)) then
+             deallocate(OrbClassCount)
          end if
          if (allocated(SymPairProds)) then
              deallocate(SymPairProds)
