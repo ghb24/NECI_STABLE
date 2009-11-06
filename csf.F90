@@ -97,12 +97,14 @@ contains
         call get_csf_yama (NJ, yama2)
 
         ! Get the coefficients
-        forall (det=1:ndets(1)) &
+        do det=1,ndets(1)
             coeffs1(det) = csf_coeff(yama1,dets1(det,nclosed(1)+1:nel),&
                                      nopen(1))
-        forall (det=1:ndets(2)) &
+        enddo
+        do det=1,ndets(2)
             coeffs2(det) = csf_coeff(yama2,dets2(det,nclosed(2)+1:nel),&
                                      nopen(2))
+        enddo
 
         ! Generate determinants from spacial orbitals specified in NI, NJ
         do det = 1,ndets(1)
