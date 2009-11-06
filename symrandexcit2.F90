@@ -94,7 +94,13 @@ MODULE GenRandSymExcitNUMod
                 CALL CheckIfSingleExcits(ElecsWNoExcits,ClassCount2,ClassCountUnocc2)
             ENDIF
 
-            IF(pDoubNew.gt.1.D0) CALL Stop_All(this_routine,"pDoub is greater than 1")
+            IF(pDoubNew.gt.1.D0) THEN
+                CALL Stop_All(this_routine,"pDoub is greater than 1")
+            ELSEIF(pDoubNew.eq.1.D0) THEN
+!                WRITE(6,*) "*****",nI,iLut
+!                STOP
+            ENDIF
+                
 
             IF(tMerTwist) THEN
                 CALL genrand_real2(r)
@@ -1340,6 +1346,8 @@ MODULE GenRandSymExcitNUMod
 !        pGen=(1.D0-pDoubNew)*(1.D0/real(NEl,r2))*(1.D0/real(NExcit,r2))*((real(NEl,r2))/(real((NEl-ElecsWNoExcits),r2)))
         pGen=(1.D0-pDoubNew)/(REAL((NExcit*(NEl-ElecsWNoExcits)),r2))
 
+!        WRITE(6,*) "ElecsWNoExcits: ",ElecsWNoExcits
+
     END SUBROUTINE CreateSingleExcit
 
 !This routine returns two arrays of length ScratchSize, which have information about the number of orbitals, occupied and unoccupied respectively, of each symmetry.
@@ -2323,18 +2331,18 @@ END SUBROUTINE SpinOrbSymSetup
 !the excitation. This means that all excitations should be 0 or 1 after enough iterations. It will then count the excitations and compare the number to the
 !number of excitations generated using the full enumeration excitation generation. This can be done for both doubles and singles, or one of them.
 SUBROUTINE TestGenRandSymExcitNU(nI,Iterations,pDoub,exFlag)
-    Use SystemData , only : NEl,nBasis,G1,nBasisMax
-    Use GenRandSymExcitNUMod , only : GenRandSymExcitNU,ConstructClassCounts,ScratchSize
+    Use SystemData , only : NEl,nBasis,G1,nBasisMax,LzTot,NIfD
+    Use GenRandSymExcitNUMod , only : GenRandSymExcitScratchNU,ConstructClassCounts,ScratchSize
     Use SymData , only : nSymLabels
     IMPLICIT NONE
     INTEGER :: i,Iterations,exFlag,nI(NEl),nJ(NEl),IC,ExcitMat(2,2),DetConn
     REAL*8 :: pDoub,pGen
-    INTEGER :: ClassCount2(ScratchSize),iLut(0:nBasis/32)
-    INTEGER :: ClassCountUnocc2(ScratchSize)
-    LOGICAL :: tParity,SymAllowed
+    INTEGER :: ClassCount2(ScratchSize),iLut(0:nBasis/32),Scratch1(ScratchSize),Scratch2(ScratchSize),iLutnJ(0:NIfD)
+    INTEGER :: ClassCountUnocc2(ScratchSize),iExcit
+    LOGICAL :: tParity,SymAllowed,tFilled
     REAL*8 , ALLOCATABLE :: DoublesHist(:,:,:,:),SinglesHist(:,:)
     INTEGER , ALLOCATABLE :: EXCITGEN(:)
-    INTEGER :: ierr,Ind1,Ind2,Ind3,Ind4,iMaxExcit,nStore(6),nExcitMemLen,j,k,l,DetNum,DetNumS
+    INTEGER :: ierr,Ind1,Ind2,Ind3,Ind4,iMaxExcit,nStore(6),nExcitMemLen,j,k,l,DetNum,DetNumS,Lz,excitcount
 
     WRITE(6,*) nI(:)
     WRITE(6,*) Iterations,pDoub,exFlag
@@ -2350,8 +2358,21 @@ SUBROUTINE TestGenRandSymExcitNU(nI,Iterations,pDoub,exFlag)
     IF(ierr.ne.0) CALL Stop_All("SetupExcitGen","Problem allocating excitation generator")
     EXCITGEN(:)=0
     CALL GenSymExcitIt2(nI,NEl,G1,nBasis,nBasisMax,.TRUE.,EXCITGEN,nJ,iMaxExcit,0,nStore,exFlag)
-    CALL GetSymExcitCount(EXCITGEN,DetConn)
-    WRITE(6,*) "Determinant has ",DetConn," total excitations from it."
+!    CALL GetSymExcitCount(EXCITGEN,DetConn)
+    excitcount=0
+
+lp2: do while(.true.)
+        CALL GenSymExcitIt2(nI,nEl,G1,nBasis,nBasisMax,.false.,EXCITGEN,nJ,iExcit,0,nStore,exFlag)
+        IF(nJ(1).eq.0) exit lp2
+        CALL GetLz(nJ,NEl,Lz)
+        IF(Lz.eq.LzTot) THEN
+            excitcount=excitcount+1
+            CALL EncodeBitDet(nJ,iLutnJ,NEl,NIfD)
+            WRITE(25,*) excitcount,iExcit,iLutnJ(0)
+        ENDIF
+    enddo lp2
+
+    WRITE(6,*) "Determinant has ",excitcount," total excitations from it."
     CALL FLUSH(6)
 
 !Allocate memory for histogramming determinants
@@ -2366,22 +2387,31 @@ SUBROUTINE TestGenRandSymExcitNU(nI,Iterations,pDoub,exFlag)
     DoublesHist(:,:,:,:)=0.D0
     SinglesHist(:,:)=0.D0
 
-    do i=1,NEl
-!Create ILUT for O[1] comparison of orbitals in root determinant - This is now read in
-        ILUT((nI(i)-1)/32)=IBSET(ILUT((NI(i)-1)/32),MOD(NI(i)-1,32))
-    enddo
+!    do i=1,NEl
+!!Create ILUT for O[1] comparison of orbitals in root determinant - This is now read in
+!        ILUT((nI(i)-1)/32)=IBSET(ILUT((NI(i)-1)/32),MOD(NI(i)-1,32))
+!    enddo
+    CALL EncodeBitDet(nI,iLut,NEl,NIfD)
+
+    tFilled=.false.
+    Scratch1(:)=0
+    Scratch2(:)=0
     
     do i=1,Iterations
 
-        WRITE(6,"(A,I10)") "Iteration: ",i
+        IF(mod(i,10000).eq.0) THEN
+            WRITE(6,"(A,I10)") "Iteration: ",i
+        ENDIF
 
-        CALL GenRandSymExcitNU(nI,iLut,nJ,pDoub,IC,ExcitMat,TParity,exFlag,pGen)
-        IF(IC.eq.1) THEN
+        CALL GenRandSymExcitScratchNU(nI,iLut,nJ,pDoub,IC,ExcitMat,TParity,exFlag,pGen,Scratch1,Scratch2,tFilled)
+        IF(nJ(1).eq.0) CYCLE
+!        CALL EncodeBitDet(nJ,iLutnJ,NEl,NIfD)
+!        IF(IC.eq.1) THEN
 !            WRITE(6,*) ExcitMat(1,1),ExcitMat(2,1)
-        ELSE
+!        ELSE
 !            WRITE(6,*) "Double Created"
 !            WRITE(6,*) ExcitMat(1,1),ExcitMat(1,2),ExcitMat(2,1),ExcitMat(2,2)
-        ENDIF
+!        ENDIF
 
         IF(IC.eq.1) THEN
             SinglesHist(ExcitMat(1,1),ExcitMat(2,1))=SinglesHist(ExcitMat(1,1),ExcitMat(2,1))+(1.D0/pGen)
@@ -2405,7 +2435,7 @@ SUBROUTINE TestGenRandSymExcitNU(nI,Iterations,pDoub,exFlag)
         ENDIF
 
 !Check excitation
-!        CALL IsSymAllowedExcit(nI,nJ,IC,ExcitMat,SymAllowed)
+        CALL IsSymAllowedExcit(nI,nJ,IC,ExcitMat,SymAllowed)
 
     enddo
 
@@ -2419,7 +2449,12 @@ SUBROUTINE TestGenRandSymExcitNU(nI,Iterations,pDoub,exFlag)
                     IF(DoublesHist(i,j,k,l).gt.0.D0) THEN
 !                        DoublesHist(i,j,k,l)=DoublesHist(i,j,k,l)/real(Iterations,8)
                         DetNum=DetNum+1
-                        WRITE(8,"(I12,F20.12,4I5)") DetNum,DoublesHist(i,j,k,l)/real(Iterations,8),i,j,k,l
+                        ExcitMat(1,1)=i
+                        ExcitMat(1,2)=j
+                        ExcitMat(2,1)=k
+                        ExcitMat(2,2)=l
+                        CALL FindExcitBitDet(iLut,iLutnJ,2,ExcitMat,NIfD)
+                        WRITE(8,"(I12,F20.12,4I5,I15)") DetNum,DoublesHist(i,j,k,l)/real(Iterations,8),i,j,k,l,iLutnJ(0)
                     ENDIF
                 enddo
             enddo
@@ -2433,15 +2468,18 @@ SUBROUTINE TestGenRandSymExcitNU(nI,Iterations,pDoub,exFlag)
         do j=1,nBasis
             IF(SinglesHist(i,j).gt.0.D0) THEN
                 DetNumS=DetNumS+1
-                WRITE(9,*) DetNumS,SinglesHist(i,j)/real(Iterations,8)
+                ExcitMat(1,1)=i
+                ExcitMat(2,1)=j
+                CALL FindExcitBitDet(iLut,iLutnJ,1,ExcitMat,NIfD)
+                WRITE(9,*) DetNumS,SinglesHist(i,j)/real(Iterations,8),iLutnJ(0)
             ENDIF
         enddo
     enddo
     CLOSE(9)
     WRITE(6,*) DetNumS," Single excitations found from nI"
-    IF((DetNum+DetNumS).ne.DetConn) THEN
+    IF((DetNum+DetNumS).ne.ExcitCount) THEN
         CALL ConstructClassCounts(nI,ClassCount2,ClassCountUnocc2)
-        WRITE(6,*) "Total determinants = ", DetConn
+        WRITE(6,*) "Total determinants = ", ExcitCount
 !        WRITE(6,*) "ClassCount2(1,:)= ",ClassCount2(1,:)
 !        WRITE(6,*) "ClassCount2(2,:)= ",ClassCount2(2,:)
         WRITE(6,*) "***"
@@ -2453,12 +2491,13 @@ SUBROUTINE TestGenRandSymExcitNU(nI,Iterations,pDoub,exFlag)
 END SUBROUTINE TestGenRandSymExcitNU
 
 SUBROUTINE IsSymAllowedExcit(nI,nJ,IC,ExcitMat,SymAllowed)
-    Use SystemData , only : G1,NEl
+    Use SystemData , only : G1,NEl,tFixLz
     Use SystemData , only : Symmetry,tNoSymGenRandExcits
     IMPLICIT NONE
     Type(Symmetry) :: SymProduct,SymProduct2,SYMPROD
     LOGICAL :: SYMEQ,ISVALIDDET,SymAllowed
     INTEGER :: IC,ExcitMat(2,2),nI(NEl),nJ(NEl),ExcitLevel,iGetExcitLevel
+    INTEGER :: KOcc,KUnocc
 
      SymAllowed=.true.
      Excitlevel=iGetExcitLevel(nI,nJ,NEl)
@@ -2491,6 +2530,19 @@ SUBROUTINE IsSymAllowedExcit(nI,nJ,IC,ExcitMat,SymAllowed)
             IF(G1(ExcitMat(1,1))%Ms.ne.G1(ExcitMat(2,1))%Ms) THEN
                 SymAllowed=.false.
                 CALL Stop_All("IsSymAllowedExcit","Excitation not a valid spin-symmetry allowed single excitation")
+            ENDIF
+        ENDIF
+    ENDIF
+    IF(tFixLz) THEN
+        IF(IC.eq.1) THEN
+            IF(G1(ExcitMat(1,1))%Ml.ne.G1(ExcitMat(2,1))%Ml) THEN
+                CALL Stop_All("IsSymAllowedExcit","Excitation not a valid momentum allowed single excitation")
+            ENDIF
+        ELSE
+            kOcc=G1(ExcitMat(1,1))%Ml+G1(ExcitMat(1,2))%Ml
+            KUnocc=G1(ExcitMat(2,1))%Ml+G1(ExcitMat(2,2))%Ml
+            IF(Kocc.ne.KUnocc) THEN
+                CALL Stop_All("IsSymAllowedExcit","Excitation not a valid momentum allowed double excitation")
             ENDIF
         ENDIF
     ENDIF

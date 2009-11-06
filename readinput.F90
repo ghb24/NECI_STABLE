@@ -163,7 +163,7 @@ MODULE ReadInput
      & GrowMaxFactor,MemoryFacPart
       Use Determinants, only : SpecDet,tagSpecDet
       use IntegralsData , only : NFROZEN,TDISCONODES,TQuadValMax,TQuadVecMax,TCalcExcitStar,TJustQuads,TNoDoubs,TDiagStarStars,TExcitStarsRootChange,TRmRootExcitStarsRootChange,TLinRootChange
-      USE Logging , only : ILOGGING,tCalcFCIMCPsi,tHistSpawn
+      USE Logging , only : ILOGGING,tCalcFCIMCPsi,tHistSpawn,tHistHamil
       use SystemData, only : TNoRenormRandExcits
       use DetCalc, only : tEnergy,tCalcHMat,tFindDets,tCompressDets
       USE input
@@ -178,6 +178,10 @@ MODULE ReadInput
       IF (tCalcFCIMCPsi.or.tHistSpawn) THEN  !Used in the FCIMc.  We find dets and compress them for later use
          tFindDets=.true.
          tCompressDets=.true.
+      ENDIF
+      IF(tHistHamil) THEN
+          tCalcHMat=.true.
+          tCompressDets=.true.
       ENDIF
       if (tCalcHMat) tFindDets=.true.   !We need to have found the dets before calculating the H mat.
 
