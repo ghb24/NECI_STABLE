@@ -2329,7 +2329,7 @@ SUBROUTINE TestGenRandSymExcitNU(nI,Iterations,pDoub,exFlag)
     IMPLICIT NONE
     INTEGER :: i,Iterations,exFlag,nI(NEl),nJ(NEl),IC,ExcitMat(2,2),DetConn
     REAL*8 :: pDoub,pGen
-    INTEGER :: ClassCount2(ScratchSize),iLut(0:nBasis/32)
+    INTEGER :: ClassCount2(ScratchSize),iLut(0:NIfTot)
     INTEGER :: ClassCountUnocc2(ScratchSize)
     LOGICAL :: tParity,SymAllowed
     REAL*8 , ALLOCATABLE :: DoublesHist(:,:,:,:),SinglesHist(:,:)

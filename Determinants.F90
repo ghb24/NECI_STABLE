@@ -592,10 +592,11 @@ END MODULE Determinants
 ! Write bit-determinant NI to unit NUnit.  Set LTerm if to add a newline at end.  Also prints CSFs
       SUBROUTINE WriteBitDet(nUnit,iLutnI,lTerm)
          use SystemData, only : nEl, nIfD
+         use DetBitops, only: DecodeBitDet
          implicit none
          integer nUnit,nI(nEl),iLutnI(0:nIfD)
          logical lTerm
-         CALL DecodeBitDet(nI,iLutnI,nEl,nIfD)
+         CALL DecodeBitDet(nI,iLutnI)
          CALL WriteDet(nUnit,nI,nEl,lTerm)
       END
 

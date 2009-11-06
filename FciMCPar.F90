@@ -36,6 +36,7 @@ MODULE FciMCParMod
     USE Parallel
     USE FciMCData
     USE AnnihilationMod
+    use DetBitops, only: EncodeBitDet, DecodeBitDet
     IMPLICIT NONE
     SAVE
 
@@ -240,7 +241,7 @@ MODULE FciMCParMod
 !            CALL FLUSH(6)
 
 !First, decode the bit-string representation of the determinant the walker is on, into a string of naturally-ordered integers
-            CALL DecodeBitDet(DetCurr,CurrentDets(:,j),NEl,NIfD)
+            CALL DecodeBitDet(DetCurr,CurrentDets(:,j))
 
 !Also, we want to find out the excitation level of the determinant - we only need to find out if its connected or not (so excitation level of 3 or more is ignored.
 !This can be changed easily by increasing the final argument.
@@ -481,7 +482,7 @@ MODULE FciMCParMod
 !            CALL FLUSH(6)
 
 !First, decode the bit-string representation of the determinant the walker is on, into a string of naturally-ordered integers
-            CALL DecodeBitDet(DetCurr,CurrentDets(:,j),NEl,NIfD)
+            CALL DecodeBitDet(DetCurr,CurrentDets(:,j))
 !            IF((Iter.gt.100)) THEN!.and.(.not.DetBitEQ(CurrentDets(:,j),iLutHF,NIfD))) THEN
 !This will test the excitation generator for HPHF wavefunctions
 !                IF(.not.(TestClosedShellDet(CurrentDets(:,j),NIfD))) THEN
@@ -717,7 +718,7 @@ MODULE FciMCParMod
                             MinorSpawnDets(0:NIfD,MinorValidSpawned)=iLutnJ(0:NIfD)
                             MinorSpawnParent(0:NIfD,MinorValidSpawned)=CurrentDets(0:NIfD,j) !This is DetCurr in bit form
                             MinorSpawnSign(MinorValidSpawned)=Child
-!                            CALL DecodeBitDet(TempDet,iLutnJ(:),NEl,NIfD)
+!                            CALL DecodeBitDet(TempDet,iLutnJ(:))
                             HashArray(MinorValidSpawned)=CreateHash(nJ)
                             MinorValidSpawned=MinorValidSpawned+1
                             ! MinorValidSpawned is the number spawned on the minor determinants.
@@ -942,7 +943,7 @@ MODULE FciMCParMod
                 ! Usually run over all determinants, nJ, and attempt to spawn on these, but we can only spawn back on parent, so only run over this 
                 ! with probability 1.D0.
                 ! nJ is the determinant we are attempting to spawn on in full (i.e. the parent in full form).
-!                CALL DecodeBitDet(nJ,MinorStarParent(0:NIfD,i),NEl,NIfD)
+!                CALL DecodeBitDet(nJ,MinorStarParent(0:NIfTot,i))
 
                 ! CHECK THIS
                 Child=AttemptCreateParBack(MinorStarDets(0:NIfD,i),MinorStarParent(0:NIfD,i),MinorStarSign(i),MinorStarHij(i),abs(MinorStarSign(i)),tMinorDetList)
@@ -967,7 +968,7 @@ MODULE FciMCParMod
 !Attempt Die for particles on "insignificant" dets
 
                 ! DetCurr is the current determinant in expanded form, MinorStarDets(:,i) is the bit form.
-                CALL DecodeBitDet(DetCurr,MinorStarDets(0:NIfD,i),NEl,NIfD)
+                CALL DecodeBitDet(DetCurr,MinorStarDets(0:NIfTot,i))
 
                 iDie=AttemptDiePar(DetCurr,REAL(MinorStarHii(i)%v,r2),0,abs(MinorStarSign(i)))
                 ! Take the ith minor determinant and attempt to die.
@@ -1641,13 +1642,13 @@ MODULE FciMCParMod
 !Put a barrier here so all processes synchronise
             CALL MPI_Barrier(MPI_COMM_WORLD,error)
 !Allocate memory to hold walkers
-            ALLOCATE(WalkVecDets(0:NIfD,MaxWalkersPart),stat=ierr)
-            CALL LogMemAlloc('WalkVecDets',MaxWalkersPart*(NIfD+1),4,this_routine,WalkVecDetsTag,ierr)
+            ALLOCATE(WalkVecDets(0:NIfTot,MaxWalkersPart),stat=ierr)
+            CALL LogMemAlloc('WalkVecDets',MaxWalkersPart*(NIfTot+1),4,this_routine,WalkVecDetsTag,ierr)
             WalkVecDets(0:NIfD,1:MaxWalkersPart)=0
             IF((.not.tRotoAnnihil).and.(.not.tDirectAnnihil)) THEN
 !Rotoannihilation only used a single main array. Spawned particles are put into the spawned arrays.
-                ALLOCATE(WalkVec2Dets(0:NIfD,MaxWalkersPart),stat=ierr)
-                CALL LogMemAlloc('WalkVec2Dets',MaxWalkersPart*(NIfD+1),4,this_routine,WalkVec2DetsTag,ierr)
+                ALLOCATE(WalkVec2Dets(0:NIfTot,MaxWalkersPart),stat=ierr)
+                CALL LogMemAlloc('WalkVec2Dets',MaxWalkersPart*(NIfTot+1),4,this_routine,WalkVec2DetsTag,ierr)
                 WalkVec2Dets(0:NIfD,1:MaxWalkersPart)=0
             ENDIF
 
@@ -1673,14 +1674,14 @@ MODULE FciMCParMod
                 CALL LogMemAlloc('WalkVecSign',MaxWalkersPart,4,this_routine,WalkVecSignTag,ierr)
 !                ALLOCATE(WalkVec2Sign(MaxWalkersPart),stat=ierr)
 !                CALL LogMemAlloc('WalkVec2Sign',MaxWalkersPart,4,this_routine,WalkVec2SignTag,ierr)
-                MemoryAlloc=(NIfD+1+3)*MaxWalkersPart*4    !Memory Allocated in bytes
+                MemoryAlloc=(NIfTot+1+3)*MaxWalkersPart*4    !Memory Allocated in bytes
             ELSE
 !The sign is sent through when annihilating, so it needs to be longer.
                 ALLOCATE(WalkVecSign(MaxWalkersAnnihil),stat=ierr)
                 CALL LogMemAlloc('WalkVecSign',MaxWalkersAnnihil,4,this_routine,WalkVecSignTag,ierr)
                 ALLOCATE(WalkVec2Sign(MaxWalkersAnnihil),stat=ierr)
                 CALL LogMemAlloc('WalkVec2Sign',MaxWalkersAnnihil,4,this_routine,WalkVec2SignTag,ierr)
-                MemoryAlloc=((2*MaxWalkersAnnihil)+(((2*(NIfD+1))+4)*MaxWalkersPart))*4    !Memory Allocated in bytes
+                MemoryAlloc=((2*MaxWalkersAnnihil)+(((2*(NIfTot+1))+4)*MaxWalkersPart))*4    !Memory Allocated in bytes
             ENDIF
 
             IF(tRegenDiagHEls) THEN
@@ -1697,11 +1698,11 @@ MODULE FciMCParMod
             IF(tRotoAnnihil.or.tDirectAnnihil) THEN
 
                 WRITE(6,"(A,I12,A)") "Spawning vectors allowing for a total of ",MaxSpawned," particles to be spawned in any one iteration."
-                ALLOCATE(SpawnVec(0:NIfD,MaxSpawned),stat=ierr)
-                CALL LogMemAlloc('SpawnVec',MaxSpawned*(NIfD+1),4,this_routine,SpawnVecTag,ierr)
+                ALLOCATE(SpawnVec(0:NIftot,MaxSpawned),stat=ierr)
+                CALL LogMemAlloc('SpawnVec',MaxSpawned*(NIfTot+1),4,this_routine,SpawnVecTag,ierr)
                 SpawnVec(:,:)=0
-                ALLOCATE(SpawnVec2(0:NIfD,MaxSpawned),stat=ierr)
-                CALL LogMemAlloc('SpawnVec2',MaxSpawned*(NIfD+1),4,this_routine,SpawnVec2Tag,ierr)
+                ALLOCATE(SpawnVec2(0:NIfTot,MaxSpawned),stat=ierr)
+                CALL LogMemAlloc('SpawnVec2',MaxSpawned*(NIfTot+1),4,this_routine,SpawnVec2Tag,ierr)
                 SpawnVec2(:,:)=0
                 ALLOCATE(SpawnSignVec(0:MaxSpawned),stat=ierr)
                 CALL LogMemAlloc('SpawnSignVec',MaxSpawned+1,4,this_routine,SpawnSignVecTag,ierr)
@@ -1716,7 +1717,7 @@ MODULE FciMCParMod
                 SpawnedSign=>SpawnSignVec
                 SpawnedSign2=>SpawnSignVec2
 
-                MemoryAlloc=MemoryAlloc+(((MaxSpawned+1)*2)+(2*MaxSpawned*(1+NIfD)))*4
+                MemoryAlloc=MemoryAlloc+(((MaxSpawned+1)*2)+(2*MaxSpawned*(1+NIfTot)))*4
 
             ELSEIF(.not.TNoAnnihil) THEN
 !            IF((.not.TNoAnnihil).and.(.not.TAnnihilonproc)) THEN
@@ -2264,7 +2265,7 @@ MODULE FciMCParMod
         CALL MPIIBCast_Scal(NAllowedDetList,Root)
         WRITE(6,*) NAllowedDetList, " determinants read in from SpawnOnlyDets file..."
 
-        ALLOCATE(AllowedDetList(0:NIfD,NAllowedDetList),stat=ierr)
+        ALLOCATE(AllowedDetList(0:NIfTot,NAllowedDetList),stat=ierr)
         IF(ierr.ne.0) THEN
             CALL Stop_All("ReadSpawnListDets","Error allocating AllowedDetList array")
         ENDIF
@@ -2274,7 +2275,7 @@ MODULE FciMCParMod
 
             do i=1,NAllowedDetList
                 READ(17,*) nI(1:NEl)
-                CALL EncodeBitDet(nI,AllowedDetList(0:NIfD,i),NEl,NIfD)
+                CALL EncodeBitDet(nI,AllowedDetList(0:NIfTot,i))
 !                WRITE(6,*) AllowedDetList(0:NIfD,i)
             enddo
 
@@ -2283,7 +2284,7 @@ MODULE FciMCParMod
 
         CALL MPIIBCast(AllowedDetList,NAllowedDetList*(NIfD+1),Root)
 !        do i=1,NAllowedDetList
-!            CALL DecodeBitDet(nI,AllowedDetList(0:NIfD,i),NEl,NIfD)
+!            CALL DecodeBitDet(nI,AllowedDetList(0:NIfTot,i))
 !            WRITE(6,*) nI(:)
 !        enddo
 
@@ -2386,8 +2387,8 @@ MODULE FciMCParMod
 !Now, we copy the head nodes data to a new array...
             ALLOCATE(OrigSign(TotWalkers),stat=error)
             CALL LogMemAlloc('OrigSign',TotWalkers,4,this_routine,OrigSignTag,error)
-            ALLOCATE(OrigParts(0:NIfD,TotWalkers),stat=error)
-            CALL LogMemAlloc('OrigParts',TotWalkers*(NIfD+1),4,this_routine,OrigPartsTag,error)
+            ALLOCATE(OrigParts(0:NIfTot,TotWalkers),stat=error)
+            CALL LogMemAlloc('OrigParts',TotWalkers*(NIfTot+1),4,this_routine,OrigPartsTag,error)
             do i=1,TotWalkers
                 OrigSign(i)=CurrentSign(i)
                 OrigParts(:,i)=CurrentDets(:,i)
@@ -2716,8 +2717,8 @@ MODULE FciMCParMod
         ENDIF
 
 !Allocate memory to hold walkers at least temporarily
-        ALLOCATE(WalkVecDets(0:NIfD,MaxWalkersPart),stat=ierr)
-        CALL LogMemAlloc('WalkVecDets',MaxWalkersPart*(NIfD+1),4,this_routine,WalkVecDetsTag,ierr)
+        ALLOCATE(WalkVecDets(0:NIfTot,MaxWalkersPart),stat=ierr)
+        CALL LogMemAlloc('WalkVecDets',MaxWalkersPart*(NIfTot+1),4,this_routine,WalkVecDetsTag,ierr)
         WalkVecDets(0:NIfD,1:MaxWalkersPart)=0
         IF(tRotoAnnihil) THEN
             ALLOCATE(WalkVecSign(MaxWalkersPart),stat=ierr)
@@ -2849,8 +2850,8 @@ MODULE FciMCParMod
             ELSE
 
 !Allocate memory for walkvec2, which will temporarily hold walkers
-                ALLOCATE(WalkVec2Dets(0:NIfD,MaxWalkersPart),stat=ierr)
-                CALL LogMemAlloc('WalkVec2Dets',MaxWalkersPart*(NIfD+1),4,this_routine,WalkVec2DetsTag,ierr)
+                ALLOCATE(WalkVec2Dets(0:NIfTot,MaxWalkersPart),stat=ierr)
+                CALL LogMemAlloc('WalkVec2Dets',MaxWalkersPart*(NIfTot+1),4,this_routine,WalkVec2DetsTag,ierr)
                 WalkVec2Dets(0:NIfD,1:MaxWalkersPart)=0
                 ALLOCATE(WalkVec2Sign(MaxWalkersAnnihil),stat=ierr)
                 CALL LogMemAlloc('WalkVec2Sign',MaxWalkersAnnihil,4,this_routine,WalkVec2SignTag,ierr)
@@ -2899,8 +2900,8 @@ MODULE FciMCParMod
                 CALL LogMemDealloc(this_routine,WalkVecDetsTag)
                 DEALLOCATE(WalkVecSign)
                 CALL LogMemDealloc(this_routine,WalkVecSignTag)
-                ALLOCATE(WalkVecDets(0:NIfD,MaxWalkersPart),stat=ierr)
-                CALL LogMemAlloc('WalkVecDets',MaxWalkersPart*(NIfD+1),4,this_routine,WalkVecDetsTag,ierr)
+                ALLOCATE(WalkVecDets(0:NIfTot,MaxWalkersPart),stat=ierr)
+                CALL LogMemAlloc('WalkVecDets',MaxWalkersPart*(NIfTot+1),4,this_routine,WalkVecDetsTag,ierr)
                 WalkVecDets(0:NIfD,1:MaxWalkersPart)=0
                 IF(tRotoAnnihil) THEN
                     ALLOCATE(WalkVecSign(MaxWalkersPart),stat=ierr)
@@ -2926,8 +2927,8 @@ MODULE FciMCParMod
 !We are not scaling the number of walkers...
 
             IF(.not.tRotoAnnihil) THEN
-                ALLOCATE(WalkVec2Dets(0:NIfD,MaxWalkersPart),stat=ierr)
-                CALL LogMemAlloc('WalkVec2Dets',MaxWalkersPart*(NIfD+1),4,this_routine,WalkVec2DetsTag,ierr)
+                ALLOCATE(WalkVec2Dets(0:NIfTot,MaxWalkersPart),stat=ierr)
+                CALL LogMemAlloc('WalkVec2Dets',MaxWalkersPart*(NIfTot+1),4,this_routine,WalkVec2DetsTag,ierr)
                 WalkVec2Dets(0:NIfD,1:MaxWalkersPart)=0
                 ALLOCATE(WalkVec2Sign(MaxWalkersAnnihil),stat=ierr)
                 CALL LogMemAlloc('WalkVec2Sign',MaxWalkersAnnihil,4,this_routine,WalkVec2SignTag,ierr)
@@ -2965,9 +2966,9 @@ MODULE FciMCParMod
         ENDIF
 
         IF(tRotoAnnihil) THEN
-            MemoryAlloc=((NIfD+1+3)*MaxWalkersPart*4)
+            MemoryAlloc=((NIfTot+1+3)*MaxWalkersPart*4)
         ELSE
-            MemoryAlloc=((2*MaxWalkersAnnihil)+(((2*(NIfD+1))+4)*MaxWalkersPart))*4    !Memory Allocated in bytes
+            MemoryAlloc=((2*MaxWalkersAnnihil)+(((2*(NIfTot+1))+4)*MaxWalkersPart))*4    !Memory Allocated in bytes
         ENDIF
         IF(tRegenDiagHEls) THEN
             IF(tRotoAnnihil) THEN
@@ -2980,11 +2981,11 @@ MODULE FciMCParMod
         IF(tRotoAnnihil) THEN
 
             WRITE(6,"(A,I12,A)") "Spawning vectors allowing for a total of ",MaxSpawned," particles to be spawned in any one iteration."
-            ALLOCATE(SpawnVec(0:NIfD,MaxSpawned),stat=ierr)
-            CALL LogMemAlloc('SpawnVec',MaxSpawned*(NIfD+1),4,this_routine,SpawnVecTag,ierr)
+            ALLOCATE(SpawnVec(0:NIfTot,MaxSpawned),stat=ierr)
+            CALL LogMemAlloc('SpawnVec',MaxSpawned*(NIfTot+1),4,this_routine,SpawnVecTag,ierr)
             SpawnVec(:,:)=0
-            ALLOCATE(SpawnVec2(0:NIfD,MaxSpawned),stat=ierr)
-            CALL LogMemAlloc('SpawnVec2',MaxSpawned*(NIfD+1),4,this_routine,SpawnVec2Tag,ierr)
+            ALLOCATE(SpawnVec2(0:NIfTot,MaxSpawned),stat=ierr)
+            CALL LogMemAlloc('SpawnVec2',MaxSpawned*(NIfTot+1),4,this_routine,SpawnVec2Tag,ierr)
             SpawnVec2(:,:)=0
             ALLOCATE(SpawnSignVec(0:MaxSpawned),stat=ierr)
             CALL LogMemAlloc('SpawnSignVec',MaxSpawned+1,4,this_routine,SpawnSignVecTag,ierr)
@@ -2999,7 +3000,7 @@ MODULE FciMCParMod
             SpawnedSign=>SpawnSignVec
             SpawnedSign2=>SpawnSignVec2
 
-            MemoryAlloc=MemoryAlloc+(((MaxSpawned+1)*2)+(2*MaxSpawned*(1+NIfD)))*4
+            MemoryAlloc=MemoryAlloc+(((MaxSpawned+1)*2)+(2*MaxSpawned*(1+NIfTot)))*4
 
 !        IF((.not.TNoAnnihil).and.(.not.TAnnihilonproc)) THEN
         ELSEIF(.not.TNoAnnihil) THEN
@@ -3080,7 +3081,7 @@ MODULE FciMCParMod
 !Now find out the data needed for the particles which have been read in...
         First=.true.
         do j=1,TotWalkers
-            CALL DecodeBitDet(TempnI,CurrentDets(:,j),NEl,NIfD)
+            CALL DecodeBitDet(TempnI,CurrentDets(:,j))
             CALL FindBitExcitLevel(iLutHF,CurrentDets(:,j),NIfD,Excitlevel,2)
             IF(Excitlevel.eq.0) THEN
                 IF(.not.tRegenDiagHEls) CurrentH(j)=0.D0
@@ -3160,15 +3161,15 @@ MODULE FciMCParMod
 !Put a barrier here so all processes synchronise
         CALL MPI_Barrier(MPI_COMM_WORLD,error)
 !Allocate memory to hold walkers
-        ALLOCATE(WalkVecDets(0:NIfD,MaxWalkersPart),stat=ierr)
-        CALL LogMemAlloc('WalkVecDets',MaxWalkersPart*(NIfD+1),4,this_routine,WalkVecDetsTag,ierr)
+        ALLOCATE(WalkVecDets(0:NIfTot,MaxWalkersPart),stat=ierr)
+        CALL LogMemAlloc('WalkVecDets',MaxWalkersPart*(NIfTot+1),4,this_routine,WalkVecDetsTag,ierr)
         WalkVecDets(0:NIfD,1:MaxWalkersPart)=0
         IF(tRotoAnnihil) THEN
             ALLOCATE(WalkVecSign(MaxWalkersPart),stat=ierr)
             CALL LogMemAlloc('WalkVecSign',MaxWalkersPart,4,this_routine,WalkVecSignTag,ierr)
         ELSE
-            ALLOCATE(WalkVec2Dets(0:NIfD,MaxWalkersPart),stat=ierr)
-            CALL LogMemAlloc('WalkVec2Dets',MaxWalkersPart*(NIfD+1),4,this_routine,WalkVec2DetsTag,ierr)
+            ALLOCATE(WalkVec2Dets(0:NIfTot,MaxWalkersPart),stat=ierr)
+            CALL LogMemAlloc('WalkVec2Dets',MaxWalkersPart*(NIfTot+1),4,this_routine,WalkVec2DetsTag,ierr)
             WalkVec2Dets(0:NIfD,1:MaxWalkersPart)=0
             ALLOCATE(WalkVecSign(MaxWalkersAnnihil),stat=ierr)
             CALL LogMemAlloc('WalkVecSign',MaxWalkersAnnihil,4,this_routine,WalkVecSignTag,ierr)
@@ -3200,10 +3201,10 @@ MODULE FciMCParMod
         ENDIF
         
         IF(tRotoAnnihil) THEN
-            MemoryAlloc=(NIfD+1+3)*MaxWalkersPart*4    !Memory Allocated in bytes
+            MemoryAlloc=(NIfTot+1+3)*MaxWalkersPart*4    !Memory Allocated in bytes
             IF(tRegenDiagHEls) MemoryAlloc=MemoryAlloc-(MaxWalkersPart*8)
         ELSE
-            MemoryAlloc=((2*MaxWalkersAnnihil)+(((2*(NIfD+1))+4)*MaxWalkersPart))*4    !Memory Allocated in bytes
+            MemoryAlloc=((2*MaxWalkersAnnihil)+(((2*(NIfTot+1))+4)*MaxWalkersPart))*4    !Memory Allocated in bytes
             IF(tRegenDiagHEls) MemoryAlloc=MemoryAlloc-(MaxWalkersPart*16)
         ENDIF
 
@@ -3211,11 +3212,11 @@ MODULE FciMCParMod
         IF(tRotoAnnihil) THEN
             
             WRITE(6,"(A,I12,A)") "Spawning vectors allowing for a total of ",MaxSpawned," particles to be spawned in any one iteration."
-            ALLOCATE(SpawnVec(0:NIfD,MaxSpawned),stat=ierr)
-            CALL LogMemAlloc('SpawnVec',MaxSpawned*(NIfD+1),4,this_routine,SpawnVecTag,ierr)
+            ALLOCATE(SpawnVec(0:NIfTot,MaxSpawned),stat=ierr)
+            CALL LogMemAlloc('SpawnVec',MaxSpawned*(NIfTot+1),4,this_routine,SpawnVecTag,ierr)
             SpawnVec(:,:)=0
-            ALLOCATE(SpawnVec2(0:NIfD,MaxSpawned),stat=ierr)
-            CALL LogMemAlloc('SpawnVec2',MaxSpawned*(NIfD+1),4,this_routine,SpawnVec2Tag,ierr)
+            ALLOCATE(SpawnVec2(0:NIfTot,MaxSpawned),stat=ierr)
+            CALL LogMemAlloc('SpawnVec2',MaxSpawned*(NIfTot+1),4,this_routine,SpawnVec2Tag,ierr)
             SpawnVec2(:,:)=0
             ALLOCATE(SpawnSignVec(0:MaxSpawned),stat=ierr)
             CALL LogMemAlloc('SpawnSignVec',MaxSpawned+1,4,this_routine,SpawnSignVecTag,ierr)
@@ -3229,7 +3230,7 @@ MODULE FciMCParMod
             SpawnedSign=>SpawnSignVec
             SpawnedSign2=>SpawnSignVec2
 
-            MemoryAlloc=MemoryAlloc+(((MaxSpawned+1)*2)+(2*MaxSpawned*(1+NIfD)))*4
+            MemoryAlloc=MemoryAlloc+(((MaxSpawned+1)*2)+(2*MaxSpawned*(1+NIfTot)))*4
 
         ELSEIF(.not.TNoAnnihil) THEN
 !        IF((.not.TNoAnnihil).and.(.not.TAnnihilonproc)) THEN
@@ -3435,7 +3436,7 @@ MODULE FciMCParMod
                         ENDIF
                     ELSE
 !We are at a double excitation - we need to calculate most of this information...
-                        CALL EncodeBitDet(MP1Dets(1:NEl,j),CurrentDets(0:NIfD,VecInd),NEl,NIfD)
+                        CALL EncodeBitDet(MP1Dets(1:NEl,j),CurrentDets(0:NIfTot,VecInd))
                         CurrentSign(VecInd)=IntParts*MP1Sign(j)
                         TotParts=TotParts+IntParts
                         IF(.not.tRegenDiagHEls) THEN
@@ -3494,7 +3495,7 @@ MODULE FciMCParMod
                     ENDIF
                 ELSE
 !We are at a double excitation - we need to calculate most of this information...
-                    CALL EncodeBitDet(MP1Dets(1:NEl,i),CurrentDets(0:NIfD,j),NEl,NIfD)
+                    CALL EncodeBitDet(MP1Dets(1:NEl,i),CurrentDets(0:NIfTot,j))
                     CurrentSign(j)=MP1Sign(i)
                     IF(.not.tRegenDiagHEls) THEN
                         Hjj=GetHElement2(MP1Dets(1:NEl,i),MP1Dets(1:NEl,i),NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,0,ECore)     !Find the diagonal element
@@ -4118,7 +4119,7 @@ MODULE FciMCParMod
         do j=1,TotWalkers
 !Spawning loop done separately to the death loop
 !First, decode the bit-string representation of the determinant the walker is on, into a string of naturally-ordered integers
-            CALL DecodeBitDet(DetCurr,CurrentDets(:,j),NEl,NIfD)
+            CALL DecodeBitDet(DetCurr,CurrentDets(:,j))
 
 !Also, we want to find out the excitation level - we only need to find out if its connected or not (so excitation level of 3 or more is ignored.
 !This can be changed easily by increasing the final argument.
@@ -4252,7 +4253,7 @@ MODULE FciMCParMod
                 IF((abs(REAL(HElemTemp%v,r2))).gt.1.D-8) THEN
 
 !Encode this determinant
-                    CALL EncodeBitDet(nJ,iLutnJ,NEl,NIfD)
+                    CALL EncodeBitDet(nJ,iLutnJ)
 
 !If matrix element above a certain size, then find whether the determinant is in the main list.
                     CALL BinSearchParts(iLutnJ,1,TotWalkers,PartInd,tSuccess)
@@ -4285,7 +4286,7 @@ MODULE FciMCParMod
             IF(Child.ne.0) THEN
 !                WRITE(6,"(A,F15.5,I5,G20.10,I8,G25.15)") "Inwards ", rat,Child,HSum
 !We want to spawn a child - find its information to store
-                CALL EncodeBitDet(DetCurr,iLutnJ,NEl,NIfD)
+                CALL EncodeBitDet(DetCurr,iLutnJ)
 
                 NoBorn=NoBorn+abs(Child)     !Update counter about particle birth
 
@@ -4319,7 +4320,7 @@ MODULE FciMCParMod
 !Death loop done separately to the spawning loop
 !We also have to calculate the energy properties here.
 !First, decode the bit-string representation of the determinant the walker is on, into a string of naturally-ordered integers
-            CALL DecodeBitDet(DetCurr,CurrentDets(:,j),NEl,NIfD)
+            CALL DecodeBitDet(DetCurr,CurrentDets(:,j))
 
 !Also, we want to find out the excitation level - we only need to find out if its connected or not (so excitation level of 3 or more is ignored.
             CALL FindBitExcitLevel(iLutHF,CurrentDets(:,j),NIfD,WalkExcitLevel,2)
@@ -5442,17 +5443,17 @@ MODULE FciMCParMod
  
         CALL MPI_Bcast(iGuideDets,1,MPI_INTEGER,Root,MPI_COMM_WORLD,error)
 
-        ALLOCATE(GuideFuncDets(0:NIfD,1:iGuideDets),stat=ierr)
-        CALL LogMemAlloc('GuideFuncDets',(NIfD+1)*iGuideDets,4,this_routine,GuideFuncDetsTag,ierr)
+        ALLOCATE(GuideFuncDets(0:NIfTot,1:iGuideDets),stat=ierr)
+        CALL LogMemAlloc('GuideFuncDets',(NIfTot+1)*iGuideDets,4,this_routine,GuideFuncDetsTag,ierr)
         ALLOCATE(GuideFuncSign(0:iGuideDets),stat=ierr)
         CALL LogMemAlloc('GuideFuncSign',iGuideDets+1,4,this_routine,GuideFuncSignTag,ierr)
 
-        ALLOCATE(DetstoRotate(0:NIfD,1:iGuideDets),stat=ierr)
-        CALL LogMemAlloc('DetstoRotate',(NIfD+1)*iGuideDets,4,this_routine,DetstoRotateTag,ierr)
+        ALLOCATE(DetstoRotate(0:NIfTot,1:iGuideDets),stat=ierr)
+        CALL LogMemAlloc('DetstoRotate',(NIfTot+1)*iGuideDets,4,this_routine,DetstoRotateTag,ierr)
         ALLOCATE(SigntoRotate(0:iGuideDets),stat=ierr)
         CALL LogMemAlloc('SigntoRotate',iGuideDets+1,4,this_routine,SigntoRotateTag,ierr)
-        ALLOCATE(DetstoRotate2(0:NIfD,1:iGuideDets),stat=ierr)
-        CALL LogMemAlloc('DetstoRotate2',(NIfD+1)*iGuideDets,4,this_routine,DetstoRotate2Tag,ierr)
+        ALLOCATE(DetstoRotate2(0:NIfTot,1:iGuideDets),stat=ierr)
+        CALL LogMemAlloc('DetstoRotate2',(NIfTot+1)*iGuideDets,4,this_routine,DetstoRotate2Tag,ierr)
         ALLOCATE(SigntoRotate2(0:iGuideDets),stat=ierr)
         CALL LogMemAlloc('SigntoRotate2',iGuideDets+1,4,this_routine,SigntoRotate2Tag,ierr)
 
@@ -5548,7 +5549,7 @@ MODULE FciMCParMod
                 CALL FindBitExcitLevel(GuideFuncDets(0:NIfD,i),iLutHF,NIfD,ExcitLevel,2)
                 IF(ExcitLevel.eq.2) THEN
                     DoubDet(:)=0
-                    CALL DecodeBitDet(DoubDet,GuideFuncDets(0:NIfD,i),NEl,NIfD)
+                    CALL DecodeBitDet(DoubDet,GuideFuncDets(0:NIfTot,i))
                     HdoubTemp=GetHElement2(HFDet,DoubDet,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,ExcitLevel,ECore)
                     HDoub=REAL(HDoubTemp%v,r2)
                     GuideFuncDoub=GuideFuncDoub+(GuideFuncSign(i)*Hdoub)
@@ -5658,8 +5659,8 @@ MODULE FciMCParMod
 ! Make arrays containing the most populated determinants from all processors.        
 
         IF(iProcIndex.eq.Root) THEN
-            ALLOCATE(AllCurrentDets(0:NIfD,1:AlliGuideDets),stat=ierr)
-            CALL LogMemAlloc('AllCurrentDets',(NIfD+1)*AlliGuideDets,4,this_routine,AllCurrentDetsTag,ierr)
+            ALLOCATE(AllCurrentDets(0:NIfTot,1:AlliGuideDets),stat=ierr)
+            CALL LogMemAlloc('AllCurrentDets',(NIfTot+1)*AlliGuideDets,4,this_routine,AllCurrentDetsTag,ierr)
             ALLOCATE(AllCurrentSign(1:AlliGuideDets),stat=ierr)
             CALL LogMemAlloc('AllCurrentSign',AlliGuideDets,4,this_routine,AllCurrentSignTag,ierr)
         ENDIF
@@ -5868,8 +5869,8 @@ MODULE FciMCParMod
         CALL MPI_Bcast(DomExcIndex(iMinDomLev:(iMaxDomLev+1)),iMaxDomLev-iMinDomLev+2,MPI_INTEGER,Root,MPI_COMM_WORLD,error)
 
 
-        ALLOCATE(DomDets(0:NIfD,1:iNoDomDets),stat=ierr)
-        CALL LogMemAlloc('DomDets',(NIfD+1)*iNoDomDets,4,this_routine,DomDetsTag,ierr)
+        ALLOCATE(DomDets(0:NIfTot,1:iNoDomDets),stat=ierr)
+        CALL LogMemAlloc('DomDets',(NIfTot+1)*iNoDomDets,4,this_routine,DomDetsTag,ierr)
         IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating memory for dominant determinants')
 
         IF(iProcIndex.eq.Root) THEN
@@ -5946,14 +5947,14 @@ MODULE FciMCParMod
 
 
 ! Allocate arrays of this size - these are the ones that will be reordered to find the iNoDominantDets most populated etc.        
-        ALLOCATE(ExcDets(0:NIfD,1:NoExcDets),stat=ierr)
-        CALL LogMemAlloc('ExcDets',(NIfD+1)*NoExcDets,4,this_routine,ExcDetsTag,ierr)
+        ALLOCATE(ExcDets(0:NIfTot,1:NoExcDets),stat=ierr)
+        CALL LogMemAlloc('ExcDets',(NIfTot+1)*NoExcDets,4,this_routine,ExcDetsTag,ierr)
         ALLOCATE(ExcSign(1:NoExcDets),stat=ierr)
         CALL LogMemAlloc('ExcSign',NoExcDets,4,this_routine,ExcSignTag,ierr)
  
         IF(iProcIndex.eq.Root) THEN
-            ALLOCATE(AllExcDets(0:NIfD,1:(10*AllNoExcDets)),stat=ierr)
-            CALL LogMemAlloc('AllExcDets',(NIfD+1)*10*AllNoExcDets,4,this_routine,AllExcDetsTag,ierr)
+            ALLOCATE(AllExcDets(0:NIfTot,1:(10*AllNoExcDets)),stat=ierr)
+            CALL LogMemAlloc('AllExcDets',(NIfTot+1)*10*AllNoExcDets,4,this_routine,AllExcDetsTag,ierr)
             IF(ierr.ne.0) CALL Stop_All(this_routine,'ERROR allocating memory to AllExcDets.')
             ALLOCATE(AllExcSign(1:(10*AllNoExcDets)),stat=ierr)
             CALL LogMemAlloc('AllExcSign',10*AllNoExcDets,4,this_routine,AllExcSignTag,ierr)
@@ -6081,7 +6082,7 @@ MODULE FciMCParMod
                 do j=1,CurriNoDominantDets
                     ! Add the sign from this determinant to the Norm Deficiency calc - this will be in trunc.
                     ! Decode the current determinant
-                    CALL DecodeBitDet(DetCurr,AllExcDets(0:NIfD,j),NEl,NIfD)
+                    CALL DecodeBitDet(DetCurr,AllExcDets(0:NIfTot,j))
 !                    WRITE(6,*) 'DetCurrBit',AllExcDets(:,j)
 !                    WRITE(6,*) 'DetCurr',DetCurr(:)
 
@@ -6159,7 +6160,7 @@ MODULE FciMCParMod
                         ! Then have to turn SpinCoupDet into the bit string for binary searching...
 !                        WRITE(6,*) 'SpinCoup with beta and alpha',SpinCoupDet(:)
 
-                        CALL EncodeBitDet(SpinCoupDet(1:NEl),SpinCoupDetBit(0:NIfD),NEl,NIfD)
+                        CALL EncodeBitDet(SpinCoupDet(1:NEl),SpinCoupDetBit(0:NIfTot))
 !                        WRITE(6,*) 'SpinCoupDetBit',SpinCoupDetBit(:)
 
                         ! First search through the list of dominant determinants.
@@ -6379,15 +6380,15 @@ MODULE FciMCParMod
         CHARACTER(len=*), PARAMETER :: this_routine='InitMinorDetsStar'
 
         ! The actual determinants.
-        ALLOCATE(MinorStarDets(0:NIfD,1:MaxWalkersPart),stat=ierr)
-        CALL LogMemAlloc('MinorStarDets',(NIfD+1)*MaxWalkersPart,4,this_routine,MinorStarDetsTag,ierr)
+        ALLOCATE(MinorStarDets(0:NIfTot,1:MaxWalkersPart),stat=ierr)
+        CALL LogMemAlloc('MinorStarDets',(NIfTot+1)*MaxWalkersPart,4,this_routine,MinorStarDetsTag,ierr)
         IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating memory to MinorStarDets')
-        ALLOCATE(MinorSpawnDets(0:NIfD,1:MaxSpawned),stat=ierr)
-        CALL LogMemAlloc('MinorSpawnDets',(NIfD+1)*MaxSpawned,4,this_routine,MinorSpawnDetsTag,ierr)
+        ALLOCATE(MinorSpawnDets(0:NIfTot,1:MaxSpawned),stat=ierr)
+        CALL LogMemAlloc('MinorSpawnDets',(NIfTot+1)*MaxSpawned,4,this_routine,MinorSpawnDetsTag,ierr)
         IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating memory to MinorSpawnDets')
         MinorSpawnDets(:,:)=0
-        ALLOCATE(MinorSpawnDets2(0:NIfD,1:MaxSpawned),stat=ierr)
-        CALL LogMemAlloc('MinorSpawnDets2',(NIfD+1)*MaxSpawned,4,this_routine,MinorSpawnDets2Tag,ierr)
+        ALLOCATE(MinorSpawnDets2(0:NIfTot,1:MaxSpawned),stat=ierr)
+        CALL LogMemAlloc('MinorSpawnDets2',(NIftot+1)*MaxSpawned,4,this_routine,MinorSpawnDets2Tag,ierr)
         IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating memory to MinorSpawnDets2')
 
 
@@ -6404,14 +6405,14 @@ MODULE FciMCParMod
 
 
         ! The parent from which the walker was spawned.
-        ALLOCATE(MinorStarParent(0:NIfD,1:MaxWalkersPart),stat=ierr)
-        CALL LogMemAlloc('MinorStarParent',(NIfD+1)*MaxWalkersPart,4,this_routine,MinorStarParentTag,ierr)
+        ALLOCATE(MinorStarParent(0:NIfTot,1:MaxWalkersPart),stat=ierr)
+        CALL LogMemAlloc('MinorStarParent',(NIfTot+1)*MaxWalkersPart,4,this_routine,MinorStarParentTag,ierr)
         IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating memory to MinorStarParent')
-        ALLOCATE(MinorSpawnParent(0:NIfD,1:MaxSpawned),stat=ierr)
-        CALL LogMemAlloc('MinorSpawnParent',(NIfD+1)*MaxSpawned,4,this_routine,MinorSpawnParentTag,ierr)
+        ALLOCATE(MinorSpawnParent(0:NIfTot,1:MaxSpawned),stat=ierr)
+        CALL LogMemAlloc('MinorSpawnParent',(NIfTot+1)*MaxSpawned,4,this_routine,MinorSpawnParentTag,ierr)
         IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating memory to MinorSpawnParent')
-        ALLOCATE(MinorSpawnParent2(0:NIfD,1:MaxSpawned),stat=ierr)
-        CALL LogMemAlloc('MinorSpawnParent2',(NIfD+1)*MaxSpawned,4,this_routine,MinorSpawnParent2Tag,ierr)
+        ALLOCATE(MinorSpawnParent2(0:NIfTot,1:MaxSpawned),stat=ierr)
+        CALL LogMemAlloc('MinorSpawnParent2',(NIfTot+1)*MaxSpawned,4,this_routine,MinorSpawnParent2Tag,ierr)
         IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating memory to MinorSpawnParent2')
 
 
@@ -6488,7 +6489,7 @@ MODULE FciMCParMod
                     norm=norm+AllHistogram(i)**2
 !write out FCIMC Component weight (normalised), current normalisation, excitation level
                     CALL FindBitExcitLevel(iLutHF,FCIDets(0:NIfD,i),NIfD,ExcitLevel,NEl)
-                    CALL DecodeBitDet(nI,FCIDets(0:NIfD,i),NEl,NIfD)
+                    CALL DecodeBitDet(nI,FCIDets(0:NIfTot,i))
                     WRITE(17,"(I13,G25.16,I6,G20.10)",advance='no') i,AllHistogram(i),ExcitLevel,norm
                     do j=1,NEl-1
                         WRITE(17,"(I5)",advance='no') nI(j)
@@ -6525,7 +6526,7 @@ MODULE FciMCParMod
             CALL FLUSH(6)
         ENDIF
 
-!        IF(nBasis/32.ne.0) THEN
+!        IF(NIfD.ne.0) THEN
 !            CALL Stop_All("WriteHistogram","System is too large to histogram as it stands...")
 !        ENDIF
 
@@ -6625,7 +6626,7 @@ MODULE FciMCParMod
 !                IF(Bits.eq.NEl) THEN
 !
 !                    do j=1,ndet
-!                        CALL EncodeBitDet(NMRKS(:,j),iLut,NEl,nBasis/32)
+!                        CALL EncodeBitDet(NMRKS(:,j),iLut)
 !                        IF(iLut(0).eq.i) THEN
 !                            CALL GETSYM(NMRKS(1,j),NEL,G1,NBASISMAX,ISYM)
 !                            IF(ISym%Sym%S.eq.0) THEN
@@ -7654,11 +7655,11 @@ MODULE FciMCParMod
         HFHash=CreateHash(HFDet)
         
 !test the encoding of the HFdet to bit representation.
-        ALLOCATE(iLutHF(0:NIfD),stat=ierr)
+        ALLOCATE(iLutHF(0:NIfTot),stat=ierr)
         IF(ierr.ne.0) CALL Stop_All(this_routine,"Cannot allocate memory for iLutHF")
-        CALL EncodeBitDet(HFDet,iLutHF,NEl,NIfD)
+        CALL EncodeBitDet(HFDet,iLutHF)
 !Test that the bit operations are working correctly...
-        CALL DecodeBitDet(HFDetTest,iLutHF,NEl,NIfD)
+        CALL DecodeBitDet(HFDetTest,iLutHF)
         do i=1,NEl
             IF(HFDetTest(i).ne.HFDet(i)) THEN
                 WRITE(6,*) "HFDet: ",HFDet(:)
@@ -7818,7 +7819,7 @@ MODULE FciMCParMod
                 HighEDet(i)=Brr(nBasis-(i-1))
             enddo
             IF(tHPHF) THEN
-                CALL EncodeBitDet(HighEDet,iLutTemp,NEl,NIfD)
+                CALL EncodeBitDet(HighEDet,iLutTemp)
                 CALL HPHFGetDiagHElement(HighEDet,iLutTemp,TempHii)
             ELSE
                 TempHii=GetHElement2(HighEDet,HighEDet,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,0,ECore)
@@ -8398,7 +8399,7 @@ MODULE FciMCParMod
 !This will check to see if the determinants are in a list of determinants in AllowedDetList
             CheckAllowedTruncSpawn=.false.
             IF(.not.tHPHF) THEN
-                CALL EncodeBitDet(nJ,iLutnJ,NEl,NIfD)
+                CALL EncodeBitDet(nJ,iLutnJ)
             ENDIF
             do i=1,NAllowedDetList
 !                WRITE(6,*) ILutnJ,AllowedDetList(0:NIfD,i)
@@ -8585,7 +8586,7 @@ MODULE FciMCParMod
 
             WRITE(6,"(A)") "Calculating approximate pDoubles for use with excitation generator by looking a excitations from HF."
             IF(tAssumeSizeExcitgen) THEN
-                PosExcittypes=SymClassSize*NEL+NBASIS/32+4
+                PosExcittypes=SymClassSize*NEL+NIfD+4
                 iTotal=HFExcit%ExcitData(1)
             ELSE
                 PosExcittypes=HFExcit%ExcitData(2)

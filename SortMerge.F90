@@ -17,8 +17,9 @@
 ! a linear search would be quicker.
     SUBROUTINE MergeListswH(nlist1,nlist1max,nlist2,list2,SignList2,NIfD)
         USE FciMCParMOD , only : iLutHF,Hii,CurrentDets,CurrentSign,CurrentH
-        USE SystemData , only : NEl,tHPHF
+        USE SystemData , only : NEl,tHPHF, NIfTot
         USE Determinants , only : GetHElement3
+        use DetBitOps, only: DecodeBitDet
         USE HElem
         IMPLICIT NONE
 !        INTEGER :: list1(0:NIfD,nlist1max),list2(0:NIfD,1:nlist2)
@@ -72,12 +73,12 @@
                HDiag=0.D0
 !               IF(tHub.and.tReal) THEN
 !!Reference determinant is not HF
-!                   CALL DecodeBitDet(nJ,list2(0:NIfD,i),NEl,NIfD)
+!                   CALL DecodeBitDet(nJ,list2(0:NIfTot,i))
 !                   HDiagTemp=GetHElement3(nJ,nJ,0)
 !                   HDiag=(REAL(HDiagTemp%v,8))
 !               ENDIF
            ELSE
-               CALL DecodeBitDet(nJ,list2(0:NIfD,i),NEl,NIfD)
+               CALL DecodeBitDet(nJ,list2(0:NIfTot,i))
                IF(tHPHF) THEN
                    CALL HPHFGetDiagHElement(nJ,list2(0:NIfD,i),HDiagTemp)
                ELSE
@@ -108,10 +109,11 @@
 ! and signs, the Hii and Hij and parents are taken with the determinants too.
    SUBROUTINE MergeListswH2(nlist1,nlist1max,nlist2,list2,list3,SignList2,NIfD)
         USE FciMCParMOD , only : iLutHF,Hii,MinorStarDets,MinorStarSign,MinorStarParent,MinorStarHii,MinorStarHij
-        USE SystemData , only : NEl,Alat,Brr,ECore,G1,nBasis,nBasisMax,nMsh,tHPHF
+        USE SystemData , only : NEl,Alat,Brr,ECore,G1,nBasis,nBasisMax,nMsh,tHPHF,NIfTot
         USE Determinants , only : GetHElement3,GetHElement2
         USE IntegralsData , only : fck,NMax,UMat
         USE HElem
+        use DetBitOps, only: DecodeBitDet
         IMPLICIT NONE
         INTEGER :: list2(0:NIfD,1:nlist2),list3(0:NIfD,1:nlist2)
         INTEGER :: nlisto,nlist1,nlist2,NIfD,nlo,i,DetCurr(0:NIfD),DetCurr2(0:NIfD) 
@@ -162,7 +164,7 @@
                MinorStarParent(0:NIfD,ips+i-1)=list3(0:NIfD,i)
 
 ! Want to calculate the diagonal and off diagonal H elements of the particle to be merged.           
-               CALL DecodeBitDet(nJ,list2(0:NIfD,i),NEl,NIfD)
+               CALL DecodeBitDet(nJ,list2(0:NIfTot,i))
                IF(tHPHF) THEN
                    CALL HPHFGetDiagHElement(nJ,list2(0:NIfD,i),HDiagTemp)
                ELSE
@@ -171,7 +173,7 @@
                HDiag=(REAL(HDiagTemp%v,8))-Hii
                MinorStarHii(ips+i-1)=HDiag
 
-               CALL DecodeBitDet(nK,list3(0:NIfD,i),NEl,NIfD)
+               CALL DecodeBitDet(nK,list3(0:NIfTot,i))
                IF(tHPHF) THEN
                    CALL HPHFGetOffDiagHElement(nJ,nK,list2(0:NIfD,i),list3(0:NIfD,i),HOffDiagTemp)
                ELSE
@@ -193,7 +195,7 @@
                 MinorStarSign(j)=SignList2(j)
                 MinorStarParent(0:NIfD,j)=list3(0:NIfD,j)
 
-                CALL DecodeBitDet(nJ,list2(0:NIfD,j),NEl,NIfD)
+                CALL DecodeBitDet(nJ,list2(0:NIfTot,j))
                 IF(tHPHF) THEN
                     CALL HPHFGetDiagHElement(nJ,list2(0:NIfD,j),HDiagTemp)
                 ELSE
@@ -202,7 +204,7 @@
                 HDiag=(REAL(HDiagTemp%v,8))-Hii
                 MinorStarHii(j)=HDiag
 
-                CALL DecodeBitDet(nK,list3(0:NIfD,j),NEl,NIfD)
+                CALL DecodeBitDet(nK,list3(0:NIfTot,j))
                 IF(tHPHF) THEN
                     CALL HPHFGetOffDiagHElement(nJ,nK,list2(0:NIfD,j),list3(0:NIfD,j),HOffDiagTemp)
                 ELSE

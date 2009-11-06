@@ -1,6 +1,6 @@
 !This module is to be used for various types of walker MC annihilation in serial and parallel.
 MODULE AnnihilationMod
-    use SystemData , only : NIfD,NEl,tMerTwist,tHPHF
+    use SystemData , only : NIfD,NEl,tMerTwist,tHPHF,NIfTot
     use CalcData , only : TRegenExcitgens,tAnnihilatebyRange,tUseGuide,tRegenDiagHEls,iInitGuideParts,iGuideDets
     USE DetCalc , only : Det,FCIDetIndex
     USE Logging , only : tHistSpawn
@@ -195,12 +195,12 @@ MODULE AnnihilationMod
                         ELSE
 !                            WRITE(6,*) "Searching between: ",HistMinInd2(ExcitLevel), " and ",FCIDetIndex(ExcitLevel+1)-1
 !                            WRITE(6,*) "***",SpawnedParts(0:NIfD,i)
-!                            CALL DecodeBitDet(TempDet,SpawnedParts(0:NIfD,i),NEl,NIfD)
+!                            CALL DecodeBitDet(TempDet,SpawnedParts(0:NIfTot,i))
 !                            WRITE(6,*) "Full Det is: ",TempDet(:)
 !                            IF(tHPHF) THEN
 !                                CALL FindExcitBitDetSym(SpawnedParts(0:NIfD,i),iLutSym(:))
 !                                WRITE(6,*) "*** Sym: ",iLutSym(:)
-!                                CALL DecodeBitDet(TempDet,iLutSym(0:NIfD),NEl,NIfD)
+!                                CALL DecodeBitDet(TempDet,iLutSym(0:NIfTot))
 !                                WRITE(6,*) "Full Sym Det is: ",TempDet(:)
 !                            ENDIF
                             CALL Stop_All("CompressSpawnedList","Cannot find corresponding FCI determinant when histogramming")
@@ -242,7 +242,7 @@ MODULE AnnihilationMod
         INTEGER :: iLut(0:NIfD),i,j,Elecs!,TempDet(NEl),MurmurHash2Wrapper
         INTEGER(KIND=i2) :: Summ!,RangeofBins,NextBin
 
-!        CALL DecodeBitDet(TempDet,iLut,NEl,NIfD)
+!        CALL DecodeBitDet(TempDet,iLut)
 !        i=MurmurHash2Wrapper(TempDet,NEl,13)
 !        write(6,*) i
         
@@ -364,7 +364,7 @@ MODULE AnnihilationMod
 !The buffer wants to be able to hold (MaxSpawned+1)x(NIfD+2) integers (*4 for in bytes). If we could work out the maximum ValidSpawned accross the determinants,
 !it could get reduced to this... 
         IF(nProcessors.ne.1) THEN
-            ALLOCATE(mpibuffer(8*(MaxSpawned+1)*(NIfD+2)),stat=ierr)
+            ALLOCATE(mpibuffer(8*(MaxSpawned+1)*(NIfTot+2)),stat=ierr)
             IF(ierr.ne.0) THEN
                 CALL Stop_All("RotoAnnihilation","Error allocating memory for transfer buffers...")
             ENDIF
@@ -422,6 +422,7 @@ MODULE AnnihilationMod
 
     
     SUBROUTINE AnnihilateBetweenSpawnedOneProc(ValidSpawned)
+        use DetBitOps, only: DecodeBitDet
         INTEGER :: ValidSpawned,DetCurr(0:NIfD),i,j,k,LowBound,HighBound,WSign
         INTEGER :: VecSlot,TotSign
         LOGICAL :: DetBitEQ
@@ -474,6 +475,7 @@ MODULE AnnihilationMod
 !the annihilation process. Therefore we will not multiply specify determinants when we merge the lists.
     SUBROUTINE InsertRemoveParts(ValidSpawned,TotWalkersNew)
         USE Determinants , only : GetHElement3
+        use DetBitOps, only: DecodeBitDet
         INTEGER :: TotWalkersNew,ValidSpawned
         INTEGER :: i,DetsMerged,nJ(NEl)
         REAL*8 :: HDiag
@@ -576,7 +578,7 @@ MODULE AnnihilationMod
 !We know we are at HF - HDiag=0
                         HDiag=0.D0
                     ELSE
-                        CALL DecodeBitDet(nJ,CurrentDets(0:NIfD,i),NEl,NIfD)
+                        CALL DecodeBitDet(nJ,CurrentDets(0:NIfTot,i))
                         IF(tHPHF) THEN
                             CALL HPHFGetDiagHElement(nJ,CurrentDets(0:NIfD,i),HDiagTemp)
                         ELSE
@@ -686,12 +688,12 @@ MODULE AnnihilationMod
 !                            HDiag=0.D0
 !                            IF(tHub.and.tReal) THEN
 !!Reference determinant is not HF
-!                                CALL DecodeBitDet(nJ,CurrentDets(0:NIfD,VecInd),NEl,NIfD)
+!                                CALL DecodeBitDet(nJ,CurrentDets(0:NIfTot,VecInd))
 !                                HDiagTemp=GetHElement2(nJ,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,0,ECore)
 !                                HDiag=(REAL(HDiagTemp%v,r2))
 !                            ENDIF
 !                        ELSE
-!                            CALL DecodeBitDet(nJ,CurrentDets(0:NIfD,VecInd),NEl,NIfD)
+!                            CALL DecodeBitDet(nJ,CurrentDets(0:NIfTot,VecInd))
 !                            HDiagTemp=GetHElement2(nJ,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,0,ECore)
 !                            HDiag=(REAL(HDiagTemp%v,r2))-Hii
 !                        ENDIF
@@ -742,12 +744,12 @@ MODULE AnnihilationMod
 !                        HDiag=0.D0
 !                        IF(tHub.and.tReal) THEN
 !!Reference determinant is not HF
-!                            CALL DecodeBitDet(nJ,CurrentDets(0:NIfD,VecInd),NEl,NIfD)
+!                            CALL DecodeBitDet(nJ,CurrentDets(0:NIfTot,VecInd))
 !                            HDiagTemp=GetHElement2(nJ,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,0,ECore)
 !                            HDiag=(REAL(HDiagTemp%v,r2))
 !                        ENDIF
 !                    ELSE
-!                        CALL DecodeBitDet(nJ,CurrentDets(0:NIfD,VecInd),NEl,NIfD)
+!                        CALL DecodeBitDet(nJ,CurrentDets(0:NIfTot,VecInd))
 !                        HDiagTemp=GetHElement2(nJ,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,0,ECore)
 !                        HDiag=(REAL(HDiagTemp%v,r2))-Hii
 !                    ENDIF
@@ -800,6 +802,7 @@ MODULE AnnihilationMod
 !Might not need to send hashes in all-to-all - could just use them for determining where they go
 !Package up temp arrays?
     SUBROUTINE AnnihilateBetweenSpawned(ValidSpawned)
+        use DetBitOps, only: DecodeBitDet
         INTEGER(KIND=i2) , ALLOCATABLE :: HashArray1(:),HashArray2(:)
         INTEGER , ALLOCATABLE :: IndexTable1(:),IndexTable2(:),ProcessVec1(:),ProcessVec2(:),TempSign(:)
         INTEGER :: i,j,k,ToAnnihilateIndex,ValidSpawned,ierr,error,sendcounts(nProcessors)
@@ -833,7 +836,7 @@ MODULE AnnihilationMod
 !        WRITE(6,*) "***************************************"
         do i=1,ValidSpawned
             IndexTable1(i)=i
-            CALL DecodeBitDet(nJ,SpawnedParts(0:NIfD,i),NEl,NIfD)
+            CALL DecodeBitDet(nJ,SpawnedParts(0:NIfTot,i))
             HashArray1(i)=CreateHash(nJ)
 !            IF(Iter.eq.1346.and.(HashArray1(i).eq.2905380077198165348)) THEN
 !                WRITE(6,*) "Hash found, ",i,SpawnedSign(i),HashArray1(i),SpawnedParts(0:NIfD,i)
@@ -2497,7 +2500,7 @@ MODULE AnnihilationMod
 !The buffer wants to be able to hold (MaxSpawned+1)x(NIfD+2) integers (*4 for in bytes). If we could work out the maximum ValidSpawned accross the determinants,
 !it could get reduced to this... 
         IF(nProcessors.ne.1) THEN
-            ALLOCATE(mpibuffer(8*(MaxSpawned+1)*(NIfD+3)),stat=ierr)
+            ALLOCATE(mpibuffer(8*(MaxSpawned+1)*(NIfTot+3)),stat=ierr)
             IF(ierr.ne.0) THEN
                 CALL Stop_All("RotoAnnihilateMinor","Error allocating memory for transfer buffers...")
             ENDIF
@@ -3883,6 +3886,7 @@ MODULE AnnihilationMod
         use SystemData , only : G1,nBasis,Brr,NMsh,NMax,Alat,ECore,nBasis,nBasisMax
         use IntegralsData , only : UMat,fck
         use Determinants , only : GetHElement2
+        use DetBitOps, only: DecodeBitDet
         INTEGER :: i,j,n,ValidSpawned,InitNoDetstoRotate,NoDetstoRotate,CombSign,error
         INTEGER :: ExcitLevel,DoubDet(NEl)
         TYPE(HElement) :: HDoubTemp
@@ -4158,7 +4162,7 @@ MODULE AnnihilationMod
             CALL FindBitExcitLevel(GuideFuncDets(0:NIfD,i),iLutHF,NIfD,ExcitLevel,2)
             IF(ExcitLevel.eq.2) THEN
                 DoubDet(:)=0
-                CALL DecodeBitDet(DoubDet,GuideFuncDets(0:NIfD,i),NEl,NIfD)
+                CALL DecodeBitDet(DoubDet,GuideFuncDets(0:NIfTot,i))
                 HdoubTemp=GetHElement2(HFDet,DoubDet,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,ExcitLevel,ECore)
                 HDoub=REAL(HDoubTemp%v,r2)
                 GuideFuncDoub=GuideFuncDoub+(GuideFuncSign(i)*Hdoub)

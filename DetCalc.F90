@@ -22,7 +22,7 @@ MODULE DetCalc
       INTEGER Det   ! The number of determinants with the same sym
                     ! as the reference det.  This is the number of
                     ! dets in FCIDets
-      INTEGER, Allocatable :: FCIDets(:,:)  !This will contain a list of determinants of the same symmetry as the reference det, with dets in compressed form.  Usually (nBasis/32, Det)
+      INTEGER, Allocatable :: FCIDets(:,:)  !This will contain a list of determinants of the same symmetry as the reference det, with dets in compressed form.  Usually (NIfTot, Det)
       INTEGER, Allocatable :: FCIDetIndex(:)!This indicates where the excitation levels start in the FCIDets array(will go from 0->NEl+1).
 
       LOGICAL TCALCHMAT,TENERGY,TREAD,TBLOCK
@@ -284,11 +284,12 @@ CONTAINS
       Use HElem
       use Determinants , only : GetHElement3,FDet
       use SystemData, only : Alat, arr, brr, boa, box, coa, ecore, g1,Beta
-      use SystemData, only : nBasis, nBasisMax,nEl,nMsh
+      use SystemData, only : nBasis, nBasisMax,nEl,nMsh,NIfTot
       use IntegralsData, only: FCK,NMAX, UMat
       Use Logging, only: iLogging,tHistSpawn
       use SystemData, only  : tCSF
       use Parallel, only : iProcIndex
+      use DetBitops, only: EncodeBitDet
 
       REAL*8 , ALLOCATABLE :: TKE(:),A(:,:),V(:),AM(:),BM(:),T(:),WT(:),SCR(:),WH(:),WORK2(:),V2(:,:),FCIGS(:)
       TYPE(HElement), ALLOCATABLE :: WORK(:)
@@ -306,7 +307,7 @@ CONTAINS
         INTEGER iDeg,III,IN
         INCLUDE 'irat.inc'
         INTEGER NBLOCK!,OpenOrbs,OpenOrbsSym,Ex(2,NEl)
-        INTEGER nKry1,ilut(0:nBasis/32),nK(NEl)!,iLutSym(0:nBasis/32),nJ(NEl)
+        INTEGER nKry1,ilut(0:NIfD),nK(NEl)!,iLutSym(0:NIfD),nJ(NEl)
         
         INTEGER J,JR,iGetExcitLevel_2,ExcitLevel
         INTEGER LSCR,LISCR,MaxIndex
@@ -548,7 +549,7 @@ CONTAINS
             WRITE(6,*) "Normalization of eigenvector 1 is: ", norm
             CALL FLUSH(6)
 
-            ALLOCATE(FCIDets(0:nBasis/32,Det),stat=ierr)
+            ALLOCATE(FCIDets(0:NIfTot,Det),stat=ierr)
             IF(ierr.ne.0) CALL Stop_All("DetCalc","Cannot allocate memory to hold vector")
             ALLOCATE(FCIDetIndex(0:NEl+1),stat=ierr) !+1 so we can store the end of the array too
             ALLOCATE(Temp(Det),stat=ierr)
@@ -572,7 +573,7 @@ CONTAINS
 ! FCIDetIndex is off by one, for later cumulative indexing
                     FCIDetIndex(ExcitLevel+1)=FCIDetIndex(ExcitLevel+1)+1
                     Temp(Det)=ExcitLevel    !Temp will now temporarily hold the excitation level of the determinant.
-                    CALL EncodeBitDet(NMRKS(:,i),FCIDets(0:nBasis/32,Det),NEl,nBasis/32)
+                    CALL EncodeBitDet(NMRKS(:,i),FCIDets(0:NIfTot,Det))
                     IF(tEnergy) THEN
                         FCIGS(Det)=REAL(CK(i,1)%v,8)/norm
                     ENDIF
@@ -590,15 +591,15 @@ CONTAINS
 
 !We now want to sort the determinants according to the excitation level (stored in Temp)
             IF(.not.tEnergy) THEN
-                CALL SORTDETS(Det,Temp(1:Det),1,FCIDets(0:nBasis/32,1:Det),(nBasis/32)+1)
+                CALL SORTDETS(Det,Temp(1:Det),1,FCIDets(0:NIfD,1:Det),NIfD+1)
             ELSE
-                CALL SORTDETSwREALS(Det,Temp(1:Det),1,FCIDets(0:nBasis/32,1:Det),(nBasis/32)+1,FCIGS(1:Det),1)
+                CALL SORTDETSwREALS(Det,Temp(1:Det),1,FCIDets(0:NIfD,1:Det),NIfD+1,FCIGS(1:Det),1)
 !                CALL Stop_All("DetCalc","Cannot do histogramming FCI without JUSTFINDDETS at the moment (need new sorting - bug ghb24)")
             ENDIF
 
 !Test that HF determinant is the first determinant
-            CALL EncodeBitDet(FDet,iLut(0:nBasis/32),NEl,nBasis/32)
-            do i=0,nBasis/32
+            CALL EncodeBitDet(FDet,iLut(0:NIfTot))
+            do i=0,NIfD
                 IF(iLut(i).ne.FCIDets(i,1)) THEN
                     CALL Stop_All("DetCalc","Problem with ordering the determinants by excitation level")
                 ENDIF
@@ -621,62 +622,62 @@ CONTAINS
                 IF(.not.tEnergy) THEN
 !                    WRITE(6,*) i,FCIDetIndex(i),FCIDetIndex(i+1)-1
 !                    CALL FLUSH(6)
-                    CALL SortBitDets(FCIDetIndex(i+1)-FCIDetIndex(i),FCIDets(0:nBasis/32,FCIDetIndex(i):(FCIDetIndex(i+1)-1)),nBasis/32,temp(FCIDetIndex(i):(FCIDetIndex(i+1)-1)))
+                    CALL SortBitDets(FCIDetIndex(i+1)-FCIDetIndex(i),FCIDets(0:NIfD,FCIDetIndex(i):(FCIDetIndex(i+1)-1)),NIfD,temp(FCIDetIndex(i):(FCIDetIndex(i+1)-1)))
                 ELSE
-                    CALL SortBitDetswH(FCIDetIndex(i+1)-FCIDetIndex(i),FCIDets(0:nBasis/32,FCIDetIndex(i):(FCIDetIndex(i+1)-1)),nBasis/32,temp(FCIDetIndex(i):(FCIDetIndex(i+1)-1)),FCIGS(FCIDetIndex(i):(FCIDetIndex(i+1)-1)))
+                    CALL SortBitDetswH(FCIDetIndex(i+1)-FCIDetIndex(i),FCIDets(0:NIfD,FCIDetIndex(i):(FCIDetIndex(i+1)-1)),NIfD,temp(FCIDetIndex(i):(FCIDetIndex(i+1)-1)),FCIGS(FCIDetIndex(i):(FCIDetIndex(i+1)-1)))
                 ENDIF
             enddo
 
 
 !This will sort the determinants into ascending order, for quick binary searching later on.
 !            IF(.not.tFindDets) THEN
-!                CALL SortBitDetswH(Det,FCIDets(0:nBasis/32,1:Det),nBasis/32,temp,FCIGS)
+!                CALL SortBitDetswH(Det,FCIDets(0:NIfD,1:Det),NIfD,temp,FCIGS)
 !            ELSE
-!                CALL SortBitDets(Det,FCIDets(0:nBasis/32,1:Det),nBasis/32,temp)
+!                CALL SortBitDets(Det,FCIDets(0:NIfD,1:Det),NIfD,temp)
 !
 !            ENDIF
 
 !DEBUGGING CODE - NOT FOR USE
 !            OPEN(23,FILE='SpinCoupDets',STATUS='UNKNOWN')
 !            do i=1,Det
-!                CALL FindExcitBitDetSym(FCIDets(0:nBasis/32,i),iLutSym(0:nBasis/32))
+!                CALL FindExcitBitDetSym(FCIDets(0:NIfD,i),iLutSym(0:NIfD))
 !                Found=.false.
 !                do j=1,Det
-!                    IF(DetBitEQ(iLutSym,FCIDets(0:nBasis/32,j),nBasis/32)) THEN
+!                    IF(DetBitEQ(iLutSym,FCIDets(0:NIfD,j),NIfD)) THEN
 !                        Found=.true.
 !                        EXIT
 !                    ENDIF
 !                enddo
 !                IF(.not.Found) THEN
-!                    WRITE(6,*) i,FCIDets(0:nBasis/32,i),iLutSym(0:nBasis/32)
+!                    WRITE(6,*) i,FCIDets(0:NIfD,i),iLutSym(0:NIfD)
 !                    CALL Stop_All("DetCalc","Cannot find spin-coupled determinant")
 !                ELSE
-!                    CALL CalcOpenOrbs(FCIDets(0:nBasis/32,i),nBasis/32,NEl,OpenOrbs)
-!                    CALL CalcOpenOrbs(iLutSym(0:nBasis/32),nBasis/32,NEl,OpenOrbsSym)
+!                    CALL CalcOpenOrbs(FCIDets(0:NIfD,i),NIfD,NEl,OpenOrbs)
+!                    CALL CalcOpenOrbs(iLutSym(0:NIfD),NIfD,NEl,OpenOrbsSym)
 !                    IF(OpenOrbs.ne.OpenOrbsSym) THEN
 !                        CALL Stop_All("DetCalc","Error here")
 !                    ENDIF
 !
-!                    IF(TestClosedShellDet(FCIDets(0:nBasis/32,i),nBasis/32)) THEN
+!                    IF(TestClosedShellDet(FCIDets(0:NIfD,i),NIfD)) THEN
 !                            WRITE(6,*) "Get Here"
-!                            CALL DecodeBitDet(nK,FCIDets(0:nBasis/32,i),NEl,nBasis/32)
-!!                            CALL DecodeBitDet(nJ,FCIDets(0:nBasis/32,j),NEl,nBasis/32)
-!                            IF(.not.DetBitEQ(FCIDets(0:nBasis/32,1),FCIDets(0:nBasis/32,i),nBasis/32)) THEN
+!                            CALL DecodeBitDet(nK,FCIDets(0:NIfTot,i))
+!!                            CALL DecodeBitDet(nJ,FCIDets(0:NIfTot,j))
+!                            IF(.not.DetBitEQ(FCIDets(0:NIfD,1),FCIDets(0:NIfD,i),NIfD)) THEN
 !                                CALL HPHFGetOffDiagHElement(NMRKS(1:NEl,1),nK,MatEl)
 !                            ENDIF
 !                            CALL HPHFGetDiagHElement(nK,MatEl2)
-!!                            WRITE(23,"(A,2I14,3G20.10,I5,2G20.10)") "Closed ",FCIDets(0:nbasis/32,i),iLutSym(:),FCIGS(i),FCIGS(j),FCIGS(i)+FCIGS(j),OpenOrbs,MatEl%v,MatEl2%v
-!!                        WRITE(23,"(A,2I14,3G20.10,I5)") "Closed ",FCIDets(0:nbasis/32,i),iLutSym(:),FCIGS(i),FCIGS(j),FCIGS(i)+FCIGS(j),OpenOrbs
+!!                            WRITE(23,"(A,2I14,3G20.10,I5,2G20.10)") "Closed ",FCIDets(0:NIfD,i),iLutSym(:),FCIGS(i),FCIGS(j),FCIGS(i)+FCIGS(j),OpenOrbs,MatEl%v,MatEl2%v
+!!                        WRITE(23,"(A,2I14,3G20.10,I5)") "Closed ",FCIDets(0:NIfD,i),iLutSym(:),FCIGS(i),FCIGS(j),FCIGS(i)+FCIGS(j),OpenOrbs
 !                    ELSE
 !                        IF(abs(FCIGS(i)).gt.1.D-5) THEN 
 !!Find Hi0 element
-!                            CALL DecodeBitDet(nK,FCIDets(0:nBasis/32,i),NEl,nBasis/32)
-!!                            CALL DecodeBitDet(nJ,FCIDets(0:nBasis/32,j),NEl,nBasis/32)
+!                            CALL DecodeBitDet(nK,FCIDets(0:NIfTot,i))
+!!                            CALL DecodeBitDet(nJ,FCIDets(0:NIfTot,j))
 !                            CALL HPHFGetOffDiagHElement(NMRKS(1:NEl,1),nK,MatEl)
 !                            CALL HPHFGetDiagHElement(nK,MatEl2)
 !!                            Ex(1,1)=NEl
 !!                            CALL GETEXCITATION(nJ,nK,NEl,Ex,TSign)
-!                            WRITE(23,"(A,3I14,3G20.10,I5,2G20.10)") "Open   ",i,FCIDets(0:nbasis/32,i),iLutSym(:),FCIGS(i),FCIGS(j),FCIGS(i)+FCIGS(j),OpenOrbs,MatEl%v,MatEl2%v
+!                            WRITE(23,"(A,3I14,3G20.10,I5,2G20.10)") "Open   ",i,FCIDets(0:NIfD,i),iLutSym(:),FCIGS(i),FCIGS(j),FCIGS(i)+FCIGS(j),OpenOrbs,MatEl%v,MatEl2%v
 !                        ENDIF
 !                    ENDIF
 !                ENDIF
@@ -689,7 +690,7 @@ CONTAINS
 
                     do i=1,Det
                         WRITE(17,"(2I13)",advance='no') i,temp(i)
-                        do j=0,nBasis/32
+                        do j=0,NIfD
                            WRITE(17,"(I13)",advance='no') FCIDets(j,i)
                         enddo
                         WRITE(17,"(A,G25.16)",advance='no') " ",FCIGS(i)
@@ -705,7 +706,7 @@ CONTAINS
                     WRITE(17,*) "***"
                     do i=1,Det
                         WRITE(17,"(2I13)",advance='no') i,temp(i)
-                        do j=0,nBasis/32
+                        do j=0,NIfD
                            WRITE(17,"(I13)",advance='no') FCIDets(j,i)
                         enddo
                         Call WriteBitDet(17,FCIDets(:,i),.true.)
@@ -715,7 +716,7 @@ CONTAINS
             ENDIF !tEnergy - for dumping compressed ordered GS wavefunction
             DEALLOCATE(Temp)
 !            do i=1,Det
-!                CALL DecodeBitDet(nK,iLut,NEl,nBasis/32)
+!                CALL DecodeBitDet(nK,iLut)
 !                CALL GETSYM(nK,NEL,G1,NBASISMAX,ISYM)
 !                IF((nK(1).eq.28).and.(nK(2).eq.29).and.(nK(3).eq.30).and.(nK(4).eq.31)) THEN
 !                    WRITE(6,*) "Found Det: ",nK(:)
@@ -745,7 +746,7 @@ CONTAINS
 !                 IF(Bits.eq.NEl) THEN
 !
 !                     DO j=1,NDET
-!                         CALL EncodeBitDet(NMRKS(:,j),iLut,NEl,nBasis/32)
+!                         CALL EncodeBitDet(NMRKS(:,j),iLut)
 !                         IF(iLut(0).eq.i) THEN
 !
 !                             CALL GETSYM(NMRKS(1,j),NEL,G1,NBASISMAX,ISYM)

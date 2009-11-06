@@ -108,6 +108,7 @@
       use CCMCData
       Use Determinants, only: GetHElement3
       Use Logging, only: CCMCDebug
+      use DetBitOps, only: DecodeBitDet
         IMPLICIT NONE
         INTEGER :: VecSlot,i,j,k,l,CopySign,iPartBloom
         INTEGER :: nJ(NEl),ierr,IC,Child,DetCurr(NEl),iLutnJ(0:NIfD)
@@ -268,7 +269,7 @@
                   iLutnI(:)=CurrentDets(:,j)
                   call AddBitExcitor(iLutnI,CurrentDets(:,l),iLutHF,iSgn)
                   if(iSgn.ne.0) then
-                     CALL DecodeBitDet(DetCurr,iLutnI(:),NEl,NIfD)
+                     CALL DecodeBitDet(DetCurr,iLutnI(:))
                      Htmp=GetHElement3(HFDet, DetCurr,2)
                      dT1Sq=dT1Sq+(Real(Htmp%v,r2)*iSgn)
                      !WRITE(6,'(A,I,2G)', advance='no') 'T1',iSgn,real(Htmp%v,r2),dT1Sq
@@ -280,7 +281,7 @@
             enddo
           endif 
 !          if(WalkExcitLevel.eq.1.or.WalkExcitLevel.eq.2) then
-!            CALL DecodeBitDet(DetCurr,CurrentDets(:,j),NEl,NIfD)
+!            CALL DecodeBitDet(DetCurr,CurrentDets(:,j))
 !            Htmp=GetHElement3(HFDet, DetCurr,WalkExcitLevel)
 !            AJWTProjE=AJWTProjE+(Real(Htmp%v,r2)*CurrentSign(j))
 !          endif
@@ -328,7 +329,7 @@
                   dClusterProb=1 
                   dProbNorm=1
                   iCompositeSize=0
-                  CALL DecodeBitDet(DetCurr,iLutnI(:),NEl,NIfD)
+                  CALL DecodeBitDet(DetCurr,iLutnI(:))
 !Also take into account the contributions from the dets in the list
                   HDiagCurr=CurrentH(j)
                   if(tHistSpawn) then
@@ -547,7 +548,7 @@
                endif
 
 !First, decode the bit-string representation of the determinant the walker is on, into a string of naturally-ordered integers
-               CALL DecodeBitDet(DetCurr,iLutnI(:),NEl,NIfD)
+               CALL DecodeBitDet(DetCurr,iLutnI(:))
                CALL FindBitExcitLevel(iLutHF,iLutnI(:),NIfD,WalkExcitLevel,nEl)
                if(iDebug.gt.4) WRITE(6,*) "Excitation Level ", WalkExcitLevel
 
@@ -653,7 +654,7 @@
                   k=1+floor(r*iCompositeSize)
                   iPartDie=SelectedExcitorIndices(k)
    !Now get the full representation of the dying excitor
-                  CALL DecodeBitDet(DetCurr,iLutnI,NEl,NIfD)
+                  CALL DecodeBitDet(DetCurr,iLutnI)
                   Htmp=GetHElement3(DetCurr,DetCurr,0)
                   HDiagCurr=REAL(Htmp%v,r2)
                   HDiagCurr=HDiagCurr-Hii
@@ -773,7 +774,7 @@
             ENDIF
 !HDiags are stored.
             HDiagCurr=CurrentH(j)
-            CALL DecodeBitDet(DetCurr,CurrentDets(:,j),NEl,NIfD)
+            CALL DecodeBitDet(DetCurr,CurrentDets(:,j))
 
 !Sum in any energy contribution from the determinant, including other parameters, such as excitlevel info
 
@@ -860,7 +861,7 @@
       Use global_utilities
       use SystemData, only: nEl,nIfD
       use DetCalc, only: Det       ! The number of Dets/Excitors in FCIDets
-      use DetCalc, only: FCIDets   ! (nBasis/32, Det).  Lists all allowed excitors in compressed form
+      use DetCalc, only: FCIDets   ! (NIfTot, Det).  Lists all allowed excitors in compressed form
       use DetCalc, only:FCIDetIndex! (nEl).  The index of the different excitation levels
       use CalcData, only: NMCyc    ! The number of MC Cycles
       use CalcData, only: StepsSft ! The number of steps between shift updates
@@ -878,6 +879,7 @@
       use GenRandSymExcitNUMod , only : GenRandSymExcitScratchNU,ScratchSize
       USE HElem
       USE mt95 , only : genrand_real2
+      use DetBitOps, only: DecodeBitDet
       IMPLICIT NONE
       REAL*8 Weight,EnergyxW
       INTEGER , PARAMETER :: r2=kind(0.d0)
@@ -988,7 +990,7 @@
             do while(j.ge.FCIDetIndex(iC+1).or.FCIDetIndex(iC).eq.FCIDetIndex(iC+1))  !Need to take into account if (e.g.) singles are empty (FCIDI(0:3) = 1 2 2 3, we want j=2 to get to iC=2 not iC=1
                iC=iC+1
             enddo
-            CALL DecodeBitDet(DetCurr,FCIDets(:,j),NEl,NIfD)
+            CALL DecodeBitDet(DetCurr,FCIDets(:,j))
             i=1
             if(Amplitude(j,iCurAmpList).lt.0) i=-1
 !            call WriteBitEx(6,iLutHF,FCIDets(:,j),.false.)
@@ -1003,7 +1005,7 @@
                   call AddBitExcitor(iLutnI,FCIDets(:,l),iLutHF,iSgn)
                   if(iSgn.ne.0) then
  !                    WRITE(6,*) "L",l
-                     CALL DecodeBitDet(DetCurr,iLutnI(:),NEl,NIfD)
+                     CALL DecodeBitDet(DetCurr,iLutnI(:))
                      Htmp=GetHElement3(HFDet, DetCurr,2)
                      dAmp=dAmp/(Amplitude(1,iCurAmpList)**2)
                      dT1Sq=dT1Sq+(Real(Htmp%v,r2)*iSgn)*dAmp
@@ -1156,7 +1158,7 @@
             endif
 
 !First, decode the bit-string representation of the determinant the walker is on, into a string of naturally-ordered integers
-            CALL DecodeBitDet(DetCurr,iLutnI(:),NEl,NIfD)
+            CALL DecodeBitDet(DetCurr,iLutnI(:))
             CALL FindBitExcitLevel(iLutHF,iLutnI(:),NIfD,WalkExcitLevel,nEl)
             if(iDebug.gt.4) WRITE(6,*) "Excitation Level ", WalkExcitLevel
 

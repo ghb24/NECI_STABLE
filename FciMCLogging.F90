@@ -8,7 +8,7 @@ MODULE FciMCLoggingMod
     USE HElem , only : HElement
     USE Logging , only : tPrintTriConnections,TriConMax,NoTriConBins,tHistTriConHEls,NoTriConHElBins,TriConHElSingMax,TriConHElDoubMax
     USE Logging , only : tPrintHElAccept
-    USE SystemData , only : NEl,NIfD
+    USE SystemData , only : NEl,NIfD,NIfTot
     USE SymData , only : nSymLabels
     USE Determinants , only : GetHElement3,GetHElement4
     use GenRandSymExcitNUMod , only : GenRandSymExcitScratchNU,ScratchSize
@@ -499,6 +499,7 @@ MODULE FciMCLoggingMod
 ! Fed into here is a doubly excited occupied determinant - want to take the two excited orbitals and flip their spins.
 ! Then find the coupling H element between the original and spin-flipped determinants and add it to the stats.
         USE HPHFRandExcitMod , only : FindExcitBitDetSym 
+        use DetBitOps, only: DecodeBitdet
         INTEGER :: NIfD,NEl,iLutCurr(0:NIfD),iLutHF(0:NIfD),i
         INTEGER :: iLutSym(0:NIfD),nI(NEl),nJ(NEl),nHF(NEl),Ex(2,2)
         TYPE(HElement) :: SpinCoupHEl,HElHFI,HElHFJ
@@ -517,10 +518,10 @@ MODULE FciMCLoggingMod
 
 ! Now find the HElement between these two determinants.        
         
-        CALL DecodeBitDet(nI,iLutCurr(0:NIfD),NEl,NIfD)
-        CALL DecodeBitDet(nJ,iLutSym(0:NIfD),NEl,NIfD)
+        CALL DecodeBitDet(nI,iLutCurr(0:NIfTot))
+        CALL DecodeBitDet(nJ,iLutSym(0:NIfTot))
 
-        CALL DecodeBitDet(nHF,iLutHF(0:NIfD),NEl,NIfD)
+        CALL DecodeBitDet(nHF,iLutHF(0:NIfTot))
 
 ! Want to replace the excited electrons in nI with the spin flipped versions.
 !        nJ(:)=nI(:)

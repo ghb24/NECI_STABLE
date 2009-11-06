@@ -14,8 +14,8 @@ SUBROUTINE HPHFGetOffDiagHElement(nI,nJ,iLutnI,iLutnJ,MatEl)
 
     MatEl%v=0.D0
 
-!    CALL EncodeBitDet(nI,iLutnI,NEl,NIfD)
-!    CALL EncodeBitDet(nJ,iLutnJ,NEl,NIfD)
+!    CALL EncodeBitDet(nI,iLutnI)
+!    CALL EncodeBitDet(nJ,iLutnJ)
     IF(DetBitEQ(iLutnI,iLutnJ,NIfD)) THEN
 !Do not allow an 'off-diagonal' matrix element. The problem is that the HPHF excitation generator can generate the same HPHF function. We do not want to allow spawns here.
         RETURN
@@ -287,7 +287,7 @@ SUBROUTINE HPHFGetDiagHElement(nI,iLutnI,MatEl)
 
     MatEl%v=0.D0
 
-!    CALL EncodeBitDet(nI,iLutnI,NEl,NIfD)
+!    CALL EncodeBitDet(nI,iLutnI)
     IF(TestClosedShellDet(iLutnI,NIfD)) THEN
         CALL SltCnd(nEl,nBasisMax,nBasis,nI,nI,G1,nEl,NMSH,FCK,NMAX,ALAT,UMat,MatEl)
         MatEl%v=MatEl%v+ECore

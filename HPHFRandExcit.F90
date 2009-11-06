@@ -5,7 +5,7 @@ MODULE HPHFRandExcitMod
 ![ P(i->a) + P(i->b) + P(j->a) + P(j->b) ]/2
 !We therefore need to find the excitation matrix between the determinant which wasn't excited and the determinant which was created.
 
-    use SystemData, only: nEl,tMerTwist,NIfD
+    use SystemData, only: nEl,tMerTwist,NIfD,NIfTot
     use SymData, only: nSymLabels
     use mt95 , only : genrand_real2
     use GenRandSymExcitNUMod , only : GenRandSymExcitScratchNU,ConstructClassCounts,CalcNonUniPGen,ScratchSize 
@@ -94,7 +94,7 @@ MODULE HPHFRandExcitMod
         ELSE
 !Excite from the spin-pair of nI (called nI2)
 
-!            CALL DecodeBitDet(nI2,iLutnI2,NEl,NIfD)
+!            CALL DecodeBitDet(nI2,iLutnI2)
 !            CALL FindDetSpinSym(nI,nI2,NEl)
             CALL GenRandSymExcitScratchNU(nI2,iLutnI2,nJ,pDoub,IC,ExcitMat,tParity,exFlag,pGen,ClassCount3,ClassCountUnocc3,tGenClassCountnI2)
 
@@ -221,7 +221,7 @@ MODULE HPHFRandExcitMod
             IF((ExcitLevel.eq.2).or.(ExcitLevel.eq.1)) THEN     !This is if we have all determinants in the two HPHFs connected...
 
                 Ex2(1,1)=ExcitLevel
-!                CALL DecodeBitDet(nJ2,iLutnJ2,NEl,NIfD)     !This could be done better !***!
+!                CALL DecodeBitDet(nJ2,iLutnJ2)     !This could be done better !***!
 
                 IF(tSwapped) THEN
 !                    CALL GetExcitation(nI,nJ,NEl,Ex2,tSign) !This could be done more efficiently... !***!
@@ -505,6 +505,7 @@ MODULE HPHFRandExcitMod
 !number of excitations generated using the full enumeration excitation generation.
     SUBROUTINE TestGenRandHPHFExcit(nI,Iterations,pDoub)
         Use SystemData , only : NEl,nBasis,G1,nBasisMax,NIfD
+        use DetBitOps, only: EncodeBitDet, DecodeBitDet
         IMPLICIT NONE
         INTEGER :: ClassCount2(ScratchSize),nIX(NEl)
         INTEGER :: ClassCountUnocc2(ScratchSize)
@@ -516,9 +517,9 @@ MODULE HPHFRandExcitMod
         REAL*8 , ALLOCATABLE :: Weights(:)
         INTEGER :: iMaxExcit,nStore(6),nExcitMemLen,j,k,l
 
-        CALL EncodeBitDet(nI,iLutnI,NEl,NIfD)
+        CALL EncodeBitDet(nI,iLutnI)
         CALL FindDetSpinSym(nI,nI2,NEl)
-        CALL EncodeBitDet(nI2,iLutnI2,NEl,NIfD)
+        CALL EncodeBitDet(nI2,iLutnI2)
         IF(TestClosedShellDet(iLutnI,NIfD)) THEN
             IF(.not.DetBitEQ(iLutnI,iLutnI2,NIfD)) THEN
                 CALL Stop_All("TestGenRandHPHFExcit","Closed shell determinant entered, but alpha and betas different...")
@@ -548,12 +549,12 @@ MODULE HPHFRandExcitMod
         CALL GenSymExcitIt2(nI,NEl,G1,nBasis,nBasisMax,.TRUE.,EXCITGEN,nJ,iMaxExcit,0,nStore,3)
         CALL GetSymExcitCount(EXCITGEN,DetConn)
         WRITE(6,*) "Alpha determinant has ",DetConn," total excitations:"
-        ALLOCATE(ConnsAlpha(0:NIfD,DetConn))
+        ALLOCATE(ConnsAlpha(0:NIfTot,DetConn))
         i=1
         lp2: do while(.true.)
             CALL GenSymExcitIt2(nI,NEl,G1,nBasis,nBasisMax,.false.,EXCITGEN,nJ,iExcit,0,nStore,3)
             IF(nJ(1).eq.0) exit lp2
-            CALL EncodeBitDet(nJ,iLutnJ,NEl,NIfD)
+            CALL EncodeBitDet(nJ,iLutnJ)
             IF(.not.TestClosedShellDet(iLutnJ,NIfD)) THEN
                 CALL ReturnAlphaOpenDet(nJ,nJ2,iLutnJ,iLutSym,.true.,.true.,tSwapped)
             ENDIF
@@ -574,12 +575,12 @@ MODULE HPHFRandExcitMod
         CALL GenSymExcitIt2(nI2,NEl,G1,nBasis,nBasisMax,.TRUE.,EXCITGEN,nJ,iMaxExcit,0,nStore,3)
         CALL GetSymExcitCount(EXCITGEN,DetConn2)
         WRITE(6,*) "Beta determinant has ",DetConn2," total excitations"
-        ALLOCATE(ConnsBeta(0:NIfD,DetConn2))
+        ALLOCATE(ConnsBeta(0:NIfTot,DetConn2))
         i=1
         lp: do while(.true.)
             CALL GenSymExcitIt2(nI2,NEl,G1,nBasis,nBasisMax,.false.,EXCITGEN,nJ,iExcit,0,nStore,3)
             IF(nJ(1).eq.0) exit lp
-            CALL EncodeBitDet(nJ,iLutnJ,NEl,NIfD)
+            CALL EncodeBitDet(nJ,iLutnJ)
             IF(.not.TestClosedShellDet(iLutnJ,NIfD)) THEN
                 CALL ReturnAlphaOpenDet(nJ,nJ2,iLutnJ,iLutSym,.true.,.true.,tSwapped)
             ENDIF
@@ -644,7 +645,7 @@ MODULE HPHFRandExcitMod
             STOP
         ENDIF
 
-        ALLOCATE(UniqueHPHFList(0:NIfD,iUniqueHPHF))
+        ALLOCATE(UniqueHPHFList(0:NIfTot,iUniqueHPHF))
         UniqueHPHFList(:,:)=0
 !Now fill the list of HPHF Excitations.
         iUniqueHPHF=0
@@ -738,7 +739,7 @@ MODULE HPHFRandExcitMod
                 Die=.true.
             ENDIF
             WRITE(6,*) i,UniqueHPHFList(0:NIfD,i),Weights(i)
-            CALL DecodeBitDet(nIX,UniqueHPHFList(0:NIfD,i),NEl,NIfD)
+            CALL DecodeBitDet(nIX,UniqueHPHFList(0:NIfTot,i))
             WRITE(6,*) nIX(:)
             WRITE(8,*) i,UniqueHPHFList(0:NIfD,i),Weights(i)
         enddo
