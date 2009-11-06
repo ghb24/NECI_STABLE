@@ -87,6 +87,9 @@ $(dest)/Makefile mkfiles:
 dbgmkfiles:
 	./compile -d -m
 
+%.o:
+	cd $(dest) && ${MAKE} $@
+
 help:
 	@echo -e "make [target]\n\n"\
 "Targets:\n"\
@@ -103,4 +106,5 @@ help:
 "newall		produce new makefiles and clean make of neci.x and all four libraries.\n"\
 "mkfiles		make new makefiles.\n"\
 "dbgmkfiles	make new makefiles with debug flags on.\n"\
-"clean		remove all *.f*, *.o, *.mod, *.a and *.x from the dest and kdest subdirectories."
+"clean		remove all *.f*, *.o, *.mod, *.a and *.x from the dest and kdest subdirectories.\n"\
+"file.o     makes file.o from file.F/file.F90 (as appropriate).  Useful for when trying to get a single file to compile."
