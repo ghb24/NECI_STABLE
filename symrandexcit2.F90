@@ -2330,19 +2330,21 @@ END SUBROUTINE SpinOrbSymSetup
 !This routine will take a determinant nI, and find Iterations number of excitations of it. It will then histogram these, summing in 1/pGen for every occurance of
 !the excitation. This means that all excitations should be 0 or 1 after enough iterations. It will then count the excitations and compare the number to the
 !number of excitations generated using the full enumeration excitation generation. This can be done for both doubles and singles, or one of them.
-SUBROUTINE TestGenRandSymExcitNU(nI,Iterations,pDoub,exFlag)
+SUBROUTINE TestGenRandSymExcitNU(nI,Iterations,pDoub,exFlag,iWriteEvery)
     Use SystemData , only : NEl,nBasis,G1,nBasisMax,LzTot,NIfD
     Use GenRandSymExcitNUMod , only : GenRandSymExcitScratchNU,ConstructClassCounts,ScratchSize
     Use SymData , only : nSymLabels
+    use Parallel
+    use soft_exit , only : ChangeVars 
     IMPLICIT NONE
     INTEGER :: i,Iterations,exFlag,nI(NEl),nJ(NEl),IC,ExcitMat(2,2),DetConn
-    REAL*8 :: pDoub,pGen
+    REAL*8 :: pDoub,pGen,AverageContrib,AllAverageContrib
     INTEGER :: ClassCount2(ScratchSize),iLut(0:nBasis/32),Scratch1(ScratchSize),Scratch2(ScratchSize),iLutnJ(0:NIfD)
-    INTEGER :: ClassCountUnocc2(ScratchSize),iExcit
-    LOGICAL :: tParity,SymAllowed,tFilled
-    REAL*8 , ALLOCATABLE :: DoublesHist(:,:,:,:),SinglesHist(:,:)
+    INTEGER :: ClassCountUnocc2(ScratchSize),iExcit,iWriteEvery
+    LOGICAL :: tParity,SymAllowed,tFilled,tSoftExitFound,tDummy,tDummy2
+    REAL*8 , ALLOCATABLE :: DoublesHist(:,:,:,:),SinglesHist(:,:),AllDoublesHist(:,:,:,:),AllSinglesHist(:,:)
     INTEGER , ALLOCATABLE :: EXCITGEN(:)
-    INTEGER :: ierr,Ind1,Ind2,Ind3,Ind4,iMaxExcit,nStore(6),nExcitMemLen,j,k,l,DetNum,DetNumS,Lz,excitcount
+    INTEGER :: ierr,Ind1,Ind2,Ind3,Ind4,iMaxExcit,nStore(6),nExcitMemLen,j,k,l,DetNum,DetNumS,Lz,excitcount,ForbiddenIter,error
 
     WRITE(6,*) nI(:)
     WRITE(6,*) Iterations,pDoub,exFlag
@@ -2377,15 +2379,19 @@ lp2: do while(.true.)
 
 !Allocate memory for histogramming determinants
     ALLOCATE(DoublesHist(nBasis,nBasis,nBasis,nBasis),stat=ierr)
+    ALLOCATE(AllDoublesHist(nBasis,nBasis,nBasis,nBasis),stat=ierr)
     IF(ierr.ne.0) THEN
         CALL Stop_All("TestGenRandSymExcitNU","Not possible to allocate memory to do histogramming")
     ENDIF
     ALLOCATE(SinglesHist(nBasis,nBasis),stat=ierr)
+    ALLOCATE(AllSinglesHist(nBasis,nBasis),stat=ierr)
     IF(ierr.ne.0) THEN
         CALL Stop_All("TestGenRandSymExcitNU","Not possible to allocate memory to do histogramming")
     ENDIF
     DoublesHist(:,:,:,:)=0.D0
     SinglesHist(:,:)=0.D0
+    AllDoublesHist(:,:,:,:)=0.D0
+    AllSinglesHist(:,:)=0.D0
 
 !    do i=1,NEl
 !!Create ILUT for O[1] comparison of orbitals in root determinant - This is now read in
@@ -2396,15 +2402,26 @@ lp2: do while(.true.)
     tFilled=.false.
     Scratch1(:)=0
     Scratch2(:)=0
-    
+
+    AverageContrib=0.D0
+    AllAverageContrib=0.D0
+    ForbiddenIter=0
+!    pDoub=1.D0
+    OPEN(9,FILE="AvContrib",STATUS="UNKNOWN")
+
     do i=1,Iterations
 
-        IF(mod(i,10000).eq.0) THEN
+        IF((mod(i,10000).eq.0).and.(iProcIndex.eq.0)) THEN
             WRITE(6,"(A,I10)") "Iteration: ",i
         ENDIF
 
         CALL GenRandSymExcitScratchNU(nI,iLut,nJ,pDoub,IC,ExcitMat,TParity,exFlag,pGen,Scratch1,Scratch2,tFilled)
-        IF(nJ(1).eq.0) CYCLE
+        IF(nJ(1).eq.0) THEN
+!            ForbiddenIter=ForbiddenIter+1
+            CYCLE
+        ENDIF
+        AverageContrib=AverageContrib+1.D0/pGen
+
 !        CALL EncodeBitDet(nJ,iLutnJ,NEl,NIfD)
 !        IF(IC.eq.1) THEN
 !            WRITE(6,*) ExcitMat(1,1),ExcitMat(2,1)
@@ -2415,6 +2432,7 @@ lp2: do while(.true.)
 
         IF(IC.eq.1) THEN
             SinglesHist(ExcitMat(1,1),ExcitMat(2,1))=SinglesHist(ExcitMat(1,1),ExcitMat(2,1))+(1.D0/pGen)
+!            SinglesNum(ExcitMat(1,1),ExcitMat(2,1))=SinglesNum(ExcitMat(1,1),ExcitMat(2,1))+1
         ELSE
 !Have to make sure that orbitals are in the same order...
             IF(ExcitMat(1,1).gt.ExcitMat(1,2)) THEN
@@ -2433,11 +2451,25 @@ lp2: do while(.true.)
             ENDIF
             DoublesHist(Ind1,Ind2,Ind3,Ind4)=DoublesHist(Ind1,Ind2,Ind3,Ind4)+(1.D0/pGen)
         ENDIF
+        IF(mod(i,iWriteEvery).eq.0) THEN
+            AllAverageContrib=0.D0
+            CALL MPI_Reduce(AverageContrib,AllAverageContrib,1,MPI_DOUBLE_PRECISION,MPI_SUM,0,MPI_COMM_WORLD,error)
+            IF(iProcIndex.eq.0) THEN
+                WRITE(9,*) i,AllAverageContrib/(REAL(i,8)*excitcount*nProcessors)
+            ENDIF
+            CALL ChangeVars(tDummy,tSoftExitFound,tDummy2)
+            IF(tSoftExitFound) EXIT
+        ENDIF
 
 !Check excitation
-        CALL IsSymAllowedExcit(nI,nJ,IC,ExcitMat,SymAllowed)
+!        CALL IsSymAllowedExcit(nI,nJ,IC,ExcitMat,SymAllowed)
 
     enddo
+
+    CLOSE(9)
+
+    CALL MPI_Reduce(DoublesHist,AllDoublesHist,nBasis**4,MPI_DOUBLE_PRECISION,MPI_SUM,0,MPI_COMM_WORLD,error)
+    CALL MPI_Reduce(SinglesHist,AllSinglesHist,nBasis**2,MPI_DOUBLE_PRECISION,MPI_SUM,0,MPI_COMM_WORLD,error)
 
 !Now run through arrays normalising them so that numbers are more managable.
     OPEN(8,FILE="DoublesHist",STATUS="UNKNOWN")
@@ -2446,7 +2478,7 @@ lp2: do while(.true.)
         do j=i+1,nBasis
             do k=1,nBasis-1
                 do l=k+1,nBasis
-                    IF(DoublesHist(i,j,k,l).gt.0.D0) THEN
+                    IF(AllDoublesHist(i,j,k,l).gt.0.D0) THEN
 !                        DoublesHist(i,j,k,l)=DoublesHist(i,j,k,l)/real(Iterations,8)
                         DetNum=DetNum+1
                         ExcitMat(1,1)=i
@@ -2454,7 +2486,7 @@ lp2: do while(.true.)
                         ExcitMat(2,1)=k
                         ExcitMat(2,2)=l
                         CALL FindExcitBitDet(iLut,iLutnJ,2,ExcitMat,NIfD)
-                        WRITE(8,"(I12,F20.12,4I5,I15)") DetNum,DoublesHist(i,j,k,l)/real(Iterations,8),i,j,k,l,iLutnJ(0)
+                        WRITE(8,"(I12,F20.12,4I5,I15)") DetNum,AllDoublesHist(i,j,k,l)/(real(Iterations,8)*nProcessors),i,j,k,l,iLutnJ(0)
                     ENDIF
                 enddo
             enddo
@@ -2466,12 +2498,12 @@ lp2: do while(.true.)
     DetNumS=0
     do i=1,nBasis
         do j=1,nBasis
-            IF(SinglesHist(i,j).gt.0.D0) THEN
+            IF(AllSinglesHist(i,j).gt.0.D0) THEN
                 DetNumS=DetNumS+1
                 ExcitMat(1,1)=i
                 ExcitMat(2,1)=j
                 CALL FindExcitBitDet(iLut,iLutnJ,1,ExcitMat,NIfD)
-                WRITE(9,*) DetNumS,SinglesHist(i,j)/real(Iterations,8),iLutnJ(0)
+                WRITE(9,*) DetNumS,AllSinglesHist(i,j)/(real(Iterations,8)*nProcessors),iLutnJ(0)
             ENDIF
         enddo
     enddo

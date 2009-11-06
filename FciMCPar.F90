@@ -454,10 +454,10 @@ MODULE FciMCParMod
             CALL FLUSH(11)
         ENDIF
 
-!        iLutnJ(0)=215343
-!        CALL DecodeBitDet(nJ,iLutnJ,NEl,NIfD)
-!        CALL TestGenRandSymExcitNU(nJ,NMCyc,pDoubles,3)
-!        CALL Stop_All("ihsfbg","osudgb")
+        iLutnJ(0)=iLutHF(0)
+        CALL DecodeBitDet(nJ,iLutnJ,NEl,NIfD)
+        CALL TestGenRandSymExcitNU(nJ,NMCyc,pDoubles,3,StepsSft)
+        CALL Stop_All("ihsfbg","osudgb")
         
 !        IF(tRotoAnnihil) THEN
 !            CALL CheckOrdering(CurrentDets(:,1:TotWalkers),CurrentSign(1:TotWalkers),TotWalkers,.true.)
@@ -7973,6 +7973,11 @@ MODULE FciMCParMod
             tNoBrillouin=.true.
         ENDIF
 
+        IF((tHub.and.tReal).or.(tRotatedOrbs)) THEN
+            tNoBrillouin=.true.
+        ENDIF
+
+
         TBalanceNodes=.false.   !Assume that the nodes are initially load-balanced
 
 !Initialise variables for calculation on each node
@@ -9131,7 +9136,7 @@ MODULE FciMCParMod
 !            AvSign=AvSign+REAL(WSign,r2)
 
         ELSEIF(ExcitLevel.eq.1) THEN
-          if(tNoBrillouin.or.(tHub.and.tReal).or.tRotatedOrbs) then
+          if(tNoBrillouin) then
 !For the real-space hubbard model, determinants are only connected to excitations one level away, and brillouins theorem can not hold.
 !For Rotated orbitals, brillouins theorem also cannot hold, and energy contributions from walkers on singly excited determinants must
 !be included in the energy values along with the doubles.
