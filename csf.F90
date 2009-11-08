@@ -179,9 +179,9 @@ contains
 
 
     subroutine csf_get_yamas (nopen, sfinal, yama)
-        integer, intent(out) :: yama (get_num_csfs(nopen, sfinal), nopen)
         real*8, intent(in) :: sfinal
         integer, intent(in) :: nopen
+        integer, intent(out) :: yama (get_num_csfs(nopen, sfinal), nopen)
         real*8 spin (get_num_csfs(nopen, sfinal), nopen)
         integer npos, csf, ncsf, ncsf_next
 
