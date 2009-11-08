@@ -692,7 +692,7 @@ CONTAINS
                         do j=0,nBasis/32
                            WRITE(17,"(I13)",advance='no') FCIDets(j,i)
                         enddo
-                        WRITE(17,"(A,G25.16)",advance='no') " ",FCIGS(i)
+                        WRITE(17,"(A,G25.16,A)",advance='no') " ",FCIGS(i),"  "
                         Call WriteBitDet(17,FCIDets(:,i),.true.)
                    enddo
                     CLOSE(17)
@@ -708,6 +708,7 @@ CONTAINS
                         do j=0,nBasis/32
                            WRITE(17,"(I13)",advance='no') FCIDets(j,i)
                         enddo
+                        WRITE(17,"(A)",advance='no') " "
                         Call WriteBitDet(17,FCIDets(:,i),.true.)
                     enddo
                     CLOSE(17)
