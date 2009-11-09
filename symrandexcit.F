@@ -4,7 +4,7 @@
      &        ICOUNT,EXCITMAT,TPARITY)
          use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
          use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
-         use SystemData, only: nEl,G1, nBasis,nBasisMax
+         use SystemData, only: nEl,G1, nBasis,nBasisMax, NIfTot
          use SystemData, only: Arr,nMax,tAssumeSizeExcitgen
          use IntegralsData, only: UMat
          use SymData, only: SymClassSize,nSymPairProds,nSymLabels
@@ -86,7 +86,7 @@ C.. This version is based on GenRandSymExcitIt2, but does not need values it ext
      &      ICOUNT)
          use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
          use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
-         use SystemData, only: nEl,G1, nBasis,nBasisMax
+         use SystemData, only: nEl,G1, nBasis,nBasisMax, NIfTot
          use SystemData, only: Arr,nMax,tAssumeSizeExcitgen
          use IntegralsData, only: UMat
          use SymData, only: SymClassSize,nSymPairProds,nSymLabels

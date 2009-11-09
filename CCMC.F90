@@ -111,18 +111,18 @@
       use DetBitOps, only: DecodeBitDet
         IMPLICIT NONE
         INTEGER :: VecSlot,i,j,k,l,CopySign,iPartBloom
-        INTEGER :: nJ(NEl),ierr,IC,Child,DetCurr(NEl),iLutnJ(0:NIfD)
+        INTEGER :: nJ(NEl),ierr,IC,Child,DetCurr(NEl),iLutnJ(0:NIfTot)
         REAL*8 :: Prob,rat,HDiagCurr,r
         INTEGER :: iDie,WalkExcitLevel,Proc
         INTEGER :: ExcitLevel,TotWalkersNew,iGetExcitLevel_2,Ex(2,2),WSign,p,Scratch1(ScratchSize),Scratch2(ScratchSize)
         LOGICAL :: tParity,tFilled
         
 ! We select up to nEl excitors at a time and store them here
-        INTEGER :: SelectedExcitors(0:NIfD,nEl)     
+        INTEGER :: SelectedExcitors(0:NIfTot,nEl)     
         INTEGER :: SelectedExcitorIndices(nEl)     
 
 ! Temporary Storage
-        INTEGER iLutnI(0:nIfD)
+        INTEGER iLutnI(0:nIfTot)
 
 !The sign of the resultant composite
         INTEGER iSgn
@@ -259,10 +259,10 @@
 !#if 0
           IF(iDebug.gt.4) WRITE(6,*) "Iteration ",Iter,':',j
 ! Deal with T_1^2
-          CALL FindBitExcitLevel(iLutHF,CurrentDets(:,j),NIfD,WalkExcitLevel,2)
+          CALL FindBitExcitLevel(iLutHF,CurrentDets(:,j),WalkExcitLevel,2)
           if(WalkExcitLevel.eq.1) then
             do l=j,TotWalkers
-               CALL FindBitExcitLevel(iLutHF,CurrentDets(:,l),NIfD,WalkExcitLevel,2)
+               CALL FindBitExcitLevel(iLutHF,CurrentDets(:,l),WalkExcitLevel,2)
                if(WalkExcitLevel.eq.1) then
                   iSgn=CurrentSign(j)
                   iSgn=iSgn*CurrentSign(l)
@@ -333,9 +333,9 @@
 !Also take into account the contributions from the dets in the list
                   HDiagCurr=CurrentH(j)
                   if(tHistSpawn) then
-                     CALL FindBitExcitLevel(iLutHF,iLutnI,NIfD,WalkExcitLevel,nEl)
+                     CALL FindBitExcitLevel(iLutHF,iLutnI,WalkExcitLevel,nEl)
                   else
-                     CALL FindBitExcitLevel(iLutHF,iLutnI,NIfD,WalkExcitLevel,2)
+                     CALL FindBitExcitLevel(iLutHF,iLutnI,WalkExcitLevel,2)
                   endif
                   CALL SumEContrib(DetCurr,WalkExcitLevel,iSgn,iLutnI,HDiagCurr,1.d0)
                else
@@ -549,7 +549,7 @@
 
 !First, decode the bit-string representation of the determinant the walker is on, into a string of naturally-ordered integers
                CALL DecodeBitDet(DetCurr,iLutnI(:))
-               CALL FindBitExcitLevel(iLutHF,iLutnI(:),NIfD,WalkExcitLevel,nEl)
+               CALL FindBitExcitLevel(iLutHF,iLutnI(:),WalkExcitLevel,nEl)
                if(iDebug.gt.4) WRITE(6,*) "Excitation Level ", WalkExcitLevel
 
 
@@ -670,9 +670,9 @@
 !This can be changed easily by increasing the final argument.
                IF(tTruncSpace) THEN
 !We need to know the exact excitation level for truncated calculations.
-                   CALL FindBitExcitLevel(iLutHF,iLutnI,NIfD,WalkExcitLevel,NEl)
+                   CALL FindBitExcitLevel(iLutHF,iLutnI,WalkExcitLevel,NEl)
                ELSE
-                   CALL FindBitExcitLevel(iLutHF,iLutnI,NIfD,WalkExcitLevel,2)
+                   CALL FindBitExcitLevel(iLutHF,iLutnI,WalkExcitLevel,2)
                ENDIF
 !Sum in any energy contribution from the determinant, including other parameters, such as excitlevel info
 !               WRITE(6,'(A,3G,2I)') "PPP",dProb,dProbNorm,dProb*dProbNorm,WalkExcitLevel,iCompositeSize
@@ -768,9 +768,9 @@
 !This can be changed easily by increasing the final argument.
             IF(tTruncSpace) THEN
 !We need to know the exact excitation level for truncated calculations.
-                CALL FindBitExcitLevel(iLutHF,CurrentDets(:,j),NIfD,WalkExcitLevel,NEl)
+                CALL FindBitExcitLevel(iLutHF,CurrentDets(:,j),WalkExcitLevel,NEl)
             ELSE
-                CALL FindBitExcitLevel(iLutHF,CurrentDets(:,j),NIfD,WalkExcitLevel,2)
+                CALL FindBitExcitLevel(iLutHF,CurrentDets(:,j),WalkExcitLevel,2)
             ENDIF
 !HDiags are stored.
             HDiagCurr=CurrentH(j)
@@ -859,7 +859,7 @@
 
    SUBROUTINE CCMCStandalone(Weight,Energyxw)
       Use global_utilities
-      use SystemData, only: nEl,nIfD
+      use SystemData, only: nEl,nIfD,NIfTot
       use DetCalc, only: Det       ! The number of Dets/Excitors in FCIDets
       use DetCalc, only: FCIDets   ! (NIfTot, Det).  Lists all allowed excitors in compressed form
       use DetCalc, only:FCIDetIndex! (nEl).  The index of the different excitation levels
@@ -903,12 +903,12 @@
       REAL*8  dProb,dProbNorm,r,rat,dCurTot,dProbNumExcit,dClusterProb,dProbDecompose
       INTEGER i,j,k,l
       INTEGER iPartDie
-      INTEGER :: SelectedExcitors(0:NIfD,nEl)     
+      INTEGER :: SelectedExcitors(0:NIfTot,nEl)     
       INTEGER :: SelectedExcitorIndices(nEl)     
 ! Temporary Storage
-      INTEGER iLutnI(0:nIfD),iLutnJ(0:nIfD)
+      INTEGER iLutnI(0:nIfTot),iLutnJ(0:nIfTot)
       INTEGER nJ(nEl)
-      INTEGER DetCurr(0:nIfD)
+      INTEGER DetCurr(0:nIfTot)
       INTEGER :: ExcitLevel,iGetExcitLevel_2,Ex(2,2)
       INTEGER , ALLOCATABLE :: Scratch1(:),Scratch2(:) !Both (ScratchSize)
       INTEGER iCompositeSize,WalkExcitLevel,IC,iMaxExcit
@@ -1159,7 +1159,7 @@
 
 !First, decode the bit-string representation of the determinant the walker is on, into a string of naturally-ordered integers
             CALL DecodeBitDet(DetCurr,iLutnI(:))
-            CALL FindBitExcitLevel(iLutHF,iLutnI(:),NIfD,WalkExcitLevel,nEl)
+            CALL FindBitExcitLevel(iLutHF,iLutnI(:),WalkExcitLevel,nEl)
             if(iDebug.gt.4) WRITE(6,*) "Excitation Level ", WalkExcitLevel
 
             tFilled=.false.     !This is for regenerating excitations from the same determinant multiple times. There will be a time saving if we can store the excitation generators temporarily.
@@ -1213,7 +1213,7 @@
             endif
             if(abs(rat).gt.1e-8) then
 !Now add in a contribution from the child
-               CALL FindBitExcitLevel(iLutHF,iLutnJ(:),NIfD,IC,nEl)
+               CALL FindBitExcitLevel(iLutHF,iLutnJ(:),IC,nEl)
                IF(IC.eq.NEl) THEN
                    CALL BinSearchParts3(iLutnJ(:),FCIDets(:,:),Det,FCIDetIndex(IC),Det,PartIndex,tSuc)
                ELSEIF(IC.eq.0) THEN
@@ -1259,9 +1259,9 @@
 !This can be changed easily by increasing the final argument.
 !               IF(tTruncSpace) THEN
 !We need to know the exact excitation level for truncated calculations.
-!                   CALL FindBitExcitLevel(iLutHF,iLutnI,NIfD,WalkExcitLevel,NEl)
+!                   CALL FindBitExcitLevel(iLutHF,iLutnI,WalkExcitLevel,NEl)
 !               ELSE
-!                   CALL FindBitExcitLevel(iLutHF,iLutnI,NIfD,WalkExcitLevel,2)
+!                   CALL FindBitExcitLevel(iLutHF,iLutnI,WalkExcitLevel,2)
 !               ENDIF
 !Sum in any energy contribution from the determinant, including other parameters, such as excitlevel info
 !               WRITE(6,'(A,3G,2I)') "PPP",dProb,dProbNorm,dProb*dProbNorm,WalkExcitLevel,iCompositeSize
@@ -1349,18 +1349,18 @@
 !updated with the relevant permutation or set to zero if the excitation is
 !disallowed.
 SUBROUTINE AddBitExcitor(iLutnI,iLutnJ,iLutRef,iSgn)
-   use SystemData, only : nEl,nIfD
+   use SystemData, only : nEl,nIfD, NIfTot
    IMPLICIT NONE
-   INTEGER iLutnI(0:nIfD), iLutnJ(0:nIfD),iLutRef(0:nIfD)
-   INTEGER iLutTmp(0:nIfD)
+   INTEGER iLutnI(0:nIfTot), iLutnJ(0:nIfTot),iLutRef(0:nIfTot)
+   INTEGER iLutTmp(0:nIfTot)
    INTEGER T1,T2,T3
    INTEGER iSgn
 ! We need to run through the bits of J and I concurrently, setting bits of I
    INTEGER i,j
 
    integer iIlevel,iJlevel,iTmpLevel,iI,iJ
-   CALL FindBitExcitLevel(iLutRef,iLutnI,nIfD,iIlevel,nEl)
-   CALL FindBitExcitLevel(iLutRef,iLutnJ,nIfD,iJlevel,nEl)
+   CALL FindBitExcitLevel(iLutRef,iLutnI,iIlevel,nEl)
+   CALL FindBitExcitLevel(iLutRef,iLutnJ,iJlevel,nEl)
    iI=iIlevel
    iJ=iJlevel
    iTmpLevel=0

@@ -420,7 +420,7 @@ MODULE NatOrbsMod
 
 !        WRITE(6,*) 'FCIDets'
 !        do i=1,Det
-!            WRITE(6,*) FCIDets(0:NIfD,i),AllHistogram(i)
+!            WRITE(6,*) FCIDets(0:NIfTot,i),AllHistogram(i)
 !        enddo
 !        CALL FLUSH(6)
 !        stop
@@ -482,14 +482,14 @@ MODULE NatOrbsMod
 !               ! lower to one excitation higher.
                     IF((i.gt.Det).or.(j.gt.Det)) CALL Stop_All('FillOneRDM','Running through i or j larger than the number of determinants.')
 
-                    CALL FindBitExcitLevel(FCIDets(0:NIfD,i),FCIDets(0:NIfD,j),NIfD,ExcitLevel,2)
+                    CALL FindBitExcitLevel(FCIDets(0:NIfD,i),FCIDets(0:NIfD,j),ExcitLevel,2)
                     ! Need to find the excitation level between D_i and D_j. If this is 1 - go on to add their contributions to the OneRDM.
 
                     IF(ExcitLevel.eq.1) THEN
                         Ex(:,:)=0
                         Ex(1,1)=ExcitLevel
 
-                        CALL GetBitExcitation(FCIDets(0:NIfD,i),FCIDets(0:NIfD,j),NIfD,NEl,Ex,tSign)
+                        CALL GetBitExcitation(FCIDets(:,i),FCIDets(:,j),Ex,tSign)
                         ! Gives the orbitals involved in the excitation Ex(1,1) in i -> Ex(2,1) in j (in spin orbitals).
 
                         IF(tStoreSpinOrbs) THEN

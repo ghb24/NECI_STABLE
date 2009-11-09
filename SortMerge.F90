@@ -15,22 +15,21 @@
 ! matrix elements for the elements it is merging into the main list.
 ! The list1 will be binary searched to find insertion points. Generally, if list2 > list1/2,
 ! a linear search would be quicker.
-    SUBROUTINE MergeListswH(nlist1,nlist1max,nlist2,list2,SignList2,NIfD)
+    SUBROUTINE MergeListswH(nlist1,nlist1max,nlist2,list2,SignList2)
         USE FciMCParMOD , only : iLutHF,Hii,CurrentDets,CurrentSign,CurrentH
         USE SystemData , only : NEl,tHPHF, NIfTot
         USE Determinants , only : GetHElement3
-        use DetBitOps, only: DecodeBitDet
+        use DetBitOps, only: DecodeBitDet, DetBitEQ
         USE HElem
         IMPLICIT NONE
 !        INTEGER :: list1(0:NIfD,nlist1max),list2(0:NIfD,1:nlist2)
-        INTEGER :: list2(0:NIfD,1:nlist2)
-        INTEGER :: nlisto,nlist1,nlist2,NIfD,nlo,i,DetCurr(0:NIfD) 
+        INTEGER :: list2(0:NIfTot,1:nlist2)
+        INTEGER :: nlisto,nlist1,nlist2,nlo,i,DetCurr(0:NIfTot) 
         INTEGER :: ips,ips1,SignList2(nlist2)!,SignList1(nlist1max),
 !        REAL*8 :: HList(nlist1max)
         TYPE(HElement) :: HDiagTemp
         REAL*8 :: HDiag
         INTEGER :: nJ(NEl),j,nlist1max
-        LOGICAL :: DetBitEQ
 !        LOGICAL :: tbin
 !.................................................................
 !..starting from the end of the list, expand list1 to accomodate
@@ -39,8 +38,8 @@
        nlo=nlist1
        do i=nlist2,1,-1
 !.. find the positions in list1 which the list2 would be inserted
-           DetCurr(0:NIfD)=list2(0:NIfD,i)
-           call search(nlisto,DetCurr,ips1,NIfD)
+           DetCurr(:)=list2(:,i)
+           call search(nlisto,DetCurr,ips1)
 !          write(6,*) 'position in list1 to be inserted:',ips1
 !..ips1 is the position in list1 which num is to be inserted
            ips=ips1      
@@ -50,7 +49,7 @@
            do j=nlisto,ips,-1
               if(j.le.nlo) then 
 !                 write(6,*) j,'->',j+i
-                 CurrentDets(0:NIfD,j+i)=CurrentDets(0:NIfD,j)
+                 CurrentDets(:,j+i)=CurrentDets(:,j)
                  CurrentSign(j+i)=CurrentSign(j)
                  CurrentH(j+i)=CurrentH(j)
               endif
@@ -65,10 +64,10 @@
 !               write(6,'(20i15)') j,list1(:,j)
 !           enddo
 !           write(6,'(20i15)') (list1(:,j),j=1,nlist1+nlist2)
-           CurrentDets(0:NIfD,ips+i-1)=list2(0:NIfD,i)
+           CurrentDets(:,ips+i-1)=list2(:,i)
            CurrentSign(ips+i-1)=SignList2(i)
 !We want to calculate the diagonal hamiltonian matrix element for the new particle to be merged.
-           IF(DetBitEQ(list2(0:NIfD,i),iLutHF,NIfD)) THEN
+           IF(DetBitEQ(list2(:,i),iLutHF)) THEN
 !We know we are at HF - HDiag=0
                HDiag=0.D0
 !               IF(tHub.and.tReal) THEN
@@ -78,9 +77,9 @@
 !                   HDiag=(REAL(HDiagTemp%v,8))
 !               ENDIF
            ELSE
-               CALL DecodeBitDet(nJ,list2(0:NIfTot,i))
+               CALL DecodeBitDet(nJ,list2(:,i))
                IF(tHPHF) THEN
-                   CALL HPHFGetDiagHElement(nJ,list2(0:NIfD,i),HDiagTemp)
+                   CALL HPHFGetDiagHElement(nJ,list2(:,i),HDiagTemp)
                ELSE
                    HDiagTemp=GetHElement3(nJ,nJ,0)
                ENDIF
@@ -107,7 +106,7 @@
                               
 ! This is pretty much the same as MergeListswH, however in this case, as well as sorting the determinants
 ! and signs, the Hii and Hij and parents are taken with the determinants too.
-   SUBROUTINE MergeListswH2(nlist1,nlist1max,nlist2,list2,list3,SignList2,NIfD)
+   SUBROUTINE MergeListswH2(nlist1,nlist1max,nlist2,list2,list3,SignList2)
         USE FciMCParMOD , only : iLutHF,Hii,MinorStarDets,MinorStarSign,MinorStarParent,MinorStarHii,MinorStarHij
         USE SystemData , only : NEl,Alat,Brr,ECore,G1,nBasis,nBasisMax,nMsh,tHPHF,NIfTot
         USE Determinants , only : GetHElement3,GetHElement2
@@ -115,8 +114,8 @@
         USE HElem
         use DetBitOps, only: DecodeBitDet
         IMPLICIT NONE
-        INTEGER :: list2(0:NIfD,1:nlist2),list3(0:NIfD,1:nlist2)
-        INTEGER :: nlisto,nlist1,nlist2,NIfD,nlo,i,DetCurr(0:NIfD),DetCurr2(0:NIfD) 
+        INTEGER :: list2(0:NIfTot,1:nlist2),list3(0:NIfTot,1:nlist2)
+        INTEGER :: nlisto,nlist1,nlist2,NIfD,nlo,i,DetCurr(0:NIfTot),DetCurr2(0:NIfTot) 
         INTEGER :: ips,ips1,SignList2(nlist2)
         TYPE(HElement) :: HDiagTemp,HOffDiagTemp
         REAL*8 :: HDiag,HOffDiag
@@ -130,9 +129,9 @@
            nlo=nlist1
            do i=nlist2,1,-1
 !.. find the positions in list1 which the list2 would be inserted
-               DetCurr(0:NIfD)=list2(0:NIfD,i)
-               DetCurr2(0:NIfD)=list3(0:NIfD,i)
-               call searchminor(nlisto,DetCurr,DetCurr2,ips1,NIfD)
+               DetCurr(0:NIfTot)=list2(0:NIfTot,i)
+               DetCurr2(0:NIfTot)=list3(0:NIfTot,i)
+               call searchminor(nlisto,DetCurr,DetCurr2,ips1)
 !              write(6,*) 'position in list1 to be inserted:',ips1
 !..ips1 is the position in list1 which num is to be inserted
                ips=ips1      
@@ -142,8 +141,8 @@
                do j=nlisto,ips,-1
                   if(j.le.nlo) then 
 !                 write(6,*) j,'->',j+i
-                     MinorStarDets(0:NIfD,j+i)=MinorStarDets(0:NIfD,j)
-                     MinorStarParent(0:NIfD,j+i)=MinorStarParent(0:NIfD,j)
+                     MinorStarDets(0:NIfTot,j+i)=MinorStarDets(0:NIfTot,j)
+                     MinorStarParent(0:NIfTot,j+i)=MinorStarParent(0:NIfTot,j)
                      MinorStarSign(j+i)=MinorStarSign(j)
                      MinorStarHii(j+i)=MinorStarHii(j)
                      MinorStarHij(j+i)=MinorStarHij(j+1)
@@ -159,9 +158,9 @@
 !               write(6,'(20i15)') j,list1(:,j)
 !           enddo
 !           write(6,'(20i15)') (list1(:,j),j=1,nlist1+nlist2)
-               MinorStarDets(0:NIfD,ips+i-1)=list2(0:NIfD,i)
+               MinorStarDets(0:NIfTot,ips+i-1)=list2(0:NIfTot,i)
                MinorStarSign(ips+i-1)=SignList2(i)
-               MinorStarParent(0:NIfD,ips+i-1)=list3(0:NIfD,i)
+               MinorStarParent(0:NIfTot,ips+i-1)=list3(0:NIfTot,i)
 
 ! Want to calculate the diagonal and off diagonal H elements of the particle to be merged.           
                CALL DecodeBitDet(nJ,list2(0:NIfTot,i))
@@ -191,9 +190,9 @@
         ELSE
 ! If there are no entries in the star arrays to merge with, just copy the spawned walkers straight over to star array            
             do j=1,nlist2
-                MinorStarDets(0:NIfD,j)=list2(0:NIfD,j)
+                MinorStarDets(0:NIfTot,j)=list2(0:NIfTot,j)
                 MinorStarSign(j)=SignList2(j)
-                MinorStarParent(0:NIfD,j)=list3(0:NIfD,j)
+                MinorStarParent(0:NIfTot,j)=list3(0:NIfTot,j)
 
                 CALL DecodeBitDet(nJ,list2(0:NIfTot,j))
                 IF(tHPHF) THEN
@@ -223,17 +222,16 @@
 
 
 !This routine is the same as MergeListswH, but will not generate the diagonal hamiltonian matrix elements to go with the inserted determinants
-    SUBROUTINE MergeLists(nlist1,nlist1max,nlist2,list2,SignList2,NIfD)
+    SUBROUTINE MergeLists(nlist1,nlist1max,nlist2,list2,SignList2)
         USE FciMCParMOD , only : iLutHF,Hii,CurrentDets,CurrentSign
-        USE SystemData , only : NEl
+        USE SystemData , only : NEl, NIfTot
         USE HElem
         IMPLICIT NONE
-        INTEGER :: list1(0:NIfD,nlist1max),list2(0:NIfD,1:nlist2)
-        INTEGER :: nlisto,nlist1,nlist2,NIfD,nlo,i,DetCurr(0:NIfD) 
+        INTEGER :: list1(0:NIfTot,nlist1max),list2(0:NIfTot,1:nlist2)
+        INTEGER :: nlisto,nlist1,nlist2,nlo,i,DetCurr(0:NIfTot) 
         INTEGER :: ips,ips1,SignList2(nlist2)!,SignList1(nlist1max)
         REAL*8 :: HDiag
         INTEGER :: nJ(NEl),j,nlist1max
-        LOGICAL :: DetBitEQ
 !        LOGICAL :: tbin
 !.................................................................
 !..starting from the end of the list, expand list1 to accomodate
@@ -242,8 +240,8 @@
        nlo=nlist1
        do i=nlist2,1,-1
 !.. find the positions in list1 which the list2 would be inserted
-           DetCurr(0:NIfD)=list2(0:NIfD,i)
-           call search(nlisto,DetCurr,ips1,NIfD)
+           DetCurr(0:NIfTot)=list2(0:NIfTot,i)
+           call search(nlisto,DetCurr,ips1)
 !          write(6,*) 'position in list1 to be inserted:',ips1
 !..ips1 is the position in list1 which num is to be inserted
            ips=ips1      
@@ -253,7 +251,7 @@
            do j=nlisto,ips,-1
               if(j.le.nlo) then 
 !                 write(6,*) j,'->',j+i
-                 CurrentDets(0:NIfD,j+i)=CurrentDets(0:NIfD,j)
+                 CurrentDets(0:NIfTot,j+i)=CurrentDets(0:NIfTot,j)
                  CurrentSign(j+i)=CurrentSign(j)
               endif
            enddo
@@ -267,7 +265,7 @@
 !               write(6,'(20i15)') j,list1(:,j)
 !           enddo
 !           write(6,'(20i15)') (list1(:,j),j=1,nlist1+nlist2)
-           CurrentDets(0:NIfD,ips+i-1)=list2(0:NIfD,i)
+           CurrentDets(0:NIfTot,ips+i-1)=list2(0:NIfTot,i)
            CurrentSign(ips+i-1)=SignList2(i)
                
 !           write(6,*) ' newly inserted member on position:'                             &
@@ -290,11 +288,13 @@
 !.. list(0:NIfD,ipos-1) < DetCurr(0:NIfD)
 !.. list(0:NIfD,ipos) ge DetCurr(0:NIfD)
 !..list is assumed to be in increasing order
-    SUBROUTINE search(n,DetCurr,ipos,NIfD)
+    SUBROUTINE search(n,DetCurr,ipos)
+        use SystemData, only: NIfTot
+        use DetBitOps, only: DetBitLT
         USE FciMCParMOD , only : CurrentDets
         IMPLICIT NONE
-        INTEGER :: n,NIfD,DetCurr(0:NIfD)!,list(0:NIFd,n)
-        INTEGER :: nlo,nup,DetBitLT,i,ipos,ncurr,CompPart
+        INTEGER :: n,DetCurr(0:NIfTot)!,list(0:NIFd,n)
+        INTEGER :: nlo,nup,i,ipos,ncurr,CompPart
 !        logical :: tbin
 !        if(.not.tbin) goto 200
 !.......................................................................
@@ -304,13 +304,13 @@
  100    continue
 !..if num is larger than the last element of list,
 !.. return ipos as nup+1
-        if(DetBitLT(CurrentDets(0:NIfD,nup),DetCurr(0:NIfD),NIfD).eq.1) then 
+        if(DetBitLT(CurrentDets(0:NIfTot,nup),DetCurr(:)).eq.1) then 
            ipos=nup+1
            return
         endif
 !..if num is le the first element of the list
 !.. return ipos as nlo
-        if(DetBitLT(DetCurr(0:NIfD),CurrentDets(0:NIfD,nlo),NIfD).eq.1) then
+        if(DetBitLT(DetCurr(:),CurrentDets(0:NIfTot,nlo)).eq.1) then
            ipos=nlo
            return
         endif
@@ -323,7 +323,7 @@
             return
         ENDIF
 
-        CompPart=DetBitLT(CurrentDets(0:NIfD,ncurr),DetCurr(0:NIfD),NIfD)
+        CompPart=DetBitLT(CurrentDets(0:NIfTot,ncurr),DetCurr(:))
 
 !.. if list(ncurr) gt num then the upper bound to the 
 !.. list can be shifted to nup
@@ -340,14 +340,14 @@
         if(CompPart.eq.0) then 
 !..check to see if the previous member is less than num.
 !.. if so, return ipose=ncurr
-           if(DetBitLT(CurrentDets(0:NIfD,ncurr-1),DetCurr(0:NIfD),NIfD).eq.1) then
+           if(DetBitLT(CurrentDets(0:NIfTot,ncurr-1),DetCurr(:)).eq.1) then
 !           if(list(ncurr-1).lt.num) then
               ipos=ncurr 
               return
            endif
 !..check to see if the next member of list is ge num
 !.. if so, return ipos=ncurr
-           if(DetBitLT(CurrentDets(0:NIfD,ncurr+1),DetCurr(0:NIfD),NIfD).eq.-1) then
+           if(DetBitLT(CurrentDets(0:NIfTot,ncurr+1),DetCurr(:)).eq.-1) then
 !           if(list(ncurr+1).gt.num) then
               ipos=ncurr 
               return
@@ -358,7 +358,7 @@
  200    continue
 !..simple linear search. At the moment, you cannot get here.
         do i=1,n
-           if(DetBitLT(CurrentDets(0:NIfD,i),DetCurr(0:NIfD),NIfD).ne.1) then 
+           if(DetBitLT(CurrentDets(0:NIfTot,i),DetCurr(:)).ne.1) then 
              ipos=i
              return
            endif
@@ -370,11 +370,13 @@
 !.. list(0:NIfD,ipos-1) < DetCurr(0:NIfD)
 !.. list(0:NIfD,ipos) ge DetCurr(0:NIfD)
 !..list is assumed to be in increasing order
-    SUBROUTINE searchgen(n,list,DetCurr,ipos,NIfD)
+    SUBROUTINE searchgen(n,list,DetCurr,ipos)
+        use SystemData, only: NIfTot
+        use DetBitOps, only: DetBitLT
         IMPLICIT NONE
-        INTEGER :: n,NIfD,DetCurr(0:NIfD)
-        INTEGER :: nlo,nup,DetBitLT,i,ipos,ncurr,CompPart
-        INTEGER :: list(0:NIfD,n)
+        INTEGER :: n,DetCurr(0:NIfTot)
+        INTEGER :: nlo,nup,i,ipos,ncurr,CompPart
+        INTEGER :: list(0:NIfTot,n)
 !        logical :: tbin
 !        if(.not.tbin) goto 200
 !.......................................................................
@@ -384,13 +386,13 @@
  100    continue
 !..if num is larger than the last element of list,
 !.. return ipos as nup+1
-        if(DetBitLT(list(0:NIfD,nup),DetCurr(0:NIfD),NIfD).eq.1) then 
+        if(DetBitLT(list(:,nup),DetCurr(:)).eq.1) then 
            ipos=nup+1
            return
         endif
 !..if num is le the first element of the list
 !.. return ipos as nlo
-        if(DetBitLT(DetCurr(0:NIfD),list(0:NIfD,nlo),NIfD).eq.1) then
+        if(DetBitLT(DetCurr(:),list(:,nlo)).eq.1) then
            ipos=nlo
            return
         endif
@@ -403,7 +405,7 @@
             return
         ENDIF
 
-        CompPart=DetBitLT(list(0:NIfD,ncurr),DetCurr(0:NIfD),NIfD)
+        CompPart=DetBitLT(list(:,ncurr),DetCurr(:))
 
 !.. if list(ncurr) gt num then the upper bound to the 
 !.. list can be shifted to nup
@@ -420,14 +422,14 @@
         if(CompPart.eq.0) then 
 !..check to see if the previous member is less than num.
 !.. if so, return ipose=ncurr
-           if(DetBitLT(list(0:NIfD,ncurr-1),DetCurr(0:NIfD),NIfD).eq.1) then
+           if(DetBitLT(list(:,ncurr-1),DetCurr(:)).eq.1) then
 !           if(list(ncurr-1).lt.num) then
               ipos=ncurr 
               return
            endif
 !..check to see if the next member of list is ge num
 !.. if so, return ipos=ncurr
-           if(DetBitLT(list(0:NIfD,ncurr+1),DetCurr(0:NIfD),NIfD).eq.-1) then
+           if(DetBitLT(list(:,ncurr+1),DetCurr(:)).eq.-1) then
 !           if(list(ncurr+1).gt.num) then
               ipos=ncurr 
               return
@@ -438,7 +440,7 @@
  200    continue
 !..simple linear search. At the moment, you cannot get here.
         do i=1,n
-           if(DetBitLT(list(0:NIfD,i),DetCurr(0:NIfD),NIfD).ne.1) then 
+           if(DetBitLT(list(:,i),DetCurr(:)).ne.1) then 
              ipos=i
              return
            endif
@@ -456,11 +458,13 @@
 !.. list2(0:NIfD,ipos) ge DetCurr2(0:NIfD)
 !..list is assumed to be in increasing order
 !..i.e inserting an entry in two lists in the correct position relative to both lists.
-    SUBROUTINE searchminor(n,DetCurr,DetCurr2,ipos,NIfD)
+    SUBROUTINE searchminor(n,DetCurr,DetCurr2,ipos)
+        use SystemData, only: NIfTot
+        use DetBitOps, only: Det2BitLT
         USE FciMCParMOD , only : MinorStarDets,MinorStarParent
         IMPLICIT NONE
-        INTEGER :: n,NIfD,DetCurr(0:NIfD),DetCurr2(0:NIfD)!,list(0:NIFd,n)
-        INTEGER :: nlo,nup,Det2BitLT,i,ipos,ncurr,CompPart
+        INTEGER :: n,DetCurr(0:NIfTot),DetCurr2(0:NIfTot)!,list(0:NIFd,n)
+        INTEGER :: nlo,nup,i,ipos,ncurr,CompPart
 !        logical :: tbin
 !        if(.not.tbin) goto 200
 !.......................................................................
@@ -471,13 +475,13 @@
 !..if num is larger than the last element of list,
 !.. return ipos as nup+1
 !        WRITE(6,*) 'in 100 loop'
-        if(Det2BitLT(MinorStarDets(0:NIfD,nup),DetCurr(0:NIfD),NIfD,MinorStarParent(0:NIfD,nup),DetCurr2(0:NIfD),NIfD).eq.1) then 
+        if(Det2BitLT(MinorStarDets(:,nup),DetCurr(:),MinorStarParent(:,nup),DetCurr2(:)).eq.1) then 
            ipos=nup+1
            return
         endif
 !..if num is le the first element of the list
 !.. return ipos as nlo
-        if(Det2BitLT(DetCurr(0:NIfD),MinorStarDets(0:NIfD,nlo),NIfD,DetCurr2(0:NIfD),MinorStarParent(0:NIfD,nlo),NIfD).eq.1) then
+        if(Det2BitLT(DetCurr(:),MinorStarDets(:,nlo),DetCurr2(:),MinorStarParent(:,nlo)).eq.1) then
            ipos=nlo
            return
         endif
@@ -490,7 +494,7 @@
             return
         ENDIF
 
-        CompPart=Det2BitLT(MinorStarDets(0:NIfD,ncurr),DetCurr(0:NIfD),NIfD,MinorStarParent(0:NIfD,ncurr),DetCurr2(0:NIfD),NIfD)
+        CompPart=Det2BitLT(MinorStarDets(:,ncurr),DetCurr(:),MinorStarParent(:,ncurr),DetCurr2(:))
         ! Compares determinants w regards to both the determinants and the parents.
 
 
@@ -509,14 +513,14 @@
         if(CompPart.eq.0) then 
 !..check to see if the previous member is less than num.
 !.. if so, return ipose=ncurr
-           if(Det2BitLT(MinorStarDets(0:NIfD,ncurr-1),DetCurr(0:NIfD),NIfD,MinorStarParent(0:NIfD,ncurr-1),DetCurr2(0:NIfD),NIfD).eq.1) then
+           if(Det2BitLT(MinorStarDets(:,ncurr-1),DetCurr(:),MinorStarParent(:,ncurr-1),DetCurr2(:)).eq.1) then
 !           if(list(ncurr-1).lt.num) then
               ipos=ncurr 
               return
            endif
 !..check to see if the next member of list is ge num
 !.. if so, return ipos=ncurr
-           if(Det2BitLT(MinorStarDets(0:NIfD,ncurr+1),DetCurr(0:NIfD),NIfD,MinorStarParent(0:NIfD,ncurr+1),DetCurr2(0:NIfD),NIfD).eq.-1) then
+           if(Det2BitLT(MinorStarDets(:,ncurr+1),DetCurr(:),MinorStarParent(:,ncurr+1),DetCurr2(:)).eq.-1) then
 !           if(list(ncurr+1).gt.num) then
               ipos=ncurr 
               return
@@ -527,7 +531,7 @@
  200    continue
 !..simple linear search. At the moment, you cannot get here.
         do i=1,n
-           if(Det2BitLT(MinorStarDets(0:NIfD,i),DetCurr(0:NIfD),NIfD,MinorStarParent(0:NIfD,i),DetCurr2(0:NIfD),NIfD).ne.1) then 
+           if(Det2BitLT(MinorStarDets(:,i),DetCurr(:),MinorStarParent(:,i),DetCurr2(:)).ne.1) then 
              ipos=i
              return
            endif

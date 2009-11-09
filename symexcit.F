@@ -8,7 +8,7 @@ C.. Setup for symmetry routine below.
       SUBROUTINE SYMSETUPEXCITS(NI,NEL,G1,NBASIS,NBASISMAX,STORE,TCOUNT,
      &      ICOUNT,ILEVEL,iMinElec1,iMaxElec1)
          use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
-         use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
+         use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB,NIfTot
          use SymData, only: SymClassSize
          IMPLICIT NONE
          INCLUDE 'irat.inc'
@@ -82,7 +82,7 @@ C.. If we're just counting, we don't need to keep DSTORE
       SUBROUTINE SYMSETUPEXCITS2(NI,NEL,G1,NBASIS,NBASISMAX,STORE,
      &   TCOUNT,ICOUNT,CLASSES,ILUT,SYMPRODS,ILEVEL,iMinElec1,iMaxElec1)
          use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
-         use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
+         use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB,NIfTot
          use SymData, only: SymClass,SymClasses,SymLabelCounts
          use SymData, only: SymStatePairs,SymLabels,SymPairProds
          use SymData, only: nSymPairProds,nSymLabels
@@ -729,6 +729,7 @@ C..      ENDIF(.NOT.TCOUNT)
      &   TCOUNT,ICOUNT,CLASSES,ILUT,SYMPRODS,ILEVEL,iMinElec1,iMaxElec1)
          use global_utilities
          use SystemData, only: Symmetry,BasisFN,tAssumeSizeExcitgen
+         use SystemData, only: NIfTot
          use SymData, only: SymClass,nSymPairProds,nSymLabels
          use SymData, only: tAbelianFastExcitGen
          use SymData, only: tStoreStateList
@@ -817,7 +818,7 @@ C.. in order 1, not order NEL.
      &          (tStoreStateList)) THEN
 !ILUT is not needed in the setup of the excitation generators for abelian symmetry.
 !tStoreStateList will be false for abelian symmetry, unless specified otherwise.
-            ILUT(0:NIfD)=0
+            ILUT(:)=0
             DO I=1,NEL
                 ILUT((NI(I)-1)/32)=
      &              IBSET(ILUT((NI(I)-1)/32),MOD(NI(I)-1,32))
@@ -2195,7 +2196,7 @@ C.. A modified version of GENSYMEXCITIT2.  This has min and max electron 1 speci
      &         TSETUP,NMEM,NJ,IC,IFRZ,STORE,ILEVEL,iMinElec1,iMaxElec1)
          use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
          use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
-         use SystemData, only: tAssumeSizeExcitgen
+         use SystemData, only: tAssumeSizeExcitgen, NIfTot
          use SymData, only: SymClassSize,nSymPairProds,nSymLabels
          IMPLICIT NONE
          INCLUDE 'irat.inc'
@@ -3522,7 +3523,7 @@ C                     CALL WRITEDET(6,NK,NEL,.TRUE.)
       LOGICAL FUNCTION IsConnectedDet(nI,nJ,nEl,nIExcitor,G1,nBasisMax,
      &      nBasis)
          use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
-         use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
+         use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB, NIfTot
          use SymData, only: SymClassSize 
          IMPLICIT NONE
          INTEGER nEl,nI(nEl),nJ(nEl),nIExcitor(*),nBasis,nBasisMax(*)
@@ -3572,7 +3573,7 @@ C                     CALL WRITEDET(6,NK,NEL,.TRUE.)
      &      nBasis,pGen)
          USE HElem
          use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
-         use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
+         use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB, NIfTot
          use SymData, only: SymClassSize
          IMPLICIT NONE
          INTEGER nEl,nI(nEl),nJ(nEl),nIExcitor(*),nBasis,nBasisMax(*)

@@ -2074,14 +2074,14 @@ C.. Set to be totally symmetric
 !This routine *stochastically* finds the size of the determinant space. For certain symmetries, its hard to find the
 !allowed size of the determinant space. However, it can be simply found using a MC technique.
       SUBROUTINE FindSymMCSizeofSpace(IUNIT)
-         use SymData , only : TwoCycleSymGens
-         use SystemData , only : nEl,G1,nBasis,nOccAlpha,nOccBeta,G1
-         use SystemData, only : tUEG
-         use Determinants , only : FDet
-         use DetCalc , only : ICILevel
-         use SystemData , only : CalcDetCycles, CalcDetPrint,tFixLz,NIfD
-         use mt95 , only : genrand_real2 
-         use soft_exit , only : ChangeVars
+         use SymData, only : TwoCycleSymGens
+         use SystemData, only: nEl,G1,nBasis,nOccAlpha,nOccBeta,G1
+         use SystemData, only: tUEG, NIfTot
+         use Determinants, only : FDet
+         use DetCalc, only : ICILevel
+         use SystemData, only : CalcDetCycles, CalcDetPrint,tFixLz,NIfD
+         use mt95, only : genrand_real2 
+         use soft_exit, only : ChangeVars
          use Parallel
          use DetBitops, only: EncodeBitDet
          IMPLICIT NONE
