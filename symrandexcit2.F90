@@ -2323,13 +2323,13 @@ END SUBROUTINE SpinOrbSymSetup
 !the excitation. This means that all excitations should be 0 or 1 after enough iterations. It will then count the excitations and compare the number to the
 !number of excitations generated using the full enumeration excitation generation. This can be done for both doubles and singles, or one of them.
 SUBROUTINE TestGenRandSymExcitNU(nI,Iterations,pDoub,exFlag)
-    Use SystemData , only : NEl,nBasis,G1,nBasisMax
+    Use SystemData , only : NEl,nBasis,G1,nBasisMax,NIfTot
     Use GenRandSymExcitNUMod , only : GenRandSymExcitNU,ConstructClassCounts,ScratchSize
     Use SymData , only : nSymLabels
     IMPLICIT NONE
     INTEGER :: i,Iterations,exFlag,nI(NEl),nJ(NEl),IC,ExcitMat(2,2),DetConn
     REAL*8 :: pDoub,pGen
-    INTEGER :: ClassCount2(ScratchSize),iLut(0:nBasis/32)
+    INTEGER :: ClassCount2(ScratchSize),iLut(0:NIfTot)
     INTEGER :: ClassCountUnocc2(ScratchSize)
     LOGICAL :: tParity,SymAllowed
     REAL*8 , ALLOCATABLE :: DoublesHist(:,:,:,:),SinglesHist(:,:)

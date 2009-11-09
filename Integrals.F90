@@ -594,7 +594,7 @@ MODULE Integrals
         
     Subroutine IntFreeze
       use SystemData, only: Alat,Brr,CoulDampOrb,ECore,fCoulDampMu
-      use SystemData, only: G1,iSpinSkip,NIfD
+      use SystemData, only: G1,iSpinSkip,NIfD,NIfY,NIfTot,tCSF
       use SystemData, only: nBasis,nEl,arr,nbasismax
       use UMatCache, only: GetUMatSize
       use HElem, only: HElement,HElementSize,HElementSizeB
@@ -682,10 +682,24 @@ MODULE Integrals
       ENDIF
 !      CALL WRITETMAT(NBASIS)
 !      CALL WRITESYMCLASSES(NBASIS)
+      
+      ! This indicates the upper-bound for the determinants when expressed in
+      ! bit-form. This will equal INT(nBasis/32).
+      ! The actual total length for a determinant in bit form will be 
+      ! NoIntforDet+1 + NIfY (which is the size of the Yamanouchi symbol)
       NIfD=INT(nBasis/32)
-!This indicates the upper-bound for the determinants when expressed in bit-form. This will equal INT(nBasis/32).
-!The actual total length for a determinant in bit form will be NoIntforDet+1
-      WRITE(6,*) "Setting integer length of determinants as bit-strings to: ",NIfD+1
+
+      ! NIfY gives space to store number of open shell e-
+      ! and the Yamanouchi symbol in a bit representation
+      if (tCSF) then
+          NIfY = int(nel/32)+2
+      else
+          NIfY = 0
+      endif
+      NIfTot = NIfD + NIfY
+
+
+      WRITE(6,*) "Setting integer length of determinants as bit-strings to: ",NIfD+NIfY+1
          
       IF(COULDAMPORB.GT.0) THEN
          FCOULDAMPMU=(ARR(COULDAMPORB,1)+ARR(COULDAMPORB+1,1))/2

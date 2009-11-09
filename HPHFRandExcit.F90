@@ -5,10 +5,11 @@ MODULE HPHFRandExcitMod
 ![ P(i->a) + P(i->b) + P(j->a) + P(j->b) ]/2
 !We therefore need to find the excitation matrix between the determinant which wasn't excited and the determinant which was created.
 
-    use SystemData, only: nEl,tMerTwist,NIfD
+    use SystemData, only: nEl,tMerTwist,NIfD,NIfTot,tCSF
     use SymData, only: nSymLabels
     use mt95 , only : genrand_real2
     use GenRandSymExcitNUMod , only : GenRandSymExcitScratchNU,ConstructClassCounts,CalcNonUniPGen,ScratchSize 
+    use DetBitOps, only: DetBitLT,DetBitEQ
     use HElem
     IMPLICIT NONE
 !    SAVE
@@ -33,7 +34,7 @@ MODULE HPHFRandExcitMod
 
 
 !Test is nI is a closed-shell determinant
-        IF(TestClosedShellDet(iLutnI,NIfD)) THEN
+        IF(TestClosedShellDet(iLutnI)) THEN
 !If determinant is closed shell, then all probabilities are the same, so P=2*Prob since both spins are equally likely to be generated (as long as generates open shell HPHF).
 !Just need to return the right spin.
 
@@ -43,7 +44,7 @@ MODULE HPHFRandExcitMod
             CALL FindExcitBitDet(iLutnI,iLutnJ,IC,ExcitMat,NIfD)
 
             IF(IC.eq.2) THEN
-                IF(.not.TestClosedShellDet(iLutnJ,NIfD)) THEN
+                IF(.not.TestClosedShellDet(iLutnJ)) THEN
                     pGen=pGen*2.D0
                     CALL ReturnAlphaOpenDet(nJ,nJ2,iLutnJ,iLutnJ2,.true.,.true.,tSwapped)
                 ELSE
@@ -75,13 +76,13 @@ MODULE HPHFRandExcitMod
 
 !Find Bit-representation of excitation.
             CALL FindExcitBitDet(iLutnI,iLutnJ,IC,ExcitMat,NIfD)
-            IF(TestClosedShellDet(iLutnJ,NIfD)) THEN
+            IF(TestClosedShellDet(iLutnJ)) THEN
 !Excitation created is a closed shell determinant. Both determinants are connected to it, and crucially with the same probability. This means that the final pGen is unchanged.
                 RETURN
             ENDIF
 
 !We may have been able to excite from nI2 to this determinant. see if it in connected.
-            CALL FindBitExcitLevel(iLutnI2,iLutnJ,NIfD,ExcitLevel,2)
+            CALL FindBitExcitLevel(iLutnI2,iLutnJ,ExcitLevel,2)
             IF((ExcitLevel.le.2).and.(ExcitLevel.ne.0)) THEN
                 Ex2(1,1)=ExcitLevel
                 CALL GetExcitation(nI2,nJ,NEl,Ex2,tSign)
@@ -94,20 +95,20 @@ MODULE HPHFRandExcitMod
         ELSE
 !Excite from the spin-pair of nI (called nI2)
 
-!            CALL DecodeBitDet(nI2,iLutnI2,NEl,NIfD)
+!            CALL DecodeBitDet(nI2,iLutnI2)
 !            CALL FindDetSpinSym(nI,nI2,NEl)
             CALL GenRandSymExcitScratchNU(nI2,iLutnI2,nJ,pDoub,IC,ExcitMat,tParity,exFlag,pGen,ClassCount3,ClassCountUnocc3,tGenClassCountnI2)
 
 !Find Bit-representation of excitation.
             CALL FindExcitBitDet(iLutnI2,iLutnJ,IC,ExcitMat,NIfD)
-            IF(TestClosedShellDet(iLutnJ,NIfD)) THEN
+            IF(TestClosedShellDet(iLutnJ)) THEN
 !Excitation created is a closed shell determinant. Both determinants are connected to it, and crucially with the same probability. This means that the final pGen is unchanged.
                 RETURN
             ENDIF
 
 !We know we have gone from open-shell HPHF to open-shell HPHF. We need all four pGens.
 !We have nI2 -> nJ. Find nI -> nJ. First, we need to know whether it is connected or not.
-            CALL FindBitExcitLevel(iLutnI,iLutnJ,NIfD,ExcitLevel,2)
+            CALL FindBitExcitLevel(iLutnI,iLutnJ,ExcitLevel,2)
             IF((ExcitLevel.le.2).and.(ExcitLevel.ne.0)) THEN
                 Ex2(1,1)=ExcitLevel
                 CALL GetExcitation(nI,nJ,NEl,Ex2,tSign)
@@ -125,7 +126,7 @@ MODULE HPHFRandExcitMod
         CALL FindDetSpinSym(nJ,nJ2,NEl)
 
 !Firstly, nI2 -> nJ2
-        CALL FindBitExcitLevel(iLutnI2,iLutnJ2,NIfD,ExcitLevel,2)
+        CALL FindBitExcitLevel(iLutnI2,iLutnJ2,ExcitLevel,2)
         IF((ExcitLevel.le.2).and.(ExcitLevel.ne.0)) THEN
             Ex2(1,1)=ExcitLevel
             CALL GetExcitation(nI2,nJ2,NEl,Ex2,tSign)
@@ -138,7 +139,7 @@ MODULE HPHFRandExcitMod
         ENDIF
 
 !Finally, nI -> nJ2
-        CALL FindBitExcitLevel(iLutnI,iLutnJ2,NIfD,ExcitLevel,2)
+        CALL FindBitExcitLevel(iLutnI,iLutnJ2,ExcitLevel,2)
         IF((ExcitLevel.le.2).and.(ExcitLevel.ne.0)) THEN
             Ex2(1,1)=ExcitLevel
             CALL GetExcitation(nI,nJ2,NEl,Ex2,tSign)
@@ -188,11 +189,11 @@ MODULE HPHFRandExcitMod
 !            CALL Stop_All("ouvbou","OUBOU")
 !        ENDIF
 
-        IF(TestClosedShellDet(iLutnJ,NIfD)) THEN
+        IF(TestClosedShellDet(iLutnJ)) THEN
 !There is only one way which we could have generated the excitation nJ since it has no spin-partner. Also, we will always return the 'correct' version.
             IF(tGenMatEl) THEN
 !Generate matrix element -> HPHF to closed shell det.
-                IF(TestClosedShellDet(iLutnI,NIfD)) THEN
+                IF(TestClosedShellDet(iLutnI)) THEN
                     !Closed shell -> Closed Shell
                     MatEl%v=0.D0
                     CALL SltCndExcit2(nEl,nBasisMax,nBasis,nI,nJ,G1,nEl-IC,NMSH,FCK,NMAX,ALAT,UMat,MatEl,ExcitMat,tSignOrig)
@@ -213,22 +214,22 @@ MODULE HPHFRandExcitMod
 !            CALL FindExcitBitDetSym(iLutnJ,iLutnJ2)
 !Try and find if spin-coupled determinant from excitation is attached.
             IF(tSwapped) THEN
-                CALL FindBitExcitLevel(iLutnI,iLutnJ,NIfD,ExcitLevel,2)
+                CALL FindBitExcitLevel(iLutnI,iLutnJ,ExcitLevel,2)
             ELSE
-                CALL FindBitExcitLevel(iLutnI,iLutnJ2,NIfD,ExcitLevel,2)
+                CALL FindBitExcitLevel(iLutnI,iLutnJ2,ExcitLevel,2)
             ENDIF
 
             IF((ExcitLevel.eq.2).or.(ExcitLevel.eq.1)) THEN     !This is if we have all determinants in the two HPHFs connected...
 
                 Ex2(1,1)=ExcitLevel
-!                CALL DecodeBitDet(nJ2,iLutnJ2,NEl,NIfD)     !This could be done better !***!
+!                CALL DecodeBitDet(nJ2,iLutnJ2)     !This could be done better !***!
 
                 IF(tSwapped) THEN
 !                    CALL GetExcitation(nI,nJ,NEl,Ex2,tSign) !This could be done more efficiently... !***!
-                    CALL GetBitExcitation(iLutnI,iLutnJ,NIfD,NEl,Ex2,tSign)
+                    CALL GetBitExcitation(iLutnI,iLutnJ,Ex2,tSign)
                 ELSE
 !                    CALL GetExcitation(nI,nJ2,NEl,Ex2,tSign)
-                    CALL GetBitExcitation(iLutnI,iLutnJ2,NIfD,NEl,Ex2,tSign)
+                    CALL GetBitExcitation(iLutnI,iLutnJ2,Ex2,tSign)
                 ENDIF
                 CALL CalcNonUniPGen(Ex2,ExcitLevel,ClassCount2,ClassCountUnocc2,pDoub,pGen2)    
 !!We cannot guarentee that the pGens are going to be the same - in fact, generally, they wont be.
@@ -236,13 +237,13 @@ MODULE HPHFRandExcitMod
 
                 IF(tGenMatEl) THEN
 !Generate matrix element to open shell excitation
-                    IF(TestClosedShellDet(iLutnI,NIfD)) THEN    !Closed shell -> Open shell : Want to sum in SQRT(2)* Hij
+                    IF(TestClosedShellDet(iLutnI)) THEN    !Closed shell -> Open shell : Want to sum in SQRT(2)* Hij
                         
                         MatEl%v=0.D0
                         IF(tSwapped) THEN
                             CALL SltCndExcit2(NEl,nBasisMax,nBasis,nI,nJ,G1,NEl-IC,NMSH,FCK,NMAX,ALAT,UMat,MatEl,Ex2,tSign)
 
-!                            CALL FindBitExcitLevel(iLutnI,iLutnJ,NIfD,IC1,2)
+!                            CALL FindBitExcitLevel(iLutnI,iLutnJ,IC1,2)
 !                            Ex2(1,1)=IC1
 !                            CALL GetExcitation(nI,nJ,NEl,Ex2,tSign)
 !                            CALL SltCndExcit2(NEl,nBasisMax,nBasis,nI,nJ,G1,NEl-IC1,NMSH,FCK,NMAX,ALAT,UMat,MatEl,Ex2,tSign)
@@ -268,12 +269,12 @@ MODULE HPHFRandExcitMod
 
 !                        CALL FindDetSpinSym(nI,nI2,NEl)
 !                        CALL FindExcitBitDetSym(iLutnI,iLutnI2)
-!                        CALL FindBitExcitLevel(iLutnI2,iLutnJ,NIfD,ExcitLevel2,2)
+!                        CALL FindBitExcitLevel(iLutnI2,iLutnJ,ExcitLevel2,2)
 
                         IF((ExcitLevel.eq.2).or.(ExcitLevel.eq.1)) THEN
                             
-                            CALL CalcOpenOrbs(iLutnJ,NIfD,NEl,OpenOrbsJ)
-                            CALL CalcOpenOrbs(iLutnI,NIfD,NEl,OpenOrbsI)
+                            CALL CalcOpenOrbs(iLutnJ,OpenOrbsJ)
+                            CALL CalcOpenOrbs(iLutnI,OpenOrbsI)
 
                             IF(tSwapped) THEN
                                 IF((OpenOrbsJ+OpenOrbsI).eq.3) tSignOrig=.not.tSignOrig  !I.e. J odd and I even or vice versa, but since these can only be at max quads, then they can only have 1/2 open orbs
@@ -326,8 +327,8 @@ MODULE HPHFRandExcitMod
                 IF(tGenMatEl) THEN
 !iLutnI MUST be open-shell here, since otherwise it would have been connected to iLutnJ2. Also, we know the cross connection (i.e. MatEl2 = 0)
                     IF(tSwapped) THEN
-                        CALL CalcOpenOrbs(iLutnJ,NIfD,NEl,OpenOrbsJ)
-!                        CALL CalcOpenOrbs(iLutnI,NIfD,NEl,OpenOrbsI)
+                        CALL CalcOpenOrbs(iLutnJ,OpenOrbsJ)
+!                        CALL CalcOpenOrbs(iLutnI,OpenOrbsI)
 !                        IF(((mod(OpenOrbsI,2).eq.1).and.(mod(OpenOrbsJ,2).eq.1)).or.((mod(OpenOrbsI,2).eq.0).and.(mod(OpenOrbsJ,2).eq.1))) THEN
                         IF(mod(OpenOrbsJ,2).eq.1) THEN
 !                            WRITE(6,*) "Swapped parity"
@@ -367,9 +368,12 @@ MODULE HPHFRandExcitMod
 !iLutnI (nI) is returned as this determinant, with iLutSym (nJ) being the other.
 !If tCalciLutSym is false, iLutSym will be calculated from iLutnI. Otherwise, it won't.
     SUBROUTINE ReturnAlphaOpenDet(nI,nJ,iLutnI,iLutSym,tCalciLutSym,tCalcnISym,tSwapped)
-        INTEGER :: iLutSym(0:NIfD),nI(NEl),iLutnI(0:NIfD),nJ(NEl),iLutTemp(0:NIfD),i,nTemp(NEl)
-        INTEGER :: DetBitLT
+        INTEGER :: iLutSym(0:NIfTot),nI(NEl),iLutnI(0:NIfTot),nJ(NEl),iLutTemp(0:NIfTot),i,nTemp(NEl)
         LOGICAL :: tCalciLutSym,tCalcnISym,tSwapped
+
+        if (tCSF .or. (NIfTot.ne.NIfD)) then
+            call stop_all ("ReturnAlphaOpenDet","This doesn't work with extra data yet")
+        endif
 
         IF(tCalciLutSym) THEN
             CALL FindExcitBitDetSym(iLutnI,iLutSym)
@@ -378,7 +382,7 @@ MODULE HPHFRandExcitMod
             CALL FindDetSpinSym(nI,nJ,NEl)
         ENDIF
 
-        i=DetBitLT(iLutnI,iLutSym,NIfD)
+        i=DetBitLT(iLutnI,iLutSym)
         IF(i.eq.1) THEN
 !iLutnI is 'less' than iLutSym, so iLutSym is the determinant with the first open-shell = alpha. Swap them around.
             iLutTemp(:)=iLutnI(:)
@@ -505,22 +509,23 @@ MODULE HPHFRandExcitMod
 !number of excitations generated using the full enumeration excitation generation.
     SUBROUTINE TestGenRandHPHFExcit(nI,Iterations,pDoub)
         Use SystemData , only : NEl,nBasis,G1,nBasisMax,NIfD
+        use DetBitOps, only: EncodeBitDet, DecodeBitDet
         IMPLICIT NONE
         INTEGER :: ClassCount2(ScratchSize),nIX(NEl)
         INTEGER :: ClassCountUnocc2(ScratchSize)
         INTEGER :: i,Iterations,nI(NEl),nJ(NEl),DetConn,nI2(NEl),nJ2(NEl),DetConn2,iUniqueHPHF,iUniqueBeta,PartInd,ierr,iExcit
         REAL*8 :: pDoub,pGen
-        LOGICAL :: Unique,TestClosedShellDet,DetBitEQ,Die,tGenClassCountnI,tSwapped
-        INTEGER :: iLutnI(0:NIfD),iLutnJ(0:NIfD),iLutnI2(0:NIfD),iLutSym(0:NIfD)
+        LOGICAL :: Unique,TestClosedShellDet,Die,tGenClassCountnI,tSwapped
+        INTEGER :: iLutnI(0:NIfTot),iLutnJ(0:NIfTot),iLutnI2(0:NIfTot),iLutSym(0:NIfTot)
         INTEGER , ALLOCATABLE :: ConnsAlpha(:,:),ConnsBeta(:,:),ExcitGen(:),UniqueHPHFList(:,:)
         REAL*8 , ALLOCATABLE :: Weights(:)
         INTEGER :: iMaxExcit,nStore(6),nExcitMemLen,j,k,l
 
-        CALL EncodeBitDet(nI,iLutnI,NEl,NIfD)
+        CALL EncodeBitDet(nI,iLutnI)
         CALL FindDetSpinSym(nI,nI2,NEl)
-        CALL EncodeBitDet(nI2,iLutnI2,NEl,NIfD)
-        IF(TestClosedShellDet(iLutnI,NIfD)) THEN
-            IF(.not.DetBitEQ(iLutnI,iLutnI2,NIfD)) THEN
+        CALL EncodeBitDet(nI2,iLutnI2)
+        IF(TestClosedShellDet(iLutnI)) THEN
+            IF(.not.DetBitEQ(iLutnI,iLutnI2)) THEN
                 CALL Stop_All("TestGenRandHPHFExcit","Closed shell determinant entered, but alpha and betas different...")
             ENDIF
         ENDIF
@@ -548,13 +553,13 @@ MODULE HPHFRandExcitMod
         CALL GenSymExcitIt2(nI,NEl,G1,nBasis,nBasisMax,.TRUE.,EXCITGEN,nJ,iMaxExcit,0,nStore,3)
         CALL GetSymExcitCount(EXCITGEN,DetConn)
         WRITE(6,*) "Alpha determinant has ",DetConn," total excitations:"
-        ALLOCATE(ConnsAlpha(0:NIfD,DetConn))
+        ALLOCATE(ConnsAlpha(0:NIfTot,DetConn))
         i=1
         lp2: do while(.true.)
             CALL GenSymExcitIt2(nI,NEl,G1,nBasis,nBasisMax,.false.,EXCITGEN,nJ,iExcit,0,nStore,3)
             IF(nJ(1).eq.0) exit lp2
-            CALL EncodeBitDet(nJ,iLutnJ,NEl,NIfD)
-            IF(.not.TestClosedShellDet(iLutnJ,NIfD)) THEN
+            CALL EncodeBitDet(nJ,iLutnJ)
+            IF(.not.TestClosedShellDet(iLutnJ)) THEN
                 CALL ReturnAlphaOpenDet(nJ,nJ2,iLutnJ,iLutSym,.true.,.true.,tSwapped)
             ENDIF
 !            WRITE(6,"(4I4,A,I4,A,I13)") nJ(:), " *** ", iExcit, " *** ", iLutnJ(:)
@@ -574,13 +579,13 @@ MODULE HPHFRandExcitMod
         CALL GenSymExcitIt2(nI2,NEl,G1,nBasis,nBasisMax,.TRUE.,EXCITGEN,nJ,iMaxExcit,0,nStore,3)
         CALL GetSymExcitCount(EXCITGEN,DetConn2)
         WRITE(6,*) "Beta determinant has ",DetConn2," total excitations"
-        ALLOCATE(ConnsBeta(0:NIfD,DetConn2))
+        ALLOCATE(ConnsBeta(0:NIfTot,DetConn2))
         i=1
         lp: do while(.true.)
             CALL GenSymExcitIt2(nI2,NEl,G1,nBasis,nBasisMax,.false.,EXCITGEN,nJ,iExcit,0,nStore,3)
             IF(nJ(1).eq.0) exit lp
-            CALL EncodeBitDet(nJ,iLutnJ,NEl,NIfD)
-            IF(.not.TestClosedShellDet(iLutnJ,NIfD)) THEN
+            CALL EncodeBitDet(nJ,iLutnJ)
+            IF(.not.TestClosedShellDet(iLutnJ)) THEN
                 CALL ReturnAlphaOpenDet(nJ,nJ2,iLutnJ,iLutSym,.true.,.true.,tSwapped)
             ENDIF
 !            WRITE(6,"(4I4,A,I4,A,I13)") nJ(:), " *** ",iExcit," *** ",iLutnJ(:)
@@ -596,7 +601,7 @@ MODULE HPHFRandExcitMod
             Unique=.true.
             do k=j-1,1,-1
 !Run backwards through the array to see if this HPHF has come before
-                IF(DetBitEQ(ConnsAlpha(0:NIfD,k),ConnsAlpha(0:NIfD,j),NIfD)) THEN
+                IF(DetBitEQ(ConnsAlpha(0:NIfTot,k),ConnsAlpha(0:NIfTot,j))) THEN
 !This HPHF has already been counted before...
                     Unique=.false.
                     EXIT
@@ -615,7 +620,7 @@ MODULE HPHFRandExcitMod
 !Run though all excitations in the first array, *and* up to where we are in the second array
             Unique=.true.
             do k=1,DetConn
-                IF(DetBitEQ(ConnsAlpha(0:NIfD,k),ConnsBeta(0:NIfD,j),NIfD)) THEN
+                IF(DetBitEQ(ConnsAlpha(0:NIfTot,k),ConnsBeta(0:NIfTot,j))) THEN
                     Unique=.false.
                     EXIT
                 ENDIF
@@ -623,7 +628,7 @@ MODULE HPHFRandExcitMod
             IF(Unique) THEN
 !Need to search backwards through the entries we've already looked at in this array...
                 do k=j-1,1,-1
-                    IF(DetBitEQ(ConnsBeta(0:NIfD,k),ConnsBeta(0:NIfD,j),NIfD)) THEN
+                    IF(DetBitEQ(ConnsBeta(0:NIfTot,k),ConnsBeta(0:NIfTot,j))) THEN
                         Unique=.false.
                         EXIT
                     ENDIF
@@ -644,7 +649,7 @@ MODULE HPHFRandExcitMod
             STOP
         ENDIF
 
-        ALLOCATE(UniqueHPHFList(0:NIfD,iUniqueHPHF))
+        ALLOCATE(UniqueHPHFList(0:NIfTot,iUniqueHPHF))
         UniqueHPHFList(:,:)=0
 !Now fill the list of HPHF Excitations.
         iUniqueHPHF=0
@@ -653,7 +658,7 @@ MODULE HPHFRandExcitMod
             Unique=.true.
             do k=j-1,1,-1
 !Run backwards through the array to see if this HPHF has come before
-                IF(DetBitEQ(ConnsAlpha(0:NIfD,k),ConnsAlpha(0:NIfD,j),NIfD)) THEN
+                IF(DetBitEQ(ConnsAlpha(0:NIfTot,k),ConnsAlpha(0:NIfTot,j))) THEN
 !This HPHF has already been counted before...
                     Unique=.false.
                     EXIT
@@ -671,7 +676,7 @@ MODULE HPHFRandExcitMod
 !Run though all excitations in the first array, *and* up to where we are in the second array
             Unique=.true.
             do k=1,DetConn
-                IF(DetBitEQ(ConnsAlpha(0:NIfD,k),ConnsBeta(0:NIfD,j),NIfD)) THEN
+                IF(DetBitEQ(ConnsAlpha(0:NIfTot,k),ConnsBeta(0:NIfTot,j))) THEN
                     Unique=.false.
                     EXIT
                 ENDIF
@@ -679,7 +684,7 @@ MODULE HPHFRandExcitMod
             IF(Unique) THEN
 !Need to search backwards through the entries we've already looked at in this array...
                 do k=j-1,1,-1
-                    IF(DetBitEQ(ConnsBeta(0:NIfD,k),ConnsBeta(0:NIfD,j),NIfD)) THEN
+                    IF(DetBitEQ(ConnsBeta(0:NIfTot,k),ConnsBeta(0:NIfTot,j))) THEN
                         Unique=.false.
                         EXIT
                     ENDIF
@@ -693,7 +698,7 @@ MODULE HPHFRandExcitMod
 
 !Now sort the list, so that it can be easily binary searched.
         ALLOCATE(ExcitGen(iUniqueHPHF))
-        CALL SortBitDets(iUniqueHPHF,UniqueHPHFList(:,1:iUniqueHPHF),NIfD,ExcitGen)
+        CALL SortBitDets(iUniqueHPHF,UniqueHPHFList(:,1:iUniqueHPHF),ExcitGen)
         DEALLOCATE(ExcitGen)
 
         WRITE(6,*) "Unique HPHF wavefunctions are: "
@@ -714,7 +719,7 @@ MODULE HPHFRandExcitMod
 !            CALL GenRandSymExcitNU(nI,iLut,nJ,pDoub,IC,ExcitMat,TParity,exFlag,pGen)
 
 !Search through the list of HPHF wavefunctions to find slot.
-            CALL BinSearchListHPHF(iLutnJ,UniqueHPHFList(0:NIfd,1:iUniqueHPHF),iUniqueHPHF,1,iUniqueHPHF,PartInd,Unique)
+            CALL BinSearchListHPHF(iLutnJ,UniqueHPHFList(:,1:iUniqueHPHF),iUniqueHPHF,1,iUniqueHPHF,PartInd,Unique)
 
             IF(.not.Unique) THEN
                 CALL Stop_All("TestGenRandHPHFExcit","Cannot find excitation in list of allowed excitations")
@@ -738,7 +743,7 @@ MODULE HPHFRandExcitMod
                 Die=.true.
             ENDIF
             WRITE(6,*) i,UniqueHPHFList(0:NIfD,i),Weights(i)
-            CALL DecodeBitDet(nIX,UniqueHPHFList(0:NIfD,i),NEl,NIfD)
+            CALL DecodeBitDet(nIX,UniqueHPHFList(0:NIfTot,i))
             WRITE(6,*) nIX(:)
             WRITE(8,*) i,UniqueHPHFList(0:NIfD,i),Weights(i)
         enddo
@@ -751,9 +756,9 @@ MODULE HPHFRandExcitMod
     END SUBROUTINE TestGenRandHPHFExcit
 
     SUBROUTINE BinSearchListHPHF(iLut,List,Length,MinInd,MaxInd,PartInd,tSuccess)
-        INTEGER :: iLut(0:NIfD),MinInd,MaxInd,PartInd
-        INTEGER :: List(0:NIfD,Length),Length
-        INTEGER :: i,j,N,Comp,DetBitLT
+        INTEGER :: iLut(0:NIfTot),MinInd,MaxInd,PartInd
+        INTEGER :: List(0:NIfTot,Length),Length
+        INTEGER :: i,j,N,Comp
         LOGICAL :: tSuccess
 
 !        WRITE(6,*) "Binary searching between ",MinInd, " and ",MaxInd
@@ -761,7 +766,7 @@ MODULE HPHFRandExcitMod
         i=MinInd
         j=MaxInd
         IF(i-j.eq.0) THEN
-            Comp=DetBitLT(List(:,MaxInd),iLut(:),NIfD)
+            Comp=DetBitLT(List(:,MaxInd),iLut(:))
             IF(Comp.eq.0) THEN
                 tSuccess=.true.
                 PartInd=MaxInd
@@ -776,7 +781,7 @@ MODULE HPHFRandExcitMod
 !            WRITE(6,*) i,j,n
 
 !Comp is 1 if CyrrebtDets(N) is "less" than iLut, and -1 if it is more or 0 if they are the same
-            Comp=DetBitLT(List(:,N),iLut(:),NIfD)
+            Comp=DetBitLT(List(:,N),iLut(:))
 
             IF(Comp.eq.0) THEN
 !Praise the lord, we've found it!
@@ -793,7 +798,7 @@ MODULE HPHFRandExcitMod
                 IF(i.eq.MaxInd-1) THEN
 !This deals with the case where we are interested in the final/first entry in the list. Check the final entry of the list and leave
 !We need to check the last index.
-                    Comp=DetBitLT(List(:,i+1),iLut(:),NIfD)
+                    Comp=DetBitLT(List(:,i+1),iLut(:))
                     IF(Comp.eq.0) THEN
                         tSuccess=.true.
                         PartInd=i+1

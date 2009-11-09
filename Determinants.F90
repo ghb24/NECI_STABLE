@@ -591,25 +591,26 @@ END MODULE Determinants
 
 ! Write bit-determinant NI to unit NUnit.  Set LTerm if to add a newline at end.  Also prints CSFs
       SUBROUTINE WriteBitDet(nUnit,iLutnI,lTerm)
-         use SystemData, only : nEl, nIfD
+         use SystemData, only : nEl, nIfTot
+         use DetBitops, only: DecodeBitDet
          implicit none
-         integer nUnit,nI(nEl),iLutnI(0:nIfD)
+         integer nUnit,nI(nEl),iLutnI(0:nIfTot)
          logical lTerm
-         CALL DecodeBitDet(nI,iLutnI,nEl,nIfD)
+         CALL DecodeBitDet(nI,iLutnI)
          CALL WriteDet(nUnit,nI,nEl,lTerm)
       END
 
 ! Write bit-determinant NI to unit NUnit.  Set LTerm if to add a newline at end.  Also prints CSFs
       SUBROUTINE WriteBitEx(nUnit,iLutRef,iLutnI,lTerm)
-         use SystemData, only : nEl, nIfD
+         use SystemData, only : nEl, nIfD, NIfTot
          implicit none
-         integer nUnit,nExpI(nEl),iLutRef(0:nIfD),iLutnI(0:nIfD)
+         integer nUnit,nExpI(nEl),iLutRef(0:nIfTot),iLutnI(0:nIfTot)
          integer Ex(2,nEl)
          logical lTerm
          logical tSign
          INTEGER iEl,I
          EX(1,1)=nEl  !Indicate the length of EX
-         CALL GetBitExcitation(iLutRef,iLutnI,nIfD,nEl,Ex,tSign)
+         CALL GetBitExcitation(iLutRef,iLutnI,Ex,tSign)
          WRITE(NUNIT,"(A)",advance='no') "("
 ! First the excit from
          DO I=1,NEL
