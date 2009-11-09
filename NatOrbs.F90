@@ -1558,6 +1558,64 @@ MODULE NatOrbsMod
     END SUBROUTINE PrintOccTable
 
 
+    SUBROUTINE FindOrbOccupations()
+! This routine takes whatever orbital basis we're using and is called at the end of a spawn to find the contribution of each orbital to the final wavefunction.    
+! This is done by histogramming the determinant populations, and then running over these adding the coefficients of each determinant to the orbitals 
+! occupied.
+! This is essentially < Psi | a_p+ a_p | Psi > - the diagonal terms of the one electron reduced density matrix.
+        USE DetCalc , only : Det,FCIDets
+        USE FciMCData , only : AllHistogram
+        INTEGER :: ierr,OrbOccsTag,i,CurrDet(NEl),j
+        REAL*8 :: Norm
+        REAL*8 , ALLOCATABLE :: OrbOccs(:)
+        CHARACTER(len=*), PARAMETER :: this_routine='FindOrbOccupations'
+
+
+! Orbitals are always treated as spin orbitals because this the occupied orbitals in a determinant are the spin orbitals.
+        ALLOCATE(OrbOccs(nBasis),stat=ierr)
+        CALL LogMemAlloc('OrbOccs',nBasis,8,this_routine,OrbOccsTag,ierr)
+        OrbOccs(:)=0.D0
+
+
+! Det is the number of determinants in FCIDets.
+! FCIDets contains the list of all determinants in the system in bit string representation, FCIDets(0:nBasis/32,1:Det) 
+
+! The elements of AllHistogram correspond to the rows of FCIDets - i.e to each determinant in the system.
+! AllHistogram contains the final (normalised) amplitude of the determinant - with sign.
+
+        do i=1,Det 
+            CurrDet(:)=0
+            CALL DecodeBitDet(CurrDet,FCIDets(0:NIfD,i),NEl,NIfD)
+
+! Run through each orbital occupied in the current determinant and add the coefficient of the determinant to the contribution from that orbital.            
+            do j=1,NEl
+                OrbOccs(CurrDet(j))=OrbOccs(CurrDet(j))+ABS(AllHistogram(i))
+            enddo
+        enddo
+
+! Want to normalise the orbital contributions for convenience.        
+        Norm=0.D0
+        do i=1,nBasis
+            Norm=Norm+OrbOccs(i)
+        enddo
+        do i=1,nBasis
+            OrbOccs(i)=OrbOccs(i)/Norm
+        enddo
+
+        OPEN(12,FILE='ORBOCCUPATIONS',STATUS='UNKNOWN')
+        WRITE(12,'(A15,A30)') '# Orbital no.','Normalised occupation'
+        do i=1,nBasis
+            WRITE(12,'(I15,F30.10)') i,OrbOccs(i)
+        enddo
+        CLOSE(12)
+
+        DEALLOCATE(OrbOccs)
+        CALL LogMemDeAlloc(this_routine,OrbOccsTag)
+ 
+
+    END SUBROUTINE FindOrbOccupations
+
+
 
     SUBROUTINE DeallocateNatOrbs()
         USE Logging , only : tTruncRODump
