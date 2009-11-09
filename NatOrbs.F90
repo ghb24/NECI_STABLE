@@ -1567,6 +1567,7 @@ MODULE NatOrbsMod
 ! This is essentially < Psi | a_p+ a_p | Psi > - the diagonal terms of the one electron reduced density matrix.
         USE DetCalc , only : Det,FCIDets
         USE FciMCData , only : AllHistogram
+        use DetBitOps, only: DecodeBitDet
         INTEGER :: ierr,OrbOccsTag,i,CurrDet(NEl),j
         REAL*8 :: Norm
         REAL*8 , ALLOCATABLE :: OrbOccs(:)
@@ -1587,7 +1588,7 @@ MODULE NatOrbsMod
 
         do i=1,Det 
             CurrDet(:)=0
-            CALL DecodeBitDet(CurrDet,FCIDets(0:NIfD,i),NEl,NIfD)
+            CALL DecodeBitDet(CurrDet,FCIDets(0:NIfTot,i))
 
 ! Run through each orbital occupied in the current determinant and add the coefficient of the determinant to the contribution from that orbital.            
             do j=1,NEl
