@@ -1333,7 +1333,7 @@ MODULE FciMCParMod
             IF(iProcIndex.eq.root) THEN
 !                RangeWalkers=MaxWalkersProc-MinWalkersProc
 !                IF(RangeWalkers.gt.300) THEN
-                IF((MaxWalkersProc.gt.MaxAllowedWalkers).and.(AllTotWalkers.gt.(REAL(nProcessors*500,r2)))) THEN
+                IF((MaxWalkersProc.gt.MaxAllowedWalkers).and.(AllTotParts.gt.(REAL(nProcessors*500,r2)))) THEN
                     TBalanceNodesTemp=.true.
                 ELSE
                     TBalanceNodesTemp=.false.
