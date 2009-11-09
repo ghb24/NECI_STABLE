@@ -206,6 +206,12 @@ FCIMC options
     This sets the histogramming to only begin after NHistEquilSteps iterations.  This is so that the 
     fluctuation populations at the beginning of a calculation may be left out.
 
+**PRINTORBOCCS**
+    Default=.false.
+    This turns on the histogramming of the determinant populations, and at the end of the spawning, calls a 
+    routine to add up the contribution of each orbital to the final wavefunction.  A ORBOCCUPATIONS file is then
+    printed containing the orbitals and their normalised absolute occupations.
+
 **WRITEDETE** [NoHistBins] [MaxHistE]
     This is an FCIMC option and will write out a histogram of the energies of determinants which have
     had particles spawned at them and their excitation level. The histogram logs the total
