@@ -1,11 +1,4 @@
 !This file contains a load of useful operations to perform on determinants represented as bit-strings.
-
-
-!if(Det2BitLT(MinorStarDets(0:NIfD,nup),DetCurr(0:NIfD),NIfD,MinorStarParent(0:NIfD,nup),DetCurr2(0:NIfD),NIfD).eq.1) then 
-
-
-
-
 ! Start the process of modularising this bit!!
 module DetBitOps
     use Systemdata, only: nel, NIfD, NIfY, NIfTot, tCSF

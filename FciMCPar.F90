@@ -30,7 +30,7 @@ MODULE FciMCParMod
     USE Logging , only : iWritePopsEvery,TPopsFile,TZeroProjE,iPopsPartEvery,tBinPops,tHistSpawn,iWriteHistEvery,tHistEnergies
     USE Logging , only : NoACDets,BinRange,iNoBins,OffDiagBinRange,OffDiagMax,tPrintSpinCoupHEl!,iLagMin,iLagMax,iLagStep,tAutoCorr
     USE Logging , only : tPrintTriConnections,tHistTriConHels,tPrintHElAccept,tPrintFCIMCPsi,tCalcFCIMCPsi,NHistEquilSteps
-    USE Logging , only : tHFPopStartBlock,tIterStartBlock,IterStartBlocking,HFPopStartBlocking,tInitShiftBlocking
+    USE Logging , only : tHFPopStartBlock,tIterStartBlock,IterStartBlocking,HFPopStartBlocking,tInitShiftBlocking,tHistHamil,iWriteHamilEvery
     USE SymData , only : nSymLabels
     USE mt95 , only : genrand_real2
     USE Parallel
@@ -149,6 +149,9 @@ MODULE FciMCParMod
             IF(tHistSpawn.and.(mod(Iter,iWriteHistEvery).eq.0)) THEN
                 CALL WriteHistogram()
             ENDIF
+            IF(tHistHamil.and.(mod(Iter,iWriteHamilEvery).eq.0)) THEN
+                CALL WriteHamilHistogram()
+            ENDIF
 
             Iter=Iter+1
 !End of MC cycle
@@ -179,6 +182,8 @@ MODULE FciMCParMod
         IF(tShiftBlocking) CALL FinaliseShiftBlocking(Iter)
 
         IF(tHistSpawn) CALL WriteHistogram()
+
+        IF(tHistHamil) CALL WriteHamilHistogram()
 
         Weight=HDElement(0.D0)
         Energyxw=HDElement(ProjectionE)
@@ -453,7 +458,7 @@ MODULE FciMCParMod
             WRITE(11,*) Iter,TotWalkers,NoatHF,NoatDoubs,MaxIndex,TotParts
             CALL FLUSH(11)
         ENDIF
-        
+
 !        IF(tRotoAnnihil) THEN
 !            CALL CheckOrdering(CurrentDets(:,1:TotWalkers),CurrentSign(1:TotWalkers),TotWalkers,.true.)
 !        ENDIF
@@ -509,7 +514,7 @@ MODULE FciMCParMod
 
 !Also, we want to find out the excitation level - we only need to find out if its connected or not (so excitation level of 3 or more is ignored.
 !This can be changed easily by increasing the final argument.
-            IF(tTruncSpace.or.tHighExcitsSing.or.tHistSpawn.or.tCalcFCIMCPsi.or.tPrintSpinCoupHEl) THEN
+            IF(tTruncSpace.or.tHighExcitsSing.or.tHistSpawn.or.tCalcFCIMCPsi.or.tPrintSpinCoupHEl.or.tHistHamil) THEN
 !We need to know the exact excitation level for truncated calculations.
                 CALL FindBitExcitLevel(iLutHF,CurrentDets(:,j),WalkExcitLevel,NEl)
                 IF((WalkExcitLevel.eq.2).and.tPrintSpinCoupHEl) CALL FindSpinCoupHEl(iLutHF,CurrentDets(:,j))
@@ -687,6 +692,9 @@ MODULE FciMCParMod
                 
                 IF(Child.ne.0) THEN
 !We want to spawn a child - find its information to store
+                    IF(tHistHamil) THEN
+                        CALL AddHistHamilEl(CurrentDets(:,j),iLutnJ,WalkExcitLevel,Child,1)   !Histogram the hamiltonian - iLutnI,iLutnJ,Excitlevel of parent,spawning indicator
+                    ENDIF
 
 !                    WRITE(6,*) "Spawning particle to:",nJ(:)
 !                    ExcitLevel=iGetExcitLevel_2(HFDet,nJ,NEl,NEl)
@@ -1195,8 +1203,8 @@ MODULE FciMCParMod
 !        ENDIF
 
     END SUBROUTINE PerformFCIMCycPar
-
-
+                        
+    
     
 !Every StepsSft steps, update the diagonal shift value (the running value for the correlation energy)
 !We don't want to do this too often, since we want the population levels to acclimatise between changing the shifts
@@ -5093,6 +5101,14 @@ MODULE FciMCParMod
                 DEALLOCATE(AllSinglesHistVirtVirt)
             ENDIF
         ENDIF
+        IF(tHistHamil) THEN
+            DEALLOCATE(HistHamil)
+            DEALLOCATE(AvHistHamil)
+            IF(iProcIndex.eq.0) THEN
+                DEALLOCATE(AllHistHamil)
+                DEALLOCATE(AllAvHistHamil)
+            ENDIF
+        ENDIF
         DEALLOCATE(WalkVecDets)
         CALL LogMemDealloc(this_routine,WalkVecDetsTag)
         DEALLOCATE(WalkVecSign)
@@ -6668,6 +6684,43 @@ MODULE FciMCParMod
 
     END SUBROUTINE WriteHistogram
 
+!This routine will write out the average hamiltonian from the spawning run up until now.
+    SUBROUTINE WriteHamilHistogram()
+        INTEGER :: i,j,error
+        CHARACTER(len=22) :: abstr
+
+!This will open a file called HamilHist-"Iter" on unit number 17.
+        abstr=''
+        write(abstr,'(I12)') Iter
+        abstr='HamilHist-'//adjustl(abstr)
+        IF(iProcIndex.eq.0) THEN
+            WRITE(6,*) "Writing out the average hamiltonian up to iteration number: ", Iter
+            CALL FLUSH(6)
+        ENDIF
+
+        IF(iProcIndex.eq.0) THEN
+            AllHistHamil(:,:)=0.D0
+            AllAvHistHamil(:,:)=0.D0
+        ENDIF
+
+        CALL MPI_Reduce(HistHamil,AllHistHamil,Det**2,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
+        CALL MPI_Reduce(AvHistHamil,AllAvHistHamil,Det**2,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
+        
+        IF(iProcIndex.eq.0) THEN
+!How do we normalise this!
+            OPEN(17,FILE=abstr,STATUS='UNKNOWN')
+            do i=1,Det
+                do j=1,Det
+                    WRITE(17,*) j,i,AllAvHistHamil(j,i),AllHistHamil(j,i)
+                enddo
+                WRITE(17,*) ""
+            enddo
+            CLOSE(17)
+        ENDIF
+        HistHamil(:,:)=0.D0
+
+    END SUBROUTINE WriteHamilHistogram
+
 
 !This routine simply reduces the histogrammed determinants, and prints out their population for the given iteration
     SUBROUTINE WriteHistogrammedDets()
@@ -7386,6 +7439,47 @@ MODULE FciMCParMod
 !
 !    END SUBROUTINE SortPartsPar
 
+    SUBROUTINE AddHistHamilEl(iLutnI,iLutnJ,WalkExcitLevel,Child,iTypeMatEl)
+        INTEGER :: iTypeMatEl,WalkExcitLevel,iLutnI(0:NIfD),iLutnJ(0:NIfD),Child
+        LOGICAL :: tSuccess
+        INTEGER :: PartInd,PartIndChild,ChildExcitLevel
+
+        IF(iTypeMatEl.eq.1) THEN
+        !This is a spawning event
+        !Need to histogram the hamiltonian - find the correct indicies of parent and child.
+            IF(WalkExcitLevel.eq.NEl) THEN
+                CALL BinSearchParts2(iLutnI,FCIDetIndex(WalkExcitLevel),Det,PartInd,tSuccess)
+            ELSEIF(WalkExcitLevel.eq.0) THEN
+                PartInd=1
+                tSuccess=.true.
+            ELSE
+                CALL BinSearchParts2(iLutnI,FCIDetIndex(WalkExcitLevel),FCIDetIndex(WalkExcitLevel+1)-1,PartInd,tSuccess)
+            ENDIF
+            IF(.not.tSuccess) THEN
+                CALL Stop_All("AddHistHamil","Cannot find determinant nI in list")
+            ENDIF
+            CALL FindBitExcitLevel(iLutHF,iLutnJ,NIfD,ChildExcitLevel,NEl)
+            IF(ChildExcitLevel.eq.NEl) THEN
+                CALL BinSearchParts2(iLutnJ,FCIDetIndex(ChildExcitLevel),Det,PartIndChild,tSuccess)
+            ELSEIF(ChildExcitLevel.eq.0) THEN
+                PartIndChild=1
+                tSuccess=.true.
+            ELSE
+                CALL BinSearchParts2(iLutnJ,FCIDetIndex(ChildExcitLevel),FCIDetIndex(ChildExcitLevel+1)-1,PartIndChild,tSuccess)
+            ENDIF
+            IF(.not.tSuccess) THEN
+                CALL Stop_All("AddHistHamil","Cannot find determinant nJ in list")
+            ENDIF
+            
+            HistHamil(PartIndChild,PartInd)=HistHamil(PartIndChild,PartInd)+(1.D0*Child)
+            HistHamil(PartInd,PartIndChild)=HistHamil(PartInd,PartIndChild)+(1.D0*Child)
+            AvHistHamil(PartIndChild,PartInd)=AvHistHamil(PartIndChild,PartInd)+(1.D0*Child)
+            AvHistHamil(PartInd,PartIndChild)=AvHistHamil(PartInd,PartIndChild)+(1.D0*Child)
+        ENDIF
+
+    END SUBROUTINE AddHistHamilEl
+
+
 
 
     SUBROUTINE NormandDiagOneRDM()
@@ -7890,6 +7984,11 @@ MODULE FciMCParMod
             tNoBrillouin=.true.
         ENDIF
 
+        IF((tHub.and.tReal).or.(tRotatedOrbs)) THEN
+            tNoBrillouin=.true.
+        ENDIF
+
+
         TBalanceNodes=.false.   !Assume that the nodes are initially load-balanced
 
 !Initialise variables for calculation on each node
@@ -7948,7 +8047,7 @@ MODULE FciMCParMod
         NoCulls=0
         
 
-        IF(tHistSpawn.or.(tCalcFCIMCPsi.and.tFCIMC)) THEN
+        IF(tHistSpawn.or.(tCalcFCIMCPsi.and.tFCIMC).or.tHistHamil) THEN
             ALLOCATE(HistMinInd(NEl))
             ALLOCATE(HistMinInd2(NEl))
             maxdet=0
@@ -7960,12 +8059,32 @@ MODULE FciMCParMod
                 CALL Stop_All(this_routine,"A Full Diagonalization is required in the same calculation before histogramming can occur.")
             ENDIF
 
-            WRITE(6,*) "Histogramming spawning wavevector, with Dets=", Det
-            ALLOCATE(Histogram(1:det),stat=ierr)
-            IF(ierr.ne.0) THEN
-                CALL Stop_All("SetupParameters","Error assigning memory for histogramming arrays (could deallocate NMRKS to save memory?)")
+            IF(tHistHamil) THEN
+                WRITE(6,*) "Histogramming total Hamiltonian, with Dets=", Det
+                ALLOCATE(HistHamil(1:det,1:det),stat=ierr)
+                IF(ierr.ne.0) CALL Stop_All("SetupParameters","Error assigning memory for histogramming arrays (could deallocate NMRKS to save memory?)")
+                HistHamil(:,:)=0.D0
+                ALLOCATE(AvHistHamil(1:det,1:det),stat=ierr)
+                IF(ierr.ne.0) CALL Stop_All("SetupParameters","Error assigning memory for histogramming arrays (could deallocate NMRKS to save memory?)")
+                AvHistHamil(:,:)=0.D0
+                IF(iProcIndex.eq.0) THEN
+                    ALLOCATE(AllHistHamil(1:det,1:det),stat=ierr)
+                    IF(ierr.ne.0) CALL Stop_All("SetupParameters","Error assigning memory for histogramming arrays (could deallocate NMRKS to save memory?)")
+                    AllHistHamil(:,:)=0.D0
+                    ALLOCATE(AllAvHistHamil(1:det,1:det),stat=ierr)
+                    IF(ierr.ne.0) CALL Stop_All("SetupParameters","Error assigning memory for histogramming arrays (could deallocate NMRKS to save memory?)")
+                    AllAvHistHamil(:,:)=0.D0
+                ENDIF
+            ELSE
+                WRITE(6,*) "Histogramming spawning wavevector, with Dets=", Det
+                ALLOCATE(Histogram(1:det),stat=ierr)
+                IF(ierr.ne.0) THEN
+                    CALL Stop_All("SetupParameters","Error assigning memory for histogramming arrays (could deallocate NMRKS to save memory?)")
+                ENDIF
+                Histogram(:)=0.D0
+                ALLOCATE(AllHistogram(1:det),stat=ierr)
+                IF(ierr.ne.0) CALL Stop_All("SetupParameters","Error assigning memory for histogramming arrays (could deallocate NMRKS to save memory?)")
             ENDIF
-            Histogram(:)=0.D0
             IF(tHistSpawn) THEN
                 ALLOCATE(InstHist(1:det),stat=ierr)
                 IF(ierr.ne.0) THEN
@@ -7984,8 +8103,6 @@ MODULE FciMCParMod
                 InstAnnihil(:)=0.D0
             ENDIF
 
-            ALLOCATE(AllHistogram(1:det),stat=ierr)
-            IF(ierr.ne.0) CALL Stop_All("SetupParameters","Error assigning memory for histogramming arrays (could deallocate NMRKS to save memory?)")
             IF(iProcIndex.eq.0) THEN
                 IF(tHistSpawn) THEN
                     ALLOCATE(AllInstHist(1:det),stat=ierr)
@@ -8060,7 +8177,7 @@ MODULE FciMCParMod
 !This is a list of options which cannot be used with the stripped-down spawning routine. New options not added to this routine should be put in this list.
         IF(tHighExcitsSing.or.tHistSpawn.or.tRegenDiagHEls.or.tFindGroundDet.or.tStarOrbs.or.tResumFCIMC.or.tSpawnAsDet.or.tImportanceSample    &
      &      .or.(.not.tRegenExcitgens).or.(.not.tNonUniRandExcits).or.(.not.tDirectAnnihil).or.tMinorDetsStar.or.tSpawnDominant.or.(DiagSft.gt.0.D0).or.   &
-     &      tPrintTriConnections.or.tHistTriConHEls.or.tCalcFCIMCPsi.or.tTruncCAS.or.tListDets.or.tPartFreezeCore.or.tFixLz.or.tUEG) THEN
+     &      tPrintTriConnections.or.tHistTriConHEls.or.tCalcFCIMCPsi.or.tTruncCAS.or.tListDets.or.tPartFreezeCore.or.tFixLz.or.tUEG.or.tHistHamil) THEN
             WRITE(6,*) "It is not possible to use to clean spawning routine..."
         ELSE
             WRITE(6,*) "Clean spawning routine in use..."
@@ -9029,7 +9146,7 @@ MODULE FciMCParMod
 !            AvSign=AvSign+REAL(WSign,r2)
 
         ELSEIF(ExcitLevel.eq.1) THEN
-          if(tNoBrillouin.or.(tHub.and.tReal).or.tRotatedOrbs) then
+          if(tNoBrillouin) then
 !For the real-space hubbard model, determinants are only connected to excitations one level away, and brillouins theorem can not hold.
 !For Rotated orbitals, brillouins theorem also cannot hold, and energy contributions from walkers on singly excited determinants must
 !be included in the energy values along with the doubles.
