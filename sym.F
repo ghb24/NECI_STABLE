@@ -2083,7 +2083,7 @@ C.. Set to be totally symmetric
          use SystemData, only: tUEG, NIfTot
          use Determinants, only : FDet
          use DetCalc, only : ICILevel
-         use SystemData, only : CalcDetCycles, CalcDetPrint,tFixLz,NIfD
+         use SystemData, only : CalcDetCycles, CalcDetPrint,tFixLz
          use mt95, only : genrand_real2 
          use soft_exit, only : ChangeVars
          use Parallel

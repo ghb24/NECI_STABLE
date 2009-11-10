@@ -12,7 +12,7 @@ MODULE NatOrbsMod
         USE UMatCache , only : UMatInd
         USE SystemData , only : NEl,nBasis,G1,ARR,BRR,lNoSymmetry,LMS,tStoreSpinOrbs,nOccAlpha,nOccBeta,tSeparateOccVirt
         USE SystemData , only : tRotateOccOnly,tRotateVirtOnly,tFindCINatOrbs,tUseMP2VarDenMat,nBasisMax,ALAT,iSpinSkip
-        use SystemData, only: NIfD, NIfY, NIfTot
+        use SystemData, only: NIfY, NIfTot
         USE RotateOrbsData , only : SymLabelList2,SymLabelCounts2,SymLabelCounts2Tag,SymLabelListInv,NoOrbs,SpatOrbs,FillOneRDM_time
         USE RotateOrbsData , only : FillMP2VDM_Time,DiagNatOrbMat_Time,OrderCoeff_Time,FillCoeff_Time,NoFrozenVirt
         USE HElem
@@ -482,7 +482,7 @@ MODULE NatOrbsMod
 !               ! lower to one excitation higher.
                     IF((i.gt.Det).or.(j.gt.Det)) CALL Stop_All('FillOneRDM','Running through i or j larger than the number of determinants.')
 
-                    CALL FindBitExcitLevel(FCIDets(0:NIfD,i),FCIDets(0:NIfD,j),ExcitLevel,2)
+                    CALL FindBitExcitLevel(FCIDets(:,i),FCIDets(:,j),ExcitLevel,2)
                     ! Need to find the excitation level between D_i and D_j. If this is 1 - go on to add their contributions to the OneRDM.
 
                     IF(ExcitLevel.eq.1) THEN

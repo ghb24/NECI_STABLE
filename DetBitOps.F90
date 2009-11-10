@@ -175,7 +175,7 @@ module DetBitOps
             ELSEIF(iLutI(0).eq.iLutJ(0)) THEN
                 ! If the integers are the same, then cycle through the rest 
                 ! of the integers until we find a difference.
-                do i=1,NIfD
+                do i=1,NIfTot
                     IF(iLutI(i).lt.iLutJ(i)) THEN
                         DetExcitBitLT=1
                         RETURN

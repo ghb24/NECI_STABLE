@@ -5,7 +5,7 @@ MODULE HPHFRandExcitMod
 ![ P(i->a) + P(i->b) + P(j->a) + P(j->b) ]/2
 !We therefore need to find the excitation matrix between the determinant which wasn't excited and the determinant which was created.
 
-    use SystemData, only: nEl,tMerTwist,NIfD,NIfTot,tCSF
+    use SystemData, only: nEl,tMerTwist,NIfTot,tCSF,NIfD
     use SymData, only: nSymLabels
     use mt95 , only : genrand_real2
     use GenRandSymExcitNUMod , only : GenRandSymExcitScratchNU,ConstructClassCounts,CalcNonUniPGen,ScratchSize 
@@ -19,8 +19,8 @@ MODULE HPHFRandExcitMod
 
 !nI will always be the determinant with the first open-shell having an alpha spin-orbital occupied.
     SUBROUTINE GenRandHPHFExcit(nI,iLutnI,nJ,iLutnJ,pDoub,exFlag,pGen)
-        INTEGER :: nI(NEl),iLutnI(0:NIfD),iLutnJ(0:NIfD),nJ(NEl),exFlag,ExcitMat(2,2),IC
-        INTEGER :: iLutnJ2(0:NIfD),nI2(NEl),nJ2(NEl),Ex2(2,2),ExcitLevel,iLutnI2(0:NIfD)
+        INTEGER :: nI(NEl),iLutnI(0:NIfTot),iLutnJ(0:NIfTot),nJ(NEl),exFlag,ExcitMat(2,2),IC
+        INTEGER :: iLutnJ2(0:NIfTot),nI2(NEl),nJ2(NEl),Ex2(2,2),ExcitLevel,iLutnI2(0:NIfTot)
         REAL*8 :: pDoub,pGen,r,pGen2
         INTEGER :: ClassCount2(ScratchSize),ClassCount3(ScratchSize)
         INTEGER :: ClassCountUnocc2(ScratchSize),ClassCountUnocc3(ScratchSize)
@@ -165,8 +165,8 @@ MODULE HPHFRandExcitMod
     SUBROUTINE GenRandHPHFExcit2Scratch(nI,iLutnI,nJ,iLutnJ,pDoub,exFlag,pGen,ClassCount2,ClassCountUnocc2,tGenClassCountnI,tGenMatEl)
         use SystemData , only : Alat,G1,nBasis,nBasisMax,nMsh,Arr
         use IntegralsData, only : UMat,FCK,NMAX
-        INTEGER :: nI(NEl),iLutnI(0:NIfD),iLutnJ(0:NIfD),nJ(NEl),exFlag,IC,ExcitMat(2,2)!,ExcitLevel2
-        INTEGER :: iLutnJ2(0:NIfD),nJ2(NEl),Ex2(2,2),ExcitLevel,OpenOrbsI,OpenOrbsJ,nI2(NEl),iLutnI2(0:NIfD)!,IC1
+        INTEGER :: nI(NEl),iLutnI(0:NIfTot),iLutnJ(0:NIfTot),nJ(NEl),exFlag,IC,ExcitMat(2,2)!,ExcitLevel2
+        INTEGER :: iLutnJ2(0:NIfTot),nJ2(NEl),Ex2(2,2),ExcitLevel,OpenOrbsI,OpenOrbsJ,nI2(NEl),iLutnI2(0:NIfTot)!,IC1
         REAL*8 :: pDoub,pGen,pGen2
         TYPE(HElement) :: MatEl,MatEl2!,MatEl3
         INTEGER :: ClassCount2(ScratchSize)
@@ -443,8 +443,8 @@ MODULE HPHFRandExcitMod
 !symmetric partner, also in bit form.
     SUBROUTINE FindExcitBitDetSym(iLut,iLutSym)
         IMPLICIT NONE
-        INTEGER :: iLut(0:NIfD),iLutSym(0:NIfD)
-        INTEGER :: iLutAlpha(0:NIfD),iLutBeta(0:NIfD),MaskAlpha,MaskBeta,i
+        INTEGER :: iLut(0:NIfTot),iLutSym(0:NIfTot)
+        INTEGER :: iLutAlpha(0:NIfTot),iLutBeta(0:NIfTot),MaskAlpha,MaskBeta,i
 
 !        WRITE(6,*) "******"
         iLutSym(:)=0
@@ -510,7 +510,7 @@ MODULE HPHFRandExcitMod
 !the excitation. This means that all excitations should be 0 or 1 after enough iterations. It will then count the excitations and compare the number to the
 !number of excitations generated using the full enumeration excitation generation.
     SUBROUTINE TestGenRandHPHFExcit(nI,Iterations,pDoub)
-        Use SystemData , only : NEl,nBasis,G1,nBasisMax,NIfD
+        Use SystemData , only : NEl,nBasis,G1,nBasisMax
         use DetBitOps, only: EncodeBitDet, DecodeBitDet
         IMPLICIT NONE
         INTEGER :: ClassCount2(ScratchSize),nIX(NEl)
@@ -591,7 +591,7 @@ MODULE HPHFRandExcitMod
                 CALL ReturnAlphaOpenDet(nJ,nJ2,iLutnJ,iLutSym,.true.,.true.,tSwapped)
             ENDIF
 !            WRITE(6,"(4I4,A,I4,A,I13)") nJ(:), " *** ",iExcit," *** ",iLutnJ(:)
-            ConnsBeta(0:NIfD,i)=iLutnJ(:)
+            ConnsBeta(:,i)=iLutnJ(:)
             i=i+1
         enddo lp
         DEALLOCATE(EXCITGEN)
@@ -622,7 +622,7 @@ MODULE HPHFRandExcitMod
 !Run though all excitations in the first array, *and* up to where we are in the second array
             Unique=.true.
             do k=1,DetConn
-                IF(DetBitEQ(ConnsAlpha(0:NIfTot,k),ConnsBeta(0:NIfTot,j))) THEN
+                IF(DetBitEQ(ConnsAlpha(:,k),ConnsBeta(:,j))) THEN
                     Unique=.false.
                     EXIT
                 ENDIF
@@ -669,7 +669,7 @@ MODULE HPHFRandExcitMod
             IF(Unique) THEN
 !Unique HPHF found, count it
                 iUniqueHPHF=iUniqueHPHF+1
-                UniqueHPHFList(:,iUniqueHPHF)=ConnsAlpha(0:NIfD,j)
+                UniqueHPHFList(:,iUniqueHPHF)=ConnsAlpha(:,j)
             ENDIF
         enddo
 
@@ -678,7 +678,7 @@ MODULE HPHFRandExcitMod
 !Run though all excitations in the first array, *and* up to where we are in the second array
             Unique=.true.
             do k=1,DetConn
-                IF(DetBitEQ(ConnsAlpha(0:NIfTot,k),ConnsBeta(0:NIfTot,j))) THEN
+                IF(DetBitEQ(ConnsAlpha(:,k),ConnsBeta(:,j))) THEN
                     Unique=.false.
                     EXIT
                 ENDIF
@@ -686,7 +686,7 @@ MODULE HPHFRandExcitMod
             IF(Unique) THEN
 !Need to search backwards through the entries we've already looked at in this array...
                 do k=j-1,1,-1
-                    IF(DetBitEQ(ConnsBeta(0:NIfTot,k),ConnsBeta(0:NIfTot,j))) THEN
+                    IF(DetBitEQ(ConnsBeta(:,k),ConnsBeta(:,j))) THEN
                         Unique=.false.
                         EXIT
                     ENDIF
@@ -705,7 +705,7 @@ MODULE HPHFRandExcitMod
 
         WRITE(6,*) "Unique HPHF wavefunctions are: "
         do i=1,iUniqueHPHF
-            WRITE(6,*) UniqueHPHFList(0:NIfD,i)
+            WRITE(6,*) UniqueHPHFList(0:NIfTot,i)
         enddo
 
         ALLOCATE(Weights(iUniqueHPHF))
@@ -744,10 +744,10 @@ MODULE HPHFRandExcitMod
                 WRITE(6,*) "Error here!"
                 Die=.true.
             ENDIF
-            WRITE(6,*) i,UniqueHPHFList(0:NIfD,i),Weights(i)
+            WRITE(6,*) i,UniqueHPHFList(0:NIfTot,i),Weights(i)
             CALL DecodeBitDet(nIX,UniqueHPHFList(0:NIfTot,i))
             WRITE(6,*) nIX(:)
-            WRITE(8,*) i,UniqueHPHFList(0:NIfD,i),Weights(i)
+            WRITE(8,*) i,UniqueHPHFList(0:NIfTot,i),Weights(i)
         enddo
 
         CLOSE(8)

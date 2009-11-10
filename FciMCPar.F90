@@ -10,7 +10,7 @@
 !   At the end are functions which do not require parallel directives, and are accessible
 !   for both parallel and non-parallel.
 MODULE FciMCParMod
-    use SystemData , only : NEl,Alat,Brr,ECore,G1,nBasis,nBasisMax,nMsh,Arr,LMS,NIfD,tHPHF,tListDets
+    use SystemData , only : NEl,Alat,Brr,ECore,G1,nBasis,nBasisMax,nMsh,Arr,LMS,tHPHF,tListDets, NIfD
     use SystemData , only : tHub,tReal,tNonUniRandExcits,tMerTwist,tRotatedOrbs,tImportanceSample,tFindCINatOrbs,tFixLz,LzTot,tUEG
     use CalcData , only : InitWalkers,NMCyc,DiagSft,Tau,SftDamp,StepsSft,OccCASorbs,VirtCASorbs,tFindGroundDet,tDirectAnnihil
     use CalcData , only : TStartMP1,NEquilSteps,TReadPops,TRegenExcitgens,TFixShiftShell,ShellFix,FixShift,tMultipleDetsSpawn
@@ -2290,7 +2290,7 @@ MODULE FciMCParMod
             CLOSE(17)
         ENDIF
 
-        CALL MPIIBCast(AllowedDetList,NAllowedDetList*(NIfD+1),Root)
+        CALL MPIIBCast(AllowedDetList,NAllowedDetList*(NIfTot+1),Root)
 !        do i=1,NAllowedDetList
 !            CALL DecodeBitDet(nI,AllowedDetList(0:NIfTot,i))
 !            WRITE(6,*) nI(:)
@@ -2382,7 +2382,7 @@ MODULE FciMCParMod
                 do j=1,TotWalkers
 !First write out walkers on head node
                     IF(mod(j,iPopsPartEvery).eq.0) THEN
-                        do k=0,NIfD
+                        do k=0,NIfTot
                             WRITE(17,"(I20)",advance='no') CurrentDets(k,j)
                         enddo
                         WRITE(17,*) CurrentSign(j)
@@ -2421,7 +2421,7 @@ MODULE FciMCParMod
                 ELSE
                     do j=1,WalkersonNodes(i)
                         IF(mod(j,iPopsPartEvery).eq.0) THEN
-                            do k=0,NIfD
+                            do k=0,NIfTot
                                 WRITE(17,"(I20)",advance='no') CurrentDets(k,j)
                             enddo
                             WRITE(17,*) CurrentSign(j)
@@ -2542,7 +2542,7 @@ MODULE FciMCParMod
                 do j=1,TotWalkers
 !First write out walkers on head node
                     IF(mod(j,iPopsPartEvery).eq.0) THEN
-                        do k=0,NIfD
+                        do k=0,NIfTot
                             WRITE(17,"(I20)",advance='no') CurrentDets(k,j)
                         enddo
                         WRITE(17,*) CurrentSign(j)
@@ -2570,7 +2570,7 @@ MODULE FciMCParMod
                 ELSE
                     do j=1,WalkersonNodes(i)
                         IF(mod(j,iPopsPartEvery).eq.0) THEN
-                            do k=0,NIfD
+                            do k=0,NIfTot
                                 WRITE(17,"(I20)",advance='no') NewDets(k,j)
                             enddo
                             WRITE(17,*) NewSign(j)
@@ -2753,7 +2753,7 @@ MODULE FciMCParMod
 
                 IF(i.ne.1) THEN
 !Now send data to processor i-1 (Processor rank goes from 0 -> nProcs-1). If i=1, then we want the data so stay at the root processor
-                    CALL MPI_Send(WalkVecDets(:,1:WalkerstoReceive(i)),WalkerstoReceive(i)*(NIfD+1),MPI_INTEGER,i-1,Tag,MPI_COMM_WORLD,error)
+                    CALL MPI_Send(WalkVecDets(:,1:WalkerstoReceive(i)),WalkerstoReceive(i)*(NIfTot+1),MPI_INTEGER,i-1,Tag,MPI_COMM_WORLD,error)
                     CALL MPI_Send(WalkVecSign(1:WalkerstoReceive(i)),WalkerstoReceive(i),MPI_INTEGER,i-1,Tag,MPI_COMM_WORLD,error)
                 ENDIF
 
@@ -2790,7 +2790,7 @@ MODULE FciMCParMod
         do i=1,nProcessors-1
             IF(iProcIndex.eq.i) THEN
 !All other processors want to pick up their data from root
-                CALL MPI_Recv(WalkVecDets(:,1:TempInitWalkers),TempInitWalkers*(NIfD+1),MPI_INTEGER,0,Tag,MPI_COMM_WORLD,Stat,error)
+                CALL MPI_Recv(WalkVecDets(:,1:TempInitWalkers),TempInitWalkers*(NIfTot+1),MPI_INTEGER,0,Tag,MPI_COMM_WORLD,Stat,error)
                 CALL MPI_Recv(WalkVecSign(1:TempInitWalkers),TempInitWalkers,MPI_INTEGER,0,Tag,MPI_COMM_WORLD,Stat,error)
                 IF(tRotoAnnihil) THEN
                     CALL SortBitDets(TempInitWalkers, &
@@ -4824,7 +4824,7 @@ MODULE FciMCParMod
 !                WRITE(6,*) "TRANSFER: ",Transfers,WalkToTransfer(:),IndexFrom,TotWalkers
 !                CALL FLUSH(6)
                 
-                CALL MPI_Send(CurrentDets(:,IndexFrom:TotWalkers),WalktoTransfer(1)*(NIfD+1),MPI_INTEGER,WalktoTransfer(3),Tag,MPI_COMM_WORLD,error)
+                CALL MPI_Send(CurrentDets(:,IndexFrom:TotWalkers),WalktoTransfer(1)*(NIfTot+1),MPI_INTEGER,WalktoTransfer(3),Tag,MPI_COMM_WORLD,error)
                 CALL MPI_Send(CurrentSign(IndexFrom:TotWalkers),WalktoTransfer(1),MPI_INTEGER,WalktoTransfer(3),Tag,MPI_COMM_WORLD,error)
 !                CALL MPI_Send(CurrentIC(IndexFrom:TotWalkers),WalktoTransfer(1),MPI_INTEGER,WalktoTransfer(3),Tag,MPI_COMM_WORLD,error)
                 IF(.not.tRegenDiagHEls) THEN
@@ -4852,7 +4852,7 @@ MODULE FciMCParMod
 !                WRITE(6,*) "RECEIVING: ",Transfers,WalkToTransfer(:),IndexFrom,IndexTo
 !                CALL FLUSH(6)
 
-                CALL MPI_Recv(CurrentDets(:,IndexFrom:IndexTo),WalktoTransfer(1)*(NIfD+1),MPI_INTEGER,WalktoTransfer(2),Tag,MPI_COMM_WORLD,Stat,error)
+                CALL MPI_Recv(CurrentDets(:,IndexFrom:IndexTo),WalktoTransfer(1)*(NIfTot+1),MPI_INTEGER,WalktoTransfer(2),Tag,MPI_COMM_WORLD,Stat,error)
                 CALL MPI_Recv(CurrentSign(IndexFrom:IndexTo),WalktoTransfer(1),MPI_INTEGER,WalktoTransfer(2),Tag,MPI_COMM_WORLD,Stat,error)
 !                CALL MPI_Recv(CurrentIC(IndexFrom:IndexTo),WalktoTransfer(1),MPI_INTEGER,WalktoTransfer(2),Tag,MPI_COMM_WORLD,Stat,error)
                 IF(.not.tRegenDiagHEls) THEN
@@ -4886,9 +4886,9 @@ MODULE FciMCParMod
 !If we are using rotoannihilation, then we need to maintain sorted lists. There is a much better way to do it than sorting them all again though!...
 !We are also storing the list as determinants, rather than particles. Therefore after sorting, we need to compress the list to remove multiple specifications of the same det.
             IF(.not.tRegenDiagHEls) THEN
-                CALL SortCompressListswH(TotWalkers,CurrentDets(0:NIfD,1:TotWalkers),CurrentSign(1:TotWalkers),CurrentH(1:TotWalkers))
+                CALL SortCompressListswH(TotWalkers,CurrentDets(0:NIfTot,1:TotWalkers),CurrentSign(1:TotWalkers),CurrentH(1:TotWalkers))
             ELSE
-                CALL SortCompressLists(TotWalkers,CurrentDets(0:NIfD,1:TotWalkers),CurrentSign(1:TotWalkers))
+                CALL SortCompressLists(TotWalkers,CurrentDets(0:NIfTot,1:TotWalkers),CurrentSign(1:TotWalkers))
             ENDIF
         ELSE
             TotParts=TotWalkers
@@ -4936,7 +4936,7 @@ MODULE FciMCParMod
 !Now go through the list, finding common determinants and combining their sign. Also, recalculate TotParts
 !        TotParts=abs(SignList(1))
 !        CurrInd=1
-!        DetCurr=PartList(0:NIfD,1)
+!        DetCurr=PartList(:,1)
 !        i=2
 !        do while(i.le.Length)
 !            CompParts=DetBitLT(DetCurr,PartList(0:NIfTot,i))
@@ -4958,7 +4958,7 @@ MODULE FciMCParMod
 !                    Length=Length-1
 !                ENDIF
 !            ELSE
-!                DetCurr=PartList(0:NIfD,i)
+!                DetCurr=PartList(:,i)
 !                TotParts=TotParts+abs(SignList(i))
 !                CurrInd=i
 !                i=i+1
@@ -5003,7 +5003,7 @@ MODULE FciMCParMod
 !Now go through the list, finding common determinants and combining their sign. Also, recalculate TotParts
 !        TotParts=abs(SignList(1))
 !        CurrInd=1
-!        DetCurr=PartList(0:NIfD,1)
+!        DetCurr=PartList(:,1)
 !        i=2
 !        do while(i.le.Length)
 !            CompParts=DetBitLT(DetCurr,PartList(0:NIfTot,i))
@@ -5033,7 +5033,7 @@ MODULE FciMCParMod
 !                    Length=Length-1
 !                ENDIF
 !            ELSE
-!                DetCurr=PartList(0:NIfD,i)
+!                DetCurr=PartList(:,i)
 !                TotParts=TotParts+abs(SignList(i))
 !                CurrInd=i
 !                i=i+1
@@ -5474,7 +5474,7 @@ MODULE FciMCParMod
             !Set up the determinant and sign arrays by reading in from the GUIDINGFUNC file.
             j=1
             do while (j.le.iGuideDets)
-                READ(36,*) GuideFuncDets(0:NIfD,j),GuideFuncSign(j)
+                READ(36,*) GuideFuncDets(0:NIfTot,j),GuideFuncSign(j)
                 j=j+1
             enddo
             CLOSE(36)
@@ -5531,7 +5531,7 @@ MODULE FciMCParMod
 !            WRITE(37,*) iGuideDets,' determinants included in the guiding function.'    
             do j=1,iGuideDets
                 InitGuideFuncSign(j)=nProcessors*GuideFuncSign(j)
-!                WRITE(37,*) GuideFuncDets(0:NIfD,j),nProcessors*GuideFuncSign(j)
+!                WRITE(37,*) GuideFuncDets(0:NIfTot,j),nProcessors*GuideFuncSign(j)
             enddo
 !            CLOSE(37)
             
@@ -5558,7 +5558,7 @@ MODULE FciMCParMod
             GuideFuncDoub=0.D0
             !Run through all other determinants in the guiding function.  Find out if they are doubly excited.  Find H elements, and multiply by number on that double.
             do i=1,iGuideDets
-                CALL FindBitExcitLevel(GuideFuncDets(0:NIfD,i),iLutHF,ExcitLevel,2)
+                CALL FindBitExcitLevel(GuideFuncDets(0:NIfTot,i),iLutHF,ExcitLevel,2)
                 IF(ExcitLevel.eq.2) THEN
                     DoubDet(:)=0
                     CALL DecodeBitDet(DoubDet,GuideFuncDets(0:NIfTot,i))
@@ -5640,7 +5640,7 @@ MODULE FciMCParMod
             OffSets(j+1)=RecvCounts(j)+OffSets(j)
         enddo
         do j=1,nProcessors
-            RecvCounts02(j)=RecvCounts(j)*(NIfD+1)
+            RecvCounts02(j)=RecvCounts(j)*(NIfTot+1)
         enddo
         OffSets02(:)=0
         do j=1,nProcessors-1
@@ -5711,7 +5711,7 @@ MODULE FciMCParMod
 !            WRITE(32,*) 'The determinants from each processor combined'
 !            WRITE(32,*) AlliGuideDets,' determinants included in the guiding function.'    
 !            do j=1,AlliGuideDets
-!                WRITE(32,*) AllCurrentDets(0:NIfD,j),AllCurrentSign(j)
+!                WRITE(32,*) AllCurrentDets(0:NIfTot,j),AllCurrentSign(j)
 !            enddo
 !            CLOSE(32)
             
@@ -5950,7 +5950,7 @@ MODULE FciMCParMod
         NoExcDets=0
         AllNoExcDets=0
         do i=1,TotWalkers
-            CALL FindBitExcitLevel(CurrentDets(0:NIfD,i),iLutHF(0:NIfD),ExcitLevel,MaxExcDom)
+            CALL FindBitExcitLevel(CurrentDets(:,i),iLutHF(:),ExcitLevel,MaxExcDom)
             IF((ExcitLevel.ge.MinExcDom).and.(ExcitLevel.le.MaxExcDom)) THEN
                 NoExcDets=NoExcDets+1
             ELSEIF(ExcitLevel.eq.0) THEN
@@ -5981,7 +5981,7 @@ MODULE FciMCParMod
 ! add its sign to the ExcSign array.
         ExcDetsIndex=0
         do i=1,TotWalkers
-            CALL FindBitExcitLevel(CurrentDets(0:NIfD,i),iLutHF(0:NIfD),ExcitLevel,MaxExcDom)
+            CALL FindBitExcitLevel(CurrentDets(:,i),iLutHF(:),ExcitLevel,MaxExcDom)
             IF((ExcitLevel.ge.MinExcDom).and.(ExcitLevel.le.MaxExcDom)) THEN
                 ExcDetsIndex=ExcDetsIndex+1
                 ExcDets(0:NIfTot,ExcDetsIndex)=CurrentDets(0:NIfTot,i)
@@ -6001,7 +6001,7 @@ MODULE FciMCParMod
             OffSets(j+1)=RecvCounts(j)+OffSets(j)
         enddo
         do j=1,nProcessors
-            RecvCounts02(j)=RecvCounts(j)*(NIfD+1)
+            RecvCounts02(j)=RecvCounts(j)*(NIfTot+1)
         enddo
         OffSets02(:)=0
         do j=1,nProcessors-1
@@ -6211,44 +6211,44 @@ MODULE FciMCParMod
                                     ! SearchGen will give back ipos so that the determinant we are inserting is < ipos-1 and ge ipos.
                                     ! I.e this determinant goes in ipos and everything else is moved up 1.
                                     IF((iNoDominantDets-CurriNoDominantDets).gt.0) THEN
-                                        CALL SearchGen((iNoDominantDets-CurriNoDominantDets),AllExcDets(0:NIfD,(CurriNoDominantDets+1):iNoDominantDets),&
+                                        CALL SearchGen((iNoDominantDets-CurriNoDominantDets),AllExcDets(0:NIfTot,(CurriNoDominantDets+1):iNoDominantDets),&
                                                     &SpinCoupDetBit(0:NIfTot),ipos)
                                     ELSE
                                         ipos=0
                                     ENDIF
                                     ipos=ipos+CurriNoDominantDets
-!                                    CALL SearchGen(iNoDominantDets,AllExcDets(0:NIfD,1:iNoDominantDets),SpinCoupDetBit(0:NIfD),ipos)
+!                                    CALL SearchGen(iNoDominantDets,AllExcDets(0:NIfTot,1:iNoDominantDets),SpinCoupDetBit(0:NIfTot),ipos)
                                     ! The position the determinant should go is ipos, if the current determinant in ipos is not equal to the SpinCoupDetBit,
                                     ! then we want to insert this determinant here, move all the others up by one, put the determinant that is getting written
                                     ! over at iNoDominantDets+1 in the position of the spincoupdetbit.
                                     
                                     TempSign=AllExcSign(iNoDominantDets+1) 
-                                    AllExcDets(0:NIfD,PartInd)=AllExcDets(0:NIfD,iNoDominantDets+1)
+                                    AllExcDets(0:NIfTot,PartInd)=AllExcDets(0:NIfTot,iNoDominantDets+1)
 
                                     do i=iNoDominantDets,ipos,-1                                                    
-                                        AllExcDets(0:NIfD,i+1)=AllExcDets(0:NIfD,i)                                                    
+                                        AllExcDets(0:NIfTot,i+1)=AllExcDets(0:NIfTot,i)                                                    
                                         AllExcSign(i+1)=AllExcSign(i)
                                     enddo
-                                    AllExcDets(0:NIfD,ipos)=SpinCoupDetBit(0:NIfD)
+                                    AllExcDets(0:NIfTot,ipos)=SpinCoupDetBit(0:NIfTot)
                                     AllExcSign(ipos)=AllExcSign(PartInd)
                                     iRead=iRead+1
                                     iNoDominantDets=iNoDominantDets+1
                                     AllExcSign(PartInd)=TempSign
                                 ELSE
                                     ! Determinant not in the list at all, add to added determinants (maintaining order) with a sign of 0.
-                                    CALL SearchGen((iNoDominantDets-CurriNoDominantDets),AllExcDets(0:NIfD,(CurriNoDominantDets+1):iNoDominantDets),&
-                                                    &SpinCoupDetBit(0:NIfD),ipos)
+                                    CALL SearchGen((iNoDominantDets-CurriNoDominantDets),AllExcDets(0:NIfTot,(CurriNoDominantDets+1):iNoDominantDets),&
+                                                    &SpinCoupDetBit(0:NIfTot),ipos)
                                     ipos=ipos+CurriNoDominantDets
                                     
-                                    AllExcDets(0:NIfD,AllNoExcDets+1)=AllExcDets(0:NIfD,iNoDominantDets+1)
+                                    AllExcDets(0:NIfTot,AllNoExcDets+1)=AllExcDets(0:NIfTot,iNoDominantDets+1)
                                     AllExcSign(AllNoExcDets+1)=AllExcSign(iNoDominantDets+1)
 
                                     do i=iNoDominantDets,ipos,-1                                                    
-                                        AllExcDets(0:NIfD,i+1)=AllExcDets(0:NIfD,i)                                                    
+                                        AllExcDets(0:NIfTot,i+1)=AllExcDets(0:NIfTot,i)                                                    
                                         AllExcSign(i+1)=AllExcSign(i)
                                     enddo
 
-                                    AllExcDets(0:NIfD,ipos)=SpinCoupDetBit(0:NIfD)
+                                    AllExcDets(0:NIfTot,ipos)=SpinCoupDetBit(0:NIfTot)
                                     AllExcSign(ipos)=0
                                     iRead=iRead+1
                                     iNoDominantDets=iNoDominantDets+1
@@ -6292,8 +6292,8 @@ MODULE FciMCParMod
 !            OPEN(40,file='DOMINANTDETSexclevelbit',status='unknown')
 !            WRITE(40,*) AllNoExcDets,' determinants with the right excitation level.'    
 !            do j=1,AllNoExcDets
-!                CALL FindBitExcitLevel(AllExcDets(0:NIfD,j),iLutHF(0:NIfD),ExcitLevel,MaxExcDom)
-!                WRITE(40,*) AllExcDets(0:NIfD,j),AllExcSign(j),ExcitLevel
+!                CALL FindBitExcitLevel(AllExcDets(0:NIfTot,j),iLutHF(0:NIfTot),ExcitLevel,MaxExcDom)
+!                WRITE(40,*) AllExcDets(0:NIfTot,j),AllExcSign(j),ExcitLevel
 !            enddo
 !            CLOSE(40)
 
@@ -6313,13 +6313,13 @@ MODULE FciMCParMod
                         WRITE(38,*) k,0
                     enddo
                 ENDIF
-                CALL FindBitExcitLevel(AllExcDets(0:NIfD,i),iLutHF(0:NIfD),CurrExcitLevel,MaxExcDom)
+                CALL FindBitExcitLevel(AllExcDets(0:NIfTot,i),iLutHF(0:NIfTot),CurrExcitLevel,MaxExcDom)
                 ExcitLevel=CurrExcitLevel
                 do while (ExcitLevel.eq.CurrExcitLevel)
                     NoExcitLevel=NoExcitLevel+1
                     j=j+1
                     IF(j.gt.iNoDominantDets) EXIT
-                    CALL FindBitExcitLevel(AllExcDets(0:NIfD,j),iLutHF(0:NIfD),ExcitLevel,MaxExcDom)
+                    CALL FindBitExcitLevel(AllExcDets(0:NIfTot,j),iLutHF(0:NIfTot),ExcitLevel,MaxExcDom)
                 enddo
                 WRITE(38,*) CurrExcitLevel,NoExcitLevel
             enddo
@@ -6498,7 +6498,7 @@ MODULE FciMCParMod
             IF(iProcIndex.eq.0) THEN
 
 !We now want to order AllHistogram, taking the corresponding element(s) of FCIDets with it...
-                CALL SortRNI(Det,AllHistogram,FCIDets,NIfD+1)
+                CALL SortRNI(Det,AllHistogram,FCIDets,NIfTot+1)
                 
                 OPEN(17,FILE='FCIMCPsi',STATUS='UNKNOWN')
 
@@ -6506,7 +6506,7 @@ MODULE FciMCParMod
                 do i=1,Det
                     norm=norm+AllHistogram(i)**2
 !write out FCIMC Component weight (normalised), current normalisation, excitation level
-                    CALL FindBitExcitLevel(iLutHF,FCIDets(0:NIfD,i),ExcitLevel,NEl)
+                    CALL FindBitExcitLevel(iLutHF,FCIDets(0:NIfTot,i),ExcitLevel,NEl)
                     CALL DecodeBitDet(nI,FCIDets(0:NIfTot,i))
                     WRITE(17,"(I13,G25.16,I6,G20.10)",advance='no') i,AllHistogram(i),ExcitLevel,norm
                     do j=1,NEl-1
@@ -6528,7 +6528,7 @@ MODULE FciMCParMod
     SUBROUTINE WriteHistogram()
         use Determinants , only : GetHElement3
         use SystemData , only : BasisFN
-        INTEGER :: i,j,bits,iLut(0:NIfD),error,IterRead
+        INTEGER :: i,j,bits,iLut(0:NIfTot),error,IterRead
         TYPE(BasisFN) :: ISym
         REAL*8 :: norm,norm1,norm2,norm3,ShiftRead,AllERead,NumParts
         TYPE(HElement) :: HEL
@@ -6544,7 +6544,7 @@ MODULE FciMCParMod
             CALL FLUSH(6)
         ENDIF
 
-!        IF(NIfD.ne.0) THEN
+!        IF(NIfTot.ne.0) THEN
 !            CALL Stop_All("WriteHistogram","System is too large to histogram as it stands...")
 !        ENDIF
 
@@ -7240,12 +7240,12 @@ MODULE FciMCParMod
 !        TYPE(ExcitPointer) :: TempExcit
 !        REAL*8 :: TempH
 !!        INTEGER :: TempIC
-!        INTEGER :: TotWalkersNew,j,k,l,DetCurr(0:NIfD),VecSlot,TotWalkersDet
+!        INTEGER :: TotWalkersNew,j,k,l,DetCurr(0:NIfTot),VecSlot,TotWalkersDet
 !        INTEGER :: DetLT
 !
 !        TempExcit%PointToExcit=>null()
 !!First, it is necessary to sort the list of determinants
-!        CALL SortPartsPar(TotWalkersNew,NewDets(:,1:TotWalkersNew),NIfD+1)
+!        CALL SortPartsPar(TotWalkersNew,NewDets(:,1:TotWalkersNew),NIfTot+1)
 !
 !!Once ordered, each block of walkers on similar determinants can be analysed, and the residual walker concentration moved to CurrentDets
 !        j=1
@@ -7261,7 +7261,7 @@ MODULE FciMCParMod
 !        do while(j.le.TotWalkersNew)
 !!Loop over all walkers
 !            TotWalkersDet=0
-!            do while ((DetLT(NewDets(:,j),DetCurr,(NIfD+1)).eq.0).and.(j.le.TotWalkersNew))
+!            do while ((DetLT(NewDets(:,j),DetCurr,(NIfTot+1)).eq.0).and.(j.le.TotWalkersNew))
 !!Loop over all walkers on DetCurr and count residual number after cancelling
 !                IF(NewSign(j)) THEN
 !                    TotWalkersDet=TotWalkersDet+1
@@ -7626,7 +7626,7 @@ MODULE FciMCParMod
         use SymExcit3, only : CountExcitations3 
         use DetBitOps, only: CountBits
         INTEGER :: ierr,i,j,k,l,DetCurr(NEl),ReadWalkers,TotWalkersDet,HFDetTest(NEl),Seed,alpha,beta,symalpha,symbeta,endsymstate
-        INTEGER :: DetLT,VecSlot,error,HFConn,MemoryAlloc,iMaxExcit,nStore(6),nJ(Nel),BRR2(nBasis),LargestOrb,nBits,HighEDet(NEl),iLutTemp(0:NIfD)
+        INTEGER :: DetLT,VecSlot,error,HFConn,MemoryAlloc,iMaxExcit,nStore(6),nJ(Nel),BRR2(nBasis),LargestOrb,nBits,HighEDet(NEl),iLutTemp(0:NIfTot)
         TYPE(HElement) :: rh,TempHii
         REAL*8 :: TotDets,SymFactor,Choose
         CHARACTER(len=*), PARAMETER :: this_routine='SetupParameters'
@@ -8716,12 +8716,12 @@ MODULE FciMCParMod
 ! This creates a hash based not only on one current determinant, but is also dependent on the 
 ! determinant from which the walkers on this determinant came.
     FUNCTION CreateHashBit(DetCurr)
-        INTEGER :: DetCurr(0:NIfD),i,Elecs,j
+        INTEGER :: DetCurr(0:NIfTot),i,Elecs,j
         INTEGER(KIND=i2) :: CreateHashBit
 
         CreateHashBit=0
         Elecs=0
-        do i=0,NIfD
+        do i=0,NIfTot
             do j=0,31
                 IF(BTEST(DetCurr(i),j)) THEN
                     CreateHashBit=(1099511628211_8*CreateHashBit)+((i*32)+(j+1))*j
@@ -9293,7 +9293,7 @@ END SUBROUTINE DissociateExitgen
 !This is the same as BinSearchParts1, but this time, it searches though the full list of determinants created by the full diagonalizer when the histogramming option is on.
 !This is outside the module so it is accessible to AnnihilateMod
 SUBROUTINE BinSearchParts2(iLut,MinInd,MaxInd,PartInd,tSuccess)
-    use SystemData , only : NIfD, NIfTot
+    use SystemData , only : NIfTot
     use DetCalc , only : FCIDets
     use DetBitOps, only: DetBitLT
     INTEGER :: iLut(0:NIfTot),MinInd,MaxInd,PartInd

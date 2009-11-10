@@ -409,7 +409,7 @@ C.. in order 1, not order NEL.
          DO I=1,NEL
             ILUT((NI(I)-1)/32)=IBSET(ILUT((NI(I)-1)/32),MOD(NI(I)-1,32))
          ENDDO
-!         DO I=0,NIfD
+!         DO I=0,NIfTot
 !            WRITE(6,"(A,Z10)") "LUT: ",ILUT(I)
 !         ENDDO
 C.. Now look through the list of our pairs.  For each pair sym of the complete list which has a 
@@ -826,7 +826,7 @@ C.. in order 1, not order NEL.
 !     &               IBSET(ILUT((NI(I)-1)/32),MOD(NI(I)-1,32)),
 !     &               ILUT(0:NIfTot)
             ENDDO
-C..            DO I=0,NIfD
+C..            DO I=0,NIfTot
 C..                WRITE(6,*) "ILUT: ",ILUT(i)
 C..                WRITE(6,"(A,Z10)") "LUT: ",ILUT(I)
 C..            ENDDO
