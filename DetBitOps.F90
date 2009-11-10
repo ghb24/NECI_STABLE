@@ -11,6 +11,33 @@ module DetBitOps
     use Systemdata, only: nel, NIfD, NIfY, NIfTot, tCSF
     implicit none
     contains
+    ! This will count the bits set in a bit-string up to a number nBitsMax.
+    ! The function will return 0 -> nBitsMax+1
+    ! Counts bits in integers 0:nLast
+    integer function CountBits(iLut,nLast,nBitsMax)
+        integer, intent(in), optional :: nBitsMax
+        integer, intent(in) :: nLast, iLut(0:nLast)
+        integer :: iLutTemp(0:nLast), i, lnBitsMax
+
+        ! By default, allow all the bits to be set
+        if (present(nBitsMax)) then
+            lnBitsMax = nBitsMax
+        else
+            lnBitsMax = 32 * nLast
+        endif
+
+        CountBits = 0
+        iLutTemp = iLut
+        do i=0,nLast
+            do while((iLutTemp(i).ne.0).and.(CountBits.le.nBitsMax))
+                ! Clear the rightmost set bit
+                iLutTemp(i)=IAND(iLutTemp(i),iLutTemp(i)-1)
+                CountBits = CountBits + 1
+            enddo
+            if(CountBits .gt. nBitsMax) return
+        enddo
+    end function CountBits
+
     !This will return true if iLutI is identical to iLutJ and will return false otherwise.
     logical function DetBitEQ(iLutI,iLutJ)
         integer, intent(in) :: iLutI(0:NIfTot), iLutJ(0:NIfTot)
@@ -397,6 +424,7 @@ end module
 !Routine to count number of open *SPATIAL* orbitals in a bit-string representation of a determinant.
     SUBROUTINE CalcOpenOrbs(iLut,OpenOrbs)
         use systemdata, only: NIfD, nel
+        use DetBitOps, only: CountBits
         INTEGER :: iLut(0:NIfD),iLutAlpha(0:NIfD),iLutBeta(0:NIfD),MaskAlpha,MaskBeta,i,OpenOrbs
         
         iLutAlpha(:)=0
@@ -413,7 +441,7 @@ end module
 !            
 !        enddo
 !
-!        CALL CountBits(iLutAlpha,NIfD,OpenOrbs,NEl)
+!        OpenOrbs = CountBits(iLutAlpha,NIfD,NEl)
 !        OpenOrbs=OpenOrbs/2
 
 !Alternatively....use a NOT and an AND to only count half as many set bits
@@ -429,9 +457,7 @@ end module
 
         enddo
 
-        CALL CountBits(iLutAlpha,NIfD,OpenOrbs,NEl)
-
-
+        OpenOrbs = CountBits(iLutAlpha,NIfD,NEl)
     END SUBROUTINE CalcOpenOrbs
 
 !This routine will find the largest bit set in a bit-string (i.e. the highest value orbital)
@@ -460,27 +486,10 @@ end module
 
     END SUBROUTINE LargestBitSet
 
-!This will count the bits set in a bit-string up to a number nBitsMax.
-!NBits will return 0 -> nBitsMax+1
-    SUBROUTINE CountBits(iLut,NIfD,nBits,nBitsMax)
-        IMPLICIT NONE
-        INTEGER :: iLut(0:NIfD),NIfD,i,nBitsMax,nBits,iLutTemp(0:NIfD)
-
-        nBits=0
-        iLutTemp(:)=iLut(:)
-        do i=0,NIfD
-            do while((iLutTemp(i).ne.0).and.(nBits.le.nBitsMax))
-                iLutTemp(i)=IAND(iLutTemp(i),iLutTemp(i)-1) !This clears the rightmost set bit
-                nBits=nBits+1
-            enddo
-            IF(nBits.gt.nBitsMax) RETURN
-        enddo
-
-    END SUBROUTINE CountBits
-
 !This routine will find the excitation level of two determinants in bit strings.
     SUBROUTINE FindBitExcitLevel(iLutnI,iLutnJ,ExcitLevel,MaxExcitLevel)
         use SystemData, only: NIfD
+        use DetBitOps, only: CountBits
         IMPLICIT NONE
         INTEGER :: iLutnI(0:NIfD),iLutnJ(0:NIfD),ExcitLevel,MaxExcitLevel
         INTEGER :: iLutExcited(0:NIfD),i,k
@@ -490,7 +499,7 @@ end module
         iLutExcited(:)=IAND(iLutExcited(:),iLutnI(:))
 
 !Now, simply count the bits in it...
-        CALL CountBits(iLutExcited,NIfD,ExcitLevel,MaxExcitLevel)
+        ExcitLevel = CountBits(iLutExcited, NIfD, MaxExcitLevel)
 
     END SUBROUTINE FindBitExcitLevel
 

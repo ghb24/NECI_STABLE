@@ -7620,6 +7620,7 @@ MODULE FciMCParMod
         use FciMCLoggingMOD , only : InitTriHElStats,InitSpinCoupHel
         use DetCalc, only : NMRKS,tagNMRKS,FCIDets
         use SymExcit3, only : CountExcitations3 
+        use DetBitOps, only: CountBits
         INTEGER :: ierr,i,j,k,l,DetCurr(NEl),ReadWalkers,TotWalkersDet,HFDetTest(NEl),Seed,alpha,beta,symalpha,symbeta,endsymstate
         INTEGER :: DetLT,VecSlot,error,HFConn,MemoryAlloc,iMaxExcit,nStore(6),nJ(Nel),BRR2(nBasis),LargestOrb,nBits,HighEDet(NEl),iLutTemp(0:NIfD)
         TYPE(HElement) :: rh,TempHii
@@ -7685,7 +7686,7 @@ MODULE FciMCParMod
         IF(LargestOrb.ne.HFDet(NEl)) THEN
             CALL Stop_All(this_routine,"LargestBitSet FAIL")
         ENDIF
-        CALL CountBits(iLutHF,NIfD,nBits,NEl)
+        nBits = CountBits(iLutHF, NIfD, NEl)
         IF(nBits.ne.NEl) THEN
             CALL Stop_All(this_routine,"CountBits FAIL")
         ENDIF
