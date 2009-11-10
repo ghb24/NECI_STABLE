@@ -56,7 +56,6 @@ MODULE GenRandSymExcitNUMod
 
 !        Iter=Iter+1
 !        WRITE(6,*) Iter,tFilled,nSymLabels
-!        IF(Iter.eq.24070) 
 
         IF(.not.tFilled) THEN
             IF(.not.TwoCycleSymGens) THEN
@@ -96,7 +95,7 @@ MODULE GenRandSymExcitNUMod
 
             IF(pDoubNew.gt.1.D0) THEN
                 CALL Stop_All(this_routine,"pDoub is greater than 1")
-            ELSEIF(pDoubNew.eq.1.D0) THEN
+!            ELSEIF(pDoubNew.eq.1.D0) THEN
 !                WRITE(6,*) "*****",nI,iLut
 !                STOP
             ENDIF

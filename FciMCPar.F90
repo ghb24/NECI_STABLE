@@ -454,11 +454,6 @@ MODULE FciMCParMod
             CALL FLUSH(11)
         ENDIF
 
-        iLutnJ(0)=iLutHF(0)
-        CALL DecodeBitDet(nJ,iLutnJ,NEl,NIfD)
-        CALL TestGenRandSymExcitNU(nJ,NMCyc,pDoubles,3,StepsSft)
-        CALL Stop_All("ihsfbg","osudgb")
-        
 !        IF(tRotoAnnihil) THEN
 !            CALL CheckOrdering(CurrentDets(:,1:TotWalkers),CurrentSign(1:TotWalkers),TotWalkers,.true.)
 !        ENDIF
@@ -1201,47 +1196,6 @@ MODULE FciMCParMod
     END SUBROUTINE PerformFCIMCycPar
                         
     
-    SUBROUTINE AddHistHamilEl(iLutnI,iLutnJ,WalkExcitLevel,Child,iTypeMatEl)
-        INTEGER :: iTypeMatEl,WalkExcitLevel,iLutnI(0:NIfD),iLutnJ(0:NIfD),Child
-        LOGICAL :: tSuccess
-        INTEGER :: PartInd,PartIndChild,ChildExcitLevel
-
-        IF(iTypeMatEl.eq.1) THEN
-        !This is a spawning event
-        !Need to histogram the hamiltonian - find the correct indicies of parent and child.
-            IF(WalkExcitLevel.eq.NEl) THEN
-                CALL BinSearchParts2(iLutnI,FCIDetIndex(WalkExcitLevel),Det,PartInd,tSuccess)
-            ELSEIF(WalkExcitLevel.eq.0) THEN
-                PartInd=1
-                tSuccess=.true.
-            ELSE
-                CALL BinSearchParts2(iLutnI,FCIDetIndex(WalkExcitLevel),FCIDetIndex(WalkExcitLevel+1)-1,PartInd,tSuccess)
-            ENDIF
-            IF(.not.tSuccess) THEN
-                CALL Stop_All("AddHistHamil","Cannot find determinant nI in list")
-            ENDIF
-            CALL FindBitExcitLevel(iLutHF,iLutnJ,NIfD,ChildExcitLevel,NEl)
-            IF(ChildExcitLevel.eq.NEl) THEN
-                CALL BinSearchParts2(iLutnJ,FCIDetIndex(ChildExcitLevel),Det,PartIndChild,tSuccess)
-            ELSEIF(ChildExcitLevel.eq.0) THEN
-                PartIndChild=1
-                tSuccess=.true.
-            ELSE
-                CALL BinSearchParts2(iLutnJ,FCIDetIndex(ChildExcitLevel),FCIDetIndex(ChildExcitLevel+1)-1,PartIndChild,tSuccess)
-            ENDIF
-            IF(.not.tSuccess) THEN
-                CALL Stop_All("AddHistHamil","Cannot find determinant nJ in list")
-            ENDIF
-            
-            HistHamil(PartIndChild,PartInd)=HistHamil(PartIndChild,PartInd)+(1.D0*Child)
-            HistHamil(PartInd,PartIndChild)=HistHamil(PartInd,PartIndChild)+(1.D0*Child)
-            AvHistHamil(PartIndChild,PartInd)=AvHistHamil(PartIndChild,PartInd)+(1.D0*Child)
-            AvHistHamil(PartInd,PartIndChild)=AvHistHamil(PartInd,PartIndChild)+(1.D0*Child)
-        ENDIF
-
-    END SUBROUTINE AddHistHamilEl
-
-
     
 !Every StepsSft steps, update the diagonal shift value (the running value for the correlation energy)
 !We don't want to do this too often, since we want the population levels to acclimatise between changing the shifts
@@ -3707,10 +3661,6 @@ MODULE FciMCParMod
         LOGICAL :: tParity,SymAllowed,tSuccess,tMinorDetList,DetBitEQ
         REAL*8 :: Prob,r,rat
         TYPE(HElement) :: rh,rhcheck
-
-!        IF(iLutnJ(0).eq.17151) THEN
-!            WRITE(25,*) iLutCurr(0)
-!        ENDIF
 
         IF(tImportanceSample) THEN
 !Here, we generate an excitation and calculate how many to accept all in one go...
@@ -7469,6 +7419,47 @@ MODULE FciMCParMod
 !        GO TO 10
 !
 !    END SUBROUTINE SortPartsPar
+
+    SUBROUTINE AddHistHamilEl(iLutnI,iLutnJ,WalkExcitLevel,Child,iTypeMatEl)
+        INTEGER :: iTypeMatEl,WalkExcitLevel,iLutnI(0:NIfD),iLutnJ(0:NIfD),Child
+        LOGICAL :: tSuccess
+        INTEGER :: PartInd,PartIndChild,ChildExcitLevel
+
+        IF(iTypeMatEl.eq.1) THEN
+        !This is a spawning event
+        !Need to histogram the hamiltonian - find the correct indicies of parent and child.
+            IF(WalkExcitLevel.eq.NEl) THEN
+                CALL BinSearchParts2(iLutnI,FCIDetIndex(WalkExcitLevel),Det,PartInd,tSuccess)
+            ELSEIF(WalkExcitLevel.eq.0) THEN
+                PartInd=1
+                tSuccess=.true.
+            ELSE
+                CALL BinSearchParts2(iLutnI,FCIDetIndex(WalkExcitLevel),FCIDetIndex(WalkExcitLevel+1)-1,PartInd,tSuccess)
+            ENDIF
+            IF(.not.tSuccess) THEN
+                CALL Stop_All("AddHistHamil","Cannot find determinant nI in list")
+            ENDIF
+            CALL FindBitExcitLevel(iLutHF,iLutnJ,NIfD,ChildExcitLevel,NEl)
+            IF(ChildExcitLevel.eq.NEl) THEN
+                CALL BinSearchParts2(iLutnJ,FCIDetIndex(ChildExcitLevel),Det,PartIndChild,tSuccess)
+            ELSEIF(ChildExcitLevel.eq.0) THEN
+                PartIndChild=1
+                tSuccess=.true.
+            ELSE
+                CALL BinSearchParts2(iLutnJ,FCIDetIndex(ChildExcitLevel),FCIDetIndex(ChildExcitLevel+1)-1,PartIndChild,tSuccess)
+            ENDIF
+            IF(.not.tSuccess) THEN
+                CALL Stop_All("AddHistHamil","Cannot find determinant nJ in list")
+            ENDIF
+            
+            HistHamil(PartIndChild,PartInd)=HistHamil(PartIndChild,PartInd)+(1.D0*Child)
+            HistHamil(PartInd,PartIndChild)=HistHamil(PartInd,PartIndChild)+(1.D0*Child)
+            AvHistHamil(PartIndChild,PartInd)=AvHistHamil(PartIndChild,PartInd)+(1.D0*Child)
+            AvHistHamil(PartInd,PartIndChild)=AvHistHamil(PartInd,PartIndChild)+(1.D0*Child)
+        ENDIF
+
+    END SUBROUTINE AddHistHamilEl
+
 
 
 
