@@ -57,7 +57,7 @@ contains
 !   HISTEQUILSTEPS XXX      Will change the iteration at which the histogramming begins to the value specified.
 
     subroutine ChangeVars(tSingBiasChange,tSoftExitFound,tWritePopsFound)
-       use SystemData, only : NEl
+       use SystemData, only : NEl,nBasis
        use FciMCData, only : Iter,CASMin,CASMax,tTruncSpace,tSinglePartPhase,SumENum,SumNoatHF,HFPopCyc,ProjEIterSum,Histogram,AvAnnihil
        use FciMCData, only : VaryShiftCycles,SumDiagSft,VaryShiftIter 
        use CalcData, only : Tau,DiagSft,SftDamp,StepsSft,SinglesBias,OccCASOrbs,VirtCASOrbs,NMCyc,tTruncCAS,NEquilSteps
@@ -67,7 +67,6 @@ contains
        use Input
        use Logging, only: tHistSpawn,tCalcFCIMCPsi,tIterStartBlock,IterStartBlocking,tHFPopStartBlock,NHistEquilSteps
        use FCIMCLoggingMOD, only : PrintBlocking,RestartBlocking,PrintShiftBlocking,RestartShiftBlocking
-       use SystemData, only: nBasis
        implicit none
        integer :: error,i,ios,NewNMCyc
        logical :: tSoftExitFound,tWritePopsFound,exists,AnyExist,deleted_file

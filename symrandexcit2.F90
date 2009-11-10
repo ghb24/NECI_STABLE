@@ -24,7 +24,7 @@ MODULE GenRandSymExcitNUMod
       !  These are forbidden since they have no possible b orbital which will give rise to a symmetry and
       !  spin allowed unoccupied a,b pair. The number of these orbitals, Q, is needed to calculate the
       !  normalised probability of generating the excitation.
-    use SystemData, only: ALAT,iSpinSkip,NIfD,tFixLz,iMaxLz
+    use SystemData, only: ALAT,iSpinSkip,tFixLz,iMaxLz,NIfTot
     use SystemData, only: nEl,G1, nBasis,nBasisMax,tNoSymGenRandExcits,tMerTwist
     use SystemData, only: Arr,nMax,tCycleOrbs,nOccAlpha,nOccBeta,ElecPairs,MaxABPairs
     use IntegralsData, only: UMat
@@ -49,7 +49,7 @@ MODULE GenRandSymExcitNUMod
         INTEGER :: ClassCount2(ScratchSize),ElecsWNoExcits
         INTEGER :: ClassCountUnocc2(ScratchSize)
 !        INTEGER , SAVE :: Iter=0
-        INTEGER :: ILUT(0:NIfD),i!,DetSym
+        INTEGER :: ILUT(0:NIfTot),i!,DetSym
         LOGICAL :: tNoSuccess,tParity,tFilled
         REAL*8 :: pDoub,pGen,r
         CHARACTER , PARAMETER :: this_routine='GenRandSymExcitNU'
@@ -153,7 +153,7 @@ MODULE GenRandSymExcitNUMod
         INTEGER :: nI(NEl),nJ(NEl),IC,ExcitMat(2,2),Attempts,exFlag
         INTEGER :: ClassCount2(ScratchSize),ElecsWNoExcits
         INTEGER :: ClassCountUnocc2(ScratchSize)
-        INTEGER :: ILUT(0:NIfD),i
+        INTEGER :: ILUT(0:NIfTot),i
         LOGICAL :: tNoSuccess,tParity
         REAL*8 :: pDoub,pGen,r
         CHARACTER , PARAMETER :: this_routine='GenRandSymExcitNU'
@@ -248,7 +248,7 @@ MODULE GenRandSymExcitNUMod
         INTEGER :: nI(NEl),nJ(NEl),ExcitMat(2,2),NExcitOtherWay,OrbB
         INTEGER :: ClassCount2(ScratchSize)
         INTEGER :: ClassCountUnocc2(ScratchSize),SumMl,MlA,MlB
-        INTEGER :: ILUT(0:NIfD),NExcitB,SpinOrbA,OrbA,SymB,NExcitA
+        INTEGER :: ILUT(0:NIfTot),NExcitB,SpinOrbA,OrbA,SymB,NExcitA
         INTEGER :: Elec1Ind,Elec2Ind,SymProduct,iSpn,ForbiddenOrbs,SymA
         REAL*8 :: pGen
         LOGICAL :: tParity,tAOrbFail
@@ -333,7 +333,7 @@ MODULE GenRandSymExcitNUMod
     SUBROUTINE PickBOrb(nI,iSpn,ILUT,ClassCountUnocc2,SpinOrbA,OrbA,SymA,OrbB,SymB,NExcit,SymProduct,SumMl,MlA,MlB,NExcitOtherWay)
         INTEGER :: nI(NEl),iSpn,SpinOrbA,OrbA,SymB,NExcit,SymProduct,NExcitOtherWay
         INTEGER :: OrbB,Attempts,SpinOrbB,ChosenUnocc,Ind,SumMl,MlA,MlB
-        INTEGER :: ILUT(0:NIfD),SymA,nOrbs,z,i
+        INTEGER :: ILUT(0:NIfTot),SymA,nOrbs,z,i
         INTEGER :: ClassCountUnocc2(ScratchSize)
         REAL*8 :: r
 
@@ -683,7 +683,7 @@ MODULE GenRandSymExcitNUMod
     SUBROUTINE PickAOrb(nI,iSpn,ILUT,ClassCountUnocc2,NExcit,Elec1Ind,Elec2Ind,SpinOrbA,OrbA,SymA,SymB,SymProduct,SumMl,MlA,MlB,ForbiddenOrbs,tAOrbFail)
         INTEGER :: nI(NEl),iSpn,Elec1Ind,Elec2Ind,SpinOrbA,AttemptsOverall,SymA,ForbiddenOrbs
         INTEGER :: NExcit,ChosenUnocc,z,i,OrbA,Attempts,SymB,SymProduct,SumMl,MlA,MlB
-        INTEGER :: ILUT(0:NIfD)
+        INTEGER :: ILUT(0:NIfTot)
         INTEGER :: ClassCountUnocc2(ScratchSize)
         LOGICAL :: tAOrbFail
         REAL*8 :: r
@@ -1097,7 +1097,7 @@ MODULE GenRandSymExcitNUMod
         INTEGER :: ExcitMat(2,2),ExcitLevel,iGetExcitLevel
         INTEGER :: ClassCount2(ScratchSize)
         INTEGER :: ClassCountUnocc2(ScratchSize),k,ElecK,Ind,SymIndex
-        INTEGER :: ILUT(0:NIfD),Ind1,Ind2
+        INTEGER :: ILUT(0:NIfTot),Ind1,Ind2
         REAL*8 :: r,pGen
         LOGICAL :: tParity,IsValidDet,SymAllowed
 
@@ -1658,7 +1658,7 @@ MODULE GenRandSymExcitNUMod
 !on the determinant. If this is zero, then no childred are to be created.
     SUBROUTINE GenRandSymExcitBiased(nI,iLut,nJ,pDoub,IC,ExcitMat,TParity,exFlag,nParts,WSign,tau,iCreate)
         INTEGER :: nI(NEl),nJ(NEl),IC,ExcitMat(2,2),Attempts,exFlag
-        INTEGER :: ILUT(0:NIfD),i,iCreate,nParts,WSign,ElecsWNoExcits
+        INTEGER :: ILUT(0:NIfTot),i,iCreate,nParts,WSign,ElecsWNoExcits
         LOGICAL :: tNoSuccess,tParity
         REAL*8 :: pDoub,pGen,r,tau
         CHARACTER , PARAMETER :: this_routine='GenRandSymExcitBiased'
@@ -1728,7 +1728,7 @@ MODULE GenRandSymExcitNUMod
         Use SystemData, only: FCoul
         INTEGER :: ClassCount2(ScratchSize),i,Attempts,OrbA
         INTEGER :: ClassCountUnocc2(ScratchSize)
-        INTEGER :: ElecsWNoExcits,nParts,WSign,iCreate,nI(NEl),nJ(NEl),iLut(0:NIfD),Ind
+        INTEGER :: ElecsWNoExcits,nParts,WSign,iCreate,nI(NEl),nJ(NEl),iLut(0:NIfTot),Ind
         INTEGER :: ExcitMat(2,2),SpawnOrb(nBasis),Eleci,ElecSym,NExcit,VecInd,ispn,EndSymState,j
         REAL*8 :: Tau,SpawnProb(nBasis),NormProb,r,rat
         LOGICAL :: tParity,SymAllowed
@@ -1918,7 +1918,7 @@ MODULE GenRandSymExcitNUMod
         
 
     SUBROUTINE CreateDoubExcitBiased(nI,nJ,iLut,ExcitMat,tParity,nParts,WSign,Tau,iCreate)
-        INTEGER :: nI(NEl),nJ(NEl),iLut(0:NIfD),ExcitMat(2,2),iCreate,iSpn,OrbA,OrbB,SymProduct
+        INTEGER :: nI(NEl),nJ(NEl),iLut(0:NIfTot),ExcitMat(2,2),iCreate,iSpn,OrbA,OrbB,SymProduct
         INTEGER :: Elec1Ind,Elec2Ind,nParts,WSign,SumMl
         TYPE(HElement) :: rh
         LOGICAL :: tParity
@@ -1959,7 +1959,7 @@ MODULE GenRandSymExcitNUMod
 
     SUBROUTINE CalcAllab(nI,ILUT,Elec1Ind,Elec2Ind,SymProduct,iSpn,OrbA,OrbB,nParts,iCreate,Tau)
         use Integrals , only : GetUMatEl
-        INTEGER :: nI(NEl),iLut(0:NIfD),Elec1Ind,Elec2Ind,SymProduct,iSpn,OrbA,OrbB,iCreate
+        INTEGER :: nI(NEl),iLut(0:NIfTot),Elec1Ind,Elec2Ind,SymProduct,iSpn,OrbA,OrbB,iCreate
         INTEGER :: SpatOrbi,SpatOrbj,Spini,Spinj,i,aspn,bspn,SymA,SymB,SpatOrba,EndSymState,VecInd
         REAL*8 :: Tau,SpawnProb(MaxABPairs),NormProb,rat,r
         INTEGER :: SpawnOrbs(2,MaxABPairs),j,nParts,SpinIndex,Ind
@@ -2334,11 +2334,12 @@ SUBROUTINE TestGenRandSymExcitNU(nI,Iterations,pDoub,exFlag,iWriteEvery)
     Use GenRandSymExcitNUMod , only : GenRandSymExcitScratchNU,ConstructClassCounts,ScratchSize
     Use SymData , only : nSymLabels
     use Parallel
-    use soft_exit , only : ChangeVars 
+!    use soft_exit , only : ChangeVars 
+    use DetBitOps , only : EncodeBitDet
     IMPLICIT NONE
     INTEGER :: i,Iterations,exFlag,nI(NEl),nJ(NEl),IC,ExcitMat(2,2),DetConn
     REAL*8 :: pDoub,pGen,AverageContrib,AllAverageContrib
-    INTEGER :: ClassCount2(ScratchSize),iLut(0:nBasis/32),Scratch1(ScratchSize),Scratch2(ScratchSize),iLutnJ(0:NIfTot)
+    INTEGER :: ClassCount2(ScratchSize),iLut(0:NIfTot),Scratch1(ScratchSize),Scratch2(ScratchSize),iLutnJ(0:NIfTot)
     INTEGER :: ClassCountUnocc2(ScratchSize),iExcit,iWriteEvery
     LOGICAL :: tParity,SymAllowed,tFilled,tSoftExitFound,tDummy,tDummy2
     REAL*8 , ALLOCATABLE :: DoublesHist(:,:,:,:),SinglesHist(:,:),AllDoublesHist(:,:,:,:),AllSinglesHist(:,:)
@@ -2368,7 +2369,7 @@ lp2: do while(.true.)
         CALL GetLz(nJ,NEl,Lz)
         IF(Lz.eq.LzTot) THEN
             excitcount=excitcount+1
-            CALL EncodeBitDet(nJ,iLutnJ,NEl,NIfTot)
+            CALL EncodeBitDet(nJ,iLutnJ)
             WRITE(25,*) excitcount,iExcit,iLutnJ(0)
         ENDIF
     enddo lp2
@@ -2396,7 +2397,7 @@ lp2: do while(.true.)
 !!Create ILUT for O[1] comparison of orbitals in root determinant - This is now read in
 !        ILUT((nI(i)-1)/32)=IBSET(ILUT((NI(i)-1)/32),MOD(NI(i)-1,32))
 !    enddo
-    CALL EncodeBitDet(nI,iLut,NEl,NIfTot)
+    CALL EncodeBitDet(nI,iLut)
 
     tFilled=.false.
     Scratch1(:)=0
@@ -2421,7 +2422,7 @@ lp2: do while(.true.)
         ENDIF
         AverageContrib=AverageContrib+1.D0/pGen
 
-!        CALL EncodeBitDet(nJ,iLutnJ,NEl,NIfTot)
+!        CALL EncodeBitDet(nJ,iLutnJ)
 !        IF(IC.eq.1) THEN
 !            WRITE(6,*) ExcitMat(1,1),ExcitMat(2,1)
 !        ELSE
@@ -2456,8 +2457,8 @@ lp2: do while(.true.)
             IF(iProcIndex.eq.0) THEN
                 WRITE(9,*) i,AllAverageContrib/(REAL(i,8)*excitcount*nProcessors)
             ENDIF
-            CALL ChangeVars(tDummy,tSoftExitFound,tDummy2)
-            IF(tSoftExitFound) EXIT
+!            CALL ChangeVars(tDummy,tSoftExitFound,tDummy2)
+!            IF(tSoftExitFound) EXIT
         ENDIF
 
 !Check excitation
