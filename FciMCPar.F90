@@ -855,21 +855,25 @@ MODULE FciMCParMod
 !                        CALL Stop_All("PerformFCIMCyc","Creating anti-particles")
 !Here, we are creating anti-particles, and so to keep the sign-coherence of the main array assured, we transfer them to the spawning array.
 !This should generally not happen under normal circumstances.
-                        do p=1,abs(CopySign)
+                        IF(tRotoAnnihil) THEN
+                            do p=1,abs(CopySign)
 !In rotoannihilation, we still want to specify the determinants singly - this may change in the future...
-                            SpawnedParts(:,ValidSpawned)=CurrentDets(:,j)
-                            IF(CopySign.lt.0) THEN
-                                SpawnedSign(ValidSpawned)=-1
-                            ELSE
-                                SpawnedSign(ValidSpawned)=1
-                            ENDIF
-                            ValidSpawned=ValidSpawned+1     !Increase index of spawned particles
-                        enddo
+                                SpawnedParts(:,ValidSpawned)=CurrentDets(:,j)
+                                IF(CopySign.lt.0) THEN
+                                    SpawnedSign(ValidSpawned)=-1
+                                ELSE
+                                    SpawnedSign(ValidSpawned)=1
+                                ENDIF
+                                ValidSpawned=ValidSpawned+1     !Increase index of spawned particles
+                            enddo
+                        ELSE    !Direct annihilation
+                            SpawnedParts(:,ValidSpawnedList(iProcIndex))=CurrentDets(:,j)
+                            SpawnedSign(ValidSpawnedList(iProcIndex))=CopySign
+                            ValidSpawnedList(iProcIndex)=ValidSpawnedList(iProcIndex)+1
+                        ENDIF
                     ENDIF
-
                 ENDIF
-
-            ELSE    !Not rotoannihilation
+            ELSE    !Not rotoannihilation or direct annihilation
 
                 IF(iDie.le.0) THEN
 !This indicates that the particle is spared and we may want to create more...copy them across to NewDets
