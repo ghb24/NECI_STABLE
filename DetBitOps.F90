@@ -59,9 +59,17 @@ module DetBitOps
 
     ! This will return 1 if iLutI is "less" than iLutJ, 0 if the determinants
     ! are identical, or -1 if iLutI is "more" than iLutJ
-    integer function DetBitLT(iLutI,iLutJ)
+    integer function DetBitLT(iLutI,iLutJ,nLast)
+        integer, intent(in), optional :: nLast
         integer, intent(in) :: iLutI(0:NIfTot), iLutJ(0:NIfTot)
-        integer :: i
+        integer :: i, lnLast
+
+        ! If we don't want to consider all the integers, specify nLast
+        if (present(nLast)) then
+            lnLast = nLast
+        else
+            lnLast = NIftot
+        endif
 
         !First, compare first integers
         IF(iLutI(0).lt.iLutJ(0)) THEN
@@ -69,7 +77,7 @@ module DetBitOps
         ELSEIF(iLutI(0).eq.iLutJ(0)) THEN
             ! If the integers are the same, then cycle through the rest of 
             ! the integers until we find a difference.
-            do i=1,NIfTot
+            do i=1,lnLast
                 IF(iLutI(i).lt.iLutJ(i)) THEN
                     DetBitLT=1
                     RETURN

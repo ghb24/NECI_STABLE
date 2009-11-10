@@ -382,9 +382,11 @@ MODULE HPHFRandExcitMod
             CALL FindDetSpinSym(nI,nJ,NEl)
         ENDIF
 
-        i=DetBitLT(iLutnI,iLutSym)
+        ! iLutnI is 'less' than iLutSym, so iLutSym is the determinant with 
+        ! the first open-shell = alpha. Swap them around.
+        ! Only count up to NIfD to avoid Yamanouchi symbol etc.
+        i=DetBitLT(iLutnI,iLutSym,NIfD)
         IF(i.eq.1) THEN
-!iLutnI is 'less' than iLutSym, so iLutSym is the determinant with the first open-shell = alpha. Swap them around.
             iLutTemp(:)=iLutnI(:)
             iLutnI(:)=iLutSym(:)
             iLutSym(:)=iLutTemp(:)
