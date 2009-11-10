@@ -39,6 +39,7 @@ MODULE HPHFRandExcitMod
 !Just need to return the right spin.
 
             CALL GenRandSymExcitScratchNU(nI,iLutnI,nJ,pDoub,IC,ExcitMat,tParity,exFlag,pGen,ClassCount2,ClassCountUnocc2,tGenClassCountnI)
+            IF(nJ(1).eq.0) RETURN
             
 !Create bit representation of excitation - iLutnJ
             CALL FindExcitBitDet(iLutnI,iLutnJ,IC,ExcitMat,NIfD)
@@ -73,6 +74,7 @@ MODULE HPHFRandExcitMod
         IF(r.lt.0.D5) THEN
 !Excite to nJ from nI
             CALL GenRandSymExcitScratchNU(nI,iLutnI,nJ,pDoub,IC,ExcitMat,tParity,exFlag,pGen,ClassCount2,ClassCountUnocc2,tGenClassCountnI)
+            IF(nJ(1).eq.0) RETURN
 
 !Find Bit-representation of excitation.
             CALL FindExcitBitDet(iLutnI,iLutnJ,IC,ExcitMat,NIfD)
@@ -98,6 +100,7 @@ MODULE HPHFRandExcitMod
 !            CALL DecodeBitDet(nI2,iLutnI2)
 !            CALL FindDetSpinSym(nI,nI2,NEl)
             CALL GenRandSymExcitScratchNU(nI2,iLutnI2,nJ,pDoub,IC,ExcitMat,tParity,exFlag,pGen,ClassCount3,ClassCountUnocc3,tGenClassCountnI2)
+            IF(nJ(1).eq.0) RETURN
 
 !Find Bit-representation of excitation.
             CALL FindExcitBitDet(iLutnI2,iLutnJ,IC,ExcitMat,NIfD)
@@ -179,6 +182,7 @@ MODULE HPHFRandExcitMod
 
 !Create excitation of uniquely chosen determinant in this HPHF function.
         CALL GenRandSymExcitScratchNU(nI,iLutnI,nJ,pDoub,IC,ExcitMat,tSignOrig,exFlag,pGen,ClassCount2,ClassCountUnocc2,tGenClassCountnI)
+        IF(nJ(1).eq.0) RETURN
 !Create bit representation of excitation - iLutnJ
         CALL FindExcitBitDet(iLutnI,iLutnJ,IC,ExcitMat,NIfD)
             

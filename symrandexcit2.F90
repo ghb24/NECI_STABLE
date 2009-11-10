@@ -1448,79 +1448,37 @@ MODULE GenRandSymExcitNUMod
 !First, we need to find out if there are any electrons which have no possible excitations. This is because these will need to be redrawn and so 
 !will affect the probabilities.
 
-            IF(tNoSymGenRandExcits) THEN
+            IF(.not.tNoSingsPossible) THEN
 
-                IF(.not.tNoSingsPossible) THEN
-                    ElecsWNoExcits=0
-                    IF((ClassCount2(1).ne.0).and.(ClassCountUnocc2(1).eq.0)) THEN
-                        ElecsWNoExcits=ElecsWNoExcits+ClassCount2(1)
-                    ENDIF
-                    IF((ClassCount2(2).ne.0).and.(ClassCountUnocc2(2).eq.0)) THEN
-                        ElecsWNoExcits=ElecsWNoExcits+ClassCount2(2)
-                    ENDIF
-                ENDIF
-                
-!Find symmetry of chosen electron
-                ElecSym=0
-                Elec1Ml=0
-
-            ELSEIF(tFixLz) THEN
-
-                IF(.not.tNoSingsPossible) THEN
-                    ElecsWNoExcits=0
-
-                    do k=-iMaxLz,iMaxLz,1
-                        Ind1=ClassCountInd(1,0,k)
-                        Ind2=ClassCountInd(1,0,-k)
-                        do i=0,nSymLabels*2-1
-                            IF((ClassCount2(i+Ind1).ne.0).and.(ClassCountUnocc2(i+Ind2).eq.0)) THEN
-                                ElecsWNoExcits=ElecsWNoExcits+ClassCount2(i+Ind1)
-                            ENDIF
-                        enddo
-                    enddo
-
-                ENDIF
-
-                ElecSym=INT((G1(Ex(1,1))%Sym%S),4)
-                Elec1Ml=G1(Ex(1,1))%Ml
-
-            ELSE
-!Need to look for forbidden electrons through all the irreps.
-
-                IF(.not.tNoSingsPossible) THEN
-                    ElecsWNoExcits=0
-
-                    do i=1,ScratchSize
-                        IF((ClassCount2(i).ne.0).and.(ClassCountUnocc2(i).eq.0)) THEN
+                do i=1,ScratchSize
+!Run through all labels
+                    IF((ClassCount2(i).ne.0).and.(ClassCountUnocc2(i).eq.0)) THEN
 !If there are electrons in this class with no possible unoccupied orbitals in the same class, these electrons have no single excitations.
-                            ElecsWNoExcits=ElecsWNoExcits+ClassCount2(i)
-                        ENDIF
-                    enddo
+                        ElecsWNoExcits=ElecsWNoExcits+ClassCount2(i)
+                    ENDIF
+                enddo
 
-!                    do i=0,nSymLabels-1
-!!Run through all labels
-!                        IF((ClassCount2(ClassCountInd(1,i,0)).ne.0).and.(ClassCountUnocc2(ClassCountInd(1,i,0)).eq.0)) THEN
-!!If there are alpha electrons in this class with no possible unoccupied alpha orbitals in the same class, these alpha electrons have no single excitations.
-!                            ElecsWNoExcits=ElecsWNoExcits+ClassCount2(ClassCountInd(1,i,0))
-!                        ENDIF
-!                        IF((ClassCount2(ClassCountInd(2,i,0)).ne.0).and.(ClassCountUnocc2(ClassCountInd(2,i,0)).eq.0)) THEN
-!                            ElecsWNoExcits=ElecsWNoExcits+ClassCount2(ClassCountInd(2,i,0))
-!                        ENDIF
-!                    enddo
-
+                IF(.not.tNoSymGenRandExcits) THEN
+                    ElecSym=INT((G1(Ex(1,1))%Sym%S),4)
+                    IF(tFixLz) THEN
+                        Elec1Ml=G1(Ex(1,1))%Ml
+                    ELSE
+                        Elec1Ml=0
+                    ENDIF
+                ELSE
+!Find symmetry of chosen electron
+                    ElecSym=0
+                    Elec1Ml=0
                 ENDIF
-                
-                ElecSym=INT((G1(Ex(1,1))%Sym%S),4)
-                Elec1Ml=0
 
             ENDIF
 
             IF(G1(Ex(1,1))%Ms.eq.1) THEN
 !Alpha orbital - see how many single excitations there are from this electron...
-                NExcitA=ClassCountUnocc2(ClassCountInd(1,ElecSym,-Elec1Ml))
+                NExcitA=ClassCountUnocc2(ClassCountInd(1,ElecSym,Elec1Ml))
             ELSE
 !Beta orbital
-                NExcitA=ClassCountUnocc2(ClassCountInd(2,ElecSym,-Elec1Ml))
+                NExcitA=ClassCountUnocc2(ClassCountInd(2,ElecSym,Elec1Ml))
             ENDIF
 
 !Now we need to find the probability of creating this excitation.

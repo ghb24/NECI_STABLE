@@ -57,19 +57,19 @@ module DetBitOps
         integer, intent(in) :: iLutI(0:NIfTot), iLutJ(0:NIfTot)
         integer :: i, lnLast
 
-        ! If we don't want to consider all the integers, specify nLast
-        if (present(nLast)) then
-            lnLast = nLast
-        else
-            lnLast = NIftot
-        endif
-
         !First, compare first integers
         IF(iLutI(0).lt.iLutJ(0)) THEN
             DetBitLT=1
         ELSEIF(iLutI(0).eq.iLutJ(0)) THEN
             ! If the integers are the same, then cycle through the rest of 
             ! the integers until we find a difference.
+            ! If we don't want to consider all the integers, specify nLast
+            if (present(nLast)) then
+                lnLast = nLast
+            else
+                lnLast = NIftot
+            endif
+
             do i=1,lnLast
                 IF(iLutI(i).lt.iLutJ(i)) THEN
                     DetBitLT=1
