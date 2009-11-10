@@ -1,6 +1,6 @@
 !This module is to be used for various types of walker MC annihilation in serial and parallel.
 MODULE AnnihilationMod
-    use SystemData , only : NIfD,NEl,tMerTwist,tHPHF,NIfTot
+    use SystemData , only : NEl,tMerTwist,tHPHF,NIfTot
     use CalcData , only : TRegenExcitgens,tAnnihilatebyRange,tUseGuide,tRegenDiagHEls,iInitGuideParts,iGuideDets
     USE DetCalc , only : Det,FCIDetIndex
     USE Logging , only : tHistSpawn
@@ -119,10 +119,10 @@ MODULE AnnihilationMod
 
 !Update the number of integers we need to send.
         do i=1,nProcessors
-            sendcounts(i)=sendcounts(i)*(NIfD+1)
-            disps(i)=disps(i)*(NIfD+1)
-            recvcounts(i)=recvcounts(i)*(NIfD+1)
-            recvdisps(i)=recvdisps(i)*(NIfD+1)
+            sendcounts(i)=sendcounts(i)*(NIfTot+1)
+            disps(i)=disps(i)*(NIfTot+1)
+            recvcounts(i)=recvcounts(i)*(NIfTot+1)
+            recvdisps(i)=recvdisps(i)*(NIfTot+1)
         enddo
 
 !        WRITE(6,*) "Sent Particles: ", NINT(Gap),sendcounts(2)
@@ -371,7 +371,7 @@ MODULE AnnihilationMod
                 CALL Stop_All("RotoAnnihilation","Error allocating memory for transfer buffers...")
             ENDIF
 #ifdef PARALLEL
-            CALL MPI_Buffer_attach(mpibuffer,8*(MaxSpawned+1)*(NIfD+2),error)
+            CALL MPI_Buffer_attach(mpibuffer,8*(MaxSpawned+1)*(NIfTot+2),error)
 #endif
             IF(error.ne.0) THEN
                 CALL Stop_All("RotoAnnihilation","Error allocating memory for transfer buffers...")
@@ -400,7 +400,7 @@ MODULE AnnihilationMod
 
 #ifdef PARALLEL
 !Detach buffers
-            CALL MPI_Buffer_detach(mpibuffer,8*(MaxSpawned+1)*(NIfD+2),error)
+            CALL MPI_Buffer_detach(mpibuffer,8*(MaxSpawned+1)*(NIfTot+2),error)
 #endif
             DEALLOCATE(mpibuffer)
         ENDIF
@@ -581,7 +581,7 @@ MODULE AnnihilationMod
                     ELSE
                         CALL DecodeBitDet(nJ,CurrentDets(0:NIfTot,i))
                         IF(tHPHF) THEN
-                            CALL HPHFGetDiagHElement(nJ,CurrentDets(0:NIfD,i),HDiagTemp)
+                            CALL HPHFGetDiagHElement(nJ,CurrentDets(0:NIfTot,i),HDiagTemp)
                         ELSE
                             HDiagTemp=GetHElement3(nJ,nJ,0)
                         ENDIF
@@ -1485,7 +1485,7 @@ MODULE AnnihilationMod
                                 InstAnnihil(PartIndex)=InstAnnihil(PartIndex)+REAL(2*(abs(CurrentSign(PartInd))),r2)
                             ELSE
                                 WRITE(6,*) "***",SpawnedParts(0:NIftot,i)
-                                Call WriteBitDet(6,SpawnedParts(0:NIfD,i),.true.)
+                                Call WriteBitDet(6,SpawnedParts(0:NIfTot,i),.true.)
                                 CALL Stop_All("AnnihilateSpawnedParts","Cannot find corresponding FCI determinant when histogramming")
                             ENDIF
                         ENDIF
@@ -2454,8 +2454,8 @@ MODULE AnnihilationMod
         CHARACTER , ALLOCATABLE :: mpibuffer(:)
 
 ! First order the newly spawned walkers in terms of determinant, then parent, taking the sign and H element information with it.
-        CALL Sort2BitDetsPlus3(MinorValidSpawned,MinorSpawnDets(0:NIfD,1:MinorValidSpawned),NIfD,MinorSpawnParent(0:NIfD,1:MinorValidSpawned),&
-        &NIfD,MinorSpawnSign(1:MinorValidSpawned))
+        CALL Sort2BitDetsPlus3(MinorValidSpawned,MinorSpawnDets(0:NIfTot,1:MinorValidSpawned),MinorSpawnParent(0:NIfTot,1:MinorValidSpawned),&
+        &MinorSpawnSign(1:MinorValidSpawned))
         
 !        IF(Iter.gt.1220) THEN
 !            WRITE(6,*) 'sort'
@@ -2506,7 +2506,7 @@ MODULE AnnihilationMod
                 CALL Stop_All("RotoAnnihilateMinor","Error allocating memory for transfer buffers...")
             ENDIF
 #ifdef PARALLEL
-            CALL MPI_Buffer_attach(mpibuffer,8*(MaxSpawned+1)*(NIfD+3),error)
+            CALL MPI_Buffer_attach(mpibuffer,8*(MaxSpawned+1)*(NIfTot+3),error)
 #endif
             IF(error.ne.0) THEN
                 CALL Stop_All("RotoAnnihilateMinor","Error allocating memory for transfer buffers...")
@@ -2548,7 +2548,7 @@ MODULE AnnihilationMod
 !            ENDIF
 !Detach buffers
 #ifdef PARALLEL
-            CALL MPI_Buffer_detach(mpibuffer,8*(MaxSpawned+1)*(NIfD+3),error)
+            CALL MPI_Buffer_detach(mpibuffer,8*(MaxSpawned+1)*(NIfTot+3),error)
 #endif
             DEALLOCATE(mpibuffer)
 
@@ -4160,7 +4160,7 @@ MODULE AnnihilationMod
 
         !Run through all other determinants in the guiding function.  Find out if they are doubly excited.  Find H elements, and multiply by number on that double.
         do i=1,iGuideDets
-            CALL FindBitExcitLevel(GuideFuncDets(0:NIfD,i),iLutHF,ExcitLevel,2)
+            CALL FindBitExcitLevel(GuideFuncDets(0:NIfTot,i),iLutHF,ExcitLevel,2)
             IF(ExcitLevel.eq.2) THEN
                 DoubDet(:)=0
                 CALL DecodeBitDet(DoubDet,GuideFuncDets(0:NIfTot,i))

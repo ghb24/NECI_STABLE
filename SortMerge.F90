@@ -115,7 +115,7 @@
         use DetBitOps, only: DecodeBitDet
         IMPLICIT NONE
         INTEGER :: list2(0:NIfTot,1:nlist2),list3(0:NIfTot,1:nlist2)
-        INTEGER :: nlisto,nlist1,nlist2,NIfD,nlo,i,DetCurr(0:NIfTot),DetCurr2(0:NIfTot) 
+        INTEGER :: nlisto,nlist1,nlist2,nlo,i,DetCurr(0:NIfTot),DetCurr2(0:NIfTot) 
         INTEGER :: ips,ips1,SignList2(nlist2)
         TYPE(HElement) :: HDiagTemp,HOffDiagTemp
         REAL*8 :: HDiag,HOffDiag
@@ -165,7 +165,7 @@
 ! Want to calculate the diagonal and off diagonal H elements of the particle to be merged.           
                CALL DecodeBitDet(nJ,list2(0:NIfTot,i))
                IF(tHPHF) THEN
-                   CALL HPHFGetDiagHElement(nJ,list2(0:NIfD,i),HDiagTemp)
+                   CALL HPHFGetDiagHElement(nJ,list2(0:NIfTot,i),HDiagTemp)
                ELSE
                    HDiagTemp=GetHElement3(nJ,nJ,0)
                ENDIF
@@ -174,7 +174,7 @@
 
                CALL DecodeBitDet(nK,list3(0:NIfTot,i))
                IF(tHPHF) THEN
-                   CALL HPHFGetOffDiagHElement(nJ,nK,list2(0:NIfD,i),list3(0:NIfD,i),HOffDiagTemp)
+                   CALL HPHFGetOffDiagHElement(nJ,nK,list2(0:NIfTot,i),list3(0:NIfTot,i),HOffDiagTemp)
                ELSE
                    HOffDiagTemp=GetHElement2(nJ,nK,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,ExcitLevel,ECore)
                ENDIF
@@ -196,7 +196,7 @@
 
                 CALL DecodeBitDet(nJ,list2(0:NIfTot,j))
                 IF(tHPHF) THEN
-                    CALL HPHFGetDiagHElement(nJ,list2(0:NIfD,j),HDiagTemp)
+                    CALL HPHFGetDiagHElement(nJ,list2(0:NIfTot,j),HDiagTemp)
                 ELSE
                     HDiagTemp=GetHElement3(nJ,nJ,0)
                 ENDIF
@@ -205,7 +205,7 @@
 
                 CALL DecodeBitDet(nK,list3(0:NIfTot,j))
                 IF(tHPHF) THEN
-                    CALL HPHFGetOffDiagHElement(nJ,nK,list2(0:NIfD,j),list3(0:NIfD,j),HOffDiagTemp)
+                    CALL HPHFGetOffDiagHElement(nJ,nK,list2(0:NIfTot,j),list3(0:NIfTot,j),HOffDiagTemp)
                 ELSE
                     HOffDiagTemp=GetHElement2(nJ,nK,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,ExcitLevel,ECore)
                 ENDIF
