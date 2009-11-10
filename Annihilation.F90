@@ -1,12 +1,13 @@
 !This module is to be used for various types of walker MC annihilation in serial and parallel.
 MODULE AnnihilationMod
-    use SystemData , only : NIfD,NEl,tMerTwist,tHPHF
+    use SystemData , only : NIfD,NEl,tMerTwist,tHPHF,NIfTot
     use CalcData , only : TRegenExcitgens,tAnnihilatebyRange,tUseGuide,tRegenDiagHEls,iInitGuideParts,iGuideDets
     USE DetCalc , only : Det,FCIDetIndex
     USE Logging , only : tHistSpawn
     USE Parallel
     USE mt95 , only : genrand_real2
     USE FciMCData
+    use DetBitOps, only: DetBitEQ, DetBitLT
     IMPLICIT NONE
 
     contains
@@ -129,9 +130,9 @@ MODULE AnnihilationMod
 !            WRITE(6,*) i,"***",SpawnedParts(:,i)
 !        enddo
 #ifdef PARALLEL
-        CALL MPI_AlltoAllv(SpawnedParts(0:NIfD,1:MaxSendIndex),sendcounts,disps,MPI_INTEGER,SpawnedParts2(0:NIfD,1:MaxIndex),recvcounts,recvdisps,MPI_INTEGER,MPI_COMM_WORLD,error)
+        CALL MPI_AlltoAllv(SpawnedParts(0:NIfTot,1:MaxSendIndex),sendcounts,disps,MPI_INTEGER,SpawnedParts2(0:NIfTot,1:MaxIndex),recvcounts,recvdisps,MPI_INTEGER,MPI_COMM_WORLD,error)
 #else
-        SpawnedParts2(0:NIfD,1:MaxIndex)=SpawnedParts(0:NIfD,1:MaxSendIndex)
+        SpawnedParts2(0:NIfTot,1:MaxIndex)=SpawnedParts(0:NIfTot,1:MaxSendIndex)
 #endif
 
 !        WRITE(6,*) MaxIndex, "Recieved particles: "
@@ -149,24 +150,25 @@ MODULE AnnihilationMod
 !This is not essential, but should proove worthwhile
     SUBROUTINE CompressSpawnedList(ValidSpawned)
         INTEGER :: VecInd,ValidSpawned,DetsMerged,ToRemove,i,SignProd,PartIndex,ExcitLevel
-        LOGICAL :: DetBitEQ,tSuc
+        LOGICAL :: tSuc
 
 !We want to sort the list of newly spawned particles, in order for quicker binary searching later on. (this is not essential, but should proove faster)
 !They should remain sorted after annihilation between spawned
-        CALL SortBitDets(ValidSpawned,SpawnedParts(0:NIfD,1:ValidSpawned),NIfD,SpawnedSign(1:ValidSpawned))
+        CALL SortBitDets(ValidSpawned,SpawnedParts(:,1:ValidSpawned), &
+                         SpawnedSign(1:ValidSpawned))
         IF(tHistSpawn) HistMinInd2(1:NEl)=FCIDetIndex(1:NEl)
 
 !First, we compress the list of spawned particles, so that they are only specified at most once in each processors list.
 !During this, we transfer the particles over to SpawnedParts2
         IF(ValidSpawned.gt.0) THEN
-            SpawnedParts2(0:NIfD,1)=SpawnedParts(0:NIfD,1)
+            SpawnedParts2(0:NIfTot,1)=SpawnedParts(0:NIfTot,1)
             SpawnedSign2(1)=SpawnedSign(1)
         ENDIF
         VecInd=1
         DetsMerged=0
         ToRemove=0
         do i=2,ValidSpawned
-            IF(.not.DetBitEQ(SpawnedParts(0:NIfD,i),SpawnedParts2(0:NIfD,VecInd),NIfD)) THEN
+            IF(.not.DetBitEQ(SpawnedParts(0:NIfTot,i),SpawnedParts2(0:NIfTot,VecInd))) THEN
                 IF(SpawnedSign2(VecInd).eq.0) ToRemove=ToRemove+1
                 VecInd=VecInd+1
                 SpawnedParts2(:,VecInd)=SpawnedParts(:,i)
@@ -179,7 +181,7 @@ MODULE AnnihilationMod
 
                     IF(tHistSpawn) THEN
 !We want to histogram where the particle annihilations are taking place.
-                        CALL FindBitExcitLevel(SpawnedParts(:,i),iLutHF,NIfD,ExcitLevel,NEl)
+                        CALL FindBitExcitLevel(SpawnedParts(:,i),iLutHF,ExcitLevel,NEl)
                         IF(ExcitLevel.eq.NEl) THEN
                             CALL BinSearchParts2(SpawnedParts(:,i),HistMinInd2(ExcitLevel),Det,PartIndex,tSuc)
                         ELSEIF(ExcitLevel.eq.0) THEN
@@ -194,13 +196,13 @@ MODULE AnnihilationMod
                             InstAnnihil(PartIndex)=InstAnnihil(PartIndex)+REAL(2*(MIN(abs(SpawnedSign2(VecInd)),abs(SpawnedSign(i)))),r2)
                         ELSE
 !                            WRITE(6,*) "Searching between: ",HistMinInd2(ExcitLevel), " and ",FCIDetIndex(ExcitLevel+1)-1
-!                            WRITE(6,*) "***",SpawnedParts(0:NIfD,i)
-!                            CALL DecodeBitDet(TempDet,SpawnedParts(0:NIfD,i),NEl,NIfD)
+!                            WRITE(6,*) "***",SpawnedParts(0:NIfTot,i)
+!                            CALL DecodeBitDet(TempDet,SpawnedParts(0:NIfTot,i))
 !                            WRITE(6,*) "Full Det is: ",TempDet(:)
 !                            IF(tHPHF) THEN
 !                                CALL FindExcitBitDetSym(SpawnedParts(0:NIfD,i),iLutSym(:))
 !                                WRITE(6,*) "*** Sym: ",iLutSym(:)
-!                                CALL DecodeBitDet(TempDet,iLutSym(0:NIfD),NEl,NIfD)
+!                                CALL DecodeBitDet(TempDet,iLutSym(0:NIfTot))
 !                                WRITE(6,*) "Full Sym Det is: ",TempDet(:)
 !                            ENDIF
                             CALL Stop_All("CompressSpawnedList","Cannot find corresponding FCI determinant when histogramming")
@@ -227,7 +229,7 @@ MODULE AnnihilationMod
                 DetsMerged=DetsMerged+1
             ELSE
 !We want to move all the elements above this point down to 'fill in' the annihilated determinant.
-                SpawnedParts(0:NIfD,i-DetsMerged)=SpawnedParts2(0:NIfD,i)
+                SpawnedParts(0:NIfTot,i-DetsMerged)=SpawnedParts2(0:NIfTot,i)
                 SpawnedSign(i-DetsMerged)=SpawnedSign2(i)
             ENDIF
         enddo
@@ -239,16 +241,16 @@ MODULE AnnihilationMod
     END SUBROUTINE CompressSpawnedList
     
     INTEGER FUNCTION DetermineDetProc(iLut)
-        INTEGER :: iLut(0:NIfD),i,j,Elecs!,TempDet(NEl),MurmurHash2Wrapper
+        INTEGER :: iLut(0:NIfTot),i,j,Elecs!,TempDet(NEl),MurmurHash2Wrapper
         INTEGER(KIND=i2) :: Summ!,RangeofBins,NextBin
 
-!        CALL DecodeBitDet(TempDet,iLut,NEl,NIfD)
+!        CALL DecodeBitDet(TempDet,iLut)
 !        i=MurmurHash2Wrapper(TempDet,NEl,13)
 !        write(6,*) i
         
         Summ=0
         Elecs=0
-        lp2: do i=0,NIfD
+        lp2: do i=0,NIfTot
             do j=0,31
                 IF(BTEST(iLut(i),j)) THEN
                     Elecs=Elecs+1
@@ -364,7 +366,7 @@ MODULE AnnihilationMod
 !The buffer wants to be able to hold (MaxSpawned+1)x(NIfD+2) integers (*4 for in bytes). If we could work out the maximum ValidSpawned accross the determinants,
 !it could get reduced to this... 
         IF(nProcessors.ne.1) THEN
-            ALLOCATE(mpibuffer(8*(MaxSpawned+1)*(NIfD+2)),stat=ierr)
+            ALLOCATE(mpibuffer(8*(MaxSpawned+1)*(NIfTot+2)),stat=ierr)
             IF(ierr.ne.0) THEN
                 CALL Stop_All("RotoAnnihilation","Error allocating memory for transfer buffers...")
             ENDIF
@@ -422,19 +424,20 @@ MODULE AnnihilationMod
 
     
     SUBROUTINE AnnihilateBetweenSpawnedOneProc(ValidSpawned)
-        INTEGER :: ValidSpawned,DetCurr(0:NIfD),i,j,k,LowBound,HighBound,WSign
+        use DetBitOps, only: DecodeBitDet
+        INTEGER :: ValidSpawned,DetCurr(0:NIfTot),i,j,k,LowBound,HighBound,WSign
         INTEGER :: VecSlot,TotSign
-        LOGICAL :: DetBitEQ
 
-        CALL SortBitDets(ValidSpawned,SpawnedParts(0:NIfD,1:ValidSpawned),NIfD,SpawnedSign(1:ValidSpawned))
+        CALL SortBitDets(ValidSpawned,SpawnedParts(:,1:ValidSpawned), &
+                         SpawnedSign(1:ValidSpawned))
 
         VecSlot=1
         i=1
         do while(i.le.ValidSpawned)
             LowBound=i
-            DetCurr(0:NIfD)=SpawnedParts(0:NIfD,i)
+            DetCurr(0:NIfTot)=SpawnedParts(0:NIfTot,i)
             i=i+1
-            do while(DetBitEQ(DetCurr(0:NIfD),SpawnedParts(0:NIfD,i),NIfD).and.(i.le.ValidSpawned))
+            do while(DetBitEQ(DetCurr(0:NIfTot),SpawnedParts(0:NIfTot,i)).and.(i.le.ValidSpawned))
                 i=i+1
             enddo
             HighBound=i-1
@@ -449,7 +452,7 @@ MODULE AnnihilationMod
             IF(TotSign.ne.0) THEN
                 WSign=INT(TotSign/abs(TotSign))
                 do k=1,abs(TotSign)
-                    SpawnedParts2(0:NIfD,VecSlot)=DetCurr(0:NIfD)
+                    SpawnedParts2(0:NIfTot,VecSlot)=DetCurr(0:NIfTot)
                     SpawnedSign2(VecSlot)=WSign
                     VecSlot=VecSlot+1
                 enddo
@@ -460,7 +463,7 @@ MODULE AnnihilationMod
         ValidSpawned=VecSlot-1
 
         do i=1,ValidSpawned
-            SpawnedParts(0:NIfD,i)=SpawnedParts2(0:NIfD,i)
+            SpawnedParts(0:NIfTot,i)=SpawnedParts2(0:NIfTot,i)
             SpawnedSign(i)=SpawnedSign2(i)
         enddo
 
@@ -474,11 +477,11 @@ MODULE AnnihilationMod
 !the annihilation process. Therefore we will not multiply specify determinants when we merge the lists.
     SUBROUTINE InsertRemoveParts(ValidSpawned,TotWalkersNew)
         USE Determinants , only : GetHElement3
+        use DetBitOps, only: DecodeBitDet
         INTEGER :: TotWalkersNew,ValidSpawned
         INTEGER :: i,DetsMerged,nJ(NEl)
         REAL*8 :: HDiag
         TYPE(HElement) :: HDiagTemp
-        LOGICAL :: DetBitEQ
 
 !        IF(Iter.eq.56) THEN
 !            WRITE(6,*) "Merging lists, ",TotWalkersNew,Iter
@@ -505,7 +508,7 @@ MODULE AnnihilationMod
             ELSE
 !We want to move all the elements above this point down to 'fill in' the annihilated determinant.
                 IF(DetsMerged.ne.0) THEN
-                    CurrentDets(0:NIfD,i-DetsMerged)=CurrentDets(0:NIfD,i)
+                    CurrentDets(0:NIfTot,i-DetsMerged)=CurrentDets(0:NIfTot,i)
                     CurrentSign(i-DetsMerged)=CurrentSign(i)
                     IF(.not.tRegenDiagHEls) THEN
                         CurrentH(i-DetsMerged)=CurrentH(i)
@@ -562,7 +565,7 @@ MODULE AnnihilationMod
                     CurrentSign(i)=SpawnedSign(i)
                 enddo
             ELSE
-                CALL MergeLists(TotWalkersNew,MaxWalkersPart,ValidSpawned,SpawnedParts(0:NIfD,1:ValidSpawned),SpawnedSign(1:ValidSpawned),NIfD)
+                CALL MergeLists(TotWalkersNew,MaxWalkersPart,ValidSpawned,SpawnedParts(0:NIfTot,1:ValidSpawned),SpawnedSign(1:ValidSpawned))
             ENDIF
         ELSE
             IF(TotWalkersNew.eq.0) THEN
@@ -572,11 +575,11 @@ MODULE AnnihilationMod
                     CurrentDets(:,i)=SpawnedParts(:,i)
                     CurrentSign(i)=SpawnedSign(i)
 !We want to calculate the diagonal hamiltonian matrix element for the new particle to be merged.
-                    IF(DetBitEQ(CurrentDets(0:NIfD,i),iLutHF,NIfD)) THEN
+                    IF(DetBitEQ(CurrentDets(0:NIfTot,i),iLutHF)) THEN
 !We know we are at HF - HDiag=0
                         HDiag=0.D0
                     ELSE
-                        CALL DecodeBitDet(nJ,CurrentDets(0:NIfD,i),NEl,NIfD)
+                        CALL DecodeBitDet(nJ,CurrentDets(0:NIfTot,i))
                         IF(tHPHF) THEN
                             CALL HPHFGetDiagHElement(nJ,CurrentDets(0:NIfD,i),HDiagTemp)
                         ELSE
@@ -587,7 +590,7 @@ MODULE AnnihilationMod
                     CurrentH(i)=HDiag
                 enddo
             ELSE
-                CALL MergeListswH(TotWalkersNew,MaxWalkersPart,ValidSpawned,SpawnedParts(0:NIfD,1:ValidSpawned),SpawnedSign(1:ValidSpawned),NIfD)
+                CALL MergeListswH(TotWalkersNew,MaxWalkersPart,ValidSpawned,SpawnedParts(0:NIfTot,1:ValidSpawned),SpawnedSign(1:ValidSpawned))
             ENDIF
 
         ENDIF
@@ -627,12 +630,12 @@ MODULE AnnihilationMod
 !        IF((ValidSpawned.gt.0).and.(TotWalkersNew.gt.0)) THEN
 !            do while(IndParts.le.TotWalkersNew)
 !                
-!                CompParts=DetBitLT(NewDets(0:NIfD,IndParts),SpawnedParts(0:NIfD,IndSpawned),NIfD)
+!                CompParts=DetBitLT(NewDets(0:NIfTot,IndParts),SpawnedParts(0:NIfD,IndSpawned))
 !                IF(CompParts.eq.1) THEN
 !!Want to move in the particle from NewDets (unless it wants to be annihilated)
 !                    IF(NewSign(IndParts).ne.0) THEN
 !!We want to keep this particle
-!                        CurrentDets(0:NIfD,VecInd)=NewDets(0:NIfD,IndParts)
+!                        CurrentDets(0:NIfTot,VecInd)=NewDets(0:NIfTot,IndParts)
 !                        CurrentSign(VecInd)=NewSign(IndParts)
 !                        IF(.not.tRegenDiagHEls) CurrentH(VecInd)=NewH(IndParts)
 !                        VecInd=VecInd+1
@@ -645,13 +648,13 @@ MODULE AnnihilationMod
 !!This should be taken out later - the lists will be disjoint.
 !!This will add the particles on the same determinant together...
 !
-!                    CurrentDets(0:NIfD,VecInd)=NewDets(0:NIfD,IndParts)
+!                    CurrentDets(0:NIfTot,VecInd)=NewDets(0:NIfTot,IndParts)
 !                    IF(.not.tRegenDiagHEls) CurrentH(VecInd)=NewH(IndParts)
 !                    CurrentSign(VecInd)=NewSign(IndParts)+SpawnedSign(IndSpawned)
 !                    IndParts=IndParts+1
 !                    IndSpawned=IndSpawned+1
 !
-!                    do while(DetBitEQ(SpawnedParts(:,IndSpawned-1),SpawnedParts(:,IndSpawned),NIfD).and.(IndSpawned.le.ValidSpawned))
+!                    do while(DetBitEQ(SpawnedParts(:,IndSpawned-1),SpawnedParts(:,IndSpawned)).and.(IndSpawned.le.ValidSpawned))
 !                        CurrentSign(VecInd)=CurrentSign(VecInd)+SpawnedSign(IndSpawned)
 !                        IndSpawned=IndSpawned+1
 !                    enddo
@@ -668,11 +671,11 @@ MODULE AnnihilationMod
 !                    IF(SpawnedSign(IndSpawned).eq.0) THEN
 !                        CALL Stop_All("InsertRemoveParts","Should not have particles marked for annihilation in this array")
 !                    ENDIF
-!                    CurrentDets(0:NIfD,VecInd)=SpawnedParts(0:NIfD,IndSpawned)
+!                    CurrentDets(0:NIfTot,VecInd)=SpawnedParts(0:NIfTot,IndSpawned)
 !                    CurrentSign(VecInd)=SpawnedSign(IndSpawned)
 !                    IndSpawned=IndSpawned+1
 !                    
-!                    do while(DetBitEQ(SpawnedParts(:,IndSpawned-1),SpawnedParts(:,IndSpawned),NIfD).and.(IndSpawned.le.ValidSpawned))
+!                    do while(DetBitEQ(SpawnedParts(:,IndSpawned-1),SpawnedParts(:,IndSpawned)).and.(IndSpawned.le.ValidSpawned))
 !                        CurrentSign(VecInd)=CurrentSign(VecInd)+SpawnedSign(IndSpawned)
 !                        IndSpawned=IndSpawned+1
 !                    enddo
@@ -681,17 +684,17 @@ MODULE AnnihilationMod
 !
 !                    IF(.not.tRegenDiagHEls) THEN
 !!Need to find H-element!
-!                        IF(DetBitEQ(CurrentDets(0:NIfD,VecInd),iLutHF,NIfD)) THEN
+!                        IF(DetBitEQ(CurrentDets(0:NIfTot,VecInd),iLutHF)) THEN
 !!We know we are at HF - HDiag=0
 !                            HDiag=0.D0
 !                            IF(tHub.and.tReal) THEN
 !!Reference determinant is not HF
-!                                CALL DecodeBitDet(nJ,CurrentDets(0:NIfD,VecInd),NEl,NIfD)
+!                                CALL DecodeBitDet(nJ,CurrentDets(0:NIfTot,VecInd))
 !                                HDiagTemp=GetHElement2(nJ,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,0,ECore)
 !                                HDiag=(REAL(HDiagTemp%v,r2))
 !                            ENDIF
 !                        ELSE
-!                            CALL DecodeBitDet(nJ,CurrentDets(0:NIfD,VecInd),NEl,NIfD)
+!                            CALL DecodeBitDet(nJ,CurrentDets(0:NIfTot,VecInd))
 !                            HDiagTemp=GetHElement2(nJ,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,0,ECore)
 !                            HDiag=(REAL(HDiagTemp%v,r2))-Hii
 !                        ENDIF
@@ -713,7 +716,7 @@ MODULE AnnihilationMod
 !!Haven't finished copying rest of original particles
 !            do i=IndParts,TotWalkersNew
 !                IF(NewSign(i).ne.0) THEN
-!                    CurrentDets(0:NIfD,VecInd)=NewDets(0:NIfD,i)
+!                    CurrentDets(0:NIfTot,VecInd)=NewDets(0:NIfTot,i)
 !                    CurrentSign(VecInd)=NewSign(i)
 !                    IF(.not.tRegenDiagHEls) CurrentH(VecInd)=NewH(i)
 !                    TotParts=TotParts+abs(NewSign(i))
@@ -724,11 +727,11 @@ MODULE AnnihilationMod
 !        ELSEIF(IndSpawned.le.ValidSpawned) THEN
 !            do while(IndSpawned.le.ValidSpawned)
 !
-!                CurrentDets(0:NIfD,VecInd)=SpawnedParts(0:NIfD,IndSpawned)
+!                CurrentDets(0:NIfTot,VecInd)=SpawnedParts(0:NIfTot,IndSpawned)
 !                CurrentSign(VecInd)=SpawnedSign(IndSpawned)
 !                IndSpawned=IndSpawned+1
 !
-!                do while(DetBitEQ(SpawnedParts(:,IndSpawned-1),SpawnedParts(:,IndSpawned),NIfD).and.(IndSpawned.le.ValidSpawned))
+!                do while(DetBitEQ(SpawnedParts(:,IndSpawned-1),SpawnedParts(:,IndSpawned)).and.(IndSpawned.le.ValidSpawned))
 !                    CurrentSign(VecInd)=CurrentSign(VecInd)+SpawnedSign(IndSpawned)
 !                    IndSpawned=IndSpawned+1
 !                enddo
@@ -737,17 +740,17 @@ MODULE AnnihilationMod
 !
 !                IF(.not.tRegenDiagHEls) THEN
 !!Need to find H-element!
-!                    IF(DetBitEQ(CurrentDets(0:NIfD,VecInd),iLutHF,NIfD)) THEN
+!                    IF(DetBitEQ(CurrentDets(0:NIfTot,VecInd),iLutHF,NIfTot)) THEN
 !!We know we are at HF - HDiag=0
 !                        HDiag=0.D0
 !                        IF(tHub.and.tReal) THEN
 !!Reference determinant is not HF
-!                            CALL DecodeBitDet(nJ,CurrentDets(0:NIfD,VecInd),NEl,NIfD)
+!                            CALL DecodeBitDet(nJ,CurrentDets(0:NIfTot,VecInd))
 !                            HDiagTemp=GetHElement2(nJ,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,0,ECore)
 !                            HDiag=(REAL(HDiagTemp%v,r2))
 !                        ENDIF
 !                    ELSE
-!                        CALL DecodeBitDet(nJ,CurrentDets(0:NIfD,VecInd),NEl,NIfD)
+!                        CALL DecodeBitDet(nJ,CurrentDets(0:NIfTot,VecInd))
 !                        HDiagTemp=GetHElement2(nJ,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,0,ECore)
 !                        HDiag=(REAL(HDiagTemp%v,r2))-Hii
 !                    ENDIF
@@ -800,6 +803,7 @@ MODULE AnnihilationMod
 !Might not need to send hashes in all-to-all - could just use them for determining where they go
 !Package up temp arrays?
     SUBROUTINE AnnihilateBetweenSpawned(ValidSpawned)
+        use DetBitOps, only: DecodeBitDet
         INTEGER(KIND=i2) , ALLOCATABLE :: HashArray1(:),HashArray2(:)
         INTEGER , ALLOCATABLE :: IndexTable1(:),IndexTable2(:),ProcessVec1(:),ProcessVec2(:),TempSign(:)
         INTEGER :: i,j,k,ToAnnihilateIndex,ValidSpawned,ierr,error,sendcounts(nProcessors)
@@ -833,10 +837,10 @@ MODULE AnnihilationMod
 !        WRITE(6,*) "***************************************"
         do i=1,ValidSpawned
             IndexTable1(i)=i
-            CALL DecodeBitDet(nJ,SpawnedParts(0:NIfD,i),NEl,NIfD)
+            CALL DecodeBitDet(nJ,SpawnedParts(0:NIfTot,i))
             HashArray1(i)=CreateHash(nJ)
 !            IF(Iter.eq.1346.and.(HashArray1(i).eq.2905380077198165348)) THEN
-!                WRITE(6,*) "Hash found, ",i,SpawnedSign(i),HashArray1(i),SpawnedParts(0:NIfD,i)
+!                WRITE(6,*) "Hash found, ",i,SpawnedSign(i),HashArray1(i),SpawnedParts(0:NIfTot,i)
 !            ENDIF
         enddo
 
@@ -1280,13 +1284,13 @@ MODULE AnnihilationMod
     END SUBROUTINE AnnihilateBetweenSpawned
 
     SUBROUTINE LinSearchParts(DetArray,iLut,MinInd,MaxInd,PartInd,tSuccess)
-        INTEGER :: iLut(0:NIfD),MinInd,MaxInd,PartInd,DetArray(0:NIfD,1:MaxInd)
-        INTEGER :: i,j,N,Comp,DetBitLT
+        INTEGER :: iLut(0:NIfTot),MinInd,MaxInd,PartInd,DetArray(0:NIfTot,1:MaxInd)
+        INTEGER :: i,j,N,Comp
         LOGICAL :: tSuccess
 
         N=MinInd
         do while(N.le.MaxInd)
-            Comp=DetBitLT(DetArray(:,N),iLut(:),NIfD)
+            Comp=DetBitLT(DetArray(:,N),iLut(:))
             IF(Comp.eq.1) THEN
                 N=N+1
             ELSEIF(Comp.eq.-1) THEN
@@ -1309,14 +1313,14 @@ MODULE AnnihilationMod
 !If failure, then the index will be one less than the index that the particle would be in if it was present in the list.
 !(or close enough!)
     SUBROUTINE BinSearchParts(iLut,MinInd,MaxInd,PartInd,tSuccess)
-        INTEGER :: iLut(0:NIfD),MinInd,MaxInd,PartInd
-        INTEGER :: i,j,N,Comp,DetBitLT
+        INTEGER :: iLut(0:NIfTot),MinInd,MaxInd,PartInd
+        INTEGER :: i,j,N,Comp
         LOGICAL :: tSuccess
 
         i=MinInd
         j=MaxInd
         IF(i-j.eq.0) THEN
-            Comp=DetBitLT(CurrentDets(:,MaxInd),iLut(:),NIfD)
+            Comp=DetBitLT(CurrentDets(:,MaxInd),iLut(:))
             IF(Comp.eq.0) THEN
                 tSuccess=.true.
                 PartInd=MaxInd
@@ -1332,7 +1336,7 @@ MODULE AnnihilationMod
 !            WRITE(6,*) i,j,n
 
 !Comp is 1 if CyrrebtDets(N) is "less" than iLut, and -1 if it is more or 0 if they are the same
-            Comp=DetBitLT(CurrentDets(:,N),iLut(:),NIfD)
+            Comp=DetBitLT(CurrentDets(:,N),iLut(:))
 
             IF(Comp.eq.0) THEN
 !Praise the lord, we've found it!
@@ -1349,7 +1353,7 @@ MODULE AnnihilationMod
                 IF(i.eq.MaxInd-1) THEN
 !This deals with the case where we are interested in the final/first entry in the list. Check the final entry of the list and leave
 !We need to check the last index.
-                    Comp=DetBitLT(CurrentDets(:,i+1),iLut(:),NIfD)
+                    Comp=DetBitLT(CurrentDets(:,i+1),iLut(:))
                     IF(Comp.eq.0) THEN
                         tSuccess=.true.
                         PartInd=i+1
@@ -1399,7 +1403,7 @@ MODULE AnnihilationMod
     SUBROUTINE AnnihilateSpawnedParts(ValidSpawned,TotWalkersNew)
         INTEGER :: ValidSpawned,MinInd,TotWalkersNew,PartInd,i,j,k,ToRemove,VecInd,SignProd,DetsMerged,PartIndex!,SearchInd,AnnihilateInd
         INTEGER :: ExcitLevel
-        LOGICAL :: DetBitEQ,tSuccess,tSuc!,tSkipSearch
+        LOGICAL :: tSuccess,tSuc!,tSkipSearch
 
         CALL set_timer(AnnMain_time,30)
 !        IF(Iter.eq.1877) THEN
@@ -1466,7 +1470,7 @@ MODULE AnnihilationMod
                         
                         IF(tHistSpawn) THEN
 !We want to histogram where the particle annihilations are taking place.
-                            CALL FindBitExcitLevel(SpawnedParts(:,i),iLutHF,NIfD,ExcitLevel,NEl)
+                            CALL FindBitExcitLevel(SpawnedParts(:,i),iLutHF,ExcitLevel,NEl)
                             IF(ExcitLevel.eq.NEl) THEN
                                 CALL BinSearchParts2(SpawnedParts(:,i),HistMinInd2(ExcitLevel),Det,PartIndex,tSuc)
                             ELSEIF(ExcitLevel.eq.0) THEN
@@ -1480,7 +1484,7 @@ MODULE AnnihilationMod
                                 AvAnnihil(PartIndex)=AvAnnihil(PartIndex)+REAL(2*(abs(CurrentSign(PartInd))),r2)
                                 InstAnnihil(PartIndex)=InstAnnihil(PartIndex)+REAL(2*(abs(CurrentSign(PartInd))),r2)
                             ELSE
-                                WRITE(6,*) "***",SpawnedParts(0:NIfD,i)
+                                WRITE(6,*) "***",SpawnedParts(0:NIftot,i)
                                 Call WriteBitDet(6,SpawnedParts(0:NIfD,i),.true.)
                                 CALL Stop_All("AnnihilateSpawnedParts","Cannot find corresponding FCI determinant when histogramming")
                             ENDIF
@@ -1499,7 +1503,7 @@ MODULE AnnihilationMod
                         
                         IF(tHistSpawn) THEN
 !We want to histogram where the particle annihilations are taking place.
-                            CALL FindBitExcitLevel(SpawnedParts(:,i),iLutHF,NIfD,ExcitLevel,NEl)
+                            CALL FindBitExcitLevel(SpawnedParts(:,i),iLutHF,ExcitLevel,NEl)
                             IF(ExcitLevel.eq.NEl) THEN
                                 CALL BinSearchParts2(SpawnedParts(:,i),HistMinInd2(ExcitLevel),Det,PartIndex,tSuc)
                             ELSEIF(ExcitLevel.eq.0) THEN
@@ -1513,7 +1517,7 @@ MODULE AnnihilationMod
                                 AvAnnihil(PartIndex)=AvAnnihil(PartIndex)+REAL(2*(abs(SpawnedSign(i))),r2)
                                 InstAnnihil(PartIndex)=InstAnnihil(PartIndex)+REAL(2*(abs(SpawnedSign(i))),r2)
                             ELSE
-                                WRITE(6,*) "***",SpawnedParts(0:NIfD,i)
+                                WRITE(6,*) "***",SpawnedParts(0:NIfTot,i)
                                 CALL Stop_All("AnnihilateSpawnedParts","Cannot find corresponding FCI determinant when histogramming")
                             ENDIF
                         ENDIF
@@ -1550,7 +1554,7 @@ MODULE AnnihilationMod
                 ENDIF
 
 
-!                do while((DetBitEQ(SpawnedParts(:,i),CurrentDets(:,SearchInd),NIfD)).and.(SearchInd.ge.1))
+!                do while((DetBitEQ(SpawnedParts(:,i),CurrentDets(:,SearchInd))).and.(SearchInd.ge.1))
 !!Cycle backwards through the list, checking where the start of this block of determinants starts.
 !                    SignProd=CurrentSign(SearchInd)*SpawnedSign(i)
 !                    IF(SignProd.lt.0) THEN
@@ -1582,7 +1586,7 @@ MODULE AnnihilationMod
 !!We have searched from the beginning of the particle block(SearchInd) to PartInd for a complimentary particle, but have not had any success. Now we can search from
 !!PartInd+1 to the end of the block for a complimentary particle.
 !                    SearchInd=PartInd+1
-!                    do while((DetBitEQ(SpawnedParts(0:NIfD,i),CurrentDets(0:NIfD,SearchInd),NIfD)).and.(SearchInd.le.TotWalkersNew))
+!                    do while((DetBitEQ(SpawnedParts(0:NIfTot,i),CurrentDets(0:NIfTot,SearchInd))).and.(SearchInd.le.TotWalkersNew))
 !                        SignProd=CurrentSign(SearchInd)*SpawnedSign(i)
 !                        IF(SignProd.lt.0) THEN
 !!We have found a complimentary particle - mark the index of this particle for annihilation.
@@ -1659,7 +1663,7 @@ MODULE AnnihilationMod
                 IF(SpawnedSign(i).eq.0) THEN
                     DetsMerged=DetsMerged+1
                 ELSE
-                    SpawnedParts2(0:NIfD,i-DetsMerged)=SpawnedParts(0:NIfD,i)
+                    SpawnedParts2(0:NIfTot,i-DetsMerged)=SpawnedParts(0:NIfTot,i)
                     SpawnedSign2(i-DetsMerged)=SpawnedSign(i)
                 ENDIF
             enddo
@@ -1762,7 +1766,7 @@ MODULE AnnihilationMod
 !        CALL FLUSH(6)
 
 !...and then send the particles themselves...
-        CALL MPI_BSend(SpawnedParts(0:NIfD,1:ValidSpawned),ValidSpawned*(NIfD+1),MPI_INTEGER,MOD(iProcIndex+1,nProcessors),456,MPI_COMM_WORLD,error)
+        CALL MPI_BSend(SpawnedParts(0:NIfTot,1:ValidSpawned),ValidSpawned*(NIfTot+1),MPI_INTEGER,MOD(iProcIndex+1,nProcessors),456,MPI_COMM_WORLD,error)
         IF(error.ne.MPI_SUCCESS) THEN
             CALL Stop_All("RotateParticles","Error in sending particles")
         ENDIF
@@ -1780,7 +1784,7 @@ MODULE AnnihilationMod
 !Update the ValidSpawned variable for this new set of data we are about to receive...
         ValidSpawned=SpawnedSign2(0)
 
-        CALL MPI_Recv(SpawnedParts2(0:NIfD,1:ValidSpawned),ValidSpawned*(NIfD+1),MPI_INTEGER,MOD(iProcIndex+nProcessors-1,nProcessors),456,MPI_COMM_WORLD,Stat,error)
+        CALL MPI_Recv(SpawnedParts2(0:NIfTot,1:ValidSpawned),ValidSpawned*(NIfTot+1),MPI_INTEGER,MOD(iProcIndex+nProcessors-1,nProcessors),456,MPI_COMM_WORLD,Stat,error)
         IF(error.ne.MPI_SUCCESS) THEN
             CALL Stop_All("RotateParticles","Error in receiving particles")
         ENDIF
@@ -2497,7 +2501,7 @@ MODULE AnnihilationMod
 !The buffer wants to be able to hold (MaxSpawned+1)x(NIfD+2) integers (*4 for in bytes). If we could work out the maximum ValidSpawned accross the determinants,
 !it could get reduced to this... 
         IF(nProcessors.ne.1) THEN
-            ALLOCATE(mpibuffer(8*(MaxSpawned+1)*(NIfD+3)),stat=ierr)
+            ALLOCATE(mpibuffer(8*(MaxSpawned+1)*(NIfTot+3)),stat=ierr)
             IF(ierr.ne.0) THEN
                 CALL Stop_All("RotoAnnihilateMinor","Error allocating memory for transfer buffers...")
             ENDIF
@@ -3158,14 +3162,14 @@ MODULE AnnihilationMod
         ENDIF
 
 !...then send the particles themselves...
-        CALL MPI_BSend(MinorSpawnDets(0:NIfD,1:MinorValidSpawned),MinorValidSpawned*(NIfD+1),MPI_INTEGER,MOD(iProcIndex+1,nProcessors),456,MPI_COMM_WORLD,error)
+        CALL MPI_BSend(MinorSpawnDets(0:NIfTot,1:MinorValidSpawned),MinorValidSpawned*(NIfTot+1),MPI_INTEGER,MOD(iProcIndex+1,nProcessors),456,MPI_COMM_WORLD,error)
         IF(error.ne.MPI_SUCCESS) THEN
             CALL Stop_All("RotateParticles","Error in sending particles")
         ENDIF
 
 
 !...and then send the parents of the walkers...
-        CALL MPI_BSend(MinorSpawnParent(0:NIfD,1:MinorValidSpawned),MinorValidSpawned*(NIfD+1),MPI_INTEGER,MOD(iProcIndex+1,nProcessors),789,MPI_COMM_WORLD,error)
+        CALL MPI_BSend(MinorSpawnParent(0:NIfTot,1:MinorValidSpawned),MinorValidSpawned*(NIfTot+1),MPI_INTEGER,MOD(iProcIndex+1,nProcessors),789,MPI_COMM_WORLD,error)
         IF(error.ne.MPI_SUCCESS) THEN
             CALL Stop_All("RotateParticles","Error in sending particle parents")
         ENDIF
@@ -3181,19 +3185,19 @@ MODULE AnnihilationMod
 !Update the ValidSpawned variable for this new set of data we are about to receive...
         MinorValidSpawned=MinorSpawnSign2(0)
 
-        CALL MPI_Recv(MinorSpawnDets2(0:NIfD,1:MinorValidSpawned),MinorValidSpawned*(NIfD+1),MPI_INTEGER,MOD(iProcIndex+nProcessors-1,nProcessors),456,MPI_COMM_WORLD,Stat,error)
+        CALL MPI_Recv(MinorSpawnDets2(0:NIfTot,1:MinorValidSpawned),MinorValidSpawned*(NIfTot+1),MPI_INTEGER,MOD(iProcIndex+nProcessors-1,nProcessors),456,MPI_COMM_WORLD,Stat,error)
         IF(error.ne.MPI_SUCCESS) THEN
             CALL Stop_All("RotateParticles","Error in receiving particles")
         ENDIF
 
-        CALL MPI_Recv(MinorSpawnParent2(0:NIfD,1:MinorValidSpawned),MinorValidSpawned*(NIfD+1),MPI_INTEGER,MOD(iProcIndex+nProcessors-1,nProcessors),789,MPI_COMM_WORLD,Stat,error)
+        CALL MPI_Recv(MinorSpawnParent2(0:NIfTot,1:MinorValidSpawned),MinorValidSpawned*(NIfTot+1),MPI_INTEGER,MOD(iProcIndex+nProcessors-1,nProcessors),789,MPI_COMM_WORLD,Stat,error)
         IF(error.ne.MPI_SUCCESS) THEN
             CALL Stop_All("RotateParticles","Error in receiving particle parents")
         ENDIF
 
         do i=1,MinorValidSpawned
-            MinorSpawnDets(0:NIfD,i)=MinorSpawnDets2(0:NIfD,i)
-            MinorSpawnParent(0:NIfD,i)=MinorSpawnParent2(0:NIfD,i)
+            MinorSpawnDets(0:NIfTot,i)=MinorSpawnDets2(0:NIfTot,i)
+            MinorSpawnParent(0:NIfTot,i)=MinorSpawnParent2(0:NIfTot,i)
             MinorSpawnSign(i)=MinorSpawnSign2(i)
         enddo
 
@@ -3222,7 +3226,7 @@ MODULE AnnihilationMod
     SUBROUTINE AnnihilateMinorSpawnedParts(MinorValidSpawned,NoMinorWalkersNew)
         INTEGER :: i,j,k,MinorValidSpawned,NoMinorWalkersNew,MinInd,MaxDetInd,MinDetInd,SumDetPop,SumMinorDetPop
         INTEGER :: ToRemove,DetsMerged,SignProd,PartInd,EqDetPopsTag,ierr,FinalMinorDet
-        LOGICAL :: DetsEq,tSuccess,tAnnihilateOne,DetBitEQ
+        LOGICAL :: DetsEq,tSuccess,tAnnihilateOne
         REAL*8 :: r,Prob
         INTEGER , ALLOCATABLE :: EqDetPops(:)
 
@@ -3245,12 +3249,12 @@ MODULE AnnihilationMod
             DetsEq=.false.
             SumMinorDetPop=MinorSpawnSign(i)
             j=1
-            IF((i+j).le.MinorValidSpawned) DetsEq=DetBitEQ(MinorSpawnDets(0:NIfD,i),MinorSpawnDets(0:NIfD,i+j),NIfD)
+            IF((i+j).le.MinorValidSpawned) DetsEq=DetBitEQ(MinorSpawnDets(0:NIfTot,i),MinorSpawnDets(0:NIfTot,i+j))
             do while (DetsEq)
                 SumMinorDetPop=SumMinorDetPop+MinorSpawnSign(i+j)
                 j=j+1
                 IF((i+j).gt.MinorValidSpawned) EXIT
-                DetsEq=DetBitEQ(MinorSpawnDets(0:NIfD,i),MinorSpawnDets(0:NIfD,i+j),NIfD)
+                DetsEq=DetBitEQ(MinorSpawnDets(0:NIfTot,i),MinorSpawnDets(0:NIfTot,i+j))
             enddo
             FinalMinorDet=i+j-1
             IF(FinalMinorDet.gt.MinorValidSpawned) FinalMinorDet=MinorValidSpawned
@@ -3288,25 +3292,25 @@ MODULE AnnihilationMod
 
                 ! First check one below the determinant found.
                 j=1
-                DetsEq=DetBitEQ(MinorSpawnDets(0:NIfD,i),MinorStarDets(0:NIfD,PartInd-j),NIfD)
+                DetsEq=DetBitEQ(MinorSpawnDets(0:NIfTot,i),MinorStarDets(0:NIfTot,PartInd-j))
                 do while (DetsEq)
                     ! If the determinant is still equal, add the walkers on it to SumDetPop, and this index becomes the minimum.
                     SumDetPop=SumDetPop+MinorStarSign(PartInd-j)
                     MinDetInd=PartInd-j
                     j=j+1
-                    DetsEq=DetBitEQ(MinorSpawnDets(0:NIfD,i),MinorStarDets(0:NIfD,PartInd-j),NIfD)
+                    DetsEq=DetBitEQ(MinorSpawnDets(0:NIfTot,i),MinorStarDets(0:NIfTot,PartInd-j))
                     ! If this is true, the walkers on the next determinant will be added.
                 enddo
 
                 ! Now check those above the determinant found.
                 j=1
-                DetsEq=DetBitEQ(MinorSpawnDets(0:NIfD,i),MinorStarDets(0:NIfD,PartInd+j),NIfD)
+                DetsEq=DetBitEQ(MinorSpawnDets(0:NIfTot,i),MinorStarDets(0:NIfTot,PartInd+j))
                 do while (DetsEq)
                     ! If the determinant is still equal, add the walkers on it to SumDetPop, and this index becomes the minimum.
                     SumDetPop=SumDetPop+MinorStarSign(PartInd+j)
                     MaxDetInd=PartInd+j
                     j=j+1
-                    DetsEq=DetBitEQ(MinorSpawnDets(0:NIfD,i),MinorStarDets(0:NIfD,PartInd+j),NIfD)
+                    DetsEq=DetBitEQ(MinorSpawnDets(0:NIfTot,i),MinorStarDets(0:NIfTot,PartInd+j))
                     ! If this is true, the walkers on the next determinant will be added.
                 enddo
                 ! SumDetPop now gives the number of walkers (with sign) currently on this determinant, and the Min and Max index of where these lie in MinorStarDets.  
@@ -3515,7 +3519,7 @@ MODULE AnnihilationMod
 
                     DetsEq=.false.
                     do j=MinDetInd,MaxDetInd
-                        DetsEq=DetBitEQ(MinorSpawnParent(0:NIfD,i),MinorStarParent(0:NIfD,j),NIfD)
+                        DetsEq=DetBitEQ(MinorSpawnParent(0:NIfTot,i),MinorStarParent(0:NIfTot,j))
                         IF(DetsEq) THEN
                             MinorStarSign(j)=MinorStarSign(j)+MinorSpawnSign(i)
                             MinorSpawnSign(i)=0
@@ -3527,9 +3531,9 @@ MODULE AnnihilationMod
                         ! This just means the determinant has been spawned on from a different parent.
                         ! Leave this in the spawned list - it will be quicker to just merge them all at once, rather than merging now.
 !                        WRITE(6,*) 'determinant then parent of star then spawn'
-!                        WRITE(6,*) MinorStarDets(0:NIfD,i),'*',MinorStarParent(0:NIfD,i)
+!                        WRITE(6,*) MinorStarDets(0:NIfTot,i),'*',MinorStarParent(0:NIfTot,i)
 !                        do j=MinDetInd,MaxDetInd
-!                            WRITE(6,*) MinorSpawnDets(0:NIfD,j),'*',MinorSpawnParent(0:NIfD,j)
+!                            WRITE(6,*) MinorSpawnDets(0:NIfTot,j),'*',MinorSpawnParent(0:NIfTot,j)
 !                        enddo
 !                        CALL FLUSH(6)
 !                        CALL Stop_All('AnnihilateMinorSpawnedParts','Error adding sign coherent spawned particles to the list of current determinants.')
@@ -3558,9 +3562,9 @@ MODULE AnnihilationMod
                 IF(MinorSpawnSign(i).eq.0) THEN
                     DetsMerged=DetsMerged+1
                 ELSE
-                    MinorSpawnDets2(0:NIfD,i-DetsMerged)=MinorSpawnDets(0:NIfD,i)
+                    MinorSpawnDets2(0:NIfTot,i-DetsMerged)=MinorSpawnDets(0:NIfTot,i)
                     MinorSpawnSign2(i-DetsMerged)=MinorSpawnSign(i)
-                    MinorSpawnParent2(0:NIfD,i-DetsMerged)=MinorSpawnParent(0:NIfD,i)
+                    MinorSpawnParent2(0:NIfTot,i-DetsMerged)=MinorSpawnParent(0:NIfTot,i)
                 ENDIF
             enddo
             MinorValidSpawned=MinorValidSpawned-DetsMerged
@@ -3572,8 +3576,8 @@ MODULE AnnihilationMod
 
             ! My version of changing the pointers over, need to fix this.
             do i=1,MinorValidSpawned
-                MinorSpawnDets(0:NIfD,i)=MinorSpawnDets2(0:NIfD,i)
-                MinorSpawnParent(0:NIfD,i)=MinorSpawnParent2(0:NIfD,i)
+                MinorSpawnDets(0:NIfTot,i)=MinorSpawnDets2(0:NIfTot,i)
+                MinorSpawnParent(0:NIfTot,i)=MinorSpawnParent2(0:NIfTot,i)
                 MinorSpawnSign(i)=MinorSpawnSign2(i)
             enddo
         ENDIF
@@ -3605,9 +3609,9 @@ MODULE AnnihilationMod
             ELSE
 ! We want to move all the elements above this point down to 'fill in' the annihilated determinant.
                 IF(DetsMerged.ne.0) THEN
-                    MinorStarDets(0:NIfD,i-DetsMerged)=MinorStarDets(0:NIfD,i)
+                    MinorStarDets(0:NIfTot,i-DetsMerged)=MinorStarDets(0:NIfTot,i)
                     MinorStarSign(i-DetsMerged)=MinorStarSign(i)
-                    MinorStarParent(0:NIfD,i-DetsMerged)=MinorStarParent(0:NIfD,i)
+                    MinorStarParent(0:NIfTot,i-DetsMerged)=MinorStarParent(0:NIfTot,i)
                     MinorStarHii(i-DetsMerged)=MinorStarHii(i)
                     MinorStarHij(i-DetsMerged)=MinorStarHij(i)
                 ENDIF
@@ -3633,8 +3637,8 @@ MODULE AnnihilationMod
         
         IF(TotParts.gt.0) THEN
 
-            CALL MergeListswH2(NoMinorWalkersNew,MaxWalkersPart,MinorValidSpawned,MinorSpawnDets(0:NIfD,1:MinorValidSpawned),&
-            &MinorSpawnParent(0:NIfD,1:MinorValidSpawned),MinorSpawnSign(1:MinorValidSpawned),NIfD)
+            CALL MergeListswH2(NoMinorWalkersNew,MaxWalkersPart,MinorValidSpawned,MinorSpawnDets(0:NIfTot,1:MinorValidSpawned),&
+            &MinorSpawnParent(0:NIfTot,1:MinorValidSpawned),MinorSpawnSign(1:MinorValidSpawned))
             
         ENDIF
 
@@ -3649,8 +3653,8 @@ MODULE AnnihilationMod
 !If failure, then the index will be one less than the index that the particle would be in if it was present in the list.
 !(or close enough!)
     SUBROUTINE BinSearchGuideParts(iLut,MinInd,MaxInd,PartInd,tSuccess)
-        INTEGER :: iLut(0:NIfD),MinInd,MaxInd,PartInd
-        INTEGER :: i,j,N,Comp,DetBitLT
+        INTEGER :: iLut(0:NIfTot),MinInd,MaxInd,PartInd
+        INTEGER :: i,j,N,Comp
         LOGICAL :: tSuccess
 
 !        WRITE(6,*) "Binary searching between ",MinInd, " and ",MaxInd
@@ -3662,7 +3666,7 @@ MODULE AnnihilationMod
 !            WRITE(6,*) i,j,n
 
 !Comp is 1 if CyrrebtDets(N) is "less" than iLut, and -1 if it is more or 0 if they are the same
-            Comp=DetBitLT(GuideFuncDets(:,N),iLut(:),NIfD)
+            Comp=DetBitLT(GuideFuncDets(:,N),iLut(:))
 
             IF(Comp.eq.0) THEN
 !Praise the lord, we've found it!
@@ -3679,7 +3683,7 @@ MODULE AnnihilationMod
                 IF(i.eq.MaxInd-1) THEN
 !This deals with the case where we are interested in the final/first entry in the list. Check the final entry of the list and leave
 !We need to check the last index.
-                    Comp=DetBitLT(GuideFuncDets(:,i+1),iLut(:),NIfD)
+                    Comp=DetBitLT(GuideFuncDets(:,i+1),iLut(:))
                     IF(Comp.eq.0) THEN
                         tSuccess=.true.
                         PartInd=i+1
@@ -3727,8 +3731,8 @@ MODULE AnnihilationMod
 !If failure, then the index will be one less than the index that the particle would be in if it was present in the list.
 !(or close enough!)
     SUBROUTINE BinSearchMinorParts(iLut,MinInd,MaxInd,PartInd,tSuccess)
-        INTEGER :: iLut(0:NIfD),MinInd,MaxInd,PartInd
-        INTEGER :: i,j,N,Comp,DetBitLT
+        INTEGER :: iLut(0:NIfTot),MinInd,MaxInd,PartInd
+        INTEGER :: i,j,N,Comp
         LOGICAL :: tSuccess
 
 !        WRITE(6,*) "Binary searching between ",MinInd, " and ",MaxInd
@@ -3740,7 +3744,7 @@ MODULE AnnihilationMod
 !            WRITE(6,*) i,j,n
 
 !Comp is 1 if CyrrebtDets(N) is "less" than iLut, and -1 if it is more or 0 if they are the same
-            Comp=DetBitLT(MinorStarDets(:,N),iLut(:),NIfD)
+            Comp=DetBitLT(MinorStarDets(:,N),iLut(:))
 
             IF(Comp.eq.0) THEN
 !Praise the lord, we've found it!
@@ -3757,7 +3761,7 @@ MODULE AnnihilationMod
                 IF(i.eq.MaxInd-1) THEN
 !This deals with the case where we are interested in the final/first entry in the list. Check the final entry of the list and leave
 !We need to check the last index.
-                    Comp=DetBitLT(MinorStarDets(:,i+1),iLut(:),NIfD)
+                    Comp=DetBitLT(MinorStarDets(:,i+1),iLut(:))
                     IF(Comp.eq.0) THEN
                         tSuccess=.true.
                         PartInd=i+1
@@ -3802,8 +3806,8 @@ MODULE AnnihilationMod
 
 !Do a binary search of the DominantDets, between the indices of MinInd and MaxInd. If successful, tSuccess will be true.
     SUBROUTINE BinSearchDomParts(AllExcDets,iLut,MinInd,MaxInd,PartInd,tSuccess)
-        INTEGER :: iLut(0:NIfD),MinInd,MaxInd,PartInd
-        INTEGER :: i,j,N,Comp,DetBitLT,AllExcDets(0:NIfD,MinInd:MaxInd)
+        INTEGER :: iLut(0:NIfTot),MinInd,MaxInd,PartInd
+        INTEGER :: i,j,N,Comp,AllExcDets(0:NIfTot,MinInd:MaxInd)
         LOGICAL :: tSuccess
 
 !        WRITE(6,*) "Binary searching between ",MinInd, " and ",MaxInd
@@ -3815,7 +3819,7 @@ MODULE AnnihilationMod
 !            WRITE(6,*) i,j,n
 
 !Comp is 1 if CyrrebtDets(N) is "less" than iLut, and -1 if it is more or 0 if they are the same
-            Comp=DetBitLT(AllExcDets(0:NIfD,N),iLut(:),NIfD)
+            Comp=DetBitLT(AllExcDets(:,N),iLut(:))
 
             IF(Comp.eq.0) THEN
 !Praise the lord, we've found it!
@@ -3832,7 +3836,7 @@ MODULE AnnihilationMod
                 IF(i.eq.MaxInd-1) THEN
 !This deals with the case where we are interested in the final/first entry in the list. Check the final entry of the list and leave
 !We need to check the last index.
-                    Comp=DetBitLT(AllExcDets(0:NIfD,i+1),iLut(:),NIfD)
+                    Comp=DetBitLT(AllExcDets(:,i+1),iLut(:))
                     IF(Comp.eq.0) THEN
                         tSuccess=.true.
                         PartInd=i+1
@@ -3883,11 +3887,12 @@ MODULE AnnihilationMod
         use SystemData , only : G1,nBasis,Brr,NMsh,NMax,Alat,ECore,nBasis,nBasisMax
         use IntegralsData , only : UMat,fck
         use Determinants , only : GetHElement2
+        use DetBitOps, only: DecodeBitDet
         INTEGER :: i,j,n,ValidSpawned,InitNoDetstoRotate,NoDetstoRotate,CombSign,error
         INTEGER :: ExcitLevel,DoubDet(NEl)
         TYPE(HElement) :: HDoubTemp
         REAL*8 :: Hdoub
-        LOGICAL :: tRotateSpawnedTemp,tRotateSpawned,tDetinSpawnList,DetBitEQ,DetsEq
+        LOGICAL :: tRotateSpawnedTemp,tRotateSpawned,tDetinSpawnList,DetsEq
 #ifdef PARALLEL
         INTEGER :: Stat(MPI_STATUS_SIZE)
 #endif
@@ -3911,7 +3916,7 @@ MODULE AnnihilationMod
                 do j=1,iGuideDets
                     DetsEq=.false.
                     !DetsEq is true if the two determinants are equal
-                    DetsEq=DetBitEQ(SpawnedParts(0:NIfD,i),GuideFuncDets(0:NIfD,j),NIfD)
+                    DetsEq=DetBitEQ(SpawnedParts(0:NIfTot,i),GuideFuncDets(0:NIfTot,j))
                     IF(DetsEq) THEN
                         CombSign=SpawnedSign(i)*GuideFuncSign(j)
                         !IF this is negative, the guiding function annihilates the spawned particles.
@@ -3927,7 +3932,7 @@ MODULE AnnihilationMod
                                 ! to annihilate with on other processors.
 
                                 NoDetstoRotate=NoDetstoRotate+1
-                                DetstoRotate(0:NIfD,NoDetstoRotate)=SpawnedParts(0:NIfD,i)
+                                DetstoRotate(0:NIfTot,NoDetstoRotate)=SpawnedParts(0:NIfTot,i)
                                 SigntoRotate(NoDetstoRotate)=SpawnedSign(i)
 
                             ELSEIF(ABS(SpawnedSign(i)).eq.ABS(GuideFuncSign(j))) THEN
@@ -3946,7 +3951,7 @@ MODULE AnnihilationMod
                         !Need to rotate the spawned walker to see if there are any walkers on this determinant to annihilate with.
                         ELSEIF(CombSign.eq.0) THEN
                             NoDetstoRotate=NoDetstoRotate+1
-                            DetstoRotate(0:NIfD,NoDetstoRotate)=SpawnedParts(0:NIfD,i)
+                            DetstoRotate(0:NIfTot,NoDetstoRotate)=SpawnedParts(0:NIfTot,i)
                             SigntoRotate(NoDetstoRotate)=SpawnedSign(i)
                         ENDIF
 
@@ -3993,7 +3998,7 @@ MODULE AnnihilationMod
                 ENDIF
 
                 !Then send the determinants
-                CALL MPI_BSend(DetstoRotate(0:NIfD,1:InitNoDetstoRotate),(NIfD+1)*InitNoDetstoRotate,MPI_INTEGER,MOD(iProcIndex+1,nProcessors),456,MPI_COMM_WORLD,error)
+                CALL MPI_BSend(DetstoRotate(0:NIfTot,1:InitNoDetstoRotate),(NIfTot+1)*InitNoDetstoRotate,MPI_INTEGER,MOD(iProcIndex+1,nProcessors),456,MPI_COMM_WORLD,error)
                 IF(error.ne.MPI_SUCCESS) THEN
                     CALL Stop_All("RotoAnnihilGuidingFunc","Error in sending particles")
                 ENDIF
@@ -4008,14 +4013,14 @@ MODULE AnnihilationMod
                 InitNoDetstoRotate=SigntoRotate2(0)
 
                 !Recieve determinants
-                CALL MPI_Recv(DetstoRotate2(0:NIfD,1:InitNoDetstoRotate),InitNoDetstoRotate*(NIfD+1),MPI_INTEGER,MOD(iProcIndex+nProcessors-1,nProcessors),456,MPI_COMM_WORLD,Stat,error)
+                CALL MPI_Recv(DetstoRotate2(0:NIfTot,1:InitNoDetstoRotate),InitNoDetstoRotate*(NIfTot+1),MPI_INTEGER,MOD(iProcIndex+nProcessors-1,nProcessors),456,MPI_COMM_WORLD,Stat,error)
                 IF(error.ne.MPI_SUCCESS) THEN
                     CALL Stop_All("RotoAnnihilGuidingFunc","Error in receiving particles")
                 ENDIF
 
                 do i=1,InitNoDetstoRotate
                     SigntoRotate(i)=SigntoRotate2(i)
-                    DetstoRotate(0:NIfD,i)=DetstoRotate2(0:NIfD,i)
+                    DetstoRotate(0:NIfTot,i)=DetstoRotate2(0:NIfTot,i)
                 enddo
 #endif
 
@@ -4030,7 +4035,7 @@ MODULE AnnihilationMod
                     IF(Signtorotate(i).ne.0) THEN
                         do j=1,iGuideDets
                             DetsEq=.false.
-                            DetsEq=DetBitEQ(DetstoRotate(0:NIfD,i),GuideFuncDets(0:NIfD,j),NIfD)
+                            DetsEq=DetBitEQ(DetstoRotate(0:NIfTot,i),GuideFuncDets(0:NIfTot,j))
 
                             IF(DetsEq) THEN
                                 CombSign=SigntoRotate(i)*GuideFuncSign(j)
@@ -4089,7 +4094,7 @@ MODULE AnnihilationMod
             ENDIF
 
             !Then send the determinants
-            CALL MPI_BSend(DetstoRotate(0:NIfD,1:InitNoDetstoRotate),(NIfD+1)*InitNoDetstoRotate,MPI_INTEGER,MOD(iProcIndex+1,nProcessors),456,MPI_COMM_WORLD,error)
+            CALL MPI_BSend(DetstoRotate(0:NIfTot,1:InitNoDetstoRotate),(NIfTot+1)*InitNoDetstoRotate,MPI_INTEGER,MOD(iProcIndex+1,nProcessors),456,MPI_COMM_WORLD,error)
             IF(error.ne.MPI_SUCCESS) THEN
                 CALL Stop_All("RotoAnnihilGuidingFunc","Error in sending particles")
             ENDIF
@@ -4103,14 +4108,14 @@ MODULE AnnihilationMod
             InitNoDetstoRotate=SigntoRotate2(0)
 
             !Recieve determinants
-            CALL MPI_Recv(DetstoRotate2(0:NIfD,1:InitNoDetstoRotate),InitNoDetstoRotate*(NIfD+1),MPI_INTEGER,MOD(iProcIndex+nProcessors-1,nProcessors),456,MPI_COMM_WORLD,Stat,error)
+            CALL MPI_Recv(DetstoRotate2(0:NIfTot,1:InitNoDetstoRotate),InitNoDetstoRotate*(NIfTot+1),MPI_INTEGER,MOD(iProcIndex+nProcessors-1,nProcessors),456,MPI_COMM_WORLD,Stat,error)
             IF(error.ne.MPI_SUCCESS) THEN
                 CALL Stop_All("RotoAnnihilGuidingFunc","Error in receiving particles")
             ENDIF
 
             do i=1,InitNoDetstoRotate
                 SigntoRotate(i)=SigntoRotate2(i)
-                DetstoRotate(0:NIfD,i)=DetstoRotate2(0:NIfD,i)
+                DetstoRotate(0:NIfTot,i)=DetstoRotate2(0:NIfTot,i)
             enddo
 
 #endif
@@ -4122,7 +4127,7 @@ MODULE AnnihilationMod
                 tDetinSpawnList=.false.
                 do i=1,ValidSpawned
                     DetsEq=.false.
-                    DetsEq=DetBitEQ(SpawnedParts(0:NIfD,i),DetstoRotate(0:NIfD,j),NIfD)
+                    DetsEq=DetBitEQ(SpawnedParts(0:NIfTot,i),DetstoRotate(0:NIfTot,j))
                     IF(DetsEq) THEN
                         SpawnedSign(i)=SigntoRotate(j)
                         tDetinSpawnList=.true.
@@ -4130,9 +4135,9 @@ MODULE AnnihilationMod
                     ENDIF
                 enddo
                 IF(.not.tDetinSpawnList) THEN
-                    WRITE(6,*) 'Determinant from rotate list : ',DetstoRotate(0:NIfD,j)
+                    WRITE(6,*) 'Determinant from rotate list : ',DetstoRotate(0:NIfTot,j)
 !                    do i=1,ValidSpawned
-!                        WRITE(6,*) SpawnedParts(0:NIfD,i)
+!                        WRITE(6,*) SpawnedParts(0:NIfTot,i)
 !                    enddo
                     CALL FLUSH(6)
                     CALL Stop_All("RotoAnnihilGuidingFunc","Determinant from rotated list cannot be found in SpawnedParts.")
@@ -4155,10 +4160,10 @@ MODULE AnnihilationMod
 
         !Run through all other determinants in the guiding function.  Find out if they are doubly excited.  Find H elements, and multiply by number on that double.
         do i=1,iGuideDets
-            CALL FindBitExcitLevel(GuideFuncDets(0:NIfD,i),iLutHF,NIfD,ExcitLevel,2)
+            CALL FindBitExcitLevel(GuideFuncDets(0:NIfD,i),iLutHF,ExcitLevel,2)
             IF(ExcitLevel.eq.2) THEN
                 DoubDet(:)=0
-                CALL DecodeBitDet(DoubDet,GuideFuncDets(0:NIfD,i),NEl,NIfD)
+                CALL DecodeBitDet(DoubDet,GuideFuncDets(0:NIfTot,i))
                 HdoubTemp=GetHElement2(HFDet,DoubDet,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,ExcitLevel,ECore)
                 HDoub=REAL(HDoubTemp%v,r2)
                 GuideFuncDoub=GuideFuncDoub+(GuideFuncSign(i)*Hdoub)

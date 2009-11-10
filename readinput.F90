@@ -163,7 +163,8 @@ MODULE ReadInput
      & GrowMaxFactor,MemoryFacPart
       Use Determinants, only : SpecDet,tagSpecDet
       use IntegralsData , only : NFROZEN,TDISCONODES,TQuadValMax,TQuadVecMax,TCalcExcitStar,TJustQuads,TNoDoubs,TDiagStarStars,TExcitStarsRootChange,TRmRootExcitStarsRootChange,TLinRootChange
-      USE Logging , only : ILOGGING,tCalcFCIMCPsi,tHistSpawn,tHistHamil
+      USE Logging , only : ILOGGING,tCalcFCIMCPsi,tHistSpawn,tHistHamil,tPrintOrbOcc
+      USE Logging , only : ILOGGING,tCalcFCIMCPsi,tHistSpawn,tPrintOrbOcc
       use SystemData, only : TNoRenormRandExcits
       use DetCalc, only : tEnergy,tCalcHMat,tFindDets,tCompressDets
       USE input
@@ -173,7 +174,7 @@ MODULE ReadInput
       LOGICAL :: CHECK
       character(*), parameter :: t_r='checkinput'
 
-      IF(tFindCINatOrbs) tCalcFCIMCPsi=.true.   !turn on histogramming of fcimc wavefunction in order to find density matrix
+      IF(tFindCINatOrbs.or.tPrintOrbOcc) tCalcFCIMCPsi=.true.   !turn on histogramming of fcimc wavefunction in order to find density matrix, or the orbital occupations.
 
       IF (tCalcFCIMCPsi.or.tHistSpawn) THEN  !Used in the FCIMc.  We find dets and compress them for later use
          tFindDets=.true.

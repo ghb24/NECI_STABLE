@@ -11,7 +11,8 @@ MODULE Logging
     LOGICAL TZeroProjE,TWriteDetE,TAutoCorr,tBinPops,tROHistogramAll,tROHistER,tHistSpawn,tROHistSingExc,tRoHistOneElInts
     LOGICAL tROHistVirtCoulomb,tPrintInts,tHistEnergies,tPrintTriConnections,tHistTriConHEls,tPrintHElAccept,tTruncRODump
     LOGICAL tPrintFCIMCPsi,tCalcFCIMCPsi,tPrintSpinCoupHEl,tIterStartBlock,tHFPopStartBlock,tInitShiftBlocking,tTruncDumpbyVal
-    LOGICAL tWriteTransMat,tHistHamil
+    LOGICAL tWriteTransMat,tHistHamil,tPrintOrbOcc
+    LOGICAL tWriteTransMat,tPrintOrbOcc
     INTEGER NoACDets(2:4),iPopsPartEvery,iWriteHistEvery,iNoBins,NoTriConBins,NoTriConHElBins,NHistEquilSteps
     INTEGER CCMCDebug !CCMC Debugging Level 0-6.  Default 0
     INTEGER IterStartBlocking,HFPopStartBlocking,NoDumpTruncs,NoTruncOrbsTag,TruncEvaluesTag,iWriteHamilEvery
@@ -79,6 +80,7 @@ MODULE Logging
       tPrintFCIMCPsi=.false.
       tCalcFCIMCPsi=.false.
       NHistEquilSteps=0
+      tPrintOrbOcc=.false.
       CCMCDebug=0
       tHFPopStartBlock=.true.
       tIterStartBlock=.false.
@@ -382,6 +384,10 @@ MODULE Logging
         case("HISTEQUILSTEPS")
 !This option sets the histogramming to only be done after the specified number of iterations.            
             call readi(NHistEquilSteps)
+        case("PRINTORBOCCS")
+!This option initiates the above histogramming of determinant populations and then at the end of the spawning uses these to find the normalised  
+!contribution of each orbital to the total wavefunction.  
+            tPrintOrbOcc=.true.
         case("POPSFILE")
 ! This is so that the determinants at the end of the MC run are written
 ! out, to enable them to be read back in using READPOPS in the Calc section,

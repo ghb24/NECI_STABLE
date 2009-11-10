@@ -345,6 +345,7 @@ C.. delete a symmetry table if one existed.
          use SymData, only: tagSymLabelCounts,tagSymLabelList
          use SymData, only: SymPairProds,tagSymPairProds
          use SymExcitDataMod , only : SymLabelList2,SymLabelCounts2
+         use SymExcitDataMod , only : OrbClassCount
          IMPLICIT NONE
          character(*), parameter :: this_routine='EndSym'
          if (allocated(SymTable)) then
@@ -398,6 +399,9 @@ C.. delete a symmetry table if one existed.
          end if
          if (allocated(SymLabelCounts2)) then
              deallocate(SymLabelCounts2)
+         end if
+         if (allocated(OrbClassCount)) then
+             deallocate(OrbClassCount)
          end if
          if (allocated(SymPairProds)) then
              deallocate(SymPairProds)
@@ -2074,18 +2078,19 @@ C.. Set to be totally symmetric
 !This routine *stochastically* finds the size of the determinant space. For certain symmetries, its hard to find the
 !allowed size of the determinant space. However, it can be simply found using a MC technique.
       SUBROUTINE FindSymMCSizeofSpace(IUNIT)
-         use SymData , only : TwoCycleSymGens
-         use SystemData , only : nEl,G1,nBasis,nOccAlpha,nOccBeta,G1
-         use SystemData, only : tUEG
-         use Determinants , only : FDet
-         use DetCalc , only : ICILevel
-         use SystemData , only : CalcDetCycles, CalcDetPrint,tFixLz,NIfD
-         use mt95 , only : genrand_real2 
-         use soft_exit , only : ChangeVars
+         use SymData, only : TwoCycleSymGens
+         use SystemData, only: nEl,G1,nBasis,nOccAlpha,nOccBeta,G1
+         use SystemData, only: tUEG, NIfTot
+         use Determinants, only : FDet
+         use DetCalc, only : ICILevel
+         use SystemData, only : CalcDetCycles, CalcDetPrint,tFixLz,NIfD
+         use mt95, only : genrand_real2 
+         use soft_exit, only : ChangeVars
          use Parallel
+         use DetBitops, only: EncodeBitDet
          IMPLICIT NONE
          INTEGER :: IUNIT,OverallSym,j,SpatOrbs,FDetMom
-         INTEGER :: FDetiLut(0:nBasis/32),ExcitLev,iLut(0:nBasis/32)
+         INTEGER :: FDetiLut(0:NIfTot),ExcitLev,iLut(0:NIfTot)
          INTEGER :: FDetSym,TotalSym,TotalMom,alpha,beta,ierr,Momx,Momy
          INTEGER :: Momz
          INTEGER*8 :: Accept,AcceptAll,i
@@ -2123,7 +2128,7 @@ C.. Set to be totally symmetric
              tTruncSpace=.false.
          ENDIF
 
-         CALL EncodeBitDet(FDet,FDetiLut,NEl,NIfD)
+         CALL EncodeBitDet(FDet,FDetiLut)
 
          WRITE(IUNIT,*) "Symmetry of HF determinant is: ",FDetSym
          IF(tFixLz) THEN

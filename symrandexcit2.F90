@@ -2330,7 +2330,7 @@ END SUBROUTINE SpinOrbSymSetup
 !the excitation. This means that all excitations should be 0 or 1 after enough iterations. It will then count the excitations and compare the number to the
 !number of excitations generated using the full enumeration excitation generation. This can be done for both doubles and singles, or one of them.
 SUBROUTINE TestGenRandSymExcitNU(nI,Iterations,pDoub,exFlag,iWriteEvery)
-    Use SystemData , only : NEl,nBasis,G1,nBasisMax,LzTot,NIfD
+    Use SystemData , only : NEl,nBasis,G1,nBasisMax,LzTot,NIfTot
     Use GenRandSymExcitNUMod , only : GenRandSymExcitScratchNU,ConstructClassCounts,ScratchSize
     Use SymData , only : nSymLabels
     use Parallel
@@ -2338,7 +2338,7 @@ SUBROUTINE TestGenRandSymExcitNU(nI,Iterations,pDoub,exFlag,iWriteEvery)
     IMPLICIT NONE
     INTEGER :: i,Iterations,exFlag,nI(NEl),nJ(NEl),IC,ExcitMat(2,2),DetConn
     REAL*8 :: pDoub,pGen,AverageContrib,AllAverageContrib
-    INTEGER :: ClassCount2(ScratchSize),iLut(0:nBasis/32),Scratch1(ScratchSize),Scratch2(ScratchSize),iLutnJ(0:NIfD)
+    INTEGER :: ClassCount2(ScratchSize),iLut(0:nBasis/32),Scratch1(ScratchSize),Scratch2(ScratchSize),iLutnJ(0:NIfTot)
     INTEGER :: ClassCountUnocc2(ScratchSize),iExcit,iWriteEvery
     LOGICAL :: tParity,SymAllowed,tFilled,tSoftExitFound,tDummy,tDummy2
     REAL*8 , ALLOCATABLE :: DoublesHist(:,:,:,:),SinglesHist(:,:),AllDoublesHist(:,:,:,:),AllSinglesHist(:,:)
@@ -2368,7 +2368,7 @@ lp2: do while(.true.)
         CALL GetLz(nJ,NEl,Lz)
         IF(Lz.eq.LzTot) THEN
             excitcount=excitcount+1
-            CALL EncodeBitDet(nJ,iLutnJ,NEl,NIfD)
+            CALL EncodeBitDet(nJ,iLutnJ,NEl,NIfTot)
             WRITE(25,*) excitcount,iExcit,iLutnJ(0)
         ENDIF
     enddo lp2
@@ -2396,7 +2396,7 @@ lp2: do while(.true.)
 !!Create ILUT for O[1] comparison of orbitals in root determinant - This is now read in
 !        ILUT((nI(i)-1)/32)=IBSET(ILUT((NI(i)-1)/32),MOD(NI(i)-1,32))
 !    enddo
-    CALL EncodeBitDet(nI,iLut,NEl,NIfD)
+    CALL EncodeBitDet(nI,iLut,NEl,NIfTot)
 
     tFilled=.false.
     Scratch1(:)=0
@@ -2421,7 +2421,7 @@ lp2: do while(.true.)
         ENDIF
         AverageContrib=AverageContrib+1.D0/pGen
 
-!        CALL EncodeBitDet(nJ,iLutnJ,NEl,NIfD)
+!        CALL EncodeBitDet(nJ,iLutnJ,NEl,NIfTot)
 !        IF(IC.eq.1) THEN
 !            WRITE(6,*) ExcitMat(1,1),ExcitMat(2,1)
 !        ELSE
@@ -2484,7 +2484,7 @@ lp2: do while(.true.)
                         ExcitMat(1,2)=j
                         ExcitMat(2,1)=k
                         ExcitMat(2,2)=l
-                        CALL FindExcitBitDet(iLut,iLutnJ,2,ExcitMat,NIfD)
+                        CALL FindExcitBitDet(iLut,iLutnJ,2,ExcitMat,NIfTot)
                         WRITE(8,"(I12,F20.12,4I5,I15)") DetNum,AllDoublesHist(i,j,k,l)/(real(Iterations,8)*nProcessors),i,j,k,l,iLutnJ(0)
                     ENDIF
                 enddo
@@ -2501,7 +2501,7 @@ lp2: do while(.true.)
                 DetNumS=DetNumS+1
                 ExcitMat(1,1)=i
                 ExcitMat(2,1)=j
-                CALL FindExcitBitDet(iLut,iLutnJ,1,ExcitMat,NIfD)
+                CALL FindExcitBitDet(iLut,iLutnJ,1,ExcitMat,NIfTot)
                 WRITE(9,*) DetNumS,AllSinglesHist(i,j)/(real(Iterations,8)*nProcessors),iLutnJ(0)
             ENDIF
         enddo
