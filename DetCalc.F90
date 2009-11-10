@@ -591,9 +591,9 @@ CONTAINS
 
 !We now want to sort the determinants according to the excitation level (stored in Temp)
             IF(.not.tEnergy) THEN
-                CALL SORTDETS(Det,Temp(1:Det),1,FCIDets(:,1:Det))
+                CALL SORTDETS(Det,Temp(1:Det),1,FCIDets(:,1:Det),NIfTot+1)
             ELSE
-                CALL SORTDETSwREALS(Det,Temp(1:Det),1,FCIDets(:,1:Det),FCIGS(1:Det),1)
+                CALL SORTDETSwREALS(Det,Temp(1:Det),1,FCIDets(:,1:Det),NIfTot+1,FCIGS(1:Det),1)
 !                CALL Stop_All("DetCalc","Cannot do histogramming FCI without JUSTFINDDETS at the moment (need new sorting - bug ghb24)")
             ENDIF
 
