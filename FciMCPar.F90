@@ -20,7 +20,7 @@ MODULE FciMCParMod
     use CalcData , only : FixedKiiCutoff,tFixShiftKii,tFixCASShift,tMagnetize,BField,NoMagDets,tSymmetricField,tStarOrbs,SinglesBias
     use CalcData , only : tHighExcitsSing,iHighExcitsSing,tFindGuide,iGuideDets,tUseGuide,iInitGuideParts,tNoDomSpinCoup
     use CalcData , only : tPrintDominant,iNoDominantDets,MaxExcDom,MinExcDom,tSpawnDominant,tMinorDetsStar
-    use CalcData , only : tCCMC,tTruncCAS
+    use CalcData , only : tCCMC,tTruncCAS,tCASStar
     use HPHFRandExcitMod , only : FindExcitBitDetSym,GenRandHPHFExcit,GenRandHPHFExcit2Scratch
     USE Determinants , only : FDet,GetHElement2,GetHElement4
     USE DetCalc , only : ICILevel,nDet,Det,FCIDetIndex
@@ -5918,13 +5918,15 @@ MODULE FciMCParMod
         CALL MPI_Bcast(DomDets(0:NIfTot,1:iNoDomDets),(NIfTot+1)*iNoDomDets,MPI_INTEGER,Root,MPI_COMM_WORLD,ierr)
 
 
-        IF(tMinorDetsStar) THEN
+        IF(tMinorDetsStar.or.tCASStar) THEN
             IF(.not.tRotoAnnihil) THEN
-                CALL Stop_All(this_routine,'STARMINORDETERMINANTS can only be used with rotoannihilation.') 
+                CALL Stop_All(this_routine,'STARMINORDETERMINANTS and CASSTAR can only be used with rotoannihilation.') 
             ELSEIF(tFixShiftShell) THEN
-                CALL Stop_All(this_routine,'STARMINORDETERMINANTS cannot be used with the fixed shift shell approximation.') 
+                CALL Stop_All(this_routine,'STARMINORDETERMINANTS and CASSTAR cannot be used with the fixed shift shell approximation.') 
             ELSEIF(iMinDomLev.le.2) THEN
-                CALL Stop_All(this_routine,'STARMINORDETERMINANTS is not set up to deal with removing doubles or lower.')
+                CALL Stop_All(this_routine,'STARMINORDETERMINANTS and CASSTAR are not set up to deal with removing doubles or lower.')
+            ELSEIF(tCASStar.and.(.not.tTruncCAS)) THEN
+                CALL Stop_All(this_routine,'The active space for a CAS calculation has not been defined.')
             ELSE
                 CALL InitMinorDetsStar()
             ENDIF
@@ -8424,6 +8426,7 @@ MODULE FciMCParMod
     END SUBROUTINE SetupParameters
     LOGICAL FUNCTION TestifDETinCAS(DetCurr)
         INTEGER :: k,z,DetCurr(NEl)
+        LOGICAL :: tElecInVirt
 
 !        CASmax=NEl+VirtCASorbs
 ! CASmax is the max spin orbital number (when ordered energetically) within the chosen active space.
@@ -8436,9 +8439,10 @@ MODULE FciMCParMod
 ! the determinant to be in the active space.
 
         z=0
+        tElecInVirt=.false.
         do k=1,NEl      ! running over all electrons
             if (SpinInvBRR(DetCurr(k)).gt.CASmax) THEN
-                TestifDETinCAS=.false.
+                tElecInVirt=.true.
                 EXIT            
 ! if at any stage an electron has an energy greater than the CASmax value, the determinant can be ruled out
 ! of the active space.  Upon identifying this, it is not necessary to check the remaining electrons.
@@ -8450,12 +8454,13 @@ MODULE FciMCParMod
 ! counted.
             endif
         enddo
-! the final number of electrons in this low energy region must be equal to the number of orbitals (CASmin), 
-! otherwise an orbital is unoccupied, and the determinant cannot be part of the active space.
-        if (z.eq.CASmin) THEN
-            TestifDETinCAS=.true.
-        else
+
+        if(tElecInVirt.or.(z.ne.CASmin)) THEN
+! if an electron is in an orbital above the active space, or the inactive orbitals are not full, the determinant is automatically ruled out.            
             TestifDETinCAS=.false.
+        else
+! no orbital in virtual and the inactive orbitals are completely full - det in active space.        
+            TestifDETinCAS=.true.
         endif
         
         RETURN
