@@ -416,13 +416,17 @@ MODULE HPHFRandExcitMod
             IF(mod(nI(i),2).eq.0) THEN
 !electron is an alpha - change it to a beta (remove one)
 !However, we only want to do this if the electron before it is not the beta in the same spatial orbital
-                IF((i.eq.1).or.((nI(i)-1).ne.nI(i-1))) THEN
+                IF(i.eq.1) THEN
+                    nJ(i)=nI(i)-1
+                ELSEIF((nI(i)-1).ne.nI(i-1)) THEN
                     nJ(i)=nI(i)-1
                 ELSE
                     nJ(i)=nI(i)
                 ENDIF
             ELSE
-                IF((i.eq.NEl).or.((nI(i)+1).ne.nI(i+1))) THEN
+                IF(i.eq.NEl) THEN
+                    nJ(i)=nI(i)+1
+                ELSEIF((nI(i)+1).ne.nI(i+1)) THEN
                     nJ(i)=nI(i)+1
                 ELSE
                     nJ(i)=nI(i)
