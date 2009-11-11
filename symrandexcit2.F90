@@ -2134,8 +2134,6 @@ MODULE GenRandSymExcitNUMod
         LOGICAL :: tAllowedExcit,tParity
         REAL*8 :: r,pGen,pAIJ
 
-        write(6,*) "Entering UEG excitation generator"
-
         CALL PickElecPair(nI,Elec1Ind,Elec2Ind,SymProduct,iSpn,SumMl,-1)
 
         ! This chooses an a of the correct spin, excluding occupied orbitals
@@ -2157,7 +2155,6 @@ MODULE GenRandSymExcitNUMod
             !Orbital not in nI. Accept.
                 EXIT
             ENDIF
-        
         ENDDO
 
         Hole1BasisNum=ChosenUnocc
@@ -2181,7 +2178,11 @@ MODULE GenRandSymExcitNUMod
         ENDIF
         
         ! Which orbital has momentum kb?
-        Hole2BasisNum=2*((NMAXZ*2+1)*(NMAXY*2+1)*(kb(1)+NMAXX)+(NMAXZ*2+1)*(kb(2)+NMAXY)+(kb(3)+NMAXZ)+1)+(1-G1(Hole1BasisNum)%Ms)/2
+        IF (iSpn.eq.2) THEN
+            Hole2BasisNum=2*((NMAXZ*2+1)*(NMAXY*2+1)*(kb(1)+NMAXX)+(NMAXZ*2+1)*(kb(2)+NMAXY)+(kb(3)+NMAXZ)+1)-(1+G1(Hole1BasisNum)%Ms)/2
+        ELSE
+            Hole2BasisNum=2*((NMAXZ*2+1)*(NMAXY*2+1)*(kb(1)+NMAXX)+(NMAXZ*2+1)*(kb(2)+NMAXY)+(kb(3)+NMAXZ)+1)-1+iSpn/3
+        ENDIF
 
         ! Is b occupied?
         IF(BTEST(iLutnI((Hole2BasisNum-1)/32),MOD(Hole2BasisNum-1,32))) THEN
@@ -2197,6 +2198,12 @@ MODULE GenRandSymExcitNUMod
         ! Check that the correct kb has been found -- can be commented out later
         DO i=1,3
             IF ((G1(nI(Elec2Ind))%k(i)+G1(nI(Elec1Ind))%k(i)-G1(Hole1BasisNum)%k(i)-G1(Hole2BasisNum)%k(i)) .ne. 0) THEN
+                WRITE(6,*) "Tried to excite " 
+                WRITE(6,*) "ki ", ki 
+                WRITE(6,*) "kj ", kj
+                WRITE(6,*) "ka ", ka
+                WRITE(6,*) "kb should be ", kb
+                WRITE(6,*) "kb is ", G1(Hole2BasisNum)%k
                 CALL Stop_All("CreateDoubExcitUEG", "Wrong b found")
             ENDIF
         ENDDO
