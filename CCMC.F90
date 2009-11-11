@@ -561,90 +561,91 @@
 !This will only be a help if most determinants are multiply occupied.
 
                CALL GenRandSymExcitScratchNU(DetCurr,iLutnI,nJ,pDoubles,IC,Ex,tParity,exFlag,Prob,Scratch1,Scratch2,tFilled)
+               if(.not.IsNullDet(nJ)) then  !Check it hasn't given us a null determinant as it couldn't find one in a sensible time.
 !We need to calculate the bit-representation of this new child. This can be done easily since the ExcitMat is known.
-               IF(.not.tHPHF) CALL FindExcitBitDet(iLutnI,iLutnJ,IC,Ex,NIfD)
-               IF(iDebug.gt.4) then
-                   WRITE(6,*) "Random excited det level ",iC
-                   call WriteDet(6,nJ,nEl,.true.)
-                   Write(6,*) "Prob ex|from",Prob
-               endif
+                  IF(.not.tHPHF) CALL FindExcitBitDet(iLutnI,iLutnJ,IC,Ex,NIfD)
+                  IF(iDebug.gt.4) then
+                      WRITE(6,*) "Random excited det level ",iC
+                      call WriteDet(6,nJ,nEl,.true.)
+                      Write(6,*) "Prob ex|from",Prob
+                  endif
 !Prob is the Prob of choosing nJ from nI
 !dClusterProb is the Probability of having chosen this cluster excitor (normalized such that <1/dClusterProb> = 1)
 !dProbNorm is the renormalization factor for this level of excitors - decreasing by HFcount for each extra level of excitors
-               Prob=Prob*dClusterProb*dProbNorm  !Now include the prob of choosing the det we spawned from
-               if(iDebug.gt.4) Write(6,*) "Prob ex tot",Prob
-               if(iCompositeSize.gt.1) dProb=dProb
+                  Prob=Prob*dClusterProb*dProbNorm  !Now include the prob of choosing the det we spawned from
+                  if(iDebug.gt.4) Write(6,*) "Prob ex tot",Prob
+                  if(iCompositeSize.gt.1) dProb=dProb
 !Calculate number of children to spawn
-               IF(TTruncSpace) THEN
+                  IF(TTruncSpace) THEN
 !We have truncated the excitation space at a given excitation level. See if the spawn should be allowed.
-                   IF(CheckAllowedTruncSpawn(WalkExcitLevel,nJ,iLutnJ,IC)) THEN
-                       Child=AttemptCreatePar(DetCurr,iLutnI,iSgn,nJ,iLutnJ,Prob,IC,Ex,tParity,1,.false.)
-                   ELSE
-                       Child=0
-                   ENDIF
-               ELSE
+                      IF(CheckAllowedTruncSpawn(WalkExcitLevel,nJ,iLutnJ,IC)) THEN
+                          Child=AttemptCreatePar(DetCurr,iLutnI,iSgn,nJ,iLutnJ,Prob,IC,Ex,tParity,1,.false.)
+                      ELSE
+                          Child=0
+                      ENDIF
+                  ELSE
 !SD Space is not truncated - allow attempted spawn as usual
-                   Child=AttemptCreatePar(DetCurr,iLutnI,iSgn,nJ,iLutnJ,Prob,IC,Ex,tParity,1,.false.)
-               ENDIF
+                      Child=AttemptCreatePar(DetCurr,iLutnI,iSgn,nJ,iLutnJ,Prob,IC,Ex,tParity,1,.false.)
+                  ENDIF
 
-               IF(iDebug.gt.4.or.((iDebug.eq.3.or.iDebug.eq.4).and.Child.ne.0)) THEN
+                  IF(iDebug.gt.4.or.((iDebug.eq.3.or.iDebug.eq.4).and.Child.ne.0)) THEN
    !We've not printed this out before
-                  call WriteBitEx(6,iLutHF,iLutnI,.false.)
-                  write(6,'(A)',advance='no') ,' ==> '
-                  call WriteBitEx(6,iLutHF,iLutnJ,.false.)
-                  WRITE(6,'(A,I7)',advance='no') "Children:",Child             
-                  if(iDebug.eq.3.and.iCompositeSize.gt.1) THEN
-                     write(6,'(A)',advance='no') ' from '
-                     do i=1,iCompositeSize
-                        call WriteBitEx(6,iLutHF,SelectedExcitors(:,i),.false.)
-                     enddo
+                     call WriteBitEx(6,iLutHF,iLutnI,.false.)
+                     write(6,'(A)',advance='no') ,' ==> '
+                     call WriteBitEx(6,iLutHF,iLutnJ,.false.)
+                     WRITE(6,'(A,I7)',advance='no') "Children:",Child             
+                     if(iDebug.eq.3.and.iCompositeSize.gt.1) THEN
+                        write(6,'(A)',advance='no') ' from '
+                        do i=1,iCompositeSize
+                           call WriteBitEx(6,iLutHF,SelectedExcitors(:,i),.false.)
+                        enddo
+                     endif
+                     write(6,*)
                   endif
-                  write(6,*)
-               endif
 
-               IF(Child.ne.0) THEN
-                  if(iCompositeSize.gt.1) nClusterChildren=nClusterChildren+1 
+                  IF(Child.ne.0) THEN
+                     if(iCompositeSize.gt.1) nClusterChildren=nClusterChildren+1 
    !We want to spawn a child - find its information to store
 
    !                    WRITE(6,*) "Spawning particle to:",nJ(:)
    !                    ExcitLevel=iGetExcitLevel_2(HFDet,nJ,NEl,NEl)
    !                    WRITE(6,*) "Excitlevel:", ExcitLevel
-                    NoBorn=NoBorn+abs(Child)     !Update counter about particle birth
-                    IF(IC.eq.1) THEN
-                        SpawnFromSing=SpawnFromSing+abs(Child)
-                    ENDIF
+                       NoBorn=NoBorn+abs(Child)     !Update counter about particle birth
+                       IF(IC.eq.1) THEN
+                           SpawnFromSing=SpawnFromSing+abs(Child)
+                       ENDIF
 
-                    IF(abs(Child).gt.25) THEN
+                       IF(abs(Child).gt.25) THEN
    !If more than 25 particles are created in one go, then log this fact and print out later that this has happened.
-                        IF(abs(Child).gt.abs(iPartBloom)) THEN
-                            IF(IC.eq.1) THEN
-                                iPartBloom=-abs(Child)
-                            ELSE
-                                iPartBloom=abs(Child)
-                            ENDIF
-                        ENDIF
+                           IF(abs(Child).gt.abs(iPartBloom)) THEN
+                               IF(IC.eq.1) THEN
+                                   iPartBloom=-abs(Child)
+                               ELSE
+                                   iPartBloom=abs(Child)
+                               ENDIF
+                           ENDIF
    !                        WRITE(6,"(A,I10,A)") "LARGE PARTICLE BLOOM - ",Child," particles created in one attempt."
    !                        WRITE(6,"(A,I5)") "Excitation: ",IC
    !                        WRITE(6,"(A,G25.10)") "PROB IS: ",Prob
    !                        CALL FLUSH(6)
-                    ENDIF
+                       ENDIF
 
 
 !In direct annihilation, we spawn particles into a seperate array, but we do not store them contiguously in the SpawnedParts/SpawnedSign arrays.
 !The processor that the newly-spawned particle is going to be sent to has to be determined, and then it will get put into the the appropriate element determined by ValidSpawnedList.
 
-                    Proc=DetermineDetProc(iLutnJ)   !This wants to return a value between 0 -> nProcessors-1
+                       Proc=DetermineDetProc(iLutnJ)   !This wants to return a value between 0 -> nProcessors-1
    !                    WRITE(6,*) iLutnJ(:),Proc,ValidSpawnedList(Proc),Child,TotWalkers
    !                    CALL FLUSH(6)
-                    SpawnedParts(:,ValidSpawnedList(Proc))=iLutnJ(:)
-                    SpawnedSign(ValidSpawnedList(Proc))=Child
-                    ValidSpawnedList(Proc)=ValidSpawnedList(Proc)+1
+                       SpawnedParts(:,ValidSpawnedList(Proc))=iLutnJ(:)
+                       SpawnedSign(ValidSpawnedList(Proc))=Child
+                       ValidSpawnedList(Proc)=ValidSpawnedList(Proc)+1
 
-                    Acceptances=Acceptances+ABS(Child)      !Sum the number of created children to use in acceptance ratio
+                       Acceptances=Acceptances+ABS(Child)      !Sum the number of created children to use in acceptance ratio
                 
-               ENDIF   !End if child created
+                  ENDIF   !End if child created
 
-
+               ENDIF !.not.IsNullDet(nJ)
 
    ! We have to decompose our composite excitor into one of its parts.  
                IF(iCompositeSize.GT.0) THEN
@@ -751,6 +752,7 @@
             iDie=iKillDetIndices(1,j)
             iPartDie=iKillDetIndices(2,j)
 ! Actually do this earlier
+
             CurrentSign(iPartDie)=CurrentSign(iPartDie)-iDie
        enddo
 !End the loop over killing dets.
@@ -1192,69 +1194,71 @@
 
 !            call WriteDet(6,DetCurr,nEl,.true.)
             CALL GenRandSymExcitScratchNU(DetCurr,iLutnI,nJ,pDoubles,IC,Ex,tParity,exFlag,Prob,Scratch1,Scratch2,tFilled)
+            if(.not.IsNullDet(nJ)) then  !Check it hasn't given us a null determinant as it couldn't find one in a sensible time.
 !We need to calculate the bit-representation of this new child. This can be done easily since the ExcitMat is known.
-            CALL FindExcitBitDet(iLutnI,iLutnJ,IC,Ex,NIfD)
-            IF(iDebug.gt.4) then
-                WRITE(6,*) "Random excited det level ",iC
-                call WriteDet(6,nJ,nEl,.true.)
-                Write(6,*) "Prob ex|from",Prob
-            endif
+               CALL FindExcitBitDet(iLutnI,iLutnJ,IC,Ex,NIfD)
+               IF(iDebug.gt.4) then
+                   WRITE(6,*) "Random excited det level ",iC
+                   call WriteDet(6,nJ,nEl,.true.)
+                   Write(6,*) "Prob ex|from",Prob
+               endif
 !Prob is the Prob of choosing nJ from nI
 !dClusterProb is the Probability of having chosen this cluster excitor (normalized such that <1/dClusterProb> = 1)
 !dProbNorm is the renormalization factor for this level of excitors - decreasing by HFcount for each extra level of excitors
 !            Prob=Prob*dProbNorm  !/dClusterProb  !Now include the prob of choosing the det we spawned from
-            if(iDebug.gt.4) Write(6,*) "Prob ex tot",Prob
-            if(iCompositeSize.gt.1) dProb=dProb
+               if(iDebug.gt.4) Write(6,*) "Prob ex tot",Prob
+               if(iCompositeSize.gt.1) dProb=dProb
 !Calculate amplitude to spawn
-            IF(TTruncSpace) THEN
+               IF(TTruncSpace) THEN
 !We have truncated the excitation space at a given excitation level. See if the spawn should be allowed.
-                IF(CheckAllowedTruncSpawn(WalkExcitLevel,nJ,iLutnJ,IC)) THEN
-                  rh=GetHElement4(DetCurr,nJ,IC,Ex,tParity)
-                ELSE
-                  rh=HElement(0)
-                ENDIF
-            ELSE
-!SD Space is not truncated - allow attempted spawn as usual
-                  rh=GetHElement4(DetCurr,nJ,IC,Ex,tParity)
-            ENDIF
-
-            rat=-iSgn*Tau*rh%v*dClusterNorm/(Prob*dProbNorm)
-            IF(iDebug.gt.4.or.((iDebug.eq.3.or.iDebug.eq.4))) THEN
-!We've not printed this out before
-               call WriteBitEx(6,iLutHF,iLutnI,.false.)
-               write(6,'(A)',advance='no') ,' ==> '
-               call WriteBitEx(6,iLutHF,iLutnJ,.false.)
-               WRITE(6,'(A,G25.16)',advance='no') "Children:",rat
-               if(iDebug.eq.3.and.iCompositeSize.gt.1) THEN
-                  write(6,'(A)',advance='no') ' from '
-                  do i=1,iCompositeSize
-                     call WriteBitEx(6,iLutHF,SelectedExcitors(:,i),.false.)
-                  enddo
-               endif
-               write(6,*)
-            endif
-            if(abs(rat).gt.1e-4*dTolerance*dInitAmplitude) then
-!Now add in a contribution from the child
-               CALL FindBitExcitLevel(iLutHF,iLutnJ(:),IC,nEl)
-               IF(IC.eq.NEl) THEN
-                   CALL BinSearchParts3(iLutnJ(:),FCIDets(:,:),Det,FCIDetIndex(IC),Det,PartIndex,tSuc)
-               ELSEIF(IC.eq.0) THEN
-                   PartIndex=1
-                   tSuc=.true.
+                   IF(CheckAllowedTruncSpawn(WalkExcitLevel,nJ,iLutnJ,IC)) THEN
+                     rh=GetHElement4(DetCurr,nJ,IC,Ex,tParity)
+                   ELSE
+                     rh=HElement(0)
+                   ENDIF
                ELSE
-                   CALL BinSearchParts3(iLutnJ(:),FCIDets(:,:),Det,FCIDetIndex(IC),FCIDetIndex(IC+1)-1,PartIndex,tSuc)
+!SD Space is not truncated - allow attempted spawn as usual
+                     rh=GetHElement4(DetCurr,nJ,IC,Ex,tParity)
                ENDIF
-            
-               if(.not.tSuc) THEN      
-                  WRITE(6,*) "Cannot find excitor "
-                  call WriteBitEx(6,iLutHF,iLutnJ,.true.)
-                  call WriteBitDet(6,iLutnJ,.true.)
-                  WRITE(6,*) "Excitation Level: ",IC
-                  WRITE(6,*) "Dets ",FCIDetIndex(IC),' to ',FCIDetIndex(IC+1)-1
-                  call Stop_All("CCMCStandalone","Cannot find excitor in list.")
+
+               rat=-iSgn*Tau*rh%v*dClusterNorm/(Prob*dProbNorm)
+               IF(iDebug.gt.4.or.((iDebug.eq.3.or.iDebug.eq.4))) THEN
+!We've not printed this out before
+                  call WriteBitEx(6,iLutHF,iLutnI,.false.)
+                  write(6,'(A)',advance='no') ,' ==> '
+                  call WriteBitEx(6,iLutHF,iLutnJ,.false.)
+                  WRITE(6,'(A,G25.16)',advance='no') "Children:",rat
+                  if(iDebug.eq.3.and.iCompositeSize.gt.1) THEN
+                     write(6,'(A)',advance='no') ' from '
+                     do i=1,iCompositeSize
+                        call WriteBitEx(6,iLutHF,SelectedExcitors(:,i),.false.)
+                     enddo
+                  endif
+                  write(6,*)
                endif
-               Amplitude(PartIndex,iCurAmpList)=Amplitude(PartIndex,iCurAmpList)+rat
-            endif
+               if(abs(rat).gt.1e-4*dTolerance*dInitAmplitude) then
+!Now add in a contribution from the child
+                  CALL FindBitExcitLevel(iLutHF,iLutnJ(:),IC,nEl)
+                  IF(IC.eq.NEl) THEN
+                      CALL BinSearchParts3(iLutnJ(:),FCIDets(:,:),Det,FCIDetIndex(IC),Det,PartIndex,tSuc)
+                  ELSEIF(IC.eq.0) THEN
+                      PartIndex=1
+                      tSuc=.true.
+                  ELSE
+                      CALL BinSearchParts3(iLutnJ(:),FCIDets(:,:),Det,FCIDetIndex(IC),FCIDetIndex(IC+1)-1,PartIndex,tSuc)
+                  ENDIF
+               
+                  if(.not.tSuc) THEN      
+                     WRITE(6,*) "Cannot find excitor "
+                     call WriteBitEx(6,iLutHF,iLutnJ,.true.)
+                     call WriteBitDet(6,iLutnJ,.true.)
+                     WRITE(6,*) "Excitation Level: ",IC
+                     WRITE(6,*) "Dets ",FCIDetIndex(IC),' to ',FCIDetIndex(IC+1)-1
+                     call Stop_All("CCMCStandalone","Cannot find excitor in list.")
+                  endif
+                  Amplitude(PartIndex,iCurAmpList)=Amplitude(PartIndex,iCurAmpList)+rat
+               endif
+            endif !.not.IsNullDet(nJ)
 ! Now deal with birth/death.
    ! We have to decompose our composite excitor into one of its parts.  
             IF(iCompositeSize.GT.1) THEN
