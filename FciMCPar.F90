@@ -9043,11 +9043,11 @@ MODULE FciMCParMod
             ENDIF
             IF(tSuccess) THEN
                 IF(tFlippedSign) THEN
-                    Histogram(PartInd)=Histogram(PartInd)-REAL(WSign,r2)
-                    IF(tHistSpawn) InstHist(PartInd)=InstHist(PartInd)-REAL(WSign,r2)
+                    Histogram(PartInd)=Histogram(PartInd)-REAL(WSign,r2)/dProbFin
+                    IF(tHistSpawn) InstHist(PartInd)=InstHist(PartInd)-REAL(WSign,r2)/dProbFin
                 ELSE
-                    Histogram(PartInd)=Histogram(PartInd)+REAL(WSign,r2)
-                    IF(tHistSpawn) InstHist(PartInd)=InstHist(PartInd)+REAL(WSign,r2)
+                    Histogram(PartInd)=Histogram(PartInd)+REAL(WSign,r2)/dProbFin
+                    IF(tHistSpawn) InstHist(PartInd)=InstHist(PartInd)+REAL(WSign,r2)/dProbFin
                 ENDIF
             ELSE
                 WRITE(6,*) DetCurr(:)
@@ -9071,19 +9071,19 @@ MODULE FciMCParMod
                     CALL CalcOpenOrbs(iLutSym,NIfD,NEl,OpenOrbs)
                     IF(tFlippedSign) THEN
                         IF(mod(OpenOrbs,2).eq.1) THEN
-                            Histogram(PartInd)=Histogram(PartInd)+REAL(WSign,r2)
-                            IF(tHistSpawn) InstHist(PartInd)=InstHist(PartInd)+REAL(WSign,r2)
+                            Histogram(PartInd)=Histogram(PartInd)+REAL(WSign,r2)/dProbFin
+                            IF(tHistSpawn) InstHist(PartInd)=InstHist(PartInd)+REAL(WSign,r2)/dProbFin
                         ELSE
-                            Histogram(PartInd)=Histogram(PartInd)-REAL(WSign,r2)
-                            IF(tHistSpawn) InstHist(PartInd)=InstHist(PartInd)-REAL(WSign,r2)
+                            Histogram(PartInd)=Histogram(PartInd)-REAL(WSign,r2)/dProbFin
+                            IF(tHistSpawn) InstHist(PartInd)=InstHist(PartInd)-REAL(WSign,r2)/dProbFin
                         ENDIF
                     ELSE
                         IF(mod(OpenOrbs,2).eq.1) THEN
-                            Histogram(PartInd)=Histogram(PartInd)-REAL(WSign,r2)
-                            IF(tHistSpawn) InstHist(PartInd)=InstHist(PartInd)-REAL(WSign,r2)
+                            Histogram(PartInd)=Histogram(PartInd)-REAL(WSign,r2)/dProbFin
+                            IF(tHistSpawn) InstHist(PartInd)=InstHist(PartInd)-REAL(WSign,r2)/dProbFin
                         ELSE
-                            Histogram(PartInd)=Histogram(PartInd)+REAL(WSign,r2)
-                            IF(tHistSpawn) InstHist(PartInd)=InstHist(PartInd)+REAL(WSign,r2)
+                            Histogram(PartInd)=Histogram(PartInd)+REAL(WSign,r2)/dProbFin
+                            IF(tHistSpawn) InstHist(PartInd)=InstHist(PartInd)+REAL(WSign,r2)/dProbFin
                         ENDIF
                     ENDIF
                 ELSE

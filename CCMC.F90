@@ -859,6 +859,7 @@
    SUBROUTINE CCMCStandalone(Weight,Energyxw)
       Use global_utilities
       use SystemData, only: nEl,nIfD
+      use CCMCData, only: tCCMCFCI,dInitAmplitude
       use DetCalc, only: Det       ! The number of Dets/Excitors in FCIDets
       use DetCalc, only: FCIDets   ! (nBasis/32, Det).  Lists all allowed excitors in compressed form
       use DetCalc, only:FCIDetIndex! (nEl).  The index of the different excitation levels
@@ -870,7 +871,9 @@
       use FciMCParMod, only: iLutHF
       use FciMCParMod, only: CheckAllowedTruncSpawn, SetupParameters,BinSearchParts3
       use FciMCParMod, only: CalcNewShift,SumEContrib,InitHistMin
+      use FciMCParMod, only: WriteHistogram
       Use Logging, only: CCMCDebug
+      USE Logging , only : tHistSpawn,iWriteHistEvery
       USE SymData , only : nSymLabels
       USE Determinants , only : FDet,GetHElement2,GetHElement4,GetHElement3
       USE DetCalc , only : ICILevel,Det,FCIDetIndex
@@ -917,13 +920,17 @@
       REAL*8 HDiagCurr
       REAL*8 dTmp,dPsiTotAbsAmpl,dClusterNorm
       INTEGER iShiftLeft
-      INTEGER WalkerScale
+      REAL*8 WalkerScale
       REAL*8 dT1Sq
+      REAL*8 dTolerance
+      REAL*8 dAveProbSel(0:4)
       WRITE(6,*) "Entering CCMC Standalone..."
       WRITE(6,*) "pDoubles",pDoubles
       nSelects=InitWalkers
       iDebug=CCMCDebug
-      dProbSelNewExcitor=0.5
+      dProbSelNewExcitor=0.7
+
+      dTolerance=1e-16
       iCurAmpList=1  !Start with list 1
 
 ! Setup Memory
@@ -933,12 +940,12 @@
 ! Now setup the amplitude list.  Let's start with nothing initially, and
       Amplitude(:,:)=0
 !  place ampl 1 in the HF det
-      Amplitude(1,iCurAmpList)=1
+      Amplitude(1,iCurAmpList)=dInitAmplitude
       iNumExcitors=0
       dTotAbsAmpl=Amplitude(1,iCurAmpList)
 
       iShiftLeft=StepsSft
-      WalkerScale=10000
+      WalkerScale=10000000/dInitAmplitude
       TotWalkers=WalkerScale*dTotAbsAmpl
       TotParts=WalkerScale*dTotAbsAmpl
       TotWalkersOld=WalkerScale*dTotAbsAmpl
@@ -964,7 +971,7 @@
             call WriteBitDet(6,iLutHF,.true.)
             write(6,*) "Particle list"
             do j=1,Det
-               if(iDebug.gt.4.or.abs(Amplitude(j,iCurAmpList)).gt.1e-8) THEN
+               if(iDebug.gt.4.or.abs(Amplitude(j,iCurAmpList)).gt.(dTolerance*dInitAmplitude)) THEN
                   write(6,'(G17.9)',advance='no') Amplitude(j,iCurAmpList)
                   call WriteBitEx(6,iLutHF,FciDets(:,j),.true.)
                ENDIF
@@ -977,7 +984,7 @@
          iNumExcitors=0
          dTotAbsAmpl=0
          do j=2,Det
-            if(abs(Amplitude(j,iCurAmpList)).gt.1e-8) then
+            if(abs(Amplitude(j,iCurAmpList)).gt.dTolerance*dInitAmplitude) then
                iNumExcitors=iNumExcitors+1
                dTotAbsAmpl=dTotAbsAmpl+abs(Amplitude(j,iCurAmpList))
             ENDIF
@@ -993,15 +1000,16 @@
             if(Amplitude(j,iCurAmpList).lt.0) i=-1
 !            call WriteBitEx(6,iLutHF,FCIDets(:,j),.false.)
 !            WRITE(6,*) "J",j,iC
-            call SumEContrib(DetCurr,iC,i,FCIDets(:,j),dTmp,1/(abs(Amplitude(j,iCurAmpList)))*Amplitude(1,iCurAmpList))
+            dAmp=abs(Amplitude(j,iCurAmpList))/Amplitude(1,iCurAmpList)
+            if(dAmp.ne.0.d0)  call SumEContrib(DetCurr,iC,i,FCIDets(:,j),dTmp,1/dAmp)
 ! Deal with T_1^2
-             if(iC.eq.1) then
+             if(iC.eq.1.and..not.tCCMCFCI) then
                 do l=j+1,FCIDetIndex(2)-1
                   iSgn=1
                   dAmp=Amplitude(j,iCurAmpList)*Amplitude(l,iCurAmpList)
                   iLutnI(:)=FCIDets(:,j)
                   call AddBitExcitor(iLutnI,FCIDets(:,l),iLutHF,iSgn)
-                  if(iSgn.ne.0) then
+                  if(iSgn.ne.0.and.dAmp.ne.0.d0) then
  !                    WRITE(6,*) "L",l
                      CALL DecodeBitDet(DetCurr,iLutnI(:),NEl,NIfD)
                      Htmp=GetHElement3(HFDet, DetCurr,2)
@@ -1036,7 +1044,7 @@
          dPsiTotAbsAmpl=0
          dTmp=Amplitude(1,iOldAmpList)
          do i=0,iNumExcitors
-            if(dTmp.lt.1d-8) exit
+            if(abs(dTmp).lt.1d-8*abs(dPsiTotAbsAmpl)) exit
             dPsiTotAbsAmpl=dPsiTotAbsAmpl+dTmp
             dTmp=dTmp*dTotAbsAmpl/Amplitude(1,iOldAmpList)
             if(i.gt.0) dTmp=dTmp/i
@@ -1047,6 +1055,7 @@
          TotParts=(dTotAbsAmpl+abs(Amplitude(1,iCurAmpList)))*WalkerScale
          TotWalkers=TotParts
 !  Loop over cluster selections
+         dAveProbSel(:)=0
          do j=1,nSelects 
             if(iDebug.gt.3) write(6,*) "Selection ",j
 !  Now pick the cluster
@@ -1077,16 +1086,18 @@
             dNGenComposite=1
             dClusterNorm=Amplitude(1,iOldAmpList)
             iMaxExcit=min(nEl,iNumExcitors)
+!For FCI using amplitudes we only make a single selection
+            if(tCCMCFCI) iMaxExcit=min(1,iMaxExcit)
             do i=1,iMaxExcit
    ! Calculate the probability that we've reached this far in the loop
                         !We must have at least one excitor, so we cannot exit here.
                call genrand_real2(r)  !On GHB's advice
                if(r.lt.dProbSelNewExcitor) exit
-! Calculate the cluster noormalization for this level:
-               dClusterNorm=(dClusterNorm/i)*dTotAbsAmpl/Amplitude(1,iOldAmpList)
+! Calculate the cluster noormalization for this level:  Used to /i
+               dClusterNorm=(dClusterNorm/(i))*dTotAbsAmpl/Amplitude(1,iOldAmpList)
    
 ! decide not to choose another walker with this prob.
-               dProbNumExcit=dProbNumExcit*dProbSelNewExcitor
+               dProbNumExcit=dProbNumExcit*(1-dProbSelNewExcitor)
 ! Select a new random walker
                call genrand_real2(r)  !On GHB's advice
                r=r*dTotAbsAmpl
@@ -1112,18 +1123,27 @@
             IF(iDebug.gt.5) WRITE(6,*) 'prob out of sel routine.',dProbNumExcit
             if(i.gt.iMaxExcit) THEN !We've been limited by the max number of excitations
                ! Let s be dProbSelNewExcitor, and X be nMaxSelExcitors
-               !  The sum of all levels up to X-1 is
-               !  (s - s^X) / (1 - s).  We take 1-this to be the prob of
-               !  choosing this level
-               dProbNumExcit= 1- (dProbSelNewExcitor - dProbNumExcit) / (1-dProbSelNewExcitor)
+               !  The sum of all levels from 0 up to X-1 is
+               !  s ( 1 - (1-s)^X)/(1-(1-s)) = 1 - (1-s)^X
+               !  We take 1-this to be the prob of choosing this level, i.e. (1-s)^X
+               !  dProbNumExcit is currently s*(1-s)^X
+               dProbNumExcit= dProbNumExcit / dProbSelNewExcitor
             ENDIF
+!dProbNumExcit is the prob of having chosen this level
             iCompositeSize=i-1  !Save the number of excitors we've selected   
             if(iCompositeSize.eq.0) then !We haven't correctly calculated dNGenComposite for zero excitors.  Do so now.
                dNGenComposite=dNGenComposite*abs(Amplitude(1,iOldAmpList))  !For each new excit added to the composite, we multiply up to count the number of ways we could've generated it.
             endif
+!            WRITE(115,"(30I5)") SelectedExcitorIndices(1:iCompositeSize)
 
+!Up to here dProbNorm merely accounts for the number of selections made
             dProbNorm=dProbNorm*dProbNumExcit
 !At This point dProbNorm is the number to divide any contribution from this cluster by to account for its selection.
+!  It does not take into account the amplitude weighting of each cluster, so the
+!  sum of all  1/dProbNorm = # levels
+!  dClusterNorm is the probability that this cluster was chosen, given the level had already been selected.
+!  This includes multiple selections of the same excitor as well as combinations of excitors which produce a 0 sign.
+            dAveProbSel(iCompositeSize)=dAveProbSel(iCompositeSize)+1/dProbNorm
 
 !Now form the cluster
             IF(iDebug.gt.3) then
@@ -1135,6 +1155,8 @@
                Write(6,*) "Level chosen Prob      : ",dProbNumExcit
                Write(6,*) "Select Prob given level: ",dClusterProb
                Write(6,*) "Prob norm              : ",dProbNorm
+
+!The Cluster Normalization for this level (i.e. what the actual magnitude of this level should contribute to the sum.  (TotAbsAmp**iLevel / (iLevel!) ) * N0 / (N_0^iLevel)  
                Write(6,*) "Cluster norm           : ",dClusterNorm
             endif
             iLutnI(:)=iLutHF(:)
@@ -1209,7 +1231,7 @@
                endif
                write(6,*)
             endif
-            if(abs(rat).gt.1e-8) then
+            if(abs(rat).gt.1e-4*dTolerance*dInitAmplitude) then
 !Now add in a contribution from the child
                CALL FindBitExcitLevel(iLutHF,iLutnJ(:),NIfD,IC,nEl)
                IF(IC.eq.NEl) THEN
@@ -1237,10 +1259,10 @@
 !  We modify the composite (t_a t_b t_c) -> (t_a t_b t_c - x) by changing just one of the parts
 !  t_a -> t_a (1- x/(t_a t_b t_c)).   
                dProbDecompose=1.0/iCompositeSize
+               dProbDecompose=.0713
                call genrand_real2(r)  !On GHB's advice
                k=1+floor(r*iCompositeSize)
                iPartDie=SelectedExcitorIndices(k)
-               dProbDecompose=0
             ELSEIF(iCompositeSize.EQ.1) THEN
                dProbDecompose=1
                iPartDie=SelectedExcitorIndices(1)
@@ -1280,32 +1302,35 @@
             endif
 
 !  This will be the amount we wish to subtract from t_x
-            rat=Tau*(HDiagCurr-DiagSft)*dClusterNorm*dProb/dProbNorm !(dProb*dProbNorm)
+
+!dProb = 1
+!            rat=Tau*(HDiagCurr-DiagSft)*dClusterNorm*dProb/dProbNorm !(dProb*dProbNorm)
+            rat=Tau*(HDiagCurr-DiagSft)*dProb/(dProbNorm*dClusterProb) !(dProb*dProbNorm)
             IF(iDebug.ge.4) then
                WRITE(6,*) "Product Contributions to Number Died:"
                WRITE(6,*) "Energy difference: ",HDiagCurr-DiagSft
                WRITE(6,*) "Tau              : ",Tau
-               WRITE(6,*) "Sign             : ",-iSgn
+               WRITE(6,*) "Sign             : ",iSgn
                WRITE(6,*) "Cluster Prob     : ",dClusterProb
                WRITE(6,*) "Cluster Norm     : ",dClusterNorm
-               WRITE(6,*) "1/dProb          : ",1/dProb
+               WRITE(6,*) "dProb            : ",dProb
                WRITE(6,*) "1/dProbNorm      : ",1/dProbNorm
                WRITE(6,*) "Delta t_x        : ",-rat
                WRITE(6,*) "dNGenComposite   : ",dNGenComposite
             endif 
-! rat is what we wish to modify t_a t_b t_c by.
-!  To do this we modify the chosen part (e.g. t_a) by
-! t_a (1 - rat / (t_a t_b t_c) )
 
-! dNGenComposite = t_a t_b t_c
-            rat= rat/dNGenComposite
-! t_a(new) = t_a(new)+ t_a(old) * rat
+!! rat is what we wish to modify t_a t_b t_c by. (but positive - we'll actually want to subtract it)
+!!  To do this we modify the chosen part (e.g. t_a) by
+!! t_a (1 - rat / (t_a t_b t_c) )
+!
+!! dNGenComposite = t_a t_b t_c
+!            rat= rat/dNGenComposite
+!! t_a(new) = t_a(new)+ t_a(old) * rat
             IF(iDebug.ge.4) then
                WRITE(6,*) "Death ratio      : ",rat
             endif
          
-            r=Amplitude(iPartDie,iOldAmpList)*rat !*iSgn
-! Turn off death
+            r=Amplitude(iPartDie,iOldAmpList)*rat 
             Amplitude(iPartDie,iCurAmpList)=Amplitude(iPartDie,iCurAmpList)-r
 ! The two next lines are the ancien regime
 !            r=iSgn*Tau*(HDiagCurr-DiagSft)*dClusterNorm/dProbNorm !(dProb*dProbNorm)
@@ -1327,6 +1352,9 @@
              
 
          enddo ! Cluster choices
+         if(iDebug.ge.2) WRITE(6,*) "Total Selection Prob (should =1): ",sum(dAveProbSel)
+         if(iDebug.ge.2) WRITE(6,*) dAveProbSel
+         
 
 ! Collate stats
 ! Calc Shift
@@ -1336,6 +1364,9 @@
          if(iShiftLeft.eq.0)  Call CalcNewShift()
          if(iShiftLeft.le.0)  iShiftLeft=StepsSft
 
+         IF(tHistSpawn.and.(mod(Iter,iWriteHistEvery).eq.0)) THEN
+             CALL WriteHistogram()
+         ENDIF
 
       enddo !MC Cycles
       
