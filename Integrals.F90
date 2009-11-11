@@ -594,11 +594,12 @@ MODULE Integrals
         
     Subroutine IntFreeze
       use SystemData, only: Alat,Brr,CoulDampOrb,ECore,fCoulDampMu
-      use SystemData, only: G1,iSpinSkip,NIfD,NIfY,NIfTot,tCSF
+      use SystemData, only: G1,iSpinSkip,NIfD,NIfY,NIfP,NIfTot,tCSF
       use SystemData, only: nBasis,nEl,arr,nbasismax
       use UMatCache, only: GetUMatSize
       use HElem, only: HElement,HElementSize,HElementSizeB
       use SymData , only : TwoCycleSymGens
+      use CalcData , only : tCASStar
       use global_utilities
       character(25), parameter ::this_routine='IntFreeze'            
 !//Locals
@@ -697,9 +698,17 @@ MODULE Integrals
           NIfY = 0
       endif
       NIfTot = NIfD + NIfY
+        
+      if (tCASStar) then
+! We need an integer to contain a flag of whether or not the parent of spawned walkers was inside or outside the active space.          
+          NIfP = 1
+      else
+          NIfP = 0
+      endif
+      NIfTot = NIfTot + NIfP
 
 
-      WRITE(6,*) "Setting integer length of determinants as bit-strings to: ",NIfD+NIfY+1
+      WRITE(6,*) "Setting integer length of determinants as bit-strings to: ",NIfD+NIfY+NIfP+1
          
       IF(COULDAMPORB.GT.0) THEN
          FCOULDAMPMU=(ARR(COULDAMPORB,1)+ARR(COULDAMPORB+1,1))/2

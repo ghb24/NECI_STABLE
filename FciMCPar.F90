@@ -492,6 +492,17 @@ MODULE FciMCParMod
 
 !First, decode the bit-string representation of the determinant the walker is on, into a string of naturally-ordered integers
             CALL DecodeBitDet(DetCurr,CurrentDets(:,j))
+
+            IF(tCASStar) THEN
+                IF(TestIfDetInCAS(DetCurr)) THEN
+                    ParentinCAS=1
+!The parent walker from which we are attempting to spawn is in the active space - all children will carry this flag, and these spawn like usual.
+                ELSE
+                    ParentinCAS=2
+!The parent from which we are attempting to spawn is outside the active space - children spawned on unoccupied determinants with this flag will be killed.
+                ENDIF
+            ENDIF
+
 !            IF((Iter.gt.100)) THEN!.and.(.not.DetBitEQ(CurrentDets(:,j),iLutHF))) THEN
 !This will test the excitation generator for HPHF wavefunctions
 !                IF(.not.(TestClosedShellDet(CurrentDets(:,j)))) THEN
@@ -615,8 +626,9 @@ MODULE FciMCParMod
 !Calculate number of children to spawn
                 IF(nJ(1).eq.0) THEN
                     Child=0
-                ELSEIF(TTruncSpace.or.tTruncCAS.or.tListDets.or.tPartFreezeCore.or.tFixLz.or.tUEG) THEN
+                ELSEIF(TTruncSpace.or.(tTruncCAS.and.(.not.tCASStar)).or.tListDets.or.tPartFreezeCore.or.tFixLz.or.tUEG) THEN
 !We have truncated the excitation space at a given excitation level. See if the spawn should be allowed.
+!If we are using the CASStar - all spawns are allowed so no need to check.
                     IF(tImportanceSample) CALL Stop_All("PerformFCIMCyc","Truncated calculations not yet working with importance sampling")
 
                     IF(CheckAllowedTruncSpawn(WalkExcitLevel,nJ,iLutnJ,IC)) THEN
