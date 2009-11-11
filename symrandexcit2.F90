@@ -947,9 +947,9 @@ MODULE GenRandSymExcitNUMod
                 ENDIF
             ENDIF
 
-            IF(AttemptsOverall.gt.300) THEN
+            IF(AttemptsOverall.gt.1000) THEN
                 WRITE(6,*) "***",NExcit,ForbiddenOrbs
-                WRITE(6,*) "Cannot find first allowed unoccupied orbital for given i,j pair after 300 attempts."
+                WRITE(6,*) "Cannot find first allowed unoccupied orbital for given i,j pair after 1000 attempts."
                 WRITE(6,*) "It may be that there are no possible excitations from this i,j pair, in which case "
                 WRITE(6,*) "the given algorithm is inadequate to describe excitations from such a small space."
                 WRITE(6,*) "Try reverting to old excitation generators."
@@ -2411,7 +2411,11 @@ lp2: do while(.true.)
         ENDIF
         IF(mod(i,iWriteEvery).eq.0) THEN
             AllAverageContrib=0.D0
+#ifdef PARALLEL
             CALL MPI_Reduce(AverageContrib,AllAverageContrib,1,MPI_DOUBLE_PRECISION,MPI_SUM,0,MPI_COMM_WORLD,error)
+#else            
+            AllAverageContrib=AverageContrib
+#endif
             IF(iProcIndex.eq.0) THEN
                 WRITE(9,*) i,AllAverageContrib/(REAL(i,8)*excitcount*nProcessors)
             ENDIF
@@ -2426,8 +2430,13 @@ lp2: do while(.true.)
 
     CLOSE(9)
 
+#ifdef PARALLEL
     CALL MPI_Reduce(DoublesHist,AllDoublesHist,nBasis**4,MPI_DOUBLE_PRECISION,MPI_SUM,0,MPI_COMM_WORLD,error)
     CALL MPI_Reduce(SinglesHist,AllSinglesHist,nBasis**2,MPI_DOUBLE_PRECISION,MPI_SUM,0,MPI_COMM_WORLD,error)
+#else
+    AllDoublesHist=DoublesHist
+    AllSinglesHist=SinglesHist
+#endif
 
 !Now run through arrays normalising them so that numbers are more managable.
     OPEN(8,FILE="DoublesHist",STATUS="UNKNOWN")
