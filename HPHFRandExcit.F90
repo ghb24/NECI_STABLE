@@ -1,3 +1,5 @@
+#include "macros.h"
+
 MODULE HPHFRandExcitMod
 !Half-projected HF wavefunctions are a linear combination of two HF determinants, where all alphas -> betas and betas -> alpha to create the pair.
 !In closed-shell systems, these two determinants have the same FCI amplitude, and so it is easier to treat them as a pair.
@@ -39,7 +41,7 @@ MODULE HPHFRandExcitMod
 !Just need to return the right spin.
 
             CALL GenRandSymExcitScratchNU(nI,iLutnI,nJ,pDoub,IC,ExcitMat,tParity,exFlag,pGen,ClassCount2,ClassCountUnocc2,tGenClassCountnI)
-            IF(nJ(1).eq.0) RETURN
+            IF(IsNullDet(nJ)) RETURN
             
 !Create bit representation of excitation - iLutnJ
             CALL FindExcitBitDet(iLutnI,iLutnJ,IC,ExcitMat,NIfD)
@@ -74,7 +76,7 @@ MODULE HPHFRandExcitMod
         IF(r.lt.0.D5) THEN
 !Excite to nJ from nI
             CALL GenRandSymExcitScratchNU(nI,iLutnI,nJ,pDoub,IC,ExcitMat,tParity,exFlag,pGen,ClassCount2,ClassCountUnocc2,tGenClassCountnI)
-            IF(nJ(1).eq.0) RETURN
+            IF(IsNullDet(nJ)) RETURN
 
 !Find Bit-representation of excitation.
             CALL FindExcitBitDet(iLutnI,iLutnJ,IC,ExcitMat,NIfD)
@@ -100,7 +102,7 @@ MODULE HPHFRandExcitMod
 !            CALL DecodeBitDet(nI2,iLutnI2)
 !            CALL FindDetSpinSym(nI,nI2,NEl)
             CALL GenRandSymExcitScratchNU(nI2,iLutnI2,nJ,pDoub,IC,ExcitMat,tParity,exFlag,pGen,ClassCount3,ClassCountUnocc3,tGenClassCountnI2)
-            IF(nJ(1).eq.0) RETURN
+            IF(IsNullDet(nJ)) RETURN
 
 !Find Bit-representation of excitation.
             CALL FindExcitBitDet(iLutnI2,iLutnJ,IC,ExcitMat,NIfD)
@@ -182,7 +184,7 @@ MODULE HPHFRandExcitMod
 
 !Create excitation of uniquely chosen determinant in this HPHF function.
         CALL GenRandSymExcitScratchNU(nI,iLutnI,nJ,pDoub,IC,ExcitMat,tSignOrig,exFlag,pGen,ClassCount2,ClassCountUnocc2,tGenClassCountnI)
-        IF(nJ(1).eq.0) RETURN
+        IF(IsNullDet(nJ)) RETURN
 !Create bit representation of excitation - iLutnJ
         CALL FindExcitBitDet(iLutnI,iLutnJ,IC,ExcitMat,NIfD)
             
@@ -567,7 +569,7 @@ MODULE HPHFRandExcitMod
         i=1
         lp2: do while(.true.)
             CALL GenSymExcitIt2(nI,NEl,G1,nBasis,nBasisMax,.false.,EXCITGEN,nJ,iExcit,0,nStore,3)
-            IF(nJ(1).eq.0) exit lp2
+            IF(IsNullDet(nJ)) exit lp2
             CALL EncodeBitDet(nJ,iLutnJ)
             IF(.not.TestClosedShellDet(iLutnJ)) THEN
                 CALL ReturnAlphaOpenDet(nJ,nJ2,iLutnJ,iLutSym,.true.,.true.,tSwapped)
@@ -593,7 +595,7 @@ MODULE HPHFRandExcitMod
         i=1
         lp: do while(.true.)
             CALL GenSymExcitIt2(nI2,NEl,G1,nBasis,nBasisMax,.false.,EXCITGEN,nJ,iExcit,0,nStore,3)
-            IF(nJ(1).eq.0) exit lp
+            IF(IsNullDet(nJ)) exit lp
             CALL EncodeBitDet(nJ,iLutnJ)
             IF(.not.TestClosedShellDet(iLutnJ)) THEN
                 CALL ReturnAlphaOpenDet(nJ,nJ2,iLutnJ,iLutSym,.true.,.true.,tSwapped)
