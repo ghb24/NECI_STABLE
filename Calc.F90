@@ -214,6 +214,7 @@ MODULE Calc
           MaxExcDom=3
           tSpawnDominant=.false.
           tMinorDetsStar=.false.
+          tCASStar=.false.
 
           tNeedsVirts=.true.! Set if we need virtual orbitals  (usually set).  Will be unset (by Calc readinput) if I_VMAX=1 and TENERGY is false
 
@@ -872,6 +873,11 @@ MODULE Calc
                 tTruncCAS=.true.
                 call Geti(OccCASOrbs)
                 call Geti(VirtCASOrbs)
+
+            case("CASSTAR")
+!This option goes along with the above TRUNCATECAS option.  This means that walkers are allowed to spawn on determinants outside the active space, however if this is done, they
+!can only spawn back on to the determinant from which they came.  This is the star approximation from the CAS space. 
+                tCASStar=.true.
 
             case("UNBIASPGENINPROJE")
 !A FCIMC serial option. With this, walkers will be accepted with probability tau*hij. i.e. they will not unbias for PGen in the acceptance criteria, but in the term for the projected energy.
