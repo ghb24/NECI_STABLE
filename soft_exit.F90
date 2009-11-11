@@ -53,9 +53,11 @@ contains
 !   PRINTSHIFTBLOCKING      Will print the shift blocking analysis
 !   RESTARTSHIFTBLOCKING    Will restart the shift blocking analysis
 !   EQUILSTEPS XXX          Will change the number of steps to ignore in the averaging of the energy and the shift.
+!   STARTHIST        Will begin histogramming the determinant populations if the tCalcFCIMCPsi is on and the histogramming has been set up.
+!   HISTEQUILSTEPS XXX      Will change the iteration at which the histogramming begins to the value specified.
 
     subroutine ChangeVars(tSingBiasChange,tSoftExitFound,tWritePopsFound)
-       use SystemData, only : NEl
+       use SystemData, only : NEl,nBasis
        use FciMCData, only : Iter,CASMin,CASMax,tTruncSpace,tSinglePartPhase,SumENum,SumNoatHF,HFPopCyc,ProjEIterSum,Histogram,AvAnnihil
        use FciMCData, only : VaryShiftCycles,SumDiagSft,VaryShiftIter 
        use CalcData, only : Tau,DiagSft,SftDamp,StepsSft,SinglesBias,OccCASOrbs,VirtCASOrbs,NMCyc,tTruncCAS,NEquilSteps
@@ -63,13 +65,12 @@ contains
        use IntegralsData , only : tPartFreezeCore,NPartFrozen,NHolesFrozen
        use Parallel
        use Input
-       use Logging, only: tHistSpawn,tCalcFCIMCPsi,tIterStartBlock,IterStartBlocking,tHFPopStartBlock
+       use Logging, only: tHistSpawn,tCalcFCIMCPsi,tIterStartBlock,IterStartBlocking,tHFPopStartBlock,NHistEquilSteps
        use FCIMCLoggingMOD, only : PrintBlocking,RestartBlocking,PrintShiftBlocking,RestartShiftBlocking
-       use SystemData, only: nBasis
        implicit none
        integer :: error,i,ios,NewNMCyc
        logical :: tSoftExitFound,tWritePopsFound,exists,AnyExist,deleted_file
-       logical :: tEof,any_deleted_file,tChangeParams(20),tSingBiasChange
+       logical :: tEof,any_deleted_file,tChangeParams(22),tSingBiasChange
        Character(len=100) :: w
 
        tSoftExitFound=.false.
@@ -85,7 +86,7 @@ contains
                WRITE(6,*) "CHANGEVARS file detected on iteration ",Iter
            ENDIF
 !Set the defaults
-           tChangeParams(1:20)=.false.
+           tChangeParams(1:22)=.false.
            deleted_file=.false.
            do i=0,nProcessors-1
                ! This causes each processor to attempt to delete
@@ -154,6 +155,11 @@ contains
                        CASE("EQUILSTEPS")
                            tChangeParams(20)=.true.
                            CALL Readi(NEquilSteps)
+                       CASE("STARTHIST")
+                           tChangeParams(21)=.true.
+                       CASE("HISTEQUILSTEPS")
+                           tChangeParams(22)=.true.
+                           CALL Readi(NHistEquilSteps)
                        END SELECT
                    End Do
                    close(13,status='delete')
@@ -162,7 +168,7 @@ contains
                call MPI_AllReduce(deleted_file,any_deleted_file,1,MPI_LOGICAL,MPI_LOR,MPI_COMM_WORLD,error)
                if (any_deleted_file) exit
            end do
-           CALL MPI_BCast(tChangeParams,20,MPI_LOGICAL,i,MPI_COMM_WORLD,error)
+           CALL MPI_BCast(tChangeParams,22,MPI_LOGICAL,i,MPI_COMM_WORLD,error)
 
            IF(tChangeParams(1)) THEN
 !Change Tau
@@ -356,6 +362,19 @@ contains
                    WRITE(6,*) "Changing the number of equilibration steps to: ",NEquilSteps
                ENDIF
            ENDIF
+           IF(tChangeParams(21)) THEN
+               IF(iProcIndex.eq.0) THEN
+                   WRITE(6,*) "Beginning to histogram at the next update"
+                   NHistEquilSteps=Iter+StepsSft
+                   IF(.not.tCalcFCIMCPsi) WRITE(6,*) "This has no effect, as the histograms have not been set up at the beginning of the calculation."
+               ENDIF
+           ENDIF
+           IF(tChangeParams(22)) THEN
+               IF(iProcIndex.eq.0) THEN
+                   WRITE(6,*) "Changing the starting iteration for histogramming to: ",NHistEquilSteps
+                   IF(.not.tCalcFCIMCPsi) WRITE(6,*) "This has no effect, as the histograms have not been set up at the beginning of the calculation."
+               ENDIF
+           ENDIF
        endif
 
 99     IF (ios.gt.0) THEN
@@ -492,13 +511,13 @@ contains
        use IntegralsData , only : tPartFreezeCore,NPartFrozen,NHolesFrozen
        use Parallel
        use Input
-       use Logging, only: tHistSpawn,tCalcFCIMCPsi,tIterStartBlock,IterStartBlocking,tHFPopStartBlock
+       use Logging, only: tHistSpawn,tCalcFCIMCPsi,tIterStartBlock,IterStartBlocking,tHFPopStartBlock,NHistEquilSteps
        use FCIMCLoggingMOD, only : PrintBlocking,RestartBlocking,PrintShiftBlocking,RestartShiftBlocking
        use SystemData, only: nBasis
        implicit none
        integer :: error,i,ios,NewNMCyc
        logical :: tSoftExitFound,tWritePopsFound,exists,AnyExist,deleted_file
-       logical :: tEof,any_deleted_file,tChangeParams(20),tSingBiasChange
+       logical :: tEof,any_deleted_file,tChangeParams(22),tSingBiasChange
        Character(len=100) :: w
 
        tSoftExitFound=.false.
@@ -513,7 +532,7 @@ contains
                WRITE(6,*) "CHANGEVARS file detected on iteration ",Iter
            ENDIF
 !Set the defaults
-           tChangeParams(1:20)=.false.
+           tChangeParams(1:22)=.false.
            deleted_file=.false.
            do i=0,nProcessors-1
                ! This causes each processor to attempt to delete
@@ -582,6 +601,11 @@ contains
                        CASE("EQUILSTEPS")
                            tChangeParams(20)=.true.
                            CALL Readi(NEquilSteps)
+                       CASE("STARTHIST")
+                           tChangeParams(21)=.true.
+                       CASE("HISTEQUILSTEPS")
+                           tChangeParams(22)=.true.
+                           CALL Readi(NHistEquilSteps)
                        END SELECT
                    End Do
                    close(13,status='delete')
@@ -767,6 +791,20 @@ contains
            IF(tChangeParams(20)) THEN
                IF(iProcIndex.eq.0) THEN
                    WRITE(6,*) "Changing the number of equilibration steps to: ",NEquilSteps
+               ENDIF
+           ENDIF
+           IF(tChangeParams(21)) THEN
+               IF(iProcIndex.eq.0) THEN
+                   WRITE(6,*) "Beginning to histogram at the next update"
+                   NHistEquilSteps=Iter+StepsSft
+                   IF(.not.tCalcFCIMCPsi) WRITE(6,*) "This has no effect, as the histograms have not been set up at the beginning of the calculation."
+               ENDIF
+           ENDIF
+           IF(tChangeParams(22)) THEN
+               IF(iProcIndex.eq.0) THEN
+                   IF(NHistEquilSteps.le.Iter) NHistEquilSteps=Iter+StepsSft
+                   WRITE(6,*) "Changing the starting iteration for histogramming to: ",NHistEquilSteps
+                   IF(.not.tCalcFCIMCPsi) WRITE(6,*) "This has no effect, as the histograms have not been set up at the beginning of the calculation."
                ENDIF
            ENDIF
        endif

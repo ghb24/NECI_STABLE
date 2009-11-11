@@ -10,8 +10,9 @@ MODULE NatOrbsMod
         USE Parallel
         USE IntegralsData , only : UMAT
         USE UMatCache , only : UMatInd
-        USE SystemData , only : NEl,nBasis,NIfD,G1,ARR,BRR,lNoSymmetry,LMS,tStoreSpinOrbs,nOccAlpha,nOccBeta,tSeparateOccVirt
+        USE SystemData , only : NEl,nBasis,G1,ARR,BRR,lNoSymmetry,LMS,tStoreSpinOrbs,nOccAlpha,nOccBeta,tSeparateOccVirt
         USE SystemData , only : tRotateOccOnly,tRotateVirtOnly,tFindCINatOrbs,tUseMP2VarDenMat,nBasisMax,ALAT,iSpinSkip
+        use SystemData, only: NIfY, NIfTot
         USE RotateOrbsData , only : SymLabelList2,SymLabelCounts2,SymLabelCounts2Tag,SymLabelListInv,NoOrbs,SpatOrbs,FillOneRDM_time
         USE RotateOrbsData , only : FillMP2VDM_Time,DiagNatOrbMat_Time,OrderCoeff_Time,FillCoeff_Time,NoFrozenVirt
         USE HElem
@@ -369,8 +370,9 @@ MODULE NatOrbsMod
 
     SUBROUTINE FillOneRDM()
         USE DetCalc , only : Det,FCIDets,FCIDetIndex,ICILevel
+        use DetBitOps, only: DecodeBitDet
 ! Det is the number of determinants in FCIDets.
-! FCIDets contains the list of all determinants in the system in bit string representation, FCIDets(0:nBasis/32,1:Det) 
+! FCIDets contains the list of all determinants in the system in bit string representation, FCIDets(0:NIfTot,1:Det) 
 ! ICILevel is the max excitation level of the calculation - as in EXCITE ICILevel.
 ! FCIDetIndex(1:NEl) contains the index of FCIDets where each excitation level starts.
 ! As in FCIDetIndex(1) = 2 always I think - Excitation level 1 starts at the second determinant (after HF).
@@ -418,7 +420,7 @@ MODULE NatOrbsMod
 
 !        WRITE(6,*) 'FCIDets'
 !        do i=1,Det
-!            WRITE(6,*) FCIDets(0:NIfD,i),AllHistogram(i)
+!            WRITE(6,*) FCIDets(0:NIfTot,i),AllHistogram(i)
 !        enddo
 !        CALL FLUSH(6)
 !        stop
@@ -480,14 +482,14 @@ MODULE NatOrbsMod
 !               ! lower to one excitation higher.
                     IF((i.gt.Det).or.(j.gt.Det)) CALL Stop_All('FillOneRDM','Running through i or j larger than the number of determinants.')
 
-                    CALL FindBitExcitLevel(FCIDets(0:NIfD,i),FCIDets(0:NIfD,j),NIfD,ExcitLevel,2)
+                    CALL FindBitExcitLevel(FCIDets(:,i),FCIDets(:,j),ExcitLevel,2)
                     ! Need to find the excitation level between D_i and D_j. If this is 1 - go on to add their contributions to the OneRDM.
 
                     IF(ExcitLevel.eq.1) THEN
                         Ex(:,:)=0
                         Ex(1,1)=ExcitLevel
 
-                        CALL GetBitExcitation(FCIDets(0:NIfD,i),FCIDets(0:NIfD,j),NIfD,NEl,Ex,tSign)
+                        CALL GetBitExcitation(FCIDets(:,i),FCIDets(:,j),Ex,tSign)
                         ! Gives the orbitals involved in the excitation Ex(1,1) in i -> Ex(2,1) in j (in spin orbitals).
 
                         IF(tStoreSpinOrbs) THEN
@@ -519,9 +521,9 @@ MODULE NatOrbsMod
                             WRITE(6,*) CEILING(REAL(Ex(1,1)/2.D0)),CEILING(REAL(Ex(2,1)/2.D0))
                             WRITE(6,*) 'Orbi,',Orbi,'Orbj,',Orbj
                             WRITE(6,*) 'Sym(Orbi)',INT(G1(SymLabelList2(Orbi)*Spins)%sym%S,4),'Sym(Orbj)',INT(G1(SymLabelList2(Orbj)*Spins)%sym%S,4)
-                            CALL DecodeBitDet(nI,FCIDets(0:NIfD,i),NEl,NIfD)
+                            CALL DecodeBitDet(nI,FCIDets(0:NIfTot,i))
                             WRITE(6,*) 'i',nI
-                            CALL DecodeBitDet(nJ,FCIDets(0:NIfD,j),NEl,NIfD)
+                            CALL DecodeBitDet(nJ,FCIDets(0:NIfTot,j))
                             WRITE(6,*) 'j',nJ
                             WRITE(6,*) 'AllHistogram(i)',AllHistogram(i)
                             WRITE(6,*) 'AllHistogram(j)',AllHistogram(j)
@@ -530,7 +532,7 @@ MODULE NatOrbsMod
                         ENDIF
 
                     ELSEIF(ExcitLevel.eq.0) THEN
-                        CALL DecodeBitDet(nJ,FCIDets(0:NIfD,j),NEl,NIfD)
+                        CALL DecodeBitDet(nJ,FCIDets(0:NIfTot,j))
                         do k=1,NEl
 !                            WRITE(6,*) 'k',k
                             IF(tStoreSpinOrbs) THEN
@@ -845,7 +847,12 @@ MODULE NatOrbsMod
                         IF(ABS(NatOrbMat(i,j)).ge.1.0E-15) THEN
                             WRITE(6,'(6A8,A20)') 'i','j','Label i','Label j','Sym i','Sym j','Matrix value'
                             WRITE(6,'(6I3,F40.20)') i,j,SymLabelList2(i),SymLabelList2(j),INT(G1(SymLabelList2(i)*2)%sym%S,4),INT(G1(SymLabelList2(j)*2)%sym%S,4),NatOrbMat(i,j)
-                            CALL Stop_All(this_routine,'Non-zero NatOrbMat value between different symmetries.')
+                            IF(tUseMP2VarDenMat) THEN
+                                WRITE(6,*) '**WARNING** - There is a non-zero NatOrbMat value between orbitals of different symmetry.'
+                                WRITE(6,*) 'These elements will be ignored, and the symmetry maintained in the final transformation matrix.'
+                            ELSE
+                                CALL Stop_All(this_routine,'Non-zero NatOrbMat value between different symmetries.')
+                            ENDIF
                         ENDIF
                         NatOrbMat(i,j)=0.D0
                     ENDIF
@@ -1551,6 +1558,65 @@ MODULE NatOrbsMod
         
 
     END SUBROUTINE PrintOccTable
+
+
+    SUBROUTINE FindOrbOccupations()
+! This routine takes whatever orbital basis we're using and is called at the end of a spawn to find the contribution of each orbital to the final wavefunction.    
+! This is done by histogramming the determinant populations, and then running over these adding the coefficients of each determinant to the orbitals 
+! occupied.
+! This is essentially < Psi | a_p+ a_p | Psi > - the diagonal terms of the one electron reduced density matrix.
+        USE DetCalc , only : Det,FCIDets
+        USE FciMCData , only : AllHistogram
+        use DetBitOps, only: DecodeBitDet
+        INTEGER :: ierr,OrbOccsTag,i,CurrDet(NEl),j
+        REAL*8 :: Norm
+        REAL*8 , ALLOCATABLE :: OrbOccs(:)
+        CHARACTER(len=*), PARAMETER :: this_routine='FindOrbOccupations'
+
+
+! Orbitals are always treated as spin orbitals because this the occupied orbitals in a determinant are the spin orbitals.
+        ALLOCATE(OrbOccs(nBasis),stat=ierr)
+        CALL LogMemAlloc('OrbOccs',nBasis,8,this_routine,OrbOccsTag,ierr)
+        OrbOccs(:)=0.D0
+
+
+! Det is the number of determinants in FCIDets.
+! FCIDets contains the list of all determinants in the system in bit string representation, FCIDets(0:nBasis/32,1:Det) 
+
+! The elements of AllHistogram correspond to the rows of FCIDets - i.e to each determinant in the system.
+! AllHistogram contains the final (normalised) amplitude of the determinant - with sign.
+
+        do i=1,Det 
+            CurrDet(:)=0
+            CALL DecodeBitDet(CurrDet,FCIDets(0:NIfTot,i))
+
+! Run through each orbital occupied in the current determinant and add the coefficient of the determinant to the contribution from that orbital.            
+            do j=1,NEl
+                OrbOccs(CurrDet(j))=OrbOccs(CurrDet(j))+ABS(AllHistogram(i))
+            enddo
+        enddo
+
+! Want to normalise the orbital contributions for convenience.        
+        Norm=0.D0
+        do i=1,nBasis
+            Norm=Norm+OrbOccs(i)
+        enddo
+        do i=1,nBasis
+            OrbOccs(i)=OrbOccs(i)/Norm
+        enddo
+
+        OPEN(12,FILE='ORBOCCUPATIONS',STATUS='UNKNOWN')
+        WRITE(12,'(A15,A30)') '# Orbital no.','Normalised occupation'
+        do i=1,nBasis
+            WRITE(12,'(I15,F30.10)') i,OrbOccs(i)
+        enddo
+        CLOSE(12)
+
+        DEALLOCATE(OrbOccs)
+        CALL LogMemDeAlloc(this_routine,OrbOccsTag)
+ 
+
+    END SUBROUTINE FindOrbOccupations
 
 
 

@@ -8,11 +8,12 @@ MODULE FciMCLoggingMod
     USE HElem , only : HElement
     USE Logging , only : tPrintTriConnections,TriConMax,NoTriConBins,tHistTriConHEls,NoTriConHElBins,TriConHElSingMax,TriConHElDoubMax
     USE Logging , only : tPrintHElAccept
-    USE SystemData , only : NEl,NIfD
+    USE SystemData , only : NEl,NIfTot
     USE SymData , only : nSymLabels
     USE Determinants , only : GetHElement3,GetHElement4
     use GenRandSymExcitNUMod , only : GenRandSymExcitScratchNU,ScratchSize
     USE CalcData , only : NMCyc,StepsSft
+    use DetBitOps, only: DetBitEQ
 
     IMPLICIT NONE
     save
@@ -495,32 +496,34 @@ MODULE FciMCLoggingMod
 
 
 
-    SUBROUTINE FindSpinCoupHEl(iLutHF,iLutCurr,NIfD,NEl)
+    SUBROUTINE FindSpinCoupHEl(iLutHF,iLutCurr)
 ! Fed into here is a doubly excited occupied determinant - want to take the two excited orbitals and flip their spins.
 ! Then find the coupling H element between the original and spin-flipped determinants and add it to the stats.
         USE HPHFRandExcitMod , only : FindExcitBitDetSym 
-        INTEGER :: NIfD,NEl,iLutCurr(0:NIfD),iLutHF(0:NIfD),i
-        INTEGER :: iLutSym(0:NIfD),nI(NEl),nJ(NEl),nHF(NEl),Ex(2,2)
+        use DetBitOps, only: DecodeBitdet
+        use SystemData, only: NIfTot, nel
+        INTEGER :: iLutCurr(0:NIfTot),iLutHF(0:NIfTot),i
+        INTEGER :: iLutSym(0:NIfTot),nI(NEl),nJ(NEl),nHF(NEl),Ex(2,2)
         TYPE(HElement) :: SpinCoupHEl,HElHFI,HElHFJ
-        LOGICAL :: DetsEqSpinCoup,DetBitEQ,tSign
+        LOGICAL :: DetsEqSpinCoup,tSign
 
 ! First get the spin flipped determinant.
 ! Can do this in two ways.  Either flip the spin of all electrons - this means that doubly occupied spat orbs will be unchanged or
 
-        CALL FindExcitBitDetSym(iLutCurr(0:NIfD),iLutSym(0:NIfD))
+        CALL FindExcitBitDetSym(iLutCurr,iLutSym)
 
 
 ! - just flip the sign of the two excited electrons.
-!        CALL GetBitExcitation(iLutHF(0:NIfD),iLutCurr(0:NIfD),NIfD,NEl,Ex,tSign)
+!        CALL GetBitExcitation(iLutHF,iLutCurr,Ex,tSign)
         ! Electrons Ex(1,1) and Ex(1,2) are excited to Ex(2,1) and Ex(2,2)
 
 
 ! Now find the HElement between these two determinants.        
         
-        CALL DecodeBitDet(nI,iLutCurr(0:NIfD),NEl,NIfD)
-        CALL DecodeBitDet(nJ,iLutSym(0:NIfD),NEl,NIfD)
+        CALL DecodeBitDet(nI,iLutCurr(0:NIfTot))
+        CALL DecodeBitDet(nJ,iLutSym(0:NIfTot))
 
-        CALL DecodeBitDet(nHF,iLutHF(0:NIfD),NEl,NIfD)
+        CALL DecodeBitDet(nHF,iLutHF(0:NIfTot))
 
 ! Want to replace the excited electrons in nI with the spin flipped versions.
 !        nJ(:)=nI(:)
@@ -542,7 +545,7 @@ MODULE FciMCLoggingMod
 
 
         DetsEqSpinCoup=.false.
-        DetsEqSpinCoup=DetBitEQ(iLutCurr(0:NIfD),iLutSym(0:NIfD),NIfD)
+        DetsEqSpinCoup=DetBitEQ(iLutCurr(0:NIfTot),iLutSym(0:NIfTot))
 
         HElHFI=GetHElement3(nHF,nI,-1)
         HElHFJ=GetHElement3(nHF,nJ,-1)
@@ -623,10 +626,11 @@ MODULE FciMCLoggingMod
 
 
     SUBROUTINE FindTriConnections(DetCurr,iLutnJ,iLutHF,nJ,IC,Ex,pDoubles,tFilled,tParity,Scratch1,Scratch2,exflag)
+        use systemdata, only: nifd
         TYPE(HElement) :: Hjk,Hij,Hik,HEl
-        INTEGER :: iLutnJ(0:NIfD),k,DetCurr(NEl),nJ(NEl),IC,Ex(2,2),Scratch1(ScratchSize),Scratch2(ScratchSize)
-        INTEGER :: nK(NEl),IC2,IC3,Ex2(2,2),iLutnJ2(0:NIfD),iLutnK(0:NIfD),BinNo,NoPos,NoNeg,ICgen,iLutHF(0:NIfD),exflag
-        LOGICAL :: tParity2,DetsEqTri,tHF,DetBitEQ,tFilled,tParity
+        INTEGER :: iLutnJ(0:NIfTot),k,DetCurr(NEl),nJ(NEl),IC,Ex(2,2),Scratch1(ScratchSize),Scratch2(ScratchSize)
+        INTEGER :: nK(NEl),IC2,IC3,Ex2(2,2),iLutnJ2(0:NIfTot),iLutnK(0:NIfTot),BinNo,NoPos,NoNeg,ICgen,iLutHF(0:NIfTot),exflag
+        LOGICAL :: tParity2,DetsEqTri,tHF,tFilled,tParity
         REAL*8 :: Prob2,pDoubles
         
 
@@ -639,19 +643,19 @@ MODULE FciMCLoggingMod
         CALL FindExcitBitDet(iLutnJ,iLutnJ2,IC,Ex,NIfD)
         CALL FindExcitBitDet(iLutnJ,iLutnK,IC2,Ex2,NIfD)
 
-        DetsEqTri=DetBitEQ(iLutnJ2(0:NIfD),iLutnK(0:NIfD),NIfD)
+        DetsEqTri=DetBitEQ(iLutnJ2(0:NIfTot),iLutnK(0:NIfTot))
 
         IF(.not.DetsEqTri) THEN
             ! Add the connecting elements to the relevant sum.
 
             ! First quickly test if any of the determinants are the HF.
             tHF=.false.
-            tHF=DetBitEQ(iLutHF(0:NIfD),iLutnJ(0:NIfD),NIfD)
-            IF(.not.tHF) tHF=DetBitEQ(iLutHF(0:NIfD),iLutnJ2(0:NIfD),NIfD)
-            IF(.not.tHF) tHF=DetBitEQ(iLutHF(0:NIfD),iLutnK(0:NIfD),NIfD)
+            tHF=DetBitEQ(iLutHF(0:NIfTot),iLutnJ(0:NIfTot))
+            IF(.not.tHF) tHF=DetBitEQ(iLutHF(0:NIfTot),iLutnJ2(0:NIfTot))
+            IF(.not.tHF) tHF=DetBitEQ(iLutHF(0:NIfTot),iLutnK(0:NIfTot))
 
             ! Calculate Hjk first (connecting element between two excitations), because if this is 0, no need to go further.
-            CALL FindBitExcitLevel(iLutnJ2,iLutnK,NIfD,IC3,NEl)
+            CALL FindBitExcitLevel(iLutnJ2,iLutnK,IC3,NEl)
             Hjk=GetHElement3(nJ,nK,IC3)
 
             ! Histogram and add in the Hjk elements - regardless of whether or not this is 0.
@@ -794,7 +798,7 @@ MODULE FciMCLoggingMod
 
 
     SUBROUTINE TrackSpawnAttempts(Child,DetCurr,j,nJ,iLutnJ,IC,Ex,tParity)
-        INTEGER :: Child,DetCurr(NEl),j,nJ(NEl),iLutnJ(0:NIfD),IC,Ex(2,2)
+        INTEGER :: Child,DetCurr(NEl),j,nJ(NEl),iLutnJ(0:NIfTot),IC,Ex(2,2)
         LOGICAL :: tParity
         TYPE(HElement) :: HEl
 

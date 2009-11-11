@@ -8,7 +8,7 @@ C.. Setup for symmetry routine below.
       SUBROUTINE SYMSETUPEXCITS(NI,NEL,G1,NBASIS,NBASISMAX,STORE,TCOUNT,
      &      ICOUNT,ILEVEL,iMinElec1,iMaxElec1)
          use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
-         use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
+         use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB,NIfTot
          use SymData, only: SymClassSize
          IMPLICIT NONE
          INCLUDE 'irat.inc'
@@ -22,14 +22,14 @@ C.. Setup for symmetry routine below.
          INTEGER ILEVEL
          INTEGER iMinElec1,iMaxElec1
          STORE(1:6)=0
-         CALL N_MEMORY(IP_DSTORE,SymClassSize*NEL+NBASIS/32+1
+         CALL N_MEMORY(IP_DSTORE,SymClassSize*NEL+NIfTot+1
      &      +SymmetrySize*(NEL*NEL+1),
      &      'DSTORE')
          STORE(1)=IP_DSTORE
          CALL SYMSETUPEXCITS3(NI,NEL,G1,NBASIS,NBASISMAX,STORE,TCOUNT,
      &      ICOUNT,DSTORE(1),
      &      DSTORE(SymClassSize*NEL+1),
-     &      DSTORE(SymClassSize*NEL+1+NBASIS/32+1),ILEVEL,iMinElec1,
+     &      DSTORE(SymClassSize*NEL+1+NIfTot+1),ILEVEL,iMinElec1,
      &      iMaxElec1)
 C.. If we're just counting, we don't need to keep DSTORE
          IF(TCOUNT) CALL N_FREEM(IP_DSTORE)
@@ -82,7 +82,7 @@ C.. If we're just counting, we don't need to keep DSTORE
       SUBROUTINE SYMSETUPEXCITS2(NI,NEL,G1,NBASIS,NBASISMAX,STORE,
      &   TCOUNT,ICOUNT,CLASSES,ILUT,SYMPRODS,ILEVEL,iMinElec1,iMaxElec1)
          use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
-         use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
+         use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB,NIfTot
          use SymData, only: SymClass,SymClasses,SymLabelCounts
          use SymData, only: SymStatePairs,SymLabels,SymPairProds
          use SymData, only: nSymPairProds,nSymLabels
@@ -126,7 +126,7 @@ C.. If we're just counting, we don't need to keep DSTORE
          TYPE(Symmetry) SYMPROD,SymConj
          LOGICAL LSYMSYM,SYMEQ
          INTEGER ISPN
-         INTEGER ILUT(0:NBASIS/32)
+         INTEGER ILUT(0:NIfTot)
          INTEGER,SAVE :: ISUB=0
          INTEGER ILEVEL
          Type(Symmetry) TotSymRep
@@ -409,7 +409,7 @@ C.. in order 1, not order NEL.
          DO I=1,NEL
             ILUT((NI(I)-1)/32)=IBSET(ILUT((NI(I)-1)/32),MOD(NI(I)-1,32))
          ENDDO
-!         DO I=0,NBASIS/32
+!         DO I=0,NIfTot
 !            WRITE(6,"(A,Z10)") "LUT: ",ILUT(I)
 !         ENDDO
 C.. Now look through the list of our pairs.  For each pair sym of the complete list which has a 
@@ -729,6 +729,7 @@ C..      ENDIF(.NOT.TCOUNT)
      &   TCOUNT,ICOUNT,CLASSES,ILUT,SYMPRODS,ILEVEL,iMinElec1,iMaxElec1)
          use global_utilities
          use SystemData, only: Symmetry,BasisFN,tAssumeSizeExcitgen
+         use SystemData, only: NIfTot
          use SymData, only: SymClass,nSymPairProds,nSymLabels
          use SymData, only: tAbelianFastExcitGen
          use SymData, only: tStoreStateList
@@ -755,7 +756,7 @@ C..      ENDIF(.NOT.TCOUNT)
          INTEGER SYMPRODCOUNT(3,0:NEL*NEL)
          INTEGER SYMPRODIND(2,3,0:*)
          POINTER (IP_SYMPRODIND,SYMPRODIND)
-         INTEGER ILUT(0:NBASIS/32)
+         INTEGER ILUT(0:NIfTot)
          INTEGER EXCITTYPES(5,*)
          POINTER (IP_EXCITTYPES,EXCITTYPES)
          INTEGER nPairs, nSing, nDoub, nExcits
@@ -817,15 +818,15 @@ C.. in order 1, not order NEL.
      &          (tStoreStateList)) THEN
 !ILUT is not needed in the setup of the excitation generators for abelian symmetry.
 !tStoreStateList will be false for abelian symmetry, unless specified otherwise.
-            ILUT(0:NBASIS/32)=0
+            ILUT(:)=0
             DO I=1,NEL
                 ILUT((NI(I)-1)/32)=
      &              IBSET(ILUT((NI(I)-1)/32),MOD(NI(I)-1,32))
 !                WRITE(6,*) (NI(I)-1)/32,
 !     &               IBSET(ILUT((NI(I)-1)/32),MOD(NI(I)-1,32)),
-!     &               ILUT(0:NBASIS/32)
+!     &               ILUT(0:NIfTot)
             ENDDO
-C..            DO I=0,NBASIS/32
+C..            DO I=0,NIfTot
 C..                WRITE(6,*) "ILUT: ",ILUT(i)
 C..                WRITE(6,"(A,Z10)") "LUT: ",ILUT(I)
 C..            ENDDO
@@ -2195,7 +2196,7 @@ C.. A modified version of GENSYMEXCITIT2.  This has min and max electron 1 speci
      &         TSETUP,NMEM,NJ,IC,IFRZ,STORE,ILEVEL,iMinElec1,iMaxElec1)
          use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
          use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
-         use SystemData, only: tAssumeSizeExcitgen
+         use SystemData, only: tAssumeSizeExcitgen, NIfTot
          use SymData, only: SymClassSize,nSymPairProds,nSymLabels
          IMPLICIT NONE
          INCLUDE 'irat.inc'
@@ -2235,8 +2236,8 @@ C.. This is the first time we've been called for setup.
 !SYMPRODIND - Indexing system for ORBPAIRS. NPR is the number of symmetry classes, which for abelian
 ! symmetry will always be less than or equal to nSymLabels, so we need a total of (nSymLabels+1)*6
 
-!For 'extras', we want space for ILUT (NBASIS/32+1) and CLASSES (SymClassSize*NEL) 
-                   STORE(1)=SymClassSize*NEl+NBASIS/32+1    !ILUT and CLASSES
+!For 'extras', we want space for ILUT (NBASIS/32+1+NIfY) and CLASSES (SymClassSize*NEL) 
+                   STORE(1)=SymClassSize*NEl+NIfTot+1    !ILUT and CLASSES
                    STORE(2)=5*(3*nSymPairProds+2*nSymLabels)    !EXCITTYPES (Could be compressed)
                    STORE(3)=0   !Do not need to store nAllowPPS
                    STORE(4)=NEl*(NEl-1) !Maximum memory for ORBPAIRS
@@ -2250,20 +2251,20 @@ C.. This is the first time we've been called for setup.
 
 
                    STORE2(1:6)=0
-                   CALL N_MEMORY(IP_DSTORE,SymClassSize*NEL+NBASIS/32+1
+                   CALL N_MEMORY(IP_DSTORE,SymClassSize*NEL+NIfTot+1
      &                     +SymmetrySize*(NEL*NEL+1),'DSTORE')
                    STORE2(1)=IP_DSTORE
 C.. Just count.
                  CALL SYMSETUPEXCITS3(NI,NEL,G1,NBASIS,NBASISMAX,STORE2,
      &            .TRUE.,ICOUNT,DSTORE(1), DSTORE(SymClassSize*NEL+1),
-     &          DSTORE(SymClassSize*NEL+1+NBASIS/32+1),ILEVEL,iMinElec1,
+     &          DSTORE(SymClassSize*NEL+1+NIfTot+1),ILEVEL,iMinElec1,
      &              iMaxElec1)
 
                    CALL N_FREEM(IP_DSTORE)
                    DO i=2,6
                       STORE(i)=STORE2(i)
                    ENDDO
-                   STORE(1)=SymClassSize*NEL+NBASIS/32+1+
+                   STORE(1)=SymClassSize*NEL+NIfTot+1+
      &                SymmetrySize*(NEL*NEL+1)
                  NMEM(1)=23+STORE(1)+STORE(2)+STORE(3)+STORE(4)+STORE(5)
 C               WRITE(6,"(A6,6I5)"), "SIZE:",NMEM(1),(STORE(I),I=1,5)
@@ -2277,18 +2278,18 @@ C               WRITE(6,"(A6,6I5)"), "SIZE:",NMEM(1),(STORE(I),I=1,5)
 
 ! 1         NEXCIT
 ! 2         NEXCITTYPES
-! 3                                 -    SymClassSize*NEL+NBASIS/32+3                                 DSTORE
-! SymClassSize*NEL+NBASIS/32+4      -    SymClassSize*NEL+NBASIS/32+1+15*nSymPairProds+10*nSymLabels+2  EXCITTYPES
-! SymClassSize*NEL+NBASIS/32+1+15*nSymPairProds+10*nSymLabels+3      -    SymClassSize*NEL+NBASIS/32+1+15*nSymPairProds+10*nSymLabels+NEL*(NEL-1)+2  ORBPAIRS
-! SymClassSize*NEL+NBASIS/32+1+15*nSymPairProds+10*nSymLabels+NEL*(NEL-1)+3   -   SymClassSize*NEL+NBASIS/32+1+15*nSymPairProds+10*nSymLabels+NEL*(NEL-1)+(nSymLabels+1)*6+2  SYMPRODIND
+! 3                                 -    SymClassSize*NEL+NIfTot+3                                 DSTORE
+! SymClassSize*NEL+NIfTot+4      -    SymClassSize*NEL+NIfTot+1+15*nSymPairProds+10*nSymLabels+2  EXCITTYPES
+! SymClassSize*NEL+NIfTot+1+15*nSymPairProds+10*nSymLabels+3      -    SymClassSize*NEL+NIfTot+1+15*nSymPairProds+10*nSymLabels+NEL*(NEL-1)+2  ORBPAIRS
+! SymClassSize*NEL+NIfTot+1+15*nSymPairProds+10*nSymLabels+NEL*(NEL-1)+3   -   SymClassSize*NEL+NIfTot+1+15*nSymPairProds+10*nSymLabels+NEL*(NEL-1)+(nSymLabels+1)*6+2  SYMPRODIND
 
 ! DSTORE(1)      -   SymClassSize*NEL         CLASSES
 ! DSTORE(NEL*SymClassSize+1)                     ILUT
                    NMEM(1:2)=0
-                   Pos1=SymClassSize*NEL+NBASIS/32+4    !Beginning of EXCITTYPES
-                   Pos2=SymClassSize*NEL+NBASIS/32+4+15*nSymPairProds+
+                   Pos1=SymClassSize*NEL+NIfTot+4    !Beginning of EXCITTYPES
+                   Pos2=SymClassSize*NEL+NIfTot+4+15*nSymPairProds+
      &                   10*nSymLabels                  !Beginning of ORBPAIRS
-                   Pos3=SymClassSize*NEL+NBASIS/32+4+15*nSymPairProds+
+                   Pos3=SymClassSize*NEL+NIfTot+4+15*nSymPairProds+
      &                   10*nSymLabels+NEL*(NEL-1)      !Beginning of SYMPRODIND
 
 !STORE is now used to hold pointers to the arrays wanted. Fill this.
@@ -2363,7 +2364,7 @@ C                   CALL DUMPIMEMORY(6,NMEM,ICOUNT-1)
 !!     &   TCOUNT,ICOUNT,CLASSES,ILUT,SYMPRODS,ILEVEL)
                  CALL SYMSETUPEXCITS3(NI,NEL,G1,NBASIS,NBASISMAX,STORE2,
      &             .FALSE.,ICOUNT,DSTORE(1), DSTORE(SymClassSize*NEL+1),
-     &          DSTORE(SymClassSize*NEL+1+NBASIS/32+1),ILEVEL,iMinElec1,
+     &          DSTORE(SymClassSize*NEL+1+NIfTot+1),ILEVEL,iMinElec1,
      &              iMaxElec1)
                    NMEM(6)=STORE2(6)
                    NMEM(23)=ICOUNT
@@ -3522,7 +3523,7 @@ C                     CALL WRITEDET(6,NK,NEL,.TRUE.)
       LOGICAL FUNCTION IsConnectedDet(nI,nJ,nEl,nIExcitor,G1,nBasisMax,
      &      nBasis)
          use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
-         use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
+         use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB, NIfTot
          use SymData, only: SymClassSize 
          IMPLICIT NONE
          INTEGER nEl,nI(nEl),nJ(nEl),nIExcitor(*),nBasis,nBasisMax(*)
@@ -3538,7 +3539,7 @@ C                     CALL WRITEDET(6,NK,NEL,.TRUE.)
          CALL IsConnectedDet2(nI,nJ,nEl,G1,nBasisMax,nBasis,
      &      nIExcitor(nIExcitor(4)),nIExcitor(nIExcitor(5)),
      &      DStore(SymClassSize*nEl+1),
-     &      DStore(SymClassSize*nEl+1+nBasis/32+1),
+     &      DStore(SymClassSize*nEl+1+NIfTot+1),
      &      nIExcitor(nIExcitor(2)),nIExcitor(23),IsConnectedDet)
          RETURN
       END
@@ -3572,7 +3573,7 @@ C                     CALL WRITEDET(6,NK,NEL,.TRUE.)
      &      nBasis,pGen)
          USE HElem
          use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
-         use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
+         use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB, NIfTot
          use SymData, only: SymClassSize
          IMPLICIT NONE
          INTEGER nEl,nI(nEl),nJ(nEl),nIExcitor(*),nBasis,nBasisMax(*)
@@ -3591,7 +3592,7 @@ C                     CALL WRITEDET(6,NK,NEL,.TRUE.)
          CALL GenExcitProb2(nI,nJ,nEl,G1,nBasisMax,UMat,Arr,nBasis,
      &      nIExcitor(nIExcitor(4)),nIExcitor(nIExcitor(5)),
      &      DStore(SymClassSize*nEl+1),
-     &      DStore(SymClassSize*nEl+1+nBasis/32+1),
+     &      DStore(SymClassSize*nEl+1+NIfTot+1),
      &      nIExcitor(nIExcitor(2)),nIExcitor(23),pGen)
       END
 ! For reference below is the call and declaration of SYMGENRANDEXCITIT to extract the locations of teh variables.
@@ -3603,7 +3604,7 @@ C                     CALL WRITEDET(6,NK,NEL,.TRUE.)
 !     &         G1,NBASISMAX,UMAT,NBASIS,PGEN)
 !         IC=NMEM(23)
 !      END
-!     SymProds(0) = DSTORE(SymClassSize*NEL+1+nBasis/32+1))
+!     SymProds(0) = DSTORE(SymClassSize*NEL+1+NIfTot+1))
 !      SUBROUTINE SYMGENRANDEXCITIT(NI,NEL,EXCITTYPES,NEXCITTYPES,       &
 !     &               CLASSES,                                           &
 !     &               SYMPRODIND,ILUT,ORBPAIRS,IEXCIT,ISPN,IFROM,ITO,    &

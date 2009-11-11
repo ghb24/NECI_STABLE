@@ -71,7 +71,7 @@ MODULE Determinants
         Use HElem
         use SystemData, only: nel, Alat, Boa, Coa, BOX, BRR, ECore
         use SystemData, only: G1, LMS, nBasis, STot, tCSF, Arr,tHub,tUEG
-        use SymData , only : nSymLabels,SymLabelList,SymLabelCounts
+        use SymData , only : nSymLabels,SymLabelList,SymLabelCounts,TwoCycleSymGens
         use IntegralsData, only: nfrozen
       
       real*8 DNDET
@@ -145,7 +145,7 @@ MODULE Determinants
         tSuccess=.true.
         tFoundOrbs(:)=.false.
 
-        IF((.not.tHub).and.(.not.tUEG)) THEN
+        IF((.not.tHub).and.(.not.tUEG).and.TwoCycleSymGens) THEN
             do i=1,nSymLabels
 !                WRITE(6,*) "NSymLabels: ",NSymLabels,i-1
                 EndSymState=SymLabelCounts(1,i)+SymLabelCounts(2,i)-1
@@ -214,7 +214,8 @@ MODULE Determinants
       TYPE(HElement) FUNCTION GetHElement2(NI,NJ,nEl,nBasisMax,G1,nBasis,Brr,NMSH,FCK,NMAX,ALAT,UMat,iC2,ECore)
          Use HElem
          use SystemData , only : TSTOREASEXCITATIONS,tHPHFInts
-         use SystemData, only: BasisFN
+         use SystemData, only: BasisFN, tCSF
+         use csf, only: iscsf, CSFGetHelement
          use global_utilities
          IMPLICIT NONE
          INTEGER NMSH,NMAX
@@ -227,7 +228,6 @@ MODULE Determinants
          REAL*8 ECore
          TYPE(HElement) Sum,Sum2
          INTEGER IGETEXCITLEVEL_2
-         LOGICAL ISCSF
          type(timer), save :: proc_timer
          IF(tHPHFInts) THEN
 !             IF(IC2.eq.0) THEN
@@ -239,11 +239,12 @@ MODULE Determinants
 !             GetHElement2=Sum2
 !             RETURN
          ENDIF
-         IF(ISCSF(NI,NEL).OR.ISCSF(NJ,NEL)) THEN
-            CALL CSFGETHELEMENT(NI,NJ,nEl,nBasisMax,G1,nBasis,Brr,NMSH,FCK,NMAX,ALAT,UMat,ECore,Sum2)
-            GETHELEMENT2=SUM2
-            RETURN
-         ENDIF
+         if (tCSF) then
+             if (iscsf(NI) .or. iscsf(NJ)) then
+                 gethelement2 = CSFGetHelement (NI, NJ)
+                 return
+             endif
+         endif
          IF(tStoreAsExcitations.AND.nI(1).eq.-1.and.nJ(1).eq.-1) then
             if(ic2.ne.2) stop 'tStoreAsExcitations in GetHElement2 requires ic=2 (doubles).'
             Call SCR2Excit(nBasisMax,nJ,G1,nBasis,UMat,Alat,nBasisMax(2,3),Sum)
@@ -334,6 +335,15 @@ MODULE Determinants
       Subroutine DetCleanup()
       End Subroutine DetCleanup
 END MODULE Determinants
+
+      FUNCTION GetHElement3_wrapper (NI,NJ,iC)
+         Use HElem
+         use SystemData, only : neL
+         use Determinants, only: GetHElement3
+         type(HElement) GetHElement3_wrapper
+         INTEGER NI(nel),NJ(nel),iC
+         GetHElement3_wrapper = GetHElement3 (NI, NJ, -1)
+      END Function GetHElement3_wrapper
 
       subroutine GetH0Element(nI,nEl,Arr,nBasis,ECore,hEl)
          !  Get a matrix element of the unperturbed Hamiltonian.  This is just
@@ -581,25 +591,26 @@ END MODULE Determinants
 
 ! Write bit-determinant NI to unit NUnit.  Set LTerm if to add a newline at end.  Also prints CSFs
       SUBROUTINE WriteBitDet(nUnit,iLutnI,lTerm)
-         use SystemData, only : nEl, nIfD
+         use SystemData, only : nEl, nIfTot
+         use DetBitops, only: DecodeBitDet
          implicit none
-         integer nUnit,nI(nEl),iLutnI(0:nIfD)
+         integer nUnit,nI(nEl),iLutnI(0:nIfTot)
          logical lTerm
-         CALL DecodeBitDet(nI,iLutnI,nEl,nIfD)
+         CALL DecodeBitDet(nI,iLutnI)
          CALL WriteDet(nUnit,nI,nEl,lTerm)
       END
 
 ! Write bit-determinant NI to unit NUnit.  Set LTerm if to add a newline at end.  Also prints CSFs
       SUBROUTINE WriteBitEx(nUnit,iLutRef,iLutnI,lTerm)
-         use SystemData, only : nEl, nIfD
+         use SystemData, only : nEl, NIfTot
          implicit none
-         integer nUnit,nExpI(nEl),iLutRef(0:nIfD),iLutnI(0:nIfD)
+         integer nUnit,nExpI(nEl),iLutRef(0:nIfTot),iLutnI(0:nIfTot)
          integer Ex(2,nEl)
          logical lTerm
          logical tSign
          INTEGER iEl,I
          EX(1,1)=nEl  !Indicate the length of EX
-         CALL GetBitExcitation(iLutRef,iLutnI,nIfD,nEl,Ex,tSign)
+         CALL GetBitExcitation(iLutRef,iLutnI,Ex,tSign)
          WRITE(NUNIT,"(A)",advance='no') "("
 ! First the excit from
          DO I=1,NEL
