@@ -8,6 +8,7 @@ MODULE AnnihilationMod
     USE mt95 , only : genrand_real2
     USE FciMCData
     use DetBitOps, only: DetBitEQ, DetBitLT
+    use CalcData , only : tCASStar
     IMPLICIT NONE
 
     contains
@@ -174,10 +175,20 @@ MODULE AnnihilationMod
                 SpawnedParts2(:,VecInd)=SpawnedParts(:,i)
                 SpawnedSign2(VecInd)=SpawnedSign(i)
             ELSE
+!The next determinant is equal to the current - want to look at the relative signs.                
                 SignProd=SpawnedSign(i)*SpawnedSign2(VecInd)
                 IF(SignProd.lt.0) THEN
 !We are actually unwittingly annihilating, but just in serial... we therefore need to count it anyway.
                     Annihilated=Annihilated+2*(MIN(abs(SpawnedSign2(VecInd)),abs(SpawnedSign(i))))
+
+                    IF(tCASStar) THEN
+!If we are doing a CAS star calculation, we also want to keep track of which parent the remaining walkers came from - those inside the active space or out.                
+!This is only an issue if the two determinants we are merging have different Parent flags - otherwise they just keep whichever.
+!As it is, the SpawnedParts2 determinant will have the parent flag that remains - just need to change this over if the number of walkers on SpawnedParts ends up dominating.
+                        IF(SpawnedParts(NIfTot,i).ne.SpawnedParts2(NIfTot,VecInd)) THEN     ! Parent flags are not equal
+                            IF(ABS(SpawnedSign(i)).gt.ABS(SpawnedSign2(VecInd))) SpawnedParts2(NIfTot,VecInd)=SpawnedParts(NIfTot,i)
+                        ENDIF
+                    ENDIF
 
                     IF(tHistSpawn) THEN
 !We want to histogram where the particle annihilations are taking place.
@@ -207,6 +218,17 @@ MODULE AnnihilationMod
 !                            ENDIF
                             CALL Stop_All("CompressSpawnedList","Cannot find corresponding FCI determinant when histogramming")
                         ENDIF
+                    ENDIF
+                ELSEIF(tCASStar) THEN
+!This is the case where the determinants are the same but also have the same sign - so this usually doesn't matter except when we are doing CASStar calculations and 
+!the parents are different.
+!In this case we assume the determinants inside the CAS have spawned a second earlier - so the ones from outside the active space are spawning onto an occupied determinant
+!and will therefore live - we can just make these equiv by treating them as they've all come from inside the active space.
+                    IF(SpawnedParts(NIfTot,i).ne.SpawnedParts2(NIfTot,VecInd)) THEN     ! Parent flags are not equal
+                        SpawnedParts2(NIfTot,VecInd)=1      ! Take all the walkers to have come from inside the CAS space.
+                        IF(SpawnedSign2(VecInd).eq.0) SpawnedParts2(NIfTot,VecInd)=SpawnedParts(NIfTot,i) 
+                        ! Think there might still be a case where SpawnedSign2 can be 0 - this means that the parent will be determined by SpawnedParts.
+                        ! If its SpawnedParts that is 0 that's fine because the SpawnedParts2 flag is already carried across.
                     ENDIF
                 ENDIF
                 SpawnedSign2(VecInd)=SpawnedSign2(VecInd)+SpawnedSign(i)

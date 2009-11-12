@@ -762,6 +762,8 @@ MODULE FciMCParMod
                         SpawnedParts(:,ValidSpawnedList(Proc))=iLutnJ(:)
                         SpawnedSign(ValidSpawnedList(Proc))=Child
                         ValidSpawnedList(Proc)=ValidSpawnedList(Proc)+1
+                        IF(tCASStar) SpawnedParts(NIfTot,ValidSpawnedList(Proc))=ParentinCAS
+!Set the last integer of the determinant in SpawnedParts to be either 1 or 2 according to whether it's parent is inside or outside the active space.
 
                     ELSE
 !Calculate diagonal ham element
