@@ -947,9 +947,9 @@ MODULE GenRandSymExcitNUMod
                 ENDIF
             ENDIF
 
-            IF(AttemptsOverall.gt.300) THEN
+            IF(AttemptsOverall.gt.1000) THEN
                 WRITE(6,*) "***",NExcit,ForbiddenOrbs
-                WRITE(6,*) "Cannot find first allowed unoccupied orbital for given i,j pair after 300 attempts."
+                WRITE(6,*) "Cannot find first allowed unoccupied orbital for given i,j pair after 1000 attempts."
                 WRITE(6,*) "It may be that there are no possible excitations from this i,j pair, in which case "
                 WRITE(6,*) "the given algorithm is inadequate to describe excitations from such a small space."
                 WRITE(6,*) "Try reverting to old excitation generators."
@@ -1102,15 +1102,6 @@ MODULE GenRandSymExcitNUMod
         LOGICAL :: tParity,IsValidDet,SymAllowed
 
 
-!        IF(tNoSymGenRandExcits) THEN
-!            IF((ClassCount2(1,0).ne.0).and.(ClassCountUnocc2(1,0).eq.0)) THEN
-!                ElecsWNoExcits=ElecsWNoExcits+ClassCount2(1,0)
-!            ENDIF
-!            IF((ClassCount2(2,0).ne.0).and.(ClassCountUnocc2(2,0).eq.0)) THEN
-!                ElecsWNoExcits=ElecsWNoExcits+ClassCount2(2,0)
-!            ENDIF
-!        ELSE
-
 !This will not normally be called.
         IF((.not.tNoSingsPossible).and.(.not.tNoSymGenRandExcits)) THEN
 !First, we need to find out if there are any electrons which have no possible excitations. This is because these will need to be redrawn and so 
@@ -1118,46 +1109,13 @@ MODULE GenRandSymExcitNUMod
             ElecsWNoExcits=0
 !Need to look for forbidden electrons through all the irreps.
 
-!            IF(tFixLz) THEN
-!                do k=-iMaxLz,iMaxLz,1
-!                    Ind1=ClassCountInd(1,0,k)
-!                    Ind2=ClassCountInd(1,0,-k)
-!                    do i=0,nSymLabels*2-1
-!                        IF((ClassCount2(i+Ind1).ne.0).and.(ClassCountUnocc2(i+Ind2).eq.0)) THEN
-!                            ElecsWNoExcits=ElecsWNoExcits+ClassCount2(i+Ind1)
-!                        ENDIF
-!                    enddo
-!
-!!                    do i=0,nSymLabels-1
-!!                        IF((ClassCount2(ClassCountInd(1,i,k)).ne.0).and.(ClassCountUnocc2(ClassCountInd(1,i,-k)).eq.0)) THEN
-!!                            ElecsWNoExcits=ElecsWNoExcits+ClassCount2(ClassCountInd(1,i,k))
-!!                        ENDIF
-!!                        IF((ClassCount2(ClassCountInd(2,i,k)).ne.0).and.(ClassCountUnocc2(ClassCountInd(2,i,-k)).eq.0)) THEN
-!!                            ElecsWNoExcits=ElecsWNoExcits+ClassCount2(ClassCountInd(2,i,k))
-!!                        ENDIF
-!!                    enddo
-!                enddo
-!            ELSE
-
-                do i=1,ScratchSize
+            do i=1,ScratchSize
 !Run through all labels
-                    IF((ClassCount2(i).ne.0).and.(ClassCountUnocc2(i).eq.0)) THEN
+                IF((ClassCount2(i).ne.0).and.(ClassCountUnocc2(i).eq.0)) THEN
 !If there are electrons in this class with no possible unoccupied orbitals in the same class, these electrons have no single excitations.
-                        ElecsWNoExcits=ElecsWNoExcits+ClassCount2(i)
-                    ENDIF
-                enddo
-
-!                do i=0,nSymLabels-1
-!!Run through all labels
-!                    IF((ClassCount2(ClassCountInd(1,i,0)).ne.0).and.(ClassCountUnocc2(ClassCountInd(1,i,0)).eq.0)) THEN
-!!If there are alpha electrons in this class with no possible unoccupied alpha orbitals in the same class, these alpha electrons have no single excitations.
-!                        ElecsWNoExcits=ElecsWNoExcits+ClassCount2(ClassCountInd(1,i,0))
-!                    ENDIF
-!                    IF((ClassCount2(ClassCountInd(2,i,0)).ne.0).and.(ClassCountUnocc2(ClassCountInd(2,i,0)).eq.0)) THEN
-!                        ElecsWNoExcits=ElecsWNoExcits+ClassCount2(ClassCountInd(2,i,0))
-!                    ENDIF
-!                enddo
-!            ENDIF
+                    ElecsWNoExcits=ElecsWNoExcits+ClassCount2(i)
+                ENDIF
+            enddo
 
         ENDIF
 
@@ -1214,6 +1172,8 @@ MODULE GenRandSymExcitNUMod
             ENDIF
 
         enddo
+
+
 
 !Now we need to choose the unoccupied orbital for the chosen electron.
 !There are two ways to do this. We can either choose the orbital we want out of the NExcit possible unoccupied orbitals.
@@ -1450,6 +1410,7 @@ MODULE GenRandSymExcitNUMod
 
             IF(.not.tNoSingsPossible) THEN
 
+                ElecsWNoExcits=0
                 do i=1,ScratchSize
 !Run through all labels
                     IF((ClassCount2(i).ne.0).and.(ClassCountUnocc2(i).eq.0)) THEN
@@ -1457,21 +1418,21 @@ MODULE GenRandSymExcitNUMod
                         ElecsWNoExcits=ElecsWNoExcits+ClassCount2(i)
                     ENDIF
                 enddo
+            ENDIF
 
-                IF(.not.tNoSymGenRandExcits) THEN
-                    ElecSym=INT((G1(Ex(1,1))%Sym%S),4)
-                    IF(tFixLz) THEN
-                        Elec1Ml=G1(Ex(1,1))%Ml
-                    ELSE
-                        Elec1Ml=0
-                    ENDIF
-                ELSE
+            IF(tNoSymGenRandExcits) THEN
 !Find symmetry of chosen electron
-                    ElecSym=0
+                ElecSym=0
+                Elec1Ml=0
+            ELSE
+                ElecSym=INT((G1(Ex(1,1))%Sym%S),4)
+                IF(tFixLz) THEN
+                    Elec1Ml=G1(Ex(1,1))%Ml
+                ELSE
                     Elec1Ml=0
                 ENDIF
-
             ENDIF
+
 
             IF(G1(Ex(1,1))%Ms.eq.1) THEN
 !Alpha orbital - see how many single excitations there are from this electron...
@@ -2411,7 +2372,11 @@ lp2: do while(.true.)
         ENDIF
         IF(mod(i,iWriteEvery).eq.0) THEN
             AllAverageContrib=0.D0
+#ifdef PARALLEL
             CALL MPI_Reduce(AverageContrib,AllAverageContrib,1,MPI_DOUBLE_PRECISION,MPI_SUM,0,MPI_COMM_WORLD,error)
+#else            
+            AllAverageContrib=AverageContrib
+#endif
             IF(iProcIndex.eq.0) THEN
                 WRITE(9,*) i,AllAverageContrib/(REAL(i,8)*excitcount*nProcessors)
             ENDIF
@@ -2426,8 +2391,13 @@ lp2: do while(.true.)
 
     CLOSE(9)
 
+#ifdef PARALLEL
     CALL MPI_Reduce(DoublesHist,AllDoublesHist,nBasis**4,MPI_DOUBLE_PRECISION,MPI_SUM,0,MPI_COMM_WORLD,error)
     CALL MPI_Reduce(SinglesHist,AllSinglesHist,nBasis**2,MPI_DOUBLE_PRECISION,MPI_SUM,0,MPI_COMM_WORLD,error)
+#else
+    AllDoublesHist=DoublesHist
+    AllSinglesHist=SinglesHist
+#endif
 
 !Now run through arrays normalising them so that numbers are more managable.
     OPEN(8,FILE="DoublesHist",STATUS="UNKNOWN")

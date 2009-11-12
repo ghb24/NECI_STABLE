@@ -451,7 +451,7 @@ Experimental methods
     **SERIAL** will force NECI to run the serial FCIMC code (which differs
     substantially from the parallel) even if the code was compiled in parallel.
 
-**VERTEX** **CCMC** [**FCI**] [**EXACTCLUSTER**]
+**VERTEX** **CCMC** [**FCI**] [**EXACTCLUSTER**] [**AMPLITUDE**]
     Perform Monte Carlo calculations over coupled cluster excitation space, which
     is sampled using a series of 'particles' (or 'walkers').
 
@@ -465,6 +465,10 @@ Experimental methods
 
     **EXACTCLUSTER** is an exponentially scaling (with number of walkers) algorithm for testing
     the stochastic sampling.
+
+    **AMPLITUDE** will enumerate the whole of the allowed space, and assign a floating-point
+    amplitude to each excitor.  These amplitudes are stochastically sampled (**INITWALKERS**
+    times per MC cycle), and used to propagate the CCMC.
 
     Extremely experimental.
 
@@ -552,6 +556,7 @@ The following options are applicable for both the **FCIMC** and **MCDETS** metho
     Default 3000.
 
    Set the initial population of walkers.  
+   For CCMC Amplitude, this is the number of samples of the amplitude distribution taken each MC step
 
 **NMCYC** [NMCYC]
    Set the total number of timesteps to take.
@@ -993,6 +998,12 @@ The following option are only available in **MCSTAR** calculations:
     This is a parallel FCIMC option, whereby the space will be truncated according to the specified CAS.
     The arguments indicate the active electrons, and then the number of active virtual orbitals.
     These values can be dynamically updated throughout the simulation via use of the CHANGEVARS facility.
+
+
+**INITAMPLITUDE** dInitAmplitude
+
+   For CCMC Amplitude, this is the initial amplitude in the Hartree-Fock determinant, and normalization factor for the wavefunction.
+   Default 1.0
 
 
 Return Path Monte Carlo options
