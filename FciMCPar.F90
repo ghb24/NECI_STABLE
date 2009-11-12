@@ -30,8 +30,9 @@ MODULE FciMCParMod
     USE UMatCache , only : GTID
     USE Logging , only : iWritePopsEvery,TPopsFile,TZeroProjE,iPopsPartEvery,tBinPops,tHistSpawn,iWriteHistEvery,tHistEnergies
     USE Logging , only : NoACDets,BinRange,iNoBins,OffDiagBinRange,OffDiagMax,tPrintSpinCoupHEl!,iLagMin,iLagMax,iLagStep,tAutoCorr
-    USE Logging , only : tPrintTriConnections,tHistTriConHels,tPrintHElAccept,tPrintFCIMCPsi,tCalcFCIMCPsi,NHistEquilSteps
+    USE Logging , only : tPrintTriConnections,tHistTriConHels,tPrintHElAccept,tPrintFCIMCPsi,tCalcFCIMCPsi,NHistEquilSteps,tPrintOrbOcc,StartPrintOrbOcc
     USE Logging , only : tHFPopStartBlock,tIterStartBlock,IterStartBlocking,HFPopStartBlocking,tInitShiftBlocking,tHistHamil,iWriteHamilEvery
+    USE Logging , only : OrbOccs,OrbOccsTag 
     USE SymData , only : nSymLabels
     USE mt95 , only : genrand_real2
     USE Parallel
@@ -51,8 +52,7 @@ MODULE FciMCParMod
         use UMatCache, only : UMatInd
         use FciMCLoggingMOD , only : PrintTriConnHist,PrintTriConnHElHist,FinaliseBlocking,FinaliseShiftBlocking
         use RotateOrbsMod , only : RotateOrbs
-        use NatOrbsMod , only : FindOrbOccupations
-        use Logging , only : tPrintOrbOcc
+        use NatOrbsMod , only : PrintOrbOccs
         TYPE(HDElement) :: Weight,Energyxw
         INTEGER :: i,j,error,HFConn
         CHARACTER(len=*), PARAMETER :: this_routine='FciMCPar'
@@ -170,8 +170,6 @@ MODULE FciMCParMod
 !This routine will actually only print the matrix if tPrintFCIMCPsi is on
             CALL PrintFCIMCPsi()
 
-            IF(tPrintOrbOcc) CALL FindOrbOccupations()
-
             IF(tFindCINatOrbs) THEN
 !This routine takes the wavefunction Psi, calculates the one electron density matrix, and rotates the HF orbitals to produce a new ROFCIDUMP file.
                 CALL RotateOrbs() 
@@ -202,6 +200,12 @@ MODULE FciMCParMod
 
         IF(tPrintTriConnections) CALL PrintTriConnHist
         IF(tHistTriConHEls) CALL PrintTriConnHElHist
+        IF(tPrintOrbOcc) THEN
+            CALL PrintOrbOccs(OrbOccs)
+            DEALLOCATE(OrbOccs)
+            CALL LogMemDeAlloc(this_routine,OrbOccsTag)
+        ENDIF
+     
 
 !        IF(TAutoCorr) CALL CalcAutoCorr()
 
@@ -1996,6 +2000,12 @@ MODULE FciMCParMod
 
         IF(tPrintTriConnections.or.tHistTriConHEls.or.tPrintHElAccept) CALL InitTriHElStats()
         IF(tPrintSpinCoupHEl) CALL InitSpinCoupHEl()
+
+        IF(tPrintOrbOcc) THEN
+            ALLOCATE(OrbOccs(nBasis),stat=ierr)
+            CALL LogMemAlloc('OrbOccs',nBasis,8,this_routine,OrbOccsTag,ierr)
+            OrbOccs(:)=0.D0
+        ENDIF
 
         IF((NMCyc.ne.0).and.(tRotateOrbs.and.(.not.tFindCINatOrbs))) CALL Stop_All(this_routine,"Currently not set up to rotate and then go straight into a spawning &
                                                                                     & calculation.  Ordering of orbitals is incorrect.  This may be fixed if needed.")
@@ -9275,6 +9285,57 @@ MODULE FciMCParMod
             ENDIF
             Histogram(Bin)=Histogram(Bin)+real(abs(WSign),r2)
         ENDIF
+
+        IF(tPrintOrbOcc.and.(Iter.ge.StartPrintOrbOcc)) THEN
+            do i=1,NEl
+                OrbOccs(DetCurr(i))=OrbOccs(DetCurr(i))+ABS(WSign)
+            enddo
+        ENDIF
+
+
+!        IF(TLocalAnnihilation) THEN
+!We need to count the population of walkers at each excitation level for each iteration
+!            PartsinExcitLevel(ExcitLevel)=PartsinExcitLevel(ExcitLevel)+1
+!        ENDIF
+
+!        IF(TAutoCorr) THEN
+!!First element is HF Det to histogram. Then come doubles, triples and quads
+!
+!            IF(ExcitLevel.eq.4) THEN
+!                LowIndex=2+NoACDets(2)+NoACDets(3)
+!                HighIndex=NoAutoDets
+!            ELSEIF(ExcitLevel.eq.3) THEN
+!                LowIndex=2+NoACDets(2)
+!                HighIndex=1+NoACDets(2)+NoACDets(3)
+!            ELSEIF(ExcitLevel.eq.2) THEN
+!                LowIndex=2
+!                HighIndex=1+NoACDets(2)
+!            ELSEIF(ExcitLevel.eq.0) THEN
+!                LowIndex=1
+!                HighIndex=1
+!            ELSE
+!                LowIndex=0
+!            ENDIF
+!
+!            IF(LowIndex.ne.0) THEN
+!
+!                do i=LowIndex,HighIndex
+!            
+!                    IF(CompiPath(DetCurr,AutoCorrDets(:,i),NEl)) THEN
+!!The walker is at a determinant for which we want to calculate the autocorrelation function
+!                        IF(TFlippedSign) THEN
+!                            WeightatDets(i)=WeightatDets(i)-WSign
+!                        ELSE
+!                            WeightatDets(i)=WeightatDets(i)+WSign
+!                        ENDIF
+!                        EXIT
+!                    ENDIF
+!
+!                enddo
+!            ENDIF
+!        ENDIF
+        
+        RETURN
 
     END SUBROUTINE SumEContrib
 
