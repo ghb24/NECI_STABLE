@@ -4,7 +4,7 @@ MODULE Logging
     Save
 
     INTEGER ILOGGING,ILOGGINGDef,iGlobalTimerLevel,nPrintTimer,G_VMC_LOGCOUNT
-    INTEGER HFLOGLEVEL,iWritePopsEvery
+    INTEGER HFLOGLEVEL,iWritePopsEvery,StartPrintOrbOcc
     INTEGER PreVarLogging,WavevectorPrint,NoHistBins
     REAL*8 MaxHistE,BinRange,OffDiagMax,OffDiagBinRange,TriConMax,TriConHElSingMax,TriConHElDoubMax
     LOGICAL TDistrib,TPopsFile,TCalcWavevector,TDetPops,tROFciDump,tROHistOffDiag,tROHistDoubExc,tROHistOnePartOrbEn
@@ -14,9 +14,9 @@ MODULE Logging
     LOGICAL tWriteTransMat,tHistHamil,tPrintOrbOcc
     INTEGER NoACDets(2:4),iPopsPartEvery,iWriteHistEvery,iNoBins,NoTriConBins,NoTriConHElBins,NHistEquilSteps
     INTEGER CCMCDebug !CCMC Debugging Level 0-6.  Default 0
-    INTEGER IterStartBlocking,HFPopStartBlocking,NoDumpTruncs,NoTruncOrbsTag,TruncEvaluesTag,iWriteHamilEvery
+    INTEGER IterStartBlocking,HFPopStartBlocking,NoDumpTruncs,NoTruncOrbsTag,TruncEvaluesTag,iWriteHamilEvery,OrbOccsTag
     INTEGER , ALLOCATABLE :: NoTruncOrbs(:)
-    REAL*8 , ALLOCATABLE :: TruncEvalues(:)
+    REAL*8 , ALLOCATABLE :: TruncEvalues(:),OrbOccs(:)
 
 
 
@@ -80,6 +80,7 @@ MODULE Logging
       tCalcFCIMCPsi=.false.
       NHistEquilSteps=0
       tPrintOrbOcc=.false.
+      StartPrintOrbOcc=0
       CCMCDebug=0
       tHFPopStartBlock=.true.
       tIterStartBlock=.false.
@@ -387,6 +388,7 @@ MODULE Logging
 !This option initiates the above histogramming of determinant populations and then at the end of the spawning uses these to find the normalised  
 !contribution of each orbital to the total wavefunction.  
             tPrintOrbOcc=.true.
+            IF(item.lt.nitems) call readi(StartPrintOrbOcc)
         case("POPSFILE")
 ! This is so that the determinants at the end of the MC run are written
 ! out, to enable them to be read back in using READPOPS in the Calc section,
