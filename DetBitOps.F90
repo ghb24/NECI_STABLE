@@ -32,15 +32,22 @@ module DetBitOps
     end function CountBits
 
     !This will return true if iLutI is identical to iLutJ and will return false otherwise.
-    logical function DetBitEQ(iLutI,iLutJ)
+    logical function DetBitEQ(iLutI,iLutJ,nLast)
+        integer, intent(in), optional :: nLast
         integer, intent(in) :: iLutI(0:NIfTot), iLutJ(0:NIfTot)
-        integer :: i
+        integer :: i, lnLast
 
         if(iLutI(0).ne.iLutJ(0)) then
             DetBitEQ=.false.
             return
         else
-            do i=1,NIfTot
+            if (present(nLast)) then
+                lnLast = nLast
+            else
+                lnLast = NIftot
+            endif
+
+            do i=1,lnLast
                 if(iLutI(i).ne.iLutJ(i)) then
                     DetBitEQ=.false.
                     return

@@ -599,7 +599,7 @@ MODULE Integrals
       use UMatCache, only: GetUMatSize
       use HElem, only: HElement,HElementSize,HElementSizeB
       use SymData , only : TwoCycleSymGens
-      use CalcData , only : tCASStar
+      use CalcData , only : tTruncInitiator,tDelayTruncInit
       use global_utilities
       character(25), parameter ::this_routine='IntFreeze'            
 !//Locals
@@ -699,7 +699,7 @@ MODULE Integrals
       endif
       NIfTot = NIfD + NIfY
         
-      if (tCASStar) then
+      if (tTruncInitiator.or.tDelayTruncInit) then
 ! We need an integer to contain a flag of whether or not the parent of spawned walkers was inside or outside the active space.          
           NIfP = 1
       else

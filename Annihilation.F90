@@ -8,7 +8,7 @@ MODULE AnnihilationMod
     USE mt95 , only : genrand_real2
     USE FciMCData
     use DetBitOps, only: DetBitEQ, DetBitLT
-    use CalcData , only : tCASStar
+    use CalcData , only : tTruncInitiator
     IMPLICIT NONE
 
     contains
@@ -181,7 +181,7 @@ MODULE AnnihilationMod
 !We are actually unwittingly annihilating, but just in serial... we therefore need to count it anyway.
                     Annihilated=Annihilated+2*(MIN(abs(SpawnedSign2(VecInd)),abs(SpawnedSign(i))))
 
-                    IF(tCASStar) THEN
+                    IF(tTruncInitiator) THEN
 !If we are doing a CAS star calculation, we also want to keep track of which parent the remaining walkers came from - those inside the active space or out.                
 !This is only an issue if the two determinants we are merging have different Parent flags - otherwise they just keep whichever.
 !As it is, the SpawnedParts2 determinant will have the parent flag that remains - just need to change this over if the number of walkers on SpawnedParts ends up dominating.
@@ -219,7 +219,7 @@ MODULE AnnihilationMod
                             CALL Stop_All("CompressSpawnedList","Cannot find corresponding FCI determinant when histogramming")
                         ENDIF
                     ENDIF
-                ELSEIF(tCASStar) THEN
+                ELSEIF(tTruncInitiator) THEN
 !This is the case where the determinants are the same but also have the same sign - so this usually doesn't matter except when we are doing CASStar calculations and 
 !the parents are different.
 !In this case we assume the determinants inside the CAS have spawned a second earlier - so the ones from outside the active space are spawning onto an occupied determinant
@@ -1516,7 +1516,7 @@ MODULE AnnihilationMod
                         IF(SpawnedSign(i).eq.0) THEN
 !The number of particles were equal and opposite. We want to remove this entry from the spawned list.
                             ToRemove=ToRemove+1
-                        ELSEIF(tCASStar) THEN
+                        ELSEIF(tTruncInitiator) THEN
 !If we are doing a CAS star calculation - then if the walkers that are left after annihilation have been spawned from determinants outside the active space,
 !then it is like these have been spawned on an unoccupied determinant and they are killed.
                             IF(SpawnedParts(NIfTot,i).eq.1) THEN
@@ -1580,7 +1580,7 @@ MODULE AnnihilationMod
 !One of the signs on the list is actually 0. If this zero is on the spawned list, we need to mark it for removal.
                     IF(SpawnedSign(i).eq.0) THEN
                         ToRemove=ToRemove+1
-                    ELSEIF(tCASStar) THEN
+                    ELSEIF(tTruncInitiator) THEN
 !If doing a CAS star calculation - then if the signs on the current list is 0, and the walkers in the spawned list came from outside the cas space, these need to be killed.                        
                         IF(SpawnedParts(NIfTot,i).eq.1) THEN
                             NoAborted=NoAborted+ABS(SpawnedSign(i))
@@ -1662,7 +1662,7 @@ MODULE AnnihilationMod
 !                    RemoveInds(ToRemove)=i
 !                ENDIF
 
-            ELSEIF(tCASStar) THEN
+            ELSEIF(tTruncInitiator) THEN
 !Determinant in newly spawned list is not found in currentdets - usually this would mean the walkers just stay in this list and get merged later - but in this case we            
 !want to check where the walkers came from - because if the newly spawned walkers are from a parent outside the active space they should be killed - as they have been
 !spawned on an unoccupied determinant.

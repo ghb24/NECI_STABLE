@@ -60,7 +60,7 @@ contains
        use SystemData, only : NEl,nBasis
        use FciMCData, only : Iter,CASMin,CASMax,tTruncSpace,tSinglePartPhase,SumENum,SumNoatHF,HFPopCyc,ProjEIterSum,Histogram,AvAnnihil
        use FciMCData, only : VaryShiftCycles,SumDiagSft,VaryShiftIter 
-       use CalcData, only : Tau,DiagSft,SftDamp,StepsSft,SinglesBias,OccCASOrbs,VirtCASOrbs,NMCyc,tTruncCAS,NEquilSteps
+       use CalcData, only : Tau,DiagSft,SftDamp,StepsSft,SinglesBias,OccCASOrbs,VirtCASOrbs,NMCyc,tTruncCAS,NEquilSteps,tTruncInitiator
        use DetCalc, only : ICILevel 
        use IntegralsData , only : tPartFreezeCore,NPartFrozen,NHolesFrozen
        use Parallel
@@ -70,7 +70,7 @@ contains
        implicit none
        integer :: error,i,ios,NewNMCyc
        logical :: tSoftExitFound,tWritePopsFound,exists,AnyExist,deleted_file
-       logical :: tEof,any_deleted_file,tChangeParams(22),tSingBiasChange
+       logical :: tEof,any_deleted_file,tChangeParams(23),tSingBiasChange
        Character(len=100) :: w
 
        tSoftExitFound=.false.
@@ -86,7 +86,7 @@ contains
                WRITE(6,*) "CHANGEVARS file detected on iteration ",Iter
            ENDIF
 !Set the defaults
-           tChangeParams(1:22)=.false.
+           tChangeParams(1:23)=.false.
            deleted_file=.false.
            do i=0,nProcessors-1
                ! This causes each processor to attempt to delete
@@ -160,6 +160,8 @@ contains
                        CASE("HISTEQUILSTEPS")
                            tChangeParams(22)=.true.
                            CALL Readi(NHistEquilSteps)
+                       CASE("TRUNCINITIATOR")
+                           tChangeParams(23)=.true.
                        END SELECT
                    End Do
                    close(13,status='delete')
@@ -168,7 +170,7 @@ contains
                call MPI_AllReduce(deleted_file,any_deleted_file,1,MPI_LOGICAL,MPI_LOR,MPI_COMM_WORLD,error)
                if (any_deleted_file) exit
            end do
-           CALL MPI_BCast(tChangeParams,22,MPI_LOGICAL,i,MPI_COMM_WORLD,error)
+           CALL MPI_BCast(tChangeParams,23,MPI_LOGICAL,i,MPI_COMM_WORLD,error)
 
            IF(tChangeParams(1)) THEN
 !Change Tau
@@ -375,6 +377,12 @@ contains
                    IF(.not.tCalcFCIMCPsi) WRITE(6,*) "This has no effect, as the histograms have not been set up at the beginning of the calculation."
                ENDIF
            ENDIF
+           IF(tChangeParams(23)) THEN
+               tTruncInitiator=.true.
+               IF(iProcIndex.eq.0) THEN
+                   WRITE(6,*) "Beginning to allow spawning into inactive space for a truncated initiator calculation."
+               ENDIF
+           ENDIF
        endif
 
 99     IF (ios.gt.0) THEN
@@ -506,7 +514,7 @@ contains
        use SystemData, only : NEl
        use FciMCData, only : Iter,CASMin,CASMax,tTruncSpace,tSinglePartPhase,SumENum,SumNoatHF,HFPopCyc,ProjEIterSum,Histogram,AvAnnihil
        use FciMCData, only : VaryShiftCycles,SumDiagSft,VaryShiftIter 
-       use CalcData, only : Tau,DiagSft,SftDamp,StepsSft,SinglesBias,OccCASOrbs,VirtCASOrbs,NMCyc,tTruncCAS,NEquilSteps
+       use CalcData, only : Tau,DiagSft,SftDamp,StepsSft,SinglesBias,OccCASOrbs,VirtCASOrbs,NMCyc,tTruncCAS,NEquilSteps,tTruncInitiator
        use DetCalc, only : ICILevel 
        use IntegralsData , only : tPartFreezeCore,NPartFrozen,NHolesFrozen
        use Parallel
@@ -517,7 +525,7 @@ contains
        implicit none
        integer :: error,i,ios,NewNMCyc
        logical :: tSoftExitFound,tWritePopsFound,exists,AnyExist,deleted_file
-       logical :: tEof,any_deleted_file,tChangeParams(22),tSingBiasChange
+       logical :: tEof,any_deleted_file,tChangeParams(23),tSingBiasChange
        Character(len=100) :: w
 
        tSoftExitFound=.false.
@@ -532,7 +540,7 @@ contains
                WRITE(6,*) "CHANGEVARS file detected on iteration ",Iter
            ENDIF
 !Set the defaults
-           tChangeParams(1:22)=.false.
+           tChangeParams(1:23)=.false.
            deleted_file=.false.
            do i=0,nProcessors-1
                ! This causes each processor to attempt to delete
@@ -606,6 +614,8 @@ contains
                        CASE("HISTEQUILSTEPS")
                            tChangeParams(22)=.true.
                            CALL Readi(NHistEquilSteps)
+                       CASE("TRUNCINITIATOR")
+                           tChangeParams(23)=.true.
                        END SELECT
                    End Do
                    close(13,status='delete')
@@ -805,6 +815,12 @@ contains
                    IF(NHistEquilSteps.le.Iter) NHistEquilSteps=Iter+StepsSft
                    WRITE(6,*) "Changing the starting iteration for histogramming to: ",NHistEquilSteps
                    IF(.not.tCalcFCIMCPsi) WRITE(6,*) "This has no effect, as the histograms have not been set up at the beginning of the calculation."
+               ENDIF
+           ENDIF
+           IF(tChangeParams(23)) THEN
+               IF(iProcIndex.eq.0) THEN
+                   WRITE(6,*) "Beginning to allow spawning into inactive space for a truncated initiator calculation."
+                   tTruncInitiator=.true.
                ENDIF
            ENDIF
        endif

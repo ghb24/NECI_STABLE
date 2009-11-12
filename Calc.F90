@@ -214,7 +214,9 @@ MODULE Calc
           MaxExcDom=3
           tSpawnDominant=.false.
           tMinorDetsStar=.false.
-          tCASStar=.false.
+          tTruncInitiator=.false.
+          tDelayTruncInit=.false.
+          IterTruncInit=0
 
           tNeedsVirts=.true.! Set if we need virtual orbitals  (usually set).  Will be unset (by Calc readinput) if I_VMAX=1 and TENERGY is false
 
@@ -874,10 +876,19 @@ MODULE Calc
                 call Geti(OccCASOrbs)
                 call Geti(VirtCASOrbs)
 
-            case("CASSTAR")
+            case("TRUNCINITIATOR")
 !This option goes along with the above TRUNCATECAS option.  This means that walkers are allowed to spawn on determinants outside the active space, however if this is done, they
 !can only spawn back on to the determinant from which they came.  This is the star approximation from the CAS space. 
-                tCASStar=.true.
+                tTruncInitiator=.true.
+
+            case("DELAYTRUNCINITIATOR")
+!This keyword is used if we are eventually going to want to include the inactive space in a truncinitiator kind of way, but we want to start off by just doing a truncated calculation.                
+!Because we are simply using a larger NIfTot - this needs to be changed at the very beginning of a calculation - then we can either set the iteration at which we want to start including 
+!the rest of the space or we can do this dynamically.
+                tDelayTruncInit=.true.
+                IF(item.lt.nitems) then
+                    call Geti(IterTruncInit)
+                ENDIF
 
             case("UNBIASPGENINPROJE")
 !A FCIMC serial option. With this, walkers will be accepted with probability tau*hij. i.e. they will not unbias for PGen in the acceptance criteria, but in the term for the projected energy.

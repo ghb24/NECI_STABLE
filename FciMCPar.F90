@@ -20,7 +20,7 @@ MODULE FciMCParMod
     use CalcData , only : FixedKiiCutoff,tFixShiftKii,tFixCASShift,tMagnetize,BField,NoMagDets,tSymmetricField,tStarOrbs,SinglesBias
     use CalcData , only : tHighExcitsSing,iHighExcitsSing,tFindGuide,iGuideDets,tUseGuide,iInitGuideParts,tNoDomSpinCoup
     use CalcData , only : tPrintDominant,iNoDominantDets,MaxExcDom,MinExcDom,tSpawnDominant,tMinorDetsStar
-    use CalcData , only : tCCMC,tTruncCAS,tCASStar
+    use CalcData , only : tCCMC,tTruncCAS,tTruncInitiator,tDelayTruncInit,IterTruncInit
     use HPHFRandExcitMod , only : FindExcitBitDetSym,GenRandHPHFExcit,GenRandHPHFExcit2Scratch
     USE Determinants , only : FDet,GetHElement2,GetHElement4
     USE DetCalc , only : ICILevel,nDet,Det,FCIDetIndex
@@ -459,6 +459,8 @@ MODULE FciMCParMod
             CALL FLUSH(11)
         ENDIF
 
+        IF(tDelayTruncInit.and.(Iter.ge.IterTruncInit)) tTruncInitiator=.true.
+
 !        IF(tRotoAnnihil) THEN
 !            CALL CheckOrdering(CurrentDets(:,1:TotWalkers),CurrentSign(1:TotWalkers),TotWalkers,.true.)
 !        ENDIF
@@ -493,16 +495,6 @@ MODULE FciMCParMod
 !First, decode the bit-string representation of the determinant the walker is on, into a string of naturally-ordered integers
             CALL DecodeBitDet(DetCurr,CurrentDets(:,j))
 
-            IF(tCASStar) THEN
-                IF(TestIfDetInCAS(DetCurr)) THEN
-                    ParentinCAS=0
-!The parent walker from which we are attempting to spawn is in the active space - all children will carry this flag, and these spawn like usual.
-                ELSE
-                    ParentinCAS=1
-!The parent from which we are attempting to spawn is outside the active space - children spawned on unoccupied determinants with this flag will be killed.
-                ENDIF
-            ENDIF
-
 !            IF((Iter.gt.100)) THEN!.and.(.not.DetBitEQ(CurrentDets(:,j),iLutHF))) THEN
 !This will test the excitation generator for HPHF wavefunctions
 !                IF(.not.(TestClosedShellDet(CurrentDets(:,j)))) THEN
@@ -532,6 +524,27 @@ MODULE FciMCParMod
             ELSE
                 CALL FindBitExcitLevel(iLutHF,CurrentDets(:,j),WalkExcitLevel,2)
             ENDIF
+
+            IF(tTruncInitiator) THEN
+                IF(tTruncCAS) THEN
+                    IF(TestIfDetInCAS(DetCurr)) THEN
+                        ParentInitiator=0
+!The parent walker from which we are attempting to spawn is in the active space - all children will carry this flag, and these spawn like usual.
+                    ELSE
+                        ParentInitiator=1
+!The parent from which we are attempting to spawn is outside the active space - children spawned on unoccupied determinants with this flag will be killed.
+                    ENDIF
+                ELSEIF(tTruncSpace) THEN
+                    IF(WalkExcitLevel.le.ICILevel) THEN
+                        ParentInitiator=0
+!Parent in allowed space.                        
+                    ELSE
+                        ParentInitiator=1
+!Parent outside allowed space.                        
+                    ENDIF
+                ENDIF
+            ENDIF
+
             IF(tRegenDiagHEls) THEN
 !We are not storing the diagonal hamiltonian elements for each particle. Therefore, we need to regenerate them.
 !Need to find H-element!
@@ -626,7 +639,7 @@ MODULE FciMCParMod
 !Calculate number of children to spawn
                 IF(nJ(1).eq.0) THEN
                     Child=0
-                ELSEIF(TTruncSpace.or.(tTruncCAS.and.(.not.tCASStar)).or.tListDets.or.tPartFreezeCore.or.tFixLz.or.tUEG) THEN
+                ELSEIF(((TTruncSpace.or.tTruncCAS).and.(.not.tTruncInitiator)).or.tListDets.or.tPartFreezeCore.or.tFixLz.or.tUEG) THEN
 !We have truncated the excitation space at a given excitation level. See if the spawn should be allowed.
 !If we are using the CASStar - all spawns are allowed so no need to check.
                     IF(tImportanceSample) CALL Stop_All("PerformFCIMCyc","Truncated calculations not yet working with importance sampling")
@@ -762,7 +775,7 @@ MODULE FciMCParMod
                         SpawnedParts(:,ValidSpawnedList(Proc))=iLutnJ(:)
                         SpawnedSign(ValidSpawnedList(Proc))=Child
                         ValidSpawnedList(Proc)=ValidSpawnedList(Proc)+1
-                        IF(tCASStar) SpawnedParts(NIfTot,ValidSpawnedList(Proc))=ParentinCAS
+                        IF(tTruncInitiator) SpawnedParts(NIfTot,ValidSpawnedList(Proc))=ParentInitiator
 !Set the last integer of the determinant in SpawnedParts to be either 0 or 1 according to whether it's parent is inside or outside the active space.
 
                     ELSE
@@ -2011,6 +2024,18 @@ MODULE FciMCParMod
             CALL Stop_All("InitFCIMCCalcPar","Cannot use the star approximation on the insignificant determinants if the SPAWNDOMINANTONLY option is not on.")
         ENDIF
 
+        IF(tTruncInitiator.or.tDelayTruncInit) THEN
+            IF(.not.tDirectAnnihil) THEN
+                CALL Stop_All(this_routine,'TRUNCINITIATOR can only be used with direct annihilation.') 
+            ELSEIF(tFixShiftShell) THEN
+                CALL Stop_All(this_routine,'TRUNCINITIATOR cannot be used with the fixed shift shell approximation.') 
+            ELSEIF(tTruncInitiator.and.(.not.tTruncCAS).and.(.not.tTruncSpace)) THEN
+                CALL Stop_All(this_routine,'The initiator space has not been defined - need to use EXCITE X or TRUNCATECAS X Y.')
+            ELSEIF(tDelayTruncInit) THEN
+                tTruncInitiator=.false.
+            ENDIF
+        ENDIF
+
         IF(tPrintTriConnections.or.tHistTriConHEls.or.tPrintHElAccept) CALL InitTriHElStats()
         IF(tPrintSpinCoupHEl) CALL InitSpinCoupHEl()
 
@@ -2047,7 +2072,7 @@ MODULE FciMCParMod
                 WRITE(15,"(A12,A16,A10,A16,A12,3A11,3A17,2A10,A13,A12,A13,A18,A16)") "#","Step","Shift","WalkerCng","GrowRate","TotWalkers","Annihil","NoDied","NoBorn","Proj.E","Proj.E.Iter",&
 &               "Proj.E.ThisCyc","NoatHF","NoatDoubs","AccRat","UniqueDets","IterTime","FracSpawnFromSing","NoMinorWalkers"
 
-            ELSEIF(tCASStar) THEN
+            ELSEIF(tTruncInitiator.or.tDelayTruncInit) THEN
                 WRITE(6,"(A)") "       Step     Shift      WalkerCng    GrowRate       TotWalkers    Annihil    NoDied    NoBorn    Proj.E          Av.Shift     Proj.E.ThisCyc   NoatHF NoatDoubs      AccRat     UniqueDets     IterTime"
                 WRITE(15,"(A)") "#       Step     Shift      WalkerCng    GrowRate       TotWalkers    Annihil    NoDied    NoBorn    Proj.E          Av.Shift",&
 &               "Proj.E.ThisCyc   NoatHF NoatDoubs       AccRat     UniqueDets     IterTime    FracSpawnFromSing    WalkersDiffProc   NoAborted"
@@ -5286,7 +5311,7 @@ MODULE FciMCParMod
                 WRITE(6,"(I12,G16.7,I10,G16.7,I12,3I11,3G17.9,2I10,G13.5,I12,G13.5)") Iter+PreviousCycles,DiagSft,INT(AllTotParts-AllTotPartsOld,i2),AllGrowRate,    &
  &                  INT(AllTotParts,i2),AllAnnihilated,AllNoDied,AllNoBorn,ProjectionE,ProjEIter,AllENumCyc/AllHFCyc,AllNoatHF,AllNoatDoubs,AccRat,INT(AllTotWalkers,i2),IterTime
 
-            ELSEIF(tCASStar) THEN
+            ELSEIF(tTruncInitiator) THEN
                 WRITE(15,"(I12,G16.7,I10,G16.7,I12,3I13,3G17.9,2I10,G13.5,I12,G13.5,G13.5,I10)") Iter+PreviousCycles,DiagSft,INT(AllTotParts-AllTotPartsOld,i2),AllGrowRate,   &
  &                  INT(AllTotParts,i2),AllAnnihilated,AllNoDied,AllNoBorn,ProjectionE,AvDiagSft,AllENumCyc/AllHFCyc,AllNoatHF,AllNoatDoubs,AccRat,INT(AllTotWalkers,i2),IterTime,REAL(AllSpawnFromSing)/REAL(AllNoBorn),WalkersDiffProc,AllNoAborted
                 WRITE(6,"(I12,G16.7,I10,G16.7,I12,3I11,3G17.9,2I10,G13.5,I12,G13.5)") Iter+PreviousCycles,DiagSft,INT(AllTotParts-AllTotPartsOld,i2),AllGrowRate,    &
@@ -5947,15 +5972,13 @@ MODULE FciMCParMod
         CALL MPI_Bcast(DomDets(0:NIfTot,1:iNoDomDets),(NIfTot+1)*iNoDomDets,MPI_INTEGER,Root,MPI_COMM_WORLD,ierr)
 
 
-        IF(tMinorDetsStar.or.tCASStar) THEN
+        IF(tMinorDetsStar) THEN
             IF(.not.tRotoAnnihil) THEN
-                CALL Stop_All(this_routine,'STARMINORDETERMINANTS and CASSTAR can only be used with rotoannihilation.') 
+                CALL Stop_All(this_routine,'STARMINORDETERMINANTS can only be used with rotoannihilation.') 
             ELSEIF(tFixShiftShell) THEN
-                CALL Stop_All(this_routine,'STARMINORDETERMINANTS and CASSTAR cannot be used with the fixed shift shell approximation.') 
+                CALL Stop_All(this_routine,'STARMINORDETERMINANTS cannot be used with the fixed shift shell approximation.') 
             ELSEIF(iMinDomLev.le.2) THEN
-                CALL Stop_All(this_routine,'STARMINORDETERMINANTS and CASSTAR are not set up to deal with removing doubles or lower.')
-            ELSEIF(tCASStar.and.(.not.tTruncCAS)) THEN
-                CALL Stop_All(this_routine,'The active space for a CAS calculation has not been defined.')
+                CALL Stop_All(this_routine,'STARMINORDETERMINANTS is not set up to deal with removing doubles or lower.')
             ELSE
                 CALL InitMinorDetsStar()
             ENDIF
