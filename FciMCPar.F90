@@ -8796,6 +8796,7 @@ MODULE FciMCParMod
         ENDIF
 
     END SUBROUTINE CalcApproxpDoubles
+
     SUBROUTINE CreateSpinInvBRR()
     ! Create an SpinInvBRR containing spin orbitals, 
     ! unlike 'createInvBRR' which only has spatial orbitals.
@@ -8840,9 +8841,6 @@ MODULE FciMCParMod
         RETURN
         
     END SUBROUTINE CreateSpinInvBRR
-
-
-
 
 ! This creates a hash based not only on one current determinant, but is also dependent on the 
 ! determinant from which the walkers on this determinant came.
@@ -8905,6 +8903,7 @@ MODULE FciMCParMod
         RETURN
 
     END SUBROUTINE GetPartRandExcitPar
+
     SUBROUTINE FindMagneticDets()
         use SystemData , only : tAssumeSizeExcitgen
         INTEGER :: j,i,ierr,iMaxExcit,nStore(6),MinIndex,ExcitLength,nJ(NEl),iExcit
@@ -9024,6 +9023,7 @@ MODULE FciMCParMod
         RETURN
 
     END SUBROUTINE FindMagneticDets
+
 !This will store all the double excitations.
     SUBROUTINE StoreDoubs()
         use SystemData , only : tAssumeSizeExcitgen,tUseBrillouin
@@ -9105,6 +9105,7 @@ MODULE FciMCParMod
         DEALLOCATE(ExcitGenTemp)
 
     END SUBROUTINE StoreDoubs
+
 !Initialize the Histogramming searching arrays if necessary
     SUBROUTINE InitHistMin()
         IF(tHistSpawn.or.tCalcFCIMCPsi.and.(Iter.ge.NHistEquilSteps)) THEN
@@ -9191,7 +9192,7 @@ MODULE FciMCParMod
         ENDIF
 
 !Histogramming diagnostic options...
-        IF(tHistSpawn.or.(tCalcFCIMCPsi.and.tFCIMC).and.(Iter.ge.NHistEquilSteps)) THEN
+        IF((tHistSpawn.or.(tCalcFCIMCPsi.and.tFCIMC)).and.(Iter.ge.NHistEquilSteps)) THEN
             IF(ExcitLevel.eq.NEl) THEN
                 CALL BinSearchParts2(iLutCurr,HistMinInd(ExcitLevel),Det,PartInd,tSuccess)
                 if(tFCIMC) HistMinInd(ExcitLevel)=PartInd  !CCMC doesn't sum particle contributions in order, so we must search the whole space again
@@ -9203,48 +9204,70 @@ MODULE FciMCParMod
                 if(tFCIMC) HistMinInd(ExcitLevel)=PartInd  !CCMC doesn't sum particle contributions in order, so we must search the whole space again
             ENDIF
             IF(tSuccess) THEN
-                IF(tFlippedSign) THEN
-                    Histogram(PartInd)=Histogram(PartInd)-REAL(WSign,r2)/dProbFin
-                    IF(tHistSpawn) InstHist(PartInd)=InstHist(PartInd)-REAL(WSign,r2)/dProbFin
+                IF(tHPHF) THEN
+                    CALL FindExcitBitDetSym(iLutCurr,iLutSym)
+                    IF(.not.DetBitEQ(iLutCurr,iLutSym)) THEN
+                        IF(tFlippedSign) THEN
+                            Histogram(PartInd)=Histogram(PartInd)-(REAL(WSign,r2)/SQRT(2.0))/dProbFin
+                            IF(tHistSpawn) InstHist(PartInd)=InstHist(PartInd)-(REAL(WSign,r2)/SQRT(2.0))/dProbFin
+                        ELSE
+                            Histogram(PartInd)=Histogram(PartInd)+(REAL(WSign,r2)/SQRT(2.0))/dProbFin
+                            IF(tHistSpawn) InstHist(PartInd)=InstHist(PartInd)+(REAL(WSign,r2)/SQRT(2.0))/dProbFin
+                        ENDIF
+                    ELSE
+                        IF(tFlippedSign) THEN
+                            Histogram(PartInd)=Histogram(PartInd)-REAL(WSign,r2)/dProbFin
+                            IF(tHistSpawn) InstHist(PartInd)=InstHist(PartInd)-REAL(WSign,r2)/dProbFin
+                        ELSE
+                            Histogram(PartInd)=Histogram(PartInd)+REAL(WSign,r2)/dProbFin
+                            IF(tHistSpawn) InstHist(PartInd)=InstHist(PartInd)+REAL(WSign,r2)/dProbFin
+                        ENDIF
+                    ENDIF
                 ELSE
-                    Histogram(PartInd)=Histogram(PartInd)+REAL(WSign,r2)/dProbFin
-                    IF(tHistSpawn) InstHist(PartInd)=InstHist(PartInd)+REAL(WSign,r2)/dProbFin
+                    IF(tFlippedSign) THEN
+                        Histogram(PartInd)=Histogram(PartInd)-REAL(WSign,r2)/dProbFin
+                        IF(tHistSpawn) InstHist(PartInd)=InstHist(PartInd)-REAL(WSign,r2)/dProbFin
+                    ELSE
+                        Histogram(PartInd)=Histogram(PartInd)+REAL(WSign,r2)/dProbFin
+                        IF(tHistSpawn) InstHist(PartInd)=InstHist(PartInd)+REAL(WSign,r2)/dProbFin
+                    ENDIF
                 ENDIF
                 IF(tHPHF) THEN
 !With HPHF space, we need to also include the spin-coupled determinant, which will have the same amplitude as the original determinant, unless it is antisymmetric.
-                    CALL FindExcitBitDetSym(iLutCurr,iLutSym)
-                    IF(ExcitLevel.eq.NEl) THEN
-                        CALL BinSearchParts2(iLutSym,FCIDetIndex(ExcitLevel),Det,PartInd,tSuccess)
-                    ELSEIF(ExcitLevel.eq.0) THEN
-                        PartInd=1
-                        tSuccess=.true.
-                    ELSE
-                        CALL BinSearchParts2(iLutSym,FCIDetIndex(ExcitLevel),FCIDetIndex(ExcitLevel+1)-1,PartInd,tSuccess)
-                    ENDIF
-                    IF(tSuccess) THEN
-                        CALL CalcOpenOrbs(iLutSym,OpenOrbs)
-                        IF(tFlippedSign) THEN
-                            IF(mod(OpenOrbs,2).eq.1) THEN
-                                Histogram(PartInd)=Histogram(PartInd)+REAL(WSign,r2)/dProbFin
-                                IF(tHistSpawn) InstHist(PartInd)=InstHist(PartInd)+REAL(WSign,r2)/dProbFin
+                    IF(.not.DetBitEQ(iLutCurr,iLutSym)) THEN
+                        IF(ExcitLevel.eq.NEl) THEN
+                            CALL BinSearchParts2(iLutSym,FCIDetIndex(ExcitLevel),Det,PartInd,tSuccess)
+                        ELSEIF(ExcitLevel.eq.0) THEN
+                            PartInd=1
+                            tSuccess=.true.
+                        ELSE
+                            CALL BinSearchParts2(iLutSym,FCIDetIndex(ExcitLevel),FCIDetIndex(ExcitLevel+1)-1,PartInd,tSuccess)
+                        ENDIF
+                        IF(tSuccess) THEN
+                            CALL CalcOpenOrbs(iLutSym,OpenOrbs)
+                            IF(tFlippedSign) THEN
+                                IF(mod(OpenOrbs,2).eq.1) THEN
+                                    Histogram(PartInd)=Histogram(PartInd)+(REAL(WSign,r2)/SQRT(2.0))/dProbFin
+                                    IF(tHistSpawn) InstHist(PartInd)=InstHist(PartInd)+(REAL(WSign,r2)/SQRT(2.0))/dProbFin
+                                ELSE
+                                    Histogram(PartInd)=Histogram(PartInd)-(REAL(WSign,r2)/SQRT(2.0))/dProbFin
+                                    IF(tHistSpawn) InstHist(PartInd)=InstHist(PartInd)-(REAL(WSign,r2)/SQRT(2.0))/dProbFin
+                                ENDIF
                             ELSE
-                                Histogram(PartInd)=Histogram(PartInd)-REAL(WSign,r2)/dProbFin
-                                IF(tHistSpawn) InstHist(PartInd)=InstHist(PartInd)-REAL(WSign,r2)/dProbFin
+                                IF(mod(OpenOrbs,2).eq.1) THEN
+                                    Histogram(PartInd)=Histogram(PartInd)-(REAL(WSign,r2)/SQRT(2.0))/dProbFin
+                                    IF(tHistSpawn) InstHist(PartInd)=InstHist(PartInd)-(REAL(WSign,r2)/SQRT(2.0))/dProbFin
+                                ELSE
+                                    Histogram(PartInd)=Histogram(PartInd)+(REAL(WSign,r2)/SQRT(2.0))/dProbFin
+                                    IF(tHistSpawn) InstHist(PartInd)=InstHist(PartInd)+(REAL(WSign,r2)/SQRT(2.0))/dProbFin
+                                ENDIF
                             ENDIF
                         ELSE
-                            IF(mod(OpenOrbs,2).eq.1) THEN
-                                Histogram(PartInd)=Histogram(PartInd)-REAL(WSign,r2)/dProbFin
-                                IF(tHistSpawn) InstHist(PartInd)=InstHist(PartInd)-REAL(WSign,r2)/dProbFin
-                            ELSE
-                                Histogram(PartInd)=Histogram(PartInd)+REAL(WSign,r2)/dProbFin
-                                IF(tHistSpawn) InstHist(PartInd)=InstHist(PartInd)+REAL(WSign,r2)/dProbFin
-                            ENDIF
+                            WRITE(6,*) DetCurr(:)
+                            WRITE(6,*) "***",iLutSym(0:NIfTot)
+                            WRITE(6,*) "***",ExcitLevel,Det
+                            CALL Stop_All("SumEContrib","Cannot find corresponding spin-coupled FCI determinant when histogramming")
                         ENDIF
-                    ELSE
-                        WRITE(6,*) DetCurr(:)
-                        WRITE(6,*) "***",iLutSym(0:NIfTot)
-                        WRITE(6,*) "***",ExcitLevel,Det
-                        CALL Stop_All("SumEContrib","Cannot find corresponding spin-coupled FCI determinant when histogramming")
                     ENDIF
                 ENDIF
             ELSE
