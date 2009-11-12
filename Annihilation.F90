@@ -1516,6 +1516,14 @@ MODULE AnnihilationMod
                         IF(SpawnedSign(i).eq.0) THEN
 !The number of particles were equal and opposite. We want to remove this entry from the spawned list.
                             ToRemove=ToRemove+1
+                        ELSEIF(tCASStar) THEN
+!If we are doing a CAS star calculation - then if the walkers that are left after annihilation have been spawned from determinants outside the active space,
+!then it is like these have been spawned on an unoccupied determinant and they are killed.
+                            IF(SpawnedParts(NIfTot,i).eq.1) THEN
+                                NoAborted=NoAborted+ABS(SpawnedSign(i))
+                                SpawnedSign(i)=0
+                                ToRemove=ToRemove+1
+                            ENDIF
                         ENDIF
 
                     ELSE
@@ -1572,6 +1580,13 @@ MODULE AnnihilationMod
 !One of the signs on the list is actually 0. If this zero is on the spawned list, we need to mark it for removal.
                     IF(SpawnedSign(i).eq.0) THEN
                         ToRemove=ToRemove+1
+                    ELSEIF(tCASStar) THEN
+!If doing a CAS star calculation - then if the signs on the current list is 0, and the walkers in the spawned list came from outside the cas space, these need to be killed.                        
+                        IF(SpawnedParts(NIfTot,i).eq.1) THEN
+                            NoAborted=NoAborted+ABS(SpawnedSign(i))
+                            SpawnedSign(i)=0
+                            ToRemove=ToRemove+1
+                        ENDIF
                     ENDIF
                 ENDIF
 
@@ -1647,6 +1662,15 @@ MODULE AnnihilationMod
 !                    RemoveInds(ToRemove)=i
 !                ENDIF
 
+            ELSEIF(tCASStar) THEN
+!Determinant in newly spawned list is not found in currentdets - usually this would mean the walkers just stay in this list and get merged later - but in this case we            
+!want to check where the walkers came from - because if the newly spawned walkers are from a parent outside the active space they should be killed - as they have been
+!spawned on an unoccupied determinant.
+                IF(SpawnedParts(NIfTot,i).eq.1) THEN    !Walkers came from outside cas space.
+                    NoAborted=NoAborted+ABS(SpawnedSign(i))
+                    SpawnedSign(i)=0
+                    ToRemove=ToRemove+1
+                ENDIF
             ENDIF
 
 !Even if a corresponding particle wasn't found, we can still search a smaller list next time....so not all bad news then...

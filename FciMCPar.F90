@@ -495,10 +495,10 @@ MODULE FciMCParMod
 
             IF(tCASStar) THEN
                 IF(TestIfDetInCAS(DetCurr)) THEN
-                    ParentinCAS=1
+                    ParentinCAS=0
 !The parent walker from which we are attempting to spawn is in the active space - all children will carry this flag, and these spawn like usual.
                 ELSE
-                    ParentinCAS=2
+                    ParentinCAS=1
 !The parent from which we are attempting to spawn is outside the active space - children spawned on unoccupied determinants with this flag will be killed.
                 ENDIF
             ENDIF
@@ -763,7 +763,7 @@ MODULE FciMCParMod
                         SpawnedSign(ValidSpawnedList(Proc))=Child
                         ValidSpawnedList(Proc)=ValidSpawnedList(Proc)+1
                         IF(tCASStar) SpawnedParts(NIfTot,ValidSpawnedList(Proc))=ParentinCAS
-!Set the last integer of the determinant in SpawnedParts to be either 1 or 2 according to whether it's parent is inside or outside the active space.
+!Set the last integer of the determinant in SpawnedParts to be either 0 or 1 according to whether it's parent is inside or outside the active space.
 
                     ELSE
 !Calculate diagonal ham element
@@ -1226,7 +1226,7 @@ MODULE FciMCParMod
         USE FciMCLoggingMOD , only : PrintSpawnAttemptStats,PrintTriConnStats,PrintSpinCoupHEl,InitErrorBlocking,SumInErrorContrib
         USE FciMCLoggingMOD , only : InitShiftErrorBlocking,SumInShiftErrorContrib
         INTEGER :: error,rc,MaxAllowedWalkers,MaxWalkersProc,MinWalkersProc
-        INTEGER :: inpair(9),outpair(9)
+        INTEGER :: inpair(10),outpair(10)
         REAL*8 :: TempTotWalkers,TempTotParts
         REAL*8 :: TempSumNoatHF,MeanWalkers,TempSumWalkersCyc,TempAllSumWalkersCyc,TempNoMinorWalkers
         REAL*8 :: inpairreal(3),outpairreal(3)
@@ -1288,6 +1288,7 @@ MODULE FciMCParMod
         inpair(7)=SpawnFromSing
         inpair(8)=iInitGuideParts
         inpair(9)=MinorAnnihilated
+        inpair(10)=NoAborted
 !        inpair(7)=TotParts
 !        inpair(9)=iUniqueDets
         outpair(:)=0
@@ -1301,7 +1302,7 @@ MODULE FciMCParMod
 !        CALL MPI_Reduce(SumWalkersCyc,AllSumWalkersCyc,1,MPI_INTEGER,MPI_SUM,Root,MPI_COMM_WORLD,error)
 !        WRITE(6,*) "Get Here 1"
 !        CALL FLUSH(6)
-        CALL MPI_Reduce(inpair,outpair,9,MPI_INTEGER,MPI_SUM,Root,MPI_COMM_WORLD,error)
+        CALL MPI_Reduce(inpair,outpair,10,MPI_INTEGER,MPI_SUM,Root,MPI_COMM_WORLD,error)
 !        WRITE(6,*) "Get Here 2"
 !        CALL FLUSH(6)
 !        AllTotWalkers=outpair(1)
@@ -1316,6 +1317,7 @@ MODULE FciMCParMod
 !        AlliUniqueDets=REAL(outpair(9),r2)
         AlliInitGuideParts=outpair(8)
         AllMinorAnnihilated=outpair(9)
+        AllNoAborted=outpair(10)
         TempTotWalkers=REAL(TotWalkers,r2)
         TempTotParts=REAL(TotParts,r2)
         TempNoMinorWalkers=REAL(NoMinorWalkers,r2)
@@ -1584,6 +1586,7 @@ MODULE FciMCParMod
 !        DetsNorm=0.D0
         Annihilated=0
         MinorAnnihilated=0
+        NoAborted=0
         LocalAnn=0
         Acceptances=0
         NoBorn=0
@@ -1615,6 +1618,7 @@ MODULE FciMCParMod
         AllSumWalkersCyc=0
         AllAnnihilated=0
         AllMinorAnnihilated=0
+        AllNoAborted=0
         AllLocalAnn=0
         AllNoatHF=0
         AllNoatDoubs=0
@@ -2043,6 +2047,11 @@ MODULE FciMCParMod
                 WRITE(15,"(A12,A16,A10,A16,A12,3A11,3A17,2A10,A13,A12,A13,A18,A16)") "#","Step","Shift","WalkerCng","GrowRate","TotWalkers","Annihil","NoDied","NoBorn","Proj.E","Proj.E.Iter",&
 &               "Proj.E.ThisCyc","NoatHF","NoatDoubs","AccRat","UniqueDets","IterTime","FracSpawnFromSing","NoMinorWalkers"
 
+            ELSEIF(tCASStar) THEN
+                WRITE(6,"(A)") "       Step     Shift      WalkerCng    GrowRate       TotWalkers    Annihil    NoDied    NoBorn    Proj.E          Av.Shift     Proj.E.ThisCyc   NoatHF NoatDoubs      AccRat     UniqueDets     IterTime"
+                WRITE(15,"(A)") "#       Step     Shift      WalkerCng    GrowRate       TotWalkers    Annihil    NoDied    NoBorn    Proj.E          Av.Shift",&
+&               "Proj.E.ThisCyc   NoatHF NoatDoubs       AccRat     UniqueDets     IterTime    FracSpawnFromSing    WalkersDiffProc   NoAborted"
+ 
 
             ELSE
                 WRITE(6,"(A)") "       Step     Shift      WalkerCng    GrowRate       TotWalkers    Annihil    NoDied    NoBorn    Proj.E          Av.Shift     Proj.E.ThisCyc   NoatHF NoatDoubs      AccRat     UniqueDets     IterTime"
@@ -5277,6 +5286,12 @@ MODULE FciMCParMod
                 WRITE(6,"(I12,G16.7,I10,G16.7,I12,3I11,3G17.9,2I10,G13.5,I12,G13.5)") Iter+PreviousCycles,DiagSft,INT(AllTotParts-AllTotPartsOld,i2),AllGrowRate,    &
  &                  INT(AllTotParts,i2),AllAnnihilated,AllNoDied,AllNoBorn,ProjectionE,ProjEIter,AllENumCyc/AllHFCyc,AllNoatHF,AllNoatDoubs,AccRat,INT(AllTotWalkers,i2),IterTime
 
+            ELSEIF(tCASStar) THEN
+                WRITE(15,"(I12,G16.7,I10,G16.7,I12,3I13,3G17.9,2I10,G13.5,I12,G13.5,G13.5,I10)") Iter+PreviousCycles,DiagSft,INT(AllTotParts-AllTotPartsOld,i2),AllGrowRate,   &
+ &                  INT(AllTotParts,i2),AllAnnihilated,AllNoDied,AllNoBorn,ProjectionE,AvDiagSft,AllENumCyc/AllHFCyc,AllNoatHF,AllNoatDoubs,AccRat,INT(AllTotWalkers,i2),IterTime,REAL(AllSpawnFromSing)/REAL(AllNoBorn),WalkersDiffProc,AllNoAborted
+                WRITE(6,"(I12,G16.7,I10,G16.7,I12,3I11,3G17.9,2I10,G13.5,I12,G13.5)") Iter+PreviousCycles,DiagSft,INT(AllTotParts-AllTotPartsOld,i2),AllGrowRate,    &
+ &                  INT(AllTotParts,i2),AllAnnihilated,AllNoDied,AllNoBorn,ProjectionE,AvDiagSft,AllENumCyc/AllHFCyc,AllNoatHF,AllNoatDoubs,AccRat,INT(AllTotWalkers,i2),IterTime
+
             ELSE
 !                WRITE(15,"(I12,G16.7,I9,G16.7,I12,3I11,3G17.9,2I10,2G13.5,2I6)") Iter+PreviousCycles,DiagSft,AllTotWalkers-AllTotWalkersOld,AllGrowRate,   &
 ! &                  AllTotWalkers,AllAnnihilated,AllNoDied,AllNoBorn,ProjectionE,ProjEIter,AllENumCyc/AllHFCyc,AllNoatHF,AllNoatDoubs,AccRat,AllMeanExcitLevel,AllMinExcitLevel,AllMaxExcitLevel
@@ -8022,7 +8037,7 @@ MODULE FciMCParMod
 !        MaxExcitLevel=0
         LocalAnn=0
         Annihilated=0
-        Annihilated=0
+        NoAborted=0
         Acceptances=0
         PreviousCycles=0
         NoBorn=0
@@ -8055,6 +8070,7 @@ MODULE FciMCParMod
         AllLocalAnn=0
         AllAnnihilated=0
         AllMinorAnnihilated=0
+        AllNoAborted=0
         AllENumCyc=0.D0
         AllHFCyc=0.D0
 !        AllDetsNorm=0.D0
