@@ -7700,6 +7700,9 @@ MODULE FciMCParMod
     SUBROUTINE CalcNewShift()
         CALL Stop_All("CalcNewShift","CalcNewShift not currently coded for serial.")
     END SUBROUTINE CalcNewShift
+    SUBROUTINE WriteHistogram()
+        CALL Stop_All("WriteHistogram","WriteHistogram not currently coded for serial.")
+    END SUBROUTINE WriteHistogram
 #endif
 ! AJWT
 ! Bringing you a better FciMCPar.  A vision for the future...
