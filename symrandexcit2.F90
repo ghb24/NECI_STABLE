@@ -518,89 +518,171 @@ MODULE GenRandSymExcitNUMod
 !This number is needed for the correct normalisation of the probability of drawing any given A orbital since these can be chucked and redrawn.
     SUBROUTINE FindNumForbiddenOrbs(ForbiddenOrbs,ClassCountUnocc2,SymProduct,iSpn,SumMl)
         INTEGER :: ClassCountUnocc2(ScratchSize),OrbAMl,SumMl,j,k
-        INTEGER :: ForbiddenOrbs,SymProduct,iSpn,i,ConjSym,Ind,l
+        INTEGER :: ForbiddenOrbs,SymProduct,iSpn,i,ConjSym,Ind,l,AllowedOrbs,SymInd!,ForbiddenOrbs2
 
         ForbiddenOrbs=0
+!        ForbiddenOrbs2=0
 
         IF(tFixLz) THEN
-
-            Ind=0
-!Run over all possible b symmetries, and count the a orbitals which would be disallow due to the unavailability of a corresponding b orbital.
-!            WRITE(6,*) "iSpn: ",iSpn,SymProduct,SumMl
-            do k=-iMaxLz,iMaxLz
-                OrbAMl=SumMl-k
-!                WRITE(6,*) "OrbAMl: ",OrbAMl
-                IF(abs(OrbAMl).le.iMaxLz) THEN
-                    !If the OrbAMl which would be needed to require this B-symmetry is out of range, then there is no need to consider it - we cannot pick an A orb which would require this symmetry from the B orbital.
-                    do i=0,nSymLabels-1
-                        ConjSym=IEOR(SymProduct,i)
-!                        WRITE(6,*) "ConjSym: ",ConjSym,i
-                        do j=1,2
-                            Ind=Ind+1
-!                            WRITE(6,*) "Alpha/Beta: ",j
-!                            WRITE(6,*) "***i***"
-                            IF(ClassCountUnocc2(Ind).eq.0) THEN
-!There is no point going in here if SymProduct=0
-                                !Ignore if already spin-forbidden
-                                IF(iSpn.eq.1) THEN
-                                    IF(j.eq.1) THEN
-                                        CYCLE  !We are only interested in beta orbitals
-                                    ELSE
-                                        ForbiddenOrbs=ForbiddenOrbs+ClassCountUnocc2(ClassCountInd(2,ConjSym,OrbAMl))
-                                    ENDIF
-                                ELSEIF(iSpn.eq.3) THEN
-                                    IF(j.eq.2) THEN
-                                        CYCLE   !We are only interested in alpha orbitals
-                                    ELSE
-                                        ForbiddenOrbs=ForbiddenOrbs+ClassCountUnocc2(ClassCountInd(1,ConjSym,OrbAMl))
-!                                        IF(Iter.eq.13) WRITE(6,*) "Adding forbidden orb for sym ",i,ConjSym,ForbiddenOrbs
-                                    ENDIF
-                                ELSEIF(iSpn.eq.2) THEN  !alpha/beta pair - can forbid orbitals both ways.
-                                    IF(j.eq.1) THEN
-                                        ForbiddenOrbs=ForbiddenOrbs+ClassCountUnocc2(ClassCountInd(2,ConjSym,OrbAMl))
-!                                        WRITE(6,*) "***",ForbiddenOrbs
-                                    ELSE
-                                        ForbiddenOrbs=ForbiddenOrbs+ClassCountUnocc2(ClassCountInd(1,ConjSym,OrbAMl))
-!                                        WRITE(6,*) "***",ForbiddenOrbs
-                                    ENDIF
-                                ENDIF
-                            ELSEIF((ClassCountUnocc2(Ind).eq.1).and.(iSpn.ne.2).and.(SymProduct.eq.0).and.(OrbAMl.eq.k)) THEN
-                                !This is the situation where you actually need two orbitals of the given symmetry to allow this a orbital to be chosen.
-                                IF(iSpn.eq.1.and.j.eq.1) CYCLE
-                                IF(iSpn.eq.3.and.j.eq.2) CYCLE
-                                ForbiddenOrbs=ForbiddenOrbs+1
-!                                IF(Iter.eq.13) WRITE(6,*) "Extra forbidden orb for symmetry ",i,ForbiddenOrbs
+                
+            AllowedOrbs=0
+            IF(iSpn.eq.2) THEN
+                Ind=1
+                do k=-iMaxLz,iMaxLz
+                    OrbAMl=SumMl-k
+                    IF(abs(OrbAMl.le.iMaxLz)) THEN
+                        do i=0,nSymLabels-1
+                            ConjSym=IEOR(SymProduct,i)
+                            SymInd=ClassCountInd(1,ConjSym,OrbAMl)  !Alpha of the corresponding a orbital
+                            IF(ClassCountUnocc2(Ind).ne.0) THEN
+                                !Check the alpha orbital
+                                AllowedOrbs=AllowedOrbs+ClassCountUnocc2(SymInd+1)
                             ENDIF
-                        enddo
-                    enddo
-                ELSE
-                    !All unoccupied orbitals in this Ml block are forbbidden
-                    IF(iSpn.eq.2) THEN
-                        do l=Ind+1,Ind+nSymLabels*2
-!                            WRITE(6,*) l
-                            IF(ClassCountUnocc2(l).ne.0) THEN
-                                ForbiddenOrbs=ForbiddenOrbs+ClassCountUnocc2(l)
+                            IF(ClassCountUnocc2(Ind+1).ne.0) THEN
+                                AllowedOrbs=AllowedOrbs+ClassCountUnocc2(SymInd)
                             ENDIF
-                        enddo
-                    ELSEIF(iSpn.eq.1) THEN
-                    !Forbid all beta unoccupied orbitals (these are the second of the pair
-                        do l=Ind+2,Ind+nSymLabels*2,2
-                            IF(ClassCountUnocc2(l).ne.0) THEN
-                                ForbiddenOrbs=ForbiddenOrbs+ClassCountUnocc2(l)
-                            ENDIF
+                            Ind=Ind+2
                         enddo
                     ELSE
-                        do l=Ind+1,Ind+nSymLabels*2-1,2
-                            IF(ClassCountUnocc2(l).ne.0) THEN
-                                ForbiddenOrbs=ForbiddenOrbs+ClassCountUnocc2(l)
-                            ENDIF
-                        enddo
+                        !Move onto the next k-block of B orbitals.
+                        Ind=Ind+nSymLabels*2
                     ENDIF
+                enddo
+                ForbiddenOrbs=nBasis-NEl-AllowedOrbs
+            ELSEIF(iSpn.eq.3) THEN  !alpha/alpha - run through all alpha orbitals
+                Ind=1
+                do k=-iMaxLz,iMaxLz
+                    OrbAMl=SumMl-k
+                    IF(abs(OrbAMl.le.iMaxLz)) THEN
+                        do i=0,nSymLabels-1
+                            IF(ClassCountUnocc2(Ind).ne.0) THEN
+                                IF((SymProduct.eq.0).and.(OrbAMl.eq.k)) THEN
+                                    IF(ClassCountUnocc2(Ind).gt.1) THEN
+                                        AllowedOrbs=AllowedOrbs+ClassCountUnocc2(Ind)
+                                    ENDIF
+                                ELSE
+                                    AllowedOrbs=AllowedOrbs+ClassCountUnocc2(ClassCountInd(1,IEOR(SymProduct,i),OrbAMl))
+                                ENDIF
+                            ENDIF
+                            Ind=Ind+2
+                        enddo
+                    ELSE
+                        Ind=Ind+nSymLabels*2
+                    ENDIF
+                enddo
+                ForbiddenOrbs=(nBasis/2)-nOccAlpha-AllowedOrbs
+            ELSE
+                Ind=2
+                do k=-iMaxLz,iMaxLz
+                    OrbAMl=SumMl-k
+                    IF(abs(OrbAMl.le.iMaxLz)) THEN
+                        do i=0,nSymLabels-1
+                            IF(ClassCountUnocc2(Ind).ne.0) THEN
+                                IF((SymProduct.eq.0).and.(OrbAMl.eq.k)) THEN
+                                    IF(ClassCountUnocc2(Ind).gt.1) THEN
+                                        AllowedOrbs=AllowedOrbs+ClassCountUnocc2(Ind)
+                                    ENDIF
+                                ELSE
+                                    AllowedOrbs=AllowedOrbs+ClassCountUnocc2(ClassCountInd(2,IEOR(SymProduct,i),OrbAMl))
+                                ENDIF
+                            ENDIF
+                            Ind=Ind+2
+                        enddo
+                    ELSE
+                        Ind=Ind+nSymLabels*2
+                    ENDIF
+                enddo
+                ForbiddenOrbs=(nBasis/2)-nOccBeta-AllowedOrbs
+            ENDIF
 
-                    !Move onto the next k-block of B orbitals.
-                    Ind=Ind+nSymLabels*2
-                ENDIF
-            enddo
+
+
+!            Ind=0
+!!Run over all possible b symmetries, and count the a orbitals which would be disallow due to the unavailability of a corresponding b orbital.
+!!            WRITE(6,*) "iSpn: ",iSpn,SymProduct,SumMl
+!            do k=-iMaxLz,iMaxLz
+!                OrbAMl=SumMl-k
+!!                WRITE(6,*) "OrbAMl: ",OrbAMl
+!                IF(abs(OrbAMl).le.iMaxLz) THEN
+!                    !If the OrbAMl which would be needed to require this B-symmetry is out of range, then there is no need to consider it - we cannot pick an A orb which would require this symmetry from the B orbital.
+!                    do i=0,nSymLabels-1
+!                        ConjSym=IEOR(SymProduct,i)
+!!                        WRITE(6,*) "ConjSym: ",ConjSym,i
+!                        do j=1,2
+!                            Ind=Ind+1
+!!                            WRITE(6,*) "Alpha/Beta: ",j
+!!                            WRITE(6,*) "***i***"
+!                            IF(ClassCountUnocc2(Ind).eq.0) THEN
+!!There is no point going in here if SymProduct=0
+!                                !Ignore if already spin-forbidden
+!                                IF(iSpn.eq.1) THEN
+!                                    IF(j.eq.1) THEN
+!                                        CYCLE  !We are only interested in beta orbitals
+!                                    ELSE
+!                                        ForbiddenOrbs2=ForbiddenOrbs2+ClassCountUnocc2(ClassCountInd(2,ConjSym,OrbAMl))
+!                                    ENDIF
+!                                ELSEIF(iSpn.eq.3) THEN
+!                                    IF(j.eq.2) THEN
+!                                        CYCLE   !We are only interested in alpha orbitals
+!                                    ELSE
+!                                        ForbiddenOrbs2=ForbiddenOrbs2+ClassCountUnocc2(ClassCountInd(1,ConjSym,OrbAMl))
+!!                                        IF(Iter.eq.13) WRITE(6,*) "Adding forbidden orb for sym ",i,ConjSym,ForbiddenOrbs
+!                                    ENDIF
+!                                ELSEIF(iSpn.eq.2) THEN  !alpha/beta pair - can forbid orbitals both ways.
+!                                    IF(j.eq.1) THEN
+!                                        ForbiddenOrbs2=ForbiddenOrbs2+ClassCountUnocc2(ClassCountInd(2,ConjSym,OrbAMl))
+!!                                        WRITE(6,*) "***",ForbiddenOrbs
+!                                    ELSE
+!                                        ForbiddenOrbs2=ForbiddenOrbs2+ClassCountUnocc2(ClassCountInd(1,ConjSym,OrbAMl))
+!!                                        WRITE(6,*) "***",ForbiddenOrbs
+!                                    ENDIF
+!                                ENDIF
+!                            ELSEIF((ClassCountUnocc2(Ind).eq.1).and.(iSpn.ne.2).and.(SymProduct.eq.0).and.(OrbAMl.eq.k)) THEN
+!                                !This is the situation where you actually need two orbitals of the given symmetry to allow this a orbital to be chosen.
+!                                IF(iSpn.eq.1.and.j.eq.1) CYCLE
+!                                IF(iSpn.eq.3.and.j.eq.2) CYCLE
+!                                ForbiddenOrbs2=ForbiddenOrbs2+1
+!!                                IF(Iter.eq.13) WRITE(6,*) "Extra forbidden orb for symmetry ",i,ForbiddenOrbs
+!                            ENDIF
+!                        enddo
+!                    enddo
+!                ELSE
+!                    !All unoccupied orbitals in this Ml block are forbbidden
+!                    IF(iSpn.eq.2) THEN
+!                        do l=Ind+1,Ind+nSymLabels*2
+!!                            WRITE(6,*) l
+!                            IF(ClassCountUnocc2(l).ne.0) THEN
+!                                ForbiddenOrbs2=ForbiddenOrbs2+ClassCountUnocc2(l)
+!                            ENDIF
+!                        enddo
+!                    ELSEIF(iSpn.eq.1) THEN
+!                    !Forbid all beta unoccupied orbitals (these are the second of the pair
+!                        do l=Ind+2,Ind+nSymLabels*2,2
+!                            IF(ClassCountUnocc2(l).ne.0) THEN
+!                                ForbiddenOrbs2=ForbiddenOrbs2+ClassCountUnocc2(l)
+!                            ENDIF
+!                        enddo
+!                    ELSE
+!                        do l=Ind+1,Ind+nSymLabels*2-1,2
+!                            IF(ClassCountUnocc2(l).ne.0) THEN
+!                                ForbiddenOrbs2=ForbiddenOrbs2+ClassCountUnocc2(l)
+!                            ENDIF
+!                        enddo
+!                    ENDIF
+!
+!                    !Move onto the next k-block of B orbitals.
+!                    Ind=Ind+nSymLabels*2
+!                ENDIF
+!            enddo
+!
+!            IF(ForbiddenOrbs.ne.ForbiddenOrbs2) THEN
+!                WRITE(6,*) "***",ForbiddenOrbs,ForbiddenOrbs2,iSpn,SymProduct,SumMl
+!                do i=1,ScratchSize
+!                    WRITE(6,*) "***",ClassCountUnocc2(i)
+!                enddo
+!                CALL FLUSH(6)
+!                STOP
+!            ENDIF
 
         ELSE
             IF(iSpn.eq.2) THEN
