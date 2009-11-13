@@ -45,7 +45,7 @@ MODULE GenRandSymExcitNUMod
 !with tFilled = .true. for use in the next excitation.
 !The two arrays want to be integers, both of size (2,1:nSymLabels)
     SUBROUTINE GenRandSymExcitScratchNU(nI,iLut,nJ,pDoub,IC,ExcitMat,tParity,exFlag,pGen,ClassCount2,ClassCountUnocc2,tFilled)
-        INTEGER :: nI(NEl),nJ(NEl),IC,ExcitMat(2,2),Attempts,exFlag
+        INTEGER :: nI(NEl),nJ(NEl),IC,ExcitMat(2,2),exFlag
         INTEGER :: ClassCount2(ScratchSize),ElecsWNoExcits
         INTEGER :: ClassCountUnocc2(ScratchSize)
 !        INTEGER , SAVE :: Iter=0
@@ -150,7 +150,7 @@ MODULE GenRandSymExcitNUMod
     END SUBROUTINE GenRandSymExcitScratchNU
 
     SUBROUTINE GenRandSymExcitNU(nI,iLut,nJ,pDoub,IC,ExcitMat,TParity,exFlag,pGen)
-        INTEGER :: nI(NEl),nJ(NEl),IC,ExcitMat(2,2),Attempts,exFlag
+        INTEGER :: nI(NEl),nJ(NEl),IC,ExcitMat(2,2),exFlag
         INTEGER :: ClassCount2(ScratchSize),ElecsWNoExcits
         INTEGER :: ClassCountUnocc2(ScratchSize)
         INTEGER :: ILUT(0:NIfTot),i
@@ -443,7 +443,6 @@ MODULE GenRandSymExcitNUMod
 
             Attempts=0
             do while(.true.)
-                Attempts=Attempts+1
                 
 !Draw randomly from the set of orbitals
                 IF(tMerTwist) THEN
@@ -474,6 +473,7 @@ MODULE GenRandSymExcitNUMod
                     CALL WRITEDET(6,nI,NEL,.true.)
                     CALL Stop_All("PickBOrb","Cannot find double excitation unoccupied orbital after 250 attempts...")
                 ENDIF
+                Attempts=Attempts+1
 
             enddo
 
@@ -711,7 +711,6 @@ MODULE GenRandSymExcitNUMod
         AttemptsOverall=0
         do while(.true.)
 !Keep drawing unoccupied orbitals, until we find one which has an allowed partner to form a symmetry-allowed unoccupied pair.
-            AttemptsOverall=AttemptsOverall+1
 
             IF(iSpn.eq.2) THEN
 !Electrons chosen were an alpha/beta pair, therefore first randomly chosen orbital can be an alpha OR beta orbital - no restriction.
@@ -758,7 +757,6 @@ MODULE GenRandSymExcitNUMod
 
                     Attempts=0
                     do while(.true.)
-                        Attempts=Attempts+1
                         
 !Draw randomly from the set of orbitals
                         IF(tMerTwist) THEN
@@ -779,6 +777,7 @@ MODULE GenRandSymExcitNUMod
                             CALL WRITEDET(6,nI,NEL,.true.)
                             CALL Stop_All("PickAOrb","Cannot find A unoccupied orbital after 250 attempts...")
                         ENDIF
+                        Attempts=Attempts+1
 
                     enddo
 
@@ -842,7 +841,6 @@ MODULE GenRandSymExcitNUMod
 
                     Attempts=0
                     do while(.true.)
-                        Attempts=Attempts+1
                         
 !Draw randomly from the set of orbitals
                         IF(tMerTwist) THEN
@@ -870,6 +868,7 @@ MODULE GenRandSymExcitNUMod
                             CALL WRITEDET(6,nI,NEL,.true.)
                             CALL Stop_All("PickAOrb","Cannot find A unoccupied orbital after 250 attempts...")
                         ENDIF
+                        Attempts=Attempts+1
 
                     enddo
 
@@ -957,6 +956,7 @@ MODULE GenRandSymExcitNUMod
                 WRITE(6,*) "I,J pair; sym_i, sym_j: ",nI(Elec1Ind),nI(Elec2Ind),G1(nI(Elec1Ind))%Sym%S,G1(nI(Elec2Ind))%Sym%S
                 CALL Stop_All("PickAOrb","Cannot find first allowed unocc orb for double excitation")
             ENDIF
+            AttemptsOverall=AttemptsOverall+1
 
         enddo
 
@@ -1130,7 +1130,6 @@ MODULE GenRandSymExcitNUMod
         Attempts=0
         do while(.true.)
 
-            Attempts=Attempts+1
 
 !Choose an electron randomly...
             IF(tMerTwist) THEN
@@ -1170,6 +1169,7 @@ MODULE GenRandSymExcitNUMod
 !                WRITE(6,*) "ClassCountUnocc2(2,:)= ",ClassCountUnocc2(2,:)
                 CALL Stop_All("CreateSingleExcit","Cannot find single excitation from electrons after 250 attempts...")
             ENDIF
+            Attempts=Attempts+1
 
         enddo
 
@@ -1199,10 +1199,10 @@ MODULE GenRandSymExcitNUMod
 !                nOrbs=SymLabelCounts2(iSpn,2,ElecSym+1)
                 nOrbs=OrbClassCount(SymIndex)
 
-                !!REMOVE THIS TEST ONCE WORKING!!
-                IF(nOrbs.ne.SymLabelCounts2(2,SymIndex)) THEN
-                    CALL Stop_All("GetSingleExcit","Error in symmetry arrays")
-                ENDIF
+!                !!REMOVE THIS TEST ONCE WORKING!!
+!                IF(nOrbs.ne.SymLabelCounts2(2,SymIndex)) THEN
+!                    CALL Stop_All("GetSingleExcit","Error in symmetry arrays")
+!                ENDIF
             ENDIF
 
             z=0     !z is the counter for the number of allowed unoccupied orbitals we have gone through
@@ -1242,15 +1242,14 @@ MODULE GenRandSymExcitNUMod
             ELSE
                 nOrbs=OrbClassCount(SymIndex)
 
-                !!REMOVE THIS TEST ONCE WORKING!!
-                IF(nOrbs.ne.SymLabelCounts2(2,SymIndex)) THEN
-                    CALL Stop_All("GetSingleExcit","Error in symmetry arrays")
-                ENDIF
+!                !!REMOVE THIS TEST ONCE WORKING!!
+!                IF(nOrbs.ne.SymLabelCounts2(2,SymIndex)) THEN
+!                    CALL Stop_All("GetSingleExcit","Error in symmetry arrays")
+!                ENDIF
 !                nOrbs=SymLabelCounts2(iSpn,2,ElecSym+1)
             ENDIF
             Attempts=0
             do while(.true.)
-                Attempts=Attempts+1
                 
 !Draw randomly from the set of orbitals
                 IF(tMerTwist) THEN
@@ -1285,6 +1284,7 @@ MODULE GenRandSymExcitNUMod
 !                    WRITE(6,*) "ClassCountUnocc2(2,:)= ",ClassCountUnocc2(2,:)
                     CALL Stop_All("CreateSingleExcit","Cannot find single excitation unoccupied orbital after 250 attempts...")
                 ENDIF
+                Attempts=Attempts+1
 
             enddo
 
