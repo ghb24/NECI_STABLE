@@ -35,7 +35,7 @@ INTEGER :: LzTot,iMaxLz     !LzTot is the total Ml quantum number of the state t
 ! NIfY is the number of bytes used to represent a Yamanouchi symbol
 ! NIfP is an integer that is added on to the end of NIfD in CASSTAR calculations - keeps track of the parent determinant of spawned walkers.
 ! NB. bit representations are zero indexed.
-INTEGER :: NIfD, NIfY,NIfP
+INTEGER :: NIfD, NIfY,NIfP,NIfDBO
 integer :: NIfTot
 
 ! From NECICB

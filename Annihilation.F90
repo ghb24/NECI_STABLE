@@ -1,6 +1,6 @@
 !This module is to be used for various types of walker MC annihilation in serial and parallel.
 MODULE AnnihilationMod
-    use SystemData , only : NEl,tMerTwist,tHPHF,NIfTot
+    use SystemData , only : NEl,tMerTwist,tHPHF,NIfTot,NIfDBO
     use CalcData , only : TRegenExcitgens,tAnnihilatebyRange,tUseGuide,tRegenDiagHEls,iInitGuideParts,iGuideDets
     USE DetCalc , only : Det,FCIDetIndex
     USE Logging , only : tHistSpawn
@@ -169,7 +169,7 @@ MODULE AnnihilationMod
         DetsMerged=0
         ToRemove=0
         do i=2,ValidSpawned
-            IF(.not.DetBitEQ(SpawnedParts(0:NIfTot,i),SpawnedParts2(0:NIfTot,VecInd))) THEN
+            IF(.not.DetBitEQ(SpawnedParts(0:NIfTot,i),SpawnedParts2(0:NIfTot,VecInd),NIfDBO)) THEN
                 IF(SpawnedSign2(VecInd).eq.0) ToRemove=ToRemove+1
                 VecInd=VecInd+1
                 SpawnedParts2(:,VecInd)=SpawnedParts(:,i)
@@ -459,7 +459,7 @@ MODULE AnnihilationMod
             LowBound=i
             DetCurr(0:NIfTot)=SpawnedParts(0:NIfTot,i)
             i=i+1
-            do while(DetBitEQ(DetCurr(0:NIfTot),SpawnedParts(0:NIfTot,i)).and.(i.le.ValidSpawned))
+            do while(DetBitEQ(DetCurr(0:NIfTot),SpawnedParts(0:NIfTot,i),NIfDBO).and.(i.le.ValidSpawned))
                 i=i+1
             enddo
             HighBound=i-1
@@ -597,7 +597,7 @@ MODULE AnnihilationMod
                     CurrentDets(:,i)=SpawnedParts(:,i)
                     CurrentSign(i)=SpawnedSign(i)
 !We want to calculate the diagonal hamiltonian matrix element for the new particle to be merged.
-                    IF(DetBitEQ(CurrentDets(0:NIfTot,i),iLutHF)) THEN
+                    IF(DetBitEQ(CurrentDets(0:NIfTot,i),iLutHF,NIfDBO)) THEN
 !We know we are at HF - HDiag=0
                         HDiag=0.D0
                     ELSE
@@ -1312,7 +1312,7 @@ MODULE AnnihilationMod
 
         N=MinInd
         do while(N.le.MaxInd)
-            Comp=DetBitLT(DetArray(:,N),iLut(:))
+            Comp=DetBitLT(DetArray(:,N),iLut(:),NIfDBO)
             IF(Comp.eq.1) THEN
                 N=N+1
             ELSEIF(Comp.eq.-1) THEN
@@ -1342,7 +1342,7 @@ MODULE AnnihilationMod
         i=MinInd
         j=MaxInd
         IF(i-j.eq.0) THEN
-            Comp=DetBitLT(CurrentDets(:,MaxInd),iLut(:))
+            Comp=DetBitLT(CurrentDets(:,MaxInd),iLut(:),NIfDBO)
             IF(Comp.eq.0) THEN
                 tSuccess=.true.
                 PartInd=MaxInd
@@ -1358,7 +1358,7 @@ MODULE AnnihilationMod
 !            WRITE(6,*) i,j,n
 
 !Comp is 1 if CyrrebtDets(N) is "less" than iLut, and -1 if it is more or 0 if they are the same
-            Comp=DetBitLT(CurrentDets(:,N),iLut(:))
+            Comp=DetBitLT(CurrentDets(:,N),iLut(:),NIfDBO)
 
             IF(Comp.eq.0) THEN
 !Praise the lord, we've found it!
@@ -1375,7 +1375,7 @@ MODULE AnnihilationMod
                 IF(i.eq.MaxInd-1) THEN
 !This deals with the case where we are interested in the final/first entry in the list. Check the final entry of the list and leave
 !We need to check the last index.
-                    Comp=DetBitLT(CurrentDets(:,i+1),iLut(:))
+                    Comp=DetBitLT(CurrentDets(:,i+1),iLut(:),NIfDBO)
                     IF(Comp.eq.0) THEN
                         tSuccess=.true.
                         PartInd=i+1
@@ -3295,12 +3295,12 @@ MODULE AnnihilationMod
             DetsEq=.false.
             SumMinorDetPop=MinorSpawnSign(i)
             j=1
-            IF((i+j).le.MinorValidSpawned) DetsEq=DetBitEQ(MinorSpawnDets(0:NIfTot,i),MinorSpawnDets(0:NIfTot,i+j))
+            IF((i+j).le.MinorValidSpawned) DetsEq=DetBitEQ(MinorSpawnDets(0:NIfTot,i),MinorSpawnDets(0:NIfTot,i+j),NIfDBO)
             do while (DetsEq)
                 SumMinorDetPop=SumMinorDetPop+MinorSpawnSign(i+j)
                 j=j+1
                 IF((i+j).gt.MinorValidSpawned) EXIT
-                DetsEq=DetBitEQ(MinorSpawnDets(0:NIfTot,i),MinorSpawnDets(0:NIfTot,i+j))
+                DetsEq=DetBitEQ(MinorSpawnDets(0:NIfTot,i),MinorSpawnDets(0:NIfTot,i+j),NIfDBO)
             enddo
             FinalMinorDet=i+j-1
             IF(FinalMinorDet.gt.MinorValidSpawned) FinalMinorDet=MinorValidSpawned
@@ -3338,25 +3338,25 @@ MODULE AnnihilationMod
 
                 ! First check one below the determinant found.
                 j=1
-                DetsEq=DetBitEQ(MinorSpawnDets(0:NIfTot,i),MinorStarDets(0:NIfTot,PartInd-j))
+                DetsEq=DetBitEQ(MinorSpawnDets(0:NIfTot,i),MinorStarDets(0:NIfTot,PartInd-j),NIfDBO)
                 do while (DetsEq)
                     ! If the determinant is still equal, add the walkers on it to SumDetPop, and this index becomes the minimum.
                     SumDetPop=SumDetPop+MinorStarSign(PartInd-j)
                     MinDetInd=PartInd-j
                     j=j+1
-                    DetsEq=DetBitEQ(MinorSpawnDets(0:NIfTot,i),MinorStarDets(0:NIfTot,PartInd-j))
+                    DetsEq=DetBitEQ(MinorSpawnDets(0:NIfTot,i),MinorStarDets(0:NIfTot,PartInd-j),NIfDBO)
                     ! If this is true, the walkers on the next determinant will be added.
                 enddo
 
                 ! Now check those above the determinant found.
                 j=1
-                DetsEq=DetBitEQ(MinorSpawnDets(0:NIfTot,i),MinorStarDets(0:NIfTot,PartInd+j))
+                DetsEq=DetBitEQ(MinorSpawnDets(0:NIfTot,i),MinorStarDets(0:NIfTot,PartInd+j),NIfDBO)
                 do while (DetsEq)
                     ! If the determinant is still equal, add the walkers on it to SumDetPop, and this index becomes the minimum.
                     SumDetPop=SumDetPop+MinorStarSign(PartInd+j)
                     MaxDetInd=PartInd+j
                     j=j+1
-                    DetsEq=DetBitEQ(MinorSpawnDets(0:NIfTot,i),MinorStarDets(0:NIfTot,PartInd+j))
+                    DetsEq=DetBitEQ(MinorSpawnDets(0:NIfTot,i),MinorStarDets(0:NIfTot,PartInd+j),NIfDBO)
                     ! If this is true, the walkers on the next determinant will be added.
                 enddo
                 ! SumDetPop now gives the number of walkers (with sign) currently on this determinant, and the Min and Max index of where these lie in MinorStarDets.  
@@ -3565,7 +3565,7 @@ MODULE AnnihilationMod
 
                     DetsEq=.false.
                     do j=MinDetInd,MaxDetInd
-                        DetsEq=DetBitEQ(MinorSpawnParent(0:NIfTot,i),MinorStarParent(0:NIfTot,j))
+                        DetsEq=DetBitEQ(MinorSpawnParent(0:NIfTot,i),MinorStarParent(0:NIfTot,j),NIfDBO)
                         IF(DetsEq) THEN
                             MinorStarSign(j)=MinorStarSign(j)+MinorSpawnSign(i)
                             MinorSpawnSign(i)=0
@@ -3712,7 +3712,7 @@ MODULE AnnihilationMod
 !            WRITE(6,*) i,j,n
 
 !Comp is 1 if CyrrebtDets(N) is "less" than iLut, and -1 if it is more or 0 if they are the same
-            Comp=DetBitLT(GuideFuncDets(:,N),iLut(:))
+            Comp=DetBitLT(GuideFuncDets(:,N),iLut(:),NIfDBO)
 
             IF(Comp.eq.0) THEN
 !Praise the lord, we've found it!
@@ -3729,7 +3729,7 @@ MODULE AnnihilationMod
                 IF(i.eq.MaxInd-1) THEN
 !This deals with the case where we are interested in the final/first entry in the list. Check the final entry of the list and leave
 !We need to check the last index.
-                    Comp=DetBitLT(GuideFuncDets(:,i+1),iLut(:))
+                    Comp=DetBitLT(GuideFuncDets(:,i+1),iLut(:),NIfDBO)
                     IF(Comp.eq.0) THEN
                         tSuccess=.true.
                         PartInd=i+1
@@ -3790,7 +3790,7 @@ MODULE AnnihilationMod
 !            WRITE(6,*) i,j,n
 
 !Comp is 1 if CyrrebtDets(N) is "less" than iLut, and -1 if it is more or 0 if they are the same
-            Comp=DetBitLT(MinorStarDets(:,N),iLut(:))
+            Comp=DetBitLT(MinorStarDets(:,N),iLut(:),NIfDBO)
 
             IF(Comp.eq.0) THEN
 !Praise the lord, we've found it!
@@ -3807,7 +3807,7 @@ MODULE AnnihilationMod
                 IF(i.eq.MaxInd-1) THEN
 !This deals with the case where we are interested in the final/first entry in the list. Check the final entry of the list and leave
 !We need to check the last index.
-                    Comp=DetBitLT(MinorStarDets(:,i+1),iLut(:))
+                    Comp=DetBitLT(MinorStarDets(:,i+1),iLut(:),NIfDBO)
                     IF(Comp.eq.0) THEN
                         tSuccess=.true.
                         PartInd=i+1
@@ -3865,7 +3865,7 @@ MODULE AnnihilationMod
 !            WRITE(6,*) i,j,n
 
 !Comp is 1 if CyrrebtDets(N) is "less" than iLut, and -1 if it is more or 0 if they are the same
-            Comp=DetBitLT(AllExcDets(:,N),iLut(:))
+            Comp=DetBitLT(AllExcDets(:,N),iLut(:),NIfDBO)
 
             IF(Comp.eq.0) THEN
 !Praise the lord, we've found it!
@@ -3882,7 +3882,7 @@ MODULE AnnihilationMod
                 IF(i.eq.MaxInd-1) THEN
 !This deals with the case where we are interested in the final/first entry in the list. Check the final entry of the list and leave
 !We need to check the last index.
-                    Comp=DetBitLT(AllExcDets(:,i+1),iLut(:))
+                    Comp=DetBitLT(AllExcDets(:,i+1),iLut(:),NIfDBO)
                     IF(Comp.eq.0) THEN
                         tSuccess=.true.
                         PartInd=i+1
@@ -3962,7 +3962,7 @@ MODULE AnnihilationMod
                 do j=1,iGuideDets
                     DetsEq=.false.
                     !DetsEq is true if the two determinants are equal
-                    DetsEq=DetBitEQ(SpawnedParts(0:NIfTot,i),GuideFuncDets(0:NIfTot,j))
+                    DetsEq=DetBitEQ(SpawnedParts(0:NIfTot,i),GuideFuncDets(0:NIfTot,j),NIfDBO)
                     IF(DetsEq) THEN
                         CombSign=SpawnedSign(i)*GuideFuncSign(j)
                         !IF this is negative, the guiding function annihilates the spawned particles.
@@ -4081,7 +4081,7 @@ MODULE AnnihilationMod
                     IF(Signtorotate(i).ne.0) THEN
                         do j=1,iGuideDets
                             DetsEq=.false.
-                            DetsEq=DetBitEQ(DetstoRotate(0:NIfTot,i),GuideFuncDets(0:NIfTot,j))
+                            DetsEq=DetBitEQ(DetstoRotate(0:NIfTot,i),GuideFuncDets(0:NIfTot,j),NIfDBO)
 
                             IF(DetsEq) THEN
                                 CombSign=SigntoRotate(i)*GuideFuncSign(j)
@@ -4173,7 +4173,7 @@ MODULE AnnihilationMod
                 tDetinSpawnList=.false.
                 do i=1,ValidSpawned
                     DetsEq=.false.
-                    DetsEq=DetBitEQ(SpawnedParts(0:NIfTot,i),DetstoRotate(0:NIfTot,j))
+                    DetsEq=DetBitEQ(SpawnedParts(0:NIfTot,i),DetstoRotate(0:NIfTot,j),NIfDBO)
                     IF(DetsEq) THEN
                         SpawnedSign(i)=SigntoRotate(j)
                         tDetinSpawnList=.true.
@@ -4206,7 +4206,7 @@ MODULE AnnihilationMod
 
         !Run through all other determinants in the guiding function.  Find out if they are doubly excited.  Find H elements, and multiply by number on that double.
         do i=1,iGuideDets
-            CALL FindBitExcitLevel(GuideFuncDets(0:NIfTot,i),iLutHF,ExcitLevel,2)
+            CALL FindBitExcitLevel(GuideFuncDets(:,i),iLutHF,ExcitLevel,2)
             IF(ExcitLevel.eq.2) THEN
                 DoubDet(:)=0
                 CALL DecodeBitDet(DoubDet,GuideFuncDets(0:NIfTot,i))

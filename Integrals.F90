@@ -594,7 +594,7 @@ MODULE Integrals
         
     Subroutine IntFreeze
       use SystemData, only: Alat,Brr,CoulDampOrb,ECore,fCoulDampMu
-      use SystemData, only: G1,iSpinSkip,NIfD,NIfY,NIfP,NIfTot,tCSF
+      use SystemData, only: G1,iSpinSkip,NIfD,NIfY,NIfP,NIfTot,tCSF,NIfDBO
       use SystemData, only: nBasis,nEl,arr,nbasismax
       use UMatCache, only: GetUMatSize
       use HElem, only: HElement,HElementSize,HElementSizeB
@@ -698,6 +698,7 @@ MODULE Integrals
           NIfY = 0
       endif
       NIfTot = NIfD + NIfY
+      NIfDBO = NIfD + NIfY
         
       if (tTruncInitiator.or.tDelayTruncInit) then
 ! We need an integer to contain a flag of whether or not the parent of spawned walkers was inside or outside the active space.          
@@ -705,8 +706,7 @@ MODULE Integrals
       else
           NIfP = 0
       endif
-      NIfTot = NIfTot + NIfP
-
+      NIfTot = NIfTot + 1
 
       WRITE(6,*) "Setting integer length of determinants as bit-strings to: ",NIfD+NIfY+NIfP+1
          

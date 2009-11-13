@@ -96,9 +96,10 @@ module DetBitOps
     ! "more" than iLutJ.  If these are identical, this routine looks at 
     ! iLut2I and iLut2J, and returns 1 if iLut2I is "less" than iLut2J, -1 
     ! if iLut2I is "more than iLut2J, and 0 if these are still identical.
-    integer function Det2BitLT(iLutI,iLutJ,iLut2I,iLut2J)
+    integer function Det2BitLT(iLutI,iLutJ,iLut2I,iLut2J,nLast)
+        integer, intent(in), optional :: nLast
         integer :: iLutI(0:NIfTot),iLutJ(0:NIfTot),i
-        integer :: iLut2I(0:NIfTot),iLut2J(0:NIfTot)
+        integer :: iLut2I(0:NIfTot),iLut2J(0:NIfTot),lnLast
 
         IF(iLutI(0).lt.iLutJ(0)) THEN
             ! First, compare first integers
@@ -110,7 +111,12 @@ module DetBitOps
         ELSEIF(iLutI(0).eq.iLutJ(0)) THEN
             ! If the integers are the same, then cycle through the rest of 
             ! the integers until we find a difference.
-            do i=1,NIfTot
+            if (present(nLast)) then
+                lnLast = nLast
+            else
+                lnLast = NIftot
+            endif
+            do i=1,lnLast
                 IF(iLutI(i).lt.iLutJ(i)) THEN
                     Det2BitLT=1
                     RETURN
@@ -128,7 +134,7 @@ module DetBitOps
                 Det2BitLT=-1
                 RETURN
             ELSEIF(iLut2I(0).eq.iLut2J(0)) THEN
-                do i=1,NIfTot
+                do i=1,lnLast
                     IF(iLut2I(i).lt.iLut2J(i)) THEN
                         Det2BitLT=1
                         RETURN
@@ -147,10 +153,11 @@ module DetBitOps
     ! are identical, or -1 if iLutI is "more" than iLutJ
     ! This particular version checks excitation level initially, then only if
     ! these are the same does it move on to determinants.
-    integer function DetExcitBitLT(iLutI,iLutJ,iLutHF)
+    integer function DetExcitBitLT(iLutI,iLutJ,iLutHF,nLast)
+        integer, intent(in), optional :: nLast
         integer, intent(in) :: iLutI(0:NIftot), iLutJ(0:NIfTot)
         integer, intent(in) :: iLutHF(0:NIfTot)
-        integer i, ExcitLevelI, ExcitLevelJ
+        integer i, ExcitLevelI, ExcitLevelJ,lnLast
         
         CALL FindBitExcitLevel(iLutI,iLutHF,ExcitLevelI,nel)
         CALL FindBitExcitLevel(iLutJ,iLutHF,ExcitLevelJ,nel)
@@ -175,7 +182,12 @@ module DetBitOps
             ELSEIF(iLutI(0).eq.iLutJ(0)) THEN
                 ! If the integers are the same, then cycle through the rest 
                 ! of the integers until we find a difference.
-                do i=1,NIfTot
+                if (present(nLast)) then
+                    lnLast = nLast
+                else
+                    lnLast = NIftot
+                endif
+                do i=1,lnLast
                     IF(iLutI(i).lt.iLutJ(i)) THEN
                         DetExcitBitLT=1
                         RETURN
@@ -564,9 +576,9 @@ end module
         J=L+L
 20      IF(J.LE.IR)THEN
           IF(J.LT.IR)THEN
-            IF((DetBitLT(RA(:,J),RA(:,J+1))).eq.1) J=J+1
+            IF((DetBitLT(RA(:,J),RA(:,J+1),NIfDBO)).eq.1) J=J+1
           ENDIF
-          IF((DetBitLT(RRA(:),RA(:,J))).eq.1) THEN
+          IF((DetBitLT(RRA(:),RA(:,J),NIfDBO)).eq.1) THEN
             RA(:,I)=RA(:,J)
             RB(I)=RB(J)
             I=J
@@ -660,7 +672,7 @@ end module
 ! iLutHF is the HF determinant (in bit string), and NEl is the number of electrons.
       SUBROUTINE SortExcitBitDets(N,RA,RB,iLutHF)
           use DetBitOps, only: DetExcitBitLT
-          use SystemData, only: NIftot, nel
+          use SystemData, only: NIftot, nel, NIfDBO
       INTEGER N,I,L,IR,J
       INTEGER RA(0:NIfTot,N)
       INTEGER RB(N)
@@ -691,9 +703,9 @@ end module
         J=L+L
 20      IF(J.LE.IR)THEN
           IF(J.LT.IR)THEN
-            IF((DetExcitBitLT(RA(:,J),RA(:,J+1),iLutHF(:))).eq.1) J=J+1
+            IF((DetExcitBitLT(RA(:,J),RA(:,J+1),iLutHF(:),NIfDBO)).eq.1) J=J+1
           ENDIF
-          IF((DetExcitBitLT(RRA(:),RA(:,J),iLutHF(:))).eq.1) THEN
+          IF((DetExcitBitLT(RRA(:),RA(:,J),iLutHF(:),NIfDBO)).eq.1) THEN
             RA(:,I)=RA(:,J)
             RB(I)=RB(J)
             I=J
@@ -770,7 +782,7 @@ end module
 ! The RA array elements go from 0:NIfD
 ! RB is the array of integers to go with the determinant
       SUBROUTINE SortBitDetswH(N,RA,RB,RC)
-        use systemdata, only: NIfTot, nel
+        use systemdata, only: NIfTot, nel, NIfDBO
         use DetBitOps, only: DetBitLT
       INTEGER N,I,L,IR,J
       INTEGER RA(0:NIfTot,N)
@@ -806,9 +818,9 @@ end module
         J=L+L
 20      IF(J.LE.IR)THEN
           IF(J.LT.IR)THEN
-            IF((DetBitLT(RA(:,J),RA(:,J+1))).eq.1) J=J+1
+            IF((DetBitLT(RA(:,J),RA(:,J+1),NIfDBO)).eq.1) J=J+1
           ENDIF
-          IF((DetBitLT(RRA(:),RA(:,J))).eq.1) THEN
+          IF((DetBitLT(RRA(:),RA(:,J),NIfDBO)).eq.1) THEN
             RA(:,I)=RA(:,J)
             RB(I)=RB(J)
             RC(I)=RC(J)

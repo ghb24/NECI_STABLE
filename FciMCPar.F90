@@ -10,7 +10,7 @@
 !   At the end are functions which do not require parallel directives, and are accessible
 !   for both parallel and non-parallel.
 MODULE FciMCParMod
-    use SystemData , only : NEl,Alat,Brr,ECore,G1,nBasis,nBasisMax,nMsh,Arr,LMS,tHPHF,tListDets, NIfD
+    use SystemData , only : NEl,Alat,Brr,ECore,G1,nBasis,nBasisMax,nMsh,Arr,LMS,tHPHF,tListDets,NIfD,NIfTot
     use SystemData , only : tHub,tReal,tNonUniRandExcits,tMerTwist,tRotatedOrbs,tImportanceSample,tFindCINatOrbs,tFixLz,LzTot,tUEG
     use CalcData , only : InitWalkers,NMCyc,DiagSft,Tau,SftDamp,StepsSft,OccCASorbs,VirtCASorbs,tFindGroundDet,tDirectAnnihil
     use CalcData , only : TStartMP1,NEquilSteps,TReadPops,TRegenExcitgens,TFixShiftShell,ShellFix,FixShift,tMultipleDetsSpawn
@@ -548,7 +548,7 @@ MODULE FciMCParMod
             IF(tRegenDiagHEls) THEN
 !We are not storing the diagonal hamiltonian elements for each particle. Therefore, we need to regenerate them.
 !Need to find H-element!
-                IF(DetBitEQ(CurrentDets(0:NIfTot,j),iLutHF).and.(.not.(tHub.and.tReal))) THEN
+                IF(DetBitEQ(CurrentDets(0:NIfTot,j),iLutHF,NIfDBO).and.(.not.(tHub.and.tReal))) THEN
 !We know we are at HF - HDiag=0
                     HDiagCurr=0.D0
                 ELSE
@@ -794,7 +794,7 @@ MODULE FciMCParMod
                             CALL FindDiagElwithB(HDiag,ExcitLevel,nJ,WSign)
                         ELSE
                             IF(.not.tRegenDiagHEls) THEN
-                                IF(DetBitEQ(iLutnJ,iLutHF)) THEN
+                                IF(DetBitEQ(iLutnJ,iLutHF,NIfDBO)) THEN
 !We know we are at HF - HDiag=0
                                     HDiag=0.D0
 !                                        IF(tHub.and.tReal) THEN
@@ -2200,7 +2200,7 @@ MODULE FciMCParMod
                 WRITE(6,*) "Iter: ",Iter,i
                 CALL Stop_All("CheckOrdering","Array has annihilated particles in it...")
             ENDIF
-            Comp=DetBitLT(DetArray(:,i-1),DetArray(:,i))
+            Comp=DetBitLT(DetArray(:,i-1),DetArray(:,i),NIfDBO)
             IF(Comp.eq.-1) THEN
 !Array is in reverse numerical order for these particles
                 do j=max(i-5,1),min(i+5,NoDets)
@@ -2826,7 +2826,7 @@ MODULE FciMCParMod
                 VecInd=1
                 DetsMerged=0
                 do i=2,TempInitWalkers
-                    IF(.not.DetBitEQ(WalkVecDets(0:NIfTot,i),WalkVecDets(0:NIfTot,VecInd))) THEN
+                    IF(.not.DetBitEQ(WalkVecDets(0:NIfTot,i),WalkVecDets(0:NIfTot,VecInd),NIfDBO)) THEN
                         VecInd=VecInd+1
                         WalkVecDets(:,VecInd)=WalkVecDets(:,i)
                         WalkVecSign(VecInd)=WalkVecSign(i)
@@ -2855,7 +2855,7 @@ MODULE FciMCParMod
                     VecInd=1
                     DetsMerged=0
                     do l=2,TempInitWalkers
-                        IF(.not.DetBitEQ(WalkVecDets(0:NIfTot,l),WalkVecDets(0:NIfTot,VecInd))) THEN
+                        IF(.not.DetBitEQ(WalkVecDets(0:NIfTot,l),WalkVecDets(0:NIfTot,VecInd),NIfDBO)) THEN
                             VecInd=VecInd+1
                             WalkVecDets(:,VecInd)=WalkVecDets(:,l)
                             WalkVecSign(VecInd)=WalkVecSign(l)
@@ -4977,7 +4977,7 @@ MODULE FciMCParMod
         ENDIF
         do i=2,Length
             TotParts=TotParts+abs(SignList(i))
-            IF(.not.DetBitEQ(PartList(0:NIfTot,i),PartList(0:NIfTot,VecInd))) THEN
+            IF(.not.DetBitEQ(PartList(0:NIfTot,i),PartList(0:NIfTot,VecInd),NIfDBO)) THEN
                 VecInd=VecInd+1
                 PartList(:,VecInd)=PartList(:,i)
                 SignList(VecInd)=SignList(i)
@@ -5043,7 +5043,7 @@ MODULE FciMCParMod
         ENDIF
         do i=2,Length
             TotParts=TotParts+abs(SignList(i))
-            IF(.not.DetBitEQ(PartList(0:NIfTot,i),PartList(0:NIfTot,VecInd))) THEN
+            IF(.not.DetBitEQ(PartList(0:NIfTot,i),PartList(0:NIfTot,VecInd),NIfDBO)) THEN
                 VecInd=VecInd+1
                 PartList(:,VecInd)=PartList(:,i)
                 SignList(VecInd)=SignList(i)
@@ -5628,7 +5628,7 @@ MODULE FciMCParMod
             GuideFuncDoub=0.D0
             !Run through all other determinants in the guiding function.  Find out if they are doubly excited.  Find H elements, and multiply by number on that double.
             do i=1,iGuideDets
-                CALL FindBitExcitLevel(GuideFuncDets(0:NIfTot,i),iLutHF,ExcitLevel,2)
+                CALL FindBitExcitLevel(GuideFuncDets(:,i),iLutHF,ExcitLevel,2)
                 IF(ExcitLevel.eq.2) THEN
                     DoubDet(:)=0
                     CALL DecodeBitDet(DoubDet,GuideFuncDets(0:NIfTot,i))
@@ -5794,7 +5794,7 @@ MODULE FciMCParMod
                 IF(i.gt.CompiGuideDets) EXIT 
                 ! This means we have got to the end of the compressed list, don't want to keep going, as all determinants after this are 0. 
 
-                do while (DetBitEQ(AllCurrentDets(0:NIfTot,i),AllCurrentDets(0:NIfTot,i+1)))
+                do while (DetBitEQ(AllCurrentDets(0:NIfTot,i),AllCurrentDets(0:NIfTot,i+1),NIfDBO))
                     ! Take a determinant, if the one above it is identical, add its sign to the original and move the others up to overwrite
                     ! the second.
                     ! Repeat this until the i+1 determinant is no longer equal to the i determinant.
@@ -6362,7 +6362,7 @@ MODULE FciMCParMod
 !            OPEN(40,file='DOMINANTDETSexclevelbit',status='unknown')
 !            WRITE(40,*) AllNoExcDets,' determinants with the right excitation level.'    
 !            do j=1,AllNoExcDets
-!                CALL FindBitExcitLevel(AllExcDets(0:NIfTot,j),iLutHF(0:NIfTot),ExcitLevel,MaxExcDom)
+!                CALL FindBitExcitLevel(AllExcDets(:,j),iLutHF(0:NIfTot),ExcitLevel,MaxExcDom)
 !                WRITE(40,*) AllExcDets(0:NIfTot,j),AllExcSign(j),ExcitLevel
 !            enddo
 !            CLOSE(40)
@@ -6383,13 +6383,13 @@ MODULE FciMCParMod
                         WRITE(38,*) k,0
                     enddo
                 ENDIF
-                CALL FindBitExcitLevel(AllExcDets(0:NIfTot,i),iLutHF(0:NIfTot),CurrExcitLevel,MaxExcDom)
+                CALL FindBitExcitLevel(AllExcDets(:,i),iLutHF(:),CurrExcitLevel,MaxExcDom)
                 ExcitLevel=CurrExcitLevel
                 do while (ExcitLevel.eq.CurrExcitLevel)
                     NoExcitLevel=NoExcitLevel+1
                     j=j+1
                     IF(j.gt.iNoDominantDets) EXIT
-                    CALL FindBitExcitLevel(AllExcDets(0:NIfTot,j),iLutHF(0:NIfTot),ExcitLevel,MaxExcDom)
+                    CALL FindBitExcitLevel(AllExcDets(:,j),iLutHF(:),ExcitLevel,MaxExcDom)
                 enddo
                 WRITE(38,*) CurrExcitLevel,NoExcitLevel
             enddo
@@ -6576,7 +6576,7 @@ MODULE FciMCParMod
                 do i=1,Det
                     norm=norm+AllHistogram(i)**2
 !write out FCIMC Component weight (normalised), current normalisation, excitation level
-                    CALL FindBitExcitLevel(iLutHF,FCIDets(0:NIfTot,i),ExcitLevel,NEl)
+                    CALL FindBitExcitLevel(iLutHF,FCIDets(:,i),ExcitLevel,NEl)
                     CALL DecodeBitDet(nI,FCIDets(0:NIfTot,i))
                     WRITE(17,"(I13,G25.16,I6,G20.10)",advance='no') i,AllHistogram(i),ExcitLevel,norm
                     do j=1,NEl-1
@@ -8596,7 +8596,7 @@ MODULE FciMCParMod
             ENDIF
             do i=1,NAllowedDetList
 !                WRITE(6,*) ILutnJ,AllowedDetList(0:NIfTot,i)
-                IF(DetBitEQ(iLutnJ,AllowedDetList(0:NIfTot,i))) THEN
+                IF(DetBitEQ(iLutnJ,AllowedDetList(0:NIfTot,i),NIfDBO)) THEN
 !                    WRITE(6,*) "Allowed Det"
                     CheckAllowedTruncSpawn=.true.
                     EXIT
@@ -8673,7 +8673,7 @@ MODULE FciMCParMod
         i=MinInd
         j=MaxInd
         IF(i-j.eq.0) THEN
-            Comp=DetBitLT(List(:,MaxInd),iLut(:))
+            Comp=DetBitLT(List(:,MaxInd),iLut(:),NIfDBO)
             IF(Comp.eq.0) THEN
                 tSuccess=.true.
                 PartInd=MaxInd
@@ -8688,7 +8688,7 @@ MODULE FciMCParMod
 !            WRITE(6,*) i,j,n
 
 !Comp is 1 if CyrrebtDets(N) is "less" than iLut, and -1 if it is more or 0 if they are the same
-            Comp=DetBitLT(List(:,N),iLut(:))
+            Comp=DetBitLT(List(:,N),iLut(:),NIfDBO)
 
             IF(Comp.eq.0) THEN
 !Praise the lord, we've found it!
@@ -8705,7 +8705,7 @@ MODULE FciMCParMod
                 IF(i.eq.MaxInd-1) THEN
 !This deals with the case where we are interested in the final/first entry in the list. Check the final entry of the list and leave
 !We need to check the last index.
-                    Comp=DetBitLT(List(:,i+1),iLut(:))
+                    Comp=DetBitLT(List(:,i+1),iLut(:),NIfDBO)
                     IF(Comp.eq.0) THEN
                         tSuccess=.true.
                         PartInd=i+1
@@ -9480,7 +9480,7 @@ SUBROUTINE BinSearchParts2(iLut,MinInd,MaxInd,PartInd,tSuccess)
     i=MinInd
     j=MaxInd
     IF(i-j.eq.0) THEN
-        Comp=DetBitLT(FCIDets(:,MaxInd),iLut(:))
+        Comp=DetBitLT(FCIDets(:,MaxInd),iLut(:),NIfDBO)
         IF(Comp.eq.0) THEN
             tSuccess=.true.
             PartInd=MaxInd
@@ -9495,7 +9495,7 @@ SUBROUTINE BinSearchParts2(iLut,MinInd,MaxInd,PartInd,tSuccess)
 !        WRITE(6,*) i,j,n
 
 !Comp is 1 if CyrrebtDets(N) is "less" than iLut, and -1 if it is more or 0 if they are the same
-        Comp=DetBitLT(FCIDets(:,N),iLut(:))
+        Comp=DetBitLT(FCIDets(:,N),iLut(:),NIfDBO)
 
         IF(Comp.eq.0) THEN
 !Praise the lord, we've found it!
@@ -9512,7 +9512,7 @@ SUBROUTINE BinSearchParts2(iLut,MinInd,MaxInd,PartInd,tSuccess)
             IF(i.eq.MaxInd-1) THEN
 !This deals with the case where we are interested in the final/first entry in the list. Check the final entry of the list and leave
 !We need to check the last index.
-                Comp=DetBitLT(FCIDets(:,i+1),iLut(:))
+                Comp=DetBitLT(FCIDets(:,i+1),iLut(:),NIfDBO)
                 IF(Comp.eq.0) THEN
                     tSuccess=.true.
                     PartInd=i+1
