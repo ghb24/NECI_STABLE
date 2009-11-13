@@ -1212,7 +1212,6 @@ MODULE GenRandSymExcitNUMod
         Attempts=0
         do while(.true.)
 
-
 !Choose an electron randomly...
             IF(tMerTwist) THEN
                 CALL genrand_real2(r)
