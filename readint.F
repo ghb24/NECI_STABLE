@@ -528,6 +528,9 @@ C.. set momentum to 0
 
 
          IF(iProcIndex.eq.0) THEN
+             IF(.not.TSTARSTORE) THEN
+                 TMAT2D(:,:)=HElement(0.D0)
+             ENDIF
 101          READ(8,'(1X,G20.12,4I3)',END=199) Z,I,J,K,L
              IF(tROHF) THEN
 !The FCIDUMP file is in spin-orbitals - we need to transfer them to spatial orbitals.
@@ -567,6 +570,14 @@ C.. 1-e integrals
                 ELSE
 C.. These are stored as spinorbitals (with elements between different spins being 0
                     DO ISPN=1,ISPINS
+
+                       IF((TMAT2D(ISPINS*I-ISPN+1,ISPINS*J-ISPN+1)%v    &
+     &                      .ne.0.D0).and.abs(TMAT2D(ISPINS*I-ISPN+1,   &
+     &                      ISPINS*J-ISPN+1)%v-Z).gt.1.D-7) THEN
+                           CALL Stop_All("ReadFCIInt","Error filling "  &
+     &                    //"TMAT - different values for same orbitals")
+                       ENDIF
+
                        TMAT2D(ISPINS*I-ISPN+1,ISPINS*J-ISPN+1)=Z
                        TMAT2D(ISPINS*J-ISPN+1,ISPINS*I-ISPN+1)=Z
                     enddo
