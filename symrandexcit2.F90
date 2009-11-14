@@ -516,8 +516,10 @@ MODULE GenRandSymExcitNUMod
 
 !This routine finds the number of orbitals which are allowed by spin, but not part of any spatial symmetry allowed unoccupied pairs.
 !This number is needed for the correct normalisation of the probability of drawing any given A orbital since these can be chucked and redrawn.
+!For Lz symmetry, it is generally quicker to count the allowed orbitals, and subtract from all possible ones, rather than directly counting
+!the forbidden ones. 
     SUBROUTINE FindNumForbiddenOrbs(ForbiddenOrbs,ClassCountUnocc2,SymProduct,iSpn,SumMl)
-        INTEGER :: ClassCountUnocc2(ScratchSize),OrbAMl,SumMl,j,k
+        INTEGER :: ClassCountUnocc2(ScratchSize),OrbAMl,SumMl,j,k,SymOrbs
         INTEGER :: ForbiddenOrbs,SymProduct,iSpn,i,ConjSym,Ind,l,AllowedOrbs,SymInd!,ForbiddenOrbs2
 
         ForbiddenOrbs=0
@@ -530,16 +532,32 @@ MODULE GenRandSymExcitNUMod
                 Ind=1
                 do k=-iMaxLz,iMaxLz
                     OrbAMl=SumMl-k
-                    IF(abs(OrbAMl.le.iMaxLz)) THEN
+                    IF((k.le.OrbAMl).and.abs(OrbAMl.le.iMaxLz)) THEN
                         do i=0,nSymLabels-1
-                            ConjSym=IEOR(SymProduct,i)
-                            SymInd=ClassCountInd(1,ConjSym,OrbAMl)  !Alpha of the corresponding a orbital
+!                            ConjSym=IEOR(SymProduct,i)
+                            SymInd=ClassCountInd(1,IEOR(SymProduct,i),OrbAMl)  !Alpha of the corresponding a orbital
                             IF(ClassCountUnocc2(Ind).ne.0) THEN
-                                !Check the alpha orbital
-                                AllowedOrbs=AllowedOrbs+ClassCountUnocc2(SymInd+1)
+                                !Check the beta conjugate orbital
+                                SymOrbs=ClassCountUnocc2(SymInd+1)
+                                IF(SymOrbs.ne.0) THEN
+                                    IF(k.eq.OrbAMl) THEN
+                                        !The Ml symmetries are the same! Don't double count.
+                                        AllowedOrbs=AllowedOrbs+SymOrbs
+                                    ELSE
+                                        AllowedOrbs=AllowedOrbs+SymOrbs+ClassCountUnocc2(Ind)
+                                    ENDIF
+                                ENDIF
                             ENDIF
                             IF(ClassCountUnocc2(Ind+1).ne.0) THEN
-                                AllowedOrbs=AllowedOrbs+ClassCountUnocc2(SymInd)
+                                SymOrbs=ClassCountUnocc2(SymInd)
+                                IF(SymOrbs.ne.0) THEN
+                                    IF(k.eq.OrbAMl) THEN
+                                        !The Ml symmetries are the same! Don't double count.
+                                        AllowedOrbs=AllowedOrbs+SymOrbs
+                                    ELSE
+                                        AllowedOrbs=AllowedOrbs+SymOrbs+ClassCountUnocc2(Ind+1)
+                                    ENDIF
+                                ENDIF
                             ENDIF
                             Ind=Ind+2
                         enddo
@@ -553,7 +571,7 @@ MODULE GenRandSymExcitNUMod
                 Ind=1
                 do k=-iMaxLz,iMaxLz
                     OrbAMl=SumMl-k
-                    IF(abs(OrbAMl.le.iMaxLz)) THEN
+                    IF((k.le.OrbAMl).and.abs(OrbAMl.le.iMaxLz)) THEN
                         do i=0,nSymLabels-1
                             IF(ClassCountUnocc2(Ind).ne.0) THEN
                                 IF((SymProduct.eq.0).and.(OrbAMl.eq.k)) THEN
@@ -561,7 +579,15 @@ MODULE GenRandSymExcitNUMod
                                         AllowedOrbs=AllowedOrbs+ClassCountUnocc2(Ind)
                                     ENDIF
                                 ELSE
-                                    AllowedOrbs=AllowedOrbs+ClassCountUnocc2(ClassCountInd(1,IEOR(SymProduct,i),OrbAMl))
+                                    SymOrbs=ClassCountUnocc2(ClassCountInd(1,IEOR(SymProduct,i),OrbAMl))
+                                    IF(SymOrbs.ne.0) THEN
+                                        IF(k.eq.OrbAMl) THEN
+                                        !The Ml symmetries are the same! Don't double count.
+                                            AllowedOrbs=AllowedOrbs+SymOrbs
+                                        ELSE
+                                            AllowedOrbs=AllowedOrbs+SymOrbs+ClassCountUnocc2(Ind)
+                                        ENDIF
+                                    ENDIF
                                 ENDIF
                             ENDIF
                             Ind=Ind+2
@@ -575,7 +601,7 @@ MODULE GenRandSymExcitNUMod
                 Ind=2
                 do k=-iMaxLz,iMaxLz
                     OrbAMl=SumMl-k
-                    IF(abs(OrbAMl.le.iMaxLz)) THEN
+                    IF((k.le.OrbAMl).and.abs(OrbAMl.le.iMaxLz)) THEN
                         do i=0,nSymLabels-1
                             IF(ClassCountUnocc2(Ind).ne.0) THEN
                                 IF((SymProduct.eq.0).and.(OrbAMl.eq.k)) THEN
@@ -583,7 +609,15 @@ MODULE GenRandSymExcitNUMod
                                         AllowedOrbs=AllowedOrbs+ClassCountUnocc2(Ind)
                                     ENDIF
                                 ELSE
-                                    AllowedOrbs=AllowedOrbs+ClassCountUnocc2(ClassCountInd(2,IEOR(SymProduct,i),OrbAMl))
+                                    SymOrbs=ClassCountUnocc2(ClassCountInd(2,IEOR(SymProduct,i),OrbAMl))
+                                    IF(SymOrbs.ne.0) THEN
+                                        IF(k.eq.OrbAMl) THEN
+                                        !The Ml symmetries are the same! Don't double count.
+                                            AllowedOrbs=AllowedOrbs+SymOrbs
+                                        ELSE
+                                            AllowedOrbs=AllowedOrbs+SymOrbs+ClassCountUnocc2(Ind)
+                                        ENDIF
+                                    ENDIF
                                 ENDIF
                             ENDIF
                             Ind=Ind+2
