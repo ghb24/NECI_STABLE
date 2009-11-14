@@ -532,7 +532,7 @@ MODULE GenRandSymExcitNUMod
                 Ind=1
                 do k=-iMaxLz,iMaxLz
                     OrbAMl=SumMl-k
-                    IF((k.le.OrbAMl).and.abs(OrbAMl.le.iMaxLz)) THEN
+                    IF((k.le.OrbAMl).and.(abs(OrbAMl).le.iMaxLz)) THEN
                         do i=0,nSymLabels-1
 !                            ConjSym=IEOR(SymProduct,i)
                             SymInd=ClassCountInd(1,IEOR(SymProduct,i),OrbAMl)  !Alpha of the corresponding a orbital
@@ -571,7 +571,7 @@ MODULE GenRandSymExcitNUMod
                 Ind=1
                 do k=-iMaxLz,iMaxLz
                     OrbAMl=SumMl-k
-                    IF((k.le.OrbAMl).and.abs(OrbAMl.le.iMaxLz)) THEN
+                    IF((k.le.OrbAMl).and.(abs(OrbAMl).le.iMaxLz)) THEN
                         do i=0,nSymLabels-1
                             IF(ClassCountUnocc2(Ind).ne.0) THEN
                                 IF((SymProduct.eq.0).and.(OrbAMl.eq.k)) THEN
@@ -601,7 +601,7 @@ MODULE GenRandSymExcitNUMod
                 Ind=2
                 do k=-iMaxLz,iMaxLz
                     OrbAMl=SumMl-k
-                    IF((k.le.OrbAMl).and.abs(OrbAMl.le.iMaxLz)) THEN
+                    IF((k.le.OrbAMl).and.(abs(OrbAMl).le.iMaxLz)) THEN
                         do i=0,nSymLabels-1
                             IF(ClassCountUnocc2(Ind).ne.0) THEN
                                 IF((SymProduct.eq.0).and.(OrbAMl.eq.k)) THEN
