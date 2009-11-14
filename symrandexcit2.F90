@@ -722,62 +722,71 @@ MODULE GenRandSymExcitNUMod
             IF(iSpn.eq.2) THEN
 !i,j are an alpha/beta pair. The number of forbidden orbitals includes all alphas and betas.
 
+                Ind=1
+
                 do i=0,nSymLabels-1
 !Run though all symmetries
-                    IF(ClassCountUnocc2(ClassCountInd(1,i,0)).eq.0) THEN
+                    IF(ClassCountUnocc2(Ind).eq.0) THEN
 !This symmetry has no unoccupied alpha orbitals - does its symmetry conjugate have any unoccupied beta orbitals which are now forbidden?
 !If there are no unoccupied orbitals in this conjugate symmetry, then it won't increase the forbidden orbital number, since it can never be chosen.
-                        ConjSym=IEOR(SymProduct,i)
-                        ForbiddenOrbs=ForbiddenOrbs+ClassCountUnocc2(ClassCountInd(2,ConjSym,0)) !No unocc alphas in i, therefore all betas in ConjSym are forbidden
+!                        ConjSym=IEOR(SymProduct,i)
+                        ForbiddenOrbs=ForbiddenOrbs+ClassCountUnocc2(ClassCountInd(2,IEOR(SymProduct,i),0)) !No unocc alphas in i, therefore all betas in ConjSym are forbidden
 !                        WRITE(6,*) ClassCountUnocc2(2,ConjSym),i,ConjSym
                     ENDIF
-                    IF(ClassCountUnocc2(ClassCountInd(2,i,0)).eq.0) THEN
+                    IF(ClassCountUnocc2(Ind+1).eq.0) THEN
 !This symmetry has no unoccupied beta orbitals - does its symmetry conjugate have any unoccupied alpha orbitals which are now forbidden?
 !If there are no unoccupied orbitals in this conjugate symmetry, then it won't increase the forbidden orbital number, since it can never be chosen.
-                        ConjSym=IEOR(SymProduct,i)
-                        ForbiddenOrbs=ForbiddenOrbs+ClassCountUnocc2(ClassCountInd(1,ConjSym,0))
+!                        ConjSym=IEOR(SymProduct,i)
+                        ForbiddenOrbs=ForbiddenOrbs+ClassCountUnocc2(ClassCountInd(1,IEOR(SymProduct,i),0))
 !                        WRITE(6,*) ClassCountUnocc2(2,ConjSym),i,ConjSym
                     ENDIF
+                    Ind=Ind+2
                 enddo
 
             ELSEIF(iSpn.eq.1) THEN
+                Ind=2
                 IF(SymProduct.ne.0) THEN
 !i,j are a beta/beta pair. The number of forbidden orbitals is just betas
                     do i=0,nSymLabels-1
-                        IF(ClassCountUnocc2(ClassCountInd(2,i,0)).eq.0) THEN
-                            ConjSym=IEOR(SymProduct,i)
-                            ForbiddenOrbs=ForbiddenOrbs+ClassCountUnocc2(ClassCountInd(2,ConjSym,0))
+                        IF(ClassCountUnocc2(Ind).eq.0) THEN
+!                            ConjSym=IEOR(SymProduct,i)
+                            ForbiddenOrbs=ForbiddenOrbs+ClassCountUnocc2(ClassCountInd(2,IEOR(SymProduct,i),0))
                         ENDIF
+                        Ind=Ind+2
                     enddo
                 ELSE
 !There is a subtle point here, which could change the probabilities.
 !If the symmetry product of the occupied orbitals is 0, then the a,b pair want to be taken from the same class.
 !This means that if there is only one spin-allowed orbital in that class, it has no symmetry-allowed pairs, and so is forbidden.
                     do i=0,nSymLabels-1
-                        IF(ClassCountUnocc2(ClassCountInd(2,i,0)).eq.1) THEN
+                        IF(ClassCountUnocc2(Ind).eq.1) THEN
 !The one beta orbital in this class is forbidden, since it cannot form a pair.
                             ForbiddenOrbs=ForbiddenOrbs+1
                         ENDIF
+                        Ind=Ind+2
                     enddo
                 ENDIF
             ELSEIF(iSpn.eq.3) THEN
+                Ind=1
                 IF(SymProduct.ne.0) THEN
 !i,j are a alpha/alpha pair. The number of forbidden orbitals is just alphas
                     do i=0,nSymLabels-1
-                        IF(ClassCountUnocc2(ClassCountInd(1,i,0)).eq.0) THEN
-                            ConjSym=IEOR(SymProduct,i)
-                            ForbiddenOrbs=ForbiddenOrbs+ClassCountUnocc2(ClassCountInd(1,ConjSym,0))
+                        IF(ClassCountUnocc2(Ind).eq.0) THEN
+!                            ConjSym=IEOR(SymProduct,i)
+                            ForbiddenOrbs=ForbiddenOrbs+ClassCountUnocc2(ClassCountInd(1,IEOR(SymProduct,i),0))
                         ENDIF
+                        Ind=Ind+2
                     enddo
                 ELSE
 !There is a subtle point here, which could change the probabilities.
 !If the symmetry product of the occupied orbitals is 0, then the a,b pair want to be taken from the same class.
 !This means that if there is only one spin-allowed orbital in that class, it has no symmetry-allowed pairs, and so is forbidden.
                     do i=0,nSymLabels-1
-                        IF(ClassCountUnocc2(ClassCountInd(1,i,0)).eq.1) THEN
+                        IF(ClassCountUnocc2(Ind).eq.1) THEN
 !The one alpha orbital in this class is forbidden, since it cannot form a pair.
                             ForbiddenOrbs=ForbiddenOrbs+1
                         ENDIF
+                        Ind=Ind+2
                     enddo
                 ENDIF
             ENDIF
