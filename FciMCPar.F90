@@ -7729,7 +7729,6 @@ MODULE FciMCParMod
         use Determinants , only : GetH0Element3
         use SymData , only : nSymLabels,SymLabelList,SymLabelCounts
         use Logging , only : tTruncRODump
-        use GenRandSymExcitNUMod , only : tNoSingsPossible
         use FciMCLoggingMOD , only : InitTriHElStats,InitSpinCoupHel
         use DetCalc, only : NMRKS,tagNMRKS,FCIDets
         use SymExcit3, only : CountExcitations3 
@@ -7868,14 +7867,6 @@ MODULE FciMCParMod
             tNoSpinSymExcitgens=.true.   
         ENDIF
                                         
-
-!Check whether it is possible to have a determinant where the electrons
-!can be arranged in a determinant so that there are no unoccupied
-!orbitals with any of the irreps of the occupied orbitals. If this can happen, we need to check for it before generating excitations.
-!NEED TO CREATE A TEST HERE
-       tNoSingsPossible=.true. 
-
-
 !Setup excitation generator for the HF determinant. If we are using assumed sized excitgens, this will also be assumed size.
         IF(.not.tNoSpinSymExcitgens) THEN
             IF(tUseBrillouin.and.tNonUniRandExcits) THEN

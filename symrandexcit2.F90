@@ -46,7 +46,7 @@ MODULE GenRandSymExcitNUMod
 !The two arrays want to be integers, both of size (2,1:nSymLabels)
     SUBROUTINE GenRandSymExcitScratchNU(nI,iLut,nJ,pDoub,IC,ExcitMat,tParity,exFlag,pGen,ClassCount2,ClassCountUnocc2,tFilled)
         INTEGER :: nI(NEl),nJ(NEl),IC,ExcitMat(2,2),exFlag
-        INTEGER :: ClassCount2(ScratchSize),ElecsWNoExcits
+        INTEGER :: ClassCount2(ScratchSize)
         INTEGER :: ClassCountUnocc2(ScratchSize)
 !        INTEGER , SAVE :: Iter=0
         INTEGER :: ILUT(0:NIfTot),i!,DetSym
@@ -87,19 +87,6 @@ MODULE GenRandSymExcitNUMod
         IF(ExFlag.eq.3) THEN
 !Choose whether to generate a double or single excitation. Prob of generating a double is given by pDoub.
             pDoubNew=pDoub
-            IF(tNoSingsPossible) THEN
-!This will check if there are any possible single excitations from this determinant
-!If there are not, then this will change pDoubNew so that it = 1 and only doubles will be generated.
-                CALL CheckIfSingleExcits(ElecsWNoExcits,ClassCount2,ClassCountUnocc2,nI)
-            ENDIF
-
-            IF(pDoubNew.gt.1.D0) THEN
-                CALL Stop_All(this_routine,"pDoub is greater than 1")
-!            ELSEIF(pDoubNew.eq.1.D0) THEN
-!                WRITE(6,*) "*****",nI,iLut
-!                STOP
-            ENDIF
-                
 
             IF(tMerTwist) THEN
                 CALL genrand_real2(r)
@@ -117,7 +104,6 @@ MODULE GenRandSymExcitNUMod
             pDoubNew=1.D0
         ELSEIF(ExFlag.eq.1) THEN
             IC=1
-            tNoSingsPossible=.false.
             pDoubNew=0.D0
         ELSE
             CALL Stop_All(this_routine,"Error in choosing excitations to create.")
@@ -126,7 +112,8 @@ MODULE GenRandSymExcitNUMod
         IF(IC.eq.2) THEN
             CALL CreateDoubExcit(nI,nJ,ClassCount2,ClassCountUnocc2,ILUT,ExcitMat,tParity,pGen)
         ELSE
-            CALL CreateSingleExcit(nI,nJ,ClassCount2,ClassCountUnocc2,ILUT,ExcitMat,tParity,pGen,ElecsWNoExcits)
+            CALL CreateSingleExcit(nI,nJ,ClassCount2,ClassCountUnocc2,ILUT,ExcitMat,tParity,pGen)
+
 !            IF(pGen.eq.-1.D0) THEN
 !NOTE: ghb24 5/6/09 Cannot choose to create double instead, since you could have chosen a double first and it would have a different pGen.
 !                IF((ExFlag.ne.3).or.tHPHF) THEN
@@ -151,7 +138,7 @@ MODULE GenRandSymExcitNUMod
 
     SUBROUTINE GenRandSymExcitNU(nI,iLut,nJ,pDoub,IC,ExcitMat,TParity,exFlag,pGen)
         INTEGER :: nI(NEl),nJ(NEl),IC,ExcitMat(2,2),exFlag
-        INTEGER :: ClassCount2(ScratchSize),ElecsWNoExcits
+        INTEGER :: ClassCount2(ScratchSize)
         INTEGER :: ClassCountUnocc2(ScratchSize)
         INTEGER :: ILUT(0:NIfTot),i
         LOGICAL :: tNoSuccess,tParity
@@ -196,12 +183,6 @@ MODULE GenRandSymExcitNUMod
         IF(ExFlag.eq.3) THEN
 !Choose whether to generate a double or single excitation. Prob of generating a double is given by pDoub.
             pDoubNew=pDoub
-            IF(tNoSingsPossible) THEN
-!This will check if there are any possible single excitations from this determinant
-!If there are not, then this will change pDoubNew so that it = 1 and only doubles will be generated.
-                CALL CheckIfSingleExcits(ElecsWNoExcits,ClassCount2,ClassCountUnocc2,nI)
-            ENDIF
-            IF(pDoubNew.gt.1.D0) CALL Stop_All(this_routine,"pDoub is greater than 1")
 
             IF(tMerTwist) THEN
                 CALL genrand_real2(r)
@@ -219,7 +200,6 @@ MODULE GenRandSymExcitNUMod
             pDoubNew=1.D0
         ELSEIF(ExFlag.eq.1) THEN
             IC=1
-            tNoSingsPossible=.false.
             pDoubNew=0.D0
         ELSE
             CALL Stop_All(this_routine,"Error in choosing excitations to create.")
@@ -228,7 +208,7 @@ MODULE GenRandSymExcitNUMod
         IF(IC.eq.2) THEN
             CALL CreateDoubExcit(nI,nJ,ClassCount2,ClassCountUnocc2,ILUT,ExcitMat,tParity,pGen)
         ELSE
-            CALL CreateSingleExcit(nI,nJ,ClassCount2,ClassCountUnocc2,ILUT,ExcitMat,tParity,pGen,ElecsWNoExcits)
+            CALL CreateSingleExcit(nI,nJ,ClassCount2,ClassCountUnocc2,ILUT,ExcitMat,tParity,pGen)
 !            IF(pGen.eq.-1.D0) THEN
 !NOTE: ghb24 5/6/09 Cannot choose to create double instead, since you could have chosen a double first and it would have a different pGen.
 !                IF(ExFlag.ne.3) THEN
@@ -1207,17 +1187,18 @@ MODULE GenRandSymExcitNUMod
             enddo
         ENDIF
 
-        IF(ElecsWNoExcits.eq.NEl) THEN
-!There are no single excitations from this determinant at all. This means the probability to create a double excitation = 1
-!Then we will create a double excitation instead.
-            pDoubNew=1.D0
-            RETURN
-        ENDIF
-
+!Rather than choosing a double now if there are no singles, just return a null det.
+!        IF(ElecsWNoExcits.eq.NEl) THEN
+!!There are no single excitations from this determinant at all. This means the probability to create a double excitation = 1
+!!Then we will create a double excitation instead.
+!            pDoubNew=1.D0
+!            RETURN
+!        ENDIF
+!
     END SUBROUTINE CheckIfSingleExcits
         
 
-    SUBROUTINE CreateSingleExcit(nI,nJ,ClassCount2,ClassCountUnocc2,ILUT,ExcitMat,tParity,pGen,ElecsWNoExcits)
+    SUBROUTINE CreateSingleExcit(nI,nJ,ClassCount2,ClassCountUnocc2,ILUT,ExcitMat,tParity,pGen)
         INTEGER :: ElecsWNoExcits,i,Attempts,nOrbs,z,Orb
         INTEGER :: Eleci,ElecSym,nI(NEl),nJ(NEl),NExcit,iSpn,ChosenUnocc
         INTEGER :: ExcitMat(2,2),ExcitLevel,iGetExcitLevel
@@ -1227,22 +1208,11 @@ MODULE GenRandSymExcitNUMod
         REAL*8 :: r,pGen
         LOGICAL :: tParity,IsValidDet,SymAllowed
 
-
-!This will not normally be called.
-        IF((.not.tNoSingsPossible).and.(.not.tNoSymGenRandExcits)) THEN
-!First, we need to find out if there are any electrons which have no possible excitations. This is because these will need to be redrawn and so 
-!will affect the probabilities.
-            ElecsWNoExcits=0
-!Need to look for forbidden electrons through all the irreps.
-
-            do i=1,ScratchSize
-!Run through all labels
-                IF((ClassCount2(i).ne.0).and.(ClassCountUnocc2(i).eq.0)) THEN
-!If there are electrons in this class with no possible unoccupied orbitals in the same class, these electrons have no single excitations.
-                    ElecsWNoExcits=ElecsWNoExcits+ClassCount2(i)
-                ENDIF
-            enddo
-
+        CALL CheckIfSingleExcits(ElecsWNoExcits,ClassCount2,ClassCountUnocc2,nI)
+        IF(ElecsWNoExcits.eq.NEl) THEN
+!There are no single excitations from this determinant - return a null excitation
+            nJ(1)=0
+            RETURN
         ENDIF
 
         Attempts=0
@@ -1509,34 +1479,16 @@ MODULE GenRandSymExcitNUMod
 !Therefore, make sure that they are at most double excitations of each other.
 !nI is the determinant from which the excitation comes from.
     SUBROUTINE CalcNonUniPGen(nI,Ex,IC,ClassCount2,ClassCountUnocc2,pDoub,pGen)
-        REAL*8 :: pDoub,pGen!,PabGivenij
+        REAL*8 :: pDoub,pGen
         INTEGER :: ClassCount2(ScratchSize),ForbiddenOrbs,SymA,SymB,SumMl,MlA,MlB,k,Elec1Ml
         INTEGER :: ClassCountUnocc2(ScratchSize),ElecsWNoExcits,i,NExcitOtherWay,Ind1,Ind2
         INTEGER :: SymProduct,OrbI,OrbJ,iSpn,NExcitA,NExcitB,IC,ElecSym,OrbA,OrbB,Ex(2,2),nI(NEl)
             
-        pDoubNew=pDoub
-        IF(tNoSingsPossible) THEN
-!This will check if there are any possible single excitations from this determinant
-!If there are not, then this will change pDoubNew so that it = 1 and only doubles will be generated.
-            CALL CheckIfSingleExcits(ElecsWNoExcits,ClassCount2,ClassCountUnocc2,nI)
-        ENDIF
-
         IF(IC.eq.1) THEN
 
 !First, we need to find out if there are any electrons which have no possible excitations. This is because these will need to be redrawn and so 
 !will affect the probabilities.
-
-            IF(.not.tNoSingsPossible) THEN
-
-                ElecsWNoExcits=0
-                do i=1,ScratchSize
-!Run through all labels
-                    IF((ClassCount2(i).ne.0).and.(ClassCountUnocc2(i).eq.0)) THEN
-!If there are electrons in this class with no possible unoccupied orbitals in the same class, these electrons have no single excitations.
-                        ElecsWNoExcits=ElecsWNoExcits+ClassCount2(i)
-                    ENDIF
-                enddo
-            ENDIF
+            CALL CheckIfSingleExcits(ElecsWNoExcits,ClassCount2,ClassCountUnocc2,nI)
 
             IF(tNoSymGenRandExcits) THEN
 !Find symmetry of chosen electron
@@ -1564,7 +1516,7 @@ MODULE GenRandSymExcitNUMod
 !This is: P_single x P(i) x P(a|i) x N/(N-ElecsWNoExcits)
 !Prob of generating a single is 1-pDoub
 !            pGen=(1.D0-pDoub)*(1.D0/real(NEl,r2))*(1.D0/real(NExcitA,r2))*((real(NEl,r2))/(real((NEl-ElecsWNoExcits),r2)))
-            pGen=(1.D0-pDoubNew)/(REAL((NExcitA*(NEl-ElecsWNoExcits)),r2))
+            pGen=(1.D0-pDoub)/(REAL((NExcitA*(NEl-ElecsWNoExcits)),r2))
 
         ELSE
 !Prob of generating a double excitation.
@@ -1652,7 +1604,7 @@ MODULE GenRandSymExcitNUMod
 
 !            PabGivenij=(1.D0/real((NExcitA-ForbiddenOrbs),r2))*((1.D0/real(NExcitB,r2))+(1.D0/real(NExcitOtherWay,r2)))
 !            pGen=pDoub*(1.D0/real(ElecPairs,r2))*PabGivenij
-            pGen=pDoubNew*((1.D0/real(NExcitB,r2))+(1.D0/real(NExcitOtherWay,r2)))/(REAL((ElecPairs*(NExcitA-ForbiddenOrbs)),r2))
+            pGen=pDoub*((1.D0/real(NExcitB,r2))+(1.D0/real(NExcitOtherWay,r2)))/(REAL((ElecPairs*(NExcitA-ForbiddenOrbs)),r2))
 !            WRITE(6,*) "***",pDoubNew,NExcitB,NExcitOtherWay,ElecPairs,NExcitA,ForbiddenOrbs,ElecSym,iSpn,SymA,SymB
 
         ENDIF
