@@ -90,7 +90,7 @@ MODULE GenRandSymExcitNUMod
             IF(tNoSingsPossible) THEN
 !This will check if there are any possible single excitations from this determinant
 !If there are not, then this will change pDoubNew so that it = 1 and only doubles will be generated.
-                CALL CheckIfSingleExcits(ElecsWNoExcits,ClassCount2,ClassCountUnocc2)
+                CALL CheckIfSingleExcits(ElecsWNoExcits,ClassCount2,ClassCountUnocc2,nI)
             ENDIF
 
             IF(pDoubNew.gt.1.D0) THEN
@@ -199,7 +199,7 @@ MODULE GenRandSymExcitNUMod
             IF(tNoSingsPossible) THEN
 !This will check if there are any possible single excitations from this determinant
 !If there are not, then this will change pDoubNew so that it = 1 and only doubles will be generated.
-                CALL CheckIfSingleExcits(ElecsWNoExcits,ClassCount2,ClassCountUnocc2)
+                CALL CheckIfSingleExcits(ElecsWNoExcits,ClassCount2,ClassCountUnocc2,nI)
             ENDIF
             IF(pDoubNew.gt.1.D0) CALL Stop_All(this_routine,"pDoub is greater than 1")
 
@@ -1162,55 +1162,56 @@ MODULE GenRandSymExcitNUMod
 
     END SUBROUTINE PickElecPair
 
-    SUBROUTINE CheckIfSingleExcits(ElecsWNoExcits,ClassCount2,ClassCountUnocc2)
+    SUBROUTINE CheckIfSingleExcits(ElecsWNoExcits,ClassCount2,ClassCountUnocc2,nI)
         INTEGER :: ElecsWNoExcits,ClassCount2(ScratchSize),ClassCountUnocc2(ScratchSize),i,k
-        INTEGER :: Ind1,Ind2
+        INTEGER :: Ind1,Ind2,nI(NEl)
 
 
 !First, we need to find out if there are any electrons which have no possible excitations. This is because these will need to be redrawn and so 
 !will affect the probabilities.
         ElecsWNoExcits=0
 
-        IF(.not.tNoSymGenRandExcits) THEN
-            IF(tFixLz) THEN
+        IF(tFixLz) THEN
 !Here, we also have to check that the electron is momentum allowed.
-                do i=1,ScratchSize
-!Run through all labels
-                    IF((ClassCount2(i).ne.0).and.(ClassCountUnocc2(i).eq.0)) THEN
-!If there are electrons in this class with no possible unoccupied orbitals in the same class, these electrons have no single excitations.
-                        ElecsWNoExcits=ElecsWNoExcits+ClassCount2(i)
+!Since there are many more irreps, it will be quicker here to check all electrons, rather than all the symmetries.
+            
+            do i=1,NEl
+
+                IF(G1(nI(i))%Ms.eq.1) THEN
+                    IF(ClassCountUnocc2(ClassCountInd(1,INT(G1(nI(i))%Sym%S,4),G1(nI(i))%Ml)).eq.0) THEN
+                        ElecsWNoExcits=ElecsWNoExcits+1
                     ENDIF
-                enddo
-                
-!                do k=-iMaxLz,iMaxLz,1
-!                    Ind1=ClassCountInd(1,0,k)
-!                    Ind2=ClassCountInd(1,0,-k)
-!                    do i=0,nSymLabels*2-1
-!                        IF((ClassCount2(i+Ind1).ne.0).and.(ClassCountUnocc2(i+Ind2).eq.0)) THEN
-!                            ElecsWNoExcits=ElecsWNoExcits+ClassCount2(i+Ind1)
-!                        ENDIF
-!                    enddo
-!                enddo
-            ELSE
-
-                do i=1,ScratchSize
-!Run through all labels
-                    IF((ClassCount2(i).ne.0).and.(ClassCountUnocc2(i).eq.0)) THEN
-!If there are electrons in this class with no possible unoccupied orbitals in the same class, these electrons have no single excitations.
-                        ElecsWNoExcits=ElecsWNoExcits+ClassCount2(i)
+                ELSE
+                    IF(ClassCountUnocc2(ClassCountInd(2,INT(G1(nI(i))%Sym%S,4),G1(nI(i))%Ml)).eq.0) THEN
+                        ElecsWNoExcits=ElecsWNoExcits+1
                     ENDIF
-                enddo
-            ENDIF
+                ENDIF
+            enddo
 
-!Need to look for forbidden electrons through all the irreps.
+!            do i=1,ScratchSize
+!!Run through all labels
+!                IF((ClassCount2(i).ne.0).and.(ClassCountUnocc2(i).eq.0)) THEN
+!!If there are electrons in this class with no possible unoccupied orbitals in the same class, these electrons have no single excitations.
+!                    ElecsWNoExcits=ElecsWNoExcits+ClassCount2(i)
+!                ENDIF
+!            enddo
+            
+        ELSE
 
-            IF(ElecsWNoExcits.eq.NEl) THEN
+            do i=1,ScratchSize
+!Run through all labels
+                IF((ClassCount2(i).ne.0).and.(ClassCountUnocc2(i).eq.0)) THEN
+!If there are electrons in this class with no possible unoccupied orbitals in the same class, these electrons have no single excitations.
+                    ElecsWNoExcits=ElecsWNoExcits+ClassCount2(i)
+                ENDIF
+            enddo
+        ENDIF
+
+        IF(ElecsWNoExcits.eq.NEl) THEN
 !There are no single excitations from this determinant at all. This means the probability to create a double excitation = 1
 !Then we will create a double excitation instead.
-                pDoubNew=1.D0
-                RETURN
-            ENDIF
-
+            pDoubNew=1.D0
+            RETURN
         ENDIF
 
     END SUBROUTINE CheckIfSingleExcits
@@ -1243,14 +1244,6 @@ MODULE GenRandSymExcitNUMod
             enddo
 
         ENDIF
-
-!        IF(ElecsWNoExcits.eq.NEl) THEN
-!!There are no single excitations from this determinant at all. Indicate this by putting pGen=-1.D0.
-!!Then we will create a double excitation instead.
-!            pGen=-1.D0
-!            RETURN
-!        ENDIF
-
 
         Attempts=0
         do while(.true.)
@@ -1514,17 +1507,18 @@ MODULE GenRandSymExcitNUMod
 !Passed in is also the ClassCount2 arrays for nI, and the probability of picking a double.
 !A word of warning: The routine does not check that the determinants are indeed connected, and may well return a non-zero probability even if they arent.
 !Therefore, make sure that they are at most double excitations of each other.
-    SUBROUTINE CalcNonUniPGen(Ex,IC,ClassCount2,ClassCountUnocc2,pDoub,pGen)
+!nI is the determinant from which the excitation comes from.
+    SUBROUTINE CalcNonUniPGen(nI,Ex,IC,ClassCount2,ClassCountUnocc2,pDoub,pGen)
         REAL*8 :: pDoub,pGen!,PabGivenij
         INTEGER :: ClassCount2(ScratchSize),ForbiddenOrbs,SymA,SymB,SumMl,MlA,MlB,k,Elec1Ml
         INTEGER :: ClassCountUnocc2(ScratchSize),ElecsWNoExcits,i,NExcitOtherWay,Ind1,Ind2
-        INTEGER :: SymProduct,OrbI,OrbJ,iSpn,NExcitA,NExcitB,IC,ElecSym,OrbA,OrbB,Ex(2,2)
+        INTEGER :: SymProduct,OrbI,OrbJ,iSpn,NExcitA,NExcitB,IC,ElecSym,OrbA,OrbB,Ex(2,2),nI(NEl)
             
         pDoubNew=pDoub
         IF(tNoSingsPossible) THEN
 !This will check if there are any possible single excitations from this determinant
 !If there are not, then this will change pDoubNew so that it = 1 and only doubles will be generated.
-            CALL CheckIfSingleExcits(ElecsWNoExcits,ClassCount2,ClassCountUnocc2)
+            CALL CheckIfSingleExcits(ElecsWNoExcits,ClassCount2,ClassCountUnocc2,nI)
         ENDIF
 
         IF(IC.eq.1) THEN

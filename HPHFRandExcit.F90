@@ -92,7 +92,7 @@ MODULE HPHFRandExcitMod
                 CALL GetExcitation(nI2,nJ,NEl,Ex2,tSign)
                 tGenClassCountnI2=.true.
                 CALL ConstructClassCounts(nI2,ClassCount3,ClassCountUnocc3)
-                CALL CalcNonUniPGen(Ex2,ExcitLevel,ClassCount3,ClassCountUnocc3,pDoub,pGen2)
+                CALL CalcNonUniPGen(nI2,Ex2,ExcitLevel,ClassCount3,ClassCountUnocc3,pDoub,pGen2)
                 pGen=pGen+pGen2
             ENDIF
 
@@ -120,7 +120,7 @@ MODULE HPHFRandExcitMod
 !We need to calculate the new classcount arrays for the original determinant passed in.
                 tGenClassCountnI=.true.
                 CALL ConstructClassCounts(nI,ClassCount2,ClassCountUnocc2)
-                CALL CalcNonUniPGen(Ex2,ExcitLevel,ClassCount2,ClassCountUnocc2,pDoub,pGen2)
+                CALL CalcNonUniPGen(nI,Ex2,ExcitLevel,ClassCount2,ClassCountUnocc2,pDoub,pGen2)
                 pGen=pGen+pGen2
             ENDIF
 
@@ -139,7 +139,7 @@ MODULE HPHFRandExcitMod
 !                tGenClassCountnI2=.true.
                 CALL ConstructClassCounts(nI2,ClassCount3,ClassCountUnocc3)
             ENDIF
-            CALL CalcNonUniPGen(Ex2,ExcitLevel,ClassCount3,ClassCountUnocc3,pDoub,pGen2)
+            CALL CalcNonUniPGen(nI2,Ex2,ExcitLevel,ClassCount3,ClassCountUnocc3,pDoub,pGen2)
             pGen=pGen+pGen2
         ENDIF
 
@@ -152,7 +152,7 @@ MODULE HPHFRandExcitMod
 !                tGenClassCountnI=.true.
                 CALL ConstructClassCounts(nI,ClassCount2,ClassCountUnocc2)
             ENDIF
-            CALL CalcNonUniPGen(Ex2,ExcitLevel,ClassCount2,ClassCountUnocc2,pDoub,pGen2)
+            CALL CalcNonUniPGen(nI,Ex2,ExcitLevel,ClassCount2,ClassCountUnocc2,pDoub,pGen2)
             pGen=pGen+pGen2
         ENDIF
 
@@ -237,7 +237,7 @@ MODULE HPHFRandExcitMod
 !                    CALL GetExcitation(nI,nJ2,NEl,Ex2,tSign)
                     CALL GetBitExcitation(iLutnI,iLutnJ2,Ex2,tSign)
                 ENDIF
-                CALL CalcNonUniPGen(Ex2,ExcitLevel,ClassCount2,ClassCountUnocc2,pDoub,pGen2)    
+                CALL CalcNonUniPGen(nI,Ex2,ExcitLevel,ClassCount2,ClassCountUnocc2,pDoub,pGen2)    
 !!We cannot guarentee that the pGens are going to be the same - in fact, generally, they wont be.
                 pGen=pGen+pGen2
 
