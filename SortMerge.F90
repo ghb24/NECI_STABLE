@@ -227,7 +227,7 @@
         USE SystemData , only : NEl, NIfTot
         USE HElem
         IMPLICIT NONE
-        INTEGER :: list1(0:NIfTot,nlist1max),list2(0:NIfTot,1:nlist2)
+        INTEGER :: list2(0:NIfTot,1:nlist2)
         INTEGER :: nlisto,nlist1,nlist2,nlo,i,DetCurr(0:NIfTot) 
         INTEGER :: ips,ips1,SignList2(nlist2)!,SignList1(nlist1max)
         REAL*8 :: HDiag
