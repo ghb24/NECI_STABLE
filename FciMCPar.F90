@@ -5363,8 +5363,8 @@ MODULE FciMCParMod
                 WRITE(6,"(I12,G16.7,I10,G16.7,I12,3I11,3G17.9,2I10,G13.5,I12,G13.5)") Iter+PreviousCycles,DiagSft,INT(AllTotParts-AllTotPartsOld,i2),AllGrowRate,    &
  &                  INT(AllTotParts,i2),AllAnnihilated,AllNoDied,AllNoBorn,ProjectionE,ProjEIter,AllENumCyc/AllHFCyc,AllNoatHF,AllNoatDoubs,AccRat,INT(AllTotWalkers,i2),IterTime
 
-            ELSEIF(tTruncInitiator) THEN
-                WRITE(15,"(I12,G16.7,I10,G16.7,I12,3I13,3G17.9,2I10,G13.5,I12,G13.5,G13.5,I10)") Iter+PreviousCycles,DiagSft,INT(AllTotParts-AllTotPartsOld,i2),AllGrowRate,   &
+            ELSEIF(tTruncInitiator.or.tDelayTruncInit) THEN
+                WRITE(15,"(I12,G16.7,I10,G16.7,I12,3I13,3G17.9,2I10,G13.5,I12,G13.5,G13.5,I10,I10)") Iter+PreviousCycles,DiagSft,INT(AllTotParts-AllTotPartsOld,i2),AllGrowRate,   &
  &                  INT(AllTotParts,i2),AllAnnihilated,AllNoDied,AllNoBorn,ProjectionE,AvDiagSft,AllENumCyc/AllHFCyc,AllNoatHF,AllNoatDoubs,AccRat,INT(AllTotWalkers,i2),IterTime,REAL(AllSpawnFromSing)/REAL(AllNoBorn),WalkersDiffProc,AllNoAborted
                 WRITE(6,"(I12,G16.7,I10,G16.7,I12,3I11,3G17.9,2I10,G13.5,I12,G13.5)") Iter+PreviousCycles,DiagSft,INT(AllTotParts-AllTotPartsOld,i2),AllGrowRate,    &
  &                  INT(AllTotParts,i2),AllAnnihilated,AllNoDied,AllNoBorn,ProjectionE,AvDiagSft,AllENumCyc/AllHFCyc,AllNoatHF,AllNoatDoubs,AccRat,INT(AllTotWalkers,i2),IterTime
