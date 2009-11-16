@@ -453,7 +453,7 @@ MODULE FciMCParMod
         REAL*8 :: Prob,rat,HDiag,HDiagCurr
         INTEGER :: iDie,WalkExcitLevel,Proc             !Indicated whether a particle should self-destruct on DetCurr
         INTEGER :: ExcitLevel,TotWalkersNew,iGetExcitLevel_2,error,length,temp,Ex(2,2),WSign,p,Scratch1(ScratchSize),Scratch2(ScratchSize),FDetSym,FDetSpin
-        LOGICAL :: tParity,tMainArr,tFilled,tCheckStarGenDet,tStarDet,tMinorDetList,tAnnihilateMinorTemp,tAnnihilateMinor,TestClosedShellDet
+        LOGICAL :: tParity,tMainArr,tFilled,tCheckStarGenDet,tStarDet,tMinorDetList,tAnnihilateMinorTemp,tAnnihilateMinor,TestClosedShellDet,tParentInCAS
         INTEGER(KIND=i2) :: HashTemp
         TYPE(HElement) :: HDiagTemp
         CHARACTER(LEN=MPI_MAX_ERROR_STRING) :: message
@@ -532,11 +532,33 @@ MODULE FciMCParMod
 
             IF(tTruncInitiator) THEN
                 IF(tTruncCAS) THEN
-                    IF(TestIfDetInCAS(DetCurr)) THEN
+                    tParentInCAS=.true.
+                    tParentInCAS=TestIfDetInCAS(DetCurr)
+                    IF(tParentInCAS) THEN
                         ParentInitiator=0
 !The parent walker from which we are attempting to spawn is in the active space - all children will carry this flag, and these spawn like usual.
+!                        do i=1,NEl
+!                            IF(DetCurr(i).gt.36) THEN
+!                                WRITE(6,*) 'DetCurr',DetCurr
+!                                WRITE(6,*) 'TestIfDetinCas',tParentInCAS
+!                                CALL FLUSH(6)
+!                                CALL Stop_All('parentflag','problem finding parent in or out of cas space - det out when it says its in')
+!                            ENDIF
+!                        enddo
                     ELSE
                         ParentInitiator=1
+!                        k=0
+!                        do i=1,NEl
+!                            IF(DetCurr(i).le.36) THEN
+!                                k=k+1
+!                            ENDIF
+!                        enddo
+!                        IF(k.eq.NEl) THEN
+!                            WRITE(6,*) 'DetCurr',DetCurr
+!                            WRITE(6,*) 'TestIfDetinCas',tParentInCAS
+!                            CALL FLUSH(6)
+!                            CALL Stop_All('parentflag','problem finding parent in or out of cas space - det in when it says its out')
+!                        ENDIF
 !The parent from which we are attempting to spawn is outside the active space - children spawned on unoccupied determinants with this flag will be killed.
                     ENDIF
                 ELSEIF(tTruncSpace) THEN
@@ -648,11 +670,30 @@ MODULE FciMCParMod
 !We have truncated the excitation space at a given excitation level. See if the spawn should be allowed.
 !If we are using the CASStar - all spawns are allowed so no need to check.
                     IF(tImportanceSample) CALL Stop_All("PerformFCIMCyc","Truncated calculations not yet working with importance sampling")
+!                    WRITE(6,*) 'cheking if a spawn is allowed'
+!                    WRITE(6,*) 'tTruncSpace',tTruncSpace
+!                    WRITE(6,*) 'tTruncCAS',tTruncCAS
+!                    WRITE(6,*) 'tTruncInitiator',tTruncInitiator
 
                     IF(CheckAllowedTruncSpawn(WalkExcitLevel,nJ,iLutnJ,IC)) THEN
+!                        do i=1,NEl
+!                            IF(nJ(i).gt.36) CALL Stop_All('attempt spawning','det not in case space when it says it is')
+!                        enddo
                         Child=AttemptCreatePar(DetCurr,CurrentDets(:,j),CurrentSign(j),nJ,iLutnJ,Prob,IC,Ex,tParity,ParticleWeight,tMinorDetList)
                     ELSE
 !Attempted excitation is above the excitation level cutoff - do not allow the creation of children
+!                        k=0
+!                        do i=1,NEl
+!                            IF(nJ(i).le.36) THEN
+!                                k=k+1
+!                            ENDIF
+!                        enddo
+!                        IF(k.eq.NEl) THEN
+!                            WRITE(6,*) 'DetCurr',nJ
+!                            WRITE(6,*) 'TestIfDetinCas',tParentInCAS
+!                            CALL FLUSH(6)
+!                            CALL Stop_All('attempt spawning','det in cas space when it says its not')
+!                        ENDIF
                         Child=0
                     ENDIF
                 ELSE
@@ -7776,13 +7817,13 @@ MODULE FciMCParMod
 
     SUBROUTINE SetupParameters()
         use SystemData, only : tUseBrillouin,iRanLuxLev,tSpn,tHPHFInts,tRotateOrbs,tNoBrillouin,tROHF,tFindCINatOrbs,nOccBeta,nOccAlpha,tUHF
+        use SystemData, only : tFixLz,LzTot
         USE mt95 , only : genrand_init
         use CalcData, only : EXCITFUNCS,tFCIMC
         use Calc, only : VirtCASorbs,OccCASorbs,FixShift,G_VMC_Seed
         use Determinants , only : GetH0Element3
         use SymData , only : nSymLabels,SymLabelList,SymLabelCounts
         use Logging , only : tTruncRODump
-        use GenRandSymExcitNUMod , only : tNoSingsPossible
         use FciMCLoggingMOD , only : InitTriHElStats,InitSpinCoupHel
         use DetCalc, only : NMRKS,tagNMRKS,FCIDets
         use SymExcit3, only : CountExcitations3 
@@ -7795,7 +7836,7 @@ MODULE FciMCParMod
         CHARACTER(len=12) :: abstr
         LOGICAL :: tSuccess,tFoundOrbs(nBasis),tTurnBackBrillouin
         REAL :: Gap
-        INTEGER :: nSingles,nDoubles
+        INTEGER :: nSingles,nDoubles,HFLz
 
 !        CALL MPIInit(.false.)       !Initialises MPI - now have variables iProcIndex and nProcessors
         WRITE(6,*) ""
@@ -7921,14 +7962,6 @@ MODULE FciMCParMod
             tNoSpinSymExcitgens=.true.   
         ENDIF
                                         
-
-!Check whether it is possible to have a determinant where the electrons
-!can be arranged in a determinant so that there are no unoccupied
-!orbitals with any of the irreps of the occupied orbitals. If this can happen, we need to check for it before generating excitations.
-!NEED TO CREATE A TEST HERE
-       tNoSingsPossible=.true. 
-
-
 !Setup excitation generator for the HF determinant. If we are using assumed sized excitgens, this will also be assumed size.
         IF(.not.tNoSpinSymExcitgens) THEN
             IF(tUseBrillouin.and.tNonUniRandExcits) THEN
@@ -8050,6 +8083,10 @@ MODULE FciMCParMod
         IF(tFixLz.and.(.not.tNoBrillouin)) THEN
             WRITE(6,*) "Turning Brillouins theorem off since we are using non-canonical complex orbitals"
             tNoBrillouin=.true.
+            CALL GetLz(HFDet,NEl,HFLz)
+            IF(HFLz.ne.LzTot) THEN
+                CALL Stop_All("SetupParameters","Chosen reference determinant does not have the same Lz value as indicated in the input.")
+            ENDIF
         ENDIF
 
         IF((tHub.and.tReal).or.(tRotatedOrbs)) THEN
@@ -8246,7 +8283,7 @@ MODULE FciMCParMod
 !This is a list of options which cannot be used with the stripped-down spawning routine. New options not added to this routine should be put in this list.
         IF(tHighExcitsSing.or.tHistSpawn.or.tRegenDiagHEls.or.tFindGroundDet.or.tStarOrbs.or.tResumFCIMC.or.tSpawnAsDet.or.tImportanceSample    &
      &      .or.(.not.tRegenExcitgens).or.(.not.tNonUniRandExcits).or.(.not.tDirectAnnihil).or.tMinorDetsStar.or.tSpawnDominant.or.(DiagSft.gt.0.D0).or.   &
-     &      tPrintTriConnections.or.tHistTriConHEls.or.tCalcFCIMCPsi.or.tTruncCAS.or.tListDets.or.tPartFreezeCore.or.tFixLz.or.tUEG.or.tHistHamil) THEN
+     &      tPrintTriConnections.or.tHistTriConHEls.or.tCalcFCIMCPsi.or.tTruncCAS.or.tListDets.or.tPartFreezeCore.or.tUEG.or.tHistHamil) THEN
             WRITE(6,*) "It is not possible to use to clean spawning routine..."
         ELSE
             WRITE(6,*) "Clean spawning routine in use..."
@@ -8491,8 +8528,8 @@ MODULE FciMCParMod
         ENDIF
 
     END SUBROUTINE SetupParameters
-    LOGICAL FUNCTION TestifDETinCAS(DetCurr)
-        INTEGER :: k,z,DetCurr(NEl)
+    LOGICAL FUNCTION TestifDETinCAS(CASDet)
+        INTEGER :: k,z,CASDet(NEl)
         LOGICAL :: tElecInVirt
 
 !        CASmax=NEl+VirtCASorbs
@@ -8508,13 +8545,13 @@ MODULE FciMCParMod
         z=0
         tElecInVirt=.false.
         do k=1,NEl      ! running over all electrons
-            if (SpinInvBRR(DetCurr(k)).gt.CASmax) THEN
+            if (SpinInvBRR(CASDet(k)).gt.CASmax) THEN
                 tElecInVirt=.true.
                 EXIT            
 ! if at any stage an electron has an energy greater than the CASmax value, the determinant can be ruled out
 ! of the active space.  Upon identifying this, it is not necessary to check the remaining electrons.
             else
-                if (SpinInvBRR(DetCurr(k)).le.CASmin) THEN
+                if (SpinInvBRR(CASDet(k)).le.CASmin) THEN
                     z=z+1
                 endif
 ! while running over all electrons, the number that occupy orbitals equal to or below the CASmin cutoff are
@@ -8590,9 +8627,9 @@ MODULE FciMCParMod
 
         ENDIF   !endif tTruncSpace
 
-        IF(tTruncCAS.and.CheckAllowedTruncSpawn) THEN
+        IF((tTruncCAS.and.(.not.tTruncInitiator)).and.CheckAllowedTruncSpawn) THEN
 !This flag determines if the FCI space is restricted by whether the determinants are in the predescribed CAS.
-            IF(.not.TestifDetinCAS(nJ)) THEN
+            IF(.not.TestIfDetinCAS(nJ)) THEN
 !Excitation not in allowed CAS space.
 !                WRITE(6,*) "Not in CAS:",nJ(:)
                 CheckAllowedTruncSpawn=.false.
@@ -8641,18 +8678,19 @@ MODULE FciMCParMod
 
         ENDIF
 
-        IF(tFixLz) THEN
-            CALL GetLz(nJ,NEl,TotalLz)      !This could be improved by just checking that the change in momentum from the excitation was zero.
-            IF(TotalLz.ne.LzTot) THEN
-                CheckAllowedTruncSpawn=.false.
-                WRITE(6,*) "FALSE ",TotalLz
-                WRITE(6,*) nJ(:)
-                CALL Stop_All("CheckAllowedTruncSpawn","Should not get here with new excitation generators.")
-            ELSE
-                CheckAllowedTruncSpawn=.true.
-!                WRITE(6,*) "TRUE ",TotalLz
-            ENDIF
-        ENDIF
+!The excitation generators should now only generate Lz allowed excitations if tFixLz is true.
+!        IF(tFixLz) THEN
+!            CALL GetLz(nJ,NEl,TotalLz)      !This could be improved by just checking that the change in momentum from the excitation was zero.
+!            IF(TotalLz.ne.LzTot) THEN
+!                CheckAllowedTruncSpawn=.false.
+!                WRITE(6,*) "FALSE ",TotalLz
+!                WRITE(6,*) nJ(:)
+!                CALL Stop_All("CheckAllowedTruncSpawn","Should not get here with new excitation generators.")
+!            ELSE
+!                CheckAllowedTruncSpawn=.true.
+!!                WRITE(6,*) "TRUE ",TotalLz
+!            ENDIF
+!        ENDIF
 
         IF(tUEG) THEN
 !Check to see if this is an allowed excitation

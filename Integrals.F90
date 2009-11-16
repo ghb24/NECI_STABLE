@@ -706,7 +706,7 @@ MODULE Integrals
       else
           NIfP = 0
       endif
-      NIfTot = NIfTot + 1
+      NIfTot = NIfTot + NIfP
 
       WRITE(6,*) "Setting integer length of determinants as bit-strings to: ",NIfD+NIfY+NIfP+1
          
@@ -851,7 +851,8 @@ MODULE Integrals
 !C.. GG(I) is the new position in G of the (old) orb I
              GG(I)=K
 !C.. copy the eigenvalue table to the new location
-             CALL NECI_ICOPY(BasisFNSize,G1(I),1,G2(K),1)
+             G2(K)=G1(I)
+!             CALL NECI_ICOPY(BasisFNSize,G1(I),1,G2(K),1)
           ENDIF
        ENDDO
 
@@ -900,7 +901,10 @@ MODULE Integrals
           !SYMCLASSES2 gives the new symmetry of the frozen set of orbitals
           CALL FREEZESYMLABELS(NHG,NBASIS,GG,.true.)
 !C.. Copy the new G1 over the old ones
-          CALL NECI_ICOPY(BasisFNSize*NBASIS,G2,1,G1,1)
+          do i=1,nbasis
+              G1(i)=G2(i)
+          enddo
+!          CALL NECI_ICOPY(BasisFNSize*NBASIS,G2,1,G1,1)
           !Redo SYMLABELCOUNTS
           CALL GENSymStatePairs(NBASIS/2,.true.)
        ENDIF
@@ -1213,7 +1217,10 @@ MODULE Integrals
              CALL SetupFREEZEALLSYM(KSym)
           END IF
           CALL FREEZESYMLABELS(NHG,NBASIS,GG,.false.)
-          CALL NECI_ICOPY(BasisFNSize*NBASIS,G2,1,G1,1)
+          do i=1,NBASIS
+              G1(i)=G2(i)
+          enddo
+!          CALL NECI_ICOPY(BasisFNSize*NBASIS,G2,1,G1,1)
        ENDIF 
 
        FREEZETRANSFER=.false.
