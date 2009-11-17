@@ -46,7 +46,6 @@ MODULE System
       TDFREAD=.false.
       tRIIntegrals=.false.
       TPBC=.false.
-      TUEG=.false.
       TCPMD=.false.
       tVASP=.false.
       THUB=.false.
