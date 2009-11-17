@@ -602,7 +602,7 @@ END MODULE Determinants
 
 ! Write bit-determinant NI to unit NUnit.  Set LTerm if to add a newline at end.  Also prints CSFs
       SUBROUTINE WriteBitEx(nUnit,iLutRef,iLutnI,lTerm)
-         use SystemData, only : nEl, nIfD, NIfTot
+         use SystemData, only : nEl, NIfTot
          implicit none
          integer nUnit,nExpI(nEl),iLutRef(0:nIfTot),iLutnI(0:nIfTot)
          integer Ex(2,nEl)

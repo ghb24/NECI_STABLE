@@ -752,7 +752,7 @@ C.. Count all electrons in each rep
 C.. NREPS(J) is the rep, and NELECS(J) is the number of electrons in that rep
 
             J=1
-            DO WHILE(NREPS(J).NE.0.AND.J.LT.NEL)
+            DO WHILE(J.LT.NEL.AND.NREPS(J).NE.0)
                IF(NREPS(J).EQ.SYMREPS(1,NI(I))) THEN
 C.. We've found the slot for the rep.  increment it and leave.
                   NELECS(J)=NELECS(J)+1
@@ -2083,7 +2083,7 @@ C.. Set to be totally symmetric
          use SystemData, only: tUEG, NIfTot
          use Determinants, only : FDet
          use DetCalc, only : ICILevel
-         use SystemData, only : CalcDetCycles, CalcDetPrint,tFixLz,NIfD
+         use SystemData, only : CalcDetCycles, CalcDetPrint,tFixLz
          use mt95, only : genrand_real2 
          use soft_exit, only : ChangeVars
          use Parallel

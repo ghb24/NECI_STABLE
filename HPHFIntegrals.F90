@@ -2,7 +2,7 @@
 !nI and nJ have to be uniquely chosen, so that their spin-coupled determinant will not arise.
 SUBROUTINE HPHFGetOffDiagHElement(nI,nJ,iLutnI,iLutnJ,MatEl)
     Use HElem
-    Use SystemData , only : NIfD,NEl,nBasisMax,G1,nBasis,Brr,NIftot
+    Use SystemData , only : NEl,nBasisMax,G1,nBasis,Brr,NIftot
     use SystemData, only : ECore,ALat,NMSH
     use IntegralsData, only : UMat,FCK,NMAX
     use HPHFRandExcitMod , only : FindDetSpinSym,FindExcitBitDetSym
@@ -276,7 +276,7 @@ END SUBROUTINE HPHFGetOffDiagHElement
 
 SUBROUTINE HPHFGetDiagHElement(nI,iLutnI,MatEl)
     Use HElem
-    Use SystemData , only : NIfD,NEl,nBasisMax,G1,nBasis,Brr
+    Use SystemData , only : NEl,nBasisMax,G1,nBasis,Brr
     use SystemData, only : ECore,ALat,NMSH, NIfTot
     use IntegralsData, only : UMat,FCK,NMAX
     use HPHFRandExcitMod , only : FindDetSpinSym,FindExcitBitDetSym

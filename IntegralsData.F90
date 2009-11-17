@@ -25,7 +25,7 @@ Logical :: tPostFreezeHF ! Do we do HF after freezing
 !  From NECI.F
 TYPE(HElement), pointer :: UMAT(:)      
 INTEGER :: tagUMat=0
-COMPLEX*16,pointer :: FCK(:)
+COMPLEX*16,pointer :: FCK(:) => null()
 INTEGER :: tagFCK=0
 INTEGER :: NMAX
 REAL*8 :: CST

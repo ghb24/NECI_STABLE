@@ -4,7 +4,7 @@ MODULE SymExcit3
 ! have different symmetries.  This is particularly relevant when dealing with certain unrestricted cases, or when we
 ! are truncating (or freezing) orbitals in such a way as to remove different alpha symm irreps from the beta.
 
-    USE SystemData, only: NEl,G1,NIfD,nBasis,tNoSymGenRandExcits
+    USE SystemData, only: NEl,G1,nBasis,tNoSymGenRandExcits, NIfTot
     USE GenRandSymExcitNUMod, only: SymLabelList2,SymLabelCounts2,ClassCountInd,ScratchSize
     IMPLICIT NONE
 
@@ -124,7 +124,7 @@ MODULE SymExcit3
 ! If tParity is true, two orbitals need to be switched in order to better represent the excitation, therefore a 
 ! negative sign must be included when finding the H element.
 ! When there are no more symmetry allowed excitations, tAllExcitFound becomes true.
-        INTEGER :: nI(NEl),iLut(0:NIfD),nJ(NEl),nSingles,nDoubles,ExcitMat3(2,2),exflag
+        INTEGER :: nI(NEl),iLut(0:NIfTot),nJ(NEl),nSingles,nDoubles,ExcitMat3(2,2),exflag
         LOGICAL :: tCountOnly,tAllExcitFound,tParity
 
         IF(exflag.eq.2) THEN
@@ -155,7 +155,7 @@ MODULE SymExcit3
 ! When the last single is found it then finds the first double excitation, unless exflag=1 in which tAllExcitFound 
 ! becomes true and no more excitations are generated.
         USE SymData, only: nSymLabels
-        INTEGER :: i,a,nI(NEl),Orbi,Orba,Symi,Finala,iLut(0:NIfD),nJ(NEl)
+        INTEGER :: i,a,nI(NEl),Orbi,Orba,Symi,Finala,iLut(0:NIfTot),nJ(NEl)
         INTEGER :: Orbj,Orbb,NoOcc,k,ExcitMat3(2,2),exflag,SymInd
         LOGICAL :: tInitOrbsFound,tParity,tAllExcitFound
         INTEGER , SAVE :: OrbiIndex,OrbaIndex,Spini,NewSym,OldSym
@@ -293,7 +293,7 @@ MODULE SymExcit3
 ! or vice versa.
         USE SystemData , only: ElecPairs
         USE GenRandSymExcitNUMod , only: PickElecPair,FindNewDet 
-        INTEGER :: nI(NEl),iLut(0:NIfD),Orbj,Orbi,Orba,Orbb,OrbbSpin,Syma,Symb,NewSym,SymInd
+        INTEGER :: nI(NEl),iLut(0:NIfTot),Orbj,Orbi,Orba,Orbb,OrbbSpin,Syma,Symb,NewSym,SymInd
         INTEGER :: Elec1Ind,Elec2Ind,SymProduct,iSpn,Spinb,nJ(NEl),i,k,ExcitMat3(2,2),SumMl
         INTEGER , SAVE :: ijInd,OrbaIndex,OrbbIndex,Spina
         LOGICAL :: tDoubleExcitFound,tFirsta,tFirstb,tNewij,tNewa,tAllExcitFound,tParity

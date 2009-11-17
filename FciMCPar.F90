@@ -1,3 +1,4 @@
+#include "macros.h"
 !This is a parallel MPI version of the FciMC code.
 !All variables refer to values per processor
 
@@ -10,8 +11,8 @@
 !   At the end are functions which do not require parallel directives, and are accessible
 !   for both parallel and non-parallel.
 MODULE FciMCParMod
-    use SystemData , only : NEl,Alat,Brr,ECore,G1,nBasis,nBasisMax,nMsh,Arr,LMS,NIfD,tHPHF,tListDets
-    use SystemData , only : tHub,tReal,tNonUniRandExcits,tMerTwist,tRotatedOrbs,tImportanceSample,tFindCINatOrbs,tFixLz,LzTot,tUEG
+    use SystemData , only : NEl,Alat,Brr,ECore,G1,nBasis,nBasisMax,nMsh,Arr,LMS,tHPHF,tListDets, NIfD
+    use SystemData , only : tHub,tReal,tNonUniRandExcits,tMerTwist,tRotatedOrbs,tImportanceSample,tFindCINatOrbs,tUEG
     use CalcData , only : InitWalkers,NMCyc,DiagSft,Tau,SftDamp,StepsSft,OccCASorbs,VirtCASorbs,tFindGroundDet,tDirectAnnihil
     use CalcData , only : TStartMP1,NEquilSteps,TReadPops,TRegenExcitgens,TFixShiftShell,ShellFix,FixShift,tMultipleDetsSpawn
     use CalcData , only : tConstructNOs,tAnnihilatebyRange,tRotoAnnihil,MemoryFacSpawn,tRegenDiagHEls,tSpawnAsDet
@@ -29,8 +30,9 @@ MODULE FciMCParMod
     USE UMatCache , only : GTID
     USE Logging , only : iWritePopsEvery,TPopsFile,TZeroProjE,iPopsPartEvery,tBinPops,tHistSpawn,iWriteHistEvery,tHistEnergies
     USE Logging , only : NoACDets,BinRange,iNoBins,OffDiagBinRange,OffDiagMax,tPrintSpinCoupHEl!,iLagMin,iLagMax,iLagStep,tAutoCorr
-    USE Logging , only : tPrintTriConnections,tHistTriConHels,tPrintHElAccept,tPrintFCIMCPsi,tCalcFCIMCPsi,NHistEquilSteps
-    USE Logging , only : tHFPopStartBlock,tIterStartBlock,IterStartBlocking,HFPopStartBlocking,tInitShiftBlocking
+    USE Logging , only : tPrintTriConnections,tHistTriConHels,tPrintHElAccept,tPrintFCIMCPsi,tCalcFCIMCPsi,NHistEquilSteps,tPrintOrbOcc,StartPrintOrbOcc
+    USE Logging , only : tHFPopStartBlock,tIterStartBlock,IterStartBlocking,HFPopStartBlocking,tInitShiftBlocking,tHistHamil,iWriteHamilEvery
+    USE Logging , only : OrbOccs,OrbOccsTag 
     USE SymData , only : nSymLabels
     USE mt95 , only : genrand_real2
     USE Parallel
@@ -50,8 +52,7 @@ MODULE FciMCParMod
         use UMatCache, only : UMatInd
         use FciMCLoggingMOD , only : PrintTriConnHist,PrintTriConnHElHist,FinaliseBlocking,FinaliseShiftBlocking
         use RotateOrbsMod , only : RotateOrbs
-        use NatOrbsMod , only : FindOrbOccupations
-        use Logging , only : tPrintOrbOcc
+        use NatOrbsMod , only : PrintOrbOccs
         TYPE(HDElement) :: Weight,Energyxw
         INTEGER :: i,j,error,HFConn
         CHARACTER(len=*), PARAMETER :: this_routine='FciMCPar'
@@ -149,6 +150,9 @@ MODULE FciMCParMod
             IF(tHistSpawn.and.(mod(Iter,iWriteHistEvery).eq.0)) THEN
                 CALL WriteHistogram()
             ENDIF
+            IF(tHistHamil.and.(mod(Iter,iWriteHamilEvery).eq.0)) THEN
+                CALL WriteHamilHistogram()
+            ENDIF
 
             Iter=Iter+1
 !End of MC cycle
@@ -166,8 +170,6 @@ MODULE FciMCParMod
 !This routine will actually only print the matrix if tPrintFCIMCPsi is on
             CALL PrintFCIMCPsi()
 
-            IF(tPrintOrbOcc) CALL FindOrbOccupations()
-
             IF(tFindCINatOrbs) THEN
 !This routine takes the wavefunction Psi, calculates the one electron density matrix, and rotates the HF orbitals to produce a new ROFCIDUMP file.
                 CALL RotateOrbs() 
@@ -179,6 +181,8 @@ MODULE FciMCParMod
         IF(tShiftBlocking) CALL FinaliseShiftBlocking(Iter)
 
         IF(tHistSpawn) CALL WriteHistogram()
+
+        IF(tHistHamil) CALL WriteHamilHistogram()
 
         Weight=HDElement(0.D0)
         Energyxw=HDElement(ProjectionE)
@@ -196,6 +200,12 @@ MODULE FciMCParMod
 
         IF(tPrintTriConnections) CALL PrintTriConnHist
         IF(tHistTriConHEls) CALL PrintTriConnHElHist
+        IF(tPrintOrbOcc) THEN
+            CALL PrintOrbOccs(OrbOccs)
+            DEALLOCATE(OrbOccs)
+            CALL LogMemDeAlloc(this_routine,OrbOccsTag)
+        ENDIF
+     
 
 !        IF(TAutoCorr) CALL CalcAutoCorr()
 
@@ -275,7 +285,7 @@ MODULE FciMCParMod
                 ENDIF
 !                WRITE(6,"(A,7I5)") "Generated: ",nJ(:)
 
-                IF(nJ(1).eq.0) THEN
+                IF(IsNullDet(nJ)) THEN
                     Child=0
 !Calculate number of children to spawn
                 ELSEIF(TTruncSpace) THEN
@@ -453,7 +463,7 @@ MODULE FciMCParMod
             WRITE(11,*) Iter,TotWalkers,NoatHF,NoatDoubs,MaxIndex,TotParts
             CALL FLUSH(11)
         ENDIF
-        
+
 !        IF(tRotoAnnihil) THEN
 !            CALL CheckOrdering(CurrentDets(:,1:TotWalkers),CurrentSign(1:TotWalkers),TotWalkers,.true.)
 !        ENDIF
@@ -509,7 +519,7 @@ MODULE FciMCParMod
 
 !Also, we want to find out the excitation level - we only need to find out if its connected or not (so excitation level of 3 or more is ignored.
 !This can be changed easily by increasing the final argument.
-            IF(tTruncSpace.or.tHighExcitsSing.or.tHistSpawn.or.tCalcFCIMCPsi.or.tPrintSpinCoupHEl) THEN
+            IF(tTruncSpace.or.tHighExcitsSing.or.tHistSpawn.or.tCalcFCIMCPsi.or.tPrintSpinCoupHEl.or.tHistHamil) THEN
 !We need to know the exact excitation level for truncated calculations.
                 CALL FindBitExcitLevel(iLutHF,CurrentDets(:,j),WalkExcitLevel,NEl)
                 IF((WalkExcitLevel.eq.2).and.tPrintSpinCoupHEl) CALL FindSpinCoupHEl(iLutHF,CurrentDets(:,j))
@@ -608,9 +618,9 @@ MODULE FciMCParMod
                 IF(tPrintTriConnections) CALL FindTriConnections(DetCurr,CurrentDets(:,j),iLutHF,nJ,IC,Ex,pDoubles,tFilled,tParity,Scratch1,Scratch2,exflag)
 
 !Calculate number of children to spawn
-                IF(nJ(1).eq.0) THEN
+                IF(IsNullDet(nJ)) THEN
                     Child=0
-                ELSEIF(TTruncSpace.or.tTruncCAS.or.tListDets.or.tPartFreezeCore.or.tFixLz.or.tUEG) THEN
+                ELSEIF(TTruncSpace.or.tTruncCAS.or.tListDets.or.tPartFreezeCore.or.tUEG) THEN
 !We have truncated the excitation space at a given excitation level. See if the spawn should be allowed.
                     IF(tImportanceSample) CALL Stop_All("PerformFCIMCyc","Truncated calculations not yet working with importance sampling")
 
@@ -687,6 +697,9 @@ MODULE FciMCParMod
                 
                 IF(Child.ne.0) THEN
 !We want to spawn a child - find its information to store
+                    IF(tHistHamil) THEN
+                        CALL AddHistHamilEl(CurrentDets(:,j),iLutnJ,WalkExcitLevel,Child,1)   !Histogram the hamiltonian - iLutnI,iLutnJ,Excitlevel of parent,spawning indicator
+                    ENDIF
 
 !                    WRITE(6,*) "Spawning particle to:",nJ(:)
 !                    ExcitLevel=iGetExcitLevel_2(HFDet,nJ,NEl,NEl)
@@ -1195,8 +1208,8 @@ MODULE FciMCParMod
 !        ENDIF
 
     END SUBROUTINE PerformFCIMCycPar
-
-
+                        
+    
     
 !Every StepsSft steps, update the diagonal shift value (the running value for the correlation energy)
 !We don't want to do this too often, since we want the population levels to acclimatise between changing the shifts
@@ -1988,6 +2001,12 @@ MODULE FciMCParMod
         IF(tPrintTriConnections.or.tHistTriConHEls.or.tPrintHElAccept) CALL InitTriHElStats()
         IF(tPrintSpinCoupHEl) CALL InitSpinCoupHEl()
 
+        IF(tPrintOrbOcc) THEN
+            ALLOCATE(OrbOccs(nBasis),stat=ierr)
+            CALL LogMemAlloc('OrbOccs',nBasis,8,this_routine,OrbOccsTag,ierr)
+            OrbOccs(:)=0.D0
+        ENDIF
+
         IF((NMCyc.ne.0).and.(tRotateOrbs.and.(.not.tFindCINatOrbs))) CALL Stop_All(this_routine,"Currently not set up to rotate and then go straight into a spawning &
                                                                                     & calculation.  Ordering of orbitals is incorrect.  This may be fixed if needed.")
 
@@ -2290,7 +2309,7 @@ MODULE FciMCParMod
             CLOSE(17)
         ENDIF
 
-        CALL MPIIBCast(AllowedDetList,NAllowedDetList*(NIfD+1),Root)
+        CALL MPIIBCast(AllowedDetList,NAllowedDetList*(NIfTot+1),Root)
 !        do i=1,NAllowedDetList
 !            CALL DecodeBitDet(nI,AllowedDetList(0:NIfTot,i))
 !            WRITE(6,*) nI(:)
@@ -2382,7 +2401,7 @@ MODULE FciMCParMod
                 do j=1,TotWalkers
 !First write out walkers on head node
                     IF(mod(j,iPopsPartEvery).eq.0) THEN
-                        do k=0,NIfD
+                        do k=0,NIfTot
                             WRITE(17,"(I20)",advance='no') CurrentDets(k,j)
                         enddo
                         WRITE(17,*) CurrentSign(j)
@@ -2421,7 +2440,7 @@ MODULE FciMCParMod
                 ELSE
                     do j=1,WalkersonNodes(i)
                         IF(mod(j,iPopsPartEvery).eq.0) THEN
-                            do k=0,NIfD
+                            do k=0,NIfTot
                                 WRITE(17,"(I20)",advance='no') CurrentDets(k,j)
                             enddo
                             WRITE(17,*) CurrentSign(j)
@@ -2542,7 +2561,7 @@ MODULE FciMCParMod
                 do j=1,TotWalkers
 !First write out walkers on head node
                     IF(mod(j,iPopsPartEvery).eq.0) THEN
-                        do k=0,NIfD
+                        do k=0,NIfTot
                             WRITE(17,"(I20)",advance='no') CurrentDets(k,j)
                         enddo
                         WRITE(17,*) CurrentSign(j)
@@ -2570,7 +2589,7 @@ MODULE FciMCParMod
                 ELSE
                     do j=1,WalkersonNodes(i)
                         IF(mod(j,iPopsPartEvery).eq.0) THEN
-                            do k=0,NIfD
+                            do k=0,NIfTot
                                 WRITE(17,"(I20)",advance='no') NewDets(k,j)
                             enddo
                             WRITE(17,*) NewSign(j)
@@ -2753,7 +2772,7 @@ MODULE FciMCParMod
 
                 IF(i.ne.1) THEN
 !Now send data to processor i-1 (Processor rank goes from 0 -> nProcs-1). If i=1, then we want the data so stay at the root processor
-                    CALL MPI_Send(WalkVecDets(:,1:WalkerstoReceive(i)),WalkerstoReceive(i)*(NIfD+1),MPI_INTEGER,i-1,Tag,MPI_COMM_WORLD,error)
+                    CALL MPI_Send(WalkVecDets(:,1:WalkerstoReceive(i)),WalkerstoReceive(i)*(NIfTot+1),MPI_INTEGER,i-1,Tag,MPI_COMM_WORLD,error)
                     CALL MPI_Send(WalkVecSign(1:WalkerstoReceive(i)),WalkerstoReceive(i),MPI_INTEGER,i-1,Tag,MPI_COMM_WORLD,error)
                 ENDIF
 
@@ -2790,7 +2809,7 @@ MODULE FciMCParMod
         do i=1,nProcessors-1
             IF(iProcIndex.eq.i) THEN
 !All other processors want to pick up their data from root
-                CALL MPI_Recv(WalkVecDets(:,1:TempInitWalkers),TempInitWalkers*(NIfD+1),MPI_INTEGER,0,Tag,MPI_COMM_WORLD,Stat,error)
+                CALL MPI_Recv(WalkVecDets(:,1:TempInitWalkers),TempInitWalkers*(NIfTot+1),MPI_INTEGER,0,Tag,MPI_COMM_WORLD,Stat,error)
                 CALL MPI_Recv(WalkVecSign(1:TempInitWalkers),TempInitWalkers,MPI_INTEGER,0,Tag,MPI_COMM_WORLD,Stat,error)
                 IF(tRotoAnnihil) THEN
                     CALL SortBitDets(TempInitWalkers, &
@@ -3366,7 +3385,7 @@ MODULE FciMCParMod
             do while(.true.)
 !Generate double excitations
                 CALL GenSymExcitIt2(HFDet,NEl,G1,nBasis,nBasisMax,.false.,ExcitGenTemp,nJ,iExcit,0,nStore,2)
-                IF(nJ(1).eq.0) EXIT
+                IF(IsNullDet(nJ)) EXIT
                 IF(iExcit.ne.2) THEN
                     CALL Stop_All("InitWalkersMP1","Error - excitations other than doubles being generated in MP1 wavevector code")
                 ENDIF
@@ -4260,7 +4279,7 @@ MODULE FciMCParMod
             do while(.true.)
 !Generate double excitations
                 CALL GenSymExcitIt2(Detcurr,NEl,G1,nBasis,nBasisMax,.false.,ExcitGenTemp,nJ,iExcit,0,nStore,3)
-                IF(nJ(1).eq.0) EXIT
+                IF(IsNullDet(nJ)) EXIT
 
 !Find matrix element
                 HElemTemp=GetHElement3(DetCurr,nJ,iExcit)
@@ -4824,7 +4843,7 @@ MODULE FciMCParMod
 !                WRITE(6,*) "TRANSFER: ",Transfers,WalkToTransfer(:),IndexFrom,TotWalkers
 !                CALL FLUSH(6)
                 
-                CALL MPI_Send(CurrentDets(:,IndexFrom:TotWalkers),WalktoTransfer(1)*(NIfD+1),MPI_INTEGER,WalktoTransfer(3),Tag,MPI_COMM_WORLD,error)
+                CALL MPI_Send(CurrentDets(:,IndexFrom:TotWalkers),WalktoTransfer(1)*(NIfTot+1),MPI_INTEGER,WalktoTransfer(3),Tag,MPI_COMM_WORLD,error)
                 CALL MPI_Send(CurrentSign(IndexFrom:TotWalkers),WalktoTransfer(1),MPI_INTEGER,WalktoTransfer(3),Tag,MPI_COMM_WORLD,error)
 !                CALL MPI_Send(CurrentIC(IndexFrom:TotWalkers),WalktoTransfer(1),MPI_INTEGER,WalktoTransfer(3),Tag,MPI_COMM_WORLD,error)
                 IF(.not.tRegenDiagHEls) THEN
@@ -4852,7 +4871,7 @@ MODULE FciMCParMod
 !                WRITE(6,*) "RECEIVING: ",Transfers,WalkToTransfer(:),IndexFrom,IndexTo
 !                CALL FLUSH(6)
 
-                CALL MPI_Recv(CurrentDets(:,IndexFrom:IndexTo),WalktoTransfer(1)*(NIfD+1),MPI_INTEGER,WalktoTransfer(2),Tag,MPI_COMM_WORLD,Stat,error)
+                CALL MPI_Recv(CurrentDets(:,IndexFrom:IndexTo),WalktoTransfer(1)*(NIfTot+1),MPI_INTEGER,WalktoTransfer(2),Tag,MPI_COMM_WORLD,Stat,error)
                 CALL MPI_Recv(CurrentSign(IndexFrom:IndexTo),WalktoTransfer(1),MPI_INTEGER,WalktoTransfer(2),Tag,MPI_COMM_WORLD,Stat,error)
 !                CALL MPI_Recv(CurrentIC(IndexFrom:IndexTo),WalktoTransfer(1),MPI_INTEGER,WalktoTransfer(2),Tag,MPI_COMM_WORLD,Stat,error)
                 IF(.not.tRegenDiagHEls) THEN
@@ -4886,9 +4905,9 @@ MODULE FciMCParMod
 !If we are using rotoannihilation, then we need to maintain sorted lists. There is a much better way to do it than sorting them all again though!...
 !We are also storing the list as determinants, rather than particles. Therefore after sorting, we need to compress the list to remove multiple specifications of the same det.
             IF(.not.tRegenDiagHEls) THEN
-                CALL SortCompressListswH(TotWalkers,CurrentDets(0:NIfD,1:TotWalkers),CurrentSign(1:TotWalkers),CurrentH(1:TotWalkers))
+                CALL SortCompressListswH(TotWalkers,CurrentDets(0:NIfTot,1:TotWalkers),CurrentSign(1:TotWalkers),CurrentH(1:TotWalkers))
             ELSE
-                CALL SortCompressLists(TotWalkers,CurrentDets(0:NIfD,1:TotWalkers),CurrentSign(1:TotWalkers))
+                CALL SortCompressLists(TotWalkers,CurrentDets(0:NIfTot,1:TotWalkers),CurrentSign(1:TotWalkers))
             ENDIF
         ELSE
             TotParts=TotWalkers
@@ -4936,7 +4955,7 @@ MODULE FciMCParMod
 !Now go through the list, finding common determinants and combining their sign. Also, recalculate TotParts
 !        TotParts=abs(SignList(1))
 !        CurrInd=1
-!        DetCurr=PartList(0:NIfD,1)
+!        DetCurr=PartList(:,1)
 !        i=2
 !        do while(i.le.Length)
 !            CompParts=DetBitLT(DetCurr,PartList(0:NIfTot,i))
@@ -4958,7 +4977,7 @@ MODULE FciMCParMod
 !                    Length=Length-1
 !                ENDIF
 !            ELSE
-!                DetCurr=PartList(0:NIfD,i)
+!                DetCurr=PartList(:,i)
 !                TotParts=TotParts+abs(SignList(i))
 !                CurrInd=i
 !                i=i+1
@@ -5003,7 +5022,7 @@ MODULE FciMCParMod
 !Now go through the list, finding common determinants and combining their sign. Also, recalculate TotParts
 !        TotParts=abs(SignList(1))
 !        CurrInd=1
-!        DetCurr=PartList(0:NIfD,1)
+!        DetCurr=PartList(:,1)
 !        i=2
 !        do while(i.le.Length)
 !            CompParts=DetBitLT(DetCurr,PartList(0:NIfTot,i))
@@ -5033,7 +5052,7 @@ MODULE FciMCParMod
 !                    Length=Length-1
 !                ENDIF
 !            ELSE
-!                DetCurr=PartList(0:NIfD,i)
+!                DetCurr=PartList(:,i)
 !                TotParts=TotParts+abs(SignList(i))
 !                CurrInd=i
 !                i=i+1
@@ -5091,6 +5110,14 @@ MODULE FciMCParMod
                 DEALLOCATE(AllSinglesHistVirtOcc)
                 DEALLOCATE(AllSinglesHistOccVirt)
                 DEALLOCATE(AllSinglesHistVirtVirt)
+            ENDIF
+        ENDIF
+        IF(tHistHamil) THEN
+            DEALLOCATE(HistHamil)
+            DEALLOCATE(AvHistHamil)
+            IF(iProcIndex.eq.0) THEN
+                DEALLOCATE(AllHistHamil)
+                DEALLOCATE(AllAvHistHamil)
             ENDIF
         ENDIF
         DEALLOCATE(WalkVecDets)
@@ -5474,7 +5501,7 @@ MODULE FciMCParMod
             !Set up the determinant and sign arrays by reading in from the GUIDINGFUNC file.
             j=1
             do while (j.le.iGuideDets)
-                READ(36,*) GuideFuncDets(0:NIfD,j),GuideFuncSign(j)
+                READ(36,*) GuideFuncDets(0:NIfTot,j),GuideFuncSign(j)
                 j=j+1
             enddo
             CLOSE(36)
@@ -5531,7 +5558,7 @@ MODULE FciMCParMod
 !            WRITE(37,*) iGuideDets,' determinants included in the guiding function.'    
             do j=1,iGuideDets
                 InitGuideFuncSign(j)=nProcessors*GuideFuncSign(j)
-!                WRITE(37,*) GuideFuncDets(0:NIfD,j),nProcessors*GuideFuncSign(j)
+!                WRITE(37,*) GuideFuncDets(0:NIfTot,j),nProcessors*GuideFuncSign(j)
             enddo
 !            CLOSE(37)
             
@@ -5558,7 +5585,7 @@ MODULE FciMCParMod
             GuideFuncDoub=0.D0
             !Run through all other determinants in the guiding function.  Find out if they are doubly excited.  Find H elements, and multiply by number on that double.
             do i=1,iGuideDets
-                CALL FindBitExcitLevel(GuideFuncDets(0:NIfD,i),iLutHF,ExcitLevel,2)
+                CALL FindBitExcitLevel(GuideFuncDets(0:NIfTot,i),iLutHF,ExcitLevel,2)
                 IF(ExcitLevel.eq.2) THEN
                     DoubDet(:)=0
                     CALL DecodeBitDet(DoubDet,GuideFuncDets(0:NIfTot,i))
@@ -5640,7 +5667,7 @@ MODULE FciMCParMod
             OffSets(j+1)=RecvCounts(j)+OffSets(j)
         enddo
         do j=1,nProcessors
-            RecvCounts02(j)=RecvCounts(j)*(NIfD+1)
+            RecvCounts02(j)=RecvCounts(j)*(NIfTot+1)
         enddo
         OffSets02(:)=0
         do j=1,nProcessors-1
@@ -5711,7 +5738,7 @@ MODULE FciMCParMod
 !            WRITE(32,*) 'The determinants from each processor combined'
 !            WRITE(32,*) AlliGuideDets,' determinants included in the guiding function.'    
 !            do j=1,AlliGuideDets
-!                WRITE(32,*) AllCurrentDets(0:NIfD,j),AllCurrentSign(j)
+!                WRITE(32,*) AllCurrentDets(0:NIfTot,j),AllCurrentSign(j)
 !            enddo
 !            CLOSE(32)
             
@@ -5950,7 +5977,7 @@ MODULE FciMCParMod
         NoExcDets=0
         AllNoExcDets=0
         do i=1,TotWalkers
-            CALL FindBitExcitLevel(CurrentDets(0:NIfD,i),iLutHF(0:NIfD),ExcitLevel,MaxExcDom)
+            CALL FindBitExcitLevel(CurrentDets(:,i),iLutHF(:),ExcitLevel,MaxExcDom)
             IF((ExcitLevel.ge.MinExcDom).and.(ExcitLevel.le.MaxExcDom)) THEN
                 NoExcDets=NoExcDets+1
             ELSEIF(ExcitLevel.eq.0) THEN
@@ -5981,7 +6008,7 @@ MODULE FciMCParMod
 ! add its sign to the ExcSign array.
         ExcDetsIndex=0
         do i=1,TotWalkers
-            CALL FindBitExcitLevel(CurrentDets(0:NIfD,i),iLutHF(0:NIfD),ExcitLevel,MaxExcDom)
+            CALL FindBitExcitLevel(CurrentDets(:,i),iLutHF(:),ExcitLevel,MaxExcDom)
             IF((ExcitLevel.ge.MinExcDom).and.(ExcitLevel.le.MaxExcDom)) THEN
                 ExcDetsIndex=ExcDetsIndex+1
                 ExcDets(0:NIfTot,ExcDetsIndex)=CurrentDets(0:NIfTot,i)
@@ -6001,7 +6028,7 @@ MODULE FciMCParMod
             OffSets(j+1)=RecvCounts(j)+OffSets(j)
         enddo
         do j=1,nProcessors
-            RecvCounts02(j)=RecvCounts(j)*(NIfD+1)
+            RecvCounts02(j)=RecvCounts(j)*(NIfTot+1)
         enddo
         OffSets02(:)=0
         do j=1,nProcessors-1
@@ -6211,44 +6238,44 @@ MODULE FciMCParMod
                                     ! SearchGen will give back ipos so that the determinant we are inserting is < ipos-1 and ge ipos.
                                     ! I.e this determinant goes in ipos and everything else is moved up 1.
                                     IF((iNoDominantDets-CurriNoDominantDets).gt.0) THEN
-                                        CALL SearchGen((iNoDominantDets-CurriNoDominantDets),AllExcDets(0:NIfD,(CurriNoDominantDets+1):iNoDominantDets),&
+                                        CALL SearchGen((iNoDominantDets-CurriNoDominantDets),AllExcDets(0:NIfTot,(CurriNoDominantDets+1):iNoDominantDets),&
                                                     &SpinCoupDetBit(0:NIfTot),ipos)
                                     ELSE
                                         ipos=0
                                     ENDIF
                                     ipos=ipos+CurriNoDominantDets
-!                                    CALL SearchGen(iNoDominantDets,AllExcDets(0:NIfD,1:iNoDominantDets),SpinCoupDetBit(0:NIfD),ipos)
+!                                    CALL SearchGen(iNoDominantDets,AllExcDets(0:NIfTot,1:iNoDominantDets),SpinCoupDetBit(0:NIfTot),ipos)
                                     ! The position the determinant should go is ipos, if the current determinant in ipos is not equal to the SpinCoupDetBit,
                                     ! then we want to insert this determinant here, move all the others up by one, put the determinant that is getting written
                                     ! over at iNoDominantDets+1 in the position of the spincoupdetbit.
                                     
                                     TempSign=AllExcSign(iNoDominantDets+1) 
-                                    AllExcDets(0:NIfD,PartInd)=AllExcDets(0:NIfD,iNoDominantDets+1)
+                                    AllExcDets(0:NIfTot,PartInd)=AllExcDets(0:NIfTot,iNoDominantDets+1)
 
                                     do i=iNoDominantDets,ipos,-1                                                    
-                                        AllExcDets(0:NIfD,i+1)=AllExcDets(0:NIfD,i)                                                    
+                                        AllExcDets(0:NIfTot,i+1)=AllExcDets(0:NIfTot,i)                                                    
                                         AllExcSign(i+1)=AllExcSign(i)
                                     enddo
-                                    AllExcDets(0:NIfD,ipos)=SpinCoupDetBit(0:NIfD)
+                                    AllExcDets(0:NIfTot,ipos)=SpinCoupDetBit(0:NIfTot)
                                     AllExcSign(ipos)=AllExcSign(PartInd)
                                     iRead=iRead+1
                                     iNoDominantDets=iNoDominantDets+1
                                     AllExcSign(PartInd)=TempSign
                                 ELSE
                                     ! Determinant not in the list at all, add to added determinants (maintaining order) with a sign of 0.
-                                    CALL SearchGen((iNoDominantDets-CurriNoDominantDets),AllExcDets(0:NIfD,(CurriNoDominantDets+1):iNoDominantDets),&
-                                                    &SpinCoupDetBit(0:NIfD),ipos)
+                                    CALL SearchGen((iNoDominantDets-CurriNoDominantDets),AllExcDets(0:NIfTot,(CurriNoDominantDets+1):iNoDominantDets),&
+                                                    &SpinCoupDetBit(0:NIfTot),ipos)
                                     ipos=ipos+CurriNoDominantDets
                                     
-                                    AllExcDets(0:NIfD,AllNoExcDets+1)=AllExcDets(0:NIfD,iNoDominantDets+1)
+                                    AllExcDets(0:NIfTot,AllNoExcDets+1)=AllExcDets(0:NIfTot,iNoDominantDets+1)
                                     AllExcSign(AllNoExcDets+1)=AllExcSign(iNoDominantDets+1)
 
                                     do i=iNoDominantDets,ipos,-1                                                    
-                                        AllExcDets(0:NIfD,i+1)=AllExcDets(0:NIfD,i)                                                    
+                                        AllExcDets(0:NIfTot,i+1)=AllExcDets(0:NIfTot,i)                                                    
                                         AllExcSign(i+1)=AllExcSign(i)
                                     enddo
 
-                                    AllExcDets(0:NIfD,ipos)=SpinCoupDetBit(0:NIfD)
+                                    AllExcDets(0:NIfTot,ipos)=SpinCoupDetBit(0:NIfTot)
                                     AllExcSign(ipos)=0
                                     iRead=iRead+1
                                     iNoDominantDets=iNoDominantDets+1
@@ -6292,8 +6319,8 @@ MODULE FciMCParMod
 !            OPEN(40,file='DOMINANTDETSexclevelbit',status='unknown')
 !            WRITE(40,*) AllNoExcDets,' determinants with the right excitation level.'    
 !            do j=1,AllNoExcDets
-!                CALL FindBitExcitLevel(AllExcDets(0:NIfD,j),iLutHF(0:NIfD),ExcitLevel,MaxExcDom)
-!                WRITE(40,*) AllExcDets(0:NIfD,j),AllExcSign(j),ExcitLevel
+!                CALL FindBitExcitLevel(AllExcDets(0:NIfTot,j),iLutHF(0:NIfTot),ExcitLevel,MaxExcDom)
+!                WRITE(40,*) AllExcDets(0:NIfTot,j),AllExcSign(j),ExcitLevel
 !            enddo
 !            CLOSE(40)
 
@@ -6313,13 +6340,13 @@ MODULE FciMCParMod
                         WRITE(38,*) k,0
                     enddo
                 ENDIF
-                CALL FindBitExcitLevel(AllExcDets(0:NIfD,i),iLutHF(0:NIfD),CurrExcitLevel,MaxExcDom)
+                CALL FindBitExcitLevel(AllExcDets(0:NIfTot,i),iLutHF(0:NIfTot),CurrExcitLevel,MaxExcDom)
                 ExcitLevel=CurrExcitLevel
                 do while (ExcitLevel.eq.CurrExcitLevel)
                     NoExcitLevel=NoExcitLevel+1
                     j=j+1
                     IF(j.gt.iNoDominantDets) EXIT
-                    CALL FindBitExcitLevel(AllExcDets(0:NIfD,j),iLutHF(0:NIfD),ExcitLevel,MaxExcDom)
+                    CALL FindBitExcitLevel(AllExcDets(0:NIfTot,j),iLutHF(0:NIfTot),ExcitLevel,MaxExcDom)
                 enddo
                 WRITE(38,*) CurrExcitLevel,NoExcitLevel
             enddo
@@ -6498,7 +6525,7 @@ MODULE FciMCParMod
             IF(iProcIndex.eq.0) THEN
 
 !We now want to order AllHistogram, taking the corresponding element(s) of FCIDets with it...
-                CALL SortRNI(Det,AllHistogram,FCIDets,NIfD+1)
+                CALL SortRNI(Det,AllHistogram,FCIDets,NIfTot+1)
                 
                 OPEN(17,FILE='FCIMCPsi',STATUS='UNKNOWN')
 
@@ -6506,7 +6533,7 @@ MODULE FciMCParMod
                 do i=1,Det
                     norm=norm+AllHistogram(i)**2
 !write out FCIMC Component weight (normalised), current normalisation, excitation level
-                    CALL FindBitExcitLevel(iLutHF,FCIDets(0:NIfD,i),ExcitLevel,NEl)
+                    CALL FindBitExcitLevel(iLutHF,FCIDets(0:NIfTot,i),ExcitLevel,NEl)
                     CALL DecodeBitDet(nI,FCIDets(0:NIfTot,i))
                     WRITE(17,"(I13,G25.16,I6,G20.10)",advance='no') i,AllHistogram(i),ExcitLevel,norm
                     do j=1,NEl-1
@@ -6528,7 +6555,7 @@ MODULE FciMCParMod
     SUBROUTINE WriteHistogram()
         use Determinants , only : GetHElement3
         use SystemData , only : BasisFN
-        INTEGER :: i,j,bits,iLut(0:NIfD),error,IterRead
+        INTEGER :: i,j,bits,iLut(0:NIfTot),error,IterRead
         TYPE(BasisFN) :: ISym
         REAL*8 :: norm,norm1,norm2,norm3,ShiftRead,AllERead,NumParts
         TYPE(HElement) :: HEL
@@ -6544,7 +6571,7 @@ MODULE FciMCParMod
             CALL FLUSH(6)
         ENDIF
 
-!        IF(NIfD.ne.0) THEN
+!        IF(NIfTot.ne.0) THEN
 !            CALL Stop_All("WriteHistogram","System is too large to histogram as it stands...")
 !        ENDIF
 
@@ -6667,6 +6694,43 @@ MODULE FciMCParMod
         InstAnnihil(:)=0.D0
 
     END SUBROUTINE WriteHistogram
+
+!This routine will write out the average hamiltonian from the spawning run up until now.
+    SUBROUTINE WriteHamilHistogram()
+        INTEGER :: i,j,error
+        CHARACTER(len=22) :: abstr
+
+!This will open a file called HamilHist-"Iter" on unit number 17.
+        abstr=''
+        write(abstr,'(I12)') Iter
+        abstr='HamilHist-'//adjustl(abstr)
+        IF(iProcIndex.eq.0) THEN
+            WRITE(6,*) "Writing out the average hamiltonian up to iteration number: ", Iter
+            CALL FLUSH(6)
+        ENDIF
+
+        IF(iProcIndex.eq.0) THEN
+            AllHistHamil(:,:)=0.D0
+            AllAvHistHamil(:,:)=0.D0
+        ENDIF
+
+        CALL MPI_Reduce(HistHamil,AllHistHamil,Det**2,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
+        CALL MPI_Reduce(AvHistHamil,AllAvHistHamil,Det**2,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
+        
+        IF(iProcIndex.eq.0) THEN
+!How do we normalise this!
+            OPEN(17,FILE=abstr,STATUS='UNKNOWN')
+            do i=1,Det
+                do j=1,Det
+                    WRITE(17,*) j,i,AllAvHistHamil(j,i),AllHistHamil(j,i)
+                enddo
+                WRITE(17,*) ""
+            enddo
+            CLOSE(17)
+        ENDIF
+        HistHamil(:,:)=0.D0
+
+    END SUBROUTINE WriteHamilHistogram
 
 
 !This routine simply reduces the histogrammed determinants, and prints out their population for the given iteration
@@ -7240,12 +7304,12 @@ MODULE FciMCParMod
 !        TYPE(ExcitPointer) :: TempExcit
 !        REAL*8 :: TempH
 !!        INTEGER :: TempIC
-!        INTEGER :: TotWalkersNew,j,k,l,DetCurr(0:NIfD),VecSlot,TotWalkersDet
+!        INTEGER :: TotWalkersNew,j,k,l,DetCurr(0:NIfTot),VecSlot,TotWalkersDet
 !        INTEGER :: DetLT
 !
 !        TempExcit%PointToExcit=>null()
 !!First, it is necessary to sort the list of determinants
-!        CALL SortPartsPar(TotWalkersNew,NewDets(:,1:TotWalkersNew),NIfD+1)
+!        CALL SortPartsPar(TotWalkersNew,NewDets(:,1:TotWalkersNew),NIfTot+1)
 !
 !!Once ordered, each block of walkers on similar determinants can be analysed, and the residual walker concentration moved to CurrentDets
 !        j=1
@@ -7261,7 +7325,7 @@ MODULE FciMCParMod
 !        do while(j.le.TotWalkersNew)
 !!Loop over all walkers
 !            TotWalkersDet=0
-!            do while ((DetLT(NewDets(:,j),DetCurr,(NIfD+1)).eq.0).and.(j.le.TotWalkersNew))
+!            do while ((DetLT(NewDets(:,j),DetCurr,(NIfTot+1)).eq.0).and.(j.le.TotWalkersNew))
 !!Loop over all walkers on DetCurr and count residual number after cancelling
 !                IF(NewSign(j)) THEN
 !                    TotWalkersDet=TotWalkersDet+1
@@ -7385,6 +7449,47 @@ MODULE FciMCParMod
 !        GO TO 10
 !
 !    END SUBROUTINE SortPartsPar
+
+    SUBROUTINE AddHistHamilEl(iLutnI,iLutnJ,WalkExcitLevel,Child,iTypeMatEl)
+        INTEGER :: iTypeMatEl,WalkExcitLevel,iLutnI(0:NIfD),iLutnJ(0:NIfD),Child
+        LOGICAL :: tSuccess
+        INTEGER :: PartInd,PartIndChild,ChildExcitLevel
+
+        IF(iTypeMatEl.eq.1) THEN
+        !This is a spawning event
+        !Need to histogram the hamiltonian - find the correct indicies of parent and child.
+            IF(WalkExcitLevel.eq.NEl) THEN
+                CALL BinSearchParts2(iLutnI,FCIDetIndex(WalkExcitLevel),Det,PartInd,tSuccess)
+            ELSEIF(WalkExcitLevel.eq.0) THEN
+                PartInd=1
+                tSuccess=.true.
+            ELSE
+                CALL BinSearchParts2(iLutnI,FCIDetIndex(WalkExcitLevel),FCIDetIndex(WalkExcitLevel+1)-1,PartInd,tSuccess)
+            ENDIF
+            IF(.not.tSuccess) THEN
+                CALL Stop_All("AddHistHamil","Cannot find determinant nI in list")
+            ENDIF
+            CALL FindBitExcitLevel(iLutHF,iLutnJ,NIfD,ChildExcitLevel,NEl)
+            IF(ChildExcitLevel.eq.NEl) THEN
+                CALL BinSearchParts2(iLutnJ,FCIDetIndex(ChildExcitLevel),Det,PartIndChild,tSuccess)
+            ELSEIF(ChildExcitLevel.eq.0) THEN
+                PartIndChild=1
+                tSuccess=.true.
+            ELSE
+                CALL BinSearchParts2(iLutnJ,FCIDetIndex(ChildExcitLevel),FCIDetIndex(ChildExcitLevel+1)-1,PartIndChild,tSuccess)
+            ENDIF
+            IF(.not.tSuccess) THEN
+                CALL Stop_All("AddHistHamil","Cannot find determinant nJ in list")
+            ENDIF
+            
+            HistHamil(PartIndChild,PartInd)=HistHamil(PartIndChild,PartInd)+(1.D0*Child)
+            HistHamil(PartInd,PartIndChild)=HistHamil(PartInd,PartIndChild)+(1.D0*Child)
+            AvHistHamil(PartIndChild,PartInd)=AvHistHamil(PartIndChild,PartInd)+(1.D0*Child)
+            AvHistHamil(PartInd,PartIndChild)=AvHistHamil(PartInd,PartIndChild)+(1.D0*Child)
+        ENDIF
+
+    END SUBROUTINE AddHistHamilEl
+
 
 
 
@@ -7605,6 +7710,9 @@ MODULE FciMCParMod
     SUBROUTINE CalcNewShift()
         CALL Stop_All("CalcNewShift","CalcNewShift not currently coded for serial.")
     END SUBROUTINE CalcNewShift
+    SUBROUTINE WriteHistogram()
+        CALL Stop_All("WriteHistogram","WriteHistogram not currently coded for serial.")
+    END SUBROUTINE WriteHistogram
 #endif
 ! AJWT
 ! Bringing you a better FciMCPar.  A vision for the future...
@@ -7614,26 +7722,26 @@ MODULE FciMCParMod
 
     SUBROUTINE SetupParameters()
         use SystemData, only : tUseBrillouin,iRanLuxLev,tSpn,tHPHFInts,tRotateOrbs,tNoBrillouin,tROHF,tFindCINatOrbs,nOccBeta,nOccAlpha,tUHF
+        use SystemData, only : tFixLz,LzTot
         USE mt95 , only : genrand_init
         use CalcData, only : EXCITFUNCS,tFCIMC
         use Calc, only : VirtCASorbs,OccCASorbs,FixShift,G_VMC_Seed
         use Determinants , only : GetH0Element3
         use SymData , only : nSymLabels,SymLabelList,SymLabelCounts
         use Logging , only : tTruncRODump
-        use GenRandSymExcitNUMod , only : tNoSingsPossible
         use FciMCLoggingMOD , only : InitTriHElStats,InitSpinCoupHel
         use DetCalc, only : NMRKS,tagNMRKS,FCIDets
         use SymExcit3, only : CountExcitations3 
         use DetBitOps, only: CountBits
         INTEGER :: ierr,i,j,k,l,DetCurr(NEl),ReadWalkers,TotWalkersDet,HFDetTest(NEl),Seed,alpha,beta,symalpha,symbeta,endsymstate
-        INTEGER :: DetLT,VecSlot,error,HFConn,MemoryAlloc,iMaxExcit,nStore(6),nJ(Nel),BRR2(nBasis),LargestOrb,nBits,HighEDet(NEl),iLutTemp(0:NIfD)
+        INTEGER :: DetLT,VecSlot,error,HFConn,MemoryAlloc,iMaxExcit,nStore(6),nJ(Nel),BRR2(nBasis),LargestOrb,nBits,HighEDet(NEl),iLutTemp(0:NIfTot)
         TYPE(HElement) :: rh,TempHii
         REAL*8 :: TotDets,SymFactor,Choose
         CHARACTER(len=*), PARAMETER :: this_routine='SetupParameters'
         CHARACTER(len=12) :: abstr
         LOGICAL :: tSuccess,tFoundOrbs(nBasis),tTurnBackBrillouin
         REAL :: Gap
-        INTEGER :: nSingles,nDoubles
+        INTEGER :: nSingles,nDoubles,HFLz
 
 !        CALL MPIInit(.false.)       !Initialises MPI - now have variables iProcIndex and nProcessors
         WRITE(6,*) ""
@@ -7759,14 +7867,6 @@ MODULE FciMCParMod
             tNoSpinSymExcitgens=.true.   
         ENDIF
                                         
-
-!Check whether it is possible to have a determinant where the electrons
-!can be arranged in a determinant so that there are no unoccupied
-!orbitals with any of the irreps of the occupied orbitals. If this can happen, we need to check for it before generating excitations.
-!NEED TO CREATE A TEST HERE
-       tNoSingsPossible=.true. 
-
-
 !Setup excitation generator for the HF determinant. If we are using assumed sized excitgens, this will also be assumed size.
         IF(.not.tNoSpinSymExcitgens) THEN
             IF(tUseBrillouin.and.tNonUniRandExcits) THEN
@@ -7888,7 +7988,16 @@ MODULE FciMCParMod
         IF(tFixLz.and.(.not.tNoBrillouin)) THEN
             WRITE(6,*) "Turning Brillouins theorem off since we are using non-canonical complex orbitals"
             tNoBrillouin=.true.
+            CALL GetLz(HFDet,NEl,HFLz)
+            IF(HFLz.ne.LzTot) THEN
+                CALL Stop_All("SetupParameters","Chosen reference determinant does not have the same Lz value as indicated in the input.")
+            ENDIF
         ENDIF
+
+        IF((tHub.and.tReal).or.(tRotatedOrbs)) THEN
+            tNoBrillouin=.true.
+        ENDIF
+
 
         TBalanceNodes=.false.   !Assume that the nodes are initially load-balanced
 
@@ -7948,7 +8057,7 @@ MODULE FciMCParMod
         NoCulls=0
         
 
-        IF(tHistSpawn.or.(tCalcFCIMCPsi.and.tFCIMC)) THEN
+        IF(tHistSpawn.or.(tCalcFCIMCPsi.and.tFCIMC).or.tHistHamil) THEN
             ALLOCATE(HistMinInd(NEl))
             ALLOCATE(HistMinInd2(NEl))
             maxdet=0
@@ -7960,12 +8069,32 @@ MODULE FciMCParMod
                 CALL Stop_All(this_routine,"A Full Diagonalization is required in the same calculation before histogramming can occur.")
             ENDIF
 
-            WRITE(6,*) "Histogramming spawning wavevector, with Dets=", Det
-            ALLOCATE(Histogram(1:det),stat=ierr)
-            IF(ierr.ne.0) THEN
-                CALL Stop_All("SetupParameters","Error assigning memory for histogramming arrays (could deallocate NMRKS to save memory?)")
+            IF(tHistHamil) THEN
+                WRITE(6,*) "Histogramming total Hamiltonian, with Dets=", Det
+                ALLOCATE(HistHamil(1:det,1:det),stat=ierr)
+                IF(ierr.ne.0) CALL Stop_All("SetupParameters","Error assigning memory for histogramming arrays (could deallocate NMRKS to save memory?)")
+                HistHamil(:,:)=0.D0
+                ALLOCATE(AvHistHamil(1:det,1:det),stat=ierr)
+                IF(ierr.ne.0) CALL Stop_All("SetupParameters","Error assigning memory for histogramming arrays (could deallocate NMRKS to save memory?)")
+                AvHistHamil(:,:)=0.D0
+                IF(iProcIndex.eq.0) THEN
+                    ALLOCATE(AllHistHamil(1:det,1:det),stat=ierr)
+                    IF(ierr.ne.0) CALL Stop_All("SetupParameters","Error assigning memory for histogramming arrays (could deallocate NMRKS to save memory?)")
+                    AllHistHamil(:,:)=0.D0
+                    ALLOCATE(AllAvHistHamil(1:det,1:det),stat=ierr)
+                    IF(ierr.ne.0) CALL Stop_All("SetupParameters","Error assigning memory for histogramming arrays (could deallocate NMRKS to save memory?)")
+                    AllAvHistHamil(:,:)=0.D0
+                ENDIF
+            ELSE
+                WRITE(6,*) "Histogramming spawning wavevector, with Dets=", Det
+                ALLOCATE(Histogram(1:det),stat=ierr)
+                IF(ierr.ne.0) THEN
+                    CALL Stop_All("SetupParameters","Error assigning memory for histogramming arrays (could deallocate NMRKS to save memory?)")
+                ENDIF
+                Histogram(:)=0.D0
+                ALLOCATE(AllHistogram(1:det),stat=ierr)
+                IF(ierr.ne.0) CALL Stop_All("SetupParameters","Error assigning memory for histogramming arrays (could deallocate NMRKS to save memory?)")
             ENDIF
-            Histogram(:)=0.D0
             IF(tHistSpawn) THEN
                 ALLOCATE(InstHist(1:det),stat=ierr)
                 IF(ierr.ne.0) THEN
@@ -7984,8 +8113,6 @@ MODULE FciMCParMod
                 InstAnnihil(:)=0.D0
             ENDIF
 
-            ALLOCATE(AllHistogram(1:det),stat=ierr)
-            IF(ierr.ne.0) CALL Stop_All("SetupParameters","Error assigning memory for histogramming arrays (could deallocate NMRKS to save memory?)")
             IF(iProcIndex.eq.0) THEN
                 IF(tHistSpawn) THEN
                     ALLOCATE(AllInstHist(1:det),stat=ierr)
@@ -8060,7 +8187,7 @@ MODULE FciMCParMod
 !This is a list of options which cannot be used with the stripped-down spawning routine. New options not added to this routine should be put in this list.
         IF(tHighExcitsSing.or.tHistSpawn.or.tRegenDiagHEls.or.tFindGroundDet.or.tStarOrbs.or.tResumFCIMC.or.tSpawnAsDet.or.tImportanceSample    &
      &      .or.(.not.tRegenExcitgens).or.(.not.tNonUniRandExcits).or.(.not.tDirectAnnihil).or.tMinorDetsStar.or.tSpawnDominant.or.(DiagSft.gt.0.D0).or.   &
-     &      tPrintTriConnections.or.tHistTriConHEls.or.tCalcFCIMCPsi.or.tTruncCAS.or.tListDets.or.tPartFreezeCore.or.tFixLz.or.tUEG) THEN
+     &      tPrintTriConnections.or.tHistTriConHEls.or.tCalcFCIMCPsi.or.tTruncCAS.or.tListDets.or.tPartFreezeCore.or.tUEG.or.tHistHamil) THEN
             WRITE(6,*) "It is not possible to use to clean spawning routine..."
         ELSE
             WRITE(6,*) "Clean spawning routine in use..."
@@ -8452,18 +8579,19 @@ MODULE FciMCParMod
 
         ENDIF
 
-        IF(tFixLz) THEN
-            CALL GetLz(nJ,NEl,TotalLz)      !This could be improved by just checking that the change in momentum from the excitation was zero.
-            IF(TotalLz.ne.LzTot) THEN
-                CheckAllowedTruncSpawn=.false.
-                WRITE(6,*) "FALSE ",TotalLz
-                WRITE(6,*) nJ(:)
-                CALL Stop_All("CheckAllowedTruncSpawn","Should not get here with new excitation generators.")
-            ELSE
-                CheckAllowedTruncSpawn=.true.
-!                WRITE(6,*) "TRUE ",TotalLz
-            ENDIF
-        ENDIF
+!The excitation generators should now only generate Lz allowed excitations if tFixLz is true.
+!        IF(tFixLz) THEN
+!            CALL GetLz(nJ,NEl,TotalLz)      !This could be improved by just checking that the change in momentum from the excitation was zero.
+!            IF(TotalLz.ne.LzTot) THEN
+!                CheckAllowedTruncSpawn=.false.
+!                WRITE(6,*) "FALSE ",TotalLz
+!                WRITE(6,*) nJ(:)
+!                CALL Stop_All("CheckAllowedTruncSpawn","Should not get here with new excitation generators.")
+!            ELSE
+!                CheckAllowedTruncSpawn=.true.
+!!                WRITE(6,*) "TRUE ",TotalLz
+!            ENDIF
+!        ENDIF
 
         IF(tUEG) THEN
 !Check to see if this is an allowed excitation
@@ -8665,6 +8793,7 @@ MODULE FciMCParMod
         ENDIF
 
     END SUBROUTINE CalcApproxpDoubles
+
     SUBROUTINE CreateSpinInvBRR()
     ! Create an SpinInvBRR containing spin orbitals, 
     ! unlike 'createInvBRR' which only has spatial orbitals.
@@ -8710,18 +8839,15 @@ MODULE FciMCParMod
         
     END SUBROUTINE CreateSpinInvBRR
 
-
-
-
 ! This creates a hash based not only on one current determinant, but is also dependent on the 
 ! determinant from which the walkers on this determinant came.
     FUNCTION CreateHashBit(DetCurr)
-        INTEGER :: DetCurr(0:NIfD),i,Elecs,j
+        INTEGER :: DetCurr(0:NIfTot),i,Elecs,j
         INTEGER(KIND=i2) :: CreateHashBit
 
         CreateHashBit=0
         Elecs=0
-        do i=0,NIfD
+        do i=0,NIfTot
             do j=0,31
                 IF(BTEST(DetCurr(i),j)) THEN
                     CreateHashBit=(1099511628211_8*CreateHashBit)+((i*32)+(j+1))*j
@@ -8774,6 +8900,7 @@ MODULE FciMCParMod
         RETURN
 
     END SUBROUTINE GetPartRandExcitPar
+
     SUBROUTINE FindMagneticDets()
         use SystemData , only : tAssumeSizeExcitgen
         INTEGER :: j,i,ierr,iMaxExcit,nStore(6),MinIndex,ExcitLength,nJ(NEl),iExcit
@@ -8836,7 +8963,7 @@ MODULE FciMCParMod
         do while(.true.)
 !Generate double excitations
             CALL GenSymExcitIt2(HFDet,NEl,G1,nBasis,nBasisMax,.false.,ExcitGenTemp,nJ,iExcit,0,nStore,2)
-            IF(nJ(1).eq.0) EXIT
+            IF(IsNullDet(nJ)) EXIT
             i=i+1
             Hij=GetHElement2(HFDet,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,iExcit,ECore)
             CALL GetH0Element(nJ,NEl,Arr,nBasis,ECore,Fjj)
@@ -8893,6 +9020,7 @@ MODULE FciMCParMod
         RETURN
 
     END SUBROUTINE FindMagneticDets
+
 !This will store all the double excitations.
     SUBROUTINE StoreDoubs()
         use SystemData , only : tAssumeSizeExcitgen,tUseBrillouin
@@ -8952,7 +9080,7 @@ MODULE FciMCParMod
             do while(.true.)
 !Generate double excitations
                 CALL GenSymExcitIt2(HFDet,NEl,G1,nBasis,nBasisMax,.false.,ExcitGenTemp,nJ,iExcit,0,nStore,3)
-                IF(nJ(1).eq.0) EXIT
+                IF(IsNullDet(nJ)) EXIT
 !                IF(iExcit.ne.2) THEN
 !                    CALL Stop_All("StoreDoubles","Error - excitations other than doubles being generated in DoublesDets wavevector code")
 !                ENDIF
@@ -8974,6 +9102,7 @@ MODULE FciMCParMod
         DEALLOCATE(ExcitGenTemp)
 
     END SUBROUTINE StoreDoubs
+
 !Initialize the Histogramming searching arrays if necessary
     SUBROUTINE InitHistMin()
         IF(tHistSpawn.or.tCalcFCIMCPsi.and.(Iter.ge.NHistEquilSteps)) THEN
@@ -9029,7 +9158,7 @@ MODULE FciMCParMod
 !            AvSign=AvSign+REAL(WSign,r2)
 
         ELSEIF(ExcitLevel.eq.1) THEN
-          if(tNoBrillouin.or.(tHub.and.tReal).or.tRotatedOrbs) then
+          if(tNoBrillouin) then
 !For the real-space hubbard model, determinants are only connected to excitations one level away, and brillouins theorem can not hold.
 !For Rotated orbitals, brillouins theorem also cannot hold, and energy contributions from walkers on singly excited determinants must
 !be included in the energy values along with the doubles.
@@ -9060,7 +9189,7 @@ MODULE FciMCParMod
         ENDIF
 
 !Histogramming diagnostic options...
-        IF((tHistSpawn.or.(tCalcFCIMCPsi.and.tFCIMC).and.(Iter.ge.NHistEquilSteps))) THEN
+        IF((tHistSpawn.or.(tCalcFCIMCPsi.and.tFCIMC)).and.(Iter.ge.NHistEquilSteps)) THEN
             IF(ExcitLevel.eq.NEl) THEN
                 CALL BinSearchParts2(iLutCurr,HistMinInd(ExcitLevel),Det,PartInd,tSuccess)
                 if(tFCIMC) HistMinInd(ExcitLevel)=PartInd  !CCMC doesn't sum particle contributions in order, so we must search the whole space again
@@ -9072,12 +9201,71 @@ MODULE FciMCParMod
                 if(tFCIMC) HistMinInd(ExcitLevel)=PartInd  !CCMC doesn't sum particle contributions in order, so we must search the whole space again
             ENDIF
             IF(tSuccess) THEN
-                IF(tFlippedSign) THEN
-                    Histogram(PartInd)=Histogram(PartInd)-REAL(WSign,r2)
-                    IF(tHistSpawn) InstHist(PartInd)=InstHist(PartInd)-REAL(WSign,r2)
+                IF(tHPHF) THEN
+                    CALL FindExcitBitDetSym(iLutCurr,iLutSym)
+                    IF(.not.DetBitEQ(iLutCurr,iLutSym)) THEN
+                        IF(tFlippedSign) THEN
+                            Histogram(PartInd)=Histogram(PartInd)-(REAL(WSign,r2)/SQRT(2.0))/dProbFin
+                            IF(tHistSpawn) InstHist(PartInd)=InstHist(PartInd)-(REAL(WSign,r2)/SQRT(2.0))/dProbFin
+                        ELSE
+                            Histogram(PartInd)=Histogram(PartInd)+(REAL(WSign,r2)/SQRT(2.0))/dProbFin
+                            IF(tHistSpawn) InstHist(PartInd)=InstHist(PartInd)+(REAL(WSign,r2)/SQRT(2.0))/dProbFin
+                        ENDIF
+                    ELSE
+                        IF(tFlippedSign) THEN
+                            Histogram(PartInd)=Histogram(PartInd)-REAL(WSign,r2)/dProbFin
+                            IF(tHistSpawn) InstHist(PartInd)=InstHist(PartInd)-REAL(WSign,r2)/dProbFin
+                        ELSE
+                            Histogram(PartInd)=Histogram(PartInd)+REAL(WSign,r2)/dProbFin
+                            IF(tHistSpawn) InstHist(PartInd)=InstHist(PartInd)+REAL(WSign,r2)/dProbFin
+                        ENDIF
+                    ENDIF
                 ELSE
-                    Histogram(PartInd)=Histogram(PartInd)+REAL(WSign,r2)
-                    IF(tHistSpawn) InstHist(PartInd)=InstHist(PartInd)+REAL(WSign,r2)
+                    IF(tFlippedSign) THEN
+                        Histogram(PartInd)=Histogram(PartInd)-REAL(WSign,r2)/dProbFin
+                        IF(tHistSpawn) InstHist(PartInd)=InstHist(PartInd)-REAL(WSign,r2)/dProbFin
+                    ELSE
+                        Histogram(PartInd)=Histogram(PartInd)+REAL(WSign,r2)/dProbFin
+                        IF(tHistSpawn) InstHist(PartInd)=InstHist(PartInd)+REAL(WSign,r2)/dProbFin
+                    ENDIF
+                ENDIF
+                IF(tHPHF) THEN
+!With HPHF space, we need to also include the spin-coupled determinant, which will have the same amplitude as the original determinant, unless it is antisymmetric.
+                    IF(.not.DetBitEQ(iLutCurr,iLutSym)) THEN
+                        IF(ExcitLevel.eq.NEl) THEN
+                            CALL BinSearchParts2(iLutSym,FCIDetIndex(ExcitLevel),Det,PartInd,tSuccess)
+                        ELSEIF(ExcitLevel.eq.0) THEN
+                            PartInd=1
+                            tSuccess=.true.
+                        ELSE
+                            CALL BinSearchParts2(iLutSym,FCIDetIndex(ExcitLevel),FCIDetIndex(ExcitLevel+1)-1,PartInd,tSuccess)
+                        ENDIF
+                        IF(tSuccess) THEN
+                            CALL CalcOpenOrbs(iLutSym,OpenOrbs)
+                            IF(tFlippedSign) THEN
+                                IF(mod(OpenOrbs,2).eq.1) THEN
+                                    Histogram(PartInd)=Histogram(PartInd)+(REAL(WSign,r2)/SQRT(2.0))/dProbFin
+                                    IF(tHistSpawn) InstHist(PartInd)=InstHist(PartInd)+(REAL(WSign,r2)/SQRT(2.0))/dProbFin
+                                ELSE
+                                    Histogram(PartInd)=Histogram(PartInd)-(REAL(WSign,r2)/SQRT(2.0))/dProbFin
+                                    IF(tHistSpawn) InstHist(PartInd)=InstHist(PartInd)-(REAL(WSign,r2)/SQRT(2.0))/dProbFin
+                                ENDIF
+                            ELSE
+                                IF(mod(OpenOrbs,2).eq.1) THEN
+                                    Histogram(PartInd)=Histogram(PartInd)-(REAL(WSign,r2)/SQRT(2.0))/dProbFin
+                                    IF(tHistSpawn) InstHist(PartInd)=InstHist(PartInd)-(REAL(WSign,r2)/SQRT(2.0))/dProbFin
+                                ELSE
+                                    Histogram(PartInd)=Histogram(PartInd)+(REAL(WSign,r2)/SQRT(2.0))/dProbFin
+                                    IF(tHistSpawn) InstHist(PartInd)=InstHist(PartInd)+(REAL(WSign,r2)/SQRT(2.0))/dProbFin
+                                ENDIF
+                            ENDIF
+                        ELSE
+                            WRITE(6,*) DetCurr(:)
+                            WRITE(6,*) "***",iLutSym(0:NIfTot)
+                            WRITE(6,*) "***",ExcitLevel,Det
+                            CALL Stop_All("SumEContrib","Cannot find corresponding spin-coupled FCI determinant when histogramming")
+                        ENDIF
+                    ENDIF
                 ENDIF
             ELSE
                 WRITE(6,*) DetCurr(:)
@@ -9086,43 +9274,6 @@ MODULE FciMCParMod
                 Call WriteBitDet(6,iLutCurr(0:NIfTot),.true.)
                 CALL Stop_All("SumEContrib","Cannot find corresponding FCI determinant when histogramming")
             ENDIF
-            IF(tHPHF) THEN
-!With HPHF space, we need to also include the spin-coupled determinant, which will have the same amplitude as the original determinant, unless it is antisymmetric.
-                CALL FindExcitBitDetSym(iLutCurr,iLutSym)
-                IF(ExcitLevel.eq.NEl) THEN
-                    CALL BinSearchParts2(iLutSym,FCIDetIndex(ExcitLevel),Det,PartInd,tSuccess)
-                ELSEIF(ExcitLevel.eq.0) THEN
-                    PartInd=1
-                    tSuccess=.true.
-                ELSE
-                    CALL BinSearchParts2(iLutSym,FCIDetIndex(ExcitLevel),FCIDetIndex(ExcitLevel+1)-1,PartInd,tSuccess)
-                ENDIF
-                IF(tSuccess) THEN
-                    CALL CalcOpenOrbs(iLutSym,OpenOrbs)
-                    IF(tFlippedSign) THEN
-                        IF(mod(OpenOrbs,2).eq.1) THEN
-                            Histogram(PartInd)=Histogram(PartInd)+REAL(WSign,r2)
-                            IF(tHistSpawn) InstHist(PartInd)=InstHist(PartInd)+REAL(WSign,r2)
-                        ELSE
-                            Histogram(PartInd)=Histogram(PartInd)-REAL(WSign,r2)
-                            IF(tHistSpawn) InstHist(PartInd)=InstHist(PartInd)-REAL(WSign,r2)
-                        ENDIF
-                    ELSE
-                        IF(mod(OpenOrbs,2).eq.1) THEN
-                            Histogram(PartInd)=Histogram(PartInd)-REAL(WSign,r2)
-                            IF(tHistSpawn) InstHist(PartInd)=InstHist(PartInd)-REAL(WSign,r2)
-                        ELSE
-                            Histogram(PartInd)=Histogram(PartInd)+REAL(WSign,r2)
-                            IF(tHistSpawn) InstHist(PartInd)=InstHist(PartInd)+REAL(WSign,r2)
-                        ENDIF
-                    ENDIF
-                ELSE
-                    WRITE(6,*) DetCurr(:)
-                    WRITE(6,*) "***",iLutSym(0:NIfTot)
-                    WRITE(6,*) "***",ExcitLevel,Det
-                    CALL Stop_All("SumEContrib","Cannot find corresponding spin-coupled FCI determinant when histogramming")
-                ENDIF
-            ENDIF
         ELSEIF(tHistEnergies) THEN
 !This wil histogramm the energies of the particles, rather than the determinants themselves.
             Bin=INT(HDiagCurr/BinRange)+1
@@ -9130,6 +9281,12 @@ MODULE FciMCParMod
                 CALL Stop_All("SumEContrib","Histogramming energies higher than the arrays can cope with. Increase iNoBins or BinRange")
             ENDIF
             Histogram(Bin)=Histogram(Bin)+real(abs(WSign),r2)
+        ENDIF
+
+        IF(tPrintOrbOcc.and.(Iter.ge.StartPrintOrbOcc)) THEN
+            do i=1,NEl
+                OrbOccs(DetCurr(i))=OrbOccs(DetCurr(i))+ABS(WSign)
+            enddo
         ENDIF
 
 
@@ -9293,7 +9450,7 @@ END SUBROUTINE DissociateExitgen
 !This is the same as BinSearchParts1, but this time, it searches though the full list of determinants created by the full diagonalizer when the histogramming option is on.
 !This is outside the module so it is accessible to AnnihilateMod
 SUBROUTINE BinSearchParts2(iLut,MinInd,MaxInd,PartInd,tSuccess)
-    use SystemData , only : NIfD, NIfTot
+    use SystemData , only : NIfTot
     use DetCalc , only : FCIDets
     use DetBitOps, only: DetBitLT
     INTEGER :: iLut(0:NIfTot),MinInd,MaxInd,PartInd

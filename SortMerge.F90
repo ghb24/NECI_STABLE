@@ -1,7 +1,7 @@
 ! This code will merge two sorted lists of determinants in bit-format.
 ! On input, nlist1 is the length of list1. List1 must be ordered in increasing
 ! order (this is not checked here).
-! The lists are of integers of length 0:NIfD for each element.
+! The lists are of integers of length 0:NIfTot for each element.
 ! nlist2 is the length of list2. List2 must be ordered in non-decreasing
 ! order (this is not checked here)
 ! list1 must be at least of dimension nlist1+nlist2
@@ -22,7 +22,7 @@
         use DetBitOps, only: DecodeBitDet, DetBitEQ
         USE HElem
         IMPLICIT NONE
-!        INTEGER :: list1(0:NIfD,nlist1max),list2(0:NIfD,1:nlist2)
+!        INTEGER :: list1(0:NIfTot,nlist1max),list2(0:NIfTot,1:nlist2)
         INTEGER :: list2(0:NIfTot,1:nlist2)
         INTEGER :: nlisto,nlist1,nlist2,nlo,i,DetCurr(0:NIfTot) 
         INTEGER :: ips,ips1,SignList2(nlist2)!,SignList1(nlist1max),
@@ -227,7 +227,7 @@
         USE SystemData , only : NEl, NIfTot
         USE HElem
         IMPLICIT NONE
-        INTEGER :: list1(0:NIfTot,nlist1max),list2(0:NIfTot,1:nlist2)
+        INTEGER :: list2(0:NIfTot,1:nlist2)
         INTEGER :: nlisto,nlist1,nlist2,nlo,i,DetCurr(0:NIfTot) 
         INTEGER :: ips,ips1,SignList2(nlist2)!,SignList1(nlist1max)
         REAL*8 :: HDiag
@@ -285,15 +285,15 @@
     END SUBROUTINE MergeLists
 !..............................................................................
 !..find the position in list such that 
-!.. list(0:NIfD,ipos-1) < DetCurr(0:NIfD)
-!.. list(0:NIfD,ipos) ge DetCurr(0:NIfD)
+!.. list(0:NIfTot,ipos-1) < DetCurr(0:NIfTot)
+!.. list(0:NIfTot,ipos) ge DetCurr(0:NIfTot)
 !..list is assumed to be in increasing order
     SUBROUTINE search(n,DetCurr,ipos)
         use SystemData, only: NIfTot
         use DetBitOps, only: DetBitLT
         USE FciMCParMOD , only : CurrentDets
         IMPLICIT NONE
-        INTEGER :: n,DetCurr(0:NIfTot)!,list(0:NIFd,n)
+        INTEGER :: n,DetCurr(0:NIfTot)!,list(0:NIFTot,n)
         INTEGER :: nlo,nup,i,ipos,ncurr,CompPart
 !        logical :: tbin
 !        if(.not.tbin) goto 200
@@ -367,8 +367,8 @@
     END SUBROUTINE Search
 !..............................................................................
 !..find the position in list such that 
-!.. list(0:NIfD,ipos-1) < DetCurr(0:NIfD)
-!.. list(0:NIfD,ipos) ge DetCurr(0:NIfD)
+!.. list(0:NIfTot,ipos-1) < DetCurr(0:NIfTot)
+!.. list(0:NIfTot,ipos) ge DetCurr(0:NIfTot)
 !..list is assumed to be in increasing order
     SUBROUTINE searchgen(n,list,DetCurr,ipos)
         use SystemData, only: NIfTot
@@ -451,11 +451,11 @@
 
 !..............................................................................
 !..find the position in list such that 
-!.. list(0:NIfD,ipos-1) le DetCurr(0:NIfD)
-!.. list(0:NIfD,ipos) ge DetCurr(0:NIfD)
+!.. list(0:NIfTot,ipos-1) le DetCurr(0:NIfTot)
+!.. list(0:NIfTot,ipos) ge DetCurr(0:NIfTot)
 !.. AND
-!.. list2(0:NIfD,ipos-1) < DetCurr2(0:NIfD)
-!.. list2(0:NIfD,ipos) ge DetCurr2(0:NIfD)
+!.. list2(0:NIfTot,ipos-1) < DetCurr2(0:NIfTot)
+!.. list2(0:NIfTot,ipos) ge DetCurr2(0:NIfTot)
 !..list is assumed to be in increasing order
 !..i.e inserting an entry in two lists in the correct position relative to both lists.
     SUBROUTINE searchminor(n,DetCurr,DetCurr2,ipos)

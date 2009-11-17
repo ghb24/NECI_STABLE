@@ -216,5 +216,7 @@ MODULE FciMCData
       INTEGER :: VaryShiftIter                     !This is the iteration that the shift can vary.
       REAL*8 :: AvDiagSft,SumDiagSft                !This is the average diagonal shift value since it started varying, and the sum of the shifts since it started varying.
 
+      REAL*8 , ALLOCATABLE :: HistHamil(:,:),AllHistHamil(:,:),AvHistHamil(:,:),AllAvHistHamil(:,:) !These arrays are for histogramming the hamiltonian when tHistHamil is set.
+
 
 END MODULE FciMCData

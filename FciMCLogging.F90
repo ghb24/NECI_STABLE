@@ -8,7 +8,7 @@ MODULE FciMCLoggingMod
     USE HElem , only : HElement
     USE Logging , only : tPrintTriConnections,TriConMax,NoTriConBins,tHistTriConHEls,NoTriConHElBins,TriConHElSingMax,TriConHElDoubMax
     USE Logging , only : tPrintHElAccept
-    USE SystemData , only : NEl,NIfD,NIfTot
+    USE SystemData , only : NEl,NIfTot
     USE SymData , only : nSymLabels
     USE Determinants , only : GetHElement3,GetHElement4
     use GenRandSymExcitNUMod , only : GenRandSymExcitScratchNU,ScratchSize
@@ -501,7 +501,7 @@ MODULE FciMCLoggingMod
 ! Then find the coupling H element between the original and spin-flipped determinants and add it to the stats.
         USE HPHFRandExcitMod , only : FindExcitBitDetSym 
         use DetBitOps, only: DecodeBitdet
-        use SystemData, only: NIfTot, nel, NIfD
+        use SystemData, only: NIfTot, nel
         INTEGER :: iLutCurr(0:NIfTot),iLutHF(0:NIfTot),i
         INTEGER :: iLutSym(0:NIfTot),nI(NEl),nJ(NEl),nHF(NEl),Ex(2,2)
         TYPE(HElement) :: SpinCoupHEl,HElHFI,HElHFJ
@@ -510,7 +510,7 @@ MODULE FciMCLoggingMod
 ! First get the spin flipped determinant.
 ! Can do this in two ways.  Either flip the spin of all electrons - this means that doubly occupied spat orbs will be unchanged or
 
-        CALL FindExcitBitDetSym(iLutCurr(0:NIfD),iLutSym(0:NIfD))
+        CALL FindExcitBitDetSym(iLutCurr,iLutSym)
 
 
 ! - just flip the sign of the two excited electrons.
@@ -626,6 +626,7 @@ MODULE FciMCLoggingMod
 
 
     SUBROUTINE FindTriConnections(DetCurr,iLutnJ,iLutHF,nJ,IC,Ex,pDoubles,tFilled,tParity,Scratch1,Scratch2,exflag)
+        use systemdata, only: nifd
         TYPE(HElement) :: Hjk,Hij,Hik,HEl
         INTEGER :: iLutnJ(0:NIfTot),k,DetCurr(NEl),nJ(NEl),IC,Ex(2,2),Scratch1(ScratchSize),Scratch2(ScratchSize)
         INTEGER :: nK(NEl),IC2,IC3,Ex2(2,2),iLutnJ2(0:NIfTot),iLutnK(0:NIfTot),BinNo,NoPos,NoNeg,ICgen,iLutHF(0:NIfTot),exflag

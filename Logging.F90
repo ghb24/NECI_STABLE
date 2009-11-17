@@ -4,19 +4,19 @@ MODULE Logging
     Save
 
     INTEGER ILOGGING,ILOGGINGDef,iGlobalTimerLevel,nPrintTimer,G_VMC_LOGCOUNT
-    INTEGER HFLOGLEVEL,iWritePopsEvery
+    INTEGER HFLOGLEVEL,iWritePopsEvery,StartPrintOrbOcc
     INTEGER PreVarLogging,WavevectorPrint,NoHistBins
     REAL*8 MaxHistE,BinRange,OffDiagMax,OffDiagBinRange,TriConMax,TriConHElSingMax,TriConHElDoubMax
     LOGICAL TDistrib,TPopsFile,TCalcWavevector,TDetPops,tROFciDump,tROHistOffDiag,tROHistDoubExc,tROHistOnePartOrbEn
     LOGICAL TZeroProjE,TWriteDetE,TAutoCorr,tBinPops,tROHistogramAll,tROHistER,tHistSpawn,tROHistSingExc,tRoHistOneElInts
     LOGICAL tROHistVirtCoulomb,tPrintInts,tHistEnergies,tPrintTriConnections,tHistTriConHEls,tPrintHElAccept,tTruncRODump
     LOGICAL tPrintFCIMCPsi,tCalcFCIMCPsi,tPrintSpinCoupHEl,tIterStartBlock,tHFPopStartBlock,tInitShiftBlocking,tTruncDumpbyVal
-    LOGICAL tWriteTransMat,tPrintOrbOcc
+    LOGICAL tWriteTransMat,tHistHamil,tPrintOrbOcc
     INTEGER NoACDets(2:4),iPopsPartEvery,iWriteHistEvery,iNoBins,NoTriConBins,NoTriConHElBins,NHistEquilSteps
     INTEGER CCMCDebug !CCMC Debugging Level 0-6.  Default 0
-    INTEGER IterStartBlocking,HFPopStartBlocking,NoDumpTruncs,NoTruncOrbsTag,TruncEvaluesTag
+    INTEGER IterStartBlocking,HFPopStartBlocking,NoDumpTruncs,NoTruncOrbsTag,TruncEvaluesTag,iWriteHamilEvery,OrbOccsTag
     INTEGER , ALLOCATABLE :: NoTruncOrbs(:)
-    REAL*8 , ALLOCATABLE :: TruncEvalues(:)
+    REAL*8 , ALLOCATABLE :: TruncEvalues(:),OrbOccs(:)
 
 
 
@@ -33,6 +33,8 @@ MODULE Logging
       BinRange=0.001
       iNoBins=100000
       tHistEnergies=.false.
+      tHistHamil=.false.
+      iWriteHamilEvery=-1
       tHistSpawn=.false.
       iWriteHistEvery=-1
       NoACDets(:)=0
@@ -78,6 +80,7 @@ MODULE Logging
       tCalcFCIMCPsi=.false.
       NHistEquilSteps=0
       tPrintOrbOcc=.false.
+      StartPrintOrbOcc=0
       CCMCDebug=0
       tHFPopStartBlock=.true.
       tIterStartBlock=.false.
@@ -370,6 +373,11 @@ MODULE Logging
 !which can be diagonalized. It requires a diagonalization initially to work. It can write out the average wavevector every iWriteHistEvery.
             tHistSpawn=.true.
             IF(item.lt.nitems) call readi(iWriteHistEvery)
+        case("HISTHAMIL")
+!This option will histogram the spawned hamiltonian, averaged over all previous iterations. It scales horrifically and can only be done for small systems
+!which can be diagonalized. It will write out the hamiltonian every iWriteHamilEvery.
+            tHistHamil=.true.
+            IF(item.lt.nitems) call readi(iWriteHamilEvery)
         case("PRINTFCIMCPSI")
             tPrintFCIMCPsi=.true.
             tCalcFCIMCPsi=.true.
@@ -380,6 +388,7 @@ MODULE Logging
 !This option initiates the above histogramming of determinant populations and then at the end of the spawning uses these to find the normalised  
 !contribution of each orbital to the total wavefunction.  
             tPrintOrbOcc=.true.
+            IF(item.lt.nitems) call readi(StartPrintOrbOcc)
         case("POPSFILE")
 ! This is so that the determinants at the end of the MC run are written
 ! out, to enable them to be read back in using READPOPS in the Calc section,

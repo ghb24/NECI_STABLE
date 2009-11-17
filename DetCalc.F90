@@ -45,6 +45,8 @@ MODULE DetCalc
       INTEGER :: tagCK=0, tagCKN=0
       REAL*8, pointer :: W(:)  ! (nEval) This will contain the eigenvalues
       INTEGER tagW
+
+      REAL*8 , ALLOCATABLE :: ExpandedHamil(:,:)    ! (NDet,NDet) This is the hamiltonian in expanded form, so that it can be histogrammed against.
     
 CONTAINS
     Subroutine DetCalcInit
@@ -284,9 +286,10 @@ CONTAINS
       Use HElem
       use Determinants , only : GetHElement3,FDet
       use SystemData, only : Alat, arr, brr, boa, box, coa, ecore, g1,Beta
+      use SystemData, only : nBasis, nBasisMax,nEl,nMsh,LzTot,NIfTot
       use SystemData, only : nBasis, nBasisMax,nEl,nMsh,NIfTot
       use IntegralsData, only: FCK,NMAX, UMat
-      Use Logging, only: iLogging,tHistSpawn
+      Use Logging, only: iLogging,tHistSpawn,tHistHamil
       use SystemData, only  : tCSF
       use Parallel, only : iProcIndex
       use DetBitops, only: EncodeBitDet, DetBitEQ
@@ -298,13 +301,13 @@ CONTAINS
 
       integer :: LabTag=0,NRowTag=0,TKETag=0,ATag=0,VTag=0,AMTag=0,BMTag=0,TTag=0
       INTEGER :: WTTag=0,SCRTag=0,ISCRTag=0,INDEXTag=0,WHTag=0,Work2Tag=0,V2Tag=0,WorkTag=0
-      integer :: ierr
+      integer :: ierr,Lz
       character(25), parameter :: this_routine = 'DoDetCalc'
       REAL*8 EXEN,GSEN,FLRI,FLSI
         Type(BasisFn) ISym,IHFSYM
 
         INTEGER GC,I,ICMAX,MaxDet,Bits
-        INTEGER iDeg,III,IN
+        INTEGER iDeg,III,IN,IND,INDZ
         INCLUDE 'irat.inc'
         INTEGER NBLOCK!,OpenOrbs,OpenOrbsSym,Ex(2,NEl)
         INTEGER nKry1,ilut(0:NIfTot),nK(NEl)!,iLutSym(0:NIfD),nJ(NEl)
@@ -362,6 +365,36 @@ CONTAINS
          LAB(1:LENHAMIL)=0
 !C..Now we store HAMIL and LAB 
          CALL DETHAM(NDET,NEL,NMRKS,NBASISMAX,nBasis,HAMIL,G1,LAB,NROW,.FALSE.,NMSH,FCK,NMAX,ALAT,UMAT,ICMAX,GC,TMC,ECORE,BRR)
+      
+         IF(tHistHamil) THEN
+!We are storing the entire hamiltonain in expanded form, to histogram against in the spawning routines.
+             ALLOCATE(ExpandedHamil(NDet,NDet),stat=ierr)
+             IF(ierr.ne.0) CALL Stop_All("DetCalc","Cannot allocate memory to hold ExpandedHamil")
+             DO I=1,NDet
+                DO J=1,NDet
+                   ExpandedHamil(I,J)=0.D0
+                ENDDO
+             ENDDO
+             IND=1
+             INDZ=1
+             DO I=1,NDet
+                INDZ=INDZ+NROW(I)
+                DO WHILE (IND.LT.INDZ)
+                   ExpandedHamil(I,LAB(IND))=REAL(HAMIL(IND)%v,8)
+                   ExpandedHamil(LAB(IND),I)=REAL(HAMIL(IND)%v,8)
+                   IND=IND+1
+                ENDDO
+             ENDDO
+             OPEN(8,FILE='FULLHAMIL',STATUS='UNKNOWN')
+             DO I=1,NDET
+                 DO J=1,NDET
+                     WRITE(8,*) J,I,ExpandedHamil(J,I)
+                 ENDDO
+                 WRITE(8,*) ""
+             ENDDO
+             CLOSE(8)
+             DEALLOCATE(ExpandedHamil)
+         ENDIF
 
          IF(BTEST(ILOGGING,7)) THEN
 !C.. we write out H now
@@ -525,6 +558,7 @@ CONTAINS
 !      IF(TCALCHMAT.AND..NOT.(TMONTE.AND.TMC)) THEN
 !      ENDIF
 
+
 !C.. IF we want to compress the found determinants for use later...
       IF(tFindDets) THEN 
          IF(tCompressDets) THEN
@@ -563,11 +597,12 @@ CONTAINS
             FCIDetIndex(:)=0
             do i=1,NDet
                 CALL GETSYM(NMRKS(1,i),NEL,G1,NBASISMAX,ISYM)
+                CALL GetLz(NMRKS(1,i),NEL,Lz)
 !                IF((NMRKS(1,i).eq.28).and.(NMRKS(2,i).eq.29).and.(NMRKS(3,i).eq.30).and.(NMRKS(4,i).eq.31)) THEN
 !                    WRITE(6,*) "Found Det: ",NMRKS(:,i)
 !                    WRITE(6,*) i,iSym%Sym%S,REAL(CK(i)%v,8)
 !                ENDIF
-                IF(ISym%Sym%S.eq.IHFSYM%Sym%S) THEN
+                IF((ISym%Sym%S.eq.IHFSYM%Sym%S).and.(Lz.eq.LzTot)) THEN
                     Det=Det+1
                     ExcitLevel=iGetExcitLevel_2(FDet,NMRKS(:,i),NEl,NEl)
 ! FCIDetIndex is off by one, for later cumulative indexing
@@ -892,6 +927,7 @@ END MODULE DetCalc
      &   DETINV,TSPECDET,SPECDET)
          use HElem
          use SystemData, only: BasisFN
+         use CalcData, only: tFCIMC
          use global_utilities
          use DetCalc, only: NMRKS
          implicit none
@@ -1024,6 +1060,9 @@ END MODULE DetCalc
 !.. we calculate the energy with weightings normalized to the weight of
 !.. the Fermi determinant, otherwise the numbers blow up
             WINORM=EXP(I_P*(WLRI-WLRI0)+(WLSI-WLSI0))
+            IF(tFCIMC) THEN
+                WINORM=1.D0
+            ENDIF
             NORM=NORM+WINORM
             TOT=TOT+WINORM*DREAL(DLWDB)
             WRITE(42,*) DLWDB
