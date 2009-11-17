@@ -24,7 +24,7 @@ MODULE GenRandSymExcitNUMod
       !  These are forbidden since they have no possible b orbital which will give rise to a symmetry and
       !  spin allowed unoccupied a,b pair. The number of these orbitals, Q, is needed to calculate the
       !  normalised probability of generating the excitation.
-    use SystemData, only: ALAT,iSpinSkip,tFixLz,iMaxLz,NIfTot
+    use SystemData, only: ALAT,iSpinSkip,tFixLz,iMaxLz,NIfTot,tUEG
     use SystemData, only: nEl,G1, nBasis,nBasisMax,tNoSymGenRandExcits,tMerTwist
     use SystemData, only: Arr,nMax,tCycleOrbs,nOccAlpha,nOccBeta,ElecPairs,MaxABPairs
     use IntegralsData, only: UMat
@@ -60,6 +60,10 @@ MODULE GenRandSymExcitNUMod
         IF(.not.tFilled) THEN
             IF(.not.TwoCycleSymGens) THEN
 !Currently only available for molecular systems, or without using symmetry.
+                IF(tUEG) THEN
+                    call CreateDoubExcitUEG(nI,iLut,nJ,tParity,ExcitMat,pGen)
+                    RETURN
+                ENDIF       
                 IF(.not.tNoSymGenRandExcits) THEN
                     WRITE(6,*) "GenRandSymExcitNU can only be used for molecular systems"
                     WRITE(6,*) "This is because of difficulties with other symmetries setup."
@@ -163,6 +167,10 @@ MODULE GenRandSymExcitNUMod
 
         IF(.not.TwoCycleSymGens) THEN
 !Currently only available for molecular systems, or without using symmetry.
+            IF(tUEG) THEN
+                call CreateDoubExcitUEG(nI,iLut,nJ,tParity,ExcitMat,pGen)
+                RETURN
+            ENDIF       
             IF(.not.tNoSymGenRandExcits) THEN
                 WRITE(6,*) "GenRandSymExcitNU can only be used for molecular systems"
                 WRITE(6,*) "This is because of difficulties with other symmetries setup."
@@ -1654,6 +1662,10 @@ MODULE GenRandSymExcitNUMod
 
         IF(.not.TwoCycleSymGens) THEN
 !Currently only available for molecular systems, or without using symmetry.
+            IF(tUEG) THEN
+                call CreateDoubExcitUEG(nI,iLut,nJ,tParity,ExcitMat,pGen)
+                RETURN
+            ENDIF       
             IF(.not.tNoSymGenRandExcits) THEN
                 WRITE(6,*) "GenRandSymExcitBiased can only be used for molecular systems"
                 WRITE(6,*) "This is because of difficulties with other symmetries setup."
@@ -2107,6 +2119,185 @@ MODULE GenRandSymExcitNUMod
 
     END SUBROUTINE CalcAllab
 
+    SUBROUTINE CreateDoubExcitUEG(nI,iLutnI,nJ,tParity,ExcitMat,pGen)
+
+        Use SystemData , only : G1,NEl,tMerTwist,nOccAlpha,nOccBeta
+        Use SystemData , only : NMAXX,NMAXY,NMAXZ,NIfTot
+        use mt95 , only : genrand_real2
+
+        INTEGER :: i,nI(NEl),nJ(NEl),Elec1Ind,Elec2Ind,SymProduct,iSpn,SumMl,iLutnI(0:NIfTot)
+        INTEGER :: ChosenUnocc,Hole1BasisNum,Hole2BasisNum,ki(3),kj(3),ka(3),kb(3),ExcitMat(2,2)
+        LOGICAL :: tAllowedExcit,tParity
+        REAL*8 :: r,pGen,pAIJ
+!        INTEGER , SAVE :: Iter=0, iNumNotAccepted=0 ! DEBUG
+!        INTEGER :: iPrintEvery              ! DEBUG
+
+!        Iter=Iter+1                         ! DEBUG
+!        iPrintEvery=1000                        ! DEBUG
+
+        CALL PickElecPair(nI,Elec1Ind,Elec2Ind,SymProduct,iSpn,SumMl,-1)
+
+        ! This chooses an a of the correct spin, excluding occupied orbitals
+        ! This currently allows b orbitals to be created that are disallowed
+        DO
+            IF(tMerTwist) THEN
+                CALL genrand_real2(r)
+            ELSE
+                CALL RANLUX(r,1)
+            ENDIF
+            ! Choose a 
+            IF (iSpn.eq.2) THEN ! alpha/beta combination
+                ChosenUnocc=INT(nBasis*r)+1
+            ELSE ! alpha/alpha, beta/beta
+                ChosenUnocc=2*INT(nBasis/2*r)-(1-(iSpn/3)) ! alpha numbered even, iSpn/3 returns 1 for alpha/alpha, 0 for beta/beta
+            ENDIF
+            ! Check a isn't occupied
+            IF(.not.(BTEST(iLutnI((ChosenUnocc-1)/32),MOD(ChosenUnocc-1,32)))) THEN
+            !Orbital not in nI. Accept.
+                EXIT
+            ENDIF
+        ENDDO
+
+        Hole1BasisNum=ChosenUnocc
+
+        ! kb is now uniquely defined
+        ki=G1(nI(Elec1Ind))%k
+        kj=G1(nI(Elec2Ind))%k
+        ka=G1(Hole1BasisNum)%k
+        kb=ki+kj-ka
+
+        ! Is kb allowed by the size of the space?
+        ! Currently only applies when NMAXX etc. are set by the CELL keyword
+        ! Not sure what happens when an energy cutoff is set
+        tAllowedExcit=.true.
+        IF(ABS(kb(1)).gt.NMAXX) tAllowedExcit=.false.
+        IF(ABS(kb(2)).gt.NMAXY) tAllowedExcit=.false.
+        IF(ABS(kb(3)).gt.NMAXZ) tAllowedExcit=.false.
+        IF(.not.tAllowedExcit) THEN
+            nJ(1)=0
+!            iNumNotAccepted=iNumNotAccepted+1 ! DEBUG
+            RETURN
+        ENDIF
+        
+        ! Which orbital has momentum kb?
+        IF (iSpn.eq.2) THEN
+            Hole2BasisNum=2*((NMAXZ*2+1)*(NMAXY*2+1)*(kb(1)+NMAXX)+(NMAXZ*2+1)*(kb(2)+NMAXY)+(kb(3)+NMAXZ)+1)-(1+G1(Hole1BasisNum)%Ms)/2
+        ELSE
+            Hole2BasisNum=2*((NMAXZ*2+1)*(NMAXY*2+1)*(kb(1)+NMAXX)+(NMAXZ*2+1)*(kb(2)+NMAXY)+(kb(3)+NMAXZ)+1)-1+iSpn/3
+        ENDIF
+
+        ! Is b occupied?
+        IF(BTEST(iLutnI((Hole2BasisNum-1)/32),MOD(Hole2BasisNum-1,32))) THEN
+        !Orbital is in nI. Reject.
+            tAllowedExcit=.false.
+        ENDIF
+        
+        IF(.not.tAllowedExcit) THEN
+            nJ(1)=0
+!            iNumNotAccepted=iNumNotAccepted+1 ! DEBUG
+            RETURN
+        ENDIF
+
+        ! Check that the correct kb has been found -- can be commented out later
+        DO i=1,3
+            IF ((G1(nI(Elec2Ind))%k(i)+G1(nI(Elec1Ind))%k(i)-G1(Hole1BasisNum)%k(i)-G1(Hole2BasisNum)%k(i)) .ne. 0) THEN
+                WRITE(6,*) "Tried to excite " 
+                WRITE(6,*) "ki ", ki 
+                WRITE(6,*) "kj ", kj
+                WRITE(6,*) "ka ", ka
+                WRITE(6,*) "kb should be ", kb
+                CALL Stop_All("CreateDoubExcitUEG", "Wrong b found")
+            ENDIF
+        ENDDO
+
+        CALL FindNewDet(nI,nJ,Elec1Ind,Elec2Ind,Hole1BasisNum,Hole2BasisNum,ExcitMat,tParity)
+
+!        IF(mod(Iter,iPrintEvery).eq.0) THEN
+!            write(6,*) Iter, iNumNotAccepted
+!        ENDIF
+
+        !Calculate generation probabilities
+        IF (iSpn.eq.2) THEN
+            pAIJ=1.0/(nBasis-Nel)
+        ELSEIF (iSpn.eq.1) THEN
+            pAIJ=1.0/(nBasis/2-nOccBeta)
+        ELSE
+            !iSpn = 3
+            pAIJ=1.0/(nBasis/2-nOccAlpha)
+        ENDIF
+        ! Note, p(b|ij)=p(a|ij) for this system
+        pGen=2.0/(NEl*(NEl-1))*2.0*pAIJ
+
+    END SUBROUTINE CreateDoubExcitUEG
+
+    SUBROUTINE CreateDoubExcitUEGNoFail(nI,iLutnI,nJ,tParity,ExcitMat,pGen)
+        Use SystemData , only : G1,NEl,tMerTwist
+        Use SystemData , only : NMAXX,NMAXY,NMAXZ,NIfTot
+        use mt95 , only : genrand_real2
+
+        INTEGER :: i,j ! Loop variables
+        INTEGER :: nI(NEl),nJ(NEl),Elec1Ind,Elec2Ind,ExcitMat(2,2),iLutnI(0:NIfTot)
+        INTEGER :: ki(3),kj(3),kTrial(3),iElecInExcitRange,iExcludedKFromElec1
+        INTEGER :: KaXLowerLimit,KaXUpperLimit,KaXRange,KaYLowerLimit,KaYUpperLimit,KaYRange,KaZLowerLimit,KaZUpperLimit,KaZRange
+        LOGICAL :: tParity,tDoubleCount
+        REAL*8 :: r,pGen,pAIJ
+        INTEGER, ALLOCATABLE :: Excludedk(:,:)
+
+        DO 
+            CALL CreateDoubExcitUEG(nI,iLutnI,nJ,tParity,ExcitMat,pGen)
+            IF (nJ(1).ne.0) EXIT
+        ENDDO
+
+        ki=G1(nI(Elec1Ind))%k
+        kj=G1(nI(Elec2Ind))%k
+        KaXLowerLimit=MAX(-NMAXX,ki(1)-(NMAXX-kj(1)))
+        KaXUpperLimit=MIN(NMAXX,ki(1)+(NMAXX+kj(1)))
+        KaXRange=KaXUpperLimit-KaXLowerLimit
+        KaYLowerLimit=MAX(-NMAXX,ki(2)-(NMAXX-kj(2)))
+        KaYUpperLimit=MIN(NMAXX,ki(2)+(NMAXX+kj(2)))
+        KaYRange=KaXUpperLimit-KaXLowerLimit
+        KaZLowerLimit=MAX(-NMAXX,ki(3)-(NMAXX-kj(3)))
+        KaZUpperLimit=MIN(NMAXX,ki(3)+(NMAXX+kj(3)))
+        KaZRange=KaXUpperLimit-KaXLowerLimit
+
+        iElecInExcitRange=0
+        ALLOCATE(Excludedk(NEl,3))
+        DO i=1,NEl
+            IF(G1(nI(i))%Ms.ne.G1(nI(Elec1Ind))%Ms) CYCLE
+            kTrial=G1(nI(i))%k
+            IF(kTrial(1).lt.KaXLowerLimit) CYCLE
+            IF(kTrial(1).gt.KaXUpperLimit) CYCLE
+            IF(kTrial(2).lt.KaYLowerLimit) CYCLE
+            IF(kTrial(2).gt.KaYUpperLimit) CYCLE
+            IF(kTrial(3).lt.KaZLowerLimit) CYCLE
+            IF(kTrial(3).gt.KaZUpperLimit) CYCLE
+            iElecInExcitRange=iElecInExcitRange+1
+            Excludedk(iElecInExcitRange,:)=kTrial
+        ENDDO
+        iExcludedKFromElec1=iElecInExcitRange
+        DO i=1,NEl
+            IF(G1(nI(i))%Ms.ne.G1(nI(Elec2Ind))%Ms) CYCLE
+            kTrial=ki+kj-G1(nI(i))%k
+            IF(kTrial(1).lt.KaXLowerLimit) CYCLE
+            IF(kTrial(1).gt.KaXUpperLimit) CYCLE
+            IF(kTrial(2).lt.KaYLowerLimit) CYCLE
+            IF(kTrial(2).gt.KaYUpperLimit) CYCLE
+            IF(kTrial(3).lt.KaZLowerLimit) CYCLE
+            IF(kTrial(3).gt.KaZUpperLimit) CYCLE
+    ! Need to check for this k-point already having been eliminated
+    ! by the previous loop over electrons
+            tDoubleCount=.false.
+            DO j=1,iExcludedKFromElec1
+                IF((Excludedk(j,1).eq.kTrial(1)).and.(Excludedk(j,2).eq.kTrial(2)).and.Excludedk(j,3).eq.kTrial(3)) tDoubleCount=.true.
+            ENDDO
+            IF(.not.tDoubleCount) iElecInExcitRange=iElecInExcitRange+1
+        ENDDO
+        DEALLOCATE(Excludedk)
+
+        pAIJ=1/(KaXRange*KaYRange*KaZRange-iElecInExcitRange)
+        pGen=2.0/(NEl*(NEl-1))*2.0*pAIJ
+
+    END SUBROUTINE CreateDoubExcitUEGNoFail
 
 END MODULE GenRandSymExcitNUMod
 
