@@ -2246,36 +2246,6 @@ MODULE GenRandSymExcitNUMod
         LOGICAL :: tParity,tDoubleCount
         REAL*8 :: r,pGen,pAIJ
         INTEGER, ALLOCATABLE :: Excludedk(:,:)
-!        IF(tMerTwist) THEN
-!            CALL genrand_real2(r(1))
-!            CALL genrand_real2(r(2))
-!            CALL genrand_real2(r(3))
-!        ELSE
-!            CALL RANLUX(r,3)
-!        ENDIF
-!        
-!        ki=G1(nI(Elec1Ind))%k
-!        kj=G1(nI(Elec2Ind))%k
-!
-!        iAllowedAb=0
-!        ALLOCATE(AllowedAbMatrix(2*NMAXX+1,2))
-!        DO i=-NMAXX,NMAXX
-!            kaTrial=(/i,ki(2),ki(3)/)
-!            kbTrial=(/ki(1)+kj(1)-i,kj(2),kj(3)/)
-!            IF(ABS(kbTrial(1)).gt.NMAXX) CYCLE
-!            IF(ABS(kbTrial(2)).gt.NMAXY) CYCLE
-!            IF(ABS(kbTrial(3)).gt.NMAXZ) CYCLE
-!            aTrialOrbNum=2*((NMAXZ*2+1)*(NMAXY*2+1)*(kaTrial(1)+NMAXX)+(NMAXZ*2+1)*(kaTrial(2)+NMAXY)+(kaTrial(3)+NMAXZ)+1)-(1-G1(nIElec1Ind)%Ms)/2 ! Generate orbital, same spin as elec1
-!            IF(BTEST(iLutnI((aTrialOrbNum-1)/32),MOD(aTrialOrbNum-1,32))) CYCLE ! Orbital is in nI, reject
-!            bTrialOrbNum=2*((NMAXZ*2+1)*(NMAXY*2+1)*(kbTrial(1)+NMAXX)+(NMAXZ*2+1)*(kbTrial(2)+NMAXY)+(kbTrial(3)+NMAXZ)+1)-(1-G1(nIElec2Ind)%Ms)/2 ! Generate orbital, same spin as elec2
-!            IF(BTEST(iLutnI((aTrialOrbNum-1)/32),MOD(aTrialOrbNum-1,32))) CYCLE ! Orbital is in nI, reject
-!            ! This ab pair is now allowed
-!            iAllowedAb=iAllowedAb+1
-!            AllowedAbMatrix(iAllowedAb,1)=aTrialOrbNum
-!            AllowedAbMatrix(iAllowedAb,2)=bTrialOrbNum
-!        ENDDO
-!        pGen_x=1.0/iAllowedAb
-!        ChosenAb=INT(iAllowedAb*r(1))+1
 
         DO 
             CALL CreateDoubExcitUEG(nI,iLutnI,nJ,tParity,ExcitMat,pGen)
@@ -2329,6 +2299,7 @@ MODULE GenRandSymExcitNUMod
         DEALLOCATE(Excludedk)
 
         pAIJ=1/(KaXRange*KaYRange*KaZRange-iElecInExcitRange)
+        pGen=2.0/(NEl*(NEl-1))*2.0*pAIJ
 
     END SUBROUTINE CreateDoubExcitUEGNoFail
 
