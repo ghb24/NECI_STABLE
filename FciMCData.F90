@@ -53,6 +53,7 @@ MODULE FciMCData
       TYPE(ExcitPointer) , POINTER :: CurrentExcits(:), NewExcits(:)
 
       INTEGER :: ParentInitiator,NoAborted,AllNoAborted                     !This is a variable for the CASSTAR approximation - keeps track of where spawned walkers have come from.
+      INTEGER :: NoAbortedInCAS,NoAbortedOutCAS,NoInCAS,NoOutCAS
     
       INTEGER , ALLOCATABLE :: HFDet(:)       !This will store the HF determinant
       INTEGER :: HFDetTag=0

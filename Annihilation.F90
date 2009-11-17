@@ -263,6 +263,7 @@ MODULE AnnihilationMod
     END SUBROUTINE CompressSpawnedList
     
     INTEGER FUNCTION DetermineDetProc(iLut)
+        use systemdata , only: NIfDBO
         INTEGER :: iLut(0:NIfTot),i,j,Elecs!,TempDet(NEl),MurmurHash2Wrapper
         INTEGER(KIND=i2) :: Summ!,RangeofBins,NextBin
 
@@ -272,7 +273,7 @@ MODULE AnnihilationMod
         
         Summ=0
         Elecs=0
-        lp2: do i=0,NIfTot
+        lp2: do i=0,NIfDBO
             do j=0,31
                 IF(BTEST(iLut(i),j)) THEN
                     Elecs=Elecs+1
@@ -1476,6 +1477,7 @@ MODULE AnnihilationMod
 !                MinInd=PartInd      !Make sure we only have a smaller list to search next time since the next particle will not be at an index smaller than PartInd
 !                AnnihilateInd=0     !AnnihilateInd indicates the index in CurrentDets of the particle we want to annihilate. It will remain 0 if we find not complimentary particle.
 !                tSkipSearch=.false. !This indicates whether we want to continue searching forwards through the list once we exit the loop going backwards.
+!                WRITE(6,'(3I20,A,3I20)') SpawnedParts(:,i),' equals ',CurrentDets(:,PartInd)
                 
                 SignProd=CurrentSign(PartInd)*SpawnedSign(i)
                 IF(SignProd.lt.0) THEN
@@ -1521,6 +1523,7 @@ MODULE AnnihilationMod
 !then it is like these have been spawned on an unoccupied determinant and they are killed.
                             IF(SpawnedParts(NIfTot,i).eq.1) THEN
                                 NoAborted=NoAborted+ABS(SpawnedSign(i))
+!                                WRITE(6,'(I20,A,3I20)') SpawnedSign(i),'walkers aborted from determinant:',SpawnedParts(:,i)
                                 SpawnedSign(i)=0
                                 ToRemove=ToRemove+1
                             ENDIF
@@ -1584,6 +1587,7 @@ MODULE AnnihilationMod
 !If doing a CAS star calculation - then if the signs on the current list is 0, and the walkers in the spawned list came from outside the cas space, these need to be killed.                        
                         IF(SpawnedParts(NIfTot,i).eq.1) THEN
                             NoAborted=NoAborted+ABS(SpawnedSign(i))
+!                            WRITE(6,'(I20,A,3I20)') SpawnedSign(i),'walkers aborted from determinant:',SpawnedParts(:,i)
                             SpawnedSign(i)=0
                             ToRemove=ToRemove+1
                         ENDIF
@@ -1668,6 +1672,7 @@ MODULE AnnihilationMod
 !spawned on an unoccupied determinant.
                 IF(SpawnedParts(NIfTot,i).eq.1) THEN    !Walkers came from outside cas space.
                     NoAborted=NoAborted+ABS(SpawnedSign(i))
+!                    WRITE(6,'(I20,A,3I20)') SpawnedSign(i),'walkers aborted from determinant:',SpawnedParts(:,i)
                     SpawnedSign(i)=0
                     ToRemove=ToRemove+1
                 ENDIF

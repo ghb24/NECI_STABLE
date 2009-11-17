@@ -464,7 +464,14 @@ MODULE FciMCParMod
             CALL FLUSH(11)
         ENDIF
 
-        IF(tDelayTruncInit.and.(Iter.ge.IterTruncInit)) tTruncInitiator=.true.
+        IF(tDelayTruncInit.and.(Iter.ge.IterTruncInit)) THEN 
+            IF(Iter.eq.IterTruncInit) THEN
+                Tau=Tau/10.D0
+                CALL MPI_BCast(Tau,1,MPI_DOUBLE_PRECISION,i,MPI_COMM_WORLD,error)
+                IF(iProcIndex.eq.0) WRITE(6,*) 'Beginning truncated initiator calculation and reducing tau by a factor of 10. New tau is : ',Tau
+            ENDIF
+            tTruncInitiator=.true.
+        ENDIF
 
 !        IF(tRotoAnnihil) THEN
 !            CALL CheckOrdering(CurrentDets(:,1:TotWalkers),CurrentSign(1:TotWalkers),TotWalkers,.true.)
@@ -490,7 +497,7 @@ MODULE FciMCParMod
         ParticleWeight=1    !This will always be the same unless we are 'spawning as determinants'
 
         CALL InitHistMin()
-        
+
         do j=1,TotWalkers
 !j runs through all current walkers
 !If we are rotoannihilating/direct annihilating, the sign indicates the sum of the signs on the determinant, and hence j loops over determinants, not particles.
@@ -498,6 +505,7 @@ MODULE FciMCParMod
 !            CALL FLUSH(6)
 
 !First, decode the bit-string representation of the determinant the walker is on, into a string of naturally-ordered integers
+!            WRITE(6,*) 'CurrentDet (bit)',CurrentDets(:,j)
             CALL DecodeBitDet(DetCurr,CurrentDets(:,j))
 
 !            IF((Iter.gt.100)) THEN!.and.(.not.DetBitEQ(CurrentDets(:,j),iLutHF))) THEN
@@ -619,6 +627,8 @@ MODULE FciMCParMod
 
             do p=1,Loop
 !If rotoannihilating, we are simply looping over all the particles on the determinant
+                nJ(:)=0
+                iLutnJ(:)=0
 
                 IF(.not.tImportanceSample) THEN
                     IF(.not.TRegenExcitgens) THEN
@@ -651,6 +661,7 @@ MODULE FciMCParMod
                                     CALL GenRandHPHFExcit2Scratch(DetCurr,CurrentDets(:,j),nJ,iLutnJ,pDoubles,exFlag,Prob,Scratch1,Scratch2,tFilled,tGenMatHEl)
                                 ELSE
                                     CALL GenRandSymExcitScratchNU(DetCurr,CurrentDets(:,j),nJ,pDoubles,IC,Ex,tParity,exFlag,Prob,Scratch1,Scratch2,tFilled)
+!                                    WRITE(6,'(A,8I3)') 'determinant generated for spawning',nJ
                                 ENDIF
                             ELSE
                                 CALL GetPartRandExcitPar(DetCurr,CurrentDets(:,j),nJ,IC,0,Prob,iCount,WalkExcitLevel,Ex,tParity)
@@ -752,7 +763,11 @@ MODULE FciMCParMod
 
                     ELSE
 
+!                        WRITE(6,'(A,3I20,A,8I3)') 'Child to be created from:',CurrentDets(:,j),' which is ',DetCurr(:)
+!                        WRITE(6,'(A,3I20,A,8I3)') 'Child to be created on:',iLutnJ(:),' which is ',nJ(:)
                         Child=AttemptCreatePar(DetCurr,CurrentDets(:,j),CurrentSign(j),nJ,iLutnJ,Prob,IC,Ex,tParity,ParticleWeight,tMinorDetList)
+!                        WRITE(6,'(A,3I20)') 'Child to be created on:',iLutnJ(:)
+!                        WRITE(6,*) 'Child',Child
                     ENDIF
 
                 ENDIF
@@ -815,13 +830,15 @@ MODULE FciMCParMod
 !In direct annihilation, we spawn particles into a seperate array, but we do not store them contiguously in the SpawnedParts/SpawnedSign arrays.
 !The processor that the newly-spawned particle is going to be sent to has to be determined, and then it will get put into the the appropriate element determined by ValidSpawnedList.
 
+!                        WRITE(6,'(A,3I20)') 'when dealing with directannihilation',iLutnJ(:)
                         Proc=DetermineDetProc(iLutnJ)   !This wants to return a value between 0 -> nProcessors-1
 !                        WRITE(6,*) iLutnJ(:),Proc,ValidSpawnedList(Proc),Child,TotWalkers
 !                        CALL FLUSH(6)
                         SpawnedParts(:,ValidSpawnedList(Proc))=iLutnJ(:)
                         SpawnedSign(ValidSpawnedList(Proc))=Child
-                        ValidSpawnedList(Proc)=ValidSpawnedList(Proc)+1
                         IF(tTruncInitiator) SpawnedParts(NIfTot,ValidSpawnedList(Proc))=ParentInitiator
+!                        WRITE(6,*) 'SpawnedParts',SpawnedParts(:,ValidSpawnedList(Proc))
+                        ValidSpawnedList(Proc)=ValidSpawnedList(Proc)+1
 !Set the last integer of the determinant in SpawnedParts to be either 0 or 1 according to whether it's parent is inside or outside the active space.
 
                     ELSE
