@@ -2133,6 +2133,11 @@ MODULE GenRandSymExcitNUMod
         INTEGER :: ChosenUnocc,Hole1BasisNum,Hole2BasisNum,ki(3),kj(3),ka(3),kb(3),ExcitMat(2,2)
         LOGICAL :: tAllowedExcit,tParity
         REAL*8 :: r,pGen,pAIJ
+!        INTEGER , SAVE :: Iter=0, iNumNotAccepted=0 ! DEBUG
+!        INTEGER :: iPrintEvery              ! DEBUG
+
+!        Iter=Iter+1                         ! DEBUG
+!        iPrintEvery=1000                        ! DEBUG
 
         CALL PickElecPair(nI,Elec1Ind,Elec2Ind,SymProduct,iSpn,SumMl,-1)
 
@@ -2174,6 +2179,7 @@ MODULE GenRandSymExcitNUMod
         IF(ABS(kb(3)).gt.NMAXZ) tAllowedExcit=.false.
         IF(.not.tAllowedExcit) THEN
             nJ(1)=0
+!            iNumNotAccepted=iNumNotAccepted+1 ! DEBUG
             RETURN
         ENDIF
         
@@ -2192,6 +2198,7 @@ MODULE GenRandSymExcitNUMod
         
         IF(.not.tAllowedExcit) THEN
             nJ(1)=0
+!            iNumNotAccepted=iNumNotAccepted+1 ! DEBUG
             RETURN
         ENDIF
 
@@ -2203,12 +2210,15 @@ MODULE GenRandSymExcitNUMod
                 WRITE(6,*) "kj ", kj
                 WRITE(6,*) "ka ", ka
                 WRITE(6,*) "kb should be ", kb
-                WRITE(6,*) "kb is ", G1(Hole2BasisNum)%k
                 CALL Stop_All("CreateDoubExcitUEG", "Wrong b found")
             ENDIF
         ENDDO
 
         CALL FindNewDet(nI,nJ,Elec1Ind,Elec2Ind,Hole1BasisNum,Hole2BasisNum,ExcitMat,tParity)
+
+!        IF(mod(Iter,iPrintEvery).eq.0) THEN
+!            write(6,*) Iter, iNumNotAccepted
+!        ENDIF
 
         !Calculate generation probabilities
         IF (iSpn.eq.2) THEN
@@ -2224,6 +2234,103 @@ MODULE GenRandSymExcitNUMod
 
     END SUBROUTINE CreateDoubExcitUEG
 
+    SUBROUTINE CreateDoubExcitUEGNoFail(nI,iLutnI,nJ,tParity,ExcitMat,pGen)
+        Use SystemData , only : G1,NEl,tMerTwist
+        Use SystemData , only : NMAXX,NMAXY,NMAXZ,NIfTot
+        use mt95 , only : genrand_real2
+
+        INTEGER :: i,j ! Loop variables
+        INTEGER :: nI(NEl),nJ(NEl),Elec1Ind,Elec2Ind,ExcitMat(2,2),iLutnI(0:NIfTot)
+        INTEGER :: ki(3),kj(3),kTrial(3),iElecInExcitRange,iExcludedKFromElec1
+        INTEGER :: KaXLowerLimit,KaXUpperLimit,KaXRange,KaYLowerLimit,KaYUpperLimit,KaYRange,KaZLowerLimit,KaZUpperLimit,KaZRange
+        LOGICAL :: tParity,tDoubleCount
+        REAL*8 :: r,pGen,pAIJ
+        INTEGER, ALLOCATABLE :: Excludedk(:,:)
+!        IF(tMerTwist) THEN
+!            CALL genrand_real2(r(1))
+!            CALL genrand_real2(r(2))
+!            CALL genrand_real2(r(3))
+!        ELSE
+!            CALL RANLUX(r,3)
+!        ENDIF
+!        
+!        ki=G1(nI(Elec1Ind))%k
+!        kj=G1(nI(Elec2Ind))%k
+!
+!        iAllowedAb=0
+!        ALLOCATE(AllowedAbMatrix(2*NMAXX+1,2))
+!        DO i=-NMAXX,NMAXX
+!            kaTrial=(/i,ki(2),ki(3)/)
+!            kbTrial=(/ki(1)+kj(1)-i,kj(2),kj(3)/)
+!            IF(ABS(kbTrial(1)).gt.NMAXX) CYCLE
+!            IF(ABS(kbTrial(2)).gt.NMAXY) CYCLE
+!            IF(ABS(kbTrial(3)).gt.NMAXZ) CYCLE
+!            aTrialOrbNum=2*((NMAXZ*2+1)*(NMAXY*2+1)*(kaTrial(1)+NMAXX)+(NMAXZ*2+1)*(kaTrial(2)+NMAXY)+(kaTrial(3)+NMAXZ)+1)-(1-G1(nIElec1Ind)%Ms)/2 ! Generate orbital, same spin as elec1
+!            IF(BTEST(iLutnI((aTrialOrbNum-1)/32),MOD(aTrialOrbNum-1,32))) CYCLE ! Orbital is in nI, reject
+!            bTrialOrbNum=2*((NMAXZ*2+1)*(NMAXY*2+1)*(kbTrial(1)+NMAXX)+(NMAXZ*2+1)*(kbTrial(2)+NMAXY)+(kbTrial(3)+NMAXZ)+1)-(1-G1(nIElec2Ind)%Ms)/2 ! Generate orbital, same spin as elec2
+!            IF(BTEST(iLutnI((aTrialOrbNum-1)/32),MOD(aTrialOrbNum-1,32))) CYCLE ! Orbital is in nI, reject
+!            ! This ab pair is now allowed
+!            iAllowedAb=iAllowedAb+1
+!            AllowedAbMatrix(iAllowedAb,1)=aTrialOrbNum
+!            AllowedAbMatrix(iAllowedAb,2)=bTrialOrbNum
+!        ENDDO
+!        pGen_x=1.0/iAllowedAb
+!        ChosenAb=INT(iAllowedAb*r(1))+1
+
+        DO 
+            CALL CreateDoubExcitUEG(nI,iLutnI,nJ,tParity,ExcitMat,pGen)
+            IF (nJ(1).ne.0) EXIT
+        ENDDO
+
+        ki=G1(nI(Elec1Ind))%k
+        kj=G1(nI(Elec2Ind))%k
+        KaXLowerLimit=MAX(-NMAXX,ki(1)-(NMAXX-kj(1)))
+        KaXUpperLimit=MIN(NMAXX,ki(1)+(NMAXX+kj(1)))
+        KaXRange=KaXUpperLimit-KaXLowerLimit
+        KaYLowerLimit=MAX(-NMAXX,ki(2)-(NMAXX-kj(2)))
+        KaYUpperLimit=MIN(NMAXX,ki(2)+(NMAXX+kj(2)))
+        KaYRange=KaXUpperLimit-KaXLowerLimit
+        KaZLowerLimit=MAX(-NMAXX,ki(3)-(NMAXX-kj(3)))
+        KaZUpperLimit=MIN(NMAXX,ki(3)+(NMAXX+kj(3)))
+        KaZRange=KaXUpperLimit-KaXLowerLimit
+
+        iElecInExcitRange=0
+        ALLOCATE(Excludedk(NEl,3))
+        DO i=1,NEl
+            IF(G1(nI(i))%Ms.ne.G1(nI(Elec1Ind))%Ms) CYCLE
+            kTrial=G1(nI(i))%k
+            IF(kTrial(1).lt.KaXLowerLimit) CYCLE
+            IF(kTrial(1).gt.KaXUpperLimit) CYCLE
+            IF(kTrial(2).lt.KaYLowerLimit) CYCLE
+            IF(kTrial(2).gt.KaYUpperLimit) CYCLE
+            IF(kTrial(3).lt.KaZLowerLimit) CYCLE
+            IF(kTrial(3).gt.KaZUpperLimit) CYCLE
+            iElecInExcitRange=iElecInExcitRange+1
+            Excludedk(iElecInExcitRange,:)=kTrial
+        ENDDO
+        iExcludedKFromElec1=iElecInExcitRange
+        DO i=1,NEl
+            IF(G1(nI(i))%Ms.ne.G1(nI(Elec2Ind))%Ms) CYCLE
+            kTrial=ki+kj-G1(nI(i))%k
+            IF(kTrial(1).lt.KaXLowerLimit) CYCLE
+            IF(kTrial(1).gt.KaXUpperLimit) CYCLE
+            IF(kTrial(2).lt.KaYLowerLimit) CYCLE
+            IF(kTrial(2).gt.KaYUpperLimit) CYCLE
+            IF(kTrial(3).lt.KaZLowerLimit) CYCLE
+            IF(kTrial(3).gt.KaZUpperLimit) CYCLE
+    ! Need to check for this k-point already having been eliminated
+    ! by the previous loop over electrons
+            tDoubleCount=.false.
+            DO j=1,iExcludedKFromElec1
+                IF((Excludedk(j,1).eq.kTrial(1)).and.(Excludedk(j,2).eq.kTrial(2)).and.Excludedk(j,3).eq.kTrial(3)) tDoubleCount=.true.
+            ENDDO
+            IF(.not.tDoubleCount) iElecInExcitRange=iElecInExcitRange+1
+        ENDDO
+        DEALLOCATE(Excludedk)
+
+        pAIJ=1/(KaXRange*KaYRange*KaZRange-iElecInExcitRange)
+
+    END SUBROUTINE CreateDoubExcitUEGNoFail
 
 END MODULE GenRandSymExcitNUMod
 
