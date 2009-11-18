@@ -2120,7 +2120,7 @@ MODULE GenRandSymExcitNUMod
 
     END SUBROUTINE CalcAllab
 
-    SUBROUTINE CreateDoubExcitUEG(nI,iLutnI,nJ,tParity,ExcitMat,pGen)
+    SUBROUTINE CreateDoubExcitUEG(nI,iLutnI,nJ,tParity,ExcitMat,pGen,Elec1Ind,Elec2Ind)
 
         Use SystemData , only : G1,NEl,tMerTwist,nOccAlpha,nOccBeta
         Use SystemData , only : NMAXX,NMAXY,NMAXZ,NIfTot
@@ -2245,7 +2245,7 @@ MODULE GenRandSymExcitNUMod
         INTEGER, ALLOCATABLE :: Excludedk(:,:)
 
         DO 
-            CALL CreateDoubExcitUEG(nI,iLutnI,nJ,tParity,ExcitMat,pGen)
+            CALL CreateDoubExcitUEG(nI,iLutnI,nJ,tParity,ExcitMat,pGen,Elec1Ind,Elec2Ind)
             IF (.not.tNoFailAb) RETURN
             IF (nJ(1).ne.0) EXIT
         ENDDO
@@ -2254,13 +2254,13 @@ MODULE GenRandSymExcitNUMod
         kj=G1(nI(Elec2Ind))%k
         KaXLowerLimit=MAX(-NMAXX,ki(1)-(NMAXX-kj(1)))
         KaXUpperLimit=MIN(NMAXX,ki(1)+(NMAXX+kj(1)))
-        KaXRange=KaXUpperLimit-KaXLowerLimit
+        KaXRange=KaXUpperLimit-KaXLowerLimit+1
         KaYLowerLimit=MAX(-NMAXX,ki(2)-(NMAXX-kj(2)))
         KaYUpperLimit=MIN(NMAXX,ki(2)+(NMAXX+kj(2)))
-        KaYRange=KaXUpperLimit-KaXLowerLimit
+        KaYRange=KaXUpperLimit-KaXLowerLimit+1
         KaZLowerLimit=MAX(-NMAXX,ki(3)-(NMAXX-kj(3)))
         KaZUpperLimit=MIN(NMAXX,ki(3)+(NMAXX+kj(3)))
-        KaZRange=KaXUpperLimit-KaXLowerLimit
+        KaZRange=KaXUpperLimit-KaXLowerLimit+1
 
         iElecInExcitRange=0
         ALLOCATE(Excludedk(NEl,3))
@@ -2296,7 +2296,7 @@ MODULE GenRandSymExcitNUMod
         ENDDO
         DEALLOCATE(Excludedk)
 
-        pAIJ=1/(KaXRange*KaYRange*KaZRange-iElecInExcitRange)
+        pAIJ=1.0/(KaXRange*KaYRange*KaZRange-iElecInExcitRange)
         pGen=2.0/(NEl*(NEl-1))*2.0*pAIJ
 
     END SUBROUTINE CreateDoubExcitUEGNoFail
