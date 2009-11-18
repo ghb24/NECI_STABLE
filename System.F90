@@ -50,6 +50,7 @@ MODULE System
       tVASP=.false.
       THUB=.false.
       TUEG=.false.
+      tUseNewExcitGens =.false.
       tNoFailAb=.false.
       LMS=0
       TSPN=.false.
@@ -219,6 +220,8 @@ MODULE System
           TUEG = .true.
       case("UEGNOFAIL")
           tNoFailAb = .true.
+      case("UEGNEW")
+          tUseNewExcitGens =.true.
       case("VASP")
           tVASP= .true.
       case("CPMD")

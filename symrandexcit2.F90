@@ -24,7 +24,7 @@ MODULE GenRandSymExcitNUMod
       !  These are forbidden since they have no possible b orbital which will give rise to a symmetry and
       !  spin allowed unoccupied a,b pair. The number of these orbitals, Q, is needed to calculate the
       !  normalised probability of generating the excitation.
-    use SystemData, only: ALAT,iSpinSkip,tFixLz,iMaxLz,NIfTot,tUEG,tNoFailAb
+    use SystemData, only: ALAT,iSpinSkip,tFixLz,iMaxLz,NIfTot,tUEG,tNoFailAb,tUseNewExcitGens
     use SystemData, only: nEl,G1, nBasis,nBasisMax,tNoSymGenRandExcits,tMerTwist
     use SystemData, only: Arr,nMax,tCycleOrbs,nOccAlpha,nOccBeta,ElecPairs,MaxABPairs
     use IntegralsData, only: UMat
@@ -56,8 +56,8 @@ MODULE GenRandSymExcitNUMod
 
 !        Iter=Iter+1
 !        WRITE(6,*) Iter,tFilled,nSymLabels
-        IF(tUEG) THEN
-            call CreateDoubExcitUEG(nI,iLut,nJ,tParity,ExcitMat,pGen)
+        IF(tUEG.and.tUseNewExcitGens) THEN
+            call CreateDoubExcitUEGNoFail(nI,iLut,nJ,tParity,ExcitMat,pGen)
             IC=2
             RETURN
         ENDIF       
@@ -167,8 +167,8 @@ MODULE GenRandSymExcitNUMod
 !        STOP
         IF(.not.TwoCycleSymGens) THEN
 !Currently only available for molecular systems, or without using symmetry.
-            IF(tUEG) THEN
-                call CreateDoubExcitUEG(nI,iLut,nJ,tParity,ExcitMat,pGen)
+            IF(tUEG.and.tUseNewExcitGens) THEN
+                call CreateDoubExcitUEGNoFail(nI,iLut,nJ,tParity,ExcitMat,pGen)
                 IC=2
                 RETURN
             ENDIF       
