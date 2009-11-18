@@ -50,6 +50,7 @@ MODULE System
       tVASP=.false.
       THUB=.false.
       TUEG=.false.
+      tNoFailAb=.false.
       LMS=0
       TSPN=.false.
       TCSF=.false.
@@ -216,6 +217,8 @@ MODULE System
           tReadInt=.true.
       case("UEG")
           TUEG = .true.
+      case("UEGNOFAIL")
+          tNoFailAb = .true.
       case("VASP")
           tVASP= .true.
       case("CPMD")

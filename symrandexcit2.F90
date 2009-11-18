@@ -24,7 +24,7 @@ MODULE GenRandSymExcitNUMod
       !  These are forbidden since they have no possible b orbital which will give rise to a symmetry and
       !  spin allowed unoccupied a,b pair. The number of these orbitals, Q, is needed to calculate the
       !  normalised probability of generating the excitation.
-    use SystemData, only: ALAT,iSpinSkip,tFixLz,iMaxLz,NIfTot,tUEG
+    use SystemData, only: ALAT,iSpinSkip,tFixLz,iMaxLz,NIfTot,tUEG,tNoFailAb
     use SystemData, only: nEl,G1, nBasis,nBasisMax,tNoSymGenRandExcits,tMerTwist
     use SystemData, only: Arr,nMax,tCycleOrbs,nOccAlpha,nOccBeta,ElecPairs,MaxABPairs
     use IntegralsData, only: UMat
@@ -56,14 +56,15 @@ MODULE GenRandSymExcitNUMod
 
 !        Iter=Iter+1
 !        WRITE(6,*) Iter,tFilled,nSymLabels
+        IF(tUEG) THEN
+            call CreateDoubExcitUEG(nI,iLut,nJ,tParity,ExcitMat,pGen)
+            IC=2
+            RETURN
+        ENDIF       
 
         IF(.not.tFilled) THEN
             IF(.not.TwoCycleSymGens) THEN
 !Currently only available for molecular systems, or without using symmetry.
-                IF(tUEG) THEN
-                    call CreateDoubExcitUEG(nI,iLut,nJ,tParity,ExcitMat,pGen)
-                    RETURN
-                ENDIF       
                 IF(.not.tNoSymGenRandExcits) THEN
                     WRITE(6,*) "GenRandSymExcitNU can only be used for molecular systems"
                     WRITE(6,*) "This is because of difficulties with other symmetries setup."
@@ -164,13 +165,14 @@ MODULE GenRandSymExcitNUMod
 !        enddo
 !        CALL FLUSH(6)
 !        STOP
-
         IF(.not.TwoCycleSymGens) THEN
 !Currently only available for molecular systems, or without using symmetry.
             IF(tUEG) THEN
                 call CreateDoubExcitUEG(nI,iLut,nJ,tParity,ExcitMat,pGen)
+                IC=2
                 RETURN
             ENDIF       
+
             IF(.not.tNoSymGenRandExcits) THEN
                 WRITE(6,*) "GenRandSymExcitNU can only be used for molecular systems"
                 WRITE(6,*) "This is because of difficulties with other symmetries setup."
@@ -1663,8 +1665,7 @@ MODULE GenRandSymExcitNUMod
         IF(.not.TwoCycleSymGens) THEN
 !Currently only available for molecular systems, or without using symmetry.
             IF(tUEG) THEN
-                call CreateDoubExcitUEG(nI,iLut,nJ,tParity,ExcitMat,pGen)
-                RETURN
+                CALL Stop_All(this_routine,"No biased excitgens for UEG") 
             ENDIF       
             IF(.not.tNoSymGenRandExcits) THEN
                 WRITE(6,*) "GenRandSymExcitBiased can only be used for molecular systems"
@@ -2245,6 +2246,7 @@ MODULE GenRandSymExcitNUMod
 
         DO 
             CALL CreateDoubExcitUEG(nI,iLutnI,nJ,tParity,ExcitMat,pGen)
+            IF (.not.tNoFailAb) RETURN
             IF (nJ(1).ne.0) EXIT
         ENDDO
 
