@@ -218,10 +218,6 @@ MODULE System
           tReadInt=.true.
       case("UEG")
           TUEG = .true.
-      case("UEGNOFAIL")
-          tNoFailAb = .true.
-      case("UEGNEW")
-          tUseNewExcitGens =.true.
       case("VASP")
           tVASP= .true.
       case("CPMD")
@@ -348,6 +344,10 @@ MODULE System
             call geti(NMAXX)
             call geti(NMAXY)
             call geti(NMAXZ)
+        case("UEGNOFAIL") ! UEG temporary keywords
+            tNoFailAb = .true.
+        case("UEGNEW")
+            tUseNewExcitGens =.true.
         case("MESH")
             call geti(NMSH)
         case("BOXSIZE")
