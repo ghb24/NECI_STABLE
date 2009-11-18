@@ -466,9 +466,11 @@ MODULE FciMCParMod
 
         IF(tDelayTruncInit.and.(Iter.ge.IterTruncInit)) THEN 
             IF(Iter.eq.IterTruncInit) THEN
-                Tau=Tau/10.D0
-                CALL MPI_BCast(Tau,1,MPI_DOUBLE_PRECISION,i,MPI_COMM_WORLD,error)
-                IF(iProcIndex.eq.0) WRITE(6,*) 'Beginning truncated initiator calculation and reducing tau by a factor of 10. New tau is : ',Tau
+                IF(iProcIndex.eq.root) THEN
+                    Tau=Tau/10.D0
+                    WRITE(6,'(A,F10.5)') 'Beginning truncated initiator calculation and reducing tau by a factor of 10. New tau is : ',Tau
+                ENDIF
+                CALL MPI_BCast(Tau,1,MPI_DOUBLE_PRECISION,root,MPI_COMM_WORLD,error)
             ENDIF
             tTruncInitiator=.true.
         ENDIF

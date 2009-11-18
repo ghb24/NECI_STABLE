@@ -379,11 +379,11 @@ contains
            ENDIF
            IF(tChangeParams(23)) THEN
                tTruncInitiator=.true.
+               Tau=Tau/10.D0
+               CALL MPI_BCast(Tau,1,MPI_DOUBLE_PRECISION,i,MPI_COMM_WORLD,error)
                IF(iProcIndex.eq.0) THEN
                    WRITE(6,*) "Beginning to allow spawning into inactive space for a truncated initiator calculation."
-                   Tau=Tau/10.D0
                    WRITE(6,*) "Reducing tau by an order of magnitude.  The new tau is: ",Tau
-                   CALL MPI_BCast(Tau,1,MPI_DOUBLE_PRECISION,i,MPI_COMM_WORLD,error)
                ENDIF
            ENDIF
        endif
