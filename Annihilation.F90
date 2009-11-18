@@ -1,7 +1,7 @@
 !This module is to be used for various types of walker MC annihilation in serial and parallel.
 MODULE AnnihilationMod
     use SystemData , only : NEl,tMerTwist,tHPHF,NIfTot,NIfDBO
-    use CalcData , only : TRegenExcitgens,tAnnihilatebyRange,tUseGuide,tRegenDiagHEls,iInitGuideParts,iGuideDets
+    use CalcData , only : TRegenExcitgens,tAnnihilatebyRange,tUseGuide,tRegenDiagHEls,iInitGuideParts,iGuideDets,tKeepDoubleSpawns
     USE DetCalc , only : Det,FCIDetIndex
     USE Logging , only : tHistSpawn
     USE Parallel
@@ -225,10 +225,15 @@ MODULE AnnihilationMod
 !In this case we assume the determinants inside the CAS have spawned a second earlier - so the ones from outside the active space are spawning onto an occupied determinant
 !and will therefore live - we can just make these equiv by treating them as they've all come from inside the active space.
                     IF(SpawnedParts(NIfTot,i).ne.SpawnedParts2(NIfTot,VecInd)) THEN     ! Parent flags are not equal
-                        SpawnedParts2(NIfTot,VecInd)=1      ! Take all the walkers to have come from inside the CAS space.
+                        SpawnedParts2(NIfTot,VecInd)=0      ! Take all the walkers to have come from inside the CAS space.
                         IF(SpawnedSign2(VecInd).eq.0) SpawnedParts2(NIfTot,VecInd)=SpawnedParts(NIfTot,i) 
                         ! Think there might still be a case where SpawnedSign2 can be 0 - this means that the parent will be determined by SpawnedParts.
                         ! If its SpawnedParts that is 0 that's fine because the SpawnedParts2 flag is already carried across.
+                    ELSEIF(tKeepDoubleSpawns.and.(SpawnedParts2(NIfTot,VecInd).eq.1)) THEN
+!This is the option where if two determinants spawn onto another at the same time with the same sign, they are kept whether they've come from 
+!inside or outside the active space.  This is different from before where two children spawned on the same determinant with the same sign, but both from outside the active
+!space will be killed.
+                        SpawnedParts2(NIfTot,VecInd)=0
                     ENDIF
                 ENDIF
                 SpawnedSign2(VecInd)=SpawnedSign2(VecInd)+SpawnedSign(i)

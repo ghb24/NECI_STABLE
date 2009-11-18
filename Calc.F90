@@ -218,6 +218,7 @@ MODULE Calc
           tMinorDetsStar=.false.
           tTruncInitiator=.false.
           tDelayTruncInit=.false.
+          tKeepDoubleSpawns=.false.
           IterTruncInit=0
 
           tNeedsVirts=.true.! Set if we need virtual orbitals  (usually set).  Will be unset (by Calc readinput) if I_VMAX=1 and TENERGY is false
@@ -895,6 +896,11 @@ MODULE Calc
                 IF(item.lt.nitems) then
                     call Geti(IterTruncInit)
                 ENDIF
+
+            case("KEEPDOUBSPAWNS")
+!This means that two sets of walkers spawned on the same determinant with the same sign will live, whether they've come from inside or outside the CAS space.  Before, if both of these
+!were from outside the space, they would've been aborted.
+                tKeepDoubleSpawns=.true.
 
             case("UNBIASPGENINPROJE")
 !A FCIMC serial option. With this, walkers will be accepted with probability tau*hij. i.e. they will not unbias for PGen in the acceptance criteria, but in the term for the projected energy.
