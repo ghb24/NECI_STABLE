@@ -130,7 +130,7 @@ MODULE AnnihilationMod
 !            WRITE(6,*) i,"***",SpawnedParts(:,i)
 !        enddo
 #ifdef PARALLEL
-        CALL MPI_AlltoAllv(SpawnedParts(0:NIfTot,1:MaxSendIndex),sendcounts,disps,MPI_INTEGER,SpawnedParts2(0:NIfTot,1:MaxIndex),recvcounts,recvdisps,MPI_INTEGER,MPI_COMM_WORLD,error)
+        CALL MPI_AlltoAllv(SpawnedParts(:,1:MaxSendIndex),sendcounts,disps,MPI_INTEGER,SpawnedParts2,recvcounts,recvdisps,MPI_INTEGER,MPI_COMM_WORLD,error)
 #else
         SpawnedParts2(0:NIfTot,1:MaxIndex)=SpawnedParts(0:NIfTot,1:MaxSendIndex)
 #endif
