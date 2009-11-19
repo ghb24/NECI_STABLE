@@ -21,7 +21,7 @@ MODULE FciMCParMod
     use CalcData , only : FixedKiiCutoff,tFixShiftKii,tFixCASShift,tMagnetize,BField,NoMagDets,tSymmetricField,tStarOrbs,SinglesBias
     use CalcData , only : tHighExcitsSing,iHighExcitsSing,tFindGuide,iGuideDets,tUseGuide,iInitGuideParts,tNoDomSpinCoup
     use CalcData , only : tPrintDominant,iNoDominantDets,MaxExcDom,MinExcDom,tSpawnDominant,tMinorDetsStar
-    use CalcData , only : tCCMC,tTruncCAS,tTruncInitiator,tDelayTruncInit,IterTruncInit
+    use CalcData , only : tCCMC,tTruncCAS,tTruncInitiator,tDelayTruncInit,IterTruncInit,NShiftEquilSteps
     use HPHFRandExcitMod , only : FindExcitBitDetSym,GenRandHPHFExcit,GenRandHPHFExcit2Scratch
     USE Determinants , only : FDet,GetHElement2,GetHElement4
     USE DetCalc , only : ICILevel,nDet,Det,FCIDetIndex
@@ -214,6 +214,7 @@ MODULE FciMCParMod
 
         IF(iProcIndex.eq.Root) THEN
             CLOSE(15)
+            IF(tTruncInitiator) CLOSE(16)
 !            IF(TAutoCorr) CLOSE(44)
         ENDIF
         IF(TDebug) CLOSE(11)
@@ -448,6 +449,7 @@ MODULE FciMCParMod
 !        use HPHFRandExcitMod , only : TestGenRandHPHFExcit 
         USE Determinants , only : GetHElement3
         USE FciMCLoggingMOD , only : FindTriConnections,TrackSpawnAttempts,FindSpinCoupHEl
+        USE CalcData , only : tAddtoInitiator,InitiatorWalkNo
         INTEGER :: MinorVecSlot,VecSlot,i,j,k,l,MinorValidSpawned,ValidSpawned,CopySign,ParticleWeight,Loop,iPartBloom
         INTEGER :: nJ(NEl),ierr,IC,Child,iCount,DetCurr(NEl),iLutnJ(0:NIfTot),NoMinorWalkersNew
         REAL*8 :: Prob,rat,HDiag,HDiagCurr
@@ -546,37 +548,35 @@ MODULE FciMCParMod
                     tParentInCAS=TestIfDetInCAS(DetCurr)
                     IF(tParentInCAS) THEN
                         ParentInitiator=0
+                        NoInitDets=NoInitDets+1
+                        NoInitWalk=NoInitWalk+(ABS(CurrentSign(j)))
 !The parent walker from which we are attempting to spawn is in the active space - all children will carry this flag, and these spawn like usual.
-!                        do i=1,NEl
-!                            IF(DetCurr(i).gt.36) THEN
-!                                WRITE(6,*) 'DetCurr',DetCurr
-!                                WRITE(6,*) 'TestIfDetinCas',tParentInCAS
-!                                CALL FLUSH(6)
-!                                CALL Stop_All('parentflag','problem finding parent in or out of cas space - det out when it says its in')
-!                            ENDIF
-!                        enddo
+                    ELSEIF(tAddtoInitiator.and.(ABS(CurrentSign(j)).gt.InitiatorWalkNo)) THEN
+                        ParentInitiator=0
+                        NoAddedInitiators=NoAddedInitiators+1
+                        NoInitDets=NoInitDets+1
+                        NoInitWalk=NoInitWalk+(ABS(CurrentSign(j)))
                     ELSE
                         ParentInitiator=1
-!                        k=0
-!                        do i=1,NEl
-!                            IF(DetCurr(i).le.36) THEN
-!                                k=k+1
-!                            ENDIF
-!                        enddo
-!                        IF(k.eq.NEl) THEN
-!                            WRITE(6,*) 'DetCurr',DetCurr
-!                            WRITE(6,*) 'TestIfDetinCas',tParentInCAS
-!                            CALL FLUSH(6)
-!                            CALL Stop_All('parentflag','problem finding parent in or out of cas space - det in when it says its out')
-!                        ENDIF
+                        NoNonInitDets=NoNonInitDets+1
+                        NoNonInitWalk=NoNonInitWalk+(ABS(CurrentSign(j)))
 !The parent from which we are attempting to spawn is outside the active space - children spawned on unoccupied determinants with this flag will be killed.
                     ENDIF
                 ELSEIF(tTruncSpace) THEN
                     IF(WalkExcitLevel.le.ICILevel) THEN
                         ParentInitiator=0
+                        NoInitDets=NoInitDets+1
+                        NoInitWalk=NoInitWalk+(ABS(CurrentSign(j)))
 !Parent in allowed space.                        
+                    ELSEIF(tAddtoInitiator.and.(ABS(CurrentSign(j)).gt.InitiatorWalkNo)) THEN
+                        ParentInitiator=0
+                        NoAddedInitiators=NoAddedInitiators+1
+                        NoInitDets=NoInitDets+1
+                        NoInitWalk=NoInitWalk+(ABS(CurrentSign(j)))
                     ELSE
                         ParentInitiator=1
+                        NoNonInitDets=NoNonInitDets+1
+                        NoNonInitWalk=NoNonInitWalk+(ABS(CurrentSign(j)))
 !Parent outside allowed space.                        
                     ENDIF
                 ENDIF
@@ -1304,7 +1304,7 @@ MODULE FciMCParMod
         USE FciMCLoggingMOD , only : PrintSpawnAttemptStats,PrintTriConnStats,PrintSpinCoupHEl,InitErrorBlocking,SumInErrorContrib
         USE FciMCLoggingMOD , only : InitShiftErrorBlocking,SumInShiftErrorContrib
         INTEGER :: error,rc,MaxAllowedWalkers,MaxWalkersProc,MinWalkersProc
-        INTEGER :: inpair(10),outpair(10)
+        INTEGER :: inpair(9),outpair(9),inpairInit(7),outpairInit(7)
         REAL*8 :: TempTotWalkers,TempTotParts
         REAL*8 :: TempSumNoatHF,MeanWalkers,TempSumWalkersCyc,TempAllSumWalkersCyc,TempNoMinorWalkers
         REAL*8 :: inpairreal(3),outpairreal(3)
@@ -1366,7 +1366,6 @@ MODULE FciMCParMod
         inpair(7)=SpawnFromSing
         inpair(8)=iInitGuideParts
         inpair(9)=MinorAnnihilated
-        inpair(10)=NoAborted
 !        inpair(7)=TotParts
 !        inpair(9)=iUniqueDets
         outpair(:)=0
@@ -1380,7 +1379,7 @@ MODULE FciMCParMod
 !        CALL MPI_Reduce(SumWalkersCyc,AllSumWalkersCyc,1,MPI_INTEGER,MPI_SUM,Root,MPI_COMM_WORLD,error)
 !        WRITE(6,*) "Get Here 1"
 !        CALL FLUSH(6)
-        CALL MPI_Reduce(inpair,outpair,10,MPI_INTEGER,MPI_SUM,Root,MPI_COMM_WORLD,error)
+        CALL MPI_Reduce(inpair,outpair,9,MPI_INTEGER,MPI_SUM,Root,MPI_COMM_WORLD,error)
 !        WRITE(6,*) "Get Here 2"
 !        CALL FLUSH(6)
 !        AllTotWalkers=outpair(1)
@@ -1395,12 +1394,31 @@ MODULE FciMCParMod
 !        AlliUniqueDets=REAL(outpair(9),r2)
         AlliInitGuideParts=outpair(8)
         AllMinorAnnihilated=outpair(9)
-        AllNoAborted=outpair(10)
         TempTotWalkers=REAL(TotWalkers,r2)
         TempTotParts=REAL(TotParts,r2)
         TempNoMinorWalkers=REAL(NoMinorWalkers,r2)
         IF(tMinorDetsStar) THEN
             TempTotParts=TempTotParts+TempNoMinorWalkers
+        ENDIF
+
+        IF(tTruncInitiator) THEN
+            inpairInit(1)=NoAborted
+            inpairInit(2)=NoAddedInitiators
+            inpairInit(3)=NoInitDets
+            inpairInit(4)=NoNonInitDets
+            inpairInit(5)=NoInitWalk
+            inpairInit(6)=NoNonInitWalk
+            inpairInit(7)=NoDoubSpawns
+ 
+            CALL MPI_Reduce(inpairInit,outpairInit,7,MPI_INTEGER,MPI_SUM,Root,MPI_COMM_WORLD,error)
+
+            AllNoAborted=outpairInit(1)
+            AllNoAddedInitiators=outpairInit(2)
+            AllNoInitDets=outpairInit(3)
+            AllNoNonInitDets=outpairInit(4)
+            AllNoInitWalk=outpairInit(5)
+            AllNoNonInitWalk=outpairInit(6)
+            AllNoDoubSpawns=outpairInit(7)
         ENDIF
 
         CALL MPI_Reduce(TempTotWalkers,AllTotWalkers,1,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
@@ -1418,6 +1436,7 @@ MODULE FciMCParMod
         TempSumWalkersCyc=REAL(SumWalkersCyc,r2)
         TempAllSumWalkersCyc=0.D0
         CALL MPI_Reduce(TempSumWalkersCyc,TempAllSumWalkersCyc,1,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
+
 !        WRITE(6,*) "Get Here 3"
 !        CALL FLUSH(6)
 
@@ -1488,6 +1507,7 @@ MODULE FciMCParMod
 !tGlobalSftCng is on, and we want to calculate the change in the shift as a global parameter, rather than as a weighted average.
 !This will only be a sensible value on the root.
             AllGrowRate=AllTotParts/AllTotPartsOld
+            IF(tTruncInitiator) AllGrowRateAbort=(AllTotParts+REAL(AllNoAborted))/(AllTotPartsOld+REAL(AllNoAbortedOld))
         ELSE
 !We want to calculate the mean growth rate over the update cycle, weighted by the total number of walkers
             GrowRate=GrowRate*TempSumWalkersCyc                    
@@ -1581,11 +1601,20 @@ MODULE FciMCParMod
         IF(iProcIndex.eq.Root) THEN
             IF(.not.TSinglePartPhase) THEN
                 DiagSft=DiagSft-(log(AllGrowRate)*SftDamp)/(Tau*(StepsSft+0.D0))
-                IF((Iter-VaryShiftIter).gt.NEquilSteps) THEN
+                IF((Iter-VaryShiftIter).ge.NShiftEquilSteps) THEN
 !                    WRITE(6,*) Iter-VaryShiftIter, NEquilSteps*StepsSft
+                    IF((Iter-VaryShiftIter).eq.NShiftEquilSteps) WRITE(6,*) 'Beginning to average shift value.'
                     VaryShiftCycles=VaryShiftCycles+1
                     SumDiagSft=SumDiagSft+DiagSft
                     AvDiagSft=SumDiagSft/REAL(VaryShiftCycles,r2)
+                ENDIF
+
+                IF(tTruncInitiator) THEN
+                    DiagSftAbort=DiagSftAbort-(log(AllGrowRateAbort)*SftDamp)/(Tau*(StepsSft+0.D0))
+                    IF((Iter-VaryShiftIter).ge.NShiftEquilSteps) THEN
+                        SumDiagSftAbort=SumDiagSftAbort+DiagSftAbort
+                        AvDiagSftAbort=SumDiagSftAbort/REAL(VaryShiftCycles,r2)
+                    ENDIF
                 ENDIF
             ENDIF
 
@@ -1664,7 +1693,6 @@ MODULE FciMCParMod
 !        DetsNorm=0.D0
         Annihilated=0
         MinorAnnihilated=0
-        NoAborted=0
         LocalAnn=0
         Acceptances=0
         NoBorn=0
@@ -1675,6 +1703,14 @@ MODULE FciMCParMod
         HFCyc=0
         GuideFuncHF=0
         GuideFuncDoub=0.D0
+        NoAborted=0
+        NoAddedInitiators=0
+        NoInitDets=0
+        NoNonInitDets=0
+        NoInitWalk=0
+        NoNonInitWalk=0
+        NoDoubSpawns=0
+
 !Reset TotWalkersOld so that it is the number of walkers now
         TotWalkersOld=TotWalkers
         TotPartsOld=TotParts
@@ -1687,6 +1723,7 @@ MODULE FciMCParMod
         AllSumNoatHF=0.D0
         AllTotWalkersOld=AllTotWalkers
         AllTotPartsOld=AllTotParts
+        AllNoAbortedOld=AllNoAborted
         AllTotWalkers=0.D0
         AllTotParts=0.D0
         AllGrowRate=0.D0
@@ -1696,13 +1733,21 @@ MODULE FciMCParMod
         AllSumWalkersCyc=0
         AllAnnihilated=0
         AllMinorAnnihilated=0
-        AllNoAborted=0
         AllLocalAnn=0
         AllNoatHF=0
         AllNoatDoubs=0
         AllNoBorn=0
         AllSpawnFromSing=0
         AllNoDied=0
+        AllNoAborted=0
+        AllNoAddedInitiators=0
+        AllNoInitDets=0
+        AllNoNonInitDets=0
+        AllNoInitWalk=0
+        AllNoNonInitWalk=0
+        AllNoDoubSpawns=0
+
+
 
         RETURN
     END SUBROUTINE CalcNewShift
@@ -1994,6 +2039,7 @@ MODULE FciMCParMod
                         AllTotWalkersOld=1.D0
                         AllTotParts=1.D0
                         AllTotPartsOld=1.D0
+                        AllNoAbortedOld=0
                     ENDIF
                 ELSE
                     TotWalkers=1
@@ -2028,6 +2074,7 @@ MODULE FciMCParMod
                         AllTotWalkersOld=1.D0
                         AllTotParts=REAL(InitWalkers,r2)
                         AllTotPartsOld=REAL(InitWalkers,r2)
+                        AllNoAbortedOld=0
                     ENDIF
                 ELSEIF(tRotoAnnihil) THEN
 !This is different, since the arrays are stored in a compressed form, but on all processors.
@@ -2144,10 +2191,13 @@ MODULE FciMCParMod
 &               "Proj.E.ThisCyc","NoatHF","NoatDoubs","AccRat","UniqueDets","IterTime","FracSpawnFromSing","NoMinorWalkers"
 
             ELSEIF(tTruncInitiator.or.tDelayTruncInit) THEN
-                WRITE(6,"(A)") "       Step     Shift      WalkerCng    GrowRate       TotWalkers    Annihil    NoDied    NoBorn    Proj.E          Av.Shift     Proj.E.ThisCyc   NoatHF NoatDoubs      AccRat     UniqueDets     IterTime"
-                WRITE(15,"(A)") "#       Step     Shift      WalkerCng    GrowRate       TotWalkers    Annihil    NoDied    NoBorn    Proj.E          Av.Shift",&
-&               "Proj.E.ThisCyc   NoatHF NoatDoubs       AccRat     UniqueDets     IterTime    FracSpawnFromSing    WalkersDiffProc   NoAborted"
- 
+                WRITE(6,"(A2,A10,A16,A10,A16,A12,3A11,3A17,2A10,A13,A12,A13)") "Step","Shift","WalkerCng","GrowRate","TotWalkers","Annihil","NoDied","NoBorn","Proj.E","Av.Shift","Proj.E.ThisCyc",&
+&               "NoatHF","NoatDoubs","AccRat","UniqueDets","IterTime"
+
+                WRITE(15,"(A2,A10,A16,A10,A16,A12,3A13,3A17,2A10,A13,A12,A13,A13,A10)") "#","Step","Shift","WalkerCng","GrowRate","TotWalkers","Annihil","NoDied","NoBorn","Proj.E","Av.Shift",&
+&               "Proj.E.ThisCyc","NoatHF","NoatDoubs","AccRat","UniqueDets","IterTime","FracSpawnFromSing","WalkersDiffProc"
+
+                WRITE(16,"(A2,A10,2A15,2A16,A20,2A18)") "# ","Step","No Aborted","NoAddedtoInit","FracDetsInit","FracWalksInit","NoDoubSpawns","InstAbortShift","AvAbortShift"
 
             ELSE
                 WRITE(6,"(A)") "       Step     Shift      WalkerCng    GrowRate       TotWalkers    Annihil    NoDied    NoBorn    Proj.E          Av.Shift     Proj.E.ThisCyc   NoatHF NoatDoubs      AccRat     UniqueDets     IterTime"
@@ -5383,8 +5433,12 @@ MODULE FciMCParMod
  &                  INT(AllTotParts,i2),AllAnnihilated,AllNoDied,AllNoBorn,ProjectionE,ProjEIter,AllENumCyc/AllHFCyc,AllNoatHF,AllNoatDoubs,AccRat,INT(AllTotWalkers,i2),IterTime
 
             ELSEIF(tTruncInitiator.or.tDelayTruncInit) THEN
-                WRITE(15,"(I12,G16.7,I10,G16.7,I12,3I13,3G17.9,2I10,G13.5,I12,G13.5,G13.5,I10,I10)") Iter+PreviousCycles,DiagSft,INT(AllTotParts-AllTotPartsOld,i2),AllGrowRate,   &
- &                  INT(AllTotParts,i2),AllAnnihilated,AllNoDied,AllNoBorn,ProjectionE,AvDiagSft,AllENumCyc/AllHFCyc,AllNoatHF,AllNoatDoubs,AccRat,INT(AllTotWalkers,i2),IterTime,REAL(AllSpawnFromSing)/REAL(AllNoBorn),WalkersDiffProc,AllNoAborted
+                WRITE(15,"(I12,G16.7,I10,G16.7,I12,3I13,3G17.9,2I10,G13.5,I12,G13.5,G13.5,I10)") Iter+PreviousCycles,DiagSft,INT(AllTotParts-AllTotPartsOld,i2),AllGrowRate,   &
+ &                  INT(AllTotParts,i2),AllAnnihilated,AllNoDied,AllNoBorn,ProjectionE,AvDiagSft,AllENumCyc/AllHFCyc,AllNoatHF,AllNoatDoubs,AccRat,INT(AllTotWalkers,i2),IterTime,&
+ &                  REAL(AllSpawnFromSing)/REAL(AllNoBorn),WalkersDiffProc
+
+                WRITE(16,"(I12,2I15,2G16.7,I20,2G18.7)") Iter+PreviousCycles,AllNoAborted,AllNoAddedInitiators,(REAL(AllNoInitDets)/REAL(AllNoNonInitDets)),(REAL(AllNoInitWalk)/REAL(AllNoNonInitWalk)),&
+ &                  AllNoDoubSpawns,DiagSftAbort,AvDiagSftAbort
                 WRITE(6,"(I12,G16.7,I10,G16.7,I12,3I11,3G17.9,2I10,G13.5,I12,G13.5)") Iter+PreviousCycles,DiagSft,INT(AllTotParts-AllTotPartsOld,i2),AllGrowRate,    &
  &                  INT(AllTotParts,i2),AllAnnihilated,AllNoDied,AllNoBorn,ProjectionE,AvDiagSft,AllENumCyc/AllHFCyc,AllNoatHF,AllNoatDoubs,AccRat,INT(AllTotWalkers,i2),IterTime
 
@@ -7885,6 +7939,7 @@ MODULE FciMCParMod
         
         IF(iProcIndex.eq.Root) THEN
             OPEN(15,file='FCIMCStats',status='unknown')
+            OPEN(16,file='INITIATORStats',status='unknown')
         ENDIF
 
 !Store information specifically for the HF determinant
@@ -8130,7 +8185,6 @@ MODULE FciMCParMod
 !        MaxExcitLevel=0
         LocalAnn=0
         Annihilated=0
-        NoAborted=0
         Acceptances=0
         PreviousCycles=0
         NoBorn=0
@@ -8146,6 +8200,15 @@ MODULE FciMCParMod
         VaryShiftCycles=0
         AvDiagSft=0.D0
         SumDiagSft=0.D0
+        SumDiagSftAbort=0.D0
+        AvDiagSftAbort=0.D0
+        NoAborted=0
+        NoAddedInitiators=0
+        NoInitDets=0
+        NoNonInitDets=0
+        NoInitWalk=0
+        NoNonInitWalk=0
+        NoDoubSpawns=0
 
 !Also reinitialise the global variables - should not necessarily need to do this...
         AllSumENum=0.D0
@@ -8153,6 +8216,7 @@ MODULE FciMCParMod
         AllNoatDoubs=0
         AllSumNoatHF=0.D0
         AllGrowRate=0.D0
+        AllGrowRateAbort=0.D0
 !        AllMeanExcitLevel=0.D0
         AllSumWalkersCyc=0
         AllAvSign=0.D0
@@ -8163,14 +8227,19 @@ MODULE FciMCParMod
         AllLocalAnn=0
         AllAnnihilated=0
         AllMinorAnnihilated=0
-        AllNoAborted=0
         AllENumCyc=0.D0
         AllHFCyc=0.D0
 !        AllDetsNorm=0.D0
         tCleanRun=.false.
         CullInfo(1:10,1:3)=0
         NoCulls=0
-        
+        AllNoAborted=0
+        AllNoAddedInitiators=0
+        AllNoInitDets=0
+        AllNoNonInitDets=0
+        AllNoInitWalk=0
+        AllNoNonInitWalk=0
+        AllNoDoubSpawns=0
 
         IF(tHistSpawn.or.(tCalcFCIMCPsi.and.tFCIMC).or.tHistHamil) THEN
             ALLOCATE(HistMinInd(NEl))

@@ -82,6 +82,7 @@ MODULE Calc
           THFRetBias=.false.
           TSignShift=.false.
           NEquilSteps=0
+          NShiftEquilSteps=1000
           RhoApp=10
           TResumFCIMC=.false.
           TRhoElems=.false.
@@ -219,6 +220,8 @@ MODULE Calc
           tTruncInitiator=.false.
           tDelayTruncInit=.false.
           tKeepDoubleSpawns=.false.
+          tAddtoInitiator=.false.
+          InitiatorWalkNo=10
           IterTruncInit=0
 
           tNeedsVirts=.true.! Set if we need virtual orbitals  (usually set).  Will be unset (by Calc readinput) if I_VMAX=1 and TENERGY is false
@@ -776,6 +779,9 @@ MODULE Calc
 !pass before the energy of the system from the doubles (HF)
 !or singles (natural orbitals) population is counted.
                 call geti(NEquilSteps)
+            case("SHIFTEQUILSTEPS")
+!This is the number of steps after the shift is allowed to change that it begins averaging the shift value.                
+                call geti(NShiftEquilSteps)
             case("NOBIRTH")
 !For FCIMC, this means that the off-diagonal matrix elements become zero, and so all we get is an exponential decay of the initial populations on the determinants, at a rate which can be exactly calculated and compared against.
                 TNoBirth=.true.
@@ -901,6 +907,12 @@ MODULE Calc
 !This means that two sets of walkers spawned on the same determinant with the same sign will live, whether they've come from inside or outside the CAS space.  Before, if both of these
 !were from outside the space, they would've been aborted.
                 tKeepDoubleSpawns=.true.
+
+            case("ADDTOINITIATOR")
+!This option means that if a determinant outside the initiator space becomes significantly populated - it is essentially added to the initiator space and is allowed to spawn where it likes.
+!The minimum walker population for a determinant to be added to the initiator space is InitiatorWalkNo.
+                tAddtoInitiator=.true.
+                call Geti(InitiatorWalkNo)
 
             case("UNBIASPGENINPROJE")
 !A FCIMC serial option. With this, walkers will be accepted with probability tau*hij. i.e. they will not unbias for PGen in the acceptance criteria, but in the term for the projected energy.

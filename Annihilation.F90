@@ -234,6 +234,7 @@ MODULE AnnihilationMod
 !inside or outside the active space.  This is different from before where two children spawned on the same determinant with the same sign, but both from outside the active
 !space will be killed.
                         SpawnedParts2(NIfTot,VecInd)=0
+                        NoDoubSpawns=NoDoubSpawns+1
                     ENDIF
                 ENDIF
                 SpawnedSign2(VecInd)=SpawnedSign2(VecInd)+SpawnedSign(i)
