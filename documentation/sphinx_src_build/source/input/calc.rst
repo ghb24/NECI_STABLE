@@ -973,6 +973,13 @@ The following options are only available in **FCIMC** calculations:
     allowed to live (providing they are the same sign of course).
     NOTE: This is currently only possible using **DIRECTANNIHILATION**.
 
+**DELAYTRUNCINITIATOR** [IterTruncInit]
+    This goes with the above.  This allows us to first start with an active space only calculation and then at some
+    iteration (given by IterTruncInit), to expand to the **TRUNCINITIATOR** method.  The beginning of the 
+    **TRUNCINITIATOR** method may also be started dynamically by putting TRUNCINITIATOR in the CHANGEVARS file.
+    At the moment, when this happens, tau is also reduced by a factor of 10.  This should maybe be played with at 
+    some stage though.
+
 **KEEPDOUBSPAWNS**
     This keyword goes along with the above **TRUNCINITIATOR**.  This is an extra exception which means that if 
     two determinant spawn on the same determinant with the same sign, they are allowed to live no matter where they

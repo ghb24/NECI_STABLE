@@ -55,6 +55,7 @@ contains
 !   EQUILSTEPS XXX          Will change the number of steps to ignore in the averaging of the energy and the shift.
 !   STARTHIST        Will begin histogramming the determinant populations if the tCalcFCIMCPsi is on and the histogramming has been set up.
 !   HISTEQUILSTEPS XXX      Will change the iteration at which the histogramming begins to the value specified.
+!   TRUNCINITIATOR   Will expand the CAS calculation to a TRUNCINITIATOR calculation if DELAYTRUNCINITIATOR is present in the input.
 
     subroutine ChangeVars(tSingBiasChange,tSoftExitFound,tWritePopsFound)
        use SystemData, only : NEl,nBasis

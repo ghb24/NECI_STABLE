@@ -213,7 +213,7 @@ MODULE FciMCParMod
 
         IF(iProcIndex.eq.Root) THEN
             CLOSE(15)
-            IF(tTruncInitiator) CLOSE(16)
+            IF(tTruncInitiator.or.tDelayTruncInit) CLOSE(16)
 !            IF(TAutoCorr) CLOSE(44)
         ENDIF
         IF(TDebug) CLOSE(11)
@@ -7938,7 +7938,7 @@ MODULE FciMCParMod
         
         IF(iProcIndex.eq.Root) THEN
             OPEN(15,file='FCIMCStats',status='unknown')
-            OPEN(16,file='INITIATORStats',status='unknown')
+            IF(tTruncInitiator.or.tDelayTruncInit) OPEN(16,file='INITIATORStats',status='unknown')
         ENDIF
 
 !Store information specifically for the HF determinant
