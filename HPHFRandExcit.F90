@@ -377,8 +377,8 @@ MODULE HPHFRandExcitMod
         INTEGER :: iLutSym(0:NIfTot),nI(NEl),iLutnI(0:NIfTot),nJ(NEl),iLutTemp(0:NIfTot),i,nTemp(NEl)
         LOGICAL :: tCalciLutSym,tCalcnISym,tSwapped
 
-        if (tCSF .or. (NIfTot.ne.NIfD)) then
-            call stop_all ("ReturnAlphaOpenDet","This doesn't work with extra data yet")
+        if (tCSF) then
+            call stop_all ("ReturnAlphaOpenDet","This doesn't work with csfs")
         endif
 
         IF(tCalciLutSym) THEN
