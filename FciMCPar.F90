@@ -130,11 +130,10 @@ MODULE FciMCParMod
                     ENDIF
                 ENDIF
                 IF(tSingBiasChange) THEN
-                    CALL GetSymExcitCount(HFExcit%ExcitData,HFConn)
+                    IF(.not.tNoSpinSymExcitgens) CALL GetSymExcitCount(HFExcit%ExcitData,HFConn)
                     CALL CalcApproxpDoubles(HFConn)
                 ENDIF
 
-                
             ENDIF
 
             IF(TPopsFile.and.(mod(Iter,iWritePopsEvery).eq.0)) THEN
