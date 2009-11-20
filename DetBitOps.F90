@@ -545,7 +545,7 @@ end module
 ! The RA array elements go from 0:NIfD
 ! RB is the array of integers to go with the determinant
       SUBROUTINE SortBitDets(N,RA,RB)
-      use SystemData, only: NIfTot
+      use SystemData, only: NIfTot,NIfDBO
       use DetBitOps, only: DetBitLT
       INTEGER N,I,L,IR,J
       INTEGER RA(0:NIfTot,N)
@@ -608,7 +608,7 @@ end module
 
       SUBROUTINE Sort2BitDetsPlus3(N,RA,RA2,RB)
       use DetBitOps, only: Det2BitLT
-      use SystemData, only: NIfTot
+      use SystemData, only: NIfTot,NIfDBO
       INTEGER N,I,L,IR,J
       INTEGER RA(0:NIfTot,N),RA2(0:NIfTot,N)
       INTEGER RB(N),RC(N),RD(N)
@@ -642,9 +642,9 @@ end module
         J=L+L
 20      IF(J.LE.IR)THEN
           IF(J.LT.IR)THEN
-            IF(Det2BitLT(RA(:,J),RA(:,J+1),RA2(:,J),RA2(:,J+1)).eq.1) J=J+1
+            IF(Det2BitLT(RA(:,J),RA(:,J+1),RA2(:,J),RA2(:,J+1),NIfDBO).eq.1) J=J+1
           ENDIF
-          IF((Det2BitLT(RRA(:),RA(:,J),RRA2(:),RA2(:,J))).eq.1) THEN
+          IF((Det2BitLT(RRA(:),RA(:,J),RRA2(:),RA2(:,J),NIfDBO)).eq.1) THEN
             RA(:,I)=RA(:,J)
             RA2(:,I)=RA2(:,J)
             RB(I)=RB(J)
