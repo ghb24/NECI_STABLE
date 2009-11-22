@@ -1223,64 +1223,6 @@ MODULE GenRandSymExcitNUMod
         REAL*8 :: r,pGen
         LOGICAL :: tParity,IsValidDet,SymAllowed
 
-<<<<<<< HEAD:symrandexcit2.F90
-
-!        IF(tNoSymGenRandExcits) THEN
-!            IF((ClassCount2(1,0).ne.0).and.(ClassCountUnocc2(1,0).eq.0)) THEN
-!                ElecsWNoExcits=ElecsWNoExcits+ClassCount2(1,0)
-!            ENDIF
-!            IF((ClassCount2(2,0).ne.0).and.(ClassCountUnocc2(2,0).eq.0)) THEN
-!                ElecsWNoExcits=ElecsWNoExcits+ClassCount2(2,0)
-!            ENDIF
-!        ELSE
-
-!This will not normally be called.
-        IF((.not.tNoSingsPossible).and.(.not.tNoSymGenRandExcits)) THEN
-!First, we need to find out if there are any electrons which have no possible excitations. This is because these will need to be redrawn and so 
-!will affect the probabilities.
-            ElecsWNoExcits=0
-!Need to look for forbidden electrons through all the irreps.
-
-!            IF(tFixLz) THEN
-!                do k=-iMaxLz,iMaxLz,1
-!                    Ind1=ClassCountInd(1,0,k)
-!                    Ind2=ClassCountInd(1,0,-k)
-!                    do i=0,nSymLabels*2-1
-!                        IF((ClassCount2(i+Ind1).ne.0).and.(ClassCountUnocc2(i+Ind2).eq.0)) THEN
-!                            ElecsWNoExcits=ElecsWNoExcits+ClassCount2(i+Ind1)
-!                        ENDIF
-!                    enddo
-!
-!!                    do i=0,nSymLabels-1
-!!                        IF((ClassCount2(ClassCountInd(1,i,k)).ne.0).and.(ClassCountUnocc2(ClassCountInd(1,i,-k)).eq.0)) THEN
-!!                            ElecsWNoExcits=ElecsWNoExcits+ClassCount2(ClassCountInd(1,i,k))
-!!                        ENDIF
-!!                        IF((ClassCount2(ClassCountInd(2,i,k)).ne.0).and.(ClassCountUnocc2(ClassCountInd(2,i,-k)).eq.0)) THEN
-!!                            ElecsWNoExcits=ElecsWNoExcits+ClassCount2(ClassCountInd(2,i,k))
-!!                        ENDIF
-!!                    enddo
-!                enddo
-!            ELSE
-
-                do i=1,ScratchSize
-!Run through all labels
-                    IF((ClassCount2(i).ne.0).and.(ClassCountUnocc2(i).eq.0)) THEN
-!If there are electrons in this class with no possible unoccupied orbitals in the same class, these elElecsWNoExcits=ElecsWNoExcits+ClassCount2(i)
-                    ENDIF
-                enddo
-
-!                do i=0,nSymLabels-1
-!!Run through all labels
-!                    IF((ClassCount2(ClassCountInd(1,i,0)).ne.0).and.(ClassCountUnocc2(ClassCountInd(1,i,0)).eq.0)) THEN
-!!If there are alpha electrons in this class with no possible unoccupied alpha orbitals in the same class, these alpha electrons have no single excitations.
-!                        ElecsWNoExcits=ElecsWNoExcits+ClassCount2(ClassCountInd(1,i,0))
-!                    ENDIF
-!                    IF((ClassCount2(ClassCountInd(2,i,0)).ne.0).and.(ClassCountUnocc2(ClassCountInd(2,i,0)).eq.0)) THEN
-!                        ElecsWNoExcits=ElecsWNoExcits+ClassCount2(ClassCountInd(2,i,0))
-!                    ENDIF
-!                enddo
-!            ENDIF
-
         CALL CheckIfSingleExcits(ElecsWNoExcits,ClassCount2,ClassCountUnocc2,nI)
         IF(ElecsWNoExcits.eq.NEl) THEN
 !There are no single excitations from this determinant - return a null excitation

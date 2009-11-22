@@ -536,8 +536,10 @@ MODULE FciMCParMod
 !Also, we want to find out the excitation level - we only need to find out if its connected or not (so excitation level of 3 or more is ignored.
 !This can be changed easily by increasing the final argument.
 
+            
+            ! TODO: This is where the testing routine gets called
             !call TestGenRandSymCSFExcit (DetCurr, 1000000, 1.0, 1, 10000)
-            call TestCSF123 (DetCurr)
+            !call TestCSF123 (DetCurr)
 
 
 
