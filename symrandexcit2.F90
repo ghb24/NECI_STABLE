@@ -1142,8 +1142,7 @@ MODULE GenRandSymExcitNUMod
                 do i=1,ScratchSize
 !Run through all labels
                     IF((ClassCount2(i).ne.0).and.(ClassCountUnocc2(i).eq.0)) THEN
-!If there are electrons in this class with no possible unoccupied orbitals in the same class, these electrons have no single excitations.
-                        ElecsWNoExcits=ElecsWNoExcits+ClassCount2(i)
+!If there are electrons in this class with no possible unoccupied orbitals in the same class, these elElecsWNoExcits=ElecsWNoExcits+ClassCount2(i)
                     ENDIF
                 enddo
 

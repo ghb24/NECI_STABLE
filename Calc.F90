@@ -1158,7 +1158,7 @@ MODULE Calc
     
         Subroutine CalcDoCalc()
           use SystemData, only: Alat, Arr,Brr, Beta, ECore, G1, LMS, LMS2, nBasis,NMSH, nBasisMax
-          use SystemData, only: SymRestrict, tCSF, tParity, tSpn, ALat, Beta
+          use SystemData, only: SymRestrict, tCSFOLD, tParity, tSpn, ALat, Beta
           use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB,BasisFN,BasisFNSize,BasisFNSizeB,nEl
           Use DetCalc, only : CK, DetInv, nDet, nEval, tEnergy, tRead, nmrks, w
           Use Determinants, only: FDet, nActiveBasis, SpecDet, tSpecDet
@@ -1227,7 +1227,7 @@ MODULE Calc
 !                      WRITE(6,*) "Out Here 2"
 !                      CALL FLUSH(6)
                 ELSE
-                   IF(TCSF) THEN
+                   IF(TCSFOLD) THEN
                       IF(.NOT.TSPECDET) THEN
                          WRITE(6,*) "SPECDET not specified. Using Fermi determinant ONLY"
                          TSPECDET=.TRUE.

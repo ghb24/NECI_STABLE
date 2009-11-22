@@ -443,6 +443,7 @@ MODULE FciMCParMod
 !        use HPHFRandExcitMod , only : TestGenRandHPHFExcit 
         USE Determinants , only : GetHElement3
         USE FciMCLoggingMOD , only : FindTriConnections,TrackSpawnAttempts,FindSpinCoupHEl
+        use GenRandSymExcitCSF, only: TestGenRandSymCSFExcit, TestCSF123
         INTEGER :: MinorVecSlot,VecSlot,i,j,k,l,MinorValidSpawned,ValidSpawned,CopySign,ParticleWeight,Loop,iPartBloom
         INTEGER :: nJ(NEl),ierr,IC,Child,iCount,DetCurr(NEl),iLutnJ(0:NIfTot),NoMinorWalkersNew
         REAL*8 :: Prob,rat,HDiag,HDiagCurr
@@ -514,6 +515,13 @@ MODULE FciMCParMod
 
 !Also, we want to find out the excitation level - we only need to find out if its connected or not (so excitation level of 3 or more is ignored.
 !This can be changed easily by increasing the final argument.
+
+            !call TestGenRandSymCSFExcit (DetCurr, 1000000, 1.0, 1, 10000)
+            call TestCSF123 (DetCurr)
+
+
+
+
             IF(tTruncSpace.or.tHighExcitsSing.or.tHistSpawn.or.tCalcFCIMCPsi.or.tPrintSpinCoupHEl.or.tHistHamil) THEN
 !We need to know the exact excitation level for truncated calculations.
                 CALL FindBitExcitLevel(iLutHF,CurrentDets(:,j),WalkExcitLevel,NEl)

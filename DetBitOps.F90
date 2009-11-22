@@ -3,11 +3,19 @@
 module DetBitOps
     use Systemdata, only: nel, NIfD, NIfY, NIfTot, tCSF
     implicit none
+
+    ! http://gurmeetsingh.wordpress.com/2008/08/05/fast-bit-counting-routines/
+    ! for a variety of interesting bit counters
+    interface CountBits
+        !module procedure CountBits_sparse
+        module procedure CountBits_nifty
+    end interface
+
     contains
     ! This will count the bits set in a bit-string up to a number nBitsMax.
     ! The function will return 0 -> nBitsMax+1
     ! Counts bits in integers 0:nLast
-    integer function CountBits(iLut,nLast,nBitsMax)
+    integer function CountBits_sparse (iLut, nLast, nBitsMax)
         integer, intent(in), optional :: nBitsMax
         integer, intent(in) :: nLast, iLut(0:nLast)
         integer :: iLutTemp(0:nLast), i, lnBitsMax
@@ -19,17 +27,45 @@ module DetBitOps
             lnBitsMax = 32 * nLast
         endif
 
-        CountBits = 0
+        CountBits_sparse = 0
         iLutTemp = iLut
         do i=0,nLast
-            do while((iLutTemp(i).ne.0).and.(CountBits.le.nBitsMax))
+            do while((iLutTemp(i).ne.0).and.(CountBits_sparse.le.lnBitsMax))
                 ! Clear the rightmost set bit
                 iLutTemp(i)=IAND(iLutTemp(i),iLutTemp(i)-1)
-                CountBits = CountBits + 1
+                CountBits_sparse = CountBits_sparse + 1
             enddo
-            if(CountBits .gt. nBitsMax) return
+            if(CountBits_sparse .gt. lnBitsMax) return
         enddo
-    end function CountBits
+    end function CountBits_sparse
+
+    ! Try counting using a nifty bit of bitwise arithmetic
+    integer function Countbits_nifty (iLut, nLast, nBitsMax)
+        integer, intent(in), optional :: nBitsMax
+        integer, intent(in) :: nLast, iLut(0:nLast)
+        integer ::tmp, i, lnBitsMax
+
+        ! By default, allow all the bits to be set
+        if (present(nBitsMax)) then
+            lnBitsMax = nBitsMax
+        else
+            lnBitsMax = 32 * nLast
+        endif
+
+        CountBits_nifty = 0
+        do i=0,nLast
+            tmp = iLut(i)
+            tmp = tmp - iand(ishft(tmp, -1), Z'55555555')
+            tmp = iand(tmp, Z'33333333') + iand(ishft(tmp, -2), Z'33333333')
+            tmp = iand((tmp+ishft(tmp, -4)), Z'F0F0F0F') * Z'1010101'
+            CountBits_nifty = CountBits_nifty + ishft(tmp, -24)
+
+            if (CountBits_nifty .gt. lnBitsMax) then
+                CountBits_nifty = lnBitsmax+1
+                return
+            endif
+        enddo       
+    end function CountBits_nifty
 
     !This will return true if iLutI is identical to iLutJ and will return false otherwise.
     logical function DetBitEQ(iLutI,iLutJ)

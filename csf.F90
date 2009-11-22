@@ -3,6 +3,8 @@ module csf
     use systemdata, only: nel, brr, ecore, alat, nmsh, nbasismax, G1, nbasis
     use integralsdata, only: umat, fck, nmax
     use HElem
+    use mt95, only: genrand_real2
+
     implicit none
     integer, parameter :: csf_orbital_mask = Z'1fffffff'
     integer, parameter :: csf_test_bit = 31
@@ -28,7 +30,7 @@ module csf
     
 contains
     ! Test if a specified determinant is a CSF
-    logical pure function iscsf (nI)
+    logical function iscsf (nI)
         integer, dimension(:), intent(in) :: nI
 
         iscsf = btest(nI(1),csf_test_bit)
@@ -119,6 +121,9 @@ contains
                     csf_alpha_beta(NJ(nclosed(2)+1:nel),&
                                    dets2(det,nclosed(2)+1:nel))
         enddo
+        ! There will/may be faster ways of doing this
+        call csf_sort_det_block (dets1, ndets(1), nopen(1))
+        call csf_sort_det_block (dets1, ndets(2), nopen(2))
 
         ! TODO: implement symmetry if NI,NJ are the same except for yama
         CSFGetHelement = HElement(0)
@@ -140,6 +145,8 @@ contains
         call LogMemDealloc (this_routine, tagDets(1))
         call LogMemDealloc (this_routine, tagDets(2))
     end function
+
+
 
     ! Fill the last nopen electrons of each determinant with 0 (alpha) or
     ! 1 (beta) in all possible permutations with nup alpha electrons.
@@ -165,6 +172,29 @@ contains
         enddo
     end subroutine
 
+    subroutine csf_sort_det_block (dets, ndets, nopen)
+        integer, intent(in) :: ndets, nopen
+        integer, intent(inout) :: dets (ndets,nel)
+        integer :: i, open_pos, tmp_dets (ndets, nel), nclosed, npos
+
+        tmp_dets = dets
+        nclosed = nel - nopen
+        npos = 1
+        open_pos = nclosed + 1
+        ! Closed e- listed in pairs --> can jump pairs
+        do i=1,nclosed-1,2
+            do while ( (open_pos .le. nel) .and. &
+                       (tmp_dets(1,open_pos) .lt. tmp_dets(1,i)) )
+                dets(:,npos) = tmp_dets(:,open_pos)
+                open_pos = open_pos + 1
+                npos = npos + 1
+            enddo
+            dets(:,npos:npos+1) = tmp_dets(:,i:i+1)
+            npos = npos + 2
+        enddo
+        ! Any remaining open electrons will be untouched.            
+    end subroutine
+
     ! For all of the open shell electrons, generate a list where
     ! 0=alpha, 1=beta for the specified determinant.
     function csf_get_dorder (NI, nel, nopen)
@@ -178,17 +208,18 @@ contains
     end function
 
 
-    subroutine csf_get_yamas (nopen, sfinal, yama)
+    subroutine csf_get_yamas (nopen, sfinal, yama, ncsf_max)
         real*8, intent(in) :: sfinal
-        integer, intent(in) :: nopen
-        integer, intent(out) :: yama (get_num_csfs(nopen, sfinal), nopen)
-        real*8 spin (get_num_csfs(nopen, sfinal), nopen)
+        integer, intent(in) :: nopen, ncsf_max
+        integer, intent(out) :: yama (ncsf_max, nopen)
+        real*8 spin (ncsf_max, nopen)
         integer npos, csf, ncsf, ncsf_next
+
+        if (nopen == 0) return
 
         spin(1,nopen) = sfinal
         ncsf = 1
         ncsf_next = ncsf
-        print*, 'nopen', nopen
         do npos = nopen, 2, -1
             do csf=1,ncsf
                 if (2*spin(csf,npos) .lt. npos) then
@@ -196,6 +227,7 @@ contains
                     yama(csf,npos) = 2
                     if (spin(csf,npos) .ne. 0) then
                         ncsf_next = ncsf_next + 1
+                        if (ncsf_next .gt. ncsf_max) exit
                         !spin(ncsf_next,npos:nopen) = spin(csf,npos:nopen)
                         yama(ncsf_next,npos+1:nopen) = yama(csf,npos+1:nopen)
                         spin(ncsf_next,npos-1) = spin(csf,npos) - 0.5
@@ -207,6 +239,7 @@ contains
                 endif
             enddo
             ncsf = ncsf_next
+            if (ncsf .gt. ncsf_max) exit
         enddo
         yama(:,1) = 1
     end subroutine
@@ -307,6 +340,25 @@ contains
             get_num_csfs = get_num_csfs / (nOpen + S2 + 2)
         endif
     end function
+
+    ! TODO: This can be optimised (don't need to generate them all)
+    subroutine csf_apply_random_yama (nI, nopen, S, ncsf)
+        integer, intent(inout) :: nI(nel)
+        integer, intent(in) :: nopen
+        integer, intent(out) :: ncsf
+        real*8, intent(in) :: S
+        integer :: yamas (get_num_csfs(nopen, S), nopen), num
+        real*8 :: r
+
+        ! Generate the Yamanouchi Symbols
+        ncsf = size(yamas(:,1))
+        call csf_get_yamas (nopen, S, yamas, ncsf)
+
+        ! Pick and apply a rondom one
+        call genrand_real2(r)
+        num = int(r*ncsf) + 1
+        call csf_apply_yama (nI, yamas(num, :))
+    end subroutine
 
     ! Apply a Yamanouchi symbol to a csf
     subroutine csf_apply_yama (NI, csf)

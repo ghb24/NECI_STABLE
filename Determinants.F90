@@ -70,7 +70,7 @@ MODULE Determinants
         Use global_utilities
         Use HElem
         use SystemData, only: nel, Alat, Boa, Coa, BOX, BRR, ECore
-        use SystemData, only: G1, LMS, nBasis, STot, tCSF, Arr,tHub,tUEG
+        use SystemData, only: G1, LMS, nBasis, STot, tCSFOLD, Arr,tHub,tUEG
         use SymData , only : nSymLabels,SymLabelList,SymLabelCounts,TwoCycleSymGens
         use IntegralsData, only: nfrozen
       
@@ -541,36 +541,81 @@ END MODULE Determinants
       END
 
 ! Write determinant NI(NEL) to unit NUnit.  Set LTerm if to add a newline at end.  Also prints CSFs
-      SUBROUTINE WRITEDET(NUNIT,NI,NEL,LTERM)
-         IMPLICIT NONE
-         INTEGER NUNIT,NEL,NI(NEL),I
-         LOGICAL LTERM
-         INTEGER IEL
-         CHARACTER*2 SUFF
-         INCLUDE 'csf.inc'
-         WRITE(NUNIT,"(A)",advance='no') "("
-         DO I=1,NEL
-            IEL=NI(I)
-            IF(IEL.GE.CSF_NBSTART) THEN
-               WRITE(NUNIT,"(I3)",advance='no'),(IEL-CSF_NBSTART)/4+1
-               IEL=IAND(IEL-CSF_NBSTART,3)
-               IF(IEL.EQ.0) THEN
-                  WRITE(NUNIT,"(A)",advance='no') "-B,"
-               ELSEIF(IEL.EQ.1) THEN
-                  WRITE(NUNIT,"(A)",advance='no') "-A,"
-               ELSEIF(IEL.EQ.2) THEN
-                  WRITE(NUNIT,"(A)",advance='no') "+B,"
-               ELSE
-                  WRITE(NUNIT,"(A)",advance='no') "+A,"
-               ENDIF
-            ELSE
-               WRITE(NUNIT,"(I5,A)",advance='no') IEL,","
-            ENDIF
-         ENDDO
-         WRITE(NUNIT,"(A)",advance='no') ")"
-         IF(LTERM) WRITE(NUNIT,*)
-         RETURN
-      END
+      !SUBROUTINE WRITEDET(NUNIT,NI,NEL,LTERM)
+      !   IMPLICIT NONE
+      !   INTEGER NUNIT,NEL,NI(NEL),I
+      !   LOGICAL LTERM
+      !   INTEGER IEL
+      !   CHARACTER*2 SUFF
+      !   INCLUDE 'csf.inc'
+      !   WRITE(NUNIT,"(A)",advance='no') "("
+      !   DO I=1,NEL
+      !      IEL=NI(I)
+      !      IF(IEL.GE.CSF_NBSTART) THEN
+      !         WRITE(NUNIT,"(I3)",advance='no'),(IEL-CSF_NBSTART)/4+1
+      !         IEL=IAND(IEL-CSF_NBSTART,3)
+      !         IF(IEL.EQ.0) THEN
+      !            WRITE(NUNIT,"(A)",advance='no') "-B,"
+      !         ELSEIF(IEL.EQ.1) THEN
+      !            WRITE(NUNIT,"(A)",advance='no') "-A,"
+      !         ELSEIF(IEL.EQ.2) THEN
+      !            WRITE(NUNIT,"(A)",advance='no') "+B,"
+      !         ELSE
+      !            WRITE(NUNIT,"(A)",advance='no') "+A,"
+      !         ENDIF
+      !      ELSE
+      !         WRITE(NUNIT,"(I5,A)",advance='no') IEL,","
+      !      ENDIF
+      !   ENDDO
+      !   WRITE(NUNIT,"(A)",advance='no') ")"
+      !   IF(LTERM) WRITE(NUNIT,*)
+      !   RETURN
+      !END
+    subroutine writedet (nunit, nI, nel, lTerm)
+        use csf, only: iscsf, csf_orbital_mask, csf_yama_bit
+        use systemdata, only: tCSF
+        implicit none
+        integer, intent(in) :: nunit, nel, nI(nel)
+        logical, intent(in) :: lTerm
+        integer :: i, elec
+        logical open_shell, bCSF
+
+        ! Is this a csf?
+        bCSF = tCSF .and. iscsf(nI)
+        open_shell = .false.
+
+        ! Start with a bracket, and loop over all the electrons
+        write(nunit,'("(")',advance='no')
+        do i=1,nel
+            ! If this is a csf, extract the orbital number, and test
+            ! if we have passed all the closed shell electrons
+            if (bCSF) then
+                if ((.not.open_shell) .and. &
+                    btest(nI(i), csf_yama_bit)) open_shell = .true.
+
+                elec = iand(nI(i), csf_orbital_mask)
+            else
+                elec = nI(i)
+            endif
+
+            ! Write out the orbital number, and +/- for open shell csf e-
+            if (open_shell) then
+                write(nunit,'(i4)',advance='no') elec
+                if (btest(nI(i), csf_yama_bit)) then
+                    write(nunit,'("+")',advance='no')
+                else
+                    write(nunit,'("-")',advance='no')
+                endif
+            else
+                write(nunit,'(i5)',advance='no') elec
+            endif
+            if (i /= nel) write(6,'(",")',advance='no')
+        enddo
+
+        ! Close the written determinant off
+        write(nunit,'(")")',advance='no')
+        if (lTerm) write(nunit,*)
+    end subroutine
 
 ! Calculate the one-electron part of the energy of a det
       REAL*8 FUNCTION CALCT(NI,NEL,G1,NBASIS)
