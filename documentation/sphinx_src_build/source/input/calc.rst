@@ -606,6 +606,12 @@ The following options are only available in **FCIMC** calculations:
     pass before the energy of the system from the doubles
     population is counted
 
+**SHIFTEQUILSTEPS** [NShiftEquilSteps]
+    Default 1000
+    This gives the number of iterations after the shift is allowed to change before the shift 
+    contributes to the average value printed in column 10.
+    The default is 1000 to simply leave out the first few values where the shift is dropping (usually from 0).
+
 **RHOAPP** [RhoApp]
     This is for resummed FCIMC, it indicates the number of propagation steps
     around each subgraph before particles are assigned to the nodes
@@ -949,7 +955,42 @@ The following options are only available in **FCIMC** calculations:
     walkers, but unable to itself spawn of have its walkers die.
     Assuming the GUIDINGFUNC from the previous calculation has the correct nodal structure, this guiding function
     should serve to instantly remove walkers spawned with the incorrect sign.
-    
+
+**TRUNCATECAS** [OccCASOrbs] [VirtCASOrbs]
+    This is a parallel FCIMC option, whereby the space will be truncated according to the specified CAS.
+    The arguments indicate the active electrons, and then the number of active virtual orbitals.
+    These values can be dynamically updated throughout the simulation via use of the CHANGEVARS facility.
+
+**TRUNCINITIATOR** 
+    This is a parallel FCIMC option.  The keyword requires an initiator space to first be defined (usually 
+    via **TRUNCATECAS**, but could be by **EXCITE**).  
+    This is then a variation on a kind of CAS-star approach.  Spawning is subject to the contraint
+    that walkers spawned from determinants outside the active space only live if they are being spawned onto 
+    determinants that are already occupied.  If walkers spawned on a new determinant have non-initiator parents,
+    these spawns are 'aborted'.  A special case is if in the same iteration walkers are spawned on a new 
+    determinant both from inside and outside the active space - in this case we treat the active space to have 
+    spawned a second earlier, the determinant is then treated as occupied and the non-active space walkers are 
+    allowed to live (providing they are the same sign of course).
+    NOTE: This is currently only possible using **DIRECTANNIHILATION**.
+
+**DELAYTRUNCINITIATOR** [IterTruncInit]
+    This goes with the above.  This allows us to first start with an active space only calculation and then at some
+    iteration (given by IterTruncInit), to expand to the **TRUNCINITIATOR** method.  The beginning of the 
+    **TRUNCINITIATOR** method may also be started dynamically by putting TRUNCINITIATOR in the CHANGEVARS file.
+    At the moment, when this happens, tau is also reduced by a factor of 10.  This should maybe be played with at 
+    some stage though.
+
+**KEEPDOUBSPAWNS**
+    This keyword goes along with the above **TRUNCINITIATOR**.  This is an extra exception which means that if 
+    two determinant spawn on the same determinant with the same sign, they are allowed to live no matter where they
+    came from.  This is different from the original case where if both of these had come from non-initiator 
+    determinants, they would have both been killed.
+
+**ADDTOINITIATOR** [InitiatorWalkerNo]
+    This is again an addition to the above few options.  In this case, if a determinant outside the initiator space
+    builds up a significant population (greater than InitiatorWalkerNo), it is treated as being in the initiator
+    space and may spawn on occupied or unoccupied determinants as it likes.  This is reassessed at each iteration
+    however, so determinant may move in and out of the initiator space as the populations vary.
 
 The following option are only available in **MCSTAR** calculations:
 
@@ -992,13 +1033,6 @@ The following option are only available in **MCSTAR** calculations:
     Hopefully expanding the space in this way will allow quicker
     convergence, without needing to do this dynamically through the use of CHANGEVARS which may be difficult for
     long/queued jobs.
-
-**TRUNCATECAS** [OccCASOrbs] [VirtCASOrbs]
-
-    This is a parallel FCIMC option, whereby the space will be truncated according to the specified CAS.
-    The arguments indicate the active electrons, and then the number of active virtual orbitals.
-    These values can be dynamically updated throughout the simulation via use of the CHANGEVARS facility.
-
 
 **INITAMPLITUDE** dInitAmplitude
 

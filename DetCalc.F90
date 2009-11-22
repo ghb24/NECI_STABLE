@@ -927,6 +927,7 @@ END MODULE DetCalc
      &   DETINV,TSPECDET,SPECDET)
          use HElem
          use SystemData, only: BasisFN
+         use CalcData, only: tFCIMC
          use global_utilities
          use DetCalc, only: NMRKS
          implicit none
@@ -1059,6 +1060,9 @@ END MODULE DetCalc
 !.. we calculate the energy with weightings normalized to the weight of
 !.. the Fermi determinant, otherwise the numbers blow up
             WINORM=EXP(I_P*(WLRI-WLRI0)+(WLSI-WLSI0))
+            IF(tFCIMC) THEN
+                WINORM=1.D0
+            ENDIF
             NORM=NORM+WINORM
             TOT=TOT+WINORM*DREAL(DLWDB)
             WRITE(42,*) DLWDB
