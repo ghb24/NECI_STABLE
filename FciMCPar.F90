@@ -28,7 +28,7 @@ MODULE FciMCParMod
     use GenRandSymExcitNUMod , only : GenRandSymExcitScratchNU,GenRandSymExcitNU,ScratchSize
     use IntegralsData , only : fck,NMax,UMat,tPartFreezeCore,NPartFrozen,NHolesFrozen
     USE UMatCache , only : GTID
-    USE Logging , only : iWritePopsEvery,TPopsFile,TZeroProjE,iPopsPartEvery,tBinPops,tHistSpawn,iWriteHistEvery,tHistEnergies
+    USE Logging , only : iWritePopsEvery,TPopsFile,TZeroProjE,iPopsPartEvery,tBinPops,tHistSpawn,iWriteHistEvery,tHistEnergies,IterShiftBlock
     USE Logging , only : NoACDets,BinRange,iNoBins,OffDiagBinRange,OffDiagMax,tPrintSpinCoupHEl!,iLagMin,iLagMax,iLagStep,tAutoCorr
     USE Logging , only : tPrintTriConnections,tHistTriConHels,tPrintHElAccept,tPrintFCIMCPsi,tCalcFCIMCPsi,NHistEquilSteps,tPrintOrbOcc,StartPrintOrbOcc
     USE Logging , only : tHFPopStartBlock,tIterStartBlock,IterStartBlocking,HFPopStartBlocking,tInitShiftBlocking,tHistHamil,iWriteHamilEvery
@@ -1677,7 +1677,7 @@ MODULE FciMCParMod
                 ENDIF
             ENDIF
 
-            IF((.not.TSinglePartPhase).and.tInitShiftBlocking) THEN
+            IF((.not.TSinglePartPhase).and.tInitShiftBlocking.and.(Iter.eq.(VaryShiftIter+IterShiftBlock))) THEN
                 CALL InitShiftErrorBlocking(Iter)
                 tInitShiftBlocking=.false.
                 tShiftBlocking=.true.
@@ -1685,7 +1685,7 @@ MODULE FciMCParMod
 
 !Then we perform the blocking at the end of each update cycle.         
             IF(tErrorBlocking) CALL SumInErrorContrib(Iter,AllENumCyc,AllHFCyc)
-            IF(tShiftBlocking) CALL SumInShiftErrorContrib(Iter,DiagSft)
+            IF(tShiftBlocking.and.(Iter.ge.(VaryShiftIter+IterShiftBlock))) CALL SumInShiftErrorContrib(Iter,DiagSft)
         ENDIF
 
         IF(tPrintTriConnections) CALL PrintTriConnStats(Iter+PreviousCycles)
