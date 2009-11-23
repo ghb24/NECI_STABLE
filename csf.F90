@@ -30,7 +30,7 @@ module csf
     
 contains
     ! Test if a specified determinant is a CSF
-    logical function iscsf (nI)
+    logical pure function iscsf (nI)
         integer, dimension(:), intent(in) :: nI
 
         iscsf = btest(nI(1),csf_test_bit)

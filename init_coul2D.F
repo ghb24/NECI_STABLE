@@ -175,13 +175,13 @@ c      CALL DFFTW_PLAN_DFT_2D(PLAN,N1,N2,
 c     &  DIST(-N/2:N/2-1,-N/2:N/2-1,0),
 c     &  DIST(-N/2:N/2-1,-N/2:N/2-1,0),
 c     &  FFTW_FORWARD,FFTW_ESTIMATE)
-!      !CALL DFFTW_PLAN_DFT_2D(PLAN,N1,N2,
-!     !&  D,
-!     !&  DIST(-N/2,-N/2,0),
-!     !&  FFTW_FORWARD,FFTW_ESTIMATE)
+      CALL DFFTW_PLAN_DFT_2D(PLAN,N1,N2,
+     &  D,
+     &  DIST(-N/2,-N/2,0),
+     &  FFTW_FORWARD,FFTW_ESTIMATE)
 c      call dfftw_print_plan(plan)
-!      !CALL DFFTW_EXECUTE(PLAN)
-!      !CALL DFFTW_DESTROY_PLAN(PLAN)
+      CALL DFFTW_EXECUTE(PLAN)
+      CALL DFFTW_DESTROY_PLAN(PLAN)
 #endif
 C..Shift origin and normalise 
       DO I=-N/2,N/2-1
