@@ -223,6 +223,7 @@ MODULE Calc
           tAddtoInitiator=.false.
           InitiatorWalkNo=10
           IterTruncInit=0
+          tInitIncDoubs=.false.
 
           tNeedsVirts=.true.! Set if we need virtual orbitals  (usually set).  Will be unset (by Calc readinput) if I_VMAX=1 and TENERGY is false
 
@@ -913,6 +914,11 @@ MODULE Calc
 !The minimum walker population for a determinant to be added to the initiator space is InitiatorWalkNo.
                 tAddtoInitiator=.true.
                 call Geti(InitiatorWalkNo)
+
+            case("INCLDOUBSINITIATOR")
+!This keyword includes any doubly excited determinant in the 'initiator' space so that it may spawn as usual
+!without any restrictions.
+                tInitIncDoubs=.true.
 
             case("UNBIASPGENINPROJE")
 !A FCIMC serial option. With this, walkers will be accepted with probability tau*hij. i.e. they will not unbias for PGen in the acceptance criteria, but in the term for the projected energy.
