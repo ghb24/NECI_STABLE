@@ -2150,7 +2150,8 @@ MODULE GenRandSymExcitNUMod
             IF (iSpn.eq.2) THEN ! alpha/beta combination
                 ChosenUnocc=INT(nBasis*r)+1
             ELSE ! alpha/alpha, beta/beta
-                ChosenUnocc=2*INT(nBasis/2*r)-(1-(iSpn/3)) ! alpha numbered even, iSpn/3 returns 1 for alpha/alpha, 0 for beta/beta
+                ChosenUnocc=2*(INT(nBasis/2*r)+1) & ! 2*(a number between 1 and nbasis/2) gives the alpha spin
+                & -(1-(iSpn/3)) ! alpha numbered even, iSpn/3 returns 1 for alpha/alpha, 0 for beta/beta
             ENDIF
             ! Check a isn't occupied
             IF(.not.(BTEST(iLutnI((ChosenUnocc-1)/32),MOD(ChosenUnocc-1,32)))) THEN
@@ -2160,6 +2161,7 @@ MODULE GenRandSymExcitNUMod
         ENDDO
 
         Hole1BasisNum=ChosenUnocc
+        IF((Hole1BasisNum.le.0).or.(Hole1BasisNum.gt.nBasis)) CALL Stop_All("CreateDoubExcitUEG","Incorrect basis function generated") 
 
         ! kb is now uniquely defined
         ki=G1(nI(Elec1Ind))%k
@@ -2186,6 +2188,11 @@ MODULE GenRandSymExcitNUMod
         ELSE
             Hole2BasisNum=2*((NMAXZ*2+1)*(NMAXY*2+1)*(kb(1)+NMAXX)+(NMAXZ*2+1)*(kb(2)+NMAXY)+(kb(3)+NMAXZ)+1)-1+iSpn/3
         ENDIF
+        
+        IF(Hole1BasisNum.eq.Hole2BasisNum) THEN
+            nJ(1)=0 
+            RETURN
+        ENDIF
 
         ! Is b occupied?
         IF(BTEST(iLutnI((Hole2BasisNum-1)/32),MOD(Hole2BasisNum-1,32))) THEN
@@ -2210,6 +2217,7 @@ MODULE GenRandSymExcitNUMod
                 CALL Stop_All("CreateDoubExcitUEG", "Wrong b found")
             ENDIF
         ENDDO
+
 
         CALL FindNewDet(nI,nJ,Elec1Ind,Elec2Ind,Hole1BasisNum,Hole2BasisNum,ExcitMat,tParity)
 
@@ -2255,12 +2263,12 @@ MODULE GenRandSymExcitNUMod
         KaXLowerLimit=MAX(-NMAXX,ki(1)-(NMAXX-kj(1)))
         KaXUpperLimit=MIN(NMAXX,ki(1)+(NMAXX+kj(1)))
         KaXRange=KaXUpperLimit-KaXLowerLimit+1
-        KaYLowerLimit=MAX(-NMAXX,ki(2)-(NMAXX-kj(2)))
-        KaYUpperLimit=MIN(NMAXX,ki(2)+(NMAXX+kj(2)))
-        KaYRange=KaXUpperLimit-KaXLowerLimit+1
-        KaZLowerLimit=MAX(-NMAXX,ki(3)-(NMAXX-kj(3)))
-        KaZUpperLimit=MIN(NMAXX,ki(3)+(NMAXX+kj(3)))
-        KaZRange=KaXUpperLimit-KaXLowerLimit+1
+        KaYLowerLimit=MAX(-NMAXY,ki(2)-(NMAXY-kj(2)))
+        KaYUpperLimit=MIN(NMAXY,ki(2)+(NMAXY+kj(2)))
+        KaYRange=KaYUpperLimit-KaYLowerLimit+1
+        KaZLowerLimit=MAX(-NMAXZ,ki(3)-(NMAXZ-kj(3)))
+        KaZUpperLimit=MIN(NMAXZ,ki(3)+(NMAXZ+kj(3)))
+        KaZRange=KaZUpperLimit-KaZLowerLimit+1
 
         iElecInExcitRange=0
         ALLOCATE(Excludedk(NEl,3))
@@ -2296,6 +2304,11 @@ MODULE GenRandSymExcitNUMod
         ENDDO
         DEALLOCATE(Excludedk)
 
+!        write(6,*) "ki", ki
+!        write(6,*) "kj", kj
+!        write(6,*) KaXRange,KaYRange,KaZRange
+!        write(6,*) iElecInExcitRange
+        
         pAIJ=1.0/(KaXRange*KaYRange*KaZRange-iElecInExcitRange)
         pGen=2.0/(NEl*(NEl-1))*2.0*pAIJ
 
@@ -2507,19 +2520,18 @@ SUBROUTINE SpinOrbSymSetup(tRedoSym)
 
 END SUBROUTINE SpinOrbSymSetup
 
-
 !This routine will take a determinant nI, and find Iterations number of excitations of it. It will then histogram these, summing in 1/pGen for every occurance of
 !the excitation. This means that all excitations should be 0 or 1 after enough iterations. It will then count the excitations and compare the number to the
 !number of excitations generated using the full enumeration excitation generation. This can be done for both doubles and singles, or one of them.
 SUBROUTINE TestGenRandSymExcitNU(nI,Iterations,pDoub,exFlag,iWriteEvery)
-    Use SystemData , only : NEl,nBasis,G1,nBasisMax,LzTot,NIfTot
+    Use SystemData , only : NEl,nBasis,G1,nBasisMax,LzTot,NIfTot,tUEG,tUseNewExcitGens
     Use GenRandSymExcitNUMod , only : GenRandSymExcitScratchNU,ConstructClassCounts,ScratchSize
     Use SymData , only : nSymLabels
     use Parallel
 !    use soft_exit , only : ChangeVars 
     use DetBitOps , only : EncodeBitDet
     IMPLICIT NONE
-    INTEGER :: i,Iterations,exFlag,nI(NEl),nJ(NEl),IC,ExcitMat(2,2),DetConn
+    INTEGER :: i,Iterations,exFlag,nI(NEl),nJ(NEl),IC,ExcitMat(2,2),DetConn,kx,ky,kz
     REAL*8 :: pDoub,pGen,AverageContrib,AllAverageContrib
     INTEGER :: ClassCount2(ScratchSize),iLut(0:NIfTot),Scratch1(ScratchSize),Scratch2(ScratchSize),iLutnJ(0:NIfTot)
     INTEGER :: ClassCountUnocc2(ScratchSize),iExcit,iWriteEvery
@@ -2548,11 +2560,27 @@ SUBROUTINE TestGenRandSymExcitNU(nI,Iterations,pDoub,exFlag,iWriteEvery)
 lp2: do while(.true.)
         CALL GenSymExcitIt2(nI,nEl,G1,nBasis,nBasisMax,.false.,EXCITGEN,nJ,iExcit,0,nStore,exFlag)
         IF(nJ(1).eq.0) exit lp2
-        CALL GetLz(nJ,NEl,Lz)
-        IF(Lz.eq.LzTot) THEN
-            excitcount=excitcount+1
-            CALL EncodeBitDet(nJ,iLutnJ)
-            WRITE(25,*) excitcount,iExcit,iLutnJ(0)
+        IF(tUEG) THEN
+            kx=0
+            ky=0
+            kz=0
+            do i=1,NEl
+                kx=kx+G1(nJ(i))%k(1)
+                ky=ky+G1(nJ(i))%k(2)
+                kz=kz+G1(nJ(i))%k(3)
+            enddo
+            IF(kx.eq.0.and.ky.eq.0.and.kz.eq.0) THEN
+                excitcount=excitcount+1
+                CALL EncodeBitDet(nJ,iLutnJ)
+                WRITE(25,*) excitcount,iExcit,iLutnJ(0)
+            ENDIF
+        ELSE
+            CALL GetLz(nJ,NEl,Lz)
+            IF(Lz.eq.LzTot) THEN
+                excitcount=excitcount+1
+                CALL EncodeBitDet(nJ,iLutnJ)
+                WRITE(25,*) excitcount,iExcit,iLutnJ(0)
+            ENDIF
         ENDIF
     enddo lp2
 
@@ -2601,6 +2629,19 @@ lp2: do while(.true.)
         IF(nJ(1).eq.0) THEN
 !            ForbiddenIter=ForbiddenIter+1
             CYCLE
+        ENDIF
+        IF(tUEG.and.(.not.tUseNewExcitGens)) THEN
+            kx=0
+            ky=0
+            kz=0
+            do j=1,NEl
+                kx=kx+G1(nJ(j))%k(1)
+                ky=ky+G1(nJ(j))%k(2)
+                kz=kz+G1(nJ(j))%k(3)
+            enddo
+            IF(.not.(kx.eq.0.and.ky.eq.0.and.kz.eq.0)) THEN
+                CYCLE
+            ENDIF
         ENDIF
         AverageContrib=AverageContrib+1.D0/pGen
 
