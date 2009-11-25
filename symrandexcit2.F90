@@ -2272,6 +2272,14 @@ MODULE GenRandSymExcitNUMod
 
         iElecInExcitRange=0
         ALLOCATE(Excludedk(NEl,3))
+        IF( (G1(nI(Elec1Ind))%Ms.eq.G1(nI(Elec2Ind))%Ms) .and. &
+        &       (MOD(ki(1)-kj(1),2).eq.0) .and. &
+        &       (MOD(ki(2)-kj(2),2).eq.0) .and. &
+        &       (MOD(ki(3)-kj(3),2).eq.0) ) THEN ! This is the disallowed double-excitation to the same orbital
+            iElecInExcitRange=iElecInExcitRange+1
+            Excludedk(iElecInExcitRange,:)=(ki+kj)/2 ! Integer division okay because we're already checked for mod2=0
+        ENDIF
+
         DO i=1,NEl
             IF(G1(nI(i))%Ms.ne.G1(nI(Elec1Ind))%Ms) CYCLE
             kTrial=G1(nI(i))%k
@@ -2302,15 +2310,21 @@ MODULE GenRandSymExcitNUMod
             ENDDO
             IF(.not.tDoubleCount) iElecInExcitRange=iElecInExcitRange+1
         ENDDO
+
         DEALLOCATE(Excludedk)
 
 !        write(6,*) "ki", ki
 !        write(6,*) "kj", kj
+!        write(6,*) KaXLowerLimit, KaXUpperLimit
+!        write(6,*) KaYLowerLimit, KaYUpperLimit
+!        write(6,*) KaZLowerLimit, KaZUpperLimit
 !        write(6,*) KaXRange,KaYRange,KaZRange
 !        write(6,*) iElecInExcitRange
         
         pAIJ=1.0/(KaXRange*KaYRange*KaZRange-iElecInExcitRange)
         pGen=2.0/(NEl*(NEl-1))*2.0*pAIJ
+
+!        write(6,*) pAIJ,pGen
 
     END SUBROUTINE CreateDoubExcitUEGNoFail
 
