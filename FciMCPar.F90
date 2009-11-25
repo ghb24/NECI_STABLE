@@ -9653,7 +9653,7 @@ END SUBROUTINE DissociateExitgen
 !This is the same as BinSearchParts1, but this time, it searches though the full list of determinants created by the full diagonalizer when the histogramming option is on.
 !This is outside the module so it is accessible to AnnihilateMod
 SUBROUTINE BinSearchParts2(iLut,MinInd,MaxInd,PartInd,tSuccess)
-    use SystemData , only : NIfTot
+    use SystemData , only : NIfTot,NIfDBO
     use DetCalc , only : FCIDets
     use DetBitOps, only: DetBitLT
     INTEGER :: iLut(0:NIfTot),MinInd,MaxInd,PartInd
