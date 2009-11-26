@@ -2120,13 +2120,13 @@ MODULE GenRandSymExcitNUMod
 
     END SUBROUTINE CalcAllab
 
-    SUBROUTINE CreateDoubExcitUEG(nI,iLutnI,nJ,tParity,ExcitMat,pGen,Elec1Ind,Elec2Ind)
+    SUBROUTINE CreateDoubExcitUEG(nI,iLutnI,nJ,tParity,ExcitMat,pGen,Elec1Ind,Elec2Ind,iSpn)
 
         Use SystemData , only : G1,NEl,tMerTwist,nOccAlpha,nOccBeta
         Use SystemData , only : NMAXX,NMAXY,NMAXZ,NIfTot
         use mt95 , only : genrand_real2
 
-        INTEGER :: i,nI(NEl),nJ(NEl),Elec1Ind,Elec2Ind,ElecSwapInd,SymProduct,iSpn,SumMl,iLutnI(0:NIfTot)
+        INTEGER :: i,nI(NEl),nJ(NEl),Elec1Ind,Elec2Ind,ElecSwapInd,iSpn,iLutnI(0:NIfTot)
         INTEGER :: ChosenUnocc,Hole1BasisNum,Hole2BasisNum,ki(3),kj(3),ka(3),kb(3),ExcitMat(2,2)
         LOGICAL :: tAllowedExcit,tParity
         REAL*8 :: r,pGen,pAIJ,rSwapSpins
@@ -2136,7 +2136,6 @@ MODULE GenRandSymExcitNUMod
 !        Iter=Iter+1                         ! DEBUG
 !        iPrintEvery=1000                        ! DEBUG
 
-        CALL PickElecPair(nI,Elec1Ind,Elec2Ind,SymProduct,iSpn,SumMl,-1)
             
 ! Debug to see if swapping the electron pair made a difference -- it shouldn't
 !        IF (tNoFailAb) THEN
@@ -2259,25 +2258,28 @@ MODULE GenRandSymExcitNUMod
         use mt95 , only : genrand_real2
 
         INTEGER :: i,j ! Loop variables
-        INTEGER :: nI(NEl),nJ(NEl),Elec1Ind,Elec2Ind,ElecIndStore,ExcitMat(2,2),iLutnI(0:NIfTot)
+        INTEGER :: nI(NEl),nJ(NEl),Elec1Ind,Elec2Ind,ElecIndStore,ExcitMat(2,2),iLutnI(0:NIfTot),SymProduct,SumMl,iSpn
         INTEGER :: ki(3),kj(3),kTrial(3),iElecInExcitRange,iExcludedKFromElec1
         INTEGER :: KaXLowerLimit,KaXUpperLimit,KaXRange,KaYLowerLimit,KaYUpperLimit,KaYRange,KaZLowerLimit,KaZUpperLimit,KaZRange
         LOGICAL :: tParity,tDoubleCount
         REAL*8 :: r,pGen,pAIJ
         INTEGER, ALLOCATABLE :: Excludedk(:,:)
 
-        DO 
-            CALL CreateDoubExcitUEG(nI,iLutnI,nJ,tParity,ExcitMat,pGen,Elec1Ind,Elec2Ind)
+        CALL PickElecPair(nI,Elec1Ind,Elec2Ind,SymProduct,iSpn,SumMl,-1)
+        
+        DO i=1, 10000 
+            IF(i.eq.10000) CALL Stop_All("CreateDoubExcitUEGNoFail","Failure to generate a valid excitation from an electron pair combination")
+            CALL CreateDoubExcitUEG(nI,iLutnI,nJ,tParity,ExcitMat,pGen,Elec1Ind,Elec2Ind,iSpn)
             IF (.not.tNoFailAb) RETURN
-!            IF ((nJ(1).ne.0).and.(G1(nI(Elec1Ind))%Ms.eq.G1(nI(Elec2Ind))%Ms)) EXIT
             IF (nJ(1).ne.0) EXIT
         ENDDO
             
-        IF(tMerTwist) THEN
-            CALL genrand_real2(r)
-        ELSE
-            CALL RANLUX(r,1)
-        ENDIF
+! Debug: tests whether electron swapping makes a difference        
+!        IF(tMerTwist) THEN
+!            CALL genrand_real2(r)
+!        ELSE
+!            CALL RANLUX(r,1)
+!        ENDIF
 
 !        IF(r.ge.0.5) THEN
 !            ElecIndStore=Elec1Ind
