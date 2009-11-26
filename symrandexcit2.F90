@@ -2261,7 +2261,7 @@ MODULE GenRandSymExcitNUMod
         INTEGER :: nI(NEl),nJ(NEl),Elec1Ind,Elec2Ind,ElecIndStore,ExcitMat(2,2),iLutnI(0:NIfTot),SymProduct,SumMl,iSpn
         INTEGER :: ki(3),kj(3),kTrial(3),iElecInExcitRange,iExcludedKFromElec1
         INTEGER :: KaXLowerLimit,KaXUpperLimit,KaXRange,KaYLowerLimit,KaYUpperLimit,KaYRange,KaZLowerLimit,KaZUpperLimit,KaZRange
-        LOGICAL :: tParity,tDoubleCount
+        LOGICAL :: tParity,tDoubleCount,tExtraPoint
         REAL*8 :: r,pGen,pAIJ
         INTEGER, ALLOCATABLE :: Excludedk(:,:)
 
@@ -2300,6 +2300,7 @@ MODULE GenRandSymExcitNUMod
         KaZRange=KaZUpperLimit-KaZLowerLimit+1
 
         iElecInExcitRange=0
+        tExtraPoint=.false.
         ALLOCATE(Excludedk(NEl,3))
         IF( (G1(nI(Elec1Ind))%Ms.eq.G1(nI(Elec2Ind))%Ms) .and. &
         &       (MOD(ki(1)-kj(1),2).eq.0) .and. &
@@ -2307,6 +2308,7 @@ MODULE GenRandSymExcitNUMod
         &       (MOD(ki(3)-kj(3),2).eq.0) ) THEN ! This is the disallowed double-excitation to the same orbital
             iElecInExcitRange=iElecInExcitRange+1
             Excludedk(iElecInExcitRange,:)=(ki+kj)/2 ! Integer division okay because we're already checked for mod2=0
+            tExtraPoint=.true.
         ENDIF
 
         DO i=1,NEl
@@ -2318,6 +2320,11 @@ MODULE GenRandSymExcitNUMod
             IF(kTrial(2).gt.KaYUpperLimit) CYCLE
             IF(kTrial(3).lt.KaZLowerLimit) CYCLE
             IF(kTrial(3).gt.KaZUpperLimit) CYCLE
+            IF(tExtraPoint)THEN
+                IF(     (kTrial(1).eq.Excludedk(1,1))    &
+                & .and. (kTrial(2).eq.Excludedk(1,2))   &
+                & .and. (kTrial(3).eq.Excludedk(1,3)) ) CYCLE
+            ENDIF
             iElecInExcitRange=iElecInExcitRange+1
             Excludedk(iElecInExcitRange,:)=kTrial
         ENDDO
@@ -2353,6 +2360,7 @@ MODULE GenRandSymExcitNUMod
 
         IF(pAIJ.le.0.0) CALL Stop_All("CreateDoubExcitUEGNoFail","pAIJ is less than 0")
         
+!        IF(ki(1).eq.-1.and.kj(1).eq.1) THEN
         IF(.false.) THEN
             write(6,*) "ki", ki
             write(6,*) "kj", kj
@@ -2363,6 +2371,9 @@ MODULE GenRandSymExcitNUMod
             write(6,*) iElecInExcitRange
             write(6,*) KaXRange*KaYRange*KaZRange-iElecInExcitRange
             write(6,*) pAIJ,pGen
+            DO i=1,iExcludedKFromElec1
+                write(6,*) Excludedk(i,:)
+            ENDDO
         ENDIF 
 
     END SUBROUTINE CreateDoubExcitUEGNoFail
