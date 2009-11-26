@@ -2258,16 +2258,42 @@ MODULE GenRandSymExcitNUMod
         use mt95 , only : genrand_real2
 
         INTEGER :: i,j ! Loop variables
+        INTEGER :: Elec1, Elec2
         INTEGER :: nI(NEl),nJ(NEl),Elec1Ind,Elec2Ind,ElecIndStore,ExcitMat(2,2),iLutnI(0:NIfTot),SymProduct,SumMl,iSpn
         INTEGER :: ki(3),kj(3),kTrial(3),iElecInExcitRange,iExcludedKFromElec1,iAllowedExcites
         INTEGER :: KaXLowerLimit,KaXUpperLimit,KaXRange,KaYLowerLimit,KaYUpperLimit,KaYRange,KaZLowerLimit,KaZUpperLimit,KaZRange
         LOGICAL :: tParity,tDoubleCount,tExtraPoint
-        REAL*8 :: r,pGen,pAIJ
+        REAL*8 :: r(2),pGen,pAIJ
         INTEGER, ALLOCATABLE :: Excludedk(:,:)
 
-        CALL PickElecPair(nI,Elec1Ind,Elec2Ind,SymProduct,iSpn,SumMl,-1)
+!        CALL PickElecPair(nI,Elec1Ind,Elec2Ind,SymProduct,iSpn,SumMl,-1)
+           
+        IF(tMerTwist) THEN
+            CALL genrand_real2(r(1))
+            Elec1=INT(r(1)*NEl+1)
+            DO
+                CALL genrand_real2(r(2))
+                Elec2=INT(r(2)*NEl+1)
+                IF(Elec2.ne.Elec1) EXIT
+            ENDDO
+        ELSE
+            CALL Stop_All("CreateDoubExcitUEGNoFail","Doesn't work with RANLUX")
+        ENDIF
+
+
+        Elec1Ind=Elec1
+        Elec2Ind=Elec2
+        IF((G1(nI(Elec1Ind))%Ms.eq.-1).and.(G1(nI(Elec2Ind))%Ms.eq.-1)) THEN
+            iSpn=1
+        ELSE
+            IF((G1(nI(Elec1Ind))%Ms.eq.1).and.(G1(nI(Elec2Ind))%Ms.eq.1)) THEN 
+                iSpn=3
+            ELSE
+                iSpn=2
+            ENDIF
+        ENDIF
         
-        IF(tNoFailAb)THEN
+        IF(tNoFailAb)THEN ! pGen is calculated first because there might be no excitations available for this ij pair
 
             ki=G1(nI(Elec1Ind))%k
             kj=G1(nI(Elec2Ind))%k
@@ -2333,29 +2359,43 @@ MODULE GenRandSymExcitNUMod
 
             iAllowedExcites=KaXRange*KaYRange*KaZRange-iElecInExcitRange
             IF(iAllowedExcites.eq.0) THEN
-                WRITE(6,*) "No allowed excitations from this ij pair"
+            !    WRITE(6,*) "No allowed excitations from this ij pair"
                 nJ(1)=0
                 RETURN
             ENDIF
-            pAIJ=1.0/(KaXRange*KaYRange*KaZRange-iElecInExcitRange) 
-            ! pBIJ is zero for this kind of excitation generator for antiparallel spins
-            IF(G1(nI(Elec1Ind))%Ms.ne.G1(nI(Elec2Ind))%Ms) THEN
-                pGen=2.0/(NEl*(NEl-1))*pAIJ ! Spins not equal
-            ELSE
-                pGen=2.0/(NEl*(NEl-1))*2.0*pAIJ ! Spins equal
-            ENDIF
-
-            IF(pAIJ.le.0.0) CALL Stop_All("CreateDoubExcitUEGNoFail","pAIJ is less than 0")
-            
         ENDIF
 
+
         DO i=1, 10000 
-            IF(i.eq.10000) CALL Stop_All("CreateDoubExcitUEGNoFail","Failure to generate a valid excitation from an electron pair combination")
+            IF(i.eq.10000) THEN
+                write(6,*) "nI:", nI
+                write(6,*) "i & j", nI(Elec1),nI(Elec2)
+                write(6,*) "Allowed Excitations", iAllowedExcites
+                CALL Stop_All("CreateDoubExcitUEGNoFail","Failure to generate a valid excitation from an electron pair combination")
+            ENDIF
             CALL CreateDoubExcitUEG(nI,iLutnI,nJ,tParity,ExcitMat,pGen,Elec1Ind,Elec2Ind,iSpn)
             IF (.not.tNoFailAb) RETURN
             IF (nJ(1).ne.0) EXIT
         ENDDO
-            
+        
+        pAIJ=1.0/(KaXRange*KaYRange*KaZRange-iElecInExcitRange) 
+        ! pBIJ is zero for this kind of excitation generator for antiparallel spins
+        IF(G1(nI(Elec1Ind))%Ms.ne.G1(nI(Elec2Ind))%Ms) THEN
+            pGen=2.0/(NEl*(NEl-1))*pAIJ ! Spins not equal
+        ELSE
+            pGen=2.0/(NEl*(NEl-1))*2.0*pAIJ ! Spins equal
+        ENDIF
+
+        IF(pAIJ.le.0.0) CALL Stop_All("CreateDoubExcitUEGNoFail","pAIJ is less than 0")
+          
+        IF (.false.) THEN
+            write(6,*) "ki", ki
+            write(6,*) "kj", kj
+            write(6,*) KaXUpperLimit, KaXLowerLimit, KaXRange
+            write(6,*) KaYUpperLimit, KaYLowerLimit, KaYRange
+            write(6,*) KaZUpperLimit, KaZLowerLimit, KaZRange
+            write(6,*) iElecInExcitRange, pAIJ, pGen
+        ENDIF
 
     END SUBROUTINE CreateDoubExcitUEGNoFail
 

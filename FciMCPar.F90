@@ -574,9 +574,9 @@ MODULE FciMCParMod
 
             do p=1,Loop
 !If rotoannihilating, we are simply looping over all the particles on the determinant
-!        write(6,*) "***** DEBUG *****"
-!        CALL TestGenRandSymExcitNU(DetCurr,10000000,0.D0,2,1000000)
-!        STOP
+        write(6,*) "***** DEBUG *****"
+        CALL TestGenRandSymExcitNU(DetCurr,10000000,0.D0,2,1000000)
+        STOP
 !        write(6,*) DetCurr        
 
                 IF(.not.tImportanceSample) THEN
