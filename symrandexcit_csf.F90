@@ -30,6 +30,8 @@ contains
         integer, intent(inout) :: CCDbl(ScratchSize) ! ClassCountDoubleOcc2
         integer, intent(inout) :: CCSgl(ScratchSize) ! ClassCountSingleOcc2
         integer, intent(inout) :: CCUn(ScratchSize)  ! ClassCountUnocc2
+        integer :: CCDblS(ScratchSize/2), CCSglS(ScratchSize/2)
+        integer :: CCUnS(ScratchSize/2) ! Only consider spacial terms
         logical, intent(inout) :: tFilled
         real*8,  intent(in)    :: pSingle, pDouble
         real*8,  intent(out)   :: pGen
@@ -61,6 +63,9 @@ contains
             tFilled = .true.
         endif
 
+        ! TODO: make this covered by tFilled as well...
+        call ConstructClassCountsSpacial(nI, nel-nopen, CCDblS, CCSglS, CCUnS)
+
         ! Select type of excitation depending on ExcitFlag.
         select case (ExFlag)
             case (0)
@@ -90,12 +95,12 @@ contains
             call CSFCreateSingleExcit (nI, nJ, CCDbl, CCSgl, CCUn, iLut, &
                                     ExcitMat, nopen, pSingle, pGen, .false.)
         case (2) ! Create double excitation
-            call CSFCreateDoubleExcit (nI, nJ, CCDbl, CCSgl, CCUn, iLut, &
+            call CSFCreateDoubleExcit (nI, nJ, CCDblS, CCSglS, CCUnS, iLut, &
                                        ExcitMat, nopen, pDouble, pGen)
         endselect
     end subroutine
 
-    subroutine CSFCreateDoubleExcit (nI, nJ, CCDbl, CCSgl, CCUn, iLut, &
+    subroutine CSFCreateDoubleExcit (nI, nJ, CCDblS, CCSglS, CCUnS, iLut, &
                                      ExcitMat, nopen, pDouble, pGen)
         use GenRandSymExcitNUMod, only: CreateDoubExcit
         use csf, only: iscsf
@@ -103,15 +108,26 @@ contains
         integer, intent(in)  :: nI(nel), iLut(0:NIfTot), nopen
         integer, intent(out) :: nJ(nel)
         integer, intent(inout) :: ExcitMat(2,2)
-        integer, intent(in)  :: CCSgl (ScratchSize) ! ClassCountSingleOcc2
-        integer, intent(in)  :: CCDbl (ScratchSize) ! ClassCountDoubleOcc2
-        integer, intent(in)  :: CCUn (ScratchSize)  ! ClassCountUnocc2
+        integer, intent(in)  :: CCSglS (ScratchSize/2) ! ClassCountSingleOcc2
+        integer, intent(in)  :: CCDblS (ScratchSize/2) ! ClassCountDoubleOcc2
+        integer, intent(in)  :: CCUnS (ScratchSize/2)  ! ClassCountUnocc2
+        integer :: CCSglDelta (ScratchSize/2)
         real*8,  intent(in)  :: pDouble
         real*8, intent(out) :: pGen
         character(*), parameter :: this_routine = 'CSFCreateDoubleExcit'
+        integer :: nexcits, elecs(2), orbs(2), symProd, sumMl
         integer :: CCOcc (ScratchSize), iLutTmp(0:NIfTot), lnopen, nup, nEquiv
         integer :: ncsf, ListOpen(nopen)
         logical :: tParity
+
+        call CSFPickElecPair (nI, iLut, elecs, orbs, symProd, sumMl, &
+                              CCSglDelta)
+
+        call CSFPickAOrb (nI, iLut, CCDblS, CCSglS, CCUnS, CCSglDelta, &
+                          elecs, orbs, symProd, sumMl)
+
+
+
 
         ! Cheeky trick:
         ! * Generate a normal double
@@ -152,6 +168,122 @@ contains
 
         ! Adjust the generation probability for the Yamanouchi symbol.
         !pGen = pGen / ncsf
+    end subroutine
+
+    subroutine CSFPickAOrb (nI, iLut, CCDblS, CCSglS, CCUnS, CCSglDelta, &
+                            elecs, orbs, symProd, sumMl)
+        integer, intent(in) :: nI(nel), iLut(0:NIfD), elecs(2), symProd
+        integer, intent(in) :: sumMl, orbs(2)
+        integer, intent(in) :: CCSglS (ScratchSize/2)
+        integer, intent(in) :: CCDblS (ScratchSize/2)
+        integer, intent(in) :: CCUnS (ScratchSize/2)
+        integer, intent(in) :: CCSglDelta (ScratchSize/2)
+        real*8 :: r
+        logical :: bSingle
+        integer :: orb, orb2, symA, symB, ind
+
+        ! TODO: count before hand if there are none to choose!
+
+        ! Draw orbitals randomly until we find one unoccupied
+        do i=1,250
+            call genrand_real2 (r)
+            orb = 2 * int(r*nBasis/2) ! 0 based, beta
+
+            ! If exciting to self, or to the other source, this is either
+            ! invalid, or is a single (also disallowed).
+            if ((orb == orbs(1)) .or. (orb+1 == orbs(1)) .or. &
+                (orb == orbs(2)) .or. (orb+1 == orbs(2))) cycle
+
+            ! Is this occupied
+            if (btest(ilut(orb/32), mod(orb,32))) then
+                ! Is it a single, otherwise a double, so try again.
+                if (.not.(btest(iLut((orb+1)/32), mod(orb+1,32)))) then
+                    orb = orb + 1
+                else
+                    cycle
+                endif
+            endif
+
+            ! Check that the Ml of another chosen orbital would be valid
+            if (tFixLz) then
+                MlA = G1(orb)%Ml
+                MlB = SumMl - MlA
+                if (abs(MlB) > iMaxLz) cycle
+            endif
+
+            ! Is there a symmetry allowed B orbital to match this A?
+            symA = int(G1(orb)%Sym%S,4)
+            symB = ieor(symA, symProd)
+            ind = CCIndS(symA, G1(orb)%Ml)
+
+            if (CCUnS(ind) > 0) exit
+            if (CCSglS(ind)+CCSglDelta(ind) > 0) exit
+        enddo
+
+        if (i > 250) then
+            write(6,'("Cannot find an unoccupied orbital for a double")')
+            write(6,'("excitation after 250 attempts.")')
+            write(6,'("Desired symmetry of orbital pair =",i3)') &
+                symProd
+            call writedet(6,nI,nel,.true.)
+            call stop_all(this_routine, "Cannot find an unoccupied orbital &
+                         &for a single excitation after 250 attempts.")
+        endif
+    end subroutine
+
+    ! Pick an electron pair randomly, which is allowed for a double excit.
+    subroutine CSFPickElecPair (nI, iLut, elecs, orbs, symProd, sumMl, &
+                                CCSglDelta)
+        integer, intent(in) :: nI(nel), iLut(0:NIfTot)
+        integer, intent(out) :: elecs(2), orbs(2), symProd, sumMl
+        integer, intent(out) :: CCSglDelta (ScratchSize/2)
+        integer ::i, elec, orb, orb2, ind
+        real*8 :: r
+        logical :: bSecond
+
+        ! Pick two electrons randomly.
+        bSecond = .false.
+        CCSglDelta = 0
+        do while (.not. bSecond)
+            elecs(1) = elec
+            orbs(1) = orb
+            do i=1,250
+                call genrand_real2 (r)
+                elec = int(nel*r) + 1
+                orb = iand(nI(elec), csf_orbital_mask)
+
+                ! Is this in a doubly occupied orbital?
+                ! Singly occupied must give alpha elec
+                ! Only pick beta elec from double, except that we can pick the
+                ! alpha electron from an already chosen double.
+                orb2 = ieor((orb-1),1)
+                if (btest(iLut(orb2/32), mod(orb2,32))) then
+                    if (G1(orb)%Ms == 1) exit
+                    if (bSecond .and. (orb2+1 == elecs(1))) exit
+                else
+                    if (G1(orb)%Ms == 1) call stop_all (this_routine, &
+                                                        "Invalid spin")
+                    ind = CCIndS(G1(orb)%Sym%S, G1(orb)%Ml)
+                    CCSglDelta(ind) = CCSglDelta(ind) - 1
+                    exit
+                endif
+            enddo
+            if (i > 250) then
+                write(6,'("Cannot find excitable electron after 250 &
+                          &attempts")')
+                call stop_all(this_routine, "Cannot find excitable electron &
+                                            &after 250 attempts")
+            endif
+        enddo
+        elecs(2) = elec
+        orbs(2) = orb
+
+        ! Generate the symmetry product of these two electrons
+        ! TODO: make this sym-prod independent of spin - just an iand?
+        symProd = ieor(G1(orbs(1))%Sym%S,G1(orbs(2))%Sym%S)
+
+        ! Sum the Mls if required.
+        if (tFixLz) sumMl = G1(orbs(1))%Ml + G1(orbs(2))%Ml
     end subroutine
 
     ! Generate a single (random) excitation on an arbitrary CSF.
@@ -319,6 +451,54 @@ contains
 
         ! Generation probability
         pGen = pSingle / real(nexcit * (nel - elecsWNoExcits) * ncsf) 
+    end subroutine
+
+    ! ClassCountIndex for the spacial arrays
+    integer function CCIndS (sym, mom)
+        integer, intent(in) :: sym
+        integer, intent(in) :: mom
+
+        return ((ClassCountInd(1,sym,mom)-1)/2) + 1
+    end function
+
+    ! Generate three arrays indicating the number of spacial orbitals of
+    ! each possible symmetry which are doubly, singly and un-occupied
+    ! nb. CCDbl is the number of _pairs_ of spacial orbitals
+    subroutine ConstructClassCountsSpacial (nI, nclosed, CCDblS, CCSglS,CCUnS)
+        integer, intent(in) :: nI(nel), nclosed
+        integer, intent(out) :: CCDblS (ScratchSize/2)
+        integer, intent(out) :: CCSglS (ScratchSize/2)
+        integer, intent(out) :: CCUnS (ScratchSize/2)
+        character(*), parameter :: this_routine = 'ConstructClassCounts'
+        integer :: i, orb, ind
+
+        ! nb. Unoccupied array is produced from overall orbital array minus
+        !     the occupied electrons
+        CCDblS = 0
+        CCSglS = 0
+        forall (i=1:ScratchSize/2) CCUn(i) = OrbClassCount(2*(i-1)+1)
+        if (tNoSymGenRandExcits) then
+            ! TODO: Implement ConstructClassCounts for tNoGenRandExcits
+            call stop_all (this_routine, 'Unimplemented')
+        else
+            ! First loop over the closed shell electrons
+            do i = 1,nclosed-1, 2
+                ! Place e- into ClassCountDoubleOcc, and remove from Unocc.
+                ! ind(beta) = ind(alpha) + 1 --> Can do both in one step.
+                orb = iand (nI(i), csf_orbital_mask)
+                ind = CCIndS (int(G1(orb)%Sym%S,4), G1(orb)%Ml)
+                CCDblS(ind) = CCDblS(ind) + 1
+                CCUnS(ind) = CCUnS(ind) - 1
+            enddo
+
+            ! Now loop over the open shell electrons
+            do i = nclosed+1, nel
+                orb = iand (nI(i), csf_orbital_mask)
+                ind = CCIndS (int(G1(orb)%Sym%S,4), G1(orb)%Ml)
+                CCSglS(ind) = CCSglS(ind) + 1
+                CCUnS(ind) = CCUnS(ind) - 1
+            enddo
+        endif
     end subroutine
 
     ! Generate three arrays indicating the number of orbitals of each
