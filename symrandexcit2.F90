@@ -2126,10 +2126,10 @@ MODULE GenRandSymExcitNUMod
         Use SystemData , only : NMAXX,NMAXY,NMAXZ,NIfTot
         use mt95 , only : genrand_real2
 
-        INTEGER :: i,nI(NEl),nJ(NEl),Elec1Ind,Elec2Ind,SymProduct,iSpn,SumMl,iLutnI(0:NIfTot)
+        INTEGER :: i,nI(NEl),nJ(NEl),Elec1Ind,Elec2Ind,ElecSwapInd,SymProduct,iSpn,SumMl,iLutnI(0:NIfTot)
         INTEGER :: ChosenUnocc,Hole1BasisNum,Hole2BasisNum,ki(3),kj(3),ka(3),kb(3),ExcitMat(2,2)
         LOGICAL :: tAllowedExcit,tParity
-        REAL*8 :: r,pGen,pAIJ
+        REAL*8 :: r,pGen,pAIJ,rSwapSpins
 !        INTEGER , SAVE :: Iter=0, iNumNotAccepted=0 ! DEBUG
 !        INTEGER :: iPrintEvery              ! DEBUG
 
@@ -2137,6 +2137,20 @@ MODULE GenRandSymExcitNUMod
 !        iPrintEvery=1000                        ! DEBUG
 
         CALL PickElecPair(nI,Elec1Ind,Elec2Ind,SymProduct,iSpn,SumMl,-1)
+            
+! Debug to see if swapping the electron pair made a difference -- it shouldn't
+!        IF (tNoFailAb) THEN
+!            IF(tMerTwist) THEN
+!                CALL genrand_real2(rSwapSpins)
+!            ELSE
+!                CALL RANLUX(rSwapSpins,1)
+!            ENDIF
+!            IF(rSwapSpins.ge.0.5)THEN
+!                ElecSwapInd=Elec1Ind
+!                Elec1Ind=Elec2Ind
+!                Elec2Ind=ElecSwapInd
+!            ENDIF
+!        ENDIF
 
         ! This chooses an a of the correct spin, excluding occupied orbitals
         ! This currently allows b orbitals to be created that are disallowed
@@ -2245,7 +2259,7 @@ MODULE GenRandSymExcitNUMod
         use mt95 , only : genrand_real2
 
         INTEGER :: i,j ! Loop variables
-        INTEGER :: nI(NEl),nJ(NEl),Elec1Ind,Elec2Ind,ExcitMat(2,2),iLutnI(0:NIfTot)
+        INTEGER :: nI(NEl),nJ(NEl),Elec1Ind,Elec2Ind,ElecIndStore,ExcitMat(2,2),iLutnI(0:NIfTot)
         INTEGER :: ki(3),kj(3),kTrial(3),iElecInExcitRange,iExcludedKFromElec1
         INTEGER :: KaXLowerLimit,KaXUpperLimit,KaXRange,KaYLowerLimit,KaYUpperLimit,KaYRange,KaZLowerLimit,KaZUpperLimit,KaZRange
         LOGICAL :: tParity,tDoubleCount
@@ -2255,8 +2269,21 @@ MODULE GenRandSymExcitNUMod
         DO 
             CALL CreateDoubExcitUEG(nI,iLutnI,nJ,tParity,ExcitMat,pGen,Elec1Ind,Elec2Ind)
             IF (.not.tNoFailAb) RETURN
+!            IF ((nJ(1).ne.0).and.(G1(nI(Elec1Ind))%Ms.eq.G1(nI(Elec2Ind))%Ms)) EXIT
             IF (nJ(1).ne.0) EXIT
         ENDDO
+            
+        IF(tMerTwist) THEN
+            CALL genrand_real2(r)
+        ELSE
+            CALL RANLUX(r,1)
+        ENDIF
+
+!        IF(r.ge.0.5) THEN
+!            ElecIndStore=Elec1Ind
+!            Elec1Ind=Elec2Ind
+!            Elec2Ind=ElecIndStore
+!        ENDIF
 
         ki=G1(nI(Elec1Ind))%k
         kj=G1(nI(Elec2Ind))%k
@@ -2313,18 +2340,28 @@ MODULE GenRandSymExcitNUMod
 
         DEALLOCATE(Excludedk)
 
-!        write(6,*) "ki", ki
-!        write(6,*) "kj", kj
-!        write(6,*) KaXLowerLimit, KaXUpperLimit
-!        write(6,*) KaYLowerLimit, KaYUpperLimit
-!        write(6,*) KaZLowerLimit, KaZUpperLimit
-!        write(6,*) KaXRange,KaYRange,KaZRange
-!        write(6,*) iElecInExcitRange
         
-        pAIJ=1.0/(KaXRange*KaYRange*KaZRange-iElecInExcitRange)
-        pGen=2.0/(NEl*(NEl-1))*2.0*pAIJ
+        pAIJ=1.0/(KaXRange*KaYRange*KaZRange-iElecInExcitRange) 
+        ! pBIJ is zero for this kind of excitation generator for antiparallel spins
+        IF(G1(nI(Elec1Ind))%Ms.ne.G1(nI(Elec2Ind))%Ms) THEN
+            pGen=2.0/(NEl*(NEl-1))*pAIJ ! Spins not equal
+        ELSE
+            pGen=2.0/(NEl*(NEl-1))*2.0*pAIJ ! Spins equal
+        ENDIF
 
-!        write(6,*) pAIJ,pGen
+        IF(pAIJ.le.0.0) CALL Stop_All("CreateDoubExcitUEGNoFail","pAIJ is less than 0")
+        
+        IF(.false.) THEN
+            write(6,*) "ki", ki
+            write(6,*) "kj", kj
+            write(6,*) KaXLowerLimit, KaXUpperLimit
+            write(6,*) KaYLowerLimit, KaYUpperLimit
+            write(6,*) KaZLowerLimit, KaZUpperLimit
+            write(6,*) KaXRange,KaYRange,KaZRange
+            write(6,*) iElecInExcitRange
+            write(6,*) KaXRange*KaYRange*KaZRange-iElecInExcitRange
+            write(6,*) pAIJ,pGen
+        ENDIF 
 
     END SUBROUTINE CreateDoubExcitUEGNoFail
 
@@ -2733,6 +2770,10 @@ lp2: do while(.true.)
                         ExcitMat(2,2)=l
                         CALL FindExcitBitDet(iLut,iLutnJ,2,ExcitMat,NIfTot)
                         WRITE(8,"(I12,F20.12,4I5,I15)") DetNum,AllDoublesHist(i,j,k,l)/(real(Iterations,8)*nProcessors),i,j,k,l,iLutnJ(0)
+                        write(8,*) "#",G1(i)%k(1),G1(i)%k(2)
+                        write(8,*) "#",G1(j)%k(1),G1(j)%k(2)
+                        write(8,*) "#",G1(k)%k(1),G1(k)%k(2)
+                        write(8,*) "#",G1(l)%k(1),G1(l)%k(2)
                     ENDIF
                 enddo
             enddo
