@@ -67,6 +67,18 @@ module DetBitOps
         enddo       
     end function CountBits_nifty
 
+    integer function count_open_orbs (iLut)
+        integer, intent(in) :: iLut(0:NIfD)
+        integer, dimension(0:NIfD) :: alpha, beta
+
+        alpha = iand(iLut, Z'AAAAAAAA')
+        beta = iand(iLut, Z'55555555')
+        alpha = ishft(alpha, -1)
+        alpha = ieor(alpha, beta)
+        
+        count_open_orbs = CountBits(alpha, NIfD)
+    end function
+
     !This will return true if iLutI is identical to iLutJ and will return false otherwise.
     logical function DetBitEQ(iLutI,iLutJ,nLast)
         integer, intent(in), optional :: nLast
@@ -256,7 +268,7 @@ module DetBitOps
         nopen = 0
         if (tCSF .and. iscsf (nI)) then
             do i=1,nel
-                ! The first non-paired orbital has yama symbol = 1
+                ! THe first non-paired orbital has yama symbol = 1
                 if ((.not. open_shell) .and. &
                     btest(nI(i), csf_yama_bit)) open_shell = .true.
 
@@ -266,7 +278,7 @@ module DetBitOps
 
                 if (open_shell) then
                     if (btest(nI(i), csf_yama_bit)) then
-                        pos = NIfD + 2 + (nopen/32)
+                        pos = NIfD + 1 + (nopen/32)
                         iLut(pos) = ibset(iLut(pos), mod(nopen,32))
                     endif
                     nopen = nopen + 1
@@ -317,16 +329,16 @@ module DetBitOps
                         if (.not.btest(iLut(i),xor(j,1))) then
                             elec = elec + 1
                             nI(elec) = (32*i) + (j+1)
-                            pos = NIfD + 2 + (nopen/32)
+                            pos = NIfD + 1 + (nopen/32)
                             if (btest(iLut(Pos),mod(nopen,32))) then
                                 nI(elec) = ibset(nI(elec),csf_yama_bit)
                             endif
                             nopen = nopen + 1
                         endif
                     endif
-                    if ((elec==nel) .or. (nopen==iLut(NIfD+1))) exit
+                    if (elec==nel) exit
                 enddo
-                if ((elec==nel) .or. (nopen==iLut(NIfD+1))) exit
+                if (elec==nel) exit
             enddo
             ! If there are any open shell e-, set the csf bit
             nI = ibset(nI, csf_test_bit)
@@ -343,6 +355,69 @@ module DetBitOps
             enddo
         endif
     end subroutine DecodeBitDet
+
+    subroutine shift_det_bit_singles_to_beta (iLut)
+        integer, intent(inout) :: iLut(0:NIfD)
+        integer :: iA(0:NIfD), iB(0:NIfD)
+
+        ! Extract the betas
+        iB = iand(iLut, Z'55555555')
+
+        ! Extract the alphas and shift them into beta positions.
+        iA = ishft(iand(iLut, Z'AAAAAAAA'), -1)
+        
+        ! Generate the doubles
+        iLut = iand(iB, iA)
+        iLut = ior(iLut, ishft(iLut, 1))
+
+        ! Generate the singles and include in result
+        iLut = ior(iLut, ieor(iA, iB))
+    end subroutine
+
+    ! Test if all of the beta singles are in higher numbered orbitals than
+    ! the alpha singles.
+    logical function is_canonical_ms_order (nI)
+        integer, intent(in) :: nI(nel)
+        integer, dimension(0:NIfTot) :: alpha, beta, tmp
+        integer :: first_beta_byte, first_beta_bit
+        integer i
+
+        call EncodeBitDet(nI, alpha)
+        beta = iand(alpha, Z'55555555')
+        tmp = iand(alpha, Z'AAAAAAAA')
+
+        alpha = iand(tmp, not(ishft(beta,1))) ! Only alpha singles
+        beta = iand(beta, not(ishft(tmp,-1)))  ! Only beta singles
+
+        ! Find the first non-zero beta byte
+        is_canonical_ms_order = .false.
+        do i=0,NIfD
+            if (beta(i) /= 0) exit
+        enddo
+        if (i > NIfD) return
+        first_beta_byte = i
+
+        ! Find the last non-zero alpha byte
+        do i=NIfD,first_beta_byte,-1
+            if (alpha(i) /= 0) exit            
+        enddo
+
+        if (i < first_beta_byte) then
+            is_canonical_ms_order = .true.
+        else
+            ! Now we need to consider the bits.
+            do i=0,31
+                if (btest(beta(first_beta_byte),i)) exit
+            enddo
+            first_beta_bit = i
+
+            ! TODO: steps of 2, as alpha/beta even/odd...
+            do i=31,first_beta_bit,-1
+                if (btest(alpha(first_beta_byte), i)) exit
+            enddo
+            if (i < first_beta_bit) is_canonical_ms_order = .true.
+        endif
+    end function
 end module
 
     SUBROUTINE GetBitExcitation(iLutnI,iLutnJ,Ex,tSign)
@@ -478,6 +553,12 @@ end module
     END FUNCTION TestClosedShellDet
 
 !Routine to count number of open *SPATIAL* orbitals in a bit-string representation of a determinant.
+! ************************
+! BROKEN
+! NOTE: This function name is misleading
+!       It counts the number of unpaired Beta electrons (ignores Alpha)
+!       --> Returns nopen/2 <==> Ms=0
+! ************************
     SUBROUTINE CalcOpenOrbs(iLut,OpenOrbs)
         use systemdata, only: NIfD, nel
         use DetBitOps, only: CountBits

@@ -693,7 +693,7 @@ MODULE Integrals
       ! NIfY gives space to store number of open shell e-
       ! and the Yamanouchi symbol in a bit representation
       if (tCSF) then
-          NIfY = int(nel/32)+2
+          NIfY = int(nel/32)+1
       else
           NIfY = 0
       endif

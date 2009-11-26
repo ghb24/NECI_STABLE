@@ -16,6 +16,10 @@ module csf
         real*8 pure function choose(N,R)
             integer, intent(in) :: N,R
         end function
+        logical function int_arr_eq (a, b, len)
+            integer, intent(in), dimension(:) :: a, b
+            integer, intent(in), optional :: len
+        end function
         function GetHElement3_wrapper(NI,NJ,iC)
             use HElem
             use Systemdata, only: nEl
@@ -267,7 +271,6 @@ contains
         integer i, nopen
         logical open_shell
 
-
         nopen = 0
         open_shell = .false.
         do i=1,size(NI)
@@ -342,22 +345,35 @@ contains
     end function
 
     ! TODO: This can be optimised (don't need to generate them all)
-    subroutine csf_apply_random_yama (nI, nopen, S, ncsf)
+    ! TODO: Generate random by random branching perhaps (lots of genrands...)
+    subroutine csf_apply_random_yama (nI, nopen, S, ncsf, tForceChange)
         integer, intent(inout) :: nI(nel)
         integer, intent(in) :: nopen
         integer, intent(out) :: ncsf
         real*8, intent(in) :: S
-        integer :: yamas (get_num_csfs(nopen, S), nopen), num
+        logical, intent(in) :: tForceChange
+        integer :: yamas (0:get_num_csfs(nopen, S), nopen), num
         real*8 :: r
 
         ! Generate the Yamanouchi Symbols
-        ncsf = size(yamas(:,1))
-        call csf_get_yamas (nopen, S, yamas, ncsf)
+        ncsf = size(yamas(:,1))-1
+        call csf_get_yamas (nopen, S, yamas(1:,:), ncsf)
 
-        ! Pick and apply a rondom one
-        call genrand_real2(r)
-        num = int(r*ncsf) + 1
-        call csf_apply_yama (nI, yamas(num, :))
+        if (tForceChange .and. ncsf > 1) then
+            call get_csf_yama (nI, yamas(0,:))
+        endif
+
+        ! Pick and apply a random one
+        do while (.true.)
+            call genrand_real2(r)
+            num = int(r*ncsf) + 1
+            if ((.not.tForceChange) .or. (ncsf<2) .or. &
+                .not.int_arr_eq(yamas(num,:),yamas(0,:))) then
+
+                call csf_apply_yama (nI, yamas(num, :))
+                exit
+            endif
+        enddo
     end subroutine
 
     ! Apply a Yamanouchi symbol to a csf
