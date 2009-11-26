@@ -28,7 +28,7 @@ MODULE FciMCParMod
     use GenRandSymExcitNUMod , only : GenRandSymExcitScratchNU,GenRandSymExcitNU,ScratchSize
     use IntegralsData , only : fck,NMax,UMat,tPartFreezeCore,NPartFrozen,NHolesFrozen
     USE UMatCache , only : GTID
-    USE Logging , only : iWritePopsEvery,TPopsFile,TZeroProjE,iPopsPartEvery,tBinPops,tHistSpawn,iWriteHistEvery,tHistEnergies
+    USE Logging , only : iWritePopsEvery,TPopsFile,TZeroProjE,iPopsPartEvery,tBinPops,tHistSpawn,iWriteHistEvery,tHistEnergies,IterShiftBlock
     USE Logging , only : NoACDets,BinRange,iNoBins,OffDiagBinRange,OffDiagMax,tPrintSpinCoupHEl!,iLagMin,iLagMax,iLagStep,tAutoCorr
     USE Logging , only : tPrintTriConnections,tHistTriConHels,tPrintHElAccept,tPrintFCIMCPsi,tCalcFCIMCPsi,NHistEquilSteps,tPrintOrbOcc,StartPrintOrbOcc
     USE Logging , only : tHFPopStartBlock,tIterStartBlock,IterStartBlocking,HFPopStartBlocking,tInitShiftBlocking,tHistHamil,iWriteHamilEvery
@@ -449,8 +449,7 @@ MODULE FciMCParMod
         USE Determinants , only : GetHElement3
         USE FciMCLoggingMOD , only : FindTriConnections,TrackSpawnAttempts,FindSpinCoupHEl
         use GenRandSymExcitCSF, only: TestGenRandSymCSFExcit, TestCSF123
-        USE CalcData , only : tAddtoInitiator,InitiatorWalkNo
-
+        USE CalcData , only : tAddtoInitiator,InitiatorWalkNo,tInitIncDoubs
         INTEGER :: MinorVecSlot,VecSlot,i,j,k,l,MinorValidSpawned,ValidSpawned,CopySign,ParticleWeight,Loop,iPartBloom
         INTEGER :: nJ(NEl),ierr,IC,Child,iCount,DetCurr(NEl),iLutnJ(0:NIfTot),NoMinorWalkersNew
         REAL*8 :: Prob,rat,HDiag,HDiagCurr
@@ -538,10 +537,8 @@ MODULE FciMCParMod
 
             
             ! TODO: This is where the testing routine gets called
-            call TestGenRandSymCSFExcit (DetCurr, 1000000, 0.0, 1.0, 2, 10000)
+            !call TestGenRandSymCSFExcit (DetCurr, 1000000, 0.0, 1.0, 2, 10000)
             !call TestCSF123 (DetCurr)
-
-
 
 
             IF(tTruncSpace.or.tHighExcitsSing.or.tHistSpawn.or.tCalcFCIMCPsi.or.tPrintSpinCoupHEl.or.tHistHamil) THEN
@@ -561,6 +558,11 @@ MODULE FciMCParMod
                         NoInitDets=NoInitDets+1
                         NoInitWalk=NoInitWalk+(ABS(CurrentSign(j)))
 !The parent walker from which we are attempting to spawn is in the active space - all children will carry this flag, and these spawn like usual.
+                    ELSEIF(tInitIncDoubs.and.(WalkExcitLevel.eq.2)) THEN
+                        ParentInitiator=0
+                        NoInitDets=NoInitDets+1
+                        NoInitWalk=NoInitWalk+(ABS(CurrentSign(j)))
+                        NoExtraInitDoubs=NoExtraInitDoubs+1
                     ELSEIF(tAddtoInitiator.and.(ABS(CurrentSign(j)).gt.InitiatorWalkNo)) THEN
                         ParentInitiator=0
                         NoAddedInitiators=NoAddedInitiators+1
@@ -578,6 +580,11 @@ MODULE FciMCParMod
                         NoInitDets=NoInitDets+1
                         NoInitWalk=NoInitWalk+(ABS(CurrentSign(j)))
 !Parent in allowed space.                        
+                    ELSEIF(tInitIncDoubs.and.(WalkExcitLevel.eq.2)) THEN
+                        ParentInitiator=0
+                        NoInitDets=NoInitDets+1
+                        NoInitWalk=NoInitWalk+(ABS(CurrentSign(j)))
+                        NoExtraInitDoubs=NoExtraInitDoubs+1
                     ELSEIF(tAddtoInitiator.and.(ABS(CurrentSign(j)).gt.InitiatorWalkNo)) THEN
                         ParentInitiator=0
                         NoAddedInitiators=NoAddedInitiators+1
@@ -1314,7 +1321,7 @@ MODULE FciMCParMod
         USE FciMCLoggingMOD , only : PrintSpawnAttemptStats,PrintTriConnStats,PrintSpinCoupHEl,InitErrorBlocking,SumInErrorContrib
         USE FciMCLoggingMOD , only : InitShiftErrorBlocking,SumInShiftErrorContrib
         INTEGER :: error,rc,MaxAllowedWalkers,MaxWalkersProc,MinWalkersProc
-        INTEGER :: inpair(9),outpair(9),inpairInit(7),outpairInit(7)
+        INTEGER :: inpair(9),outpair(9),inpairInit(8),outpairInit(8)
         REAL*8 :: TempTotWalkers,TempTotParts
         REAL*8 :: TempSumNoatHF,MeanWalkers,TempSumWalkersCyc,TempAllSumWalkersCyc,TempNoMinorWalkers
         REAL*8 :: inpairreal(3),outpairreal(3)
@@ -1419,8 +1426,9 @@ MODULE FciMCParMod
             inpairInit(5)=NoInitWalk
             inpairInit(6)=NoNonInitWalk
             inpairInit(7)=NoDoubSpawns
+            inpairInit(8)=NoExtraInitDoubs
  
-            CALL MPI_Reduce(inpairInit,outpairInit,7,MPI_INTEGER,MPI_SUM,Root,MPI_COMM_WORLD,error)
+            CALL MPI_Reduce(inpairInit,outpairInit,8,MPI_INTEGER,MPI_SUM,Root,MPI_COMM_WORLD,error)
 
             AllNoAborted=outpairInit(1)
             AllNoAddedInitiators=outpairInit(2)
@@ -1429,6 +1437,7 @@ MODULE FciMCParMod
             AllNoInitWalk=outpairInit(5)
             AllNoNonInitWalk=outpairInit(6)
             AllNoDoubSpawns=outpairInit(7)
+            AllNoExtraInitDoubs=outpairInit(8)
         ENDIF
 
         CALL MPI_Reduce(TempTotWalkers,AllTotWalkers,1,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
@@ -1676,7 +1685,7 @@ MODULE FciMCParMod
                 ENDIF
             ENDIF
 
-            IF((.not.TSinglePartPhase).and.tInitShiftBlocking) THEN
+            IF((.not.TSinglePartPhase).and.tInitShiftBlocking.and.(Iter.eq.(VaryShiftIter+IterShiftBlock))) THEN
                 CALL InitShiftErrorBlocking(Iter)
                 tInitShiftBlocking=.false.
                 tShiftBlocking=.true.
@@ -1684,7 +1693,7 @@ MODULE FciMCParMod
 
 !Then we perform the blocking at the end of each update cycle.         
             IF(tErrorBlocking) CALL SumInErrorContrib(Iter,AllENumCyc,AllHFCyc)
-            IF(tShiftBlocking) CALL SumInShiftErrorContrib(Iter,DiagSft)
+            IF(tShiftBlocking.and.(Iter.ge.(VaryShiftIter+IterShiftBlock))) CALL SumInShiftErrorContrib(Iter,DiagSft)
         ENDIF
 
         IF(tPrintTriConnections) CALL PrintTriConnStats(Iter+PreviousCycles)
@@ -1720,6 +1729,7 @@ MODULE FciMCParMod
         NoInitWalk=0
         NoNonInitWalk=0
         NoDoubSpawns=0
+        NoExtraInitDoubs=0
 
 !Reset TotWalkersOld so that it is the number of walkers now
         TotWalkersOld=TotWalkers
@@ -1756,6 +1766,7 @@ MODULE FciMCParMod
         AllNoInitWalk=0
         AllNoNonInitWalk=0
         AllNoDoubSpawns=0
+        AllNoExtraInitDoubs=0
 
 
 
@@ -2207,7 +2218,7 @@ MODULE FciMCParMod
                 WRITE(15,"(A2,A10,A16,A10,A16,A12,3A13,3A17,2A10,A13,A12,A13,A13,A10)") "#","Step","Shift","WalkerCng","GrowRate","TotWalkers","Annihil","NoDied","NoBorn","Proj.E","Av.Shift",&
 &               "Proj.E.ThisCyc","NoatHF","NoatDoubs","AccRat","UniqueDets","IterTime","FracSpawnFromSing","WalkersDiffProc"
 
-                WRITE(16,"(A2,A10,2A15,2A16,A20,2A18)") "# ","Step","No Aborted","NoAddedtoInit","FracDetsInit","FracWalksInit","NoDoubSpawns","InstAbortShift","AvAbortShift"
+                WRITE(16,"(A2,A10,2A15,2A16,2A20,2A18)") "# ","Step","No Aborted","NoAddedtoInit","FracDetsInit","FracWalksInit","NoDoubSpawns","NoExtraDoubs","InstAbortShift","AvAbortShift"
 
             ELSE
                 WRITE(6,"(A)") "       Step     Shift      WalkerCng    GrowRate       TotWalkers    Annihil    NoDied    NoBorn    Proj.E          Av.Shift     Proj.E.ThisCyc   NoatHF NoatDoubs      AccRat     UniqueDets     IterTime"
@@ -5447,9 +5458,9 @@ MODULE FciMCParMod
  &                  INT(AllTotParts,i2),AllAnnihilated,AllNoDied,AllNoBorn,ProjectionE,AvDiagSft,AllENumCyc/AllHFCyc,AllNoatHF,AllNoatDoubs,AccRat,INT(AllTotWalkers,i2),IterTime,&
  &                  REAL(AllSpawnFromSing)/REAL(AllNoBorn),WalkersDiffProc
 
-                WRITE(16,"(I12,2I15,2G16.7,I20,2G18.7)") Iter+PreviousCycles,AllNoAborted,AllNoAddedInitiators,(REAL(AllNoInitDets)/REAL(AllNoNonInitDets)),(REAL(AllNoInitWalk)/REAL(AllNoNonInitWalk)),&
- &                  AllNoDoubSpawns,DiagSftAbort,AvDiagSftAbort
-                WRITE(6,"(I12,G16.7,I10,G16.7,I12,3I11,3G17.9,2I10,G13.5,I12,G13.5)") Iter+PreviousCycles,DiagSft,INT(AllTotParts-AllTotPartsOld,i2),AllGrowRate,    &
+                WRITE(16,"(I12,2I15,2G16.7,2I20,2G18.7)") Iter+PreviousCycles,AllNoAborted,AllNoAddedInitiators,(REAL(AllNoInitDets)/REAL(AllNoNonInitDets)),(REAL(AllNoInitWalk)/REAL(AllNoNonInitWalk)),&
+ &                  AllNoDoubSpawns,AllNoExtraInitDoubs,DiagSftAbort,AvDiagSftAbort
+                        WRITE(6,"(I12,G16.7,I10,G16.7,I12,3I11,3G17.9,2I10,G13.5,I12,G13.5)") Iter+PreviousCycles,DiagSft,INT(AllTotParts-AllTotPartsOld,i2),AllGrowRate,    &
  &                  INT(AllTotParts,i2),AllAnnihilated,AllNoDied,AllNoBorn,ProjectionE,AvDiagSft,AllENumCyc/AllHFCyc,AllNoatHF,AllNoatDoubs,AccRat,INT(AllTotWalkers,i2),IterTime
 
             ELSE
@@ -8219,6 +8230,7 @@ MODULE FciMCParMod
         NoInitWalk=0
         NoNonInitWalk=0
         NoDoubSpawns=0
+        NoExtraInitDoubs=0
 
 !Also reinitialise the global variables - should not necessarily need to do this...
         AllSumENum=0.D0
@@ -8250,6 +8262,8 @@ MODULE FciMCParMod
         AllNoInitWalk=0
         AllNoNonInitWalk=0
         AllNoDoubSpawns=0
+        AllNoExtraInitDoubs=0
+ 
 
         IF(tHistSpawn.or.(tCalcFCIMCPsi.and.tFCIMC).or.tHistHamil) THEN
             ALLOCATE(HistMinInd(NEl))
@@ -9647,7 +9661,7 @@ END SUBROUTINE DissociateExitgen
 !This is the same as BinSearchParts1, but this time, it searches though the full list of determinants created by the full diagonalizer when the histogramming option is on.
 !This is outside the module so it is accessible to AnnihilateMod
 SUBROUTINE BinSearchParts2(iLut,MinInd,MaxInd,PartInd,tSuccess)
-    use SystemData , only : NIfTot
+    use SystemData , only : NIfTot,NIfDBO
     use DetCalc , only : FCIDets
     use DetBitOps, only: DetBitLT
     INTEGER :: iLut(0:NIfTot),MinInd,MaxInd,PartInd

@@ -301,6 +301,11 @@
 !..binary seach
         nlo=1
         nup=n
+
+        IF(n.eq.0) THEN
+            ipos=1
+            return
+        ENDIF
  100    continue
 !..if num is larger than the last element of list,
 !.. return ipos as nup+1
@@ -383,6 +388,10 @@
 !..binary seach
         nlo=1
         nup=n
+        IF(n.eq.0) THEN
+            ipos=1
+            return
+        ENDIF
  100    continue
 !..if num is larger than the last element of list,
 !.. return ipos as nup+1
@@ -471,6 +480,10 @@
 !..binary seach
         nlo=1
         nup=n
+        IF(n.eq.0) THEN
+            ipos=1
+            return
+        ENDIF
  100    continue
 !..if num is larger than the last element of list,
 !.. return ipos as nup+1

@@ -992,6 +992,10 @@ The following options are only available in **FCIMC** calculations:
     space and may spawn on occupied or unoccupied determinants as it likes.  This is reassessed at each iteration
     however, so determinant may move in and out of the initiator space as the populations vary.
 
+**INCLDOUBSINITIATOR**
+    This keyword also goes with **TRUNCINITIATOR**, and is a parallel FCIMC option.  When it is present, all doubly
+    excited determinants are included in the initiator space, and are allowed to spawn as usual.
+
 The following option are only available in **MCSTAR** calculations:
 
 **BINCANCEL** 
