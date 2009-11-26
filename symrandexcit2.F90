@@ -2259,7 +2259,7 @@ MODULE GenRandSymExcitNUMod
 
         INTEGER :: i,j ! Loop variables
         INTEGER :: nI(NEl),nJ(NEl),Elec1Ind,Elec2Ind,ElecIndStore,ExcitMat(2,2),iLutnI(0:NIfTot),SymProduct,SumMl,iSpn
-        INTEGER :: ki(3),kj(3),kTrial(3),iElecInExcitRange,iExcludedKFromElec1
+        INTEGER :: ki(3),kj(3),kTrial(3),iElecInExcitRange,iExcludedKFromElec1,iAllowedExcites
         INTEGER :: KaXLowerLimit,KaXUpperLimit,KaXRange,KaYLowerLimit,KaYUpperLimit,KaYRange,KaZLowerLimit,KaZUpperLimit,KaZRange
         LOGICAL :: tParity,tDoubleCount,tExtraPoint
         REAL*8 :: r,pGen,pAIJ
@@ -2267,6 +2267,88 @@ MODULE GenRandSymExcitNUMod
 
         CALL PickElecPair(nI,Elec1Ind,Elec2Ind,SymProduct,iSpn,SumMl,-1)
         
+        IF(tNoFailAb)THEN
+
+            ki=G1(nI(Elec1Ind))%k
+            kj=G1(nI(Elec2Ind))%k
+            KaXLowerLimit=MAX(-NMAXX,ki(1)-(NMAXX-kj(1)))
+            KaXUpperLimit=MIN(NMAXX,ki(1)+(NMAXX+kj(1)))
+            KaXRange=KaXUpperLimit-KaXLowerLimit+1
+            KaYLowerLimit=MAX(-NMAXY,ki(2)-(NMAXY-kj(2)))
+            KaYUpperLimit=MIN(NMAXY,ki(2)+(NMAXY+kj(2)))
+            KaYRange=KaYUpperLimit-KaYLowerLimit+1
+            KaZLowerLimit=MAX(-NMAXZ,ki(3)-(NMAXZ-kj(3)))
+            KaZUpperLimit=MIN(NMAXZ,ki(3)+(NMAXZ+kj(3)))
+            KaZRange=KaZUpperLimit-KaZLowerLimit+1
+
+            iElecInExcitRange=0
+            tExtraPoint=.false.
+            ALLOCATE(Excludedk(NEl,3))
+            IF( (G1(nI(Elec1Ind))%Ms.eq.G1(nI(Elec2Ind))%Ms) .and. &
+            &       (MOD(ki(1)-kj(1),2).eq.0) .and. &
+            &       (MOD(ki(2)-kj(2),2).eq.0) .and. &
+            &       (MOD(ki(3)-kj(3),2).eq.0) ) THEN ! This is the disallowed double-excitation to the same orbital
+                iElecInExcitRange=iElecInExcitRange+1
+                Excludedk(iElecInExcitRange,:)=(ki+kj)/2 ! Integer division okay because we're already checked for mod2=0
+                tExtraPoint=.true.
+            ENDIF
+
+            DO i=1,NEl
+                IF(G1(nI(i))%Ms.ne.G1(nI(Elec1Ind))%Ms) CYCLE
+                kTrial=G1(nI(i))%k
+                IF(kTrial(1).lt.KaXLowerLimit) CYCLE
+                IF(kTrial(1).gt.KaXUpperLimit) CYCLE
+                IF(kTrial(2).lt.KaYLowerLimit) CYCLE
+                IF(kTrial(2).gt.KaYUpperLimit) CYCLE
+                IF(kTrial(3).lt.KaZLowerLimit) CYCLE
+                IF(kTrial(3).gt.KaZUpperLimit) CYCLE
+                IF(tExtraPoint)THEN
+                    IF(     (kTrial(1).eq.Excludedk(1,1))    &
+                    & .and. (kTrial(2).eq.Excludedk(1,2))   &
+                    & .and. (kTrial(3).eq.Excludedk(1,3)) ) CYCLE
+                ENDIF
+                iElecInExcitRange=iElecInExcitRange+1
+                Excludedk(iElecInExcitRange,:)=kTrial
+            ENDDO
+            iExcludedKFromElec1=iElecInExcitRange
+            DO i=1,NEl
+                IF(G1(nI(i))%Ms.ne.G1(nI(Elec2Ind))%Ms) CYCLE
+                kTrial=ki+kj-G1(nI(i))%k
+                IF(kTrial(1).lt.KaXLowerLimit) CYCLE
+                IF(kTrial(1).gt.KaXUpperLimit) CYCLE
+                IF(kTrial(2).lt.KaYLowerLimit) CYCLE
+                IF(kTrial(2).gt.KaYUpperLimit) CYCLE
+                IF(kTrial(3).lt.KaZLowerLimit) CYCLE
+                IF(kTrial(3).gt.KaZUpperLimit) CYCLE
+        ! Need to check for this k-point already having been eliminated
+        ! by the previous loop over electrons
+                tDoubleCount=.false.
+                DO j=1,iExcludedKFromElec1
+                    IF((Excludedk(j,1).eq.kTrial(1)).and.(Excludedk(j,2).eq.kTrial(2)).and.Excludedk(j,3).eq.kTrial(3)) tDoubleCount=.true.
+                ENDDO
+                IF(.not.tDoubleCount) iElecInExcitRange=iElecInExcitRange+1
+            ENDDO
+
+            DEALLOCATE(Excludedk)
+
+            iAllowedExcites=KaXRange*KaYRange*KaZRange-iElecInExcitRange
+            IF(iAllowedExcites.eq.0) THEN
+                WRITE(6,*) "No allowed excitations from this ij pair"
+                nJ(1)=0
+                RETURN
+            ENDIF
+            pAIJ=1.0/(KaXRange*KaYRange*KaZRange-iElecInExcitRange) 
+            ! pBIJ is zero for this kind of excitation generator for antiparallel spins
+            IF(G1(nI(Elec1Ind))%Ms.ne.G1(nI(Elec2Ind))%Ms) THEN
+                pGen=2.0/(NEl*(NEl-1))*pAIJ ! Spins not equal
+            ELSE
+                pGen=2.0/(NEl*(NEl-1))*2.0*pAIJ ! Spins equal
+            ENDIF
+
+            IF(pAIJ.le.0.0) CALL Stop_All("CreateDoubExcitUEGNoFail","pAIJ is less than 0")
+            
+        ENDIF
+
         DO i=1, 10000 
             IF(i.eq.10000) CALL Stop_All("CreateDoubExcitUEGNoFail","Failure to generate a valid excitation from an electron pair combination")
             CALL CreateDoubExcitUEG(nI,iLutnI,nJ,tParity,ExcitMat,pGen,Elec1Ind,Elec2Ind,iSpn)
@@ -2274,107 +2356,6 @@ MODULE GenRandSymExcitNUMod
             IF (nJ(1).ne.0) EXIT
         ENDDO
             
-! Debug: tests whether electron swapping makes a difference        
-!        IF(tMerTwist) THEN
-!            CALL genrand_real2(r)
-!        ELSE
-!            CALL RANLUX(r,1)
-!        ENDIF
-
-!        IF(r.ge.0.5) THEN
-!            ElecIndStore=Elec1Ind
-!            Elec1Ind=Elec2Ind
-!            Elec2Ind=ElecIndStore
-!        ENDIF
-
-        ki=G1(nI(Elec1Ind))%k
-        kj=G1(nI(Elec2Ind))%k
-        KaXLowerLimit=MAX(-NMAXX,ki(1)-(NMAXX-kj(1)))
-        KaXUpperLimit=MIN(NMAXX,ki(1)+(NMAXX+kj(1)))
-        KaXRange=KaXUpperLimit-KaXLowerLimit+1
-        KaYLowerLimit=MAX(-NMAXY,ki(2)-(NMAXY-kj(2)))
-        KaYUpperLimit=MIN(NMAXY,ki(2)+(NMAXY+kj(2)))
-        KaYRange=KaYUpperLimit-KaYLowerLimit+1
-        KaZLowerLimit=MAX(-NMAXZ,ki(3)-(NMAXZ-kj(3)))
-        KaZUpperLimit=MIN(NMAXZ,ki(3)+(NMAXZ+kj(3)))
-        KaZRange=KaZUpperLimit-KaZLowerLimit+1
-
-        iElecInExcitRange=0
-        tExtraPoint=.false.
-        ALLOCATE(Excludedk(NEl,3))
-        IF( (G1(nI(Elec1Ind))%Ms.eq.G1(nI(Elec2Ind))%Ms) .and. &
-        &       (MOD(ki(1)-kj(1),2).eq.0) .and. &
-        &       (MOD(ki(2)-kj(2),2).eq.0) .and. &
-        &       (MOD(ki(3)-kj(3),2).eq.0) ) THEN ! This is the disallowed double-excitation to the same orbital
-            iElecInExcitRange=iElecInExcitRange+1
-            Excludedk(iElecInExcitRange,:)=(ki+kj)/2 ! Integer division okay because we're already checked for mod2=0
-            tExtraPoint=.true.
-        ENDIF
-
-        DO i=1,NEl
-            IF(G1(nI(i))%Ms.ne.G1(nI(Elec1Ind))%Ms) CYCLE
-            kTrial=G1(nI(i))%k
-            IF(kTrial(1).lt.KaXLowerLimit) CYCLE
-            IF(kTrial(1).gt.KaXUpperLimit) CYCLE
-            IF(kTrial(2).lt.KaYLowerLimit) CYCLE
-            IF(kTrial(2).gt.KaYUpperLimit) CYCLE
-            IF(kTrial(3).lt.KaZLowerLimit) CYCLE
-            IF(kTrial(3).gt.KaZUpperLimit) CYCLE
-            IF(tExtraPoint)THEN
-                IF(     (kTrial(1).eq.Excludedk(1,1))    &
-                & .and. (kTrial(2).eq.Excludedk(1,2))   &
-                & .and. (kTrial(3).eq.Excludedk(1,3)) ) CYCLE
-            ENDIF
-            iElecInExcitRange=iElecInExcitRange+1
-            Excludedk(iElecInExcitRange,:)=kTrial
-        ENDDO
-        iExcludedKFromElec1=iElecInExcitRange
-        DO i=1,NEl
-            IF(G1(nI(i))%Ms.ne.G1(nI(Elec2Ind))%Ms) CYCLE
-            kTrial=ki+kj-G1(nI(i))%k
-            IF(kTrial(1).lt.KaXLowerLimit) CYCLE
-            IF(kTrial(1).gt.KaXUpperLimit) CYCLE
-            IF(kTrial(2).lt.KaYLowerLimit) CYCLE
-            IF(kTrial(2).gt.KaYUpperLimit) CYCLE
-            IF(kTrial(3).lt.KaZLowerLimit) CYCLE
-            IF(kTrial(3).gt.KaZUpperLimit) CYCLE
-    ! Need to check for this k-point already having been eliminated
-    ! by the previous loop over electrons
-            tDoubleCount=.false.
-            DO j=1,iExcludedKFromElec1
-                IF((Excludedk(j,1).eq.kTrial(1)).and.(Excludedk(j,2).eq.kTrial(2)).and.Excludedk(j,3).eq.kTrial(3)) tDoubleCount=.true.
-            ENDDO
-            IF(.not.tDoubleCount) iElecInExcitRange=iElecInExcitRange+1
-        ENDDO
-
-        DEALLOCATE(Excludedk)
-
-        
-        pAIJ=1.0/(KaXRange*KaYRange*KaZRange-iElecInExcitRange) 
-        ! pBIJ is zero for this kind of excitation generator for antiparallel spins
-        IF(G1(nI(Elec1Ind))%Ms.ne.G1(nI(Elec2Ind))%Ms) THEN
-            pGen=2.0/(NEl*(NEl-1))*pAIJ ! Spins not equal
-        ELSE
-            pGen=2.0/(NEl*(NEl-1))*2.0*pAIJ ! Spins equal
-        ENDIF
-
-        IF(pAIJ.le.0.0) CALL Stop_All("CreateDoubExcitUEGNoFail","pAIJ is less than 0")
-        
-!        IF(ki(1).eq.-1.and.kj(1).eq.1) THEN
-        IF(.false.) THEN
-            write(6,*) "ki", ki
-            write(6,*) "kj", kj
-            write(6,*) KaXLowerLimit, KaXUpperLimit
-            write(6,*) KaYLowerLimit, KaYUpperLimit
-            write(6,*) KaZLowerLimit, KaZUpperLimit
-            write(6,*) KaXRange,KaYRange,KaZRange
-            write(6,*) iElecInExcitRange
-            write(6,*) KaXRange*KaYRange*KaZRange-iElecInExcitRange
-            write(6,*) pAIJ,pGen
-            DO i=1,iExcludedKFromElec1
-                write(6,*) Excludedk(i,:)
-            ENDDO
-        ENDIF 
 
     END SUBROUTINE CreateDoubExcitUEGNoFail
 
