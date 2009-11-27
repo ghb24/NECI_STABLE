@@ -574,10 +574,13 @@ MODULE FciMCParMod
 
             do p=1,Loop
 !If rotoannihilating, we are simply looping over all the particles on the determinant
-        write(6,*) "***** DEBUG *****"
-        CALL TestGenRandSymExcitNU(DetCurr,10000000,0.D0,2,1000000)
-        STOP
-!        write(6,*) DetCurr        
+
+!Ali wanted this debug line left in: this is an appropriate place to call the histogramming of the excitation generator
+!at least for UEG
+!        write(6,*) "***** DEBUG *****"
+!        CALL TestGenRandSymExcitNU(DetCurr,100000000,0.D0,2,1000000)
+!        STOP
+
 
                 IF(.not.tImportanceSample) THEN
                     IF(.not.TRegenExcitgens) THEN

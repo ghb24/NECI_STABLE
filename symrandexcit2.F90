@@ -2126,31 +2126,11 @@ MODULE GenRandSymExcitNUMod
         Use SystemData , only : NMAXX,NMAXY,NMAXZ,NIfTot
         use mt95 , only : genrand_real2
 
-        INTEGER :: i,nI(NEl),nJ(NEl),Elec1Ind,Elec2Ind,ElecSwapInd,iSpn,iLutnI(0:NIfTot)
+        INTEGER :: i,nI(NEl),nJ(NEl),Elec1Ind,Elec2Ind,iSpn,iLutnI(0:NIfTot)
         INTEGER :: ChosenUnocc,Hole1BasisNum,Hole2BasisNum,ki(3),kj(3),ka(3),kb(3),ExcitMat(2,2)
         LOGICAL :: tAllowedExcit,tParity
-        REAL*8 :: r,pGen,pAIJ,rSwapSpins
-!        INTEGER , SAVE :: Iter=0, iNumNotAccepted=0 ! DEBUG
-!        INTEGER :: iPrintEvery              ! DEBUG
-
-!        Iter=Iter+1                         ! DEBUG
-!        iPrintEvery=1000                        ! DEBUG
-
+        REAL*8 :: r,pGen,pAIJ
             
-! Debug to see if swapping the electron pair made a difference -- it shouldn't
-!        IF (tNoFailAb) THEN
-!            IF(tMerTwist) THEN
-!                CALL genrand_real2(rSwapSpins)
-!            ELSE
-!                CALL RANLUX(rSwapSpins,1)
-!            ENDIF
-!            IF(rSwapSpins.ge.0.5)THEN
-!                ElecSwapInd=Elec1Ind
-!                Elec1Ind=Elec2Ind
-!                Elec2Ind=ElecSwapInd
-!            ENDIF
-!        ENDIF
-
         ! This chooses an a of the correct spin, excluding occupied orbitals
         ! This currently allows b orbitals to be created that are disallowed
         DO
@@ -2191,7 +2171,6 @@ MODULE GenRandSymExcitNUMod
         IF(ABS(kb(3)).gt.NMAXZ) tAllowedExcit=.false.
         IF(.not.tAllowedExcit) THEN
             nJ(1)=0
-!            iNumNotAccepted=iNumNotAccepted+1 ! DEBUG
             RETURN
         ENDIF
         
@@ -2215,7 +2194,6 @@ MODULE GenRandSymExcitNUMod
         
         IF(.not.tAllowedExcit) THEN
             nJ(1)=0
-!            iNumNotAccepted=iNumNotAccepted+1 ! DEBUG
             RETURN
         ENDIF
 
