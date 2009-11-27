@@ -609,7 +609,7 @@ END MODULE Determinants
             else
                 write(nunit,'(i5)',advance='no') elec
             endif
-            if (i /= nel) write(6,'(",")',advance='no')
+            if (i /= nel) write(nunit,'(",")',advance='no')
         enddo
 
         ! Close the written determinant off
