@@ -1480,11 +1480,15 @@ C.. T1= highest integer less than R1
                T2=-T2
                IF(T2.NE.R2) T2=T2-1
             ENDIF
+C.. The last 10 lines can probably be replaced by FLOOR intrinsic? -- jjs
+C.. The following line conserves the top-right rule for edge effects
             IF(R1.EQ.T1) T1=T1-1
+C.. If R1 lies outside the interval [0,1] then it needs to be remapped back into this interval
             IF(R1.GT.1.D0.OR.R1.LE.0.D0) R1=R1-T1
             IF(R2.GE.1.D0.OR.R2.LT.0.D0) R2=R2-T2
             R1=(R1-0.5D0)*LENX
             R2=(R2-0.5D0)*LENY
+C.. Now K1 is defined as the re-scaled (R1,R2) vector
             K1(1)=NINT(R1*AX-R2*AY)
             K1(2)=NINT(R1*AY+R2*AX)
          ENDIF

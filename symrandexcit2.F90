@@ -24,7 +24,7 @@ MODULE GenRandSymExcitNUMod
       !  These are forbidden since they have no possible b orbital which will give rise to a symmetry and
       !  spin allowed unoccupied a,b pair. The number of these orbitals, Q, is needed to calculate the
       !  normalised probability of generating the excitation.
-    use SystemData, only: ALAT,iSpinSkip,tFixLz,iMaxLz,NIfTot,tUEG,tNoFailAb,tUseNewExcitGens
+    use SystemData, only: ALAT,iSpinSkip,tFixLz,iMaxLz,NIfTot,tUEG,tNoFailAb,tUseNewExcitGens, tHub
     use SystemData, only: nEl,G1, nBasis,nBasisMax,tNoSymGenRandExcits,tMerTwist
     use SystemData, only: Arr,nMax,tCycleOrbs,nOccAlpha,nOccBeta,ElecPairs,MaxABPairs
     use IntegralsData, only: UMat
@@ -56,7 +56,7 @@ MODULE GenRandSymExcitNUMod
 
 !        Iter=Iter+1
 !        WRITE(6,*) Iter,tFilled,nSymLabels
-        IF(tUEG.and.tUseNewExcitGens) THEN
+        IF((tUEG.and.tUseNewExcitGens) .or. (tHub.and.tUseNewExcitGens)) THEN
             call CreateDoubExcitUEGNoFail(nI,iLut,nJ,tParity,ExcitMat,pGen)
             IC=2
             RETURN
@@ -167,7 +167,8 @@ MODULE GenRandSymExcitNUMod
 !        STOP
         IF(.not.TwoCycleSymGens) THEN
 !Currently only available for molecular systems, or without using symmetry.
-            IF(tUEG.and.tUseNewExcitGens) THEN
+            IF((tUEG.and.tUseNewExcitGens) .or. (tHub.and.tUseNewExcitGens)) THEN
+!            IF(tUEG.and.tUseNewExcitGens) THEN
                 call CreateDoubExcitUEGNoFail(nI,iLut,nJ,tParity,ExcitMat,pGen)
                 IC=2
                 RETURN
@@ -2126,7 +2127,7 @@ MODULE GenRandSymExcitNUMod
         Use SystemData , only : NMAXX,NMAXY,NMAXZ,NIfTot
         use mt95 , only : genrand_real2
 
-        INTEGER :: i,nI(NEl),nJ(NEl),Elec1Ind,Elec2Ind,iSpn,iLutnI(0:NIfTot)
+        INTEGER :: i,nI(NEl),nJ(NEl),Elec1Ind,Elec2Ind,iSpn,iLutnI(0:NIfTot),kx,ky,kz,ktest(2),kb_ms
         INTEGER :: ChosenUnocc,Hole1BasisNum,Hole2BasisNum,ki(3),kj(3),ka(3),kb(3),ExcitMat(2,2)
         LOGICAL :: tAllowedExcit,tParity
         REAL*8 :: r,pGen,pAIJ
@@ -2161,72 +2162,125 @@ MODULE GenRandSymExcitNUMod
         kj=G1(nI(Elec2Ind))%k
         ka=G1(Hole1BasisNum)%k
         kb=ki+kj-ka
-
-        ! Is kb allowed by the size of the space?
-        ! Currently only applies when NMAXX etc. are set by the CELL keyword
-        ! Not sure what happens when an energy cutoff is set
-        tAllowedExcit=.true.
-        IF(ABS(kb(1)).gt.NMAXX) tAllowedExcit=.false.
-        IF(ABS(kb(2)).gt.NMAXY) tAllowedExcit=.false.
-        IF(ABS(kb(3)).gt.NMAXZ) tAllowedExcit=.false.
-        IF(.not.tAllowedExcit) THEN
-            nJ(1)=0
-            RETURN
-        ENDIF
-        
-        ! Which orbital has momentum kb?
-        IF (iSpn.eq.2) THEN
-            Hole2BasisNum=2*((NMAXZ*2+1)*(NMAXY*2+1)*(kb(1)+NMAXX)+(NMAXZ*2+1)*(kb(2)+NMAXY)+(kb(3)+NMAXZ)+1)-(1+G1(Hole1BasisNum)%Ms)/2
-        ELSE
-            Hole2BasisNum=2*((NMAXZ*2+1)*(NMAXY*2+1)*(kb(1)+NMAXX)+(NMAXZ*2+1)*(kb(2)+NMAXY)+(kb(3)+NMAXZ)+1)-1+iSpn/3
-        ENDIF
-        
-        IF(Hole1BasisNum.eq.Hole2BasisNum) THEN
-            nJ(1)=0 
-            RETURN
+        IF(iSpn.eq.2)THEN ! alpha/beta required, therefore b has to be opposite spin to a
+            kb_ms=1-((G1(Hole1BasisNum)%Ms+1)/2)*2
+        ELSE ! b is the same spin as a
+            kb_ms=G1(Hole1BasisNum)%Ms
         ENDIF
 
-        ! Is b occupied?
-        IF(BTEST(iLutnI((Hole2BasisNum-1)/32),MOD(Hole2BasisNum-1,32))) THEN
-        !Orbital is in nI. Reject.
-            tAllowedExcit=.false.
-        ENDIF
-        
-        IF(.not.tAllowedExcit) THEN
-            nJ(1)=0
-            RETURN
-        ENDIF
+        IF (tHub) THEN
 
-        ! Check that the correct kb has been found -- can be commented out later
-        DO i=1,3
-            IF ((G1(nI(Elec2Ind))%k(i)+G1(nI(Elec1Ind))%k(i)-G1(Hole1BasisNum)%k(i)-G1(Hole2BasisNum)%k(i)) .ne. 0) THEN
-                WRITE(6,*) "Tried to excite " 
-                WRITE(6,*) "ki ", ki 
-                WRITE(6,*) "kj ", kj
-                WRITE(6,*) "ka ", ka
-                WRITE(6,*) "kb should be ", kb
-                CALL Stop_All("CreateDoubExcitUEG", "Wrong b found")
+            ! Re-map back into cell
+            CALL MomPbcSym(kb,nBasisMax)
+
+            ! Which orbital corresponds to kb? -- this can be done via a look-up table!
+            DO i=1,nBasis
+                IF(G1(i)%k(1).eq.kb(1).and.G1(i)%k(2).eq.kb(2).and.G1(i)%k(3).eq.kb(3).and.G1(i)%Ms.eq.kb_ms)THEN
+                    Hole2BasisNum=i
+                ENDIF
+            ENDDO
+
+            ! Is b occupied?
+            IF(BTEST(iLutnI((Hole2BasisNum-1)/32),MOD(Hole2BasisNum-1,32))) THEN
+            !Orbital is in nI. Reject.
+                nJ(1)=0
+                RETURN
             ENDIF
-        ENDDO
 
+!            kx=0
+!           ky=0
+!           kz=0
+!           ktest=(/0,0/)
+!            do i=1,NEl
+!                kx=kx+G1(nJ(i))%k(1)
+!                ky=ky+G1(nJ(i))%k(2)
+!                kz=kz+G1(nJ(i))%k(3)
+!            enddo
 
-        CALL FindNewDet(nI,nJ,Elec1Ind,Elec2Ind,Hole1BasisNum,Hole2BasisNum,ExcitMat,tParity)
+!           ktest=(/kx,ky/)
+!            CALL MomPbcSym(ktest,nBasisMax)
+!            write(6,*) ktest
+            
+            IF(Hole1BasisNum.eq.Hole2BasisNum) THEN
+                nJ(1)=0 
+                RETURN
+            ENDIF
 
-!        IF(mod(Iter,iPrintEvery).eq.0) THEN
-!            write(6,*) Iter, iNumNotAccepted
-!        ENDIF
+!            IF(.not.(ktest(1).eq.2.and.ktest(2).eq.0.and.kz.eq.0)) THEN
+!                write(6,*) nI
+!                write(6,*) ki,kj,ka,kb
+!                write(6,*) ktest,kz
+!                CALL Stop_All("CreateDoubExcitUEG","Incorrect kb generated -- momentum not conserved")
+!                nJ(1)=0
+!                RETURN
+!           ENDIF
 
-        !Calculate generation probabilities
-        IF (iSpn.eq.2) THEN
-            pAIJ=1.0/(nBasis-Nel)
-        ELSEIF (iSpn.eq.1) THEN
-            pAIJ=1.0/(nBasis/2-nOccBeta)
-        ELSE
-            !iSpn = 3
-            pAIJ=1.0/(nBasis/2-nOccAlpha)
         ENDIF
-        ! Note, p(b|ij)=p(a|ij) for this system
-        pGen=2.0/(NEl*(NEl-1))*2.0*pAIJ
+
+        IF (tUEG) THEN
+
+            ! Is kb allowed by the size of the space?
+            ! Currently only applies when NMAXX etc. are set by the CELL keyword
+            ! Not sure what happens when an energy cutoff is set
+            tAllowedExcit=.true.
+            IF(ABS(kb(1)).gt.NMAXX) tAllowedExcit=.false.
+            IF(ABS(kb(2)).gt.NMAXY) tAllowedExcit=.false.
+            IF(ABS(kb(3)).gt.NMAXZ) tAllowedExcit=.false.
+            IF(.not.tAllowedExcit) THEN
+                nJ(1)=0
+                RETURN
+            ENDIF
+            
+            ! Which orbital has momentum kb?
+            IF (iSpn.eq.2) THEN
+                Hole2BasisNum=2*((NMAXZ*2+1)*(NMAXY*2+1)*(kb(1)+NMAXX)+(NMAXZ*2+1)*(kb(2)+NMAXY)+(kb(3)+NMAXZ)+1)-(1+G1(Hole1BasisNum)%Ms)/2
+            ELSE
+                Hole2BasisNum=2*((NMAXZ*2+1)*(NMAXY*2+1)*(kb(1)+NMAXX)+(NMAXZ*2+1)*(kb(2)+NMAXY)+(kb(3)+NMAXZ)+1)-1+iSpn/3
+            ENDIF
+            
+            IF(Hole1BasisNum.eq.Hole2BasisNum) THEN
+                nJ(1)=0 
+                RETURN
+            ENDIF
+
+            ! Is b occupied?
+            IF(BTEST(iLutnI((Hole2BasisNum-1)/32),MOD(Hole2BasisNum-1,32))) THEN
+            !Orbital is in nI. Reject.
+                tAllowedExcit=.false.
+            ENDIF
+            
+            IF(.not.tAllowedExcit) THEN
+                nJ(1)=0
+                RETURN
+            ENDIF
+
+            ! Check that the correct kb has been found -- can be commented out later
+            DO i=1,3
+                IF ((G1(nI(Elec2Ind))%k(i)+G1(nI(Elec1Ind))%k(i)-G1(Hole1BasisNum)%k(i)-G1(Hole2BasisNum)%k(i)) .ne. 0) THEN
+                    WRITE(6,*) "Tried to excite " 
+                    WRITE(6,*) "ki ", ki 
+                    WRITE(6,*) "kj ", kj
+                    WRITE(6,*) "ka ", ka
+                    WRITE(6,*) "kb should be ", kb
+                    CALL Stop_All("CreateDoubExcitUEG", "Wrong b found")
+                ENDIF
+            ENDDO
+
+        ENDIF
+
+            CALL FindNewDet(nI,nJ,Elec1Ind,Elec2Ind,Hole1BasisNum,Hole2BasisNum,ExcitMat,tParity)
+
+            !Calculate generation probabilities
+            IF (iSpn.eq.2) THEN
+                pAIJ=1.0/(nBasis-Nel)
+            ELSEIF (iSpn.eq.1) THEN
+                pAIJ=1.0/(nBasis/2-nOccBeta)
+            ELSE
+                !iSpn = 3
+                pAIJ=1.0/(nBasis/2-nOccAlpha)
+            ENDIF
+            ! Note, p(b|ij)=p(a|ij) for this system
+            pGen=2.0/(NEl*(NEl-1))*2.0*pAIJ
 
     END SUBROUTINE CreateDoubExcitUEG
 
@@ -2245,7 +2299,7 @@ MODULE GenRandSymExcitNUMod
         INTEGER, ALLOCATABLE :: Excludedk(:,:)
 
 !        CALL PickElecPair(nI,Elec1Ind,Elec2Ind,SymProduct,iSpn,SumMl,-1)
-           
+          
         IF(tMerTwist) THEN
             CALL genrand_real2(r(1))
             Elec1=INT(r(1)*NEl+1)
@@ -2273,6 +2327,8 @@ MODULE GenRandSymExcitNUMod
         
         IF(tNoFailAb)THEN ! pGen is calculated first because there might be no excitations available for this ij pair
 
+            IF(tHub) CALL Stop_All("CreateDoubExcitUEGNoFail", "This doesn't work with Hubbard Model")
+            
             ki=G1(nI(Elec1Ind))%k
             kj=G1(nI(Elec2Ind))%k
             KaXLowerLimit=MAX(-NMAXX,ki(1)-(NMAXX-kj(1)))
@@ -2343,9 +2399,8 @@ MODULE GenRandSymExcitNUMod
             ENDIF
         ENDIF
 
-
         DO i=1, 10000 
-            IF(i.eq.10000) THEN
+            IF(i.eq.10000) THEN ! Arbitrary termination of the loop to prevent hanging
                 write(6,*) "nI:", nI
                 write(6,*) "i & j", nI(Elec1),nI(Elec2)
                 write(6,*) "Allowed Excitations", iAllowedExcites
@@ -2587,7 +2642,7 @@ END SUBROUTINE SpinOrbSymSetup
 !the excitation. This means that all excitations should be 0 or 1 after enough iterations. It will then count the excitations and compare the number to the
 !number of excitations generated using the full enumeration excitation generation. This can be done for both doubles and singles, or one of them.
 SUBROUTINE TestGenRandSymExcitNU(nI,Iterations,pDoub,exFlag,iWriteEvery)
-    Use SystemData , only : NEl,nBasis,G1,nBasisMax,LzTot,NIfTot,tUEG,tUseNewExcitGens
+    Use SystemData , only : NEl,nBasis,G1,nBasisMax,LzTot,NIfTot,tUEG,tUseNewExcitGens,tHub
     Use GenRandSymExcitNUMod , only : GenRandSymExcitScratchNU,ConstructClassCounts,ScratchSize
     Use SymData , only : nSymLabels
     use Parallel
@@ -2637,7 +2692,23 @@ lp2: do while(.true.)
                 CALL EncodeBitDet(nJ,iLutnJ)
                 WRITE(25,*) excitcount,iExcit,iLutnJ(0)
             ENDIF
+        ELSEIF(tHub) THEN
+            kx=0
+            ky=0
+            kz=0
+            do i=1,NEl
+                kx=kx+G1(nJ(i))%k(1)
+                ky=ky+G1(nJ(i))%k(2)
+                kz=kz+G1(nJ(i))%k(3)
+            enddo
+            CALL MomPbcSym((/kx,ky/),nBasisMax)
+            IF(kx.eq.0.and.ky.eq.0.and.kz.eq.0) THEN
+                excitcount=excitcount+1
+                CALL EncodeBitDet(nJ,iLutnJ)
+                WRITE(25,*) excitcount,iExcit,iLutnJ(0)
+            ENDIF
         ELSE
+
             CALL GetLz(nJ,NEl,Lz)
             IF(Lz.eq.LzTot) THEN
                 excitcount=excitcount+1
@@ -2702,6 +2773,19 @@ lp2: do while(.true.)
                 ky=ky+G1(nJ(j))%k(2)
                 kz=kz+G1(nJ(j))%k(3)
             enddo
+            IF(.not.(kx.eq.0.and.ky.eq.0.and.kz.eq.0)) THEN
+                CYCLE
+            ENDIF
+        ELSEIF(tHub.and.(.not.tUseNewExcitGens)) THEN
+            kx=0
+            ky=0
+            kz=0
+            do j=1,NEl
+                kx=kx+G1(nJ(j))%k(1)
+                ky=ky+G1(nJ(j))%k(2)
+                kz=kz+G1(nJ(j))%k(3)
+            enddo
+            CALL MomPbcSym((/kx,ky/),nBasisMax)
             IF(.not.(kx.eq.0.and.ky.eq.0.and.kz.eq.0)) THEN
                 CYCLE
             ENDIF
