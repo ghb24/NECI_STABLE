@@ -2162,6 +2162,7 @@ MODULE GenRandSymExcitNUMod
         kj=G1(nI(Elec2Ind))%k
         ka=G1(Hole1BasisNum)%k
         kb=ki+kj-ka
+
         IF(iSpn.eq.2)THEN ! alpha/beta required, therefore b has to be opposite spin to a
             kb_ms=1-((G1(Hole1BasisNum)%Ms+1)/2)*2
         ELSE ! b is the same spin as a
@@ -2187,33 +2188,11 @@ MODULE GenRandSymExcitNUMod
                 RETURN
             ENDIF
 
-!            kx=0
-!           ky=0
-!           kz=0
-!           ktest=(/0,0/)
-!            do i=1,NEl
-!                kx=kx+G1(nJ(i))%k(1)
-!                ky=ky+G1(nJ(i))%k(2)
-!                kz=kz+G1(nJ(i))%k(3)
-!            enddo
-
-!           ktest=(/kx,ky/)
-!            CALL MomPbcSym(ktest,nBasisMax)
-!            write(6,*) ktest
-            
             IF(Hole1BasisNum.eq.Hole2BasisNum) THEN
                 nJ(1)=0 
                 RETURN
             ENDIF
-
-!            IF(.not.(ktest(1).eq.2.and.ktest(2).eq.0.and.kz.eq.0)) THEN
-!                write(6,*) nI
-!                write(6,*) ki,kj,ka,kb
-!                write(6,*) ktest,kz
-!                CALL Stop_All("CreateDoubExcitUEG","Incorrect kb generated -- momentum not conserved")
-!                nJ(1)=0
-!                RETURN
-!           ENDIF
+            
 
         ENDIF
 
@@ -2268,19 +2247,37 @@ MODULE GenRandSymExcitNUMod
 
         ENDIF
 
-            CALL FindNewDet(nI,nJ,Elec1Ind,Elec2Ind,Hole1BasisNum,Hole2BasisNum,ExcitMat,tParity)
+        CALL FindNewDet(nI,nJ,Elec1Ind,Elec2Ind,Hole1BasisNum,Hole2BasisNum,ExcitMat,tParity)
 
-            !Calculate generation probabilities
-            IF (iSpn.eq.2) THEN
-                pAIJ=1.0/(nBasis-Nel)
-            ELSEIF (iSpn.eq.1) THEN
-                pAIJ=1.0/(nBasis/2-nOccBeta)
-            ELSE
-                !iSpn = 3
-                pAIJ=1.0/(nBasis/2-nOccAlpha)
+        IF(tHub) THEN
+            ! Debug to test the resultant determinant
+            kx=0
+            ky=0
+            kz=0
+            ktest=(/0,0/)
+            do i=1,NEl
+                kx=kx+G1(nJ(i))%k(1)
+                ky=ky+G1(nJ(i))%k(2)
+                kz=kz+G1(nJ(i))%k(3)
+            enddo
+            ktest=(/kx,ky/)
+            CALL MomPbcSym(ktest,nBasisMax)
+            IF(.not.(ktest(1).eq.0.and.ktest(2).eq.0.and.kz.eq.0)) THEN
+                CALL Stop_All("CreateDoubExcitUEG","Incorrect kb generated -- momentum not conserved")
             ENDIF
-            ! Note, p(b|ij)=p(a|ij) for this system
-            pGen=2.0/(NEl*(NEl-1))*2.0*pAIJ
+        ENDIF
+
+        !Calculate generation probabilities
+        IF (iSpn.eq.2) THEN
+            pAIJ=1.0/(nBasis-Nel)
+        ELSEIF (iSpn.eq.1) THEN
+            pAIJ=1.0/(nBasis/2-nOccBeta)
+        ELSE
+            !iSpn = 3
+            pAIJ=1.0/(nBasis/2-nOccAlpha)
+        ENDIF
+        ! Note, p(b|ij)=p(a|ij) for this system
+        pGen=2.0/(NEl*(NEl-1))*2.0*pAIJ
 
     END SUBROUTINE CreateDoubExcitUEG
 
