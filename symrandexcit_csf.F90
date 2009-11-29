@@ -1059,7 +1059,7 @@ contains
                                  MPI_DOUBLE_PRECISION, MPI_SUM, 0, &
                                  MPI_COMM_WORLD, ierr)
 #else
-                AllAverageContrib = AverageContrib
+                avContriball = avContrib
 #endif
                 if (iProcIndex == 0) then
                     print*, i, avcontribAll/real(i*nexcit*nProcessors)

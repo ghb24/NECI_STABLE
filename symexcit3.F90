@@ -415,31 +415,37 @@ MODULE SymExcit3
                     ENDIF
 
 ! If the new b orbital is still within the limits, check it is unoccupied and move onto the next orbital if it is.                    
-                    IF(tNoSymGenRandExcits) THEN
-                        NewSym=0
-                    ELSE
-                        NewSym=INT(G1(SymLabelList2(OrbbIndex))%Sym%S,4)
-                    ENDIF
-                    SymInd=ClassCountInd(Spinb,NewSym,0)
-
-                    IF(OrbbIndex.eq.(SymLabelCounts2(1,SymInd)+SymLabelCounts2(2,SymInd)-1)) THEN
-! If we have already gone beyond the symmetry limits by choosing the next b orbital, pick a new a orbital.                        
+                    IF(OrbbIndex.gt.nBasis) THEN
                         tNewa=.true.
                     ELSE
-                        Orbb=SymLabelList2(OrbbIndex)
-! Checking the orbital b is unoccupied and > a.                        
-                        do while ((BTEST(iLut((Orbb-1)/32),MOD((Orbb-1),32))).or.(Orbb.le.Orba))
-                            !Orbital is occupied - try again
-                            IF(OrbbIndex.eq.(SymLabelCounts2(1,SymInd)+SymLabelCounts2(2,SymInd)-1)) THEN
-                                !Reached end of symmetry block - need new a
-                                tNewa=.true.
-                                EXIT
-                            ENDIF
+                        IF(tNoSymGenRandExcits) THEN
+                            NewSym=0
+                        ELSE
+                            NewSym=INT(G1(SymLabelList2(OrbbIndex))%Sym%S,4)
+                        ENDIF
+                        SymInd=ClassCountInd(Spinb,NewSym,0)
+                    ENDIF
 
-                            !Update new orbital b index - we want to keep the same spin, and since the orbitals alternate alpha/beta, we increment by two.
-                            OrbbIndex=OrbbIndex+2
+                    IF(.not.tNewa) THEN
+                        IF(OrbbIndex.eq.(SymLabelCounts2(1,SymInd)+SymLabelCounts2(2,SymInd)-1)) THEN
+! If we have already gone beyond the symmetry limits by choosing the next b orbital, pick a new a orbital.                        
+                            tNewa=.true.
+                        ELSE
                             Orbb=SymLabelList2(OrbbIndex)
-                        enddo
+! Checking the orbital b is unoccupied and > a.                        
+                            do while ((BTEST(iLut((Orbb-1)/32),MOD((Orbb-1),32))).or.(Orbb.le.Orba))
+                                !Orbital is occupied - try again
+                                IF(OrbbIndex.eq.(SymLabelCounts2(1,SymInd)+SymLabelCounts2(2,SymInd)-1)) THEN
+                                    !Reached end of symmetry block - need new a
+                                    tNewa=.true.
+                                    EXIT
+                                ENDIF
+
+                                !Update new orbital b index - we want to keep the same spin, and since the orbitals alternate alpha/beta, we increment by two.
+                                OrbbIndex=OrbbIndex+2
+                                Orbb=SymLabelList2(OrbbIndex)
+                            enddo
+                        ENDIF
                     ENDIF
 
 ! If we are moving onto the next a orbital, check we don't also need a new ij pair.                    
@@ -458,6 +464,7 @@ MODULE SymExcit3
                             ijInd=ijInd+1
                             IF(ijInd.gt.ElecPairs) THEN
                                 tAllExcitFound=.true.
+                                tDoubleExcitFound=.true.
                             ENDIF
                         ENDIF
                     ELSE
