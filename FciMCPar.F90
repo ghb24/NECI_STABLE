@@ -537,7 +537,7 @@ MODULE FciMCParMod
 
             
             ! TODO: This is where the testing routine gets called
-            !call TestGenRandSymCSFExcit (DetCurr, 1000000, 0.0, 1.0, 2, 10000)
+            call TestGenRandSymCSFExcit (DetCurr, 1000000, 0.0, 1.0, 2, 10000)
             !call TestCSF123 (DetCurr)
 
 
