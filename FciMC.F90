@@ -184,6 +184,7 @@ MODULE FciMCMod
 
 !This is the heart of FCIMC, where the MC Cycles are performed
     SUBROUTINE PerformFCIMCyc()
+        use genRandSymExcitCSF, only: TestGenRandSymCSFExcit
         INTEGER :: VecSlot,i,j,k,l
         INTEGER :: nJ(NEl),ierr,IC,Child,iCount,TotWalkersNew
         REAL*8 :: Prob,rat,HDiag,Ran2,TotProb,UniformPGen
@@ -203,6 +204,8 @@ MODULE FciMCMod
         NoatDoubs=0
 
         do j=1,TotWalkers
+            call TestGenRandSymCSFExcit (CurrentDets(:,j), 1000000,0.d0,1.d0,&
+                                         2, 10000)
 !j runs through all current walkers
 
 !Sum in any energy contribution from the determinant, including other parameters, such as excitlevel info

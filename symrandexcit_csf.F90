@@ -121,35 +121,45 @@ contains
         logical :: tParity
 
         lnopen = nopen
+        print*, 'original det, nopen =', lnopen
+        call writedet (6, nI, nel, .true.)
         call CSFPickElecPair (nI, iLut, elecs, orbs(1,:), symProd, sumMl, &
                               CCSglDelta, lnopen)
         print*, 'chosen elec pair', elecs(1), elecs(2)
         print*, 'from orbitals', orbs(1,1), orbs(1,2)
-        call stop_all (this_routine, 'test done')
 
         call CSFPickAOrb (nI, iLut, CCDblS, CCSglS, CCUnS, CCSglDelta, &
                           elecs, orbs, symProd, sumMl, orbs(2,1), sym, Ml, &
                           lnopen)
+        print*, 'chosen orbital A', orbs(2,1)
+        call flush(6)
 
         call CSFPickBOrb (nI, iLut, CCDblS, CCSglS, CCUnS, CCSglDelta, &
                           elecs, orbs, symProd, sumMl, orbs(2,1), sym, Ml, &
                           orbs(2,2), lnopen)
+        print*, 'chosen orbital B', orbs(2,2)
+        call flush(6)
 
-        ExcitMat (1,1) = elecs(1)
-        ExcitMat (2,1) = orbs (2,1)
-        ExcitMat (1,2) = elecs(2)
-        ExcitMat (2,2) = orbs (2,2)
+        ExcitMat (1,1) = min(elecs(1), elecs(2))
+        ExcitMat (2,1) = min(orbs(2,1), orbs(2,2))
+        ExcitMat (1,2) = max(elecs(1), elecs(2))
+        ExcitMat (2,2) = max(orbs(2,1), orbs(2,2))
         ! nb. supplying incorrect lnopen here (but not applying yama)
         nJ = nI
         ncsf = 1
         call csf_find_excit_det (ExcitMat(:,1), nJ, iLut, nopen, lnopen, &
                                  ncsf, .false.)
+        print*, 'new det1'
+        call writedet(6, nJ, nel, .true.)
         ! Now apply yama --> use valid lnopen
         ncsf = 1
         call csf_find_excit_det (ExcitMat(:,2), nJ, iLut, nopen, lnopen, &
                                  ncsf, .true.)
+        print*, 'new det2'
+        call writedet(6, nJ, nel, .true.)
 
         call writedet(6, nJ, nel, .true.)
+        call stop_all (this_routine, 'test done')
         pGen = pDouble
     end subroutine
 
@@ -308,6 +318,7 @@ contains
 
         ! Pick two electrons randomly.
         found = 0
+        elec = 0
         CCSglDelta = 0
         do while (found < 2)
             elecs(1) = elec
@@ -316,6 +327,9 @@ contains
                 call genrand_real2 (r)
                 elec = int(nel*r) + 1
                 orb = iand(nI(elec), csf_orbital_mask)
+
+                ! Cannot pick the same electron twice
+                if ((found == 1) .and. (elec == elecs(1))) cycle
 
                 ! Is this in a doubly occupied orbital?
                 ! Singly occupied must give alpha elec
@@ -616,6 +630,56 @@ contains
                 CCUn(ind) = CCUn(ind) - 1
             enddo
         endif
+    end subroutine
+
+    ! Generate a general excitation
+    ! ExcitMat (1,:) are the electron indices to excite from
+    ! ExcitMat (2,:) are the target orbitals.
+    subroutine csf_find_excit_det_general (ExcitMat, nJ, iLut, nopen, IC)
+        integer, intent(in) :: nopen, iLut(0:NIfTot), IC
+        integer, intent(inout) :: nJ(nel), ExcitMat(2,1:IC)
+        integer :: ind_trim(2,2), ntrim, lnopen
+        integer, dimension(1:IC) :: src, src_pair, srcA, srcB
+
+        ! Strip csf data from the determinant
+        nJ = iand(nJ, csf_orbital_mask)
+        lnopen = nopen
+
+        ! Obtain the orbital and their pairs for each of the src orbs
+        src = nJ(ExcitMat(1,:))
+        src_pair = ieor(src-1,1) + 1
+        srcB = ibclr(src-1,0) + 1
+        srcA = ibset(src-1,0) + 1
+
+        ! Where do we have to trim nJ to remove it from the list.
+        ntrim = 1
+        if (btest(iLut((src_pair(1)-1)/32), mod(src_pair(1)-1,32))) then
+            ind_trim(1,1) = srcB(1)
+            ind_trim(1,2) = srcA(1)
+        else
+            ind_trim(1,1) = src(1)
+            ind_trim(1,2) = src(1)
+        endif
+
+        ! Where do we have to trim nJ to remove the second orbital.
+        if (bDouble) then
+            if (src_pair(1) /= src(2)) then
+                ntrim = 2
+                if (btest(iLut((src_pair(2)-1)/32),mod(src_pair(2)-1,32)))then
+                    ind_trim(2,1) = srcB(2)
+                    ind_trim(2,2) = srcA(2)
+                else
+                    ind_trim(2,1) = src(2)
+                    ind_trim(2,2) = src(2)
+                endif
+            endif
+        endif
+            
+
+
+
+
+
     end subroutine
 
     ! Generate a determinant for the excitation specified in ExcitMat
