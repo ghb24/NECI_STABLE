@@ -448,7 +448,7 @@ MODULE FciMCParMod
 !        use HPHFRandExcitMod , only : TestGenRandHPHFExcit 
         USE Determinants , only : GetHElement3
         USE FciMCLoggingMOD , only : FindTriConnections,TrackSpawnAttempts,FindSpinCoupHEl
-        use GenRandSymExcitCSF, only: TestGenRandSymCSFExcit, TestCSF123
+!        use GenRandSymExcitCSF, only: TestGenRandSymCSFExcit, TestCSF123
         USE CalcData , only : tAddtoInitiator,InitiatorWalkNo,tInitIncDoubs
         INTEGER :: MinorVecSlot,VecSlot,i,j,k,l,MinorValidSpawned,ValidSpawned,CopySign,ParticleWeight,Loop,iPartBloom
         INTEGER :: nJ(NEl),ierr,IC,Child,iCount,DetCurr(NEl),iLutnJ(0:NIfTot),NoMinorWalkersNew
