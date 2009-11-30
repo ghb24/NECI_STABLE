@@ -2127,8 +2127,8 @@ MODULE GenRandSymExcitNUMod
         Use SystemData , only : NMAXX,NMAXY,NMAXZ,NIfTot
         use mt95 , only : genrand_real2
 
-        INTEGER :: i,nI(NEl),nJ(NEl),Elec1Ind,Elec2Ind,iSpn,iLutnI(0:NIfTot),kx,ky,kz,ktest(2),kb_ms
-        INTEGER :: ChosenUnocc,Hole1BasisNum,Hole2BasisNum,ki(3),kj(3),ka(3),kb(3),ExcitMat(2,2)
+        INTEGER :: i,nI(NEl),nJ(NEl),Elec1Ind,Elec2Ind,iSpn,iLutnI(0:NIfTot),kx,ky,kz,ktest(2),kb_ms,ms_sum
+        INTEGER :: ChosenUnocc,Hole1BasisNum,Hole2BasisNum,ki(3),kj(3),ka(3),kb(3),ExcitMat(2,2),iSpinIndex
         LOGICAL :: tAllowedExcit,tParity
         REAL*8 :: r,pGen,pAIJ
             
@@ -2174,12 +2174,20 @@ MODULE GenRandSymExcitNUMod
             ! Re-map back into cell
             CALL MomPbcSym(kb,nBasisMax)
 
-            ! Which orbital corresponds to kb? -- this can be done via a look-up table!
-            DO i=1,nBasis
-                IF(G1(i)%k(1).eq.kb(1).and.G1(i)%k(2).eq.kb(2).and.G1(i)%k(3).eq.kb(3).and.G1(i)%Ms.eq.kb_ms)THEN
-                    Hole2BasisNum=i
-                ENDIF
-            ENDDO
+!            ! Which orbital corresponds to kb? -- this can be done via a look-up table (see below).
+!            DO i=1,nBasis
+!                IF(G1(i)%k(1).eq.kb(1).and.G1(i)%k(2).eq.kb(2).and.G1(i)%k(3).eq.kb(3).and.G1(i)%Ms.eq.kb_ms)THEN
+!                    Hole2BasisNum=i
+!                ENDIF
+!            ENDDO
+!            ! Debug to test that this corresponds to a look-up
+!            iSpinIndex=(kb_ms+1)/2+1
+!            write(6,*) Hole2BasisNum,kPointToBasisFn(G1(Hole2BasisNum)%k(1),G1(Hole2BasisNum)%k(2),iSpinIndex)
+!            IF(Hole2BasisNum.ne.kPointToBasisFn(kb(1),kb(2),iSpinIndex)) CALL Stop_All("Hubbard excitation generator","Hubbard failed to find kb correctly")
+
+            ! This is the look-up table method of finding the kb orbital
+            iSpinIndex=(kb_ms+1)/2+1
+            Hole2BasisNum=kPointToBasisFn(kb(1),kb(2),iSpinIndex)
 
             ! Is b occupied?
             IF(BTEST(iLutnI((Hole2BasisNum-1)/32),MOD(Hole2BasisNum-1,32))) THEN
@@ -2192,7 +2200,6 @@ MODULE GenRandSymExcitNUMod
                 nJ(1)=0 
                 RETURN
             ENDIF
-            
 
         ENDIF
 
@@ -2248,21 +2255,26 @@ MODULE GenRandSymExcitNUMod
         ENDIF
 
         CALL FindNewDet(nI,nJ,Elec1Ind,Elec2Ind,Hole1BasisNum,Hole2BasisNum,ExcitMat,tParity)
+                
+!        WRITE(6,*) "DEBUG 2", nI 
+!        WRITE(6,*) "DEBUG 2", nJ 
 
         IF(tHub) THEN
             ! Debug to test the resultant determinant
             kx=0
             ky=0
             kz=0
+            ms_sum=0
             ktest=(/0,0/)
             do i=1,NEl
                 kx=kx+G1(nJ(i))%k(1)
                 ky=ky+G1(nJ(i))%k(2)
                 kz=kz+G1(nJ(i))%k(3)
+                ms_sum=ms_sum+G1(nJ(i))%Ms
             enddo
             ktest=(/kx,ky/)
             CALL MomPbcSym(ktest,nBasisMax)
-            IF(.not.(ktest(1).eq.0.and.ktest(2).eq.0.and.kz.eq.0)) THEN
+            IF(.not.(ktest(1).eq.0.and.ktest(2).eq.0.and.kz.eq.0.and.ms_sum.eq.0)) THEN
                 CALL Stop_All("CreateDoubExcitUEG","Incorrect kb generated -- momentum not conserved")
             ENDIF
         ENDIF
@@ -2296,7 +2308,7 @@ MODULE GenRandSymExcitNUMod
         INTEGER, ALLOCATABLE :: Excludedk(:,:)
 
 !        CALL PickElecPair(nI,Elec1Ind,Elec2Ind,SymProduct,iSpn,SumMl,-1)
-          
+         
         IF(tMerTwist) THEN
             CALL genrand_real2(r(1))
             Elec1=INT(r(1)*NEl+1)
@@ -2435,16 +2447,18 @@ END MODULE GenRandSymExcitNUMod
 !Sometimes (especially UHF orbitals), the symmetry routines will not set up the orbitals correctly. Therefore, this routine will set up symlabellist and symlabelcounts
 !to be cast in terms of spin orbitals, and the symrandexcit2 routines will use these arrays.
 SUBROUTINE SpinOrbSymSetup(tRedoSym)
-    use SymExcitDataMod , only : ScratchSize,SymLabelList2,SymLabelCounts2,OrbClassCount
+    use SymExcitDataMod , only : ScratchSize,SymLabelList2,SymLabelCounts2,OrbClassCount,kPointToBasisFn
     use GenRandSymExcitNUMod , only : ClassCountInd
     use SymData, only: nSymLabels,TwoCycleSymGens
     use SymData, only: SymLabelList,SymLabelCounts
-    use SystemData , only : G1,tFixLz,tNoSymGenRandExcits,nBasis,iMaxLz,tUEG
+    use SystemData , only : G1,tFixLz,tNoSymGenRandExcits,nBasis,iMaxLz,tUEG,tHub,NMAXZ
     IMPLICIT NONE
     INTEGER :: i,j,SymInd
     INTEGER :: Spin
     LOGICAL :: tRedoSym
     INTEGER , ALLOCATABLE :: Temp(:)
+    ! These are for the hubbard model look-up table
+    INTEGER :: kmaxX,kmaxY,kminX,kminY,iSpinIndex
     
     IF(tFixLz) THEN
 !Calculate the upper array bound for the ClassCount2 arrays. This will be dependant on the number of symmetries needed.
@@ -2633,6 +2647,27 @@ SUBROUTINE SpinOrbSymSetup(tRedoSym)
 !            enddo
 !        ENDIF
 
+    ! This makes a 3D lookup table kPointToBasisFn(kx,ky,ms_index) which gives the orbital number for a given kx, ky and ms_index
+    IF(tHub)THEN
+        IF(NMAXZ.ne.0) CALL Stop_All("SpinOrbSymSetup","This routine doesn't work with non-2D Hubbard model")
+        kmaxX=0
+        kminX=0
+        kmaxY=0
+        kminY=0
+        do i=1,nBasis ! In the hubbard model with tilted lattice boundary conditions, it's unobvious what the maximum values of
+                      ! kx and ky are, so this should be found
+            IF(G1(i)%k(1).gt.kmaxX) kmaxX=G1(i)%k(1)
+            IF(G1(i)%k(1).lt.kminX) kminX=G1(i)%k(1)
+            IF(G1(i)%k(2).gt.kmaxY) kmaxY=G1(i)%k(2)
+            IF(G1(i)%k(2).lt.kminY) kminY=G1(i)%k(2)
+        enddo
+        ALLOCATE(kPointToBasisFn(kminX:kmaxX,kminY:kmaxY,2))
+        do i=1,nBasis
+            iSpinIndex=(G1(i)%Ms+1)/2+1 ! iSpinIndex equals 1 for a beta spin (ms=-1), and 2 for an alpha spin (ms=1)
+            kPointToBasisFn(G1(i)%k(1),G1(i)%k(2),iSpinIndex)=i
+        enddo
+    ENDIF
+
 END SUBROUTINE SpinOrbSymSetup
 
 !This routine will take a determinant nI, and find Iterations number of excitations of it. It will then histogram these, summing in 1/pGen for every occurance of
@@ -2646,7 +2681,7 @@ SUBROUTINE TestGenRandSymExcitNU(nI,Iterations,pDoub,exFlag,iWriteEvery)
 !    use soft_exit , only : ChangeVars 
     use DetBitOps , only : EncodeBitDet
     IMPLICIT NONE
-    INTEGER :: i,Iterations,exFlag,nI(NEl),nJ(NEl),IC,ExcitMat(2,2),DetConn,kx,ky,kz
+    INTEGER :: i,Iterations,exFlag,nI(NEl),nJ(NEl),IC,ExcitMat(2,2),DetConn,kx,ky,kz,ktrial(2)
     REAL*8 :: pDoub,pGen,AverageContrib,AllAverageContrib
     INTEGER :: ClassCount2(ScratchSize),iLut(0:NIfTot),Scratch1(ScratchSize),Scratch2(ScratchSize),iLutnJ(0:NIfTot)
     INTEGER :: ClassCountUnocc2(ScratchSize),iExcit,iWriteEvery
@@ -2674,6 +2709,9 @@ SUBROUTINE TestGenRandSymExcitNU(nI,Iterations,pDoub,exFlag,iWriteEvery)
 
 lp2: do while(.true.)
         CALL GenSymExcitIt2(nI,nEl,G1,nBasis,nBasisMax,.false.,EXCITGEN,nJ,iExcit,0,nStore,exFlag)
+!DEBUG        IF(nJ(1).eq.23.and.nJ(9).eq.38.and.nJ(10).eq.43) THEN
+!DEBUG            write(6,*) nJ
+!DEBUG        ENDIF
         IF(nJ(1).eq.0) exit lp2
         IF(tUEG) THEN
             kx=0
@@ -2698,11 +2736,14 @@ lp2: do while(.true.)
                 ky=ky+G1(nJ(i))%k(2)
                 kz=kz+G1(nJ(i))%k(3)
             enddo
-            CALL MomPbcSym((/kx,ky/),nBasisMax)
-            IF(kx.eq.0.and.ky.eq.0.and.kz.eq.0) THEN
+            ktrial=(/kx,ky/)
+            CALL MomPbcSym(ktrial,nBasisMax)
+            IF(ktrial(1).eq.0.and.ktrial(2).eq.0.and.kz.eq.0) THEN
                 excitcount=excitcount+1
                 CALL EncodeBitDet(nJ,iLutnJ)
                 WRITE(25,*) excitcount,iExcit,iLutnJ(0)
+                WRITE(25,*) "DEBUG", nI 
+                WRITE(25,*) "DEBUG", nJ 
             ENDIF
         ELSE
 
@@ -2782,8 +2823,9 @@ lp2: do while(.true.)
                 ky=ky+G1(nJ(j))%k(2)
                 kz=kz+G1(nJ(j))%k(3)
             enddo
-            CALL MomPbcSym((/kx,ky/),nBasisMax)
-            IF(.not.(kx.eq.0.and.ky.eq.0.and.kz.eq.0)) THEN
+            ktrial=(/kx,ky/)
+            CALL MomPbcSym(ktrial,nBasisMax)
+            IF(.not.(ktrial(1).eq.0.and.ktrial(2).eq.0.and.kz.eq.0)) THEN
                 CYCLE
             ENDIF
         ENDIF

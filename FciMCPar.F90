@@ -573,15 +573,15 @@ MODULE FciMCParMod
             ENDIF
 
             do p=1,Loop
-!If rotoannihilating, we are simply looping over all the particles on the determinant
 
 !Ali wanted this debug line left in: this is an appropriate place to call the histogramming of the excitation generator
-!at least for UEG
-        write(6,*) "***** DEBUG *****"
-        CALL TestGenRandSymExcitNU(DetCurr,10000000,0.D0,2,1000000)
-        STOP
+!at least for UEG and Hubbard model. - jjs
+!        write(6,*) "***** DEBUG *****"
+!        CALL TestGenRandSymExcitNU(DetCurr,10000000,0.D0,2,1000000)
+!        STOP
+!            write(6,*) DetCurr
 
-
+!If rotoannihilating, we are simply looping over all the particles on the determinant
                 IF(.not.tImportanceSample) THEN
                     IF(.not.TRegenExcitgens) THEN
 !Setup excit generators for this determinant
