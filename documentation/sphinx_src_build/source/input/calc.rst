@@ -1005,6 +1005,11 @@ The following option are only available in **MCSTAR** calculations:
    For CCMC Amplitude, this is the initial amplitude in the Hartree-Fock determinant, and normalization factor for the wavefunction.
    Default 1.0
 
+**CLUSTERSIZEBIAS** dProbSelNewExcitor
+
+   For CCMC Amplitude, this is the probability that the cluster selection algorithm terminates after each addition of an excitor.
+   Larger values will bias towards smaller cluster.
+   Default 0.7 (Range 0-1)
 
 Return Path Monte Carlo options
 -------------------------------

@@ -16,7 +16,7 @@ MODULE Calc
           Use DetCalc, only: tEnergy, tRead,tFindDets
           use IntegralsData, only: tNeedsVirts
           use SystemData, only : Beta,nEl
-          use CCMCData, only: dInitAmplitude
+          use CCMCData, only: dInitAmplitude,dProbSelNewExcitor
           use default_sets
           implicit none
 
@@ -113,6 +113,7 @@ MODULE Calc
           Tau=0.D0
           InitWalkers=3000
           dInitAmplitude=1.d0
+          dProbSelNewExcitor=0.7d0
           NMCyc=2000
           DiagSft=0.D0
           HApp=1
@@ -241,7 +242,7 @@ MODULE Calc
           Use DetCalc, only: tEnergy, tRead,tFindDets
           use IntegralsData, only: tNeedsVirts,NFROZEN
           use UMatCache, only: gen2CPMDInts
-          use CCMCData, only: dInitAmplitude
+          use CCMCData, only: dInitAmplitude,dProbSelNewExcitor
           use global_utilities
           IMPLICIT NONE
           LOGICAL eof
@@ -733,6 +734,8 @@ MODULE Calc
             case("INITAMPLITUDE")
 !For Amplitude CCMC the initial amplitude.
                 call getf(dInitAmplitude)
+            case("CLUSTERSIZEBIAS")
+                call getf(dProbSelNewExcitor)
             case("NMCYC")
 !For FCIMC, this is the number of MC cycles to perform
                 call geti(NMCyc)
