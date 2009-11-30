@@ -1132,11 +1132,12 @@ MODULE NatOrbsMod
         USE RotateOrbsData , only : CoeffT1,SymLabelList3,SymOrbs,SymOrbsTag,TruncEval,NoRotOrbs,EvaluesTrunc,EvaluesTruncTag
         USE Logging , only : tTruncRODump,tTruncDumpbyVal
         IMPLICIT NONE
-        INTEGER :: k,i,j,NoRotAlphBet,SymFirst
+        INTEGER :: l,k,i,j,NoRotAlphBet,SymFirst
         CHARACTER(len=*), PARAMETER :: this_routine='FillCoeffT1'
         CHARACTER(len=5) :: Label
         CHARACTER(len=20) :: LabelFull
         LOGICAL :: tSymFound
+        REAL*8 :: OccEnergies(1:NoRotOrbs)
   
         FillCoeff_Time%timer_name='FillCoeff'
         CALL set_timer(FillCoeff_Time,30)
@@ -1250,23 +1251,75 @@ MODULE NatOrbsMod
 !                    enddo
 !                ENDIF
 
-                k=1
-                do i=1,NoRotAlphBet
+                CALL CalcOccEnergies(OccEnergies)
+
+!First nOccBeta, then nOccAlpha.
+                do i=1,(2*nOccBeta),2
+                    k=1
+                    do while(OccEnergies(k).eq.0.D0)
+                        k=k+2
+                    enddo
+                    do j=1,(2*nOccBeta),2
+                        IF((OccEnergies(j).lt.OccEnergies(k)).and.(OccEnergies(j).ne.0.D0)) k=j
+                    enddo
+                    l=CEILING(REAL(k)/2.D0)
+                    CoeffT1(:,i)=NatOrbMat(:,l)
+                    EvaluesTrunc(i)=Evalues(l)
+                    SymOrbs(i)=SymOrbsTemp(l)
+                    OccEnergies(k)=0.D0
+                enddo
+                do i=2,(2*nOccAlpha),2
+                    k=2
+                    do while(OccEnergies(k).eq.0.D0)
+                        k=k+2
+                    enddo
+                    do j=2,(2*nOccAlpha),2
+                        IF((OccEnergies(j).lt.OccEnergies(k)).and.(OccEnergies(j).ne.0.D0)) k=j
+                    enddo
+                    l=(k/2)+SpatOrbs
+                    CoeffT1(:,i)=NatOrbMat(:,l)
+                    EvaluesTrunc(i)=Evalues(l)
+                    SymOrbs(i)=SymOrbsTemp(l)
+                    OccEnergies(k)=0.D0
+                enddo
+                
+!Need to fill coeffT1 so that it goes alpha beta alpha beta.
+                k=(2*nOccBeta)+1
+                do i=nOccBeta+1,NoRotAlphBet
                     CoeffT1(:,k)=NatOrbMat(:,i)
                     EvaluesTrunc(k)=Evalues(i)
                     SymOrbs(k)=SymOrbsTemp(i)
                     k=k+2
                 enddo
-                k=2
-                do i=SpatOrbs+1,SpatOrbs+NoRotAlphBet
+                k=(2*nOccAlpha)+2
+                do i=SpatOrbs+nOccAlpha+1,SpatOrbs+NoRotAlphBet
                     CoeffT1(:,k)=NatOrbMat(:,i)
                     SymOrbs(k)=SymOrbsTemp(i)
                     EvaluesTrunc(k)=Evalues(i)
                     k=k+2
+                enddo
+ 
+            ELSE
+
+!Order occupied in terms of energy again - this makes sure freezing etc doesn't get screwed up.                    
+                CALL CalcOccEnergies(OccEnergies)
+!OccEnergies has the orbital energies as they are ordered currently - need to put NatOrbMat into CoeffT1 so that this goes from lowest energy to highest. 
+
+                do i=1,NEl/2
+                    k=1
+                    do while(OccEnergies(k).eq.0.D0)
+                        k=k+1
+                    enddo
+                    do j=1,NEl/2
+                        IF((OccEnergies(j).lt.OccEnergies(k)).and.(OccEnergies(j).ne.0.D0)) k=j
+                    enddo
+                    CoeffT1(:,i)=NatOrbMat(:,k)
+                    EvaluesTrunc(i)=Evalues(k)
+                    SymOrbs(i)=SymOrbsTemp(k)
+                    OccEnergies(k)=0.D0
                 enddo
 
-            ELSE
-                do i=1,NoRotAlphBet
+                do i=(NEl/2)+1,NoRotAlphBet
                     CoeffT1(:,i)=NatOrbMat(:,i)
                     EvaluesTrunc(i)=Evalues(i)
                     SymOrbs(i)=SymOrbsTemp(i)
@@ -1365,7 +1418,7 @@ MODULE NatOrbsMod
         USE RotateOrbsData , only : CoeffT1,EvaluesTrunc
         IMPLICIT NONE
         INTEGER :: i,k,x,NoEvalues,a,b,NoOcc
-        REAL*8 :: EvaluesCount(NoOrbs,2),OrbEnergies(1:NoOrbs),EvalueEnergies(1:NoOrbs)
+        REAL*8 :: EvaluesCount(NoOrbs,2),EvalueEnergies(1:NoOrbs),OrbEnergies(1:NoOrbs)
         REAL*8 :: SumEvalues
 
 
@@ -1507,6 +1560,47 @@ MODULE NatOrbsMod
     END SUBROUTINE HistNatOrbEvalues
 
 
+    SUBROUTINE CalcOccEnergies(OccEnergies)
+        USE RotateOrbsData , only : CoeffT1,NoRotOrbs
+        REAL*8 :: OccEnergies(1:NoRotOrbs)
+        INTEGER :: i,a,b,NoOcc,x,Prev,k
+
+        OccEnergies(:)=0.D0
+        IF(tStoreSpinOrbs) THEN
+            do x=1,2
+                IF(x.eq.1) THEN
+                    NoOcc=nOccBeta
+                    Prev=0
+                    k=1
+                ELSE
+                    NoOcc=nOccAlpha
+                    Prev=SpatOrbs
+                    k=2
+                ENDIF
+                do i=1+Prev,NoOcc+Prev
+! We are only interested in the diagonal elements.            
+                    do a=1,NoOrbs
+                        b=SymLabelList2(a)
+                        OccEnergies(k)=OccEnergies(k)+(NatOrbMat(a,i)*ARR(b,2)*NatOrbMat(a,i))
+                    enddo
+                    k=k+2
+                enddo
+            enddo
+        ELSE
+            NoOcc=NEl/2
+            do i=1,NoOcc
+! We are only interested in the diagonal elements.            
+                do a=1,NoOrbs
+                    b=SymLabelList2(a)
+                    OccEnergies(i)=OccEnergies(i)+(NatOrbMat(a,i)*ARR(2*b,2)*NatOrbMat(a,i))
+                enddo
+            enddo
+        ENDIF
+
+    END SUBROUTINE CalcOccEnergies
+
+
+
     SUBROUTINE PrintOccTable()
         USE Logging , only : tTruncRODump
         USE RotateOrbsData , only : CoeffT1,EvaluesTrunc
@@ -1560,63 +1654,51 @@ MODULE NatOrbsMod
     END SUBROUTINE PrintOccTable
 
 
-    SUBROUTINE FindOrbOccupations()
+    SUBROUTINE PrintOrbOccs(OrbOccs)
 ! This routine takes whatever orbital basis we're using and is called at the end of a spawn to find the contribution of each orbital to the final wavefunction.    
 ! This is done by histogramming the determinant populations, and then running over these adding the coefficients of each determinant to the orbitals 
 ! occupied.
 ! This is essentially < Psi | a_p+ a_p | Psi > - the diagonal terms of the one electron reduced density matrix.
-        USE DetCalc , only : Det,FCIDets
-        USE FciMCData , only : AllHistogram
-        use DetBitOps, only: DecodeBitDet
-        INTEGER :: ierr,OrbOccsTag,i,CurrDet(NEl),j
-        REAL*8 :: Norm
-        REAL*8 , ALLOCATABLE :: OrbOccs(:)
-        CHARACTER(len=*), PARAMETER :: this_routine='FindOrbOccupations'
+!        USE Logging , only : OrbOccs
+        REAL*8 :: Norm,OrbOccs(nBasis)
+        INTEGER :: i,AllOrbOccsTag,ierr,error
+        REAL*8 , ALLOCATABLE :: AllOrbOccs(:)
 
 
-! Orbitals are always treated as spin orbitals because this the occupied orbitals in a determinant are the spin orbitals.
-        ALLOCATE(OrbOccs(nBasis),stat=ierr)
-        CALL LogMemAlloc('OrbOccs',nBasis,8,this_routine,OrbOccsTag,ierr)
-        OrbOccs(:)=0.D0
+        IF(iProcIndex.eq.0) THEN
+            ALLOCATE(AllOrbOccs(nBasis),stat=ierr)
+            CALL LogMemAlloc('AllOrbOccs',nBasis,8,'PrintOrbOccs',AllOrbOccsTag,ierr)
+            AllOrbOccs(:)=0.D0
+        ENDIF
 
-
-! Det is the number of determinants in FCIDets.
-! FCIDets contains the list of all determinants in the system in bit string representation, FCIDets(0:nBasis/32,1:Det) 
-
-! The elements of AllHistogram correspond to the rows of FCIDets - i.e to each determinant in the system.
-! AllHistogram contains the final (normalised) amplitude of the determinant - with sign.
-
-        do i=1,Det 
-            CurrDet(:)=0
-            CALL DecodeBitDet(CurrDet,FCIDets(0:NIfTot,i))
-
-! Run through each orbital occupied in the current determinant and add the coefficient of the determinant to the contribution from that orbital.            
-            do j=1,NEl
-                OrbOccs(CurrDet(j))=OrbOccs(CurrDet(j))+ABS(AllHistogram(i))
-            enddo
-        enddo
+#ifdef PARALLEL
+        CALL MPI_Reduce(OrbOccs(1:nBasis),AllOrbOccs(1:nBasis),nBasis,MPI_DOUBLE_PRECISION,MPI_SUM,0,MPI_COMM_WORLD,error)
+#else
+        AllOrbOccs(1:nBasis)=OrbOccs(1:nBasis)
+#endif
 
 ! Want to normalise the orbital contributions for convenience.        
-        Norm=0.D0
-        do i=1,nBasis
-            Norm=Norm+OrbOccs(i)
-        enddo
-        do i=1,nBasis
-            OrbOccs(i)=OrbOccs(i)/Norm
-        enddo
+        IF(iProcIndex.eq.0) THEN
+            Norm=0.D0
+            do i=1,nBasis
+                Norm=Norm+AllOrbOccs(i)
+            enddo
+            do i=1,nBasis
+                AllOrbOccs(i)=AllOrbOccs(i)/Norm
+            enddo
 
-        OPEN(12,FILE='ORBOCCUPATIONS',STATUS='UNKNOWN')
-        WRITE(12,'(A15,A30)') '# Orbital no.','Normalised occupation'
-        do i=1,nBasis
-            WRITE(12,'(I15,F30.10)') i,OrbOccs(i)
-        enddo
-        CLOSE(12)
+            OPEN(12,FILE='ORBOCCUPATIONS',STATUS='UNKNOWN')
+            WRITE(12,'(A15,A30)') '# Orbital no.','Normalised occupation'
+            do i=1,nBasis
+                WRITE(12,'(I15,F30.10)') i,AllOrbOccs(i)
+            enddo
+            CLOSE(12)
 
-        DEALLOCATE(OrbOccs)
-        CALL LogMemDeAlloc(this_routine,OrbOccsTag)
- 
+            DEALLOCATE(AllOrbOccs)
+            CALL LogMemDeAlloc('PrintOrbOccs',AllOrbOccsTag)
+        ENDIF
 
-    END SUBROUTINE FindOrbOccupations
+    END SUBROUTINE PrintOrbOccs
 
 
 

@@ -4,7 +4,7 @@ MODULE Logging
     Save
 
     INTEGER ILOGGING,ILOGGINGDef,iGlobalTimerLevel,nPrintTimer,G_VMC_LOGCOUNT
-    INTEGER HFLOGLEVEL,iWritePopsEvery
+    INTEGER HFLOGLEVEL,iWritePopsEvery,StartPrintOrbOcc
     INTEGER PreVarLogging,WavevectorPrint,NoHistBins
     REAL*8 MaxHistE,BinRange,OffDiagMax,OffDiagBinRange,TriConMax,TriConHElSingMax,TriConHElDoubMax
     LOGICAL TDistrib,TPopsFile,TCalcWavevector,TDetPops,tROFciDump,tROHistOffDiag,tROHistDoubExc,tROHistOnePartOrbEn
@@ -12,11 +12,11 @@ MODULE Logging
     LOGICAL tROHistVirtCoulomb,tPrintInts,tHistEnergies,tPrintTriConnections,tHistTriConHEls,tPrintHElAccept,tTruncRODump
     LOGICAL tPrintFCIMCPsi,tCalcFCIMCPsi,tPrintSpinCoupHEl,tIterStartBlock,tHFPopStartBlock,tInitShiftBlocking,tTruncDumpbyVal
     LOGICAL tWriteTransMat,tHistHamil,tPrintOrbOcc
-    INTEGER NoACDets(2:4),iPopsPartEvery,iWriteHistEvery,iNoBins,NoTriConBins,NoTriConHElBins,NHistEquilSteps
+    INTEGER NoACDets(2:4),iPopsPartEvery,iWriteHistEvery,iNoBins,NoTriConBins,NoTriConHElBins,NHistEquilSteps,IterShiftBlock
     INTEGER CCMCDebug !CCMC Debugging Level 0-6.  Default 0
-    INTEGER IterStartBlocking,HFPopStartBlocking,NoDumpTruncs,NoTruncOrbsTag,TruncEvaluesTag,iWriteHamilEvery
+    INTEGER IterStartBlocking,HFPopStartBlocking,NoDumpTruncs,NoTruncOrbsTag,TruncEvaluesTag,iWriteHamilEvery,OrbOccsTag
     INTEGER , ALLOCATABLE :: NoTruncOrbs(:)
-    REAL*8 , ALLOCATABLE :: TruncEvalues(:)
+    REAL*8 , ALLOCATABLE :: TruncEvalues(:),OrbOccs(:)
 
 
 
@@ -80,12 +80,14 @@ MODULE Logging
       tCalcFCIMCPsi=.false.
       NHistEquilSteps=0
       tPrintOrbOcc=.false.
+      StartPrintOrbOcc=0
       CCMCDebug=0
       tHFPopStartBlock=.true.
       tIterStartBlock=.false.
       IterStartBlocking=0
       HFPopStartBlocking=100
       tInitShiftBlocking=.true.
+      IterShiftBlock=0
       NoDumpTruncs=0
       tWriteTransMat=.false.
 
@@ -149,6 +151,10 @@ MODULE Logging
             tIterStartBlock=.true.
             tHFPopStartBlock=.false.
             call readi(IterStartBlocking)
+
+        case("SHIFTBLOCKINGSTARTITER")
+!This keyword can be used if we want to start the blocking error analysis of the shift at a particular iteration after the shift begins to change.            
+            call readi(IterShiftBlock)
 
         case("BLOCKINGSTARTHFPOP")            
 !This keyword can be used if we want to start the blocking error analysis at a particular HF population.
@@ -387,6 +393,7 @@ MODULE Logging
 !This option initiates the above histogramming of determinant populations and then at the end of the spawning uses these to find the normalised  
 !contribution of each orbital to the total wavefunction.  
             tPrintOrbOcc=.true.
+            IF(item.lt.nitems) call readi(StartPrintOrbOcc)
         case("POPSFILE")
 ! This is so that the determinants at the end of the MC run are written
 ! out, to enable them to be read back in using READPOPS in the Calc section,

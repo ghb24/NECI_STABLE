@@ -53,7 +53,7 @@ CONTAINS
 
         Use global_utilities
         Use Determinants, only:  FDet, specdet, tSpecDet
-        use SystemData, only : tCSF,lms, lms2, nBasis, nBasisMax, nEl, SymRestrict
+        use SystemData, only : tCSFOLD,lms, lms2, nBasis, nBasisMax, nEl, SymRestrict
         use SystemData, only : Alat, arr, brr, boa, box, coa, ecore, g1,Beta
         use SystemData, only : tParity, tSpn,Symmetry,STot, NullBasisFn
         Type(BasisFn) ISym
@@ -81,7 +81,7 @@ CONTAINS
       ENDIF
 
 !Copied Specdet information from Calc.F, so if inspect is present, but no determinant/csf specified, it will still run.
-      IF(TCSF.AND.TSPECDET) THEN
+      IF(TCSFOLD.AND.TSPECDET) THEN
          WRITE(6,*) "TSPECDET set.  SPECDET is"
          CALL WRITEDET(6,SPECDET,NEL,.TRUE.)
          CALL NECI_ICOPY(NEL,SPECDET,1,FDET,1)
@@ -92,7 +92,7 @@ CONTAINS
          WRITE(6,*) "TSPECDET set, but invalid.  using FDET"
 !         tSpecDet=.false.
          CALL NECI_ICOPY(NEL,FDET,1,SPECDET,1)
-      ELSEIF(TCSF) THEN  !No help given on generating this CSF.  Let's just get a single one out of GNCSFs
+      ELSEIF(TCSFOLD) THEN  !No help given on generating this CSF.  Let's just get a single one out of GNCSFs
          NDET=1
          CALL GNCSFS(NEL,nBasis,BRR,NBASISMAX,FDET,.FALSE.,G1,TSPN,LMS2,TPARITY, &
      &      SymRestrict,NDET,IFDET,.FALSE.,0,II,.FALSE.,0)   !II is just a dummmy to receive IC
@@ -116,7 +116,7 @@ CONTAINS
                WRITE(6,*) "Using Fermi DET:"
                CALL WRITEDET(6,FDET,NEL,.TRUE.)
             ENDIF 
-            IF(TCSF) WRITE(6,*) "Determining CSFs."
+            IF(TCSFOLD) WRITE(6,*) "Determining CSFs."
 !C.. if we're doing a truncated CI expansion
             CALL GENEXCIT(FDET,ICILEVEL,NBASIS,NEL,0,0,NDET,1,G1,.TRUE.,NBASISMAX,.TRUE.)
             WRITE(6,*) "NDET out of GENEXCIT ",NDET
@@ -137,7 +137,7 @@ CONTAINS
      &            NDET,G1,II,NBLOCKSTARTS,NBLOCKS,TSPN,LMS2,TPARITY,        &
      &           SymRestrict,IFDET,.NOT.TREAD,NDETTOT,BLOCKSYM)
             WRITE(6,*) "NBLOCKS:",NBLOCKS
-         ELSEIF(TCSF) THEN
+         ELSEIF(TCSFOLD) THEN
             WRITE(6,*) "Determining CSFs."
 !C determinants.
             WRITE(6,*) "Determining determinants and blocks."
@@ -205,8 +205,8 @@ CONTAINS
             IFDET=1
          ELSEIF(TBLOCK) THEN 
             CALL GNDTS_BLK(NEL,nBasis,BRR,NBASISMAX,NMRKS, .FALSE.,NDET,G1,II,NBLOCKSTARTS,NBLOCKS,TSPN,LMS2,TPARITY, &
-     &           SymRestrict,IFDET,.NOT.TREAD,NDETTOT,BLOCKSYM,TCSF)
-         ELSEIF(TCSF) THEN
+     &           SymRestrict,IFDET,.NOT.TREAD,NDETTOT,BLOCKSYM,TCSFOLD)
+         ELSEIF(TCSFOLD) THEN
             NDET=0  !This will be reset by GNCSFS
             CALL GNCSFS(NEL,nBasis,BRR,NBASISMAX,NMRKS,.FALSE.,G1,TSPN,LMS2,TPARITY, &
      &         SymRestrict,NDET,IFDET,.FALSE.,0,0,.FALSE.,0)
@@ -290,7 +290,7 @@ CONTAINS
       use SystemData, only : nBasis, nBasisMax,nEl,nMsh,NIfTot
       use IntegralsData, only: FCK,NMAX, UMat
       Use Logging, only: iLogging,tHistSpawn,tHistHamil
-      use SystemData, only  : tCSF
+      use SystemData, only  : tCSFOLD
       use Parallel, only : iProcIndex
       use DetBitops, only: EncodeBitDet, DetBitEQ
 
@@ -810,7 +810,7 @@ CONTAINS
       ENDIF !tFindDets
 !C..
       IF(TEnergy) THEN
-          IF(.NOT.TCSF) THEN
+          IF(.NOT.TCSFOLD) THEN
              CALL CFF_CHCK(NDET,NEVAL,NMRKS,NBASISMAX,NEL,G1,CK,ALAT,TKE,nBasis,ILOGGING)
           ELSE
              DO I=1,NEVAL
@@ -927,6 +927,7 @@ END MODULE DetCalc
      &   DETINV,TSPECDET,SPECDET)
          use HElem
          use SystemData, only: BasisFN
+         use CalcData, only: tFCIMC
          use global_utilities
          use DetCalc, only: NMRKS
          implicit none
@@ -1059,6 +1060,9 @@ END MODULE DetCalc
 !.. we calculate the energy with weightings normalized to the weight of
 !.. the Fermi determinant, otherwise the numbers blow up
             WINORM=EXP(I_P*(WLRI-WLRI0)+(WLSI-WLSI0))
+            IF(tFCIMC) THEN
+                WINORM=1.D0
+            ENDIF
             NORM=NORM+WINORM
             TOT=TOT+WINORM*DREAL(DLWDB)
             WRITE(42,*) DLWDB

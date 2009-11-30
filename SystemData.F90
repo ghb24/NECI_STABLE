@@ -7,7 +7,7 @@ save
 LOGICAL :: TSTARBIN,TREADINT,THFORDER,TDFREAD,TPBC,TUEG,TCPMD,THUB,tHPHF,tHPHFInts,tUHF
 LOGICAL tRIIntegrals  !Read in RI 2-e integrals from RIDUMP file
 ! Why is so little of this commented.  'tis horrific.  AJWT.
-LOGICAL :: TSPN,TCSF,TPARITY,TUSEBRILLOUIN,TEXCH,TREAL,TTILT,tUMatEps,tOneElIntMax,tOnePartOrbEnMax,tROHF,tNoBrillouin
+LOGICAL :: TSPN,TCSF,TPARITY,TUSEBRILLOUIN,TEXCH,TREAL,TTILT,tUMatEps,tOneElIntMax,tOnePartOrbEnMax,tROHF,tNoBrillouin,tCSFOLD
 LOGICAL :: tStoreSpinOrbs   !This is set when the orbitals are stored in spin-orbital notation
 LOGICAL :: tVirtCoulombMax,tVirtExchangeMin,tHijSqrdMin,tDiagonalizehij,tHFSingDoubExcMax,tSpinOrbs,tReadInCoeff,tUseMP2VarDenMat
 LOGICAL :: TALPHA,TSTOREASEXCITATIONS,TBIN,tStarStore,tVASP,tOffDiagSqrdMin,tOffDiagSqrdMax,tOffDiagMax,tShakeDelay
@@ -33,8 +33,9 @@ INTEGER :: LzTot,iMaxLz     !LzTot is the total Ml quantum number of the state t
 ! NIfTot indicates upper bound of determinants in bit form
 ! NIfD is final byte used to represent determinants (NIfD+1 bytes total)
 ! NIfY is the number of bytes used to represent a Yamanouchi symbol
+! NIfP is an integer that is added on to the end of NIfD in CASSTAR calculations - keeps track of the parent determinant of spawned walkers.
 ! NB. bit representations are zero indexed.
-INTEGER :: NIfD, NIfY
+INTEGER :: NIfD, NIfY,NIfP,NIfDBO
 integer :: NIfTot
 
 ! From NECICB

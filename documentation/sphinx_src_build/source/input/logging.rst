@@ -326,6 +326,10 @@ Monte Carlo options
     This only starts when the shift begins to vary, and may be restarted or the 
     current SHIFTBLOCKINGANALYSIS file printed at that point using CHANGEVARS.
 
+**SHIFTBLOCKINGSTARTITER** [IterShiftBlock]
+    This can be used to specify the number of iterations after the shift is allowed
+    to change that the shift error blocking begins.
+
 **VERTEX** [**EVERY** n]
     Log the vertex MC with :math:`\tilde{E}` every n (real) cycles
     and/or log the vertex MC contribution every cycle.  Setting

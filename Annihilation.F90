@@ -1,13 +1,14 @@
 !This module is to be used for various types of walker MC annihilation in serial and parallel.
 MODULE AnnihilationMod
-    use SystemData , only : NEl,tMerTwist,tHPHF,NIfTot
-    use CalcData , only : TRegenExcitgens,tAnnihilatebyRange,tUseGuide,tRegenDiagHEls,iInitGuideParts,iGuideDets
+    use SystemData , only : NEl,tMerTwist,tHPHF,NIfTot,NIfDBO
+    use CalcData , only : TRegenExcitgens,tAnnihilatebyRange,tUseGuide,tRegenDiagHEls,iInitGuideParts,iGuideDets,tKeepDoubleSpawns
     USE DetCalc , only : Det,FCIDetIndex
     USE Logging , only : tHistSpawn
     USE Parallel
     USE mt95 , only : genrand_real2
     USE FciMCData
     use DetBitOps, only: DetBitEQ, DetBitLT
+    use CalcData , only : tTruncInitiator
     IMPLICIT NONE
 
     contains
@@ -130,7 +131,7 @@ MODULE AnnihilationMod
 !            WRITE(6,*) i,"***",SpawnedParts(:,i)
 !        enddo
 #ifdef PARALLEL
-        CALL MPI_AlltoAllv(SpawnedParts(0:NIfTot,1:MaxSendIndex),sendcounts,disps,MPI_INTEGER,SpawnedParts2(0:NIfTot,1:MaxIndex),recvcounts,recvdisps,MPI_INTEGER,MPI_COMM_WORLD,error)
+        CALL MPI_AlltoAllv(SpawnedParts(:,1:MaxSendIndex),sendcounts,disps,MPI_INTEGER,SpawnedParts2,recvcounts,recvdisps,MPI_INTEGER,MPI_COMM_WORLD,error)
 #else
         SpawnedParts2(0:NIfTot,1:MaxIndex)=SpawnedParts(0:NIfTot,1:MaxSendIndex)
 #endif
@@ -168,16 +169,26 @@ MODULE AnnihilationMod
         DetsMerged=0
         ToRemove=0
         do i=2,ValidSpawned
-            IF(.not.DetBitEQ(SpawnedParts(0:NIfTot,i),SpawnedParts2(0:NIfTot,VecInd))) THEN
+            IF(.not.DetBitEQ(SpawnedParts(0:NIfTot,i),SpawnedParts2(0:NIfTot,VecInd),NIfDBO)) THEN
                 IF(SpawnedSign2(VecInd).eq.0) ToRemove=ToRemove+1
                 VecInd=VecInd+1
                 SpawnedParts2(:,VecInd)=SpawnedParts(:,i)
                 SpawnedSign2(VecInd)=SpawnedSign(i)
             ELSE
+!The next determinant is equal to the current - want to look at the relative signs.                
                 SignProd=SpawnedSign(i)*SpawnedSign2(VecInd)
                 IF(SignProd.lt.0) THEN
 !We are actually unwittingly annihilating, but just in serial... we therefore need to count it anyway.
                     Annihilated=Annihilated+2*(MIN(abs(SpawnedSign2(VecInd)),abs(SpawnedSign(i))))
+
+                    IF(tTruncInitiator) THEN
+!If we are doing a CAS star calculation, we also want to keep track of which parent the remaining walkers came from - those inside the active space or out.                
+!This is only an issue if the two determinants we are merging have different Parent flags - otherwise they just keep whichever.
+!As it is, the SpawnedParts2 determinant will have the parent flag that remains - just need to change this over if the number of walkers on SpawnedParts ends up dominating.
+                        IF(SpawnedParts(NIfTot,i).ne.SpawnedParts2(NIfTot,VecInd)) THEN     ! Parent flags are not equal
+                            IF(ABS(SpawnedSign(i)).gt.ABS(SpawnedSign2(VecInd))) SpawnedParts2(NIfTot,VecInd)=SpawnedParts(NIfTot,i)
+                        ENDIF
+                    ENDIF
 
                     IF(tHistSpawn) THEN
 !We want to histogram where the particle annihilations are taking place.
@@ -207,6 +218,23 @@ MODULE AnnihilationMod
 !                            ENDIF
                             CALL Stop_All("CompressSpawnedList","Cannot find corresponding FCI determinant when histogramming")
                         ENDIF
+                    ENDIF
+                ELSEIF(tTruncInitiator) THEN
+!This is the case where the determinants are the same but also have the same sign - so this usually doesn't matter except when we are doing CASStar calculations and 
+!the parents are different.
+!In this case we assume the determinants inside the CAS have spawned a second earlier - so the ones from outside the active space are spawning onto an occupied determinant
+!and will therefore live - we can just make these equiv by treating them as they've all come from inside the active space.
+                    IF(SpawnedParts(NIfTot,i).ne.SpawnedParts2(NIfTot,VecInd)) THEN     ! Parent flags are not equal
+                        SpawnedParts2(NIfTot,VecInd)=0      ! Take all the walkers to have come from inside the CAS space.
+                        IF(SpawnedSign2(VecInd).eq.0) SpawnedParts2(NIfTot,VecInd)=SpawnedParts(NIfTot,i) 
+                        ! Think there might still be a case where SpawnedSign2 can be 0 - this means that the parent will be determined by SpawnedParts.
+                        ! If its SpawnedParts that is 0 that's fine because the SpawnedParts2 flag is already carried across.
+                    ELSEIF(tKeepDoubleSpawns.and.(SpawnedParts2(NIfTot,VecInd).eq.1)) THEN
+!This is the option where if two determinants spawn onto another at the same time with the same sign, they are kept whether they've come from 
+!inside or outside the active space.  This is different from before where two children spawned on the same determinant with the same sign, but both from outside the active
+!space will be killed.
+                        SpawnedParts2(NIfTot,VecInd)=0
+                        NoDoubSpawns=NoDoubSpawns+1
                     ENDIF
                 ENDIF
                 SpawnedSign2(VecInd)=SpawnedSign2(VecInd)+SpawnedSign(i)
@@ -241,6 +269,7 @@ MODULE AnnihilationMod
     END SUBROUTINE CompressSpawnedList
     
     INTEGER FUNCTION DetermineDetProc(iLut)
+        use systemdata , only: NIfDBO
         INTEGER :: iLut(0:NIfTot),i,j,Elecs!,TempDet(NEl),MurmurHash2Wrapper
         INTEGER(KIND=i2) :: Summ!,RangeofBins,NextBin
 
@@ -250,7 +279,7 @@ MODULE AnnihilationMod
         
         Summ=0
         Elecs=0
-        lp2: do i=0,NIfTot
+        lp2: do i=0,NIfDBO
             do j=0,31
                 IF(BTEST(iLut(i),j)) THEN
                     Elecs=Elecs+1
@@ -437,7 +466,7 @@ MODULE AnnihilationMod
             LowBound=i
             DetCurr(0:NIfTot)=SpawnedParts(0:NIfTot,i)
             i=i+1
-            do while(DetBitEQ(DetCurr(0:NIfTot),SpawnedParts(0:NIfTot,i)).and.(i.le.ValidSpawned))
+            do while(DetBitEQ(DetCurr(0:NIfTot),SpawnedParts(0:NIfTot,i),NIfDBO).and.(i.le.ValidSpawned))
                 i=i+1
             enddo
             HighBound=i-1
@@ -575,7 +604,7 @@ MODULE AnnihilationMod
                     CurrentDets(:,i)=SpawnedParts(:,i)
                     CurrentSign(i)=SpawnedSign(i)
 !We want to calculate the diagonal hamiltonian matrix element for the new particle to be merged.
-                    IF(DetBitEQ(CurrentDets(0:NIfTot,i),iLutHF)) THEN
+                    IF(DetBitEQ(CurrentDets(0:NIfTot,i),iLutHF,NIfDBO)) THEN
 !We know we are at HF - HDiag=0
                         HDiag=0.D0
                     ELSE
@@ -1290,7 +1319,7 @@ MODULE AnnihilationMod
 
         N=MinInd
         do while(N.le.MaxInd)
-            Comp=DetBitLT(DetArray(:,N),iLut(:))
+            Comp=DetBitLT(DetArray(:,N),iLut(:),NIfDBO)
             IF(Comp.eq.1) THEN
                 N=N+1
             ELSEIF(Comp.eq.-1) THEN
@@ -1320,7 +1349,7 @@ MODULE AnnihilationMod
         i=MinInd
         j=MaxInd
         IF(i-j.eq.0) THEN
-            Comp=DetBitLT(CurrentDets(:,MaxInd),iLut(:))
+            Comp=DetBitLT(CurrentDets(:,MaxInd),iLut(:),NIfDBO)
             IF(Comp.eq.0) THEN
                 tSuccess=.true.
                 PartInd=MaxInd
@@ -1336,7 +1365,7 @@ MODULE AnnihilationMod
 !            WRITE(6,*) i,j,n
 
 !Comp is 1 if CyrrebtDets(N) is "less" than iLut, and -1 if it is more or 0 if they are the same
-            Comp=DetBitLT(CurrentDets(:,N),iLut(:))
+            Comp=DetBitLT(CurrentDets(:,N),iLut(:),NIfDBO)
 
             IF(Comp.eq.0) THEN
 !Praise the lord, we've found it!
@@ -1353,7 +1382,7 @@ MODULE AnnihilationMod
                 IF(i.eq.MaxInd-1) THEN
 !This deals with the case where we are interested in the final/first entry in the list. Check the final entry of the list and leave
 !We need to check the last index.
-                    Comp=DetBitLT(CurrentDets(:,i+1),iLut(:))
+                    Comp=DetBitLT(CurrentDets(:,i+1),iLut(:),NIfDBO)
                     IF(Comp.eq.0) THEN
                         tSuccess=.true.
                         PartInd=i+1
@@ -1454,6 +1483,7 @@ MODULE AnnihilationMod
 !                MinInd=PartInd      !Make sure we only have a smaller list to search next time since the next particle will not be at an index smaller than PartInd
 !                AnnihilateInd=0     !AnnihilateInd indicates the index in CurrentDets of the particle we want to annihilate. It will remain 0 if we find not complimentary particle.
 !                tSkipSearch=.false. !This indicates whether we want to continue searching forwards through the list once we exit the loop going backwards.
+!                WRITE(6,'(3I20,A,3I20)') SpawnedParts(:,i),' equals ',CurrentDets(:,PartInd)
                 
                 SignProd=CurrentSign(PartInd)*SpawnedSign(i)
                 IF(SignProd.lt.0) THEN
@@ -1494,6 +1524,15 @@ MODULE AnnihilationMod
                         IF(SpawnedSign(i).eq.0) THEN
 !The number of particles were equal and opposite. We want to remove this entry from the spawned list.
                             ToRemove=ToRemove+1
+                        ELSEIF(tTruncInitiator) THEN
+!If we are doing a CAS star calculation - then if the walkers that are left after annihilation have been spawned from determinants outside the active space,
+!then it is like these have been spawned on an unoccupied determinant and they are killed.
+                            IF(SpawnedParts(NIfTot,i).eq.1) THEN
+                                NoAborted=NoAborted+ABS(SpawnedSign(i))
+!                                WRITE(6,'(I20,A,3I20)') SpawnedSign(i),'walkers aborted from determinant:',SpawnedParts(:,i)
+                                SpawnedSign(i)=0
+                                ToRemove=ToRemove+1
+                            ENDIF
                         ENDIF
 
                     ELSE
@@ -1550,6 +1589,14 @@ MODULE AnnihilationMod
 !One of the signs on the list is actually 0. If this zero is on the spawned list, we need to mark it for removal.
                     IF(SpawnedSign(i).eq.0) THEN
                         ToRemove=ToRemove+1
+                    ELSEIF(tTruncInitiator) THEN
+!If doing a CAS star calculation - then if the signs on the current list is 0, and the walkers in the spawned list came from outside the cas space, these need to be killed.                        
+                        IF(SpawnedParts(NIfTot,i).eq.1) THEN
+                            NoAborted=NoAborted+ABS(SpawnedSign(i))
+!                            WRITE(6,'(I20,A,3I20)') SpawnedSign(i),'walkers aborted from determinant:',SpawnedParts(:,i)
+                            SpawnedSign(i)=0
+                            ToRemove=ToRemove+1
+                        ENDIF
                     ENDIF
                 ENDIF
 
@@ -1625,6 +1672,16 @@ MODULE AnnihilationMod
 !                    RemoveInds(ToRemove)=i
 !                ENDIF
 
+            ELSEIF(tTruncInitiator) THEN
+!Determinant in newly spawned list is not found in currentdets - usually this would mean the walkers just stay in this list and get merged later - but in this case we            
+!want to check where the walkers came from - because if the newly spawned walkers are from a parent outside the active space they should be killed - as they have been
+!spawned on an unoccupied determinant.
+                IF(SpawnedParts(NIfTot,i).eq.1) THEN    !Walkers came from outside cas space.
+                    NoAborted=NoAborted+ABS(SpawnedSign(i))
+!                    WRITE(6,'(I20,A,3I20)') SpawnedSign(i),'walkers aborted from determinant:',SpawnedParts(:,i)
+                    SpawnedSign(i)=0
+                    ToRemove=ToRemove+1
+                ENDIF
             ENDIF
 
 !Even if a corresponding particle wasn't found, we can still search a smaller list next time....so not all bad news then...
@@ -3249,12 +3306,12 @@ MODULE AnnihilationMod
             DetsEq=.false.
             SumMinorDetPop=MinorSpawnSign(i)
             j=1
-            IF((i+j).le.MinorValidSpawned) DetsEq=DetBitEQ(MinorSpawnDets(0:NIfTot,i),MinorSpawnDets(0:NIfTot,i+j))
+            IF((i+j).le.MinorValidSpawned) DetsEq=DetBitEQ(MinorSpawnDets(0:NIfTot,i),MinorSpawnDets(0:NIfTot,i+j),NIfDBO)
             do while (DetsEq)
                 SumMinorDetPop=SumMinorDetPop+MinorSpawnSign(i+j)
                 j=j+1
                 IF((i+j).gt.MinorValidSpawned) EXIT
-                DetsEq=DetBitEQ(MinorSpawnDets(0:NIfTot,i),MinorSpawnDets(0:NIfTot,i+j))
+                DetsEq=DetBitEQ(MinorSpawnDets(0:NIfTot,i),MinorSpawnDets(0:NIfTot,i+j),NIfDBO)
             enddo
             FinalMinorDet=i+j-1
             IF(FinalMinorDet.gt.MinorValidSpawned) FinalMinorDet=MinorValidSpawned
@@ -3292,25 +3349,25 @@ MODULE AnnihilationMod
 
                 ! First check one below the determinant found.
                 j=1
-                DetsEq=DetBitEQ(MinorSpawnDets(0:NIfTot,i),MinorStarDets(0:NIfTot,PartInd-j))
+                DetsEq=DetBitEQ(MinorSpawnDets(0:NIfTot,i),MinorStarDets(0:NIfTot,PartInd-j),NIfDBO)
                 do while (DetsEq)
                     ! If the determinant is still equal, add the walkers on it to SumDetPop, and this index becomes the minimum.
                     SumDetPop=SumDetPop+MinorStarSign(PartInd-j)
                     MinDetInd=PartInd-j
                     j=j+1
-                    DetsEq=DetBitEQ(MinorSpawnDets(0:NIfTot,i),MinorStarDets(0:NIfTot,PartInd-j))
+                    DetsEq=DetBitEQ(MinorSpawnDets(0:NIfTot,i),MinorStarDets(0:NIfTot,PartInd-j),NIfDBO)
                     ! If this is true, the walkers on the next determinant will be added.
                 enddo
 
                 ! Now check those above the determinant found.
                 j=1
-                DetsEq=DetBitEQ(MinorSpawnDets(0:NIfTot,i),MinorStarDets(0:NIfTot,PartInd+j))
+                DetsEq=DetBitEQ(MinorSpawnDets(0:NIfTot,i),MinorStarDets(0:NIfTot,PartInd+j),NIfDBO)
                 do while (DetsEq)
                     ! If the determinant is still equal, add the walkers on it to SumDetPop, and this index becomes the minimum.
                     SumDetPop=SumDetPop+MinorStarSign(PartInd+j)
                     MaxDetInd=PartInd+j
                     j=j+1
-                    DetsEq=DetBitEQ(MinorSpawnDets(0:NIfTot,i),MinorStarDets(0:NIfTot,PartInd+j))
+                    DetsEq=DetBitEQ(MinorSpawnDets(0:NIfTot,i),MinorStarDets(0:NIfTot,PartInd+j),NIfDBO)
                     ! If this is true, the walkers on the next determinant will be added.
                 enddo
                 ! SumDetPop now gives the number of walkers (with sign) currently on this determinant, and the Min and Max index of where these lie in MinorStarDets.  
@@ -3519,7 +3576,7 @@ MODULE AnnihilationMod
 
                     DetsEq=.false.
                     do j=MinDetInd,MaxDetInd
-                        DetsEq=DetBitEQ(MinorSpawnParent(0:NIfTot,i),MinorStarParent(0:NIfTot,j))
+                        DetsEq=DetBitEQ(MinorSpawnParent(0:NIfTot,i),MinorStarParent(0:NIfTot,j),NIfDBO)
                         IF(DetsEq) THEN
                             MinorStarSign(j)=MinorStarSign(j)+MinorSpawnSign(i)
                             MinorSpawnSign(i)=0
@@ -3666,7 +3723,7 @@ MODULE AnnihilationMod
 !            WRITE(6,*) i,j,n
 
 !Comp is 1 if CyrrebtDets(N) is "less" than iLut, and -1 if it is more or 0 if they are the same
-            Comp=DetBitLT(GuideFuncDets(:,N),iLut(:))
+            Comp=DetBitLT(GuideFuncDets(:,N),iLut(:),NIfDBO)
 
             IF(Comp.eq.0) THEN
 !Praise the lord, we've found it!
@@ -3683,7 +3740,7 @@ MODULE AnnihilationMod
                 IF(i.eq.MaxInd-1) THEN
 !This deals with the case where we are interested in the final/first entry in the list. Check the final entry of the list and leave
 !We need to check the last index.
-                    Comp=DetBitLT(GuideFuncDets(:,i+1),iLut(:))
+                    Comp=DetBitLT(GuideFuncDets(:,i+1),iLut(:),NIfDBO)
                     IF(Comp.eq.0) THEN
                         tSuccess=.true.
                         PartInd=i+1
@@ -3744,7 +3801,7 @@ MODULE AnnihilationMod
 !            WRITE(6,*) i,j,n
 
 !Comp is 1 if CyrrebtDets(N) is "less" than iLut, and -1 if it is more or 0 if they are the same
-            Comp=DetBitLT(MinorStarDets(:,N),iLut(:))
+            Comp=DetBitLT(MinorStarDets(:,N),iLut(:),NIfDBO)
 
             IF(Comp.eq.0) THEN
 !Praise the lord, we've found it!
@@ -3761,7 +3818,7 @@ MODULE AnnihilationMod
                 IF(i.eq.MaxInd-1) THEN
 !This deals with the case where we are interested in the final/first entry in the list. Check the final entry of the list and leave
 !We need to check the last index.
-                    Comp=DetBitLT(MinorStarDets(:,i+1),iLut(:))
+                    Comp=DetBitLT(MinorStarDets(:,i+1),iLut(:),NIfDBO)
                     IF(Comp.eq.0) THEN
                         tSuccess=.true.
                         PartInd=i+1
@@ -3819,7 +3876,7 @@ MODULE AnnihilationMod
 !            WRITE(6,*) i,j,n
 
 !Comp is 1 if CyrrebtDets(N) is "less" than iLut, and -1 if it is more or 0 if they are the same
-            Comp=DetBitLT(AllExcDets(:,N),iLut(:))
+            Comp=DetBitLT(AllExcDets(:,N),iLut(:),NIfDBO)
 
             IF(Comp.eq.0) THEN
 !Praise the lord, we've found it!
@@ -3836,7 +3893,7 @@ MODULE AnnihilationMod
                 IF(i.eq.MaxInd-1) THEN
 !This deals with the case where we are interested in the final/first entry in the list. Check the final entry of the list and leave
 !We need to check the last index.
-                    Comp=DetBitLT(AllExcDets(:,i+1),iLut(:))
+                    Comp=DetBitLT(AllExcDets(:,i+1),iLut(:),NIfDBO)
                     IF(Comp.eq.0) THEN
                         tSuccess=.true.
                         PartInd=i+1
@@ -3916,7 +3973,7 @@ MODULE AnnihilationMod
                 do j=1,iGuideDets
                     DetsEq=.false.
                     !DetsEq is true if the two determinants are equal
-                    DetsEq=DetBitEQ(SpawnedParts(0:NIfTot,i),GuideFuncDets(0:NIfTot,j))
+                    DetsEq=DetBitEQ(SpawnedParts(0:NIfTot,i),GuideFuncDets(0:NIfTot,j),NIfDBO)
                     IF(DetsEq) THEN
                         CombSign=SpawnedSign(i)*GuideFuncSign(j)
                         !IF this is negative, the guiding function annihilates the spawned particles.
@@ -4035,7 +4092,7 @@ MODULE AnnihilationMod
                     IF(Signtorotate(i).ne.0) THEN
                         do j=1,iGuideDets
                             DetsEq=.false.
-                            DetsEq=DetBitEQ(DetstoRotate(0:NIfTot,i),GuideFuncDets(0:NIfTot,j))
+                            DetsEq=DetBitEQ(DetstoRotate(0:NIfTot,i),GuideFuncDets(0:NIfTot,j),NIfDBO)
 
                             IF(DetsEq) THEN
                                 CombSign=SigntoRotate(i)*GuideFuncSign(j)
@@ -4127,7 +4184,7 @@ MODULE AnnihilationMod
                 tDetinSpawnList=.false.
                 do i=1,ValidSpawned
                     DetsEq=.false.
-                    DetsEq=DetBitEQ(SpawnedParts(0:NIfTot,i),DetstoRotate(0:NIfTot,j))
+                    DetsEq=DetBitEQ(SpawnedParts(0:NIfTot,i),DetstoRotate(0:NIfTot,j),NIfDBO)
                     IF(DetsEq) THEN
                         SpawnedSign(i)=SigntoRotate(j)
                         tDetinSpawnList=.true.
@@ -4160,7 +4217,7 @@ MODULE AnnihilationMod
 
         !Run through all other determinants in the guiding function.  Find out if they are doubly excited.  Find H elements, and multiply by number on that double.
         do i=1,iGuideDets
-            CALL FindBitExcitLevel(GuideFuncDets(0:NIfTot,i),iLutHF,ExcitLevel,2)
+            CALL FindBitExcitLevel(GuideFuncDets(:,i),iLutHF,ExcitLevel,2)
             IF(ExcitLevel.eq.2) THEN
                 DoubDet(:)=0
                 CALL DecodeBitDet(DoubDet,GuideFuncDets(0:NIfTot,i))

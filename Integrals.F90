@@ -594,11 +594,12 @@ MODULE Integrals
         
     Subroutine IntFreeze
       use SystemData, only: Alat,Brr,CoulDampOrb,ECore,fCoulDampMu
-      use SystemData, only: G1,iSpinSkip,NIfD,NIfY,NIfTot,tCSF
+      use SystemData, only: G1,iSpinSkip,NIfD,NIfY,NIfP,NIfTot,tCSF,NIfDBO
       use SystemData, only: nBasis,nEl,arr,nbasismax
       use UMatCache, only: GetUMatSize
       use HElem, only: HElement,HElementSize,HElementSizeB
       use SymData , only : TwoCycleSymGens
+      use CalcData , only : tTruncInitiator,tDelayTruncInit
       use global_utilities
       character(25), parameter ::this_routine='IntFreeze'            
 !//Locals
@@ -692,14 +693,22 @@ MODULE Integrals
       ! NIfY gives space to store number of open shell e-
       ! and the Yamanouchi symbol in a bit representation
       if (tCSF) then
-          NIfY = int(nel/32)+2
+          NIfY = int(nel/32)+1
       else
           NIfY = 0
       endif
       NIfTot = NIfD + NIfY
+      NIfDBO = NIfD + NIfY
+        
+      if (tTruncInitiator.or.tDelayTruncInit) then
+! We need an integer to contain a flag of whether or not the parent of spawned walkers was inside or outside the active space.          
+          NIfP = 1
+      else
+          NIfP = 0
+      endif
+      NIfTot = NIfTot + NIfP
 
-
-      WRITE(6,*) "Setting integer length of determinants as bit-strings to: ",NIfD+NIfY+1
+      WRITE(6,*) "Setting integer length of determinants as bit-strings to: ",NIfD+NIfY+NIfP+1
          
       IF(COULDAMPORB.GT.0) THEN
          FCOULDAMPMU=(ARR(COULDAMPORB,1)+ARR(COULDAMPORB+1,1))/2
@@ -842,7 +851,8 @@ MODULE Integrals
 !C.. GG(I) is the new position in G of the (old) orb I
              GG(I)=K
 !C.. copy the eigenvalue table to the new location
-             CALL NECI_ICOPY(BasisFNSize,G1(I),1,G2(K),1)
+             G2(K)=G1(I)
+!             CALL NECI_ICOPY(BasisFNSize,G1(I),1,G2(K),1)
           ENDIF
        ENDDO
 
@@ -891,7 +901,10 @@ MODULE Integrals
           !SYMCLASSES2 gives the new symmetry of the frozen set of orbitals
           CALL FREEZESYMLABELS(NHG,NBASIS,GG,.true.)
 !C.. Copy the new G1 over the old ones
-          CALL NECI_ICOPY(BasisFNSize*NBASIS,G2,1,G1,1)
+          do i=1,nbasis
+              G1(i)=G2(i)
+          enddo
+!          CALL NECI_ICOPY(BasisFNSize*NBASIS,G2,1,G1,1)
           !Redo SYMLABELCOUNTS
           CALL GENSymStatePairs(NBASIS/2,.true.)
        ENDIF
@@ -1204,7 +1217,10 @@ MODULE Integrals
              CALL SetupFREEZEALLSYM(KSym)
           END IF
           CALL FREEZESYMLABELS(NHG,NBASIS,GG,.false.)
-          CALL NECI_ICOPY(BasisFNSize*NBASIS,G2,1,G1,1)
+          do i=1,NBASIS
+              G1(i)=G2(i)
+          enddo
+!          CALL NECI_ICOPY(BasisFNSize*NBASIS,G2,1,G1,1)
        ENDIF 
 
        FREEZETRANSFER=.false.

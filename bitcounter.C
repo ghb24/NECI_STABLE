@@ -7,6 +7,6 @@ int NumberOfSetBits(int i)
 
     i = (i & 0x33333333) + ((i >> 2) & 0x33333333);
 
-    return ((i + (i >> 4) & 0xF0F0F0F) * 0x1010101) >> 24;
+    return (((i + (i >> 4)) & 0xF0F0F0F) * 0x1010101) >> 24;
 
 }
