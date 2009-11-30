@@ -2121,6 +2121,8 @@ MODULE GenRandSymExcitNUMod
 
     END SUBROUTINE CalcAllab
 
+! For a given ij pair in the UEG or Hubbard model, this generates ab as a double excitation efficiently.
+! This takes into account the momentum conservation rule, i.e. that kb=ki+ki-ka(+G).
     SUBROUTINE CreateDoubExcitLattice(nI,iLutnI,nJ,tParity,ExcitMat,pGen,Elec1Ind,Elec2Ind,iSpn)
 
         Use SystemData , only : G1,NEl,tMerTwist,nOccAlpha,nOccBeta
@@ -2163,6 +2165,7 @@ MODULE GenRandSymExcitNUMod
         ka=G1(Hole1BasisNum)%k
         kb=ki+kj-ka
 
+        ! Find the spin of b
         IF(iSpn.eq.2)THEN ! alpha/beta required, therefore b has to be opposite spin to a
             kb_ms=1-((G1(Hole1BasisNum)%Ms+1)/2)*2
         ELSE ! b is the same spin as a
@@ -2196,6 +2199,7 @@ MODULE GenRandSymExcitNUMod
                 RETURN
             ENDIF
 
+            ! Reject if a=b.
             IF(Hole1BasisNum.eq.Hole2BasisNum) THEN
                 nJ(1)=0 
                 RETURN
@@ -2254,6 +2258,7 @@ MODULE GenRandSymExcitNUMod
 
         ENDIF
 
+        ! Find the new determinant
         CALL FindNewDet(nI,nJ,Elec1Ind,Elec2Ind,Hole1BasisNum,Hole2BasisNum,ExcitMat,tParity)
                 
         IF(tHub) THEN
@@ -2290,6 +2295,10 @@ MODULE GenRandSymExcitNUMod
 
     END SUBROUTINE CreateDoubExcitLattice
 
+    ! This creates a general excitation for the UEG and Hubbard model. Each ij pair is picked with equal probability, and then
+    ! each ab is picked for that ij pair with equal probability.
+    ! For UEG there is a more sophisticated algorithm that allows more ijab choices to be rejected before going back to the main
+    ! code.
     SUBROUTINE CreateExcitLattice(nI,iLutnI,nJ,tParity,ExcitMat,pGen)
         Use SystemData , only : G1,NEl,tMerTwist
         Use SystemData , only : NMAXX,NMAXY,NMAXZ,NIfTot
@@ -2306,6 +2315,7 @@ MODULE GenRandSymExcitNUMod
 
 !        CALL PickElecPair(nI,Elec1Ind,Elec2Ind,SymProduct,iSpn,SumMl,-1)
          
+        ! Completely random ordering of electrons is important when considering ij->ab ij/->ba. This affects pgens for alpha/beta pairs.
         IF(tMerTwist) THEN
             CALL genrand_real2(r(1))
             Elec1=INT(r(1)*NEl+1)
@@ -2317,8 +2327,6 @@ MODULE GenRandSymExcitNUMod
         ELSE
             CALL Stop_All("CreateExcitLattice","Doesn't work with RANLUX")
         ENDIF
-
-
         Elec1Ind=Elec1
         Elec2Ind=Elec2
         IF((G1(nI(Elec1Ind))%Ms.eq.-1).and.(G1(nI(Elec2Ind))%Ms.eq.-1)) THEN
@@ -2335,6 +2343,7 @@ MODULE GenRandSymExcitNUMod
 
             IF(tHub) CALL Stop_All("CreateExcitLattice", "This doesn't work with Hubbard Model")
             
+            ! Find the upper and lower ranges of kx, ky and kz from the point of view of electron i
             ki=G1(nI(Elec1Ind))%k
             kj=G1(nI(Elec2Ind))%k
             KaXLowerLimit=MAX(-NMAXX,ki(1)-(NMAXX-kj(1)))
@@ -2347,9 +2356,11 @@ MODULE GenRandSymExcitNUMod
             KaZUpperLimit=MIN(NMAXZ,ki(3)+(NMAXZ+kj(3)))
             KaZRange=KaZUpperLimit-KaZLowerLimit+1
 
+            ! How many disallowed excitations are there due to electrons 'blocking' i->a or j->b excitations
             iElecInExcitRange=0
             tExtraPoint=.false.
             ALLOCATE(Excludedk(NEl,3))
+            ! Is a = b allowed by momentum and disallowed by spin symmetry?
             IF( (G1(nI(Elec1Ind))%Ms.eq.G1(nI(Elec2Ind))%Ms) .and. &
             &       (MOD(ki(1)-kj(1),2).eq.0) .and. &
             &       (MOD(ki(2)-kj(2),2).eq.0) .and. &
@@ -2358,7 +2369,7 @@ MODULE GenRandSymExcitNUMod
                 Excludedk(iElecInExcitRange,:)=(ki+kj)/2 ! Integer division okay because we're already checked for mod2=0
                 tExtraPoint=.true.
             ENDIF
-
+            ! How many disallowed i->a are there?
             DO i=1,NEl
                 IF(G1(nI(i))%Ms.ne.G1(nI(Elec1Ind))%Ms) CYCLE
                 kTrial=G1(nI(i))%k
@@ -2377,6 +2388,7 @@ MODULE GenRandSymExcitNUMod
                 Excludedk(iElecInExcitRange,:)=kTrial
             ENDDO
             iExcludedKFromElec1=iElecInExcitRange
+            ! How many disallowed j->b are there, given that some k-points have already been elimated by i->a being disallowed?
             DO i=1,NEl
                 IF(G1(nI(i))%Ms.ne.G1(nI(Elec2Ind))%Ms) CYCLE
                 kTrial=ki+kj-G1(nI(i))%k
@@ -2386,8 +2398,8 @@ MODULE GenRandSymExcitNUMod
                 IF(kTrial(2).gt.KaYUpperLimit) CYCLE
                 IF(kTrial(3).lt.KaZLowerLimit) CYCLE
                 IF(kTrial(3).gt.KaZUpperLimit) CYCLE
-        ! Need to check for this k-point already having been eliminated
-        ! by the previous loop over electrons
+                ! Need to check for this k-point already having been eliminated
+                ! by the previous loop over electrons
                 tDoubleCount=.false.
                 DO j=1,iExcludedKFromElec1
                     IF((Excludedk(j,1).eq.kTrial(1)).and.(Excludedk(j,2).eq.kTrial(2)).and.Excludedk(j,3).eq.kTrial(3)) tDoubleCount=.true.
@@ -2397,6 +2409,7 @@ MODULE GenRandSymExcitNUMod
 
             DEALLOCATE(Excludedk)
 
+            ! If there are no excitations for this ij pair then this subroutine must exit
             iAllowedExcites=KaXRange*KaYRange*KaZRange-iElecInExcitRange
             IF(iAllowedExcites.eq.0) THEN
             !    WRITE(6,*) "No allowed excitations from this ij pair"
@@ -2407,6 +2420,7 @@ MODULE GenRandSymExcitNUMod
 
         DO i=1, 10000 
             IF(i.eq.10000) THEN ! Arbitrary termination of the loop to prevent hanging
+                                ! due to no excitations being allowed from a certain ij pair
                 write(6,*) "nI:", nI
                 write(6,*) "i & j", nI(Elec1),nI(Elec2)
                 write(6,*) "Allowed Excitations", iAllowedExcites
@@ -2417,8 +2431,10 @@ MODULE GenRandSymExcitNUMod
             IF (nJ(1).ne.0) EXIT
         ENDDO
         
+        ! Now calculate pgen
         pAIJ=1.0/(KaXRange*KaYRange*KaZRange-iElecInExcitRange) 
         ! pBIJ is zero for this kind of excitation generator for antiparallel spins
+        ! but is equal to pAIJ for parallel spins.
         IF(G1(nI(Elec1Ind))%Ms.ne.G1(nI(Elec2Ind))%Ms) THEN
             pGen=2.0/(NEl*(NEl-1))*pAIJ ! Spins not equal
         ELSE

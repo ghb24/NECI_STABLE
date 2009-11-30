@@ -344,9 +344,13 @@ MODULE System
             call geti(NMAXX)
             call geti(NMAXY)
             call geti(NMAXZ)
-        case("UEGNOFAIL") ! UEG temporary keywords
+        ! This means that no a is generated when b would be made and rejected
+        ! O(N^2) loop makes this a poor choice for larger systems.
+        case("UEGNOFAIL")
             tNoFailAb = .true.
-        case("UEGNEW")
+        ! These are the new lattice excitation generators that conserve momentum
+        ! during excitation generation for efficiency
+        case("LATTICE-EXCITGEN")
             tUseNewExcitGens =.true.
         case("MESH")
             call geti(NMSH)
