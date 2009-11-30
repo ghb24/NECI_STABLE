@@ -57,7 +57,7 @@ MODULE GenRandSymExcitNUMod
 !        Iter=Iter+1
 !        WRITE(6,*) Iter,tFilled,nSymLabels
         IF((tUEG.and.tUseNewExcitGens) .or. (tHub.and.tUseNewExcitGens)) THEN
-            call CreateDoubExcitUEGNoFail(nI,iLut,nJ,tParity,ExcitMat,pGen)
+            call CreateExcitLattice(nI,iLut,nJ,tParity,ExcitMat,pGen)
             IC=2
             RETURN
         ENDIF       
@@ -169,7 +169,7 @@ MODULE GenRandSymExcitNUMod
 !Currently only available for molecular systems, or without using symmetry.
             IF((tUEG.and.tUseNewExcitGens) .or. (tHub.and.tUseNewExcitGens)) THEN
 !            IF(tUEG.and.tUseNewExcitGens) THEN
-                call CreateDoubExcitUEGNoFail(nI,iLut,nJ,tParity,ExcitMat,pGen)
+                call CreateExcitLattice(nI,iLut,nJ,tParity,ExcitMat,pGen)
                 IC=2
                 RETURN
             ENDIF       
@@ -2121,7 +2121,7 @@ MODULE GenRandSymExcitNUMod
 
     END SUBROUTINE CalcAllab
 
-    SUBROUTINE CreateDoubExcitUEG(nI,iLutnI,nJ,tParity,ExcitMat,pGen,Elec1Ind,Elec2Ind,iSpn)
+    SUBROUTINE CreateDoubExcitLattice(nI,iLutnI,nJ,tParity,ExcitMat,pGen,Elec1Ind,Elec2Ind,iSpn)
 
         Use SystemData , only : G1,NEl,tMerTwist,nOccAlpha,nOccBeta
         Use SystemData , only : NMAXX,NMAXY,NMAXZ,NIfTot
@@ -2155,7 +2155,7 @@ MODULE GenRandSymExcitNUMod
         ENDDO
 
         Hole1BasisNum=ChosenUnocc
-        IF((Hole1BasisNum.le.0).or.(Hole1BasisNum.gt.nBasis)) CALL Stop_All("CreateDoubExcitUEG","Incorrect basis function generated") 
+        IF((Hole1BasisNum.le.0).or.(Hole1BasisNum.gt.nBasis)) CALL Stop_All("CreateDoubExcitLattice","Incorrect basis function generated") 
 
         ! kb is now uniquely defined
         ki=G1(nI(Elec1Ind))%k
@@ -2248,7 +2248,7 @@ MODULE GenRandSymExcitNUMod
                     WRITE(6,*) "kj ", kj
                     WRITE(6,*) "ka ", ka
                     WRITE(6,*) "kb should be ", kb
-                    CALL Stop_All("CreateDoubExcitUEG", "Wrong b found")
+                    CALL Stop_All("CreateDoubExcitLattice", "Wrong b found")
                 ENDIF
             ENDDO
 
@@ -2256,9 +2256,6 @@ MODULE GenRandSymExcitNUMod
 
         CALL FindNewDet(nI,nJ,Elec1Ind,Elec2Ind,Hole1BasisNum,Hole2BasisNum,ExcitMat,tParity)
                 
-!        WRITE(6,*) "DEBUG 2", nI 
-!        WRITE(6,*) "DEBUG 2", nJ 
-
         IF(tHub) THEN
             ! Debug to test the resultant determinant
             kx=0
@@ -2275,7 +2272,7 @@ MODULE GenRandSymExcitNUMod
             ktest=(/kx,ky/)
             CALL MomPbcSym(ktest,nBasisMax)
             IF(.not.(ktest(1).eq.0.and.ktest(2).eq.0.and.kz.eq.0.and.ms_sum.eq.0)) THEN
-                CALL Stop_All("CreateDoubExcitUEG","Incorrect kb generated -- momentum not conserved")
+                CALL Stop_All("CreateDoubExcitLattice","Incorrect kb generated -- momentum not conserved")
             ENDIF
         ENDIF
 
@@ -2291,9 +2288,9 @@ MODULE GenRandSymExcitNUMod
         ! Note, p(b|ij)=p(a|ij) for this system
         pGen=2.0/(NEl*(NEl-1))*2.0*pAIJ
 
-    END SUBROUTINE CreateDoubExcitUEG
+    END SUBROUTINE CreateDoubExcitLattice
 
-    SUBROUTINE CreateDoubExcitUEGNoFail(nI,iLutnI,nJ,tParity,ExcitMat,pGen)
+    SUBROUTINE CreateExcitLattice(nI,iLutnI,nJ,tParity,ExcitMat,pGen)
         Use SystemData , only : G1,NEl,tMerTwist
         Use SystemData , only : NMAXX,NMAXY,NMAXZ,NIfTot
         use mt95 , only : genrand_real2
@@ -2318,7 +2315,7 @@ MODULE GenRandSymExcitNUMod
                 IF(Elec2.ne.Elec1) EXIT
             ENDDO
         ELSE
-            CALL Stop_All("CreateDoubExcitUEGNoFail","Doesn't work with RANLUX")
+            CALL Stop_All("CreateExcitLattice","Doesn't work with RANLUX")
         ENDIF
 
 
@@ -2336,7 +2333,7 @@ MODULE GenRandSymExcitNUMod
         
         IF(tNoFailAb)THEN ! pGen is calculated first because there might be no excitations available for this ij pair
 
-            IF(tHub) CALL Stop_All("CreateDoubExcitUEGNoFail", "This doesn't work with Hubbard Model")
+            IF(tHub) CALL Stop_All("CreateExcitLattice", "This doesn't work with Hubbard Model")
             
             ki=G1(nI(Elec1Ind))%k
             kj=G1(nI(Elec2Ind))%k
@@ -2413,9 +2410,9 @@ MODULE GenRandSymExcitNUMod
                 write(6,*) "nI:", nI
                 write(6,*) "i & j", nI(Elec1),nI(Elec2)
                 write(6,*) "Allowed Excitations", iAllowedExcites
-                CALL Stop_All("CreateDoubExcitUEGNoFail","Failure to generate a valid excitation from an electron pair combination")
+                CALL Stop_All("CreateExcitLattice","Failure to generate a valid excitation from an electron pair combination")
             ENDIF
-            CALL CreateDoubExcitUEG(nI,iLutnI,nJ,tParity,ExcitMat,pGen,Elec1Ind,Elec2Ind,iSpn)
+            CALL CreateDoubExcitLattice(nI,iLutnI,nJ,tParity,ExcitMat,pGen,Elec1Ind,Elec2Ind,iSpn)
             IF (.not.tNoFailAb) RETURN
             IF (nJ(1).ne.0) EXIT
         ENDDO
@@ -2428,18 +2425,9 @@ MODULE GenRandSymExcitNUMod
             pGen=2.0/(NEl*(NEl-1))*2.0*pAIJ ! Spins equal
         ENDIF
 
-        IF(pAIJ.le.0.0) CALL Stop_All("CreateDoubExcitUEGNoFail","pAIJ is less than 0")
-          
-        IF (.false.) THEN
-            write(6,*) "ki", ki
-            write(6,*) "kj", kj
-            write(6,*) KaXUpperLimit, KaXLowerLimit, KaXRange
-            write(6,*) KaYUpperLimit, KaYLowerLimit, KaYRange
-            write(6,*) KaZUpperLimit, KaZLowerLimit, KaZRange
-            write(6,*) iElecInExcitRange, pAIJ, pGen
-        ENDIF
+        IF(pAIJ.le.0.0) CALL Stop_All("CreateExcitLattice","pAIJ is less than 0")
 
-    END SUBROUTINE CreateDoubExcitUEGNoFail
+    END SUBROUTINE CreateExcitLattice
 
 END MODULE GenRandSymExcitNUMod
 
@@ -2709,10 +2697,9 @@ SUBROUTINE TestGenRandSymExcitNU(nI,Iterations,pDoub,exFlag,iWriteEvery)
 
 lp2: do while(.true.)
         CALL GenSymExcitIt2(nI,nEl,G1,nBasis,nBasisMax,.false.,EXCITGEN,nJ,iExcit,0,nStore,exFlag)
-!DEBUG        IF(nJ(1).eq.23.and.nJ(9).eq.38.and.nJ(10).eq.43) THEN
-!DEBUG            write(6,*) nJ
-!DEBUG        ENDIF
         IF(nJ(1).eq.0) exit lp2
+        ! The momentum constraint from UEG is implemented. Every determinant must have a total momentum
+        ! which is equal. This is equal to zero in the current implementation.
         IF(tUEG) THEN
             kx=0
             ky=0
@@ -2727,6 +2714,8 @@ lp2: do while(.true.)
                 CALL EncodeBitDet(nJ,iLutnJ)
                 WRITE(25,*) excitcount,iExcit,iLutnJ(0)
             ENDIF
+        ! The momentum constraint from Hubbard model: every determinant must have a total momentum
+        ! which is equal to within a reciprocal lattice vector. This is equal to zero in the current implementation.
         ELSEIF(tHub) THEN
             kx=0
             ky=0
@@ -2737,13 +2726,12 @@ lp2: do while(.true.)
                 kz=kz+G1(nJ(i))%k(3)
             enddo
             ktrial=(/kx,ky/)
-            CALL MomPbcSym(ktrial,nBasisMax)
+            CALL MomPbcSym(ktrial,nBasisMax) ! This re-maps the total momentum under PBCs: equivalent to this being equal to 
+                                            ! a value to within a reciproval lattice vector.
             IF(ktrial(1).eq.0.and.ktrial(2).eq.0.and.kz.eq.0) THEN
                 excitcount=excitcount+1
                 CALL EncodeBitDet(nJ,iLutnJ)
                 WRITE(25,*) excitcount,iExcit,iLutnJ(0)
-                WRITE(25,*) "DEBUG", nI 
-                WRITE(25,*) "DEBUG", nJ 
             ENDIF
         ELSE
 
