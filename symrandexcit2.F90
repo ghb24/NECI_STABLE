@@ -168,7 +168,6 @@ MODULE GenRandSymExcitNUMod
         IF(.not.TwoCycleSymGens) THEN
 !Currently only available for molecular systems, or without using symmetry.
             IF((tUEG.and.tLatticeGens) .or. (tHub.and.tLatticeGens)) THEN
-!            IF(tUEG.and.tLatticeGens) THEN
                 call CreateExcitLattice(nI,iLut,nJ,tParity,ExcitMat,pGen)
                 IC=2
                 RETURN
