@@ -8,7 +8,7 @@ MODULE FciMCLoggingMod
     USE HElem , only : HElement
     USE Logging , only : tPrintTriConnections,TriConMax,NoTriConBins,tHistTriConHEls,NoTriConHElBins,TriConHElSingMax,TriConHElDoubMax
     USE Logging , only : tPrintHElAccept
-    USE SystemData , only : NEl,NIfTot
+    USE SystemData , only : NEl,NIfTot,NIfDBO
     USE SymData , only : nSymLabels
     USE Determinants , only : GetHElement3,GetHElement4
     use GenRandSymExcitNUMod , only : GenRandSymExcitScratchNU,ScratchSize
@@ -545,7 +545,7 @@ MODULE FciMCLoggingMod
 
 
         DetsEqSpinCoup=.false.
-        DetsEqSpinCoup=DetBitEQ(iLutCurr(0:NIfTot),iLutSym(0:NIfTot))
+        DetsEqSpinCoup=DetBitEQ(iLutCurr(0:NIfTot),iLutSym(0:NIfTot),NIfDBO)
 
         HElHFI=GetHElement3(nHF,nI,-1)
         HElHFJ=GetHElement3(nHF,nJ,-1)
@@ -643,16 +643,16 @@ MODULE FciMCLoggingMod
         CALL FindExcitBitDet(iLutnJ,iLutnJ2,IC,Ex,NIfD)
         CALL FindExcitBitDet(iLutnJ,iLutnK,IC2,Ex2,NIfD)
 
-        DetsEqTri=DetBitEQ(iLutnJ2(0:NIfTot),iLutnK(0:NIfTot))
+        DetsEqTri=DetBitEQ(iLutnJ2(0:NIfTot),iLutnK(0:NIfTot),NIfDBO)
 
         IF(.not.DetsEqTri) THEN
             ! Add the connecting elements to the relevant sum.
 
             ! First quickly test if any of the determinants are the HF.
             tHF=.false.
-            tHF=DetBitEQ(iLutHF(0:NIfTot),iLutnJ(0:NIfTot))
-            IF(.not.tHF) tHF=DetBitEQ(iLutHF(0:NIfTot),iLutnJ2(0:NIfTot))
-            IF(.not.tHF) tHF=DetBitEQ(iLutHF(0:NIfTot),iLutnK(0:NIfTot))
+            tHF=DetBitEQ(iLutHF(0:NIfTot),iLutnJ(0:NIfTot),NIfDBO)
+            IF(.not.tHF) tHF=DetBitEQ(iLutHF(0:NIfTot),iLutnJ2(0:NIfTot),NIfDBO)
+            IF(.not.tHF) tHF=DetBitEQ(iLutHF(0:NIfTot),iLutnK(0:NIfTot),NIfDBO)
 
             ! Calculate Hjk first (connecting element between two excitations), because if this is 0, no need to go further.
             CALL FindBitExcitLevel(iLutnJ2,iLutnK,IC3,NEl)

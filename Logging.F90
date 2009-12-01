@@ -12,7 +12,7 @@ MODULE Logging
     LOGICAL tROHistVirtCoulomb,tPrintInts,tHistEnergies,tPrintTriConnections,tHistTriConHEls,tPrintHElAccept,tTruncRODump
     LOGICAL tPrintFCIMCPsi,tCalcFCIMCPsi,tPrintSpinCoupHEl,tIterStartBlock,tHFPopStartBlock,tInitShiftBlocking,tTruncDumpbyVal
     LOGICAL tWriteTransMat,tHistHamil,tPrintOrbOcc
-    INTEGER NoACDets(2:4),iPopsPartEvery,iWriteHistEvery,iNoBins,NoTriConBins,NoTriConHElBins,NHistEquilSteps
+    INTEGER NoACDets(2:4),iPopsPartEvery,iWriteHistEvery,iNoBins,NoTriConBins,NoTriConHElBins,NHistEquilSteps,IterShiftBlock
     INTEGER CCMCDebug !CCMC Debugging Level 0-6.  Default 0
     INTEGER IterStartBlocking,HFPopStartBlocking,NoDumpTruncs,NoTruncOrbsTag,TruncEvaluesTag,iWriteHamilEvery,OrbOccsTag
     INTEGER , ALLOCATABLE :: NoTruncOrbs(:)
@@ -87,6 +87,7 @@ MODULE Logging
       IterStartBlocking=0
       HFPopStartBlocking=100
       tInitShiftBlocking=.true.
+      IterShiftBlock=0
       NoDumpTruncs=0
       tWriteTransMat=.false.
 
@@ -150,6 +151,10 @@ MODULE Logging
             tIterStartBlock=.true.
             tHFPopStartBlock=.false.
             call readi(IterStartBlocking)
+
+        case("SHIFTBLOCKINGSTARTITER")
+!This keyword can be used if we want to start the blocking error analysis of the shift at a particular iteration after the shift begins to change.            
+            call readi(IterShiftBlock)
 
         case("BLOCKINGSTARTHFPOP")            
 !This keyword can be used if we want to start the blocking error analysis at a particular HF population.

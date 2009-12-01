@@ -5,7 +5,7 @@
      NCPUS=2
      #-sb is to use Workshop package
      FFLAGS='-r8'
-     LFLAGS='-L ~/src/lib/fftw-3.1.2/lib -L ~/lib/fftw-3.1.2/lib -lfftw3  -llapack -lblas $(QMMM_LIBS)'
+     LFLAGS='-L ~/src/lib/fftw-3.1.2/lib -L ~/lib/fftw-3.1.2/lib -lfftw3 -L ~/src/lib/lapack-3.1.1 -llapack -lblas $(QMMM_LIBS)'
      AR='ar'
      ARFLAGS='-rcs'
      F90FLAGS=''
@@ -18,7 +18,7 @@
        CCD='mpicc -g -sb -C -errtags'
        LDD='mpif90 -g'
      else
-       FC='mpif90 -c -O3 -I /usr/local/Cluster-Apps/infinipath/2.2/mpi/include/mpich/intel9/x86_64/' 
+       FC='mpif90 -c -O3 -xT -ipo -I /usr/local/Cluster-Apps/infinipath/2.2/mpi/include/mpich/intel9/x86_64/' 
        CC='mpicc -c -O'
        LD='mpif90 -O3'
        FCD='mpif90 -c -g'

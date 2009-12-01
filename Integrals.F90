@@ -594,11 +594,12 @@ MODULE Integrals
         
     Subroutine IntFreeze
       use SystemData, only: Alat,Brr,CoulDampOrb,ECore,fCoulDampMu
-      use SystemData, only: G1,iSpinSkip,NIfD,NIfY,NIfTot,tCSF
+      use SystemData, only: G1,iSpinSkip,NIfD,NIfY,NIfP,NIfTot,tCSF,NIfDBO
       use SystemData, only: nBasis,nEl,arr,nbasismax
       use UMatCache, only: GetUMatSize
       use HElem, only: HElement,HElementSize,HElementSizeB
       use SymData , only : TwoCycleSymGens
+      use CalcData , only : tTruncInitiator,tDelayTruncInit
       use global_utilities
       character(25), parameter ::this_routine='IntFreeze'            
 !//Locals
@@ -692,14 +693,22 @@ MODULE Integrals
       ! NIfY gives space to store number of open shell e-
       ! and the Yamanouchi symbol in a bit representation
       if (tCSF) then
-          NIfY = int(nel/32)+2
+          NIfY = int(nel/32)+1
       else
           NIfY = 0
       endif
       NIfTot = NIfD + NIfY
+      NIfDBO = NIfD + NIfY
+        
+      if (tTruncInitiator.or.tDelayTruncInit) then
+! We need an integer to contain a flag of whether or not the parent of spawned walkers was inside or outside the active space.          
+          NIfP = 1
+      else
+          NIfP = 0
+      endif
+      NIfTot = NIfTot + NIfP
 
-
-      WRITE(6,*) "Setting integer length of determinants as bit-strings to: ",NIfD+NIfY+1
+      WRITE(6,*) "Setting integer length of determinants as bit-strings to: ",NIfD+NIfY+NIfP+1
          
       IF(COULDAMPORB.GT.0) THEN
          FCOULDAMPMU=(ARR(COULDAMPORB,1)+ARR(COULDAMPORB+1,1))/2

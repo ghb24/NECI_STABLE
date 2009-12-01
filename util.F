@@ -180,6 +180,35 @@
          RETURN
       END FUNCTION Choose
 
+      logical function int_arr_eq (a, b, len)
+          integer, intent(in), dimension(:) :: a, b
+          integer, intent(in), optional :: len
+          integer llen, i
+
+          ! Obtain the lengths of the arrays if a bound is not specified.
+          ! Return false if mismatched sizes and not specified.
+          if (present(len)) then
+              llen = len
+          else
+              if (size(a) /= size(b)) then
+                  int_arr_eq = .false.
+                  return
+              endif
+              llen = size(a)
+          endif
+
+          ! Run through the arrays. Return if they differ at any point.
+          do i=1,llen
+              if (a(i) /= b(i)) then
+                  int_arr_eq = .false.
+                  return
+              endif
+          enddo
+
+          ! If we get this far, they are equal
+          int_arr_eq = .true.
+      end function
+
       integer function record_length(bytes)
          ! Some compilers use record lengths in units of bytes.
          ! Some compilers use record lengths in units of words.

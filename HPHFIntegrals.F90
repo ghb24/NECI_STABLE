@@ -2,7 +2,7 @@
 !nI and nJ have to be uniquely chosen, so that their spin-coupled determinant will not arise.
 SUBROUTINE HPHFGetOffDiagHElement(nI,nJ,iLutnI,iLutnJ,MatEl)
     Use HElem
-    Use SystemData , only : NEl,nBasisMax,G1,nBasis,Brr,NIftot
+    Use SystemData , only : NEl,nBasisMax,G1,nBasis,Brr,NIftot,NIfDBO
     use SystemData, only : ECore,ALat,NMSH
     use IntegralsData, only : UMat,FCK,NMAX
     use HPHFRandExcitMod , only : FindDetSpinSym,FindExcitBitDetSym
@@ -17,7 +17,7 @@ SUBROUTINE HPHFGetOffDiagHElement(nI,nJ,iLutnI,iLutnJ,MatEl)
 
 !    CALL EncodeBitDet(nI,iLutnI)
 !    CALL EncodeBitDet(nJ,iLutnJ)
-    IF(DetBitEQ(iLutnI,iLutnJ)) THEN
+    IF(DetBitEQ(iLutnI,iLutnJ,NIfDBO)) THEN
 !Do not allow an 'off-diagonal' matrix element. The problem is that the HPHF excitation generator can generate the same HPHF function. We do not want to allow spawns here.
         RETURN
     ENDIF

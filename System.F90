@@ -55,6 +55,7 @@ MODULE System
       LMS=0
       TSPN=.false.
       TCSF=.false.
+      TCSFOLD = .false.
       STOT=0
       TPARITY = .false.
       IParity(:)=0
@@ -277,6 +278,13 @@ MODULE System
                STOT=0
             endif
             TCSF = .true.
+        case("CSF-OLD")
+            if(item.lt.nitems) then
+               call geti(STOT)
+            else
+               STOT=0
+            endif
+            TCSFOLD = .true.
         case("SYMIGNOREENERGIES")
             tSymIgnoreEnergies=.true.
         case("NOSYMMETRY")
@@ -822,7 +830,7 @@ MODULE System
          LMS2=LMS
       ENDIF
       WRITE(6,*) ' GLOBAL MS : ' , LMS
-      IF(TCSF) THEN
+      IF(TCSFOLD) THEN
          WRITE(6,*) "Using CSFs."
          IF(TSPN) THEN
             WRITE(6,*) "Restricting total spin*2 to ",STOT

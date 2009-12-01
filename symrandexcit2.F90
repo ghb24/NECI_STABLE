@@ -831,41 +831,39 @@ MODULE GenRandSymExcitNUMod
             IF(iSpn.eq.2) THEN
 !Electrons chosen were an alpha/beta pair, therefore first randomly chosen orbital can be an alpha OR beta orbital - no restriction.
             
-                IF(tCycleOrbs) THEN
-! METHOD 1 (Run though all orbitals to find desired one out of NExcit)
+                IF(tCycleOrbs.or.((NExcit-ForbiddenOrbs).le.3)) THEN
+! METHOD 1 (Run though all orbitals to find desired one out of NExcit-ForbiddenOrbs...now only one random number needed, and guarenteed to find excitation.)
 ! ==========================
 
-!Choose the unoccupied orbital to exite to
+!Choose the unoccupied orbital to excite to
                     IF(tMerTwist) THEN
                         CALL genrand_real2(r)
                     ELSE
                         CALL RANLUX(r,1)
                     ENDIF
-                    ChosenUnocc=INT(NExcit*r)+1
+                    ChosenUnocc=INT((NExcit-ForbiddenOrbs)*r)+1
 
-!Now run through all allowed orbitals until we find this one.
-                    z=0     !z is the counter for the number of allowed unoccupied orbitals we have gone through
-!This could be changed to an O[N] operation, rather than O[M] with a little thought...
+                    z=1
                     do i=0,nBasis-1
 
-!Find out if the orbital is in the determinant.
-                        IF(.not.(BTEST(ILUT(i/32),MOD(i,32)))) THEN
-!The orbital is not found in the original determinant - increment z
-                            z=z+1
-                            IF(z.eq.ChosenUnocc) THEN
-!We have got to the determinant that we want to pick.
-                                EXIT
+                        !We need to find if allowed
+                        IF(.not.BTEST(ILUT(i/32),MOD(i,32))) THEN
+                            !Is not in the original determinant - allow if sym allowed
+                            !Now check that its symmetry allowed
+                            SpinOrbA=G1(i+1)%Ms
+                            IF(IsAOrbSymAllowed(iSpn,i+1,SpinOrbA,SymProduct,SumMl,SymA,SymB,MlA,MlB,ClassCountUnocc2)) THEN
+                                IF(z.eq.ChosenUnocc) THEN
+                                    !We have found our allowed orbital
+                                    OrbA=i+1
+                                    RETURN
+                                ENDIF
+                                z=z+1
                             ENDIF
                         ENDIF
 
                     enddo
 
-!We now have our final orbital. The chosen unoccupied orbital is i+1.
-                    IF(z.ne.ChosenUnocc) THEN
-                        CALL Stop_All("PickAOrb","Could not find allowed unoccupied orbital to excite to.")
-                    ENDIF
-
-                    OrbA=i+1    !This is the allowed orbital
+                    CALL Stop_All("PickAOrb","Should not get here - have not found allowed A Orb")
 
                 ELSE
 ! METHOD 2 (Keep drawing orbitals randomly until we find one unoccupied). This should be more efficient, unless we have v. small basis sets.
@@ -906,24 +904,21 @@ MODULE GenRandSymExcitNUMod
             ELSE
 !We are either constrained to choose a beta orbital, or an alpha orbital - we know that there are NExcit of these.
 
-                IF(tCycleOrbs) THEN
-! METHOD 1 (Run though all orbitals to find desired one out of NExcit)
+                IF(tCycleOrbs.or.((NExcit-ForbiddenOrbs).le.3)) THEN
+! METHOD 1 (Run though all orbitals to find desired one out of NExcit-ForbiddenOrbs)
 ! ==========================
 
-!Choose the unoccupied orbital to exite to
                     IF(tMerTwist) THEN
                         CALL genrand_real2(r)
                     ELSE
                         CALL RANLUX(r,1)
                     ENDIF
-                    ChosenUnocc=INT(NExcit*r)+1
+                    ChosenUnocc=INT((NExcit-ForbiddenOrbs)*r)+1
+                    SpinOrbA=0  !The spin of the chosen A is not important, since we have already defined it from iSpn
 
-!Now run through all allowed orbitals until we find this one.
-!Alpha orbitals are the ODD numbered orbitals. Beta orbitals are EVEN numbered orbitals.
-
-                    z=0     !z is the counter for the number of allowed unoccupied orbitals we have gone through
-!This could be changed to an O[N] operation, rather than O[M] with a little thought...
+                    z=1
                     do i=1,nBasis/2
+                        
                         IF(iSpn.eq.1) THEN
 !We want to run through all beta orbitals (odd numbered basis function)
                             OrbA=(2*i)-1
@@ -932,24 +927,23 @@ MODULE GenRandSymExcitNUMod
                             OrbA=(2*i)
                         ENDIF
 
-!Find out if the orbital is in the determinant.
-                        IF(.not.(BTEST(ILUT((OrbA-1)/32),MOD((OrbA-1),32)))) THEN
-!The orbital is not found in the original determinant - increment z
-                            z=z+1
-                            IF(z.eq.ChosenUnocc) THEN
-!We have got to the determinant that we want to pick.
-                                EXIT
+                        !We need to find if allowed
+                        IF(.not.BTEST(ILUT((OrbA-1)/32),MOD((OrbA-1),32))) THEN
+                            !Is not in the original determinant - allow
+                            !Now check that its symmetry allowed
+                            IF(IsAOrbSymAllowed(iSpn,OrbA,SpinOrbA,SymProduct,SumMl,SymA,SymB,MlA,MlB,ClassCountUnocc2)) THEN
+                                IF(z.eq.ChosenUnocc) THEN
+                                    !We have found our allowed orbital
+                                    !OrbA is the allowed orbital
+                                    RETURN
+                                ENDIF
+                                z=z+1
                             ENDIF
                         ENDIF
 
                     enddo
 
-!We now have our final orbital. The chosen unoccupied orbital is i+1.
-                    IF(z.ne.ChosenUnocc) THEN
-                        CALL Stop_All("PickAOrb","Could not find allowed unoccupied orbital to excite to.")
-                    ENDIF
-
-!OrbA is the allowed orbital
+                    CALL Stop_All("PickAOrb","Should not get here - have not found allowed A Orb")
 
                 ELSE
 ! METHOD 2 (Keep drawing orbitals randomly until we find one unoccupied). This should be more efficient, unless we have small basis sets.
@@ -996,79 +990,18 @@ MODULE GenRandSymExcitNUMod
 
 !We now need to test whether this orbital has any symmetry-allowed unoccupied orbitals to form a pair with.
 !To test this, we need to find the needed symmetry of B, in order that Sym(A) x Sym(B) = SymProduct
-            IF(tNoSymGenRandExcits) THEN
-                SymA=0
-                SymB=0
-                MlA=0
-                MlB=0
-            ELSE
-                SymA=INT(G1(OrbA)%Sym%S,4)
-                SymB=IEOR(SymA,SymProduct)
-                MlB=0
-                MlA=0
-                IF(tFixLz) THEN
-                    MlA=G1(OrbA)%Ml
-                    MlB=SumMl-MlA
-                ENDIF
+            IF(IsAOrbSymAllowed(iSpn,OrbA,SpinOrbA,SymProduct,SumMl,SymA,SymB,MlA,MlB,ClassCountUnocc2)) THEN
+                !OrbA picked is allowed, exit from loop
+                EXIT
             ENDIF
 
-            IF(abs(MlB).le.iMaxLz) THEN
-!Make sure that the B orbital that we would need to pick to conserve momentum is actually in the available range of Ml values.
-                IF(iSpn.eq.2) THEN
-!We want an alpha/beta unocc pair. 
-                    IF(SpinOrbA.eq.1) THEN
-!We have picked an alpha orbital - check to see if there are allowed beta unoccupied orbitals from the SymB Class.
-                        IF(ClassCountUnocc2(ClassCountInd(2,SymB,MlB)).ne.0) THEN
-!Success! We have found an allowed A orbital! Exit from loop.
-                            EXIT
-                        ENDIF
-                    ELSE
-!We have picked a beta orbital - check to see if there are allowed alpha unoccupied orbitals from the SymB Class.
-                        IF(ClassCountUnocc2(ClassCountInd(1,SymB,MlB)).ne.0) THEN
-!Success! We have found an allowed A orbital! Exit from loop.
-                            EXIT
-                        ENDIF
-                    ENDIF
-                ELSEIF(iSpn.eq.1) THEN
-!We want a beta/beta pair.
-                    IF((SymProduct.ne.0).or.(MlA.ne.MlB)) THEN
-!Check to see if there are any unoccupied beta orbitals in the SymB Class.
-                        IF(ClassCountUnocc2(ClassCountInd(2,SymB,MlB)).ne.0) THEN
-!Success! We have found an allowed A orbital! Exit from loop.
-                            EXIT
-                        ENDIF
-                    ELSE
-!We want an orbital from the same class. Check that this isn't the only unoccupied beta orbital in the class.
-                        IF(ClassCountUnocc2(ClassCountInd(2,SymB,MlB)).ne.1) THEN
-!Success! We have found an allowed A orbital! Exit from loop.
-                            EXIT
-                        ENDIF
-                    ENDIF
-                ELSE
-!We want an alpha/alpha pair.
-                    IF((SymProduct.ne.0).or.(MlA.ne.MlB)) THEN
-!Check to see if there are any unoccupied alpha orbitals in the SymB Class.
-                        IF(ClassCountUnocc2(ClassCountInd(1,SymB,MlB)).ne.0) THEN
-!Success! We have found an allowed A orbital! Exit from loop.
-                            EXIT
-                        ENDIF
-                    ELSE
-!We want an orbital from the same class. Check that this isn't the only unoccupied alpha orbital in the class.
-                        IF(ClassCountUnocc2(ClassCountInd(1,SymB,MlB)).ne.1) THEN
-!Success! We have found an allowed A orbital! Exit from loop.
-                            EXIT
-                        ENDIF
-                    ENDIF
-                ENDIF
-            ENDIF
-
-            IF(AttemptsOverall.gt.1000) THEN
-                WRITE(6,*) "***",NExcit,ForbiddenOrbs
-                WRITE(6,*) "Cannot find first allowed unoccupied orbital for given i,j pair after 1000 attempts."
+            IF(AttemptsOverall.gt.(nBasis*20)) THEN
+                WRITE(6,*) "Cannot find first allowed unoccupied orbital for given i,j pair after ",nBasis*20," attempts."
                 WRITE(6,*) "It may be that there are no possible excitations from this i,j pair, in which case "
                 WRITE(6,*) "the given algorithm is inadequate to describe excitations from such a small space."
                 WRITE(6,*) "Try reverting to old excitation generators."
                 CALL WRITEDET(6,nI,NEl,.true.)
+                WRITE(6,*) "***",NExcit,ForbiddenOrbs
                 WRITE(6,*) "I,J pair; sym_i, sym_j: ",nI(Elec1Ind),nI(Elec2Ind),G1(nI(Elec1Ind))%Sym%S,G1(nI(Elec2Ind))%Sym%S
                 CALL Stop_All("PickAOrb","Cannot find first allowed unocc orb for double excitation")
             ENDIF
@@ -1077,6 +1010,80 @@ MODULE GenRandSymExcitNUMod
         enddo
 
     END SUBROUTINE PickAOrb
+
+    
+!This routine will look at an orbital (OrbA) and check whether it is an allowed A orbital to pick, i.e. it has allowed B orbitals, given the i,js.
+    LOGICAL FUNCTION IsAOrbSymAllowed(iSpn,OrbA,SpinOrbA,SymProduct,SumMl,SymA,SymB,MlA,MlB,ClassCountUnocc2)
+        INTEGER :: iSpn,OrbA,SpinOrbA,SymProduct,SumMl,ClassCountUnocc2(ScratchSize),SymA,SymB,MlA,MlB
+
+        IsAOrbSymAllowed=.false.
+        IF(tNoSymGenRandExcits) THEN
+            SymA=0
+            SymB=0
+            MlA=0
+            MlB=0
+        ELSE
+            SymA=INT(G1(OrbA)%Sym%S,4)
+            SymB=IEOR(SymA,SymProduct)
+            MlB=0
+            MlA=0
+            IF(tFixLz) THEN
+                MlA=G1(OrbA)%Ml
+                MlB=SumMl-MlA
+            ENDIF
+        ENDIF
+
+        IF(abs(MlB).le.iMaxLz) THEN
+!Make sure that the B orbital that we would need to pick to conserve momentum is actually in the available range of Ml values.
+            IF(iSpn.eq.2) THEN
+!We want an alpha/beta unocc pair. 
+                IF(SpinOrbA.eq.1) THEN
+!We have picked an alpha orbital - check to see if there are allowed beta unoccupied orbitals from the SymB Class.
+                    IF(ClassCountUnocc2(ClassCountInd(2,SymB,MlB)).ne.0) THEN
+!Success! We have found an allowed A orbital! 
+                        IsAOrbSymAllowed=.true.
+                    ENDIF
+                ELSE
+!We have picked a beta orbital - check to see if there are allowed alpha unoccupied orbitals from the SymB Class.
+                    IF(ClassCountUnocc2(ClassCountInd(1,SymB,MlB)).ne.0) THEN
+!Success! We have found an allowed A orbital! 
+                        IsAOrbSymAllowed=.true.
+                    ENDIF
+                ENDIF
+            ELSEIF(iSpn.eq.1) THEN
+!We want a beta/beta pair.
+                IF((SymProduct.ne.0).or.(MlA.ne.MlB)) THEN
+!Check to see if there are any unoccupied beta orbitals in the SymB Class.
+                    IF(ClassCountUnocc2(ClassCountInd(2,SymB,MlB)).ne.0) THEN
+!Success! We have found an allowed A orbital!
+                        IsAOrbSymAllowed=.true.
+                    ENDIF
+                ELSE
+!We want an orbital from the same class. Check that this isn't the only unoccupied beta orbital in the class.
+                    IF(ClassCountUnocc2(ClassCountInd(2,SymB,MlB)).ne.1) THEN
+!Success! We have found an allowed A orbital!
+                        IsAOrbSymAllowed=.true.
+                    ENDIF
+                ENDIF
+            ELSE
+!We want an alpha/alpha pair.
+                IF((SymProduct.ne.0).or.(MlA.ne.MlB)) THEN
+!Check to see if there are any unoccupied alpha orbitals in the SymB Class.
+                    IF(ClassCountUnocc2(ClassCountInd(1,SymB,MlB)).ne.0) THEN
+!Success! We have found an allowed A orbital!
+                        IsAOrbSymAllowed=.true.
+                    ENDIF
+                ELSE
+!We want an orbital from the same class. Check that this isn't the only unoccupied alpha orbital in the class.
+                    IF(ClassCountUnocc2(ClassCountInd(1,SymB,MlB)).ne.1) THEN
+!Success! We have found an allowed A orbital! 
+                        IsAOrbSymAllowed=.true.
+                    ENDIF
+                ENDIF
+            ENDIF
+        ENDIF
+
+    END FUNCTION IsAOrbSymAllowed
 
 !This routine takes determinant nI and returns two randomly chosen electrons, whose index in nI is Elec1Ind and Elec2Ind.
 !These electrons have symmetry product SymProduct and spin pairing iSpn, where iSpn = 1=beta/beta; 2=alpha/beta; 3=alpha/alpha.
@@ -1282,56 +1289,56 @@ MODULE GenRandSymExcitNUMod
 ! ==========================
 
 !Choose the unoccupied orbital to exite to
-            IF(tMerTwist) THEN
-                CALL genrand_real2(r)
-            ELSE
-                CALL RANLUX(r,1)
-            ENDIF
-            ChosenUnocc=INT(NExcit*r)+1
+        IF(tMerTwist) THEN
+            CALL genrand_real2(r)
+        ELSE
+            CALL RANLUX(r,1)
+        ENDIF
+        ChosenUnocc=INT(NExcit*r)+1
 
 !Now run through all allowed orbitals until we find this one.
-            IF(tNoSymGenRandExcits) THEN
-                nOrbs=nBasis/2
-            ELSE
+        IF(tNoSymGenRandExcits) THEN
+            nOrbs=nBasis/2
+        ELSE
 !                nOrbs=SymLabelCounts(2,ElecSym+1)
 !                nOrbs=SymLabelCounts2(iSpn,2,ElecSym+1)
-                nOrbs=OrbClassCount(SymIndex)
+            nOrbs=OrbClassCount(SymIndex)
 
 !                !!REMOVE THIS TEST ONCE WORKING!!
 !                IF(nOrbs.ne.SymLabelCounts2(2,SymIndex)) THEN
 !                    CALL Stop_All("GetSingleExcit","Error in symmetry arrays")
 !                ENDIF
-            ENDIF
+        ENDIF
 
-            z=0     !z is the counter for the number of allowed unoccupied orbitals we have gone through
-            do i=0,nOrbs-1
+        z=0     !z is the counter for the number of allowed unoccupied orbitals we have gone through
+        do i=0,nOrbs-1
 !Find the spin orbital index. SymLabelCounts has the index of the state for the given symmetry.
-                IF(tNoSymGenRandExcits) THEN
-                    Orb=(2*(i+1))-(iSpn-1)
-                ELSE
+            IF(tNoSymGenRandExcits) THEN
+                Orb=(2*(i+1))-(iSpn-1)
+            ELSE
 !                    Orb=(2*SymLabelList(SymLabelCounts(1,ElecSym+1)+i))-(iSpn-1)
 !                    Orb=SymLabelList2(iSpn,SymLabelCounts2(iSpn,1,ElecSym+1)+i)
-                    Orb=SymLabelList2(SymLabelCounts2(1,SymIndex)+i)
-                ENDIF
-
-!Find out if the orbital is in the determinant.
-                IF(.not.(BTEST(ILUT((Orb-1)/32),MOD(Orb-1,32)))) THEN
-!The orbital is not found in the original determinant - increment z
-                    z=z+1
-                    IF(z.eq.ChosenUnocc) THEN
-!We have got to the determinant that we want to pick.
-                        EXIT
-                    ENDIF
-                ENDIF
-
-            enddo
-
-!We now have our final orbitals. i=nI(Eleci). a=Orb.
-            IF(z.ne.ChosenUnocc) THEN
-                CALL Stop_All("CreateSingleExcit","Could not find allowed unoccupied orbital to excite to.")
+                Orb=SymLabelList2(SymLabelCounts2(1,SymIndex)+i)
             ENDIF
 
-        ELSE
+!Find out if the orbital is in the determinant.
+            IF(.not.(BTEST(ILUT((Orb-1)/32),MOD(Orb-1,32)))) THEN
+!The orbital is not found in the original determinant - increment z
+                z=z+1
+                IF(z.eq.ChosenUnocc) THEN
+!We have got to the determinant that we want to pick.
+                    EXIT
+                ENDIF
+            ENDIF
+
+        enddo
+
+!We now have our final orbitals. i=nI(Eleci). a=Orb.
+        IF(z.ne.ChosenUnocc) THEN
+            CALL Stop_All("CreateSingleExcit","Could not find allowed unoccupied orbital to excite to.")
+        ENDIF
+
+    ELSE
 ! METHOD 2 (Keep drawing orbitals from the desired symmetry and spin until we find one unoccupied)
 ! =========================
 

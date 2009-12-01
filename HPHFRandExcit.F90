@@ -7,7 +7,7 @@ MODULE HPHFRandExcitMod
 ![ P(i->a) + P(i->b) + P(j->a) + P(j->b) ]/2
 !We therefore need to find the excitation matrix between the determinant which wasn't excited and the determinant which was created.
 
-    use SystemData, only: nEl,tMerTwist,NIfTot,tCSF,NIfD
+    use SystemData, only: nEl,tMerTwist,NIfTot,tCSF,NIfD,NIfDBO
     use SymData, only: nSymLabels
     use mt95 , only : genrand_real2
     use GenRandSymExcitNUMod , only : GenRandSymExcitScratchNU,ConstructClassCounts,CalcNonUniPGen,ScratchSize 
@@ -377,8 +377,8 @@ MODULE HPHFRandExcitMod
         INTEGER :: iLutSym(0:NIfTot),nI(NEl),iLutnI(0:NIfTot),nJ(NEl),iLutTemp(0:NIfTot),i,nTemp(NEl)
         LOGICAL :: tCalciLutSym,tCalcnISym,tSwapped
 
-        if (tCSF .or. (NIfTot.ne.NIfD)) then
-            call stop_all ("ReturnAlphaOpenDet","This doesn't work with extra data yet")
+        if (tCSF) then
+            call stop_all ("ReturnAlphaOpenDet","This doesn't work with csfs")
         endif
 
         IF(tCalciLutSym) THEN
@@ -537,7 +537,7 @@ MODULE HPHFRandExcitMod
         CALL FindDetSpinSym(nI,nI2,NEl)
         CALL EncodeBitDet(nI2,iLutnI2)
         IF(TestClosedShellDet(iLutnI)) THEN
-            IF(.not.DetBitEQ(iLutnI,iLutnI2)) THEN
+            IF(.not.DetBitEQ(iLutnI,iLutnI2,NIfDBO)) THEN
                 CALL Stop_All("TestGenRandHPHFExcit","Closed shell determinant entered, but alpha and betas different...")
             ENDIF
         ENDIF
@@ -613,7 +613,7 @@ MODULE HPHFRandExcitMod
             Unique=.true.
             do k=j-1,1,-1
 !Run backwards through the array to see if this HPHF has come before
-                IF(DetBitEQ(ConnsAlpha(0:NIfTot,k),ConnsAlpha(0:NIfTot,j))) THEN
+                IF(DetBitEQ(ConnsAlpha(0:NIfTot,k),ConnsAlpha(0:NIfTot,j),NIfDBO)) THEN
 !This HPHF has already been counted before...
                     Unique=.false.
                     EXIT
@@ -632,7 +632,7 @@ MODULE HPHFRandExcitMod
 !Run though all excitations in the first array, *and* up to where we are in the second array
             Unique=.true.
             do k=1,DetConn
-                IF(DetBitEQ(ConnsAlpha(:,k),ConnsBeta(:,j))) THEN
+                IF(DetBitEQ(ConnsAlpha(:,k),ConnsBeta(:,j),NIfDBO)) THEN
                     Unique=.false.
                     EXIT
                 ENDIF
@@ -640,7 +640,7 @@ MODULE HPHFRandExcitMod
             IF(Unique) THEN
 !Need to search backwards through the entries we've already looked at in this array...
                 do k=j-1,1,-1
-                    IF(DetBitEQ(ConnsBeta(0:NIfTot,k),ConnsBeta(0:NIfTot,j))) THEN
+                    IF(DetBitEQ(ConnsBeta(0:NIfTot,k),ConnsBeta(0:NIfTot,j),NIfDBO)) THEN
                         Unique=.false.
                         EXIT
                     ENDIF
@@ -670,7 +670,7 @@ MODULE HPHFRandExcitMod
             Unique=.true.
             do k=j-1,1,-1
 !Run backwards through the array to see if this HPHF has come before
-                IF(DetBitEQ(ConnsAlpha(0:NIfTot,k),ConnsAlpha(0:NIfTot,j))) THEN
+                IF(DetBitEQ(ConnsAlpha(0:NIfTot,k),ConnsAlpha(0:NIfTot,j),NIfDBO)) THEN
 !This HPHF has already been counted before...
                     Unique=.false.
                     EXIT
@@ -688,7 +688,7 @@ MODULE HPHFRandExcitMod
 !Run though all excitations in the first array, *and* up to where we are in the second array
             Unique=.true.
             do k=1,DetConn
-                IF(DetBitEQ(ConnsAlpha(:,k),ConnsBeta(:,j))) THEN
+                IF(DetBitEQ(ConnsAlpha(:,k),ConnsBeta(:,j),NIfDBO)) THEN
                     Unique=.false.
                     EXIT
                 ENDIF
@@ -696,7 +696,7 @@ MODULE HPHFRandExcitMod
             IF(Unique) THEN
 !Need to search backwards through the entries we've already looked at in this array...
                 do k=j-1,1,-1
-                    IF(DetBitEQ(ConnsBeta(:,k),ConnsBeta(:,j))) THEN
+                    IF(DetBitEQ(ConnsBeta(:,k),ConnsBeta(:,j),NIfDBO)) THEN
                         Unique=.false.
                         EXIT
                     ENDIF
@@ -778,7 +778,7 @@ MODULE HPHFRandExcitMod
         i=MinInd
         j=MaxInd
         IF(i-j.eq.0) THEN
-            Comp=DetBitLT(List(:,MaxInd),iLut(:))
+            Comp=DetBitLT(List(:,MaxInd),iLut(:),NIfDBO)
             IF(Comp.eq.0) THEN
                 tSuccess=.true.
                 PartInd=MaxInd
@@ -793,7 +793,7 @@ MODULE HPHFRandExcitMod
 !            WRITE(6,*) i,j,n
 
 !Comp is 1 if CyrrebtDets(N) is "less" than iLut, and -1 if it is more or 0 if they are the same
-            Comp=DetBitLT(List(:,N),iLut(:))
+            Comp=DetBitLT(List(:,N),iLut(:),NIfDBO)
 
             IF(Comp.eq.0) THEN
 !Praise the lord, we've found it!
@@ -810,7 +810,7 @@ MODULE HPHFRandExcitMod
                 IF(i.eq.MaxInd-1) THEN
 !This deals with the case where we are interested in the final/first entry in the list. Check the final entry of the list and leave
 !We need to check the last index.
-                    Comp=DetBitLT(List(:,i+1),iLut(:))
+                    Comp=DetBitLT(List(:,i+1),iLut(:),NIfDBO)
                     IF(Comp.eq.0) THEN
                         tSuccess=.true.
                         PartInd=i+1
