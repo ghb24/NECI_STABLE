@@ -50,7 +50,7 @@ MODULE System
       tVASP=.false.
       THUB=.false.
       TUEG=.false.
-      tUseNewExcitGens =.false.
+      tLatticeGens =.false.
       tNoFailAb=.false.
       LMS=0
       TSPN=.false.
@@ -351,7 +351,7 @@ MODULE System
         ! These are the new lattice excitation generators that conserve momentum
         ! during excitation generation for efficiency
         case("LATTICE-EXCITGEN")
-            tUseNewExcitGens =.true.
+            tLatticeGens =.true.
         case("MESH")
             call geti(NMSH)
         case("BOXSIZE")

@@ -24,7 +24,7 @@ MODULE GenRandSymExcitNUMod
       !  These are forbidden since they have no possible b orbital which will give rise to a symmetry and
       !  spin allowed unoccupied a,b pair. The number of these orbitals, Q, is needed to calculate the
       !  normalised probability of generating the excitation.
-    use SystemData, only: ALAT,iSpinSkip,tFixLz,iMaxLz,NIfTot,tUEG,tNoFailAb,tUseNewExcitGens, tHub
+    use SystemData, only: ALAT,iSpinSkip,tFixLz,iMaxLz,NIfTot,tUEG,tNoFailAb,tLatticeGens, tHub
     use SystemData, only: nEl,G1, nBasis,nBasisMax,tNoSymGenRandExcits,tMerTwist
     use SystemData, only: Arr,nMax,tCycleOrbs,nOccAlpha,nOccBeta,ElecPairs,MaxABPairs
     use IntegralsData, only: UMat
@@ -56,7 +56,7 @@ MODULE GenRandSymExcitNUMod
 
 !        Iter=Iter+1
 !        WRITE(6,*) Iter,tFilled,nSymLabels
-        IF((tUEG.and.tUseNewExcitGens) .or. (tHub.and.tUseNewExcitGens)) THEN
+        IF((tUEG.and.tLatticeGens) .or. (tHub.and.tLatticeGens)) THEN
             call CreateExcitLattice(nI,iLut,nJ,tParity,ExcitMat,pGen)
             IC=2
             RETURN
@@ -167,8 +167,8 @@ MODULE GenRandSymExcitNUMod
 !        STOP
         IF(.not.TwoCycleSymGens) THEN
 !Currently only available for molecular systems, or without using symmetry.
-            IF((tUEG.and.tUseNewExcitGens) .or. (tHub.and.tUseNewExcitGens)) THEN
-!            IF(tUEG.and.tUseNewExcitGens) THEN
+            IF((tUEG.and.tLatticeGens) .or. (tHub.and.tLatticeGens)) THEN
+!            IF(tUEG.and.tLatticeGens) THEN
                 call CreateExcitLattice(nI,iLut,nJ,tParity,ExcitMat,pGen)
                 IC=2
                 RETURN
@@ -2678,7 +2678,7 @@ END SUBROUTINE SpinOrbSymSetup
 !the excitation. This means that all excitations should be 0 or 1 after enough iterations. It will then count the excitations and compare the number to the
 !number of excitations generated using the full enumeration excitation generation. This can be done for both doubles and singles, or one of them.
 SUBROUTINE TestGenRandSymExcitNU(nI,Iterations,pDoub,exFlag,iWriteEvery)
-    Use SystemData , only : NEl,nBasis,G1,nBasisMax,LzTot,NIfTot,tUEG,tUseNewExcitGens,tHub
+    Use SystemData , only : NEl,nBasis,G1,nBasisMax,LzTot,NIfTot,tUEG,tLatticeGens,tHub
     Use GenRandSymExcitNUMod , only : GenRandSymExcitScratchNU,ConstructClassCounts,ScratchSize
     Use SymData , only : nSymLabels
     use Parallel
@@ -2806,7 +2806,7 @@ lp2: do while(.true.)
 !            ForbiddenIter=ForbiddenIter+1
             CYCLE
         ENDIF
-        IF(tUEG.and.(.not.tUseNewExcitGens)) THEN
+        IF(tUEG.and.(.not.tLatticeGens)) THEN
             kx=0
             ky=0
             kz=0
@@ -2818,7 +2818,7 @@ lp2: do while(.true.)
             IF(.not.(kx.eq.0.and.ky.eq.0.and.kz.eq.0)) THEN
                 CYCLE
             ENDIF
-        ELSEIF(tHub.and.(.not.tUseNewExcitGens)) THEN
+        ELSEIF(tHub.and.(.not.tLatticeGens)) THEN
             kx=0
             ky=0
             kz=0
