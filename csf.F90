@@ -336,7 +336,7 @@ contains
         integer :: S2
         S2 = 2*S
 
-        if (mod(nOpen+S2, 2) /= 0) then
+        if ((nopen < 0) .or. (mod(nOpen+S2, 2) /= 0))then
             get_num_csfs = 0
         else
             get_num_csfs = (2*S2 + 2) * choose(nOpen, (nOpen+S2)/2)
