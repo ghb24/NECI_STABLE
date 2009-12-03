@@ -1058,18 +1058,19 @@ contains
         endif
 
         ! Calculate the change of nopen.
-        if (elecA > nclosed) then ! Both A, B > nclosed (as elecB > elecA)
-            delta_nopen = -2
-        else if (elecB > nclosed) then ! Just one > nclosed
-            delta_nopen = 0
-        else ! Both from doubles
-            if (is_beta(iand(nI(elecA), csf_orbital_mask))) then
+        if (elecA /= -1) then
+            if (elecA > nclosed) then ! Both A, B > nclosed (as elecB > elecA)
+                delta_nopen = -2
+            else if (elecB > nclosed) then ! Just one > nclosed
                 delta_nopen = 0
-            else
-                delta_nopen = 2
+            else ! Both from doubles
+                if (is_beta(iand(nI(elecA), csf_orbital_mask))) then
+                    delta_nopen = 0
+                else
+                    delta_nopen = 2
+                endif
             endif
         endif
-
     end subroutine
 
 
@@ -1109,6 +1110,7 @@ contains
         if (nopen>1) numcsfs(-1) = get_num_csfs (nopen-2, S)
         if (nopen<nel-3) numcsfs(2) = get_num_csfs (nopen+4, S)
         if (nopen>3) numcsfs(-2) = get_num_csfs (nopen-4, S)
+        print*, 'numcsfs', numcsfs
 
         nexcit = 0
         if (bSingle) then
@@ -1139,6 +1141,7 @@ contains
 
         if (bDouble) then
             ! We need to iterate through all of the electron _pairs_
+            print*, 'count doubles'
             elecA = -1
             elecB = -1
             paircount = 0
@@ -1206,6 +1209,7 @@ contains
                 call csf_gen_elec_pair (nI, iLut, nopen, elecA, elecB, &
                                         delta_nopen)
             enddo
+            print*, 'found nexcit excitations', nexcit
         endif
 
         if (present(nJ)) then
@@ -1217,6 +1221,7 @@ contains
                 allocate(csfm(numcsfs(-1), nopen-2), stat=ierr)
             if (ierr /= 0) call stop_all(this_routine,"Allocation failed")
             forall (i=1:nexcit) nJ(i,:) = nI
+            print*, 'allocated memory A'
 
             ! Get all the required csfs required for singles and doubles.
             call csf_get_yamas (nopen, S, csf0, numcsfs(0))
@@ -1224,11 +1229,12 @@ contains
                                                  numcsfs(1))
             if (nopen>1) call csf_get_yamas (nopen-2, S, csfm, &
                                              numcsfs(-1))
+            print*, 'got yamas'
 
             ! Generate all the allowed singles
             excit = 1
             if (bSingle) then
-
+                print*, 'generating singles'
                 do i=1,nel
                     if (excit > nexcit) &
                         call stop_all(this_routine, "Generated too many csfs")
@@ -1304,6 +1310,7 @@ contains
             endif
 
             if (bDouble) then
+                print*, 'get doubles'
                 ! Allocate csfs only needed for doubles
                 if (nopen > 3) allocate(csfmm(numcsfs(-2),nopen-4), stat=ierr)
                 if ((ierr /= 0) .and. (nopen < nel-3)) &
@@ -1313,8 +1320,10 @@ contains
                 ! Acquire csfs
                 if (nopen > 3) call csf_get_yamas (nopen-4, S, csfmm, &
                                                    numcsfs(-2))
-                if (nopen < nel-3) call csf_get_yamas (nopen+4, S, csfpp, &
-                                                       numcsfs(2))
+                !if (nopen < nel-3) call csf_get_yamas (nopen+4, S, csfpp, &
+                !                                       numcsfs(2))
+                print*, 'memory allocated and yamas got'
+                call flush(6)
 
                 ! Loop through all electron pairs
                 elecA = -1
@@ -1322,6 +1331,8 @@ contains
                 call csf_gen_elec_pair(nI, iLut, nopen, elecA, elecB, &
                                        delta_nopen)
                 do while (elecA /= -1)
+                    print*, 'new pair', elecA, elecB
+                    call flush(6)
                     orbs(1) = iand(nI(elecA), csf_orbital_mask)
                     orbs(2) = iand(nI(elecB), csf_orbital_mask)
                     syms = ibclr(G1(orbs)%Sym%S, 0)
@@ -1332,6 +1343,8 @@ contains
 
                     ! Loop through all the orbitals for orbital A
                     do i=1,nbasis-1,2
+                        print*, 'orbitalA', i
+                        call flush(6)
                         ! If this is doubly occupied, we cannot excite to it.
                         if (IsDoub(ilut, i)) cycle
 
@@ -1359,11 +1372,22 @@ contains
                         MlB = 0
                         if (tFixLz) MlB = sumMl - G1(i)%Ml
 
+                        print*, 'symmetry and ml', symB, mlB
+                        call flush(6)
+
                         ! Loop over all possible B orbitals.
-                        sym_ind = ClassCountInd(0, symB, MlB)
+                        sym_ind = ClassCountInd(1, symB, MlB)
+                        print*, symB, MlB, sym_ind
+                        call flush(6)
                         ind = SymLabelCounts2(1, sym_ind)
+                        print*, 'ind', ind
+                        print*, 'SymLabelCounts', SymLabelCounts2(1,:)
                         do j=1,OrbClassCount(sym_ind)
+                            print*, 'index, j, tot', ind, j, ind+j-1
+                            call flush(6)
                             orb2 = SymLabelList2(ind+j-1)
+                            print*, 'orb2', orb2
+                            call flush(6)
 
                             ! If this is doubly occupied, we cannot excite to it.
                             if (IsDoub(ilut, orb2)) cycle
@@ -1396,6 +1420,7 @@ contains
                             ! TODO: Generate ALL Yamas.
                             call csf_find_excit_det_general (ExcitMat, nJ(excit,:), ilut,&
                                                 nopen, 2, ncsf)
+                            call writedet(6, nJ(excit,:), nel, .true.)
                             excit = excit + 1
                         enddo
                     enddo
@@ -1405,6 +1430,7 @@ contains
                                             delta_nopen)
                 enddo
             endif
+            call stop_all (this_routine, "end")
 
             ! Clear up
             if (allocated(csf0)) deallocate (csf0)
@@ -1481,16 +1507,16 @@ contains
 
 
         ! Enumerate all possible excitations
-       ! call csf_gen_excits (nI, iLut, nopen, .false., .true., CCDbl, CCSgl,&
-        !                     CCUn, nexcit, nK)
-        !write(6,*), 'Excitations'
+        call csf_gen_excits (nI, iLut, nopen, .true., .false., CCDbl, CCSgl,&
+                             CCUn, CCDblS, CCSglS, CCUnS, nexcit, nK)
+        write(6,*), 'Excitations'
         !do i=1,nexcit
         !    call writedet(6, nK(i,:), nel, .true.)
         !enddo
-        !deallocate(nK)
+        deallocate(nK)
         ! If we don't want to generate them all, only count them.
-        call csf_gen_excits (nI, iLut, nopen, .true., .false., CCDbl, CCSgl, &
-                             CCUn, CCDblS, CCSglS, CCUnS, nexcit)
+        !call csf_gen_excits (nI, iLut, nopen, .true., .false., CCDbl, CCSgl, &
+        !                     CCUn, CCDblS, CCSglS, CCUnS, nexcit)
         print*, 'nexcits: ', nexcit
 
         ! Allocate memory for the histograms
