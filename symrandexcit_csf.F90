@@ -7,7 +7,7 @@ module GenRandSymExcitCSF
     use SymExcitDataMod
     use SymData, only: TwoCycleSymGens, nSymLabels
     use csf, only: csf_orbital_mask, csf_test_bit, csf_apply_random_yama
-    use csf, only: get_num_csfs, csf_apply_yama, csf_get_yamas
+    use csf, only: get_num_csfs, csf_apply_yama, csf_get_yamas, write_yama
     use mt95, only: genrand_real2
     use GenRandSymExcitNUMod, only: ClassCountInd
     use DetBitOps, only: EncodeBitDet, DecodeBitDet, is_canonical_ms_order
@@ -118,85 +118,85 @@ contains
         character(*), parameter :: this_routine = 'CSFCreateDoubleExcit'
         integer :: nexcits, elecs(2), orbs(2,2), symProd, sumMl, sym(2), Ml(2)
         integer :: CCOcc (ScratchSize), iLutTmp(0:NIfTot), lnopen, nup, nEquiv
-        integer :: ncsf, ListOpen(nopen), nSing, nDoub, nVac
-        logical :: tAFail
+        integer :: ncsf, ListOpen(nopen), nSing, nDoub, nVac, nopen2
+        integer :: orbsWNoPair
         integer, save :: excitcount = 0
+        real*8 :: tmpR
 
+        ! General working values.
         lnopen = nopen
         pGen = pDouble
         nSing = sum(CCSglS)
         nDoub = sum(CCDblS)
         nVac = sum(CCUnS)
-        !print*, '----------------------'
-        !call writedet (6, nI, nel, .true.)
+
+        ! Pick an electron pair at random, and modulate pGen
         call CSFPickElecPair (nI, iLut, elecs, orbs(1,:), symProd, sumMl, &
                               nSing, nDoub, CCSglDelta, lnopen, pGen)
-        !print*, 'e- pair', elecs(1), elecs(2), ',,,,,', orbs(1,1), orbs(1,2)
 
-        call CSFPickAOrb (nI, iLut, CCDblS, CCSglS, CCUnS, CCSglDelta, &
-                          elecs, orbs, symProd, sumMl, orbs(2,1), sym, Ml, &
-                          lnopen, nSing, nVac, pGen, tAFail)
-        if (tAFail) then
+        ! Count the number of orbitals we can't excite to due to there being
+        ! no available pair to make the symmetry product == symProd.
+        orbsWNoPair = CSFCalcOrbsWNoSymmetryPair (CCDblS, CCSglS, CCUnS, &
+                                                  CCSglDelta, symProd)
+
+        ! If there are no orbitals we can excite to, then fail.
+        ! TODO: Is this really < 2 (ie is 1 impossible, as pair valid?)
+        if ((nSing + nVac) == orbsWNoPair) then
             nJ(1) = 0
             return
         endif
 
-        call CSFPickBOrb (nI, iLut, CCDblS, CCSglS, CCUnS, CCSglDelta, &
-                          elecs, orbs(1,:), symProd, sumMl, orbs(2,1), sym, &
-                          Ml, orbs(2,2), lnopen, pGen)
+        ! Pick the first orbital, as one which has an allowed other excitation
+        call CSFPickAOrb (nI, iLut, CCDblS, CCSglS, CCUnS, CCSglDelta, &
+                          orbs, symProd, sumMl, orbs(2,1), sym, Ml, &
+                          lnopen, nSing, nVac)
 
-        ! Set this up for the find_excit_det routine
+        ! Pick a second orbital, with symmetry such that the product gives
+        ! symProd (conserves symmetry of original electron pair).
+        call CSFPickBOrb (nI, iLut, CCDblS, CCSglS, CCUnS, CCSglDelta, &
+                          orbs(1,:), symProd, sumMl, orbs(2,1), sym, &
+                          Ml, orbs(2,2), lnopen)
+
+        ! Set this up for the find_excit_det_general routine
         ExcitMat (1,1) = min(elecs(1), elecs(2))
         ExcitMat (2,1) = min(orbs(2,1), orbs(2,2))
         ExcitMat (1,2) = max(elecs(1), elecs(2))
         ExcitMat (2,2) = max(orbs(2,1), orbs(2,2))
-        !print*, 'CC', OrbClasscount
-        !print*, 'sgl', CCSglS
-        !print*, 'dbl', CCDblS
-        !print*, 'unl', CCUnS
 
-        !print*, 'excitmat'
-        !print*, excitmat
-
+        ! Generate the excited determinant. ncsf specifies that we are
+        ! only generating one determinant, and returns the degeneracy of the
+        ! Yamanouchi symbol.
         nJ = nI
-        call csf_find_excit_det_general (ExcitMat, nJ, iLut, nopen, 2, ncsf)
+        ncsf = 1
+        call csf_find_excit_det_general (ExcitMat, nJ, iLut, nopen, 2, ncsf, &
+                                         nopen2)
+
+        ! Adjust the probability for the selection of orbitals and for the
+        ! degeneracy of the Yamanouchi symbol
+        pGen = pGen * CSFPickOrbsProb (nI, iLut, CCDblS, CCSglS, CCUnS, &
+                                       CCSglDelta, orbsWNoPair, nSing, nVac,&
+                                       orbs, sym, Ml)
         pGen = pGen / real(ncsf)
-        !print*, 'done'
-        !print*, excitmat
-        !call writedet(6, nJ, nel, .true.)
-        !call flush(6)
-        
+
         !excitcount = excitcount + 1
         !if (excitcount == 6) call stop_all (this_routine,  "DONE")
         !print*, 'count', excitcount
-        if (iand(NJ(nel), csf_orbital_mask) == 0) call stop_all (this_routine,"alert")
+        if (iand(NJ(nel), csf_orbital_mask) == 0)&
+            call stop_all (this_routine,"alert")
     end subroutine
 
-    subroutine CSFPickAOrb (nI, iLut, CCDblS, CCSglS, CCUnS, CCSglDelta, &
-                            elecs, orbs, symProd, sumMl, orbA, sym, Ml, &
-                            nopen, nSing, nVac, pGen, tAFail)
-        integer, intent(in) :: nI(nel), iLut(0:NIfTot), elecs(2), symProd
-        integer, intent(in) :: sumMl, orbs(2), nSing, nVac
+    integer function CSFCalcOrbsWNoSymmetryPair (CCDblS, CCSglS, CCUnS, &
+                                  CCSglDelta, symProd)
         integer, intent(in) :: CCSglS (ScratchSize/2)
         integer, intent(in) :: CCDblS (ScratchSize/2)
         integer, intent(in) :: CCUnS (ScratchSize/2)
         integer, intent(in) :: CCSglDelta (ScratchSize/2)
-        integer, intent(out) :: orbA, sym(2), Ml(2)
-        integer, intent(inout) :: nopen
-        logical, intent(out) :: tAFail
-        real*8, intent(inout) :: pGen
+        integer, intent(in) :: symProd
         character(*), parameter :: this_routine = 'CSFPickAOrb'
-        real*8 :: r
-        logical :: bSingle
-        integer :: orb, orb2, ind, i, orbsWNoPair, numB
+        integer :: numB, ind, i, orbsWNoPair
 
-        ! Fail by default
-        tAFail = .true.
-
-        ! TODO: count before hand if there are none to choose!
         ! Loop over all beta symmetry classes and exclude orbitals with no
-        ! pair which would give sypmProd as the resultant.
-        ! TODO: Should we be looking at odd or even symmetry indices?
+        ! pair which would give symProd as the resultant.
         orbsWNoPair = 0
         if (tFixLz) then
             call stop_all (this_routine, 'Not implemented yet')
@@ -225,13 +225,29 @@ contains
                 ! Cannot excite two electrons to one orbital.
                 else if (numB == 1) then
                     ind = CCindS (ibclr(ieor(i,symProd),0), 0)
-                    if (ind == i) orbsWNoPair = orbsWNoPair - 1
+                    if (ind == i) orbsWNoPair = orbsWNoPair + 1
                 endif
             enddo
         endif
 
-        ! If there are no orbitals we can excite to, then fail.
-        if ((nSing + nVac) == orbsWNoPair) return
+        CSFCalcOrbsWNoSymmetryPair = orbsWNoPair
+    end function
+
+    subroutine CSFPickAOrb (nI, iLut, CCDblS, CCSglS, CCUnS, CCSglDelta, &
+                            orbs, symProd, sumMl, orbA, sym, Ml, &
+                            nopen, nSing, nVac)
+        integer, intent(in) :: nI(nel), iLut(0:NIfTot), symProd
+        integer, intent(in) :: sumMl, orbs(2), nSing, nVac
+        integer, intent(in) :: CCSglS (ScratchSize/2)
+        integer, intent(in) :: CCDblS (ScratchSize/2)
+        integer, intent(in) :: CCUnS (ScratchSize/2)
+        integer, intent(in) :: CCSglDelta (ScratchSize/2)
+        integer, intent(out) :: orbA, sym(2), Ml(2)
+        integer, intent(inout) :: nopen
+        character(*), parameter :: this_routine = 'CSFPickAOrb'
+        real*8 :: r
+        logical :: bSingle
+        integer :: orb, orb2, ind, i, orbsWNoPair, numB
 
         ! Draw orbitals randomly until we find one unoccupied
         do i=1,250
@@ -288,16 +304,12 @@ contains
 
         ! Set output
         orbA = orb
-        tAFail = .false.
-
-        ! Modify the pGen
-        pGen = pGen / real(nSing + nVac  - orbsWNoPair)
     end subroutine
 
     subroutine CSFPickBOrb  (nI, iLut, CCDblS, CCSglS, CCUnS, CCSglDelta, &
-                             elecs, orbs, symProd, sumMl, orbA, sym, Ml, &
-                             orbB, nopen, pGen)
-        integer, intent(in) :: nI(nel), iLut(0:NIfTot), elecs(2), symProd
+                             orbs, symProd, sumMl, orbA, sym, Ml, &
+                             orbB, nopen)
+        integer, intent(in) :: nI(nel), iLut(0:NIfTot), symProd
         integer, intent(in) :: sumMl, orbs(2), orbA, sym(2), Ml(2)
         integer, intent(in) :: CCSglS (ScratchSize/2)
         integer, intent(in) :: CCDblS (ScratchSize/2)
@@ -305,7 +317,6 @@ contains
         integer, intent(in) :: CCSglDelta (ScratchSize/2)
         integer, intent(out) :: orbB
         integer, intent(inout) :: nopen
-        real*8, intent(inout) :: pgen
         character(*), parameter :: this_routine = 'CSFPickBOrb'
         real*8 :: r
         integer :: norbs, ind, orb, i, sym_ind, full_ind, numB
@@ -368,17 +379,52 @@ contains
 
         ! Set the output
         orbB = orb
-
-        ! Modify the pGen. Take into account if orbA is filling one of the
-        ! possibilities. nb. if orbA creates a single from a vacant, it does
-        ! not fill a possibility, as we can still create a double.
-        numB = CCUnS(sym_ind) + CCSglS(sym_ind) + CCSglDelta(sym_ind)
-        if (sym(2) == sym(1) .and. IsOcc (iLut, ibclr(orbA-1,0)+1)) then
-            numB = numB - 1
-        endif
-        pGen = pGen / real(numB)
     end subroutine
 
+    real*8 function CSFPickOrbsProb (nI, iLut, CCDblS, CCSglS, CCUnS, &
+                                     CCSglDelta, orbsWNoPair, nSing, nVac, &
+                                     orbs, sym, Ml)
+        integer, intent(in) :: nI(nel), ilut(0:NIfTot)
+        integer, intent(in) :: orbs(2), sym(2), Ml(2), orbsWNoPair
+        integer, intent(in) :: CCSglS (ScratchSize/2)
+        integer, intent(in) :: CCDblS (ScratchSize/2)
+        integer, intent(in) :: CCUnS (ScratchSize/2)
+        integer, intent(in) :: CCSglDelta (ScratchSize/2)
+        integer, intent(in) :: nSing, nVac
+        real*8 :: p
+        integer :: numB, permutations, orbA, orbB, symB, MlB, sym_ind, i
+
+        ! Consider the possibility of generating this either way around
+        ! (The alternative was to restrict orbB > orbA, and throw away
+        !  some of the random numbers)
+        permutations = 2
+        if (is_in_pair(orbs(1), orbs(2))) permutations = 1
+        !print*, nSing, nVac, orbsWNoPair
+
+        CSFPickOrbsProb = 0
+        do i=1,permutations
+            orbA = orbs(i)
+            orbB = orbs(2-i)
+            symB = sym(2-i)
+            MlB = Ml(2-i)
+
+            ! Probability of picking first orbital
+            p = 1 / real (nSing + nVac - orbsWNoPair)
+
+            ! Number of available B orbitals given A
+            sym_ind = CCIndS(symB, MlB)
+            numB = CCUnS(sym_ind) + CCSglS(sym_ind)! + CCSglDelta(sym_ind)
+            if (sym(2) == sym(1) .and. IsOcc (ilut, ibclr(orbA-1,0)+1)) then
+                numB = numB - 1
+            endif
+
+            ! Total probability of picking A-B
+            p = p * (1 / real(numB))
+
+            ! Add contribution for this permutation.
+            CSFPickOrbsProb = CSFPickOrbsProb + p
+        enddo
+    end function
 
     ! Pick an electron pair randomly, which is allowed for a double excit.
     subroutine CSFPickElecPair (nI, iLut, elecs, orbs, symProd, sumMl, &
@@ -391,8 +437,8 @@ contains
         real*8, intent(inout) :: pGen
         character(*), parameter :: this_routine = 'CSFPickElecPair'
         integer ::i, elec, orb, orb2, ind, found
-        real*8 :: r
-        logical :: bSecond, bSingleFirst
+        real*8 :: r, pElec, pElec2
+        logical :: bSecond, bSingle
 
         ! Pick two electrons randomly.
         ! TODO: Remove the calculation of the effect on nopen here (do it in 
@@ -400,8 +446,9 @@ contains
         found = 0
         elec = 0
         CCSglDelta = 0
-        bSingleFirst = .true.
+        pElec = 0
         do while (found < 2)
+            bSingle = .false.
             elecs(1) = elec
             orbs(1) = orb
             do i=1,250
@@ -413,9 +460,9 @@ contains
                 if ((found == 1) .and. (elec == elecs(1))) cycle
 
                 ! Is this in a doubly occupied orbital?
-                ! Singly occupied must give alpha elec
-                ! Only pick beta elec from double, except that we can pick the
-                ! alpha electron from an already chosen double.
+                ! Singly occupied must give beta elec
+                ! Only pick alpha elec from double, except that we can pick
+                ! the beta electron from an already chosen double.
                 orb2 = ieor((orb-1),1)
                 if (btest(iLut(orb2/32), mod(orb2,32))) then
                     if (G1(orb)%Ms == 1) then
@@ -423,7 +470,7 @@ contains
                         CCSglDelta(ind) = CCSglDelta(ind) + 1
                         nopen = nopen + 1
                         exit
-                    else if ((found == 1) .and. (orb2+1 == elecs(1))) then
+                    else if ((found == 1) .and. (orb2+1 == orbs(1))) then
                         ind = CCIndS(int(G1(orb)%Sym%S), G1(orb)%Ml)
                         CCSglDelta(ind) = CCSglDelta(ind) - 1
                         nopen = nopen - 1
@@ -435,17 +482,23 @@ contains
                     ind = CCIndS(int(G1(orb)%Sym%S), G1(orb)%Ml)
                     CCSglDelta(ind) = CCSglDelta(ind) - 1
                     nopen = nopen - 1
-                    if (found /= 1) bSingleFirst = .true.
+                    bSingle = .true.
                     exit
                 endif
             enddo
             found = found + 1
 
-            ! Calculate the pGen
-            if ((found == 1) .and. bSingleFirst) then
-                pGen = pGen / real(nSing + nDoub - 1)
-            else
-                pGen = pGen / real(nSing + nDoub)
+            ! Generate the probability of picking an electron and then
+            ! another. If the second electron is not the pair of the first
+            ! then it is also possible to generate the other way around, so
+            ! include that too.
+            if ((found == 1) .or. &
+                ((found == 2) .and. (ieor(elecs(1)-1,1)+1 /= elec))) then
+                if (bSingle) then
+                    pElec = pElec + 1/real((nSing + nDoub - 1)*(nSing+nDoub))
+                else
+                    pElec = pElec + 1/real((nSing + nDoub)**2)
+                endif
             endif
 
             if (i > 250) then
@@ -457,6 +510,7 @@ contains
         enddo
         elecs(2) = elec
         orbs(2) = orb
+        pGen = pGen * pElec
 
         ! Generate the symmetry product of these two electrons
         ! Note ibclr --> Always use the alpha symmetry for consistency
@@ -726,11 +780,15 @@ contains
     ! ExcitMat (1,:) are the electron indices to excite from
     ! ExcitMat (2,:) are the target orbitals.
     ! ExcitMat must be sorted, ExcitMat(1,1) < ExcitMat(1,2) and for (2,...)
+    ! If array yamas is provided, then nopen2 must be correct. Otherwise
+    ! returns the new value of nopen.
     subroutine csf_find_excit_det_general (ExcitMat, nJ, iLut, nopen, IC, &
-                                           ncsf)
+                                           ncsf, nopen2, yamas)
         integer, intent(in) :: nopen, iLut(0:NIfTot), IC
-        integer, intent(inout) :: nJ(nel), ExcitMat(2,1:IC)
-        integer, intent(out) :: ncsf
+        integer, intent(inout) :: nJ(ncsf,nel), ExcitMat(2,1:IC)
+        integer, intent(inout) :: ncsf
+        integer, intent(inout) :: nopen2
+        integer, intent(in), optional :: yamas(ncsf, nopen2)
         character(*), parameter :: this_routine = 'csf_find_excit_det_general'
         integer, dimension(1:IC) :: src, src_pair, srcB, exA, exB
         integer :: nI(nel), lnopen
@@ -746,8 +804,8 @@ contains
         nclosed = nel - nopen
 
         ! Strip csf data from the determinant
-        nI = iand(nJ, csf_orbital_mask)
-        nJ = 0
+        nI = iand(nJ(1,:), csf_orbital_mask)
+        !nJ = 0
 
         ! Obtain the orbital and their pairs for each of the source orbs
         src = nI(ExcitMat(1,:))
@@ -783,7 +841,7 @@ contains
                 ! Are we inserting an entirely new excitation?
                 if (bExcitIsDoub .and. (epos == 1)) then
                     if ((dpos>nclosed) .or. (ExcitMat(2,1) < nI(dpos))) then
-                        nJ(i:i+1) = ExcitMat(2,1:2)
+                        nJ(1,i:i+1) = ExcitMat(2,1:2)
                         epos = 3
                         bRetry = .false.
                         cycle
@@ -800,8 +858,8 @@ contains
                         if (ExcitMat(2,epos) /= exA(epos)) then
                             call stop_all (this_routine, "Excit. out of order")
                         endif
-                        nJ(i) = exB(epos)
-                        nJ(i+1) = exA(epos)
+                        nJ(1,i) = exB(epos)
+                        nJ(1,i+1) = exA(epos)
                         oldS = oldS + 1
                         singOld(oldS) = exA(epos)
                         lnopen = lnopen - 1
@@ -822,7 +880,7 @@ contains
                         endif
                         srcpos = srcpos + 1
                     else
-                        nJ(i:i+1) = nI(dpos:dpos+1)
+                        nJ(1,i:i+1) = nI(dpos:dpos+1)
                         bRetry = .false.
                     endif
                     dpos = dpos + 2
@@ -839,7 +897,7 @@ contains
         do i=i,nel
             if ((newpos <= newS) .and. &
                &((spos > nel) .or. (singNew(newpos) < nI(spos)))) then
-                nJ(i) = singNew(newpos)
+                nJ(1,i) = singNew(newpos)
                 newpos = newpos + 1
                 lnopen = lnopen + 1
             else if (spos <= nel) then
@@ -848,7 +906,7 @@ contains
                 else if ((srcpos<=IC) .and. (nI(spos) == src(srcpos))) then
                     srcpos = srcpos + 1
                 else
-                    nJ(i) = nI(spos)
+                    nJ(1,i) = nI(spos)
                 endif
                 spos = spos + 1
             endif
@@ -860,11 +918,26 @@ contains
         Excitmat(1,:) = src
 
         ! Make this into a csf that iscsf would recognise
-        nJ = ibset(nJ, csf_test_bit)
+        nJ(1,:) = ibset(nJ(1,:), csf_test_bit)
 
         ! Apply a random Yamanouchi symbol.
-        call csf_apply_random_yama (nJ, lnopen, real(LMS/2,8), ncsf, &
-                                    .false.)
+        if (lnopen > 0) then
+            if (present(yamas)) then
+                if (nopen2 /= lnopen) then
+                    call stop_all (this_routine, "Incorrect value of nopen2")
+                endif
+
+                forall (i=2:ncsf) nJ(i,:) = nJ(1,:)
+                do i=1,ncsf
+                    call csf_apply_yama (nJ(i,:), yamas(i,:))
+                enddo
+            else
+                call csf_apply_random_yama (nJ, lnopen, real(LMS/2,8), ncsf, &
+                                            .false.)
+            endif
+        endif
+
+        if (.not. present(yamas)) nopen2 = lnopen
     end subroutine
 
     ! Generate a determinant for the excitation specified in ExcitMat
@@ -990,12 +1063,12 @@ contains
         integer :: nclosed, orbA, orbB
 
         ! Get the first pair if elecA is set to -1
+        nclosed = nel - nopen
         if (elecA == -1) then
             elecA = 1
             elecB = 2
         else
             ! Useful values
-            nclosed = nel - nopen
             orbA = iand(nI(elecA), csf_orbital_mask)
             orbB = iand(nI(elecB), csf_orbital_mask)
 
@@ -1077,6 +1150,9 @@ contains
     ! TODO: This currently ignores the possibility of just changing
     !       the yamanouchi symbol and not the configuration.
     ! TODO: Change from LMS --> STOT?
+    ! TODO: Combine the counting and generation into one step - either by
+    !       specifing a maximum number to generate, generating iteratively (ie
+    !       generate next excit given current), or by looping twice.
     subroutine csf_gen_excits (nI, iLut, nopen, bDouble, bSingle, CCDbl, &
                                CCSgl, CCUn, CCDblS, CCSglS, CCUnS, nexcit, nJ)
         use symexcit3, only: GenExcitations3
@@ -1094,7 +1170,7 @@ contains
         integer :: paircount, orbi, orbj, orbs(2), orb_sym(2), symProd
         integer :: ierr, orb3, ExcitMat(2,2), sumMl, syms(2)
         integer :: ncsf_S, ncsf_V, numS, numV, ncsf
-        integer :: delta_nopen, lnopen, numB, lnopen2
+        integer :: delta_nopen, lnopen, numB, lnopen2, ndets
         integer, allocatable, dimension(:,:) :: csf0, csfp, csfm, csfpp, csfmm
         real*8 :: S
         ! Eurgh
@@ -1110,7 +1186,6 @@ contains
         if (nopen>1) numcsfs(-1) = get_num_csfs (nopen-2, S)
         if (nopen<nel-3) numcsfs(2) = get_num_csfs (nopen+4, S)
         if (nopen>3) numcsfs(-2) = get_num_csfs (nopen-4, S)
-        print*, 'numcsfs', numcsfs
 
         nexcit = 0
         if (bSingle) then
@@ -1141,13 +1216,11 @@ contains
 
         if (bDouble) then
             ! We need to iterate through all of the electron _pairs_
-            print*, 'count doubles'
             elecA = -1
             elecB = -1
             paircount = 0
             call csf_gen_elec_pair(nI, iLut, nopen, elecA, elecB, delta_nopen)
             do while (elecA /= -1)
-                paircount = paircount + 1
                 orbs(1) = iand(nI(elecA), csf_orbital_mask)
                 orbs(2) = iand(nI(elecB), csf_orbital_mask)
                 syms = ibclr(G1(orbs)%Sym%S, 0)
@@ -1166,8 +1239,10 @@ contains
                     ! If exciting to a single, creates double (decrease nopen)
                     ! If to a vacant orbital, increases nopen.
                     lnopen = nopen + delta_nopen
+                    orb = i
                     if (IsOcc(ilut, i)) then
                         lnopen = lnopen - 1
+                        orb = orb + 1 ! Need to excite to alpha
                     else
                         lnopen = lnopen + 1
                     endif
@@ -1176,42 +1251,57 @@ contains
                     ! symmetry product?
                     symA = ibclr(int(G1(orbs(1))%Sym%S), 0)
                     symB = ibclr(ieor(symA, symProd), 0)
-                    
-                    ! Fix Ml correctly.
-                    ! TODO: This does nothing to the count does it?
+
+                    ! What Ml must we have?
                     MlB = 0
-                    if (tFixLz) then
-                        MlB = sumMl - G1(i)%Ml
-                    endif
-                    ind = CCIndS (symProd, MlB)
+                    if (tFixLz) MlB = sumMl - G1(orb)%Ml
 
-                    ! How many csfs are there for each relevant case
-                    ncsf_S = get_num_csfs (lnopen-1, S)
-                    ncsf_V = get_num_csfs (lnopen+1, S)
+                    ! Loop over all possible B orbitals.
+                    sym_ind = ClassCountInd(2, symB, MlB)
+                    ind = SymLabelCounts2(1, sym_ind)
+                    do j=1,OrbClassCount(sym_ind)
+                        orb2 = SymLabelList2(ind+j-1)
 
-                    ! How many singles and doubles can we excite to
-                    numS = CCSglS(ind)
-                    numV = CCUnS(ind)
-                    if ((syms(1) == symB) .and. &
-                        (.not.IsDoub(ilut, orbs(1)))) numS = numS - 1
-                    if ((syms(2) == symB) .and. &
-                        (.not.IsDoub(ilut, orbs(2)))) numS = numS - 1
-                    if ((symA == symB) .and. IsOcc(ilut, i)) then
-                        numV = numV - 1
-                        numS = numS + 1
-                    endif
+                        ! Ensure that we only count excitations once
+                        if (orb2 < orb) cycle
 
-                    ! Update the number of excitations
-                    nexcit = nexcit + (numS*ncsf_S) + (numV*ncsf_V)
+                        ! If this is doubly occupied, we cannot excite to it
+                        if (IsDoub(ilut, orb2)) cycle
+
+                        ! If we are exciting from it, we cannot excite to it.
+                        if (is_in_pair(orbs(1), i).or.is_in_pair(orbs(2), i))&
+                            cycle
+
+                        ! If exciting to a single, create double (decrease
+                        ! nopen). If to a vacant orbital, increases nopen.
+                        lnopen2 = lnopen
+                        if (IsOcc(ilut, orb2)) then
+                            orb2 = orb2 + 1
+                            ! Are we already exciting to here?
+                            if (orb == orb2) cycle
+                            lnopen2 = lnopen2 - 1
+                        else
+                            if (orb == orb2) then
+                                orb2 = orb2 + 1
+                                lnopen2 = lnopen2 - 1
+                            else
+                                lnopen2 = lnopen2 + 1
+                            endif
+                        endif
+
+                        nexcit = nexcit + &
+                                 num_csf_dets(numcsfs((lnopen2-nopen)/2))
+                    enddo
                 enddo
 
                 ! Generate the next electon pair
                 call csf_gen_elec_pair (nI, iLut, nopen, elecA, elecB, &
                                         delta_nopen)
             enddo
-            print*, 'found nexcit excitations', nexcit
+            !print*, 'found nexcit excitations', nexcit
         endif
 
+        !nexcit = paircount
         if (present(nJ)) then
             ! Allocate the required memory
             allocate(nJ(nexcit,nel), csf0(numcsfs(0),nopen), stat=ierr)
@@ -1221,7 +1311,6 @@ contains
                 allocate(csfm(numcsfs(-1), nopen-2), stat=ierr)
             if (ierr /= 0) call stop_all(this_routine,"Allocation failed")
             forall (i=1:nexcit) nJ(i,:) = nI
-            print*, 'allocated memory A'
 
             ! Get all the required csfs required for singles and doubles.
             call csf_get_yamas (nopen, S, csf0, numcsfs(0))
@@ -1229,12 +1318,10 @@ contains
                                                  numcsfs(1))
             if (nopen>1) call csf_get_yamas (nopen-2, S, csfm, &
                                              numcsfs(-1))
-            print*, 'got yamas'
 
             ! Generate all the allowed singles
             excit = 1
             if (bSingle) then
-                print*, 'generating singles'
                 do i=1,nel
                     if (excit > nexcit) &
                         call stop_all(this_routine, "Generated too many csfs")
@@ -1310,20 +1397,17 @@ contains
             endif
 
             if (bDouble) then
-                print*, 'get doubles'
                 ! Allocate csfs only needed for doubles
                 if (nopen > 3) allocate(csfmm(numcsfs(-2),nopen-4), stat=ierr)
-                if ((ierr /= 0) .and. (nopen < nel-3)) &
+                if ((ierr == 0) .and. (nopen < nel-3)) &
                     allocate (csfpp(numcsfs(2), nopen+4), stat=ierr)
                 if (ierr /= 0) call stop_all(this_routine,"Allocation failed")
 
                 ! Acquire csfs
                 if (nopen > 3) call csf_get_yamas (nopen-4, S, csfmm, &
                                                    numcsfs(-2))
-                !if (nopen < nel-3) call csf_get_yamas (nopen+4, S, csfpp, &
-                !                                       numcsfs(2))
-                print*, 'memory allocated and yamas got'
-                call flush(6)
+                if (nopen < nel-3) call csf_get_yamas (nopen+4, S, csfpp, &
+                                                       numcsfs(2))
 
                 ! Loop through all electron pairs
                 elecA = -1
@@ -1331,34 +1415,28 @@ contains
                 call csf_gen_elec_pair(nI, iLut, nopen, elecA, elecB, &
                                        delta_nopen)
                 do while (elecA /= -1)
-                    print*, 'new pair', elecA, elecB
-                    call flush(6)
                     orbs(1) = iand(nI(elecA), csf_orbital_mask)
                     orbs(2) = iand(nI(elecB), csf_orbital_mask)
                     syms = ibclr(G1(orbs)%Sym%S, 0)
                     symProd = ibclr(ieor(syms(1), syms(2)), 0)
                     sumMl = G1(orbs(1))%Ml + G1(orbs(2))%Ml
-                    ExcitMat(1,1) = elecA
-                    ExcitMat(1,2) = elecB
 
                     ! Loop through all the orbitals for orbital A
                     do i=1,nbasis-1,2
-                        print*, 'orbitalA', i
-                        call flush(6)
                         ! If this is doubly occupied, we cannot excite to it.
                         if (IsDoub(ilut, i)) cycle
 
                         ! If we are exciting from it, we cannot excite to it.
-                        if (is_in_pair(orbs(1), i) .or. is_in_pair(orbs(2), i))&
+                        if (is_in_pair(orbs(1), i).or.is_in_pair(orbs(2), i))&
                             cycle
 
                         ! If exciting to a single, create double (decrease
                         ! nopen). If to a vacant orbital, increases nopen
                         lnopen = nopen + delta_nopen
                         orb = i
-                        if (IsOcc(ilut, i)) then
+                        if (IsOcc(ilut, orb)) then
                             lnopen = lnopen - 1
-                            orb = orb + 1 ! Need to excite to beta
+                            orb = orb + 1 ! Need to excite to alpha
                         else
                             lnopen = lnopen + 1
                         endif
@@ -1370,30 +1448,25 @@ contains
 
                         ! What Ml must we have?
                         MlB = 0
-                        if (tFixLz) MlB = sumMl - G1(i)%Ml
-
-                        print*, 'symmetry and ml', symB, mlB
-                        call flush(6)
+                        if (tFixLz) MlB = sumMl - G1(orb)%Ml
 
                         ! Loop over all possible B orbitals.
-                        sym_ind = ClassCountInd(1, symB, MlB)
-                        print*, symB, MlB, sym_ind
-                        call flush(6)
+                        sym_ind = ClassCountInd(2, symB, MlB)
                         ind = SymLabelCounts2(1, sym_ind)
-                        print*, 'ind', ind
-                        print*, 'SymLabelCounts', SymLabelCounts2(1,:)
                         do j=1,OrbClassCount(sym_ind)
-                            print*, 'index, j, tot', ind, j, ind+j-1
-                            call flush(6)
                             orb2 = SymLabelList2(ind+j-1)
-                            print*, 'orb2', orb2
-                            call flush(6)
 
-                            ! If this is doubly occupied, we cannot excite to it.
+                            ! Ensure that we only count excitations once
+                            if (orb2 < orb) cycle
+
+                            ! If this is doubly occupied, we cannot excite to
+                            ! it.
                             if (IsDoub(ilut, orb2)) cycle
 
-                            ! If we are exciting from it, we cannot excite to it.
-                            if (is_in_pair(orbs(1), i) .or. is_in_pair(orbs(2), i)) &
+                            ! If we are exciting from it, we cannot excite 
+                            ! to it.
+                            if (is_in_pair(orbs(1), i) .or. &
+                                is_in_pair(orbs(2), i)) &
                                 cycle
 
                             ! If exciting to a single, create double (decrease
@@ -1414,14 +1487,46 @@ contains
                             endif
 
                             ! TODO: check that the Ml is correct.
-                            ! TODO: Don't double count cases where symA = symB
+                            ExcitMat(1,1) = elecA
+                            ExcitMat(1,2) = elecB
                             ExcitMat(2,1) = min(orb, orb2)
                             ExcitMat(2,2) = max(orb, orb2)
-                            ! TODO: Generate ALL Yamas.
-                            call csf_find_excit_det_general (ExcitMat, nJ(excit,:), ilut,&
-                                                nopen, 2, ncsf)
-                            call writedet(6, nJ(excit,:), nel, .true.)
-                            excit = excit + 1
+                            ndets = num_csf_dets(numcsfs((lnopen2-nopen)/2))
+                            ! TODO: make it nice and easy to access csf0/p/m
+                            select case (lnopen2)
+                            case (-4)
+                                call csf_find_excit_det_general (ExcitMat, &
+                                      nJ(excit:excit+ndets-1, :), ilut, &
+                                      nopen, 2, ndets, lnopen2, csfmm)
+                            case (-2)
+                                call csf_find_excit_det_general (ExcitMat, &
+                                      nJ(excit:excit+ndets-1, :), ilut, &
+                                      nopen, 2, ndets, lnopen2, csfm)
+                            case (0)
+                                call csf_find_excit_det_general (ExcitMat, &
+                                      nJ(excit:excit+ndets-1, :), ilut, &
+                                      nopen, 2, ndets, lnopen2, csf0)
+                            case (2)
+                                call csf_find_excit_det_general (ExcitMat, &
+                                      nJ(excit:excit+ndets-1, :), ilut, &
+                                      nopen, 2, ndets, lnopen2, csfp)
+                            case(4)
+                                call csf_find_excit_det_general (ExcitMat, &
+                                      nJ(excit:excit+ndets-1, :), ilut, &
+                                      nopen, 2, ndets, lnopen2, csfpp)
+                            case default
+                                print*, 'invalid lnopen2', lnopen2
+                                call stop_all (this_routine,"invalid lnopen2")
+                            end select
+
+                            do k=1,ndets
+                                call writedet(6, nJ(excit+k-1,:), nel, .false.)
+        write(6,'(i3)',advance='no') ibclr(ieor(G1(orbs(1))%Sym%S, G1(orbs(2))%Sym%S),0)
+        write(6,'(i3)',advance='no') ieor(G1(orb)%Sym%S, G1(orb2)%Sym%S)
+        write(6,'(2i3)',advance='no') G1(orb)%Sym%S, G1(orb2)%Sym%S
+        print*, G1(orb)%Ml + G1(orb2)%Ml
+                            enddo
+                            excit = excit + ndets
                         enddo
                     enddo
 
@@ -1430,7 +1535,7 @@ contains
                                             delta_nopen)
                 enddo
             endif
-            call stop_all (this_routine, "end")
+            !print*, 'total excits generated', excit-1
 
             ! Clear up
             if (allocated(csf0)) deallocate (csf0)
@@ -1440,6 +1545,15 @@ contains
             if (allocated(csfmm)) deallocate (csfmm)
         endif
     end subroutine
+
+    integer function num_csf_dets (ncsf)
+        integer, intent(in) :: ncsf
+        if (ncsf == 0) then
+            num_csf_dets = 1
+        else
+            num_csf_dets = ncsf
+        endif
+    end function
 
     subroutine TestCSF123 (nI)
         integer, intent(in) :: nI(nel)
@@ -1507,9 +1621,9 @@ contains
 
 
         ! Enumerate all possible excitations
+        write(6,*), 'Excitations'
         call csf_gen_excits (nI, iLut, nopen, .true., .false., CCDbl, CCSgl,&
                              CCUn, CCDblS, CCSglS, CCUnS, nexcit, nK)
-        write(6,*), 'Excitations'
         !do i=1,nexcit
         !    call writedet(6, nK(i,:), nel, .true.)
         !enddo
@@ -1518,6 +1632,7 @@ contains
         !call csf_gen_excits (nI, iLut, nopen, .true., .false., CCDbl, CCSgl, &
         !                     CCUn, CCDblS, CCSglS, CCUnS, nexcit)
         print*, 'nexcits: ', nexcit
+        print*, '---------------------------------'
 
         ! Allocate memory for the histograms
         allocate (SinglesHist(nBasis,nBasis), &
@@ -1581,7 +1696,13 @@ contains
                     write(9,*) i, avContribAll/real(i*nexcit*nProcessors)
                 endif
             endif
+            call writedet(6, nJ, nel, .false.)
+            write (6,'(i3)', advance='no') ibclr(ieor(G1(ExcitMat(1,1))%Sym%S, G1(ExcitMat(1,2))%Sym%S),0)
+            write (6,'(i3)', advance='no') ieor(G1(ExcitMat(2,1))%Sym%S, G1(ExcitMat(2,2))%Sym%S)
+            write (6,'(2i3)', advance='no') G1(ExcitMat(2,1))%Sym%S, G1(ExcitMat(2,2))%Sym%S
+            write (6,'(i3)') G1(ExcitMat(2,1))%Ml + G1(ExcitMat(2,2))%Ml
         enddo
+        print*, '============================='
         close(9)
 
 
