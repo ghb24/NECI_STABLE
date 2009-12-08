@@ -123,7 +123,7 @@ MODULE FciMCParMod
                 ENDIF
                 IF(tWritePopsFound) THEN
 !We have explicitly asked to write out the POPSFILE from the CHANGEVARS file.
-                    IF(tRotoAnnihil) THEN
+                    IF(tRotoAnnihil.or.tDirectAnnihil) THEN
                         CALL WriteToPopsFileParOneArr()
                     ELSE
                         CALL WriteToPopsFilePar()
@@ -138,7 +138,7 @@ MODULE FciMCParMod
 
             IF(TPopsFile.and.(mod(Iter,iWritePopsEvery).eq.0)) THEN
 !This will write out the POPSFILE if wanted
-                IF(tRotoAnnihil) THEN
+                IF(tRotoAnnihil.or.tDirectAnnihil) THEN
                     CALL WriteToPopsFileParOneArr()
                 ELSE
                     CALL WriteToPopsFilePar()
@@ -159,7 +159,7 @@ MODULE FciMCParMod
 
         IF(TIncrement) Iter=Iter-1     !Reduce the iteration count for the POPSFILE since it is incremented upon leaving the loop (if done naturally)
         IF(TPopsFile) THEN
-            IF(tRotoAnnihil) THEN
+            IF(tRotoAnnihil.or.tDirectAnnihil) THEN
                 CALL WriteToPopsFileParOneArr()
             ELSE
                 CALL WriteToPopsFilePar()
@@ -566,7 +566,7 @@ MODULE FciMCParMod
                         NoExtraInitDoubs=NoExtraInitDoubs+1
                     ELSEIF(tAddtoInitiator.and.(ABS(CurrentSign(j)).gt.InitiatorWalkNo)) THEN
                         ParentInitiator=0
-                        NoAddedInitiators=NoAddedInitiators+1
+                        IF(mod(Iter,StepsSft).eq.0) NoAddedInitiators=NoAddedInitiators+1
                         NoInitDets=NoInitDets+1
                         NoInitWalk=NoInitWalk+(ABS(CurrentSign(j)))
                     ELSE
@@ -588,7 +588,7 @@ MODULE FciMCParMod
                         NoExtraInitDoubs=NoExtraInitDoubs+1
                     ELSEIF(tAddtoInitiator.and.(ABS(CurrentSign(j)).gt.InitiatorWalkNo)) THEN
                         ParentInitiator=0
-                        NoAddedInitiators=NoAddedInitiators+1
+                        IF(mod(Iter,StepsSft).eq.0) NoAddedInitiators=NoAddedInitiators+1
                         NoInitDets=NoInitDets+1
                         NoInitWalk=NoInitWalk+(ABS(CurrentSign(j)))
                     ELSE
@@ -1806,7 +1806,7 @@ MODULE FciMCParMod
 !Read in particles from multiple POPSFILES for each processor
             WRITE(6,*) "Reading in initial particle configuration from POPSFILES..."
 
-            IF(tDirectAnnihil) CALL Stop_All(this_routine,"READPOPS currently disabled with rotoannihilation")
+            IF(tDirectAnnihil) CALL Stop_All(this_routine,"READPOPS currently disabled with directannihilation")
             CALL ReadFromPopsFilePar()
 
         ELSE

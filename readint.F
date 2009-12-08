@@ -574,6 +574,7 @@ C.. These are stored as spinorbitals (with elements between different spins bein
                        IF((TMAT2D(ISPINS*I-ISPN+1,ISPINS*J-ISPN+1)%v    &
      &                      .ne.0.D0).and.abs(TMAT2D(ISPINS*I-ISPN+1,   &
      &                      ISPINS*J-ISPN+1)%v-Z).gt.1.D-7) THEN
+                WRITE(6,*) i,j,Z,TMAT2D(ISPINS*I-ISPN+1,ISPINS*J-ISPN+1)
                            CALL Stop_All("ReadFCIInt","Error filling "  &
      &                    //"TMAT - different values for same orbitals")
                        ENDIF

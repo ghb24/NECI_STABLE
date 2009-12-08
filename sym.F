@@ -1439,6 +1439,12 @@ C -1 UEG
 C 0 Hubbard
 C 1 Generic spatial
 
+C.. This function imposes periodic boundary conditions for the Hubbard Model
+C.. K1(3) is a K vector which is then mapped back into the Brillouin Zone of the Full cell.
+C.. The PBC are such that, a point, (KX,KY) (in terms of the cell lattice vectors), has bounds
+C.. -LENX/2 < KX <= LENX/2  and -LENY/2 <= KY < LENY/2
+
+C.. My ASCII art isn't up to drawing a picture unfortunately.
 
       SUBROUTINE MOMPBCSYM(K1,NBASISMAX)
 C.. NB the third column of NBASISMAX tells us whether it is tilted
@@ -1446,8 +1452,10 @@ C.. NB the third column of NBASISMAX tells us whether it is tilted
          INTEGER K1(3),nBasisMax(5,*)
          INTEGER J,LDIM,AX,AY,LENX,LENY,KK2,T1,T2
          REAL*8 R1,R2,NORM
+C.. (AX,AY) is the tilt of the lattice, and corresponds to the lattice vector of the cell.  The other lattice vector is (-AY,AX).  These are expressed in terms of the primitive Hubbard lattice vectors
          AX=NBASISMAX(1,4)
          AY=NBASISMAX(2,4)
+C.. LENX is the length (i.e. number of lattice vectors) in direction (AX,AY).  LENY is in the other lattice vector direction
          LENX=NBASISMAX(1,5)
          LENY=NBASISMAX(2,5)
          IF(NBASISMAX(1,3).EQ.0.OR.NBASISMAX(1,3).EQ.0) THEN
@@ -1469,23 +1477,29 @@ C.. we want the a1,a2 components of k
             R2=(AX*K1(2)-AY*K1(1))/NORM
             R1=R1/LENX+0.5D0
             R2=R2/LENY+0.5D0
-C.. T1= highest integer less than R1
+C.. R1 is now in terms of the shifted extended unit cell.  We want 0<R1<=1
+C.. R2 is now in terms of the shifted extended unit cell.  We want 0<=R2<1
+C.. T1 and T2 will be the vectors to translate the point K1 back into our cell
             T1=INT(ABS(R1))
             IF(R1.LT.0.D0) THEN
                T1=-T1
                IF(T1.NE.R1) T1=T1-1
             ENDIF
+C.. Now T1= highest integer less than R1  (i.e. FLOOR)
+C.. We want to include R1=1, so we have one fewer translations in that case.
+            IF(R1.EQ.T1) T1=T1-1
             T2=INT(ABS(R2))
             IF(R2.LT.0.D0) THEN
                T2=-T2
                IF(T2.NE.R2) T2=T2-1
             ENDIF
-C.. The last 10 lines can probably be replaced by FLOOR intrinsic? -- jjs
 C.. The following line conserves the top-right rule for edge effects
             IF(R1.EQ.T1) T1=T1-1
-C.. If R1 lies outside the interval [0,1] then it needs to be remapped back into this interval
+C.. Now T2= highest integer less than R2  (i.e. FLOOR)
+C.. Do the translation
             IF(R1.GT.1.D0.OR.R1.LE.0.D0) R1=R1-T1
             IF(R2.GE.1.D0.OR.R2.LT.0.D0) R2=R2-T2
+C.. Now convert back to the the Coords in the extended brillouin zone (ish)
             R1=(R1-0.5D0)*LENX
             R2=(R2-0.5D0)*LENY
 C.. Now K1 is defined as the re-scaled (R1,R2) vector
