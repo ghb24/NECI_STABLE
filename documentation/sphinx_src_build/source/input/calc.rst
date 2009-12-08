@@ -1053,6 +1053,10 @@ The following option are only available in **MCSTAR** calculations:
    Larger values will bias towards smaller cluster.
    Default 0.7 (Range 0-1)
 
+**NSPAWNINGS** nSpawnings
+
+   For CCMC, this is the number of spawnings attempted from each cluster (unless **EXACTSPAWN** is specified).  Default 1
+
 Return Path Monte Carlo options
 -------------------------------
 

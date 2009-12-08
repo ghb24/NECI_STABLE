@@ -1155,16 +1155,17 @@ SUBROUTINE ResetSpawner(S,C)
 END SUBROUTINE ResetSpawner
 
 !iMaxExcitLevel is the maximum excitation level in an excitor
-SUBROUTINE InitSpawner(S,tFull,iMaxExcitLevel)
-   use CCMCData
+SUBROUTINE InitSpawner(S,tFull,nSpawnings,iMaxExcitLevel)
+   use CCMCData, only: Spawner
    use GenRandSymExcitNUMod , only : ScratchSize
    use SystemData, only : NIfTot,nEl
    IMPLICIT NONE
    TYPE(Spawner) S
    LOGICAL tFull
-   INTEGER iMaxExcitLevel
+   INTEGER iMaxExcitLevel,nSpawnings
    S%tFull=tFull
    S%iMaxExcitLevel=iMaxExcitLevel
+   S%nSpawnings=nSpawnings
    if(.not.tFull) then
       allocate(S%Scratch1(ScratchSize))
       allocate(S%Scratch2(ScratchSize))
@@ -1195,18 +1196,20 @@ LOGICAL FUNCTION GetNextSpawner(S,iDebug)
    LOGICAL tDone
    tDone=.false.
    S%iIndex=S%iIndex+1
-   WRITE(6,*) "GetNextSpawner",S%iIndex
+   if(iDebug.gt.4) WRITE(6,*) "GetNextSpawner",S%iIndex
    if(.not.S%tFull) THEN
       if(S%iIndex.gt.S%nSpawnings) THEN
+         WRITE(6,*) "Leaving as >",S%nSpawnings
          GetNextSpawner=.false.
          return
       endif
       tFilled=S%iIndex.gt.1     !This is for regenerating excitations from the same determinant multiple times. There will be a time saving if we can store the excitation generators temporarily.
       CALL GenRandSymExcitScratchNU(S%C%DetCurr,S%C%iLutDetCurr,S%nJ,pDoubles,IC,S%ExcitMat,tParity,S%exFlag,S%dProbSpawn,S%Scratch1,S%Scratch2,tFilled)
       GetNextSpawner=.true.
+      call WriteDet(6,S%nJ,nEl,.false.)
    ELSE
-      WRITE(6,*) tDone,S%dProbSpawn
-      write(6,*) S%ExcitMat,tParity
+!      WRITE(6,*) tDone,S%dProbSpawn
+!      write(6,*) S%ExcitMat,tParity
       CALL GenExcitations3(S%C%DetCurr,S%C%iLutDetCurr,S%nJ,S%exFlag,S%ExcitMat,tParity,tDone)
       call WriteDet(6,S%nJ,nEl,.false.)
       if(S%ExcitMat(1,2).eq.0) then
@@ -1214,8 +1217,8 @@ LOGICAL FUNCTION GetNextSpawner(S,iDebug)
       else
          S%iExcitLevel=2
       endif 
-      WRITE(6,*) tDone,S%dProbSpawn
-      write(6,*) S%ExcitMat,tParity
+!      WRITE(6,*) tDone,S%dProbSpawn
+!      write(6,*) S%ExcitMat,tParity
       GetNextSpawner=.not.tDone
       if(tDone) S%nJ(1)=0
    ENDIF
@@ -1309,7 +1312,7 @@ END SUBROUTINE
    SUBROUTINE CCMCStandalone(Weight,Energyxw)
       Use global_utilities
       use SystemData, only: nEl,nIfD,nIfTot
-      use CCMCData, only: tCCMCFCI,dInitAmplitude,dProbSelNewExcitor,tExactCluster,tExactSpawn
+      use CCMCData, only: tCCMCFCI,dInitAmplitude,dProbSelNewExcitor,tExactCluster,tExactSpawn,nSpawnings
       use CCMCData, only: ClustSelector,Spawner
       use DetCalc, only: Det       ! The number of Dets/Excitors in FCIDets
       use DetCalc, only: FCIDets   ! (0:NIfTot, Det).  Lists all allowed excitors in compressed form
@@ -1433,7 +1436,7 @@ END SUBROUTINE
          CALL InitClustSelectorRandom(CS,iNumExcitors,InitWalkers,dProbSelNewExcitor)
       endif
 
-      CALL InitSpawner(S,tExactSpawn,ICILevel)
+      CALL InitSpawner(S,tExactSpawn,nSpawnings,ICILevel)
 
 ! Each cycle we select combinations of excitors randomly, and spawn and birth/die from them
       Iter=1
