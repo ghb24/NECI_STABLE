@@ -2312,7 +2312,7 @@ MODULE GenRandSymExcitNUMod
 
         INTEGER :: i,j ! Loop variables
         INTEGER :: Elec1, Elec2
-        INTEGER :: nI(NEl),nJ(NEl),Elec1Ind,Elec2Ind,ElecIndStore,ExcitMat(2,2),iLutnI(0:NIfTot),SymProduct,SumMl,iSpn
+        INTEGER :: nI(NEl),nJ(NEl),Elec1Ind,Elec2Ind,ElecIndStore,ExcitMat(2,2),iLutnI(0:NIfTot),SymProduct,SumMl,iSpn,rejections
         INTEGER :: ki(3),kj(3),kTrial(3),iElecInExcitRange,iExcludedKFromElec1,iAllowedExcites
         INTEGER :: KaXLowerLimit,KaXUpperLimit,KaXRange,KaYLowerLimit,KaYUpperLimit,KaYRange,KaZLowerLimit,KaZUpperLimit,KaZRange
         LOGICAL :: tParity,tDoubleCount,tExtraPoint
@@ -2432,11 +2432,26 @@ MODULE GenRandSymExcitNUMod
                 write(6,*) "Allowed Excitations", iAllowedExcites
                 CALL Stop_All("CreateExcitLattice","Failure to generate a valid excitation from an electron pair combination")
             ENDIF
+                
+            IF (.true.) THEN
+                rejections=0
+                DO 
+                    rejections=rejections+1
+                    call CreateDoubExcitLattice(nI,iLutnI,nJ,tParity,ExcitMat,pGen,Elec1Ind,Elec2Ind,iSpn)
+                    IF(nJ(1).ne.0) EXIT
+                ENDDO
+                pGen=pGen*(1.0+rejections) !(NEl*(NEl-1))/2.0*rejections!*pgen**2.0*rejections
+                RETURN
+            ENDIF
+
             CALL CreateDoubExcitLattice(nI,iLutnI,nJ,tParity,ExcitMat,pGen,Elec1Ind,Elec2Ind,iSpn)
-            IF (.not.tNoFailAb) RETURN
-            IF (nJ(1).ne.0) EXIT
+            IF (.not.tNoFailAb) RETURN 
+            IF (nJ(1).ne.0) EXIT ! i.e. if we are using the NoFail algorithm only exit on successful nJ(1)!=0
         ENDDO
-        
+       
+        ! ***This part of the code is only used if tNoFailAb is OFF***
+        ! Else the pgen used is from CreateDoubExcitLattice
+
         ! Now calculate pgen
         pAIJ=1.0/(KaXRange*KaYRange*KaZRange-iElecInExcitRange) 
         ! pBIJ is zero for this kind of excitation generator for antiparallel spins
@@ -2450,6 +2465,104 @@ MODULE GenRandSymExcitNUMod
         IF(pAIJ.le.0.0) CALL Stop_All("CreateExcitLattice","pAIJ is less than 0")
 
     END SUBROUTINE CreateExcitLattice
+   
+    ! Attempt at an excitation generator that calculates pgen on the fly
+    ! Based around a very simple generation algorithm: find unique i, j, a, b, then reject
+    ! Currently not working
+    SUBROUTINE CreateExcitLattice2(nI,iLutnI,nJ,tParity,ExcitMat,pGen)
+        
+        Use SystemData , only : G1,NEl,tMerTwist
+        Use SystemData , only : NMAXX,NMAXY,NMAXZ,NIfTot
+        use mt95 , only : genrand_real2
+
+        INTEGER :: i,j ! Loop variables
+        INTEGER :: Elec1, Elec2, Hole1, Hole2,ms_sum,kx,ky,kz,ktest(2)
+        INTEGER :: nI(NEl),nJ(NEl),Elec1Ind,Elec2Ind,ElecIndStore,ExcitMat(2,2),iLutnI(0:NIfTot),SymProduct,SumMl,iSpn,rejections
+        INTEGER :: ki(3),kj(3),kTrial(3),iElecInExcitRange,iExcludedKFromElec1,iAllowedExcites
+        INTEGER :: KaXLowerLimit,KaXUpperLimit,KaXRange,KaYLowerLimit,KaYUpperLimit,KaYRange,KaZLowerLimit,KaZUpperLimit,KaZRange
+        LOGICAL :: tParity,tDoubleCount,tExtraPoint
+        REAL*8 :: r(4),pGen,pAIJ
+        INTEGER, ALLOCATABLE :: Excludedk(:,:)
+        
+
+        rejections=-1
+
+        DO
+            ! Completely random ordering of electrons is important when considering ij->ab ij/->ba. This affects pgens for alpha/beta pairs.
+            IF(tMerTwist) THEN
+                CALL genrand_real2(r(1))
+                Elec1=INT(r(1)*NEl+1)
+                DO
+                    CALL genrand_real2(r(2))
+                    Elec2=INT(r(2)*NEl+1)
+                    IF(Elec2.ne.Elec1) EXIT
+                ENDDO
+            ELSE
+                CALL Stop_All("CreateExcitLattice","Doesn't work with RANLUX")
+            ENDIF
+            Elec1Ind=Elec1
+            Elec2Ind=Elec2
+            Elec1=nI(Elec1Ind)
+            Elec2=nI(Elec2Ind)
+        
+            ! Simply cycle to reject
+            rejections=rejections+1
+
+            IF(tMerTwist) THEN
+                CALL genrand_real2(r(3))
+                Hole1=INT(r(3)*nBasis+1)
+                DO
+                    CALL genrand_real2(r(4))
+                    Hole2=INT(r(4)*nBasis+1)
+                    IF(Hole1.ne.Hole2) EXIT
+                ENDDO
+            ELSE
+                CALL Stop_All("CreateExcitLattice","Doesn't work with RANLUX")
+            ENDIF
+            
+            IF(BTEST(iLutnI((Hole1-1)/32),MOD(Hole1-1,32))) CYCLE
+            IF(BTEST(iLutnI((Hole2-1)/32),MOD(Hole2-1,32))) CYCLE
+        
+            ! Electon collisions
+            IF(Elec1.eq.Hole1) CYCLE
+            IF(Elec1.eq.Hole2) CYCLE
+            IF(Elec2.eq.Hole1) CYCLE
+            IF(Elec2.eq.Hole2) CYCLE
+
+            ! Spin symmetry
+            ms_sum=G1(Elec1)%Ms+G1(Elec2)%Ms-G1(Hole1)%Ms-G1(Hole2)%Ms
+            IF (ms_sum.ne.0) CYCLE
+            
+            CALL FindNewDet(nI,nJ,Elec1Ind,Elec2Ind,Hole1,Hole2,ExcitMat,tParity)
+
+            ! k-point symmetry
+            IF(tHub) THEN
+                kx=0
+                ky=0
+                kz=0
+                ms_sum=0
+                ktest=(/0,0/)
+                do i=1,NEl
+                    kx=kx+G1(nJ(i))%k(1)
+                    ky=ky+G1(nJ(i))%k(2)
+                    kz=kz+G1(nJ(i))%k(3)
+                enddo
+                ktest=(/kx,ky/)
+                CALL MomPbcSym(ktest,nBasisMax)
+                IF(.not.(ktest(1).eq.0.and.ktest(2).eq.0.and.kz.eq.0)) THEN
+                    CYCLE
+                ENDIF
+            ENDIF
+            
+            EXIT
+
+        ENDDO
+
+        pGen=(1.0/(NEl*(NEl-1)))*(1.0/(nBasis*(nBasis-1)))*(1+rejections)
+        IF(pGen.ge.1.0) call stop_all("CreateExcitLattice","Should not have a pgen > 1")
+
+
+    END SUBROUTINE CreateExcitLattice2
 
 END MODULE GenRandSymExcitNUMod
 
@@ -2915,10 +3028,12 @@ lp2: do while(.true.)
                         ExcitMat(2,2)=l
                         CALL FindExcitBitDet(iLut,iLutnJ,2,ExcitMat,NIfTot)
                         WRITE(8,"(I12,F20.12,4I5,I15)") DetNum,AllDoublesHist(i,j,k,l)/(real(Iterations,8)*nProcessors),i,j,k,l,iLutnJ(0)
-                        write(8,*) "#",G1(i)%k(1),G1(i)%k(2)
-                        write(8,*) "#",G1(j)%k(1),G1(j)%k(2)
-                        write(8,*) "#",G1(k)%k(1),G1(k)%k(2)
-                        write(8,*) "#",G1(l)%k(1),G1(l)%k(2)
+                        IF(tHub.or.tUEG) THEN
+                            write(8,*) "#",G1(i)%k(1),G1(i)%k(2)
+                            write(8,*) "#",G1(j)%k(1),G1(j)%k(2)
+                            write(8,*) "#",G1(k)%k(1),G1(k)%k(2)
+                            write(8,*) "#",G1(l)%k(1),G1(l)%k(2)
+                        ENDIF
                     ENDIF
                 enddo
             enddo
