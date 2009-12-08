@@ -232,14 +232,16 @@ CONTAINS
             FDET(I)=NMRKS(I,IFDET)
          ENDDO
          WRITE(6,*) "Fermi Determinant:",IFDET
-         DO I=1,NEL
-             IF(tDefineDet.and.((DefDet(i+NFROZEN)-NFROZEN).ne.FDET(I))) THEN
-                 WRITE(6,"(A)") "*** WARNING - Defined determinant does not match reference determinant in CI matrix ***"
-                 WRITE(6,*) NMRKS(:,IFDET)
-                 WRITE(6,*) DefDet(:)
-                 EXIT
-             ENDIF
-         ENDDO
+         if (tDefineDet) then
+             DO I=1,NEL
+                 IF(DefDet(i+NFROZEN)-NFROZEN.ne.FDET(I)) THEN
+                     WRITE(6,"(A)") "*** WARNING - Defined determinant does not match reference determinant in CI matrix ***"
+                     WRITE(6,*) NMRKS(:,IFDET)
+                     WRITE(6,*) DefDet(:)
+                     EXIT
+                 ENDIF
+             ENDDO
+         ENDIF
          
 
          WRITE(6,*) ' NUMBER OF SYMMETRY UNIQUE DETS ' , NDET

@@ -565,7 +565,7 @@ MODULE FciMCParMod
                         NoExtraInitDoubs=NoExtraInitDoubs+1
                     ELSEIF(tAddtoInitiator.and.(ABS(CurrentSign(j)).gt.InitiatorWalkNo)) THEN
                         ParentInitiator=0
-                        NoAddedInitiators=NoAddedInitiators+1
+                        IF(mod(Iter,StepsSft).eq.0) NoAddedInitiators=NoAddedInitiators+1
                         NoInitDets=NoInitDets+1
                         NoInitWalk=NoInitWalk+(ABS(CurrentSign(j)))
                     ELSE
@@ -587,7 +587,7 @@ MODULE FciMCParMod
                         NoExtraInitDoubs=NoExtraInitDoubs+1
                     ELSEIF(tAddtoInitiator.and.(ABS(CurrentSign(j)).gt.InitiatorWalkNo)) THEN
                         ParentInitiator=0
-                        NoAddedInitiators=NoAddedInitiators+1
+                        IF(mod(Iter,StepsSft).eq.0) NoAddedInitiators=NoAddedInitiators+1
                         NoInitDets=NoInitDets+1
                         NoInitWalk=NoInitWalk+(ABS(CurrentSign(j)))
                     ELSE
