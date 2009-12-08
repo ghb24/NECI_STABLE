@@ -451,7 +451,7 @@ Experimental methods
     **SERIAL** will force NECI to run the serial FCIMC code (which differs
     substantially from the parallel) even if the code was compiled in parallel.
 
-**VERTEX** **CCMC** [**FCI**] [**EXACTCLUSTER**] [**AMPLITUDE**]
+**VERTEX** **CCMC** [**FCI**] [**EXACTCLUSTER**] [**AMPLITUDE**] [**EXACTSPAWN**]
     Perform Monte Carlo calculations over coupled cluster excitation space, which
     is sampled using a series of 'particles' (or 'walkers').
 
@@ -461,14 +461,18 @@ Experimental methods
     must also be specified.
     
     If **FCI** is specified, then the code runs an equivalent of the **VERTEX** **FCIMC**
-    for testing
+    for testing (by only allowing clusters of up to a single excitor, and using (1+T)|D_0>
+    as the wavefunction rather than exp(T)|D_0>
 
     **EXACTCLUSTER** is an exponentially scaling (with number of walkers) algorithm for testing
-    the stochastic sampling.
+    the stochastic sampling, and explicitly attempts spawning from all clusters in the space.
 
     **AMPLITUDE** will enumerate the whole of the allowed space, and assign a floating-point
     amplitude to each excitor.  These amplitudes are stochastically sampled (**INITWALKERS**
     times per MC cycle), and used to propagate the CCMC.
+
+    **EXACTSPAWN** causes spawning to be done exactly - i.e. all allowed connected determinants
+    from a given cluster are spawned to.
 
     Extremely experimental.
 
