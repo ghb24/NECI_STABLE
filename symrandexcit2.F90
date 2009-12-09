@@ -2772,7 +2772,7 @@ SUBROUTINE SpinOrbSymSetup(tRedoSym)
 
     ! This makes a 3D lookup table kPointToBasisFn(kx,ky,ms_index) which gives the orbital number for a given kx, ky and ms_index
     IF(tHub)THEN
-        IF(NMAXZ.ne.0) CALL Stop_All("SpinOrbSymSetup","This routine doesn't work with non-2D Hubbard model")
+        IF(NMAXZ.ne.0.and.MNAXZ.ne.1) CALL Stop_All("SpinOrbSymSetup","This routine doesn't work with non-2D Hubbard model")
         kmaxX=0
         kminX=0
         kmaxY=0
