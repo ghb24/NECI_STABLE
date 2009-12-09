@@ -56,6 +56,7 @@ TYPE Spawner
    INTEGER iMaxExcitLevel !The Max level away from the reference that an excit canbe
 !   INTEGER, allocatable :: nI(:)           !The det from which to spawn
 !   INTEGER, allocatable :: iLutnI(:)       !The det from which to spawn
+   LOGICAL bValid       !Set if a valid det was found
    Type(Cluster), pointer:: C
    INTEGER, allocatable :: Scratch1(:)
    INTEGER, allocatable :: Scratch2(:)
