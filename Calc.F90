@@ -16,7 +16,7 @@ MODULE Calc
           Use DetCalc, only: tEnergy, tRead,tFindDets
           use IntegralsData, only: tNeedsVirts
           use SystemData, only : Beta,nEl
-          use CCMCData, only: dInitAmplitude,dProbSelNewExcitor
+          use CCMCData, only: dInitAmplitude,dProbSelNewExcitor,nSpawnings
           use default_sets
           implicit none
 
@@ -115,6 +115,7 @@ MODULE Calc
           InitWalkers=3000
           dInitAmplitude=1.d0
           dProbSelNewExcitor=0.7d0
+          nSpawnings=1
           NMCyc=2000
           DiagSft=0.D0
           HApp=1
@@ -250,7 +251,7 @@ MODULE Calc
           Use DetCalc, only: tEnergy, tRead,tFindDets
           use IntegralsData, only: tNeedsVirts,NFROZEN
           use UMatCache, only: gen2CPMDInts
-          use CCMCData, only: dInitAmplitude,dProbSelNewExcitor
+          use CCMCData, only: dInitAmplitude,dProbSelNewExcitor,nSpawnings
           use global_utilities
           IMPLICIT NONE
           LOGICAL eof
@@ -744,6 +745,9 @@ MODULE Calc
                 call getf(dInitAmplitude)
             case("CLUSTERSIZEBIAS")
                 call getf(dProbSelNewExcitor)
+            case("NSPAWNINGS")
+!For Amplitude CCMC the number of spawnings for each cluster.
+                call geti(nSpawnings)
             case("NMCYC")
 !For FCIMC, this is the number of MC cycles to perform
                 call geti(NMCyc)
