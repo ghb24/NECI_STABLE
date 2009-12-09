@@ -533,6 +533,7 @@ MODULE FciMCParMod
 !                WRITE(6,*) "Spin of determinant is: ",FDetSpin
 !            ENDIF
 
+
 !Also, we want to find out the excitation level - we only need to find out if its connected or not (so excitation level of 3 or more is ignored.
 !This can be changed easily by increasing the final argument.
 
@@ -646,9 +647,17 @@ MODULE FciMCParMod
             ENDIF
 
             do p=1,Loop
+
 !If rotoannihilating, we are simply looping over all the particles on the determinant
                 nJ(:)=0
                 iLutnJ(:)=0
+
+!Ali wanted this debug line left in: this is an appropriate place to call the histogramming of the excitation generator
+!at least for UEG and Hubbard model. - jjs
+!        write(6,*) "***** DEBUG *****"
+!        CALL TestGenRandSymExcitNU(DetCurr,10000000,0.D0,2,1000000)
+!        STOP
+!            write(6,*) DetCurr
 
                 IF(.not.tImportanceSample) THEN
                     IF(.not.TRegenExcitgens) THEN

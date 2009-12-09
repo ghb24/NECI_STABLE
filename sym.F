@@ -1493,6 +1493,8 @@ C.. We want to include R1=1, so we have one fewer translations in that case.
                T2=-T2
                IF(T2.NE.R2) T2=T2-1
             ENDIF
+C.. The following line conserves the top-right rule for edge effects
+            IF(R1.EQ.T1) T1=T1-1
 C.. Now T2= highest integer less than R2  (i.e. FLOOR)
 C.. Do the translation
             IF(R1.GT.1.D0.OR.R1.LE.0.D0) R1=R1-T1
@@ -1500,6 +1502,7 @@ C.. Do the translation
 C.. Now convert back to the the Coords in the extended brillouin zone (ish)
             R1=(R1-0.5D0)*LENX
             R2=(R2-0.5D0)*LENY
+C.. Now K1 is defined as the re-scaled (R1,R2) vector
             K1(1)=NINT(R1*AX-R2*AY)
             K1(2)=NINT(R1*AY+R2*AX)
          ENDIF
