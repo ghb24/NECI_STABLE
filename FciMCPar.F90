@@ -53,6 +53,7 @@ MODULE FciMCParMod
         use FciMCLoggingMOD , only : PrintTriConnHist,PrintTriConnHElHist,FinaliseBlocking,FinaliseShiftBlocking
         use RotateOrbsMod , only : RotateOrbs
         use NatOrbsMod , only : PrintOrbOccs
+        use CCMC, only:  PerformCCMCCycPar
         TYPE(HDElement) :: Weight,Energyxw
         INTEGER :: i,j,error,HFConn
         CHARACTER(len=*), PARAMETER :: this_routine='FciMCPar'
