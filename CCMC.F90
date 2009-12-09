@@ -1,3 +1,7 @@
+MODULE CCMC
+   IMPLICIT NONE
+   CONTAINS
+
 #include "macros.h"
 ! based on GHB's FciMCPar, this is a version in Coupled Cluster space.
 
@@ -164,7 +168,6 @@
         REAL*8 dNGenComposite  ! The number of ways the composite could've been generated.
 
         REAL*8 dT1Sq
-        INTEGER AttemptDieProbPar
 !        REAL*8 AJWTProjE
         INTEGER iCumlExcits,iLeftHere(nEl)
         INTEGER iCurrentCompositeSize
@@ -965,8 +968,8 @@ SUBROUTINE ResetClustSelector(CS)
    CS%iIndex=0
 END SUBROUTINE ResetClustSelector
 
-LOGICAL FUNCTION GetNextCluster(CS,Dets,nDet,Amplitude,dTotAbsAmpl,iDebug)
-   use CCMCData
+LOGICAL FUNCTION GetNextCluster(CS,Dets,nDet,Amplitude,dTotAbsAmpl,iNumExcitors,iDebug)
+   use CCMCData, only: ClustSelector
    use SystemData, only: nIfTot
    use mt95 , only : genrand_real2
    IMPLICIT NONE
@@ -980,35 +983,61 @@ LOGICAL FUNCTION GetNextCluster(CS,Dets,nDet,Amplitude,dTotAbsAmpl,iDebug)
    REAL*8 dProbNumExcit,dCurTot,r
    INTEGER i,j,k,l
    LOGICAL tDone
+   INTEGER iMaxSize
+   INTEGER iNumExcitors
 
-   CS%iIndex=CS%iIndex+1
-   if(.not.CS%tFull.and.CS%iIndex.gt.CS%nSelects) THEN
-      GetNextCluster=.false.
-      return
-   endif
+   GetNextCluster=.true.
    if(CS%tFull) then
-      if(CS%iMaxSize.eq.1) THEN  !This is easy - we just go through things one by one
-         if(CS%iIndex.le.nDet) THEN
-            if(CS%iIndex.gt.1) then
-               CS%C%iSize=1
-               CS%C%SelectedExcitorIndices(1)=CS%iIndex
-               CS%C%SelectedExcitors(:,1)=Dets(:,CS%iIndex)
-            else
-               CS%C%iSize=0
+      do while(GetNextCluster)
+         CS%iIndex=CS%iIndex+1
+         if(CS%iMaxSize.eq.1) THEN  !This is easy - we just go through things one by one
+            if(CS%iIndex.le.nDet) THEN
+               if(CS%iIndex.gt.1) then
+                  CS%C%iSize=1
+                  CS%C%SelectedExcitorIndices(1)=CS%iIndex
+                  CS%C%SelectedExcitors(:,1)=Dets(:,CS%iIndex)
+               else
+                  CS%C%iSize=0
+               endif
+               GetNextCluster=.true.
+               CS%C%dAmplitude=Amplitude(CS%iIndex)
+! C%dAmplitude is the product of the coefficients of the excitors with the relevant normalizations.
+! i.e. N0  (tI/N0) (tJ/N0) ...
+! Here this amounts to just tI.
+
+               CS%C%dSelectionProb=1
+! C%dSelectionProb is the probability that the cluster was selected in a cycle.
+
+
+
+!Old Stuff
+               CS%C%dNGenComposite=abs(Amplitude(CS%iIndex))
+!               CS%C%dNGenComposite=abs(Amplitude(1))
+               CS%C%dProbNorm=1
+!               CS%C%dProbNorm=(1+iNumExcitors)
+               CS%C%dClusterProb=1
+               CS%C%dClusterNorm=1
+!               if(CS%iIndex.gt.1) THEN
+!                  CS%C%dNGenComposite=CS%C%dNGenComposite*abs(Amplitude(CS%iIndex)/Amplitude(1))
+!                  CS%C%dClusterProb=CS%C%dClusterProb*abs(Amplitude(CS%iIndex)/dTotAbsAmpl)
+!                  CS%C%dClusterNorm=CS%C%dClusterNorm*abs(Amplitude(CS%iIndex)/dTotAbsAmpl)
+!               ENDIF
+!               r=dTotAbsAmpl+Amplitude(1)
+!Amplitude(CS%iIndex)/r
+            ELSE
+               GetNextCluster=.false. 
             endif
-            GetNextCluster=.true.
-            CS%C%dProbNorm=1
-            CS%C%dClusterProb=1
-            r=dTotAbsAmpl+Amplitude(1)
-            CS%C%dNGenComposite=Amplitude(CS%iIndex)/r
-            CS%C%dClusterNorm=1
          ELSE
-            GetNextCluster=.false. 
-         endif
-      ELSE
-         call Stop_All("GetNextCluster","GetNextCluster used for Full enumeration - not yet implemented for clusters.")
-      ENDIF
+            call Stop_All("GetNextCluster","GetNextCluster used for Full enumeration - not yet implemented for clusters.")
+         ENDIF
+         if(CS%C%dNGenComposite.ne.0) exit
+      enddo
    else
+      CS%iIndex=CS%iIndex+1
+      if(CS%iIndex.gt.CS%nSelects) THEN
+         GetNextCluster=.false.
+         return
+      endif
 !  Now pick the cluster
 
 ! Old comments
@@ -1031,7 +1060,7 @@ LOGICAL FUNCTION GetNextCluster(CS,Dets,nDet,Amplitude,dTotAbsAmpl,iDebug)
 !  In fact, we need the contribution of the composite excitor to vary as (HFcount)^-(iCompositeSize-1)
 !    to account for the intermediate normalization.  We make this happen by multiplying the probability of 
 !    having generated the excitor by (HFcount)^(iCompositeSize-1)  (i.e. one HFcount for each level)
-      dProbNumExcit=dProbSelNewExcitor
+      dProbNumExcit=CS%dProbSelNewExcitor
       CS%C%dProbNorm=CS%nSelects
       CS%C%dClusterProb=1
       CS%C%dNGenComposite=abs(Amplitude(1))
@@ -1040,14 +1069,16 @@ LOGICAL FUNCTION GetNextCluster(CS,Dets,nDet,Amplitude,dTotAbsAmpl,iDebug)
 !      iMaxExcit=min(nEl,iNumExcitors)
 !For FCI using amplitudes we only make a single selection
 !      if(tCCMCFCI) iMaxExcit=min(1,iMaxExcit)
-      do i=1,CS%iMaxSize
+      iMaxSize=min(CS%iMaxSize,iNumExcitors)
+      do i=1,iMaxSize
 ! Calculate the probability that we've reached this far in the loop
                   !We must have at least one excitor, so we cannot exit here.
          call genrand_real2(r)  !On GHB's advice
-         if(r.lt.dProbSelNewExcitor) exit
+
+         if(r.lt.CS%dProbSelNewExcitor) exit
 
 ! decide not to choose another walker with this prob.
-         dProbNumExcit=dProbNumExcit*(1-dProbSelNewExcitor)
+         dProbNumExcit=dProbNumExcit*(1-CS%dProbSelNewExcitor)
 ! Select a new random walker
          call genrand_real2(r)  !On GHB's advice
          r=r*dTotAbsAmpl
@@ -1078,8 +1109,8 @@ LOGICAL FUNCTION GetNextCluster(CS,Dets,nDet,Amplitude,dTotAbsAmpl,iDebug)
          CS%C%dClusterNorm=CS%C%dClusterNorm*i*abs(Amplitude(k))/dTotAbsAmpl
       enddo
       IF(iDebug.gt.5) WRITE(6,*) 'prob out of sel routine.',dProbNumExcit
-      if(i.gt.CS%iMaxSize) THEN !We've been limited by the max number of excitations
-         ! Let s be dProbSelNewExcitor, and X be nMaxSelExcitors
+      if(i.gt.iMaxSize) THEN !We've been limited by the max number of excitations
+         ! Let s be CS%dProbSelNewExcitor, and X be nMaxSelExcitors
          !  The sum of all levels from 0 up to X-1 is
          !  s ( 1 - (1-s)^X)/(1-(1-s)) = 1 - (1-s)^X
          !  We take 1-this to be the prob of choosing this level, i.e. (1-s)^X
@@ -1135,6 +1166,7 @@ SUBROUTINE CollapseCluster(C,iLutHF,Amplitude,nDet,iDebug)
 
 END SUBROUTINE CollapseCluster
 
+!Reset a Spawner to use a new (collapsed) Cluster. This takes a pointer to the cluster for reference purposes, so the cluster and any structure it is derived from must have a TARGET attribute.
 SUBROUTINE ResetSpawner(S,C)
    use SymExcit3, only: CountExcitations3
    use CCMCData
@@ -1191,7 +1223,6 @@ LOGICAL FUNCTION GetNextSpawner(S,iDebug)
    INTEGER iDebug
 
    LOGICAL tFilled
-   INTEGER iC
    LOGICAL tParity
    LOGICAL tDone
    tDone=.false.
@@ -1199,19 +1230,18 @@ LOGICAL FUNCTION GetNextSpawner(S,iDebug)
    if(iDebug.gt.4) WRITE(6,*) "GetNextSpawner",S%iIndex
    if(.not.S%tFull) THEN
       if(S%iIndex.gt.S%nSpawnings) THEN
-         WRITE(6,*) "Leaving as >",S%nSpawnings
          GetNextSpawner=.false.
-         return
+      else
+         tFilled=S%iIndex.gt.1     !This is for regenerating excitations from the same determinant multiple times. There will be a time saving if we can store the excitation generators temporarily.
+         CALL GenRandSymExcitScratchNU(S%C%DetCurr,S%C%iLutDetCurr,S%nJ,pDoubles,S%iExcitLevel,S%ExcitMat,tParity,S%exFlag,S%dProbSpawn,S%Scratch1,S%Scratch2,tFilled)
+         GetNextSpawner=.true.
+         S%dProbSpawn=S%dProbSpawn*S%nSpawnings
       endif
-      tFilled=S%iIndex.gt.1     !This is for regenerating excitations from the same determinant multiple times. There will be a time saving if we can store the excitation generators temporarily.
-      CALL GenRandSymExcitScratchNU(S%C%DetCurr,S%C%iLutDetCurr,S%nJ,pDoubles,IC,S%ExcitMat,tParity,S%exFlag,S%dProbSpawn,S%Scratch1,S%Scratch2,tFilled)
-      GetNextSpawner=.true.
-      call WriteDet(6,S%nJ,nEl,.false.)
    ELSE
 !      WRITE(6,*) tDone,S%dProbSpawn
 !      write(6,*) S%ExcitMat,tParity
       CALL GenExcitations3(S%C%DetCurr,S%C%iLutDetCurr,S%nJ,S%exFlag,S%ExcitMat,tParity,tDone)
-      call WriteDet(6,S%nJ,nEl,.false.)
+!      call WriteDet(6,S%nJ,nEl,.false.)
       if(S%ExcitMat(1,2).eq.0) then
          S%iExcitLevel=1
       else
@@ -1335,7 +1365,7 @@ END SUBROUTINE
       USE HElem
       use mt95 , only : genrand_real2
       IMPLICIT NONE
-      REAL*8 Weight,EnergyxW
+      TYPE(HDElement) Weight,EnergyxW
       INTEGER , PARAMETER :: r2=kind(0.d0)
       CHARACTER(len=*), PARAMETER :: this_routine='CCMCStandalone'
       INTEGER ierr
@@ -1376,18 +1406,17 @@ END SUBROUTINE
       REAL*8, allocatable :: dProbClust(:,:)  !(2,nClust)
       REAL*8 dAveTotAbsAmp,dAveNorm
       LOGICAL lLogTransitions
-      INTEGER GetClusterIndex,GetClusterIndLevel
-      LOGICAL GetNextCluster
-      LOGICAL GetNextSpawner
 
       TYPE(ClustSelector),target :: CS
       TYPE(Spawner) S
+
+      INTEGER FakeArray(1),i1,i2
 
       WRITE(6,*) "Entering CCMC Standalone..."
       iDebug=CCMCDebug
 
       WRITE(6,*) "dProbSelNewExcitor: ",dProbSelNewExcitor
-      lLogTransitions=.false.
+      lLogTransitions=.true.
 
       if(lLogTransitions) then
 ! We create a transition matrix where each element correpsonds to a cluster.  We encode cluster X=(a_{X_i}) = (x,y,z)  as an 'bit' string in base Det sum_{i=1}^{|X|} (X_i)*(Det)**(i-1)
@@ -1478,7 +1507,7 @@ END SUBROUTINE
             ENDIF
          enddo
 !  First calculate the energy
-         CALL CalcClusterEnergy(tCCMCFCI,Amplitude(:,iCurAmpList),Det,FciDets,FCIDetIndex)
+         CALL CalcClusterEnergy(tCCMCFCI,Amplitude(:,iCurAmpList),Det,FciDets,FCIDetIndex,HFDet)
 
          IF(iDebug.gt.1) THEN
             WRITE(6,*) "Total non-zero excitors: ",iNumExcitors
@@ -1516,7 +1545,7 @@ END SUBROUTINE
 !  Loop over cluster selections
          dAveProbSel(:)=0
          call ResetClustSelector(CS)
-         do while (GetNextCluster(CS,FciDets,Det,Amplitude(:,iOldAmpList),dTotAbsAmpl,iDebug))
+         do while (GetNextCluster(CS,FciDets,Det,Amplitude(:,iOldAmpList),dTotAbsAmpl,iNumExcitors,iDebug))
             if(iDebug.gt.3) write(6,*) "Selection ",CS%iIndex
             dAveProbSel(CS%C%iSize)=dAveProbSel(CS%C%iSize)+1/CS%C%dProbNorm
 
@@ -1524,7 +1553,7 @@ END SUBROUTINE
             IF(iDebug.gt.3) then
                WRITE(6,*) " Excitors in composite:", CS%C%iSize
                do i=1,CS%C%iSize
-                  write(6,'(I2)',advance='no') int(sign(1.d0,Amplitude(CS%C%SelectedExcitorIndices(i),iOldAmpList)))
+!                  write(6,'(I2)',advance='no') int(sign(1.d0,Amplitude(CS%C%SelectedExcitorIndices(i),iOldAmpList)))
                   call WriteBitEx(6,iLutHF,CS%C%SelectedExcitors(:,i),.true.)
                enddo
                Write(6,*) "Select Prob given level: ",CS%C%dClusterProb
@@ -1555,10 +1584,15 @@ END SUBROUTINE
 
 !GetNextSpawner will generate either all possible spawners sequentially, or a single randomly chosen one (or none at all, if the randomly chosen one is disallowed)
             do while (GetNextSpawner(S,iDebug))
-               write(6,*) -CS%C%iSgn,Tau,S%HIJ%v,CS%C%dNGenComposite,S%dProbSpawn,CS%C%dProbNorm,CS%C%dClusterNorm
-               rat=-CS%C%iSgn*Tau*S%HIJ%v*CS%C%dNGenComposite/(S%dProbSpawn*CS%C%dProbNorm*CS%C%dClusterNorm)
-               if(CS%C%iSize.gt.1) rat=rat*CS%C%iSize  !AJWT DEBUG
-!               if(CS%C%iSize.gt.1) rat=rat  !AJWT DEBUG
+               IF(iDebug.gt.4) THEN
+                  WRITE(6,*) "HIJ: ",S%HIJ
+               ENDIF
+!               write(6,*) -CS%C%iSgn,Tau,S%HIJ%v,CS%C%dNGenComposite,S%dProbSpawn,CS%C%dProbNorm,CS%C%dClusterNorm
+               rat=-CS%C%iSgn*Tau*S%HIJ%v*CS%C%dNGenComposite/(S%dProbSpawn*CS%C%dProbNorm*CS%C%dClusterNorm)  !Old version
+
+! CS%C%dNGenComposite is there so that the change in the amp depends on the current amp.
+
+!               rat=-CS%C%iSgn*Tau*S%HIJ%v*CS%C%dAmplitude/(S%dProbSpawn*CS%C%dSelectionProb)
                IF(iDebug.gt.4.or.((iDebug.eq.3.or.iDebug.eq.4))) THEN
 !We've not printed this out before
                   call WriteBitEx(6,iLutHF,CS%C%iLutDetCurr,.false.)
@@ -1597,12 +1631,15 @@ END SUBROUTINE
                      call Stop_All("CCMCStandalone","Cannot find excitor in list.")
                   endif
                   Amplitude(PartIndex,iCurAmpList)=Amplitude(PartIndex,iCurAmpList)+rat
-                  if(.false..and.lLogTransitions.and.Iter.gt.NEquilSteps) then
-            ! We create a transition matrix where each element correpsonds to a cluster.  We encode cluster X=(a_{X_i}) = (x,y,z)  as an 'bit' string in base Det sum_{i=1}^{|X|} (X_i)*(Det)**(i-1)
-                     dProbTransition(1,1,GetClusterIndex(CS%C%SelectedExcitorIndices(:),CS%C%iSize),GetClusterIndex(PartIndex,1))=dProbTransition(1,1,GetClusterIndex(CS%C%SelectedExcitorIndices(:),CS%C%iSize),GetClusterIndex(PartIndex,1))+rat
-                     dProbTransition(1,2,GetClusterIndex(CS%C%SelectedExcitorIndices(:),CS%C%iSize),GetClusterIndex(PartIndex,1))=dProbTransition(1,2,GetClusterIndex(CS%C%SelectedExcitorIndices(:),CS%C%iSize),GetClusterIndex(PartIndex,1))+1
-                     dProbTransition(2,1,GetClusterIndex(CS%C%SelectedExcitorIndices(:),CS%C%iSize),GetClusterIndex(PartIndex,1))=dProbTransition(2,1,GetClusterIndex(CS%C%SelectedExcitorIndices(:),CS%C%iSize),GetClusterIndex(PartIndex,1))+rat*CS%C%dProbNorm
-                     dProbTransition(2,2,GetClusterIndex(CS%C%SelectedExcitorIndices(:),CS%C%iSize),GetClusterIndex(PartIndex,1))=dProbTransition(2,2,GetClusterIndex(CS%C%SelectedExcitorIndices(:),CS%C%iSize),GetClusterIndex(PartIndex,1))+1*CS%C%dProbNorm
+                  if(lLogTransitions.and.Iter.gt.NEquilSteps) then
+                     i1=GetClusterIndex(CS%C%SelectedExcitorIndices(:),CS%C%iSize)
+                     FakeArray(1)=iPartDie
+                     i2=GetClusterIndex(FakeArray,1)
+                  ! We create a transition matrix where each element correpsonds to a cluster.  We encode cluster X=(a_{X_i}) = (x,y,z)  as an 'bit' string in base Det sum_{i=1}^{|X|} (X_i)*(Det)**(i-1)
+                     dProbTransition(1,1,i1,i2)=dProbTransition(1,1,i1,i2)+rat
+                     dProbTransition(1,2,i1,i2)=dProbTransition(1,2,i1,i2)+1
+                     dProbTransition(2,1,i1,i2)=dProbTransition(2,1,i1,i2)+rat*CS%C%dProbNorm
+                     dProbTransition(2,2,i1,i2)=dProbTransition(2,2,i1,i2)+1*CS%C%dProbNorm
                   endif
                endif
             enddo !GetNextSpawner
@@ -1677,7 +1714,8 @@ END SUBROUTINE
 
 !dProb = 1
 !            rat=Tau*(HDiagCurr-DiagSft)*dClusterNorm*dProb/dProbNorm !(dProb*dProbNorm)
-            rat=Tau*(HDiagCurr-DiagSft)*dProbDecompose/(CS%C%dProbNorm*CS%C%dClusterProb) !(dProb*dProbNorm)
+            rat=Tau*(HDiagCurr-DiagSft)*dProbDecompose/(CS%C%dProbNorm*CS%C%dClusterProb) !(dProb*dProbNorm)  !The old version
+!            rat=Tau*(HDiagCurr-DiagSft)/CS%C%dSelectionProb
             IF(iDebug.ge.4) then
                WRITE(6,*) "Product Contributions to Number Died:"
                WRITE(6,*) "Energy difference: ",HDiagCurr-DiagSft
@@ -1705,12 +1743,15 @@ END SUBROUTINE
 
             r=Amplitude(iPartDie,iOldAmpList)*rat 
             Amplitude(iPartDie,iCurAmpList)=Amplitude(iPartDie,iCurAmpList)-r
-            if(.false..and.lLogTransitions.and.Iter.gt.NEquilSteps) then
+            if(lLogTransitions.and.Iter.gt.NEquilSteps) then
+               i1=GetClusterIndex(CS%C%SelectedExcitorIndices(:),CS%C%iSize)
+               FakeArray(1)=iPartDie
+               i2=GetClusterIndex(FakeArray,1)
             ! We create a transition matrix where each element correpsonds to a cluster.  We encode cluster X=(a_{X_i}) = (x,y,z)  as an 'bit' string in base Det sum_{i=1}^{|X|} (X_i)*(Det)**(i-1)
-                  dProbTransition(1,1,GetClusterIndex(CS%C%SelectedExcitorIndices(:),CS%C%iSize),GetClusterIndex(iPartDie,1))=dProbTransition(1,1,GetClusterIndex(CS%C%SelectedExcitorIndices(:),CS%C%iSize),GetClusterIndex(iPartDie,1))-r
-                  dProbTransition(1,2,GetClusterIndex(CS%C%SelectedExcitorIndices(:),CS%C%iSize),GetClusterIndex(iPartDie,1))=dProbTransition(1,2,GetClusterIndex(CS%C%SelectedExcitorIndices(:),CS%C%iSize),GetClusterIndex(iPartDie,1))+1
-                  dProbTransition(2,1,GetClusterIndex(CS%C%SelectedExcitorIndices(:),CS%C%iSize),GetClusterIndex(iPartDie,1))=dProbTransition(2,1,GetClusterIndex(CS%C%SelectedExcitorIndices(:),CS%C%iSize),GetClusterIndex(iPartDie,1))-r*CS%C%dProbNorm
-                  dProbTransition(2,2,GetClusterIndex(CS%C%SelectedExcitorIndices(:),CS%C%iSize),GetClusterIndex(iPartDie,1))=dProbTransition(2,2,GetClusterIndex(CS%C%SelectedExcitorIndices(:),CS%C%iSize),GetClusterIndex(iPartDie,1))+1*CS%C%dProbNorm
+               dProbTransition(1,1,i1,i2)=dProbTransition(1,1,i1,i2)-r
+               dProbTransition(1,2,i1,i2)=dProbTransition(1,2,i1,i2)+1
+               dProbTransition(2,1,i1,i2)=dProbTransition(2,1,i1,i2)-r*CS%C%dProbNorm
+               dProbTransition(2,2,i1,i2)=dProbTransition(2,2,i1,i2)+1*CS%C%dProbNorm
             endif
 ! The two next lines are the ancien regime
 !            r=iSgn*Tau*(HDiagCurr-DiagSft)*dClusterNorm/dProbNorm !(dProb*dProbNorm)
@@ -1960,9 +2001,10 @@ subroutine WriteDExcitorList(iUnit,Amplitude,Dets,nDet,dTol,Title)
    write(6,*) Title
    do j=1,nDet
       if(abs(Amplitude(j)).ge.dTol) THEN
-         write(iUnit,'(I7,G17.9)',advance='no') j,Amplitude(j)
+         write(iUnit,'(I7,G17.9," ")',advance='no') j,Amplitude(j)
          call WriteBitEx(6,iLutHF,Dets(:,j),.true.)
       ENDIF
    enddo
 endsubroutine WriteDExcitorList
 
+END MODULE CCMC

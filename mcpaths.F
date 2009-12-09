@@ -46,6 +46,7 @@ C.. DLWDB = d ln (wi) / d Beta.
          use Calc, only: TStarTrips
          USE Logging , only : G_VMC_LOGCOUNT
          USE PrecalcData , only : PREIV_MAX,TPREVAR
+         USE CCMC, only: CCMCStandalone
          use global_utilities
          IMPLICIT NONE
          TYPE(BasisFN) :: G1(*),KSYM
