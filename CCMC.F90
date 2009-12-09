@@ -107,7 +107,7 @@ MODULE CCMC
 !Then we go through the list of excitors which should die, and reduce their weight on the list, and remove if necessary.
 !Next we annihilate.
 #ifdef PARALLEL
-    SUBROUTINE PerformCCMCCycPar()
+    SUBROUTINE PerformCCMCCycParInt()
       USe FCIMCParMod
       use CCMCData
       Use Determinants, only: GetHElement3
@@ -851,10 +851,10 @@ MODULE CCMC
         CALL halt_timer(Annihil_Time)
         IF(iDebug.gt.0) WRITE(6,*) "Leaving CCMC Cycle"
         
-    END SUBROUTINE PerformCCMCCycPar
+    END SUBROUTINE PerformCCMCCycParInt
 #else 
-    SUBROUTINE PerformCCMCCycPar()
-    END SUBROUTINE PerformCCMCCycPar
+    SUBROUTINE PerformCCMCCycParInt()
+    END SUBROUTINE PerformCCMCCycParInt
 #endif
 
 
@@ -1092,7 +1092,7 @@ LOGICAL FUNCTION GetNextCluster(CS,Dets,nDet,Amplitude,dTotAbsAmpl,iNumExcitors,
             write(6,*) "Current Total: ",dCurTot
             write(6,*) "Max Total: ", dTotAbsAmpl
             write(6,*) Amplitude
-            CALL Stop_All("CCMCStandalone","Invalid Excitor selected")
+            CALL Stop_All("GetNextCluster","Invalid Excitor selected")
          endif
          IF(iDebug.gt.5) Write(6,*) "Selected excitor",k
          CS%C%SelectedExcitorIndices(i)=k
@@ -1227,7 +1227,7 @@ LOGICAL FUNCTION GetNextSpawner(S,iDebug)
    LOGICAL tDone
    tDone=.false.
    S%iIndex=S%iIndex+1
-   if(iDebug.gt.4) WRITE(6,*) "GetNextSpawner",S%iIndex
+   S%bValid=.false.
    if(.not.S%tFull) THEN
       if(S%iIndex.gt.S%nSpawnings) THEN
          GetNextSpawner=.false.
@@ -1252,8 +1252,13 @@ LOGICAL FUNCTION GetNextSpawner(S,iDebug)
       GetNextSpawner=.not.tDone
       if(tDone) S%nJ(1)=0
    ENDIF
-   if(GetNextSpawner.and..not.IsNullDet(S%nJ)) then  !Check it hasn't given us a null determinant as it couldn't find one in a sensible time.
+   if(GetNextSpawner.and.IsNullDet(S%nJ)) then
+      if(iDebug.gt.4) WRITE(6,*) "GetNextSpawner",S%iIndex
+      if(iDebug.gt.4) WRITE(6,*) "Excitation not found"
+   else if(GetNextSpawner) then  !Check it hasn't given us a null determinant as it couldn't find one in a sensible time.
 !We need to calculate the bit-representation of this new child. This can be done easily since the ExcitMat is known.
+      S%bValid=.true.
+      if(iDebug.gt.4) WRITE(6,*) "GetNextSpawner",S%iIndex
       CALL FindExcitBitDet(S%C%iLutDetCurr,S%iLutnJ,S%iExcitLevel,S%ExcitMat,NIfD)
       IF(iDebug.gt.4) then
           WRITE(6,*) "Random excited det level ",S%iExcitLevel
@@ -1286,9 +1291,10 @@ END FUNCTION GetNextSpawner
 ! ExcitList(0:nIfTot,nExcit)   contains the bit-compressed list of excitors
 ! ExcitLevelIndex(0:nEl+1)     is the index of the first det of each excitation level in ExcitList
 ! HFDet(nEl)                   is the reference determinant on which the excitors are based
-SUBROUTINE CalcClusterEnergy(tFCI,Amplitude,nExcit,ExcitList,ExcitLevelIndex,HFDet)
+SUBROUTINE CalcClusterEnergy(tFCI,Amplitude,nExcit,ExcitList,ExcitLevelIndex)
    use CCMCData
    use SystemData, only: nEl,nIfTot
+   use FciMCData, only: HFDet
    use FciMCParMod, only: iLutHF,SumEContrib
    use Determinants , only : GetHElement3
    use DetBitOps, only: DecodeBitDet
@@ -1298,7 +1304,6 @@ SUBROUTINE CalcClusterEnergy(tFCI,Amplitude,nExcit,ExcitList,ExcitLevelIndex,HFD
    INTEGER nExcit
    INTEGER ExcitList(0:nIfTot,nExcit)
    INTEGER ExcitLevelIndex(0:nEl+1)
-   INTEGER HFDet(nEl)
 
    INTEGER iC,i,j,l,iSgn
    REAL*8 dT1Sq,dAmp,dTmp
@@ -1364,6 +1369,7 @@ END SUBROUTINE
       use CalcData, only: Tau,DiagSft,InitWalkers,NEquilSteps
       USE HElem
       use mt95 , only : genrand_real2
+      use FciMCParMod, only: WriteFciMCStats, WriteFciMCStatsHeader
       IMPLICIT NONE
       TYPE(HDElement) Weight,EnergyxW
       INTEGER , PARAMETER :: r2=kind(0.d0)
@@ -1440,8 +1446,9 @@ END SUBROUTINE
       iNumExcitors=0
       dTotAbsAmpl=Amplitude(1,iCurAmpList)
 
-      iShiftLeft=StepsSft
-      WalkerScale=10000000/dInitAmplitude
+      Call SetupParameters()
+      iShiftLeft=StepsSft-1  !So the first one comes at StepsSft
+      WalkerScale=100000/dInitAmplitude
       TotWalkers=WalkerScale*dTotAbsAmpl
       TotParts=WalkerScale*dTotAbsAmpl
       TotWalkersOld=WalkerScale*dTotAbsAmpl
@@ -1450,8 +1457,9 @@ END SUBROUTINE
       AllTotPartsOld=WalkerScale*dTotAbsAmpl
       dAveTotAbsAmp=0
       dAveNorm=0
-      Call SetupParameters()
       Call InitHistMin() !Setup Histogramming arrays if needed 
+      CALL WriteFciMCStatsHeader()
+      CALL WriteFCIMCStats()
 
       if(tCCMCFCI) THEN
          iNumExcitors=1
@@ -1470,20 +1478,27 @@ END SUBROUTINE
 ! Each cycle we select combinations of excitors randomly, and spawn and birth/die from them
       Iter=1
       do while (Iter.le.NMCyc)
-         if(.false.)  then !DEBUG - reset the list at each stage
-!         if(Iter.eq.1)  then !DEBUG - reset the list at each stage
+         WRITE(6,*) "Shift: ",DiagSft
+!         if(.false.)  then !DEBUG - reset the list at each stage
+!         if(.true.)  then !DEBUG - reset the list at each stage
+         if(Iter.eq.1)  then !DEBUG - reset the list at each stage
          ! Now setup the amplitude list.  Let's start with nothing initially, and
                Amplitude(:,:)=0
          !  place ampl 1 in the HF det
 !               Amplitude(1,iCurAmpList)=dInitAmplitude
 !               iNumExcitors=0
 !               dTotAbsAmpl=Amplitude(1,iCurAmpList)
-               Amplitude(1,iCurAmpList)=0.6446025589307763*dInitAmplitude
-               Amplitude(2,iCurAmpList)=0.47152304662345811*dInitAmplitude
-               Amplitude(3,iCurAmpList)=-0.4681141199719780*dInitAmplitude
-!               Amplitude(4,iCurAmpList)=-0.1184277920308680*dInitAmplitude
-               Amplitude(4,iCurAmpList)=-0.3781834583977567*dInitAmplitude!-0.1184277920308680
-
+               Amplitude(1,iCurAmpList)=0.7766105304008256*dInitAmplitude
+               Amplitude(2,iCurAmpList)=-0.4375219663886841*dInitAmplitude
+               Amplitude(3,iCurAmpList)= 0.4375219663886849*dInitAmplitude
+               Amplitude(4,iCurAmpList)=-0.1184277920308680*dInitAmplitude!-0.1184277920308680
+               r=0
+               do j=1,4
+                  r=r+abs(Amplitude(j,iCurAmpList))
+               enddo
+               do j=1,4
+                  Amplitude(j,iCurAmpList)=Amplitude(j,iCurAmpList)*dInitAmplitude/r
+               enddo
          endif
 ! Copy the old Amp list to the new
          iOldAmpList=iCurAmpList
@@ -1507,7 +1522,7 @@ END SUBROUTINE
             ENDIF
          enddo
 !  First calculate the energy
-         CALL CalcClusterEnergy(tCCMCFCI,Amplitude(:,iCurAmpList),Det,FciDets,FCIDetIndex,HFDet)
+         CALL CalcClusterEnergy(tCCMCFCI,Amplitude(:,iCurAmpList),Det,FciDets,FCIDetIndex)
 
          IF(iDebug.gt.1) THEN
             WRITE(6,*) "Total non-zero excitors: ",iNumExcitors
@@ -1584,6 +1599,7 @@ END SUBROUTINE
 
 !GetNextSpawner will generate either all possible spawners sequentially, or a single randomly chosen one (or none at all, if the randomly chosen one is disallowed)
             do while (GetNextSpawner(S,iDebug))
+               if(.not.S%bValid) cycle
                IF(iDebug.gt.4) THEN
                   WRITE(6,*) "HIJ: ",S%HIJ
                ENDIF
@@ -1633,7 +1649,7 @@ END SUBROUTINE
                   Amplitude(PartIndex,iCurAmpList)=Amplitude(PartIndex,iCurAmpList)+rat
                   if(lLogTransitions.and.Iter.gt.NEquilSteps) then
                      i1=GetClusterIndex(CS%C%SelectedExcitorIndices(:),CS%C%iSize)
-                     FakeArray(1)=iPartDie
+                     FakeArray(1)=PartIndex
                      i2=GetClusterIndex(FakeArray,1)
                   ! We create a transition matrix where each element correpsonds to a cluster.  We encode cluster X=(a_{X_i}) = (x,y,z)  as an 'bit' string in base Det sum_{i=1}^{|X|} (X_i)*(Det)**(i-1)
                      dProbTransition(1,1,i1,i2)=dProbTransition(1,1,i1,i2)+rat
@@ -2008,3 +2024,10 @@ subroutine WriteDExcitorList(iUnit,Amplitude,Dets,nDet,dTol,Title)
 endsubroutine WriteDExcitorList
 
 END MODULE CCMC
+
+#ifdef PARALLEL
+SUBROUTINE PerformCCMCCycPar
+   use CCMC
+   Call PerformCCMCCycParInt()
+end subroutine PerformCCMCCycPar
+#endif
