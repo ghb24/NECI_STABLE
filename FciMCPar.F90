@@ -648,8 +648,6 @@ MODULE FciMCParMod
             do p=1,Loop
 
 !If rotoannihilating, we are simply looping over all the particles on the determinant
-                nJ(:)=0
-                iLutnJ(:)=0
 
 !Ali wanted this debug line left in: this is an appropriate place to call the histogramming of the excitation generator
 !at least for UEG and Hubbard model. - jjs
