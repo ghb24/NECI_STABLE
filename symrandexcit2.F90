@@ -2312,7 +2312,7 @@ MODULE GenRandSymExcitNUMod
 
         INTEGER :: i,j ! Loop variables
         INTEGER :: Elec1, Elec2
-        INTEGER :: nI(NEl),nJ(NEl),Elec1Ind,Elec2Ind,ElecIndStore,ExcitMat(2,2),iLutnI(0:NIfTot),SymProduct,SumMl,iSpn,rejections
+        INTEGER :: nI(NEl),nJ(NEl),Elec1Ind,Elec2Ind,ElecIndStore,ExcitMat(2,2),iLutnI(0:NIfTot),SymProduct,SumMl,iSpn
         INTEGER :: ki(3),kj(3),kTrial(3),iElecInExcitRange,iExcludedKFromElec1,iAllowedExcites
         INTEGER :: KaXLowerLimit,KaXUpperLimit,KaXRange,KaYLowerLimit,KaYUpperLimit,KaYRange,KaZLowerLimit,KaZUpperLimit,KaZRange
         LOGICAL :: tParity,tDoubleCount,tExtraPoint
@@ -2432,18 +2432,6 @@ MODULE GenRandSymExcitNUMod
                 write(6,*) "Allowed Excitations", iAllowedExcites
                 CALL Stop_All("CreateExcitLattice","Failure to generate a valid excitation from an electron pair combination")
             ENDIF
-                
-            IF (.true.) THEN
-                rejections=0
-                DO 
-                    rejections=rejections+1
-                    call CreateDoubExcitLattice(nI,iLutnI,nJ,tParity,ExcitMat,pGen,Elec1Ind,Elec2Ind,iSpn)
-                    IF(nJ(1).ne.0) EXIT
-                ENDDO
-                pGen=pGen*(1.0+rejections) !(NEl*(NEl-1))/2.0*rejections!*pgen**2.0*rejections
-                RETURN
-            ENDIF
-
             CALL CreateDoubExcitLattice(nI,iLutnI,nJ,tParity,ExcitMat,pGen,Elec1Ind,Elec2Ind,iSpn)
             IF (.not.tNoFailAb) RETURN 
             IF (nJ(1).ne.0) EXIT ! i.e. if we are using the NoFail algorithm only exit on successful nJ(1)!=0
@@ -2772,7 +2760,7 @@ SUBROUTINE SpinOrbSymSetup(tRedoSym)
 
     ! This makes a 3D lookup table kPointToBasisFn(kx,ky,ms_index) which gives the orbital number for a given kx, ky and ms_index
     IF(tHub)THEN
-        IF(NMAXZ.ne.0) CALL Stop_All("SpinOrbSymSetup","This routine doesn't work with non-2D Hubbard model")
+        IF(NMAXZ.ne.0.and.NMAXZ.ne.1) CALL Stop_All("SpinOrbSymSetup","This routine doesn't work with non-2D Hubbard model")
         kmaxX=0
         kminX=0
         kmaxY=0
