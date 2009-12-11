@@ -12,9 +12,13 @@ module DetBitOps
     end interface
 
     contains
-    ! This will count the bits set in a bit-string up to a number nBitsMax.
+
+    ! This will count the bits set in a bit-string up to a number nBitsMax, if
+    ! provided.
     ! The function will return 0 -> nBitsMax+1
-    ! Counts bits in integers 0:nLast
+    ! A value of nBitsMax+1 indicates that more bits are set than was expected.
+    ! The total number of set bits can exceed nBitsMax+1, however.
+    ! Counts bits set in integer array (0:nLast)
     integer function CountBits_sparse (iLut, nLast, nBitsMax)
         integer, intent(in), optional :: nBitsMax
         integer, intent(in) :: nLast, iLut(0:nLast)
@@ -24,7 +28,7 @@ module DetBitOps
         if (present(nBitsMax)) then
             lnBitsMax = nBitsMax
         else
-            lnBitsMax = 32 * nLast
+            lnBitsMax = 32 * (nLast+1)
         endif
 
         CountBits_sparse = 0
@@ -40,6 +44,7 @@ module DetBitOps
     end function CountBits_sparse
 
     ! Try counting using a nifty bit of bitwise arithmetic
+    ! See comments for CountBits_sparse.
     integer function Countbits_nifty (iLut, nLast, nBitsMax)
         integer, intent(in), optional :: nBitsMax
         integer, intent(in) :: nLast, iLut(0:nLast)
@@ -49,7 +54,7 @@ module DetBitOps
         if (present(nBitsMax)) then
             lnBitsMax = nBitsMax
         else
-            lnBitsMax = 32 * nLast
+            lnBitsMax = 32 * (nLast+1)
         endif
 
         CountBits_nifty = 0
