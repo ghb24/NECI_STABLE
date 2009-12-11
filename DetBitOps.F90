@@ -435,6 +435,9 @@ end module
         iMaxSize=EX(1,1) 
 
         do i=0,NIfD
+
+            IF(iLutnI(i).eq.iLutnJ(i)) CYCLE 
+
             BitExcitMat(i)=IEOR(iLutnI(i),iLutnJ(i))
             BitCommonOrbs(i)=IAND(iLutnI(i),iLutnJ(i))
             
