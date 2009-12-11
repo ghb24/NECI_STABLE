@@ -157,7 +157,7 @@ MODULE SymExcit3
         USE SymData, only: nSymLabels
         INTEGER :: i,a,nI(NEl),Orbi,Orba,Symi,Finala,iLut(0:NIfTot),nJ(NEl)
         INTEGER :: Orbj,Orbb,NoOcc,k,ExcitMat3(2,2),exflag,SymInd
-        LOGICAL :: tInitOrbsFound,tParity,tAllExcitFound
+        LOGICAL :: tInitOrbsFound,tParity,tAllExcitFound,tEndaOrbs
         INTEGER , SAVE :: OrbiIndex,OrbaIndex,Spini,NewSym,OldSym
 
 !        WRITE(6,*) 'Original Determinant',nI
@@ -219,6 +219,8 @@ MODULE SymExcit3
 
         do while (.not.tInitOrbsFound)
 
+            tEndaOrbs=.false.
+
             IF(OrbiIndex.gt.NEl) THEN
 ! If we've read in the last single, set orbi, orbj, orba, and orbb to 0 and call gendoubleexcit.        
                 IF(exflag.ne.1) THEN
@@ -233,26 +235,39 @@ MODULE SymExcit3
 
 ! To find Orba, take the first in SymLabelList2 with the same symmetry and spin.                
 ! SymLabelCounts2(spin,1,symmetry) gives the index in SymLabelList2 where that spin and symmetry starts.                
-            Orba=SymLabelList2(OrbaIndex)
+            IF(OrbaIndex.gt.nBasis) THEN
+                tEndaOrbs=.true.
+            ELSE
+                Orba=SymLabelList2(OrbaIndex)
+            ENDIF
 
             SymInd=ClassCountInd(Spini,INT(G1(Orbi)%Sym%S,4),0)
 
 ! Need to also make sure orbital a is unoccupied, so make sure the orbital is not in nI.
             NoOcc=0
-            do while (BTEST(iLut((Orba-1)/32),MOD((Orba-1),32))) 
+            do while ((BTEST(iLut((Orba-1)/32),MOD((Orba-1),32))).or.(.not.tEndaOrbs))
 ! While this is true, Orba is occupied, so keep incrementing Orba until it is not.                    
                 NoOcc=NoOcc+1
-                Orba=SymLabelList2(OrbaIndex+NoOcc)
-                IF((OrbaIndex+NoOcc).gt.(SymLabelCounts2(1,SymInd)+SymLabelCounts2(2,SymInd)-1)) EXIT
+                IF(OrbaIndex+NoOcc.gt.nBasis) THEN
+                    !We have reached the end of all a orbitals. Now we need to pick a new i
+                    tEndaOrbs=.true.
+                    EXIT
+                ELSE
+                    Orba=SymLabelList2(OrbaIndex+NoOcc)
+                    IF((OrbaIndex+NoOcc).gt.(SymLabelCounts2(1,SymInd)+SymLabelCounts2(2,SymInd)-1)) EXIT
+                ENDIF
             enddo
 
+            IF(.not.tEndaOrbs) THEN
 ! Then check we have not overrun the symmetry block while skipping the occupied orbitals.                
-            IF(tNoSymGenRandExcits) THEN
-                NewSym=0
-            ELSE
-                NewSym=INT(G1(Orba)%Sym%S,4)
+                IF(tNoSymGenRandExcits) THEN
+                    NewSym=0
+                ELSE
+                    NewSym=INT(G1(Orba)%Sym%S,4)
+                ENDIF
             ENDIF
-            IF(NewSym.eq.Symi) THEN
+
+            IF(NewSym.eq.Symi.and.(.not.tEndaOrbs)) THEN
 ! If not, then these are the new Orbi and Orba.                
                 tInitOrbsFound=.true.
                 OrbaIndex=OrbaIndex+NoOcc
