@@ -16,7 +16,7 @@ MODULE Calc
           Use DetCalc, only: tEnergy, tRead,tFindDets
           use IntegralsData, only: tNeedsVirts
           use SystemData, only : Beta,nEl
-          use CCMCData, only: dInitAmplitude,dProbSelNewExcitor,nSpawnings
+          use CCMCData, only: dInitAmplitude,dProbSelNewExcitor,nSpawnings,tSpawnProp
           use default_sets
           implicit none
 
@@ -116,6 +116,7 @@ MODULE Calc
           dInitAmplitude=1.d0
           dProbSelNewExcitor=0.7d0
           nSpawnings=1
+          tSpawnProp=.false.
           NMCyc=2000
           DiagSft=0.D0
           HApp=1
@@ -251,7 +252,7 @@ MODULE Calc
           Use DetCalc, only: tEnergy, tRead,tFindDets
           use IntegralsData, only: tNeedsVirts,NFROZEN
           use UMatCache, only: gen2CPMDInts
-          use CCMCData, only: dInitAmplitude,dProbSelNewExcitor,nSpawnings
+          use CCMCData, only: dInitAmplitude,dProbSelNewExcitor,nSpawnings,tSpawnProp
           use global_utilities
           IMPLICIT NONE
           LOGICAL eof
@@ -748,6 +749,9 @@ MODULE Calc
             case("NSPAWNINGS")
 !For Amplitude CCMC the number of spawnings for each cluster.
                 call geti(nSpawnings)
+            case("SPAWNPROP")
+!For Amplitude CCMC use NSPAWNINGS as a total number of spawnings, and distribute them according to the Amplitudes of clusters.
+               tSpawnProp=.true.
             case("NMCYC")
 !For FCIMC, this is the number of MC cycles to perform
                 call geti(NMCyc)

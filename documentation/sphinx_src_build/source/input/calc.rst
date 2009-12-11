@@ -1057,6 +1057,10 @@ The following option are only available in **MCSTAR** calculations:
 
    For CCMC, this is the number of spawnings attempted from each cluster (unless **EXACTSPAWN** is specified).  Default 1
 
+**SPAWNPROP**
+   For Amplitude CCMC use NSPAWNINGS as a total number of spawnings, and distribute them according to the Amplitudes of clusters.
+   
+
 Return Path Monte Carlo options
 -------------------------------
 

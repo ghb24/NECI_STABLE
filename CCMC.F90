@@ -1167,18 +1167,20 @@ SUBROUTINE CollapseCluster(C,iLutHF,Amplitude,nDet,iDebug)
 END SUBROUTINE CollapseCluster
 
 !Reset a Spawner to use a new (collapsed) Cluster. This takes a pointer to the cluster for reference purposes, so the cluster and any structure it is derived from must have a TARGET attribute.
-SUBROUTINE ResetSpawner(S,C)
+SUBROUTINE ResetSpawner(S,C,nSpawn)
    use SymExcit3, only: CountExcitations3
    use CCMCData
    use SystemData, only : NIfTot,nEl
    use FciMCData, only: exFlag
    IMPLICIT NONE
    TYPE(Spawner) S
+   INTEGER nSpawn
    Type(Cluster),target :: C
    INTEGER nS,nD
    S%C=>C
    S%iIndex=0
    S%ExcitMat(:,:)=0
+   S%nSpawnings=nSpawn
    if(S%tFull) then
       call CountExcitations3(C%DetCurr,exFlag,nS,nD)
       S%dProbSpawn=1.D0/(nD+nS)
@@ -1187,17 +1189,16 @@ SUBROUTINE ResetSpawner(S,C)
 END SUBROUTINE ResetSpawner
 
 !iMaxExcitLevel is the maximum excitation level in an excitor
-SUBROUTINE InitSpawner(S,tFull,nSpawnings,iMaxExcitLevel)
+SUBROUTINE InitSpawner(S,tFull,iMaxExcitLevel)
    use CCMCData, only: Spawner
    use GenRandSymExcitNUMod , only : ScratchSize
    use SystemData, only : NIfTot,nEl
    IMPLICIT NONE
    TYPE(Spawner) S
    LOGICAL tFull
-   INTEGER iMaxExcitLevel,nSpawnings
+   INTEGER iMaxExcitLevel
    S%tFull=tFull
    S%iMaxExcitLevel=iMaxExcitLevel
-   S%nSpawnings=nSpawnings
    if(.not.tFull) then
       allocate(S%Scratch1(ScratchSize))
       allocate(S%Scratch2(ScratchSize))
@@ -1347,7 +1348,7 @@ END SUBROUTINE
    SUBROUTINE CCMCStandalone(Weight,Energyxw)
       Use global_utilities
       use SystemData, only: nEl,nIfD,nIfTot
-      use CCMCData, only: tCCMCFCI,dInitAmplitude,dProbSelNewExcitor,tExactCluster,tExactSpawn,nSpawnings
+      use CCMCData, only: tCCMCFCI,dInitAmplitude,dProbSelNewExcitor,tExactCluster,tExactSpawn,nSpawnings,tSpawnProp
       use CCMCData, only: ClustSelector,Spawner
       use DetCalc, only: Det       ! The number of Dets/Excitors in FCIDets
       use DetCalc, only: FCIDets   ! (0:NIfTot, Det).  Lists all allowed excitors in compressed form
@@ -1459,7 +1460,7 @@ END SUBROUTINE
       dAveNorm=0
       Call InitHistMin() !Setup Histogramming arrays if needed 
       CALL WriteFciMCStatsHeader()
-      CALL WriteFCIMCStats()
+!      CALL WriteFCIMCStats()
 
       if(tCCMCFCI) THEN
          iNumExcitors=1
@@ -1473,15 +1474,15 @@ END SUBROUTINE
          CALL InitClustSelectorRandom(CS,iNumExcitors,InitWalkers,dProbSelNewExcitor)
       endif
 
-      CALL InitSpawner(S,tExactSpawn,nSpawnings,ICILevel)
+      CALL InitSpawner(S,tExactSpawn,ICILevel)
 
 ! Each cycle we select combinations of excitors randomly, and spawn and birth/die from them
       Iter=1
       do while (Iter.le.NMCyc)
-         WRITE(6,*) "Shift: ",DiagSft
-!         if(.false.)  then !DEBUG - reset the list at each stage
+!         WRITE(6,*) "Shift: ",DiagSft
+         if(.false.)  then !DEBUG - reset the list at each stage
 !         if(.true.)  then !DEBUG - reset the list at each stage
-         if(Iter.eq.1)  then !DEBUG - reset the list at each stage
+!         if(Iter.eq.1)  then !DEBUG - reset the list at each stage
          ! Now setup the amplitude list.  Let's start with nothing initially, and
                Amplitude(:,:)=0
          !  place ampl 1 in the HF det
@@ -1594,8 +1595,14 @@ END SUBROUTINE
             endif
 
 
+            if(tSpawnProp) then
+               i=nSpawnings
+            else
+               i=nSpawnings
+            endif
+            
 !Now consider a number of possible spawning events
-            CALL ResetSpawner(S,CS%C)
+            CALL ResetSpawner(S,CS%C,i)
 
 !GetNextSpawner will generate either all possible spawners sequentially, or a single randomly chosen one (or none at all, if the randomly chosen one is disallowed)
             do while (GetNextSpawner(S,iDebug))
