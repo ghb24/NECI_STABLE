@@ -44,6 +44,7 @@ contains
         character(*), parameter   :: this_routine = 'GenRandSymExcitCSF'
         integer :: Attempts, nopen, ncsf
         logical :: bSingle
+        real*8 :: r
 
         ! Count the open shell electrons
         nopen = count_open_orbs(iLut) 
@@ -81,9 +82,17 @@ contains
             case (4)
                 IC = 2
             case default
-                ! TODO: Pick IC randomly, depending on pSingle/pDouble.
-                !       Options depend on btest of exflag
-                call stop_all (this_routine, "Unsupported excitation mode")
+                call genrand_real2(r)
+                if ((r < pSingle) .and. btest(exFlag, 1)) then
+                    IC = 1
+                else if ((r < pSingle+pDouble) .and. btest(exFlag,2)) then
+                    IC = 2
+                else if (btest(exFlag, 0)) then
+                    IC = 0
+                else
+                    call stop_all (this_routine, "Mismatch between pSingle, &
+                                  &pDouble and exFlag")
+                endif
         end select
 
         ! Do what we need to do
