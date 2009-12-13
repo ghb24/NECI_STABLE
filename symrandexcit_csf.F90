@@ -200,7 +200,7 @@ contains
         pGen = pGen * CSFPickOrbsProb (nI, iLut, CCDblS, CCSglS, CCUnS, &
                                        CCSglDelta, orbsWNoPair, nSing, nVac,&
                                        orbs(2,:), sym, Ml)
-        !pGen = pGen / real(ncsf)
+        pGen = pGen / real(ncsf)
 
         !excitcount = excitcount + 1
         !if (excitcount == 6) call stop_all (this_routine,  "DONE")
@@ -1191,7 +1191,7 @@ contains
         character(*), parameter :: this_routine = 'csf_gen_excits'
         integer :: i, j, k, l, nclosed, elecA, elecB, symA, symB, MlB
         integer :: ind, sym_ind, spn, orb, orb2, numcsfs(-2:2), excit
-        integer :: paircount, orbi, orbj, orbs(2), orb_sym(2), symProd
+        integer :: orbi, orbj, orbs(2), orb_sym(2), symProd
         integer :: ierr, orb3, ExcitMat(2,2), sumMl, syms(2)
         integer :: ncsf_S, ncsf_V, numS, numV, ncsf
         integer :: delta_nopen, lnopen, numB, lnopen2, ndets
@@ -1253,7 +1253,6 @@ contains
             ! We need to iterate through all of the electron _pairs_
             elecA = -1
             elecB = -1
-            paircount = 0
             call csf_gen_elec_pair(nI, iLut, nopen, elecA, elecB, delta_nopen)
             do while (elecA /= -1)
                 orbs(1) = iand(nI(elecA), csf_orbital_mask)
@@ -1324,8 +1323,8 @@ contains
                             endif
                         endif
 
-                        nexcit = nexcit + 1!&
-                                 !num_csf_dets(numcsfs((lnopen2-nopen)/2))
+                        nexcit = nexcit + &
+                                 num_csf_dets(numcsfs((lnopen2-nopen)/2))
                     enddo
                 enddo
 
@@ -1335,7 +1334,6 @@ contains
             enddo
         endif
 
-        !nexcit = paircount
         if (present(nJ)) then
             ! Allocate the required memory
             allocate(nJ(nexcit,nel), csf0(numcsfs(0),nopen), stat=ierr)
@@ -1583,7 +1581,6 @@ contains
                                             delta_nopen)
                 enddo
             endif
-            !print*, 'total excits generated', excit-1
 
             ! Clear up
             if (allocated(csf0)) deallocate (csf0)
@@ -1671,7 +1668,7 @@ contains
         pYama = 1 - pSingle - pDouble
 
         ! Enumerate all possible excitations
-        bTestList = .false.
+        bTestList = .true.
         if (bTestList) then
             call csf_gen_excits (nI, iLut, nopen, exFlag, CCDbl, &
                             CCSgl, CCUn, CCDblS, CCSglS, CCUnS, nexcit, nK)
@@ -1790,8 +1787,7 @@ contains
         do i=1,nbasis
             do j=1,nbasis
                 if (AllSinglesHist(i,j) > 0) then
-                    write(9,*)AllSinglesHist(i,j)/real(iterations*nProcessors)
-                    pGen = AllSinglesHist(i,j)/real(iterations*nProcessors)
+                    write(9,*) AllSinglesHist(i,j)/real(iterations*nProcessors)
                 endif
             enddo
         enddo
@@ -1805,8 +1801,7 @@ contains
                     do l=k+1,nbasis
                         if (AllDoublesHist(i,j,k,l) > 0) then
                             write(9,*) AllDoublesHist(i,j,k,l) / &
-                                           real(iterations*nprocessors), &
-            is_in_pair(i, j), is_in_pair(k, l)
+                                           real(iterations*nprocessors)
                         endif
                     enddo
                 enddo
