@@ -408,65 +408,36 @@ contains
         integer, intent(in) :: CCSglDelta (ScratchSize/2)
         integer, intent(in) :: nSing, nVac
         real*8 :: p
-        integer :: numB, permutations, orbA, orbB, symB, MlB, sym_ind, i
-        integer :: inds(2)
-
-        forall(i=1:2) inds(i) = CCIndS(sym(i), Ml(i))
-
-        if (is_in_pair(orbs(1), orbs(2))) then
-            p = 1 / real(nSing + nVac - orbsWNoPair)
-            p = p / real(CCUnS(inds(2)) + CCSglS(inds(2)) + &
-                         CCSglDelta(inds(2)))
-        else
-            p = 1 / real(CCUnS(inds(1)) + CCSglS(inds(1)) + &
-                         CCSglDelta(inds(1)))
-            p = p + (1 / real(CCUnS(inds(2)) + CCSglS(inds(2)) + &
-                             CCSglDelta(inds(2))))
-            p = p / real(nSing + nVac - orbsWNoPair)
-        endif
-        CSFPickOrbsProb = p
-
+        integer :: numB, permutations, orbA, symB, MlB, sym_ind, i
 
         ! Consider the possibility of generating this either way around
         ! (The alternative was to restrict orbB > orbA, and throw away
         !  some of the random numbers)
-        !permutations = 2
-        !if (is_in_pair(orbs(1), orbs(2))) permutations = 1
-        !print*, 'sym', sym(1), sym(2)
-        !print*, 'ml', ml(1), ml(2)
-        !print*, 'orbs', orbs(1), orbs(2)
-        !print*, 'nsing, vac, nopair', nSing, nVac, orbsWNoPair
-        !print*, 'permutations', permutations
+        permutations = 2
+        if (is_in_pair(orbs(1), orbs(2))) permutations = 1
 
-        !print*, 'ccsgls', ccsgls
-        !print*, 'ccuns', ccuns
+        CSFPickOrbsProb = 0
+        do i=1,permutations
+            orbA = orbs(i)
+            symB = sym(3-i)
+            MlB = Ml(3-i)
 
-        !CSFPickOrbsProb = 0
-        !do i=1,permutations
-        !    orbA = orbs(i)
-        !    orbB = orbs(3-i)
-        !    symB = sym(3-i)
-        !    MlB = Ml(3-i)
+            ! Number of available B orbitals given A
+            sym_ind = CCIndS(symB, MlB)
+            numB = CCUnS(sym_ind) + CCSglS(sym_ind) + CCSglDelta(sym_ind)
+            if (sym(2) == sym(1) .and. IsOcc (ilut, ibclr(orbA-1,0)+1)) then
+                numB = numB - 1
+            endif
 
-        !    ! Probability of picking first orbital
-        !    p = 1 / real (nSing + nVac - orbsWNoPair)
+            ! Total probability of picking A-B
+            p = 1 / real(numB)
 
-        !    ! Number of available B orbitals given A
-        !    ! TODO: if exciting from single, reduce numA and numB!!!
-        !    !       (numA should be taken care of w/ orbsWNoExcit)
-        !    sym_ind = CCIndS(symB, MlB)
-        !    numB = CCUnS(sym_ind) + CCSglS(sym_ind)! + CCSglDelta(sym_ind)
-        !    if (sym(2) == sym(1) .and. IsOcc (ilut, ibclr(orbA-1,0)+1)) then
-        !        numB = numB - 1
-        !    endif
-        !    !print*, 'perm', i, 'numb', numb
+            ! Add contribution for this permutation.
+            CSFPickOrbsProb = CSFPickOrbsProb + p
+        enddo
 
-        !    ! Total probability of picking A-B
-        !    p = p * (1 / real(numB))
-
-        !    ! Add contribution for this permutation.
-        !    CSFPickOrbsProb = CSFPickOrbsProb + p
-        !enddo
+        ! Probability of picking first orbital
+        CSFPickOrbsProb = CSFPickOrbsProb  / real(nSing + nVac - orbsWNoPair)
     end function
 
     ! Pick an electron pair randomly, which is allowed for a double excit.
@@ -1618,18 +1589,19 @@ contains
 
         print*, 'Starting determinant:'
         call writedet(6, nI, nel, .true.)
+        call TestGenRandSymCSFExcit (nI, 1000000, 0.d4, 0.d5, 7, 10000)
 
         ! Obtain the orbital symmetries for the following steps
         call ConstructClassCounts(nI, nel-nopen, CCDbl, CCSgl, CCUn)
         call ConstructClasscountsSpacial(nI, nel-nopen, CCDblS, CCSglS, CCUnS)
 
         ! Enumerate all possible excitations
-        call csf_gen_excits (nI, iLut, nopen, 2, CCDbl, CCSgl,&
+        call csf_gen_excits (nI, iLut, nopen, 7, CCDbl, CCSgl,&
                              CCUn, CCDblS, CCSglS, CCUnS, nexcit, nK)
         print*, 'Excitations'
         do i=1,nexcit
             call writedet(6, nK(i,:), nel, .true.)
-            call TestGenRandSymCSFExcit (nK(i,:), 1000000, 1.d0, 0.d0, 2 &
+            call TestGenRandSymCSFExcit (nK(i,:), 1000000, 0.d4, 0.d5, 7 &
                                          ,10000)
         enddo
         deallocate(nK)
