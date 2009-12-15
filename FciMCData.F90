@@ -228,6 +228,7 @@ MODULE FciMCData
       REAL*8 :: AvDiagSft,SumDiagSft                !This is the average diagonal shift value since it started varying, and the sum of the shifts since it started varying.
 
       REAL*8 , ALLOCATABLE :: HistHamil(:,:),AllHistHamil(:,:),AvHistHamil(:,:),AllAvHistHamil(:,:) !These arrays are for histogramming the hamiltonian when tHistHamil is set.
+      REAL*8 :: TotImagTime
 
 
 END MODULE FciMCData

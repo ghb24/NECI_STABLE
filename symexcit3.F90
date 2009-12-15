@@ -119,7 +119,7 @@ MODULE SymExcit3
 ! ExcitMat3 holds the orbitals involved in the excitation.
 ! If an excitation matrix of 0's is passed through, the first single or double is found.
 ! After this, the routine reads in the ExcitMat and finds the next excitation after this.
-! ExcitMat(1,*) are the **indices** in the determinant to vacate from nI (the i,j pair)
+! ExcitMat(1,*) are the orbitals in the determinant to vacate from nI (the i,j pair)
 ! ExcitMat(2,*) are the orbitals to occupy in nJ (the a,b pair) (not the index, but the actual orbital)
 ! If tParity is true, two orbitals need to be switched in order to better represent the excitation, therefore a 
 ! negative sign must be included when finding the H element.
@@ -143,6 +143,13 @@ MODULE SymExcit3
 
         ENDIF
 
+!        IF(ExcitMat3(2,2).eq.0) THEN
+!            WRITE(6,"(A,I3,A,I3,L)") "GENERATED SINGLE EXCITATION: ",ExcitMat3(1,1)," -> ",ExcitMat3(2,1),tAllExcitFound
+!        ELSE
+!            WRITE(6,"(A,2I3,A,2I3,L)") "GENERATED DOUBLE EXCITATION: ",ExcitMat3(1,1),ExcitMat3(1,2)," -> ",ExcitMat3(2,1),ExcitMat3(2,2),tAllExcitFound
+!        ENDIF
+
+
 
     ENDSUBROUTINE GenExcitations3
 
@@ -156,15 +163,17 @@ MODULE SymExcit3
 ! becomes true and no more excitations are generated.
         USE SymData, only: nSymLabels
         INTEGER :: i,a,nI(NEl),Orbi,Orba,Symi,Finala,iLut(0:NIfTot),nJ(NEl)
-        INTEGER :: Orbj,Orbb,NoOcc,k,ExcitMat3(2,2),exflag,SymInd
-        LOGICAL :: tInitOrbsFound,tParity,tAllExcitFound
+        INTEGER :: Orbj,Orbb,NoOcc,k,ExcitMat3(2,2),exflag,SymInd,Spina
+        LOGICAL :: tInitOrbsFound,tParity,tAllExcitFound,tEndaOrbs
         INTEGER , SAVE :: OrbiIndex,OrbaIndex,Spini,NewSym,OldSym
 
 !        WRITE(6,*) 'Original Determinant',nI
+!        WRITE(6,*) "SymLabelList2(:)",SymLabelList2(:)
 
         tInitOrbsFound=.false.
         Orbi=ExcitMat3(1,1)
         Orba=ExcitMat3(2,1)
+!        WRITE(6,*) "Getting single",OrbiIndex,OrbaIndex,Orbi,Orba
 
         IF((Orbi.eq.0).or.(Orba.eq.0)) THEN           ! Want to find the first excitation.
 
@@ -219,6 +228,9 @@ MODULE SymExcit3
 
         do while (.not.tInitOrbsFound)
 
+
+            tEndaOrbs=.false.
+
             IF(OrbiIndex.gt.NEl) THEN
 ! If we've read in the last single, set orbi, orbj, orba, and orbb to 0 and call gendoubleexcit.        
                 IF(exflag.ne.1) THEN
@@ -233,26 +245,44 @@ MODULE SymExcit3
 
 ! To find Orba, take the first in SymLabelList2 with the same symmetry and spin.                
 ! SymLabelCounts2(spin,1,symmetry) gives the index in SymLabelList2 where that spin and symmetry starts.                
-            Orba=SymLabelList2(OrbaIndex)
+            IF(OrbaIndex.gt.nBasis) THEN
+                tEndaOrbs=.true.
+            ELSE
+                tEndaOrbs=.false.
+                Orba=SymLabelList2(OrbaIndex)
+            ENDIF
 
             SymInd=ClassCountInd(Spini,INT(G1(Orbi)%Sym%S,4),0)
 
 ! Need to also make sure orbital a is unoccupied, so make sure the orbital is not in nI.
             NoOcc=0
-            do while (BTEST(iLut((Orba-1)/32),MOD((Orba-1),32))) 
+            IF(.not.tEndaOrbs) THEN
+                do while (BTEST(iLut((Orba-1)/32),MOD((Orba-1),32)))
 ! While this is true, Orba is occupied, so keep incrementing Orba until it is not.                    
-                NoOcc=NoOcc+1
-                Orba=SymLabelList2(OrbaIndex+NoOcc)
-                IF((OrbaIndex+NoOcc).gt.(SymLabelCounts2(1,SymInd)+SymLabelCounts2(2,SymInd)-1)) EXIT
-            enddo
-
-! Then check we have not overrun the symmetry block while skipping the occupied orbitals.                
-            IF(tNoSymGenRandExcits) THEN
-                NewSym=0
-            ELSE
-                NewSym=INT(G1(Orba)%Sym%S,4)
+                    NoOcc=NoOcc+1
+                    IF(OrbaIndex+NoOcc.gt.nBasis) THEN
+                        !We have reached the end of all a orbitals. Now we need to pick a new i
+                        tEndaOrbs=.true.
+                        EXIT
+                    ELSE
+                        Orba=SymLabelList2(OrbaIndex+NoOcc)
+                        IF((OrbaIndex+NoOcc).gt.(SymLabelCounts2(1,SymInd)+SymLabelCounts2(2,SymInd)-1)) EXIT
+                    ENDIF
+                enddo
             ENDIF
-            IF(NewSym.eq.Symi) THEN
+
+            IF(.not.tEndaOrbs) THEN
+! Then check we have not overrun the symmetry block while skipping the occupied orbitals.                
+                IF(tNoSymGenRandExcits) THEN
+                    NewSym=0
+                ELSE
+                    NewSym=INT(G1(Orba)%Sym%S,4)
+                ENDIF
+                IF((G1(Orba)%Ms).eq.-1) Spina=2  
+                IF((G1(Orba)%Ms).eq.1) Spina=1  
+            ENDIF
+
+            IF(NewSym.eq.Symi.and.(Spina.eq.Spini).and.(.not.tEndaOrbs)) THEN
 ! If not, then these are the new Orbi and Orba.                
                 tInitOrbsFound=.true.
                 OrbaIndex=OrbaIndex+NoOcc
@@ -275,13 +305,9 @@ MODULE SymExcit3
 
         enddo
 
+
         IF(ExcitMat3(1,2).eq.0) CALL FindNewSingDet(nI,nJ,OrbiIndex,OrbA,ExcitMat3,tParity)
             
-!        WRITE(6,*) 'Excitation is from :',ExcitMat3(1,1),' to ',ExcitMat3(2,1)
-!        CALL FLUSH(6)
-!        WRITE(6,*) 'The new determinant is :',nJ(:)
-
-
     ENDSUBROUTINE GenSingleExcit
 
 
@@ -295,7 +321,7 @@ MODULE SymExcit3
         USE GenRandSymExcitNUMod , only: PickElecPair,FindNewDet 
         INTEGER :: nI(NEl),iLut(0:NIfTot),Orbj,Orbi,Orba,Orbb,OrbbSpin,Syma,Symb,NewSym,SymInd
         INTEGER :: Elec1Ind,Elec2Ind,SymProduct,iSpn,Spinb,nJ(NEl),i,k,ExcitMat3(2,2),SumMl
-        INTEGER , SAVE :: ijInd,OrbaIndex,OrbbIndex,Spina
+        INTEGER , SAVE :: ijInd,OrbaChosen,OrbbIndex,Spina
         LOGICAL :: tDoubleExcitFound,tFirsta,tFirstb,tNewij,tNewa,tAllExcitFound,tParity
 
         tDoubleExcitFound=.false.
@@ -307,7 +333,6 @@ MODULE SymExcit3
         Orba=ExcitMat3(2,1)
         Orbb=ExcitMat3(2,2)
 !        WRITE(6,*) 'Orbi,Orbj,Orba,Orbb',Orbi,Orbj,Orba,Orbb
-!        CALL FLUSH(6)
 
         do while (.not.tDoubleExcitFound)
 
@@ -335,39 +360,54 @@ MODULE SymExcit3
                 IF(tFirsta) THEN                    
 ! If this is the first double we are picking with this ij, we start with the alpha spin, unless i and j are both beta.
 ! There is no restriction on the symmetry for orbital a - although clearly the symmetry we pick determins b.
+!                    WRITE(6,*) "iSpn",iSpn
                     IF(iSpn.eq.1) THEN
+                        !beta beta pair
                         Spina=2
-                        OrbaIndex=2
-                    ELSE
+                        !Want to start at the first beta orbital
+                        OrbaChosen=1
+                    ELSEIF(iSpn.eq.3) THEN
+                        !alpha alpha pair
                         Spina=1
-                        OrbaIndex=1
+                        OrbaChosen=2
+                    ELSE
+                        Spina=2
+                        OrbaChosen=1
                     ENDIF
                 ENDIF
 
 ! If it is not the first, we have stored the previous spina and orba index - need to start with these and see                
 ! if any more double remain.
-                Orba=SymLabelList2(OrbaIndex)
+                Orba=OrbaChosen
+!                WRITE(6,*) "Chosen index, orbital for a: ",OrbaChosen,Orba
 
 ! The orbital chosen must be unoccupied.  This is just a test to make sure this is the case.
                 do while (BTEST(iLut((Orba-1)/32),MOD((Orba-1),32))) 
+!                    WRITE(6,*) "Orbital a occupied"
 
 ! If not, we move onto the next orbital.                    
                     IF(iSpn.ne.2) THEN
 !Increment by two, since we want to look at the same spin state.
-                        OrbaIndex=OrbaIndex+2
+                        OrbaChosen=OrbaChosen+2
                     ELSE
 !Increment by one, since we want to look at both alpha and beta spins.
-                        OrbaIndex=OrbaIndex+1
+                        OrbaChosen=OrbaChosen+1
+                        IF(Spina.eq.2) THEN
+                            Spina=1
+                        ELSE
+                            Spina=2
+                        ENDIF
                     ENDIF
 
-                    IF(OrbaIndex.gt.ScratchSize) THEN
+                    IF(Orba.gt.nBasis) THEN
 !We have reached the end of all allowed symmetries for the a orbital, only taking into account spin symmetry. Choose new ij pair now.
                         tNewij=.true.
                         EXIT
                     ENDIF
 
 ! Otherwise the new orbital a is the first unoccupied orbital of allowed symmetry etc.                    
-                    Orba=SymLabelList2(OrbaIndex)
+                    Orba=OrbaChosen
+!                    WRITE(6,*) "Chosen index, orbital for a: ",OrbaChosen,Orba
                 enddo
 
 ! If we have got to the end of the a orbitals, and need a new i,j pair, we increment ijInd and check
@@ -382,10 +422,10 @@ MODULE SymExcit3
                     EXIT
                 ENDIF
 
-
                 tNewa=.false.
                 !Find a b
                 do while ((.not.tNewa).and.(.not.tDoubleExcitFound))
+
 
 ! We now have i,j,a and we just need to pick b.
 ! First find the spin of b.
@@ -394,8 +434,11 @@ MODULE SymExcit3
                     ELSEIF(iSpn.eq.3) THEN
                         Spinb=1
                     ELSE
-                        IF(Spina.eq.1) Spinb=2
-                        IF(Spina.eq.2) Spinb=1
+                        IF(Spina.eq.1) THEN
+                            Spinb=2
+                        ELSE
+                            Spinb=1
+                        ENDIF
                     ENDIF
 ! Then find the symmetry of b.
                     IF(tNoSymGenRandExcits) THEN
@@ -405,13 +448,15 @@ MODULE SymExcit3
                     ENDIF
                     Symb=IEOR(Syma,SymProduct)
 
+!                    WRITE(6,*) "SymLabelList2:" ,SymLabelList2(1:nBasis)
+
 ! If this is the first time we've picked an orbital b for these i,j and a, begin at the start of the symmetry block.
 ! Otherwise pick up where we left off last time.
                     IF(tFirstb) THEN
                         OrbbIndex=SymLabelCounts2(1,ClassCountInd(Spinb,Symb,0))
                     ELSE
-!Update new orbital b index - we want to keep the same spin, and since the orbitals alternate alpha/beta, we increment by two.
-                        OrbbIndex=OrbbIndex+2
+!Update new orbital b index
+                        OrbbIndex=OrbbIndex+1
                     ENDIF
 
 ! If the new b orbital is still within the limits, check it is unoccupied and move onto the next orbital if it is.                    
@@ -427,7 +472,7 @@ MODULE SymExcit3
                     ENDIF
 
                     IF(.not.tNewa) THEN
-                        IF(OrbbIndex.eq.(SymLabelCounts2(1,SymInd)+SymLabelCounts2(2,SymInd)-1)) THEN
+                        IF(OrbbIndex.gt.(SymLabelCounts2(1,SymInd)+SymLabelCounts2(2,SymInd)-1)) THEN
 ! If we have already gone beyond the symmetry limits by choosing the next b orbital, pick a new a orbital.                        
                             tNewa=.true.
                         ELSE
@@ -441,8 +486,8 @@ MODULE SymExcit3
                                     EXIT
                                 ENDIF
 
-                                !Update new orbital b index - we want to keep the same spin, and since the orbitals alternate alpha/beta, we increment by two.
-                                OrbbIndex=OrbbIndex+2
+                                !Update new orbital b index
+                                OrbbIndex=OrbbIndex+1
                                 Orbb=SymLabelList2(OrbbIndex)
                             enddo
                         ENDIF
@@ -452,13 +497,18 @@ MODULE SymExcit3
                     IF(tNewa) THEN
                         IF(iSpn.ne.2) THEN
 !Increment by two, since we want to look at the same spin state.
-                            OrbaIndex=OrbaIndex+2
+                            OrbaChosen=OrbaChosen+2
                         ELSE
 !Increment by one, since we want to look at both alpha and beta spins.
-                            OrbaIndex=OrbaIndex+1
+                            IF(Spina.eq.1) THEN
+                                Spina=2
+                            ELSE
+                                Spina=1
+                            ENDIF
+                            OrbaChosen=OrbaChosen+1
                         ENDIF
                         tFirstb=.true.
-                        IF(OrbaIndex.gt.ScratchSize) THEN
+                        IF(OrbaChosen.gt.nBasis) THEN
 !We have reached the end of all allowed symmetries for the a orbital, only taking into account spin symmetry. Choose new ij pair now.
                             tNewij=.true.
                             ijInd=ijInd+1

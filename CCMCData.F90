@@ -9,6 +9,7 @@ module CCMCData
    logical  tAmplitudes    ! Use real numbers to indicate the amplitudes rather than stochastically sampling
    real*8   dInitAmplitude ! Specify the initial amplitude for use in CCMC amplitude calculations.
    real*8   dProbSelNewExcitor !The probability that the cluster selection algorithm terminates after each addition of an excitor.
+   LOGICAL  tSpawnProp     ! Set if we use spawning proportional to the cluster amplitude rather than equally
 
 !This contains information as to a chosen Cluster
 TYPE Cluster 

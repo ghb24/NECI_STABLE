@@ -648,8 +648,6 @@ MODULE FciMCParMod
             do p=1,Loop
 
 !If rotoannihilating, we are simply looping over all the particles on the determinant
-                nJ(:)=0
-                iLutnJ(:)=0
 
 !Ali wanted this debug line left in: this is an appropriate place to call the histogramming of the excitation generator
 !at least for UEG and Hubbard model. - jjs
@@ -818,7 +816,15 @@ MODULE FciMCParMod
                         SpawnFromSing=SpawnFromSing+abs(Child)
                     ENDIF
 
-                    IF(abs(Child).gt.25) THEN
+                    IF(tAddtoInitiator.and.(abs(Child).gt.InitiatorWalkNo)) THEN
+                        IF(abs(Child).gt.abs(iPartBloom)) THEN
+                            IF(IC.eq.1) THEN
+                                iPartBloom=-abs(Child)
+                            ELSE
+                                iPartBloom=abs(Child)
+                            ENDIF
+                        ENDIF
+                    ELSEIF(abs(Child).gt.25) THEN
 !If more than 25 particles are created in one go, then log this fact and print out later that this has happened.
                         IF(abs(Child).gt.abs(iPartBloom)) THEN
                             IF(IC.eq.1) THEN
@@ -828,9 +834,6 @@ MODULE FciMCParMod
                             ENDIF
                         ENDIF
 !                        WRITE(6,"(A,I10,A)") "LARGE PARTICLE BLOOM - ",Child," particles created in one attempt."
-!                        WRITE(6,"(A,I5)") "Excitation: ",IC
-!                        WRITE(6,"(A,G25.10)") "PROB IS: ",Prob
-!                        CALL FLUSH(6)
                     ENDIF
 
                     IF(tRotoAnnihil) THEN
@@ -1157,7 +1160,11 @@ MODULE FciMCParMod
 
 !Output if there has been a particle bloom this iteration. A negative number indicates that particles were created from a single excitation.
         IF((iPartBloom.ne.0).and.(iProcIndex.eq.0)) THEN
-            WRITE(6,"(A,I10,A)") "LARGE PARTICLE BLOOMS in iteration ",Iter
+            IF(tAddtoInitiator) THEN
+                WRITE(6,"(A,I10,A)") "Particle Blooms of more than 'n_add' in iteration ",Iter
+            ELSE
+                WRITE(6,"(A,I10,A)") "LARGE Particle Blooms in iteration ",Iter
+            ENDIF
             IF(iPartBloom.gt.0) THEN
                 WRITE(6,"(A,I10,A)") "A max of ",abs(iPartBloom)," particles created in one attempt from double excit."
             ELSE
@@ -1335,6 +1342,8 @@ MODULE FciMCParMod
         REAL*8 :: TempSumNoatHF,MeanWalkers,TempSumWalkersCyc,TempAllSumWalkersCyc,TempNoMinorWalkers
         REAL*8 :: inpairreal(3),outpairreal(3)
         LOGICAL :: TBalanceNodesTemp
+
+        TotImagTime=TotImagTime+StepsSft*Tau
         
         IF(TSinglePartPhase) THEN
 !Exit the single particle phase if the number of walkers exceeds the value in the input file.
@@ -1814,15 +1823,15 @@ MODULE FciMCParMod
 
 !Set the maximum number of walkers allowed
             MaxWalkersPart=NINT(MemoryFacPart*InitWalkers)
-            WRITE(6,"(A,F14.5)") "Memory Factor for walkers is: ",MemoryFacPart
+!            WRITE(6,"(A,F14.5)") "Memory Factor for walkers is: ",MemoryFacPart
             WRITE(6,"(A,I14)") "Memory allocated for a maximum particle number per node of: ",MaxWalkersPart
             IF(tRotoAnnihil.or.tDirectAnnihil) THEN
                 MaxSpawned=NINT(MemoryFacSpawn*InitWalkers)
-                WRITE(6,"(A,F14.5)") "Memory Factor for arrays used for spawning is: ",MemoryFacSpawn
-                WRITE(6,"(A,I14)") "Memory allocated for a maximum particle number per node for spawning of: ",MaxSpawned
+!                WRITE(6,"(A,F14.5)") "Memory Factor for arrays used for spawning is: ",MemoryFacSpawn
+!                WRITE(6,"(A,I14)") "Memory allocated for a maximum particle number per node for spawning of: ",MaxSpawned
             ELSE
                 MaxWalkersAnnihil=NINT(MemoryFacAnnihil*InitWalkers)
-                WRITE(6,"(A,F14.5)") "Memory Factor for arrays used for annihilation is: ",MemoryFacAnnihil
+!                WRITE(6,"(A,F14.5)") "Memory Factor for arrays used for annihilation is: ",MemoryFacAnnihil
                 WRITE(6,"(A,I14)") "Memory allocated for a maximum particle number per node for annihilation of: ",MaxWalkersAnnihil
             ENDIF
 
@@ -3324,15 +3333,15 @@ MODULE FciMCParMod
         ENDIF
 !Set the maximum number of walkers allowed
         MaxWalkersPart=NINT(MemoryFacPart*InitWalkers)
-        WRITE(6,"(A,F14.5)") "Memory Factor for walkers is: ",MemoryFacPart
+!        WRITE(6,"(A,F14.5)") "Memory Factor for walkers is: ",MemoryFacPart
         WRITE(6,"(A,I14)") "Memory allocated for a maximum particle/det number per node of: ",MaxWalkersPart
         IF(tRotoAnnihil) THEN
             MaxSpawned=NINT(MemoryFacSpawn*InitWalkers)
-            WRITE(6,"(A,F14.5)") "Memory Factor for arrays used for spawning is: ",MemoryFacSpawn
+!            WRITE(6,"(A,F14.5)") "Memory Factor for arrays used for spawning is: ",MemoryFacSpawn
             WRITE(6,"(A,I14)") "Memory allocated for a maximum particle number per node for spawning of: ",MaxSpawned
         ELSE
             MaxWalkersAnnihil=NINT(MemoryFacAnnihil*InitWalkers)
-            WRITE(6,"(A,F14.5)") "Memory Factor for arrays used for annihilation is: ",MemoryFacAnnihil
+!            WRITE(6,"(A,F14.5)") "Memory Factor for arrays used for annihilation is: ",MemoryFacAnnihil
             WRITE(6,"(A,I14)") "Memory allocated for a maximum particle number per node for annihilation of: ",MaxWalkersAnnihil
         ENDIF
 
@@ -7891,9 +7900,9 @@ MODULE FciMCParMod
  &                  INT(AllTotParts,i2),AllAnnihilated,AllNoDied,AllNoBorn,ProjectionE,ProjEIter,AllENumCyc/AllHFCyc,AllNoatHF,AllNoatDoubs,AccRat,INT(AllTotWalkers,i2),IterTime
 
             ELSEIF(tTruncInitiator.or.tDelayTruncInit) THEN
-                WRITE(15,"(I12,G16.7,I10,G16.7,I12,3I13,3G17.9,2I10,G13.5,I12,G13.5,G13.5,I10)") Iter+PreviousCycles,DiagSft,INT(AllTotParts-AllTotPartsOld,i2),AllGrowRate,   &
+                WRITE(15,"(I12,G16.7,I10,G16.7,I12,3I13,3G17.9,2I10,G13.5,I12,G13.5,G13.5,I10,G13.5)") Iter+PreviousCycles,DiagSft,INT(AllTotParts-AllTotPartsOld,i2),AllGrowRate,   &
  &                  INT(AllTotParts,i2),AllAnnihilated,AllNoDied,AllNoBorn,ProjectionE,AvDiagSft,AllENumCyc/AllHFCyc,AllNoatHF,AllNoatDoubs,AccRat,INT(AllTotWalkers,i2),IterTime,&
- &                  REAL(AllSpawnFromSing)/REAL(AllNoBorn),WalkersDiffProc
+ &                  REAL(AllSpawnFromSing)/REAL(AllNoBorn),WalkersDiffProc,TotImagTime
 
                 WRITE(16,"(I12,2I15,2G16.7,2I20,2G18.7)") Iter+PreviousCycles,AllNoAborted,AllNoAddedInitiators,(REAL(AllNoInitDets)/REAL(AllNoNonInitDets)),(REAL(AllNoInitWalk)/REAL(AllNoNonInitWalk)),&
  &                  AllNoDoubSpawns,AllNoExtraInitDoubs,DiagSftAbort,AvDiagSftAbort
@@ -7905,8 +7914,8 @@ MODULE FciMCParMod
 ! &                  AllTotWalkers,AllAnnihilated,AllNoDied,AllNoBorn,ProjectionE,ProjEIter,AllENumCyc/AllHFCyc,AllNoatHF,AllNoatDoubs,AccRat,AllMeanExcitLevel,AllMinExcitLevel,AllMaxExcitLevel
 !                WRITE(6,"(I12,G16.7,I9,G16.7,I12,3I11,3G17.9,2I10,2G13.5,2I6)") Iter+PreviousCycles,DiagSft,AllTotWalkers-AllTotWalkersOld,AllGrowRate,    &
 ! &                  AllTotWalkers,AllAnnihilated,AllNoDied,AllNoBorn,ProjectionE,ProjEIter,AllENumCyc/AllHFCyc,AllNoatHF,AllNoatDoubs,AccRat,AllMeanExcitLevel,AllMinExcitLevel,AllMaxExcitLevel
-                WRITE(15,"(I12,G16.7,I10,G16.7,I12,3I13,3G17.9,2I10,G13.5,I12,G13.5,G13.5,I10)") Iter+PreviousCycles,DiagSft,INT(AllTotParts-AllTotPartsOld,i2),AllGrowRate,   &
- &                  INT(AllTotParts,i2),AllAnnihilated,AllNoDied,AllNoBorn,ProjectionE,AvDiagSft,AllENumCyc/AllHFCyc,AllNoatHF,AllNoatDoubs,AccRat,INT(AllTotWalkers,i2),IterTime,REAL(AllSpawnFromSing)/REAL(AllNoBorn),WalkersDiffProc
+                WRITE(15,"(I12,G16.7,I10,G16.7,I12,3I13,3G17.9,2I10,G13.5,I12,G13.5,G13.5,I10,G13.5)") Iter+PreviousCycles,DiagSft,INT(AllTotParts-AllTotPartsOld,i2),AllGrowRate,   &
+ &                  INT(AllTotParts,i2),AllAnnihilated,AllNoDied,AllNoBorn,ProjectionE,AvDiagSft,AllENumCyc/AllHFCyc,AllNoatHF,AllNoatDoubs,AccRat,INT(AllTotWalkers,i2),IterTime,REAL(AllSpawnFromSing)/REAL(AllNoBorn),WalkersDiffProc,TotImagTime
                 WRITE(6,"(I12,G16.7,I10,G16.7,I12,3I11,3G17.9,2I10,G13.5,I12,G13.5)") Iter+PreviousCycles,DiagSft,INT(AllTotParts-AllTotPartsOld,i2),AllGrowRate,    &
  &                  INT(AllTotParts,i2),AllAnnihilated,AllNoDied,AllNoBorn,ProjectionE,AvDiagSft,AllENumCyc/AllHFCyc,AllNoatHF,AllNoatDoubs,AccRat,INT(AllTotWalkers,i2),IterTime
             ENDIF
@@ -7923,7 +7932,7 @@ MODULE FciMCParMod
 
     SUBROUTINE SetupParameters()
         use SystemData, only : tUseBrillouin,iRanLuxLev,tSpn,tHPHFInts,tRotateOrbs,tNoBrillouin,tROHF,tFindCINatOrbs,nOccBeta,nOccAlpha,tUHF
-        use SystemData, only : tFixLz,LzTot
+        use SystemData, only : tFixLz,LzTot,BasisFN
         USE mt95 , only : genrand_init
         use CalcData, only : EXCITFUNCS,tFCIMC
         use Calc, only : VirtCASorbs,OccCASorbs,FixShift,G_VMC_Seed
@@ -7937,6 +7946,7 @@ MODULE FciMCParMod
         INTEGER :: ierr,i,j,k,l,DetCurr(NEl),ReadWalkers,TotWalkersDet,HFDetTest(NEl),Seed,alpha,beta,symalpha,symbeta,endsymstate
         INTEGER :: DetLT,VecSlot,error,HFConn,MemoryAlloc,iMaxExcit,nStore(6),nJ(Nel),BRR2(nBasis),LargestOrb,nBits,HighEDet(NEl),iLutTemp(0:NIfTot)
         TYPE(HElement) :: rh,TempHii
+        TYPE(BasisFn) HFSym
         REAL*8 :: TotDets,SymFactor,Choose
         CHARACTER(len=*), PARAMETER :: this_routine='SetupParameters'
         CHARACTER(len=12) :: abstr
@@ -7982,6 +7992,20 @@ MODULE FciMCParMod
             HFDet(i)=FDet(i)
         enddo
         HFHash=CreateHash(HFDet)
+        CALL GetSym(HFDet,NEl,G1,NBasisMax,HFSym)
+        WRITE(6,"(A,I5)") "Symmetry of reference determinant is: ",INT(HFSym%Sym%S,4)
+        IF(tFixLz) THEN
+            CALL GetLz(HFDet,NEl,HFLz)
+            WRITE(6,"(A,I5)") "Ml value of reference determinant is: ",HFLz
+            IF(HFLz.ne.LzTot) THEN
+                CALL Stop_All("SetupParameters","Chosen reference determinant does not have the same Lz value as indicated in the input.")
+            ENDIF
+        ENDIF
+        
+        IF(tFixLz.and.(.not.tNoBrillouin)) THEN
+            WRITE(6,*) "Turning Brillouins theorem off since we are using non-canonical complex orbitals"
+            tNoBrillouin=.true.
+        ENDIF
         
 !test the encoding of the HFdet to bit representation.
         ALLOCATE(iLutHF(0:NIfTot),stat=ierr)
@@ -8068,6 +8092,25 @@ MODULE FciMCParMod
 !Assume that if we want to use the non-uniform random excitation generator, we also want to use the NoSpinSym full excitation generators if they are needed. 
             tNoSpinSymExcitgens=.true.   
         ENDIF
+
+!If using a CAS space truncation, write out this CAS space
+        IF(tTruncCAS) THEN
+            WRITE(6,*) "Truncated CAS space detected. Writing out CAS space..."
+            DO I=NEl-OccCASorbs+1,NEl
+                WRITE(6,'(6I7)',advance='no') I,BRR(I),G1(BRR(I))%K(1), G1(BRR(I))%K(2),G1(BRR(I))%K(3), G1(BRR(I))%MS
+                CALL WRITESYM(6,G1(BRR(I))%SYM,.FALSE.)
+                WRITE(6,'(I4)',advance='no') G1(BRR(I))%Ml
+                WRITE(6,'(2F19.9)')  ARR(I,1),ARR(BRR(I),2)
+            ENDDO
+            WRITE(6,*) "-----------------------------------------------------"
+            DO I=NEl+1,NEl+VirtCASOrbs
+                WRITE(6,'(6I7)',advance='no') I,BRR(I),G1(BRR(I))%K(1), G1(BRR(I))%K(2),G1(BRR(I))%K(3), G1(BRR(I))%MS
+                CALL WRITESYM(6,G1(BRR(I))%SYM,.FALSE.)
+                WRITE(6,'(I4)',advance='no') G1(BRR(I))%Ml
+                WRITE(6,'(2F19.9)')  ARR(I,1),ARR(BRR(I),2)
+            ENDDO
+        ENDIF
+
                                         
 !Setup excitation generator for the HF determinant. If we are using assumed sized excitgens, this will also be assumed size.
         IF(.not.tNoSpinSymExcitgens) THEN
@@ -8188,15 +8231,6 @@ MODULE FciMCParMod
 !            CALL Stop_All(this_routine,"Ms not equal to zero, but tSpn is false. Error here")
         ENDIF
 
-        IF(tFixLz.and.(.not.tNoBrillouin)) THEN
-            WRITE(6,*) "Turning Brillouins theorem off since we are using non-canonical complex orbitals"
-            tNoBrillouin=.true.
-            CALL GetLz(HFDet,NEl,HFLz)
-            IF(HFLz.ne.LzTot) THEN
-                CALL Stop_All("SetupParameters","Chosen reference determinant does not have the same Lz value as indicated in the input.")
-            ENDIF
-        ENDIF
-
         IF((tHub.and.tReal).or.(tRotatedOrbs)) THEN
             tNoBrillouin=.true.
         ENDIF
@@ -8244,6 +8278,7 @@ MODULE FciMCParMod
         NoNonInitWalk=0
         NoDoubSpawns=0
         NoExtraInitDoubs=0
+        TotImagTime=0.D0
 
 !Also reinitialise the global variables - should not necessarily need to do this...
         AllSumENum=0.D0
