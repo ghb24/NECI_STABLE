@@ -441,9 +441,6 @@ end module
         !    Ex(2,max_excit): contains the excitation connected iLutnI to
         !        iLutnJ.  Ex(1,i) is the i-th orbital excited from and Ex(2,i)
         !        is the corresponding orbital excited to.
-        !        If the excitation connecting iLutnI to iLutnJ exceed max_excit
-        !        then Ex(1,1) contains -nexcit, where nexcit is the actual level
-        !        of excitation.
         !    tSign:
         !        True if an odd number of permutations is required to line up
         !        the determinants.
@@ -454,7 +451,7 @@ end module
         integer, intent(in) :: iLutnI(0:NIfD), iLutnJ(0:NIfD)
         integer, intent(inout) :: Ex(2,*)
         logical, intent(out) :: tSign
-        integer :: i, j, iexcit1, iexcit2, perm, iel1, iel2, shift, max_excit, nexcit
+        integer :: i, j, iexcit1, iexcit2, perm, iel1, iel2, shift, max_excit
         logical :: testI, testJ
 
         tSign=.true.
@@ -477,10 +474,10 @@ end module
             ! order.
             ! To obtain such ordering requires (for each orbital that is
             ! involved in the excitation) a total of
-            ! nel - iel - nexcit + iexcit
+            ! nel - iel - max_excit + iexcit
             ! where nel is the number of electrons, iel is the position of the
             ! orbital within the list of occupied states in the determinant,
-            ! nexcit is the total number of excitations and iexcit is the number
+            ! max_excit is the total number of excitations and iexcit is the number
             ! of the "current" orbital involved in excitations.
             ! e.g. Consider (1, 2, 3, 4, 5) -> (1, 3, 5, 6, 7).
             ! (1, 2, 3, 4) goes to (1, 3, 2, 4).
@@ -494,7 +491,7 @@ end module
             ! minimal number for the determinants to align, this is irrelevant
             ! as the Slater--Condon rules only care about whether the number of
             ! permutations are odd or even.
-            shift = nel - nexcit
+            shift = nel - max_excit
 
             do i = 0, NIfD
                 if (iLutnI(i) == iLutnJ(i)) cycle
