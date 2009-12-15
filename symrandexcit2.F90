@@ -1500,7 +1500,12 @@ MODULE GenRandSymExcitNUMod
         INTEGER :: ClassCount2(ScratchSize),ForbiddenOrbs,SymA,SymB,SumMl,MlA,MlB,k,Elec1Ml
         INTEGER :: ClassCountUnocc2(ScratchSize),ElecsWNoExcits,i,NExcitOtherWay,Ind1,Ind2
         INTEGER :: SymProduct,OrbI,OrbJ,iSpn,NExcitA,NExcitB,IC,ElecSym,OrbA,OrbB,Ex(2,2),nI(NEl)
-            
+           
+        IF(tLatticeGens) THEN
+            CALL CalcPgenLattice(Ex,pGen)
+            RETURN
+        ENDIF
+
         IF(IC.eq.1) THEN
 
 !First, we need to find out if there are any electrons which have no possible excitations. This is because these will need to be redrawn and so 
@@ -2437,7 +2442,7 @@ MODULE GenRandSymExcitNUMod
             IF (nJ(1).ne.0) EXIT ! i.e. if we are using the NoFail algorithm only exit on successful nJ(1)!=0
         ENDDO
        
-        ! ***This part of the code is only used if tNoFailAb is OFF***
+        ! ***This part of the code is only used if tNoFailAb is ON***
         ! Else the pgen used is from CreateDoubExcitLattice
 
         ! Now calculate pgen
@@ -2551,6 +2556,37 @@ MODULE GenRandSymExcitNUMod
 
 
     END SUBROUTINE CreateExcitLattice2
+
+    !As with CalcNonUniPgens:
+    !This routine will calculate the PGen between two connected determinants, nI and nJ which are IC excitations of each other, using the unbiased scheme.
+    !Only the excitation matrix is needed (1,*) are the i,j orbs, and (2,*) are the a,b orbs
+    !This routine does it for the lattice models: UEG and hubbard model
+    SUBROUTINE CalcPGenLattice(Ex,pGen)
+        
+        INTEGER :: Ex(2,2),iSpin,jSpin
+        REAL*8 :: pGen,pAIJ
+
+        IF(tNoFailAb) CALL Stop_All("CalcPGenLattice","Cannot use this calculation of pgen with this excitation generator")
+        
+        iSpin=G1(Ex(1,1))%Ms
+        jSpin=G1(Ex(1,2))%Ms
+        IF (iSpin.eq.-1) THEN ! i is a beta spin
+            IF (jSpin.eq.-1) THEN ! ij is beta/beta
+                pAIJ=1.0/(nBasis/2-nOccBeta)
+            ELSE !ij is alpha/beta
+                pAIJ=1.0/(nBasis-Nel)
+            ENDIF
+        ELSE ! i is an alpha spin
+            IF (jSpin.eq.1) THEN ! ij is alpha/alpha
+                pAIJ=1.0/(nBasis/2-nOccAlpha)
+            ELSE
+                pAIJ=1.0/(nBasis/2-nOccBeta)
+            ENDIF
+        ENDIF
+        ! Note, p(b|ij)=p(a|ij) for this system
+        pGen=2.0/(NEl*(NEl-1))*2.0*pAIJ
+
+    END SUBROUTINE CalcPGenLattice
 
 END MODULE GenRandSymExcitNUMod
 
