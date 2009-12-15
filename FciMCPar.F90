@@ -1173,7 +1173,7 @@ MODULE FciMCParMod
         ENDIF
 
 
-        rat=(TotWalkersNew+0.D0)/(MaxWalkersPart+0.D0)
+        rat=REAL(TotWalkersNew,r2)/REAL(MaxWalkersPart,r2)
         IF(rat.gt.0.95) THEN
             WRITE(6,*) "*WARNING* - Number of particles/determinants has increased to over 95% of MaxWalkersPart"
             CALL FLUSH(6)
