@@ -8119,7 +8119,7 @@ MODULE FciMCParMod
         ENDIF
         
         IF(tHPHF) THEN
-            IF(tLatticeGens) CALL Stop_All("SetupParameters","Cannot use HPHF with model systems currently.")
+            !IF(tLatticeGens) CALL Stop_All("SetupParameters","Cannot use HPHF with model systems currently.")
             IF(tROHF.or.(LMS.ne.0)) CALL Stop_All("SetupParameters","Cannot use HPHF with high-spin systems.")
             tHPHFInts=.true.
         ENDIF

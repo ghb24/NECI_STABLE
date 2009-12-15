@@ -2,7 +2,7 @@
 !nI and nJ have to be uniquely chosen, so that their spin-coupled determinant will not arise.
 SUBROUTINE HPHFGetOffDiagHElement(nI,nJ,iLutnI,iLutnJ,MatEl)
     Use HElem
-    Use SystemData , only : NEl,nBasisMax,G1,nBasis,Brr,NIftot,NIfDBO
+    Use SystemData , only : NEl,nBasisMax,G1,nBasis,Brr,NIftot,NIfDBO,tHub
     use SystemData, only : ECore,ALat,NMSH
     use IntegralsData, only : UMat,FCK,NMAX
     use HPHFRandExcitMod , only : FindDetSpinSym,FindExcitBitDetSym
@@ -12,6 +12,27 @@ SUBROUTINE HPHFGetOffDiagHElement(nI,nJ,iLutnI,iLutnJ,MatEl)
     INTEGER :: ExcitLevel,OpenOrbsI,OpenOrbsJ,Ex(2,2)
     TYPE(HElement) :: MatEl,MatEl2
     LOGICAL :: TestClosedShellDet,tSymmetricInts,tSign
+!    INTEGER :: kx,ky,kz,ktrial(2),i
+
+!    IF(tHub) THEN
+!        kx=0
+!        ky=0
+!        kz=0
+!        do i=1,NEl
+!            kx=kx+G1(nJ(i))%k(1)
+!            ky=ky+G1(nJ(i))%k(2)
+!            kz=kz+G1(nJ(i))%k(3)
+!            kx=kx+G1(nI(i))%k(1)
+!            ky=ky+G1(nI(i))%k(2)
+!            kz=kz+G1(nI(i))%k(3)
+!        enddo
+!        ktrial=(/kx,ky/)
+!        CALL MomPbcSym(ktrial,nBasisMax) ! This re-maps the total momentum under PBCs: equivalent to this being equal to 
+!                                        ! a value to within a reciproval lattice vector.
+!        IF(.not.(ktrial(1).eq.0.and.ktrial(2).eq.0.and.kz.eq.0)) THEN
+!            CALL Stop_All("HPHFGetOffDiagHElement","Momentum for hubbard model not conserved")
+!        ENDIF
+!    ENDIF
 
     MatEl%v=0.D0
 
@@ -276,7 +297,7 @@ END SUBROUTINE HPHFGetOffDiagHElement
 
 SUBROUTINE HPHFGetDiagHElement(nI,iLutnI,MatEl)
     Use HElem
-    Use SystemData , only : NEl,nBasisMax,G1,nBasis,Brr
+    Use SystemData , only : NEl,nBasisMax,G1,nBasis,Brr,tHub
     use SystemData, only : ECore,ALat,NMSH, NIfTot
     use IntegralsData, only : UMat,FCK,NMAX
     use HPHFRandExcitMod , only : FindDetSpinSym,FindExcitBitDetSym
@@ -285,6 +306,24 @@ SUBROUTINE HPHFGetDiagHElement(nI,iLutnI,MatEl)
     INTEGER :: iLutnI(0:NIfTot),iLutnI2(0:NIfTot)
     TYPE(HElement) :: MatEl,MatEl2
     LOGICAL :: TestClosedShellDet
+!    INTEGER :: kx,ky,kz,ktrial(2),i
+
+!    IF(tHub) THEN
+!        kx=0
+!        ky=0
+!        kz=0
+!        do i=1,NEl
+!            kx=kx+G1(nI(i))%k(1)
+!            ky=ky+G1(nI(i))%k(2)
+!            kz=kz+G1(nI(i))%k(3)
+!        enddo
+!        ktrial=(/kx,ky/)
+!        CALL MomPbcSym(ktrial,nBasisMax) ! This re-maps the total momentum under PBCs: equivalent to this being equal to 
+!                                        ! a value to within a reciproval lattice vector.
+!        IF(.not.(ktrial(1).eq.0.and.ktrial(2).eq.0.and.kz.eq.0)) THEN
+!            CALL Stop_All("HPHFGetOffDiagHElement","Momentum for hubbard model not conserved")
+!        ENDIF
+!    ENDIF
 
     MatEl%v=0.D0
 
