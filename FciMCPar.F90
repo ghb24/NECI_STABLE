@@ -537,8 +537,8 @@ MODULE FciMCParMod
 
             
             ! TODO: This is where the testing routine gets called
-            call TestGenRandSymCSFExcit (DetCurr, 1000000, 0.4, 0.5, 7, 10000)
-            !call TestCSF123 (DetCurr)
+            !call TestGenRandSymCSFExcit (DetCurr, 1000000, 0.4, 0.5, 7, 10000)
+            call TestCSF123 (DetCurr)
             call stop_all ('fcimcpar', 'end test')
 
 

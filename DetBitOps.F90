@@ -309,7 +309,7 @@ module DetBitOps
                 do j=0,30,2
                     if (btest(iLut(i),j)) then
                         if (btest(iLut(i),j+1)) then
-                            ! An electron pair is in this spacial orbital
+                            ! An electron pair is in this spatial orbital
                             ! (2 matched spin orbitals)
                             elec = elec + 2
                             nI(elec-1) = (32*i) + (j+1)

@@ -112,7 +112,7 @@ contains
                                      nopen(2))
         enddo
 
-        ! Generate determinants from spacial orbitals specified in NI, NJ
+        ! Generate determinants from spatial orbitals specified in NI, NJ
         do det = 1,ndets(1)
             dets1(det,1:nclosed(1)) = iand(NI(1:nclosed(1)), csf_orbital_mask)
             dets1(det,nclosed(1)+1:nel) = &
