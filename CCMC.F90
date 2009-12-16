@@ -966,7 +966,45 @@ SUBROUTINE ResetClustSelector(CS)
    IMPLICIT NONE
    TYPE(ClustSelector) CS
    CS%iIndex=0
+   CS%C%iSize=0
 END SUBROUTINE ResetClustSelector
+
+!Takes an ordered tuple of length iSize, and gives the next one in sequence.
+!iMin..iMax are the max extent of the values in the tuple.
+!If Tuple(1) is 0 then it initializes the tuple.
+!Afterwards, if tDone is set then it has run out of tuples.
+SUBROUTINE IncrementOrderedTuple(Tuple,iSize,iMin,iMax,tDone)
+   IMPLICIT NONE
+   INTEGER Tuple(iSize),iSize,iMax,iMin
+   LOGICAL tDone
+   INTEGER i
+   if(iSize.eq.0) then
+      tDone=.true.
+      return
+   endif
+   if(Tuple(1).lt.iMin) then
+      i=1
+   else
+      i=iSize
+   endif
+! i is the index in the tuple we're currently trying to increment.
+   do while (i.le.iSize)
+      Tuple(i)=Tuple(i)+1
+      if(Tuple(i).gt.(iMax-(iSize-i))) then
+!If we've gone beyond what is the max possible value for this slot, then we move back, otherwise we move forward
+         i=i-1
+         if(i.eq.0) then
+            tDone=.true.
+            return
+         endif
+      else
+         i=i+1
+         if(i.le.iSize) Tuple(i)=Tuple(i-1)
+      endif
+   enddo
+   tDone=.false.
+   return
+END SUBROUTINE IncrementOrderedTuple
 
 LOGICAL FUNCTION GetNextCluster(CS,Dets,nDet,Amplitude,dTotAbsAmpl,iNumExcitors,iDebug)
    use CCMCData, only: ClustSelector
@@ -988,48 +1026,43 @@ LOGICAL FUNCTION GetNextCluster(CS,Dets,nDet,Amplitude,dTotAbsAmpl,iNumExcitors,
 
    GetNextCluster=.true.
    if(CS%tFull) then
+      CS%iMaxSize=iNumExcitors
+!If we detect a zero-ampl cluster, we just go round the loop again.
       do while(GetNextCluster)
          CS%iIndex=CS%iIndex+1
-         if(CS%iMaxSize.eq.1) THEN  !This is easy - we just go through things one by one
-            if(CS%iIndex.le.nDet) THEN
-               if(CS%iIndex.gt.1) then
-                  CS%C%iSize=1
-                  CS%C%SelectedExcitorIndices(1)=CS%iIndex
-                  CS%C%SelectedExcitors(:,1)=Dets(:,CS%iIndex)
-               else
-                  CS%C%iSize=0
-               endif
-               GetNextCluster=.true.
-               CS%C%dAmplitude=Amplitude(CS%iIndex)
-! C%dAmplitude is the product of the coefficients of the excitors with the relevant normalizations.
-! i.e. N0  (tI/N0) (tJ/N0) ...
-! Here this amounts to just tI.
+         CS%C%dNGenComposite=1
+!         CS%C%dSelectionProb=1
+         CS%C%dProbNorm=1
+         CS%C%dClusterProb=1
+         CS%C%dClusterNorm=1
+         if(iDebug.gt.2) WRITE(6,*) "Cluster Selection: ", CS%iIndex
+         if(CS%iIndex.eq.1) then
+!deal with the HF det separately.  iSize is already 0.
+            CS%C%dNGenComposite=abs(Amplitude(1))
+            if(iDebug.gt.2) WRITE(6,"(A,L3)",advance='no') "Next Tuple:",tDone
+            if(iDebug.gt.2) call WriteDet(6,CS%C%SelectedExcitorIndices,CS%C%iSize,.true.)
+            return
+         endif 
 
-               CS%C%dSelectionProb=1
-! C%dSelectionProb is the probability that the cluster was selected in a cycle.
-
-
-
-!Old Stuff
-               CS%C%dNGenComposite=abs(Amplitude(CS%iIndex))
-!               CS%C%dNGenComposite=abs(Amplitude(1))
-               CS%C%dProbNorm=1
-!               CS%C%dProbNorm=(1+iNumExcitors)
-               CS%C%dClusterProb=1
-               CS%C%dClusterNorm=1
-!               if(CS%iIndex.gt.1) THEN
-!                  CS%C%dNGenComposite=CS%C%dNGenComposite*abs(Amplitude(CS%iIndex)/Amplitude(1))
-!                  CS%C%dClusterProb=CS%C%dClusterProb*abs(Amplitude(CS%iIndex)/dTotAbsAmpl)
-!                  CS%C%dClusterNorm=CS%C%dClusterNorm*abs(Amplitude(CS%iIndex)/dTotAbsAmpl)
-!               ENDIF
-!               r=dTotAbsAmpl+Amplitude(1)
-!Amplitude(CS%iIndex)/r
-            ELSE
-               GetNextCluster=.false. 
-            endif
-         ELSE
-            call Stop_All("GetNextCluster","GetNextCluster used for Full enumeration - not yet implemented for clusters.")
-         ENDIF
+         call IncrementOrderedTuple(CS%C%SelectedExcitorIndices,CS%C%iSize,2,nDet,tDone)
+         if(iDebug.gt.2) WRITE(6,"(A,L3)",advance='no') "Next Tuple:",tDone
+         if(iDebug.gt.2) call WriteDet(6,CS%C%SelectedExcitorIndices,CS%C%iSize,.true.)
+         if(tDone) then !We've reached the end of our ordered tuple, so we increase its size if we can
+            CS%C%dNGenComposite=0
+            CS%C%SelectedExcitorIndices(1)=1  !Indicate we need to reset.
+            CS%C%iSize=CS%C%iSize+1
+            CS%iIndex=CS%iIndex-1
+            if(CS%C%iSize.gt.CS%iMaxSize) then !We've reached the end
+               WRITE(6,*) "Reached End"
+               GetNextCluster=.false.
+               return
+            endif            
+         else
+            do i=1,CS%C%iSize 
+               CS%C%SelectedExcitors(:,i)=Dets(:,CS%C%SelectedExcitorIndices(i))
+               CS%C%dNGenComposite=CS%C%dNGenComposite*abs(Amplitude(CS%C%SelectedExcitorIndices(i)))
+            enddo
+         endif
          if(CS%C%dNGenComposite.ne.0) exit
       enddo
    else
