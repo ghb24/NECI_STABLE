@@ -232,6 +232,9 @@ CONTAINS
             FDET(I)=NMRKS(I,IFDET)
          ENDDO
          WRITE(6,*) "Fermi Determinant:",IFDET
+         WRITE(6,*) "Reference determinant to be used for diagonalisation procedure: "
+         CALL WRITEDET(6,FDET,NEL,.TRUE.)
+
          if (tDefineDet) then
              DO I=1,NEL
                  IF(DefDet(i+NFROZEN)-NFROZEN.ne.FDET(I)) THEN
