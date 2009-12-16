@@ -1182,8 +1182,9 @@ SUBROUTINE ResetSpawner(S,C,nSpawn)
    S%ExcitMat(:,:)=0
    S%nSpawnings=nSpawn
    if(S%tFull) then
-      call CountExcitations3(C%DetCurr,exFlag,nS,nD)
-      S%dProbSpawn=1.D0/(nD+nS)
+!      call CountExcitations3(C%DetCurr,exFlag,nS,nD)
+      S%dProbSpawn=1.D0
+!      S%dProbSpawn=1.D0/(nD+nS)
    endif
    S%exFlag=3
 END SUBROUTINE ResetSpawner
