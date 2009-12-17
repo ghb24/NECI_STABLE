@@ -1115,7 +1115,7 @@ contains
                 pos = nel
                 do i=nel,nclosed+1,-1
                     if (i == ExcitMat(1)) cycle
-                    if (nJ(1,i) == ExcitMat(2)) cycle
+                    if (nJ(1,i) == exbeta) cycle
                     nJ(1,pos) = nJ(1,i)
                     pos = pos - 1
                 enddo
@@ -1715,7 +1715,7 @@ contains
         integer :: CCUnS(ScratchSize/2)
         integer :: ierr, nexcit, i
         integer, allocatable, dimension(:,:) :: nK
-        !integer, dimension(10) :: nJ=(/-2147483645,-2147483644,-2147483631,-2147483630,-2147483625,-2147483624,-2147483615,-2147483614,-1073741823,-2147483643/)
+        !integer, dimension(10) :: nJ=(/-2147483631,-2147483630,-2147483625,-2147483624,-2147483615,-2147483614,-1073741823,-1073741821,-2147483643,-2147483641/)
         ! TODO: possibly a slight bias to 1.0000+ with nJ as below
         !integer, dimension(10) :: nJ=(/3,4,17,18,23,24,31,32,33,34/)
         character(*), parameter :: this_routine = 'TestGenRandSymCSFExcit'
@@ -1740,6 +1740,7 @@ contains
         ! CSF.
         print*, 'Excits'
         do i=1,nexcit
+            write (6, '(i6,": ")', advance='no') i
             call writedet (6, nK(i,:), nel, .true.)
             call TestGenRandSymCSFExcit (nK(i,:), 1000000, 0.2, 0.75, 7 &
                                          ,10000)

@@ -448,7 +448,7 @@ MODULE FciMCParMod
 !        use HPHFRandExcitMod , only : TestGenRandHPHFExcit 
         USE Determinants , only : GetHElement3
         USE FciMCLoggingMOD , only : FindTriConnections,TrackSpawnAttempts,FindSpinCoupHEl
-        use GenRandSymExcitCSF, only: TestGenRandSymCSFExcit, TestCSF123
+        !use GenRandSymExcitCSF, only: TestCSF123
         USE CalcData , only : tAddtoInitiator,InitiatorWalkNo,tInitIncDoubs
         INTEGER :: MinorVecSlot,VecSlot,i,j,k,l,MinorValidSpawned,ValidSpawned,CopySign,ParticleWeight,Loop,iPartBloom
         INTEGER :: nJ(NEl),ierr,IC,Child,iCount,DetCurr(NEl),iLutnJ(0:NIfTot),NoMinorWalkersNew
@@ -535,12 +535,8 @@ MODULE FciMCParMod
 !Also, we want to find out the excitation level - we only need to find out if its connected or not (so excitation level of 3 or more is ignored.
 !This can be changed easily by increasing the final argument.
 
-            
-            ! TODO: This is where the testing routine gets called
-            !call TestGenRandSymCSFExcit (DetCurr, 1000000, 0.4, 0.5, 7, 10000)
-            call TestCSF123 (DetCurr)
-            call stop_all ('fcimcpar', 'end test')
-
+            ! This is where you can call the CSF testing routine
+            !call TestCSF123 (DetCurr)
 
             IF(tTruncSpace.or.tHighExcitsSing.or.tHistSpawn.or.tCalcFCIMCPsi.or.tPrintSpinCoupHEl.or.tHistHamil) THEN
 !We need to know the exact excitation level for truncated calculations.
