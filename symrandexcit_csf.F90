@@ -153,7 +153,6 @@ contains
         orbsWNoPair = CSFCalcOrbsWNoSymmetryPair (CCDblS, CCSglS, CCUnS, &
                                              CCSglDelta, orbs(1,:), symProd)
 
-
         ! If there are no orbitals we can excite to, then fail.
         ! TODO: Is this really < 2 (ie is 1 impossible, as pair valid?)
         if ((nSing + nVac) == orbsWNoPair) then
@@ -237,7 +236,6 @@ contains
             ! Loop over all sym indices for alpha elecs. If there are none, 
             ! then we cannot excite to any orbitals (A) with the paired 
             ! symmetry (ind2)
-            ! TODO: Deal with all possible Ml values.
             do i=0,nSymLabels-1
                 ind = CCIndS(i, 0)
                 numB = CCUnS(ind) + CCSglS(ind) + CCSglDelta(ind)
@@ -691,8 +689,6 @@ contains
 
         ! Generation probability
         pGen = pSingle / real(nexcit * (nel - elecsWNoExcits) * ncsf) 
-        !print*, 'orbs', orb, orb2
-        !print*, 'sym init, final', G1(orb)%Sym%S, G1(orb2)%Sym%S
     end subroutine
 
     ! ClassCountIndex for the spatial arrays
@@ -746,6 +742,7 @@ contains
 
     ! Generate three arrays indicating the number of orbitals of each
     ! possible symmetry which are doubly-, singly- and un-occupied.
+    ! TODO: Remove all dependence on this.
     subroutine ConstructClassCounts (nI, nclosed, CCDbl, CCSgl, CCUn)
         integer, intent(in) :: nI(nel), nclosed
         integer, intent(out) :: CCDbl (ScratchSize) ! ClassCountDoubleOcc2
