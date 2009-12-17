@@ -1006,7 +1006,7 @@ SUBROUTINE IncrementOrderedTuple(Tuple,iSize,iMin,iMax,tDone)
    return
 END SUBROUTINE IncrementOrderedTuple
 
-LOGICAL FUNCTION GetNextCluster(CS,Dets,nDet,Amplitude,dTotAbsAmpl,iNumExcitors,iDebug)
+LOGICAL FUNCTION GetNextCluster(CS,Dets,nDet,Amplitude,dTotAbsAmpl,iNumExcitors,iMaxSizeIn,iDebug)
    use CCMCData, only: ClustSelector
    use SystemData, only: nIfTot
    use mt95 , only : genrand_real2
@@ -1016,17 +1016,17 @@ LOGICAL FUNCTION GetNextCluster(CS,Dets,nDet,Amplitude,dTotAbsAmpl,iNumExcitors,
    REAL*8 Amplitude(nDet)
    INTEGER Dets(0:nIfTot,nDet)
    REAL*8 dTotAbsAmpl
-   INTEGER iDebug
+   INTEGER iDebug,iMaxSizeIn
 
+   INTEGER iMaxSize
    REAL*8 dProbNumExcit,dCurTot,r
    INTEGER i,j,k,l
    LOGICAL tDone
-   INTEGER iMaxSize
    INTEGER iNumExcitors
 
    GetNextCluster=.true.
+   iMaxSize=min(iMaxSizeIn,CS%iMaxSize)
    if(CS%tFull) then
-      CS%iMaxSize=iNumExcitors
 !If we detect a zero-ampl cluster, we just go round the loop again.
       do while(GetNextCluster)
          CS%iIndex=CS%iIndex+1
@@ -1053,14 +1053,15 @@ LOGICAL FUNCTION GetNextCluster(CS,Dets,nDet,Amplitude,dTotAbsAmpl,iNumExcitors,
             CS%C%iSize=CS%C%iSize+1
             CS%iIndex=CS%iIndex-1
             if(CS%C%iSize.gt.CS%iMaxSize) then !We've reached the end
-               WRITE(6,*) "Reached End"
+               if(iDebug.gt.2) WRITE(6,*) "Reached End"
                GetNextCluster=.false.
                return
             endif            
          else
+            CS%C%dNGenComposite=abs(Amplitude(1))
             do i=1,CS%C%iSize 
                CS%C%SelectedExcitors(:,i)=Dets(:,CS%C%SelectedExcitorIndices(i))
-               CS%C%dNGenComposite=CS%C%dNGenComposite*abs(Amplitude(CS%C%SelectedExcitorIndices(i)))
+               CS%C%dNGenComposite=CS%C%dNGenComposite*abs(Amplitude(CS%C%SelectedExcitorIndices(i)))/abs(Amplitude(1))
             enddo
          endif
          if(CS%C%dNGenComposite.ne.0) exit
@@ -1102,7 +1103,6 @@ LOGICAL FUNCTION GetNextCluster(CS,Dets,nDet,Amplitude,dTotAbsAmpl,iNumExcitors,
 !      iMaxExcit=min(nEl,iNumExcitors)
 !For FCI using amplitudes we only make a single selection
 !      if(tCCMCFCI) iMaxExcit=min(1,iMaxExcit)
-      iMaxSize=min(CS%iMaxSize,iNumExcitors)
       do i=1,iMaxSize
 ! Calculate the probability that we've reached this far in the loop
                   !We must have at least one excitor, so we cannot exit here.
@@ -1392,6 +1392,7 @@ END SUBROUTINE
       use FciMCData, only: Hii,Iter
       use FciMCData, only: TotParts,TotWalkers,TotWalkersOld,TotPartsOld,AllTotPartsOld,AllTotWalkersOld
       use FciMCData, only : HFDet
+      use FciMCData, only: tTruncSpace
       use FciMCParMod, only: iLutHF
       use FciMCParMod, only: CheckAllowedTruncSpawn, SetupParameters,BinSearchParts3
       use FciMCParMod, only: CalcNewShift,InitHistMin
@@ -1497,9 +1498,13 @@ END SUBROUTINE
 !      CALL WriteFCIMCStats()
 
       if(tCCMCFCI) THEN
-         iNumExcitors=1
+         iNumExcitors=1  !Only one excitor allowed
       ELSE
-         iNumExcitors=-1  !No limit
+         IF (tTruncSpace) THEN !we can go up to two beyond the max level of truncation
+            iNumExcitors=ICILevel+2  !We need to be able to couple (say) 4 singles to make a quad and then spawn back to the sdoubles space
+         ELSE
+            iNumExcitors=nEl  !Otherwise just the number of electrons is the max number of excitors
+         ENDIF
       ENDIF
 
       if(tExactCluster) then
@@ -1514,9 +1519,9 @@ END SUBROUTINE
       Iter=1
       do while (Iter.le.NMCyc)
 !         WRITE(6,*) "Shift: ",DiagSft
-         if(.false.)  then !DEBUG - reset the list at each stage
+!         if(.false.)  then !DEBUG - reset the list at each stage
 !         if(.true.)  then !DEBUG - reset the list at each stage
-!         if(Iter.eq.1)  then !DEBUG - reset the list at each stage
+         if(Iter.eq.1)  then !DEBUG - reset the list at each stage
          ! Now setup the amplitude list.  Let's start with nothing initially, and
                Amplitude(:,:)=0
          !  place ampl 1 in the HF det
@@ -1527,13 +1532,14 @@ END SUBROUTINE
                Amplitude(2,iCurAmpList)=-0.4375219663886841*dInitAmplitude
                Amplitude(3,iCurAmpList)= 0.4375219663886849*dInitAmplitude
                Amplitude(4,iCurAmpList)=-0.1184277920308680*dInitAmplitude!-0.1184277920308680
+               if(.not.tCCMCFCI) Amplitude(4,iCurAmpList)=Amplitude(4,iCurAmpList)-Amplitude(2,iCurAmpList)*Amplitude(3,iCurAmpList)/(Amplitude(1,iCurAmpList))
                r=0
-               do j=1,4
-                  r=r+abs(Amplitude(j,iCurAmpList))
-               enddo
-               do j=1,4
-                  Amplitude(j,iCurAmpList)=Amplitude(j,iCurAmpList)*dInitAmplitude/r
-               enddo
+!               do j=1,4
+!                  r=r+abs(Amplitude(j,iCurAmpList))
+!               enddo
+!               do j=1,4
+!                  Amplitude(j,iCurAmpList)=Amplitude(j,iCurAmpList)*dInitAmplitude/r
+!               enddo
          endif
 ! Copy the old Amp list to the new
          iOldAmpList=iCurAmpList
@@ -1595,7 +1601,8 @@ END SUBROUTINE
 !  Loop over cluster selections
          dAveProbSel(:)=0
          call ResetClustSelector(CS)
-         do while (GetNextCluster(CS,FciDets,Det,Amplitude(:,iOldAmpList),dTotAbsAmpl,iNumExcitors,iDebug))
+         i=min(iNumExcitors,nEl)
+         do while (GetNextCluster(CS,FciDets,Det,Amplitude(:,iOldAmpList),dTotAbsAmpl,iNumExcitors,i,iDebug))
             if(iDebug.gt.3) write(6,*) "Selection ",CS%iIndex
             dAveProbSel(CS%C%iSize)=dAveProbSel(CS%C%iSize)+1/CS%C%dProbNorm
 
@@ -1628,13 +1635,17 @@ END SUBROUTINE
                dProbClust(2,i)=dProbClust(2,i)+1
             endif
 
+            if(CS%C%iSgn.eq.0) then
+               if(iDebug.gt.2) write(6,*) "Sign Zero so moving to next cluster"
+               cycle  !No point in doing anything
+            endif
 
             if(tSpawnProp) then
                i=nSpawnings
             else
                i=nSpawnings
             endif
-            
+            if(iDebug.gt.2) WRITE(6,*) "Cluster Amplitude: ",CS%C%iSgn*CS%C%dNGenComposite 
 !Now consider a number of possible spawning events
             CALL ResetSpawner(S,CS%C,i)
 
@@ -1712,14 +1723,14 @@ END SUBROUTINE
                if(.true.) then
 !We try an alternative death method - by creating an antiparticle in the excitor corresponding to this cluster
 
-                  CALL FindBitExcitLevel(iLutHF,iLutnI(:),IC,nEl)
+                  IC=CS%C%iExcitLevel
                   IF(IC.eq.NEl) THEN
-                      CALL BinSearchParts3(iLutnI(:),FCIDets(:,:),Det,FCIDetIndex(IC),Det,PartIndex,tSuc)
+                      CALL BinSearchParts3(CS%C%iLutDetCurr(:),FCIDets(:,:),Det,FCIDetIndex(IC),Det,PartIndex,tSuc)
                   ELSEIF(IC.eq.0) THEN
                       PartIndex=1
                       tSuc=.true.
                   ELSE
-                      CALL BinSearchParts3(iLutnI(:),FCIDets(:,:),Det,FCIDetIndex(IC),FCIDetIndex(IC+1)-1,PartIndex,tSuc)
+                      CALL BinSearchParts3(CS%C%iLutDetCurr(:),FCIDets(:,:),Det,FCIDetIndex(IC),FCIDetIndex(IC+1)-1,PartIndex,tSuc)
                   ENDIF
                   iPartDie=PartIndex
 !To make things compatible from a cluster to the excitor,
@@ -1727,8 +1738,9 @@ END SUBROUTINE
 !NB N_T = 1/N_0
                
 !dNGenComposite is | t_x1 t_x2 ... | / N_0 ^|X| 
-                  dProbDecompose=dProbDecompose/CS%C%dNGenComposite
-                  dProbDecompose=dProbDecompose*iSgn*Amplitude(iPartDie,iOldAmpList)/abs(Amplitude(1,iOldAmpList))
+                  dProbDecompose=CS%C%iSgn
+!                  dProbDecompose=dProbDecompose/CS%C%dNGenComposite
+!                  dProbDecompose=dProbDecompose*CS%C%iSgn*Amplitude(iPartDie,iOldAmpList)/abs(Amplitude(1,iOldAmpList))
                endif
             ELSEIF(CS%C%iSize.EQ.1) THEN
                dProbDecompose=1
@@ -1772,17 +1784,20 @@ END SUBROUTINE
 !dProb = 1
 !            rat=Tau*(HDiagCurr-DiagSft)*dClusterNorm*dProb/dProbNorm !(dProb*dProbNorm)
             rat=Tau*(HDiagCurr-DiagSft)*dProbDecompose/(CS%C%dProbNorm*CS%C%dClusterProb) !(dProb*dProbNorm)  !The old version
+            rat=rat*CS%C%dNGenComposite/abs(Amplitude(iPartDie,iOldAmpList))  !Take into account we're killing at a different place from the cluster
+
+
 !            rat=Tau*(HDiagCurr-DiagSft)/CS%C%dSelectionProb
             IF(iDebug.ge.4) then
                WRITE(6,*) "Product Contributions to Number Died:"
                WRITE(6,*) "Energy difference: ",HDiagCurr-DiagSft
                WRITE(6,*) "Tau              : ",Tau
-               WRITE(6,*) "Sign             : ",iSgn
+               WRITE(6,*) "Sign             : ",CS%C%iSgn
                WRITE(6,*) "Cluster Prob     : ",CS%C%dClusterProb
                WRITE(6,*) "Cluster Norm     : ",CS%C%dClusterNorm
                WRITE(6,*) "dProbDecompose   : ",dProbDecompose
                WRITE(6,*) "1/dProbNorm      : ",1/CS%C%dProbNorm
-               WRITE(6,*) "Delta t_x        : ",-rat
+!               WRITE(6,*) "Delta t_x        : ",-rat
                WRITE(6,*) "dNGenComposite   : ",CS%C%dNGenComposite
             endif 
 
@@ -1851,6 +1866,7 @@ END SUBROUTINE
          endif
 
       enddo !MC Cycles
+      if(iDebug.gt.1) call WriteDExcitorList(6,Amplitude(:,iCurAmpList),FciDets,Det,dAmp,"Final Excitor list")
 
       if(lLogTransitions) then
          k=NMCyc-NEquilSteps
