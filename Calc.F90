@@ -16,7 +16,7 @@ MODULE Calc
           Use DetCalc, only: tEnergy, tRead,tFindDets
           use IntegralsData, only: tNeedsVirts
           use SystemData, only : Beta,nEl
-          use CCMCData, only: dInitAmplitude
+          use CCMCData, only: dInitAmplitude,dProbSelNewExcitor,nSpawnings,tSpawnProp
           use default_sets
           implicit none
 
@@ -114,6 +114,9 @@ MODULE Calc
           Tau=0.D0
           InitWalkers=3000
           dInitAmplitude=1.d0
+          dProbSelNewExcitor=0.7d0
+          nSpawnings=1
+          tSpawnProp=.false.
           NMCyc=2000
           DiagSft=0.D0
           HApp=1
@@ -249,7 +252,7 @@ MODULE Calc
           Use DetCalc, only: tEnergy, tRead,tFindDets
           use IntegralsData, only: tNeedsVirts,NFROZEN
           use UMatCache, only: gen2CPMDInts
-          use CCMCData, only: dInitAmplitude
+          use CCMCData, only: dInitAmplitude,dProbSelNewExcitor,nSpawnings,tSpawnProp
           use global_utilities
           IMPLICIT NONE
           LOGICAL eof
@@ -741,6 +744,14 @@ MODULE Calc
             case("INITAMPLITUDE")
 !For Amplitude CCMC the initial amplitude.
                 call getf(dInitAmplitude)
+            case("CLUSTERSIZEBIAS")
+                call getf(dProbSelNewExcitor)
+            case("NSPAWNINGS")
+!For Amplitude CCMC the number of spawnings for each cluster.
+                call geti(nSpawnings)
+            case("SPAWNPROP")
+!For Amplitude CCMC use NSPAWNINGS as a total number of spawnings, and distribute them according to the Amplitudes of clusters.
+               tSpawnProp=.true.
             case("NMCYC")
 !For FCIMC, this is the number of MC cycles to perform
                 call geti(NMCyc)
@@ -1454,7 +1465,7 @@ MODULE Calc
          use CalcData , only : CALCP_SUB2VSTAR,CALCP_LOGWEIGHT,TMCDIRECTSUM,g_Multiweight,G_VMC_FAC,TMPTHEORY
          use CalcData, only : STARPROD,TDIAGNODES,TSTARSTARS,TGraphMorph,TStarTrips,THDiag,TMCStar,TFCIMC,TMCDets,TMCDiffusion,tCCMC
          use CalcData , only : TRhoElems,TReturnPathMC, TResumFCIMC, tFCIMCSerial
-         use CCMCData, only: tExactCluster,tCCMCFCI,tAmplitudes
+         use CCMCData, only: tExactCluster,tCCMCFCI,tAmplitudes,tExactSpawn
          use Logging, only: tCalcFCIMCPsi
          implicit none
          integer I_HMAX,NWHTAY,I_V
@@ -1487,6 +1498,7 @@ MODULE Calc
                   TFCIMC=.true.
                   TCCMC=.true.
                   tExactCluster=.false.
+                  tExactSpawn=.false.
                   tCCMCFCI=.false.
                   tAmplitudes=.false.
                   do while(item.lt.nitems)
@@ -1498,6 +1510,8 @@ MODULE Calc
                        tCalcFCIMCPsi=.true. !We want a full list of dets
                     case("EXACTCLUSTER")
                        tExactCluster=.true.
+                    case("EXACTSPAWN")
+                       tExactSpawn=.true.
                     case("FCI")
                        tCCMCFCI=.true.
                     case default

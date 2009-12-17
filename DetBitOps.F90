@@ -12,9 +12,13 @@ module DetBitOps
     end interface
 
     contains
-    ! This will count the bits set in a bit-string up to a number nBitsMax.
+
+    ! This will count the bits set in a bit-string up to a number nBitsMax, if
+    ! provided.
     ! The function will return 0 -> nBitsMax+1
-    ! Counts bits in integers 0:nLast
+    ! A value of nBitsMax+1 indicates that more bits are set than was expected.
+    ! The total number of set bits can exceed nBitsMax+1, however.
+    ! Counts bits set in integer array (0:nLast)
     integer function CountBits_sparse (iLut, nLast, nBitsMax)
         integer, intent(in), optional :: nBitsMax
         integer, intent(in) :: nLast, iLut(0:nLast)
@@ -24,7 +28,7 @@ module DetBitOps
         if (present(nBitsMax)) then
             lnBitsMax = nBitsMax
         else
-            lnBitsMax = 32 * nLast
+            lnBitsMax = 32 * (nLast+1)
         endif
 
         CountBits_sparse = 0
@@ -40,6 +44,7 @@ module DetBitOps
     end function CountBits_sparse
 
     ! Try counting using a nifty bit of bitwise arithmetic
+    ! See comments for CountBits_sparse.
     integer function Countbits_nifty (iLut, nLast, nBitsMax)
         integer, intent(in), optional :: nBitsMax
         integer, intent(in) :: nLast, iLut(0:nLast)
@@ -49,7 +54,7 @@ module DetBitOps
         if (present(nBitsMax)) then
             lnBitsMax = nBitsMax
         else
-            lnBitsMax = 32 * nLast
+            lnBitsMax = 32 * (nLast+1)
         endif
 
         CountBits_nifty = 0
@@ -420,90 +425,113 @@ module DetBitOps
     end function
 end module
 
-    SUBROUTINE GetBitExcitation(iLutnI,iLutnJ,Ex,tSign)
-        use systemdata, only: NIfD, nel
-        IMPLICIT NONE
-        INTEGER :: iLutnI(0:NIfD),iLutnJ(0:NIfD),Ex(2,*),i,BitExcitMat(0:NIfD),BitCommonOrbs(0:NIfD),FromInd,ToInd,j
-        INTEGER :: nIElec,nJElec,Diff,iMaxSize
-        LOGICAL :: tSign
+    pure subroutine GetBitExcitation(iLutnI,iLutnJ,Ex,tSign)
 
-        tSign=.false.
-        ToInd=1
-        FromInd=1
-        nIElec=0
-        nJElec=0
-        iMaxSize=EX(1,1) 
+        ! A port from hfq. The first of many...
+        ! JSS.
 
-        do i=0,NIfD
-            BitExcitMat(i)=IEOR(iLutnI(i),iLutnJ(i))
-            BitCommonOrbs(i)=IAND(iLutnI(i),iLutnJ(i))
-            
-            IF((BitExcitMat(i).eq.0).and.(BitCommonOrbs(i).eq.0)) CYCLE
+        ! In:
+        !    iLutnI(basis_length): bit string representation of the Slater
+        !        determinant.
+        !    iLutnJ(basis_length): bit string representation of the Slater
+        !        determinant.
+        !    Ex(1,1): contains the maximum excitation level, max_excit, to be
+        !        considered.
+        ! Out:
+        !    Ex(2,max_excit): contains the excitation connected iLutnI to
+        !        iLutnJ.  Ex(1,i) is the i-th orbital excited from and Ex(2,i)
+        !        is the corresponding orbital excited to.
+        !    tSign:
+        !        True if an odd number of permutations is required to line up
+        !        the determinants.
 
-!            WRITE(6,*) "BitExcitMat: "
-!            do j=0,31
-!                IF(BTEST(BitExcitMat(i),j)) THEN
-!                    WRITE(6,"(A)",advance='no') " 1 "
-!                ELSE
-!                    WRITE(6,"(A)",advance='no') " 0 "
-!                ENDIF
-!            enddo
-!            WRITE(6,*) "*** iLutnI: "
-!            do j=0,31
-!                IF(BTEST(iLutnI(i),j)) THEN
-!                    WRITE(6,"(A)",advance='no') " 1 "
-!                ELSE
-!                    WRITE(6,"(A)",advance='no') " 0 "
-!                ENDIF
-!            enddo
+        use SystemData, only: NIfD, nel
+        use DetBitOps, only: CountBits_nifty
+        implicit none
+        integer, intent(in) :: iLutnI(0:NIfD), iLutnJ(0:NIfD)
+        integer, intent(inout) :: Ex(2,*)
+        logical, intent(out) :: tSign
+        integer :: i, j, iexcit1, iexcit2, perm, iel1, iel2, shift, max_excit
+        logical :: testI, testJ
 
+        tSign=.true.
+        max_excit = Ex(1,1)
+        Ex(:,:max_excit) = 0
 
-            do j=0,31
-!First, find the parity of the excitations.
-!we need to search the common orbitals, in order to check the parity shift.
+        if (max_excit > 0) then
 
-                IF(BTEST(BitCommonOrbs(i),j)) THEN
-                    IF(nIElec.ne.nJElec) THEN
-                        Diff=abs(nIElec-nJElec)
-                        IF(mod(Diff,2).eq.1) THEN
-                            tSign=.not.tSign
-                        ENDIF
-                    ENDIF
-                    BitCommonOrbs(i)=IBCLR(BitCommonOrbs(i),j)
-!                ELSE
-!                    IF(BTEST(iLutnI(i),j)) nIElec=nIElec+1
-!                    IF(BTEST(iLutnJ(i),j)) nJElec=nJElec+1
-                ENDIF
+            iexcit1 = 0
+            iexcit2 = 0
+            iel1 = 0
+            iel2 = 0
+            perm = 0
 
-!Now, create the Ex matrix
-                IF(BTEST(BitExcitMat(i),j)) THEN
-!This is either a 'from' orbital, or a 'to' orbital - find out which.
-                    IF(BTEST(iLutnI(i),j)) THEN
-!This is one of the orbitals that an electron is excited *from*
-                        nIElec=nIElec+1
-                        Ex(1,FromInd)=(i*32)+(j+1)
-                        FromInd=FromInd+1
-                        BitExcitMat(i)=IBCLR(BitExcitMat(i),j)  !Remove the bit
-                        IF((BitExcitMat(i).eq.0).and.(BitCommonOrbs(i).eq.0)) EXIT
-                    ELSE
-!This is one of the orbitals that an electron is excited *to*
-                        nJElec=nJElec+1
-                        Ex(2,ToInd)=(i*32)+(j+1)
-                        ToInd=ToInd+1
-                        BitExcitMat(i)=IBCLR(BitExcitMat(i),j)  !Remove the bit
-                        IF((BitExcitMat(i).eq.0).and.(BitCommonOrbs(i).eq.0)) EXIT
-                    ENDIF
-                ENDIF
+            ! Finding the permutation to align the determinants is non-trivial.
+            ! It turns out to be quite easy with bit operations.
+            ! The idea is to do a "dumb" permutation where the determinants are
+            ! expressed in two sections: orbitals not involved in the excitation
+            ! and those that are.  Each section is stored in ascending index
+            ! order.
+            ! To obtain such ordering requires (for each orbital that is
+            ! involved in the excitation) a total of
+            ! nel - iel - max_excit + iexcit
+            ! where nel is the number of electrons, iel is the position of the
+            ! orbital within the list of occupied states in the determinant,
+            ! max_excit is the total number of excitations and iexcit is the number
+            ! of the "current" orbital involved in excitations.
+            ! e.g. Consider (1, 2, 3, 4, 5) -> (1, 3, 5, 6, 7).
+            ! (1, 2, 3, 4) goes to (1, 3, 2, 4).
+            ! 2 is the first (iexcit=1) orbital found involved in the excitation
+            ! and so requires 5 - 2 - 2 + 1 = 2 permutation to shift it to the
+            ! first "slot" in the excitation "block" in the list of states.
+            ! 4 is the second orbital found and requires 5 - 4 - 2 + 2 = 1
+            ! permutation to shift it the end (last "slot" in the excitation
+            ! block).
+            ! Whilst the resultant number of permutations isn't necessarily the
+            ! minimal number for the determinants to align, this is irrelevant
+            ! as the Slater--Condon rules only care about whether the number of
+            ! permutations are odd or even.
+            shift = nel - max_excit
 
-            enddo
-        enddo
-        if (ToInd.LE.iMaxSize) THEN
-           EX(1,ToInd)=0  !Indicate that we've ended the excit
-           EX(2,ToInd)=0  !Indicate that we've ended the excit
-        ENDIF
-!        IF(ToInd.ne.FromInd) CALL Stop_All("GetBitExcitation","Error in constructing excitation matrix")
+            do i = 0, NIfD
+                if (iLutnI(i) == iLutnJ(i)) cycle
+                do j = 0, 31
 
-    END SUBROUTINE GetBitExcitation
+                    testI = btest(iLutnI(i),j)
+                    testJ = btest(iLutnJ(i),j)
+
+                    if (testJ) iel2 = iel2 + 1
+
+                    if (testI) then
+                        iel1 = iel1 + 1
+                        if (.not.testJ) then
+                            ! occupied in iLutnI but not in iLutnJ
+                            iexcit1 = iexcit1 + 1
+                            Ex(1,iexcit1) = i*32+j+1
+                            perm = perm + (shift - iel1 + iexcit1)
+                        end if
+                    else
+                        if (testJ) then
+                            ! occupied in iLutnI but not in iLutnJ
+                            iexcit2 = iexcit2 + 1
+                            Ex(2,iexcit2) = i*32+j+1
+                            perm = perm + (shift - iel2 + iexcit2)
+                        end if
+                    end if
+
+                end do
+            end do
+
+            ! It seems that this test is faster than btest(perm,0)!
+            tSign = mod(perm,2) == 1
+
+            if (iexcit1<max_excit) then
+                Ex(:,iexcit1+1) = 0 ! Indicate we've ended the excitation.
+            end if
+
+        end if
+
+    end subroutine GetBitExcitation
 
 
 !This routine will find the bit-representation of an excitation by constructing the new iLut from the old one and the excitation matrix.

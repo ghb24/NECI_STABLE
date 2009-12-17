@@ -2,7 +2,7 @@
 !nI and nJ have to be uniquely chosen, so that their spin-coupled determinant will not arise.
 SUBROUTINE HPHFGetOffDiagHElement(nI,nJ,iLutnI,iLutnJ,MatEl)
     Use HElem
-    Use SystemData , only : NEl,nBasisMax,G1,nBasis,Brr,NIftot,NIfDBO
+    Use SystemData , only : NEl,nBasisMax,G1,nBasis,Brr,NIftot,NIfDBO,tHub
     use SystemData, only : ECore,ALat,NMSH
     use IntegralsData, only : UMat,FCK,NMAX
     use HPHFRandExcitMod , only : FindDetSpinSym,FindExcitBitDetSym
@@ -31,7 +31,8 @@ SUBROUTINE HPHFGetOffDiagHElement(nI,nJ,iLutnI,iLutnJ,MatEl)
             CALL FindBitExcitLevel(iLutnI,iLutnJ,ExcitLevel,2)
             IF(ExcitLevel.le.2) THEN
                 Ex(1,1)=ExcitLevel
-                CALL GetExcitation(nI,nJ,NEl,Ex,tSign)
+                CALL GetBitExcitation(iLutnI,iLutnJ,Ex,tSign)
+!                CALL GetExcitation(nI,nJ,NEl,Ex,tSign)
 !                CALL GetBitExcitation(iLutnI,iLutnJ,Ex,tSign)
 !                IF(ExcitLevel.le.0) CALL Stop_All("HPHFGetOffDiagHElement","Determinants are a forbidden excitation level apart9")
                 CALL SltCndExcit2(nEl,nBasisMax,nBasis,nI,nJ,G1,nEl-ExcitLevel,NMSH,FCK,NMAX,ALAT,UMat,MatEl,Ex,tSign)
@@ -47,7 +48,8 @@ SUBROUTINE HPHFGetOffDiagHElement(nI,nJ,iLutnI,iLutnJ,MatEl)
             CALL FindBitExcitLevel(iLutnI,iLutnJ,ExcitLevel,2)
             IF(ExcitLevel.le.2) THEN
                 Ex(1,1)=ExcitLevel
-                CALL GetExcitation(nI,nJ,NEl,Ex,tSign)
+                CALL GetBitExcitation(iLutnI,iLutnJ,Ex,tSign)
+!                CALL GetExcitation(nI,nJ,NEl,Ex,tSign)
 !                CALL GetBitExcitation(iLutnI,iLutnJ,Ex,tSign)
                 CALL SltCndExcit2(NEl,nBasisMax,nBasis,nI,nJ,G1,NEl-ExcitLevel,NMSH,FCK,NMAX,ALAT,UMat,MatEl,Ex,tSign)
 !                CALL SltCnd(NEl,nBasisMax,nBasis,nI,nJ,G1,NEl-ExcitLevel,NMSH,FCK,NMAX,ALAT,UMat,MatEl,Ex,tSign)
@@ -99,7 +101,8 @@ SUBROUTINE HPHFGetOffDiagHElement(nI,nJ,iLutnI,iLutnJ,MatEl)
             IF(ExcitLevel.le.2) THEN
 !                IF(ExcitLevel.le.0) CALL Stop_All("HPHFGetOffDiagHElement","Determinants are a forbidden excitation level apart6")
                 Ex(1,1)=ExcitLevel
-                CALL GetExcitation(nI,nJ,NEl,Ex,tSign)
+                CALL GetBitExcitation(iLutnI,iLutnJ,Ex,tSign)
+!                CALL GetExcitation(nI,nJ,NEl,Ex,tSign)
 !                CALL GetBitExcitation(iLutnI,iLutnJ,Ex,tSign)
                 CALL SltCndExcit2(NEl,nBasisMax,nBasis,nI,nJ,G1,NEl-ExcitLevel,NMSH,FCK,NMAX,ALAT,UMat,MatEl,Ex,tSign)
 !                CALL SltCnd(NEl,nBasisMax,nBasis,nI,nJ,G1,NEl-ExcitLevel,NMSH,FCK,NMAX,ALAT,UMat,MatEl)
@@ -153,7 +156,8 @@ SUBROUTINE HPHFGetOffDiagHElement(nI,nJ,iLutnI,iLutnJ,MatEl)
 !                ENDIF
 !                MatEl2%v=0.D0
                 Ex(1,1)=ExcitLevel
-                CALL GetExcitation(nI,nJ,NEl,Ex,tSign)
+                CALL GetBitExcitation(iLutnI,iLutnJ,Ex,tSign)
+!                CALL GetExcitation(nI,nJ,NEl,Ex,tSign)
 !                CALL GetBitExcitation(iLutnI,iLutnJ,Ex,tSign)
                 CALL SltCndExcit2(NEl,nBasisMax,nBasis,nI,nJ,G1,NEl-ExcitLevel,NMSH,FCK,NMAX,ALAT,UMat,MatEl,Ex,tSign)
 !                WRITE(6,*) "MatEl Old: ",MatEl
@@ -174,7 +178,8 @@ SUBROUTINE HPHFGetOffDiagHElement(nI,nJ,iLutnI,iLutnJ,MatEl)
                 CALL CalcOpenOrbs(iLutnI,OpenOrbsI)
 !                CALL GetBitExcitation(iLutnI2,iLutnJ,Ex,tSign)
                 Ex(1,1)=ExcitLevel
-                CALL GetExcitation(nI2,nJ,NEl,Ex,tSign)
+                CALL GetBitExcitation(iLutnI2,iLutnJ,Ex,tSign)
+!                CALL GetExcitation(nI2,nJ,NEl,Ex,tSign)
 
 !                IF((mod(OpenOrbsI,2).eq.0).and.(mod(OpenOrbsJ,2).eq.0)) THEN
 !                    tSymmetricInts=.true.
@@ -276,7 +281,7 @@ END SUBROUTINE HPHFGetOffDiagHElement
 
 SUBROUTINE HPHFGetDiagHElement(nI,iLutnI,MatEl)
     Use HElem
-    Use SystemData , only : NEl,nBasisMax,G1,nBasis,Brr
+    Use SystemData , only : NEl,nBasisMax,G1,nBasis,Brr,tHub
     use SystemData, only : ECore,ALat,NMSH, NIfTot
     use IntegralsData, only : UMat,FCK,NMAX
     use HPHFRandExcitMod , only : FindDetSpinSym,FindExcitBitDetSym

@@ -52,7 +52,8 @@ CONTAINS
     Subroutine DetCalcInit
 
         Use global_utilities
-        Use Determinants, only:  FDet, specdet, tSpecDet
+        Use Determinants, only:  FDet, specdet, tSpecDet,tDefineDet,DefDet
+        Use IntegralsData, only : NFROZEN
         use SystemData, only : tCSFOLD,lms, lms2, nBasis, nBasisMax, nEl, SymRestrict
         use SystemData, only : Alat, arr, brr, boa, box, coa, ecore, g1,Beta
         use SystemData, only : tParity, tSpn,Symmetry,STot, NullBasisFn
@@ -224,13 +225,27 @@ CONTAINS
             CALL WRITESYM(8,ISym%Sym,.TRUE.)
          ENDDO
          CLOSE(8)
-!C..
+
 !C.. Now generate the fermi determiant
 !C.. Work out the fermi det
          DO I=1,NEL
             FDET(I)=NMRKS(I,IFDET)
          ENDDO
          WRITE(6,*) "Fermi Determinant:",IFDET
+         WRITE(6,*) "Reference determinant to be used for diagonalisation procedure: "
+         CALL WRITEDET(6,FDET,NEL,.TRUE.)
+
+         if (tDefineDet) then
+             DO I=1,NEL
+                 IF(DefDet(i+NFROZEN)-NFROZEN.ne.FDET(I)) THEN
+                     WRITE(6,"(A)") "*** WARNING - Defined determinant does not match reference determinant in CI matrix ***"
+                     WRITE(6,*) NMRKS(:,IFDET)
+                     WRITE(6,*) DefDet(:)
+                     EXIT
+                 ENDIF
+             ENDDO
+         ENDIF
+         
 
          WRITE(6,*) ' NUMBER OF SYMMETRY UNIQUE DETS ' , NDET
 

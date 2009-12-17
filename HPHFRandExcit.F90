@@ -89,7 +89,8 @@ MODULE HPHFRandExcitMod
             CALL FindBitExcitLevel(iLutnI2,iLutnJ,ExcitLevel,2)
             IF((ExcitLevel.le.2).and.(ExcitLevel.ne.0)) THEN
                 Ex2(1,1)=ExcitLevel
-                CALL GetExcitation(nI2,nJ,NEl,Ex2,tSign)
+                CALL GetBitExcitation(iLutnI2,iLutnJ,Ex2,tSign)
+!                CALL GetExcitation(nI2,nJ,NEl,Ex2,tSign)
                 tGenClassCountnI2=.true.
                 CALL ConstructClassCounts(nI2,ClassCount3,ClassCountUnocc3)
                 CALL CalcNonUniPGen(nI2,Ex2,ExcitLevel,ClassCount3,ClassCountUnocc3,pDoub,pGen2)
@@ -116,7 +117,8 @@ MODULE HPHFRandExcitMod
             CALL FindBitExcitLevel(iLutnI,iLutnJ,ExcitLevel,2)
             IF((ExcitLevel.le.2).and.(ExcitLevel.ne.0)) THEN
                 Ex2(1,1)=ExcitLevel
-                CALL GetExcitation(nI,nJ,NEl,Ex2,tSign)
+                CALL GetBitExcitation(iLutnI,iLutnJ,Ex2,tSign)
+!                CALL GetExcitation(nI,nJ,NEl,Ex2,tSign)
 !We need to calculate the new classcount arrays for the original determinant passed in.
                 tGenClassCountnI=.true.
                 CALL ConstructClassCounts(nI,ClassCount2,ClassCountUnocc2)
@@ -134,7 +136,8 @@ MODULE HPHFRandExcitMod
         CALL FindBitExcitLevel(iLutnI2,iLutnJ2,ExcitLevel,2)
         IF((ExcitLevel.le.2).and.(ExcitLevel.ne.0)) THEN
             Ex2(1,1)=ExcitLevel
-            CALL GetExcitation(nI2,nJ2,NEl,Ex2,tSign)
+            CALL GetBitExcitation(iLutnI2,iLutnJ2,Ex2,tSign)
+!            CALL GetExcitation(nI2,nJ2,NEl,Ex2,tSign)
             IF(.not.tGenClassCountnI2) THEN
 !                tGenClassCountnI2=.true.
                 CALL ConstructClassCounts(nI2,ClassCount3,ClassCountUnocc3)
@@ -147,7 +150,8 @@ MODULE HPHFRandExcitMod
         CALL FindBitExcitLevel(iLutnI,iLutnJ2,ExcitLevel,2)
         IF((ExcitLevel.le.2).and.(ExcitLevel.ne.0)) THEN
             Ex2(1,1)=ExcitLevel
-            CALL GetExcitation(nI,nJ2,NEl,Ex2,tSign)
+            CALL GetBitExcitation(iLutnI,iLutnJ2,Ex2,tSign)
+!            CALL GetExcitation(nI,nJ2,NEl,Ex2,tSign)
             IF(.not.tGenClassCountnI) THEN
 !                tGenClassCountnI=.true.
                 CALL ConstructClassCounts(nI,ClassCount2,ClassCountUnocc2)

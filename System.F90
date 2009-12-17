@@ -46,11 +46,12 @@ MODULE System
       TDFREAD=.false.
       tRIIntegrals=.false.
       TPBC=.false.
-      TUEG=.false.
       TCPMD=.false.
       tVASP=.false.
       THUB=.false.
       TUEG=.false.
+      tLatticeGens =.false.
+      tNoFailAb=.false.
       LMS=0
       TSPN=.false.
       TCSF=.false.
@@ -351,6 +352,14 @@ MODULE System
             call geti(NMAXX)
             call geti(NMAXY)
             call geti(NMAXZ)
+        ! This means that no a is generated when b would be made and rejected
+        ! O(N^2) loop makes this a poor choice for larger systems.
+        case("UEGNOFAIL")
+            tNoFailAb = .true.
+        ! These are the new lattice excitation generators that conserve momentum
+        ! during excitation generation for efficiency
+        case("LATTICE-EXCITGEN")
+            tLatticeGens =.true.
         case("MESH")
             call geti(NMSH)
         case("BOXSIZE")
