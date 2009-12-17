@@ -40,6 +40,18 @@ contains
         iscsf = btest(nI(1),csf_test_bit)
     end function
 
+    ! The number of determinants given a specified number of csfs (note that
+    ! if nopen == 0, ie ncsf==0, there is still a closed shell determinant
+    ! legitimately exists.
+    integer function num_csf_dets (ncsf)
+        integer, intent(in) :: ncsf
+        if (ncsf == 0) then
+            num_csf_dets = 1
+        else
+            num_csf_dets = ncsf
+        endif
+    end function
+
     ! This is (intentionally) a BRUTE FORCE way of calculating this.
     ! We would like to see if there is a nicer way of doing this using
     ! the representation matrices of the permutations which we are able 
