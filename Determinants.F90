@@ -286,13 +286,22 @@ MODULE Determinants
       TYPE(HElement) function GetHElement4(NI,NJ,iC2,ExcitMat,TParity)
          USE HElem
          use SystemData, only : nEl,nBasisMax,G1,nBasis,Brr
-         use SystemData, only : ECore,ALat,NMSH
+         use SystemData, only : ECore,ALat,NMSH, tCSF
          use IntegralsData, only : UMat,FCK,NMAX
+         use csf, only: iscsf, CSFGetHelement
          INTEGER NI(nEl),NJ(nEl),iC,ExcitMat(2,2),IC2
          LOGICAL TParity
          TYPE(HElement) Sum
          IC=IC2
          GetHElement4%v=0.D0
+
+         if (tCSF) then
+             if (iscsf(NI) .or. iscsf(NJ)) then
+                 !print*, 'get csf elements'
+                 gethelement4 = CSFGetHelement (NI, NJ)
+                 return
+             endif
+         endif
          
          IF(IC.LT.0) THEN
 !             IC=IGETEXCITLEVEL_2(NI,NJ,NEL,2)   !Calculate whether connected or not

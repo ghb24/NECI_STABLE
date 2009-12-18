@@ -1636,24 +1636,23 @@ MODULE GenRandSymExcitNUMod
 !ClassCount arrays are not going to be 1D arrays, so that new symmetries can be added more easily.
 !This means that an indexing system is needed for the array.
 !For spin, alpha=1, beta=2. Sym goes from 0:nSymLabels-1 and Mom goes from -Lmax to Lmax.
-    INTEGER FUNCTION ClassCountInd(Spin,Sym,Mom)
-        INTEGER :: Spin,Sym,Mom
+    pure integer function ClassCountInd(Spin,Sym,Mom)
+        integer, intent(in) :: Spin,Sym,Mom
 
-        IF(tFixLz) THEN
+        if(tFixLz) then
             ClassCountInd=2*nSymLabels*(Mom+iMaxLz)+2*Sym+Spin
-        ELSE
+        else
             ClassCountInd=2*Sym+Spin
-        ENDIF
+        endif
 
-        IF(tNoSymGenRandExcits) THEN
-            IF(Spin.eq.1) THEN
+        if(tNoSymGenRandExcits) then
+            if(Spin.eq.1) then
                 ClassCountInd=1
-            ELSE
+            else
                 ClassCountInd=2
-            ENDIF
-        ENDIF
-
-    END FUNCTION ClassCountInd
+            endif
+        endif
+    end function ClassCountInd
 
 
 

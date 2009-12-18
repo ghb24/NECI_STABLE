@@ -8,7 +8,8 @@ module DetBitOps
     ! for a variety of interesting bit counters
     interface CountBits
         !module procedure CountBits_sparse
-        module procedure CountBits_nifty
+        !module procedure CountBits_nifty
+        module procedure CountBits_elemental
     end interface
 
     contains
@@ -72,6 +73,58 @@ module DetBitOps
         enddo       
     end function CountBits_nifty
 
+    ! Using elemental routines rather than an explicit do-loop. Should be
+    ! faster.
+    function CountBits_elemental (iLut, nLast, nBitsMax) result(nbits)
+        integer, intent(in), optional :: nBitsMax
+        integer, intent(in) :: nLast, iLut(0:nLast)
+        integer :: nbits
+
+        nbits = sum(count_set_bits(iLut))
+        
+        if (present(nBitsMax)) nbits = min(nBitsmax+1, nbits)
+    end function
+
+    ! An elemental routine which will count the number of bits set in one 
+    ! (32 bit) integer. We can do similar things for 8bit, 16bit and 64bit.
+    ! This makes use of the same counting trick as CountBits_nifty. As nicely
+    ! summarised by James:
+    !
+    ! The general idea is to use a divide and conquer approach.
+    ! * Set each 2 bit field to be the sum of the set bits in the two single
+    !   bits originally in that field.
+    ! * Set each 4 bit field to be the sum of the set bits in the two 2 bit
+    !   fields originally in the 4 bit field.
+    ! * Set each 8 bit field to be the sum of the set bits in the two 4 bit
+    !   fields it contains.
+    ! * etc.
+    ! Thus we obtain an algorithm like:
+    !     x = ( x & 01010101...) + ( (x>>1) & 01010101...)
+    !     x = ( x & 00110011...) + ( (x>>2) & 00110011...)
+    !     x = ( x & 00001111...) + ( (x>>4) & 00001111...)
+    ! etc., where & indicates AND and >> is the shift right operator.
+    ! Further optimisations are:
+    ! * Any & operations can be omitted where there is no danger that
+    ! a field's sum will carry over into the next field.
+    ! * The first line can be replaced by:
+    !     x = x - ( (x>>1) & 01010101...)
+    !   thanks to the population (number of set bits) in an integer
+    !   containing p bits being given by:
+    !     pop(x) = \sum_{i=0}^{p-1} x/2^i
+    ! * Summing 8 bit fields together can be performed via a multiplication
+    !   followed by a right shift.
+    elemental function count_set_bits (a) result (nbits)
+        integer, intent(in) :: a
+        integer :: nbits
+        integer :: tmp
+
+        tmp = a
+        tmp = tmp - iand(ishft(tmp,-1), Z'55555555')
+        tmp = iand(tmp, Z'33333333') + iand(ishft(tmp, -2), Z'33333333')
+        tmp = iand((tmp+ishft(tmp, -4)), Z'F0F0F0F') * Z'1010101'
+        nbits = ishft(tmp, -24)
+    end function
+
     integer function count_open_orbs (iLut)
         integer, intent(in) :: iLut(0:NIfD)
         integer, dimension(0:NIfD) :: alpha, beta
@@ -84,7 +137,8 @@ module DetBitOps
         count_open_orbs = CountBits(alpha, NIfD)
     end function
 
-    !This will return true if iLutI is identical to iLutJ and will return false otherwise.
+    ! This will return true if iLutI is identical to iLutJ and will return 
+    ! false otherwise.
     logical function DetBitEQ(iLutI,iLutJ,nLast)
         integer, intent(in), optional :: nLast
         integer, intent(in) :: iLutI(0:NIfTot), iLutJ(0:NIfTot)

@@ -76,11 +76,22 @@ contains
         call get_csf_data(NI, nel, nopen(1), nclosed(1), S(1), Ms(1))
         call get_csf_data(NJ, nel, nopen(2), nclosed(2), S(2), Ms(2))
 
+        !write(6,'("<")',advance='no')
+        !call writedet(6,ni,nel,.false.)
+        !write(6,'("|")',advance='no')
+        !call writedet(6,nj,nel,.false.)
+        !write(6,'(">")')
+        !write(6,'("nopen",2i3,"nclosed",2i3,"S",2f8.3,"Ms",2f8.3)') &
+        !     nopen(1), nopen(2), nclosed(1), nclosed(2), S(1),S(2),Ms(1),Ms(2)
+
         ! If S or Ms are not consistent, then return 0
-        if ((S(1).ne.S(2)) .or. (Ms(1).ne.Ms(2))) then
+        if ((S(1).ne.S(2))) then ! .or. (Ms(1).ne.Ms(2))) then
             CSFGetHelement = HElement(0) 
             return
         endif
+        Ms(1) = minval(S)
+        Ms(2) = Ms(1)
+        !print*, 'new Ms value', Ms(1)
 
         ! Get electronic details
         ! Using S instead of Ms to calculate nup, as this has the fewest
@@ -91,11 +102,16 @@ contains
         ndets(2) = int(choose(nopen(2),nup(2)))
 
         ! Allocate as required
-        allocate (yama1(nopen(1)), yama2(nopen(2)))
         allocate (coeffs1(ndets(1)), coeffs2(ndets(2)))
         allocate (dets1(ndets(1), nel), dets2(ndets(2), nel))
-        call LogMemAlloc ('yama1',size(yama1),4,this_routine,tagYamas(1))
-        call LogMemAlloc ('yama2',size(yama2),4,this_routine,tagYamas(2))
+        if (nopen(1) > 0) then
+            allocate(yama1(nopen(1)))
+            call LogMemAlloc ('yama1',size(yama1),4,this_routine,tagYamas(1))
+        endif
+        if (nopen(2) > 0) then
+            allocate(yama2(nopen(2)))
+            call LogMemAlloc ('yama2',size(yama2),4,this_routine,tagYamas(2))
+        endif
         call LogMemAlloc ('coeffs1',size(coeffs1),8,this_routine,tagCoeffs(1))
         call LogMemAlloc ('coeffs2',size(coeffs2),8,this_routine,tagCoeffs(2))
         call LogMemAlloc ('dets1',size(dets1),4,this_routine,tagDets(1))
@@ -139,7 +155,7 @@ contains
         enddo
         ! There will/may be faster ways of doing this
         call csf_sort_det_block (dets1, ndets(1), nopen(1))
-        call csf_sort_det_block (dets1, ndets(2), nopen(2))
+        call csf_sort_det_block (dets2, ndets(2), nopen(2))
 
         ! TODO: implement symmetry if NI,NJ are the same except for yama
         CSFGetHelement = HElement(0)
@@ -153,9 +169,16 @@ contains
         enddo
 
         ! Deallocate for cleanup
-        deallocate (coeffs1, coeffs2, yama1, yama2, dets1, dets2)
-        call LogMemDealloc (this_routine, tagYamas(1))
-        call LogMemDealloc (this_routine, tagYamas(2))
+        ! TODO: Create logged alloc/dealloc macro. With conditional?
+        deallocate (coeffs1, coeffs2, dets1, dets2)
+        if (allocated(yama1)) then
+            deallocate(yama1)
+            call LogMemDealloc (this_routine, tagYamas(1))
+        endif
+        if (allocated(yama2)) then
+            deallocate(yama2)
+            call LogMemDealloc (this_routine, tagYamas(2))
+        endif
         call LogMemDealloc (this_routine, tagCoeffs(1))
         call LogMemDealloc (this_routine, tagCoeffs(2))
         call LogMemDealloc (this_routine, tagDets(1))

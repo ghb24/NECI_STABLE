@@ -497,8 +497,11 @@ contains
                         exit
                     endif
                 else
-                    if (G1(orb)%Ms == 1) call stop_all (this_routine, &
-                                                        "Invalid spin")
+                    if (G1(orb)%Ms == 1) then
+                        call writedet(6, nI, nel, .true.)
+                        write (6,'("elec, orb: ",2i4)') elec, orb
+                        call stop_all (this_routine, "Invalid spin")
+                    endif
                     ind = CCIndS(int(G1(orb)%Sym%S), G1(orb)%Ml)
                     CCSglDelta(ind) = CCSglDelta(ind) - 1
                     nopen = nopen - 1
@@ -556,7 +559,7 @@ contains
         integer :: elecsWNoExcits, elec, orb, orb2, spn, ind, norbs, symEx
         integer :: lnopen, ncsf, i, sym_ind, nexcit
         real*8 :: r, S
-        logical :: bSingle
+        logical :: bSingle, bFail
 
         ! TODO: Check that this condition is not necessary!!
         !if (tNoSingsPossible .or. tNoSymGenRandExcits) then
@@ -631,11 +634,14 @@ contains
         ! from the desired symmetry and spin until we find one unoccupied.
         ! This is method 2 from symrandexcit2.
         norbs = OrbClassCount(symEx)
+        bFail = .false.
         do i=1,250
-            call genrand_real2(r)
+123         call genrand_real2(r)
             orb2 = int(norbs*r)
             ind = SymLabelCounts2(1,symEx) + orb2
             orb2 = SymLabelList2(ind)
+            
+            if (bFail) print*, orb2
 
             ! Cannot excite a single to itself
             if (bSingle .and. (orb2 == orb+1)) cycle
@@ -662,15 +668,23 @@ contains
             endif
         enddo
 
-        if (i > 250) then
+        if (i > 250 .or. bFail) then
             write(6,'("Cannot find an unoccupied orbital for a single")')
             write(6,'("excitation after 250 attempts.")')
             write(6,'("Desired symmetry of unoccupied orbital =",i3)') &
                 int(G1(orb)%Sym%S, 4)
             write(6,'("Num. orbitals (of correct spin) in symmetry =",i4)') &
                 norbs
+            write(6,'("Exciting from: ",i4)') orb
+            print*, G1(orb)%Sym%S, symEx
+            print*, SymLabelList2(SymLabelCounts2(1,symEx):SymLabelCounts2(1,symEx)+OrbClassCount(symEx)-1)
             write(6,'("Number of orbitals to legitimately pick =",i4)') nexcit
             call writedet(6,nI,nel,.true.)
+            if (.not. bFail) then
+                bFail = .true.
+                i=230
+                goto 123
+            endif
             call stop_all(this_routine, "Cannot find an unoccupied orbital &
                          &for a single excitation after 250 attempts.")
         endif
@@ -1083,9 +1097,9 @@ contains
 
                 ! Remove this single from the list, and place the beta
                 ! e- from the original double into it.
-                nJ(1,i:nel-1) = nJ(1,i+1:nel)
+                if (i < nel) nJ(1,i:nel-1) = nJ(1,i+1:nel)
                 ins(1) = srbeta
-                call int_list_merge (nJ(1,nclosed+1:nel),ins(1:1),nopen,1)
+                call int_list_merge (nJ(1,nclosed+1:nel),ins(1:1),nopen-1,1)
 
                 ! Add the new double 
                 nJ(1,ExcitMat(1)-1:nclosed-2) = &
@@ -1093,6 +1107,7 @@ contains
                 ins(1) = exbeta
                 ins(2) = exalpha
                 call int_list_merge (nJ(1,1:nclosed),ins(1:2),nclosed-2,2)
+                
             ! Exciting to vacant orbital
             else
                 !>>>! print*, 'exciting to vacant', sralpha, exbeta
@@ -1712,25 +1727,26 @@ contains
         integer :: CCUnS(ScratchSize/2)
         integer :: ierr, nexcit, i
         integer, allocatable, dimension(:,:) :: nK
-        !integer, dimension(10) :: nJ=(/-2147483631,-2147483630,-2147483625,-2147483624,-2147483615,-2147483614,-1073741823,-1073741821,-2147483643,-2147483641/)
+        !integer, dimension(10) :: nJ=(/-2147483631,-2147483630,-2147483615,-2147483614,-1073741823,-2147483645,-1073741805,-1073741803,-2147483625,-2147483623/)
         ! TODO: possibly a slight bias to 1.0000+ with nJ as below
+        integer, dimension(10) :: nJ=(/1,2,3,4,17,18,21,22,33,34/)
         !integer, dimension(10) :: nJ=(/3,4,17,18,23,24,31,32,33,34/)
         character(*), parameter :: this_routine = 'TestGenRandSymCSFExcit'
 
         ! Generate bit representation, and count open shell electrons
-        call EncodeBitDet (nI, iLut)
+        call EncodeBitDet (nJ, iLut)
         nopen = count_open_orbs (iLut)
 
         print*, 'Starting determinant:'
-        call writedet(6, nI, nel, .true.)
-        call TestGenRandSymCSFExcit (nI, 1000000, 0.d0, 1.0, 4, 10000)
+        call writedet(6, nJ, nel, .true.)
+        !call TestGenRandSymCSFExcit (nJ, 4000000, 0.d0, 1.0, 4, 10000)
 
         ! Obtain the orbital symmetries for the following steps
-        call ConstructClassCounts(nI, nel-nopen, CCDbl, CCSgl, CCUn)
-        call ConstructClasscountsSpatial(nI, nel-nopen, CCDblS, CCSglS, CCUnS)
+        call ConstructClassCounts(nJ, nel-nopen, CCDbl, CCSgl, CCUn)
+        call ConstructClasscountsSpatial(nJ, nel-nopen, CCDblS, CCSglS, CCUnS)
 
         ! Enumerate all possible excitations
-        call csf_gen_excits (nI, iLut, nopen, 7, CCDbl, CCSgl,&
+        call csf_gen_excits (nJ, iLut, nopen, 7, CCDbl, CCSgl,&
                              CCUn, CCDblS, CCSglS, CCUnS, nexcit, nK)
 
         ! Run the testing routine or all of the excitatitons of the starting
@@ -1739,10 +1755,11 @@ contains
         do i=1,nexcit
             write (6, '(i6,": ")', advance='no') i
             call writedet (6, nK(i,:), nel, .true.)
-            call TestGenRandSymCSFExcit (nK(i,:), 1000000, 0.2, 0.75, 7 &
-                                         ,10000)
+            !call TestGenRandSymCSFExcit (nK(i,:), 4000000, 0.2, 0.75, 7 &
+            !                             ,10000)
         enddo
         deallocate(nK)
+        call stop_all(this_routine, 'end of test')
     end subroutine
 
     ! A test routine for the CSF excitation generators. Initially generate

@@ -12,7 +12,7 @@
 !   for both parallel and non-parallel.
 MODULE FciMCParMod
     use SystemData , only : NEl,Alat,Brr,ECore,G1,nBasis,nBasisMax,nMsh,Arr,LMS,tHPHF,tListDets,NIfD,NIfTot,NIfDBO
-    use SystemData , only : tHub,tReal,tNonUniRandExcits,tMerTwist,tRotatedOrbs,tImportanceSample,tFindCINatOrbs,tFixLz,LzTot,tUEG, tLatticeGens
+    use SystemData , only : tHub,tReal,tNonUniRandExcits,tMerTwist,tRotatedOrbs,tImportanceSample,tFindCINatOrbs,tFixLz,LzTot,tUEG, tLatticeGens,tCSF
     use CalcData , only : InitWalkers,NMCyc,DiagSft,Tau,SftDamp,StepsSft,OccCASorbs,VirtCASorbs,tFindGroundDet,tDirectAnnihil
     use CalcData , only : TStartMP1,NEquilSteps,TReadPops,TRegenExcitgens,TFixShiftShell,ShellFix,FixShift,tMultipleDetsSpawn
     use CalcData , only : tConstructNOs,tAnnihilatebyRange,tRotoAnnihil,MemoryFacSpawn,tRegenDiagHEls,tSpawnAsDet
@@ -448,13 +448,14 @@ MODULE FciMCParMod
 !        use HPHFRandExcitMod , only : TestGenRandHPHFExcit 
         USE Determinants , only : GetHElement3
         USE FciMCLoggingMOD , only : FindTriConnections,TrackSpawnAttempts,FindSpinCoupHEl
-        !use GenRandSymExcitCSF, only: TestCSF123
+        use GenRandSymExcitCSF, only: TestCSF123
+        use GenRandSymExcitCSF, only: GenRandSymCSFExcit
         USE CalcData , only : tAddtoInitiator,InitiatorWalkNo,tInitIncDoubs
         INTEGER :: MinorVecSlot,VecSlot,i,j,k,l,MinorValidSpawned,ValidSpawned,CopySign,ParticleWeight,Loop,iPartBloom
         INTEGER :: nJ(NEl),ierr,IC,Child,iCount,DetCurr(NEl),iLutnJ(0:NIfTot),NoMinorWalkersNew
         REAL*8 :: Prob,rat,HDiag,HDiagCurr
         INTEGER :: iDie,WalkExcitLevel,Proc             !Indicated whether a particle should self-destruct on DetCurr
-        INTEGER :: ExcitLevel,TotWalkersNew,iGetExcitLevel_2,error,length,temp,Ex(2,2),WSign,p,Scratch1(ScratchSize),Scratch2(ScratchSize),FDetSym,FDetSpin
+        INTEGER :: ExcitLevel,TotWalkersNew,iGetExcitLevel_2,error,length,temp,Ex(2,2),WSign,p,Scratch1(ScratchSize),Scratch2(ScratchSize),Scratch3(Scratchsize),FDetSym,FDetSpin
         LOGICAL :: tParity,tMainArr,tFilled,tCheckStarGenDet,tStarDet,tMinorDetList,tAnnihilateMinorTemp,tAnnihilateMinor,TestClosedShellDet,tParentInCAS
         INTEGER(KIND=i2) :: HashTemp
         TYPE(HElement) :: HDiagTemp
@@ -512,6 +513,10 @@ MODULE FciMCParMod
 !            WRITE(6,*) 'CurrentDet (bit)',CurrentDets(:,j)
             CALL DecodeBitDet(DetCurr,CurrentDets(:,j))
 
+            !>>>! yipes
+            !write (6,'("Consider: ")', advance='no')
+            !call writedet(6, DetCurr, nel, .true.)
+
 !            IF((Iter.gt.100)) THEN!.and.(.not.DetBitEQ(CurrentDets(:,j),iLutHF))) THEN
 !This will test the excitation generator for HPHF wavefunctions
 !                IF(.not.(TestClosedShellDet(CurrentDets(:,j)))) THEN
@@ -537,7 +542,7 @@ MODULE FciMCParMod
 !This can be changed easily by increasing the final argument.
 
             ! This is where you can call the CSF testing routine
-            !call TestCSF123 (DetCurr)
+            ! call TestCSF123 (DetCurr)
 
             IF(tTruncSpace.or.tHighExcitsSing.or.tHistSpawn.or.tCalcFCIMCPsi.or.tPrintSpinCoupHEl.or.tHistHamil) THEN
 !We need to know the exact excitation level for truncated calculations.
@@ -628,6 +633,8 @@ MODULE FciMCParMod
             ENDIF
 
 !Sum in any energy contribution from the determinant, including other parameters, such as excitlevel info
+!TODO: This is where projected energy calculated - make sure that it can call
+!the right HElement call
             CALL SumEContrib(DetCurr,WalkExcitLevel,CurrentSign(j),CurrentDets(:,j),HDiagCurr,1.D0)
 
 !            IF(TResumFCIMC) CALL ResumGraphPar(DetCurr,CurrentSign(j),VecSlot,j)
@@ -682,6 +689,13 @@ MODULE FciMCParMod
                                 IF(tHPHF) THEN
 !                                    CALL GenRandHPHFExcit(DetCurr,CurrentDets(:,j),nJ,iLutnJ,pDoubles,exFlag,Prob)
                                     CALL GenRandHPHFExcit2Scratch(DetCurr,CurrentDets(:,j),nJ,iLutnJ,pDoubles,exFlag,Prob,Scratch1,Scratch2,tFilled,tGenMatHEl)
+                                ELSEIF(tCSF) THEN
+                                    !TODO: GENERATE CSF EXCITATION
+                                    !TODO: Work properly with this exflag
+                                    exFlag = 7
+                                    call GenRandSymCSFExcit (DetCurr, CurrentDets(:,j), nJ, 0.04, 0.95, IC, Ex, exFlag, Prob, Scratch1, Scratch2, Scratch3, tFilled)
+                                    write(6,'("Generated: ")',advance='no')
+                                    call writedet(6,nJ,nel,.true.)
                                 ELSE
                                     CALL GenRandSymExcitScratchNU(DetCurr,CurrentDets(:,j),nJ,pDoubles,IC,Ex,tParity,exFlag,Prob,Scratch1,Scratch2,tFilled)
 !                                    WRITE(6,'(A,8I3)') 'determinant generated for spawning',nJ
@@ -788,6 +802,7 @@ MODULE FciMCParMod
 
 !                        WRITE(6,'(A,3I20,A,8I3)') 'Child to be created from:',CurrentDets(:,j),' which is ',DetCurr(:)
 !                        WRITE(6,'(A,3I20,A,8I3)') 'Child to be created on:',iLutnJ(:),' which is ',nJ(:)
+! TODO: Here!!!!
                         Child=AttemptCreatePar(DetCurr,CurrentDets(:,j),CurrentSign(j),nJ,iLutnJ,Prob,IC,Ex,tParity,ParticleWeight,tMinorDetList)
 !                        WRITE(6,'(A,3I20)') 'Child to be created on:',iLutnJ(:)
 !                        WRITE(6,*) 'Child',Child
@@ -3899,7 +3914,7 @@ MODULE FciMCParMod
 !Normal determinant spawn
 
             rh=GetHElement4(DetCurr,nJ,IC,Ex,tParity)
-!            WRITE(6,*) rh%v
+            WRITE(6,*) rh%v
 
 !Divide by the probability of creating the excitation to negate the fact that we are only creating a few determinants
             rat=Tau*abs(rh%v)*REAL(nParts,r2)/Prob
