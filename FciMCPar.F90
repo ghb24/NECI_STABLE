@@ -9069,6 +9069,8 @@ MODULE FciMCParMod
         IMPLICIT NONE
         INTEGER :: I,t,ierr
         CHARACTER(len=*), PARAMETER :: this_routine='CreateSpinInvBrr'
+
+        IF(ALLOCATED(SpinInvBRR)) RETURN
             
         ALLOCATE(SpinInvBRR(NBASIS),STAT=ierr)
         CALL LogMemAlloc('SpinInvBRR',NBASIS,4,this_routine,SpinInvBRRTag,ierr)
