@@ -131,7 +131,9 @@ module DetBitOps
 
         alpha = iand(iLut, Z'AAAAAAAA')
         beta = iand(iLut, Z'55555555')
+        write (6, '(4b32)'), alpha(0), alpha(1), beta(0), beta(1)
         alpha = ishft(alpha, -1)
+        write (6, '(4b32)'), alpha(0), alpha(1), ieor(alpha(0),beta(0)), ieor(alpha(1),beta(1))
         alpha = ieor(alpha, beta)
         
         count_open_orbs = CountBits(alpha, NIfD)
@@ -325,6 +327,7 @@ module DetBitOps
 
         iLut(:)=0
         nopen = 0
+        open_shell = .false.
         if (tCSF .and. iscsf (nI)) then
             do i=1,nel
                 ! THe first non-paired orbital has yama symbol = 1
@@ -343,13 +346,19 @@ module DetBitOps
                     nopen = nopen + 1
                 endif
             enddo
-            iLut (NIfD+1) = nopen
         else
             do i=1,nel
-                iLut((nI(i)-1)/32)=IBSET(iLut((nI(i)-1)/32),mod(nI(i)-1,32))
+                pos = (nI(i) - 1) / 32
+                iLut(pos)=ibset(iLut(pos),mod(nI(i)-1,32))
             enddo
         endif
-
+        if (CountBits(ilut, NIfD) > nel) then
+            call writedet(6, nI, nel, .true.)
+            write(6,'(2b32)'), ilut(0), ilut(1)
+            print*, 'bad bit det'
+            call flush(6)
+            call stop_all ('enc', 'bad')
+        endif
     end subroutine EncodeBitDet
 
     ! This is a routine to take a determinant in bit form and construct 
@@ -412,6 +421,13 @@ module DetBitOps
                     endif
                 enddo
             enddo
+        endif
+        if (CountBits(ilut, NIfD) > nel) then
+            call writedet(6, nI, nel, .true.)
+            write(6,'(2b32)'), ilut(0), ilut(1)
+            print*, 'bad bit det'
+            call flush(6)
+            call stop_all ('dec', 'bad')
         endif
     end subroutine DecodeBitDet
 

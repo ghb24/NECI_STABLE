@@ -49,6 +49,14 @@ contains
         ! Count the open shell electrons
         nopen = count_open_orbs(iLut) 
 
+        if (mod(nopen,2) .ne. 0) then
+            call writedet (6, ni, nel, .true.)
+            print*, 'non-even nopen', nopen
+            call flush(6)
+            call stop_all (this_routine, 'yipes')
+
+        endif
+
         ! If the array is not already populated, perform an O[N] operation to
         ! find the number of occupied alpha/beta electrons, and number of
         ! occupied e- of each symmetry class and spin.
@@ -559,7 +567,7 @@ contains
         integer :: elecsWNoExcits, elec, orb, orb2, spn, ind, norbs, symEx
         integer :: lnopen, ncsf, i, sym_ind, nexcit
         real*8 :: r, S
-        logical :: bSingle, bFail
+        logical :: bSingle
 
         ! TODO: Check that this condition is not necessary!!
         !if (tNoSingsPossible .or. tNoSymGenRandExcits) then
@@ -634,15 +642,12 @@ contains
         ! from the desired symmetry and spin until we find one unoccupied.
         ! This is method 2 from symrandexcit2.
         norbs = OrbClassCount(symEx)
-        bFail = .false.
         do i=1,250
-123         call genrand_real2(r)
+         call genrand_real2(r)
             orb2 = int(norbs*r)
             ind = SymLabelCounts2(1,symEx) + orb2
             orb2 = SymLabelList2(ind)
             
-            if (bFail) print*, orb2
-
             ! Cannot excite a single to itself
             if (bSingle .and. (orb2 == orb+1)) cycle
 
@@ -656,19 +661,12 @@ contains
                     lnopen = lnopen - 2
                 endif
 
-                ! If this orbital is excluded (source of 1st excit), try again
-                ! Must be after above tests, as orb2 conditionally decremented
-                if (orb2 == ExcitMat(1,1)) then
-                    lnopen = nopen
-                    cycle
-                endif
-
                 ! Found --> leave the loop.
                 exit
             endif
         enddo
 
-        if (i > 250 .or. bFail) then
+        if (i > 250) then
             write(6,'("Cannot find an unoccupied orbital for a single")')
             write(6,'("excitation after 250 attempts.")')
             write(6,'("Desired symmetry of unoccupied orbital =",i3)') &
@@ -680,11 +678,7 @@ contains
             print*, SymLabelList2(SymLabelCounts2(1,symEx):SymLabelCounts2(1,symEx)+OrbClassCount(symEx)-1)
             write(6,'("Number of orbitals to legitimately pick =",i4)') nexcit
             call writedet(6,nI,nel,.true.)
-            if (.not. bFail) then
-                bFail = .true.
-                i=230
-                goto 123
-            endif
+            call flush(6)
             call stop_all(this_routine, "Cannot find an unoccupied orbital &
                          &for a single excitation after 250 attempts.")
         endif

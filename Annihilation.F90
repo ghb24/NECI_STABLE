@@ -16,14 +16,25 @@ MODULE AnnihilationMod
 !This is a new annihilation algorithm. In this, determinants are kept on predefined processors, and newlyspawned particles are sent here so that all the annihilations are
 !done on a predetermined processor, and not rotated around all of them.
     SUBROUTINE DirectAnnihilation(TotWalkersNew)
+        ! TODO: debug remove
+        use systemdata, only: nifd
+        use detbitops, only: countbits
+        integer :: i
         INTEGER :: MaxIndex,TotWalkersNew
+        WRITE(6,*) "Direct annihilation"
+        CALL FLUSH(6)
 
 !This routine will send all the newly-spawned particles to their correct processor. MaxIndex is returned as the new number of newly-spawned particles on the processor. May have duplicates.
 !The particles are now stored in SpawnedParts2/SpawnedSign2.
         CALL SendProcNewParts(MaxIndex)
 
-!        WRITE(6,*) "Sent particles"
-!        CALL FLUSH(6)
+        WRITE(6,*) "Sent particles"
+        CALL FLUSH(6)
+        do i=1,MaxIndex
+            if (countbits(spawnedparts(:,i),nifd) /= nel) then
+                print*, 'invalid'
+            endif
+        enddo
 
 !CompressSpawnedList works on SpawnedParts arrays, so swap the pointers around.
         IF(associated(SpawnedParts2,target=SpawnVec2)) THEN
@@ -40,26 +51,48 @@ MODULE AnnihilationMod
 
 !Now we want to order and compress the spawned list of particles. This will also annihilate the newly spawned particles amongst themselves.
 !MaxIndex will change to reflect the final number of unique determinants in the newly-spawned list, and the particles will end up in the spawnedSign/SpawnedParts lists.
+        WRITE(6,*) "Transferred"
+        CALL FLUSH(6)
+        do i=1,MaxIndex
+            if (countbits(spawnedparts(:,i),nifd) /= nel) then
+                print*, 'invalid'
+            endif
+        enddo
         CALL CompressSpawnedList(MaxIndex)
 
-!        WRITE(6,*) "List compressed",MaxIndex,TotWalkersNew
-!        CALL FLUSH(6)
+        WRITE(6,*) "List compressed",MaxIndex,TotWalkersNew
+        do i=1,MaxIndex
+            if (countbits(spawnedparts(:,i),nifd) /= nel) then
+                print*, 'invalid'
+            endif
+        enddo
+        CALL FLUSH(6)
 
 !Binary search the main list and copy accross/annihilate determinants which are found.
 !This will also remove the found determinants from the spawnedparts lists.
 
         CALL AnnihilateSpawnedParts(MaxIndex,TotWalkersNew)
 
-!            WRITE(6,*) "Annihilation finished",MaxIndex,TotWalkersNew
-!            CALL FLUSH(6)
+            WRITE(6,*) "Annihilation finished",MaxIndex,TotWalkersNew
+        do i=1,MaxIndex
+            if (countbits(spawnedparts(:,i),nifd) /= nel) then
+                print*, 'invalid'
+            endif
+        enddo
+            CALL FLUSH(6)
 
 !Put the surviving particles in the main list, maintaining order of the main list.
 !Now we insert the remaining newly-spawned particles back into the original list (keeping it sorted), and remove the annihilated particles from the main list.
         CALL set_timer(Sort_Time,30)
         CALL InsertRemoveParts(MaxIndex,TotWalkersNew)
 
-!            WRITE(6,*) "Surviving particles merged"
-!            CALL FLUSH(6)
+            WRITE(6,*) "Surviving particles merged"
+        do i=1,MaxIndex
+            if (countbits(spawnedparts(:,i),nifd) /= nel) then
+                print*, 'invalid'
+            endif
+        enddo
+            CALL FLUSH(6)
 
         CALL halt_timer(Sort_Time)
 
@@ -67,11 +100,15 @@ MODULE AnnihilationMod
 
 !This routine is used for sending the determinants to the correct processors. 
     SUBROUTINE SendProcNewParts(MaxIndex)
+        ! TODO: debug, remove
+        use systemdata, only: nifd
+        use detbitops, only: countbits
         REAL :: Gap
         INTEGER :: i,sendcounts(nProcessors),disps(nProcessors),recvcounts(nProcessors),recvdisps(nProcessors),error
         INTEGER :: MaxIndex,MaxSendIndex
 
-!        WRITE(6,*) "ValidSpawnedList ",ValidSpawnedList(:)
+        WRITE(6,*) "ValidSpawnedList ",ValidSpawnedList(:)
+        print*, 'max spawned', maxspawned
 
         Gap=REAL(MaxSpawned)/REAL(nProcessors)
 !        WRITE(6,*) "Gap: ",Gap
@@ -101,14 +138,20 @@ MODULE AnnihilationMod
             CALL Warning("SendProcNewParts","Maximum index of newly-spawned array is close to maximum length after annihilation send. Increase MemoryFacSpawn")
         ENDIF
 
-!        WRITE(6,*) "sendcounts: ",sendcounts(:)
-!        WRITE(6,*) "disps: ",disps(:)
-!        WRITE(6,*) "recvcounts: ", recvcounts(:)
-!        WRITE(6,*) "recvdisps: ",recvdisps(:)
+        WRITE(6,*) "sendcounts: ",sendcounts(:)
+        WRITE(6,*) "disps: ",disps(:)
+        WRITE(6,*) "recvcounts: ", recvcounts(:)
+        WRITE(6,*) "recvdisps: ",recvdisps(:)
 !        WRITE(6,*) "Sent Sign: ", NINT(Gap),sendcounts(2)
 !        do i=NINT(Gap),NINT(Gap)+sendcounts(2)
 !            WRITE(6,*) i,"***",SpawnedSign(i)
 !        enddo
+        do i=1,MaxSendIndex
+            write(6,'(2b32)') spawnedparts(1,i), spawnedparts(0,i)
+            if (countbits(spawnedparts(:,i),nifd) /= nel) then
+                print*, 'invalid'
+            endif
+        enddo
         
 !This is the main send of newly-spawned particles and signs to each determinants correct processor.
         CALL MPIAlltoAllvI(SpawnedSign(1:MaxSendIndex),sendcounts,disps,SpawnedSign2(1:MaxIndex),recvcounts,recvdisps,error)
@@ -128,6 +171,7 @@ MODULE AnnihilationMod
 
 !        WRITE(6,*) "Sent Particles: ", NINT(Gap),sendcounts(2)
 !        do i=NINT(Gap)+1,NINT(Gap)+sendcounts(2)
+!            write(6,*) i, '***', CountBits(spawnedparts(:,i), nifd)
 !            WRITE(6,*) i,"***",SpawnedParts(:,i)
 !        enddo
 #ifdef PARALLEL
@@ -139,6 +183,7 @@ MODULE AnnihilationMod
 !        WRITE(6,*) MaxIndex, "Recieved particles: "
 !        do i=1,MaxSpawned
 !            IF(SpawnedParts2(1,i).ne.0) THEN
+!            write(6,*) i, '***', CountBits(spawnedparts(:,i), nifd)
 !                WRITE(6,*) SpawnedParts2(:,i)
 !            ENDIF
 !        enddo
