@@ -11,7 +11,7 @@ MODULE HPHFRandExcitMod
     use SymData, only: nSymLabels
     use mt95 , only : genrand_real2
     use GenRandSymExcitNUMod , only : GenRandSymExcitScratchNU,ConstructClassCounts,CalcNonUniPGen,ScratchSize 
-    use DetBitOps, only: DetBitLT,DetBitEQ
+    use DetBitOps, only: DetBitLT, DetBitEQ, FindExcitBitDet
     use HElem
     IMPLICIT NONE
 !    SAVE
@@ -44,7 +44,7 @@ MODULE HPHFRandExcitMod
             IF(IsNullDet(nJ)) RETURN
             
 !Create bit representation of excitation - iLutnJ
-            CALL FindExcitBitDet(iLutnI,iLutnJ,IC,ExcitMat,NIfD)
+            CALL FindExcitBitDet(iLutnI,iLutnJ,IC,ExcitMat)
 
             IF(IC.eq.2) THEN
                 IF(.not.TestClosedShellDet(iLutnJ)) THEN
@@ -79,34 +79,34 @@ MODULE HPHFRandExcitMod
             IF(IsNullDet(nJ)) RETURN
 
 !Find Bit-representation of excitation.
-            CALL FindExcitBitDet(iLutnI,iLutnJ,IC,ExcitMat,NIfD)
-            IF(TestClosedShellDet(iLutnJ)) THEN
+        CALL FindExcitBitDet(iLutnI,iLutnJ,IC,ExcitMat)
+        IF(TestClosedShellDet(iLutnJ)) THEN
 !Excitation created is a closed shell determinant. Both determinants are connected to it, and crucially with the same probability. This means that the final pGen is unchanged.
-                RETURN
-            ENDIF
+            RETURN
+        ENDIF
 
 !We may have been able to excite from nI2 to this determinant. see if it in connected.
-            CALL FindBitExcitLevel(iLutnI2,iLutnJ,ExcitLevel,2)
-            IF((ExcitLevel.le.2).and.(ExcitLevel.ne.0)) THEN
-                Ex2(1,1)=ExcitLevel
-                CALL GetBitExcitation(iLutnI2,iLutnJ,Ex2,tSign)
+        CALL FindBitExcitLevel(iLutnI2,iLutnJ,ExcitLevel,2)
+        IF((ExcitLevel.le.2).and.(ExcitLevel.ne.0)) THEN
+            Ex2(1,1)=ExcitLevel
+            CALL GetBitExcitation(iLutnI2,iLutnJ,Ex2,tSign)
 !                CALL GetExcitation(nI2,nJ,NEl,Ex2,tSign)
-                tGenClassCountnI2=.true.
-                CALL ConstructClassCounts(nI2,ClassCount3,ClassCountUnocc3)
-                CALL CalcNonUniPGen(nI2,Ex2,ExcitLevel,ClassCount3,ClassCountUnocc3,pDoub,pGen2)
-                pGen=pGen+pGen2
-            ENDIF
+            tGenClassCountnI2=.true.
+            CALL ConstructClassCounts(nI2,ClassCount3,ClassCountUnocc3)
+            CALL CalcNonUniPGen(nI2,Ex2,ExcitLevel,ClassCount3,ClassCountUnocc3,pDoub,pGen2)
+            pGen=pGen+pGen2
+        ENDIF
 
-        ELSE
+    ELSE
 !Excite from the spin-pair of nI (called nI2)
 
 !            CALL DecodeBitDet(nI2,iLutnI2)
 !            CALL FindDetSpinSym(nI,nI2,NEl)
-            CALL GenRandSymExcitScratchNU(nI2,iLutnI2,nJ,pDoub,IC,ExcitMat,tParity,exFlag,pGen,ClassCount3,ClassCountUnocc3,tGenClassCountnI2)
-            IF(IsNullDet(nJ)) RETURN
+        CALL GenRandSymExcitScratchNU(nI2,iLutnI2,nJ,pDoub,IC,ExcitMat,tParity,exFlag,pGen,ClassCount3,ClassCountUnocc3,tGenClassCountnI2)
+        IF(IsNullDet(nJ)) RETURN
 
 !Find Bit-representation of excitation.
-            CALL FindExcitBitDet(iLutnI2,iLutnJ,IC,ExcitMat,NIfD)
+        CALL FindExcitBitDet(iLutnI2,iLutnJ,IC,ExcitMat)
             IF(TestClosedShellDet(iLutnJ)) THEN
 !Excitation created is a closed shell determinant. Both determinants are connected to it, and crucially with the same probability. This means that the final pGen is unchanged.
                 RETURN
@@ -190,7 +190,7 @@ MODULE HPHFRandExcitMod
         CALL GenRandSymExcitScratchNU(nI,iLutnI,nJ,pDoub,IC,ExcitMat,tSignOrig,exFlag,pGen,ClassCount2,ClassCountUnocc2,tGenClassCountnI)
         IF(IsNullDet(nJ)) RETURN
 !Create bit representation of excitation - iLutnJ
-        CALL FindExcitBitDet(iLutnI,iLutnJ,IC,ExcitMat,NIfD)
+        CALL FindExcitBitDet(iLutnI,iLutnJ,IC,ExcitMat)
             
 !Test!
 !        CALL CalcNonUniPGen(ExcitMat,IC,ClassCount2,ClassCountUnocc2,pDoub,pGen2)

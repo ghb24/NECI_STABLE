@@ -34,6 +34,7 @@ MODULE GenRandSymExcitNUMod
     use mt95 , only : genrand_real2
     use SymExcitDataMod 
     use HElem
+    use DetBitOps, only: FindExcitBitDet
     IMPLICIT NONE
 
     INTEGER , PARAMETER :: r2=kind(0.d0)
@@ -2825,7 +2826,7 @@ SUBROUTINE TestGenRandSymExcitNU(nI,Iterations,pDoub,exFlag,iWriteEvery)
     Use SymData , only : nSymLabels
     use Parallel
 !    use soft_exit , only : ChangeVars 
-    use DetBitOps , only : EncodeBitDet
+    use DetBitOps , only : EncodeBitDet, FindExcitBitDet
     IMPLICIT NONE
     INTEGER :: i,Iterations,exFlag,nI(NEl),nJ(NEl),IC,ExcitMat(2,2),DetConn,kx,ky,kz,ktrial(2)
     REAL*8 :: pDoub,pGen,AverageContrib,AllAverageContrib
@@ -3049,7 +3050,7 @@ lp2: do while(.true.)
                         ExcitMat(1,2)=j
                         ExcitMat(2,1)=k
                         ExcitMat(2,2)=l
-                        CALL FindExcitBitDet(iLut,iLutnJ,2,ExcitMat,NIfTot)
+                        CALL FindExcitBitDet(iLut,iLutnJ,2,ExcitMat)
                         WRITE(8,"(I12,F20.12,4I5,I15)") DetNum,AllDoublesHist(i,j,k,l)/(real(Iterations,8)*nProcessors),i,j,k,l,iLutnJ(0)
                         IF(tHub.or.tUEG) THEN
                             write(8,*) "#",G1(i)%k(1),G1(i)%k(2)
@@ -3072,7 +3073,7 @@ lp2: do while(.true.)
                 DetNumS=DetNumS+1
                 ExcitMat(1,1)=i
                 ExcitMat(2,1)=j
-                CALL FindExcitBitDet(iLut,iLutnJ,1,ExcitMat,NIfTot)
+                CALL FindExcitBitDet(iLut,iLutnJ,1,ExcitMat)
                 WRITE(9,*) DetNumS,AllSinglesHist(i,j)/(real(Iterations,8)*nProcessors),iLutnJ(0)
             ENDIF
         enddo

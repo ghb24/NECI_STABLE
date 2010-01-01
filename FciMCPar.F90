@@ -11,7 +11,7 @@
 !   At the end are functions which do not require parallel directives, and are accessible
 !   for both parallel and non-parallel.
 MODULE FciMCParMod
-    use SystemData , only : NEl,Alat,Brr,ECore,G1,nBasis,nBasisMax,nMsh,Arr,LMS,tHPHF,tListDets,NIfD,NIfTot,NIfDBO
+    use SystemData , only : NEl,Alat,Brr,ECore,G1,nBasis,nBasisMax,nMsh,Arr,LMS,tHPHF,tListDets,NIfD,NIfTot,NIfDBO,NIfY
     use SystemData , only : tHub,tReal,tNonUniRandExcits,tMerTwist,tRotatedOrbs,tImportanceSample,tFindCINatOrbs,tFixLz,LzTot,tUEG, tLatticeGens,tCSF
     use CalcData , only : InitWalkers,NMCyc,DiagSft,Tau,SftDamp,StepsSft,OccCASorbs,VirtCASorbs,tFindGroundDet,tDirectAnnihil
     use CalcData , only : TStartMP1,NEquilSteps,TReadPops,TRegenExcitgens,TFixShiftShell,ShellFix,FixShift,tMultipleDetsSpawn
@@ -39,6 +39,8 @@ MODULE FciMCParMod
     USE FciMCData
     USE AnnihilationMod
     use DetBitops, only: EncodeBitDet, DecodeBitDet, DetBitEQ, DetBitLT
+    use DetBitOps, only: FindExcitBitDet
+    use csf, only: get_csf_bit_yama
     IMPLICIT NONE
     integer, parameter :: dp = selected_real_kind(15,307)
     SAVE
@@ -506,7 +508,6 @@ MODULE FciMCParMod
         CALL InitHistMin()
 
         do j=1,TotWalkers
-            print*,'loop var',j
 !j runs through all current walkers
 !If we are rotoannihilating/direct annihilating, the sign indicates the sum of the signs on the determinant, and hence j loops over determinants, not particles.
 !            WRITE(6,*) Iter,j,TotWalkers
@@ -515,14 +516,6 @@ MODULE FciMCParMod
 !First, decode the bit-string representation of the determinant the walker is on, into a string of naturally-ordered integers
 !            WRITE(6,*) 'CurrentDet (bit)',CurrentDets(:,j)
             CALL DecodeBitDet(DetCurr,CurrentDets(:,j))
-            write(6,'("curr det:",2b32)'), currentdets(0,j), currentdets(1,j)
-        if (CountBits(CurrentDets(:,j), NIfD) > nel) then
-            call writedet(6, detcurr, nel, .true.)
-            write(6,'(2b32)'), currentdets(0,j), currentdets(1,j)
-            print*, 'bad bit det'
-            call flush(6)
-            call stop_all ('cyc', 'bad')
-        endif
 
             !>>>! yipes
             !write (6,'("Consider: ")', advance='no')
@@ -700,19 +693,11 @@ MODULE FciMCParMod
                                 IF(tHPHF) THEN
 !                                    CALL GenRandHPHFExcit(DetCurr,CurrentDets(:,j),nJ,iLutnJ,pDoubles,exFlag,Prob)
                                     CALL GenRandHPHFExcit2Scratch(DetCurr,CurrentDets(:,j),nJ,iLutnJ,pDoubles,exFlag,Prob,Scratch1,Scratch2,tFilled,tGenMatHEl)
-                                ELSEIF(tCSF) THEN
-                                    !TODO: GENERATE CSF EXCITATION
-                                    !TODO: Work properly with this exflag
+                                elseif (tCSF) then
+                                    ! TODO: fix this exFlag
                                     exFlag = 7
-                                    !write(6, '(3B32)') CurrentDets(2,j), currentDets(1,j), CurrentDets(0,j)
-                                    write(6,'("Input: ")',advance='no')
-                                    call writedet(6,DetCurr,nel,.true.)
                                     call GenRandSymCSFExcit (DetCurr, CurrentDets(:,j), nJ, 0.04_dp, 0.95_dp, IC, Ex, exFlag, Prob, Scratch1, Scratch2, Scratch3, tFilled)
-                                    write(6,'("Generated: ")',advance='no')
-                                    call writedet(6,nJ,nel,.true.)
-                                    if (nJ(1) /= 0) call EncodeBitDet(nJ, iLutnJ)
-                                    !write (7,'("done")')
-                                ELSE
+                                else
                                     CALL GenRandSymExcitScratchNU(DetCurr,CurrentDets(:,j),nJ,pDoubles,IC,Ex,tParity,exFlag,Prob,Scratch1,Scratch2,tFilled)
 !                                    WRITE(6,'(A,8I3)') 'determinant generated for spawning',nJ
                                 ENDIF
@@ -818,14 +803,11 @@ MODULE FciMCParMod
 
 !                        WRITE(6,'(A,3I20,A,8I3)') 'Child to be created from:',CurrentDets(:,j),' which is ',DetCurr(:)
 !                        WRITE(6,'(A,3I20,A,8I3)') 'Child to be created on:',iLutnJ(:),' which is ',nJ(:)
-! TODO: Here!!!!
                         Child=AttemptCreatePar(DetCurr,CurrentDets(:,j),CurrentSign(j),nJ,iLutnJ,Prob,IC,Ex,tParity,ParticleWeight,tMinorDetList)
-                        if (child /= 0) then
-                            write(6,'("children: ",i3)',advance='no') child
-                            call writedet(6, nJ, nel, .true.)
+                        !if (child /= 0) then
                             !WRITE(6,'(A,3I20)') 'Child to be created on:',iLutnJ(:)
                             !WRITE(6,*) 'Child',Child
-                        endif
+                        !endif
                     ENDIF
 
                 ENDIF
@@ -894,14 +876,10 @@ MODULE FciMCParMod
 !In direct annihilation, we spawn particles into a seperate array, but we do not store them contiguously in the SpawnedParts/SpawnedSign arrays.
 !The processor that the newly-spawned particle is going to be sent to has to be determined, and then it will get put into the the appropriate element determined by ValidSpawnedList.
 
-                        WRITE(6,'(A,3I20)') 'when dealing with directannihilation',iLutnJ(:)
+                        !WRITE(6,'(A,3I20)') 'when dealing with directannihilation',iLutnJ(:)
                         Proc=DetermineDetProc(iLutnJ)   !This wants to return a value between 0 -> nProcessors-1
-                        WRITE(6,*) iLutnJ(:),Proc,ValidSpawnedList(Proc),Child,TotWalkers
-                        CALL FLUSH(6)
-                        if (countbits(Ilutnj,nifd) > nel) then
-                            write (6,'(2b32)'), ilutnj(1), ilutnj(0)
-                            call stop_all('fcimcpar', 'fail')
-                        endif
+                        !WRITE(6,*) iLutnJ(:),Proc,ValidSpawnedList(Proc),Child,TotWalkers
+                        !CALL FLUSH(6)
                         SpawnedParts(:,ValidSpawnedList(Proc))=iLutnJ(:)
                         SpawnedSign(ValidSpawnedList(Proc))=Child
                         IF(tTruncInitiator) SpawnedParts(NIfTot,ValidSpawnedList(Proc))=ParentInitiator
@@ -1098,7 +1076,6 @@ MODULE FciMCParMod
 
 !Finish cycling over walkers
         enddo
-        print*, 'enddo'
 
 !        IF(MinorValidSpawned.gt.5) THEN
 !            WRITE(6,*) 'MinorValidSpawned',MinorValidSpawned
@@ -1253,9 +1230,8 @@ MODULE FciMCParMod
 
         IF(tDirectAnnihil) THEN
 !This is the direct annihilation algorithm. The newly spawned walkers should be in a seperate array (SpawnedParts) and the other list should be ordered.
-            print*, 'about to annihil'
+
             CALL DirectAnnihilation(TotWalkersNew)
-            print*, 'annihiled'
 
         ELSEIF(tRotoAnnihil) THEN
 !This is the rotoannihilation algorithm. The newly spawned walkers should be in a seperate array (SpawnedParts) and the other list should be ordered.
@@ -3881,6 +3857,7 @@ MODULE FciMCParMod
         INTEGER :: DetCurr(NEl),nJ(NEl),IC,StoreNumTo,StoreNumFrom,DetLT,i,ExtraCreate,Ex(2,2),WSign,nParts
         INTEGER :: iLutCurr(0:NIfTot),Bin,iLutnJ(0:NIfTot),PartInd,ExcitLev,iLut(0:NIfTot),iLut2(0:NIfTot)
         LOGICAL :: tParity,SymAllowed,tSuccess,tMinorDetList
+        integer :: yama(NIfY)
         REAL*8 :: Prob,r,rat
         TYPE(HElement) :: rh,rhcheck
 
@@ -3896,7 +3873,7 @@ MODULE FciMCParMod
 !Find the excitation level of the excitation
 !We need to calculate the bit-representation of this new child. This can be done easily since the ExcitMat is known.
             tMinorDetList=.false.
-            CALL FindExcitBitDet(iLutCurr,iLutnJ,IC,Ex,NIfD)
+            CALL FindExcitBitDet(iLutCurr,iLutnJ,IC,Ex)
             CALL FindBitExcitLevel(iLutHF,iLutnJ,ExcitLev,iMaxDomLev)
             IF((ExcitLev.le.iMaxDomLev).and.(ExcitLev.ge.iMinDomLev)) THEN
 !We now need to binary search the list of allowed determinants to see whether it is in the list or not.
@@ -4045,7 +4022,8 @@ MODULE FciMCParMod
         
 !We know we want to create a particle. Return the bit-representation of this particle (if we have not already got it)
         IF(.not.tHPHF.and.AttemptCreatePar.ne.0) THEN
-            CALL FindExcitBitDet(iLutCurr,iLutnJ,IC,Ex,NIfD)
+            call get_csf_bit_yama (nJ, yama)
+            CALL FindExcitBitDet(iLutCurr,iLutnJ,IC,Ex,yama)
         ENDIF
 
 !        IF(AttemptCreatePar.ne.0) THEN
@@ -4432,7 +4410,7 @@ MODULE FciMCParMod
                     ENDIF
 
 !We need to calculate the bit-representation of this new child. This can be done easily since the ExcitMat is known.
-                    IF(.not.tHPHF) CALL FindExcitBitDet(CurrentDets(:,j),iLutnJ,IC,Ex,NIfD)
+                    IF(.not.tHPHF) CALL FindExcitBitDet(CurrentDets(:,j),iLutnJ,IC,Ex)
 
                     IF(tRotoAnnihil) THEN
 !In the RotoAnnihilation implimentation, we spawn particles into a seperate array - SpawnedParts and SpawnedSign. 

@@ -580,6 +580,64 @@ END MODULE Determinants
       !   IF(LTERM) WRITE(NUNIT,*)
       !   RETURN
       !END
+    subroutine writedet_oldcsf (nunit, nI, nel, lTerm)
+        use systemdata, only: tCSF, tCSFOLD
+        
+        ! Write a human readable determinant to specified file unit. For use
+        ! with old csf routines.
+        ! Not easy to test, as both iscsf routines will return true sometimes.
+        ! This is here for use if it becomes necessary (eg debugging)
+        !
+        ! In: nunit    - File unit 
+        !     nI (nel) - Determinant to print
+        !     nel      - Number of electrons
+        !     lTerm    - Do we write an end-of-line character
+        
+        implicit none
+        integer, intent(in) :: nunit, nel, nI(nel)
+        logical, intent(in) :: lTerm
+        integer :: i, orb
+        logical iscsf, bCSF
+        include 'csf.inc'
+
+        ! Is this a csf? Note use of old (non-modularised) iscsf
+        bCSF = (tCSF .or. tCSFOLD) .and. iscsf(nI, nel)
+
+        ! Begin with an open bracket
+        write(nunit,'("(")',advance='no')
+        do i=1,nel
+            orb = nI(i)
+            if (bCSF .and. orb > CSF_NBSTART) then
+                ! Output the component orbital
+                orb = (orb - CSF_NBSTART) / 4 + 1
+                write(nunit,'(i4)',advance='no') orb
+
+                ! Output components of Yamanouchi symbol
+                orb = nI(i) - csf_nbstart
+                if (btest(orb, 1)) then
+                    write(nunit,'("+")',advance='no')
+                else
+                    write(nunit,'("-")',advance='no')
+                endif
+
+                ! Output components of Ms
+                if (btest(orb, 0)) then
+                    write(nunit,'("A")',advance='no')
+                else
+                    write(nunit,'("B")',advance='no')
+                endif
+            else
+                write(nunit,'(i6)',advance='no') orb
+            endif
+            if (i /= nel) write(nunit,'(",")',advance='no')
+        enddo
+
+        ! Close the written determinant off
+        write(nunit,'(")")',advance='no')
+        if (lTerm) write(nunit,*)
+
+    end subroutine
+
     subroutine writedet (nunit, nI, nel, lTerm)
         use csf, only: iscsf, csf_orbital_mask, csf_yama_bit
         use systemdata, only: tCSF

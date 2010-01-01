@@ -22,6 +22,7 @@ MODULE CCMC
         use CalcData , only : tFixCASShift
         use FciMCData
         use FciMCParMod, only: TestifDETinCAS
+        use DetBitOps, only: FindExcitBitDet
         use mt95
         IMPLICIT NONE
         INTEGER :: DetCurr(NEl),iKill,IC,WSign
@@ -562,7 +563,7 @@ MODULE CCMC
                CALL GenRandSymExcitScratchNU(DetCurr,iLutnI,nJ,pDoubles,IC,Ex,tParity,exFlag,Prob,Scratch1,Scratch2,tFilled)
                if(.not.IsNullDet(nJ)) then  !Check it hasn't given us a null determinant as it couldn't find one in a sensible time.
 !We need to calculate the bit-representation of this new child. This can be done easily since the ExcitMat is known.
-                  IF(.not.tHPHF) CALL FindExcitBitDet(iLutnI,iLutnJ,IC,Ex,NIfD)
+                  IF(.not.tHPHF) CALL FindExcitBitDet(iLutnI,iLutnJ,IC,Ex)
                   IF(iDebug.gt.4) then
                       WRITE(6,*) "Random excited det level ",iC
                       call WriteDet(6,nJ,nEl,.true.)
@@ -1219,6 +1220,7 @@ LOGICAL FUNCTION GetNextSpawner(S,iDebug)
    use Determinants , only : GetHElement4
    use GenRandSymExcitNUMod , only : GenRandSymExcitScratchNU
    use SymExcit3, only: GenExcitations3
+   use DetBitOps, only: FindExcitBitDet
    IMPLICIT NONE
    TYPE(Spawner) S
    INTEGER iDebug
@@ -1260,7 +1262,7 @@ LOGICAL FUNCTION GetNextSpawner(S,iDebug)
 !We need to calculate the bit-representation of this new child. This can be done easily since the ExcitMat is known.
       S%bValid=.true.
       if(iDebug.gt.4) WRITE(6,*) "GetNextSpawner",S%iIndex
-      CALL FindExcitBitDet(S%C%iLutDetCurr,S%iLutnJ,S%iExcitLevel,S%ExcitMat,NIfD)
+      CALL FindExcitBitDet(S%C%iLutDetCurr,S%iLutnJ,S%iExcitLevel,S%ExcitMat)
       IF(iDebug.gt.4) then
           WRITE(6,*) "Random excited det level ",S%iExcitLevel
           call WriteDet(6,S%nJ,nEl,.true.)

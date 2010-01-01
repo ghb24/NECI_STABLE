@@ -12,6 +12,14 @@ module DetBitOps
         module procedure CountBits_elemental
     end interface
 
+    ! Non-modularised functions (sigh)
+    interface
+        logical function int_arr_eq (a, b, len)
+            integer, intent(in), dimension(:) :: a, b
+            integer, intent(in), optional :: len
+        end function
+    end interface
+
     contains
 
     ! This will count the bits set in a bit-string up to a number nBitsMax, if
@@ -126,14 +134,17 @@ module DetBitOps
     end function
 
     integer function count_open_orbs (iLut)
+        
+        ! Returns the number of unpaired electrons in the determinant.
+        !
+        ! In:  iLut (0:NIfD) - Source bit det
+
         integer, intent(in) :: iLut(0:NIfD)
         integer, dimension(0:NIfD) :: alpha, beta
 
         alpha = iand(iLut, Z'AAAAAAAA')
         beta = iand(iLut, Z'55555555')
-        write (6, '(4b32)'), alpha(0), alpha(1), beta(0), beta(1)
         alpha = ishft(alpha, -1)
-        write (6, '(4b32)'), alpha(0), alpha(1), ieor(alpha(0),beta(0)), ieor(alpha(1),beta(1))
         alpha = ieor(alpha, beta)
         
         count_open_orbs = CountBits(alpha, NIfD)
@@ -352,13 +363,6 @@ module DetBitOps
                 iLut(pos)=ibset(iLut(pos),mod(nI(i)-1,32))
             enddo
         endif
-        if (CountBits(ilut, NIfD) > nel) then
-            call writedet(6, nI, nel, .true.)
-            write(6,'(2b32)'), ilut(0), ilut(1)
-            print*, 'bad bit det'
-            call flush(6)
-            call stop_all ('enc', 'bad')
-        endif
     end subroutine EncodeBitDet
 
     ! This is a routine to take a determinant in bit form and construct 
@@ -430,6 +434,46 @@ module DetBitOps
             call stop_all ('dec', 'bad')
         endif
     end subroutine DecodeBitDet
+
+    subroutine FindExcitBitDet(iLutnI, iLutnJ, IC, ExcitMat, yama)
+
+        ! This routine will find the bit-representation of an excitation by
+        ! constructing the new ilut from the old one and the excitation matrix
+        !
+        ! In:  iLutnI (0:NIfD) - source bit det
+        !      IC              - Excitation level
+        !      ExcitMat(2,2)   - Excitation Matrix
+        !      yama (NIfY)     - Yamanouchi symbol to apply (optional)
+        ! Out: iLutnJ (0:NIfD) - New bit det
+
+        ! TODO: Deal with CSFs here (need to pass in the csf to add)
+
+        integer, intent(in) :: iLutnI (0:NIfTot), IC, ExcitMat(2,2)
+        integer, intent(in), optional :: yama (NIfY)
+        integer, intent(out) :: iLutnJ (0:NIfTot)
+        integer :: pos(2,2), bit(2,2), i
+        integer :: ilut(0:NIfTot)
+
+        iLutnJ = iLutnI
+        if (IC == 0) then
+            if (.not.tCSF) then
+                call stop_all ("FindExcitBitDet", 'Invalid excitation level')
+            endif
+        else
+            ! Which integer and bit in ilut represent each element?
+            pos = (excitmat - 1) / 32
+            bit = mod(excitmat - 1, 32)
+
+            ! Clear bits for excitation source, and set bits for target
+            do i=1,IC
+                iLutnJ(pos(1,i)) = ibclr(iLutnJ(pos(1,i)), bit(1,i))
+                iLutnJ(pos(2,i)) = ibset(iLutnJ(pos(2,i)), bit(2,i))
+            enddo
+        endif
+
+        ! TODO: Retro-fit this to all the applicable locations
+        if (present(yama)) ilutnJ(NIfTot-NIfY+1:NIfTot) = yama
+    end subroutine FindExcitBitDet
 
     subroutine shift_det_bit_singles_to_beta (iLut)
         integer, intent(inout) :: iLut(0:NIfD)
@@ -604,25 +648,6 @@ end module
     end subroutine GetBitExcitation
 
 
-!This routine will find the bit-representation of an excitation by constructing the new iLut from the old one and the excitation matrix.
-    SUBROUTINE FindExcitBitDet(iLutnI,iLutnJ,IC,ExcitMat,NIfD)
-        IMPLICIT NONE
-        INTEGER :: iLutnI(0:NIfD),iLutnJ(0:NIfD),IC,ExcitMat(2,2),NIfD
-
-        iLutnJ(:)=iLutnI(:)
-        IF(IC.eq.1) THEN
-!Single excitation - clear one bit and set another.
-            iLutnJ((ExcitMat(1,1)-1)/32)=IBCLR(iLutnJ((ExcitMat(1,1)-1)/32),mod(ExcitMat(1,1)-1,32))
-            iLutnJ((ExcitMat(2,1)-1)/32)=IBSET(iLutnJ((ExcitMat(2,1)-1)/32),mod(ExcitMat(2,1)-1,32))
-        ELSE
-!Double excitation - clear two bits and set two others.
-            iLutnJ((ExcitMat(1,1)-1)/32)=IBCLR(iLutnJ((ExcitMat(1,1)-1)/32),mod(ExcitMat(1,1)-1,32))
-            iLutnJ((ExcitMat(2,1)-1)/32)=IBSET(iLutnJ((ExcitMat(2,1)-1)/32),mod(ExcitMat(2,1)-1,32))
-            iLutnJ((ExcitMat(1,2)-1)/32)=IBCLR(iLutnJ((ExcitMat(1,2)-1)/32),mod(ExcitMat(1,2)-1,32))
-            iLutnJ((ExcitMat(2,2)-1)/32)=IBSET(iLutnJ((ExcitMat(2,2)-1)/32),mod(ExcitMat(2,2)-1,32))
-        ENDIF
-
-    END SUBROUTINE FindExcitBitDet
 
 !This function will return true if the determinant is closed shell, or false if not.
     LOGICAL FUNCTION TestClosedShellDet(iLut)

@@ -2,7 +2,7 @@
 ! This is a random excitation generator for use with csfs.
 ! Generate using a normalised and calculable probability.
 module GenRandSymExcitCSF
-    use Systemdata, only: nel, NIftot, tNoSymGenRandExcits, G1, LMS, nbasis
+    use Systemdata, only: nel, NIftot, tNoSymGenRandExcits, G1, nbasis, STOT
     use SystemData, only: nbasismax, lztot, tFixLz, iMaxLz
     use SymExcitDataMod
     use SymData, only: TwoCycleSymGens, nSymLabels
@@ -48,14 +48,6 @@ contains
 
         ! Count the open shell electrons
         nopen = count_open_orbs(iLut) 
-
-        if (mod(nopen,2) .ne. 0) then
-            call writedet (6, ni, nel, .true.)
-            print*, 'non-even nopen', nopen
-            call flush(6)
-            call stop_all (this_routine, 'yipes')
-
-        endif
 
         ! If the array is not already populated, perform an O[N] operation to
         ! find the number of occupied alpha/beta electrons, and number of
@@ -109,7 +101,8 @@ contains
             ! Change only the Yamanouchi symbol. If it is not possible to
             ! change it (i.e. if ncsf = 0,1) then return 0 determinant.
             nJ = nI
-            call csf_apply_random_yama (nJ, nopen, real(LMS,8)/2, ncsf,.true.)
+            call csf_apply_random_yama (nJ, nopen, real(STOT,8)/2, ncsf, &
+                                        .true.)
             if (ncsf < 2) then
                 nJ(1) = 0
             else
@@ -230,16 +223,6 @@ contains
         if (tFixLz) then
             call stop_all (this_routine, 'Not implemented yet')
             ! TODO: Understand tFixLz here
-            !do i=-iMaxLz,iMaxLz
-            !    mlA = sumMl - i
-            !    ! TODO: Why i < mlA?
-            !    if ((i < mlA) .and. (abs(mlA) < iMaxLz)) then
-            !        do i=1,nSymLabels-1 ! Loop over the betas (spatial only)
-            !            ind = CCindS (ibclr(ieor(i,symProd)), mlA)
-
-            !        enddo
-            !    endif
-            !enddo
         else
             ! Loop over all sym indices for alpha elecs. If there are none, 
             ! then we cannot excite to any orbitals (A) with the paired 
@@ -1037,7 +1020,7 @@ contains
                     call csf_apply_yama (nJ(i,:), yamas(i,:))
                 enddo
             else
-                call csf_apply_random_yama (nJ, lnopen, real(LMS/2,8), ncsf, &
+                call csf_apply_random_yama (nJ, lnopen, real(STOT/2,8), ncsf,&
                                             .false.)
             endif
         endif
@@ -1153,7 +1136,7 @@ contains
                     call csf_apply_yama (nJ(i,:), yama(i,:))
                 enddo
             else
-                call csf_apply_random_yama (nJ, nopen_new, real(LMS/2,8), &
+                call csf_apply_random_yama (nJ, nopen_new, real(STOT/2,8), &
                                             ncsf, .false.)
             endif
         endif
@@ -1257,7 +1240,6 @@ contains
     end subroutine
 
 
-    ! TODO: Change from LMS --> STOT?
     ! TODO: Combine the counting and generation into one step - either by
     !       specifing a maximum number to generate, generating iteratively (ie
     !       generate next excit given current), or by looping twice.
@@ -1312,7 +1294,7 @@ contains
 
         ! Calculate number of different Yamanouchi symbols given S
         ! and the possible values of nopen
-        S = real(LMS) / 2
+        S = real(STOT) / 2
         numcsfs(0) = get_num_csfs (nopen, S)
         if (nopen<nel-1) numcsfs(1) = get_num_csfs (nopen+2, S)
         if (nopen>1) numcsfs(-1) = get_num_csfs (nopen-2, S)
