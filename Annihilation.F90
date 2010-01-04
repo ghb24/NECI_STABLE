@@ -7,7 +7,7 @@ MODULE AnnihilationMod
     USE Parallel
     USE mt95 , only : genrand_real2
     USE FciMCData
-    use DetBitOps, only: DetBitEQ, DetBitLT
+    use DetBitOps, only: DetBitEQ, DetBitLT, FindBitExcitLevel
     use CalcData , only : tTruncInitiator
     IMPLICIT NONE
 
@@ -199,7 +199,8 @@ MODULE AnnihilationMod
 
                     IF(tHistSpawn) THEN
 !We want to histogram where the particle annihilations are taking place.
-                        CALL FindBitExcitLevel(SpawnedParts(:,i),iLutHF,ExcitLevel,NEl)
+                        ExcitLevel = FindBitExcitLevel(SpawnedParts(:,i), &
+                                                       iLutHF, nel)
                         IF(ExcitLevel.eq.NEl) THEN
                             CALL BinSearchParts2(SpawnedParts(:,i),HistMinInd2(ExcitLevel),Det,PartIndex,tSuc)
                         ELSEIF(ExcitLevel.eq.0) THEN
@@ -1507,7 +1508,8 @@ MODULE AnnihilationMod
                         
                         IF(tHistSpawn) THEN
 !We want to histogram where the particle annihilations are taking place.
-                            CALL FindBitExcitLevel(SpawnedParts(:,i),iLutHF,ExcitLevel,NEl)
+                            ExcitLevel = FindBitExcitLevel(SpawnedParts(:,i),&
+                                                           iLutHF, nel)
                             IF(ExcitLevel.eq.NEl) THEN
                                 CALL BinSearchParts2(SpawnedParts(:,i),HistMinInd2(ExcitLevel),Det,PartIndex,tSuc)
                             ELSEIF(ExcitLevel.eq.0) THEN
@@ -1549,7 +1551,8 @@ MODULE AnnihilationMod
                         
                         IF(tHistSpawn) THEN
 !We want to histogram where the particle annihilations are taking place.
-                            CALL FindBitExcitLevel(SpawnedParts(:,i),iLutHF,ExcitLevel,NEl)
+                            ExcitLevel = FindBitExcitLevel(SpawnedParts(:,i),&
+                                                           iLutHF, nel)
                             IF(ExcitLevel.eq.NEl) THEN
                                 CALL BinSearchParts2(SpawnedParts(:,i),HistMinInd2(ExcitLevel),Det,PartIndex,tSuc)
                             ELSEIF(ExcitLevel.eq.0) THEN
@@ -4224,7 +4227,7 @@ MODULE AnnihilationMod
 
         !Run through all other determinants in the guiding function.  Find out if they are doubly excited.  Find H elements, and multiply by number on that double.
         do i=1,iGuideDets
-            CALL FindBitExcitLevel(GuideFuncDets(:,i),iLutHF,ExcitLevel,2)
+            ExcitLevel = FindBitExcitLevel(GuideFuncDets(:,i), iLutHF, 2)
             IF(ExcitLevel.eq.2) THEN
                 DoubDet(:)=0
                 CALL DecodeBitDet(DoubDet,GuideFuncDets(0:NIfTot,i))

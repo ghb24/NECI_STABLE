@@ -25,15 +25,16 @@ OBJ_F90 = readdf.o df_common.o df_record_handler.o input.o HElem.o \
          RhoElement.o MCStat.o symexcit2.o MPEnergy.o precalc.o UMatCache.o \
          df_precision.o df_parameters.o stardiag.o readinput.o System.o \
          Calc.o Integrals.o Logging.o nodediag.o MemoryManagement.o \
-         Determinants.o DetCalc.o NECICore.o HFCalc.o GraphMorph.o StarDiagTrip.o \
+         Determinants.o DetCalc.o NECICore.o HFCalc.o GraphMorph.o \
          Parallel.o FciMC.o MCDets.o OneEInts.o ReturnPathMC.o FciMCPar.o \
-         SymData.o vasp_interface.o vasp_init.o error_handling.o CPMDData.o default_sets.o \
+         SymData.o vasp_interface.o vasp_init.o error_handling.o CPMDData.o \
          SystemData.o CalcData.o IntegralsData.o timing.o global_utilities.o \
-         sortiLong.o soft_exit.o Parallel_Calc.o precalcData.o symrandexcit2.o \
-         DetBitOps.o NatOrbs.o RotateOrbs.o Orthonorm.o SortMerge.o MerTwistRan.o \
-         HPHFRandExcit.o HPHFIntegrals.o readri.o CCMC.o FciMCLogging.o CCMCData.o \
-         FciMCData.o RotateOrbsData.o symexcit3.o Annihilation.o symexcitData.o csf.o \
-	 symrandexcit_csf.o
+         sortiLong.o soft_exit.o Parallel_Calc.o precalcData.o DetBitOps.o \
+         NatOrbs.o RotateOrbs.o Orthonorm.o SortMerge.o MerTwistRan.o \
+         HPHFRandExcit.o HPHFIntegrals.o readri.o CCMC.o FciMCLogging.o \
+         FciMCData.o RotateOrbsData.o symexcit3.o Annihilation.o csf.o \
+	 StarDiagTrip.o default_sets.o symrandexcit2.o CCMCData.o \
+	 symexcitData.o symrandexcit_csf.o sltcnd_csf.o
 
 OBJ_CC  = MurmurHash2.o
 

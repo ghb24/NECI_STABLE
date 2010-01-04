@@ -13,7 +13,7 @@ MODULE FciMCLoggingMod
     USE Determinants , only : GetHElement3,GetHElement4
     use GenRandSymExcitNUMod , only : GenRandSymExcitScratchNU,ScratchSize
     USE CalcData , only : NMCyc,StepsSft
-    use DetBitOps, only: DetBitEQ, FindExcitBitDet
+    use DetBitOps, only: DetBitEQ, FindExcitBitDet, FindBitExcitLevel
 
     IMPLICIT NONE
     save
@@ -655,7 +655,7 @@ MODULE FciMCLoggingMod
             IF(.not.tHF) tHF=DetBitEQ(iLutHF(0:NIfTot),iLutnK(0:NIfTot),NIfDBO)
 
             ! Calculate Hjk first (connecting element between two excitations), because if this is 0, no need to go further.
-            CALL FindBitExcitLevel(iLutnJ2,iLutnK,IC3,NEl)
+            IC3 = FindBitExcitLevel(iLutnJ2, iLutnK, NEl)
             Hjk=GetHElement3(nJ,nK,IC3)
 
             ! Histogram and add in the Hjk elements - regardless of whether or not this is 0.

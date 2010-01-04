@@ -150,6 +150,33 @@ module DetBitOps
         count_open_orbs = CountBits(alpha, NIfD)
     end function
 
+
+    integer function FindBitExcitLevel(iLutnI, iLutnJ, maxExLevel)
+
+        ! Find the excitation level of one determinant relative to another
+        ! given their bit strings (the number of orbitals they differ by)
+        !
+        ! In:  iLutnI, iLutnJ    - The bit representations
+        !      maxExLevel        - An (optional) maximum ex level to consider
+        ! Ret: FindBitExcitLevel - The number of orbitals i,j differ by
+
+        integer, intent(in) :: iLutnI(0:NIfD), iLutnJ(0:NIfD)
+        integer, intent(in), optional :: maxExLevel
+        integer :: tmp(0:NIfD)
+
+        ! Obtain a bit string with only the excited orbitals one one det.
+        tmp = ieor(iLutnI, iLutnJ)
+        tmp = iand(iLutnI, tmp)
+
+        ! Then count them
+        if (present(maxExLevel)) then
+            FindBitExcitLevel = CountBits(tmp, NIfD, maxExLevel)
+        else
+            FindBitExcitLevel = CountBits(tmp, NIfD)
+        endif
+    end function FindBitExcitLevel
+
+
     ! This will return true if iLutI is identical to iLutJ and will return 
     ! false otherwise.
     logical function DetBitEQ(iLutI,iLutJ,nLast)
@@ -279,8 +306,8 @@ module DetBitOps
         integer, intent(in) :: iLutHF(0:NIfTot)
         integer i, ExcitLevelI, ExcitLevelJ,lnLast
         
-        CALL FindBitExcitLevel(iLutI,iLutHF,ExcitLevelI,nel)
-        CALL FindBitExcitLevel(iLutJ,iLutHF,ExcitLevelJ,nel)
+        ExcitLevelI = FindBitExcitLevel(iLutI, iLutHF, nel)
+        ExcitLevelJ = FindBitExcitLevel(iLutJ, iLutHF, nel)
 
         ! First order in terms of excitation level.  I.e. if the excitation 
         ! levels are different, we don't care what the determinants are we 
@@ -746,22 +773,6 @@ end module
 
     END SUBROUTINE LargestBitSet
 
-!This routine will find the excitation level of two determinants in bit strings.
-    SUBROUTINE FindBitExcitLevel(iLutnI,iLutnJ,ExcitLevel,MaxExcitLevel)
-        use SystemData, only: NIfD
-        use DetBitOps, only: CountBits
-        IMPLICIT NONE
-        INTEGER :: iLutnI(0:NIfD),iLutnJ(0:NIfD),ExcitLevel,MaxExcitLevel
-        INTEGER :: iLutExcited(0:NIfD),i,k
-
-!First find a new bit string which just contains the excited orbitals
-        iLutExcited(:)=IEOR(iLutnI(:),iLutnJ(:))
-        iLutExcited(:)=IAND(iLutExcited(:),iLutnI(:))
-
-!Now, simply count the bits in it...
-        ExcitLevel = CountBits(iLutExcited, NIfD, MaxExcitLevel)
-
-    END SUBROUTINE FindBitExcitLevel
 
 !This routine will find the i and a orbitals from a single excitation.
 !NOTE! This routine will find i and a, but not distinguish between them. To calculate which one i is,

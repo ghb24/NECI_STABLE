@@ -2,9 +2,12 @@
 module csf
     use systemdata, only: nel, brr, ecore, alat, nmsh, nbasismax, G1, nbasis
     use systemdata, only: NIfY, LMS
+    use memorymanager, only: LogMemAlloc, LogMemDealloc
+    use FCIMcData, only: CSF_H_Time,timer_A,timer_B,timer_C,timer_D,timer_E,timer_F
     use integralsdata, only: umat, fck, nmax
     use HElem
     use mt95, only: genrand_real2
+    use timing, only: set_timer, halt_timer
 
     implicit none
     integer, parameter :: csf_orbital_mask = Z'1fffffff'
@@ -58,8 +61,6 @@ contains
     ! the representation matrices of the permutations which we are able 
     ! to calculate.
     type(HElement) function CSFGetHelement(NI, NJ)
-        use memorymanager, only: LogMemAlloc, LogMemDealloc
-        use SystemData, only: nel
         implicit none
         integer, intent(in) :: NI(nel), NJ(nel)
         integer nopen(2), nclosed(2), max_nopen, max_nup, max_ndets
@@ -74,6 +75,9 @@ contains
 
         character(*), parameter :: this_routine = 'CSFGetHelement'
 
+        call set_timer(CSF_H_Time,30)
+
+        call set_timer(timer_A,30)
         call get_csf_data(NI, nel, nopen(1), nclosed(1), S(1), Ms(1))
         call get_csf_data(NJ, nel, nopen(2), nclosed(2), S(2), Ms(2))
 
@@ -102,6 +106,8 @@ contains
         ! If S or Ms are not consistent, then return 0
         if ((S(1).ne.S(2))) then ! .or. (Ms(1).ne.Ms(2))) then
             CSFGetHelement = HElement(0) 
+            call halt_timer(CSF_H_Time)
+            call halt_timer(timer_A)
             return
         endif
         Ms(1) = minval(S)
@@ -131,6 +137,8 @@ contains
         call LogMemAlloc ('coeffs2',size(coeffs2),8,this_routine,tagCoeffs(2))
         call LogMemAlloc ('dets1',size(dets1),4,this_routine,tagDets(1))
         call LogMemAlloc ('dets2',size(dets2),4,this_routine,tagDets(2))
+        call halt_timer(timer_A)
+        call set_timer(timer_B,30)
         
         ! Calculate all possible permutations to construct determinants
         ! (Where 0=alpha, 1=beta when generating NI, NJ below)
@@ -146,6 +154,8 @@ contains
         call get_csf_yama (NJ, yama2)
 
         ! Get the coefficients
+        call halt_timer(timer_B)
+        call set_timer(timer_C,30)
         do det=1,ndets(1)
             coeffs1(det) = csf_coeff(yama1,dets1(det,nclosed(1)+1:nel),&
                                      nopen(1))
@@ -156,6 +166,8 @@ contains
         enddo
 
         ! Generate determinants from spatial orbitals specified in NI, NJ
+        call halt_timer(timer_C)
+        call set_timer(timer_D,30)
         do det = 1,ndets(1)
             dets1(det,1:nclosed(1)) = iand(NI(1:nclosed(1)), csf_orbital_mask)
             dets1(det,nclosed(1)+1:nel) = &
@@ -169,10 +181,14 @@ contains
                                    dets2(det,nclosed(2)+1:nel))
         enddo
         ! There will/may be faster ways of doing this
+        call halt_timer(timer_D)
+        call set_timer(timer_E,30)
         call csf_sort_det_block (dets1, ndets(1), nopen(1))
         call csf_sort_det_block (dets2, ndets(2), nopen(2))
 
         ! TODO: implement symmetry if NI,NJ are the same except for yama
+        call halt_timer(timer_E)
+        call set_timer(timer_F,30)
         CSFGetHelement = HElement(0)
         do i=1,ndets(1)
             sum1 = Helement(0)
@@ -182,6 +198,7 @@ contains
             enddo
             CSFGetHelement = CSFGetHelement + sum1*HElement(coeffs1(i))
         enddo
+        call halt_timer(timer_E)
 
         ! Deallocate for cleanup
         ! TODO: Create logged alloc/dealloc macro. With conditional?
@@ -198,6 +215,8 @@ contains
         call LogMemDealloc (this_routine, tagCoeffs(2))
         call LogMemDealloc (this_routine, tagDets(1))
         call LogMemDealloc (this_routine, tagDets(2))
+
+        call halt_timer(CSF_H_Time)
     end function
 
 
