@@ -53,7 +53,7 @@ MODULE FciMCParMod
         use soft_exit, only : ChangeVars 
         use CalcData, only : iFullSpaceIter
         use UMatCache, only : UMatInd
-        use FciMCLoggingMOD , only : PrintTriConnHist,PrintTriConnHElHist,FinaliseBlocking,FinaliseShiftBlocking
+        use FciMCLoggingMOD , only : PrintTriConnHist,PrintTriConnHElHist,FinaliseBlocking,FinaliseShiftBlocking,PrintShiftBlocking,PrintBlocking
         use RotateOrbsMod , only : RotateOrbs
         use NatOrbsMod , only : PrintOrbOccs
         TYPE(HDElement) :: Weight,Energyxw
@@ -135,6 +135,12 @@ MODULE FciMCParMod
                 IF(tSingBiasChange) THEN
                     IF(.not.tNoSpinSymExcitgens) CALL GetSymExcitCount(HFExcit%ExcitData,HFConn)
                     CALL CalcApproxpDoubles(HFConn)
+                ENDIF
+            
+                IF(mod(Iter,StepsSft*100).eq.0) THEN
+                    !Every 100 update cycles, write out a new blocking file.
+                    IF(tErrorBlocking) CALL PrintBlocking(Iter) 
+                    IF(tShiftBlocking.and.(Iter.ge.(VaryShiftIter+IterShiftBlock))) CALL PrintShiftBlocking(Iter)
                 ENDIF
 
             ENDIF
