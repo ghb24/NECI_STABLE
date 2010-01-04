@@ -149,7 +149,7 @@ C.. Thus the sum A+C must be even, as must B+D
             DO L=1,NHG/ISS
              SUM=0.D0
              DO I=1,NHG
-              CALL GTID(NBASISMAX,I,ID1)
+              ID1 = GTID(I)
               SUM=SUM+HFBASIS(A,I)
      &               *UMAT(UMatInd(ID1,J,K,L,0,0))
              ENDDO
@@ -166,7 +166,7 @@ C.. Thus the sum A+C must be even, as must B+D
             DO L=1,NHG/ISS
              SUM=0.D0
              DO J=1,NHG
-              CALL GTID(NBASISMAX,J,ID2)
+              ID2 = GTID(J)
               SUM=SUM+HFBASIS(B,J)
      &               *UMATT(UMatInd(ID2,K,L,A,0,0))
              ENDDO
@@ -183,7 +183,7 @@ C.. Thus the sum A+C must be even, as must B+D
             DO L=1,NHG/ISS
              SUM=0.D0
              DO K=1,NHG
-              CALL GTID(NBASISMAX,K,ID3)
+              ID3 = GTID(K)
               SUM=SUM+HFBASIS(C,K)
      &               *UMAT2(UMatInd(ID3,L,A,B,0,0))
              ENDDO
@@ -203,7 +203,7 @@ C.. Thus the sum A+C must be even, as must B+D
              IF(LSPN.AND.UMAT2(UMatInd(A,B,C,D,0,0)).EQ.0.D0) THEN
               SUM=0.D0
               DO L=1,NHG
-               CALL GTID(NBASISMAX,L,ID4)
+               ID4 = GTID(L)
                SUM=SUM+HFBASIS(D,L)
      &                *UMATT(UMatInd(ID4,A,B,C,0,0))
               ENDDO
@@ -573,13 +573,13 @@ C. <ui|F|uj>=tij+Sum_kl(Dkl <ui uk|U|uj ul>-s<ui uk|U|ul uj>) where s=1 if i,k s
      &                     (J-1)*NSPINS+ISPN)
 !                  WRITE(6,*) I,J,TOT
 C.. Now sum in the alpha and beta block of u matrix
-                  CALL GTID(NBASISMAX,(I-1)*NSPINS+ISPN,ID1)
-                  CALL GTID(NBASISMAX,(J-1)*NSPINS+ISPN,ID2)
+                  ID1 = GTID((I-1)*NSPINS+ISPN)
+                  ID2 = GTID((J-1)*NSPINS+ISPN)
                   DO ISPN2=1,NSPINS
                      DO K=1,NSBASIS
                         DO L=1,NSBASIS
-                           CALL GTID(NBASISMAX,(K-1)*NSPINS+ISPN2,ID3)
-                           CALL GTID(NBASISMAX,(L-1)*NSPINS+ISPN2,ID4)
+                           ID3 = GTID((K-1)*NSPINS+ISPN2)
+                           ID4 = GTID((L-1)*NSPINS+ISPN2)
                            IF(DMAT(K,L,ISPN2).AGT.DmatEpsilon)
      &                      TOT=TOT+HElement(RHFMUL)*
      &                  DMAT(K,L,ISPN2)*GetUMatEl(NBasisMax,UMat,ALAT,
@@ -1304,23 +1304,21 @@ C.. deal with the one-electron integrals first
                      TOT=TOT+CMAT(K,A,KSPN)*DREAL(GetTMATEl(IDA,IDF))
                   ENDDO
 C.. UMAT ID
-                  CALL GTID(NBASISMAX,(F-1)*NSPINS+1+KSPN-1,IDF)
+                  IDF = GTID((F-1)*NSPINS+1+KSPN-1)
                   DO I=1,NEL
                      JJ=NDET1(I)
                      JSPN=MOD(JJ-1,NSPINS)+1
                      J=(JJ-1)/NSPINS+1
 C.. Here A and C correspond to J and B corresponds to K
                      DO A=1,NSBASIS
-                        CALL GTID(NBASISMAX,(A-1)*NSPINS+1+JSPN-1,IDA)
+                        IDA = GTID((A-1)*NSPINS+1+JSPN-1)
                         TOT1=0.D0
                         DO B=1,NSBASIS
-                           CALL GTID(NBASISMAX,
-     &                        (B-1)*NSPINS+1+KSPN-1,IDB)
+                           IDB = GTID((B-1)*NSPINS+1+KSPN-1)
                            TOT1B=0.D0
                            DO C=1,NSBASIS
                               TOT2=0.D0
-                              CALL GTID(NBASISMAX,
-     &                           (C-1)*NSPINS+1+JSPN-1,IDC)
+                              IDC = GTID((C-1)*NSPINS+1+JSPN-1)
                               TOT2=TOT2+UMAT(UMatInd(IDA,IDF,IDC,IDB
      &                                       ,0,0))
                               TOT2=TOT2+UMAT(UMatInd(IDA,IDB,IDC,IDF

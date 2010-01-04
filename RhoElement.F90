@@ -237,8 +237,8 @@ SUBROUTINE CALCRHO2(NI,NJ,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,&
          hEl=HElement(ECore)
          do i=1,nEl
             hEl=hEl+HElement(Arr(nJ(i),2))
-            call gtID(nBasisMax,nHFDet(i),IDHF(i))
-            call gtID(nBasisMax,nJ(i),IDJ(i))
+            IDHF(i) = gtID(nHFDet(i))
+            IDJ(i) = gtID(nJ(i))
          enddo
          do i=1,nEl
             do j=1,nEl

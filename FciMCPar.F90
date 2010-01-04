@@ -6286,13 +6286,13 @@ MODULE FciMCParMod
                     SpinCoupDet(:)=0
                     do i=1,NEl
                         ! For an electron of the current det, find the spatial orbital.
-!                        CALL GTID(nBasisMax,DetCurr(i),ID1)
+!                        ID1 = GTID(DetCurr(i))
                         ID1=CEILING(REAL(DetCurr(i))/2.0)
                         ! Now run through all other orbitals finding out if the same spat orb is occupied.
                         do k=1,NEl
                             IF(k.eq.i) CYCLE 
                             tDoubOcc=.false.
-!                            CALL GTID(nBasisMax,DetCurr(k),ID2)
+!                            ID2 = GTID(DetCurr(k))
                             ID2=CEILING(REAL(DetCurr(k))/2.0)
                             IF(ID2.eq.ID1) THEN
                                 ! doubly occupied orbital, these will be the same in the spin coupled det.

@@ -577,10 +577,10 @@ MODULE Integrals
 !          do j=1,nBasis
 !              do k=1,nBasis
 !                  do l=1,nBasis
-!                     CALL GTID(NBASISMAX,i,IDi)
-!                     CALL GTID(NBASISMAX,j,IDj)
-!                     CALL GTID(NBASISMAX,k,IDk)
-!                     CALL GTID(NBASISMAX,l,IDl)
+!                     IDi = GTID(i)
+!                     IDj = GTID(j)
+!                     IDk = GTID(k)
+!                     IDl = GTID(l)
 !                     Index1=UMatInd(idi,idj,idk,idl,0,0)
 !                     WRITE(37,"(9I5,G25.10)") i,j,k,l,idi,idj,idk,idl,Index1,DREAL(GetUMatEl(NBasisMax,UMAT,ALAT,nBasis,ISpinSkip,G1,idi,idj,idk,idl))
 !                 enddo
@@ -922,8 +922,8 @@ MODULE Integrals
           ! Ecore' = Ecore + sum a<b (<ab|ab> - <ab|ba>)
           DO B=A+1,NFROZEN
              BB=BRR(B)
-             CALL GTID(NBASISMAX,AB,IDA)
-             CALL GTID(NBASISMAX,BB,IDB)
+             IDA = GTID(AB)
+             IDB = GTID(BB)
 !C.. No sign problems from permuations here as all perms even
              ECORE=ECORE+DREAL(GETUMATEL(NBASISMAX,UMAT,ALAT,NHG,ISS,G1,IDA,IDB,IDA,IDB))
 !C.. If we have spin-independent integrals, or 
@@ -935,8 +935,8 @@ MODULE Integrals
 !The sum over b runs over all frozen orbitals > a, so the inner frozen orbitals too.          
           DO B=NEL-NFROZENIN+1,NEL
              BB=BRR(B)
-             CALL GTID(NBASISMAX,AB,IDA)
-             CALL GTID(NBASISMAX,BB,IDB)
+             IDA = GTID(AB)
+             IDB = GTID(BB)
 !C.. No sign problems from permuations here as all perms even
              ECORE=ECORE+DREAL(GETUMATEL(NBASISMAX,UMAT,ALAT,NHG,ISS,G1,IDA,IDB,IDA,IDB))
 !C.. If we have spin-independent integrals, or 
@@ -953,8 +953,8 @@ MODULE Integrals
           ECORE=ECORE+DREAL(GetTMATEl(AB,AB))
           DO B=A+1,NEL
              BB=BRR(B)
-             CALL GTID(NBASISMAX,AB,IDA)
-             CALL GTID(NBASISMAX,BB,IDB)
+             IDA = GTID(AB)
+             IDB = GTID(BB)
 !C.. No sign problems from permuations here as all perms even
              ECORE=ECORE+DREAL(GETUMATEL(NBASISMAX,UMAT,ALAT,NHG,ISS,G1,IDA,IDB,IDA,IDB))
 !C.. If we have spin-independent integrals, or 
@@ -986,7 +986,7 @@ MODULE Integrals
               IP=I+FROZENBELOWW
               IB=BRR(IP)
               IPB=GG(IB)
-              CALL GTID(NBASISMAX,IB,IDI)
+              IDI = GTID(IB)
 
 !I and J give the indexes of the TMAT.  This bit accounts for the off-diagonal terms which must be copied accross.          
               DO Y=1,2
@@ -1004,7 +1004,7 @@ MODULE Integrals
                     JP=J+FROZENBELOWY
                     JB=BRR(JP)
                     JPB=GG(JB)
-                    CALL GTID(NBASISMAX,JB,IDJ)
+                    IDJ = GTID(JB)
                     IF(TSTARSTORE.or.tCPMDSymTMat) THEN
                        TMATSYM2(NEWTMATInd(IPB,JPB))=GetTMATEl(IB,JB)
                     ELSE
@@ -1017,7 +1017,7 @@ MODULE Integrals
                     ENDIF
                     DO A=1,NFROZEN
                        AB=BRR(A)
-                       CALL GTID(NBASISMAX,AB,IDA)
+                       IDA = GTID(AB)
 !C.. SGN takes into account permutationnness.
 !C                SGN=1
 !C                IF(IB.GT.AB) SGN=-SGN
@@ -1046,7 +1046,7 @@ MODULE Integrals
                     ENDDO
                     DO A=NEL-NFROZENIN+1,NEL
                        AB=BRR(A)
-                       CALL GTID(NBASISMAX,AB,IDA)
+                       IDA = GTID(AB)
 !C.. SGN takes into account permutationnness.
 !C                SGN=1
 !C                IF(IB.GT.AB) SGN=-SGN
@@ -1100,8 +1100,8 @@ MODULE Integrals
                  IB=BRR(I+FROZENBELOWW)
                  IPB=GG(IB)
                  IF(ISS.NE.0.OR.G1(I)%MS.EQ.1) THEN
-                    CALL GTID(NBASISMAX,IB,IDI)
-                    CALL GTID(NBASISMAX,IPB,IDIP)
+                    IDI = GTID(IB)
+                    IDIP = GTID(IPB)
                     DO X=1,2
                       IF(X.eq.1) THEN
                          BLOCKMINX=1 
@@ -1116,8 +1116,8 @@ MODULE Integrals
                           JB=BRR(J+FROZENBELOWX)
                           JPB=GG(JB)
                           IF(ISS.NE.0.OR.G1(I)%MS.EQ.1) THEN
-                             CALL GTID(NBASISMAX,JB,IDJ)
-                             CALL GTID(NBASISMAX,JPB,IDJP)
+                             IDJ = GTID(JB)
+                             IDJP = GTID(JPB)
                              DO Y=1,2
                                  IF(Y.eq.1) THEN
                                     BLOCKMINY=1 
@@ -1132,8 +1132,8 @@ MODULE Integrals
                                     KB=BRR(K+FROZENBELOWY)
                                     KPB=GG(KB)
                                     IF(ISS.NE.0.OR.G1(I)%MS.EQ.1) THEN
-                                       CALL GTID(NBASISMAX,KB,IDK)
-                                       CALL GTID(NBASISMAX,KPB,IDKP)
+                                       IDK = GTID(KB)
+                                       IDKP = GTID(KPB)
                                        DO Z=1,2
                                          IF(Z.eq.1) THEN
                                             BLOCKMINZ=1 
@@ -1149,8 +1149,8 @@ MODULE Integrals
                                                  LB=BRR(L+FROZENBELOWZ)
                                                  LPB=GG(LB)
                                                  IF(ISS.NE.0.OR.G1(I)%MS.EQ.1) THEN
-                                                    CALL GTID(NBASISMAX,LB,IDL)
-                                                    CALL GTID(NBASISMAX,LPB,IDLP)
+                                                    IDL = GTID(LB)
+                                                    IDLP = GTID(LPB)
                                                     IF(TSTARSTORE) THEN
                                                        IF(.NOT.TUMAT2D) STOP 'UMAT2D should be on'
                                                        IF((IDI.eq.IDJ.and.IDI.eq.IDK.and.IDI.eq.IDL).or.    &

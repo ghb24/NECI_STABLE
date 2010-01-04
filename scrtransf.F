@@ -203,7 +203,7 @@ C..The two electron integrals are to be done
          DO I=1,NEL
            IF(NDET1(I).NE.ND1) THEN
              IQ=IQ+1
-C          CALL GTID(NBASISMAX,NDET1(I),ID(IQ))
+C          ID(IQ) = GTID(NDET1(I))
              ID(IQ)=NDET1(I)
 C             CALL CHK(G(4,NDET1(I)),G(4,ND1),IDS1(IQ))
 C             CALL CHK(G(4,NDET1(I)),G(4,ND2),IDS2(IQ))
@@ -212,8 +212,8 @@ C             CALL CHK(G(4,NDET1(I)),G(4,ND2),IDS2(IQ))
          ENDDO 
 500      CONTINUE
          IF(ND1.EQ.ND2) STOP ' !!! PROBLEM IN SCR1T !!! '
-C         CALL GTID(NBASISMAX,ND1,ID1)
-C         CALL GTID(NBASISMAX,ND2,ID2)
+C         ID1 = GTID(ND1)
+C         ID2 = GTID(ND2)
 C..
 C      CALL CHK(G(4,ND1),G(4,ND2),IDS)
 C..
@@ -299,11 +299,11 @@ C..This routine compares NDET2 to NDET1
             ENDIF
          ENDDO
  200     CONTINUE
-C      CALL GTID(NBASISMAX,ND1(1),ID2)
-C      CALL GTID(NBASISMAX,ND1(2),ID1)
+C      ID2 = GTID(ND1(1))
+C      ID1 = GTID(ND1(2))
 C..
-C      CALL GTID(NBASISMAX,ND2(1),ID4)
-C      CALL GTID(NBASISMAX,ND2(2),ID3)
+C      ID4 = GTID(ND2(1))
+C      ID3 = GTID(ND2(2))
 C..Check the spin combinations of N', N'-1, N and N-1 
 C      IDS(1:4)=0
 C      CALL GENKRON(G1,NBASISMAX,ND1,ND2,IDS)
@@ -364,16 +364,16 @@ C..  matrix
          DO I=1,NSBASIS
 C.. We have to generate the normal basis number corresponding to I
 C.. and then from it get the ID within UMAT
-            CALL GTID(NBASISMAX,(I-1)*NSPINS+1+ASPN-1,IDI)
+            IDI = GTID((I-1)*NSPINS+1+ASPN-1)
             SUM1=0.D0
             DO J=1,NSBASIS
-               CALL GTID(NBASISMAX,(J-1)*NSPINS+1+BSPN-1,IDJ)
+               IDJ = GTID((J-1)*NSPINS+1+BSPN-1)
                SUM2=0.D0
                DO K=1,NSBASIS
-                  CALL GTID(NBASISMAX,(K-1)*NSPINS+1+CSPN-1,IDK)
+                  IDK = GTID((K-1)*NSPINS+1+CSPN-1)
                   SUM3=0.D0
                   DO L=1,NSBASIS
-                     CALL GTID(NBASISMAX,(L-1)*NSPINS+1+DSPN-1,IDL)
+                     IDL = GTID((L-1)*NSPINS+1+DSPN-1)
                      SUM3=SUM3+HElement(BTRANS(DE,L,DSPN))*
      &       GETUMATEL(NBASISMAX,UMAT,ALAT,NHG,ISS,G1,IDI,IDJ,IDK,IDL)
 C     &                  UMAT(IDI,IDJ,IDK,IDL)

@@ -4,7 +4,7 @@ C.. TMAT has sometimes been hidden in ZIA
       USE HElem
       Use OneEInts, only: GetTMatEl
       use Integrals, only: GetUMatEl
-      USE UMatCache
+      USE UMatCache, only: GTID
       use SystemData, only: BasisFN
 !      use global_utilities
       IMPLICIT NONE
@@ -38,7 +38,7 @@ C..We must first do the one electron integrals
 C.. we extract the KEs from TMAT
          INDET=NDET1(I)
          SUM1=SUM1+GetTMATEl(INDET,INDET)
-        CALL GTID(NBASISMAX,NDET1(I),ID(I))
+         ID(I) = GTID(NDET1(I))
       ENDDO
 C..Now for the two electron part
 C  JSS --access the <ij|ij> and <ij|ji> integrals directly.  Note J>I and how the integrals are

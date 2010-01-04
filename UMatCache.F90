@@ -1,7 +1,7 @@
 
 MODULE UMatCache
-      USE HElem
-      use SystemData , only : TSTARSTORE
+    USE HElem
+    use SystemData , only : TSTARSTORE, tROHF,tStoreSpinOrbs
 
       IMPLICIT NONE
 
@@ -1171,24 +1171,26 @@ MODULE UMatCache
  
 
 
-      SUBROUTINE GTID(NBASISMAX,GIND,ID)
-         ! Convert from spin orbitals to spatial orbitals.
-         ! Stupidly, nBasisMax(2,3) is not only iSpinSkip (whether things are stored as spin/spatial orbs), 
-         ! but also whether to calculate integrals on the fly or not...
-         use SystemData , only :tROHF,tStoreSpinOrbs
-         IMPLICIT NONE
-         INTEGER GIND,nBasisMax(5,*),ID
-            IF(tStoreSpinOrbs) THEN
-!Storing as spin-orbitals (UHF/default ROHF)
-               ID=GIND
-            ELSE
-!Storing as spatial orbitals (RHF or explicit input option ROHF)
-               ID=(GIND-1)/2+1
-            ENDIF
-            IF(TTRANSGTID) ID=TRANSTABLE(ID)
-            RETURN
-      END SUBROUTINE GTID
-      
+    elemental function GTID (gInd) result(id)
+        
+        ! Convert spin orbital index to spacial orbital index if required 
+        ! (e.g. for restricted calculation)
+        !
+        ! In:  gInd - Spin orbital index
+        ! Ret: id   - Overall index
+
+        integer, intent(in) :: gInd
+        integer :: id
+
+        if (tStoreSpinOrbs) then
+            ! Storing as spin-orbitals (UHF/default ROHF)
+            id = gInd
+        else
+            ! Storing as spatial orbitals (RHF or explicit input option ROHF)
+            id = (gInd-1)/2 + 1
+        endif
+        if (tTransGTID) id = TransTable(id)
+    end function
       
       
 END MODULE UMatCache

@@ -31,11 +31,11 @@ C.. was (NHG/ISS,NHG/ISS,NHG/ISS,NHG/ISS)
       EX(1,1)=2
       CALL GETEXCITATION(NDET1,NDET2,NEL,EX,TSIGN)
 !      WRITE(6,*) "TSIGN: ",TSIGN
-      CALL GTID(NBASISMAX,EX(1,1),ID1)
-      CALL GTID(NBASISMAX,EX(1,2),ID2)
+      ID1 = GTID(EX(1,1))
+      ID2 = GTID(EX(1,2))
 C..
-      CALL GTID(NBASISMAX,EX(2,1),ID3)
-      CALL GTID(NBASISMAX,EX(2,2),ID4)
+      ID3 = GTID(EX(2,1))
+      ID4 = GTID(EX(2,2))
       IF(    G1(EX(1,1))%Ms.EQ.G1(EX(2,1))%Ms
      &    .AND.G1(EX(1,2))%Ms.EQ.G1(EX(2,2))%Ms) THEN
          SUM=GETUMATEL(NBASISMAX,UMAT,ALAT,NHG,ISS,G1,ID1,ID2,ID3,ID4)
@@ -68,6 +68,7 @@ C..This routine is the EASIEST of the Slater-Condon rules.
 C..The determinants differ by two spin orbitals.
 C..The arrays ND1 and ND2 contain the integers from determinant 1 and 2
 C..that are NOT common to both.
+C..NB. Only used for tStoreAsExcitations. Parity is not required.
       USE HElem
       use Integrals, Only : GetUMatEl
       USE UMatCache , Only : GTID
@@ -95,11 +96,11 @@ C.. was (NHG/ISS,NHG/ISS,NHG/ISS,NHG/ISS)
       TSIGN=.FALSE.
       TEXCH=.TRUE.
       COULCOUPLE=1
-      CALL GTID(NBASISMAX,EX(1,1),ID1)
-      CALL GTID(NBASISMAX,EX(1,2),ID2)
+      ID1 = GTID(EX(1,1))
+      ID2 = GTID(EX(1,2))
 C..
-      CALL GTID(NBASISMAX,EX(2,1),ID3)
-      CALL GTID(NBASISMAX,EX(2,2),ID4)
+      ID3 = GTID(EX(2,1))
+      ID4 = GTID(EX(2,2))
       IF(    G1(EX(1,1))%Ms.EQ.G1(EX(2,1))%Ms
      &    .AND.G1(EX(1,2))%Ms.EQ.G1(EX(2,2))%Ms) THEN
          SUM=GETUMATEL(NBASISMAX,UMAT,ALAT,NHG,ISS,G1,ID1,ID2,ID3,ID4)
@@ -154,10 +155,10 @@ C.. was (NHG/ISS,NHG/ISS,NHG/ISS,NHG/ISS)
 !      proc_timer%timer_name='      SCR2'
 !      call set_timer(proc_timer)
 
-      CALL GTID(NBASISMAX,EX(1,1),ID1)
-      CALL GTID(NBASISMAX,EX(1,2),ID2)
-      CALL GTID(NBASISMAX,EX(2,1),ID3)
-      CALL GTID(NBASISMAX,EX(2,2),ID4)
+      ID1 = GTID(EX(1,1))
+      ID2 = GTID(EX(1,2))
+      ID3 = GTID(EX(2,1))
+      ID4 = GTID(EX(2,2))
 
       IF(    G1(EX(1,1))%Ms.EQ.G1(EX(2,1))%Ms
      &    .AND.G1(EX(1,2))%Ms.EQ.G1(EX(2,2))%Ms) THEN

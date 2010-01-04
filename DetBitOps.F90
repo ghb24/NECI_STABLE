@@ -175,6 +175,58 @@ module DetBitOps
             FindBitExcitLevel = CountBits(tmp, NIfD)
         endif
     end function FindBitExcitLevel
+    
+    function get_bit_excitmat (iLutI, iLutJ, ExcitMat, tSign) result(IC)
+        
+        ! Obtain the excitation matrix required to convert determinant I to J,
+        ! specified in a canonical order. nb. if I,J differ by more than 2
+        ! orbitals, then this function will bail.
+        !
+        ! In:  iLutI, ilutJ  - Bit representations of determinants
+        ! Out: ExcitMat(2,2) - Excitation matrix
+        ! Ret: IC            - Number of orbitals I,J differ by
+
+        integer, intent(in) :: iLutI(0:NIfTot), iLutJ(0:NIfTot)
+        integer, intent(out) :: ExcitMat(2,2)
+        logical, intent(out) :: tSign
+        integer :: IC
+        integer :: i, j, posI, posJ, tmpI(0:NIfD), tmpJ
+
+        ! Count the number of orbitals I,J differ by.
+        IC = FindBitExcitLevel (iLutI, iLutJ)
+        if (IC > 2) return
+
+        ExcitMat(1,1) = IC
+        call GetBitExcitation (iLutI, iLutJ, ExcitMat, tSign)
+
+        !! Obtain bit representations of I,J with only the differing orbitals.
+        !tmpI = ieor(iLutI, iLutJ)
+        !tmpJ = iand(tmpI, iLutJ)
+        !tmpI = iand(tmpI, iLutI)
+
+        !! TODO: Is there a cleverer way of doing this?
+        !posI = 0
+        !posJ = 0
+        !do i=0,NIfD
+        !    do j=0:31
+        !        if (posI < IC) then
+        !            if (btest(iLutI(i), j)) then
+        !                posI = posI + 1
+        !                ExcitMat(1,posI) = 32*i + j + 1
+        !            endif
+        !        endif
+
+        !        if (posJ < IC) then
+        !            if (btest(iLutJ(i), j)) then
+        !                posJ = posJ + 1
+        !                ExcitMat(2,posJ) = 32*i + j + 1
+        !            endif
+        !        endif
+
+        !        if (posI >= IC .and. posJ >= IC) return
+        !    enddo
+        !enddo
+    end function
 
 
     ! This will return true if iLutI is identical to iLutJ and will return 
