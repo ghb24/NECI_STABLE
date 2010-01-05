@@ -2,6 +2,7 @@
 ! Start the process of modularising this bit!!
 module DetBitOps
     use Systemdata, only: nel, NIfD, NIfY, NIfTot, tCSF
+    use csf_data, only: iscsf, csf_yama_bit, csf_orbital_mask, csf_test_bit
     implicit none
 
     ! http://gurmeetsingh.wordpress.com/2008/08/05/fast-bit-counting-routines/
@@ -409,7 +410,6 @@ module DetBitOps
     ! (nI) as a bit string (iLut(0:NIfTot)) where NIfD=INT(nBasis/32)
     ! If this is a csf, the csf is contained afterwards.
     subroutine EncodeBitDet(nI,iLut)
-        use csf, only: iscsf, csf_yama_bit, csf_orbital_mask
         integer, intent(in) :: nI(nel)
         integer, intent(out) :: iLut(0:NIfTot)
         integer :: i, det, pos, nopen
@@ -448,7 +448,6 @@ module DetBitOps
     ! the natural ordered NEl integer for of the det.
     ! If CSFs are enabled, transefer the yamanouchi symbol as well.
     subroutine DecodeBitDet(nI,iLut)
-        use csf, only: csf_yama_bit, csf_test_bit
         integer, intent(in) :: iLut(0:NIfTot)
         integer, intent(out) :: nI(nel)
         integer :: i, j, elec, pos, nopen

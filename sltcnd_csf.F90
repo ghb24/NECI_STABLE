@@ -1,12 +1,15 @@
 module sltcnd_csf_mod
     use SystemData, only: nel, nBasisMax, tExch, FCOUL, NIfTot, G1, ALAT
+    use SystemData, only: nBasis, iSpinSkip
     use HElem
     use UMatCache, only: GTID
     use IntegralsData, only: UMAT
     use OneEInts, only: GetTMatEl
     use Integrals, only: GetUMatEl
-    use DetBitOps, only: get_bit_excitmat
+    use DetBitOps, only: get_bit_excitmat, count_open_orbs
+    use csf_data, only: csf_sort_det_block
     use timing
+    implicit none
 
 contains
     type(HElement) function sltcnd_csf (nI, nJ, iLutI, iLutJ)
@@ -22,8 +25,10 @@ contains
 
         integer, intent(in) :: nI(nel), nJ(nel)
         integer, intent(in) :: iLutI(0:NIfTot), iLutJ(0:NIfTot)
-        integer :: ex(2,2)
+        integer :: IC, ex(2,2)
         logical :: tSign
+        ! TODO: debug remove
+        integer :: nK(nel), nL(nel)
         
         ! For debugging purposes, measure the time contribution.
         type(timer), save :: slt_time
@@ -81,16 +86,18 @@ contains
             do j=i,nel
                 idX = max(id(i), id(j))
                 idN = min(id(i), id(j))
-                hel_doub = hel_doub + GetUMATEl(nBasisMax, UMAT, ALAT, NHG, &
-                                              ISS, G1, idN, idX, idN, idX)
+                hel_doub = hel_doub + GetUMATEl(nBasisMax, UMAT, ALAT, &
+                                                nBasis, iSpinSkip, G1, idN, &
+                                                idX, idN, idX)
                 
                 ! If are not considering the exchange contribution, or if I,J
                 ! are alpha/beta (ie exchange == 0) then don't continue
                 ! TODO: Remove ability to turn off exchange (tExch)?
                 ids = G1(nI(i))%Ms * G1(nI(j))%Ms
                 if (tExch .and. ids > 0) then
-                    hel_tmp = hel_tmp - GetUMATEl(nBasisMax, UMAT, ALAT, NHG,&
-                                                  ISS, G1, idN, idX, idX, idN)
+                    hel_tmp = hel_tmp - GetUMATEl(nBasisMax, UMAT, ALAT, &
+                                                  nBasis, iSpinSkip, G1, idN,&
+                                                  idX, idX, idN)
                 endif
             enddo
         enddo
@@ -122,15 +129,17 @@ contains
             if (ex(1) /= nI(i)) then
                 id = gtID(nI(i))
                 if (bEqualMs) then
-                    hel = hel + GetUMATEl (nBasisMax, UMAT, ALAT, NHG, ISS, &
-                                           G1, id_ex(1), id, id_ex(2), id)
+                    hel = hel + GetUMATEl (nBasisMax, UMAT, ALAT, nBasis, &
+                                           iSpinSkip, G1, id_ex(1), id, &
+                                           id_ex(2), id)
                 endif
 
                 ! TODO: Remove tExch
                 if (tExch .and. (G1(ex(1))%Ms == G1(nI(i))%Ms) .and. &
                                 (G1(ex(2))%Ms == G1(nI(i))%Ms) ) then
-                    hel = hel - GetUMATEl (nBasisMax, UMAT, ALAT, NHG, ISS, &
-                                           G1, id_ex(1), id, id, id_ex(2))
+                    hel = hel - GetUMATEl (nBasisMax, UMAT, ALAT, nBasis, &
+                                           iSpinSkip, G1, id_ex(1), id, &
+                                           id, id_ex(2))
                 endif
             endif
         enddo
@@ -161,7 +170,7 @@ contains
         ! physical notation).
         if ( (G1(ex(1,1))%Ms == G1(ex(2,1))%Ms) .and. &
              (G1(ex(1,2))%Ms == G1(ex(2,2))%Ms) ) then
-             hel = GetUMATEl (nBasisMax, UMAT, ALAT, NHG, ISS, G1, &
+             hel = GetUMATEl (nBasisMax, UMAT, ALAT, nBasis, iSpinSkip, G1, &
                               id(1,1), id(1,2), id(2,1), id(2,2))
         else
             hel = HElement(0)
@@ -169,8 +178,8 @@ contains
 
         if ( (G1(ex(1,1))%Ms == G1(ex(2,2))%Ms) .and. &
              (G1(ex(1,2))%Ms == G1(Ex(2,1))%Ms) ) then
-             hel = hel - GetUMATEl (nBasismax, UMAT, ALAT, NHG, ISS, G1, &
-                                    id(1,1), id(1,2), id(2,2), id(2,1))
+             hel = hel - GetUMATEl (nBasismax, UMAT, ALAT, nBasis, iSpinSkip,&
+                                    G1, id(1,1), id(1,2), id(2,2), id(2,1))
         endif
 
         if (tSign) hel = -hel

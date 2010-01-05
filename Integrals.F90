@@ -1487,7 +1487,7 @@ MODULE Integrals
       ELSEIF(NBASISMAX(1,3).EQ.-1) THEN
          CALL GetUEGUmatEl(IDI,IDJ,IDK,IDL,ISS,G1,ALAT,iPeriodicDampingType,GetUMatEl)
       ENDIF
-!      WRITE(6,*) GetUMatEl,IDI,IDJ,IDK,IDL
+      ! WRITE(6,*) 'GetUmatEl', GetUMatEl,IDI,IDJ,IDK,IDL
 
       RETURN
     END FUNCTION GetUMatEl
