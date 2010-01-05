@@ -139,8 +139,8 @@ MODULE FciMCParMod
             
                 IF(mod(Iter,StepsSft*100).eq.0) THEN
                     !Every 100 update cycles, write out a new blocking file.
-                    IF(tErrorBlocking) CALL PrintBlocking(Iter) 
-                    IF(tShiftBlocking.and.(Iter.ge.(VaryShiftIter+IterShiftBlock))) CALL PrintShiftBlocking(Iter)
+                    IF(tErrorBlocking.and.(Iter.gt.IterStartBlocking)) CALL PrintBlocking(Iter) 
+                    IF(tShiftBlocking.and.(Iter.gt.(VaryShiftIter+IterShiftBlock))) CALL PrintShiftBlocking(Iter)
                 ENDIF
 
             ENDIF
