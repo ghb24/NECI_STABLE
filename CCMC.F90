@@ -1006,6 +1006,7 @@ SUBROUTINE IncrementOrderedTuple(Tuple,iSize,iMin,iMax,tDone)
    return
 END SUBROUTINE IncrementOrderedTuple
 
+
 LOGICAL FUNCTION GetNextCluster(CS,Dets,nDet,Amplitude,dTotAbsAmpl,iNumExcitors,iMaxSizeIn,iDebug)
    use CCMCData, only: ClustSelector
    use SystemData, only: nIfTot
@@ -1044,9 +1045,8 @@ LOGICAL FUNCTION GetNextCluster(CS,Dets,nDet,Amplitude,dTotAbsAmpl,iNumExcitors,
             return
          endif 
 
-         call IncrementOrderedTuple(CS%C%SelectedExcitorIndices,CS%C%iSize,2,nDet,tDone)
-         if(iDebug.gt.2) WRITE(6,"(A,L3)",advance='no') "Next Tuple:",tDone
-         if(iDebug.gt.2) call WriteDet(6,CS%C%SelectedExcitorIndices,CS%C%iSize,.true.)
+!         call IncrementOrderedTuple(CS%C%SelectedExcitorIndices,CS%C%iSize,2,nDet,tDone)
+         call IncrementOrderedTupleCheckD(CS%C%SelectedExcitorIndices,CS%C%iSize,2,nDet,tDone,Amplitude)
          if(tDone) then !We've reached the end of our ordered tuple, so we increase its size if we can
             CS%C%dNGenComposite=0
             CS%C%SelectedExcitorIndices(1)=1  !Indicate we need to reset.
@@ -1058,10 +1058,14 @@ LOGICAL FUNCTION GetNextCluster(CS,Dets,nDet,Amplitude,dTotAbsAmpl,iNumExcitors,
                return
             endif            
          else
+            if(iDebug.gt.2) WRITE(6,"(A,L3)",advance='no') "Next Tuple:",tDone
+            if(iDebug.gt.2) call WriteDet(6,CS%C%SelectedExcitorIndices,CS%C%iSize,.true.)
             CS%C%dNGenComposite=abs(Amplitude(1))
+!            WRITE(6,*) 0,CS%C%dNGenComposite
             do i=1,CS%C%iSize 
                CS%C%SelectedExcitors(:,i)=Dets(:,CS%C%SelectedExcitorIndices(i))
                CS%C%dNGenComposite=CS%C%dNGenComposite*abs(Amplitude(CS%C%SelectedExcitorIndices(i)))/abs(Amplitude(1))
+!               WRITE(6,*) i,CS%C%dNGenComposite
             enddo
          endif
          if(CS%C%dNGenComposite.ne.0) exit
@@ -1519,9 +1523,9 @@ END SUBROUTINE
       Iter=1
       do while (Iter.le.NMCyc)
 !         WRITE(6,*) "Shift: ",DiagSft
-!         if(.false.)  then !DEBUG - reset the list at each stage
+         if(.false.)  then !DEBUG - reset the list at each stage
 !         if(.true.)  then !DEBUG - reset the list at each stage
-         if(Iter.eq.1)  then !DEBUG - reset the list at each stage
+!         if(Iter.eq.1)  then !DEBUG - reset the list at each stage
          ! Now setup the amplitude list.  Let's start with nothing initially, and
                Amplitude(:,:)=0
          !  place ampl 1 in the HF det
@@ -1533,13 +1537,14 @@ END SUBROUTINE
                Amplitude(3,iCurAmpList)= 0.4375219663886849*dInitAmplitude
                Amplitude(4,iCurAmpList)=-0.1184277920308680*dInitAmplitude!-0.1184277920308680
                if(.not.tCCMCFCI) Amplitude(4,iCurAmpList)=Amplitude(4,iCurAmpList)-Amplitude(2,iCurAmpList)*Amplitude(3,iCurAmpList)/(Amplitude(1,iCurAmpList))
+!               Amplitude(4,iCurAmplist)=Amplitude(4,iCurAmpList)/2
                r=0
-!               do j=1,4
-!                  r=r+abs(Amplitude(j,iCurAmpList))
-!               enddo
-!               do j=1,4
-!                  Amplitude(j,iCurAmpList)=Amplitude(j,iCurAmpList)*dInitAmplitude/r
-!               enddo
+               do j=1,4
+                  r=r+abs(Amplitude(j,iCurAmpList))
+               enddo
+               do j=1,4
+                  Amplitude(j,iCurAmpList)=Amplitude(j,iCurAmpList)*dInitAmplitude/r
+               enddo
          endif
 ! Copy the old Amp list to the new
          iOldAmpList=iCurAmpList
@@ -1784,7 +1789,9 @@ END SUBROUTINE
 !dProb = 1
 !            rat=Tau*(HDiagCurr-DiagSft)*dClusterNorm*dProb/dProbNorm !(dProb*dProbNorm)
             rat=Tau*(HDiagCurr-DiagSft)*dProbDecompose/(CS%C%dProbNorm*CS%C%dClusterProb) !(dProb*dProbNorm)  !The old version
-            rat=rat*CS%C%dNGenComposite/abs(Amplitude(iPartDie,iOldAmpList))  !Take into account we're killing at a different place from the cluster
+            rat=rat*CS%C%dNGenComposite
+            r=rat*sign(1.d0,Amplitude(iPartDie,iOldAmpList))
+            rat=rat/abs(Amplitude(iPartDie,iOldAmpList))  !Take into account we're killing at a different place from the cluster
 
 
 !            rat=Tau*(HDiagCurr-DiagSft)/CS%C%dSelectionProb
@@ -1813,7 +1820,7 @@ END SUBROUTINE
             endif
 
 
-            r=Amplitude(iPartDie,iOldAmpList)*rat 
+!            r=Amplitude(iPartDie,iOldAmpList)*rat 
             Amplitude(iPartDie,iCurAmpList)=Amplitude(iPartDie,iCurAmpList)-r
             if(lLogTransitions.and.Iter.gt.NEquilSteps) then
                i1=GetClusterIndex(CS%C%SelectedExcitorIndices(:),CS%C%iSize)
@@ -2079,6 +2086,55 @@ subroutine WriteDExcitorList(iUnit,Amplitude,Dets,nDet,dTol,Title)
       ENDIF
    enddo
 endsubroutine WriteDExcitorList
+!Takes an ordered tuple of length iSize, and gives the next one in sequence.
+!iMin..iMax are the max extent of the values in the tuple.
+!If Tuple(1) is 0 then it initializes the tuple.
+!Afterwards, if tDone is set then it has run out of tuples.
+SUBROUTINE IncrementOrderedTupleCheckD(Tuple,iSize,iMin,iMax,tDone,Param)
+   IMPLICIT NONE
+   INTEGER Tuple(iSize),iSize,iMax,iMin
+   LOGICAL tDone
+   INTEGER i,j
+   REAL*8 Param(:)
+   if(iSize.eq.0) then
+      tDone=.true.
+      return
+   endif
+   if(Tuple(1).lt.iMin) then
+      i=1
+   else
+      i=iSize
+   endif
+! i is the index in the tuple we're currently trying to increment.
+   do while (i.le.iSize)
+      call GetNextNonZeroExcitorD(Tuple(i),Param,iMin,iMax)
+      if(Tuple(i).gt.(iMax-(iSize-i))) then
+!If we've gone beyond what is the max possible value for this slot, then we move back, otherwise we move forward
+         i=i-1
+         if(i.eq.0) then
+            tDone=.true.
+            return
+         endif
+      else
+         i=i+1
+         if(i.le.iSize) Tuple(i)=Tuple(i-1)
+      endif
+   enddo
+   tDone=.false.
+   return
+END SUBROUTINE IncrementOrderedTupleCheckD
+SUBROUTINE GetNextNonZeroExcitorD(Pos,List,iMin,iMax)
+   IMPLICIT NONE
+   INTEGER Pos
+   REAL*8 List(:)
+   INTEGER iMin,iMax
+   Pos=Pos+1
+   DO WHILE(Pos.le.iMax)
+      if(List(Pos).ne.0) exit
+      Pos=Pos+1
+   enddo
+END SUBROUTINE GetNextNonZeroExcitorD
+
 
 END MODULE CCMC
 
@@ -2088,3 +2144,4 @@ SUBROUTINE PerformCCMCCycPar
    Call PerformCCMCCycParInt()
 end subroutine PerformCCMCCycPar
 #endif
+
