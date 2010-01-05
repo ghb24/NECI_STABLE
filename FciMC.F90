@@ -184,7 +184,7 @@ END SUBROUTINE FciMC
 
 !This is the heart of FCIMC, where the MC Cycles are performed
 SUBROUTINE PerformFCIMCyc()
-        use GenRandSymExcitCSF, only: TestCSF123
+        !use GenRandSymExcitCSF, only: TestCSF123
         INTEGER :: VecSlot,i,j,k,l
         INTEGER :: nJ(NEl),ierr,IC,Child,iCount,TotWalkersNew
         REAL*8 :: Prob,rat,HDiag,Ran2,TotProb,UniformPGen
@@ -205,7 +205,7 @@ SUBROUTINE PerformFCIMCyc()
 
         do j=1,TotWalkers
             ! This is where you can call the CSF testing routine
-            call TestCSF123 (Currentdets(:,j))
+            !call TestCSF123 (Currentdets(:,j))
 
 !j runs through all current walkers
 
