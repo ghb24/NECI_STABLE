@@ -1022,11 +1022,12 @@ LOGICAL FUNCTION GetNextCluster(CS,Dets,nDet,Amplitude,dTotAbsAmpl,iNumExcitors,
    INTEGER iMaxSize
    REAL*8 dProbNumExcit,dCurTot,r
    INTEGER i,j,k,l
-   LOGICAL tDone
+   LOGICAL tDone,tNew
    INTEGER iNumExcitors
 
    GetNextCluster=.true.
    iMaxSize=min(iMaxSizeIn,CS%iMaxSize)
+   tNew=.true.  !Used for printing
    if(CS%tFull) then
 !If we detect a zero-ampl cluster, we just go round the loop again.
       do while(GetNextCluster)
@@ -1036,7 +1037,8 @@ LOGICAL FUNCTION GetNextCluster(CS,Dets,nDet,Amplitude,dTotAbsAmpl,iNumExcitors,
          CS%C%dProbNorm=1
          CS%C%dClusterProb=1
          CS%C%dClusterNorm=1
-         if(iDebug.gt.2) WRITE(6,*) "Cluster Selection: ", CS%iIndex
+         if(iDebug.gt.2.and.tNew) WRITE(6,*) "Cluster Selection: ", CS%iIndex
+         tNew=.false.
          if(CS%iIndex.eq.1) then
 !deal with the HF det separately.  iSize is already 0.
             CS%C%dNGenComposite=abs(Amplitude(1))
@@ -1060,6 +1062,7 @@ LOGICAL FUNCTION GetNextCluster(CS,Dets,nDet,Amplitude,dTotAbsAmpl,iNumExcitors,
          else
             if(iDebug.gt.2) WRITE(6,"(A,L3)",advance='no') "Next Tuple:",tDone
             if(iDebug.gt.2) call WriteDet(6,CS%C%SelectedExcitorIndices,CS%C%iSize,.true.)
+            tNew=.true.  !Used for debug printing
             CS%C%dNGenComposite=abs(Amplitude(1))
 !            WRITE(6,*) 0,CS%C%dNGenComposite
             do i=1,CS%C%iSize 
@@ -1386,7 +1389,7 @@ END SUBROUTINE
    SUBROUTINE CCMCStandalone(Weight,Energyxw)
       Use global_utilities
       use SystemData, only: nEl,nIfD,nIfTot
-      use CCMCData, only: tCCMCFCI,dInitAmplitude,dProbSelNewExcitor,tExactCluster,tExactSpawn,nSpawnings,tSpawnProp
+      use CCMCData, only: tCCMCFCI,dInitAmplitude,dProbSelNewExcitor,tExactCluster,tExactSpawn,nSpawnings,tSpawnProp,tCCBuffer
       use CCMCData, only: ClustSelector,Spawner
       use DetCalc, only: Det       ! The number of Dets/Excitors in FCIDets
       use DetCalc, only: FCIDets   ! (0:NIfTot, Det).  Lists all allowed excitors in compressed form
@@ -1401,7 +1404,7 @@ END SUBROUTINE
       use FciMCParMod, only: CheckAllowedTruncSpawn, SetupParameters,BinSearchParts3
       use FciMCParMod, only: CalcNewShift,InitHistMin
       use FciMCParMod, only: WriteHistogram
-      Use Logging, only: CCMCDebug
+      Use Logging, only: CCMCDebug,tCCMCLogTransitions
       USE Logging , only : tHistSpawn,iWriteHistEvery
       USE SymData , only : nSymLabels
       USE Determinants , only : FDet,GetHElement2,GetHElement4,GetHElement3
@@ -1453,7 +1456,13 @@ END SUBROUTINE
       REAL*8 dAveTotAbsAmp,dAveNorm
       LOGICAL lLogTransitions
 
-      TYPE(ClustSelector),target :: CS
+      TYPE(ClustSelector),target :: CSMain
+      TYPE(ClustSelector),target :: CSBuff  !This is used when we're doing buffered CC
+      TYPE(ClustSelector),pointer :: CS
+      LOGICAL tPostBuffering                     !Set after prebuffering
+      LOGICAL tMoreClusters                  
+      REAL*8, ALLOCATABLE :: AmplitudeBuffer(:) !(Det)  used for buffered CC
+      INTEGER tagAmplitudeBuffer
       TYPE(Spawner) S
 
       INTEGER FakeArray(1),i1,i2
@@ -1462,7 +1471,7 @@ END SUBROUTINE
       iDebug=CCMCDebug
 
       WRITE(6,*) "dProbSelNewExcitor: ",dProbSelNewExcitor
-      lLogTransitions=.true.
+      lLogTransitions=tCCMCLogTransitions
 
       if(lLogTransitions) then
 ! We create a transition matrix where each element correpsonds to a cluster.  We encode cluster X=(a_{X_i}) = (x,y,z)  as an 'bit' string in base Det sum_{i=1}^{|X|} (X_i)*(Det)**(i-1)
@@ -1478,6 +1487,11 @@ END SUBROUTINE
 ! Setup Memory
       Allocate(Amplitude(Det,2),stat=ierr)
       LogAlloc(ierr,'Amplitude',Det*2,8,tagAmplitude)
+
+      if(tCCBuffer) then !CCBuffer uses a third array to store the sum of collapsed clusters' amplitudes, and spawns from that
+         Allocate(AmplitudeBuffer(Det),stat=ierr)
+         LogAlloc(ierr,'AmplitudeBuffer',Det,8,tagAmplitudeBuffer)
+      endif
 
 ! Now setup the amplitude list.  Let's start with nothing initially, and
       Amplitude(:,:)=0
@@ -1512,12 +1526,16 @@ END SUBROUTINE
       ENDIF
 
       if(tExactCluster) then
-         CALL InitClustSelectorFull(CS,iNumExcitors)
+         CALL InitClustSelectorFull(CSMain,iNumExcitors)
       else
-         CALL InitClustSelectorRandom(CS,iNumExcitors,InitWalkers,dProbSelNewExcitor)
+         CALL InitClustSelectorRandom(CSMain,iNumExcitors,InitWalkers,dProbSelNewExcitor)
+      endif
+      if(tCCBuffer) then
+         CALL InitClustSelectorFull(CSBuff,1)
       endif
 
       CALL InitSpawner(S,tExactSpawn,ICILevel)
+
 
 ! Each cycle we select combinations of excitors randomly, and spawn and birth/die from them
       Iter=1
@@ -1605,9 +1623,32 @@ END SUBROUTINE
 
 !  Loop over cluster selections
          dAveProbSel(:)=0
+         CS=>CSMain
          call ResetClustSelector(CS)
+         if(tCCBuffer) then
+            call ResetClustSelector(CSBuff)
+            AmplitudeBuffer(:)=0
+         endif
          i=min(iNumExcitors,nEl)
-         do while (GetNextCluster(CS,FciDets,Det,Amplitude(:,iOldAmpList),dTotAbsAmpl,iNumExcitors,i,iDebug))
+         tMoreClusters=.true.
+         tPostBuffering=.false.
+!A standard run has PostBuffering .false. and selects purely from the main cluster selector.
+!A buffered run first has PostBuffering .false., selecting from the main CS, and storing the cumulative amplitudes in AmplitudeBuffer
+!        second, it has   PostBuffering .true.,  selecting from the CSBuff and spawning and dying from there.
+
+         do while (tMoreClusters)
+            if(.not.tPostBuffering) then
+               tMoreClusters=GetNextCluster(CS,FciDets,Det,Amplitude(:,iOldAmpList),dTotAbsAmpl,iNumExcitors,i,iDebug)
+               if(tCCBuffer.and..not.tMoreClusters) then
+                  if(iDebug.gt.2) WRITE(6,*) "Buffering Complete.  Now Spawning."
+                  tPostBuffering=.true.
+                  CS=>CSBuff
+               endif
+            endif
+            if(tPostBuffering) then  !If we've finished buffering, we read from the buffer
+               tMoreClusters=GetNextCluster(CSBuff,FciDets,Det,AmplitudeBuffer(:),dTotAbsAmpl,1,i,iDebug)
+            endif
+            if(.not.tMoreClusters) exit
             if(iDebug.gt.3) write(6,*) "Selection ",CS%iIndex
             dAveProbSel(CS%C%iSize)=dAveProbSel(CS%C%iSize)+1/CS%C%dProbNorm
 
@@ -1643,6 +1684,17 @@ END SUBROUTINE
             if(CS%C%iSgn.eq.0) then
                if(iDebug.gt.2) write(6,*) "Sign Zero so moving to next cluster"
                cycle  !No point in doing anything
+            endif
+
+            if(tCCBuffer.and..not.tPostBuffering) then
+               IC=CS%C%iExcitLevel
+               CALL BinSearchParts3(CS%C%iLutDetCurr(:),FCIDets(:,:),Det,FCIDetIndex(IC),FCIDetIndex(IC+1)-1,PartIndex,tSuc)
+               if(.not.tSuc) then
+                  Call WriteDet(6,CS%C%DetCurr,nEl,.true.)
+                  Call Stop_All("CCMCStandalone","Failed to find det.")
+               endif
+               AmplitudeBuffer(PartIndex)=AmplitudeBuffer(PartIndex)+CS%C%dNGenComposite
+               cycle
             endif
 
             if(tSpawnProp) then
@@ -1941,6 +1993,10 @@ END SUBROUTINE
       endif
       LogDealloc(tagAmplitude)
       DeAllocate(Amplitude)
+      if(tCCBuffer) then
+         LogDealloc(tagAmplitudeBuffer)
+         DeAllocate(AmplitudeBuffer)
+      endif
    END SUBROUTINE CCMCStandalone
 
 !Add the excitation in iLutnJ to iLutnI and return it in iLutnI.  iSgn is
