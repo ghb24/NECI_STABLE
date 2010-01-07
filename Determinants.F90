@@ -283,12 +283,14 @@ MODULE Determinants
 
 
 !Function for get the hamiltonian matrix element, when we have the excitation matrix and parity of the excitation.
-      TYPE(HElement) function GetHElement4(NI,NJ,iC2,ExcitMat,TParity)
+      TYPE(HElement) function GetHElement4(NI,NJ,iC2,ExcitMat,TParity) !,iLutI,&
+                                           !iLutJ)
          USE HElem
          use SystemData, only : nEl,nBasisMax,G1,nBasis,Brr
          use SystemData, only : ECore,ALat,NMSH, tCSF
          use IntegralsData, only : UMat,FCK,NMAX
-         use csf, only: iscsf, CSFGetHelement
+         use csf, only: iscsf, CSFGetHelement, CSFGetHelement_faster
+         !integer, intent(in), optional, dimension(0:NIfTot) :: iLutI, iLutJ
          INTEGER NI(nEl),NJ(nEl),iC,ExcitMat(2,2),IC2
          LOGICAL TParity
          TYPE(HElement) Sum
@@ -297,8 +299,14 @@ MODULE Determinants
 
          if (tCSF) then
              if (iscsf(NI) .or. iscsf(NJ)) then
-                 !print*, 'get csf elements'
-                 gethelement4 = CSFGetHelement (NI, NJ)
+                 ! TODO: get this pass-through working
+                 !if (.not. present iLutI .or. .not. present(iLutJ)) then
+                 !    gethelement4 = CSFGetHelement (nI, nJ)
+                 !else
+                 !    gethelement4 = csf_get_helement_bit (nI, nJ, ilutI,ilutJ)
+                 !endif
+                 !gethelement4 = CSFGetHelement_faster(nI, nJ)
+                 gethelement4 = csfgethelement (nI, nJ)
                  return
              endif
          endif

@@ -6,13 +6,13 @@ module sltcnd_csf_mod
     use IntegralsData, only: UMAT
     use OneEInts, only: GetTMatEl
     use Integrals, only: GetUMatEl
-    use DetBitOps, only: get_bit_excitmat, count_open_orbs
+    use DetBitOps, only: count_open_orbs, FindBitExcitLevel
     use csf_data, only: csf_sort_det_block
     use timing
     implicit none
 
 contains
-    type(HElement) function sltcnd_csf (nI, nJ, iLutI, iLutJ)
+    type(HElement) function sltcnd_csf (nI, nJ, iLutI, iLutJ, cn,c0,c1,c2)
         
         ! Use the Slater-Condon Rules to evaluate the H matrix element between
         ! two determinants. Assume CSF ordering of orbitals (closed pairs
@@ -27,17 +27,25 @@ contains
         integer, intent(in) :: iLutI(0:NIfTot), iLutJ(0:NIfTot)
         integer :: IC, ex(2,2)
         logical :: tSign
+        integer, intent(inout) :: cn, c0, c1, c2
         ! TODO: debug remove
         integer :: nK(nel), nL(nel)
         
         ! For debugging purposes, measure the time contribution.
-        type(timer), save :: slt_time
-        slt_time%timer_name = 'sltcnd_csf'
-        call set_timer(slt_time)
+        !type(timer), save :: slt_timeA, slt_timeB, slt_timeC, slt_timeD, slt_timeE
+        !slt_timeA%timer_name = 'sltcnd_csf_A'
+        !slt_timeB%timer_name = 'sltcnd_csf_B'
+        !slt_timeC%timer_name = 'sltcnd_csf_C'
+        !slt_timeD%timer_name = 'sltcnd_csf_D'
+        !slt_timeE%timer_name = 'sltcnd_csf_E'
+        !call set_timer(slt_timeA)
 
         ! Get the excitation level
-        IC = get_bit_excitmat (iLutI, iLutJ, ex, tSign)
+        IC = FindBitExcitLevel (iLutI, iLutJ)
+        !call halt_timer(slt_timeA)
 
+        !call halt_timer(slt_timeA)
+        !call set_timer(slt_timeB)
         select case (IC)
         case (0)
             ! The determinants are exactly the same
@@ -45,18 +53,30 @@ contains
 
         case (1)
             ! The determinants differ by only one orbital
+            ! TODO: For speed, can do a no-tSign version...
+        !call set_timer(slt_timeC)
+            ex(1,1) = IC
+            call GetBitExcitation (iLutI, iLutJ, ex, tSign)
             sltcnd_csf = sltcnd_csf_1 (nI, Ex(:,1), tSign)
+       ! call halt_timer(slt_timeC)
 
         case (2)
             ! The determinants differ by two orbitals
+       ! call set_timer(slt_timeD)
+            ex(1,1) = IC
+            call GetBitExcitation (iLutI, iLutJ, ex, tSign)
             sltcnd_csf = sltcnd_csf_2 (ex, tSign)
+       ! call halt_timer(slt_timeD)
 
         case default
             ! The determinants differ by more than two orbitals
+       ! call set_timer(slt_timeE)
             sltcnd_csf%v = 0
+       !    call halt_timer(slt_timeE)
         endselect
+       ! call halt_timer(slt_timeB)
 
-        call halt_timer(slt_time)
+        !call halt_timer(slt_time)
     end function
 
 

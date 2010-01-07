@@ -511,8 +511,8 @@ MODULE FciMCParMod
         do j=1,TotWalkers
 !j runs through all current walkers
 !If we are rotoannihilating/direct annihilating, the sign indicates the sum of the signs on the determinant, and hence j loops over determinants, not particles.
-!            WRITE(6,*) Iter,j,TotWalkers
-!            CALL FLUSH(6)
+            !WRITE(6,*) Iter,j,TotWalkers
+            CALL FLUSH(6)
 
 !First, decode the bit-string representation of the determinant the walker is on, into a string of naturally-ordered integers
 !            WRITE(6,*) 'CurrentDet (bit)',CurrentDets(:,j)
@@ -656,7 +656,6 @@ MODULE FciMCParMod
             ENDIF
 
             do p=1,Loop
-
 !If rotoannihilating, we are simply looping over all the particles on the determinant
 
 !Ali wanted this debug line left in: this is an appropriate place to call the histogramming of the excitation generator
@@ -805,7 +804,9 @@ MODULE FciMCParMod
 
 !                        WRITE(6,'(A,3I20,A,8I3)') 'Child to be created from:',CurrentDets(:,j),' which is ',DetCurr(:)
 !                        WRITE(6,'(A,3I20,A,8I3)') 'Child to be created on:',iLutnJ(:),' which is ',nJ(:)
+                        !print*, 'attempt create'
                         Child=AttemptCreatePar(DetCurr,CurrentDets(:,j),CurrentSign(j),nJ,iLutnJ,Prob,IC,Ex,tParity,ParticleWeight,tMinorDetList)
+                        !print*, 'attempted'
                         !if (child /= 0) then
                             !WRITE(6,'(A,3I20)') 'Child to be created on:',iLutnJ(:)
                             !WRITE(6,*) 'Child',Child
@@ -3920,6 +3921,7 @@ MODULE FciMCParMod
         ELSE
 !Normal determinant spawn
 
+            ! TODO: for csfs, have ilutnJ by now. Useful to eval. energy.
             rh=GetHElement4(DetCurr,nJ,IC,Ex,tParity)
             !WRITE(6,*) rh%v
 
