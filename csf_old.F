@@ -836,6 +836,22 @@ C.. remove NDCH if necessary
          RETURN
       END
 
+      subroutine CSFGETHELEMENTOLD(NCI,NCJ,NEL,NBASISMAX,
+     &   G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMat,ECORE,SUM)
+         use HELem
+         use SystemData, only: basisfn
+         type(basisfn) G1(*)
+         integer nbasis,brr(*),nmsh,nmax
+         real*8 alat(*)
+         type(helement) umat(*)
+         complex*16 fck(*)
+         integer nel,nci(nel),ncj(nel),nbasismax(5,*)
+         type(helement) sum
+         real*8 ecore
+
+         call csfgethelement(nci,ncj,nel,nbasismax,g1,nbasis,
+     &                  brr,nmsh,fck,nmax,alat,umat,ecore,sum)
+      end subroutine
 
 C.. Get the Hamiltonian Element between two CSFs
       SUBROUTINE CSFGETHELEMENT(NCI,NCJ,NEL,NBASISMAX,

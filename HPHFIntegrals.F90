@@ -6,7 +6,7 @@ SUBROUTINE HPHFGetOffDiagHElement(nI,nJ,iLutnI,iLutnJ,MatEl)
     use SystemData, only : ECore,ALat,NMSH
     use IntegralsData, only : UMat,FCK,NMAX
     use HPHFRandExcitMod , only : FindDetSpinSym,FindExcitBitDetSym
-    use DetBitOps, only: DetBitEQ
+    use DetBitOps, only: DetBitEQ, FindExcitBitDet
     IMPLICIT NONE
     INTEGER :: iLutnI(0:NIfTot),iLutnJ(0:NIfTot),nI(NEl),nI2(NEl),nJ(NEl),nJ2(NEl),iLutnI2(0:NIfTot),iLutnJ2(0:NIfTot)
     INTEGER :: ExcitLevel,OpenOrbsI,OpenOrbsJ,Ex(2,2)

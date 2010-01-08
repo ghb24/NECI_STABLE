@@ -1,189 +1,190 @@
 MODULE FciMCMod
-    use SystemData , only : NEl,Alat,Brr,ECore,G1,nBasis,nBasisMax,nMsh,Arr
-    use CalcData , only : InitWalkers,NMCyc,G_VMC_Seed,DiagSft,Tau,SftDamp,StepsSft,TDistAnnihil
-    use CalcData , only : TReadPops,ScaleWalkers,TStartMP1,TFixShiftShell,FixShift,ShellFix
-    use CalcData , only : GrowMaxFactor,CullFactor,TMCDets,TNoBirth,Lambda,TDiffuse,FlipTauCyc,TFlipTau
-    use CalcData , only : TExtraPartDiff,TFullUnbias,TNodalCutoff,NodalCutoff,TNoAnnihil,TMCDiffusion
-    use CalcData , only : NDets,RhoApp,TResumFCIMC,NEquilSteps,TSignShift,THFRetBias,PRet,TExcludeRandGuide
-    use CalcData , only : TProjEMP2,TFixParticleSign,TStartSinglePart,MemoryFacPart,TRegenExcitgens,TUnbiasPGeninProjE
-    USE Determinants , only : FDet,GetHElement2,GetH0Element3
-    USE DetCalc , only : NMRKS,ICILevel
-    use IntegralsData , only : fck,NMax,UMat
-    USE global_utilities
-    USE Logging , only : iWritePopsEvery,TPopsFile,TZeroProjE,TWriteDetE,MaxHistE,NoHistBins
-    USE HElem
-    IMPLICIT NONE
-    SAVE
+use SystemData , only : NEl,Alat,Brr,ECore,G1,nBasis,nBasisMax,nMsh,Arr
+use CalcData , only : InitWalkers,NMCyc,G_VMC_Seed,DiagSft,Tau,SftDamp,StepsSft,TDistAnnihil
+use CalcData , only : TReadPops,ScaleWalkers,TStartMP1,TFixShiftShell,FixShift,ShellFix
+use CalcData , only : GrowMaxFactor,CullFactor,TMCDets,TNoBirth,Lambda,TDiffuse,FlipTauCyc,TFlipTau
+use CalcData , only : TExtraPartDiff,TFullUnbias,TNodalCutoff,NodalCutoff,TNoAnnihil,TMCDiffusion
+use CalcData , only : NDets,RhoApp,TResumFCIMC,NEquilSteps,TSignShift,THFRetBias,PRet,TExcludeRandGuide
+use CalcData , only : TProjEMP2,TFixParticleSign,TStartSinglePart,MemoryFacPart,TRegenExcitgens,TUnbiasPGeninProjE
+USE Determinants , only : FDet,GetHElement2,GetH0Element3
+USE DetCalc , only : NMRKS,ICILevel
+use IntegralsData , only : fck,NMax,UMat
+USE global_utilities
+USE Logging , only : iWritePopsEvery,TPopsFile,TZeroProjE,TWriteDetE,MaxHistE,NoHistBins
+USE HElem
+IMPLICIT NONE
+SAVE
 
-    INTEGER, PARAMETER :: r2=kind(0.d0)
+INTEGER, PARAMETER :: r2=kind(0.d0)
 
-    TYPE ExcitGenerator
-        INTEGER , ALLOCATABLE :: ExcitData(:)      !This stores the excitation generator
-        INTEGER :: nExcitMemLen                    !This is the length of the excitation generator
-        LOGICAL :: ExitGenForDet=.false.           !This is true when the excitation generator stored corresponds to the determinant
-    END TYPE
+TYPE ExcitGenerator
+    INTEGER , ALLOCATABLE :: ExcitData(:)      !This stores the excitation generator
+    INTEGER :: nExcitMemLen                    !This is the length of the excitation generator
+    LOGICAL :: ExitGenForDet=.false.           !This is true when the excitation generator stored corresponds to the determinant
+END TYPE
 
-    TYPE(ExcitGenerator) , ALLOCATABLE , TARGET :: WalkVecExcits(:),WalkVec2Excits(:)   !This will store the excitation generators for the particles on each node
-    INTEGER , ALLOCATABLE , TARGET :: WalkVecDets(:,:),WalkVec2Dets(:,:)    !Contains determinant list
-    LOGICAL , ALLOCATABLE , TARGET :: WalkVecSign(:),WalkVec2Sign(:)        !Contains sign list
-    INTEGER , ALLOCATABLE , TARGET :: WalkVecIC(:),WalkVec2IC(:)            !Contains excit level list
-    REAL*8 , ALLOCATABLE , TARGET :: WalkVecH(:,:),WalkVec2H(:,:)       !First element is diagonal hamiltonian element - second is the connection to HF determinant
-    REAL*8 , ALLOCATABLE , TARGET :: WalkVecPGen(:), WalkVec2PGen(:)        !This stores the generation probabilities of the walkers when TUnbiasPGeninProjE is on
-    INTEGER :: WalkVecDetsTag=0,WalkVec2DetsTag=0,WalkVecSignTag=0,WalkVec2SignTag=0
-    INTEGER :: WalkVecICTag=0,WalkVec2ICTag=0,WalkVecHTag=0,WalkVec2HTag=0,WalkVecPgenTag=0,WalkVec2PGenTag=0
+TYPE(ExcitGenerator) , ALLOCATABLE , TARGET :: WalkVecExcits(:),WalkVec2Excits(:)   !This will store the excitation generators for the particles on each node
+INTEGER , ALLOCATABLE , TARGET :: WalkVecDets(:,:),WalkVec2Dets(:,:)    !Contains determinant list
+LOGICAL , ALLOCATABLE , TARGET :: WalkVecSign(:),WalkVec2Sign(:)        !Contains sign list
+INTEGER , ALLOCATABLE , TARGET :: WalkVecIC(:),WalkVec2IC(:)            !Contains excit level list
+REAL*8 , ALLOCATABLE , TARGET :: WalkVecH(:,:),WalkVec2H(:,:)       !First element is diagonal hamiltonian element - second is the connection to HF determinant
+REAL*8 , ALLOCATABLE , TARGET :: WalkVecPGen(:), WalkVec2PGen(:)        !This stores the generation probabilities of the walkers when TUnbiasPGeninProjE is on
+INTEGER :: WalkVecDetsTag=0,WalkVec2DetsTag=0,WalkVecSignTag=0,WalkVec2SignTag=0
+INTEGER :: WalkVecICTag=0,WalkVec2ICTag=0,WalkVecHTag=0,WalkVec2HTag=0,WalkVecPgenTag=0,WalkVec2PGenTag=0
 !Pointers to point at the correct arrays for use
-    INTEGER , POINTER :: CurrentDets(:,:), NewDets(:,:)
-    LOGICAL , POINTER :: CurrentSign(:), NewSign(:)
-    INTEGER , POINTER :: CurrentIC(:), NewIC(:)
-    REAL*8 , POINTER :: CurrentH(:,:), NewH(:,:)
-    REAL*8 , POINTER :: CurrentPGen(:), NewPGen(:)
-    TYPE(ExcitGenerator) , POINTER :: CurrentExcits(:), NewExcits(:)
+INTEGER , POINTER :: CurrentDets(:,:), NewDets(:,:)
+LOGICAL , POINTER :: CurrentSign(:), NewSign(:)
+INTEGER , POINTER :: CurrentIC(:), NewIC(:)
+REAL*8 , POINTER :: CurrentH(:,:), NewH(:,:)
+REAL*8 , POINTER :: CurrentPGen(:), NewPGen(:)
+TYPE(ExcitGenerator) , POINTER :: CurrentExcits(:), NewExcits(:)
 
-    INTEGER , ALLOCATABLE :: HFDet(:)       !This will store the HF determinant
-    INTEGER :: HFDetTag=0
-    TYPE(ExcitGenerator) :: HFExcit         !This is the excitation generator for the HF determinant
+INTEGER , ALLOCATABLE :: HFDet(:)       !This will store the HF determinant
+INTEGER :: HFDetTag=0
+TYPE(ExcitGenerator) :: HFExcit         !This is the excitation generator for the HF determinant
 
-    INTEGER :: Seed,MaxWalkers,TotWalkers,TotWalkersOld,TotSign,TotSignOld,PreviousNMCyc,Iter,NoComps
-    INTEGER :: exFlag=3
+INTEGER :: Seed,MaxWalkers,TotWalkers,TotWalkersOld,TotSign,TotSignOld,PreviousNMCyc,Iter,NoComps
+INTEGER :: exFlag=3
 
 !This is information needed by the thermostating, so that the correct change in walker number can be calculated, and hence the correct shift change.
 !NoCulls is the number of culls in a given shift update cycle for each variable
-    INTEGER :: NoCulls=0
+INTEGER :: NoCulls=0
 !CullInfo is the number of walkers before and after the cull (elements 1&2), and the third element is the previous number of steps before this cull...
 !Only 10 culls/growth increases are allowed in a given shift cycle
-    INTEGER :: CullInfo(10,3)
+INTEGER :: CullInfo(10,3)
 
 !The following variables are calculated at the end of each update cycle, are combined to the root processor
-    REAL*8 :: GrowRate,DieRat,ProjectionE,SumENum
-    REAL*8:: SumNoatHF      !This is the sum over all previous cycles of the number of particles at the HF determinant
-    REAL*8 :: AvSign           !This is the average sign of the particles over all iterations
-    INTEGER :: SumWalkersCyc    !This is the sum of all walkers over an update cycle on each processor
-    REAL*8 :: MeanExcitLevel
-    INTEGER :: MinExcitLevel
-    INTEGER :: MaxExcitLevel
-    INTEGER :: NoatDoubs,Annihilated,Acceptances,ConnAnnihil
-    REAL*8 :: AccRat
-    INTEGER :: PreviousCycles   !The number of previous cycles performed before the POPSFILE is read in
-    INTEGER :: NoatHF           !This is the number at HF for a given Iteration
-    REAL*8 :: SumConnections
-    INTEGER :: NoDied           !This is the number of particles which have died (on-site death) in the last update cycle
-    INTEGER :: NoBorn           !This is the number of particles which have been born in the last update cycle
+REAL*8 :: GrowRate,DieRat,ProjectionE,SumENum
+REAL*8:: SumNoatHF      !This is the sum over all previous cycles of the number of particles at the HF determinant
+REAL*8 :: AvSign           !This is the average sign of the particles over all iterations
+INTEGER :: SumWalkersCyc    !This is the sum of all walkers over an update cycle on each processor
+REAL*8 :: MeanExcitLevel
+INTEGER :: MinExcitLevel
+INTEGER :: MaxExcitLevel
+INTEGER :: NoatDoubs,Annihilated,Acceptances,ConnAnnihil
+REAL*8 :: AccRat
+INTEGER :: PreviousCycles   !The number of previous cycles performed before the POPSFILE is read in
+INTEGER :: NoatHF           !This is the number at HF for a given Iteration
+REAL*8 :: SumConnections
+INTEGER :: NoDied           !This is the number of particles which have died (on-site death) in the last update cycle
+INTEGER :: NoBorn           !This is the number of particles which have been born in the last update cycle
 
 !These values are used to calculate the energy when TProjEMP2 is set
-    REAL*8 :: SumOverlapMP2     !This is the overlap of the walker distribution with the MP2 wavefunction, summed over all iterations
-    REAL*8 :: SumHOverlapMP2    !This is the overlap of the excitations of the walkers with MP2, summed over all iterations
-    REAL*8 :: ProjectionMP2     !This is the energy calculated by <Psi_MP1|H|Psi>/<Psi_MP1|Psi>
+REAL*8 :: SumOverlapMP2     !This is the overlap of the walker distribution with the MP2 wavefunction, summed over all iterations
+REAL*8 :: SumHOverlapMP2    !This is the overlap of the excitations of the walkers with MP2, summed over all iterations
+REAL*8 :: ProjectionMP2     !This is the energy calculated by <Psi_MP1|H|Psi>/<Psi_MP1|Psi>
 
-    TYPE(HElement) :: rhii,FZero
-    REAL*8 :: Hii,Fii
-    
-    REAL*8 , ALLOCATABLE :: GraphRhoMat(:,:)    !This stores the rho matrix for the graphs in resumFCIMC
-    INTEGER :: GraphRhoMatTag=0
+TYPE(HElement) :: rhii,FZero
+REAL*8 :: Hii,Fii
 
-    REAL*8 , ALLOCATABLE :: GraphVec(:)         !This stores the final components for the propagated graph in ResumFCIMC
-    INTEGER :: GraphVecTag=0
+REAL*8 , ALLOCATABLE :: GraphRhoMat(:,:)    !This stores the rho matrix for the graphs in resumFCIMC
+INTEGER :: GraphRhoMatTag=0
 
-    REAL*8 , ALLOCATABLE :: GraphKii(:)         !This stores the diagonal Kii matrix elements for the determinants in the graph
-    INTEGER :: GraphKiiTag=0
+REAL*8 , ALLOCATABLE :: GraphVec(:)         !This stores the final components for the propagated graph in ResumFCIMC
+INTEGER :: GraphVecTag=0
 
-    INTEGER , ALLOCATABLE :: DetsinGraph(:,:)   !This stores the determinants in the graph created for ResumFCIMC
-    INTEGER :: DetsinGraphTag=0
+REAL*8 , ALLOCATABLE :: GraphKii(:)         !This stores the diagonal Kii matrix elements for the determinants in the graph
+INTEGER :: GraphKiiTag=0
 
-    LOGICAL :: TSinglePartPhase                 !This is true if TStartSinglePart is true, and we are still in the phase where the shift is fixed and particle numbers are growing
+INTEGER , ALLOCATABLE :: DetsinGraph(:,:)   !This stores the determinants in the graph created for ResumFCIMC
+INTEGER :: DetsinGraphTag=0
 
-    INTEGER*8 , ALLOCATABLE :: EHistBins(:,:)   !This is to histogram the determinant energies..
-    INTEGER :: EHistBinsTag=0
+LOGICAL :: TSinglePartPhase                 !This is true if TStartSinglePart is true, and we are still in the phase where the shift is fixed and particle numbers are growing
 
-    TYPE(timer), save :: Walker_time, Annihil_time   
+INTEGER*8 , ALLOCATABLE :: EHistBins(:,:)   !This is to histogram the determinant energies..
+INTEGER :: EHistBinsTag=0
+
+TYPE(timer), save :: Walker_time, Annihil_time   
 
 
-    contains
+contains
 
-    SUBROUTINE FciMC(Weight,Energyxw)
-        use soft_exit, only: test_SOFTEXIT
-        TYPE(HDElement) :: Weight,Energyxw
-        CHARACTER(len=*), PARAMETER :: this_routine='FCIMC'
-        TYPE(HElement) :: Hamii
-        LOGICAL :: TIncrement
+SUBROUTINE FciMC(Weight,Energyxw)
+use soft_exit, only: test_SOFTEXIT
+TYPE(HDElement) :: Weight,Energyxw
+CHARACTER(len=*), PARAMETER :: this_routine='FCIMC'
+TYPE(HElement) :: Hamii
+LOGICAL :: TIncrement
 
-        Walker_time%timer_name='Walker_time'
-        Annihil_time%timer_name='Annihil_time'
+Walker_time%timer_name='Walker_time'
+Annihil_time%timer_name='Annihil_time'
 
-        CALL InitFCIMCCalc()
+CALL InitFCIMCCalc()
 
-        WRITE(6,*) ""
+WRITE(6,*) ""
 
 !TotWalkersOld is the number of walkers last time the shift was changed
-        IF(TProjEMP2) THEN
-            WRITE(6,*) "       Step     Shift   WalkerCng   GrowRate    TotWalkers  Annihil NoDied NoBorn   Proj.E        Proj.MP2      NoatHF NoatDoubs  <s>          AccRat     AvConn         MeanEx  MinEx MaxEx"
-            WRITE(15,*) "#       Step     Shift   WalkerCng   GrowRate    TotWalkers  Annihil NoDied NoBorn   Proj.E        Proj.MP2      NoatHF NoatDoubs  <s>          AccRat     AvConn         MeanEx  MinEx MaxEx"
-            WRITE(15,"(I12,G15.6,I7,G15.6,I10,3I7,2G15.6,2I9,4G14.6,2I6)") PreviousCycles+Iter,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,Annihilated,NoDied,NoBorn,   &
-     &          ProjectionE,ProjectionMP2,NoatHF,NoatDoubs,AvSign,AccRat,0.D0,MeanExcitLevel,MaxExcitLevel,MinExcitLevel
-            WRITE(6,"(I12,G15.6,I7,G15.6,I10,3I7,2G15.6,2I9,4G14.6,2I6)") PreviousCycles+Iter,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,Annihilated,NoDied,NoBorn,    &
-     &          ProjectionE,ProjectionMP2,NoatHF,NoatDoubs,AvSign,AccRat,0.D0,MeanExcitLevel,MaxExcitLevel,MinExcitLevel
-        ELSEIF(TDistAnnihil) THEN
-            WRITE(6,*) "       Step     Shift   WalkerCng   GrowRate    TotWalkers ConnAnnihil Annihil NoDied NoBorn   Proj.E        NoatHF NoatDoubs  <s>          AccRat     AvConn         MeanEx     MinEx MaxEx"
-            WRITE(15,*) "#      Step     Shift   WalkerCng   GrowRate    TotWalkers ConnAnnihil Annihil NoDied NoBorn   Proj.E        NoatHF NoatDoubs  <s>          AccRat     AvConn         MeanEx     MinEx MaxEx"
-            WRITE(15,"(I12,G15.6,I7,G15.6,I10,4I7,G15.6,2I9,4G14.6,2I6)") PreviousCycles+Iter,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,ConnAnnihil,Annihilated,NoDied,NoBorn,   &
-     &          ProjectionE,NoatHF,NoatDoubs,AvSign,AccRat,0.D0,MeanExcitLevel,MaxExcitLevel,MinExcitLevel
-            WRITE(6,"(I12,G15.6,I7,G15.6,I10,4I7,G15.6,2I9,4G14.6,2I6)") PreviousCycles+Iter,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,ConnAnnihil,Annihilated,NoDied,NoBorn,    &
-     &          ProjectionE,NoatHF,NoatDoubs,AvSign,AccRat,0.D0,MeanExcitLevel,MaxExcitLevel,MinExcitLevel
+IF(TProjEMP2) THEN
+    WRITE(6,*) "       Step     Shift   WalkerCng   GrowRate    TotWalkers  Annihil NoDied NoBorn   Proj.E        Proj.MP2      NoatHF NoatDoubs  <s>          AccRat     AvConn         MeanEx  MinEx MaxEx"
+    WRITE(15,*) "#       Step     Shift   WalkerCng   GrowRate    TotWalkers  Annihil NoDied NoBorn   Proj.E        Proj.MP2      NoatHF NoatDoubs  <s>          AccRat     AvConn         MeanEx  MinEx MaxEx"
+    WRITE(15,"(I12,G15.6,I7,G15.6,I10,3I7,2G15.6,2I9,4G14.6,2I6)") PreviousCycles+Iter,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,Annihilated,NoDied,NoBorn,   &
+    &          ProjectionE,ProjectionMP2,NoatHF,NoatDoubs,AvSign,AccRat,0.D0,MeanExcitLevel,MaxExcitLevel,MinExcitLevel
+    WRITE(6,"(I12,G15.6,I7,G15.6,I10,3I7,2G15.6,2I9,4G14.6,2I6)") PreviousCycles+Iter,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,Annihilated,NoDied,NoBorn,    &
+    &          ProjectionE,ProjectionMP2,NoatHF,NoatDoubs,AvSign,AccRat,0.D0,MeanExcitLevel,MaxExcitLevel,MinExcitLevel
+    ELSEIF(TDistAnnihil) THEN
+    WRITE(6,*) "       Step     Shift   WalkerCng   GrowRate    TotWalkers ConnAnnihil Annihil NoDied NoBorn   Proj.E        NoatHF NoatDoubs  <s>          AccRat     AvConn         MeanEx     MinEx MaxEx"
+    WRITE(15,*) "#      Step     Shift   WalkerCng   GrowRate    TotWalkers ConnAnnihil Annihil NoDied NoBorn   Proj.E        NoatHF NoatDoubs  <s>          AccRat     AvConn         MeanEx     MinEx MaxEx"
+    WRITE(15,"(I12,G15.6,I7,G15.6,I10,4I7,G15.6,2I9,4G14.6,2I6)") PreviousCycles+Iter,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,ConnAnnihil,Annihilated,NoDied,NoBorn,   &
+    &          ProjectionE,NoatHF,NoatDoubs,AvSign,AccRat,0.D0,MeanExcitLevel,MaxExcitLevel,MinExcitLevel
+    WRITE(6,"(I12,G15.6,I7,G15.6,I10,4I7,G15.6,2I9,4G14.6,2I6)") PreviousCycles+Iter,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,ConnAnnihil,Annihilated,NoDied,NoBorn,    &
+    &          ProjectionE,NoatHF,NoatDoubs,AvSign,AccRat,0.D0,MeanExcitLevel,MaxExcitLevel,MinExcitLevel
 
-        ELSE
-            WRITE(6,*) "       Step     Shift   WalkerCng   GrowRate    TotWalkers  Annihil NoDied NoBorn   Proj.E        NoatHF NoatDoubs  <s>          AccRat     AvConn         MeanEx     MinEx MaxEx"
-            WRITE(15,*) "#      Step     Shift   WalkerCng   GrowRate    TotWalkers  Annihil NoDied NoBorn   Proj.E        NoatHF NoatDoubs  <s>          AccRat     AvConn         MeanEx     MinEx MaxEx"
-            WRITE(15,"(I12,G15.6,I7,G15.6,I10,3I7,G15.6,2I9,4G14.6,2I6)") PreviousCycles+Iter,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,Annihilated,NoDied,NoBorn,   &
-     &          ProjectionE,NoatHF,NoatDoubs,AvSign,AccRat,0.D0,MeanExcitLevel,MaxExcitLevel,MinExcitLevel
-            WRITE(6,"(I12,G15.6,I7,G15.6,I10,3I7,G15.6,2I9,4G14.6,2I6)") PreviousCycles+Iter,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,Annihilated,NoDied,NoBorn,    &
-     &          ProjectionE,NoatHF,NoatDoubs,AvSign,AccRat,0.D0,MeanExcitLevel,MaxExcitLevel,MinExcitLevel
-        ENDIF
+ELSE
+    WRITE(6,*) "       Step     Shift   WalkerCng   GrowRate    TotWalkers  Annihil NoDied NoBorn   Proj.E        NoatHF NoatDoubs  <s>          AccRat     AvConn         MeanEx     MinEx MaxEx"
+    WRITE(15,*) "#      Step     Shift   WalkerCng   GrowRate    TotWalkers  Annihil NoDied NoBorn   Proj.E        NoatHF NoatDoubs  <s>          AccRat     AvConn         MeanEx     MinEx MaxEx"
+    WRITE(15,"(I12,G15.6,I7,G15.6,I10,3I7,G15.6,2I9,4G14.6,2I6)") PreviousCycles+Iter,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,Annihilated,NoDied,NoBorn,   &
+    &          ProjectionE,NoatHF,NoatDoubs,AvSign,AccRat,0.D0,MeanExcitLevel,MaxExcitLevel,MinExcitLevel
+    WRITE(6,"(I12,G15.6,I7,G15.6,I10,3I7,G15.6,2I9,4G14.6,2I6)") PreviousCycles+Iter,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,Annihilated,NoDied,NoBorn,    &
+    &          ProjectionE,NoatHF,NoatDoubs,AvSign,AccRat,0.D0,MeanExcitLevel,MaxExcitLevel,MinExcitLevel
+ENDIF
 
 !Start MC simulation...
-        TIncrement=.true.   !If TIncrement is true, it means that when it comes out of the loop, it wants to subtract 1 from the Iteration count to get the true number of iterations
-        do Iter=1,NMCyc
+TIncrement=.true.   !If TIncrement is true, it means that when it comes out of the loop, it wants to subtract 1 from the Iteration count to get the true number of iterations
+do Iter=1,NMCyc
 
-            CALL PerformFCIMCyc()
+    CALL PerformFCIMCyc()
 
-            IF(mod(Iter,StepsSft).eq.0) THEN
-!This will find the new shift (and other parameters), and print out the needed values.
-                CALL UpdateDiagSft()
+    IF(mod(Iter,StepsSft).eq.0) THEN
+        !This will find the new shift (and other parameters), and print out the needed values.
+        CALL UpdateDiagSft()
 
-!Test that the file SOFTEXIT is present. If it is, then exit cleanly.
-                IF(test_SOFTEXIT()) THEN
-                    TIncrement=.false.     !This is so that when the popsfile is written out before exit, it counteracts the subtraction by one.
-                    EXIT
-                ENDIF
-            
-            ENDIF
-                
-            IF(TPopsFile.and.(mod(Iter,iWritePopsEvery).eq.0)) THEN
-!This will write out the configuration of walkers
-                CALL WriteToPopsFile()
-            ENDIF
+        !Test that the file SOFTEXIT is present. If it is, then exit cleanly.
+        IF(test_SOFTEXIT()) THEN
+            TIncrement=.false.     !This is so that when the popsfile is written out before exit, it counteracts the subtraction by one.
+            EXIT
+        ENDIF
+
+    ENDIF
+
+    IF(TPopsFile.and.(mod(Iter,iWritePopsEvery).eq.0)) THEN
+        !This will write out the configuration of walkers
+        CALL WriteToPopsFile()
+    ENDIF
 
 
-!End of MC cycle
-        enddo
+    !End of MC cycle
+enddo
 
 !Write out popsfile
-        IF(TIncrement) Iter=Iter-1         !Subtract one, since Iter is a loop variable, and therefore incremented on exit of the loop
-        IF(TPopsFile) CALL WriteToPopsFile()
+IF(TIncrement) Iter=Iter-1         !Subtract one, since Iter is a loop variable, and therefore incremented on exit of the loop
+IF(TPopsFile) CALL WriteToPopsFile()
 
-        Weight=HDElement(0.D0)
-        Energyxw=HDElement(ProjectionE)
+Weight=HDElement(0.D0)
+Energyxw=HDElement(ProjectionE)
 
 !Deallocate memory
-        CALL DeallocFCIMCMem()
+CALL DeallocFCIMCMem()
 
-        CLOSE(15)
+CLOSE(15)
 
-        RETURN
+RETURN
 
-    END SUBROUTINE FciMC
+END SUBROUTINE FciMC
 
 
 !This is the heart of FCIMC, where the MC Cycles are performed
-    SUBROUTINE PerformFCIMCyc()
+SUBROUTINE PerformFCIMCyc()
+        !use GenRandSymExcitCSF, only: TestCSF123
         INTEGER :: VecSlot,i,j,k,l
         INTEGER :: nJ(NEl),ierr,IC,Child,iCount,TotWalkersNew
         REAL*8 :: Prob,rat,HDiag,Ran2,TotProb,UniformPGen
@@ -203,6 +204,9 @@ MODULE FciMCMod
         NoatDoubs=0
 
         do j=1,TotWalkers
+            ! This is where you can call the CSF testing routine
+            !call TestCSF123 (Currentdets(:,j))
+
 !j runs through all current walkers
 
 !Sum in any energy contribution from the determinant, including other parameters, such as excitlevel info

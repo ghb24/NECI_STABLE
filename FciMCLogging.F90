@@ -13,7 +13,7 @@ MODULE FciMCLoggingMod
     USE Determinants , only : GetHElement3,GetHElement4
     use GenRandSymExcitNUMod , only : GenRandSymExcitScratchNU,ScratchSize
     USE CalcData , only : NMCyc,StepsSft
-    use DetBitOps, only: DetBitEQ
+    use DetBitOps, only: DetBitEQ, FindExcitBitDet
 
     IMPLICIT NONE
     save
@@ -640,8 +640,8 @@ MODULE FciMCLoggingMod
         DetsEqTri=.false.
 
         ! These routines find the bit representation of nJ and nK given the excitation matrices Ex and Ex2 respectively.
-        CALL FindExcitBitDet(iLutnJ,iLutnJ2,IC,Ex,NIfD)
-        CALL FindExcitBitDet(iLutnJ,iLutnK,IC2,Ex2,NIfD)
+        CALL FindExcitBitDet(iLutnJ,iLutnJ2,IC,Ex)
+        CALL FindExcitBitDet(iLutnJ,iLutnK,IC2,Ex2)
 
         DetsEqTri=DetBitEQ(iLutnJ2(0:NIfTot),iLutnK(0:NIfTot),NIfDBO)
 

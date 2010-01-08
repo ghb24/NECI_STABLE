@@ -1,6 +1,7 @@
 ! A new implementation file for csfs
 module csf
     use systemdata, only: nel, brr, ecore, alat, nmsh, nbasismax, G1, nbasis
+    use systemdata, only: NIfY, LMS
     use integralsdata, only: umat, fck, nmax
     use HElem
     use mt95, only: genrand_real2
@@ -40,6 +41,18 @@ contains
         iscsf = btest(nI(1),csf_test_bit)
     end function
 
+    ! The number of determinants given a specified number of csfs (note that
+    ! if nopen == 0, ie ncsf==0, there is still a closed shell determinant
+    ! legitimately exists.
+    integer function num_csf_dets (ncsf)
+        integer, intent(in) :: ncsf
+        if (ncsf == 0) then
+            num_csf_dets = 1
+        else
+            num_csf_dets = ncsf
+        endif
+    end function
+
     ! This is (intentionally) a BRUTE FORCE way of calculating this.
     ! We would like to see if there is a nicer way of doing this using
     ! the representation matrices of the permutations which we are able 
@@ -51,7 +64,7 @@ contains
         integer, intent(in) :: NI(nel), NJ(nel)
         integer nopen(2), nclosed(2), max_nopen, max_nup, max_ndets
         real*8 S(2), Ms(2)
-        integer nup(2), ndets(2), i, j, det
+        integer nup(2), ndets(2), i, j, det, nK(nel), nL(nel)
         type(HElement) Hel, sum1
 
         integer, dimension (:), allocatable :: yama1, yama2
@@ -64,11 +77,36 @@ contains
         call get_csf_data(NI, nel, nopen(1), nclosed(1), S(1), Ms(1))
         call get_csf_data(NJ, nel, nopen(2), nclosed(2), S(2), Ms(2))
 
+        ! TODO: Can put test here to show that HElement is giving same as old.
+!        write (6,'("a")',advance='no')
+!        call writedet(6,nI,nel,.false.)
+!        call csf_to_old_csf(nI, nK)
+!        call writedet_oldcsf(6,nK,nel,.false.)
+!        print*, int(2*S(1)), int(2*Ms(1))
+!        write (6,'("b")',advance='no')
+!        call writedet(6,nJ,nel,.false.)
+!        call csf_to_old_csf(nJ, nL)
+!        call writedet_oldcsf(6,nL,nel,.false.)
+!        print*, int(2*S(2)), int(2*Ms(2))
+
+
+
+        !write(6,'("<")',advance='no')
+        !call writedet(6,ni,nel,.false.)
+        !write(6,'("|")',advance='no')
+        !call writedet(6,nj,nel,.false.)
+        !write(6,'(">")')
+        !write(6,'("nopen",2i3,"nclosed",2i3,"S",2f8.3,"Ms",2f8.3)') &
+        !     nopen(1), nopen(2), nclosed(1), nclosed(2), S(1),S(2),Ms(1),Ms(2)
+
         ! If S or Ms are not consistent, then return 0
-        if ((S(1).ne.S(2)) .or. (Ms(1).ne.Ms(2))) then
+        if ((S(1).ne.S(2))) then ! .or. (Ms(1).ne.Ms(2))) then
             CSFGetHelement = HElement(0) 
             return
         endif
+        Ms(1) = minval(S)
+        Ms(2) = Ms(1)
+        !print*, 'new Ms value', Ms(1)
 
         ! Get electronic details
         ! Using S instead of Ms to calculate nup, as this has the fewest
@@ -79,11 +117,16 @@ contains
         ndets(2) = int(choose(nopen(2),nup(2)))
 
         ! Allocate as required
-        allocate (yama1(nopen(1)), yama2(nopen(2)))
         allocate (coeffs1(ndets(1)), coeffs2(ndets(2)))
         allocate (dets1(ndets(1), nel), dets2(ndets(2), nel))
-        call LogMemAlloc ('yama1',size(yama1),4,this_routine,tagYamas(1))
-        call LogMemAlloc ('yama2',size(yama2),4,this_routine,tagYamas(2))
+        if (nopen(1) > 0) then
+            allocate(yama1(nopen(1)))
+            call LogMemAlloc ('yama1',size(yama1),4,this_routine,tagYamas(1))
+        endif
+        if (nopen(2) > 0) then
+            allocate(yama2(nopen(2)))
+            call LogMemAlloc ('yama2',size(yama2),4,this_routine,tagYamas(2))
+        endif
         call LogMemAlloc ('coeffs1',size(coeffs1),8,this_routine,tagCoeffs(1))
         call LogMemAlloc ('coeffs2',size(coeffs2),8,this_routine,tagCoeffs(2))
         call LogMemAlloc ('dets1',size(dets1),4,this_routine,tagDets(1))
@@ -112,7 +155,7 @@ contains
                                      nopen(2))
         enddo
 
-        ! Generate determinants from spacial orbitals specified in NI, NJ
+        ! Generate determinants from spatial orbitals specified in NI, NJ
         do det = 1,ndets(1)
             dets1(det,1:nclosed(1)) = iand(NI(1:nclosed(1)), csf_orbital_mask)
             dets1(det,nclosed(1)+1:nel) = &
@@ -127,7 +170,7 @@ contains
         enddo
         ! There will/may be faster ways of doing this
         call csf_sort_det_block (dets1, ndets(1), nopen(1))
-        call csf_sort_det_block (dets1, ndets(2), nopen(2))
+        call csf_sort_det_block (dets2, ndets(2), nopen(2))
 
         ! TODO: implement symmetry if NI,NJ are the same except for yama
         CSFGetHelement = HElement(0)
@@ -141,9 +184,16 @@ contains
         enddo
 
         ! Deallocate for cleanup
-        deallocate (coeffs1, coeffs2, yama1, yama2, dets1, dets2)
-        call LogMemDealloc (this_routine, tagYamas(1))
-        call LogMemDealloc (this_routine, tagYamas(2))
+        ! TODO: Create logged alloc/dealloc macro. With conditional?
+        deallocate (coeffs1, coeffs2, dets1, dets2)
+        if (allocated(yama1)) then
+            deallocate(yama1)
+            call LogMemDealloc (this_routine, tagYamas(1))
+        endif
+        if (allocated(yama2)) then
+            deallocate(yama2)
+            call LogMemDealloc (this_routine, tagYamas(2))
+        endif
         call LogMemDealloc (this_routine, tagCoeffs(1))
         call LogMemDealloc (this_routine, tagCoeffs(2))
         call LogMemDealloc (this_routine, tagDets(1))
@@ -290,6 +340,73 @@ contains
         enddo
     end subroutine
 
+    subroutine get_csf_bit_yama (nI, yama)
+        
+        ! Extract the Yamanouchi symbol from the supplied CSF as part of
+        ! a bit determinant - the same as part of the bit det obtained by
+        ! EncodeBitDet.
+
+        integer, intent(in) :: nI(nel)
+        integer, intent(out) :: yama(NIfY)
+        integer :: i, pos, bit, nopen
+
+        nopen = 0
+        yama = 0
+        do i=1,nel
+            ! Only consider open electrons. The first has csf_yama_bit set.
+            if (nopen > 0 .or. btest(nI(i), csf_yama_bit)) then
+                pos = 1 + nopen / 32
+                bit = mod(nopen, 32)
+
+                if (btest(nI(i), csf_yama_bit)) &
+                    yama(pos) = ibset(yama(pos), bit)
+                nopen = nopen + 1
+            endif
+        enddo
+    end subroutine
+
+    subroutine csf_to_old_csf (nI, nJ)
+        
+        ! Convert the CSF to the old representation (Alex's rep.) for testing
+        ! purposes.
+        
+        integer, intent(in) :: nI(nel)
+        integer, intent(out) :: nJ(nel)
+        integer :: i, nopen, nup, orb
+        logical :: open_shell
+        include 'csf.inc'
+
+        if (.not. iscsf(nI)) then
+            nJ = nI
+            return
+        endif
+
+        do i=1,nel
+            orb = iand(nI(i), csf_orbital_mask)
+
+            ! Detect the start of the open shell region
+            if (.not. open_shell .and. btest(nI(i),csf_yama_bit)) then
+                open_shell = .true.
+                nopen = nel - i + 1
+                ! Aim for an Ms value of LMS
+                nup = (nopen + LMS) / 2
+                nopen = 0
+            endif
+
+            if (open_shell) then
+                nopen = nopen + 1
+                nJ(i) = 4*(orb - 1)
+                if (btest(nI(i), csf_yama_bit)) nJ(i) = ibset(nJ(i),1)
+                if (nopen <= nup) nJ(i) = ibset(nJ(i), 0)
+                nJ(i) = nJ(i) + csf_nbstart
+            else
+                nJ(i) = orb
+            endif
+        enddo
+    end subroutine
+
+
+
     ! Obtains the number of open shell electrons, the total spin
     ! and the Ms value for the specified csf.
     subroutine get_csf_data(NI, nel, nopen, nclosed, S, Ms)
@@ -336,7 +453,7 @@ contains
         integer :: S2
         S2 = 2*S
 
-        if (mod(nOpen+S2, 2) /= 0) then
+        if ((nopen < 0) .or. (mod(nOpen+S2, 2) /= 0))then
             get_num_csfs = 0
         else
             get_num_csfs = (2*S2 + 2) * choose(nOpen, (nOpen+S2)/2)

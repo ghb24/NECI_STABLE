@@ -11,8 +11,8 @@
 !   At the end are functions which do not require parallel directives, and are accessible
 !   for both parallel and non-parallel.
 MODULE FciMCParMod
-    use SystemData , only : NEl,Alat,Brr,ECore,G1,nBasis,nBasisMax,nMsh,Arr,LMS,tHPHF,tListDets,NIfD,NIfTot,NIfDBO
-    use SystemData , only : tHub,tReal,tNonUniRandExcits,tMerTwist,tRotatedOrbs,tImportanceSample,tFindCINatOrbs,tFixLz,LzTot,tUEG, tLatticeGens
+    use SystemData , only : NEl,Alat,Brr,ECore,G1,nBasis,nBasisMax,nMsh,Arr,LMS,tHPHF,tListDets,NIfD,NIfTot,NIfDBO,NIfY
+    use SystemData , only : tHub,tReal,tNonUniRandExcits,tMerTwist,tRotatedOrbs,tImportanceSample,tFindCINatOrbs,tFixLz,LzTot,tUEG, tLatticeGens,tCSF
     use CalcData , only : InitWalkers,NMCyc,DiagSft,Tau,SftDamp,StepsSft,OccCASorbs,VirtCASorbs,tFindGroundDet,tDirectAnnihil
     use CalcData , only : TStartMP1,NEquilSteps,TReadPops,TRegenExcitgens,TFixShiftShell,ShellFix,FixShift,tMultipleDetsSpawn
     use CalcData , only : tConstructNOs,tAnnihilatebyRange,tRotoAnnihil,MemoryFacSpawn,tRegenDiagHEls,tSpawnAsDet
@@ -39,7 +39,10 @@ MODULE FciMCParMod
     USE FciMCData
     USE AnnihilationMod
     use DetBitops, only: EncodeBitDet, DecodeBitDet, DetBitEQ, DetBitLT
+    use DetBitOps, only: FindExcitBitDet
+    use csf, only: get_csf_bit_yama
     IMPLICIT NONE
+    integer, parameter :: dp = selected_real_kind(15,307)
     SAVE
 
     contains
@@ -50,7 +53,7 @@ MODULE FciMCParMod
         use soft_exit, only : ChangeVars 
         use CalcData, only : iFullSpaceIter
         use UMatCache, only : UMatInd
-        use FciMCLoggingMOD , only : PrintTriConnHist,PrintTriConnHElHist,FinaliseBlocking,FinaliseShiftBlocking
+        use FciMCLoggingMOD , only : PrintTriConnHist,PrintTriConnHElHist,FinaliseBlocking,FinaliseShiftBlocking,PrintShiftBlocking,PrintBlocking
         use RotateOrbsMod , only : RotateOrbs
         use NatOrbsMod , only : PrintOrbOccs
         TYPE(HDElement) :: Weight,Energyxw
@@ -132,6 +135,12 @@ MODULE FciMCParMod
                 IF(tSingBiasChange) THEN
                     IF(.not.tNoSpinSymExcitgens) CALL GetSymExcitCount(HFExcit%ExcitData,HFConn)
                     CALL CalcApproxpDoubles(HFConn)
+                ENDIF
+            
+                IF(mod(Iter,StepsSft*100).eq.0) THEN
+                    !Every 100 update cycles, write out a new blocking file.
+                    IF(tErrorBlocking.and.(Iter.gt.IterStartBlocking)) CALL PrintBlocking(Iter) 
+                    IF(tShiftBlocking.and.(Iter.gt.(VaryShiftIter+IterShiftBlock))) CALL PrintShiftBlocking(Iter)
                 ENDIF
 
             ENDIF
@@ -448,13 +457,15 @@ MODULE FciMCParMod
 !        use HPHFRandExcitMod , only : TestGenRandHPHFExcit 
         USE Determinants , only : GetHElement3
         USE FciMCLoggingMOD , only : FindTriConnections,TrackSpawnAttempts,FindSpinCoupHEl
-!        use GenRandSymExcitCSF, only: TestGenRandSymCSFExcit, TestCSF123
+!        use GenRandSymExcitCSF, only: TestCSF123
+        use GenRandSymExcitCSF, only: GenRandSymCSFExcit
         USE CalcData , only : tAddtoInitiator,InitiatorWalkNo,tInitIncDoubs
+        use detbitops, only : countbits
         INTEGER :: MinorVecSlot,VecSlot,i,j,k,l,MinorValidSpawned,ValidSpawned,CopySign,ParticleWeight,Loop,iPartBloom
         INTEGER :: nJ(NEl),ierr,IC,Child,iCount,DetCurr(NEl),iLutnJ(0:NIfTot),NoMinorWalkersNew
         REAL*8 :: Prob,rat,HDiag,HDiagCurr
         INTEGER :: iDie,WalkExcitLevel,Proc             !Indicated whether a particle should self-destruct on DetCurr
-        INTEGER :: ExcitLevel,TotWalkersNew,iGetExcitLevel_2,error,length,temp,Ex(2,2),WSign,p,Scratch1(ScratchSize),Scratch2(ScratchSize),FDetSym,FDetSpin
+        INTEGER :: ExcitLevel,TotWalkersNew,iGetExcitLevel_2,error,length,temp,Ex(2,2),WSign,p,Scratch1(ScratchSize),Scratch2(ScratchSize),Scratch3(Scratchsize),FDetSym,FDetSpin
         LOGICAL :: tParity,tMainArr,tFilled,tCheckStarGenDet,tStarDet,tMinorDetList,tAnnihilateMinorTemp,tAnnihilateMinor,TestClosedShellDet,tParentInCAS
         INTEGER(KIND=i2) :: HashTemp
         TYPE(HElement) :: HDiagTemp
@@ -512,6 +523,10 @@ MODULE FciMCParMod
 !            WRITE(6,*) 'CurrentDet (bit)',CurrentDets(:,j)
             CALL DecodeBitDet(DetCurr,CurrentDets(:,j))
 
+            !>>>! yipes
+            !write (6,'("Consider: ")', advance='no')
+            !call writedet(6, DetCurr, nel, .true.)
+
 !            IF((Iter.gt.100)) THEN!.and.(.not.DetBitEQ(CurrentDets(:,j),iLutHF))) THEN
 !This will test the excitation generator for HPHF wavefunctions
 !                IF(.not.(TestClosedShellDet(CurrentDets(:,j)))) THEN
@@ -536,11 +551,8 @@ MODULE FciMCParMod
 !Also, we want to find out the excitation level - we only need to find out if its connected or not (so excitation level of 3 or more is ignored.
 !This can be changed easily by increasing the final argument.
 
-            
-            ! TODO: This is where the testing routine gets called
-            !call TestGenRandSymCSFExcit (DetCurr, 1000000, 0.0, 1.0, 2, 10000)
-            !call TestCSF123 (DetCurr)
-
+            ! This is where you can call the CSF testing routine
+            ! call TestCSF123 (DetCurr)
 
             IF(tTruncSpace.or.tHighExcitsSing.or.tHistSpawn.or.tCalcFCIMCPsi.or.tPrintSpinCoupHEl.or.tHistHamil) THEN
 !We need to know the exact excitation level for truncated calculations.
@@ -631,6 +643,8 @@ MODULE FciMCParMod
             ENDIF
 
 !Sum in any energy contribution from the determinant, including other parameters, such as excitlevel info
+!TODO: This is where projected energy calculated - make sure that it can call
+!the right HElement call
             CALL SumEContrib(DetCurr,WalkExcitLevel,CurrentSign(j),CurrentDets(:,j),HDiagCurr,1.D0)
 
 !            IF(TResumFCIMC) CALL ResumGraphPar(DetCurr,CurrentSign(j),VecSlot,j)
@@ -685,7 +699,11 @@ MODULE FciMCParMod
                                 IF(tHPHF) THEN
 !                                    CALL GenRandHPHFExcit(DetCurr,CurrentDets(:,j),nJ,iLutnJ,pDoubles,exFlag,Prob)
                                     CALL GenRandHPHFExcit2Scratch(DetCurr,CurrentDets(:,j),nJ,iLutnJ,pDoubles,exFlag,Prob,Scratch1,Scratch2,tFilled,tGenMatHEl)
-                                ELSE
+                                elseif (tCSF) then
+                                    ! TODO: fix this exFlag
+                                    exFlag = 7
+                                    call GenRandSymCSFExcit (DetCurr, CurrentDets(:,j), nJ, 0.04_dp, 0.95_dp, IC, Ex, exFlag, Prob, Scratch1, Scratch2, Scratch3, tFilled)
+                                else
                                     CALL GenRandSymExcitScratchNU(DetCurr,CurrentDets(:,j),nJ,pDoubles,IC,Ex,tParity,exFlag,Prob,Scratch1,Scratch2,tFilled)
 !                                    WRITE(6,'(A,8I3)') 'determinant generated for spawning',nJ
                                 ENDIF
@@ -792,8 +810,10 @@ MODULE FciMCParMod
 !                        WRITE(6,'(A,3I20,A,8I3)') 'Child to be created from:',CurrentDets(:,j),' which is ',DetCurr(:)
 !                        WRITE(6,'(A,3I20,A,8I3)') 'Child to be created on:',iLutnJ(:),' which is ',nJ(:)
                         Child=AttemptCreatePar(DetCurr,CurrentDets(:,j),CurrentSign(j),nJ,iLutnJ,Prob,IC,Ex,tParity,ParticleWeight,tMinorDetList)
-!                        WRITE(6,'(A,3I20)') 'Child to be created on:',iLutnJ(:)
-!                        WRITE(6,*) 'Child',Child
+                        !if (child /= 0) then
+                            !WRITE(6,'(A,3I20)') 'Child to be created on:',iLutnJ(:)
+                            !WRITE(6,*) 'Child',Child
+                        !endif
                     ENDIF
 
                 ENDIF
@@ -808,7 +828,8 @@ MODULE FciMCParMod
                         CALL AddHistHamilEl(CurrentDets(:,j),iLutnJ,WalkExcitLevel,Child,1)   !Histogram the hamiltonian - iLutnI,iLutnJ,Excitlevel of parent,spawning indicator
                     ENDIF
 
-!                    WRITE(6,*) "Spawning particle to:",nJ(:)
+!                    WRITE(6,'("Spawning particle to:")',advance='no')
+!                    call writedet(6,nJ,nel,.true.)
 !                    ExcitLevel=iGetExcitLevel_2(HFDet,nJ,NEl,NEl)
 !                    WRITE(6,*) "Excitlevel:", ExcitLevel
                     NoBorn=NoBorn+abs(Child)     !Update counter about particle birth
@@ -861,10 +882,10 @@ MODULE FciMCParMod
 !In direct annihilation, we spawn particles into a seperate array, but we do not store them contiguously in the SpawnedParts/SpawnedSign arrays.
 !The processor that the newly-spawned particle is going to be sent to has to be determined, and then it will get put into the the appropriate element determined by ValidSpawnedList.
 
-!                        WRITE(6,'(A,3I20)') 'when dealing with directannihilation',iLutnJ(:)
+                        !WRITE(6,'(A,3I20)') 'when dealing with directannihilation',iLutnJ(:)
                         Proc=DetermineDetProc(iLutnJ)   !This wants to return a value between 0 -> nProcessors-1
-!                        WRITE(6,*) iLutnJ(:),Proc,ValidSpawnedList(Proc),Child,TotWalkers
-!                        CALL FLUSH(6)
+                        !WRITE(6,*) iLutnJ(:),Proc,ValidSpawnedList(Proc),Child,TotWalkers
+                        !CALL FLUSH(6)
                         SpawnedParts(:,ValidSpawnedList(Proc))=iLutnJ(:)
                         SpawnedSign(ValidSpawnedList(Proc))=Child
                         IF(tTruncInitiator) SpawnedParts(NIfTot,ValidSpawnedList(Proc))=ParentInitiator
@@ -1215,6 +1236,7 @@ MODULE FciMCParMod
 
         IF(tDirectAnnihil) THEN
 !This is the direct annihilation algorithm. The newly spawned walkers should be in a seperate array (SpawnedParts) and the other list should be ordered.
+
             CALL DirectAnnihilation(TotWalkersNew)
 
         ELSEIF(tRotoAnnihil) THEN
@@ -3841,6 +3863,7 @@ MODULE FciMCParMod
         INTEGER :: DetCurr(NEl),nJ(NEl),IC,StoreNumTo,StoreNumFrom,DetLT,i,ExtraCreate,Ex(2,2),WSign,nParts
         INTEGER :: iLutCurr(0:NIfTot),Bin,iLutnJ(0:NIfTot),PartInd,ExcitLev,iLut(0:NIfTot),iLut2(0:NIfTot)
         LOGICAL :: tParity,SymAllowed,tSuccess,tMinorDetList
+        integer :: yama(NIfY)
         REAL*8 :: Prob,r,rat
         TYPE(HElement) :: rh,rhcheck
 
@@ -3856,7 +3879,7 @@ MODULE FciMCParMod
 !Find the excitation level of the excitation
 !We need to calculate the bit-representation of this new child. This can be done easily since the ExcitMat is known.
             tMinorDetList=.false.
-            CALL FindExcitBitDet(iLutCurr,iLutnJ,IC,Ex,NIfD)
+            CALL FindExcitBitDet(iLutCurr,iLutnJ,IC,Ex)
             CALL FindBitExcitLevel(iLutHF,iLutnJ,ExcitLev,iMaxDomLev)
             IF((ExcitLev.le.iMaxDomLev).and.(ExcitLev.ge.iMinDomLev)) THEN
 !We now need to binary search the list of allowed determinants to see whether it is in the list or not.
@@ -3902,7 +3925,7 @@ MODULE FciMCParMod
 !Normal determinant spawn
 
             rh=GetHElement4(DetCurr,nJ,IC,Ex,tParity)
-!            WRITE(6,*) rh%v
+            !WRITE(6,*) rh%v
 
 !Divide by the probability of creating the excitation to negate the fact that we are only creating a few determinants
             rat=Tau*abs(rh%v)*REAL(nParts,r2)/Prob
@@ -4005,7 +4028,8 @@ MODULE FciMCParMod
         
 !We know we want to create a particle. Return the bit-representation of this particle (if we have not already got it)
         IF(.not.tHPHF.and.AttemptCreatePar.ne.0) THEN
-            CALL FindExcitBitDet(iLutCurr,iLutnJ,IC,Ex,NIfD)
+            call get_csf_bit_yama (nJ, yama)
+            CALL FindExcitBitDet(iLutCurr,iLutnJ,IC,Ex,yama)
         ENDIF
 
 !        IF(AttemptCreatePar.ne.0) THEN
@@ -4392,7 +4416,7 @@ MODULE FciMCParMod
                     ENDIF
 
 !We need to calculate the bit-representation of this new child. This can be done easily since the ExcitMat is known.
-                    IF(.not.tHPHF) CALL FindExcitBitDet(CurrentDets(:,j),iLutnJ,IC,Ex,NIfD)
+                    IF(.not.tHPHF) CALL FindExcitBitDet(CurrentDets(:,j),iLutnJ,IC,Ex)
 
                     IF(tRotoAnnihil) THEN
 !In the RotoAnnihilation implimentation, we spawn particles into a seperate array - SpawnedParts and SpawnedSign. 
@@ -9069,6 +9093,8 @@ MODULE FciMCParMod
         IMPLICIT NONE
         INTEGER :: I,t,ierr
         CHARACTER(len=*), PARAMETER :: this_routine='CreateSpinInvBrr'
+
+        IF(ALLOCATED(SpinInvBRR)) RETURN
             
         ALLOCATE(SpinInvBRR(NBASIS),STAT=ierr)
         CALL LogMemAlloc('SpinInvBRR',NBASIS,4,this_routine,SpinInvBRRTag,ierr)

@@ -16,7 +16,10 @@ MODULE AnnihilationMod
 !This is a new annihilation algorithm. In this, determinants are kept on predefined processors, and newlyspawned particles are sent here so that all the annihilations are
 !done on a predetermined processor, and not rotated around all of them.
     SUBROUTINE DirectAnnihilation(TotWalkersNew)
+        integer :: i
         INTEGER :: MaxIndex,TotWalkersNew
+!        WRITE(6,*) "Direct annihilation"
+!        CALL FLUSH(6)
 
 !This routine will send all the newly-spawned particles to their correct processor. MaxIndex is returned as the new number of newly-spawned particles on the processor. May have duplicates.
 !The particles are now stored in SpawnedParts2/SpawnedSign2.
@@ -40,6 +43,8 @@ MODULE AnnihilationMod
 
 !Now we want to order and compress the spawned list of particles. This will also annihilate the newly spawned particles amongst themselves.
 !MaxIndex will change to reflect the final number of unique determinants in the newly-spawned list, and the particles will end up in the spawnedSign/SpawnedParts lists.
+!        WRITE(6,*) "Transferred"
+!        CALL FLUSH(6)
         CALL CompressSpawnedList(MaxIndex)
 
 !        WRITE(6,*) "List compressed",MaxIndex,TotWalkersNew
@@ -50,16 +55,16 @@ MODULE AnnihilationMod
 
         CALL AnnihilateSpawnedParts(MaxIndex,TotWalkersNew)
 
-!            WRITE(6,*) "Annihilation finished",MaxIndex,TotWalkersNew
-!            CALL FLUSH(6)
+!        WRITE(6,*) "Annihilation finished",MaxIndex,TotWalkersNew
+!        CALL FLUSH(6)
 
 !Put the surviving particles in the main list, maintaining order of the main list.
 !Now we insert the remaining newly-spawned particles back into the original list (keeping it sorted), and remove the annihilated particles from the main list.
         CALL set_timer(Sort_Time,30)
         CALL InsertRemoveParts(MaxIndex,TotWalkersNew)
 
-!            WRITE(6,*) "Surviving particles merged"
-!            CALL FLUSH(6)
+!       WRITE(6,*) "Surviving particles merged"
+!       CALL FLUSH(6)
 
         CALL halt_timer(Sort_Time)
 
@@ -128,6 +133,7 @@ MODULE AnnihilationMod
 
 !        WRITE(6,*) "Sent Particles: ", NINT(Gap),sendcounts(2)
 !        do i=NINT(Gap)+1,NINT(Gap)+sendcounts(2)
+!            write(6,*) i, '***', CountBits(spawnedparts(:,i), nifd)
 !            WRITE(6,*) i,"***",SpawnedParts(:,i)
 !        enddo
 #ifdef PARALLEL
@@ -139,6 +145,7 @@ MODULE AnnihilationMod
 !        WRITE(6,*) MaxIndex, "Recieved particles: "
 !        do i=1,MaxSpawned
 !            IF(SpawnedParts2(1,i).ne.0) THEN
+!            write(6,*) i, '***', CountBits(spawnedparts(:,i), nifd)
 !                WRITE(6,*) SpawnedParts2(:,i)
 !            ENDIF
 !        enddo

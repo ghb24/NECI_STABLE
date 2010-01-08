@@ -8,7 +8,16 @@ module DetBitOps
     ! for a variety of interesting bit counters
     interface CountBits
         !module procedure CountBits_sparse
-        module procedure CountBits_nifty
+        !module procedure CountBits_nifty
+        module procedure CountBits_elemental
+    end interface
+
+    ! Non-modularised functions (sigh)
+    interface
+        logical function int_arr_eq (a, b, len)
+            integer, intent(in), dimension(:) :: a, b
+            integer, intent(in), optional :: len
+        end function
     end interface
 
     contains
@@ -72,7 +81,64 @@ module DetBitOps
         enddo       
     end function CountBits_nifty
 
+    ! Using elemental routines rather than an explicit do-loop. Should be
+    ! faster.
+    function CountBits_elemental (iLut, nLast, nBitsMax) result(nbits)
+        integer, intent(in), optional :: nBitsMax
+        integer, intent(in) :: nLast, iLut(0:nLast)
+        integer :: nbits
+
+        nbits = sum(count_set_bits(iLut))
+        
+        if (present(nBitsMax)) nbits = min(nBitsmax+1, nbits)
+    end function
+
+    ! An elemental routine which will count the number of bits set in one 
+    ! (32 bit) integer. We can do similar things for 8bit, 16bit and 64bit.
+    ! This makes use of the same counting trick as CountBits_nifty. As nicely
+    ! summarised by James:
+    !
+    ! The general idea is to use a divide and conquer approach.
+    ! * Set each 2 bit field to be the sum of the set bits in the two single
+    !   bits originally in that field.
+    ! * Set each 4 bit field to be the sum of the set bits in the two 2 bit
+    !   fields originally in the 4 bit field.
+    ! * Set each 8 bit field to be the sum of the set bits in the two 4 bit
+    !   fields it contains.
+    ! * etc.
+    ! Thus we obtain an algorithm like:
+    !     x = ( x & 01010101...) + ( (x>>1) & 01010101...)
+    !     x = ( x & 00110011...) + ( (x>>2) & 00110011...)
+    !     x = ( x & 00001111...) + ( (x>>4) & 00001111...)
+    ! etc., where & indicates AND and >> is the shift right operator.
+    ! Further optimisations are:
+    ! * Any & operations can be omitted where there is no danger that
+    ! a field's sum will carry over into the next field.
+    ! * The first line can be replaced by:
+    !     x = x - ( (x>>1) & 01010101...)
+    !   thanks to the population (number of set bits) in an integer
+    !   containing p bits being given by:
+    !     pop(x) = \sum_{i=0}^{p-1} x/2^i
+    ! * Summing 8 bit fields together can be performed via a multiplication
+    !   followed by a right shift.
+    elemental function count_set_bits (a) result (nbits)
+        integer, intent(in) :: a
+        integer :: nbits
+        integer :: tmp
+
+        tmp = a
+        tmp = tmp - iand(ishft(tmp,-1), Z'55555555')
+        tmp = iand(tmp, Z'33333333') + iand(ishft(tmp, -2), Z'33333333')
+        tmp = iand((tmp+ishft(tmp, -4)), Z'F0F0F0F') * Z'1010101'
+        nbits = ishft(tmp, -24)
+    end function
+
     integer function count_open_orbs (iLut)
+        
+        ! Returns the number of unpaired electrons in the determinant.
+        !
+        ! In:  iLut (0:NIfD) - Source bit det
+
         integer, intent(in) :: iLut(0:NIfD)
         integer, dimension(0:NIfD) :: alpha, beta
 
@@ -84,7 +150,8 @@ module DetBitOps
         count_open_orbs = CountBits(alpha, NIfD)
     end function
 
-    !This will return true if iLutI is identical to iLutJ and will return false otherwise.
+    ! This will return true if iLutI is identical to iLutJ and will return 
+    ! false otherwise.
     logical function DetBitEQ(iLutI,iLutJ,nLast)
         integer, intent(in), optional :: nLast
         integer, intent(in) :: iLutI(0:NIfTot), iLutJ(0:NIfTot)
@@ -271,6 +338,7 @@ module DetBitOps
 
         iLut(:)=0
         nopen = 0
+        open_shell = .false.
         if (tCSF .and. iscsf (nI)) then
             do i=1,nel
                 ! THe first non-paired orbital has yama symbol = 1
@@ -289,13 +357,12 @@ module DetBitOps
                     nopen = nopen + 1
                 endif
             enddo
-            iLut (NIfD+1) = nopen
         else
             do i=1,nel
-                iLut((nI(i)-1)/32)=IBSET(iLut((nI(i)-1)/32),mod(nI(i)-1,32))
+                pos = (nI(i) - 1) / 32
+                iLut(pos)=ibset(iLut(pos),mod(nI(i)-1,32))
             enddo
         endif
-
     end subroutine EncodeBitDet
 
     ! This is a routine to take a determinant in bit form and construct 
@@ -314,7 +381,7 @@ module DetBitOps
                 do j=0,30,2
                     if (btest(iLut(i),j)) then
                         if (btest(iLut(i),j+1)) then
-                            ! An electron pair is in this spacial orbital
+                            ! An electron pair is in this spatial orbital
                             ! (2 matched spin orbitals)
                             elec = elec + 2
                             nI(elec-1) = (32*i) + (j+1)
@@ -359,7 +426,54 @@ module DetBitOps
                 enddo
             enddo
         endif
+        if (CountBits(ilut, NIfD) > nel) then
+            call writedet(6, nI, nel, .true.)
+            write(6,'(2b32)'), ilut(0), ilut(1)
+            print*, 'bad bit det'
+            call flush(6)
+            call stop_all ('dec', 'bad')
+        endif
     end subroutine DecodeBitDet
+
+    subroutine FindExcitBitDet(iLutnI, iLutnJ, IC, ExcitMat, yama)
+
+        ! This routine will find the bit-representation of an excitation by
+        ! constructing the new ilut from the old one and the excitation matrix
+        !
+        ! In:  iLutnI (0:NIfD) - source bit det
+        !      IC              - Excitation level
+        !      ExcitMat(2,2)   - Excitation Matrix
+        !      yama (NIfY)     - Yamanouchi symbol to apply (optional)
+        ! Out: iLutnJ (0:NIfD) - New bit det
+
+        ! TODO: Deal with CSFs here (need to pass in the csf to add)
+
+        integer, intent(in) :: iLutnI (0:NIfTot), IC, ExcitMat(2,2)
+        integer, intent(in), optional :: yama (NIfY)
+        integer, intent(out) :: iLutnJ (0:NIfTot)
+        integer :: pos(2,2), bit(2,2), i
+        integer :: ilut(0:NIfTot)
+
+        iLutnJ = iLutnI
+        if (IC == 0) then
+            if (.not.tCSF) then
+                call stop_all ("FindExcitBitDet", 'Invalid excitation level')
+            endif
+        else
+            ! Which integer and bit in ilut represent each element?
+            pos = (excitmat - 1) / 32
+            bit = mod(excitmat - 1, 32)
+
+            ! Clear bits for excitation source, and set bits for target
+            do i=1,IC
+                iLutnJ(pos(1,i)) = ibclr(iLutnJ(pos(1,i)), bit(1,i))
+                iLutnJ(pos(2,i)) = ibset(iLutnJ(pos(2,i)), bit(2,i))
+            enddo
+        endif
+
+        ! TODO: Retro-fit this to all the applicable locations
+        if (present(yama)) ilutnJ(NIfTot-NIfY+1:NIfTot) = yama
+    end subroutine FindExcitBitDet
 
     subroutine shift_det_bit_singles_to_beta (iLut)
         integer, intent(inout) :: iLut(0:NIfD)
@@ -534,25 +648,6 @@ end module
     end subroutine GetBitExcitation
 
 
-!This routine will find the bit-representation of an excitation by constructing the new iLut from the old one and the excitation matrix.
-    SUBROUTINE FindExcitBitDet(iLutnI,iLutnJ,IC,ExcitMat,NIfD)
-        IMPLICIT NONE
-        INTEGER :: iLutnI(0:NIfD),iLutnJ(0:NIfD),IC,ExcitMat(2,2),NIfD
-
-        iLutnJ(:)=iLutnI(:)
-        IF(IC.eq.1) THEN
-!Single excitation - clear one bit and set another.
-            iLutnJ((ExcitMat(1,1)-1)/32)=IBCLR(iLutnJ((ExcitMat(1,1)-1)/32),mod(ExcitMat(1,1)-1,32))
-            iLutnJ((ExcitMat(2,1)-1)/32)=IBSET(iLutnJ((ExcitMat(2,1)-1)/32),mod(ExcitMat(2,1)-1,32))
-        ELSE
-!Double excitation - clear two bits and set two others.
-            iLutnJ((ExcitMat(1,1)-1)/32)=IBCLR(iLutnJ((ExcitMat(1,1)-1)/32),mod(ExcitMat(1,1)-1,32))
-            iLutnJ((ExcitMat(2,1)-1)/32)=IBSET(iLutnJ((ExcitMat(2,1)-1)/32),mod(ExcitMat(2,1)-1,32))
-            iLutnJ((ExcitMat(1,2)-1)/32)=IBCLR(iLutnJ((ExcitMat(1,2)-1)/32),mod(ExcitMat(1,2)-1,32))
-            iLutnJ((ExcitMat(2,2)-1)/32)=IBSET(iLutnJ((ExcitMat(2,2)-1)/32),mod(ExcitMat(2,2)-1,32))
-        ENDIF
-
-    END SUBROUTINE FindExcitBitDet
 
 !This function will return true if the determinant is closed shell, or false if not.
     LOGICAL FUNCTION TestClosedShellDet(iLut)
