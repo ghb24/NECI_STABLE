@@ -76,6 +76,7 @@ MODULE System
       UHUB = 4
       BHUB = -1
       TREAL = .false.
+      tUEGOffset = .false.
       TTILT = .false.
       TALPHA = .false.
       ISTATE = 1
@@ -379,6 +380,11 @@ MODULE System
             TREAL = .true.
         case("APERIODIC")
             TPBC = .false.
+        case("UEG-OFFSET")
+            tUEGOffset=.true.
+            call getf(k_offset(1))
+            call getf(k_offset(2))
+            call getf(k_offset(3))
         case("TILT")
             TTILT = .true.
             call geti(ITILTX)
