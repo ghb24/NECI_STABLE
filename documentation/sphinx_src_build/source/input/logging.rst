@@ -253,6 +253,9 @@ FCIMC options
     Specify the CCMC debug level.  Default 0 (no debugging information printed).  Higher numbers will generate more
     information.
 
+**CCMCLOGTRANSITIONS** 
+    Do we log all transitions in CCMC.  Very slow and memory intensive - only possible for extremely small systems.
+
 GraphMorph options
 ------------------
 

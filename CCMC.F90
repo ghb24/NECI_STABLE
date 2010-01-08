@@ -967,9 +967,48 @@ SUBROUTINE ResetClustSelector(CS)
    IMPLICIT NONE
    TYPE(ClustSelector) CS
    CS%iIndex=0
+   CS%C%iSize=0
 END SUBROUTINE ResetClustSelector
 
-LOGICAL FUNCTION GetNextCluster(CS,Dets,nDet,Amplitude,dTotAbsAmpl,iNumExcitors,iDebug)
+!Takes an ordered tuple of length iSize, and gives the next one in sequence.
+!iMin..iMax are the max extent of the values in the tuple.
+!If Tuple(1) is 0 then it initializes the tuple.
+!Afterwards, if tDone is set then it has run out of tuples.
+SUBROUTINE IncrementOrderedTuple(Tuple,iSize,iMin,iMax,tDone)
+   IMPLICIT NONE
+   INTEGER Tuple(iSize),iSize,iMax,iMin
+   LOGICAL tDone
+   INTEGER i
+   if(iSize.eq.0) then
+      tDone=.true.
+      return
+   endif
+   if(Tuple(1).lt.iMin) then
+      i=1
+   else
+      i=iSize
+   endif
+! i is the index in the tuple we're currently trying to increment.
+   do while (i.le.iSize)
+      Tuple(i)=Tuple(i)+1
+      if(Tuple(i).gt.(iMax-(iSize-i))) then
+!If we've gone beyond what is the max possible value for this slot, then we move back, otherwise we move forward
+         i=i-1
+         if(i.eq.0) then
+            tDone=.true.
+            return
+         endif
+      else
+         i=i+1
+         if(i.le.iSize) Tuple(i)=Tuple(i-1)
+      endif
+   enddo
+   tDone=.false.
+   return
+END SUBROUTINE IncrementOrderedTuple
+
+
+LOGICAL FUNCTION GetNextCluster(CS,Dets,nDet,Amplitude,dTotAbsAmpl,iNumExcitors,iMaxSizeIn,iDebug)
    use CCMCData, only: ClustSelector
    use SystemData, only: nIfTot
    use mt95 , only : genrand_real2
@@ -979,58 +1018,60 @@ LOGICAL FUNCTION GetNextCluster(CS,Dets,nDet,Amplitude,dTotAbsAmpl,iNumExcitors,
    REAL*8 Amplitude(nDet)
    INTEGER Dets(0:nIfTot,nDet)
    REAL*8 dTotAbsAmpl
-   INTEGER iDebug
+   INTEGER iDebug,iMaxSizeIn
 
+   INTEGER iMaxSize
    REAL*8 dProbNumExcit,dCurTot,r
    INTEGER i,j,k,l
-   LOGICAL tDone
-   INTEGER iMaxSize
+   LOGICAL tDone,tNew
    INTEGER iNumExcitors
 
    GetNextCluster=.true.
+   iMaxSize=min(iMaxSizeIn,CS%iMaxSize)
+   tNew=.true.  !Used for printing
    if(CS%tFull) then
+!If we detect a zero-ampl cluster, we just go round the loop again.
       do while(GetNextCluster)
          CS%iIndex=CS%iIndex+1
-         if(CS%iMaxSize.eq.1) THEN  !This is easy - we just go through things one by one
-            if(CS%iIndex.le.nDet) THEN
-               if(CS%iIndex.gt.1) then
-                  CS%C%iSize=1
-                  CS%C%SelectedExcitorIndices(1)=CS%iIndex
-                  CS%C%SelectedExcitors(:,1)=Dets(:,CS%iIndex)
-               else
-                  CS%C%iSize=0
-               endif
-               GetNextCluster=.true.
-               CS%C%dAmplitude=Amplitude(CS%iIndex)
-! C%dAmplitude is the product of the coefficients of the excitors with the relevant normalizations.
-! i.e. N0  (tI/N0) (tJ/N0) ...
-! Here this amounts to just tI.
+         CS%C%dNGenComposite=1
+!         CS%C%dSelectionProb=1
+         CS%C%dProbNorm=1
+         CS%C%dClusterProb=1
+         CS%C%dClusterNorm=1
+         if(iDebug.gt.2.and.tNew) WRITE(6,*) "Cluster Selection: ", CS%iIndex
+         tNew=.false.
+         if(CS%iIndex.eq.1) then
+!deal with the HF det separately.  iSize is already 0.
+            CS%C%dNGenComposite=abs(Amplitude(1))
+            if(iDebug.gt.2) WRITE(6,"(A,L3)",advance='no') "Next Tuple:",tDone
+            if(iDebug.gt.2) call WriteDet(6,CS%C%SelectedExcitorIndices,CS%C%iSize,.true.)
+            return
+         endif 
 
-               CS%C%dSelectionProb=1
-! C%dSelectionProb is the probability that the cluster was selected in a cycle.
-
-
-
-!Old Stuff
-               CS%C%dNGenComposite=abs(Amplitude(CS%iIndex))
-!               CS%C%dNGenComposite=abs(Amplitude(1))
-               CS%C%dProbNorm=1
-!               CS%C%dProbNorm=(1+iNumExcitors)
-               CS%C%dClusterProb=1
-               CS%C%dClusterNorm=1
-!               if(CS%iIndex.gt.1) THEN
-!                  CS%C%dNGenComposite=CS%C%dNGenComposite*abs(Amplitude(CS%iIndex)/Amplitude(1))
-!                  CS%C%dClusterProb=CS%C%dClusterProb*abs(Amplitude(CS%iIndex)/dTotAbsAmpl)
-!                  CS%C%dClusterNorm=CS%C%dClusterNorm*abs(Amplitude(CS%iIndex)/dTotAbsAmpl)
-!               ENDIF
-!               r=dTotAbsAmpl+Amplitude(1)
-!Amplitude(CS%iIndex)/r
-            ELSE
-               GetNextCluster=.false. 
-            endif
-         ELSE
-            call Stop_All("GetNextCluster","GetNextCluster used for Full enumeration - not yet implemented for clusters.")
-         ENDIF
+!         call IncrementOrderedTuple(CS%C%SelectedExcitorIndices,CS%C%iSize,2,nDet,tDone)
+         call IncrementOrderedTupleCheckD(CS%C%SelectedExcitorIndices,CS%C%iSize,2,nDet,tDone,Amplitude)
+         if(tDone) then !We've reached the end of our ordered tuple, so we increase its size if we can
+            CS%C%dNGenComposite=0
+            CS%C%SelectedExcitorIndices(1)=1  !Indicate we need to reset.
+            CS%C%iSize=CS%C%iSize+1
+            CS%iIndex=CS%iIndex-1
+            if(CS%C%iSize.gt.CS%iMaxSize) then !We've reached the end
+               if(iDebug.gt.2) WRITE(6,*) "Reached End"
+               GetNextCluster=.false.
+               return
+            endif            
+         else
+            if(iDebug.gt.2) WRITE(6,"(A,L3)",advance='no') "Next Tuple:",tDone
+            if(iDebug.gt.2) call WriteDet(6,CS%C%SelectedExcitorIndices,CS%C%iSize,.true.)
+            tNew=.true.  !Used for debug printing
+            CS%C%dNGenComposite=abs(Amplitude(1))
+!            WRITE(6,*) 0,CS%C%dNGenComposite
+            do i=1,CS%C%iSize 
+               CS%C%SelectedExcitors(:,i)=Dets(:,CS%C%SelectedExcitorIndices(i))
+               CS%C%dNGenComposite=CS%C%dNGenComposite*abs(Amplitude(CS%C%SelectedExcitorIndices(i)))/abs(Amplitude(1))
+!               WRITE(6,*) i,CS%C%dNGenComposite
+            enddo
+         endif
          if(CS%C%dNGenComposite.ne.0) exit
       enddo
    else
@@ -1070,7 +1111,6 @@ LOGICAL FUNCTION GetNextCluster(CS,Dets,nDet,Amplitude,dTotAbsAmpl,iNumExcitors,
 !      iMaxExcit=min(nEl,iNumExcitors)
 !For FCI using amplitudes we only make a single selection
 !      if(tCCMCFCI) iMaxExcit=min(1,iMaxExcit)
-      iMaxSize=min(CS%iMaxSize,iNumExcitors)
       do i=1,iMaxSize
 ! Calculate the probability that we've reached this far in the loop
                   !We must have at least one excitor, so we cannot exit here.
@@ -1183,8 +1223,9 @@ SUBROUTINE ResetSpawner(S,C,nSpawn)
    S%ExcitMat(:,:)=0
    S%nSpawnings=nSpawn
    if(S%tFull) then
-      call CountExcitations3(C%DetCurr,exFlag,nS,nD)
-      S%dProbSpawn=1.D0/(nD+nS)
+!      call CountExcitations3(C%DetCurr,exFlag,nS,nD)
+      S%dProbSpawn=1.D0
+!      S%dProbSpawn=1.D0/(nD+nS)
    endif
    S%exFlag=3
 END SUBROUTINE ResetSpawner
@@ -1243,8 +1284,10 @@ LOGICAL FUNCTION GetNextSpawner(S,iDebug)
    ELSE
 !      WRITE(6,*) tDone,S%dProbSpawn
 !      write(6,*) S%ExcitMat,tParity
+      Write(6,*) "Getting Excitations"
       CALL GenExcitations3(S%C%DetCurr,S%C%iLutDetCurr,S%nJ,S%exFlag,S%ExcitMat,tParity,tDone)
-!      call WriteDet(6,S%nJ,nEl,.false.)
+      call WriteDet(6,S%nJ,nEl,.false.)
+      WRITE(6,*) tDone
       if(S%ExcitMat(1,2).eq.0) then
          S%iExcitLevel=1
       else
@@ -1350,7 +1393,7 @@ END SUBROUTINE
    SUBROUTINE CCMCStandalone(Weight,Energyxw)
       Use global_utilities
       use SystemData, only: nEl,nIfD,nIfTot
-      use CCMCData, only: tCCMCFCI,dInitAmplitude,dProbSelNewExcitor,tExactCluster,tExactSpawn,nSpawnings,tSpawnProp
+      use CCMCData, only: tCCMCFCI,dInitAmplitude,dProbSelNewExcitor,tExactCluster,tExactSpawn,nSpawnings,tSpawnProp,tCCBuffer
       use CCMCData, only: ClustSelector,Spawner
       use DetCalc, only: Det       ! The number of Dets/Excitors in FCIDets
       use DetCalc, only: FCIDets   ! (0:NIfTot, Det).  Lists all allowed excitors in compressed form
@@ -1360,11 +1403,12 @@ END SUBROUTINE
       use FciMCData, only: Hii,Iter
       use FciMCData, only: TotParts,TotWalkers,TotWalkersOld,TotPartsOld,AllTotPartsOld,AllTotWalkersOld
       use FciMCData, only : HFDet
+      use FciMCData, only: tTruncSpace
       use FciMCParMod, only: iLutHF
       use FciMCParMod, only: CheckAllowedTruncSpawn, SetupParameters,BinSearchParts3
       use FciMCParMod, only: CalcNewShift,InitHistMin
       use FciMCParMod, only: WriteHistogram
-      Use Logging, only: CCMCDebug
+      Use Logging, only: CCMCDebug,tCCMCLogTransitions
       USE Logging , only : tHistSpawn,iWriteHistEvery
       USE SymData , only : nSymLabels
       USE Determinants , only : FDet,GetHElement2,GetHElement4,GetHElement3
@@ -1416,7 +1460,13 @@ END SUBROUTINE
       REAL*8 dAveTotAbsAmp,dAveNorm
       LOGICAL lLogTransitions
 
-      TYPE(ClustSelector),target :: CS
+      TYPE(ClustSelector),target :: CSMain
+      TYPE(ClustSelector),target :: CSBuff  !This is used when we're doing buffered CC
+      TYPE(ClustSelector),pointer :: CS
+      LOGICAL tPostBuffering                     !Set after prebuffering
+      LOGICAL tMoreClusters                  
+      REAL*8, ALLOCATABLE :: AmplitudeBuffer(:) !(Det)  used for buffered CC
+      INTEGER tagAmplitudeBuffer
       TYPE(Spawner) S
 
       INTEGER FakeArray(1),i1,i2
@@ -1425,7 +1475,7 @@ END SUBROUTINE
       iDebug=CCMCDebug
 
       WRITE(6,*) "dProbSelNewExcitor: ",dProbSelNewExcitor
-      lLogTransitions=.true.
+      lLogTransitions=tCCMCLogTransitions
 
       if(lLogTransitions) then
 ! We create a transition matrix where each element correpsonds to a cluster.  We encode cluster X=(a_{X_i}) = (x,y,z)  as an 'bit' string in base Det sum_{i=1}^{|X|} (X_i)*(Det)**(i-1)
@@ -1441,6 +1491,11 @@ END SUBROUTINE
 ! Setup Memory
       Allocate(Amplitude(Det,2),stat=ierr)
       LogAlloc(ierr,'Amplitude',Det*2,8,tagAmplitude)
+
+      if(tCCBuffer) then !CCBuffer uses a third array to store the sum of collapsed clusters' amplitudes, and spawns from that
+         Allocate(AmplitudeBuffer(Det),stat=ierr)
+         LogAlloc(ierr,'AmplitudeBuffer',Det,8,tagAmplitudeBuffer)
+      endif
 
 ! Now setup the amplitude list.  Let's start with nothing initially, and
       Amplitude(:,:)=0
@@ -1465,18 +1520,26 @@ END SUBROUTINE
 !      CALL WriteFCIMCStats()
 
       if(tCCMCFCI) THEN
-         iNumExcitors=1
+         iNumExcitors=1  !Only one excitor allowed
       ELSE
-         iNumExcitors=-1  !No limit
+         IF (tTruncSpace) THEN !we can go up to two beyond the max level of truncation
+            iNumExcitors=ICILevel+2  !We need to be able to couple (say) 4 singles to make a quad and then spawn back to the sdoubles space
+         ELSE
+            iNumExcitors=nEl  !Otherwise just the number of electrons is the max number of excitors
+         ENDIF
       ENDIF
 
       if(tExactCluster) then
-         CALL InitClustSelectorFull(CS,iNumExcitors)
+         CALL InitClustSelectorFull(CSMain,iNumExcitors)
       else
-         CALL InitClustSelectorRandom(CS,iNumExcitors,InitWalkers,dProbSelNewExcitor)
+         CALL InitClustSelectorRandom(CSMain,iNumExcitors,InitWalkers,dProbSelNewExcitor)
+      endif
+      if(tCCBuffer) then
+         CALL InitClustSelectorFull(CSBuff,1)
       endif
 
       CALL InitSpawner(S,tExactSpawn,ICILevel)
+
 
 ! Each cycle we select combinations of excitors randomly, and spawn and birth/die from them
       Iter=1
@@ -1495,6 +1558,8 @@ END SUBROUTINE
                Amplitude(2,iCurAmpList)=-0.4375219663886841*dInitAmplitude
                Amplitude(3,iCurAmpList)= 0.4375219663886849*dInitAmplitude
                Amplitude(4,iCurAmpList)=-0.1184277920308680*dInitAmplitude!-0.1184277920308680
+               if(.not.tCCMCFCI) Amplitude(4,iCurAmpList)=Amplitude(4,iCurAmpList)-Amplitude(2,iCurAmpList)*Amplitude(3,iCurAmpList)/(Amplitude(1,iCurAmpList))
+!               Amplitude(4,iCurAmplist)=Amplitude(4,iCurAmpList)/2
                r=0
                do j=1,4
                   r=r+abs(Amplitude(j,iCurAmpList))
@@ -1562,8 +1627,32 @@ END SUBROUTINE
 
 !  Loop over cluster selections
          dAveProbSel(:)=0
+         CS=>CSMain
          call ResetClustSelector(CS)
-         do while (GetNextCluster(CS,FciDets,Det,Amplitude(:,iOldAmpList),dTotAbsAmpl,iNumExcitors,iDebug))
+         if(tCCBuffer) then
+            call ResetClustSelector(CSBuff)
+            AmplitudeBuffer(:)=0
+         endif
+         i=min(iNumExcitors,nEl)
+         tMoreClusters=.true.
+         tPostBuffering=.false.
+!A standard run has PostBuffering .false. and selects purely from the main cluster selector.
+!A buffered run first has PostBuffering .false., selecting from the main CS, and storing the cumulative amplitudes in AmplitudeBuffer
+!        second, it has   PostBuffering .true.,  selecting from the CSBuff and spawning and dying from there.
+
+         do while (tMoreClusters)
+            if(.not.tPostBuffering) then
+               tMoreClusters=GetNextCluster(CS,FciDets,Det,Amplitude(:,iOldAmpList),dTotAbsAmpl,iNumExcitors,i,iDebug)
+               if(tCCBuffer.and..not.tMoreClusters) then
+                  if(iDebug.gt.2) WRITE(6,*) "Buffering Complete.  Now Spawning."
+                  tPostBuffering=.true.
+                  CS=>CSBuff
+               endif
+            endif
+            if(tPostBuffering) then  !If we've finished buffering, we read from the buffer
+               tMoreClusters=GetNextCluster(CSBuff,FciDets,Det,AmplitudeBuffer(:),dTotAbsAmpl,1,i,iDebug)
+            endif
+            if(.not.tMoreClusters) exit
             if(iDebug.gt.3) write(6,*) "Selection ",CS%iIndex
             dAveProbSel(CS%C%iSize)=dAveProbSel(CS%C%iSize)+1/CS%C%dProbNorm
 
@@ -1596,13 +1685,28 @@ END SUBROUTINE
                dProbClust(2,i)=dProbClust(2,i)+1
             endif
 
+            if(CS%C%iSgn.eq.0) then
+               if(iDebug.gt.2) write(6,*) "Sign Zero so moving to next cluster"
+               cycle  !No point in doing anything
+            endif
+
+            if(tCCBuffer.and..not.tPostBuffering) then
+               IC=CS%C%iExcitLevel
+               CALL BinSearchParts3(CS%C%iLutDetCurr(:),FCIDets(:,:),Det,FCIDetIndex(IC),FCIDetIndex(IC+1)-1,PartIndex,tSuc)
+               if(.not.tSuc) then
+                  Call WriteDet(6,CS%C%DetCurr,nEl,.true.)
+                  Call Stop_All("CCMCStandalone","Failed to find det.")
+               endif
+               AmplitudeBuffer(PartIndex)=AmplitudeBuffer(PartIndex)+CS%C%dNGenComposite
+               cycle
+            endif
 
             if(tSpawnProp) then
                i=nSpawnings
             else
                i=nSpawnings
             endif
-            
+            if(iDebug.gt.2) WRITE(6,*) "Cluster Amplitude: ",CS%C%iSgn*CS%C%dNGenComposite 
 !Now consider a number of possible spawning events
             CALL ResetSpawner(S,CS%C,i)
 
@@ -1667,7 +1771,9 @@ END SUBROUTINE
                      dProbTransition(2,2,i1,i2)=dProbTransition(2,2,i1,i2)+1*CS%C%dProbNorm
                   endif
                endif
+               WRITE(6,*) "LoopSpawn"
             enddo !GetNextSpawner
+            WRITE(6,*) "ToDeathSpawn"
 ! Now deal with birth/death.
    ! We have to decompose our composite excitor into one of its parts.  
             IF(CS%C%iSize.GT.1) THEN
@@ -1680,14 +1786,14 @@ END SUBROUTINE
                if(.true.) then
 !We try an alternative death method - by creating an antiparticle in the excitor corresponding to this cluster
 
-                  CALL FindBitExcitLevel(iLutHF,iLutnI(:),IC,nEl)
+                  IC=CS%C%iExcitLevel
                   IF(IC.eq.NEl) THEN
-                      CALL BinSearchParts3(iLutnI(:),FCIDets(:,:),Det,FCIDetIndex(IC),Det,PartIndex,tSuc)
+                      CALL BinSearchParts3(CS%C%iLutDetCurr(:),FCIDets(:,:),Det,FCIDetIndex(IC),Det,PartIndex,tSuc)
                   ELSEIF(IC.eq.0) THEN
                       PartIndex=1
                       tSuc=.true.
                   ELSE
-                      CALL BinSearchParts3(iLutnI(:),FCIDets(:,:),Det,FCIDetIndex(IC),FCIDetIndex(IC+1)-1,PartIndex,tSuc)
+                      CALL BinSearchParts3(CS%C%iLutDetCurr(:),FCIDets(:,:),Det,FCIDetIndex(IC),FCIDetIndex(IC+1)-1,PartIndex,tSuc)
                   ENDIF
                   iPartDie=PartIndex
 !To make things compatible from a cluster to the excitor,
@@ -1695,8 +1801,9 @@ END SUBROUTINE
 !NB N_T = 1/N_0
                
 !dNGenComposite is | t_x1 t_x2 ... | / N_0 ^|X| 
-                  dProbDecompose=dProbDecompose/CS%C%dNGenComposite
-                  dProbDecompose=dProbDecompose*iSgn*Amplitude(iPartDie,iOldAmpList)/abs(Amplitude(1,iOldAmpList))
+                  dProbDecompose=CS%C%iSgn
+!                  dProbDecompose=dProbDecompose/CS%C%dNGenComposite
+!                  dProbDecompose=dProbDecompose*CS%C%iSgn*Amplitude(iPartDie,iOldAmpList)/abs(Amplitude(1,iOldAmpList))
                endif
             ELSEIF(CS%C%iSize.EQ.1) THEN
                dProbDecompose=1
@@ -1740,17 +1847,22 @@ END SUBROUTINE
 !dProb = 1
 !            rat=Tau*(HDiagCurr-DiagSft)*dClusterNorm*dProb/dProbNorm !(dProb*dProbNorm)
             rat=Tau*(HDiagCurr-DiagSft)*dProbDecompose/(CS%C%dProbNorm*CS%C%dClusterProb) !(dProb*dProbNorm)  !The old version
+            rat=rat*CS%C%dNGenComposite
+            r=rat*sign(1.d0,Amplitude(iPartDie,iOldAmpList))
+            rat=rat/abs(Amplitude(iPartDie,iOldAmpList))  !Take into account we're killing at a different place from the cluster
+
+
 !            rat=Tau*(HDiagCurr-DiagSft)/CS%C%dSelectionProb
             IF(iDebug.ge.4) then
                WRITE(6,*) "Product Contributions to Number Died:"
                WRITE(6,*) "Energy difference: ",HDiagCurr-DiagSft
                WRITE(6,*) "Tau              : ",Tau
-               WRITE(6,*) "Sign             : ",iSgn
+               WRITE(6,*) "Sign             : ",CS%C%iSgn
                WRITE(6,*) "Cluster Prob     : ",CS%C%dClusterProb
                WRITE(6,*) "Cluster Norm     : ",CS%C%dClusterNorm
                WRITE(6,*) "dProbDecompose   : ",dProbDecompose
                WRITE(6,*) "1/dProbNorm      : ",1/CS%C%dProbNorm
-               WRITE(6,*) "Delta t_x        : ",-rat
+!               WRITE(6,*) "Delta t_x        : ",-rat
                WRITE(6,*) "dNGenComposite   : ",CS%C%dNGenComposite
             endif 
 
@@ -1766,7 +1878,7 @@ END SUBROUTINE
             endif
 
 
-            r=Amplitude(iPartDie,iOldAmpList)*rat 
+!            r=Amplitude(iPartDie,iOldAmpList)*rat 
             Amplitude(iPartDie,iCurAmpList)=Amplitude(iPartDie,iCurAmpList)-r
             if(lLogTransitions.and.Iter.gt.NEquilSteps) then
                i1=GetClusterIndex(CS%C%SelectedExcitorIndices(:),CS%C%iSize)
@@ -1819,6 +1931,7 @@ END SUBROUTINE
          endif
 
       enddo !MC Cycles
+      if(iDebug.gt.1) call WriteDExcitorList(6,Amplitude(:,iCurAmpList),FciDets,Det,dAmp,"Final Excitor list")
 
       if(lLogTransitions) then
          k=NMCyc-NEquilSteps
@@ -1886,6 +1999,10 @@ END SUBROUTINE
       endif
       LogDealloc(tagAmplitude)
       DeAllocate(Amplitude)
+      if(tCCBuffer) then
+         LogDealloc(tagAmplitudeBuffer)
+         DeAllocate(AmplitudeBuffer)
+      endif
    END SUBROUTINE CCMCStandalone
 
 !Add the excitation in iLutnJ to iLutnI and return it in iLutnI.  iSgn is
@@ -2031,6 +2148,55 @@ subroutine WriteDExcitorList(iUnit,Amplitude,Dets,nDet,dTol,Title)
       ENDIF
    enddo
 endsubroutine WriteDExcitorList
+!Takes an ordered tuple of length iSize, and gives the next one in sequence.
+!iMin..iMax are the max extent of the values in the tuple.
+!If Tuple(1) is 0 then it initializes the tuple.
+!Afterwards, if tDone is set then it has run out of tuples.
+SUBROUTINE IncrementOrderedTupleCheckD(Tuple,iSize,iMin,iMax,tDone,Param)
+   IMPLICIT NONE
+   INTEGER Tuple(iSize),iSize,iMax,iMin
+   LOGICAL tDone
+   INTEGER i,j
+   REAL*8 Param(:)
+   if(iSize.eq.0) then
+      tDone=.true.
+      return
+   endif
+   if(Tuple(1).lt.iMin) then
+      i=1
+   else
+      i=iSize
+   endif
+! i is the index in the tuple we're currently trying to increment.
+   do while (i.le.iSize)
+      call GetNextNonZeroExcitorD(Tuple(i),Param,iMin,iMax)
+      if(Tuple(i).gt.(iMax-(iSize-i))) then
+!If we've gone beyond what is the max possible value for this slot, then we move back, otherwise we move forward
+         i=i-1
+         if(i.eq.0) then
+            tDone=.true.
+            return
+         endif
+      else
+         i=i+1
+         if(i.le.iSize) Tuple(i)=Tuple(i-1)
+      endif
+   enddo
+   tDone=.false.
+   return
+END SUBROUTINE IncrementOrderedTupleCheckD
+SUBROUTINE GetNextNonZeroExcitorD(Pos,List,iMin,iMax)
+   IMPLICIT NONE
+   INTEGER Pos
+   REAL*8 List(:)
+   INTEGER iMin,iMax
+   Pos=Pos+1
+   DO WHILE(Pos.le.iMax)
+      if(List(Pos).ne.0) exit
+      Pos=Pos+1
+   enddo
+END SUBROUTINE GetNextNonZeroExcitorD
+
 
 END MODULE CCMC
 
@@ -2040,3 +2206,4 @@ SUBROUTINE PerformCCMCCycPar
    Call PerformCCMCCycParInt()
 end subroutine PerformCCMCCycPar
 #endif
+

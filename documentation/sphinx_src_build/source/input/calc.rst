@@ -451,7 +451,7 @@ Experimental methods
     **SERIAL** will force NECI to run the serial FCIMC code (which differs
     substantially from the parallel) even if the code was compiled in parallel.
 
-**VERTEX** **CCMC** [**FCI**] [**EXACTCLUSTER**] [**AMPLITUDE**] [**EXACTSPAWN**]
+**VERTEX** **CCMC** [**FCI**] [**EXACTCLUSTER**] [**AMPLITUDE**] [**EXACTSPAWN**] [**BUFFER**]
     Perform Monte Carlo calculations over coupled cluster excitation space, which
     is sampled using a series of 'particles' (or 'walkers').
 
@@ -473,6 +473,9 @@ Experimental methods
 
     **EXACTSPAWN** causes spawning to be done exactly - i.e. all allowed connected determinants
     from a given cluster are spawned to.
+
+    **BUFFER** will accumulate all collapsed cluster selections in a buffer and then do spawnings from that.
+      When using **EXACTCLUSTER** this is much more efficient.
 
     Extremely experimental.
 

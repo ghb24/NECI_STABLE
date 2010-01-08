@@ -1465,7 +1465,7 @@ MODULE Calc
          use CalcData , only : CALCP_SUB2VSTAR,CALCP_LOGWEIGHT,TMCDIRECTSUM,g_Multiweight,G_VMC_FAC,TMPTHEORY
          use CalcData, only : STARPROD,TDIAGNODES,TSTARSTARS,TGraphMorph,TStarTrips,THDiag,TMCStar,TFCIMC,TMCDets,TMCDiffusion,tCCMC
          use CalcData , only : TRhoElems,TReturnPathMC, TResumFCIMC, tFCIMCSerial
-         use CCMCData, only: tExactCluster,tCCMCFCI,tAmplitudes,tExactSpawn
+         use CCMCData, only: tExactCluster,tCCMCFCI,tAmplitudes,tExactSpawn,tCCBuffer
          use Logging, only: tCalcFCIMCPsi
          implicit none
          integer I_HMAX,NWHTAY,I_V
@@ -1501,6 +1501,7 @@ MODULE Calc
                   tExactSpawn=.false.
                   tCCMCFCI=.false.
                   tAmplitudes=.false.
+                  tCCBuffer=.false.
                   do while(item.lt.nitems)
                     call readu(w)
                     select case(w)
@@ -1514,6 +1515,8 @@ MODULE Calc
                        tExactSpawn=.true.
                     case("FCI")
                        tCCMCFCI=.true.
+                    case("BUFFER")
+                        tCCBuffer=.true.
                     case default
                        call report("Keyword error with "//trim(w),.true.)
                     end select

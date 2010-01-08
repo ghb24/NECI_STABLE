@@ -11,6 +11,9 @@ module CCMCData
    real*8   dProbSelNewExcitor !The probability that the cluster selection algorithm terminates after each addition of an excitor.
    LOGICAL  tSpawnProp     ! Set if we use spawning proportional to the cluster amplitude rather than equally
 
+   LOGICAL  tCCBuffer      ! Buffer the CC Amplitudes - this is useful when there are many cluster selections which lead to the same collapsed det. It creates a combined amplitude of the det first and spawns from that.
+   
+
 !This contains information as to a chosen Cluster
 TYPE Cluster 
    INTEGER, allocatable :: SelectedExcitors(:,:)      !(0:NIfTot,nEl)  !The excitors which make up this cluster
