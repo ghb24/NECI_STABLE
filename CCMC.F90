@@ -1282,8 +1282,10 @@ LOGICAL FUNCTION GetNextSpawner(S,iDebug)
    ELSE
 !      WRITE(6,*) tDone,S%dProbSpawn
 !      write(6,*) S%ExcitMat,tParity
+      Write(6,*) "Getting Excitations"
       CALL GenExcitations3(S%C%DetCurr,S%C%iLutDetCurr,S%nJ,S%exFlag,S%ExcitMat,tParity,tDone)
-!      call WriteDet(6,S%nJ,nEl,.false.)
+      call WriteDet(6,S%nJ,nEl,.false.)
+      WRITE(6,*) tDone
       if(S%ExcitMat(1,2).eq.0) then
          S%iExcitLevel=1
       else
@@ -1767,7 +1769,9 @@ END SUBROUTINE
                      dProbTransition(2,2,i1,i2)=dProbTransition(2,2,i1,i2)+1*CS%C%dProbNorm
                   endif
                endif
+               WRITE(6,*) "LoopSpawn"
             enddo !GetNextSpawner
+            WRITE(6,*) "ToDeathSpawn"
 ! Now deal with birth/death.
    ! We have to decompose our composite excitor into one of its parts.  
             IF(CS%C%iSize.GT.1) THEN
