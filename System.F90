@@ -1145,6 +1145,7 @@ MODULE System
          ENDIF
       ELSE
 !C.. Create plane wave basis functions
+         WRITE(6,*) "Creating plane wave basis."
          IG=0
          DO I=NBASISMAX(1,1),NBASISMAX(1,2)
            DO J=NBASISMAX(2,1),NBASISMAX(2,2)
@@ -1162,6 +1163,8 @@ MODULE System
                        ELSE
                       CALL HUBKINN(I,J,K,NBASISMAX,BHUB,TTILT,SUM,TREAL)
                        ENDIF
+                    ELSEIF(TUEG) THEN
+                       CALL GetUEGKE(I,J,K,ALAT,tUEGOffset,k_offset,SUM)
                     ELSE
                        SUM=(BOX**2)*((I*I/ALAT(1)**2)+(J*J/ALAT(2)**2)+(K*K/ALAT(3)**2))
                     ENDIF
@@ -1484,3 +1487,21 @@ LOGICAL FUNCTION KALLOWED(G,NBASISMAX)
   KALLOWED=TALLOW
   RETURN
 END FUNCTION KALLOWED
+
+SUBROUTINE GetUEGKE(I,J,K,ALAT,tUEGOffset,k_offset,Energy)
+   IMPLICIT NONE
+   INCLUDE 'cons.inc'
+   INTEGER I,J,K
+   REAL*8 ALat(3),k_offset(3),Energy,E
+   LOGICAL tUEGOffset
+   IF(tUEGOffset) then
+      E=((I+k_offset(1))**2/ALAT(1)**2)
+      E=E+((J+k_offset(2))**2/ALAT(2)**2)
+      E=E+((K+k_offset(3))**2/ALAT(3)**2)
+   else
+      E=(I*I/ALAT(1)**2)
+      E=E+(J*J/ALAT(2)**2)
+      E=E+(K*K/ALAT(3)**2)
+   endif
+   Energy=4*PI*PI*E
+END SUBROUTINE GetUEGKE
