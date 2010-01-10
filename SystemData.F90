@@ -17,7 +17,7 @@ LOGICAL :: tNonUniRandExcits,tNoSymGenRandExcits,tRotateOrbs,tLagrange,tShake,tS
 LOGICAL :: tNoFailAb, tLatticeGens ! These are now permanent inputs for UEG - use of new excitation generators just for UEG
 LOGICAL :: tUEGOffset ! This is the logical for twisted boundary conditions
 INTEGER :: LMS,STOT,IPARITY(5),NMAXX,NMAXY,NMAXZ,NMSH,COULDAMPORB,ElecPairs,ROIterMax,iRanLuxLev,DiagMaxMinFac,OneElMaxMinFac
-INTEGER :: iPeriodicDampingType,ISTATE,NEL,ITILTX,ITILTY,nOccAlpha,nOccBeta,ShakeIterMax,ShakeStart,MaxMinFac,MaxABPairs
+INTEGER :: ISTATE,NEL,ITILTX,ITILTY,nOccAlpha,nOccBeta,ShakeIterMax,ShakeStart,MaxMinFac,MaxABPairs
 REAL*8 :: BOX,BOA,COA,FUEGRS,fRc,FCOUL,OrbECutoff,UHUB,BHUB,DiagWeight,OffDiagWeight,OrbEnMaxAlpha
 REAL*8 :: ALPHA,FCOULDAMPBETA,FCOULDAMPMU,TimeStep,ConvergedForce,ShakeConverged,UMatEps,OneElWeight
 REAL*8 :: k_offset(3) ! UEG parameter for twist-averaging 
@@ -117,5 +117,11 @@ LOGICAL :: tHFNoOrder
 ! When set, ignore differences in orbital energies between pairs of orbitals (which should be beta/alpha)
 !  and group them under the same symrep
 LOGICAL :: tSymIgnoreEnergies
+
+! For the UEG, we damp the exchange interactions.
+!    0 means none
+!    1 means screened (using an erfc)
+!    2 means hard spherical cut-off (at a distance Rc=ALAT(4)) [see JSS, ASA PRB 77, 193110 (2008)]
+INTEGER iPeriodicDampingType
 
 end module SystemData

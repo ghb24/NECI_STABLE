@@ -1272,6 +1272,7 @@ MODULE Integrals
       !    G1: symmetry and momentum information on the basis functions.
       !    IDI,IDJ,IDK,IDL: indices for integral.
       use SystemData, only: Symmetry,BasisFN,tVASP,tRIIntegrals,tCacheFCIDUMPInts,tStoreSpinOrbs,tFixLz
+      use SystemData, only: iPeriodicDampingType
       use UMatCache
       use vasp_neci_interface, only: CONSTRUCT_IJAB_one
       IMPLICIT NONE

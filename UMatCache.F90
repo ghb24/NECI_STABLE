@@ -57,11 +57,6 @@ MODULE UMatCache
       INTEGER :: NOCC
       LOGICAL :: FREEZETRANSFER
 
-! For the UEG, we damp the exchange interactions.
-!    0 means none
-!    1 means screened (using an erfc)
-!    2 means hard spherical cut-off (at a distance Rc=ALAT(4)) [see JSS, ASA PRB 77, 193110 (2008)]
-      INTEGER iPeriodicDampingType
 
 ! Book-keeping information
 ! nSlotsInit is the number of slots requested on input.  If the number required is less, then the lower value is allocated
