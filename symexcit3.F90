@@ -356,7 +356,6 @@ MODULE SymExcit3
             do while ((.not.tNewij).and.(.not.tDoubleExcitFound))                  ! This loop runs through the allowed a orbitals
                                                                                    ! until a double excitation is found.
 
-
                 IF(tFirsta) THEN                    
 ! If this is the first double we are picking with this ij, we start with the alpha spin, unless i and j are both beta.
 ! There is no restriction on the symmetry for orbital a - although clearly the symmetry we pick determins b.
@@ -426,7 +425,6 @@ MODULE SymExcit3
                 !Find a b
                 do while ((.not.tNewa).and.(.not.tDoubleExcitFound))
 
-
 ! We now have i,j,a and we just need to pick b.
 ! First find the spin of b.
                     IF(iSpn.eq.1) THEN
@@ -480,7 +478,7 @@ MODULE SymExcit3
 ! Checking the orbital b is unoccupied and > a.                        
                             do while ((BTEST(iLut((Orbb-1)/32),MOD((Orbb-1),32))).or.(Orbb.le.Orba))
                                 !Orbital is occupied - try again
-                                IF(OrbbIndex.eq.(SymLabelCounts2(1,SymInd)+SymLabelCounts2(2,SymInd)-1)) THEN
+                                IF(OrbbIndex.ge.(SymLabelCounts2(1,SymInd)+SymLabelCounts2(2,SymInd)-1)) THEN
                                     !Reached end of symmetry block - need new a
                                     tNewa=.true.
                                     EXIT
@@ -489,6 +487,7 @@ MODULE SymExcit3
                                 !Update new orbital b index
                                 OrbbIndex=OrbbIndex+1
                                 Orbb=SymLabelList2(OrbbIndex)
+
                             enddo
                         ENDIF
                     ENDIF
@@ -498,6 +497,7 @@ MODULE SymExcit3
                         IF(iSpn.ne.2) THEN
 !Increment by two, since we want to look at the same spin state.
                             OrbaChosen=OrbaChosen+2
+                            tFirsta=.false.
                         ELSE
 !Increment by one, since we want to look at both alpha and beta spins.
                             IF(Spina.eq.1) THEN
@@ -506,6 +506,7 @@ MODULE SymExcit3
                                 Spina=1
                             ENDIF
                             OrbaChosen=OrbaChosen+1
+                            tFirsta=.false.
                         ENDIF
                         tFirstb=.true.
                         IF(OrbaChosen.gt.nBasis) THEN
