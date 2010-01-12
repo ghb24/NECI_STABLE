@@ -305,8 +305,11 @@ MODULE Determinants
                  !else
                  !    gethelement4 = csf_get_helement_bit (nI, nJ, ilutI,ilutJ)
                  !endif
-                 !gethelement4 = CSFGetHelement_faster(nI, nJ)
-                 gethelement4 = csfgethelement (nI, nJ)
+                 !print*, '---------------'
+                 gethelement4 = CSFGetHelement_faster(nI, nJ)
+                 !print*, 'faster', gethelement4%v
+                 !gethelement4 = csfgethelement (nI, nJ)
+                 !print*, 'slower', gethelement4%v
                  return
              endif
          endif

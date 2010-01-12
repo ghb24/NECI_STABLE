@@ -546,7 +546,7 @@ contains
         integer, intent(in)  :: CCUn (ScratchSize)  ! ClassCountUnocc2
         real*8,  intent(in)  :: pSingle
         real*8,  intent(out) :: pGen
-        character(*), parameter :: this_routine = 'CreateSingleExcit'
+        character(*), parameter :: this_routine = 'CSFCreateSingleExcit'
         integer :: elecsWNoExcits, elec, orb, orb2, spn, ind, norbs, symEx
         integer :: lnopen, ncsf, i, sym_ind, nexcit
         real*8 :: r, S
@@ -613,6 +613,8 @@ contains
 
         if (i > 250) then
             write(6,'("Cannot find single excitation after 250 attempts")')
+            call writedet (6, nI, nel, .true.)
+            call flush(6)
             call stop_all(this_routine, "Cannot find single excitation after &
                                         &250 attempts")
         endif

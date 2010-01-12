@@ -7995,13 +7995,6 @@ MODULE FciMCParMod
         AnnSpawned_time%timer_name='AnnSpawnedTime'
         AnnMain_time%timer_name='AnnMainTime'
         BinSearch_time%timer_name='BinSearchTime'
-        CSF_H_Time%timer_name='CSFHelementTime'
-        timer_A%timer_name='timerA'
-        timer_B%timer_name='timerB'
-        timer_C%timer_name='timerC'
-        timer_D%timer_name='timerD'
-        timer_E%timer_name='timerE'
-        timer_F%timer_name='timerF'
 
         IF(TDebug) THEN
 !This will open a file called LOCALPOPS-"iprocindex" on unit number 11 on every node.

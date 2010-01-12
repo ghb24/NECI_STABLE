@@ -1,16 +1,18 @@
+#include "macros.h"
+
 ! A new implementation file for csfs
 module csf
     use systemdata, only: nel, brr, ecore, alat, nmsh, nbasismax, G1, nbasis
     use systemdata, only: NIfY, LMS, NIfTot, NIfD
     use memorymanager, only: LogMemAlloc, LogMemDealloc
-    use FCIMcData, only: CSF_H_Time,timer_A,timer_B,timer_C,timer_D,timer_E,timer_F
     use integralsdata, only: umat, fck, nmax
     use HElem
     use mt95, only: genrand_real2
-    use timing, only: set_timer, halt_timer
     use sltcnd_csf_mod, only: sltcnd_csf
     use DetBitOps, only: EncodeBitDet, FindBitExcitLevel
+    use DetBitOps, only: get_bit_excitmat_op_ind
     use csf_data
+    use, intrinsic :: ieee_arithmetic
 
     implicit none
 
@@ -67,9 +69,8 @@ contains
     function CSFGetHelement_bit(NI, NJ, iLutI, iLutJ) result(hel_ret)
         implicit none
         integer, intent(in) :: NI(nel), NJ(nel)
-        integer nopen(2), nclosed(2), max_nopen, max_nup, max_ndets
+        integer nopen(2), nclosed(2), nup(2), ndets(2), i, j, det
         real*8 S(2), Ms(2)
-        integer nup(2), ndets(2), i, j, det, nK(nel), nL(nel)
         type(HElement) Hel, sum1, hel_ret
 
         integer, intent(in) :: iLutI(0:NIfTot), iLutJ(0:NIfTot)
@@ -78,23 +79,17 @@ contains
         integer, dimension (:,:), allocatable :: dets1, dets2
         !integer, dimension(:,:), allocatable :: dets1a, dets2a
         integer, dimension(:,:), allocatable :: ilut1, ilut2
-        real*8 tmpval
         integer tagYamas(2)/0,0/, tagCoeffs(2)/0,0/, tagDets(2)/0,0/
         integer tagILuts(2)/0,0/
-        integer :: cn,cnn,c0,c1,c2
         integer :: IC
 
         character(*), parameter :: this_routine = 'CSFGetHelement'
-
-        call set_timer(timer_A,30)
 
         ! If the determinants differ by more than 2 spacial orbitals, then 
         ! they cannot contribute.
         IC = FindBitExcitLevel (iLutI, iLutJ)
         if (IC > 2) then
             hel_ret = HElement(0)
-            !call halt_timer(CSF_H_Time)
-            call halt_timer(timer_A)
             return
         endif
 
@@ -104,8 +99,6 @@ contains
         ! If S or Ms are not consistent, then return 0
         if ((S(1).ne.S(2))) then ! .or. (Ms(1).ne.Ms(2))) then
             hel_ret = HElement(0) 
-            !call halt_timer(CSF_H_Time)
-            call halt_timer(timer_A)
             return
         endif
         Ms(1) = minval(S)
@@ -121,7 +114,6 @@ contains
 
         ! Allocate as required
         ! TODO: catch ierr if it fails.
-        ! TODO: Use a subroutine to put these on the stack not the heap.
         allocate (coeffs1(ndets(1)), coeffs2(ndets(2)))
         allocate (dets1(ndets(1), nel), dets2(ndets(2), nel), &
                    !dets1a(ndets(1), nel), dets2a(ndets(2), nel), &
@@ -140,7 +132,6 @@ contains
         call LogMemAlloc ('dets2',size(dets2),4,this_routine,tagDets(2))
         call LogMemAlloc ('ilut1',size(ilut1),4,this_routine,tagIluts(1))
         call LogMemAlloc ('ilut2',size(ilut2),4,this_routine,tagIluts(2))
-        call set_timer(timer_B,30)
         
         ! Calculate all possible permutations to construct determinants
         ! (Where 0=alpha, 1=beta when generating NI, NJ below)
@@ -181,14 +172,6 @@ contains
             call EncodeBitDet (dets2(det,:), ilut2(det,:))
         enddo
 
-        ! TODO: implement symmetry if NI,NJ are the same except for yama
-        call halt_timer(timer_A)
-        call set_timer(timer_B,30)
-        cn=0
-        cnn=0
-        c1=0
-        c2=0
-        c0=0
         hel_ret = HElement(0)
         do i=1,ndets(1)
             if (coeffs1(i) /= 0) then
@@ -196,27 +179,16 @@ contains
                 do j=1,ndets(2)
                     if (coeffs2(j) /= 0) then
                         Hel = sltcnd_csf (dets1(i,:), dets2(j,:), &
-                                          ilut1(i,:), ilut2(j,:),cn,c0,c1,c2)
+                                          ilut1(i,:), ilut2(j,:))
                         sum1 = sum1 + Hel * HElement(coeffs2(j))
-                    else
-                        cnn = cnn + 1
                     endif
                 enddo
                 hel_ret = hel_ret + sum1*HElement(coeffs1(i))
-            else
-                cnn = cnn + 1
             endif
         enddo
-        !print*, cnn, cn, c0, c1, c2
-        call halt_timer(timer_B)
-        if (c0 /= 0) then
-            print*, 'c0', c0
-        endif
-        !call halt_timer(timer_E)
 
         ! Deallocate for cleanup
-        ! TODO: Create logged alloc/dealloc macro. With conditional?
-        deallocate (coeffs1, coeffs2, dets1, dets2, ilut1, ilut2)!, dets1a, dets2a)
+        deallocate (coeffs1, coeffs2, dets1, dets2, ilut1, ilut2)
         if (allocated(yama1)) then
             deallocate(yama1)
             call LogMemDealloc (this_routine, tagYamas(1))
@@ -231,31 +203,25 @@ contains
         call LogMemDealloc (this_routine, tagDets(2))
         call LogMemDealloc (this_routine, tagILuts(1))
         call LogMemDealloc (this_routine, tagILuts(2))
-
-        !call halt_timer(CSF_H_Time)
     end function
 
-    function CSFGetHelement_faster(NI, NJ) result(hel_ret)
+    function CSFGetHelement_faster(nI, nJ) result(hel_ret)
+        
+        ! Calculate the H-matrix element between two CSFs (nI, nJ)
+        !
+        ! In:  nI, nJ   - The determinants to consider
+        ! Ret: hel_ret  - The H-matrix element
+
         integer, intent(in) :: NI(nel), NJ(nel)
-        integer nopen(2), nclosed(2), max_nopen, max_nup, max_ndets
-        real*8 S(2), Ms(2)
-        integer nup(2), ndets(2), i, j, det, nK(nel), nL(nel)
         type(HElement) :: hel_ret
-        type(HElement) Hel, sum1
 
+        integer :: nopen(2), nclosed(2), nup(2), ndets(2)
         integer :: iLutI(0:NIfTot), iLutJ(0:NIfTot), IC
-        integer, dimension (:), allocatable :: yama1, yama2
-        real*8, dimension (:), allocatable :: coeffs1, coeffs2
-        integer, dimension (:,:), allocatable :: dets1, dets2
-        !integer, dimension(:,:), allocatable :: dets1a, dets2a
-        integer, dimension(:,:), allocatable :: ilut1, ilut2
-        real*8 tmpval
-        integer tagYamas(2)/0,0/, tagCoeffs(2)/0,0/, tagDets(2)/0,0/
-        integer tagILuts(2)/0,0/
+        ! Convert these to using integers
+        real*8  :: S(2), Ms(2)
 
-        character(*), parameter :: this_routine = 'CSFGetHelement'
+        character(*), parameter :: this_routine = 'CSFGetHelement_faster'
 
-        call set_timer(timer_A,30)
 
         ! TODO: We should be able to pass these through
         ! If the determinants differ by more than 2 spacial orbitals, then 
@@ -266,7 +232,6 @@ contains
         IC = FindBitExcitLevel (iLutI, iLutJ)
         if (IC > 2) then
             hel_ret = HElement(0)
-            call halt_timer(timer_A)
             return
         endif
 
@@ -276,7 +241,6 @@ contains
         ! If S or Ms are not consistent, then return 0
         if ((S(1).ne.S(2))) then ! .or. (Ms(1).ne.Ms(2))) then
             hel_ret = HElement(0) 
-            call halt_timer(timer_A)
             return
         endif
 
@@ -293,17 +257,22 @@ contains
         ndets(2) = int(choose(nopen(2),nup(2)))
 
         hel_ret = get_csf_helement_local (nI, nJ, iLutI, iLutJ, nopen, &
-                                          nclosed, S, Ms, nup, ndets)
-        call halt_timer(timer_A)
+                                          nclosed, nup, ndets, IC)
     end function
 
-    function get_csf_helement_local (nI, nJ, iLutI, iLutJ, nopen, nclosed, S,&
-                                     Ms, nup, ndets) result(hel_ret)
+    function get_csf_helement_local (nI, nJ, iLutI, iLutJ, nopen, nclosed, &
+                                     nup, ndets, IC) &
+                                     result(hel_ret)
+
+        ! The worker function for the above wrapper for calculating the
+        ! H-matrix elements between two CSFs. By using a wrapper in this way,
+        ! we can easily place the working arrays on the stack rather than
+        ! using heap allocation (and therefore logging), or using pure
+        ! function spaghetti code in the variable declarations.
+
         integer, intent(in) :: nI(nel), nJ(nel), nopen(2), nclosed(2)
         integer, intent(in) :: iLutI(0:NIfTot), iLutJ(0:NIfTot)
-        integer, intent(in) :: nup(2), ndets(2)
-        ! TODO: convert these to integers (ie 2S, 2Ms)
-        real*8, intent(in) :: S(2), Ms(2)
+        integer, intent(in) :: nup(2), ndets(2), IC
         type(HElement) :: hel_ret
 
         integer :: yama1(nopen(1)), yama2(nopen(2))
@@ -313,31 +282,31 @@ contains
 
         integer det, i, j
         type(HElement) :: sum1, Hel
-        integer cn, cnn, c0, c1, c2
+
+        if (IC == 2) then
+            hel_ret = get_csf_helement_2 (nI, nJ, iLutI, iLutJ, nopen,  &
+                                    nclosed, nup, ndets, dets1, dets2,&
+                                    yama1, yama2, coeffs1, coeffs2, ilut1, &
+                                    ilut2)
+            return
+        endif
+
+        ! TODO: IC==0 symmetry
+        ! If IC==0, then only differ by yama --> dets are the same. Have some
+        ! symmetry on the summation --> half the number of terms!
 
         ! Calculate all possible permutations to construct determinants
         ! (Where 0=alpha, 1=beta when generating NI, NJ below)
-        call csf_get_dets(nopen(1), nup(1), ndets(1), nel, dets1)
+        call csf_get_dets_reverse (nopen(1), nup(1), ndets(1), nel, dets1)
         if ((nopen(1).eq.nopen(2)) .and. (nup(1).eq.nup(2))) then
             dets2 = dets1
         else
-            call csf_get_dets(nopen(2), nup(2), ndets(2), nel, dets2)
+            call csf_get_dets_reverse (nopen(2), nup(2), ndets(2), nel, dets2)
         endif
-        !print*, '-----------------', nopen(1), nup(1), ndets(1)
-        !do i=1,ndets(1)
-        !    print*, dets1(nclosed(1)+1:nel,i)
-        !enddo
-        !print*, 'and 2', nopen(2), nup(2), ndets(2)
-        !do i=1,ndets(2)
-        !    print*, dets2(nclosed(2)+1:nel,i)
-        !enddo
 
         ! Extract the Yamanouchi symbols from the CSFs
         call get_csf_yama (NI, yama1)
         call get_csf_yama (NJ, yama2)
-        !call write_yama (6, yama1, .false.)
-        !call write_yama (6, yama2, .true.)
-
 
         ! Get the coefficients
         do det=1,ndets(1)
@@ -348,8 +317,6 @@ contains
             coeffs2(det) = csf_coeff(yama2,dets2(nclosed(2)+1:nel,det),&
                                      nopen(2))
         enddo
-        !print*, 'coeffs1', coeffs1
-        !print*, 'coeffs2', coeffs2
 
         ! Generate determinants from spatial orbitals specified in NI, NJ
         do det = 1,ndets(1)
@@ -366,23 +333,8 @@ contains
                                    dets2(nclosed(2)+1:nel,det))
             call EncodeBitDet (dets2(:,det), ilut2(:,det))
         enddo
-       ! print*, 'dets1'
-       ! do det=1,ndets(1)
-       !     call writedet(6, dets1(:,det), nel, .true.)
-       ! enddo
-       ! print*, 'dets2'
-       ! do det=1,ndets(2)
-       !     call writedet(6, dets2(:,det), nel, .true.)
-       ! enddo
 
         ! TODO: implement symmetry if NI,NJ are the same except for yama
-        call halt_timer(timer_A)
-        call set_timer(timer_B,30)
-        cn=0
-        cnn=0
-        c1=0
-        c2=0
-        c0=0
         hel_ret = HElement(0)
         do i=1,ndets(1)
             if (coeffs1(i) /= 0) then
@@ -390,89 +342,244 @@ contains
                 do j=1,ndets(2)
                     if (coeffs2(j) /= 0) then
                         Hel = sltcnd_csf (dets1(:,i), dets2(:,j), &
-                                          ilut1(:,i), ilut2(:,j),cn,c0,c1,c2)
+                                          ilut1(:,i), ilut2(:,j))
                         sum1 = sum1 + Hel * HElement(coeffs2(j))
-                    else
-                        cnn = cnn + 1
                     endif
                 enddo
                 hel_ret = hel_ret + sum1*HElement(coeffs1(i))
-            else
-                cnn = cnn + 1
             endif
         enddo
-        print*, cnn, cn, c0, c1, c2, hel_ret%v
-        call halt_timer(timer_B)
-        if (c0 /= 0) then
-            print*, 'c0', c0
-        endif
     end function
 
-    function get_csf_helement_local_bit (nI, nJ, iLutI, iLutJ, nopen, nclosed, S,&
-                                     Ms, nup, ndets) result(hel_ret)
+    function get_csf_helement_2 (nI, nJ, iLutI, iLutJ, nopen, nclosed, &
+                                 nup, ndets, dets1, dets2, yama1, yama2, &
+                                 coeffs1, coeffs2, ilut1, ilut2) &
+                                 result(hel_ret)
+
+        ! Given a case where IC == 2, calculate the helement. Thus we can make
+        ! some rather stark approximations. In particular, as we definitely
+        ! differ by 2 spatial oribitals, only those orbitals can differ in Ms
+        ! value, otherwise the overall pair differs my more than 2 spin
+        ! orbitals --> Problematic.
+        !
+        ! We assign the fastest changing bits in the permutations (in
+        ! csf_get_dets_ind) to the differing spatial orbitals. Thus all of the
+        ! common parts occur in the same order for both CSFs (although if
+        ! nopen varies, we may need to skip some extra terms in one or the
+        ! other). This makes the matrix nearly diagonal, so we can sum over it
+        ! as such --> only calculate terms which could possibly be non-zero.
+
         integer, intent(in) :: nI(nel), nJ(nel), nopen(2), nclosed(2)
         integer, intent(in) :: iLutI(0:NIfTot), iLutJ(0:NIfTot)
         integer, intent(in) :: nup(2), ndets(2)
         ! TODO: convert these to integers (ie 2S, 2Ms)
-        real*8, intent(in) :: S(2), Ms(2)
-        type(HElement) :: hel_ret
+        integer, intent(out) :: yama1(nopen(1)), yama2(nopen(2))
+        real*8, intent(out) :: coeffs1(ndets(1)), coeffs2(ndets(2))
+        integer, intent(inout) :: dets1(nel, ndets(1)), dets2(nel, ndets(2))
+        integer, intent(out) :: ilut1(0:NIfTot,ndets(1)), &
+                                ilut2(0:NIfTot,ndets(2))
+        type(HElement) :: hel_ret, hel, sum1
 
-        integer :: yama1(NIfY), yama2(NIfY)
-        real*8 :: coeffs1(ndets(1)), coeffs2(ndets(2))
-        integer :: perm1(NIfY, ndets(1)), perm2(NIfY, ndets(2))
+        integer :: nsing_delta(2), det, i, j, k
+        integer :: ex_id(4,2), ms1(ndets(1)), ms2(ndets(2))
+        logical :: dets_change1(ndets(1)), dets_change2(ndets(2))
 
-        integer det, i, j
+        ! count the number of singles which differ between the two dets, and
+        ! get their indices in the open section.
+        call get_bit_excitmat_op_ind (iLutI, iLutJ, ex_id, nsing_delta, 2)
 
         ! Calculate all possible permutations to construct determinants
         ! (Where 0=alpha, 1=beta when generating NI, NJ below)
-        call csf_get_bit_perm (nopen(1), nup(1), ndets(1), nel, perm1)
-        if ((nopen(1).eq.nopen(2)) .and. (nup(1).eq.nup(2))) then
-            perm2 = perm1
-        else
-            call csf_get_bit_perm(nopen(2), nup(2), ndets(2), nel, perm2)
-        endif
+        call flush(6)
+        call csf_get_dets_ind (nopen(1), nup(1), ndets(1), nel, &
+                               nsing_delta(1), ex_id(:,1), dets1, ms1)
+        call csf_get_dets_ind (nopen(2), nup(2), ndets(2), nel, &
+                               nsing_delta(2), ex_id(:,2), dets2, ms2)
+
+        ! TODO: can we do this in the previous bit?
+        ! Mark each permutation for which each of the differing orbitals are
+        ! permuted in a canonical order --> the end of the set which mixes.
+        call mark_change_2 (dets_change1, dets1, nclosed(1), ndets(1), &
+                            nsing_delta(1), ex_id(:,1))
+        call mark_change_2 (dets_change2, dets2, nclosed(2), ndets(2), &
+                            nsing_delta(2), ex_id(:,2))
 
         ! Extract the Yamanouchi symbols from the CSFs
-        yama1 = iLutI (NIfD+1:NIfD+NIfY)
-        yama2 = iLutJ (NIfD+1:NIfD+NIfY)
+        call get_csf_yama (nI, yama1)
+        call get_csf_yama (nJ, yama2)
 
         ! Get the coefficients
         do det=1,ndets(1)
-            coeffs1(det) = csf_bit_coeff(yama1, perm1(:,det), nopen(1))
+            coeffs1(det) = csf_coeff(yama1,dets1(nclosed(1)+1:nel,det),&
+                                     nopen(1))
         enddo
         do det=1,ndets(2)
-            coeffs2(det) = csf_bit_coeff(yama2, perm2(:,det), nopen(2))
+            coeffs2(det) = csf_coeff(yama2,dets2(nclosed(2)+1:nel,det),&
+                                     nopen(2))
         enddo
 
+        ! Generate determinants from spatial orbitals specified in NI, NJ
+        do det = 1,ndets(1)
+            if (coeffs1(det) /= 0) then
+                dets1(1:nclosed(1),det) = nI(1:nclosed(1))
+                dets1(nclosed(1)+1:nel,det) = &
+                        csf_alpha_beta(nI(nclosed(1)+1:nel), &
+                                       dets1(nclosed(1)+1:nel,det))
+                call EncodeBitDet (dets1(:,det), ilut1(:,det))
+            endif
+        enddo
+        do det = 1,ndets(2)
+            if (coeffs2(det) /= 0) then
+                dets2(1:nclosed(2),det) = nJ(1:nclosed(2))
+                dets2(nclosed(2)+1:nel,det) = &
+                        csf_alpha_beta(nJ(nclosed(2)+1:nel),&
+                                       dets2(nclosed(2)+1:nel,det))
+                call EncodeBitDet (dets2(:,det), ilut2(:,det))
+            endif
+        enddo
 
+        ! TODO: neat tricks using excitmat to avoid call to sltcnd
+        j = 1
+        i = 1
+        hel_ret = HElement(0)
+        do while (i <= ndets(1) .and. j <= ndets(2))
 
-        ! TODO: implement symmetry if NI,NJ are the same except for yama
-        !hel_ret = HElement(0)
-        !do i=1,ndets(1)
-        !    if (coeffs1(i) /= 0) then
-        !        sum1 = Helement(0)
-        !        do j=1,ndets(2)
-        !            if (coeffs2(j) /= 0) then
-        !                Hel = sltcnd_csf (dets1(i,:), dets2(j,:), &
-        !                                  ilut1(i,:), ilut2(j,:))
-        !                sum1 = sum1 + Hel * HElement(coeffs2(j))
-        !            endif
-        !        enddo
-        !        hel_ret = hel_ret + sum1*HElement(coeffs1(i))
-        !    endif
-        !enddo
-        call halt_timer(timer_A)
-        !call halt_timer(timer_E)
+            ! Avoid the extra terms which appear if the nopen values are
+            ! different (more flexibility to maintain Ms in the permutations)
+            if (ms1(i) /= ms2(j)) then
+                if (nopen(1) > nopen(2)) then
+                    do while (i <= ndets(1))
+                        i = i + 1
+                        if (dets_change1(i-1)) exit
+                    enddo
+                else
+                    do while (j <= ndets(2))
+                        j = j + 1
+                        if (dets_change2(j-1)) exit
+                    enddo
+                endif
+                cycle
+            endif
+            
+            if (coeffs1(i) /= 0) then
+                sum1 = HElement(0)
+                k = j
+                do while (k <= ndets(2))
+                    if (coeffs2(k) /= 0) then
+                        ! Optimise this away.
+                        Hel = sltcnd_csf (dets1(:,i), dets2(:,k), &
+                                          ilut1(:,i), ilut2(:,k))
+                        sum1 = sum1 + Hel*HElement(coeffs2(k))
+                    endif
+
+                    k = k + 1
+                    if (dets_change2(k-1)) exit
+                enddo
+                hel_ret = hel_ret + sum1*HElement(coeffs1(i))
+            endif
+
+            if (dets_change1(i)) then
+                do while (j <= ndets(2))
+                    j = j + 1
+                    if (dets_change2(j-1)) exit
+                enddo
+            endif
+
+            i = i + 1
+        enddo
 
     end function
 
-    subroutine csf_get_bit_perm (nopen, nup, ndets, nel, ilut)
+!    function get_csf_helement_local_bit (nI, nJ, iLutI, iLutJ, nopen, nclosed, S,&
+!                                     Ms, nup, ndets) result(hel_ret)
+!        integer, intent(in) :: nI(nel), nJ(nel), nopen(2), nclosed(2)
+!        integer, intent(in) :: iLutI(0:NIfTot), iLutJ(0:NIfTot)
+!        integer, intent(in) :: nup(2), ndets(2)
+!        ! TODO: convert these to integers (ie 2S, 2Ms)
+!        real*8, intent(in) :: S(2), Ms(2)
+!        type(HElement) :: hel_ret
+!
+!        integer :: yama1(NIfY), yama2(NIfY)
+!        real*8 :: coeffs1(ndets(1)), coeffs2(ndets(2))
+!        integer :: perm1(NIfY, ndets(1)), perm2(NIfY, ndets(2))
+!
+!        integer det, i, j
+!
+!        ! Calculate all possible permutations to construct determinants
+!        ! (Where 0=alpha, 1=beta when generating NI, NJ below)
+!        call csf_get_bit_perm (nopen(1), nup(1), ndets(1), nel, perm1)
+!        if ((nopen(1).eq.nopen(2)) .and. (nup(1).eq.nup(2))) then
+!            perm2 = perm1
+!        else
+!            call csf_get_bit_perm(nopen(2), nup(2), ndets(2), nel, perm2)
+!        endif
+!
+!        ! Extract the Yamanouchi symbols from the CSFs
+!        yama1 = iLutI (NIfD+1:NIfD+NIfY)
+!        yama2 = iLutJ (NIfD+1:NIfD+NIfY)
+!
+!        ! Get the coefficients
+!        do det=1,ndets(1)
+!            coeffs1(det) = csf_bit_coeff(yama1, perm1(:,det), nopen(1))
+!        enddo
+!        do det=1,ndets(2)
+!            coeffs2(det) = csf_bit_coeff(yama2, perm2(:,det), nopen(2))
+!        enddo
+!
+!
+!
+!        ! TODO: implement symmetry if NI,NJ are the same except for yama
+!        !hel_ret = HElement(0)
+!        !do i=1,ndets(1)
+!        !    if (coeffs1(i) /= 0) then
+!        !        sum1 = Helement(0)
+!        !        do j=1,ndets(2)
+!        !            if (coeffs2(j) /= 0) then
+!        !                Hel = sltcnd_csf (dets1(i,:), dets2(j,:), &
+!        !                                  ilut1(i,:), ilut2(j,:))
+!        !                sum1 = sum1 + Hel * HElement(coeffs2(j))
+!        !            endif
+!        !        enddo
+!        !        hel_ret = hel_ret + sum1*HElement(coeffs1(i))
+!        !    endif
+!        !enddo
+!
+!    end function
+    
+    ! TODO: comment
+    subroutine mark_change_2 (dets_change, dets, nclosed, ndets, nopen_sing,&
+                              ex_id)
+        integer, intent(in) :: nclosed, ndets, nopen_sing
+        integer, intent(in) :: dets(nel, ndets), ex_id(4)
+        logical, intent(out) :: dets_change(ndets)
+        logical :: bChange
+        integer :: i, j
+
+        dets_change = .true.
+        if (nopen_sing == 0) return
+
+        do i=1,ndets
+            bChange = .false.
+            do j=1,nopen_sing
+                if (.not. bChange .and. dets(ex_id(j)+nclosed,i) == 0) &
+                    bChange = .true.
+
+                if (bChange .and. dets(ex_id(j)+nclosed,i) /= 0) then
+                    dets_change(i) = .false.
+                    exit
+                endif
+            enddo                    
+        enddo
+
+    end subroutine
+
+    subroutine csf_get_bit_perm (nopen, nup, ndets, ilut)
     
         ! TODO: comment and reverse ordering as below.
         
-        integer, intent(in) :: ndets, nup, nopen, nel
+        integer, intent(in) :: ndets, nup, nopen
         integer, intent(out) :: ilut(NIfY,ndets)
-        integer :: i, det, comb(nup), bit, pos
+        integer :: i, det, comb(nup)
         logical :: bInc
 
         if (nopen == 0) return
@@ -501,6 +608,40 @@ contains
         enddo
     end subroutine
 
+    subroutine csf_get_dets_reverse (nopen, nup, ndets, nel, dets)
+
+        ! Fill the last nopen electrons of each determinant with 0 (alpha) or
+        ! 1 (beta) in all possible permutations with nup alpha electrons.
+
+        integer, intent(in) :: ndets, nup, nopen, nel
+        integer, intent(out) :: dets (nel,ndets)
+        integer comb(nup), i, j
+        logical bInc
+
+        if (nopen.eq.0) return
+
+        forall (i=1:nup) comb(i) = nopen-i+1
+        ! TODO: fix ordering
+        dets(nel-nopen+1:,:) = 1
+        do i=1,ndets
+            forall (j=1:nup) dets(nel-nopen+comb(j),i) = 0
+            do j=1,nup
+                bInc = .false.
+                if (j == nup) then
+                    bInc = .true.
+                else if (j < nup) then
+                    if (comb(j+1) /= comb(j) - 1) bInc = .true.
+                endif
+
+                if (bInc) then
+                    comb(j) = comb(j) - 1
+                    exit
+                else
+                    comb(j) = nopen - j + 1
+                endif
+            enddo
+        enddo
+    end subroutine
 
     subroutine csf_get_dets (nopen, nup, ndets, nel, dets)
 
@@ -537,6 +678,67 @@ contains
         enddo
     end subroutine
 
+    subroutine csf_get_dets_ind (nopen, nup, ndets, nel, nuniq, ex_id, dets, &
+                                 ms)
+
+        ! TODO: comment
+        ! Fill the last nopen electrons of each determinant with 0 (alpha) or
+        ! 1 (beta) in all possible permutations with nup alpha electrons.
+
+        integer, intent(in) :: ndets, nup, nopen, nel, nuniq, ex_id(*)
+        integer, intent(out) :: dets (nel,ndets), ms(ndets)
+        integer comb(nup), i, j, id(nopen), pos, posu
+        logical bInc
+
+        if (nopen.eq.0) then
+            ms = 0
+            !print*, ' 0|'
+            return
+        endif
+
+        ! Generate mapping of positions to cause the unique indices to vary as
+        ! fast as possible
+        id(1:nuniq) = ex_id(1:nuniq)
+        pos = nuniq+1
+        posu = 1
+        do i=1,nopen
+            if (posu > nuniq) exit
+            if (i == ex_id(posu)) then
+                posu = posu + 1
+            else
+                id(pos) = i
+                pos = pos + 1
+            endif
+        enddo
+        if (i <= nopen) forall (j=i:nopen) id(j) = j
+
+        ! Calculate permutations and place in dets
+        forall (i=1:nup) comb(i) = i
+        dets(nel-nopen+1:,:) = 1
+        do i=1,ndets
+            forall (j=1:nup) dets(nel-nopen+id(comb(j)),i) = 0
+            ms(i) = nup - sum(dets(nel-nopen+id(1:nuniq),i))
+            ! TODO: remove
+            !write (6,'(i3,"|")', advance='no') ms(i)
+            !print*, dets(nel-nopen+id(1:nuniq),i)
+            !print*, dets(nel-nopen+id(nuniq+1:nopen),i)
+            do j=1,nup
+                bInc = .false.
+                if (j == nup) then
+                    bInc = .true.
+                else if (j < nup) then
+                    if (comb(j+1) /= comb(j) + 1) bInc = .true.
+                endif
+
+                if (bInc) then
+                    comb(j) = comb(j) + 1
+                    exit
+                else
+                    comb(j) = j
+                endif
+            enddo
+        enddo
+    end subroutine
 
     ! For all of the open shell electrons, generate a list where
     ! 0=alpha, 1=beta for the specified determinant.
@@ -803,7 +1005,7 @@ contains
         integer, intent(inout) :: NI(nel)
         integer, intent(in) :: nopen
         real*8, intent(in) :: Ms
-        integer i, nup, ndown
+        integer i, ndown
         
         ndown = (nopen - 2*MS)/2
         do i=1,ndown

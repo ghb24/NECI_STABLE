@@ -177,57 +177,66 @@ module DetBitOps
         endif
     end function FindBitExcitLevel
     
-    function get_bit_excitmat (iLutI, iLutJ, ExcitMat, tSign) result(IC)
-        
+    ! TODO: Update the comments a bit
+    subroutine get_bit_excitmat_op_ind (iLutI, iLutJ, op_ind, nop, IC)
+
         ! Obtain the excitation matrix required to convert determinant I to J,
-        ! specified in a canonical order. nb. if I,J differ by more than 2
-        ! orbitals, then this function will bail.
+        ! specified in a canonical order. nb. if I,J differ by more than the
+        ! size of ex, the function will bail. Achieve this without wasting
+        ! time getting tSign.
         !
         ! In:  iLutI, ilutJ  - Bit representations of determinants
+        !      IC            - Specify (max) number of orbitals to differ by
         ! Out: ExcitMat(2,2) - Excitation matrix
-        ! Ret: IC            - Number of orbitals I,J differ by
 
-        integer, intent(in) :: iLutI(0:NIfTot), iLutJ(0:NIfTot)
-        integer, intent(out) :: ExcitMat(2,2)
-        logical, intent(out) :: tSign
-        integer :: IC
-        integer :: i, j, posI, posJ, tmpI(0:NIfD), tmpJ
+        integer, intent(in) :: iLutI(0:NIfD), iLutJ(0:NIfD)
+        integer, intent(in) :: IC
+        integer, intent(out) :: op_ind(2*IC,2), nop(2)
+        character(*), parameter :: this_routine = 'get_bit_excitmat'
 
-        ! Count the number of orbitals I,J differ by.
-        IC = FindBitExcitLevel (iLutI, iLutJ)
-        if (IC > 2) return
+        ! TODO: do we want to reverse the order of ilut?
+        integer :: i, j, det, ilut(0:NIfD,2), sing(0:NIfD,2), det2
+        integer :: alpha(0:NIfD), beta(0:NIfD), sing_ind(2)
 
-        ExcitMat(1,1) = IC
-        call GetBitExcitation (iLutI, iLutJ, ExcitMat, tSign)
 
-        !! Obtain bit representations of I,J with only the differing orbitals.
-        !tmpI = ieor(iLutI, iLutJ)
-        !tmpJ = iand(tmpI, iLutJ)
-        !tmpI = iand(tmpI, iLutI)
+        ! Obtain all the singles in I,J
+        alpha = iand(iLutI, Z'AAAAAAAA')
+        beta = iand(iLutI, Z'55555555')
+        alpha = ishft(alpha, -1)
+        sing(:,1) = ieor(alpha, beta)
 
-        !! TODO: Is there a cleverer way of doing this?
-        !posI = 0
-        !posJ = 0
-        !do i=0,NIfD
-        !    do j=0:31
-        !        if (posI < IC) then
-        !            if (btest(iLutI(i), j)) then
-        !                posI = posI + 1
-        !                ExcitMat(1,posI) = 32*i + j + 1
-        !            endif
-        !        endif
+        alpha = iand(iLutJ, Z'AAAAAAAA')
+        beta = iand(iLutJ, Z'55555555')
+        alpha = ishft(alpha, -1)
+        sing(:,2) = ieor(alpha, beta)
 
-        !        if (posJ < IC) then
-        !            if (btest(iLutJ(i), j)) then
-        !                posJ = posJ + 1
-        !                ExcitMat(2,posJ) = 32*i + j + 1
-        !            endif
-        !        endif
+        ! Obtain bit representations of I,J with only the differing orbitals.
+        ilut(:,1) = ieor(sing(:,1), sing(:,2))
+        ilut(:,2) = iand(ilut(:,1), sing(:,2))
+        ilut(:,1) = iand(ilut(:,1), sing(:,1))
 
-        !        if (posI >= IC .and. posJ >= IC) return
-        !    enddo
-        !enddo
-    end function
+        nop = 0
+        sing_ind = 0
+        do i=0,NIfD
+            do j=0,31
+                ! TODO: go in steps of two here. Maybe shift to CSFs so j+=2
+                do det=1,2
+                    if (nop(det) < 2*IC) then
+                        ! Update the singles index
+                        if (btest(sing(i,det), j)) &
+                            sing_ind(det) = sing_ind(det) + 1
+
+                        if (btest(ilut(i,det), j)) then
+                            nop(det) = nop(det) + 1
+                            op_ind(nop(det),det) = sing_ind(det)
+                        endif
+                    endif
+                enddo
+
+                if (nop(1) >= 2*IC .and. nop(2) >= 2*IC) return
+            enddo
+        enddo
+    end subroutine get_bit_excitmat_op_ind
 
 
     ! This will return true if iLutI is identical to iLutJ and will return 
