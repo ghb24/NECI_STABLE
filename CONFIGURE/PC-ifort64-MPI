@@ -4,7 +4,7 @@
      CPPFLAGS='-D__Linux -DLAPACK -DFFT_DEFAULT -DPOINTER8 -DPARALLEL'
      NCPUS=2
      #-sb is to use Workshop package
-     FFLAGS='-r8 -i_dynamic'
+     FFLAGS='-r8 -i_dynamic -warn all'
      LFLAGS='-L ~/src/lib/fftw-3.1.2/lib -L ~/lib/fftw-3.1.2/lib -lfftw3 -L ~/src/lib/lapack-3.1.1 -llapack -lblas $(QMMM_LIBS)'
      AR='ar'
      ARFLAGS='-rcs'

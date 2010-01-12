@@ -386,7 +386,7 @@ contains
 
         ! count the number of singles which differ between the two dets, and
         ! get their indices in the open section.
-        call get_bit_excitmat_op_ind (iLutI, iLutJ, ex_id, nsing_delta, 2)
+        call get_bit_open_unique_ind (iLutI, iLutJ, ex_id, nsing_delta, 2)
 
         ! Calculate all possible permutations to construct determinants
         ! (Where 0=alpha, 1=beta when generating NI, NJ below)

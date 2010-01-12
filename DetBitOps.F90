@@ -177,27 +177,22 @@ module DetBitOps
         endif
     end function FindBitExcitLevel
     
-    ! TODO: Update the comments a bit
-    subroutine get_bit_excitmat_op_ind (iLutI, iLutJ, op_ind, nop, IC)
+    subroutine get_bit_open_unique_ind (iLutI, iLutJ, op_ind, nop, IC)
 
-        ! Obtain the excitation matrix required to convert determinant I to J,
-        ! specified in a canonical order. nb. if I,J differ by more than the
-        ! size of ex, the function will bail. Achieve this without wasting
-        ! time getting tSign.
+        ! Obtain the indices of unique open orbitals in I and J. 
         !
-        ! In:  iLutI, ilutJ  - Bit representations of determinants
-        !      IC            - Specify (max) number of orbitals to differ by
-        ! Out: ExcitMat(2,2) - Excitation matrix
+        ! In:  ILutI, ILutJ - Bit representations of determinants
+        !      IC           - (Max) number of orbitals for I,J to differ by
+        ! Out: op_ind       - Array of unique single indices for I,J
+        !      nop          - Number of unique singles in each of I,J
 
         integer, intent(in) :: iLutI(0:NIfD), iLutJ(0:NIfD)
         integer, intent(in) :: IC
-        integer, intent(out) :: op_ind(2*IC,2), nop(2)
-        character(*), parameter :: this_routine = 'get_bit_excitmat'
+        integer, intent(out) :: op_ind(2*IC, 2), nop(2)
+        character(*), parameter :: this_routine = 'get_bit_open_unique_ind'
 
-        ! TODO: do we want to reverse the order of ilut?
         integer :: i, j, det, ilut(0:NIfD,2), sing(0:NIfD,2), det2
         integer :: alpha(0:NIfD), beta(0:NIfD), sing_ind(2)
-
 
         ! Obtain all the singles in I,J
         alpha = iand(iLutI, Z'AAAAAAAA')
@@ -219,13 +214,14 @@ module DetBitOps
         sing_ind = 0
         do i=0,NIfD
             do j=0,31
-                ! TODO: go in steps of two here. Maybe shift to CSFs so j+=2
+                ! TODO: If CSF, increment in steps of 2.
                 do det=1,2
                     if (nop(det) < 2*IC) then
                         ! Update the singles index
                         if (btest(sing(i,det), j)) &
                             sing_ind(det) = sing_ind(det) + 1
 
+                        ! If unique single, store its index.
                         if (btest(ilut(i,det), j)) then
                             nop(det) = nop(det) + 1
                             op_ind(nop(det),det) = sing_ind(det)
@@ -236,7 +232,7 @@ module DetBitOps
                 if (nop(1) >= 2*IC .and. nop(2) >= 2*IC) return
             enddo
         enddo
-    end subroutine get_bit_excitmat_op_ind
+    end subroutine get_bit_open_unique_ind
 
 
     ! This will return true if iLutI is identical to iLutJ and will return 
