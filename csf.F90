@@ -545,9 +545,24 @@ contains
 !
 !    end function
     
-    ! TODO: comment
     subroutine mark_change_2 (dets_change, dets, nclosed, ndets, nopen_sing,&
                               ex_id)
+
+        ! Look through the specified determinants, after they have been filled
+        ! with all possible permutations. If the most rapidly varying bits
+        ! (nopen_sing of them, specified in ex_id) are in a canonical order
+        ! (all 1s then 0s), then mark that position in dets_change as true.
+        ! Helper function for get_csf_helement_2.
+        ! 
+        ! In:  dets        - The array of determinants, open orbitals filled
+        !                    with permutations summing to 2Ms.
+        !      nclosed     - Number of paired electrons
+        !      ndets       - Number of determinants
+        !      nopen_sing  - Number of unique singles --> no of rapidly
+        !                    varying terms to consider
+        !      ex_id       - Indices of rapidly varying terms - nclosed.
+        ! Out: dets_change - true if det in canonical order, otherwise false.
+
         integer, intent(in) :: nclosed, ndets, nopen_sing
         integer, intent(in) :: dets(nel, ndets), ex_id(4)
         logical, intent(out) :: dets_change(ndets)
@@ -574,7 +589,8 @@ contains
 
     subroutine csf_get_bit_perm (nopen, nup, ndets, ilut)
     
-        ! TODO: comment and reverse ordering as below.
+        ! As for csf_get_dets, but working with a bit representation of the
+        ! permutation rather than separate integers
         
         integer, intent(in) :: ndets, nup, nopen
         integer, intent(out) :: ilut(NIfY,ndets)
@@ -620,7 +636,6 @@ contains
         if (nopen.eq.0) return
 
         forall (i=1:nup) comb(i) = nopen-i+1
-        ! TODO: fix ordering
         dets(nel-nopen+1:,:) = 1
         do i=1,ndets
             forall (j=1:nup) dets(nel-nopen+comb(j),i) = 0
@@ -654,8 +669,7 @@ contains
 
         if (nopen.eq.0) return
 
-        forall (i=1:nup) comb(i) = i !nopen-i+1
-        ! TODO: fix ordering
+        forall (i=1:nup) comb(i) = i
         dets(:,nel-nopen+1:) = 1
         do i=1,ndets
             forall (j=1:nup) dets(i,nel-nopen+comb(j)) = 0
@@ -671,7 +685,7 @@ contains
                     comb(j) = comb(j) + 1
                     exit
                 else
-                    comb(j) = j!nopen-j+1
+                    comb(j) = j
                 endif
             enddo
         enddo
@@ -680,9 +694,24 @@ contains
     subroutine csf_get_dets_ind (nopen, nup, ndets, nel, nuniq, ex_id, dets, &
                                  ms)
 
-        ! TODO: comment
         ! Fill the last nopen electrons of each determinant with 0 (alpha) or
         ! 1 (beta) in all possible permutations with nup alpha electrons.
+        ! Specify a number of positions, which should be the fastest varying,
+        ! in the array ex_id.
+        !
+        ! Also, excluding the specified fast varying bits, count the number of
+        ! bits which are set in the remainder of the permutation (equivalent
+        ! to the sum of the Ms values of this region, even if not numerically
+        ! equivalent).
+        !
+        ! In:  nopen - Num. unpaired orbitals (size of permutations)
+        !      nup   - Num. orbitals in 'alpha' state
+        !      ndets - Num. permutations to generate
+        !      nel   - Num. electrons in total
+        !      nuniq - Num. of orbitals to place as 'fastest'
+        !      ex_id - Indices of fastest changing orbitals - nclosed
+        ! Out: dets  - Array, last nopen bits of each det contain permutations
+        !      ms    - Sum of terms other than the specified fast varying ones
 
         integer, intent(in) :: ndets, nup, nopen, nel, nuniq, ex_id(*)
         integer, intent(out) :: dets (nel,ndets), ms(ndets)
@@ -691,7 +720,6 @@ contains
 
         if (nopen.eq.0) then
             ms = 0
-            !print*, ' 0|'
             return
         endif
 
@@ -717,10 +745,6 @@ contains
         do i=1,ndets
             forall (j=1:nup) dets(nel-nopen+id(comb(j)),i) = 0
             ms(i) = nup - sum(dets(nel-nopen+id(1:nuniq),i))
-            ! TODO: remove
-            !write (6,'(i3,"|")', advance='no') ms(i)
-            !print*, dets(nel-nopen+id(1:nuniq),i)
-            !print*, dets(nel-nopen+id(nuniq+1:nopen),i)
             do j=1,nup
                 bInc = .false.
                 if (j == nup) then
