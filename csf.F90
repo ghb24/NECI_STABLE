@@ -2,17 +2,16 @@
 
 ! A new implementation file for csfs
 module csf
-    use systemdata, only: nel, brr, ecore, alat, nmsh, nbasismax, G1, nbasis
-    use systemdata, only: NIfY, LMS, NIfTot, NIfD
+    use systemdata, only: nel, brr, ecore, alat, nmsh, nbasismax, G1, nbasis,&
+                          NIfY, LMS, NIfTot, NIfD
     use memorymanager, only: LogMemAlloc, LogMemDealloc
     use integralsdata, only: umat, fck, nmax
     use HElem
     use mt95, only: genrand_real2
     use sltcnd_csf_mod, only: sltcnd_csf
-    use DetBitOps, only: EncodeBitDet, FindBitExcitLevel
-    use DetBitOps, only: get_bit_excitmat_op_ind
+    use DetBitOps, only: EncodeBitDet, FindBitExcitLevel, &
+                         get_bit_open_unique_ind
     use csf_data
-    use, intrinsic :: ieee_arithmetic
 
     implicit none
 
