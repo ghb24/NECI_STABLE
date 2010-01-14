@@ -363,7 +363,7 @@ C..Cube arrays
          TYPE(BasisFn) G1(*)
          INTEGER I,J,K,L,A,B,C
          REAL*8 SUM,ALAT(4),G
-         LOGICAL TCOULOMB
+         LOGICAL TCOULOMB,TEXCHANGE
          REAL*8, PARAMETER :: PI=3.1415926535897932384626433832795029D0
          I=(IDI-1)*ISS+1
          J=(IDJ-1)*ISS+1
@@ -371,6 +371,7 @@ C..Cube arrays
          L=(IDL-1)*ISS+1
          TCOULOMB=.FALSE.
          IF(I.EQ.K.AND.J.EQ.L) TCOULOMB=.TRUE.
+         IF(I.EQ.L.AND.J.EQ.K) TEXCHANGE=.TRUE.
 !   The Uniform electron gas
          A=G1(I)%k(1)-G1(K)%k(1)
          B=G1(I)%k(2)-G1(K)%k(2)
@@ -395,7 +396,7 @@ C..Cube arrays
 !  Sum is now (4 Pi / G^2 ) / Omega
 !  ALAT(4) is Rc, a cutoff length.
 !  For non-Coulomb integrals we calculate <ij|kl>cell with a potenial v(r)=1/r (r<Rc) and 0 (r>=Rc)
-             IF(.NOT.TCOULOMB) THEN
+             IF(TEXCHANGE) THEN
                IF(iExchangeDampingType.Eq.2) THEN
                   SUM=SUM*(1.D0-COS(G*ALAT(4)))
                ELSEIF(iExchangeDampingType.EQ.1) THEN
