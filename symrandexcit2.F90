@@ -2201,7 +2201,7 @@ MODULE GenRandSymExcitNUMod
 
             ! This is the look-up table method of finding the kb orbital
             iSpinIndex=(kb_ms+1)/2+1
-            Hole2BasisNum=kPointToBasisFn(kb(1),kb(2),iSpinIndex)
+            Hole2BasisNum=kPointToBasisFn(kb(1),kb(2),1,iSpinIndex)
 
             ! Is b occupied?
             IF(BTEST(iLutnI((Hole2BasisNum-1)/32),MOD(Hole2BasisNum-1,32))) THEN
@@ -2233,11 +2233,14 @@ MODULE GenRandSymExcitNUMod
             ENDIF
             
             ! Which orbital has momentum kb?
-            IF (iSpn.eq.2) THEN
-                Hole2BasisNum=2*((NMAXZ*2+1)*(NMAXY*2+1)*(kb(1)+NMAXX)+(NMAXZ*2+1)*(kb(2)+NMAXY)+(kb(3)+NMAXZ)+1)-(1+G1(Hole1BasisNum)%Ms)/2
-            ELSE
-                Hole2BasisNum=2*((NMAXZ*2+1)*(NMAXY*2+1)*(kb(1)+NMAXX)+(NMAXZ*2+1)*(kb(2)+NMAXY)+(kb(3)+NMAXZ)+1)-1+iSpn/3
-            ENDIF
+            !IF (iSpn.eq.2) THEN
+            !    Hole2BasisNum=2*((NMAXZ*2+1)*(NMAXY*2+1)*(kb(1)+NMAXX)+(NMAXZ*2+1)*(kb(2)+NMAXY)+(kb(3)+NMAXZ)+1)-(1+G1(Hole1BasisNum)%Ms)/2
+            !ELSE
+            !    Hole2BasisNum=2*((NMAXZ*2+1)*(NMAXY*2+1)*(kb(1)+NMAXX)+(NMAXZ*2+1)*(kb(2)+NMAXY)+(kb(3)+NMAXZ)+1)-1+iSpn/3
+            !ENDIF
+            
+            iSpinIndex=(kb_ms+1)/2+1
+            Hole2BasisNum=kPointToBasisFn(kb(1),kb(2),kb(3),iSpinIndex)
             
             IF(Hole1BasisNum.eq.Hole2BasisNum) THEN
                 nJ(1)=0 
@@ -2274,20 +2277,7 @@ MODULE GenRandSymExcitNUMod
                 
         IF(tHub) THEN
             ! Debug to test the resultant determinant
-            kx=0
-            ky=0
-            kz=0
-            ms_sum=0
-            ktest=(/0,0/)
-            do i=1,NEl
-                kx=kx+G1(nJ(i))%k(1)
-                ky=ky+G1(nJ(i))%k(2)
-                kz=kz+G1(nJ(i))%k(3)
-                ms_sum=ms_sum+G1(nJ(i))%Ms
-            enddo
-            ktest=(/kx,ky/)
-            CALL MomPbcSym(ktest,nBasisMax)
-            IF(.not.(ktest(1).eq.0.and.ktest(2).eq.0.and.kz.eq.0.and.ms_sum.eq.0)) THEN
+            IF(.not.(IsMomentumAllowed(nJ)))THEN
                 CALL Stop_All("CreateDoubExcitLattice","Incorrect kb generated -- momentum not conserved")
             ENDIF
         ENDIF
@@ -2529,22 +2519,8 @@ MODULE GenRandSymExcitNUMod
             CALL FindNewDet(nI,nJ,Elec1Ind,Elec2Ind,Hole1,Hole2,ExcitMat,tParity)
 
             ! k-point symmetry
-            IF(tHub) THEN
-                kx=0
-                ky=0
-                kz=0
-                ms_sum=0
-                ktest=(/0,0/)
-                do i=1,NEl
-                    kx=kx+G1(nJ(i))%k(1)
-                    ky=ky+G1(nJ(i))%k(2)
-                    kz=kz+G1(nJ(i))%k(3)
-                enddo
-                ktest=(/kx,ky/)
-                CALL MomPbcSym(ktest,nBasisMax)
-                IF(.not.(ktest(1).eq.0.and.ktest(2).eq.0.and.kz.eq.0)) THEN
-                    CYCLE
-                ENDIF
+            IF(.not.(IsMomentumAllowed(nJ)))THEN
+                CYCLE
             ENDIF
             
             EXIT
@@ -2588,24 +2564,71 @@ MODULE GenRandSymExcitNUMod
 
     END SUBROUTINE CalcPGenLattice
 
+    FUNCTION IsMomentumAllowed(nJ)
+        
+        LOGICAL :: IsMomentumAllowed ! Returns whether the determinant is momentum allowed for  
+                                    ! UEG and Hubbard models
+                                    ! Compares the total k from a determinant nI with kTotal
+        INTEGER :: nJ(NEl),kx,ky,kz,ktrial(2),i
+
+        IsMomentumAllowed=.false.
+
+        ! The momentum constraint for UEG: every determinant must have a total momentum
+        ! which is equal.
+        IF(tUEG) THEN
+            kx=0
+            ky=0
+            kz=0
+            do i=1,NEl
+                kx=kx+G1(nJ(i))%k(1)
+                ky=ky+G1(nJ(i))%k(2)
+                kz=kz+G1(nJ(i))%k(3)
+            enddo
+            IF(kx.eq.kTotal(1).and.ky.eq.kTotal(2).and.kz.eq.kTotal(3)) THEN
+                IsMomentumAllowed=.true.
+            ENDIF
+        ENDIF
+
+        ! The momentum constraint from Hubbard model: every determinant must have a total momentum
+        ! which is equal to within a reciprocal lattice vector. 
+        IF(tHub) THEN
+            kx=0
+            ky=0
+            kz=0
+            do i=1,NEl
+                kx=kx+G1(nJ(i))%k(1)
+                ky=ky+G1(nJ(i))%k(2)
+                kz=kz+G1(nJ(i))%k(3)
+            enddo
+            ktrial=(/kx,ky/)
+            CALL MomPbcSym(ktrial,nBasisMax) ! This re-maps the total momentum under PBCs: equivalent to this being equal to 
+                                            ! a value to within a reciproval lattice vector.
+            IF(ktrial(1).eq.kTotal(1).and.ktrial(2).eq.kTotal(2)) THEN
+                IsMomentumAllowed=.true.
+            ENDIF
+        ENDIF
+
+    END FUNCTION IsMomentumAllowed
+
 END MODULE GenRandSymExcitNUMod
 
 
 !Sometimes (especially UHF orbitals), the symmetry routines will not set up the orbitals correctly. Therefore, this routine will set up symlabellist and symlabelcounts
 !to be cast in terms of spin orbitals, and the symrandexcit2 routines will use these arrays.
 SUBROUTINE SpinOrbSymSetup(tRedoSym)
-    use SymExcitDataMod , only : ScratchSize,SymLabelList2,SymLabelCounts2,OrbClassCount,kPointToBasisFn
+    use SymExcitDataMod , only : ScratchSize,SymLabelList2,SymLabelCounts2,OrbClassCount,kPointToBasisFn,kTotal
     use GenRandSymExcitNUMod , only : ClassCountInd
     use SymData, only: nSymLabels,TwoCycleSymGens
     use SymData, only: SymLabelList,SymLabelCounts
-    use SystemData , only : G1,tFixLz,tNoSymGenRandExcits,nBasis,iMaxLz,tUEG,tHub,NMAXZ
+    use SystemData , only : G1,tFixLz,tNoSymGenRandExcits,nBasis,iMaxLz,tUEG,tHub,NMAXZ,NEl,nBasisMax
+    use Determinants, only : FDet
     IMPLICIT NONE
     INTEGER :: i,j,SymInd
     INTEGER :: Spin
     LOGICAL :: tRedoSym
     INTEGER , ALLOCATABLE :: Temp(:)
-    ! These are for the hubbard model look-up table
-    INTEGER :: kmaxX,kmaxY,kminX,kminY,iSpinIndex
+    ! These are for the hubbard and UEG model look-up table
+    INTEGER :: kmaxX,kmaxY,kminX,kminY,kminZ,kmaxz,iSpinIndex,ktrial(2)
     
     IF(tFixLz) THEN
 !Calculate the upper array bound for the ClassCount2 arrays. This will be dependant on the number of symmetries needed.
@@ -2794,7 +2817,7 @@ SUBROUTINE SpinOrbSymSetup(tRedoSym)
 !            enddo
 !        ENDIF
 
-    ! This makes a 3D lookup table kPointToBasisFn(kx,ky,ms_index) which gives the orbital number for a given kx, ky and ms_index
+    ! This makes a 3D lookup table kPointToBasisFn(kx,ky,1,ms_index) which gives the orbital number for a given kx, ky and ms_index
     IF(tHub.and..not.(NMAXZ.ne.0.and.NMAXZ.ne.1))THEN
 !        IF(NMAXZ.ne.0.and.NMAXZ.ne.1) CALL Stop_All("SpinOrbSymSetup","This routine doesn't work with non-2D Hubbard model")
         kmaxX=0
@@ -2808,11 +2831,51 @@ SUBROUTINE SpinOrbSymSetup(tRedoSym)
             IF(G1(i)%k(2).gt.kmaxY) kmaxY=G1(i)%k(2)
             IF(G1(i)%k(2).lt.kminY) kminY=G1(i)%k(2)
         enddo
-        ALLOCATE(kPointToBasisFn(kminX:kmaxX,kminY:kmaxY,2))
+        ALLOCATE(kPointToBasisFn(kminX:kmaxX,kminY:kmaxY,1,2))
         do i=1,nBasis
             iSpinIndex=(G1(i)%Ms+1)/2+1 ! iSpinIndex equals 1 for a beta spin (ms=-1), and 2 for an alpha spin (ms=1)
-            kPointToBasisFn(G1(i)%k(1),G1(i)%k(2),iSpinIndex)=i
+            kPointToBasisFn(G1(i)%k(1),G1(i)%k(2),1,iSpinIndex)=i
         enddo
+    ENDIF
+    
+    ! This makes a 3D lookup table kPointToBasisFn(kx,ky,kz,ms_index) which gives the orbital number for a given kx, ky, kz and ms_index
+    IF(tUEG)THEN
+        kmaxX=0
+        kminX=0
+        kmaxY=0
+        kminY=0
+        kminZ=0
+        kmaxZ=0
+        do i=1,nBasis 
+            IF(G1(i)%k(1).gt.kmaxX) kmaxX=G1(i)%k(1)
+            IF(G1(i)%k(1).lt.kminX) kminX=G1(i)%k(1)
+            IF(G1(i)%k(2).gt.kmaxY) kmaxY=G1(i)%k(2)
+            IF(G1(i)%k(2).lt.kminY) kminY=G1(i)%k(2)
+            IF(G1(i)%k(3).gt.kmaxY) kmaxZ=G1(i)%k(3)
+            IF(G1(i)%k(3).lt.kminY) kminZ=G1(i)%k(3)
+        enddo
+        ALLOCATE(kPointToBasisFn(kminX:kmaxX,kminY:kmaxY,kminZ:kmaxZ,2))
+        do i=1,nBasis
+            iSpinIndex=(G1(i)%Ms+1)/2+1 ! iSpinIndex equals 1 for a beta spin (ms=-1), and 2 for an alpha spin (ms=1)
+            kPointToBasisFn(G1(i)%k(1),G1(i)%k(2),G1(i)%k(3),iSpinIndex)=i
+        enddo
+    ENDIF
+
+    IF(tUEG.or.tHUB)THEN
+        kTotal(1)=0
+        kTotal(2)=0
+        kTotal(3)=0
+        do j=1,NEl
+            kTotal(1)=kTotal(1)+G1(FDet(j))%k(1)
+            kTotal(2)=kTotal(2)+G1(FDet(j))%k(2)
+            kTotal(3)=kTotal(3)+G1(FDet(j))%k(3)
+        enddo
+        if (tHub) then
+            ktrial=(/kTotal(1),kTotal(2)/)
+            CALL MomPbcSym(ktrial,nBasisMax)
+            kTotal(1)=ktrial(1)
+            kTotal(2)=ktrial(2)
+        endif
     ENDIF
 
 END SUBROUTINE SpinOrbSymSetup
@@ -2827,6 +2890,7 @@ SUBROUTINE TestGenRandSymExcitNU(nI,Iterations,pDoub,exFlag,iWriteEvery)
     use Parallel
 !    use soft_exit , only : ChangeVars 
     use DetBitOps , only : EncodeBitDet, FindExcitBitDet
+    use GenRandSymExcitNUMod, only: IsMomentumAllowed
     IMPLICIT NONE
     INTEGER :: i,Iterations,exFlag,nI(NEl),nJ(NEl),IC,ExcitMat(2,2),DetConn,kx,ky,kz,ktrial(2)
     REAL*8 :: pDoub,pGen,AverageContrib,AllAverageContrib
@@ -2857,37 +2921,8 @@ SUBROUTINE TestGenRandSymExcitNU(nI,Iterations,pDoub,exFlag,iWriteEvery)
 lp2: do while(.true.)
         CALL GenSymExcitIt2(nI,nEl,G1,nBasis,nBasisMax,.false.,EXCITGEN,nJ,iExcit,0,nStore,exFlag)
         IF(nJ(1).eq.0) exit lp2
-        ! The momentum constraint from UEG is implemented. Every determinant must have a total momentum
-        ! which is equal. This is equal to zero in the current implementation.
-        IF(tUEG) THEN
-            kx=0
-            ky=0
-            kz=0
-            do i=1,NEl
-                kx=kx+G1(nJ(i))%k(1)
-                ky=ky+G1(nJ(i))%k(2)
-                kz=kz+G1(nJ(i))%k(3)
-            enddo
-            IF(kx.eq.0.and.ky.eq.0.and.kz.eq.0) THEN
-                excitcount=excitcount+1
-                CALL EncodeBitDet(nJ,iLutnJ)
-                WRITE(25,*) excitcount,iExcit,iLutnJ(0)
-            ENDIF
-        ! The momentum constraint from Hubbard model: every determinant must have a total momentum
-        ! which is equal to within a reciprocal lattice vector. This is equal to zero in the current implementation.
-        ELSEIF(tHub) THEN
-            kx=0
-            ky=0
-            kz=0
-            do i=1,NEl
-                kx=kx+G1(nJ(i))%k(1)
-                ky=ky+G1(nJ(i))%k(2)
-                kz=kz+G1(nJ(i))%k(3)
-            enddo
-            ktrial=(/kx,ky/)
-            CALL MomPbcSym(ktrial,nBasisMax) ! This re-maps the total momentum under PBCs: equivalent to this being equal to 
-                                            ! a value to within a reciproval lattice vector.
-            IF(ktrial(1).eq.0.and.ktrial(2).eq.0.and.kz.eq.0) THEN
+        IF(tUEG.or.tHub) THEN
+            IF (IsMomentumAllowed(nJ)) THEN
                 excitcount=excitcount+1
                 CALL EncodeBitDet(nJ,iLutnJ)
                 WRITE(25,*) excitcount,iExcit,iLutnJ(0)
@@ -2949,6 +2984,8 @@ lp2: do while(.true.)
 !            ForbiddenIter=ForbiddenIter+1
             CYCLE
         ENDIF
+        ! This is implemented for the old excitation generators, that could only handle momentum conservation under
+        ! zero momentum conditions
         IF(tUEG.and.(.not.tLatticeGens)) THEN
             kx=0
             ky=0
@@ -3152,3 +3189,4 @@ SUBROUTINE IsSymAllowedExcit(nI,nJ,IC,ExcitMat,SymAllowed)
         
 
 END SUBROUTINE IsSymAllowedExcit
+
