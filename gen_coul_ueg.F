@@ -395,19 +395,31 @@ C..Cube arrays
              SUM=(1.D0/PI)/(SUM*ALAT(1)*ALAT(2)*ALAT(3))
 !  Sum is now (4 Pi / G^2 ) / Omega
 !  ALAT(4) is Rc, a cutoff length.
-!  For non-Coulomb integrals we calculate <ij|kl>cell with a potenial v(r)=1/r (r<Rc) and 0 (r>=Rc)
+!  For Exchange integrals we calculate <ij|kl>cell with a potenial v(r)=1/r (r<Rc) and 0 (r>=Rc)
              IF(TEXCHANGE) THEN
                IF(iExchangeDampingType.Eq.2) THEN
+                  ! Spherical cutoff used.
+                  ! For non-Coulomb integrals we calculate <ij|kl>_cell
+                  ! with a potenial v(r)=1/r (r<Rc) and 0 (r>=Rc).
                   SUM=SUM*(1.D0-COS(G*ALAT(4)))
                ELSEIF(iExchangeDampingType.EQ.1) THEN
+                  ! Screened potential used.
+                  ! For non-Coulomb integrals we calculate <ij|kl>
+                  ! with a potenial v(r)=erfc(r/Rc)/r.
                   SUM=SUM*(1.D0-EXP(-(G*ALAT(4))**2/2.D0))
                ENDIF
              ENDIF
            ELSE
-!..  The G=0 component is explicitly calculated for non-Coulomb interactions as 2 PI Rc**2
             sum=0.d0
-            IF(.NOT.TCOULOMB) SUM=2*PI*ALAT(4)**2
-     &         /(ALAT(1)*ALAT(2)*ALAT(3))
+            IF(.NOT.TCOULOMB .AND. iExchangeDampingType/=0) THEN
+               ! The G=0 component is explicitly calculated for
+               ! non-Coulomb interactions as 2 PI Rc**2.  
+               ! This is found by taking the Taylor expansion of the
+               ! attenuated and screened potentials and
+               ! considering the limit of G->0.  Both give the same
+               ! result.
+               SUM=2*PI*ALAT(4)**2/(ALAT(1)*ALAT(2)*ALAT(3))
+            END IF
            ENDIF
           ELSE
             SUM=0.D0
