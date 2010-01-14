@@ -19,3 +19,4 @@
 ! Are the two orbitals specified (may be the same orbital) from the same
 ! spatial orbital?
 #define is_in_pair(orb1,orb2) (ibclr(orb1-1,0) == ibclr(orb2-1,0))
+

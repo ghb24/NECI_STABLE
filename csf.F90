@@ -3,7 +3,7 @@
 ! A new implementation file for csfs
 module csf
     use systemdata, only: nel, brr, ecore, alat, nmsh, nbasismax, G1, nbasis,&
-                          NIfY, LMS, NIfTot, NIfD
+                          NIfY, LMS, NIfTot, NIfD, iSpinSkip
     use memorymanager, only: LogMemAlloc, LogMemDealloc
     use integralsdata, only: umat, fck, nmax
     use HElem
@@ -11,6 +11,8 @@ module csf
     use sltcnd_csf_mod, only: sltcnd_csf
     use DetBitOps, only: EncodeBitDet, FindBitExcitLevel, &
                          get_bit_open_unique_ind
+    use Integrals, only: GetUMatEl
+    use UMatCache, only: gtID
     use csf_data
 
     implicit none
@@ -282,11 +284,14 @@ contains
         integer det, i, j
         type(HElement) :: sum1, Hel
 
+        ! Extract the Yamanouchi symbols from the CSFs
+        call get_csf_yama (nI, yama1)
+        call get_csf_yama (nJ, yama2)
+
         if (IC == 2) then
             hel_ret = get_csf_helement_2 (nI, nJ, iLutI, iLutJ, nopen,  &
                                     nclosed, nup, ndets, dets1, dets2,&
-                                    yama1, yama2, coeffs1, coeffs2, ilut1, &
-                                    ilut2)
+                                    yama1, yama2, coeffs1, coeffs2)
             return
         endif
 
@@ -302,10 +307,6 @@ contains
         else
             call csf_get_dets_reverse (nopen(2), nup(2), ndets(2), nel, dets2)
         endif
-
-        ! Extract the Yamanouchi symbols from the CSFs
-        call get_csf_yama (NI, yama1)
-        call get_csf_yama (NJ, yama2)
 
         ! Get the coefficients
         do det=1,ndets(1)
@@ -352,8 +353,7 @@ contains
 
     function get_csf_helement_2 (nI, nJ, iLutI, iLutJ, nopen, nclosed, &
                                  nup, ndets, dets1, dets2, yama1, yama2, &
-                                 coeffs1, coeffs2, ilut1, ilut2) &
-                                 result(hel_ret)
+                                 coeffs1, coeffs2) result(hel_ret)
 
         ! Given a case where IC == 2, calculate the helement. Thus we can make
         ! some rather stark approximations. In particular, as we definitely
@@ -375,37 +375,94 @@ contains
         integer, intent(out) :: yama1(nopen(1)), yama2(nopen(2))
         real*8, intent(out) :: coeffs1(ndets(1)), coeffs2(ndets(2))
         integer, intent(inout) :: dets1(nel, ndets(1)), dets2(nel, ndets(2))
-        integer, intent(out) :: ilut1(0:NIfTot,ndets(1)), &
-                                ilut2(0:NIfTot,ndets(2))
-        type(HElement) :: hel_ret, hel, sum1
+        type(HElement) :: hel_ret, hel, sum1, umatel(2), hel_tmp
 
-        integer :: nsing_delta(2), det, i, j, k
-        integer :: ex_id(4,2), ms1(ndets(1)), ms2(ndets(2))
-        logical :: dets_change1(ndets(1)), dets_change2(ndets(2))
+        integer :: nop_uniq(2), det, i, j, k, l, m, ex(2,2), &
+                   uniq_id(4,2), ms1(ndets(1)), ms2(ndets(2)), &
+                   nsign(2), tsign_id(2,2), id(2,2), &
+                   ex_ms_ind(2,2), ex_ms(2,2)
+
+        logical :: dets_change1(ndets(1)), dets_change2(ndets(2)), tSign, &
+                   delta_tsign1(ndets(1)), delta_tsign2(ndets(2)), tSign_tmp
 
         ! count the number of singles which differ between the two dets, and
-        ! get their indices in the open section.
-        call get_bit_open_unique_ind (iLutI, iLutJ, ex_id, nsing_delta, 2)
+        ! get their indices in the open section. Also, get the indices of any
+        ! orbitals whose Ms value may affect tSign.
+        call get_bit_open_unique_ind (iLutI, iLutJ, uniq_id, nop_uniq, &
+                                      tsign_id, nsign, 2)
+
+        ! Get the excitation matrix, and more importantly the parity of the
+        ! 'standard' excitation (i.e. all singles are beta).
+        ex(1,1) = 2
+        call GetBitExcitation (iLutI, iLutJ, ex, tSign)
 
         ! Calculate all possible permutations to construct determinants
         ! (Where 0=alpha, 1=beta when generating NI, NJ below)
-        call flush(6)
         call csf_get_dets_ind (nopen(1), nup(1), ndets(1), nel, &
-                               nsing_delta(1), ex_id(:,1), dets1, ms1)
+                               nop_uniq(1), uniq_id(:,1), tsign_id(:,1), &
+                               nsign(1), dets1, ms1, delta_tsign1)
         call csf_get_dets_ind (nopen(2), nup(2), ndets(2), nel, &
-                               nsing_delta(2), ex_id(:,2), dets2, ms2)
+                               nop_uniq(2), uniq_id(:,2), tsign_id(:,2), &
+                               nsign(2), dets2, ms2, delta_tsign2)
 
         ! TODO: can we do this in the previous bit?
         ! Mark each permutation for which each of the differing orbitals are
         ! permuted in a canonical order --> the end of the set which mixes.
         call mark_change_2 (dets_change1, dets1, nclosed(1), ndets(1), &
-                            nsing_delta(1), ex_id(:,1))
+                            nop_uniq(1), uniq_id(:,1))
         call mark_change_2 (dets_change2, dets2, nclosed(2), ndets(2), &
-                            nsing_delta(2), ex_id(:,2))
+                            nop_uniq(2), uniq_id(:,2))
 
-        ! Extract the Yamanouchi symbols from the CSFs
-        call get_csf_yama (nI, yama1)
-        call get_csf_yama (nJ, yama2)
+        ! What are the details of this excitation (to/from doubles etc)
+        do i=1,2
+            if (is_in_pair(ex(i,1), ex(i,2))) then
+                ex_ms_ind(i,:) = 0
+                ex_ms (i,1) = -1
+                ex_ms (i,2) = 1
+            else
+                ! TODO: tidy up i/j separation, i.e. coalesce the loops.
+                do j=1,2
+                    if (IsOcc(iLutI, ab_pair(ex(i,j)))) then
+                        do k=1,nop_uniq(3-i)
+                            if (i == 1) then
+                                if (is_in_pair(ex(i,j), &
+                                    iand(nJ(nclosed(2)+uniq_id(k,2)), &
+                                         csf_orbital_mask))) then
+                                    ex_ms_ind(i,j) = -nclosed(2)-uniq_id(k,2)
+                                    exit
+                                endif
+                            else
+                                if (is_in_pair(ex(i,j), &
+                                    iand(nI(nclosed(1)+uniq_id(k,1)), &
+                                         csf_orbital_mask))) then
+                                    ex_ms_ind(i,j) = nclosed(1)+uniq_id(k,1)
+                                    exit
+                                endif
+                            endif
+                        enddo
+                    else
+                        do k=1,nop_uniq(i)
+                            if (i == 1) then
+                                if (is_in_pair(ex(i,j), &
+                                    iand (nI(nclosed(1)+uniq_id(k,1)), &
+                                          csf_orbital_mask))) then
+                                    ex_ms_ind(i,j) = nclosed(1) + uniq_id(k,1)
+                                    exit
+                                endif
+                            else
+                                if (is_in_pair(ex(i,j), &
+                                    iand (nJ(nclosed(2)+uniq_id(k,2)), &
+                                          csf_orbital_mask))) then
+                                    ex_ms_ind(i,j) = -nclosed(2)-uniq_id(k,2)
+                                    exit
+                                endif
+                            endif
+                        enddo
+                    endif
+                enddo
+            endif
+        enddo
+
 
         ! Get the coefficients
         do det=1,ndets(1)
@@ -417,25 +474,14 @@ contains
                                      nopen(2))
         enddo
 
-        ! Generate determinants from spatial orbitals specified in NI, NJ
-        do det = 1,ndets(1)
-            if (coeffs1(det) /= 0) then
-                dets1(1:nclosed(1),det) = nI(1:nclosed(1))
-                dets1(nclosed(1)+1:nel,det) = &
-                        csf_alpha_beta(nI(nclosed(1)+1:nel), &
-                                       dets1(nclosed(1)+1:nel,det))
-                call EncodeBitDet (dets1(:,det), ilut1(:,det))
-            endif
-        enddo
-        do det = 1,ndets(2)
-            if (coeffs2(det) /= 0) then
-                dets2(1:nclosed(2),det) = nJ(1:nclosed(2))
-                dets2(nclosed(2)+1:nel,det) = &
-                        csf_alpha_beta(nJ(nclosed(2)+1:nel),&
-                                       dets2(nclosed(2)+1:nel,det))
-                call EncodeBitDet (dets2(:,det), ilut2(:,det))
-            endif
-        enddo
+        ! Obtain the two UMAT components which may get used in the sum
+        id = gtID(ex)
+        umatel(1) = GetUMATEl (nBasisMax, UMAT, ALAT, nBasis, iSpinSkip, G1, &
+                               id(1,1), id(1,2), id(2,1), id(2,2))
+        umatel(2) = GetUMATEL (nBasisMax, UMAT, ALAT, nBasis, iSpinSkip, G1, &
+                               id(1,1), id(1,2), id(2,2), id(2,1))
+
+
 
         ! TODO: neat tricks using excitmat to avoid call to sltcnd
         j = 1
@@ -465,10 +511,33 @@ contains
                 k = j
                 do while (k <= ndets(2))
                     if (coeffs2(k) /= 0) then
-                        ! Optimise this away.
-                        Hel = sltcnd_csf (dets1(:,i), dets2(:,k), &
-                                          ilut1(:,i), ilut2(:,k))
-                        sum1 = sum1 + Hel*HElement(coeffs2(k))
+                        do l=1,2
+                        do m=1,2
+                            if (ex_ms_ind(l,m) < 0) then
+                                ex_ms(l,m) = 2*dets2(abs(ex_ms_ind(l,m)),k)-1
+                                if (l == 1) ex_ms(l,m) = ex_ms(l,m)*-1
+                            else if (ex_ms_ind(l,m) > 0) then
+                                ex_ms(l,m) = 2*dets1(ex_ms_ind(l,m),i)-1
+                                if (l == 2) ex_ms(l,m) = ex_ms(l,m)*-1
+                            endif
+                        enddo
+                        enddo
+
+                        hel = HElement(0)
+                        if ( (ex_ms(1,1) == ex_ms(2,1)) .and. &
+                             (ex_ms(1,2) == ex_ms(2,2)) ) then
+                            hel = hel + umatel(1)
+                        endif
+                        if ( (ex_ms(1,1) == ex_ms(2,2)) .and. &
+                             (ex_ms(1,2) == ex_ms(2,1)) ) then
+                            hel = hel - umatel(2)
+                        endif
+
+                        tSign_tmp = tSign .xor. (delta_tsign1(i) .xor. &
+                                                 delta_tsign2(k))
+                        if (tSign_tmp) hel = -hel
+
+                        sum1 = sum1 + hel*HElement(coeffs2(k))
                     endif
 
                     k = k + 1
@@ -545,12 +614,12 @@ contains
 !
 !    end function
     
-    subroutine mark_change_2 (dets_change, dets, nclosed, ndets, nopen_sing,&
-                              ex_id)
+    subroutine mark_change_2 (dets_change, dets, nclosed, ndets, nop_uniq,&
+                              uniq_id)
 
         ! Look through the specified determinants, after they have been filled
         ! with all possible permutations. If the most rapidly varying bits
-        ! (nopen_sing of them, specified in ex_id) are in a canonical order
+        ! (nop_uniq of them, specified in uniq_id) are in a canonical order
         ! (all 1s then 0s), then mark that position in dets_change as true.
         ! Helper function for get_csf_helement_2.
         ! 
@@ -558,27 +627,27 @@ contains
         !                    with permutations summing to 2Ms.
         !      nclosed     - Number of paired electrons
         !      ndets       - Number of determinants
-        !      nopen_sing  - Number of unique singles --> no of rapidly
+        !      nop_uniq  - Number of unique singles --> no of rapidly
         !                    varying terms to consider
-        !      ex_id       - Indices of rapidly varying terms - nclosed.
+        !      uniq_id       - Indices of rapidly varying terms - nclosed.
         ! Out: dets_change - true if det in canonical order, otherwise false.
 
-        integer, intent(in) :: nclosed, ndets, nopen_sing
-        integer, intent(in) :: dets(nel, ndets), ex_id(4)
+        integer, intent(in) :: nclosed, ndets, nop_uniq
+        integer, intent(in) :: dets(nel, ndets), uniq_id(4)
         logical, intent(out) :: dets_change(ndets)
         logical :: bChange
         integer :: i, j
 
         dets_change = .true.
-        if (nopen_sing == 0) return
+        if (nop_uniq == 0) return
 
         do i=1,ndets
             bChange = .false.
-            do j=1,nopen_sing
-                if (.not. bChange .and. dets(ex_id(j)+nclosed,i) == 0) &
+            do j=1,nop_uniq
+                if (.not. bChange .and. dets(uniq_id(j)+nclosed,i) == 0) &
                     bChange = .true.
 
-                if (bChange .and. dets(ex_id(j)+nclosed,i) /= 0) then
+                if (bChange .and. dets(uniq_id(j)+nclosed,i) /= 0) then
                     dets_change(i) = .false.
                     exit
                 endif
@@ -691,13 +760,14 @@ contains
         enddo
     end subroutine
 
-    subroutine csf_get_dets_ind (nopen, nup, ndets, nel, nuniq, ex_id, dets, &
-                                 ms)
+    subroutine csf_get_dets_ind (nopen, nup, ndets, nel, nop_uniq, uniq_id, &
+                                 tsign_id, nsign, dets, ms, tSign)
 
+                                 ! TODO: comments
         ! Fill the last nopen electrons of each determinant with 0 (alpha) or
         ! 1 (beta) in all possible permutations with nup alpha electrons.
         ! Specify a number of positions, which should be the fastest varying,
-        ! in the array ex_id.
+        ! in the array uniq_id.
         !
         ! Also, excluding the specified fast varying bits, count the number of
         ! bits which are set in the remainder of the permutation (equivalent
@@ -708,29 +778,34 @@ contains
         !      nup   - Num. orbitals in 'alpha' state
         !      ndets - Num. permutations to generate
         !      nel   - Num. electrons in total
-        !      nuniq - Num. of orbitals to place as 'fastest'
-        !      ex_id - Indices of fastest changing orbitals - nclosed
+        !      nop_uniq - Num. of orbitals to place as 'fastest'
+        !      uniq_id - Indices of fastest changing orbitals - nclosed
         ! Out: dets  - Array, last nopen bits of each det contain permutations
         !      ms    - Sum of terms other than the specified fast varying ones
 
-        integer, intent(in) :: ndets, nup, nopen, nel, nuniq, ex_id(*)
+        integer, intent(in) :: ndets, nup, nopen, nel, nop_uniq, uniq_id(*)
+        integer, intent(in) :: tsign_id(*), nsign
         integer, intent(out) :: dets (nel,ndets), ms(ndets)
-        integer comb(nup), i, j, id(nopen), pos, posu
+        logical, intent(out) :: tSign (ndets)
+        integer comb(nup), i, j, id(nopen), pos, posu, nclosed
         logical bInc
 
         if (nopen.eq.0) then
             ms = 0
+            tSign = .false.
             return
         endif
 
+        nclosed = nel - nopen
+
         ! Generate mapping of positions to cause the unique indices to vary as
         ! fast as possible
-        id(1:nuniq) = ex_id(1:nuniq)
-        pos = nuniq+1
+        id(1:nop_uniq) = uniq_id(1:nop_uniq)
+        pos = nop_uniq+1
         posu = 1
         do i=1,nopen
-            if (posu > nuniq) exit
-            if (i == ex_id(posu)) then
+            if (posu > nop_uniq) exit
+            if (i == uniq_id(posu)) then
                 posu = posu + 1
             else
                 id(pos) = i
@@ -741,10 +816,22 @@ contains
 
         ! Calculate permutations and place in dets
         forall (i=1:nup) comb(i) = i
-        dets(nel-nopen+1:,:) = 1
+        dets(nclosed+1:,:) = 1
         do i=1,ndets
-            forall (j=1:nup) dets(nel-nopen+id(comb(j)),i) = 0
-            ms(i) = nup - sum(dets(nel-nopen+id(1:nuniq),i))
+
+            ! Write zeros to the correct place in the determinant.
+            forall (j=1:nup) dets(nclosed + id(comb(j)), i) = 0
+
+            ! Sum the terms in the fastest changing (nop_uniq) positions.
+            ms(i) = nup - sum(dets(nclosed + id(1:nop_uniq), i))
+
+            ! Should tSign vary from the 'standard' one? If an excitation
+            ! from a double occurs from a beta orbital, it changes tSign (a
+            ! permutation is required to get it into the std. CSF order). Thus
+            ! the orbital left behind is alpha to get a change --> det==0.
+            tsign(i) = btest(sum(dets(nclosed+tsign_id(1:nsign), i)),0)
+
+            ! Generate the next permutation.
             do j=1,nup
                 bInc = .false.
                 if (j == nup) then
@@ -813,7 +900,7 @@ contains
     end subroutine
         
     ! Convert num (a member of CI) to an alpha or beta spin orbital where
-    ! det==0 --> alpha
+    ! det==1 --> alpha
     integer elemental function csf_alpha_beta (num, det)
         integer, intent(in) :: num, det
 

@@ -177,8 +177,10 @@ module DetBitOps
         endif
     end function FindBitExcitLevel
     
-    subroutine get_bit_open_unique_ind (iLutI, iLutJ, op_ind, nop, IC)
+    subroutine get_bit_open_unique_ind (iLutI, iLutJ, op_ind, nop, &
+                                        tsign_id, nsign, IC)
 
+                                        ! TODO: comment
         ! Obtain the indices of unique open orbitals in I and J. 
         !
         ! In:  ILutI, ILutJ - Bit representations of determinants
@@ -189,6 +191,7 @@ module DetBitOps
         integer, intent(in) :: iLutI(0:NIfD), iLutJ(0:NIfD)
         integer, intent(in) :: IC
         integer, intent(out) :: op_ind(2*IC, 2), nop(2)
+        integer, intent(out) :: tsign_id (IC,2), nsign(2)
         character(*), parameter :: this_routine = 'get_bit_open_unique_ind'
 
         integer :: i, j, det, ilut(0:NIfD,2), sing(0:NIfD,2), det2
@@ -212,6 +215,7 @@ module DetBitOps
 
         nop = 0
         sing_ind = 0
+        nsign = 0
         do i=0,NIfD
             do j=0,31
                 ! TODO: If CSF, increment in steps of 2.
@@ -221,10 +225,25 @@ module DetBitOps
                         if (btest(sing(i,det), j)) &
                             sing_ind(det) = sing_ind(det) + 1
 
-                        ! If unique single, store its index.
                         if (btest(ilut(i,det), j)) then
+                            ! If unique single, store its index.
                             nop(det) = nop(det) + 1
                             op_ind(nop(det),det) = sing_ind(det)
+
+                            ! If single comes from a double in the other det,
+                            ! then it affects tSign when permuted.
+                            ! TODO: tidy and compact
+                            if (det == 1) then
+                                if (btest(iLutJ(i), ieor(j,1))) then
+                                    nsign(1) = nsign(1) + 1
+                                    tsign_id(nsign(1),1) = sing_ind(1)
+                                endif
+                            else if (det == 2) then
+                                if (btest(iLutI(i), ieor(j,1))) then
+                                    nsign(2) = nsign(2) + 1
+                                    tsign_id(nsign(2),2) = sing_ind(2)
+                                endif
+                            endif
                         endif
                     endif
                 enddo
