@@ -2241,7 +2241,7 @@ MODULE GenRandSymExcitNUMod
             
             iSpinIndex=(kb_ms+1)/2+1
             Hole2BasisNum=kPointToBasisFn(kb(1),kb(2),kb(3),iSpinIndex)
-            
+           
             IF(Hole1BasisNum.eq.Hole2BasisNum) THEN
                 nJ(1)=0 
                 RETURN
@@ -2266,6 +2266,7 @@ MODULE GenRandSymExcitNUMod
                     WRITE(6,*) "kj ", kj
                     WRITE(6,*) "ka ", ka
                     WRITE(6,*) "kb should be ", kb
+                    WRITE(6,*) "but found as ", G1(Hole2BasisNum)%k
                     CALL Stop_All("CreateDoubExcitLattice", "Wrong b found")
                 ENDIF
             ENDDO
@@ -2851,8 +2852,8 @@ SUBROUTINE SpinOrbSymSetup(tRedoSym)
             IF(G1(i)%k(1).lt.kminX) kminX=G1(i)%k(1)
             IF(G1(i)%k(2).gt.kmaxY) kmaxY=G1(i)%k(2)
             IF(G1(i)%k(2).lt.kminY) kminY=G1(i)%k(2)
-            IF(G1(i)%k(3).gt.kmaxY) kmaxZ=G1(i)%k(3)
-            IF(G1(i)%k(3).lt.kminY) kminZ=G1(i)%k(3)
+            IF(G1(i)%k(3).gt.kmaxZ) kmaxZ=G1(i)%k(3)
+            IF(G1(i)%k(3).lt.kminZ) kminZ=G1(i)%k(3)
         enddo
         ALLOCATE(kPointToBasisFn(kminX:kmaxX,kminY:kmaxY,kminZ:kmaxZ,2))
         do i=1,nBasis
