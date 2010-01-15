@@ -47,6 +47,8 @@ MODULE DetCalc
       INTEGER tagW
 
       REAL*8 , ALLOCATABLE :: ExpandedHamil(:,:)    ! (NDet,NDet) This is the hamiltonian in expanded form, so that it can be histogrammed against.
+
+      INTEGER iExcitLevel                 ! The excitation level at which determinants are cut off.  This differs from ICILevel for tCCBuffer.
     
 CONTAINS
     Subroutine DetCalcInit
@@ -57,6 +59,7 @@ CONTAINS
         use SystemData, only : tCSFOLD,lms, lms2, nBasis, nBasisMax, nEl, SymRestrict
         use SystemData, only : Alat, arr, brr, boa, box, coa, ecore, g1,Beta
         use SystemData, only : tParity, tSpn,Symmetry,STot, NullBasisFn
+        use CCMCData,   only : tCCBuffer !This is messy, but I don't see anywhere else to put it. AJWT
         Type(BasisFn) ISym
 
         integer i,ii,j
@@ -105,10 +108,17 @@ CONTAINS
 
 
 !C      IF(TCALCHMAT.OR.NPATHS.NE.0.OR.DETINV.GT.0.OR.TBLOCK) THEN
+      iExcitLevel=ICILEVEL
+      if(tCCBuffer.and.iExcitLevel/=0) then
+!Buffered CC needs two excitation levels more than the level of truncation.
+         iExcitLevel=min(iExcitLevel+2,nEl)
+         if(iExcitLevel/=ICILEVEL) WRITE(6,*) "Extending determinant list to ",IExcitLevel,   &
+     &      "-fold excitations for Buffered CC."
+      endif
       IF(tFindDets) THEN
 !C..Need to determine the determinants
-         IF(ICILEVEL.NE.0) THEN
-            WRITE(6,*) "Performing truncated CI at level ",ICILEVEL
+         IF(iExcitLevel.NE.0) THEN
+            WRITE(6,*) "Performing truncated CI at level ",iExcitLevel
             IF(TSPECDET) THEN
                WRITE(6,*) "Using SPECDET:"
                CALL WRITEDET(6,SPECDET,NEL,.TRUE.)!
@@ -119,7 +129,7 @@ CONTAINS
             ENDIF 
             IF(TCSFOLD) WRITE(6,*) "Determining CSFs."
 !C.. if we're doing a truncated CI expansion
-            CALL GENEXCIT(FDET,ICILEVEL,NBASIS,NEL,0,0,NDET,1,G1,.TRUE.,NBASISMAX,.TRUE.)
+            CALL GENEXCIT(FDET,iExcitLevel,NBASIS,NEL,0,0,NDET,1,G1,.TRUE.,NBASISMAX,.TRUE.)
             WRITE(6,*) "NDET out of GENEXCIT ",NDET
 !C.. We need to add in the FDET
             NDET=NDET+1
@@ -191,13 +201,13 @@ CONTAINS
 
 
          NDET=II   
-         IF(ICILEVEL.NE.0) THEN
+         IF(iExcitLevel.NE.0) THEN
 !C.. Use HAMIL to temporarily hold a list of excitation levels
             CALL NECI_ICOPY(NEL,FDET,1,NMRKS,1)
             Allocate(Hamil(II), stat=ierr)
             LogAlloc(ierr, 'HAMIL', II, HElementSizeB, tagHamil)
             NDET=0
-            CALL GENEXCIT(FDET,ICILEVEL,NBASIS,NEL,NMRKS(1,2),HAMIL,NDET,1,G1,.TRUE.,NBASISMAX,.FALSE.)
+            CALL GENEXCIT(FDET,iExcitLevel,NBASIS,NEL,NMRKS(1,2),HAMIL,NDET,1,G1,.TRUE.,NBASISMAX,.FALSE.)
             Deallocate(Hamil)
             LogDealloc(tagHamil)
             NDET=NDET+1
@@ -629,10 +639,10 @@ CONTAINS
                     ENDIF
                 ENDIF
             enddo
-            IF(ICILevel.le.0) THEN
+            IF(iExcitLevel.le.0) THEN
                 MaxIndex=NEl
             ELSE
-                MaxIndex=MIN(ICILevel,NEl)
+                MaxIndex=MIN(iExcitLevel,NEl)
             ENDIF
 !NB FCIDetIndex is off by 1 for later cumulation
             do i=1,MaxIndex
