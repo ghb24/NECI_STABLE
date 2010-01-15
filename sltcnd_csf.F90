@@ -40,7 +40,6 @@ contains
 
         case (1)
             ! The determinants differ by only one orbital
-            ! TODO: For speed, can do a no-tSign version...
             ex(1,1) = IC
             call GetBitExcitation (iLutI, iLutJ, ex, tSign)
             sltcnd_csf = sltcnd_csf_1 (nI, Ex(:,1), tSign)

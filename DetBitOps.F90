@@ -176,6 +176,46 @@ module DetBitOps
             FindBitExcitLevel = CountBits(tmp, NIfD)
         endif
     end function FindBitExcitLevel
+
+    pure subroutine get_bit_excitmat (ilutI, iLutJ, ex, IC)
+        
+        ! Obatin the excitation matrix between two determinants from their bit
+        ! representation without calculating tSign --> a bit quicker.
+        !
+        ! In:    iLutI, iLutJ - Bit representations of determinants I,J
+        ! InOut: IC           - Specify max IC before bailing, and return
+        !                       number of orbital I,J differ by
+        ! Out:   ex           - Excitation matrix between I,J
+
+        integer, intent(in) :: iLutI(0:NIfD), iLutJ(0:NIfD)
+        integer, intent(inout)  :: IC
+        integer, intent(out), dimension(2,IC) :: ex
+
+        integer :: ilut(0:NIfD,2), pos(2), max_ic, i, j, k
+
+        ! Obtain bit representations of I,J containing only unique orbitals
+        ilut(:,1) = ieor(ilutI, ilutJ)
+        ilut(:,2) = iand(ilutJ, ilut(:,1))
+        ilut(:,1) = iand(ilutI, ilut(:,1))
+
+        max_ic = IC
+        pos = 0
+        IC = 0
+        do i=0,NIfD
+            do j=0,31
+                do k=1,2
+                    if (pos(k) < max_ic) then
+                        if (btest(ilut(i,k), j)) then
+                            pos(k) = pos(k) + 1
+                            IC = max(IC, pos(k))
+                            ex(k, pos(k)) = 32*i + j + 1
+                        endif
+                    endif
+                enddo
+                if (pos(1) >= max_ic .and. pos(2) >= max_ic) return
+            enddo
+        enddo
+    end subroutine
     
     subroutine get_bit_open_unique_ind (iLutI, iLutJ, op_ind, nop, &
                                         tsign_id, nsign, IC)
