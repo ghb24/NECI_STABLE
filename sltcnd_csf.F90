@@ -27,13 +27,9 @@ contains
 
         integer, intent(in) :: nI(nel), nJ(nel)
         integer, intent(in) :: iLutI(0:NIfTot), iLutJ(0:NIfTot)
-        logical, intent(in), optional :: twiddle, twit
-        integer, intent(in), optional :: odd(2,2)
         integer :: IC, ex(2,2)
         logical :: tSign
 
-        integer :: tmp, i, j
-        
         ! Get the excitation level
         IC = FindBitExcitLevel (iLutI, iLutJ)
 

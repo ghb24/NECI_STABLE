@@ -581,6 +581,12 @@ contains
             endif
         enddo
 
+        ! If there are no singles from this CSF, return failure
+        if (elecsWNoExcits == nel) then
+            nJ(1) = 0
+            return
+        endif
+
         ! 250 attempts to pick randomly
         do i=1,250
             ! Pick an electron at random, and extract its orbital
