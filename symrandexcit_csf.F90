@@ -675,6 +675,7 @@ contains
         endif
 
         nJ = iand(nI, csf_orbital_mask)
+
         ! ExcitMat is the index of the orbital to excite from, and the actual
         ! orbital to excite to
         ExcitMat(1,1) = elec
@@ -683,8 +684,11 @@ contains
         ! Call csf_find_excit_det to generate the determinants and return the
         ! number of possible csfs associated with the spatial configuration.
         ncsf = 1
-        call csf_find_excit_det (ExcitMat(:,1), nJ, iLut, nopen, &
-                                 lnopen, ncsf, .true.)
+        call csf_find_excit_det_general (Excitmat(:,1), nJ, iLut, nopen, 1, &
+                                         ncsf, lnopen)
+        ! TODO: decide which version to use here.
+        !call csf_find_excit_det (ExcitMat(:,1), nJ, iLut, nopen, &
+        !                         lnopen, ncsf, .true.)
 
         ! Generation probability
         pGen = pSingle / real(nexcit * (nel - elecsWNoExcits) * ncsf) 
@@ -1137,7 +1141,7 @@ contains
 
         ! If we have specified a yamanouchi symbol(s) apply it. Otherwise
         ! we must pick a random one.
-        if (bApplyYama) then
+        if (bApplyYama .and. nopen_new > 0) then
             if (present(yama)) then
                 forall (i=2:ncsf) nJ(i,:) = nJ(1,:)
                 do i=1,ncsf
