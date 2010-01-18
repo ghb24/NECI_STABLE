@@ -289,7 +289,7 @@ MODULE Determinants
          use SystemData, only : nEl,nBasisMax,G1,nBasis,Brr
          use SystemData, only : ECore,ALat,NMSH, tCSF
          use IntegralsData, only : UMat,FCK,NMAX
-         use csf, only: iscsf, CSFGetHelement, CSFGetHelement_faster
+         use csf, only: iscsf, CSFGetHelement
          !integer, intent(in), optional, dimension(0:NIfTot) :: iLutI, iLutJ
          INTEGER NI(nEl),NJ(nEl),iC,ExcitMat(2,2),IC2
          LOGICAL TParity
@@ -297,19 +297,11 @@ MODULE Determinants
          IC=IC2
          GetHElement4%v=0.D0
 
+         ! If we are using CSFs, then call the csf routine.
          if (tCSF) then
+             ! TODO: pass through iLut. May need new GetHelement.
              if (iscsf(NI) .or. iscsf(NJ)) then
-                 ! TODO: get this pass-through working
-                 !if (.not. present iLutI .or. .not. present(iLutJ)) then
-                 !    gethelement4 = CSFGetHelement (nI, nJ)
-                 !else
-                 !    gethelement4 = csf_get_helement_bit (nI, nJ, ilutI,ilutJ)
-                 !endif
-                 !print*, '---------------'
-                 gethelement4 = CSFGetHelement_faster(nI, nJ)
-                 !print*, 'faster', gethelement4%v
-                 !gethelement4 = csfgethelement (nI, nJ)
-                 !print*, 'slower', gethelement4%v
+                 gethelement4 = CSFGetHelement (nI, nJ)
                  return
              endif
          endif
