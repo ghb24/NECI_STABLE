@@ -1,7 +1,7 @@
 !This module is to be used for various types of walker MC annihilation in serial and parallel.
 MODULE AnnihilationMod
     use SystemData , only : NEl,tMerTwist,tHPHF,NIfTot,NIfDBO
-    use CalcData , only : TRegenExcitgens,tAnnihilatebyRange,tUseGuide,tRegenDiagHEls,iInitGuideParts,iGuideDets,tKeepDoubleSpawns
+    use CalcData , only : TRegenExcitgens,tAnnihilatebyRange,tUseGuide,tRegenDiagHEls,iInitGuideParts,iGuideDets,tKeepDoubleSpawns,tReadPops
     USE DetCalc , only : Det,FCIDetIndex
     USE Logging , only : tHistSpawn
     USE Parallel
@@ -26,6 +26,7 @@ MODULE AnnihilationMod
         CALL SendProcNewParts(MaxIndex)
 
 !        WRITE(6,*) "Sent particles"
+!        WRITE(6,*) 'MaxIndex',MaxIndex
 !        CALL FLUSH(6)
 
 !CompressSpawnedList works on SpawnedParts arrays, so swap the pointers around.
@@ -79,11 +80,16 @@ MODULE AnnihilationMod
 !        WRITE(6,*) "ValidSpawnedList ",ValidSpawnedList(:)
 
         Gap=REAL(MaxSpawned)/REAL(nProcessors)
+
 !        WRITE(6,*) "Gap: ",Gap
+
         do i=0,nProcessors-1
             sendcounts(i+1)=ValidSpawnedList(i)-(NINT(Gap*i)+1)
             disps(i+1)=NINT(Gap*i)
         enddo
+
+!        WRITE(6,*) 'sendcounts',sendcounts
+!        WRITE(6,*) 'disps',disps
 
         MaxSendIndex=ValidSpawnedList(nProcessors-1)-1
 
@@ -269,6 +275,9 @@ MODULE AnnihilationMod
             ENDIF
         enddo
         IF(DetsMerged.ne.ToRemove) THEN
+            WRITE(6,*) 'DetsMerged = ',DetsMerged
+            WRITE(6,*) 'ToRemove = ',ToRemove
+            CALL FLUSH(6)
             CALL Stop_All("CompressSpawnedList","Wrong number of entries removed from spawned list")
         ENDIF
         ValidSpawned=ValidSpawned-DetsMerged
@@ -515,7 +524,7 @@ MODULE AnnihilationMod
         USE Determinants , only : GetHElement3
         use DetBitOps, only: DecodeBitDet
         INTEGER :: TotWalkersNew,ValidSpawned
-        INTEGER :: i,DetsMerged,nJ(NEl)
+        INTEGER :: i,DetsMerged,nJ(NEl),ierr
         REAL*8 :: HDiag
         TYPE(HElement) :: HDiagTemp
 
@@ -538,22 +547,24 @@ MODULE AnnihilationMod
 
         TotParts=0
         DetsMerged=0
-        do i=1,TotWalkersNew
-            IF(CurrentSign(i).eq.0) THEN
-                DetsMerged=DetsMerged+1
-            ELSE
+        IF(TotWalkersNew.gt.0) THEN
+            do i=1,TotWalkersNew
+                IF((CurrentSign(i).eq.0).and.(CurrentDets(0,i).ne.0)) THEN
+                    DetsMerged=DetsMerged+1
+                ELSE
 !We want to move all the elements above this point down to 'fill in' the annihilated determinant.
-                IF(DetsMerged.ne.0) THEN
-                    CurrentDets(0:NIfTot,i-DetsMerged)=CurrentDets(0:NIfTot,i)
-                    CurrentSign(i-DetsMerged)=CurrentSign(i)
-                    IF(.not.tRegenDiagHEls) THEN
-                        CurrentH(i-DetsMerged)=CurrentH(i)
+                    IF(DetsMerged.ne.0) THEN
+                        CurrentDets(0:NIfTot,i-DetsMerged)=CurrentDets(0:NIfTot,i)
+                        CurrentSign(i-DetsMerged)=CurrentSign(i)
+                        IF(.not.tRegenDiagHEls) THEN
+                            CurrentH(i-DetsMerged)=CurrentH(i)
+                        ENDIF
                     ENDIF
+                    TotParts=TotParts+abs(CurrentSign(i))
                 ENDIF
-                TotParts=TotParts+abs(CurrentSign(i))
-            ENDIF
-        enddo
-        TotWalkersNew=TotWalkersNew-DetsMerged
+            enddo
+            TotWalkersNew=TotWalkersNew-DetsMerged
+        ENDIF
 
 !        do i=1,TotWalkersNew
 !            IF(CurrentSign(i).eq.0) THEN
@@ -589,10 +600,9 @@ MODULE AnnihilationMod
 !TotWalkersNew is now the number of non-annihilated determinants in the main list left.
 !We now want to merge the main list with the spawned list of non-annihilated spawned particles.
 !The final list will be of length TotWalkersNew+ValidSpawned. This will be returned in the first element of MergeLists updated.
-        
+
        
         IF(tRegenDiagHEls) THEN
-
             IF(TotWalkersNew.eq.0) THEN
 !Merging algorithm will not work with no determinants in the main list.
                 TotWalkersNew=ValidSpawned
@@ -974,6 +984,7 @@ MODULE AnnihilationMod
 !Max index is the largest occupied index in the array of hashes to be ordered in each processor 
         IF(MaxIndex.gt.(0.93*MaxSpawned)) THEN
             CALL Warning("AnnihilateBetweenSpawned","Maximum index of annihilation array is close to maximum length. Increase MemoryFacSpawn")
+            IF(tReadPops) CALL Warning("AnnihilateBetweenSpawned","When reading in a POPSFILE, MemoryFacSpawn must be greater than 1.0")
         ENDIF
 
 !Uncomment this if you want to write out load-balancing statistics.
@@ -1441,6 +1452,7 @@ MODULE AnnihilationMod
         INTEGER :: ExcitLevel
         LOGICAL :: tSuccess,tSuc!,tSkipSearch
 
+
         CALL set_timer(AnnMain_time,30)
 !        IF(Iter.eq.1877) THEN
 !            WRITE(6,*) "MainList: ",TotWalkersNew
@@ -1760,7 +1772,23 @@ MODULE AnnihilationMod
 !                ValidSpawned=ValidSpawned-1
 !            enddo
 
+        ELSE
+
+            IF(associated(SpawnedParts2,target=SpawnVec2)) THEN
+                SpawnedParts2 => SpawnVec
+                SpawnedSign2 => SpawnSignVec
+                SpawnedParts => SpawnVec2
+                SpawnedSign => SpawnSignVec2
+            ELSE
+                SpawnedParts => SpawnVec
+                SpawnedSign => SpawnSignVec
+                SpawnedParts2 => SpawnVec2
+                SpawnedSign2 => SpawnSignVec2
+            ENDIF
+
         ENDIF
+
+
 
 !        do i=1,ValidSpawned
 !            WRITE(6,*) SpawnedParts(:,i),SpawnedSign(i)
