@@ -594,7 +594,7 @@ The following options are only available in **FCIMC** calculations:
 
 **STARTMP1**
     Set the initial configuration of walkers to be proportional to the MP1 wavefunction. The shift will also
-    now be set to the MP2 correlation energy.
+    now be set to the MP2 correlation energy.  This also works in CCMC Amplitude
 
 **GROWMAXFACTOR** [GrowMaxFactor]
     Default 9000.

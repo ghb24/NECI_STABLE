@@ -212,6 +212,15 @@ MODULE SymExcit3
                     IF((G1(Orbi)%Ms).eq.-1) Spini=2  
                     IF((G1(Orbi)%Ms).eq.1) Spini=1  
                     OrbaIndex=SymLabelCounts2(1,ClassCountInd(Spini,Symi,0))
+                ELSE
+                    IF(exflag.ne.1) THEN
+                        ExcitMat3(:,:)=0
+                        CALL GenDoubleExcit(nI,iLut,nJ,ExcitMat3,tParity,tAllExcitFound)
+                        exflag=2
+                    ELSE
+                        tAllExcitFound=.true.
+                        tInitOrbsFound=.true.
+                    ENDIF
                 ENDIF
 
             ELSE
@@ -305,7 +314,6 @@ MODULE SymExcit3
 
         enddo
 
-
         IF(ExcitMat3(1,2).eq.0) CALL FindNewSingDet(nI,nJ,OrbiIndex,OrbA,ExcitMat3,tParity)
             
     ENDSUBROUTINE GenSingleExcit
@@ -334,15 +342,15 @@ MODULE SymExcit3
         Orbb=ExcitMat3(2,2)
 !        WRITE(6,*) 'Orbi,Orbj,Orba,Orbb',Orbi,Orbj,Orba,Orbb
 
-        do while (.not.tDoubleExcitFound)
-
-            IF(Orbi.eq.0) THEN
-                ijInd=1
+        IF(Orbi.eq.0) THEN
+            ijInd=1
 ! If Orbi, then we are choosing the first double.             
 ! It is therefore also the first set of a and b for this electron pair i,j.
-                tFirsta=.true.
-                tFirstb=.true.
-            ENDIF
+            tFirsta=.true.
+            tFirstb=.true.
+        ENDIF
+
+        do while (.not.tDoubleExcitFound)
 
 ! Otherwise we use the previous ijInd and the saved indexes for a and b.
 ! This routine allows us to pick an electron pair i,j specified by the index ijInd.
@@ -382,7 +390,6 @@ MODULE SymExcit3
 
 ! The orbital chosen must be unoccupied.  This is just a test to make sure this is the case.
                 do while (BTEST(iLut((Orba-1)/32),MOD((Orba-1),32))) 
-!                    WRITE(6,*) "Orbital a occupied"
 
 ! If not, we move onto the next orbital.                    
                     IF(iSpn.ne.2) THEN
@@ -460,6 +467,7 @@ MODULE SymExcit3
 ! If the new b orbital is still within the limits, check it is unoccupied and move onto the next orbital if it is.                    
                     IF(OrbbIndex.gt.nBasis) THEN
                         tNewa=.true.
+                        tFirsta=.false.
                     ELSE
                         IF(tNoSymGenRandExcits) THEN
                             NewSym=0
@@ -473,6 +481,7 @@ MODULE SymExcit3
                         IF(OrbbIndex.gt.(SymLabelCounts2(1,SymInd)+SymLabelCounts2(2,SymInd)-1)) THEN
 ! If we have already gone beyond the symmetry limits by choosing the next b orbital, pick a new a orbital.                        
                             tNewa=.true.
+                            tFirsta=.false.
                         ELSE
                             Orbb=SymLabelList2(OrbbIndex)
 ! Checking the orbital b is unoccupied and > a.                        
@@ -481,6 +490,7 @@ MODULE SymExcit3
                                 IF(OrbbIndex.ge.(SymLabelCounts2(1,SymInd)+SymLabelCounts2(2,SymInd)-1)) THEN
                                     !Reached end of symmetry block - need new a
                                     tNewa=.true.
+                                    tFirsta=.false.
                                     EXIT
                                 ENDIF
 
@@ -497,7 +507,7 @@ MODULE SymExcit3
                         IF(iSpn.ne.2) THEN
 !Increment by two, since we want to look at the same spin state.
                             OrbaChosen=OrbaChosen+2
-                            tFirsta=.false.
+!                            tFirsta=.false.
                         ELSE
 !Increment by one, since we want to look at both alpha and beta spins.
                             IF(Spina.eq.1) THEN
@@ -506,7 +516,7 @@ MODULE SymExcit3
                                 Spina=1
                             ENDIF
                             OrbaChosen=OrbaChosen+1
-                            tFirsta=.false.
+!                            tFirsta=.false.
                         ENDIF
                         tFirstb=.true.
                         IF(OrbaChosen.gt.nBasis) THEN
