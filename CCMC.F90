@@ -1403,7 +1403,7 @@ END SUBROUTINE
 ! ExcitList(0:nIfTot,nExcit)   contains the bit-compressed list of excitors
 ! ExcitLevelIndex(0:nEl+1)     is the index of the first det of each excitation level in ExcitList
 ! HFDet(nEl)                   is the reference determinant on which the excitors are based
-SUBROUTINE InitMP1Amplitude(tFCI,Amplitude,nExcit,ExcitList,ExcitLevelIndex,dInitAmplitude,dTotAbsAmpl)
+SUBROUTINE InitMP1Amplitude(tFCI,Amplitude,nExcit,ExcitList,ExcitLevelIndex,dInitAmp,dTotAbsAmpl)
    use CCMCData
    use SystemData, only: nEl,nIfTot
    use FciMCData, only: HFDet
@@ -1416,7 +1416,7 @@ SUBROUTINE InitMP1Amplitude(tFCI,Amplitude,nExcit,ExcitList,ExcitLevelIndex,dIni
    INTEGER nExcit
    INTEGER ExcitList(0:nIfTot,nExcit)
    INTEGER ExcitLevelIndex(0:nEl+1)
-   REAL*8 dInitAmplitude,dTotAbsAmpl
+   REAL*8 dInitAmp,dTotAbsAmpl
 
    INTEGER iC,i,j,l,iSgn
    REAL*8 dT1Sq,dAmp,dTmp
@@ -1429,7 +1429,7 @@ SUBROUTINE InitMP1Amplitude(tFCI,Amplitude,nExcit,ExcitList,ExcitLevelIndex,dIni
    iC=0
    H0HF=GetH0Element3(HFDet)
    Amplitude(:)=0
-   Amplitude(1)=dInitAmplitude
+   Amplitude(1)=dInitAmp
    dTotAbsAmpl=0
    do j=1,nExcit
       do while(j.ge.ExcitLevelIndex(iC+1).or.ExcitLevelIndex(iC).eq.ExcitLevelIndex(iC+1))  !Need to take into account if (e.g.) singles are empty (FCIDI(0:3) = 1 2 2 3, we want j=2 to get to iC=2 not iC=1
@@ -1440,7 +1440,7 @@ SUBROUTINE InitMP1Amplitude(tFCI,Amplitude,nExcit,ExcitList,ExcitLevelIndex,dIni
          Htmp=GetHElement3(HFDet, DetCurr,iC)
          H0tmp=GetH0Element3(DetCurr)
          H0tmp=H0tmp-H0HF
-         Amplitude(j)=Amplitude(j)-dInitAmplitude*DREAL(Htmp)/DREAL(H0tmp)
+         Amplitude(j)=Amplitude(j)-dInitAmp*DREAL(Htmp)/DREAL(H0tmp)
          if(iC.eq.1.and..not.tFCI) then
             do l=ExcitLevelIndex(1),j-1
                iSgn=1
@@ -1460,8 +1460,8 @@ SUBROUTINE InitMP1Amplitude(tFCI,Amplitude,nExcit,ExcitList,ExcitLevelIndex,dIni
             enddo
          endif
       endif
-      call WriteBitEx(6,iLutHF,ExcitList(:,j),.false.)
-      write(6,*) Amplitude(j)
+!      call WriteBitEx(6,iLutHF,ExcitList(:,j),.false.)
+!      write(6,*) Amplitude(j)
       dTotAbsAmpl=dTotAbsAmpl+abs(Amplitude(j))
    enddo
 END SUBROUTINE
