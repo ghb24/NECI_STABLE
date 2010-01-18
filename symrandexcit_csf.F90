@@ -110,7 +110,8 @@ contains
             endif
         case (1) ! Create single excitation
             call CSFCreateSingleExcit (nI, nJ, CCDbl, CCSgl, CCUn, iLut, &
-                                    ExcitMat, nopen, pSingle, pGen)
+                                    ExcitMat, nopen, pSingle, pGen, CCdblS, &
+                                    CCSglS, CCUnS)
         case (2) ! Create double excitation
             call CSFCreateDoubleExcit (nI, nJ, CCDblS, CCSglS, CCUnS, iLut, &
                                        ExcitMat, nopen, pDouble, pGen)
@@ -537,13 +538,16 @@ contains
     ! This routine returns the generation probability (pGen) and the
     ! excitation matrix
     subroutine CSFCreateSingleExcit (nI, nJ, CCDbl, CCSgl, CCUn, iLut, &
-                                     ExcitMat, nopen, pSingle, pGen)
+                                     ExcitMat, nopen, pSingle, pGen, CCDblS, &
+                                     CCSglS, CCUnS)
         integer, intent(in)  :: nI(nel), iLut(0:NIfTot), nopen
         integer, intent(out) :: nJ(nel)
         integer, intent(inout) :: ExcitMat(2,2)
         integer, intent(in)  :: CCSgl (ScratchSize) ! ClassCountSingleOcc2
         integer, intent(in)  :: CCDbl (ScratchSize) ! ClassCountDoubleOcc2
         integer, intent(in)  :: CCUn (ScratchSize)  ! ClassCountUnocc2
+        integer, intent(in)  :: CCUnS(ScratchSize/2), CCDblS(ScratchSize/2)
+        integer, intent(in)  :: CCSglS(ScratchSize/2)
         real*8,  intent(in)  :: pSingle
         real*8,  intent(out) :: pGen
         character(*), parameter :: this_routine = 'CSFCreateSingleExcit'
@@ -561,23 +565,44 @@ contains
         !endif
 
         lnopen = nopen
+        !print*, '============================'
+        !call writedet (6, nI, nel, .true.)
+        !print*, ccsgl
+        !print*,ccsglS
+        !print*, '-'
+        !print*, ccdbl
+        !print*, ccdbls
+        !print*, '-'
+        !print*, ccun
+        !print*, ccuns
+
+       ! do i=1,scratchsize
+       !     if ((CCDbl(i) /= CCDblS((i-1)/2 + 1)) .or. &
+       !         (CCSgl(I) /= CCSglS((i-1)/2 + 1)) .or. &
+       !         (CCUn(i) /= CCUnS((i-1)/2 + 1))) then
+       !         print*, 'index', i, (i-1)/2 + 1
+       !         call stop_all ("mismatch", "Here")
+       !     endif
+       ! enddo
+
+
 
         ! Loop over e- pairs to count e- with no excitations
         elecsWNoExcits = 0
-        do i=2,ScratchSize,2
+        do i=2,ScratchSize/2
             ! Disallowed from beta e- in doubles
-            if (CCDbl(i) /= 0) then
-                elecsWNoExcits = elecsWNoExcits + CCDbl(i)
+            if (CCDblS(i) /= 0) then
+                elecsWNoExcits = elecsWNoExcits + CCDblS(i)
             endif
 
             ! Only from singles if more singles or vacant with same sym
-            if ((CCSgl(i)/=0) .and. (CCSgl(i)<2) .and. (CCUn(i)==0)) then
-                elecsWNoExcits = elecsWNoExcits + CCSgl(i)
+            if ((CCSglS(i)/=0) .and. (CCSglS(i)<2) .and. (CCUnS(i)==0)) then
+                elecsWNoExcits = elecsWNoExcits + CCSglS(i)
             endif
 
             ! Alpha e- from doubles to singles or vacancies
-            if ((CCDbl(i-1)/=0) .and. (CCSgl(i)==0) .and. (CCUn(i)==0)) then
-                elecsWNoExcits = elecsWNoExcits + CCDbl(i-1)
+            if ((CCDblS(i)/=0) .and. (CCSglS(i)==0) .and. (CCUnS(i)==0)) then
+                elecsWNoExcits = elecsWNoExcits + CCDblS(i)
             endif
         enddo
 
@@ -774,9 +799,11 @@ contains
             enddo
 
             ! Now loop over the open shell electrons
+            ! TODO: changed ind --> ind+1
             do i = nclosed+1, nel
                 orb = iand (nI(i), csf_orbital_mask)
                 ind = ClassCountInd(2, int(G1(orb)%Sym%S,4), G1(orb)%Ml)
+                !ind = ibclr(ind-1,0)+1
                 CCSgl(ind) = CCSgl(ind) + 1
                 CCUn(ind) = CCUn(ind) - 1
             enddo
