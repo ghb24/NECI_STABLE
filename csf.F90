@@ -1073,6 +1073,8 @@ contains
         integer :: yamas (0:get_num_csfs(nopen, S), nopen), num
         real*8 :: r
 
+        if (nopen == 0) return
+
         ! Generate the Yamanouchi Symbols
         ncsf = size(yamas(:,1))-1
         call csf_get_yamas (nopen, S, yamas(1:,:), ncsf)
