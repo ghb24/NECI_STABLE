@@ -1284,10 +1284,10 @@ LOGICAL FUNCTION GetNextSpawner(S,iDebug)
    ELSE
 !      WRITE(6,*) tDone,S%dProbSpawn
 !      write(6,*) S%ExcitMat,tParity
-      Write(6,*) "Getting Excitations"
+!      Write(6,*) "Getting Excitations"
       CALL GenExcitations3(S%C%DetCurr,S%C%iLutDetCurr,S%nJ,S%exFlag,S%ExcitMat,tParity,tDone)
-      call WriteDet(6,S%nJ,nEl,.false.)
-      WRITE(6,*) tDone
+!      call WriteDet(6,S%nJ,nEl,.false.)
+!      WRITE(6,*) tDone
       if(S%ExcitMat(1,2).eq.0) then
          S%iExcitLevel=1
       else
@@ -1392,7 +1392,7 @@ SUBROUTINE CalcClusterEnergy(tFCI,Amplitude,nExcit,ExcitList,ExcitLevelIndex,Pro
       endif
    enddo
    ProjE=ENumCyc/(HFCyc+0.d0)
-END SUBROUTINE
+END SUBROUTINE CalcClusterEnergy
 
 
 !This runs over all singles and doubles in the list of excitors and initiates according to the MP1 wavefunction
@@ -1481,6 +1481,7 @@ END SUBROUTINE
       use FciMCData, only: TotParts,TotWalkers,TotWalkersOld,TotPartsOld,AllTotPartsOld,AllTotWalkersOld
       use FciMCData, only : HFDet
       use FciMCData, only: tTruncSpace
+      use FciMCData, only: ProjectionE
       use FciMCParMod, only: iLutHF
       use FciMCParMod, only: CheckAllowedTruncSpawn, SetupParameters,BinSearchParts3
       use FciMCParMod, only: CalcNewShift,InitHistMin
@@ -2113,6 +2114,8 @@ END SUBROUTINE
          LogDealloc(tagAmplitudeBuffer)
          DeAllocate(AmplitudeBuffer)
       endif
+      Weight=HDElement(0.D0)
+      Energyxw=HDElement(ProjectionE)
    END SUBROUTINE CCMCStandalone
 
 !Add the excitation in iLutnJ to iLutnI and return it in iLutnI.  iSgn is
