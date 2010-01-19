@@ -127,7 +127,7 @@ MODULE FciMCParMod
                 IF(tWritePopsFound) THEN
 !We have explicitly asked to write out the POPSFILE from the CHANGEVARS file.
                     IF(tRotoAnnihil.or.tDirectAnnihil) THEN
-                        CALL WriteToPopsFileParOneArr()
+                        CALL WriteToPopsfileParOneArr()
                     ELSE
                         CALL WriteToPopsFilePar()
                     ENDIF
@@ -148,9 +148,9 @@ MODULE FciMCParMod
             IF(TPopsFile.and.(mod(Iter,iWritePopsEvery).eq.0)) THEN
 !This will write out the POPSFILE if wanted
                 IF(tRotoAnnihil.or.tDirectAnnihil) THEN
-                    CALL WriteToPopsFileParOneArr()
+                    CALL WriteToPopsfileParOneArr()
                 ELSE
-                    CALL WriteToPopsFilePar()
+                    CALL WriteToPopsfilePar()
                 ENDIF
             ENDIF
 !            IF(TAutoCorr) CALL WriteHistogrammedDets()
@@ -169,9 +169,9 @@ MODULE FciMCParMod
         IF(TIncrement) Iter=Iter-1     !Reduce the iteration count for the POPSFILE since it is incremented upon leaving the loop (if done naturally)
         IF(TPopsFile) THEN
             IF(tRotoAnnihil.or.tDirectAnnihil) THEN
-                CALL WriteToPopsFileParOneArr()
+                CALL WriteToPopsfileParOneArr()
             ELSE
-                CALL WriteToPopsFilePar()
+                CALL WriteToPopsfilePar()
             ENDIF
         ENDIF
         IF(tCalcFCIMCPsi) THEN
@@ -2512,12 +2512,17 @@ MODULE FciMCParMod
 !First, make sure we have up-to-date information - again collect AllTotWalkers,AllSumNoatHF and AllSumENum...
 !        CALL MPI_Reduce(TotWalkers,AllTotWalkers,1,MPI_INTEGER,MPI_Sum,root,MPI_COMM_WORLD,error)    
 !Calculate the energy by summing all on HF and doubles - convert number at HF to a real since no int*8 MPI data type
+        WRITE(6,*) 'AllNoatHF',AllNoatHF
+        WRITE(6,*) 'SumENum',SumENum
+        WRITE(6,*) 'TotWalkers',TotWalkers
+        WRITE(6,*) 'AllTotWalkers',AllTotWalkers
         TempSumNoatHF=real(SumNoatHF,r2)
         CALL MPIDSumRoot(TempSumNoatHF,1,AllSumNoatHF,Root)
         CALL MPIDSumRoot(SumENum,1,AllSumENum,Root)
 
 !We also need to tell the root processor how many particles to expect from each node - these are gathered into WalkersonNodes
         CALL MPI_AllGather(TotWalkers,1,MPI_INTEGER,WalkersonNodes,1,MPI_INTEGER,MPI_COMM_WORLD,error)
+        WRITE(6,*) 'WalkersonNodes',WalkersonNodes
         do i=0,nProcessors-1
             IF(INT(WalkersonNodes(i)/iPopsPartEvery).lt.1) THEN
                 RETURN
@@ -2535,6 +2540,7 @@ MODULE FciMCParMod
                 Total=Total+INT(WalkersonNodes(i)/iPopsPartEvery)
             enddo
             AllTotWalkers=REAL(Total,r2)
+            WRITE(6,*) 'AllTotWalkers',AllTotWalkers
 !            IF(Total.ne.AllTotWalkers) THEN
 !                CALL Stop_All("WriteToPopsfilePar","Not all walkers accounted for...")
 !            ENDIF
@@ -2954,7 +2960,7 @@ MODULE FciMCParMod
 !Just allocating this here, so that the SpawnParts arrays can be used for sorting the determinants when using direct annihilation.
         IF(tRotoAnnihil.or.tDirectAnnihil) THEN
 
-            WRITE(6,"(A,I12,A)") "Spawning vectors allowing for a total of ",MaxSpawned," particles to be spawned in any one iteration."
+            WRITE(6,"(A,I12,A)") " Spawning vectors allowing for a total of ",MaxSpawned," particles to be spawned in any one iteration."
             ALLOCATE(SpawnVec(0:NIfTot,MaxSpawned),stat=ierr)
             CALL LogMemAlloc('SpawnVec',MaxSpawned*(NIfTot+1),4,this_routine,SpawnVecTag,ierr)
             SpawnVec(:,:)=0
@@ -3061,8 +3067,6 @@ MODULE FciMCParMod
 
             IF(iProcIndex.ne.root) AllTotWalkers=0
             !Walkers are only read in from the root processor - this is just making sure it is clear the other processers don't currently have any walkers to distribute.
-
-            WRITE(6,*) 'AllTotWalkers',AllTotWalkers
 
             CALL MPI_Barrier(MPI_COMM_WORLD,error)  !Sync
 
@@ -3208,7 +3212,7 @@ MODULE FciMCParMod
         ENDIF
 
 
-        IF(iProcIndex.eq.root) WRITE(6,*) INT(AllTotWalkers,i2)," configurations read in from POPSFILE and distributed."
+        IF(iProcIndex.eq.root) WRITE(6,'(I10,A)') INT(AllTotWalkers,i2)," configurations read in from POPSFILE and distributed."
 
         IF(ScaleWalkers.ne.1) THEN
 
@@ -3340,11 +3344,10 @@ MODULE FciMCParMod
                 IF(iProcIndex.eq.root) THEN
                     AllTotWalkers=TotWalkers
                     AllTotWalkersOld=AllTotWalkers
-                    WRITE(6,*) "Total number of initial walkers is now: ",INT(AllTotWalkers,i2)
+                    WRITE(6,'(A,I10)') " Number of initial walkers on this processor is now: ",INT(AllTotWalkers,i2)
                 ENDIF
                 TotWalkers=CurrWalkers
                 TotWalkersOld=CurrWalkers
-
             ELSE
 
                 TotWalkers=TempInitWalkers      !Set the total number of walkers
@@ -3372,7 +3375,7 @@ MODULE FciMCParMod
             ENDIF
         ENDIF
 
-        WRITE(6,"(A,F14.6,A)") "Initial memory (without excitgens) consists of : ",REAL(MemoryAlloc,r2)/1048576.D0," Mb"
+        WRITE(6,"(A,F14.6,A)") " Initial memory (without excitgens) consists of : ",REAL(MemoryAlloc,r2)/1048576.D0," Mb"
         WRITE(6,*) "Initial memory allocation successful..."
         CALL FLUSH(6)
 
@@ -3417,6 +3420,7 @@ MODULE FciMCParMod
 
 !Now find out the data needed for the particles which have been read in...
         First=.true.
+        TotParts=0
         do j=1,TotWalkers
             CALL DecodeBitDet(TempnI,CurrentDets(:,j))
             CALL FindBitExcitLevel(iLutHF,CurrentDets(:,j),Excitlevel,2)
@@ -3463,6 +3467,8 @@ MODULE FciMCParMod
         CALL MPI_Reduce(TempTotParts,AllTotParts,1,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
 
         IF(iProcIndex.eq.root) AllTotPartsOld=AllTotParts
+
+        WRITE(6,'(A,F20.1)') ' The total number of particles read from the POPSFILE is: ',AllTotParts
 
         RETURN
 
@@ -3555,7 +3561,7 @@ MODULE FciMCParMod
 
         IF(tRotoAnnihil) THEN
             
-            WRITE(6,"(A,I12,A)") "Spawning vectors allowing for a total of ",MaxSpawned," particles to be spawned in any one iteration."
+            WRITE(6,"(A,I12,A)") " Spawning vectors allowing for a total of ",MaxSpawned," particles to be spawned in any one iteration."
             ALLOCATE(SpawnVec(0:NIfTot,MaxSpawned),stat=ierr)
             CALL LogMemAlloc('SpawnVec',MaxSpawned*(NIfTot+1),4,this_routine,SpawnVecTag,ierr)
             SpawnVec(:,:)=0
