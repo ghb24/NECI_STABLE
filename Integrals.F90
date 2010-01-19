@@ -1530,7 +1530,7 @@ END MODULE Integrals
 
 SUBROUTINE CALCTMATUEG(NBASIS,ALAT,G1,CST,TPERIODIC,OMEGA)
   USE HElem
-  use SystemData, only: BasisFN
+  use SystemData, only: BasisFN, k_offset
   USE OneEInts, only : SetupTMAT,TMAT2D,TSTARSTORE
   IMPLICIT NONE
   INTEGER NBASIS
