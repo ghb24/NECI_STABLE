@@ -549,7 +549,7 @@ MODULE AnnihilationMod
         DetsMerged=0
         IF(TotWalkersNew.gt.0) THEN
             do i=1,TotWalkersNew
-                IF((CurrentSign(i).eq.0).and.(CurrentDets(0,i).ne.0)) THEN
+                IF(CurrentSign(i).eq.0) THEN
                     DetsMerged=DetsMerged+1
                 ELSE
 !We want to move all the elements above this point down to 'fill in' the annihilated determinant.
@@ -1452,7 +1452,6 @@ MODULE AnnihilationMod
         INTEGER :: ExcitLevel
         LOGICAL :: tSuccess,tSuc!,tSkipSearch
 
-
         CALL set_timer(AnnMain_time,30)
 !        IF(Iter.eq.1877) THEN
 !            WRITE(6,*) "MainList: ",TotWalkersNew
@@ -1772,23 +1771,7 @@ MODULE AnnihilationMod
 !                ValidSpawned=ValidSpawned-1
 !            enddo
 
-        ELSE
-
-            IF(associated(SpawnedParts2,target=SpawnVec2)) THEN
-                SpawnedParts2 => SpawnVec
-                SpawnedSign2 => SpawnSignVec
-                SpawnedParts => SpawnVec2
-                SpawnedSign => SpawnSignVec2
-            ELSE
-                SpawnedParts => SpawnVec
-                SpawnedSign => SpawnSignVec
-                SpawnedParts2 => SpawnVec2
-                SpawnedSign2 => SpawnSignVec2
-            ENDIF
-
         ENDIF
-
-
 
 !        do i=1,ValidSpawned
 !            WRITE(6,*) SpawnedParts(:,i),SpawnedSign(i)

@@ -2512,17 +2512,12 @@ MODULE FciMCParMod
 !First, make sure we have up-to-date information - again collect AllTotWalkers,AllSumNoatHF and AllSumENum...
 !        CALL MPI_Reduce(TotWalkers,AllTotWalkers,1,MPI_INTEGER,MPI_Sum,root,MPI_COMM_WORLD,error)    
 !Calculate the energy by summing all on HF and doubles - convert number at HF to a real since no int*8 MPI data type
-        WRITE(6,*) 'AllNoatHF',AllNoatHF
-        WRITE(6,*) 'SumENum',SumENum
-        WRITE(6,*) 'TotWalkers',TotWalkers
-        WRITE(6,*) 'AllTotWalkers',AllTotWalkers
         TempSumNoatHF=real(SumNoatHF,r2)
         CALL MPIDSumRoot(TempSumNoatHF,1,AllSumNoatHF,Root)
         CALL MPIDSumRoot(SumENum,1,AllSumENum,Root)
 
 !We also need to tell the root processor how many particles to expect from each node - these are gathered into WalkersonNodes
         CALL MPI_AllGather(TotWalkers,1,MPI_INTEGER,WalkersonNodes,1,MPI_INTEGER,MPI_COMM_WORLD,error)
-        WRITE(6,*) 'WalkersonNodes',WalkersonNodes
         do i=0,nProcessors-1
             IF(INT(WalkersonNodes(i)/iPopsPartEvery).lt.1) THEN
                 RETURN
@@ -2540,7 +2535,6 @@ MODULE FciMCParMod
                 Total=Total+INT(WalkersonNodes(i)/iPopsPartEvery)
             enddo
             AllTotWalkers=REAL(Total,r2)
-            WRITE(6,*) 'AllTotWalkers',AllTotWalkers
 !            IF(Total.ne.AllTotWalkers) THEN
 !                CALL Stop_All("WriteToPopsfilePar","Not all walkers accounted for...")
 !            ENDIF
