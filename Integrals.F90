@@ -1535,7 +1535,7 @@ SUBROUTINE CALCTMATUEG(NBASIS,ALAT,G1,CST,TPERIODIC,OMEGA)
   IMPLICIT NONE
   INTEGER NBASIS
   TYPE(BASISFN) G1(NBASIS)
-  REAL*8 ALAT(4),HFBASIS(NBASIS,NBASIS),CST
+  REAL*8 ALAT(4),HFBASIS(NBASIS,NBASIS),CST,K_REAL(3)
   INTEGER I,J
   INTEGER iSIZE
   REAL*8 SUM,S1,OMEGA
@@ -1546,8 +1546,9 @@ SUBROUTINE CALCTMATUEG(NBASIS,ALAT,G1,CST,TPERIODIC,OMEGA)
   IF(TSTARSTORE) STOP 'Cannot use TSTARSTORE with UEG'
   CALL SetupTMAT(NBASIS,2,iSIZE)
   DO I=1,NBASIS
-    TMAT2D(I,I)=((ALAT(1)**2)*((G1(I)%K(1)**2)/(ALAT(1)**2)+        &
-&        (G1(I)%K(2)**2)/(ALAT(2)**2)+(G1(I)%K(3)**2)/(ALAT(3)**2)))
+    K_REAL=G1(I)%K+K_OFFSET
+    TMAT2D(I,I)=((ALAT(1)**2)*((K_REAL(1)**2)/(ALAT(1)**2)+        &
+&        (K_REAL(2)**2)/(ALAT(2)**2)+(K_REAL(3)**2)/(ALAT(3)**2)))
     TMAT2D(I,I)=TMAT2D(I,I)*HElement(CST)
 !..  The G=0 component is explicitly calculated for the cell interactions as 2 PI Rc**2 .
 !   we *1/2 as we attribute only half the interaction to this cell.
