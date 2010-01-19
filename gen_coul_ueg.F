@@ -370,6 +370,7 @@ C..Cube arrays
          K=(IDK-1)*ISS+1
          L=(IDL-1)*ISS+1
          TCOULOMB=.FALSE.
+         TEXCHANGE=.FALSE.
          IF(I.EQ.K.AND.J.EQ.L) TCOULOMB=.TRUE.
          IF(I.EQ.L.AND.J.EQ.K) TEXCHANGE=.TRUE.
 !   The Uniform electron gas
@@ -409,7 +410,7 @@ C..Cube arrays
                   SUM=SUM*(1.D0-EXP(-(G*ALAT(4))**2/2.D0))
                ENDIF
              ENDIF
-           ELSE
+           ELSE ! <ii|ii>
             sum=0.d0
             IF(.NOT.TCOULOMB .AND. iExchangeDampingType/=0) THEN
                ! The G=0 component is explicitly calculated for
@@ -418,6 +419,7 @@ C..Cube arrays
                ! attenuated and screened potentials and
                ! considering the limit of G->0.  Both give the same
                ! result.
+               CALL STOP_ALL("GetUEGUmatEl","<ii|ii> calculation error")
                SUM=2*PI*ALAT(4)**2/(ALAT(1)*ALAT(2)*ALAT(3))
             END IF
            ENDIF
