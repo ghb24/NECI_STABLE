@@ -1503,5 +1503,5 @@ SUBROUTINE GetUEGKE(I,J,K,ALAT,tUEGOffset,k_offset,Energy)
       E=E+(J*J/ALAT(2)**2)
       E=E+(K*K/ALAT(3)**2)
    endif
-   Energy=4*PI*PI*E
+   Energy=0.5*4*PI*PI*E
 END SUBROUTINE GetUEGKE
