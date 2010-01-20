@@ -2558,6 +2558,7 @@ MODULE FciMCParMod
             ELSE
                 OPEN(17,FILE='POPSFILE',Status='replace')
             ENDIF
+            WRITE(17,*) nProcessors,"   PROCESSORS"
             WRITE(17,*) AllTotWalkers,"   TOTWALKERS (all nodes)"
             WRITE(17,*) DiagSft,"   DIAG SHIFT"
             WRITE(17,*) NINT(AllSumNoatHF,i2),"   SUMNOATHF (all nodes)"
@@ -2817,44 +2818,61 @@ MODULE FciMCParMod
         SumNoatHF=0
         DiagSft=0.D0
         Tag=124             !Set Tag
-
-        IF(iProcIndex.eq.root) THEN
+        
+        IF(tDirectAnnihil) THEN
             INQUIRE(FILE='POPSFILE',EXIST=exists)
             IF(exists) THEN
                 OPEN(17,FILE='POPSFILE',Status='old')
                 tBinRead=.false.
-            ELSE
-!Reading in a binary file
-                tBinRead=.true.
-                INQUIRE(FILE='POPSFILEHEAD',EXIST=exists)
-                IF(.not.exists) THEN
-                    INQUIRE(FILE='POPSFILEBIN',EXIST=exists)
-                    IF(.not.exists) THEN
-                        CALL Stop_All(this_routine,"No POPSFILE's of any kind found.")
-                    ELSE
-                        CALL Stop_All(this_routine,"POPSFILEBIN found, but POPSFILEHEAD also needed for header information")
-                    ENDIF
+!Read in initial data on processors which have a popsfile
+                READ(17,*) AllTotWalkers
+                READ(17,*) DiagSft
+                READ(17,*) TempAllSumNoatHF     !AllSumNoatHF stored as integer for compatability with serial POPSFILEs
+                READ(17,*) AllSumENum
+                READ(17,*) PreviousCycles
+            ENDIF
+        ELSE
+            IF(iProcIndex.eq.root) THEN
+                INQUIRE(FILE='POPSFILE',EXIST=exists)
+                IF(exists) THEN
+                    OPEN(17,FILE='POPSFILE',Status='old')
+                    tBinRead=.false.
                 ELSE
-                    INQUIRE(FILE='POPSFILEBIN',EXIST=exists)
+!Reading in a binary file
+                    tBinRead=.true.
+                    INQUIRE(FILE='POPSFILEHEAD',EXIST=exists)
                     IF(.not.exists) THEN
-                        CALL Stop_All(this_routine,"POPSFILEHEAD found, but no POPSFILEBIN for particle information - this is also needed")
+                        INQUIRE(FILE='POPSFILEBIN',EXIST=exists)
+                        IF(.not.exists) THEN
+                            CALL Stop_All(this_routine,"No POPSFILE's of any kind found.")
+                        ELSE
+                            CALL Stop_All(this_routine,"POPSFILEBIN found, but POPSFILEHEAD also needed for header information")
+                        ENDIF
                     ELSE
-                        OPEN(17,FILE='POPSFILEHEAD',Status='old')
+                        INQUIRE(FILE='POPSFILEBIN',EXIST=exists)
+                        IF(.not.exists) THEN
+                            CALL Stop_All(this_routine,"POPSFILEHEAD found, but no POPSFILEBIN for particle information - this is also needed")
+                        ELSE
+                            OPEN(17,FILE='POPSFILEHEAD',Status='old')
+                        ENDIF
                     ENDIF
                 ENDIF
-            ENDIF
-                    
+                        
 !Read in initial data on processors which have a popsfile
-            READ(17,*) AllTotWalkers
-            READ(17,*) DiagSft
-            READ(17,*) TempAllSumNoatHF     !AllSumNoatHF stored as integer for compatability with serial POPSFILEs
-            READ(17,*) AllSumENum
-            READ(17,*) PreviousCycles
+                READ(17,*) AllTotWalkers
+                READ(17,*) DiagSft
+                READ(17,*) TempAllSumNoatHF     !AllSumNoatHF stored as integer for compatability with serial POPSFILEs
+                READ(17,*) AllSumENum
+                READ(17,*) PreviousCycles
 
-            IF(tBinRead) THEN
-                CLOSE(17)
-                OPEN(17,FILE='POPSFILEBIN',Status='old',form='unformatted')
+                IF(tBinRead) THEN
+                    CLOSE(17)
+                    OPEN(17,FILE='POPSFILEBIN',Status='old',form='unformatted')
+                ENDIF
             ENDIF
+        ENDIF
+
+        IF(iProcIndex.eq.Root) THEN
 
             AllSumNoatHF=REAL(TempAllSumNoatHF,r2)
             WRITE(6,*) "Number of cycles in previous simulation: ",PreviousCycles
@@ -2910,17 +2928,23 @@ MODULE FciMCParMod
         CALL MPI_BCast(DiagSft,1,MPI_DOUBLE_PRECISION,root,MPI_COMM_WORLD,error)
         CALL MPI_BCast(InitWalkers,1,MPI_INTEGER,root,MPI_COMM_WORLD,error)
         CALL MPI_BCast(SumENum,1,MPI_DOUBLE_PRECISION,root,MPI_COMM_WORLD,error)
+!        CALL MPI_BCast(tChangenProcessors,1,MPI_LOGICAL,root,MPI_COMM_WORLD,error)
 !Scatter the number of walkers each node will receive to TempInitWalkers, and the SumNoatHF for each node which is distributed approximatly equally
         CALL MPI_Scatter(WalkerstoReceive,1,MPI_INTEGER,TempInitWalkers,1,MPI_INTEGER,root,MPI_COMM_WORLD,error)
         CALL MPI_Scatter(NodeSumNoatHF,1,MPI_DOUBLE_PRECISION,SumNoatHF,1,MPI_DOUBLE_PRECISION,root,MPI_COMM_WORLD,error)
+
+        IF(tDirectAnnihil) THEN
+            IF(ScaleWalkers.ne.1) CALL Stop_All(this_routine,'Sorry, direct annihilation cannot cope with scaling just yet.')
+            IF(MemoryFacPart.le.1.D0) THEN
+                WRITE(6,*) 'MemoryFacPart must be larger than 1.0 when reading in a POPSFILE - increasing it to 1.50.'
+                MemoryFacPart=1.50
+            ENDIF
+        ENDIF
         
 !Now we want to allocate memory on all nodes.
-        IF(tDirectAnnihil.and.(ScaleWalkers.ne.1)) CALL Stop_All(this_routine,'Sorry, direct annihilation cannot cope with scaling just yet.')
         MaxWalkersPart=NINT(MemoryFacPart*(NINT(InitWalkers*ScaleWalkers)))   !InitWalkers here is simply the average number of walkers per node, not actual
-        IF(tRotoAnnihil) THEN
+        IF(tRotoAnnihil.or.tDirectAnnihil) THEN
             MaxSpawned=NINT(MemoryFacSpawn*(NINT(InitWalkers*ScaleWalkers)))
-        ELSEIF(tDirectAnnihil) THEN
-            MaxSpawned=NINT(MemoryFacSpawn*10.D0*InitWalkers)
         ELSE
             MaxWalkersAnnihil=NINT(MemoryFacAnnihil*(NINT(InitWalkers*ScaleWalkers)))   !InitWalkers here is simply the average number of walkers per node, not actual
         ENDIF
@@ -3035,53 +3059,69 @@ MODULE FciMCParMod
 
         IF(tDirectAnnihil) THEN
 
-            IF(iProcIndex.eq.root) THEN
+! The hashing will be different in the new calculation from the one where the POPSFILE was produced, this means we must recalculate the processor each determinant wants to go to.                
+! This is done by reading in all walkers to the root and then distributing them in the same way as the spawning steps are done - by finding the determinant and sending it there.
 
-                do i=1,AllTotWalkers
-                    iLutTemp(:)=0
-                    READ(17,*) iLutTemp(0:NIfTot),TempSign
+!            IF(iProcIndex.eq.root) THEN
+
+!                do i=1,AllTotWalkers
+!                    iLutTemp(:)=0
+!                    READ(17,*) iLutTemp(0:NIfTot),TempSign
 
                     !WRITE(6,'(A,3I20)') 'when dealing with directannihilation',iLutnJ(:)
-                    Proc=DetermineDetProc(iLutTemp)   !This wants to return a value between 0 -> nProcessors-1
+!                    Proc=DetermineDetProc(iLutTemp)   !This wants to return a value between 0 -> nProcessors-1
                     !WRITE(6,*) iLutnJ(:),Proc,ValidSpawnedList(Proc),Child,TotWalkers
                     !CALL FLUSH(6)
-                    SpawnedParts(:,ValidSpawnedList(Proc))=iLutTemp(:)
-                    SpawnedSign(ValidSpawnedList(Proc))=TempSign
-                    IF(tTruncInitiator) THEN
-                        IF(SpawnedParts(NIfTot,ValidSpawnedList(Proc)).ne.0) CALL Stop_All(this_routine,'The parent initiator flags should all be 0 by the time             & 
-&                                                                                                        the POPSFILE is written, however for some reason this is not so.')
-                    ENDIF
-                    ValidSpawnedList(Proc)=ValidSpawnedList(Proc)+1
-                enddo
-                CLOSE(17)
+!                    SpawnedParts(:,ValidSpawnedList(Proc))=iLutTemp(:)
+!                    SpawnedSign(ValidSpawnedList(Proc))=TempSign
+!                    IF(tTruncInitiator) THEN
+!                        IF(SpawnedParts(NIfTot,ValidSpawnedList(Proc)).ne.0) CALL Stop_All(this_routine,'The parent initiator flags should all be 0 by the time             & 
+!&                                                                                                        the POPSFILE is written, however for some reason this is not so.')
+!                    ENDIF
+!                    ValidSpawnedList(Proc)=ValidSpawnedList(Proc)+1
+!                enddo
+!                CLOSE(17)
 ! the spawnedparts and spawnedsign are then sent to the currentdets and currentsign arrays of the relevant processors in the same way as 
 ! they are in each iteration - however obviously no annihilation needs to be done.
-                
-            ENDIF
 
-            IF(iProcIndex.ne.root) AllTotWalkers=0
-            !Walkers are only read in from the root processor - this is just making sure it is clear the other processers don't currently have any walkers to distribute.
+!                IF(iProcIndex.ne.root) AllTotWalkers=0
+!Walkers are only read in from the root processor - this is just making sure it is clear the other processers don't currently have any walkers to distribute.
 
-            CALL MPI_Barrier(MPI_COMM_WORLD,error)  !Sync
+!                CALL MPI_Barrier(MPI_COMM_WORLD,error)  !Sync
 
-            TempInitWalkers=AllTotWalkers
+!                TempInitWalkers=AllTotWalkers
 
-            IF((CurrentDets(0,1).ne.0).or.(CurrentDets(NIfD,1).ne.0)) CALL Stop_All(this_routine,'Memory issue. Need to increase MemoryFacSpawn.')
+!                IF((CurrentDets(0,1).ne.0).or.(CurrentDets(NIfD,1).ne.0)) CALL Stop_All(this_routine,'Memory issue. Need to increase MemoryFacSpawn.')
+
+!                CurrWalkers=0
+! This is just a parameter to say that there are no walkers in the CurrentDets array yet - these all come from the POPSFILE as though they are all spawned at once.            
+!                IF(tTruncInitiator) THEN
+!                    WRITE(6,*) 'TRUNCINITIATOR on.  Turning it off temporarily.'
+!                    CALL FLUSH(6)
+!                    tTruncInitiator=.false.
+!                    CALL DirectAnnihilation(CurrWalkers)
+!                    tTruncInitiator=.true.
+!                    WRITE(6,*) 'Turning TRUNCINITIATOR back on.'
+!                ELSE
+!                    CALL DirectAnnihilation(CurrWalkers)
+!                ENDIF
+!                CALL MPI_Barrier(MPI_COMM_WORLD,error)  !Sync
+!            ENDIF
+
 
             CurrWalkers=0
-! This is just a parameter to say that there are no walkers in the CurrentDets array yet - these all come from the POPSFILE as though they are all spawned at once.            
-            IF(tTruncInitiator) THEN
-                WRITE(6,*) 'TRUNCINITIATOR on.  Turning it off temporarily.'
-                CALL FLUSH(6)
-                tTruncInitiator=.false.
-                CALL DirectAnnihilation(CurrWalkers)
-                tTruncInitiator=.true.
-                WRITE(6,*) 'Turning TRUNCINITIATOR back on.'
-            ELSE
-                CALL DirectAnnihilation(CurrWalkers)
-            ENDIF
-            CALL MPI_Barrier(MPI_COMM_WORLD,error)  !Sync
-
+            do i=1,AllTotWalkers
+                iLutTemp(:)=0
+                READ(17,*) iLutTemp(0:NIfTot),TempSign
+                Proc=DetermineDetProc(iLutTemp)   !This wants to return a value between 0 -> nProcessors-1
+                IF(Proc.eq.iProcIndex) THEN
+                    CurrWalkers=CurrWalkers+1
+                    CurrentDets(0:NIfTot,CurrWalkers)=iLutTemp(0:NIfTot)
+                    CurrentSign(CurrWalkers)=TempSign
+                ENDIF
+            enddo
+            CLOSE(17)
+            
 !            DEALLOCATE(SpawnVec)
 !            CALL LogMemDeAlloc(this_routine,SpawnVecTag)
 !            DEALLOCATE(SpawnVec2)
