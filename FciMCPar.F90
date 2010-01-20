@@ -2558,7 +2558,6 @@ MODULE FciMCParMod
             ELSE
                 OPEN(17,FILE='POPSFILE',Status='replace')
             ENDIF
-            WRITE(17,*) nProcessors,"   PROCESSORS"
             WRITE(17,*) AllTotWalkers,"   TOTWALKERS (all nodes)"
             WRITE(17,*) DiagSft,"   DIAG SHIFT"
             WRITE(17,*) NINT(AllSumNoatHF,i2),"   SUMNOATHF (all nodes)"
