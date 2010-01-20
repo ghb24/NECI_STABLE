@@ -11,9 +11,11 @@ module csf
     use sltcnd_csf_mod, only: sltcnd_csf
     use DetBitOps, only: EncodeBitDet, FindBitExcitLevel, &
                          get_bit_open_unique_ind
+    use OneEInts, only: GetTMatEl
     use Integrals, only: GetUMatEl
     use UMatCache, only: gtID
     use csf_data
+    use timing
 
     implicit none
 
@@ -130,8 +132,17 @@ contains
         integer :: dets1(nel, ndets(1)), dets2(nel, ndets(2))
         integer :: ilut1(0:NIfTot,ndets(1)), ilut2(0:NIfTot,ndets(2))
 
-        integer det, i, j
-        type(HElement) :: sum1, Hel
+        integer det, i, j, id(nel), idX, idN, k, ids
+        type(HElement) :: sum1, sum2, Hel, hel2, hel3
+        type(timer), save :: hel_timer0, hel_timer2, hel_timer1, hel_timer
+        real*8 :: diag_coeff
+
+       ! hel_timer%timer_name = 'Hel_timer'
+       ! hel_timer0%timer_name = 'hel_timer0'
+       ! hel_timer1%timer_name = 'hel_timer1'
+       ! hel_timer2%timer_name = 'hel_timer2'
+
+        !call set_timer (hel_timer)
 
         ! Extract the Yamanouchi symbols from the CSFs
         call get_csf_yama (nI, yama1)
@@ -140,9 +151,11 @@ contains
         ! Depending on the number of spatial orbitals we differ by, call
         ! different optimised routines.
         if (IC == 2) then
+            !call set_timer(hel_timer2)
             hel_ret = get_csf_helement_2 (nI, nJ, iLutI, iLutJ, nopen,  &
                                     nclosed, nup, ndets, dets1, dets2,&
                                     yama1, yama2, coeffs1, coeffs2)
+            !call halt_timer(hel_timer2)
             return
         endif
 
@@ -184,29 +197,135 @@ contains
                                    dets1(nclosed(1)+1:nel,det))
             call EncodeBitDet (dets1(:,det), ilut1(:,det))
         enddo
-        do det = 1,ndets(2)
-            dets2(1:nclosed(2),det) = iand(NJ(1:nclosed(2)), csf_orbital_mask)
-            dets2(nclosed(2)+1:nel,det) = &
-                    csf_alpha_beta(NJ(nclosed(2)+1:nel),&
-                                   dets2(nclosed(2)+1:nel,det))
-            call EncodeBitDet (dets2(:,det), ilut2(:,det))
-        enddo
 
-        ! TODO: implement symmetry if NI,NJ are the same except for yama
-        hel_ret = HElement(0)
-        do i=1,ndets(1)
-            if (coeffs1(i) /= 0) then
-                sum1 = Helement(0)
-                do j=1,ndets(2)
-                    if (coeffs2(j) /= 0) then
-                        Hel = sltcnd_csf (dets1(:,i), dets2(:,j), &
-                                          ilut1(:,i), ilut2(:,j))
-                        sum1 = sum1 + Hel * HElement(coeffs2(j))
+        if (IC == 0) then
+            !call set_timer (hel_timer0)
+            
+            ! Obtain spatial rather than spin indices
+            id = gtID(dets1(:,1))
+
+            ! Sum the coefficients of the diagonal matrix elements
+            diag_coeff = sum(coeffs1*coeffs2)
+
+            hel_ret = helement(0)
+            if (diag_coeff /= 0) then
+                ! Sum in the one electron integrals
+                hel_ret = helement(diag_coeff) * &
+                              sum(gettmatel(dets1(:,1), dets1(:,1)))
+
+                ! Sum in the terms which involve closed shell orbitals, which
+                ! are the same across all involved determinants.
+                hel = helement(0)
+                do i=1,nclosed(1)-1,2
+                    ! Within an orbital pair
+                    hel = hel + GetUmatEl(nBasisMax, UMAT, ALAT, nBasis, &
+                                          iSpinSkip, G1, id(i), id(i), &
+                                          id(i), id(i))
+
+                    ! Between closed electron pairs
+                    if (i < nclosed(1)-2) then
+                        do j=i+2,nclosed(1)-1,2
+                            hel = hel + helement(4) * &
+                                    GetUmatEl(nBasisMax, UMAT, ALAT, nBasis, &
+                                              iSpinSkip, G1, id(i), id(j), &
+                                              id(i), id(j))
+                            hel = hel - helement(2) * &
+                                    GetUMatEl(nBasisMax, UMAT, ALAT, nBasis, &
+                                              iSpinSkip, G1, id(i), id(j), &
+                                              id(j), id(i))
+                        enddo
+                    endif
+
+                    ! Between a closed e- pair, and open electrons
+                    do j=nclosed(1)+1,nel
+                        idX = max(id(i), id(j))
+                        idN = min(id(i), id(j))
+                        hel = hel + helement(2) * &
+                                    getUMatEl(nBasisMax, UMAT, ALAT, nBasis, &
+                                              iSpinSkip, G1, idN, idX,idN,idX)
+                        hel = hel - GetUmatEl(nBasisMax, UMAT, ALAT, nBasis, &
+                                              iSpinSkip, G1, idN, idX,idX,idN)
+                    enddo
+                enddo
+                hel_ret = hel_ret + helement(diag_coeff)*hel
+            endif
+
+            ! Sum in terms between orbitals pairs that differ
+            hel = helement(0)
+            do i=nclosed(1)+1,nel-1
+                do j=i+1,nel
+                    idX = max(id(i), id(j))
+                    idN = min(id(i), id(j))
+
+                    hel2 = GetUMatEl(nBasisMax, UMAT, ALAT, nBasis, &
+                                     iSpinSkip, G1, idN, idX, idX, idN)
+                    
+                    do det=1,ndets(1)
+                        if (coeffs1(det) /= 0 .and. coeffs2(det) /= 0) then
+                            ids = G1(dets1(i,det))%Ms * G1(dets1(j,det))%Ms
+                            if (ids > 0) then
+                                hel = hel - hel2 * &
+                                           helement(coeffs1(det)*coeffs2(det))
+                            endif
+                        endif
+                    enddo
+
+                    if (diag_coeff /= 0) then
+                        hel = hel + helement(diag_coeff) * &
+                                    GetUMatEl(nBasisMax, UMAT, ALAT, &
+                                              nBasis, iSpinSkip, G1, &
+                                              idN, idX, idN, idX)
                     endif
                 enddo
-                hel_ret = hel_ret + sum1*HElement(coeffs1(i))
-            endif
-        enddo
+            enddo
+            hel_ret = hel_ret + hel
+
+            do i=1,ndets(1)-1
+                if (coeffs1(i) /= 0 .or. coeffs2(i) /= 0) then
+                    sum1 = helement(0)
+                    sum2 = helement(0)
+                    do j=i+1,ndets(1)
+                        if (coeffs2(j) /= 0 .or. coeffs1(j) /= 0) then
+                            hel = sltcnd_csf (dets1(:,i), dets1(:,j), &
+                                              ilut1(:,i), ilut1(:,j))
+
+                            sum1 = sum1 + hel*helement(coeffs2(j))
+                            sum2 = sum2 + hel*helement(coeffs1(j))
+                        endif
+                    enddo
+                    hel_ret = hel_ret + sum1*helement(coeffs1(i)) &
+                                      + sum2*helement(coeffs2(i))
+                endif
+            enddo
+            !call halt_timer (hel_timer0)
+        else
+        !call set_timer (hel_timer1)
+            do det = 1,ndets(2)
+                dets2(1:nclosed(2),det) = iand(NJ(1:nclosed(2)), &
+                                               csf_orbital_mask)
+                dets2(nclosed(2)+1:nel,det) = &
+                        csf_alpha_beta(NJ(nclosed(2)+1:nel),&
+                                       dets2(nclosed(2)+1:nel,det))
+                call EncodeBitDet (dets2(:,det), ilut2(:,det))
+            enddo
+
+            hel_ret = helement(0)
+            do i=1,ndets(1)
+                if (coeffs1(i) /= 0) then
+                    sum1 = Helement(0)
+                    do j=1,ndets(2)
+                        if (coeffs2(j) /= 0) then
+                            Hel = sltcnd_csf (dets1(:,i), dets2(:,j), &
+                                              ilut1(:,i), ilut2(:,j))
+                            sum1 = sum1 + Hel * HElement(coeffs2(j))
+                        endif
+                    enddo
+                    hel_ret = hel_ret + sum1*HElement(coeffs1(i))
+                endif
+            enddo
+            !call halt_timer(hel_timer1)
+        endif
+        !call halt_timer(hel_timer)
     end function
 
     function get_csf_helement_2 (nI, nJ, iLutI, iLutJ, nopen, nclosed, &
@@ -233,10 +352,10 @@ contains
         integer, intent(in) :: iLutI(0:NIfTot), iLutJ(0:NIfTot)
         integer, intent(in) :: nup(2), ndets(2)
         ! TODO: convert these to integers (ie 2S, 2Ms)
-        integer, intent(out) :: yama1(nopen(1)), yama2(nopen(2))
+        integer, intent(in) :: yama1(nopen(1)), yama2(nopen(2))
         real*8, intent(out) :: coeffs1(ndets(1)), coeffs2(ndets(2))
         integer, intent(inout) :: dets1(nel, ndets(1)), dets2(nel, ndets(2))
-        type(HElement) :: hel_ret, hel, sum1, umatel(2), hel_tmp
+        type(HElement) :: hel_ret, hel, sum1, umatel(2)
 
         integer :: nop_uniq(2), det, i, j, k, l, m, ex(2,2), &
                    uniq_id(4,2), ms1(ndets(1)), ms2(ndets(2)), &

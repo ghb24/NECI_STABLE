@@ -68,7 +68,7 @@ contains
         integer :: id(nel), ids, i, j, idN, idX
 
         ! Sum in the one electron integrals (KE --> TMAT)
-        hel_sing = HElement(0)
+        !hel_sing = HElement(0)
         do i=1,nel
             hel_sing = hel_sing + GetTMATEl(nI(i), nI(i))
         enddo
@@ -81,7 +81,7 @@ contains
         hel_doub = HElement(0)
         hel_tmp = HElement(0)
         do i=1,nel-1
-            do j=i,nel
+            do j=i+1,nel
                 idX = max(id(i), id(j))
                 idN = min(id(i), id(j))
                 hel_doub = hel_doub + GetUMATEl(nBasisMax, UMAT, ALAT, &

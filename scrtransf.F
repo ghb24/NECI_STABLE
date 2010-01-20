@@ -10,7 +10,7 @@ C.. ETRIAL, but ETRIAL not longer has a function
          INTEGER G1(*),NBASIS,NSBASIS,NSPINS
          REAL*8 UMAT(*)
          INTEGER I,NEL,NI(NEL),NJ(NEL),IC,nBasisMax(5,*),IC2
-         REAL*8 SUM,ECORE
+         REAL*8 TOTSUM,ECORE
          INTEGER IGETEXCITLEVEL
          REAL*8 BTRANS(*)
          IC=IC2
@@ -22,8 +22,8 @@ Celement is 0
 C.. SLTCND has IC is # electrons the same in 2 dets
          CALL SLTCNDT(NEL,NBASISMAX,
      &         NBASIS,NI,NJ,G1,NEL-IC,UMAT,BTRANS,NSBASIS,
-     &         NSPINS,SUM)
-         GETHELEMENT2T=SUM
+     &         NSPINS,TOTSUM)
+         GETHELEMENT2T=TOTSUM
          IF(IC.EQ.0) GETHELEMENT2T=GETHELEMENT2T+ECORE
          RETURN
       END
@@ -31,7 +31,7 @@ C.. SLTCND has IC is # electrons the same in 2 dets
 C.. The Slater Condon Rules for a transformed basis
       SUBROUTINE SLTCNDT(NEL,NBASISMAX,
      &   NHG,NDET1,NDET2,GBS,IC,
-     &   UMAT,BTRANS,NSBASIS,NSPINS,SUM)
+     &   UMAT,BTRANS,NSBASIS,NSPINS,TOTSUM)
       IMPLICIT NONE
 C..
 C.. 
@@ -46,7 +46,7 @@ C..
       INTEGER GBS(4,*)
       REAL*8 UMAT(*)
       INTEGER nBasisMax(5,*),IFLAG,IPTOT
-      REAL*8 COULCOUPLE,BTRANS(*),SUM
+      REAL*8 COULCOUPLE,BTRANS(*),TOTSUM
       INTEGER ISPINSKIP,NSBASIS,NSPINS
       ISPINSKIP=NBASISMAX(2,3)
 C..
@@ -56,36 +56,36 @@ C..Need to get the determinants in the form of max. coincidence
       N2E(1:NHG)=0
 C..Also returns the sign change IPTOT
       CALL LINEUP(NEL,NDET1,NDET2,NHG,N1E,N2E,IFLAG,IPTOT)
-      SUM=0.D0
+      TOTSUM=0.D0
 C..We now check to see which Slater-Condon rule to apply
       COULCOUPLE=1.D0
       IF(IC.EQ.(NEL-2)) THEN
 C..Differ by two 
         CALL SCR2T(NEL,NBASISMAX,NDET1,NDET2,GBS,
      &         NHG,UMAT,ISPINSKIP,COULCOUPLE,BTRANS,
-     &   NSBASIS,NSPINS,SUM)
+     &   NSBASIS,NSPINS,TOTSUM)
       ELSEIF(IC.EQ.(NEL-1)) THEN
 C..Differ by one 
         CALL SCR1T(NEL,NBASISMAX,NDET1,NDET2,GBS,
      &         NHG,UMAT,ISPINSKIP,COULCOUPLE,BTRANS,
-     &   NSBASIS,NSPINS,SUM)
+     &   NSBASIS,NSPINS,TOTSUM)
       ELSEIF(IC.EQ.NEL) THEN
 C..Differ by none 
         CALL SCR0T(NEL,NBASISMAX,NDET1,NDET2,GBS,
      &         NHG,UMAT,ISPINSKIP,COULCOUPLE,BTRANS,
-     &   NSBASIS,NSPINS,SUM)
+     &   NSBASIS,NSPINS,TOTSUM)
 C.. If we're in the UEG, we need to add in the part of the background
 C.. contribution which doesn't cancel
 C         IF(NBASISMAX(1,3).EQ.-1) THEN
 C            WRITE(6,*) FCK(0,0,0)
-C            SUM=SUM-NEL*REAL(FCK(0,0,0))/2
+C            TOTSUM=TOTSUM-NEL*REAL(FCK(0,0,0))/2
 
 C         ENDIF
       ELSE
-        SUM=0.D0
+        TOTSUM=0.D0
         RETURN
       ENDIF
-      SUM=SUM*DFLOAT(IPTOT)
+      TOTSUM=TOTSUM*DFLOAT(IPTOT)
       RETURN
       END
 
@@ -93,7 +93,7 @@ C.. Slater-Condon Rules in a transformed basis.   based on SCR0 and SCR1
 C.. TMAT has sometimes been hidden in ZIA
       SUBROUTINE SCR0T(NEL,NBASISMAX,NDET1,NDET2,
      &   G,NHG,UMAT,ISS,COULCOUPLE,BTRANS,
-     &   NSBASIS,NSPINS,SUM)
+     &   NSBASIS,NSPINS,TOTSUM)
          IMPLICIT NONE
          INTEGER G(4,*),ISS
          REAL*8 UMAT(*)
@@ -103,7 +103,7 @@ C.. was (NHG/ISS,NHG/ISS,NHG/ISS,NHG/ISS)
          INTEGER nBasisMax(5,*)
          REAL*8 TRUMAT,TRTMAT
          INTEGER NEL,NHG,NSBASIS,NSPINS
-         REAL*8 COULCOUPLE,SUM
+         REAL*8 COULCOUPLE,TOTSUM
          INTEGER I,J,K,L
          REAL*8 SUM1,SUM2,PI
 
@@ -138,7 +138,7 @@ CUMAT(ID(I),ID(J),ID(J),ID(I))
            ENDDO
          ENDDO
 C..
-         SUM=SUM1+SUM2*COULCOUPLE
+         TOTSUM=SUM1+SUM2*COULCOUPLE
          RETURN
       END
 
@@ -146,7 +146,7 @@ C..
 
       SUBROUTINE SCR1T(NEL,NBASISMAX,NDET1,NDET2,G1,
      &   NHG,UMAT,ISS,COULCOUPLE,BTRANS,
-     &   NSBASIS,NSPINS,SUM)
+     &   NSBASIS,NSPINS,TOTSUM)
          IMPLICIT NONE
          INTEGER NDET1(NEL),NDET2(NEL)
          INTEGER G1(*),nBasisMax(5,*)
@@ -155,7 +155,7 @@ C..
 C.. was (NHG/ISS,NHG/ISS,NHG/ISS,NHG/ISS)
          REAL*8 TRTMAT,TRUMAT
          INTEGER NEL,NHG,ISS
-         REAL*8 COULCOUPLE,SUM,SUM2
+         REAL*8 COULCOUPLE,TOTSUM,SUM2
          INTEGER ND1,ND2,IQ,I,J,K
          REAL*8 BTRANS(NSBASIS,NSBASIS,NSPINS)
          INTEGER NSBASIS,NSPINS
@@ -239,13 +239,13 @@ C..  <ph_a|T|ph_a'> where a and a' are the only basis fns that differ in
 C..  NDET1 and NDET2
          CALL GETTRTMATEL(ND1,ND2,NHG,BTRANS,NSBASIS,
      &            NSPINS,TRTMAT)
-         SUM=SUM2*COULCOUPLE+TRTMAT
+         TOTSUM=SUM2*COULCOUPLE+TRTMAT
          RETURN
       END
 
       SUBROUTINE SCR2T(NEL,NBASISMAX,NDET1,NDET2,
      &     G1,NHG,UMAT,ISS,COULCOUPLE,BTRANS,
-     &   NSBASIS,NSPINS,SUM)
+     &   NSBASIS,NSPINS,TOTSUM)
 C..This routine is the EASIEST of the Slater-Condon rules.
 C..The determinants differ by two spin orbitals.
 C..The arrays ND1 and ND2 contain the integers from determinant 1 and 2
@@ -258,11 +258,11 @@ C..that are NOT common to both.
          REAL*8 UMAT(*)
 C.. was (NHG/ISS,NHG/ISS,NHG/ISS,NHG/ISS)
          INTEGER NEL,NHG,nBasisMax(5,*)
-         REAL*8 COULCOUPLE,SUM,SUM2,TRUMAT
+         REAL*8 COULCOUPLE,TOTSUM,SUM2,TRUMAT
          REAL*8 BTRANS(NSBASIS,NSBASIS,NSPINS)
          INTEGER NSBASIS,NSPINS
          INTEGER I,J,K,IQ
-         SUM=0.D0
+         TOTSUM=0.D0
 C..Here we zero ND1 and ND2
          DO I=1,2
             ND1(I)=0
@@ -308,27 +308,27 @@ C..Check the spin combinations of N', N'-1, N and N-1
 C      IDS(1:4)=0
 C      CALL GENKRON(G1,NBASISMAX,ND1,ND2,IDS)
 C..N'>N'-1 and N>N-1 *See Levine for rule 3*
-C      SUM=UMAT(ID1,ID2,ID3,ID4)*DFLOAT(IDS(1)*IDS(2))-
+C      TOTSUM=UMAT(ID1,ID2,ID3,ID4)*DFLOAT(IDS(1)*IDS(2))-
 C     &      UMAT(ID1,ID2,ID4,ID3)*DFLOAT(IDS(3)*IDS(4))
-C      IF(SUM.NE.0.D0) CALL CHK_MS(NDET1,NDET2,NBASISMAX,
+C      IF(TOTSUM.NE.0.D0) CALL CHK_MS(NDET1,NDET2,NBASISMAX,
 C     &   NEL,3,G)
       
          CALL GETTRUMATEL(ND1(2),ND1(1),ND2(2),ND2(1),UMAT,
      &         NBASISMAX,NHG,BTRANS,NSBASIS,NSPINS,ISS,TRUMAT)
 C.. the spin checking occurs in GETTRUMATEL
-         SUM2=SUM+TRUMAT
+         SUM2=TOTSUM+TRUMAT
 C.. and also the exchange
          CALL GETTRUMATEL(ND1(2),ND1(1),ND2(1),ND2(2),UMAT,
      &         NBASISMAX,NHG,BTRANS,NSBASIS,NSPINS,ISS,TRUMAT)
-         SUM=SUM-TRUMAT
+         TOTSUM=TOTSUM-TRUMAT
 C         SUM2=SUM2-UMAT(ID(I),ID(J),ID(J),ID(I))
-         SUM=SUM*COULCOUPLE
+         TOTSUM=TOTSUM*COULCOUPLE
          RETURN
       END 
 
 C.. Calculate <phi_a phi_b | U | phi_c phi_d> from <u_i u_j|U|u_k u_l>
       SUBROUTINE GETTRUMATEL(A,B,C,D,UMAT,NBASISMAX,NHG,BTRANS,NSBASIS,
-     &            NSPINS,ISS,SUM)
+     &            NSPINS,ISS,TOTSUM)
          USE HElem
          use Integrals, Only : GetUMatEl
          USE UMatCache , Only : GTID
@@ -343,7 +343,7 @@ C.. was (NHG/ISS,NHG/ISS,NHG/ISS,NHG/ISS)
          REAL*8 ALAT(3)
          INTEGER NSPINS,NSBASIS
          INTEGER NHG,ISS,nBasisMax(5,*)
-         TYPE(HElement) SUM,SUM1,SUM2,SUM3
+         TYPE(HElement) TOTSUM,SUM1,SUM2,SUM3
          INTEGER ASPN,BSPN,CSPN,DSPN,AE,BE,CE,DE
          INTEGER IDI,IDJ,IDK,IDL
          ASPN=MOD(A-1,NSPINS)+1
@@ -357,10 +357,10 @@ C..  matrix
          CE=(C-1)/NSPINS+1
          DE=(D-1)/NSPINS+1
          IF(ASPN.NE.CSPN.AND.BSPN.NE.DSPN) THEN
-            SUM=0.D0
+            TOTSUM=0.D0
             RETURN
          ENDIF
-         SUM=0.D0
+         TOTSUM=0.D0
          DO I=1,NSBASIS
 C.. We have to generate the normal basis number corresponding to I
 C.. and then from it get the ID within UMAT
@@ -382,14 +382,14 @@ C     &                  UMAT(IDI,IDJ,IDK,IDL)
                ENDDO
                SUM1=SUM1+SUM2*HElement(BTRANS(BE,J,BSPN))
             ENDDO
-            SUM=SUM+SUM1*HElement(BTRANS(AE,I,ASPN))
+            TOTSUM=TOTSUM+SUM1*HElement(BTRANS(AE,I,ASPN))
          ENDDO
          RETURN
       END
 
 C.. Calculate <phi_a | T | phi_c > from <u_i |T|u_k>
       SUBROUTINE GETTRTMATEL(A,C,NHG,BTRANS,NSBASIS,
-     &            NSPINS,SUM)
+     &            NSPINS,TOTSUM)
          USE HElem
          USE OneEInts, Only : GetTMatEl
          IMPLICIT NONE
@@ -398,7 +398,7 @@ C.. Calculate <phi_a | T | phi_c > from <u_i |T|u_k>
          REAL*8 BTRANS(NSBASIS,NSBASIS,NSPINS)
          INTEGER NSPINS,NSBASIS
          INTEGER NHG
-         REAL*8 SUM,SUM1,SUM2,SUM3
+         REAL*8 TOTSUM,SUM1,SUM2,SUM3
          INTEGER ASPN,BSPN,CSPN,DSPN,AE,BE,CE,DE
          INTEGER IDI,IDJ,IDK,IDL
          ASPN=MOD(A-1,NSPINS)+1
@@ -408,10 +408,10 @@ C..  matrix
          AE=(A-1)/NSPINS+1
          CE=(C-1)/NSPINS+1
          IF(ASPN.NE.CSPN) THEN
-            SUM=0.D0
+            TOTSUM=0.D0
             RETURN
          ENDIF
-         SUM=0.D0
+         TOTSUM=0.D0
          DO I=1,NSBASIS
 C.. We have to generate the normal basis number corresponding to I
             IDI=(I-1)*NSPINS+1+ASPN-1
@@ -421,7 +421,7 @@ C.. We have to generate the normal basis number corresponding to I
                SUM2=SUM2+BTRANS(CE,K,CSPN)*
      &            DREAL(GetTMATEl(IDI,IDK))
             ENDDO
-            SUM=SUM+SUM2*BTRANS(AE,I,ASPN)
+            TOTSUM=TOTSUM+SUM2*BTRANS(AE,I,ASPN)
          ENDDO
          RETURN
       END

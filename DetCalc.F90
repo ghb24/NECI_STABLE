@@ -1200,7 +1200,7 @@ END MODULE DetCalc
       INTEGER NBASISMAX(3,2),NHG,ILOGGING
       TYPE(BASISFN) G1(*)
       CHARACTER*255 STR
-      REAL*8 PI,S,SUM
+      REAL*8 PI,S,SUM1
       TYPE(HDElement) AUX
       INTEGER I,J,IN,IEL,L
 !..Calculate the expectation value of the kinetic energy
@@ -1209,20 +1209,20 @@ END MODULE DetCalc
       DO IN=1,NEVAL
         TKE(IN)=0.D0
         DO I=1,NDET
-          SUM=0.D0
+          SUM1=0.D0
           DO J=1,NEL
             AUX=GetTMATEl(NM(J,I),NM(J,I))
 !((ALAT(1)**2)*((G1(1,NM(J,I))**2)/(ALAT(1)**2)+
 !     &		(G1(2,NM(J,I))**2)/(ALAT(2)**2)+
 !     &		(G1(3,NM(J,I))**2)/(ALAT(3)**2)))
-            SUM=SUM+DREAL(AUX)
+            SUM1=SUM1+DREAL(AUX)
           ENDDO
 !..Cube multiplier
 !          CST=PI*PI/(2.D0*ALAT(1)*ALAT(1))
 !.. Deal with the UEG
 !          IF(NBASISMAX(1,1).LE.0) CST=CST*4.D0
-!          SUM=CST*SUM 
-          TKE(IN)=TKE(IN)+SUM*SQ(CG(I,IN))
+!          SUM1=CST*SUM1 
+          TKE(IN)=TKE(IN)+SUM1*SQ(CG(I,IN))
         ENDDO
       ENDDO
 ! ==--------------------------------------------------------------==

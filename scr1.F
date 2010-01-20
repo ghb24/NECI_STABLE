@@ -1,5 +1,5 @@
       SUBROUTINE SCR1(NEL,NBASISMAX,NDET1,NDET2,G1,
-     &	NHG,UMAT,ALAT,ISS,COULCOUPLE,TEXCH,SUM)
+     &	NHG,UMAT,ALAT,ISS,COULCOUPLE,TEXCH,hel)
       USE HElem
       use Integrals, only : GetUMatEl
       USE UMatCache, only : GTID
@@ -13,7 +13,7 @@
       INTEGER ID,EX(2)
       TYPE(HElement) UMAT(*)
 C.. was (NHG/ISS,NHG/ISS,NHG/ISS,NHG/ISS)
-      TYPE(HElement) SUM
+      TYPE(HElement) hel
       LOGICAL TSIGN
       INTEGER NEL,NHG,ISS
       REAL*8 COULCOUPLE,CD,ALAT(3)
@@ -62,10 +62,10 @@ C*(COULDAMP(NDET1(I),NHG)**2)*CD
 C..  We then add in the non-diagonal part of the kinetic energy -
 C..  <ph_a|T|ph_a'> where a and a' are the only basis fns that differ in
 C..  NDET1 and NDET2
-      SUM=SUM2*HElement(COULCOUPLE)+GetTMATEl(EX(1),EX(2))
+      hel=SUM2*HElement(COULCOUPLE)+GetTMATEl(EX(1),EX(2))
 !      WRITE(6,*) EX(1),EX(2)
 !      WRITE(6,*) SUM2,GetTMATEl(EX(1),EX(2))
-      IF(TSIGN) SUM=-SUM
+      IF(TSIGN) hel=-hel
 !      call halt_timer(proc_timer) 
       RETURN
       END
@@ -74,7 +74,7 @@ C..  NDET1 and NDET2
 !from the determinants and their excitation matrix.
       
       SUBROUTINE SCR1Excit2(NEL,NBASISMAX,NDET1,NDET2,G1,
-     &	NHG,UMAT,ALAT,ISS,COULCOUPLE,TEXCH,SUM,EX,TParity)
+     &	NHG,UMAT,ALAT,ISS,COULCOUPLE,TEXCH,hel,EX,TParity)
       USE HElem
       use Integrals, only : GetUMatEl
       USE UMatCache, only : GTID
@@ -88,7 +88,7 @@ C..  NDET1 and NDET2
       INTEGER ID,EX(2,2)
       TYPE(HElement) UMAT(*)
 C.. was (NHG/ISS,NHG/ISS,NHG/ISS,NHG/ISS)
-      TYPE(HElement) SUM
+      TYPE(HElement) hel
       LOGICAL TParity
       INTEGER NEL,NHG,ISS
       REAL*8 COULCOUPLE,CD,ALAT(3)
@@ -145,8 +145,8 @@ C..  <ph_a|T|ph_a'> where a and a' are the only basis fns that differ in
 C..  NDET1 and NDET2
 !      WRITE(6,*) EX(1,1),EX(2,1)
 !      WRITE(6,*) SUM2,GetTMATEl(EX(1,1),EX(2,1))
-      SUM=SUM2*HElement(COULCOUPLE)+GetTMATEl(EX(1,1),EX(2,1))
-      IF(TParity) SUM=-SUM
+      hel=SUM2*HElement(COULCOUPLE)+GetTMATEl(EX(1,1),EX(2,1))
+      IF(TParity) hel=-hel
 !      call halt_timer(proc_timer) 
       RETURN
       END

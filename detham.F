@@ -23,7 +23,7 @@ C..
       INTEGER ICMAX,KI,IBEG,IBEGJ,KJ,IC,I,J,IMAX,IDAMAX
       LOGICAL TCOUNT,TMC
       INTEGER IGETEXCITLEVEL_2,STEP,IMAXJ
-      TYPE(HElement) SUM
+      TYPE(HElement) totSUM
       type(timer), save :: proc_timer
 !      LOGICAL TSTAR
 C ==-------------------------------------------------------------------==
@@ -77,20 +77,20 @@ C..   If determinants differ by more than 2 spin orbitals IC < 2
 C..
 !            CALL WRITEDET(6,NMRKS(1,KI),NEL,.FALSE.)
 !            CALL WRITEDET(6,NMRKS(1,KJ),NEL,.TRUE.)
-            SUM=GETHELEMENT2(NMRKS(1:NEL,KI),NMRKS(1:NEL,KJ),NEL,
+            TOTSUM=GETHELEMENT2(NMRKS(1:NEL,KI),NMRKS(1:NEL,KJ),NEL,
      &         NBASISMAX,G1,NHG,BRR,NMSH,FCK,NMAX,
      &         ALAT,UMAT,NEL-IC,ECORE)
 C            CALL SLTCND(NEL,NBASISMAX,NHG,
 C     &		NMRKS(1:NEL,KI),NMRKS(1:NEL,KJ),G1,IC,NMSH,
-C     &		FCK,NMAX,ALAT,UMAT,SUM)
-            IF(ABS(SUM%v).LT.1.D-10) SUM%v=0.D0
-            IF(SUM%v.NE.0.D0.OR.KI.EQ.KJ) THEN
+C     &		FCK,NMAX,ALAT,UMAT,TOTSUM)
+            IF(ABS(TOTSUM%v).LT.1.D-10) TOTSUM%v=0.D0
+            IF(TOTSUM%v.NE.0.D0.OR.KI.EQ.KJ) THEN
                GC=GC+1
 C..   Stores the number of non-zero elements in each row
                NROW(KI)=NROW(KI)+1
                IF(.NOT.TCOUNT) THEN
                  LAB(IBEG+NROW(KI))=KJ
-                 HAMIL(IBEG+NROW(KI))=SUM
+                 HAMIL(IBEG+NROW(KI))=TOTSUM
                ENDIF
             ENDIF
  500        CONTINUE

@@ -23,7 +23,7 @@ C ===================================================================
       END
 
 
-      SUBROUTINE HUBKIN(I,J,K,NBASISMAX,BHUB,TTILT,SUM,TREAL)
+      SUBROUTINE HUBKIN(I,J,K,NBASISMAX,BHUB,TTILT,TOTSUM,TREAL)
 C returns the non-interacting energy of state with 
 C..quatum numbers (i,j,k) for Hubbard model of 
 C..lengths (LX,LY,LZ) PBC.
@@ -39,24 +39,24 @@ C..Returned in sum
       AX=NBASISMAX(1,4)
       AY=NBASISMAX(2,4)
       IF(TREAL) THEN
-         SUM=0.D0
+         TOTSUM=0.D0
       ELSE
        IF(TTILT) THEN
 CCCC.. NBASISMAX goes from -NMAXX+1 to MAXX so LX=2MAXX
          LX=NBASISMAX(1,5)
          LX=(LX*(AX*AX+AY*AY))
-         SUM=COS(2*PI*(I*AX+J*AY)/LX)+COS(2*PI*(I*AY-J*AX)/LX)
+         TOTSUM=COS(2*PI*(I*AX+J*AY)/LX)+COS(2*PI*(I*AY-J*AX)/LX)
        ELSE
-         IF(LX.GT.1) SUM=COS(2*PI*I/(LX))
-         IF(LY.GT.1) SUM=SUM+COS(2*PI*J/(LY))
-         IF(LZ.GT.1) SUM=SUM+COS(2*PI*K/(LZ))
+         IF(LX.GT.1) TOTSUM=COS(2*PI*I/(LX))
+         IF(LY.GT.1) TOTSUM=TOTSUM+COS(2*PI*J/(LY))
+         IF(LZ.GT.1) TOTSUM=TOTSUM+COS(2*PI*K/(LZ))
        ENDIF
-       SUM=SUM*2.D0*BHUB
+       TOTSUM=TOTSUM*2.D0*BHUB
       ENDIF
       RETURN
       END
 
-      SUBROUTINE HUBKINN(I,J,K,NBASISMAX,BHUB,TTILT,SUM,TREAL)
+      SUBROUTINE HUBKINN(I,J,K,NBASISMAX,BHUB,TTILT,TOTSUM,TREAL)
 C returns the non-interacting energy of state with 
 C..quatum numbers (i,j,k) for Hubbard model of 
 C..lengths (LX,LY,LZ).  NON-PBC
@@ -75,19 +75,19 @@ C..Returned in sum
 CCCC.. NBASISMAX goes from -NMAXX+1 to MAXX so LX=2MAXX
          LX=NBASISMAX(1,5)
          LX=(LX*(AX*AX+AY*AY))
-         SUM=COS(PI*(I*AX-J*AY)/(LX+1))+COS(PI*(I*AY+J*AX)/(LX+1))
+         TOTSUM=COS(PI*(I*AX-J*AY)/(LX+1))+COS(PI*(I*AY+J*AX)/(LX+1))
       ELSE
          II=I-NBASISMAX(1,1)+1
          JJ=J-NBASISMAX(2,1)+1
          KK=K-NBASISMAX(3,1)+1
-         IF(LX.GT.1) SUM=COS(PI*II/(LX+1))
-         IF(LY.GT.1) SUM=SUM+COS(PI*JJ/(LY+1))
-         IF(LZ.GT.1) SUM=SUM+COS(PI*KK/(LZ+1))
-C         IF(LY.GT.1) SUM=SUM+COS(PI*J/(LY+1))
-C         IF(LZ.GT.1) SUM=SUM+COS(PI*K/(LZ+1))
+         IF(LX.GT.1) TOTSUM=COS(PI*II/(LX+1))
+         IF(LY.GT.1) TOTSUM=TOTSUM+COS(PI*JJ/(LY+1))
+         IF(LZ.GT.1) TOTSUM=TOTSUM+COS(PI*KK/(LZ+1))
+C         IF(LY.GT.1) TOTSUM=TOTSUM+COS(PI*J/(LY+1))
+C         IF(LZ.GT.1) TOTSUM=TOTSUM+COS(PI*K/(LZ+1))
       ENDIF
-      SUM=SUM*2.D0*BHUB
-      IF(TREAL) SUM=0.D0
+      TOTSUM=TOTSUM*2.D0*BHUB
+      IF(TREAL) TOTSUM=0.D0
       RETURN
       END
 
@@ -104,11 +104,11 @@ C         IF(LZ.GT.1) SUM=SUM+COS(PI*K/(LZ+1))
          INTEGER I,J
          INTEGER DX,DY,DZ,LX,LY,LZ
          LOGICAL TTILT,TREAL,TPBC
-         REAL*8 SUM,S1
+         REAL*8 TOTSUM,S1
          IF(iProcIndex.eq.0) OPEN(10,FILE='TMAT',STATUS='UNKNOWN')
          IF(TSTARSTORE) STOP 'Using TSTARSTORE with HUB??!'
          CALL SetupTMAT(NBASIS,2,iSize)
-         SUM=0.D0
+         TOTSUM=0.D0
          LX=NBASISMAX(1,2)-NBASISMAX(1,1)
          LY=NBASISMAX(2,2)-NBASISMAX(2,1)
          LZ=NBASISMAX(3,2)-NBASISMAX(3,1)
@@ -120,30 +120,30 @@ C         IF(LZ.GT.1) SUM=SUM+COS(PI*K/(LZ+1))
                   DX=ABS(G1(I)%k(1)-G1(J)%k(1))
                   DY=ABS(G1(I)%k(2)-G1(J)%k(2))
                   DZ=ABS(G1(I)%k(3)-G1(J)%k(3))
-                  SUM=BHUB
+                  TOTSUM=BHUB
                   IF(TPBC) THEN
 !This bit is only for if the hubbard lattice only has one site in a certain dimension
                      IF(DX.EQ.LX) THEN
                         DX=1
-                        IF(LX.EQ.1) SUM=SUM+BHUB
+                        IF(LX.EQ.1) TOTSUM=TOTSUM+BHUB
                      ENDIF
                      IF(DY.EQ.LY) THEN
                         DY=1
-                        IF(LY.EQ.1) SUM=SUM+BHUB
+                        IF(LY.EQ.1) TOTSUM=TOTSUM+BHUB
                      ENDIF
                      IF(DZ.EQ.LZ) THEN
                         DZ=1
-                        IF(LZ.EQ.1) SUM=SUM+BHUB
+                        IF(LZ.EQ.1) TOTSUM=TOTSUM+BHUB
                      ENDIF
                   ENDIF
                   IF(DX+DY+DZ.EQ.1.AND.G1(I)%Ms.EQ.G1(J)%MS) THEN
 !This is for if the site can interact with a periodic image.
                      IF(TSTARSTORE) THEN
-                        TMATSYM(TMatInd(I,J))=SUM
-                        IF(iProcIndex.eq.0) WRITE(10,*) I,J,SUM
+                        TMATSYM(TMatInd(I,J))=TOTSUM
+                        IF(iProcIndex.eq.0) WRITE(10,*) I,J,TOTSUM
                      ELSE
-                        TMAT2D(I,J)=SUM
-                        IF(iProcIndex.eq.0) WRITE(10,*) I,J,SUM
+                        TMAT2D(I,J)=TOTSUM
+                        IF(iProcIndex.eq.0) WRITE(10,*) I,J,TOTSUM
                      ENDIF
                   ENDIF
                ENDDO
@@ -153,16 +153,16 @@ C         IF(LZ.GT.1) SUM=SUM+COS(PI*K/(LZ+1))
                DO I=1,NBASIS
                   CALL HUBKIN(G1(I)%k(1),G1(I)%k(2),G1(I)%k(3),
      &               NBASISMAX,BHUB,
-     &               TTILT,SUM,TREAL)
-                  TMAT2D(I,I)=SUM
+     &               TTILT,TOTSUM,TREAL)
+                  TMAT2D(I,I)=TOTSUM
                   IF(iProcIndex.eq.0) WRITE(10,*) I,I,TMAT2D(I,I)
                ENDDO
             ELSE
                DO I=1,NBASIS
                   CALL HUBKINN(G1(I)%k(1),G1(I)%k(2),G1(I)%k(3),
      &               NBASISMAX,BHUB,
-     &               TTILT,SUM,TREAL)
-                  TMAT2D(I,I)=SUM
+     &               TTILT,TOTSUM,TREAL)
+                  TMAT2D(I,I)=TOTSUM
                   IF(iProcIndex.eq.0) WRITE(10,*) I,I,TMAT2D(I,I)
                ENDDO
             ENDIF
