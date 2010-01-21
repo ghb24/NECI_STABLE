@@ -1,5 +1,4 @@
 #include "macros.h"
-
 !This is a parallel MPI version of the FciMC code.
 !All variables refer to values per processor
 
