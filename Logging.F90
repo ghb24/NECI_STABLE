@@ -7,7 +7,7 @@ MODULE Logging
     INTEGER HFLOGLEVEL,iWritePopsEvery,StartPrintOrbOcc
     INTEGER PreVarLogging,WavevectorPrint,NoHistBins
     REAL*8 MaxHistE,BinRange,OffDiagMax,OffDiagBinRange,TriConMax,TriConHElSingMax,TriConHElDoubMax
-    LOGICAL TDistrib,TPopsFile,TCalcWavevector,TDetPops,tROFciDump,tROHistOffDiag,tROHistDoubExc,tROHistOnePartOrbEn
+    LOGICAL TDistrib,TPopsFile,TCalcWavevector,TDetPops,tROFciDump,tROHistOffDiag,tROHistDoubExc,tROHistOnePartOrbEn,tPrintPopsDefault
     LOGICAL TZeroProjE,TWriteDetE,TAutoCorr,tBinPops,tROHistogramAll,tROHistER,tHistSpawn,tROHistSingExc,tRoHistOneElInts
     LOGICAL tROHistVirtCoulomb,tPrintInts,tHistEnergies,tPrintTriConnections,tHistTriConHEls,tPrintHElAccept,tTruncRODump
     LOGICAL tPrintFCIMCPsi,tCalcFCIMCPsi,tPrintSpinCoupHEl,tIterStartBlock,tHFPopStartBlock,tInitShiftBlocking,tTruncDumpbyVal
@@ -46,6 +46,7 @@ MODULE Logging
       TCalcWavevector=.false.
       WavevectorPrint=100
       TPopsFile=.true.
+      tPrintPopsDefault=.true.
       TDistrib=.false.
       ILOGGINGDef=0
       iGlobalTimerLevel=40
@@ -404,6 +405,7 @@ MODULE Logging
 ! passes that many.
             TPopsFile=.true.
             IF(item.lt.nitems) THEN
+                tPrintPopsDefault=.false.
                 call readi(iWritePopsEvery)
                 IF(iWritePopsEvery.lt.0) THEN
 !If a negative argument is supplied to iWritePopsEvery, then the POPSFILE will never be written out, even at the end of a simulation.

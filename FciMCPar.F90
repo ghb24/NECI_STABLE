@@ -32,7 +32,7 @@ MODULE FciMCParMod
     USE Logging , only : NoACDets,BinRange,iNoBins,OffDiagBinRange,OffDiagMax,tPrintSpinCoupHEl!,iLagMin,iLagMax,iLagStep,tAutoCorr
     USE Logging , only : tPrintTriConnections,tHistTriConHels,tPrintHElAccept,tPrintFCIMCPsi,tCalcFCIMCPsi,NHistEquilSteps,tPrintOrbOcc,StartPrintOrbOcc
     USE Logging , only : tHFPopStartBlock,tIterStartBlock,IterStartBlocking,HFPopStartBlocking,tInitShiftBlocking,tHistHamil,iWriteHamilEvery
-    USE Logging , only : OrbOccs,OrbOccsTag 
+    USE Logging , only : OrbOccs,OrbOccsTag,tPrintPopsDefault 
     USE SymData , only : nSymLabels
     USE mt95 , only : genrand_real2
     USE Parallel
@@ -8665,8 +8665,9 @@ MODULE FciMCParMod
             OneRDM(:,:)=0.D0
         ENDIF
 
-        IF(TPopsFile.and.(mod(iWritePopsEvery,StepsSft).ne.0)) THEN
-            CALL Warning(this_routine,"POPSFILE writeout should be a multiple of the update cycle length.")
+        IF(TPopsFile) THEN
+            IF(tPrintPopsDefault) iWritePopsEvery=NMCyc
+            IF(mod(iWritePopsEvery,StepsSft).ne.0) CALL Warning(this_routine,"POPSFILE writeout should be a multiple of the update cycle length.")
         ENDIF
 
         IF(TNoAnnihil) THEN
