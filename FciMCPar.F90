@@ -127,7 +127,7 @@ MODULE FciMCParMod
                 IF(tWritePopsFound) THEN
 !We have explicitly asked to write out the POPSFILE from the CHANGEVARS file.
                     IF(tRotoAnnihil.or.tDirectAnnihil) THEN
-                        CALL WriteToPopsFileParOneArr()
+                        CALL WriteToPopsfileParOneArr()
                     ELSE
                         CALL WriteToPopsFilePar()
                     ENDIF
@@ -148,9 +148,9 @@ MODULE FciMCParMod
             IF(TPopsFile.and.(mod(Iter,iWritePopsEvery).eq.0)) THEN
 !This will write out the POPSFILE if wanted
                 IF(tRotoAnnihil.or.tDirectAnnihil) THEN
-                    CALL WriteToPopsFileParOneArr()
+                    CALL WriteToPopsfileParOneArr()
                 ELSE
-                    CALL WriteToPopsFilePar()
+                    CALL WriteToPopsfilePar()
                 ENDIF
             ENDIF
 !            IF(TAutoCorr) CALL WriteHistogrammedDets()
@@ -169,9 +169,9 @@ MODULE FciMCParMod
         IF(TIncrement) Iter=Iter-1     !Reduce the iteration count for the POPSFILE since it is incremented upon leaving the loop (if done naturally)
         IF(TPopsFile) THEN
             IF(tRotoAnnihil.or.tDirectAnnihil) THEN
-                CALL WriteToPopsFileParOneArr()
+                CALL WriteToPopsfileParOneArr()
             ELSE
-                CALL WriteToPopsFilePar()
+                CALL WriteToPopsfilePar()
             ENDIF
         ENDIF
         IF(tCalcFCIMCPsi) THEN
@@ -1837,7 +1837,7 @@ MODULE FciMCParMod
 !Read in particles from multiple POPSFILES for each processor
             WRITE(6,*) "Reading in initial particle configuration from POPSFILES..."
 
-            IF(tDirectAnnihil) CALL Stop_All(this_routine,"READPOPS currently disabled with directannihilation")
+!            IF(tDirectAnnihil) CALL Stop_All(this_routine,"READPOPS currently disabled with directannihilation")
             CALL ReadFromPopsFilePar()
 
         ELSE
@@ -2739,9 +2739,9 @@ MODULE FciMCParMod
         INTEGER :: AvWalkers,WalkerstoReceive(nProcessors)
         INTEGER*8 :: NodeSumNoatHF(nProcessors),TempAllSumNoatHF
         REAL*8 :: TempTotParts
-        INTEGER :: TempInitWalkers,error,i,j,k,l,total,ierr,MemoryAlloc,Tag
+        INTEGER :: TempInitWalkers,error,i,j,k,l,total,ierr,MemoryAlloc,Tag,iLutTemp(0:NIfTot),TempSign,Proc,CurrWalkers
         INTEGER :: Stat(MPI_STATUS_SIZE),AvSumNoatHF,VecSlot,IntegerPart,HFPointer,TempnI(NEl),ExcitLevel,VecInd,DetsMerged
-        REAL*8 :: r,FracPart,TempTotWalkers
+        REAL*8 :: r,FracPart,TempTotWalkers,Gap
         TYPE(HElement) :: HElemTemp
         CHARACTER(len=*), PARAMETER :: this_routine='ReadFromPopsfilePar'
         
@@ -2751,44 +2751,61 @@ MODULE FciMCParMod
         SumNoatHF=0
         DiagSft=0.D0
         Tag=124             !Set Tag
-
-        IF(iProcIndex.eq.root) THEN
+        
+        IF(tDirectAnnihil) THEN
             INQUIRE(FILE='POPSFILE',EXIST=exists)
             IF(exists) THEN
                 OPEN(17,FILE='POPSFILE',Status='old')
                 tBinRead=.false.
-            ELSE
-!Reading in a binary file
-                tBinRead=.true.
-                INQUIRE(FILE='POPSFILEHEAD',EXIST=exists)
-                IF(.not.exists) THEN
-                    INQUIRE(FILE='POPSFILEBIN',EXIST=exists)
-                    IF(.not.exists) THEN
-                        CALL Stop_All(this_routine,"No POPSFILE's of any kind found.")
-                    ELSE
-                        CALL Stop_All(this_routine,"POPSFILEBIN found, but POPSFILEHEAD also needed for header information")
-                    ENDIF
+!Read in initial data on processors which have a popsfile
+                READ(17,*) AllTotWalkers
+                READ(17,*) DiagSft
+                READ(17,*) TempAllSumNoatHF     !AllSumNoatHF stored as integer for compatability with serial POPSFILEs
+                READ(17,*) AllSumENum
+                READ(17,*) PreviousCycles
+            ENDIF
+        ELSE
+            IF(iProcIndex.eq.root) THEN
+                INQUIRE(FILE='POPSFILE',EXIST=exists)
+                IF(exists) THEN
+                    OPEN(17,FILE='POPSFILE',Status='old')
+                    tBinRead=.false.
                 ELSE
-                    INQUIRE(FILE='POPSFILEBIN',EXIST=exists)
+!Reading in a binary file
+                    tBinRead=.true.
+                    INQUIRE(FILE='POPSFILEHEAD',EXIST=exists)
                     IF(.not.exists) THEN
-                        CALL Stop_All(this_routine,"POPSFILEHEAD found, but no POPSFILEBIN for particle information - this is also needed")
+                        INQUIRE(FILE='POPSFILEBIN',EXIST=exists)
+                        IF(.not.exists) THEN
+                            CALL Stop_All(this_routine,"No POPSFILE's of any kind found.")
+                        ELSE
+                            CALL Stop_All(this_routine,"POPSFILEBIN found, but POPSFILEHEAD also needed for header information")
+                        ENDIF
                     ELSE
-                        OPEN(17,FILE='POPSFILEHEAD',Status='old')
+                        INQUIRE(FILE='POPSFILEBIN',EXIST=exists)
+                        IF(.not.exists) THEN
+                            CALL Stop_All(this_routine,"POPSFILEHEAD found, but no POPSFILEBIN for particle information - this is also needed")
+                        ELSE
+                            OPEN(17,FILE='POPSFILEHEAD',Status='old')
+                        ENDIF
                     ENDIF
                 ENDIF
-            ENDIF
-                    
+                        
 !Read in initial data on processors which have a popsfile
-            READ(17,*) AllTotWalkers
-            READ(17,*) DiagSft
-            READ(17,*) TempAllSumNoatHF     !AllSumNoatHF stored as integer for compatability with serial POPSFILEs
-            READ(17,*) AllSumENum
-            READ(17,*) PreviousCycles
+                READ(17,*) AllTotWalkers
+                READ(17,*) DiagSft
+                READ(17,*) TempAllSumNoatHF     !AllSumNoatHF stored as integer for compatability with serial POPSFILEs
+                READ(17,*) AllSumENum
+                READ(17,*) PreviousCycles
 
-            IF(tBinRead) THEN
-                CLOSE(17)
-                OPEN(17,FILE='POPSFILEBIN',Status='old',form='unformatted')
+                IF(tBinRead) THEN
+                    CLOSE(17)
+                    OPEN(17,FILE='POPSFILEBIN',Status='old',form='unformatted')
+                ENDIF
             ENDIF
+        ENDIF
+
+        IF(iProcIndex.eq.Root) THEN
 
             AllSumNoatHF=REAL(TempAllSumNoatHF,r2)
             WRITE(6,*) "Number of cycles in previous simulation: ",PreviousCycles
@@ -2805,6 +2822,7 @@ MODULE FciMCParMod
 
 !Need to calculate the number of walkers each node will receive...
             AvWalkers=NINT(AllTotWalkers/real(nProcessors,r2))
+
 !Divide up the walkers to receive for each node
             do i=1,nProcessors-1
                 WalkerstoReceive(i)=AvWalkers
@@ -2843,99 +2861,280 @@ MODULE FciMCParMod
         CALL MPI_BCast(DiagSft,1,MPI_DOUBLE_PRECISION,root,MPI_COMM_WORLD,error)
         CALL MPI_BCast(InitWalkers,1,MPI_INTEGER,root,MPI_COMM_WORLD,error)
         CALL MPI_BCast(SumENum,1,MPI_DOUBLE_PRECISION,root,MPI_COMM_WORLD,error)
+!        CALL MPI_BCast(tChangenProcessors,1,MPI_LOGICAL,root,MPI_COMM_WORLD,error)
 !Scatter the number of walkers each node will receive to TempInitWalkers, and the SumNoatHF for each node which is distributed approximatly equally
         CALL MPI_Scatter(WalkerstoReceive,1,MPI_INTEGER,TempInitWalkers,1,MPI_INTEGER,root,MPI_COMM_WORLD,error)
         CALL MPI_Scatter(NodeSumNoatHF,1,MPI_DOUBLE_PRECISION,SumNoatHF,1,MPI_DOUBLE_PRECISION,root,MPI_COMM_WORLD,error)
+
+        IF(tDirectAnnihil) THEN
+            IF(ScaleWalkers.ne.1) CALL Stop_All(this_routine,'Sorry, direct annihilation cannot cope with scaling just yet.')
+            IF(MemoryFacPart.le.1.D0) THEN
+                WRITE(6,*) 'MemoryFacPart must be larger than 1.0 when reading in a POPSFILE - increasing it to 1.50.'
+                MemoryFacPart=1.50
+            ENDIF
+        ENDIF
         
 !Now we want to allocate memory on all nodes.
-        MaxWalkersPart=NINT(MemoryFacPart*InitWalkers)    !All nodes have the same amount of memory allocated
-        IF(tRotoAnnihil) THEN
-            MaxSpawned=NINT(MemoryFacSpawn*InitWalkers)
+        MaxWalkersPart=NINT(MemoryFacPart*(NINT(InitWalkers*ScaleWalkers)))   !InitWalkers here is simply the average number of walkers per node, not actual
+        IF(tRotoAnnihil.or.tDirectAnnihil) THEN
+            MaxSpawned=NINT(MemoryFacSpawn*(NINT(InitWalkers*ScaleWalkers)))
         ELSE
-            MaxWalkersAnnihil=NINT(MemoryFacAnnihil*InitWalkers)
+            MaxWalkersAnnihil=NINT(MemoryFacAnnihil*(NINT(InitWalkers*ScaleWalkers)))   !InitWalkers here is simply the average number of walkers per node, not actual
         ENDIF
+
+        Gap=REAL(MaxSpawned)/REAL(nProcessors)
+        do i=0,nProcessors-1
+            InitialSpawnedSlots(i)=NINT(Gap*i)+1
+        enddo
+!ValidSpawndList now holds the next free position in the newly-spawned list, but for each processor.
+        ValidSpawnedList(:)=InitialSpawnedSlots(:)
+
+        CALL MPI_Barrier(MPI_COMM_WORLD,error)  !Sync
 
 !Allocate memory to hold walkers at least temporarily
         ALLOCATE(WalkVecDets(0:NIfTot,MaxWalkersPart),stat=ierr)
+        IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating WalkVecDets array.')
         CALL LogMemAlloc('WalkVecDets',MaxWalkersPart*(NIfTot+1),4,this_routine,WalkVecDetsTag,ierr)
-        WalkVecDets(0:NIfTot,1:MaxWalkersPart)=0
-        IF(tRotoAnnihil) THEN
+!        WalkVecDets(0:NIfTot,1:MaxWalkersPart)=0
+        WalkVecDets(:,:)=0
+        IF(tRotoAnnihil.or.tDirectAnnihil) THEN
             ALLOCATE(WalkVecSign(MaxWalkersPart),stat=ierr)
+            IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating WalkVecSign array.')
             CALL LogMemAlloc('WalkVecSign',MaxWalkersPart,4,this_routine,WalkVecSignTag,ierr)
             WalkVecSign(:)=0
         ELSE
             ALLOCATE(WalkVecSign(MaxWalkersAnnihil),stat=ierr)
+            IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating WalkVecSign array.')
             CALL LogMemAlloc('WalkVecSign',MaxWalkersAnnihil,4,this_routine,WalkVecSignTag,ierr)
         ENDIF
 
-        IF(iProcIndex.eq.root) THEN
-!Root process reads all walkers in and then sends them to the correct processor
-            do i=nProcessors,1,-1
-!Read in data for processor i
-                IF(tBinRead) THEN
-                    do j=1,WalkerstoReceive(i)
-                        READ(17) WalkVecDets(0:NIfTot,j),WalkVecSign(j)
-                    enddo
-                ELSE
-                    do j=1,WalkerstoReceive(i)
-                        READ(17,*) WalkVecDets(0:NIfTot,j),WalkVecSign(j)
-                    enddo
-                ENDIF
+!Just allocating this here, so that the SpawnParts arrays can be used for sorting the determinants when using direct annihilation.
+        IF(tRotoAnnihil.or.tDirectAnnihil) THEN
 
-                IF(i.ne.1) THEN
-!Now send data to processor i-1 (Processor rank goes from 0 -> nProcs-1). If i=1, then we want the data so stay at the root processor
-                    CALL MPI_Send(WalkVecDets(:,1:WalkerstoReceive(i)),WalkerstoReceive(i)*(NIfTot+1),MPI_INTEGER,i-1,Tag,MPI_COMM_WORLD,error)
-                    CALL MPI_Send(WalkVecSign(1:WalkerstoReceive(i)),WalkerstoReceive(i),MPI_INTEGER,i-1,Tag,MPI_COMM_WORLD,error)
-                ENDIF
+            WRITE(6,"(A,I12,A)") " Spawning vectors allowing for a total of ",MaxSpawned," particles to be spawned in any one iteration."
+            ALLOCATE(SpawnVec(0:NIfTot,MaxSpawned),stat=ierr)
+            CALL LogMemAlloc('SpawnVec',MaxSpawned*(NIfTot+1),4,this_routine,SpawnVecTag,ierr)
+            SpawnVec(:,:)=0
+            ALLOCATE(SpawnVec2(0:NIfTot,MaxSpawned),stat=ierr)
+            CALL LogMemAlloc('SpawnVec2',MaxSpawned*(NIfTot+1),4,this_routine,SpawnVec2Tag,ierr)
+            SpawnVec2(:,:)=0
+            ALLOCATE(SpawnSignVec(0:MaxSpawned),stat=ierr)
+            CALL LogMemAlloc('SpawnSignVec',MaxSpawned+1,4,this_routine,SpawnSignVecTag,ierr)
+            SpawnSignVec(:)=0
+            ALLOCATE(SpawnSignVec2(0:MaxSpawned),stat=ierr)
+            CALL LogMemAlloc('SpawnSignVec2',MaxSpawned+1,4,this_routine,SpawnSignVec2Tag,ierr)
+            SpawnSignVec2(:)=0
 
-            enddo
 
-            CLOSE(17)
+!Point at correct spawning arrays
+            SpawnedParts=>SpawnVec
+            SpawnedParts2=>SpawnVec2
+            SpawnedSign=>SpawnSignVec
+            SpawnedSign2=>SpawnSignVec2
 
-            IF(tRotoAnnihil) THEN
-                WRITE(6,*) "Ordering/compressing all walkers that have been read in..."
-                CALL SortBitDets(WalkerstoReceive(1), &
-                                 WalkVecDets(:,1:WalkerstoReceive(1)), &
-                                 WalkVecSign(1:WalkerstoReceive(1)))
-                
-                VecInd=1
-                DetsMerged=0
-                do i=2,TempInitWalkers
-                    IF(.not.DetBitEQ(WalkVecDets(0:NIfTot,i),WalkVecDets(0:NIfTot,VecInd),NIfDBO)) THEN
-                        VecInd=VecInd+1
-                        WalkVecDets(:,VecInd)=WalkVecDets(:,i)
-                        WalkVecSign(VecInd)=WalkVecSign(i)
-                    ELSE
-                        WalkVecSign(VecInd)=WalkVecSign(VecInd)+WalkVecSign(i)
-                        DetsMerged=DetsMerged+1
-                    ENDIF
-                enddo
+            MemoryAlloc=MemoryAlloc+(((MaxSpawned+1)*2)+(2*MaxSpawned*(1+NIfTot)))*4
+!            IF(tRotoAnnihil) MemoryAlloc=MemoryAlloc+(((MaxSpawned+1)*2)+(2*MaxSpawned*(1+NIfTot)))*4
 
-                TempInitWalkers=TempInitWalkers-DetsMerged
+!        IF((.not.TNoAnnihil).and.(.not.TAnnihilonproc)) THEN
+        ELSEIF(.not.TNoAnnihil) THEN
+            ALLOCATE(HashArray(MaxWalkersAnnihil),stat=ierr)
+            CALL LogMemAlloc('HashArray',MaxWalkersAnnihil,8,this_routine,HashArrayTag,ierr)
+            HashArray(:)=0
+            ALLOCATE(Hash2Array(MaxWalkersAnnihil),stat=ierr)
+            CALL LogMemAlloc('Hash2Array',MaxWalkersAnnihil,8,this_routine,Hash2ArrayTag,ierr)
+            Hash2Array(:)=0
+            ALLOCATE(IndexTable(MaxWalkersAnnihil),stat=ierr)
+            CALL LogMemAlloc('IndexTable',MaxWalkersAnnihil,4,this_routine,IndexTableTag,ierr)
+            IndexTable(1:MaxWalkersAnnihil)=0
+            ALLOCATE(Index2Table(MaxWalkersAnnihil),stat=ierr)
+            CALL LogMemAlloc('Index2Table',MaxWalkersAnnihil,4,this_routine,Index2TableTag,ierr)
+            Index2Table(1:MaxWalkersAnnihil)=0
+            ALLOCATE(ProcessVec(MaxWalkersAnnihil),stat=ierr)
+            CALL LogMemAlloc('ProcessVec',MaxWalkersAnnihil,4,this_routine,ProcessVecTag,ierr)
+            ProcessVec(1:MaxWalkersAnnihil)=0
+            ALLOCATE(Process2Vec(MaxWalkersAnnihil),stat=ierr)
+            CALL LogMemAlloc('Process2Vec',MaxWalkersAnnihil,4,this_routine,Process2VecTag,ierr)
+            Process2Vec(1:MaxWalkersAnnihil)=0
 
-            ENDIF
-
-        
+            MemoryAlloc=MemoryAlloc+32*MaxWalkersAnnihil
         ENDIF
 
-        do i=1,nProcessors-1
-            IF(iProcIndex.eq.i) THEN
-!All other processors want to pick up their data from root
-                CALL MPI_Recv(WalkVecDets(:,1:TempInitWalkers),TempInitWalkers*(NIfTot+1),MPI_INTEGER,0,Tag,MPI_COMM_WORLD,Stat,error)
-                CALL MPI_Recv(WalkVecSign(1:TempInitWalkers),TempInitWalkers,MPI_INTEGER,0,Tag,MPI_COMM_WORLD,Stat,error)
+!Allocate pointers to the correct walker arrays...
+        CurrentDets=>WalkVecDets
+        CurrentSign=>WalkVecSign
+!        CurrentIC=>WalkVecIC
+
+!Need to now allocate other arrays
+        IF(.not.tRegenDiagHEls) THEN
+            ALLOCATE(WalkVecH(MaxWalkersPart),stat=ierr)
+            CALL LogMemAlloc('WalkVecH',MaxWalkersPart,8,this_routine,WalkVecHTag,ierr)
+            WalkVecH(:)=0.d0
+            IF((.not.tRotoAnnihil).and.(.not.tDirectAnnihil)) THEN
+                ALLOCATE(WalkVec2H(MaxWalkersPart),stat=ierr)
+                CALL LogMemAlloc('WalkVec2H',MaxWalkersPart,8,this_routine,WalkVec2HTag,ierr)
+                WalkVec2H(:)=0.d0
+            ENDIF
+        ELSE
+            IF(tRotoAnnihil.or.tDirectAnnihil) THEN
+                WRITE(6,"(A,F14.6,A)") "Diagonal H-Elements will not be stored. This will *save* ",REAL(MaxWalkersPart*4*2,r2)/1048576.D0," Mb/Processor"
+            ELSE
+                WRITE(6,"(A,F14.6,A)") "Diagonal H-Elements will not be stored. This will *save* ",REAL(MaxWalkersPart*4*4,r2)/1048576.D0," Mb/Processor"
+            ENDIF
+        ENDIF
+
+        IF(.not.tRegenDiagHEls) THEN
+            CurrentH=>WalkVecH
+            NewH=>WalkVec2H
+        ENDIF
+        NewDets=>WalkVec2Dets
+        NewSign=>WalkVec2Sign
+!        NewIC=>WalkVec2IC
+
+        IF(tDirectAnnihil) THEN
+
+! The hashing will be different in the new calculation from the one where the POPSFILE was produced, this means we must recalculate the processor each determinant wants to go to.                
+! This is done by reading in all walkers to the root and then distributing them in the same way as the spawning steps are done - by finding the determinant and sending it there.
+
+!            IF(iProcIndex.eq.root) THEN
+
+!                do i=1,AllTotWalkers
+!                    iLutTemp(:)=0
+!                    READ(17,*) iLutTemp(0:NIfTot),TempSign
+
+                    !WRITE(6,'(A,3I20)') 'when dealing with directannihilation',iLutnJ(:)
+!                    Proc=DetermineDetProc(iLutTemp)   !This wants to return a value between 0 -> nProcessors-1
+                    !WRITE(6,*) iLutnJ(:),Proc,ValidSpawnedList(Proc),Child,TotWalkers
+                    !CALL FLUSH(6)
+!                    SpawnedParts(:,ValidSpawnedList(Proc))=iLutTemp(:)
+!                    SpawnedSign(ValidSpawnedList(Proc))=TempSign
+!                    IF(tTruncInitiator) THEN
+!                        IF(SpawnedParts(NIfTot,ValidSpawnedList(Proc)).ne.0) CALL Stop_All(this_routine,'The parent initiator flags should all be 0 by the time             & 
+!&                                                                                                        the POPSFILE is written, however for some reason this is not so.')
+!                    ENDIF
+!                    ValidSpawnedList(Proc)=ValidSpawnedList(Proc)+1
+!                enddo
+!                CLOSE(17)
+! the spawnedparts and spawnedsign are then sent to the currentdets and currentsign arrays of the relevant processors in the same way as 
+! they are in each iteration - however obviously no annihilation needs to be done.
+
+!                IF(iProcIndex.ne.root) AllTotWalkers=0
+!Walkers are only read in from the root processor - this is just making sure it is clear the other processers don't currently have any walkers to distribute.
+
+!                CALL MPI_Barrier(MPI_COMM_WORLD,error)  !Sync
+
+!                TempInitWalkers=AllTotWalkers
+
+!                IF((CurrentDets(0,1).ne.0).or.(CurrentDets(NIfD,1).ne.0)) CALL Stop_All(this_routine,'Memory issue. Need to increase MemoryFacSpawn.')
+
+!                CurrWalkers=0
+! This is just a parameter to say that there are no walkers in the CurrentDets array yet - these all come from the POPSFILE as though they are all spawned at once.            
+!                IF(tTruncInitiator) THEN
+!                    WRITE(6,*) 'TRUNCINITIATOR on.  Turning it off temporarily.'
+!                    CALL FLUSH(6)
+!                    tTruncInitiator=.false.
+!                    CALL DirectAnnihilation(CurrWalkers)
+!                    tTruncInitiator=.true.
+!                    WRITE(6,*) 'Turning TRUNCINITIATOR back on.'
+!                ELSE
+!                    CALL DirectAnnihilation(CurrWalkers)
+!                ENDIF
+!                CALL MPI_Barrier(MPI_COMM_WORLD,error)  !Sync
+!            ENDIF
+
+
+            CurrWalkers=0
+            do i=1,AllTotWalkers
+                iLutTemp(:)=0
+                READ(17,*) iLutTemp(0:NIfTot),TempSign
+                Proc=DetermineDetProc(iLutTemp)   !This wants to return a value between 0 -> nProcessors-1
+                IF(Proc.eq.iProcIndex) THEN
+                    CurrWalkers=CurrWalkers+1
+                    CurrentDets(0:NIfTot,CurrWalkers)=iLutTemp(0:NIfTot)
+                    CurrentSign(CurrWalkers)=TempSign
+                ENDIF
+            enddo
+            CLOSE(17)
+            
+!            DEALLOCATE(SpawnVec)
+!            CALL LogMemDeAlloc(this_routine,SpawnVecTag)
+!            DEALLOCATE(SpawnVec2)
+!            CALL LogMemDeAlloc(this_routine,SpawnVec2Tag)
+!            DEALLOCATE(SpawnSignVec)
+!            CALL LogMemDeAlloc(this_routine,SpawnSignVecTag)
+!            DEALLOCATE(SpawnSignVec2)
+!            CALL LogMemDeAlloc(this_routine,SpawnSignVec2Tag)
+
+!            MaxSpawned=NINT(MemoryFacSpawn*InitWalkers)
+!            Gap=REAL(MaxSpawned)/REAL(nProcessors)
+!            do i=0,nProcessors-1
+!                InitialSpawnedSlots(i)=NINT(Gap*i)+1
+!            enddo
+!ValidSpawndList now holds the next free position in the newly-spawned list, but for each processor.
+!            ValidSpawnedList(:)=InitialSpawnedSlots(:)
+
+!            ALLOCATE(SpawnVec(0:NIfTot,MaxSpawned),stat=ierr)
+!            CALL LogMemAlloc('SpawnVec',MaxSpawned*(NIfTot+1),4,this_routine,SpawnVecTag,ierr)
+!            SpawnVec(:,:)=0
+!            ALLOCATE(SpawnVec2(0:NIfTot,MaxSpawned),stat=ierr)
+!            CALL LogMemAlloc('SpawnVec2',MaxSpawned*(NIfTot+1),4,this_routine,SpawnVec2Tag,ierr)
+!            SpawnVec2(:,:)=0
+!            ALLOCATE(SpawnSignVec(0:MaxSpawned),stat=ierr)
+!            CALL LogMemAlloc('SpawnSignVec',MaxSpawned+1,4,this_routine,SpawnSignVecTag,ierr)
+!            SpawnSignVec(:)=0
+!            ALLOCATE(SpawnSignVec2(0:MaxSpawned),stat=ierr)
+!            CALL LogMemAlloc('SpawnSignVec2',MaxSpawned+1,4,this_routine,SpawnSignVec2Tag,ierr)
+!            SpawnSignVec2(:)=0
+
+!Point at correct spawning arrays
+!            SpawnedParts=>SpawnVec
+!            SpawnedParts2=>SpawnVec2
+!            SpawnedSign=>SpawnSignVec
+!            SpawnedSign2=>SpawnSignVec2
+
+!            MemoryAlloc=MemoryAlloc+(((MaxSpawned+1)*2)+(2*MaxSpawned*(1+NIfTot)))*4
+
+        ELSE
+
+            IF(iProcIndex.eq.root) THEN
+
+!Root process reads all walkers in and then sends them to the correct processor
+                do i=nProcessors,1,-1
+!Read in data for processor i
+                    IF(tBinRead) THEN
+                        do j=1,WalkerstoReceive(i)
+                            READ(17) WalkVecDets(0:NIfTot,j),WalkVecSign(j)
+                        enddo
+                    ELSE
+                        do j=1,WalkerstoReceive(i)
+                            READ(17,*) WalkVecDets(0:NIfTot,j),WalkVecSign(j)
+                        enddo
+                    ENDIF
+
+                    IF(i.ne.1) THEN
+!Now send data to processor i-1 (Processor rank goes from 0 -> nProcs-1). If i=1, then we want the data so stay at the root processor.
+                        CALL MPI_Send(WalkVecDets(:,1:WalkerstoReceive(i)),WalkerstoReceive(i)*(NIfTot+1),MPI_INTEGER,i-1,Tag,MPI_COMM_WORLD,error)
+                        CALL MPI_Send(WalkVecSign(1:WalkerstoReceive(i)),WalkerstoReceive(i),MPI_INTEGER,i-1,Tag,MPI_COMM_WORLD,error)
+                    ENDIF
+
+                enddo
+
+                CLOSE(17)
+
                 IF(tRotoAnnihil) THEN
-                    CALL SortBitDets(TempInitWalkers, &
-                                     WalkVecDets(:,1:TempInitWalkers), &
-                                     WalkVecSign(1:TempInitWalkers))
+                    WRITE(6,*) "Ordering/compressing all walkers that have been read in..."
+                    CALL SortBitDets(WalkerstoReceive(1), &
+                                     WalkVecDets(:,1:WalkerstoReceive(1)), &
+                                     WalkVecSign(1:WalkerstoReceive(1)))
+                    
                     VecInd=1
                     DetsMerged=0
-                    do l=2,TempInitWalkers
-                        IF(.not.DetBitEQ(WalkVecDets(0:NIfTot,l),WalkVecDets(0:NIfTot,VecInd),NIfDBO)) THEN
+                    do i=2,TempInitWalkers
+                        IF(.not.DetBitEQ(WalkVecDets(0:NIfTot,i),WalkVecDets(0:NIfTot,VecInd),NIfDBO)) THEN
                             VecInd=VecInd+1
-                            WalkVecDets(:,VecInd)=WalkVecDets(:,l)
-                            WalkVecSign(VecInd)=WalkVecSign(l)
+                            WalkVecDets(:,VecInd)=WalkVecDets(:,i)
+                            WalkVecSign(VecInd)=WalkVecSign(i)
                         ELSE
-                            WalkVecSign(VecInd)=WalkVecSign(VecInd)+WalkVecSign(l)
+                            WalkVecSign(VecInd)=WalkVecSign(VecInd)+WalkVecSign(i)
                             DetsMerged=DetsMerged+1
                         ENDIF
                     enddo
@@ -2943,20 +3142,48 @@ MODULE FciMCParMod
                     TempInitWalkers=TempInitWalkers-DetsMerged
 
                 ENDIF
-            ENDIF
-        enddo
 
-        IF(iProcIndex.eq.root) WRITE(6,*) INT(AllTotWalkers,i2)," configurations read in from POPSFILE and distributed."
+            ENDIF
+
+            CALL MPI_Barrier(MPI_COMM_WORLD,error)  !Sync
+            
+
+            do i=1,nProcessors-1
+                IF(iProcIndex.eq.i) THEN
+!All other processors want to pick up their data from root
+                    CALL MPI_Recv(WalkVecDets(:,1:TempInitWalkers),TempInitWalkers*(NIfTot+1),MPI_INTEGER,0,Tag,MPI_COMM_WORLD,Stat,error)
+                    CALL MPI_Recv(WalkVecSign(1:TempInitWalkers),TempInitWalkers,MPI_INTEGER,0,Tag,MPI_COMM_WORLD,Stat,error)
+                    IF(tRotoAnnihil) THEN
+                        CALL SortBitDets(TempInitWalkers, &
+                                         WalkVecDets(:,1:TempInitWalkers), &
+                                         WalkVecSign(1:TempInitWalkers))
+                        VecInd=1
+                        DetsMerged=0
+                        do l=2,TempInitWalkers
+                            IF(.not.DetBitEQ(WalkVecDets(0:NIfTot,l),WalkVecDets(0:NIfTot,VecInd),NIfDBO)) THEN
+                                VecInd=VecInd+1
+                                WalkVecDets(:,VecInd)=WalkVecDets(:,l)
+                                WalkVecSign(VecInd)=WalkVecSign(l)
+                            ELSE
+                                WalkVecSign(VecInd)=WalkVecSign(VecInd)+WalkVecSign(l)
+                                DetsMerged=DetsMerged+1
+                            ENDIF
+                        enddo
+
+                        TempInitWalkers=TempInitWalkers-DetsMerged
+
+                    ENDIF
+                ENDIF
+            enddo
+
+        ENDIF
+
+
+        IF(iProcIndex.eq.root) WRITE(6,'(I10,A)') INT(AllTotWalkers,i2)," configurations read in from POPSFILE and distributed."
 
         IF(ScaleWalkers.ne.1) THEN
 
             WRITE(6,*) "Rescaling walkers  by a factor of: ",ScaleWalkers
-            MaxWalkersPart=NINT(MemoryFacPart*(NINT(InitWalkers*ScaleWalkers)))   !InitWalkers here is simply the average number of walkers per node, not actual
-            IF(tRotoAnnihil) THEN
-                MaxSpawned=NINT(MemoryFacSpawn*(NINT(InitWalkers*ScaleWalkers)))
-            ELSE
-                MaxWalkersAnnihil=NINT(MemoryFacAnnihil*(NINT(InitWalkers*ScaleWalkers)))   !InitWalkers here is simply the average number of walkers per node, not actual
-            ENDIF
 
             IF(tRotoAnnihil) THEN
                 IntegerPart=INT(ScaleWalkers)
@@ -2989,6 +3216,7 @@ MODULE FciMCParMod
                     AllTotWalkersOld=AllTotWalkers
                     WRITE(6,*) "Total number of initial determinants occupied is now: ", INT(AllTotWalkers,i2)
                 ENDIF
+
 
             ELSE
 
@@ -3039,20 +3267,21 @@ MODULE FciMCParMod
 
 
 !Deallocate the arrays used to hold the original particles, and reallocate with correct size.
-                DEALLOCATE(WalkVecDets)
-                CALL LogMemDealloc(this_routine,WalkVecDetsTag)
-                DEALLOCATE(WalkVecSign)
-                CALL LogMemDealloc(this_routine,WalkVecSignTag)
-                ALLOCATE(WalkVecDets(0:NIfTot,MaxWalkersPart),stat=ierr)
-                CALL LogMemAlloc('WalkVecDets',MaxWalkersPart*(NIfTot+1),4,this_routine,WalkVecDetsTag,ierr)
+!This is no longer necessary when the scaled size is calculated at the very beginning.
+!                DEALLOCATE(WalkVecDets)
+!                CALL LogMemDealloc(this_routine,WalkVecDetsTag)
+!                DEALLOCATE(WalkVecSign)
+!                CALL LogMemDealloc(this_routine,WalkVecSignTag)
+!                ALLOCATE(WalkVecDets(0:NIfTot,MaxWalkersPart),stat=ierr)
+!                CALL LogMemAlloc('WalkVecDets',MaxWalkersPart*(NIfTot+1),4,this_routine,WalkVecDetsTag,ierr)
                 WalkVecDets(0:NIfTot,1:MaxWalkersPart)=0
-                IF(tRotoAnnihil) THEN
-                    ALLOCATE(WalkVecSign(MaxWalkersPart),stat=ierr)
-                    CALL LogMemAlloc('WalkVecSign',MaxWalkersPart,4,this_routine,WalkVecSignTag,ierr)
-                ELSE
-                    ALLOCATE(WalkVecSign(MaxWalkersAnnihil),stat=ierr)
-                    CALL LogMemAlloc('WalkVecSign',MaxWalkersAnnihil,4,this_routine,WalkVecSignTag,ierr)
-                ENDIF
+!                IF(tRotoAnnihil) THEN
+!                    ALLOCATE(WalkVecSign(MaxWalkersPart),stat=ierr)
+!                    CALL LogMemAlloc('WalkVecSign',MaxWalkersPart,4,this_routine,WalkVecSignTag,ierr)
+!                ELSE
+!                    ALLOCATE(WalkVecSign(MaxWalkersAnnihil),stat=ierr)
+!                    CALL LogMemAlloc('WalkVecSign',MaxWalkersAnnihil,4,this_routine,WalkVecSignTag,ierr)
+!                ENDIF
                 WalkVecSign(:)=0
 
 !Transfer scaled particles back accross to WalkVecDets
@@ -3069,7 +3298,7 @@ MODULE FciMCParMod
         ELSE
 !We are not scaling the number of walkers...
 
-            IF(.not.tRotoAnnihil) THEN
+            IF((.not.tRotoAnnihil).and.(.not.tDirectAnnihil)) THEN
                 ALLOCATE(WalkVec2Dets(0:NIfTot,MaxWalkersPart),stat=ierr)
                 CALL LogMemAlloc('WalkVec2Dets',MaxWalkersPart*(NIfTot+1),4,this_routine,WalkVec2DetsTag,ierr)
                 WalkVec2Dets(0:NIfTot,1:MaxWalkersPart)=0
@@ -3078,112 +3307,45 @@ MODULE FciMCParMod
                 WalkVec2Sign(:)=0
             ENDIF
                 
+            IF(tDirectAnnihil) THEN
+                IF(iProcIndex.eq.root) THEN
+                    AllTotWalkers=TotWalkers
+                    AllTotWalkersOld=AllTotWalkers
+                    WRITE(6,'(A,I10)') " Number of initial walkers on this processor is now: ",INT(AllTotWalkers,i2)
+                ENDIF
+                TotWalkers=CurrWalkers
+                TotWalkersOld=CurrWalkers
+            ELSE
 
-            TotWalkers=TempInitWalkers      !Set the total number of walkers
-            TotWalkersOld=TempInitWalkers
-            IF(iProcIndex.eq.root) THEN
-                AllTotWalkersOld=AllTotWalkers
-                WRITE(6,*) "Total number of initial walkers is now: ",INT(AllTotWalkers,i2)
+                TotWalkers=TempInitWalkers      !Set the total number of walkers
+                TotWalkersOld=TempInitWalkers
+                IF(iProcIndex.eq.root) THEN
+                    AllTotWalkersOld=AllTotWalkers
+                    WRITE(6,*) "Total number of initial walkers is now: ",INT(AllTotWalkers,i2)
+                ENDIF
             ENDIF
 
         ENDIF
             
         WRITE(6,*) "Initial Diagonal Shift (ECorr guess) is now: ",DiagSft
 
-!Need to now allocate other arrays
-        IF(.not.tRegenDiagHEls) THEN
-            ALLOCATE(WalkVecH(MaxWalkersPart),stat=ierr)
-            CALL LogMemAlloc('WalkVecH',MaxWalkersPart,8,this_routine,WalkVecHTag,ierr)
-            WalkVecH(:)=0.d0
-            IF(.not.tRotoAnnihil) THEN
-                ALLOCATE(WalkVec2H(MaxWalkersPart),stat=ierr)
-                CALL LogMemAlloc('WalkVec2H',MaxWalkersPart,8,this_routine,WalkVec2HTag,ierr)
-                WalkVec2H(:)=0.d0
-            ENDIF
-        ELSE
-            IF(tRotoAnnihil) THEN
-                WRITE(6,"(A,F14.6,A)") "Diagonal H-Elements will not be stored. This will *save* ",REAL(MaxWalkersPart*4*2,r2)/1048576.D0," Mb/Processor"
-            ELSE
-                WRITE(6,"(A,F14.6,A)") "Diagonal H-Elements will not be stored. This will *save* ",REAL(MaxWalkersPart*4*4,r2)/1048576.D0," Mb/Processor"
-            ENDIF
-        ENDIF
-
-        IF(tRotoAnnihil) THEN
+        IF(tRotoAnnihil.or.tDirectAnnihil) THEN
             MemoryAlloc=((NIfTot+1+3)*MaxWalkersPart*4)
         ELSE
             MemoryAlloc=((2*MaxWalkersAnnihil)+(((2*(NIfTot+1))+4)*MaxWalkersPart))*4    !Memory Allocated in bytes
         ENDIF
         IF(tRegenDiagHEls) THEN
-            IF(tRotoAnnihil) THEN
+            IF(tRotoAnnihil.or.tDirectAnnihil) THEN
                 MemoryAlloc=MemoryAlloc-(MaxWalkersPart*4*2)
             ELSE
                 MemoryAlloc=MemoryAlloc-(MaxWalkersPart*4*4)
             ENDIF
         ENDIF
 
-        IF(tRotoAnnihil) THEN
-
-            WRITE(6,"(A,I12,A)") "Spawning vectors allowing for a total of ",MaxSpawned," particles to be spawned in any one iteration."
-            ALLOCATE(SpawnVec(0:NIfTot,MaxSpawned),stat=ierr)
-            CALL LogMemAlloc('SpawnVec',MaxSpawned*(NIfTot+1),4,this_routine,SpawnVecTag,ierr)
-            SpawnVec(:,:)=0
-            ALLOCATE(SpawnVec2(0:NIfTot,MaxSpawned),stat=ierr)
-            CALL LogMemAlloc('SpawnVec2',MaxSpawned*(NIfTot+1),4,this_routine,SpawnVec2Tag,ierr)
-            SpawnVec2(:,:)=0
-            ALLOCATE(SpawnSignVec(0:MaxSpawned),stat=ierr)
-            CALL LogMemAlloc('SpawnSignVec',MaxSpawned+1,4,this_routine,SpawnSignVecTag,ierr)
-            SpawnSignVec(:)=0
-            ALLOCATE(SpawnSignVec2(0:MaxSpawned),stat=ierr)
-            CALL LogMemAlloc('SpawnSignVec2',MaxSpawned+1,4,this_routine,SpawnSignVec2Tag,ierr)
-            SpawnSignVec2(:)=0
-
-!Point at correct spawning arrays
-            SpawnedParts=>SpawnVec
-            SpawnedParts2=>SpawnVec2
-            SpawnedSign=>SpawnSignVec
-            SpawnedSign2=>SpawnSignVec2
-
-            MemoryAlloc=MemoryAlloc+(((MaxSpawned+1)*2)+(2*MaxSpawned*(1+NIfTot)))*4
-
-!        IF((.not.TNoAnnihil).and.(.not.TAnnihilonproc)) THEN
-        ELSEIF(.not.TNoAnnihil) THEN
-            ALLOCATE(HashArray(MaxWalkersAnnihil),stat=ierr)
-            CALL LogMemAlloc('HashArray',MaxWalkersAnnihil,8,this_routine,HashArrayTag,ierr)
-            HashArray(:)=0
-            ALLOCATE(Hash2Array(MaxWalkersAnnihil),stat=ierr)
-            CALL LogMemAlloc('Hash2Array',MaxWalkersAnnihil,8,this_routine,Hash2ArrayTag,ierr)
-            Hash2Array(:)=0
-            ALLOCATE(IndexTable(MaxWalkersAnnihil),stat=ierr)
-            CALL LogMemAlloc('IndexTable',MaxWalkersAnnihil,4,this_routine,IndexTableTag,ierr)
-            IndexTable(1:MaxWalkersAnnihil)=0
-            ALLOCATE(Index2Table(MaxWalkersAnnihil),stat=ierr)
-            CALL LogMemAlloc('Index2Table',MaxWalkersAnnihil,4,this_routine,Index2TableTag,ierr)
-            Index2Table(1:MaxWalkersAnnihil)=0
-            ALLOCATE(ProcessVec(MaxWalkersAnnihil),stat=ierr)
-            CALL LogMemAlloc('ProcessVec',MaxWalkersAnnihil,4,this_routine,ProcessVecTag,ierr)
-            ProcessVec(1:MaxWalkersAnnihil)=0
-            ALLOCATE(Process2Vec(MaxWalkersAnnihil),stat=ierr)
-            CALL LogMemAlloc('Process2Vec',MaxWalkersAnnihil,4,this_routine,Process2VecTag,ierr)
-            Process2Vec(1:MaxWalkersAnnihil)=0
-
-            MemoryAlloc=MemoryAlloc+32*MaxWalkersAnnihil
-        ENDIF
-
-        WRITE(6,"(A,F14.6,A)") "Initial memory (without excitgens) consists of : ",REAL(MemoryAlloc,r2)/1048576.D0," Mb"
+        WRITE(6,"(A,F14.6,A)") " Initial memory (without excitgens) consists of : ",REAL(MemoryAlloc,r2)/1048576.D0," Mb"
         WRITE(6,*) "Initial memory allocation successful..."
         CALL FLUSH(6)
 
-!Allocate pointers to the correct walker arrays...
-        CurrentDets=>WalkVecDets
-        CurrentSign=>WalkVecSign
-!        CurrentIC=>WalkVecIC
-        IF(.not.tRegenDiagHEls) THEN
-            CurrentH=>WalkVecH
-            NewH=>WalkVec2H
-        ENDIF
-        NewDets=>WalkVec2Dets
-        NewSign=>WalkVec2Sign
-!        NewIC=>WalkVec2IC
 
         IF(.not.TRegenExcitgens) THEN
             ALLOCATE(WalkVecExcits(MaxWalkersPart),stat=ierr)
@@ -3217,15 +3379,19 @@ MODULE FciMCParMod
         IF(tRotoAnnihil) THEN
             WRITE(6,"(A,F14.6,A)") "Temp Arrays for annihilation cannot be more than : ",REAL(MaxSpawned*9*4,r2)/1048576.D0," Mb/Processor"
         ELSE
-            WRITE(6,"(A,F14.6,A)") "Temp Arrays for annihilation cannot be more than : ",REAL(MaxWalkersPart*12,r2)/1048576.D0," Mb/Processor"
+            IF(.not.tDirectAnnihil) THEN
+                WRITE(6,"(A,F14.6,A)") "Temp Arrays for annihilation cannot be more than : ",REAL(MaxWalkersPart*12,r2)/1048576.D0," Mb/Processor"
+            ENDIF
         ENDIF
         CALL FLUSH(6)
 
 !Now find out the data needed for the particles which have been read in...
         First=.true.
+        TotParts=0
         do j=1,TotWalkers
             CALL DecodeBitDet(TempnI,CurrentDets(:,j))
             CALL FindBitExcitLevel(iLutHF,CurrentDets(:,j),Excitlevel,2)
+            
             IF(Excitlevel.eq.0) THEN
                 IF(.not.tRegenDiagHEls) CurrentH(j)=0.D0
                 IF(First) THEN
@@ -3236,7 +3402,8 @@ MODULE FciMCParMod
                 ELSE
                     IF(.not.TRegenExcitgens) CALL CopyExitGenPar(CurrentExcits(HFPointer),CurrentExcits(j),.false.)
                 ENDIF
-                IF((.not.TNoAnnihil).and.(.not.tRotoAnnihil)) THEN
+
+                IF((.not.TNoAnnihil).and.(.not.tRotoAnnihil).and.(.not.tDirectAnnihil)) THEN
 !                IF((.not.TNoAnnihil).and.(.not.TAnnihilonproc)) THEN
                     HashArray(j)=HFHash
                 ENDIF
@@ -3249,19 +3416,26 @@ MODULE FciMCParMod
                     ENDIF
                     CurrentH(j)=REAL(HElemTemp%v,r2)-Hii
                 ENDIF
+
                 IF(.not.TRegenExcitgens) CurrentExcits(j)%PointToExcit=>null()
-                IF((.not.TNoAnnihil).and.(.not.tRotoAnnihil)) THEN
+
+                IF((.not.TNoAnnihil).and.(.not.tRotoAnnihil).and.(.not.tDirectAnnihil)) THEN
 !                IF((.not.TNoAnnihil).and.(.not.TAnnihilonproc)) THEN
                     HashArray(j)=CreateHash(TempnI)
                 ENDIF
-                
             ENDIF
             TotParts=TotParts+abs(CurrentSign(j))
 
         enddo
+
         TempTotParts=REAL(TotParts,r2)
-        CALL MPI_AllReduce(TempTotParts,AllTotParts,1,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
-        AllTotPartsOld=AllTotParts
+
+        CALL MPI_Barrier(MPI_COMM_WORLD,error)  !Sync
+        CALL MPI_Reduce(TempTotParts,AllTotParts,1,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
+
+        IF(iProcIndex.eq.root) AllTotPartsOld=AllTotParts
+
+        WRITE(6,'(A,F20.1)') ' The total number of particles read from the POPSFILE is: ',AllTotParts
 
         RETURN
 
@@ -3354,7 +3528,7 @@ MODULE FciMCParMod
 
         IF(tRotoAnnihil) THEN
             
-            WRITE(6,"(A,I12,A)") "Spawning vectors allowing for a total of ",MaxSpawned," particles to be spawned in any one iteration."
+            WRITE(6,"(A,I12,A)") " Spawning vectors allowing for a total of ",MaxSpawned," particles to be spawned in any one iteration."
             ALLOCATE(SpawnVec(0:NIfTot,MaxSpawned),stat=ierr)
             CALL LogMemAlloc('SpawnVec',MaxSpawned*(NIfTot+1),4,this_routine,SpawnVecTag,ierr)
             SpawnVec(:,:)=0
@@ -8355,11 +8529,11 @@ MODULE FciMCParMod
 &               "Proj.E.ThisCyc","NoatHF","NoatDoubs","AccRat","UniqueDets","IterTime","FracSpawnFromSing","NoMinorWalkers"
 
             ELSEIF(tTruncInitiator.or.tDelayTruncInit) THEN
-                WRITE(6,"(A2,A10,A16,A10,A16,A12,3A11,3A17,2A10,A13,A12,A13)") "Step","Shift","WalkerCng","GrowRate","TotWalkers","Annihil","NoDied","NoBorn","Proj.E","Av.Shift","Proj.E.ThisCyc",&
+                WRITE(6,"(A2,A10,A16,A10,A16,A12,3A11,3A17,2A10,A13,A12,A13)") "#","Step","Shift","WalkerCng","GrowRate","TotWalkers","Annihil","NoDied","NoBorn","Proj.E","Av.Shift","Proj.E.ThisCyc",&
 &               "NoatHF","NoatDoubs","AccRat","UniqueDets","IterTime"
 
-                WRITE(15,"(A2,A10,A16,A10,A16,A12,3A13,3A17,2A10,A13,A12,A13,A13,A10)") "#","Step","Shift","WalkerCng","GrowRate","TotWalkers","Annihil","NoDied","NoBorn","Proj.E","Av.Shift",&
-&               "Proj.E.ThisCyc","NoatHF","NoatDoubs","AccRat","UniqueDets","IterTime","FracSpawnFromSing","WalkersDiffProc"
+                WRITE(15,"(A2,A10,A16,A10,A16,A12,3A13,3A17,2A10,A13,A12,A13,A17,A13,A13)") "#","Step","Shift","WalkerCng","GrowRate","TotWalkers","Annihil","NoDied","NoBorn","Proj.E","Av.Shift",&
+&               "Proj.E.ThisCyc","NoatHF","NoatDoubs","AccRat","UniqueDets","IterTime","FracSpawnFrmSing","WalkDiffProc","TotImagTime"
 
                 WRITE(16,"(A2,A10,2A15,2A16,2A20,2A18)") "# ","Step","No Aborted","NoAddedtoInit","FracDetsInit","FracWalksInit","NoDoubSpawns","NoExtraDoubs","InstAbortShift","AvAbortShift"
 
@@ -8399,13 +8573,13 @@ MODULE FciMCParMod
  &                  INT(AllTotParts,i2),AllAnnihilated,AllNoDied,AllNoBorn,ProjectionE,ProjEIter,AllENumCyc/AllHFCyc,AllNoatHF,AllNoatDoubs,AccRat,INT(AllTotWalkers,i2),IterTime
 
             ELSEIF(tTruncInitiator.or.tDelayTruncInit) THEN
-                WRITE(15,"(I12,G16.7,I10,G16.7,I12,3I13,3G17.9,2I10,G13.5,I12,G13.5,G13.5,I10,G13.5)") Iter+PreviousCycles,DiagSft,INT(AllTotParts-AllTotPartsOld,i2),AllGrowRate,   &
+                WRITE(15,"(I12,G16.7,I10,G16.7,I12,3I13,3G17.9,2I10,G13.5,I12,G13.5,G17.5,I13,G13.5)") Iter+PreviousCycles,DiagSft,INT(AllTotParts-AllTotPartsOld,i2),AllGrowRate,   &
  &                  INT(AllTotParts,i2),AllAnnihilated,AllNoDied,AllNoBorn,ProjectionE,AvDiagSft,AllENumCyc/AllHFCyc,AllNoatHF,AllNoatDoubs,AccRat,INT(AllTotWalkers,i2),IterTime,&
  &                  REAL(AllSpawnFromSing)/REAL(AllNoBorn),WalkersDiffProc,TotImagTime
 
                 WRITE(16,"(I12,2I15,2G16.7,2I20,2G18.7)") Iter+PreviousCycles,AllNoAborted,AllNoAddedInitiators,(REAL(AllNoInitDets)/REAL(AllNoNonInitDets)),(REAL(AllNoInitWalk)/REAL(AllNoNonInitWalk)),&
  &                  AllNoDoubSpawns,AllNoExtraInitDoubs,DiagSftAbort,AvDiagSftAbort
-                        WRITE(6,"(I12,G16.7,I10,G16.7,I12,3I11,3G17.9,2I10,G13.5,I12,G13.5)") Iter+PreviousCycles,DiagSft,INT(AllTotParts-AllTotPartsOld,i2),AllGrowRate,    &
+                WRITE(6,"(I12,G16.7,I10,G16.7,I12,3I11,3G17.9,2I10,G13.5,I12,G13.5)") Iter+PreviousCycles,DiagSft,INT(AllTotParts-AllTotPartsOld,i2),AllGrowRate,    &
  &                  INT(AllTotParts,i2),AllAnnihilated,AllNoDied,AllNoBorn,ProjectionE,AvDiagSft,AllENumCyc/AllHFCyc,AllNoatHF,AllNoatDoubs,AccRat,INT(AllTotWalkers,i2),IterTime
 
             ELSE
@@ -8942,7 +9116,7 @@ MODULE FciMCParMod
 !This is a list of options which cannot be used with the stripped-down spawning routine. New options not added to this routine should be put in this list.
         IF(tHighExcitsSing.or.tHistSpawn.or.tRegenDiagHEls.or.tFindGroundDet.or.tStarOrbs.or.tResumFCIMC.or.tSpawnAsDet.or.tImportanceSample    &
      &      .or.(.not.tRegenExcitgens).or.(.not.tNonUniRandExcits).or.(.not.tDirectAnnihil).or.tMinorDetsStar.or.tSpawnDominant.or.(DiagSft.gt.0.D0).or.   &
-     &      tPrintTriConnections.or.tHistTriConHEls.or.tCalcFCIMCPsi.or.tTruncCAS.or.tListDets.or.tPartFreezeCore.or.tUEG.or.tHistHamil) THEN
+     &      tPrintTriConnections.or.tHistTriConHEls.or.tCalcFCIMCPsi.or.tTruncCAS.or.tListDets.or.tPartFreezeCore.or.tUEG.or.tHistHamil.or.TReadPops) THEN
             WRITE(6,*) "It is not possible to use to clean spawning routine..."
         ELSE
             WRITE(6,*) "Clean spawning routine in use..."
@@ -8991,6 +9165,8 @@ MODULE FciMCParMod
             do j=0,nProcessors-1
                 InitialSpawnedSlots(j)=NINT(Gap*j)+1
             enddo
+!ValidSpawndList now holds the next free position in the newly-spawned list, but for each processor.
+            ValidSpawnedList(:)=InitialSpawnedSlots(:)
         ENDIF
         IF(TReadPops) THEN
 !List of things that readpops can't work with...
@@ -9239,7 +9415,7 @@ MODULE FciMCParMod
 
         CheckAllowedTruncSpawn=.true.
 
-        IF(tTruncSpace) THEN
+        IF(tTruncSpace.and.(.not.tTruncInitiator)) THEN
 !We are truncating the space by excitation level
             IF(tHPHF) THEN
 !With HPHF, we can't rely on this, since one excitation could be a single, and one a double. Also, IC is not returned.
