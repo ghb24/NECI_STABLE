@@ -781,6 +781,7 @@ MODULE System
       type(Symmetry) TotSymRep
       TYPE(BasisFN) FrzSym
       logical kallowed
+      real*8 dUnscaledE
 
 !      write (6,*)
 !      call TimeTag()
@@ -1164,11 +1165,12 @@ MODULE System
                       CALL HUBKINN(I,J,K,NBASISMAX,BHUB,TTILT,SUM,TREAL)
                        ENDIF
                     ELSEIF(TUEG) THEN
-                       CALL GetUEGKE(I,J,K,ALAT,tUEGOffset,k_offset,SUM)
+                       CALL GetUEGKE(I,J,K,ALAT,tUEGOffset,k_offset,SUM,dUnscaledE)
+                        IF(dUnscaledE.gt.OrbECutoff) CYCLE
                     ELSE
                        SUM=(BOX**2)*((I*I/ALAT(1)**2)+(J*J/ALAT(2)**2)+(K*K/ALAT(3)**2))
                     ENDIF
-                    IF(SUM.GT.OrbECutoff) CYCLE
+                    IF(.NOT.TUEG.AND.SUM.GT.OrbECutoff) CYCLE
                     IG=IG+1
                     ARR(IG,1)=SUM
                     ARR(IG,2)=SUM
@@ -1488,12 +1490,14 @@ LOGICAL FUNCTION KALLOWED(G,NBASISMAX)
   RETURN
 END FUNCTION KALLOWED
 
-SUBROUTINE GetUEGKE(I,J,K,ALAT,tUEGOffset,k_offset,Energy)
+!dUnscaledEnergy gives the energy without reference to box size and without any offset.
+SUBROUTINE GetUEGKE(I,J,K,ALAT,tUEGOffset,k_offset,Energy,dUnscaledEnergy)
    IMPLICIT NONE
    INCLUDE 'cons.inc'
    INTEGER I,J,K
    REAL*8 ALat(3),k_offset(3),Energy,E
    LOGICAL tUEGOffset
+   REAL dUnscaledEnergy
    IF(tUEGOffset) then
       E=((I+k_offset(1))**2/ALAT(1)**2)
       E=E+((J+k_offset(2))**2/ALAT(2)**2)
@@ -1504,4 +1508,7 @@ SUBROUTINE GetUEGKE(I,J,K,ALAT,tUEGOffset,k_offset,Energy)
       E=E+(K*K/ALAT(3)**2)
    endif
    Energy=0.5*4*PI*PI*E
+   dUnscaledEnergy=(I*I)
+   dUnscaledEnergy=dUnscaledEnergy+(J*J)
+   dUnscaledEnergy=dUnscaledEnergy+(K*K)
 END SUBROUTINE GetUEGKE

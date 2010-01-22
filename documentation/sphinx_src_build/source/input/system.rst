@@ -422,8 +422,15 @@ UEG options
    be set to be equivalent to a sphere of the same volume as the cell,
    :math:`R_c=(\frac{\Omega}{4\pi/3})^{1/3}`.
 
+**EXCHANGE-ATTENUATE** [:math:`R_c`]
+   Use an expoentially attenuated exchange
+   Sets attenuation parameter :math:`R_c` for the exchange electron-electron
+   potential.  If :math:`R_c` is not explicitly set, it will
+   be set to be equivalent to a sphere of the same volume as the cell,
+   :math:`R_c=(\frac{\Omega}{4\pi/3})^{1/3}`.
+
 **EXCHANGE-DAMPING** [:math:`R_c`]
-   Sets cutoff parameter :math:`R_c` for attenuated potential
+   Sets cutoff parameter :math:`R_c` for attenuated or cutoff potential
    :math:`V(r)=\frac{\operatorname{erfc}(r/R_c)}{r}`.  If :math:`R_c` is not explicitly set,
    it will be set to be equivalent to a sphere of the same volume as the cell,
    :math:`R_c=(\frac{\Omega}{4\pi/3})^{1/3}`.
