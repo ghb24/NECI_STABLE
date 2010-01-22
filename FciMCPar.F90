@@ -32,7 +32,7 @@ MODULE FciMCParMod
     USE Logging , only : NoACDets,BinRange,iNoBins,OffDiagBinRange,OffDiagMax,tPrintSpinCoupHEl!,iLagMin,iLagMax,iLagStep,tAutoCorr
     USE Logging , only : tPrintTriConnections,tHistTriConHels,tPrintHElAccept,tPrintFCIMCPsi,tCalcFCIMCPsi,NHistEquilSteps,tPrintOrbOcc,StartPrintOrbOcc
     USE Logging , only : tHFPopStartBlock,tIterStartBlock,IterStartBlocking,HFPopStartBlocking,tInitShiftBlocking,tHistHamil,iWriteHamilEvery
-    USE Logging , only : OrbOccs,OrbOccsTag 
+    USE Logging , only : OrbOccs,OrbOccsTag,tPrintPopsDefault 
     USE SymData , only : nSymLabels
     USE mt95 , only : genrand_real2
     USE Parallel
@@ -145,7 +145,7 @@ MODULE FciMCParMod
 
             ENDIF
 
-            IF(TPopsFile.and.(mod(Iter,iWritePopsEvery).eq.0)) THEN
+            IF(TPopsFile.and.(.not.tPrintPopsDefault).and.(mod(Iter,iWritePopsEvery).eq.0)) THEN
 !This will write out the POPSFILE if wanted
                 IF(tRotoAnnihil.or.tDirectAnnihil) THEN
                     CALL WriteToPopsfileParOneArr()
@@ -2757,13 +2757,37 @@ MODULE FciMCParMod
             IF(exists) THEN
                 OPEN(17,FILE='POPSFILE',Status='old')
                 tBinRead=.false.
-!Read in initial data on processors which have a popsfile
-                READ(17,*) AllTotWalkers
-                READ(17,*) DiagSft
-                READ(17,*) TempAllSumNoatHF     !AllSumNoatHF stored as integer for compatability with serial POPSFILEs
-                READ(17,*) AllSumENum
-                READ(17,*) PreviousCycles
+            ELSE
+                tBinRead=.true.
+                INQUIRE(FILE='POPSFILEHEAD',EXIST=exists)
+                IF(.not.exists) THEN
+                    INQUIRE(FILE='POPSFILEBIN',EXIST=exists)
+                    IF(.not.exists) THEN
+                        CALL Stop_All(this_routine,"No POPSFILE's of any kind found.")
+                    ELSE
+                        CALL Stop_All(this_routine,"POPSFILEBIN found, but POPSFILEHEAD also needed for header information")
+                    ENDIF
+                ELSE
+                    INQUIRE(FILE='POPSFILEBIN',EXIST=exists)
+                    IF(.not.exists) THEN
+                        CALL Stop_All(this_routine,"POPSFILEHEAD found, but no POPSFILEBIN for particle information - this is also needed")
+                    ELSE
+                        OPEN(17,FILE='POPSFILEHEAD',Status='old')
+                    ENDIF
+                ENDIF
             ENDIF
+!Read in initial data on processors which have a popsfile
+            READ(17,*) AllTotWalkers
+            READ(17,*) DiagSft
+            READ(17,*) TempAllSumNoatHF     !AllSumNoatHF stored as integer for compatability with serial POPSFILEs
+            READ(17,*) AllSumENum
+            READ(17,*) PreviousCycles
+
+            IF(tBinRead) THEN
+                CLOSE(17)
+                OPEN(17,FILE='POPSFILEBIN',Status='old',form='unformatted')
+            ENDIF
+
         ELSE
             IF(iProcIndex.eq.root) THEN
                 INQUIRE(FILE='POPSFILE',EXIST=exists)
@@ -3045,7 +3069,11 @@ MODULE FciMCParMod
             CurrWalkers=0
             do i=1,AllTotWalkers
                 iLutTemp(:)=0
-                READ(17,*) iLutTemp(0:NIfTot),TempSign
+                IF(tBinRead) THEN
+                    READ(17) iLutTemp(0:NIfTot),TempSign
+                ELSE
+                    READ(17,*) iLutTemp(0:NIfTot),TempSign
+                ENDIF
                 Proc=DetermineDetProc(iLutTemp)   !This wants to return a value between 0 -> nProcessors-1
                 IF(Proc.eq.iProcIndex) THEN
                     CurrWalkers=CurrWalkers+1
@@ -9140,8 +9168,8 @@ MODULE FciMCParMod
             OneRDM(:,:)=0.D0
         ENDIF
 
-        IF(TPopsFile.and.(mod(iWritePopsEvery,StepsSft).ne.0)) THEN
-            CALL Warning(this_routine,"POPSFILE writeout should be a multiple of the update cycle length.")
+        IF(TPopsFile) THEN
+            IF(mod(iWritePopsEvery,StepsSft).ne.0) CALL Warning(this_routine,"POPSFILE writeout should be a multiple of the update cycle length.")
         ENDIF
 
         IF(TNoAnnihil) THEN
