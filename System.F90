@@ -781,7 +781,7 @@ MODULE System
       type(Symmetry) TotSymRep
       TYPE(BasisFN) FrzSym
       logical kallowed
-      real*8 dUnscaledE
+      integer dUnscaledE
 
 !      write (6,*)
 !      call TimeTag()
@@ -1166,7 +1166,7 @@ MODULE System
                        ENDIF
                     ELSEIF(TUEG) THEN
                        CALL GetUEGKE(I,J,K,ALAT,tUEGOffset,k_offset,SUM,dUnscaledE)
-                        IF(dUnscaledE.gt.OrbECutoff) CYCLE
+                       IF(dUnscaledE.gt.OrbECutoff) CYCLE
                     ELSE
                        SUM=(BOX**2)*((I*I/ALAT(1)**2)+(J*J/ALAT(2)**2)+(K*K/ALAT(3)**2))
                     ENDIF
@@ -1497,7 +1497,7 @@ SUBROUTINE GetUEGKE(I,J,K,ALAT,tUEGOffset,k_offset,Energy,dUnscaledEnergy)
    INTEGER I,J,K
    REAL*8 ALat(3),k_offset(3),Energy,E
    LOGICAL tUEGOffset
-   REAL dUnscaledEnergy
+   INTEGER dUnscaledEnergy
    IF(tUEGOffset) then
       E=((I+k_offset(1))**2/ALAT(1)**2)
       E=E+((J+k_offset(2))**2/ALAT(2)**2)
