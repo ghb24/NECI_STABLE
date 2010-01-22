@@ -782,6 +782,8 @@ MODULE System
       TYPE(BasisFN) FrzSym
       logical kallowed
       integer dUnscaledE
+      real*8, allocatable :: arr_tmp(:,:)
+      integer, allocatable :: brr_tmp(:)
 
 !      write (6,*)
 !      call TimeTag()
@@ -1192,6 +1194,19 @@ MODULE System
          IF(LEN.NE.IG) THEN
             IF(OrbECutoff.gt.-1e20) then
                write(6,*) "Have removed ", LEN-IG, " high energy orbitals"
+               ! Resize arr and brr.
+               allocate(arr_tmp(nbasis,2),brr_tmp(nbasis),stat=ierr)
+               arr_tmp = arr(1:nbasis,:)
+               brr_tmp = brr(1:nbasis)
+               deallocate(arr,brr,stat=ierr)
+               LogDealloc(tagarr)
+               LogDealloc(tagbrr)
+               allocate(arr(nbasis,2),brr(nbasis),stat=ierr)
+               LogAlloc(ierr,'Arr',2*nbasis,8,tagArr)
+               LogAlloc(ierr,'Brr',nbasis,4,tagBrr)
+               arr = arr_tmp
+               brr = brr_tmp
+               deallocate(arr_tmp, brr_tmp, stat=ierr)
             else
                WRITE(6,*) "LEN=",LEN,"IG=",IG
                STOP ' LEN NE IG ' 
