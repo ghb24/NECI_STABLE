@@ -192,14 +192,14 @@ no_depend:
 $(DEST)/%.f90: %.F90
 	$(CPP) $(CPPFLAGS) $< $@
 
-$(F90OBJ): $(DEST)/%.o: $(DEST)/%.f90
+$(F90OBJ): %.o: %.f90
 	perl -w $(TOOLS)/compile_mod.pl -cmp "perl -w $(TOOLS)/compare_module_file.pl -compiler $(compiler)" -fc "$(FC) $(FFLAGS) $(F90FLAGS) $(MODULEFLAG) -c $< -o $@" -provides "$@" -requires "$^"
 
 $(DEST)/%.f: %.F
 	@echo CPP: $< $@
 	$(CPP) $(CPPFLAGS) $< $@
 
-$(FOBJ): $(DEST)/%.o: $(DEST)/%.f
+$(FOBJ): %.o: %.f
 	@echo compiling: $< $@
 	perl -w $(TOOLS)/compile_mod.pl -cmp "perl -w $(TOOLS)/compare_module_file.pl -compiler $(compiler)" -fc "$(FC) $(FFLAGS) $(FNEWFLAGS) $(MODULEFLAG) -c $< -o $@" -provides "$@" -requires "$^"
 
