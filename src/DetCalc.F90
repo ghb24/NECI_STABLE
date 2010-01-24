@@ -60,11 +60,11 @@ CONTAINS
         use SystemData, only : Alat, arr, brr, boa, box, coa, ecore, g1,Beta
         use SystemData, only : tParity, tSpn,Symmetry,STot, NullBasisFn
         use CCMCData,   only : tCCBuffer !This is messy, but I don't see anywhere else to put it. AJWT
+        use legacy_data, only: irat
         Type(BasisFn) ISym
 
         integer i,ii,j
         integer ierr
-        include 'irat.inc'
         integer nDetTot
         logical isvaliddet
         
@@ -318,6 +318,7 @@ CONTAINS
       use SystemData, only  : tCSFOLD
       use Parallel, only : iProcIndex
       use DetBitops, only: EncodeBitDet, DetBitEQ
+      use legacy_data, only: irat
 
       REAL*8 , ALLOCATABLE :: TKE(:),A(:,:),V(:),AM(:),BM(:),T(:),WT(:),SCR(:),WH(:),WORK2(:),V2(:,:),FCIGS(:)
       TYPE(HElement), ALLOCATABLE :: WORK(:)
@@ -333,7 +334,6 @@ CONTAINS
 
         INTEGER GC,I,ICMAX,MaxDet,Bits
         INTEGER iDeg,III,IN,IND,INDZ
-        INCLUDE 'irat.inc'
         INTEGER NBLOCK!,OpenOrbs,OpenOrbsSym,Ex(2,NEl)
         INTEGER nKry1,ilut(0:NIfTot),nK(NEl)!,iLutSym(0:NIfD),nJ(NEl)
         
@@ -955,8 +955,8 @@ END MODULE DetCalc
          use CalcData, only: tFCIMC
          use global_utilities
          use DetCalc, only: NMRKS
+         use legacy_data, only: irat
          implicit none
-         include 'irat.inc'
          character(25), parameter :: this_routine = 'CalcRhoPII2'
          INTEGER NEL,I_P,I_HMAX,I_VMAX,NDET,nBasisMax(5,*),nBasis
          INTEGER BRR(*),NMSH,NMAX(*),NTAY,ILOGGING

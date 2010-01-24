@@ -267,8 +267,8 @@ C.. We couldn't find it
      &         ECORE,BETAEQ)
 
          use global_utilities
+         use legacy_data, only: irat
          IMPLICIT REAL*8 (A-H,O-Z)
-         include 'irat.inc'
          INTEGER IPATH(I_P+1)
          INTEGER ISEED
          INTEGER NI(NEL), NJ(NEL),MCDET(NEL)

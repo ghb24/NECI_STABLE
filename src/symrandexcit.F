@@ -8,8 +8,8 @@
          use SystemData, only: Arr,nMax,tAssumeSizeExcitgen
          use IntegralsData, only: UMat
          use SymData, only: SymClassSize,nSymPairProds,nSymLabels
+         use legacy_data, only: irat
          IMPLICIT NONE
-         INCLUDE 'irat.inc'
          INTEGER NI(NEL)
          POINTER (IP_DSTORE,DSTORE)
          INTEGER DSTORE(*)
@@ -90,8 +90,8 @@ C.. This version is based on GenRandSymExcitIt2, but does not need values it ext
          use SystemData, only: Arr,nMax,tAssumeSizeExcitgen
          use IntegralsData, only: UMat
          use SymData, only: SymClassSize,nSymPairProds,nSymLabels
+         use legacy_data, only: irat
          IMPLICIT NONE
-         INCLUDE 'irat.inc'
          INTEGER NI(NEL)
          POINTER (IP_DSTORE,DSTORE)
          INTEGER DSTORE(*)
@@ -169,8 +169,8 @@ C..   use GenRandSymExcitIt3
          use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
          use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
          use SymData, only: SymClassSize
+         use legacy_data, only: irat
          IMPLICIT NONE
-         INCLUDE 'irat.inc'
          INTEGER NEL,NI(NEL),NBASIS
          INTEGER G1(nBasis),NBASISMAX(*)
          POINTER (IP_DSTORE,DSTORE)

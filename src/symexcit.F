@@ -10,8 +10,8 @@ C.. Setup for symmetry routine below.
          use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
          use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB,NIfTot
          use SymData, only: SymClassSize
+         use legacy_data, only: irat
          IMPLICIT NONE
-         INCLUDE 'irat.inc'
          INTEGER NEL,NI(NEL),NBASIS
          INTEGER G1(nBasis),NBASISMAX(*)
          POINTER (IP_DSTORE,DSTORE)
@@ -87,8 +87,8 @@ C.. If we're just counting, we don't need to keep DSTORE
          use SymData, only: SymStatePairs,SymLabels,SymPairProds
          use SymData, only: nSymPairProds,nSymLabels
          use global_utilities
+         use legacy_data, only: irat
          IMPLICIT NONE
-         INCLUDE 'irat.inc'
          INTEGER NEL,NI(NEL),NBASIS
          TYPE(BasisFN) G1(nBasis)
          INTEGER nBasisMax(5,*)
@@ -733,8 +733,8 @@ C..      ENDIF(.NOT.TCOUNT)
          use SymData, only: SymClass,nSymPairProds,nSymLabels
          use SymData, only: tAbelianFastExcitGen
          use SymData, only: tStoreStateList
+         use legacy_data, only: irat
          IMPLICIT NONE
-         INCLUDE 'irat.inc'
          INTEGER NEL,NI(NEL),NBASIS
          TYPE(BasisFN) G1(nBasis)
          INTEGER nBasisMax(5,*)
@@ -2117,8 +2117,8 @@ C.. to actually generate the excitations
      &         TSETUP,NMEM,NJ,IC,IFRZ,STORE,ILEVEL)
          use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
          use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
+         use legacy_data, only: irat
          IMPLICIT NONE
-         INCLUDE 'irat.inc'
          INTEGER NEL,NI(NEL),NBASIS
          INTEGER G1(nBasis),NBASISMAX(*)
 !  STORE contains lengths of various components of the excitation generator
@@ -2137,8 +2137,8 @@ C.. to actually generate the excitations
          use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
          use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
          use SystemData, only: nEl,G1, nBasis,nBasisMax
+         use legacy_data, only: irat
          IMPLICIT NONE 
-         INCLUDE 'irat.inc'
          INTEGER NI(NEL)
          POINTER (IP_DSTORE,DSTORE)
          INTEGER DSTORE(*)
@@ -2166,8 +2166,8 @@ C.. to actually generate the excitations
          use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
          use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
          use SystemData, only: nEl,G1, nBasis,nBasisMax
+         use legacy_data, only: irat
          IMPLICIT NONE 
-         INCLUDE 'irat.inc'
          INTEGER NI(NEL)
          POINTER (IP_DSTORE,DSTORE)
          INTEGER DSTORE(*)
@@ -2198,8 +2198,8 @@ C.. A modified version of GENSYMEXCITIT2.  This has min and max electron 1 speci
          use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
          use SystemData, only: tAssumeSizeExcitgen, NIfTot
          use SymData, only: SymClassSize,nSymPairProds,nSymLabels
+         use legacy_data, only: irat
          IMPLICIT NONE
-         INCLUDE 'irat.inc'
          INTEGER NEL,NI(NEL),NBASIS,ierr
          INTEGER G1(nBasis),NBASISMAX(*)
          POINTER (IP_DSTORE,DSTORE)

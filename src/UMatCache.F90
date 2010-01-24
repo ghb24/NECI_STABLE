@@ -385,12 +385,12 @@ MODULE UMatCache
          ! nState: # states.
          ! TSMALL is used if we create a pre-freezing cache to hold just the <ij|kj> integrals.
          use global_utilities
+         use legacy_data, only: irat
          IMPLICIT NONE
          INTEGER NSTATE
          REAL*8 Memory
          LOGICAL TSMALL
          INTEGER ierr
-         INCLUDE 'irat.inc'
          character(len=*),parameter :: thisroutine='SETUPUMATCACHE'
          NTYPES=HElementSize
          NHITS=0

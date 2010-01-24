@@ -1134,6 +1134,7 @@ C.,             If 1, only allow doubles.
          use CalcData , only : TVARCALC,TMPTHEORY
          USE Logging , only : G_VMC_LOGCOUNT
          USE PrecalcData , only : TPREVAR,PREWEIGHTEPS
+         use legacy_data, only: irat
          IMPLICIT NONE
          TYPE(BasisFN) G1(*),ISYM
          INTEGER I_V,NEL,I_P,nBasisMax(5,*),NBASIS,BRR(*),NMSH,NMAX
@@ -1183,7 +1184,6 @@ C.,             If 1, only allow doubles.
          REAL*8 VARSUM,SumX,SumY,SumXY,SumXsq,SumYsq,SumP
          DATA SumP/0.D0/
          SAVE SumX,SumY,SumXY,SumXsq,SumYsq,SumP
-         INCLUDE 'irat.inc'
          IF(BTEST(NWHTAY,0).AND.I_VIND.EQ.0)
      &      WRITE(6,*) "FMCPR3 ForceRoot."
          IF(BTEST(NWHTAY,1).AND.I_VIND.EQ.0)

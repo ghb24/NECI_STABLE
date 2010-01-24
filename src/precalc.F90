@@ -931,8 +931,8 @@ FUNCTION MCPATHSPRE(point,NI,BETA,I_P,IPATH,K,G1,NMSH,         &
     use SystemData, only: BasisFN
     Use Logging, only: PrevarLogging
     use global_utilities
+    use legacy_data, only: irat
     IMPLICIT NONE
-    include 'irat.inc'
     TYPE(BasisFN) G1(*),KSYM
     INTEGER I_P,METH,CYCLES,NMSH,NTAY(2),L,LT,K
     INTEGER NI(NEL),IFRZ(0:NBASIS,PREIV_MAX),I,CNWHTAY

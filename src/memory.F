@@ -3,9 +3,9 @@ C     ==================================================================
 C     ==--------------------------------------------------------------==
       use MemoryManager, only: LogMemAlloc,LeaveMemoryManager
       use MemoryManager, only: LookupPointer,li
+      use legacy_data, only: irat
       IMPLICIT NONE
       INCLUDE 'memc.inc'
-      INCLUDE 'irat.inc'
 C     Arguments
       REAL*8    POINTDUMMY
       POINTER   (IP_POINT,POINTDUMMY)

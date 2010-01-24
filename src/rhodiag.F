@@ -2,8 +2,8 @@
      &      NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,
      &      RHOEPS,ILOGGING,TSYM,ECORE,WLRI,WLSI)
          use global_utilities
+         use legacy_data, only: irat
          IMPLICIT NONE
-         INCLUDE 'irat.inc'
          REAL*8 BETA,FCK(*),ALAT(3),UMAT(*),RHOEPS,ECORE
          INTEGER I_P,BRR(NBASIS),NTAY,NMSH,NMAX,ILOGGING
 
@@ -142,6 +142,7 @@ C         ENDDO
      &      NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,
      &      RHOEPS,ILOGGING,TSYM,ECORE)
          use global_utilities
+         use legacy_data, only: irat
          IMPLICIT NONE
          REAL*8 BETA,FCK(*),ALAT(3),UMAT(*),RHOEPS,ECORE
          INTEGER I_P,BRR(NBASIS),NTAY,NMSH,NMAX,ILOGGING
@@ -168,7 +169,6 @@ C         ENDDO
          INTEGER BINOMIAL
          LOGICAL LSUB
          character(*),parameter :: thisroutine='WIRHODIAG'
-         INCLUDE 'irat.inc'
          proc_timer%timer_name=thisroutine
          call set_timer(proc_timer)
          HDMAX=5000.D0

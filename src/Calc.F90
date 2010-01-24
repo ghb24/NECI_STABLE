@@ -1693,8 +1693,8 @@ MODULE Calc
          USE HElem
          use global_utilities
          use SystemData, only: BasisFN,BasisFNSize
+         use legacy_data, only: irat
          IMPLICIT NONE
-         include 'irat.inc'
          INTEGER I_HMAX,NEL,NBASIS,I_VMAX
          INTEGER,ALLOCATABLE :: LSTE(:) !(NEL,NBASIS*NBASIS*NEL*NEL,0:I_VMAX-1)??!!
          INTEGER,ALLOCATABLE :: ICE(:)  !(NBASIS*NBASIS*NEL*NEL,0:I_VMAX-1)??!!

@@ -2007,6 +2007,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
                      RHOEPS,LSTE,ICE,LIST,L,LT,NWHTAY,ILOGGING,TSYM,ECORE,ILMAX,DBETA,DLWDB)
          USE HElem      
          use global_utilities
+         use legacy_data, only: irat
          IMPLICIT NONE
          INTEGER I_V,NEL,I_P,NBASISMAX(*),G1(*),NBASIS,BRR(*),NMSH,NMAX
          INTEGER NTAY,NWHTAY,ILOGGING,LT
@@ -2043,7 +2044,6 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
          INTEGER NORDER,NMIN
          TYPE(HDElement) FMCPR3STAR2
          character(*), parameter :: this_routine='FMCPR3STAR'
-         include 'irat.inc'
   
          IF(HElementSize.NE.1) STOP 'FMCPR3STAR cannot work with complex orbitals.' 
          SELECT CASE (IAND(NWHTAY,24))
