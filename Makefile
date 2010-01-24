@@ -118,7 +118,7 @@ OBJECTS_CPMD := $(filter-out %necimain.o %cpmdstub.o % %init_coul.o %init_could2
 OBJECTS_VASP := $(filter-out %necimain.o %vaspstub.o % %init_coul.o %init_could2D.o, $(OBJECTS)) 
 
 #-----
-# Dependency file.
+# Dependency files.
 
 # Fortran dependencies.
 # We need these before compiling any fortran files.
@@ -140,8 +140,8 @@ endif
 # We don't need these when we first compile, only when we recompile.
 # We achieve this (most of the time) by recompiling the C dependencies every
 # time we compile.
-CDEPEND_FILES = $($(COBJ):.o=.d)
-cDEPEND_FILES = $($(cOBJ):.o=.d)
+CDEPEND_FILES = $(COBJ:.o=.d)
+cDEPEND_FILES = $(cOBJ:.o=.d)
 
 #-----
 # Goals
