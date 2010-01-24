@@ -17,7 +17,7 @@ FNEWFLAGS =
 F90FLAGS = -ffree-line-length-none
 
 # tell fortran compiler to search for module files in the dest directory.
-MODULEFLAG = -J $(DEST) -I $(SRC)
+MODULEFLAG = -J $(RDEST) -I $(SRC)
 
 # c compiler and flags.
 CC = gcc
@@ -38,8 +38,12 @@ ARFLAGS = -rcs
 # Directories containing source files (space separated list).
 SRC = src
 
-# Directory in which compiled objects are placed.
-DEST = dest
+# Directories in which compiled objects are placed.
+DEST = dest/opt
+# REAL (molecular and gamma-point) objects
+RDEST = $(DEST)/real
+# COMPLEX (k-point) objects
+CDEST = $(DEST)/cmplx
 
 # Directory for compiled executable.
 EXE = bin
@@ -58,7 +62,8 @@ space := $(empty) $(empty) # stupid make language...
 VPATH = $(subst $(space),:,$(SRC) $(DEST))
 
 # Create output directories if they don't exist.
-make_dest := $(shell test -e $(DEST) || mkdir -p $(DEST))
+make_rdest := $(shell test -e $(RDEST) || mkdir -p $(RDEST))
+make_cdest := $(shell test -e $(CDEST) || mkdir -p $(CDEST))
 make_exe := $(shell test -e $(EXE) || mkdir -p $(EXE))
 make_lib := $(shell test -e $(LIB) || mkdir -p $(LIB))
 
@@ -99,10 +104,10 @@ COBJ := $(addsuffix .o,$(basename $(notdir $(CSRCFILES))))
 cOBJ := $(addsuffix .o,$(basename $(notdir $(cSRCFILES))))
 
 # Full path to all objects.
-FOBJ := $(addprefix $(DEST)/, $(FOBJ))
-F90OBJ := $(addprefix $(DEST)/, $(F90OBJ))
-COBJ := $(addprefix $(DEST)/, $(COBJ))
-cOBJ := $(addprefix $(DEST)/, $(cOBJ))
+FOBJ := $(addprefix $(RDEST)/, $(FOBJ))
+F90OBJ := $(addprefix $(RDEST)/, $(F90OBJ))
+COBJ := $(addprefix $(RDEST)/, $(COBJ))
+cOBJ := $(addprefix $(RDEST)/, $(cOBJ))
 OBJECTS := $(FOBJ) $(F90OBJ) $(COBJ) $(cOBJ)
 
 # Objects for standalone NECI.
@@ -111,30 +116,20 @@ OBJECTS_NECI := $(filter-out %libstub.o,$(OBJECTS))
 
 # Objects for CPMD library.
 # We don't need necimain.o, cpmdstub.o, init_coul.o, init_could2D.o.  We keep libstub though.
-OBJECTS_CPMD := $(filter-out %necimain.o %cpmdstub.o % %init_coul.o %init_could2D.o, $(OBJECTS)) 
+OBJECTS_RCPMD := $(filter-out %necimain.o %cpmdstub.o %init_coul.o %init_could2D.o,$(OBJECTS)) 
 
 # Objects for VASP library.
 # We don't need necimain.o, vaspstub.o, init_coul.o, init_could2D.o.  We keep libstub though.
-OBJECTS_VASP := $(filter-out %necimain.o %vaspstub.o % %init_coul.o %init_could2D.o, $(OBJECTS)) 
+OBJECTS_RVASP := $(filter-out %necimain.o %vaspstub.o % %init_coul.o %init_could2D.o, $(OBJECTS)) 
 
 #-----
 # Dependency files.
 
 # Fortran dependencies.
 # We need these before compiling any fortran files.
-FDEPEND = $(DEST)/.depend
-
-FDEPEND_EXISTS := $(wildcard $(FDEPEND))
-
-# If the dependency file does not exist, then it is generated.  This 
-# pass of make will not have the correct dependency knowledge though,
-# so we force an exit.
-ifneq ($(FDEPEND_EXISTS),$(FDEPEND))
-	TEST_DEPEND = no_depend
-	DEPEND_TARGET = $(FDEPEND)
-else
-	DEPEND_TARGET = depend_target
-endif
+FRDEPEND = $(RDEST)/.depend
+FCDEPEND = $(CDEST)/.depend
+FDEPEND = $(FRDEPEND) $(FCDEPEND)
 
 # C dependencies.
 # We don't need these when we first compile, only when we recompile.
@@ -146,41 +141,34 @@ cDEPEND_FILES = $(cOBJ:.o=.d)
 #-----
 # Goals
 
-.PHONY: clean $(DEPEND_TARGET) depend help neci.x
+.PHONY: clean depend help neci.x
 
-$(EXE)/neci.x : $(TEST_DEPEND) $(OBJECTS_NECI)
-	$(MAKE) -B environment_report.o
+$(EXE)/neci.x : $(OBJECTS_NECI)
+	rm $(RDEST)/environment_report.* && $(MAKE) $(RDEST)/environment_report.o
 	$(LD) $(LDFLAGS) -o $@ $(OBJECTS_NECI) $(LFLAGS)
 
 neci.x: 
 	$(MAKE) $(EXE)/neci.x
 
-#neci-cpmd.a : $(OBJECTSCPMDLIB)
-#	 rm -f environment_report.F90
-#	 $(CPP) $(CPPFLAGS) $(SRC)/environment_report.F90 $(DEST)/environment_report.f90
-#	 $(FC) $(FFLAGS) $(FNEWFLAGS) $(DEST)/environment_report.f90
-#	 $(AR) $(ARFLAGS) $(DEST)/neci-cpmd.a environment_report.o $(OBJECTSCPMDLIB)
-#
-#neci-vasp.a : $(OBJECTSVASPLIB)
-#	 rm -f environment_report.F90
-#	 $(CPP) $(CPPFLAGS) $(SRC)/environment_report.F90 $(DEST)/environment_report.f90
-#	 $(FC) $(FFLAGS) $(FNEWFLAGS) $(DEST)/environment_report.f90
-#	 $(AR) $(ARFLAGS) $(DEST)/neci-vasp.a environment_report.o $(OBJECTSVASPLIB)
+$(LIB)/gneci-cpmd.a : $(OBJECTS_RCPMD)
+	rm $(RDEST)/environment_report.* && $(MAKE) $(RDEST)/environment_report.o
+	$(AR) $(ARFLAGS) $@ $^
+
+$(LIB)/gneci-vasp.a : $(OBJECTS_RVASP)
+	rm $(RDEST)/environment_report.* && $(MAKE) $(RDEST)/environment_report.o
+	$(AR) $(ARFLAGS) $@ $^
 
 clean : 
-	  rm -f $(DEST)/*.{f,f90,mod,o,c,x,a,d} $(EXE)/neci.x
+	  rm -f $(RDEST)/*.{f,f90,mod,o,c,x,a,d} $(EXE)/neci.x $(LIB)/*.a
 
-# Generate dependency file.
-$(DEPEND_TARGET):
-	$(TOOLS)/sfmakedepend --file - --silent $(SRCFILES) --objdir \$$\(DEST\) --moddir \$$\(DEST\) > $(FDEPEND)
+# Generate dependency files.
+$(FRDEPEND):
+	$(TOOLS)/sfmakedepend --file - --silent $(SRCFILES) --objdir \$$\(RDEST\) --moddir \$$\(RDEST\) > $(FRDEPEND)
 
-depend: $(DEPEND_TARGET)
+$(FCDEPEND):
+	$(TOOLS)/sfmakedepend --file - --silent $(SRCFILES) --objdir \$$\(CDEST\) --moddir \$$\(CDEST\) > $(FCDEPEND)
 
-# Force exit if dependency file didn't exist as make didn't pickup the correct dependencies on this pass.
-no_depend:
-	@echo "The required dependency file did not exist but has now been generated."
-	@echo "Please re-run make."
-	exit 2
+depend: $(FRDEPEND) $(FCDEPEND)
 
 #-----
 # Compilation macros (explicit rules)
@@ -189,43 +177,36 @@ no_depend:
 .SUFFIXES: $(EXTS) .f .f90
 
 # Compiling fortran source files...
-$(DEST)/%.f90: %.F90
+$(RDEST)/%.f90: %.F90
 	$(CPP) $(CPPFLAGS) $< $@
 
 $(F90OBJ): %.o: %.f90
 	perl -w $(TOOLS)/compile_mod.pl -cmp "perl -w $(TOOLS)/compare_module_file.pl -compiler $(compiler)" -fc "$(FC) $(FFLAGS) $(F90FLAGS) $(MODULEFLAG) -c $< -o $@" -provides "$@" -requires "$^"
 
-$(DEST)/%.f: %.F
-	@echo CPP: $< $@
+$(RDEST)/%.f: %.F
 	$(CPP) $(CPPFLAGS) $< $@
 
 $(FOBJ): %.o: %.f
-	@echo compiling: $< $@
 	perl -w $(TOOLS)/compile_mod.pl -cmp "perl -w $(TOOLS)/compare_module_file.pl -compiler $(compiler)" -fc "$(FC) $(FFLAGS) $(FNEWFLAGS) $(MODULEFLAG) -c $< -o $@" -provides "$@" -requires "$^"
 
 # Compiling C source files...
-$(COBJ): $(DEST)/%.o: %.C
+$(COBJ): $(RDEST)/%.o: %.C
 	$(CC) $(CPPFLAGS) $(CFLAGS) $< -o $@ 
 
-$(cOBJ): $(DEST)/%.o: %.c
+$(cOBJ): $(RDEST)/%.o: %.c
 	$(CC) $(CFLAGS) -c $< -o $@ 
 
 # Update C dependency files.
-$(cDEP): $(DEST)/%.d: %.c
+$(cDEPEND_FILES): $(RDEST)/%.d: %.c
 	$(CC) $(CFLAGS) -MM -MT \$$\(DEST\)/$(addsuffix .o,$(basename $(notdir $@))) $< -o $@
 
-$(CDEP): $(DEST)/%.d: %.C
+$(CDEPEND_FILES): $(RDEST)/%.d: %.C
 	$(CC) $(CFLAGS) -MM -MT \$$\(DEST\)/$(addsuffix .o,$(basename $(notdir $@))) $< -o $@
-
-#-----
-# Generic dependencies.
-# These are for files which don't depend on anything other than themselves.
-# Other files are overridden in the dependency files which are included below.
 
 #-----
 # Include dependency files
 
-# $(FDEPEND) will be generated if it doesn't exist.
+# Dependency files will be generated if they don't exist.
 include $(FDEPEND)
 include $(CDEPEND_FILES)
 include $(cDEPEND_FILES)
