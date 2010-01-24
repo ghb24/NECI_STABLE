@@ -16,8 +16,8 @@ FFLAGS = -m64 -fcray-pointer
 FNEWFLAGS = 
 F90FLAGS = -ffree-line-length-none
 
-# tell fortran compiler to search for module files in the dest directory.
-MODULEFLAG = -J $(RDEST) -I $(SRC)
+# flag to tell fortran compiler where to search for module files.
+MODULEFLAG = -J
 
 # c compiler and flags.
 CC = gcc
@@ -41,9 +41,9 @@ SRC = src
 # Directories in which compiled objects are placed.
 DEST = dest/opt
 # REAL (molecular and gamma-point) objects
-RDEST = $(DEST)/real
+GDEST = $(DEST)/real
 # COMPLEX (k-point) objects
-CDEST = $(DEST)/cmplx
+KDEST = $(DEST)/cmplx
 
 # Directory for compiled executable.
 EXE = bin
@@ -62,8 +62,8 @@ space := $(empty) $(empty) # stupid make language...
 VPATH = $(subst $(space),:,$(SRC) $(DEST))
 
 # Create output directories if they don't exist.
-make_rdest := $(shell test -e $(RDEST) || mkdir -p $(RDEST))
-make_cdest := $(shell test -e $(CDEST) || mkdir -p $(CDEST))
+make_gdest := $(shell test -e $(GDEST) || mkdir -p $(GDEST))
+make_kdest := $(shell test -e $(KDEST) || mkdir -p $(KDEST))
 make_exe := $(shell test -e $(EXE) || mkdir -p $(EXE))
 make_lib := $(shell test -e $(LIB) || mkdir -p $(LIB))
 
@@ -104,10 +104,10 @@ COBJ := $(addsuffix .o,$(basename $(notdir $(CSRCFILES))))
 cOBJ := $(addsuffix .o,$(basename $(notdir $(cSRCFILES))))
 
 # Full path to all objects.
-FOBJ := $(addprefix $(RDEST)/, $(FOBJ))
-F90OBJ := $(addprefix $(RDEST)/, $(F90OBJ))
-COBJ := $(addprefix $(RDEST)/, $(COBJ))
-cOBJ := $(addprefix $(RDEST)/, $(cOBJ))
+FOBJ := $(addprefix $(GDEST)/, $(FOBJ))
+F90OBJ := $(addprefix $(GDEST)/, $(F90OBJ))
+COBJ := $(addprefix $(GDEST)/, $(COBJ))
+cOBJ := $(addprefix $(GDEST)/, $(cOBJ))
 OBJECTS := $(FOBJ) $(F90OBJ) $(COBJ) $(cOBJ)
 
 # Objects for standalone NECI.
@@ -127,8 +127,8 @@ OBJECTS_RVASP := $(filter-out %necimain.o %vaspstub.o % %init_coul.o %init_could
 
 # Fortran dependencies.
 # We need these before compiling any fortran files.
-FRDEPEND = $(RDEST)/.depend
-FCDEPEND = $(CDEST)/.depend
+FRDEPEND = $(GDEST)/.depend
+FCDEPEND = $(KDEST)/.depend
 FDEPEND = $(FRDEPEND) $(FCDEPEND)
 
 # C dependencies.
@@ -144,29 +144,29 @@ cDEPEND_FILES = $(cOBJ:.o=.d)
 .PHONY: clean depend help neci.x
 
 $(EXE)/neci.x : $(OBJECTS_NECI)
-	rm $(RDEST)/environment_report.* && $(MAKE) $(RDEST)/environment_report.o
+	rm $(GDEST)/environment_report.* && $(MAKE) $(GDEST)/environment_report.o
 	$(LD) $(LDFLAGS) -o $@ $(OBJECTS_NECI) $(LFLAGS)
 
 neci.x: 
 	$(MAKE) $(EXE)/neci.x
 
 $(LIB)/gneci-cpmd.a : $(OBJECTS_RCPMD)
-	rm $(RDEST)/environment_report.* && $(MAKE) $(RDEST)/environment_report.o
+	rm $(GDEST)/environment_report.* && $(MAKE) $(GDEST)/environment_report.o
 	$(AR) $(ARFLAGS) $@ $^
 
 $(LIB)/gneci-vasp.a : $(OBJECTS_RVASP)
-	rm $(RDEST)/environment_report.* && $(MAKE) $(RDEST)/environment_report.o
+	rm $(GDEST)/environment_report.* && $(MAKE) $(GDEST)/environment_report.o
 	$(AR) $(ARFLAGS) $@ $^
 
 clean : 
-	  rm -f $(RDEST)/*.{f,f90,mod,o,c,x,a,d} $(EXE)/neci.x $(LIB)/*.a
+	  rm -f $(GDEST)/*.{f,f90,mod,o,c,x,a,d} $(EXE)/neci.x $(LIB)/*.a
 
 # Generate dependency files.
 $(FRDEPEND):
-	$(TOOLS)/sfmakedepend --file - --silent $(SRCFILES) --objdir \$$\(RDEST\) --moddir \$$\(RDEST\) > $(FRDEPEND)
+	$(TOOLS)/sfmakedepend --file - --silent $(SRCFILES) --objdir \$$\(GDEST\) --moddir \$$\(GDEST\) > $(FRDEPEND)
 
 $(FCDEPEND):
-	$(TOOLS)/sfmakedepend --file - --silent $(SRCFILES) --objdir \$$\(CDEST\) --moddir \$$\(CDEST\) > $(FCDEPEND)
+	$(TOOLS)/sfmakedepend --file - --silent $(SRCFILES) --objdir \$$\(KDEST\) --moddir \$$\(KDEST\) > $(FCDEPEND)
 
 depend: $(FRDEPEND) $(FCDEPEND)
 
@@ -177,30 +177,30 @@ depend: $(FRDEPEND) $(FCDEPEND)
 .SUFFIXES: $(EXTS) .f .f90
 
 # Compiling fortran source files...
-$(RDEST)/%.f90: %.F90
+$(GDEST)/%.f90: %.F90
 	$(CPP) $(CPPFLAGS) $< $@
 
 $(F90OBJ): %.o: %.f90
-	perl -w $(TOOLS)/compile_mod.pl -cmp "perl -w $(TOOLS)/compare_module_file.pl -compiler $(compiler)" -fc "$(FC) $(FFLAGS) $(F90FLAGS) $(MODULEFLAG) -c $< -o $@" -provides "$@" -requires "$^"
+	perl -w $(TOOLS)/compile_mod.pl -cmp "perl -w $(TOOLS)/compare_module_file.pl -compiler $(compiler)" -fc "$(FC) $(FFLAGS) $(F90FLAGS) $(MODULEFLAG) $(dir $@) -I $(SRC) -c $< -o $@" -provides "$@" -requires "$^"
 
-$(RDEST)/%.f: %.F
+$(GDEST)/%.f: %.F
 	$(CPP) $(CPPFLAGS) $< $@
 
 $(FOBJ): %.o: %.f
-	perl -w $(TOOLS)/compile_mod.pl -cmp "perl -w $(TOOLS)/compare_module_file.pl -compiler $(compiler)" -fc "$(FC) $(FFLAGS) $(FNEWFLAGS) $(MODULEFLAG) -c $< -o $@" -provides "$@" -requires "$^"
+	perl -w $(TOOLS)/compile_mod.pl -cmp "perl -w $(TOOLS)/compare_module_file.pl -compiler $(compiler)" -fc "$(FC) $(FFLAGS) $(FNEWFLAGS) $(MODULEFLAG) $(dir $@) -I $(SRC) -c $< -o $@" -provides "$@" -requires "$^"
 
 # Compiling C source files...
-$(COBJ): $(RDEST)/%.o: %.C
+$(COBJ): $(GDEST)/%.o: %.C
 	$(CC) $(CPPFLAGS) $(CFLAGS) $< -o $@ 
 
-$(cOBJ): $(RDEST)/%.o: %.c
+$(cOBJ): $(GDEST)/%.o: %.c
 	$(CC) $(CFLAGS) -c $< -o $@ 
 
 # Update C dependency files.
-$(cDEPEND_FILES): $(RDEST)/%.d: %.c
+$(cDEPEND_FILES): $(GDEST)/%.d: %.c
 	$(CC) $(CFLAGS) -MM -MT \$$\(DEST\)/$(addsuffix .o,$(basename $(notdir $@))) $< -o $@
 
-$(CDEPEND_FILES): $(RDEST)/%.d: %.C
+$(CDEPEND_FILES): $(GDEST)/%.d: %.C
 	$(CC) $(CFLAGS) -MM -MT \$$\(DEST\)/$(addsuffix .o,$(basename $(notdir $@))) $< -o $@
 
 #-----
