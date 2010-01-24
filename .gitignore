@@ -1,6 +1,6 @@
 /.compileconf
-/dest/
-/kdest/
+/dest
 /mktemplate
 /neci.x
 /tags
+/bin
