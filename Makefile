@@ -98,17 +98,23 @@ cSRCFILES := $(foreach dir,$(SRC),$(call find_files,$(dir),.c))
 SRCFILES := $(FSRCFILES) $(F90SRCFILES) $(CSRCFILES) $(cSRCFILES)
 
 # Objects (strip path and replace extension of source files with .o).
-FOBJ := $(addsuffix .o,$(basename $(notdir $(FSRCFILES))))
-F90OBJ := $(addsuffix .o,$(basename $(notdir $(F90SRCFILES))))
-COBJ := $(addsuffix .o,$(basename $(notdir $(CSRCFILES))))
-cOBJ := $(addsuffix .o,$(basename $(notdir $(cSRCFILES))))
+FOBJ_bare := $(addsuffix .o,$(basename $(notdir $(FSRCFILES))))
+F90OBJ_bare := $(addsuffix .o,$(basename $(notdir $(F90SRCFILES))))
+COBJ_bare := $(addsuffix .o,$(basename $(notdir $(CSRCFILES))))
+cOBJ_bare := $(addsuffix .o,$(basename $(notdir $(cSRCFILES))))
 
-# Full path to all objects.
-FOBJ := $(addprefix $(GDEST)/, $(FOBJ))
-F90OBJ := $(addprefix $(GDEST)/, $(F90OBJ))
-COBJ := $(addprefix $(GDEST)/, $(COBJ))
-cOBJ := $(addprefix $(GDEST)/, $(cOBJ))
+# Full path to all objects (gamma-point).
+FOBJ := $(addprefix $(GDEST)/, $(FOBJ_bare))
+F90OBJ := $(addprefix $(GDEST)/, $(F90OBJ_bare))
+COBJ := $(addprefix $(GDEST)/, $(COBJ_bare))
+cOBJ := $(addprefix $(GDEST)/, $(cOBJ_bare))
 OBJECTS := $(FOBJ) $(F90OBJ) $(COBJ) $(cOBJ)
+
+# Similarly for the kpoint objects.
+KFOBJ := $(addprefix $(KDEST)/, $(FOBJ_bare))
+KF90OBJ := $(addprefix $(KDEST)/, $(F90OBJ_bare))
+KCOBJ := $(addprefix $(KDEST)/, $(COBJ_bare))
+KcOBJ := $(addprefix $(KDEST)/, $(cOBJ_bare))
 
 # Objects for standalone NECI.
 # We don't need libstub.
@@ -117,10 +123,12 @@ OBJECTS_NECI := $(filter-out %libstub.o,$(OBJECTS))
 # Objects for CPMD library.
 # We don't need necimain.o, cpmdstub.o, init_coul.o, init_could2D.o.  We keep libstub though.
 OBJECTS_RCPMD := $(filter-out %necimain.o %cpmdstub.o %init_coul.o %init_could2D.o,$(OBJECTS)) 
+OBJECTS_KCPMD := $(addprefix $(KDEST)/,$(notdir $(OBJECTS_RCPMD)))
 
 # Objects for VASP library.
 # We don't need necimain.o, vaspstub.o, init_coul.o, init_could2D.o.  We keep libstub though.
 OBJECTS_RVASP := $(filter-out %necimain.o %vaspstub.o % %init_coul.o %init_could2D.o, $(OBJECTS)) 
+OBJECTS_KVASP := $(addprefix $(KDEST)/,$(notdir $(OBJECTS_RVASP)))
 
 #-----
 # Dependency files.
@@ -137,29 +145,48 @@ FDEPEND = $(FRDEPEND) $(FCDEPEND)
 # time we compile.
 CDEPEND_FILES = $(COBJ:.o=.d)
 cDEPEND_FILES = $(cOBJ:.o=.d)
+KCDEPEND_FILES = $(KCOBJ:.o=.d)
+KcDEPEND_FILES = $(KcOBJ:.o=.d)
+CDEPEND = $(CDEPEND_FILES) $(cDEPEND_FILES) $(KCDEPEND_FILES) $(KcDEPEND_FILES)
 
 #-----
 # Goals
 
 .PHONY: clean depend help neci.x
 
+# First, some helpful macros.
+
+# Rebuild of environment_report.
+GBLD_ENV = rm $(GDEST)/environment_report.* && $(MAKE) $(GDEST)/environment_report.o
+KBLD_ENV = rm $(KDEST)/environment_report.* && $(MAKE) $(KDEST)/environment_report.o
+
+# Creating an archive from *.o files.
+ARCHIVE = $(AR) $(ARFLAGS) $@ $^
+
 $(EXE)/neci.x : $(OBJECTS_NECI)
-	rm $(GDEST)/environment_report.* && $(MAKE) $(GDEST)/environment_report.o
+	$(GBLD_ENV)
 	$(LD) $(LDFLAGS) -o $@ $(OBJECTS_NECI) $(LFLAGS)
 
-neci.x: 
-	$(MAKE) $(EXE)/neci.x
+neci.x: $(EXE)/neci.x
 
 $(LIB)/gneci-cpmd.a : $(OBJECTS_RCPMD)
-	rm $(GDEST)/environment_report.* && $(MAKE) $(GDEST)/environment_report.o
-	$(AR) $(ARFLAGS) $@ $^
+	$(GBLD_ENV)
+	$(ARCHIVE)
+
+$(LIB)/kneci-cpmd.a : $(OBJECTS_KCPMD)
+	$(KBLD_ENV)
+	$(ARCHIVE)
 
 $(LIB)/gneci-vasp.a : $(OBJECTS_RVASP)
-	rm $(GDEST)/environment_report.* && $(MAKE) $(GDEST)/environment_report.o
-	$(AR) $(ARFLAGS) $@ $^
+	$(GBLD_ENV)
+	$(ARCHIVE)
 
-clean : 
-	  rm -f $(GDEST)/*.{f,f90,mod,o,c,x,a,d} $(EXE)/neci.x $(LIB)/*.a
+$(LIB)/kneci-vasp.a : $(OBJECTS_KVASP)
+	$(KBLD_ENV)
+	$(ARCHIVE)
+
+clean: 
+	  rm -f {$(GDEST),$(KDEST)}/*.{f,f90,mod,o,c,x,a,d} $(EXE)/neci.x $(LIB)/*.a
 
 # Generate dependency files.
 $(FRDEPEND):
@@ -176,37 +203,69 @@ depend: $(FRDEPEND) $(FCDEPEND)
 .SUFFIXES:
 .SUFFIXES: $(EXTS) .f .f90
 
-# Compiling fortran source files...
-$(GDEST)/%.f90: %.F90
-	$(CPP) $(CPPFLAGS) $< $@
+# Some more helpful macros.
+CPP_BODY = $(CPPFLAGS) $< $@
+C_BODY = $(CFLAGS) -c $< -o $@ 
+MAKE_C_GDEPS = $(CC) $(CFLAGS) -MM -MT \$$\(GDEST\)/$(addsuffix .o,$(basename $(notdir $@))) $< -o $@
+MAKE_C_KDEPS = $(CC) $(CFLAGS) -MM -MT \$$\(KDEST\)/$(addsuffix .o,$(basename $(notdir $@))) $< -o $@
 
-$(F90OBJ): %.o: %.f90
-	perl -w $(TOOLS)/compile_mod.pl -cmp "perl -w $(TOOLS)/compare_module_file.pl -compiler $(compiler)" -fc "$(FC) $(FFLAGS) $(F90FLAGS) $(MODULEFLAG) $(dir $@) -I $(SRC) -c $< -o $@" -provides "$@" -requires "$^"
+# Compiling fortran source files...
+
+# 1. Pre-processing.
+# a) gamma-point.
+$(GDEST)/%.f90: %.F90
+	$(CPP) $(CPP_BODY)
 
 $(GDEST)/%.f: %.F
-	$(CPP) $(CPPFLAGS) $< $@
+	$(CPP) $(CPP_BODY)
 
-$(FOBJ): %.o: %.f
+# b) k-point.
+$(KDEST)/%.f90: %.F90
+	$(CPP) -D__CMPLX $(CPP_BODY)
+
+$(KDEST)/%.f: %.F
+	$(CPP) -D__CMPLX $(CPP_BODY)
+
+# 2. Compile.
+$(F90OBJ) $(KF90OBJ): %.o: %.f90
+	perl -w $(TOOLS)/compile_mod.pl -cmp "perl -w $(TOOLS)/compare_module_file.pl -compiler $(compiler)" -fc "$(FC) $(FFLAGS) $(F90FLAGS) $(MODULEFLAG) $(dir $@) -I $(SRC) -c $< -o $@" -provides "$@" -requires "$^"
+
+$(FOBJ) $(KFOBJ): %.o: %.f
 	perl -w $(TOOLS)/compile_mod.pl -cmp "perl -w $(TOOLS)/compare_module_file.pl -compiler $(compiler)" -fc "$(FC) $(FFLAGS) $(FNEWFLAGS) $(MODULEFLAG) $(dir $@) -I $(SRC) -c $< -o $@" -provides "$@" -requires "$^"
 
 # Compiling C source files...
+# a) gamma-point.
 $(COBJ): $(GDEST)/%.o: %.C
-	$(CC) $(CPPFLAGS) $(CFLAGS) $< -o $@ 
+	$(CC) $(CPPFLAGS) $(C_BODY)
 
 $(cOBJ): $(GDEST)/%.o: %.c
-	$(CC) $(CFLAGS) -c $< -o $@ 
+	$(CC) $(C_BODY)
+
+# b) k-point.
+$(KCOBJ): $(KDEST)/%.o: %.C
+	$(CC) $(CPPFLAGS) -D__CMPLX $(C_BODY)
+
+$(KcOBJ): $(KDEST)/%.o: %.c
+	$(CC) $(C_BODY)
 
 # Update C dependency files.
+# a) gamma-point.
 $(cDEPEND_FILES): $(GDEST)/%.d: %.c
-	$(CC) $(CFLAGS) -MM -MT \$$\(DEST\)/$(addsuffix .o,$(basename $(notdir $@))) $< -o $@
+	$(MAKE_C_GDEPS)
 
 $(CDEPEND_FILES): $(GDEST)/%.d: %.C
-	$(CC) $(CFLAGS) -MM -MT \$$\(DEST\)/$(addsuffix .o,$(basename $(notdir $@))) $< -o $@
+	$(MAKE_C_GDEPS)
+
+# b) k-point.
+$(KcDEPEND_FILES): $(KDEST)/%.d: %.c
+	$(MAKE_C_KDEPS)
+
+$(KCDEPEND_FILES): $(KDEST)/%.d: %.C
+	$(MAKE_C_KDEPS)
 
 #-----
 # Include dependency files
 
 # Dependency files will be generated if they don't exist.
 include $(FDEPEND)
-include $(CDEPEND_FILES)
-include $(cDEPEND_FILES)
+include $(CDEPEND)
