@@ -301,6 +301,7 @@ help:
 \t@echo "libs          make all libraries for integration with cpmd and vasp."
 \t@echo "clean         remove all compiled objects for the current platform and optimisation level." 
 \t@echo "cleanall      remove all compiled objects for all platforms and optimisation levels." 
+\t@echo "depend        update the list of dependencies."
 \t@echo "help          print this message."
 
 #-----
@@ -414,6 +415,9 @@ def parse_config(config_dir, config_file):
     minimal_options = ['fc', 'module_flag', 'cc', 'cpp', 'ld', 'libs']
 
     file = os.path.join(config_dir, config_file)
+
+    if not os.path.exists(file):
+        raise IOError,'Config file does not exist: %s' % (file)
 
     parser.read(file)
 
