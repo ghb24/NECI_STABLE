@@ -167,8 +167,6 @@ $(EXE)/neci.x : $(OBJECTS_NECI)
 	$(GBLD_ENV)
 	$(LD) $(LDFLAGS) -o $@ $(OBJECTS_NECI) $(LFLAGS)
 
-neci.x: $(EXE)/neci.x
-
 $(LIB)/gneci-cpmd.a : $(OBJECTS_RCPMD)
 	$(GBLD_ENV)
 	$(ARCHIVE)
@@ -197,6 +195,21 @@ $(FCDEPEND):
 
 depend: 
 	$(MAKE) -B $(FDEPEND) $(CDEPEND)
+
+#-----
+# Shortcut goals
+
+neci.x: $(EXE)/neci.x
+
+gneci-cpmd: $(LIB)/gneci-cpmd.a
+kneci-cpmd: $(LIB)/kneci-cpmd.a
+cpmdlibs: gneci-cpmd kneci-cpmd
+
+gneci-vasp: $(LIB)/gneci-vasp.a
+kneci-vasp: $(LIB)/kneci-vasp.a
+vasplibs: gneci-vasp kneci-vasp
+
+libs: cpmdlibs vasplibs
 
 #-----
 # Compilation macros (explicit rules)
