@@ -5,6 +5,7 @@ C.. but with a simpler coulomb integral
       USE UMatCache , only : UMatInd,GTID
       use SystemData, only: BasisFN
       use global_utilities
+      use constants, only: Pi, Pi2, THIRD
       IMPLICIT NONE
       TYPE(BASISFN) G1(NHG)
       INTEGER nBasisMax(5,*),ISS,NEL
@@ -21,7 +22,6 @@ C..Cube arrays
       REAL*8 SUMS(3),SUM
       INTEGER I,J,K,L,ID1,ID2,ID3,ID4
       type(timer), save :: proc_timer
-      INCLUDE 'cons.inc'
 C..This routine generates *ALL* possible combinations of Coulomb integrals
 C..stored in the form (u1 u2 | U | u1' u2') = UMAT(n1 n2 n3 n4)
 C..
@@ -95,6 +95,7 @@ C.. but with a simpler coulomb integral
       USE UMatCache , only : UMatInd,GTID
       use SystemData, only: BasisFN, iPeriodicDampingType
       use global_utilities
+      use constants, only: Pi, Pi2, THIRD
       IMPLICIT REAL*8 (A-H,O-Z)
       TYPE(BASISFN) G1(NHG)
       INTEGER nBasisMax(5,*),ISS 
@@ -109,7 +110,6 @@ C..Cube arrays
       REAL*8 ALAT(3)
       COMPLEX*16 S,CI
       type(timer), save :: proc_timer
-      INCLUDE 'cons.inc'
 C..This routine generates *ALL* possible combinations of Coulomb integrals
 C..stored in the form (u1 u2 | U | u1' u2') = UMAT(n1 n2 n3 n4)
 C..

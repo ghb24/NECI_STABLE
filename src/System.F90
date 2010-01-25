@@ -759,6 +759,7 @@ MODULE System
     Subroutine SysInit
       Use global_utilities
       use SymData, only: tAbelian,TwoCycleSymGens
+      use constants, only: Pi, Pi2, THIRD
       use legacy_data, only: CSF_NBSTART
       implicit none
       character(25), parameter :: this_routine='SysInit'
@@ -767,7 +768,6 @@ MODULE System
       CHARACTER CPAR(3)*1,CPARITY*3
 ! For init of mom
       TYPE(BasisFN) G
-      INCLUDE 'cons.inc'
         
 !  For the UEG
       REAL*8 FKF,Rs
@@ -982,7 +982,6 @@ MODULE System
              WRITE(6,*) 'NMAXZ=0.  2D calculation using C/A=1/A'
              COA=1/BOX
           ENDIF
-          PI=ACOS(-1.D0)
 
 !C..
           IF(THUB) THEN
@@ -1507,8 +1506,8 @@ END FUNCTION KALLOWED
 
 !dUnscaledEnergy gives the energy without reference to box size and without any offset.
 SUBROUTINE GetUEGKE(I,J,K,ALAT,tUEGOffset,k_offset,Energy,dUnscaledEnergy)
+   use constants, only: Pi, Pi2, THIRD
    IMPLICIT NONE
-   INCLUDE 'cons.inc'
    INTEGER I,J,K
    REAL*8 ALat(3),k_offset(3),Energy,E
    LOGICAL tUEGOffset

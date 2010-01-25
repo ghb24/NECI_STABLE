@@ -28,11 +28,11 @@ C returns the non-interacting energy of state with
 C..quatum numbers (i,j,k) for Hubbard model of 
 C..lengths (LX,LY,LZ) PBC.
 C..Returned in sum
+      use constants, only: Pi, Pi2, THIRD
       IMPLICIT REAL*8 (A-H,O-Z)
       INTEGER nBasisMax(5,*),AX,AY
       INTEGER LX,LY,LZ,DX,DY,DZ
       LOGICAL TTILT,TREAL
-      INCLUDE 'cons.inc'
       LX=NBASISMAX(1,2)-NBASISMAX(1,1)+1
       LY=NBASISMAX(2,2)-NBASISMAX(2,1)+1
       LZ=NBASISMAX(3,2)-NBASISMAX(3,1)+1
@@ -61,11 +61,11 @@ C returns the non-interacting energy of state with
 C..quatum numbers (i,j,k) for Hubbard model of 
 C..lengths (LX,LY,LZ).  NON-PBC
 C..Returned in sum
+      use constants, only: Pi, Pi2, THIRD
       IMPLICIT REAL*8 (A-H,O-Z)
       INTEGER nBasisMax(5,*),AX,AY
       LOGICAL TTILT,TREAL
       INTEGER II,JJ,KK
-      INCLUDE 'cons.inc'
       LX=NBASISMAX(1,2)-NBASISMAX(1,1)+1
       LY=NBASISMAX(2,2)-NBASISMAX(2,1)+1
       LZ=NBASISMAX(3,2)-NBASISMAX(3,1)+1
