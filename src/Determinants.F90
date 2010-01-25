@@ -551,12 +551,12 @@ END MODULE Determinants
 
 ! Write determinant NI(NEL) to unit NUnit.  Set LTerm if to add a newline at end.  Also prints CSFs
       !SUBROUTINE WRITEDET(NUNIT,NI,NEL,LTERM)
+      !   use legacy_data, only: CSF_NBSTART
       !   IMPLICIT NONE
       !   INTEGER NUNIT,NEL,NI(NEL),I
       !   LOGICAL LTERM
       !   INTEGER IEL
       !   CHARACTER*2 SUFF
-      !   INCLUDE 'csf.inc'
       !   WRITE(NUNIT,"(A)",advance='no') "("
       !   DO I=1,NEL
       !      IEL=NI(I)
@@ -593,12 +593,12 @@ END MODULE Determinants
         !     nel      - Number of electrons
         !     lTerm    - Do we write an end-of-line character
         
+        use legacy_data, only: CSF_NBSTART
         implicit none
         integer, intent(in) :: nunit, nel, nI(nel)
         logical, intent(in) :: lTerm
         integer :: i, orb
         logical iscsf, bCSF
-        include 'csf.inc'
 
         ! Is this a csf? Note use of old (non-modularised) iscsf
         bCSF = (tCSF .or. tCSFOLD) .and. iscsf(nI, nel)

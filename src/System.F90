@@ -759,6 +759,7 @@ MODULE System
     Subroutine SysInit
       Use global_utilities
       use SymData, only: tAbelian,TwoCycleSymGens
+      use legacy_data, only: CSF_NBSTART
       implicit none
       character(25), parameter :: this_routine='SysInit'
       integer ierr
@@ -766,7 +767,6 @@ MODULE System
       CHARACTER CPAR(3)*1,CPARITY*3
 ! For init of mom
       TYPE(BasisFN) G
-      INCLUDE 'csf.inc'
       INCLUDE 'cons.inc'
         
 !  For the UEG

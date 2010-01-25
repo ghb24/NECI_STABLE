@@ -370,11 +370,11 @@ contains
         ! Convert the CSF to the old representation (Alex's rep.) for testing
         ! purposes.
         
+        use legacy_data, only: CSF_NBSTART
         integer, intent(in) :: nI(nel)
         integer, intent(out) :: nJ(nel)
         integer :: i, nopen, nup, orb
         logical :: open_shell
-        include 'csf.inc'
 
         if (.not. iscsf(nI)) then
             nJ = nI

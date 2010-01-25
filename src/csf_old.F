@@ -15,11 +15,11 @@
 !                  combination would be +-+- (the partial sums can never go below 0,
 !                  so e.g. +--+ is not allowed)
       INTEGER FUNCTION ICMPCSFS(C1,C2,NEL)
+         use legacy_data, only: CSF_NBSTART
          IMPLICIT NONE
          INTEGER NEL,I
          INTEGER C1(1:NEL),C2(1:NEL)
          INTEGER J,K,L
-         INCLUDE 'csf.inc'
          L=0
          DO I=1,NEL
             J=C1(I)
@@ -63,10 +63,10 @@ C.. Same
       END
 
       SUBROUTINE GETCSFFROMDET(NI,NCJ,NEL,STOT,SZ)
+         use legacy_data, only: CSF_NBSTART
          IMPLICIT NONE
          INTEGER NEL,NI(NEL),NCJ(NEL),STOT,SZ,IOPEN(NEL)
          INTEGER I,J,K
-         INCLUDE 'csf.inc'
          J=0
          I=1
          K=0
@@ -108,10 +108,10 @@ C.. pluses first then minuses
       
 C.. Get an (S, Sz) encoded LMS from a CSF
       SUBROUTINE CSFGETSPIN(NCI,NEL,LMS) 
+         use legacy_data, only: CSF_NBSTART
          IMPLICIT NONE
          INTEGER NEL,NCI(NEL)
          INTEGER LMS
-         INCLUDE 'csf.inc'
 
          INTEGER ICLOSEDI(NEL),NCLOSEDI,IOPENI(NEL),NOPENI,SZI,SI,
      &      SORDERI(NEL)
@@ -219,9 +219,9 @@ C.. it must have gone to an empty then
          ENDIF
       END
       SUBROUTINE SYMGETSSZ(SSYM,S,SZ)
+         use legacy_data, only: CSF_NBSTART
          IMPLICIT NONE
          INTEGER SSYM,S,SZ
-         INCLUDE 'csf.inc'
          S=(SSYM+CSF_NBSTART/3)/CSF_NBSTART
          SZ=SSYM-S*CSF_NBSTART
          RETURN
@@ -232,9 +232,9 @@ C.. This gives the spatial basis with the relevant
 C.. spin projection.  The total S contribution (*2*CSF_NBSTART)
 C.. is put in SSYM
       SUBROUTINE GETUNCSFELEC(ICEL,IEL,SSYM)
+         use legacy_data, only: CSF_NBSTART
          IMPLICIT NONE
          INTEGER ICEL,IEL,SSYM
-         INCLUDE 'csf.inc'
          IF(ICEL.GE.CSF_NBSTART) THEN
             IEL=IAND((ICEL-CSF_NBSTART)/4,65534)
             IEL=IEL+1+IAND(ICEL-CSF_NBSTART,1)
@@ -249,15 +249,16 @@ C.. is put in SSYM
 
 C.. test if NCI is a CSF
       LOGICAL FUNCTION ISCSF(NCI,NEL)
+         use legacy_data, only: CSF_NBSTART
          IMPLICIT NONE
          INTEGER NEL,NCI(NEL)
-         INCLUDE 'csf.inc'
          ISCSF=NCI(NEL).GE.CSF_NBSTART
       END
 
       SUBROUTINE GETNEXTSYMCSF(NEL,NBASIS,BRR,NBASISMAX,
      &  G1,ISYM,NI)
          use SystemData, only: BasisFN,BasisFNSize
+         use legacy_data, only: CSF_NBSTART
          IMPLICIT NONE
          INTEGER NEL,NBASIS,BRR(NBASIS),NBASISMAX(*)
          INTEGER NMRKS(NEL,1),NDET,G1(*)
@@ -277,7 +278,6 @@ C.. test if NCI is a CSF
          TYPE(BASISFN) ISYM,KSYM
          INTEGER SFORCE,SZFORCE
          INTEGER IEXCITS
-         INCLUDE 'csf.inc'
          LOGICAL LCHKSYM
          CALL SYMGETSSZ(LMS,SFORCE,SZFORCE)
          CALL NECI_ICOPY(BASISFNSIZE,IPARITY,1,ISYM,1)
@@ -428,6 +428,7 @@ C..    Otherwise all will.
      &  NMRKS,TCOUNT,G1,TSPN,LMS,TPARITY,
      &  IPARITY,NDET,IFDET,TCHKEX,NDCH,ICLIST,TORDER,IEXLEV)
          use SystemData, only: BasisFN,BasisFNSize
+         use legacy_data, only: CSF_NBSTART
          IMPLICIT NONE
          INTEGER NEL,NBASIS,BRR(NBASIS),NBASISMAX(*)
          INTEGER NMRKS(NEL,*),NDET,G1(*)
@@ -455,7 +456,6 @@ C..    Otherwise all will.
          INTEGER ICLOSEDD(NEL),NCLOSEDD,IOPEND(NEL),NOPEND
          INTEGER SZD,SD,SORDERD(NEL)
 
-         INCLUDE 'csf.inc'
          LOGICAL LCHKSYM
          INTEGER IGETEXCITLEVEL,IFIND
          INTEGER IEXLEV
@@ -1161,10 +1161,10 @@ C..   method of creating this CSF - 1 is a + and 0 is a -.
 
       SUBROUTINE CSFGETCSFDATA(NCI,NEL,ICLOSED,NCLOSED,IOPEN,NOPEN,SZ,S,
      &   SORDER)
+         use legacy_data, only: CSF_NBSTART
          IMPLICIT NONE
          INTEGER NCI(NEL),NEL,ICLOSED(NEL),NCLOSED
          INTEGER IOPEN(NEL),NOPEN,SZ,S,SORDER(NEL)
-         INCLUDE 'csf.inc'
          
          INTEGER I,J,K
          NCLOSED=0
