@@ -2871,6 +2871,8 @@ MODULE FciMCParMod
                 NodeSumNoatHF(i)=INT(AvSumNoatHF,i2)
             enddo
             NodeSumNoatHF(nProcessors)=NINT(AllSumNoatHF,i2)-INT((AvSumNoatHF*(nProcessors-1)),i2)
+
+            ProjectionE=AllSumENum/AllSumNoatHF
                 
 !Reset the global variables
             AllSumENum=0.D0
