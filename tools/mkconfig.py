@@ -107,7 +107,7 @@ ARFLAGS = -rcs
 SRC = src
 
 # Directories in which compiled objects are placed.
-DEST = dest/opt
+DEST = dest/%(config)s/opt
 # REAL (molecular and gamma-point) objects
 GDEST = $(DEST)/real
 # COMPLEX (k-point) objects
@@ -220,7 +220,7 @@ CDEPEND = $(CDEPEND_FILES) $(cDEPEND_FILES) $(KCDEPEND_FILES) $(KcDEPEND_FILES)
 #-----
 # Goals
 
-.PHONY: clean depend help neci.x
+.PHONY: clean cleanall depend help neci.x
 
 # First, some helpful macros.
 
@@ -232,42 +232,46 @@ KBLD_ENV = rm $(KDEST)/environment_report.* && $(MAKE) $(KDEST)/environment_repo
 ARCHIVE = $(AR) $(ARFLAGS) $@ $^
 
 $(EXE)/neci.x : $(OBJECTS_NECI)
-	$(GBLD_ENV)
-	$(LD) $(LDFLAGS) -o $@ $(OBJECTS_NECI) $(LIBS)
+\t$(GBLD_ENV)
+\t$(LD) $(LDFLAGS) -o $@ $(OBJECTS_NECI) $(LIBS)
 
 $(LIB)/gneci-cpmd.a : $(OBJECTS_RCPMD)
-	$(GBLD_ENV)
-	$(ARCHIVE)
+\t$(GBLD_ENV)
+\t$(ARCHIVE)
 
 $(LIB)/kneci-cpmd.a : $(OBJECTS_KCPMD)
-	$(KBLD_ENV)
-	$(ARCHIVE)
+\t$(KBLD_ENV)
+\t$(ARCHIVE)
 
 $(LIB)/gneci-vasp.a : $(OBJECTS_RVASP)
-	$(GBLD_ENV)
-	$(ARCHIVE)
+\t$(GBLD_ENV)
+\t$(ARCHIVE)
 
 $(LIB)/kneci-vasp.a : $(OBJECTS_KVASP)
-	$(KBLD_ENV)
-	$(ARCHIVE)
+\t$(KBLD_ENV)
+\t$(ARCHIVE)
 
 clean: 
-	  rm -f {$(GDEST),$(KDEST)}/*.{f,f90,mod,o,c,x,a,d} $(EXE)/neci.x $(LIB)/*.a
+\trm -f {$(GDEST),$(KDEST)}/*.{f,f90,mod,o,c,x,a,d} $(EXE)/neci.x $(LIB)/*.a
+
+cleanall:
+\trm -rf dest lib bin
 
 # Generate dependency files.
 $(FRDEPEND):
-	$(TOOLS)/sfmakedepend --file - --silent $(SRCFILES) --objdir \$$\(GDEST\) --moddir \$$\(GDEST\) > $(FRDEPEND)
+\t$(TOOLS)/sfmakedepend --file - --silent $(SRCFILES) --objdir \$$\(GDEST\) --moddir \$$\(GDEST\) > $(FRDEPEND)
 
 $(FCDEPEND):
-	$(TOOLS)/sfmakedepend --file - --silent $(SRCFILES) --objdir \$$\(KDEST\) --moddir \$$\(KDEST\) > $(FCDEPEND)
+\t$(TOOLS)/sfmakedepend --file - --silent $(SRCFILES) --objdir \$$\(KDEST\) --moddir \$$\(KDEST\) > $(FCDEPEND)
 
 depend: 
-	$(MAKE) -B $(FDEPEND) $(CDEPEND)
+\t$(MAKE) -B $(FDEPEND) $(CDEPEND)
 
 #-----
 # Shortcut goals
 
 neci.x: $(EXE)/neci.x
+new: clean neci.x
 
 gneci-cpmd: $(LIB)/gneci-cpmd.a
 kneci-cpmd: $(LIB)/kneci-cpmd.a
@@ -278,6 +282,26 @@ kneci-vasp: $(LIB)/kneci-vasp.a
 vasplibs: gneci-vasp kneci-vasp
 
 libs: cpmdlibs vasplibs
+
+#-----
+# Help message.
+
+help:
+\t@echo "make [target(s)]"
+\t@echo
+\t@echo "Targets:"
+\t@echo "neci.x        make neci.x."
+\t@echo "new           run clean and then build neci.x."
+\t@echo "gneci-cpmd    make neci library for integration with gamma-point version of cpmd."
+\t@echo "kneci-cpmd    make neci library for integration with k-point version of cpmd."
+\t@echo "cpmdlibs      make both libraries for integration with cpmd."
+\t@echo "gneci-vasp    make neci library for integration with gamma-point version of vasp."
+\t@echo "kneci-vasp    make neci library for integration with k-point version of vasp."
+\t@echo "vasplibs      make both libraries for integration with vasp."
+\t@echo "libs          make all libraries for integration with cpmd and vasp."
+\t@echo "clean         remove all compiled objects for the current platform and optimisation level." 
+\t@echo "cleanall      remove all compiled objects for all platforms and optimisation levels." 
+\t@echo "help          print this message."
 
 #-----
 # Compilation macros (explicit rules)
@@ -296,54 +320,54 @@ MAKE_C_KDEPS = $(CC) $(CFLAGS) -MM -MT \$$\(KDEST\)/$(addsuffix .o,$(basename $(
 # 1. Pre-processing.
 # a) gamma-point.
 $(GDEST)/%%.f90: %%.F90
-	$(CPP) $(CPP_BODY)
+\t$(CPP) $(CPP_BODY)
 
 $(GDEST)/%%.f: %%.F
-	$(CPP) $(CPP_BODY)
+\t$(CPP) $(CPP_BODY)
 
 # b) k-point.
 $(KDEST)/%%.f90: %%.F90
-	$(CPP) -D__CMPLX $(CPP_BODY)
+\t$(CPP) -D__CMPLX $(CPP_BODY)
 
 $(KDEST)/%%.f: %%.F
-	$(CPP) -D__CMPLX $(CPP_BODY)
+\t$(CPP) -D__CMPLX $(CPP_BODY)
 
 # 2. Compile.
 $(F90OBJ) $(KF90OBJ): %%.o: %%.f90
-	perl -w $(TOOLS)/compile_mod.pl -cmp "perl -w $(TOOLS)/compare_module_file.pl -compiler $(compiler)" -fc "$(FC) $(FFLAGS) $(F90FLAGS) %(module_flag)s$(dir $@) -I $(SRC) -c $< -o $@" -provides "$@" -requires "$^"
+\tperl -w $(TOOLS)/compile_mod.pl -cmp "perl -w $(TOOLS)/compare_module_file.pl -compiler $(compiler)" -fc "$(FC) $(FFLAGS) $(F90FLAGS) %(module_flag)s$(dir $@) -I $(SRC) -c $< -o $@" -provides "$@" -requires "$^"
 
 $(FOBJ) $(KFOBJ): %%.o: %%.f
-	perl -w $(TOOLS)/compile_mod.pl -cmp "perl -w $(TOOLS)/compare_module_file.pl -compiler $(compiler)" -fc "$(FC) $(FFLAGS) $(F77FLAGS) %(module_flag)s$(dir $@) -I $(SRC) -c $< -o $@" -provides "$@" -requires "$^"
+\tperl -w $(TOOLS)/compile_mod.pl -cmp "perl -w $(TOOLS)/compare_module_file.pl -compiler $(compiler)" -fc "$(FC) $(FFLAGS) $(F77FLAGS) %(module_flag)s$(dir $@) -I $(SRC) -c $< -o $@" -provides "$@" -requires "$^"
 
 # Compiling C source files...
 # a) gamma-point.
 $(COBJ): $(GDEST)/%%.o: %%.C
-	$(CC) $(CPPFLAGS) $(C_BODY)
+\t$(CC) $(CPPFLAGS) $(C_BODY)
 
 $(cOBJ): $(GDEST)/%%.o: %%.c
-	$(CC) $(C_BODY)
+\t$(CC) $(C_BODY)
 
 # b) k-point.
 $(KCOBJ): $(KDEST)/%%.o: %%.C
-	$(CC) $(CPPFLAGS) -D__CMPLX $(C_BODY)
+\t$(CC) $(CPPFLAGS) -D__CMPLX $(C_BODY)
 
 $(KcOBJ): $(KDEST)/%%.o: %%.c
-	$(CC) $(C_BODY)
+\t$(CC) $(C_BODY)
 
 # Update C dependency files.
 # a) gamma-point.
 $(cDEPEND_FILES): $(GDEST)/%%.d: %%.c
-	$(MAKE_C_GDEPS)
+\t$(MAKE_C_GDEPS)
 
 $(CDEPEND_FILES): $(GDEST)/%%.d: %%.C
-	$(MAKE_C_GDEPS)
+\t$(MAKE_C_GDEPS)
 
 # b) k-point.
 $(KcDEPEND_FILES): $(KDEST)/%%.d: %%.c
-	$(MAKE_C_KDEPS)
+\t$(MAKE_C_KDEPS)
 
 $(KCDEPEND_FILES): $(KDEST)/%%.d: %%.C
-	$(MAKE_C_KDEPS)
+\t$(MAKE_C_KDEPS)
 
 #-----
 # Include dependency files
