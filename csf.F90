@@ -41,11 +41,17 @@ module csf
     end interface
     
 contains
-    ! The number of determinants given a specified number of csfs (note that
-    ! if nopen == 0, ie ncsf==0, there is still a closed shell determinant
-    ! legitimately exists.
+
     integer function num_csf_dets (ncsf)
+
+        ! Return the number of determinants given a specified number of csfs.
+        ! Note that if nopen == 0, ncsf == 0, but there is still a closed
+        ! shell determinant that legitimately exists.
+        !
+        ! In: ncsf - The number of csfs (as from get_num_csfs)
+
         integer, intent(in) :: ncsf
+
         if (ncsf == 0) then
             num_csf_dets = 1
         else
@@ -107,6 +113,7 @@ contains
         nup(2) = (nopen(2) + 2*S(2))/2
         ndets(2) = int(choose(nopen(2),nup(2)))
 
+        ! Perform the calculation
         hel_ret = get_csf_helement_local (nI, nJ, iLutI, iLutJ, nopen, &
                                           nclosed, nup, ndets, IC)
     end function
@@ -144,8 +151,8 @@ contains
         call set_timer (hel_timer)
 
         ! Extract the Yamanouchi symbols from the CSFs
-        call get_csf_yama (nI, yama1)
-        call get_csf_yama (nJ, yama2)
+        call get_csf_yama (nI, yama1, nopen(1))
+        call get_csf_yama (nJ, yama2, nopen(2))
 
         ! Depending on the number of spatial orbitals we differ by, call
         ! different optimised routines.
@@ -181,6 +188,7 @@ contains
                                      nopen(2))
         enddo
 
+        ! If IC==0, then use the optimised routine for that case.
         call halt_timer(hel_timer)
         if (IC == 0) then
             call set_timer (hel_timer0)
@@ -193,6 +201,7 @@ contains
 
         call set_timer (hel_timer1)
         ! Generate determinants from spatial orbitals specified in NI, NJ
+        ! We should be able to optimise this further.
         do det = 1,ndets(1)
             dets1(1:nclosed(1),det) = iand(NI(1:nclosed(1)), csf_orbital_mask)
             dets1(nclosed(1)+1:nel,det) = &
@@ -209,6 +218,8 @@ contains
             call EncodeBitDet (dets2(:,det), ilut2(:,det))
         enddo
 
+        ! Sum in all of the H-matrix terms between each of the component
+        ! determinants.
         hel_ret = helement(0)
         do i=1,ndets(1)
             if (coeffs1(i) /= 0) then
@@ -223,12 +234,17 @@ contains
                 hel_ret = hel_ret + sum1*HElement(coeffs1(i))
             endif
         enddo
+
         call halt_timer(hel_timer1)
     end function
 
     function get_csf_helement_0 (nI, nopen, nclosed, nup, ndets, coeffs1, &
                                  coeffs2, dets1, bEqual) &
                                  result(hel_ret)
+        
+        ! The local worker function for calculating Helements between two CSFs
+        ! which differ by 0 spatial orbitals (i.e. only differ by Yamanouchi
+        ! symbols, or not at all).
 
         integer, intent(in) :: nI(nel)
         integer, intent(in) :: nopen, nclosed, nup, ndets
@@ -326,6 +342,10 @@ contains
         enddo
         hel_ret = hel_ret + hel
 
+        ! Now consider the cross terms (between differing component dets).
+        ! Only cases differing by two spin orbitals count --> generate these.
+        ! To maintain Ms and the spatial arrangement, can only swap two
+        ! electron pairs with opposite Ms (i.e. AB --> BA)
         ndown = nel - nup
         do det=1,ndets
             elecs = -1
@@ -333,12 +353,16 @@ contains
                                  dets1(nclosed+1:nel,det))
 
             do while (elecs(1) /= -1)
+                ! The slow bit. Which determinant is this (to index coeffs
+                ! array). 
+                ! TODO: Is it quicker to re-calc the coeff?
                 indj = det_pos(dets1(nclosed+1:nel,det), nopen, &
                                ndown, elecs)
 
                 if ( (coeffs1(det) /= 0 .and. coeffs2(indj) /= 0) .or. &
                      (coeffs1(indj) /= 0 .and. coeffs2(det) /= 0) ) then
 
+                    ! Generate the excitation matrix.
                     do j=1,2
                         if (dets1(nclosed+elecs(j),det) == 1) then
                             ex(1,j) = get_beta(nK(nclosed + elecs(j)))
@@ -347,6 +371,8 @@ contains
                         endif
                     enddo
                     ex(2,:) = ab_pair(ex(1,:))
+
+                    ! We know this is a double spin-orbital excitation.
                     hel = sltcnd_csf_2 (ex, .false.)
 
                     hel_ret = hel_ret &
@@ -645,62 +671,6 @@ contains
         endif
     end subroutine
 
-!    function get_csf_helement_local_bit (nI, nJ, iLutI, iLutJ, nopen, nclosed, S,&
-!                                     Ms, nup, ndets) result(hel_ret)
-!        integer, intent(in) :: nI(nel), nJ(nel), nopen(2), nclosed(2)
-!        integer, intent(in) :: iLutI(0:NIfTot), iLutJ(0:NIfTot)
-!        integer, intent(in) :: nup(2), ndets(2)
-!        ! TODO: convert these to integers (ie 2S, 2Ms)
-!        real*8, intent(in) :: S(2), Ms(2)
-!        type(HElement) :: hel_ret
-!
-!        integer :: yama1(NIfY), yama2(NIfY)
-!        real*8 :: coeffs1(ndets(1)), coeffs2(ndets(2))
-!        integer :: perm1(NIfY, ndets(1)), perm2(NIfY, ndets(2))
-!
-!        integer det, i, j
-!
-!        ! Calculate all possible permutations to construct determinants
-!        ! (Where 0=alpha, 1=beta when generating NI, NJ below)
-!        call csf_get_bit_perm (nopen(1), nup(1), ndets(1), nel, perm1)
-!        if ((nopen(1).eq.nopen(2)) .and. (nup(1).eq.nup(2))) then
-!            perm2 = perm1
-!        else
-!            call csf_get_bit_perm(nopen(2), nup(2), ndets(2), nel, perm2)
-!        endif
-!
-!        ! Extract the Yamanouchi symbols from the CSFs
-!        yama1 = iLutI (NIfD+1:NIfD+NIfY)
-!        yama2 = iLutJ (NIfD+1:NIfD+NIfY)
-!
-!        ! Get the coefficients
-!        do det=1,ndets(1)
-!            coeffs1(det) = csf_bit_coeff(yama1, perm1(:,det), nopen(1))
-!        enddo
-!        do det=1,ndets(2)
-!            coeffs2(det) = csf_bit_coeff(yama2, perm2(:,det), nopen(2))
-!        enddo
-!
-!
-!
-!        ! TODO: implement symmetry if NI,NJ are the same except for yama
-!        !hel_ret = HElement(0)
-!        !do i=1,ndets(1)
-!        !    if (coeffs1(i) /= 0) then
-!        !        sum1 = Helement(0)
-!        !        do j=1,ndets(2)
-!        !            if (coeffs2(j) /= 0) then
-!        !                Hel = sltcnd_csf (dets1(i,:), dets2(j,:), &
-!        !                                  ilut1(i,:), ilut2(j,:))
-!        !                sum1 = sum1 + Hel * HElement(coeffs2(j))
-!        !            endif
-!        !        enddo
-!        !        hel_ret = hel_ret + sum1*HElement(coeffs1(i))
-!        !    endif
-!        !enddo
-!
-!    end function
-    
     subroutine mark_change_2 (dets_change, dets, nclosed, ndets, nop_uniq,&
                               uniq_id)
 
@@ -779,45 +749,17 @@ contains
         enddo
     end subroutine
 
-    subroutine csf_get_dets_reverse (nopen, nup, ndets, nel, dets)
-
-        ! Fill the last nopen electrons of each determinant with 0 (alpha) or
-        ! 1 (beta) in all possible permutations with nup alpha electrons.
-
-        integer, intent(in) :: ndets, nup, nopen, nel
-        integer, intent(out) :: dets (nel,ndets)
-        integer comb(nup), i, j
-        logical bInc
-
-        if (nopen.eq.0) return
-
-        forall (i=1:nup) comb(i) = nopen-i+1
-        dets(nel-nopen+1:,:) = 1
-        do i=1,ndets
-            forall (j=1:nup) dets(nel-nopen+comb(j),i) = 0
-            do j=1,nup
-                bInc = .false.
-                if (j == nup) then
-                    bInc = .true.
-                else if (j < nup) then
-                    if (comb(j+1) /= comb(j) - 1) bInc = .true.
-                endif
-
-                if (bInc) then
-                    comb(j) = comb(j) - 1
-                    exit
-                else
-                    comb(j) = nopen - j + 1
-                endif
-            enddo
-        enddo
-    end subroutine
-
     integer function det_pos (det, nopen, ndown, perm)
         
         ! Obtain an index for the number of the permutation generated
         ! according to the ordering used in csf_get_dets.
         ! See: The art of Computer Programming, volume 4, Fascicle 3, pg. 
+        !
+        ! In:  det   - An array of 0s, 1s which have been permuted
+        !      nopen - Size of array det
+        !      ndown - Number of 0s
+        !      perm  - Treat as if indices perm(1), perm(2) are swapped.
+        ! Ret:       - Std. index of determinant.
 
         integer, intent(in) :: nopen, ndown
         integer, intent(in) :: det(nopen)
@@ -885,7 +827,6 @@ contains
     subroutine csf_get_dets_ind (nopen, nup, ndets, nel, nop_uniq, uniq_id, &
                                  tsign_id, nsign, dets, ms, tSign)
 
-                                 ! TODO: comments
         ! Fill the last nopen electrons of each determinant with 0 (alpha) or
         ! 1 (beta) in all possible permutations with nup alpha electrons.
         ! Specify a number of positions, which should be the fastest varying,
@@ -896,14 +837,17 @@ contains
         ! to the sum of the Ms values of this region, even if not numerically
         ! equivalent).
         !
-        ! In:  nopen - Num. unpaired orbitals (size of permutations)
-        !      nup   - Num. orbitals in 'alpha' state
-        !      ndets - Num. permutations to generate
-        !      nel   - Num. electrons in total
+        ! In:  nopen    - Num. unpaired orbitals (size of permutations)
+        !      nup      - Num. orbitals in 'alpha' state
+        !      ndets    - Num. permutations to generate
+        !      nel      - Num. electrons in total
         !      nop_uniq - Num. of orbitals to place as 'fastest'
-        !      uniq_id - Indices of fastest changing orbitals - nclosed
+        !      uniq_id  - Indices of fastest changing orbitals - nclosed
+        !      tsign_id - Indices of terms which can affect parity of det.
         ! Out: dets  - Array, last nopen bits of each det contain permutations
         !      ms    - Sum of terms other than the specified fast varying ones
+        !      tsign - Does the permutation change the parity (tSign) of the
+        !              det from the 'standard' csf one (all betas)
 
         integer, intent(in) :: ndets, nup, nopen, nel, nop_uniq, uniq_id(*)
         integer, intent(in) :: tsign_id(*), nsign
@@ -972,28 +916,28 @@ contains
         enddo
     end subroutine
 
-    ! For all of the open shell electrons, generate a list where
-    ! 0=alpha, 1=beta for the specified determinant.
-    function csf_get_dorder (NI, nel, nopen)
-        integer csf_get_dorder(nopen)
-        integer, intent(in) :: NI(nel)
-        integer, intent(in) :: nopen, nel
-        integer nclosed
-
-        nclosed = nel - nopen
-        csf_get_dorder = -(mod(NI(nclosed+1:nel),2)-1)
-    end function
-
-
     subroutine csf_get_yamas (nopen, sfinal, yama, ncsf_max)
+        
+        ! Obtain all possible Yamanouchi symbols for for the system
+        !
+        ! In:  nopen    - Number of open shell electrons
+        !      sfinal   - Desired final spin
+        !      ncsf_max - Max number of csfs to generate (size of yama)
+        ! Out: yama     - Array of Yamanouchi symbols
+
         real*8, intent(in) :: sfinal
         integer, intent(in) :: nopen, ncsf_max
         integer, intent(out) :: yama (ncsf_max, nopen)
+
         real*8 spin (ncsf_max, nopen)
         integer npos, csf, ncsf, ncsf_next
 
+        ! Empty Yamanouchi symbol of nopen == 0.
         if (nopen == 0) return
 
+        ! Walk through tree. Start at elec == nopen, and walk back through
+        ! tree taking all possible routes (branch at every point where there
+        ! is more than one valid route to the start.
         spin(1,nopen) = sfinal
         ncsf = 1
         ncsf_next = ncsf
@@ -1021,9 +965,11 @@ contains
         yama(:,1) = 1
     end subroutine
         
-    ! Convert num (a member of CI) to an alpha or beta spin orbital where
-    ! det==1 --> alpha
     integer elemental function csf_alpha_beta (num, det)
+
+        ! Convert num (a member of CI) to an alpha or beta spin orbital where
+        ! det==1 --> alpha
+
         integer, intent(in) :: num, det
 
         csf_alpha_beta = iand(num, csf_orbital_mask) - 1
@@ -1035,30 +981,23 @@ contains
         csf_alpha_beta = csf_alpha_beta + 1
     end function
 
-    ! Extract the Yamanouchi symbol from the supplied CSF
-    ! This assumes that the passed yama array is the correct size, if
-    ! it is too small, then the symbol will be truncated.
-    subroutine get_csf_yama(NI, yama)
-        integer, intent(in), dimension(:) :: NI
-        integer, intent(out), dimension(:) :: yama
-        integer i, nopen
-        logical open_shell
+    subroutine get_csf_yama(nI, yama, nopen)
 
-        nopen = 0
-        open_shell = .false.
-        do i=1,size(NI)
-            if ( (.not.open_shell) .and. btest(NI(i), csf_yama_bit)) then
-                open_shell = .true.
-            endif
+        ! Extract the Yamanouchi symbol from the supplied CSF
+        ! This assumes that the passed yama array is the correct size, if
+        ! it is too small, then the symbol will be truncated.
 
-            if (open_shell) then
-                nopen = nopen + 1
-                if (btest(NI(i), csf_yama_bit)) then
-                    yama(nopen) = 1
-                else
-                    yama(nopen) = 2
-                endif
-                if (nopen == size(yama)) exit
+        integer, intent(in), dimension(:) :: nI(nel)
+        integer, intent(in) :: nopen
+        integer, intent(out), dimension(:) :: yama(nopen)
+        integer i, nclosed
+
+        nclosed = nel - nopen
+        do i=1,nopen
+            if (btest(NI(i + nclosed), csf_yama_bit)) then
+                yama(i) = 1
+            else
+                yama(i) = 2
             endif
         enddo
     end subroutine
@@ -1128,11 +1067,12 @@ contains
         enddo
     end subroutine
 
-
-
-    ! Obtains the number of open shell electrons, the total spin
-    ! and the Ms value for the specified csf.
     subroutine get_csf_data(NI, nel, nopen, nclosed, S, Ms)
+
+        ! Obtains the number of open shell electrons, the total spin
+        ! and the Ms value for the specified csf.
+        ! NB. The Ms value is no longer being used. We ASSERT that Ms == STOT
+
         integer, intent(in) :: NI(nel), nel
         integer, intent(out) :: nopen, nclosed
         real*8, intent(out) :: S, Ms
@@ -1167,10 +1107,12 @@ contains
         nopen = nel - nclosed
     end subroutine
 
-    ! Calculates the total number of CSFs possible for a system with
-    ! nOpen unpaired electrons, and a total spin of S.
-    ! This is the same as the number of available Serber functions
     integer pure function get_num_csfs (nOpen, S)
+
+        ! Calculates the total number of CSFs possible for a system with
+        ! nOpen unpaired electrons, and a total spin of S.
+        ! This is the same as the number of available Serber functions
+
         integer, intent(in) :: nOpen
         real*8, intent(in) :: S
         integer :: S2
@@ -1202,7 +1144,7 @@ contains
         call csf_get_yamas (nopen, S, yamas(1:,:), ncsf)
 
         if (tForceChange .and. ncsf > 1) then
-            call get_csf_yama (nI, yamas(0,:))
+            call get_csf_yama (nI, yamas(0,:), nopen)
         endif
 
         ! Pick and apply a random one
@@ -1218,13 +1160,19 @@ contains
         enddo
     end subroutine
 
-    ! Apply a Yamanouchi symbol to a csf
     subroutine csf_apply_yama (NI, csf)
+
+        ! Apply a Yamanouchi symbol to a csf
+        !
+        ! In:    csf - The Yamanouchi symbol to apply
+        ! InOut: nI  - The CSF to apply a Yamanouchi symbol to.
+
         integer, intent(in), dimension(:) :: csf
         integer, intent(inout) :: NI(nel)
         integer i
 
-        NI = ibset(NI, csf_test_bit)
+        nI = iand(nI, csf_orbital_mask)
+        nI = ibset(nI, csf_test_bit)
         do i=1,size(csf)
             if (csf(size(csf)-i+1) .eq. 1) then
                 NI(nel-i+1) = ibset(NI(nel-i+1), csf_yama_bit)
@@ -1234,8 +1182,10 @@ contains
         enddo
     end subroutine
 
-    ! Apply a specified Ms value to the csf
     subroutine csf_apply_ms (NI, Ms, nopen)
+
+        ! Apply a specified Ms value to the csf
+
         integer, intent(inout) :: NI(nel)
         integer, intent(in) :: nopen
         real*8, intent(in) :: Ms
@@ -1250,8 +1200,12 @@ contains
         enddo
     end subroutine
 
-    ! Calculates the total spin from a csf
     real*8 function csf_spin (csf)
+
+        ! Calculates the total spin from a csf
+        !
+        ! In - The Yamanouchi symbol to consider.
+
         integer, intent(in), dimension(:) :: csf
         integer i
 
@@ -1261,9 +1215,13 @@ contains
         enddo
     end function
 
-    ! Calculates the number of possible S values (not their degeneracy)
-    ! given a certain number of open shell electrons
     integer function num_S (nopen)
+
+        ! Calculates the number of possible S values (not their degeneracy)
+        ! given a certain number of open shell electrons
+        !
+        ! In: nopen - Number of open shell electrons
+
         integer, intent(in) :: nopen
         num_S = (nopen+2)/2
     end function
@@ -1296,43 +1254,11 @@ contains
         enddo
     end function
 
-    ! Calculate the coefficients for each determinant contained in the
-    ! CSF. These are calculated as the product of Clebsch-Gordon coeffs.
-    ! working through the tree electron-by-electron. Each coeff. depends
-    ! on the current total spin in the csf, the current total spin in
-    ! the determinant and the spin of the current e-/posn being considered
-    ! in either the determinant or the csf.
-    ! dorder = the ordered list of alpha/beta for each spin orbital in det.
-    real*8 pure function csf_bit_coeff (csf, dorder, nopen)
-        integer, intent(in) :: csf(NIfY), dorder(NIfY), nopen
-        real*8 S, M, scur, mcur, clb
-        integer i, bit, pos
-
-        S=0
-        M=0
-        csf_bit_coeff = 1
-        do i=0,nopen-1
-            bit = mod(i,32)
-            pos = i/32
-
-            scur = -0.5
-            mcur = 0.5
-            if (ibset(csf(pos), bit)) scur = 0.5
-            if (ibset(dorder(pos), bit)) scur = -0.5
-            S = S + scur
-            M = M + mcur
-
-            clb = clbgrdn(S, M, scur, mcur)
-            csf_bit_coeff = csf_bit_coeff * clb
-            if (clb == 0) exit            
-        enddo
-    end function
-
     ! The Clebsch-Gordon coefficient with total spin S, projected
     ! component of spin M, with state with spin change 
     ! spin=(+/-)0.5 and projected spin change sig=(+/-)0.5
     real*8 pure function clbgrdn(S,M,spin,sig)
-        real*8, intent(in) :: S,M,spin,sig
+        real*8, intent(in) :: S, M, spin, sig
         !if (abs(spin).ne.0.5) then
         !    call stop_all ("clbgrdn","Spin incorrect")
         !endif
@@ -1343,9 +1269,11 @@ contains
         endif
     end function
 
-    ! Write a Yamanouchi symbol to output specified by nunit.
-    ! if lTerm==.true. then terminate the line at the end.
     subroutine write_yama (nunit, yama, lTerm)
+
+        ! Write a Yamanouchi symbol to the output specified by nunit.
+        ! if lTerm==.true. then terminate the line at the end.
+
         integer, intent(in) :: nunit
         integer, intent(in), dimension(:) :: yama
         logical, intent(in) :: lTerm

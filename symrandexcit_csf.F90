@@ -1406,7 +1406,7 @@ contains
             ! Generate all allowed changes of Yamanouchi symbol.
             excit = 1
             if (bYama .and. (nopen > 2)) then
-                call get_csf_yama (nI, tmp_yama)
+                call get_csf_yama (nI, tmp_yama, nopen)
                 do i=1,numcsfs(0)
                     if (.not. int_arr_eq (tmp_yama, csf0(i,:))) then
                         call csf_apply_yama (nJ(excit,:), csf0(i,:))
