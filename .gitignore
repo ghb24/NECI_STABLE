@@ -1,6 +1,5 @@
 /dest
-/mktemplate
-/neci.x
-/tags
+/Makefile
+tags
 /bin
 /lib
