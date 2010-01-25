@@ -3,16 +3,10 @@ C     ==================================================================
 C     ==--------------------------------------------------------------==
       use MemoryManager, only: LogMemDealloc
       use MemoryManager, only: LookupPointer
+      use legacy_memory_data
       IMPLICIT NONE
       REAL*8  POINTDUMMY
       POINTER (IP_POINT,POINTDUMMY)
-#ifdef POINTER8
-      INTEGER*8 I_AD1,I_AD2
-#else
-      INTEGER  I_AD1,I_AD2
-#endif
-!      INCLUDE 'system.h'
-      INCLUDE 'memc.inc'
       LOGICAL ERROR
       REAL*8  XM(0:*)
       POINTER (IP_XM,XM)
@@ -87,14 +81,8 @@ C     ==--------------------------------------------------------------==
 C     ==================================================================
       SUBROUTINE N_MEMORY_CHECK
 C     ==--------------------------------------------------------------==
+      use legacy_memory_data
       IMPLICIT NONE
-#ifdef POINTER8
-      INTEGER*8 I_AD1,I_AD2
-#else
-      INTEGER   I_AD1,I_AD2
-#endif
-!      INCLUDE 'system.h'
-      INCLUDE 'memc.inc'
       LOGICAL ERROR
       REAL*8  X1(*),X2(*)
       POINTER (IP_X1,X1),(IP_X2,X2)
@@ -127,17 +115,11 @@ C     ==--------------------------------------------------------------==
 C     ==================================================================
       SUBROUTINE N_PRINT_MEMORY
 C     ==--------------------------------------------------------------==
+      use legacy_memory_data
 #ifdef PARALLEL
          use Parallel, only: me => iProcIndex, nProc => nProcessors
 #endif
       IMPLICIT NONE
-#ifdef POINTER8
-      INTEGER*8 I_AD1,I_AD2
-#else
-      INTEGER   I_AD1,I_AD2
-#endif
-!      INCLUDE 'system.h'
-      INCLUDE 'memc.inc'
 #ifdef POINTER8
       INTEGER*8 I_SORT(MEM_LEN)
 #else

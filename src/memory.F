@@ -4,8 +4,8 @@ C     ==--------------------------------------------------------------==
       use MemoryManager, only: LogMemAlloc,LeaveMemoryManager
       use MemoryManager, only: LookupPointer,li
       use legacy_data, only: irat
+      use legacy_memory_data
       IMPLICIT NONE
-      INCLUDE 'memc.inc'
 C     Arguments
       REAL*8    POINTDUMMY
       POINTER   (IP_POINT,POINTDUMMY)
@@ -13,13 +13,10 @@ C     Arguments
       CHARACTER TAG*(*),TAG2*(10)
 C     Variables
 #if defined(POINTER8)
-      INTEGER*8 I_AD1,I_AD2
       INTEGER*8 MALLOC,LOC
 #elif defined(__NEC)
-      INTEGER   I_AD1,I_AD2
       INTEGER   MALLOCW,LOC
 #else
-      INTEGER   I_AD1,I_AD2
       INTEGER   MALLOC,LOC
 #endif
       REAL*8    XM(0:LENGTH+1)
