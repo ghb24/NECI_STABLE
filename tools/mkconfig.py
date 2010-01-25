@@ -115,6 +115,11 @@ GDEST = $(DEST)/real
 # COMPLEX (k-point) objects
 KDEST = $(DEST)/cmplx
 
+# Directories for dependencies.  It's safer to share them between all
+# config directories.
+GDEP_DEST = dest/depend/real
+KDEP_DEST = dest/depend/cmplx
+
 # Directory for compiled executable.
 EXE = bin
 
@@ -134,6 +139,8 @@ VPATH = $(subst $(space),:,$(SRC) $(DEST))
 # Create output directories if they don't exist.
 make_gdest := $(shell test -e $(GDEST) || mkdir -p $(GDEST))
 make_kdest := $(shell test -e $(KDEST) || mkdir -p $(KDEST))
+make_gdep_dest := $(shell test -e $(GDEP_DEST) || mkdir -p $(GDEP_DEST))
+make_kdep_dest := $(shell test -e $(KDEP_DEST) || mkdir -p $(KDEP_DEST))
 make_exe := $(shell test -e $(EXE) || mkdir -p $(EXE))
 make_lib := $(shell test -e $(LIB) || mkdir -p $(LIB))
 
@@ -205,18 +212,18 @@ OBJECTS_KVASP := $(addprefix $(KDEST)/,$(notdir $(OBJECTS_RVASP)))
 
 # Fortran dependencies.
 # We need these before compiling any fortran files.
-FRDEPEND = $(GDEST)/.depend
-FCDEPEND = $(KDEST)/.depend
+FRDEPEND = $(GDEP_DEST)/.depend
+FCDEPEND = $(KDEP_DEST)/.depend
 FDEPEND = $(FRDEPEND) $(FCDEPEND)
 
 # C dependencies.
 # We don't need these when we first compile, only when we recompile.
 # We achieve this (most of the time) by recompiling the C dependencies every
 # time we compile.
-CDEPEND_FILES = $(COBJ:.o=.d)
-cDEPEND_FILES = $(cOBJ:.o=.d)
-KCDEPEND_FILES = $(KCOBJ:.o=.d)
-KcDEPEND_FILES = $(KcOBJ:.o=.d)
+CDEPEND_FILES = $(addprefix $(GDEP_DEST)/,$(notdir $(COBJ:.o=.d)))
+cDEPEND_FILES = $(addprefix $(GDEP_DEST)/,$(notdir $(cOBJ:.o=.d)))
+KCDEPEND_FILES = $(addprefix $(KDEP_DEST)/,$(notdir $(KCOBJ:.o=.d)))
+KcDEPEND_FILES = $(addprefix $(KDEP_DEST)/,$(notdir $(KcOBJ:.o=.d)))
 CDEPEND = $(CDEPEND_FILES) $(cDEPEND_FILES) $(KCDEPEND_FILES) $(KcDEPEND_FILES)
 
 #-----
@@ -359,17 +366,17 @@ $(KcOBJ): $(KDEST)/%%.o: %%.c
 
 # Update C dependency files.
 # a) gamma-point.
-$(cDEPEND_FILES): $(GDEST)/%%.d: %%.c
+$(cDEPEND_FILES): $(GDEP_DEST)/%%.d: %%.c
 \t$(MAKE_C_GDEPS)
 
-$(CDEPEND_FILES): $(GDEST)/%%.d: %%.C
+$(CDEPEND_FILES): $(GDEP_DEST)/%%.d: %%.C
 \t$(MAKE_C_GDEPS)
 
 # b) k-point.
-$(KcDEPEND_FILES): $(KDEST)/%%.d: %%.c
+$(KcDEPEND_FILES): $(KDEP_DEST)/%%.d: %%.c
 \t$(MAKE_C_KDEPS)
 
-$(KCDEPEND_FILES): $(KDEST)/%%.d: %%.C
+$(KCDEPEND_FILES): $(KDEP_DEST)/%%.d: %%.C
 \t$(MAKE_C_KDEPS)
 
 #-----
