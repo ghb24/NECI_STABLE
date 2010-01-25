@@ -56,6 +56,8 @@ module_flag [required]
 compiler
     Set the compiler name used by compare_module_files.pl to avoid cascade
     compilation.
+max_mem
+    The amount of available memory (per core) in MB.  Used for logging purposes.
 '''
 
 import ConfigParser
@@ -449,7 +451,7 @@ def parse_config(config_dir, config_file):
         for opt in valid_options:
             if opt not in config[s].keys():
                 if opt == 'max_mem':
-                    config[s][opt] = 1024
+                    config[s][opt] = 2048
                 else:
                     config[s][opt] = ''
 
