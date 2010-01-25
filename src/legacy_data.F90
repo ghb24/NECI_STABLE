@@ -2,8 +2,13 @@ module legacy_data
 
 ! Module to store legacy data that was once upon a time in evil include files.
 
-! irat is the 64/(number of bits per integer)
+! irat is the 64/(number of bits per integer).
 integer, parameter, private :: irat_test = 0
 integer, parameter :: irat = 64/bit_size(irat_test)
-      
+
+! Data originally in calcp.inc.
+! Probably only Alex knows what there are.
+INTEGER CALCP_N(0:1023),CALCP_NT(0:1023,15,2)
+REAL*8 CALCP_SUM(0:1023,3),CALCP_HSUM(0:1023)
+ 
 end module legacy_data

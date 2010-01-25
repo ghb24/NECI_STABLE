@@ -167,8 +167,8 @@ C            IF(I_V.EQ.3) CALCPATHS=CP3CI2(RHOII,RHOIJ,I_P)
       END
       SUBROUTINE CLASSPATHS(RHOC,HC,WEIGHT,RHOIJ,I_V,ICLASS)
          USE HElem
+         use legacy_data, only: CALCP_N, CALCP_NT, CALCP_SUM, CALCP_HSUM
          IMPLICIT NONE
-         INCLUDE 'calcp.inc'
          TYPE(HElement) RHOIJ(0:I_V,0:I_V)
          REAL*8 RHOC,HC,WEIGHT
          INTEGER I_V,ILG,ISGN,ICLASS
@@ -221,7 +221,7 @@ C            WRITE(32,*) I_V,ICLASS,RHOC
 
       SUBROUTINE WRITECLASSPATHS()
          USE Parallel , only : iProcIndex
-         INCLUDE 'calcp.inc'
+         use legacy_data, only: CALCP_N, CALCP_NT, CALCP_SUM, CALCP_HSUM
          INTEGER I,J
          IF(iProcIndex.eq.0) THEN
              OPEN(45,FILE='CLASSPATHS',STATUS='UNKNOWN')
@@ -244,7 +244,7 @@ C            WRITE(32,*) I_V,ICLASS,RHOC
 
 
       SUBROUTINE CLEARCLASSPATHS()
-         INCLUDE 'calcp.inc'
+         use legacy_data, only: CALCP_N, CALCP_NT, CALCP_SUM, CALCP_HSUM
          CALCP_N=0
          CALCP_N=0
          CALCP_SUM=0.d0

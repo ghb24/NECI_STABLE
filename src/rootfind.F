@@ -1,12 +1,12 @@
 
       SUBROUTINE PLOTROOTSTAR(N,A,B,ROOTS,NROOTS)
          USE HElem
+         use legacy_data, only: CALCP_N, CALCP_NT, CALCP_SUM, CALCP_HSUM
          IMPLICIT NONE
          INTEGER N,I,J,NROOTS
          TYPE(HElement) A(0:N),B(0:N)
          real*8 ROOTS(0:NROOTS),HIGHZ,DELTA,Z
          REAL*8 STAR,STARPROD,PROD,PROD2,STARPROD2
-         include 'calcp.inc'
 
          !Calculate the poles of the new product formulation
 
