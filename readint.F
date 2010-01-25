@@ -367,7 +367,7 @@ C.. At the moment we're ignoring the core energy
          ENDIF
          CALL MPIIBCast_Scal(ISNMAX,0)
          CALL MPIIBCast_Scal(ISYMNUM,0)
-         CALL MPIDBCast(Arr,LEN*2,0)
+         CALL MPIDBCastArr(Arr,LEN*2,0)
          
          SYMMAX=1
          iMaxLz=0
@@ -667,7 +667,7 @@ C.. AJWT removed the restriction to TSTARSTORE
          ENDIF
          IF((.not.tRIIntegrals).and.(.not.tCacheFCIDUMPInts)) THEN
              CALL GetUMATSize(nBasis,NEl,iSpins,UMatSize)
-             CALL MPIDBCast(UMAT,UMatSize,0)    !This is not an HElement, as it is actually passed in as a real*8, even though it is HElem in IntegralsData
+             CALL MPIDBCastArr(UMAT,UMatSize,0)    !This is not an HElement, as it is actually passed in as a real*8, even though it is HElem in IntegralsData
          ENDIF
          IF(tCacheFCIDUMPInts) THEN
 !Need to broadcast the cache...

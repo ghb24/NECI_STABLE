@@ -1572,6 +1572,7 @@ MODULE Calc
                   G_VMC_FAC=0.D0
                case("MCMP")
                   tMCDirectSum=.TRUE.
+                  I_HMAX = -19
                   G_VMC_FAC=0.D0
                   TMPTHEORY=.TRUE.
                case("GRAPHMORPH")

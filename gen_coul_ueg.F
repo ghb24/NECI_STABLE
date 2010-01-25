@@ -355,14 +355,14 @@ C..Cube arrays
       END
 
       SUBROUTINE GetUEGUmatEl(IDI,IDJ,IDK,IDL,ISS,G1,ALAT,
-     &      iExchangeDampingType,SUM)
+     &      iExchangeDampingType,UMatEl)
          use SystemData, only: BasisFN
          IMPLICIT NONE
          INTEGER IDI,IDJ,IDK,IDL,ISS
          INTEGER iExchangeDampingType
          TYPE(BasisFn) G1(*)
          INTEGER I,J,K,L,A,B,C
-         REAL*8 SUM,ALAT(4),G
+         REAL*8 UMatEl,ALAT(4),G,G2
          LOGICAL TCOULOMB,TEXCHANGE
          REAL*8, PARAMETER :: PI=3.1415926535897932384626433832795029D0
          I=(IDI-1)*ISS+1
@@ -389,11 +389,11 @@ C..Cube arrays
 !    This is the equivalent of adding a positive uniform background.
 !    The effects
 
-             SUM=((A/ALAT(1))**2+(B/ALAT(2))**2)
-             IF(ALAT(3).NE.0.D0) SUM=SUM+(C/ALAT(3))**2
+             G2=((A/ALAT(1))**2+(B/ALAT(2))**2)
+             IF(ALAT(3).NE.0.D0) G2=G2+(C/ALAT(3))**2
 !Sum is G^2 / 4 Pi*Pi
-             G=2*PI*SQRT(SUM)
-             SUM=(1.D0/PI)/(SUM*ALAT(1)*ALAT(2)*ALAT(3))
+             G=2*PI*SQRT(G2)
+             UMatEl=(1.D0/PI)/(G2*ALAT(1)*ALAT(2)*ALAT(3))
 !  Sum is now (4 Pi / G^2 ) / Omega
 !  ALAT(4) is Rc, a cutoff length.
 !  For Exchange integrals we calculate <ij|kl>cell with a potenial v(r)=1/r (r<Rc) and 0 (r>=Rc)
@@ -402,16 +402,16 @@ C..Cube arrays
                   ! Spherical cutoff used.
                   ! For non-Coulomb integrals we calculate <ij|kl>_cell
                   ! with a potenial v(r)=1/r (r<Rc) and 0 (r>=Rc).
-                  SUM=SUM*(1.D0-COS(G*ALAT(4)))
+                  UMatEl=UMatEl*(1.D0-COS(G*ALAT(4)))
                ELSEIF(iExchangeDampingType.EQ.1) THEN
                   ! Screened potential used.
                   ! For non-Coulomb integrals we calculate <ij|kl>
                   ! with a potenial v(r)=erfc(r/Rc)/r.
-                  SUM=SUM*(1.D0-EXP(-(G*ALAT(4))**2/2.D0))
+                  UMatEl=UMatEl*(1.D0-EXP(-(G*ALAT(4))**2/2.D0))
                ENDIF
              ENDIF
            ELSE ! <ii|ii>
-            sum=0.d0
+            UMatEl=0.d0
             IF(.NOT.TCOULOMB .AND. iExchangeDampingType/=0) THEN
                ! The G=0 component is explicitly calculated for
                ! non-Coulomb interactions as 2 PI Rc**2.  
@@ -420,10 +420,10 @@ C..Cube arrays
                ! considering the limit of G->0.  Both give the same
                ! result.
                CALL STOP_ALL("GetUEGUmatEl","<ii|ii> calculation error")
-               SUM=2*PI*ALAT(4)**2/(ALAT(1)*ALAT(2)*ALAT(3))
+               UMatEl=2*PI*ALAT(4)**2/(ALAT(1)*ALAT(2)*ALAT(3))
             END IF
            ENDIF
           ELSE
-            SUM=0.D0
+            UMatEl=0.D0
           ENDIF
       END

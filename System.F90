@@ -781,6 +781,9 @@ MODULE System
       type(Symmetry) TotSymRep
       TYPE(BasisFN) FrzSym
       logical kallowed
+      integer dUnscaledE
+      real*8, allocatable :: arr_tmp(:,:)
+      integer, allocatable :: brr_tmp(:)
 
 !      write (6,*)
 !      call TimeTag()
@@ -1164,11 +1167,12 @@ MODULE System
                       CALL HUBKINN(I,J,K,NBASISMAX,BHUB,TTILT,SUM,TREAL)
                        ENDIF
                     ELSEIF(TUEG) THEN
-                       CALL GetUEGKE(I,J,K,ALAT,tUEGOffset,k_offset,SUM)
+                       CALL GetUEGKE(I,J,K,ALAT,tUEGOffset,k_offset,SUM,dUnscaledE)
+                       IF(dUnscaledE.gt.OrbECutoff) CYCLE
                     ELSE
                        SUM=(BOX**2)*((I*I/ALAT(1)**2)+(J*J/ALAT(2)**2)+(K*K/ALAT(3)**2))
                     ENDIF
-                    IF(SUM.GT.OrbECutoff) CYCLE
+                    IF(.NOT.TUEG.AND.SUM.GT.OrbECutoff) CYCLE
                     IG=IG+1
                     ARR(IG,1)=SUM
                     ARR(IG,2)=SUM
@@ -1190,6 +1194,19 @@ MODULE System
          IF(LEN.NE.IG) THEN
             IF(OrbECutoff.gt.-1e20) then
                write(6,*) "Have removed ", LEN-IG, " high energy orbitals"
+               ! Resize arr and brr.
+               allocate(arr_tmp(nbasis,2),brr_tmp(nbasis),stat=ierr)
+               arr_tmp = arr(1:nbasis,:)
+               brr_tmp = brr(1:nbasis)
+               deallocate(arr,brr,stat=ierr)
+               LogDealloc(tagarr)
+               LogDealloc(tagbrr)
+               allocate(arr(nbasis,2),brr(nbasis),stat=ierr)
+               LogAlloc(ierr,'Arr',2*nbasis,8,tagArr)
+               LogAlloc(ierr,'Brr',nbasis,4,tagBrr)
+               arr = arr_tmp
+               brr = brr_tmp
+               deallocate(arr_tmp, brr_tmp, stat=ierr)
             else
                WRITE(6,*) "LEN=",LEN,"IG=",IG
                STOP ' LEN NE IG ' 
@@ -1488,12 +1505,14 @@ LOGICAL FUNCTION KALLOWED(G,NBASISMAX)
   RETURN
 END FUNCTION KALLOWED
 
-SUBROUTINE GetUEGKE(I,J,K,ALAT,tUEGOffset,k_offset,Energy)
+!dUnscaledEnergy gives the energy without reference to box size and without any offset.
+SUBROUTINE GetUEGKE(I,J,K,ALAT,tUEGOffset,k_offset,Energy,dUnscaledEnergy)
    IMPLICIT NONE
    INCLUDE 'cons.inc'
    INTEGER I,J,K
    REAL*8 ALat(3),k_offset(3),Energy,E
    LOGICAL tUEGOffset
+!   INTEGER dUnscaledEnergy
 !   IF(tUEGOffset) then
 !      E=((I+k_offset(1))**2/ALAT(1)**2)
 !      E=E+((J+k_offset(2))**2/ALAT(2)**2)
@@ -1504,6 +1523,9 @@ SUBROUTINE GetUEGKE(I,J,K,ALAT,tUEGOffset,k_offset,Energy)
 !      E=E+(K*K/ALAT(3)**2)
 !   endif
 !   Energy=0.5*4*PI*PI*E
+!   dUnscaledEnergy=(I*I)
+!   dUnscaledEnergy=dUnscaledEnergy+(J*J)
+!   dUnscaledEnergy=dUnscaledEnergy+(K*K)
    E=(I*I)
    E=E+(J*J)
    E=E+(K*K)

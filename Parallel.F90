@@ -36,11 +36,16 @@ module Parallel
    ! script, as it doesn't require a module file.
 #ifdef PARALLEL
    uSE mpi
+
 #endif
    IMPLICIT NONE
    save
    integer iProcIndex,iProcMinE,iProcMaxE
    integer nProcessors
+#ifndef PARALLEL
+   integer, parameter :: MPI_MIN=0
+   integer, parameter :: MPI_MAX=0
+#endif
 
 Contains
 
@@ -175,6 +180,54 @@ Subroutine MPIStopAll(error_str)
 #endif
 end subroutine MPIStopAll
 
+Subroutine MPIIReduceArr(iValues, iLen, iType, iReturn)
+   !=  In:
+   !=     iValues(iLen)  Array of integers.  The corresponding elements for each
+   !=                    processor are summed over the processors and returned in 
+   !=                    iReturn(iLen).
+   !=     iLen           Length of the arrays.
+   !=     iType          an MPI call (e.g. MPI_MAX)
+   !=  Out:
+   !=     iReturn(iLen)  Array of integers to get the results.
+   != The arrays however are declared as scalar values. This is so that we can pass scalar
+   != quantities without it getting annoyed with associating a scalar with a vector when we
+   != just want to sum single numbers. Since we are parsing by reference, it should mean that
+   != arrays are ok too.
+   integer iValues(iLen), iReturn(iLen), iLen
+   integer g, ierr,rc,itype
+#if PARALLEL
+   g=MPI_COMM_WORLD
+   call MPI_ALLREDUCE(iValues,iReturn,iLen,MPI_INTEGER,iType,g,ierr)
+   if (ierr .ne. MPI_SUCCESS) then
+      print *,'Error starting MPI program. Terminating.'
+      call MPI_ABORT(MPI_COMM_WORLD, rc, ierr)
+   end if
+#else
+   iReturn=iValues
+#endif
+end Subroutine MPIIReduceArr
+Subroutine MPIIReduce(iValues, iLen, iType, iReturn)
+   !=  In:
+   !=     iValues        An integer.  The corresponding elements for each
+   !=                    processor are summed over the processors and returned in 
+   !=                    iReturn.
+   !=     iLen           Length of the arrays.
+   !=     iType          an MPI call (e.g. MPI_MAX)
+   !=  Out:
+   !=     iReturn        Integer to get the results.
+   integer iValues, iReturn, iLen
+   integer g, ierr,rc,itype
+#if PARALLEL
+   g=MPI_COMM_WORLD
+   call MPI_ALLREDUCE(iValues,iReturn,iLen,MPI_INTEGER,iType,g,ierr)
+   if (ierr .ne. MPI_SUCCESS) then
+      print *,'Error starting MPI program. Terminating.'
+      call MPI_ABORT(MPI_COMM_WORLD, rc, ierr)
+   end if
+#else
+   iReturn=iValues
+#endif
+end Subroutine MPIIReduce
 
 Subroutine MPIISum(iValues, iLen, iReturn)
    !=  In:
@@ -291,7 +344,7 @@ end Subroutine MPIDSumArr
 
 !A wrapper for the mpi_bcast double precision routine, so it can be used in serial
 Subroutine MPIDBCast(dValues,iLen,Root)
-    REAL*8 :: dValues(*)
+    REAL*8 :: dValues
     INTEGER :: iLen,Root,error,rc
 #ifdef PARALLEL
     CALL MPI_Bcast(dValues,iLen,MPI_DOUBLE_PRECISION,Root,MPI_COMM_WORLD,error)
@@ -303,6 +356,20 @@ Subroutine MPIDBCast(dValues,iLen,Root)
 #endif
     RETURN
 End Subroutine MPIDBCast
+!A wrapper for the mpi_bcast double precision routine, so it can be used in serial
+Subroutine MPIDBCastArr(dValues,iLen,Root)
+    REAL*8 :: dValues(*)
+    INTEGER :: iLen,Root,error,rc
+#ifdef PARALLEL
+    CALL MPI_Bcast(dValues,iLen,MPI_DOUBLE_PRECISION,Root,MPI_COMM_WORLD,error)
+    if(error.ne.MPI_SUCCESS) then
+        print *,'Error broadcasting values in MPIDBCast. Terminating.'
+        call MPI_ABORT(MPI_COMM_WORLD,rc,error)
+    endif
+#else
+#endif
+    RETURN
+End Subroutine MPIDBCastArr
 
 !A wrapper for the mpi_bcast double precision routine, but for HElements, so it can be used in serial
 Subroutine MPIHElemBCast(dValues,iLen,Root)
@@ -337,7 +404,7 @@ End Subroutine MPIIBCast
 
 !A wrapper for the mpi_bcast logical routine, so it can be used in serial
 Subroutine MPILBCast(dValues,iLen,Root)
-    LOGICAL :: dValues(*)
+    LOGICAL :: dValues
     INTEGER :: iLen,Root,error,rc
 #ifdef PARALLEL
     CALL MPI_Bcast(dValues,iLen,MPI_LOGICAL,Root,MPI_COMM_WORLD,error)
@@ -349,6 +416,20 @@ Subroutine MPILBCast(dValues,iLen,Root)
 #endif
     RETURN
 End Subroutine MPILBCast
+!A wrapper for the mpi_bcast logical routine, so it can be used in serial
+Subroutine MPILBCastArr(dValues,iLen,Root)
+    LOGICAL :: dValues(*)
+    INTEGER :: iLen,Root,error,rc
+#ifdef PARALLEL
+    CALL MPI_Bcast(dValues,iLen,MPI_LOGICAL,Root,MPI_COMM_WORLD,error)
+    if(error.ne.MPI_SUCCESS) then
+        print *,'Error broadcasting values in MPILBCast. Terminating.'
+        call MPI_ABORT(MPI_COMM_WORLD,rc,error)
+    endif
+#else
+#endif
+    RETURN
+End Subroutine MPILBCastArr
 
 
 !A wrapper for the mpi_bcast double precision routine, so it can be used in serial (Scalar values only)

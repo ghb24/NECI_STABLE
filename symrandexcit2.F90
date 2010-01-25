@@ -416,7 +416,7 @@ MODULE GenRandSymExcitNUMod
 
 !We now have our final orbitals.
             IF(z.ne.ChosenUnocc) THEN
-                WRITE(6,*) "This is a problem, since there should definitly be an allowed beta orbital once alpha is chosen..."
+                WRITE(6,*) "This is a problem, since there should definitely be an allowed beta orbital once alpha is chosen..."
                 CALL Stop_All("PickBOrb","Could not find allowed unoccupied orbital to excite to.")
             ENDIF
 
