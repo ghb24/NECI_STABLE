@@ -8,7 +8,7 @@ module csf
     use integralsdata, only: umat, fck, nmax
     use HElem
     use mt95, only: genrand_real2
-    use sltcnd_csf_mod, only: sltcnd_csf
+    use sltcnd_csf_mod, only: sltcnd_csf, sltcnd_csf_2
     use DetBitOps, only: EncodeBitDet, FindBitExcitLevel, &
                          get_bit_open_unique_ind
     use OneEInts, only: GetTMatEl
@@ -132,17 +132,16 @@ contains
         integer :: dets1(nel, ndets(1)), dets2(nel, ndets(2))
         integer :: ilut1(0:NIfTot,ndets(1)), ilut2(0:NIfTot,ndets(2))
 
-        integer det, i, j, id(nel), idX, idN, k, ids
-        type(HElement) :: sum1, sum2, Hel, hel2, hel3
+        integer det, i, j
+        type(HElement) :: sum1, Hel
         type(timer), save :: hel_timer0, hel_timer2, hel_timer1, hel_timer
-        real*8 :: diag_coeff
 
-       ! hel_timer%timer_name = 'Hel_timer'
-       ! hel_timer0%timer_name = 'hel_timer0'
-       ! hel_timer1%timer_name = 'hel_timer1'
-       ! hel_timer2%timer_name = 'hel_timer2'
+        hel_timer%timer_name = 'Hel_timer'
+        hel_timer0%timer_name = 'hel_timer0'
+        hel_timer1%timer_name = 'hel_timer1'
+        hel_timer2%timer_name = 'hel_timer2'
 
-        !call set_timer (hel_timer)
+        call set_timer (hel_timer)
 
         ! Extract the Yamanouchi symbols from the CSFs
         call get_csf_yama (nI, yama1)
@@ -151,32 +150,25 @@ contains
         ! Depending on the number of spatial orbitals we differ by, call
         ! different optimised routines.
         if (IC == 2) then
-            !call set_timer(hel_timer2)
+            call halt_timer(hel_timer)
+            call set_timer(hel_timer2)
             hel_ret = get_csf_helement_2 (nI, nJ, iLutI, iLutJ, nopen,  &
                                     nclosed, nup, ndets, dets1, dets2,&
                                     yama1, yama2, coeffs1, coeffs2)
-            !call halt_timer(hel_timer2)
+            call halt_timer(hel_timer2)
             return
         endif
-
-
-        ! TODO: IC==0 symmetry
-        ! If IC==0, then only differ by yama --> dets are the same. Have some
-        ! symmetry on the summation --> half the number of terms!
-
 
         ! The GENERAL routine follows now. Understand this before attempting
         ! to understand the optimised routines.
 
         ! Calculate all possible permutations to construct determinants
         ! (Where 0=alpha, 1=beta when generating NI, NJ below)
-        ! The order is not important (_reverse only as indices switched)
-        ! TODO: remove normal csf_get_dets and rename.
-        call csf_get_dets_reverse (nopen(1), nup(1), ndets(1), nel, dets1)
+        call csf_get_dets (nopen(1), nup(1), ndets(1), nel, dets1)
         if ((nopen(1).eq.nopen(2)) .and. (nup(1).eq.nup(2))) then
             dets2 = dets1
         else
-            call csf_get_dets_reverse (nopen(2), nup(2), ndets(2), nel, dets2)
+            call csf_get_dets (nopen(2), nup(2), ndets(2), nel, dets2)
         endif
 
         ! Get the coefficients
@@ -189,6 +181,17 @@ contains
                                      nopen(2))
         enddo
 
+        call halt_timer(hel_timer)
+        if (IC == 0) then
+            call set_timer (hel_timer0)
+            hel_ret = get_csf_helement_0 (nI, nopen(1), nclosed(1), nup(1), &
+                                          ndets(1), coeffs1, coeffs2, dets1,&
+                                          int_arr_eq(yama1, yama2))
+            call halt_timer (hel_timer0)
+            return
+        endif
+
+        call set_timer (hel_timer1)
         ! Generate determinants from spatial orbitals specified in NI, NJ
         do det = 1,ndets(1)
             dets1(1:nclosed(1),det) = iand(NI(1:nclosed(1)), csf_orbital_mask)
@@ -197,135 +200,165 @@ contains
                                    dets1(nclosed(1)+1:nel,det))
             call EncodeBitDet (dets1(:,det), ilut1(:,det))
         enddo
+        do det = 1,ndets(2)
+            dets2(1:nclosed(2),det) = iand(NJ(1:nclosed(2)), &
+                                           csf_orbital_mask)
+            dets2(nclosed(2)+1:nel,det) = &
+                    csf_alpha_beta(NJ(nclosed(2)+1:nel),&
+                                   dets2(nclosed(2)+1:nel,det))
+            call EncodeBitDet (dets2(:,det), ilut2(:,det))
+        enddo
 
-        if (IC == 0) then
-            !call set_timer (hel_timer0)
-            
-            ! Obtain spatial rather than spin indices
-            id = gtID(dets1(:,1))
-
-            ! Sum the coefficients of the diagonal matrix elements
-            diag_coeff = sum(coeffs1*coeffs2)
-
-            hel_ret = helement(0)
-            if (diag_coeff /= 0) then
-                ! Sum in the one electron integrals
-                hel_ret = helement(diag_coeff) * &
-                              sum(gettmatel(dets1(:,1), dets1(:,1)))
-
-                ! Sum in the terms which involve closed shell orbitals, which
-                ! are the same across all involved determinants.
-                hel = helement(0)
-                do i=1,nclosed(1)-1,2
-                    ! Within an orbital pair
-                    hel = hel + GetUmatEl(nBasisMax, UMAT, ALAT, nBasis, &
-                                          iSpinSkip, G1, id(i), id(i), &
-                                          id(i), id(i))
-
-                    ! Between closed electron pairs
-                    if (i < nclosed(1)-2) then
-                        do j=i+2,nclosed(1)-1,2
-                            hel = hel + helement(4) * &
-                                    GetUmatEl(nBasisMax, UMAT, ALAT, nBasis, &
-                                              iSpinSkip, G1, id(i), id(j), &
-                                              id(i), id(j))
-                            hel = hel - helement(2) * &
-                                    GetUMatEl(nBasisMax, UMAT, ALAT, nBasis, &
-                                              iSpinSkip, G1, id(i), id(j), &
-                                              id(j), id(i))
-                        enddo
+        hel_ret = helement(0)
+        do i=1,ndets(1)
+            if (coeffs1(i) /= 0) then
+                sum1 = Helement(0)
+                do j=1,ndets(2)
+                    if (coeffs2(j) /= 0) then
+                        Hel = sltcnd_csf (dets1(:,i), dets2(:,j), &
+                                          ilut1(:,i), ilut2(:,j))
+                        sum1 = sum1 + Hel * HElement(coeffs2(j))
                     endif
-
-                    ! Between a closed e- pair, and open electrons
-                    do j=nclosed(1)+1,nel
-                        idX = max(id(i), id(j))
-                        idN = min(id(i), id(j))
-                        hel = hel + helement(2) * &
-                                    getUMatEl(nBasisMax, UMAT, ALAT, nBasis, &
-                                              iSpinSkip, G1, idN, idX,idN,idX)
-                        hel = hel - GetUmatEl(nBasisMax, UMAT, ALAT, nBasis, &
-                                              iSpinSkip, G1, idN, idX,idX,idN)
-                    enddo
                 enddo
-                hel_ret = hel_ret + helement(diag_coeff)*hel
+                hel_ret = hel_ret + sum1*HElement(coeffs1(i))
             endif
+        enddo
+        call halt_timer(hel_timer1)
+    end function
 
-            ! Sum in terms between orbitals pairs that differ
+    function get_csf_helement_0 (nI, nopen, nclosed, nup, ndets, coeffs1, &
+                                 coeffs2, dets1, bEqual) &
+                                 result(hel_ret)
+
+        integer, intent(in) :: nI(nel)
+        integer, intent(in) :: nopen, nclosed, nup, ndets
+        real*8, intent(in) :: coeffs1(ndets), coeffs2(ndets)
+        integer, intent(in) :: dets1(nel,ndets)
+        logical, intent(in) :: bEqual
+        type(HElement) :: hel_ret
+
+        integer :: nK(nel), id(nel), ex(2,2), elecs(2)
+        integer :: ndown, idX, idN, ids, det, indj, i, j
+        real*8 :: diag_coeff
+        type(HElement) :: hel, hel2
+
+        ! TODO: bEqual
+        ! TODO: commenting
+
+        ! Obtain spatial rather than spin indices
+        nK = iand(nI, csf_orbital_mask)
+        id = gtID(nK)
+
+        ! Sum the coefficients of the diagonal matrix elements
+        diag_coeff = sum(coeffs1*coeffs2)
+
+        hel_ret = helement(0)
+        if (diag_coeff /= 0) then
+            ! Sum in the one electron integrals
+            hel_ret = helement(diag_coeff) * &
+                          sum(gettmatel(nK, nK))
+
+            ! Sum in the terms which involve closed shell orbitals, which
+            ! are the same across all involved determinants.
             hel = helement(0)
-            do i=nclosed(1)+1,nel-1
-                do j=i+1,nel
+            do i=1,nclosed-1,2
+                ! Within an orbital pair
+                hel = hel + GetUmatEl(nBasisMax, UMAT, ALAT, nBasis, &
+                                      iSpinSkip, G1, id(i), id(i), &
+                                      id(i), id(i))
+
+                ! Between closed electron pairs
+                if (i < nclosed-2) then
+                    do j=i+2,nclosed-1,2
+                        hel = hel + helement(4) * &
+                                GetUmatEl(nBasisMax, UMAT, ALAT, nBasis, &
+                                          iSpinSkip, G1, id(i), id(j), &
+                                          id(i), id(j))
+                        hel = hel - helement(2) * &
+                                GetUMatEl(nBasisMax, UMAT, ALAT, nBasis, &
+                                          iSpinSkip, G1, id(i), id(j), &
+                                          id(j), id(i))
+                    enddo
+                endif
+
+                ! Between a closed e- pair, and open electrons
+                do j=nclosed+1,nel
                     idX = max(id(i), id(j))
                     idN = min(id(i), id(j))
-
-                    hel2 = GetUMatEl(nBasisMax, UMAT, ALAT, nBasis, &
-                                     iSpinSkip, G1, idN, idX, idX, idN)
-                    
-                    do det=1,ndets(1)
-                        if (coeffs1(det) /= 0 .and. coeffs2(det) /= 0) then
-                            ids = G1(dets1(i,det))%Ms * G1(dets1(j,det))%Ms
-                            if (ids > 0) then
-                                hel = hel - hel2 * &
-                                           helement(coeffs1(det)*coeffs2(det))
-                            endif
-                        endif
-                    enddo
-
-                    if (diag_coeff /= 0) then
-                        hel = hel + helement(diag_coeff) * &
-                                    GetUMatEl(nBasisMax, UMAT, ALAT, &
-                                              nBasis, iSpinSkip, G1, &
-                                              idN, idX, idN, idX)
-                    endif
+                    hel = hel + helement(2) * &
+                                getUMatEl(nBasisMax, UMAT, ALAT, nBasis, &
+                                          iSpinSkip, G1, idN, idX,idN,idX)
+                    hel = hel - GetUmatEl(nBasisMax, UMAT, ALAT, nBasis, &
+                                          iSpinSkip, G1, idN, idX,idX,idN)
                 enddo
             enddo
-            hel_ret = hel_ret + hel
-
-            do i=1,ndets(1)-1
-                if (coeffs1(i) /= 0 .or. coeffs2(i) /= 0) then
-                    sum1 = helement(0)
-                    sum2 = helement(0)
-                    do j=i+1,ndets(1)
-                        if (coeffs2(j) /= 0 .or. coeffs1(j) /= 0) then
-                            hel = sltcnd_csf (dets1(:,i), dets1(:,j), &
-                                              ilut1(:,i), ilut1(:,j))
-
-                            sum1 = sum1 + hel*helement(coeffs2(j))
-                            sum2 = sum2 + hel*helement(coeffs1(j))
-                        endif
-                    enddo
-                    hel_ret = hel_ret + sum1*helement(coeffs1(i)) &
-                                      + sum2*helement(coeffs2(i))
-                endif
-            enddo
-            !call halt_timer (hel_timer0)
-        else
-        !call set_timer (hel_timer1)
-            do det = 1,ndets(2)
-                dets2(1:nclosed(2),det) = iand(NJ(1:nclosed(2)), &
-                                               csf_orbital_mask)
-                dets2(nclosed(2)+1:nel,det) = &
-                        csf_alpha_beta(NJ(nclosed(2)+1:nel),&
-                                       dets2(nclosed(2)+1:nel,det))
-                call EncodeBitDet (dets2(:,det), ilut2(:,det))
-            enddo
-
-            hel_ret = helement(0)
-            do i=1,ndets(1)
-                if (coeffs1(i) /= 0) then
-                    sum1 = Helement(0)
-                    do j=1,ndets(2)
-                        if (coeffs2(j) /= 0) then
-                            Hel = sltcnd_csf (dets1(:,i), dets2(:,j), &
-                                              ilut1(:,i), ilut2(:,j))
-                            sum1 = sum1 + Hel * HElement(coeffs2(j))
-                        endif
-                    enddo
-                    hel_ret = hel_ret + sum1*HElement(coeffs1(i))
-                endif
-            enddo
-            !call halt_timer(hel_timer1)
+            hel_ret = hel_ret + helement(diag_coeff)*hel
         endif
-        !call halt_timer(hel_timer)
+
+        ! Sum in terms between orbitals pairs that differ
+        hel = helement(0)
+        do i=nclosed+1,nel-1
+            do j=i+1,nel
+                idX = max(id(i), id(j))
+                idN = min(id(i), id(j))
+
+                hel2 = GetUMatEl(nBasisMax, UMAT, ALAT, nBasis, &
+                                 iSpinSkip, G1, idN, idX, idX, idN)
+                
+                do det=1,ndets
+                    if (coeffs1(det) /= 0 .and. coeffs2(det) /= 0) then
+                        ! Only include terms with matching Ms values.
+                        ids = ieor(dets1(i,det), dets1(j,det))
+                        if (ids == 0) then
+                            hel = hel - hel2 * &
+                                       helement(coeffs1(det)*coeffs2(det))
+                        endif
+                    endif
+                enddo
+
+                if (diag_coeff /= 0) then
+                    hel = hel + helement(diag_coeff) * &
+                                GetUMatEl(nBasisMax, UMAT, ALAT, &
+                                          nBasis, iSpinSkip, G1, &
+                                          idN, idX, idN, idX)
+                endif
+            enddo
+        enddo
+        hel_ret = hel_ret + hel
+
+        ndown = nel - nup
+        do det=1,ndets
+            elecs = -1
+            call det_hel_2_pair (elecs(1), elecs(2), nopen, &
+                                 dets1(nclosed+1:nel,det))
+
+            do while (elecs(1) /= -1)
+                indj = det_pos(dets1(nclosed+1:nel,det), nopen, &
+                               ndown, elecs)
+
+                if ( (coeffs1(det) /= 0 .and. coeffs2(indj) /= 0) .or. &
+                     (coeffs1(indj) /= 0 .and. coeffs2(det) /= 0) ) then
+
+                    do j=1,2
+                        if (dets1(nclosed+elecs(j),det) == 1) then
+                            ex(1,j) = get_beta(nK(nclosed + elecs(j)))
+                        else
+                            ex(1,j) = get_alpha(nK(nclosed + elecs(j)))
+                        endif
+                    enddo
+                    ex(2,:) = ab_pair(ex(1,:))
+                    hel = sltcnd_csf_2 (ex, .false.)
+
+                    hel_ret = hel_ret &
+                              + hel*helement(coeffs1(det)*coeffs2(indj))&
+                              + hel*helement(coeffs1(indj)*coeffs2(det))
+                endif
+
+                call det_hel_2_pair (elecs(1), elecs(2), nopen, &
+                                     dets1(nclosed+1:nel,det))
+            enddo
+        enddo
+        
     end function
 
     function get_csf_helement_2 (nI, nJ, iLutI, iLutJ, nopen, nclosed, &
@@ -552,6 +585,66 @@ contains
 
     end function
 
+    subroutine det_hel_2_pair (elecA, elecB, nopen, det)
+        
+        ! Pick pairs of electrons from the specified 'determinant'. The
+        ! determinant contains only 1s and 0s, relating to the alpha and beta
+        ! electrons. Pick pairs only in a standard order (1s before 0s),
+        ! avoids any double counting in get_helement_0
+        !
+        ! In:    nopen        - Number of open electrons to consider
+        !        dets         - Array of 1s and 0s
+        ! InOut: elecA, elecB - Contains the electron pair to consider.
+        !                       -1 initialises, and indicates the last pair
+
+        integer, intent(in) :: nopen, det(nopen)
+        integer, intent(inout) :: elecA, elecB
+
+        ! Are we initialising
+        if (elecA == -1) then
+            do elecA=1,nopen
+                if (det(elecA) == 1) exit
+            enddo
+
+            ! There are no electrons in the A position.
+            if (elecA > nopen) then
+                elecA = -1
+                elecB = -1
+            endif
+        else
+            ! Increment the B electron
+            do elecB=elecB+1,nopen
+                if (det(elecB) == 0) exit
+            enddo
+
+            ! If we have run out of B electrons, increment the A electron, and
+            ! signal that we need to start again with the B elecs.
+            if (elecB > nopen) then
+                elecB = -1
+                do elecA=elecA+1,nopen
+                    if (det(elecA) == 1) exit
+                enddo
+
+                ! Have we used up all possibilities?
+                if (elecA > nopen) elecA = -1
+            endif
+        endif
+
+        ! Do we need to find another B electron?
+        if (elecB == -1 .and. elecA /= -1) then
+            do elecB=elecA,nopen
+                if (det(elecB) == 0) exit
+            enddo
+
+            ! There are no possbile B electrons for this A (or any later ones)
+            ! --> end of string.
+            if (elecB > nopen) then
+                elecA = -1
+                elecB = -1
+            endif
+        endif
+    end subroutine
+
 !    function get_csf_helement_local_bit (nI, nJ, iLutI, iLutJ, nopen, nclosed, S,&
 !                                     Ms, nup, ndets) result(hel_ret)
 !        integer, intent(in) :: nI(nel), nJ(nel), nopen(2), nclosed(2)
@@ -720,22 +813,57 @@ contains
         enddo
     end subroutine
 
+    integer function det_pos (det, nopen, ndown, perm)
+        
+        ! Obtain an index for the number of the permutation generated
+        ! according to the ordering used in csf_get_dets.
+        ! See: The art of Computer Programming, volume 4, Fascicle 3, pg. 
+
+        integer, intent(in) :: nopen, ndown
+        integer, intent(in) :: det(nopen)
+        integer, intent(in), optional :: perm(2)
+        integer :: i, pos
+
+        ! Start at 1 not 0, due to fortrans indexing...
+        det_pos = 1
+        pos = 0
+        do i=1,ndown
+            do pos=pos+1,nopen
+                if (present(perm)) then
+                    if (pos == perm(1)) then
+                        if (det(perm(2)) == 0) exit
+                    else if (pos == perm(2)) then
+                        if (det(perm(1)) == 0) exit
+                    else if (det(pos) == 0) then
+                        exit
+                    endif
+                else if (det(pos) == 0) then
+                    exit
+                endif
+            enddo
+            if (pos > nopen) exit
+        !    write (6, '(i5)', advance='no') pos
+
+            det_pos = det_pos + choose(pos-1, i)
+        enddo
+    end function
+
     subroutine csf_get_dets (nopen, nup, ndets, nel, dets)
 
         ! Fill the last nopen electrons of each determinant with 0 (alpha) or
         ! 1 (beta) in all possible permutations with nup alpha electrons.
 
         integer, intent(in) :: ndets, nup, nopen, nel
-        integer, intent(out) :: dets (ndets,nel)
+        integer, intent(out) :: dets (nel, ndets)
         integer comb(nup), i, j
         logical bInc
 
-        if (nopen.eq.0) return
+        if (nopen == 0) return
 
         forall (i=1:nup) comb(i) = i
-        dets(:,nel-nopen+1:) = 1
+        dets(nel-nopen+1:,:) = 1
         do i=1,ndets
-            forall (j=1:nup) dets(i,nel-nopen+comb(j)) = 0
+            forall (j=1:nup) dets(nel-nopen+comb(j), i) = 0
             do j=1,nup
                 bInc = .false.
                 if (j == nup) then
