@@ -390,12 +390,12 @@ C.. WORK(2*NEL+18)
       SUBROUTINE GENNEXTDET(NEL,NBASIS,BRR,NBASISMAX,G1,TSPN,LMS,
      &      TPARITY,SymRestrict,ISYM,NI,TSETUP,TDONE,Work,nActiveBasis)
          use SystemData, only: BasisFN,BasisFNSize
+         use gnd_work_type
          IMPLICIT NONE
          INTEGER NEL,NBASIS,BRR(NBASIS),nBasisMax(5,*)
          INTEGER LMS,NIWORK(NEL),NI(NEL)
 C         INTEGER WORK(5*NEL+18)
          LOGICAL TSPN,TPARITY,TSETUP,TMORE,TDONE
-         INCLUDE 'gndwork.inc'
          TYPE(GNDWork) Work
          TYPE(BasisFN) G1(nBasis),ISym,SymRestrict
          INTEGER nActiveBasis(2)
@@ -419,8 +419,8 @@ C     &      WORK(15),WORK(20),WORK(21),WORK(NEL+21))
 C,IMAX,ISYM,NELEC,
 C     &      NIWORK,NINDJ)
          use SystemData, only: BasisFN,BasisFNSize
+         use gnd_work_type
          IMPLICIT NONE
-         INCLUDE 'gndwork.inc'
          TYPE(GNDWork) Work 
          INTEGER NEL,NBASIS,BRR(NBASIS),nBasisMax(5,*)
          TYPE (BasisFN) G1(NBASIS),SymRestrict

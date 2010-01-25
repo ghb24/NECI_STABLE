@@ -1694,6 +1694,7 @@ MODULE Calc
          use global_utilities
          use SystemData, only: BasisFN,BasisFNSize
          use legacy_data, only: irat
+         use gnd_work_type
          IMPLICIT NONE
          INTEGER I_HMAX,NEL,NBASIS,I_VMAX
          INTEGER,ALLOCATABLE :: LSTE(:) !(NEL,NBASIS*NBASIS*NEL*NEL,0:I_VMAX-1)??!!
@@ -1703,7 +1704,6 @@ MODULE Calc
          integer,save :: tagRIJList=0,tagLSTE=0,tagICE=0
          REAL*8 BETA,FCK(*),ALAT(*),RHOEPS
          INTEGER NPATHS,NI(NEL),I_P,nBasisMax(5,*)
-         INCLUDE 'gndwork.inc'
          INTEGER Work(GNDWorkSize+2*NEL)
          TYPE(BASISFN) G1(NBASIS)
          INTEGER BRR(NBASIS),NMSH,NMAX(*),NTAY,ILOGGING
