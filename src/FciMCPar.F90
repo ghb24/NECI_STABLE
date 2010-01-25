@@ -1393,7 +1393,7 @@ MODULE FciMCParMod
         AllNoatHF=0
 
 !Find sum of noathf, and then use an AllReduce to broadcast it to all nodes
-        CALL MPIIReduce(NoatHF,1,AllNoatHF)
+        CALL MPIISum(NoatHF,1,AllNoatHF)
 
         IF(AllNoatHF.lt.0) THEN
 !Flip the sign if we're beginning to get a negative population on the HF
