@@ -1,27 +1,18 @@
-     compiler='INTEL-ifort9-on-LINUX'
-     IRAT=2
-     CPP='/lib/cpp -P -C -traditional'
-     CPPFLAGS='-D__Linux -DLAPACK -DFFT_DEFAULT -DPOINTER8'
-     NCPUS=2
-     #-sb is to use Workshop package
-     FFLAGS='-r8'
-     LFLAGS='-L ~/src/lib/fftw-3.1.2/lib -L ~/lib/fftw-3.1.2/lib -lfftw3  -lacml'
-     AR='ar'
-     ARFLAGS='-rcs'
-     F90FLAGS=''
-     GLOBALS='GLOBALS-ifort'
-     if [ $debug ]; then
-       FC='ifort -c -g'
-       CC='icc -c -g -sb -C -errtags'
-       LD='ifort -g -Bstatic'
-       FCD='ifort -c -g '
-       CCD='icc -g -sb -C -errtags'
-       LDD='ifort -g'
-     else
-       FC='ifort -c -O3' 
-       CC='icc -c -O'
-       LD='ifort -O3 -Bstatic'
-       FCD='ifort -c -g'
-       CCD='icc -g -sb -C -errtags'
-       LDD='ifort -g'
-     fi
+[main]
+fc = ifort
+cc = icc
+ld = ifort
+ldflags = -Bstatic
+compiler = INTEL-ifort9-on-LINUX
+cpp = /lib/cpp
+cppflags = -P -C -traditional -D__Linux -DLAPACK -DFFT_DEFAULT -DPOINTER8
+libs = -L ~/src/lib/fftw-3.1.2/lib -L ~/lib/fftw-3.1.2/lib -lfftw3  -lacml
+module_flag = -module
+
+[dbg]
+fflags = -r8 -g
+cflags = -g -sb -C -errtags
+
+[opt]
+fflags = -r8 -O3 
+cflags = -O

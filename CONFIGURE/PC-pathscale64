@@ -1,27 +1,20 @@
-     compiler='pathf95 -m64-on-LINUX'
-     IRAT=2
-     CPP='/lib/cpp -P -C -traditional'
-     CPPFLAGS='-D__Linux -DLAPACK -DFFT_DEFAULT -DPOINTER8'
-     NCPUS=2
-     #-sb is to use Workshop package
-     FFLAGS='-r8'
-     LFLAGS='-L ~/src/lib/fftw-3.1.2/lib -L ~/local/lib/pathscale/fftw-3.1.2/lib -lfftw3 -lacml'
-     AR='ar'
-     ARFLAGS='-rcs'
-     F90FLAGS=''
-     GLOBALS='GLOBALS-pathf95 -m64'
-     if [ $debug ]; then
-       FC='pathf95 -m64 -c -g'
-       CC='pathcc -c -g -sb -C -errtags'
-       LD='pathf95 -m64 -g -Bstatic'
-       FCD='pathf95 -m64 -c -g '
-       CCD='pathcc -g -sb -C -errtags'
-       LDD='pathf95 -m64 -g'
-     else
-       FC='pathf95 -m64 -c -O3' 
-       CC='pathcc -c -O'
-       LD='pathf95 -m64 -O3'
-       FCD='pathf95 -m64 -c -g'
-       CCD='pathcc -g -sb -C -errtags'
-       LDD='pathf95 -m64 -g'
-     fi
+[main]
+fc = pathf95
+cc = pathcc
+ld = pathf95
+ldflags = -m64
+libs = -L ~/src/lib/fftw-3.1.2/lib -L ~/local/lib/pathscale/fftw-3.1.2/lib -lfftw3 -lacml
+cpp = /lib/cpp
+cppflags =  -P -C -traditional -D__Linux -DLAPACK -DFFT_DEFAULT -DPOINTER8
+compiler = pathf95-on-LINUX
+module_flag = -module
+
+[dbg]
+fflags = -r8 -g -m64
+
+[opt]
+fflags = -r8 -O3 -m64
+
+
+
+

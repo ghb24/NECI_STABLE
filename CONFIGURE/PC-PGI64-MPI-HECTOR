@@ -1,31 +1,17 @@
-     compiler='PGI-pgf95-on-LINUX'
-     IRAT=2
-     CFLAGS='-D__PGI'
-     CPP='/lib/cpp -P -C -traditional'
-     CPPFLAGS='-D__Linux -D__PGI -DLAPACK -DFFT_DEFAULT -DPOINTER8 -DPARALLEL'
-     NCPUS=2
-     #-sb is to use Workshop package
-#     FFLAGS='-r8 pc=64 -Msignextend -Minform=warn -Msecond_underscore'
-     LFLAGS=''
-#     LFLAGS='-L ~/src/lib/fftw-3.1.2/lib -lfftw3 -lacml'
-     AR='ar'
-     ARFLAGS='-rcs'
-     F90FLAGS='-Mfree '
-     GLOBALS='GLOBALS-pgi'
-     if [ $debug ]; then
-       FC='ftn -c -g '
-       CC='cc -c -g -sb -C -errtags'
-       LD='ftn -g'
-       FCD='ftn -c -g '
-       CCD='cc -g -sb -C -errtags'
-       LDD='ftn -g'
-     else
-       FC='ftn -c -fastsse -Minfo -Mneginfo'
-       CC='cc -c -O2 -m64'
-       LD='ftn -fastsse'
-       FCD='ftn -c -g'
-       CCD='cc -g -sb -C -errtags'
-#       LDD='ftn -g'
-     fi
-#     LDLIB=' pgf90'
-#     LDLIBFLAGS=' -Mnostdlib -Mnostartup -Wl,-r'
+[main]
+fc = ftn
+f90flags = -Mfree 
+compiler = PGI-pgf95-on-LINUX
+cc = cc
+cpp = /lib/cpp
+cppflags =  -P -C -traditional -D__Linux -D__PGI -DLAPACK -DFFT_DEFAULT -DPOINTER8 -DPARALLEL
+ld = ftn
+module_flag = -module
+
+[dbg]
+fflags = -g
+cflags = -m64 -g -sb -C -errtags
+
+[opt]
+fflags = -fastsse -Minfo -Mneginfo
+cflags = -m64 -O2

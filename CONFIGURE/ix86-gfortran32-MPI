@@ -1,27 +1,18 @@
-     compiler='GCC-f95-on-LINUX'
-     IRAT=2
-     CPP='cpp -P -C -traditional'
-     CPPFLAGS='-D__Linux -DLAPACK -DFFT_DEFAULT -DPARALLEL'
-     NCPUS=1
-     #-sb is to use Workshop package
-     FFLAGS='-fcray-pointer -ffree-line-length-none -J$(DEST)'
-     LFLAGS='-L ~/lib/fftw-3.1.2/lib -L ~/src/lib/fftw-3.1.2/lib -L /usr/lib/atlas -lfftw3 -llapack -lblas' 
-     AR='ar'
-     ARFLAGS='-rcs'
-     GLOBALS='GLOBALS-gfortran'
-#     PreprocSep=""
-     if [ $debug ]; then
-       FC='mpif90 -m32 -c -g '
-       CC='mpicc -c -g -errtags'
-       LD='mpif90 -m32 -g'
-       FCD='mpicc -m32 -c -g '
-       CCD='mpif90 -g -errtags'
-       LDD='mpif90 -m32 -g'
-     else
-       FC='mpif90 -m32 -c -O4'
-       CC='mpicc -c -O'
-       LD='mpif90 -m32 -O4'
-       FCD='mpif90 -m32 -c -g'
-       CCD='mpicc -g -errtags'
-       LDD='mpif90 -m32 -g'
-     fi
+[main]
+fc = mpif90
+cc = mpicc
+ld = mpif90
+ldflags = -m32
+compiler = GCC-f95-on-LINUX
+cpp = cpp
+cppflags = -P -C -traditional -D__Linux -DLAPACK -DFFT_DEFAULT -DPARALLEL
+libs = -L ~/lib/fftw-3.1.2/lib -L ~/src/lib/fftw-3.1.2/lib -L /usr/lib/atlas -lfftw3 -llapack -lblas 
+module_flag = -J
+
+[dbg]
+fflags = -fcray-pointer -ffree-line-length-none -g -m32
+cflags = -g -errtags -m32
+
+[opt]
+fflags = -fcray-pointer -ffree-line-length-none -O4 -m32
+cflags = gcc  -O -m32

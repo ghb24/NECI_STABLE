@@ -1,29 +1,18 @@
-     compiler='INTEL-ifort9-on-LINUX'
-     IRAT=2
-     CPP='/lib/cpp -P -C -traditional'
-     CPPFLAGS='-D__Linux -DLAPACK -DFFT_DEFAULT -DPOINTER8 -DPARALLEL'
-     NCPUS=2
-     #-sb is to use Workshop package
-     FFLAGS='-r8 -i_dynamic'
-     LFLAGS='-L ~/src/lib/fftw-3.1.2/lib -L ~/lib/fftw-3.1.2/lib -lfftw3 -L ~/src/lib/lapack-3.1.1 -llapack -lblas $(QMMM_LIBS)'
-     AR='ar'
-     ARFLAGS='-rcs'
-     F90FLAGS=''
-     GLOBALS='GLOBALS-ifort'
-     if [ $debug ]; then
-       FC='mpif90 -c -g'
-       CC='mpicc -g -c -sb -C -errtags'
-       LD='mpif90 -g'
-       FCD='mpif90 -c -g '
-       CCD='mpicc -g -sb -C -errtags'
-       LDD='mpif90 -g'
-     else
-       FC='mpif90 -c -O3' 
-       CC='mpicc -O -c'
-       LD='mpif90 -O3'
-       FCD='mpif90 -c -g'
-       CCD='mpicc -g -sb -C -errtags'
-       LDD='mpif90 -g'
-     fi
-     LDLIB=' ifort'
-     LDLIBFLAGS=' -nostdlib -nostartfiles -Wl,-r'
+[main]
+fc = mpif90
+cc = mpicc
+ld = mpif90
+ldflags = -i-dynamic
+compiler = INTEL-ifort9-on-LINUX
+cpp = /lib/cpp
+cppflags = -P -C -traditional -D__Linux -DLAPACK -DFFT_DEFAULT -DPOINTER8
+libs = -L ~/src/lib/fftw-3.1.2/lib -L ~/lib/fftw-3.1.2/lib -lfftw3 -L ~/src/lib/lapack-3.1.1 -llapack -lblas
+module_flag = -module
+
+[dbg]
+fflags = -r8 -g
+cflags = -g -sb -C -errtags
+
+[opt]
+fflags = -r8 -O3 
+cflags = -O

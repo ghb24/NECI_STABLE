@@ -1,25 +1,16 @@
-     IRAT=2
-     CPP='cpp -P -C -traditional'
-     CPPFLAGS='-D__Linux -DLAPACK -DFFT_DEFAULT -DGFORTRAN'
-     NCPUS=1
-     #-sb is to use Workshop package
-     FFLAGS='-fcray-pointer -ffree-line-length-none -J$(DEST)'
-     LFLAGS='-L/sw/lib/ -lfftw3 -framework vecLib'
-     AR='ar'
-     ARFLAGS='-rcs'
-     GLOBALS='GLOBALS-gfortran'
-     if [ $debug ]; then
-       FC='gfortran -c -g '
-       CC='gcc -c -g -sb -C -errtags'
-       LD='gfortran -g'
-       FCD='gfortran -c -g '
-       CCD='gcc -g -sb -C -errtags'
-       LDD='gfortran -g'
-     else
-       FC='gfortran -c -O4'
-       CC='gcc -c -O'
-       LD='gfortran -O4'
-       FCD='gfortran -c -g'
-       CCD='gcc -g -sb -C -errtags'
-       LDD='gfortran -g'
-     fi
+[main]
+fc = gfortran
+cc = gcc
+ld = gfortran
+cpp = cpp
+cppflags = -P -C -traditional -D__Linux -DLAPACK -DFFT_DEFAULT -DGFORTRAN
+fflags = -fcray-pointer -ffree-line-length-none -J$(DEST)
+libs = -L/sw/lib/ -lfftw3 -framework vecLib
+
+[dbg]
+fflags = -g 
+cflags = -g -sb -C -errtags
+
+[opt]
+fflags = -O4
+cflags = -O

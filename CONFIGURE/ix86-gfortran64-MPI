@@ -1,26 +1,18 @@
-     compiler='GCC-f95-on-LINUX'
-     IRAT=2
-     CPP='/lib/cpp -P -C -traditional'
-     CPPFLAGS='-D__Linux -DLAPACK -DFFT_DEFAULT -DPOINTER8 -DPARALLEL'
-     NCPUS=1
-     #-sb is to use Workshop package
-     FFLAGS='-fcray-pointer -ffree-line-length-none -J$(DEST)'
-     LFLAGS='-L ~/src/lib/fftw-3.1.2/lib -lfftw3 -llapack -lblas'
-     AR='ar'
-     ARFLAGS='-rcs'
-     GLOBALS='GLOBALS-gfortran'
-     if [ $debug ]; then
-       FC='mpif90 -m64 -c -g '
-       CC='mpicc -g -errtags'
-       LD='mpif90 -m64 -g'
-       FCD='mpif90 -m64 -c -g '
-       CCD='mpicc -g -errtags'
-       LDD='mpif90 -m64 -g'
-     else
-       FC='mpif90 -m64 -c -O4'
-       CC='mpicc -O'
-       LD='mpif90 -m64 -O4'
-       FCD='mpif90 -m64 -c -g'
-       CCD='mpicc -g -errtags'
-       LDD='mpif90 -m64 -g'
-     fi
+[main]
+fc = mpif90
+cc = mpicc
+ld = mpif90
+ldflags = -m64
+compiler = GCC-f95-on-LINUX
+cpp = cpp
+cppflags = -P -C -traditional -D__Linux -DLAPACK -DFFT_DEFAULT -DPOINTER8 -DPARALLEL
+libs = -L ~/lib/fftw-3.1.2/lib -lfftw3 -llapack -lblas 
+module_flag = -J
+
+[dbg]
+fflags = -fcray-pointer -ffree-line-length-none -g -m64
+cflags = -g -errtags -m64
+
+[opt]
+fflags = -fcray-pointer -ffree-line-length-none -O4 -m64
+cflags = gcc  -O -m64
