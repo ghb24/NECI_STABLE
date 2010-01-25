@@ -195,7 +195,8 @@ $(FRDEPEND):
 $(FCDEPEND):
 	$(TOOLS)/sfmakedepend --file - --silent $(SRCFILES) --objdir \$$\(KDEST\) --moddir \$$\(KDEST\) > $(FCDEPEND)
 
-depend: $(FRDEPEND) $(FCDEPEND)
+depend: 
+	$(MAKE) -B $(FDEPEND) $(CDEPEND)
 
 #-----
 # Compilation macros (explicit rules)
