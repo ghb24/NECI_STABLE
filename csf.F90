@@ -3,19 +3,20 @@
 ! A new implementation file for csfs
 module csf
     use systemdata, only: nel, brr, ecore, alat, nmsh, nbasismax, G1, nbasis,&
-                          NIfY, LMS, NIfTot, NIfD, iSpinSkip
+                          NIfY, LMS, NIfTot, NIfD, iSpinSkip, STOT
     use memorymanager, only: LogMemAlloc, LogMemDealloc
     use integralsdata, only: umat, fck, nmax
     use HElem
     use mt95, only: genrand_real2
     use sltcnd_csf_mod, only: sltcnd_csf, sltcnd_csf_2
-    use DetBitOps, only: EncodeBitDet, FindBitExcitLevel, &
-                         get_bit_open_unique_ind
+    use DetBitOps, only: EncodeBitDet, FindBitExcitLevel, count_open_orbs, &
+                         get_bit_open_unique_ind, FindSpatialBitExcitLevel
     use OneEInts, only: GetTMatEl
     use Integrals, only: GetUMatEl
     use UMatCache, only: gtID
     use csf_data
     use timing
+    use util_mod, only: swap, int_arr_eq
 
     implicit none
 
@@ -23,16 +24,6 @@ module csf
     interface
         real*8 pure function choose(N,R)
             integer, intent(in) :: N,R
-        end function
-        logical function int_arr_eq (a, b, len)
-            integer, intent(in), dimension(:) :: a, b
-            integer, intent(in), optional :: len
-        end function
-        function GetHElement3_wrapper(NI,NJ,iC)
-            use HElem
-            use Systemdata, only: nEl
-            INTEGER NI(nEl),NJ(nEl),iC
-            type(HElement) GetHElement3_wrapper
         end function
         subroutine writedet(nunit,ni,nel,lterm)
             integer nunit,nel,ni(nel)
@@ -72,9 +63,10 @@ contains
         type(HElement) :: hel_ret
 
         integer :: nopen(2), nclosed(2), nup(2), ndets(2)
-        integer :: iLutI(0:NIfTot), iLutJ(0:NIfTot), IC
+        integer :: iLutI(0:NIfTot), iLutJ(0:NIfTot), IC, i
         ! Convert these to using integers
         real*8  :: S(2), Ms(2)
+        logical :: bCSF(2), bBothCSF
 
         character(*), parameter :: this_routine = 'CSFGetHelement'
 
@@ -84,38 +76,72 @@ contains
         call EncodeBitDet (nI, iLutI)
         call EncodeBitDet (nJ, iLutJ)
 
-        ! If the CSFs differ by more than 2 spin orbitals, the HElement = 0
-        IC = FindBitExcitLevel (iLutI, iLutJ)
+        ! Are these both CSFs?
+        bCSF(1) = iscsf(nI)
+        bCSF(2) = iscsf(nJ)
+        bBothCSF = bCSF(1) .and. bCSF(2)
+
+        if ( (.not. bCSF(1)) .and. (.not. bCSF(2)) ) &
+            call stop_all (this_routine, "Only for use with at least one CSF")
+
+        ! If the CSFs differ by more than 2 spin orbitals, the HElement=0
+        if (.not. bBothCSF) then
+            IC = FindSpatialBitExcitLevel (iLutI, iLutJ)
+        else
+            IC = FindBitExcitLevel (iLutI, iLutJ)
+        endif
+
         if (IC > 2) then
             hel_ret = HElement(0)
             return
         endif
 
         ! Obtain statistics for each of the CSFs.
-        call get_csf_data(NI, nel, nopen(1), nclosed(1), S(1), Ms(1))
-        call get_csf_data(NJ, nel, nopen(2), nclosed(2), S(2), Ms(2))
+        if (bCSF(1)) &
+            call get_csf_data(NI, ilutI, nopen(1), nclosed(1), S(1), Ms(1))
+        if (bCSF(2)) &
+            call get_csf_data(NJ, ilutJ, nopen(2), nclosed(2), S(2), Ms(2))
 
-        ! If S or Ms are not consistent, then return 0
-        if ((S(1).ne.S(2))) then ! .or. (Ms(1).ne.Ms(2))) then
+        ! If S are not consistent, then return 0
+        ! Assume Ms is maintained as Ms==S
+        ! .or. (Ms(1).ne.Ms(2))) then
+        if (bBothCSF .and. (S(1).ne.S(2))) then
             hel_ret = HElement(0) 
             return
         endif
 
-        ! Use the maximal Ms value that we can (fewest determinants required)
+        ! Use the maximal Ms value that we can (fewest determinants 
+        ! required)
         Ms(1) = minval(S)
         Ms(2) = Ms(1)
 
         ! Get electronic details
         ! Using S instead of Ms to calculate nup, as this has the fewest
         ! determinants, and the Ms=S case is degenerate.
-        nup(1) = (nopen(1) + 2*S(1))/2
-        ndets(1) = int(choose(nopen(1),nup(1)))
-        nup(2) = (nopen(2) + 2*S(2))/2
-        ndets(2) = int(choose(nopen(2),nup(2)))
+        nup = (nopen + 2*S)/2
+        do i=1,2
+            if (bCSF(i)) then
+                ndets(i) = int(choose(nopen(i), nup(i)))
+            else
+                ndets(i) = 1
+            endif
+        enddo
 
         ! Perform the calculation
-        hel_ret = get_csf_helement_local (nI, nJ, iLutI, iLutJ, nopen, &
-                                          nclosed, nup, ndets, IC)
+        if (bBothCSF) then
+            hel_ret = get_csf_helement_local (nI, nJ, iLutI, iLutJ, nopen, &
+                                              nclosed, nup, ndets, IC)
+        else if (bCSF(1)) then
+            hel_ret = get_csf_helement_det (nI, nJ, iLutI, iLutJ, nopen, &
+                                            nclosed, nup, ndets, IC)
+        else
+            call swap(nopen(1), nopen(2))
+            call swap(nclosed(1), nclosed(2))
+            call swap(nup(1), nup(2))
+            call swap(ndets(1), ndets(2))
+            hel_ret = get_csf_helement_det (nJ, nI, iLutJ, iLutI, nopen, &
+                                            nclosed, nup, ndets, IC)
+        endif
     end function
 
     function get_csf_helement_local (nI, nJ, iLutI, iLutJ, nopen, nclosed, &
@@ -139,7 +165,7 @@ contains
         integer :: dets1(nel, ndets(1)), dets2(nel, ndets(2))
         integer :: ilut1(0:NIfTot,ndets(1)), ilut2(0:NIfTot,ndets(2))
 
-        integer det, i, j
+        integer :: det, i, j
         type(HElement) :: sum1, Hel
         type(timer), save :: hel_timer0, hel_timer2, hel_timer1, hel_timer
 
@@ -236,6 +262,67 @@ contains
         enddo
 
         call halt_timer(hel_timer1)
+    end function
+
+    function get_csf_helement_det (nI, nJ, iLutI, iLutJ, nopen, nclosed, &
+                                   nup, ndets, IC) &
+                                   result(hel_ret)
+
+        ! The worker function for the above wrapper for calculating the
+        ! H-matrix elements between a CSF and a normal determinant. By using 
+        ! a wrapper in this way, we can easily place the working arrays on the
+        ! stack rather than using heap allocation (and therefore logging), or 
+        ! using pure function spaghetti code in the variable declarations.
+        !
+        ! n.b. nI/iLutI indicate the CSF, nJ/iLutJ --> The determinant.
+        !      We assume that Ms/S etc. are correct.
+
+        integer, intent(in) :: nI(nel), nJ(nel), nopen(2), nclosed(2)
+        integer, intent(in) :: iLutI(0:NIfTot), iLutJ(0:NIfTot)
+        integer, intent(in) :: nup(2), ndets(2), IC
+        type(HElement) :: hel_ret
+
+        ! Working arrays. Sizes calculated in calling function.
+        integer :: yama(nopen(1))
+        real*8 :: coeffs(ndets(1))
+        integer :: dets(nel, ndets(1))
+        integer :: ilut(0:NIfTot,ndets(1))
+
+        integer :: det, i
+        type(HElement) :: hel
+
+        ! Extract the Yamanouchi symbol from the CSF
+        call get_csf_yama (nI, yama, nopen(1))
+
+        ! Calculate all possibel permutations to construct determinants
+        ! (Where 0=alpha, 1=beta below)
+        call csf_get_dets (nopen(1), nup(1), ndets(1), nel, dets)
+
+        ! Get the coefficients
+        do det=1,ndets(1)
+            coeffs(det) = csf_coeff (yama, dets(nclosed(1)+1:nel, det), &
+                                     nopen(1))
+        enddo
+
+        ! Generate determinants from spatial orbitals specified in nI
+        ! TODO: Can we optimise this further?
+        do det=1,ndets(1)
+            dets(1:nclosed(1),det) = iand(nI(1:nclosed(1)), csf_orbital_mask)
+            dets(nclosed(1)+1:nel,det) = &
+                   csf_alpha_beta(nI(nclosed(1)+1:nel), &
+                                  dets(nclosed(1)+1:nel,det))
+            call EncodeBitDet (dets(:,det), ilut(:,det))
+        enddo
+
+        ! Sum in all of the H-matrix terms
+        hel_ret = helement(0)
+        do i=1,ndets(1)
+            if (coeffs(i) /= 0) then
+                hel = sltcnd_csf (dets(:,i), nJ, ilut(:,i), ilutJ)
+                hel_ret = hel_ret + hel*helement(coeffs(i))
+            endif
+        enddo
+
     end function
 
     function get_csf_helement_0 (nI, nopen, nclosed, nup, ndets, coeffs1, &
@@ -1067,17 +1154,25 @@ contains
         enddo
     end subroutine
 
-    subroutine get_csf_data(NI, nel, nopen, nclosed, S, Ms)
+    subroutine get_csf_data(nI, ilut, nopen, nclosed, S, Ms)
 
         ! Obtains the number of open shell electrons, the total spin
         ! and the Ms value for the specified csf.
         ! NB. The Ms value is no longer being used. We ASSERT that Ms == STOT
 
-        integer, intent(in) :: NI(nel), nel
+        integer, intent(in) :: NI(nel), ilut(0:NIfTot)
         integer, intent(out) :: nopen, nclosed
         real*8, intent(out) :: S, Ms
         integer i
         logical open_shell
+
+        if (.not. bTest(nI(1), csf_test_bit)) then
+            S = real(STOT)/2
+            Ms = real(LMS)/2
+            nopen = count_open_orbs(ilut)
+            nclosed = nel - nopen
+            return
+        endif
 
         nopen = 0
         nclosed = 0

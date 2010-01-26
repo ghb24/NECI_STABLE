@@ -2,6 +2,7 @@
 MODULE UMatCache
     USE HElem
     use SystemData , only : TSTARSTORE, tROHF,tStoreSpinOrbs
+    use util_mod, only: swap
 
       IMPLICIT NONE
 
@@ -790,19 +791,6 @@ MODULE UMatCache
          IF(J*(J+1)/2.LT.IND) J=J+1
          I=IND-J*(J-1)/2
       END SUBROUTINE GetCacheIndexStates
-
-
-
-      SUBROUTINE SWAP(A,B)
-         IMPLICIT NONE
-         INTEGER A,B,C
-         C=A
-         A=B
-         B=C
-         RETURN
-      END SUBROUTINE Swap
-
-
 
       SUBROUTINE FreezeUMatCache(OrbTrans,nOld,nNew)
          ! We're in the middle of freezing some orbitals.

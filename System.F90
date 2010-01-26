@@ -56,6 +56,8 @@ MODULE System
       TSPN=.false.
       TCSF=.false.
       TCSFOLD = .false.
+      csf_trunc_level = 0
+      tTruncateCSF = .false.
       STOT=0
       TPARITY = .false.
       IParity(:)=0
@@ -278,6 +280,13 @@ MODULE System
                STOT=0
             endif
             TCSF = .true.
+        case("TRUNCATE-CSF")
+            if (item < nitems) then
+                call geti(csf_trunc_level)
+            else
+                csf_trunc_level = 0
+            endif
+            tTruncateCSF = .true.
         case("CSF-OLD")
             if(item.lt.nitems) then
                call geti(STOT)

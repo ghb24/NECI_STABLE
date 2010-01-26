@@ -34,7 +34,8 @@ OBJ_F90 = readdf.o df_common.o df_record_handler.o input.o HElem.o \
          HPHFRandExcit.o HPHFIntegrals.o readri.o CCMC.o FciMCLogging.o \
          FciMCData.o RotateOrbsData.o symexcit3.o Annihilation.o csf.o \
 	 StarDiagTrip.o default_sets.o symrandexcit2.o CCMCData.o \
-	 symexcitData.o symrandexcit_csf.o sltcnd_csf.o csf_data.o
+	 symexcitData.o symrandexcit_csf.o sltcnd_csf.o csf_data.o \
+	 util_mod.o
 
 OBJ_CC  = MurmurHash2.o
 

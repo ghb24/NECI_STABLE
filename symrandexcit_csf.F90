@@ -14,16 +14,13 @@ module GenRandSymExcitCSF
     use DetBitOps, only: EncodeBitDet, DecodeBitDet, is_canonical_ms_order
     use DetBitOps, only: shift_det_bit_singles_to_beta, count_open_orbs
     use Parallel
+    use util_mod, only: int_arr_eq
     implicit none
 
     ! Non-modularised functions (sigh)
     interface
         real*8 pure function choose(N,R)
             integer, intent(in) :: N,R
-        end function
-        logical function int_arr_eq (a, b, len)
-            integer, intent(in), dimension(:) :: a, b
-            integer, intent(in), optional :: len
         end function
     end interface
     

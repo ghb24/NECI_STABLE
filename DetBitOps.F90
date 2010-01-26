@@ -177,6 +177,45 @@ module DetBitOps
         endif
     end function FindBitExcitLevel
 
+    function FindSpatialBitExcitLevel (iLutI, iLutJ, maxExLevel) result(IC)
+        
+        ! Find the excitation level of one determinant relative to another
+        ! given their bit strings, ignoring the spin components of orbitals.
+        ! (i.e. the number of spatial orbitals they differ by)
+        !
+        ! In:  iLutI, iLutJ - The bit representations
+        !      maxExLevel   - An (optional) maximum ex level to consider
+        ! Ret: IC           - The numbero f orbitals i,j differ by
+
+        integer, intent(in) :: iLutI(0:NIfD), iLutJ(0:NIfD)
+        integer, intent(in), optional :: maxExLevel
+        integer :: IC
+        integer, dimension(0:NIfD,2) :: alpha, beta, sing, doub, tmp
+
+        ! Obtain the alphas and betas
+        alpha(:,1) = iand(ilutI, Z'AAAAAAAA')
+        alpha(:,2) = iand(ilutJ, Z'AAAAAAAA')
+        beta(:,1) = iand(ilutI, Z'55555555')
+        beta(:,2) = iand(ilutJ, Z'55555555')
+
+        ! Bit strings separating doubles, and singles shifted to beta pos.
+        doub = iand(beta, ishft(alpha, -1))
+        doub = ior(doub, ishft(doub, +1))
+        sing = ieor(beta, ishft(alpha, -1))
+
+        ! Doubles and singles shifted to betas. Obtain unique orbitals ...
+        tmp = ior(doub, sing)
+        tmp(:,1) = ieor(tmp(:,1), tmp(:,2))
+        tmp(:,1) = iand(tmp(:,1), tmp(:,2))
+
+        ! ... and count them.
+        if (present(maxExLevel)) then
+            IC = CountBits(tmp(:,1), NIfD, maxExLevel)
+        else
+            IC = CountBits(tmp(:,1), NIfD)
+        endif
+    end function FindSpatialBitExcitLevel
+
     pure subroutine get_bit_excitmat (ilutI, iLutJ, ex, IC)
         
         ! Obatin the excitation matrix between two determinants from their bit
@@ -517,6 +556,7 @@ module DetBitOps
         integer :: i, j, elec, pos, nopen
 
         elec=0
+        ! TODO: decode to normal determinant if nopen > cutoff!!!
         if (tCSF) then
             ! Consider the closed shell electrons first
             do i=0,NIfD
