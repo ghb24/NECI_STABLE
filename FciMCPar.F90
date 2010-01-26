@@ -20,7 +20,7 @@ MODULE FciMCParMod
     use CalcData , only : NDets,RhoApp,TResumFCIMC,TNoAnnihil,MemoryFacPart,TAnnihilonproc,MemoryFacAnnihil,iStarOrbs,tAllSpawnStarDets
     use CalcData , only : FixedKiiCutoff,tFixShiftKii,tFixCASShift,tMagnetize,BField,NoMagDets,tSymmetricField,tStarOrbs,SinglesBias
     use CalcData , only : tHighExcitsSing,iHighExcitsSing,tFindGuide,iGuideDets,tUseGuide,iInitGuideParts,tNoDomSpinCoup
-    use CalcData , only : tPrintDominant,iNoDominantDets,MaxExcDom,MinExcDom,tSpawnDominant,tMinorDetsStar
+    use CalcData , only : tPrintDominant,iNoDominantDets,MaxExcDom,MinExcDom,tSpawnDominant,tMinorDetsStar,MaxNoatHF
     use CalcData , only : tCCMC,tTruncCAS,tTruncInitiator,tDelayTruncInit,IterTruncInit,NShiftEquilSteps,tWalkContGrow
     use HPHFRandExcitMod , only : FindExcitBitDetSym,GenRandHPHFExcit,GenRandHPHFExcit2Scratch
     USE Determinants , only : FDet,GetHElement2,GetHElement4
@@ -1366,12 +1366,24 @@ MODULE FciMCParMod
         LOGICAL :: TBalanceNodesTemp
 
         TotImagTime=TotImagTime+StepsSft*Tau
+
+!Find the total number of particles at HF (x sign) across all nodes. If this is negative, flip the sign of all particles.
+        AllNoatHF=0
+
+!Find sum of noathf, and then use an AllReduce to broadcast it to all nodes
+        CALL MPIISum(NoatHF,1,AllNoatHF)
+
+        IF(AllNoatHF.lt.0) THEN
+!Flip the sign if we're beginning to get a negative population on the HF
+            WRITE(6,*) "No. at HF < 0 - flipping sign of entire ensemble of particles..."
+            CALL FlipSign()
+        ENDIF
         
         IF(TSinglePartPhase) THEN
 !Exit the single particle phase if the number of walkers exceeds the value in the input file.
 !            CALL MPI_Barrier(MPI_COMM_WORLD,error)
             IF(iProcIndex.eq.root) THEN     !Only exit phase if particle number is sufficient on head node.
-                IF(TotParts.gt.InitWalkers) THEN
+                IF((TotParts.gt.InitWalkers).or.(ABS(AllNoatHF).gt.MaxNoatHF)) THEN
                     WRITE(6,*) "Exiting the single particle growth phase - shift can now change"
                     VaryShiftIter=Iter
                     TSinglePartPhase=.false.
@@ -1389,18 +1401,6 @@ MODULE FciMCParMod
 !Put a barrier here so all processes synchronise
         CALL MPIBarrier(error)
 
-!Find the total number of particles at HF (x sign) across all nodes. If this is negative, flip the sign of all particles.
-        AllNoatHF=0
-
-!Find sum of noathf, and then use an AllReduce to broadcast it to all nodes
-        CALL MPIISum(NoatHF,1,AllNoatHF)
-
-        IF(AllNoatHF.lt.0) THEN
-!Flip the sign if we're beginning to get a negative population on the HF
-            WRITE(6,*) "No. at HF < 0 - flipping sign of entire ensemble of particles..."
-            CALL FlipSign()
-        ENDIF
-                
 !IF we're using a guiding function, want to sum in the contributions to the energy from this guiding function.
         IF(tUseGuide) THEN
 !These two are not zeroed after each update cycle, so are average energies over the whole simulation

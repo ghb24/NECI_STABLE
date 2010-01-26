@@ -228,6 +228,7 @@ MODULE Calc
           InitiatorWalkNo=10
           IterTruncInit=0
           tInitIncDoubs=.false.
+          MaxNoatHF=1000000
 
           tNeedsVirts=.true.! Set if we need virtual orbitals  (usually set).  Will be unset (by Calc readinput) if I_VMAX=1 and TENERGY is false
 
@@ -742,6 +743,9 @@ MODULE Calc
             case("INITWALKERS")
 !For FCIMC, this is the number of walkers to start with
                 call geti(InitWalkers)
+            case("MAXNOATHF")
+!If the number of walkers at the HF determinant reaches this number, the shift is allowed to change. (This is the total number across all processors).                
+                call geti(MaxNoatHF)
             case("INITAMPLITUDE")
 !For Amplitude CCMC the initial amplitude.
                 call getf(dInitAmplitude)
