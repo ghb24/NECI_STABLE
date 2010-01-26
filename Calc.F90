@@ -109,6 +109,7 @@ MODULE Calc
           TBinCancel=.false.  
           ScaleWalkers=1.D0
           TReadPops=.false.
+          tWalkContGrow=.false.
           StepsSft=100
           SftDamp=10.0
           Tau=0.D0
@@ -771,6 +772,10 @@ MODULE Calc
 !For FCIMC, this indicates that the initial walker configuration will be read in from the file POPSFILE, which must be present.
 !DiagSft and InitWalkers will be overwritten with the values in that file.
                 TReadPops=.true.
+            case("WALKCONTGROW")
+!This option goes with the above READPOPS option.  If this is present - the INITWALKERS value is not overwritten, and the walkers are continued to be allowed to grow before reaching                
+!this value.  Without this keyword, when a popsfile is read in, the number of walkers is kept at the number in the POPSFILE regardless of whether the shift had been allowed to change in the previous calc.
+                tWalkContGrow=.true.
             case("SCALEWALKERS")
 !For FCIMC, if this is a way to scale up the number of walkers, after having read in a POPSFILE
                 call getf(ScaleWalkers)
