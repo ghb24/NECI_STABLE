@@ -20,8 +20,8 @@ MODULE FciMCParMod
     use CalcData , only : NDets,RhoApp,TResumFCIMC,TNoAnnihil,MemoryFacPart,TAnnihilonproc,MemoryFacAnnihil,iStarOrbs,tAllSpawnStarDets
     use CalcData , only : FixedKiiCutoff,tFixShiftKii,tFixCASShift,tMagnetize,BField,NoMagDets,tSymmetricField,tStarOrbs,SinglesBias
     use CalcData , only : tHighExcitsSing,iHighExcitsSing,tFindGuide,iGuideDets,tUseGuide,iInitGuideParts,tNoDomSpinCoup
-    use CalcData , only : tPrintDominant,iNoDominantDets,MaxExcDom,MinExcDom,tSpawnDominant,tMinorDetsStar
-    use CalcData , only : tCCMC,tTruncCAS,tTruncInitiator,tDelayTruncInit,IterTruncInit,NShiftEquilSteps
+    use CalcData , only : tPrintDominant,iNoDominantDets,MaxExcDom,MinExcDom,tSpawnDominant,tMinorDetsStar,MaxNoatHF
+    use CalcData , only : tCCMC,tTruncCAS,tTruncInitiator,tDelayTruncInit,IterTruncInit,NShiftEquilSteps,tWalkContGrow
     use HPHFRandExcitMod , only : FindExcitBitDetSym,GenRandHPHFExcit,GenRandHPHFExcit2Scratch
     USE Determinants , only : FDet,GetHElement2,GetHElement4
     USE DetCalc , only : ICILevel,nDet,Det,FCIDetIndex
@@ -1366,12 +1366,24 @@ MODULE FciMCParMod
         LOGICAL :: TBalanceNodesTemp
 
         TotImagTime=TotImagTime+StepsSft*Tau
+
+!Find the total number of particles at HF (x sign) across all nodes. If this is negative, flip the sign of all particles.
+        AllNoatHF=0
+
+!Find sum of noathf, and then use an AllReduce to broadcast it to all nodes
+        CALL MPIISum(NoatHF,1,AllNoatHF)
+
+        IF(AllNoatHF.lt.0) THEN
+!Flip the sign if we're beginning to get a negative population on the HF
+            WRITE(6,*) "No. at HF < 0 - flipping sign of entire ensemble of particles..."
+            CALL FlipSign()
+        ENDIF
         
         IF(TSinglePartPhase) THEN
 !Exit the single particle phase if the number of walkers exceeds the value in the input file.
 !            CALL MPI_Barrier(MPI_COMM_WORLD,error)
             IF(iProcIndex.eq.root) THEN     !Only exit phase if particle number is sufficient on head node.
-                IF(TotParts.gt.InitWalkers) THEN
+                IF((TotParts.gt.InitWalkers).or.(ABS(AllNoatHF).gt.MaxNoatHF)) THEN
                     WRITE(6,*) "Exiting the single particle growth phase - shift can now change"
                     VaryShiftIter=Iter
                     TSinglePartPhase=.false.
@@ -1389,18 +1401,6 @@ MODULE FciMCParMod
 !Put a barrier here so all processes synchronise
         CALL MPIBarrier(error)
 
-!Find the total number of particles at HF (x sign) across all nodes. If this is negative, flip the sign of all particles.
-        AllNoatHF=0
-
-!Find sum of noathf, and then use an AllReduce to broadcast it to all nodes
-        CALL MPIISum(NoatHF,1,AllNoatHF)
-
-        IF(AllNoatHF.lt.0) THEN
-!Flip the sign if we're beginning to get a negative population on the HF
-            WRITE(6,*) "No. at HF < 0 - flipping sign of entire ensemble of particles..."
-            CALL FlipSign()
-        ENDIF
-                
 !IF we're using a guiding function, want to sum in the contributions to the energy from this guiding function.
         IF(tUseGuide) THEN
 !These two are not zeroed after each update cycle, so are average energies over the whole simulation
@@ -2776,12 +2776,16 @@ MODULE FciMCParMod
                     ENDIF
                 ENDIF
             ENDIF
+
+
 !Read in initial data on processors which have a popsfile
             READ(17,*) AllTotWalkers
             READ(17,*) DiagSft
             READ(17,*) TempAllSumNoatHF     !AllSumNoatHF stored as integer for compatability with serial POPSFILEs
             READ(17,*) AllSumENum
             READ(17,*) PreviousCycles
+
+            IF(DiagSft.eq.0.D0) tWalkContGrow=.true.
 
             IF(tBinRead) THEN
                 CLOSE(17)
@@ -2821,6 +2825,8 @@ MODULE FciMCParMod
                 READ(17,*) TempAllSumNoatHF     !AllSumNoatHF stored as integer for compatability with serial POPSFILEs
                 READ(17,*) AllSumENum
                 READ(17,*) PreviousCycles
+
+                IF(DiagSft.eq.0.D0) tWalkContGrow=.true.
 
                 IF(tBinRead) THEN
                     CLOSE(17)
@@ -2864,7 +2870,11 @@ MODULE FciMCParMod
             ENDIF
             
 !InitWalkers needs to be reset for the culling criteria
-            InitWalkers=AvWalkers
+            IF(.not.tWalkContGrow) THEN
+                InitWalkers=AvWalkers
+            ELSE
+                TSinglePartPhase=.true.
+            ENDIF
             SumENum=AllSumENum/REAL(nProcessors,r2)     !Divide up the SumENum over all processors
             AvSumNoatHF=NINT(AllSumNoatHF/real(nProcessors,r2)) !This is the average Sumnoathf
             do i=1,nProcessors-1
@@ -2887,6 +2897,7 @@ MODULE FciMCParMod
         CALL MPI_BCast(DiagSft,1,MPI_DOUBLE_PRECISION,root,MPI_COMM_WORLD,error)
         CALL MPI_BCast(InitWalkers,1,MPI_INTEGER,root,MPI_COMM_WORLD,error)
         CALL MPI_BCast(SumENum,1,MPI_DOUBLE_PRECISION,root,MPI_COMM_WORLD,error)
+        CALL MPI_BCast(TSinglePartPhase,1,MPI_LOGICAL,root,MPI_COMM_WORLD,error)
 !        CALL MPI_BCast(tChangenProcessors,1,MPI_LOGICAL,root,MPI_COMM_WORLD,error)
 !Scatter the number of walkers each node will receive to TempInitWalkers, and the SumNoatHF for each node which is distributed approximatly equally
         CALL MPI_Scatter(WalkerstoReceive,1,MPI_INTEGER,TempInitWalkers,1,MPI_INTEGER,root,MPI_COMM_WORLD,error)
