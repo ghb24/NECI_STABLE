@@ -916,6 +916,25 @@ MODULE CCMC
       if(lTerm) WRITE(iUnit,*)
    END SUBROUTINE WriteClusterInd
 
+!Write a Cluster.
+   SUBROUTINE WriteCluster(iUnit,C,lTerm)
+      use DetCalc, only: Det,FciDets       ! The number of Dets/Excitors in FCIDets
+      use FCIMCParMod, only: iLutHF
+      use CCMCData, only:  Cluster
+      IMPLICIT NONE
+      TYPE(Cluster) C
+      INTEGER i
+      LOGICAL lTerm
+      INTEGER iUnit
+      WRITE(iUnit,'(A)',advance='no') '['
+      do i=1,C%iSize
+         call WriteBitEx(iUnit,iLutHF,C%SelectedExcitors(:,i),.false.)
+         write(iUnit,'(A)',advance='no') ','
+      enddo
+      WRITE(iUnit,'(A)',advance='no') ']'
+      if(lTerm) WRITE(iUnit,*)
+   END SUBROUTINE WriteCluster
+
 SUBROUTINE InitCluster(C)
    use CCMCData
    use SystemData, only: nEl,nIfTot
@@ -1033,7 +1052,7 @@ LOGICAL FUNCTION GetNextCluster(CS,Dets,nDet,Amplitude,dTotAbsAmpl,iNumExcitors,
 !If we detect a zero-ampl cluster, we just go round the loop again.
       do while(GetNextCluster)
          CS%iIndex=CS%iIndex+1
-         CS%C%dNGenComposite=1
+         CS%C%dAbsAmplitude=1
 !         CS%C%dSelectionProb=1
          CS%C%dProbNorm=1
          CS%C%dClusterProb=1
@@ -1042,7 +1061,7 @@ LOGICAL FUNCTION GetNextCluster(CS,Dets,nDet,Amplitude,dTotAbsAmpl,iNumExcitors,
          tNew=.false.
          if(CS%iIndex.eq.1) then
 !deal with the HF det separately.  iSize is already 0.
-            CS%C%dNGenComposite=abs(Amplitude(1))
+            CS%C%dAbsAmplitude=abs(Amplitude(1))
             if(iDebug.gt.3) WRITE(6,"(A,L3)",advance='no') "Next Tuple:",tDone
             if(iDebug.gt.3) call WriteDet(6,CS%C%SelectedExcitorIndices,CS%C%iSize,.true.)
             return
@@ -1051,7 +1070,7 @@ LOGICAL FUNCTION GetNextCluster(CS,Dets,nDet,Amplitude,dTotAbsAmpl,iNumExcitors,
 !         call IncrementOrderedTuple(CS%C%SelectedExcitorIndices,CS%C%iSize,2,nDet,tDone)
          call IncrementOrderedTupleCheckD(CS%C%SelectedExcitorIndices,CS%C%iSize,2,nDet,tDone,Amplitude)
          if(tDone) then !We've reached the end of our ordered tuple, so we increase its size if we can
-            CS%C%dNGenComposite=0
+            CS%C%dAbsAmplitude=0
             CS%C%SelectedExcitorIndices(1)=1  !Indicate we need to reset.
             CS%C%iSize=CS%C%iSize+1
             CS%iIndex=CS%iIndex-1
@@ -1064,15 +1083,15 @@ LOGICAL FUNCTION GetNextCluster(CS,Dets,nDet,Amplitude,dTotAbsAmpl,iNumExcitors,
             if(iDebug.gt.3) WRITE(6,"(A,L3)",advance='no') "Next Tuple:",tDone
             if(iDebug.gt.3) call WriteDet(6,CS%C%SelectedExcitorIndices,CS%C%iSize,.true.)
             tNew=.true.  !Used for debug printing
-            CS%C%dNGenComposite=abs(Amplitude(1))
-!            WRITE(6,*) 0,CS%C%dNGenComposite
+            CS%C%dAbsAmplitude=abs(Amplitude(1))
+!            WRITE(6,*) 0,CS%C%dAbsAmplitude
             do i=1,CS%C%iSize 
                CS%C%SelectedExcitors(:,i)=Dets(:,CS%C%SelectedExcitorIndices(i))
-               CS%C%dNGenComposite=CS%C%dNGenComposite*abs(Amplitude(CS%C%SelectedExcitorIndices(i)))/abs(Amplitude(1))
-!               WRITE(6,*) i,CS%C%dNGenComposite
+               CS%C%dAbsAmplitude=CS%C%dAbsAmplitude*abs(Amplitude(CS%C%SelectedExcitorIndices(i)))/abs(Amplitude(1))
+!               WRITE(6,*) i,CS%C%dAbsAmplitude
             enddo
          endif
-         if(CS%C%dNGenComposite.ne.0) exit
+         if(CS%C%dAbsAmplitude.ne.0) exit
       enddo
    else
       CS%iIndex=CS%iIndex+1
@@ -1105,12 +1124,13 @@ LOGICAL FUNCTION GetNextCluster(CS,Dets,nDet,Amplitude,dTotAbsAmpl,iNumExcitors,
       dProbNumExcit=CS%dProbSelNewExcitor
       CS%C%dProbNorm=CS%nSelects
       CS%C%dClusterProb=1
-      CS%C%dNGenComposite=abs(Amplitude(1))
+      CS%C%dAbsAmplitude=abs(Amplitude(1))
       CS%C%dClusterNorm=1
 !Amplitude(1,iOldAmpList)
 !      iMaxExcit=min(nEl,iNumExcitors)
 !For FCI using amplitudes we only make a single selection
 !      if(tCCMCFCI) iMaxExcit=min(1,iMaxExcit)
+      IF(iDebug.gt.5) Write(6,*) "Generating New Cluster.  Max size ",iMaxSize
       do i=1,iMaxSize
 ! Calculate the probability that we've reached this far in the loop
                   !We must have at least one excitor, so we cannot exit here.
@@ -1138,7 +1158,7 @@ LOGICAL FUNCTION GetNextCluster(CS,Dets,nDet,Amplitude,dTotAbsAmpl,iNumExcitors,
          IF(iDebug.gt.5) Write(6,*) "Selected excitor",k
          CS%C%SelectedExcitorIndices(i)=k
          CS%C%SelectedExcitors(:,i)=Dets(:,k)
-         CS%C%dNGenComposite=CS%C%dNGenComposite*abs(Amplitude(k))/abs(Amplitude(1))  !For each new excit added to the composite, we multiply up to count the number of ways we could've generated it.
+         CS%C%dAbsAmplitude=CS%C%dAbsAmplitude*abs(Amplitude(k))/abs(Amplitude(1))  !For each new excit added to the composite, we multiply up to count the number of ways we could've generated it.
          CS%C%dClusterProb=CS%C%dClusterProb*i*abs(Amplitude(k))/dTotAbsAmpl  !For each new excit added to the composite, we multiply up to count the number of ways we could've generated it.
 !               if(i.gt.1)  dClusterProb=dClusterProb*(Det-1)
 !(Det-1) was empirically chosen
@@ -1466,11 +1486,13 @@ SUBROUTINE InitMP1Amplitude(tFCI,Amplitude,nExcit,ExcitList,ExcitLevelIndex,dIni
    enddo
 END SUBROUTINE
 
+
+
    SUBROUTINE CCMCStandalone(Weight,Energyxw)
       Use global_utilities
       use SystemData, only: nEl,nIfD,nIfTot
       use CCMCData, only: tCCMCFCI,dInitAmplitude,dProbSelNewExcitor,tExactCluster,tExactSpawn,nSpawnings,tSpawnProp,tCCBuffer
-      use CCMCData, only: ClustSelector,Spawner
+      use CCMCData, only: ClustSelector,Spawner,CCTransitionLog
       use DetCalc, only: Det       ! The number of Dets/Excitors in FCIDets
       use DetCalc, only: FCIDets   ! (0:NIfTot, Det).  Lists all allowed excitors in compressed form
       use DetCalc, only:FCIDetIndex! (0:nEl+1).  The index of the different excitation levels
@@ -1534,8 +1556,6 @@ END SUBROUTINE
       REAL*8 dTolerance
       REAL*8 dAveProbSel(0:4)
       REAL*8 dTotExcitors
-      REAL*8, allocatable :: dProbTransition(:,:,:,:) !(2,2,nClust,nClust)
-      REAL*8, allocatable :: dProbClust(:,:)  !(2,nClust)
       REAL*8 dAveTotAbsAmp,dAveNorm
       LOGICAL lLogTransitions
 
@@ -1554,6 +1574,10 @@ END SUBROUTINE
       INTEGER nAmpl,nBuffAmpl,nCurAmpl
       INTEGER iExcitLevelCluster
 
+      TYPE(CCTransitionLog) TL
+
+
+
       WRITE(6,*) "Entering CCMC Standalone..."
       iDebug=CCMCDebug
 
@@ -1565,14 +1589,8 @@ END SUBROUTINE
       
 
       if(lLogTransitions) then
-! We create a transition matrix where each element correpsonds to a cluster.  We encode cluster X=(a_{X_i}) = (x,y,z)  as an 'bit' string in base Det sum_{i=1}^{|X|} (X_i)*(Det)**(i-1)
-         WRITE(6,*) "Max Cluster Index:",(Det)**(min(nEl,Det-1))
-         allocate(dProbTransition(2,2,0:(Det)**(min(nEl,Det-1)),0:(Det)**(min(nEl,Det-1))))
-         allocate(dProbClust(2,0:(Det)**(min(nEl,Det-1))))
-         dProbTransition(:,:,:,:)=0
-         dProbClust(:,:)=0
       endif
-      dTolerance=1e-16
+      dTolerance=0 !1e-16
       iCurAmpList=1  !Start with list 1
 
       if(ICILevel/=0)  then 
@@ -1612,11 +1630,14 @@ END SUBROUTINE
       if(tStartMP1) then
          write(6,*) "Initializing with MP1 amplitudes."
          CALL InitMP1Amplitude(tCCMCFCI,Amplitude(:,iCurAmpList),nAmpl,FciDets,FCIDetIndex,dInitAmplitude,dTotAbsAmpl)
+         write(6,*) "PostMP1"
       else
          Amplitude(1,iCurAmpList)=dInitAmplitude
          iNumExcitors=0
          dTotAbsAmpl=Amplitude(1,iCurAmpList)
       endif
+
+      if(lLogTransitions) call InitTransitionLog(TL,nAmpl,nEl)
 
       iShiftLeft=StepsSft-1  !So the first one comes at StepsSft
       WalkerScale=100000/dInitAmplitude
@@ -1628,7 +1649,11 @@ END SUBROUTINE
       AllTotPartsOld=WalkerScale*dTotAbsAmpl
       dAveTotAbsAmp=0
       dAveNorm=0
-      Call InitHistMin() !Setup Histogramming arrays if needed 
+      Iter=1
+      IF(tHistSpawn) THEN
+         Call InitHistMin() !Setup Histogramming arrays if needed 
+      ENDIF
+      WRITE(6,*) "After hist"
       CALL WriteFciMCStatsHeader()
 !      CALL WriteFCIMCStats()
 
@@ -1671,7 +1696,9 @@ END SUBROUTINE
                Amplitude(2,iCurAmpList)=-0.4375219663886841*dInitAmplitude
                Amplitude(3,iCurAmpList)= 0.4375219663886849*dInitAmplitude
                Amplitude(4,iCurAmpList)=-0.1184277920308680*dInitAmplitude!-0.1184277920308680
+!               Amplitude(5,iCurAmpList)=-0.1184277920308680*dInitAmplitude!-0.1184277920308680
                if(.not.tCCMCFCI) Amplitude(4,iCurAmpList)=Amplitude(4,iCurAmpList)-Amplitude(2,iCurAmpList)*Amplitude(3,iCurAmpList)/(Amplitude(1,iCurAmpList))
+!               if(.not.tCCMCFCI) Amplitude(4,iCurAmpList)=Amplitude(4,iCurAmpList)-Amplitude(2,iCurAmpList)*Amplitude(3,iCurAmpList)/(Amplitude(1,iCurAmpList))
 !               Amplitude(4,iCurAmplist)=Amplitude(4,iCurAmpList)/2
                r=0
                do j=1,4
@@ -1710,7 +1737,6 @@ END SUBROUTINE
             WRITE(6,*) "Total abs Amplitudes: ",dTotAbsAmpl
             WRITE(6,*) "Projected Energy: ",dProjE
          endif 
-         Iter=Iter+1
 
 !  The total cluster wavefunction has the following structure
 !
@@ -1747,7 +1773,6 @@ END SUBROUTINE
             call ResetClustSelector(CSBuff)
             AmplitudeBuffer(:)=0
          endif
-         i=min(iNumExcitors,nEl)
          tMoreClusters=.true.
          tPostBuffering=.false.
          nCurAmpl=nAmpl
@@ -1758,6 +1783,7 @@ END SUBROUTINE
 
          do while (tMoreClusters)
             if(.not.tPostBuffering) then
+               i=min(iNumExcitors,nEl)
                tMoreClusters=GetNextCluster(CS,FciDets,nAmpl,Amplitude(:,iOldAmpList),dTotAbsAmpl,iNumExcitors,i,iDebug)
                if(tCCBuffer.and..not.tMoreClusters) then
                   if(iDebug.gt.2) WRITE(6,*) "Buffering Complete.  Now Spawning."
@@ -1770,6 +1796,7 @@ END SUBROUTINE
                endif
             endif
             if(tPostBuffering) then  !If we've finished buffering, we read from the buffer
+               i=min(iNumExcitors,nEl)
                tMoreClusters=GetNextCluster(CSBuff,FciDets,nBuffAmpl,AmplitudeBuffer(:),dTotAbsAmpl,1,i,iDebug)
             endif
             if(.not.tMoreClusters) exit
@@ -1797,15 +1824,9 @@ END SUBROUTINE
             if(tTruncSpace.and.CS%C%iExcitLevel>iExcitLevelCluster) cycle !Don't try to die if we're truncated
 
             if(lLogTransitions.and.Iter.gt.NEquilSteps) then
-               i=GetClusterIndex(CS%C%SelectedExcitorIndices(:),CS%C%iSize)
-! dProbNorm is the prob that a cluster in this level would've been chosen had they been equally weighted
-! 
-!  dClusterNorm is the probability that this cluster was chosen, given the level had already been selected.
-!  This includes multiple selections of the same excitor as well as combinations of excitors which produce a 0 sign.
-               dProbClust(1,i)=dProbClust(1,i)+1/(CS%C%dProbNorm*CS%C%dClusterNorm)
-               dProbClust(2,i)=dProbClust(2,i)+1
+               call LogCluster(TL,CS%C)
             endif
-
+            if(iDebug.gt.5) call WriteCluster(6,CS%C,.true.)
             if(CS%C%iSgn.eq.0) then
                if(iDebug.gt.3) write(6,*) "Sign Zero so moving to next cluster"
                cycle  !No point in doing anything
@@ -1818,7 +1839,7 @@ END SUBROUTINE
                   Call WriteDet(6,CS%C%DetCurr,nEl,.true.)
                   Call Stop_All("CCMCStandalone","Failed to find det.")
                endif
-               AmplitudeBuffer(PartIndex)=AmplitudeBuffer(PartIndex)+CS%C%dNGenComposite*CS%C%iSgn
+               AmplitudeBuffer(PartIndex)=AmplitudeBuffer(PartIndex)+CS%C%dAbsAmplitude*CS%C%iSgn
                cycle
             endif
 
@@ -1827,7 +1848,7 @@ END SUBROUTINE
             else
                i=nSpawnings
             endif
-            if(iDebug.gt.3) WRITE(6,*) "Cluster Amplitude: ",CS%C%iSgn*CS%C%dNGenComposite 
+            if(iDebug.gt.3) WRITE(6,*) "Cluster Amplitude: ",CS%C%iSgn*CS%C%dAbsAmplitude 
 !Now consider a number of possible spawning events
             CALL ResetSpawner(S,CS%C,i)
 
@@ -1837,10 +1858,10 @@ END SUBROUTINE
                IF(iDebug.gt.4) THEN
                   WRITE(6,*) "HIJ: ",S%HIJ
                ENDIF
-!               write(6,*) -CS%C%iSgn,Tau,S%HIJ%v,CS%C%dNGenComposite,S%dProbSpawn,CS%C%dProbNorm,CS%C%dClusterNorm
-               rat=-CS%C%iSgn*Tau*S%HIJ%v*CS%C%dNGenComposite/(S%dProbSpawn*CS%C%dProbNorm*CS%C%dClusterNorm)  !Old version
+!               write(6,*) -CS%C%iSgn,Tau,S%HIJ%v,CS%C%dAbsAmplitude,S%dProbSpawn,CS%C%dProbNorm,CS%C%dClusterNorm
+               rat=-CS%C%iSgn*Tau*S%HIJ%v*CS%C%dAbsAmplitude/(S%dProbSpawn*CS%C%dProbNorm*CS%C%dClusterNorm)  !Old version
 
-! CS%C%dNGenComposite is there so that the change in the amp depends on the current amp.
+! CS%C%dAbsAmplitude is there so that the change in the amp depends on the current amp.
 
 !               rat=-CS%C%iSgn*Tau*S%HIJ%v*CS%C%dAmplitude/(S%dProbSpawn*CS%C%dSelectionProb)
                IF(iDebug.gt.3) THEN
@@ -1874,19 +1895,11 @@ END SUBROUTINE
                   endif
                   Amplitude(PartIndex,iCurAmpList)=Amplitude(PartIndex,iCurAmpList)+rat
                   if(lLogTransitions.and.Iter.gt.NEquilSteps) then
-                     i1=GetClusterIndex(CS%C%SelectedExcitorIndices(:),CS%C%iSize)
                      FakeArray(1)=PartIndex
-                     i2=GetClusterIndex(FakeArray,1)
-                  ! We create a transition matrix where each element correpsonds to a cluster.  We encode cluster X=(a_{X_i}) = (x,y,z)  as an 'bit' string in base Det sum_{i=1}^{|X|} (X_i)*(Det)**(i-1)
-                     dProbTransition(1,1,i1,i2)=dProbTransition(1,1,i1,i2)+rat
-                     dProbTransition(1,2,i1,i2)=dProbTransition(1,2,i1,i2)+1
-                     dProbTransition(2,1,i1,i2)=dProbTransition(2,1,i1,i2)+rat*CS%C%dProbNorm
-                     dProbTransition(2,2,i1,i2)=dProbTransition(2,2,i1,i2)+1*CS%C%dProbNorm
+                     call LogTransition(TL,CS%C%SelectedExcitorIndices(:),CS%C%iSize,FakeArray,1,rat,CS%C%dProbNorm)
                   endif
                endif
-!               WRITE(6,*) "LoopSpawn"
             enddo !GetNextSpawner
-!            WRITE(6,*) "ToDeathSpawn"
 ! Now deal with birth/death.
 
             if(tTruncSpace.and.CS%C%iExcitLevel>ICILevel) cycle !Don't try to die if we're truncated
@@ -1908,9 +1921,9 @@ END SUBROUTINE
 ! we divide by N_T ^|X| | t_x1 t_x2 ... | / |X|! and multiply by N_T t_X 
 !NB N_T = 1/N_0
                
-!dNGenComposite is | t_x1 t_x2 ... | / N_0 ^|X| 
+!dAbsAmplitude is | t_x1 t_x2 ... | / N_0 ^|X| 
                   dProbDecompose=CS%C%iSgn
-!                  dProbDecompose=dProbDecompose/CS%C%dNGenComposite
+!                  dProbDecompose=dProbDecompose/CS%C%dAbsAmplitude
 !                  dProbDecompose=dProbDecompose*CS%C%iSgn*Amplitude(iPartDie,iOldAmpList)/abs(Amplitude(1,iOldAmpList))
                endif
             ELSEIF(CS%C%iSize.EQ.1) THEN
@@ -1955,7 +1968,7 @@ END SUBROUTINE
 !dProb = 1
 !            rat=Tau*(HDiagCurr-DiagSft)*dClusterNorm*dProb/dProbNorm !(dProb*dProbNorm)
             rat=Tau*(HDiagCurr-DiagSft)*dProbDecompose/(CS%C%dProbNorm*CS%C%dClusterProb) !(dProb*dProbNorm)  !The old version
-            rat=rat*CS%C%dNGenComposite
+            rat=rat*CS%C%dAbsAmplitude
             r=rat*sign(1.d0,Amplitude(iPartDie,iOldAmpList))
             rat=rat/abs(Amplitude(iPartDie,iOldAmpList))  !Take into account we're killing at a different place from the cluster
 
@@ -1971,15 +1984,15 @@ END SUBROUTINE
                WRITE(6,*) "dProbDecompose   : ",dProbDecompose
                WRITE(6,*) "1/dProbNorm      : ",1/CS%C%dProbNorm
 !               WRITE(6,*) "Delta t_x        : ",-rat
-               WRITE(6,*) "dNGenComposite   : ",CS%C%dNGenComposite
+               WRITE(6,*) "dAbsAmplitude   : ",CS%C%dAbsAmplitude
             endif 
 
 !! rat is what we wish to modify t_a t_b t_c by. (but positive - we'll actually want to subtract it)
 !!  To do this we modify the chosen part (e.g. t_a) by
 !! t_a (1 - rat / (t_a t_b t_c) )
 !
-!! dNGenComposite = t_a t_b t_c
-!            rat= rat/dNGenComposite
+!! dAbsAmplitude = t_a t_b t_c
+!            rat= rat/dAbsAmplitude
 !! t_a(new) = t_a(new)+ t_a(old) * rat
             IF(iDebug.ge.4) then
                WRITE(6,*) "Death ratio      : ",rat
@@ -1989,14 +2002,8 @@ END SUBROUTINE
 !            r=Amplitude(iPartDie,iOldAmpList)*rat 
             Amplitude(iPartDie,iCurAmpList)=Amplitude(iPartDie,iCurAmpList)-r
             if(lLogTransitions.and.Iter.gt.NEquilSteps) then
-               i1=GetClusterIndex(CS%C%SelectedExcitorIndices(:),CS%C%iSize)
                FakeArray(1)=iPartDie
-               i2=GetClusterIndex(FakeArray,1)
-            ! We create a transition matrix where each element correpsonds to a cluster.  We encode cluster X=(a_{X_i}) = (x,y,z)  as an 'bit' string in base Det sum_{i=1}^{|X|} (X_i)*(Det)**(i-1)
-               dProbTransition(1,1,i1,i2)=dProbTransition(1,1,i1,i2)-r
-               dProbTransition(1,2,i1,i2)=dProbTransition(1,2,i1,i2)+1
-               dProbTransition(2,1,i1,i2)=dProbTransition(2,1,i1,i2)-r*CS%C%dProbNorm
-               dProbTransition(2,2,i1,i2)=dProbTransition(2,2,i1,i2)+1*CS%C%dProbNorm
+               call LogTransition(TL,CS%C%SelectedExcitorIndices(:),CS%C%iSize,FakeArray,1,-r,CS%C%dProbNorm)
             endif
 ! The two next lines are the ancien regime
 !            r=iSgn*Tau*(HDiagCurr-DiagSft)*dClusterNorm/dProbNorm !(dProb*dProbNorm)
@@ -2037,74 +2044,14 @@ END SUBROUTINE
             dAveTotAbsAmp=dAveTotAbsAmp+dTotAbsAmpl
             dAveNorm=dAveNorm+Amplitude(1,iCurAmpList)
          endif
-
+         Iter=Iter+1
       enddo !MC Cycles
       if(iDebug.gt.1) call WriteDExcitorList(6,Amplitude(:,iCurAmpList),FciDets,0,nAmpl,dAmp,"Final Excitor list")
       nullify(OldAmpl)
       nullify(CS)
       if(lLogTransitions) then
-         k=NMCyc-NEquilSteps
-         dAveTotAbsAmp=dAveTotAbsAmp/k
-         dAveNorm=dAveNorm/k
-      
-         WRITE(6,*) "Valid Cluster Probabilities"
-         do i=0,(nAmpl)**(min(nEl,nAmpl-1))
-            if(dProbClust(2,i).ne.0) then
-              Call WriteClusterInd(6,i,.false.)
-              WRITE(6,"(2G25.17)") dProbClust(1,i)/k,dProbClust(2,i)/k
-            endif
-         enddo
-         WRITE(6,*) "Transition Probabilities"
-         do i=0,(nAmpl)**(min(nEl,nAmpl-1))
-            do j=0,(nAmpl)**(min(nEl,nAmpl-1)) 
-               if(dProbTransition(1,1,i,j).ne.0) then
-                  Call WriteClusterInd(6,i,.false.)
-                  WRITE(6,"(A)",advance='no') "=>"
-                  Call WriteClusterInd(6,j,.false.)
-                  WRITE(6,"(2G25.17)") dProbTransition(1,1,i,j)/k,dProbTransition(1,2,i,j)/k
-               endif
-            enddo
-         enddo
-         WRITE(6,*) "Normalized Transition Probabilities"
-         do i=0,(nAmpl)**(min(nEl,nAmpl-1))
-            do j=0,(nAmpl)**(min(nEl,nAmpl-1)) 
-               if(dProbTransition(1,1,i,j).ne.0) then
-                  Call WriteClusterInd(6,i,.false.)
-                  WRITE(6,"(A)",advance='no') "=>"
-                  Call WriteClusterInd(6,j,.false.)
-                  WRITE(6,"(2G25.17)") dProbTransition(1,1,i,j)/dProbClust(2,i),dProbTransition(1,2,i,j)/dProbClust(2,i)
-               endif
-            enddo
-         enddo
-         WRITE(6,*) "Renormalized Transition Probabilities"
-         do i=0,(nAmpl)**(min(nEl,nAmpl-1))
-            do j=0,(nAmpl)**(min(nEl,nAmpl-1)) 
-               if(dProbTransition(1,1,i,j).ne.0) then
-                  Call WriteClusterInd(6,i,.false.)
-                  WRITE(6,"(A)",advance='no') "=>"
-                  Call WriteClusterInd(6,j,.false.)
-                  k=GetClusterIndLevel(i)
-                  r=Amplitude(1,iCurAmpList)*(dAveTotAbsAmp/dAveNorm)**k
-                  WRITE(6,"(2G25.17)") dProbTransition(2,1,i,j)/(dProbClust(2,i)*r),dProbTransition(2,2,i,j)/(dProbClust(2,i)*r)
-!                  WRITE(6,"(2G25.17)") dProbTransition(2,1,i,j)/dProbClust(2,i)
-               endif
-            enddo
-         enddo
-         WRITE(6,*) "Biased Renormalized Transition Probabilities"
-         do i=0,(nAmpl)**(min(nEl,nAmpl-1))
-            do j=0,(nAmpl)**(min(nEl,nAmpl-1)) 
-               if(dProbTransition(1,1,i,j).ne.0) then
-                  Call WriteClusterInd(6,i,.false.)
-                  WRITE(6,"(A)",advance='no') "=>"
-                  Call WriteClusterInd(6,j,.false.)
-                  k=GetClusterIndLevel(i)
-                  r=Amplitude(1,iCurAmpList)*(dAveTotAbsAmp/dAveNorm)**k
-                  WRITE(6,"(2G25.17)") dProbTransition(1,1,i,j)/(dProbClust(2,i)*r),dProbTransition(1,2,i,j)/(dProbClust(2,i))
-               endif
-            enddo
-         enddo
-         deallocate(dProbClust)
-         deallocate(dProbTransition)
+         call WriteTransitionLog(6,TL,Amplitude(:,iCurAmpList),NMCyc-NEquilSteps,dAveTotAbsAmp,dAveNorm)
+         call DeleteTransitionLog(TL)
       endif
       write(6,*) "Dealloc Ampl"
       LogDealloc(tagAmplitude)
@@ -2310,7 +2257,197 @@ SUBROUTINE GetNextNonZeroExcitorD(Pos,List,iMin,iMax)
    enddo
 END SUBROUTINE GetNextNonZeroExcitorD
 
+   SUBROUTINE InitTransitionLog(TL,Det,nEl)
+      use CCMCData, only: CCTransitionLog
+      IMPLICIT NONE
+      TYPE(CCTransitionLog) TL
+      INTEGER Det,nEl
+      ! We create a transition matrix where each element correpsonds to a cluster.  We encode cluster X=(a_{X_i}) = (x,y,z)  as an 'bit' string in base Det sum_{i=1}^{|X|} (X_i)*(Det)**(i-1)
+      TL%MaxIndex=(Det)**(min(nEl,Det-1))
+      WRITE(6,*) "Max Cluster Index:",TL%MaxIndex
+      allocate(TL%dProbTransition(2,2,0:TL%MaxIndex,0:TL%MaxIndex))
+      allocate(TL%dProbClust(2,0:TL%MaxIndex))
+      allocate(TL%dProbUniqClust(2,-1:TL%MaxIndex))
+      TL%dProbTransition(:,:,:,:)=0
+      TL%dProbClust(:,:)=0
+      TL%dProbUniqClust(:,:)=0
+   end subroutine
+   SUBROUTINE WriteTransitionLog(iUnit,TL,Amplitude,nCycles,dTotAbsAmp,dTotNorm)
+      use CCMCData, only: CCTransitionLog
+      IMPLICIT NONE
+      TYPE(CCTransitionLog) TL
+      INTEGER iUnit
+      REAL*8 Amplitude(:)
+      INTEGER nCycles
+      REAL*8 dTotAbsAmp,dTotNorm
+      REAL*8 dAveTotAbsAmp,dAveNorm
+      INTEGER i,j,k
+      REAL*8 r
+      REAL*8 flin,flout,flint,floutt
+      dAveTotAbsAmp=dTotAbsAmp/nCycles
+      dAveNorm=dTotNorm/nCycles
+      WRITE(6,*) "Transition Log for last ",nCycles," cycles."
+   
+      WRITE(iUnit,*) "Cluster Probabilities:  Debiased number per cycle;   Number per cycle"
+      do i=0,TL%MaxIndex
+         if(TL%dProbClust(2,i).ne.0) then
+           Call WriteClusterInd(iUnit,i,.false.)
+           WRITE(iUnit,"(2G25.17)") TL%dProbClust(1,i)/nCycles,TL%dProbClust(2,i)/nCycles
+         endif
+      enddo
+      WRITE(iUnit,*) "Unique Cluster Probabilities:  Debiased number per cycle;   Number per cycle"
+      do i=0,TL%MaxIndex
+         if(TL%dProbUniqClust(2,i).ne.0) then
+           Call WriteClusterInd(iUnit,i,.false.)
+           WRITE(iUnit,"(2G25.17)") TL%dProbUniqClust(1,i)/nCycles,TL%dProbUniqClust(2,i)/nCycles
+         endif
+      enddo
+      WRITE(iUnit,"(A,2G25.17)") "[Invalid] ",TL%dProbUniqClust(1,-1)/nCycles,TL%dProbUniqClust(2,-1)/nCycles
 
+      WRITE(iUnit,*) "Transition Probabilities: Net value per cycle;   Net number per cycle"
+      do i=0,TL%MaxIndex
+         flin=0
+         flout=0
+         do j=0,TL%MaxIndex 
+            if(TL%dProbTransition(1,2,i,j).ne.0) then
+               Call WriteClusterInd(iUnit,i,.false.)
+               WRITE(iUnit,"(A)",advance='no') "=>"
+               Call WriteClusterInd(iUnit,j,.false.)
+               WRITE(iUnit,"(2G25.17)") TL%dProbTransition(1,1,i,j)/nCycles,TL%dProbTransition(1,2,i,j)/nCycles
+            endif
+            flin=flin+TL%dProbTransition(1,1,j,i)/nCycles
+            flout=flout+TL%dProbTransition(1,1,i,j)/nCycles
+         enddo
+         flint=flint+flin
+         floutt=floutt+flout
+         if(flin.ne.0.or.flout.ne.0) then
+            Call WriteClusterInd(iUnit,i,.false.)
+            write(iUnit,"(A,2G20.10)") "  Flux in, out",flin,flout
+         endif
+         
+      enddo
+      WRITE(iUnit,"(A)") "Transition Probabilities normalized by # FromCluster: value per cycle;   number per cycle"
+      do i=0,TL%MaxIndex
+         do j=0,TL%MaxIndex 
+            if(TL%dProbTransition(1,2,i,j).ne.0) then
+               Call WriteClusterInd(iUnit,i,.false.)
+               WRITE(iUnit,"(A)",advance='no') "=>"
+               Call WriteClusterInd(iUnit,j,.false.)
+               WRITE(iUnit,"(2G25.17)") TL%dProbTransition(1,1,i,j)/TL%dProbClust(2,i),TL%dProbTransition(1,2,i,j)/TL%dProbClust(2,i)
+            endif
+         enddo
+      enddo
+      WRITE(iUnit,"(A)") "Renormalized Transition Probabilities"
+      do i=0,TL%MaxIndex
+         do j=0,TL%MaxIndex 
+            if(TL%dProbTransition(1,2,i,j).ne.0) then
+               Call WriteClusterInd(iUnit,i,.false.)
+               WRITE(iUnit,"(A)",advance='no') "=>"
+               Call WriteClusterInd(iUnit,j,.false.)
+               k=GetClusterIndLevel(i)
+               r=Amplitude(1)*(dAveTotAbsAmp/dAveNorm)**k
+               WRITE(iUnit,"(2G25.17)") TL%dProbTransition(2,1,i,j)/(TL%dProbClust(2,i)*r),TL%dProbTransition(2,2,i,j)/(TL%dProbClust(2,i)*r)
+!                  WRITE(iUnit,"(2G25.17)") TL%dProbTransition(2,1,i,j)/TL%dProbClust(2,i)
+            endif
+         enddo
+      enddo
+      WRITE(iUnit,*) "Biased Renormalized Transition Probabilities"
+      do i=0,TL%MaxIndex
+         do j=0,TL%MaxIndex 
+            if(TL%dProbTransition(1,2,i,j).ne.0) then
+               Call WriteClusterInd(iUnit,i,.false.)
+               WRITE(iUnit,"(A)",advance='no') "=>"
+               Call WriteClusterInd(iUnit,j,.false.)
+               k=GetClusterIndLevel(i)
+               r=Amplitude(1)*(dAveTotAbsAmp/dAveNorm)**k
+               WRITE(iUnit,"(2G25.17)") TL%dProbTransition(1,1,i,j)/(TL%dProbClust(2,i)*r),TL%dProbTransition(1,2,i,j)/(TL%dProbClust(2,i))
+            endif
+         enddo
+      enddo
+      WRITE(iUnit,"(A)") "Transition values/number transitions: Plain;   Debiased"
+      do i=0,TL%MaxIndex
+         do j=0,TL%MaxIndex 
+            if(TL%dProbTransition(1,2,i,j).ne.0) then
+               Call WriteClusterInd(iUnit,i,.false.)
+               WRITE(iUnit,"(A)",advance='no') "=>"
+               Call WriteClusterInd(iUnit,j,.false.)
+               k=GetClusterIndLevel(i)
+               WRITE(iUnit,"(2G25.17)") TL%dProbTransition(1,1,i,j)/TL%dProbTransition(1,2,i,j),TL%dProbTransition(2,1,i,j)/TL%dProbTransition(1,2,i,j)
+            endif
+         enddo
+      enddo
+   end subroutine 
+   subroutine DeleteTransitionLog(TL)
+      use CCMCData, only: CCTransitionLog
+      IMPLICIT NONE
+      TYPE(CCTransitionLog) TL
+      deallocate(TL%dProbClust)
+      deallocate(TL%dProbTransition)
+   end subroutine 
+   subroutine LogTransition(TL,C1,C1size,C2,C2size,value,dProbNorm)
+      use CCMCData, only: CCTransitionLog
+      IMPLICIT NONE
+      TYPE(CCTransitionLog) TL
+      INTEGER C1size,C2size
+      INTEGER C1(C1size),C2(C2size)
+      INTEGER i1,i2
+      REAL*8 value,dProbNorm 
+      i1=GetClusterIndex(C1,C1size)
+      i2=GetClusterIndex(C2,C2size)
+   ! We create a transition matrix where each element correpsonds to a cluster.  We encode cluster X=(a_{X_i}) = (x,y,z)  as an 'bit' string in base Det sum_{i=1}^{|X|} (X_i)*(Det)**(i-1)
+      TL%dProbTransition(1,1,i1,i2)=TL%dProbTransition(1,1,i1,i2)+value
+      TL%dProbTransition(1,2,i1,i2)=TL%dProbTransition(1,2,i1,i2)+1
+      TL%dProbTransition(2,1,i1,i2)=TL%dProbTransition(2,1,i1,i2)+value*dProbNorm
+      TL%dProbTransition(2,2,i1,i2)=TL%dProbTransition(2,2,i1,i2)+1*dProbNorm
+!      WRITE(6,"(A)",advance='no') "LT: "
+!      Call WriteClusterInd(6,i1,.false.)
+!      WRITE(6,"(A)",advance='no') "=>"
+!      Call WriteClusterInd(6,i2,.false.)
+!      WRITE(6,"(2I4,4G25.17)") i1,i2,value,dProbNorm,TL%dProbTransition(1,1,i1,i2),TL%dProbTransition(1,2,i1,i2)
+   end subroutine LogTransition
+   
+   subroutine LogCluster(TL,C)
+      use CCMCData, only: CCTransitionLog,Cluster
+      implicit None
+      TYPE(CCTransitionLog) TL
+      Type(Cluster) C
+      INTEGER I,iS,J
+      INTEGER Inds(C%iSize)
+      i=GetClusterIndex(C%SelectedExcitorIndices(:),C%iSize)
+! dProbNorm is the prob that a cluster in this level would've been chosen had they been equally weighted
+! 
+!  dClusterNorm is the probability that this cluster was chosen, given the level had already been selected.
+!  This includes multiple selections of the same excitor as well as combinations of excitors which produce a 0 sign.
+      TL%dProbClust(1,i)=TL%dProbClust(1,i)+1/(C%dProbNorm*C%dClusterNorm)
+      TL%dProbClust(2,i)=TL%dProbClust(2,i)+1
+!Now make a sorted unique version
+      Inds(:)=C%SelectedExcitorIndices(:)
+      iS=C%iSize
+      call neci_sorti(iS,Inds)
+      i=2
+      j=1
+      do while (j.le.iS.and.i.le.C%iSize)
+         if(Inds(i)==Inds(j)) then !remove this one (and shorten)
+            iS=iS-1
+            i=i+1
+         else
+            j=j+1
+            Inds(j)=Inds(i)
+            i=i+1
+         endif
+      enddo
+      if(iS==C%iSize) then
+         i=GetClusterIndex(Inds(:),iS)
+      else
+         i=-1
+      endif
+! dProbNorm is the prob that a cluster in this level would've been chosen had they been equally weighted
+! 
+!  dClusterNorm is the probability that this cluster was chosen, given the level had already been selected.
+!  This includes multiple selections of the same excitor as well as combinations of excitors which produce a 0 sign.
+      TL%dProbUniqClust(1,i)=TL%dProbUniqClust(1,i)+1/(C%dProbNorm*C%dClusterNorm)
+      TL%dProbUniqClust(2,i)=TL%dProbUniqClust(2,i)+1
+   end subroutine LogCluster
 END MODULE CCMC
 
 #ifdef PARALLEL

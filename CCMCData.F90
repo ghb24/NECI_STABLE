@@ -1,5 +1,6 @@
 module CCMCData
    use HElem
+   implicit none
    save
    real*8   dT1SqCuml
    logical  tExactCluster  ! Go through all combinations of excitors to make all clusters
@@ -24,9 +25,9 @@ TYPE Cluster
    INTEGER  iSgn                                      !The sign of the determinant after collapsing the cluster
    INTEGER iExcitLevel                                !The excitation level of the resultant det
 
-   REAL*8   dAmplitude
-! dAmplitude is the product of the coefficients of the excitors with the relevant normalizations.
-! i.e. N0  (tI/N0) (tJ/N0) ...
+   REAL*8   dAbsAmplitude
+! dAbsAmplitude is the product of the coefficients of the excitors with the relevant normalizations.
+! i.e. abs ( N0  (tI/N0) (tJ/N0) ... )
    REAL*8   dSelectionProb
 ! dSelectionProb is the probability that the cluster was selected
 
@@ -37,8 +38,6 @@ TYPE Cluster
 ! dProbNorm is the prob that a cluster in this level would've been chosen had they been equally weighted
    REAL*8   dClusterProb
 !dClusterProb is the Probability of having chosen this cluster excitor (normalized such that <1/dClusterProb> = 1)
-   REAL*8   dNGenComposite
-!dNGenComposite is | t_x1 t_x2 ... | / N_0 ^|X| 
    REAL*8   dClusterNorm                           
 !  dClusterNorm is the probability that this cluster was chosen, given the level had already been selected.  This includes multiple selections of the same excitor as well as combinations of excitors which produce a 0 sign.
 END TYPE Cluster
@@ -72,4 +71,12 @@ TYPE Spawner
    INTEGER              :: ExcitMat(2,2)   !Internal data corresponding to the excitation matrix of the last generated det.
    INTEGER              :: ExFlag
 END TYPE Spawner 
+
+TYPE CCTransitionLog
+   REAL*8, allocatable :: dProbTransition(:,:,:,:) !(2,2,nClust,nClust)
+   REAL*8, allocatable :: dProbClust(:,:)  !(2,nClust)
+   REAL*8, allocatable :: dProbUniqClust(:,:)  !(2,-1:nClust)
+   INTEGER MaxIndex
+END TYPE CCTransitionLog
+
 end module CCMCData
