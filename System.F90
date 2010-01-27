@@ -1506,24 +1506,28 @@ LOGICAL FUNCTION KALLOWED(G,NBASISMAX)
 END FUNCTION KALLOWED
 
 !dUnscaledEnergy gives the energy without reference to box size and without any offset.
-SUBROUTINE GetUEGKE(I,J,K,ALAT,tUEGOffset,k_offset,Energy,dUnscaledEnergy)
+SUBROUTINE GetUEGKE(I,J,K,ALAT,tUEGOffset,k_offset,Energy) !,dUnscaledEnergy)
    IMPLICIT NONE
    INCLUDE 'cons.inc'
    INTEGER I,J,K
    REAL*8 ALat(3),k_offset(3),Energy,E
    LOGICAL tUEGOffset
-   INTEGER dUnscaledEnergy
-   IF(tUEGOffset) then
-      E=((I+k_offset(1))**2/ALAT(1)**2)
-      E=E+((J+k_offset(2))**2/ALAT(2)**2)
-      E=E+((K+k_offset(3))**2/ALAT(3)**2)
-   else
-      E=(I*I/ALAT(1)**2)
-      E=E+(J*J/ALAT(2)**2)
-      E=E+(K*K/ALAT(3)**2)
-   endif
-   Energy=0.5*4*PI*PI*E
-   dUnscaledEnergy=(I*I)
-   dUnscaledEnergy=dUnscaledEnergy+(J*J)
-   dUnscaledEnergy=dUnscaledEnergy+(K*K)
+!   INTEGER dUnscaledEnergy
+!   IF(tUEGOffset) then
+!      E=((I+k_offset(1))**2/ALAT(1)**2)
+!      E=E+((J+k_offset(2))**2/ALAT(2)**2)
+!      E=E+((K+k_offset(3))**2/ALAT(3)**2)
+!   else
+!      E=(I*I/ALAT(1)**2)
+!      E=E+(J*J/ALAT(2)**2)
+!      E=E+(K*K/ALAT(3)**2)
+!   endif
+!   Energy=0.5*4*PI*PI*E
+!   dUnscaledEnergy=(I*I)
+!   dUnscaledEnergy=dUnscaledEnergy+(J*J)
+!   dUnscaledEnergy=dUnscaledEnergy+(K*K)
+   E=(I*I)
+   E=E+(J*J)
+   E=E+(K*K)
+   Energy=E
 END SUBROUTINE GetUEGKE
