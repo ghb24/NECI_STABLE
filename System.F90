@@ -1506,7 +1506,7 @@ LOGICAL FUNCTION KALLOWED(G,NBASISMAX)
 END FUNCTION KALLOWED
 
 !dUnscaledEnergy gives the energy without reference to box size and without any offset.
-SUBROUTINE GetUEGKE(I,J,K,ALAT,tUEGOffset,k_offset,Energy,dUnscaledEnergy)
+SUBROUTINE GetUEGKE(I,J,K,ALAT,tUEGOffset,k_offset,Energy) !,dUnscaledEnergy)
    IMPLICIT NONE
    INCLUDE 'cons.inc'
    INTEGER I,J,K
