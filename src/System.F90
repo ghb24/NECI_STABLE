@@ -1505,13 +1505,13 @@ LOGICAL FUNCTION KALLOWED(G,NBASISMAX)
 END FUNCTION KALLOWED
 
 !dUnscaledEnergy gives the energy without reference to box size and without any offset.
-SUBROUTINE GetUEGKE(I,J,K,ALAT,tUEGOffset,k_offset,Energy) !,dUnscaledEnergy)
+SUBROUTINE GetUEGKE(I,J,K,ALAT,tUEGOffset,k_offset,Energy,dUnscaledEnergy)
    use constants, only: Pi, Pi2, THIRD
    IMPLICIT NONE
    INTEGER I,J,K
    REAL*8 ALat(3),k_offset(3),Energy,E
    LOGICAL tUEGOffset
-!   INTEGER dUnscaledEnergy
+   INTEGER dUnscaledEnergy
 !   IF(tUEGOffset) then
 !      E=((I+k_offset(1))**2/ALAT(1)**2)
 !      E=E+((J+k_offset(2))**2/ALAT(2)**2)
