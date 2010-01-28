@@ -266,13 +266,16 @@ clean:
 cleanall:
 \trm -rf dest lib bin
 
-# Generate dependency files.
+# Generate dependency files for Fortran source files.
+# We assume that all module files are in *.F90 files.
+# This requires the JSS modified version of sfmakepend (supplied with neci).
 $(FRDEPEND):
-\t$(TOOLS)/sfmakedepend --file - --silent $(SRCFILES) --objdir \$$\(GDEST\) --moddir \$$\(GDEST\) > $(FRDEPEND)
+\t$(TOOLS)/sfmakedepend --file - --cpp --fext=f90 --depend=mod --silent --objdir \$$\(GDEST\) --moddir \$$\(GDEST\) $(FSRCFILES) $(F90SRCFILES) > $(FRDEPEND)
 
 $(FCDEPEND):
-\t$(TOOLS)/sfmakedepend --file - --silent $(SRCFILES) --objdir \$$\(KDEST\) --moddir \$$\(KDEST\) > $(FCDEPEND)
+\t$(TOOLS)/sfmakedepend --file - --cpp --fext=f90 --depend=mod --silent --objdir \$$\(KDEST\) --moddir \$$\(KDEST\) $(FSRCFILES) $(F90SRCFILES) > $(FCDEPEND)
 
+# Generate all dependency files.
 depend: 
 \t$(MAKE) -B $(FDEPEND) $(CDEPEND)
 
@@ -343,6 +346,11 @@ $(KDEST)/%%.f: %%.F
 \t$(CPP) -D__CMPLX $(CPP_BODY)
 
 # 2. Compile.
+
+# We assume that all module files are .F90 files.
+%%.mod:
+\tperl -w $(TOOLS)/compile_mod.pl -cmp "perl -w $(TOOLS)/compare_module_file.pl -compiler $(compiler)" -fc "$(FC) $(FFLAGS) $(F90FLAGS) %(module_flag)s$(dir $@) -I $(SRC) -c $(<:.o=.f90)" -provides "$@" -requires "$(<:.o=.f90)"
+
 $(F90OBJ) $(KF90OBJ): %%.o: %%.f90
 \tperl -w $(TOOLS)/compile_mod.pl -cmp "perl -w $(TOOLS)/compare_module_file.pl -compiler $(compiler)" -fc "$(FC) $(FFLAGS) $(F90FLAGS) %(module_flag)s$(dir $@) -I $(SRC) -c $< -o $@" -provides "$@" -requires "$^"
 
