@@ -244,7 +244,10 @@ KBLD_ENV = rm $(KDEST)/environment_report.* && $(MAKE) $(KDEST)/environment_repo
 # Creating an archive from *.o files.
 ARCHIVE = $(AR) $(ARFLAGS) $@ $^
 
-$(EXE)/neci.x : $(OBJECTS_NECI)
+$(EXE)/neci.x: $(EXE)/neci.$(CONFIG).$(OPT).x
+\tln -s -f $< $@
+
+$(EXE)/neci.$(CONFIG).$(OPT).x : $(OBJECTS_NECI)
 \t$(GBLD_ENV)
 \t$(LD) $(LDFLAGS) -o $@ $(OBJECTS_NECI) $(LIBS)
 

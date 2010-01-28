@@ -1,5 +1,6 @@
 /dest
-/Makefile
+/Makefile*
+/makefile*
 tags
 /bin
 /lib
