@@ -2896,6 +2896,8 @@ MODULE FciMCParMod
 !Broadcast info which needs to go to all processors
         CALL MPI_BCast(DiagSft,1,MPI_DOUBLE_PRECISION,root,MPI_COMM_WORLD,error)
         CALL MPI_BCast(InitWalkers,1,MPI_INTEGER,root,MPI_COMM_WORLD,error)
+        CALL MPI_BCast(NEquilSteps,1,MPI_INTEGER,root,MPI_COMM_WORLD,error)
+        CALL MPI_BCast(NShiftEquilSteps,1,MPI_INTEGER,root,MPI_COMM_WORLD,error)
         CALL MPI_BCast(SumENum,1,MPI_DOUBLE_PRECISION,root,MPI_COMM_WORLD,error)
         CALL MPI_BCast(TSinglePartPhase,1,MPI_LOGICAL,root,MPI_COMM_WORLD,error)
 !        CALL MPI_BCast(tChangenProcessors,1,MPI_LOGICAL,root,MPI_COMM_WORLD,error)
