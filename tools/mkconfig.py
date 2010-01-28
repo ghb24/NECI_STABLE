@@ -532,6 +532,6 @@ if __name__=='__main__':
             f = sys.stdout
         else:
             f = open(options.out, 'w')
-        f.write(create_makefile(options.dir, config_file))
+        f.write(create_makefile(options.dir, config_file, options.debug))
         if options.out != '-':
             f.close()
