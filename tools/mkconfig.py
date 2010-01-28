@@ -349,7 +349,12 @@ $(KDEST)/%%.f: %%.F
 
 # We assume that all module files are .F90 files.
 %%.mod:
-\tperl -w $(TOOLS)/compile_mod.pl -cmp "perl -w $(TOOLS)/compare_module_file.pl -compiler $(compiler)" -fc "$(FC) $(FFLAGS) $(F90FLAGS) %(module_flag)s$(dir $@) -I $(SRC) -c $(<:.o=.f90)" -provides "$@" -requires "$(<:.o=.f90)"
+\t# Fool compile_mod.pl.
+\t# If the .mod file exists but not the corresponding .time file, then it's possible we just compiled the relevant .f90
+\t# file using the object rule and so don't need to produce the .mod file again.  We test for the latter condition by
+\t# requiring the .o and .mod files have the same "last modified" time.
+\ttest -e $@ && test ! -e $(@:.mod=.time) && test $(stat -f %%m $@) -eq $(stat -f %%m $<) && touch $(@:.mod=.time) || true
+\tperl -w $(TOOLS)/compile_mod.pl -cmp "perl -w $(TOOLS)/compare_module_file.pl -compiler $(compiler)" -fc "$(FC) $(FFLAGS) $(F90FLAGS) %(module_flag)s$(dir $@) -I $(SRC) -c $(<:.o=.f90) -o $<" -provides "$@" -requires "$(<:.o=.f90)"
 
 $(F90OBJ) $(KF90OBJ): %%.o: %%.f90
 \tperl -w $(TOOLS)/compile_mod.pl -cmp "perl -w $(TOOLS)/compare_module_file.pl -compiler $(compiler)" -fc "$(FC) $(FFLAGS) $(F90FLAGS) %(module_flag)s$(dir $@) -I $(SRC) -c $< -o $@" -provides "$@" -requires "$^"
