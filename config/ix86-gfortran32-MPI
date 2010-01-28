@@ -7,7 +7,7 @@ compiler = GCC-f95-on-LINUX
 cpp = cpp
 cppflags = -P -C -traditional -D__Linux -DLAPACK -DFFT_DEFAULT -DPARALLEL
 libs = -L ~/lib/fftw-3.1.2/lib -L ~/src/lib/fftw-3.1.2/lib -L /usr/lib/atlas -lfftw3 -llapack -lblas 
-module_flag = -J
+module_flag = -M
 
 [dbg]
 fflags = -fcray-pointer -ffree-line-length-none -g -m32
