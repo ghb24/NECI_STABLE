@@ -325,7 +325,8 @@ help:
 \t@echo "vasplibs      make both libraries for integration with vasp."
 \t@echo "libs          make all libraries for integration with cpmd and vasp."
 \t@echo "clean         remove all compiled objects for the current platform and optimisation level." 
-\t@echo "cleanall      remove all compiled objects for all platforms and optimisation levels." 
+\t@echo "cleanall      remove all compiled objects for all platforms and optimisation levels and the dependency files." 
+\t@echo "tags          run ctags on all source files."
 \t@echo "depend        update the list of dependencies."
 \t@echo "help          print this message."
 
