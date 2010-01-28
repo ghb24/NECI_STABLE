@@ -105,11 +105,15 @@ ARFLAGS = -rcs
 #-----
 # Directory structure and setup
 
+# Config info
+CONFIG = %(config)s
+OPT = %(opt_level)s
+
 # Directories containing source files (space separated list).
 SRC = src
 
 # Directories in which compiled objects are placed.
-DEST = dest/%(config)s/opt
+DEST = dest/$(CONFIG)/$(OPT)
 # REAL (molecular and gamma-point) objects
 GDEST = $(DEST)/real
 # COMPLEX (k-point) objects
