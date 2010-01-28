@@ -1,0 +1,17 @@
+[main]
+fc = ifort
+compiler = INTEL-ifort9-on-LINUX
+cc = icc
+cpp = /usr/bin/cpp
+cppflags = -P -C -traditional -D__Linux -DLAPACK -DFFT_DEFAULT -DPOINTER8
+ld = ifort 
+ldflags = -Bstatic
+libs = -L /Library/Frameworks/Intel_MKL.framework/Versions/9.1.026/lib/em64t/ -lmkl  -lmkl_lapack -L ~/local/lib/ -lfftw3
+
+[dbg]
+fflags = -r8 -g
+cflags = -g -sb -C -errtags
+
+[opt]
+fflags = -r8 -O3 
+cflags = -O

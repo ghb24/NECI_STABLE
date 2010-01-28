@@ -1,0 +1,19 @@
+[main]
+fc = pathf95
+cc = pathcc
+ld = pathf95
+libs = -L ~/src/lib/fftw-3.1.2/lib -L ~/local/lib/pathscale/fftw-3.1.2/lib -lfftw3 -llapack -lblas
+cpp = /lib/cpp
+cppflags =  -P -C -traditional -D__Linux -DLAPACK -DFFT_DEFAULT
+compiler = pathf95 -on-LINUX
+module_flag = -module
+
+[dbg]
+fflags = -r8 -g
+
+[opt]
+fflags = -r8 -O3
+
+
+
+
