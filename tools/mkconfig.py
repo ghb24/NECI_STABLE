@@ -279,6 +279,12 @@ $(FCDEPEND):
 depend: 
 \t$(MAKE) -B $(FDEPEND) $(CDEPEND)
 
+tags: null_goal
+\tctags $(SRCFILES)
+
+# Empty goal.  Depending on this will force a rule to be run.
+null_goal: ;
+
 #-----
 # Shortcut goals
 
