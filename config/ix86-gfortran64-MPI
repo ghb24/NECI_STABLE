@@ -15,4 +15,4 @@ cflags = -g -errtags -m64
 
 [opt]
 fflags = -fcray-pointer -ffree-line-length-none -O4 -m64
-cflags = gcc  -O -m64
+cflags = -O -m64
