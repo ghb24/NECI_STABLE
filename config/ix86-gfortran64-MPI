@@ -7,7 +7,7 @@ compiler = GCC-f95-on-LINUX
 cpp = cpp
 cppflags = -P -C -traditional -D__Linux -DLAPACK -DFFT_DEFAULT -DPOINTER8 -DPARALLEL
 libs = -L ~/lib/fftw-3.1.2/lib -lfftw3 -llapack -lblas 
-module_flag = -J
+module_flag = -M
 
 [dbg]
 fflags = -fcray-pointer -ffree-line-length-none -g -m64
@@ -15,4 +15,4 @@ cflags = -g -errtags -m64
 
 [opt]
 fflags = -fcray-pointer -ffree-line-length-none -O4 -m64
-cflags = gcc  -O -m64
+cflags = -O -m64
