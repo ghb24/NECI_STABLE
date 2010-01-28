@@ -244,26 +244,43 @@ KBLD_ENV = rm $(KDEST)/environment_report.* && $(MAKE) $(KDEST)/environment_repo
 # Creating an archive from *.o files.
 ARCHIVE = $(AR) $(ARFLAGS) $@ $^
 
-$(EXE)/neci.x: $(EXE)/neci.$(CONFIG).$(OPT).x
-\tln -s -f $< $@
+# Link target to prerequisite.
+LINK = ln -s -f $< $@
 
-$(EXE)/neci.$(CONFIG).$(OPT).x : $(OBJECTS_NECI)
+# Compiling neci.x
+$(EXE)/neci.x: $(EXE)/neci.$(CONFIG).$(OPT).x
+\t$(LINK)
+
+$(EXE)/neci.$(CONFIG).$(OPT).x: $(OBJECTS_NECI)
 \t$(GBLD_ENV)
 \t$(LD) $(LDFLAGS) -o $@ $(OBJECTS_NECI) $(LIBS)
 
-$(LIB)/gneci-cpmd.a : $(OBJECTS_RCPMD)
+# Compiling libraries.
+$(LIB)/gneci-cpmd.a: $(LIB)/gneci-cpmd.$(CONFIG).$(OPT).a
+\t$(LINK)
+
+$(LIB)/kneci-cpmd.a: $(LIB)/kneci-cpmd.$(CONFIG).$(OPT).a
+\t$(LINK)
+
+$(LIB)/gneci-vasp.a: $(LIB)/gneci-vasp.$(CONFIG).$(OPT).a
+\t$(LINK)
+
+$(LIB)/kneci-vasp.a: $(LIB)/kneci-vasp.$(CONFIG).$(OPT).a
+\t$(LINK)
+
+$(LIB)/gneci-cpmd.$(CONFIG).$(OPT).a: $(OBJECTS_RCPMD)
 \t$(GBLD_ENV)
 \t$(ARCHIVE)
 
-$(LIB)/kneci-cpmd.a : $(OBJECTS_KCPMD)
+$(LIB)/kneci-cpmd.$(CONFIG).$(OPT).a: $(OBJECTS_KCPMD)
 \t$(KBLD_ENV)
 \t$(ARCHIVE)
 
-$(LIB)/gneci-vasp.a : $(OBJECTS_RVASP)
+$(LIB)/gneci-vasp.$(CONFIG).$(OPT).a: $(OBJECTS_RVASP)
 \t$(GBLD_ENV)
 \t$(ARCHIVE)
 
-$(LIB)/kneci-vasp.a : $(OBJECTS_KVASP)
+$(LIB)/kneci-vasp.$(CONFIG).$(OPT).a: $(OBJECTS_KVASP)
 \t$(KBLD_ENV)
 \t$(ARCHIVE)
 
