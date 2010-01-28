@@ -245,7 +245,7 @@ KBLD_ENV = rm $(KDEST)/environment_report.* && $(MAKE) $(KDEST)/environment_repo
 ARCHIVE = $(AR) $(ARFLAGS) $@ $^
 
 # Link target to prerequisite.
-LINK = ln -s -f $< $@
+LINK = cd $(dir $<) && ln -s -f $(<F) $(@F)
 
 # Compiling neci.x
 $(EXE)/neci.x: $(EXE)/neci.$(CONFIG).$(OPT).x
