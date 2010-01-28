@@ -115,6 +115,11 @@ GDEST = $(DEST)/real
 # COMPLEX (k-point) objects
 KDEST = $(DEST)/cmplx
 
+# Directories for dependencies.  It's safer to share them between all
+# config directories.
+GDEP_DEST = dest/depend/real
+KDEP_DEST = dest/depend/cmplx
+
 # Directory for compiled executable.
 EXE = bin
 
@@ -134,6 +139,8 @@ VPATH = $(subst $(space),:,$(SRC) $(DEST))
 # Create output directories if they don't exist.
 make_gdest := $(shell test -e $(GDEST) || mkdir -p $(GDEST))
 make_kdest := $(shell test -e $(KDEST) || mkdir -p $(KDEST))
+make_gdep_dest := $(shell test -e $(GDEP_DEST) || mkdir -p $(GDEP_DEST))
+make_kdep_dest := $(shell test -e $(KDEP_DEST) || mkdir -p $(KDEP_DEST))
 make_exe := $(shell test -e $(EXE) || mkdir -p $(EXE))
 make_lib := $(shell test -e $(LIB) || mkdir -p $(LIB))
 
@@ -205,18 +212,18 @@ OBJECTS_KVASP := $(addprefix $(KDEST)/,$(notdir $(OBJECTS_RVASP)))
 
 # Fortran dependencies.
 # We need these before compiling any fortran files.
-FRDEPEND = $(GDEST)/.depend
-FCDEPEND = $(KDEST)/.depend
+FRDEPEND = $(GDEP_DEST)/.depend
+FCDEPEND = $(KDEP_DEST)/.depend
 FDEPEND = $(FRDEPEND) $(FCDEPEND)
 
 # C dependencies.
 # We don't need these when we first compile, only when we recompile.
 # We achieve this (most of the time) by recompiling the C dependencies every
 # time we compile.
-CDEPEND_FILES = $(COBJ:.o=.d)
-cDEPEND_FILES = $(cOBJ:.o=.d)
-KCDEPEND_FILES = $(KCOBJ:.o=.d)
-KcDEPEND_FILES = $(KcOBJ:.o=.d)
+CDEPEND_FILES = $(addprefix $(GDEP_DEST)/,$(notdir $(COBJ:.o=.d)))
+cDEPEND_FILES = $(addprefix $(GDEP_DEST)/,$(notdir $(cOBJ:.o=.d)))
+KCDEPEND_FILES = $(addprefix $(KDEP_DEST)/,$(notdir $(KCOBJ:.o=.d)))
+KcDEPEND_FILES = $(addprefix $(KDEP_DEST)/,$(notdir $(KcOBJ:.o=.d)))
 CDEPEND = $(CDEPEND_FILES) $(cDEPEND_FILES) $(KCDEPEND_FILES) $(KcDEPEND_FILES)
 
 #-----
@@ -359,17 +366,17 @@ $(KcOBJ): $(KDEST)/%%.o: %%.c
 
 # Update C dependency files.
 # a) gamma-point.
-$(cDEPEND_FILES): $(GDEST)/%%.d: %%.c
+$(cDEPEND_FILES): $(GDEP_DEST)/%%.d: %%.c
 \t$(MAKE_C_GDEPS)
 
-$(CDEPEND_FILES): $(GDEST)/%%.d: %%.C
+$(CDEPEND_FILES): $(GDEP_DEST)/%%.d: %%.C
 \t$(MAKE_C_GDEPS)
 
 # b) k-point.
-$(KcDEPEND_FILES): $(KDEST)/%%.d: %%.c
+$(KcDEPEND_FILES): $(KDEP_DEST)/%%.d: %%.c
 \t$(MAKE_C_KDEPS)
 
-$(KCDEPEND_FILES): $(KDEST)/%%.d: %%.C
+$(KCDEPEND_FILES): $(KDEP_DEST)/%%.d: %%.C
 \t$(MAKE_C_KDEPS)
 
 #-----
@@ -382,9 +389,10 @@ include $(CDEPEND)
 
 def parse_options(my_args):
     parser = optparse.OptionParser(usage='mkconfig.py [options] configuration_file')
-    parser.add_option('-l', '--ls', action='store_true', default=False, help='Print list of available configurations.')
     parser.add_option('-d', '--dir', default='config/', help='Set directory containing the configuration files. Default: %default.')
     parser.add_option('-g', '--debug', action='store_true', default=False, help='Use the debug settings.  Default: use optimised settings.')
+    parser.add_option('-l', '--ls', action='store_true', default=False, help='Print list of available configurations.')
+    parser.add_option('-o', '--out', default='Makefile', help='Set the output filename to which the makefile is written.  Use -o - to write to stdout.  Default: %default.')
     parser.add_option('-p', '--print', dest='print_conf', action='store_true', default=False, help='Print settings in configuration file specified, or all settings if no configuration file is specified.')
     (options, args) = parser.parse_args(my_args)
     if not (options.print_conf or options.ls) and len(args) != 1:
@@ -471,7 +479,7 @@ def parse_config(config_dir, config_file):
     return config
 
 def create_makefile(config_dir, config_file, use_debug=False):
-    '''Create the Makefile using the options given in the config_file located in config_dir.'''
+    '''Returns the makefile using the options given in the config_file located in config_dir.'''
     if use_debug:
         config = parse_config(config_dir, config_file)['dbg']
         config.update(opt_level='debug')
@@ -479,9 +487,7 @@ def create_makefile(config_dir, config_file, use_debug=False):
         config = parse_config(config_dir, config_file)['opt']
         config.update(opt_level='optimised')
     config.update(config=config_file)
-    f=open('Makefile', 'w')
-    f.write(MAKEFILE_TEMPLATE % config)
-    f.close()
+    return MAKEFILE_TEMPLATE % (config)
 
 if __name__=='__main__':
     args=sys.argv[1:]
@@ -499,4 +505,10 @@ if __name__=='__main__':
             pprint.pprint(config)
             print
     else:
-        create_makefile(options.dir, config_file)
+        if options.out == '-':
+            f = sys.stdout
+        else:
+            f = open(options.out, 'w')
+        f.write(create_makefile(options.dir, config_file))
+        if options.out != '-':
+            f.close()
