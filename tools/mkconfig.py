@@ -202,13 +202,13 @@ KcOBJ := $(addprefix $(KDEST)/, $(cOBJ_bare))
 OBJECTS_NECI := $(filter-out %%libstub.o,$(OBJECTS))
 
 # Objects for CPMD library.
-# We don't need necimain.o, cpmdstub.o, init_coul.o, init_could2D.o.  We keep libstub though.
-OBJECTS_RCPMD := $(filter-out %%necimain.o %%cpmdstub.o %%init_coul.o %%init_could2D.o,$(OBJECTS)) 
+# We don't need necimain.o, cpmdstub.o, init_coul.o, init_coul2D.o.  We keep libstub though.
+OBJECTS_RCPMD := $(filter-out %%necimain.o %%cpmdstub.o %%init_coul.o %%init_coul2D.o,$(OBJECTS)) 
 OBJECTS_KCPMD := $(addprefix $(KDEST)/,$(notdir $(OBJECTS_RCPMD)))
 
 # Objects for VASP library.
-# We don't need necimain.o, vaspstub.o, init_coul.o, init_could2D.o.  We keep libstub though.
-OBJECTS_RVASP := $(filter-out %%necimain.o %%vaspstub.o %% %%init_coul.o %%init_could2D.o, $(OBJECTS)) 
+# We don't need necimain.o, vaspstub.o, init_coul.o, init_coul2D.o.  We keep libstub though.
+OBJECTS_RVASP := $(filter-out %%necimain.o %%vaspstub.o %% %%init_coul.o %%init_coul2D.o, $(OBJECTS)) 
 OBJECTS_KVASP := $(addprefix $(KDEST)/,$(notdir $(OBJECTS_RVASP)))
 
 #-----
