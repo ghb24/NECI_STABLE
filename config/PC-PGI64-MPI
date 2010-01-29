@@ -6,7 +6,7 @@ cc = mpicc
 cpp = /lib/cpp
 cppflags =  -P -C -traditional -D__Linux -D__PGI -DLAPACK -DFFT_DEFAULT -DPOINTER8 -DPARALLEL
 ld = mpif90
-libs = -L ~/src/lib/fftw-3.1.2/lib -lffwt3 -lacml
+libs = -L ~/src/lib/fftw-3.1.2/lib -lfftw3 -lacml
 module_flag = -module
 
 [dbg]
