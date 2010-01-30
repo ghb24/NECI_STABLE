@@ -473,10 +473,12 @@ Multiple configuration files can only be given in conjunction with the --print o
     if not (options.print_conf or options.ls):
         if len(args) > 1:
             print 'Incorrect arguments.'
+            parser.print_help()
+            sys.exit(1)
         if not config_file:
             print '.default file not found.'
-        parser.print_help()
-        sys.exit(1)
+            parser.print_help()
+            sys.exit(1)
 
     return (options, config_file)
 
