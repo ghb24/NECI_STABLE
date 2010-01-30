@@ -463,10 +463,10 @@ Multiple configuration files can only be given in conjunction with the --print o
 
     (options, args) = parser.parse_args(my_args)
 
-    if len(args) == 1:
-        config_file = ' '.join(args)
+    if len(args) >= 1:
+        config_file = ' '.join(os.path.join(options.dir, c) for c in args)
     elif len(args) == 0 and os.path.exists(os.path.join(options.dir, '.default')):
-        config_file = '.default'
+        config_file = os.path.join(options.dir, '.default')
     else:
         config_file = None
 
@@ -483,13 +483,13 @@ Multiple configuration files can only be given in conjunction with the --print o
     return (options, config_file)
 
 def list_configs(config_dir):
-    '''List all config files in config dir.  We assume only config files are in config_dir'''
+    '''Return the path to all config files in config_dir.  We assume only config files are in config_dir'''
     if os.path.isdir(config_dir):
-        return os.listdir(config_dir)
+        return [os.path.join(config_dir, f) for f in os.listdir(config_dir)]
     else:
         raise IOError, 'Config directory specified is not a directory: %s.' % (config_dir)
 
-def parse_config(config_dir, config_file):
+def parse_config(config_file):
     '''Parse the configuration file config_file located in the directory config_dir.'''
     parser = ConfigParser.RawConfigParser()
 
@@ -501,12 +501,10 @@ def parse_config(config_dir, config_file):
 
     minimal_options = ['fc', 'module_flag', 'cc', 'cpp', 'ld', 'libs']
 
-    file = os.path.join(config_dir, config_file)
+    if not os.path.exists(config_file):
+        raise IOError,'Config file does not exist: %s' % (config_file)
 
-    if not os.path.exists(file):
-        raise IOError,'Config file does not exist: %s' % (file)
-
-    parser.read(file)
+    parser.read(config_file)
 
     for s in parser.sections():
         if s not in valid_sections and s not in valid_sections_upper:
@@ -555,15 +553,20 @@ def parse_config(config_dir, config_file):
 
     return config
 
-def create_makefile(config_dir, config_file, use_debug=False):
-    '''Returns the makefile using the options given in the config_file located in config_dir.'''
+def create_makefile(config_file, use_debug=False):
+    '''Returns the makefile using the options given in the config_file.'''
     if use_debug:
-        config = parse_config(config_dir, config_file)['dbg']
+        config = parse_config(config_file)['dbg']
         config.update(opt_level='debug')
     else:
-        config = parse_config(config_dir, config_file)['opt']
+        config = parse_config(config_file)['opt']
         config.update(opt_level='optimised')
-    config.update(config=config_file)
+    # Set the name in the Makefile to be the basename of the config filename.  Follow any links.
+    if os.path.islink(config_file):
+        config_name = os.path.basename(os.readlink(config_file))
+    else:
+        config_name = os.path.basename(config_file)
+    config.update(config=config_name)
     return MAKEFILE_TEMPLATE % (config)
 
 if __name__=='__main__':
@@ -577,7 +580,7 @@ if __name__=='__main__':
         else:
             config_files = list_configs(options.dir)
         for config_file in config_files:
-            config = parse_config(options.dir, config_file)
+            config = parse_config(config_file)
             print 'Settings in configuration file: %s' % (config_file)
             pprint.pprint(config)
             print
@@ -586,6 +589,6 @@ if __name__=='__main__':
             f = sys.stdout
         else:
             f = open(options.out, 'w')
-        f.write(create_makefile(options.dir, config_file, options.debug))
+        f.write(create_makefile(config_file, options.debug))
         if options.out != '-':
             f.close()
