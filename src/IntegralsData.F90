@@ -9,11 +9,11 @@ LOGICAL :: TQUADRHO,TEXPRHO,THFBASIS,THFCALC,TCALCREALPROD
 LOGICAL :: TRHF,TReadTUMat,TReadHF,TQuadValMax,TQuadVecMax
 LOGICAL :: TSUMPROD,TCALCRHOPROD,TDISCONODES,TCalcExcitStar
 LOGICAL :: TJustQuads,TNoDoubs,TDiagStarStars,TExcitStarsRootChange
-LOGICAL :: TRmRootExcitStarsRootChange,TLinRootChange,tPartFreezeCore
+LOGICAL :: TRmRootExcitStarsRootChange,TLinRootChange,tPartFreezeCore,tPartFreezeVirt
 
 INTEGER :: NTAY(2),nHFit,NFROZEN,NTFROZEN,NFROZENIN,NTFROZENIN
 INTEGER :: NRSTEPSMAX,IHFMETHOD
-INTEGER :: NPartFrozen,NHolesFrozen
+INTEGER :: NPartFrozen,NHolesFrozen,NVirtPartFrozen,NElVirtFrozen
 
 
 REAL*8 :: NRCONV,RFCONV,OrbOrder2(8)

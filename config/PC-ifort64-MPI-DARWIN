@@ -2,6 +2,7 @@
 fc = mpif90 -I /usr/local/Cluster-Apps/infinipath/2.2/mpi/include/mpich/intel9/x86_64/
 cc = mpicc
 ld = mpif90
+ccd = icc
 compiler = INTEL-ifort9-on-LINUX
 cpp = /lib/cpp
 cppflags = -P -C -traditional -D__Linux -DLAPACK -DFFT_DEFAULT -DPOINTER8 -DPARALLEL

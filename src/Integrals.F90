@@ -47,7 +47,10 @@ MODULE Integrals
       NTFROZENIN=0
       NPartFrozen=0
       NHolesFrozen=0
+      NVirtPartFrozen=0
+      NElVirtFrozen=0
       tPartFreezeCore=.false.
+      tPartFreezeVirt=.false.
       OrbOrder(:,:)=0
       OrbOrder2(:)=0.d0
       nSlotsInit=1024
@@ -230,6 +233,15 @@ MODULE Integrals
             tPartFreezeCore=.true.
             call readi(NPartFrozen)
             call readi(NHolesFrozen)
+        case("PARTIALLYFREEZEVIRT")
+!This option works very similarly to the one above.  The integers following this keyword refer firstly to the number
+!of *spin* orbitals that are frozen from the highest energy virtual orbitals down.  The second integer refers to the 
+!number of electrons that are allowed to occupy these 'partially frozen' virtual orbitals.  I.e. NElVirtFrozen = 1, 
+!means that spawning is accepted if is to a determinant that only has one or less of the partially frozen virtual 
+!orbitals occupied.  Any more than this, and the spawning is rejected.
+            tPartFreezeVirt=.true.
+            call readi(NVirtPartFrozen)
+            call readi(NElVirtFrozen)
         case("ORDER")
             I = 1
             do while ( item .lt. nitems )

@@ -47,6 +47,7 @@ contains
 !   ZEROPROJE        Will rezero the averaged energy estimators
 !   ZEROHIST         Will rezero the averaged histogramming vectors
 !   PARTIALLYFREEZE XXX XXX Will change the number of holes/electrons in the core valence region
+!   PARTIALLYFREEZEVIRT XXX XXX Will change the number of electrons in the partially frozen virtual region
 !   PRINTERRORBLOCKING  Will print the blocking analysis
 !   STARTERRORBLOCKING  Will start the blocking analysis
 !   RESTARTERRORBLOCKING    Will restart the blocking analysis
@@ -63,7 +64,7 @@ contains
        use FciMCData, only : VaryShiftCycles,SumDiagSft,VaryShiftIter 
        use CalcData, only : Tau,DiagSft,SftDamp,StepsSft,SinglesBias,OccCASOrbs,VirtCASOrbs,NMCyc,tTruncCAS,NEquilSteps,tTruncInitiator
        use DetCalc, only : ICILevel 
-       use IntegralsData , only : tPartFreezeCore,NPartFrozen,NHolesFrozen
+       use IntegralsData , only : tPartFreezeCore,NPartFrozen,NHolesFrozen,NVirtPartFrozen,NElVirtFrozen,tPartFreezeVirt
        use Parallel
        use Input
        use Logging, only: tHistSpawn,tCalcFCIMCPsi,tIterStartBlock,IterStartBlocking,tHFPopStartBlock,NHistEquilSteps
@@ -71,7 +72,7 @@ contains
        implicit none
        integer :: error,i,ios,NewNMCyc
        logical :: tSoftExitFound,tWritePopsFound,exists,AnyExist,deleted_file
-       logical :: tEof,any_deleted_file,tChangeParams(23),tSingBiasChange
+       logical :: tEof,any_deleted_file,tChangeParams(24),tSingBiasChange
        Character(len=100) :: w
 
        tSoftExitFound=.false.
@@ -87,7 +88,7 @@ contains
                WRITE(6,*) "CHANGEVARS file detected on iteration ",Iter
            ENDIF
 !Set the defaults
-           tChangeParams(1:23)=.false.
+           tChangeParams(1:24)=.false.
            deleted_file=.false.
            do i=0,nProcessors-1
                ! This causes each processor to attempt to delete
@@ -163,6 +164,10 @@ contains
                            CALL Readi(NHistEquilSteps)
                        CASE("TRUNCINITIATOR")
                            tChangeParams(23)=.true.
+                       CASE("PARTIALLYFREEZEVIRT")                           
+                           tChangeParams(24)=.true.
+                           CALL Readi(NVirtPartFrozen)
+                           CALL Readi(NElVirtFrozen)
                        END SELECT
                    End Do
                    close(13,status='delete')
@@ -171,7 +176,7 @@ contains
                call MPI_AllReduce(deleted_file,any_deleted_file,1,MPI_LOGICAL,MPI_LOR,MPI_COMM_WORLD,error)
                if (any_deleted_file) exit
            end do
-           CALL MPI_BCast(tChangeParams,23,MPI_LOGICAL,i,MPI_COMM_WORLD,error)
+           CALL MPI_BCast(tChangeParams,24,MPI_LOGICAL,i,MPI_COMM_WORLD,error)
 
            IF(tChangeParams(1)) THEN
 !Change Tau
@@ -326,11 +331,10 @@ contains
                IF(NHolesFrozen.eq.NPartFrozen) THEN
                    ! Allowing as many holes as there are orbitals - equivalent to not freezing at all.
                    tPartFreezeCore=.false.
+                   CALL MPI_BCast(tPartFreezeCore,1,MPI_LOGICAL,i,MPI_COMM_WORLD,error)
                    IF(iProcIndex.eq.0) THEN
                        WRITE(6,*) 'Unfreezing any partially frozen core.'
                    ENDIF
-               ELSE
-                   tPartFreezeCore=.true.
                ENDIF
            ENDIF
            IF(tChangeParams(15)) THEN
@@ -385,6 +389,19 @@ contains
                IF(iProcIndex.eq.0) THEN
                    WRITE(6,*) "Beginning to allow spawning into inactive space for a truncated initiator calculation."
                    WRITE(6,*) "Reducing tau by an order of magnitude.  The new tau is: ",Tau
+               ENDIF
+           ENDIF
+           IF(tChangeParams(24)) THEN
+               CALL MPI_BCast(NVirtPartFrozen,1,MPI_INTEGER,i,MPI_COMM_WORLD,error)
+               CALL MPI_BCast(NElVirtFrozen,1,MPI_INTEGER,i,MPI_COMM_WORLD,error)
+               IF(iProcIndex.eq.0) WRITE(6,'(A,I4,A,I4,A)') 'Allowing ',NElVirtFrozen,' electrons in ',NVirtPartFrozen,' partially frozen virtual orbitals.'
+               IF(NElVirtFrozen.eq.NEl) THEN
+                   ! Allowing as many holes as there are orbitals - equivalent to not freezing at all.
+                   tPartFreezeVirt=.false.
+                   CALL MPI_BCast(tPartFreezeVirt,1,MPI_LOGICAL,i,MPI_COMM_WORLD,error)
+                   IF(iProcIndex.eq.0) THEN
+                       WRITE(6,*) 'Unfreezing any partially frozen virtuals.'
+                   ENDIF
                ENDIF
            ENDIF
        endif
@@ -520,7 +537,7 @@ contains
        use FciMCData, only : VaryShiftCycles,SumDiagSft,VaryShiftIter 
        use CalcData, only : Tau,DiagSft,SftDamp,StepsSft,SinglesBias,OccCASOrbs,VirtCASOrbs,NMCyc,tTruncCAS,NEquilSteps,tTruncInitiator
        use DetCalc, only : ICILevel 
-       use IntegralsData , only : tPartFreezeCore,NPartFrozen,NHolesFrozen
+       use IntegralsData , only : tPartFreezeCore,NPartFrozen,NHolesFrozen,tPartFreezeVirt,NVirtPartFrozen,NElVirtFrozen
        use Parallel
        use Input
        use Logging, only: tHistSpawn,tCalcFCIMCPsi,tIterStartBlock,IterStartBlocking,tHFPopStartBlock,NHistEquilSteps
@@ -529,7 +546,7 @@ contains
        implicit none
        integer :: error,i,ios,NewNMCyc
        logical :: tSoftExitFound,tWritePopsFound,exists,AnyExist,deleted_file
-       logical :: tEof,any_deleted_file,tChangeParams(23),tSingBiasChange
+       logical :: tEof,any_deleted_file,tChangeParams(24),tSingBiasChange
        Character(len=100) :: w
 
        tSoftExitFound=.false.
@@ -544,7 +561,7 @@ contains
                WRITE(6,*) "CHANGEVARS file detected on iteration ",Iter
            ENDIF
 !Set the defaults
-           tChangeParams(1:23)=.false.
+           tChangeParams(1:24)=.false.
            deleted_file=.false.
            do i=0,nProcessors-1
                ! This causes each processor to attempt to delete
@@ -620,6 +637,10 @@ contains
                            CALL Readi(NHistEquilSteps)
                        CASE("TRUNCINITIATOR")
                            tChangeParams(23)=.true.
+                       CASE("PARTIALLYFREEZEVIRT")
+                           tChangeParams(24)=.true.
+                           CALL Readi(NVirtPartFrozen)
+                           CALL Readi(NElVirtFrozen)
                        END SELECT
                    End Do
                    close(13,status='delete')
@@ -829,6 +850,19 @@ contains
                    WRITE(6,*) "Reducing tau by an order of magnitude.  The new tau is: ",Tau
                ENDIF
            ENDIF
+           IF(tChangeParams(24)) THEN
+               IF(iProcIndex.eq.0) WRITE(6,'(A,I4,A,I4,A)') 'Allowing ',NElVirtFrozen,' electrons in ',NVirtPartFrozen,' partially frozen virtual orbitals.'
+               IF(NElVirtFrozen.eq.NEl) THEN
+                   ! Allowing as many holes as there are orbitals - equivalent to not freezing at all.
+                   tPartFreezeVirt=.false.
+                   IF(iProcIndex.eq.0) THEN
+                       WRITE(6,*) 'Unfreezing any partially frozen virtuals.'
+                   ENDIF
+               ELSE
+                   tPartFreezeVirt=.true.
+               ENDIF
+           ENDIF
+ 
        endif
 
 99     IF (ios.gt.0) THEN

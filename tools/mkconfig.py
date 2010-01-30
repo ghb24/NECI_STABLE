@@ -39,6 +39,10 @@ cc [required]
     Set the C compiler.
 cflags
     Set flags to be passed to the C compiler during compilation.
+ccd
+    Set the C compiler to be used to generate the dependencies.  The default behaviour
+    is to use the compiler defined by cc.  This is useful for compiling in parallel
+    if mpicc does not like the flags needed for producing the dependencies.
 cpp [required]
     Set the C pre-processor (only used with *.F and *.F90 files, as the
     C compiler handles pre-processing of C source files).
@@ -95,6 +99,14 @@ F90FLAGS = %(f90flags)s
 # c compiler and flags.
 CC = %(cc)s
 CFLAGS = %(cflags)s
+
+# Some servers (I'm looking at you, darwin) have a buggy implementation of the
+# mpicc wrapper which doesn't like being passed the necessary flags to produce
+# C dependencies.  If this is the case, we use the C compiler directly.
+CCD = %(ccd)s
+ifndef CCD
+CCD = $(CC)
+endif
 
 # linker, linker flags and libraries.
 LD = %(ld)s
@@ -205,13 +217,13 @@ KcOBJ := $(addprefix $(KDEST)/, $(cOBJ_bare))
 OBJECTS_NECI := $(filter-out %%libstub.o,$(OBJECTS))
 
 # Objects for CPMD library.
-# We don't need necimain.o, cpmdstub.o, init_coul.o, init_could2D.o.  We keep libstub though.
-OBJECTS_RCPMD := $(filter-out %%necimain.o %%cpmdstub.o %%init_coul.o %%init_could2D.o,$(OBJECTS)) 
+# We don't need necimain.o, cpmdstub.o, init_coul.o, init_coul2D.o.  We keep libstub though.
+OBJECTS_RCPMD := $(filter-out %%necimain.o %%cpmdstub.o %%init_coul.o %%init_coul2D.o,$(OBJECTS)) 
 OBJECTS_KCPMD := $(addprefix $(KDEST)/,$(notdir $(OBJECTS_RCPMD)))
 
 # Objects for VASP library.
-# We don't need necimain.o, vaspstub.o, init_coul.o, init_could2D.o.  We keep libstub though.
-OBJECTS_RVASP := $(filter-out %%necimain.o %%vaspstub.o %% %%init_coul.o %%init_could2D.o, $(OBJECTS)) 
+# We don't need necimain.o, vaspstub.o, init_coul.o, init_coul2D.o.  We keep libstub though.
+OBJECTS_RVASP := $(filter-out %%necimain.o %%vaspstub.o %% %%init_coul.o %%init_coul2D.o, $(OBJECTS)) 
 OBJECTS_KVASP := $(addprefix $(KDEST)/,$(notdir $(OBJECTS_RVASP)))
 
 #-----
@@ -359,8 +371,8 @@ help:
 # Some more helpful macros.
 CPP_BODY = $(CPPFLAGS) $< $@
 C_BODY = $(CFLAGS) -c $< -o $@ 
-MAKE_C_GDEPS = $(CC) $(CFLAGS) -MM -MT \$$\(GDEST\)/$(addsuffix .o,$(basename $(notdir $@))) $< -o $@
-MAKE_C_KDEPS = $(CC) $(CFLAGS) -MM -MT \$$\(KDEST\)/$(addsuffix .o,$(basename $(notdir $@))) $< -o $@
+MAKE_C_GDEPS = $(CCD) $(CFLAGS) -MM -MT \$$\(GDEST\)/$(addsuffix .o,$(basename $(notdir $@))) $< -o $@
+MAKE_C_KDEPS = $(CCD) $(CFLAGS) -MM -MT \$$\(KDEST\)/$(addsuffix .o,$(basename $(notdir $@))) $< -o $@
 
 # Compiling fortran source files...
 
@@ -480,7 +492,7 @@ def parse_config(config_dir, config_file):
 
     valid_sections_upper = [s.upper() for s in valid_sections]
 
-    valid_options = ['fc', 'fflags', 'f77flags', 'f90flags', 'module_flag', 'compiler', 'cc', 'cflags', 'cpp', 'cppflags', 'ld', 'ldflags', 'libs', 'max_mem']
+    valid_options = ['fc', 'fflags', 'f77flags', 'f90flags', 'module_flag', 'compiler', 'cc', 'cflags', 'ccd', 'cpp', 'cppflags', 'ld', 'ldflags', 'libs', 'max_mem']
 
     minimal_options = ['fc', 'module_flag', 'cc', 'cpp', 'ld', 'libs']
 

@@ -26,7 +26,7 @@ MODULE FciMCParMod
     USE Determinants , only : FDet,GetHElement2,GetHElement4
     USE DetCalc , only : ICILevel,nDet,Det,FCIDetIndex
     use GenRandSymExcitNUMod , only : GenRandSymExcitScratchNU,GenRandSymExcitNU,ScratchSize
-    use IntegralsData , only : fck,NMax,UMat,tPartFreezeCore,NPartFrozen,NHolesFrozen
+    use IntegralsData , only : fck,NMax,UMat,tPartFreezeCore,NPartFrozen,NHolesFrozen,tPartFreezeVirt,NVirtPartFrozen,NElVirtFrozen
     USE UMatCache , only : GTID
     USE Logging , only : iWritePopsEvery,TPopsFile,TZeroProjE,iPopsPartEvery,tBinPops,tHistSpawn,iWriteHistEvery,tHistEnergies,IterShiftBlock
     USE Logging , only : NoACDets,BinRange,iNoBins,OffDiagBinRange,OffDiagMax,tPrintSpinCoupHEl!,iLagMin,iLagMax,iLagStep,tAutoCorr
@@ -721,7 +721,7 @@ MODULE FciMCParMod
 !Calculate number of children to spawn
                 IF(IsNullDet(nJ)) THEN
                     Child=0
-                ELSEIF(((TTruncSpace.or.tTruncCAS).and.(.not.tTruncInitiator)).or.tListDets.or.tPartFreezeCore.or.tFixLz.or.tUEG) THEN
+                ELSEIF(((TTruncSpace.or.tTruncCAS).and.(.not.tTruncInitiator)).or.tListDets.or.tPartFreezeCore.or.tPartFreezeVirt.or.tFixLz.or.tUEG) THEN
 !We have truncated the excitation space at a given excitation level. See if the spawn should be allowed.
 !If we are using the CASStar - all spawns are allowed so no need to check.
                     IF(tImportanceSample) CALL Stop_All("PerformFCIMCyc","Truncated calculations not yet working with importance sampling")
@@ -9159,7 +9159,7 @@ MODULE FciMCParMod
 !This is a list of options which cannot be used with the stripped-down spawning routine. New options not added to this routine should be put in this list.
         IF(tHighExcitsSing.or.tHistSpawn.or.tRegenDiagHEls.or.tFindGroundDet.or.tStarOrbs.or.tResumFCIMC.or.tSpawnAsDet.or.tImportanceSample    &
      &      .or.(.not.tRegenExcitgens).or.(.not.tNonUniRandExcits).or.(.not.tDirectAnnihil).or.tMinorDetsStar.or.tSpawnDominant.or.(DiagSft.gt.0.D0).or.   &
-     &      tPrintTriConnections.or.tHistTriConHEls.or.tCalcFCIMCPsi.or.tTruncCAS.or.tListDets.or.tPartFreezeCore.or.tUEG.or.tHistHamil.or.TReadPops) THEN
+     &      tPrintTriConnections.or.tHistTriConHEls.or.tCalcFCIMCPsi.or.tTruncCAS.or.tListDets.or.tPartFreezeCore.or.tPartFreezeVirt.or.tUEG.or.tHistHamil.or.TReadPops) THEN
             WRITE(6,*) "It is not possible to use to clean spawning routine..."
         ELSE
             WRITE(6,*) "Clean spawning routine in use..."
@@ -9335,6 +9335,10 @@ MODULE FciMCParMod
             WRITE(6,'(A,I4,A,I5)') 'Partially freezing the lowest ',NPartFrozen,' spin orbitals so that no more than ',NHolesFrozen,' holes exist within this core.'
             CALL CreateSpinInvBRR()
         ENDIF
+        IF(tPartFreezeVirt) THEN
+            WRITE(6,'(A,I4,A,I5)') 'Partially freezing the highest ',NVirtPartFrozen,' virtual spin orbitals so that no more than ',NElVirtFrozen,' electrons occupy these orbitals.'
+            CALL CreateSpinInvBRR()
+        ENDIF
 
 !        IF(TAutoCorr) THEN
 !!We want to calculate the autocorrelation function over the determinants
@@ -9395,7 +9399,7 @@ MODULE FciMCParMod
             ELSEIF(iHighExcitsSing.eq.NEl) THEN
                 CALL Warning("SetupParameters","iHighExcitsSing = NEl - this will no longer have any effect.")
             ENDIF
-            IF((.not.tNonUniRandExcits).or.tStarOrbs.or.tTruncSpace.or.tTruncCAS.or.tListDets.or.tPartFreezeCore) THEN
+            IF((.not.tNonUniRandExcits).or.tStarOrbs.or.tTruncSpace.or.tTruncCAS.or.tListDets.or.tPartFreezeCore.or.tPartFreezeVirt) THEN
                 CALL Stop_All("SetupParameters","Cannot use HighExcitsSing without Nonuniformrandexcits, or with starorbs or truncated spaces...")
             ENDIF
         ENDIF
@@ -9453,7 +9457,7 @@ MODULE FciMCParMod
 !We pass in the excitation level of the original particle, the two representations of the excitation (we only need the bit-representation of the excitation
 !for HPHF) and the magnitude of the excitation (for determinant representation).
     LOGICAL FUNCTION CheckAllowedTruncSpawn(WalkExcitLevel,nJ,iLutnJ,IC)
-        INTEGER :: nJ(NEl),WalkExcitLevel,iLutnJ(0:NIfTot),ExcitLevel,IC,iGetExcitLevel_2,i,NoInFrozenCore,TotalLz
+        INTEGER :: nJ(NEl),WalkExcitLevel,iLutnJ(0:NIfTot),ExcitLevel,IC,iGetExcitLevel_2,i,NoInFrozenCore,TotalLz,MinVirt
         INTEGER :: kx,ky,kz ! For UEG
 
         CheckAllowedTruncSpawn=.true.
@@ -9548,12 +9552,35 @@ MODULE FciMCParMod
             IF(NoInFrozenCore.lt.(NPartFrozen-NHolesFrozen)) THEN
 !There are more holes in the partially frozen core than has been specified as allowed.
                 CheckAllowedTruncSpawn=.false.
-            ELSE
+!            ELSE
 !Either the 'partially frozen core' is completely full, or it has the allowed number of holes or less.                
 !Allowed to spawn, CheckAllowedTruncSpawn=.true.
-                CheckAllowedTruncSpawn=.true.
+!                CheckAllowedTruncSpawn=.true.
             ENDIF
 
+        ENDIF
+
+        IF(tPartFreezeVirt) THEN
+!Want to check if the determinant we're about to spawn on has more than the restricted number of electrons in the partially frozen virtual orbitals.
+
+!Run through the electrons in nJ, count the number in the partially frozen virtual orbitals - ie those occupying orbitals with energy (from BRR) 
+!greater than that of the minimum unfrozen virtual.
+!If this is greater than NElVirtFrozen then spawning is forbidden.
+            NoInFrozenCore=0
+            MinVirt=nBasis-NVirtPartFrozen
+!BRR(i)=j: orbital i is the j-th lowest in energy  
+            do i=1,NEl
+                IF(SpinInvBRR(nJ(i)).gt.MinVirt) NoInFrozenCore=NoInFrozenCore+1
+                IF(NoInFrozenCore.gt.NElVirtFrozen) THEN
+!There are more electrons in the partially frozen virtual orbitals than has been specified as allowed.
+                    CheckAllowedTruncSpawn=.false.
+                    EXIT   ! Can exit out of the loop if this is satisfied, since excitation will definitely be accepted.
+                ENDIF
+            enddo
+!Either the 'partially frozen virtual orbitals' are completely empty, or have the allowed number of electrons or less.                
+!Allowed to spawn, CheckAllowedTruncSpawn=.true.
+!                CheckAllowedTruncSpawn=.true.
+!Want to be able to make it unable to spawn, but not able to spawn again.
         ENDIF
 
 !The excitation generators should now only generate Lz allowed excitations if tFixLz is true.
