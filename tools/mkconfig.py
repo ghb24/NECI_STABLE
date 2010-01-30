@@ -463,15 +463,18 @@ Multiple configuration files can only be given in conjunction with the --print o
 
     (options, args) = parser.parse_args(my_args)
 
-    if len(args) > 1:
+    if len(args) == 1:
         config_file = ' '.join(args)
     elif len(args) == 0 and os.path.exists(os.path.join(options.dir, '.default')):
         config_file = '.default'
     else:
         config_file = None
 
-    if not (options.print_conf or options.ls) and (len(args) > 1 or not config_file):
-        print 'Incorrect arguments.'
+    if not (options.print_conf or options.ls):
+        if len(args) > 1:
+            print 'Incorrect arguments.'
+        if not config_file:
+            print '.default file not found.'
         parser.print_help()
         sys.exit(1)
 
