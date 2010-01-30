@@ -2,7 +2,9 @@
 '''Produce a makefile for compiling the neci source code for a specified target/configuration.
 
 Usage:
-    mkconfig.py [options] configuration_file
+    mkconfig.py [options] [configuration_file]
+
+Use the --help option to see more details.
 
 A platform is defined using a simple ini file, consisting of three sections:
 main, opt and dbg.  For instance::
@@ -18,11 +20,12 @@ main, opt and dbg.  For instance::
     [dbg]
     cflags = -g
 
-The 'opt' and 'dbg' sections inherit settings from the 'main' section.  The settings
-in 'opt' are used by default; the debug options can be selected by passing the
--g option to mkconfig.py.
+The 'opt' and 'dbg' sections inherit settings from the 'main' section unless
+that option is explicitly set, in which case the value in 'main' is overridden.
+The settings in 'opt' are used by default; the debug options can be selected by
+passing the -g option to mkconfig.py.
 
-Available options are:
+Available options for use in the ini file are:
 
 fc [required]
     Set the fortran compiler.
@@ -432,21 +435,34 @@ include $(CDEPEND)
 '''
 
 def parse_options(my_args):
-    parser = optparse.OptionParser(usage='mkconfig.py [options] configuration_file')
+    '''Parse command line options given in the my_args list.
+
+Returns the options object and a space separated list of configuration files.'''
+    parser = optparse.OptionParser(usage='''mkconfig.py [options] [configuration_file(s)]
+
+If no configuration file is given then the .default file in the specified directory is used.
+A configuration file does not need to be specified with the --ls and --print options.
+Multiple configuration files can only be given in conjunction with the --print option.''')
     parser.add_option('-d', '--dir', default='config/', help='Set directory containing the configuration files. Default: %default.')
     parser.add_option('-g', '--debug', action='store_true', default=False, help='Use the debug settings.  Default: use optimised settings.')
     parser.add_option('-l', '--ls', action='store_true', default=False, help='Print list of available configurations.')
     parser.add_option('-o', '--out', default='Makefile', help='Set the output filename to which the makefile is written.  Use -o - to write to stdout.  Default: %default.')
-    parser.add_option('-p', '--print', dest='print_conf', action='store_true', default=False, help='Print settings in configuration file specified, or all settings if no configuration file is specified.')
+    parser.add_option('-p', '--print', dest='print_conf', action='store_true', default=False, help='Print settings in configuration file(s) specified, or all settings if no configuration file is specified.')
+
     (options, args) = parser.parse_args(my_args)
-    if not (options.print_conf or options.ls) and len(args) != 1:
+
+    if len(args) > 1:
+        config_file = ' '.join(args)
+    elif len(args) == 0 and os.path.exists(os.path.join(options.dir, '.default')):
+        config_file = '.default'
+    else:
+        config_file = None
+
+    if not (options.print_conf or options.ls) and (len(args) > 1 or not config_file):
         print 'Incorrect arguments.'
         parser.print_help()
         sys.exit(1)
-    elif len(args) == 1:
-        config_file = args[0]
-    else:
-        config_file = None
+
     return (options, config_file)
 
 def list_configs(config_dir):
@@ -540,7 +556,7 @@ if __name__=='__main__':
         print 'Available configurations are: %s.' % (', '.join(list_configs(options.dir)))
     elif options.print_conf:
         if config_file:
-            config_files = [config_file]
+            config_files = config_file.split()
         else:
             config_files = list_configs(options.dir)
         for config_file in config_files:
