@@ -253,8 +253,9 @@ FCIMC options
     Specify the CCMC debug level.  Default 0 (no debugging information printed).  Higher numbers will generate more
     information.
 
-**CCMCLOGTRANSITIONS** 
+**CCMCLOGTRANSITIONS** [**NONUNIQUE** **UNIQUE**]
     Do we log all transitions in CCMC.  Very slow and memory intensive - only possible for extremely small systems.
+      Default is **UNIQUE**.  If **NONUNIQUE** is specified, then clusters with different orders are distinguished.
 
 GraphMorph options
 ------------------
