@@ -1882,7 +1882,7 @@ END SUBROUTINE
                endif
                if(abs(rat).gt.1e-4*dTolerance*dInitAmplitude) then
 !Now add in a contribution from the child
-                  CALL FindBitExcitLevel(iLutHF,S%iLutnJ(:),IC,nEl)
+                  IC = FindBitExcitLevel(iLutHF, S%iLutnJ(:), nEl)
                   CALL BinSearchParts3(S%iLutnJ(:),FCIDets(:,:),Det,FCIDetIndex(IC),FCIDetIndex(IC+1)-1,PartIndex,tSuc)
                   if(.not.tSuc) THEN      
                      WRITE(6,*) "Cannot find excitor "

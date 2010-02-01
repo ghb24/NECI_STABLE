@@ -18,21 +18,17 @@ logical :: tImportanceSample, tERLocalization, tOffDiagMin, tFindCINatOrbs
 logical :: tNoRenormRandExcits, tAssumeSizeExcitgen, tCycleOrbs, tROIteration
 logical :: tShakeIter, tRotateOccOnly, tDoubExcMin, tUseHFOrbs, tRotateOrbs
 logical :: tNonUniRandExcits, tNoSymGenRandExcits, tLagrange, tShakeApprox
-logical :: tShake, tRotateVirtOnly, tMaxHLGap, tCacheFCIDUMPInts, tNoFailAb
+logical :: tShake, tRotateVirtOnly, tMaxHLGap, tCacheFCIDUMPInts
 
 logical :: tRIIntegrals   ! Read in RI 2-e integrals from RIDUMP file
-logical :: tCSFOld        ! Use (Alex's) old CSF code
-logical :: tCSF           ! Use CSFs
-logical :: tTruncateCSF   ! Use determinants not CSFs for nopen > 
-                          ! csf_trunc_level
 logical :: tStoreSpinOrbs ! This is set when the orbitals are stored in 
                           ! spin-orbital notation
-logical :: tLatticeGens   ! These are temporary inputs for UEG
+
 
 integer :: iParity(5), nMaxX, nMaxY, nMaxZ, nMSH, coulDampOrb, elecPairs
 integer :: roIterMax, iRanLuxLev, DiagMaxMinFac, OneElmaxMinFac, iState
-integer :: iPeriodicDampingType, iTiltX, iTiltY, nOccAlpha, nOccBeta
-integer :: ShakeIterMax, ShakeStart, MaxMinFac, MaxABPairs
+integer :: iTiltX, iTiltY, nOccAlpha, nOccBeta, ShakeIterMax, ShakeStart
+integer :: MaxMinFac, MaxABPairs
 real*8 :: BOX, BOA, COA, fUEGRs, fRc, fCoul, OrbECutoff, UHUB, BHUB
 real*8 :: Diagweight, OffDiagWeight, OrbEnMaxAlpha, Alpha, fCoulDampBeta
 real*8 :: fCoulDampMu, TimeStep, ConvergedForce, ShakeConverged, UMATEps
@@ -49,9 +45,27 @@ integer :: csf_trunc_level ! Max nopen for CSFs if tTruncateCSF enabled. Above
 logical :: tListDets    ! A list of allowed determinants in FciMC will be read
                         ! in and particles are only allowed here
 
+! Inputs for CSFs
+logical :: tCSFOld        ! Use (Alex's) old CSF code
+logical :: tCSF           ! Use CSFs
+logical :: tTruncateCSF   ! Use determinants not CSFs for nopen > 
+                          ! csf_trunc_level
+
 ! Calculate size of FCI determinant space using MC
 logical :: tMCSizeSpace 
 integer*8 :: CalcDetPrint, CalcDetCycles   ! parameters
+
+! Inputs for the UEG
+logical :: tLatticeGens   ! Use new UEG excitation generators
+logical :: tNoFailAb
+logical :: tUEGOffset     ! Use twisted boundary conditions
+
+! For the UEG, we damp the exchange interactions.
+!    0 means none
+!    1 means screened (using an erfc)
+!    2 means hard spherical cut-off (at a distance Rc=ALAT(4))
+!      [see JSS, ASA PRB 77, 193110 (2008)]
+integer :: iPeriodicDampingType
 
 ! Used to be stored in Integrals
 INTEGER :: ORBORDER(8,2)
@@ -147,10 +161,5 @@ LOGICAL :: tHFNoOrder
 !  and group them under the same symrep
 LOGICAL :: tSymIgnoreEnergies
 
-! For the UEG, we damp the exchange interactions.
-!    0 means none
-!    1 means screened (using an erfc)
-!    2 means hard spherical cut-off (at a distance Rc=ALAT(4)) [see JSS, ASA PRB 77, 193110 (2008)]
-INTEGER iPeriodicDampingType
 
 end module SystemData
