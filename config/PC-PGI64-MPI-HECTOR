@@ -1,0 +1,17 @@
+[main]
+fc = ftn
+f90flags = -Mfree 
+compiler = PGI-pgf95-on-LINUX
+cc = cc
+cpp = /lib/cpp
+cppflags =  -P -C -traditional -D__Linux -D__PGI -DLAPACK -DFFT_DEFAULT -DPOINTER8 -DPARALLEL
+ld = ftn
+module_flag = -module
+
+[dbg]
+fflags = -g
+cflags = -m64 -g -sb -C -errtags
+
+[opt]
+fflags = -fastsse -Minfo -Mneginfo
+cflags = -m64 -O2

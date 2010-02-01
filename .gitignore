@@ -1,6 +1,7 @@
-/.compileconf
-/dest/
-/kdest/
-/mktemplate
-/neci.x
-/tags
+/dest
+/Makefile*
+/makefile*
+tags
+/bin
+/lib
+/config/.default

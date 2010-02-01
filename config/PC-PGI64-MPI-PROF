@@ -1,0 +1,19 @@
+[main]
+fc = mpif90 
+f90flags = -Mfree 
+compiler = PGI-pgf95-on-LINUX
+cc = mpicc
+cpp = /lib/cpp
+cppflags =  -P -C -traditional -D__Linux -D__PGI -DLAPACK -DFFT_DEFAULT -DPOINTER8 -DPARALLEL
+ld = mpif90
+libs = -L ~/src/lib/fftw-3.1.2/lib -lffwt3 -lacml
+module_flag = -module
+
+[dbg]
+fflags = -g -r8 pc=64 -Msignextend -Minform=warn -Msecond_underscore
+cflags = -g -C
+
+[opt]
+fflags = -fastsse -tp k8-64 -r8 pc=64 -Msignextend -Minform=warn -Msecond_underscore -Mprof=func
+cflags = -O2 -m64
+ldflags = -Mprof=func

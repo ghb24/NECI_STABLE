@@ -1,0 +1,16 @@
+[main]
+fc = gfortran
+cc = gcc
+ld = gfortran
+cpp = cpp
+cppflags = -P -C -traditional -D__Linux -DLAPACK -DFFT_DEFAULT -DGFORTRAN
+fflags = -fcray-pointer -ffree-line-length-none -J$(DEST)
+libs = -L/sw/lib/ -lfftw3 -framework vecLib
+
+[dbg]
+fflags = -g 
+cflags = -g -sb -C -errtags
+
+[opt]
+fflags = -O4
+cflags = -O
