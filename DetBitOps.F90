@@ -1,8 +1,11 @@
 !This file contains a load of useful operations to perform on determinants represented as bit-strings.
 ! Start the process of modularising this bit!!
 module DetBitOps
-    use Systemdata, only: nel, NIfD, NIfY, NIfTot, tCSF
+    use Systemdata, only: nel, NIfD, NIfY, NIfTot, tCSF, tTruncateCSF, &
+                          csf_trunc_level
     use csf_data, only: iscsf, csf_yama_bit, csf_orbital_mask, csf_test_bit
+    ! TODO: remove
+    use systemdata, only: g1
     implicit none
 
     ! http://gurmeetsingh.wordpress.com/2008/08/05/fast-bit-counting-routines/
@@ -554,10 +557,21 @@ module DetBitOps
         integer, intent(in) :: iLut(0:NIfTot)
         integer, intent(out) :: nI(nel)
         integer :: i, j, elec, pos, nopen
+        logical :: bIsCsf
+
+        bIsCsf = .false.
+        if (tCSF) then
+            if (tTruncateCSF) then
+                nopen = count_open_orbs(iLut)
+                if (nopen <= csf_trunc_level) then
+                    bIsCsf = .true.
+                endif
+            endif
+        endif
 
         elec=0
         ! TODO: decode to normal determinant if nopen > cutoff!!!
-        if (tCSF) then
+        if (bIsCsf) then
             ! Consider the closed shell electrons first
             do i=0,NIfD
                 do j=0,30,2
@@ -603,9 +617,10 @@ module DetBitOps
                         !An electron is at this orbital
                         elec=elec+1
                         nI(elec)=(i*32)+(j+1)
-                        if(elec.eq.nel) return
+                        if (elec == nel) exit
                     endif
                 enddo
+                if (elec == nel) exit
             enddo
         endif
         if (CountBits(ilut, NIfD) > nel) then

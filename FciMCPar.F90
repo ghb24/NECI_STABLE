@@ -697,7 +697,7 @@ MODULE FciMCParMod
                                 elseif (tCSF) then
                                     ! TODO: fix this exFlag
                                     exFlag = 7
-                                    call GenRandSymCSFExcit (DetCurr, CurrentDets(:,j), nJ, 0.04_dp, 0.95_dp, IC, Ex, exFlag, Prob, Scratch1, Scratch2, Scratch3, tFilled)
+                                    call GenRandSymCSFExcit (DetCurr, CurrentDets(:,j), nJ, 0.04_dp, 0.95_dp, IC, Ex, exFlag, Prob, Scratch1, Scratch2, Scratch3, tFilled, tParity)
                                 else
                                     CALL GenRandSymExcitScratchNU(DetCurr,CurrentDets(:,j),nJ,pDoubles,IC,Ex,tParity,exFlag,Prob,Scratch1,Scratch2,tFilled)
 !                                    WRITE(6,'(A,8I3)') 'determinant generated for spawning',nJ
@@ -4026,8 +4026,14 @@ MODULE FciMCParMod
         
 !We know we want to create a particle. Return the bit-representation of this particle (if we have not already got it)
         IF(.not.tHPHF.and.AttemptCreatePar.ne.0) THEN
-            call get_csf_bit_yama (nJ, yama)
-            CALL FindExcitBitDet(iLutCurr,iLutnJ,IC,Ex,yama)
+            if (tCSF) then
+                ! This makes sure that the Yamanouchi symbol is correct. It
+                ! also makes it work if we have tTruncateCSF on, and ex would
+                ! therefore leave all singles as beta, when we switch to dets.
+                call EncodeBitDet (nJ, iLutnJ)
+            else
+                call FindExcitBitDet(iLutCurr,iLutnJ,IC,Ex,yama)
+            endif
         ENDIF
 
 !        IF(AttemptCreatePar.ne.0) THEN

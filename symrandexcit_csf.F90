@@ -2,17 +2,19 @@
 ! This is a random excitation generator for use with csfs.
 ! Generate using a normalised and calculable probability.
 module GenRandSymExcitCSF
-    use Systemdata, only: nel, NIftot, tNoSymGenRandExcits, G1, nbasis, STOT
-    use SystemData, only: nbasismax, lztot, tFixLz, iMaxLz
+    use Systemdata, only: nel, NIftot, tNoSymGenRandExcits, G1, nbasis, STOT,&
+                          nbasismax, lztot, tFixLz, iMaxLz, tTruncateCSF, &
+                          tTruncateCSF, csf_trunc_level, LMS
     use SymExcitDataMod
     use SymData, only: TwoCycleSymGens, nSymLabels
-    use csf, only: csf_orbital_mask, csf_test_bit, csf_apply_random_yama
-    use csf, only: get_num_csfs, csf_apply_yama, csf_get_yamas, write_yama
-    use csf, only: get_csf_yama, num_csf_dets
+    use csf, only: csf_orbital_mask, csf_test_bit, csf_apply_random_yama, &
+                   get_num_csfs, csf_apply_yama, csf_get_yamas, write_yama, &
+                   get_csf_yama, num_csf_dets, csf_get_random_det, iscsf, &
+                   det_to_random_csf
     use mt95, only: genrand_real2
-    use GenRandSymExcitNUMod, only: ClassCountInd
-    use DetBitOps, only: EncodeBitDet, DecodeBitDet, is_canonical_ms_order
-    use DetBitOps, only: shift_det_bit_singles_to_beta, count_open_orbs
+    use GenRandSymExcitNUMod, only: ClassCountInd, GenRandSymExcitScratchNU
+    use DetBitOps, only: EncodeBitDet, DecodeBitDet, is_canonical_ms_order, &
+                         shift_det_bit_singles_to_beta, count_open_orbs
     use Parallel
     use util_mod, only: int_arr_eq
     implicit none
@@ -25,22 +27,82 @@ module GenRandSymExcitCSF
     end interface
     
 contains
+    
     subroutine GenRandSymCSFExcit (nI, iLut, nJ, pSingle, pDouble, IC, &
                                    ExcitMat, exFlag, pGen, CCDblS, CCSglS, &
-                                   CCUnS, tFilled)
+                                   CCUnS, tFilled, tParity)
+
+        ! Generate an excitation from a CSF at random, as specified by exFlag,
+        ! and return the Excitation matrix and the probability of generating
+        ! that excitation.
+        !
+        ! Exflag: bit 0 -> Enable Yamanouchi only
+        !         bit 1 -> Enable Single Excitations
+        !         bit 2 -> Enable Double Excitations
+        !
+        ! In:  nI        - CSF/determinant to excite from
+        !      iLut      - Bit representation of nI
+        !      pSingle   - Probability of single excitation
+        !      pDouble   - Probability of double excitation
+        !      tFilled   - Are the utility (scratch) arrays CCDbl... already
+        !                  filled for this case
+        !      CCDblS... - Arrays to fill with counts of spatial orbitals
+        !                  which are singles, doubles or unoccupied
         integer, intent(in)    :: nI(nel), iLut(0:NIfTot), exFlag
         integer, intent(out)   :: nJ(nel), IC, ExcitMat(2,2)
-        integer :: CCDblS(ScratchSize/2), CCSglS(ScratchSize/2)
-        integer :: CCUnS(ScratchSize/2) ! Only consider spatial terms
         logical, intent(inout) :: tFilled
+        logical, intent(out)   :: tParity
         real*8,  intent(in)    :: pSingle, pDouble
         real*8,  intent(out)   :: pGen
+
+        ! We only need the spatial terms for the CSF stuff. However, keep the
+        ! full 1-ScratchSize array, so we can pass it through to the normal
+        ! excitation routines for truncated mode.
+        integer, intent(inout) :: CCDblS(ScratchSize), CCSglS(ScratchSize)
+        integer, intent(inout) :: CCUnS(ScratchSize)
+
         character(*), parameter   :: this_routine = 'GenRandSymExcitCSF'
-        integer :: nopen, ncsf
+        integer :: nopen, ncsf, exTmp, iLutTmp(0:NIfTot)
         real*8 :: r
 
         ! Count the open shell electrons
         nopen = count_open_orbs(iLut) 
+
+        ! TODO: comment this bit
+        if (tTruncateCSF .and. csf_trunc_level /= 0 .and. &
+            nopen > csf_trunc_level .and. .not. iscsf(nI)) then
+
+            select case (exFlag)
+                case (2)
+                    exTmp = 1
+                case (4)
+                    exTmp = 2
+                case default
+                    exTmp = 3
+            end select
+            call GenRandSymExcitScratchNU (nI, iLut, nJ, pDouble, IC, &
+                                           ExcitMat, tParity, exTmp, pGen, &
+                                           CCDblS, CCUnS, tFilled)
+
+            ! TODO: would be nicer to do this without encoding a bit det...
+            ! If we have fallen back below the truncation level, then
+            ! regenerate a CSF (pick Yamanouchi symbol at random).
+            call EncodeBitDet(nJ, iLutTmp)
+            nopen = count_open_orbs(iLutTmp)
+            if (nopen <= csf_trunc_level) then
+                ncsf = det_to_random_csf (nJ)
+                
+                ! All of the cases where nopen will FALL below csf_trunc_level
+                ! require nopen to decrease. All of the possibilities for this
+                ! have no degenerate excitations giving the same spatial
+                ! configuration for the given determinant
+                ! --> Don't need to adjust pGen before dividing by ncsf.
+                ! --> w00t!
+                pGen = pgen / ncsf
+            endif
+            return
+        endif
+        tParity = .false.
 
         ! If the array is not already populated, perform an O[N] operation to
         ! find the number of occupied alpha/beta electrons, and number of
@@ -96,6 +158,10 @@ contains
             nJ = nI
             if (nopen == 0) then
                 nJ(1) = 0
+            else if (tTruncateCSF .and. nopen > csf_trunc_level) then
+                nJ(1) = 0
+                call stop_all (this_routine, "We should be exciting this as &
+                                              a determinant.")
             else
                 call csf_apply_random_yama (nJ, nopen, real(STOT,8)/2, ncsf, &
                                             .true.)
@@ -763,10 +829,12 @@ contains
         ! Obtain the orbital and their pairs for each of the source orbs
         ! Ensure canonical ordering for src (not closed before open).
         src = nI(ExcitMat(1,:))
-        if ((IC == 2) .and. (src(1) > src(2))) then
-            tmp = src(1)
-            src(1) = src(2)
-            src(2) = tmp
+        if (IC == 2) then
+            if (src(1) > src(2)) then
+                tmp = src(1)
+                src(1) = src(2)
+                src(2) = tmp
+            endif
         endif
         src_pair = ieor(src-1,1) + 1
         srcB = ibclr(src-1,0) + 1
@@ -776,16 +844,16 @@ contains
         exB = ibclr(ExcitMat(2,:)-1,0) + 1
         exA = ibset(Excitmat(2,:)-1,0) + 1
 
-        ! Are the target orbitals a new double?
         bExcitIsDoub = .false.
-        if ((IC == 2) .and. (ExcitMat(2,1)==(ieor(ExcitMat(2,2)-1,1)+1))) then
-            bExcitIsDoub = .true.
-        endif
-
-        ! Are the source orbitals a double?
         bExcitFromDoub = .false.
-        if ((IC == 2) .and. (src(1) == src_pair(2))) then
-            bExcitFromDoub = .true.
+        if (IC == 2) then
+            ! Are the target orbitals a new double?
+            if (ExcitMat(2,1)==(ieor(ExcitMat(2,2)-1,1)+1)) then
+                bExcitIsDoub = .true.
+            endif
+
+            ! Are the source orbitals a double?
+            if (src(1) == src_pair(2)) bExcitFromDoub = .true.
         endif
 
         ! Fill up all of the doubles correctly, whilst creating a list of
@@ -977,7 +1045,12 @@ contains
                 do i=1,ncsf
                     call csf_apply_yama (nJ(i,:), yamas(i,:))
                 enddo
+            else if (tTruncateCSF .and. (lnopen > csf_trunc_level)) then
+                ! Use ncsf here to return number of determinants possible
+                ! rather than 
+                ncsf = csf_get_random_det (nJ, lnopen, real(LMS,8)/2)
             else
+                ! TODO: fix --> real(STOT)/2 or we end up rounding!!!!
                 call csf_apply_random_yama (nJ, lnopen, real(STOT/2,8), ncsf,&
                                             .false.)
             endif
@@ -1196,7 +1269,6 @@ contains
             endif
         endif
     end subroutine
-
 
     ! TODO: Combine the counting and generation into one step - either by
     !       specifing a maximum number to generate, generating iteratively (ie
@@ -1700,7 +1772,7 @@ contains
         integer :: CCDblS(ScratchSize/2), CCSglS(ScratchSize/2)
         integer :: CCUnS(ScratchSize/2)
         integer :: i, j, k, l, ierr, nexcit, ind(4)
-        logical :: tFilled, bTestList
+        logical :: tFilled, bTestList, tParity
         real*8  :: pGen, avContrib, avContribAll
         ! Store the generated excitations and if they have been generated.
         integer, allocatable, dimension(:,:) :: nK
@@ -1771,7 +1843,7 @@ contains
             ! Generate a random excitation
             call GenRandSymCSFExcit (nI, iLut, nJ, pSingle, pDouble, IC, &
                                      ExcitMat, exFlag, pGen, CCDblS, CCSglS, &
-                                     CCUnS, tFilled)
+                                     CCUnS, tFilled, tParity)
 
             ! Only average etc. for an allowed transition
             if (nJ(1) /= 0) then

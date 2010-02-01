@@ -276,6 +276,7 @@ contains
         !
         ! n.b. nI/iLutI indicate the CSF, nJ/iLutJ --> The determinant.
         !      We assume that Ms/S etc. are correct.
+        ! TODO: make nopen(2) --> nopen etc.
 
         integer, intent(in) :: nI(nel), nJ(nel), nopen(2), nclosed(2)
         integer, intent(in) :: iLutI(0:NIfTot), iLutJ(0:NIfTot)
@@ -1219,6 +1220,102 @@ contains
             get_num_csfs = (2*S2 + 2) * choose(nOpen, (nOpen+S2)/2)
             get_num_csfs = get_num_csfs / (nOpen + S2 + 2)
         endif
+    end function
+
+    integer function csf_get_random_det (nI, nopen, Ms)
+
+        ! Convert the CSF or CSF ordered determinant nI into a normal
+        ! determinant with spin orbitals which are any of the determinants
+        ! which would be a component of the CSF.
+        !
+        ! In:    nopen - The number of open shell electrons
+        !        Ms    - The required Ms value for the determinant
+        ! InOut: nI    - The CSF to consider, and the determinant to return
+        ! Ret:         - The number of determinants chosen from
+        
+        integer, intent(inout) :: nI(nel)
+        integer, intent(in) :: nopen
+        real*8, intent(in) :: Ms
+
+        integer :: nup, nchoose, tmp, pos, i
+        integer :: choice(nopen), perm(nopen)
+        real*8 :: r
+
+        ! How many alpha elecs do we have. If fewer than half, permute betas.
+        nup = (nopen - int(2*Ms)) / 2
+        nchoose = min(nup, nopen-nup)
+
+        forall (i=1:nopen) choice(i) = i
+
+        ! Select nchoose positions at random, and place them at the end.
+        do i=1,nchoose
+            call genrand_real2(r)
+            pos = int(real(nopen-i+1,8)*r) + 1
+
+            if (pos /= nopen-i+1) then
+                call swap(choice(nopen-i+1), choice(pos))
+            endif
+        enddo
+
+        ! Generate the permutation
+        if (nchoose == nup) then
+            perm(choice(1:nopen-nchoose)) = 0
+            perm(choice(nopen-nchoose+1:nopen)) = 1
+        else
+            perm(choice(1:nopen-nchoose)) = 1
+            perm(choice(nopen-nchoose+1:nopen)) = 0
+        endif
+
+        ! Generate the determinant, correctly sorted, with the specified
+        ! alpha/beta structure.
+        nI = iand(nI, csf_orbital_mask)
+        nI(nel-nopen+1:nel) = csf_alpha_beta(nI(nel-nopen+1:nel), perm)
+        call csf_sort_det_block (nI, 1, nopen)
+
+        ! How many dets were there to choose from?
+        csf_get_random_det = choose(nopen, nchoose)
+
+    end function
+
+    function det_to_random_csf (nI) result(ncsf)
+
+        ! From a determinant, generate a (random) CSF which has the same
+        ! spatial structure
+        !
+        ! InOut: nI   - The determinant and output CSF
+        ! Ret:   ncsf - The number of possible Yamanouchi symbols for this
+        !               spatial structure
+
+        integer, intent(inout) :: nI(nel)
+        integer :: ncsf
+
+        integer :: sings(nel)
+        integer :: i, pos, nopen
+
+        pos = 1
+        nopen = 0
+        i = 1
+        do while (i <= nel .and. pos <= nel)
+
+            ! Is this a double?
+            if (i < nel .and. is_beta(nI(i))) then
+                if (nI(i+1) == nI(i) + 1) then
+                    nI(pos:pos+1) = nI(i:i+1)
+                    i = i + 2
+                    pos = pos + 2
+                    cycle
+                endif
+            endif
+
+            ! Otherwise it must be a single
+            nopen = nopen + 1
+            sings(nopen) = nI(i)
+            i = i + 1
+        enddo
+
+        nI(nel-nopen+1:nel) = get_beta(sings(1:nopen))
+
+        call csf_apply_random_yama (nI, nopen, real(STOT,8)/2, ncsf, .false.)
     end function
 
     ! TODO: This can be optimised (don't need to generate them all)

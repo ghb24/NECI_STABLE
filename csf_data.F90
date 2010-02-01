@@ -31,8 +31,8 @@ contains
         !      nopen         - The number of open shell electrons
         ! I/O: dets(ndets,:) - The determinant array to sort
         integer, intent(in) :: ndets, nopen
-        integer, intent(inout) :: dets (ndets,nel)
-        integer :: i, open_pos, tmp_dets (ndets, nel), nclosed, npos
+        integer, intent(inout) :: dets (nel, ndets)
+        integer :: i, open_pos, tmp_dets (nel, ndets), nclosed, npos
 
         tmp_dets = dets
         nclosed = nel - nopen
@@ -41,12 +41,12 @@ contains
         ! Closed e- listed in pairs --> can jump pairs
         do i=1,nclosed-1,2
             do while ( (open_pos .le. nel) .and. &
-                       (tmp_dets(1,open_pos) .lt. tmp_dets(1,i)) )
-                dets(:,npos) = tmp_dets(:,open_pos)
+                       (tmp_dets(open_pos, 1) .lt. tmp_dets(i, 1)) )
+                dets(npos,:) = tmp_dets(open_pos,:)
                 open_pos = open_pos + 1
                 npos = npos + 1
             enddo
-            dets(:,npos:npos+1) = tmp_dets(:,i:i+1)
+            dets(npos:npos+1,:) = tmp_dets(i:i+1,:)
             npos = npos + 2
         enddo
         ! Any remaining open electrons will be untouched.            
