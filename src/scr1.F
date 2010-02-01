@@ -1,5 +1,5 @@
       SUBROUTINE SCR1(NEL,NBASISMAX,NDET1,NDET2,G1,
-     &	NHG,UMAT,ALAT,ISS,COULCOUPLE,TEXCH,SUM)
+     &	NHG,UMAT,ALAT,ISS,COULCOUPLE,TEXCH,hel)
       USE HElem
       use Integrals, only : GetUMatEl
       USE UMatCache, only : GTID
@@ -13,7 +13,7 @@
       INTEGER ID,EX(2)
       TYPE(HElement) UMAT(*)
 C.. was (NHG/ISS,NHG/ISS,NHG/ISS,NHG/ISS)
-      TYPE(HElement) SUM
+      TYPE(HElement) hel
       LOGICAL TSIGN
       INTEGER NEL,NHG,ISS
       REAL*8 COULCOUPLE,CD,ALAT(3)
@@ -33,15 +33,15 @@ C..In this routine the determinants differ by only 1 spin orbital
       CALL GETEXCITATION(NDET1,NDET2,NEL,EX,TSIGN)
 C.. ND2 is the deifferent basis fn in NDET2
 C..The two electron integrals are to be done 
-      CALL GTID(NBASISMAX,EX(1),ID1)
-      CALL GTID(NBASISMAX,EX(2),ID2)
+      ID1 = GTID(EX(1))
+      ID2 = GTID(EX(2))
 C      CD=COULDAMP(ND1,NHG)*COULDAMP(ND2,NHG)
 C..
       LCOUL=G1(EX(1))%Ms.EQ.G1(EX(2))%Ms
       SUM2=0.D0
       DO I=1,NEL
          IF(EX(1).NE.NDET1(I)) THEN
-            CALL GTID(NBASISMAX,NDET1(I),ID)
+            ID = GTID(NDET1(I))
             IF(LCOUL) THEN 
                SUM3=
      &     GETUMATEL(NBASISMAX,UMAT,ALAT,NHG,ISS,G1,ID1,ID,ID2,ID)
@@ -62,10 +62,10 @@ C*(COULDAMP(NDET1(I),NHG)**2)*CD
 C..  We then add in the non-diagonal part of the kinetic energy -
 C..  <ph_a|T|ph_a'> where a and a' are the only basis fns that differ in
 C..  NDET1 and NDET2
-      SUM=SUM2*HElement(COULCOUPLE)+GetTMATEl(EX(1),EX(2))
+      hel=SUM2*HElement(COULCOUPLE)+GetTMATEl(EX(1),EX(2))
 !      WRITE(6,*) EX(1),EX(2)
 !      WRITE(6,*) SUM2,GetTMATEl(EX(1),EX(2))
-      IF(TSIGN) SUM=-SUM
+      IF(TSIGN) hel=-hel
 !      call halt_timer(proc_timer) 
       RETURN
       END
@@ -74,7 +74,7 @@ C..  NDET1 and NDET2
 !from the determinants and their excitation matrix.
       
       SUBROUTINE SCR1Excit2(NEL,NBASISMAX,NDET1,NDET2,G1,
-     &	NHG,UMAT,ALAT,ISS,COULCOUPLE,TEXCH,SUM,EX,TParity)
+     &	NHG,UMAT,ALAT,ISS,COULCOUPLE,TEXCH,hel,EX,TParity)
       USE HElem
       use Integrals, only : GetUMatEl
       USE UMatCache, only : GTID
@@ -88,7 +88,7 @@ C..  NDET1 and NDET2
       INTEGER ID,EX(2,2)
       TYPE(HElement) UMAT(*)
 C.. was (NHG/ISS,NHG/ISS,NHG/ISS,NHG/ISS)
-      TYPE(HElement) SUM
+      TYPE(HElement) hel
       LOGICAL TParity
       INTEGER NEL,NHG,ISS
       REAL*8 COULCOUPLE,CD,ALAT(3)
@@ -109,8 +109,8 @@ C..In this routine the determinants differ by only 1 spin orbital
 C.. ND2 is the deifferent basis fn in NDET2
 C..The two electron integrals are to be done 
 
-      CALL GTID(NBASISMAX,EX(1,1),ID1)
-      CALL GTID(NBASISMAX,EX(2,1),ID2)
+      ID1 = GTID(EX(1,1))
+      ID2 = GTID(EX(2,1))
 
 C      CD=COULDAMP(ND1,NHG)*COULDAMP(ND2,NHG)
 C..
@@ -124,7 +124,7 @@ C..
 !            ELSE
 !                ID=(NDET1(I)-1)/2+1
 !            ENDIF
-            CALL GTID(NBASISMAX,NDET1(I),ID)
+            ID = GTID(NDET1(I))
             IF(LCOUL) THEN 
                SUM3=
      &     GETUMATEL(NBASISMAX,UMAT,ALAT,NHG,ISS,G1,ID1,ID,ID2,ID)
@@ -145,8 +145,8 @@ C..  <ph_a|T|ph_a'> where a and a' are the only basis fns that differ in
 C..  NDET1 and NDET2
 !      WRITE(6,*) EX(1,1),EX(2,1)
 !      WRITE(6,*) SUM2,GetTMATEl(EX(1,1),EX(2,1))
-      SUM=SUM2*HElement(COULCOUPLE)+GetTMATEl(EX(1,1),EX(2,1))
-      IF(TParity) SUM=-SUM
+      hel=SUM2*HElement(COULCOUPLE)+GetTMATEl(EX(1,1),EX(2,1))
+      IF(TParity) hel=-hel
 !      call halt_timer(proc_timer) 
       RETURN
       END

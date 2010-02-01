@@ -153,7 +153,9 @@ MODULE FciMCData
       LOGICAL :: TTruncSpace=.false.              !This is a flag set as to whether the excitation space should be truncated or not.
       LOGICAL :: TFlippedSign=.false.             !This is to indicate when the sign of the particles have been flipped. This is needed for the calculation of the ACF
 
-      TYPE(timer), save :: Walker_Time,Annihil_Time,ACF_Time,Sort_Time,Comms_Time,AnnSpawned_time,AnnMain_time,BinSearch_time
+      type(timer), save :: Walker_Time, Annihil_Time,ACF_Time, Sort_Time, &
+                           Comms_Time, AnnSpawned_time, AnnMain_time, &
+                           BinSearch_time
 
 !These are arrays used to store the autocorrelation function
       INTEGER , ALLOCATABLE :: WeightatDets(:)                   !First index - det which is stored, second - weight on proc at that iteration

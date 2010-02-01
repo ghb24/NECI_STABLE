@@ -56,6 +56,8 @@ MODULE System
       TSPN=.false.
       TCSF=.false.
       TCSFOLD = .false.
+      csf_trunc_level = 0
+      tTruncateCSF = .false.
       STOT=0
       TPARITY = .false.
       IParity(:)=0
@@ -279,6 +281,13 @@ MODULE System
                STOT=0
             endif
             TCSF = .true.
+        case("TRUNCATE-CSF")
+            if (item < nitems) then
+                call geti(csf_trunc_level)
+            else
+                csf_trunc_level = 0
+            endif
+            tTruncateCSF = .true.
         case("CSF-OLD")
             if(item.lt.nitems) then
                call geti(STOT)
@@ -762,7 +771,7 @@ MODULE System
       use constants, only: Pi, Pi2, THIRD
       use legacy_data, only: CSF_NBSTART
       implicit none
-      character(25), parameter :: this_routine='SysInit'
+      character(*), parameter :: this_routine='SysInit'
       integer ierr
 
       CHARACTER CPAR(3)*1,CPARITY*3
@@ -839,17 +848,40 @@ MODULE System
          LMS2=LMS
       ENDIF
       WRITE(6,*) ' GLOBAL MS : ' , LMS
-      IF(TCSFOLD) THEN
-         WRITE(6,*) "Using CSFs."
-         IF(TSPN) THEN
-            WRITE(6,*) "Restricting total spin*2 to ",STOT
-            IF(LMS.GT.STOT) STOP "Cannot have LMS>STOT"
-!C.. Encode the symmetry for the total spin in LMS
-            LMS2=LMS+STOT*CSF_NBSTART
-         ENDIF
-         NBASISMAX(4,7)=1
-      ENDIF
-      
+
+      ! Conditions for using old CSF routines
+      if (tCSFOld) then
+          write (6, '("Using Old CSF routines")')
+          if (tSPN) then
+              write(6, '("Restricting total spin*2 to ", i3)') STOT
+              if (LMS > STOT) &
+                  call stop_all (this_routine, "Cannot have LMS>STOT")
+
+              ! Encode the symmetry for the total spin in LMS
+              LMS2 = LMS + STOT*CSF_NBSTART
+          endif
+          nBasisMax(4,7) = 1
+      endif
+
+      ! Conditions for using CSFs
+      if (tCSF) then
+          write (6, '("Using CSFs for calculation")')
+
+          if (LMS > STOT) call stop_all (this_routine, "Cannot have LMS>STOT")
+
+          if (.not. tNonUniRandExcits) then
+              call stop_all (this_routine, "Non uniform excitation generators&
+                                           & required for CSFs")
+          endif
+
+          if (tHPHF) then
+              call stop_all (this_routine, "CSFs not compatible with HPHF")
+          endif
+      endif
+
+      if (tTruncateCSF .and. (.not. tCSF)) then
+          call stop_all (this_routine, "CSFs required to use truncate-csf")
+      endif
 
       TwoCycleSymGens=.false.
       IF(TCPMD) THEN

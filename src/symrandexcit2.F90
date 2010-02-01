@@ -918,7 +918,6 @@ MODULE GenRandSymExcitNUMod
 
                     z=1
                     do i=1,nBasis/2
-                        
                         IF(iSpn.eq.1) THEN
 !We want to run through all beta orbitals (odd numbered basis function)
                             OrbA=(2*i)-1
@@ -2893,11 +2892,11 @@ SUBROUTINE TestGenRandSymExcitNU(nI,Iterations,pDoub,exFlag,iWriteEvery)
     use DetBitOps , only : EncodeBitDet, FindExcitBitDet
     use GenRandSymExcitNUMod, only: IsMomentumAllowed
     IMPLICIT NONE
-    INTEGER :: i,Iterations,exFlag,nI(NEl),nJ(NEl),IC,ExcitMat(2,2),DetConn,kx,ky,kz,ktrial(2)
+    INTEGER :: i,Iterations,exFlag,nI(NEl),nJ(NEl),IC,ExcitMat(2,2),kx,ky,kz,ktrial(2)
     REAL*8 :: pDoub,pGen,AverageContrib,AllAverageContrib
     INTEGER :: ClassCount2(ScratchSize),iLut(0:NIfTot),Scratch1(ScratchSize),Scratch2(ScratchSize),iLutnJ(0:NIfTot)
     INTEGER :: ClassCountUnocc2(ScratchSize),iExcit,iWriteEvery
-    LOGICAL :: tParity,SymAllowed,tFilled,tSoftExitFound,tDummy,tDummy2
+    LOGICAL :: tParity,tFilled
     REAL*8 , ALLOCATABLE :: DoublesHist(:,:,:,:),SinglesHist(:,:),AllDoublesHist(:,:,:,:),AllSinglesHist(:,:)
     INTEGER , ALLOCATABLE :: EXCITGEN(:)
     INTEGER :: ierr,Ind1,Ind2,Ind3,Ind4,iMaxExcit,nStore(6),nExcitMemLen,j,k,l,DetNum,DetNumS,Lz,excitcount,ForbiddenIter,error
