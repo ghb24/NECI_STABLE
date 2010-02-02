@@ -228,8 +228,8 @@ MODULE Calc
           InitiatorWalkNo=10
           IterTruncInit=0
           tInitIncDoubs=.false.
-          MaxNoatHF=1000000
-          HFPopThresh=1000
+          MaxNoatHF=0
+          HFPopThresh=0
 
           tNeedsVirts=.true.! Set if we need virtual orbitals  (usually set).  Will be unset (by Calc readinput) if I_VMAX=1 and TENERGY is false
 

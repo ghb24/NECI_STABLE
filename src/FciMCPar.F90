@@ -2240,6 +2240,11 @@ MODULE FciMCParMod
             OrbOccs(:)=0.D0
         ENDIF
 
+        IF(MaxNoatHF.eq.0) THEN
+            MaxNoatHF=InitWalkers*nProcessors
+            HFPopThresh=MaxNoatHF
+        ENDIF
+
         IF((NMCyc.ne.0).and.(tRotateOrbs.and.(.not.tFindCINatOrbs))) CALL Stop_All(this_routine,"Currently not set up to rotate and then go straight into a spawning &
                                                                                     & calculation.  Ordering of orbitals is incorrect.  This may be fixed if needed.")
 
