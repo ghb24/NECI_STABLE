@@ -20,7 +20,7 @@ MODULE FciMCParMod
     use CalcData , only : NDets,RhoApp,TResumFCIMC,TNoAnnihil,MemoryFacPart,TAnnihilonproc,MemoryFacAnnihil,iStarOrbs,tAllSpawnStarDets
     use CalcData , only : FixedKiiCutoff,tFixShiftKii,tFixCASShift,tMagnetize,BField,NoMagDets,tSymmetricField,tStarOrbs,SinglesBias
     use CalcData , only : tHighExcitsSing,iHighExcitsSing,tFindGuide,iGuideDets,tUseGuide,iInitGuideParts,tNoDomSpinCoup
-    use CalcData , only : tPrintDominant,iNoDominantDets,MaxExcDom,MinExcDom,tSpawnDominant,tMinorDetsStar,MaxNoatHF
+    use CalcData , only : tPrintDominant,iNoDominantDets,MaxExcDom,MinExcDom,tSpawnDominant,tMinorDetsStar,MaxNoatHF,HFPopThresh
     use CalcData , only : tCCMC,tTruncCAS,tTruncInitiator,tDelayTruncInit,IterTruncInit,NShiftEquilSteps,tWalkContGrow
     use HPHFRandExcitMod , only : FindExcitBitDetSym,GenRandHPHFExcit,GenRandHPHFExcit2Scratch
     USE Determinants , only : FDet,GetHElement2,GetHElement4
@@ -1363,12 +1363,13 @@ MODULE FciMCParMod
         REAL*8 :: TempTotWalkers,TempTotParts
         REAL*8 :: TempSumNoatHF,MeanWalkers,TempSumWalkersCyc,TempAllSumWalkersCyc,TempNoMinorWalkers
         REAL*8 :: inpairreal(3),outpairreal(3)
-        LOGICAL :: TBalanceNodesTemp
+        LOGICAL :: TBalanceNodesTemp,tReZeroShift
 
         TotImagTime=TotImagTime+StepsSft*Tau
 
 !Find the total number of particles at HF (x sign) across all nodes. If this is negative, flip the sign of all particles.
         AllNoatHF=0
+        tReZeroShift=.false.
 
 !Find sum of noathf, and then use an AllReduce to broadcast it to all nodes
         CALL MPIISum(NoatHF,1,AllNoatHF)
@@ -1391,7 +1392,21 @@ MODULE FciMCParMod
             ENDIF
 !Broadcast the fact that TSinglePartPhase may have changed to all processors - unfortunatly, have to do this broadcast every iteration.
             CALL MPILBcast(TSinglePartPhase,1,root)
+        ELSE
+!Exit the single particle phase if the number of walkers exceeds the value in the input file.
+!            CALL MPI_Barrier(MPI_COMM_WORLD,error)
+            IF(iProcIndex.eq.root) THEN     !Only exit phase if particle number is sufficient on head node.
+                IF((ABS(AllNoatHF).lt.(MaxNoatHF-HFPopThresh))) THEN
+                    WRITE(6,'(A)') "No at HF has fallen too low - reentering the single particle growth phase - particle number may grow again."
+!                    VaryShiftIter=Iter
+                    TSinglePartPhase=.true.
+                    tReZeroShift=.true.
+                ENDIF
+            ENDIF
+!Broadcast the fact that TSinglePartPhase may have changed to all processors - unfortunatly, have to do this broadcast every iteration.
+            CALL MPILBcast(TSinglePartPhase,1,root)
         ENDIF
+
 
 !This first call will calculate the GrowRate for each processor, taking culling into account
 !        WRITE(6,*) "Get Here"
@@ -1695,6 +1710,14 @@ MODULE FciMCParMod
 !            ProjectionE=ProjectionE+HubRefEnergy
 !            ProjEIter=ProjEIter+HubRefEnergy
 !        ENDIF
+        
+        IF(tReZeroShift) THEN
+            DiagSft=0.D0
+            VaryShiftCycles=0
+            SumDiagSft=0.D0
+            AvDiagSft=0.D0
+        ENDIF
+
 !We wan to now broadcast this new shift to all processors
         CALL MPI_Bcast(DiagSft,1,MPI_DOUBLE_PRECISION,Root,MPI_COMM_WORLD,error)
 !        WRITE(6,*) "Get Here 13"
