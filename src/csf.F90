@@ -1313,6 +1313,11 @@ contains
             i = i + 1
         enddo
 
+        if (nopen == 0) then
+            ncsf = 0
+            return
+        endif
+
         nI(nel-nopen+1:nel) = get_beta(sings(1:nopen))
 
         call csf_apply_random_yama (nI, nopen, real(STOT,8)/2, ncsf, .false.)

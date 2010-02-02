@@ -24,7 +24,6 @@ logical :: tRIIntegrals   ! Read in RI 2-e integrals from RIDUMP file
 logical :: tStoreSpinOrbs ! This is set when the orbitals are stored in 
                           ! spin-orbital notation
 
-
 integer :: iParity(5), nMaxX, nMaxY, nMaxZ, nMSH, coulDampOrb, elecPairs
 integer :: roIterMax, iRanLuxLev, DiagMaxMinFac, OneElmaxMinFac, iState
 integer :: iTiltX, iTiltY, nOccAlpha, nOccBeta, ShakeIterMax, ShakeStart
@@ -34,7 +33,6 @@ real*8 :: Diagweight, OffDiagWeight, OrbEnMaxAlpha, Alpha, fCoulDampBeta
 real*8 :: fCoulDampMu, TimeStep, ConvergedForce, ShakeConverged, UMATEps
 real*8 :: OneElWeight
 
-real*8 :: k_offset(3)      ! UEG parameter for twist-averaging
 
 integer :: nEl             ! Number of (non-frozen) electrons in the system
 integer :: Stot            ! Restrict S to Stot when using CSFs
@@ -59,6 +57,7 @@ integer*8 :: CalcDetPrint, CalcDetCycles   ! parameters
 logical :: tLatticeGens   ! Use new UEG excitation generators
 logical :: tNoFailAb
 logical :: tUEGOffset     ! Use twisted boundary conditions
+real*8 :: k_offset(3)      ! UEG parameter for twist-averaging
 
 ! For the UEG, we damp the exchange interactions.
 !    0 means none

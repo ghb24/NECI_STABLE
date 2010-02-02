@@ -1,7 +1,8 @@
 #include "macros.h"
 MODULE Determinants
     Use HElem
-    use SystemData, only: BasisFN
+    use SystemData, only: BasisFN, tCSF
+    use csf, only: det_to_random_csf
     implicit none
     save
 ! Set by Calc on input
@@ -81,6 +82,7 @@ MODULE Determinants
       integer :: alpha,beta,symalpha,symbeta,endsymstate
       character(25), parameter :: this_routine='DetInit'
       LOGICAL :: tSuccess,tFoundOrbs(nBasis)
+      integer :: ncsf
 
       WRITE(6,*) "SYMMETRY MULTIPLICATION TABLE"
       CALL WRITESYMTABLE(6)
@@ -202,6 +204,11 @@ MODULE Determinants
 ! From now on, the orbitals are also contained in symlabellist2 and symlabelcounts2.
 ! These are stored using spin orbitals.
 
+    ! If we are using CSFs, then we need to convert this into a csf
+    if (tCSF) then
+        ncsf = det_to_random_csf (FDET)
+    endif
+
 
     End Subroutine DetInit
     
@@ -240,8 +247,8 @@ MODULE Determinants
 !             RETURN
          ENDIF
          if (tCSF) then
-             if (iscsf(NI) .or. iscsf(NJ)) then
-                 gethelement2 = CSFGetHelement (NI, NJ)
+             if (iscsf(nI) .or. iscsf(nJ)) then
+                 gethelement2 = CSFGetHelement (nI, nJ)
                  return
              endif
          endif
