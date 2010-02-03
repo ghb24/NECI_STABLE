@@ -15,6 +15,7 @@ MODULE Logging
     INTEGER NoACDets(2:4),iPopsPartEvery,iWriteHistEvery,iNoBins,NoTriConBins,NoTriConHElBins,NHistEquilSteps,IterShiftBlock
     INTEGER CCMCDebug !CCMC Debugging Level 0-6.  Default 0
     LOGICAL tCCMCLogTransitions !Do we log transitions?  Only possible for very small systems
+    LOGICAL tCCMCLogUniq !Do we log only unique clusters
     INTEGER IterStartBlocking,HFPopStartBlocking,NoDumpTruncs,NoTruncOrbsTag,TruncEvaluesTag,iWriteHamilEvery,OrbOccsTag
     INTEGER , ALLOCATABLE :: NoTruncOrbs(:)
     REAL*8 , ALLOCATABLE :: TruncEvalues(:),OrbOccs(:)
@@ -93,6 +94,7 @@ MODULE Logging
       NoDumpTruncs=0
       tWriteTransMat=.false.
       tCCMCLogTransitions=.false.
+      tCCMCLogUniq=.true.
 
 
 ! Feb08 defaults
@@ -425,6 +427,18 @@ MODULE Logging
             call readi(CCMCDebug)
         case("CCMCLOGTRANSITIONS")
             tCCMCLogTransitions=.true.
+            do while(item.lt.nitems)
+               call readu(w)
+               select case(w)
+               case("NONUNIQUE")
+                  tCCMCLogUniq=.false.
+               case("UNIQUE")
+                  tCCMCLogUniq=.true.
+               case default
+                  CALL report("Logging keyword CCMCLOGTRANSITIONS "//trim(w)       &
+     &               //" not recognised",.true.)
+               end select
+            enddo
         case("WRITEDETE")
 !This logging option will write out the energies of all determinants which have been spawned at in the simulation
 ! The two input options are the number of bins, and the maximum determinant energy to be histogrammed.

@@ -76,7 +76,10 @@ TYPE CCTransitionLog
    REAL*8, allocatable :: dProbTransition(:,:,:,:) !(2,2,nClust,nClust)
    REAL*8, allocatable :: dProbClust(:,:)  !(2,nClust)
    REAL*8, allocatable :: dProbUniqClust(:,:)  !(2,-1:nClust)
-   INTEGER MaxIndex
+   INTEGER nExcitors    !Number of excitors
+   INTEGER nMaxSize     !Largest cluster Size
+   INTEGER MaxIndex     !Last possible index of a cluster (nClust)
+   LOGICAL tNonUniq     !Set if we're doing non-uniq logging
 END TYPE CCTransitionLog
 
 end module CCMCData
