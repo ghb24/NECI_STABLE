@@ -228,7 +228,8 @@ MODULE Calc
           InitiatorWalkNo=10
           IterTruncInit=0
           tInitIncDoubs=.false.
-          MaxNoatHF=1000000
+          MaxNoatHF=0
+          HFPopThresh=0
 
           tNeedsVirts=.true.! Set if we need virtual orbitals  (usually set).  Will be unset (by Calc readinput) if I_VMAX=1 and TENERGY is false
 
@@ -745,7 +746,15 @@ MODULE Calc
                 call geti(InitWalkers)
             case("MAXNOATHF")
 !If the number of walkers at the HF determinant reaches this number, the shift is allowed to change. (This is the total number across all processors).                
+!If a second integer is present, this determinants the threshhold for the HF population.  If the HF population drops below MaxNoatHF-HFPopThresh, the
+!number of walkers is allowed to grow again until MaxNoatHF is reachieved.
+!Without the second integer, MaxNoatHF-HFPopThresh=0, and the HF population can drop to 0 without any consequences.
                 call geti(MaxNoatHF)
+                if(item.lt.nitems) then
+                    call geti(HFPopThresh)
+                else
+                    HFPopThresh=MaxNoatHF 
+                end if
             case("INITAMPLITUDE")
 !For Amplitude CCMC the initial amplitude.
                 call getf(dInitAmplitude)

@@ -43,7 +43,7 @@ integer :: tagTMATSYM=0,tagTMATSYM2=0
 
 contains
 
-      INTEGER FUNCTION TMatInd(I,J)
+      pure INTEGER FUNCTION TMatInd(I,J)
         ! In: 
         !    i,j: spin orbitals.
         ! Return the index of the <i|h|j> element in TMatSym2.
@@ -69,7 +69,8 @@ contains
         use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
         use SymData, only: SymClasses,StateSymMap,SymLabelIntsCum
         IMPLICIT NONE
-        INTEGER I,J,A,B,symI,symJ,Block,ind,cumulative,K,L
+        integer, intent(in) :: i, j
+        integer A,B,symI,symJ,Block,ind,K,L
         A=mod(I,2)
         B=mod(J,2)
         !If TMatInd = -1, then the spin-orbitals have different spins, or are symmetry disallowed therefore have a zero integral (apart from in UHF - might cause problem if we want this)
@@ -121,7 +122,7 @@ contains
         use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
         use SymData, only: SymClasses2,StateSymMap,SymLabelIntsCum2
         IMPLICIT NONE
-        INTEGER I,J,A,B,symI,symJ,Block,ind,cumulative,K,L
+        INTEGER I,J,A,B,symI,symJ,Block,ind,K,L
         A=mod(I,2)
         B=mod(J,2)
         ! If TMatInd = -1, then the spin-orbitals have different spins, or are symmetry disallowed therefore have a zero integral (apart from in UHF - might cause problem if we want this)
@@ -158,32 +159,34 @@ contains
         ENDIF
       END FUNCTION NewTMatInd
 
+    
+    elemental function GetTMatEl (i, j) result(ret)
 
+        ! Return the one electron integral <i|h|j>
+        !
+        ! In: i,j - Spin orbitals
 
-      FUNCTION GetTMatEl(I,J)
-      ! In: 
-      !    i,j: spin orbitals.
-      ! Return <i|h|j>, the "TMat" element.
-        IMPLICIT NONE
-        INTEGER I,J
-        TYPE(HElement) GetTMatEl
+        integer, intent(in) :: i, j
+        type(HElement) :: ret
+        type(HElement) :: t
 
-        IF(TSTARSTORE) THEN
-            GetTMatEl=TMATSYM(TMatInd(I,J))
+        if (tStarStore) then
+            ret = TMatSym(TMatInd(i, j))
         else if (tCPMDSymTMat) then
             ! TMat is Hermitian, rather than symmetric.
-            ! Only the upper diagonal of each symmetry block stored.
-            if (j.ge.i) then
-                GetTMatEl=TMATSYM(TMatInd(I,J))
+            ! Only the upper diagonal of each symmetry block is stored
+            if (j .ge. i) then
+                ret = TMatSym(TMatInd(i,j))
             else
-                GetTMatEl=dConjg(TMATSYM(TMatInd(I,J)))
-            end if
-        ELSE
-            GetTMatEl=TMAT2D(I,J)
-        ENDIF
-      END FUNCTION GetTMatEl
-
-
+                ! Work around a bug in gfortran's parser: it doesn't like
+                ! doing dconjg(TMatSym).
+                t = TMatSym(TmatInd(i,j))
+                ret = dconjg(t)
+            endif
+        else
+            ret = TMat2D(i, j)
+        endif
+    end function GetTMatEl
 
       FUNCTION GetNewTMatEl(I,J)
       ! In: 
@@ -593,8 +596,7 @@ contains
         use SymData, only: SymClasses2,tagSymClasses2
         use global_utilities
         IMPLICIT NONE
-        integer I,J,NBASIS,NHG,GG(NHG)
-        integer*8 TMATINT,LG
+        integer NBASIS,NHG,GG(NHG)
         character(*),parameter :: this_routine='SwapTMat'
 
          IF(TSTARSTORE) THEN

@@ -212,11 +212,11 @@ subroutine ParMP2(nI)
              end if
          end if
 
-         call GTID(nBasisMax,Excit(1,1),IA)
-         call GTID(nBasisMax,Excit(2,1),AA)
+         IA = GTID(Excit(1,1))
+         AA = GTID(Excit(2,1))
          if (Excit(1,2).ne.0) then
-             call GTID(nBasisMax,Excit(1,2),JA)
-             call GTID(nBasisMax,Excit(2,2),BA)
+             JA = GTID(Excit(1,2))
+             BA = GTID(Excit(2,2))
          end if
 
          if (tCPMD) then
@@ -267,11 +267,11 @@ subroutine ParMP2(nI)
             if (Excit(2,2).eq.0) then
                 ! Single excitation.
                 ! dU=\sum_J 2<IJ|AJ>-<IJ|JA> (in terms of spatial orbitals).
-                call GTID(nBasisMax,Excit(1,1),IA)
-                call GTID(nBasisMax,Excit(2,1),AA)
+                IA = GTID(Excit(1,1))
+                AA = GTID(Excit(2,1))
                 do JJ=1,nEl,2 ! Assuming closed shell.  But we have already assumed restricted. ;-)
                     ! Spatial orbital of the j-th element of the reference determinant.
-                    call GTID(nBasisMax,nI(JJ),JA) 
+                    JA = GTID(nI(JJ)) 
                     ! Try to be as efficient as possible with the integrals...
                     ! Want to ask for each integral only once (we don't *quite*
                     ! succeed), so that the sum is efficient even without a cache.

@@ -7,20 +7,20 @@ C..   =Sum_a(|c_ia|^2 <u_a|(p^2)/2|u_a>)
          INTEGER NBASIS
          REAL*8 HFBASIS(NBASIS,NBASIS)
          INTEGER I,J,A,B,NORBUSED
-         REAL*8 SUM,S1
+         REAL*8 SUM1,S1
 C.. HFBASIS(HFBASISFN,PRIMBASISFN) has PRIMBASISFN varying slowest
          OPEN(10,FILE='TMAT2',STATUS='UNKNOWN')
          DO I=1,NORBUSED
             DO J=1,NORBUSED
-               SUM=0.D0
+               SUM1=0.D0
                DO A=1,NBASIS
                   DO B=1,NBASIS
-                    SUM=SUM+HFBASIS(I,A)*HFBASIS(J,B)*
+                    SUM1=SUM1+HFBASIS(I,A)*HFBASIS(J,B)*
      &                   DREAL(GetTMATEl(A,B))
                   ENDDO
                ENDDO
-               TMAT2D2(I,J)=SUM
-               IF(ABS(SUM).GT.1.D-10) WRITE(10,*) I,J,TMAT2D2(I,J)
+               TMAT2D2(I,J)=SUM1
+               IF(ABS(SUM1).GT.1.D-10) WRITE(10,*) I,J,TMAT2D2(I,J)
             ENDDO
          ENDDO
          CLOSE(10)
@@ -36,7 +36,7 @@ C..   =Sum_a(|c_ia|^2 <u_a|(p^2)/2|u_a>)
          REAL*8 HFBASIS(NBASIS,NBASIS)
          REAL*8 R
          INTEGER I,J,A,B
-         REAL*8 SUM,S1
+         REAL*8 SUM1,S1
 C.. HFBASIS(HFBASISFN,PRIMBASISFN) has PRIMBASISFN varying slowest
          OPEN(10,FILE='TMAT2',STATUS='OLD')
          I=0
@@ -55,7 +55,7 @@ C.. HFBASIS(HFBASISFN,PRIMBASISFN) has PRIMBASISFN varying slowest
          INTEGER NBASIS,ISS,nBasisMax(5,*),G1(*)
          REAL*8 UMAT(*)
          REAL*8 UMAT2(*),ARR(NBASIS)
-         REAL*8 HFBASIS(NBASIS,NBASIS),SUM,OS,HFE(NBASIS)
+         REAL*8 HFBASIS(NBASIS,NBASIS),SUM1,OS,HFE(NBASIS)
          INTEGER I,J,K,L,A,B,C,D
          INTEGER ID1,ID2,ID3,ID4,NHG,ISSM,BRR(NBASIS)
          LOGICAL LSPN
@@ -65,12 +65,12 @@ C ==--------------------------------------------------------------------=
          OPEN(10,FILE='UMAT2',STATUS='OLD')
          DO WHILE (.TRUE.)
             
-            READ(10,*,END=12) A,B,C,D,SUM
-              UMAT2(UMatInd(A,B,C,D,0,0))=SUM
+            READ(10,*,END=12) A,B,C,D,SUM1
+              UMAT2(UMatInd(A,B,C,D,0,0))=SUM1
 C..Symmetries not needed by UMatInd
-!              UMAT2(C,D,A,B)=SUM
-!              UMAT2(B,A,D,C)=SUM
-!              UMAT2(D,C,B,A)=SUM
+!              UMAT2(C,D,A,B)=SUM1
+!              UMAT2(B,A,D,C)=SUM1
+!              UMAT2(D,C,B,A)=SUM1
          ENDDO
 12       CLOSE(10)
       END
@@ -124,7 +124,7 @@ C.. Generic spatial symmetry
          REAL*8 UMAT(*)
          REAL*8 UMAT2(*),ARR(NBASIS)
          REAL*8 UMATT((((NBASIS/ISS)*(NBASIS/ISS-1))/2)**2)
-         REAL*8 HFBASIS(NBASIS,NBASIS),SUM,OS,HFE(NBASIS)
+         REAL*8 HFBASIS(NBASIS,NBASIS),SUM1,OS,HFE(NBASIS)
          INTEGER I,J,K,L,A,B,C,D
          type(timer), save :: proc_timer
          INTEGER ID1,ID2,ID3,ID4,NHG,ISSM,BRR(NBASIS),NORBUSED
@@ -141,20 +141,20 @@ C.. alternate in spin i.e. fn 1 has alpha, fn 2 beta, fn 3 alpha etc.
 C.. We need to take into account the spin when writing out the new U
 C.. matrix.  For <A(1) B(2) |U| C(1) D(2)> to be non-zero, A and C must
 C.. have the same spin, and B and D must have the same spin.
-C.. Thus the sum A+C must be even, as must B+D
+C.. Thus the sum1 A+C must be even, as must B+D
          WRITE(6,*) "Index 1..."
          DO A=1,NORBUSED
           DO J=1,NHG/ISS
            DO K=1,NHG/ISS
             DO L=1,NHG/ISS
-             SUM=0.D0
+             SUM1=0.D0
              DO I=1,NHG
-              CALL GTID(NBASISMAX,I,ID1)
-              SUM=SUM+HFBASIS(A,I)
+              ID1 = GTID(I)
+              SUM1=SUM1+HFBASIS(A,I)
      &               *UMAT(UMatInd(ID1,J,K,L,0,0))
              ENDDO
-             UMATT(UMatInd(J,K,L,A,0,0))=SUM
-!             IF(ABS(SUM).GT.1.D-9) WRITE(6,*) J,K,L,A,SUM
+             UMATT(UMatInd(J,K,L,A,0,0))=SUM1
+!             IF(ABS(SUM1).GT.1.D-9) WRITE(6,*) J,K,L,A,SUM1
             ENDDO
            ENDDO
           ENDDO
@@ -164,14 +164,14 @@ C.. Thus the sum A+C must be even, as must B+D
           DO B=1,NORBUSED
            DO K=1,NHG/ISS
             DO L=1,NHG/ISS
-             SUM=0.D0
+             SUM1=0.D0
              DO J=1,NHG
-              CALL GTID(NBASISMAX,J,ID2)
-              SUM=SUM+HFBASIS(B,J)
+              ID2 = GTID(J)
+              SUM1=SUM1+HFBASIS(B,J)
      &               *UMATT(UMatInd(ID2,K,L,A,0,0))
              ENDDO
-             UMAT2(UMatInd(K,L,A,B,0,0))=SUM
-!             IF(ABS(SUM).GT.1.D-9) WRITE(6,*) K,L,A,B,SUM
+             UMAT2(UMatInd(K,L,A,B,0,0))=SUM1
+!             IF(ABS(SUM1).GT.1.D-9) WRITE(6,*) K,L,A,B,SUM1
             ENDDO
            ENDDO
           ENDDO
@@ -181,14 +181,14 @@ C.. Thus the sum A+C must be even, as must B+D
           DO B=1,NORBUSED
            DO C=1,NORBUSED
             DO L=1,NHG/ISS
-             SUM=0.D0
+             SUM1=0.D0
              DO K=1,NHG
-              CALL GTID(NBASISMAX,K,ID3)
-              SUM=SUM+HFBASIS(C,K)
+              ID3 = GTID(K)
+              SUM1=SUM1+HFBASIS(C,K)
      &               *UMAT2(UMatInd(ID3,L,A,B,0,0))
              ENDDO
-             UMATT(UMatInd(L,A,B,C,0,0))=SUM
-!             IF(ABS(SUM).GT.1.D-9) WRITE(6,*) L,A,B,C,SUM
+             UMATT(UMatInd(L,A,B,C,0,0))=SUM1
+!             IF(ABS(SUM1).GT.1.D-9) WRITE(6,*) L,A,B,C,SUM1
             ENDDO
            ENDDO
           ENDDO
@@ -201,19 +201,19 @@ C.. Thus the sum A+C must be even, as must B+D
             DO D=1,NORBUSED
              LSPN=(MOD(A+C,2).EQ.0).AND.(MOD(B+D,2).EQ.0)
              IF(LSPN.AND.UMAT2(UMatInd(A,B,C,D,0,0)).EQ.0.D0) THEN
-              SUM=0.D0
+              SUM1=0.D0
               DO L=1,NHG
-               CALL GTID(NBASISMAX,L,ID4)
-               SUM=SUM+HFBASIS(D,L)
+               ID4 = GTID(L)
+               SUM1=SUM1+HFBASIS(D,L)
      &                *UMATT(UMatInd(ID4,A,B,C,0,0))
               ENDDO
-              UMAT2(UMatInd(A,B,C,D,0,0))=SUM
+              UMAT2(UMatInd(A,B,C,D,0,0))=SUM1
 C..Symmetries not needed by UMatInd
-!              UMAT2(C,D,A,B)=SUM
-!              UMAT2(B,A,D,C)=SUM
-!              UMAT2(D,C,B,A)=SUM
-               IF(ABS(SUM).GT.1.D-10)
-     &          WRITE(10,'(4I7,F19.9)') A,B,C,D,SUM
+!              UMAT2(C,D,A,B)=SUM1
+!              UMAT2(B,A,D,C)=SUM1
+!              UMAT2(D,C,B,A)=SUM1
+               IF(ABS(SUM1).GT.1.D-10)
+     &          WRITE(10,'(4I7,F19.9)') A,B,C,D,SUM1
              ENDIF
             ENDDO
            ENDDO
@@ -573,13 +573,13 @@ C. <ui|F|uj>=tij+Sum_kl(Dkl <ui uk|U|uj ul>-s<ui uk|U|ul uj>) where s=1 if i,k s
      &                     (J-1)*NSPINS+ISPN)
 !                  WRITE(6,*) I,J,TOT
 C.. Now sum in the alpha and beta block of u matrix
-                  CALL GTID(NBASISMAX,(I-1)*NSPINS+ISPN,ID1)
-                  CALL GTID(NBASISMAX,(J-1)*NSPINS+ISPN,ID2)
+                  ID1 = GTID((I-1)*NSPINS+ISPN)
+                  ID2 = GTID((J-1)*NSPINS+ISPN)
                   DO ISPN2=1,NSPINS
                      DO K=1,NSBASIS
                         DO L=1,NSBASIS
-                           CALL GTID(NBASISMAX,(K-1)*NSPINS+ISPN2,ID3)
-                           CALL GTID(NBASISMAX,(L-1)*NSPINS+ISPN2,ID4)
+                           ID3 = GTID((K-1)*NSPINS+ISPN2)
+                           ID4 = GTID((L-1)*NSPINS+ISPN2)
                            IF(DMAT(K,L,ISPN2).AGT.DmatEpsilon)
      &                      TOT=TOT+HElement(RHFMUL)*
      &                  DMAT(K,L,ISPN2)*GetUMatEl(NBasisMax,UMat,ALAT,
@@ -1304,23 +1304,21 @@ C.. deal with the one-electron integrals first
                      TOT=TOT+CMAT(K,A,KSPN)*DREAL(GetTMATEl(IDA,IDF))
                   ENDDO
 C.. UMAT ID
-                  CALL GTID(NBASISMAX,(F-1)*NSPINS+1+KSPN-1,IDF)
+                  IDF = GTID((F-1)*NSPINS+1+KSPN-1)
                   DO I=1,NEL
                      JJ=NDET1(I)
                      JSPN=MOD(JJ-1,NSPINS)+1
                      J=(JJ-1)/NSPINS+1
 C.. Here A and C correspond to J and B corresponds to K
                      DO A=1,NSBASIS
-                        CALL GTID(NBASISMAX,(A-1)*NSPINS+1+JSPN-1,IDA)
+                        IDA = GTID((A-1)*NSPINS+1+JSPN-1)
                         TOT1=0.D0
                         DO B=1,NSBASIS
-                           CALL GTID(NBASISMAX,
-     &                        (B-1)*NSPINS+1+KSPN-1,IDB)
+                           IDB = GTID((B-1)*NSPINS+1+KSPN-1)
                            TOT1B=0.D0
                            DO C=1,NSBASIS
                               TOT2=0.D0
-                              CALL GTID(NBASISMAX,
-     &                           (C-1)*NSPINS+1+JSPN-1,IDC)
+                              IDC = GTID((C-1)*NSPINS+1+JSPN-1)
                               TOT2=TOT2+UMAT(UMatInd(IDA,IDF,IDC,IDB
      &                                       ,0,0))
                               TOT2=TOT2+UMAT(UMatInd(IDA,IDB,IDC,IDF

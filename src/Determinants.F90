@@ -1,7 +1,8 @@
 #include "macros.h"
 MODULE Determinants
     Use HElem
-    use SystemData, only: BasisFN
+    use SystemData, only: BasisFN, tCSF
+    use csf, only: det_to_random_csf
     implicit none
     save
 ! Set by Calc on input
@@ -81,6 +82,7 @@ MODULE Determinants
       integer :: alpha,beta,symalpha,symbeta,endsymstate
       character(25), parameter :: this_routine='DetInit'
       LOGICAL :: tSuccess,tFoundOrbs(nBasis)
+      integer :: ncsf
 
       WRITE(6,*) "SYMMETRY MULTIPLICATION TABLE"
       CALL WRITESYMTABLE(6)
@@ -202,6 +204,11 @@ MODULE Determinants
 ! From now on, the orbitals are also contained in symlabellist2 and symlabelcounts2.
 ! These are stored using spin orbitals.
 
+    ! If we are using CSFs, then we need to convert this into a csf
+    if (tCSF) then
+        ncsf = det_to_random_csf (FDET)
+    endif
+
 
     End Subroutine DetInit
     
@@ -226,7 +233,7 @@ MODULE Determinants
          TYPE(HElement) UMat(*)
          INTEGER I,nEl,NI(nEl),NJ(nEl),iC,nBasisMax(5,*),iC2
          REAL*8 ECore
-         TYPE(HElement) Sum,Sum2
+         TYPE(HElement) Sum2
          INTEGER IGETEXCITLEVEL_2
          type(timer), save :: proc_timer
          IF(tHPHFInts) THEN
@@ -240,15 +247,15 @@ MODULE Determinants
 !             RETURN
          ENDIF
          if (tCSF) then
-             if (iscsf(NI) .or. iscsf(NJ)) then
-                 gethelement2 = CSFGetHelement (NI, NJ)
+             if (iscsf(nI) .or. iscsf(nJ)) then
+                 gethelement2 = CSFGetHelement (nI, nJ)
                  return
              endif
          endif
          IF(tStoreAsExcitations.AND.nI(1).eq.-1.and.nJ(1).eq.-1) then
             if(ic2.ne.2) stop 'tStoreAsExcitations in GetHElement2 requires ic=2 (doubles).'
-            Call SCR2Excit(nBasisMax,nJ,G1,nBasis,UMat,Alat,nBasisMax(2,3),Sum)
-            GetHElement2=Sum
+            Call SCR2Excit(nBasisMax,nJ,G1,nBasis,UMat,Alat,nBasisMax(2,3),Sum2)
+            GetHElement2=Sum2
             RETURN
          endif
          IC=IC2
@@ -261,8 +268,8 @@ MODULE Determinants
 !.. SLTCND has IC is # electrons the same in 2 dets
          proc_timer%timer_name='GETHELEM2 '
          call set_timer(proc_timer,60)
-         CALL SltCnd(nEl,nBasisMax,nBasis,NI,NJ,G1,nEl-iC,NMSH,FCK,NMAX,ALAT,UMat,Sum)
-         GetHElement2=Sum
+         CALL SltCnd(nEl,nBasisMax,nBasis,NI,NJ,G1,nEl-iC,NMSH,FCK,NMAX,ALAT,UMat,Sum2)
+         GetHElement2=Sum2
          IF(iC.EQ.0) GetHElement2%v=GetHElement2%v+ECore
 !         CALL WRITEDET(6,NI,NEL,.FALSE.)
 !         CALL WRITEDET(6,NJ,NEL,.FALSE.)
@@ -283,22 +290,25 @@ MODULE Determinants
 
 
 !Function for get the hamiltonian matrix element, when we have the excitation matrix and parity of the excitation.
-      TYPE(HElement) function GetHElement4(NI,NJ,iC2,ExcitMat,TParity)
+      TYPE(HElement) function GetHElement4(NI,NJ,iC2,ExcitMat,TParity) !,iLutI,&
+                                           !iLutJ)
          USE HElem
          use SystemData, only : nEl,nBasisMax,G1,nBasis,Brr
          use SystemData, only : ECore,ALat,NMSH, tCSF
          use IntegralsData, only : UMat,FCK,NMAX
          use csf, only: iscsf, CSFGetHelement
+         !integer, intent(in), optional, dimension(0:NIfTot) :: iLutI, iLutJ
          INTEGER NI(nEl),NJ(nEl),iC,ExcitMat(2,2),IC2
          LOGICAL TParity
-         TYPE(HElement) Sum
+         TYPE(HElement) Sum2
          IC=IC2
          GetHElement4%v=0.D0
 
+         ! If we are using CSFs, then call the csf routine.
          if (tCSF) then
+             ! TODO: pass through iLut. May need new GetHelement.
              if (iscsf(NI) .or. iscsf(NJ)) then
-                 !print*, 'get csf elements'
-                 gethelement4 = CSFGetHelement (NI, NJ)
+                 gethelement4 = CSFGetHelement (nI, nJ)
                  return
              endif
          endif
@@ -312,9 +322,9 @@ MODULE Determinants
          IF(IC.GT.2) RETURN
 
 !.. SLTCND has IC is # electrons the same in 2 dets
-         CALL SltCndExcit2(nEl,nBasisMax,nBasis,NI,NJ,G1,nEl-iC,NMSH,FCK,NMAX,ALAT,UMat,Sum,ExcitMat,TParity)
+         CALL SltCndExcit2(nEl,nBasisMax,nBasis,NI,NJ,G1,nEl-iC,NMSH,FCK,NMAX,ALAT,UMat,Sum2,ExcitMat,TParity)
 
-         GetHElement4=Sum
+         GetHElement4=Sum2
          IF(iC.EQ.0) GetHElement4%v=GetHElement4%v+ECore
 !         CALL WRITEDET(6,NI,NEL,.TRUE.)
 !         CALL WRITEDET(6,NJ,NEL,.TRUE.)

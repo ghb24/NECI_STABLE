@@ -285,18 +285,18 @@ C.. At the moment we're ignoring the core energy
                 IF(tROHF) THEN
 !The FCIDUMP file is in spin-orbitals - we need to transfer them to spatial orbitals.
                     IF(I.ne.0) THEN
-                        CALL GTID(NBASISMAX,I,I1)
+                        I1 = GTID(I)
                     ELSE
                         I1=0
                     ENDIF
                     IF(J.ne.0) THEN
-                        CALL GTID(NBASISMAX,J,J)
+                        J = GTID(J)
                     ENDIF
                     IF(K.ne.0) THEN
-                        CALL GTID(NBASISMAX,K,K)
+                        K = GTID(K)
                     ENDIF
                     IF(L.ne.0) THEN
-                        CALL GTID(NBASISMAX,L,L)
+                        L = GTID(L)
                     ENDIF
                 ELSE
                     I1=I    !Create new I index, since ROHF wants both spin and spatial indicies to get the fock energies right.
@@ -535,16 +535,16 @@ C.. set momentum to 0
              IF(tROHF) THEN
 !The FCIDUMP file is in spin-orbitals - we need to transfer them to spatial orbitals.
                 IF(I.ne.0) THEN
-                    CALL GTID(NBASISMAX,I,I)
+                    I = GTID(I)
                 ENDIF
                 IF(J.ne.0) THEN
-                    CALL GTID(NBASISMAX,J,J)
+                    J = GTID(J)
                 ENDIF
                 IF(K.ne.0) THEN
-                    CALL GTID(NBASISMAX,K,K)
+                    K = GTID(K)
                 ENDIF
                 IF(L.ne.0) THEN
-                    CALL GTID(NBASISMAX,L,L)
+                    L = GTID(L)
                 ENDIF
              ENDIF
 !             I=Index(I)

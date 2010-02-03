@@ -837,7 +837,7 @@ C.. remove NDCH if necessary
       END
 
       subroutine CSFGETHELEMENTOLD(NCI,NCJ,NEL,NBASISMAX,
-     &   G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMat,ECORE,SUM)
+     &   G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMat,ECORE,TOTSUM)
          use HELem
          use SystemData, only: basisfn
          type(basisfn) G1(*)
@@ -846,16 +846,16 @@ C.. remove NDCH if necessary
          type(helement) umat(*)
          complex*16 fck(*)
          integer nel,nci(nel),ncj(nel),nbasismax(5,*)
-         type(helement) sum
+         type(helement) TOTsum
          real*8 ecore
 
          call csfgethelement(nci,ncj,nel,nbasismax,g1,nbasis,
-     &                  brr,nmsh,fck,nmax,alat,umat,ecore,sum)
+     &                  brr,nmsh,fck,nmax,alat,umat,ecore,TOTsum)
       end subroutine
 
 C.. Get the Hamiltonian Element between two CSFs
       SUBROUTINE CSFGETHELEMENT(NCI,NCJ,NEL,NBASISMAX,
-     &   G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMat,ECORE,SUM)
+     &   G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMat,ECORE,TOTSUM)
          USE HElem
          Use Determinants, only: GetHelement2
          use SystemData, only: BasisFN
@@ -867,7 +867,7 @@ C.. Get the Hamiltonian Element between two CSFs
          TYPE(HElement) UMat(*)
          COMPLEX*16 FCK(*)
          INTEGER NEL,NCI(NEL),NCJ(NEL),nBasisMax(5,*)
-         TYPE(HElement) SUM,SUM2,HEL
+         TYPE(HElement) TOTSUM,SUM2,HEL
          REAL*8 ECORE
          
          INTEGER,ALLOCATABLE :: LISTD1(:,:),LISTD2(:,:)
@@ -885,7 +885,7 @@ C.. Get the Hamiltonian Element between two CSFs
          LOGICAL CSFCHKSPINSYM
          IF(.NOT.CSFCHKSPINSYM(NCI,NCJ,NEL)) THEN
 C.. If the Ms or S values differ, we return 0.
-            SUM=0.D0
+            TOTSUM=0.D0
             RETURN
          ENDIF
 C.. The SORDERS for dets 1 and 2
@@ -936,7 +936,7 @@ C.. NOPEN has number of open electrons, and NDETS has #open dets
 !            CALL WRITEDET(6,LISTD2(1,I),NEL,.FALSE.)
 !            WRITE(6,*) COEFF2
 !         ENDDO
-         SUM=0.D0
+         TOTSUM=0.D0
          DO I=1,NDETS1
             CALL CSFGETDETCOEFF(SO1,DOLISTD1((I-1)*NOPEN1+1),NOPEN1,
      &         COEFF1)
@@ -955,7 +955,7 @@ C.. NOPEN has number of open electrons, and NDETS has #open dets
      &            G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMat,-1,ECORE)
                SUM2=SUM2+HEL*HElement(COEFF2)
             ENDDO
-            SUM=SUM+SUM2*HElement(COEFF1)
+            TOTSUM=TOTSUM+SUM2*HElement(COEFF1)
          ENDDO
          deallocate(LISTD1,DOLISTD1,LISTD2,DOLISTD2,COEFFLIST2)
          call LogMemDealloc(this_routine,tagLISTD1)

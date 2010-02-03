@@ -274,10 +274,10 @@ MODULE SymExcit2
 !            proc_timer%timer_name='UMATELWT'
 !            call set_timer(proc_timer)
             ISS=NBASISMAX(2,3)
-            CALL GTID(NBASISMAX,I,IDI)
-            CALL GTID(NBASISMAX,J,IDJ)
-            CALL GTID(NBASISMAX,K,IDK)
-            CALL GTID(NBASISMAX,L,IDL)
+            IDI = GTID(I)
+            IDJ = GTID(J)
+            IDK = GTID(K)
+            IDL = GTID(L)
             W=GetUMatEl(NBASISMAX,UMAT,Alat,NBASIS,ISS,G1,IDI,IDJ,IDK,IDL)
             IF(TUPOWER) THEN
                 WEIGHT=1.D0+(SQRT(SQ(W)))**(G_VMC_EXCITWEIGHT(CUR_VERT))

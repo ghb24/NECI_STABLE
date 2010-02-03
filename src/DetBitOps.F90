@@ -1,7 +1,11 @@
 !This file contains a load of useful operations to perform on determinants represented as bit-strings.
 ! Start the process of modularising this bit!!
 module DetBitOps
-    use Systemdata, only: nel, NIfD, NIfY, NIfTot, tCSF
+    use Systemdata, only: nel, NIfD, NIfY, NIfTot, tCSF, tTruncateCSF, &
+                          csf_trunc_level
+    use csf_data, only: iscsf, csf_yama_bit, csf_orbital_mask, csf_test_bit
+    ! TODO: remove
+    use systemdata, only: g1
     implicit none
 
     ! http://gurmeetsingh.wordpress.com/2008/08/05/fast-bit-counting-routines/
@@ -150,6 +154,188 @@ module DetBitOps
         count_open_orbs = CountBits(alpha, NIfD)
     end function
 
+
+    integer function FindBitExcitLevel(iLutnI, iLutnJ, maxExLevel)
+
+        ! Find the excitation level of one determinant relative to another
+        ! given their bit strings (the number of orbitals they differ by)
+        !
+        ! In:  iLutnI, iLutnJ    - The bit representations
+        !      maxExLevel        - An (optional) maximum ex level to consider
+        ! Ret: FindBitExcitLevel - The number of orbitals i,j differ by
+
+        integer, intent(in) :: iLutnI(0:NIfD), iLutnJ(0:NIfD)
+        integer, intent(in), optional :: maxExLevel
+        integer :: tmp(0:NIfD)
+
+        ! Obtain a bit string with only the excited orbitals one one det.
+        tmp = ieor(iLutnI, iLutnJ)
+        tmp = iand(iLutnI, tmp)
+
+        ! Then count them
+        if (present(maxExLevel)) then
+            FindBitExcitLevel = CountBits(tmp, NIfD, maxExLevel)
+        else
+            FindBitExcitLevel = CountBits(tmp, NIfD)
+        endif
+    end function FindBitExcitLevel
+
+    function FindSpatialBitExcitLevel (iLutI, iLutJ, maxExLevel) result(IC)
+        
+        ! Find the excitation level of one determinant relative to another
+        ! given their bit strings, ignoring the spin components of orbitals.
+        ! (i.e. the number of spatial orbitals they differ by)
+        !
+        ! In:  iLutI, iLutJ - The bit representations
+        !      maxExLevel   - An (optional) maximum ex level to consider
+        ! Ret: IC           - The numbero f orbitals i,j differ by
+
+        integer, intent(in) :: iLutI(0:NIfD), iLutJ(0:NIfD)
+        integer, intent(in), optional :: maxExLevel
+        integer :: IC
+        integer, dimension(0:NIfD,2) :: alpha, beta, sing, doub, tmp
+
+        ! Obtain the alphas and betas
+        alpha(:,1) = iand(ilutI, Z'AAAAAAAA')
+        alpha(:,2) = iand(ilutJ, Z'AAAAAAAA')
+        beta(:,1) = iand(ilutI, Z'55555555')
+        beta(:,2) = iand(ilutJ, Z'55555555')
+
+        ! Bit strings separating doubles, and singles shifted to beta pos.
+        doub = iand(beta, ishft(alpha, -1))
+        doub = ior(doub, ishft(doub, +1))
+        sing = ieor(beta, ishft(alpha, -1))
+
+        ! Doubles and singles shifted to betas. Obtain unique orbitals ...
+        tmp = ior(doub, sing)
+        tmp(:,1) = ieor(tmp(:,1), tmp(:,2))
+        tmp(:,1) = iand(tmp(:,1), tmp(:,2))
+
+        ! ... and count them.
+        if (present(maxExLevel)) then
+            IC = CountBits(tmp(:,1), NIfD, maxExLevel)
+        else
+            IC = CountBits(tmp(:,1), NIfD)
+        endif
+    end function FindSpatialBitExcitLevel
+
+    pure subroutine get_bit_excitmat (ilutI, iLutJ, ex, IC)
+        
+        ! Obatin the excitation matrix between two determinants from their bit
+        ! representation without calculating tSign --> a bit quicker.
+        !
+        ! In:    iLutI, iLutJ - Bit representations of determinants I,J
+        ! InOut: IC           - Specify max IC before bailing, and return
+        !                       number of orbital I,J differ by
+        ! Out:   ex           - Excitation matrix between I,J
+
+        integer, intent(in) :: iLutI(0:NIfD), iLutJ(0:NIfD)
+        integer, intent(inout)  :: IC
+        integer, intent(out), dimension(2,IC) :: ex
+
+        integer :: ilut(0:NIfD,2), pos(2), max_ic, i, j, k
+
+        ! Obtain bit representations of I,J containing only unique orbitals
+        ilut(:,1) = ieor(ilutI, ilutJ)
+        ilut(:,2) = iand(ilutJ, ilut(:,1))
+        ilut(:,1) = iand(ilutI, ilut(:,1))
+
+        max_ic = IC
+        pos = 0
+        IC = 0
+        do i=0,NIfD
+            do j=0,31
+                do k=1,2
+                    if (pos(k) < max_ic) then
+                        if (btest(ilut(i,k), j)) then
+                            pos(k) = pos(k) + 1
+                            IC = max(IC, pos(k))
+                            ex(k, pos(k)) = 32*i + j + 1
+                        endif
+                    endif
+                enddo
+                if (pos(1) >= max_ic .and. pos(2) >= max_ic) return
+            enddo
+        enddo
+    end subroutine
+    
+    subroutine get_bit_open_unique_ind (iLutI, iLutJ, op_ind, nop, &
+                                        tsign_id, nsign, IC)
+
+                                        ! TODO: comment
+        ! Obtain the indices of unique open orbitals in I and J. 
+        !
+        ! In:  ILutI, ILutJ - Bit representations of determinants
+        !      IC           - (Max) number of orbitals for I,J to differ by
+        ! Out: op_ind       - Array of unique single indices for I,J
+        !      nop          - Number of unique singles in each of I,J
+
+        integer, intent(in) :: iLutI(0:NIfD), iLutJ(0:NIfD)
+        integer, intent(in) :: IC
+        integer, intent(out) :: op_ind(2*IC, 2), nop(2)
+        integer, intent(out) :: tsign_id (IC,2), nsign(2)
+        character(*), parameter :: this_routine = 'get_bit_open_unique_ind'
+
+        integer :: i, j, det, ilut(0:NIfD,2), sing(0:NIfD,2), det2
+        integer :: alpha(0:NIfD), beta(0:NIfD), sing_ind(2)
+
+        ! Obtain all the singles in I,J
+        alpha = iand(iLutI, Z'AAAAAAAA')
+        beta = iand(iLutI, Z'55555555')
+        alpha = ishft(alpha, -1)
+        sing(:,1) = ieor(alpha, beta)
+
+        alpha = iand(iLutJ, Z'AAAAAAAA')
+        beta = iand(iLutJ, Z'55555555')
+        alpha = ishft(alpha, -1)
+        sing(:,2) = ieor(alpha, beta)
+
+        ! Obtain bit representations of I,J with only the differing orbitals.
+        ilut(:,1) = ieor(sing(:,1), sing(:,2))
+        ilut(:,2) = iand(ilut(:,1), sing(:,2))
+        ilut(:,1) = iand(ilut(:,1), sing(:,1))
+
+        nop = 0
+        sing_ind = 0
+        nsign = 0
+        do i=0,NIfD
+            do j=0,31
+                ! TODO: If CSF, increment in steps of 2.
+                do det=1,2
+                    if (nop(det) < 2*IC) then
+                        ! Update the singles index
+                        if (btest(sing(i,det), j)) &
+                            sing_ind(det) = sing_ind(det) + 1
+
+                        if (btest(ilut(i,det), j)) then
+                            ! If unique single, store its index.
+                            nop(det) = nop(det) + 1
+                            op_ind(nop(det),det) = sing_ind(det)
+
+                            ! If single comes from a double in the other det,
+                            ! then it affects tSign when permuted.
+                            ! TODO: tidy and compact
+                            if (det == 1) then
+                                if (btest(iLutJ(i), ieor(j,1))) then
+                                    nsign(1) = nsign(1) + 1
+                                    tsign_id(nsign(1),1) = sing_ind(1)
+                                endif
+                            else if (det == 2) then
+                                if (btest(iLutI(i), ieor(j,1))) then
+                                    nsign(2) = nsign(2) + 1
+                                    tsign_id(nsign(2),2) = sing_ind(2)
+                                endif
+                            endif
+                        endif
+                    endif
+                enddo
+
+                if (nop(1) >= 2*IC .and. nop(2) >= 2*IC) return
+            enddo
+        enddo
+    end subroutine get_bit_open_unique_ind
+
+
     ! This will return true if iLutI is identical to iLutJ and will return 
     ! false otherwise.
     logical function DetBitEQ(iLutI,iLutJ,nLast)
@@ -279,8 +465,8 @@ module DetBitOps
         integer, intent(in) :: iLutHF(0:NIfTot)
         integer i, ExcitLevelI, ExcitLevelJ,lnLast
         
-        CALL FindBitExcitLevel(iLutI,iLutHF,ExcitLevelI,nel)
-        CALL FindBitExcitLevel(iLutJ,iLutHF,ExcitLevelJ,nel)
+        ExcitLevelI = FindBitExcitLevel(iLutI, iLutHF, nel)
+        ExcitLevelJ = FindBitExcitLevel(iLutJ, iLutHF, nel)
 
         ! First order in terms of excitation level.  I.e. if the excitation 
         ! levels are different, we don't care what the determinants are we 
@@ -330,7 +516,6 @@ module DetBitOps
     ! (nI) as a bit string (iLut(0:NIfTot)) where NIfD=INT(nBasis/32)
     ! If this is a csf, the csf is contained afterwards.
     subroutine EncodeBitDet(nI,iLut)
-        use csf, only: iscsf, csf_yama_bit, csf_orbital_mask
         integer, intent(in) :: nI(nel)
         integer, intent(out) :: iLut(0:NIfTot)
         integer :: i, det, pos, nopen
@@ -369,13 +554,24 @@ module DetBitOps
     ! the natural ordered NEl integer for of the det.
     ! If CSFs are enabled, transefer the yamanouchi symbol as well.
     subroutine DecodeBitDet(nI,iLut)
-        use csf, only: csf_yama_bit, csf_test_bit
         integer, intent(in) :: iLut(0:NIfTot)
         integer, intent(out) :: nI(nel)
         integer :: i, j, elec, pos, nopen
+        logical :: bIsCsf
+
+        bIsCsf = .false.
+        if (tCSF) then
+            if (tTruncateCSF) then
+                nopen = count_open_orbs(iLut)
+                if (nopen <= csf_trunc_level) then
+                    bIsCsf = .true.
+                endif
+            endif
+        endif
 
         elec=0
-        if (tCSF) then
+        ! TODO: decode to normal determinant if nopen > cutoff!!!
+        if (bIsCsf) then
             ! Consider the closed shell electrons first
             do i=0,NIfD
                 do j=0,30,2
@@ -421,9 +617,10 @@ module DetBitOps
                         !An electron is at this orbital
                         elec=elec+1
                         nI(elec)=(i*32)+(j+1)
-                        if(elec.eq.nel) return
+                        if (elec == nel) exit
                     endif
                 enddo
+                if (elec == nel) exit
             enddo
         endif
         if (CountBits(ilut, NIfD) > nel) then
@@ -746,22 +943,6 @@ end module
 
     END SUBROUTINE LargestBitSet
 
-!This routine will find the excitation level of two determinants in bit strings.
-    SUBROUTINE FindBitExcitLevel(iLutnI,iLutnJ,ExcitLevel,MaxExcitLevel)
-        use SystemData, only: NIfD
-        use DetBitOps, only: CountBits
-        IMPLICIT NONE
-        INTEGER :: iLutnI(0:NIfD),iLutnJ(0:NIfD),ExcitLevel,MaxExcitLevel
-        INTEGER :: iLutExcited(0:NIfD),i,k
-
-!First find a new bit string which just contains the excited orbitals
-        iLutExcited(:)=IEOR(iLutnI(:),iLutnJ(:))
-        iLutExcited(:)=IAND(iLutExcited(:),iLutnI(:))
-
-!Now, simply count the bits in it...
-        ExcitLevel = CountBits(iLutExcited, NIfD, MaxExcitLevel)
-
-    END SUBROUTINE FindBitExcitLevel
 
 !This routine will find the i and a orbitals from a single excitation.
 !NOTE! This routine will find i and a, but not distinguish between them. To calculate which one i is,

@@ -20,7 +20,7 @@ MODULE FciMCParMod
     use CalcData , only : NDets,RhoApp,TResumFCIMC,TNoAnnihil,MemoryFacPart,TAnnihilonproc,MemoryFacAnnihil,iStarOrbs,tAllSpawnStarDets
     use CalcData , only : FixedKiiCutoff,tFixShiftKii,tFixCASShift,tMagnetize,BField,NoMagDets,tSymmetricField,tStarOrbs,SinglesBias
     use CalcData , only : tHighExcitsSing,iHighExcitsSing,tFindGuide,iGuideDets,tUseGuide,iInitGuideParts,tNoDomSpinCoup
-    use CalcData , only : tPrintDominant,iNoDominantDets,MaxExcDom,MinExcDom,tSpawnDominant,tMinorDetsStar,MaxNoatHF
+    use CalcData , only : tPrintDominant,iNoDominantDets,MaxExcDom,MinExcDom,tSpawnDominant,tMinorDetsStar,MaxNoatHF,HFPopThresh
     use CalcData , only : tCCMC,tTruncCAS,tTruncInitiator,tDelayTruncInit,IterTruncInit,NShiftEquilSteps,tWalkContGrow
     use HPHFRandExcitMod , only : FindExcitBitDetSym,GenRandHPHFExcit,GenRandHPHFExcit2Scratch
     USE Determinants , only : FDet,GetHElement2,GetHElement4
@@ -39,7 +39,7 @@ MODULE FciMCParMod
     USE FciMCData
     USE AnnihilationMod
     use DetBitops, only: EncodeBitDet, DecodeBitDet, DetBitEQ, DetBitLT
-    use DetBitOps, only: FindExcitBitDet
+    use DetBitOps, only: FindExcitBitDet, FindBitExcitLevel
     use csf, only: get_csf_bit_yama
     IMPLICIT NONE
     integer, parameter :: dp = selected_real_kind(15,307)
@@ -270,9 +270,10 @@ MODULE FciMCParMod
 !This can be changed easily by increasing the final argument.
             IF(tTruncSpace) THEN
 !We need to know the exact excitation level for truncated calculations.
-                CALL FindBitExcitLevel(iLutHF,CurrentDets(:,j),WalkExcitLevel,NEl)
+                WalkExcitLevel = FindBitExcitLevel(iLutHF, CurrentDets(:,j),&
+                                                   nel)
             ELSE
-                CALL FindBitExcitLevel(iLutHF,CurrentDets(:,j),WalkExcitLevel,2)
+                WalkExcitLevel = FindBitExcitLevel(iLutHF, CurrentDets(:,j),2)
             ENDIF
 !HDiags are stored.
             HDiagCurr=CurrentH(j)
@@ -516,16 +517,12 @@ MODULE FciMCParMod
         do j=1,TotWalkers
 !j runs through all current walkers
 !If we are rotoannihilating/direct annihilating, the sign indicates the sum of the signs on the determinant, and hence j loops over determinants, not particles.
-!            WRITE(6,*) Iter,j,TotWalkers
-!            CALL FLUSH(6)
+            !WRITE(6,*) Iter,j,TotWalkers
+            CALL FLUSH(6)
 
 !First, decode the bit-string representation of the determinant the walker is on, into a string of naturally-ordered integers
 !            WRITE(6,*) 'CurrentDet (bit)',CurrentDets(:,j)
             CALL DecodeBitDet(DetCurr,CurrentDets(:,j))
-
-            !>>>! yipes
-            !write (6,'("Consider: ")', advance='no')
-            !call writedet(6, DetCurr, nel, .true.)
 
 !            IF((Iter.gt.100)) THEN!.and.(.not.DetBitEQ(CurrentDets(:,j),iLutHF))) THEN
 !This will test the excitation generator for HPHF wavefunctions
@@ -556,10 +553,11 @@ MODULE FciMCParMod
 
             IF(tTruncSpace.or.tHighExcitsSing.or.tHistSpawn.or.tCalcFCIMCPsi.or.tPrintSpinCoupHEl.or.tHistHamil) THEN
 !We need to know the exact excitation level for truncated calculations.
-                CALL FindBitExcitLevel(iLutHF,CurrentDets(:,j),WalkExcitLevel,NEl)
+                WalkExcitLevel = FindBitExcitLevel(iLutHF, CurrentDets(:,j),&
+                                                   nel)
                 IF((WalkExcitLevel.eq.2).and.tPrintSpinCoupHEl) CALL FindSpinCoupHEl(iLutHF,CurrentDets(:,j))
             ELSE
-                CALL FindBitExcitLevel(iLutHF,CurrentDets(:,j),WalkExcitLevel,2)
+                WalkExcitLevel = FindBitExcitLevel(iLutHF, CurrentDets(:,j),2)
             ENDIF
 
             IF(tTruncInitiator) THEN
@@ -660,7 +658,6 @@ MODULE FciMCParMod
             ENDIF
 
             do p=1,Loop
-
 !If rotoannihilating, we are simply looping over all the particles on the determinant
 
 !Ali wanted this debug line left in: this is an appropriate place to call the histogramming of the excitation generator
@@ -702,7 +699,7 @@ MODULE FciMCParMod
                                 elseif (tCSF) then
                                     ! TODO: fix this exFlag
                                     exFlag = 7
-                                    call GenRandSymCSFExcit (DetCurr, CurrentDets(:,j), nJ, 0.04_dp, 0.95_dp, IC, Ex, exFlag, Prob, Scratch1, Scratch2, Scratch3, tFilled)
+                                    call GenRandSymCSFExcit (DetCurr, CurrentDets(:,j), nJ, 0.04_dp, 0.95_dp, IC, Ex, exFlag, Prob, Scratch1, Scratch2, Scratch3, tFilled, tParity)
                                 else
                                     CALL GenRandSymExcitScratchNU(DetCurr,CurrentDets(:,j),nJ,pDoubles,IC,Ex,tParity,exFlag,Prob,Scratch1,Scratch2,tFilled)
 !                                    WRITE(6,'(A,8I3)') 'determinant generated for spawning',nJ
@@ -809,7 +806,9 @@ MODULE FciMCParMod
 
 !                        WRITE(6,'(A,3I20,A,8I3)') 'Child to be created from:',CurrentDets(:,j),' which is ',DetCurr(:)
 !                        WRITE(6,'(A,3I20,A,8I3)') 'Child to be created on:',iLutnJ(:),' which is ',nJ(:)
+                        !print*, 'attempt create'
                         Child=AttemptCreatePar(DetCurr,CurrentDets(:,j),CurrentSign(j),nJ,iLutnJ,Prob,IC,Ex,tParity,ParticleWeight,tMinorDetList)
+                        !print*, 'attempted'
                         !if (child /= 0) then
                             !WRITE(6,'(A,3I20)') 'Child to be created on:',iLutnJ(:)
                             !WRITE(6,*) 'Child',Child
@@ -905,7 +904,7 @@ MODULE FciMCParMod
                         ENDIF
 
                         IF(TMagnetize) THEN
-                            CALL FindBitExcitLevel(iLutnJ,iLutHF,ExcitLevel,2)
+                            ExcitLevel = FindBitExcitLevel(iLutnJ, iLutHF, 2)
                             CALL FindDiagElwithB(HDiag,ExcitLevel,nJ,WSign)
                         ELSE
                             IF(.not.tRegenDiagHEls) THEN
@@ -1363,12 +1362,13 @@ MODULE FciMCParMod
         REAL*8 :: TempTotWalkers,TempTotParts
         REAL*8 :: TempSumNoatHF,MeanWalkers,TempSumWalkersCyc,TempAllSumWalkersCyc,TempNoMinorWalkers
         REAL*8 :: inpairreal(3),outpairreal(3)
-        LOGICAL :: TBalanceNodesTemp
+        LOGICAL :: TBalanceNodesTemp,tReZeroShift
 
         TotImagTime=TotImagTime+StepsSft*Tau
 
 !Find the total number of particles at HF (x sign) across all nodes. If this is negative, flip the sign of all particles.
         AllNoatHF=0
+        tReZeroShift=.false.
 
 !Find sum of noathf, and then use an AllReduce to broadcast it to all nodes
         CALL MPIISum(NoatHF,1,AllNoatHF)
@@ -1391,7 +1391,21 @@ MODULE FciMCParMod
             ENDIF
 !Broadcast the fact that TSinglePartPhase may have changed to all processors - unfortunatly, have to do this broadcast every iteration.
             CALL MPILBcast(TSinglePartPhase,1,root)
+        ELSE
+!Exit the single particle phase if the number of walkers exceeds the value in the input file.
+!            CALL MPI_Barrier(MPI_COMM_WORLD,error)
+            IF(iProcIndex.eq.root) THEN     !Only exit phase if particle number is sufficient on head node.
+                IF((ABS(AllNoatHF).lt.(MaxNoatHF-HFPopThresh))) THEN
+                    WRITE(6,'(A)') "No at HF has fallen too low - reentering the single particle growth phase - particle number may grow again."
+!                    VaryShiftIter=Iter
+                    TSinglePartPhase=.true.
+                    tReZeroShift=.true.
+                ENDIF
+            ENDIF
+!Broadcast the fact that TSinglePartPhase may have changed to all processors - unfortunatly, have to do this broadcast every iteration.
+            CALL MPILBcast(TSinglePartPhase,1,root)
         ENDIF
+
 
 !This first call will calculate the GrowRate for each processor, taking culling into account
 !        WRITE(6,*) "Get Here"
@@ -1695,6 +1709,14 @@ MODULE FciMCParMod
 !            ProjectionE=ProjectionE+HubRefEnergy
 !            ProjEIter=ProjEIter+HubRefEnergy
 !        ENDIF
+        
+        IF(tReZeroShift) THEN
+            DiagSft=0.D0
+            VaryShiftCycles=0
+            SumDiagSft=0.D0
+            AvDiagSft=0.D0
+        ENDIF
+
 !We wan to now broadcast this new shift to all processors
         CALL MPI_Bcast(DiagSft,1,MPI_DOUBLE_PRECISION,Root,MPI_COMM_WORLD,error)
 !        WRITE(6,*) "Get Here 13"
@@ -2216,6 +2238,11 @@ MODULE FciMCParMod
             ALLOCATE(OrbOccs(nBasis),stat=ierr)
             CALL LogMemAlloc('OrbOccs',nBasis,8,this_routine,OrbOccsTag,ierr)
             OrbOccs(:)=0.D0
+        ENDIF
+
+        IF(MaxNoatHF.eq.0) THEN
+            MaxNoatHF=InitWalkers*nProcessors
+            HFPopThresh=MaxNoatHF
         ENDIF
 
         IF((NMCyc.ne.0).and.(tRotateOrbs.and.(.not.tFindCINatOrbs))) CALL Stop_All(this_routine,"Currently not set up to rotate and then go straight into a spawning &
@@ -3433,8 +3460,7 @@ MODULE FciMCParMod
         TotParts=0
         do j=1,TotWalkers
             CALL DecodeBitDet(TempnI,CurrentDets(:,j))
-            CALL FindBitExcitLevel(iLutHF,CurrentDets(:,j),Excitlevel,2)
-            
+            Excitlevel = FindBitExcitLevel(iLutHF, CurrentDets(:,j), 2)
             IF(Excitlevel.eq.0) THEN
                 IF(.not.tRegenDiagHEls) CurrentH(j)=0.D0
                 IF(First) THEN
@@ -3936,7 +3962,7 @@ MODULE FciMCParMod
             First=.true.
             do j=1,InitWalkers
 !Copy the HF excitation generator accross to each initial particle
-                CALL FindBitExcitLevel(iLutHF,CurrentDets(:,j),ExcitLevel,2)
+                ExcitLevel = FindBitExcitLevel(iLutHF, CurrentDets(:,j), 2)
                 IF(ExcitLevel.eq.0) THEN
 !We are at HF - we can save the excitgen
                     IF(First) THEN
@@ -4011,7 +4037,7 @@ MODULE FciMCParMod
 !We need to calculate the bit-representation of this new child. This can be done easily since the ExcitMat is known.
             tMinorDetList=.false.
             CALL FindExcitBitDet(iLutCurr,iLutnJ,IC,Ex)
-            CALL FindBitExcitLevel(iLutHF,iLutnJ,ExcitLev,iMaxDomLev)
+            ExcitLev = FindBitExcitLevel(iLutHF, iLutnJ, iMaxDomLev)
             IF((ExcitLev.le.iMaxDomLev).and.(ExcitLev.ge.iMinDomLev)) THEN
 !We now need to binary search the list of allowed determinants to see whether it is in the list or not.
                 CALL BinSearchParts3(iLutnJ,DomDets,iNoDomDets,DomExcIndex(ExcitLev),DomExcIndex(ExcitLev+1)-1,PartInd,tSuccess)
@@ -4055,6 +4081,7 @@ MODULE FciMCParMod
         ELSE
 !Normal determinant spawn
 
+            ! TODO: for csfs, have ilutnJ by now. Useful to eval. energy.
             rh=GetHElement4(DetCurr,nJ,IC,Ex,tParity)
             !WRITE(6,*) rh%v
 
@@ -4159,8 +4186,14 @@ MODULE FciMCParMod
         
 !We know we want to create a particle. Return the bit-representation of this particle (if we have not already got it)
         IF(.not.tHPHF.and.AttemptCreatePar.ne.0) THEN
-            call get_csf_bit_yama (nJ, yama)
-            CALL FindExcitBitDet(iLutCurr,iLutnJ,IC,Ex,yama)
+            if (tCSF) then
+                ! This makes sure that the Yamanouchi symbol is correct. It
+                ! also makes it work if we have tTruncateCSF on, and ex would
+                ! therefore leave all singles as beta, when we switch to dets.
+                call EncodeBitDet (nJ, iLutnJ)
+            else
+                call FindExcitBitDet(iLutCurr,iLutnJ,IC,Ex,yama)
+            endif
         ENDIF
 
 !        IF(AttemptCreatePar.ne.0) THEN
@@ -4233,7 +4266,7 @@ MODULE FciMCParMod
 !Find the excitation level of the excitation
 !We need to calculate the bit-representation of this new child. This can be done easily since the ExcitMat is known.
             tMinorDetList=.false.
-            CALL FindBitExcitLevel(iLutHF,iLutParent,ExcitLev,iMaxDomLev)
+            ExcitLev = FindBitExcitLevel(iLutHF, iLutParent, iMaxDomLev)
             IF((ExcitLev.le.iMaxDomLev).and.(ExcitLev.ge.iMinDomLev)) THEN
 !We now need to binary search the list of allowed determinants to see whether it is in the list or not.
                 CALL BinSearchParts3(iLutParent,DomDets,iNoDomDets,DomExcIndex(ExcitLev),DomExcIndex(ExcitLev+1)-1,PartInd,tSuccess)
@@ -4469,9 +4502,10 @@ MODULE FciMCParMod
 !This can be changed easily by increasing the final argument.
             IF(tTruncSpace) THEN
 !We need to know the exact excitation level for truncated calculations.
-                CALL FindBitExcitLevel(iLutHF,CurrentDets(:,j),WalkExcitLevel,NEl)
+                WalkExcitLevel = FindBitExcitLevel(iLutHF, CurrentDets(:,j),&
+                                                   nel)
             ELSE
-                CALL FindBitExcitLevel(iLutHF,CurrentDets(:,j),WalkExcitLevel,2)
+                WalkExcitLevel = FindBitExcitLevel(iLutHF, CurrentDets(:,j),2)
             ENDIF
 
             tFilled=.false.     !This is for regenerating excitations from the same determinant multiple times. There will be a time saving if we can store the excitation generators temporarily.
@@ -4667,7 +4701,7 @@ MODULE FciMCParMod
             CALL DecodeBitDet(DetCurr,CurrentDets(:,j))
 
 !Also, we want to find out the excitation level - we only need to find out if its connected or not (so excitation level of 3 or more is ignored.
-            CALL FindBitExcitLevel(iLutHF,CurrentDets(:,j),WalkExcitLevel,2)
+            WalkExcitLevel = FindBitExcitLevel(iLutHF, CurrentDets(:,j), 2)
             HDiagCurr=CurrentH(j)
 
 !Sum in any energy contribution from the determinant, including other parameters, such as excitlevel info
@@ -5852,7 +5886,7 @@ MODULE FciMCParMod
             GuideFuncDoub=0.D0
             !Run through all other determinants in the guiding function.  Find out if they are doubly excited.  Find H elements, and multiply by number on that double.
             do i=1,iGuideDets
-                CALL FindBitExcitLevel(GuideFuncDets(:,i),iLutHF,ExcitLevel,2)
+                ExcitLevel = FindBitExcitLevel(GuideFuncDets(:,i), iLutHF, 2)
                 IF(ExcitLevel.eq.2) THEN
                     DoubDet(:)=0
                     CALL DecodeBitDet(DoubDet,GuideFuncDets(0:NIfTot,i))
@@ -6244,7 +6278,8 @@ MODULE FciMCParMod
         NoExcDets=0
         AllNoExcDets=0
         do i=1,TotWalkers
-            CALL FindBitExcitLevel(CurrentDets(:,i),iLutHF(:),ExcitLevel,MaxExcDom)
+            ExcitLevel = FindBitExcitLevel(CurrentDets(:,i), iLutHF, &
+                                           MaxExcDom)
             IF((ExcitLevel.ge.MinExcDom).and.(ExcitLevel.le.MaxExcDom)) THEN
                 NoExcDets=NoExcDets+1
             ELSEIF(ExcitLevel.eq.0) THEN
@@ -6275,7 +6310,8 @@ MODULE FciMCParMod
 ! add its sign to the ExcSign array.
         ExcDetsIndex=0
         do i=1,TotWalkers
-            CALL FindBitExcitLevel(CurrentDets(:,i),iLutHF(:),ExcitLevel,MaxExcDom)
+            ExcitLevel = FindBitExcitLevel(CurrentDets(:,i), iLutHF(:), &
+                                           MaxExcDom)
             IF((ExcitLevel.ge.MinExcDom).and.(ExcitLevel.le.MaxExcDom)) THEN
                 ExcDetsIndex=ExcDetsIndex+1
                 ExcDets(0:NIfTot,ExcDetsIndex)=CurrentDets(0:NIfTot,i)
@@ -6418,13 +6454,13 @@ MODULE FciMCParMod
                     SpinCoupDet(:)=0
                     do i=1,NEl
                         ! For an electron of the current det, find the spatial orbital.
-!                        CALL GTID(nBasisMax,DetCurr(i),ID1)
+!                        ID1 = GTID(DetCurr(i))
                         ID1=CEILING(REAL(DetCurr(i))/2.0)
                         ! Now run through all other orbitals finding out if the same spat orb is occupied.
                         do k=1,NEl
                             IF(k.eq.i) CYCLE 
                             tDoubOcc=.false.
-!                            CALL GTID(nBasisMax,DetCurr(k),ID2)
+!                            ID2 = GTID(DetCurr(k))
                             ID2=CEILING(REAL(DetCurr(k))/2.0)
                             IF(ID2.eq.ID1) THEN
                                 ! doubly occupied orbital, these will be the same in the spin coupled det.
@@ -6581,12 +6617,13 @@ MODULE FciMCParMod
 ! We have just fed the first iNoDominantDets from the list ordered in terms of population.
 ! Only this amount will be reordered by excitation level then determinant, and then we print out this many only.
 
-            CALL SortExcitBitDets(iNoDominantDets,AllExcDets(:,1:iNoDominantDets),AllExcSign(1:iNoDominantDets),iLutHF(:))
+            CALL SortExcitBitDets(iNoDominantDets,AllExcDets(:,1:iNoDominantDets),AllExcSign(1:iNoDominantDets),iLutHF)
  
 !            OPEN(40,file='DOMINANTDETSexclevelbit',status='unknown')
 !            WRITE(40,*) AllNoExcDets,' determinants with the right excitation level.'    
 !            do j=1,AllNoExcDets
-!                CALL FindBitExcitLevel(AllExcDets(:,j),iLutHF(0:NIfTot),ExcitLevel,MaxExcDom)
+!                ExcitLevel = FindBitExcitLevel(AllExcDets(:,j), iLutHF, &
+!                                               MaxExcDom)
 !                WRITE(40,*) AllExcDets(0:NIfTot,j),AllExcSign(j),ExcitLevel
 !            enddo
 !            CLOSE(40)
@@ -6607,13 +6644,15 @@ MODULE FciMCParMod
                         WRITE(38,*) k,0
                     enddo
                 ENDIF
-                CALL FindBitExcitLevel(AllExcDets(:,i),iLutHF(:),CurrExcitLevel,MaxExcDom)
+                CurrExcitLevel = FindBitExcitLevel(AllExcDets(:,i), iLutHF, &
+                                                   MaxExcDom)
                 ExcitLevel=CurrExcitLevel
                 do while (ExcitLevel.eq.CurrExcitLevel)
                     NoExcitLevel=NoExcitLevel+1
                     j=j+1
                     IF(j.gt.iNoDominantDets) EXIT
-                    CALL FindBitExcitLevel(AllExcDets(:,j),iLutHF(:),ExcitLevel,MaxExcDom)
+                    ExcitLevel = FindBitExcitLevel(AllExcDets(:,j), iLutHF, &
+                                                   MaxExcDom)
                 enddo
                 WRITE(38,*) CurrExcitLevel,NoExcitLevel
             enddo
@@ -6800,7 +6839,7 @@ MODULE FciMCParMod
                 do i=1,Det
                     norm=norm+AllHistogram(i)**2
 !write out FCIMC Component weight (normalised), current normalisation, excitation level
-                    CALL FindBitExcitLevel(iLutHF,FCIDets(:,i),ExcitLevel,NEl)
+                    ExcitLevel = FindBitExcitLevel(iLutHF, FCIDets(:,i), nel)
                     CALL DecodeBitDet(nI,FCIDets(0:NIfTot,i))
                     WRITE(17,"(I13,G25.16,I6,G20.10)",advance='no') i,AllHistogram(i),ExcitLevel,norm
                     do j=1,NEl-1
@@ -7736,7 +7775,7 @@ MODULE FciMCParMod
             IF(.not.tSuccess) THEN
                 CALL Stop_All("AddHistHamil","Cannot find determinant nI in list")
             ENDIF
-            CALL FindBitExcitLevel(iLutHF,iLutnJ,NIfD,ChildExcitLevel,NEl)
+            ChildExcitLevel = FindBitExcitLevel(iLutHF, iLutnJ, nel)
             IF(ChildExcitLevel.eq.NEl) THEN
                 CALL BinSearchParts2(iLutnJ,FCIDetIndex(ChildExcitLevel),Det,PartIndChild,tSuccess)
             ELSEIF(ChildExcitLevel.eq.0) THEN
@@ -9466,7 +9505,7 @@ MODULE FciMCParMod
 !We are truncating the space by excitation level
             IF(tHPHF) THEN
 !With HPHF, we can't rely on this, since one excitation could be a single, and one a double. Also, IC is not returned.
-                CALL FindBitExcitLevel(iLutHF,iLutnJ,ExcitLevel,ICILevel)
+                ExcitLevel = FindBitExcitLevel(iLutHF, iLutnJ, ICILevel)
                 IF(ExcitLevel.gt.ICILevel) THEN
                     CheckAllowedTruncSpawn=.false.
                 ENDIF
