@@ -1738,7 +1738,7 @@ contains
 
         print*, 'Starting determinant:'
         call writedet(6, nI, nel, .true.)
-        call TestGenRandSymCSFExcit (nI, 4000000, 0.d0, 1.0, 4, 10000)
+        call TestGenRandSymCSFExcit (nI, 4000000, 0.d0, 1.0d0, 4, 10000)
 
         ! Obtain the orbital symmetries for the following steps
         call ConstructClassCountsSpatial(nI, nel-nopen, CCDblS, CCSglS, CCUnS)
@@ -1753,7 +1753,7 @@ contains
         do i=1,nexcit
             write (6, '(i6,": ")', advance='no') i
             call writedet (6, nK(i,:), nel, .true.)
-            call TestGenRandSymCSFExcit (nK(i,:), 4000000, 0.2, 0.75, 7 &
+            call TestGenRandSymCSFExcit (nK(i,:), 4000000, 0.2d0, 0.75d0, 7 &
                                          ,10000)
         enddo
         deallocate(nK)
