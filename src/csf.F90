@@ -554,16 +554,12 @@ contains
                     if (IsOcc(iLutI, ab_pair(ex(i,j)))) then
                         do k=1,nop_uniq(3-i)
                             if (i == 1) then
-                                if (is_in_pair(ex(i,j), &
-                                    iand(nJ(nclosed(2)+uniq_id(k,2)), &
-                                         csf_orbital_mask))) then
+                                if (is_in_pair(ex(i,j), iand(nJ(nclosed(2)+uniq_id(k,2)), csf_orbital_mask))) then
                                     ex_ms_ind(i,j) = -nclosed(2)-uniq_id(k,2)
                                     exit
                                 endif
                             else
-                                if (is_in_pair(ex(i,j), &
-                                    iand(nI(nclosed(1)+uniq_id(k,1)), &
-                                         csf_orbital_mask))) then
+                                if (is_in_pair(ex(i,j), iand(nI(nclosed(1)+uniq_id(k,1)), csf_orbital_mask))) then
                                     ex_ms_ind(i,j) = nclosed(1)+uniq_id(k,1)
                                     exit
                                 endif
@@ -572,16 +568,12 @@ contains
                     else
                         do k=1,nop_uniq(i)
                             if (i == 1) then
-                                if (is_in_pair(ex(i,j), &
-                                    iand (nI(nclosed(1)+uniq_id(k,1)), &
-                                          csf_orbital_mask))) then
+                                if (is_in_pair(ex(i,j), iand (nI(nclosed(1)+uniq_id(k,1)), csf_orbital_mask))) then
                                     ex_ms_ind(i,j) = nclosed(1) + uniq_id(k,1)
                                     exit
                                 endif
                             else
-                                if (is_in_pair(ex(i,j), &
-                                    iand (nJ(nclosed(2)+uniq_id(k,2)), &
-                                          csf_orbital_mask))) then
+                                if (is_in_pair(ex(i,j), iand (nJ(nclosed(2)+uniq_id(k,2)), csf_orbital_mask))) then
                                     ex_ms_ind(i,j) = -nclosed(2)-uniq_id(k,2)
                                     exit
                                 endif
@@ -649,10 +641,10 @@ contains
                         do m=1,2
                             if (ex_ms_ind(l,m) < 0) then
                                 ex_ms(l,m) = 2*dets2(abs(ex_ms_ind(l,m)),k)-1
-                                if (l == 1) ex_ms(l,m) = ex_ms(l,m)*-1
+                                if (l == 1) ex_ms(l,m) = -ex_ms(l,m)
                             else if (ex_ms_ind(l,m) > 0) then
                                 ex_ms(l,m) = 2*dets1(ex_ms_ind(l,m),i)-1
-                                if (l == 2) ex_ms(l,m) = ex_ms(l,m)*-1
+                                if (l == 2) ex_ms(l,m) = -ex_ms(l,m)
                             endif
                         enddo
                         enddo
@@ -669,7 +661,7 @@ contains
                         endif
 
                         ! Calculate the parity of this pair of dets.
-                        tSign_tmp = tSign .xor. (delta_tsign1(i) .xor. &
+                        tSign_tmp = tSign .neqv. (delta_tsign1(i) .neqv. &
                                                  delta_tsign2(k))
                         if (tSign_tmp) hel = -hel
 
