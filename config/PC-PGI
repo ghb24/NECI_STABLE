@@ -3,6 +3,7 @@ fc = pgf90
 f90flags = -Mfree 
 compiler = PGI-pgf95-on-LINUX
 cc = pgcc
+ccd = gcc
 cpp = /lib/cpp
 cppflags =  -P -C -traditional -D__Linux -D__PGI -DLAPACK -DFFT_DEFAULT
 ld = pgf90
