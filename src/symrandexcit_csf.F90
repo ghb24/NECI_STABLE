@@ -161,7 +161,7 @@ contains
             else if (tTruncateCSF .and. nopen > csf_trunc_level) then
                 nJ(1) = 0
                 call stop_all (this_routine, "We should be exciting this as &
-                                              a determinant.")
+                                             &a determinant.")
             else
                 call csf_apply_random_yama (nJ, nopen, real(STOT,8)/2, ncsf, &
                                             .true.)
