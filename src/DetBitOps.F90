@@ -559,6 +559,8 @@ module DetBitOps
         integer :: i, j, elec, pos, nopen
         logical :: bIsCsf
 
+        ! We need to use the CSF decoding routine if CSFs are enable, and we
+        ! are below a truncation limit if set.
         bIsCsf = .false.
         if (tCSF) then
             if (tTruncateCSF) then
@@ -566,6 +568,8 @@ module DetBitOps
                 if (nopen <= csf_trunc_level) then
                     bIsCsf = .true.
                 endif
+            else
+                bIsCsf = .true.
             endif
         endif
 
