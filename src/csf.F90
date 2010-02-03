@@ -661,7 +661,7 @@ contains
                         endif
 
                         ! Calculate the parity of this pair of dets.
-                        tSign_tmp = tSign .xor. (delta_tsign1(i) .xor. &
+                        tSign_tmp = tSign .neqv. (delta_tsign1(i) .neqv. &
                                                  delta_tsign2(k))
                         if (tSign_tmp) hel = -hel
 
