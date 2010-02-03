@@ -554,16 +554,12 @@ contains
                     if (IsOcc(iLutI, ab_pair(ex(i,j)))) then
                         do k=1,nop_uniq(3-i)
                             if (i == 1) then
-                                if (is_in_pair(ex(i,j), &
-                                    iand(nJ(nclosed(2)+uniq_id(k,2)), &
-                                         csf_orbital_mask))) then
+                                if (is_in_pair(ex(i,j), iand(nJ(nclosed(2)+uniq_id(k,2)), csf_orbital_mask))) then
                                     ex_ms_ind(i,j) = -nclosed(2)-uniq_id(k,2)
                                     exit
                                 endif
                             else
-                                if (is_in_pair(ex(i,j), &
-                                    iand(nI(nclosed(1)+uniq_id(k,1)), &
-                                         csf_orbital_mask))) then
+                                if (is_in_pair(ex(i,j), iand(nI(nclosed(1)+uniq_id(k,1)), csf_orbital_mask))) then
                                     ex_ms_ind(i,j) = nclosed(1)+uniq_id(k,1)
                                     exit
                                 endif
@@ -572,16 +568,12 @@ contains
                     else
                         do k=1,nop_uniq(i)
                             if (i == 1) then
-                                if (is_in_pair(ex(i,j), &
-                                    iand (nI(nclosed(1)+uniq_id(k,1)), &
-                                          csf_orbital_mask))) then
+                                if (is_in_pair(ex(i,j), iand (nI(nclosed(1)+uniq_id(k,1)), csf_orbital_mask))) then
                                     ex_ms_ind(i,j) = nclosed(1) + uniq_id(k,1)
                                     exit
                                 endif
                             else
-                                if (is_in_pair(ex(i,j), &
-                                    iand (nJ(nclosed(2)+uniq_id(k,2)), &
-                                          csf_orbital_mask))) then
+                                if (is_in_pair(ex(i,j), iand (nJ(nclosed(2)+uniq_id(k,2)), csf_orbital_mask))) then
                                     ex_ms_ind(i,j) = -nclosed(2)-uniq_id(k,2)
                                     exit
                                 endif
