@@ -394,11 +394,11 @@ $(KDEST)/%%.f: %%.F
 # 2. Compile.
 
 # We assume that all module files are .F90 files.
+# Fool compile_mod.pl.
+# If the .mod file exists but not the corresponding .time file, then it's possible we just compiled the relevant .f90
+# file using the object rule and so don't need to produce the .mod file again.  We test for the latter condition by
+# requiring the .o and .mod files have the same "last modified" time.
 %%.mod:
-\t# Fool compile_mod.pl.
-\t# If the .mod file exists but not the corresponding .time file, then it's possible we just compiled the relevant .f90
-\t# file using the object rule and so don't need to produce the .mod file again.  We test for the latter condition by
-\t# requiring the .o and .mod files have the same "last modified" time.
 \ttest -e $@ && test ! -e $(@:.mod=.time) && test $(stat -f %%m $@) -eq $(stat -f %%m $<) && touch $(@:.mod=.time) || true
 \tperl -w $(TOOLS)/compile_mod.pl -cmp "perl -w $(TOOLS)/compare_module_file.pl -compiler $(compiler)" -fc "$(FC) $(FFLAGS) $(F90FLAGS) %(module_flag)s$(dir $@) -I $(SRC) -c $(<:.o=.f90) -o $<" -provides "$@" -requires "$(<:.o=.f90)"
 
@@ -508,14 +508,14 @@ def parse_config(config_file):
 
     for s in parser.sections():
         if s not in valid_sections and s not in valid_sections_upper:
-            raise IOError, 'Invalid section in configuration file: %s.' % (s)
+            raise IOError, 'Invalid section in configuration file %s: %s.' % (config_file, s)
 
     for s in valid_sections:
         if s not in parser.sections() and s.upper() not in parser.sections():
-            raise IOError, 'Section not present in configuration file: %s.' % (s)             
+            raise IOError, 'Section not present in configuration file %s: %s.' % (config_file, s)             
 
     if not parser.sections():
-        raise IOError, 'No sections in configuration file: %s.' % (s)
+        raise IOError, 'No sections in configuration file %s: %s.' % (config_file, s)
 
     config = {}
 
