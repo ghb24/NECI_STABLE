@@ -641,10 +641,10 @@ contains
                         do m=1,2
                             if (ex_ms_ind(l,m) < 0) then
                                 ex_ms(l,m) = 2*dets2(abs(ex_ms_ind(l,m)),k)-1
-                                if (l == 1) ex_ms(l,m) = ex_ms(l,m)*-1
+                                if (l == 1) ex_ms(l,m) = -ex_ms(l,m)
                             else if (ex_ms_ind(l,m) > 0) then
                                 ex_ms(l,m) = 2*dets1(ex_ms_ind(l,m),i)-1
-                                if (l == 2) ex_ms(l,m) = ex_ms(l,m)*-1
+                                if (l == 2) ex_ms(l,m) = -ex_ms(l,m)
                             endif
                         enddo
                         enddo
