@@ -9845,9 +9845,9 @@ MODULE FciMCParMod
                    ((real(nSing,r2)*SinglesBias)+real(nDoub,r2)+real(ncsf,r2))
 
         else
-            pDoubles = real(nDoub,r2) * SinglesBias / &
+            pDoubles = real(nDoub,r2) / &
                    ((real(NSing,r2)*SinglesBias) + real(NDoub,r2))
-            pSingles = real(nSing,r2) / &
+            pSingles = real(nSing,r2) * SinglesBias/ &
                    ((real(nSing,r2)*SinglesBias) + real(nDoub,r2))
         endif
 
