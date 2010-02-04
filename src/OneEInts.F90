@@ -168,6 +168,7 @@ contains
 
         integer, intent(in) :: i, j
         type(HElement) :: ret
+        type(HElement) :: t
 
         if (tStarStore) then
             ret = TMatSym(TMatInd(i, j))
@@ -177,7 +178,10 @@ contains
             if (j .ge. i) then
                 ret = TMatSym(TMatInd(i,j))
             else
-                ret = dconjg(TMatSym(TmatInd(i,j)))
+                ! Work around a bug in gfortran's parser: it doesn't like
+                ! doing dconjg(TMatSym).
+                t = TMatSym(TmatInd(i,j))
+                ret = dconjg(t)
             endif
         else
             ret = TMat2D(i, j)
