@@ -206,7 +206,9 @@ MODULE Determinants
 
     ! If we are using CSFs, then we need to convert this into a csf
     if (tCSF) then
+        print*, 'USING CSFs'
         ncsf = det_to_random_csf (FDET)
+        call writedet (6, FDET, nel, .true.)
     endif
 
 

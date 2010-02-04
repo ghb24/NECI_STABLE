@@ -179,9 +179,12 @@ MODULE FciMCData
       INTEGER :: SpinInvBRRTag=0
       INTEGER :: CASmin=0,CASmax=0
 
-      REAL*8 :: pDoubles                          !This is the approximate fraction of excitations which are doubles. This is calculated if we are using non-uniform
-                                                !random excitations.
-      INTEGER , ALLOCATABLE :: iLutHF(:)          !This is the bit representation of the HF determinant.
+      ! The approximate fraction of singles and doubles. This is calculated
+      ! using the HF determinant, if using non-uniform random excitations.
+      real*8 :: pDoubles, pSingles
+      
+      ! Bit representation of the HF determinant
+      integer, allocatable :: iLutHF(:)
     
       REAL*8 , ALLOCATABLE :: OneRDM(:,:)         !This is the 1 electron reduced density matrix.
       INTEGER :: OneRDMTag=0                      !It is calculated as an FCIMC run progresses.  As the run tends towards the correct wavefunction, diagonalisation 

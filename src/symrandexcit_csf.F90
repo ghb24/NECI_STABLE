@@ -100,6 +100,13 @@ contains
                 ! --> w00t!
                 pGen = pgen / ncsf
             endif
+
+
+        !    !>>! Mimic freeze
+        !    if (iand(nJ(1), csf_orbital_mask) /= 1 .or. &
+        !        iand(nJ(2), csf_orbital_mask) /= 2) then
+        !        nJ(1) = 0
+        !    endif
             return
         endif
         tParity = .false.
@@ -178,6 +185,11 @@ contains
             call CSFCreateDoubleExcit (nI, nJ, CCDblS, CCSglS, CCUnS, iLut, &
                                        ExcitMat, nopen, pDouble, pGen)
         endselect
+     !   !>>! Mimic freeze
+     !   if (iand(nJ(1), csf_orbital_mask) /= 1 .or. &
+     !       iand(nJ(2), csf_orbital_mask) /= 2) then
+     !       nJ(1) = 0
+     !   endif
     end subroutine
 
     subroutine CSFCreateDoubleExcit (nI, nJ, CCDblS, CCSglS, CCUnS, iLut, &

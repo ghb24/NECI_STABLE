@@ -699,7 +699,7 @@ MODULE FciMCParMod
                                 elseif (tCSF) then
                                     ! TODO: fix this exFlag
                                     exFlag = 7
-                                    call GenRandSymCSFExcit (DetCurr, CurrentDets(:,j), nJ, 0.04_dp, 0.95_dp, IC, Ex, exFlag, Prob, Scratch1, Scratch2, Scratch3, tFilled, tParity)
+                                    call GenRandSymCSFExcit (DetCurr, CurrentDets(:,j), nJ, pSingles, pDoubles, IC, Ex, exFlag, Prob, Scratch1, Scratch2, Scratch3, tFilled, tParity)
                                 else
                                     CALL GenRandSymExcitScratchNU(DetCurr,CurrentDets(:,j),nJ,pDoubles,IC,Ex,tParity,exFlag,Prob,Scratch1,Scratch2,tFilled)
 !                                    WRITE(6,'(A,8I3)') 'determinant generated for spawning',nJ
@@ -9747,7 +9747,14 @@ MODULE FciMCParMod
         use SymData , only : SymClassSize
         use SymExcit3 , only : CountExcitations3
         INTEGER :: HFConn,PosExcittypes,iTotal,i
-        INTEGER :: nSing,nDoub,ExcitInd
+        integer :: nSing, nDoub, ncsf, ExcitInd
+
+        ! TODO: A better approximation for ncsf.
+        if (tCSF) then
+            ncsf = 10
+        else
+            ncsf = 0
+        endif
 
         IF(tHub.or.tUEG) THEN
             IF(tReal) THEN
@@ -9769,7 +9776,7 @@ MODULE FciMCParMod
             WRITE(6,"(A)") "Calculating approximate pDoubles for use with excitation generator by looking a excitations from HF."
             exflag=3
             CALL CountExcitations3(HFDet,exflag,nSing,nDoub)
-            iTotal=nSing+nDoub
+            iTotal=nSing + nDoub + ncsf
 
         ELSE
 
@@ -9815,24 +9822,47 @@ MODULE FciMCParMod
             WRITE(6,*) "Singles Bias detected. Multiplying single excitation connectivity of HF determinant by ",SinglesBias," to determine pDoubles."
         ENDIF
 
-        IF((NSing+nDoub).ne.iTotal) THEN
+        IF((NSing+nDoub+ncsf).ne.iTotal) THEN
             CALL Stop_All("CalcApproxpDoubles","Sum of number of singles and number of doubles does not equal total number of excitations")
         ENDIF
         IF((NSing.eq.0).or.(NDoub.eq.0)) THEN
             WRITE(6,*) "Number of singles or doubles found equals zero. pDoubles will be set to 0.95. Is this correct?"
-            pDoubles=0.95
+            pDoubles = 0.95
+            pSingles = 0.05
             RETURN
-        ELSEIF((NSing.lt.0).or.(NDoub.lt.0)) THEN
-            CALL Stop_All("CalcApproxpDoubles","Number of singles or doubles found to be a negative number. Error here.")
-        ENDIF
+        elseif ((NSing < 0) .or. (NDoub < 0) .or. (ncsf < 0)) then
+            call stop_all("CalcApproxpDoubles", &
+                          "Number of singles, doubles or Yamanouchi symbols &
+                          &found to be a negative number. Error here.")
+        endif
 
-!Set pDoubles to be the fraction of double excitations.
-        pDoubles=real(nDoub,r2)/((real(NSing,r2)*SinglesBias)+real(NDoub,r2))
+        ! Set pDoubles to be the fraction of double excitations.
+        ! If using CSFs, also consider only changing Yamanouchi Symbol
+        if (tCSF) then
+            pDoubles = real(nDoub,r2) / &
+                   ((real(nSing,r2)*SinglesBias)+real(nDoub,r2)+real(ncsf,r2))
+            pSingles = real(nSing,r2) / &
+                   ((real(nSing,r2)*SinglesBias)+real(nDoub,r2)+real(ncsf,r2))
+
+        else
+            pDoubles = real(nDoub,r2) * SinglesBias / &
+                   ((real(NSing,r2)*SinglesBias) + real(NDoub,r2))
+            pSingles = real(nSing,r2) / &
+                   ((real(nSing,r2)*SinglesBias) + real(nDoub,r2))
+        endif
 
         IF(SinglesBias.ne.1.D0) THEN
+            write (6, '("pDoubles set to ", f14.6, &
+                       &" rather than (without bias): ", f14.6)') &
+                       pDoubles, real(nDoub,r2) / real(iTotal,r2)
+            write (6, '("pSingles set to ", f14.6, &
+                       &" rather than (without bias): ", f14.6)') &
+                       pSingles, real(nSing,r2) / real(iTotal,r2)
+
             WRITE(6,"(A,F14.6,A,F14.6)") "pDoubles set to: ",pDoubles, " rather than (without bias): ",real(nDoub,r2)/real(iTotal,r2)
         ELSE
-            WRITE(6,"(A,F14.6)") "pDoubles set to: ",pDoubles
+            write (6, '("pDoubles set to: ", f14.6)') pDoubles
+            write (6, '("pSingles set to: ", f14.6)') pSingles
         ENDIF
 
     END SUBROUTINE CalcApproxpDoubles
