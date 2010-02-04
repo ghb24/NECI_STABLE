@@ -57,12 +57,13 @@ contains
 !   STARTHIST        Will begin histogramming the determinant populations if the tCalcFCIMCPsi is on and the histogramming has been set up.
 !   HISTEQUILSTEPS XXX      Will change the iteration at which the histogramming begins to the value specified.
 !   TRUNCINITIATOR   Will expand the CAS calculation to a TRUNCINITIATOR calculation if DELAYTRUNCINITIATOR is present in the input.
+!   ADDTOINIT XXX    Will change the cutt-off population for which walkers are added to the initiator space.  Pop must be *above* specified value.
 
     subroutine ChangeVars(tSingBiasChange,tSoftExitFound,tWritePopsFound)
        use SystemData, only : NEl,nBasis
        use FciMCData, only : Iter,CASMin,CASMax,tTruncSpace,tSinglePartPhase,SumENum,SumNoatHF,HFPopCyc,ProjEIterSum,Histogram,AvAnnihil
        use FciMCData, only : VaryShiftCycles,SumDiagSft,VaryShiftIter 
-       use CalcData, only : Tau,DiagSft,SftDamp,StepsSft,SinglesBias,OccCASOrbs,VirtCASOrbs,NMCyc,tTruncCAS,NEquilSteps,tTruncInitiator
+       use CalcData, only : Tau,DiagSft,SftDamp,StepsSft,SinglesBias,OccCASOrbs,VirtCASOrbs,NMCyc,tTruncCAS,NEquilSteps,tTruncInitiator,InitiatorWalkNo
        use DetCalc, only : ICILevel 
        use IntegralsData , only : tPartFreezeCore,NPartFrozen,NHolesFrozen,NVirtPartFrozen,NElVirtFrozen,tPartFreezeVirt
        use Parallel
@@ -72,7 +73,7 @@ contains
        implicit none
        integer :: error,i,ios,NewNMCyc
        logical :: tSoftExitFound,tWritePopsFound,exists,AnyExist,deleted_file
-       logical :: tEof,any_deleted_file,tChangeParams(24),tSingBiasChange
+       logical :: tEof,any_deleted_file,tChangeParams(25),tSingBiasChange
        Character(len=100) :: w
 
        tSoftExitFound=.false.
@@ -88,7 +89,7 @@ contains
                WRITE(6,*) "CHANGEVARS file detected on iteration ",Iter
            ENDIF
 !Set the defaults
-           tChangeParams(1:24)=.false.
+           tChangeParams(1:25)=.false.
            deleted_file=.false.
            do i=0,nProcessors-1
                ! This causes each processor to attempt to delete
@@ -168,6 +169,9 @@ contains
                            tChangeParams(24)=.true.
                            CALL Readi(NVirtPartFrozen)
                            CALL Readi(NElVirtFrozen)
+                       CASE("ADDTOINIT")
+                           tChangeParams(25)=.true.
+                           CALL Readi(InitiatorWalkNo)
                        END SELECT
                    End Do
                    close(13,status='delete')
@@ -176,7 +180,7 @@ contains
                call MPI_AllReduce(deleted_file,any_deleted_file,1,MPI_LOGICAL,MPI_LOR,MPI_COMM_WORLD,error)
                if (any_deleted_file) exit
            end do
-           CALL MPI_BCast(tChangeParams,24,MPI_LOGICAL,i,MPI_COMM_WORLD,error)
+           CALL MPI_BCast(tChangeParams,25,MPI_LOGICAL,i,MPI_COMM_WORLD,error)
 
            IF(tChangeParams(1)) THEN
 !Change Tau
@@ -404,6 +408,12 @@ contains
                    ENDIF
                ENDIF
            ENDIF
+           IF(tChangeParams(25)) THEN
+               CALL MPI_BCast(InitiatorWalkNo,1,MPI_INTEGER,i,MPI_COMM_WORLD,error)
+               IF(iProcIndex.eq.0) THEN
+                   WRITE(6,'(A,I5)') "Cutoff population for determinants to be added to the initiator space changed to ",InitiatorWalkNo
+               ENDIF
+           ENDIF
        endif
 
 99     IF (ios.gt.0) THEN
@@ -535,7 +545,7 @@ contains
        use SystemData, only : NEl
        use FciMCData, only : Iter,CASMin,CASMax,tTruncSpace,tSinglePartPhase,SumENum,SumNoatHF,HFPopCyc,ProjEIterSum,Histogram,AvAnnihil
        use FciMCData, only : VaryShiftCycles,SumDiagSft,VaryShiftIter 
-       use CalcData, only : Tau,DiagSft,SftDamp,StepsSft,SinglesBias,OccCASOrbs,VirtCASOrbs,NMCyc,tTruncCAS,NEquilSteps,tTruncInitiator
+       use CalcData, only : Tau,DiagSft,SftDamp,StepsSft,SinglesBias,OccCASOrbs,VirtCASOrbs,NMCyc,tTruncCAS,NEquilSteps,tTruncInitiator,InitiatorWalkNo
        use DetCalc, only : ICILevel 
        use IntegralsData , only : tPartFreezeCore,NPartFrozen,NHolesFrozen,tPartFreezeVirt,NVirtPartFrozen,NElVirtFrozen
        use Parallel
@@ -546,7 +556,7 @@ contains
        implicit none
        integer :: error,i,ios,NewNMCyc
        logical :: tSoftExitFound,tWritePopsFound,exists,AnyExist,deleted_file
-       logical :: tEof,any_deleted_file,tChangeParams(24),tSingBiasChange
+       logical :: tEof,any_deleted_file,tChangeParams(25),tSingBiasChange
        Character(len=100) :: w
 
        tSoftExitFound=.false.
@@ -561,7 +571,7 @@ contains
                WRITE(6,*) "CHANGEVARS file detected on iteration ",Iter
            ENDIF
 !Set the defaults
-           tChangeParams(1:24)=.false.
+           tChangeParams(1:25)=.false.
            deleted_file=.false.
            do i=0,nProcessors-1
                ! This causes each processor to attempt to delete
@@ -641,6 +651,9 @@ contains
                            tChangeParams(24)=.true.
                            CALL Readi(NVirtPartFrozen)
                            CALL Readi(NElVirtFrozen)
+                       CASE("ADDTOINIT")
+                           tChangeParams(25)=.true.
+                           CALL Readi(InitiatorWalkNo)
                        END SELECT
                    End Do
                    close(13,status='delete')
@@ -861,8 +874,12 @@ contains
                ELSE
                    tPartFreezeVirt=.true.
                ENDIF
+           ENDIF           
+           IF(tChangeParams(25)) THEN
+               IF(iProcIndex.eq.0) THEN
+                   WRITE(6,'(A,I5)') "Cutoff population for determinants to be added to the initiator space changed to ",InitiatorWalkNo
+               ENDIF
            ENDIF
- 
        endif
 
 99     IF (ios.gt.0) THEN
