@@ -560,56 +560,6 @@ MODULE FciMCParMod
                 WalkExcitLevel = FindBitExcitLevel(iLutHF, CurrentDets(:,j),2)
             ENDIF
 
-            IF(tTruncInitiator) THEN
-                IF(tTruncCAS) THEN
-                    tParentInCAS=.true.
-                    tParentInCAS=TestIfDetInCAS(DetCurr)
-                    IF(tParentInCAS) THEN
-                        ParentInitiator=0
-                        NoInitDets=NoInitDets+1
-                        NoInitWalk=NoInitWalk+(ABS(CurrentSign(j)))
-!The parent walker from which we are attempting to spawn is in the active space - all children will carry this flag, and these spawn like usual.
-                    ELSEIF(tInitIncDoubs.and.(WalkExcitLevel.eq.2)) THEN
-                        ParentInitiator=0
-                        NoInitDets=NoInitDets+1
-                        NoInitWalk=NoInitWalk+(ABS(CurrentSign(j)))
-                        NoExtraInitDoubs=NoExtraInitDoubs+1
-                    ELSEIF(tAddtoInitiator.and.(ABS(CurrentSign(j)).gt.InitiatorWalkNo)) THEN
-                        ParentInitiator=0
-                        IF(mod(Iter,StepsSft).eq.0) NoAddedInitiators=NoAddedInitiators+1
-                        NoInitDets=NoInitDets+1
-                        NoInitWalk=NoInitWalk+(ABS(CurrentSign(j)))
-                    ELSE
-                        ParentInitiator=1
-                        NoNonInitDets=NoNonInitDets+1
-                        NoNonInitWalk=NoNonInitWalk+(ABS(CurrentSign(j)))
-!The parent from which we are attempting to spawn is outside the active space - children spawned on unoccupied determinants with this flag will be killed.
-                    ENDIF
-                ELSEIF(tTruncSpace) THEN
-                    IF(WalkExcitLevel.le.ICILevel) THEN
-                        ParentInitiator=0
-                        NoInitDets=NoInitDets+1
-                        NoInitWalk=NoInitWalk+(ABS(CurrentSign(j)))
-!Parent in allowed space.                        
-                    ELSEIF(tInitIncDoubs.and.(WalkExcitLevel.eq.2)) THEN
-                        ParentInitiator=0
-                        NoInitDets=NoInitDets+1
-                        NoInitWalk=NoInitWalk+(ABS(CurrentSign(j)))
-                        NoExtraInitDoubs=NoExtraInitDoubs+1
-                    ELSEIF(tAddtoInitiator.and.(ABS(CurrentSign(j)).gt.InitiatorWalkNo)) THEN
-                        ParentInitiator=0
-                        IF(mod(Iter,StepsSft).eq.0) NoAddedInitiators=NoAddedInitiators+1
-                        NoInitDets=NoInitDets+1
-                        NoInitWalk=NoInitWalk+(ABS(CurrentSign(j)))
-                    ELSE
-                        ParentInitiator=1
-                        NoNonInitDets=NoNonInitDets+1
-                        NoNonInitWalk=NoNonInitWalk+(ABS(CurrentSign(j)))
-!Parent outside allowed space.                        
-                    ENDIF
-                ENDIF
-            ENDIF
-
             IF(tRegenDiagHEls) THEN
 !We are not storing the diagonal hamiltonian elements for each particle. Therefore, we need to regenerate them.
 !Need to find H-element!
@@ -823,6 +773,57 @@ MODULE FciMCParMod
                 
                 IF(Child.ne.0) THEN
 !We want to spawn a child - find its information to store
+
+                    IF(tTruncInitiator) THEN
+                        IF(tTruncCAS) THEN
+                            tParentInCAS=.true.
+                            tParentInCAS=TestIfDetInCAS(DetCurr)
+                            IF(tParentInCAS) THEN
+                                ParentInitiator=0
+                                NoInitDets=NoInitDets+1
+                                NoInitWalk=NoInitWalk+(ABS(CurrentSign(j)))
+!The parent walker from which we are attempting to spawn is in the active space - all children will carry this flag, and these spawn like usual.
+                            ELSEIF(tInitIncDoubs.and.(WalkExcitLevel.eq.2)) THEN
+                                ParentInitiator=0
+                                NoInitDets=NoInitDets+1
+                                NoInitWalk=NoInitWalk+(ABS(CurrentSign(j)))
+                                NoExtraInitDoubs=NoExtraInitDoubs+1
+                            ELSEIF(tAddtoInitiator.and.(ABS(CurrentSign(j)).gt.InitiatorWalkNo)) THEN
+                                ParentInitiator=0
+                                IF(mod(Iter,StepsSft).eq.0) NoAddedInitiators=NoAddedInitiators+1
+                                NoInitDets=NoInitDets+1
+                                NoInitWalk=NoInitWalk+(ABS(CurrentSign(j)))
+                            ELSE
+                                ParentInitiator=1
+                                NoNonInitDets=NoNonInitDets+1
+                                NoNonInitWalk=NoNonInitWalk+(ABS(CurrentSign(j)))
+!The parent from which we are attempting to spawn is outside the active space - children spawned on unoccupied determinants with this flag will be killed.
+                            ENDIF
+                        ELSEIF(tTruncSpace) THEN
+                            IF(WalkExcitLevel.le.ICILevel) THEN
+                                ParentInitiator=0
+                                NoInitDets=NoInitDets+1
+                                NoInitWalk=NoInitWalk+(ABS(CurrentSign(j)))
+!Parent in allowed space.                        
+                            ELSEIF(tInitIncDoubs.and.(WalkExcitLevel.eq.2)) THEN
+                                ParentInitiator=0
+                                NoInitDets=NoInitDets+1
+                                NoInitWalk=NoInitWalk+(ABS(CurrentSign(j)))
+                                NoExtraInitDoubs=NoExtraInitDoubs+1
+                            ELSEIF(tAddtoInitiator.and.(ABS(CurrentSign(j)).gt.InitiatorWalkNo)) THEN
+                                ParentInitiator=0
+                                IF(mod(Iter,StepsSft).eq.0) NoAddedInitiators=NoAddedInitiators+1
+                                NoInitDets=NoInitDets+1
+                                NoInitWalk=NoInitWalk+(ABS(CurrentSign(j)))
+                            ELSE
+                                ParentInitiator=1
+                                NoNonInitDets=NoNonInitDets+1
+                                NoNonInitWalk=NoNonInitWalk+(ABS(CurrentSign(j)))
+!Parent outside allowed space.                        
+                            ENDIF
+                        ENDIF
+                    ENDIF
+
                     IF(tHistHamil) THEN
                         CALL AddHistHamilEl(CurrentDets(:,j),iLutnJ,WalkExcitLevel,Child,1)   !Histogram the hamiltonian - iLutnI,iLutnJ,Excitlevel of parent,spawning indicator
                     ENDIF
