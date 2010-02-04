@@ -1015,7 +1015,10 @@ MODULE CCMC
          do while (ind.ge.start)  !If our index is in that set (or beyond), we keep searching.
             if(start.gt.0) ind=ind-start  !Remove another layer
             C%SelectedExcitorIndices(loc)=C%SelectedExcitorIndices(loc)+1
-            start=Binomial(N-C%SelectedExcitorIndices(loc),C%iSize-loc) !Number of ways of choosing the remaining number of excitors in the cluster from the remaining number of total excitors (in an ordered fashion), if we were to have the next value of C%SelectedExcitorIndices(loc)
+            ! Number of ways of choosing the remaining number of excitors in the cluster
+            ! from the remaining number of total excitors (in an ordered fashion), if we
+            ! were to have the next value of C%SelectedExcitorIndices(loc)
+            start=Binomial(N-C%SelectedExcitorIndices(loc),C%iSize-loc) 
 !            write(6,*) "ind,start,loc",ind,start,loc,C%SelectedExcitorIndices(loc)
          enddo
 !         WRITE(6,*) "Position ",loc,": ",C%SelectedExcitorIndices(loc)
