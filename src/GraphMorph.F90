@@ -19,7 +19,7 @@ MODULE GraphMorph
 !Iters is the number of interations of morphing the graph. Nd is the number of determinants in the graph.
     use CalcData , only : Iters,NDets,GraphBias,TBiasing,NoMoveDets,TMoveDets,TInitStar
     use CalcData , only : TNoSameExcit,TLanczos,TMaxExcit,iMaxExcitLevel,TOneExcitConn,THdiag
-    use CalcData , only : TSinglesExcitSpace,TMCExcitSpace,NoMCExcits,TGrowInitGraph,GrowGraphsExpo
+    use CalcData , only : TSinglesExcitSpace,TMCExcits,NoMCExcits,TGrowInitGraph,GrowGraphsExpo
     USE Logging , only : TDistrib
     USE global_utilities
     USE HElem
@@ -122,7 +122,7 @@ MODULE GraphMorph
 !            WRITE(6,*) "TOneExcitConn is not yet implimented in TMoveDets"
 !            STOP "TOneExcitConn is not yet implimented in TMoveDets"
 !        ENDIF
-!        IF(TMCExcitSpace) THEN
+!        IF(TMCExcits) THEN
 !            WRITE(6,"(A,I10,A)") "Searching Excitations of each graph stochastically with ",NoMCExcits, " per determinant"
 !        ENDIF
 !
@@ -1960,7 +1960,7 @@ MODULE GraphMorph
 !            nExcit(1)=0
 !            CALL GenSymExcitIt2(DetCurr,NEl,G1,nBasis,nBasisMax,.TRUE.,nExcit,nJ,iMaxExcit,0,nStore,exFlag)
 !
-!            IF(TMCExcitSpace) THEN
+!            IF(TMCExcits) THEN
 !!Excitations are picked stocastically
 !
 !                Attempts=0
@@ -2104,7 +2104,7 @@ MODULE GraphMorph
 !        CHARACTER(len=*), PARAMETER :: this_routine='CountExcits'
 !        INTEGER , ALLOCATABLE :: nExcit(:)
 !
-!        IF(TMCExcitSpace) THEN
+!        IF(TMCExcits) THEN
 !!This searches for a given number of excitations stocastically per determinant - no need to count them
 !            
 !            TotExcits=NDets*NoMCExcits

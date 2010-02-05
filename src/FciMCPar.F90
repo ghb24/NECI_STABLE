@@ -21,7 +21,7 @@ MODULE FciMCParMod
     use CalcData , only : FixedKiiCutoff,tFixShiftKii,tFixCASShift,tMagnetize,BField,NoMagDets,tSymmetricField,tStarOrbs,SinglesBias
     use CalcData , only : tHighExcitsSing,iHighExcitsSing,tFindGuide,iGuideDets,tUseGuide,iInitGuideParts,tNoDomSpinCoup
     use CalcData , only : tPrintDominant,iNoDominantDets,MaxExcDom,MinExcDom,tSpawnDominant,tMinorDetsStar,MaxNoatHF,HFPopThresh
-    use CalcData , only : tCCMC,tTruncCAS,tTruncInitiator,tDelayTruncInit,IterTruncInit,NShiftEquilSteps,tWalkContGrow
+    use CalcData , only : tCCMC,tTruncCAS,tTruncInitiator,tDelayTruncInit,IterTruncInit,NShiftEquilSteps,tWalkContGrow,tMCExcits,NoMCExcits
     use HPHFRandExcitMod , only : FindExcitBitDetSym,GenRandHPHFExcit,GenRandHPHFExcit2Scratch
     USE Determinants , only : FDet,GetHElement2,GetHElement4
     USE DetCalc , only : ICILevel,nDet,Det,FCIDetIndex
@@ -602,6 +602,9 @@ MODULE FciMCParMod
 !Here, we spawn all particles on the determinant in one go, by multiplying the probability of spawning by the number of particles on the determinant.
                 Loop=1
                 ParticleWeight=abs(CurrentSign(j))
+            ELSEIF(tMCExcits) THEN
+!Multiple spawning attempt per walker.
+                Loop=abs(CurrentSign(j))*NoMCExcits
             ELSE
 !Here, we spawn each particle on the determinant in a seperate attempt.
                 Loop=abs(CurrentSign(j))
@@ -4053,6 +4056,12 @@ MODULE FciMCParMod
             ENDIF
         ENDIF
                 
+        IF(tMCExcits) THEN
+!If we are generating multiple excitations, then the probability of spawning on them must be reduced by the number of excitations generated.
+!This is equivalent to saying that the excitation is likely to arise a factor of NoMCExcits more often.
+            Prob=Prob*REAL(NoMCExcits,r2)
+        ENDIF
+            
 
 !Calculate off diagonal hamiltonian matrix element between determinants
 !        rh=GetHElement2(DetCurr,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,IC,ECore)
@@ -9204,7 +9213,8 @@ MODULE FciMCParMod
 !This is a list of options which cannot be used with the stripped-down spawning routine. New options not added to this routine should be put in this list.
         IF(tHighExcitsSing.or.tHistSpawn.or.tRegenDiagHEls.or.tFindGroundDet.or.tStarOrbs.or.tResumFCIMC.or.tSpawnAsDet.or.tImportanceSample    &
      &      .or.(.not.tRegenExcitgens).or.(.not.tNonUniRandExcits).or.(.not.tDirectAnnihil).or.tMinorDetsStar.or.tSpawnDominant.or.(DiagSft.gt.0.D0).or.   &
-     &      tPrintTriConnections.or.tHistTriConHEls.or.tCalcFCIMCPsi.or.tTruncCAS.or.tListDets.or.tPartFreezeCore.or.tPartFreezeVirt.or.tUEG.or.tHistHamil.or.TReadPops) THEN
+     &      tPrintTriConnections.or.tHistTriConHEls.or.tCalcFCIMCPsi.or.tTruncCAS.or.tListDets.or.tPartFreezeCore.or.tPartFreezeVirt.or.tUEG.or.tHistHamil.or.TReadPops.or. &
+            tMCExcits) THEN
             WRITE(6,*) ""
             WRITE(6,*) "It is not possible to use to clean spawning routine..."
         ELSE
