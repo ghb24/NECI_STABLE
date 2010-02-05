@@ -1181,22 +1181,20 @@ MODULE FciMCParMod
 
 !Output if there has been a particle bloom this iteration. A negative number indicates that particles were created from a single excitation.
         IF((iPartBloom.ne.0).and.(iProcIndex.eq.0)) THEN
-            IF(tAddtoInitiator) THEN
-                WRITE(6,"(A,I10,A)") "Particle Blooms of more than 'n_add' in iteration ",Iter
+            IF(tAddtoInitiator.and.(iPartBloom.gt.0)) THEN
+                WRITE(6,"(A,I10,A,I8,A)") "Particle Blooms of more than 'n_add' in iteration ",Iter," :  A max of ",abs(iPartBloom)," particles created in one attempt from double excit."
+            ELSEIF(tAddtoInitiator) THEN
+                WRITE(6,"(A,I10,A,I8,A)") "Particle Blooms of more than 'n_add' in iteration ",Iter," :  A max of ",abs(iPartBloom)," particles created in one attempt from single excit."
+            ELSEIF(iPartBloom.gt.0) THEN
+                WRITE(6,"(A,I10,A,I8,A)") "LARGE Particle Blooms in iteration ",Iter," :  A max of ",abs(iPartBloom)," particles created in one attempt from double excit."
             ELSE
-                WRITE(6,"(A,I10,A)") "LARGE Particle Blooms in iteration ",Iter
-            ENDIF
-            IF(iPartBloom.gt.0) THEN
-                WRITE(6,"(A,I10,A)") "A max of ",abs(iPartBloom)," particles created in one attempt from double excit."
-            ELSE
-                WRITE(6,"(A,I10,A)") "A max of ",abs(iPartBloom)," particles created in one attempt from single excit."
+                WRITE(6,"(A,I10,A,I8,A)") "LARGE Particle Blooms in iteration ",Iter," :  A max of ",abs(iPartBloom)," particles created in one attempt from single excit."
             ENDIF
         ENDIF
 
-
         rat=REAL(TotWalkersNew,r2)/REAL(MaxWalkersPart,r2)
         IF(rat.gt.0.95) THEN
-            WRITE(6,*) "*WARNING* - Number of particles/determinants has increased to over 95% of MaxWalkersPart"
+            WRITE(6,'(A)') "*WARNING* - Number of particles/determinants has increased to over 95% of MaxWalkersPart"
             CALL FLUSH(6)
         ENDIF
 
@@ -1215,14 +1213,14 @@ MODULE FciMCParMod
                     rat=(ValidSpawnedList(i)-InitialSpawnedSlots(i))/(InitialSpawnedSlots(1)+0.D0)
 !                    WRITE(6,*) rat,(ValidSpawnedList(i)-InitialSpawnedSlots(i)),InitialSpawnedSlots(1)
                     IF(rat.gt.0.95) THEN
-                        WRITE(6,*) "*WARNING* - Highest processor spawned particles has reached over 95% of MaxSpawned"
+                        WRITE(6,'(A)') "*WARNING* - Highest processor spawned particles has reached over 95% of MaxSpawned"
                         CALL FLUSH(6)
                     ENDIF
                 enddo
             ELSE
                 rat=(ValidSpawnedList(0)+0.D0)/(MaxSpawned+0.D0)
                 IF(rat.gt.0.9) THEN
-                    WRITE(6,*) "*WARNING* - Number of spawned particles has reached over 90% of MaxSpawned"
+                    WRITE(6,'(A)') "*WARNING* - Number of spawned particles has reached over 90% of MaxSpawned"
                     CALL FLUSH(6)
                 ENDIF
             ENDIF
