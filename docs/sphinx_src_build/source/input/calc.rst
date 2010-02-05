@@ -1246,9 +1246,11 @@ to the true ground state.
     Limit the size of the excitation space by only allowing excitations
     out to iMaxExcitLevel away from HF reference determinant.
 
-**MCEXCITSPACE** [NoMCExcits]
+**MCEXCITS** [NoMCExcits]
     Stochastically sample the space of excitations from each determinant in the
     graph with NoMCExcits determinants chosen per determinant.
+    For the FCIMC code, this represents the number of attempted spawns per iteration
+    in the spawning step.
 
 **MOVEDETS** [NoMoveDets]
     Grow the graphs using an alternative Monte Carlo, where a number

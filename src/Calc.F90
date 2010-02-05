@@ -126,7 +126,7 @@ MODULE Calc
           GrowGraphsExpo=2.D0
           TGrowInitGraph=.false.
           NoMCExcits=5000
-          TMCExcitSpace=.false.
+          TMCExcits=.false.
           TMaxExcit=.false.
           TFullDiag=.false.
           TSinglesExcitSpace=.false.
@@ -723,10 +723,10 @@ MODULE Calc
             case("FULLDIAGTRIPS")
 !When constructing a star of triples from each double star, then this tag results in a full diagonalisation of this matrix.
                 TFullDiag=.true.
-            case("MCEXCITSPACE")
+            case("MCEXCITS")
 !In GraphMorph, this means that the space of excitations is chosen randomly
 !It is also an option in FCIMC, where it indicates the number of excitations to be chosen randomly from each chosen walker
-                TMCExcitSpace=.true.
+                TMCExcits=.true.
                 call geti(NoMCExcits)
             case("GROWINITGRAPH")
 !In GraphMorph, this means that the initial graph is grown non-stochastically from the excitations of consecutive determinants
