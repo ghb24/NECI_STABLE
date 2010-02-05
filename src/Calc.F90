@@ -1142,16 +1142,18 @@ MODULE Calc
 
           IF(BETAP.NE.0) THEN 
              I_P=NINT(BETA/BETAP)
-             WRITE(6,*) ' BETAP=',BETAP
-             WRITE(6,*) ' RESETTING P '
-             IF(I_P.GT.100000) WRITE(6,*) ' *** WARNING I_P=',I_P
+             IF(.not.tFCIMC) THEN
+                 WRITE(6,*) 'BETAP=',BETAP
+                 WRITE(6,*) 'RESETTING P '
+                 IF(I_P.GT.100000) WRITE(6,*) '*** WARNING I_P=',I_P
+             ENDIF
           ENDIF
 
-          WRITE(6,*) ' BETA, P :',BETA,I_P
+          IF(.not.tFCIMC) WRITE(6,*) 'BETA, P :',BETA,I_P
        
 !C         DBRAT=0.001
 !C         DBETA=DBRAT*BETA
-          WRITE(6,*) "DBETA=",DBETA
+          IF(.not.tFCIMC) WRITE(6,*) "DBETA=",DBETA
 
           IF(.NOT.TREAD) THEN
 !             CALL WRITETMAT(NBASIS)
@@ -1177,7 +1179,7 @@ MODULE Calc
                  nOccBeta=nOccBeta+1
               ENDIF
           enddo
-          WRITE(6,"(A,I5,A,I5,A)") "FDet has ",nOccAlpha," alpha electrons, and ",nOccBeta," beta electrons."
+          WRITE(6,"(A,I5,A,I5,A)") " FDet has ",nOccAlpha," alpha electrons, and ",nOccBeta," beta electrons."
           ElecPairs=(NEl*(NEl-1))/2
           MaxABPairs=(nBasis*(nBasis-1)/2)
 
@@ -1712,6 +1714,7 @@ MODULE Calc
          use global_utilities
          use SystemData, only: BasisFN,BasisFNSize
          use legacy_data, only: irat
+         use CalcData, only: tFCIMC
          use gnd_work_type
          IMPLICIT NONE
          INTEGER I_HMAX,NEL,NBASIS,I_VMAX
@@ -1813,7 +1816,7 @@ MODULE Calc
              CALL GETSYMDEGEN(ISYM,NBASISMAX,IDEG)
           ENDIF
           IF(III.GE.ISTART.AND..NOT.TDONE) THEN
-            IF(NPATHS.EQ.1.AND..NOT.TSPECDET) CALL WRITEDET(6,NI,NEL,.TRUE.) 
+            IF(NPATHS.EQ.1.AND..NOT.TSPECDET.AND..NOT.TFCIMC) CALL WRITEDET(6,NI,NEL,.TRUE.) 
             CALL MCPATHSR3(NI,BETA,I_P,I_HMAX,I_VMAX,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY, &
      &         RHOEPS,LSTE,ICE,RIJLIST,NWHTAY,ILOGGING,ECORE,ILMAX,WLRI,WLSI,DBETA,DLWDB2)
             IF(TLOG) THEN

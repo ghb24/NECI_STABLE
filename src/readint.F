@@ -61,22 +61,26 @@
 
          DO i=1,NORB
              IF(ORBSYM(i).eq.0) THEN
-                 WRITE(6,*) "*** WARNING ***"
-                 WRITE(6,*) "*** Unconverged symmetry of orbitals ***"
-                 WRITE(6,*) "*** Turning symmetry off for rest of run *"
+                 WRITE(6,*) "** WARNING **"
+                 WRITE(6,*) "** Unconverged symmetry of orbitals **"
+                 WRITE(6,*) "** Turning symmetry off for rest of run **"
                  tNoSymGenRandExcits=.true.
                  lNoSymmetry=.true.
                  EXIT
              ENDIF
          ENDDO
-         IF(NELEC.NE.NEL)  WRITE(6,*) 
-     &      '*** WARNING: NEL in FCIDUMP differs from input file ***'
+         IF(NELEC.NE.NEL) THEN
+             WRITE(6,*)                                                 &
+     &      '*** WARNING: NEL in FCIDUMP differs from input file ***'   
+            WRITE(6,*) ' NUMBER OF ELECTRONS : ' , NEL
+         ENDIF
 C         NEL=NELEC
-         IF(LMS.NE.MS2)   WRITE(6,*)
-     &      '*** WARNING: LMS in FCIDUMP differs from input file ***'
-         LMS=MS2
-         WRITE(6,*) ' NUMBER OF ELECTRONS : ' , NEL
-         WRITE(6,*) ' BASIS MS : ' , LMS
+         IF(LMS.NE.MS2) THEN   
+            WRITE(6,*)                                                  &
+     &      '*** WARNING: LMS in FCIDUMP differs from input file ***'   
+            LMS=MS2                                                     
+            WRITE(6,*) ' BASIS MS : ' , LMS
+         ENDIF
          IF(UHF) then
             LEN=NORB
          ELSE
@@ -398,7 +402,7 @@ C.. set momentum to 0
             SYMMAX=8
          ENDIF
          IF(tFixLz) WRITE(6,"(A,I3)") "Maximum Lz orbital: ",iMaxLz
-         WRITE(6,"(A,I3)") "Maximum number of symmetries: ",SYMMAX
+         WRITE(6,"(A,I3)") "  Maximum number of symmetries: ",SYMMAX
          NBASISMAX(1,1)=0
          NBASISMAX(1,2)=0
          NBASISMAX(5,1)=0
