@@ -163,7 +163,7 @@ contains
             ! Change only the Yamanouchi symbol. If it is not possible to
             ! change it (i.e. if ncsf = 0,1) then return 0 determinant.
             nJ = nI
-            if (nopen == 0) then
+            if (nopen == 0 .or. nopen == 1) then
                 nJ(1) = 0
             else if (tTruncateCSF .and. nopen > csf_trunc_level) then
                 nJ(1) = 0
