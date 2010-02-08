@@ -177,7 +177,7 @@ VCS_VERSION := $(shell set -o pipefail && echo -n \\" && ( git log --max-count=1
 # Test to see if the working directory contains changes.  Git only.  If the
 # working directory contains changes (or is not under version control) then
 # the _WORKING_DIR_CHANGES flag is set.
-WORKING_DIR_CHANGES := $(shell git diff --quiet --cached && git diff --quiet 2> /dev/null || echo -n "-D_WORKING_DIR_CHANGES")
+WORKING_DIR_CHANGES := $(shell git diff --quiet --cached -- $(SRCDIRS) && git diff --quiet 2> /dev/null -- $(SRCDIRS) || echo -n "-D_WORKING_DIR_CHANGES")
 
 #-----
 # Additional info.
