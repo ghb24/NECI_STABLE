@@ -100,13 +100,6 @@ contains
                 ! --> w00t!
                 pGen = pgen / ncsf
             endif
-
-
-        !    !>>! Mimic freeze
-        !    if (iand(nJ(1), csf_orbital_mask) /= 1 .or. &
-        !        iand(nJ(2), csf_orbital_mask) /= 2) then
-        !        nJ(1) = 0
-        !    endif
             return
         endif
         tParity = .false.
@@ -185,11 +178,6 @@ contains
             call CSFCreateDoubleExcit (nI, nJ, CCDblS, CCSglS, CCUnS, iLut, &
                                        ExcitMat, nopen, pDouble, pGen)
         endselect
-     !   !>>! Mimic freeze
-     !   if (iand(nJ(1), csf_orbital_mask) /= 1 .or. &
-     !       iand(nJ(2), csf_orbital_mask) /= 2) then
-     !       nJ(1) = 0
-     !   endif
     end subroutine
 
     subroutine CSFCreateDoubleExcit (nI, nJ, CCDblS, CCSglS, CCUnS, iLut, &
@@ -1737,8 +1725,10 @@ contains
         integer :: iLut(0:NIfTot), nopen
         integer :: CCDblS(ScratchSize/2), CCSglS(ScratchSize/2)
         integer :: CCUnS(ScratchSize/2)
-        integer :: nexcit, i
+        integer :: nexcit, i, nFreeze, ex(2,2)
         integer, allocatable, dimension(:,:) :: nK
+        type (helement) :: hel
+        logical :: tParity
         !integer, dimension(10) :: nJ=(/-2147483631,-2147483630,-2147483615,-2147483614,-1073741823,-2147483645,-1073741805,-1073741803,-2147483625,-2147483623/)
         !integer, dimension(10) :: nJ=(/1,2,3,4,17,18,21,22,33,34/)
         !integer, dimension(10) :: nJ=(/3,4,17,18,23,24,31,32,33,34/)
@@ -1748,9 +1738,8 @@ contains
         call EncodeBitDet (nI, iLut)
         nopen = count_open_orbs (iLut)
 
-        print*, 'Starting determinant:'
+        write (6, '("Starting determinant: ")', advance='no')
         call writedet(6, nI, nel, .true.)
-        call TestGenRandSymCSFExcit (nI, 4000000, 0.d0, 1.0d0, 4, 10000)
 
         ! Obtain the orbital symmetries for the following steps
         call ConstructClassCountsSpatial(nI, nel-nopen, CCDblS, CCSglS, CCUnS)
@@ -1760,15 +1749,29 @@ contains
                              nexcit, nK)
 
         ! Run the testing routine or all of the excitatitons of the starting
-        ! CSF.
-        print*, 'Excits'
+        ! CSF. Currently counts the number of excitations frozen out if 
+        ! Freeze(2,0) is enabled.
+        nFreeze = 0
+        write (6, '(i5, " excitations found:")') nexcit
         do i=1,nexcit
+            if (iand(nK(i,1), csf_orbital_mask) /= 1 .or. &
+                iand(nK(i,2), csf_orbital_mask) /= 2) then
+                nFreeze = nFreeze + 1
+            endif
+
             write (6, '(i6,": ")', advance='no') i
             call writedet (6, nK(i,:), nel, .true.)
-            call TestGenRandSymCSFExcit (nK(i,:), 4000000, 0.2d0, 0.75d0, 7 &
-                                         ,10000)
+            call TestGenRandSymCSFExcit (nK(i,:), 4000000, 0.2d0, 0.75d0, 7, &
+                                         10000)
         enddo
         deallocate(nK)
+
+        write (6, '("Assuming freezing two core electrons")')
+        write (6, '("Num frozen: ", i5)') nFreeze
+        write (6, '("Num remaining: ", i5)') nexcit - nFreeze
+
+        ! Test the starting determinants excitations
+        call TestGenRandSymCSFExcit (nI, 4000000, 0.d0, 1.0d0, 4, 10000)
         call stop_all(this_routine, 'end of test')
     end subroutine
 

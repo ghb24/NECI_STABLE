@@ -590,10 +590,11 @@ MODULE FciMCParMod
                 CALL CheckStarOrbs(DetCurr,tStarDet)
             ENDIF
 
-!Sum in any energy contribution from the determinant, including other parameters, such as excitlevel info
-!TODO: This is where projected energy calculated - make sure that it can call
-!the right HElement call
-            CALL SumEContrib(DetCurr,WalkExcitLevel,CurrentSign(j),CurrentDets(:,j),HDiagCurr,1.D0)
+            ! Sum in any energy contribution from the determinant, including 
+            ! other parameters, such as excitlevel info.
+            ! This is where the projected energy is calculated.
+            call SumEContrib (DetCurr, WalkExcitLevel, CurrentSign(j), &
+                              CurrentDets(:,j), HDiagCurr, 1.d0)
 
 !            IF(TResumFCIMC) CALL ResumGraphPar(DetCurr,CurrentSign(j),VecSlot,j)
 
