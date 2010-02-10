@@ -809,8 +809,13 @@ MODULE System
 
 !C ==-------------------------------------------------------------------==
 !C..Input parameters
-      WRITE(6,*) ' NUMBER OF ELECTRONS : ' , NEL
-      WRITE(6,*) ' TSPN : ' , TSPN
+      WRITE(6,'(A)') '-------- SYSTEM ----------'
+      WRITE(6,'(A,I)') '  NUMBER OF ELECTRONS : ' , NEL
+      IF(TSPN) THEN
+          WRITE(6,*) ' Restricting the spin state of the system, TSPN : ' , TSPN
+      ELSE
+          WRITE(6,*) ' No restriction on the spin state of the system, TSPN : ' , TSPN
+      ENDIF
       NBASISMAX(1:5,1:7)=0
       TSPINPOLAR=.FALSE.
       DO I=1,3
@@ -819,13 +824,6 @@ MODULE System
       SymRestrict%Ms=IPARITY(4)
       SymRestrict%Sym%s=IPARITY(5)
 
-      if(tUseBrillouin) THEN
-         WRITE(6,*) "Using Brillouin's Theorem to ignore single excitations"
-      endif
-      if(tStoreAsExcitations) THEN
-         write(6,*) "Storing determinants as excitations from the HF determinant.  WARNING this may not work!"
-         IF(nEL.lt.8) STOP 'tStoreAsExcitations requires nEl>=8.'
-      endif
       IF(TSPN) THEN
 !C.. If we're doing monte carlo without generating a list of
 !C.. determinants, we cannot as yet force spin or parity, except by
@@ -849,11 +847,30 @@ MODULE System
       ENDIF
       WRITE(6,*) ' GLOBAL MS : ' , LMS
 
+      IF((NBASISMAX(2,3).eq.1).or.tROHF) THEN
+!If we are dealing with an open shell system, the calculation of symreps will sometimes fail.
+!This will have consequences for the rest of the program, so in a slightly hacky way, we can simply
+!not reorder the orbitals by energy, so that they remain in symmetries.
+!The reason it fails it that it looks for a complete set of orbitals which are degenerate
+!and ignores those in the symmetry classification. Unfortunately in ROHF and UHF there aren't such things.
+          WRITE(6,'(A)') "  Open shell system - SYMIGNOREENERGIES set.  "
+!          tHFNOORDER=.true.
+          tSymIgnoreEnergies=.true.
+      ENDIF
+
+      if(tUseBrillouin) THEN
+         WRITE(6,'(A)') "  Using Brillouin's Theorem to ignore single excitations"
+      endif
+      if(tStoreAsExcitations) THEN
+         write(6,'(A)') "  Storing determinants as excitations from the HF determinant.  WARNING this may not work!"
+         IF(nEL.lt.8) STOP '  tStoreAsExcitations requires nEl>=8.'
+      endif
+ 
       ! Conditions for using old CSF routines
       if (tCSFOld) then
-          write (6, '("Using Old CSF routines")')
+          write (6, '(A)') "************ Using Old CSF routines ************"
           if (tSPN) then
-              write(6, '("Restricting total spin*2 to ", i3)') STOT
+              write(6, '(A,I3)') "  Restricting total spin*2 to ", STOT
               if (LMS > STOT) &
                   call stop_all (this_routine, "Cannot have LMS>STOT")
 
@@ -865,7 +882,7 @@ MODULE System
 
       ! Conditions for using CSFs
       if (tCSF) then
-          write (6, '("Using CSFs for calculation")')
+          write (6, '(A)') "************ Using CSFs for calculation **********"
 
           if (LMS > STOT) call stop_all (this_routine, "Cannot have LMS>STOT")
 
@@ -885,38 +902,38 @@ MODULE System
 
       TwoCycleSymGens=.false.
       IF(TCPMD) THEN
-         WRITE(6,*) ' *** GENERIC SYSTEM USING KOHN-SHAM ORBITALS *** '
+         WRITE(6,'(A)') '  *** GENERIC SYSTEM USING KOHN-SHAM ORBITALS ***  '
          CALL CPMDSYSTEMINIT(LEN)   
          IF(TPARITY) THEN
-            WRITE(6,"(A)",advance='no') ' SYMMETRIES : '
+            WRITE(6,"(A)",advance='no') '  SYMMETRIES : '
             CALL WRITEALLSYM(5,SymRestrict)
          ENDIF
-         IF(THFORDER) WRITE(6,*)      "Ordering according to 1-electron energies."
+         IF(THFORDER) WRITE(6,'(A)')      "  Ordering according to 1-electron energies.  "
       ELSEIF(tVASP) THEN
-         WRITE(6,*) ' *** GENERIC SYSTEM USING HF ORBITALS PRODUCED BY VASP *** '
+         WRITE(6,'(A)') '  *** GENERIC SYSTEM USING HF ORBITALS PRODUCED BY VASP ***  '
          CALL VASPSystemInit(LEN)   
       ELSEIF(TREADINT) THEN
 !C.. we read in the integrals from FCIDUMP and ignore most config
 !C..   
-         WRITE(6,*) ' *** GENERIC SYSTEM *** '
+         WRITE(6,'(A)') '  *** GENERIC SYSTEM ***  '
          IF(THUB) THEN
             THUB=.FALSE.
-            WRITE(6,*) "Setting THUB=.FALSE."
+            WRITE(6,'(A)') "  Setting THUB=.FALSE.  "
          ENDIF
          TwoCycleSymGens=.true.
          IF(TDFREAD) THEN
-            WRITE(6,*) "Reading Density fitted integrals."
+            WRITE(6,'(A)') "  Reading Density fitted integrals.  "
             LMSBASIS=LMS
             CALL InitDFBasis(nEl,nBasisMax,Len,LMsBasis)
          ELSEIF(tRIIntegrals.or.tCacheFCIDUMPInts) THEN
 !tCacheFCIDUMPInts means that we read in all the integrals from the FCIDUMP integral file, but store them contiguously in the cache
             LMSBASIS=LMS
             IF(tRIIntegrals) THEN
-                WRITE(6,*) "Reading RI integrals."
+                WRITE(6,'(A)') "  Reading RI integrals.  "
                 CALL InitRIBasis(nEl,nBasisMax,Len,LMsBasis)
                 LMSBASIS=LMS
             ELSE
-                WRITE(6,*) "Reading in all integrals from FCIDUMP file, but storing them in a cache..."
+                WRITE(6,'(A)') "  Reading in all integrals from FCIDUMP file, but storing them in a cache...  "
                 tAbelian=.true.
             ENDIF
             CALL INITFROMFCID(NEL,NBASISMAX,LEN,LMSBASIS,TBIN)
@@ -934,13 +951,13 @@ MODULE System
 !               NBASISMAX(4,5)=2
 !            ENDIF
             IF(NBASISMAX(2,3).EQ.1) then
-                WRITE(6,*) "Unrestricted calculation.  Cave Arthropodia"
+                WRITE(6,'(A)') " Unrestricted calculation.  Cave Arthropodia.  "
             ELSEIF(tROHF) then
-                WRITE(6,*) "High-spin restricted calculation. Seriously Cave Arthropodia"
+                WRITE(6,'(A)') "  High-spin restricted calculation. Seriously Cave Arthropodia.  "
             ENDIF
          ELSE
             IF(TSTARSTORE) THEN
-                WRITE(6,*) "Reading 2-vertex integrals of double excitations only"
+                WRITE(6,'(A)') "  Reading 2-vertex integrals of double excitations only  "
             ENDIF
             LMSBASIS=LMS
 !            WRITE(6,*) "TBIN:",tBin
@@ -952,32 +969,32 @@ MODULE System
 !               NBASISMAX(4,5)=2
 !            ENDIF
             IF(tStoreSpinOrbs) then
-                WRITE(6,*) "Unrestricted calculation.  Cave Arthropodia"
+                WRITE(6,'(A)') "  Unrestricted calculation.  Cave Arthropodia.  "
             ELSEIF(tROHF) then
-                WRITE(6,*) "High-spin restricted calculation. Seriously Cave Arthropodia"
+                WRITE(6,'(A)') "  High-spin restricted calculation. Seriously Cave Arthropodia.  "
             ENDIF
          ENDIF 
       ELSE   
 
           IF(TUEG) THEN
-             WRITE(6,*) ' *** UNIFORM ELECTRON GAS CALCULATION ***' 
+             WRITE(6,'(A)') '  *** UNIFORM ELECTRON GAS CALCULATION ***  ' 
              IF(FUEGRS.NE.0.D0) THEN
-                WRITE(6,*) 'Electron Gas Rs set to ',FUEGRS
+                WRITE(6,'(A,I)') '  Electron Gas Rs set to ',FUEGRS
                 OMEGA=BOX*BOX*BOX*BOA*COA
 !C.. required density is (3/(4 pi rs^3))
 !C.. need omega to be (NEL* 4 pi rs^3 / 3)
 !C.. need box to be (NEL*4 pi/(3 BOA COA))^(1/3) rs
                 BOX=(NEL*4.D0*PI/(3.D0*BOA*COA))**(1.D0/3.D0)
                 BOX=BOX*FUEGRS
-                WRITE(6,*) "Resetting box size to ", BOX
+                WRITE(6,'(A)') "  Resetting box size to ", BOX
              ENDIF
           ENDIF
-          IF(THUB) WRITE(6,*) ' *** HUBBARD MODEL ***' 
+          IF(THUB) WRITE(6,'(A)') '  *** HUBBARD MODEL ***  ' 
 !C..
           IF(.NOT.THUB.AND..NOT.TUEG) THEN
-             WRITE(6,*) "Electron in cubic box."
+             WRITE(6,'(A)') "  Electron in cubic box.  "
              IF(TPARITY) THEN
-                WRITE(6,*) ' ******************************* '
+                WRITE(6,'(A)') '  *******************************  '
                 WRITE(6,*) ' PARITY IS ON '
                 DO I=1,3
                    IF(IPARITY(I).EQ.1) THEN
@@ -1005,26 +1022,26 @@ MODULE System
 !C..
           NMAX=MAX(NMAXX,NMAXY,NMAXZ)
           NNR=NMSH*NMSH*NMSH
-          WRITE(6,*) ' NMAXX : ' , NMAXX
-          WRITE(6,*) ' NMAXY : ' , NMAXY
-          WRITE(6,*) ' NMAXZ : ' , NMAXZ
-          WRITE(6,*) ' NMSH : ' , NMSH 
+          WRITE(6,'(A,I)') '  NMAXX : ' , NMAXX
+          WRITE(6,'(A,I)') '  NMAXY : ' , NMAXY
+          WRITE(6,'(A,I)') '  NMAXZ : ' , NMAXZ
+          WRITE(6,'(A,I)') '  NMSH : ' , NMSH 
 !C.. 2D check
           IF(NMAXZ.EQ.0) THEN
-             WRITE(6,*) 'NMAXZ=0.  2D calculation using C/A=1/A'
+             WRITE(6,'(A)') ' NMAXZ=0.  2D calculation using C/A=1/A  '
              COA=1/BOX
           ENDIF
 
 !C..
           IF(THUB) THEN
-             WRITE(6,'(1X,A,F19.5)') ' HUBBARD T : ' , BHUB
-             WRITE(6,'(1X,A,F19.5)') ' HUBBARD U : ' , UHUB
-             IF(TTILT) WRITE(6,*) 'TILTED LATTICE: ',ITILTX, ",",ITILTY
+             WRITE(6,'(1X,A,F19.5)') '  HUBBARD T : ' , BHUB
+             WRITE(6,'(1X,A,F19.5)') '  HUBBARD U : ' , UHUB
+             IF(TTILT) WRITE(6,*) ' TILTED LATTICE: ',ITILTX, ",",ITILTY
              IF(TTILT.AND.ITILTX.GT.ITILTY) STOP 'ERROR: ITILTX>ITILTY'
           ELSE
-             WRITE(6,'(1X,A,F19.5)') ' BOX LENGTH : ' , BOX
-             WRITE(6,'(1X,A,F19.5)') ' B/A : ' , BOA
-             WRITE(6,'(1X,A,F19.5)') ' C/A : ' , COA
+             WRITE(6,'(1X,A,F19.5)') '  BOX LENGTH : ' , BOX
+             WRITE(6,'(1X,A,F19.5)') '  B/A : ' , BOA
+             WRITE(6,'(1X,A,F19.5)') '  C/A : ' , COA
              TTILT=.FALSE.
           ENDIF
           ALAT(1)=BOX
@@ -1055,25 +1072,25 @@ MODULE System
              ALAT(5)=RS
              IF(iPeriodicDampingType.NE.0) THEN
                 IF(iPeriodicDampingType.EQ.1) THEN
-                   WRITE(6,*) "Using attenuated Coulomb potential for exchange interactions."
+                   WRITE(6,*) " Using attenuated Coulomb potential for exchange interactions."
                 ELSEIF(iPeriodicDampingType.EQ.2) THEN
-                   WRITE(6,*) "Using cut-off Coulomb potential for exchange interactions."
+                   WRITE(6,*) " Using cut-off Coulomb potential for exchange interactions."
                 ENDIF
           
-                WRITE(6,*) "Rc cutoff: ",ALAT(4)
+                WRITE(6,*) " Rc cutoff: ",ALAT(4)
              ENDIF
-             WRITE(6,*) "Wigner-Seitz radius Rs=",RS
+             WRITE(6,*) " Wigner-Seitz radius Rs=",RS
              FKF=(9*PI/4)**THIRD/RS
-             WRITE(6,*) "Fermi vector kF=",FKF
-             WRITE(6,*) "Fermi Energy EF=",FKF*FKF/2
-             WRITE(6,*) "Unscaled Fermi Energy nmax**2=",(FKF*FKF/2)/(0.5*(2*PI/ALAT(5))**2)
+             WRITE(6,*) " Fermi vector kF=",FKF
+             WRITE(6,*) " Fermi Energy EF=",FKF*FKF/2
+             WRITE(6,*) " Unscaled Fermi Energy nmax**2=",(FKF*FKF/2)/(0.5*(2*PI/ALAT(5))**2)
           ENDIF
-          IF(OrbECutoff.ne.1e-20) WRITE(6,*) "Orbital Energy Cutoff:",OrbECutoff
-          WRITE(6,'(1X,A,F19.5)') ' VOLUME : ' , OMEGA
+          IF(OrbECutoff.ne.1e-20) WRITE(6,*) " Orbital Energy Cutoff:",OrbECutoff
+          WRITE(6,'(1X,A,F19.5)') '  VOLUME : ' , OMEGA
           WRITE(6,*) ' TALPHA : ' , TALPHA
-          WRITE(6,'(1X,A,F19.5)') ' ALPHA : ' , ALPHA
+          WRITE(6,'(1X,A,F19.5)') '  ALPHA : ' , ALPHA
           ALPHA=MIN(ALAT(1),ALAT(2),ALAT(3))*ALPHA
-          WRITE(6,'(1X,A,F19.5)') ' SCALED ALPHA : ' , ALPHA
+          WRITE(6,'(1X,A,F19.5)') '  SCALED ALPHA : ' , ALPHA
 
 !C..
 !C..Calculate number of basis functions
@@ -1132,7 +1149,7 @@ MODULE System
 !C.. ARR is reallocated in IntFreezeBasis if orbitals are frozen so that it
 !C.. has the correct size and shape to contain the eigenvalues of the active
 !C.. basis.
-      WRITE(6,*) "# basis", Len
+      WRITE(6,'(A,I)') "  NUMBER OF SPIN ORBITALS IN BASIS : ", Len
       Allocate(Arr(LEN,2),STAT=ierr)
       LogAlloc(ierr,'Arr',2*LEN,8,tagArr)
 ! // TBR
@@ -1145,23 +1162,23 @@ MODULE System
       LogAlloc(ierr,'G1',LEN,BasisFNSizeB,tagG1)
       G1(1:LEN)=NullBasisFn
       IF(TCPMD) THEN
-         WRITE(6,*) ' *** INITIALIZING BASIS FNs FROM CPMD *** '
+         WRITE(6,'(A)') '*** INITIALIZING BASIS FNs FROM CPMD ***'
          CALL CPMDBASISINIT(NBASISMAX,ARR,BRR,G1,LEN) 
          NBASIS=LEN
          iSpinSkip=NBasisMax(2,3)
       ELSEIF(tVASP) THEN
-         WRITE(6,*) ' *** INITIALIZING BASIS FNs FROM VASP *** '
+         WRITE(6,'(A)') '*** INITIALIZING BASIS FNs FROM VASP ***'
          CALL VASPBasisInit(ARR,BRR,G1,LEN) ! This also modifies nBasisMax
          NBASIS=LEN
          iSpinSkip=NBasisMax(2,3)
       ELSEIF(TREADINT.AND.TDFREAD) THEN
-         WRITE(6,*) ' *** Creating Basis Fns from Dalton output ***'
+         WRITE(6,'(A)') '*** Creating Basis Fns from Dalton output ***'
          call InitDaltonBasis(nBasisMax,Arr,Brr,G1,Len)
          nBasis=Len
          call GenMolpSymTable(1,G1,nBasis,Arr,Brr)
       ELSEIF(TREADINT) THEN
 !This is also called for tRiIntegrals and tCacheFCIDUMPInts
-         WRITE(6,*) ' *** CREATING BASIS FNs FROM FCIDUMP *** '
+         WRITE(6,'(A)') '*** CREATING BASIS FNs FROM FCIDUMP ***'
          CALL GETFCIBASIS(NBASISMAX,ARR,BRR,G1,LEN,TBIN) 
          NBASIS=LEN
 !C.. we're reading in integrals and have a molpro symmetry table
@@ -1224,7 +1241,7 @@ MODULE System
          NBASIS=IG
          IF(LEN.NE.IG) THEN
             IF(OrbECutoff.gt.-1e20) then
-               write(6,*) "Have removed ", LEN-IG, " high energy orbitals"
+               write(6,*) " Have removed ", LEN-IG, " high energy orbitals "
                ! Resize arr and brr.
                allocate(arr_tmp(nbasis,2),brr_tmp(nbasis),stat=ierr)
                arr_tmp = arr(1:nbasis,:)
@@ -1239,27 +1256,16 @@ MODULE System
                brr = brr_tmp
                deallocate(arr_tmp, brr_tmp, stat=ierr)
             else
-               WRITE(6,*) "LEN=",LEN,"IG=",IG
+               WRITE(6,*) " LEN=",LEN,"IG=",IG
                STOP ' LEN NE IG ' 
             endif
          ENDIF
          CALL GENMOLPSYMTABLE(1,G1,NBASIS,ARR,BRR)
       ENDIF
 
-
-      IF((NBASISMAX(2,3).eq.1).or.tROHF) THEN
-!If we are dealing with an open shell system, the calculation of symreps will sometimes fail.
-!This will have consequences for the rest of the program, so in a slightly hacky way, we can simply
-!not reorder the orbitals by energy, so that they remain in symmetries.
-!The reason it fails it that it looks for a complete set of orbitals which are degenerate
-!and ignores those in the symmetry classification. Unfortunately in ROHF and UHF there aren't such things.
-          WRITE(6,*) "Open shell system - SYMIGNOREENERGIES set."
-!          tHFNOORDER=.true.
-          tSymIgnoreEnergies=.true.
-      ENDIF
-
       IF(tFixLz) THEN
-          WRITE(6,*) "Pure spherical harmonics with complex orbitals used to constrain Lz to: ",LzTot
+          WRITE(6,'(A)') "****** USING Lz SYMMETRY *******"
+          WRITE(6,'(A,I)') "Pure spherical harmonics with complex orbitals used to constrain Lz to: ",LzTot
           WRITE(6,*) "Due to the breaking of the Ml degeneracy, the fock energies are slightly wrong, on order of 1.D-4 - do not use for MP2!"
       ENDIF
 
@@ -1285,7 +1291,7 @@ MODULE System
 !C.. we need to allow integrals between different spins
          NBASISMAX(2,3)=1
       ENDIF      
-      
+
       !This is used in a test in UMatInd
       NOCC=NEl/2 
       IF(TREADINT) THEN
@@ -1391,6 +1397,7 @@ SUBROUTINE ORDERBASIS(NBASIS,ARR,BRR,ORBORDER,NBASISMAX,G1)
 !.. copy the default ordered energies.
   CALL DCOPY(NBASIS,ARR(1,1),1,ARR(1,2),1)
   CALL DCOPY(NBASIS,ARR(1,1),1,ARR2(1,2),1)
+  WRITE(6,*) ''
   WRITE(6,"(A,8I4)") "Ordering Basis (Closed): ", (ORBORDER(I,1),I=1,8)
   WRITE(6,"(A,8I4)") "Ordering Basis (Open  ): ", (ORBORDER(I,2),I=1,8)
   IF(NBASISMAX(3,3).EQ.1) THEN

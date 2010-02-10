@@ -181,9 +181,9 @@ C.. A1 corresponds to bit 0 (i.e. irrep 1)
          TAbelian=.true.
          PropBitLen=1
          nSymGen=INT(DLOG(NSYMMAX+0.D0)/DLOG(2.D0)+.4)
-         WRITE(6,"(A,I3,A)") "Generating abelian symmetry table with",  &
+         WRITE(6,"(A,I3,A)") "  Generating abelian symmetry table with",&
      &      nSymGen, " generators" 
-         WRITE(6,*) "Number of symmetry classes: ",nSymMax
+         WRITE(6,'(A,I)') "  Number of symmetry classes: ",nSymMax
 
          nprop=1
          nprop(1:nSymGen)=2
