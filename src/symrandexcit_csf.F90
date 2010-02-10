@@ -163,8 +163,7 @@ contains
                 call stop_all (this_routine, "We should be exciting this as &
                                              &a determinant.")
             else
-                call csf_apply_random_yama (nJ, nopen, real(STOT,8)/2, ncsf, &
-                                            .true.)
+                call csf_apply_random_yama (nJ, nopen, STOT, ncsf, .true.)
                 if (ncsf < 2) then
                     nJ(1) = 0
                 else
@@ -1048,11 +1047,9 @@ contains
             else if (tTruncateCSF .and. (lnopen > csf_trunc_level)) then
                 ! Use ncsf here to return number of determinants possible
                 ! rather than 
-                ncsf = csf_get_random_det (nJ, lnopen, real(LMS,8)/2)
+                ncsf = csf_get_random_det (nJ, lnopen, LMS)
             else
-                ! TODO: fix --> real(STOT)/2 or we end up rounding!!!!
-                call csf_apply_random_yama (nJ, lnopen, real(STOT/2,8), ncsf,&
-                                            .false.)
+                call csf_apply_random_yama (nJ, lnopen, STOT, ncsf, .false.)
             endif
         endif
 
@@ -1167,8 +1164,7 @@ contains
                     call csf_apply_yama (nJ(i,:), yama(i,:))
                 enddo
             else
-                call csf_apply_random_yama (nJ, nopen_new, real(STOT/2,8), &
-                                            ncsf, .false.)
+                call csf_apply_random_yama (nJ, nopen_new, STOT, ncsf,.false.)
             endif
         endif
     end subroutine
@@ -1297,7 +1293,7 @@ contains
         ! Indices, spin, Ml and symmetry values.
         integer :: ind, sym_ind, spn, MlB, sumMl
         integer :: syms(2), symA, symB, symProd
-        real*8 :: S
+        integer :: S
 
         ! Temporary values of nopen.
         integer :: delta_nopen, lnopen, lnopen2
@@ -1321,12 +1317,11 @@ contains
 
         ! Calculate number of different Yamanouchi symbols given S
         ! and the possible values of nopen
-        S = real(STOT) / 2
-        numcsfs(0) = get_num_csfs (nopen, S)
-        if (nopen<nel-1) numcsfs(1) = get_num_csfs (nopen+2, S)
-        if (nopen>1) numcsfs(-1) = get_num_csfs (nopen-2, S)
-        if (nopen<nel-3) numcsfs(2) = get_num_csfs (nopen+4, S)
-        if (nopen>3) numcsfs(-2) = get_num_csfs (nopen-4, S)
+        numcsfs(0) = get_num_csfs (nopen, STOT)
+        if (nopen<nel-1) numcsfs(1) = get_num_csfs (nopen+2, STOT)
+        if (nopen>1) numcsfs(-1) = get_num_csfs (nopen-2, STOT)
+        if (nopen<nel-3) numcsfs(2) = get_num_csfs (nopen+4, STOT)
+        if (nopen>3) numcsfs(-2) = get_num_csfs (nopen-4, STOT)
 
         nexcit = 0
         if (bYama) nexcit = nexcit + numcsfs(0) - 1
@@ -1455,7 +1450,7 @@ contains
             ! Allocate the required memory, init. and get Yamanouchi symbols
             allocate(nJ(nexcit,nel), csf0(numcsfs(0),nopen), stat=ierr)
             forall (i=1:nexcit) nJ(i,:) = nI
-            call csf_get_yamas (nopen, S, csf0, numcsfs(0))
+            call csf_get_yamas (nopen, STOT, csf0, numcsfs(0))
 
             if (bSingle .or. bDouble) then
                 if ((ierr == 0) .and. (nopen < nel-1)) &
@@ -1465,9 +1460,9 @@ contains
                 if (ierr /= 0) call stop_all(this_routine,"Allocation failed")
 
                 ! Get all the required csfs required for singles.
-                if (nopen<nel-1) call csf_get_yamas (nopen+2, S, csfp, &
+                if (nopen<nel-1) call csf_get_yamas (nopen+2, STOT, csfp, &
                                                      numcsfs(1))
-                if (nopen>1) call csf_get_yamas (nopen-2, S, csfm, &
+                if (nopen>1) call csf_get_yamas (nopen-2, STOT, csfm, &
                                                  numcsfs(-1))
             endif
             if (ierr /= 0) call stop_all(this_routine,"Allocation failed")
@@ -1574,9 +1569,9 @@ contains
                 if (ierr /= 0) call stop_all(this_routine,"Allocation failed")
 
                 ! Acquire csfs
-                if (nopen > 3) call csf_get_yamas (nopen-4, S, csfmm, &
+                if (nopen > 3) call csf_get_yamas (nopen-4, STOT, csfmm, &
                                                    numcsfs(-2))
-                if (nopen < nel-3) call csf_get_yamas (nopen+4, S, csfpp, &
+                if (nopen < nel-3) call csf_get_yamas (nopen+4, STOT, csfpp, &
                                                        numcsfs(2))
 
                 ! Loop through all electron pairs
@@ -1727,7 +1722,6 @@ contains
         integer :: CCUnS(ScratchSize/2)
         integer :: nexcit, i, nFreeze, ex(2,2)
         integer, allocatable, dimension(:,:) :: nK
-        type (helement) :: hel
         logical :: tParity
         !integer, dimension(10) :: nJ=(/-2147483631,-2147483630,-2147483615,-2147483614,-1073741823,-2147483645,-1073741805,-1073741803,-2147483625,-2147483623/)
         !integer, dimension(10) :: nJ=(/1,2,3,4,17,18,21,22,33,34/)
