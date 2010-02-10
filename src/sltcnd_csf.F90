@@ -87,7 +87,6 @@ contains
                 
                 ! If are not considering the exchange contribution, or if I,J
                 ! are alpha/beta (ie exchange == 0) then don't continue
-                ! TODO: Remove ability to turn off exchange (tExch)?
                 ids = G1(nI(i))%Ms * G1(nI(j))%Ms
                 if (tExch .and. ids > 0) then
                     hel_tmp = hel_tmp - GetUMATEl(nBasisMax, UMAT, ALAT, &
@@ -99,7 +98,6 @@ contains
         hel_doub = hel_doub + hel_tmp
 
         ! If we are scaling the coulomb interaction, do so here.
-        ! TODO: Should we remove ability to use FCOUL
         hel = hel_sing + (hel_doub * HElement(FCOUL))
     end function sltcnd_csf_0
 

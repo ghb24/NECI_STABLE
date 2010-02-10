@@ -50,7 +50,6 @@ MODULE HElem
       interface DCONJG
          module procedure HElemDConjg
       end interface
-      ! TODO: Fix code to use sum as intrinsic.
       interface sum
           module procedure HElemSum
       end interface

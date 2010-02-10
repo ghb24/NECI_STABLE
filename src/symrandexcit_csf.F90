@@ -68,7 +68,8 @@ contains
         ! Count the open shell electrons
         nopen = count_open_orbs(iLut) 
 
-        ! TODO: comment this bit
+        ! If we are above the truncation level, then generate a normal,
+        ! determinential, excitation rather than using CSF specific routines.
         if (tTruncateCSF .and. csf_trunc_level /= 0 .and. &
             nopen > csf_trunc_level .and. .not. iscsf(nI)) then
 
@@ -84,7 +85,6 @@ contains
                                            ExcitMat, tParity, exTmp, pGen, &
                                            CCDblS, CCUnS, tFilled)
 
-            ! TODO: would be nicer to do this without encoding a bit det...
             ! If we have fallen back below the truncation level, then
             ! regenerate a CSF (pick Yamanouchi symbol at random).
             call EncodeBitDet(nJ, iLutTmp)
@@ -125,8 +125,6 @@ contains
                                              CCUnS)
             tFilled = .true.
         endif
-
-        ! TODO: make this covered by tFilled as well...
 
         ! Select type of excitation depending on ExcitFlag.
         select case (ExFlag)
