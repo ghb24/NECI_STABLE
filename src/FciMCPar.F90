@@ -9874,6 +9874,10 @@ MODULE FciMCParMod
             write (6, '("pSingles set to: ", f14.6)') pSingles
         ENDIF
 
+        WRITE(6,'(A,F15.10)') " Assuming an average K_ij magnitude of approx 0.01, an appropriate tau is predicted to be around: ",(0.02*(1.D0/(REAL(NSing)+REAL(NDoub))))/0.01
+!This is a rough guesstimate of what tau might like to be, assuming K_ij is approx 0.01 on average, and we want a probability of spawning to be about 0.02.        
+!These are just stats taken from one system... will investigate further...
+
     END SUBROUTINE CalcApproxpDoubles
 
     SUBROUTINE CreateSpinInvBRR()
