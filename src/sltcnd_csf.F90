@@ -68,10 +68,7 @@ contains
         integer :: id(nel), ids, i, j, idN, idX
 
         ! Sum in the one electron integrals (KE --> TMAT)
-        !hel_sing = HElement(0)
-        do i=1,nel
-            hel_sing = hel_sing + GetTMATEl(nI(i), nI(i))
-        enddo
+        hel_sing = sum(GetTMATEl(nI, nI))
 
         ! Obtain the spatial rather than spin indices if required
         id = gtID(nI)

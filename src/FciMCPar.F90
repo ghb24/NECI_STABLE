@@ -21,7 +21,7 @@ MODULE FciMCParMod
     use CalcData , only : FixedKiiCutoff,tFixShiftKii,tFixCASShift,tMagnetize,BField,NoMagDets,tSymmetricField,tStarOrbs,SinglesBias
     use CalcData , only : tHighExcitsSing,iHighExcitsSing,tFindGuide,iGuideDets,tUseGuide,iInitGuideParts,tNoDomSpinCoup
     use CalcData , only : tPrintDominant,iNoDominantDets,MaxExcDom,MinExcDom,tSpawnDominant,tMinorDetsStar,MaxNoatHF,HFPopThresh
-    use CalcData , only : tCCMC,tTruncCAS,tTruncInitiator,tDelayTruncInit,IterTruncInit,NShiftEquilSteps,tWalkContGrow
+    use CalcData , only : tCCMC,tTruncCAS,tTruncInitiator,tDelayTruncInit,IterTruncInit,NShiftEquilSteps,tWalkContGrow,tMCExcits,NoMCExcits
     use HPHFRandExcitMod , only : FindExcitBitDetSym,GenRandHPHFExcit,GenRandHPHFExcit2Scratch
     USE Determinants , only : FDet,GetHElement2,GetHElement4
     USE DetCalc , only : ICILevel,nDet,Det,FCIDetIndex
@@ -560,56 +560,6 @@ MODULE FciMCParMod
                 WalkExcitLevel = FindBitExcitLevel(iLutHF, CurrentDets(:,j),2)
             ENDIF
 
-            IF(tTruncInitiator) THEN
-                IF(tTruncCAS) THEN
-                    tParentInCAS=.true.
-                    tParentInCAS=TestIfDetInCAS(DetCurr)
-                    IF(tParentInCAS) THEN
-                        ParentInitiator=0
-                        NoInitDets=NoInitDets+1
-                        NoInitWalk=NoInitWalk+(ABS(CurrentSign(j)))
-!The parent walker from which we are attempting to spawn is in the active space - all children will carry this flag, and these spawn like usual.
-                    ELSEIF(tInitIncDoubs.and.(WalkExcitLevel.eq.2)) THEN
-                        ParentInitiator=0
-                        NoInitDets=NoInitDets+1
-                        NoInitWalk=NoInitWalk+(ABS(CurrentSign(j)))
-                        NoExtraInitDoubs=NoExtraInitDoubs+1
-                    ELSEIF(tAddtoInitiator.and.(ABS(CurrentSign(j)).gt.InitiatorWalkNo)) THEN
-                        ParentInitiator=0
-                        IF(mod(Iter,StepsSft).eq.0) NoAddedInitiators=NoAddedInitiators+1
-                        NoInitDets=NoInitDets+1
-                        NoInitWalk=NoInitWalk+(ABS(CurrentSign(j)))
-                    ELSE
-                        ParentInitiator=1
-                        NoNonInitDets=NoNonInitDets+1
-                        NoNonInitWalk=NoNonInitWalk+(ABS(CurrentSign(j)))
-!The parent from which we are attempting to spawn is outside the active space - children spawned on unoccupied determinants with this flag will be killed.
-                    ENDIF
-                ELSEIF(tTruncSpace) THEN
-                    IF(WalkExcitLevel.le.ICILevel) THEN
-                        ParentInitiator=0
-                        NoInitDets=NoInitDets+1
-                        NoInitWalk=NoInitWalk+(ABS(CurrentSign(j)))
-!Parent in allowed space.                        
-                    ELSEIF(tInitIncDoubs.and.(WalkExcitLevel.eq.2)) THEN
-                        ParentInitiator=0
-                        NoInitDets=NoInitDets+1
-                        NoInitWalk=NoInitWalk+(ABS(CurrentSign(j)))
-                        NoExtraInitDoubs=NoExtraInitDoubs+1
-                    ELSEIF(tAddtoInitiator.and.(ABS(CurrentSign(j)).gt.InitiatorWalkNo)) THEN
-                        ParentInitiator=0
-                        IF(mod(Iter,StepsSft).eq.0) NoAddedInitiators=NoAddedInitiators+1
-                        NoInitDets=NoInitDets+1
-                        NoInitWalk=NoInitWalk+(ABS(CurrentSign(j)))
-                    ELSE
-                        ParentInitiator=1
-                        NoNonInitDets=NoNonInitDets+1
-                        NoNonInitWalk=NoNonInitWalk+(ABS(CurrentSign(j)))
-!Parent outside allowed space.                        
-                    ENDIF
-                ENDIF
-            ENDIF
-
             IF(tRegenDiagHEls) THEN
 !We are not storing the diagonal hamiltonian elements for each particle. Therefore, we need to regenerate them.
 !Need to find H-element!
@@ -640,10 +590,11 @@ MODULE FciMCParMod
                 CALL CheckStarOrbs(DetCurr,tStarDet)
             ENDIF
 
-!Sum in any energy contribution from the determinant, including other parameters, such as excitlevel info
-!TODO: This is where projected energy calculated - make sure that it can call
-!the right HElement call
-            CALL SumEContrib(DetCurr,WalkExcitLevel,CurrentSign(j),CurrentDets(:,j),HDiagCurr,1.D0)
+            ! Sum in any energy contribution from the determinant, including 
+            ! other parameters, such as excitlevel info.
+            ! This is where the projected energy is calculated.
+            call SumEContrib (DetCurr, WalkExcitLevel, CurrentSign(j), &
+                              CurrentDets(:,j), HDiagCurr, 1.d0)
 
 !            IF(TResumFCIMC) CALL ResumGraphPar(DetCurr,CurrentSign(j),VecSlot,j)
 
@@ -652,6 +603,9 @@ MODULE FciMCParMod
 !Here, we spawn all particles on the determinant in one go, by multiplying the probability of spawning by the number of particles on the determinant.
                 Loop=1
                 ParticleWeight=abs(CurrentSign(j))
+            ELSEIF(tMCExcits) THEN
+!Multiple spawning attempt per walker.
+                Loop=abs(CurrentSign(j))*NoMCExcits
             ELSE
 !Here, we spawn each particle on the determinant in a seperate attempt.
                 Loop=abs(CurrentSign(j))
@@ -823,6 +777,57 @@ MODULE FciMCParMod
                 
                 IF(Child.ne.0) THEN
 !We want to spawn a child - find its information to store
+
+                    IF(tTruncInitiator) THEN
+                        IF(tTruncCAS) THEN
+                            tParentInCAS=.true.
+                            tParentInCAS=TestIfDetInCAS(DetCurr)
+                            IF(tParentInCAS) THEN
+                                ParentInitiator=0
+                                NoInitDets=NoInitDets+1
+                                NoInitWalk=NoInitWalk+(ABS(CurrentSign(j)))
+!The parent walker from which we are attempting to spawn is in the active space - all children will carry this flag, and these spawn like usual.
+                            ELSEIF(tInitIncDoubs.and.(WalkExcitLevel.eq.2)) THEN
+                                ParentInitiator=0
+                                NoInitDets=NoInitDets+1
+                                NoInitWalk=NoInitWalk+(ABS(CurrentSign(j)))
+                                NoExtraInitDoubs=NoExtraInitDoubs+1
+                            ELSEIF(tAddtoInitiator.and.(ABS(CurrentSign(j)).gt.InitiatorWalkNo)) THEN
+                                ParentInitiator=0
+                                IF(mod(Iter,StepsSft).eq.0) NoAddedInitiators=NoAddedInitiators+1
+                                NoInitDets=NoInitDets+1
+                                NoInitWalk=NoInitWalk+(ABS(CurrentSign(j)))
+                            ELSE
+                                ParentInitiator=1
+                                NoNonInitDets=NoNonInitDets+1
+                                NoNonInitWalk=NoNonInitWalk+(ABS(CurrentSign(j)))
+!The parent from which we are attempting to spawn is outside the active space - children spawned on unoccupied determinants with this flag will be killed.
+                            ENDIF
+                        ELSEIF(tTruncSpace) THEN
+                            IF(WalkExcitLevel.le.ICILevel) THEN
+                                ParentInitiator=0
+                                NoInitDets=NoInitDets+1
+                                NoInitWalk=NoInitWalk+(ABS(CurrentSign(j)))
+!Parent in allowed space.                        
+                            ELSEIF(tInitIncDoubs.and.(WalkExcitLevel.eq.2)) THEN
+                                ParentInitiator=0
+                                NoInitDets=NoInitDets+1
+                                NoInitWalk=NoInitWalk+(ABS(CurrentSign(j)))
+                                NoExtraInitDoubs=NoExtraInitDoubs+1
+                            ELSEIF(tAddtoInitiator.and.(ABS(CurrentSign(j)).gt.InitiatorWalkNo)) THEN
+                                ParentInitiator=0
+                                IF(mod(Iter,StepsSft).eq.0) NoAddedInitiators=NoAddedInitiators+1
+                                NoInitDets=NoInitDets+1
+                                NoInitWalk=NoInitWalk+(ABS(CurrentSign(j)))
+                            ELSE
+                                ParentInitiator=1
+                                NoNonInitDets=NoNonInitDets+1
+                                NoNonInitWalk=NoNonInitWalk+(ABS(CurrentSign(j)))
+!Parent outside allowed space.                        
+                            ENDIF
+                        ENDIF
+                    ENDIF
+
                     IF(tHistHamil) THEN
                         CALL AddHistHamilEl(CurrentDets(:,j),iLutnJ,WalkExcitLevel,Child,1)   !Histogram the hamiltonian - iLutnI,iLutnJ,Excitlevel of parent,spawning indicator
                     ENDIF
@@ -1180,22 +1185,20 @@ MODULE FciMCParMod
 
 !Output if there has been a particle bloom this iteration. A negative number indicates that particles were created from a single excitation.
         IF((iPartBloom.ne.0).and.(iProcIndex.eq.0)) THEN
-            IF(tAddtoInitiator) THEN
-                WRITE(6,"(A,I10,A)") "Particle Blooms of more than 'n_add' in iteration ",Iter
+            IF(tAddtoInitiator.and.(iPartBloom.gt.0)) THEN
+                WRITE(6,"(A,I,A,I,A)") "Particle Blooms of more than 'n_add' in iteration ",Iter," :  A max of ",abs(iPartBloom)," particles created in one attempt from double excit."
+            ELSEIF(tAddtoInitiator) THEN
+                WRITE(6,"(A,I,A,I,A)") "Particle Blooms of more than 'n_add' in iteration ",Iter," :  A max of ",abs(iPartBloom)," particles created in one attempt from single excit."
+            ELSEIF(iPartBloom.gt.0) THEN
+                WRITE(6,"(A,I,A,I,A)") "LARGE Particle Blooms in iteration ",Iter," :  A max of ",abs(iPartBloom)," particles created in one attempt from double excit."
             ELSE
-                WRITE(6,"(A,I10,A)") "LARGE Particle Blooms in iteration ",Iter
-            ENDIF
-            IF(iPartBloom.gt.0) THEN
-                WRITE(6,"(A,I10,A)") "A max of ",abs(iPartBloom)," particles created in one attempt from double excit."
-            ELSE
-                WRITE(6,"(A,I10,A)") "A max of ",abs(iPartBloom)," particles created in one attempt from single excit."
+                WRITE(6,"(A,I,A,I,A)") "LARGE Particle Blooms in iteration ",Iter," :  A max of ",abs(iPartBloom)," particles created in one attempt from single excit."
             ENDIF
         ENDIF
 
-
         rat=REAL(TotWalkersNew,r2)/REAL(MaxWalkersPart,r2)
         IF(rat.gt.0.95) THEN
-            WRITE(6,*) "*WARNING* - Number of particles/determinants has increased to over 95% of MaxWalkersPart"
+            WRITE(6,'(A)') "*WARNING* - Number of particles/determinants has increased to over 95% of MaxWalkersPart"
             CALL FLUSH(6)
         ENDIF
 
@@ -1204,7 +1207,7 @@ MODULE FciMCParMod
 
             rat=(ValidSpawned+0.D0)/(MaxSpawned+0.D0)
             IF(rat.gt.0.9) THEN
-                WRITE(6,*) "*WARNING* - Number of spawned particles has reached over 90% of MaxSpawned"
+                WRITE(6,'(A)') "*WARNING* - Number of spawned particles has reached over 90% of MaxSpawned"
                 CALL FLUSH(6)
             ENDIF
         ELSEIF(tDirectAnnihil) THEN
@@ -1214,14 +1217,14 @@ MODULE FciMCParMod
                     rat=(ValidSpawnedList(i)-InitialSpawnedSlots(i))/(InitialSpawnedSlots(1)+0.D0)
 !                    WRITE(6,*) rat,(ValidSpawnedList(i)-InitialSpawnedSlots(i)),InitialSpawnedSlots(1)
                     IF(rat.gt.0.95) THEN
-                        WRITE(6,*) "*WARNING* - Highest processor spawned particles has reached over 95% of MaxSpawned"
+                        WRITE(6,'(A)') "*WARNING* - Highest processor spawned particles has reached over 95% of MaxSpawned"
                         CALL FLUSH(6)
                     ENDIF
                 enddo
             ELSE
                 rat=(ValidSpawnedList(0)+0.D0)/(MaxSpawned+0.D0)
                 IF(rat.gt.0.9) THEN
-                    WRITE(6,*) "*WARNING* - Number of spawned particles has reached over 90% of MaxSpawned"
+                    WRITE(6,'(A)') "*WARNING* - Number of spawned particles has reached over 90% of MaxSpawned"
                     CALL FLUSH(6)
                 ENDIF
             ENDIF
@@ -1851,7 +1854,7 @@ MODULE FciMCParMod
         IF(TStartMP1) THEN
 !Start the initial distribution off at the distribution of the MP1 eigenvector
 
-            WRITE(6,"(A)") "Starting run with particles populating double excitations proportionally to MP1 wavevector..."
+            WRITE(6,"(A)") " Starting run with particles populating double excitations proportionally to MP1 wavevector..."
             IF(tDirectAnnihil) CALL Stop_All(this_routine,"MP1Start currently disabled with directannihilation")
             CALL InitWalkersMP1Par()
 
@@ -1868,7 +1871,7 @@ MODULE FciMCParMod
 !Set the maximum number of walkers allowed
             MaxWalkersPart=NINT(MemoryFacPart*InitWalkers)
 !            WRITE(6,"(A,F14.5)") "Memory Factor for walkers is: ",MemoryFacPart
-            WRITE(6,"(A,I14)") "Memory allocated for a maximum particle number per node of: ",MaxWalkersPart
+            WRITE(6,"(A,I14)") " Memory allocated for a maximum particle number per node of: ",MaxWalkersPart
             IF(tRotoAnnihil.or.tDirectAnnihil) THEN
                 MaxSpawned=NINT(MemoryFacSpawn*InitWalkers)
 !                WRITE(6,"(A,F14.5)") "Memory Factor for arrays used for spawning is: ",MemoryFacSpawn
@@ -1876,7 +1879,7 @@ MODULE FciMCParMod
             ELSE
                 MaxWalkersAnnihil=NINT(MemoryFacAnnihil*InitWalkers)
 !                WRITE(6,"(A,F14.5)") "Memory Factor for arrays used for annihilation is: ",MemoryFacAnnihil
-                WRITE(6,"(A,I14)") "Memory allocated for a maximum particle number per node for annihilation of: ",MaxWalkersAnnihil
+                WRITE(6,"(A,I14)") " Memory allocated for a maximum particle number per node for annihilation of: ",MaxWalkersAnnihil
             ENDIF
 
 !Put a barrier here so all processes synchronise
@@ -1903,9 +1906,9 @@ MODULE FciMCParMod
                 ENDIF
             ELSE
                 IF(tRotoAnnihil.or.tDirectAnnihil) THEN
-                    WRITE(6,"(A,F14.6,A)") "Diagonal H-Elements will not be stored. This will *save* ",REAL(MaxWalkersPart*8,r2)/1048576.D0," Mb/Processor"
+                    WRITE(6,"(A,F14.6,A)") " Diagonal H-Elements will not be stored. This will *save* ",REAL(MaxWalkersPart*8,r2)/1048576.D0," Mb/Processor"
                 ELSE
-                    WRITE(6,"(A,F14.6,A)") "Diagonal H-Elements will not be stored. This will *save* ",REAL(MaxWalkersPart*16,r2)/1048576.D0," Mb/Processor"
+                    WRITE(6,"(A,F14.6,A)") " Diagonal H-Elements will not be stored. This will *save* ",REAL(MaxWalkersPart*16,r2)/1048576.D0," Mb/Processor"
                 ENDIF
             ENDIF
             
@@ -1937,7 +1940,7 @@ MODULE FciMCParMod
 
             IF(tRotoAnnihil.or.tDirectAnnihil) THEN
 
-                WRITE(6,"(A,I12,A)") "Spawning vectors allowing for a total of ",MaxSpawned," particles to be spawned in any one iteration."
+                WRITE(6,"(A,I12,A)") " Spawning vectors allowing for a total of ",MaxSpawned," particles to be spawned in any one iteration."
                 ALLOCATE(SpawnVec(0:NIftot,MaxSpawned),stat=ierr)
                 CALL LogMemAlloc('SpawnVec',MaxSpawned*(NIfTot+1),4,this_routine,SpawnVecTag,ierr)
                 SpawnVec(:,:)=0
@@ -2041,7 +2044,7 @@ MODULE FciMCParMod
                 ENDIF
             ENDIF
 
-            WRITE(6,"(A,F14.6,A)") "Initial memory (without excitgens + temp arrays) consists of : ",REAL(MemoryAlloc,r2)/1048576.D0," Mb/Processor"
+            WRITE(6,"(A,F14.6,A)") " Initial memory (without excitgens + temp arrays) consists of : ",REAL(MemoryAlloc,r2)/1048576.D0," Mb/Processor"
             IF(tRotoAnnihil.or.tDirectAnnihil) THEN
                 WRITE(6,*) "Only one array of memory to store main particle list allocated..."
             ENDIF
@@ -2087,11 +2090,11 @@ MODULE FciMCParMod
                 ENDIF
                 MemoryAlloc=((HFExcit%nExcitMemLen)+8)*4*MaxWalkersPart    !This is the memory needed by all the excitation generator arrays
 
-                WRITE(6,"(A,I12)") "Size of HF excitgen is: ",HFExcit%nExcitMemLen
-                WRITE(6,"(A,F14.6,A)") "Probable maximum memory for excitgens is : ",REAL(MemoryAlloc,r2)/1048576.D0," Mb/Processor"
+                WRITE(6,"(A,I12)") " Size of HF excitgen is: ",HFExcit%nExcitMemLen
+                WRITE(6,"(A,F14.6,A)") " Probable maximum memory for excitgens is : ",REAL(MemoryAlloc,r2)/1048576.D0," Mb/Processor"
                 WRITE(6,*) "Initial allocation of excitation generators successful..."
             ELSE
-                WRITE(6,"(A)") "Excitation generators will not be stored, but regenerated each time they are needed..."
+                WRITE(6,"(A)") " Excitation generators will not be stored, but regenerated each time they are needed..."
             ENDIF
             IF(tRotoAnnihil) THEN
                 WRITE(6,"(A,F14.6,A)") "Temp Arrays for annihilation cannot be more than : ",REAL(MaxSpawned*9*4,r2)/1048576.D0," Mb/Processor"
@@ -4054,6 +4057,12 @@ MODULE FciMCParMod
             ENDIF
         ENDIF
                 
+        IF(tMCExcits) THEN
+!If we are generating multiple excitations, then the probability of spawning on them must be reduced by the number of excitations generated.
+!This is equivalent to saying that the excitation is likely to arise a factor of NoMCExcits more often.
+            Prob=Prob*REAL(NoMCExcits,r2)
+        ENDIF
+            
 
 !Calculate off diagonal hamiltonian matrix element between determinants
 !        rh=GetHElement2(DetCurr,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,IC,ECore)
@@ -8712,6 +8721,7 @@ MODULE FciMCParMod
 !        CALL MPIInit(.false.)       !Initialises MPI - now have variables iProcIndex and nProcessors
         WRITE(6,*) ""
         WRITE(6,*) "Performing Parallel FCIMC...."
+        WRITE(6,*) ""
         
 !Set timed routine names
         Walker_Time%timer_name='WalkerTime'
@@ -8748,7 +8758,7 @@ MODULE FciMCParMod
         enddo
         HFHash=CreateHash(HFDet)
         CALL GetSym(HFDet,NEl,G1,NBasisMax,HFSym)
-        WRITE(6,"(A,I5)") "Symmetry of reference determinant is: ",INT(HFSym%Sym%S,4)
+        IF(tDebug) WRITE(6,"(A,I5)") "Symmetry of reference determinant is: ",INT(HFSym%Sym%S,4)
         IF(tFixLz) THEN
             CALL GetLz(HFDet,NEl,HFLz)
             WRITE(6,"(A,I5)") "Ml value of reference determinant is: ",HFLz
@@ -8838,7 +8848,7 @@ MODULE FciMCParMod
             IF(.not.tNonUniRandExcits) CALL Stop_All(this_routine,'ERROR. Need to use the non-uniform random excitation generators when &
             & we have odd symmetries and the symmetry label lists are stored in spin orbitals.')
         ELSE
-            WRITE(6,*) "Simply transferring this into a spin orbital representation."
+            IF(tDebug) WRITE(6,*) "Simply transferring this into a spin orbital representation."
         ENDIF
 ! From now on, the orbitals are contained in symlabellist2 and symlabelcounts2 rather than the original arrays.
 ! These are stored using spin orbitals.
@@ -8850,14 +8860,20 @@ MODULE FciMCParMod
 
 !If using a CAS space truncation, write out this CAS space
         IF(tTruncCAS) THEN
-            WRITE(6,*) "Truncated CAS space detected. Writing out CAS space..."
+            IF(tTruncInitiator) THEN
+                WRITE(6,'(A)') " *********** INITIATOR METHOD IN USE ***********"
+                WRITE(6,'(A)') " Fixed initiator space defined using the CAS method."
+            ELSE
+                WRITE(6,*) "Truncated CAS space detected. Writing out CAS space..."
+            ENDIF
+            WRITE(6,'(A,I2,A,I2,A)') " In CAS notation, (spatial orbitals, electrons), this has been chosen as: (",(OccCASOrbs+VirtCASOrbs)/2,",",OccCASOrbs,")"
             DO I=NEl-OccCASorbs+1,NEl
                 WRITE(6,'(6I7)',advance='no') I,BRR(I),G1(BRR(I))%K(1), G1(BRR(I))%K(2),G1(BRR(I))%K(3), G1(BRR(I))%MS
                 CALL WRITESYM(6,G1(BRR(I))%SYM,.FALSE.)
                 WRITE(6,'(I4)',advance='no') G1(BRR(I))%Ml
                 WRITE(6,'(2F19.9)')  ARR(I,1),ARR(BRR(I),2)
             ENDDO
-            WRITE(6,*) "-----------------------------------------------------"
+            WRITE(6,'(A)') " -------------------------------------------------------------------------------------------------"
             DO I=NEl+1,NEl+VirtCASOrbs
                 WRITE(6,'(6I7)',advance='no') I,BRR(I),G1(BRR(I))%K(1), G1(BRR(I))%K(2),G1(BRR(I))%K(3), G1(BRR(I))%MS
                 CALL WRITESYM(6,G1(BRR(I))%SYM,.FALSE.)
@@ -9198,7 +9214,9 @@ MODULE FciMCParMod
 !This is a list of options which cannot be used with the stripped-down spawning routine. New options not added to this routine should be put in this list.
         IF(tHighExcitsSing.or.tHistSpawn.or.tRegenDiagHEls.or.tFindGroundDet.or.tStarOrbs.or.tResumFCIMC.or.tSpawnAsDet.or.tImportanceSample    &
      &      .or.(.not.tRegenExcitgens).or.(.not.tNonUniRandExcits).or.(.not.tDirectAnnihil).or.tMinorDetsStar.or.tSpawnDominant.or.(DiagSft.gt.0.D0).or.   &
-     &      tPrintTriConnections.or.tHistTriConHEls.or.tCalcFCIMCPsi.or.tTruncCAS.or.tListDets.or.tPartFreezeCore.or.tPartFreezeVirt.or.tUEG.or.tHistHamil.or.TReadPops) THEN
+     &      tPrintTriConnections.or.tHistTriConHEls.or.tCalcFCIMCPsi.or.tTruncCAS.or.tListDets.or.tPartFreezeCore.or.tPartFreezeVirt.or.tUEG.or.tHistHamil.or.TReadPops.or. &
+     &      tMCExcits) THEN
+            WRITE(6,*) ""
             WRITE(6,*) "It is not possible to use to clean spawning routine..."
         ELSE
             WRITE(6,*) "Clean spawning routine in use..."
@@ -9228,17 +9246,21 @@ MODULE FciMCParMod
 
         IF(TNoAnnihil) THEN
             WRITE(6,*) "No Annihilation to occur. Results are likely not to converge on right value. Proceed with caution. "
+            WRITE(6,*) ""
         ELSEIF(TAnnihilonproc) THEN
             CALL Stop_All("SetupParameters","Annihilonproc feature is currently disabled")
             WRITE(6,*) "Annihilation will occur on each processors' walkers only. This should be faster, but result in less annihilation."
             WRITE(6,*) "This is equivalent to running seperate calculations."
+            WRITE(6,*) ""
         ELSEIF(tRotoAnnihil) THEN
             IF(tDirectAnnihil) THEN
                 CALL Stop_All("SetupParameters","Cannot specify both direct annihilation and rotoannihilation.")
             ENDIF
-            WRITE(6,*) "RotoAnnihilation in use...!"
+            WRITE(6,*) "*RotoAnnihilation* in use...!"
+            WRITE(6,*) ""
         ELSEIF(tDirectAnnihil) THEN
-            WRITE(6,*) "Direct Annihilation in use...Explicit load-balancing disabled."
+            WRITE(6,*) "*Direct Annihilation* in use...Explicit load-balancing disabled."
+            WRITE(6,*) ""
             ALLOCATE(ValidSpawnedList(0:nProcessors-1),stat=ierr)
             ALLOCATE(InitialSpawnedSlots(0:nProcessors-1),stat=ierr)
 !InitialSpawnedSlots now holds the first free position in the newly-spawned list for each processor, so it does not need to be reevaluated each iteration.
@@ -9286,17 +9308,12 @@ MODULE FciMCParMod
                 WRITE(6,"(A,I5,A)") "Graphs to resum will consist of ",NDets," determinants."
             ENDIF
         ENDIF
-        
-        IF(TStartSinglePart) THEN
-            WRITE(6,"(A,F9.3,A,I9)") "Initial number of particles set to 1, and shift will be held at ",DiagSft," until particle number on root node gets to ",InitWalkers
-        ELSE
-            WRITE(6,*) "Initial number of walkers per processor chosen to be: ", InitWalkers
-        ENDIF
-        WRITE(6,*) "Maximum connectivity of HF determinant is: ",HFConn
-        WRITE(6,*) "Damping parameter for Diag Shift set to: ", SftDamp
+
         IF(.not.TReadPops) THEN
             WRITE(6,*) "Initial Diagonal Shift (Ecorr guess) is: ", DiagSft
         ENDIF
+        WRITE(6,*) "Damping parameter for Diag Shift set to: ", SftDamp
+        WRITE(6,*) "Maximum connectivity of HF determinant is: ",HFConn
         IF(TStartSinglePart) THEN
             TSinglePartPhase=.true.
             IF(TReadPops) THEN
@@ -9353,7 +9370,8 @@ MODULE FciMCParMod
         ENDIF
         IF(tTruncCAS) THEN
 !We are truncating the FCI space by only allowing excitations in a predetermined CAS space.
-            WRITE(6,'(A,I4,A,I5)') "Truncating the S.D. space as determinants must be within a CAS of ",OccCASOrbs," , ",VirtCASOrbs
+!The following line has already been written out if we are doing a CAS calculation.
+!            WRITE(6,'(A,I4,A,I5)') "Truncating the S.D. space as determinants must be within a CAS of ",OccCASOrbs," , ",VirtCASOrbs
 !The SpinInvBRR array is required for the tTruncCAS option. Its properties are explained more fully in the subroutine. 
 
             CALL CreateSpinInvBRR()
@@ -9447,6 +9465,13 @@ MODULE FciMCParMod
 !We need to store a list of all double excitations of HF.
             CALL StoreDoubs()
         ENDIF
+        
+        IF(TStartSinglePart) THEN
+            WRITE(6,"(A,F9.3,A,I9)") " Initial number of particles set to 1, and shift will be held at ",DiagSft," until particle number on root node gets to ",InitWalkers
+        ELSE
+            WRITE(6,*) " Initial number of walkers per processor chosen to be: ", InitWalkers
+        ENDIF
+ 
 
     END SUBROUTINE SetupParameters
     LOGICAL FUNCTION TestifDETinCAS(CASDet)
@@ -9773,14 +9798,14 @@ MODULE FciMCParMod
         IF(tNoSpinSymExcitgens) THEN
 !NSing=Number singles from HF, nDoub=No Doubles from HF
 
-            WRITE(6,"(A)") "Calculating approximate pDoubles for use with excitation generator by looking a excitations from HF."
+            WRITE(6,"(A)") " Calculating approximate pDoubles for use with excitation generator by looking a excitations from HF."
             exflag=3
             CALL CountExcitations3(HFDet,exflag,nSing,nDoub)
             iTotal=nSing + nDoub + ncsf
 
         ELSE
 
-            WRITE(6,"(A)") "Calculating approximate pDoubles for use with excitation generator by looking a excitations from HF."
+            WRITE(6,"(A)") " Calculating approximate pDoubles for use with excitation generator by looking a excitations from HF."
             IF(tAssumeSizeExcitgen) THEN
                 PosExcittypes=SymClassSize*NEL+NIfD+4
                 iTotal=HFExcit%ExcitData(1)
@@ -9861,9 +9886,13 @@ MODULE FciMCParMod
 
             WRITE(6,"(A,F14.6,A,F14.6)") "pDoubles set to: ",pDoubles, " rather than (without bias): ",real(nDoub,r2)/real(iTotal,r2)
         ELSE
-            write (6, '("pDoubles set to: ", f14.6)') pDoubles
-            write (6, '("pSingles set to: ", f14.6)') pSingles
+            write (6,'(A,F14.6)') " pDoubles set to: ", pDoubles
+            write (6,'(A,F14.6)') " pSingles set to: ", pSingles
         ENDIF
+
+        WRITE(6,'(A,F15.10)') " Assuming an average K_ij magnitude of approx 0.01, an appropriate tau is predicted to be around: ",(0.02*(1.D0/(REAL(NSing)+REAL(NDoub))))/0.01
+!This is a rough guesstimate of what tau might like to be, assuming K_ij is approx 0.01 on average, and we want a probability of spawning to be about 0.02.        
+!These are just stats taken from one system... will investigate further...
 
     END SUBROUTINE CalcApproxpDoubles
 

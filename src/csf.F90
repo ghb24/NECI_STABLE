@@ -3,7 +3,7 @@
 ! A new implementation file for csfs
 module csf
     use systemdata, only: nel, brr, ecore, alat, nmsh, nbasismax, G1, nbasis,&
-                          NIfY, LMS, NIfTot, NIfD, iSpinSkip, STOT
+                          NIfY, LMS, NIfTot, NIfD, iSpinSkip, STOT, ECore
     use memorymanager, only: LogMemAlloc, LogMemDealloc
     use integralsdata, only: umat, fck, nmax
     use HElem
@@ -472,6 +472,11 @@ contains
                                      dets1(nclosed+1:nel,det))
             enddo
         enddo
+
+        ! If this a diagonal matrix element, sum in ECore
+        if (bEqual) then
+            hel_ret = hel_ret + helement(ECore)
+        endif
         
     end function
 
