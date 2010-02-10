@@ -1727,7 +1727,6 @@ contains
         integer :: CCUnS(ScratchSize/2)
         integer :: nexcit, i, nFreeze, ex(2,2)
         integer, allocatable, dimension(:,:) :: nK
-        type (helement) :: hel
         logical :: tParity
         !integer, dimension(10) :: nJ=(/-2147483631,-2147483630,-2147483615,-2147483614,-1073741823,-2147483645,-1073741805,-1073741803,-2147483625,-2147483623/)
         !integer, dimension(10) :: nJ=(/1,2,3,4,17,18,21,22,33,34/)
