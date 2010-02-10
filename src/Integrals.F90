@@ -444,7 +444,7 @@ MODULE Integrals
          NBASISMAX(2,3)=0   !This is generally iSpinSkp, but stupidly, needs to be .le.0 to indicate that we want to look up the integral.
          WRITE(6,*) ' ECORE=',ECORE
       ELSEIF(TREADINT.AND.TSTARSTORE) THEN
-         WRITE(6,*) ' *** READING DOUBLES 2-VERTEX INTEGRALS FROM FCIDUMP *** '
+         WRITE(6,'(A)') '*** READING DOUBLES 2-VERTEX INTEGRALS FROM FCIDUMP ***'
          NBASISMAX(2,3)=2
          !NBASIS/nBasis is number of spin-orbitals
          CALL GENSymStatePairs(nBasis/2,.false.)
@@ -466,7 +466,7 @@ MODULE Integrals
          WRITE(6,*) ' ECORE=',ECORE
          ISPINSKIP=2
       ELSEIF(TREADINT) THEN
-         WRITE(6,*) ' *** READING PRIMITIVE INTEGRALS FROM FCIDUMP *** '
+         WRITE(6,'(A)') '*** READING PRIMITIVE INTEGRALS FROM FCIDUMP ***'
 !.. Generate the 2e integrals (UMAT)
          ISPINSKIP=NBasisMax(2,3)
          IF(ISPINSKIP.le.0) STOP 'NBASISMAX(2,3) ISpinSkip unset'
@@ -474,7 +474,7 @@ MODULE Integrals
          CALL GetUMatSize(nBasis,nEl,iSpinSkip,UMATINT)
          WRITE(6,*) "UMatSize: ",UMATINT
          UMatMem=REAL(UMatInt,8)*REAL(HElementSizeB,8)*(9.536743164D-7)
-         WRITE(6,"(A,G20.10,A)") "UMatMemory: ",UMatMem, " Mb/Processor"
+         WRITE(6,"(A,G20.10,A)") " UMatMemory: ",UMatMem, " Mb/Processor"
          Allocate(UMat(UMatInt), stat=ierr)
          LogAlloc(ierr, 'UMat', UMatInt,HElementSizeB, tagUMat)
          UMat=HElement(0.d0)
@@ -485,7 +485,7 @@ MODULE Integrals
          ELSE
             CALL READFCIINT(UMAT,NBASIS,ECORE,ARR,BRR,G1,.false.)
          ENDIF
-         WRITE(6,*) ' ECORE=',ECORE
+         WRITE(6,*) 'ECORE=',ECORE
       ELSE
          ISPINSKIP=NBASISMAX(2,3)
          IF(NBASISMAX(1,3).GE.0) THEN
@@ -612,6 +612,7 @@ MODULE Integrals
       use HElem, only: HElement,HElementSize,HElementSizeB
       use SymData , only : TwoCycleSymGens
       use CalcData , only : tTruncInitiator,tDelayTruncInit
+      use FciMCData , only : tDebug
       use global_utilities
       character(25), parameter ::this_routine='IntFreeze'            
 !//Locals
@@ -639,6 +640,7 @@ MODULE Integrals
                                                     & The code is only set up to deal with freezing from the inside for molecular &
                                                     & systems with only 8 symmetry irreps.")
       IF(NFROZEN.GT.0.OR.NTFROZEN.GT.0.OR.NFROZENIN.GT.0.OR.NTFROZENIN.GT.0) THEN
+          WRITE(6,'(A)') '-------- FREEZING ORBITALS ----------'
 !!C.. At this point, we transform the UMAT and TMAT into a new UMAT and
 !!C.. TMAT and Ecore with the frozen orbitals factored in
 !!C..
@@ -663,16 +665,17 @@ MODULE Integrals
          ENDIF 
          CALL N_MEMORY_CHECK()
 
+         WRITE(6,*) "Freezing ",NFROZEN," core orbitals."
+         WRITE(6,*) "Freezing ",NTFROZEN," virtual orbitals."
+         IF(NFROZENIN.ne.0) WRITE(6,*) "Freezing ",NFROZENIN," of the highest energy occupied (inner) orbitals."
+         IF(NTFROZENIN.ne.0) WRITE(6,*) "Freezing ",NTFROZENIN," of the lowest energy virtual (inner) orbitals."
+ 
 !At the end of IntFREEZEBASIS, NHG is reset to nBasis - the final number of active orbitals.
          CALL IntFREEZEBASIS(NHG,NBASIS,UMAT,UMAT2,ECORE, G1,NBASISMAX,ISPINSKIP,BRR,NFROZEN,NTFROZEN,NFROZENIN,NTFROZENIN,NEL,ALAT)
          CALL FLUSH(6)
          CALL N_MEMORY_CHECK()
-         WRITE(6,*) "Freezing ",NFROZEN," core orbitals."
-         WRITE(6,*) "Freezing ",NTFROZEN," virtual orbitals."
-         WRITE(6,*) "Freezing ",NFROZENIN," of the highest energy occupied (inner) orbitals."
-         WRITE(6,*) "Freezing ",NTFROZENIN," of the lowest energy virtual (inner) orbitals."
          WRITE(6,*) "ECORE now",ECORE
-         WRITE(6,*) NBASIS," orbitals remain."
+         WRITE(6,*) "Number of orbitals remaining: ",NBASIS
          NEL=NEL-NFROZEN-NFROZENIN
          NOCC=NEL/2
 !!C.. NEL now only includes active electrons
@@ -690,7 +693,7 @@ MODULE Integrals
          tagUMat=tagUMat2
          tagUMat2=0
          CALL N_MEMORY_CHECK()
-         WRITE(6,*) "Active basis functions:",NHG
+!         WRITE(6,*) "Active basis functions:",NHG
          CALL WRITEBASIS(6,G1,NHG,ARR,BRR)
       ENDIF
 !      CALL WRITETMAT(NBASIS)
@@ -720,7 +723,7 @@ MODULE Integrals
       endif
       NIfTot = NIfTot + NIfP
 
-      WRITE(6,*) "Setting integer length of determinants as bit-strings to: ",NIfD+NIfY+NIfP+1
+      IF(tDebug) WRITE(6,*) "Setting integer length of determinants as bit-strings to: ",NIfD+NIfY+NIfP+1
          
       IF(COULDAMPORB.GT.0) THEN
          FCOULDAMPMU=(ARR(COULDAMPORB,1)+ARR(COULDAMPORB+1,1))/2

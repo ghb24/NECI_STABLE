@@ -57,7 +57,7 @@ MODULE HFCalc
             WRITE(6,*) "FINAL HF BASIS"
             CALL WRITEBASIS(6,G1,nBasis,ARR,BRR)
 
-            WRITE(6,"(A)",advance='no') "Fermi det (D0):"
+            WRITE(6,"(A)",advance='no') " Fermi det (D0):"
             CALL WRITEDET(6,FDET,NEL,.TRUE.)
             CALL FLUSH(6)
 !C.. If in Hubbard, we generate site-spin occupations
