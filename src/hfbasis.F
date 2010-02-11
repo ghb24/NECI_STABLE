@@ -795,8 +795,8 @@ C.. vector unless transposed
          NSBASIS=NBASIS/2
          NELS(2)=(LMS+NEL)/2
          NELS(1)=NEL-NELS(2)
-         WRITE(6,'(A,I,A,I,A,I,A,I)') " N_alpha:",NELS(1),"; N_beta:",  &
-     &   NELS(2),"; LMS:",LMS,"; NEl:",NEL
+         WRITE(6,'(A,I,A,I,A,I,A,I)') " N_alpha:",NELS(1)," ; N_beta:",  &
+     &   NELS(2)," ; LMS:",LMS," ; NEl:",NEL
          NEL=0
          DO IS=1,2
             IF(LMS.GE.0) THEN
