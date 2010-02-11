@@ -163,6 +163,7 @@ contains
         real*8 :: coeffs1(ndets(1)), coeffs2(ndets(2))
         integer :: dets1(nel, ndets(1)), dets2(nel, ndets(2))
         integer :: ilut1(0:NIfTot,ndets(1)), ilut2(0:NIfTot,ndets(2))
+        integer :: det_sum(ndets(1))
 
         integer :: det, i, j
         type(HElement) :: sum1, Hel
@@ -196,7 +197,11 @@ contains
 
         ! Calculate all possible permutations to construct determinants
         ! (Where 0=alpha, 1=beta when generating NI, NJ below)
-        call csf_get_dets (nopen(1), nup(1), ndets(1), nel, dets1)
+        if (IC == 0) then
+            call csf_get_dets (nopen(1), nup(1), ndets(1), nel, dets1,det_sum)
+        else
+            call csf_get_dets (nopen(1), nup(1), ndets(1), nel, dets1)
+        endif
         if ((nopen(1).eq.nopen(2)) .and. (nup(1).eq.nup(2))) then
             dets2 = dets1
         else
@@ -219,7 +224,7 @@ contains
             call set_timer (hel_timer0)
             hel_ret = get_csf_helement_0 (nI, nopen(1), nclosed(1), nup(1), &
                                           ndets(1), coeffs1, coeffs2, dets1,&
-                                          int_arr_eq(yama1, yama2))
+                                          det_sum, int_arr_eq(yama1, yama2))
             call halt_timer (hel_timer0)
             return
         endif
@@ -326,7 +331,7 @@ contains
     end function
 
     function get_csf_helement_0 (nI, nopen, nclosed, nup, ndets, coeffs1, &
-                                 coeffs2, dets1, bEqual) &
+                                 coeffs2, dets1, det_sum, bEqual) &
                                  result(hel_ret)
         
         ! The local worker function for calculating Helements between two CSFs
@@ -337,10 +342,11 @@ contains
         integer, intent(in) :: nopen, nclosed, nup, ndets
         real*8, intent(in) :: coeffs1(ndets), coeffs2(ndets)
         integer, intent(in) :: dets1(nel,ndets)
+        integer, intent(in) :: det_sum(ndets)
         logical, intent(in) :: bEqual
         type(HElement) :: hel_ret
 
-        integer :: nK(nel), id(nel), ex(2,2), elecs(2)
+        integer :: nK(nel), id(nel), ex(2,2), elecs(2), sumdet
         integer :: ndown, idX, idN, ids, det, indj, i, j
         real*8 :: diag_coeff
         type(HElement) :: hel, hel2
@@ -443,8 +449,10 @@ contains
                 ! The slow bit. Which determinant is this (to index coeffs
                 ! array). 
                 ! TODO: Is it quicker to re-calc the coeff?
-                indj = det_pos(dets1(nclosed+1:nel,det), nopen, &
-                               ndown, elecs)
+
+                ! Get the position in list of dets. Alternative to det_pos.
+                indj = det_perm_pos (dets1(nclosed+1:nel,det), elecs, &
+                                     det_sum, nopen, ndets, det)
 
                 if ( (coeffs1(det) /= 0 .and. coeffs2(indj) /= 0) .or. &
                      (coeffs1(indj) /= 0 .and. coeffs2(det) /= 0) ) then
@@ -873,13 +881,68 @@ contains
         enddo
     end function
 
-    subroutine csf_get_dets (nopen, nup, ndets, nel, dets)
+    ! TODO: RESTRICTION on nopen <= 32
+    function det_perm_pos (det, perm, det_sum, nopen, ndets, deti) result(pos)
+
+    ! TODO: comment
+
+        integer, intent(in) :: det(nopen), perm(2)
+        integer, intent(in) :: ndets, nopen, deti
+        integer, intent(in) :: det_sum(ndets)
+        integer :: pos
+
+        integer :: sumdet, hi, lo
+
+        if (nopen > 32) call stop_all ("det_perm_pos", "nopen too large. Need&
+                                   & to move to multi-integer representation")
+
+        ! Calculate the new sum value
+        sumdet = det_sum(deti)
+        if (det(perm(1)) == 1) then
+            sumdet = ibset(ibclr(sumdet, perm(2)-1), perm(1)-1)
+        else
+            sumdet = ibset(ibclr(sumdet, perm(1)-1), perm(2)-1)
+        endif
+
+        ! Prepare binary search range
+        if (sumdet > det_sum(deti)) then
+            hi = ndets
+            lo = deti + 1
+        else
+            hi = deti - 1
+            lo = 1
+        endif
+
+        ! Perform a binary search to find the item.
+        do while (hi /= lo)
+            pos = int(real(hi + lo) / 2)
+
+            if (sumdet == det_sum(pos)) then
+                exit
+            else if (sumdet > det_sum(pos)) then
+                lo = pos + 1
+            else
+                hi = pos - 1
+            endif
+        enddo
+
+        if (hi == lo) pos = hi
+    end function
+
+
+    subroutine csf_get_dets (nopen, nup, ndets, nel, dets, pos_sum)
 
         ! Fill the last nopen electrons of each determinant with 0 (alpha) or
         ! 1 (beta) in all possible permutations with nup alpha electrons.
+        !
+        ! Out:  pos_sum - Sum of 2^(pos-1) for the locations of the zeros.
+        !                 This monotonically increases through the set, and
+        !                 thus allows binary searching.
+
 
         integer, intent(in) :: ndets, nup, nopen, nel
         integer, intent(out) :: dets (nel, ndets)
+        integer, intent(out), optional :: pos_sum (ndets)
         integer comb(nup), i, j
         logical bInc
 
@@ -889,6 +952,9 @@ contains
         dets(nel-nopen+1:,:) = 1
         do i=1,ndets
             forall (j=1:nup) dets(nel-nopen+comb(j), i) = 0
+            if (present(pos_sum)) then
+                pos_sum(i) = sum(ibset(0, comb-1))
+            endif
             do j=1,nup
                 bInc = .false.
                 if (j == nup) then
