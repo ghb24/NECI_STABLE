@@ -18,7 +18,7 @@ logical :: tImportanceSample, tERLocalization, tOffDiagMin, tFindCINatOrbs
 logical :: tNoRenormRandExcits, tAssumeSizeExcitgen, tCycleOrbs, tROIteration
 logical :: tShakeIter, tRotateOccOnly, tDoubExcMin, tUseHFOrbs, tRotateOrbs
 logical :: tNonUniRandExcits, tNoSymGenRandExcits, tLagrange, tShakeApprox
-logical :: tShake, tRotateVirtOnly, tMaxHLGap, tCacheFCIDUMPInts
+logical :: tShake, tRotateVirtOnly, tMaxHLGap, tCacheFCIDUMPInts, tNoRODump
 
 logical :: tRIIntegrals   ! Read in RI 2-e integrals from RIDUMP file
 logical :: tStoreSpinOrbs ! This is set when the orbitals are stored in 
