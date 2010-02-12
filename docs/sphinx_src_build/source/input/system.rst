@@ -94,13 +94,39 @@ General options
 .. note::
  **COULOMB-DAMPING** is now disabled [26/7/06].
 
-**CSF** [STOT]
-    Default off.  Default STOT=0.
+**CSF-OLD** [STOT]
+    Default **OFF**.  Default STOT=0.
 
     If specified, work in CSFs rather than determinants.  CSFs might not
     function properly for some Monte Carlo, but should work for vertex
     sums and diagonalization.   STOT is twice the magnitude of spin to
     restrict the resultant space.
+
+    This uses the old CSF routines, which cannot make use of random
+    excitation generation.
+
+**CSF** [STOT]
+    Default **OFF**.  Default STOT=0
+
+    If specified, work in CSFs rather than determinants. STOT is twice
+    the magnitude of the spin to restrict the resultant space.
+
+    It is recommended, although not necessary, to restrict Ms to the
+    same value as the total spin, using the option SPIN-RESTRICT STOT
+
+**TRUNCATE-CSF** [csf_trunc_level]
+    Default **OFF**
+
+    Requires CSF
+
+    Use CSFs rather than determinants only for spatial configurations with
+    fewer than csf_trunc_level unpaired electrons. Above this level, 
+    transition to using a normal determinential representation.
+    
+    This avoids the extremely high computation cost of matrix elements for
+    CSFs with large numbers of unpaired electrons, whilst retaining the 
+    specified spin structure for the spatial configurations which contribute
+    the most to the final wavefunction.
 
 **ELECTRONS** [NEL]
     Specify the number of electrons.  Required for all system types
