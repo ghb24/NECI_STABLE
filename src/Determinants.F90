@@ -49,10 +49,10 @@ MODULE Determinants
              CALL GENFDET(BRR,G1,NBASIS,LMS,NEL,FDET)
         ENDIF
 !      ENDIF
-      WRITE(6,"(A)",advance='no') "Fermi det (D0):"
+      WRITE(6,"(A)",advance='no') " Fermi det (D0):"
       CALL WRITEDET(6,FDET,NEL,.TRUE.)
       Call GetSym(FDet,nEl,G1,nBasisMax,s)
-      WRITE(6,"(A)",advance='no') "Symmetry: "
+      WRITE(6,"(A)",advance='no') " Symmetry: "
       Call WriteSym(6,s%Sym,.true.)
       IF(tFixLz) THEN
          Call GetLz(FDet,nEl,Lz)
@@ -134,10 +134,10 @@ MODULE Determinants
             DNDET=(DNDET*DFLOAT(nBasis-I))/DFLOAT(I+1)
          ENDDO
         IF(NDET.ne.DNDET) THEN
-         WRITE(6,*) ' NUMBER OF DETERMINANTS : ' , DNDET
+!         WRITE(6,*) ' NUMBER OF DETERMINANTS : ' , DNDET
          NDET=-1
         ELSE
-         WRITE(6,*) ' NUMBER OF DETERMINANTS : ' , NDET
+!         WRITE(6,*) ' NUMBER OF DETERMINANTS : ' , NDET
         ENDIF
       
 !C      CALL TC(I_HMAX,I_P,NWHTAY)
@@ -206,11 +206,10 @@ MODULE Determinants
 
     ! If we are using CSFs, then we need to convert this into a csf
     if (tCSF) then
-        print*, 'USING CSFs'
         ncsf = det_to_random_csf (FDET)
+        write (6, '("Generated starting CSF: ")', advance='no')
         call writedet (6, FDET, nel, .true.)
     endif
-
 
     End Subroutine DetInit
     
@@ -292,6 +291,7 @@ MODULE Determinants
 
 
 !Function for get the hamiltonian matrix element, when we have the excitation matrix and parity of the excitation.
+! TODO: pass-through of iLut?
       TYPE(HElement) function GetHElement4(NI,NJ,iC2,ExcitMat,TParity) !,iLutI,&
                                            !iLutJ)
          USE HElem
@@ -308,7 +308,6 @@ MODULE Determinants
 
          ! If we are using CSFs, then call the csf routine.
          if (tCSF) then
-             ! TODO: pass through iLut. May need new GetHelement.
              if (iscsf(NI) .or. iscsf(NJ)) then
                  gethelement4 = CSFGetHelement (nI, nJ)
                  return
@@ -452,14 +451,14 @@ END MODULE Determinants
                STOP "After Freezing, UHFDET has wrong number of electrons"
             ENDIF
          ENDIF
-         WRITE(6,"(A)",advance='no') "Post-Freeze Fermi det (D0):"
+         WRITE(6,"(A)",advance='no') " Post-Freeze Fermi det (D0):"
          CALL WRITEDET(6,FDET,NEL-NFROZEN-NFROZENIN,.TRUE.)
-         WRITE(6,"(A)",advance='no') "Symmetry: "
+         WRITE(6,"(A)",advance='no') " Symmetry: "
          Call GetSym(FDet,nEl-nFrozen-nFrozenIn,G1,nBasisMax,s)
          Call WriteSym(6,s%Sym,.true.)
          IF(tFixLz) THEN
              Call GetLz(FDet,nEl-nFrozen-nFrozenIn,Lz)
-             WRITE(6,"(A,I5)") "Lz of Fermi det:",Lz
+             WRITE(6,"(A,I5)") " Lz of Fermi det:",Lz
          ENDIF
 
       end subroutine

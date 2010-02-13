@@ -783,6 +783,7 @@ C            CALL LOWDIN_ORTH(FMAT(1,1,ISPN),NSBASIS,R1,R2,WORK)
 C.. Generate an initial determinant of specified spin
       SUBROUTINE GENFDET(BRR,G1,NBASIS,LMS,NEL,FDET)
          use SystemData, only: BasisFN
+         use util_mod, only: int_fmt
          IMPLICIT NONE
          INTEGER BRR(*)
          TYPE(BasisFN) G1(*)
@@ -795,7 +796,8 @@ C.. vector unless transposed
          NSBASIS=NBASIS/2
          NELS(2)=(LMS+NEL)/2
          NELS(1)=NEL-NELS(2)
-         WRITE(6,*) "NELS:", NELS,LMS,NEL
+         WRITE(6,'(4(A,'//int_fmt(nel)//'))') " N_alpha:",NELS(1),      &
+     &   " ;N_beta:",  NELS(2)," ; LMS:",LMS," ; NEl:",NEL
          NEL=0
          DO IS=1,2
             IF(LMS.GE.0) THEN

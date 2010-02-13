@@ -3,7 +3,7 @@
 ! A new implementation file for csfs
 module csf
     use systemdata, only: nel, brr, ecore, alat, nmsh, nbasismax, G1, nbasis,&
-                          NIfY, LMS, NIfTot, NIfD, iSpinSkip, STOT
+                          NIfY, LMS, NIfTot, NIfD, iSpinSkip, STOT, ECore
     use memorymanager, only: LogMemAlloc, LogMemDealloc
     use integralsdata, only: umat, fck, nmax
     use HElem
@@ -64,8 +64,7 @@ contains
 
         integer :: nopen(2), nclosed(2), nup(2), ndets(2)
         integer :: iLutI(0:NIfTot), iLutJ(0:NIfTot), IC, i
-        ! Convert these to using integers
-        real*8  :: S(2), Ms(2)
+        integer :: S(2), Ms(2)
         logical :: bCSF(2), bBothCSF
 
         character(*), parameter :: this_routine = 'CSFGetHelement'
@@ -118,7 +117,7 @@ contains
         ! Get electronic details
         ! Using S instead of Ms to calculate nup, as this has the fewest
         ! determinants, and the Ms=S case is degenerate.
-        nup = (nopen + 2*S)/2
+        nup = (nopen + S)/2
         do i=1,2
             if (bCSF(i)) then
                 ndets(i) = int(choose(nopen(i), nup(i)))
@@ -164,6 +163,7 @@ contains
         real*8 :: coeffs1(ndets(1)), coeffs2(ndets(2))
         integer :: dets1(nel, ndets(1)), dets2(nel, ndets(2))
         integer :: ilut1(0:NIfTot,ndets(1)), ilut2(0:NIfTot,ndets(2))
+        integer :: det_sum(ndets(1))
 
         integer :: det, i, j
         type(HElement) :: sum1, Hel
@@ -197,7 +197,11 @@ contains
 
         ! Calculate all possible permutations to construct determinants
         ! (Where 0=alpha, 1=beta when generating NI, NJ below)
-        call csf_get_dets (nopen(1), nup(1), ndets(1), nel, dets1)
+        if (IC == 0) then
+            call csf_get_dets (nopen(1), nup(1), ndets(1), nel, dets1,det_sum)
+        else
+            call csf_get_dets (nopen(1), nup(1), ndets(1), nel, dets1)
+        endif
         if ((nopen(1).eq.nopen(2)) .and. (nup(1).eq.nup(2))) then
             dets2 = dets1
         else
@@ -220,7 +224,7 @@ contains
             call set_timer (hel_timer0)
             hel_ret = get_csf_helement_0 (nI, nopen(1), nclosed(1), nup(1), &
                                           ndets(1), coeffs1, coeffs2, dets1,&
-                                          int_arr_eq(yama1, yama2))
+                                          det_sum, int_arr_eq(yama1, yama2))
             call halt_timer (hel_timer0)
             return
         endif
@@ -327,7 +331,7 @@ contains
     end function
 
     function get_csf_helement_0 (nI, nopen, nclosed, nup, ndets, coeffs1, &
-                                 coeffs2, dets1, bEqual) &
+                                 coeffs2, dets1, det_sum, bEqual) &
                                  result(hel_ret)
         
         ! The local worker function for calculating Helements between two CSFs
@@ -338,10 +342,11 @@ contains
         integer, intent(in) :: nopen, nclosed, nup, ndets
         real*8, intent(in) :: coeffs1(ndets), coeffs2(ndets)
         integer, intent(in) :: dets1(nel,ndets)
+        integer, intent(in) :: det_sum(ndets)
         logical, intent(in) :: bEqual
         type(HElement) :: hel_ret
 
-        integer :: nK(nel), id(nel), ex(2,2), elecs(2)
+        integer :: nK(nel), id(nel), ex(2,2), elecs(2), sumdet
         integer :: ndown, idX, idN, ids, det, indj, i, j
         real*8 :: diag_coeff
         type(HElement) :: hel, hel2
@@ -444,8 +449,10 @@ contains
                 ! The slow bit. Which determinant is this (to index coeffs
                 ! array). 
                 ! TODO: Is it quicker to re-calc the coeff?
-                indj = det_pos(dets1(nclosed+1:nel,det), nopen, &
-                               ndown, elecs)
+
+                ! Get the position in list of dets. Alternative to det_pos.
+                indj = det_perm_pos (dets1(nclosed+1:nel,det), elecs, &
+                                     det_sum, nopen, ndets, det)
 
                 if ( (coeffs1(det) /= 0 .and. coeffs2(indj) /= 0) .or. &
                      (coeffs1(indj) /= 0 .and. coeffs2(det) /= 0) ) then
@@ -472,6 +479,11 @@ contains
                                      dets1(nclosed+1:nel,det))
             enddo
         enddo
+
+        ! If this a diagonal matrix element, sum in ECore
+        if (bEqual) then
+            hel_ret = hel_ret + helement(ECore)
+        endif
         
     end function
 
@@ -498,7 +510,6 @@ contains
         integer, intent(in) :: nI(nel), nJ(nel), nopen(2), nclosed(2)
         integer, intent(in) :: iLutI(0:NIfTot), iLutJ(0:NIfTot)
         integer, intent(in) :: nup(2), ndets(2)
-        ! TODO: convert these to integers (ie 2S, 2Ms)
         integer, intent(in) :: yama1(nopen(1)), yama2(nopen(2))
         real*8, intent(out) :: coeffs1(ndets(1)), coeffs2(ndets(2))
         integer, intent(inout) :: dets1(nel, ndets(1)), dets2(nel, ndets(2))
@@ -870,13 +881,95 @@ contains
         enddo
     end function
 
-    subroutine csf_get_dets (nopen, nup, ndets, nel, dets)
+    function det_perm_pos (det, perm, det_sum, nopen, ndets, deti) result(pos)
+
+        ! Given a permutation det, at position deti in the array of
+        ! determinants generated by csf_get_dets, find the index of the
+        ! permutation generated if we switch the values at indices perm(1:2)
+        ! Note that det(perm(1)) /= det(perm(2)) (one must equal 1, the other
+        ! must equal 2).
+        ! 
+        ! Currently this assumes that nopen <= 32. This is reasonable as a CSF
+        ! of that size would be unfeasible to use - we assume that on such a
+        ! large system we would be using TRUNCATE-CSF. This might change with
+        ! use of the initiator algorithm, in which case we will have to
+        ! generalise the code to use an array (but it would be slightly
+        ! slower).
+        !
+        ! nb. This routine does not need to know nup/ndown
+        ! nb. This acts as a faster alternative to using det_pos, which is a
+        !     more general function.
+        !
+        ! In:  det     - The permutation of 1s/0s
+        !      perm    - The indices to swap
+        !      det_sum - The array of sum(2**(i-1)) forall i where index of 0
+        !                in the determinant is 0. This monotonically increases
+        !                through the set of determinants --> allows binary
+        !                searching.
+        !      nopen   - Number of unpaired electrons (size of det)
+        !      ndets   - The possible number of permutations (size of det_sum)
+        !      deti    - Index of det in det_sum
+        ! Ret: pos     - New index in det_sum
+
+    ! TODO: comment
+
+        integer, intent(in) :: det(nopen), perm(2)
+        integer, intent(in) :: ndets, nopen, deti
+        integer, intent(in) :: det_sum(ndets)
+        integer :: pos
+
+        integer :: sumdet, hi, lo
+
+        if (nopen > 32) call stop_all ("det_perm_pos", "nopen too large. Need&
+                                   & to move to multi-integer representation")
+
+        ! Calculate the new sum value
+        sumdet = det_sum(deti)
+        if (det(perm(1)) == 1) then
+            sumdet = ibset(ibclr(sumdet, perm(2)-1), perm(1)-1)
+        else
+            sumdet = ibset(ibclr(sumdet, perm(1)-1), perm(2)-1)
+        endif
+
+        ! Prepare binary search range
+        if (sumdet > det_sum(deti)) then
+            hi = ndets
+            lo = deti + 1
+        else
+            hi = deti - 1
+            lo = 1
+        endif
+
+        ! Perform a binary search to find the item.
+        do while (hi /= lo)
+            pos = int(real(hi + lo) / 2)
+
+            if (sumdet == det_sum(pos)) then
+                exit
+            else if (sumdet > det_sum(pos)) then
+                lo = pos + 1
+            else
+                hi = pos - 1
+            endif
+        enddo
+
+        if (hi == lo) pos = hi
+    end function
+
+
+    subroutine csf_get_dets (nopen, nup, ndets, nel, dets, pos_sum)
 
         ! Fill the last nopen electrons of each determinant with 0 (alpha) or
         ! 1 (beta) in all possible permutations with nup alpha electrons.
+        !
+        ! Out:  pos_sum - Sum of 2^(pos-1) for the locations of the zeros.
+        !                 This monotonically increases through the set, and
+        !                 thus allows binary searching.
+
 
         integer, intent(in) :: ndets, nup, nopen, nel
         integer, intent(out) :: dets (nel, ndets)
+        integer, intent(out), optional :: pos_sum (ndets)
         integer comb(nup), i, j
         logical bInc
 
@@ -886,6 +979,9 @@ contains
         dets(nel-nopen+1:,:) = 1
         do i=1,ndets
             forall (j=1:nup) dets(nel-nopen+comb(j), i) = 0
+            if (present(pos_sum)) then
+                pos_sum(i) = sum(ibset(0, comb-1))
+            endif
             do j=1,nup
                 bInc = .false.
                 if (j == nup) then
@@ -1005,11 +1101,11 @@ contains
         !      ncsf_max - Max number of csfs to generate (size of yama)
         ! Out: yama     - Array of Yamanouchi symbols
 
-        real*8, intent(in) :: sfinal
+        integer, intent(in) :: sfinal
         integer, intent(in) :: nopen, ncsf_max
         integer, intent(out) :: yama (ncsf_max, nopen)
 
-        real*8 spin (ncsf_max, nopen)
+        integer spin (ncsf_max, nopen)
         integer npos, csf, ncsf, ncsf_next
 
         ! Empty Yamanouchi symbol of nopen == 0.
@@ -1023,19 +1119,19 @@ contains
         ncsf_next = ncsf
         do npos = nopen, 2, -1
             do csf=1,ncsf
-                if (2*spin(csf,npos) .lt. npos) then
-                    spin(csf,npos-1) = spin(csf,npos) + 0.5
+                if (spin(csf,npos) .lt. npos) then
+                    spin(csf,npos-1) = spin(csf,npos) + 1
                     yama(csf,npos) = 2
                     if (spin(csf,npos) .ne. 0) then
                         ncsf_next = ncsf_next + 1
                         if (ncsf_next .gt. ncsf_max) exit
                         !spin(ncsf_next,npos:nopen) = spin(csf,npos:nopen)
                         yama(ncsf_next,npos+1:nopen) = yama(csf,npos+1:nopen)
-                        spin(ncsf_next,npos-1) = spin(csf,npos) - 0.5
+                        spin(ncsf_next,npos-1) = spin(csf,npos) - 1
                         yama(ncsf_next,npos) = 1
                     endif
                 else
-                    spin(csf,npos-1) = spin(csf,npos) - 0.5
+                    spin(csf,npos-1) = spin(csf,npos) - 1
                     yama(csf,npos) = 1
                 endif
             enddo
@@ -1155,13 +1251,13 @@ contains
 
         integer, intent(in) :: NI(nel), ilut(0:NIfTot)
         integer, intent(out) :: nopen, nclosed
-        real*8, intent(out) :: S, Ms
+        integer, intent(out) :: S, Ms
         integer i
         logical open_shell
 
         if (.not. bTest(nI(1), csf_test_bit)) then
-            S = real(STOT)/2
-            Ms = real(LMS)/2
+            S = STOT
+            Ms = LMS
             nopen = count_open_orbs(ilut)
             nclosed = nel - nopen
             return
@@ -1181,36 +1277,39 @@ contains
                 nclosed = nclosed + 1
             else
                 if (btest(NI(i), csf_yama_bit)) then
-                    S = S + 0.5
+                    S = S + 1
                 else
-                    S = S - 0.5
+                    S = S - 1
                 endif
                 if (btest(NI(i), csf_ms_bit)) then
-                    Ms = Ms + 0.5
+                    Ms = Ms + 1
                 else
-                    Ms = Ms - 0.5
+                    Ms = Ms - 1
                 endif
             endif
         enddo
         nopen = nel - nclosed
     end subroutine
 
-    integer pure function get_num_csfs (nOpen, S)
+    pure function get_num_csfs (nOpen, S) result (ncsf)
 
         ! Calculates the total number of CSFs possible for a system with
-        ! nOpen unpaired electrons, and a total spin of S.
+        ! nOpen unpaired electrons, and a total spin of S/2.
         ! This is the same as the number of available Serber functions
+        !
+        ! In:  nopen - Number of unpaired electrons
+        !      S     - 2*total spin of system.
+        ! Ret: ncsf  - Number of CSFs given spatial structure.
 
         integer, intent(in) :: nOpen
-        real*8, intent(in) :: S
-        integer :: S2
-        S2 = 2*S
+        integer, intent(in) :: S
+        integer :: ncsf
 
-        if ((nopen < 0) .or. (mod(nOpen+S2, 2) /= 0))then
-            get_num_csfs = 0
+        if ((nopen < 0) .or. (mod(nOpen+S, 2) /= 0))then
+            ncsf = 0
         else
-            get_num_csfs = (2*S2 + 2) * choose(nOpen, (nOpen+S2)/2)
-            get_num_csfs = get_num_csfs / (nOpen + S2 + 2)
+            ncsf = (2*S + 2) * choose(nOpen, (nOpen+S)/2)
+            ncsf = ncsf / (nOpen + S + 2)
         endif
     end function
 
@@ -1221,20 +1320,20 @@ contains
         ! which would be a component of the CSF.
         !
         ! In:    nopen - The number of open shell electrons
-        !        Ms    - The required Ms value for the determinant
+        !        Ms    - 2 * The required Ms value for the determinant
         ! InOut: nI    - The CSF to consider, and the determinant to return
         ! Ret:         - The number of determinants chosen from
         
         integer, intent(inout) :: nI(nel)
         integer, intent(in) :: nopen
-        real*8, intent(in) :: Ms
+        integer, intent(in) :: Ms
 
         integer :: nup, nchoose, tmp, pos, i
         integer :: choice(nopen), perm(nopen)
         real*8 :: r
 
         ! How many alpha elecs do we have. If fewer than half, permute betas.
-        nup = (nopen - int(2*Ms)) / 2
+        nup = (nopen - Ms) / 2
         nchoose = min(nup, nopen-nup)
 
         forall (i=1:nopen) choice(i) = i
@@ -1310,23 +1409,38 @@ contains
             return
         endif
 
+        ! All unpaired electrons are stored as 'beta' in CSF representation.
         nI(nel-nopen+1:nel) = get_beta(sings(1:nopen))
 
-        call csf_apply_random_yama (nI, nopen, real(STOT,8)/2, ncsf, .false.)
+        call csf_apply_random_yama (nI, nopen, STOT, ncsf, .false.)
     end function
 
-    ! TODO: This can be optimised (don't need to generate them all)
-    ! TODO: Generate random by random branching perhaps (lots of genrands...)
     subroutine csf_apply_random_yama (nI, nopen, S, ncsf, tForceChange)
+
+        ! Apply a random Yamanouchi symbol to the specified CSF or determinant
+        ! with CSF ordering. Currently generates all possible Yamanouchi
+        ! symbols and then picks.
+        ! TODO: optimise, or store generated symbols (for trunc_csf)
+        !
+        ! In:  nI           - Integer representation of determinant/CSF.
+        !      nopen        - Number of unpaired electrons.
+        !      S            - The desired 2*total spin required.
+        !      tForceChange - If ncsf > 1, ensure that we change the CSF.
+        ! Out: ncsf         - Number of CSFs we have picked from.
+
         integer, intent(inout) :: nI(nel)
         integer, intent(in) :: nopen
         integer, intent(out) :: ncsf
-        real*8, intent(in) :: S
+        integer, intent(in) :: S
         logical, intent(in) :: tForceChange
+
         integer :: yamas (0:get_num_csfs(nopen, S), nopen), num
         real*8 :: r
 
-        if (nopen == 0) return
+        if (nopen == 0) then
+            ncsf = 0
+            return
+        endif
 
         ! Generate the Yamanouchi Symbols
         ncsf = size(yamas(:,1))-1
@@ -1373,14 +1487,16 @@ contains
 
     subroutine csf_apply_ms (NI, Ms, nopen)
 
-        ! Apply a specified Ms value to the csf
+        ! Apply a specified Ms value to the csf, where we apply Ms/2
+        !
+        ! 
 
         integer, intent(inout) :: NI(nel)
         integer, intent(in) :: nopen
-        real*8, intent(in) :: Ms
+        integer, intent(in) :: Ms
         integer i, ndown
         
-        ndown = (nopen - 2*MS)/2
+        ndown = (nopen - MS)/2
         do i=1,ndown
             NI(nel-i+1) = ibclr(NI(nel-i+1), csf_ms_bit)
         enddo
@@ -1389,18 +1505,19 @@ contains
         enddo
     end subroutine
 
-    real*8 function csf_spin (csf)
+   integer function csf_spin (csf)
 
         ! Calculates the total spin from a csf
         !
-        ! In - The Yamanouchi symbol to consider.
+        ! In:  csf - The Yamanouchi symbol to consider.
+        ! Ret:     - 2 * the total spin
 
         integer, intent(in), dimension(:) :: csf
         integer i
 
         csf_spin = 0
         do i=1,size(csf)
-            csf_spin = csf_spin - (real(csf(i))-1.5)
+            csf_spin = csf_spin + (1 - 2*(csf(i)-1))
         enddo
     end function
 
@@ -1415,18 +1532,26 @@ contains
         num_S = (nopen+2)/2
     end function
 
-    ! Calculate the coefficients for each determinant contained in the
-    ! CSF. These are calculated as the product of Clebsch-Gordon coeffs.
-    ! working through the tree electron-by-electron. Each coeff. depends
-    ! on the current total spin in the csf, the current total spin in
-    ! the determinant and the spin of the current e-/posn being considered
-    ! in either the determinant or the csf.
-    ! dorder = the ordered list of alpha/beta for each spin orbital in det.
     real*8 pure function csf_coeff (csf, dorder, nopen)
+
+        ! Calculate the coefficients for each determinant contained in the
+        ! CSF. These are calculated as the product of Clebsch-Gordon coeffs.
+        ! working through the tree electron-by-electron. Each coeff. depends
+        ! on the current total spin in the csf, the current total spin in
+        ! the determinant and the spin of the current e-/posn being considered
+        ! in either the determinant or the csf.
+        !
+        ! In:  csf    - The Yamanouchi symbol to consider
+        !      dorder - The list of alpha/beta for each spin orbital it det.
+        !      nopen  - Number of unpaired electrons.
+        ! Ret:        - Coefficient of the determinant represented by dorder,
+        !               in the CSF represented by csf.
+
         integer, intent(in), dimension(:) :: csf, dorder
         integer, intent(in) :: nopen
-        real*8 S, M, scur, mcur, clb
-        integer i
+
+        real*8 :: S, M, scur, mcur, clb
+        integer :: i
 
         S=0
         M=0

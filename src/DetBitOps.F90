@@ -574,7 +574,6 @@ module DetBitOps
         endif
 
         elec=0
-        ! TODO: decode to normal determinant if nopen > cutoff!!!
         if (bIsCsf) then
             ! Consider the closed shell electrons first
             do i=0,NIfD
@@ -647,8 +646,6 @@ module DetBitOps
         !      yama (NIfY)     - Yamanouchi symbol to apply (optional)
         ! Out: iLutnJ (0:NIfD) - New bit det
 
-        ! TODO: Deal with CSFs here (need to pass in the csf to add)
-
         integer, intent(in) :: iLutnI (0:NIfTot), IC, ExcitMat(2,2)
         integer, intent(in), optional :: yama (NIfY)
         integer, intent(out) :: iLutnJ (0:NIfTot)
@@ -672,7 +669,8 @@ module DetBitOps
             enddo
         endif
 
-        ! TODO: Retro-fit this to all the applicable locations
+        ! If we supply a Yamanouchi symbol, apply it to the new bit
+        ! determinant. This allows use of CSFs.
         if (present(yama)) ilutnJ(NIfTot-NIfY+1:NIfTot) = yama
     end subroutine FindExcitBitDet
 
