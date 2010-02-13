@@ -2098,7 +2098,7 @@ C.. Set to be totally symmetric
       SUBROUTINE FindSymMCSizeofSpace(IUNIT)
          use SymData, only : TwoCycleSymGens
          use SystemData, only: nEl,G1,nBasis,nOccAlpha,nOccBeta,G1
-         use SystemData, only: tUEG, NIfTot
+         use SystemData, only: tUEG, NIfTot,tHPHF
          use Determinants, only : FDet
          use DetCalc, only : ICILevel
          use SystemData, only : CalcDetCycles, CalcDetPrint,tFixLz
@@ -2116,7 +2116,7 @@ C.. Set to be totally symmetric
          REAL*8 :: FullSpace,r,Choose,Frac
          REAL*8 :: SizeLevel(0:NEl) 
          LOGICAL :: tTruncSpace,tDummy,tDummy2,tSoftExitFound
-         LOGICAL :: tNotAllowed,tAcc
+         LOGICAL :: tNotAllowed,tAcc,IsAllowedHPHF
 
          IF((.not.TwoCycleSymGens).and.(.not.tUEG)) THEN
              WRITE(IUNIT,*) "Only for molecular abelian symmetry "      &
@@ -2150,7 +2150,12 @@ C.. Set to be totally symmetric
 
          WRITE(IUNIT,*) "Symmetry of HF determinant is: ",FDetSym
          IF(tFixLz) THEN
+             WRITE(IUNIT,*) "Imposing momentum sym on size calculation"
              WRITE(IUNIT,*) "Momentum of HF determinant is: ",FDetMom
+         ENDIF
+         IF(tHPHF) THEN
+            WRITE(6,*) "Imposing time-reversal symmetry (HPHF) on "     &
+     &           //"size of space calculation"
          ENDIF
 
          SpatOrbs=nBasis/2
@@ -2261,26 +2266,55 @@ C.. Set to be totally symmetric
              tAcc=.false.
              IF(TotalSym.eq.FDetSym) THEN
              !Allow/disallow the determinant
-                 IF(tFixLz) THEN
-                     IF(TotalMom.eq.FDetMom) THEN
-                         IF(tTruncSpace) THEN
-                             IF(ExcitLev.le.ICILevel) THEN
-                                 Accept=Accept+1
-                                 tAcc=.true.
+                 IF(tHPHF) THEN
+                     IF(IsAllowedHPHF(NEl,iLut)) THEN
+                         IF(tFixLz) THEN
+                             IF(TotalMom.eq.FDetMom) THEN
+                                 IF(tTruncSpace) THEN
+                                     IF(ExcitLev.le.ICILevel) THEN
+                                         Accept=Accept+1
+                                         tAcc=.true.
+                                     ENDIF
+                                 ELSE
+                                     Accept=Accept+1
+                                     tAcc=.true.
+                                 ENDIF
                              ENDIF
                          ELSE
-                             Accept=Accept+1
-                             tAcc=.true.
+                             IF(tTruncSpace) THEN
+                                 IF(ExcitLev.le.ICILevel) THEN
+                                     IF(tUEG) THEN
+                                         IF((Momx.eq.0).and.(Momy.eq.0) &
+     &                                         .and.(Momz.eq.0)) THEN
+                                            Accept=Accept+1
+                                            tAcc=.true.
+                                         ENDIF
+                                     ELSE
+                                         Accept=Accept+1
+                                         tAcc=.true.
+                                     ENDIF
+                                 ENDIF
+                             ELSE
+                                 IF(tUEG) THEN
+                                     IF((Momx.eq.0).and.(Momy.eq.0).and.&
+     &                                       (Momz.eq.0)) THEN
+                                        Accept=Accept+1
+                                        tAcc=.true.
+                                     ENDIF
+                                 ELSE
+                                     Accept=Accept+1
+                                     tAcc=.true.
+                                 ENDIF
+                             ENDIF
                          ENDIF
                      ENDIF
                  ELSE
-                     IF(tTruncSpace) THEN
-                         IF(ExcitLev.le.ICILevel) THEN
-                             IF(tUEG) THEN
-                                 IF((Momx.eq.0).and.(Momy.eq.0)         &
-     &                                 .and.(Momz.eq.0)) THEN
-                                    Accept=Accept+1
-                                    tAcc=.true.
+                     IF(tFixLz) THEN
+                         IF(TotalMom.eq.FDetMom) THEN
+                             IF(tTruncSpace) THEN
+                                 IF(ExcitLev.le.ICILevel) THEN
+                                     Accept=Accept+1
+                                     tAcc=.true.
                                  ENDIF
                              ELSE
                                  Accept=Accept+1
@@ -2288,15 +2322,30 @@ C.. Set to be totally symmetric
                              ENDIF
                          ENDIF
                      ELSE
-                         IF(tUEG) THEN
-                             IF((Momx.eq.0).and.(Momy.eq.0).and.        &
-     &                               (Momz.eq.0)) THEN
-                                Accept=Accept+1
-                                tAcc=.true.
+                         IF(tTruncSpace) THEN
+                             IF(ExcitLev.le.ICILevel) THEN
+                                 IF(tUEG) THEN
+                                     IF((Momx.eq.0).and.(Momy.eq.0)     &
+     &                                     .and.(Momz.eq.0)) THEN
+                                        Accept=Accept+1
+                                        tAcc=.true.
+                                     ENDIF
+                                 ELSE
+                                     Accept=Accept+1
+                                     tAcc=.true.
+                                 ENDIF
                              ENDIF
                          ELSE
-                             Accept=Accept+1
-                             tAcc=.true.
+                             IF(tUEG) THEN
+                                 IF((Momx.eq.0).and.(Momy.eq.0).and.    &
+     &                                   (Momz.eq.0)) THEN
+                                    Accept=Accept+1
+                                    tAcc=.true.
+                                 ENDIF
+                             ELSE
+                                 Accept=Accept+1
+                                 tAcc=.true.
+                             ENDIF
                          ENDIF
                      ENDIF
                  ENDIF
@@ -2369,7 +2418,7 @@ C.. Set to be totally symmetric
              CLOSE(14)
          ENDIF
 
-         WRITE(IUNIT,*) "*** MC size of space: ",Frac*FullSpace
+         WRITE(IUNIT,*) "MC size of space: ",Frac*FullSpace
          WRITE(IUNIT,*) "Individual excitation level contributions: "
          do j=0,NEl
              WRITE(IUNIT,"(I5,F30.5)") j,SizeLevel(j)
@@ -2377,6 +2426,34 @@ C.. Set to be totally symmetric
          CALL FLUSH(IUNIT)
 
       END SUBROUTINE FindSymMCSizeofSpace
+
+      FUNCTION IsAllowedHPHF(NEl,iLutnI)
+          USE SystemData , only : nIfTot
+          USE HPHFRandExcitMod , only : ReturnAlphaOpenDet
+          USE DetBitOps , only : DecodeBitDet
+          IMPLICIT NONE
+          INTEGER :: nI(NEl),NEl,iLutnI(0:NIfTot),iLutSym(0:NIfTot)
+          INTEGER :: nJ(NEl)
+          LOGICAL :: IsAllowedHPHF,tClosedShell,tSwapped
+          LOGICAL :: TestClosedShellDet
+
+          CALL DecodeBitDet(nI,iLutnI)
+
+          tClosedShell=TestClosedShellDet(iLutnI)
+          IF(tClosedShell) THEN
+              IsAllowedHPHF=.true.
+              RETURN
+          ENDIF
+
+          CALL ReturnAlphaOpenDet(nI,nJ,iLutnI,iLutSym,.true.,          &
+     &             .true.,tSwapped)
+
+          IF(tSwapped) THEN
+              IsAllowedHPHF=.false.
+          ELSE
+              IsAllowedHPHF=.true.
+          ENDIF
+      END FUNCTION IsAllowedHPHF
 
 !This routine finds the size of the determinant space in terms, including all symmetry allowed determinants.
 !This is written to IUNIT. This is only available for molecular (i.e. abelian) systems with a maximum of eigth irreps.
