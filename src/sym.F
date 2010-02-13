@@ -169,6 +169,7 @@ C.. A1 corresponds to bit 0 (i.e. irrep 1)
          use SymData, only: nProp,PropBitLen,SymClasses,nSymLabels
          use SymData, only: tAbelian,SymLabels
          use SymData, only: tagSymLabels,tagSymClasses
+         use util_mod, only: int_fmt
          use global_utilities
          IMPLICIT NONE
          INTEGER NSYMMAX,nSymGen
@@ -183,7 +184,8 @@ C.. A1 corresponds to bit 0 (i.e. irrep 1)
          nSymGen=INT(DLOG(NSYMMAX+0.D0)/DLOG(2.D0)+.4)
          WRITE(6,"(A,I3,A)") "  Generating abelian symmetry table with",&
      &      nSymGen, " generators" 
-         WRITE(6,'(A,I)') "  Number of symmetry classes: ",nSymMax
+         WRITE(6,'(A,'//int_fmt(nSymMax)//')')                          &
+     &                        "  Number of symmetry classes: ",nSymMax
 
          nprop=1
          nprop(1:nSymGen)=2
