@@ -15,5 +15,5 @@ cflags = -g
 ldflags = -g -Bstatic
 
 [opt]
-fflags = -O3 -OPT:Ofast -LNO:simd_verbose=ON'
+fflags = -O3 -OPT:Ofast -LNO:simd_verbose=ON
 ldflags = -O3
