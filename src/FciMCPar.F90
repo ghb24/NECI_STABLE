@@ -40,7 +40,7 @@ MODULE FciMCParMod
     USE AnnihilationMod
     use DetBitops, only: EncodeBitDet, DecodeBitDet, DetBitEQ, DetBitLT
     use DetBitOps, only: FindExcitBitDet, FindBitExcitLevel
-    use csf, only: get_csf_bit_yama
+    use csf, only: get_csf_bit_yama, iscsf, csf_orbital_mask
     IMPLICIT NONE
     integer, parameter :: dp = selected_real_kind(15,307)
     SAVE
@@ -4120,7 +4120,6 @@ MODULE FciMCParMod
 !If probability is > 1, then we can just create multiple children at the chosen determinant
         ExtraCreate=INT(rat)
         rat=rat-REAL(ExtraCreate)
-
 
 !Stochastically choose whether to create or not according to ranlux 
         IF(tMerTwist) THEN
@@ -9474,8 +9473,8 @@ MODULE FciMCParMod
 
     END SUBROUTINE SetupParameters
     LOGICAL FUNCTION TestifDETinCAS(CASDet)
-        INTEGER :: k,z,CASDet(NEl)
-        LOGICAL :: tElecInVirt
+        INTEGER :: k,z,CASDet(NEl), orb
+        LOGICAL :: tElecInVirt, bIsCsf
 
 !        CASmax=NEl+VirtCASorbs
 ! CASmax is the max spin orbital number (when ordered energetically) within the chosen active space.
@@ -9487,16 +9486,26 @@ MODULE FciMCParMod
 ! orbitals with energies equal to, or below that of the CASmin orbital must be completely occupied for 
 ! the determinant to be in the active space.
 
+        bIsCsf = iscsf(CASDet)
+
         z=0
         tElecInVirt=.false.
         do k=1,NEl      ! running over all electrons
-            if (SpinInvBRR(CASDet(k)).gt.CASmax) THEN
+            ! TODO: is it reasonable to just apply the orbital mask anyway?
+            !       it is probably faster than running iscsf...
+            if (bIsCsf) then
+                orb = iand(CASDet(k), csf_orbital_mask)
+            else
+                orb = CASDet(k)
+            endif
+
+            if (SpinInvBRR(orb).gt.CASmax) THEN
                 tElecInVirt=.true.
                 EXIT            
 ! if at any stage an electron has an energy greater than the CASmax value, the determinant can be ruled out
 ! of the active space.  Upon identifying this, it is not necessary to check the remaining electrons.
             else
-                if (SpinInvBRR(CASDet(k)).le.CASmin) THEN
+                if (SpinInvBRR(orb).le.CASmin) THEN
                     z=z+1
                 endif
 ! while running over all electrons, the number that occupy orbitals equal to or below the CASmin cutoff are
