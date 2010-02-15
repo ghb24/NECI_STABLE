@@ -76,6 +76,7 @@ MODULE System
       UHUB = 4
       BHUB = -1
       TREAL = .false.
+      tUEGTrueEnergies = .false.
       tUEGOffset = .false.
       TTILT = .false.
       TALPHA = .false.
@@ -385,6 +386,8 @@ MODULE System
             call getf(k_offset(1))
             call getf(k_offset(2))
             call getf(k_offset(3))
+        case("UEG-SCALED-ENERGIES")
+            tUEGTrueEnergies=.true.
         case("TILT")
             TTILT = .true.
             call geti(ITILTX)
@@ -1166,7 +1169,7 @@ MODULE System
                       CALL HUBKINN(I,J,K,NBASISMAX,BHUB,TTILT,SUM,TREAL)
                        ENDIF
                     ELSEIF(TUEG) THEN
-                       CALL GetUEGKE(I,J,K,ALAT,tUEGOffset,k_offset,SUM,dUnscaledE)
+                       CALL GetUEGKE(I,J,K,ALAT,tUEGTrueEnergies,tUEGOffset,k_offset,SUM,dUnscaledE)
                        IF(dUnscaledE.gt.OrbECutoff) CYCLE
                     ELSE
                        SUM=(BOX**2)*((I*I/ALAT(1)**2)+(J*J/ALAT(2)**2)+(K*K/ALAT(3)**2))
@@ -1505,28 +1508,31 @@ LOGICAL FUNCTION KALLOWED(G,NBASISMAX)
 END FUNCTION KALLOWED
 
 !dUnscaledEnergy gives the energy without reference to box size and without any offset.
-SUBROUTINE GetUEGKE(I,J,K,ALAT,tUEGOffset,k_offset,Energy,dUnscaledEnergy)
+SUBROUTINE GetUEGKE(I,J,K,ALAT,tUEGTrueEnergies,tUEGOffset,k_offset,Energy,dUnscaledEnergy)
    use constants, only: Pi, Pi2, THIRD
    IMPLICIT NONE
    INTEGER I,J,K
    REAL*8 ALat(3),k_offset(3),Energy,E
-   LOGICAL tUEGOffset
+   LOGICAL tUEGOffset, tUEGTrueEnergies
    INTEGER dUnscaledEnergy
-!   IF(tUEGOffset) then
-!      E=((I+k_offset(1))**2/ALAT(1)**2)
-!      E=E+((J+k_offset(2))**2/ALAT(2)**2)
-!      E=E+((K+k_offset(3))**2/ALAT(3)**2)
-!   else
-!      E=(I*I/ALAT(1)**2)
-!      E=E+(J*J/ALAT(2)**2)
-!      E=E+(K*K/ALAT(3)**2)
-!   endif
-!   Energy=0.5*4*PI*PI*E
-!   dUnscaledEnergy=(I*I)
-!   dUnscaledEnergy=dUnscaledEnergy+(J*J)
-!   dUnscaledEnergy=dUnscaledEnergy+(K*K)
-   E=(I*I)
-   E=E+(J*J)
-   E=E+(K*K)
-   Energy=E
+   IF(tUEGTrueEnergies) then
+       IF(tUEGOffset) then
+          E=((I+k_offset(1))**2/ALAT(1)**2)
+          E=E+((J+k_offset(2))**2/ALAT(2)**2)
+          E=E+((K+k_offset(3))**2/ALAT(3)**2)
+       else
+          E=(I*I/ALAT(1)**2)
+          E=E+(J*J/ALAT(2)**2)
+          E=E+(K*K/ALAT(3)**2)
+       endif
+       Energy=0.5*4*PI*PI*E
+       dUnscaledEnergy=(I*I)
+       dUnscaledEnergy=dUnscaledEnergy+(J*J)
+       dUnscaledEnergy=dUnscaledEnergy+(K*K)
+   ELSE
+       E=(I*I)
+       E=E+(J*J)
+       E=E+(K*K)
+       Energy=E
+    ENDIF
 END SUBROUTINE GetUEGKE

@@ -15,6 +15,7 @@ LOGICAL :: tSeparateOccVirt,tMerTwist,tExactSizeSpace,tRotatedOrbs,tImportanceSa
 LOGICAL :: TNoRenormRandExcits,tAssumeSizeExcitgen,tCycleOrbs,tROIteration,tShakeIter,tRotateOccOnly,tDoubExcMin,tUseHFOrbs
 LOGICAL :: tNonUniRandExcits,tNoSymGenRandExcits,tRotateOrbs,tLagrange,tShake,tShakeApprox,tRotateVirtOnly,tMaxHLGap,tCacheFCIDUMPInts
 LOGICAL :: tNoFailAb, tLatticeGens ! These are now permanent inputs for UEG - use of new excitation generators just for UEG
+LOGICAL :: tUEGTrueEnergies ! This is the logical for use of unscaled energies in the UEG calculation; will normally break spawning
 LOGICAL :: tUEGOffset ! This is the logical for twisted boundary conditions
 INTEGER :: LMS,STOT,IPARITY(5),NMAXX,NMAXY,NMAXZ,NMSH,COULDAMPORB,ElecPairs,ROIterMax,iRanLuxLev,DiagMaxMinFac,OneElMaxMinFac
 INTEGER :: ISTATE,NEL,ITILTX,ITILTY,nOccAlpha,nOccBeta,ShakeIterMax,ShakeStart,MaxMinFac,MaxABPairs
