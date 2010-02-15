@@ -71,4 +71,46 @@ contains
         b = tmp
     end subroutine
 
+    elemental function int_fmt(i, padding) result(fmt1)
+
+        ! In:
+        !    i: an integer
+        !    padding (optional): amount of padding to add to format statement.
+        !        The default amount is 2.  The padding is used to include the
+        !        sign if i is negative.
+        ! Returns:
+        !    fmt1: a format statement for an integer field which will hold
+        !        i perfectly plus an amount of padding.
+
+        ! This does take i/o formatting to a slightly OCD level addmittedly...
+
+        character(2) :: fmt1
+        integer, intent(in) :: i
+        integer, intent(in), optional :: padding
+        integer :: p
+        real :: r
+
+        if (present(padding)) then
+            p = padding
+        else
+            p  = 2
+        end if
+
+        if (i == 0 .or. i==1) then
+            r = 1.0
+        else
+            r = log10(real(abs(i)+1))
+        end if
+
+        if (r < 10) then
+            write (fmt1,'("i",i1)') ceiling(r+p)
+        else if (r < 100) then
+            write (fmt1,'("i",i2)') ceiling(r+p)
+        else
+            ! By this point we'll have hit integer overflow anyway...
+            write (fmt1,'("i",i3)') ceiling(r+p)
+        end if
+
+    end function int_fmt
+
 end module
