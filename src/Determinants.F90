@@ -291,6 +291,7 @@ MODULE Determinants
 
 
 !Function for get the hamiltonian matrix element, when we have the excitation matrix and parity of the excitation.
+! TODO: pass-through of iLut?
       TYPE(HElement) function GetHElement4(NI,NJ,iC2,ExcitMat,TParity) !,iLutI,&
                                            !iLutJ)
          USE HElem
@@ -307,7 +308,6 @@ MODULE Determinants
 
          ! If we are using CSFs, then call the csf routine.
          if (tCSF) then
-             ! TODO: pass through iLut. May need new GetHelement.
              if (iscsf(NI) .or. iscsf(NJ)) then
                  gethelement4 = CSFGetHelement (nI, nJ)
                  return

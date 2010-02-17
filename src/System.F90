@@ -818,7 +818,7 @@ MODULE System
 !C ==-------------------------------------------------------------------==
 !C..Input parameters
       WRITE(6,'(A)') '-------- SYSTEM ----------'
-      WRITE(6,'(A,I)') '  NUMBER OF ELECTRONS : ' , NEL
+      WRITE(6,'(A,I5)') '  NUMBER OF ELECTRONS : ' , NEL
       IF(TSPN) THEN
           WRITE(6,*) ' Restricting the spin state of the system, TSPN : ' , TSPN
       ELSE
@@ -987,7 +987,7 @@ MODULE System
           IF(TUEG) THEN
              WRITE(6,'(A)') '  *** UNIFORM ELECTRON GAS CALCULATION ***  ' 
              IF(FUEGRS.NE.0.D0) THEN
-                WRITE(6,'(A,I)') '  Electron Gas Rs set to ',FUEGRS
+                WRITE(6,'(A,I10)') '  Electron Gas Rs set to ',FUEGRS
                 OMEGA=BOX*BOX*BOX*BOA*COA
 !C.. required density is (3/(4 pi rs^3))
 !C.. need omega to be (NEL* 4 pi rs^3 / 3)
@@ -1030,10 +1030,10 @@ MODULE System
 !C..
           NMAX=MAX(NMAXX,NMAXY,NMAXZ)
           NNR=NMSH*NMSH*NMSH
-          WRITE(6,'(A,I)') '  NMAXX : ' , NMAXX
-          WRITE(6,'(A,I)') '  NMAXY : ' , NMAXY
-          WRITE(6,'(A,I)') '  NMAXZ : ' , NMAXZ
-          WRITE(6,'(A,I)') '  NMSH : ' , NMSH 
+          WRITE(6,'(A,I5)') '  NMAXX : ' , NMAXX
+          WRITE(6,'(A,I5)') '  NMAXY : ' , NMAXY
+          WRITE(6,'(A,I5)') '  NMAXZ : ' , NMAXZ
+          WRITE(6,'(A,I5)') '  NMSH : ' , NMSH 
 !C.. 2D check
           IF(NMAXZ.EQ.0) THEN
              WRITE(6,'(A)') ' NMAXZ=0.  2D calculation using C/A=1/A  '
@@ -1157,7 +1157,7 @@ MODULE System
 !C.. ARR is reallocated in IntFreezeBasis if orbitals are frozen so that it
 !C.. has the correct size and shape to contain the eigenvalues of the active
 !C.. basis.
-      WRITE(6,'(A,I)') "  NUMBER OF SPIN ORBITALS IN BASIS : ", Len
+      WRITE(6,'(A,I5)') "  NUMBER OF SPIN ORBITALS IN BASIS : ", Len
       Allocate(Arr(LEN,2),STAT=ierr)
       LogAlloc(ierr,'Arr',2*LEN,8,tagArr)
 ! // TBR
@@ -1273,7 +1273,7 @@ MODULE System
 
       IF(tFixLz) THEN
           WRITE(6,'(A)') "****** USING Lz SYMMETRY *******"
-          WRITE(6,'(A,I)') "Pure spherical harmonics with complex orbitals used to constrain Lz to: ",LzTot
+          WRITE(6,'(A,I5)') "Pure spherical harmonics with complex orbitals used to constrain Lz to: ",LzTot
           WRITE(6,*) "Due to the breaking of the Ml degeneracy, the fock energies are slightly wrong, on order of 1.D-4 - do not use for MP2!"
       ENDIF
 

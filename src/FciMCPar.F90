@@ -4090,7 +4090,6 @@ MODULE FciMCParMod
         ELSE
 !Normal determinant spawn
 
-            ! TODO: for csfs, have ilutnJ by now. Useful to eval. energy.
             rh=GetHElement4(DetCurr,nJ,IC,Ex,tParity)
             !WRITE(6,*) rh%v
 
