@@ -1,0 +1,356 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>Installation &mdash; NECI v0.1 documentation</title>
+    <link rel="stylesheet" href="_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '',
+        VERSION:     '0.1',
+        COLLAPSE_MODINDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="top" title="NECI v0.1 documentation" href="index.html" />
+    <link rel="next" title="Run" href="run.html" />
+    <link rel="prev" title="Graph evaluation" href="theory/graph_evaluation.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="run.html" title="Run"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="theory/graph_evaluation.html" title="Graph evaluation"
+             accesskey="P">previous</a> |</li>
+        <li><a href="index.html">NECI v0.1 documentation</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="installation">
+<span id="id1"></span><h1>Installation<a class="headerlink" href="#installation" title="Permalink to this headline">¶</a></h1>
+<p>Requirements:</p>
+<ul>
+<li><dl class="first docutils">
+<dt>subversion</dt>
+<dd><p class="first last">The Alavi group currently only distributes code via the wwmm
+subversion repository (account required), which is kindly hosted
+by the Unilever Centre.</p>
+</dd>
+</dl>
+</li>
+<li><p class="first">LAPACK</p>
+</li>
+<li><p class="first">BLAS.</p>
+</li>
+<li><p class="first">FFTW 3.x.</p>
+</li>
+</ul>
+<div class="section" id="download">
+<h2>Download<a class="headerlink" href="#download" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="neci">
+<h3>NECI<a class="headerlink" href="#neci" title="Permalink to this headline">¶</a></h3>
+<p>The NECI source code can be downloaded from:</p>
+<div class="highlight-python"><pre>svn checkout https://wwmm.ch.cam.ac.uk/svn2/groups/alavi/NECI/trunk NECI</pre>
+</div>
+<p>Various branches also exist, but they may or may not be stable or under
+active development.</p>
+</div>
+<div class="section" id="cpmd">
+<h3>CPMD<a class="headerlink" href="#cpmd" title="Permalink to this headline">¶</a></h3>
+<p>Our modified version of CPMD (containing the necessary routines for
+integration with NECI) can be downloaded from:</p>
+<div class="highlight-python"><pre>svn checkout https://wwmm.ch.cam.ac.uk/svn2/groups/alavi/CPMD/branches/QMC/trunk CPMD</pre>
+</div>
+<p>Again, there exist various branches and they may or may not be stable
+or under active development.
+The default setting used in the compilation scripts are to have the NECI source as
+a subdirectory of the CPMD source.  This can be changed by using the
+command line options or setting them in the .compileconf file (see below).
+It is suggested that you place NECI as a subdirectory of the CPMD source,
+as that is how the CPMD configuration files in the repository are set up.</p>
+</div>
+<div class="section" id="vasp">
+<h3>VASP<a class="headerlink" href="#vasp" title="Permalink to this headline">¶</a></h3>
+<p>Only users on the access list can download VASP from our repository:</p>
+<div class="highlight-python"><pre>svn checkout https://wwmm.ch.cam.ac.uk/svn2/groups/alavi/VASP/vasp.4.lib vasp.4.lib
+svn checkout https://wwmm.ch.cam.ac.uk/svn2/groups/alavi/VASP/vasp.5 vasp.5</pre>
+</div>
+</div>
+</div>
+<div class="section" id="compilation">
+<h2>Compilation<a class="headerlink" href="#compilation" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="cpmd-and-neci">
+<h3>CPMD and NECI<a class="headerlink" href="#cpmd-and-neci" title="Permalink to this headline">¶</a></h3>
+<p>For historical reasons, CPMD and NECI are much more closely interwoven
+than NECI is with VASP.  In addition, the tools used to compile CPMD and
+NECI are very similar (but then they were written by the same people!).</p>
+<p>The repository version of CPMD depends upon NECI, thus NECI must be
+compiled first.  Various scripts take care of this for us.</p>
+<p>CPMD and NECI have CONFIGURE subdirectories.  Each file in a CONFIGURE
+subdirector contains the necessary information to compile the code using
+a certain compiler.  Most of the time only the paths and flags for the
+FFTW, LAPACK and BLAS libraries, given in the LFLAGS variable, will need
+to be adjusted (if that).  It is necessary to use the same compiler to
+compile CPMD and NECI.  We have compiled and tested the codebases with the
+gfortran (4.2 and later), Portland and Intel compilers in 32 and 64 bit.
+The mkconfig.sh scripts in the CPMD and NECI directories produce the
+relevant makefiles, but this is better done via helper scripts.</p>
+<p>Please note that not all the CPMD configure scripts will work: many of
+them were supplied with CPMD and have never been used with our modified
+version.  Please only use platforms that exist in the NECI/CONFIGURE
+directory as well as the CPMD/CONFIGURE directory.  It is easy to make
+your own configuration files using existing ones as a template.</p>
+<p>Note that some of the platforms obtain LAPACK and BLAS as part of atlas,
+ACML or MKL, so this will need to be changed if different source libraries
+are used.</p>
+<p>Two versions of CPMD (and the corresponding NECI library) exist, gcpmd.x
+(for gamma-point calculations) and kcpmd.x (for k-point calculations),
+to take advantage of some substantial memory savings when running
+gamma-point calculations, as all wavefunctions are then real.  This is
+controlled via a C pre-processing statement.  As neci.x is only for
+molecular calculations, it only exists in one form.</p>
+<p>runmake.sh and compile are scripts for CPMD and NECI respectively which
+control the process of creating makefiles and compiling the codebases.
+They both refer to a &#8220;platform&#8221;, which is just a name of one of the
+configuration files in the CONFIGURE subdirectories.</p>
+<p>compile by default generates new makefile (for both gamma-point and
+k-point compilations) and does a clean build of neci.x:</p>
+<div class="highlight-python"><pre>[NECI]$ ./compile -h
+usage: ./compile [options] [platform]
+Generate new makefiles and do a clean build of neci.x using platform as the configuration.
+
+If platform is not specified, then the platform given in .compileconf is used.
+If .compileconf also doesn't exist, then the default (PC-PGI64) is used.
+
+Options:
+-d Compile with the compiler debug options on.
+-f Fast: don't do a make clean before compiling.
+-m Only make new makefiles.</pre>
+</div>
+<p>In contrast, runmake.sh has a different default behaviour, in that it
+doesn&#8217;t produce new makefiles by default, and does not do clean builds:</p>
+<div class="highlight-python"><pre>[CPMD]$ ./runmake.sh -h
+Usage: ./runmake.sh [-c] [-h]
+Compile NECI (neci.x) and CPMD/NECI code for Gamma point (gcpmd.x)
+code and for k-point sampling (kcpmd.x).
+Warning: the option to set the NECI source directory are
+*only* used when a new makefile is produced (i.e. requires the -m or -p
+flag).
+
+Options:
+    -c  Recompile only CPMD routines.
+    -d  Generate new makefiles for debugging.  Recompile (at least)
+        CPMD/qmc routines and all of NECI.
+    -g  Compile only Gamma point code.
+    -k  Compile only K-point code.
+    -m  Generate new Makefiles by running mkconfig scripts in NECI and
+        CPMD directories, using the default platform (PC-PGI64 unless
+        otherwise specified in .compileconf), and compiles.
+    -n  Recompile only NECI routines.
+    -p [32,64,platform]
+        Produce makefile for [pgi-32bit,pgi-64bit,platform]
+        compilation, where platform is an alternative configuration (eg
+        for gfortran).
+    -s [NECI source directory]
+        Set the location of the directory containing the NECI source code.
+        Warning: must be used only when new makefiles are produced (i.e.
+        when -m or -p are specified).
+    -h  Print this message.</pre>
+</div>
+<p>Note that runmake.sh produces new makefiles for CPMD <strong>and</strong> for NECI,
+and compiles neci.x, the NECI libraries needed for CPMD, and gcpmd.x
+and kcpmd.x.  To aid compilation, the dest subdirectories in the CPMD and
+NECI source directories contains the compiled objects for the gamma-point
+code and the kdest subdirectories contain the compiled objects for the
+k-point code.</p>
+<p>Both the NECI and CPMD scripts default to compiling the codebases using
+the Portland 64-bit compiler, if a platform is not specified either via
+the command line or given in .compileconf, a text file which
+contains the name of the desired platform.  Note that runmake.sh will
+use the same platform for both the CPMD and NECI makefiles.</p>
+<p>The CPMD and NECI source directories also contain controlling Makefiles
+to further help the make process (and generally just act as wrappers
+for the runmake.sh and compile scripts).  Run:</p>
+<div class="highlight-python"><pre>make help</pre>
+</div>
+<p>in each directory to see the various targets available.</p>
+<p>To quickest way to compile both CPMD and NECI is to run:</p>
+<div class="highlight-python"><pre>[CPMD]$ make all</pre>
+</div>
+<p>from within the CPMD source directory.</p>
+<div class="section" id="compileconf">
+<h4>.compileconf<a class="headerlink" href="#compileconf" title="Permalink to this headline">¶</a></h4>
+<p>The .compileconf files are not under source code management and allow local defaults
+to be set.  It is used both in the CPMD and NECI compilation scripts.</p>
+<p>When running runmake.sh, please note that it uses the CPMD .compileconf information
+for compiling NECI, rather than the NECI .compileconf file.  This is to ensure that
+the same platform is used for both.</p>
+<p>The settings in .compileconf are overridden by command line options, but override
+any defaults in the compilation scripts.</p>
+<p>.compileconf in its simplest (and oldest) form simply contains the name of the desired
+platform, e.g.:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="n">PC</span><span class="o">-</span><span class="n">ifort64</span>
+</pre></div>
+</div>
+<p>will use the PC-ifort64 platform as the default.</p>
+<p>.compileconf can also be used to set local defaults for more
+variables&#8212;see the comments in runmake.sh for more details on the CPMD
+.compileconf and the comments in compile for more details on the NECI
+.compileconf.  The format of both .compileconf files is the same, but the
+variables available differ.  Defaults are used for any variables not set
+in the .compileconf files.</p>
+<p>For example, to set different defaults for the platform
+and the location of the NECI source, .compileconf in the CPMD directory
+would look like:</p>
+<div class="highlight-python"><pre>platform=PC-ifort64
+NECIsrc=~/NECI/source</pre>
+</div>
+</div>
+<div class="section" id="file-structure">
+<h4>File structure<a class="headerlink" href="#file-structure" title="Permalink to this headline">¶</a></h4>
+<p>NECI files:</p>
+<dl class="docutils">
+<dt><strong>NECI/neci.x</strong></dt>
+<dd>Standalone neci-executable (links to NECI/dest/neci.x).</dd>
+<dt><strong>NECI/dest/neci-cpmd.a</strong></dt>
+<dd>NECI library for CPMD gamma-point code.</dd>
+<dt><strong>NECI/kdest/neci-vasp.a</strong></dt>
+<dd>NECI library for CPMD k-point code.</dd>
+<dt><strong>NECI/dest/neci-cpmd.a</strong></dt>
+<dd>NECI library for VASP gamma-point code.</dd>
+<dt><strong>NECI/kdest/neci-vasp.a</strong></dt>
+<dd>NECI library for VASP k-point code.</dd>
+</dl>
+<p>CPMD files:</p>
+<dl class="docutils">
+<dt><strong>CPMD/gcpmd.x</strong></dt>
+<dd>Gamma-point executable of the CPMD-NECI code (links to CPMD/dest/cpmd.x).
+Must not be used for k-point calculations!</dd>
+<dt><strong>CPMD/kcpmd.x</strong></dt>
+<dd>k-point executable of the CPMD-NECI code (links to CPMD/dest/cpmd.x).
+Must not be used for gamma-point calculations!</dd>
+</dl>
+</div>
+</div>
+<div class="section" id="id2">
+<h3>VASP<a class="headerlink" href="#id2" title="Permalink to this headline">¶</a></h3>
+<p>James has managed it.  It&#8217;s not completely pleasant.  More to follow
+once it&#8217;s been made easier!</p>
+</div>
+</div>
+<div class="section" id="testcode">
+<h2>testcode<a class="headerlink" href="#testcode" title="Permalink to this headline">¶</a></h2>
+<p>testcode is a set of scripts written by James Spencer that is used to
+check that our programs produce the same results as they did before.
+It is useful both for development work, to ensure that regression issues
+are avoided, and testing successful compilations.</p>
+<p>Every night the latest version of the codebase is checked out of the
+subversion repository and tested against a variety of compilers, giving
+confidence in the continued stability of the codebase.</p>
+<p>testcode and the set of test jobs (both for NECI and CPMD-NECI), can be
+checked out of the subversion repository:</p>
+<div class="highlight-bash"><div class="highlight"><pre>svn checkout https://wwmm.ch.cam.ac.uk/svn2/groups/alavi/testcode testcode
+</pre></div>
+</div>
+<p>Please see the testcode documentation for more details.</p>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+            <h3><a href="index.html">Table Of Contents</a></h3>
+            <ul>
+<li><a class="reference external" href="">Installation</a><ul>
+<li><a class="reference external" href="#download">Download</a><ul>
+<li><a class="reference external" href="#neci">NECI</a></li>
+<li><a class="reference external" href="#cpmd">CPMD</a></li>
+<li><a class="reference external" href="#vasp">VASP</a></li>
+</ul>
+</li>
+<li><a class="reference external" href="#compilation">Compilation</a><ul>
+<li><a class="reference external" href="#cpmd-and-neci">CPMD and NECI</a><ul>
+<li><a class="reference external" href="#compileconf">.compileconf</a></li>
+<li><a class="reference external" href="#file-structure">File structure</a></li>
+</ul>
+</li>
+<li><a class="reference external" href="#id2">VASP</a></li>
+</ul>
+</li>
+<li><a class="reference external" href="#testcode">testcode</a></li>
+</ul>
+</li>
+</ul>
+
+            <h4>Previous topic</h4>
+            <p class="topless"><a href="theory/graph_evaluation.html"
+                                  title="previous chapter">Graph evaluation</a></p>
+            <h4>Next topic</h4>
+            <p class="topless"><a href="run.html"
+                                  title="next chapter">Run</a></p>
+            <h3>This Page</h3>
+            <ul class="this-page-menu">
+              <li><a href="_sources/installation.txt"
+                     rel="nofollow">Show Source</a></li>
+            </ul>
+          <div id="searchbox" style="display: none">
+            <h3>Quick search</h3>
+              <form class="search" action="search.html" method="get">
+                <input type="text" name="q" size="18" />
+                <input type="submit" value="Go" />
+                <input type="hidden" name="check_keywords" value="yes" />
+                <input type="hidden" name="area" value="default" />
+              </form>
+              <p class="searchtip" style="font-size: 90%">
+              Enter search terms or a module, class or function name.
+              </p>
+          </div>
+          <script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="run.html" title="Run"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="theory/graph_evaluation.html" title="Graph evaluation"
+             >previous</a> |</li>
+        <li><a href="index.html">NECI v0.1 documentation</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+      &copy; Copyright 2010, Alavi Group.
+      Last updated on Feb 20, 2010.
+      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 0.6.2.
+    </div>
+  </body>
+</html>
