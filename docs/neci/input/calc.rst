@@ -1518,7 +1518,3 @@ Experimental options
 **NOTRIPLES**
     Disallow triple-excitations of the root determinant as the 3rd vertex
     in **HDIAG** calculations at the third vertex level and higher.
-
-.. [StarPaper] Electron correlation from path resummations: the double-excitation star, Alex J. W. Thom, George H. Booth, and Ali Alavi, Phys. Chem. Chem. Phys., 10, 652-657 (2008).
-.. [GHBCPGS] CPGS report, George Booth.
-.. [RGPtIII] Part III report, Ramin Ghorashi.

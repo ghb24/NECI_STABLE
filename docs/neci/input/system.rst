@@ -461,12 +461,6 @@ UEG options
    it will be set to be equivalent to a sphere of the same volume as the cell,
    :math:`R_c=(\frac{\Omega}{4\pi/3})^{1/3}`.
 
-.. [TwoElBox] Two interacting electrons in a box: An exact diagonalization study, Ali Alavi, JCP 113 7735 (2000).
-
-.. [AttenEx]  Efficient calculation of the exact exchange energy in periodic systems using a truncated Coulomb potential, James Spencer and Ali Alavi, PRB, 77 193110 (2008).
-.. [CamCasp] Cambridge package for Calculation of Anisotropic Site Properties, Alston Misquitta and Anthony Stone.  http://www-stone.ch.cam.ac.uk/programs.html#Camcasp
-
-
 Orbital rotation options
 ------------------------
 
