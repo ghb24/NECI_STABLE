@@ -6,78 +6,87 @@ SPHINXOPTS    =
 SPHINXBUILD   = sphinx-build
 PAPER         =
 
+CONFDIR = .sphinx
+BUILDDIR = $(CONFDIR)/build
+SRCDIR = neci
+
 # Internal variables.
 PAPEROPT_a4     = -D latex_paper_size=a4
 PAPEROPT_letter = -D latex_paper_size=letter
-ALLSPHINXOPTS   = -d build/doctrees $(PAPEROPT_$(PAPER)) $(SPHINXOPTS) source
+ALLSPHINXOPTS   = -c $(CONFDIR) -d $(BUILDDIR)/doctrees $(PAPEROPT_$(PAPER)) $(SPHINXOPTS) $(SRCDIR)
 
-.PHONY: help clean html web pickle htmlhelp latex changes linkcheck
+.PHONY: help clean html dirhtml pickle json htmlhelp qthelp latex changes linkcheck doctest
 
 help:
 	@echo "Please use \`make <target>' where <target> is one of"
 	@echo "  html      to make standalone HTML files"
-	@echo "  pickle    to make pickle files (usable by e.g. sphinx-web)"
+	@echo "  dirhtml   to make HTML files named index.html in directories"
+	@echo "  pickle    to make pickle files"
+	@echo "  json      to make JSON files"
 	@echo "  htmlhelp  to make HTML files and a HTML help project"
+	@echo "  qthelp    to make HTML files and a qthelp project"
 	@echo "  latex     to make LaTeX files, you can set PAPER=a4 or PAPER=letter"
-	@echo "  pdf       to make LaTeX files and compile the pdf"
-	@echo "  changes   to make an overview over all changed/added/deprecated items"
+	@echo "  pdf       to make pdf output from LaTex build"
+	@echo "  changes   to make an overview of all changed/added/deprecated items"
 	@echo "  linkcheck to check all external links for integrity"
 
 clean:
-	-find build -type f  | grep -v .svn | xargs rm
+	-rm -rf $(BUILDDIR)/*
 
 html:
-	mkdir -p build/html build/doctrees
-	$(SPHINXBUILD) -b html $(ALLSPHINXOPTS) build/html
+	$(SPHINXBUILD) -b html $(ALLSPHINXOPTS) $(BUILDDIR)/html
 	@echo
-	@echo "Build finished. The HTML pages are in build/html."
-	${MAKE} tidy_math
+	@echo "Build finished. The HTML pages are in $(BUILDDIR)/html."
+
+dirhtml:
+	$(SPHINXBUILD) -b dirhtml $(ALLSPHINXOPTS) $(BUILDDIR)/dirhtml
+	@echo
+	@echo "Build finished. The HTML pages are in $(BUILDDIR)/dirhtml."
 
 pickle:
-	mkdir -p build/pickle build/doctrees
-	$(SPHINXBUILD) -b pickle $(ALLSPHINXOPTS) build/pickle
+	$(SPHINXBUILD) -b pickle $(ALLSPHINXOPTS) $(BUILDDIR)/pickle
 	@echo
-	@echo "Build finished; now you can process the pickle files or run"
-	@echo "  sphinx-web build/pickle"
-	@echo "to start the sphinx-web server."
+	@echo "Build finished; now you can process the pickle files."
 
-web: pickle
+json:
+	$(SPHINXBUILD) -b json $(ALLSPHINXOPTS) $(BUILDDIR)/json
+	@echo
+	@echo "Build finished; now you can process the JSON files."
 
 htmlhelp:
-	mkdir -p build/htmlhelp build/doctrees
-	$(SPHINXBUILD) -b htmlhelp $(ALLSPHINXOPTS) build/htmlhelp
+	$(SPHINXBUILD) -b htmlhelp $(ALLSPHINXOPTS) $(BUILDDIR)/htmlhelp
 	@echo
 	@echo "Build finished; now you can run HTML Help Workshop with the" \
-	      ".hhp project file in build/htmlhelp."
+	      ".hhp project file in $(BUILDDIR)/htmlhelp."
+
+qthelp:
+	$(SPHINXBUILD) -b qthelp $(ALLSPHINXOPTS) $(BUILDDIR)/qthelp
+	@echo
+	@echo "Build finished; now you can run "qcollectiongenerator" with the" \
+	      ".qhcp project file in $(BUILDDIR)/qthelp, like this:"
+	@echo "# qcollectiongenerator $(BUILDDIR)/qthelp/neci.qhcp"
+	@echo "To view the help file:"
+	@echo "# assistant -collectionFile $(BUILDDIR)/qthelp/neci.qhc"
 
 latex:
-	mkdir -p build/latex build/doctrees
-	$(SPHINXBUILD) -b latex $(ALLSPHINXOPTS) build/latex
+	$(SPHINXBUILD) -b latex $(ALLSPHINXOPTS) $(BUILDDIR)/latex
 	@echo
-	@echo "Build finished; the LaTeX files are in build/latex."
+	@echo "Build finished; the LaTeX files are in $(BUILDDIR)/latex."
 	@echo "Run \`make all-pdf' or \`make all-ps' in that directory to" \
 	      "run these through (pdf)latex."
-	${MAKE} tidy_math
-
-changes:
-	mkdir -p build/changes build/doctrees
-	$(SPHINXBUILD) -b changes $(ALLSPHINXOPTS) build/changes
-	@echo
-	@echo "The overview file is in build/changes."
-
-linkcheck:
-	mkdir -p build/linkcheck build/doctrees
-	$(SPHINXBUILD) -b linkcheck $(ALLSPHINXOPTS) build/linkcheck
-	@echo
-	@echo "Link check complete; look for any errors in the above output " \
-	      "or in build/linkcheck/output.txt."
 
 pdf:
-	${MAKE} latex
-	@cd build/latex && make all-pdf
+	$(MAKE) latex
+	cd $(BUILDDIR)/latex && $(MAKE) all-pdf
 
-tidy_math:
-	@test -e math.aux && rm math.aux || true
-	@test -e math.dvi && rm math.dvi || true
-	@test -e math.tex && rm math.tex || true
-	@test -e math.log && rm math.log || true
+changes:
+	$(SPHINXBUILD) -b changes $(ALLSPHINXOPTS) $(BUILDDIR)/changes
+	@echo
+	@echo "The overview file is in $(BUILDDIR)/changes."
+
+linkcheck:
+	$(SPHINXBUILD) -b linkcheck $(ALLSPHINXOPTS) $(BUILDDIR)/linkcheck
+	@echo
+	@echo "Link check complete; look for any errors in the above output " \
+	      "or in $(BUILDDIR)/linkcheck/output.txt."
+	      "results in $(BUILDDIR)/doctest/output.txt."
