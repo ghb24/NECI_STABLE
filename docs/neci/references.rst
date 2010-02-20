@@ -1,8 +1,10 @@
-.. _references:
+.. only:: html
 
-==========
-References
-==========
+    .. _references:
+
+    ==========
+    References
+    ==========
 
 .. [AttenEx]  Efficient calculation of the exact exchange energy in periodic systems using a truncated Coulomb potential, James Spencer and Ali Alavi, PRB, 77 193110 (2008).
 .. [CamCasp] Cambridge package for Calculation of Anisotropic Site Properties, Alston Misquitta and Anthony Stone.  http://www-stone.ch.cam.ac.uk/programs.html#Camcasp
