@@ -6,7 +6,7 @@
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     
     <title>Calc &mdash; NECI v0.1 documentation</title>
-    <link rel="stylesheet" href="../_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/sphinxdoc.css" type="text/css" />
     <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
@@ -40,7 +40,57 @@
         <li><a href="../index.html">NECI v0.1 documentation</a> &raquo;</li>
           <li><a href="index.html" accesskey="U">Input options</a> &raquo;</li> 
       </ul>
-    </div>  
+    </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+            <h3><a href="../index.html">Table Of Contents</a></h3>
+            <ul>
+<li><a class="reference external" href="#">Calc</a><ul>
+<li><a class="reference external" href="#general-options">General options</a></li>
+<li><a class="reference external" href="#method-options">Method options</a><ul>
+<li><a class="reference external" href="#experimental-methods">Experimental methods</a></li>
+</ul>
+</li>
+<li><a class="reference external" href="#walker-monte-carlo-options">Walker Monte Carlo options</a></li>
+<li><a class="reference external" href="#return-path-monte-carlo-options">Return Path Monte Carlo options</a></li>
+<li><a class="reference external" href="#perturbation-theory-options">Perturbation theory options</a></li>
+<li><a class="reference external" href="#diagonalisation-options">Diagonalisation options</a></li>
+<li><a class="reference external" href="#graph-morphing-options">Graph morphing options</a></li>
+<li><a class="reference external" href="#monte-carlo-options">Monte Carlo options</a><ul>
+<li><a class="reference external" href="#weighting-schemes">Weighting schemes</a></li>
+</ul>
+</li>
+<li><a class="reference external" href="#experimental-options">Experimental options</a></li>
+</ul>
+</li>
+</ul>
+
+            <h4>Previous topic</h4>
+            <p class="topless"><a href="precalc.html"
+                                  title="previous chapter">PreCalc</a></p>
+            <h4>Next topic</h4>
+            <p class="topless"><a href="integrals.html"
+                                  title="next chapter">Integrals</a></p>
+            <h3>This Page</h3>
+            <ul class="this-page-menu">
+              <li><a href="../_sources/input/calc.txt"
+                     rel="nofollow">Show Source</a></li>
+            </ul>
+          <div id="searchbox" style="display: none">
+            <h3>Quick search</h3>
+              <form class="search" action="../search.html" method="get">
+                <input type="text" name="q" size="18" />
+                <input type="submit" value="Go" />
+                <input type="hidden" name="check_keywords" value="yes" />
+                <input type="hidden" name="area" value="default" />
+              </form>
+              <p class="searchtip" style="font-size: 90%">
+              Enter search terms or a module, class or function name.
+              </p>
+          </div>
+          <script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
 
     <div class="document">
       <div class="documentwrapper">
@@ -343,7 +393,7 @@ Only really useful in a <strong>METHODS</strong> section.</dd>
 <dt><strong>VERTEX</strong> <strong>STAR</strong> [<strong>ADDSINGLES</strong> <strong>COUNTEXCITS</strong>] [star method] [<strong>OLD</strong> <strong>NEW</strong> [<strong>H0</strong>] ]</dt>
 <dd><p class="first">Construct a single and double excitation star from all determinants
 connected to the root (ignoring connections between those dets).
-See <a class="reference external" href="../introduction.html#starpaper">[StarPaper]</a> for more details.</p>
+See <a class="reference external" href="../references.html#starpaper">[StarPaper]</a> for more details.</p>
 <dl class="docutils">
 <dt><strong>ADDSINGLES</strong></dt>
 <dd><p class="first">Extend the star graph approach.</p>
@@ -1119,8 +1169,8 @@ are a diagonalisation?</p>
 Requires one of <strong>COMPLETE</strong>, <strong>LANCZOS</strong>, or <strong>READ</strong> to be set.</p>
 <p>Exact E(Beta) is printed out as:</p>
 <div class="math">
-<p><img src="../_images/math/b52180a1b9b1f31e6986cbe22598751ce073eae8.png" alt="\text{E(Beta)} = \frac{ \sum_{\alpha} E_{\alpha} e^{-\beta E_{\alpha}} } { \sum_{\alpha} e^{-\beta E_{\alpha}} }" />
-</div></p><p>The result will, of course, change depending upon the symmetry subspace
+<p><img src="../_images/math/b52180a1b9b1f31e6986cbe22598751ce073eae8.png" alt="\text{E(Beta)} = \frac{ \sum_{\alpha} E_{\alpha} e^{-\beta E_{\alpha}} } { \sum_{\alpha} e^{-\beta E_{\alpha}} }" /></p>
+</div><p>The result will, of course, change depending upon the symmetry subspace
 chosen for diagonalization for finite temperatures.</p>
 <p>The diagonalization procedure creates a list of determinants, which
 is printed out to the DETS file.</p>
@@ -1224,8 +1274,8 @@ specified in the <strong>METHODS</strong> section).</p>
 <p>The Monte Carlo routines have only ever been tested for molucular and
 model systems and probably are not currently functional for <strong>CPMD</strong>
 or <strong>VASP</strong> based calculations.</p>
-<p>See the reports by Ramin Ghorashi (<a class="reference internal" href="#rgptiii">[RGPtIII]</a>) and George Booth
-(<a class="reference internal" href="#ghbcpgs">[GHBCPGS]</a>).</p>
+<p>See the reports by Ramin Ghorashi (<a class="reference external" href="../references.html#rgptiii">[RGPtIII]</a>) and George Booth
+(<a class="reference external" href="../references.html#ghbcpgs">[GHBCPGS]</a>).</p>
 <dl class="docutils">
 <dt><strong>CALCVAR</strong></dt>
 <dd><p class="first">Only available for performing full vertex sums using the <strong>HDIAG</strong>
@@ -1339,15 +1389,15 @@ unoccupied spin orbitals k and l:</p>
 <li><dl class="first docutils">
 <dt>the probability of choosing pair (ij) is proportional to</dt>
 <dd><div class="first last math">
-<p><img src="../_images/math/ac758a50d659a7cd31dd5ec1b5523dc0c7e0f8ec.png" alt="e^{(E_i+E_j) \text{g\_VMC\_ExcitFromWeight} }." />
-</div></p></dd>
+<p><img src="../_images/math/ac758a50d659a7cd31dd5ec1b5523dc0c7e0f8ec.png" alt="e^{(E_i+E_j) \text{g\_VMC\_ExcitFromWeight} }." /></p>
+</div></dd>
 </dl>
 </li>
 <li><dl class="first docutils">
 <dt>the probability of choosing pair (kl) is proportional to</dt>
 <dd><div class="first last math">
-<p><img src="../_images/math/e6f6a1500eca675eca5bb54e1b7fef1f5b57f18e.png" alt="e^{-(E_k+E_l) \text{g\_VMC\_ExcitToWeight}} e^{|\bra ij|U|kl\ket|*\text{G\_VMC\_EXCITWEIGHT}} |E_i+E_j-E_k-E_l|^{\text{g\_VMC\_ExcitToWeight2}}." />
-</div></p></dd>
+<p><img src="../_images/math/e6f6a1500eca675eca5bb54e1b7fef1f5b57f18e.png" alt="e^{-(E_k+E_l) \text{g\_VMC\_ExcitToWeight}} e^{|\bra ij|U|kl\ket|*\text{G\_VMC\_EXCITWEIGHT}} |E_i+E_j-E_k-E_l|^{\text{g\_VMC\_ExcitToWeight2}}." /></p>
+</div></dd>
 </dl>
 </li>
 </ul>
@@ -1364,8 +1414,8 @@ g_VMC_PolyExcitToWeight1.  For higher energy virtual orbitals,
 the weighting applied is a decaying polynomial which goes as:</p>
 <blockquote>
 <div class="math">
-<p><img src="../_images/math/d12d2b534c04d1f80b788a16c54046cf799e8066.png" alt="(E_k+E_l-\text{g\_VMC\_PolyExcitToWeight1}+1)^{-\text{g\_VMC\_PolyExcitToWeight2}}" />
-</div></p></blockquote>
+<p><img src="../_images/math/d12d2b534c04d1f80b788a16c54046cf799e8066.png" alt="(E_k+E_l-\text{g\_VMC\_PolyExcitToWeight1}+1)^{-\text{g\_VMC\_PolyExcitToWeight2}}" /></p>
+</div></blockquote>
 <p class="last">g_VMC_PolyExcitToWeight1 is constrained to be not more than the
 energy of the highest virtual orbital.</p>
 </dd>
@@ -1445,79 +1495,11 @@ using StarStars, in order to determine linear scaling.</dd>
 <dd>Disallow triple-excitations of the root determinant as the 3rd vertex
 in <strong>HDIAG</strong> calculations at the third vertex level and higher.</dd>
 </dl>
-<table class="docutils citation" frame="void" id="starpaper" rules="none">
-<colgroup><col class="label" /><col /></colgroup>
-<tbody valign="top">
-<tr><td class="label"><a class="fn-backref" href="#id1">[StarPaper]</a></td><td>Electron correlation from path resummations: the double-excitation star, Alex J. W. Thom, George H. Booth, and Ali Alavi, Phys. Chem. Chem. Phys., 10, 652-657 (2008).</td></tr>
-</tbody>
-</table>
-<table class="docutils citation" frame="void" id="ghbcpgs" rules="none">
-<colgroup><col class="label" /><col /></colgroup>
-<tbody valign="top">
-<tr><td class="label"><a class="fn-backref" href="#id3">[GHBCPGS]</a></td><td>CPGS report, George Booth.</td></tr>
-</tbody>
-</table>
-<table class="docutils citation" frame="void" id="rgptiii" rules="none">
-<colgroup><col class="label" /><col /></colgroup>
-<tbody valign="top">
-<tr><td class="label"><a class="fn-backref" href="#id2">[RGPtIII]</a></td><td>Part III report, Ramin Ghorashi.</td></tr>
-</tbody>
-</table>
 </div>
 </div>
 
 
           </div>
-        </div>
-      </div>
-      <div class="sphinxsidebar">
-        <div class="sphinxsidebarwrapper">
-            <h3><a href="../index.html">Table Of Contents</a></h3>
-            <ul>
-<li><a class="reference external" href="">Calc</a><ul>
-<li><a class="reference external" href="#general-options">General options</a></li>
-<li><a class="reference external" href="#method-options">Method options</a><ul>
-<li><a class="reference external" href="#experimental-methods">Experimental methods</a></li>
-</ul>
-</li>
-<li><a class="reference external" href="#walker-monte-carlo-options">Walker Monte Carlo options</a></li>
-<li><a class="reference external" href="#return-path-monte-carlo-options">Return Path Monte Carlo options</a></li>
-<li><a class="reference external" href="#perturbation-theory-options">Perturbation theory options</a></li>
-<li><a class="reference external" href="#diagonalisation-options">Diagonalisation options</a></li>
-<li><a class="reference external" href="#graph-morphing-options">Graph morphing options</a></li>
-<li><a class="reference external" href="#monte-carlo-options">Monte Carlo options</a><ul>
-<li><a class="reference external" href="#weighting-schemes">Weighting schemes</a></li>
-</ul>
-</li>
-<li><a class="reference external" href="#experimental-options">Experimental options</a></li>
-</ul>
-</li>
-</ul>
-
-            <h4>Previous topic</h4>
-            <p class="topless"><a href="precalc.html"
-                                  title="previous chapter">PreCalc</a></p>
-            <h4>Next topic</h4>
-            <p class="topless"><a href="integrals.html"
-                                  title="next chapter">Integrals</a></p>
-            <h3>This Page</h3>
-            <ul class="this-page-menu">
-              <li><a href="../_sources/input/calc.txt"
-                     rel="nofollow">Show Source</a></li>
-            </ul>
-          <div id="searchbox" style="display: none">
-            <h3>Quick search</h3>
-              <form class="search" action="../search.html" method="get">
-                <input type="text" name="q" size="18" />
-                <input type="submit" value="Go" />
-                <input type="hidden" name="check_keywords" value="yes" />
-                <input type="hidden" name="area" value="default" />
-              </form>
-              <p class="searchtip" style="font-size: 90%">
-              Enter search terms or a module, class or function name.
-              </p>
-          </div>
-          <script type="text/javascript">$('#searchbox').show(0);</script>
         </div>
       </div>
       <div class="clearer"></div>
@@ -1541,7 +1523,7 @@ in <strong>HDIAG</strong> calculations at the third vertex level and higher.</dd
     <div class="footer">
       &copy; Copyright 2010, Alavi Group.
       Last updated on Feb 20, 2010.
-      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 0.6.2.
+      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 0.6.4.
     </div>
   </body>
 </html>

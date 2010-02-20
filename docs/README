@@ -53,10 +53,10 @@ latex_preamble variable.
 Compiling documentation
 -----------------------
 
-Sphinx is required in order to compile the documentation into html and pdf
-output.  Installation instructions for sphinx are given on the project website
-(http://sphinx.pocoo.org) and packages are available in the repositories of
-many Linux distributions.
+Sphinx (>=0.6.3) is required in order to compile the documentation into html
+and pdf output.  Installation instructions for sphinx are given on the project
+website (http://sphinx.pocoo.org) and packages are available in the
+repositories of many Linux distributions.
 
 Assuming sphinx is installed, then the html and pdf output can be produced by running:
 
