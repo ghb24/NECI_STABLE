@@ -253,7 +253,7 @@ CDEPEND = $(CDEPEND_FILES) $(cDEPEND_FILES) $(KCDEPEND_FILES) $(KcDEPEND_FILES)
 #-----
 # Goals
 
-.PHONY: clean cleanall depend help neci.x
+.PHONY: clean cleanall depend rmdeps help neci.x
 
 # First, some helpful macros.
 
@@ -323,6 +323,10 @@ $(FCDEPEND):
 depend: 
 \t$(my_make) -B $(FDEPEND) $(CDEPEND)
 
+# Delete dependency files.
+rmdeps:
+\trm -f $(FDEPEND) $(CDEPEND)
+
 tags: null_goal
 \tctags $(SRCFILES)
 
@@ -364,7 +368,8 @@ help:
 \t@echo "clean         remove all compiled objects for the current platform and optimisation level." 
 \t@echo "cleanall      remove all compiled objects for all platforms and optimisation levels and the dependency files." 
 \t@echo "tags          run ctags on all source files."
-\t@echo "depend        update the list of dependencies."
+\t@echo "depend        update the list of dependencies.  Note that make 3.80 is buggy and running this causes an infinte loop."
+\t@echo "rmdeps        remove all dependency files.  Use this instead of the depend target on 3.80."
 \t@echo "help          print this message."
 
 #-----
