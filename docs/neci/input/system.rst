@@ -609,7 +609,7 @@ Additional options:
 **ROITERATION** [ROIterMax]
     Much like **SHAKEITER**, the presence of this keyword overrides the convergence criteria 
     on the force, and instead runs for the number of iterations specified here.
-    Note: A SOFTEXIT is also an option in this method.
+    Note: A **SOFTEXIT** is also an option in this method.
 
 **SPINORBS** 
     Default=.false.
