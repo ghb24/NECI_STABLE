@@ -18,7 +18,7 @@
 
 
 \title{neci Documentation}
-\date{February 20, 2010}
+\date{February 21, 2010}
 \release{0.1}
 \author{Alavi Group}
 \newcommand{\sphinxlogo}{}
@@ -102,13 +102,22 @@
 
 NECI is a rapidly developing code based on a post Hartree--Fock electronic structure method.
 
-It calculates electron correlation via path-resummations in Slater Determinant space \hyperlink{sumpaper}{{[}SumPaper{]}}, \hyperlink{starpaper}{{[}StarPaper{]}}, \hyperlink{thomphdthesis}{{[}ThomPhDThesis{]}}.
+It calculates electron correlation via path-resummations in Slater Determinant
+space \hyperlink{sumpaper}{{[}SumPaper{]}}, \hyperlink{starpaper}{{[}StarPaper{]}}, \hyperlink{thomphdthesis}{{[}ThomPhDThesis{]}}.  More recent work has
+focused on a novel Quantum Monte Carlo theory, FCIQMC, that obtains the Full
+Configuration Interaction energy.  See \hyperlink{fciqmc}{{[}FCIQMC{]}} and \hyperlink{initiator}{{[}Initiator{]}} for more details.
 
-As a standalone package, NECI can perform calculations on electrons confined to a box, the uniform electron gas and the hubbard model.
+As a standalone package, NECI can perform calculations on electrons confined to
+a box, the uniform electron gas and the hubbard model.
 
-NECI can also read in wavefunctions, or a set of integrals based on them, of molecular systems produced by another program (e.g. \hyperlink{dalton}{{[}DALTON{]}} or \hyperlink{molpro}{{[}MolPro{]}}) and run calculations using them as the basis for forming the necessary Slater Determinants.
+NECI can also read in wavefunctions, or a set of integrals based on them, of
+molecular systems produced by another program (e.g. \hyperlink{dalton}{{[}DALTON{]}} or \hyperlink{molpro}{{[}MolPro{]}}) and
+run calculations using them as the basis for forming the necessary Slater
+Determinants.
 
-Finally, NECI can also be compiled as a library for integration into existing codes.  Currently this has been performed for the \hyperlink{cpmd}{{[}CPMD{]}} or \hyperlink{vasp}{{[}VASP{]}} plane-wave packages, allowing calculations to be performed on periodic systems.
+Finally, NECI can also be compiled as a library for integration into existing
+codes.  Currently this has been performed for the \hyperlink{cpmd}{{[}CPMD{]}} or \hyperlink{vasp}{{[}VASP{]}} plane-wave
+packages, allowing calculations to be performed on periodic systems.
 
 \resetcurrentobjects
 \hypertarget{--doc-theory/index}{}
@@ -283,15 +292,22 @@ Similarly, we can obtain the energy contribution of the graph:
 Requirements:
 \begin{itemize}
 \item {} \begin{description}
-\item[subversion] \leavevmode
-The Alavi group currently only distributes code via the wwmm
-subversion repository (account required), which is kindly hosted
-by the Unilever Centre.
+\item[git.] \leavevmode
+The NECI codebase, documentation and test suite are currently distributed
+only from git repositories hosted on CUC3 workstations (account required).
+
+\end{description}
+
+\item {} \begin{description}
+\item[subversion.] \leavevmode
+Legacy code and a modified version of CPMD are distributed via the wwmm
+subversion repository (account required), which is kindly hosted by the
+Unilever Centre.
 
 \end{description}
 
 \item {} 
-LAPACK
+LAPACK.
 
 \item {} 
 BLAS.
@@ -307,11 +323,15 @@ FFTW 3.x.
 
 \subsection{NECI}
 
-The NECI source code can be downloaded from:
+The NECI source code can be checked out using:
 
 \begin{Verbatim}[commandchars=@\[\]]
-svn checkout https://wwmm.ch.cam.ac.uk/svn2/groups/alavi/NECI/trunk NECI
+.. code-block:: bash
 \end{Verbatim}
+\begin{quote}
+
+\$ git clone scepter:/home/ajwt3/NECI.git
+\end{quote}
 
 Various branches also exist, but they may or may not be stable or under
 active development.
@@ -323,55 +343,190 @@ Our modified version of CPMD (containing the necessary routines for
 integration with NECI) can be downloaded from:
 
 \begin{Verbatim}[commandchars=@\[\]]
-svn checkout https://wwmm.ch.cam.ac.uk/svn2/groups/alavi/CPMD/branches/QMC/trunk CPMD
+.. code-block:: bash
 \end{Verbatim}
+\begin{quote}
 
-Again, there exist various branches and they may or may not be stable
-or under active development.
-The default setting used in the compilation scripts are to have the NECI source as
-a subdirectory of the CPMD source.  This can be changed by using the
-command line options or setting them in the .compileconf file (see below).
-It is suggested that you place NECI as a subdirectory of the CPMD source,
-as that is how the CPMD configuration files in the repository are set up.
+\$ svn checkout \href{https://wwmm.ch.cam.ac.uk/svn2/groups/alavi/CPMD/branches/QMC/trunk}{https://wwmm.ch.cam.ac.uk/svn2/groups/alavi/CPMD/branches/QMC/trunk} CPMD
+\end{quote}
+
+Again, there exist various branches and they may or may not be stable.
+
+The default setting used in the compilation scripts assumes that the NECI
+source is in a subdirectory of the CPMD source directory.  This can be changed
+by using the command line options or setting them in the .compileconf file (see
+below).
+
+Note that the codebase is not currently under active development.
 
 
-\subsection{VASP}
+\section{File structure}
 
-Only users on the access list can download VASP from our repository:
 
-\begin{Verbatim}[commandchars=@\[\]]
-svn checkout https://wwmm.ch.cam.ac.uk/svn2/groups/alavi/VASP/vasp.4.lib vasp.4.lib
-svn checkout https://wwmm.ch.cam.ac.uk/svn2/groups/alavi/VASP/vasp.5 vasp.5
-\end{Verbatim}
+\subsection{NECI}
+\begin{description}
+\item[config/] \leavevmode
+Directory containing configuration files used for building NECI on a
+variety of platforms and compilers.
+
+\item[docs/] \leavevmode
+Documentation.
+
+\item[src/] \leavevmode
+Source files.
+
+\item[tools/] \leavevmode
+Tools which are useful for running and analysing NECI output.  These
+include a histogramming script and scripts which automate sending a
+\textbf{SOFTEXIT} signal to a running instance of NECI after a set amount
+of time.
+
+\item[utils/] \leavevmode
+Useful scripts for compiling and working on the code base.
+
+\end{description}
+
+The following directories are created during compilation
+\begin{description}
+\item[dest/] \leavevmode
+Compiled objects.
+
+\item[bin/] \leavevmode
+Executables.
+
+\item[lib/] \leavevmode
+NECI libraries for linking to VASP/NECI.
+
+\end{description}
+
+The major compiled files are:
+\begin{description}
+\item[NECI/bin/neci.x] \leavevmode
+Standalone neci executable.
+
+\item[NECI/lib/neci-cpmd.a] \leavevmode
+NECI library for integration with the CPMD gamma-point code.
+
+\item[NECI/lib/neci-vasp.a] \leavevmode
+NECI library for integration with the CPMD k-point code.
+
+\item[NECI/lib/neci-cpmd.a] \leavevmode
+NECI library for integration with the VASP gamma-point code.
+
+\item[NECI/lib/neci-vasp.a] \leavevmode
+NECI library for integration with the VASP k-point code.
+
+\end{description}
+
+All of these are actually symbolic links.  The binaries and libraries are
+unique to the optimisation level and configuration used.  The above files
+merely point to the most recent appropriate binary or library.
+
+
+\subsection{CPMD}
+\begin{description}
+\item[CONFIGURE/] \leavevmode
+Directory containing the configuration files for a variety of platforms.
+
+\item[dest/] \leavevmode
+Build directory for gamma-point code.
+
+\item[kdest/] \leavevmode
+Build directory for k-point code.
+
+\item[gcpmd.x] \leavevmode
+Gamma-point executable of the CPMD-NECI code (links to CPMD/dest/cpmd.x).
+Must not be used for k-point calculations!
+
+\item[kcpmd.x] \leavevmode
+k-point executable of the CPMD-NECI code (links to CPMD/kdest/cpmd.x).
+Must not be used for gamma-point calculations!
+
+\end{description}
 
 
 \section{Compilation}
 
+The settings provided are mainly for CUC3 machines and other computer clusters
+that the Alavi group has access to and these might need to be adjusted in order
+to compile in different environments.  Most of the time only the paths and
+flags for the FFTW, LAPACK and BLAS libraries, given in the LFLAGS variable,
+will need to be adjusted (if that).  It is necessary to use the same compiler
+to compile CPMD as was used to produce the NECI library for CPMD and similarly
+for integration with VASP.
 
-\subsection{CPMD and NECI}
+We have compiled and tested the codebases with the gfortran (4.2 and later),
+Portland, Pathscale and Intel compilers in 32 and 64 bit.
+
+
+\subsection{NECI}
+
+To compile NECI run:
+
+\begin{Verbatim}[commandchars=@\[\]]
+.. code-block:: bash
+\end{Verbatim}
+\begin{quote}
+
+\$ ./tools/mkconfig.py platform
+\$ make
+\end{quote}
+
+The platform is a filename in the config directory.  The mkconfig.py script
+has some useful options.  Run:
+
+\begin{Verbatim}[commandchars=@\[\]]
+.. code-block:: bash
+\end{Verbatim}
+\begin{quote}
+
+\$ ./tools/mkconfig.py --help
+\end{quote}
+
+to see information on them.
+
+The objects are compiled to dest/platform/optimised/real (or complex, for
+compiling the complex version for libraries).  The resultant executable,
+neci.platform.optimised.x, is placed in the exe directory.
+
+If the debug flag {[}-g{]} is given to mkconfig.py, then the debug configuration is used and
+the filenames and paths contain debug rather than optimised.
+
+For convenience, bin/neci.x is a symbolic link to the most recently compiled
+executable.
+
+Compiling libraries works in much the same way.
+
+There are several goals defined in the makefile.  Run
+
+\begin{Verbatim}[commandchars=@\[\]]
+@PYGai[@$ ]make @PYGaY[help]
+\end{Verbatim}
+
+to see the most useful.
+
+Configuration files use a simple ini format and adding a new configuration is
+easy. See the supplied configurations for examples and/or comments at the start
+of the mkconfig.py script.
+
+
+\subsection{CPMD}
 
 For historical reasons, CPMD and NECI are much more closely interwoven
-than NECI is with VASP.  In addition, the tools used to compile CPMD and
-NECI are very similar (but then they were written by the same people!).
+than NECI is with VASP.
 
 The repository version of CPMD depends upon NECI, thus NECI must be
 compiled first.  Various scripts take care of this for us.
 
 CPMD and NECI have CONFIGURE subdirectories.  Each file in a CONFIGURE
 subdirector contains the necessary information to compile the code using
-a certain compiler.  Most of the time only the paths and flags for the
-FFTW, LAPACK and BLAS libraries, given in the LFLAGS variable, will need
-to be adjusted (if that).  It is necessary to use the same compiler to
-compile CPMD and NECI.  We have compiled and tested the codebases with the
-gfortran (4.2 and later), Portland and Intel compilers in 32 and 64 bit.
-The mkconfig.sh scripts in the CPMD and NECI directories produce the
-relevant makefiles, but this is better done via helper scripts.
+a certain compiler.
 
 Please note that not all the CPMD configure scripts will work: many of
 them were supplied with CPMD and have never been used with our modified
-version.  Please only use platforms that exist in the NECI/CONFIGURE
-directory as well as the CPMD/CONFIGURE directory.  It is easy to make
-your own configuration files using existing ones as a template.
+version.  Please only use platforms that exist in the NECI/config directory as
+well as the CPMD/CONFIGURE directory.  It is easy to make your own
+configuration files using existing ones as a template.
 
 Note that some of the platforms obtain LAPACK and BLAS as part of atlas,
 ACML or MKL, so this will need to be changed if different source libraries
@@ -384,77 +539,36 @@ gamma-point calculations, as all wavefunctions are then real.  This is
 controlled via a C pre-processing statement.  As neci.x is only for
 molecular calculations, it only exists in one form.
 
-runmake.sh and compile are scripts for CPMD and NECI respectively which
-control the process of creating makefiles and compiling the codebases.
-They both refer to a ``platform'', which is just a name of one of the
-configuration files in the CONFIGURE subdirectories.
+runmake.sh is a script for CPMD which controls the process of creating
+makefiles and compiling the NECI/CPMD hybrid.  A ``platform'' is just the name of
+one of the configuration files in the CONFIGURE subdirectories.
 
-compile by default generates new makefile (for both gamma-point and
-k-point compilations) and does a clean build of neci.x:
+Run:
 
 \begin{Verbatim}[commandchars=@\[\]]
-@PYGZlb[]NECI@PYGZrb[]@$ ./compile -h
-usage: ./compile @PYGZlb[]options@PYGZrb[] @PYGZlb[]platform@PYGZrb[]
-Generate new makefiles and do a clean build of neci.x using platform as the configuration.
-
-If platform is not specified, then the platform given in .compileconf is used.
-If .compileconf also doesn't exist, then the default (PC-PGI64) is used.
-
-Options:
--d Compile with the compiler debug options on.
--f Fast: don't do a make clean before compiling.
--m Only make new makefiles.
+.. code-block:: bash
 \end{Verbatim}
+\begin{quote}
 
-In contrast, runmake.sh has a different default behaviour, in that it
-doesn't produce new makefiles by default, and does not do clean builds:
+\$ ./runmake.sh -h
+\end{quote}
 
-\begin{Verbatim}[commandchars=@\[\]]
-@PYGZlb[]CPMD@PYGZrb[]@$ ./runmake.sh -h
-Usage: ./runmake.sh @PYGZlb[]-c@PYGZrb[] @PYGZlb[]-h@PYGZrb[]
-Compile NECI (neci.x) and CPMD/NECI code for Gamma point (gcpmd.x)
-code and for k-point sampling (kcpmd.x).
-Warning: the option to set the NECI source directory are
-*only* used when a new makefile is produced (i.e. requires the -m or -p
-flag).
-
-Options:
-    -c  Recompile only CPMD routines.
-    -d  Generate new makefiles for debugging.  Recompile (at least)
-        CPMD/qmc routines and all of NECI.
-    -g  Compile only Gamma point code.
-    -k  Compile only K-point code.
-    -m  Generate new Makefiles by running mkconfig scripts in NECI and
-        CPMD directories, using the default platform (PC-PGI64 unless
-        otherwise specified in .compileconf), and compiles.
-    -n  Recompile only NECI routines.
-    -p @PYGZlb[]32,64,platform@PYGZrb[]
-        Produce makefile for @PYGZlb[]pgi-32bit,pgi-64bit,platform@PYGZrb[]
-        compilation, where platform is an alternative configuration (eg
-        for gfortran).
-    -s @PYGZlb[]NECI source directory@PYGZrb[]
-        Set the location of the directory containing the NECI source code.
-        Warning: must be used only when new makefiles are produced (i.e.
-        when -m or -p are specified).
-    -h  Print this message.
-\end{Verbatim}
+to see the various options and default behaviour of the runmake.sh script.
 
 Note that runmake.sh produces new makefiles for CPMD \textbf{and} for NECI,
 and compiles neci.x, the NECI libraries needed for CPMD, and gcpmd.x
-and kcpmd.x.  To aid compilation, the dest subdirectories in the CPMD and
-NECI source directories contains the compiled objects for the gamma-point
-code and the kdest subdirectories contain the compiled objects for the
-k-point code.
+and kcpmd.x.  To aid the speed of recompilation, the real and complex
+objects are compiled into separate directories.
 
-Both the NECI and CPMD scripts default to compiling the codebases using
-the Portland 64-bit compiler, if a platform is not specified either via
-the command line or given in .compileconf, a text file which
-contains the name of the desired platform.  Note that runmake.sh will
-use the same platform for both the CPMD and NECI makefiles.
+runmake.sh defaults to compiling the codebases using the Portland 64-bit
+compiler, if a platform is not specified either via the command line or given
+in .compileconf, a text file which contains the name of the desired platform.
+Note that runmake.sh will use the same platform for both the CPMD and NECI
+makefiles.
 
-The CPMD and NECI source directories also contain controlling Makefiles
-to further help the make process (and generally just act as wrappers
-for the runmake.sh and compile scripts).  Run:
+The CPMD source directory also contains a controlling Makefile
+to further help the make process (and generally just acts as a wrapper
+for the runmake.sh script).  Run:
 
 \begin{Verbatim}[commandchars=@\[\]]
 make help
@@ -473,15 +587,15 @@ from within the CPMD source directory.
 
 \subsubsection{.compileconf}
 
-The .compileconf files are not under source code management and allow local defaults
-to be set.  It is used both in the CPMD and NECI compilation scripts.
+The .compileconf file is not under source code management and allow local defaults
+to be set.
 
-When running runmake.sh, please note that it uses the CPMD .compileconf information
-for compiling NECI, rather than the NECI .compileconf file.  This is to ensure that
-the same platform is used for both.
+When running runmake.sh, please note that it uses the CPMD .compileconf
+information for compiling NECI, rather than the user's default NECI platform.
+This is to ensure that the same platform is used for both.
 
-The settings in .compileconf are overridden by command line options, but override
-any defaults in the compilation scripts.
+The settings in .compileconf are overridden by command line options but override
+any defaults in the runmake.sh script.
 
 .compileconf in its simplest (and oldest) form simply contains the name of the desired
 platform, e.g.:
@@ -492,16 +606,12 @@ PC@PYGbe[-]ifort64
 
 will use the PC-ifort64 platform as the default.
 
-.compileconf can also be used to set local defaults for more
-variables---see the comments in runmake.sh for more details on the CPMD
-.compileconf and the comments in compile for more details on the NECI
-.compileconf.  The format of both .compileconf files is the same, but the
-variables available differ.  Defaults are used for any variables not set
-in the .compileconf files.
+.compileconf can also be used to set local defaults for more variables---see
+the comments in runmake.sh for more details.  Defaults are used for any
+variables not set in the .compileconf file.
 
-For example, to set different defaults for the platform
-and the location of the NECI source, .compileconf in the CPMD directory
-would look like:
+For example, to set different defaults for the platform and the location of the
+NECI source, .compileconf in the CPMD directory would look like:
 
 \begin{Verbatim}[commandchars=@\[\]]
 platform=PC-ifort64
@@ -509,44 +619,105 @@ NECIsrc=@textasciitilde[]/NECI/source
 \end{Verbatim}
 
 
-\subsubsection{File structure}
-
-NECI files:
-\begin{description}
-\item[\textbf{NECI/neci.x}] \leavevmode
-Standalone neci-executable (links to NECI/dest/neci.x).
-
-\item[\textbf{NECI/dest/neci-cpmd.a}] \leavevmode
-NECI library for CPMD gamma-point code.
-
-\item[\textbf{NECI/kdest/neci-vasp.a}] \leavevmode
-NECI library for CPMD k-point code.
-
-\item[\textbf{NECI/dest/neci-cpmd.a}] \leavevmode
-NECI library for VASP gamma-point code.
-
-\item[\textbf{NECI/kdest/neci-vasp.a}] \leavevmode
-NECI library for VASP k-point code.
-
-\end{description}
-
-CPMD files:
-\begin{description}
-\item[\textbf{CPMD/gcpmd.x}] \leavevmode
-Gamma-point executable of the CPMD-NECI code (links to CPMD/dest/cpmd.x).
-Must not be used for k-point calculations!
-
-\item[\textbf{CPMD/kcpmd.x}] \leavevmode
-k-point executable of the CPMD-NECI code (links to CPMD/dest/cpmd.x).
-Must not be used for gamma-point calculations!
-
-\end{description}
+\section{Developing NECI}
 
 
-\subsection{VASP}
+\subsection{Default platform}
 
-James has managed it.  It's not completely pleasant.  More to follow
-once it's been made easier!
+If no platform is given on the command line to the mkconfig.py script, then it
+looks for a .default file in the config subdirectory, which is used if it exists.
+
+It is thus simple to set a local default platform by creating a symbolic link from
+the desired platform file to config/default.
+
+
+\subsection{Working in the src subdirectory}
+
+Note that any goal defined in the Makefile in the root NECI directory can also
+be run from the src directory (see src/Makefile for how this is achieved).
+
+
+\subsection{Adding new files}
+
+Just create the new source file in the src subdirectory.  The makefile will
+pick it up automatically.  Note that \emph{all} .F, .F90, .c and .C files in src
+will be compiled and linked to form neci.
+
+
+\subsection{Updating dependencies}
+
+The dependency list is created automatically if it does not exist using.  If this
+needs to be updated (e.g. due to a new source file or because development results in
+additional dependencies), run:
+
+\begin{Verbatim}[commandchars=@\[\]]
+.. code-block:: bash
+\end{Verbatim}
+\begin{quote}
+
+\$ make depend
+\end{quote}
+
+Note that this causes an infinite loop if make 3.80 or earlier is used.  As an alternative:
+
+\begin{Verbatim}[commandchars=@\[\]]
+.. code-block:: bash
+\end{Verbatim}
+\begin{quote}
+
+\$ make rmdeps
+\end{quote}
+
+deletes all dependency files, which are then automatically regenerated the next time make
+is run to produce any target.  This should be used on older systems.
+
+Note that all platforms share the same set of dependency files.
+
+
+\subsection{Testing on different platforms}
+
+Because each neci executable is given a file name dependent upon the
+configuration and optimisation level used, it is easy to test multiple
+configurations (e.g. parallel and serial) within one local repository.
+
+\begin{Verbatim}[commandchars=@\[\]]
+@PYGai[@$ ]./tools/mkconfig.py -f Makefile.serial PC-ifort64
+@PYGai[@$ ]./tools/mkconfig.py -f Makefile.mpi PC-ifort64-MPI
+@PYGai[@$ ]make -f Makefile.serial
+@PYGai[@$ ]make -f Makefile.mpi
+\end{Verbatim}
+
+This will compile 2 executables.  Recompiling will only involve recompiling
+any changed files.
+
+
+\subsection{tags}
+
+Thanks to Alex for pointing this out.  It is useful to be able to work on the
+source code both from the main directory and the src directory and have the
+same tags file work in both cases.
+
+You can create a tags file by running:
+
+\begin{Verbatim}[commandchars=@\[\]]
+@PYGai[@$ ]make tags
+\end{Verbatim}
+
+and tell vim to search the current directory and parent directory (which
+amounts to working in the main and src directories respectively for our case)
+by doing:
+
+\begin{Verbatim}[commandchars=@\[\]]
+:set tags=./tags,../tags
+\end{Verbatim}
+
+within vim or placing:
+
+\begin{Verbatim}[commandchars=@\[\]]
+set tags=./tags,../tags
+\end{Verbatim}
+
+in your \$HOME/.vimrc
 
 
 \section{testcode}
@@ -560,12 +731,18 @@ Every night the latest version of the codebase is checked out of the
 subversion repository and tested against a variety of compilers, giving
 confidence in the continued stability of the codebase.
 
-testcode and the set of test jobs (both for NECI and CPMD-NECI), can be
-checked out of the subversion repository:
+The testcode scripts, NECI test suite and NECI/CPMD test suite can
+be obtained respectively via:
 
 \begin{Verbatim}[commandchars=@\[\]]
-svn checkout https://wwmm.ch.cam.ac.uk/svn2/groups/alavi/testcode testcode
+.. code-block:: bash
 \end{Verbatim}
+\begin{quote}
+
+\$ git clone scepter:/home/jss43/alavi\_group/testcode.git
+\$ git clone scepter:/home/jss43/alavi\_group/testsuite\_neci.git
+\$ git clone scepter:/home/jss43/alavi\_group/testsuite\_cpmd.git
+\end{quote}
 
 Please see the testcode documentation for more details.
 
@@ -582,16 +759,16 @@ How to obtain FCIDUMP/density-fitting input files?
 \end{notice}
 
 \begin{Verbatim}[commandchars=@\[\]]
-neci.x input@_file
+@PYGai[@$ ]neci.x input@_file
 \end{Verbatim}
 
 If no file is given, then it takes input options from STDIN.  This is rarely useful, however.
 
-NECI prints output to SDTOUT, so output needs to be captured in some way:
+NECI prints output to STDOUT, so output needs to be captured in some way:
 
 \begin{Verbatim}[commandchars=@\[\]]
-neci.x input@_file @textgreater[] output@_file
-neci.x nput@_file @textbar[] tee output@_file
+@PYGai[@$ ]neci.x input@_file @textgreater[] output@_file
+@PYGai[@$ ]neci.x nput@_file @textbar[] tee output@_file
 \end{Verbatim}
 
 
@@ -616,13 +793,13 @@ input file and perform the desired calculation.
 For gamma-point calculations:
 
 \begin{Verbatim}[commandchars=@\[\]]
-gcpmd.x input@_file @textgreater[] output@_file
+@PYGai[@$ ]gcpmd.x input@_file @textgreater[] output@_file
 \end{Verbatim}
 
 For k-point calculations:
 
 \begin{Verbatim}[commandchars=@\[\]]
-kcpmd.x input@_file @textgreater[] output@_file
+@PYGai[@$ ]kcpmd.x input@_file @textgreater[] output@_file
 \end{Verbatim}
 
 There are many other appropriate options that can be specified in the
@@ -631,37 +808,120 @@ manula and the local CPMD documentation detailing addtions the Alavi
 group has made.
 
 
-\section{Soft exits}
+\section{Interacting with running calculations}
 
-Soft exits allow a calculation to be halted prematurely yet still
-perform any necessary post-processing of the calculation and print out,
-for example, the memory and timing information.  NECI checks the working
-directory of the calculation for a file called SOFTEXIT, which can be
-created by the user by, for instance, using touch:
+It is useful to be able to interact with a running calculation, particularly
+during iterative and cyclic processes and is not available (nor suitable) for
+all types of calculation.  Currently this functionality is implemented for
+\textbf{FCIMC} calculations.
 
-\begin{Verbatim}[commandchars=@\[\]]
-touch SOFTEXIT
-\end{Verbatim}
+NECI checks for a file called CHANGEVARS in the working directory of the
+calculation.  CHANGEVARS can be placed on any node when run on multi-node
+compute servers.  The CHANGEVARS file is read and echoed to STDOUT and
+then deleted so that it does not affect any subsequent calculations.
 
-On creation of SOFTEXIT, the next time SOFTEXIT is checked to see
-if it exists, the code will exit cleanly and quietly, with no error
-messages.  The SOFTEXIT file is deleted so that it does not affect
-any subsequent calculations.
+Valid options to CHANGEVARS are:
+\begin{description}
+\item[\textbf{EXCITE} {[}excitation\_level{]}] \leavevmode
+Change the maximum excitation level of determinants included in the
+simulation.  A value less than or equal to 0 or greater than the number of
+electrons in the system sets the maximum excitation level to use the full
+determinant space.
 
-This functionality is especially suited to iterative and cyclic
-processes and is not available (nor suitable) for all types of
-calculation.
+\item[\textbf{TRUNCATECAS} {[}OccCASOrbs{]} {[}VirtCASOrbs{]}] \leavevmode
+Change the space used to the specified complete active space (CAS). A value
+equal to or less than 0 or greater than the number of electrons in the system
+sets it to the full determinant space.
 
-Currently, SOFTEXIT applies only to the following calculation
-type(s):
-\begin{itemize}
-\item {} 
-\textbf{FciMC}
-If SOFTEXIT is created, then the current iteration is completed,
-all post-processing of the calculation up to the current iteration
-is performed.
+\item[\textbf{SOFTEXIT}] \leavevmode
+Stop calculation as soon as possible.  This facility is useful when running
+on machines with fixed walltimes, especially when used with the watchdog.py
+script in the utils/ subdirectory.
 
-\end{itemize}
+\item[\textbf{WRITEPOPS}] \leavevmode
+Print out the current walker population to POPSFILE.
+
+\item[\textbf{VARYSHIFT}] \leavevmode
+Exit fixed shift phase and allow the shift to vary according to \hyperlink{fciqmc}{{[}FCIQMC{]}}.
+
+\item[\textbf{NMCYC} {[}ncycles{]}] \leavevmode
+Change the number of Monte Carlo cycles to perform.
+
+\item[\textbf{TAU} {[}tau{]}] \leavevmode
+Change the timestep, tau, for the simulation.
+
+\item[\textbf{DIAGSHIFT} {[}shift{]}] \leavevmode
+Change the shift.
+
+\item[\textbf{SHIFTDAMP} {[}damping{]}] \leavevmode
+Change the damping parameter used to adjust the shift.
+
+\item[\textbf{STEPSSHIFT} {[}nsteps{]}] \leavevmode
+Change the number of Monte Carlo cycles performed between updating the shift.
+
+\item[\textbf{SINGLESBIAS} {[}bias{]}] \leavevmode
+Change the bias for generating single excitations over double excitations
+when using the non-uniform random excitation generator.
+
+\item[\textbf{ZEROPROJE}] \leavevmode
+Rezero the averaged energy estimators.  This is useful when the initial value of
+the energy estimators are a long way from the instantaneous values, causing a
+slow convergence of the averaged values.
+
+\item[\textbf{ZEROHIST}] \leavevmode
+Rezero the averaged histogramming vectors.
+
+\item[\textbf{PARTIALLYFREEZE} {[}nPartFrozen nHolesFrozen{]}] \leavevmode
+Change the maximum number of holes, nHolesFrozen, allowed in the nPartFrozen
+number of spin-orbitals in the core valence region.
+Determinants with a larger number of holes in the lowest nPartFrozen
+spin-orbitals are not considered.
+See the input option in the \textbf{INTEGRALS} section for more details.
+
+\item[\textbf{PARTIALLYFREEZEVIRT} {[}nVirtPartFrozen nElVirtFrozen{]}] \leavevmode
+Similar to \textbf{PARTIALLYFREEZE}, allow only Slater determinants with
+at most nElVirtFrozen electrons in the nVirtPartFrozen number of virtual
+spin-orbitals.
+
+\item[\textbf{PRINTERRORBLOCKING}] \leavevmode
+Print the blocking analysis.
+
+\item[\textbf{STARTERRORBLOCKING}] \leavevmode
+Start the blocking analysis.
+
+\item[\textbf{RESTARTERRORBLOCKING}] \leavevmode
+Restart the blocking analysis.
+
+\item[\textbf{PRINTSHIFTBLOCKING}] \leavevmode
+Print the shift blocking analysis.
+
+\item[\textbf{RESTARTSHIFTBLOCKING}] \leavevmode
+Restart the shift blocking analysis.
+
+\item[\textbf{EQUILSTEPS} {[}ncycles{]}] \leavevmode
+Change the number of initial Monte Carlo cycles to ignore in the averaging
+of the energy and the shift.
+
+\item[\textbf{STARTHIST}] \leavevmode
+Begin histogramming the determinant populations if the tCalcFCIMCPsi
+is on and the histogramming has been set up.
+
+\item[\textbf{HISTEQUILSTEPS} {[}ncycles{]}] \leavevmode
+Change the iteration at which the histogramming begins to the value
+specified.
+
+\item[\textbf{TRUNCINITIATOR}] \leavevmode
+Expand the CAS calculation to a \textbf{TRUNCINITIATOR} calculation if
+\textbf{DELAYTRUNCINITIATOR} is present in the input.
+
+\item[\textbf{ADDTOINIT} {[}nwalkers{]}] \leavevmode
+Will change the cutt-off population for which walkers are added to the
+initiator space.  The population must be above specified value.
+
+\end{description}
+
+Many of these options are also valid options in the main input file and are covered in
+more depth in input.
 
 \resetcurrentobjects
 \hypertarget{--doc-input/index}{}
@@ -1551,7 +1811,7 @@ Additional options:
 \item[\textbf{ROITERATION} {[}ROIterMax{]}] \leavevmode
 Much like \textbf{SHAKEITER}, the presence of this keyword overrides the convergence criteria
 on the force, and instead runs for the number of iterations specified here.
-Note: A SOFTEXIT is also an option in this method.
+Note: A \textbf{SOFTEXIT} is also an option in this method.
 
 \item[\textbf{SPINORBS}] \leavevmode
 Default=.false.
@@ -4733,7 +4993,7 @@ More to come.
 Efficient calculation of the exact exchange energy in periodic systems using a truncated Coulomb potential, James Spencer and Ali Alavi, PRB, 77 193110 (2008).
 }
 \bibitem[CamCasp]{CamCasp}{\hypertarget{camcasp}{} 
-Cambridge package for Calculation of Anisotropic Site Properties, Alston Misquitta and Anthony Stone.  \href{http://www-stone.ch.cam.ac.uk/programs.html\#Camcasp}{http://www-stone.ch.cam.ac.uk/programs.html\#Camcasp}
+Cambridge package for Calculation of Anisotropic Site Properties, Alston Misquitta and Anthony Stone. \href{http://www-stone.ch.cam.ac.uk/programs.html\#Camcasp}{http://www-stone.ch.cam.ac.uk/programs.html\#Camcasp}
 }
 \bibitem[CPMD]{CPMD}{\hypertarget{cpmd}{} 
 CPMD, \href{http://www.cpmd.org/}{http://www.cpmd.org/}, Copyright IBM Corp 1990-2008, Copyright MPI für Festkörperforschung Stuttgart 1997-2001.
@@ -4741,11 +5001,17 @@ CPMD, \href{http://www.cpmd.org/}{http://www.cpmd.org/}, Copyright IBM Corp 1990
 \bibitem[DALTON]{DALTON}{\hypertarget{dalton}{} 
 DALTON, a molecular electronic structure program, Release 2.0 (2005), see \href{http://daltonprogram.org/}{http://daltonprogram.org/}
 }
+\bibitem[FCIQMC]{FCIQMC}{\hypertarget{fciqmc}{} 
+Fermion Monte Carlo without fixed nodes: a Game of Life, death and annihilation in Slater Determinant space, G.H. Booth, A.J.W. Thom and Ali Alavi, J. Chem. Phys., 131, 054106, (2009).
+}
 \bibitem[GHBCPGS]{GHBCPGS}{\hypertarget{ghbcpgs}{} 
 CPGS report, George Booth.
 }
+\bibitem[Initiator]{Initiator}{\hypertarget{initiator}{} 
+Survival of the Fittest: Accelerating convergence in full configuration-interaction Quantum Monte Carlo , Deidre Cleland, G.H. Booth, and Ali Alavi, J. Chem. Phys., 132, 041103, (2010).
+}
 \bibitem[MolPro]{MolPro}{\hypertarget{molpro}{} 
-MOLPRO is a package of ab initio programs written by H.-J. Werner, P. J. Knowles, R. Lindh, F. R. Manby,  M. Schütz, P. Celani, T. Korona, G. Rauhut, R. D. Amos, A. Bernhardsson, A. Berning, D. L. Cooper, M. J. O. Deegan, A. J. Dobbyn, F. Eckert, C. Hampel, G. Hetzer, A. W. Lloyd, S. J. McNicholas, W. Meyer, M. E. Mura, A. Nicklaß, P. Palmieri, R. Pitzer, U. Schumann, H. Stoll, A. J. Stone, R. Tarroni, and T. Thorsteinsson, see \href{http://www.molpro.net}{http://www.molpro.net}
+MOLPRO is a package of ab initio programs written by H.-J. Werner, P. J. Knowles, R. Lindh, F. R. Manby, M. Schütz, P. Celani, T. Korona, G. Rauhut, R. D. Amos, A. Bernhardsson, A. Berning, D. L. Cooper, M. J. O. Deegan, A. J. Dobbyn, F. Eckert, C. Hampel, G. Hetzer, A. W. Lloyd, S. J. McNicholas, W. Meyer, M. E. Mura, A. Nicklaß, P. Palmieri, R. Pitzer, U. Schumann, H. Stoll, A. J. Stone, R. Tarroni, and T. Thorsteinsson, see \href{http://www.molpro.net}{http://www.molpro.net}
 }
 \bibitem[RGPtIII]{RGPtIII}{\hypertarget{rgptiii}{} 
 Part III report, Ramin Ghorashi.

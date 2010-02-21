@@ -46,7 +46,7 @@
 <li><a class="reference external" href="#">Run</a><ul>
 <li><a class="reference external" href="#neci">NECI</a></li>
 <li><a class="reference external" href="#cpmd-neci">CPMD-NECI</a></li>
-<li><a class="reference external" href="#soft-exits">Soft exits</a></li>
+<li><a class="reference external" href="#interacting-with-running-calculations">Interacting with running calculations</a></li>
 </ul>
 </li>
 </ul>
@@ -91,13 +91,13 @@
 <p class="first admonition-title">Note</p>
 <p class="last">How to obtain FCIDUMP/density-fitting input files?</p>
 </div>
-<div class="highlight-bash"><div class="highlight"><pre>neci.x input_file
+<div class="highlight-bash"><div class="highlight"><pre><span class="nv">$ </span>neci.x input_file
 </pre></div>
 </div>
 <p>If no file is given, then it takes input options from STDIN.  This is rarely useful, however.</p>
-<p>NECI prints output to SDTOUT, so output needs to be captured in some way:</p>
-<div class="highlight-bash"><div class="highlight"><pre>neci.x input_file &gt; output_file
-neci.x nput_file | tee output_file
+<p>NECI prints output to STDOUT, so output needs to be captured in some way:</p>
+<div class="highlight-bash"><div class="highlight"><pre><span class="nv">$ </span>neci.x input_file &gt; output_file
+<span class="nv">$ </span>neci.x nput_file | tee output_file
 </pre></div>
 </div>
 </div>
@@ -117,11 +117,11 @@ also be specified.  Running CPMD (assuming it has been correctly compiled
 with the appropriate NECI library) then calls NECI to read the NECI
 input file and perform the desired calculation.</p>
 <p>For gamma-point calculations:</p>
-<div class="highlight-bash"><div class="highlight"><pre>gcpmd.x input_file &gt; output_file
+<div class="highlight-bash"><div class="highlight"><pre><span class="nv">$ </span>gcpmd.x input_file &gt; output_file
 </pre></div>
 </div>
 <p>For k-point calculations:</p>
-<div class="highlight-bash"><div class="highlight"><pre>kcpmd.x input_file &gt; output_file
+<div class="highlight-bash"><div class="highlight"><pre><span class="nv">$ </span>kcpmd.x input_file &gt; output_file
 </pre></div>
 </div>
 <p>There are many other appropriate options that can be specified in the
@@ -129,31 +129,92 @@ CPMD input file rather than the NECI input file.  Please see the CPMD
 manula and the local CPMD documentation detailing addtions the Alavi
 group has made.</p>
 </div>
-<div class="section" id="soft-exits">
-<h2>Soft exits<a class="headerlink" href="#soft-exits" title="Permalink to this headline">¶</a></h2>
-<p>Soft exits allow a calculation to be halted prematurely yet still
-perform any necessary post-processing of the calculation and print out,
-for example, the memory and timing information.  NECI checks the working
-directory of the calculation for a file called SOFTEXIT, which can be
-created by the user by, for instance, using touch:</p>
-<div class="highlight-bash"><div class="highlight"><pre>touch SOFTEXIT
-</pre></div>
-</div>
-<p>On creation of SOFTEXIT, the next time SOFTEXIT is checked to see
-if it exists, the code will exit cleanly and quietly, with no error
-messages.  The SOFTEXIT file is deleted so that it does not affect
-any subsequent calculations.</p>
-<p>This functionality is especially suited to iterative and cyclic
-processes and is not available (nor suitable) for all types of
-calculation.</p>
-<p>Currently, SOFTEXIT applies only to the following calculation
-type(s):</p>
-<ul class="simple">
-<li><strong>FciMC</strong>
-If SOFTEXIT is created, then the current iteration is completed,
-all post-processing of the calculation up to the current iteration
-is performed.</li>
-</ul>
+<div class="section" id="interacting-with-running-calculations">
+<h2>Interacting with running calculations<a class="headerlink" href="#interacting-with-running-calculations" title="Permalink to this headline">¶</a></h2>
+<p>It is useful to be able to interact with a running calculation, particularly
+during iterative and cyclic processes and is not available (nor suitable) for
+all types of calculation.  Currently this functionality is implemented for
+<strong>FCIMC</strong> calculations.</p>
+<p>NECI checks for a file called CHANGEVARS in the working directory of the
+calculation.  CHANGEVARS can be placed on any node when run on multi-node
+compute servers.  The CHANGEVARS file is read and echoed to STDOUT and
+then deleted so that it does not affect any subsequent calculations.</p>
+<p>Valid options to CHANGEVARS are:</p>
+<dl class="docutils">
+<dt><strong>EXCITE</strong> [excitation_level]</dt>
+<dd>Change the maximum excitation level of determinants included in the
+simulation.  A value less than or equal to 0 or greater than the number of
+electrons in the system sets the maximum excitation level to use the full
+determinant space.</dd>
+<dt><strong>TRUNCATECAS</strong> [OccCASOrbs] [VirtCASOrbs]</dt>
+<dd>Change the space used to the specified complete active space (CAS). A value
+equal to or less than 0 or greater than the number of electrons in the system
+sets it to the full determinant space.</dd>
+<dt><strong>SOFTEXIT</strong></dt>
+<dd>Stop calculation as soon as possible.  This facility is useful when running
+on machines with fixed walltimes, especially when used with the watchdog.py
+script in the utils/ subdirectory.</dd>
+<dt><strong>WRITEPOPS</strong></dt>
+<dd>Print out the current walker population to POPSFILE.</dd>
+<dt><strong>VARYSHIFT</strong></dt>
+<dd>Exit fixed shift phase and allow the shift to vary according to <a class="reference external" href="references.html#fciqmc">[FCIQMC]</a>.</dd>
+<dt><strong>NMCYC</strong> [ncycles]</dt>
+<dd>Change the number of Monte Carlo cycles to perform.</dd>
+<dt><strong>TAU</strong> [tau]</dt>
+<dd>Change the timestep, tau, for the simulation.</dd>
+<dt><strong>DIAGSHIFT</strong> [shift]</dt>
+<dd>Change the shift.</dd>
+<dt><strong>SHIFTDAMP</strong> [damping]</dt>
+<dd>Change the damping parameter used to adjust the shift.</dd>
+<dt><strong>STEPSSHIFT</strong> [nsteps]</dt>
+<dd>Change the number of Monte Carlo cycles performed between updating the shift.</dd>
+<dt><strong>SINGLESBIAS</strong> [bias]</dt>
+<dd>Change the bias for generating single excitations over double excitations
+when using the non-uniform random excitation generator.</dd>
+<dt><strong>ZEROPROJE</strong></dt>
+<dd>Rezero the averaged energy estimators.  This is useful when the initial value of
+the energy estimators are a long way from the instantaneous values, causing a
+slow convergence of the averaged values.</dd>
+<dt><strong>ZEROHIST</strong></dt>
+<dd>Rezero the averaged histogramming vectors.</dd>
+<dt><strong>PARTIALLYFREEZE</strong> [nPartFrozen nHolesFrozen]</dt>
+<dd>Change the maximum number of holes, nHolesFrozen, allowed in the nPartFrozen
+number of spin-orbitals in the core valence region.
+Determinants with a larger number of holes in the lowest nPartFrozen
+spin-orbitals are not considered.
+See the input option in the <strong>INTEGRALS</strong> section for more details.</dd>
+<dt><strong>PARTIALLYFREEZEVIRT</strong> [nVirtPartFrozen nElVirtFrozen]</dt>
+<dd>Similar to <strong>PARTIALLYFREEZE</strong>, allow only Slater determinants with
+at most nElVirtFrozen electrons in the nVirtPartFrozen number of virtual
+spin-orbitals.</dd>
+<dt><strong>PRINTERRORBLOCKING</strong></dt>
+<dd>Print the blocking analysis.</dd>
+<dt><strong>STARTERRORBLOCKING</strong></dt>
+<dd>Start the blocking analysis.</dd>
+<dt><strong>RESTARTERRORBLOCKING</strong></dt>
+<dd>Restart the blocking analysis.</dd>
+<dt><strong>PRINTSHIFTBLOCKING</strong></dt>
+<dd>Print the shift blocking analysis.</dd>
+<dt><strong>RESTARTSHIFTBLOCKING</strong></dt>
+<dd>Restart the shift blocking analysis.</dd>
+<dt><strong>EQUILSTEPS</strong> [ncycles]</dt>
+<dd>Change the number of initial Monte Carlo cycles to ignore in the averaging
+of the energy and the shift.</dd>
+<dt><strong>STARTHIST</strong></dt>
+<dd>Begin histogramming the determinant populations if the tCalcFCIMCPsi
+is on and the histogramming has been set up.</dd>
+<dt><strong>HISTEQUILSTEPS</strong> [ncycles]</dt>
+<dd>Change the iteration at which the histogramming begins to the value
+specified.</dd>
+<dt><strong>TRUNCINITIATOR</strong></dt>
+<dd>Expand the CAS calculation to a <strong>TRUNCINITIATOR</strong> calculation if
+<strong>DELAYTRUNCINITIATOR</strong> is present in the input.</dd>
+<dt><strong>ADDTOINIT</strong> [nwalkers]</dt>
+<dd>Will change the cutt-off population for which walkers are added to the
+initiator space.  The population must be above specified value.</dd>
+</dl>
+<p>Many of these options are also valid options in the main input file and are covered in
+more depth in input.</p>
 </div>
 </div>
 
@@ -180,7 +241,7 @@ is performed.</li>
     </div>
     <div class="footer">
       &copy; Copyright 2010, Alavi Group.
-      Last updated on Feb 20, 2010.
+      Last updated on Feb 21, 2010.
       Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 0.6.4.
     </div>
   </body>
