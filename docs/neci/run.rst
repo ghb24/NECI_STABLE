@@ -90,7 +90,7 @@ Valid options to CHANGEVARS are:
 **WRITEPOPS**
     Print out the current walker population to POPSFILE.
 **VARYSHIFT**
-    Exit fixed shift phase and allow the shift to vary according to FCIQMC.
+    Exit fixed shift phase and allow the shift to vary according to [FCIQMC]_.
 **NMCYC** [ncycles]
     Change the number of Monte Carlo cycles to perform.
 **TAU** [tau]
