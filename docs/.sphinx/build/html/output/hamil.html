@@ -1,0 +1,120 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>HAMIL &mdash; NECI v0.1 documentation</title>
+    <link rel="stylesheet" href="../_static/sphinxdoc.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '0.1',
+        COLLAPSE_MODINDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="top" title="NECI v0.1 documentation" href="../index.html" />
+    <link rel="up" title="Output files" href="index.html" />
+    <link rel="next" title="MCPATHS and MCSUMMARY" href="mcpaths.html" />
+    <link rel="prev" title="ENERGIES" href="energies.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="mcpaths.html" title="MCPATHS and MCSUMMARY"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="energies.html" title="ENERGIES"
+             accesskey="P">previous</a> |</li>
+        <li><a href="../index.html">NECI v0.1 documentation</a> &raquo;</li>
+          <li><a href="index.html" accesskey="U">Output files</a> &raquo;</li> 
+      </ul>
+    </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+            <h4>Previous topic</h4>
+            <p class="topless"><a href="energies.html"
+                                  title="previous chapter">ENERGIES</a></p>
+            <h4>Next topic</h4>
+            <p class="topless"><a href="mcpaths.html"
+                                  title="next chapter">MCPATHS and MCSUMMARY</a></p>
+            <h3>This Page</h3>
+            <ul class="this-page-menu">
+              <li><a href="../_sources/output/hamil.txt"
+                     rel="nofollow">Show Source</a></li>
+            </ul>
+          <div id="searchbox" style="display: none">
+            <h3>Quick search</h3>
+              <form class="search" action="../search.html" method="get">
+                <input type="text" name="q" size="18" />
+                <input type="submit" value="Go" />
+                <input type="hidden" name="check_keywords" value="yes" />
+                <input type="hidden" name="area" value="default" />
+              </form>
+              <p class="searchtip" style="font-size: 90%">
+              Enter search terms or a module, class or function name.
+              </p>
+          </div>
+          <script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="hamil">
+<span id="output-hamil"></span><h1>HAMIL<a class="headerlink" href="#hamil" title="Permalink to this headline">¶</a></h1>
+<p>HAMIL contains the non-zero elements of the Hamiltonian in three columns:</p>
+<div class="highlight-python"><pre>i  j  Hij</pre>
+</div>
+<p>where:</p>
+<blockquote>
+<p>Hij <img class="math" src="../_images/math/351dea4d5a27c90fbc37a48581180bc651981e08.png" alt="=\bra D_{\veci} | H | D_{\vecj} \ket"/>.</p>
+<p>i,j are indices for the <img class="math" src="../_images/math/2a276dc53531ad39f6830a18c077d54c6a341c14.png" alt="\veci,\vecj"/> determinants, with i:math:<cite>le</cite>
+j, and increasing i.</p>
+<p><img class="math" src="../_images/math/8dfcbccbc64a91b700ee90d800d2d0a0c2cda992.png" alt="D_i"/> corresponds to the i-th determinant as given in DETS.</p>
+</blockquote>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="mcpaths.html" title="MCPATHS and MCSUMMARY"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="energies.html" title="ENERGIES"
+             >previous</a> |</li>
+        <li><a href="../index.html">NECI v0.1 documentation</a> &raquo;</li>
+          <li><a href="index.html" >Output files</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+      &copy; Copyright 2010, Alavi Group.
+      Last updated on Feb 20, 2010.
+      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 0.6.4.
+    </div>
+  </body>
+</html>

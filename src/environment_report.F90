@@ -28,6 +28,7 @@ integer :: date_values(8)
 
 write (6,'(/,1X,64("="))')
 write (6,'(a13,a,a4,a)') 'Compiled on ',__DATE__,'at ',__TIME__
+write (6,'(a30,/,5X,a)') 'Compiled using configuration:',_CONFIG
 write (6,'(a29,/,5X,a)') 'VCS BASE repository version:',_VCS_VER
 #ifdef _WORKING_DIR_CHANGES
 write (6,'(a42)') 'Working directory contains local changes.'

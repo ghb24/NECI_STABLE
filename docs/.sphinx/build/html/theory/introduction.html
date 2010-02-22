@@ -1,0 +1,183 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>Introduction &mdash; NECI v0.1 documentation</title>
+    <link rel="stylesheet" href="../_static/sphinxdoc.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '0.1',
+        COLLAPSE_MODINDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="top" title="NECI v0.1 documentation" href="../index.html" />
+    <link rel="up" title="Theoretical review" href="index.html" />
+    <link rel="next" title="Graph evaluation" href="graph_evaluation.html" />
+    <link rel="prev" title="Theoretical review" href="index.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="graph_evaluation.html" title="Graph evaluation"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="index.html" title="Theoretical review"
+             accesskey="P">previous</a> |</li>
+        <li><a href="../index.html">NECI v0.1 documentation</a> &raquo;</li>
+          <li><a href="index.html" accesskey="U">Theoretical review</a> &raquo;</li> 
+      </ul>
+    </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+            <h4>Previous topic</h4>
+            <p class="topless"><a href="index.html"
+                                  title="previous chapter">Theoretical review</a></p>
+            <h4>Next topic</h4>
+            <p class="topless"><a href="graph_evaluation.html"
+                                  title="next chapter">Graph evaluation</a></p>
+            <h3>This Page</h3>
+            <ul class="this-page-menu">
+              <li><a href="../_sources/theory/introduction.txt"
+                     rel="nofollow">Show Source</a></li>
+            </ul>
+          <div id="searchbox" style="display: none">
+            <h3>Quick search</h3>
+              <form class="search" action="../search.html" method="get">
+                <input type="text" name="q" size="18" />
+                <input type="submit" value="Go" />
+                <input type="hidden" name="check_keywords" value="yes" />
+                <input type="hidden" name="area" value="default" />
+              </form>
+              <p class="searchtip" style="font-size: 90%">
+              Enter search terms or a module, class or function name.
+              </p>
+          </div>
+          <script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="introduction">
+<span id="theory-introduction"></span><h1>Introduction<a class="headerlink" href="#introduction" title="Permalink to this headline">¶</a></h1>
+<p>The energy of a system can be evaluated using a standard statisical mechanics result:</p>
+<div class="math">
+<p><img src="../_images/math/e9474620f8390f2c358ca3f50520b65c3a07c84c.png" alt="E = \frac{\operatorname{Tr}[H e^{-\beta H}]}{\operatorname{Tr}[e^{-\beta H}]}" /></p>
+</div><p>We choose to work in a Slater Determinant space, which is, by construction, anti-symmetric.  In this space the energy expression becomes:</p>
+<div class="math">
+<p><img src="../_images/math/ac85f59cc6c278d18ebec5d2402cb4ec7a6281dd.png" alt="E &amp;= \frac{\sum_{\veci} \bra D_{\veci} | H e^{-\beta H} | D_{\veci} \ket}{\sum_{veci} \bra D_{\veci} | e^{-\beta H} | D_{\veci} \ket} \\
+
+  &amp;= \frac{\sum_{\veci} w_{\veci} \tilde{E}_{\veci}}{\sum_{\veci} w_{\veci}}" /></p>
+</div><p>A given term in the numerator is simply the differential of the
+corresponding term in the denominator.  There is a cleaner and more
+efficient way of evaluating the numerator than differentiation, but we
+will first turn our attention to the denominator.</p>
+<p>We can expand each term into a closed path of <img class="math" src="../_images/math/4b4cade9ca8a2c8311fafcf040bc5b15ca507f52.png" alt="P"/> steps through the discrete Slater Determinant space:</p>
+<div class="math">
+<p><img src="../_images/math/a39fbaddb5a721eda870357cd6ea0d8ad7092f67.png" alt="w^P_{\veci,\veci_1,\veci_2,\cdots,\veci_p,\veci} &amp;= \sum_{\veci_1} \sum_{\veci_1} \cdots \sum_{\veci_P} \bra D_{\veci_1} | e^{\beta H/P} | D_{\veci_2}  \ket \bra D_{\veci_2} | e^{\beta H/P} | D_{\veci_3}  \ket \cdots \bra D_{\veci_P} | e^{\beta H/P} | D_{\veci_1}  \ket \\
+
+&amp; =  \sum_{\veci_1} \sum_{\veci_1} \cdots \sum_{\veci_P} \rho_{\veci_1\veci_2} \rho_{\veci_2\veci_3} \cdots \rho_{\veci_P\veci_1}," /></p>
+</div><p>where the <img class="math" src="../_images/math/0027034d8a10372a06deaf4f4084c01956587479.png" alt="\rho"/> matrix consists of elements
+<img class="math" src="../_images/math/b1f7de06d73ebf5ba490a85967fc2e3403e92c10.png" alt="\rho_{\veci\vecj}=\bra D_{\veci} | e^{\beta H/P} | D_{\vecj} \ket"/>.</p>
+<p>Each path does not necessarily visit <img class="math" src="../_images/math/a7317f06d032356dd7c23dd2901026f91ab4f4c8.png" alt="P-1"/> determinants: &#8220;hopping&#8221;
+terms are allowed.  Due to the <img class="math" src="../_images/math/0027034d8a10372a06deaf4f4084c01956587479.png" alt="\rho"/> matrix being diagonally
+dominant, paths containing small numbers of unique determinants will
+tend to have a much greater contribution to the overall energy.</p>
+<p>The size of the Slater determinant space grows factorially with the number
+of electrons and virtual orbitals, making it impossible to sum together
+all the paths.  Furthermore, the sign of a path is an incredibly poorly
+behaved quantity.  It is possible to perform an analytical resummation
+of the paths into objects we term graphs, where each graph contains
+paths which only visit the vertices contained within the graph.</p>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">To come: pictures of paths &#8211;&gt; graph.</p>
+</div>
+<p>The expression for the energy now becomes a sum over Slater determinants and a sum graphs which originate from each Slater determinant:</p>
+<div class="math">
+<p><img src="../_images/math/633fa9c51cdac63037206f4a3d9bbe83db5c5438.png" alt="E = \frac{\sum_{\veci} \sum_G w_{\veci}[G] \tilde{E}_{\veci}[G]}{\sum_{\veci} \sum_G w_{\veci}[G]}" /></p>
+</div><p>Furthermore, the graphs have a much better sign behaviour: there are many graphs with a definite-positive weight, at least for graphs with less than 5 vertices, which makes a Monte Carlo approach feasible.</p>
+<p>The resummation of paths into graphs still leaves a sum that is far too
+large to be completely evaluated.  There are various approximations we
+can apply.</p>
+<blockquote>
+<ol class="arabic">
+<li><p class="first">Use a single reference reference approach, i.e. approximate the
+energy with:</p>
+<div class="math">
+<p><img src="../_images/math/c6015bf3c20e01b88d2b3dac1f65f4f2b3b2d224.png" alt="E = \frac{\sum_G w_{\vecz}[G] \tilde{E}_{\vecz}[G]}{\sum_G w_{\vecz}[G]}" /></p>
+</div><p>where <img class="math" src="../_images/math/08268d355573a3648b3c11782a2b2e8fa3065342.png" alt="\vecz"/> refers to the reference (i.e. Hartree&#8211;Fock)
+determinant.</p>
+<p>This sum, in general, still contains too many terms (and grows
+too rapidly with system size) to be of much use.</p>
+</li>
+<li><p class="first">Truncate the sum at a certain graph size (e.g. restrict it to
+two or three vertices).  This approach is referred to as a
+<strong>VERTEX SUM</strong> approach.</p>
+</li>
+<li><p class="first">Find a large graph that is a good approximation to the ground state
+and is easy to evaluate.  Our current model is the single and
+double excitation star, which contains all single and double
+excitations connected to the reference determinant but ignores any
+connections between the excited determinants.  In other words,
+it couples all the single and double excitations together,
+but only through the reference determinant.  This method is
+referred to as a <strong>VERTEX STAR</strong> approach.  The star contains all
+graphs in the sum truncated at the two vertex level and much more but
+at no additional costly integrals to evaluate.  This makes it a very
+attractive approach.</p>
+</li>
+</ol>
+</blockquote>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">To come: the propogation operator.</p>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="graph_evaluation.html" title="Graph evaluation"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="index.html" title="Theoretical review"
+             >previous</a> |</li>
+        <li><a href="../index.html">NECI v0.1 documentation</a> &raquo;</li>
+          <li><a href="index.html" >Theoretical review</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+      &copy; Copyright 2010, Alavi Group.
+      Last updated on Feb 20, 2010.
+      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 0.6.4.
+    </div>
+  </body>
+</html>

@@ -8696,7 +8696,7 @@ MODULE FciMCParMod
 
     SUBROUTINE SetupParameters()
         use SystemData, only : tUseBrillouin,iRanLuxLev,tSpn,tHPHFInts,tRotateOrbs,tNoBrillouin,tROHF,tFindCINatOrbs,nOccBeta,nOccAlpha,tUHF
-        use SystemData, only : tFixLz,LzTot,BasisFN
+        use SystemData, only : tFixLz,LzTot,BasisFN,tBrillouinsDefault
         USE mt95 , only : genrand_init
         use CalcData, only : EXCITFUNCS,tFCIMC
         use Calc, only : VirtCASorbs,OccCASorbs,FixShift,G_VMC_Seed
@@ -8766,12 +8766,11 @@ MODULE FciMCParMod
                 CALL Stop_All("SetupParameters","Chosen reference determinant does not have the same Lz value as indicated in the input.")
             ENDIF
         ENDIF
+
+!Do a whole lot of tests to see if we can use Brillouins theorem or not.
+        IF(tBrillouinsDefault) CALL CheckforBrillouins() 
         
-        IF(tFixLz.and.(.not.tNoBrillouin)) THEN
-            WRITE(6,*) "Turning Brillouins theorem off since we are using non-canonical complex orbitals"
-            tNoBrillouin=.true.
-        ENDIF
-        
+
 !test the encoding of the HFdet to bit representation.
         ALLOCATE(iLutHF(0:NIfTot),stat=ierr)
         IF(ierr.ne.0) CALL Stop_All(this_routine,"Cannot allocate memory for iLutHF")
@@ -9001,11 +9000,6 @@ MODULE FciMCParMod
 !        ELSEIF(LMS.ne.0) THEN
 !            CALL Stop_All(this_routine,"Ms not equal to zero, but tSpn is false. Error here")
         ENDIF
-
-        IF((tHub.and.tReal).or.(tRotatedOrbs)) THEN
-            tNoBrillouin=.true.
-        ENDIF
-
 
         TBalanceNodes=.false.   !Assume that the nodes are initially load-balanced
 
@@ -9474,6 +9468,70 @@ MODULE FciMCParMod
  
 
     END SUBROUTINE SetupParameters
+
+    SUBROUTINE CheckforBrillouins()
+        use SystemData, only : tUseBrillouin,tNoBrillouin,tUHF
+        use Determinants, only : tDefineDet
+        INTEGER :: i,j
+        LOGICAL :: tSpinPair
+        
+!Standard cases.
+        IF((tHub.and.tReal).or.(tRotatedOrbs).or.((LMS.ne.0).and.(.not.tUHF))) THEN
+!Open shell, restricted.            
+            tNoBrillouin=.true.
+        ELSE
+!Closed shell restricted, or open shell unrestricted are o.k.            
+            tNoBrillouin=.false.
+            tUseBrillouin=.true.
+        ENDIF
+
+!Special case of complex orbitals.        
+        IF(tFixLz.and.(.not.tNoBrillouin)) THEN
+            WRITE(6,*) "Turning Brillouins theorem off since we are using non-canonical complex orbitals"
+            tNoBrillouin=.true.
+        ENDIF
+
+!Special case of defining a det with LMS=0, but which is open shell. No Brillouins if it's a restricted HF calc.
+        IF(tDefineDet.and.(LMS.eq.0).and.(.not.tUHF)) THEN
+!If we are defining our own reference determinant, we want to find out if it is open shell or closed to know whether or not brillouins theorem holds.            
+!If LMS/=0, then it is easy and must be open shell, otherwise we need to consider the occupied orbitals.
+            do i=1,(NEl-1),2
+!Assuming things will probably go alpha beta alpha beta, run through each alpha and see if there's a corresponding beta.
+                tSpinPair=.false.
+                IF(MOD(BRR(FDet(i)),2).ne.0) THEN
+!Odd energy, alpha orbital.                    
+                    IF(BRR(FDet(i+1)).ne.(BRR(FDet(i))+1)) THEN
+!Check the next orbital to see if it's the beta (will be alpha+1 when ordered by energy). 
+!If not, check the other orbitals for the beta, as it's possible the orbitals are ordered weird (?).
+                        do j=1,NEl
+                            IF(BRR(FDet(j)).eq.(BRR(FDet(i))+1)) tSpinPair=.true. 
+                        enddo
+                    ELSE
+                        tSpinPair=.true.
+                    ENDIF
+                ELSE
+!Even energy, beta orbital. The corresponding alpha will be beta-1.                    
+                    IF(BRR(FDet(i+1)).ne.(BRR(FDet(i))-1)) THEN
+                        do j=1,NEl
+                            IF(BRR(FDet(j)).eq.(BRR(FDet(i))-1)) tSpinPair=.true. 
+                        enddo
+                    ELSE
+                        tSpinPair=.true.
+                    ENDIF
+                ENDIF
+                IF(.not.tSpinPair) EXIT
+            enddo
+            IF(.not.tSpinPair) THEN
+!Open shell LMS=0 determinant.
+!If restricted HF orbitals are being used, brillouins theorem does not hold.
+                tNoBrillouin=.true.
+                tUseBrillouin=.false.
+                WRITE(6,'(A)') " Using an open shell reference determinant in a basis of restricted HF orbitals; Brillouins theorem is being turned off. "
+            ENDIF
+        ENDIF
+
+    ENDSUBROUTINE CheckforBrillouins
+
     LOGICAL FUNCTION TestifDETinCAS(CASDet)
         INTEGER :: k,z,CASDet(NEl), orb
         LOGICAL :: tElecInVirt, bIsCsf

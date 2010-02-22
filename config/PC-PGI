@@ -12,7 +12,7 @@ module_flag = -module
 
 [dbg]
 fflags = -g -Mr8 -Msignextend -Minform=warn -Msecond_underscore
-cflags = -g -sb -C -errtags
+cflags = -g 
 
 [opt]
 fflags = -Mr8 -Msignextend -Minform=warn -Msecond_underscore -O4 -fast

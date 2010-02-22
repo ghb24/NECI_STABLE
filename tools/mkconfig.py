@@ -90,7 +90,7 @@ my_make := $(MAKE) -f $(my_makefile)
 
 # pre-processing.
 CPP = %(cpp)s
-CPPFLAGS = %(cppflags)s -DMAXMEM='$(MAXMEM)' -D_VCS_VER='$(VCS_VERSION)' $(WORKING_DIR_CHANGES) 
+CPPFLAGS = %(cppflags)s -DMAXMEM='$(MAXMEM)' -D_VCS_VER='$(VCS_VERSION)' $(WORKING_DIR_CHANGES) -D_CONFIG='"$(CONFIG) ($(OPT))"'
 
 # use compiler with perl scripts to avoid cascade compilation.
 compiler = %(compiler)s
