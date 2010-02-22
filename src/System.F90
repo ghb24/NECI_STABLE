@@ -25,6 +25,7 @@ MODULE System
       tListDets=.false.
       tStoreSpinOrbs=.false.    !by default we store/lookup integrals as spatial integrals
       tNoBrillouin=.true.
+      tBrillouinsDefault=.true.
       tROHF=.false.
       tCacheFCIDUMPInts=.false.
       tHPHFInts=.false.
@@ -314,8 +315,10 @@ MODULE System
         case("USEBRILLOUINTHEOREM")
           TUSEBRILLOUIN=.TRUE. 
           tNoBrillouin=.false.
+          tBrillouinsDefault=.false.
         case("NOBRILLOUINTHEOREM")
             tNoBrillouin=.true.
+            tBrillouinsDefault=.false.
         case("UHF")
 ! This keyword is required if we are doing an open shell calculation but do not want to include singles in the energy calculations.            
             tUHF=.true.
@@ -644,6 +647,7 @@ MODULE System
 ! calculations.
             tRotatedOrbs=.true.
             tNoBrillouin=.true.
+            tBrillouinsDefault=.false.
 
         case("SPINORBS")
 ! This flag simply uses spin orbitals to perform the rotation rather than spatial orbitals.
@@ -743,6 +747,7 @@ MODULE System
 !This will save memory (around a factor of 16) for the integral storage, but the FCIDUMP file should be the same as before (ie in UHF form).
             tROHF=.true.
             tNoBrillouin=.true.
+            tBrillouinsDefault=.false.
             IF(tFindCINatOrbs) CALL Stop_All("ReadSysInp","For orbital rotations of open shell systems, UMAT must be stored in spin &
                                                            & orbitals - cannot be compressed using ROHF.") 
                                              

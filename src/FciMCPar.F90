@@ -8695,7 +8695,7 @@ MODULE FciMCParMod
 
     SUBROUTINE SetupParameters()
         use SystemData, only : tUseBrillouin,iRanLuxLev,tSpn,tHPHFInts,tRotateOrbs,tNoBrillouin,tROHF,tFindCINatOrbs,nOccBeta,nOccAlpha,tUHF
-        use SystemData, only : tFixLz,LzTot,BasisFN
+        use SystemData, only : tFixLz,LzTot,BasisFN,tBrillouinsDefault
         USE mt95 , only : genrand_init
         use CalcData, only : EXCITFUNCS,tFCIMC
         use Calc, only : VirtCASorbs,OccCASorbs,FixShift,G_VMC_Seed
@@ -8767,7 +8767,7 @@ MODULE FciMCParMod
         ENDIF
 
 !Do a whole lot of tests to see if we can use Brillouins theorem or not.
-        CALL CheckforBrillouins() 
+        IF(tBrillouinsDefault) CALL CheckforBrillouins() 
         
 
 !test the encoding of the HFdet to bit representation.
