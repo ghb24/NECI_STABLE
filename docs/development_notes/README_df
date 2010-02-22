@@ -1,0 +1,71 @@
+Code taken from
+
+               SITUS version 4.4.6 18 Apr 2007
+                              by
+            Alston J. Misquitta and Anthony J. Stone
+                    with contributions from
+                Robert Bukowski, Wojciech Cencek
+                      and the authors of
+                     GAMESS(US) and GEM91
+
+files:
+df_common.F90
+df_parameters.F90
+df_precision.F90
+df_record_handler.F90
+
+from SITUS src/ directory.  df_ prefix added in NECI.
+
+df_common.F90 has been modified to remove dependencies.  See diff below:
+
+AJWT also modified it to allow density fitting files produced on 32 bit
+machines to be used on 64 bit machines and vice versa.
+
+6c6
+< !use global_data     !AJWT
+---
+> use global_data
+39,43c39,43
+< !if ((info.gt.0).and.g_debug) then     AJWT
+< !  print *,'WARNING code ',info,' passed by ',trim(from_routine)
+< !  write(*,*)'which was called by routine ',trim(called_by_routine)
+< !  write(*,*)'at line number ',line_no
+< !endif
+---
+> if ((info.gt.0).and.g_debug) then
+>   print *,'WARNING code ',info,' passed by ',trim(from_routine)
+>   write(*,*)'which was called by routine ',trim(called_by_routine)
+>   write(*,*)'at line number ',line_no
+> endif
+98c98
+< !use global_data, only : g_overwrite   !AJWT
+---
+> use global_data, only : g_overwrite
+114,115c114,115
+< !else       !AJWT
+< !  overwrite_file = g_overwrite
+---
+> else
+>   overwrite_file = g_overwrite
+637c637
+< !  use global_data, only : g_timer_debug  !AJWT
+---
+>   use global_data, only : g_timer_debug
+660,663c660,663
+< !  if (present(debug)) then      !AJWT
+< !    if (debug.and.g_timer_debug) print *,'Subroutine ',trim(my_title),&
+< !      & '  ',trim(my_operation)
+< !  endif
+---
+>   if (present(debug)) then
+>     if (debug.and.g_timer_debug) print *,'Subroutine ',trim(my_title),&
+>       & '  ',trim(my_operation)
+>   endif
+849c849
+< !  use global_data, only : g_mem_debug    !AJWT
+---
+> use global_data, only : g_mem_debug
+891c891
+<   debug = 0  !g_mem_debug   AJWT
+---
+>   debug = g_mem_debug

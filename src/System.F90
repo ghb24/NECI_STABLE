@@ -24,7 +24,7 @@ MODULE System
       tFixLz=.false.
       tListDets=.false.
       tStoreSpinOrbs=.false.    !by default we store/lookup integrals as spatial integrals
-      tNoBrillouin=.false.
+      tNoBrillouin=.true.
       tROHF=.false.
       tCacheFCIDUMPInts=.false.
       tHPHFInts=.false.
@@ -312,6 +312,7 @@ MODULE System
             IPARITY(4)=0
         case("USEBRILLOUINTHEOREM")
           TUSEBRILLOUIN=.TRUE. 
+          tNoBrillouin=.false.
         case("NOBRILLOUINTHEOREM")
             tNoBrillouin=.true.
         case("UHF")
