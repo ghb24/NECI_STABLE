@@ -127,7 +127,6 @@ contains
                                            id_ex(2), id)
                 endif
 
-                ! TODO: Remove tExch
                 if (tExch .and. (G1(ex(1))%Ms == G1(nI(i))%Ms) .and. &
                                 (G1(ex(2))%Ms == G1(nI(i))%Ms) ) then
                     hel = hel - GetUMATEl (nBasisMax, UMAT, ALAT, nBasis, &
@@ -140,7 +139,6 @@ contains
         ! consider the non-diagonal part of the kinetic energy -
         ! <psi_a|T|psi_a'> where a, a' are the only basis fns that differ in
         ! nI, nJ
-        ! TODO: Remove FCOUL?
         hel = (hel*HElement(FCOUL)) + GetTMATEl(ex(1), ex(2))
 
         if (tSign) hel = -hel

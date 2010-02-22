@@ -114,7 +114,7 @@ contains
                 write(6,'("This is because of difficulties with other &
                           &symmetries setup.")')
                 write(6,'("If you want to use these excitation generators &
-                          &then add NOSYMGEN to the input to ignor symmetry &
+                          &then add NOSYMGEN to the input to ignore symmetry &
                           &while generating excitations.")')
                 call flush(6)
                 call stop_all(this_routine,"GenRandsymExcitCSF can only be &

@@ -651,7 +651,9 @@ MODULE FciMCParMod
 !                                    CALL GenRandHPHFExcit(DetCurr,CurrentDets(:,j),nJ,iLutnJ,pDoubles,exFlag,Prob)
                                     CALL GenRandHPHFExcit2Scratch(DetCurr,CurrentDets(:,j),nJ,iLutnJ,pDoubles,exFlag,Prob,Scratch1,Scratch2,tFilled,tGenMatHEl)
                                 elseif (tCSF) then
-                                    ! TODO: fix this exFlag
+                                    ! This is a bit of a hack based on the fact
+                                    ! that we mean something different by exFlag
+                                    ! than the normal determinential code.
                                     exFlag = 7
                                     call GenRandSymCSFExcit (DetCurr, CurrentDets(:,j), nJ, pSingles, pDoubles, IC, Ex, exFlag, Prob, Scratch1, Scratch2, Scratch3, tFilled, tParity)
                                 else
