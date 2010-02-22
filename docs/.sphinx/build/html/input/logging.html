@@ -1,0 +1,517 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>Logging &mdash; NECI v0.1 documentation</title>
+    <link rel="stylesheet" href="../_static/sphinxdoc.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '0.1',
+        COLLAPSE_MODINDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="top" title="NECI v0.1 documentation" href="../index.html" />
+    <link rel="up" title="Input options" href="index.html" />
+    <link rel="next" title="Output files" href="../output/index.html" />
+    <link rel="prev" title="Integrals" href="integrals.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../output/index.html" title="Output files"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="integrals.html" title="Integrals"
+             accesskey="P">previous</a> |</li>
+        <li><a href="../index.html">NECI v0.1 documentation</a> &raquo;</li>
+          <li><a href="index.html" accesskey="U">Input options</a> &raquo;</li> 
+      </ul>
+    </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+            <h3><a href="../index.html">Table Of Contents</a></h3>
+            <ul>
+<li><a class="reference external" href="#">Logging</a><ul>
+<li><a class="reference external" href="#general-options">General options</a></li>
+<li><a class="reference external" href="#fcimc-options">FCIMC options</a></li>
+<li><a class="reference external" href="#graphmorph-options">GraphMorph options</a></li>
+<li><a class="reference external" href="#precalc-options">PRECALC options</a></li>
+<li><a class="reference external" href="#monte-carlo-options">Monte Carlo options</a></li>
+<li><a class="reference external" href="#rotate-orbs-options">Rotate Orbs Options</a></li>
+</ul>
+</li>
+</ul>
+
+            <h4>Previous topic</h4>
+            <p class="topless"><a href="integrals.html"
+                                  title="previous chapter">Integrals</a></p>
+            <h4>Next topic</h4>
+            <p class="topless"><a href="../output/index.html"
+                                  title="next chapter">Output files</a></p>
+            <h3>This Page</h3>
+            <ul class="this-page-menu">
+              <li><a href="../_sources/input/logging.txt"
+                     rel="nofollow">Show Source</a></li>
+            </ul>
+          <div id="searchbox" style="display: none">
+            <h3>Quick search</h3>
+              <form class="search" action="../search.html" method="get">
+                <input type="text" name="q" size="18" />
+                <input type="submit" value="Go" />
+                <input type="hidden" name="check_keywords" value="yes" />
+                <input type="hidden" name="area" value="default" />
+              </form>
+              <p class="searchtip" style="font-size: 90%">
+              Enter search terms or a module, class or function name.
+              </p>
+          </div>
+          <script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="logging">
+<span id="input-logging"></span><h1>Logging<a class="headerlink" href="#logging" title="Permalink to this headline">¶</a></h1>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">All the logging options should say to which file they print output.  Please correct this!</p>
+</div>
+<dl class="docutils">
+<dt><strong>LOGGING</strong></dt>
+<dd>Start the logging input block.  The logging options allow additional
+(potentially expensive, potentially verbose) information to be
+printed out during a calculation.  By default, all logging options
+are turned off.</dd>
+</dl>
+<p>[Logging options&#8212;see below.]</p>
+<dl class="docutils">
+<dt><strong>ENDLOG</strong></dt>
+<dd>End the logging input block.</dd>
+</dl>
+<div class="section" id="general-options">
+<h2>General options<a class="headerlink" href="#general-options" title="Permalink to this headline">¶</a></h2>
+<dl class="docutils">
+<dt><strong>FMCPR</strong> [<strong>LABEL</strong>, <strong>RHO</strong>, <strong>1000</strong>, <strong>EXCITATION</strong>]</dt>
+<dd><p class="first">More than one of the options can be specified.</p>
+<p>Log the following to the PATHS file:</p>
+<dl class="last docutils">
+<dt><strong>LABEL</strong></dt>
+<dd><p class="first">Logs the determinants contained by each graph as each determinant
+is generated in the format:
+[<img class="math" src="../_images/math/023cf7b66a7140b8c09526b8618a38a33c880c2e.png" alt="(D_0),(D_1),...,D_v),"/>]
+where each determinant given as a comma-separated list of the
+indices of the occupied orbitals:
+e.g. <img class="math" src="../_images/math/df576d4a46ec7f6f53df2d72204992f6d7bde41c.png" alt="D_0 ="/> (    1,    2,    9,   10,).</p>
+<p>If CSFs are being used, then the CSF is printed.  There is no newline after this.</p>
+<p class="last">For <strong>MULTI MC</strong> or <strong>SINGLE MC</strong>, only the non-composite graphs are printed.</p>
+</dd>
+<dt><strong>EXCITATION</strong></dt>
+<dd><dl class="first docutils">
+<dt>Log each graph in excitation format instead of full format above.  The format is</dt>
+<dd>[A(    i,    j)-&gt;(    a,    b),B(    k,    l)-&gt;(    c,    d),...,C(    m,    n)-&gt;(    e,    f)]</dd>
+<dt>where</dt>
+<dd>A, B,..., C are determinants in the graph from which the excitation is made.
+i, j,... are the orbitals within that determinant which are excited from, where (i&lt;j, k&lt;l,...).
+a, b,... are the orbitals they are excited to, where (a&lt;b, c&lt;d, ...).</dd>
+</dl>
+<p class="last">This format does not in general provide a unique way of
+specifying multiply connected graphs, but the first possible
+determinant to which the next det in the graph is connected is
+chosen, so what is output should be unique.  Single excitations
+are written as e.g. A(    i,    0)-&gt;(    a,    0).</p>
+</dd>
+<dt><strong>RHO</strong></dt>
+<dd><dl class="first docutils">
+<dt>Log the <img class="math" src="../_images/math/0027034d8a10372a06deaf4f4084c01956587479.png" alt="\rho"/> matrix for each graph in the form:</dt>
+<dd>(<img class="math" src="../_images/math/bce888cfe9f55124efca04efe73e5a2cfe074fa7.png" alt="\rho_{11}, \rho_{12}, \cdots, \rho_{1v},| \rho_{21}, \rho_{22}, \cdots, \rho_{2v},| \cdots | \rho_{v1}, \rho_{v2}, \cdots, \rho_{vv},|"/>),</dd>
+</dl>
+<p class="last">where the graph consists of <img class="math" src="../_images/math/a9f23bf124b6b2b2a993eb313c72e678664ac74a.png" alt="v"/>  vertices.  A newline is appended.</p>
+</dd>
+<dt><strong>XIJ</strong></dt>
+<dd><p class="first">Log the xij matrix, which contains the generation probabilities
+of one determinant in the graph from all the others.  For MC this
+is already generated, but for full sums this must be generated,
+so will be slower.  Generation probabilities are set with the
+<strong>EXCITWEIGHTING</strong> option.</p>
+<dl class="docutils">
+<dt>The format is:</dt>
+<dd>{<img class="math" src="../_images/math/fa6046147511d7a137e3f44fbc30e9f012863ef4.png" alt="x_{11}, x_{12}, ..., x_{1v},| ... | x_{v1}, x_{v2}, ..., x_{vv},|"/>}</dd>
+</dl>
+<p>In general <img class="math" src="../_images/math/0a25d866ae27efaf20f5c33c29588925cfc4e89c.png" alt="x_{ij} \ne x_{ji}"/>.  The <img class="math" src="../_images/math/f2e8c9f347b03a80660b975ce8cb48231b8f0e3a.png" alt="x_{kk}"/> element lists
+the number of possible excitations from <img class="math" src="../_images/math/8c325612684d41304b9751c175df7bcc0f61f64f.png" alt="k"/> determinant.
+The matrix is followed by a newline.</p>
+<dl class="docutils">
+<dt>After all these possible options, the following are printed:</dt>
+<dd>Weight [pGen] ETilde*Weight Class [Accepted]</dd>
+</dl>
+<p class="last">pGen is only printed for: Monte Carlo, or if doing a full sum
+and the XIJ logging option is set.  Accepted is only printed
+for Monte Carlo calculations.  A newline is placed at the end
+of this data.  For Monte Calo calculations, the values printed
+depend on the options.  If <strong>LABEL</strong> is set, then all generated
+graphs and their values are printed, otherwise only values of
+accepted graphs are printed.</p>
+</dd>
+</dl>
+</dd>
+<dt><strong>CALCPATH</strong> [<strong>LABEL</strong> <strong>RHO</strong>]</dt>
+<dd>Log CALCPATH_R to PATHS.  Either just label logging or also
+log the <img class="math" src="../_images/math/0027034d8a10372a06deaf4f4084c01956587479.png" alt="\rho"/> matrix, with the same format as above.</dd>
+<dt><strong>HAMILTONIAN</strong></dt>
+<dd>Log HAMIL, PSI and PSI_LONG.</dd>
+<dt><strong>HFBASIS</strong></dt>
+<dd>Log HFBASIS.</dd>
+<dt><strong>HFLOGLEVEL</strong> [LEVEL]</dt>
+<dd><p class="first">Default 0.</p>
+<p class="last">If LEVEL is set to be positive, the density matrices, fock matrices and
+eigenvectors during a Hartree&#8211;Fock calculation are printed out to SDOUT.</p>
+</dd>
+<dt><strong>MCPATHS</strong></dt>
+<dd>Log MCPATHS data to the MCPATHS file for full vertex sum and MCSUMMARY
+file when using a METHODS section.  Also log to the RHOPII file.</dd>
+<dt><strong>PSI</strong></dt>
+<dd>Log PSI_COMP.</dd>
+<dt><strong>TIMING</strong> [iGlobalTimerLevel | <strong>LEVEL</strong> iGlobalTimerLevel | <strong>PRINT</strong> nPrintTimer]</dt>
+<dd><dl class="first last docutils">
+<dt><strong>LEVEL</strong> iGlobalTimerLevel</dt>
+<dd>Default 40.
+Timing information is only recorded for routines with level less than
+or equal to iGlobalTimerLevel.  Less than 10 means general high level
+subroutines. Greater than 50 means very low level.  Routines without
+a level are always timed (which is most of them).  The greater the value
+of iGlobalTimerLevel, the more routines are timed.  This can affect
+performance in some cases.</dd>
+<dt><strong>PRINT</strong> nPrintTimer</dt>
+<dd>Default 10.
+Print out timing information for the nPrintTimer routines which took the longest time.</dd>
+</dl>
+</dd>
+<dt><strong>XIJ</strong></dt>
+<dd>Synonym for <strong>FMCPR XIJ</strong>.</dd>
+</dl>
+</div>
+<div class="section" id="fcimc-options">
+<h2>FCIMC options<a class="headerlink" href="#fcimc-options" title="Permalink to this headline">¶</a></h2>
+<p><strong>HISTSPAWN</strong> [iWriteHistEvery]</p>
+<blockquote>
+This option will histogram the spawned wavevector, averaged over all previous iterations.
+It scales horrifically and can only be done for small systems which can be diagonalized.
+It requires a enumeration of all determinants initially to work. It can write out the
+average wavevector every iWriteHistEvery.
+If a diagonalization option is set, SymDets will also be written out, containing the exact
+wavevector in the same format from the diagonalization.</blockquote>
+<p><strong>HISTPARTENERGIES</strong> [BinRange] [iNoBins] [OffDiagBinRange] [OffDiagMax]</p>
+<blockquote>
+This is a histogramming option. It is slow, so not for use unless the diagnostic is needed. It will histogram
+the diagonal hamiltonian matrix element for three types of particle. Two input values are needed. The first
+argument is a real value to give the width of the histogram bin. The second is the number of bins needed (integer).
+Three histograms are produced: EVERYENERGYHIST - this is the histogram over all iterations of every particle in the
+system. ATTEMPTENERGYHIST - this is the histogram of the energy of all attempted spawned particles (including the
+ones which are successfully spawned). For this one, the contibution to the energy is actually 1/Prob of generating.
+SPAWNENERGYHIST - this is the histogram of all successfully spawned particles. All these histograms are normalized to
+one before printing out.
+Also now, the off-diagonal matrix elements are histogrammed. OffDiagBinRange is a real input parameter which indicates
+the range of the bins and OffDiagMax is the maximum matrix element to histogram. The doubles and singles will be done
+seperately, as are the accepted spawns and total spawns. Therefore, four files are produced - SINGLESHIST, ATTEMPTSINGLESHIST,
+DOUBLESHIST, ATTEMPTDOUBLESHIST. Again, these are normalized and the ATTEMPT files histogram proportionally to 1/probability
+of generating the excitation.</blockquote>
+<dl class="docutils">
+<dt><strong>AUTOCORR</strong> [NoACDets(2)] [NoACDets(3)] [NoACDets(4)]</dt>
+<dd>This is a parallel FCIMC option. It will output the histogrammed occupation number for certain
+determinants every iteration. This is so that a seperate standalone ACF program can be used on it.
+Currently the histogramming is evaluated for the HF determinants by default, but can also
+histogram determinants from other excitation levels. Firstly, it will calculate the &#8216;NoACDets(2)&#8217;
+largest-weighted MP1 components (double excitations). It will then take the largest weighted double
+and do a new MP1 calculation with it as the root. It will then histogram the &#8216;NoACDets(3)&#8217; largest
+weighted triple excitations, and the &#8216;NoACDets(4)&#8217; largest quadruple excitations from this calculation
+to also histogram.</dd>
+<dt><strong>REDUCEDPOPSFILE</strong> [iWritePopsEvery] [iPopsPartEvery]</dt>
+<dd>This works in the same way as the normal popsfile, but only every iPopsPartEvery particle is printed out.</dd>
+<dt><strong>POPSFILE</strong> [iWritePopsEvery]</dt>
+<dd><p class="first">Default: on.  Default iWritePopsEvery (optional argument) 100000.
+Print out the determinants every iWritePopsEvery Monte-Carlo cycles.
+iWritePopsEvery should idealy be a multiple of <strong>STEPSSHIFT</strong>, the number of
+cycles between updates to the diagonal shift performed in the
+<strong>FCIMC</strong> calculation, to make sure the start of the next simulation follows
+smoothly</p>
+<p class="last">A calculation can then be restarted at a later date by reading the
+determinants back in using <strong>READPOPS</strong> in the <strong>CALC</strong> section.
+Walker number can also be scaled up/down by using <strong>SCALEWALKERS</strong>.
+If the iWritePopsEvery argument is negative, then the POPSFILE is never
+written out, even at the end of a simulation. This is useful for very large
+calculations where the POPSFILE will take a long time to write out and use
+a lot of disk space.</p>
+</dd>
+<dt><strong>BINARYPOPS</strong></dt>
+<dd>This means that the popsfile (full or reduced) will now be written out in binary format.
+This should now take up less disk space, and be written quicker. It can be read in as
+normal without specifying any extra criteria. Two files will be produced, a formatted
+file with the header info and a POPSFILEBIN with the walker information.</dd>
+<dt><strong>ZEROPROJE</strong></dt>
+<dd>This is for FCIMC when reading in from a POPSFILE. If this is on, then the energy
+estimator will be restarted.</dd>
+<dt><strong>WAVEVECTORPRINT</strong></dt>
+<dd>This is for Star FCIMC only - if on, it will calculate the exact eigenvector and
+values initially, and then print out the running wavevector every
+WavevectorPrint MC steps. However, this is slower.</dd>
+<dt><strong>PRINTFCIMCPSI</strong></dt>
+<dd>This works for parallel FCIMC. This will enumerate all excitations (up to the truncation level specified,
+or the full space if not specified), and then histogram the spawning run, writing out the final
+averaged wavefunction at the end.</dd>
+<dt><strong>HISTEQUILSTEPS</strong> [NHistEquilSteps]</dt>
+<dd>Default=.false. [0]
+This works when the evolving wavefunction is to be histogrammed (for example using the above
+<strong>PRINTFCIMCPSI</strong> option, or the <strong>USECINATORBS</strong> orbital rotation option).
+This sets the histogramming to only begin after NHistEquilSteps iterations.  This is so that the
+fluctuation populations at the beginning of a calculation may be left out.</dd>
+<dt><strong>PRINTORBOCCS</strong></dt>
+<dd>Default=.false.
+This turns on the histogramming of the determinant populations, and at the end of the spawning, calls a
+routine to add up the contribution of each orbital to the final wavefunction.  A ORBOCCUPATIONS file is then
+printed containing the orbitals and their normalised absolute occupations.</dd>
+<dt><strong>WRITEDETE</strong> [NoHistBins] [MaxHistE]</dt>
+<dd>This is an FCIMC option and will write out a histogram of the energies of determinants which have
+had particles spawned at them and their excitation level. The histogram logs the total
+amount of time spent at a determinant and its energy for each energy range. This is diagnostic
+information. The first variable to input is the number of histogram bins which will be calculated,
+and the second is the maximum determinant energy of the histogram.</dd>
+<dt><strong>PRINTTRICONNECTIONS</strong> [TriConMax] [NoTriConBins]</dt>
+<dd>This is a parallel FCIMC option. It looks at sets of connected determinants i,j and k.  A sign coherent
+triangular connection is one where walkers spawned all around the triangle return to the original
+determinant with the same sign.  Sign incoherent connections are those where the sign is reversed.
+If this option is on, two files are printed.  TriConnTotal monitors the number of sign coherent and sign
+incoherent triangles over the course of the simulation, as well as the sum of the Hij x Hik x Hjk values,
+and the ratios for each.  (The ratios are coherent / incoherent).  TriConnHist prints out a histogram of
+the Hij x Hik x Hjk values for coherent (col 1 and 2) and incoherent (col 3 and 4) triangles.  The histogram
+goes from 0 -&gt; +/- TriConMax with NoTriConBins for each.</dd>
+<dt><strong>HISTTRICONNELEMENTS</strong> [TriConHElSingMax] [TriConHElDoubMax] [NoTriConHElBins]</dt>
+<dd>This option histograms all the H elements involved in the triangular connections of determinants mentioned
+above.  These are separated into doubles and singles, and an extra file, containing only the Hjk elements is
+also included.
+The histogram range is between +/-TriConHElSingMax for the singles and +/-TriConHElDoubMax for the doubles, with
+NoTriConHElBins bins for each.
+With this option, some stats are also printed in the output regarding the average magnitudes for each type of H
+elements.</dd>
+<dt><strong>PRINTHELACCEPTSTATS</strong></dt>
+<dd>This option prints out a file (HElsAcceptance) containing information about the nature of the H elements
+resulting in accepted and not accepted spawns.  This includes the number of not accepted spawns vs accepted,
+and the average size of the H element involved in accepted and not accepted spawns.</dd>
+<dt><strong>PRINTSPINCOUPHELS</strong></dt>
+<dd>Default=.false.
+When attempting to spawn on a determinant i, this option finds the determinant j which is spin coupled to i, and
+prints out a set of stats relating to the sign and magnitude of the H element connecting i and j, Hij.
+These stats are printed in a file named SpinCoupHEl.</dd>
+<dt><strong>CCMCDEBUG</strong> iCCMCDebug</dt>
+<dd>Specify the CCMC debug level.  Default 0 (no debugging information printed).  Higher numbers will generate more
+information.</dd>
+<dt><strong>CCMCLOGTRANSITIONS</strong> [<strong>NONUNIQUE</strong> <strong>UNIQUE</strong>]</dt>
+<dd><dl class="first last docutils">
+<dt>Do we log all transitions in CCMC.  Very slow and memory intensive - only possible for extremely small systems.</dt>
+<dd>Default is <strong>UNIQUE</strong>.  If <strong>NONUNIQUE</strong> is specified, then clusters with different orders are distinguished.</dd>
+</dl>
+</dd>
+</dl>
+</div>
+<div class="section" id="graphmorph-options">
+<h2>GraphMorph options<a class="headerlink" href="#graphmorph-options" title="Permalink to this headline">¶</a></h2>
+<dl class="docutils">
+<dt><strong>DISTRIBS</strong></dt>
+<dd>Write out the distribution of the excitations in each graph as it
+morphs over the iterations. The first column is the iteration number, and
+then subsequent columns denote the number of n-fold excitations in
+the graph.</dd>
+</dl>
+</div>
+<div class="section" id="precalc-options">
+<h2>PRECALC options<a class="headerlink" href="#precalc-options" title="Permalink to this headline">¶</a></h2>
+<dl class="docutils">
+<dt><strong>PREVAR</strong></dt>
+<dd>Print the vertex level, Iteration number, parameter, and expected
+variance, for each parameter which was searched for in the <strong>PRECALC</strong>
+block, showing the convergence on the optimum value, to the PRECALC
+file.</dd>
+<dt><strong>SAVEPRECALCLOGGING</strong></dt>
+<dd><p class="first">Allows different logging levels to be used in the <strong>PRECALC</strong> block
+than for the main calculation.</p>
+<p class="last">All logging options specified before <strong>SAVEPRECALCLOGGING</strong> are only
+used in the the <strong>PRECALC</strong> part of the calculation.  All logging
+options specified after  <strong>SAVEPRECALCLOGGING</strong> are only used in the
+the main part of the calculation.</p>
+</dd>
+</dl>
+</div>
+<div class="section" id="monte-carlo-options">
+<h2>Monte Carlo options<a class="headerlink" href="#monte-carlo-options" title="Permalink to this headline">¶</a></h2>
+<dl class="docutils">
+<dt><strong>BLOCKING</strong></dt>
+<dd>Perform a blocking analysis on the MC run.  An MCBLOCKS file will be
+produced, which lists log(2)[blocksize], the average of the blocks,
+the error in the blocks(where the blocks are the energy ratio),
+and the full error, treating the energy estimator as a correlated
+ratio of two quantities.</dd>
+<dt><strong>ERRORBLOCKING</strong> [OFF]</dt>
+<dd>Default= ErrorBlocking.true.
+This can be used to turn off the error blocking analysis that is peformed
+by default on parallel FCIMC calculations.  The default error blocking
+begins when the sum of the HF population over an update cycle reaches 1000.
+At the end of the simulation a BLOCKINGANALYSIS file is printed containing
+a list of block sizes with the resulting average of the projected energies
+calculated over an update cycle, the error in this energy and the error on
+the calculated error due to the block size.</dd>
+<dt><strong>BLOCKINGSTARTHFPOP</strong> [HFPopStartBlocking]</dt>
+<dd>Default=1000
+This can be used to change the HF population that triggers the start of the
+error blocking analysis.  Using this keyword over rides the default, and
+the blocking starts when the sum of the HF pop over an update cycle reaches
+HFPopStartBlocking.</dd>
+<dt><strong>BLOCKINGSTARTITER</strong> [IterStartBlocking]</dt>
+<dd><p class="first">Default=.false.
+This can be used to set the error blocking to begin at iteration number
+IterStartBlocking, rather than a particular HF population.</p>
+<p class="last">The error blocking may also be initiated instantly by using <strong>STARTERRORBLOCKING</strong>
+in the CHANGEVARS file.  Additionally, <strong>PRINTERRORBLOCKING</strong> will print the
+BLOCKINGANALYSIS file at that point, yet the calculation (and blocking) will
+continue (note - this file will be overwritten when the calculation ends and the
+final blocking stats are printed, so it must be renamed if it is to be kept).
+<strong>RESTARTERRORBLOCKING</strong> in the CHANGEVARS file zeroes all the
+blocking arrays and starts again from that point in the calculation.</p>
+</dd>
+<dt><strong>SHIFTERRORBLOCKING</strong> [OFF]</dt>
+<dd>Default= ShiftErrorblocking.true.
+This can be used to turn off the default error blocking of the shift values.
+This only starts when the shift begins to vary, and may be restarted or the
+current SHIFTBLOCKINGANALYSIS file printed at that point using CHANGEVARS.</dd>
+<dt><strong>SHIFTBLOCKINGSTARTITER</strong> [IterShiftBlock]</dt>
+<dd>This can be used to specify the number of iterations after the shift is allowed
+to change that the shift error blocking begins.</dd>
+<dt><strong>VERTEX</strong> [<strong>EVERY</strong> n]</dt>
+<dd><p class="first">Log the vertex MC with <img class="math" src="../_images/math/2b1307ee5ae475b35c4806a1cd01768feb63260b.png" alt="\tilde{E}"/> every n (real) cycles
+and/or log the vertex MC contribution every cycle.  Setting
+Delta <img class="math" src="../_images/math/eeab732a8be064e31d93c4d9e9e82b28f50003e0.png" alt="=\tilde{E}-\tilde{E}_{\textrm{ref}}"/>, where
+<img class="math" src="../_images/math/ecc236f54f85f0868fbb49a0d00fb70c78d1b56f.png" alt="\tilde{E}_{\textrm{ref}}"/> is usually the 1-vertex graph:</p>
+<dl class="last docutils">
+<dt><strong>EVERY</strong></dt>
+<dd><p class="first">write a VMC file with the following info, with a new line each
+time the current graph changes:</p>
+<blockquote class="last">
+tot # virt steps, # steps in this graph, #verts, Class, Weight, Delta, &lt;sign(W)&gt;, &lt;Delta sign(W)&gt;, ~standard deviation &lt;Delta sign&gt;/&lt;sign&gt;,pgen</blockquote>
+</dd>
+<dt>n:</dt>
+<dd><p class="first">write a VERTEXMC file with the following info:</p>
+<blockquote class="last">
+0, #graphs, &lt;sign(W)&gt;, stdev(sign(W)), &lt;Delta&gt;, &lt;sign Delta&gt;/&lt;sign&gt;, &lt;Delta^2&gt;, acc ratio, trees ratio, nontree+ ratio, non-tree- ratio, &lt;Delta sign(W)&gt;, E~ reference, #sequences,w reference</blockquote>
+</dd>
+</dl>
+</dd>
+</dl>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">George, what are most of these values?</p>
+</div>
+<dl class="docutils">
+<dt><strong>WAVEVECTORPRINT</strong> [nWavevectorPrint]</dt>
+<dd><p class="first">Relevant only for Monte Carlo star calculations.</p>
+<p class="last">Calculate the exact eigen-vectors and -values initially, and
+print out the running wavevector every nWavevectorPrint Monte Carlo
+steps. This is slows the calculation down substantially.</p>
+</dd>
+</dl>
+</div>
+<div class="section" id="rotate-orbs-options">
+<h2>Rotate Orbs Options<a class="headerlink" href="#rotate-orbs-options" title="Permalink to this headline">¶</a></h2>
+<dl class="docutils">
+<dt><strong>ROFCIDUMP</strong> [OFF]</dt>
+<dd>At the end of an orbital rotation (or in the case of a softexit), by default
+a ROFCIDUMP file will be printed using the transformation coefficients.
+This may then be read in to a spawning calculation.
+In the case of ROFCIDUMP OFF, no FCIDUMP will be printed.
+Note: When reading in the ROFCIDUMP, the number of electrons must be reduced
+by the number frozen in the previous rotation, and the number frozen set to 0.</dd>
+<dt><strong>ROHISTOGRAMALL</strong></dt>
+<dd>If this keyword is present, two files are printed for all possible histograms.
+One labelled HistHF*, and one HistRot* containing the histogram before and after rotation.
+With this, certain histograms may be turned off by using the below keywords.
+Alternatively combinations of the keywords below may be used to just print a selection
+of the possible histograms.</dd>
+<dt><strong>ROHISTOFFDIAG</strong> [OFF]</dt>
+<dd>Histograms &lt;ij|kl&gt; terms before and after rotation where i&lt;k and j&lt;l.</dd>
+<dt><strong>ROHISTDOUBEXC</strong> [OFF]</dt>
+<dd>Histograms the 2&lt;ij|kl&gt;-&lt;ij|lk&gt; terms, the off diagonal hamiltonian elements for double
+excitations.</dd>
+<dt><strong>ROHISTSINGEXC</strong> [OFF]</dt>
+<dd>Histograms the single excitation hamiltonian elements.</dd>
+<dt><strong>ROHISTER</strong> [OFF]</dt>
+<dd>Histograms the &lt;ii|ii&gt; values before and after rotation.</dd>
+<dt><strong>ROHISTONEElINTS</strong> [OFF]</dt>
+<dd>Histograms the one electron integral terms, &lt;i|h|i&gt;.</dd>
+<dt><strong>ROHISTONEPARTORBEN</strong> [OFF]</dt>
+<dd>Histograms the one particle orbital energies, epsilon_i = &lt;i|h|i&gt; + sum_j [&lt;ij||ij&gt;],
+where j is over the occupied orbitals only.</dd>
+<dt><strong>ROHISTVIRTCOULOMB</strong> [OFF]</dt>
+<dd>Histograms the two electron coulomb integrals &lt;ij|ij&gt; where i and j are both virtual spatial orbitals
+and i&lt;j.</dd>
+<dt><strong>TRUNCROFCIDUMP</strong> [NoFrozenOrbs]</dt>
+<dd>This option goes along with the <strong>USEMP2VDM</strong> rotation option.  Having diagonalised the MP2VDM
+matrix to get the transformation matrix.  This option truncates the virtual orbital space by removing
+the NoFrozenOrbs SPIN orbitals with the lowest occupation numbers (MP2VDM eigenvalues).  Only the
+remaining orbitals are transformed and included in the ROFCIDUMP that is printed.
+This kind of transformation requires different ordering of the orbitals to that which is standard for
+spawning calculation, so it is not possible to go straight from this rotation into a spawning calc.
+The ROFCIDUMP must be printed out then read back in.</dd>
+<dt><strong>WRITETRANSFORMMAT</strong></dt>
+<dd>Default false.
+This keyword must be included if we are doing a natural orbital rotation, and we want to print out
+an MOTRANSFORM file.  This file contains the transformation matrix in binary which can be used with
+Qchem to get the cube files for the new orbitals.  NOTE: This file is only printed correctly if NECI
+is compiled using PGI when the file is printed.</dd>
+</dl>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../output/index.html" title="Output files"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="integrals.html" title="Integrals"
+             >previous</a> |</li>
+        <li><a href="../index.html">NECI v0.1 documentation</a> &raquo;</li>
+          <li><a href="index.html" >Input options</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+      &copy; Copyright 2010, Alavi Group.
+      Last updated on Feb 20, 2010.
+      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 0.6.4.
+    </div>
+  </body>
+</html>

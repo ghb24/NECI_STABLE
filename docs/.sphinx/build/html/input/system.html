@@ -1,0 +1,725 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>System &mdash; NECI v0.1 documentation</title>
+    <link rel="stylesheet" href="../_static/sphinxdoc.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '0.1',
+        COLLAPSE_MODINDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="top" title="NECI v0.1 documentation" href="../index.html" />
+    <link rel="up" title="Input options" href="index.html" />
+    <link rel="next" title="PreCalc" href="precalc.html" />
+    <link rel="prev" title="Non-block level options" href="non-block.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="precalc.html" title="PreCalc"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="non-block.html" title="Non-block level options"
+             accesskey="P">previous</a> |</li>
+        <li><a href="../index.html">NECI v0.1 documentation</a> &raquo;</li>
+          <li><a href="index.html" accesskey="U">Input options</a> &raquo;</li> 
+      </ul>
+    </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+            <h3><a href="../index.html">Table Of Contents</a></h3>
+            <ul>
+<li><a class="reference external" href="#">System</a><ul>
+<li><a class="reference external" href="#general-options">General options</a></li>
+<li><a class="reference external" href="#read-options">Read options</a></li>
+<li><a class="reference external" href="#model-system-options">Model system options</a></li>
+<li><a class="reference external" href="#box-options">Box options</a></li>
+<li><a class="reference external" href="#hubbard-options">Hubbard options</a></li>
+<li><a class="reference external" href="#ueg-options">UEG options</a></li>
+<li><a class="reference external" href="#orbital-rotation-options">Orbital rotation options</a></li>
+</ul>
+</li>
+</ul>
+
+            <h4>Previous topic</h4>
+            <p class="topless"><a href="non-block.html"
+                                  title="previous chapter">Non-block level options</a></p>
+            <h4>Next topic</h4>
+            <p class="topless"><a href="precalc.html"
+                                  title="next chapter">PreCalc</a></p>
+            <h3>This Page</h3>
+            <ul class="this-page-menu">
+              <li><a href="../_sources/input/system.txt"
+                     rel="nofollow">Show Source</a></li>
+            </ul>
+          <div id="searchbox" style="display: none">
+            <h3>Quick search</h3>
+              <form class="search" action="../search.html" method="get">
+                <input type="text" name="q" size="18" />
+                <input type="submit" value="Go" />
+                <input type="hidden" name="check_keywords" value="yes" />
+                <input type="hidden" name="area" value="default" />
+              </form>
+              <p class="searchtip" style="font-size: 90%">
+              Enter search terms or a module, class or function name.
+              </p>
+          </div>
+          <script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="system">
+<span id="input-system"></span><h1>System<a class="headerlink" href="#system" title="Permalink to this headline">¶</a></h1>
+<dl class="docutils">
+<dt><strong>SYSTEM</strong> [system type]</dt>
+<dd>Starts system block.  The system type must be provided and specifies
+the basis upon which NECI performs a calculation.  ORDER is only valid
+for some system types&#8212;see below.</dd>
+</dl>
+<p>[System options&#8212;see below.]</p>
+<dl class="docutils">
+<dt><strong>ENDSYS</strong></dt>
+<dd>End the system input block.</dd>
+</dl>
+<p>The available system types fall into three categories:</p>
+<ul>
+<li><p class="first">Read in data produced by a molecular computational chemistry package:</p>
+<blockquote>
+<dl class="docutils">
+<dt><strong>READ</strong> [<strong>ORDER</strong>] [<strong>NOORDER</strong>]</dt>
+<dd><p class="first last">Perform a calculation on a (molecular) system based upon reading in the integrals produced
+by a third-party program from disk.</p>
+</dd>
+<dt><strong>GENERIC</strong> [<strong>ORDER</strong>] [<strong>NOORDER</strong>]</dt>
+<dd><p class="first last">Synonym for <strong>READ</strong>.</p>
+</dd>
+</dl>
+</blockquote>
+</li>
+<li><p class="first">Use a model system:</p>
+<blockquote>
+<dl class="docutils">
+<dt><strong>BOX</strong></dt>
+<dd><p class="first last">Run a calculation on electrons confined to a box.  See <a class="reference external" href="../references.html#twoelbox">[TwoElBox]</a>
+for more details.</p>
+</dd>
+<dt><strong>HUBBARD</strong></dt>
+<dd><p class="first last">Run a Hubbard model calculation.</p>
+</dd>
+<dt><strong>UEG</strong></dt>
+<dd><p class="first last">Run a uniform electron gas calculation.</p>
+</dd>
+</dl>
+</blockquote>
+</li>
+<li><p class="first">Periodic systems:</p>
+<blockquote>
+<dl class="docutils">
+<dt><strong>CPMD</strong> [<strong>ORDER</strong>] [<strong>NOORDER</strong>]</dt>
+<dd><p class="first last">Perform a calculation based upon the Kohn&#8211;Sham wavefunctions
+produced by CPMD.  Only available in a combined CPMD-NECI
+executable.</p>
+</dd>
+<dt><strong>VASP</strong></dt>
+<dd><p class="first last">Perform a calculation based upon the Hartree&#8211;Fock wavefunctions
+produced by VASP.  Only available in a combined VASP-NECI
+executable.</p>
+</dd>
+</dl>
+</blockquote>
+</li>
+</ul>
+<dl class="docutils">
+<dt><strong>ORDER</strong></dt>
+<dd>If <strong>ORDER</strong> is specified directly after <strong>READ</strong>, <strong>GENERIC</strong>,
+then a quick HF calculation in the space of the orbitals is performed.
+The orbitals are then reordered according to the HF energies,
+rather than using the orbital energies read in.</dd>
+<dt><strong>NOORDER</strong></dt>
+<dd><p class="first">Do not re-order the orbitals, but keep them in the order they arrive.</p>
+<p class="last">If <strong>CPMD</strong> is followed by <strong>ORDER</strong>, then the CPMD orbitals are
+ordered, not according to their Kohn&#8211;Sham eigenvalues, but instead
+according to their one-electron energies (i.e. with no exchange or
+correlation).  <strong>ORDER</strong> is not valid for any other system type.</p>
+</dd>
+</dl>
+<div class="section" id="general-options">
+<h2>General options<a class="headerlink" href="#general-options" title="Permalink to this headline">¶</a></h2>
+<dl class="docutils">
+<dt><strong>RANLUXLEV</strong> [iRanLuxLev]</dt>
+<dd>Default=3
+Set the random number luxury level.</dd>
+<dt><strong>MERSENNETWIST</strong> [<strong>OFF</strong>]</dt>
+<dd><p class="first">Default=.true.</p>
+<p class="last">Use the Mercenne Twister random number generator. This is about 10 times
+faster than Ranlux. It can be used for FCIMC parallel calculations and random
+excitation generation using symgenrandexcit2.F90 routines. This is now on
+by default.</p>
+</dd>
+<dt><strong>BANDGAP</strong></dt>
+<dd>Perform calculations for systems containing NEL, NEL+1, and NEL-1
+electrons and extract the band gap energy.</dd>
+<dt><strong>COULOMB</strong> [FCOUL]</dt>
+<dd>Multiply the strength of the coulomb interaction by FCOUL.</dd>
+<dt><strong>COULOMB-DAMPING ENERGY</strong> [<img class="math" src="../_images/math/e8f6a259ebdb519501aeb0510527d18e7f6ce3b2.png" alt="\mu\ \beta"/>]</dt>
+<dd>Damp the two-electron coulomb integrals, <img class="math" src="../_images/math/a16fcce81afbe0d1ff35b8e31166df762eb09213.png" alt="\bra ab ||
+c d\ket"/> with factor <img class="math" src="../_images/math/14e3d9a0a4de66df73575a8113c30afe84a3e85e.png" alt="f(E_a)f(E_b)f(E_c)f(E_d)"/> where
+<img class="math" src="../_images/math/334cdd866e061f2ff63040513bfff32ed5437517.png" alt="f(E_a)=\operatorname{erfc}(\beta*(E_a-\mu))"/>.  A <img class="math" src="../_images/math/fdb63b9e51abe6bbb16acfb5d7b773ddbb5bf4a8.png" alt="\beta"/>
+of 1 gives a damping range of 2; a <img class="math" src="../_images/math/fdb63b9e51abe6bbb16acfb5d7b773ddbb5bf4a8.png" alt="\beta"/> of 40 gives a damping
+range of 0.05.</dd>
+<dt><strong>COULOMB-DAMPING ORBITAL</strong> [ORB <img class="math" src="../_images/math/fdb63b9e51abe6bbb16acfb5d7b773ddbb5bf4a8.png" alt="\beta"/>]</dt>
+<dd>Damp the coulomb integrals as above, with MU set to be halfway between
+the energies of ORB and ORB+1.</dd>
+</dl>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last"><strong>COULOMB-DAMPING</strong> is now disabled [26/7/06].</p>
+</div>
+<dl class="docutils">
+<dt><strong>CSF-OLD</strong> [STOT]</dt>
+<dd><p class="first">Default <strong>OFF</strong>.  Default STOT=0.</p>
+<p>If specified, work in CSFs rather than determinants.  CSFs might not
+function properly for some Monte Carlo, but should work for vertex
+sums and diagonalization.   STOT is twice the magnitude of spin to
+restrict the resultant space.</p>
+<p class="last">This uses the old CSF routines, which cannot make use of random
+excitation generation.</p>
+</dd>
+<dt><strong>CSF</strong> [STOT]</dt>
+<dd><p class="first">Default <strong>OFF</strong>.  Default STOT=0</p>
+<p>If specified, work in CSFs rather than determinants. STOT is twice
+the magnitude of the spin to restrict the resultant space.</p>
+<p class="last">It is recommended, although not necessary, to restrict Ms to the
+same value as the total spin, using the option SPIN-RESTRICT STOT</p>
+</dd>
+<dt><strong>TRUNCATE-CSF</strong> [csf_trunc_level]</dt>
+<dd><p class="first">Default <strong>OFF</strong></p>
+<p>Requires CSF</p>
+<p>Use CSFs rather than determinants only for spatial configurations with
+fewer than csf_trunc_level unpaired electrons. Above this level,
+transition to using a normal determinential representation.</p>
+<p class="last">This avoids the extremely high computation cost of matrix elements for
+CSFs with large numbers of unpaired electrons, whilst retaining the
+specified spin structure for the spatial configurations which contribute
+the most to the final wavefunction.</p>
+</dd>
+<dt><strong>ELECTRONS</strong> [NEL]</dt>
+<dd>Specify the number of electrons.  Required for all system types
+apart from CPMD- or VASP-based  calculations.</dd>
+<dt><strong>ENERGY-CUTOFF</strong> EMax</dt>
+<dd><p class="first">Default off.</p>
+<p class="last">Reject basis functions with an (unscaled) energy larger than EMax.</p>
+</dd>
+<dt><strong>EXCHANGE</strong> [<strong>ON</strong> | <strong>OFF</strong>]</dt>
+<dd><p class="first">Default <strong>ON</strong>.</p>
+<p class="last">Specify whether to include Exchange in the Slater-Condon rules.
+If off, we are effectively reduced to a using Hartree multi-electron
+wavefunctions rather than Slater determinants.</p>
+</dd>
+<dt><strong>UMATEPSILON</strong> [UMatEps]</dt>
+<dd><p class="first">Default <strong>OFF</strong></p>
+<p class="last">This works when integrals are read in from an FCIDUMP file. If specified, it provides
+a cutoff for the magnitude of the two-electron integrals. If the integrals are larger
+than the size specified, they will be zeroed.</p>
+</dd>
+</dl>
+<p><strong>CALCMCSIZESPACE</strong> [CalcDetCycles] [CalcDetPrint]</p>
+<blockquote>
+This option will calculation the exact size of the determinant space, including spin-
+polarization, spatial symmetry, Lz symmetry, and truncation of the excitation level if
+included, in a MC fashion. It is parallelised, and takes the values (INTEGER*8s) CalcDetCycles
+- the number of MC cycles per processor, and CalcDetPrint - the number of cycles before
+the stats of the MC run are printed to a &#8220;SpaceMCStats&#8221; file. This file gives the iteration
+number, the number of allowed determinants generated, the fraction of generated determinants
+which were allowed, and finally, the expected size of the space from the run so far.</blockquote>
+<dl class="docutils">
+<dt><strong>CALCEXACTSIZESPACE</strong></dt>
+<dd><p class="first">Default false.</p>
+<p class="last">This will calculate the exact size of the symmetry allowed space before any calculations
+are performed. Only determinants with the same Sz value as the reference are included.
+This scales badly and is unsuitable for use with large systems.</p>
+</dd>
+<dt><strong>NONUNIFORMRANDEXCITS</strong> [<strong>NOSYMGEN</strong> | <strong>CYCLETHRUORBS</strong>]</dt>
+<dd><p class="first">Default false.</p>
+<p class="last">These are new excitation generators, currently only interfaced with the parallel
+FCIMC algorithm. They are generated with normalised probability, but not uniformly.
+They scale well however at O[N]. NOSYMGEN means that spatial symmetry will not
+be considered when generating the excitations and cyclethruorbs indicates that
+only orbitals which are allowed will be randomly selected, although this involves
+an O[M] loop over the basis and is marginaly slower, but will not need to redraw
+forbidden orbitals many times. This may be useful for small basis-set sizes with
+high symmetry.</p>
+</dd>
+<dt><strong>FAST-EXCITGEN</strong>  [ <strong>OFF</strong> ]</dt>
+<dd><p class="first">Default on.  Temporary flag [ AJWT 2008/09/22 ]
+Used to indicate that if an Abelian symmetry group is present
+the excitation generators should use optimized routines
+to take this into account.  Not all (i.e. no) excitation generator functions
+currently work with this.  USE WITH CARE
+This will disable itself if it detects non-abelian symmetry.</p>
+<div class="last admonition warning">
+<p class="first admonition-title">Warning</p>
+<p class="last">The excitation generators for Abelian symmetries are currently incompatible
+with density-fitting.  Density fitting calculations should use <strong>FAST-EXCITGEN OFF</strong>.</p>
+</div>
+</dd>
+<dt><strong>NORENORMRANDEXCITS</strong></dt>
+<dd><p class="first">Default off.</p>
+<p class="last">Since we have already calculated the number of excitations possible for each symmetry type, there
+no need to renormalise all excitations with weight 1. As long as pairs of allowed occupied and
+virtual orbitals can be chosen without any bias, then we can generate random excitations in O[1] time.
+This is default off since it will change previous results, however it is strongly recommended to be
+on for virtually all unweighted MC calculations, since it should speed up generation, especially in
+low symmetry and/or large systems. However, currently this facility is not possible for use with doubles
+with abelian symmetry, unless FASTEXCITGEN is OFF, or STORESTATELIST is activated. For single excitations,
+the list is not needed, and so they will always be chosen faster.</p>
+</dd>
+<dt><strong>STORESTATELIST</strong></dt>
+<dd><p class="first">Default off.</p>
+<p class="last">This indicates that the list of state pairs is stored. This is taken by default to be off, however, for
+non-abelian symmetry, or if FASTEXCITGEN is OFF, then it will be stored no matter what. The advantage to
+storing the list is that NORENROMRANDEXCITS can be used with double excitations, leading to quicker
+generation of determinants if there is no weighting function. However, this can use a not insignificant
+amount of memory and some of the abelian features in the excitation generator setup are no longer used.
+It is hoped that soon the ability to generate random unweighted excitations without renormalisation will
+be available without storage of the state pairs.</p>
+</dd>
+<dt><strong>ASSUMESIZEEXCITGEN</strong></dt>
+<dd><p class="first">Default off.</p>
+<p class="last">This indicates that the size of excitation generator will be calculated on the basis of the upper bound of the memory
+needed. This means that there is no need to run through the excitations twice to count and then allocate the memory
+for the excitations. This makes calculation of the excitation generators very much faster. The first entry to
+symgenexcitit2 will now simply return the maximum size of the excitation
+generator. This size is actually smaller than the full excitation generators, since various components of the
+generators is left out, namely: Iterator info, STORE info, nAllowPPS and SymProds arrays. Because of this, the
+excitation generators are smaller, but also are only useful for random excitation generation. If code which fully
+enumerates excitations is used with this flag, things will go very wrong.</p>
+</dd>
+<dt><strong>NEL</strong> [NEL]</dt>
+<dd>Synonym for <strong>ELECTRONS</strong>.</dd>
+<dt><strong>LZTOT</strong> [LzTot]</dt>
+<dd>Constrain the z-component of the angular momentum for atomic, diatomic and linear molecules to be LzTot. This means
+that the orbitals are complex, but the integrals are all real. The orbitals need to be transformed from the HF canonical
+ones to the complex ones using LzTrans.x (on svn).</dd>
+<dt><strong>NOSYMMETRY</strong></dt>
+<dd>Ignore all spatial symmetry information. This does not apply to
+periodic calculations or the hubbard model.</dd>
+<dt><strong>SPIN-RESTRICT</strong> [LMS]</dt>
+<dd>Default off.  Default LMS=0.  Turns spin restriction on, limiting
+the working space to the z-component of spin being LMS*2.</dd>
+<dt><strong>SYM</strong> [<img class="math" src="../_images/math/c78cbda53a85fd9d69fa34812af3685fa377470f.png" alt="l_x,l_y,l_z"/> iSym]</dt>
+<dd><p class="first">Default off.</p>
+<p>If specified, limit the working Slater determinant space to the set
+of determinants with the specified symmetry quantum numbers. The symmetry
+of a given orbital is specified in one of two ways:</p>
+<blockquote>
+<dl class="docutils">
+<dt>model system calculations:</dt>
+<dd>3 quantum numbers, <img class="math" src="../_images/math/c78cbda53a85fd9d69fa34812af3685fa377470f.png" alt="l_x,l_y,l_z"/>.</dd>
+<dt>molecular or periodic calculations:</dt>
+<dd>Symmetry label, iSym, which corresponds to an irreducible
+representation of the symmetry group.</dd>
+</dl>
+</blockquote>
+<p>The symmetry label(s) of each orbital is included in the output,
+from which the symmetry of the desired set of Slater determinants
+can be evaluated (albeit in a somewhat laborious manner). All four
+numbers are required, but only the relevant one(s) are used.</p>
+<p>For Abelian symmetry groups, each symmetry is printed out in terms of
+a propogating vector.  Internally an integer label is still used, according to
+the formula:</p>
+<div class="math">
+<p><img src="../_images/math/3161ebcdaedcda94636fe54dd9802e3289aeaac1.png" alt="i_{\textrm{SYM}} = \sum_{i=1}^3 p_i * 2^{15^{i-1}}" /></p>
+</div><p class="last">where <img class="math" src="../_images/math/245a5501248a6ea24f520f76d4140cedf08e1674.png" alt="p_i"/> are the components of the propogating vector.</p>
+</dd>
+<dt><strong>SYMIGNOREENERGIES</strong></dt>
+<dd>When calculating Sym Reps, NECI assumes that orbitals with energies differing
+by more than 1e-5 do not transform together.
+Specifying <strong>SYMIGNOREENERGIES</strong> forces NECI to always regard beta/alpha pairs as
+of the same sym rep (even if they have different actual symmetries).  This is mighty
+dangerous in general, but can be used to perform ROHF and UHF calculations, if orbitals
+are in paired order.</dd>
+<dt><strong>USEBRILLOUINTHEOREM</strong></dt>
+<dd>Apply Brillouin&#8217;s theorem: the net effect of single-excitations of
+the Hartree&#8211;Fock determinant coupled to the Hartree&#8211;Fock determinant
+is zero, so explicitly exclude such single excitations.</dd>
+<dt><strong>NOBRILLOUINTHEOREM</strong></dt>
+<dd>For the FCIMC parallel calculations, brillouins theorem is on by default. To disable
+this, this keyword is required (for say non-HF orbitals, ROHF orbitals, rotated orbitals...).
+This is automatically turned on if the <strong>ROHF</strong> or <strong>ROTATEDORBS</strong> keyword is
+also supplied.</dd>
+<dt><strong>ROTATEORBS</strong> [TimeStep] [ConvergedForce]</dt>
+<dd>This keyword initiates an iterative rotation of the HF orbitals to find the
+coefficients that best fit a particular criteria (e.g those which maximise
+the sum of the &lt;ii|ii&gt; values).
+This is followed by two real values, the first indicates the size of the
+iterative steps, and the second is the force value chosen to indicate convergence.
+The default time step is 0.01, and convergence value is 0.001.
+Further options are described below.</dd>
+<dt><strong>SPAWNLISTDETS</strong></dt>
+<dd>This means that a file called SpawnOnlyDets will be read in before a spawning calculation,
+and only the determinants listed in this file will be able to be spawned at. Currently,
+this only works for FCIMCPar calculation.</dd>
+<dt><strong>ROTATEDORBS</strong></dt>
+<dd>This keyword is required in the system block if a ROFCIDUMP file is being read in
+(after orbital rotation).  As the orbitals are no longer the HF orbitals, Brillouin&#8217;s
+theorem does not apply, and the projected energy must include contributions from
+walkers on single (as well as double) excited determinants.
+NOTE: Currently, if electrons are frozen in a rotation calculation, they are
+incorporated into the core energy in the ROFCIDUMP file.  So the number of electrons
+specified in an input file which reads in an ROFCIDUMP, needs to be the NEl-No.FrozenEl,
+and the number frozen in the INTEGRAL block needs to be set to 0.
+This will hopefully be fixed in the near future.</dd>
+<dt><strong>ROHF</strong></dt>
+<dd>This is to be used when we are reading in integrals from an FCIDUMP interface for a
+<em>restricted</em> open-shell system. Without this keyword, ROHF and UHF are treated the
+same and the integral file and calculations are performed on spin-orbitals. However,
+for ROHF, this results in a duplication in the storage of the integrals, since integrals
+of the same spatial orbitals are stored multiple times. With this option, the integrals
+for ROHF systems are stored as spatial orbitals, not spin orbtials, which leads to a
+~16x memory saving! The results should be unchanged by this option, and the integral file
+can remain in spin-orbitals. A word of warning is that with ROHF systems, the fock
+eigenvalues for the orbitals are different between alpha and beta spins, but with this,
+the eigenvalues are written out as the same (the value of the alpha one). This means that
+the eigenvalues cannot be trusted and values derived from them will be wrong (such as the
+chemical potential which is printed out.)</dd>
+</dl>
+</div>
+<div class="section" id="read-options">
+<h2>Read options<a class="headerlink" href="#read-options" title="Permalink to this headline">¶</a></h2>
+<blockquote>
+<dl class="docutils">
+<dt><strong>BINARY</strong></dt>
+<dd>Read in an unformatted FCIDUMP file containing the molecular
+integrals.</dd>
+<dt><strong>DensityFitted</strong></dt>
+<dd>Read in a set of density fitted coefficients and coulomb integrals
+from files SAV_DFaSOL and SAV_Ta_INT (generated by <a class="reference external" href="../references.html#camcasp">[CamCasp]</a>).
+One-electron integrals are read in from HONEEL, which also contains
+<img class="math" src="../_images/math/16afb639c12d0fd2a4336dd3234865c89a673d26.png" alt="\bra ij | ij \ket"/> and <img class="math" src="../_images/math/de45aceaa39105fec062bcd346aff8871af08669.png" alt="\bra ij | ji \ket"/> integrals
+(generated by readintOCC.x&#8212;a local package).</dd>
+<dt><strong>RIIntegrals</strong></dt>
+<dd>Read in Rsolution of the identity (much the same as Density Fitting)
+integrals from RIINTDUMP ( these are generated by Q-Chem).
+One-electron and HF eigenvalues are taken from
+the FCIDUMP file (as well as two-index two-electron integrals).</dd>
+<dt><strong>STARSTORE</strong> [<strong>BINARY</strong>]</dt>
+<dd>Only the integrals required for a double-excitation star
+calculation are read in from an FCIDUMP.  The one-electron
+integrals, which we call TMAT elements, are stored as integrals
+involving spatial orbitals, meaning that UHF is no longer
+available.  In addition, only non-zero one-electron integrals i
+are stored. The memory required to store the coulomb integrals
+is massively reduced, from  <img class="math" src="../_images/math/3b0fb433e439f4b74d6de9d29880a338d40df4e1.png" alt="\frac{M^4}{8}"/> to just
+<img class="math" src="../_images/math/54e2d46cbd8b09a76262209e4e3d5538ea912ab0.png" alt="\frac{N^{2} M^{2}}{2}"/>, where <img class="math" src="../_images/math/5d1e4485dc90c450e8c76826516c1b2ccb8fce16.png" alt="M"/> and <img class="math" src="../_images/math/fc97ef67268cd4e91bacdf12b8901d7036c9a056.png" alt="N"/> are
+the total number of orbitals and the number of occupied orbitals
+respecitvely.  We only store the <img class="math" src="../_images/math/1bc5dfa096bdf28bcd91c8445044e9f2cd50592f.png" alt="\bra ij | ab \ket"/>
+integrals in the UMAT array, where i and j are occupied, as well
+as the <img class="math" src="../_images/math/2a062cef9510f1f27ae7df035b97c05c4b7097e8.png" alt="\bra ii | jj \ket"/> and <img class="math" src="../_images/math/16afb639c12d0fd2a4336dd3234865c89a673d26.png" alt="\bra ij | ij \ket"/>
+integrals over all states in the UMAT2D array.  Can only
+be used for the 2-vertex sum and the 2-vertex star calculations.
+If <strong>BINARY</strong> is also specfied, then an unformatted FCIDUMP file
+is used.</dd>
+<dt><strong>STORE-AS-EXCITATIONS</strong></dt>
+<dd>Store determinants as a 4-integer list of orbitals excited from, and
+orbitals excited to, in comparison to the reference determinant,
+rather than as an n-electron list of the occupied orbitals
+in the determinant. This means that the scaling is reduced to
+<img class="math" src="../_images/math/415180fa56bb93ac1e460617db3fa98c01239cb1.png" alt="N^2M^2"/> rather than <img class="math" src="../_images/math/c8b0f8611fe206c91608f10c5a31f3bed96ae83f.png" alt="N^3M^2"/>, as we run through the
+list for each excitation.  Currently only working for the 2-vertex
+star Fock-Partition-Lowdiag calculations.</dd>
+</dl>
+</blockquote>
+<dl class="docutils">
+<dt><strong>READCACHEINTS</strong></dt>
+<dd><p class="first">Default=.false.</p>
+<p class="last">This means that the FCIDUMP file will be read in the integrals in it will be
+cached. This means that less space should be used for storage of the integrals,
+however, it will be slower since the integrals will need to be binary searched.</p>
+</dd>
+</dl>
+</div>
+<div class="section" id="model-system-options">
+<h2>Model system options<a class="headerlink" href="#model-system-options" title="Permalink to this headline">¶</a></h2>
+<p>The following apply to electron in a box, Hubbard model and uniform
+electron gas calculations, unless otherwise noted.</p>
+<dl class="docutils">
+<dt><strong>BOXSIZE</strong> [A [BOA COA] ]</dt>
+<dd><p class="first">Required for <strong>UEG</strong> and <strong>BOX</strong> calculations.  BOA and COA optional. Default
+BOA=COA=1.</p>
+<p class="last">Set lattice constants a, b and c respectively, where b and c are defined
+as a ratio of a.</p>
+</dd>
+<dt><strong>CELL</strong> [NMAXX NMAXY NMAXZ]</dt>
+<dd>Maximum basis functions for each dimension.  For <strong>HUBBARD</strong> and <strong>UEG</strong>,
+functions range from -NMAXi to NMAXi, but for <strong>BOX</strong>, they range from 1
+to NMAXi, where i=X,Y,Z.</dd>
+</dl>
+</div>
+<div class="section" id="box-options">
+<h2>Box options<a class="headerlink" href="#box-options" title="Permalink to this headline">¶</a></h2>
+<dl class="docutils">
+<dt><strong>ALPHA</strong> [<img class="math" src="../_images/math/10f32377ac67d94f764f12a15ea987e88c85d3e1.png" alt="\alpha"/>]</dt>
+<dd><p class="first">Sets TALPHA=.true. and defines <img class="math" src="../_images/math/10f32377ac67d94f764f12a15ea987e88c85d3e1.png" alt="\alpha"/>.</p>
+<p class="last">Integrate out the Coulomb singularity by performing part in real
+space and part in Fourier space, with the division according to the
+screening parameter <img class="math" src="../_images/math/10f32377ac67d94f764f12a15ea987e88c85d3e1.png" alt="\alpha"/>.  See <a class="reference external" href="../references.html#twoelbox">[TwoElBox]</a>.</p>
+</dd>
+<dt><strong>MESH</strong> [NMSH]</dt>
+<dd><p class="first">Default NMSH=32.</p>
+<p class="last">Number of mesh points used for calculating integrals.</p>
+</dd>
+</dl>
+</div>
+<div class="section" id="hubbard-options">
+<h2>Hubbard options<a class="headerlink" href="#hubbard-options" title="Permalink to this headline">¶</a></h2>
+<dl class="docutils">
+<dt><strong>B</strong> [BHUB]</dt>
+<dd><p class="first">Default=0.</p>
+<p class="last">Sets B (hopping or kinetic energy) parameter for the Hubbard model.</p>
+</dd>
+<dt><strong>U</strong> [UHUB]</dt>
+<dd><p class="first">Default=0.</p>
+<p class="last">Sets U (on-site repulsion) parameter for the Hubbard model.</p>
+</dd>
+<dt><strong>REAL</strong></dt>
+<dd>Set Hubbard model to be in real space.</dd>
+<dt><strong>APERIODIC</strong></dt>
+<dd>Hubbard model is set to be not periodic.</dd>
+<dt><strong>TILT</strong> [ITILTX ITILTY]</dt>
+<dd><p class="first">Default off.</p>
+<p class="last">The Hubbard model is tilted and the unit vectors are
+(x,y)=(ITILTX,ITILTY) and (-y,x).  Require x <img class="math" src="../_images/math/00c3863a5ca53a1be38db8921ae7b5bfbfbe1dc6.png" alt="\ge"/> y.</p>
+</dd>
+</dl>
+</div>
+<div class="section" id="ueg-options">
+<h2>UEG options<a class="headerlink" href="#ueg-options" title="Permalink to this headline">¶</a></h2>
+<dl class="docutils">
+<dt><strong>EXCHANGE-CUTOFF</strong> [<img class="math" src="../_images/math/7ae5ba99f629db3530244263c12e92bbec3ed85d.png" alt="R_c"/>]</dt>
+<dd><p class="first">Use the method detailed in <a class="reference external" href="../references.html#attenex">[AttenEx]</a> for calculating the exchange
+integrals.</p>
+<p class="last">Sets cutoff distance <img class="math" src="../_images/math/7ae5ba99f629db3530244263c12e92bbec3ed85d.png" alt="R_c"/> for the exchange electron-electron
+potential.  If <img class="math" src="../_images/math/7ae5ba99f629db3530244263c12e92bbec3ed85d.png" alt="R_c"/> is not explicitly set, it will
+be set to be equivalent to a sphere of the same volume as the cell,
+<img class="math" src="../_images/math/01e2f1916799caa24dd73bf8b01d244a8dab05fb.png" alt="R_c=(\frac{\Omega}{4\pi/3})^{1/3}"/>.</p>
+</dd>
+<dt><strong>EXCHANGE-ATTENUATE</strong> [<img class="math" src="../_images/math/7ae5ba99f629db3530244263c12e92bbec3ed85d.png" alt="R_c"/>]</dt>
+<dd>Use an expoentially attenuated exchange
+Sets attenuation parameter <img class="math" src="../_images/math/7ae5ba99f629db3530244263c12e92bbec3ed85d.png" alt="R_c"/> for the exchange electron-electron
+potential.  If <img class="math" src="../_images/math/7ae5ba99f629db3530244263c12e92bbec3ed85d.png" alt="R_c"/> is not explicitly set, it will
+be set to be equivalent to a sphere of the same volume as the cell,
+<img class="math" src="../_images/math/01e2f1916799caa24dd73bf8b01d244a8dab05fb.png" alt="R_c=(\frac{\Omega}{4\pi/3})^{1/3}"/>.</dd>
+<dt><strong>EXCHANGE-DAMPING</strong> [<img class="math" src="../_images/math/7ae5ba99f629db3530244263c12e92bbec3ed85d.png" alt="R_c"/>]</dt>
+<dd>Sets cutoff parameter <img class="math" src="../_images/math/7ae5ba99f629db3530244263c12e92bbec3ed85d.png" alt="R_c"/> for attenuated or cutoff potential
+<img class="math" src="../_images/math/1777aab2ddc0535e64b3198f869ea75275016872.png" alt="V(r)=\frac{\operatorname{erfc}(r/R_c)}{r}"/>.  If <img class="math" src="../_images/math/7ae5ba99f629db3530244263c12e92bbec3ed85d.png" alt="R_c"/> is not explicitly set,
+it will be set to be equivalent to a sphere of the same volume as the cell,
+<img class="math" src="../_images/math/01e2f1916799caa24dd73bf8b01d244a8dab05fb.png" alt="R_c=(\frac{\Omega}{4\pi/3})^{1/3}"/>.</dd>
+</dl>
+</div>
+<div class="section" id="orbital-rotation-options">
+<h2>Orbital rotation options<a class="headerlink" href="#orbital-rotation-options" title="Permalink to this headline">¶</a></h2>
+<p>The minimum keywords required for this method are the above described <strong>ROTATEORBS</strong>,
+the type of rotation / localisation, and an orthonormalisation method.</p>
+<p>Type of rotation / localisation:</p>
+<dl class="docutils">
+<dt><strong>OFFDIAGSQRDMIN</strong> [OffDiagWeight](optional)</dt>
+<dd>This method finds the linear combinations of the HF orbitals that most effectively
+minimise the sum of the &lt;ij|kl&gt;^2 values, where i,j,k,l are spin orbitals and
+i.ne.k, and j.ne.l.</dd>
+<dt><strong>OFFDIAGSQRDMAX</strong> [OffDiagWeight](optional)</dt>
+<dd>This method finds the linear combinations of the HF orbitals that most effectively
+maximise the sum of the &lt;ij|kl&gt;^2 values, where i,j,k,l are spin orbitals and
+i.ne.k, and j.ne.l.</dd>
+<dt><strong>OFFDIAGMIN</strong> [OffDiagWeight](optional)</dt>
+<dd>This method finds the linear combinations that minimise the &lt;ij|kl&gt; integrals (without
+squaring).</dd>
+<dt><strong>OFFDIAGMAX</strong> [OffDiagWeight](optional)</dt>
+<dd>This method finds the linear combinations that maximise the &lt;ij|kl&gt; integrals (without
+squaring).</dd>
+<dt><strong>DOUBEXCITEMIN</strong> [OffDiagWeight](optional)</dt>
+<dd>This method finds the linear combination that minimise the antisymmetrised double excitation
+hamiltonian elements, &lt;ij|kl&gt; - &lt;ij|lk&gt;.</dd>
+<dt><strong>HFSINGDOUBEXCMAX</strong></dt>
+<dd>This minimises the square of the four index integrals corresponding to single or double
+excitations from the HF determinant.  I.e. Integrals of the form &lt;ij|kl&gt; where i and j
+are orbitals occupied in the HF determinant, and either k and l are both virtual, or k=i
+or l=j, but not both at once.</dd>
+<dt><strong>VIRTCOULOMBMAX</strong></dt>
+<dd>This maximises the sum of the &lt;ij|ij&gt; terms where i and j are both virtual spatial orbitals.</dd>
+<dt><strong>VIRTEXCHANGEMIN</strong></dt>
+<dd>This minimises the sum of the &lt;ij|ji&gt; terms where i and j are both virtual spatial orbitals.</dd>
+<dt><strong>ERLOCALIZATION</strong> [ERWeight](optional)</dt>
+<dd><p class="first">This method performs a Edmiston-Reudenberg localisation.  It finds the coefficients
+that maximise the sum of the self-repulsion (&lt;ii|ii&gt;) terms.
+In reality we minimise -&lt;ii|ii&gt; to keep the code consistent.</p>
+<p class="last">The presence of both the <strong>ERLOCALIZATION</strong> keyword together with one of the first three
+options finds the coefficients that both maximise the &lt;ii|ii&gt; terms and also fit the chosen
+off diagonal criteria.
+The contribution from each method can be adjusted by weighting the effect of either force.
+In the absence of values for ERWeight and/or OffDiagWeight, the defaults of 1.0 each
+will be used.
+These weights are also redundant if only one of the keywords is present.</p>
+</dd>
+<dt><strong>ONEPARTORBENMAX</strong> [Alpha]</dt>
+<dd>This maximises the sum of (e_i - e_min)^alpha, where e_i are the fock, one particle orbital
+energies ( e_i = &lt;i|h|i&gt; + sum_j [&lt;ij||ij&gt;] ), and e_min is currently the energy of the
+HF LUMO.
+Alpha is a real value specified in the input, with a default value of 1.0.</dd>
+<dt><strong>ONEELINTMAX</strong></dt>
+<dd>This maximises the sum of the &lt;i|h|i&gt;, one electron integral values.</dd>
+<dt><strong>HIJSQRDMIN</strong></dt>
+<dd>This minimises the square of the one electron integrals, &lt;i|h|j&gt;.  Currently i can be occupied
+or virtual, but j can only be virtual, i=&lt;j.</dd>
+<dt><strong>DIAGONALIZEHIJ</strong></dt>
+<dd>This option takes the &lt;i|h|j&gt; matrix of one electron integrals in the HF orbital basis and
+diagonalises it.  It then uses the eigenvectors as the transformation matrix to form a set
+of new orbitals which have a diagonal &lt;i|h|j&gt; matrix.  This is the extreme case of minimising
+the off diagonal &lt;i|h|j&gt; matrix elements.</dd>
+<dt><strong>READINTRANSMAT</strong></dt>
+<dd>With this option, a TRANSFORMMAT file must be provided which contains the transformation
+matrix to be used for the orbital rotation.  When this keyword is present, the coefficient
+matrix is simply read in from the file, and used to transform the relevant integrals and
+print a new ROFCIDUMP file.</dd>
+<dt><strong>USEMP2VDM</strong></dt>
+<dd>With this option, the MP2 variational density matrix is calculated and then used to transform
+the orbitals and produce a new ROFCIDUMP file.  The MP2VDM is given as follows:
+MP2VDM = D2_ab = sum_ijc [ t_ij^ac ( 2 t_ij^bc - t_ji^bc ) ]
+Where: t_ij^ac = - &lt; a c | i j &gt; / ( E_a - E_i + E_b - E_j )
+Ref: J. Chem. Phys. 131, 034113 (2009) (note Eqn 1 is mis-printed, the cb indices should be bc).
+Having calculated the MP2VDM matrix, this is diagonalised.  The eigenvectors correspond to the
+transformation matrix, which produce orbitals whose occupation numbers are given by the
+respective eigenvalues.  These eigenvalues ideally decay exponentially, so in principle we
+may remove some of the low occupancy virtual orbitals without loosing much accuracy in the
+energy calculation.  This truncation of the virtuals is done using the Logging option
+<strong>TRUNCROFCIDUMP</strong> [NoFrozenVirt].</dd>
+<dt><strong>USECINATORBS</strong></dt>
+<dd>This option is similar to <strong>USEMP2VDM</strong> except that the one electron reduced density matrix is
+used instead of the MP2VDM to transform the orbitals.
+The 1-RDM has the form: &lt; Psi | a_p+ a_q | Psi &gt;, where a_q is an annihilation and a_p+ the
+creation operator acting on a determinant in Psi.
+In order to form this one electron reduced density matrix, we must first find Psi within the
+required truncation.  This is done by performing a spawning calculation and histogramming the
+occupation at the determinants.  The required histogramming is automatically turned on by using the
+<strong>USECINATORBS</strong> keyword, and at the end of the spawning, the 1-RDM is found from the amplitudes.
+The orbitals are then rotated using this matrix, and a ROFCIDUMP file of the resulting approximate
+natural orbitals is printed. The level of natural orbitals found is controlled by truncation of
+the excitation level in the spawning calculation.  E.g. an excite 2 calculation results in the CISD
+natural orbitals etc.</dd>
+</dl>
+<p>Each of these methods may be applied for both the cases where symmetry as kept and broken.
+This is controlled by the absence or presence of the NOSYMMETRY keyword respectively.
+Also, the default option is to mix all orbitals (occupied and virtual) together.</p>
+<p>Orthonormalisation methods:</p>
+<dl class="docutils">
+<dt><strong>SHAKE</strong> [ShakeConverged]</dt>
+<dd><p class="first">This will use the shake algorithm to iteratively enforce orthonormalisation on the
+rotation coefficients.
+Convergence is reached once the sum of the orthonormality constraints is reduced to
+below the ShakeConverged value.</p>
+<dl class="last docutils">
+<dt><strong>SHAKEAPPROX</strong></dt>
+<dd>This keyword is likely to be used when the matrix inversion required in the
+full shake algorithm cannot be performed.  It initiates an approximatation to the
+method which treats each constraint in succession, and finds an appropriate lambda
+for each in turn.  This clearly converges more slowely than the full method in which
+all constraints are dealt with simultaneously.</dd>
+<dt><strong>SHAKEITER</strong> [ShakeIterMax]</dt>
+<dd>The presence of this keyword overrides the ConvergenceLimit specified with the <strong>SHAKE</strong>
+keyword, and instead the shake algorithm is applied for the number of iterations given
+by ShakeIterMax.  It seems that with only a few iterations, although the coefficients do
+not remain completely orthonormal at every rotation step, orthonormality is eventually imposed
+throughout the course of the run.</dd>
+<dt><strong>SHAKEDELAY</strong> [ShakeStart]</dt>
+<dd>This option sets the shake orthonormalisation algorithm to only kick in after a certain number
+of rotation iterations, specified by ShakeStart.  This potentially allows a large shift in
+the coefficients away from their starting point before orthonormalisation is enforced.</dd>
+</dl>
+</dd>
+<dt><strong>LAGRANGE</strong></dt>
+<dd>This option can only be used if <strong>ROTATEORBS</strong> is specified, and will try to
+maintain orthonormality of the orbitals via a lagrange multiplier force, rather
+than an explicit reorthogonalization step each iteration.</dd>
+</dl>
+<p>Additional options:</p>
+<dl class="docutils">
+<dt><strong>ROITERATION</strong> [ROIterMax]</dt>
+<dd>Much like <strong>SHAKEITER</strong>, the presence of this keyword overrides the convergence criteria
+on the force, and instead runs for the number of iterations specified here.
+Note: A SOFTEXIT is also an option in this method.</dd>
+<dt><strong>SPINORBS</strong></dt>
+<dd>Default=.false.
+This option ensures that spin orbitals are used in the rotation - as is required for open shell
+systems for example.
+IF UHF=.true. is present in the FCIDUMP file, this will be turned on automatically, but in special
+cases where this is not present and we still want to use spin orbitals, this keyword should be used.</dd>
+<dt><strong>SEPARATEOCCVIRT</strong></dt>
+<dd><p class="first">If present, this keyword separates the orbitals into occupied and virtual and does not
+allow mixing between the two.
+This has the advantage of keeping the energy of the reference determinant the same as the HF.</p>
+<dl class="last docutils">
+<dt><strong>ROTATEOCCONLY</strong></dt>
+<dd>This option allows mixing amongst the occupied orbitals only, while keeping the virtual
+the HF.</dd>
+<dt><strong>ROTATEVIRTONLY</strong></dt>
+<dd>This option allows mixing amongst the virtual orbitals only.</dd>
+</dl>
+</dd>
+<dt><strong>USEHFORBS</strong></dt>
+<dd>This is mostly used for debugging as it just uses the identity matrix to &#8216;transform&#8217; the HF orbitals.
+Can be compared to original HF results.</dd>
+</dl>
+<p>Note: With this method come logging options <strong>ROFCIDUMP</strong>, <strong>ROHISTOGRAM</strong>, and <strong>ERHISTOGRAM</strong>.</p>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="precalc.html" title="PreCalc"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="non-block.html" title="Non-block level options"
+             >previous</a> |</li>
+        <li><a href="../index.html">NECI v0.1 documentation</a> &raquo;</li>
+          <li><a href="index.html" >Input options</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+      &copy; Copyright 2010, Alavi Group.
+      Last updated on Feb 20, 2010.
+      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 0.6.4.
+    </div>
+  </body>
+</html>
