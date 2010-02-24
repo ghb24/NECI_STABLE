@@ -1,9 +1,9 @@
 [main]
 fc = ftn
-cc = pathcc
+cc = CC
 ld = ftn
 ldflags = -m64
-libs = -lfftw3 -lacml
+libs = -lfftw3 -lacml -lstdc++
 cpp = cpp -C -traditional
 cppflags =  -D__Linux -DPOINTER8 -DPARALLEL
 compiler = pathf95-on-LINUX
