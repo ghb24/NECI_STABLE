@@ -309,7 +309,7 @@ CONTAINS
     Subroutine DoDetCalc
       Use global_utilities
       Use HElem
-      use Determinants , only : GetHElement3,FDet
+      use Determinants , only : get_helement,FDet
       use SystemData, only : Alat, arr, brr, boa, box, coa, ecore, g1,Beta
       use SystemData, only : nBasis, nBasisMax,nEl,nMsh,LzTot,NIfTot
       use SystemData, only : nBasis, nBasisMax,nEl,nMsh,NIfTot

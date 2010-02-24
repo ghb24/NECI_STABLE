@@ -8,7 +8,8 @@
 !.. 
 SUBROUTINE CALCRHO2(NI,NJ,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,&
                      NMAX,ALAT,UMAT,RH,NTAY,IC2,ECORE)
-      Use Determinants, only: GetHElement2, nUHFDet, E0HFDet
+      Use Determinants, only: get_helement, get_helement_excit,  nUHFDet, &
+                              E0HFDet
       USE HElem
       use SystemData , only : TSTOREASEXCITATIONS,BasisFN
       use global_utilities
@@ -65,7 +66,7 @@ SUBROUTINE CALCRHO2(NI,NJ,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,&
             UExp=UExp+HElement(E0HFDET)
             call GetH0Element(nJ,nEl,nMax,nBasis,ECore,EDiag)
             EDiag=(UExp+UExp+EDiag)/HElement(2.D0)
-            UExp=GETHELEMENT2(NI,NJ,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,IC,ECORE)
+            UExp = get_helement (nI, nJ)
             UExp=-B*UExp
             RH=EXP(-B*EDiag)*UExp
          ENDIF
@@ -80,16 +81,14 @@ SUBROUTINE CALCRHO2(NI,NJ,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,&
             UExp=UExp+HElement(1.D0)
          ELSE
 !.. Now do the first order term, which only exists for non-diag
-            UExp=UExp-B*GETHELEMENT2(NI,NJ,NEL,NBASISMAX,G1,&
-     &      NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,IC,ECORE)
+            UExp=UExp-B*get_helement(nI, nJ)
          ENDIF
 !.. Now the 2nd order term
 !      IF(NTAY.GE.2) UExp=UExp+B*B*HElement(RHO2ORDERND2(NI,NJ,NEL,NBASISMAX,    &
 !     &            G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,IC,ECORE)/2.D0)
 
-         hE =(GETHELEMENT2(NI,NI,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,0,ECORE) &
-          +GETHELEMENT2(NJ,NJ,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,0,ECORE))&
-            /HElement(2.D0)
+         hE = (get_helement_excit(nI, nI, 0) + &
+               get_helement_excit (nJ, nJ, 0)) / HElement(2.D0)
          RH=EXP(HElement(-BETA/I_P)*hE)*UExp
       ELSEIF(NTAY(2).EQ.2) THEN
 !Partition with Trotter with H(0) having just the Fock Operators
@@ -97,13 +96,13 @@ SUBROUTINE CALCRHO2(NI,NJ,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,&
             call GetH0Element(nI,nEl,nMax,nBasis,ECore,EDiag)
             UExp=1.D0
 !Fock-Partition
-            UExp=UExp-B*(GETHELEMENT2(NI,NI,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,0,ECORE)-EDiag)
+            UExp=UExp-B*(get_helement_excit(nI, nI, 0)-EDiag)
             RH=EXP(-B*EDiag)*UExp
          ELSE
             call GetH0Element(nI,nEl,nMax,nBasis,ECore,UExp)
             call GetH0Element(nJ,nEl,nMax,nBasis,ECore,EDiag)
             EDiag=(UExp+EDiag)/HElement(2.D0)
-            UExp=GETHELEMENT2(NI,NJ,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,IC,ECORE)
+            UExp=get_helement(nI, nJ)
             UExp=-B*UExp
             RH=EXP(-B*EDiag)*UExp
          ENDIF
@@ -117,7 +116,7 @@ SUBROUTINE CALCRHO2(NI,NJ,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,&
             call GetH0Element(nI,nEl,nMax,nBasis,ECore,UExp)
             call GetH0Element(nJ,nEl,nMax,nBasis,ECore,EDiag)
             EDiag=(UExp+EDiag)/HElement(2.D0)
-            UExp=GETHELEMENT2(NI,NJ,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,IC,ECORE)
+            UExp=get_helement(nI, nJ)
             UExp=-B*UExp
             RH=EXP(-B*EDiag)*UExp
          ENDIF
@@ -128,7 +127,7 @@ SUBROUTINE CALCRHO2(NI,NJ,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,&
          ELSE
             UEXP=0.D0
          ENDIF
-         RH=UEXP-B*GETHELEMENT2(NI,NJ,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,IC,ECORE)
+         RH=UEXP-B*get_helement(nI, nJ)
       ELSEIF(NTAY(2).EQ.5) THEN
 !Fock-Partition-DCCorrect-LowDiag
 !Partition with Trotter with H(0) having just the Fock Operators.  Taylor diagonal to zeroeth order, and off-diag to 1st.
@@ -140,7 +139,7 @@ SUBROUTINE CALCRHO2(NI,NJ,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,&
             call GetH0ElementDCCorr(nUHFDet,nI,nEl,nBasisMax,G1,nBasis,Brr,NMSH,FCK,NMAX,ALAT,UMat,ECore,UExp)
             call GetH0ElementDCCorr(nUHFDet,nJ,nEl,nBasisMax,G1,nBasis,Brr,NMSH,FCK,NMAX,ALAT,UMat,ECore,EDiag)
             EDiag=(UExp+EDiag)/HElement(2.D0)
-            UExp=GETHELEMENT2(NI,NJ,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,IC,ECORE)
+            UExp=get_helement(nI, nJ)
             UExp=-B*UExp
             RH=EXP(-B*EDiag)*UExp
          ENDIF
@@ -162,7 +161,7 @@ SUBROUTINE CALCRHO2(NI,NJ,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,&
 !.. We use a crude method and generate all possible 0th, 1st, and 2nd
 !.. excitations of I and of J.  The intersection of these lists is the
 !.. selection of dets we want.
-         Use Determinants, only: GetHElement2
+         Use Determinants, only: get_helement, get_helement_excit
          USE HElem
          use SystemData, only: BasisFN
          IMPLICIT NONE
@@ -202,10 +201,8 @@ SUBROUTINE CALCRHO2(NI,NJ,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,&
                CMP=ICMPDETS(LSTI(1,I),LSTJ(1,J),NEL)
             ENDDO
             IF(CMP.EQ.0) THEN 
-               SUM1=SUM1+  GETHELEMENT2(NI,LSTI(1,I),NEL,NBASISMAX,       &
-     &      G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMat,ICI(I),ECORE)     &
-     &               *GETHELEMENT2(LSTJ(1,J),NJ,NEL,NBASISMAX,          &
-     &      G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMat,ICJ(J),ECORE)
+               SUM1=SUM1+  get_helement (nI, lstI(1,I)) * &
+                           get_helement(lstJ(1,J), nJ)
             ENDIF
             I=I+1
          

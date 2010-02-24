@@ -9,6 +9,7 @@ MODULE AnnihilationMod
     USE FciMCData
     use DetBitOps, only: DetBitEQ, DetBitLT, FindBitExcitLevel
     use CalcData , only : tTruncInitiator
+    use Determinants, only: get_helement, get_helement_excit
     IMPLICIT NONE
 
     contains
@@ -522,7 +523,6 @@ MODULE AnnihilationMod
 !The key feature which makes this work, is that it is impossible for the same determinant to be specified in both the spawned and main list at the end of
 !the annihilation process. Therefore we will not multiply specify determinants when we merge the lists.
     SUBROUTINE InsertRemoveParts(ValidSpawned,TotWalkersNew)
-        USE Determinants , only : GetHElement3
         use DetBitOps, only: DecodeBitDet
         INTEGER :: TotWalkersNew,ValidSpawned
         INTEGER :: i,DetsMerged,nJ(NEl),ierr
@@ -630,7 +630,7 @@ MODULE AnnihilationMod
                         IF(tHPHF) THEN
                             CALL HPHFGetDiagHElement(nJ,CurrentDets(0:NIfTot,i),HDiagTemp)
                         ELSE
-                            HDiagTemp=GetHElement3(nJ,nJ,0)
+                            HDiagTemp = get_helement_excit (nJ, nJ, 0)
                         ENDIF
                         HDiag=(REAL(HDiagTemp%v,8))-Hii
                     ENDIF
@@ -3964,7 +3964,6 @@ MODULE AnnihilationMod
 ! to check for possible annihilations there.
         use SystemData , only : G1,nBasis,Brr,NMsh,NMax,Alat,ECore,nBasis,nBasisMax
         use IntegralsData , only : UMat,fck
-        use Determinants , only : GetHElement2
         use DetBitOps, only: DecodeBitDet
         INTEGER :: i,j,n,ValidSpawned,InitNoDetstoRotate,NoDetstoRotate,CombSign,error
         INTEGER :: ExcitLevel,DoubDet(NEl)
@@ -4242,7 +4241,7 @@ MODULE AnnihilationMod
             IF(ExcitLevel.eq.2) THEN
                 DoubDet(:)=0
                 CALL DecodeBitDet(DoubDet,GuideFuncDets(0:NIfTot,i))
-                HdoubTemp=GetHElement2(HFDet,DoubDet,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,ExcitLevel,ECore)
+                HdoubTemp = get_helement (HFDet, Doubdet)
                 HDoub=REAL(HDoubTemp%v,r2)
                 GuideFuncDoub=GuideFuncDoub+(GuideFuncSign(i)*Hdoub)
             ENDIF

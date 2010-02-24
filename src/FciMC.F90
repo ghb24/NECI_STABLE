@@ -6,7 +6,7 @@ use CalcData , only : GrowMaxFactor,CullFactor,TMCDets,TNoBirth,Lambda,TDiffuse,
 use CalcData , only : TExtraPartDiff,TFullUnbias,TNodalCutoff,NodalCutoff,TNoAnnihil,TMCDiffusion
 use CalcData , only : NDets,RhoApp,TResumFCIMC,NEquilSteps,TSignShift,THFRetBias,PRet,TExcludeRandGuide
 use CalcData , only : TProjEMP2,TFixParticleSign,TStartSinglePart,MemoryFacPart,TRegenExcitgens,TUnbiasPGeninProjE
-USE Determinants , only : FDet,GetHElement2,GetH0Element3
+use Determinants, only: FDet, get_helement, get_helement_excit, GetH0Element3
 USE DetCalc , only : NMRKS,ICILevel
 use IntegralsData , only : fck,NMax,UMat
 USE global_utilities
@@ -308,14 +308,14 @@ SUBROUTINE PerformFCIMCyc()
                     ExcitLevel=iGetExcitLevel_2(HFDet,nJ,NEl,NEl)
                     IF(ExcitLevel.eq.2) THEN
 !Only need it for double excitations, since these are the only ones which contribute to energy
-                        HOffDiag=GetHElement2(HFDet,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,ExcitLevel,ECore)
-                        HDiagTemp=GetHElement2(nJ,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,0,ECore)
+                        HOffDiag = get_helement(HFDet, nJ)
+                        HDiagTemp = get_helement_excit (nJ, nJ, 0)
                         HDiag=(REAL(HDiagTemp%v,r2))-Hii
                     ELSEIF(ExcitLevel.eq.0) THEN
 !We know we are at HF - HDiag=0
                         HDiag=0.D0
                     ELSE
-                        HDiagTemp=GetHElement2(nJ,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,0,ECore)
+                        HDiagTemp = get_helement_excit (nJ, nJ, 0)
                         HDiag=(REAL(HDiagTemp%v,r2))-Hii
                     ENDIF
 
@@ -673,13 +673,13 @@ SUBROUTINE PerformFCIMCyc()
                 ExcitLevel=iGetExcitLevel_2(HFDet,nJ,NEl,NEl)
                 IF(ExcitLevel.eq.2) THEN
 !Only need it for double excitations, since these are the only ones which contribute to energy
-                    HOffDiag=GetHElement2(HFDet,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,ExcitLevel,ECore)
+                    HOffDiag = get_helement(HFDet, nJ)
                 ENDIF
                 IF(ExcitLevel.eq.0) THEN
 !We know we are at HF - HDiag=0
                     HDiag=0.D0
                 ELSE
-                    HDiagTemp=GetHElement2(nJ,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,0,ECore)
+                    HDiagTemp = get_helement_excit (nJ, nJ, 0)
                     HDiag=(REAL(HDiagTemp%v,r2))-Hii
                 ENDIF
 
@@ -769,7 +769,7 @@ SUBROUTINE PerformFCIMCyc()
                 CALL GenSymExcitIt2(CurrentDets(:,Walker),NEl,G1,nBasis,nBasisMax,.false.,CurrentExcits(Walker)%ExcitData,nJ,IC,0,nStore,exFlag)
             ENDIF
             IF(nJ(1).eq.0) EXIT
-            HConn=GetHElement2(CurrentDets(:,Walker),nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,IC,ECore)
+            HConn = get_helement (CurrentDets(:,Walker), nJ)
             HConnReal=REAL(HConn%v,r2)
             IF(HConnReal.lt.0.D0) THEN
 !Connection is negative, therefore attempt to create a particle there - we are running through all walkers, so Prob=1.D0
@@ -789,13 +789,13 @@ SUBROUTINE PerformFCIMCyc()
                     ExcitLevel=iGetExcitLevel_2(HFDet,nJ,NEl,NEl)
                     IF(ExcitLevel.eq.2) THEN
 !Only need it for double excitations, since these are the only ones which contribute to energy
-                        HOffDiag=GetHElement2(HFDet,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,ExcitLevel,ECore)
+                        HOffDiag = get_helement (HFDet, nJ)
                     ENDIF
                     IF(ExcitLevel.eq.0) THEN
 !We know we are at HF - HDiag=0
                         HDiag=0.D0
                     ELSE
-                        HDiagTemp=GetHElement2(nJ,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,0,ECore)
+                        HDiagTemp = get_helement_excit (nJ, nJ, 0)
                         HDiag=(REAL(HDiagTemp%v,r2))-Hii
                     ENDIF
 
@@ -929,7 +929,7 @@ SUBROUTINE PerformFCIMCyc()
                 ExcitLevel=iGetExcitLevel_2(HFDet,DetsinGraph(:,i),NEl,NEl)
                 IF(ExcitLevel.eq.2) THEN
 !Only need it for double excitations, since these are the only ones which contribute to energy
-                    HOffDiag=GetHElement2(HFDet,DetsinGraph(:,i),NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,ExcitLevel,ECore)
+                    HOffDiag = get_helement (HFDet, DetsInGraph(:,i))
                 ENDIF
                 IF(Create.lt.0) THEN
                     ChildSign=.false.
@@ -1005,19 +1005,19 @@ SUBROUTINE PerformFCIMCyc()
 !Determinant is distinct - add it
                 DetsinGraph(:,i)=nJ(:)
 !First find connection to root
-                Hamij=GetHElement2(nI,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,IC,ECore)
+                Hamij = get_helement(nI, nJ)
                 GraphRhoMat(1,i)=-Tau*REAL(Hamij%v,r2)
                 GraphRhoMat(i,1)=GraphRhoMat(1,i)
 
 !Then find connection to other determinants
                 do j=2,(i-1)
-                    Hamij=GetHElement2(nJ,DetsInGraph(:,j),NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,-1,ECore)
+                    Hamij = get_helement(nJ, DetsInGraph(:,j))
                     GraphRhoMat(i,j)=-Tau*REAL(Hamij%v,r2)
                     GraphRhoMat(j,i)=GraphRhoMat(i,j)
                 enddo
 
 !Find diagonal element - and store it for later on...
-                Hamii=GetHElement2(nJ,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,0,ECore)
+                Hamii = get_helement_excit (nJ, nJ, 0)
                 GraphKii(i)=REAL(Hamii%v,r2)-Hii                !Again, the root value is not stored
                 GraphRhoMat(i,i)=1.D0-Tau*(GraphKii(i)-DiagSft)
 
@@ -1387,7 +1387,7 @@ SUBROUTINE PerformFCIMCyc()
 
                 IF(nJ_IC.eq.2) THEN
 !Excitation is less than or equal to a double - find connection to original walker
-                    Hijtemp=GetHElement2(DetCurr,nJ,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,NMax,ALat,UMat,iExcit,ECore)
+                    Hijtemp = get_helement (DetCurr, nJ)
                     IF(WSign) THEN
                         Hij=REAL(Hijtemp%v,r2)
                     ELSE
@@ -1395,7 +1395,7 @@ SUBROUTINE PerformFCIMCyc()
                     ENDIF
 !Find MP1 excitation compt
                     TempFjj=GetH0Element3(nJ)
-                    Hij2temp=GetHElement2(HFDet,nJ,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,NMax,ALat,UMat,nJ_IC,ECore)
+                    Hij2temp = get_helement (HFDet, nJ)
                     MP1Compt=-(REAL(Hij2temp%v,r2))/(Fii-(REAL(TempFjj%v,r2)))
                     SumHOverlapMP2=SumHOverlapMP2+(MP1Compt*Hij)
 
@@ -1438,7 +1438,7 @@ SUBROUTINE PerformFCIMCyc()
                 ELSEIF(nJ_IC.eq.0) THEN
 !Excitation is the HF determinant - find connection to it
 
-                    Hijtemp=GetHElement2(DetCurr,nJ,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,NMax,ALat,UMat,iExcit,ECore)
+                    Hijtemp = get_helement (DetCurr, nJ)
                     IF(WSign) THEN
                         Hij=REAL(Hijtemp%v,r2)
                     ELSE
@@ -1616,7 +1616,7 @@ SUBROUTINE PerformFCIMCyc()
                 ELSEIF(Connection.le.2) THEN
 !Walkers i and j are connected, but not at the same determinant - first calculate connection strength
             
-                    Hij=GetHElement2(DetCurr,NewDets(:,j),NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,NMax,ALat,UMat,Connection,ECore)
+                    Hij = get_helement (DetCurr, NewDets(:,j))
                     InteractionResult=AttemptAnnihilatDist(Hij,WSign,NewSign(j))
 
                     IF(InteractionResult.eq.-1) THEN
@@ -1839,7 +1839,7 @@ SUBROUTINE PerformFCIMCyc()
         Seed=G_VMC_Seed
 
 !Calculate Hii
-        TempHii=GetHElement2(HFDet,HFDet,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,NMax,ALat,UMat,0,ECore)
+        TempHii = get_helement_excit (HFDet, HFDet, 0)
         Hii=REAL(TempHii%v,r2)          !Diagonal Hamiltonian element for the HF determinant
 
         TempHii=GetH0Element3(HFDet)
@@ -2279,7 +2279,7 @@ SUBROUTINE PerformFCIMCyc()
                 CALL Stop_All("InitWalkersMP1","Error - excitations other than doubles being generated in MP1 wavevector code")
             ENDIF
 
-            Hij=GetHElement2(HFDet,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,iExcit,ECore)
+            Hij = get_helement (HFDet, nJ)
             CALL GetH0Element(nJ,NEl,Arr,nBasis,ECore,Fjj)
 
             Compt=real(Hij%v,r2)/(Fii-(REAL(Fjj%v,r2)))     !Calculate MP1 components
@@ -2348,7 +2348,7 @@ SUBROUTINE PerformFCIMCyc()
                 CurrentIC(j)=2
                 CurrentSign(j)=MP1Sign(i)
                 CurrentH(2,j)=MP1Hij(i)     !This is the off-diagonal element to HF det
-                Hjj=GetHElement2(MP1Dets(1:NEl,i),MP1Dets(1:NEl,i),NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,0,ECore)     !Find the diagonal element
+                Hjj = get_helement_excit (MP1Dets(:,i), MP1Dets(:,i), 0)
                 CurrentH(1,j)=real(Hjj%v,r2)-Hii
             ENDIF
 
@@ -2485,7 +2485,7 @@ SUBROUTINE PerformFCIMCyc()
 
 !Now put component of MP2 wavefunction into MP2ExcitComps(I,J,A,B)
             Denom=Arr(ExcitForm(2,1),2)-Arr(ExcitForm(1,1),2)+Arr(ExcitForm(2,2),2)-Arr(ExcitForm(1,2),2)
-            Hij=GetHElement2(HFDet,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,2,ECore)
+            Hij = get_helement (HFDet, nJ)
 
 !            MP2ExcitComps(I,J,A,B)=-REAL(Hij%v,r2)/Denom    !Store MP2 Wavefunction
             MP1Comp=-REAL(Hij%v,r2)/Denom
@@ -2719,9 +2719,10 @@ SUBROUTINE PerformFCIMCyc()
             CurrentIC(j)=iGetExcitLevel_2(HFDet,CurrentDets(:,j),NEl,NEl)
             IF(CurrentIC(j).eq.2) THEN
 !Only need it for double excitations, since these are the only ones which contribute to energy
-                HElemTemp=GetHElement2(HFDet,CurrentDets(:,j),NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,CurrentIC(j),ECore)
+                HElemTemp = get_helement (HFDet, CurrentDets(:,j))
                 CurrentH(2,j)=REAL(HElemTemp%v,r2)
-                HElemTemp=GetHElement2(CurrentDets(:,j),CurrentDets(:,j),NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,0,ECore)
+                HElemTemp = get_helement_excit (CurrentDets(:,j), &
+                                                CurrentDets(:,j), 0)
                 CurrentH(1,j)=REAL(HElemTemp%v,r2)-Hii
                 IF(.not.TRegenExcitgens) CurrentExcits(j)%ExitGenForDet=.false.
             ELSEIF(CurrentIC(j).eq.0) THEN
@@ -2732,7 +2733,8 @@ SUBROUTINE PerformFCIMCyc()
                 
             ELSE
                 IF(.not.TRegenExcitgens) CurrentExcits(j)%ExitGenForDet=.false.
-                HElemTemp=GetHElement2(CurrentDets(:,j),CurrentDets(:,j),NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,0,ECore)
+                HElemTemp = get_helement_excit (CurrentDets(:,j), &
+                                                CurrentDets(:,j), 0)
                 CurrentH(1,j)=(REAL(HElemTemp%v,r2))-Hii
                 CurrentH(2,j)=0.D0
             ENDIF
@@ -2961,7 +2963,7 @@ SUBROUTINE PerformFCIMCyc()
             rh=HElement(Hij)
         ELSE
 !Calculate off diagonal hamiltonian matrix element between determinants
-            rh=GetHElement2(DetCurr,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,IC,ECore)
+            rh = get_helement(DetCurr, nJ)
         ENDIF
 
         SumConnections=SumConnections+REAL(rh%v,r2)     !Sum the connections (success and failure) to find average connection strength

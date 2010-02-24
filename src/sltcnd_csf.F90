@@ -14,19 +14,61 @@ module sltcnd_csf_mod
     implicit none
 
 contains
-    type(HElement) function sltcnd_csf (nI, nJ, iLutI, iLutJ)
+    type(HElement) function sltcnd_excit (nI, nJ, IC, ex, tParity)
+        
+        ! Use the Slater-Condon Rules to evaluate the H-matrix element between
+        ! two determinants, where the excitation matrix is already known.
+        ! TODO: do we want to return the parity?
+        !
+        ! In:  nI, nJ       - The determinants to evaluate
+        !      IC           - The number of orbitals I,J differ by
+        !      ex           - The excitation matrix
+        !      tParity      - The parity of the excitation
+        ! Ret: sltcnd_excit - The H matrix element
+
+        integer, intent(in) :: nI(nel), nJ(nel), IC
+        integer, intent(in), optional :: ex(2,2)
+        logical, intent(in), optional :: tParity
+        character(*), parameter :: this_routine = 'sltcnd_excit'
+
+        if (IC /= 0 .and. .not. present(tParity)) &
+            call stop_all (this_routine, "ex and tParity must be provided to &
+                          &sltcnd_excit for all IC /= 0")
+
+        select case (IC)
+        case (0)
+            ! The determinants are exactly the same
+            sltcnd_excit = sltcnd_csf_0 (nI)
+
+        case (1)
+            ! The determnants differ by only one orbital
+            sltcnd_excit = sltcnd_csf_1 (nI, ex(:,1), tParity)
+
+        case (2)
+            ! The determinants differ by two orbitals
+            sltcnd_excit = sltcnd_csf_2 (ex, tParity)
+
+        case default
+            ! The determinants differ yb more than 2 orbitals
+            sltcnd_excit%v = 0
+        end select
+    end function
+
+    type(HElement) function sltcnd_csf (nI, nJ, iLutI, iLutJ, ICret)
         
         ! Use the Slater-Condon Rules to evaluate the H matrix element between
-        ! two determinants. Assume CSF ordering of orbitals (closed pairs
-        ! followed by open shell electrons). However, this is NOT to be passed
-        ! CSFS - it is to evaluate the component determinants.
+        ! two determinants. Make no assumptions about ordering of orbitals.
+        ! However, this is NOT to be passed CSFS - it is to evaluate the 
+        ! component determinants.
         !
         ! In:  nI, nJ        - The determinants to evaluate
         !      iLutI, ilutJ  - Bit representations of above determinants
+        ! Out: ICret         - Optionally return the IC value
         ! Ret: sltcnd_csf    - The H matrix element
 
         integer, intent(in) :: nI(nel), nJ(nel)
         integer, intent(in) :: iLutI(0:NIfTot), iLutJ(0:NIfTot)
+        integer, intent(out), optional :: ICret
         integer :: IC, ex(2,2)
         logical :: tSign
 
@@ -54,6 +96,8 @@ contains
             ! The determinants differ by more than two orbitals
             sltcnd_csf%v = 0
         endselect
+
+        if (present(ICret)) ICret = IC
 
     end function
 

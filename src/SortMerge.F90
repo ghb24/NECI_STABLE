@@ -18,7 +18,7 @@
     SUBROUTINE MergeListswH(nlist1,nlist1max,nlist2,list2,SignList2)
         USE FciMCParMOD , only : iLutHF,Hii,CurrentDets,CurrentSign,CurrentH
         USE SystemData , only : NEl,tHPHF,NIfTot,NIfDBO
-        USE Determinants , only : GetHElement3
+        USE Determinants , only : get_helement_excit, get_helement
         use DetBitOps, only: DecodeBitDet, DetBitEQ
         USE HElem
         IMPLICIT NONE
@@ -81,7 +81,7 @@
                IF(tHPHF) THEN
                    CALL HPHFGetDiagHElement(nJ,list2(:,i),HDiagTemp)
                ELSE
-                   HDiagTemp=GetHElement3(nJ,nJ,0)
+                   HDiagTemp = get_helement_excit (nJ, nJ, 0)
                ENDIF
                HDiag=(REAL(HDiagTemp%v,8))-Hii
            ENDIF
@@ -109,7 +109,7 @@
    SUBROUTINE MergeListswH2(nlist1,nlist1max,nlist2,list2,list3,SignList2)
         USE FciMCParMOD , only : iLutHF,Hii,MinorStarDets,MinorStarSign,MinorStarParent,MinorStarHii,MinorStarHij
         USE SystemData , only : NEl,Alat,Brr,ECore,G1,nBasis,nBasisMax,nMsh,tHPHF,NIfTot
-        USE Determinants , only : GetHElement3,GetHElement2
+        USE Determinants , only : get_helement, get_helement_excit
         USE IntegralsData , only : fck,NMax,UMat
         USE HElem
         use DetBitOps, only: DecodeBitDet
@@ -167,7 +167,7 @@
                IF(tHPHF) THEN
                    CALL HPHFGetDiagHElement(nJ,list2(0:NIfTot,i),HDiagTemp)
                ELSE
-                   HDiagTemp=GetHElement3(nJ,nJ,0)
+                   HDiagTemp = get_helement_excit (nJ, nJ, 0)
                ENDIF
                HDiag=(REAL(HDiagTemp%v,8))-Hii
                MinorStarHii(ips+i-1)=HDiag
@@ -176,7 +176,7 @@
                IF(tHPHF) THEN
                    CALL HPHFGetOffDiagHElement(nJ,nK,list2(0:NIfTot,i),list3(0:NIfTot,i),HOffDiagTemp)
                ELSE
-                   HOffDiagTemp=GetHElement2(nJ,nK,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,ExcitLevel,ECore)
+                   HOffDiagTemp = get_helement (nJ, nK)
                ENDIF
                HOffDiag=(REAL(HOffDiagTemp%v,8))
                MinorStarHij(ips+i-1)=HOffDiag
@@ -198,7 +198,7 @@
                 IF(tHPHF) THEN
                     CALL HPHFGetDiagHElement(nJ,list2(0:NIfTot,j),HDiagTemp)
                 ELSE
-                    HDiagTemp=GetHElement3(nJ,nJ,0)
+                    HDiagTemp = get_helement_excit (nJ, nJ, 0)
                 ENDIF
                 HDiag=(REAL(HDiagTemp%v,8))-Hii
                 MinorStarHii(j)=HDiag
@@ -207,7 +207,7 @@
                 IF(tHPHF) THEN
                     CALL HPHFGetOffDiagHElement(nJ,nK,list2(0:NIfTot,j),list3(0:NIfTot,j),HOffDiagTemp)
                 ELSE
-                    HOffDiagTemp=GetHElement2(nJ,nK,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,ExcitLevel,ECore)
+                    HOffDiagTemp = get_helement (nJ, nK)
                 ENDIF
                 HOffDiag=(REAL(HOffDiagTemp%v,8))
                 MinorStarHij(j)=HOffDiag

@@ -233,6 +233,8 @@ C.. CK now contains the eigenvectors, and W the eigenvalues
      &            BETA,I_P,ILOGGING,IFDET,ARR,BLOCKSYM)
          use SystemData, only: BasisFN
          use global_utilities
+         use Determinants, only: get_helement
+         use HElem
          IMPLICIT NONE
          INTEGER NDET,NEL,NBLOCKS,NBLOCKSTARTS(NBLOCKS),NMRKS(NEL,NDET)
          INTEGER nBasisMax(5,*),NBASIS
@@ -240,7 +242,7 @@ C.. CK now contains the eigenvectors, and W the eigenvalues
          INTEGER NMSH,NMAX,I_P,ILOGGING,BRR(*),INFO
          REAL*8  ALAT(3),UMAT(*),ICMAX(*),GC(*),BETA
          LOGICAL TMC,TWARN
-         REAL*8  FCK(*),ECORE,GETHELEMENT2,DNORM
+         REAL*8  FCK(*),ECORE,DNORM
          REAL*8  CALCDLWDB,CALCMCEN,ARR(NBASIS)
          
          INTEGER I,NBLKMAX,NBLK,J,K,NBS,III,IFDET,L
@@ -251,6 +253,7 @@ C.. CK now contains the eigenvectors, and W the eigenvalues
          INTEGER GELOWEST,IDEG
          type(timer), save :: proc_timer
          TYPE(BasisFN) BLOCKSYM(NBLOCKS)
+         type(helement) :: hel
          character(*),parameter :: this_routine='HDIAG_NH'
          proc_timer%timer_name=this_routine
          call set_timer(proc_timer)
@@ -284,9 +287,8 @@ C.. Go through the blocks forming the hamil matrix
             NBLK=NBLOCKSTARTS(I+2)-NBS
             DO J=0,NBLK-1
                DO K=J,NBLK-1
-                  CK(J*NBLK+K+1)=GETHELEMENT2(NMRKS(1,NBS+J),
-     &                      NMRKS(1,NBS+K),NEL,NBASISMAX,
-     &   G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,-1,ECORE)
+                  hel = get_helement (NMRKS(1,NBS+J), NMRKS(1,NBS+K))
+                  CK(J*NBLK+K+1) = hel%v
                ENDDO
             ENDDO
 C.. Diagonalize

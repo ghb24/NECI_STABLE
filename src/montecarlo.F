@@ -268,6 +268,7 @@ C.. We couldn't find it
 
          use global_utilities
          use legacy_data, only: irat
+         use Determinants, only: get_helement_excit
          IMPLICIT REAL*8 (A-H,O-Z)
          INTEGER IPATH(I_P+1)
          INTEGER ISEED
@@ -350,8 +351,7 @@ C.. Hard code the start position as the NEL lowest energy basis fns
             LSTDET(I,NFIRST)=NI(I)
          ENDDO
         IF(NTAY.GE.0) THEN 
-         WRITE(6,*) '<D0|H|D0>=',GETHELEMENT2(NI,NI,NEL,NBASISMAX,
-     &              G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,IC,ECORE)
+         WRITE(6,*) '<D0|H|D0>=', get_helement_excit (nI, nI, 0)
          WRITE(6,*) '<D0|T|D0>=',CALCT(NI,NEL,G1,NBASIS)
         ENDIF
 

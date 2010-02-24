@@ -12,7 +12,11 @@
 
     MODULE NODEDIAG
       USE HElem
-      IMPLICIT NONE
+      use SystemData, only: BasisFN
+      use IntegralsData, only: tDiscoNodes
+      use Determinants, only: get_helement, get_helement_excit
+      use global_utilities
+      implicit none
 
 !Stores the excitations by their {a,b} value, according to which {i,j} family they are under.
       INTEGER, ALLOCATABLE :: EXCITSTORE(:,:,:)
@@ -37,9 +41,6 @@
       contains
 
       FUNCTION fMCPR3StarNodes(nI,Beta,i_P,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,nMax,ALat,UMat,nTay,RhoEps,L,LT,nWHTay,iLogging,tSym,ECore,dBeta,dLWdb)
-      use Determinants, only: GetHElement2
-      use SystemData, only: BasisFN
-      use global_utilities
       TYPE(BasisFN) G1(*)
       INTEGER nI(nEl),nEl,i_P,nBasisMax(5,*),Brr(nBasis),nBasis,nMsh
       INTEGER nMax,nTay(2),L,LT,nWHTay,iLogging,iMaxExcit,nExcitMemLen
@@ -143,7 +144,7 @@
       
 !Calculate rho_ii and H_ii, and put into ExcitInfo. Again, we divide all rho elements through by rho_ii (Therefore rho_ii element=1)
       CALL CalcRho2(nI,nI,Beta,i_P,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,nMax,ALat,UMat,rhii,nTay,0,ECore)
-      ExcitInfo(0,2)=GetHElement2(nI,nI,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,nMax,ALat,UMat,0,ECore)
+      ExcitInfo(0,2) = get_helement_excit (nI, nI, 0)
       EXCITINFO(0,0)=1.D0
       EXCITINFO(0,1)=1.D0
 
@@ -187,10 +188,6 @@
 !From a given {i,j}, and a list of all {a,b}'s which result in possible double excitations from the HF, find all the connections between them, and diagonalise the resulting matrix from this 'node'. 
 !Finally, attach the resultant structures back to the HF in EXCITINFO star matrix.      
       SUBROUTINE CONSTRUCTNODE(novirt,nEl,node,nI,Beta,i_P,nBasisMax,G1,nBasis,Brr,nMsh,fck,nMax,ALat,UMat,nTay,ECore,RhoEps,ExcitInfoElems)
-        use IntegralsData , only : TDISCONODES
-        Use Determinants, only: GetHElement2
-        use SystemData, only: BasisFN
-        use global_utilities
         IMPLICIT NONE
         Type(BasisFN) G1(*)
         COMPLEX*16 fck(*)
@@ -333,7 +330,7 @@
                     EXCITINFO(ExcitInfoElems,1)=EXCITINFO(ExcitInfoElems,1)+(rh/rhii)*HElement(NODERHOMAT((novirt*(j-1))+i))
 
 !H Elements dealt with in the same way
-                    Hel=GetHElement2(nI,nJ,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,nMax,ALat,UMat,iExcit,ECore)
+                    Hel=get_helement(nI,nJ)
                     EXCITINFO(ExcitInfoElems,2)=EXCITINFO(ExcitInfoElems,2)+Hel*HElement(NODERHOMAT((novirt*(j-1))+i))
                 ENDDO
             ENDIF

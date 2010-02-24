@@ -28,13 +28,14 @@ MODULE GenRandSymExcitNUMod
     use SystemData, only: nEl,G1, nBasis,nBasisMax,tNoSymGenRandExcits,tMerTwist
     use SystemData, only: Arr,nMax,tCycleOrbs,nOccAlpha,nOccBeta,ElecPairs,MaxABPairs
     use IntegralsData, only: UMat
-    use Determinants, only: GetHElement4
+    use Determinants, only: get_helement_excit
     use SymData, only: nSymLabels,TwoCycleSymGens
     use SymData, only: SymLabelList,SymLabelCounts
     use mt95 , only : genrand_real2
     use SymExcitDataMod 
     use HElem
     use DetBitOps, only: FindExcitBitDet
+    use sltcnd_csf_mod, only: sltcnd_csf_1
     IMPLICIT NONE
 
     INTEGER , PARAMETER :: r2=kind(0.d0)
@@ -1847,7 +1848,7 @@ MODULE GenRandSymExcitNUMod
 
 !Now we want to find the information about this excitation
             ExcitMat(2,1)=OrbA
-            CALL Scr1Excit2(NEl,nBasisMax,nI,nI,G1,nBasis,UMat,ALat,iSpinSkip,FCoul,.true.,rh,ExcitMat,.false.)
+            rh = sltcnd_csf_1 (nI, ExcitMat, .false.)
         
             SpawnProb(VecInd)=abs(REAL(rh%v,r2))
             SpawnOrb(VecInd)=OrbA
@@ -1912,7 +1913,7 @@ MODULE GenRandSymExcitNUMod
 
 !Once we have the definitive determinant, we also want to find out what sign the particles we want to create are.
 !iCreate is initially positive, so its sign can change depending on the sign of the connection and of the parent particle(s)
-            rh=GetHElement4(nI,nJ,1,ExcitMat,tParity)
+            rh = get_helement_excit (nI, nJ, 1, ExcitMat, tParity)
 
             IF(WSign.gt.0) THEN
                 !Parent particle is positive
@@ -1952,7 +1953,7 @@ MODULE GenRandSymExcitNUMod
 
 !Once we have the definitive determinant, we also want to find out what sign the particles we want to create are.
 !iCreate is initially positive, so its sign can change depending on the sign of the connection and of the parent particle(s)
-            rh=GetHElement4(nI,nJ,2,ExcitMat,tParity)
+            rh = get_helement_excit(nI, nJ, 2, ExcitMat, tParity)
 
             IF(WSign.gt.0) THEN
                 !Parent particle is positive

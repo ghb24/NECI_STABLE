@@ -50,3 +50,11 @@ C..
      &	SITAB(I,G1(ND)%k(1))*SITAB(J,G1(ND)%k(2))*SITAB(K,G1(ND)%k(3))
       RETURN
       END
+C =====================================
+C We want to get rid of this really ... it is a bit opaque
+      SUBROUTINE CHK(N,L,IDS)
+      IMPLICIT REAL*8 (A-H,O-Z)
+      DS=N*L
+      IF(IDS.LT.0) IDS=0
+      RETURN
+      END

@@ -1098,7 +1098,7 @@ MODULE Calc
           use SystemData, only: tUEG,nOccAlpha,nOccBeta,ElecPairs,tExactSizeSpace,tMCSizeSpace,MaxABPairs
           use IntegralsData, only: FCK, CST, nMax, UMat
           use IntegralsData, only: HFEDelta, HFMix, NHFIt, tHFCalc
-          Use Determinants, only: FDet, tSpecDet, SpecDet, GetHElement2
+          Use Determinants, only: FDet, tSpecDet, SpecDet, get_helement_excit
           Use DetCalc, only: DetInv, nDet, tRead, ICILevel
           use global_utilities
           
@@ -1158,7 +1158,7 @@ MODULE Calc
           IF(.NOT.TREAD) THEN
 !             CALL WRITETMAT(NBASIS)
              IC=0
-             HDiagTemp=GETHELEMENT2(FDET,FDET,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,IC,ECORE)
+             HDiagTemp = get_helement_excit(fDet, fDet, 0)
              WRITE(6,*) '<D0|H|D0>=',HDiagTemp
              WRITE(6,*) '<D0|T|D0>=',CALCT(FDET,NEL,G1,NBASIS)
              IF(TUEG) THEN
@@ -1876,7 +1876,7 @@ MODULE Calc
 
 ! Given an input RHOEPSILON, create Fermi det D out of lowest orbitals and get RHOEPS (which is rhoepsilon * exp(-(beta/P)<D|H|D>
       REAL*8 FUNCTION GETRHOEPS(RHOEPSILON,BETA,NEL,NBASISMAX,G1,NHG, BRR,NMSH,FCK,NMAX,ALAT,UMAT,I_P,ECORE)
-         Use Determinants, only: GetHElement2
+         Use Determinants, only: get_helement_excit
          USE HElem
          use SystemData, only: BasisFN
          IMPLICIT NONE
@@ -1891,9 +1891,8 @@ MODULE Calc
          ENDDO
          CALL NECI_SORTI(NEL,NI)
          BP=HElement(-BETA/I_P)
-         GETRHOEPS=DSQRT(SQ(HElement(RHOEPSILON)*EXP(BP*GETHELEMENT2(NI, &
-     &      NI,NEL,NBASISMAX,G1,NHG,BRR,NMSH,FCK,NMAX,ALAT,UMAT,        &
-     &         0,ECORE))))
+         GETRHOEPS=DSQRT(SQ(HElement(RHOEPSILON) * &
+                        EXP(BP*get_helement_excit(nI, nI, 0))))
          RETURN
       END FUNCTION GetRhoEps
 
@@ -1913,8 +1912,8 @@ MODULE Calc
          DO J=1,NEL
             I=NI(J)
            TMAT=((ALAT(1)**2)*((G1(I)%K(1)**2)/(ALAT(1)**2)+   &
-     &         (G1(I)%K(2)**2)/(ALAT(2)**2)+                   &
-     &         (G1(I)%K(3)**2)/(ALAT(3)**2)))
+               (G1(I)%K(2)**2)/(ALAT(2)**2)+                   &
+               (G1(I)%K(3)**2)/(ALAT(3)**2)))
            TMAT=TMAT*CST
            CALCT2=CALCT2+TMAT
          ENDDO
