@@ -1,6 +1,6 @@
 #include "macros.h"
 
-module sltcnd_csf_mod
+module sltcnd_mod
     use SystemData, only: nel, nBasisMax, tExch, FCOUL, NIfTot, G1, ALAT
     use SystemData, only: nBasis!, iSpinSkip
     ! HACK - We use nBasisMax(2,3) here rather than iSpinSkip, as it appears
@@ -41,15 +41,15 @@ contains
         select case (IC)
         case (0)
             ! The determinants are exactly the same
-            sltcnd_excit = sltcnd_csf_0 (nI)
+            sltcnd_excit = sltcnd_0 (nI)
 
         case (1)
             ! The determnants differ by only one orbital
-            sltcnd_excit = sltcnd_csf_1 (nI, ex(:,1), tParity)
+            sltcnd_excit = sltcnd_1 (nI, ex(:,1), tParity)
 
         case (2)
             ! The determinants differ by two orbitals
-            sltcnd_excit = sltcnd_csf_2 (ex, tParity)
+            sltcnd_excit = sltcnd_2 (ex, tParity)
 
         case default
             ! The determinants differ yb more than 2 orbitals
@@ -57,7 +57,7 @@ contains
         end select
     end function
 
-    type(HElement) function sltcnd_csf (nI, nJ, iLutI, iLutJ, ICret)
+    type(HElement) function sltcnd (nI, nJ, iLutI, iLutJ, ICret)
         
         ! Use the Slater-Condon Rules to evaluate the H matrix element between
         ! two determinants. Make no assumptions about ordering of orbitals.
@@ -67,7 +67,7 @@ contains
         ! In:  nI, nJ        - The determinants to evaluate
         !      iLutI, ilutJ  - Bit representations of above determinants
         ! Out: ICret         - Optionally return the IC value
-        ! Ret: sltcnd_csf    - The H matrix element
+        ! Ret: sltcnd    - The H matrix element
 
         integer, intent(in) :: nI(nel), nJ(nel)
         integer, intent(in) :: iLutI(0:NIfTot), iLutJ(0:NIfTot)
@@ -81,23 +81,23 @@ contains
         select case (IC)
         case (0)
             ! The determinants are exactly the same
-            sltcnd_csf = sltcnd_csf_0 (nI)
+            sltcnd = sltcnd_0 (nI)
 
         case (1)
             ! The determinants differ by only one orbital
             ex(1,1) = IC
             call GetBitExcitation (iLutI, iLutJ, ex, tSign)
-            sltcnd_csf = sltcnd_csf_1 (nI, Ex(:,1), tSign)
+            sltcnd = sltcnd_1 (nI, Ex(:,1), tSign)
 
         case (2)
             ! The determinants differ by two orbitals
             ex(1,1) = IC
             call GetBitExcitation (iLutI, iLutJ, ex, tSign)
-            sltcnd_csf = sltcnd_csf_2 (ex, tSign)
+            sltcnd = sltcnd_2 (ex, tSign)
 
         case default
             ! The determinants differ by more than two orbitals
-            sltcnd_csf%v = 0
+            sltcnd%v = 0
         endselect
 
         if (present(ICret)) ICret = IC
@@ -105,7 +105,7 @@ contains
     end function
 
 
-    function sltcnd_csf_0 (nI) result(hel)
+    function sltcnd_0 (nI) result(hel)
 
         ! Calculate the HElement by the SlaterCondon Rules when the two
         ! determinants are the same (so we only need to specify one).
@@ -146,9 +146,9 @@ contains
 
         ! If we are scaling the coulomb interaction, do so here.
         hel = hel_sing + (hel_doub * HElement(FCOUL))
-    end function sltcnd_csf_0
+    end function sltcnd_0
 
-    function sltcnd_csf_1 (nI, ex, tSign) result(hel)
+    function sltcnd_1 (nI, ex, tSign) result(hel)
 
         ! Calculate the HElement by the Slater-Condon Rules when the two
         ! determinants differ by one orbital exactly.
@@ -189,9 +189,9 @@ contains
         hel = (hel*HElement(FCOUL)) + GetTMATEl(ex(1), ex(2))
 
         if (tSign) hel = -hel
-    end function sltcnd_csf_1
+    end function sltcnd_1
     
-    function sltcnd_csf_2 (ex, tSign) result (hel)
+    function sltcnd_2 (ex, tSign) result (hel)
 
         ! Calculate the HElement by the Slater-Condon Rules when the two
         ! determinants differ by two orbitals exactly (the simplest case).
@@ -222,5 +222,5 @@ contains
         endif
 
         if (tSign) hel = -hel
-    end function sltcnd_csf_2
+    end function sltcnd_2
 end module

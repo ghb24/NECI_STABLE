@@ -35,7 +35,7 @@ MODULE GenRandSymExcitNUMod
     use SymExcitDataMod 
     use HElem
     use DetBitOps, only: FindExcitBitDet
-    use sltcnd_csf_mod, only: sltcnd_csf_1
+    use sltcnd_mod, only: sltcnd_1
     IMPLICIT NONE
 
     INTEGER , PARAMETER :: r2=kind(0.d0)
@@ -1848,7 +1848,7 @@ MODULE GenRandSymExcitNUMod
 
 !Now we want to find the information about this excitation
             ExcitMat(2,1)=OrbA
-            rh = sltcnd_csf_1 (nI, ExcitMat, .false.)
+            rh = sltcnd_1 (nI, ExcitMat, .false.)
         
             SpawnProb(VecInd)=abs(REAL(rh%v,r2))
             SpawnOrb(VecInd)=OrbA

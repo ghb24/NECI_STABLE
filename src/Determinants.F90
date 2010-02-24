@@ -6,7 +6,7 @@ MODULE Determinants
                           NIfToT
     use IntegralsData, only: UMat, FCK, NMAX
     use csf, only: det_to_random_csf, iscsf, CSFGetHElement
-    use sltcnd_csf_mod, only: sltcnd_csf, sltcnd_excit, sltcnd_csf_2
+    use sltcnd_mod, only: sltcnd, sltcnd_excit, sltcnd_2
     use global_utilities
     use DetBitOps, only: EncodeBitDet
     implicit none
@@ -255,18 +255,18 @@ MODULE Determinants
 
             ex(1,:) = nJ(4:5)
             ex(2,:) = nJ(6:7)
-            get_helement = sltcnd_csf_2 (ex, .false.)
+            get_helement = sltcnd_2 (ex, .false.)
         endif
 
         ! Time the calculation.
         proc_timer%timer_name = this_routine
         call set_timer(proc_timer, 60)
         if (present(iLutJ)) then
-            get_helement = sltcnd_csf (nI, nJ, iLutI, iLutJ, IC)
+            get_helement = sltcnd (nI, nJ, iLutI, iLutJ, IC)
         else
             call EncodeBitDet(nI, iLut(:,1))
             call EncodeBitDet(nJ, iLut(:,2))
-            get_helement = sltcnd_csf (nI, nJ, iLut(:,1), iLut(:,2), IC)
+            get_helement = sltcnd (nI, nJ, iLut(:,1), iLut(:,2), IC)
         endif
 
         ! Add in ECore for a diagonal element

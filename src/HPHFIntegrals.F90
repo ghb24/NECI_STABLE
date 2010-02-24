@@ -15,7 +15,7 @@ subroutine HPHFGetOffDiagHElement(nI,nJ,iLutnI,iLutnJ,MatEl)
     use IntegralsData, only : UMat,FCK,NMAX
     use HPHFRandExcitMod , only : FindDetSpinSym,FindExcitBitDetSym
     use DetBitOps, only: DetBitEQ, FindExcitBitDet, FindBitExcitLevel
-    use sltcnd_csf_mod, only: sltcnd_csf, sltcnd_excit
+    use sltcnd_mod, only: sltcnd, sltcnd_excit
     implicit none
 
     integer, intent(in) :: nI(nel), nJ(nel)
@@ -35,7 +35,7 @@ subroutine HPHFGetOffDiagHElement(nI,nJ,iLutnI,iLutnJ,MatEl)
         return
     endif
 
-    MatEl = sltcnd_csf (nI, nJ, iLutnI, iLutnJ)
+    MatEl = sltcnd (nI, nJ, iLutnI, iLutnJ)
     if (TestClosedShellDet(iLutnI)) then
         if (.not. TestClosedShellDet(iLutnJ)) then
             ! Closed shell --> Open shell, <X|H|Y> = 1/sqrt(2) [Hia + Hib],
@@ -100,7 +100,7 @@ subroutine HPHFGetDiagHElement(nI, iLutnI, MatEl)
     use IntegralsData, only : UMat,FCK,NMAX
     use HPHFRandExcitMod , only : FindDetSpinSym,FindExcitBitDetSym
     use DetBitOps, only: FindBitExcitLevel
-    use sltcnd_csf_mod, only: sltcnd_csf, sltcnd_excit
+    use sltcnd_mod, only: sltcnd, sltcnd_excit
     implicit none
 
     integer, intent(in) :: nI(nel), iLutnI(0:NIfTot)
@@ -124,7 +124,7 @@ subroutine HPHFGetDiagHElement(nI, iLutnI, MatEl)
         if (ExcitLevel.le.2) then
             call CalcOpenOrbs (iLutnI, OpenOrbs)
             call FindDetSpinSym (nI, nI2, nel)
-            MatEl2 = sltcnd_csf (nI, nI2, iLutnI, iLutnI2)
+            MatEl2 = sltcnd (nI, nI2, iLutnI, iLutnI2)
 
             if (mod(OpenOrbs,2).eq.1) then
                 ! Subtract cross terms if determinant is antisymmetric.

@@ -13,7 +13,7 @@ MODULE HPHFRandExcitMod
     use GenRandSymExcitNUMod , only : GenRandSymExcitScratchNU,ConstructClassCounts,CalcNonUniPGen,ScratchSize 
     use DetBitOps, only: DetBitLT, DetBitEQ, FindExcitBitDet,FindBitExcitLevel
     use HElem
-    use sltcnd_csf_mod, only: sltcnd_excit
+    use sltcnd_mod, only: sltcnd_excit
     IMPLICIT NONE
 !    SAVE
 !    INTEGER :: Count=0
