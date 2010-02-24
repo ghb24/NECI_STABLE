@@ -31,7 +31,7 @@ MODULE GenRandSymExcitNUMod
     use Determinants, only: GetHElement4
     use SymData, only: nSymLabels,TwoCycleSymGens
     use SymData, only: SymLabelList,SymLabelCounts
-    use mt95 , only : genrand_real2
+    use dSFMT_interface , only : genrand_close_open
     use SymExcitDataMod 
     use HElem
     use DetBitOps, only: FindExcitBitDet
@@ -94,7 +94,7 @@ MODULE GenRandSymExcitNUMod
             pDoubNew=pDoub
 
             IF(tMerTwist) THEN
-                CALL genrand_real2(r)
+                r = genrand_close_open()
             ELSE
                 CALL RANLUX(r,1)
             ENDIF
@@ -195,7 +195,7 @@ MODULE GenRandSymExcitNUMod
             pDoubNew=pDoub
 
             IF(tMerTwist) THEN
-                CALL genrand_real2(r)
+                r = genrand_close_open()
             ELSE
                 CALL RANLUX(r,1)
             ENDIF
@@ -377,7 +377,7 @@ MODULE GenRandSymExcitNUMod
 
 !Choose the unoccupied orbital to exite to
             IF(tMerTwist) THEN
-                CALL genrand_real2(r)
+                r = genrand_close_open()
             ELSE
                 CALL RANLUX(r,1)
             ENDIF
@@ -436,7 +436,7 @@ MODULE GenRandSymExcitNUMod
                 
 !Draw randomly from the set of orbitals
                 IF(tMerTwist) THEN
-                    CALL genrand_real2(r)
+                    r = genrand_close_open()
                 ELSE
                     CALL RANLUX(r,1)
                 ENDIF
@@ -836,7 +836,7 @@ MODULE GenRandSymExcitNUMod
 
 !Choose the unoccupied orbital to excite to
                     IF(tMerTwist) THEN
-                        CALL genrand_real2(r)
+                        r = genrand_close_open()
                     ELSE
                         CALL RANLUX(r,1)
                     ENDIF
@@ -873,7 +873,7 @@ MODULE GenRandSymExcitNUMod
                         
 !Draw randomly from the set of orbitals
                         IF(tMerTwist) THEN
-                            CALL genrand_real2(r)
+                            r = genrand_close_open()
                         ELSE
                             CALL RANLUX(r,1)
                         ENDIF
@@ -908,7 +908,7 @@ MODULE GenRandSymExcitNUMod
 ! ==========================
 
                     IF(tMerTwist) THEN
-                        CALL genrand_real2(r)
+                        r = genrand_close_open()
                     ELSE
                         CALL RANLUX(r,1)
                     ENDIF
@@ -952,7 +952,7 @@ MODULE GenRandSymExcitNUMod
                         
 !Draw randomly from the set of orbitals
                         IF(tMerTwist) THEN
-                            CALL genrand_real2(r)
+                            r = genrand_close_open()
                         ELSE
                             CALL RANLUX(r,1)
                         ENDIF
@@ -1115,7 +1115,7 @@ MODULE GenRandSymExcitNUMod
         IF(IndInp.eq.-1) THEN
 !Find an index randomly.
             IF(tMerTwist) THEN
-                CALL genrand_real2(r)
+                r = genrand_close_open()
             ELSE
                 CALL RANLUX(r,1)
             ENDIF
@@ -1236,7 +1236,7 @@ MODULE GenRandSymExcitNUMod
 
 !Choose an electron randomly...
             IF(tMerTwist) THEN
-                CALL genrand_real2(r)
+                r = genrand_close_open()
             ELSE
                 CALL RANLUX(r,1)
             ENDIF
@@ -1288,7 +1288,7 @@ MODULE GenRandSymExcitNUMod
 
 !Choose the unoccupied orbital to exite to
         IF(tMerTwist) THEN
-            CALL genrand_real2(r)
+            r = genrand_close_open()
         ELSE
             CALL RANLUX(r,1)
         ENDIF
@@ -1356,7 +1356,7 @@ MODULE GenRandSymExcitNUMod
                 
 !Draw randomly from the set of orbitals
                 IF(tMerTwist) THEN
-                    CALL genrand_real2(r)
+                    r = genrand_close_open()
                 ELSE
                     CALL RANLUX(r,1)
                 ENDIF
@@ -1698,7 +1698,7 @@ MODULE GenRandSymExcitNUMod
             IF(pDoubNew.gt.1.D0) CALL Stop_All(this_routine,"pDoub is greater than 1")
 
             IF(tMerTwist) THEN
-                CALL genrand_real2(r)
+                r = genrand_close_open()
             ELSE
                 CALL RANLUX(r,1)
             ENDIF
@@ -1783,7 +1783,7 @@ MODULE GenRandSymExcitNUMod
 
 !Choose an electron randomly...
             IF(tMerTwist) THEN
-                CALL genrand_real2(r)
+                r = genrand_close_open()
             ELSE
                 CALL RANLUX(r,1)
             ENDIF
@@ -1869,7 +1869,7 @@ MODULE GenRandSymExcitNUMod
         iCreate=INT(rat)
         rat=rat-REAL(iCreate)
         IF(tMerTwist) THEN
-            CALL genrand_real2(r)
+            r = genrand_close_open()
         ELSE
             CALL RANLUX(r,1)
         ENDIF
@@ -1881,7 +1881,7 @@ MODULE GenRandSymExcitNUMod
         IF(iCreate.gt.0) THEN
 !We want to spawn particles. This only question now is where. Run through the ab pairs again and choose based on the SpawnProb element.
             IF(tMerTwist) THEN
-                CALL genrand_real2(r)
+                r = genrand_close_open()
             ELSE
                 CALL RANLUX(r,1)
             ENDIF
@@ -2096,7 +2096,7 @@ MODULE GenRandSymExcitNUMod
         iCreate=INT(rat)
         rat=rat-REAL(iCreate)
         IF(tMerTwist) THEN
-            CALL genrand_real2(r)
+            r = genrand_close_open()
         ELSE
             CALL RANLUX(r,1)
         ENDIF
@@ -2108,7 +2108,7 @@ MODULE GenRandSymExcitNUMod
         IF(iCreate.gt.0) THEN
 !We want to spawn particles. This only question now is where. Run through the ab pairs again and choose based on the SpawnProb element.
             IF(tMerTwist) THEN
-                CALL genrand_real2(r)
+                r = genrand_close_open()
             ELSE
                 CALL RANLUX(r,1)
             ENDIF
@@ -2136,7 +2136,7 @@ MODULE GenRandSymExcitNUMod
 
         Use SystemData , only : G1,NEl,tMerTwist,nOccAlpha,nOccBeta
         Use SystemData , only : NMAXX,NMAXY,NMAXZ,NIfTot
-        use mt95 , only : genrand_real2
+        use dSFMT_interface , only : genrand_close_open
 
         INTEGER :: i,nI(NEl),nJ(NEl),Elec1Ind,Elec2Ind,iSpn,iLutnI(0:NIfTot),kx,ky,kz,ktest(2),kb_ms,ms_sum
         INTEGER :: ChosenUnocc,Hole1BasisNum,Hole2BasisNum,ki(3),kj(3),ka(3),kb(3),ExcitMat(2,2),iSpinIndex
@@ -2147,7 +2147,7 @@ MODULE GenRandSymExcitNUMod
         ! This currently allows b orbitals to be created that are disallowed
         DO
             IF(tMerTwist) THEN
-                CALL genrand_real2(r)
+                r = genrand_close_open()
             ELSE
                 CALL RANLUX(r,1)
             ENDIF
@@ -2302,7 +2302,7 @@ MODULE GenRandSymExcitNUMod
     SUBROUTINE CreateExcitLattice(nI,iLutnI,nJ,tParity,ExcitMat,pGen)
         Use SystemData , only : G1,NEl,tMerTwist
         Use SystemData , only : NMAXX,NMAXY,NMAXZ,NIfTot
-        use mt95 , only : genrand_real2
+        use dSFMT_interface , only : genrand_close_open
 
         INTEGER :: i,j ! Loop variables
         INTEGER :: Elec1, Elec2
@@ -2317,10 +2317,10 @@ MODULE GenRandSymExcitNUMod
          
         ! Completely random ordering of electrons is important when considering ij->ab ij/->ba. This affects pgens for alpha/beta pairs.
         IF(tMerTwist) THEN
-            CALL genrand_real2(r(1))
+            r(1) = genrand_close_open()
             Elec1=INT(r(1)*NEl+1)
             DO
-                CALL genrand_real2(r(2))
+                r(2) = genrand_close_open()
                 Elec2=INT(r(2)*NEl+1)
                 IF(Elec2.ne.Elec1) EXIT
             ENDDO
@@ -2455,7 +2455,7 @@ MODULE GenRandSymExcitNUMod
         
         Use SystemData , only : G1,NEl,tMerTwist
         Use SystemData , only : NMAXX,NMAXY,NMAXZ,NIfTot
-        use mt95 , only : genrand_real2
+        use dSFMT_interface , only : genrand_close_open
 
         INTEGER :: i,j ! Loop variables
         INTEGER :: Elec1, Elec2, Hole1, Hole2,ms_sum,kx,ky,kz,ktest(2)
@@ -2472,10 +2472,10 @@ MODULE GenRandSymExcitNUMod
         DO
             ! Completely random ordering of electrons is important when considering ij->ab ij/->ba. This affects pgens for alpha/beta pairs.
             IF(tMerTwist) THEN
-                CALL genrand_real2(r(1))
+                r(1) = genrand_close_open()
                 Elec1=INT(r(1)*NEl+1)
                 DO
-                    CALL genrand_real2(r(2))
+                    r(2) = genrand_close_open()
                     Elec2=INT(r(2)*NEl+1)
                     IF(Elec2.ne.Elec1) EXIT
                 ENDDO
@@ -2491,10 +2491,10 @@ MODULE GenRandSymExcitNUMod
             rejections=rejections+1
 
             IF(tMerTwist) THEN
-                CALL genrand_real2(r(3))
+                r(3) = genrand_close_open()
                 Hole1=INT(r(3)*nBasis+1)
                 DO
-                    CALL genrand_real2(r(4))
+                    r(4) = genrand_close_open()
                     Hole2=INT(r(4)*nBasis+1)
                     IF(Hole1.ne.Hole2) EXIT
                 ENDDO

@@ -9,7 +9,7 @@ MODULE HPHFRandExcitMod
 
     use SystemData, only: nEl,tMerTwist,NIfTot,tCSF,NIfD,NIfDBO
     use SymData, only: nSymLabels
-    use mt95 , only : genrand_real2
+    use dSFMT_interface , only : genrand_close_open
     use GenRandSymExcitNUMod , only : GenRandSymExcitScratchNU,ConstructClassCounts,CalcNonUniPGen,ScratchSize 
     use DetBitOps, only: DetBitLT, DetBitEQ, FindExcitBitDet,FindBitExcitLevel
     use HElem
@@ -65,7 +65,7 @@ MODULE HPHFRandExcitMod
 
 !If det is open-shell we choose one of the determinants with 50% chance to create an excitation from.
         IF(tMerTwist) THEN
-            CALL genrand_real2(r)
+            r = genrand_close_open()
         ELSE
             CALL RANLUX(r,1)
         ENDIF

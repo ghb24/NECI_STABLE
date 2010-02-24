@@ -34,7 +34,7 @@ MODULE FciMCParMod
     USE Logging , only : tHFPopStartBlock,tIterStartBlock,IterStartBlocking,HFPopStartBlocking,tInitShiftBlocking,tHistHamil,iWriteHamilEvery
     USE Logging , only : OrbOccs,OrbOccsTag,tPrintPopsDefault 
     USE SymData , only : nSymLabels
-    USE mt95 , only : genrand_real2
+    USE dSFMT_interface , only : genrand_close_open
     USE Parallel
     USE FciMCData
     USE AnnihilationMod
@@ -2281,7 +2281,7 @@ MODULE FciMCParMod
 
 !Pick a random walker between 1 and TotWalkers
                 IF(tMerTwist) THEN
-                    CALL genrand_real2(r) 
+                    r = genrand_close_open() 
                 ELSE
                     CALL RANLUX(r,1)
                 ENDIF
@@ -3265,7 +3265,7 @@ MODULE FciMCParMod
                 do l=1,TempInitWalkers
                     WalkVecSign(l)=WalkVecSign(l)*IntegerPart
                     IF(tMerTwist) THEN
-                        CALL genrand_real2(r) 
+                        r = genrand_close_open() 
                     ELSE
                         CALL RANLUX(r,1)
                     ENDIF
@@ -3313,7 +3313,7 @@ MODULE FciMCParMod
                         VecSlot=VecSlot+1
                     enddo
                     IF(tMerTwist) THEN
-                        CALL genrand_real2(r) 
+                        r = genrand_close_open() 
                     ELSE
                         CALL RANLUX(r,1)
                     ENDIF
@@ -3805,7 +3805,7 @@ MODULE FciMCParMod
                 FracPart=FracPart-REAL(IntParts)
 !Determine whether we want to stochastically create another particle
                 IF(tMerTwist) THEN
-                    CALL genrand_real2(r) 
+                    r = genrand_close_open() 
                 ELSE
                     CALL RANLUX(r,1)
                 ENDIF
@@ -3857,7 +3857,7 @@ MODULE FciMCParMod
                 i=1
 
                 IF(tMerTwist) THEN
-                    CALL genrand_real2(r) 
+                    r = genrand_close_open() 
                 ELSE
                     CALL RANLUX(r,1)
                 ENDIF
@@ -4124,7 +4124,7 @@ MODULE FciMCParMod
 
 !Stochastically choose whether to create or not according to ranlux 
         IF(tMerTwist) THEN
-            CALL genrand_real2(r) 
+            r = genrand_close_open() 
         ELSE
             CALL RANLUX(r,1)
         ENDIF
@@ -4302,7 +4302,7 @@ MODULE FciMCParMod
 
 !Stochastically choose whether to create or not according to ranlux 
         IF(tMerTwist) THEN
-            CALL genrand_real2(r) 
+            r = genrand_close_open() 
         ELSE
             CALL RANLUX(r,1)
         ENDIF
@@ -4374,7 +4374,7 @@ MODULE FciMCParMod
 !        AnnProb=Lambda/ExcitDensity
         AnnProb=Lambda/ExcitDensity
         IF(tMerTwist) THEN
-            CALL genrand_real2(r) 
+            r = genrand_close_open() 
         ELSE
             CALL RANLUX(r,1)
         ENDIF
@@ -4445,7 +4445,7 @@ MODULE FciMCParMod
 
 !Stochastically choose whether to die or not
         IF(tMerTwist) THEN
-            CALL genrand_real2(r) 
+            r = genrand_close_open() 
         ELSE
             CALL RANLUX(r,1)
         ENDIF
@@ -4659,7 +4659,7 @@ MODULE FciMCParMod
             rat=Tau*abs(HSum)
             Child=INT(rat)
             rat=rat-REAL(Child)
-            CALL genrand_real2(r)
+            r = genrand_close_open()
             IF(rat.gt.r) THEN
 !Create child at DetCurr 
                 Child=Child+1
@@ -7462,7 +7462,7 @@ MODULE FciMCParMod
 !            Create=INT(abs(GraphVec(i)))
 !            rat=abs(GraphVec(i))-REAL(Create,dp)    !rat is now the fractional part, to be assigned stochastically
 !            IF(tMerTwist) THEN
-!                CALL genrand_real2(r) 
+!                r = genrand_close_open() 
 !            ELSE
 !                CALL RANLUX(r,1)
 !            ENDIF
@@ -7513,7 +7513,7 @@ MODULE FciMCParMod
 !
 !        rat=abs(GraphVec(1))-REAL(Create,dp)    !rat is now the fractional part, to be assigned stochastically
 !        IF(tMerTwist) THEN
-!            CALL genrand_real2(r) 
+!            r = genrand_close_open() 
 !        ELSE
 !            CALL RANLUX(r,1)
 !        ENDIF
@@ -8696,7 +8696,7 @@ MODULE FciMCParMod
     SUBROUTINE SetupParameters()
         use SystemData, only : tUseBrillouin,iRanLuxLev,tSpn,tHPHFInts,tRotateOrbs,tNoBrillouin,tROHF,tFindCINatOrbs,nOccBeta,nOccAlpha,tUHF
         use SystemData, only : tFixLz,LzTot,BasisFN,tBrillouinsDefault
-        USE mt95 , only : genrand_init
+        USE dSFMT_interface , only : dSFMT_init
         use CalcData, only : EXCITFUNCS,tFCIMC
         use Calc, only : VirtCASorbs,OccCASorbs,FixShift,G_VMC_Seed
         use Determinants , only : GetH0Element3
@@ -8925,7 +8925,7 @@ MODULE FciMCParMod
         WRITE(6,*) "Value for seed is: ",Seed
 !Initialise...
         IF(tMerTwist) THEN
-            CALL genrand_init(Seed)
+            CALL dSFMT_init(Seed)
         ELSE
             CALL RLUXGO(iRanLuxLev,Seed,0,0)
         ENDIF

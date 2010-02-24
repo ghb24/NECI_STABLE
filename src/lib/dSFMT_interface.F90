@@ -22,6 +22,8 @@ real(dp), save :: random_store(random_store_size)
 
 integer, save :: current_element=1
 
+real(dp), external :: genrand_close_open ! Given in dSFTM_wrapper.cpp.
+
 contains
 
     subroutine dSFMT_init(seed)
@@ -41,7 +43,7 @@ contains
 
     end subroutine dSFMT_init
 
-    function genrand_real2() result(r)
+    function genrand_real2_dSFMT() result(r)
 
         ! Return:
         !    random number in interval [0,1).  Name comes from the function
@@ -58,32 +60,41 @@ contains
         r = random_store(current_element)
         current_element = current_element + 1 
 
+    end function genrand_real2_dSFMT
 
-    end function genrand_real2
+    subroutine test_mt()
 
-    subroutine dSFMT_end()
-
-        ! Tidy up: deallocate memory usage.
-
-        integer :: ierr
-
-!        if (allocated(random_store)) deallocate(random_store, stat=ierr)
-        
-    end subroutine dSFMT_end
-
-    subroutine test_rand()
-
-        integer :: i
+        use mt95
+        real(4) :: t1(2), t2(2), s, etime
         real(dp) :: r
+        integer :: i
+
+        call genrand_init(7)
+        s = etime(t1)
+        do i = 1, 10**9
+            call genrand_real2(r)
+        end do
+        s = etime(t2)
+        write (6,*) 'mt95',r,t2-t1
+
+        call init_gen_rand(7)
+        s = etime(t1)
+        do i = 1, 10**9
+            r = genrand_close_open()
+        end do
+        s = etime(t2)
+        write (6,*) 'dSFMT',r,t2-t1
 
         call dSFMT_init(7)
-
-        do i = 1,10**10
-            r = genrand_real2()
+        s = etime(t1)
+        do i = 1, 10**9
+            r = genrand_real2_dSFMT()
         end do
-        write (6,*) r
+        s = etime(t2)
+        write (6,*) 'dSFMT2',r,t2-t1
+
         stop
 
-    end subroutine test_rand
-        
+    end subroutine test_mt
+
 end module dSFMT_interface
