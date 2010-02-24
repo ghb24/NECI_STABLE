@@ -2,7 +2,11 @@
 
 module sltcnd_csf_mod
     use SystemData, only: nel, nBasisMax, tExch, FCOUL, NIfTot, G1, ALAT
-    use SystemData, only: nBasis, iSpinSkip
+    use SystemData, only: nBasis!, iSpinSkip
+    ! HACK - We use nBasisMax(2,3) here rather than iSpinSkip, as it appears
+    !        to be more reliably set (see for example test H2O_RI)
+    ! TODO: We need to sort this out so that they are consistent
+    !       --> Talk to George/Alex to see what impact that might have?
     use HElem
     use UMatCache, only: GTID
     use IntegralsData, only: UMAT
@@ -18,7 +22,6 @@ contains
         
         ! Use the Slater-Condon Rules to evaluate the H-matrix element between
         ! two determinants, where the excitation matrix is already known.
-        ! TODO: do we want to return the parity?
         !
         ! In:  nI, nJ       - The determinants to evaluate
         !      IC           - The number of orbitals I,J differ by
@@ -126,16 +129,16 @@ contains
                 idX = max(id(i), id(j))
                 idN = min(id(i), id(j))
                 hel_doub = hel_doub + GetUMATEl(nBasisMax, UMAT, ALAT, &
-                                                nBasis, iSpinSkip, G1, idN, &
-                                                idX, idN, idX)
+                                                nBasis, nBasisMax(2,3), G1, &
+                                                idN, idX, idN, idX)
                 
                 ! If are not considering the exchange contribution, or if I,J
                 ! are alpha/beta (ie exchange == 0) then don't continue
                 ids = G1(nI(i))%Ms * G1(nI(j))%Ms
                 if (tExch .and. ids > 0) then
                     hel_tmp = hel_tmp - GetUMATEl(nBasisMax, UMAT, ALAT, &
-                                                  nBasis, iSpinSkip, G1, idN,&
-                                                  idX, idX, idN)
+                                                  nBasis, nBasisMax(2,3), G1,&
+                                                  idN, idX, idX, idN)
                 endif
             enddo
         enddo
@@ -167,14 +170,14 @@ contains
                 id = gtID(nI(i))
                 if (bEqualMs) then
                     hel = hel + GetUMATEl (nBasisMax, UMAT, ALAT, nBasis, &
-                                           iSpinSkip, G1, id_ex(1), id, &
+                                           nBasisMax(2,3), G1, id_ex(1), id, &
                                            id_ex(2), id)
                 endif
 
                 if (tExch .and. (G1(ex(1))%Ms == G1(nI(i))%Ms) .and. &
                                 (G1(ex(2))%Ms == G1(nI(i))%Ms) ) then
                     hel = hel - GetUMATEl (nBasisMax, UMAT, ALAT, nBasis, &
-                                           iSpinSkip, G1, id_ex(1), id, &
+                                           nBasisMax(2,3), G1, id_ex(1), id, &
                                            id, id_ex(2))
                 endif
             endif
@@ -205,16 +208,17 @@ contains
         ! physical notation).
         if ( (G1(ex(1,1))%Ms == G1(ex(2,1))%Ms) .and. &
              (G1(ex(1,2))%Ms == G1(ex(2,2))%Ms) ) then
-             hel = GetUMATEl (nBasisMax, UMAT, ALAT, nBasis, iSpinSkip, G1, &
-                              id(1,1), id(1,2), id(2,1), id(2,2))
+             hel = GetUMATEl (nBasisMax, UMAT, ALAT, nBasis, nBasisMax(2,3), &
+                              G1, id(1,1), id(1,2), id(2,1), id(2,2))
         else
             hel = HElement(0)
         endif
 
         if ( (G1(ex(1,1))%Ms == G1(ex(2,2))%Ms) .and. &
              (G1(ex(1,2))%Ms == G1(Ex(2,1))%Ms) ) then
-             hel = hel - GetUMATEl (nBasismax, UMAT, ALAT, nBasis, iSpinSkip,&
-                                    G1, id(1,1), id(1,2), id(2,2), id(2,1))
+             hel = hel - GetUMATEl (nBasismax, UMAT, ALAT, nBasis, &
+                                    nBasisMax(2,3), G1, id(1,1), id(1,2), &
+                                    id(2,2), id(2,1))
         endif
 
         if (tSign) hel = -hel
