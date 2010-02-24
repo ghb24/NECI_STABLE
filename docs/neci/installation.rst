@@ -174,6 +174,18 @@ Configuration files use a simple ini format and adding a new configuration is
 easy. See the supplied configurations for examples and/or comments at the start
 of the mkconfig.py script.
 
+HECToR/pathscale
+^^^^^^^^^^^^^^^^
+
+There is a bug in the default linking options with pathscale 3.1 (and possibly
+earlier versions), which results in "multiple definition" and "size of symbol
+*xxx* changed" errors.  This can be worked round either by adding
+*-Wl,-z,muldefs* to the linker options (see
+http://www.csc.fi/english/pages/louhi_guide/program_development/compilers/pathscale/index_html)
+or using a later version of pathscale---3.2 does not have this problem. 
+
+Note that pathscale 3.1 is the default version of pathscale on HECToR.
+
 CPMD
 ----
 

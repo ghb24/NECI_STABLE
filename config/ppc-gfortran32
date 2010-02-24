@@ -2,8 +2,8 @@
 fc = gfortran
 cc = gcc
 ld = gfortran
-cpp = cpp
-cppflags = -P -C -traditional -D__Linux -DLAPACK -DFFT_DEFAULT -DGFORTRAN
+cpp = cpp -C -traditional
+cppflags = -D__Linux -DGFORTRAN
 fflags = -fcray-pointer -ffree-line-length-none -J$(DEST)
 libs = -L/sw/lib/ -lfftw3 -framework vecLib
 

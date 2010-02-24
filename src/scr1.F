@@ -1,5 +1,5 @@
       SUBROUTINE SCR1(NEL,NBASISMAX,NDET1,NDET2,G1,
-     &	NHG,UMAT,ALAT,ISS,COULCOUPLE,TEXCH,hel)
+     &  NHG,UMAT,ALAT,ISS,COULCOUPLE,TEXCH,hel)
       USE HElem
       use Integrals, only : GetUMatEl
       USE UMatCache, only : GTID
@@ -74,7 +74,7 @@ C..  NDET1 and NDET2
 !from the determinants and their excitation matrix.
       
       SUBROUTINE SCR1Excit2(NEL,NBASISMAX,NDET1,NDET2,G1,
-     &	NHG,UMAT,ALAT,ISS,COULCOUPLE,TEXCH,hel,EX,TParity)
+     &  NHG,UMAT,ALAT,ISS,COULCOUPLE,TEXCH,hel,EX,TParity)
       USE HElem
       use Integrals, only : GetUMatEl
       USE UMatCache, only : GTID

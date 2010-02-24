@@ -4,8 +4,8 @@ cc = pathcc
 ld = ftn
 ldflags = -m64
 libs = -lfftw3 -lacml
-cpp = /lib/cpp
-cppflags =  -P -C -traditional -D__Linux -DLAPACK -DFFT_DEFAULT -DPOINTER8 -DPARALLEL
+cpp = cpp -C -traditional
+cppflags =  -D__Linux -DPOINTER8 -DPARALLEL
 compiler = pathf95-on-LINUX
 module_flag = -module
 

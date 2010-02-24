@@ -1,10 +1,10 @@
       SUBROUTINE FODMAT(NEL,NHG,NDET,NEVAL,ISTATE,
-     &	NMRKS,G1,CK,NMAXX,NMAXY,NMAXZ,SUMA)
+     &    NMRKS,G1,CK,NMAXX,NMAXY,NMAXZ,SUMA)
       use SystemData, only: BasisFN
       use global_utilities
       IMPLICIT REAL*8 (A-H,O-Z)
 #ifdef POINTER8
-	INTEGER*8 LOC
+      INTEGER*8 LOC
 #else
       INTEGER LOC
 #endif
@@ -47,7 +47,7 @@ C..
                   GOTO 100
                 ENDIF
               ENDDO
- 100	      CONTINUE
+ 100          CONTINUE
             ENDDO
             FODM(JG,IG)=SUM
           ELSE
@@ -110,7 +110,7 @@ C..Natural orbitals and occupation numbers
 C..
       ABSTOL=1.D-15
       CALL DSYEVX('V','A','L',NHG,FODM,NHG,VL,VU,1,NHG,ABSTOL,M,
-     &	W,Z,NHG,WORK,8*NHG,IWORK,IFAIL,INFO)
+     &    W,Z,NHG,WORK,8*NHG,IWORK,IFAIL,INFO)
       IF(INFO.GT.0) THEN
         WRITE(6,*) ' !!!!! WARNING FROM DIAGONALISOR !!!!!'
         WRITE(6,*) ' INFO:',INFO
@@ -151,7 +151,7 @@ C.. Population analysis
           D=D+Z(I,J)**2*W(J)
         ENDDO
          SUMA(G1(I)%K(1),G1(I)%K(2),G1(I)%K(3))=
-     &			SUMA(G1(I)%K(1),G1(I)%K(2),G1(I)%K(3))+D
+     &            SUMA(G1(I)%K(1),G1(I)%K(2),G1(I)%K(3))+D
       ENDDO
       DO I=1,NMAXZ  ! over nmaxx 
         DO J=1,NMAXY  ! over nmaxy

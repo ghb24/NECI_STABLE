@@ -1,5 +1,5 @@
       SUBROUTINE XCHOLES(EVEC,PSIR,IX,IY,IZ,G1,SITAB,NMAX,NMSH,
-     &	NHG,RHO,XCHOLE,SPAC,RS,ALAT,DLINE,OMEGA,NMRKS,NDET,NEL,NEVAL)
+     &    NHG,RHO,XCHOLE,SPAC,RS,ALAT,DLINE,OMEGA,NMRKS,NDET,NEL,NEVAL)
       IMPLICIT REAL*8 (A-H,O-Z)
       DIMENSION EVEC(NDET,NEVAL),PSIR(-NMSH:NMSH),DLINE(NMSH)
       DIMENSION RHO(NMSH,NMSH,NMSH),XCHOLE(NMSH,NMSH,NMSH)
@@ -10,7 +10,7 @@
 C..
       WRITE(6,*) 
      & '       ==--------------------------------------------------== '
-      WRITE(6,*) ' 		 COMPUTING EXCHANGE-CORRELATION HOLES '
+      WRITE(6,*) '          COMPUTING EXCHANGE-CORRELATION HOLES '
       WRITE(6,*) 
      & '       ==--------------------------------------------------== '
       CHART='XCHD'
@@ -65,7 +65,7 @@ C..
 C ==---------------------------------------------------------------------==
       SUBROUTINE GET_FILENM(L1,FILENM1,II,I,J,K,FILENM,LEN)
       CHARACTER FILENM1*50,FILEAD1*1,FILEAD2*2,FILEAD3*3,
-     &	   FILE3*3,FILENM*50,FILENM2*8
+     &       FILE3*3,FILENM*50,FILENM2*8
       WRITE(FILE3,'(3I1)') I,J,K
       FILENM2=FILENM1(1:L1)//FILE3//'.'
       IF(II.LT.9) THEN
@@ -85,7 +85,7 @@ C ==---------------------------------------------------------------------==
       END
 C ==---------------------------------------------------------------------==
       SUBROUTINE WRITE_LINE(NC,FILENM,FUNC,IBEG,IEND,IX,IY,IZ,
-     &	   SPAC,RS)
+     &       SPAC,RS)
       IMPLICIT REAL*8(A-H,O-Z)
       DIMENSION FUNC(IBEG:IEND)
       CHARACTER FILENM*50
@@ -102,7 +102,7 @@ C..
       ENDDO
       CLOSE(10)
       WRITE(6,*)  
-     &	' WROTE FILE : ' , FILENM(1:NC)
+     &    ' WROTE FILE : ' , FILENM(1:NC)
       RETURN
       END
 C ==---------------------------------------------------------------------==

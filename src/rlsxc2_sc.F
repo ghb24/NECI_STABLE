@@ -1,5 +1,5 @@
       SUBROUTINE RLSXC2_SC(NEL,NMSH,NMAX,SITAB,IOBS,JOBS,KOBS,
-     &	NDET,NDET1,NDET2,G1,NHG,AUXC)
+     &  NDET,NDET1,NDET2,G1,NHG,AUXC)
       IMPLICIT REAL*8 (A-H,O-Z)
       DIMENSION NDET1(NEL),NDET2(NEL),AUXC(NMSH,NMSH,NMSH)
 C..Cube array
@@ -15,7 +15,7 @@ C..IQ ensures that only two differences are recorded
 C..First routine compares NDET1 to NDET2
       IQ=0
       DO I=1,NEL
-	 K=0
+         K=0
          DO J=1,NEL
             IF(NDET1(I).EQ.NDET2(J)) CONTINUE
             IF(NDET1(I).NE.NDET2(J)) K=K+1
@@ -30,7 +30,7 @@ C..First routine compares NDET1 to NDET2
 C..This routine compares NDET2 to NDET1
       IQ=0
       DO I=1,NEL
-      	 K=0
+         K=0
          DO J=1,NEL
             IF(NDET2(I).EQ.NDET1(J)) CONTINUE
             IF(NDET2(I).NE.NDET1(J)) K=K+1
@@ -69,14 +69,14 @@ C..electron in orbital ND2(2) at position R2, THT
             U2ND22R2=U1(ND2(2),NMAX,NMSH,NHG,G1,SITAB,IX,IY,IZ)
 C..
             AUXC(IX,IY,IZ)=AUXC(IX,IY,IZ)+(
-     &		U1ND12R1*U1ND22R1*U2ND11R2*U2ND21R2*DFLOAT(
-     &		IDS(1)*IDS(2))+
+     &    U1ND12R1*U1ND22R1*U2ND11R2*U2ND21R2*DFLOAT(
+     &    IDS(1)*IDS(2))+
      &          U1ND11R1*U1ND21R1*U2ND12R2*U2ND22R2*DFLOAT(
-     &	        IDS(1)*IDS(2))-
-     &		U1ND12R1*U1ND21R1*U2ND11R2*U2ND22R2*DFLOAT(
-     &		IDS(3)*IDS(4))-
-     &		U1ND11R1*U1ND22R1*U2ND12R2*U2ND21R2*DFLOAT(
-     &		IDS(3)*IDS(4)))		
+     &          IDS(1)*IDS(2))-
+     &    U1ND12R1*U1ND21R1*U2ND11R2*U2ND22R2*DFLOAT(
+     &    IDS(3)*IDS(4))-
+     &    U1ND11R1*U1ND22R1*U2ND12R2*U2ND21R2*DFLOAT(
+     &    IDS(3)*IDS(4)))    
           ENDDO
         ENDDO
       ENDDO

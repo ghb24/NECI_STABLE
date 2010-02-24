@@ -1,5 +1,5 @@
       SUBROUTINE NECI_RHOOFR(NHG,CK,G1,RHO,NMSH,SITAB,NMAX,NMRKS,
-     &	NEL,NDET,NEVAL,RS,ALAT,OMEGA)
+     &                       NEL,NDET,NEVAL,RS,ALAT,OMEGA)
       use global_utilities
       IMPLICIT REAL*8 (A-H,O-Z)
 C..
@@ -45,7 +45,7 @@ C..
 C..If determinants differ by more than 1 spin orbital IC < (NEL-1) 
           IF(IC.LT.(NEL-1)) GOTO 500
           CALL RLS(NEL,NMSH,NHG,NDET,NMRKS(1:NEL,KI),
-     &		NMRKS(1:NEL,KJ),G1,SITAB,NMAX,IC,AUX)
+     &             NMRKS(1:NEL,KJ),G1,SITAB,NMAX,IC,AUX)
           CF=CFS(KI)*CFS(KJ)*DFLOAT(ICC)
           DO K=1,NMSH-1
             DO J=1,NMSH-1
@@ -54,9 +54,9 @@ C..If determinants differ by more than 1 spin orbital IC < (NEL-1)
               ENDDO
             ENDDO
           ENDDO
-500	  CONTINUE
+500     CONTINUE
         ENDDO
-300	CONTINUE
+300   CONTINUE
       ENDDO
       CST=1.D0/OMEGA
       CALL DSCAL(NMSH*NMSH*NMSH,CST,RHO,1)
@@ -72,12 +72,12 @@ C..Calculate integral of RHO
       SUM=SUM*OMEGA/DFLOAT(NMSH*NMSH*NMSH)
       WRITE(6,'(A,F12.6)') ' INTEGRATED DENSITY : ' , SUM
       CALL WRITE_RHO(9,'DENSITY.1',RHO,NMSH,NMSH,NMSH,ALAT,
-     &	.FALSE.,.TRUE.,RS)
+     &    .FALSE.,.TRUE.,RS)
       RETURN
       END
 C ==---------------------------------------------------------==
       SUBROUTINE RLS(NEL,NMSH,NHG,NDET,NDET1,NDET2,G1,
-     &	SITAB,NMAX,IC,AUX)
+     &     SITAB,NMAX,IC,AUX)
       use SystemData, only: BasisFN
       IMPLICIT REAL*8 (A-H,O-Z)
 C..
@@ -103,11 +103,11 @@ C..The determinants differ by ONE spin orbital
         ND2=0
 C..Compare NDET1 to NDET2
         IQ=0
-	DO I=1,NEL
-	  K=0
-	  DO J=1,NEL
-	    IF(NDET1(I).EQ.NDET2(J)) CONTINUE
-	    IF(NDET1(I).NE.NDET2(J)) K=K+1
+        DO I=1,NEL
+          K=0
+          DO J=1,NEL
+            IF(NDET1(I).EQ.NDET2(J)) CONTINUE
+            IF(NDET1(I).NE.NDET2(J)) K=K+1
           ENDDO
           IF(K.EQ.NEL) THEN
             IQ=IQ+1
@@ -118,16 +118,16 @@ C..Compare NDET1 to NDET2
 100     CONTINUE
 C..Now we compare NDET2 to NDET1
         IQ=0
-	DO I=1,NEL
+        DO I=1,NEL
           K=0
-	  DO J=1,NEL
-	    IF(NDET2(I).EQ.NDET1(J)) CONTINUE
+        DO J=1,NEL
+        IF(NDET2(I).EQ.NDET1(J)) CONTINUE
             IF(NDET2(I).NE.NDET1(J)) K=K+1
-          ENDDO
-	  IF(K.EQ.NEL) THEN
-	    IQ=IQ+1
-	    ND2=NDET2(I)
-	    IF(IQ.GE.1) GOTO 200
+        ENDDO
+        IF(K.EQ.NEL) THEN
+        IQ=IQ+1
+        ND2=NDET2(I)
+        IF(IQ.GE.1) GOTO 200
           ENDIF
         ENDDO
 200     CONTINUE
@@ -144,8 +144,8 @@ C..Check spin indices
                 AUXX1=SITAB(I,G1(ND1)%k(1))
                 AUXX2=SITAB(I,G1(ND2)%k(1))
 C..
-		AUX(I,J,K)=AUXZ1*AUXZ2*AUXY1*AUXY2*
-     &			AUXX1*AUXX2
+                AUX(I,J,K)=AUXZ1*AUXZ2*AUXY1*AUXY2*
+     &                        AUXX1*AUXX2
 C..
               ENDDO
             ENDDO
@@ -171,7 +171,7 @@ C..Differ by none
               ENDDO
 C..
               DO IJK=1,NEL
-	        AUX(I,J,K)=AUX(I,J,K)+
+                AUX(I,J,K)=AUX(I,J,K)+
      &            AUXZ(IJK)*AUXZ(IJK)*
      &            AUXY(IJK)*AUXY(IJK)*
      &            AUXX(IJK)*AUXX(IJK)

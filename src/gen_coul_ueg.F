@@ -44,7 +44,7 @@ C ==--------------------------------------------------------------------==
               SUM=1.D0
 C..Original call
 C              CALL SLATCOULFOU(G1(1,I),G1(1,J),
-C     &		G1(1,K),G1(1,L),NMSH,FCK,NMAX,SUM)
+C     &        G1(1,K),G1(1,L),NMSH,FCK,NMAX,SUM)
               ID1 = GTID(I)
               ID2 = GTID(J)
               ID3 = GTID(K)
@@ -129,7 +129,7 @@ C ==--------------------------------------------------------------------==
               SUM=0.D0
 C..Original call
 C              CALL SLATCOULFOU(G1(1,I),G1(1,J),
-C     &		G1(1,K),G1(1,L),NMSH,FCK,NMAX,SUM)
+C     &        G1(1,K),G1(1,L),NMSH,FCK,NMAX,SUM)
               ID1 = GTID(I)
               ID2 = GTID(J)
               ID3 = GTID(K)

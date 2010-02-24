@@ -1,7 +1,7 @@
 !.. Use the Slater-Condon Rules to evaluate the H matrix element between two dets
       SUBROUTINE SLTCND(NEL,NBASISMAX,
-     &	NHG,NDET1,NDET2,GBS,IC,NMSH,FCK,
-     &	NMAX,ALAT,UMat,hel)
+     &  NHG,NDET1,NDET2,GBS,IC,NMSH,FCK,
+     &  NMAX,ALAT,UMat,hel)
       USE HElem
       use SystemData , only : FCOUL,TEXCH
 !      use global_utilities
@@ -80,8 +80,8 @@ C            hel=hel-NEL*REAL(FCK(0,0,0))/2
 !.. However, in this routine, we pass through the excitation matrix, so we do not
 !.. need to find it.
       SUBROUTINE SLTCNDExcit2(NEL,NBASISMAX,
-     &	NHG,NDET1,NDET2,GBS,IC,NMSH,FCK,
-     &	NMAX,ALAT,UMat,hel,EX,TParity)
+     &  NHG,NDET1,NDET2,GBS,IC,NMSH,FCK,
+     &  NMAX,ALAT,UMat,hel,EX,TParity)
       USE HElem
       use SystemData , only : FCOUL,TEXCH
 !      use global_utilities
