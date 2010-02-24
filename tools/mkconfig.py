@@ -90,7 +90,9 @@ my_make := $(MAKE) -f $(my_makefile)
 
 # pre-processing.
 CPP = %(cpp)s
-CPPFLAGS = %(cppflags)s -DMAXMEM='$(MAXMEM)' -D_VCS_VER='$(VCS_VERSION)' $(WORKING_DIR_CHANGES) -D_CONFIG='"$(CONFIG) ($(OPT))"'
+CPPFLAGS = -DMAXMEM='$(MAXMEM)' -D_VCS_VER='$(VCS_VERSION)' $(WORKING_DIR_CHANGES) \
+           -D_CONFIG='"$(CONFIG) ($(OPT))"' -DDSFMT_MEXP=19937 \
+           %(cppflags)s 
 
 # use compiler with perl scripts to avoid cascade compilation.
 compiler = %(compiler)s
@@ -384,6 +386,9 @@ C_BODY = $(CFLAGS) $(CPPFLAGS) -c $< -o $@
 MAKE_C_GDEPS = $(CCD) $(CFLAGS) -MM -MT \$$\(GDEST\)/$(addsuffix .o,$(basename $(notdir $@))) $< -o $@
 MAKE_C_KDEPS = $(CCD) $(CFLAGS) -MM -MT \$$\(KDEST\)/$(addsuffix .o,$(basename $(notdir $@))) $< -o $@
 
+# Include paths
+INCLUDE_PATH = $(addprefix -I ,$(SRC))
+
 # stat command for checking last modified time.
 system = $(shell uname -s)
 # BSD (ie OSX as far as we're concerned) has a different stat command.
@@ -420,13 +425,13 @@ $(KDEST)/%%.f: %%.F
 # requiring the .o and .mod files have the same "last modified" time.
 %%.mod:
 \ttest -e $@ && test ! -e $(@:.mod=.time) && test $(shell $(stat_cmd) $@) -eq $(shell $(stat_cmd) $<) && touch $(@:.mod=.time) || true
-\tperl -w $(TOOLS)/compile_mod.pl -cmp "perl -w $(TOOLS)/compare_module_file.pl -compiler $(compiler)" -fc "$(FC) $(FFLAGS) $(F90FLAGS) %(module_flag)s$(dir $@) -I $(SRC) -c $(<:.o=.f90) -o $<" -provides "$@" -requires "$(<:.o=.f90)"
+\tperl -w $(TOOLS)/compile_mod.pl -cmp "perl -w $(TOOLS)/compare_module_file.pl -compiler $(compiler)" -fc "$(FC) $(FFLAGS) $(F90FLAGS) %(module_flag)s$(dir $@) $(INCLUDE_PATH) -c $(<:.o=.f90) -o $<" -provides "$@" -requires "$(<:.o=.f90)"
 
 $(F90OBJ) $(KF90OBJ): %%.o: %%.f90
-\tperl -w $(TOOLS)/compile_mod.pl -cmp "perl -w $(TOOLS)/compare_module_file.pl -compiler $(compiler)" -fc "$(FC) $(FFLAGS) $(F90FLAGS) %(module_flag)s$(dir $@) -I $(SRC) -c $< -o $@" -provides "$@" -requires "$^"
+\tperl -w $(TOOLS)/compile_mod.pl -cmp "perl -w $(TOOLS)/compare_module_file.pl -compiler $(compiler)" -fc "$(FC) $(FFLAGS) $(F90FLAGS) %(module_flag)s$(dir $@) $(INCLUDE_PATH) -c $< -o $@" -provides "$@" -requires "$^"
 
 $(FOBJ) $(KFOBJ): %%.o: %%.f
-\tperl -w $(TOOLS)/compile_mod.pl -cmp "perl -w $(TOOLS)/compare_module_file.pl -compiler $(compiler)" -fc "$(FC) $(FFLAGS) $(F77FLAGS) %(module_flag)s$(dir $@) -I $(SRC) -c $< -o $@" -provides "$@" -requires "$^"
+\tperl -w $(TOOLS)/compile_mod.pl -cmp "perl -w $(TOOLS)/compare_module_file.pl -compiler $(compiler)" -fc "$(FC) $(FFLAGS) $(F77FLAGS) %(module_flag)s$(dir $@) $(INCLUDE_PATH) -c $< -o $@" -provides "$@" -requires "$^"
 
 # Compiling C source files...
 # a) gamma-point.
