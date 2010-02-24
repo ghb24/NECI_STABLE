@@ -11,10 +11,10 @@ libs = -L ~/src/lib/fftw-3.1.2/lib -lffwt3 -lacml -pgcpplibs
 module_flag = -module
 
 [dbg]
-fflags = -g -r8 pc=64 -Msignextend -Minform=warn -Msecond_underscore
+fflags = -g -r8 pc=64 -Msignextend -Minform=warn
 cflags = -g -C
 
 [opt]
-fflags = -fastsse -tp k8-64 -r8 pc=64 -Msignextend -Minform=warn -Msecond_underscore -Mprof=func
+fflags = -fastsse -tp k8-64 -r8 pc=64 -Msignextend -Minform=warn -Mprof=func
 cflags = -O2 -m64
 ldflags = -Mprof=func
