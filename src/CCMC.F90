@@ -2160,6 +2160,9 @@ END SUBROUTINE
          Iter=Iter+1
       enddo !MC Cycles
       if(iDebug.gt.1) call WriteDExcitorList(6,Amplitude(:,iCurAmpList),FciDets,0,nAmpl,dAmp,"Final Excitor list")
+
+! Find the largest 30 amplitudes
+      call WriteMaxDExcitorList(6,Amplitude(:,iCurAmpList),FciDets,nAmpl,30)
       nullify(OldAmpl)
       nullify(CS)
       if(lLogTransitions) then
@@ -2590,6 +2593,46 @@ enddo
       TL%dProbUniqClust(1,i)=TL%dProbUniqClust(1,i)+1/(C%dProbNorm*C%dClusterNorm)
       TL%dProbUniqClust(2,i)=TL%dProbUniqClust(2,i)+1
    end subroutine LogCluster
+
+! Find the largest nMax amplitudes (out of Amps(nDet)) and print them
+   subroutine  WriteMaxDExcitorList(iUnit,Amps,Dets,nDet,nMax)
+      use SystemData, only: nIfTot
+      use FciMCParMod, only: iLutHF
+      implicit none
+      integer iUnit, nDet,nMax
+      real*8 Amps(nDet)
+      INTEGER Dets(0:nIfTot,nDet)
+      
+      integer BestIndex(nMax+1)
+      real*8  BestAbsAmp(nMax+1)
+      integer nBest
+      real*8  dMinBest,dCur
+      integer i,j
+
+      dMinBest=0
+      
+      do i=2,nDet
+         dCur=abs(Amps(i))
+         if(dCur>dMinBest) then
+            do j=nBest,1,-1
+               if (BestAbsAmp(j)>dCur) exit
+            enddo
+            j=j+1  !j is now where we want to put this one
+            !Move the lower ones down and insert
+            BestIndex(j+1:nBest+1)=BestIndex(j:nBest)
+            BestAbsAmp(j+1:nBest+1)=BestAbsAmp(j:nBest)
+            if(nBest<nMax) nBest=nBest+1
+            BestIndex(j)=i
+            BestAbsAmp(j)=dCur
+            dMinBest=BestAbsAmp(nBest)
+         endif
+      enddo
+      write(6,*) "Max ",nBest," Normalized Amplitudes"
+      do i=1,nBest
+         write(iUnit,'(I7,G17.9," ")',advance='no') BestIndex(i),Amps(BestIndex(i))/Amps(1)
+         call WriteBitEx(6,iLutHF,Dets(:,BestIndex(i)),.true.)
+      enddo
+   end subroutine WriteMaxDExcitorList
 END MODULE CCMC
 
 #ifdef PARALLEL
