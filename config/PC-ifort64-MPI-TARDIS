@@ -4,8 +4,8 @@ cc = mpicc
 ld = mpif90
 ldflags = -i-dynamic
 compiler = INTEL-ifort9-on-LINUX
-cpp = /lib/cpp
-cppflags = -P -C -traditional -D__Linux -DLAPACK -DFFT_DEFAULT -DPOINTER8 -DPARALLEL
+cpp = cpp -C -traditional
+cppflags = -D__Linux -DPOINTER8 -DPARALLEL
 libs = -L ~/src/lib/fftw-3.1.2/lib -L ~/lib/fftw-3.1.2/lib -lfftw3 -L ~/src/lib/lapack-3.1.1 -llapack -lblas
 module_flag = -module
 

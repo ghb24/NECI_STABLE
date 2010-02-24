@@ -4,8 +4,8 @@ cc = gcc
 ld = gfortran
 ldflags = -m32
 compiler = GCC-f95-on-LINUX
-cpp = cpp
-cppflags = -P -C -traditional -D__Linux -DLAPACK -DFFT_DEFAULT
+cpp = cpp -C -traditional
+cppflags = -D__Linux
 libs = -L ~/lib/fftw-3.1.2/lib -L ~/src/lib/fftw-3.1.2/lib -L /usr/lib/atlas -lfftw3 -llapack -lblas 
 module_flag = -M
 
