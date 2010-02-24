@@ -131,17 +131,26 @@ contains
                 hel_doub = hel_doub + GetUMATEl(nBasisMax, UMAT, ALAT, &
                                                 nBasis, nBasisMax(2,3), G1, &
                                                 idN, idX, idN, idX)
-                
-                ! If are not considering the exchange contribution, or if I,J
-                ! are alpha/beta (ie exchange == 0) then don't continue
-                ids = G1(nI(i))%Ms * G1(nI(j))%Ms
-                if (tExch .and. ids > 0) then
-                    hel_tmp = hel_tmp - GetUMATEl(nBasisMax, UMAT, ALAT, &
-                                                  nBasis, nBasisMax(2,3), G1,&
-                                                  idN, idX, idX, idN)
-                endif
             enddo
         enddo
+                
+        ! Exchange contribution only considered if tExch set.
+        ! This is only separated from the above loop to keep "if (tExch)" out
+        ! of the tight loop for efficiency.
+        if (tExch) then
+            do i=1,nel-1
+                do j=i+1,nel
+                    ! Exchange contribution is zero if I,J are alpha/beta
+                    if (G1(nI(i))%Ms == G1(nI(j))%Ms) then
+                        idX = max(id(i), id(j))
+                        idN = min(id(i), id(j))
+                        hel_tmp = hel_tmp - GetUMATEl(nBasisMax, UMAT, ALAT, &
+                                                      nBasis, nBasisMax(2,3),&
+                                                      G1, idN, idX, idX, idN)
+                    endif
+                enddo
+            enddo
+        endif
         hel_doub = hel_doub + hel_tmp
 
         ! If we are scaling the coulomb interaction, do so here.
@@ -157,31 +166,41 @@ contains
         logical, intent(in) :: tSign
         type (HElement) :: hel
         integer :: id_ex(2), id, i
-        logical :: bEqualMs
 
         ! Obtain spatial rather than spin indices if required
         id_ex = gtID(ex)
 
         ! Sum in the diagonal terms (same in both dets)
+        ! Coulomb term only included if Ms values of ex(1) and ex(2) are the
+        ! same.
         hel = HElement(0)
-        bEqualMs = G1(ex(1))%Ms == G1(ex(2))%Ms
-        do i=1,nel
-            if (ex(1) /= nI(i)) then
-                id = gtID(nI(i))
-                if (bEqualMs) then
+        if (G1(ex(1))%Ms == G1(ex(2))%Ms) then
+            do i=1,nel
+                if (ex(1) /= nI(i)) then
+                    id = gtID(nI(i))
                     hel = hel + GetUMATEl (nBasisMax, UMAT, ALAT, nBasis, &
                                            nBasisMax(2,3), G1, id_ex(1), id, &
                                            id_ex(2), id)
                 endif
+            enddo
+        endif
 
-                if (tExch .and. (G1(ex(1))%Ms == G1(nI(i))%Ms) .and. &
-                                (G1(ex(2))%Ms == G1(nI(i))%Ms) ) then
-                    hel = hel - GetUMATEl (nBasisMax, UMAT, ALAT, nBasis, &
-                                           nBasisMax(2,3), G1, id_ex(1), id, &
-                                           id, id_ex(2))
+        ! Exchange contribution is only considered if tExch set.
+        ! This is only separated from the above loop to keep "if (tExch)" out
+        ! of the tight loop for efficiency.
+        if (tExch) then
+            do i=1,nel
+                if (ex(1) /= nI(i)) then
+                    if ((G1(ex(1))%Ms == G1(nI(i))%Ms) .and. &
+                        (G1(ex(2))%Ms == G1(nI(i))%Ms) ) then
+                        id = gtID(nI(i))
+                        hel = hel - GetUMATEl (nBasisMax, UMAT, ALAT, nBasis,&
+                                               nBasisMax(2,3), G1, id_ex(1),&
+                                               id, id, id_ex(2))
+                    endif
                 endif
-            endif
-        enddo
+            enddo
+        endif
 
         ! consider the non-diagonal part of the kinetic energy -
         ! <psi_a|T|psi_a'> where a, a' are the only basis fns that differ in
