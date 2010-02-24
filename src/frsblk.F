@@ -1,10 +1,10 @@
       SUBROUTINE NECI_FRSBLKH(M,ICMAX,N,H,LAB,V0,VS,NKRY,NKRY1,
-     &	NBLOCK,NROW,LSCR,LISCR,A,W,V,AM,BM,T,WT,SCR,ISCR,INDEX,
-     &	WH,WORK2,V2,NCYCLE,B2LIMIT,PRINTOUT,TLargest,TSeeded)
+     &    NBLOCK,NROW,LSCR,LISCR,A,W,V,AM,BM,T,WT,SCR,ISCR,INDEX,
+     &    WH,WORK2,V2,NCYCLE,B2LIMIT,PRINTOUT,TLargest,TSeeded)
       IMPLICIT REAL*8 (A-H,O-Z) 
 C ==----------------------------------------------------------------==
-C ==	M is NDET : the number of rows in Hamil			            ==
-C ==    ICMAX : the MAX. number of columns in Hamil	         	    ==
+C ==    M is NDET : the number of rows in Hamil                     ==
+C ==    ICMAX : the MAX. number of columns in Hamil                 ==
 C ==    N is NEVAL : the number of columns in the wavevector        ==
 C ==    PRINTOUT is a logical testing whether to print results      ==
 C ==    TSeeded if true, means that a seed for RAN2 has been set,   ==
@@ -34,7 +34,7 @@ C..
           WRITE(6,20000) M,N,NKRY,NBLOCK,NDIAG,LSCR,B2LIMIT
       ENDIF
 20000 FORMAT(2X,'M:',I7/2X,'N:',I7/2X,'NKRY:',I7/2X,'NBLOCK:',I7/2X,
-     &	'NDIAG:',I7/2X,'LSCR:',I7/2X,'B2LIMIT:',E10.2)
+     &    'NDIAG:',I7/2X,'LSCR:',I7/2X,'B2LIMIT:',E10.2)
 C ==----------------------------------------------------------------==
       CALL NECI_FRSBLK(M,N,NKRY,NBLOCK,V0,VS,A,V,AM,BM,T,W,WT,INDEX,
      &     SCR,LSCR,ISCR,LISCR,NDIAG,B2LIMIT,H,ICMAX,LAB,NROW,NCYCLE,
@@ -53,7 +53,7 @@ C      ENDDO
 C      T2 = etime()
 C      T3=(T2-T1)
 C      WRITE(6,'(//5X,''TIME FOR EXACT DIAGONALISATION'',F10.2)')
-C     &	   T3/1000.D0
+C     &       T3/1000.D0
 C      IF(PRINTOUT) THEN
 C          WRITE(6,'(//10X,''Neval'',15X,''Eigenvalue'')')
 C          DO I=1,N
@@ -188,7 +188,7 @@ C..GS orthogonalisation on refined states
         CALL NECI_MY_GSORTHO(M,V0,NCURR-1,V0(1,NCURR),NLEFT,A)
 C..HPSI: H V0. Enter only refined states 
         CALL MY_HPSI(M,ICMAX,NLEFT,NROW,LAB,H,
-     &		V0(1,NCURR),VS(1,NCURR),TLargest)
+     &        V0(1,NCURR),VS(1,NCURR),TLargest)
 C        CALL NECI_HSPI(M,NLEFT,H,V0(1,NCURR),VS(1,NCURR))
         NHPSI=NHPSI+NLEFT 
 C..Ovlap: V0^T VS  
@@ -342,7 +342,7 @@ C ======================================================================
       END
 C ======================================================================
       SUBROUTINE NECI_KRYREF(M,N,NKRY,NCONV,V0,W,V,AM,BM,T,LDT,WT,
-     &	   LDWT,H,SCR,LSCR,ISCR,LISCR,NHPSI,ICMAX,LAB,NROW,TLargest)
+     &       LDWT,H,SCR,LSCR,ISCR,LISCR,NHPSI,ICMAX,LAB,NROW,TLargest)
 C     ==================================================================
       use global_utilities
       IMPLICIT REAL*8 (A-H,O-Z)

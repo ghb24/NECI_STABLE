@@ -1223,8 +1223,8 @@ END MODULE DetCalc
           DO J=1,NEL
             AUX=GetTMATEl(NM(J,I),NM(J,I))
 !((ALAT(1)**2)*((G1(1,NM(J,I))**2)/(ALAT(1)**2)+
-!     &		(G1(2,NM(J,I))**2)/(ALAT(2)**2)+
-!     &		(G1(3,NM(J,I))**2)/(ALAT(3)**2)))
+!     &     (G1(2,NM(J,I))**2)/(ALAT(2)**2)+
+!     &     (G1(3,NM(J,I))**2)/(ALAT(3)**2)))
             SUM1=SUM1+DREAL(AUX)
           ENDDO
 !..Cube multiplier

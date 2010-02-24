@@ -29,7 +29,7 @@ C.. Further investigation shows it is the quicksort from Numerical Recipes, taki
         K=(L+IR)/2
         TEMP=ARR(K)
         ARR(K)=ARR(L+1)
-        ARR(L+1)=TEMP	
+        ARR(L+1)=TEMP
         TEMP=BRR(K)
         BRR(K)=BRR(L+1)
         BRR(L+1)=TEMP
@@ -128,7 +128,7 @@ C.. This version has ARR as an int and BRR as a real
         K=(L+IR)/2
         TEMP=ARR(K)
         ARR(K)=ARR(L+1)
-        ARR(L+1)=TEMP	
+        ARR(L+1)=TEMP
         TEMP=BRR(K)
         BRR(K)=BRR(L+1)
         BRR(L+1)=TEMP
@@ -226,7 +226,7 @@ C.. This version has ARR as an int and BRR as an array of length BD of reals
         K=(L+IR)/2
         ITEMP=ARR(K)
         ARR(K)=ARR(L+1)
-        ARR(L+1)=ITEMP	
+        ARR(L+1)=ITEMP
         TEMP=BRR(:,K)
         BRR(:,K)=BRR(:,L+1)
         BRR(:,L+1)=TEMP
@@ -325,7 +325,7 @@ C.. This version has ARR as a real and BRR as an array of length BD of integers
         K=(L+IR)/2
         ITEMP=ARR(K)
         ARR(K)=ARR(L+1)
-        ARR(L+1)=ITEMP	
+        ARR(L+1)=ITEMP
         TEMP(:)=BRR(:,K)
         BRR(:,K)=BRR(:,L+1)
         BRR(:,L+1)=TEMP
@@ -798,7 +798,7 @@ C.. We only sort every NSKIP item in the array.
         K=(L+IR)/2
         TEMP=ARR(1,K)
         ARR(1,K)=ARR(1,L+1)
-        ARR(1,L+1)=TEMP	
+        ARR(1,L+1)=TEMP
         TEMP=BRR(1,K)
         BRR(1,K)=BRR(1,L+1)
         BRR(1,L+1)=TEMP
@@ -899,7 +899,7 @@ C.. This version has ARR as an int and BRR as a real
         K=(L+IR)/2
         TEMP=ARR(1,K)
         ARR(1,K)=ARR(1,L+1)
-        ARR(1,L+1)=TEMP	
+        ARR(1,L+1)=TEMP
         TEMP=BRR(1,K)
         BRR(1,K)=BRR(1,L+1)
         BRR(1,L+1)=TEMP

@@ -898,7 +898,7 @@ C..
 C.. Sum up the components of <D|H exp(-b H)|D>
             DLWDB=DLWDB+DLWDB2
                IF(TLOG) WRITE(10,"(2E25.16, I7)") TOTAL,DLWDB2,ICLS
-caa	    call flush(10) 
+caa     call flush(10) 
             L=L+1
             FMCPR3RES=TOTAL
             IF(I_V.EQ.2.AND.TMPTHEORY) THEN
