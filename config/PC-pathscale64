@@ -10,11 +10,7 @@ compiler = pathf95-on-LINUX
 module_flag = -module
 
 [dbg]
-fflags = -r8 -g -m64
+fflags = -r8 -g -m64 -fno-second-underscore
 
 [opt]
-fflags = -r8 -O3 -m64
-
-
-
-
+fflags = -r8 -O3 -m64 -fno-second-underscore

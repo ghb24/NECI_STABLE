@@ -10,10 +10,10 @@ compiler = pathf95-on-LINUX
 module_flag = -module
 
 [dbg]
-fflags = -g
+fflags = -g -fno-second-underscore
 cflags = -g
 ldflags = -g -Bstatic
 
 [opt]
-fflags = -O3 -OPT:Ofast -LNO:simd_verbose=ON
+fflags = -O3 -OPT:Ofast -LNO:simd_verbose=ON -fno-second-underscore
 ldflags = -O3

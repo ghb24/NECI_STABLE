@@ -11,9 +11,9 @@ libs = -L ~/src/lib/fftw-3.1.2/lib -L ~/lib/fftw-3.1.2/lib -lfftw3 -llapack -lbl
 module_flag = -module
 
 [dbg]
-fflags = -g -r8 pc=64 -Msignextend -Minform=warn -Msecond_underscore
+fflags = -g -r8 pc=64 -Msignextend -Minform=warn
 cflags = -g -sb -C -errtags
 
 [opt]
-fflags = -r8 pc=64 -Msignextend -Minform=warn -Msecond_underscore -O4 -fast
+fflags = -r8 pc=64 -Msignextend -Minform=warn -O4 -fast
 cflags = -O
