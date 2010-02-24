@@ -226,7 +226,8 @@ MODULE Determinants
         !
         ! In:  nI, nJ       - The determinants to consider
         !      iLutI, iLutJ - Bit representations of I,J (optional, helpful)
-        ! Out:              - The desired matrix element.
+        ! Out: ICret        - The number of orbitals I,J differ by
+        ! Ret:              - The desired matrix element.
         
         integer, intent(in) :: nI(nel), nJ(nel)
         integer, intent(in), optional :: iLutI(0:NIfTot), iLutJ(0:NIfTot)

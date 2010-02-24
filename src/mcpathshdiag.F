@@ -419,7 +419,10 @@ C.. Now make sure it's not already in the path
                   
                IF(.NOT.TFAIL) THEN
 C.. see if we're connected to what we were excited from
-                 RH=get_helement (iPath(1, iExFrom), nJ)
+                 ex(1,1) = ic            
+                 call getexcitation(iPath(:, iExFrom), nJ, nel, ex, T)
+                 RH = get_helement_excit (iPath(:, iExFrom), nJ, ic,
+     &                                    ex, T)
                   IF(.NOT.(RH.AGE.RHOEPS)) THEN
 C.. if we're not connected to this node, we fail now
                      RH=0.D0
@@ -440,7 +443,7 @@ C.. Work out the connectivity of the new node
 C.. we don't need to calc the connection to the node we excited from
 C.. because we've just done that
                   IF(.NOT.TFAIL.AND.II.NE.IEXFROM) THEN
-                     rh = get_helement(iPath(1, iI), nJ)
+                     rh = get_helement(iPath(:, iI), nJ)
                      IF(.NOT.(RH.AGE.RHOEPS)) RH=0.D0
                      HIJ(I_VIND+1,II)=DCONJG(RH)
                      HIJ(II,I_VIND+1)=RH
