@@ -130,7 +130,7 @@ CONFIG = %(config)s
 OPT = %(opt_level)s
 
 # Directories containing source files (space separated list).
-SRC = src
+SRC = src src/lib
 
 # Directories in which compiled objects are placed.
 DEST = dest/$(CONFIG)/$(OPT)
@@ -188,33 +188,33 @@ MAXMEM = %(max_mem)i # RAM available, in MB.  Used by the memory logger.
 # Find source files and resultant object files.
 
 # Source extensions.
-EXTS = .F90 .F .C .c
+EXTS = .F90 .F .c .cpp
 
 # Source filenames.
 find_files = $(wildcard $(1)/*$(2))
 FSRCFILES := $(foreach dir,$(SRC),$(call find_files,$(dir),.F))
 F90SRCFILES := $(foreach dir,$(SRC),$(call find_files,$(dir),.F90))
-CSRCFILES := $(foreach dir,$(SRC),$(call find_files,$(dir),.C))
+cppSRCFILES := $(foreach dir,$(SRC),$(call find_files,$(dir),.cpp))
 cSRCFILES := $(foreach dir,$(SRC),$(call find_files,$(dir),.c))
 SRCFILES := $(FSRCFILES) $(F90SRCFILES) $(CSRCFILES) $(cSRCFILES)
 
 # Objects (strip path and replace extension of source files with .o).
 FOBJ_bare := $(addsuffix .o,$(basename $(notdir $(FSRCFILES))))
 F90OBJ_bare := $(addsuffix .o,$(basename $(notdir $(F90SRCFILES))))
-COBJ_bare := $(addsuffix .o,$(basename $(notdir $(CSRCFILES))))
+cppOBJ_bare := $(addsuffix .o,$(basename $(notdir $(cppSRCFILES))))
 cOBJ_bare := $(addsuffix .o,$(basename $(notdir $(cSRCFILES))))
 
 # Full path to all objects (gamma-point).
 FOBJ := $(addprefix $(GDEST)/, $(FOBJ_bare))
 F90OBJ := $(addprefix $(GDEST)/, $(F90OBJ_bare))
-COBJ := $(addprefix $(GDEST)/, $(COBJ_bare))
+cppOBJ := $(addprefix $(GDEST)/, $(cppOBJ_bare))
 cOBJ := $(addprefix $(GDEST)/, $(cOBJ_bare))
-OBJECTS := $(FOBJ) $(F90OBJ) $(COBJ) $(cOBJ)
+OBJECTS := $(FOBJ) $(F90OBJ) $(cppOBJ) $(cOBJ)
 
 # Similarly for the kpoint objects.
 KFOBJ := $(addprefix $(KDEST)/, $(FOBJ_bare))
 KF90OBJ := $(addprefix $(KDEST)/, $(F90OBJ_bare))
-KCOBJ := $(addprefix $(KDEST)/, $(COBJ_bare))
+KcppOBJ := $(addprefix $(KDEST)/, $(cppOBJ_bare))
 KcOBJ := $(addprefix $(KDEST)/, $(cOBJ_bare))
 
 # Objects for standalone NECI.
@@ -244,11 +244,11 @@ FDEPEND = $(FRDEPEND) $(FCDEPEND)
 # We don't need these when we first compile, only when we recompile.
 # We achieve this (most of the time) by recompiling the C dependencies every
 # time we compile.
-CDEPEND_FILES = $(addprefix $(GDEP_DEST)/,$(notdir $(COBJ:.o=.d)))
+cppDEPEND_FILES = $(addprefix $(GDEP_DEST)/,$(notdir $(cppOBJ:.o=.d)))
 cDEPEND_FILES = $(addprefix $(GDEP_DEST)/,$(notdir $(cOBJ:.o=.d)))
-KCDEPEND_FILES = $(addprefix $(KDEP_DEST)/,$(notdir $(KCOBJ:.o=.d)))
+KcppDEPEND_FILES = $(addprefix $(KDEP_DEST)/,$(notdir $(KcppOBJ:.o=.d)))
 KcDEPEND_FILES = $(addprefix $(KDEP_DEST)/,$(notdir $(KcOBJ:.o=.d)))
-CDEPEND = $(CDEPEND_FILES) $(cDEPEND_FILES) $(KCDEPEND_FILES) $(KcDEPEND_FILES)
+CDEPEND = $(cppDEPEND_FILES) $(cDEPEND_FILES) $(KcppDEPEND_FILES) $(KcDEPEND_FILES)
 
 #-----
 # Goals
@@ -380,7 +380,7 @@ help:
 
 # Some more helpful macros.
 CPP_BODY = $(CPPFLAGS) $< $@
-C_BODY = $(CFLAGS) -c $< -o $@ 
+C_BODY = $(CFLAGS) $(CPPFLAGS) -c $< -o $@ 
 MAKE_C_GDEPS = $(CCD) $(CFLAGS) -MM -MT \$$\(GDEST\)/$(addsuffix .o,$(basename $(notdir $@))) $< -o $@
 MAKE_C_KDEPS = $(CCD) $(CFLAGS) -MM -MT \$$\(KDEST\)/$(addsuffix .o,$(basename $(notdir $@))) $< -o $@
 
@@ -430,32 +430,32 @@ $(FOBJ) $(KFOBJ): %%.o: %%.f
 
 # Compiling C source files...
 # a) gamma-point.
-$(COBJ): $(GDEST)/%%.o: %%.C
-\t$(CC) $(CPPFLAGS) $(C_BODY)
+$(cppOBJ): $(GDEST)/%%.o: %%.cpp
+\t$(CC) $(C_BODY)
 
 $(cOBJ): $(GDEST)/%%.o: %%.c
 \t$(CC) $(C_BODY)
 
 # b) k-point.
-$(KCOBJ): $(KDEST)/%%.o: %%.C
-\t$(CC) $(CPPFLAGS) -D__CMPLX $(C_BODY)
+$(KcppOBJ): $(KDEST)/%%.o: %%.cpp
+\t$(CC) -D__CMPLX $(C_BODY)
 
 $(KcOBJ): $(KDEST)/%%.o: %%.c
-\t$(CC) $(C_BODY)
+\t$(CC) -D__CMPLX $(C_BODY)
 
 # Update C dependency files.
 # a) gamma-point.
 $(cDEPEND_FILES): $(GDEP_DEST)/%%.d: %%.c
 \t$(MAKE_C_GDEPS)
 
-$(CDEPEND_FILES): $(GDEP_DEST)/%%.d: %%.C
+$(cppDEPEND_FILES): $(GDEP_DEST)/%%.d: %%.cpp
 \t$(MAKE_C_GDEPS)
 
 # b) k-point.
 $(KcDEPEND_FILES): $(KDEP_DEST)/%%.d: %%.c
 \t$(MAKE_C_KDEPS)
 
-$(KCDEPEND_FILES): $(KDEP_DEST)/%%.d: %%.C
+$(KcppDEPEND_FILES): $(KDEP_DEST)/%%.d: %%.cpp
 \t$(MAKE_C_KDEPS)
 
 #-----
