@@ -1687,6 +1687,7 @@ END SUBROUTINE
 
       INTEGER nAmpl,nBuffAmpl,nCurAmpl
       INTEGER iExcitLevelCluster
+      INTEGER iMaxLevel
 
       TYPE(CCTransitionLog) TL
 
@@ -1709,8 +1710,10 @@ END SUBROUTINE
 
       if(ICILevel/=0)  then 
          nAmpl=FciDetIndex(ICILevel+1)-1
+         iMaxLevel=ICILevel
       else
          nAmpl=Det
+         iMaxLevel=nEl
       endif
 ! Setup Memory
       Allocate(Amplitude(nAmpl,2),stat=ierr)
@@ -2160,6 +2163,9 @@ END SUBROUTINE
          Iter=Iter+1
       enddo !MC Cycles
       if(iDebug.gt.1) call WriteDExcitorList(6,Amplitude(:,iCurAmpList),FciDets,0,nAmpl,dAmp,"Final Excitor list")
+
+! Find the largest 10 amplitudes in each level
+      call WriteMaxDExcitorList(6,Amplitude(:,iCurAmpList),FciDets,FCIDetIndex,iMaxLevel,10)
       nullify(OldAmpl)
       nullify(CS)
       if(lLogTransitions) then
@@ -2590,6 +2596,49 @@ enddo
       TL%dProbUniqClust(1,i)=TL%dProbUniqClust(1,i)+1/(C%dProbNorm*C%dClusterNorm)
       TL%dProbUniqClust(2,i)=TL%dProbUniqClust(2,i)+1
    end subroutine LogCluster
+
+! Find the largest nMax amplitudes (out of Amps(nDet)) for each excitation level and print them
+   subroutine  WriteMaxDExcitorList(iUnit,Amps,Dets,LevIndex,nLev,nMax)
+      use SystemData, only: nIfTot
+      use FciMCParMod, only: iLutHF
+      implicit none
+      integer iUnit, nLev,nMax
+      real*8 Amps(*)
+      INTEGER Dets(0:nIfTot,*)
+      INTEGER LevIndex(0:nLev+1) 
+      
+      integer BestIndex(nMax+1)
+      real*8  BestAbsAmp(nMax+1)
+      integer nBest
+      real*8  dMinBest,dCur
+      integer i,j,iLev
+
+      do iLev=1,nLev
+         dMinBest=0
+         nBest=0
+         do i=LevIndex(iLev),LevIndex(iLev+1)-1
+            dCur=abs(Amps(i))
+            if(dCur>dMinBest) then
+               do j=nBest,1,-1
+                  if (BestAbsAmp(j)>dCur) exit
+               enddo
+               j=j+1  !j is now where we want to put this one
+               !Move the lower ones down and insert
+               BestIndex(j+1:nBest+1)=BestIndex(j:nBest)
+               BestAbsAmp(j+1:nBest+1)=BestAbsAmp(j:nBest)
+               if(nBest<nMax) nBest=nBest+1
+               BestIndex(j)=i
+               BestAbsAmp(j)=dCur
+               dMinBest=BestAbsAmp(nBest)
+            endif
+         enddo
+         write(6,*) "Excit Level ", iLev, " Max ",nBest," Normalized Amplitudes"
+         do i=1,nBest
+            write(iUnit,'(I7,G17.9," ")',advance='no') BestIndex(i),Amps(BestIndex(i))/Amps(1)
+            call WriteBitEx(6,iLutHF,Dets(:,BestIndex(i)),.true.)
+         enddo
+      enddo
+   end subroutine WriteMaxDExcitorList
 END MODULE CCMC
 
 #ifdef PARALLEL

@@ -384,6 +384,16 @@ C_BODY = $(CFLAGS) -c $< -o $@
 MAKE_C_GDEPS = $(CCD) $(CFLAGS) -MM -MT \$$\(GDEST\)/$(addsuffix .o,$(basename $(notdir $@))) $< -o $@
 MAKE_C_KDEPS = $(CCD) $(CFLAGS) -MM -MT \$$\(KDEST\)/$(addsuffix .o,$(basename $(notdir $@))) $< -o $@
 
+# stat command for checking last modified time.
+system = $(shell uname -s)
+# BSD (ie OSX as far as we're concerned) has a different stat command.
+ifeq ($(system),Darwin)
+\tstat_cmd = stat -f %%m
+else
+\t# Linux systems.
+\tstat_cmd = stat --format=%%Y
+endif
+
 # Compiling fortran source files...
 
 # 1. Pre-processing.
@@ -409,7 +419,7 @@ $(KDEST)/%%.f: %%.F
 # file using the object rule and so don't need to produce the .mod file again.  We test for the latter condition by
 # requiring the .o and .mod files have the same "last modified" time.
 %%.mod:
-\ttest -e $@ && test ! -e $(@:.mod=.time) && test $(stat -f %%m $@) -eq $(stat -f %%m $<) && touch $(@:.mod=.time) || true
+\ttest -e $@ && test ! -e $(@:.mod=.time) && test $(shell $(stat_cmd) $@) -eq $(shell $(stat_cmd) $<) && touch $(@:.mod=.time) || true
 \tperl -w $(TOOLS)/compile_mod.pl -cmp "perl -w $(TOOLS)/compare_module_file.pl -compiler $(compiler)" -fc "$(FC) $(FFLAGS) $(F90FLAGS) %(module_flag)s$(dir $@) -I $(SRC) -c $(<:.o=.f90) -o $<" -provides "$@" -requires "$(<:.o=.f90)"
 
 $(F90OBJ) $(KF90OBJ): %%.o: %%.f90

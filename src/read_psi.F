@@ -1,5 +1,5 @@
       SUBROUTINE READ_PSI(BOX,BOA,COA,NDET,NEVAL,
-     &		NBASISMAX,NEL,CK,W)
+     &        NBASISMAX,NEL,CK,W)
       IMPLICIT REAL*8 (A-H,O-Z)
       INTEGER nBasisMax(5,*)
 C..
@@ -12,12 +12,12 @@ C..
       IF(    NMAXCK.NE.NBASISMAX(1,2)
      &   .OR.NMAYCK.NE.NBASISMAX(2,2)
      &   .OR.NMAZCK.NE.NBASISMAX(3,2)) 
-     &		       STOP ' !!! DIFFERENT SIZE BASIS !!! '
+     &               STOP ' !!! DIFFERENT SIZE BASIS !!! '
       IF(NELCK.NE.NEL) STOP ' !!! DIFFERENT NUMBER OF ELECTRONS !!! '
       IF(NEVALCK.NE.NEVAL) STOP ' !!! NEVAL DIFFERENT !!! '
       IF(NDETCK.NE.NDET) STOP ' !!! DIFFERENT NUMBER OF DETS !!! '
       IF(BOXCK.NE.BOX.OR.BOACK.NE.BOA.OR.COACK.NE.COA) 
-     &		       STOP ' !!! DIFFERENT SIZE CUBES !!! ' 
+     &               STOP ' !!! DIFFERENT SIZE CUBES !!! ' 
 C..
       DO I=1,NEVAL
         DO J=1,NDET
@@ -40,12 +40,12 @@ C.. PSI_LONG doesn't exist.  what about PSI_COMP
       IF(    NMAXCK.NE.NBASISMAX(1,2)
      &   .OR.NMAYCK.NE.NBASISMAX(2,2)
      &   .OR.NMAZCK.NE.NBASISMAX(3,2)) 
-     &		       STOP ' !!! DIFFERENT SIZE BASIS !!! '
+     &               STOP ' !!! DIFFERENT SIZE BASIS !!! '
       IF(NELCK.NE.NEL) STOP ' !!! DIFFERENT NUMBER OF ELECTRONS !!! '
       IF(NEVALCK.NE.NEVAL) STOP ' !!! NEVAL DIFFERENT !!! '
       IF(NDETCK.NE.NDET) STOP ' !!! DIFFERENT NUMBER OF DETS !!! '
       IF(BOXCK.NE.BOX.OR.BOACK.NE.BOA.OR.COACK.NE.COA) 
-     &		       STOP ' !!! DIFFERENT SIZE CUBES !!! ' 
+     &               STOP ' !!! DIFFERENT SIZE CUBES !!! ' 
 C..
       I=1
       DO WHILE(I.NE.0)
@@ -60,7 +60,7 @@ C..
       END
 C ==----------------------------------------------------------------==   
       SUBROUTINE WRITE_PSI(BOX,BOA,COA,NDET,NEVAL,
-     &	NBASISMAX,NEL,CK,W)
+     &    NBASISMAX,NEL,CK,W)
       USE HElem
       IMPLICIT NONE
       INTEGER nBasisMax(5,*)
@@ -87,7 +87,7 @@ C..
       END   
 
       SUBROUTINE WRITE_PSI_COMP(BOX,BOA,COA,NDET,NEVAL,
-     &	NBASISMAX,NEL,CK,W)
+     &    NBASISMAX,NEL,CK,W)
       USE HElem
       IMPLICIT NONE
       INTEGER nBasisMax(5,*)

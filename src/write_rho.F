@@ -1,5 +1,5 @@
       SUBROUTINE WRITE_RHO(NC,FILENM,RHO,NMESHX,NMESHY,
-     &	NMESHZ,ALAT,TMOVIE,TGOPENMOL,RS)
+     &    NMESHZ,ALAT,TMOVIE,TGOPENMOL,RS)
       IMPLICIT REAL*8 (A-H,O-Z)
       DIMENSION RHO(NMESHX,NMESHY,NMESHZ),ALAT(3)
       LOGICAL TMOVIE,TGOPENMOL
@@ -13,46 +13,46 @@ C..Compute mean value of function for plotting function
         SUM =0
         DO K=1,NMESHZ
           DO J=1,NMESHY
-	    DO I=1,NMESHX
-	      SUM=SUM+RHO(I,J,K)
-	    ENDDO
-	  ENDDO
-	ENDDO
-	SUM=SUM/(NMESHX*NMESHY*NMESHZ)
+          DO I=1,NMESHX
+            SUM=SUM+RHO(I,J,K)
+          ENDDO
+        ENDDO
+      ENDDO
+      SUM=SUM/(NMESHX*NMESHY*NMESHZ)
 C..     
-	WRITE(11,*) 1,0
-	WRITE(11,*) 2000,0,0,0
-	WRITE(11,*) 1
-	WRITE(11,*) 3
-	WRITE(11,*)  2*SUM ,0
-	WRITE(11,*)  SUM ,0
-	WRITE(11,*)  SUM/2 ,0
-	WRITE(11,*)  1,NMESHX,NMESHY,NMESHZ
-	WRITE(11,*) 0
-	WRITE(11,*) '0.	 0.  0.'
-	WRITE(11,*) ALAT(1),0.,ALAT(2),0.0000,0.0000,ALAT(3)
-	WRITE(11,*) '8		12'
-	WRITE(11,*) 0,	 0,   0
-	WRITE(11,*) ALAT(1),   0,   0
-	WRITE(11,*) 0,	 ALAT(2),   0
-	WRITE(11,*) 0,	 0,   ALAT(3)
-	WRITE(11,*) ALAT(1),   ALAT(2),	  0
-	WRITE(11,*) ALAT(1),   0,   ALAT(3)
-	WRITE(11,*) 0,	 ALAT(2),ALAT(3)
-	WRITE(11,*) ALAT(1),ALAT(2),ALAT(3)
-	WRITE(11,*) '1	 2'
-	WRITE(11,*) '1	 3'
-	WRITE(11,*) '1	 4 '
-	WRITE(11,*) '2	 5 '
-	WRITE(11,*) '2	 6'
-	WRITE(11,*) '3	 5'
-	WRITE(11,*) '3	 7'
-	WRITE(11,*) '5	 8 '
-	WRITE(11,*) '4	 6'
-	WRITE(11,*) '4	 7'
-	WRITE(11,*) '7	 8 '
-	WRITE(11,*) '6	 8 '
-	WRITE(11,*) '0'
+      WRITE(11,*) 1,0
+      WRITE(11,*) 2000,0,0,0
+      WRITE(11,*) 1
+      WRITE(11,*) 3
+      WRITE(11,*)  2*SUM ,0
+      WRITE(11,*)  SUM ,0
+      WRITE(11,*)  SUM/2 ,0
+      WRITE(11,*)  1,NMESHX,NMESHY,NMESHZ
+      WRITE(11,*) 0
+      WRITE(11,*) '0.   0.  0.'
+      WRITE(11,*) ALAT(1),0.,ALAT(2),0.0000,0.0000,ALAT(3)
+      WRITE(11,*) '8    12'
+      WRITE(11,*) 0,   0,   0
+      WRITE(11,*) ALAT(1),   0,   0
+      WRITE(11,*) 0,   ALAT(2),   0
+      WRITE(11,*) 0,   0,   ALAT(3)
+      WRITE(11,*) ALAT(1),   ALAT(2),    0
+      WRITE(11,*) ALAT(1),   0,   ALAT(3)
+      WRITE(11,*) 0,   ALAT(2),ALAT(3)
+      WRITE(11,*) ALAT(1),ALAT(2),ALAT(3)
+      WRITE(11,*) '1   2'
+      WRITE(11,*) '1   3'
+      WRITE(11,*) '1   4 '
+      WRITE(11,*) '2   5 '
+      WRITE(11,*) '2   6'
+      WRITE(11,*) '3   5'
+      WRITE(11,*) '3   7'
+      WRITE(11,*) '5   8 '
+      WRITE(11,*) '4   6'
+      WRITE(11,*) '4   7'
+      WRITE(11,*) '7   8 '
+      WRITE(11,*) '6   8 '
+      WRITE(11,*) '0'
       ENDIF
       IF(TGOPENMOL) THEN
         FILENM3=FILENM(1:NC)//'.txt'
@@ -64,16 +64,16 @@ c        WRITE(12,*) 3,2
         WRITE(12,'(3I3)') NMESHX,NMESHY,NMESHZ
 c        WRITE(12,*) NMESHX,NMESHY,NMESHZ
         WRITE(12,'(6F13.6)') -ALAT(3)/2.,ALAT(3)/2.d0,-alat(2)/2.d0,
-     &	  ALAT(2)/2.d0,-alat(1)/2.d0,ALAT(1)/2.d0
+     &    ALAT(2)/2.d0,-alat(1)/2.d0,ALAT(1)/2.d0
 c        WRITE(12,*)-ALAT(1)/2.,ALAT(1)/2.d0,-alat(2)/2.d0,
-c     &	  ALAT(2)/2.d0,-alat(3)/2.d0,ALAT(3)/2.d0
+c     &   ALAT(2)/2.d0,-alat(3)/2.d0,ALAT(3)/2.d0
       ENDIF
       DO K=1,NMESHZ
         DO J=1,NMESHY
-	  DO I=1,NMESHX
-	    WRITE(10,*) I,J,K,RHO(I,J,K)
-	  ENDDO
-	ENDDO
+        DO I=1,NMESHX
+          WRITE(10,*) I,J,K,RHO(I,J,K)
+        ENDDO
+      ENDDO
       ENDDO
       CLOSE(10)
       WRITE(6,*) ' WRITTEN FILE : ' , FILENM
@@ -81,9 +81,9 @@ c     &	  ALAT(2)/2.d0,-alat(3)/2.d0,ALAT(3)/2.d0
         DO I=1,NMESHX
           DO J=1,NMESHY
             DO K=1,NMESHZ
-	      WRITE(11,*) RHO(I,J,K)
-	    ENDDO
-	  ENDDO
+            WRITE(11,*) RHO(I,J,K)
+          ENDDO
+        ENDDO
         ENDDO
         CLOSE(11)
         WRITE(6,*) ' WRITTEN FILE : ' , FILENM2
@@ -93,10 +93,10 @@ c     &	  ALAT(2)/2.d0,-alat(3)/2.d0,ALAT(3)/2.d0
           DO K=1,NMESHZ
             DO J=1,NMESHY
               WRITE(12,'(6E13.6)') (RHO(I,J,K)*RS3,I=1,NMESHX)
-	    ENDDO
-	  ENDDO
-c	WRITE(12,'(6E13.6)') RHO
-c	WRITE(12) RHO
+          ENDDO
+        ENDDO
+c        WRITE(12,'(6E13.6)') RHO
+c        WRITE(12) RHO
         CLOSE(12)
         WRITE(6,*) ' WRITTEN FILE : ' , FILENM3
       ENDIF
