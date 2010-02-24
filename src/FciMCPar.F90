@@ -41,8 +41,8 @@ MODULE FciMCParMod
     use DetBitops, only: EncodeBitDet, DecodeBitDet, DetBitEQ, DetBitLT
     use DetBitOps, only: FindExcitBitDet, FindBitExcitLevel
     use csf, only: get_csf_bit_yama
+    use constants, only: dp
     IMPLICIT NONE
-    integer, parameter :: dp = selected_real_kind(15,307)
     SAVE
 
     contains
@@ -572,7 +572,7 @@ MODULE FciMCParMod
                     ELSE
                         HDiagTemp=GetHElement2(DetCurr,DetCurr,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,0,ECore)
                     ENDIF
-                    HDiagCurr=(REAL(HDiagTemp%v,r2))-Hii
+                    HDiagCurr=(REAL(HDiagTemp%v,dp))-Hii
                 ENDIF
             ELSE
 !HDiags are stored.
@@ -919,7 +919,7 @@ MODULE FciMCParMod
 !                                        IF(tHub.and.tReal) THEN
 !!Reference determinant is not HF
 !                                            HDiagTemp=GetHElement2(nJ,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,0,ECore)
-!                                            HDiag=(REAL(HDiagTemp%v,r2))
+!                                            HDiag=(REAL(HDiagTemp%v,dp))
 !                                        ENDIF
 
                                 ELSE
@@ -928,7 +928,7 @@ MODULE FciMCParMod
                                     ELSE
                                         HDiagTemp=GetHElement2(nJ,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,0,ECore)
                                     ENDIF
-                                    HDiag=(REAL(HDiagTemp%v,r2))-Hii
+                                    HDiag=(REAL(HDiagTemp%v,dp))-Hii
                                 ENDIF
                             ENDIF
                         ENDIF
@@ -1132,7 +1132,7 @@ MODULE FciMCParMod
                 ! DetCurr is the current determinant in expanded form, MinorStarDets(:,i) is the bit form.
                 CALL DecodeBitDet(DetCurr,MinorStarDets(0:NIfTot,i))
 
-                iDie=AttemptDiePar(DetCurr,REAL(MinorStarHii(i)%v,r2),0,abs(MinorStarSign(i)))
+                iDie=AttemptDiePar(DetCurr,REAL(MinorStarHii(i)%v,dp),0,abs(MinorStarSign(i)))
                 ! Take the ith minor determinant and attempt to die.
                 ! iDie gives the number of particles to die on that determinant.
 
@@ -1196,7 +1196,7 @@ MODULE FciMCParMod
             ENDIF
         ENDIF
 
-        rat=REAL(TotWalkersNew,r2)/REAL(MaxWalkersPart,r2)
+        rat=REAL(TotWalkersNew,dp)/REAL(MaxWalkersPart,dp)
         IF(rat.gt.0.95) THEN
             WRITE(6,'(A)') "*WARNING* - Number of particles/determinants has increased to over 95% of MaxWalkersPart"
             CALL FLUSH(6)
@@ -1461,16 +1461,16 @@ MODULE FciMCParMod
         AllNoatDoubs=outpair(2)
         AllNoBorn=outpair(3)
         AllNoDied=outpair(4)
-        AllHFCyc=REAL(outpair(5),r2)
+        AllHFCyc=REAL(outpair(5),dp)
         AllLocalAnn=outpair(6)
         AllSpawnFromSing=outpair(7)
 !        AllTotParts=outpair(7)
-!        AlliUniqueDets=REAL(outpair(9),r2)
+!        AlliUniqueDets=REAL(outpair(9),dp)
         AlliInitGuideParts=outpair(8)
         AllMinorAnnihilated=outpair(9)
-        TempTotWalkers=REAL(TotWalkers,r2)
-        TempTotParts=REAL(TotParts,r2)
-        TempNoMinorWalkers=REAL(NoMinorWalkers,r2)
+        TempTotWalkers=REAL(TotWalkers,dp)
+        TempTotParts=REAL(TotParts,dp)
+        TempNoMinorWalkers=REAL(NoMinorWalkers,dp)
         IF(tMinorDetsStar) THEN
             TempTotParts=TempTotParts+TempNoMinorWalkers
         ENDIF
@@ -1509,7 +1509,7 @@ MODULE FciMCParMod
         ENDIF
 
 !SumWalkersCyc is now an int*8, therefore is needs to be reduced as a real*8
-        TempSumWalkersCyc=REAL(SumWalkersCyc,r2)
+        TempSumWalkersCyc=REAL(SumWalkersCyc,dp)
         TempAllSumWalkersCyc=0.D0
         CALL MPI_Reduce(TempSumWalkersCyc,TempAllSumWalkersCyc,1,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
 
@@ -1518,7 +1518,7 @@ MODULE FciMCParMod
 
         IF(.not.tDirectAnnihil) THEN
 
-            MeanWalkers=AllTotWalkers/REAL(nProcessors,r2)
+            MeanWalkers=AllTotWalkers/REAL(nProcessors,dp)
             MaxAllowedWalkers=NINT((MeanWalkers/12.D0)+MeanWalkers)
 
 !Find the range of walkers on different nodes to see if we need to even up the distribution over nodes
@@ -1539,7 +1539,7 @@ MODULE FciMCParMod
             IF(iProcIndex.eq.root) THEN
 !                RangeWalkers=MaxWalkersProc-MinWalkersProc
 !                IF(RangeWalkers.gt.300) THEN
-                IF((MaxWalkersProc.gt.MaxAllowedWalkers).and.(AllTotWalkers.gt.(REAL(nProcessors*500,r2)))) THEN
+                IF((MaxWalkersProc.gt.MaxAllowedWalkers).and.(AllTotWalkers.gt.(REAL(nProcessors*500,dp)))) THEN
                     TBalanceNodesTemp=.true.
                 ELSE
                     TBalanceNodesTemp=.false.
@@ -1577,7 +1577,7 @@ MODULE FciMCParMod
 
 !AlliUniqueDets corresponds to the total number of unique determinants, summed over all iterations in the last update cycle, and over all processors.
 !Divide by StepsSft to get the average number of unique determinants visited over a single iteration.
-!        AlliUniqueDets=AlliUniqueDets/(REAL(StepsSft,r2))
+!        AlliUniqueDets=AlliUniqueDets/(REAL(StepsSft,dp))
         
         IF(GrowRate.eq.-1.D0) THEN
 !tGlobalSftCng is on, and we want to calculate the change in the shift as a global parameter, rather than as a weighted average.
@@ -1612,21 +1612,21 @@ MODULE FciMCParMod
 !        CALL FLUSH(6)
 !        CALL MPIDSumRoot(MeanExcitLevel,1,AllMeanExcitLevel,Root)
 !        IF(iProcIndex.eq.Root) THEN
-!            AllMeanExcitLevel=AllMeanExcitLevel/real(nProcessors,r2)
+!            AllMeanExcitLevel=AllMeanExcitLevel/real(nProcessors,dp)
 !        ENDIF
 
 !AvSign no longer calculated (but would be easy to put back in) - ACF much better bet...
-!        AvSign=AvSign/real(SumWalkersCyc,r2)
-!        AvSignHFD=AvSignHFD/real(SumWalkersCyc,r2)
+!        AvSign=AvSign/real(SumWalkersCyc,dp)
+!        AvSignHFD=AvSignHFD/real(SumWalkersCyc,dp)
 !        CALL MPI_Reduce(AvSign,AllAvSign,1,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
 !        CALL MPI_Reduce(AvSignHFD,AllAvSignHFD,1,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
 !        IF(iProcIndex.eq.Root) THEN
-!            AllAvSign=AllAvSign/real(nProcessors,r2)
-!            AllAvSignHFD=AllAvSignHFD/real(nProcessors,r2)
+!            AllAvSign=AllAvSign/real(nProcessors,dp)
+!            AllAvSignHFD=AllAvSignHFD/real(nProcessors,dp)
 !        ENDIF
 
 !Calculate the energy by summing all on HF and doubles - convert number at HF to a real since no int*8 MPI data type
-        TempSumNoatHF=real(SumNoatHF,r2)
+        TempSumNoatHF=real(SumNoatHF,dp)
 !        CALL MPIDSumRoot(TempSumNoatHF,1,AllSumNoatHF,Root)
 !        WRITE(6,*) "Get Here 9"
 !        CALL FLUSH(6)
@@ -1682,14 +1682,14 @@ MODULE FciMCParMod
                     IF((Iter-VaryShiftIter).eq.NShiftEquilSteps) WRITE(6,*) 'Beginning to average shift value.'
                     VaryShiftCycles=VaryShiftCycles+1
                     SumDiagSft=SumDiagSft+DiagSft
-                    AvDiagSft=SumDiagSft/REAL(VaryShiftCycles,r2)
+                    AvDiagSft=SumDiagSft/REAL(VaryShiftCycles,dp)
                 ENDIF
 
                 IF(tTruncInitiator) THEN
                     DiagSftAbort=DiagSftAbort-(log(AllGrowRateAbort)*SftDamp)/(Tau*(StepsSft+0.D0))
                     IF((Iter-VaryShiftIter).ge.NShiftEquilSteps) THEN
                         SumDiagSftAbort=SumDiagSftAbort+DiagSftAbort
-                        AvDiagSftAbort=SumDiagSftAbort/REAL(VaryShiftCycles,r2)
+                        AvDiagSftAbort=SumDiagSftAbort/REAL(VaryShiftCycles,dp)
                     ENDIF
                 ENDIF
             ENDIF
@@ -1703,7 +1703,7 @@ MODULE FciMCParMod
             IF(AllHFCyc.ne.0.D0) THEN
                 ProjEIterSum=ProjEIterSum+(AllENumCyc/AllHFCyc)
                 HFPopCyc=HFPopCyc+1   !This is the number of iterations where we have a non-zero contribution from HF particles
-                ProjEIter=ProjEIterSum/REAL(HFPopCyc,r2)
+                ProjEIter=ProjEIterSum/REAL(HFPopCyc,dp)
             ENDIF
         ENDIF
 !        IF(tHub.and.tReal) THEN
@@ -1729,7 +1729,7 @@ MODULE FciMCParMod
 !            CALL MPI_ABORT(MPI_COMM_WORLD,rc,error)
 !        ENDIF
 
-        AccRat=(REAL(Acceptances,r2))/TempSumWalkersCyc      !The acceptance ratio which is printed is only for the current node - not summed over all nodes
+        AccRat=(REAL(Acceptances,dp))/TempSumWalkersCyc      !The acceptance ratio which is printed is only for the current node - not summed over all nodes
 
         CALL WriteFCIMCStats()
 
@@ -1906,9 +1906,9 @@ MODULE FciMCParMod
                 ENDIF
             ELSE
                 IF(tRotoAnnihil.or.tDirectAnnihil) THEN
-                    WRITE(6,"(A,F14.6,A)") " Diagonal H-Elements will not be stored. This will *save* ",REAL(MaxWalkersPart*8,r2)/1048576.D0," Mb/Processor"
+                    WRITE(6,"(A,F14.6,A)") " Diagonal H-Elements will not be stored. This will *save* ",REAL(MaxWalkersPart*8,dp)/1048576.D0," Mb/Processor"
                 ELSE
-                    WRITE(6,"(A,F14.6,A)") " Diagonal H-Elements will not be stored. This will *save* ",REAL(MaxWalkersPart*16,r2)/1048576.D0," Mb/Processor"
+                    WRITE(6,"(A,F14.6,A)") " Diagonal H-Elements will not be stored. This will *save* ",REAL(MaxWalkersPart*16,dp)/1048576.D0," Mb/Processor"
                 ENDIF
             ENDIF
             
@@ -2044,7 +2044,7 @@ MODULE FciMCParMod
                 ENDIF
             ENDIF
 
-            WRITE(6,"(A,F14.6,A)") " Initial memory (without excitgens + temp arrays) consists of : ",REAL(MemoryAlloc,r2)/1048576.D0," Mb/Processor"
+            WRITE(6,"(A,F14.6,A)") " Initial memory (without excitgens + temp arrays) consists of : ",REAL(MemoryAlloc,dp)/1048576.D0," Mb/Processor"
             IF(tRotoAnnihil.or.tDirectAnnihil) THEN
                 WRITE(6,*) "Only one array of memory to store main particle list allocated..."
             ENDIF
@@ -2091,16 +2091,16 @@ MODULE FciMCParMod
                 MemoryAlloc=((HFExcit%nExcitMemLen)+8)*4*MaxWalkersPart    !This is the memory needed by all the excitation generator arrays
 
                 WRITE(6,"(A,I12)") " Size of HF excitgen is: ",HFExcit%nExcitMemLen
-                WRITE(6,"(A,F14.6,A)") " Probable maximum memory for excitgens is : ",REAL(MemoryAlloc,r2)/1048576.D0," Mb/Processor"
+                WRITE(6,"(A,F14.6,A)") " Probable maximum memory for excitgens is : ",REAL(MemoryAlloc,dp)/1048576.D0," Mb/Processor"
                 WRITE(6,*) "Initial allocation of excitation generators successful..."
             ELSE
                 WRITE(6,"(A)") " Excitation generators will not be stored, but regenerated each time they are needed..."
             ENDIF
             IF(tRotoAnnihil) THEN
-                WRITE(6,"(A,F14.6,A)") "Temp Arrays for annihilation cannot be more than : ",REAL(MaxSpawned*9*4,r2)/1048576.D0," Mb/Processor"
+                WRITE(6,"(A,F14.6,A)") "Temp Arrays for annihilation cannot be more than : ",REAL(MaxSpawned*9*4,dp)/1048576.D0," Mb/Processor"
             ELSE
                 IF(.not.tDirectAnnihil) THEN
-                    WRITE(6,"(A,F14.6,A)") "Temp Arrays for annihilation cannot be more than : ",REAL(MaxWalkersPart*12,r2)/1048576.D0," Mb/Processor"
+                    WRITE(6,"(A,F14.6,A)") "Temp Arrays for annihilation cannot be more than : ",REAL(MaxWalkersPart*12,dp)/1048576.D0," Mb/Processor"
                 ENDIF
             ENDIF
             CALL FLUSH(6)
@@ -2134,10 +2134,10 @@ MODULE FciMCParMod
                     TotPartsOld=1
 !Initialise global variables for calculation on the root node
                     IF(iProcIndex.eq.root) THEN
-                        AllTotWalkers=REAL(nProcessors,r2)
-                        AllTotWalkersOld=REAL(nProcessors,r2)
-                        AllTotParts=REAL(nProcessors,r2)
-                        AllTotPartsOld=REAL(nProcessors,r2)
+                        AllTotWalkers=REAL(nProcessors,dp)
+                        AllTotWalkersOld=REAL(nProcessors,dp)
+                        AllTotParts=REAL(nProcessors,dp)
+                        AllTotPartsOld=REAL(nProcessors,dp)
                     ENDIF
                 ENDIF
             ELSE
@@ -2158,8 +2158,8 @@ MODULE FciMCParMod
                     IF(iProcIndex.eq.Root) THEN
                         AllTotWalkers=1.D0
                         AllTotWalkersOld=1.D0
-                        AllTotParts=REAL(InitWalkers,r2)
-                        AllTotPartsOld=REAL(InitWalkers,r2)
+                        AllTotParts=REAL(InitWalkers,dp)
+                        AllTotPartsOld=REAL(InitWalkers,dp)
                         AllNoAbortedOld=0
                     ENDIF
                 ELSEIF(tRotoAnnihil) THEN
@@ -2169,10 +2169,10 @@ MODULE FciMCParMod
                     TotParts=InitWalkers
                     TotPartsOld=InitWalkers
                     IF(iProcIndex.eq.root) THEN
-                        AllTotWalkers=REAL(nProcessors,r2)
-                        AllTotWalkersOld=REAL(nProcessors,r2)
-                        AllTotParts=REAL(InitWalkers*nProcessors,r2)
-                        AllTotPartsOld=REAL(InitWalkers*nProcessors,r2)
+                        AllTotWalkers=REAL(nProcessors,dp)
+                        AllTotWalkersOld=REAL(nProcessors,dp)
+                        AllTotParts=REAL(InitWalkers*nProcessors,dp)
+                        AllTotPartsOld=REAL(InitWalkers*nProcessors,dp)
                     ENDIF
                 ELSE
 !TotWalkers contains the number of current walkers at each step
@@ -2182,8 +2182,8 @@ MODULE FciMCParMod
                     TotPartsOld=TotWalkersOld
 !Initialise global variables for calculation on the root node
                     IF(iProcIndex.eq.root) THEN
-                        AllTotWalkers=REAL(InitWalkers*nProcessors,r2)
-                        AllTotWalkersOld=REAL(InitWalkers*nProcessors,r2)
+                        AllTotWalkers=REAL(InitWalkers*nProcessors,dp)
+                        AllTotWalkersOld=REAL(InitWalkers*nProcessors,dp)
                         AllTotParts=AllTotWalkers
                         AllTotPartsOld=AllTotWalkersOld
                     ENDIF
@@ -2476,7 +2476,7 @@ MODULE FciMCParMod
 !First, make sure we have up-to-date information - again collect AllTotWalkers,AllSumNoatHF and AllSumENum...
 !        CALL MPI_Reduce(TotWalkers,AllTotWalkers,1,MPI_INTEGER,MPI_Sum,root,MPI_COMM_WORLD,error)    
 !Calculate the energy by summing all on HF and doubles - convert number at HF to a real since no int*8 MPI data type
-        TempSumNoatHF=real(SumNoatHF,r2)
+        TempSumNoatHF=real(SumNoatHF,dp)
         CALL MPIDSumRoot(TempSumNoatHF,1,AllSumNoatHF,Root)
         CALL MPIDSumRoot(SumENum,1,AllSumENum,Root)
 
@@ -2498,7 +2498,7 @@ MODULE FciMCParMod
             do i=0,nProcessors-1
                 Total=Total+INT(WalkersonNodes(i)/iPopsPartEvery)
             enddo
-            AllTotWalkers=REAL(Total,r2)
+            AllTotWalkers=REAL(Total,dp)
 !            IF(Total.ne.AllTotWalkers) THEN
 !                CALL Stop_All("WriteToPopsfilePar","Not all walkers accounted for...")
 !            ENDIF
@@ -2636,7 +2636,7 @@ MODULE FciMCParMod
 !First, make sure we have up-to-date information - again collect AllTotWalkers,AllSumNoatHF and AllSumENum...
 !        CALL MPI_Reduce(TotWalkers,AllTotWalkers,1,MPI_INTEGER,MPI_Sum,root,MPI_COMM_WORLD,error)    
 !Calculate the energy by summing all on HF and doubles - convert number at HF to a real since no int*8 MPI data type
-        TempSumNoatHF=real(SumNoatHF,r2)
+        TempSumNoatHF=real(SumNoatHF,dp)
         CALL MPIDSumRoot(TempSumNoatHF,1,AllSumNoatHF,Root)
         CALL MPIDSumRoot(SumENum,1,AllSumENum,Root)
 
@@ -2658,7 +2658,7 @@ MODULE FciMCParMod
             do i=0,nProcessors-1
                 Total=Total+INT(WalkersonNodes(i)/iPopsPartEvery)
             enddo
-            AllTotWalkers=REAL(Total,r2)
+            AllTotWalkers=REAL(Total,dp)
 !            IF(Total.ne.AllTotWalkers) THEN
 !                CALL Stop_All("WriteToPopsfilePar","Not all walkers accounted for...")
 !            ENDIF
@@ -2867,7 +2867,7 @@ MODULE FciMCParMod
 
         IF(iProcIndex.eq.Root) THEN
 
-            AllSumNoatHF=REAL(TempAllSumNoatHF,r2)
+            AllSumNoatHF=REAL(TempAllSumNoatHF,dp)
             WRITE(6,*) "Number of cycles in previous simulation: ",PreviousCycles
             IF(NEquilSteps.gt.0) THEN
                 WRITE(6,*) "Removing equilibration steps since reading in from POPSFILE."
@@ -2881,7 +2881,7 @@ MODULE FciMCParMod
             ENDIF
 
 !Need to calculate the number of walkers each node will receive...
-            AvWalkers=NINT(AllTotWalkers/real(nProcessors,r2))
+            AvWalkers=NINT(AllTotWalkers/real(nProcessors,dp))
 
 !Divide up the walkers to receive for each node
             do i=1,nProcessors-1
@@ -2905,8 +2905,8 @@ MODULE FciMCParMod
             ELSE
                 TSinglePartPhase=.true.
             ENDIF
-            SumENum=AllSumENum/REAL(nProcessors,r2)     !Divide up the SumENum over all processors
-            AvSumNoatHF=NINT(AllSumNoatHF/real(nProcessors,r2)) !This is the average Sumnoathf
+            SumENum=AllSumENum/REAL(nProcessors,dp)     !Divide up the SumENum over all processors
+            AvSumNoatHF=NINT(AllSumNoatHF/real(nProcessors,dp)) !This is the average Sumnoathf
             do i=1,nProcessors-1
                 NodeSumNoatHF(i)=INT(AvSumNoatHF,i2)
             enddo
@@ -3045,9 +3045,9 @@ MODULE FciMCParMod
             ENDIF
         ELSE
             IF(tRotoAnnihil.or.tDirectAnnihil) THEN
-                WRITE(6,"(A,F14.6,A)") "Diagonal H-Elements will not be stored. This will *save* ",REAL(MaxWalkersPart*4*2,r2)/1048576.D0," Mb/Processor"
+                WRITE(6,"(A,F14.6,A)") "Diagonal H-Elements will not be stored. This will *save* ",REAL(MaxWalkersPart*4*2,dp)/1048576.D0," Mb/Processor"
             ELSE
-                WRITE(6,"(A,F14.6,A)") "Diagonal H-Elements will not be stored. This will *save* ",REAL(MaxWalkersPart*4*4,r2)/1048576.D0," Mb/Processor"
+                WRITE(6,"(A,F14.6,A)") "Diagonal H-Elements will not be stored. This will *save* ",REAL(MaxWalkersPart*4*4,dp)/1048576.D0," Mb/Processor"
             ENDIF
         ENDIF
 
@@ -3283,7 +3283,7 @@ MODULE FciMCParMod
                 TotWalkers=TempInitWalkers  !This is now number of determinants, rather than walkers
                 TotWalkersOld=TempInitWalkers
 !Collate the information about the new total number of walkers
-                TempTotWalkers=REAL(TotWalkers,r2)
+                TempTotWalkers=REAL(TotWalkers,dp)
                 CALL MPI_AllReduce(TempTotWalkers,AllTotWalkers,1,MPI_DOUBLE_PRECISION,MPI_SUM,MPI_COMM_WORLD,error)
                 IF(iProcIndex.eq.root) THEN
                     AllTotWalkersOld=AllTotWalkers
@@ -3331,7 +3331,7 @@ MODULE FciMCParMod
                 TotWalkers=VecSlot-1
                 TotWalkersOld=TotWalkers
 !Collate the information about the new total number of walkers
-                TempTotWalkers=REAL(TotWalkers,r2)
+                TempTotWalkers=REAL(TotWalkers,dp)
                 CALL MPI_AllReduce(TempTotWalkers,AllTotWalkers,1,MPI_DOUBLE_PRECISION,MPI_SUM,MPI_COMM_WORLD,error)
                 IF(iProcIndex.eq.root) THEN
                     AllTotWalkersOld=AllTotWalkers
@@ -3415,7 +3415,7 @@ MODULE FciMCParMod
             ENDIF
         ENDIF
 
-        WRITE(6,"(A,F14.6,A)") " Initial memory (without excitgens) consists of : ",REAL(MemoryAlloc,r2)/1048576.D0," Mb"
+        WRITE(6,"(A,F14.6,A)") " Initial memory (without excitgens) consists of : ",REAL(MemoryAlloc,dp)/1048576.D0," Mb"
         WRITE(6,*) "Initial memory allocation successful..."
         CALL FLUSH(6)
 
@@ -3442,7 +3442,7 @@ MODULE FciMCParMod
             FrontOfList=1   !i.e. first free index should be put at FreeIndArray(1)
 
             MemoryAlloc=((HFExcit%nExcitMemLen)+8)*4*MaxWalkersPart
-            WRITE(6,"(A,F14.6,A)") "Probable maximum memory for excitgens is : ",REAL(MemoryAlloc,r2)/1048576.D0," Mb/Processor"
+            WRITE(6,"(A,F14.6,A)") "Probable maximum memory for excitgens is : ",REAL(MemoryAlloc,dp)/1048576.D0," Mb/Processor"
             WRITE(6,*) "Initial allocation of excitation generators successful..."
 
         ELSE
@@ -3450,10 +3450,10 @@ MODULE FciMCParMod
         ENDIF
 
         IF(tRotoAnnihil) THEN
-            WRITE(6,"(A,F14.6,A)") "Temp Arrays for annihilation cannot be more than : ",REAL(MaxSpawned*9*4,r2)/1048576.D0," Mb/Processor"
+            WRITE(6,"(A,F14.6,A)") "Temp Arrays for annihilation cannot be more than : ",REAL(MaxSpawned*9*4,dp)/1048576.D0," Mb/Processor"
         ELSE
             IF(.not.tDirectAnnihil) THEN
-                WRITE(6,"(A,F14.6,A)") "Temp Arrays for annihilation cannot be more than : ",REAL(MaxWalkersPart*12,r2)/1048576.D0," Mb/Processor"
+                WRITE(6,"(A,F14.6,A)") "Temp Arrays for annihilation cannot be more than : ",REAL(MaxWalkersPart*12,dp)/1048576.D0," Mb/Processor"
             ENDIF
         ENDIF
         CALL FLUSH(6)
@@ -3486,7 +3486,7 @@ MODULE FciMCParMod
                     ELSE
                         HElemTemp=GetHElement2(TempnI,TempnI,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,0,ECore)
                     ENDIF
-                    CurrentH(j)=REAL(HElemTemp%v,r2)-Hii
+                    CurrentH(j)=REAL(HElemTemp%v,dp)-Hii
                 ENDIF
 
                 IF(.not.TRegenExcitgens) CurrentExcits(j)%PointToExcit=>null()
@@ -3500,7 +3500,7 @@ MODULE FciMCParMod
 
         enddo
 
-        TempTotParts=REAL(TotParts,r2)
+        TempTotParts=REAL(TotParts,dp)
 
         CALL MPI_Barrier(MPI_COMM_WORLD,error)  !Sync
         CALL MPI_Reduce(TempTotParts,AllTotParts,1,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
@@ -3583,9 +3583,9 @@ MODULE FciMCParMod
             ENDIF
         ELSE
             IF(tRotoAnnihil) THEN
-                WRITE(6,"(A,F14.6,A)") "Diagonal H-Elements will not be stored. This will *save* ",REAL(MaxWalkersPart*4*2,r2)/1048576.D0," Mb/Processor"
+                WRITE(6,"(A,F14.6,A)") "Diagonal H-Elements will not be stored. This will *save* ",REAL(MaxWalkersPart*4*2,dp)/1048576.D0," Mb/Processor"
             ELSE
-                WRITE(6,"(A,F14.6,A)") "Diagonal H-Elements will not be stored. This will *save* ",REAL(MaxWalkersPart*4*4,r2)/1048576.D0," Mb/Processor"
+                WRITE(6,"(A,F14.6,A)") "Diagonal H-Elements will not be stored. This will *save* ",REAL(MaxWalkersPart*4*4,dp)/1048576.D0," Mb/Processor"
             ENDIF
         ENDIF
         
@@ -3711,9 +3711,9 @@ MODULE FciMCParMod
 
                 Hij=GetHElement2(HFDet,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,2,ECore)
                 CALL GetH0Element(nJ,NEl,Arr,nBasis,ECore,Fjj)
-!                WRITE(6,"(4I5,2G25.10)") nJ(:),real(Hij%v,r2),(Fii-(REAL(Fjj%v,r2)))
+!                WRITE(6,"(4I5,2G25.10)") nJ(:),real(Hij%v,dp),(Fii-(REAL(Fjj%v,dp)))
 
-                Compt=real(Hij%v,r2)/(Fii-(REAL(Fjj%v,r2)))
+                Compt=real(Hij%v,dp)/(Fii-(REAL(Fjj%v,dp)))
                 IF(Compt.lt.0.D0) THEN
                     MP1Sign(VecSlot)=-1
                 ELSE
@@ -3723,7 +3723,7 @@ MODULE FciMCParMod
                 MP1Comps(VecSlot)=MP1Comps(VecSlot-1)+abs(Compt)
                 MP1CompsNonCum(VecSlot)=abs(Compt)
                 SumMP1Compts=SumMP1Compts+abs(Compt)
-                MP2Energy=MP2Energy+((real(Hij%v,r2))**2)/(Fii-(REAL(Fjj%v,r2)))
+                MP2Energy=MP2Energy+((real(Hij%v,dp))**2)/(Fii-(REAL(Fjj%v,dp)))
 
                 VecSlot=VecSlot+1
 
@@ -3750,9 +3750,9 @@ MODULE FciMCParMod
 
                 Hij=GetHElement2(HFDet,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,iExcit,ECore)
                 CALL GetH0Element(nJ,NEl,Arr,nBasis,ECore,Fjj)
-!                WRITE(6,"(8I5,2G25.10)") nJ(:),real(Hij%v,r2),(Fii-(REAL(Fjj%v,r2)))
+!                WRITE(6,"(8I5,2G25.10)") nJ(:),real(Hij%v,dp),(Fii-(REAL(Fjj%v,dp)))
 
-                Compt=real(Hij%v,r2)/(Fii-(REAL(Fjj%v,r2)))
+                Compt=real(Hij%v,dp)/(Fii-(REAL(Fjj%v,dp)))
                 IF(Compt.lt.0.D0) THEN
                     MP1Sign(VecSlot)=-1
                 ELSE
@@ -3762,7 +3762,7 @@ MODULE FciMCParMod
                 MP1Comps(VecSlot)=MP1Comps(VecSlot-1)+abs(Compt)
                 MP1CompsNonCum(VecSlot)=abs(Compt)
                 SumMP1Compts=SumMP1Compts+abs(Compt)
-                MP2Energy=MP2Energy+((real(Hij%v,r2))**2)/(Fii-(REAL(Fjj%v,r2)))
+                MP2Energy=MP2Energy+((real(Hij%v,dp))**2)/(Fii-(REAL(Fjj%v,dp)))
 
                 VecSlot=VecSlot+1
 
@@ -3788,7 +3788,7 @@ MODULE FciMCParMod
         WRITE(6,"(A,F16.7,A,F16.7)") "MP2 energy is ",MP2Energy,", but the initial shift has been set to: ",DiagSft
 
 !        do i=1,VecSlot
-!            WRITE(6,"(I5,3G20.10)") i,MP1Comps(i),MP1CompsNonCum(i),MP1CompsNonCum(i)/SumMP1Compts*REAL(InitWalkers,r2)
+!            WRITE(6,"(I5,3G20.10)") i,MP1Comps(i),MP1CompsNonCum(i),MP1CompsNonCum(i)/SumMP1Compts*REAL(InitWalkers,dp)
 !        enddo
 
         WalkersonHF=0       !Find the number of walkers we are assigning to HF
@@ -3800,7 +3800,7 @@ MODULE FciMCParMod
             TotParts=0
             do j=1,VecSlot
 
-                FracPart=MP1CompsNonCum(j)/SumMP1Compts*REAL(InitWalkers,r2)
+                FracPart=MP1CompsNonCum(j)/SumMP1Compts*REAL(InitWalkers,dp)
                 IntParts=INT(FracPart)
                 FracPart=FracPart-REAL(IntParts)
 !Determine whether we want to stochastically create another particle
@@ -3830,7 +3830,7 @@ MODULE FciMCParMod
                         TotParts=TotParts+IntParts
                         IF(.not.tRegenDiagHEls) THEN
                             Hjj=GetHElement2(MP1Dets(1:NEl,j),MP1Dets(1:NEl,j),NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,0,ECore)     !Find the diagonal element
-                            CurrentH(VecInd)=real(Hjj%v,r2)-Hii
+                            CurrentH(VecInd)=real(Hjj%v,dp)-Hii
                         ENDIF
                     ENDIF
                     VecInd=VecInd+1
@@ -3890,7 +3890,7 @@ MODULE FciMCParMod
                     CurrentSign(j)=MP1Sign(i)
                     IF(.not.tRegenDiagHEls) THEN
                         Hjj=GetHElement2(MP1Dets(1:NEl,i),MP1Dets(1:NEl,i),NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,0,ECore)     !Find the diagonal element
-                        CurrentH(j)=real(Hjj%v,r2)-Hii
+                        CurrentH(j)=real(Hjj%v,dp)-Hii
                     ENDIF
                     IF(.not.TNoAnnihil) THEN
 !                    IF((.not.TNoAnnihil).and.(.not.TAnnihilonproc)) THEN
@@ -3904,7 +3904,7 @@ MODULE FciMCParMod
         ENDIF
         
         CALL MPI_Reduce(WalkersonHF,SumWalkersonHF,1,MPI_INTEGER,MPI_SUM,Root,MPI_COMM_WORLD,error)
-        TempTotParts=REAL(TotParts,r2)
+        TempTotParts=REAL(TotParts,dp)
         CALL MPI_Reduce(TempTotParts,AllTotParts,1,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
 
         IF(iProcIndex.eq.Root) THEN
@@ -3913,7 +3913,7 @@ MODULE FciMCParMod
             ELSE
                 WRITE(6,"(A,I12,A,I12,A)") "Out of ",InitWalkers*nProcessors," initial walkers allocated, ",SumWalkersonHF," of them are situated on the HF determinant."
                 TotParts=InitWalkers
-                AllTotParts=REAL(InitWalkers*nProcessors,r2)
+                AllTotParts=REAL(InitWalkers*nProcessors,dp)
             ENDIF
         ENDIF
         AllNoatHF=SumWalkersonHF
@@ -3934,7 +3934,7 @@ MODULE FciMCParMod
             tAssumeSizeExcitgen=.true.
         ENDIF
 
-        WRITE(6,"(A,F14.6,A)") "Initial memory (without excitgens + temp arrays) consists of : ",REAL(MemoryAlloc,r2)/1048576.D0," Mb/Processor"
+        WRITE(6,"(A,F14.6,A)") "Initial memory (without excitgens + temp arrays) consists of : ",REAL(MemoryAlloc,dp)/1048576.D0," Mb/Processor"
         WRITE(6,*) "Initial memory allocation sucessful..."
         CALL FLUSH(6)
 
@@ -3981,21 +3981,21 @@ MODULE FciMCParMod
             enddo
             MemoryAlloc=((HFExcit%nExcitMemLen)+8)*4*MaxWalkersPart
 
-            WRITE(6,"(A,F14.6,A)") "Probable maximum memory for excitgens is : ",REAL(MemoryAlloc,r2)/1048576.D0," Mb/Processor"
+            WRITE(6,"(A,F14.6,A)") "Probable maximum memory for excitgens is : ",REAL(MemoryAlloc,dp)/1048576.D0," Mb/Processor"
             WRITE(6,*) "Initial allocation of excitation generators successful..."
         ELSE
             WRITE(6,"(A)") "Excitation generators will not be stored, but regenerated each time they are needed..."
         ENDIF
         IF(tRotoAnnihil) THEN
-            WRITE(6,"(A,F14.6,A)") "Temp Arrays for annihilation cannot be more than : ",REAL(MaxSpawned*9*4,r2)/1048576.D0," Mb/Processor"
+            WRITE(6,"(A,F14.6,A)") "Temp Arrays for annihilation cannot be more than : ",REAL(MaxSpawned*9*4,dp)/1048576.D0," Mb/Processor"
         ELSE
-            WRITE(6,"(A,F14.6,A)") "Temp Arrays for annihilation cannot be more than : ",REAL(MaxWalkersPart*12,r2)/1048576.D0," Mb/Processor"
+            WRITE(6,"(A,F14.6,A)") "Temp Arrays for annihilation cannot be more than : ",REAL(MaxWalkersPart*12,dp)/1048576.D0," Mb/Processor"
         ENDIF
         CALL FLUSH(6)
         
         IF(tRotoAnnihil) THEN
             TotWalkersOld=TotWalkers
-            TempTotWalkers=REAL(TotWalkers,r2)
+            TempTotWalkers=REAL(TotWalkers,dp)
             CALL MPI_Reduce(TempTotWalkers,AllTotWalkers,1,MPI_DOUBLE_PRECISION,MPI_SUM,root,MPI_COMM_WORLD,error)
             AllTotWalkersOld=AllTotWalkers
             AllTotPartsOld=AllTotParts
@@ -4005,8 +4005,8 @@ MODULE FciMCParMod
             TotWalkersOld=InitWalkers
 !Initialise global variables for calculation on the root node
             IF(iProcIndex.eq.root) THEN
-                AllTotWalkers=REAL(InitWalkers*nProcessors,r2)
-                AllTotWalkersOld=REAL(InitWalkers*nProcessors,r2)
+                AllTotWalkers=REAL(InitWalkers*nProcessors,dp)
+                AllTotWalkersOld=REAL(InitWalkers*nProcessors,dp)
             ENDIF
         ENDIF
 
@@ -4060,7 +4060,7 @@ MODULE FciMCParMod
         IF(tMCExcits) THEN
 !If we are generating multiple excitations, then the probability of spawning on them must be reduced by the number of excitations generated.
 !This is equivalent to saying that the excitation is likely to arise a factor of NoMCExcits more often.
-            Prob=Prob*REAL(NoMCExcits,r2)
+            Prob=Prob*REAL(NoMCExcits,dp)
         ENDIF
             
 
@@ -4070,7 +4070,7 @@ MODULE FciMCParMod
             IF(tGenMatHEl) THEN
 !The prob is actually prob/HEl, since the matrix element was generated at the same time as the excitation
 
-                rat=Tau*REAL(nParts,r2)/abs(Prob)
+                rat=Tau*REAL(nParts,dp)/abs(Prob)
 
                 rh%v=Prob ! to get the signs right for later on.
 !                WRITE(6,*) Prob, DetCurr(:),"***",nJ(:)
@@ -4082,7 +4082,7 @@ MODULE FciMCParMod
 !However, the excitation generator can generate the same HPHF again. If this is done, the routine will send the matrix element back as zero.
                 CALL HPHFGetOffDiagHElement(DetCurr,nJ,iLutCurr,iLutnJ,rh)
 !Divide by the probability of creating the excitation to negate the fact that we are only creating a few determinants
-                rat=Tau*abs(rh%v)*REAL(nParts,r2)/Prob
+                rat=Tau*abs(rh%v)*REAL(nParts,dp)/Prob
 !                WRITE(6,*) Prob/rh%v, DetCurr(:),"***",nJ(:)
 !                WRITE(6,*) "******"
 
@@ -4094,7 +4094,7 @@ MODULE FciMCParMod
             !WRITE(6,*) rh%v
 
 !Divide by the probability of creating the excitation to negate the fact that we are only creating a few determinants
-            rat=Tau*abs(rh%v)*REAL(nParts,r2)/Prob
+            rat=Tau*abs(rh%v)*REAL(nParts,dp)/Prob
         ENDIF
         IF(CCMCDebug.gt.5) WRITE(6,*) "Connection H-element to spawnee:",rh
 !        CALL IsSymAllowedExcit(DetCurr,nJ,IC,Ex,SymAllowed) 
@@ -4210,32 +4210,32 @@ MODULE FciMCParMod
 
         IF(tHistEnergies) THEN
 !First histogram off-diagonal matrix elements.
-            Bin=INT((real(rh%v,r2)+OffDiagMax)/OffDiagBinRange)+1
+            Bin=INT((real(rh%v,dp)+OffDiagMax)/OffDiagBinRange)+1
             IF(Bin.le.0.or.Bin.gt.iOffDiagNoBins) THEN
                 CALL Stop_All("AttemptCreatePar","Trying to histogram off-diagonal matrix elements, but outside histogram array bounds.")
             ENDIF
             IF(IC.eq.1) THEN
-                SinglesAttemptHist(Bin)=SinglesAttemptHist(Bin)+(REAL(nParts,r2)*Tau/Prob)
+                SinglesAttemptHist(Bin)=SinglesAttemptHist(Bin)+(REAL(nParts,dp)*Tau/Prob)
                 IF(AttemptCreatePar.ne.0) THEN
-                    SinglesHist(Bin)=SinglesHist(Bin)+real(abs(AttemptCreatePar),r2)
+                    SinglesHist(Bin)=SinglesHist(Bin)+real(abs(AttemptCreatePar),dp)
                     IF(BRR(Ex(1,1)).le.NEl) THEN
                         IF(BRR(Ex(2,1)).le.NEl) THEN
-                            SinglesHistOccOcc(Bin)=SinglesHistOccOcc(Bin)+real(abs(AttemptCreatePar),r2)
+                            SinglesHistOccOcc(Bin)=SinglesHistOccOcc(Bin)+real(abs(AttemptCreatePar),dp)
                         ELSE
-                            SinglesHistOccVirt(Bin)=SinglesHistOccVirt(Bin)+real(abs(AttemptCreatePar),r2)
+                            SinglesHistOccVirt(Bin)=SinglesHistOccVirt(Bin)+real(abs(AttemptCreatePar),dp)
                         ENDIF
                     ELSE
                         IF(BRR(Ex(2,1)).le.NEl) THEN
-                            SinglesHistVirtOcc(Bin)=SinglesHistVirtOcc(Bin)+real(abs(AttemptCreatePar),r2)
+                            SinglesHistVirtOcc(Bin)=SinglesHistVirtOcc(Bin)+real(abs(AttemptCreatePar),dp)
                         ELSE
-                            SinglesHistVirtVirt(Bin)=SinglesHistVirtVirt(Bin)+real(abs(AttemptCreatePar),r2)
+                            SinglesHistVirtVirt(Bin)=SinglesHistVirtVirt(Bin)+real(abs(AttemptCreatePar),dp)
                         ENDIF
                     ENDIF
                 ENDIF
             ELSEIF(IC.eq.2) THEN
-                DoublesAttemptHist(Bin)=DoublesAttemptHist(Bin)+(REAL(nParts,r2)*Tau/Prob)
+                DoublesAttemptHist(Bin)=DoublesAttemptHist(Bin)+(REAL(nParts,dp)*Tau/Prob)
                 IF(AttemptCreatePar.ne.0) THEN
-                    DoublesHist(Bin)=DoublesHist(Bin)+real(abs(AttemptCreatePar),r2)
+                    DoublesHist(Bin)=DoublesHist(Bin)+real(abs(AttemptCreatePar),dp)
                 ENDIF
             ENDIF
 
@@ -4244,15 +4244,15 @@ MODULE FciMCParMod
             ELSE
                 rh=GetHElement2(nJ,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,0,ECore)
             ENDIF
-            Bin=INT((real(rh%v,r2)-Hii)/BinRange)+1
+            Bin=INT((real(rh%v,dp)-Hii)/BinRange)+1
             IF(Bin.gt.iNoBins) THEN
                 CALL Stop_All("AttemptCreatePar","Histogramming energies higher than the arrays can cope with. Increase iNoBins or BinRange")
             ENDIF
             IF(AttemptCreatePar.ne.0) THEN
-                SpawnHist(Bin)=SpawnHist(Bin)+real(abs(AttemptCreatePar),r2)
-!                WRITE(6,*) "Get Here!", real(abs(AttemptCreatePar),r2),Bin
+                SpawnHist(Bin)=SpawnHist(Bin)+real(abs(AttemptCreatePar),dp)
+!                WRITE(6,*) "Get Here!", real(abs(AttemptCreatePar),dp),Bin
             ENDIF
-            AttemptHist(Bin)=AttemptHist(Bin)+(REAL(nParts,r2)*Tau/Prob)
+            AttemptHist(Bin)=AttemptHist(Bin)+(REAL(nParts,dp)*Tau/Prob)
         ENDIF
 
     END FUNCTION AttemptCreatePar
@@ -4293,7 +4293,7 @@ MODULE FciMCParMod
                 
 
 !Divide by the probability of creating the excitation to negate the fact that we are only creating a few determinants
-        rat=Tau*abs(rh%v)*REAL(nParts,r2)/Prob
+        rat=Tau*abs(rh%v)*REAL(nParts,dp)/Prob
 
 !If probability is > 1, then we can just create multiple children at the chosen determinant
         ExtraCreate=INT(rat)
@@ -4636,7 +4636,7 @@ MODULE FciMCParMod
 
 !Find matrix element
                 HElemTemp=GetHElement3(DetCurr,nJ,iExcit)
-                IF((abs(REAL(HElemTemp%v,r2))).gt.1.D-8) THEN
+                IF((abs(REAL(HElemTemp%v,dp))).gt.1.D-8) THEN
 
 !Encode this determinant
                     CALL EncodeBitDet(nJ,iLutnJ)
@@ -4646,8 +4646,8 @@ MODULE FciMCParMod
 
                     IF(tSuccess) THEN
 !If found, find Ni x Hij and attempt to spawn at j
-                        HSum=HSum+REAL(HElemTemp%v,r2)*CurrentSign(PartInd)
-!                        WRITE(6,*) REAL(HElemTemp%v,r2),CurrentSign(PartInd)
+                        HSum=HSum+REAL(HElemTemp%v,dp)*CurrentSign(PartInd)
+!                        WRITE(6,*) REAL(HElemTemp%v,dp),CurrentSign(PartInd)
                     ENDIF
                 ENDIF
 
@@ -4977,7 +4977,7 @@ MODULE FciMCParMod
         Hii=Hii+HDiagCurr
         iLutHF(0:NIfTot)=iLutCurr(0:NIfTot)
         TempHii=GetH0Element3(HFDet)
-        Fii=REAL(TempHii%v,r2)
+        Fii=REAL(TempHii%v,dp)
         HFHash=CreateHash(HFDet)
         DEALLOCATE(HFExcit%ExcitData)
 !Setup excitation generator for the HF determinant. If we are using assumed sized excitgens, this will also be assumed size.
@@ -5054,7 +5054,7 @@ MODULE FciMCParMod
             IF(MagDet) THEN
 !Determinant is magnetic - first find what the unperturbed energy of the determinant is.
                 HDiagTemp=GetHElement2(nJ,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,0,ECore)
-                HDiag=(REAL(HDiagTemp%v,r2))-Hii
+                HDiag=(REAL(HDiagTemp%v,dp))-Hii
                 
 !+ and + wants a +ve number to subtract
 !- and - wants a +ve number to subtract
@@ -5073,13 +5073,13 @@ MODULE FciMCParMod
             ELSE
 !Double excitation is not magnetic, find diagonal element as normal
                 HDiagTemp=GetHElement2(nJ,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,0,ECore)
-                HDiag=(REAL(HDiagTemp%v,r2))-Hii
+                HDiag=(REAL(HDiagTemp%v,dp))-Hii
             ENDIF
 
         ELSE
 !Give the child the same diagonal K-matrix element it would normally have.
             HDiagTemp=GetHElement2(nJ,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,0,ECore)
-            HDiag=(REAL(HDiagTemp%v,r2))-Hii
+            HDiag=(REAL(HDiagTemp%v,dp))-Hii
         ENDIF
 
         RETURN
@@ -5128,7 +5128,7 @@ MODULE FciMCParMod
                 MaxWalkers(2)=0                !This indicates that currently the maximum number of walkers resides on the root node
                 MinWalkers(1)=ProcWalkers(0)
                 MinWalkers(2)=0
-                MeanWalkers=REAL(ProcWalkers(0),r2)
+                MeanWalkers=REAL(ProcWalkers(0),dp)
                 do i=1,nProcessors-1
 !Find the minimum, maximum and mean of the walkers accross the nodes, and their node
                     IF(ProcWalkers(i).gt.MaxWalkers(1)) THEN
@@ -5138,7 +5138,7 @@ MODULE FciMCParMod
                         MinWalkers(1)=ProcWalkers(i)
                         MinWalkers(2)=i
                     ENDIF
-                    MeanWalkers=MeanWalkers+REAL(ProcWalkers(i),r2)
+                    MeanWalkers=MeanWalkers+REAL(ProcWalkers(i),dp)
                 enddo
                 WalktoTransfer(4)=MaxWalkers(1)-MinWalkers(1)
                 IF(Transfers.eq.0) THEN
@@ -5152,9 +5152,9 @@ MODULE FciMCParMod
                 ENDIF
 !                WRITE(6,*) "TOTAL WALKERS = ",MeanWalkers
 !                CALL FLUSH(6)
-                MeanWalkers=MeanWalkers/REAL(nProcessors,r2)
+                MeanWalkers=MeanWalkers/REAL(nProcessors,dp)
 !                WRITE(6,*) "MEAN WALKERS = ", MeanWalkers
-                MidWalkers=REAL((MaxWalkers(1)+MinWalkers(1)),r2)/2.D0  !THis is the mean of the two processors to exchange walkers
+                MidWalkers=REAL((MaxWalkers(1)+MinWalkers(1)),dp)/2.D0  !THis is the mean of the two processors to exchange walkers
 
 ! Now it is necessary to decide what walkers go where...want to transfer from maxwalkers to minwalkers
 ! i.e. want to transfer walkers from MaxWalkers(2) to MinWalkers(2). The number to transfer is given by 
@@ -5173,8 +5173,8 @@ MODULE FciMCParMod
                     WalktoTransfer(2)=-1
                     WalktoTransfer(3)=-1
                 ELSE
-!                    WalktoTransfer(1)=MIN(NINT(ABS(REAL(MaxWalkers(1),r2)-MeanWalkers)),NINT(ABS(REAL(MinWalkers(1),r2)-MeanWalkers)))
-                    WalktoTransfer(1)=MIN(NINT(ABS(REAL(MaxWalkers(1),r2)-MidWalkers)),NINT(ABS(REAL(MinWalkers(1),r2)-MidWalkers)))
+!                    WalktoTransfer(1)=MIN(NINT(ABS(REAL(MaxWalkers(1),dp)-MeanWalkers)),NINT(ABS(REAL(MinWalkers(1),dp)-MeanWalkers)))
+                    WalktoTransfer(1)=MIN(NINT(ABS(REAL(MaxWalkers(1),dp)-MidWalkers)),NINT(ABS(REAL(MinWalkers(1),dp)-MidWalkers)))
 !                    WRITE(6,*) MaxWalkers(:),MinWalkers(:),MidWalkers
 !                    CALL FLUSH(6)
                     WalktoTransfer(2)=MaxWalkers(2)
@@ -5899,11 +5899,11 @@ MODULE FciMCParMod
                     DoubDet(:)=0
                     CALL DecodeBitDet(DoubDet,GuideFuncDets(0:NIfTot,i))
                     HdoubTemp=GetHElement2(HFDet,DoubDet,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,ExcitLevel,ECore)
-                    HDoub=REAL(HDoubTemp%v,r2)
+                    HDoub=REAL(HDoubTemp%v,dp)
                     GuideFuncDoub=GuideFuncDoub+(GuideFuncSign(i)*Hdoub)
                 ENDIF
             enddo
-            WRITE(6,*) 'The energy of the guiding function alone is ,',GuideFuncDoub/(REAL(GuideFuncSign(GuideFuncHFIndex),r2))
+            WRITE(6,*) 'The energy of the guiding function alone is ,',GuideFuncDoub/(REAL(GuideFuncSign(GuideFuncHFIndex),dp))
             GuideFuncDoub=0.D0
         ENDIF
             
@@ -7135,7 +7135,7 @@ MODULE FciMCParMod
 !            Hij=GetHElement2(HFDet,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,iExcit,ECore)
 !!            CALL GetH0Element(nJ,NEl,Arr,nBasis,ECore,Hjj)
 !!            CALL GetH0Element(HFDet,NEl,Arr,nBasis,ECore,Fii)
-!            Compt=real(Hij%v,r2)/(Fii-(REAL(Fjj%v,r2)))
+!            Compt=real(Hij%v,dp)/(Fii-(REAL(Fjj%v,dp)))
 !            MinInd=2
 !            MinValue=TempMax(2)
 !!First need to find the minimum value to swap out
@@ -7152,7 +7152,7 @@ MODULE FciMCParMod
 !                TempMax(MinInd)=abs(Compt)
 !                AutoCorrDets(:,MinInd)=nJ(:)
 !                ACExcLevel(MinInd)=2
-!                ACEnergy(MinInd)=real(Hjj%v,r2)-Hii
+!                ACEnergy(MinInd)=real(Hjj%v,dp)-Hii
 !            ENDIF
 !
 !!            do j=2,NoACDets(2)+1!NoAutoDets
@@ -7160,7 +7160,7 @@ MODULE FciMCParMod
 !!                    TempMax(j)=abs(Compt)
 !!                    AutoCorrDets(:,j)=nJ(:)
 !!                    ACExcLevel(j)=2
-!!                    ACEnergy(j)=real(Fjj%v,r2)
+!!                    ACEnergy(j)=real(Fjj%v,dp)
 !!                    EXIT
 !!                ENDIF
 !!            enddo
@@ -7207,7 +7207,7 @@ MODULE FciMCParMod
 !            IF(nJ(1).eq.0) EXIT
 !            Hij=GetHElement2(AutoCorrDets(:,MaxIndex),nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,iExcit,ECore)
 !            CALL GetH0Element(nJ,NEl,Arr,nBasis,ECore,Fkk)
-!            Compt=real(Hij%v,r2)/(real(Fjj%v,r2)-(real(Fkk%v,r2)))
+!            Compt=real(Hij%v,dp)/(real(Fjj%v,dp)-(real(Fkk%v,dp)))
 !            ExcitLevel=iGetExcitLevel_2(HFDet,nJ,NEl,4)
 !            IF(ExcitLevel.eq.3) THEN
 !!We have generated a triple - try to add it to the list
@@ -7217,7 +7217,7 @@ MODULE FciMCParMod
 !                        TempMax(j)=abs(Compt)
 !                        AutoCorrDets(:,(j+1+NoACDets(2)))=nJ(:)
 !                        ACExcLevel(j+1+NoACDets(2))=3
-!                        ACEnergy(j+1+NoACDets(2))=real(Hjj%v,r2)-Hii
+!                        ACEnergy(j+1+NoACDets(2))=real(Hjj%v,dp)-Hii
 !                        EXIT
 !                    ENDIF
 !                enddo
@@ -7229,7 +7229,7 @@ MODULE FciMCParMod
 !                        TempMax(j)=abs(Compt)
 !                        AutoCorrDets(:,(j+1+NoACDets(2)))=nJ(:)
 !                        ACExcLevel(j+1+NoACDets(2))=4
-!                        ACEnergy(j+1+NoACDets(2))=real(Hjj%v,r2)-Hii
+!                        ACEnergy(j+1+NoACDets(2))=real(Hjj%v,dp)-Hii
 !                        EXIT
 !                    ENDIF
 !                enddo
@@ -7359,12 +7359,12 @@ MODULE FciMCParMod
 !            Hjj=GetHElement2(nJ,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,0,ECore)
 !
 !            GraphRhoMat(1,1)=1.D0-Tau*(CurrentH(VecInd)-DiagSft)
-!            GraphRhoMat(1,2)=-Tau*real(Hij%v,r2)
+!            GraphRhoMat(1,2)=-Tau*real(Hij%v,dp)
 !            GraphRhoMat(2,1)=GraphRhoMat(1,2)
-!            GraphRhoMat(2,2)=1.D0-Tau*((real(Hjj%v,r2)-Hii)-DiagSft)
+!            GraphRhoMat(2,2)=1.D0-Tau*((real(Hjj%v,dp)-Hii)-DiagSft)
 !                
 !            DetsinGraph(:,2)=nJ(:)
-!            GraphKii(2)=REAL(Hjj%v,r2)-Hii              !store det generated and kii element
+!            GraphKii(2)=REAL(Hjj%v,dp)-Hii              !store det generated and kii element
 !
 !        ELSE
 !!Zero the matrix
@@ -7412,19 +7412,19 @@ MODULE FciMCParMod
 !                    DetsinGraph(1:NEl,i)=nJ(1:NEl)
 !!First find connection to root
 !                    Hij=GetHElement2(nI,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,IC,ECore)
-!                    GraphRhoMat(1,i)=-Tau*REAL(Hij%v,r2)
+!                    GraphRhoMat(1,i)=-Tau*REAL(Hij%v,dp)
 !                    GraphRhoMat(i,1)=GraphRhoMat(1,i)
 !
 !!Then find connection to other determinants
 !                    do j=2,(i-1)
 !                        Hij=GetHElement2(nJ,DetsInGraph(:,j),NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,-1,ECore)
-!                        GraphRhoMat(i,j)=-Tau*REAL(Hij%v,r2)
+!                        GraphRhoMat(i,j)=-Tau*REAL(Hij%v,dp)
 !                        GraphRhoMat(j,i)=GraphRhoMat(i,j)
 !                    enddo
 !
 !!Find diagonal element - and store it for later on...
 !                    Hjj=GetHElement2(nJ,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,0,ECore)
-!                    GraphKii(i)=REAL(Hjj%v,r2)-Hii                !Again, the root value is not stored
+!                    GraphKii(i)=REAL(Hjj%v,dp)-Hii                !Again, the root value is not stored
 !                    GraphRhoMat(i,i)=1.D0-Tau*(GraphKii(i)-DiagSft)
 !
 !                    i=i+1
@@ -7460,7 +7460,7 @@ MODULE FciMCParMod
 !            GraphVec(i)=GraphVec(i)/((NDets-1)*Prob)    !Augment the component by the chances of picking that determinant
 !    
 !            Create=INT(abs(GraphVec(i)))
-!            rat=abs(GraphVec(i))-REAL(Create,r2)    !rat is now the fractional part, to be assigned stochastically
+!            rat=abs(GraphVec(i))-REAL(Create,dp)    !rat is now the fractional part, to be assigned stochastically
 !            IF(tMerTwist) THEN
 !                CALL genrand_real2(r) 
 !            ELSE
@@ -7511,7 +7511,7 @@ MODULE FciMCParMod
 !!Now deal with root
 !        Create=INT(abs(GraphVec(1)))
 !
-!        rat=abs(GraphVec(1))-REAL(Create,r2)    !rat is now the fractional part, to be assigned stochastically
+!        rat=abs(GraphVec(1))-REAL(Create,dp)    !rat is now the fractional part, to be assigned stochastically
 !        IF(tMerTwist) THEN
 !            CALL genrand_real2(r) 
 !        ELSE
@@ -7817,7 +7817,7 @@ MODULE FciMCParMod
         REAL*8 :: TempSumNoatHF
         REAL*8 , ALLOCATABLE :: Temp1RDM(:,:)
 
-        TempSumNoatHF=real(SumNoatHF,r2)
+        TempSumNoatHF=real(SumNoatHF,dp)
 !Sum TempSumNoatHF over all processors and then send to all processes
         CALL MPI_AllReduce(TempSumNoatHF,AllSumNoatHF,1,MPI_DOUBLE_PRECISION,MPI_SUM,MPI_COMM_WORLD,error)
         ALLOCATE(Temp1RDM(nBasis,nBasis),stat=ierr)
@@ -7935,24 +7935,24 @@ MODULE FciMCParMod
 !!            CALL MPI_AllReduce(SumSquares,AllSumSquares,NoAutoDets,MPI_INTEGER,MPI_SUM,MPI_COMM_WORLD,error)
 !
 !            do j=1,NoAutoDets
-!                Means(j)=REAL(SumWeights(j),r2)/REAL(Iter,r2)
-!                NVar(j)=REAL(SumSquares(j),r2)-((REAL(SumWeights(j),r2)**2)/REAL(Iter,r2))
+!                Means(j)=REAL(SumWeights(j),dp)/REAL(Iter,dp)
+!                NVar(j)=REAL(SumSquares(j),dp)-((REAL(SumWeights(j),dp)**2)/REAL(Iter,dp))
 !                WRITE(6,"(A,I4)",advance='no') "Mean+Var for det: ",AutoCorrDets(1,j)
 !                do k=2,NEl
 !                    WRITE(6,"(I4)",advance='no') AutoCorrDets(k,j)
 !                enddo
-!                WRITE(6,"(A,2F20.10)") " is: ", Means(j),NVar(j)/REAL(Iter,r2)
+!                WRITE(6,"(A,2F20.10)") " is: ", Means(j),NVar(j)/REAL(Iter,dp)
 !            enddo
 !
 !!Alternativly, we can calculate the variance seperatly...
 !!            TestVar(:)=0.D0
 !!            do i=1,Iter
 !!                do j=1,NoAutoDets
-!!                    TestVar(j)=TestVar(j)+((REAL(AllWeightatDets(j,i),r2)-Means(j))**2)
+!!                    TestVar(j)=TestVar(j)+((REAL(AllWeightatDets(j,i),dp)-Means(j))**2)
 !!                enddo
 !!            enddo
 !!            CALL MPI_AllReduce(TestVar,AllTestVar,NoAutoDets,MPI_DOUBLE_PRECISION,MPI_SUM,MPI_COMM_WORLD,error)
-!!            WRITE(6,*) "TESTVAR: ",TestVar/REAL(Iter,r2)
+!!            WRITE(6,*) "TESTVAR: ",TestVar/REAL(Iter,dp)
 !
 !!Now we need to calculate the ACF for the desired values of the lag.
 !            do i=iLagMin,iLagMax,iLagStep
@@ -7966,7 +7966,7 @@ MODULE FciMCParMod
 !
 !                    do k=1,NoAutoDets
 !!k is the run over the desired determinants which to calculate the ACFs
-!!                        ACF(k)=ACF(k)+(REAL(AllWeightatDets(k,j),r2)-Means(k))*(REAL(AllWeightatDets(k,j+i),r2)-Means(k))
+!!                        ACF(k)=ACF(k)+(REAL(AllWeightatDets(k,j),dp)-Means(k))*(REAL(AllWeightatDets(k,j+i),dp)-Means(k))
 !                        ACF(k)=ACF(k)+(AllWeightatDets(k,j)*AllWeightatDets(k,j+i))
 !                    enddo
 !
@@ -7977,8 +7977,8 @@ MODULE FciMCParMod
 !
 !                do k=1,NoAutoDets
 !!Effectivly 'normalise' the ACF by dividing by the variance
-!!                    ACF(k)=(ACF(k)/NVar(k))!*REAL(Iter/(Iter-i+0.D0),r2)
-!                    ACF(k)=(ACF(k)/REAL(NORM(k),r2))*REAL(Iter/(Iter-i+0.D0),r2)
+!!                    ACF(k)=(ACF(k)/NVar(k))!*REAL(Iter/(Iter-i+0.D0),dp)
+!                    ACF(k)=(ACF(k)/REAL(NORM(k),dp))*REAL(Iter/(Iter-i+0.D0),dp)
 !!                    ACF(k)=ACF(k)/REAL(NORM(k),8)
 !                enddo
 !!Write out the ACF
@@ -8118,16 +8118,16 @@ MODULE FciMCParMod
         AllNoatDoubs=outpair(2)
         AllNoBorn=outpair(3)
         AllNoDied=outpair(4)
-        AllHFCyc=REAL(outpair(5),r2)
+        AllHFCyc=REAL(outpair(5),dp)
         AllLocalAnn=outpair(6)
         AllSpawnFromSing=outpair(7)
 !        AllTotParts=outpair(7)
-!        AlliUniqueDets=REAL(outpair(9),r2)
+!        AlliUniqueDets=REAL(outpair(9),dp)
         AlliInitGuideParts=outpair(8)
         AllMinorAnnihilated=outpair(9)
-        TempTotWalkers=REAL(TotWalkers,r2)
-        TempTotParts=REAL(TotParts,r2)
-        TempNoMinorWalkers=REAL(NoMinorWalkers,r2)
+        TempTotWalkers=REAL(TotWalkers,dp)
+        TempTotParts=REAL(TotParts,dp)
+        TempNoMinorWalkers=REAL(NoMinorWalkers,dp)
         IF(tMinorDetsStar) THEN
             TempTotParts=TempTotParts+TempNoMinorWalkers
         ENDIF
@@ -8171,7 +8171,7 @@ MODULE FciMCParMod
         ENDIF
 
 !SumWalkersCyc is now an int*8, therefore is needs to be reduced as a real*8
-        TempSumWalkersCyc=REAL(SumWalkersCyc,r2)
+        TempSumWalkersCyc=REAL(SumWalkersCyc,dp)
         TempAllSumWalkersCyc=0.D0
 !!        CALL MPI_Reduce(TempSumWalkersCyc,TempAllSumWalkersCyc,1,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
         Call MPIDSum(TempSumWalkersCyc,1,TempAllSumWalkersCyc)
@@ -8180,7 +8180,7 @@ MODULE FciMCParMod
 
         IF(.not.tDirectAnnihil) THEN
 
-            MeanWalkers=AllTotWalkers/REAL(nProcessors,r2)
+            MeanWalkers=AllTotWalkers/REAL(nProcessors,dp)
             MaxAllowedWalkers=NINT((MeanWalkers/12.D0)+MeanWalkers)
 
 !Find the range of walkers on different nodes to see if we need to even up the distribution over nodes
@@ -8204,7 +8204,7 @@ MODULE FciMCParMod
             IF(iProcIndex.eq.root) THEN
 !                RangeWalkers=MaxWalkersProc-MinWalkersProc
 !                IF(RangeWalkers.gt.300) THEN
-                IF((MaxWalkersProc.gt.MaxAllowedWalkers).and.(AllTotWalkers.gt.(REAL(nProcessors*500,r2)))) THEN
+                IF((MaxWalkersProc.gt.MaxAllowedWalkers).and.(AllTotWalkers.gt.(REAL(nProcessors*500,dp)))) THEN
                     TBalanceNodesTemp=.true.
                 ELSE
                     TBalanceNodesTemp=.false.
@@ -8246,7 +8246,7 @@ MODULE FciMCParMod
 
 !AlliUniqueDets corresponds to the total number of unique determinants, summed over all iterations in the last update cycle, and over all processors.
 !Divide by StepsSft to get the average number of unique determinants visited over a single iteration.
-!        AlliUniqueDets=AlliUniqueDets/(REAL(StepsSft,r2))
+!        AlliUniqueDets=AlliUniqueDets/(REAL(StepsSft,dp))
         
         IF(GrowRate.eq.-1.D0) THEN
 !tGlobalSftCng is on, and we want to calculate the change in the shift as a global parameter, rather than as a weighted average.
@@ -8281,21 +8281,21 @@ MODULE FciMCParMod
 !        CALL FLUSH(6)
 !        CALL MPIDSumRoot(MeanExcitLevel,1,AllMeanExcitLevel,Root)
 !        IF(iProcIndex.eq.Root) THEN
-!            AllMeanExcitLevel=AllMeanExcitLevel/real(nProcessors,r2)
+!            AllMeanExcitLevel=AllMeanExcitLevel/real(nProcessors,dp)
 !        ENDIF
 
 !AvSign no longer calculated (but would be easy to put back in) - ACF much better bet...
-!        AvSign=AvSign/real(SumWalkersCyc,r2)
-!        AvSignHFD=AvSignHFD/real(SumWalkersCyc,r2)
+!        AvSign=AvSign/real(SumWalkersCyc,dp)
+!        AvSignHFD=AvSignHFD/real(SumWalkersCyc,dp)
 !        CALL MPI_Reduce(AvSign,AllAvSign,1,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
 !        CALL MPI_Reduce(AvSignHFD,AllAvSignHFD,1,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
 !        IF(iProcIndex.eq.Root) THEN
-!            AllAvSign=AllAvSign/real(nProcessors,r2)
-!            AllAvSignHFD=AllAvSignHFD/real(nProcessors,r2)
+!            AllAvSign=AllAvSign/real(nProcessors,dp)
+!            AllAvSignHFD=AllAvSignHFD/real(nProcessors,dp)
 !        ENDIF
 
 !Calculate the energy by summing all on HF and doubles - convert number at HF to a real since no int*8 MPI data type
-        TempSumNoatHF=real(SumNoatHF,r2)
+        TempSumNoatHF=real(SumNoatHF,dp)
 !        CALL MPIDSumRoot(TempSumNoatHF,1,AllSumNoatHF,Root)
 !        WRITE(6,*) "Get Here 9"
 !        CALL FLUSH(6)
@@ -8351,14 +8351,14 @@ MODULE FciMCParMod
                     IF((Iter-VaryShiftIter).eq.NShiftEquilSteps) WRITE(6,*) 'Beginning to average shift value.'
                     VaryShiftCycles=VaryShiftCycles+1
                     SumDiagSft=SumDiagSft+DiagSft
-                    AvDiagSft=SumDiagSft/REAL(VaryShiftCycles,r2)
+                    AvDiagSft=SumDiagSft/REAL(VaryShiftCycles,dp)
                 ENDIF
 
                 IF(tTruncInitiator) THEN
                     DiagSftAbort=DiagSftAbort-(log(AllGrowRateAbort)*SftDamp)/(Tau*(StepsSft+0.D0))
                     IF((Iter-VaryShiftIter).ge.NShiftEquilSteps) THEN
                         SumDiagSftAbort=SumDiagSftAbort+DiagSftAbort
-                        AvDiagSftAbort=SumDiagSftAbort/REAL(VaryShiftCycles,r2)
+                        AvDiagSftAbort=SumDiagSftAbort/REAL(VaryShiftCycles,dp)
                     ENDIF
                 ENDIF
             ENDIF
@@ -8372,7 +8372,7 @@ MODULE FciMCParMod
             IF(AllHFCyc.ne.0.D0) THEN
                 ProjEIterSum=ProjEIterSum+(AllENumCyc/AllHFCyc)
                 HFPopCyc=HFPopCyc+1   !This is the number of iterations where we have a non-zero contribution from HF particles
-                ProjEIter=ProjEIterSum/REAL(HFPopCyc,r2)
+                ProjEIter=ProjEIterSum/REAL(HFPopCyc,dp)
             ENDIF
         ENDIF
 !        IF(tHub.and.tReal) THEN
@@ -8390,7 +8390,7 @@ MODULE FciMCParMod
 !            CALL MPI_ABORT(MPI_COMM_WORLD,rc,error)
 !        ENDIF
 
-        AccRat=(REAL(Acceptances,r2))/TempSumWalkersCyc      !The acceptance ratio which is printed is only for the current node - not summed over all nodes
+        AccRat=(REAL(Acceptances,dp))/TempSumWalkersCyc      !The acceptance ratio which is printed is only for the current node - not summed over all nodes
 
         CALL WriteFCIMCStats()
 
@@ -8942,10 +8942,10 @@ MODULE FciMCParMod
         ELSE
             TempHii=GetHElement2(HFDet,HFDet,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,NMax,ALat,UMat,0,ECore)
         ENDIF
-        Hii=REAL(TempHii%v,r2)
+        Hii=REAL(TempHii%v,dp)
         WRITE(6,*) "Reference Energy set to: ",Hii
         TempHii=GetH0Element3(HFDet)
-        Fii=REAL(TempHii%v,r2)
+        Fii=REAL(TempHii%v,dp)
 
 !Find the highest energy determinant...
         IF(.not.tSpn) THEN
@@ -9921,27 +9921,27 @@ MODULE FciMCParMod
         ! Set pDoubles to be the fraction of double excitations.
         ! If using CSFs, also consider only changing Yamanouchi Symbol
         if (tCSF) then
-            pDoubles = real(nDoub,r2) / &
-                   ((real(nSing,r2)*SinglesBias)+real(nDoub,r2)+real(ncsf,r2))
-            pSingles = real(nSing,r2) / &
-                   ((real(nSing,r2)*SinglesBias)+real(nDoub,r2)+real(ncsf,r2))
+            pDoubles = real(nDoub,dp) / &
+                   ((real(nSing,dp)*SinglesBias)+real(nDoub,dp)+real(ncsf,dp))
+            pSingles = real(nSing,dp) / &
+                   ((real(nSing,dp)*SinglesBias)+real(nDoub,dp)+real(ncsf,dp))
 
         else
-            pDoubles = real(nDoub,r2) / &
-                   ((real(NSing,r2)*SinglesBias) + real(NDoub,r2))
-            pSingles = real(nSing,r2) * SinglesBias/ &
-                   ((real(nSing,r2)*SinglesBias) + real(nDoub,r2))
+            pDoubles = real(nDoub,dp) / &
+                   ((real(NSing,dp)*SinglesBias) + real(NDoub,dp))
+            pSingles = real(nSing,dp) * SinglesBias/ &
+                   ((real(nSing,dp)*SinglesBias) + real(nDoub,dp))
         endif
 
         IF(SinglesBias.ne.1.D0) THEN
             write (6, '("pDoubles set to ", f14.6, &
                        &" rather than (without bias): ", f14.6)') &
-                       pDoubles, real(nDoub,r2) / real(iTotal,r2)
+                       pDoubles, real(nDoub,dp) / real(iTotal,dp)
             write (6, '("pSingles set to ", f14.6, &
                        &" rather than (without bias): ", f14.6)') &
-                       pSingles, real(nSing,r2) / real(iTotal,r2)
+                       pSingles, real(nSing,dp) / real(iTotal,dp)
 
-            WRITE(6,"(A,F14.6,A,F14.6)") "pDoubles set to: ",pDoubles, " rather than (without bias): ",real(nDoub,r2)/real(iTotal,r2)
+            WRITE(6,"(A,F14.6,A,F14.6)") "pDoubles set to: ",pDoubles, " rather than (without bias): ",real(nDoub,dp)/real(iTotal,dp)
         ELSE
             write (6,'(A,F14.6)') " pDoubles set to: ", pDoubles
             write (6,'(A,F14.6)') " pSingles set to: ", pSingles
@@ -10128,8 +10128,8 @@ MODULE FciMCParMod
             i=i+1
             Hij=GetHElement2(HFDet,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,iExcit,ECore)
             CALL GetH0Element(nJ,NEl,Arr,nBasis,ECore,Fjj)
-            Compt=real(Hij%v,r2)/(Fii-(REAL(Fjj%v,r2)))
-            MP1Energy=MP1Energy+((real(Hij%v,r2)**2)/(Fii-(REAL(Fjj%v,r2))))
+            Compt=real(Hij%v,dp)/(Fii-(REAL(Fjj%v,dp)))
+            MP1Energy=MP1Energy+((real(Hij%v,dp)**2)/(Fii-(REAL(Fjj%v,dp))))
 !Find position of minimum MP1 component stored
             MinCompt=abs(TempMax(1))
             MinIndex=1
@@ -10164,9 +10164,9 @@ MODULE FciMCParMod
         do j=1,NoMagDets-1
             CALL WRITEDET(6,MagDets(:,j),NEl,.false.)
             Kiitemp=GetHElement2(MagDets(:,j),MagDets(:,j),NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,0,ECore)
-            Kii=REAL(Kiitemp%v,r2)-Hii
+            Kii=REAL(Kiitemp%v,dp)-Hii
             Hij=GetHElement2(MagDets(:,j),HFDet,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,2,ECore)
-            WRITE(6,"(3F14.6)") TempMax(j),Kii,REAL(Hij%v,r2)
+            WRITE(6,"(3F14.6)") TempMax(j),Kii,REAL(Hij%v,dp)
         enddo
 
         WRITE(6,*) "MP1 ENERGY is: ", MP1Energy
@@ -10288,16 +10288,16 @@ MODULE FciMCParMod
         real*8 dProbFin
 !        write(81,*) DetCurr,ExcitLevel,WSign,iLutCurr,HDiagCurr,dProb
 
-!        MeanExcitLevel=MeanExcitLevel+real(ExcitLevel,r2)
+!        MeanExcitLevel=MeanExcitLevel+real(ExcitLevel,dp)
 !        IF(MinExcitLevel.gt.ExcitLevel) MinExcitLevel=ExcitLevel
 !        IF(MaxExcitLevel.lt.ExcitLevel) MaxExcitLevel=ExcitLevel
-!        DetsNorm=DetsNorm+REAL((WSign**2),r2)
+!        DetsNorm=DetsNorm+REAL((WSign**2),dp)
         IF(ExcitLevel.eq.0) THEN
             IF(Iter.gt.NEquilSteps) SumNoatHF=SumNoatHF+WSign
             NoatHF=NoatHF+WSign
             HFCyc=HFCyc+WSign      !This is simply the number at HF*sign over the course of the update cycle 
-!            AvSign=AvSign+REAL(WSign,r2)
-!            AvSignHFD=AvSignHFD+REAL(WSign,r2)
+!            AvSign=AvSign+REAL(WSign,dp)
+!            AvSignHFD=AvSignHFD+REAL(WSign,dp)
             
         ELSEIF(ExcitLevel.eq.2) THEN
             NoatDoubs=NoatDoubs+abs(WSign)
@@ -10307,16 +10307,16 @@ MODULE FciMCParMod
             ELSE
                 HOffDiag=GetHElement2(HFDet,DetCurr,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,ExcitLevel,ECore)
             ENDIF
-            IF(Iter.gt.NEquilSteps) SumENum=SumENum+(REAL(HOffDiag%v,r2)*WSign/dProbFin)
-!            AvSign=AvSign+REAL(WSign,r2)
-!            AvSignHFD=AvSignHFD+REAL(WSign,r2)
-            ENumCyc=ENumCyc+(REAL(HOffDiag%v,r2)*WSign/dProbFin)     !This is simply the Hij*sign summed over the course of the update cycle
-!            WRITE(6,*) 2,SumENum,(REAL(HOffDiag%v,r2)*WSign/dProbFin)     !This is simply the Hij*sign summed over the course of the update cycle
+            IF(Iter.gt.NEquilSteps) SumENum=SumENum+(REAL(HOffDiag%v,dp)*WSign/dProbFin)
+!            AvSign=AvSign+REAL(WSign,dp)
+!            AvSignHFD=AvSignHFD+REAL(WSign,dp)
+            ENumCyc=ENumCyc+(REAL(HOffDiag%v,dp)*WSign/dProbFin)     !This is simply the Hij*sign summed over the course of the update cycle
+!            WRITE(6,*) 2,SumENum,(REAL(HOffDiag%v,dp)*WSign/dProbFin)     !This is simply the Hij*sign summed over the course of the update cycle
 
             
             
 !        ELSE
-!            AvSign=AvSign+REAL(WSign,r2)
+!            AvSign=AvSign+REAL(WSign,dp)
 
         ELSEIF(ExcitLevel.eq.1) THEN
           if(tNoBrillouin) then
@@ -10328,11 +10328,11 @@ MODULE FciMCParMod
             ELSE
                 HOffDiag=GetHElement2(HFDet,DetCurr,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,ExcitLevel,ECore)
             ENDIF
-            IF(Iter.gt.NEquilSteps) SumENum=SumENum+(REAL(HOffDiag%v,r2)*WSign/dProbFin)
-!            AvSign=AvSign+REAL(WSign,r2)
-!            AvSignHFD=AvSignHFD+REAL(WSign,r2)
-            ENumCyc=ENumCyc+(REAL(HOffDiag%v,r2)*WSign/dProbFin)     !This is simply the Hij*sign summed over the course of the update cycle
-!            WRITE(6,*) 1,SumENum,(REAL(HOffDiag%v,r2)*WSign/dProbFin)     !This is simply the Hij*sign summed over the course of the update cycle
+            IF(Iter.gt.NEquilSteps) SumENum=SumENum+(REAL(HOffDiag%v,dp)*WSign/dProbFin)
+!            AvSign=AvSign+REAL(WSign,dp)
+!            AvSignHFD=AvSignHFD+REAL(WSign,dp)
+            ENumCyc=ENumCyc+(REAL(HOffDiag%v,dp)*WSign/dProbFin)     !This is simply the Hij*sign summed over the course of the update cycle
+!            WRITE(6,*) 1,SumENum,(REAL(HOffDiag%v,dp)*WSign/dProbFin)     !This is simply the Hij*sign summed over the course of the update cycle
           endif 
 
           IF(tConstructNOs) THEN
@@ -10341,7 +10341,7 @@ MODULE FciMCParMod
                 CALL FindSingleOrbs(iLutHF,iLutCurr,NIfD,Orbs)
 !Add 1.D0 (or -1.D0) to the off-diagonal element connecting the relevent orbitals.
                 IF(Iter.gt.NEquilSteps) THEN
-                    OneRDM(Orbs(1),Orbs(2))=OneRDM(Orbs(1),Orbs(2))+REAL(WSign,r2)
+                    OneRDM(Orbs(1),Orbs(2))=OneRDM(Orbs(1),Orbs(2))+REAL(WSign,dp)
                     OneRDM(Orbs(2),Orbs(1))=OneRDM(Orbs(1),Orbs(2))
                 ENDIF
 !At the end of all iterations, this OneRDM will contain only the unnormalised off-diagonal elements.
@@ -10366,28 +10366,28 @@ MODULE FciMCParMod
                     CALL FindExcitBitDetSym(iLutCurr,iLutSym)
                     IF(.not.DetBitEQ(iLutCurr,iLutSym)) THEN
                         IF(tFlippedSign) THEN
-                            Histogram(PartInd)=Histogram(PartInd)-(REAL(WSign,r2)/SQRT(2.0))/dProbFin
-                            IF(tHistSpawn) InstHist(PartInd)=InstHist(PartInd)-(REAL(WSign,r2)/SQRT(2.0))/dProbFin
+                            Histogram(PartInd)=Histogram(PartInd)-(REAL(WSign,dp)/SQRT(2.0))/dProbFin
+                            IF(tHistSpawn) InstHist(PartInd)=InstHist(PartInd)-(REAL(WSign,dp)/SQRT(2.0))/dProbFin
                         ELSE
-                            Histogram(PartInd)=Histogram(PartInd)+(REAL(WSign,r2)/SQRT(2.0))/dProbFin
-                            IF(tHistSpawn) InstHist(PartInd)=InstHist(PartInd)+(REAL(WSign,r2)/SQRT(2.0))/dProbFin
+                            Histogram(PartInd)=Histogram(PartInd)+(REAL(WSign,dp)/SQRT(2.0))/dProbFin
+                            IF(tHistSpawn) InstHist(PartInd)=InstHist(PartInd)+(REAL(WSign,dp)/SQRT(2.0))/dProbFin
                         ENDIF
                     ELSE
                         IF(tFlippedSign) THEN
-                            Histogram(PartInd)=Histogram(PartInd)-REAL(WSign,r2)/dProbFin
-                            IF(tHistSpawn) InstHist(PartInd)=InstHist(PartInd)-REAL(WSign,r2)/dProbFin
+                            Histogram(PartInd)=Histogram(PartInd)-REAL(WSign,dp)/dProbFin
+                            IF(tHistSpawn) InstHist(PartInd)=InstHist(PartInd)-REAL(WSign,dp)/dProbFin
                         ELSE
-                            Histogram(PartInd)=Histogram(PartInd)+REAL(WSign,r2)/dProbFin
-                            IF(tHistSpawn) InstHist(PartInd)=InstHist(PartInd)+REAL(WSign,r2)/dProbFin
+                            Histogram(PartInd)=Histogram(PartInd)+REAL(WSign,dp)/dProbFin
+                            IF(tHistSpawn) InstHist(PartInd)=InstHist(PartInd)+REAL(WSign,dp)/dProbFin
                         ENDIF
                     ENDIF
                 ELSE
                     IF(tFlippedSign) THEN
-                        Histogram(PartInd)=Histogram(PartInd)-REAL(WSign,r2)/dProbFin
-                        IF(tHistSpawn) InstHist(PartInd)=InstHist(PartInd)-REAL(WSign,r2)/dProbFin
+                        Histogram(PartInd)=Histogram(PartInd)-REAL(WSign,dp)/dProbFin
+                        IF(tHistSpawn) InstHist(PartInd)=InstHist(PartInd)-REAL(WSign,dp)/dProbFin
                     ELSE
-                        Histogram(PartInd)=Histogram(PartInd)+REAL(WSign,r2)/dProbFin
-                        IF(tHistSpawn) InstHist(PartInd)=InstHist(PartInd)+REAL(WSign,r2)/dProbFin
+                        Histogram(PartInd)=Histogram(PartInd)+REAL(WSign,dp)/dProbFin
+                        IF(tHistSpawn) InstHist(PartInd)=InstHist(PartInd)+REAL(WSign,dp)/dProbFin
                     ENDIF
                 ENDIF
                 IF(tHPHF) THEN
@@ -10405,19 +10405,19 @@ MODULE FciMCParMod
                             CALL CalcOpenOrbs(iLutSym,OpenOrbs)
                             IF(tFlippedSign) THEN
                                 IF(mod(OpenOrbs,2).eq.1) THEN
-                                    Histogram(PartInd)=Histogram(PartInd)+(REAL(WSign,r2)/SQRT(2.0))/dProbFin
-                                    IF(tHistSpawn) InstHist(PartInd)=InstHist(PartInd)+(REAL(WSign,r2)/SQRT(2.0))/dProbFin
+                                    Histogram(PartInd)=Histogram(PartInd)+(REAL(WSign,dp)/SQRT(2.0))/dProbFin
+                                    IF(tHistSpawn) InstHist(PartInd)=InstHist(PartInd)+(REAL(WSign,dp)/SQRT(2.0))/dProbFin
                                 ELSE
-                                    Histogram(PartInd)=Histogram(PartInd)-(REAL(WSign,r2)/SQRT(2.0))/dProbFin
-                                    IF(tHistSpawn) InstHist(PartInd)=InstHist(PartInd)-(REAL(WSign,r2)/SQRT(2.0))/dProbFin
+                                    Histogram(PartInd)=Histogram(PartInd)-(REAL(WSign,dp)/SQRT(2.0))/dProbFin
+                                    IF(tHistSpawn) InstHist(PartInd)=InstHist(PartInd)-(REAL(WSign,dp)/SQRT(2.0))/dProbFin
                                 ENDIF
                             ELSE
                                 IF(mod(OpenOrbs,2).eq.1) THEN
-                                    Histogram(PartInd)=Histogram(PartInd)-(REAL(WSign,r2)/SQRT(2.0))/dProbFin
-                                    IF(tHistSpawn) InstHist(PartInd)=InstHist(PartInd)-(REAL(WSign,r2)/SQRT(2.0))/dProbFin
+                                    Histogram(PartInd)=Histogram(PartInd)-(REAL(WSign,dp)/SQRT(2.0))/dProbFin
+                                    IF(tHistSpawn) InstHist(PartInd)=InstHist(PartInd)-(REAL(WSign,dp)/SQRT(2.0))/dProbFin
                                 ELSE
-                                    Histogram(PartInd)=Histogram(PartInd)+(REAL(WSign,r2)/SQRT(2.0))/dProbFin
-                                    IF(tHistSpawn) InstHist(PartInd)=InstHist(PartInd)+(REAL(WSign,r2)/SQRT(2.0))/dProbFin
+                                    Histogram(PartInd)=Histogram(PartInd)+(REAL(WSign,dp)/SQRT(2.0))/dProbFin
+                                    IF(tHistSpawn) InstHist(PartInd)=InstHist(PartInd)+(REAL(WSign,dp)/SQRT(2.0))/dProbFin
                                 ENDIF
                             ENDIF
                         ELSE
@@ -10441,7 +10441,7 @@ MODULE FciMCParMod
             IF(Bin.gt.iNoBins) THEN
                 CALL Stop_All("SumEContrib","Histogramming energies higher than the arrays can cope with. Increase iNoBins or BinRange")
             ENDIF
-            Histogram(Bin)=Histogram(Bin)+real(abs(WSign),r2)
+            Histogram(Bin)=Histogram(Bin)+real(abs(WSign),dp)
         ENDIF
 
         IF(tPrintOrbOcc.and.(Iter.ge.StartPrintOrbOcc)) THEN

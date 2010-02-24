@@ -271,8 +271,8 @@ MODULE CCMC
                   if(iSgn.ne.0) then
                      CALL DecodeBitDet(DetCurr,iLutnI(:))
                      Htmp=GetHElement3(HFDet, DetCurr,2)
-                     dT1Sq=dT1Sq+(Real(Htmp%v,r2)*iSgn)
-                     !WRITE(6,'(A,I,2G)', advance='no') 'T1',iSgn,real(Htmp%v,r2),dT1Sq
+                     dT1Sq=dT1Sq+(Real(Htmp%v,dp)*iSgn)
+                     !WRITE(6,'(A,I,2G)', advance='no') 'T1',iSgn,real(Htmp%v,dp),dT1Sq
                      !call WriteBitEx(6,iLutHF,CurrentDets(:,j),.false.)
                      !call WriteBitEx(6,iLutHF,CurrentDets(:,l),.false.)
                      !call WriteBitEx(6,iLutHF,iLutnI,.true.)
@@ -283,7 +283,7 @@ MODULE CCMC
 !          if(WalkExcitLevel.eq.1.or.WalkExcitLevel.eq.2) then
 !            CALL DecodeBitDet(DetCurr,CurrentDets(:,j))
 !            Htmp=GetHElement3(HFDet, DetCurr,WalkExcitLevel)
-!            AJWTProjE=AJWTProjE+(Real(Htmp%v,r2)*CurrentSign(j))
+!            AJWTProjE=AJWTProjE+(Real(Htmp%v,dp)*CurrentSign(j))
 !          endif
 !#endif
 !Go through all particles on the current walker det
@@ -657,7 +657,7 @@ MODULE CCMC
    !Now get the full representation of the dying excitor
                   CALL DecodeBitDet(DetCurr,iLutnI)
                   Htmp=GetHElement3(DetCurr,DetCurr,0)
-                  HDiagCurr=REAL(Htmp%v,r2)
+                  HDiagCurr=REAL(Htmp%v,dp)
                   HDiagCurr=HDiagCurr-Hii
                   iSgn=sign(1,CurrentSign(iPartDie))
                ELSE
@@ -1479,6 +1479,7 @@ SUBROUTINE CalcClusterEnergy(tFCI,Amplitude,nExcit,ExcitList,ExcitLevelIndex,Pro
    use FciMCData, only: ENumCyc,HFCyc 
    use Determinants , only : GetHElement3
    use DetBitOps, only: DecodeBitDet
+   use constants, only: dp
    IMPLICIT NONE
    LOGICAL tFCI
    REAL*8 Amplitude(nExcit)
@@ -1492,7 +1493,6 @@ SUBROUTINE CalcClusterEnergy(tFCI,Amplitude,nExcit,ExcitList,ExcitLevelIndex,Pro
    INTEGER DetCurr(nEl)
    TYPE(HElement) HTmp
    INTEGER iLutnI(0:nIfTot)
-   INTEGER , PARAMETER :: r2=kind(0.d0)
    iC=0
    dT1Sq=0
    do j=1,nExcit
@@ -1516,7 +1516,7 @@ SUBROUTINE CalcClusterEnergy(tFCI,Amplitude,nExcit,ExcitList,ExcitLevelIndex,Pro
                   CALL DecodeBitDet(DetCurr,iLutnI(:))
                   Htmp=GetHElement3(HFDet, DetCurr,2)
                   dAmp=dAmp/(Amplitude(1)**2)
-                  dT1Sq=dT1Sq+(Real(Htmp%v,r2)*iSgn)*dAmp
+                  dT1Sq=dT1Sq+(Real(Htmp%v,dp)*iSgn)*dAmp
 !                  dAmp=dAmp*2  !DEBUG
                   call SumEContrib(DetCurr,2,iSgn,iLutnI(:),dTmp,1/dAmp)
                endif
@@ -1543,6 +1543,7 @@ SUBROUTINE InitMP1Amplitude(tFCI,Amplitude,nExcit,ExcitList,ExcitLevelIndex,dIni
    use FciMCParMod, only: iLutHF,SumEContrib,BinSearchParts3
    use Determinants , only : GetHElement3,GetH0Element3
    use DetBitOps, only: DecodeBitDet
+   use constants, only: dp
    IMPLICIT NONE
    LOGICAL tFCI
    REAL*8 Amplitude(nExcit)
@@ -1558,7 +1559,6 @@ SUBROUTINE InitMP1Amplitude(tFCI,Amplitude,nExcit,ExcitList,ExcitLevelIndex,dIni
    INTEGER iLutnI(0:nIfTot)
    INTEGER PartIndex
    LOGICAL tSuc
-   INTEGER , PARAMETER :: r2=kind(0.d0)
    iC=0
    H0HF=GetH0Element3(HFDet)
    Amplitude(:)=0
@@ -1631,9 +1631,9 @@ END SUBROUTINE
       use mt95 , only : genrand_real2
       use FciMCParMod, only: WriteFciMCStats, WriteFciMCStatsHeader
       use DetBitOps, only: FindBitExcitLevel
+      use constants, only: dp
       IMPLICIT NONE
       TYPE(HDElement) Weight,EnergyxW
-      INTEGER , PARAMETER :: r2=kind(0.d0)
       CHARACTER(len=*), PARAMETER :: this_routine='CCMCStandalone'
       INTEGER ierr
       REAL*8, ALLOCATABLE,target :: Amplitude(:,:) !(Det, 2)
@@ -2047,7 +2047,7 @@ END SUBROUTINE
                iPartDie=1
             ENDIF 
             Htmp=GetHElement3(CS%C%DetCurr,CS%C%DetCurr,0)
-            HDiagCurr=REAL(Htmp%v,r2)
+            HDiagCurr=REAL(Htmp%v,dp)
             HDiagCurr=HDiagCurr-Hii
 
 !Also, we want to find out the excitation level of the determinant - we only need to find out if its connected or not (so excitation level of 3 or more is ignored.

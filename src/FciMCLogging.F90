@@ -14,12 +14,12 @@ MODULE FciMCLoggingMod
     use GenRandSymExcitNUMod , only : GenRandSymExcitScratchNU,ScratchSize
     USE CalcData , only : NMCyc,StepsSft
     use DetBitOps, only: DetBitEQ, FindExcitBitDet, FindBitExcitLevel
+    use constants, only: dp
 
     IMPLICIT NONE
     save
 
     INTEGER , PARAMETER :: Root=0   !This is the rank of the root processor
-    INTEGER , PARAMETER :: r2=kind(0.d0)
     REAL*8 , ALLOCATABLE :: SignCohTriHist(:,:),SignIncohTriHist(:,:),SignCohHFTriHist(:,:),SignIncohHFTriHist(:,:),TriConnHElHistSing(:,:),TriConnHElHistDoub(:,:)
     REAL*8 , ALLOCATABLE :: AllSignCohTriHist(:,:),AllSignIncohTriHist(:,:),AllSignCohHFTriHist(:,:),AllSignIncohHFTriHist(:,:)
     REAL*8 , ALLOCATABLE :: AllTriConnHElHistSing(:,:),AllTriConnHElHistDoub(:,:),TriHjkHistSing(:,:),TriHjkHistDoub(:,:),AllTriHjkHistSing(:,:),AllTriHjkHistDoub(:,:)
@@ -554,35 +554,35 @@ MODULE FciMCLoggingMod
 
             SpinCoupHEl=GetHElement3(nI,nJ,-1)
 
-            IF((((REAL(HElHFI%v,r2)).lt.0.D0).and.((REAL(HElHFJ%v,r2)).gt.0.D0)).or.(((REAL(HElHFI%v,r2)).gt.0.D0).and.((REAL(HElHFJ%v,r2)).lt.0.D0))) THEN
+            IF((((REAL(HElHFI%v,dp)).lt.0.D0).and.((REAL(HElHFJ%v,dp)).gt.0.D0)).or.(((REAL(HElHFI%v,dp)).gt.0.D0).and.((REAL(HElHFJ%v,dp)).lt.0.D0))) THEN
 !                WRITE(6,*) '*'
-!                WRITE(6,'(A30,F15.6,A30,F15.6)') 'HEl between HF and one det : ',REAL(HElHFI%v,r2),' and to the spin coupled : ',REAL(HElHFJ%v,r2)
+!                WRITE(6,'(A30,F15.6,A30,F15.6)') 'HEl between HF and one det : ',REAL(HElHFI%v,dp),' and to the spin coupled : ',REAL(HElHFJ%v,dp)
 !                WRITE(6,*) 'HFDet',nHF(:)
 !                WRITE(6,*) 'First Det',nI(:)
 !                WRITE(6,*) 'Second Det',nJ(:)
 
-                IF((REAL(SpinCoupHEl%v,r2)).lt.0.D0) THEN
+                IF((REAL(SpinCoupHEl%v,dp)).lt.0.D0) THEN
                     NoNegSpinCoup=NoNegSpinCoup+1.D0
-                    SumNegSpinCoup=SumNegSpinCoup+REAL(SpinCoupHEl%v,r2)
-                ELSEIF((REAL(SpinCoupHEl%v,r2)).gt.0.D0) THEN
+                    SumNegSpinCoup=SumNegSpinCoup+REAL(SpinCoupHEl%v,dp)
+                ELSEIF((REAL(SpinCoupHEl%v,dp)).gt.0.D0) THEN
                     NoPosSpinCoup=NoPosSpinCoup+1.D0
-                    SumPosSpinCoup=SumPosSpinCoup+REAL(SpinCoupHEl%v,r2)
+                    SumPosSpinCoup=SumPosSpinCoup+REAL(SpinCoupHEl%v,dp)
                 ENDIF
-!                WRITE(6,*) 'Spin coupled HEl',REAL(SpinCoupHEl%v,r2)            
-                SumHFCon=SumHFCon+ABS(REAL(HElHFI%v,r2))
-                SumSpinCon=SumSpinCon+ABS(REAL(SpinCoupHEl%v,r2))
+!                WRITE(6,*) 'Spin coupled HEl',REAL(SpinCoupHEl%v,dp)            
+                SumHFCon=SumHFCon+ABS(REAL(HElHFI%v,dp))
+                SumSpinCon=SumSpinCon+ABS(REAL(SpinCoupHEl%v,dp))
 
             ENDIF
 
-            IF(((((REAL(HElHFI%v,r2)).lt.0.D0).and.((REAL(HElHFJ%v,r2)).lt.0.D0)).or.(((REAL(HElHFI%v,r2)).gt.0.D0).and.((REAL(HElHFJ%v,r2)).gt.0.D0)))&
-            &.and.(REAL(SpinCoupHEl%v,r2).ne.0.D0)) THEN
+            IF(((((REAL(HElHFI%v,dp)).lt.0.D0).and.((REAL(HElHFJ%v,dp)).lt.0.D0)).or.(((REAL(HElHFI%v,dp)).gt.0.D0).and.((REAL(HElHFJ%v,dp)).gt.0.D0)))&
+            &.and.(REAL(SpinCoupHEl%v,dp).ne.0.D0)) THEN
                 WRITE(6,*) '*'
-                WRITE(6,'(A30,F15.6,A30,F15.6)') 'HEl between HF and one det : ',REAL(HElHFI%v,r2),' and to the spin coupled : ',REAL(HElHFJ%v,r2)
+                WRITE(6,'(A30,F15.6,A30,F15.6)') 'HEl between HF and one det : ',REAL(HElHFI%v,dp),' and to the spin coupled : ',REAL(HElHFJ%v,dp)
                 WRITE(6,*) 'HFDet',nHF(:)
                 WRITE(6,*) 'First Det',nI(:)
                 WRITE(6,*) 'Second Det',nJ(:)
 
-                WRITE(6,*) 'Spin coupled HEl',REAL(SpinCoupHEl%v,r2)            
+                WRITE(6,*) 'Spin coupled HEl',REAL(SpinCoupHEl%v,dp)            
                 CALL FLUSH(6)
                 WRITE(6,*) '******* Determinants have the same sign with HF, but non-zero connecting element.'
 !                CALL Stop_All("FindSpinCoupHEl","Determinants have the same sign with HF, but non-zero connecting element.")
@@ -663,29 +663,29 @@ MODULE FciMCLoggingMod
             ! and this will be added into the sum.
 
             TriConHEls(3,1)=TriConHEls(3,1)+1.D0
-            TriConHEls(3,2)=TriConHEls(3,2)+ABS(REAL(Hjk%v,r2))
+            TriConHEls(3,2)=TriConHEls(3,2)+ABS(REAL(Hjk%v,dp))
             IF(IC3.eq.1) THEN
-                BinNo=CEILING((REAL(Hjk%v,r2)+TriConHElSingMax)*NoTriConHElBins)/(2*TriConHElSingMax)
+                BinNo=CEILING((REAL(Hjk%v,dp)+TriConHElSingMax)*NoTriConHElBins)/(2*TriConHElSingMax)
                 TriHjkHistSing(2,BinNo)=TriHjkHistSing(2,BinNo)+1.D0
             ELSEIF(IC3.eq.2) THEN
-                BinNo=CEILING((REAL(Hjk%v,r2)+TriConHElDoubMax)*NoTriConHElBins)/(2*TriConHElDoubMax)
+                BinNo=CEILING((REAL(Hjk%v,dp)+TriConHElDoubMax)*NoTriConHElBins)/(2*TriConHElDoubMax)
                 TriHjkHistDoub(2,BinNo)=TriHjkHistDoub(2,BinNo)+1.D0
             ENDIF 
 
             ! Now histogram all the stats from the whole loops.
-            IF((REAL(Hjk%v,r2)).ne.0.D0) THEN
+            IF((REAL(Hjk%v,dp)).ne.0.D0) THEN
                 NoPos=0
                 NoNeg=0
-                IF((REAL(Hjk%v,r2)).gt.0.D0) NoPos=NoPos+1
-                IF((REAL(Hjk%v,r2)).lt.0.D0) NoNeg=NoNeg+1
+                IF((REAL(Hjk%v,dp)).gt.0.D0) NoPos=NoPos+1
+                IF((REAL(Hjk%v,dp)).lt.0.D0) NoNeg=NoNeg+1
 
                 Hij=GetHElement4(DetCurr,nJ,IC,Ex,tParity)
-                IF((REAL(Hij%v,r2)).gt.0.D0) NoPos=NoPos+1
-                IF((REAL(Hij%v,r2)).lt.0.D0) NoNeg=NoNeg+1
+                IF((REAL(Hij%v,dp)).gt.0.D0) NoPos=NoPos+1
+                IF((REAL(Hij%v,dp)).lt.0.D0) NoNeg=NoNeg+1
 
                 Hik=GetHElement4(DetCurr,nK,IC2,Ex2,tParity2)
-                IF((REAL(Hik%v,r2)).gt.0.D0) NoPos=NoPos+1
-                IF((REAL(Hik%v,r2)).lt.0.D0) NoNeg=NoNeg+1
+                IF((REAL(Hik%v,dp)).gt.0.D0) NoPos=NoPos+1
+                IF((REAL(Hik%v,dp)).lt.0.D0) NoNeg=NoNeg+1
 
                 ! If there are 1 or 3 positive elements, the triangular connection is 'sign coherent'.
                 ! i.e. if a walker starts with a positive sign at i, it would return to i with a positive sign after completing the 
@@ -694,16 +694,16 @@ MODULE FciMCLoggingMod
                 ! and the loop is considered 'sign incoherent'.
 
                 IF((NoPos.eq.1).or.(NoPos.eq.3)) THEN
-                    SignCohTri=SignCohTri+(REAL(Hjk%v,r2)*REAL(Hij%v,r2)*REAL(Hik%v,r2))
+                    SignCohTri=SignCohTri+(REAL(Hjk%v,dp)*REAL(Hij%v,dp)*REAL(Hik%v,dp))
                     NoSignCohTri=NoSignCohTri+1.D0
-                    BinNo=CEILING(((REAL(Hjk%v,r2)*REAL(Hij%v,r2)*REAL(Hik%v,r2))*NoTriConBins)/TriConMax)
+                    BinNo=CEILING(((REAL(Hjk%v,dp)*REAL(Hij%v,dp)*REAL(Hik%v,dp))*NoTriConBins)/TriConMax)
                     IF((BinNo.gt.NoTriConBins)) THEN
-                        WRITE(6,*) 'The value about to be histogrammed is :',(REAL(Hjk%v,r2)*REAL(Hij%v,r2)*REAL(Hik%v,r2))
+                        WRITE(6,*) 'The value about to be histogrammed is :',(REAL(Hjk%v,dp)*REAL(Hij%v,dp)*REAL(Hik%v,dp))
                         CALL FLUSH(6)
                         CALL Stop_All('PerformFCIMCCycle','Trying to histogram the sign coherent triangles of determinants, &
                                                                                 & but a value is outside the chosen range.')
-                    ELSEIF((BinNo.le.0).and.((REAL(Hjk%v,r2)*REAL(Hij%v,r2)*REAL(Hik%v,r2)).ne.0.D0)) THEN
-                        WRITE(6,*) 'The value about to be histogrammed is :',(REAL(Hjk%v,r2)*REAL(Hij%v,r2)*REAL(Hik%v,r2))
+                    ELSEIF((BinNo.le.0).and.((REAL(Hjk%v,dp)*REAL(Hij%v,dp)*REAL(Hik%v,dp)).ne.0.D0)) THEN
+                        WRITE(6,*) 'The value about to be histogrammed is :',(REAL(Hjk%v,dp)*REAL(Hij%v,dp)*REAL(Hik%v,dp))
                         CALL FLUSH(6)
                         CALL Stop_All('PerformFCIMCCycle','Trying to histogram the sign coherent triangles of determinants, &
                                                                                 & but a value is below 0.')
@@ -712,16 +712,16 @@ MODULE FciMCLoggingMod
                         IF(tHF) SignCohHFTriHist(2,BinNo)=SignCohHFTriHist(2,BinNo)+1.D0
                     ENDIF
                 ELSEIF((NoNeg.eq.1).or.(NoNeg.eq.3)) THEN
-                    SignIncohTri=SignIncohTri+(REAL(Hjk%v,r2)*REAL(Hij%v,r2)*REAL(Hik%v,r2))
+                    SignIncohTri=SignIncohTri+(REAL(Hjk%v,dp)*REAL(Hij%v,dp)*REAL(Hik%v,dp))
                     NoSignIncohTri=NoSignIncohTri+1.D0
-                    BinNo=CEILING((ABS((REAL(Hjk%v,r2)*REAL(Hij%v,r2)*REAL(Hik%v,r2)))*NoTriConBins)/TriConMax)
+                    BinNo=CEILING((ABS((REAL(Hjk%v,dp)*REAL(Hij%v,dp)*REAL(Hik%v,dp)))*NoTriConBins)/TriConMax)
                     IF((BinNo.gt.NoTriConBins)) THEN
-                        WRITE(6,*) 'The value about to be histogrammed is :',(REAL(Hjk%v,r2)*REAL(Hij%v,r2)*REAL(Hik%v,r2))
+                        WRITE(6,*) 'The value about to be histogrammed is :',(REAL(Hjk%v,dp)*REAL(Hij%v,dp)*REAL(Hik%v,dp))
                         CALL FLUSH(6)
                         CALL Stop_All('PerformFCIMCCycle','Trying to histogram the sign coherent triangles of determinants, &
                                                                                 & but a value is outside the chosen range.')
-                    ELSEIF((BinNo.le.0).and.((REAL(Hjk%v,r2)*REAL(Hij%v,r2)*REAL(Hik%v,r2)).ne.0.D0)) THEN
-                        WRITE(6,*) 'The value about to be histogrammed is :',(REAL(Hjk%v,r2)*REAL(Hij%v,r2)*REAL(Hik%v,r2))
+                    ELSEIF((BinNo.le.0).and.((REAL(Hjk%v,dp)*REAL(Hij%v,dp)*REAL(Hik%v,dp)).ne.0.D0)) THEN
+                        WRITE(6,*) 'The value about to be histogrammed is :',(REAL(Hjk%v,dp)*REAL(Hij%v,dp)*REAL(Hik%v,dp))
                         CALL FLUSH(6)
                         CALL Stop_All('PerformFCIMCCycle','Trying to histogram the sign coherent triangles of determinants, &
                                                                                 & but a value is below 0.')
@@ -757,30 +757,30 @@ MODULE FciMCLoggingMod
                     ! add the H elements to the appropriate histogram, depending on their excitation level.
                     IF(ICgen.eq.1) THEN
                         TriConHEls(1,1)=TriConHEls(1,1)+1.D0
-                        TriConHEls(1,2)=TriConHEls(1,2)+ABS(REAL(HEl%v,r2))
-                        BinNo=CEILING((REAL(HEl%v,r2)+TriConHElSingMax)*NoTriConHElBins)/(2*TriConHElSingMax)
+                        TriConHEls(1,2)=TriConHEls(1,2)+ABS(REAL(HEl%v,dp))
+                        BinNo=CEILING((REAL(HEl%v,dp)+TriConHElSingMax)*NoTriConHElBins)/(2*TriConHElSingMax)
                         TriConnHElHistSing(2,BinNo)=TriConnHElHistSing(2,BinNo)+1.D0
                     ELSEIF(ICgen.eq.2) THEN
                         TriConHEls(2,1)=TriConHEls(2,1)+1.D0
-                        TriConHEls(2,2)=TriConHEls(2,2)+ABS(REAL(HEl%v,r2))
-                        BinNo=CEILING((REAL(HEl%v,r2)+TriConHElDoubMax)*NoTriConHElBins)/(2*TriConHElDoubMax)
+                        TriConHEls(2,2)=TriConHEls(2,2)+ABS(REAL(HEl%v,dp))
+                        BinNo=CEILING((REAL(HEl%v,dp)+TriConHElDoubMax)*NoTriConHElBins)/(2*TriConHElDoubMax)
                         TriConnHElHistDoub(2,BinNo)=TriConnHElHistDoub(2,BinNo)+1.D0
                     ELSE
-                        WRITE(6,*) 'H element value : ',REAL(HEl%v,r2)
+                        WRITE(6,*) 'H element value : ',REAL(HEl%v,dp)
                         WRITE(6,*) 'IC (excitation level) : ',ICgen
                         CALL Stop_All('PerformFCIMCCycle','An H element is neither a single nor double, but it is supposedly &
                                                            & connected.')
                     ENDIF
 
                     IF(BinNo.gt.NoTriConHElBins) THEN
-                        WRITE(6,*) 'The value about to be histogrammed is :',(REAL(HEl%v,r2))
+                        WRITE(6,*) 'The value about to be histogrammed is :',(REAL(HEl%v,dp))
                         WRITE(6,*) 'With excitation level : ',ICgen
                         CALL FLUSH(6)
                         CALL Stop_All('PerformFCIMCCycle','Trying to histogram an H element in a triangle of determinants, &
                                                                                 & but the value is outside the chosen range.')
                     ENDIF
-                    IF((BinNo.le.0).and.(REAL(HEl%v,r2).ne.0.D0)) THEN
-                        WRITE(6,*) 'The value about to be histogrammed is :',(REAL(HEl%v,r2))
+                    IF((BinNo.le.0).and.(REAL(HEl%v,dp).ne.0.D0)) THEN
+                        WRITE(6,*) 'The value about to be histogrammed is :',(REAL(HEl%v,dp))
                         WRITE(6,*) 'With excitation level : ',ICgen
                         WRITE(6,*) 'Bin number : ',BinNo
                         CALL FLUSH(6)
@@ -815,13 +815,13 @@ MODULE FciMCLoggingMod
         IF(Child.eq.0) THEN
             ! Spawn not accepted.
             NoNotAccept=NoNotAccept+1.D0
-            TotHElNotAccept=TotHElNotAccept+ABS(REAL(HEl%v,r2))
-            IF(ABS(REAL(HEl%v,r2)).gt.ABS(MaxHElNotAccept)) MaxHElNotAccept=ABS(REAL(HEl%v,r2))
+            TotHElNotAccept=TotHElNotAccept+ABS(REAL(HEl%v,dp))
+            IF(ABS(REAL(HEl%v,dp)).gt.ABS(MaxHElNotAccept)) MaxHElNotAccept=ABS(REAL(HEl%v,dp))
         ELSE
             ! Spawn accepted.
             NoAccept=NoAccept+1.D0
-            TotHElAccept=TotHElAccept+ABS(REAL(HEl%v,r2))
-            IF((MinHElAccept.eq.0.D0).or.(ABS(REAL(HEl%v,r2)).lt.ABS(MinHElAccept))) MinHElAccept=ABS(REAL(HEl%v,r2))
+            TotHElAccept=TotHElAccept+ABS(REAL(HEl%v,dp))
+            IF((MinHElAccept.eq.0.D0).or.(ABS(REAL(HEl%v,dp)).lt.ABS(MinHElAccept))) MinHElAccept=ABS(REAL(HEl%v,dp))
         ENDIF
 
     ENDSUBROUTINE TrackSpawnAttempts

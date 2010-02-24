@@ -1,13 +1,13 @@
 module vasp_interface
 
+use constants, only: dp
 implicit none
 public
 save
-integer, parameter :: q=kind(0.d0)
 
 integer, allocatable :: KPntInd(:)
-real(q), allocatable :: eigv(:),kpnts(:,:)
-real(q) :: xi
+real(dp), allocatable :: eigv(:),kpnts(:,:)
+real(dp) :: xi
 
 integer :: nKP,nStates,KPMsh(3)
 
@@ -20,12 +20,12 @@ contains
       use global_utilities
       implicit none
       integer :: vasp_nbands,vasp_nkpts,vasp_kpntind(vasp_nbands*vasp_nkpts),vasp_kpmsh(3)
-      real(q) :: vasp_kpnts(3,vasp_nkpts),vasp_xi,vasp_eigv(vasp_nbands*vasp_nkpts)
+      real(dp) :: vasp_kpnts(3,vasp_nkpts),vasp_xi,vasp_eigv(vasp_nbands*vasp_nkpts)
       integer :: vasp_nEl
 #ifdef __CMPLX
-      complex(q) :: vasp_umat2d(vasp_nbands*vasp_nkpts,vasp_nbands*vasp_nkpts)
+      complex(dp) :: vasp_umat2d(vasp_nbands*vasp_nkpts,vasp_nbands*vasp_nkpts)
 #else
-      real(q) :: vasp_umat2d(vasp_nbands*vasp_nkpts,vasp_nbands*vasp_nkpts)
+      real(dp) :: vasp_umat2d(vasp_nbands*vasp_nkpts,vasp_nbands*vasp_nkpts)
 #endif
       integer :: i,j,ik,ierr
       character(*), parameter :: thisroutine='NECIReceiveVASPData'

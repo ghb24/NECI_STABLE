@@ -10,6 +10,7 @@ MODULE ReturnPathMCMod
 !    USE DetCalc , only : NMRKS
 !    use IntegralsData , only : fck,NMax,UMat,nTay
 !    USE global_utilities
+!    use constants, only: dp
     USE HElem
 !    IMPLICIT NONE
 !    SAVE
@@ -17,7 +18,6 @@ MODULE ReturnPathMCMod
 !    INTEGER , ALLOCATABLE :: HFDet(:)           !This is the HF determinant - do not want to use FDet as this is pre-frozen
 !    INTEGER :: HFDetTag=0
 !
-!    INTEGER , PARAMETER :: r2=kind(0.D0)
 !    
 !    TYPE ExcitGenerator                         !Derived type for an excitation generator
 !        INTEGER , ALLOCATABLE :: ExcitData(:)   !This is the actual excitation generator data
@@ -115,8 +115,8 @@ MODULE ReturnPathMCMod
 !                CALL UpdateSft()        !Update shift
 !
 !!Write out info
-!                ProjectionE=SumENum/REAL(SumNoatHF,r2)
-!                MeanExit=MeanExit/real(SumWalkersCyc,r2)
+!                ProjectionE=SumENum/REAL(SumNoatHF,dp)
+!                MeanExit=MeanExit/real(SumWalkersCyc,dp)
 !                WRITE(15,"(I9,G16.7,I9,G16.7,I9,G16.7,G16.7,2I6)") Iter,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,ProjectionE,MeanExit,MinExit,MaxExit
 !                WRITE(6,"(I9,G16.7,I9,G16.7,I9,G16.7,G16.7,2I6)") Iter,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,ProjectionE,MeanExit,MinExit,MaxExit
 !
@@ -135,7 +135,7 @@ MODULE ReturnPathMCMod
 !        enddo   !End MC Cycle
 !
 !        Weight=HDElement(0.D0)
-!        Energyxw=HDElement(SumENum/REAL(SumNoatHF,r2))
+!        Energyxw=HDElement(SumENum/REAL(SumNoatHF,dp))
 !
 !!Deallocate Memory
 !        do j=1,MaxWalkers
@@ -489,7 +489,7 @@ MODULE ReturnPathMCMod
 !                ELSE
 !!Need calculate the connection to HF - we are at a double excitation
 !                    ConntoHF=GetHElement2(NewVec(VecSlot)%Det,FDet,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,NMax,ALat,UMat,Particle%IC0(NewChainLength),ECore)
-!                    NewVec(VecSlot)%Hi0=REAL(ConntoHF%v,r2)
+!                    NewVec(VecSlot)%Hi0=REAL(ConntoHF%v,dp)
 !                ENDIF
 !                
 !                NewVec(VecSlot)%ChainLength=NewChainLength
@@ -647,7 +647,7 @@ MODULE ReturnPathMCMod
 !        ENDIF
 !
 !        AttemptDestruct=INT(rat)
-!        rat=rat-REAL(AttemptDestruct,r2)
+!        rat=rat-REAL(AttemptDestruct,dp)
 !
 !        IF(abs(rat).gt.Ran2(Seed)) THEN
 !            IF(rat.ge.0.D0) THEN
@@ -689,11 +689,11 @@ MODULE ReturnPathMCMod
 !            call GetH0Element(nJ,nEl,Arr,nBasis,ECore,EDiag)
 !            EDiag=(EDiag2+EDiag)/HElement(2.D0)
 !            UExp=-Tau*Conn
-!            RH=EXP(-Tau*REAL(EDiag%v,r2))*UExp
+!            RH=EXP(-Tau*REAL(EDiag%v,dp))*UExp
 !
 !        ENDIF
 !
-!        GetSpawnRhoEl=REAL(RH%v,r2)
+!        GetSpawnRhoEl=REAL(RH%v,dp)
 !
 !    END FUNCTION GetSpawnRhoEl
 !
@@ -718,7 +718,7 @@ MODULE ReturnPathMCMod
 !            rat=Tau*abs(Hij)/(1.D0-Preturn)
 !        ENDIF
 !        SpawnForward=INT(rat)
-!        rat=rat-REAL(SpawnForward,r2)
+!        rat=rat-REAL(SpawnForward,dp)
 !        IF(rat.gt.Ran2(Seed)) SpawnForward=SpawnForward+1   !Stochastic step successful at creating another particle
 !        
 !        IF(SpawnForward.gt.0) THEN
@@ -782,7 +782,7 @@ MODULE ReturnPathMCMod
 !            rat=Tau*abs(Hij)/Preturn
 !        ENDIF
 !        SpawnReturn=INT(rat)              !Number of particles we are definatly creating (can create multiple new particles if prob > 1)
-!        rat=rat-REAL(SpawnReturn,r2)
+!        rat=rat-REAL(SpawnReturn,dp)
 !
 !        IF(rat.gt.Ran2(Seed)) SpawnReturn=SpawnReturn+1     !Create an extra particle from stochastic step
 !
@@ -815,7 +815,7 @@ MODULE ReturnPathMCMod
 !!We want to calculate rho transition matrix elements
 !
 !!            CALL CalcRho2(nI,nJ,Beta,i_P,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,Arr,ALat,UMat,rhiiHEl,nTay,IC,ECore)
-!!            GetConnection=REAL(rhiiHEl%v,r2)
+!!            GetConnection=REAL(rhiiHEl%v,dp)
 !
 !!            IF(IC.eq.0) THEN
 !!We are after Hii-H00 so subtract the reference energy
@@ -824,13 +824,13 @@ MODULE ReturnPathMCMod
 !
 !            call GetH0Element(nI,NEl,Arr,nBasis,ECore,rhiiHEl)
 !            rhiiHEl=rhiiHEl-HFDiag
-!            GetConnection=Real(rhiiHEl%v,r2)
+!            GetConnection=Real(rhiiHEl%v,dp)
 !
 !        ELSE
 !!We want to calculate Hamiltonian transition matrix elements
 !                
 !            HiiHEl=GetHElement2(nI,nJ,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,NMax,ALat,UMat,IC,ECore)
-!            GetConnection=REAL(HiiHEl%v,r2)
+!            GetConnection=REAL(HiiHEl%v,dp)
 !            
 !            IF(IC.eq.0) THEN
 !!We are after Hii-H00 so subtract the reference energy
@@ -896,9 +896,9 @@ MODULE ReturnPathMCMod
 !
 !!Calculate Hii and rhii
 !        HiiHEl=GetHElement2(HFDet,HFDet,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,NMax,ALat,UMat,0,ECore)
-!        Hii=REAL(HiiHEl%v,r2)
+!        Hii=REAL(HiiHEl%v,dp)
 !        CALL CalcRho2(HFDet,HFDet,Beta,i_P,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,Arr,ALat,UMat,rhiiHEl,nTay,0,ECore)
-!        rhii=REAL(rhiiHEl%v,r2)
+!        rhii=REAL(rhiiHEl%v,dp)
 !        call GetH0Element(HFDet,NEl,Arr,nBasis,ECore,HFDiag)
 !
 !        IF(TRhoElems) THEN

@@ -35,9 +35,10 @@ subroutine VASPInitIntegrals(nOrbUsed,ECore,tOrder)
    use vasp_interface
    use UMatCache, only: SetupUMatCache,UMat2D
    use global_utilities
+   use constants, only: dp
    implicit none
    integer :: nOrbUsed
-   real(q) ::  ECore
+   real(dp) ::  ECore
    logical :: tOrder
    type(timer), save :: proc_timer
    integer :: I,J,II,A,B,nStatesUsed,ierr
@@ -89,10 +90,11 @@ subroutine VASPBasisInit(ARR,BRR,G1,LEN)
    ! thing to get going!
    use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
    use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB,nBASISMax,NullBasisFn
-   use vasp_interface, only: q,nStates,nKP,KPntInd,eigv
+   use vasp_interface, only: nStates,nKP,KPntInd,eigv
    use SymData, only: KPntSym,nSym
+   use constants, only: dp
    implicit none
-   real(q) :: ARR(LEN,2)
+   real(dp) :: ARR(LEN,2)
    integer :: BRR(LEN),LEN
    type(BasisFN) :: G1(LEN)
    integer :: i

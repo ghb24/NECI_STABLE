@@ -217,8 +217,8 @@ MODULE AnnihilationMod
                         ENDIF
                         HistMinInd2(ExcitLevel)=PartIndex
                         IF(tSuc) THEN
-                            AvAnnihil(PartIndex)=AvAnnihil(PartIndex)+REAL(2*(MIN(abs(SpawnedSign2(VecInd)),abs(SpawnedSign(i)))),r2)
-                            InstAnnihil(PartIndex)=InstAnnihil(PartIndex)+REAL(2*(MIN(abs(SpawnedSign2(VecInd)),abs(SpawnedSign(i)))),r2)
+                            AvAnnihil(PartIndex)=AvAnnihil(PartIndex)+REAL(2*(MIN(abs(SpawnedSign2(VecInd)),abs(SpawnedSign(i)))),dp)
+                            InstAnnihil(PartIndex)=InstAnnihil(PartIndex)+REAL(2*(MIN(abs(SpawnedSign2(VecInd)),abs(SpawnedSign(i)))),dp)
                         ELSE
 !                            WRITE(6,*) "Searching between: ",HistMinInd2(ExcitLevel), " and ",FCIDetIndex(ExcitLevel+1)-1
 !                            WRITE(6,*) "***",SpawnedParts(0:NIfTot,i)
@@ -738,12 +738,12 @@ MODULE AnnihilationMod
 !!Reference determinant is not HF
 !                                CALL DecodeBitDet(nJ,CurrentDets(0:NIfTot,VecInd))
 !                                HDiagTemp=GetHElement2(nJ,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,0,ECore)
-!                                HDiag=(REAL(HDiagTemp%v,r2))
+!                                HDiag=(REAL(HDiagTemp%v,dp))
 !                            ENDIF
 !                        ELSE
 !                            CALL DecodeBitDet(nJ,CurrentDets(0:NIfTot,VecInd))
 !                            HDiagTemp=GetHElement2(nJ,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,0,ECore)
-!                            HDiag=(REAL(HDiagTemp%v,r2))-Hii
+!                            HDiag=(REAL(HDiagTemp%v,dp))-Hii
 !                        ENDIF
 !                        CurrentH(VecInd)=HDiag
 !
@@ -794,12 +794,12 @@ MODULE AnnihilationMod
 !!Reference determinant is not HF
 !                            CALL DecodeBitDet(nJ,CurrentDets(0:NIfTot,VecInd))
 !                            HDiagTemp=GetHElement2(nJ,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,0,ECore)
-!                            HDiag=(REAL(HDiagTemp%v,r2))
+!                            HDiag=(REAL(HDiagTemp%v,dp))
 !                        ENDIF
 !                    ELSE
 !                        CALL DecodeBitDet(nJ,CurrentDets(0:NIfTot,VecInd))
 !                        HDiagTemp=GetHElement2(nJ,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,0,ECore)
-!                        HDiag=(REAL(HDiagTemp%v,r2))-Hii
+!                        HDiag=(REAL(HDiagTemp%v,dp))-Hii
 !                    ENDIF
 !                    CurrentH(VecInd)=HDiag
 !
@@ -1531,8 +1531,8 @@ MODULE AnnihilationMod
                             ENDIF
                             HistMinInd2(ExcitLevel)=PartIndex
                             IF(tSuc) THEN
-                                AvAnnihil(PartIndex)=AvAnnihil(PartIndex)+REAL(2*(abs(CurrentSign(PartInd))),r2)
-                                InstAnnihil(PartIndex)=InstAnnihil(PartIndex)+REAL(2*(abs(CurrentSign(PartInd))),r2)
+                                AvAnnihil(PartIndex)=AvAnnihil(PartIndex)+REAL(2*(abs(CurrentSign(PartInd))),dp)
+                                InstAnnihil(PartIndex)=InstAnnihil(PartIndex)+REAL(2*(abs(CurrentSign(PartInd))),dp)
                             ELSE
                                 WRITE(6,*) "***",SpawnedParts(0:NIftot,i)
                                 Call WriteBitDet(6,SpawnedParts(0:NIfTot,i),.true.)
@@ -1574,8 +1574,8 @@ MODULE AnnihilationMod
                             ENDIF
                             HistMinInd2(ExcitLevel)=PartIndex
                             IF(tSuc) THEN
-                                AvAnnihil(PartIndex)=AvAnnihil(PartIndex)+REAL(2*(abs(SpawnedSign(i))),r2)
-                                InstAnnihil(PartIndex)=InstAnnihil(PartIndex)+REAL(2*(abs(SpawnedSign(i))),r2)
+                                AvAnnihil(PartIndex)=AvAnnihil(PartIndex)+REAL(2*(abs(SpawnedSign(i))),dp)
+                                InstAnnihil(PartIndex)=InstAnnihil(PartIndex)+REAL(2*(abs(SpawnedSign(i))),dp)
                             ELSE
                                 WRITE(6,*) "***",SpawnedParts(0:NIfTot,i)
                                 CALL Stop_All("AnnihilateSpawnedParts","Cannot find corresponding FCI determinant when histogramming")
@@ -1921,7 +1921,7 @@ MODULE AnnihilationMod
 !!PartsinExcitlevel is the number of particles in each excitation level for the current iteration
 !!PopDensity is simply the approximate population density of particles in a given excitation level
 !            do i=0,NEl
-!                PopDensity(i)=REAL(PartsinExcitLevel(i),r2)/ApproxExcitDets(i)
+!                PopDensity(i)=REAL(PartsinExcitLevel(i),dp)/ApproxExcitDets(i)
 !            enddo
 !            PartsinExcitLevel(:)=0  !Rezero for the next iteration
 !!Allocate memory to hold the excitation levels. This is needed since the amount of local annihilation will be a function of
@@ -3463,7 +3463,7 @@ MODULE AnnihilationMod
 !                                    WRITE(6,*) 'MinorSpawnSign',MinorSpawnSign(k)
 !                                    WRITE(6,*) 'SumMinorDetPop',SumMinorDetPop
 
-                                    Prob=Prob+ABS(REAL(EqDetPops(k),r2)/REAL(SumMinorDetPop,r2))
+                                    Prob=Prob+ABS(REAL(EqDetPops(k),dp)/REAL(SumMinorDetPop,dp))
 !                                    WRITE(6,*) 'Prob',Prob
 !                                    WRITE(6,*) 'r',r
 
@@ -3551,7 +3551,7 @@ MODULE AnnihilationMod
                                 Prob=0.D0
                                 
                                 do k=MinDetInd,MaxDetInd
-                                    Prob=Prob+REAL(EqDetPops(k),r2)/ABS(REAL(SumDetPop,r2))
+                                    Prob=Prob+REAL(EqDetPops(k),dp)/ABS(REAL(SumDetPop,dp))
                                     IF(r.le.Prob) THEN
                                         IF(MinorStarSign(k).gt.0) THEN
                                             MinorStarSign(k)=MinorStarSign(k)-1
@@ -4243,7 +4243,7 @@ MODULE AnnihilationMod
                 DoubDet(:)=0
                 CALL DecodeBitDet(DoubDet,GuideFuncDets(0:NIfTot,i))
                 HdoubTemp=GetHElement2(HFDet,DoubDet,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,ExcitLevel,ECore)
-                HDoub=REAL(HDoubTemp%v,r2)
+                HDoub=REAL(HDoubTemp%v,dp)
                 GuideFuncDoub=GuideFuncDoub+(GuideFuncSign(i)*Hdoub)
             ENDIF
         enddo

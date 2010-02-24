@@ -35,9 +35,8 @@ MODULE GenRandSymExcitNUMod
     use SymExcitDataMod 
     use HElem
     use DetBitOps, only: FindExcitBitDet
+    use constants, only: dp
     IMPLICIT NONE
-
-    INTEGER , PARAMETER :: r2=kind(0.d0)
 
     contains
 
@@ -315,9 +314,9 @@ MODULE GenRandSymExcitNUMod
         INTEGER :: ForbiddenOrbs,NExcitA,NExcitB,NExcitOtherWay
         REAL*8 :: pGen!,PabGivenij
 
-!        PabGivenij=(1.D0/real((NExcitA-ForbiddenOrbs),r2))*((1.D0/real(NExcitB,r2))+(1.D0/real(NExcitOtherWay,r2)))
-!        pGen=pDoubNew*(1.D0/real(ElecPairs,r2))*PabGivenij
-        pGen=pDoubNew*((1.D0/real(NExcitB,r2))+(1.D0/real(NExcitOtherWay,r2)))/(REAL((ElecPairs*(NExcitA-ForbiddenOrbs)),r2))
+!        PabGivenij=(1.D0/real((NExcitA-ForbiddenOrbs),dp))*((1.D0/real(NExcitB,dp))+(1.D0/real(NExcitOtherWay,dp)))
+!        pGen=pDoubNew*(1.D0/real(ElecPairs,dp))*PabGivenij
+        pGen=pDoubNew*((1.D0/real(NExcitB,dp))+(1.D0/real(NExcitOtherWay,dp)))/(REAL((ElecPairs*(NExcitA-ForbiddenOrbs)),dp))
 
     END SUBROUTINE FindDoubleProb
 
@@ -1129,7 +1128,7 @@ MODULE GenRandSymExcitNUMod
 !X is number of elements at positions larger than ind
         X=ElecPairs-Ind
 !K is the number of complete rows after the element ind
-        K=INT((SQRT(8.D0*REAL(X,r2)+1.D0)-1.D0)/2.D0)
+        K=INT((SQRT(8.D0*REAL(X,dp)+1.D0)-1.D0)/2.D0)
         Elec1Ind=NEl-1-K
         Elec2Ind=NEl-X+((K*(K+1))/2)
 
@@ -1406,8 +1405,8 @@ MODULE GenRandSymExcitNUMod
 
 !Now we need to find the probability of creating this excitation.
 !This is: P_single x P(i) x P(a|i) x N/(N-ElecsWNoExcits)
-!        pGen=(1.D0-pDoubNew)*(1.D0/real(NEl,r2))*(1.D0/real(NExcit,r2))*((real(NEl,r2))/(real((NEl-ElecsWNoExcits),r2)))
-        pGen=(1.D0-pDoubNew)/(REAL((NExcit*(NEl-ElecsWNoExcits)),r2))
+!        pGen=(1.D0-pDoubNew)*(1.D0/real(NEl,dp))*(1.D0/real(NExcit,dp))*((real(NEl,dp))/(real((NEl-ElecsWNoExcits),dp)))
+        pGen=(1.D0-pDoubNew)/(REAL((NExcit*(NEl-ElecsWNoExcits)),dp))
 
 !        WRITE(6,*) "ElecsWNoExcits: ",ElecsWNoExcits
 
@@ -1537,8 +1536,8 @@ MODULE GenRandSymExcitNUMod
 !Now we need to find the probability of creating this excitation.
 !This is: P_single x P(i) x P(a|i) x N/(N-ElecsWNoExcits)
 !Prob of generating a single is 1-pDoub
-!            pGen=(1.D0-pDoub)*(1.D0/real(NEl,r2))*(1.D0/real(NExcitA,r2))*((real(NEl,r2))/(real((NEl-ElecsWNoExcits),r2)))
-            pGen=(1.D0-pDoub)/(REAL((NExcitA*(NEl-ElecsWNoExcits)),r2))
+!            pGen=(1.D0-pDoub)*(1.D0/real(NEl,dp))*(1.D0/real(NExcitA,dp))*((real(NEl,dp))/(real((NEl-ElecsWNoExcits),dp)))
+            pGen=(1.D0-pDoub)/(REAL((NExcitA*(NEl-ElecsWNoExcits)),dp))
 
         ELSE
 !Prob of generating a double excitation.
@@ -1624,9 +1623,9 @@ MODULE GenRandSymExcitNUMod
                 NExcitOtherWay=NExcitOtherWay-1     !The same goes for the probabilities the other way round.
             ENDIF
 
-!            PabGivenij=(1.D0/real((NExcitA-ForbiddenOrbs),r2))*((1.D0/real(NExcitB,r2))+(1.D0/real(NExcitOtherWay,r2)))
-!            pGen=pDoub*(1.D0/real(ElecPairs,r2))*PabGivenij
-            pGen=pDoub*((1.D0/real(NExcitB,r2))+(1.D0/real(NExcitOtherWay,r2)))/(REAL((ElecPairs*(NExcitA-ForbiddenOrbs)),r2))
+!            PabGivenij=(1.D0/real((NExcitA-ForbiddenOrbs),dp))*((1.D0/real(NExcitB,dp))+(1.D0/real(NExcitOtherWay,dp)))
+!            pGen=pDoub*(1.D0/real(ElecPairs,dp))*PabGivenij
+            pGen=pDoub*((1.D0/real(NExcitB,dp))+(1.D0/real(NExcitOtherWay,dp)))/(REAL((ElecPairs*(NExcitA-ForbiddenOrbs)),dp))
 !            WRITE(6,*) "***",pDoubNew,NExcitB,NExcitOtherWay,ElecPairs,NExcitA,ForbiddenOrbs,ElecSym,iSpn,SymA,SymB
 
         ENDIF
@@ -1849,7 +1848,7 @@ MODULE GenRandSymExcitNUMod
             ExcitMat(2,1)=OrbA
             CALL Scr1Excit2(NEl,nBasisMax,nI,nI,G1,nBasis,UMat,ALat,iSpinSkip,FCoul,.true.,rh,ExcitMat,.false.)
         
-            SpawnProb(VecInd)=abs(REAL(rh%v,r2))
+            SpawnProb(VecInd)=abs(REAL(rh%v,dp))
             SpawnOrb(VecInd)=OrbA
             NormProb=NormProb+SpawnProb(VecInd)
             VecInd=VecInd+1
@@ -1866,7 +1865,7 @@ MODULE GenRandSymExcitNUMod
         ENDIF
 
 !We now have to find out how many children to spawn, based on the value of normprob.
-        rat=Tau*NormProb*REAL((NEl-ElecsWNoExcits)*nParts,r2)/(1.D0-PDoubNew)
+        rat=Tau*NormProb*REAL((NEl-ElecsWNoExcits)*nParts,dp)/(1.D0-PDoubNew)
         iCreate=INT(rat)
         rat=rat-REAL(iCreate)
         IF(tMerTwist) THEN
@@ -2074,7 +2073,7 @@ MODULE GenRandSymExcitNUMod
                     Hel=Hel-GETUMATEL(NBASISMAX,UMAT,ALAT,nBasis,iSpinSkip,G1,SpatOrbi,SpatOrbj,j,SpatOrba)
                 ENDIF
 
-                SpawnProb(VecInd)=abs(REAL(Hel%v,r2))
+                SpawnProb(VecInd)=abs(REAL(Hel%v,dp))
                 SpawnOrbs(1,VecInd)=i
                 SpawnOrbs(2,VecInd)=OrbB
                 NormProb=NormProb+SpawnProb(VecInd)
@@ -2093,7 +2092,7 @@ MODULE GenRandSymExcitNUMod
         ENDIF
 
 !We now have to find out how many children to spawn, based on the value of normprob.
-        rat=Tau*NormProb*REAL(ElecPairs*nParts,r2)/PDoubNew
+        rat=Tau*NormProb*REAL(ElecPairs*nParts,dp)/PDoubNew
         iCreate=INT(rat)
         rat=rat-REAL(iCreate)
         IF(tMerTwist) THEN
