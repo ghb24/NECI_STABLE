@@ -7,7 +7,7 @@ MODULE FciMCLoggingMod
     USE Parallel
     USE HElem , only : HElement
     USE Logging , only : tPrintTriConnections,TriConMax,NoTriConBins,tHistTriConHEls,NoTriConHElBins,TriConHElSingMax,TriConHElDoubMax
-    USE Logging , only : tPrintHElAccept
+    USE Logging , only : tPrintHElAccept,tSaveBlocking
     USE SystemData , only : NEl,NIfTot,NIfDBO
     USE SymData , only : nSymLabels
     USE Determinants , only : GetHElement3,GetHElement4
@@ -223,6 +223,7 @@ MODULE FciMCLoggingMod
     SUBROUTINE PrintBlocking(Iter)
         INTEGER :: i,NoBlocks,Iter,NoBlockSizes,NoContrib
         REAL*8 :: MeanEn,MeanEnSqrd,StandardDev,Error,ErrorinError
+        CHARACTER(len=30) :: abstr
 
 !First find out how many blocks would have been formed with the number of iterations actually performed. 
 
@@ -232,7 +233,16 @@ MODULE FciMCLoggingMod
         NoBlockSizes=0
         NoBlockSizes=FLOOR( (LOG10(REAL(NoContrib-1)))/ (LOG10(2.D0)))
 
-        OPEN(62,file='BLOCKINGANALYSIS',status='unknown')
+        IF(tSaveBlocking) THEN
+!We are saving the blocking files - write to new file.
+            abstr=''
+            write(abstr,'(I12)') Iter
+            abstr='BLOCKINGANALYSIS-'//adjustl(abstr)
+            OPEN(62,file=abstr,status='unknown')
+        ELSE
+            OPEN(62,file='BLOCKINGANALYSIS',status='unknown')
+        ENDIF
+
         WRITE(62,'(I4,A,I4)') NoBlockSizes,' blocks were formed with sizes from 1 to ',(2**(NoBlockSizes))
         WRITE(62,'(3A16,5A20)') '1.Block No.','2.Block Size  ','3.No. of Blocks','4.Mean E','5.Mean E^2','6.SD','7.Error','8.ErrorinError'
 

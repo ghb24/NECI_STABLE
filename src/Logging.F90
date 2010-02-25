@@ -16,6 +16,8 @@ MODULE Logging
     INTEGER CCMCDebug !CCMC Debugging Level 0-6.  Default 0
     LOGICAL tCCMCLogTransitions !Do we log transitions?  Only possible for very small systems
     LOGICAL tCCMCLogUniq !Do we log only unique clusters
+    LOGICAL tSaveBlocking !Do not overwrite blocking files
+    INTEGER iWriteBlockingEvery !How often to write out blocking files
     INTEGER IterStartBlocking,HFPopStartBlocking,NoDumpTruncs,NoTruncOrbsTag,TruncEvaluesTag,iWriteHamilEvery,OrbOccsTag
     INTEGER , ALLOCATABLE :: NoTruncOrbs(:)
     REAL*8 , ALLOCATABLE :: TruncEvalues(:),OrbOccs(:)
@@ -30,6 +32,8 @@ MODULE Logging
       use default_sets
       implicit none
 
+      iWriteBlockingEvery=1000
+      tSaveBlocking=.false.
       OffDiagBinRange=0.001
       OffDiagMax=1.D0
       BinRange=0.001
@@ -125,6 +129,12 @@ MODULE Logging
         call readu(w)
         select case(w)
 
+        case("PRINTNEWBLOCKING")
+!This is the iteration interval period to write out the blocking files.
+            call readi(iWriteBlockingEvery)
+        case("SAVEBLOCKING")
+!In this case, blocking files are not overwritten each time they are printed out, but 
+            tSaveBlocking=.true.
         case("ERRORBLOCKING")
 !Performs blocking analysis on the errors in the instantaneous projected energy to get the error involved.
 !This is default on, but can be turned off with this keyword followed by OFF.
