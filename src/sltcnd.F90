@@ -220,11 +220,10 @@ contains
         ! Exchange contribution is only considered if tExch set.
         ! This is only separated from the above loop to keep "if (tExch)" out
         ! of the tight loop for efficiency.
-        if (tExch) then
+        if (tExch .and. G1(ex(1))%Ms == G1(ex(2))%Ms) then
             do i=1,nel
                 if (ex(1) /= nI(i)) then
-                    if ((G1(ex(1))%Ms == G1(nI(i))%Ms) .and. &
-                        (G1(ex(2))%Ms == G1(nI(i))%Ms) ) then
+                    if (G1(ex(1))%Ms == G1(nI(i))%Ms) then
                         id = gtID(nI(i))
                         hel = hel - GetUMATEl (nBasisMax, UMAT, ALAT, nBasis,&
                                                nBasisMax(2,3), G1, id_ex(1),&
