@@ -2879,6 +2879,8 @@ SUBROUTINE SpinOrbSymSetup(tRedoSym)
         endif
     ENDIF
 
+    write(6,*) "Total momentum is", kTotal
+
 END SUBROUTINE SpinOrbSymSetup
 
 !This routine will take a determinant nI, and find Iterations number of excitations of it. It will then histogram these, summing in 1/pGen for every occurance of

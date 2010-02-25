@@ -9597,7 +9597,7 @@ MODULE FciMCParMod
 !            ENDIF
 !        ENDIF
 
-        IF(tUEG) THEN
+        IF(tUEG.and.(.not.tLatticeGens)) THEN
 !Check to see if this is an allowed excitation
 !by summing kx, ky and kz to zero over all the electrons.
             kx=0
