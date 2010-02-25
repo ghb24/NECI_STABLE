@@ -18,6 +18,38 @@ module sltcnd_mod
     implicit none
 
 contains
+    function sltcnd_compat (nI, nJ, IC) result (hel)
+
+        integer, intent(in) :: nI(nel), nJ(nel), IC
+        type(HElement) :: hel
+
+        integer :: ex(2,2)
+        logical :: tParity
+
+        select case (IC)
+        case (0)
+            ! The determinants are exactly the same
+            hel = sltcnd_0 (nI)
+
+        case (1)
+            ! The determinants differ by only one orbital
+            ex(1,1) = IC
+            call GetExcitation (nI, nJ, nel, ex, tParity)
+            hel = sltcnd_1 (nI, ex(:,1), tParity)
+
+        case (2)
+            ! The determinants differ by two orbitals
+            ex(1,1) = IC
+            call GetExcitation (nI, nJ, nel, ex, tParity)
+            hel = sltcnd_2 (ex, tParity)
+
+        case default
+            ! The determinants differ by more than 2 orbitals
+            hel = helement(0)
+        end select
+    end function sltcnd_compat
+
+
     type(HElement) function sltcnd_excit (nI, nJ, IC, ex, tParity)
         
         ! Use the Slater-Condon Rules to evaluate the H-matrix element between

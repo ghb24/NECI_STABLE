@@ -1098,7 +1098,7 @@ MODULE Calc
           use SystemData, only: tUEG,nOccAlpha,nOccBeta,ElecPairs,tExactSizeSpace,tMCSizeSpace,MaxABPairs
           use IntegralsData, only: FCK, CST, nMax, UMat
           use IntegralsData, only: HFEDelta, HFMix, NHFIt, tHFCalc
-          Use Determinants, only: FDet, tSpecDet, SpecDet, get_helement_excit
+          Use Determinants, only: FDet, tSpecDet, SpecDet, get_helement
           Use DetCalc, only: DetInv, nDet, tRead, ICILevel
           use global_utilities
           
@@ -1158,7 +1158,7 @@ MODULE Calc
           IF(.NOT.TREAD) THEN
 !             CALL WRITETMAT(NBASIS)
              IC=0
-             HDiagTemp = get_helement_excit(fDet, fDet, 0)
+             HDiagTemp = get_helement(fDet, fDet, 0)
              WRITE(6,*) '<D0|H|D0>=',HDiagTemp
              WRITE(6,*) '<D0|T|D0>=',CALCT(FDET,NEL,G1,NBASIS)
              IF(TUEG) THEN
@@ -1876,7 +1876,7 @@ MODULE Calc
 
 ! Given an input RHOEPSILON, create Fermi det D out of lowest orbitals and get RHOEPS (which is rhoepsilon * exp(-(beta/P)<D|H|D>
       REAL*8 FUNCTION GETRHOEPS(RHOEPSILON,BETA,NEL,NBASISMAX,G1,NHG, BRR,NMSH,FCK,NMAX,ALAT,UMAT,I_P,ECORE)
-         Use Determinants, only: get_helement_excit
+         Use Determinants, only: get_helement
          USE HElem
          use SystemData, only: BasisFN
          IMPLICIT NONE
@@ -1892,7 +1892,7 @@ MODULE Calc
          CALL NECI_SORTI(NEL,NI)
          BP=HElement(-BETA/I_P)
          GETRHOEPS=DSQRT(SQ(HElement(RHOEPSILON) * &
-                        EXP(BP*get_helement_excit(nI, nI, 0))))
+                        EXP(BP*get_helement(nI, nI, 0))))
          RETURN
       END FUNCTION GetRhoEps
 

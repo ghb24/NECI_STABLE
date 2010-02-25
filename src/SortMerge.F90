@@ -18,7 +18,7 @@
     SUBROUTINE MergeListswH(nlist1,nlist1max,nlist2,list2,SignList2)
         USE FciMCParMOD , only : iLutHF,Hii,CurrentDets,CurrentSign,CurrentH
         USE SystemData , only : NEl,tHPHF,NIfTot,NIfDBO
-        USE Determinants , only : get_helement_excit, get_helement
+        USE Determinants , only : get_helement
         use DetBitOps, only: DecodeBitDet, DetBitEQ
         USE HElem
         IMPLICIT NONE
@@ -81,7 +81,7 @@
                IF(tHPHF) THEN
                    CALL HPHFGetDiagHElement(nJ,list2(:,i),HDiagTemp)
                ELSE
-                   HDiagTemp = get_helement_excit (nJ, nJ, 0)
+                   HDiagTemp = get_helement (nJ, nJ, 0)
                ENDIF
                HDiag=(REAL(HDiagTemp%v,8))-Hii
            ENDIF
@@ -109,7 +109,7 @@
    SUBROUTINE MergeListswH2(nlist1,nlist1max,nlist2,list2,list3,SignList2)
         USE FciMCParMOD , only : iLutHF,Hii,MinorStarDets,MinorStarSign,MinorStarParent,MinorStarHii,MinorStarHij
         USE SystemData , only : NEl,Alat,Brr,ECore,G1,nBasis,nBasisMax,nMsh,tHPHF,NIfTot
-        USE Determinants , only : get_helement, get_helement_excit
+        USE Determinants , only : get_helement
         USE IntegralsData , only : fck,NMax,UMat
         USE HElem
         use DetBitOps, only: DecodeBitDet
@@ -163,20 +163,20 @@
                MinorStarParent(0:NIfTot,ips+i-1)=list3(0:NIfTot,i)
 
 ! Want to calculate the diagonal and off diagonal H elements of the particle to be merged.           
-               CALL DecodeBitDet(nJ,list2(0:NIfTot,i))
+               CALL DecodeBitDet(nJ,list2(:,i))
                IF(tHPHF) THEN
-                   CALL HPHFGetDiagHElement(nJ,list2(0:NIfTot,i),HDiagTemp)
+                   CALL HPHFGetDiagHElement(nJ,list2(:,i),HDiagTemp)
                ELSE
-                   HDiagTemp = get_helement_excit (nJ, nJ, 0)
+                   HDiagTemp = get_helement (nJ, nJ, 0)
                ENDIF
                HDiag=(REAL(HDiagTemp%v,8))-Hii
                MinorStarHii(ips+i-1)=HDiag
 
-               CALL DecodeBitDet(nK,list3(0:NIfTot,i))
+               CALL DecodeBitDet(nK,list3(:,i))
                IF(tHPHF) THEN
-                   CALL HPHFGetOffDiagHElement(nJ,nK,list2(0:NIfTot,i),list3(0:NIfTot,i),HOffDiagTemp)
+                   CALL HPHFGetOffDiagHElement(nJ,nK,list2(:,i),list3(:,i),HOffDiagTemp)
                ELSE
-                   HOffDiagTemp = get_helement (nJ, nK)
+                   HOffDiagTemp = get_helement(nJ, nK, list2(:,i), list3(:,i))
                ENDIF
                HOffDiag=(REAL(HOffDiagTemp%v,8))
                MinorStarHij(ips+i-1)=HOffDiag
@@ -190,24 +190,24 @@
         ELSE
 ! If there are no entries in the star arrays to merge with, just copy the spawned walkers straight over to star array            
             do j=1,nlist2
-                MinorStarDets(0:NIfTot,j)=list2(0:NIfTot,j)
+                MinorStarDets(:,j)=list2(:,j)
                 MinorStarSign(j)=SignList2(j)
-                MinorStarParent(0:NIfTot,j)=list3(0:NIfTot,j)
+                MinorStarParent(:,j)=list3(:,j)
 
-                CALL DecodeBitDet(nJ,list2(0:NIfTot,j))
+                CALL DecodeBitDet(nJ,list2(:,j))
                 IF(tHPHF) THEN
-                    CALL HPHFGetDiagHElement(nJ,list2(0:NIfTot,j),HDiagTemp)
+                    CALL HPHFGetDiagHElement(nJ,list2(:,j),HDiagTemp)
                 ELSE
-                    HDiagTemp = get_helement_excit (nJ, nJ, 0)
+                    HDiagTemp = get_helement (nJ, nJ, 0)
                 ENDIF
                 HDiag=(REAL(HDiagTemp%v,8))-Hii
                 MinorStarHii(j)=HDiag
 
-                CALL DecodeBitDet(nK,list3(0:NIfTot,j))
+                CALL DecodeBitDet(nK,list3(:,j))
                 IF(tHPHF) THEN
-                    CALL HPHFGetOffDiagHElement(nJ,nK,list2(0:NIfTot,j),list3(0:NIfTot,j),HOffDiagTemp)
+                    CALL HPHFGetOffDiagHElement(nJ,nK,list2(:,j),list3(:,j),HOffDiagTemp)
                 ELSE
-                    HOffDiagTemp = get_helement (nJ, nK)
+                    HOffDiagTemp = get_helement(nJ, nK, list2(:,j),list3(:,j))
                 ENDIF
                 HOffDiag=(REAL(HOffDiagTemp%v,8))
                 MinorStarHij(j)=HOffDiag

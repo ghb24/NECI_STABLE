@@ -19,7 +19,7 @@ C.. DLWDB = d ln (wi) / d Beta.
      &              NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMat,NTAY,RHOEPS,
      &               LSTE,ICE,RIJLIST,NWHTAY,ILOGGING,ECORE,ILMAX,
      &               WLRI,WLSI,DBETA,DLWDB)
-         Use Determinants, only: get_helement, get_helement_excit
+         Use Determinants, only: get_helement
          USE HElem
          use SystemData, only: BasisFN
          USE PreCalc ,  only: GETVARS
@@ -125,7 +125,7 @@ C.. Set the first node to I_I
          CALL NECI_ICOPY(NEL,NI,1,IPATH(1:NEL,0),1)
          CALL CALCRHO2(NI,NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,
      &            BRR,NMSH,FCK,NMAX,ALAT,UMAT,RH,NTAY,0,ECORE)
-         HIJS(0) = get_helement_excit (NI, nI, 0)
+         HIJS(0) = get_helement (nI, nI, 0)
          RHOII(0)=RH
          RHOIJ(0,0)=RH
          WLRI=LOG(RHOII(0))
@@ -480,7 +480,7 @@ C.. MCPATHSR3 has the same method at each vertex level
      &               WLRI,WLSI,DBETA,DLWDB)
          USE HElem
          use SystemData, only: BasisFN
-         Use Determinants, only: get_helement, get_helement_excit
+         Use Determinants, only: get_helement
          USE STARDIAGMOD , only : fMCPR3StarNewExcit
          USE NODEDIAG , only : fMCPR3StarNodes
          USE GraphMorph , only : MorphGraph
@@ -626,7 +626,7 @@ C.. Set the first node to I_I
          CALL NECI_ICOPY(NEL,NI,1,IPATH(1:NEL,0),1)
          CALL CALCRHO2(NI,NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,
      &            BRR,NMSH,FCK,NMAX,ALAT,UMAT,RH,NTAY,0,ECORE)
-         HIJS(0) = get_helement_excit (nI, nI, 0)
+         HIJS(0) = get_helement (nI, nI, 0)
 C     &            HIJS(0))
          RHOII(0)=RH
          RHOIJ(0,0)=RH
@@ -799,7 +799,7 @@ C.. using the appropriate weightings (Z-sums) from CALCPATH7.(26/01/04).
      &   MP2E,NTOTAL)  RESULT (FMCPR3RES)
          USE HElem
          use SystemData, only: BasisFN
-         Use Determinants, only: get_helement, get_helement_excit
+         Use Determinants, only: get_helement
          USE Logging , only : G_VMC_LOGCOUNT
          use CalcData , only : TMPTHEORY
          IMPLICIT NONE
@@ -1069,8 +1069,8 @@ C.. Add the new node to the path, and then recurse from it
                   CALL NECI_ICOPY(NEL,LSTE(1:NEL,I,IVLEVEL),1,
      &                     IPATH(1:NEL,I_VIND+1),1)
 C.. Get the H element so we can calculate the energy
-                  HIJS(I_VIND+1) = get_helement (iPath(1,0), 
-     &                                           iPath(1,I_VIND+1))
+                  HIJS(I_VIND+1) = get_helement (iPath(:,0), 
+     &                                           iPath(:,I_VIND+1))
                   BTABLE(I_VIND+1)=IVLEVEL
                   TOTAL=TOTAL+
      &                     FMCPR3(NI,BETA,I_P,IPATH,I_V,NEL,NBASISMAX,
@@ -1119,7 +1119,7 @@ C.,             If 1, only allow doubles.
      &   NTOTAL,EREF,VARSUM,WREF) RESULT (FMCPR3BRES)
          USE HElem
          use SystemData, only: BasisFN
-         Use Determinants, only: get_helement, get_helement_excit
+         Use Determinants, only: get_helement
          use CalcData , only : TVARCALC,TMPTHEORY
          USE Logging , only : G_VMC_LOGCOUNT
          USE PrecalcData , only : TPREVAR,PREWEIGHTEPS
@@ -1553,8 +1553,8 @@ C.. freeze the empties
 C.. Add it to the path, and recurse
                    CALL NECI_ICOPY(NEL,NJ,1,IPATH(1,I_VIND+1),1)
 C.. Get the H element so we can calculate the energy
-                   HIJS(I_VIND+1) = get_helement (iPath(1,0), 
-     &                                            iPath(1,I_VIND+1))
+                   HIJS(I_VIND+1) = get_helement (iPath(:,0), 
+     &                                            iPath(:,I_VIND+1))
                    
                    TOTAL=TOTAL+
      &                  FMCPR3B(NI,BETA,I_P,IPATH,I_V,NEL,NBASISMAX,
@@ -1835,7 +1835,7 @@ C.. Allocate storage space for the connections
      &             NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,
      &              RH,NTAY,0,ECORE)
                   LIST(NLCUR,0)=RH/RHII
-                  hel = get_helement (nI, lste(1,I))
+                  hel = get_helement (nI, lste(:,I))
                   LIST(NLCUR,2) = hel%v
 C                  WRITE(6,*) (LIST(NLCUR,J),J=0,2)
                   NLCUR=NLCUR+1
@@ -2200,7 +2200,7 @@ C.. Add the new node to the path, and then recurse from it
      &                     IPATH(1:NEL,I_VIND+1),1)
 C.. Get the H element so we can calculate the energy
                   
-                  hel = get_helement (iPath(1,0), iPath(1,I_VIND+1))
+                  hel = get_helement (iPath(:,0), iPath(:,I_VIND+1))
                   HIJS(I_VIND+1) = hel%v
                   BTABLE(I_VIND+1)=IVLEVEL
                   TOTAL=TOTAL+

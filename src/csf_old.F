@@ -951,7 +951,7 @@ C.. NOPEN has number of open electrons, and NDETS has #open dets
                ELSE
                   COEFF2=COEFFLIST2(J)
                ENDIF
-               hel = get_helement(LISTD1(1,I), LISTD2(1,J))
+               hel = get_helement(LISTD1(:,I), LISTD2(:,J))
                SUM2=SUM2+HEL*HElement(COEFF2)
             ENDDO
             TOTSUM=TOTSUM+SUM2*HElement(COEFF1)

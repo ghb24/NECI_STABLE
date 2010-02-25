@@ -29,7 +29,7 @@ C.,             If 1, only allow doubles.
      &   RHOEPS,I_VIND,HIJ,NWHTAY,I_HMAX,LOCTAB,
      &   ILOGGING,TSYM,ECORE,DBETA,DLWDB,HIJS,L,LT,IFRZ,FSCALE,MP2E,
      &   NTOTAL,I_VMAX,EREF,VARSUM,WREF) RESULT (FMCPR3B2RES)
-         Use Determinants, only: get_helement, get_helement_excit
+         Use Determinants, only: get_helement
          USE HElem 
          USE Logging , only : G_VMC_LOGCOUNT
          USE PrecalcData , only : TPREVAR,PREWEIGHTEPS
@@ -134,7 +134,7 @@ C.. the amount of memory used to store it)
          LT=LT+1
 C.. This is the current node (set by our parent)         
          CALL NECI_ICOPY(NEL,IPATH(1:NEL,I_VIND),1,INODE,1)
-         rh = get_helement_excit(INODE, INODE, 0)
+         rh = get_helement(INODE, INODE, 0)
          HIJ(I_VIND,I_VIND)=RH
 C.. we note that if this node has rho_II=0 (i.e. RH=0) then we just return
          IF(.NOT.(RH.AGT.0.D0)) THEN
@@ -419,10 +419,7 @@ C.. Now make sure it's not already in the path
                   
                IF(.NOT.TFAIL) THEN
 C.. see if we're connected to what we were excited from
-                 ex(1,1) = ic            
-                 call getexcitation(iPath(:, iExFrom), nJ, nel, ex, T)
-                 RH = get_helement_excit (iPath(:, iExFrom), nJ, ic,
-     &                                    ex, T)
+                 RH = get_helement (iPath(:, iExFrom), nJ, ic)
                   IF(.NOT.(RH.AGE.RHOEPS)) THEN
 C.. if we're not connected to this node, we fail now
                      RH=0.D0

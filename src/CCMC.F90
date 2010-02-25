@@ -1,5 +1,5 @@
 MODULE CCMC
-    use Determinants, only: get_helement, get_helement_excit
+    use Determinants, only: get_helement
     use HElem
    IMPLICIT NONE
    CONTAINS
@@ -270,8 +270,8 @@ MODULE CCMC
                   iLutnI(:)=CurrentDets(:,j)
                   call AddBitExcitor(iLutnI,CurrentDets(:,l),iLutHF,iSgn)
                   if(iSgn.ne.0) then
-                     CALL DecodeBitDet(DetCurr,iLutnI(:))
-                     Htmp = get_helement (HFDet, DetCurr)
+                     CALL DecodeBitDet(DetCurr,iLutnI)
+                     Htmp = get_helement (HFDet, DetCurr, iLutHF, iLutnI)
                      dT1Sq=dT1Sq+(Real(Htmp%v,r2)*iSgn)
                      !WRITE(6,'(A,I,2G)', advance='no') 'T1',iSgn,real(Htmp%v,r2),dT1Sq
                      !call WriteBitEx(6,iLutHF,CurrentDets(:,j),.false.)
@@ -657,7 +657,7 @@ MODULE CCMC
                   iPartDie=SelectedExcitorIndices(k)
    !Now get the full representation of the dying excitor
                   CALL DecodeBitDet(DetCurr,iLutnI)
-                  Htmp = get_helement_excit (DetCurr, DetCurr, 0)
+                  Htmp = get_helement (DetCurr, DetCurr, 0)
                   HDiagCurr=REAL(Htmp%v,r2)
                   HDiagCurr=HDiagCurr-Hii
                   iSgn=sign(1,CurrentSign(iPartDie))
@@ -1451,13 +1451,14 @@ LOGICAL FUNCTION GetNextSpawner(S,iDebug)
       IF(TTruncSpace) THEN
 !We have truncated the excitation space at a given excitation level. See if the spawn should be allowed.
           IF(CheckAllowedTruncSpawn(S%C%iExcitLevel,S%nJ,S%iLutnJ,S%iExcitLevel)) THEN
-            S%HIJ = get_helement_excit (S%C%DetCurr, S%nJ, S%iExcitLevel, S%ExcitMat, tParity)
+            S%HIJ = get_helement (S%C%DetCurr, S%nJ, S%iExcitLevel, &
+                                  S%ExcitMat, tParity)
           ELSE
             S%HIJ=HElement(0)
           ENDIF
       ELSE
 !SD Space is not truncated - allow attempted spawn as usual
-            S%HIJ = get_helement_excit (S%C%DetCurr, S%nJ, S%iExcitLevel, &
+            S%HIJ = get_helement (S%C%DetCurr, S%nJ, S%iExcitLevel, &
                                         S%ExcitMat, tParity)
       ENDIF
    ENDIF
@@ -1513,8 +1514,8 @@ SUBROUTINE CalcClusterEnergy(tFCI,Amplitude,nExcit,ExcitList,ExcitLevelIndex,Pro
                iLutnI(:)=ExcitList(:,j)
                call AddBitExcitor(iLutnI,ExcitList(:,l),iLutHF,iSgn)
                if(iSgn.ne.0.and.dAmp.ne.0.d0) then
-                  CALL DecodeBitDet(DetCurr,iLutnI(:))
-                  Htmp = get_helement (HFDet, DetCurr)
+                  CALL DecodeBitDet(DetCurr,iLutnI)
+                  Htmp = get_helement (HFDet, DetCurr, iLutHF, iLutnI)
                   dAmp=dAmp/(Amplitude(1)**2)
                   dT1Sq=dT1Sq+(Real(Htmp%v,r2)*iSgn)*dAmp
 !                  dAmp=dAmp*2  !DEBUG
@@ -1570,7 +1571,7 @@ SUBROUTINE InitMP1Amplitude(tFCI,Amplitude,nExcit,ExcitList,ExcitLevelIndex,dIni
       enddo
       CALL DecodeBitDet(DetCurr,ExcitList(:,j))
       if(iC.ge.1) then
-         Htmp = get_helement (HFDet,  DetCurr)
+         Htmp = get_helement (HFDet,  DetCurr, iLutHF, ExcitList(:,j))
          H0tmp=GetH0Element3(DetCurr)
          H0tmp=H0tmp-H0HF
          Amplitude(j)=Amplitude(j)-dInitAmp*DREAL(Htmp)/DREAL(H0tmp)
@@ -2046,7 +2047,7 @@ END SUBROUTINE
                dProbDecompose=1
                iPartDie=1
             ENDIF 
-            Htmp = get_helement_excit (CS%C%DetCurr, CS%C%DetCurr, 0)
+            Htmp = get_helement (CS%C%DetCurr, CS%C%DetCurr, 0)
             HDiagCurr=REAL(Htmp%v,r2)
             HDiagCurr=HDiagCurr-Hii
 

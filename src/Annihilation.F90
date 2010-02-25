@@ -9,7 +9,7 @@ MODULE AnnihilationMod
     USE FciMCData
     use DetBitOps, only: DetBitEQ, DetBitLT, FindBitExcitLevel
     use CalcData , only : tTruncInitiator
-    use Determinants, only: get_helement, get_helement_excit
+    use Determinants, only: get_helement
     IMPLICIT NONE
 
     contains
@@ -630,7 +630,7 @@ MODULE AnnihilationMod
                         IF(tHPHF) THEN
                             CALL HPHFGetDiagHElement(nJ,CurrentDets(0:NIfTot,i),HDiagTemp)
                         ELSE
-                            HDiagTemp = get_helement_excit (nJ, nJ, 0)
+                            HDiagTemp = get_helement (nJ, nJ, 0)
                         ENDIF
                         HDiag=(REAL(HDiagTemp%v,8))-Hii
                     ENDIF
@@ -4240,8 +4240,9 @@ MODULE AnnihilationMod
             ExcitLevel = FindBitExcitLevel(GuideFuncDets(:,i), iLutHF, 2)
             IF(ExcitLevel.eq.2) THEN
                 DoubDet(:)=0
-                CALL DecodeBitDet(DoubDet,GuideFuncDets(0:NIfTot,i))
-                HdoubTemp = get_helement (HFDet, Doubdet)
+                CALL DecodeBitDet(DoubDet,GuideFuncDets(:,i))
+                HdoubTemp = get_helement (HFDet, Doubdet, iLutHF, &
+                                          GuideFuncDets(:,i))
                 HDoub=REAL(HDoubTemp%v,r2)
                 GuideFuncDoub=GuideFuncDoub+(GuideFuncSign(i)*Hdoub)
             ENDIF

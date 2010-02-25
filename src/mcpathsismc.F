@@ -14,7 +14,7 @@ C.. NMAX has ARR hidden in it.
      &               LSTE,ICE,RIJLIST,NWHTAY,ILOGGING,ECORE,ILMAX,
      &               WLRI,WLSI,DBETA,DLWDB,I_VMIN)
          USE HElem
-         Use Determinants, only: get_helement_excit
+         Use Determinants, only: get_helement
          USE MCStat
          use CalcData , only : G_VMC_PI,G_VMC_FAC,G_VMC_SEED,CUR_VERT,
      &          g_MultiWeight,TMPTHEORY,TVVDISALLOW,TMCDIRECTSUM
@@ -106,7 +106,7 @@ C.. Set the first node to I_I
          RHOII(0)=RH
          RHOIJ(0,0)=RHOII(0)
          WLRI=LOG(RHOII(0))
-         hel = get_helement_excit (nI, nI, 0)
+         hel = get_helement (nI, nI, 0)
          HIJS(0) = hel%v
          TOTAL=1.D0
 C.. These variables have been passed in and represent the precalculated values for 1..I_VMIN-1 vertices
@@ -963,7 +963,7 @@ C.. Update the rho and X (probability) matrices with this new node
                      XIJ(I,I_VNEXT)=0.D0
                   ENDIF
                   IF(I.EQ.0) THEN
-                     hel = get_helement (nI, iNode)
+                     hel = get_helement (nI, iNode, 0)
                      HIJS(I_vNext) = hel%v
                   ENDIF
                   CALL CALCRHO2(INODE,IPATH(1,I),BETA,I_P,NEL,
@@ -1125,7 +1125,7 @@ C                     XIJ(I,I_VNEXT)=1.D0/XIJ(I,I)
                      XIJ(I,I_VNEXT)=
      &                  RHOII(I_VNEXT)**ABS(RP)/XIJ(I,I)
                      if(I == 0) then
-                        hel = get_helement(nI, iNode)
+                        hel = get_helement(nI, iNode, ICE)
                         HIJS(I_vNext) = hel%v
                      endif
                   ELSE
@@ -1370,7 +1370,7 @@ C.. Update the rho and X (probability) matrices with this new node
                      XIJ(I,I_VNEXT)=0.D0
                   ENDIF
                   IF(I.EQ.0) THEN
-                      hel = get_helement (nI, iNode)
+                      hel = get_helement (nI, iNode, 0)
                      HIJS(I_VNEXT) = hel%v
                   ENDIF
                   CALL CALCRHO2(INODE,IPATH(1,I),BETA,I_P,NEL,
@@ -2031,7 +2031,7 @@ C.. Unbias the sum
          use CalcData , only : G_VMC_PI
          USE PrecalcData , only : TPREVAR
          USE HElem
-         use Determinants, only: get_helement, get_helement_excit
+         use Determinants, only: get_helement
          use SystemData, only: BasisFN
          IMPLICIT NONE
          INTEGER NEL,I_V,IPATH(NEL,0:I_V),NI(NEL)
@@ -2091,7 +2091,7 @@ C.. PEXCIT(NODE) is the probability of selecting NODE and
 C.. those before it.
          IF(I_HMAX.EQ.-19) THEN
 !.. We're actually storing H matrices in RHOIJ rather than rho matrices
-            hel = get_helement_excit (nI, nI, 0)
+            hel = get_helement (nI, nI, 0)
             RHOIJ(0,0) = hel%v
             RHOII(1)=BETA
          ENDIF
@@ -2183,7 +2183,7 @@ C.. Count the excitations (and generate a random one which we throw)
 C.. Update the rho and X (probability) matrices with this new node
                IF(I_HMAX.EQ.-19) THEN
 !  using H-elements in the rho matrix
-                 RH = get_helement_excit (iNode, iNode, 0)
+                 RH = get_helement (iNode, iNode, 0)
                   RHOIJ(I_VNEXT,I_VNEXT)=RH
                ELSE
                   CALL CALCRHO2(INODE,INODE,BETA,I_P,NEL,
@@ -2229,11 +2229,11 @@ C.. Update the rho and X (probability) matrices with this new node
                   ENDIF
                   IF(I_HMAX.EQ.-19) THEN
 !  using H-elements in the rho matrix
-                     RH = get_helement (iNode, iPath(1,I))
+                     RH = get_helement (iNode, iPath(:,I))
                      IF(I.EQ.0) HIJS(I_VNEXT)=RH
                   ELSE
                      IF(I.EQ.0) THEN
-                         hel = get_helement (nI, iNode)
+                         hel = get_helement (nI, iNode, 0)
                          HIJS(I_VNEXT) = hel%v
                      ENDIF
                      CALL CALCRHO2(INODE,IPATH(1,I),BETA,I_P,NEL,
@@ -2509,7 +2509,7 @@ C.. we will later.  Just put a dummy value in for now
                         NXIJ(I,I_VNEXT)=0.D0
                      ENDIF
                      IF(I.EQ.0) THEN
-                         hel = get_helement (nI, iNode)
+                         hel = get_helement (nI, iNode, 0)
                          NHIJS(I_VNEXT) = hel%v
                      ENDIF
                      CALL CALCRHO2(INODE,NIPATH(1,I),BETA,I_P,NEL,
@@ -2830,7 +2830,7 @@ C.. Fill out the parts which have changed
          DO I=0,I_V-1
             IF(I.EQ.IVERTMOVE) THEN
                ICE=-1
-               hel = get_helement (nI, nIPath (1,I))
+               hel = get_helement (nI, nIPath (:,I))
                NHIJS(I) = hel%v
                ICE=0
                CALL CALCRHO2(NIPATH(1,I),NIPATH(1,I),BETA,
@@ -3068,7 +3068,7 @@ C.. now get the rho matrix element
                   RHOIJ2(I,I_V)=RH
                   RHOIJ2(I_V,I)=RH
                   IF(I.EQ.0) then
-                     hel = get_helement (iPath(1,0), nL)
+                     hel = get_helement (iPath(:,0), nL, 0)
                      HIJS2(I_V) = hel%v
                   endif
                ELSE

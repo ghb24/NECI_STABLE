@@ -1,5 +1,5 @@
     MODULE STARDIAGMOD
-        use Determinants, only: get_helement, get_helement_excit
+        use Determinants, only: get_helement
         USE HElem
         IMPLICIT NONE
       
@@ -166,7 +166,7 @@
          i=0
          ExcitInfo(i,0)=1.D0
          ExcitInfo(i,1)=1.D0
-         ExcitInfo(i,2) = get_helement_excit (nI, nI, 0)
+         ExcitInfo(i,2) = get_helement (nI, nI, 0)
          IF(TMCStar) THEN
 !Hii is HF energy - <D0|H|D0>, ExcitInfo(i,1) now is <Di|H|Di>-Hii. 
 !All diagonal elements are therefore positive, and increasing down the leading diagonal.
@@ -222,7 +222,7 @@
                   !RHO_JJ elements
                    IF(TMCStar) THEN
 !If we are solving star using MC, then we want the Hamiltonian matrix, rather than rho matrix elements for diagonal elements, and subtract the HF energy from them all
-                       ExcitInfo(i,0) = get_helement_excit (nJ, nJ, 0)
+                       ExcitInfo(i,0) = get_helement (nJ, nJ, 0)
                        ExcitInfo(i,0)=ExcitInfo(i,0)-Hii
                        IF(ExcitInfo(i,0).agt.MaxDiag) MaxDiag=ExcitInfo(i,0)%v
                    ELSE
@@ -238,7 +238,7 @@
 !                  ENDDO
 !765               CONTINUE
                endif
-               ExcitInfo(i,2) = get_helement (nIExcitFormat, nJ)
+               ExcitInfo(i,2) = get_helement (nIExcitFormat, nJ, iExcit)
 !               write(75,*) rh,rh/rhii
 !Now do MP2
                Hijs(1)=ExcitInfo(i,2)
@@ -521,7 +521,7 @@
 !Calculate rhi_ij and H_ij from HF to excited star root
                 CALL CalcRho2(nI,DoublePath,Beta,i_P,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,nMax,ALat,UMat,rh,nTay,iExcit2,ECore)
                 rhij=rh/rhii
-                Hij = get_helement (nI, DoublePath)
+                Hij = get_helement (nI, DoublePath, iExcit2)
                 
 !Reinitialise excitation generators
                 HFFound=.false.
@@ -2138,7 +2138,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
                   CALL CALCRHO2(LSTE(1,I),LSTE(1,I),BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT, &
                     RH,NTAY,0,ECORE)
                   LIST(NLCUR,0)=RH/RHII
-                  LIST(nLCur, 2) = get_helement (nI, LSTE(1,I))
+                  LIST(nLCur, 2) = get_helement (nI, LSTE(:,I))
 !                  CALL WRITEDET(6,LSTE(1,I),NEL,.FALSE.)
 !                  WRITE(6,*) (LIST(NLCUR,J),J=0,2)
                   NLCUR=NLCUR+1

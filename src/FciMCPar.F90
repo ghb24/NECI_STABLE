@@ -23,7 +23,7 @@ MODULE FciMCParMod
     use CalcData , only : tPrintDominant,iNoDominantDets,MaxExcDom,MinExcDom,tSpawnDominant,tMinorDetsStar,MaxNoatHF,HFPopThresh
     use CalcData , only : tCCMC,tTruncCAS,tTruncInitiator,tDelayTruncInit,IterTruncInit,NShiftEquilSteps,tWalkContGrow,tMCExcits,NoMCExcits
     use HPHFRandExcitMod , only : FindExcitBitDetSym,GenRandHPHFExcit,GenRandHPHFExcit2Scratch
-    use Determinants, only: FDet, get_helement, get_helement_excit
+    use Determinants, only: FDet, get_helement
     USE DetCalc , only : ICILevel,nDet,Det,FCIDetIndex
     use GenRandSymExcitNUMod , only : GenRandSymExcitScratchNU,GenRandSymExcitNU,ScratchSize
     use IntegralsData , only : fck,NMax,UMat,tPartFreezeCore,NPartFrozen,NHolesFrozen,tPartFreezeVirt,NVirtPartFrozen,NElVirtFrozen
@@ -569,7 +569,7 @@ MODULE FciMCParMod
                     IF(tHPHF) THEN
                         CALL HPHFGetDiagHElement(DetCurr,CurrentDets(:,j),HDiagTemp)
                     ELSE
-                        HDiagTemp = get_helement_excit (DetCurr, DetCurr, 0)
+                        HDiagTemp = get_helement (DetCurr, DetCurr, 0)
                     ENDIF
                     HDiagCurr=(REAL(HDiagTemp%v,r2))-Hii
                 ENDIF
@@ -927,7 +927,7 @@ MODULE FciMCParMod
                                     IF(tHPHF) THEN
                                         CALL HPHFGetDiagHElement(nJ,iLutnJ,HDiagTemp)
                                     ELSE
-                                        HDiagTemp = get_helement_excit (nJ, nJ, 0)
+                                        HDiagTemp = get_helement (nJ, nJ, 0)
                                     ENDIF
                                     HDiag=(REAL(HDiagTemp%v,r2))-Hii
                                 ENDIF
@@ -3485,7 +3485,7 @@ MODULE FciMCParMod
                     IF(tHPHF) THEN
                         CALL HPHFGetDiagHElement(TempnI,CurrentDets(:,j),HElemTemp)
                     ELSE
-                        HElemTemp = get_helement_excit (TempnI, TempnI, 0)
+                        HElemTemp = get_helement (TempnI, TempnI, 0)
                     ENDIF
                     CurrentH(j)=REAL(HElemTemp%v,r2)-Hii
                 ENDIF
@@ -3710,7 +3710,7 @@ MODULE FciMCParMod
                 CALL GenExcitations3(HFDet,iLutHF,nJ,exflag,ExcitMat3,tParity,tAllExcitFound)
                 IF(tAllExcitFound) EXIT
 
-                Hij = get_helement (HFDet, nJ)
+                Hij = get_helement (HFDet, nJ, 2, ExcitMat3, tParity)
                 CALL GetH0Element(nJ,NEl,Arr,nBasis,ECore,Fjj)
 !                WRITE(6,"(4I5,2G25.10)") nJ(:),real(Hij%v,r2),(Fii-(REAL(Fjj%v,r2)))
 
@@ -3749,7 +3749,7 @@ MODULE FciMCParMod
                     CALL Stop_All("InitWalkersMP1","Error - excitations other than doubles being generated in MP1 wavevector code")
                 ENDIF
 
-                Hij = get_helement (HFDet, nJ)
+                Hij = get_helement (HFDet, nJ, iExcit)
                 CALL GetH0Element(nJ,NEl,Arr,nBasis,ECore,Fjj)
 !                WRITE(6,"(8I5,2G25.10)") nJ(:),real(Hij%v,r2),(Fii-(REAL(Fjj%v,r2)))
 
@@ -3830,8 +3830,7 @@ MODULE FciMCParMod
                         CurrentSign(VecInd)=IntParts*MP1Sign(j)
                         TotParts=TotParts+IntParts
                         IF(.not.tRegenDiagHEls) THEN
-                            Hjj = get_helement_excit (MP1Dets(:,j), &
-                                                      MP1Dets(:,1), 0)
+                            Hjj = get_helement (MP1Dets(:,j), MP1Dets(:,1), 0)
                             CurrentH(VecInd)=real(Hjj%v,r2)-Hii
                         ENDIF
                     ENDIF
@@ -3891,8 +3890,7 @@ MODULE FciMCParMod
                     CALL EncodeBitDet(MP1Dets(1:NEl,i),CurrentDets(0:NIfTot,j))
                     CurrentSign(j)=MP1Sign(i)
                     IF(.not.tRegenDiagHEls) THEN
-                        Hjj = get_helement_excit (MP1Dets(:,i), &
-                                                  MP1Dets(:,i), 0)
+                        Hjj = get_helement (MP1Dets(:,i), MP1Dets(:,i), 0)
                         CurrentH(j)=real(Hjj%v,r2)-Hii
                     ENDIF
                     IF(.not.TNoAnnihil) THEN
@@ -4093,7 +4091,7 @@ MODULE FciMCParMod
         ELSE
 !Normal determinant spawn
 
-            rh = get_helement_excit (DetCurr, nJ, IC, Ex, tParity)
+            rh = get_helement (DetCurr, nJ, IC, Ex, tParity)
             !WRITE(6,*) rh%v
 
 !Divide by the probability of creating the excitation to negate the fact that we are only creating a few determinants
@@ -4244,7 +4242,7 @@ MODULE FciMCParMod
             IF(tHPHF) THEN
                 CALL HPHFGetDiagHElement(nJ,iLutnJ,rh)
             ELSE
-                rh = get_helement_excit (nJ, nJ, 0)
+                rh = get_helement (nJ, nJ, 0)
             ENDIF
             Bin=INT((real(rh%v,r2)-Hii)/BinRange)+1
             IF(Bin.gt.iNoBins) THEN
@@ -4636,7 +4634,7 @@ MODULE FciMCParMod
                 IF(IsNullDet(nJ)) EXIT
 
 !Find matrix element
-                HElemTemp = get_helement (DetCurr, nJ)
+                HElemTemp = get_helement (DetCurr, nJ, iExcit)
                 IF((abs(REAL(HElemTemp%v,r2))).gt.1.D-8) THEN
 
 !Encode this determinant
@@ -5054,7 +5052,7 @@ MODULE FciMCParMod
 
             IF(MagDet) THEN
 !Determinant is magnetic - first find what the unperturbed energy of the determinant is.
-                HDiagTemp = get_helement_excit (nJ, nJ, 0)
+                HDiagTemp = get_helement (nJ, nJ, 0)
                 HDiag=(REAL(HDiagTemp%v,r2))-Hii
                 
 !+ and + wants a +ve number to subtract
@@ -5073,13 +5071,13 @@ MODULE FciMCParMod
 
             ELSE
 !Double excitation is not magnetic, find diagonal element as normal
-                HDiagTemp = get_helement_excit (nJ, nJ, 0)
+                HDiagTemp = get_helement (nJ, nJ, 0)
                 HDiag=(REAL(HDiagTemp%v,r2))-Hii
             ENDIF
 
         ELSE
 !Give the child the same diagonal K-matrix element it would normally have.
-            HDiagTemp = get_helement_excit (nJ, nJ, 0)
+            HDiagTemp = get_helement (nJ, nJ, 0)
             HDiag=(REAL(HDiagTemp%v,r2))-Hii
         ENDIF
 
@@ -5898,8 +5896,9 @@ MODULE FciMCParMod
                 ExcitLevel = FindBitExcitLevel(GuideFuncDets(:,i), iLutHF, 2)
                 IF(ExcitLevel.eq.2) THEN
                     DoubDet(:)=0
-                    CALL DecodeBitDet(DoubDet,GuideFuncDets(0:NIfTot,i))
-                    HdoubTemp = get_helement (HFDet, DoubDet)
+                    CALL DecodeBitDet(DoubDet,GuideFuncDets(:,i))
+                    HdoubTemp = get_helement (HFDet, DoubDet, iLutHF, &
+                                              GuideFuncDets(:,i))
                     HDoub=REAL(HDoubTemp%v,r2)
                     GuideFuncDoub=GuideFuncDoub+(GuideFuncSign(i)*Hdoub)
                 ENDIF
@@ -8940,7 +8939,7 @@ MODULE FciMCParMod
         IF(tHPHF) THEN
             CALL HPHFGetDiagHElement(HFDet,iLutHF,TempHii)
         ELSE
-            TempHii = get_helement_excit (HFDet, HFDet, 0)
+            TempHii = get_helement (HFDet, HFDet, 0)
         ENDIF
         Hii=REAL(TempHii%v,r2)
         WRITE(6,*) "Reference Energy set to: ",Hii
@@ -8956,7 +8955,7 @@ MODULE FciMCParMod
                 CALL EncodeBitDet(HighEDet,iLutTemp)
                 CALL HPHFGetDiagHElement(HighEDet,iLutTemp,TempHii)
             ELSE
-                TempHii = get_helement_excit (HighEDet, HighEDet, 0)
+                TempHii = get_helement (HighEDet, HighEDet, 0)
             ENDIF
             WRITE(6,"(A,G25.15)") "Highest energy determinant is (approximately): ",TempHii%v
             WRITE(6,"(A,F25.15)") "This means tau should be no more than about ",-2.D0/TempHii%v
@@ -10136,7 +10135,7 @@ MODULE FciMCParMod
             CALL GenSymExcitIt2(HFDet,NEl,G1,nBasis,nBasisMax,.false.,ExcitGenTemp,nJ,iExcit,0,nStore,2)
             IF(IsNullDet(nJ)) EXIT
             i=i+1
-            Hij = get_helement (HFDet, nJ)
+            Hij = get_helement (HFDet, nJ, iExcit)
             CALL GetH0Element(nJ,NEl,Arr,nBasis,ECore,Fjj)
             Compt=real(Hij%v,r2)/(Fii-(REAL(Fjj%v,r2)))
             MP1Energy=MP1Energy+((real(Hij%v,r2)**2)/(Fii-(REAL(Fjj%v,r2))))
@@ -10173,7 +10172,7 @@ MODULE FciMCParMod
         WRITE(6,"(2F14.6)") 1.D0,0.D0
         do j=1,NoMagDets-1
             CALL WRITEDET(6,MagDets(:,j),NEl,.false.)
-            Kiitemp = get_helement_excit (MagDets(:,j), MagDets(:,j), 0)
+            Kiitemp = get_helement (MagDets(:,j), MagDets(:,j), 0)
             Kii=REAL(Kiitemp%v,r2)-Hii
             Hij = get_helement (MagDets(:,j), HFDet)
             WRITE(6,"(3F14.6)") TempMax(j),Kii,REAL(Hij%v,r2)
@@ -10315,7 +10314,7 @@ MODULE FciMCParMod
             IF(tHPHF) THEN
                 CALL HPHFGetOffDiagHElement(HFDet,DetCurr,iLutHF,iLutCurr,HOffDiag)
             ELSE
-                HOffDiag = get_helement (HFDet, DetCurr)
+                HOffDiag = get_helement (HFDet, DetCurr, iLutHF, iLutCurr)
             ENDIF
             IF(Iter.gt.NEquilSteps) SumENum=SumENum+(REAL(HOffDiag%v,r2)*WSign/dProbFin)
 !            AvSign=AvSign+REAL(WSign,r2)
@@ -10336,7 +10335,7 @@ MODULE FciMCParMod
             IF(tHPHF) THEN
                 CALL HPHFGetOffDiagHElement(HFDet,DetCurr,iLutHF,iLutCurr,HOffDiag)
             ELSE
-                HOffDiag = get_helement (HFDet, DetCurr)
+                HOffDiag = get_helement (HFDet, DetCurr, ilutHF, iLutCurr)
             ENDIF
             IF(Iter.gt.NEquilSteps) SumENum=SumENum+(REAL(HOffDiag%v,r2)*WSign/dProbFin)
 !            AvSign=AvSign+REAL(WSign,r2)

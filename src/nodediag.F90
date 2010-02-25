@@ -144,7 +144,7 @@
       
 !Calculate rho_ii and H_ii, and put into ExcitInfo. Again, we divide all rho elements through by rho_ii (Therefore rho_ii element=1)
       CALL CalcRho2(nI,nI,Beta,i_P,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,nMax,ALat,UMat,rhii,nTay,0,ECore)
-      ExcitInfo(0,2) = get_helement_excit (nI, nI, 0)
+      ExcitInfo(0,2) = get_helement (nI, nI, 0)
       EXCITINFO(0,0)=1.D0
       EXCITINFO(0,1)=1.D0
 
@@ -330,7 +330,7 @@
                     EXCITINFO(ExcitInfoElems,1)=EXCITINFO(ExcitInfoElems,1)+(rh/rhii)*HElement(NODERHOMAT((novirt*(j-1))+i))
 
 !H Elements dealt with in the same way
-                    Hel=get_helement(nI,nJ)
+                    Hel = get_helement(nI, nJ)
                     EXCITINFO(ExcitInfoElems,2)=EXCITINFO(ExcitInfoElems,2)+Hel*HElement(NODERHOMAT((novirt*(j-1))+i))
                 ENDDO
             ENDIF

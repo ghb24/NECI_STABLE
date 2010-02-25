@@ -287,7 +287,7 @@ C.. Go through the blocks forming the hamil matrix
             NBLK=NBLOCKSTARTS(I+2)-NBS
             DO J=0,NBLK-1
                DO K=J,NBLK-1
-                  hel = get_helement (NMRKS(1,NBS+J), NMRKS(1,NBS+K))
+                  hel = get_helement (NMRKS(:,NBS+J), NMRKS(:,NBS+K))
                   CK(J*NBLK+K+1) = hel%v
                ENDDO
             ENDDO

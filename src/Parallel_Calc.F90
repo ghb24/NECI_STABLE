@@ -35,7 +35,7 @@ subroutine ParMP2(nI)
    use Integrals, only: GetUMatEl2
    use UMatCache, only: GTID
    use OneEInts, only: GetTMatEl
-   Use Determinants, only: get_helement_excit, GetH0Element3
+   Use Determinants, only: get_helement, GetH0Element3
    use global_utilities
    use SymData, only: SymLabels
    use CPMDData, only: KPntInd
@@ -103,7 +103,7 @@ subroutine ParMP2(nI)
    dE1=GetH0Element3(nI)
 
 !  Initialize: get the contribution from the reference determinant.
-   dE0 = get_helement_excit (nI, nI, 0)
+   dE0 = get_helement (nI, nI, 0)
 
 !  Now enumerate all 2v graphs
 !  Setup the spin excit generator
@@ -134,9 +134,10 @@ subroutine ParMP2(nI)
          ! MP2 theory refers to the unperturbed excited determinant
          ! => use GetH0Element3 rather than GetHElement3.
          Excit(1,1)=2
-         call GetExcitation(nI,nJ,nEl,Excit,tSign)
+         !call GetExcitation(nI,nJ,nEl,Excit,tSign)
          dE2=GetH0Element3(nJ)
-         dU(1) = get_helement_excit (nI, nJ, IC, Excit, tSign)
+         dU(1) = get_helement(nI, nJ, IC)
+         !dU(1) = get_helement (nI, nJ, IC, Excit, tSign)
          call getMP2E(dE1,dE2,dU(1),dE)
          dETot(2)=dETot(2)+dE
 
@@ -375,7 +376,7 @@ Subroutine Par2vSum(nI)
    !=     * Doesn't work for CPMD calculations.
    USE HElem
    use SystemData, only: nEl,Beta
-   Use Determinants, only: get_helement_excit, get_helement
+   Use Determinants, only: get_helement
    IMPLICIT NONE
    Integer nI(nEl)
    integer iMinElec, iMaxElec
@@ -395,7 +396,7 @@ Subroutine Par2vSum(nI)
    Write(6,*) "Electrons ", iMinElec, " TO ", iMaxElec
 
 !  The root's energy
-   dE1 = get_helement_excit (nI, nI, 0)
+   dE1 = get_helement (nI, nI, 0)
 
 !  Initialize.  If we're the first processor then we add in the 1-vertex graph.
    if(iProcIndex.EQ.0) THEN
@@ -422,8 +423,8 @@ Subroutine Par2vSum(nI)
 !NJ(1) is zero when there are no more excitations.
    DO WHILE(NJ(1).NE.0)
       i=i+1
-      dU = get_helement (nI, nJ)
-      dE2 = get_helement_excit (nJ, nJ, 0)
+      dU = get_helement (nI, nJ, IC) ! Whilst we know IC, we don't know tSign!
+      dE2 = get_helement (nJ, nJ, 0)
       call Get2vWeightEnergy(dE1,dE2,dU,Beta,dw,dEw)
       dEwTot=dEwTot+dEw
       dwTot=dwTot+dw

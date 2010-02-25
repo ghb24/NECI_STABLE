@@ -520,10 +520,10 @@ MODULE FciMCLoggingMod
 
 ! Now find the HElement between these two determinants.        
         
-        CALL DecodeBitDet(nI,iLutCurr(0:NIfTot))
-        CALL DecodeBitDet(nJ,iLutSym(0:NIfTot))
+        CALL DecodeBitDet(nI,iLutCurr)
+        CALL DecodeBitDet(nJ,iLutSym)
 
-        CALL DecodeBitDet(nHF,iLutHF(0:NIfTot))
+        CALL DecodeBitDet(nHF,iLutHF)
 
 ! Want to replace the excited electrons in nI with the spin flipped versions.
 !        nJ(:)=nI(:)
@@ -545,14 +545,14 @@ MODULE FciMCLoggingMod
 
 
         DetsEqSpinCoup=.false.
-        DetsEqSpinCoup=DetBitEQ(iLutCurr(0:NIfTot),iLutSym(0:NIfTot),NIfDBO)
+        DetsEqSpinCoup=DetBitEQ(iLutCurr, iLutSym, NIfDBO)
 
-        HElHFI = get_helement (nHF, nI)
-        HElHFI = get_helement (nHF, nJ)
+        HElHFI = get_helement (nHF, nI, iLutHF, iLutCurr)
+        HElHFI = get_helement (nHF, nJ, iLutHF, iLutSym)
 
         IF(.not.DetsEqSpinCoup) THEN
 
-            SpinCoupHEl = get_helement (nI, nJ)
+            SpinCoupHEl = get_helement (nI, nJ, iLutCurr, iLutSym)
 
             IF((((REAL(HElHFI%v,r2)).lt.0.D0).and.((REAL(HElHFJ%v,r2)).gt.0.D0)).or.(((REAL(HElHFI%v,r2)).gt.0.D0).and.((REAL(HElHFJ%v,r2)).lt.0.D0))) THEN
 !                WRITE(6,*) '*'
@@ -655,7 +655,7 @@ MODULE FciMCLoggingMod
             IF(.not.tHF) tHF=DetBitEQ(iLutHF(0:NIfTot),iLutnK(0:NIfTot),NIfDBO)
 
             ! Calculate Hjk first (connecting element between two excitations), because if this is 0, no need to go further.
-            Hjk = get_helement (nJ, nK, IC3)
+            Hjk = get_helement (nJ, nK, iLutnJ, iLutnK, IC3)
 
             ! Histogram and add in the Hjk elements - regardless of whether or not this is 0.
             ! If the connection is not via a double or a single, the element will not be histogrammed, but it will always be 0,

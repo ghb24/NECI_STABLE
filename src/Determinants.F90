@@ -6,10 +6,16 @@ MODULE Determinants
                           NIfToT
     use IntegralsData, only: UMat, FCK, NMAX
     use csf, only: det_to_random_csf, iscsf, CSFGetHElement
-    use sltcnd_mod, only: sltcnd, sltcnd_excit, sltcnd_2
+    use sltcnd_mod, only: sltcnd, sltcnd_excit, sltcnd_2, sltcnd_compat
     use global_utilities
     use DetBitOps, only: EncodeBitDet
     implicit none
+
+    interface get_helement
+        module procedure get_helement_compat
+        module procedure get_helement_excit
+        module procedure get_helement_normal
+    end interface
 
     save
 ! Set by Calc on input
@@ -219,8 +225,41 @@ MODULE Determinants
         endif
 
     End Subroutine DetInit
+
+    function get_helement_compat (nI, nJ, IC) result (hel)
+        ! TODO: If we know IC, is it quicker to use this way
+        
+        integer, intent(in) :: nI(nel), nJ(nel)
+        integer, intent(in) :: IC
+        type(HElement) :: hel
+
+        character(*), parameter :: this_routine = 'get_helement_compat'
+        type(timer), save :: proc_timer
+
+        if (tHPHFInts) &
+            call stop_all (this_routine, "Should not be calling HPHF &
+                          &integrals from here.")
+
+        if (tCSF) then
+            if (iscsf(nI) .or. iscsf(nJ)) then
+                hel = CSFGetHelement (nI, nJ)
+                return
+            endif
+        endif
+
+        if (tStoreAsExcitations) &
+            call stop_all(this_routine, "tStoreExcitations not supported")
+
+        proc_timer%timer_name = this_routine
+        call set_timer(proc_timer, 60)
+        hel = sltcnd_compat (nI, nJ, IC)
+
+        ! Add in ECore if for a diagonal element
+        if (IC == 0) hel = hel + helement(ECore)
+        call halt_timer (proc_timer)
+    end function
     
-    type(HElement) function get_helement (nI, nJ, ICret, iLutI, iLutJ)
+    function get_helement_normal (nI, nJ, iLutI, iLutJ, ICret) result(hel)
 
         ! Get the matrix element of the hamiltonian.
         !
@@ -232,8 +271,9 @@ MODULE Determinants
         integer, intent(in) :: nI(nel), nJ(nel)
         integer, intent(in), optional :: iLutI(0:NIfTot), iLutJ(0:NIfTot)
         integer, intent(out), optional :: ICret
+        type(helement) :: hel
 
-        character(*), parameter :: this_routine = 'get_helement'
+        character(*), parameter :: this_routine = 'get_helement_normal'
         integer :: ex(2,2), IC, ilut(0:NIfTot,2)
         type(timer), save :: proc_timer
 
@@ -243,7 +283,7 @@ MODULE Determinants
 
         if (tCSF) then
             if (iscsf(nI) .or. iscsf(nJ)) then
-                get_helement = CSFGetHelement (nI, nJ)
+                hel = CSFGetHelement (nI, nJ)
                 return
             endif
         endif
@@ -256,28 +296,28 @@ MODULE Determinants
 
             ex(1,:) = nJ(4:5)
             ex(2,:) = nJ(6:7)
-            get_helement = sltcnd_2 (ex, .false.)
+            hel = sltcnd_2 (ex, .false.)
         endif
 
         ! Time the calculation.
         proc_timer%timer_name = this_routine
         call set_timer(proc_timer, 60)
         if (present(iLutJ)) then
-            get_helement = sltcnd (nI, nJ, iLutI, iLutJ, IC)
+            hel = sltcnd (nI, nJ, iLutI, iLutJ, IC)
         else
             call EncodeBitDet(nI, iLut(:,1))
             call EncodeBitDet(nJ, iLut(:,2))
-            get_helement = sltcnd (nI, nJ, iLut(:,1), iLut(:,2), IC)
+            hel = sltcnd (nI, nJ, iLut(:,1), iLut(:,2), IC)
         endif
 
         ! Add in ECore for a diagonal element
-        if (IC == 0) get_helement = get_helement + HElement(ECore)
+        if (IC == 0) hel = hel + HElement(ECore)
         call halt_timer(proc_timer)
 
         ! If requested, return IC
         if (present(ICret)) ICret = IC
 
-    end function get_helement
+    end function get_helement_normal
 
     ! TODO: pass-through of iLut?
     function get_helement_excit (NI, NJ, IC, ExcitMat, TParity) result(hel)
@@ -293,8 +333,8 @@ MODULE Determinants
         ! Ret: hel          - The H matrix element
 
         integer, intent(in) :: nI(nel), nJ(nel), IC
-        integer, intent(in), optional :: ExcitMat(2,2)
-        logical, intent(in), optional :: tParity
+        integer, intent(in) :: ExcitMat(2,2)
+        logical, intent(in) :: tParity
         type(HElement) :: hel
 
         character(*), parameter :: this_routine = 'get_helement_excit'
@@ -313,15 +353,7 @@ MODULE Determinants
                          &used if we know the number of excitations and the &
                          &excitation matrix")
 
-        if (IC /= 0 .and. .not. present(tParity)) &
-            call stop_all(this_routine, "ExcitMat and tParity must be &
-                         &provided to get_helement_excit for IC /= 0")
-
-        if (present(tParity)) then
-            hel = sltcnd_excit (nI, nJ, IC, ExcitMat, tParity)
-        else
-            hel = sltcnd_excit (nI, nJ, IC)
-        endif
+        hel = sltcnd_excit (nI, nJ, IC, ExcitMat, tParity)
 
         if (IC == 0)  hel = hel + HElement(ECore)
     end function get_helement_excit

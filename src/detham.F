@@ -77,7 +77,7 @@ C..   If determinants differ by more than 2 spin orbitals IC < 2
 C..
 !            CALL WRITEDET(6,NMRKS(1,KI),NEL,.FALSE.)
 !            CALL WRITEDET(6,NMRKS(1,KJ),NEL,.TRUE.)
-            totsum = get_helement(NMRKS(:,KI), NMRKS(:,KJ))
+            totsum = get_helement(NMRKS(:,KI), NMRKS(:,KJ),nel-ic)
 C            CALL SLTCND(NEL,NBASISMAX,NHG,
 C     &		NMRKS(1:NEL,KI),NMRKS(1:NEL,KJ),G1,IC,NMSH,
 C     &		FCK,NMAX,ALAT,UMAT,TOTSUM)
