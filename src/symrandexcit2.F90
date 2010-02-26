@@ -28,7 +28,7 @@ MODULE GenRandSymExcitNUMod
     use SystemData, only: nEl,G1, nBasis,nBasisMax,tNoSymGenRandExcits,tMerTwist
     use SystemData, only: Arr,nMax,tCycleOrbs,nOccAlpha,nOccBeta,ElecPairs,MaxABPairs
     use IntegralsData, only: UMat
-    use Determinants, only: get_helement_excit
+    use Determinants, only: get_helement
     use SymData, only: nSymLabels,TwoCycleSymGens
     use SymData, only: SymLabelList,SymLabelCounts
     use mt95 , only : genrand_real2
@@ -1913,7 +1913,7 @@ MODULE GenRandSymExcitNUMod
 
 !Once we have the definitive determinant, we also want to find out what sign the particles we want to create are.
 !iCreate is initially positive, so its sign can change depending on the sign of the connection and of the parent particle(s)
-            rh = get_helement_excit (nI, nJ, 1, ExcitMat, tParity)
+            rh = get_helement (nI, nJ, 1, ExcitMat, tParity)
 
             IF(WSign.gt.0) THEN
                 !Parent particle is positive
@@ -1953,7 +1953,7 @@ MODULE GenRandSymExcitNUMod
 
 !Once we have the definitive determinant, we also want to find out what sign the particles we want to create are.
 !iCreate is initially positive, so its sign can change depending on the sign of the connection and of the parent particle(s)
-            rh = get_helement_excit(nI, nJ, 2, ExcitMat, tParity)
+            rh = get_helement (nI, nJ, 2, ExcitMat, tParity)
 
             IF(WSign.gt.0) THEN
                 !Parent particle is positive

@@ -5773,12 +5773,15 @@ MODULE FciMCParMod
 !This routine reads in the guiding function from the GUIDINGFUNC file printed in a previous calculation.
 !It then scales the number of walkers on each determinant up so that the HF population is that specified in the input for iInitGuideParts. 
 !The result is an array of determinats and a corresponding array of populations (with sign) for the guiding function.
-        INTEGER :: i,j,ierr,CurrentGuideParts,NewGuideParts,error,ExcitLevel,DoubDet(NEl),HFPop,PartInd
+        INTEGER :: i,j,ierr,CurrentGuideParts,NewGuideParts,error,ExcitLevel, HFPop,PartInd
         CHARACTER(len=*), PARAMETER :: this_routine='InitGuidingFunction'
         TYPE(HElement) :: HDoubTemp
         REAL*8 :: Hdoub
         LOGICAL :: DetsEq,tSuccess
 
+        if (tCSF) then
+            call stop_all (this_routine, "CSFs not supported")
+        endif
 
         iGuideDets=0
         AlliInitGuideParts=0
@@ -5894,14 +5897,15 @@ MODULE FciMCParMod
             !Run through all other determinants in the guiding function.  Find out if they are doubly excited.  Find H elements, and multiply by number on that double.
             do i=1,iGuideDets
                 ExcitLevel = FindBitExcitLevel(GuideFuncDets(:,i), iLutHF, 2)
-                IF(ExcitLevel.eq.2) THEN
-                    DoubDet(:)=0
-                    CALL DecodeBitDet(DoubDet,GuideFuncDets(:,i))
-                    HdoubTemp = get_helement (HFDet, DoubDet, iLutHF, &
-                                              GuideFuncDets(:,i))
+                if (ExcitLevel == 2) then
+                    ! nb. get_helement_normal does not use nI, nJ for ic == 2.
+                    !     Therefore no need to generate guide det. This is not
+                    !     true for CSFs --> no support
+                    HdoubTemp = get_helement (HFDet, HFDet, iLutHF, &
+                                              GuideFuncDets(:,i), ExcitLevel)
                     HDoub=REAL(HDoubTemp%v,r2)
                     GuideFuncDoub=GuideFuncDoub+(GuideFuncSign(i)*Hdoub)
-                ENDIF
+                endif
             enddo
             WRITE(6,*) 'The energy of the guiding function alone is ,',GuideFuncDoub/(REAL(GuideFuncSign(GuideFuncHFIndex),r2))
             GuideFuncDoub=0.D0
@@ -10319,7 +10323,8 @@ MODULE FciMCParMod
             IF(tHPHF) THEN
                 CALL HPHFGetOffDiagHElement(HFDet,DetCurr,iLutHF,iLutCurr,HOffDiag)
             ELSE
-                HOffDiag = get_helement (HFDet, DetCurr, iLutHF, iLutCurr)
+                HOffDiag = get_helement (HFDet, DetCurr, iLutHF, iLutCurr, &
+                                         ExcitLevel)
             ENDIF
             IF(Iter.gt.NEquilSteps) SumENum=SumENum+(REAL(HOffDiag%v,r2)*WSign/dProbFin)
 !            AvSign=AvSign+REAL(WSign,r2)
@@ -10340,7 +10345,8 @@ MODULE FciMCParMod
             IF(tHPHF) THEN
                 CALL HPHFGetOffDiagHElement(HFDet,DetCurr,iLutHF,iLutCurr,HOffDiag)
             ELSE
-                HOffDiag = get_helement (HFDet, DetCurr, ilutHF, iLutCurr)
+                HOffDiag = get_helement (HFDet, DetCurr, ilutHF, iLutCurr, &
+                                         ExcitLevel)
             ENDIF
             IF(Iter.gt.NEquilSteps) SumENum=SumENum+(REAL(HOffDiag%v,r2)*WSign/dProbFin)
 !            AvSign=AvSign+REAL(WSign,r2)

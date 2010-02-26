@@ -3967,11 +3967,11 @@ MODULE AnnihilationMod
                               nBasis, nBasisMax
         use IntegralsData, only: UMat, fck
         integer :: i, j, n, ValidSpawned, InitNoDetstoRotate, NoDetstoRotate
-        integer :: CombSign, error, ex(2,2), ExcitLevel, nItmp(nel)
+        integer :: CombSign, error, ExcitLevel, nItmp(nel)
         type(HElement) :: HDoubTemp
         real*8 :: Hdoub
         logical :: tRotateSpawnedTemp, tRotateSpawned, tDetinSpawnList
-        logical :: DetsEq, tSign
+        logical :: DetsEq
 #ifdef PARALLEL
         integer :: Stat(MPI_STATUS_SIZE)
 #endif
@@ -4241,14 +4241,11 @@ MODULE AnnihilationMod
         do i=1,iGuideDets
             ExcitLevel = FindBitExcitLevel(GuideFuncDets(:,i), iLutHF, 2)
             if (ExcitLevel == 2) then
-                ex(1,1) = 2
-                call GetBitExcitation (iLutHF, GuideFuncDets(:,i), ex, tSign)
-
-                ! nb. get_helement_excit does not use nI, nJ for ic == 2.
+                ! nb. get_helement_normal does not use nI, nJ for ic == 2.
                 !     Therefore no need to generate guide det. This is not
                 !     true for CSFs (--> no rotoannhilation for CSFs).
-                HDoubTemp = get_helement (HFDet, HFDet, 2, ex, tSign)
-
+                HDoubTemp = get_helement (HFDet, HFDet, iLutHF, &
+                                          GuideFuncDets(:,i), ExcitLevel)
                 HDoub=REAL(HDoubTemp%v,r2)
                 GuideFuncDoub=GuideFuncDoub+(GuideFuncSign(i)*Hdoub)
             endif

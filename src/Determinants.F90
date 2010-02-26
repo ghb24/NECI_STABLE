@@ -260,7 +260,7 @@ MODULE Determinants
         call halt_timer (proc_timer)
     end function
     
-    function get_helement_normal (nI, nJ, iLutI, iLutJ, ICret) result(hel)
+    function get_helement_normal (nI, nJ, iLutI, iLutJ, ICext) result(hel)
 
         ! Get the matrix element of the hamiltonian.
         !
@@ -271,7 +271,7 @@ MODULE Determinants
         
         integer, intent(in) :: nI(nel), nJ(nel)
         integer, intent(in), optional :: iLutI(0:NIfTot), iLutJ(0:NIfTot)
-        integer, intent(out), optional :: ICret
+        integer, intent(inout), optional :: ICext
         type(helement) :: hel
 
         character(*), parameter :: this_routine = 'get_helement_normal'
@@ -303,6 +303,12 @@ MODULE Determinants
         ! Time the calculation.
         proc_timer%timer_name = this_routine
         call set_timer(proc_timer, 60)
+        if (present(ICext)) then
+            IC = ICext
+        else
+            IC = -1
+        endif
+
         if (present(iLutJ)) then
             hel = sltcnd (nI, nJ, iLutI, iLutJ, IC)
         else
@@ -316,7 +322,11 @@ MODULE Determinants
         call halt_timer(proc_timer)
 
         ! If requested, return IC
-        if (present(ICret)) ICret = IC
+        if (present(ICext)) then
+            if (ICext < 0) then
+                ICext = IC
+            endif
+        endif
 
     end function get_helement_normal
 
