@@ -831,8 +831,9 @@ end module
                             perm = perm + (shift - iel2 + iexcit2)
                         end if
                     end if
-
+                    if (iexcit1 == max_excit .and. iexcit2 == max_excit) exit
                 end do
+                if (iexcit1 == max_excit .and. iexcit2 == max_excit) exit
             end do
 
             ! It seems that this test is faster than btest(perm,0)!

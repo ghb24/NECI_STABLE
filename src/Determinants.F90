@@ -252,6 +252,7 @@ MODULE Determinants
 
         proc_timer%timer_name = this_routine
         call set_timer(proc_timer, 60)
+
         hel = sltcnd_compat (nI, nJ, IC)
 
         ! Add in ECore if for a diagonal element
@@ -305,9 +306,9 @@ MODULE Determinants
         if (present(iLutJ)) then
             hel = sltcnd (nI, nJ, iLutI, iLutJ, IC)
         else
-            call EncodeBitDet(nI, iLut(:,1))
-            call EncodeBitDet(nJ, iLut(:,2))
-            hel = sltcnd (nI, nJ, iLut(:,1), iLut(:,2), IC)
+            call EncodeBitDet (nI, iLut(:,1))
+            call EncodeBitdet (nJ, iLut(:,2))
+            hel = sltcnd (nI, nJ, iLut(:,1), ilut(:,2), IC)
         endif
 
         ! Add in ECore for a diagonal element

@@ -7,7 +7,7 @@ MODULE AnnihilationMod
     USE Parallel
     USE mt95 , only : genrand_real2
     USE FciMCData
-    use DetBitOps, only: DetBitEQ, DetBitLT, FindBitExcitLevel
+    use DetBitOps, only: DetBitEQ, DetBitLT, FindBitExcitLevel, decodebitdet
     use CalcData , only : tTruncInitiator
     use Determinants, only: get_helement
     IMPLICIT NONE
@@ -622,18 +622,19 @@ MODULE AnnihilationMod
                     CurrentDets(:,i)=SpawnedParts(:,i)
                     CurrentSign(i)=SpawnedSign(i)
 !We want to calculate the diagonal hamiltonian matrix element for the new particle to be merged.
-                    IF(DetBitEQ(CurrentDets(0:NIfTot,i),iLutHF,NIfDBO)) THEN
+                    if (DetBitEQ(CurrentDets(:,i), iLutHF, NIfDBO)) then
 !We know we are at HF - HDiag=0
                         HDiag=0.D0
-                    ELSE
-                        CALL DecodeBitDet(nJ,CurrentDets(0:NIfTot,i))
-                        IF(tHPHF) THEN
-                            CALL HPHFGetDiagHElement(nJ,CurrentDets(0:NIfTot,i),HDiagTemp)
-                        ELSE
+                    else
+                        call DecodeBitDet (nJ, CurrentDets(:,i))
+                        if (tHPHF) then
+                            call HPHFGetDiagHElement (nJ, CurrentDets(:,i), &
+                                                      HDiagTemp)
+                        else
                             HDiagTemp = get_helement (nJ, nJ, 0)
-                        ENDIF
+                        endif
                         HDiag=(REAL(HDiagTemp%v,8))-Hii
-                    ENDIF
+                    endif
                     CurrentH(i)=HDiag
                 enddo
             ELSE
@@ -3962,16 +3963,17 @@ MODULE AnnihilationMod
 ! The guiding function itself may be annihilated also, but does not spawn or die by itself.
 ! However, if the guiding function is completely annihilated on one processor, the spawned particles must be rotated around the other processors
 ! to check for possible annihilations there.
-        use SystemData , only : G1,nBasis,Brr,NMsh,NMax,Alat,ECore,nBasis,nBasisMax
-        use IntegralsData , only : UMat,fck
-        use DetBitOps, only: DecodeBitDet
-        INTEGER :: i,j,n,ValidSpawned,InitNoDetstoRotate,NoDetstoRotate,CombSign,error
-        INTEGER :: ExcitLevel,DoubDet(NEl)
-        TYPE(HElement) :: HDoubTemp
-        REAL*8 :: Hdoub
-        LOGICAL :: tRotateSpawnedTemp,tRotateSpawned,tDetinSpawnList,DetsEq
+        use SystemData, only: G1, nBasis, Brr, NMsh, NMax, Alat, ECore, &
+                              nBasis, nBasisMax
+        use IntegralsData, only: UMat, fck
+        integer :: i, j, n, ValidSpawned, InitNoDetstoRotate, NoDetstoRotate
+        integer :: CombSign, error, ex(2,2), ExcitLevel, nItmp(nel)
+        type(HElement) :: HDoubTemp
+        real*8 :: Hdoub
+        logical :: tRotateSpawnedTemp, tRotateSpawned, tDetinSpawnList
+        logical :: DetsEq, tSign
 #ifdef PARALLEL
-        INTEGER :: Stat(MPI_STATUS_SIZE)
+        integer :: Stat(MPI_STATUS_SIZE)
 #endif
 
 
@@ -4238,14 +4240,18 @@ MODULE AnnihilationMod
         !Run through all other determinants in the guiding function.  Find out if they are doubly excited.  Find H elements, and multiply by number on that double.
         do i=1,iGuideDets
             ExcitLevel = FindBitExcitLevel(GuideFuncDets(:,i), iLutHF, 2)
-            IF(ExcitLevel.eq.2) THEN
-                DoubDet(:)=0
-                CALL DecodeBitDet(DoubDet,GuideFuncDets(:,i))
-                HdoubTemp = get_helement (HFDet, Doubdet, iLutHF, &
-                                          GuideFuncDets(:,i))
+            if (ExcitLevel == 2) then
+                ex(1,1) = 2
+                call GetBitExcitation (iLutHF, GuideFuncDets(:,i), ex, tSign)
+
+                ! nb. get_helement_excit does not use nI, nJ for ic == 2.
+                !     Therefore no need to generate guide det. This is not
+                !     true for CSFs (--> no rotoannhilation for CSFs).
+                HDoubTemp = get_helement (HFDet, HFDet, 2, ex, tSign)
+
                 HDoub=REAL(HDoubTemp%v,r2)
                 GuideFuncDoub=GuideFuncDoub+(GuideFuncSign(i)*Hdoub)
-            ENDIF
+            endif
         enddo
 
 
