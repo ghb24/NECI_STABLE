@@ -1472,6 +1472,8 @@ END FUNCTION GetNextSpawner
 ! ProjE                        The projected energy for this cycle is returned here.
 
 SUBROUTINE CalcClusterEnergy(tFCI,Amplitude,nExcit,ExcitList,ExcitLevelIndex,ProjE)
+   use Parallel, only: iProcIndex
+   use FciMCData, only: root
    use CCMCData
    use SystemData, only: nEl,nIfTot
    use FciMCData, only: HFDet
@@ -1504,7 +1506,7 @@ SUBROUTINE CalcClusterEnergy(tFCI,Amplitude,nExcit,ExcitList,ExcitLevelIndex,Pro
       if(Amplitude(j).lt.0) i=-1
       dAmp=abs(Amplitude(j))/Amplitude(1)
       if(dAmp.ne.0.d0) then
-         call SumEContrib(DetCurr,iC,i,ExcitList(:,j),dTmp,1/dAmp)
+         if (iProcIndex.eq.root) call SumEContrib(DetCurr,iC,i,ExcitList(:,j),dTmp,1/dAmp)
 ! Deal with T_1^2
          if(iC.eq.1.and..not.tFCI) then
             do l=j+1,ExcitLevelIndex(2)-1
@@ -1518,7 +1520,7 @@ SUBROUTINE CalcClusterEnergy(tFCI,Amplitude,nExcit,ExcitList,ExcitLevelIndex,Pro
                   dAmp=dAmp/(Amplitude(1)**2)
                   dT1Sq=dT1Sq+(Real(Htmp%v,r2)*iSgn)*dAmp
 !                  dAmp=dAmp*2  !DEBUG
-                  call SumEContrib(DetCurr,2,iSgn,iLutnI(:),dTmp,1/dAmp)
+                  if (iProcIndex.eq.root) call SumEContrib(DetCurr,2,iSgn,iLutnI(:),dTmp,1/dAmp)
                endif
             enddo
          endif
@@ -1604,6 +1606,8 @@ END SUBROUTINE
    SUBROUTINE CCMCStandalone(Weight,Energyxw)
       Use global_utilities
       use SystemData, only: nEl,nIfD,nIfTot
+      use Parallel, only: iProcIndex
+      use FciMCData, only: root
       use CCMCData, only: tCCMCFCI,dInitAmplitude,dProbSelNewExcitor,tExactCluster,tExactSpawn,nSpawnings,tSpawnProp,tCCBuffer
       use CCMCData, only: ClustSelector,Spawner,CCTransitionLog
       use DetCalc, only: Det       ! The number of Dets/Excitors in FCIDets
@@ -1756,7 +1760,11 @@ END SUBROUTINE
       if(lLogTransitions) call InitTransitionLog(TL,nAmpl,nEl,.not.tCCMCLogUniq)
 
       iShiftLeft=StepsSft-1  !So the first one comes at StepsSft
-      WalkerScale=100000/dInitAmplitude
+      if(iProcIndex.eq.root) then
+         WalkerScale=100000/dInitAmplitude
+      else
+         WalkerScale=0
+      endif
       TotWalkers=WalkerScale*dTotAbsAmpl
       TotParts=WalkerScale*dTotAbsAmpl
       TotWalkersOld=WalkerScale*dTotAbsAmpl
@@ -1877,7 +1885,11 @@ END SUBROUTINE
 !         TotParts=dPsiTotAbsAmpl*WalkerScale
          dTotExcitors=(dTotAbsAmpl+abs(Amplitude(1,iCurAmpList)))
          TotParts=dTotExcitors*WalkerScale
-         TotWalkers=TotParts
+         if(iProcIndex.eq.root) then 
+            TotWalkers=TotParts 
+         else
+            TotWalkers=0
+         endif
 
 
 
