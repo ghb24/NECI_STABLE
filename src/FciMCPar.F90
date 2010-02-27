@@ -41,6 +41,7 @@ MODULE FciMCParMod
     use DetBitops, only: EncodeBitDet, DecodeBitDet, DetBitEQ, DetBitLT
     use DetBitOps, only: FindExcitBitDet, FindBitExcitLevel
     use csf, only: get_csf_bit_yama, iscsf, csf_orbital_mask
+    use hphf_integrals, only: hphf_diag_helement, hphf_off_diag_helement
     IMPLICIT NONE
     integer, parameter :: dp = selected_real_kind(15,307)
     SAVE
@@ -566,11 +567,12 @@ MODULE FciMCParMod
 !We know we are at HF - HDiag=0
                     HDiagCurr=0.D0
                 ELSE
-                    IF(tHPHF) THEN
-                        CALL HPHFGetDiagHElement(DetCurr,CurrentDets(:,j),HDiagTemp)
-                    ELSE
+                    if (tHPHF) then
+                        HDiagtemp = hphf_diag_helement (DetCurr, &
+                                                        CurrentDets(:,j))
+                    else
                         HDiagTemp = get_helement (DetCurr, DetCurr, 0)
-                    ENDIF
+                    endif
                     HDiagCurr=(REAL(HDiagTemp%v,r2))-Hii
                 ENDIF
             ELSE
@@ -924,11 +926,12 @@ MODULE FciMCParMod
 !                                        ENDIF
 
                                 ELSE
-                                    IF(tHPHF) THEN
-                                        CALL HPHFGetDiagHElement(nJ,iLutnJ,HDiagTemp)
-                                    ELSE
+                                    if (tHPHF) then
+                                        HDiagTemp = hphf_diag_helement (nJ, &
+                                                                       iLutnJ)
+                                    else
                                         HDiagTemp = get_helement (nJ, nJ, 0)
-                                    ENDIF
+                                    endif
                                     HDiag=(REAL(HDiagTemp%v,r2))-Hii
                                 ENDIF
                             ENDIF
@@ -3482,11 +3485,12 @@ MODULE FciMCParMod
                 ENDIF
             ELSE
                 IF(.not.tRegenDiagHEls) THEN
-                    IF(tHPHF) THEN
-                        CALL HPHFGetDiagHElement(TempnI,CurrentDets(:,j),HElemTemp)
-                    ELSE
+                    if (tHPHF) then
+                        HElemTemp = hphf_diag_helement (TempnI, &
+                                                        CurrentDets(:,j))
+                    else
                         HElemTemp = get_helement (TempnI, TempnI, 0)
-                    ENDIF
+                    endif
                     CurrentH(j)=REAL(HElemTemp%v,r2)-Hii
                 ENDIF
 
@@ -4081,7 +4085,7 @@ MODULE FciMCParMod
             ELSE
 !The IC given doesn't really matter. It just needs to know whether it is a diagonal or off-diagonal matrix element.
 !However, the excitation generator can generate the same HPHF again. If this is done, the routine will send the matrix element back as zero.
-                CALL HPHFGetOffDiagHElement(DetCurr,nJ,iLutCurr,iLutnJ,rh)
+                rh = hphf_off_diag_helement (DetCurr, nJ, iLutCurr, iLutnJ)
 !Divide by the probability of creating the excitation to negate the fact that we are only creating a few determinants
                 rat=Tau*abs(rh%v)*REAL(nParts,r2)/Prob
 !                WRITE(6,*) Prob/rh%v, DetCurr(:),"***",nJ(:)
@@ -4240,7 +4244,7 @@ MODULE FciMCParMod
             ENDIF
 
             IF(tHPHF) THEN
-                CALL HPHFGetDiagHElement(nJ,iLutnJ,rh)
+                rh = hphf_diag_helement (nJ, iLutnJ)
             ELSE
                 rh = get_helement (nJ, nJ, 0)
             ENDIF
@@ -8941,7 +8945,7 @@ MODULE FciMCParMod
 
 !Calculate Hii
         IF(tHPHF) THEN
-            CALL HPHFGetDiagHElement(HFDet,iLutHF,TempHii)
+            TempHii = hphf_diag_helement (HFDet, iLutHF)
         ELSE
             TempHii = get_helement (HFDet, HFDet, 0)
         ENDIF
@@ -8956,8 +8960,8 @@ MODULE FciMCParMod
                 HighEDet(i)=Brr(nBasis-(i-1))
             enddo
             IF(tHPHF) THEN
-                CALL EncodeBitDet(HighEDet,iLutTemp)
-                CALL HPHFGetDiagHElement(HighEDet,iLutTemp,TempHii)
+                call EncodeBitDet (HighEDet, iLutTemp)
+                TempHii = hphf_diag_helement (HighEDet, iLutTemp)
             ELSE
                 TempHii = get_helement (HighEDet, HighEDet, 0)
             ENDIF
@@ -10321,7 +10325,8 @@ MODULE FciMCParMod
             NoatDoubs=NoatDoubs+abs(WSign)
 !At double excit - find and sum in energy
             IF(tHPHF) THEN
-                CALL HPHFGetOffDiagHElement(HFDet,DetCurr,iLutHF,iLutCurr,HOffDiag)
+                HOffDiag = hphf_off_diag_helement (HFDet, DetCurr, iLutHF, &
+                                                   iLutCurr)
             ELSE
                 HOffDiag = get_helement (HFDet, DetCurr, iLutHF, iLutCurr, &
                                          ExcitLevel)
@@ -10343,7 +10348,8 @@ MODULE FciMCParMod
 !For Rotated orbitals, brillouins theorem also cannot hold, and energy contributions from walkers on singly excited determinants must
 !be included in the energy values along with the doubles.
             IF(tHPHF) THEN
-                CALL HPHFGetOffDiagHElement(HFDet,DetCurr,iLutHF,iLutCurr,HOffDiag)
+                HOffDiag = hphf_off_diag_helement (HFDet, DetCurr, iLutHF, &
+                                                   iLutCurr)
             ELSE
                 HOffDiag = get_helement (HFDet, DetCurr, ilutHF, iLutCurr, &
                                          ExcitLevel)

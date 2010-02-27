@@ -20,6 +20,7 @@
         USE SystemData , only : NEl,tHPHF,NIfTot,NIfDBO
         USE Determinants , only : get_helement
         use DetBitOps, only: DecodeBitDet, DetBitEQ
+        use hphf_integrals, only: hphf_diag_helement, hphf_off_diag_helement
         USE HElem
         IMPLICIT NONE
 !        INTEGER :: list1(0:NIfTot,nlist1max),list2(0:NIfTot,1:nlist2)
@@ -78,11 +79,11 @@
 !               ENDIF
            ELSE
                CALL DecodeBitDet(nJ,list2(:,i))
-               IF(tHPHF) THEN
-                   CALL HPHFGetDiagHElement(nJ,list2(:,i),HDiagTemp)
-               ELSE
+               if (tHPHF) then
+                   HDiagTemp = hphf_diag_helement (nJ, list2(:,i))
+               else
                    HDiagTemp = get_helement (nJ, nJ, 0)
-               ENDIF
+               endif
                HDiag=(REAL(HDiagTemp%v,8))-Hii
            ENDIF
            CurrentH(ips+i-1)=HDiag
@@ -113,6 +114,7 @@
         USE IntegralsData , only : fck,NMax,UMat
         USE HElem
         use DetBitOps, only: DecodeBitDet
+        use hphf_integrals, only: hphf_diag_helement, hphf_off_diag_helement
         IMPLICIT NONE
         INTEGER :: list2(0:NIfTot,1:nlist2),list3(0:NIfTot,1:nlist2)
         INTEGER :: nlisto,nlist1,nlist2,nlo,i,DetCurr(0:NIfTot),DetCurr2(0:NIfTot) 
@@ -164,20 +166,21 @@
 
 ! Want to calculate the diagonal and off diagonal H elements of the particle to be merged.           
                CALL DecodeBitDet(nJ,list2(:,i))
-               IF(tHPHF) THEN
-                   CALL HPHFGetDiagHElement(nJ,list2(:,i),HDiagTemp)
-               ELSE
+               if (tHPHF) then
+                   HDiagTemp = hphf_diag_helement (nJ, list2(:,i))
+               else
                    HDiagTemp = get_helement (nJ, nJ, 0)
-               ENDIF
+               endif
                HDiag=(REAL(HDiagTemp%v,8))-Hii
                MinorStarHii(ips+i-1)=HDiag
 
                CALL DecodeBitDet(nK,list3(:,i))
-               IF(tHPHF) THEN
-                   CALL HPHFGetOffDiagHElement(nJ,nK,list2(:,i),list3(:,i),HOffDiagTemp)
-               ELSE
+               if (tHPHF) then
+                   HOffDiagTemp = hphf_off_diag_helement (nJ, nK, list2(:,i),&
+                                                          list3(:,i))
+               else
                    HOffDiagTemp = get_helement(nJ, nK, list2(:,i), list3(:,i))
-               ENDIF
+               endif
                HOffDiag=(REAL(HOffDiagTemp%v,8))
                MinorStarHij(ips+i-1)=HOffDiag
 
@@ -195,20 +198,21 @@
                 MinorStarParent(:,j)=list3(:,j)
 
                 CALL DecodeBitDet(nJ,list2(:,j))
-                IF(tHPHF) THEN
-                    CALL HPHFGetDiagHElement(nJ,list2(:,j),HDiagTemp)
-                ELSE
+                if (tHPHF) then
+                    HDiagTemp = hphf_diag_helement (nJ, list2(:,j))
+                else
                     HDiagTemp = get_helement (nJ, nJ, 0)
-                ENDIF
+                endif
                 HDiag=(REAL(HDiagTemp%v,8))-Hii
                 MinorStarHii(j)=HDiag
 
                 CALL DecodeBitDet(nK,list3(:,j))
-                IF(tHPHF) THEN
-                    CALL HPHFGetOffDiagHElement(nJ,nK,list2(:,j),list3(:,j),HOffDiagTemp)
-                ELSE
+                if (tHPHF) then
+                    HOffDiagTemp = hphf_off_diag_helement (nJ, nJ,list2(:,j),&
+                                                           list3(:,j))
+                else
                     HOffDiagTemp = get_helement(nJ, nK, list2(:,j),list3(:,j))
-                ENDIF
+                endif
                 HOffDiag=(REAL(HOffDiagTemp%v,8))
                 MinorStarHij(j)=HOffDiag
             enddo

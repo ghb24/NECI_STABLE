@@ -10,6 +10,7 @@ MODULE AnnihilationMod
     use DetBitOps, only: DetBitEQ, DetBitLT, FindBitExcitLevel, decodebitdet
     use CalcData , only : tTruncInitiator
     use Determinants, only: get_helement
+    use hphf_integrals, only: hphf_diag_helement, hphf_off_diag_helement
     IMPLICIT NONE
 
     contains
@@ -628,8 +629,8 @@ MODULE AnnihilationMod
                     else
                         call DecodeBitDet (nJ, CurrentDets(:,i))
                         if (tHPHF) then
-                            call HPHFGetDiagHElement (nJ, CurrentDets(:,i), &
-                                                      HDiagTemp)
+                            HDiagTemp = hphf_diag_helement (nJ, &
+                                                            CurrentDets(:,i))
                         else
                             HDiagTemp = get_helement (nJ, nJ, 0)
                         endif
