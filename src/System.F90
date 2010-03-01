@@ -77,6 +77,7 @@ MODULE System
       BHUB = -1
       TREAL = .false.
       tUEGTrueEnergies = .false.
+      tUEGSpecifyMomentum = .false.
       tUEGOffset = .false.
       TTILT = .false.
       TALPHA = .false.
@@ -388,6 +389,11 @@ MODULE System
             call getf(k_offset(3))
         case("UEG-SCALED-ENERGIES")
             tUEGTrueEnergies=.true.
+        case("UEG-MOMENTUM")
+            tUEGSpecifyMomentum=.true.
+            call geti(k_momentum(1))
+            call geti(k_momentum(2))
+            call geti(k_momentum(3))
         case("TILT")
             TTILT = .true.
             call geti(ITILTX)

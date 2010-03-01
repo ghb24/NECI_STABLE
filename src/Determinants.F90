@@ -31,7 +31,7 @@ MODULE Determinants
     contains
     Subroutine DetPreFreezeInit()
         Use global_utilities
-        use SystemData, only : nEl, ECore, Arr, Brr, G1, nBasis, LMS, nBasisMax,tFixLz
+        use SystemData, only : nEl, ECore, Arr, Brr, G1, nBasis, LMS, nBasisMax,tFixLz, tUEGSpecifyMomentum
         integer ierr
         integer i,Lz
         type(BasisFn) s
@@ -46,6 +46,10 @@ MODULE Determinants
             enddo
         ELSE
              CALL GENFDET(BRR,G1,NBASIS,LMS,NEL,FDET)
+             IF(tUEGSpecifyMomentum) THEN
+                WRITE(6,*) 'Defining FDet according to a momentum input'
+                CALL ModifyMomentum(FDET)
+            ENDIF
         ENDIF
 !      ENDIF
       WRITE(6,"(A)",advance='no') "Fermi det (D0):"
@@ -745,3 +749,126 @@ END MODULE Determinants
          IF(LTERM) WRITE(NUNIT,*)
          RETURN
       END
+
+! This takes a the ground state FDet generated for the UEG and changes its total momentum
+! According to input options
+      subroutine ModifyMomentum(FDet)
+        use SystemData, only : nEl,G1,k_momentum,nBasis,tUEG
+        implicit none
+        integer :: i,j ! Loop variables
+        integer, intent(inout) :: FDet(NEl)
+        integer :: k_total(3) ! Stores the total momentum of FDet
+        integer :: delta_k(3) ! Stores the difference between the current FDet and the FDet we're aiming for
+        integer, allocatable :: kPointToBasisFn(:,:,:,:) ! Look up table for kPoints to basis functions
+        integer :: kmaxX,kminX,kmaxY,kminY,kmaxZ,kminZ,iSpinIndex ! Stores the limits of kPointToBasisFn
+        integer :: det_sorted(NEl), e_store ! Storage for the sorting routine
+        logical :: sorted ! As above
+        integer :: wrapped_index
+        integer :: k_old, k_new
+
+        IF(.not.tUEG) call stop_all("ModifyMomentum", "Only works for UEG")
+
+        ! Finds current momentum, and finds the difference between this and the target momentum
+        ! most commonly will be zero to start with
+        k_total(1)=0
+        k_total(2)=0
+        k_total(3)=0
+        do j=1,NEl
+            k_total(1)=k_total(1)+G1(FDet(j))%k(1)
+            k_total(2)=k_total(2)+G1(FDet(j))%k(2)
+            k_total(3)=k_total(3)+G1(FDet(j))%k(3)
+        enddo
+        delta_k=k_momentum-k_total
+
+        if (delta_k(1).eq.0.and.delta_k(2).eq.0.and.delta_k(3).eq.0) write(6,*) "WARNING: specified momentum is ground state"
+
+        ! Creates a look-up table for k-points (this was taken from symrandexcit2.F90)
+        kmaxX=0
+        kminX=0
+        kmaxY=0
+        kminY=0
+        kminZ=0
+        kmaxZ=0
+        do i=1,nBasis 
+            IF(G1(i)%k(1).gt.kmaxX) kmaxX=G1(i)%k(1)
+            IF(G1(i)%k(1).lt.kminX) kminX=G1(i)%k(1)
+            IF(G1(i)%k(2).gt.kmaxY) kmaxY=G1(i)%k(2)
+            IF(G1(i)%k(2).lt.kminY) kminY=G1(i)%k(2)
+            IF(G1(i)%k(3).gt.kmaxZ) kmaxZ=G1(i)%k(3)
+            IF(G1(i)%k(3).lt.kminZ) kminZ=G1(i)%k(3)
+        enddo
+        allocate(kPointToBasisFn(kminX:kmaxX,kminY:kmaxY,kminZ:kmaxZ,2))
+        do i=1,nBasis
+            iSpinIndex=(G1(i)%Ms+1)/2+1 ! iSpinIndex equals 1 for a beta spin (ms=-1), and 2 for an alpha spin (ms=1)
+            kPointToBasisFn(G1(i)%k(1),G1(i)%k(2),G1(i)%k(3),iSpinIndex)=i
+        enddo
+
+        ! For each of the three dimensions, nudge electrons one at a time by one momentum unit until delta_k is reached
+        det_sorted=FDet
+
+        ! Bubble sort to order det_sorted in order of kx of the corresponding electron
+        do 
+            sorted=.true.
+            do i=1,NEl-1
+                j=i+1
+                if (G1(det_sorted(j))%k(1).gt.G1(det_sorted(i))%k(1)) then
+                    sorted=.false.
+                    e_store=det_sorted(i)
+                    det_sorted(i)=det_sorted(j)
+                    det_sorted(j)=e_store
+                endif
+            enddo
+            if (sorted) exit
+        enddo
+
+        ! Nudge momenta one at a time
+        if (delta_k(1).gt.0) then
+            do i=1,delta_k(1)
+                wrapped_index=mod(i,NEl)        ! Take the modulus to know which electron to nudge
+                if (wrapped_index.eq.0) then    ! Deal with the i=NEl case
+                    wrapped_index=NEl
+                endif
+                j=wrapped_index                 ! For convenience asign this to j
+                k_new=G1(det_sorted(j))%k(1)+1  ! Find the new momentum of this electron
+                if (k_new.gt.kmaxX) then        ! Check that this momentum isn't outside the cell
+                    call stop_all("ModifyMomentum", "Electron moved outside of the cell limits")
+                endif
+                iSpinIndex=(G1(j)%Ms+1)/2+1     ! Spin of the new orbital is the same as the old
+                det_sorted(j)=kPointToBasisFn(k_new,G1(det_sorted(j))%k(2),G1(det_sorted(j))%k(3),iSpinIndex) ! Finds basis number for the new momentum
+            enddo
+        else if (delta_k(1).lt.0) then ! For the negative case, i must run through negative numbers
+            do i=-1,delta_k(1),-1
+                wrapped_index=mod(i,NEl)
+                if (wrapped_index.eq.0) then
+                    wrapped_index=-NEl
+                endif
+                j=NEl+wrapped_index+1 ! Now this goes through the list backward (wrapped_index is negative)
+                k_new=G1(det_sorted(j))%k(1)-1 ! Find the new momentum of this electron, this time in the opposite direction
+                if (k_new.lt.kminX) then ! Check the limits of the cell again
+                    call stop_all("ModifyMomentum", "Electron moved outside of the cell limits")
+                endif
+                iSpinIndex=(G1(j)%Ms+1)/2+1 ! Spin of the new orbital is the same as the old
+                det_sorted(j)=kPointToBasisFn(k_new,G1(det_sorted(j))%k(2),G1(det_sorted(j))%k(3),iSpinIndex) ! Finds basis number for the new momentum
+            enddo
+        endif
+
+        FDet=det_sorted
+        
+        ! Bubble sort to order FDet back into increasing order by number
+        do 
+            sorted=.true.
+            do i=1,NEl-1
+                j=i+1
+                if (FDet(j).lt.FDet(i)) then
+                    sorted=.false.
+                    e_store=FDet(i)
+                    FDet(i)=FDet(j)
+                    FDet(j)=e_store
+                endif
+            enddo
+            if (sorted) exit
+        enddo
+
+        write(6,*) "Total momentum set to", k_momentum
+
+      end subroutine ModifyMomentum

@@ -17,11 +17,13 @@ LOGICAL :: tNonUniRandExcits,tNoSymGenRandExcits,tRotateOrbs,tLagrange,tShake,tS
 LOGICAL :: tNoFailAb, tLatticeGens ! These are now permanent inputs for UEG - use of new excitation generators just for UEG
 LOGICAL :: tUEGTrueEnergies ! This is the logical for use of unscaled energies in the UEG calculation; will normally break spawning
 LOGICAL :: tUEGOffset ! This is the logical for twisted boundary conditions
+LOGICAL :: tUEGSpecifyMomentum ! UEG parameter to allow specification of total momentum
 INTEGER :: LMS,STOT,IPARITY(5),NMAXX,NMAXY,NMAXZ,NMSH,COULDAMPORB,ElecPairs,ROIterMax,iRanLuxLev,DiagMaxMinFac,OneElMaxMinFac
 INTEGER :: ISTATE,NEL,ITILTX,ITILTY,nOccAlpha,nOccBeta,ShakeIterMax,ShakeStart,MaxMinFac,MaxABPairs
 REAL*8 :: BOX,BOA,COA,FUEGRS,fRc,FCOUL,OrbECutoff,UHUB,BHUB,DiagWeight,OffDiagWeight,OrbEnMaxAlpha
 REAL*8 :: ALPHA,FCOULDAMPBETA,FCOULDAMPMU,TimeStep,ConvergedForce,ShakeConverged,UMatEps,OneElWeight
 REAL*8 :: k_offset(3) ! UEG parameter for twist-averaging 
+INTEGER :: k_momentum(3) ! UEG parameter for total momentum
 
 LOGICAL :: tListDets    !Means that a list of allowed determinants in FciMC will be read in an particles are only allowed here.
 
