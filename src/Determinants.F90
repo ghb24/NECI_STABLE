@@ -854,6 +854,102 @@ END MODULE Determinants
 
         FDet=det_sorted
         
+        !====ky treated as kx above
+        do 
+            sorted=.true.
+            do i=1,NEl-1
+                j=i+1
+                if (G1(det_sorted(j))%k(2).gt.G1(det_sorted(i))%k(2)) then
+                    sorted=.false.
+                    e_store=det_sorted(i)
+                    det_sorted(i)=det_sorted(j)
+                    det_sorted(j)=e_store
+                endif
+            enddo
+            if (sorted) exit
+        enddo
+
+        ! Nudge momenta one at a time
+        if (delta_k(2).gt.0) then
+            do i=1,delta_k(2)
+                wrapped_index=mod(i,NEl)        ! Take the modulus to know which electron to nudge
+                if (wrapped_index.eq.0) then    ! Deal with the i=NEl case
+                    wrapped_index=NEl
+                endif
+                j=wrapped_index                 ! For convenience asign this to j
+                k_new=G1(det_sorted(j))%k(2)+1  ! Find the new momentum of this electron
+                if (k_new.gt.kmaxY) then        ! Check that this momentum isn't outside the cell
+                    call stop_all("ModifyMomentum", "Electron moved outside of the cell limits")
+                endif
+                iSpinIndex=(G1(j)%Ms+1)/2+1     ! Spin of the new orbital is the same as the old
+                det_sorted(j)=kPointToBasisFn(G1(det_sorted(j))%k(1),k_new,G1(det_sorted(j))%k(3),iSpinIndex) ! Finds basis number for the new momentum
+            enddo
+        else if (delta_k(2).lt.0) then ! For the negative case, i must run through negative numbers
+            do i=-1,delta_k(2),-1
+                wrapped_index=mod(i,NEl)
+                if (wrapped_index.eq.0) then
+                    wrapped_index=-NEl
+                endif
+                j=NEl+wrapped_index+1 ! Now this goes through the list backward (wrapped_index is negative)
+                k_new=G1(det_sorted(j))%k(2)-1 ! Find the new momentum of this electron, this time in the opposite direction
+                if (k_new.lt.kminY) then ! Check the limits of the cell again
+                    call stop_all("ModifyMomentum", "Electron moved outside of the cell limits")
+                endif
+                iSpinIndex=(G1(j)%Ms+1)/2+1 ! Spin of the new orbital is the same as the old
+                det_sorted(j)=kPointToBasisFn(G1(det_sorted(j))%k(1),k_new,G1(det_sorted(j))%k(3),iSpinIndex) ! Finds basis number for the new momentum
+            enddo
+        endif
+
+        FDet=det_sorted
+        
+        !====kz treated as kx and ky above
+        do 
+            sorted=.true.
+            do i=1,NEl-1
+                j=i+1
+                if (G1(det_sorted(j))%k(3).gt.G1(det_sorted(i))%k(3)) then
+                    sorted=.false.
+                    e_store=det_sorted(i)
+                    det_sorted(i)=det_sorted(j)
+                    det_sorted(j)=e_store
+                endif
+            enddo
+            if (sorted) exit
+        enddo
+
+        ! Nudge momenta one at a time
+        if (delta_k(3).gt.0) then
+            do i=1,delta_k(3)
+                wrapped_index=mod(i,NEl)        ! Take the modulus to know which electron to nudge
+                if (wrapped_index.eq.0) then    ! Deal with the i=NEl case
+                    wrapped_index=NEl
+                endif
+                j=wrapped_index                 ! For convenience asign this to j
+                k_new=G1(det_sorted(j))%k(3)+1  ! Find the new momentum of this electron
+                if (k_new.gt.kmaxZ) then        ! Check that this momentum isn't outside the cell
+                    call stop_all("ModifyMomentum", "Electron moved outside of the cell limits")
+                endif
+                iSpinIndex=(G1(j)%Ms+1)/2+1     ! Spin of the new orbital is the same as the old
+                det_sorted(j)=kPointToBasisFn(G1(det_sorted(j))%k(1),G1(det_sorted(j))%k(2),k_new,iSpinIndex) ! Finds basis number for the new momentum
+            enddo
+        else if (delta_k(3).lt.0) then ! For the negative case, i must run through negative numbers
+            do i=-1,delta_k(3),-1
+                wrapped_index=mod(i,NEl)
+                if (wrapped_index.eq.0) then
+                    wrapped_index=-NEl
+                endif
+                j=NEl+wrapped_index+1 ! Now this goes through the list backward (wrapped_index is negative)
+                k_new=G1(det_sorted(j))%k(3)-1 ! Find the new momentum of this electron, this time in the opposite direction
+                if (k_new.lt.kminZ) then ! Check the limits of the cell again
+                    call stop_all("ModifyMomentum", "Electron moved outside of the cell limits")
+                endif
+                iSpinIndex=(G1(j)%Ms+1)/2+1 ! Spin of the new orbital is the same as the old
+                det_sorted(j)=kPointToBasisFn(G1(det_sorted(j))%k(1),G1(det_sorted(j))%k(2),k_new,iSpinIndex) ! Finds basis number for the new momentum
+            enddo
+        endif
+
+        FDet=det_sorted
+        
         ! Bubble sort to order FDet back into increasing order by number
         do 
             sorted=.true.
