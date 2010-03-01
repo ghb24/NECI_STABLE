@@ -262,7 +262,7 @@ C.. Now iterate over K, going along row I
             IRJ=IRJ+1
          ENDDO
          IF((ILAB.EQ.LAB(IRJ)).AND.(IRJ.LE.INJ)) 
-     &		SUM=SUM+HAMIL(IRI)*HAMIL(IRJ)
+     &     SUM=SUM+HAMIL(IRI)*HAMIL(IRJ)
          IRI=IRI+1
       ENDDO
       RHO2ORDER=SUM
@@ -608,7 +608,7 @@ C.. Now iterate over K, going along row I
 C.. we must reject diag elements
          IF((ILAB.EQ.LAB(IRJ)).AND.(IRJ.LE.INJ).AND.
      &      (ILAB.NE.I).AND.(LAB(IRJ).NE.J)) 
-     &		SUM=SUM+HAMIL(IRI)*HAMIL(IRJ)
+     &      SUM=SUM+HAMIL(IRI)*HAMIL(IRJ)
          IRI=IRI+1
       ENDDO
       RHO2ORDERND=SUM

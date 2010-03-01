@@ -50,6 +50,9 @@ MODULE HElem
       interface DCONJG
          module procedure HElemDConjg
       end interface
+      interface sum
+          module procedure HElemSum
+      end interface
       interface DREAL
          module procedure HElemDReal
       end interface
@@ -130,15 +133,19 @@ MODULE HElem
          HElemAdd%v=h1%v+h2%v
          RETURN
       END FUNCTION
-      TYPE(HElement) FUNCTION HElemDConjg(h)
-         TYPE(HElement) h
+      pure type(HElement) function HElemDConjg(h)
+         type(HElement), intent(in) ::  h
 #ifdef __CMPLX
-         HElemDConjg%v=DCONJG(h%v)
+         HElemDConjg%v=dconjg(h%v)
 #else
          HElemDConjg%v=h%v
 #endif
          RETURN
       END FUNCTION
+      pure type(helement) function HElemSum(h)
+        type(helement), intent(in), dimension(:) :: h
+        HElemSum%v = sum(h%v)
+      end function
       TYPE(HElement) FUNCTION HElemSub(h1,h2)
          TYPE(HElement), intent(in) :: h1,h2
          HElemSub%v=h1%v-h2%v

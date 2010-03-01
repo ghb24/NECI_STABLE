@@ -4,7 +4,7 @@ implicit none
 
 save
 
-LOGICAL :: TSTAR,TTROT,TMCExcitSpace,TGrowInitGraph
+LOGICAL :: TSTAR,TTROT,TMCExcits,TGrowInitGraph
 LOGICAL :: TNEWEXCITATIONS,TVARCALC(0:10),TBIN,TVVDISALLOW
 LOGICAL :: TMCDIRECTSUM,TMPTHEORY,TMODMPTHEORY,TUPOWER,tMP2Standalone
 LOGICAL :: EXCITFUNCS(10),TNPDERIV,TMONTE,TMCDET
@@ -27,7 +27,7 @@ LOGICAL :: tTruncCAS,tTruncInitiator,tDelayTruncInit,tKeepDoubleSpawns,tAddtoIni
 LOGICAL :: tInitIncDoubs,tWalkContGrow
 
 INTEGER :: NWHTAY(3,10),NPATHS,NoMoveDets,NoMCExcits,IterTruncInit,InitiatorWalkNo,NShiftEquilSteps
-INTEGER :: NDETWORK,I_HMAX,I_VMAX,G_VMC_SEED,HApp,iFullSpaceIter,MaxNoatHF
+INTEGER :: NDETWORK,I_HMAX,I_VMAX,G_VMC_SEED,HApp,iFullSpaceIter,MaxNoatHF,HFPopThresh
 INTEGER :: IMCSTEPS,IEQSTEPS,MDK(5),Iters,NDets,iDetGroup
 INTEGER :: CUR_VERT,NHISTBOXES,I_P,LinePoints,iMaxExcitLevel
 INTEGER :: InitWalkers,NMCyc,StepsSft,FlipTauCyc,CLMax,MaxExcDom,MinExcDom

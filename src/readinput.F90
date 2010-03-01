@@ -275,7 +275,7 @@ MODULE ReadInput
 !     ILOGGING = 0771
       IF(I_VMAX.EQ.0.AND.NPATHS.NE.0)                                   &
      &   STOP 'NPATHS!=0 and I_VMAX=0.  VERTEX SUM max level not set'
-      WRITE (6,"(A,Z4)") 'ILOGGING after input routine', ILOGGING
+!      WRITE (6,"(A,Z4)") 'ILOGGING after input routine', ILOGGING
 
       !Ensure beta is set.
       if (beta.lt.1.d-6.and..not.tMP2Standalone) call report("No beta value provided.",.true.)

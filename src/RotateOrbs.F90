@@ -9,7 +9,7 @@ MODULE RotateOrbsMod
     USE SystemData , only : G1,ARR,NEl,nBasis,LMS,ECore,tSeparateOccVirt,Brr,nBasisMax,OrbOrder,lNoSymmetry,tRotatedOrbs,tERLocalization,tRotateOccOnly
     USE SystemData, only : tOffDiagMin,DiagWeight,OffDiagWeight,tRotateVirtOnly,tOffDiagSqrdMax,tOffDiagSqrdMin,tOffDiagMax,tDoubExcMin,tOneElIntMax,tOnePartOrbEnMax
     USE SystemData, only : tShakeDelay,ShakeStart,tVirtCoulombMax,tVirtExchangeMin,MaxMinFac,tMaxHLGap,tHijSqrdMin,OneElWeight,DiagMaxMinFac,OneElMaxMinFac
-    USE SystemData, only : tDiagonalizehij,tHFSingDoubExcMax,tSpinOrbs,tReadInCoeff,tUseMP2VarDenMat,tStoreSpinOrbs,tROHF,tFindCINatOrbs,tUseHFOrbs,tUEG
+    USE SystemData, only : tDiagonalizehij,tHFSingDoubExcMax,tSpinOrbs,tReadInCoeff,tUseMP2VarDenMat,tStoreSpinOrbs,tROHF,tFindCINatOrbs,tUseHFOrbs,tUEG,tNoRODump
     USE Logging , only : tROHistogramAll,tROFciDump,tROHistER,tROHistOffDiag,tROHistDoubExc,tROHistSingExc,tROHistOnePartOrbEn,tROHistOneElInts,tROHistVirtCoulomb
     USE Logging , only : tPrintInts,tTruncRODump,NoTruncOrbs,NoDumpTruncs,tTruncDumpbyVal,TruncEvalues,tWriteTransMat
     USE OneEInts , only : TMAT2D
@@ -370,33 +370,34 @@ MODULE RotateOrbsMod
 
             ENDIF
 
-            ALLOCATE(FourIndInts(NoOrbs,NoOrbs,NoOrbs,NoOrbs),stat=ierr)
-            CALL LogMemAlloc('FourIndInts',(NoOrbs**4),8,this_routine,FourIndIntsTag,ierr)
+            IF(.not.tNoRODump) THEN
+                ALLOCATE(FourIndInts(NoOrbs,NoOrbs,NoOrbs,NoOrbs),stat=ierr)
+                CALL LogMemAlloc('FourIndInts',(NoOrbs**4),8,this_routine,FourIndIntsTag,ierr)
 
-    ! Then, transform2ElInts
-            WRITE(6,*) 'Transforming the four index integrals'
-            CALL Transform2ElIntsMemSave()
+! Then, transform2ElInts
+                WRITE(6,*) 'Transforming the four index integrals'
+                CALL Transform2ElIntsMemSave()
 
-            WRITE(6,*) 'Re-calculating the fock matrix'
-            CALL CalcFOCKMatrix()
+                WRITE(6,*) 'Re-calculating the fock matrix'
+                CALL CalcFOCKMatrix()
 
-            WRITE(6,*) 'Refilling the UMAT and TMAT2D'
-    ! The ROFCIDUMP is also printed out in here.        
-            CALL RefillUMATandTMAT2D()        
+                WRITE(6,*) 'Refilling the UMAT and TMAT2D'
+! The ROFCIDUMP is also printed out in here.        
+                CALL RefillUMATandTMAT2D()        
 
-            CALL FLUSH(6)
+                CALL FLUSH(6)
 
 
-            IF((tFindCINatOrbs.or.tUseMP2VarDenMat).and.(NoDumpTruncs.gt.1)) CALL ReTruncROFciDump()
+                IF((tFindCINatOrbs.or.tUseMP2VarDenMat).and.(NoDumpTruncs.gt.1)) CALL ReTruncROFciDump()
 
-            IF((.not.tUseHFOrbs).and.(.not.tReadInCoeff)) CALL DeallocateNatOrbs()
+                IF((.not.tUseHFOrbs).and.(.not.tReadInCoeff)) CALL DeallocateNatOrbs()
+            ENDIF
 
-            
             IF(tWriteTransMat) CALL WriteTransformMat()
 
      
-    ! If a truncation is being made, the new basis will not be in the correct energetic ordering - this does not matter, as we
-    ! never go straight into a spawning and they will be reordered when the ROFCIDUMP file is read in again. 
+! If a truncation is being made, the new basis will not be in the correct energetic ordering - this does not matter, as we
+! never go straight into a spawning and they will be reordered when the ROFCIDUMP file is read in again. 
             CALL WRITEBASIS(6,G1,nBasis,ARR,BRR)
 
             DEALLOCATE(CoeffT1)
@@ -405,8 +406,10 @@ MODULE RotateOrbsMod
             CALL LogMemDeAlloc(this_routine,SymLabelList2Tag)
             DEALLOCATE(SymLabelListInv)
             CALL LogMemDeAlloc(this_routine,SymLabelListInvTag)
-            DEALLOCATE(FourIndInts)
-            CALL LogMemDeAlloc(this_routine,FourIndIntsTag)
+            IF(.not.tNoRODump) THEN
+                DEALLOCATE(FourIndInts)
+                CALL LogMemDeAlloc(this_routine,FourIndIntsTag)
+            ENDIF
         ENDIF
 
 !        DEALLOCATE(UMATTemp01)
@@ -512,16 +515,18 @@ MODULE RotateOrbsMod
 !   - CoeffT1(NoOrbs,NoRotOrbs) 
 !   - FourIndInts(NoRotOrbs,NoRotOrbs,NoOrbs,NoOrbs)
 !   - Temp4indints(NoRotOrbs,NoOrbs)
-        MemAllocRot=MemAllocRot+(NoOrbs*NoRotOrbs*8*2)
-        MemAllocRot=MemAllocRot+((NoRotOrbs**2)*(NoOrbs**2)*8)
+        IF(.not.tNoRODump) THEN
+            MemAllocRot=MemAllocRot+(NoOrbs*NoRotOrbs*8*2)
+            MemAllocRot=MemAllocRot+((NoRotOrbs**2)*(NoOrbs**2)*8)
 
 ! Transform fock
 !   - ArrNew(NoOrbs) - reduce this?
-        MemAllocRot=MemAllocRot+(NoOrbs*8)
+            MemAllocRot=MemAllocRot+(NoOrbs*8)
 
 ! RefillTMAT2D
 !   - TMAT2D(nBasis,nBasis) 
-        MemAllocRot=MemAllocRot+((nBasis**2)*8)
+            MemAllocRot=MemAllocRot+((nBasis**2)*8)
+        ENDIF
 
         WRITE(6,'(A72,F20.10,A15)') "Rough estimate of the memory required for the orbital transformation = ",REAL(MemAllocRot,8)/1048576.D0," Mb/Processor"
 

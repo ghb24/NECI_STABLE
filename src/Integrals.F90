@@ -444,7 +444,7 @@ MODULE Integrals
          NBASISMAX(2,3)=0   !This is generally iSpinSkp, but stupidly, needs to be .le.0 to indicate that we want to look up the integral.
          WRITE(6,*) ' ECORE=',ECORE
       ELSEIF(TREADINT.AND.TSTARSTORE) THEN
-         WRITE(6,*) ' *** READING DOUBLES 2-VERTEX INTEGRALS FROM FCIDUMP *** '
+         WRITE(6,'(A)') '*** READING DOUBLES 2-VERTEX INTEGRALS FROM FCIDUMP ***'
          NBASISMAX(2,3)=2
          !NBASIS/nBasis is number of spin-orbitals
          CALL GENSymStatePairs(nBasis/2,.false.)
@@ -466,7 +466,7 @@ MODULE Integrals
          WRITE(6,*) ' ECORE=',ECORE
          ISPINSKIP=2
       ELSEIF(TREADINT) THEN
-         WRITE(6,*) ' *** READING PRIMITIVE INTEGRALS FROM FCIDUMP *** '
+         WRITE(6,'(A)') '*** READING PRIMITIVE INTEGRALS FROM FCIDUMP ***'
 !.. Generate the 2e integrals (UMAT)
          ISPINSKIP=NBasisMax(2,3)
          IF(ISPINSKIP.le.0) STOP 'NBASISMAX(2,3) ISpinSkip unset'
@@ -474,7 +474,7 @@ MODULE Integrals
          CALL GetUMatSize(nBasis,nEl,iSpinSkip,UMATINT)
          WRITE(6,*) "UMatSize: ",UMATINT
          UMatMem=REAL(UMatInt,8)*REAL(HElementSizeB,8)*(9.536743164D-7)
-         WRITE(6,"(A,G20.10,A)") "UMatMemory: ",UMatMem, " Mb/Processor"
+         WRITE(6,"(A,G20.10,A)") " UMatMemory: ",UMatMem, " Mb/Processor"
          Allocate(UMat(UMatInt), stat=ierr)
          LogAlloc(ierr, 'UMat', UMatInt,HElementSizeB, tagUMat)
          UMat=HElement(0.d0)
@@ -485,7 +485,7 @@ MODULE Integrals
          ELSE
             CALL READFCIINT(UMAT,NBASIS,ECORE,ARR,BRR,G1,.false.)
          ENDIF
-         WRITE(6,*) ' ECORE=',ECORE
+         WRITE(6,*) 'ECORE=',ECORE
       ELSE
          ISPINSKIP=NBASISMAX(2,3)
          IF(NBASISMAX(1,3).GE.0) THEN
@@ -589,10 +589,10 @@ MODULE Integrals
 !          do j=1,nBasis
 !              do k=1,nBasis
 !                  do l=1,nBasis
-!                     CALL GTID(NBASISMAX,i,IDi)
-!                     CALL GTID(NBASISMAX,j,IDj)
-!                     CALL GTID(NBASISMAX,k,IDk)
-!                     CALL GTID(NBASISMAX,l,IDl)
+!                     IDi = GTID(i)
+!                     IDj = GTID(j)
+!                     IDk = GTID(k)
+!                     IDl = GTID(l)
 !                     Index1=UMatInd(idi,idj,idk,idl,0,0)
 !                     WRITE(37,"(9I5,G25.10)") i,j,k,l,idi,idj,idk,idl,Index1,DREAL(GetUMatEl(NBasisMax,UMAT,ALAT,nBasis,ISpinSkip,G1,idi,idj,idk,idl))
 !                 enddo
@@ -612,6 +612,7 @@ MODULE Integrals
       use HElem, only: HElement,HElementSize,HElementSizeB
       use SymData , only : TwoCycleSymGens
       use CalcData , only : tTruncInitiator,tDelayTruncInit
+      use FciMCData , only : tDebug
       use global_utilities
       character(25), parameter ::this_routine='IntFreeze'            
 !//Locals
@@ -639,6 +640,7 @@ MODULE Integrals
                                                     & The code is only set up to deal with freezing from the inside for molecular &
                                                     & systems with only 8 symmetry irreps.")
       IF(NFROZEN.GT.0.OR.NTFROZEN.GT.0.OR.NFROZENIN.GT.0.OR.NTFROZENIN.GT.0) THEN
+          WRITE(6,'(A)') '-------- FREEZING ORBITALS ----------'
 !!C.. At this point, we transform the UMAT and TMAT into a new UMAT and
 !!C.. TMAT and Ecore with the frozen orbitals factored in
 !!C..
@@ -663,16 +665,17 @@ MODULE Integrals
          ENDIF 
          CALL N_MEMORY_CHECK()
 
+         WRITE(6,*) "Freezing ",NFROZEN," core orbitals."
+         WRITE(6,*) "Freezing ",NTFROZEN," virtual orbitals."
+         IF(NFROZENIN.ne.0) WRITE(6,*) "Freezing ",NFROZENIN," of the highest energy occupied (inner) orbitals."
+         IF(NTFROZENIN.ne.0) WRITE(6,*) "Freezing ",NTFROZENIN," of the lowest energy virtual (inner) orbitals."
+ 
 !At the end of IntFREEZEBASIS, NHG is reset to nBasis - the final number of active orbitals.
          CALL IntFREEZEBASIS(NHG,NBASIS,UMAT,UMAT2,ECORE, G1,NBASISMAX,ISPINSKIP,BRR,NFROZEN,NTFROZEN,NFROZENIN,NTFROZENIN,NEL,ALAT)
          CALL FLUSH(6)
          CALL N_MEMORY_CHECK()
-         WRITE(6,*) "Freezing ",NFROZEN," core orbitals."
-         WRITE(6,*) "Freezing ",NTFROZEN," virtual orbitals."
-         WRITE(6,*) "Freezing ",NFROZENIN," of the highest energy occupied (inner) orbitals."
-         WRITE(6,*) "Freezing ",NTFROZENIN," of the lowest energy virtual (inner) orbitals."
          WRITE(6,*) "ECORE now",ECORE
-         WRITE(6,*) NBASIS," orbitals remain."
+         WRITE(6,*) "Number of orbitals remaining: ",NBASIS
          NEL=NEL-NFROZEN-NFROZENIN
          NOCC=NEL/2
 !!C.. NEL now only includes active electrons
@@ -690,7 +693,7 @@ MODULE Integrals
          tagUMat=tagUMat2
          tagUMat2=0
          CALL N_MEMORY_CHECK()
-         WRITE(6,*) "Active basis functions:",NHG
+!         WRITE(6,*) "Active basis functions:",NHG
          CALL WRITEBASIS(6,G1,NHG,ARR,BRR)
       ENDIF
 !      CALL WRITETMAT(NBASIS)
@@ -720,7 +723,7 @@ MODULE Integrals
       endif
       NIfTot = NIfTot + NIfP
 
-      WRITE(6,*) "Setting integer length of determinants as bit-strings to: ",NIfD+NIfY+NIfP+1
+      IF(tDebug) WRITE(6,*) "Setting integer length of determinants as bit-strings to: ",NIfD+NIfY+NIfP+1
          
       IF(COULDAMPORB.GT.0) THEN
          FCOULDAMPMU=(ARR(COULDAMPORB,1)+ARR(COULDAMPORB+1,1))/2
@@ -934,8 +937,8 @@ MODULE Integrals
           ! Ecore' = Ecore + sum a<b (<ab|ab> - <ab|ba>)
           DO B=A+1,NFROZEN
              BB=BRR(B)
-             CALL GTID(NBASISMAX,AB,IDA)
-             CALL GTID(NBASISMAX,BB,IDB)
+             IDA = GTID(AB)
+             IDB = GTID(BB)
 !C.. No sign problems from permuations here as all perms even
              ECORE=ECORE+DREAL(GETUMATEL(NBASISMAX,UMAT,ALAT,NHG,ISS,G1,IDA,IDB,IDA,IDB))
 !C.. If we have spin-independent integrals, or 
@@ -947,8 +950,8 @@ MODULE Integrals
 !The sum over b runs over all frozen orbitals > a, so the inner frozen orbitals too.          
           DO B=NEL-NFROZENIN+1,NEL
              BB=BRR(B)
-             CALL GTID(NBASISMAX,AB,IDA)
-             CALL GTID(NBASISMAX,BB,IDB)
+             IDA = GTID(AB)
+             IDB = GTID(BB)
 !C.. No sign problems from permuations here as all perms even
              ECORE=ECORE+DREAL(GETUMATEL(NBASISMAX,UMAT,ALAT,NHG,ISS,G1,IDA,IDB,IDA,IDB))
 !C.. If we have spin-independent integrals, or 
@@ -965,8 +968,8 @@ MODULE Integrals
           ECORE=ECORE+DREAL(GetTMATEl(AB,AB))
           DO B=A+1,NEL
              BB=BRR(B)
-             CALL GTID(NBASISMAX,AB,IDA)
-             CALL GTID(NBASISMAX,BB,IDB)
+             IDA = GTID(AB)
+             IDB = GTID(BB)
 !C.. No sign problems from permuations here as all perms even
              ECORE=ECORE+DREAL(GETUMATEL(NBASISMAX,UMAT,ALAT,NHG,ISS,G1,IDA,IDB,IDA,IDB))
 !C.. If we have spin-independent integrals, or 
@@ -998,7 +1001,7 @@ MODULE Integrals
               IP=I+FROZENBELOWW
               IB=BRR(IP)
               IPB=GG(IB)
-              CALL GTID(NBASISMAX,IB,IDI)
+              IDI = GTID(IB)
 
 !I and J give the indexes of the TMAT.  This bit accounts for the off-diagonal terms which must be copied accross.          
               DO Y=1,2
@@ -1016,7 +1019,7 @@ MODULE Integrals
                     JP=J+FROZENBELOWY
                     JB=BRR(JP)
                     JPB=GG(JB)
-                    CALL GTID(NBASISMAX,JB,IDJ)
+                    IDJ = GTID(JB)
                     IF(TSTARSTORE.or.tCPMDSymTMat) THEN
                        TMATSYM2(NEWTMATInd(IPB,JPB))=GetTMATEl(IB,JB)
                     ELSE
@@ -1029,7 +1032,7 @@ MODULE Integrals
                     ENDIF
                     DO A=1,NFROZEN
                        AB=BRR(A)
-                       CALL GTID(NBASISMAX,AB,IDA)
+                       IDA = GTID(AB)
 !C.. SGN takes into account permutationnness.
 !C                SGN=1
 !C                IF(IB.GT.AB) SGN=-SGN
@@ -1058,7 +1061,7 @@ MODULE Integrals
                     ENDDO
                     DO A=NEL-NFROZENIN+1,NEL
                        AB=BRR(A)
-                       CALL GTID(NBASISMAX,AB,IDA)
+                       IDA = GTID(AB)
 !C.. SGN takes into account permutationnness.
 !C                SGN=1
 !C                IF(IB.GT.AB) SGN=-SGN
@@ -1112,8 +1115,8 @@ MODULE Integrals
                  IB=BRR(I+FROZENBELOWW)
                  IPB=GG(IB)
                  IF(ISS.NE.0.OR.G1(I)%MS.EQ.1) THEN
-                    CALL GTID(NBASISMAX,IB,IDI)
-                    CALL GTID(NBASISMAX,IPB,IDIP)
+                    IDI = GTID(IB)
+                    IDIP = GTID(IPB)
                     DO X=1,2
                       IF(X.eq.1) THEN
                          BLOCKMINX=1 
@@ -1128,8 +1131,8 @@ MODULE Integrals
                           JB=BRR(J+FROZENBELOWX)
                           JPB=GG(JB)
                           IF(ISS.NE.0.OR.G1(I)%MS.EQ.1) THEN
-                             CALL GTID(NBASISMAX,JB,IDJ)
-                             CALL GTID(NBASISMAX,JPB,IDJP)
+                             IDJ = GTID(JB)
+                             IDJP = GTID(JPB)
                              DO Y=1,2
                                  IF(Y.eq.1) THEN
                                     BLOCKMINY=1 
@@ -1144,8 +1147,8 @@ MODULE Integrals
                                     KB=BRR(K+FROZENBELOWY)
                                     KPB=GG(KB)
                                     IF(ISS.NE.0.OR.G1(I)%MS.EQ.1) THEN
-                                       CALL GTID(NBASISMAX,KB,IDK)
-                                       CALL GTID(NBASISMAX,KPB,IDKP)
+                                       IDK = GTID(KB)
+                                       IDKP = GTID(KPB)
                                        DO Z=1,2
                                          IF(Z.eq.1) THEN
                                             BLOCKMINZ=1 
@@ -1161,8 +1164,8 @@ MODULE Integrals
                                                  LB=BRR(L+FROZENBELOWZ)
                                                  LPB=GG(LB)
                                                  IF(ISS.NE.0.OR.G1(I)%MS.EQ.1) THEN
-                                                    CALL GTID(NBASISMAX,LB,IDL)
-                                                    CALL GTID(NBASISMAX,LPB,IDLP)
+                                                    IDL = GTID(LB)
+                                                    IDLP = GTID(LPB)
                                                     IF(TSTARSTORE) THEN
                                                        IF(.NOT.TUMAT2D) STOP 'UMAT2D should be on'
                                                        IF((IDI.eq.IDJ.and.IDI.eq.IDK.and.IDI.eq.IDL).or.    &
@@ -1297,7 +1300,7 @@ MODULE Integrals
       complex*16 vasp_int(1,0:1)
       INTEGER A,B,C,XXX
       INTEGER IDI,IDJ,IDK,IDL
-      REAL*8 SUM
+      REAL*8 tot
 !      real*8, PARAMETER :: PI=3.14159265358979323846264338327950288419716939937510D0
       INTEGER ICACHE,ICACHEI,ITYPE
       LOGICAL LSYMSYM
@@ -1500,7 +1503,7 @@ MODULE Integrals
       ELSEIF(NBASISMAX(1,3).EQ.-1) THEN
          CALL GetUEGUmatEl(IDI,IDJ,IDK,IDL,ISS,G1,ALAT,iPeriodicDampingType,GetUMatEl)
       ENDIF
-!      WRITE(6,*) GetUMatEl,IDI,IDJ,IDK,IDL
+      ! WRITE(6,*) 'GetUmatEl', GetUMatEl,IDI,IDJ,IDK,IDL
 
       RETURN
     END FUNCTION GetUMatEl
@@ -1550,7 +1553,7 @@ SUBROUTINE CALCTMATUEG(NBASIS,ALAT,G1,CST,TPERIODIC,OMEGA)
   REAL*8 ALAT(4),HFBASIS(NBASIS,NBASIS),CST,K_REAL(3)
   INTEGER I,J
   INTEGER iSIZE
-  REAL*8 SUM,S1,OMEGA
+  REAL*8 tot,S1,OMEGA
   LOGICAL TPERIODIC
   REAL*8, PARAMETER :: PI=3.1415926535897932384626433832795029D0
   IF(TPERIODIC) WRITE(6,*) "Periodic UEG"

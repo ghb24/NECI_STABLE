@@ -1,7 +1,7 @@
       SUBROUTINE GEN_XCHOLE(CIJKL,PSIR,IOBS,JOBS,KOBS,G1,SITAB,
-     &	NMAX,NMSH,
-     &	NHG,IXD,IYD,IZD,RHO,TCOMPLETE,XCHOLE,SPAC,ALAT,OMEGA,
-     &	NMRKS,NDET,NEVAL,NEL)
+     &    NMAX,NMSH,
+     &    NHG,IXD,IYD,IZD,RHO,TCOMPLETE,XCHOLE,SPAC,ALAT,OMEGA,
+     &    NMRKS,NDET,NEVAL,NEL)
       use global_utilities
       IMPLICIT REAL*8 (A-H,O-Z)
 C..
@@ -38,11 +38,11 @@ C..Evaluates second-order spinless density matrix
         IF(ABS(CFXCS(KI)).LT.EPS) GOTO 300
         DO KJ=KI,NDET
           IF(ABS(CFXCS(KJ)).LT.EPS) GOTO 500
-	  ICC=2
+          ICC=2
           IF(KI.EQ.KJ) ICC=1
 C..IC is the number of pairs which are the *SAME* in both determinants
-	  IC=0
-	  DO I=1,NEL
+          IC=0
+          DO I=1,NEL
             DO J=1,NEL
               IF(NMRKS(I,KJ).EQ.NMRKS(J,KI)) IC=IC+1
             ENDDO
@@ -57,14 +57,14 @@ C..
 C..          
           DO IZ=1,NMSH
             DO IY=1,NMSH
-	      DO IX=1,NMSH
+              DO IX=1,NMSH
                 XCHOLE(IX,IY,IZ)=XCHOLE(IX,IY,IZ)+CF*AUXC(IX,IY,IZ)
               ENDDO
             ENDDO
           ENDDO
-500	  CONTINUE
+500   CONTINUE
         ENDDO
-300	CONTINUE
+300   CONTINUE
       ENDDO
 C..Evaluates exchange-correlation hole
       CST=1.D0/(OMEGA*OMEGA)
@@ -78,44 +78,44 @@ C..This is an integral over the second order density matrix
               CHKRHO=CHKRHO+2.D0*XCHOLE(IX,IY,IZ) 
 C..This is the EXCHANGE-CORRELATION hole n_xc(r,r')
               XCHOLE(IX,IY,IZ)=
-     &	      2.D0*XCHOLE(IX,IY,IZ)/RHO(IOBS,JOBS,KOBS)-RHO(IX,IY,IZ)
+     &          2.D0*XCHOLE(IX,IY,IZ)/RHO(IOBS,JOBS,KOBS)-RHO(IX,IY,IZ)
             ENDDO
           ENDDO
         ENDDO
 C..Integral of exchange-correlation hole
         SUM=0.D0
         DO IZ=1,NMSH
-	  DO IY=1,NMSH
-	    DO IX=1,NMSH
-	      SUM=SUM+XCHOLE(IX,IY,IZ)
-	    ENDDO
-	  ENDDO
-	ENDDO
-	SUM=SUM*OMEGA/DFLOAT(NMSH*NMSH*NMSH)
+          DO IY=1,NMSH
+            DO IX=1,NMSH
+              SUM=SUM+XCHOLE(IX,IY,IZ)
+        ENDDO
+          ENDDO
+        ENDDO
+        SUM=SUM*OMEGA/DFLOAT(NMSH*NMSH*NMSH)
         CHKRHO=CHKRHO*OMEGA/DFLOAT(NMSH*NMSH*NMSH)
         WRITE(6,'(A,F19.6)') ' RHO AT OBS. POINT : '
-     &		,DFLOAT(NEL-1)*RHO(IOBS,JOBS,KOBS)
+     &     ,DFLOAT(NEL-1)*RHO(IOBS,JOBS,KOBS)
         WRITE(6,'(A,F19.6)')  
-     &		' INTEGRAL OVER 2ND ORDER DENSITY MATRIX : ' 
-     &		 ,CHKRHO 
+     &      ' INTEGRAL OVER 2ND ORDER DENSITY MATRIX : ' 
+     &       ,CHKRHO 
         WRITE(6,'(A,F19.6)') ' INTEGRAL OVER XC HOLE : ' , SUM
         WRITE(6,'(A,F19.6)') ' ERROR IN XCHOLE (PERCENT) : ' 
-     &	  	,(-1.D0-SUM)*100.D0
+     &          ,(-1.D0-SUM)*100.D0
       ELSE
         XSPACING=ALAT(1)/NMSH*IXD
-	YSPACING=ALAT(2)/NMSH*IYD
-	ZSPACING=ALAT(3)/NMSH*IZD
-	SPAC=SQRT(XSPACING**2+YSPACING**2+ZSPACING**2)
+        YSPACING=ALAT(2)/NMSH*IYD
+        ZSPACING=ALAT(3)/NMSH*IZD
+        SPAC=SQRT(XSPACING**2+YSPACING**2+ZSPACING**2)
         DO IL=-NMSH,NMSH
-	  IX=IOBS+IL*IXD
-	  IY=JOBS+IL*IYD
-	  IZ=KOBS+IL*IZD
+          IX=IOBS+IL*IXD
+          IY=JOBS+IL*IYD
+          IZ=KOBS+IL*IZD
           IF(IX.LE.0.OR.IX.GT.NMSH.OR.IY.LE.0.OR.IY.GT.NMSH.OR.
-     &		IZ.LE.0.OR.IZ.GT.NMSH) THEN
+     &        IZ.LE.0.OR.IZ.GT.NMSH) THEN
             PSIR(IL)=0.D0
-	  ELSE
-	    PSIR(IL)=2.D0*XCHOLE(IX,IY,IZ)/RHO(IOBS,JOBS,KOBS)
-     &		-RHO(IX,IY,IZ)
+          ELSE
+            PSIR(IL)=2.D0*XCHOLE(IX,IY,IZ)/RHO(IOBS,JOBS,KOBS)
+     &        -RHO(IX,IY,IZ)
           ENDIF
         ENDDO
       ENDIF
@@ -123,7 +123,7 @@ C..Integral of exchange-correlation hole
       END
 C ==-------------------------------------------------------------------==
       SUBROUTINE RLSXC(NEL,NMSH,NDET,SITAB,NMAX,I,J,K,
-     &	NDET1,NDET2,G1,NHG,IC,AUXC)
+     &    NDET1,NDET2,G1,NHG,IC,AUXC)
       IMPLICIT REAL*8 (A-H,O-Z)
       DIMENSION NDET1(NEL),NDET2(NEL),AUXC(NMSH,NMSH,NMSH)
       INTEGER G1(5,NHG)
@@ -137,15 +137,15 @@ C..
       IF(IC.EQ.(NEL-2)) THEN
 C..Determinants differ by two spin orbitals
         CALL RLSXC2_SC(NEL,NMSH,NMAX,SITAB,I,J,K,
-     &		NDET,NDET1,NDET2,G1,NHG,AUXC)
+     &        NDET,NDET1,NDET2,G1,NHG,AUXC)
       ELSEIF(IC.EQ.(NEL-1)) THEN
 C..Determinants differ by three spin orbitals
         CALL RLSXC1_SC(NEL,NMSH,NMAX,SITAB,I,J,K,
-     &		NDET,NDET1,NDET2,G1,NHG,AUXC)
+     &        NDET,NDET1,NDET2,G1,NHG,AUXC)
       ELSEIF(IC.EQ.NEL) THEN
 C..Determinants are the same
         CALL RLSXC_SC(NEL,NMSH,NMAX,SITAB,I,J,K,
-     &		NDET,NDET1,G1,NHG,AUXC)
+     &        NDET,NDET1,G1,NHG,AUXC)
       ELSE
         RETURN
       ENDIF

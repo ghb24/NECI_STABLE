@@ -6,7 +6,7 @@ SUBROUTINE HPHFGetOffDiagHElement(nI,nJ,iLutnI,iLutnJ,MatEl)
     use SystemData, only : ECore,ALat,NMSH
     use IntegralsData, only : UMat,FCK,NMAX
     use HPHFRandExcitMod , only : FindDetSpinSym,FindExcitBitDetSym
-    use DetBitOps, only: DetBitEQ, FindExcitBitDet
+    use DetBitOps, only: DetBitEQ, FindExcitBitDet, FindBitExcitLevel
     IMPLICIT NONE
     INTEGER :: iLutnI(0:NIfTot),iLutnJ(0:NIfTot),nI(NEl),nI2(NEl),nJ(NEl),nJ2(NEl),iLutnI2(0:NIfTot),iLutnJ2(0:NIfTot)
     INTEGER :: ExcitLevel,OpenOrbsI,OpenOrbsJ,Ex(2,2)
@@ -28,7 +28,7 @@ SUBROUTINE HPHFGetOffDiagHElement(nI,nJ,iLutnI,iLutnJ,MatEl)
 !Closed Shell -> Closed Shell. Both alpha and beta of the same orbital have been moved to the same new orbital. The matrix element is the same as before.
 !            WRITE(6,*) "Closed Shell -> Closed Shell"
 !            CALL FLUSH(6)
-            CALL FindBitExcitLevel(iLutnI,iLutnJ,ExcitLevel,2)
+            ExcitLevel = FindBitExcitLevel(iLutnI, iLutnJ, 2)
             IF(ExcitLevel.le.2) THEN
                 Ex(1,1)=ExcitLevel
                 CALL GetBitExcitation(iLutnI,iLutnJ,Ex,tSign)
@@ -45,7 +45,7 @@ SUBROUTINE HPHFGetOffDiagHElement(nI,nJ,iLutnI,iLutnJ,MatEl)
 !            WRITE(6,*) "Closed Shell -> Open Shell"
 !            CALL FLUSH(6)
 !First, find <nI|H|nJ>
-            CALL FindBitExcitLevel(iLutnI,iLutnJ,ExcitLevel,2)
+            ExcitLevel = FindBitExcitLevel(iLutnI, iLutnJ, 2)
             IF(ExcitLevel.le.2) THEN
                 Ex(1,1)=ExcitLevel
                 CALL GetBitExcitation(iLutnI,iLutnJ,Ex,tSign)
@@ -64,7 +64,7 @@ SUBROUTINE HPHFGetOffDiagHElement(nI,nJ,iLutnI,iLutnJ,MatEl)
 !            CALL FindExcitBitDetSym(iLutnJ,iLutnJ2)
 !
 !!First, find <nI|H|nJ>
-!            CALL FindBitExcitLevel(iLutnI,iLutnJ,ExcitLevel,2)
+!            ExcitLevel = FindBitExcitLevel(iLutnI, iLutnJ, 2)
 !            IF(ExcitLevel.le.2) THEN
 !                IF(ExcitLevel.le.0) CALL Stop_All("HPHFGetOffDiagHElement","Determinants are a forbidden excitation level apart8")
 !                MatEl2=HElement(0.D0)
@@ -73,7 +73,7 @@ SUBROUTINE HPHFGetOffDiagHElement(nI,nJ,iLutnI,iLutnJ,MatEl)
 !                WRITE(6,*) 1,MatEl2%v,ExcitLevel
 !            ENDIF
 !!Now, find <nI|H|nJ2>
-!            CALL FindBitExcitLevel(iLutnI,iLutnJ2,ExcitLevel,2)
+!            ExcitLevel = FindBitExcitLevel(iLutnI, iLutnJ2, 2)
 !            IF(ExcitLevel.le.2) THEN
 !                IF(ExcitLevel.le.0) CALL Stop_All("HPHFGetOffDiagHElement","Determinants are a forbidden excitation level apart7")
 !                MatEl2=HElement(0.D0)
@@ -97,7 +97,7 @@ SUBROUTINE HPHFGetOffDiagHElement(nI,nJ,iLutnI,iLutnJ,MatEl)
 !            CALL FLUSH(6)
 !            WRITE(6,*) "***"
 !OpenShell -> Closed Shell. I am pretty sure that if one of the determinants is connected, then the other is connected with the same IC (+matrix element?) Test this later.
-            CALL FindBitExcitLevel(iLutnI,iLutnJ,ExcitLevel,2)
+            ExcitLevel = FindBitExcitLevel(iLutnI, iLutnJ, 2)
             IF(ExcitLevel.le.2) THEN
 !                IF(ExcitLevel.le.0) CALL Stop_All("HPHFGetOffDiagHElement","Determinants are a forbidden excitation level apart6")
                 Ex(1,1)=ExcitLevel
@@ -114,7 +114,7 @@ SUBROUTINE HPHFGetOffDiagHElement(nI,nJ,iLutnI,iLutnJ,MatEl)
 
 
 !This is the old way of doing it, however, both integrals have the same absolute value, and the sign from the sym/anti sym cancels the sign change of the two determinants.
-!            CALL FindBitExcitLevel(iLutnI,iLutnJ,ExcitLevel,2)
+!            ExcitLevel = FindBitExcitLevel(iLutnI, iLutnJ, 2)
 !            IF(ExcitLevel.le.2) THEN
 !                IF(ExcitLevel.le.0) CALL Stop_All("HPHFGetOffDiagHElement","Determinants are a forbidden excitation level apart6")
 !                MatEl2=HElement(0.D0)
@@ -122,7 +122,7 @@ SUBROUTINE HPHFGetOffDiagHElement(nI,nJ,iLutnI,iLutnJ,MatEl)
 !                WRITE(6,*) 1,MatEl2%v,Excitlevel
 !                MatEl=MatEl+MatEl2
 !            ENDIF
-!            CALL FindBitExcitLevel(iLutnI2,ilutnJ,ExcitLevel,2)
+!            ExcitLevel = FindBitExcitLevel(iLutnI2, ilutnJ, 2)
 !            IF(ExcitLevel.le.2) THEN
 !                IF(ExcitLevel.le.0) CALL Stop_All("HPHFGetOffDiagHElement","Determinants are a forbidden excitation level apart5")
 !                MatEl2=HElement(0.D0)
@@ -148,7 +148,7 @@ SUBROUTINE HPHFGetOffDiagHElement(nI,nJ,iLutnI,iLutnJ,MatEl)
 !            CALL FLUSH(6)
 !            WRITE(6,*) "***"
 
-            CALL FindBitExcitLevel(iLutnI,iLutnJ,ExcitLevel,2)
+            ExcitLevel = FindBitExcitLevel(iLutnI, iLutnJ, 2)
             IF(ExcitLevel.le.2) THEN
 !                IF(ExcitLevel.le.0) THEN
 !                    WRITE(6,*) ExcitLevel,iLutnI,iLutnJ
@@ -169,7 +169,7 @@ SUBROUTINE HPHFGetOffDiagHElement(nI,nJ,iLutnI,iLutnJ,MatEl)
                
             ENDIF
             
-            CALL FindBitExcitLevel(iLutnI2,ilutnJ,ExcitLevel,2)
+            ExcitLevel = FindBitExcitLevel(iLutnI2, ilutnJ, 2)
             IF(ExcitLevel.le.2) THEN
 !We need to find out whether the nJ HPHF wavefunction is symmetric or antisymmetric. This is dependant on the number of open shell orbitals.
                 CALL FindDetSpinSym(nI,nI2,NEl)
@@ -216,7 +216,7 @@ SUBROUTINE HPHFGetOffDiagHElement(nI,nJ,iLutnI,iLutnJ,MatEl)
 !
 !
 !!Matrix element is 1/2 [Hia + Hib + Hja + Hjb] when both HPHF functions are symmetric
-!            CALL FindBitExcitLevel(iLutnI,iLutnJ,ExcitLevel,2)
+!            ExcitLevel = FindBitExcitLevel(iLutnI, iLutnJ, 2)
 !            IF(ExcitLevel.le.2) THEN
 !                IF(ExcitLevel.le.0) THEN
 !                    WRITE(6,*) ExcitLevel,iLutnI,iLutnJ
@@ -227,7 +227,7 @@ SUBROUTINE HPHFGetOffDiagHElement(nI,nJ,iLutnI,iLutnJ,MatEl)
 !                WRITE(6,*) 1,REAL(MatEl2%v,8),ExcitLevel
 !                MatEl=MatEl+MatEl2
 !            ENDIF
-!            CALL FindBitExcitLevel(iLutnI2,ilutnJ,ExcitLevel,2)
+!            ExcitLevel = FindBitExcitLevel(iLutnI2, ilutnJ, 2)
 !            IF(ExcitLevel.le.2) THEN
 !                IF(ExcitLevel.le.0) CALL Stop_All("HPHFGetOffDiagHElement","Determinants are a forbidden excitation level apart3")
 !                MatEl2=HElement(0.D0)
@@ -241,7 +241,7 @@ SUBROUTINE HPHFGetOffDiagHElement(nI,nJ,iLutnI,iLutnJ,MatEl)
 !                    WRITE(6,*) 2,-1.D0*REAL(MatEl2%v,8),ExcitLevel
 !                ENDIF
 !            ENDIF
-!            CALL FindBitExcitLevel(iLutnI,iLutnJ2,ExcitLevel,2)
+!            ExcitLevel = FindBitExcitLevel(iLutnI, iLutnJ2, 2)
 !            IF(ExcitLevel.le.2) THEN
 !                IF(ExcitLevel.le.0) CALL Stop_All("HPHFGetOffDiagHElement","Determinants are a forbidden excitation level apart2")
 !                MatEl2=HElement(0.D0)
@@ -255,7 +255,7 @@ SUBROUTINE HPHFGetOffDiagHElement(nI,nJ,iLutnI,iLutnJ,MatEl)
 !                    MatEl=MatEl-MatEl2
 !                ENDIF
 !            ENDIF
-!            CALL FindBitExcitLevel(iLutnI2,ilutnJ2,ExcitLevel,2)
+!            ExcitLevel = FindBitExcitLevel(iLutnI2, ilutnJ2, 2)
 !            IF(ExcitLevel.le.2) THEN
 !                IF(ExcitLevel.le.0) CALL Stop_All("HPHFGetOffDiagHElement","Determinants are a forbidden excitation level apart1")
 !                MatEl2=HElement(0.D0)
@@ -285,6 +285,7 @@ SUBROUTINE HPHFGetDiagHElement(nI,iLutnI,MatEl)
     use SystemData, only : ECore,ALat,NMSH, NIfTot
     use IntegralsData, only : UMat,FCK,NMAX
     use HPHFRandExcitMod , only : FindDetSpinSym,FindExcitBitDetSym
+    use DetBitOps, only: FindBitExcitLevel
     IMPLICIT NONE
     INTEGER :: nI(NEl),nI2(NEl),ExcitLevel,OpenOrbs
     INTEGER :: iLutnI(0:NIfTot),iLutnI2(0:NIfTot)
@@ -308,7 +309,7 @@ SUBROUTINE HPHFGetDiagHElement(nI,iLutnI,MatEl)
 
 !See if there is a cross-term
         CALL FindExcitBitDetSym(iLutnI,iLutnI2)
-        CALL FindBitExcitLevel(iLutnI,iLutnI2,ExcitLevel,2)
+        ExcitLevel = FindBitExcitLevel(iLutnI, iLutnI2, 2)
         IF(ExcitLevel.le.2) THEN
             MatEl2%v=0.D0
             CALL CalcOpenOrbs(iLutnI,OpenOrbs)
@@ -349,7 +350,7 @@ SUBROUTINE HPHFGetDiagHElement(nI,iLutnI,MatEl)
 !        MatEl%v=MatEl%v/2.D0
 !
 !!See if they are connected for the 'cross' term
-!        CALL FindBitExcitLevel(iLutnI,iLutnI2,ExcitLevel,2)
+!        ExcitLevel = FindBitExcitLevel(iLutnI, iLutnI2, 2)
 !        IF(ExcitLevel.le.2) THEN
 !            IF(ExcitLevel.le.0) CALL Stop_All("HPHFGetDiagHElement","Determinants are a forbidden excitation level apart")
 !            CALL SltCnd(NEl,nBasisMax,nBasis,nI,nI2,G1,NEl-ExcitLevel,NMSH,FCK,NMAX,ALAT,UMat,MatEl2)

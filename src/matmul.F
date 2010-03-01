@@ -54,7 +54,7 @@ C ==-----------------------------------------------------------------==
       REAL*8 HTEMP(NDET,NDET),CK(NDET,NEVAL),CKN(NDET,NEVAL)
 C..
       CALL DGEMM('N','N',NDET,NEVAL,NDET,1.D0,HTEMP,NDET,
-     &	CK,NDET,1.D0,CKN,NDET)
+     &    CK,NDET,1.D0,CKN,NDET)
 C      DO I=1,NDET
 C         DO K=1,NEVAL
 C            WRITE(6,*) CKN(I,K)

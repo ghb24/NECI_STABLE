@@ -4,45 +4,87 @@ implicit none
 
 save
 
-LOGICAL :: TSTARBIN,TREADINT,THFORDER,TDFREAD,TPBC,TUEG,TCPMD,THUB,tHPHF,tHPHFInts,tUHF
-LOGICAL tRIIntegrals  !Read in RI 2-e integrals from RIDUMP file
 ! Why is so little of this commented.  'tis horrific.  AJWT.
-LOGICAL :: TSPN,TCSF,TPARITY,TUSEBRILLOUIN,TEXCH,TREAL,TTILT,tUMatEps,tOneElIntMax,tOnePartOrbEnMax,tROHF,tNoBrillouin,tCSFOLD
-LOGICAL :: tStoreSpinOrbs   !This is set when the orbitals are stored in spin-orbital notation
-LOGICAL :: tVirtCoulombMax,tVirtExchangeMin,tHijSqrdMin,tDiagonalizehij,tHFSingDoubExcMax,tSpinOrbs,tReadInCoeff,tUseMP2VarDenMat
-LOGICAL :: TALPHA,TSTOREASEXCITATIONS,TBIN,tStarStore,tVASP,tOffDiagSqrdMin,tOffDiagSqrdMax,tOffDiagMax,tShakeDelay
-LOGICAL :: tSeparateOccVirt,tMerTwist,tExactSizeSpace,tRotatedOrbs,tImportanceSample,tERLocalization,tOffDiagMin,tFindCINatOrbs
-LOGICAL :: TNoRenormRandExcits,tAssumeSizeExcitgen,tCycleOrbs,tROIteration,tShakeIter,tRotateOccOnly,tDoubExcMin,tUseHFOrbs
-LOGICAL :: tNonUniRandExcits,tNoSymGenRandExcits,tRotateOrbs,tLagrange,tShake,tShakeApprox,tRotateVirtOnly,tMaxHLGap,tCacheFCIDUMPInts
-LOGICAL :: tNoFailAb, tLatticeGens ! These are now permanent inputs for UEG - use of new excitation generators just for UEG
-LOGICAL :: tUEGTrueEnergies ! This is the logical for use of unscaled energies in the UEG calculation; will normally break spawning
-LOGICAL :: tUEGOffset ! This is the logical for twisted boundary conditions
-LOGICAL :: tUEGSpecifyMomentum ! UEG parameter to allow specification of total momentum
-INTEGER :: LMS,STOT,IPARITY(5),NMAXX,NMAXY,NMAXZ,NMSH,COULDAMPORB,ElecPairs,ROIterMax,iRanLuxLev,DiagMaxMinFac,OneElMaxMinFac
-INTEGER :: ISTATE,NEL,ITILTX,ITILTY,nOccAlpha,nOccBeta,ShakeIterMax,ShakeStart,MaxMinFac,MaxABPairs
-REAL*8 :: BOX,BOA,COA,FUEGRS,fRc,FCOUL,OrbECutoff,UHUB,BHUB,DiagWeight,OffDiagWeight,OrbEnMaxAlpha
-REAL*8 :: ALPHA,FCOULDAMPBETA,FCOULDAMPMU,TimeStep,ConvergedForce,ShakeConverged,UMatEps,OneElWeight
-REAL*8 :: k_offset(3) ! UEG parameter for twist-averaging 
-INTEGER :: k_momentum(3) ! UEG parameter for total momentum
 
-LOGICAL :: tListDets    !Means that a list of allowed determinants in FciMC will be read in an particles are only allowed here.
+logical :: tStarBin, tReadInt, tHFOrder, tDFRead, tPBC, tUEG, tCPMD, tHUB
+logical :: tHPHF, tHPHFInts, tUHF, tSPN, tParity, tUseBrillouin, tExch, tReal
+logical :: tTilt, tUmatEps, tOneElIntMax, tOnePartOrbEnMax, tROHF, tBrillouinsDefault
+logical :: tNoBrillouin, tVirtCoulombMax, tVirtExchangeMin, tHijSqrdMin
+logical :: tDiagonalizehij, tHFSingDoubExcMax, tSpinOrbs, tReadInCoeff
+logical :: tUseMP2VarDenMat, tAlpha, tStoreAsExcitations, tBin, tStarStore
+logical :: tVASP, tOffDiagSqrdMin, tOffDiagSqrdMax, tOffDiagmax, tShakeDelay
+logical :: tSeparateOccVirt, tmerTwist, tExactSizeSpace, tRotatedOrbs
+logical :: tImportanceSample, tERLocalization, tOffDiagMin, tFindCINatOrbs
+logical :: tNoRenormRandExcits, tAssumeSizeExcitgen, tCycleOrbs, tROIteration
+logical :: tShakeIter, tRotateOccOnly, tDoubExcMin, tUseHFOrbs, tRotateOrbs
+logical :: tNonUniRandExcits, tNoSymGenRandExcits, tLagrange, tShakeApprox
+logical :: tShake, tRotateVirtOnly, tMaxHLGap, tCacheFCIDUMPInts, tNoRODump
 
-LOGICAL :: tMCSizeSpace
-INTEGER*8 :: CalcDetPrint,CalcDetCycles   !parameters for the MC determination of the FCI determinant space size.
+logical :: tRIIntegrals   ! Read in RI 2-e integrals from RIDUMP file
+logical :: tStoreSpinOrbs ! This is set when the orbitals are stored in 
+                          ! spin-orbital notation
+
+integer :: iParity(5), nMaxX, nMaxY, nMaxZ, nMSH, coulDampOrb, elecPairs
+integer :: roIterMax, iRanLuxLev, DiagMaxMinFac, OneElmaxMinFac, iState
+integer :: iTiltX, iTiltY, nOccAlpha, nOccBeta, ShakeIterMax, ShakeStart
+integer :: MaxMinFac, MaxABPairs
+real*8 :: BOX, BOA, COA, fUEGRs, fRc, fCoul, OrbECutoff, UHUB, BHUB
+real*8 :: Diagweight, OffDiagWeight, OrbEnMaxAlpha, Alpha, fCoulDampBeta
+real*8 :: fCoulDampMu, TimeStep, ConvergedForce, ShakeConverged, UMATEps
+real*8 :: OneElWeight
+
+
+integer :: nEl             ! Number of (non-frozen) electrons in the system
+integer :: Stot            ! Restrict S to Stot when using CSFs
+integer :: LMS             ! Restrict determinants/CSFs to Ms == LMS
+integer :: csf_trunc_level ! Max nopen for CSFs if tTruncateCSF enabled. Above
+                           ! this, switch to using determinants.
+
+logical :: tListDets    ! A list of allowed determinants in FciMC will be read
+                        ! in and particles are only allowed here
+
+! Inputs for CSFs
+logical :: tCSFOld        ! Use (Alex's) old CSF code
+logical :: tCSF           ! Use CSFs
+logical :: tTruncateCSF   ! Use determinants not CSFs for nopen > 
+                          ! csf_trunc_level
+
+! Calculate size of FCI determinant space using MC
+logical :: tMCSizeSpace 
+integer*8 :: CalcDetPrint, CalcDetCycles   ! parameters
+
+! Inputs for the UEG
+logical :: tUEGTrueEnergies ! This is the logical for use of unscaled energies in the UEG calculation; will normally break spawning
+logical :: tLatticeGens   ! Use new UEG excitation generators
+logical :: tNoFailAb
+logical :: tUEGOffset     ! Use twisted boundary conditions
+real*8 :: k_offset(3)      ! UEG parameter for twist-averaging
+logical :: tUEGSpecifyMomentum ! UEG parameter to allow specification of total momentum
+integer :: k_momentum(3) ! UEG parameter for total momentum
+
+! For the UEG, we damp the exchange interactions.
+!    0 means none
+!    1 means screened (using an erfc)
+!    2 means hard spherical cut-off (at a distance Rc=ALAT(4))
+!      [see JSS, ASA PRB 77, 193110 (2008)]
+integer :: iPeriodicDampingType
 
 ! Used to be stored in Integrals
 INTEGER :: ORBORDER(8,2)
 
-LOGICAL :: tFixLz   !This indicates that in FCIMC, the Lz of the determinants is fixed at LzTot
-INTEGER :: LzTot,iMaxLz     !LzTot is the total Ml quantum number of the state to converge upon. iMaxLz is the abs(maximum Ml basis function).
+logical :: tFixLz   ! Fix Lz of determinants in FCIMC. Lz == LzTot
+integer :: LzTot    ! Total Ml quantum number of state to converge on.
+integer :: iMaxLz   ! abs(maximum Ml basis function))
 
-! NIfTot indicates upper bound of determinants in bit form
-! NIfD is final byte used to represent determinants (NIfD+1 bytes total)
-! NIfY is the number of bytes used to represent a Yamanouchi symbol
-! NIfP is an integer that is added on to the end of NIfD in CASSTAR calculations - keeps track of the parent determinant of spawned walkers.
-! NB. bit representations are zero indexed.
-INTEGER :: NIfD, NIfY,NIfP,NIfDBO
-integer :: NIfTot
+
+! Size parameters for bit representation of determinants
+! N.B. bit representations are _zero_indexed_!
+integer :: nIfTot   ! Upper bound of determinants in bit form (0:NIfTot)
+integer :: nIfD     ! Final byte representing spatial/spin orbitals (0:NIfD)
+integer :: nIfY     ! Number of bytes used to represent a Yamanouchi symbol
+integer :: nIfP     ! Size appended to nIfD in CASSTAR calculations. Keeps
+                    ! track of the parent determinant of spawned walkers.
+integer :: nIfDBO   ! Size for use in bit operations.
 
 ! From NECICB
 integer :: lmsBasis
@@ -121,10 +163,5 @@ LOGICAL :: tHFNoOrder
 !  and group them under the same symrep
 LOGICAL :: tSymIgnoreEnergies
 
-! For the UEG, we damp the exchange interactions.
-!    0 means none
-!    1 means screened (using an erfc)
-!    2 means hard spherical cut-off (at a distance Rc=ALAT(4)) [see JSS, ASA PRB 77, 193110 (2008)]
-INTEGER iPeriodicDampingType
 
 end module SystemData

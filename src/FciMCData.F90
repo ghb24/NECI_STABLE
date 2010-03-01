@@ -153,7 +153,9 @@ MODULE FciMCData
       LOGICAL :: TTruncSpace=.false.              !This is a flag set as to whether the excitation space should be truncated or not.
       LOGICAL :: TFlippedSign=.false.             !This is to indicate when the sign of the particles have been flipped. This is needed for the calculation of the ACF
 
-      TYPE(timer), save :: Walker_Time,Annihil_Time,ACF_Time,Sort_Time,Comms_Time,AnnSpawned_time,AnnMain_time,BinSearch_time
+      type(timer), save :: Walker_Time, Annihil_Time,ACF_Time, Sort_Time, &
+                           Comms_Time, AnnSpawned_time, AnnMain_time, &
+                           BinSearch_time
 
 !These are arrays used to store the autocorrelation function
       INTEGER , ALLOCATABLE :: WeightatDets(:)                   !First index - det which is stored, second - weight on proc at that iteration
@@ -177,9 +179,12 @@ MODULE FciMCData
       INTEGER :: SpinInvBRRTag=0
       INTEGER :: CASmin=0,CASmax=0
 
-      REAL*8 :: pDoubles                          !This is the approximate fraction of excitations which are doubles. This is calculated if we are using non-uniform
-                                                !random excitations.
-      INTEGER , ALLOCATABLE :: iLutHF(:)          !This is the bit representation of the HF determinant.
+      ! The approximate fraction of singles and doubles. This is calculated
+      ! using the HF determinant, if using non-uniform random excitations.
+      real*8 :: pDoubles, pSingles
+      
+      ! Bit representation of the HF determinant
+      integer, allocatable :: iLutHF(:)
     
       REAL*8 , ALLOCATABLE :: OneRDM(:,:)         !This is the 1 electron reduced density matrix.
       INTEGER :: OneRDMTag=0                      !It is calculated as an FCIMC run progresses.  As the run tends towards the correct wavefunction, diagonalisation 

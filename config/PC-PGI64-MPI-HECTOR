@@ -3,8 +3,9 @@ fc = ftn
 f90flags = -Mfree 
 compiler = PGI-pgf95-on-LINUX
 cc = cc
-cpp = /lib/cpp
-cppflags =  -P -C -traditional -D__Linux -D__PGI -DLAPACK -DFFT_DEFAULT -DPOINTER8 -DPARALLEL
+ccd = gcc
+cpp = cpp -C -traditional
+cppflags =  -D__Linux -DPOINTER8 -DPARALLEL
 ld = ftn
 module_flag = -module
 

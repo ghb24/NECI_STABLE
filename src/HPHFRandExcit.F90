@@ -11,7 +11,7 @@ MODULE HPHFRandExcitMod
     use SymData, only: nSymLabels
     use mt95 , only : genrand_real2
     use GenRandSymExcitNUMod , only : GenRandSymExcitScratchNU,ConstructClassCounts,CalcNonUniPGen,ScratchSize 
-    use DetBitOps, only: DetBitLT, DetBitEQ, FindExcitBitDet
+    use DetBitOps, only: DetBitLT, DetBitEQ, FindExcitBitDet,FindBitExcitLevel
     use HElem
     IMPLICIT NONE
 !    SAVE
@@ -86,7 +86,7 @@ MODULE HPHFRandExcitMod
         ENDIF
 
 !We may have been able to excite from nI2 to this determinant. see if it in connected.
-        CALL FindBitExcitLevel(iLutnI2,iLutnJ,ExcitLevel,2)
+        ExcitLevel = FindBitExcitLevel(iLutnI2, iLutnJ, 2)
         IF((ExcitLevel.le.2).and.(ExcitLevel.ne.0)) THEN
             Ex2(1,1)=ExcitLevel
             CALL GetBitExcitation(iLutnI2,iLutnJ,Ex2,tSign)
@@ -114,7 +114,7 @@ MODULE HPHFRandExcitMod
 
 !We know we have gone from open-shell HPHF to open-shell HPHF. We need all four pGens.
 !We have nI2 -> nJ. Find nI -> nJ. First, we need to know whether it is connected or not.
-            CALL FindBitExcitLevel(iLutnI,iLutnJ,ExcitLevel,2)
+            ExcitLevel = FindBitExcitLevel(iLutnI, iLutnJ, 2)
             IF((ExcitLevel.le.2).and.(ExcitLevel.ne.0)) THEN
                 Ex2(1,1)=ExcitLevel
                 CALL GetBitExcitation(iLutnI,iLutnJ,Ex2,tSign)
@@ -133,7 +133,7 @@ MODULE HPHFRandExcitMod
         CALL FindDetSpinSym(nJ,nJ2,NEl)
 
 !Firstly, nI2 -> nJ2
-        CALL FindBitExcitLevel(iLutnI2,iLutnJ2,ExcitLevel,2)
+        ExcitLevel = FindBitExcitLevel(iLutnI2, iLutnJ2, 2)
         IF((ExcitLevel.le.2).and.(ExcitLevel.ne.0)) THEN
             Ex2(1,1)=ExcitLevel
             CALL GetBitExcitation(iLutnI2,iLutnJ2,Ex2,tSign)
@@ -147,7 +147,7 @@ MODULE HPHFRandExcitMod
         ENDIF
 
 !Finally, nI -> nJ2
-        CALL FindBitExcitLevel(iLutnI,iLutnJ2,ExcitLevel,2)
+        ExcitLevel = FindBitExcitLevel(iLutnI, iLutnJ2, 2)
         IF((ExcitLevel.le.2).and.(ExcitLevel.ne.0)) THEN
             Ex2(1,1)=ExcitLevel
             CALL GetBitExcitation(iLutnI,iLutnJ2,Ex2,tSign)
@@ -224,9 +224,9 @@ MODULE HPHFRandExcitMod
 !            CALL FindExcitBitDetSym(iLutnJ,iLutnJ2)
 !Try and find if spin-coupled determinant from excitation is attached.
             IF(tSwapped) THEN
-                CALL FindBitExcitLevel(iLutnI,iLutnJ,ExcitLevel,2)
+                ExcitLevel = FindBitExcitLevel(iLutnI, iLutnJ, 2)
             ELSE
-                CALL FindBitExcitLevel(iLutnI,iLutnJ2,ExcitLevel,2)
+                ExcitLevel = FindBitExcitLevel(iLutnI, iLutnJ2, 2)
             ENDIF
 
             IF((ExcitLevel.eq.2).or.(ExcitLevel.eq.1)) THEN     !This is if we have all determinants in the two HPHFs connected...
@@ -253,7 +253,7 @@ MODULE HPHFRandExcitMod
                         IF(tSwapped) THEN
                             CALL SltCndExcit2(NEl,nBasisMax,nBasis,nI,nJ,G1,NEl-IC,NMSH,FCK,NMAX,ALAT,UMat,MatEl,Ex2,tSign)
 
-!                            CALL FindBitExcitLevel(iLutnI,iLutnJ,IC1,2)
+!                            IC1 = FindBitExcitLevel(iLutnI, iLutnJ, 2)
 !                            Ex2(1,1)=IC1
 !                            CALL GetExcitation(nI,nJ,NEl,Ex2,tSign)
 !                            CALL SltCndExcit2(NEl,nBasisMax,nBasis,nI,nJ,G1,NEl-IC1,NMSH,FCK,NMAX,ALAT,UMat,MatEl,Ex2,tSign)
@@ -279,7 +279,7 @@ MODULE HPHFRandExcitMod
 
 !                        CALL FindDetSpinSym(nI,nI2,NEl)
 !                        CALL FindExcitBitDetSym(iLutnI,iLutnI2)
-!                        CALL FindBitExcitLevel(iLutnI2,iLutnJ,ExcitLevel2,2)
+!                        ExcitLevel2 = FindBitExcitLevel(iLutnI2, iLutnJ, 2)
 
                         IF((ExcitLevel.eq.2).or.(ExcitLevel.eq.1)) THEN
                             

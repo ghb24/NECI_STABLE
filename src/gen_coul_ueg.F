@@ -44,11 +44,11 @@ C ==--------------------------------------------------------------------==
               SUM=1.D0
 C..Original call
 C              CALL SLATCOULFOU(G1(1,I),G1(1,J),
-C     &		G1(1,K),G1(1,L),NMSH,FCK,NMAX,SUM)
-              CALL GTID(NBASISMAX,I,ID1)
-              CALL GTID(NBASISMAX,J,ID2)
-              CALL GTID(NBASISMAX,K,ID3)
-              CALL GTID(NBASISMAX,L,ID4)
+C     &        G1(1,K),G1(1,L),NMSH,FCK,NMAX,SUM)
+              ID1 = GTID(I)
+              ID2 = GTID(J)
+              ID3 = GTID(K)
+              ID4 = GTID(L)
               SUM=UHUB
               DO A=1,3
                 SUMS(A)=0.D0
@@ -129,11 +129,11 @@ C ==--------------------------------------------------------------------==
               SUM=0.D0
 C..Original call
 C              CALL SLATCOULFOU(G1(1,I),G1(1,J),
-C     &		G1(1,K),G1(1,L),NMSH,FCK,NMAX,SUM)
-              CALL GTID(NBASISMAX,I,ID1)
-              CALL GTID(NBASISMAX,J,ID2)
-              CALL GTID(NBASISMAX,K,ID3)
-              CALL GTID(NBASISMAX,L,ID4)
+C     &        G1(1,K),G1(1,L),NMSH,FCK,NMAX,SUM)
+              ID1 = GTID(I)
+              ID2 = GTID(J)
+              ID3 = GTID(K)
+              ID4 = GTID(L)
               IF(THUB) THEN
                  CALL SETUPSYM(NBASISMAX,KA)
                  CALL SETUPSYM(NBASISMAX,KB)

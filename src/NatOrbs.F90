@@ -370,7 +370,7 @@ MODULE NatOrbsMod
 
     SUBROUTINE FillOneRDM()
         USE DetCalc , only : Det,FCIDets,FCIDetIndex,ICILevel
-        use DetBitOps, only: DecodeBitDet
+        use DetBitOps, only: DecodeBitDet, FindBitExcitLevel
 ! Det is the number of determinants in FCIDets.
 ! FCIDets contains the list of all determinants in the system in bit string representation, FCIDets(0:NIfTot,1:Det) 
 ! ICILevel is the max excitation level of the calculation - as in EXCITE ICILevel.
@@ -482,7 +482,8 @@ MODULE NatOrbsMod
 !               ! lower to one excitation higher.
                     IF((i.gt.Det).or.(j.gt.Det)) CALL Stop_All('FillOneRDM','Running through i or j larger than the number of determinants.')
 
-                    CALL FindBitExcitLevel(FCIDets(:,i),FCIDets(:,j),ExcitLevel,2)
+                    ExcitLevel = FindBitExcitLevel(FCIDets(:,i), &
+                                                   FCIDets(:,j),2)
                     ! Need to find the excitation level between D_i and D_j. If this is 1 - go on to add their contributions to the OneRDM.
 
                     IF(ExcitLevel.eq.1) THEN

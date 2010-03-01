@@ -1,0 +1,313 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>PreCalc &mdash; NECI v0.1 documentation</title>
+    <link rel="stylesheet" href="../_static/sphinxdoc.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '0.1',
+        COLLAPSE_MODINDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="top" title="NECI v0.1 documentation" href="../index.html" />
+    <link rel="up" title="Input options" href="index.html" />
+    <link rel="next" title="Calc" href="calc.html" />
+    <link rel="prev" title="System" href="system.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="calc.html" title="Calc"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="system.html" title="System"
+             accesskey="P">previous</a> |</li>
+        <li><a href="../index.html">NECI v0.1 documentation</a> &raquo;</li>
+          <li><a href="index.html" accesskey="U">Input options</a> &raquo;</li> 
+      </ul>
+    </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+            <h3><a href="../index.html">Table Of Contents</a></h3>
+            <ul>
+<li><a class="reference external" href="#">PreCalc</a><ul>
+<li><a class="reference external" href="#precalc-options">PreCalc Options</a></li>
+<li><a class="reference external" href="#vertex-options">Vertex options</a></li>
+</ul>
+</li>
+</ul>
+
+            <h4>Previous topic</h4>
+            <p class="topless"><a href="system.html"
+                                  title="previous chapter">System</a></p>
+            <h4>Next topic</h4>
+            <p class="topless"><a href="calc.html"
+                                  title="next chapter">Calc</a></p>
+            <h3>This Page</h3>
+            <ul class="this-page-menu">
+              <li><a href="../_sources/input/precalc.txt"
+                     rel="nofollow">Show Source</a></li>
+            </ul>
+          <div id="searchbox" style="display: none">
+            <h3>Quick search</h3>
+              <form class="search" action="../search.html" method="get">
+                <input type="text" name="q" size="18" />
+                <input type="submit" value="Go" />
+                <input type="hidden" name="check_keywords" value="yes" />
+                <input type="hidden" name="area" value="default" />
+              </form>
+              <p class="searchtip" style="font-size: 90%">
+              Enter search terms or a module, class or function name.
+              </p>
+          </div>
+          <script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="precalc">
+<span id="input-precalc"></span><h1>PreCalc<a class="headerlink" href="#precalc" title="Permalink to this headline">¶</a></h1>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">George, please improve!  My interpretations also need to be checked...</p>
+</div>
+<dl class="docutils">
+<dt><strong>PRECALC</strong></dt>
+<dd>Start pre-calculation block.  This chooses which weighting parameters
+to use in Monte Carlo calculation , in order to give minimum variance.
+This is an optional input block, and is not required if the default
+parameters are to be used, or are specified explicitly in the <strong>CALC</strong>
+input block.  Currently, only the <strong>IMPORTANCE</strong> parameter, the C
+<strong>EXCITWEIGHTING</strong> parameter, and the a &amp; b optimal parameters are
+searched for simultaneously, optimised and parsed through the the
+main program.</dd>
+</dl>
+<p>[PreCalc options&#8212;see below.]</p>
+<dl class="docutils">
+<dt><strong>ENDPRECALC</strong></dt>
+<dd>End the precalc input block.</dd>
+</dl>
+<div class="section" id="precalc-options">
+<h2>PreCalc Options<a class="headerlink" href="#precalc-options" title="Permalink to this headline">¶</a></h2>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p>George:
+What on earth are the following:</p>
+<ul class="last simple">
+<li>A,B etc parameters.</li>
+<li><ol class="first upperroman" start="30">
+<li></li>
+</ol>
+</li>
+<li>U matrix.</li>
+</ul>
+</div>
+<dl class="docutils">
+<dt><strong>VERTEX</strong> [<strong>HDIAG</strong> <strong>RHODIAG</strong>] [<strong>SUM</strong> <strong>MC</strong>]</dt>
+<dd><p class="first">Similar to the methods section in the <strong>CALC</strong> block, specify the
+method to use at the next vertex level (the first entry is for the
+second vertex level) in searching for the best parameters, using the
+hamiltonian matrix diagonaltisation (<strong>HDIAG</strong>) or the <img class="math" src="../_images/math/0027034d8a10372a06deaf4f4084c01956587479.png" alt="\rho"/>
+matrix diagonalisation (<strong>RHODIAG</strong>). After this is specified, on
+the same line, specify whether to calculate the expected variance
+using the full sum at this vertex level (<strong>SUM</strong>), or using a Monte
+Carlo sum (<strong>MC</strong>).</p>
+<p>Currently, only the <strong>HDIAG</strong> routine works when performing a MC
+expected variance, though the diagonalisation of the <cite>rho</cite> matrix
+now works with the full sum.</p>
+<p>For example:</p>
+<div class="highlight-python"><pre>VERTEX HDIAG SUM
+XXX
+XXX
+VERTEX HDIAG MC
+XXX</pre>
+</div>
+<p>where XXX are the vertex options (see below).</p>
+<p class="last">If no further options are specified for a given vertex level, the
+optimum values of all the <strong>EXCITWEIGHTING</strong> variables will be found,
+but not used in the main program.</p>
+</dd>
+<dt><strong>GRIDVAR</strong> [A_ExcitFromStart] [A_ExcitFromEnd] [A_ExcitFromStep] [B_ExcitToStart] [B_ExcitToEnd] [B_ExcitToStep]</dt>
+<dd>Produce a 3D map of the variance landscape, but do not explicitly
+calculate the minimum. Vaules for the A parameter start, end, and
+step must be specified, followed by the same for the B parameter.</dd>
+<dt><strong>LINEVAR</strong> [G_VMC_PIStart] [G_VMC_PIEnd] [G_VMC_PIStep]</dt>
+<dd>Same as GRIDVAR, but produce a 1D line for one variable - currently
+only working for the <strong>IMPORTANCE</strong> parameter and the U-matrix element
+parameter. Shows change in expected variance over the designated range
+of values.</dd>
+<dt><strong>MEMORISE</strong></dt>
+<dd><p class="first">All the graphs, their excitation generators, weights, energies, and
+unbiased probabilities should be stored in the memory.  Speeds up
+the calculation of the variance by around twofold. However, this
+cannot be used for large systems.  ~31000 4v graphs, or 22000 3v
+graphs was the maximum for the nitrogen dimer with the VQZ basis .</p>
+<p class="last">Currently only available for <strong>MC</strong> precalculations. If this is not
+set, then only the first node excitation generators are stored&#8212;there
+should be enough memory for this</p>
+</dd>
+<dt><strong>PREGRAPHEPSILON</strong> [PREWEIGHTEPS]</dt>
+<dd><p class="first">Default <img class="math" src="../_images/math/726ccb1c5b1dd30ff6544e6a48732f1caa842856.png" alt="10^{-8}"/>.</p>
+<p>Gives the threshold above which the weight of a graph must be if
+they are to be included in the full precalc variance calculation.</p>
+<p class="last">If the graph weight is below the threshold, then the probability
+of obtaining the graph does not need to be calculated, and so
+the optimisation routine is faster (but less accurate) at higher
+thresholds.</p>
+</dd>
+<dt><strong>TOTALERROR</strong> [Desired Error from main calculation]</dt>
+<dd><p class="first">Calculates the required number of cycles so that the final
+error from the Monte Carlo calculation is equal to the error specified.</p>
+<p>Only valid if the highest vertex level in the precalculation stage is the
+same as the highest vertex level in the main MC calculation, i.e. the
+highest MC vertex level is independently optimised.</p>
+<p class="last">The optimum vertex splitting is also calculated.</p>
+</dd>
+<dt><strong>TOLERANCE</strong> [TOLERANCE]</dt>
+<dd><p class="first">Default 0.1.</p>
+<p class="last">The fractional precision to which the optimum parameter is obtained,
+using the minimisation method.</p>
+</dd>
+<dt><strong>TRUECYCLES</strong> [No.of cycles]</dt>
+<dd><p class="first">Specify the total number of MC cycles that we want to use in the
+main calculation.  The precalculation stage will then automatically
+split the cycles between the vertex levels in the main calculation,
+according to how the use statements indicate the parameters are to
+be split.</p>
+<p class="last">The cycles are then split so to best minimise the overall variance
+of the run, assuming that the variance of the whole run is simply
+the sum of the variances of the individual vertex results.</p>
+</dd>
+</dl>
+</div>
+<div class="section" id="vertex-options">
+<h2>Vertex options<a class="headerlink" href="#vertex-options" title="Permalink to this headline">¶</a></h2>
+<p>For the specified vertex level:</p>
+<dl class="docutils">
+<dt><strong>CYCLES</strong> [nCYCLES]</dt>
+<dd><p class="first">Specify the number of graphs generated in the MC algorithm
+for each expected variance calculation in the parameter minimisation algorithm.</p>
+<p class="last">Applies only to a vertex level which evaluates the expected variance
+using the MC algorithm in the <strong>VERTEX</strong> line.</p>
+</dd>
+<dt><strong>NONE</strong></dt>
+<dd>Perform no calculations or optimisations.</dd>
+<dt><strong>UEPSILON</strong> [UEPSILON]</dt>
+<dd><p class="first">Default UEPSILON is 0.</p>
+<p>Find the  optimum C <strong>EXCITWEIGHTING</strong> coefficient and pass through to the main program,
+unless setting C to be zero changes the expected variance by an amount less
+than UEPSILON, in which case C is set to be zero.</p>
+<p>The calculation of the U matrix elements can be time-consuming
+in a real MC simulation, yet can have a negligible effect on the
+final result.  In these cases, setting the C coefficient to be zero
+makes the full MC simulation much faster.</p>
+<p class="last">With the the default value of UEPSILON, the optimum value of C will
+always be used in the main program.</p>
+</dd>
+<dt><strong>FINDC</strong></dt>
+<dd><p class="first">Find the optimum C <strong>EXCITWEIGHTING</strong> parameter.</p>
+<p>The C <strong>EXCITWEIGHTING</strong> parameter. will only be found if this
+flag is set, or if a <strong>UEPSILON</strong> is set.</p>
+<p class="last">By default, the optimisation algoritm will only seek to find the
+values which give the minimum expected variance by varying the A and
+B <strong>EXCITWEIGHTING</strong> parameters, (or the parameters in the weighting
+scheme specified).</p>
+</dd>
+<dt><strong>FINDD</strong></dt>
+<dd>Find the optimum D <strong>EXCITWEIGHTING</strong> parameter for this vertex
+level (g_VMC_ExcitToWeight2).</dd>
+<dt><strong>USED</strong></dt>
+<dd>Pass the optimum D <strong>EXCITWEIGHTING</strong> parameter found at this vertex level
+through to the main calculation.</dd>
+<dt><strong>FINDIMPORT</strong></dt>
+<dd><p class="first">Run the optimisation algorithm for the IMPORTANCE
+parameter.</p>
+<p>The optimised value will be found printed out,
+but will not be passed through to the main calculation.</p>
+<p class="last">Can only be set for vertex levels of three or higher for
+obvious reasons.</p>
+</dd>
+</dl>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">And the obvious reasons are?</p>
+</div>
+<dl class="docutils">
+<dt><strong>USEIMPORT</strong></dt>
+<dd><p class="first">Find the optimal <strong>IMPORTANCE</strong> parameter, and use in the main
+calculation.</p>
+<p class="last">As for <strong>FINDIMPORT</strong>, can only be set for vertex levels of three
+or higher.</p>
+</dd>
+<dt><strong>USE</strong> [MC_VERTEX_LEVEL_1] [MC_VERTEX_LEVEL_2] ...</dt>
+<dd><p class="first">Use in the main calculation the parameters calculated from the specified precalc
+vertex levels, rather than any other, are to be passed through and
+used in the main program when performing a MC at one of the vertex
+levels specified. Any given vertex level can only be specified once
+in all the <strong>USE</strong> statements.</p>
+<p>Vertex levels in the main calculation which are not specified in one of
+the precalc <strong>USE</strong> statements, will
+use the parameters which are given in the <strong>CALC</strong> block of
+the input file.</p>
+<p class="last">A <strong>USE</strong> statement on its own will only calculate the
+A and B <strong>EXCITWEIGHTING</strong> parameters (or any of the other weighting
+scheme parameters specified) and use them for all MC vertex levels
+in the main calculation, unless <strong>FINDC</strong> or <strong>UEPSILON</strong> is specified,
+in which case for the C parameter to also be used.</p>
+</dd>
+</dl>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">This is somewhat confusing.  How does it fit in with USEIMPORT etc.?</p>
+</div>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="calc.html" title="Calc"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="system.html" title="System"
+             >previous</a> |</li>
+        <li><a href="../index.html">NECI v0.1 documentation</a> &raquo;</li>
+          <li><a href="index.html" >Input options</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+      &copy; Copyright 2010, Alavi Group.
+      Last updated on Feb 20, 2010.
+      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 0.6.4.
+    </div>
+  </body>
+</html>
