@@ -1748,10 +1748,19 @@ MODULE FciMCParMod
 !This first bit checks if it is time to set up the blocking analysis.  This is obviously only done once, so these logicals become false once it is done. 
         IF(iProcIndex.eq.Root) THEN
             IF(tIterStartBlock) THEN
-                IF(Iter.ge.IterStartBlocking) THEN 
-                    CALL InitErrorBlocking(Iter)
-                    tIterStartBlock=.false.
-                    tErrorBlocking=.true.
+!If IterStartBlocking is positive, then start blocking when we are at that iteration. Otherwise, wait until out of fixed shift.
+                IF(IterStartBlocking.gt.0) THEN
+                    IF(Iter.ge.IterStartBlocking) THEN 
+                        CALL InitErrorBlocking(Iter)
+                        tIterStartBlock=.false.
+                        tErrorBlocking=.true.
+                    ENDIF
+                ELSE
+                    IF(.not.TSinglePartPhase) THEN
+                        CALL InitErrorBlocking(Iter)
+                        tIterStartBlock=.false.
+                        tErrorBlocking=.true.
+                    ENDIF
                 ENDIF
             ELSEIF(tHFPopStartBlock) THEN
                 IF((AllHFCyc/StepsSft).ge.HFPopStartBlocking) THEN

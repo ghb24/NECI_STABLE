@@ -163,6 +163,7 @@ MODULE Logging
 
         case("BLOCKINGSTARTITER")
 !This keyword can be used if we want to start the blocking error analysis at a particular iteration.            
+!If it is a negative integer, then this means that the blocking will start when we come out of fixed shift mode.
             tIterStartBlock=.true.
             tHFPopStartBlock=.false.
             call readi(IterStartBlocking)
