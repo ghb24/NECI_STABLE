@@ -229,6 +229,7 @@ MODULE FciMCLoggingMod
 
         NoContrib=0
         NoContrib=((Iter-StartBlockIter)/StepsSft)+1
+        IF(NoContrib.eq.1) RETURN
 
         NoBlockSizes=0
         NoBlockSizes=FLOOR( (LOG10(REAL(NoContrib-1)))/ (LOG10(2.D0)))
@@ -250,7 +251,6 @@ MODULE FciMCLoggingMod
             
             ! First need to find out how many blocks of this particular size contributed to the final sum in BlockSum.
             ! NoContrib is the total number of contributions to the blocking throughout the simulation.
-
             NoBlocks=0
             NoBlocks=FLOOR(REAL(NoContrib/(2**i)))
             ! This finds the lowest integer multiple of 2**i (the block size). 
