@@ -1577,7 +1577,7 @@ MODULE FciMCParMod
                 WalkersDiffProc=MaxWalkersProc-MinWalkersProc
 
                 MeanWalkers=AllTotWalkers/REAL(nProcessors,r2)
-                IF((WalkersDiffProc.gt.NINT(MeanWalkers/10.D0).and.(AllTotWalkers.gt.(REAL(nProcessors*500,r2))))) THEN
+                IF((WalkersDiffProc.gt.NINT(MeanWalkers/10.D0).and.(AllTotParts.gt.(REAL(nProcessors*500,r2))))) THEN
                     WRITE(6,"(A)") "Number of determinants assigned to each processor unbalanced. This will reduce performance."
                 ENDIF
             
