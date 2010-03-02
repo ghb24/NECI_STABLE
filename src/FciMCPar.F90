@@ -1382,35 +1382,10 @@ MODULE FciMCParMod
 !Flip the sign if we're beginning to get a negative population on the HF
             WRITE(6,*) "No. at HF < 0 - flipping sign of entire ensemble of particles..."
             CALL FlipSign()
+            AllNoatHF=-AllNoatHF
+            NoatHF=-NoatHF
         ENDIF
         
-        IF(TSinglePartPhase) THEN
-!Exit the single particle phase if the number of walkers exceeds the value in the input file.
-!            CALL MPI_Barrier(MPI_COMM_WORLD,error)
-            IF(iProcIndex.eq.root) THEN     !Only exit phase if particle number is sufficient on head node.
-                IF((TotParts.gt.InitWalkers).or.(ABS(AllNoatHF).gt.MaxNoatHF)) THEN
-                    WRITE(6,*) "Exiting the single particle growth phase - shift can now change"
-                    VaryShiftIter=Iter
-                    TSinglePartPhase=.false.
-                ENDIF
-            ENDIF
-!Broadcast the fact that TSinglePartPhase may have changed to all processors - unfortunatly, have to do this broadcast every iteration.
-            CALL MPILBcast(TSinglePartPhase,1,root)
-        ELSE
-!Exit the single particle phase if the number of walkers exceeds the value in the input file.
-!            CALL MPI_Barrier(MPI_COMM_WORLD,error)
-            IF(iProcIndex.eq.root) THEN     !Only exit phase if particle number is sufficient on head node.
-                IF((ABS(AllNoatHF).lt.(MaxNoatHF-HFPopThresh))) THEN
-                    WRITE(6,'(A)') "No at HF has fallen too low - reentering the single particle growth phase - particle number may grow again."
-!                    VaryShiftIter=Iter
-                    TSinglePartPhase=.true.
-                    tReZeroShift=.true.
-                ENDIF
-            ENDIF
-!Broadcast the fact that TSinglePartPhase may have changed to all processors - unfortunatly, have to do this broadcast every iteration.
-            CALL MPILBcast(TSinglePartPhase,1,root)
-        ENDIF
-
 
 !This first call will calculate the GrowRate for each processor, taking culling into account
 !        WRITE(6,*) "Get Here"
@@ -1517,6 +1492,34 @@ MODULE FciMCParMod
 
 !        WRITE(6,*) "Get Here 3"
 !        CALL FLUSH(6)
+        
+
+
+        IF(TSinglePartPhase) THEN
+!Exit the single particle phase if the number of walkers exceeds the value in the input file.
+!            CALL MPI_Barrier(MPI_COMM_WORLD,error)
+            IF((AllTotParts.gt.(InitWalkers*nProcessors)).or.(AllNoatHF.gt.MaxNoatHF)) THEN
+                WRITE(6,*) "Exiting the single particle growth phase - shift can now change"
+                VaryShiftIter=Iter
+                TSinglePartPhase=.false.
+            ENDIF
+!!Broadcast the fact that TSinglePartPhase may have changed to all processors - unfortunatly, have to do this broadcast every iteration.
+!            CALL MPILBcast(TSinglePartPhase,1,root)
+        ELSE
+!Exit the single particle phase if the number of walkers exceeds the value in the input file.
+!            CALL MPI_Barrier(MPI_COMM_WORLD,error)
+!            IF(iProcIndex.eq.root) THEN     !Only exit phase if particle number is sufficient on head node.
+                IF(AllNoatHF.lt.(MaxNoatHF-HFPopThresh)) THEN
+                    WRITE(6,'(A)') "No at HF has fallen too low - reentering the single particle growth phase - particle number may grow again."
+!                    VaryShiftIter=Iter
+                    TSinglePartPhase=.true.
+                    tReZeroShift=.true.
+                ENDIF
+!            ENDIF
+!!Broadcast the fact that TSinglePartPhase may have changed to all processors - unfortunatly, have to do this broadcast every iteration.
+!            CALL MPILBcast(TSinglePartPhase,1,root)
+        ENDIF
+
 
         IF(.not.tDirectAnnihil) THEN
 
@@ -1572,6 +1575,12 @@ MODULE FciMCParMod
             CALL MPI_Reduce(TotWalkers,MinWalkersProc,1,MPI_INTEGER,MPI_MIN,root,MPI_COMM_WORLD,error)
             IF(iProcIndex.eq.Root) THEN
                 WalkersDiffProc=MaxWalkersProc-MinWalkersProc
+
+                MeanWalkers=AllTotWalkers/REAL(nProcessors,r2)
+                IF((WalkersDiffProc.gt.NINT(MeanWalkers/10.D0).and.(AllTotWalkers.gt.(REAL(nProcessors*500,r2))))) THEN
+                    WRITE(6,"(A)") "Number of determinants assigned to each processor unbalanced. This will reduce performance."
+                ENDIF
+            
             ENDIF
 
 !            TBalanceNodes=.false.   !Temporarily turn off node balancing
@@ -1739,10 +1748,19 @@ MODULE FciMCParMod
 !This first bit checks if it is time to set up the blocking analysis.  This is obviously only done once, so these logicals become false once it is done. 
         IF(iProcIndex.eq.Root) THEN
             IF(tIterStartBlock) THEN
-                IF(Iter.ge.IterStartBlocking) THEN 
-                    CALL InitErrorBlocking(Iter)
-                    tIterStartBlock=.false.
-                    tErrorBlocking=.true.
+!If IterStartBlocking is positive, then start blocking when we are at that iteration. Otherwise, wait until out of fixed shift.
+                IF(IterStartBlocking.gt.0) THEN
+                    IF(Iter.ge.IterStartBlocking) THEN 
+                        CALL InitErrorBlocking(Iter)
+                        tIterStartBlock=.false.
+                        tErrorBlocking=.true.
+                    ENDIF
+                ELSE
+                    IF(.not.TSinglePartPhase) THEN
+                        CALL InitErrorBlocking(Iter)
+                        tIterStartBlock=.false.
+                        tErrorBlocking=.true.
+                    ENDIF
                 ENDIF
             ELSEIF(tHFPopStartBlock) THEN
                 IF((AllHFCyc/StepsSft).ge.HFPopStartBlocking) THEN
