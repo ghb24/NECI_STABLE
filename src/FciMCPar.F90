@@ -583,6 +583,7 @@ MODULE FciMCParMod
 !We have found a determinant lower in energy that the "root" determinant.
 !This should not happen in a HF basis, but can happen if the orbitals have been rotated.
                     CALL ChangeRefDet(HDiagCurr,DetCurr,CurrentDets(:,j))
+                    EXIT
                 ENDIF
             ENDIF
             IF(tStarOrbs) THEN
@@ -690,18 +691,6 @@ MODULE FciMCParMod
                         Child=AttemptCreatePar(DetCurr,CurrentDets(:,j),CurrentSign(j),nJ,iLutnJ,Prob,IC,Ex,tParity,ParticleWeight,tMinorDetList)
                     ELSE
 !Attempted excitation is above the excitation level cutoff - do not allow the creation of children
-!                        k=0
-!                        do i=1,NEl
-!                            IF(nJ(i).le.36) THEN
-!                                k=k+1
-!                            ENDIF
-!                        enddo
-!                        IF(k.eq.NEl) THEN
-!                            WRITE(6,*) 'DetCurr',nJ
-!                            WRITE(6,*) 'TestIfDetinCas',tParentInCAS
-!                            CALL FLUSH(6)
-!                            CALL Stop_All('attempt spawning','det in cas space when it says its not')
-!                        ENDIF
                         Child=0
                     ENDIF
                 ELSE
@@ -1869,8 +1858,7 @@ MODULE FciMCParMod
         LOGICAL :: exists
         REAL*8 :: TotDets
         CHARACTER(len=*), PARAMETER :: this_routine='InitFCIMCPar'
-
-
+            
         IF(TStartMP1) THEN
 !Start the initial distribution off at the distribution of the MP1 eigenvector
 
@@ -2018,8 +2006,11 @@ MODULE FciMCParMod
                 NewSign=>WalkVec2Sign
             ENDIF
 
+
             IF(TStartSinglePart) THEN
                 IF(tDirectAnnihil) THEN
+                    WRITE(6,*) iLutHF(:)
+                    CALL FLUSH(6)
                     Proc=DetermineDetProc(iLutHF)
                     WRITE(6,*) "HF processor is: ",Proc
                     IF(iProcIndex.eq.Proc) THEN
@@ -4982,59 +4973,60 @@ MODULE FciMCParMod
     SUBROUTINE ChangeRefDet(HDiagCurr,DetCurr,iLutCurr)
         use Determinants , only : GetH0Element3
         INTEGER :: iLutCurr(0:NIfTot),DetCurr(NEl),i,nStore(6),ierr,iMaxExcit
+        INTEGER :: iLutTemp(0:NIfTot)
         INTEGER :: nJ(NEl)
         TYPE(HElement) :: TempHii
         REAL*8 :: HDiagCurr
 
-        CALL Stop_All("ChangeRefDet","This option does not currently work. Bug ghb24 if its needed")
+!        CALL Stop_All("ChangeRefDet","This option does not currently work. Bug ghb24 if its needed")
 !Problem is that we need to rerun the simulation from scratch, and particles currently in the simulation will keep on
 !changing the reference since their diagonal K element will remain negative.
 
         do i=1,NEl
-            HFDet(i)=DetCurr(i)
+            FDet(i)=DetCurr(i)
         enddo
-        Hii=Hii+HDiagCurr
-        iLutHF(0:NIfTot)=iLutCurr(0:NIfTot)
-        TempHii=GetH0Element3(HFDet)
-        Fii=REAL(TempHii%v,r2)
-        HFHash=CreateHash(HFDet)
-        DEALLOCATE(HFExcit%ExcitData)
-!Setup excitation generator for the HF determinant. If we are using assumed sized excitgens, this will also be assumed size.
-        iMaxExcit=0
-        nStore(1:6)=0
-        CALL GenSymExcitIt2(HFDet,NEl,G1,nBasis,nBasisMax,.TRUE.,HFExcit%nExcitMemLen,nJ,iMaxExcit,0,nStore,3)
-        ALLOCATE(HFExcit%ExcitData(HFExcit%nExcitMemLen),stat=ierr)
-        IF(ierr.ne.0) CALL Stop_All("ChangeRefDet","Problem allocating excitation generator")
-        HFExcit%ExcitData(1)=0
-        CALL GenSymExcitIt2(HFDet,NEl,G1,nBasis,nBasisMax,.TRUE.,HFExcit%ExcitData,nJ,iMaxExcit,0,nStore,3)
-        HFExcit%nPointed=0
+!        Hii=Hii+HDiagCurr
+!        iLutTemp(0:NIfTot)=iLutCurr(0:NIfTot)
+!        TempHii=GetH0Element3(HFDet)
+!        Fii=REAL(TempHii%v,r2)
+!        HFHash=CreateHash(HFDet)
+!        IF(ALLOCATED(HFExcit%ExcitData)) THEN
+!            DEALLOCATE(HFExcit%ExcitData)
+!!Setup excitation generator for the HF determinant. If we are using assumed sized excitgens, this will also be assumed size.
+!            iMaxExcit=0
+!            nStore(1:6)=0
+!            CALL GenSymExcitIt2(HFDet,NEl,G1,nBasis,nBasisMax,.TRUE.,HFExcit%nExcitMemLen,nJ,iMaxExcit,0,nStore,3)
+!            ALLOCATE(HFExcit%ExcitData(HFExcit%nExcitMemLen),stat=ierr)
+!            IF(ierr.ne.0) CALL Stop_All("ChangeRefDet","Problem allocating excitation generator")
+!            HFExcit%ExcitData(1)=0
+!            CALL GenSymExcitIt2(HFDet,NEl,G1,nBasis,nBasisMax,.TRUE.,HFExcit%ExcitData,nJ,iMaxExcit,0,nStore,3)
+!            HFExcit%nPointed=0
+!        ENDIF
 
         WRITE(6,"(A)") "*** Changing the reference determinant ***"
-        WRITE(6,"(A)") "Switching reference and zeroing energy counters"
-        WRITE(6,"(A,G25.16)") "New reference energy is: ",Hii
-        WRITE(6,"(A)",advance='no') "New Determinant is: "
-        do i=1,NEL-1
-            WRITE(6,"(I4)",advance='no') HFDet(i)
-        enddo
-        WRITE(6,"(I4)") HFDet(NEl)
+        WRITE(6,"(A)") "Switching reference and zeroing energy counters - restarting simulation"
+!        WRITE(6,"(A,G25.16)") "New reference energy is: ",Hii
+!        WRITE(6,"(A)",advance='no') "New Determinant is: "
+!        do i=1,NEL-1
+!            WRITE(6,"(I4)",advance='no') HFDet(i)
+!        enddo
+!        WRITE(6,"(I4)") HFDet(NEl)
+!        
+!        TBalanceNodes=.false.   !Assume that the nodes are initially load-balanced
+
+!Initialise variables for calculation on each node
+        Iter=1
         
-        AllSumENum=0.D0
-        AllSumNoatHF=0.D0
-        AllNoatHF=0
-        AllNoatDoubs=0
-!        AllDetsNorm=0.D0
-        AllHFCyc=0.D0
-        AllENumCyc=0.D0
-        ProjectionE=0.D0
-        SumENum=0.D0
-        NoatHF=0
-        NoatDoubs=0
-!        DetsNorm=0.D0
-        HFCyc=0
-        HFPopCyc=0
-        ENumCyc=0.D0
-        ProjEIter=0.D0
-        ProjEIterSum=0.D0
+        CALL DeallocFCIMCMemPar()
+        IF(iProcIndex.eq.Root) THEN
+            CLOSE(15)
+            IF(tTruncInitiator.or.tDelayTruncInit) CLOSE(16)
+!            IF(TAutoCorr) CLOSE(44)
+        ENDIF
+        IF(TDebug) CLOSE(11)
+        CALL SetupParameters()
+        CALL InitFCIMCCalcPar()
+
 
     END SUBROUTINE ChangeRefDet
     
@@ -5509,6 +5501,16 @@ MODULE FciMCParMod
                 DEALLOCATE(WalkVec2H)
                 CALL LogMemDealloc(this_routine,WalkVec2HTag)
             ENDIF
+        ENDIF
+        IF(tRotoAnnihil.or.tDirectAnnihil) THEN
+            DEALLOCATE(SpawnVec)
+            CALL LogMemDealloc(this_routine,SpawnVecTag)
+            DEALLOCATE(SpawnVec2)
+            CALL LogMemDealloc(this_routine,SpawnVec2Tag)
+            DEALLOCATE(SpawnSignVec)
+            CALL LogMemDealloc(this_routine,SpawnSignVecTag)
+            DEALLOCATE(SpawnSignVec2)
+            CALL LogMemDealloc(this_routine,SpawnSignVec2Tag)
         ENDIF
         
         IF(TResumFCIMC.and.(NDets.gt.2)) THEN
@@ -9663,10 +9665,7 @@ MODULE FciMCParMod
 !This flag determines if the FCI space is restricted by whether the determinants are in the predescribed CAS.
             IF(.not.TestIfDetinCAS(nJ)) THEN
 !Excitation not in allowed CAS space.
-!                WRITE(6,*) "Not in CAS:",nJ(:)
                 CheckAllowedTruncSpawn=.false.
-!            ELSE
-!                WRITE(6,*) "In Cas:",nJ(:)
             ENDIF
 
         ENDIF
