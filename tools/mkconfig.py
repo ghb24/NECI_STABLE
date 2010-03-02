@@ -253,7 +253,7 @@ CDEPEND = $(CDEPEND_FILES) $(cDEPEND_FILES) $(KCDEPEND_FILES) $(KcDEPEND_FILES)
 #-----
 # Goals
 
-.PHONY: clean cleanall depend rmdeps help neci.x
+.PHONY: clean cleanall depend rmdeps help neci.x utils $(UTILS)
 
 # First, some helpful macros.
 
@@ -305,7 +305,7 @@ $(LIB)/kneci-vasp.$(CONFIG).$(OPT).a: $(OBJECTS_KVASP)
 \t$(ARCHIVE)
 
 clean: 
-\trm -f {$(GDEST),$(KDEST)}/*.{f,f90,mod,o,c,x,a,d} $(EXE)/neci.x $(LIB)/*.a
+\trm -f {$(GDEST),$(KDEST)}/*.{f,f90,mod,o,c,x,a,d} $(EXE)/*.$(CONFIG).$(OPT).x $(LIB)/*.$(CONFIG).$(OPT).a
 
 cleanall:
 \trm -rf dest lib bin
@@ -356,15 +356,17 @@ help:
 \t@echo "make [target(s)]"
 \t@echo
 \t@echo "Targets:"
-\t@echo "neci.x        make neci.x."
-\t@echo "new           run clean and then build neci.x."
-\t@echo "gneci-cpmd    make neci library for integration with gamma-point version of cpmd."
-\t@echo "kneci-cpmd    make neci library for integration with k-point version of cpmd."
-\t@echo "cpmdlibs      make both libraries for integration with cpmd."
-\t@echo "gneci-vasp    make neci library for integration with gamma-point version of vasp."
-\t@echo "kneci-vasp    make neci library for integration with k-point version of vasp."
-\t@echo "vasplibs      make both libraries for integration with vasp."
-\t@echo "libs          make all libraries for integration with cpmd and vasp."
+\t@echo "neci.x        compile neci.x."
+\t@echo "new           run clean and then compile neci.x."
+\t@echo "gneci-cpmd    compile neci library for integration with gamma-point version of cpmd."
+\t@echo "kneci-cpmd    compile neci library for integration with k-point version of cpmd."
+\t@echo "cpmdlibs      compile both libraries for integration with cpmd."
+\t@echo "gneci-vasp    compile neci library for integration with gamma-point version of vasp."
+\t@echo "kneci-vasp    compile neci library for integration with k-point version of vasp."
+\t@echo "vasplibs      compile both libraries for integration with vasp."
+\t@echo "libs          compile all libraries for integration with cpmd and vasp."
+\t@echo "utils         compile all utility programs."
+\t@echo "TransLz.x     compile the TransLz utility program."
 \t@echo "clean         remove all compiled objects for the current platform and optimisation level." 
 \t@echo "cleanall      remove all compiled objects for all platforms and optimisation levels and the dependency files." 
 \t@echo "tags          run ctags on all source files."
@@ -457,6 +459,21 @@ $(KcDEPEND_FILES): $(KDEP_DEST)/%%.d: %%.c
 
 $(KCDEPEND_FILES): $(KDEP_DEST)/%%.d: %%.C
 \t$(MAKE_C_KDEPS)
+
+#-----
+# Utilities
+
+UTILS = TransLz
+
+utils: $(UTILS)
+
+TransLz.x: $(EXE)/TransLz.x
+
+$(EXE)/TransLz.x: $(EXE)/TransLz.$(CONFIG).$(OPT).x
+\t$(LINK)
+
+$(EXE)/TransLz.$(CONFIG).$(OPT).x: utils/TransLz.f90
+\t$(FC) $(FFLAGS) $< -o $@
 
 #-----
 # Include dependency files
