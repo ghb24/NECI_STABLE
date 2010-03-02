@@ -332,8 +332,10 @@ PROGRAM TransLz
                     do j=i+2,NORB-1,2
                         IF(SYMLz(j).eq.-SYMLz(i)) THEN
                             !Found pair
-                            IF(LzPairs(i).ne.j) STOP 'Pairing by increasing energy does not give the same answer as decreasing energy'
-                            IF(LzPairs(j).ne.i) STOP 'Pairing by increasing energy does not give the same answer as decreasing energy'
+                            IF(LzPairs(i).ne.j) STOP  &
+                                   'Pairing by increasing energy does not give the same answer as decreasing energy'
+                            IF(LzPairs(j).ne.i) STOP  & 
+                                   'Pairing by increasing energy does not give the same answer as decreasing energy'
                             EXIT
                         ELSEIF(j.eq.1) THEN
                             STOP 'Cannot pair all orbitals in increasing energy'
@@ -354,8 +356,10 @@ PROGRAM TransLz
                     do j=i+1,NORB
                         IF(SYMLz(j).eq.-SYMLz(i)) THEN
                             !Found pair
-                            IF(LzPairs(i).ne.j) STOP 'Pairing by increasing energy does not give the same answer as decreasing energy'
-                            IF(LzPairs(j).ne.i) STOP 'Pairing by increasing energy does not give the same answer as decreasing energy'
+                            IF(LzPairs(i).ne.j) STOP  &
+                                   'Pairing by increasing energy does not give the same answer as decreasing energy'
+                            IF(LzPairs(j).ne.i) STOP  &
+                                   'Pairing by increasing energy does not give the same answer as decreasing energy'
                             EXIT
                         ELSEIF(j.eq.1) THEN
                             STOP 'Cannot pair all orbitals in increasing energy'
@@ -378,7 +382,7 @@ PROGRAM TransLz
                 ELSE
                     do j=i,2*SymL(i)+i
                         !Just running over block of a given L value
-                        PairMl=SymLz(j)*-1
+                        PairMl=-SymLz(j)
                         do k=i,2*SymL(i)+i
                             IF(SymLz(k).eq.PairMl) THEN
                                 LzPairs(j)=k
