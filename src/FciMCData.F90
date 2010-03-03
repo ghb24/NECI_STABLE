@@ -234,6 +234,9 @@ MODULE FciMCData
 
       REAL*8 , ALLOCATABLE :: HistHamil(:,:),AllHistHamil(:,:),AvHistHamil(:,:),AllAvHistHamil(:,:) !These arrays are for histogramming the hamiltonian when tHistHamil is set.
       REAL*8 :: TotImagTime
+            
+      INTEGER , ALLOCATABLE :: ExtMask(:)        !These are masking arrays for the external orbitals in the cas space
+      INTEGER , ALLOCATABLE :: CoreMask(:)       !These are masking arrays for the Core orbitals in the cas space
 
 
 END MODULE FciMCData

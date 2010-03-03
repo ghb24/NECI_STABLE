@@ -771,8 +771,8 @@ MODULE FciMCParMod
 
                     IF(tTruncInitiator) THEN
                         IF(tTruncCAS) THEN
-                            tParentInCAS=.true.
-                            tParentInCAS=TestIfDetInCAS(DetCurr)
+!                            tParentInCAS=TestIfDetInCAS(DetCurr)
+                            tParentInCAS=TestIfDetInCASBit(CurrentDets(:,j))
                             IF(tParentInCAS) THEN
                                 ParentInitiator=0
                                 NoInitDets=NoInitDets+1
@@ -2009,8 +2009,6 @@ MODULE FciMCParMod
 
             IF(TStartSinglePart) THEN
                 IF(tDirectAnnihil) THEN
-                    WRITE(6,*) iLutHF(:)
-                    CALL FLUSH(6)
                     Proc=DetermineDetProc(iLutHF)
                     WRITE(6,*) "HF processor is: ",Proc
                     IF(iProcIndex.eq.Proc) THEN
@@ -5553,6 +5551,10 @@ MODULE FciMCParMod
         IF(ALLOCATED(SpinInvBrr)) THEN
             CALL LogMemDealloc(this_routine,SpinInvBRRTag)
             DEALLOCATE(SpinInvBRR)
+        ENDIF
+        IF(ALLOCATED(CoreMask)) THEN
+            DEALLOCATE(CoreMask)
+            DEALLOCATE(ExtMask)
         ENDIF
 
         IF(tConstructNOs) THEN
@@ -9401,6 +9403,38 @@ MODULE FciMCParMod
 
             IF(OccCASOrbs.gt.NEl) CALL Stop_All("SetupParameters","Occupied orbitals in CAS space specified is greater than number of electrons")
             IF(VirtCASOrbs.gt.(nBasis-NEl)) CALL Stop_All("SetupParameters","Virtual orbitals in CAS space specified is greater than number of unoccupied orbitals")
+
+!Create the bit masks for the bit calculation of these properties.
+            ALLOCATE(ExtMask(0:NIfD))
+            ALLOCATE(CoreMask(0:NIfD))
+            ExtMask(:)=0
+            CoreMask(:)=0
+            do i=1,nBasis
+                IF(SpinInvBRR(i).gt.CASmax) THEN
+                    !Orbital is in external space
+                    ExtMask((SpinInvBRR(i)-1)/32) = ibset(ExtMask((i-1)/32),MOD((i-1),32))
+!                    CoreMask = ibclr(CoreMask((i-1)/32),MOD((i-1),32))
+                ELSEIF(SpinInvBRR(i).le.CASmin) THEN
+                    !Orbital is in core space
+!                    ExtMask = ibclr(ExtMask((i-1)/32),MOD((i-1),32))
+                    CoreMask((SpinInvBRR(i)-1)/32) = ibset(CoreMask((i-1)/32),MOD((i-1),32))
+!                    WRITE(6,*) "Setting orbital: ", SpinInvBRR(i)
+                ELSE
+                    !Orbital is in CAS space - these bits should already be cleared
+!                    ExtMask = ibclr(ExtMask((i-1)/32),MOD((i-1),32))
+!                    CoreMask = ibclr(CoreMask((i-1)/32),MOD((i-1),32))
+                ENDIF
+            enddo
+
+!            do i=1,nBasis
+!                IF(BTEST(CoreMask((i-1)/32),MOD((i-1),32))) THEN
+!                    WRITE(6,"(I4)",advance='no') 1
+!                ELSE
+!                    WRITE(6,"(I4)",advance='no') 0
+!                ENDIF
+!            enddo
+!            WRITE(6,*) ""
+
         ENDIF
         IF(tPartFreezeCore) THEN
             WRITE(6,'(A,I4,A,I5)') 'Partially freezing the lowest ',NPartFrozen,' spin orbitals so that no more than ',NHolesFrozen,' holes exist within this core.'
@@ -9552,6 +9586,32 @@ MODULE FciMCParMod
 
     ENDSUBROUTINE CheckforBrillouins
 
+    LOGICAL FUNCTION TestifDETinCASBit(iLutnI)
+        INTEGER :: iLutnI(0:NIfD),i,Ext(0:NIfD),Core(0:NIfD)
+
+        Ext(:) = iand(iLutnI(:),ExtMask(:))
+
+        do i=0,NIfD
+            IF(Ext(i).ne.0) THEN
+                TestifDETinCASBit=.false.
+                RETURN
+            ENDIF
+        enddo
+
+        Core(:) = iand(iLutnI(:),CoreMask(:))
+
+        do i=0,NIfD
+            IF(Core(i).ne.CoreMask(i)) THEN
+                TestifDETinCASBit=.false.
+                RETURN
+            ENDIF
+        enddo
+
+        TestifDETinCASBit=.true.
+
+        RETURN
+    END FUNCTION TestifDETinCASBit
+
     LOGICAL FUNCTION TestifDETinCAS(CASDet)
         INTEGER :: k,z,CASDet(NEl), orb
         LOGICAL :: tElecInVirt, bIsCsf
@@ -9663,7 +9723,8 @@ MODULE FciMCParMod
 
         IF((tTruncCAS.and.(.not.tTruncInitiator)).and.CheckAllowedTruncSpawn) THEN
 !This flag determines if the FCI space is restricted by whether the determinants are in the predescribed CAS.
-            IF(.not.TestIfDetinCAS(nJ)) THEN
+!            IF(.not.TestIfDetinCAS(nJ)) THEN
+            IF(.not.TestIfDetinCASBit(iLutnJ)) THEN
 !Excitation not in allowed CAS space.
                 CheckAllowedTruncSpawn=.false.
             ENDIF
