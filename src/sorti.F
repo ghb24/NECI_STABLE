@@ -1,4 +1,4 @@
-C.. This would appear to be a standard quicksort from Numerical Recipes [AJWT 20040407]
+C.. This would appear to be a standard heapsort from Numerical Recipes [JSS 03/03/2010]
 C.. Based on SORT, SORTI sorts integers rather than reals
       SUBROUTINE NECI_SORTI(N,RA)
       IMPLICIT REAL*8 (A-H,O-Z) 
