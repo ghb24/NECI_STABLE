@@ -257,6 +257,7 @@ MODULE Calc
           use UMatCache, only: gen2CPMDInts
           use CCMCData, only: dInitAmplitude,dProbSelNewExcitor,nSpawnings,tSpawnProp
           use global_utilities
+          use Parallel, only : nProcessors
           IMPLICIT NONE
           LOGICAL eof
           CHARACTER (LEN=100) w
@@ -744,6 +745,10 @@ MODULE Calc
             case("INITWALKERS")
 !For FCIMC, this is the number of walkers to start with
                 call geti(InitWalkers)
+            case("TOTALWALKERS")
+!This is now input as the total number, rather than the number per processor, and it is changed to the number per processor here.
+                call geti(InitWalkers)
+                InitWalkers=NINT(REAL(InitWalkers)/REAL(nProcessors))
             case("MAXNOATHF")
 !If the number of walkers at the HF determinant reaches this number, the shift is allowed to change. (This is the total number across all processors).                
 !If a second integer is present, this determinants the threshhold for the HF population.  If the HF population drops below MaxNoatHF-HFPopThresh, the

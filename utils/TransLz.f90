@@ -213,12 +213,14 @@ PROGRAM TransLz
                     WRITE(6,*) 'Error with Lz ordering'
                     WRITE(6,*) "Attempting to order orbitals energetically"
                     tPairbyEnergy=.true.
+                    EXIT
                 ENDIF
             ELSEIF(SYMLz(i).gt.0) THEN
                 IF(SYMLz(i).ne.-SYMLz(i-1)) THEN
                     WRITE(6,*) 'Error with Lz ordering'
                     WRITE(6,*) "Attempting to order orbitals energetically"
                     tPairbyEnergy=.true.
+                    EXIT
                 ENDIF
             ENDIF
         enddo
@@ -264,9 +266,12 @@ PROGRAM TransLz
                 ENDIF
             enddo
 
-        ELSEIF(tDiatomic) THEN
+        ELSE
 !The orbitals *should* be ordered as -m,m, however due to the fact that the required offset to split degeneracies between orbitals can cause angular functions to overlap, we'll have to assume that they will
 !pair by energy.
+!There is a slight problem with this. at dissociation, atomic functions on the different atoms are degenerate, and so we will get things like -1,-1,0,0,1,1 for the atomic p functions.
+!Therefore, we will just have to take the next pair if one is already taken.
+!This will be the same ordering as atomic systems
             do i=1,NORB
                 IF(SYMLz(i).eq.0) THEN
                     LzPairs(i)=i
@@ -275,9 +280,9 @@ PROGRAM TransLz
                 ELSE
                     !cycle up through the orbitals until the positive value which corresponds is found.
                     do j=i+1,NORB
-                        IF(SYMLz(j).eq.-SYMLz(i)) THEN
-                            IF(LzPairs(i).ne.0) STOP 'Pair wanted already taken'
-                            IF(LzPairs(j).ne.0) STOP 'Pair wanted already taken'
+                        IF((SYMLz(j).eq.-SYMLz(i)).and.(LzPairs(j).eq.0)) THEN
+!                            IF(LzPairs(i).ne.0) STOP 'Pair wanted already taken'
+!                            IF(LzPairs(j).ne.0) STOP 'Pair wanted already taken'
                             LzPairs(i)=j
                             LzPairs(j)=i
                             EXIT
@@ -291,30 +296,6 @@ PROGRAM TransLz
                 IF(LzPairs(i).eq.0) STOP 'Orbitals not paired correctly'
             enddo
 
-        ELSE
-            do i=NORB,1,-1
-                IF(LzPairs(i).ne.0) THEN
-                    CYCLE
-                ELSEIF(LzPairs(i).gt.i) THEN
-                    !We have already paired this orbital up with something higher than it.
-                    CYCLE
-                ELSEIF(SYMLz(i).eq.0) THEN
-                    LzPairs(i)=i
-                ELSE
-                    do j=i-1,1,-1
-                        IF(SYMLz(j).eq.-SYMLz(i)) THEN
-                            !Found pair
-                            IF(LzPairs(i).ne.0) STOP 'Pair wanted already taken'
-                            IF(LzPairs(j).ne.0) STOP 'Pair wanted already taken'
-                            LzPairs(i)=j
-                            LzPairs(j)=i
-                            EXIT
-                        ELSEIF(j.eq.1) THEN
-                            STOP 'Cannot pair all orbitals'
-                        ENDIF
-                    enddo
-                ENDIF
-            enddo
         ENDIF
 
 !Now we want to check that this ordering is the same as if we wanted to order in increasing energy
