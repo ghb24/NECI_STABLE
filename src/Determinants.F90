@@ -228,7 +228,6 @@ MODULE Determinants
     End Subroutine DetInit
 
     function get_helement_compat (nI, nJ, IC, iLutI, iLutJ) result (hel)
-        ! TODO: If we know IC, is it quicker to use this way
         
         integer, intent(in) :: nI(nel), nJ(nel)
         integer, intent(in), optional :: iLutI(0:NIfTot), iLutJ(0:NIfTot)
@@ -236,7 +235,6 @@ MODULE Determinants
         type(HElement) :: hel
 
         character(*), parameter :: this_routine = 'get_helement_compat'
-        type(timer), save :: proc_timer
 
         if (tHPHFInts) &
             call stop_all (this_routine, "Should not be calling HPHF &
@@ -252,9 +250,6 @@ MODULE Determinants
         if (tStoreAsExcitations) &
             call stop_all(this_routine, "tStoreExcitations not supported")
 
-        proc_timer%timer_name = this_routine
-        call set_timer(proc_timer, 60)
-
         if (present(iLutJ)) then
             hel = sltcnd_knowIC (nI, nJ, iLutI, iLutJ, IC)
         else
@@ -263,7 +258,6 @@ MODULE Determinants
 
         ! Add in ECore if for a diagonal element
         if (IC == 0) hel = hel + helement(ECore)
-        call halt_timer (proc_timer)
     end function
     
     function get_helement_normal (nI, nJ, iLutI, iLutJ, ICret) result(hel)
@@ -282,7 +276,6 @@ MODULE Determinants
 
         character(*), parameter :: this_routine = 'get_helement_normal'
         integer :: ex(2,2), IC, ilut(0:NIfTot,2)
-        type(timer), save :: proc_timer
 
         if (tHPHFInts) &
             call stop_all (this_routine, "Should not be calling HPHF &
@@ -306,10 +299,6 @@ MODULE Determinants
             hel = sltcnd_2 (ex, .false.)
         endif
 
-        ! Time the calculation.
-        proc_timer%timer_name = this_routine
-        call set_timer(proc_timer, 60)
-
         if (present(iLutJ)) then
             hel = sltcnd (nI, nJ, iLutI, iLutJ, IC)
         else
@@ -321,7 +310,6 @@ MODULE Determinants
 
         ! Add in ECore for a diagonal element
         if (IC == 0) hel = hel + HElement(ECore)
-        call halt_timer(proc_timer)
 
         ! If requested, return IC
         if (present(ICret)) then
