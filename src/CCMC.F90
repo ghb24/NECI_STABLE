@@ -1571,7 +1571,7 @@ SUBROUTINE InitMP1Amplitude(tFCI,Amplitude,nExcit,ExcitList,ExcitLevelIndex,dIni
       enddo
       CALL DecodeBitDet(DetCurr,ExcitList(:,j))
       if(iC.ge.1) then
-         Htmp = get_helement (HFDet,  DetCurr, iLutHF, ExcitList(:,j), iC)
+         Htmp = get_helement (HFDet,  DetCurr, iC, iLutHF, ExcitList(:,j))
          H0tmp=GetH0Element3(DetCurr)
          H0tmp=H0tmp-H0HF
          Amplitude(j)=Amplitude(j)-dInitAmp*DREAL(Htmp)/DREAL(H0tmp)

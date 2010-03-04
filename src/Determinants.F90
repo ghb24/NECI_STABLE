@@ -6,7 +6,8 @@ MODULE Determinants
                           NIfToT
     use IntegralsData, only: UMat, FCK, NMAX
     use csf, only: det_to_random_csf, iscsf, CSFGetHElement
-    use sltcnd_mod, only: sltcnd, sltcnd_excit, sltcnd_2, sltcnd_compat
+    use sltcnd_mod, only: sltcnd, sltcnd_excit, sltcnd_2, sltcnd_compat, &
+                          sltcnd_knowIC
     use global_utilities
     use DetBitOps, only: EncodeBitDet
     implicit none
@@ -226,10 +227,11 @@ MODULE Determinants
 
     End Subroutine DetInit
 
-    function get_helement_compat (nI, nJ, IC) result (hel)
+    function get_helement_compat (nI, nJ, IC, iLutI, iLutJ) result (hel)
         ! TODO: If we know IC, is it quicker to use this way
         
         integer, intent(in) :: nI(nel), nJ(nel)
+        integer, intent(in), optional :: iLutI(0:NIfTot), iLutJ(0:NIfTot)
         integer, intent(in) :: IC
         type(HElement) :: hel
 
@@ -253,14 +255,18 @@ MODULE Determinants
         proc_timer%timer_name = this_routine
         call set_timer(proc_timer, 60)
 
-        hel = sltcnd_compat (nI, nJ, IC)
+        if (present(iLutJ)) then
+            hel = sltcnd_knowIC (nI, nJ, iLutI, iLutJ, IC)
+        else
+            hel = sltcnd_compat (nI, nJ, IC)
+        endif
 
         ! Add in ECore if for a diagonal element
         if (IC == 0) hel = hel + helement(ECore)
         call halt_timer (proc_timer)
     end function
     
-    function get_helement_normal (nI, nJ, iLutI, iLutJ, ICext) result(hel)
+    function get_helement_normal (nI, nJ, iLutI, iLutJ, ICret) result(hel)
 
         ! Get the matrix element of the hamiltonian.
         !
@@ -271,7 +277,7 @@ MODULE Determinants
         
         integer, intent(in) :: nI(nel), nJ(nel)
         integer, intent(in), optional :: iLutI(0:NIfTot), iLutJ(0:NIfTot)
-        integer, intent(inout), optional :: ICext
+        integer, intent(out), optional :: ICret
         type(helement) :: hel
 
         character(*), parameter :: this_routine = 'get_helement_normal'
@@ -303,17 +309,13 @@ MODULE Determinants
         ! Time the calculation.
         proc_timer%timer_name = this_routine
         call set_timer(proc_timer, 60)
-        if (present(ICext)) then
-            IC = ICext
-        else
-            IC = -1
-        endif
 
         if (present(iLutJ)) then
             hel = sltcnd (nI, nJ, iLutI, iLutJ, IC)
         else
             call EncodeBitDet (nI, iLut(:,1))
             call EncodeBitdet (nJ, iLut(:,2))
+            ! TODO: This is not an ideal place to end up...
             hel = sltcnd (nI, nJ, iLut(:,1), ilut(:,2), IC)
         endif
 
@@ -322,15 +324,12 @@ MODULE Determinants
         call halt_timer(proc_timer)
 
         ! If requested, return IC
-        if (present(ICext)) then
-            if (ICext < 0) then
-                ICext = IC
-            endif
+        if (present(ICret)) then
+            ICret = IC
         endif
 
     end function get_helement_normal
 
-    ! TODO: pass-through of iLut?
     function get_helement_excit (NI, NJ, IC, ExcitMat, TParity) result(hel)
 
         ! Calculate the Hamiltonian Matrix Element for a given determinant (or

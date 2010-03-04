@@ -5905,8 +5905,8 @@ MODULE FciMCParMod
                     ! nb. get_helement_normal does not use nI, nJ for ic == 2.
                     !     Therefore no need to generate guide det. This is not
                     !     true for CSFs --> no support
-                    HdoubTemp = get_helement (HFDet, HFDet, iLutHF, &
-                                              GuideFuncDets(:,i), ExcitLevel)
+                    HdoubTemp = get_helement (HFDet, HFDet, ExcitLevel, &
+                                              iLutHF, GuideFuncDets(:,i))
                     HDoub=REAL(HDoubTemp%v,r2)
                     GuideFuncDoub=GuideFuncDoub+(GuideFuncSign(i)*Hdoub)
                 endif
@@ -10328,8 +10328,8 @@ MODULE FciMCParMod
                 HOffDiag = hphf_off_diag_helement (HFDet, DetCurr, iLutHF, &
                                                    iLutCurr)
             ELSE
-                HOffDiag = get_helement (HFDet, DetCurr, iLutHF, iLutCurr, &
-                                         ExcitLevel)
+                HOffDiag = get_helement (HFDet, DetCurr, ExcitLevel, iLutHF, &
+                                         iLutCurr)
             ENDIF
             IF(Iter.gt.NEquilSteps) SumENum=SumENum+(REAL(HOffDiag%v,r2)*WSign/dProbFin)
 !            AvSign=AvSign+REAL(WSign,r2)
@@ -10351,8 +10351,8 @@ MODULE FciMCParMod
                 HOffDiag = hphf_off_diag_helement (HFDet, DetCurr, iLutHF, &
                                                    iLutCurr)
             ELSE
-                HOffDiag = get_helement (HFDet, DetCurr, ilutHF, iLutCurr, &
-                                         ExcitLevel)
+                HOffDiag = get_helement (HFDet, DetCurr, ExcitLevel, ilutHF, &
+                                         iLutCurr)
             ENDIF
             IF(Iter.gt.NEquilSteps) SumENum=SumENum+(REAL(HOffDiag%v,r2)*WSign/dProbFin)
 !            AvSign=AvSign+REAL(WSign,r2)

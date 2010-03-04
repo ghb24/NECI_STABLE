@@ -4245,8 +4245,8 @@ MODULE AnnihilationMod
                 ! nb. get_helement_normal does not use nI, nJ for ic == 2.
                 !     Therefore no need to generate guide det. This is not
                 !     true for CSFs (--> no rotoannhilation for CSFs).
-                HDoubTemp = get_helement (HFDet, HFDet, iLutHF, &
-                                          GuideFuncDets(:,i), ExcitLevel)
+                HDoubTemp = get_helement (HFDet, HFDet, ExcitLevel, iLutHF, &
+                                          GuideFuncDets(:,i))
                 HDoub=REAL(HDoubTemp%v,r2)
                 GuideFuncDoub=GuideFuncDoub+(GuideFuncSign(i)*Hdoub)
             endif

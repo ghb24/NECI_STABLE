@@ -89,6 +89,39 @@ contains
         end select
     end function
 
+    function sltcnd_knowIC (nI, nJ, iLutI, iLutJ, IC) result(hel)
+
+        integer, intent(in) :: nI(nel), nJ(nel)
+        integer, intent(in) :: iLutI(0:NIfTot), iLutJ(0:NIfTot)
+        integer, intent(in) :: IC
+        type(HElement) :: hel
+        integer :: ex(2,2)
+        logical :: tSign
+
+        select case (IC)
+        case (0)
+            ! The determinants are exactly the same
+            hel = sltcnd_0 (nI)
+
+        case (1)
+            ! The determinants differ by only one orbital
+            ex(1,1) = IC
+            call GetBitExcitation (iLutI, iLutJ, ex, tSign)
+            hel = sltcnd_1 (nI, Ex(:,1), tSign)
+
+        case (2)
+            ! The determinants differ by two orbitals
+            ex(1,1) = IC
+            call GetBitExcitation (iLutI, iLutJ, ex, tSign)
+            hel = sltcnd_2 (ex, tSign)
+
+        case default
+            ! The determinants differ by more than two orbitals
+            hel%v = 0
+        endselect
+
+    end function
+    
     type(HElement) function sltcnd (nI, nJ, iLutI, iLutJ, ICret)
         
         ! Use the Slater-Condon Rules to evaluate the H matrix element between
@@ -99,40 +132,19 @@ contains
         ! In:  nI, nJ        - The determinants to evaluate
         !      iLutI, ilutJ  - Bit representations of above determinants
         ! Out: ICret         - Optionally return the IC value
-        ! Ret: sltcnd    - The H matrix element
+        ! Ret: sltcnd        - The H matrix element
 
         integer, intent(in) :: nI(nel), nJ(nel)
         integer, intent(in) :: iLutI(0:NIfTot), iLutJ(0:NIfTot)
         integer, intent(out), optional :: ICret
-        integer :: IC, ex(2,2)
-        logical :: tSign
+        integer :: IC
 
         ! Get the excitation level
         IC = FindBitExcitLevel (iLutI, iLutJ)
 
-        select case (IC)
-        case (0)
-            ! The determinants are exactly the same
-            sltcnd = sltcnd_0 (nI)
+        sltcnd = sltcnd_knowIC (nI, nJ, iLutI, iLutJ, IC)
 
-        case (1)
-            ! The determinants differ by only one orbital
-            ex(1,1) = IC
-            call GetBitExcitation (iLutI, iLutJ, ex, tSign)
-            sltcnd = sltcnd_1 (nI, Ex(:,1), tSign)
-
-        case (2)
-            ! The determinants differ by two orbitals
-            ex(1,1) = IC
-            call GetBitExcitation (iLutI, iLutJ, ex, tSign)
-            sltcnd = sltcnd_2 (ex, tSign)
-
-        case default
-            ! The determinants differ by more than two orbitals
-            sltcnd%v = 0
-        endselect
-
-        if (present(ICret)) ICret = IC
+        if (present(ICRet)) ICret = IC
 
     end function
 
