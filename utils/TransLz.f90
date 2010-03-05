@@ -325,29 +325,29 @@ PROGRAM TransLz
                 ENDIF
             enddo
         ELSE
-            do i=1,NORB
-                IF(LzPairs(i).eq.0) THEN
-                    STOP 'Not all orbitals paired'
-                ELSEIF(LzPairs(i).lt.i) THEN
-                    !We have already paired this orbital up with something lower than it.
-                    CYCLE
-                ELSEIF(SYMLz(i).eq.0) THEN
-                    IF(LzPairs(i).ne.i) STOP '0 ml orbital not paired with itself.'
-                ELSE
-                    do j=i+1,NORB
-                        IF(SYMLz(j).eq.-SYMLz(i)) THEN
-                            !Found pair
-                            IF(LzPairs(i).ne.j) STOP  &
-                                   'Pairing by increasing energy does not give the same answer as decreasing energy'
-                            IF(LzPairs(j).ne.i) STOP  &
-                                   'Pairing by increasing energy does not give the same answer as decreasing energy'
-                            EXIT
-                        ELSEIF(j.eq.1) THEN
-                            STOP 'Cannot pair all orbitals in increasing energy'
-                        ENDIF
-                    enddo
-                ENDIF
-            enddo
+!            do i=1,NORB
+!                IF(LzPairs(i).eq.0) THEN
+!                    STOP 'Not all orbitals paired'
+!                ELSEIF(LzPairs(i).lt.i) THEN
+!                    !We have already paired this orbital up with something lower than it.
+!                    CYCLE
+!                ELSEIF(SYMLz(i).eq.0) THEN
+!                    IF(LzPairs(i).ne.i) STOP '0 ml orbital not paired with itself.'
+!                ELSE
+!                    do j=i+1,NORB
+!                        IF(SYMLz(j).eq.-SYMLz(i)) THEN
+!                            !Found pair
+!                            IF(LzPairs(i).ne.j) STOP  &
+!                                   'Pairing by increasing energy does not give the same answer as decreasing energy'
+!                            IF(LzPairs(j).ne.i) STOP  &
+!                                   'Pairing by increasing energy does not give the same answer as decreasing energy'
+!                            EXIT
+!                        ELSEIF(j.eq.1) THEN
+!                            STOP 'Cannot pair all orbitals in increasing energy'
+!                        ENDIF
+!                    enddo
+!                ENDIF
+!            enddo
         ENDIF
 
     ELSE
