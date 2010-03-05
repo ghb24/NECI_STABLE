@@ -232,7 +232,17 @@ MODULE Determinants
     End Subroutine DetInit
 
     function get_helement_compat (nI, nJ, IC, iLutI, iLutJ) result (hel)
-        
+       
+        ! Get the matrix element of the hamiltonian. This assumes that we
+        ! already know IC. We do not need to know iLutI, iLutJ (although
+        ! they are helpful). This better fits the requirements of existing
+        ! code than get_helement_normal.
+        !
+        ! In:  nI, nJ       - The determinants to consider
+        !      iLutI, iLutJ - Bit representations of I,J (optional, helpful)
+        !      IC           - The number of orbitals I,J differ by
+        ! Ret: hel          - The desired matrix element.
+
         integer, intent(in) :: nI(nel), nJ(nel)
         integer, intent(in), optional :: iLutI(0:NIfTot), iLutJ(0:NIfTot)
         integer, intent(in) :: IC
@@ -271,7 +281,7 @@ MODULE Determinants
         ! In:  nI, nJ       - The determinants to consider
         !      iLutI, iLutJ - Bit representations of I,J (optional, helpful)
         ! Out: ICret        - The number of orbitals I,J differ by
-        ! Ret:              - The desired matrix element.
+        ! Ret: hel          - The desired matrix element.
         
         integer, intent(in) :: nI(nel), nJ(nel)
         integer, intent(in), optional :: iLutI(0:NIfTot), iLutJ(0:NIfTot)

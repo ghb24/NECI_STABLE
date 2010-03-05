@@ -7,6 +7,8 @@ module sltcnd_mod
     !        to be more reliably set (see for example test H2O_RI)
     ! TODO: We need to sort this out so that they are consistent
     !       --> Talk to George/Alex to see what impact that might have?
+    ! TODO: It would be nice to reduce the number of variants of sltcnd_...
+    !       which are floating around.
     use HElem
     use UMatCache, only: GTID
     use IntegralsData, only: UMAT
@@ -19,6 +21,13 @@ module sltcnd_mod
 
 contains
     function sltcnd_compat (nI, nJ, IC) result (hel)
+
+        ! Use the Slater-Condon Rules to evaluate the H-matrix element between
+        ! two determinants, where the value of IC is already known.
+        !
+        ! In:  nI, nJ       - The determinants to evaluate
+        !      IC           - The number of orbitals I,J differ by
+        ! Ret: hel          - The H matrix element
 
         integer, intent(in) :: nI(nel), nJ(nel), IC
         type(HElement) :: hel
@@ -90,6 +99,15 @@ contains
     end function
 
     function sltcnd_knowIC (nI, nJ, iLutI, iLutJ, IC) result(hel)
+
+        ! Use the Slater-Condon Rules to evaluate the H-matrix element between
+        ! two determinants, where the value of IC and the bit representations
+        ! are already known.
+        !
+        ! In:  nI, nJ       - The determinants to evaluate
+        !      iLutI, iLutJ - Bit representations of I,J
+        !      IC           - The number of orbitals I,J differ by
+        ! Ret: hel          - The H matrix element
 
         integer, intent(in) :: nI(nel), nJ(nel)
         integer, intent(in) :: iLutI(0:NIfTot), iLutJ(0:NIfTot)
