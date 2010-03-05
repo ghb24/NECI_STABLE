@@ -3,7 +3,7 @@
      &	NMAX,ALAT,UMAT,ICMAX,GC,TMC,ECORE,BRR)
       use global_utilities
       USE HElem
-      Use Determinants, only: GetHElement2
+      Use Determinants, only: get_helement
       use SystemData , only : BasisFN
       use CalcData , only : TStar
       IMPLICIT NONE
@@ -77,9 +77,7 @@ C..   If determinants differ by more than 2 spin orbitals IC < 2
 C..
 !            CALL WRITEDET(6,NMRKS(1,KI),NEL,.FALSE.)
 !            CALL WRITEDET(6,NMRKS(1,KJ),NEL,.TRUE.)
-            TOTSUM=GETHELEMENT2(NMRKS(1:NEL,KI),NMRKS(1:NEL,KJ),NEL,
-     &         NBASISMAX,G1,NHG,BRR,NMSH,FCK,NMAX,
-     &         ALAT,UMAT,NEL-IC,ECORE)
+            totsum = get_helement(NMRKS(:,KI), NMRKS(:,KJ),nel-ic)
 C            CALL SLTCND(NEL,NBASISMAX,NHG,
 C     &		NMRKS(1:NEL,KI),NMRKS(1:NEL,KJ),G1,IC,NMSH,
 C     &		FCK,NMAX,ALAT,UMAT,TOTSUM)

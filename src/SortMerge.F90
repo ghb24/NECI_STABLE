@@ -18,8 +18,9 @@
     SUBROUTINE MergeListswH(nlist1,nlist1max,nlist2,list2,SignList2)
         USE FciMCParMOD , only : iLutHF,Hii,CurrentDets,CurrentSign,CurrentH
         USE SystemData , only : NEl,tHPHF,NIfTot,NIfDBO
-        USE Determinants , only : GetHElement3
+        USE Determinants , only : get_helement
         use DetBitOps, only: DecodeBitDet, DetBitEQ
+        use hphf_integrals, only: hphf_diag_helement, hphf_off_diag_helement
         USE HElem
         IMPLICIT NONE
 !        INTEGER :: list1(0:NIfTot,nlist1max),list2(0:NIfTot,1:nlist2)
@@ -78,11 +79,11 @@
 !               ENDIF
            ELSE
                CALL DecodeBitDet(nJ,list2(:,i))
-               IF(tHPHF) THEN
-                   CALL HPHFGetDiagHElement(nJ,list2(:,i),HDiagTemp)
-               ELSE
-                   HDiagTemp=GetHElement3(nJ,nJ,0)
-               ENDIF
+               if (tHPHF) then
+                   HDiagTemp = hphf_diag_helement (nJ, list2(:,i))
+               else
+                   HDiagTemp = get_helement (nJ, nJ, 0)
+               endif
                HDiag=(REAL(HDiagTemp%v,8))-Hii
            ENDIF
            CurrentH(ips+i-1)=HDiag
@@ -109,10 +110,11 @@
    SUBROUTINE MergeListswH2(nlist1,nlist1max,nlist2,list2,list3,SignList2)
         USE FciMCParMOD , only : iLutHF,Hii,MinorStarDets,MinorStarSign,MinorStarParent,MinorStarHii,MinorStarHij
         USE SystemData , only : NEl,Alat,Brr,ECore,G1,nBasis,nBasisMax,nMsh,tHPHF,NIfTot
-        USE Determinants , only : GetHElement3,GetHElement2
+        USE Determinants , only : get_helement
         USE IntegralsData , only : fck,NMax,UMat
         USE HElem
         use DetBitOps, only: DecodeBitDet
+        use hphf_integrals, only: hphf_diag_helement, hphf_off_diag_helement
         IMPLICIT NONE
         INTEGER :: list2(0:NIfTot,1:nlist2),list3(0:NIfTot,1:nlist2)
         INTEGER :: nlisto,nlist1,nlist2,nlo,i,DetCurr(0:NIfTot),DetCurr2(0:NIfTot) 
@@ -163,21 +165,22 @@
                MinorStarParent(0:NIfTot,ips+i-1)=list3(0:NIfTot,i)
 
 ! Want to calculate the diagonal and off diagonal H elements of the particle to be merged.           
-               CALL DecodeBitDet(nJ,list2(0:NIfTot,i))
-               IF(tHPHF) THEN
-                   CALL HPHFGetDiagHElement(nJ,list2(0:NIfTot,i),HDiagTemp)
-               ELSE
-                   HDiagTemp=GetHElement3(nJ,nJ,0)
-               ENDIF
+               CALL DecodeBitDet(nJ,list2(:,i))
+               if (tHPHF) then
+                   HDiagTemp = hphf_diag_helement (nJ, list2(:,i))
+               else
+                   HDiagTemp = get_helement (nJ, nJ, 0)
+               endif
                HDiag=(REAL(HDiagTemp%v,8))-Hii
                MinorStarHii(ips+i-1)=HDiag
 
-               CALL DecodeBitDet(nK,list3(0:NIfTot,i))
-               IF(tHPHF) THEN
-                   CALL HPHFGetOffDiagHElement(nJ,nK,list2(0:NIfTot,i),list3(0:NIfTot,i),HOffDiagTemp)
-               ELSE
-                   HOffDiagTemp=GetHElement2(nJ,nK,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,ExcitLevel,ECore)
-               ENDIF
+               CALL DecodeBitDet(nK,list3(:,i))
+               if (tHPHF) then
+                   HOffDiagTemp = hphf_off_diag_helement (nJ, nK, list2(:,i),&
+                                                          list3(:,i))
+               else
+                   HOffDiagTemp = get_helement(nJ, nK, list2(:,i), list3(:,i))
+               endif
                HOffDiag=(REAL(HOffDiagTemp%v,8))
                MinorStarHij(ips+i-1)=HOffDiag
 
@@ -190,25 +193,26 @@
         ELSE
 ! If there are no entries in the star arrays to merge with, just copy the spawned walkers straight over to star array            
             do j=1,nlist2
-                MinorStarDets(0:NIfTot,j)=list2(0:NIfTot,j)
+                MinorStarDets(:,j)=list2(:,j)
                 MinorStarSign(j)=SignList2(j)
-                MinorStarParent(0:NIfTot,j)=list3(0:NIfTot,j)
+                MinorStarParent(:,j)=list3(:,j)
 
-                CALL DecodeBitDet(nJ,list2(0:NIfTot,j))
-                IF(tHPHF) THEN
-                    CALL HPHFGetDiagHElement(nJ,list2(0:NIfTot,j),HDiagTemp)
-                ELSE
-                    HDiagTemp=GetHElement3(nJ,nJ,0)
-                ENDIF
+                CALL DecodeBitDet(nJ,list2(:,j))
+                if (tHPHF) then
+                    HDiagTemp = hphf_diag_helement (nJ, list2(:,j))
+                else
+                    HDiagTemp = get_helement (nJ, nJ, 0)
+                endif
                 HDiag=(REAL(HDiagTemp%v,8))-Hii
                 MinorStarHii(j)=HDiag
 
-                CALL DecodeBitDet(nK,list3(0:NIfTot,j))
-                IF(tHPHF) THEN
-                    CALL HPHFGetOffDiagHElement(nJ,nK,list2(0:NIfTot,j),list3(0:NIfTot,j),HOffDiagTemp)
-                ELSE
-                    HOffDiagTemp=GetHElement2(nJ,nK,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,ExcitLevel,ECore)
-                ENDIF
+                CALL DecodeBitDet(nK,list3(:,j))
+                if (tHPHF) then
+                    HOffDiagTemp = hphf_off_diag_helement (nJ, nJ,list2(:,j),&
+                                                           list3(:,j))
+                else
+                    HOffDiagTemp = get_helement(nJ, nK, list2(:,j),list3(:,j))
+                endif
                 HOffDiag=(REAL(HOffDiagTemp%v,8))
                 MinorStarHij(j)=HOffDiag
             enddo

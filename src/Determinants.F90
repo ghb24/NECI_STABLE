@@ -1,9 +1,23 @@
 #include "macros.h"
 MODULE Determinants
     Use HElem
-    use SystemData, only: BasisFN, tCSF
-    use csf, only: det_to_random_csf
+    use SystemData, only: BasisFN, tCSF, nel, G1, Brr, ECore, ALat, NMSH, &
+                          nBasis, nBasisMax, tStoreAsExcitations, tHPHFInts, &
+                          NIfToT
+    use IntegralsData, only: UMat, FCK, NMAX
+    use csf, only: det_to_random_csf, iscsf, CSFGetHElement
+    use sltcnd_mod, only: sltcnd, sltcnd_excit, sltcnd_2, sltcnd_compat, &
+                          sltcnd_knowIC
+    use global_utilities
+    use DetBitOps, only: EncodeBitDet
     implicit none
+
+    interface get_helement
+        module procedure get_helement_compat
+        module procedure get_helement_excit
+        module procedure get_helement_normal
+    end interface
+
     save
 ! Set by Calc on input
       INTEGER nActiveSpace(2)
@@ -208,135 +222,143 @@ MODULE Determinants
 ! From now on, the orbitals are also contained in symlabellist2 and symlabelcounts2.
 ! These are stored using spin orbitals.
 
-    ! If we are using CSFs, then we need to convert this into a csf
-    if (tCSF) then
-        ncsf = det_to_random_csf (FDET)
-        write (6, '("Generated starting CSF: ")', advance='no')
-        call writedet (6, FDET, nel, .true.)
-    endif
+        ! If we are using CSFs, then we need to convert this into a csf
+        if (tCSF) then
+            ncsf = det_to_random_csf (FDET)
+            write (6, '("Generated starting CSF: ")', advance='no')
+            call writedet (6, FDET, nel, .true.)
+        endif
 
     End Subroutine DetInit
+
+    function get_helement_compat (nI, nJ, IC, iLutI, iLutJ) result (hel)
+        
+        integer, intent(in) :: nI(nel), nJ(nel)
+        integer, intent(in), optional :: iLutI(0:NIfTot), iLutJ(0:NIfTot)
+        integer, intent(in) :: IC
+        type(HElement) :: hel
+
+        character(*), parameter :: this_routine = 'get_helement_compat'
+
+        if (tHPHFInts) &
+            call stop_all (this_routine, "Should not be calling HPHF &
+                          &integrals from here.")
+
+        if (tCSF) then
+            if (iscsf(nI) .or. iscsf(nJ)) then
+                hel = CSFGetHelement (nI, nJ)
+                return
+            endif
+        endif
+
+        if (tStoreAsExcitations) &
+            call stop_all(this_routine, "tStoreExcitations not supported")
+
+        if (present(iLutJ)) then
+            hel = sltcnd_knowIC (nI, nJ, iLutI, iLutJ, IC)
+        else
+            hel = sltcnd_compat (nI, nJ, IC)
+        endif
+
+        ! Add in ECore if for a diagonal element
+        if (IC == 0) hel = hel + helement(ECore)
+    end function
     
+    function get_helement_normal (nI, nJ, iLutI, iLutJ, ICret) result(hel)
 
-!.. GETHELEMENT2
-!.. Get matrix element of the hamiltonian
-!.. IC is the number of basis fns that differ in NI and NJ (or -1 if not known)
-!.. ECORE is the uniform background energy
+        ! Get the matrix element of the hamiltonian.
+        !
+        ! In:  nI, nJ       - The determinants to consider
+        !      iLutI, iLutJ - Bit representations of I,J (optional, helpful)
+        ! Out: ICret        - The number of orbitals I,J differ by
+        ! Ret:              - The desired matrix element.
+        
+        integer, intent(in) :: nI(nel), nJ(nel)
+        integer, intent(in), optional :: iLutI(0:NIfTot), iLutJ(0:NIfTot)
+        integer, intent(out), optional :: ICret
+        type(helement) :: hel
 
-      TYPE(HElement) FUNCTION GetHElement2(NI,NJ,nEl,nBasisMax,G1,nBasis,Brr,NMSH,FCK,NMAX,ALAT,UMat,iC2,ECore)
-         Use HElem
-         use SystemData , only : TSTOREASEXCITATIONS,tHPHFInts
-         use SystemData, only: BasisFN, tCSF
-         use csf, only: iscsf, CSFGetHelement
-         use global_utilities
-         IMPLICIT NONE
-         INTEGER NMSH,NMAX
-         COMPLEX*16 FCK(*)
-         REAL*8 ALAT(*)
-         TYPE(BasisFN) G1(*)
-         INTEGER NBASIS,BRR(*)
-         TYPE(HElement) UMat(*)
-         INTEGER I,nEl,NI(nEl),NJ(nEl),iC,nBasisMax(5,*),iC2
-         REAL*8 ECore
-         TYPE(HElement) Sum2
-         INTEGER IGETEXCITLEVEL_2
-         type(timer), save :: proc_timer
-         IF(tHPHFInts) THEN
-!             IF(IC2.eq.0) THEN
-!                 CALL HPHFGetDiagHElement(nI,Sum2)
-!             ELSE
-                 CALL Stop_All("GetHElement2","Should not be calling HPHF integrals from here.")
-!                 CALL HPHFGetOffDiagHElement(nI,nJ,Sum2)
-!             ENDIF
-!             GetHElement2=Sum2
-!             RETURN
-         ENDIF
-         if (tCSF) then
-             if (iscsf(nI) .or. iscsf(nJ)) then
-                 gethelement2 = CSFGetHelement (nI, nJ)
-                 return
-             endif
-         endif
-         IF(tStoreAsExcitations.AND.nI(1).eq.-1.and.nJ(1).eq.-1) then
-            if(ic2.ne.2) stop 'tStoreAsExcitations in GetHElement2 requires ic=2 (doubles).'
-            Call SCR2Excit(nBasisMax,nJ,G1,nBasis,UMat,Alat,nBasisMax(2,3),Sum2)
-            GetHElement2=Sum2
-            RETURN
-         endif
-         IC=IC2
-         GetHElement2%v=0.D0
-         IF(IC.LT.0) THEN
-             IC=IGETEXCITLEVEL_2(NI,NJ,NEL,2)   !Calculate whether connected or not
-         ENDIF
-!.. if we differ by more than 2 spin orbital, then the hamiltonian element is 0         
-         IF(IC.GT.2) RETURN
-!.. SLTCND has IC is # electrons the same in 2 dets
-         proc_timer%timer_name='GETHELEM2 '
-         call set_timer(proc_timer,60)
-         CALL SltCnd(nEl,nBasisMax,nBasis,NI,NJ,G1,nEl-iC,NMSH,FCK,NMAX,ALAT,UMat,Sum2)
-         GetHElement2=Sum2
-         IF(iC.EQ.0) GetHElement2%v=GetHElement2%v+ECore
-!         CALL WRITEDET(6,NI,NEL,.FALSE.)
-!         CALL WRITEDET(6,NJ,NEL,.FALSE.)
-!         WRITE(6,*) GetHElement2
-         call halt_timer(proc_timer)
-         RETURN
-      END FUNCTION
+        character(*), parameter :: this_routine = 'get_helement_normal'
+        integer :: ex(2,2), IC, ilut(0:NIfTot,2)
 
-!Call GetHElement2 without needing so many arguments
-      TYPE(HElement) FUNCTION GetHElement3(NI,NJ,iC)
-         Use HElem
-         use SystemData, only : nEl,nBasisMax,G1,nBasis,Brr
-         use SystemData, only : ECore,ALat,NMSH
-         use IntegralsData, only : UMat,FCK,NMAX
-         INTEGER NI(nEl),NJ(nEl),iC
-         GetHElement3=GetHElement2(NI,NJ,nEl,nBasisMax,G1,nBasis,Brr,NMSH,FCK,NMAX,ALAT,UMat,iC,ECore)
-      END Function GetHElement3
+        if (tHPHFInts) &
+            call stop_all (this_routine, "Should not be calling HPHF &
+                          &integrals from here.")
 
-
-!Function for get the hamiltonian matrix element, when we have the excitation matrix and parity of the excitation.
-! TODO: pass-through of iLut?
-      TYPE(HElement) function GetHElement4(NI,NJ,iC2,ExcitMat,TParity) !,iLutI,&
-                                           !iLutJ)
-         USE HElem
-         use SystemData, only : nEl,nBasisMax,G1,nBasis,Brr
-         use SystemData, only : ECore,ALat,NMSH, tCSF
-         use IntegralsData, only : UMat,FCK,NMAX
-         use csf, only: iscsf, CSFGetHelement
-         !integer, intent(in), optional, dimension(0:NIfTot) :: iLutI, iLutJ
-         INTEGER NI(nEl),NJ(nEl),iC,ExcitMat(2,2),IC2
-         LOGICAL TParity
-         TYPE(HElement) Sum2
-         IC=IC2
-         GetHElement4%v=0.D0
-
-         ! If we are using CSFs, then call the csf routine.
-         if (tCSF) then
-             if (iscsf(NI) .or. iscsf(NJ)) then
-                 gethelement4 = CSFGetHelement (nI, nJ)
-                 return
-             endif
-         endif
+        if (tCSF) then
+            if (iscsf(nI) .or. iscsf(nJ)) then
+                hel = CSFGetHelement (nI, nJ)
+                return
+            endif
+        endif
          
-         IF(IC.LT.0) THEN
-!             IC=IGETEXCITLEVEL_2(NI,NJ,NEL,2)   !Calculate whether connected or not
-             CALL Stop_All("GetHElement4","GetHElement4 should only be used if we know the number of excitations and the excitation matrix")
-         ENDIF
+        if (tStoreAsExcitations .and. nI(1) == -1 .and. nJ(1) == -1) then
+            ! TODO: how to express requirement for double?
+            !if (IC /= 2) &
+            !    call stop_all (this_routine, "tStoreAsExcitations in &
+            !                  &get_helement requires IC=2 (doubles)")
 
-!.. if we differ by more than 2 spin orbital, then the hamiltonian element is 0         
-         IF(IC.GT.2) RETURN
+            ex(1,:) = nJ(4:5)
+            ex(2,:) = nJ(6:7)
+            hel = sltcnd_2 (ex, .false.)
+        endif
 
-!.. SLTCND has IC is # electrons the same in 2 dets
-         CALL SltCndExcit2(nEl,nBasisMax,nBasis,NI,NJ,G1,nEl-iC,NMSH,FCK,NMAX,ALAT,UMat,Sum2,ExcitMat,TParity)
+        if (present(iLutJ)) then
+            hel = sltcnd (nI, nJ, iLutI, iLutJ, IC)
+        else
+            call EncodeBitDet (nI, iLut(:,1))
+            call EncodeBitdet (nJ, iLut(:,2))
+            ! TODO: This is not an ideal place to end up...
+            hel = sltcnd (nI, nJ, iLut(:,1), ilut(:,2), IC)
+        endif
 
-         GetHElement4=Sum2
-         IF(iC.EQ.0) GetHElement4%v=GetHElement4%v+ECore
-!         CALL WRITEDET(6,NI,NEL,.TRUE.)
-!         CALL WRITEDET(6,NJ,NEL,.TRUE.)
-!         WRITE(6,*) GetHElement4
+        ! Add in ECore for a diagonal element
+        if (IC == 0) hel = hel + HElement(ECore)
 
-         RETURN
-      END FUNCTION GetHElement4
+        ! If requested, return IC
+        if (present(ICret)) then
+            ICret = IC
+        endif
+
+    end function get_helement_normal
+
+    function get_helement_excit (NI, NJ, IC, ExcitMat, TParity) result(hel)
+
+        ! Calculate the Hamiltonian Matrix Element for a given determinant (or
+        ! csf), when we have the excitation matrix and parity of the
+        ! excitation.
+        !
+        ! In:  nI, nJ       - The determinants to evaluate
+        !      IC           - The number of orbitals I,J differ by
+        !      ex           - The excitation matrix
+        !      tParity      - The parity of the excitation
+        ! Ret: hel          - The H matrix element
+
+        integer, intent(in) :: nI(nel), nJ(nel), IC
+        integer, intent(in) :: ExcitMat(2,2)
+        logical, intent(in) :: tParity
+        type(HElement) :: hel
+
+        character(*), parameter :: this_routine = 'get_helement_excit'
+
+        ! If we are using CSFs, then call the csf routine.
+        ! TODO: Passing through of ExcitMat to CSFGetHelement
+        if (tCSF) then
+            if (iscsf(NI) .or. iscsf(NJ)) then
+                hel = CSFGetHelement (nI, nJ)
+                return
+            endif
+        endif
+         
+        if (IC < 0) &
+            call stop_all(this_routine, "get_helement_excit should only be &
+                         &used if we know the number of excitations and the &
+                         &excitation matrix")
+
+        hel = sltcnd_excit (nI, nJ, IC, ExcitMat, tParity)
+
+        if (IC == 0)  hel = hel + HElement(ECore)
+    end function get_helement_excit
 
 
       type(HElement) function GetH0Element3(nI)
@@ -359,15 +381,6 @@ MODULE Determinants
       Subroutine DetCleanup()
       End Subroutine DetCleanup
 END MODULE Determinants
-
-      FUNCTION GetHElement3_wrapper (NI,NJ,iC)
-         Use HElem
-         use SystemData, only : neL
-         use Determinants, only: GetHElement3
-         type(HElement) GetHElement3_wrapper
-         INTEGER NI(nel),NJ(nel),iC
-         GetHElement3_wrapper = GetHElement3 (NI, NJ, -1)
-      END Function GetHElement3_wrapper
 
       subroutine GetH0Element(nI,nEl,Arr,nBasis,ECore,hEl)
          !  Get a matrix element of the unperturbed Hamiltonian.  This is just

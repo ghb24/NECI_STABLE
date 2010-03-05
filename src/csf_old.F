@@ -857,7 +857,7 @@ C.. Get the Hamiltonian Element between two CSFs
       SUBROUTINE CSFGETHELEMENT(NCI,NCJ,NEL,NBASISMAX,
      &   G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMat,ECORE,TOTSUM)
          USE HElem
-         Use Determinants, only: GetHelement2
+         Use Determinants, only: get_helement
          use SystemData, only: BasisFN
          use global_utilities
          IMPLICIT NONE
@@ -951,8 +951,7 @@ C.. NOPEN has number of open electrons, and NDETS has #open dets
                ELSE
                   COEFF2=COEFFLIST2(J)
                ENDIF
-               HEL=GETHELEMENT2(LISTD1(1,I),LISTD2(1,J),NEL,NBASISMAX,
-     &            G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMat,-1,ECORE)
+               hel = get_helement(LISTD1(:,I), LISTD2(:,J))
                SUM2=SUM2+HEL*HElement(COEFF2)
             ENDDO
             TOTSUM=TOTSUM+SUM2*HElement(COEFF1)
