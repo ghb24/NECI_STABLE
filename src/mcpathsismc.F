@@ -963,7 +963,7 @@ C.. Update the rho and X (probability) matrices with this new node
                      XIJ(I,I_VNEXT)=0.D0
                   ENDIF
                   IF(I.EQ.0) THEN
-                     hel = get_helement (nI, iNode, 0)
+                     hel = get_helement (nI, iNode)
                      HIJS(I_vNext) = hel%v
                   ENDIF
                   CALL CALCRHO2(INODE,IPATH(1,I),BETA,I_P,NEL,
@@ -1370,7 +1370,7 @@ C.. Update the rho and X (probability) matrices with this new node
                      XIJ(I,I_VNEXT)=0.D0
                   ENDIF
                   IF(I.EQ.0) THEN
-                      hel = get_helement (nI, iNode, 0)
+                      hel = get_helement (nI, iNode)
                      HIJS(I_VNEXT) = hel%v
                   ENDIF
                   CALL CALCRHO2(INODE,IPATH(1,I),BETA,I_P,NEL,
@@ -2233,7 +2233,7 @@ C.. Update the rho and X (probability) matrices with this new node
                      IF(I.EQ.0) HIJS(I_VNEXT)=RH
                   ELSE
                      IF(I.EQ.0) THEN
-                         hel = get_helement (nI, iNode, 0)
+                         hel = get_helement (nI, iNode)
                          HIJS(I_VNEXT) = hel%v
                      ENDIF
                      CALL CALCRHO2(INODE,IPATH(1,I),BETA,I_P,NEL,
@@ -2509,7 +2509,7 @@ C.. we will later.  Just put a dummy value in for now
                         NXIJ(I,I_VNEXT)=0.D0
                      ENDIF
                      IF(I.EQ.0) THEN
-                         hel = get_helement (nI, iNode, 0)
+                         hel = get_helement (nI, iNode)
                          NHIJS(I_VNEXT) = hel%v
                      ENDIF
                      CALL CALCRHO2(INODE,NIPATH(1,I),BETA,I_P,NEL,
@@ -3068,7 +3068,7 @@ C.. now get the rho matrix element
                   RHOIJ2(I,I_V)=RH
                   RHOIJ2(I_V,I)=RH
                   IF(I.EQ.0) then
-                     hel = get_helement (iPath(:,0), nL, 0)
+                     hel = get_helement (iPath(:,0), nL)
                      HIJS2(I_V) = hel%v
                   endif
                ELSE
