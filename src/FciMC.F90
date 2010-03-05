@@ -6,7 +6,7 @@ use CalcData , only : GrowMaxFactor,CullFactor,TMCDets,TNoBirth,Lambda,TDiffuse,
 use CalcData , only : TExtraPartDiff,TFullUnbias,TNodalCutoff,NodalCutoff,TNoAnnihil,TMCDiffusion
 use CalcData , only : NDets,RhoApp,TResumFCIMC,NEquilSteps,TSignShift,THFRetBias,PRet,TExcludeRandGuide
 use CalcData , only : TProjEMP2,TFixParticleSign,TStartSinglePart,MemoryFacPart,TRegenExcitgens,TUnbiasPGeninProjE
-use Determinants, only: FDet, get_helement, GetH0Element3
+use Determinants, only: FDet, get_helement, GetH0Element3, write_det
 USE DetCalc , only : NMRKS,ICILevel
 use IntegralsData , only : fck,NMax,UMat
 USE global_utilities
@@ -2507,7 +2507,7 @@ SUBROUTINE PerformFCIMCyc()
         CALL ResetExIt2(HFDet,NEl,G1,nBasis,nBasisMax,HFExcit%ExcitData,0)
 
         WRITE(6,"(I7,A)") Compts," MP2 components calculated. Maximum MP2 wavevector component is determinant: "
-        CALL WRITEDET(6,MaxComptDet,NEl,.TRUE.)
+        call write_det (6, MaxComptDet, .true.)
         WRITE(6,*) "MP2 ENERGY = ",MP2Energy
         CALL FLUSH(6)
 

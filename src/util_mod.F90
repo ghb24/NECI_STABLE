@@ -9,6 +9,47 @@ module util_mod
     
 contains
 
+    elemental real*8 function factrl (n)
+
+        ! Return the factorial on n, i.e. n!
+        ! This is not done in the most efficient way possible (i.e. use with
+        ! care if N is large, or if called many times!).
+        ! If a more efficient procedure is required, refer to:
+        ! http://www.luschny.de/math/factorial/FastFactorialFunctions.htm.
+
+        integer, intent(in) :: n
+        integer :: i
+
+        factrl = 1
+        do i = 2, n
+            factrl = factrl * i
+        enddo
+    end function factrl
+
+    elemental real*8 function choose (n, r)
+        
+        ! Return the binomail coefficient nCr
+
+        integer, intent(in) :: n, r
+        integer :: i, k
+
+        if (r > n) then
+            choose = 0
+        else
+            ! Always use the smaller possibility
+            if (r > (n / 2)) then
+                k = n - r
+            else
+                k = r
+            endif
+
+            choose = 1
+            do i = 0, k-1
+                choose = (choose * (n - i)) / (i + 1)
+            enddo
+        endif
+    end function choose
+
     logical function int_arr_eq (a, b, len)
 
         ! If two specified integer arrays are equal, return true. Otherwise

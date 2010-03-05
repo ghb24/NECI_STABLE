@@ -19,7 +19,7 @@ C.. DLWDB = d ln (wi) / d Beta.
      &              NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMat,NTAY,RHOEPS,
      &               LSTE,ICE,RIJLIST,NWHTAY,ILOGGING,ECORE,ILMAX,
      &               WLRI,WLSI,DBETA,DLWDB)
-         Use Determinants, only: get_helement
+         Use Determinants, only: get_helement, write_det
          USE HElem
          use SystemData, only: BasisFN
          USE PreCalc ,  only: GETVARS
@@ -113,7 +113,7 @@ C.. This will store the MP2 energy
             OPEN(11,FILE="MCSUMMARY",STATUS="OLD",ACCESS='APPEND')
 C.. go to end of file
 !            I=FSEEK(11,0,2)
-            CALL WRITEDET(11,NI,NEL,.TRUE.)
+            call write_det (11, NI, .true.)
          ENDIF
          IF(BTEST(ILOGGING,0)) THEN
             OPEN(10,FILE="PATHS",STATUS="UNKNOWN")
@@ -414,7 +414,7 @@ C.. save all log files
 !               CALL LOGNAN(NI,NEL,BETA,ITIME)
                WRITE(6,*) "WARNING: nan found at time",ITIME
                WRITE(6,"(A)",advance='no') "  nan det="
-               CALL WRITEDET(6,NI,NEL,.TRUE.)
+               call write_det (6, NI, .true.)
             ENDIF
             CALL WRITECLASSPATHS()
 ! If we've done a multi, we don't need to do any more
@@ -480,7 +480,7 @@ C.. MCPATHSR3 has the same method at each vertex level
      &               WLRI,WLSI,DBETA,DLWDB)
          USE HElem
          use SystemData, only: BasisFN
-         Use Determinants, only: get_helement
+         Use Determinants, only: get_helement, write_det
          USE STARDIAGMOD , only : fMCPR3StarNewExcit
          USE NODEDIAG , only : fMCPR3StarNodes
          USE GraphMorph , only : MorphGraph
@@ -616,7 +616,7 @@ C.. Pick graphs which may not contain distinct vertices
             OPEN(11,FILE="MCPATHS",STATUS="OLD",ACCESS='APPEND')
 C.. go to end of file
 !            I=FSEEK(11,0,2)
-            CALL WRITEDET(11,NI,NEL,.TRUE.)
+            call write_det (11, NI, .true.)
          ENDIF
          IF(BTEST(ILOGGING,0)) THEN
             OPEN(10,FILE="PATHS",STATUS="UNKNOWN")
@@ -750,7 +750,7 @@ C.. save all log files
 !               CALL LOGNAN(NI,NEL,BETA,ITIME)
                WRITE(6,*) "WARNING: nan found at time",ITIME
                WRITE(6,"(A)",advance='no') "  nan det="
-               CALL WRITEDET(6,NI,NEL,.TRUE.)
+               call write_det (6, NI, .true.)
             ENDIF
             CALL WRITECLASSPATHS()
          ENDDO
@@ -1627,6 +1627,7 @@ C.. connected, and continue from after where this node was excited
       END
 
       SUBROUTINE WRITEPATH(NUNIT,IPATH,I_V,NEL,LTERM)
+         use Determinants, only: write_det
          IMPLICIT NONE
          INTEGER NUNIT,IPATH(NEL,0:I_V),I_V,NEL
          LOGICAL LTERM
@@ -1634,7 +1635,7 @@ C.. connected, and continue from after where this node was excited
          
          WRITE(NUNIT,"(A)",advance='no') "["
          DO J=0,I_V-1
-            CALL WRITEDET(NUNIT,IPATH(1,J),NEL,.FALSE.)
+            call write_det (NUNIT, IPATH(1,J), .false.)
             WRITE(NUNIT,"(A)",advance='no') ","
          ENDDO
          WRITE(NUNIT,"(A)",advance='no') "] "

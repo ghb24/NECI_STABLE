@@ -1,5 +1,5 @@
 MODULE CCMC
-    use Determinants, only: get_helement
+    use Determinants, only: get_helement, write_det, write_det_len
     use HElem
    IMPLICIT NONE
    CONTAINS
@@ -567,7 +567,7 @@ MODULE CCMC
                   IF(.not.tHPHF) CALL FindExcitBitDet(iLutnI,iLutnJ,IC,Ex)
                   IF(iDebug.gt.4) then
                       WRITE(6,*) "Random excited det level ",iC
-                      call WriteDet(6,nJ,nEl,.true.)
+                      call write_det (6, nJ, .true.)
                       Write(6,*) "Prob ex|from",Prob
                   endif
 !Prob is the Prob of choosing nJ from nI
@@ -1177,7 +1177,9 @@ LOGICAL FUNCTION GetNextCluster(CS,Dets,nDet,Amplitude,dTotAbsAmpl,iNumExcitors,
 !deal with the HF det separately.  iSize is already 0.
             CS%C%dAbsAmplitude=abs(Amplitude(1))
             if(iDebug.gt.3) WRITE(6,"(A,L3)",advance='no') "Next Tuple:",tDone
-            if(iDebug.gt.3) call WriteDet(6,CS%C%SelectedExcitorIndices,CS%C%iSize,.true.)
+            if(iDebug.gt.3) &
+                call write_det_len (6, CS%C%SelectedExcitorIndices, &
+                                    CS%C%iSize, .true.)
             return
          endif 
 
@@ -1195,7 +1197,9 @@ LOGICAL FUNCTION GetNextCluster(CS,Dets,nDet,Amplitude,dTotAbsAmpl,iNumExcitors,
             endif            
          else
             if(iDebug.gt.3) WRITE(6,"(A,L3)",advance='no') "Next Tuple:",tDone
-            if(iDebug.gt.3) call WriteDet(6,CS%C%SelectedExcitorIndices,CS%C%iSize,.true.)
+            if(iDebug.gt.3) &
+                call write_det_len (6, CS%C%SelectedExcitorIndices, &
+                                    CS%C%iSize, .true.)
             tNew=.true.  !Used for debug printing
             CS%C%dAbsAmplitude=abs(Amplitude(1))
 !            WRITE(6,*) 0,CS%C%dAbsAmplitude
@@ -1441,7 +1445,7 @@ LOGICAL FUNCTION GetNextSpawner(S,iDebug)
       CALL FindExcitBitDet(S%C%iLutDetCurr,S%iLutnJ,S%iExcitLevel,S%ExcitMat)
       IF(iDebug.gt.4) then
           WRITE(6,*) "Random excited det level ",S%iExcitLevel
-          call WriteDet(6,S%nJ,nEl,.true.)
+          call write_det(6, S%nJ, .true.)
           Write(6,*) "Prob ex|from",S%dProbSpawn
       endif
 !Prob is the Prob of choosing nJ from nI
@@ -1965,7 +1969,7 @@ END SUBROUTINE
                IC=CS%C%iExcitLevel
                CALL BinSearchParts3(CS%C%iLutDetCurr(:),FCIDets(:,:),Det,FCIDetIndex(IC),FCIDetIndex(IC+1)-1,PartIndex,tSuc)
                if(.not.tSuc) then
-                  Call WriteDet(6,CS%C%DetCurr,nEl,.true.)
+                  call write_det (6, CS%C%DetCurr, .true.)
                   Call Stop_All("CCMCStandalone","Failed to find det.")
                endif
                AmplitudeBuffer(PartIndex)=AmplitudeBuffer(PartIndex)+CS%C%dAbsAmplitude*CS%C%iSgn

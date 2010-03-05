@@ -28,7 +28,7 @@ MODULE GenRandSymExcitNUMod
     use SystemData, only: nEl,G1, nBasis,nBasisMax,tNoSymGenRandExcits,tMerTwist
     use SystemData, only: Arr,nMax,tCycleOrbs,nOccAlpha,nOccBeta,ElecPairs,MaxABPairs
     use IntegralsData, only: UMat
-    use Determinants, only: get_helement
+    use Determinants, only: get_helement, write_det
     use SymData, only: nSymLabels,TwoCycleSymGens
     use SymData, only: SymLabelList,SymLabelCounts
     use mt95 , only : genrand_real2
@@ -462,7 +462,7 @@ MODULE GenRandSymExcitNUMod
                 IF(Attempts.gt.250) THEN
                     WRITE(6,*) "Cannot find double excitation unoccupied orbital after 250 attempts..."
                     WRITE(6,*) "This is a problem, since there should definitly be an allowed beta orbital once alpha is chosen..."
-                    CALL WRITEDET(6,nI,NEL,.true.)
+                    call write_det (6, nI, .TRUE.)
                     CALL Stop_All("PickBOrb","Cannot find double excitation unoccupied orbital after 250 attempts...")
                 ENDIF
                 Attempts=Attempts+1
@@ -889,7 +889,7 @@ MODULE GenRandSymExcitNUMod
                         
                         IF(Attempts.gt.250) THEN
                             WRITE(6,*) "Cannot find A unoccupied orbital after 250 attempts..."
-                            CALL WRITEDET(6,nI,NEL,.true.)
+                            call write_det (6, nI, .TRUE.)
                             CALL Stop_All("PickAOrb","Cannot find A unoccupied orbital after 250 attempts...")
                         ENDIF
                         Attempts=Attempts+1
@@ -975,7 +975,7 @@ MODULE GenRandSymExcitNUMod
                         
                         IF(Attempts.gt.250) THEN
                             WRITE(6,*) "Cannot find A unoccupied orbital after 250 attempts..."
-                            CALL WRITEDET(6,nI,NEL,.true.)
+                            call write_det (6, nI, .TRUE.)
                             CALL Stop_All("PickAOrb","Cannot find A unoccupied orbital after 250 attempts...")
                         ENDIF
                         Attempts=Attempts+1
@@ -1000,7 +1000,7 @@ MODULE GenRandSymExcitNUMod
                 WRITE(6,*) "It may be that there are no possible excitations from this i,j pair, in which case "
                 WRITE(6,*) "the given algorithm is inadequate to describe excitations from such a small space."
                 WRITE(6,*) "Try reverting to old excitation generators."
-                CALL WRITEDET(6,nI,NEl,.true.)
+                call write_det (6, nI, .TRUE.)
                 WRITE(6,*) "***",NExcit,ForbiddenOrbs
                 WRITE(6,*) "I,J pair; sym_i, sym_j: ",nI(Elec1Ind),nI(Elec2Ind),G1(nI(Elec1Ind))%Sym%S,G1(nI(Elec2Ind))%Sym%S
                 CALL Stop_All("PickAOrb","Cannot find first allowed unocc orb for double excitation")
@@ -1266,7 +1266,7 @@ MODULE GenRandSymExcitNUMod
 
             IF(Attempts.gt.250) THEN
                 WRITE(6,*) "Cannot find single excitation from electrons after 250 attempts..."
-                CALL WRITEDET(6,nI,NEL,.true.)
+                call write_det (6, nI, .true.)
 !                WRITE(6,*) "ClassCount2(1,:)= ",ClassCount2(1,:)
 !                WRITE(6,*) "ClassCount2(2,:)= ",ClassCount2(2,:)
                 WRITE(6,*) "***"
@@ -1381,7 +1381,7 @@ MODULE GenRandSymExcitNUMod
                     WRITE(6,*) "Desired symmetry of unoccupied orbital = ",ElecSym
                     WRITE(6,*) "Number of orbitals (of correct spin) in symmetry = ",nOrbs
                     WRITE(6,*) "Number of orbitals to legitimatly pick = ",NExcit
-                    CALL WRITEDET(6,nI,NEL,.true.)
+                    call write_det (6, nI, .true.)
 !                    WRITE(6,*) "ClassCount2(1,:)= ",ClassCount2(1,:)
 !                    WRITE(6,*) "ClassCount2(2,:)= ",ClassCount2(2,:)
 !                    WRITE(6,*) "***"
@@ -1808,7 +1808,7 @@ MODULE GenRandSymExcitNUMod
 
             IF(Attempts.gt.250) THEN
                 WRITE(6,*) "Cannot find single excitation from electrons after 250 attempts..."
-                CALL WRITEDET(6,nI,NEL,.true.)
+                call write_det (6, nI, .true.)
 !                WRITE(6,*) "ClassCount2(1,:)= ",ClassCount2(1,:)
 !                WRITE(6,*) "ClassCount2(2,:)= ",ClassCount2(2,:)
                 WRITE(6,*) "***"
@@ -3136,6 +3136,7 @@ END SUBROUTINE TestGenRandSymExcitNU
 SUBROUTINE IsSymAllowedExcit(nI,nJ,IC,ExcitMat,SymAllowed)
     Use SystemData , only : G1,NEl,tFixLz
     Use SystemData , only : Symmetry,tNoSymGenRandExcits
+     use Determinants, only: write_det
     IMPLICIT NONE
     Type(Symmetry) :: SymProduct,SymProduct2,SYMPROD
     LOGICAL :: SYMEQ,ISVALIDDET,SymAllowed
@@ -3146,14 +3147,14 @@ SUBROUTINE IsSymAllowedExcit(nI,nJ,IC,ExcitMat,SymAllowed)
      Excitlevel=iGetExcitLevel(nI,nJ,NEl)
      IF(Excitlevel.ne.IC) THEN
          WRITE(6,*) "Have not created a correct excitation"
-        CALL WRITEDET(6,nI,NEL,.TRUE.)
-        CALL WRITEDET(6,nJ,NEL,.TRUE.)
+        call write_det (6, nI, .true.)
+        call write_det (6, nJ, .true.)
         STOP "Have not created a correct excitation"
      ENDIF
      IF(.NOT.ISVALIDDET(nJ,NEL)) THEN
          WRITE(6,*) "INVALID DET"
-         CALL WRITEDET(6,nI,NEL,.TRUE.)
-         CALL WRITEDET(6,nJ,NEL,.TRUE.)
+         call write_det (6, nI, .true.)
+         call write_det (6, nJ, .true.)
          STOP "INVALID DET"
      ENDIF
      

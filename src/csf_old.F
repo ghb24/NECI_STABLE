@@ -1161,6 +1161,7 @@ C..   method of creating this CSF - 1 is a + and 0 is a -.
       SUBROUTINE CSFGETCSFDATA(NCI,NEL,ICLOSED,NCLOSED,IOPEN,NOPEN,SZ,S,
      &   SORDER)
          use legacy_data, only: CSF_NBSTART
+         use Determinants, only: write_det
          IMPLICIT NONE
          INTEGER NCI(NEL),NEL,ICLOSED(NEL),NCLOSED
          INTEGER IOPEN(NEL),NOPEN,SZ,S,SORDER(NEL)
@@ -1179,7 +1180,7 @@ C.. we have a normal orbital
 C.. check and alpha comes after a beta
                IF(NCLOSED.GT.1.AND.IAND(J,1).EQ.0
      &            .AND.ICLOSED(NCLOSED-1).NE.J-1) THEN
-                     CALL WRITEDET(6,NCI,NEL,.TRUE.)
+                     call write_det (6, NCI, .true.)
                      STOP "CSF has unpaired 'closed orbitals'"
                ENDIF
             ELSE

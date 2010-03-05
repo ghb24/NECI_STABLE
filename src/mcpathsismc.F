@@ -14,7 +14,7 @@ C.. NMAX has ARR hidden in it.
      &               LSTE,ICE,RIJLIST,NWHTAY,ILOGGING,ECORE,ILMAX,
      &               WLRI,WLSI,DBETA,DLWDB,I_VMIN)
          USE HElem
-         Use Determinants, only: get_helement
+         Use Determinants, only: get_helement, write_det
          USE MCStat
          use CalcData , only : G_VMC_PI,G_VMC_FAC,G_VMC_SEED,CUR_VERT,
      &          g_MultiWeight,TMPTHEORY,TVVDISALLOW,TMCDIRECTSUM
@@ -89,7 +89,7 @@ C.. do some blocking analysis
             OPEN(11,FILE="MCPATHS",STATUS="OLD",ACCESS='APPEND')
 C.. go to end of file
 !            I=FSEEK(11,0,2)
-            CALL WRITEDET(11,NI,NEL,.TRUE.)
+            call write_det (11, NI, .true.)
          ENDIF
          IF(BTEST(ILOGGING,2))
      &      OPEN(10,FILE="PATHS",STATUS="UNKNOWN")
@@ -2031,7 +2031,7 @@ C.. Unbias the sum
          use CalcData , only : G_VMC_PI
          USE PrecalcData , only : TPREVAR
          USE HElem
-         use Determinants, only: get_helement
+         use Determinants, only: get_helement, write_det
          use SystemData, only: BasisFN
          IMPLICIT NONE
          INTEGER NEL,I_V,IPATH(NEL,0:I_V),NI(NEL)
@@ -2154,7 +2154,7 @@ C.. generate a random excitation
 C.. If the new node is not in the path, add it.
             IF(.NOT.ISVALIDDET(INODE,NEL)) THEN
                WRITE(6,*) "INVALID DET"
-               CALL WRITEDET(6,INODE,NEL,.TRUE.)
+               call write_det (6, INODE, .true.)
                STOP "INVALID DET"
             ENDIF
             IF(.NOT.LISINPATH(INODE,IPATH,NEL,I_VNEXT,-1)) THEN
@@ -2254,7 +2254,7 @@ C.. Update the rho and X (probability) matrices with this new node
             IF(ICOUNT.GT.50000) THEN
 C.. give up trying to find something to attach, and go home
                WRITE(6,*) "WARNING: Unable to find attachee to vertex"
-               CALL WRITEDET(6,IPATH(1,NEXNODE),NEL,.TRUE.)
+               call write_det (6, IPATH(1,NEXNODE), .true.)
                RHOII(1)=0.D0
                RETURN
             ENDIF
@@ -2318,7 +2318,7 @@ C.. a wrongly biased MC
      &   I_OVCUR,IOCLS,ITREE,OWEIGHT,IACC)
          use SystemData , only : BasisFN
          use CalcData , only : G_VMC_PI
-         use Determinants, only: get_helement
+         use Determinants, only: get_helement, write_det
          use HElem
          IMPLICIT NONE
          TYPE(BasisFN) :: KSYM
@@ -2472,7 +2472,7 @@ C     &            NBASISMAX,.FALSE.,CUREX,INODE2,ISEED,IC,0)
                CALL NECI_ICOPY(NEL,INODE2,1,INODE,1)
                IF(.NOT.ISVALIDDET(INODE,NEL)) THEN
                   WRITE(6,*) "INVALID DET"
-                  CALL WRITEDET(6,INODE,NEL,.TRUE.)
+                  call write_det (6, INODE, .true.)
                   STOP "INVALID DET"
                ENDIF
 
@@ -2706,7 +2706,7 @@ C.. NB TMAT has sometimes been hidden in ZIA
      &   OETILDE,IOCLS,ITREE,OWEIGHT,IACC,VWEIGHTS,VEXCITS,PFAC,TST,
      &   WMIN)
          use SystemData , only : BasisFN
-         use Determinants, only: get_helement
+         use Determinants, only: get_helement, write_det
          use HElem
          IMPLICIT NONE
          TYPE(BasisFN) :: KSym
@@ -2779,7 +2779,7 @@ C.. generate an excitation from this vertex
      &           NBASISMAX,.FALSE.,CUREX,TENTDETS(1,ITENT),ISEED,ICE,0)
                IF(.NOT.ISVALIDDET(TENTDETS(1,ITENT),NEL)) THEN
                   WRITE(6,*) "INVALID DET"
-                  CALL WRITEDET(6,TENTDETS(1,ITENT),NEL,.TRUE.)
+                  call write_det (6, TENTDETS(1,ITENT), .true.)
                   STOP "INVALID DET"
                ENDIF
 C.. We cannot deal with the case that the tentacle is already in the graph
@@ -2966,7 +2966,7 @@ C..  (|w'(ijk)| Sum_(j' in G&j'-l) w1(j')/N(j'))/Sum_(j''in G) w1(j'')
      &                        OETILDE,ETILDERET,WEIGHTRET,IOCLS,
      &                        ITREE,IACC,ISEED,BRR,NMSH,FCK,NTAY,
      &                        NMAX,ALAT,UMAT,ECORE,PFAC,WMIN)
-         use Determinants, only: get_helement
+         use Determinants, only: get_helement, write_det
          use HElem
          IMPLICIT NONE
          INTEGER I_V,NEL,IPATH(NEL,0:I_V)
@@ -3019,7 +3019,7 @@ C.. Now use the excitor for this vertex to generate a new vertex
      &         NBASISMAX,.FALSE.,CUREX,NL,ISEED,ICE,0)
             IF(.NOT.ISVALIDDET(NL,NEL)) THEN
                WRITE(6,*) "INVALID DET"
-               CALL WRITEDET(6,NL,NEL,.TRUE.)
+               call write_det (6, NL, .true.)
                STOP "INVALID DET"
             ENDIF
             IF(.NOT.LISINPATH(NL,IPATH,NEL,I_V,-1)) THEN

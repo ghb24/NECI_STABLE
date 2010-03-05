@@ -23,7 +23,7 @@ MODULE FciMCParMod
     use CalcData , only : tPrintDominant,iNoDominantDets,MaxExcDom,MinExcDom,tSpawnDominant,tMinorDetsStar,MaxNoatHF,HFPopThresh
     use CalcData , only : tCCMC,tTruncCAS,tTruncInitiator,tDelayTruncInit,IterTruncInit,NShiftEquilSteps,tWalkContGrow,tMCExcits,NoMCExcits
     use HPHFRandExcitMod , only : FindExcitBitDetSym,GenRandHPHFExcit,GenRandHPHFExcit2Scratch
-    use Determinants, only: FDet, get_helement
+    use Determinants, only: FDet, get_helement, write_det
     USE DetCalc , only : ICILevel,nDet,Det,FCIDetIndex
     use GenRandSymExcitNUMod , only : GenRandSymExcitScratchNU,GenRandSymExcitNU,ScratchSize
     use IntegralsData , only : fck,NMax,UMat,tPartFreezeCore,NPartFrozen,NHolesFrozen,tPartFreezeVirt,NVirtPartFrozen,NElVirtFrozen
@@ -42,6 +42,7 @@ MODULE FciMCParMod
     use DetBitOps, only: FindExcitBitDet, FindBitExcitLevel
     use csf, only: get_csf_bit_yama, iscsf, csf_orbital_mask
     use hphf_integrals, only: hphf_diag_helement, hphf_off_diag_helement
+    use util_mod, only: choose
     IMPLICIT NONE
     integer, parameter :: dp = selected_real_kind(15,307)
     SAVE
@@ -8739,7 +8740,7 @@ MODULE FciMCParMod
         INTEGER :: DetLT,VecSlot,error,HFConn,MemoryAlloc,iMaxExcit,nStore(6),nJ(Nel),BRR2(nBasis),LargestOrb,nBits,HighEDet(NEl),iLutTemp(0:NIfTot)
         TYPE(HElement) :: rh,TempHii
         TYPE(BasisFn) HFSym
-        REAL*8 :: TotDets,SymFactor,Choose
+        REAL*8 :: TotDets,SymFactor
         CHARACTER(len=*), PARAMETER :: this_routine='SetupParameters'
         CHARACTER(len=12) :: abstr
         LOGICAL :: tSuccess,tFoundOrbs(nBasis),tTurnBackBrillouin
@@ -10259,10 +10260,10 @@ MODULE FciMCParMod
         DEALLOCATE(ExcitGenTemp)
 
         WRITE(6,*) "Determinants picked for magnetisation are (Det   MP1Comp   OrigKii   Kij) :"
-        CALL WRITEDET(6,HFDet,NEl,.false.)
+        call write_det (6, HFDet, .FALSE.)
         WRITE(6,"(2F14.6)") 1.D0,0.D0
         do j=1,NoMagDets-1
-            CALL WRITEDET(6,MagDets(:,j),NEl,.false.)
+            call write_det (6, MagDets(:,j), .false.)
             Kiitemp = get_helement (MagDets(:,j), MagDets(:,j), 0)
             Kii=REAL(Kiitemp%v,r2)-Hii
             Hij = get_helement (MagDets(:,j), HFDet)

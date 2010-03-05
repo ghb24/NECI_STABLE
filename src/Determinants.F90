@@ -3,9 +3,10 @@ MODULE Determinants
     Use HElem
     use SystemData, only: BasisFN, tCSF, nel, G1, Brr, ECore, ALat, NMSH, &
                           nBasis, nBasisMax, tStoreAsExcitations, tHPHFInts, &
-                          NIfToT
+                          NIfToT, tCSF
     use IntegralsData, only: UMat, FCK, NMAX
-    use csf, only: det_to_random_csf, iscsf, CSFGetHElement
+    use csf, only: det_to_random_csf, iscsf, csf_orbital_mask, &
+                   csf_yama_bit, CSFGetHelement
     use sltcnd_mod, only: sltcnd, sltcnd_excit, sltcnd_2, sltcnd_compat, &
                           sltcnd_knowIC
     use global_utilities
@@ -43,7 +44,70 @@ MODULE Determinants
       Logical :: tDefineDet
       integer :: tagDefDet=0
 
-    contains
+contains
+
+    subroutine write_det (nunit, nI, lTerm)
+
+        ! Write the specified determinant (or CSF) to the output unit nunit.
+        ! Terminate the line (with '\n') if lTerm = .true.
+        !
+        ! In: nunit - Output (file) unit
+        !     nI    - Determinant to output
+        !     lTerm - Terminate line with newline character?
+
+        integer, intent(in) :: nunit, nI(nel)
+        logical, intent(in) :: lTerm
+
+        call write_det_len (nunit, nI, nel, lterm)
+    end subroutine write_det
+
+    subroutine write_det_len (nunit, nI, nlen, lterm)
+
+        ! Worker function for the above. Can be accessed to print an unusual
+        ! lengthed determinant.
+
+        integer, intent(in) :: nunit, nlen, nI(nlen)
+        logical, intent(in) :: lTerm
+        integer :: i, elec
+        logical open_shell, bCSF
+
+        ! Is this a csf?
+        bCSF = tCSF .and. iscsf(nI)
+        open_shell = .false.
+
+        ! Start with a bracket, and loop over all the electrons
+        write(nunit,'("(")',advance='no')
+        do i=1,nlen
+            ! If this is a csf, extract the orbital number, and test
+            ! if we have passed all the closed shell electrons
+            if (bCSF) then
+                if ((.not.open_shell) .and. &
+                    btest(nI(i), csf_yama_bit)) open_shell = .true.
+
+                elec = iand(nI(i), csf_orbital_mask)
+            else
+                elec = nI(i)
+            endif
+
+            ! Write out the orbital number, and +/- for open shell csf e-
+            if (open_shell) then
+                write(nunit,'(i4)',advance='no') elec
+                if (btest(nI(i), csf_yama_bit)) then
+                    write(nunit,'("+")',advance='no')
+                else
+                    write(nunit,'("-")',advance='no')
+                endif
+            else
+                write(nunit,'(i5)',advance='no') elec
+            endif
+            if (i /= nlen) write(nunit,'(",")',advance='no')
+        enddo
+
+        ! Close the written determinant off
+        write(nunit,'(")")',advance='no')
+        if (lTerm) write(nunit,*)
+    end subroutine write_det_len
+
     Subroutine DetPreFreezeInit()
         Use global_utilities
         use SystemData, only : nEl, ECore, Arr, Brr, G1, nBasis, LMS, nBasisMax,tFixLz, tUEGSpecifyMomentum
@@ -68,7 +132,7 @@ MODULE Determinants
         ENDIF
 !      ENDIF
       WRITE(6,"(A)",advance='no') " Fermi det (D0):"
-      CALL WRITEDET(6,FDET,NEL,.TRUE.)
+      call write_det (6, FDET, .true.)
       Call GetSym(FDet,nEl,G1,nBasisMax,s)
       WRITE(6,"(A)",advance='no') " Symmetry: "
       Call WriteSym(6,s%Sym,.true.)
@@ -226,7 +290,7 @@ MODULE Determinants
         if (tCSF) then
             ncsf = det_to_random_csf (FDET)
             write (6, '("Generated starting CSF: ")', advance='no')
-            call writedet (6, FDET, nel, .true.)
+            call write_det (6, FDET, .true.)
         endif
 
     End Subroutine DetInit
@@ -433,7 +497,7 @@ END MODULE Determinants
       end subroutine
 
       subroutine DetFreezeBasis(GG)
-        Use Determinants, only: FDet, nUHFDet
+        Use Determinants, only: FDet, nUHFDet, write_det, write_det_len
         use SystemData, only : nEl, nBasis, nBasisMax,BasisFN,G1,tFixLz
         use IntegralsData, only : nFrozen,nFrozenIn
         implicit none
@@ -456,7 +520,7 @@ END MODULE Determinants
             CALL NECI_SORTI(NEL,FDET)
             IF(J.NE.NEL-NFROZEN-NFROZENIN) THEN
                WRITE(6,*) "Failed Freezing Det:"
-               CALL WRITEDET(6,NEL,FDET,.TRUE.)
+               call write_det (6, FDET, .true.)
                STOP "After Freezing, FDET has wrong number of electrons"
             ENDIF
          ENDIF
@@ -474,12 +538,12 @@ END MODULE Determinants
             CALL NECI_SORTI(NEL,nUHFDET)
             IF(J.NE.NEL-NFROZEN-NFROZENIN) THEN
                WRITE(6,*) "Failed Freezing Det:"
-               CALL WRITEDET(6,NEL,nUHFDET,.TRUE.)
+               call write_det (6, nUHFDET, .true.)
                STOP "After Freezing, UHFDET has wrong number of electrons"
             ENDIF
          ENDIF
          WRITE(6,"(A)",advance='no') " Post-Freeze Fermi det (D0):"
-         CALL WRITEDET(6,FDET,NEL-NFROZEN-NFROZENIN,.TRUE.)
+         call write_det_len (6, fDet, nel-nfrozen-nfrozenin, .true.)
          WRITE(6,"(A)",advance='no') " Symmetry: "
          Call GetSym(FDet,nEl-nFrozen-nFrozenIn,G1,nBasisMax,s)
          Call WriteSym(6,s%Sym,.true.)
@@ -676,51 +740,6 @@ END MODULE Determinants
 
     end subroutine
 
-    subroutine writedet (nunit, nI, nel, lTerm)
-        use csf, only: iscsf, csf_orbital_mask, csf_yama_bit
-        use systemdata, only: tCSF
-        implicit none
-        integer, intent(in) :: nunit, nel, nI(nel)
-        logical, intent(in) :: lTerm
-        integer :: i, elec
-        logical open_shell, bCSF
-
-        ! Is this a csf?
-        bCSF = tCSF .and. iscsf(nI)
-        open_shell = .false.
-
-        ! Start with a bracket, and loop over all the electrons
-        write(nunit,'("(")',advance='no')
-        do i=1,nel
-            ! If this is a csf, extract the orbital number, and test
-            ! if we have passed all the closed shell electrons
-            if (bCSF) then
-                if ((.not.open_shell) .and. &
-                    btest(nI(i), csf_yama_bit)) open_shell = .true.
-
-                elec = iand(nI(i), csf_orbital_mask)
-            else
-                elec = nI(i)
-            endif
-
-            ! Write out the orbital number, and +/- for open shell csf e-
-            if (open_shell) then
-                write(nunit,'(i4)',advance='no') elec
-                if (btest(nI(i), csf_yama_bit)) then
-                    write(nunit,'("+")',advance='no')
-                else
-                    write(nunit,'("-")',advance='no')
-                endif
-            else
-                write(nunit,'(i5)',advance='no') elec
-            endif
-            if (i /= nel) write(nunit,'(",")',advance='no')
-        enddo
-
-        ! Close the written determinant off
-        write(nunit,'(")")',advance='no')
-        if (lTerm) write(nunit,*)
-    end subroutine
 
 ! Calculate the one-electron part of the energy of a det
       REAL*8 FUNCTION CALCT(NI,NEL,G1,NBASIS)
@@ -743,11 +762,12 @@ END MODULE Determinants
       SUBROUTINE WriteBitDet(nUnit,iLutnI,lTerm)
          use SystemData, only : nEl, nIfTot
          use DetBitops, only: DecodeBitDet
+         use Determinants, only: write_det
          implicit none
          integer nUnit,nI(nEl),iLutnI(0:nIfTot)
          logical lTerm
          CALL DecodeBitDet(nI,iLutnI)
-         CALL WriteDet(nUnit,nI,nEl,lTerm)
+         call write_det (nUnit, nI, lTerm)
       END
 
 ! Write bit-determinant NI to unit NUnit.  Set LTerm if to add a newline at end.  Also prints CSFs

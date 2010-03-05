@@ -16,15 +16,12 @@ module csf
     use UMatCache, only: gtID
     use csf_data
     use timing
-    use util_mod, only: swap, int_arr_eq
+    use util_mod, only: swap, int_arr_eq, choose
 
     implicit none
 
     ! Non-modularised functions (sigh)
     interface
-        real*8 pure function choose(N,R)
-            integer, intent(in) :: N,R
-        end function
         subroutine writedet(nunit,ni,nel,lterm)
             integer nunit,nel,ni(nel)
             logical lterm
