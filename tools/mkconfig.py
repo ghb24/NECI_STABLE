@@ -367,7 +367,8 @@ help:
 \t@echo "libs          compile all libraries for integration with cpmd and vasp."
 \t@echo "utils         compile all utility programs."
 \t@echo "TransLz.x     compile the TransLz utility program."
-\t@echo "clean         remove all compiled objects for the current platform and optimisation level." 
+\t@echo "BlockFCIMC.x  compile the BlockFCIMC utility program."
+t@echo "clean          remove all compiled objects for the current platform and optimisation level." 
 \t@echo "cleanall      remove all compiled objects for all platforms and optimisation levels and the dependency files." 
 \t@echo "tags          run ctags on all source files."
 \t@echo "depend        update the list of dependencies.  Note that make 3.80 is buggy and running this causes an infinte loop."
@@ -463,17 +464,30 @@ $(KCDEPEND_FILES): $(KDEP_DEST)/%%.d: %%.C
 #-----
 # Utilities
 
-UTILS = TransLz
+# Macro to compile a utility Fortran program contained within a single source
+# file.
+MKUTIL = $(FC) $(FFLAGS) $< -o $@
 
+UTILS = TransLz.x BlockFCIMC.x
+
+# Target to compile all utility programs.
 utils: $(UTILS)
 
-TransLz.x: $(EXE)/TransLz.x
+# Target to point *.x to bin/*.x for utility programs.
+$(UTILS): %%: $(EXE)/%%
 
-$(EXE)/TransLz.x: $(EXE)/TransLz.$(CONFIG).$(OPT).x
+# Utilities are compiled as bin/*.config.opt.x.
+# The static pattern (before the first :) results in matching only
+# bin/$(UTILS).
+# bin/*.x links to bin/*.config.opt.x.
+$(addprefix $(EXE)/,$(UTILS)): $(EXE)/%%.x: $(EXE)/%%.$(CONFIG).$(OPT).x
 \t$(LINK)
 
-$(EXE)/TransLz.$(CONFIG).$(OPT).x: utils/TransLz.f90
-\t$(FC) $(FFLAGS) $< -o $@
+# Compile bin/*.config.opt.x from utils/*.f90
+# The static pattern results in applying this to only targets of the form $(EXE)/*.$(CONFIG).$(OPT).x
+# where *.x is one of the programs defined in $(UTILS).
+$(addprefix $(EXE)/,$(addsuffix .$(CONFIG).$(OPT).x,$(basename $(UTILS)))): $(EXE)/%%.$(CONFIG).$(OPT).x: utils/%%.f90
+\t$(MKUTIL)
 
 #-----
 # Include dependency files
