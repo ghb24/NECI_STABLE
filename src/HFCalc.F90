@@ -12,7 +12,7 @@ MODULE HFCalc
       use SystemData, only : tCPMD,  tHFOrder,nBasisMax, G1, Arr, Brr, ECore, nEl, nBasis, iSpinSkip, LMS
       use SystemData, only : tHub, lmsbasis
       Use Logging, only: iLogging
-      Use Determinants, only: FDet, nUHFDet
+      Use Determinants, only: FDet, nUHFDet, write_det
       use IntegralsData, only: UMat, tagUMat
       Use UMatCache, only: GetUMatSize
       Use OneEInts, only: TMat2D, SetupTMat2, DestroyTMat
@@ -58,7 +58,7 @@ MODULE HFCalc
             CALL WRITEBASIS(6,G1,nBasis,ARR,BRR)
 
             WRITE(6,"(A)",advance='no') " Fermi det (D0):"
-            CALL WRITEDET(6,FDET,NEL,.TRUE.)
+            call write_det (6, FDET, .true.)
             CALL FLUSH(6)
 !C.. If in Hubbard, we generate site-spin occupations
             IF(THUB) THEN

@@ -54,7 +54,8 @@ CONTAINS
     Subroutine DetCalcInit
 
         Use global_utilities
-        Use Determinants, only:  FDet, specdet, tSpecDet,tDefineDet,DefDet
+        Use Determinants, only:  FDet, specdet, tSpecDet, tDefineDet, &
+                                 DefDet, write_det
         Use IntegralsData, only : NFROZEN
         use SystemData, only : tCSFOLD,lms, lms2, nBasis, nBasisMax, nEl, SymRestrict
         use SystemData, only : Alat, arr, brr, boa, box, coa, ecore, g1,Beta
@@ -87,11 +88,11 @@ CONTAINS
 !Copied Specdet information from Calc.F, so if inspect is present, but no determinant/csf specified, it will still run.
       IF(TCSFOLD.AND.TSPECDET) THEN
          WRITE(6,*) "TSPECDET set.  SPECDET is"
-         CALL WRITEDET(6,SPECDET,NEL,.TRUE.)
+         call write_det (6, SPECDET, .true.)
          CALL NECI_ICOPY(NEL,SPECDET,1,FDET,1)
          CALL GETCSFFROMDET(FDET,SPECDET,NEL,STOT,LMS)
          WRITE(6,*) "CSF with 2S=",STOT," and 2Sz=",LMS," now in SPECDET is"
-         CALL WRITEDET(6,SPECDET,NEL,.TRUE.)
+         call write_det (6, SPECDET, .true.)
       ELSEIF(TSPECDET.AND.(.not.ISVALIDDET(SPECDET,NEL))) THEN
          WRITE(6,*) "TSPECDET set, but invalid.  using FDET"
 !         tSpecDet=.false.
@@ -103,7 +104,7 @@ CONTAINS
          WRITE(6,*) "CSF with 2S=",STOT," and 2Sz=",LMS," now in FDET is"
          IFDET=0
          NDET=0
-         CALL WRITEDET(6,FDET,NEL,.TRUE.)
+         call write_det (6, FDET, .true.)
       ENDIF
 
 
@@ -121,11 +122,11 @@ CONTAINS
             WRITE(6,*) "Performing truncated CI at level ",iExcitLevel
             IF(TSPECDET) THEN
                WRITE(6,*) "Using SPECDET:"
-               CALL WRITEDET(6,SPECDET,NEL,.TRUE.)!
+               call write_det (6, SPECDET, .true.)!
                CALL NECI_ICOPY(NEL,SPECDET,1,FDET,1)
             ELSE
                WRITE(6,*) "Using Fermi DET:"
-               CALL WRITEDET(6,FDET,NEL,.TRUE.)
+               call write_det (6, FDET, .true.)
             ENDIF 
             IF(TCSFOLD) WRITE(6,*) "Determining CSFs."
 !C.. if we're doing a truncated CI expansion
@@ -230,7 +231,7 @@ CONTAINS
          ENDIF
          OPEN(8,FILE='DETS',STATUS='UNKNOWN')
          DO I=1,NDET
-            CALL WRITEDET(8,NMRKS(1,I),NEL,.FALSE.)
+            call write_det (8, NMRKS(:,I), .false.)
             CALL GETSYM(NMRKS(1,I),NEL,G1,NBASISMAX,ISYM)
             CALL WRITESYM(8,ISym%Sym,.TRUE.)
          ENDDO
@@ -243,7 +244,7 @@ CONTAINS
          ENDDO
          WRITE(6,*) "Fermi Determinant:",IFDET
          WRITE(6,*) "Reference determinant to be used for diagonalisation procedure: "
-         CALL WRITEDET(6,FDET,NEL,.TRUE.)
+         call write_det (6, FDET, .true.)
 
          if (tDefineDet) then
              DO I=1,NEL
@@ -309,7 +310,7 @@ CONTAINS
     Subroutine DoDetCalc
       Use global_utilities
       Use HElem
-      use Determinants , only : GetHElement3,FDet
+      use Determinants , only : get_helement,FDet
       use SystemData, only : Alat, arr, brr, boa, box, coa, ecore, g1,Beta
       use SystemData, only : nBasis, nBasisMax,nEl,nMsh,LzTot,NIfTot
       use SystemData, only : nBasis, nBasisMax,nEl,nMsh,NIfTot
@@ -956,6 +957,7 @@ END MODULE DetCalc
          use global_utilities
          use DetCalc, only: NMRKS
          use legacy_data, only: irat
+         use Determinants, only: write_det
          implicit none
          character(25), parameter :: this_routine = 'CalcRhoPII2'
          INTEGER NEL,I_P,I_HMAX,I_VMAX,NDET,nBasisMax(5,*),nBasis
@@ -1023,14 +1025,14 @@ END MODULE DetCalc
             ISTART=0
             IEND=0
             WRITE(6,*) "Using specified det:"
-            CALL WRITEDET(6,SPECDET,NEL,.TRUE.)
+            call write_det (6, SPECDET, .true.)
          ELSE
             ISTART=1
             IEND=NPATHS
          ENDIF
          DO III=ISTART,IEND
             IF(III.NE.0) THEN
-              IF(NPATHS.EQ.1) CALL WRITEDET(6,NMRKS(1,III),NEL,.TRUE.) 
+              IF(NPATHS.EQ.1) call write_det (6, NMRKS(:,III), .true.) 
                CALL MCPATHSR3(NMRKS(1,III),BETA,I_P,I_HMAX,I_VMAX,NEL, NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT, &
      &         UMAT,NTAY, RHOEPS,LSTE,ICE,RIJLIST,NWHTAY,ILOGGING,ECORE,ILMAX, WLRI,WLSI,DBETA,DLWDB2)
             ELSE
@@ -1041,11 +1043,11 @@ END MODULE DetCalc
             WRITE(42,"(I12)",advance='no') III
             IF(TSPECDET) THEN
 !             WRITE(6,*) "Writedet",NEL,III
-              CALL WRITEDET(42,SPECDET,NEL,.FALSE.)
+              call write_det (42, SPECDET, .false.)
             ELSE
 !               WRITE(6,*) "Writedet",NEL,III
 !               WRITE(6,*) NMRKS(1:NEL,III)
-               CALL WRITEDET(42,NMRKS(1,III),NEL,.FALSE.)
+               call write_det (42, NMRKS(:,III), .false.)
             ENDIF
             WRITE(42,"(A,3G25.16)",advance='no') " ",EXP(WLSI+I_P*WLRI),WLRI*I_P,WLSI
 !            WRITE(6,*) "After Exp"

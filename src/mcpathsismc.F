@@ -14,7 +14,7 @@ C.. NMAX has ARR hidden in it.
      &               LSTE,ICE,RIJLIST,NWHTAY,ILOGGING,ECORE,ILMAX,
      &               WLRI,WLSI,DBETA,DLWDB,I_VMIN)
          USE HElem
-         Use Determinants, only: GetHElement2
+         Use Determinants, only: get_helement, write_det
          USE MCStat
          use CalcData , only : G_VMC_PI,G_VMC_FAC,G_VMC_SEED,CUR_VERT,
      &          g_MultiWeight,TMPTHEORY,TVVDISALLOW,TMCDIRECTSUM
@@ -78,6 +78,7 @@ C.. do some blocking analysis
          REAL*8 PREJ,PGR
          REAL*4 etime,OTIME,NTIME,tarr(2)
          INTEGER*8 LP
+         type (helement) :: hel
          OTIME=etime(tarr)
          TST=0
          proc_timer%timer_name='MCPATHSR4 '
@@ -88,7 +89,7 @@ C.. do some blocking analysis
             OPEN(11,FILE="MCPATHS",STATUS="OLD",ACCESS='APPEND')
 C.. go to end of file
 !            I=FSEEK(11,0,2)
-            CALL WRITEDET(11,NI,NEL,.TRUE.)
+            call write_det (11, NI, .true.)
          ENDIF
          IF(BTEST(ILOGGING,2))
      &      OPEN(10,FILE="PATHS",STATUS="UNKNOWN")
@@ -105,8 +106,8 @@ C.. Set the first node to I_I
          RHOII(0)=RH
          RHOIJ(0,0)=RHOII(0)
          WLRI=LOG(RHOII(0))
-         HIJS(0)=GETHELEMENT2(NI,NI,NEL,NBASISMAX,
-     &      G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,0,ECORE)
+         hel = get_helement (nI, nI, 0)
+         HIJS(0) = hel%v
          TOTAL=1.D0
 C.. These variables have been passed in and represent the precalculated values for 1..I_VMIN-1 vertices
          DLWDBCORE=DLWDB
@@ -873,6 +874,8 @@ C.. not very efficient.
      &   RHOEPS,RHOII,RHOIJ,NWHTAY,I_HMAX,ILOGGING,TSYM,
      &   ECORE,ISEED,KSYM,DBETA,DLWDB,HIJS)
          use SystemData , only : BasisFN
+         use Determinants, only: get_helement
+         use HElem
          IMPLICIT NONE
          TYPE(BasisFN) :: KSYM
          INTEGER NEL,NI(NEL),I_P,IPATH(NEL,0:I_V),I_V
@@ -890,9 +893,10 @@ C.. not very efficient.
          INTEGER IGETEXCITLEVEL
          LOGICAL TLOG,TLOG2,TLOG3
          REAL*8 RP,DBETA,DLWDB,DLWDB2
-         REAL*8 GETHELEMENT2,HIJS(0:I_V)
+         REAL*8 HIJS(0:I_V)
          LOGICAL ISUHFDET
          INTEGER ICLS
+         type(HElement) :: hel
          RP=0
          I_VNEXT=1
          CALL NECI_ICOPY(NEL,IPATH(1,0),1,INODE,1)
@@ -959,9 +963,8 @@ C.. Update the rho and X (probability) matrices with this new node
                      XIJ(I,I_VNEXT)=0.D0
                   ENDIF
                   IF(I.EQ.0) THEN
-                     HIJS(I_VNEXT)=GETHELEMENT2(NI,INODE,NEL,NBASISMAX,
-     &                  G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,
-     &                  ICE,ECORE)
+                     hel = get_helement (nI, iNode)
+                     HIJS(I_vNext) = hel%v
                   ENDIF
                   CALL CALCRHO2(INODE,IPATH(1,I),BETA,I_P,NEL,
      &             NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,
@@ -1032,6 +1035,8 @@ C.. XIJ is proportional to RHO_JJ**ABS(RP).
      &   RHOEPS,RHOII,RHOIJ,NWHTAY,I_HMAX,ILOGGING,TSYM,
      &   ECORE,ISEED,KSYM,DBETA,DLWDB,HIJS)
          use SystemData , only : BasisFN
+         use HElem
+         use Determinants, only: get_helement
          IMPLICIT NONE
          TYPE(BasisFN) :: KSYM
          INTEGER NEL,NI(NEL),I_P,IPATH(NEL,0:I_V),I_V
@@ -1050,9 +1055,9 @@ C.. XIJ is proportional to RHO_JJ**ABS(RP).
          LOGICAL TLOG,TLOG2,TLOG3
          REAL*8 RP,PP
          REAL*8 DBETA,DLWDB,HIJS(0:I_V)
-         REAL*8 GETHELEMENT2
          INTEGER ICLS
          REAL*8 RAN2
+         type(HElement) :: hel
 C.. we hard code RP as P/50, although this should be an empirical
 C.. parameter.
          RP=-I_P/50.D0
@@ -1119,10 +1124,10 @@ C                     XIJ(I,I_VNEXT)=1.D0/XIJ(I,I)
      &                  RHOII(I)**ABS(RP)/XIJ(I_VNEXT,I_VNEXT)
                      XIJ(I,I_VNEXT)=
      &                  RHOII(I_VNEXT)**ABS(RP)/XIJ(I,I)
-                  IF(I.EQ.0)
-     &               HIJS(I_VNEXT)=GETHELEMENT2(NI,INODE,NEL,NBASISMAX,
-     &                  G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,
-     &                  ICE,ECORE)
+                     if(I == 0) then
+                        hel = get_helement(nI, iNode, ICE)
+                        HIJS(I_vNext) = hel%v
+                     endif
                   ELSE
                      RHOIJ(I,I_VNEXT)=0.D0
                      RHOIJ(I_VNEXT,I)=0.D0
@@ -1190,6 +1195,8 @@ C..
      &   ECORE,ISEED,KSYM,DBETA,DLWDB,HIJS,NMEM)
          use SystemData , only : BasisFN
          use CalcData , only : G_VMC_PI
+         use Determinants, only: get_helement
+         use HElem
          IMPLICIT NONE
          TYPE(BasisFN) :: KSYM
          INTEGER NEL,NI(NEL),I_P,IPATH(NEL,0:I_V),I_V
@@ -1207,7 +1214,7 @@ C..
          INTEGER IGETEXCITLEVEL
          LOGICAL TLOG,TLOG2,TLOG3
          REAL*8 RP,DBETA,DLWDB,DLWDB2
-         REAL*8 GETHELEMENT2,HIJS(0:I_V)
+         REAL*8 HIJS(0:I_V)
          LOGICAL ISUHFDET
          REAL*8 PEXCIT(I_V),R
          INTEGER NEXNODE
@@ -1223,6 +1230,7 @@ C..
          INTEGER STORE(6)
          REAL*8 RAN2
          REAL*8 pGen,pGen2
+         type(HElement) :: hel
 C.. PEXCIT(NODE) is the probability of selecting NODE and
 C.. those before it.
          PEXCIT(1)=1.D0
@@ -1362,9 +1370,8 @@ C.. Update the rho and X (probability) matrices with this new node
                      XIJ(I,I_VNEXT)=0.D0
                   ENDIF
                   IF(I.EQ.0) THEN
-                     HIJS(I_VNEXT)=GETHELEMENT2(NI,INODE,NEL,NBASISMAX,
-     &                  G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,
-     &                  ICE,ECORE)
+                      hel = get_helement (nI, iNode)
+                     HIJS(I_VNEXT) = hel%v
                   ENDIF
                   CALL CALCRHO2(INODE,IPATH(1,I),BETA,I_P,NEL,
      &             NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,
@@ -2021,10 +2028,10 @@ C.. Unbias the sum
      &   NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMat,
      &   NTAY,RHOEPS,RHOII,RHOIJ,ECORE,ISEED,HIJS,NMEMNI,I_HMAX,
      &   PVERTMEMS2)
-         Use Determinants, only: GetHElement2
          use CalcData , only : G_VMC_PI
          USE PrecalcData , only : TPREVAR
          USE HElem
+         use Determinants, only: get_helement, write_det
          use SystemData, only: BasisFN
          IMPLICIT NONE
          INTEGER NEL,I_V,IPATH(NEL,0:I_V),NI(NEL)
@@ -2070,6 +2077,7 @@ C.. Unbias the sum
          LOGICAL LISNAN,ISVALIDDET
          REAL*8 RAN2
          REAL*8 pGen,pGen2
+         type(helement) :: hel
 
          !Deallocate Excitation Generators after precalc
          IF(I_HMAX.EQ.154) THEN
@@ -2083,9 +2091,8 @@ C.. PEXCIT(NODE) is the probability of selecting NODE and
 C.. those before it.
          IF(I_HMAX.EQ.-19) THEN
 !.. We're actually storing H matrices in RHOIJ rather than rho matrices
-            RHOIJ(0,0)=GETHELEMENT2(NI,NI,NEL,NBASISMAX,
-     &                  G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,
-     &                  0,ECORE)
+            hel = get_helement (nI, nI, 0)
+            RHOIJ(0,0) = hel%v
             RHOII(1)=BETA
          ENDIF
          PEXCIT(1)=1.D0
@@ -2147,7 +2154,7 @@ C.. generate a random excitation
 C.. If the new node is not in the path, add it.
             IF(.NOT.ISVALIDDET(INODE,NEL)) THEN
                WRITE(6,*) "INVALID DET"
-               CALL WRITEDET(6,INODE,NEL,.TRUE.)
+               call write_det (6, INODE, .true.)
                STOP "INVALID DET"
             ENDIF
             IF(.NOT.LISINPATH(INODE,IPATH,NEL,I_VNEXT,-1)) THEN
@@ -2176,9 +2183,7 @@ C.. Count the excitations (and generate a random one which we throw)
 C.. Update the rho and X (probability) matrices with this new node
                IF(I_HMAX.EQ.-19) THEN
 !  using H-elements in the rho matrix
-                 RH=GETHELEMENT2(INODE,INODE,NEL,
-     &                  NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,
-     &                  UMAT,0,ECORE)
+                 RH = get_helement (iNode, iNode, 0)
                   RHOIJ(I_VNEXT,I_VNEXT)=RH
                ELSE
                   CALL CALCRHO2(INODE,INODE,BETA,I_P,NEL,
@@ -2224,15 +2229,12 @@ C.. Update the rho and X (probability) matrices with this new node
                   ENDIF
                   IF(I_HMAX.EQ.-19) THEN
 !  using H-elements in the rho matrix
-                     RH=GETHELEMENT2(INODE,IPATH(1,I),NEL,
-     &                  NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,
-     &                  UMAT,ICE,ECORE)
+                     RH = get_helement (iNode, iPath(:,I))
                      IF(I.EQ.0) HIJS(I_VNEXT)=RH
                   ELSE
                      IF(I.EQ.0) THEN
-                      HIJS(I_VNEXT)=GETHELEMENT2(NI,INODE,NEL,NBASISMAX,
-     &                  G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,
-     &                  ICE,ECORE)
+                         hel = get_helement (nI, iNode)
+                         HIJS(I_VNEXT) = hel%v
                      ENDIF
                      CALL CALCRHO2(INODE,IPATH(1,I),BETA,I_P,NEL,
      &             NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,
@@ -2252,7 +2254,7 @@ C.. Update the rho and X (probability) matrices with this new node
             IF(ICOUNT.GT.50000) THEN
 C.. give up trying to find something to attach, and go home
                WRITE(6,*) "WARNING: Unable to find attachee to vertex"
-               CALL WRITEDET(6,IPATH(1,NEXNODE),NEL,.TRUE.)
+               call write_det (6, IPATH(1,NEXNODE), .true.)
                RHOII(1)=0.D0
                RETURN
             ENDIF
@@ -2316,6 +2318,8 @@ C.. a wrongly biased MC
      &   I_OVCUR,IOCLS,ITREE,OWEIGHT,IACC)
          use SystemData , only : BasisFN
          use CalcData , only : G_VMC_PI
+         use Determinants, only: get_helement, write_det
+         use HElem
          IMPLICIT NONE
          TYPE(BasisFN) :: KSYM
          INTEGER NEL,NI(NEL),I_P,IPATH(NEL,0:I_V),I_V
@@ -2333,7 +2337,7 @@ C.. a wrongly biased MC
          INTEGER IGETEXCITLEVEL
          LOGICAL TLOG,TLOG2,TLOG3
          REAL*8 RP,DBETA,DLWDB,DLWDB2
-         REAL*8 GETHELEMENT2,HIJS(0:I_V)
+         REAL*8 HIJS(0:I_V)
          LOGICAL ISUHFDET
          REAL*8 PEXCIT(I_V),R,ETILDE
          INTEGER NEXNODE
@@ -2360,6 +2364,7 @@ C.. a wrongly biased MC
          INTEGER IEXNUM,NTENT
          REAL*8 RAN2
          INTEGER STORE(6)
+         type(HElement) :: hel
 C         WRITE(6,*) "START:",LOC(NMEM)
 
 C.. number of tentacles
@@ -2467,7 +2472,7 @@ C     &            NBASISMAX,.FALSE.,CUREX,INODE2,ISEED,IC,0)
                CALL NECI_ICOPY(NEL,INODE2,1,INODE,1)
                IF(.NOT.ISVALIDDET(INODE,NEL)) THEN
                   WRITE(6,*) "INVALID DET"
-                  CALL WRITEDET(6,INODE,NEL,.TRUE.)
+                  call write_det (6, INODE, .true.)
                   STOP "INVALID DET"
                ENDIF
 
@@ -2504,10 +2509,8 @@ C.. we will later.  Just put a dummy value in for now
                         NXIJ(I,I_VNEXT)=0.D0
                      ENDIF
                      IF(I.EQ.0) THEN
-                        NHIJS(I_VNEXT)=GETHELEMENT2(NI,INODE,NEL,
-     &                  NBASISMAX,
-     &                  G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,
-     &                  ICE,ECORE)
+                         hel = get_helement (nI, iNode)
+                         NHIJS(I_VNEXT) = hel%v
                      ENDIF
                      CALL CALCRHO2(INODE,NIPATH(1,I),BETA,I_P,NEL,
      &                  NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,
@@ -2703,6 +2706,8 @@ C.. NB TMAT has sometimes been hidden in ZIA
      &   OETILDE,IOCLS,ITREE,OWEIGHT,IACC,VWEIGHTS,VEXCITS,PFAC,TST,
      &   WMIN)
          use SystemData , only : BasisFN
+         use Determinants, only: get_helement, write_det
+         use HElem
          IMPLICIT NONE
          TYPE(BasisFN) :: KSym
          INTEGER NEL,NI(NEL),I_P
@@ -2733,10 +2738,11 @@ C.. NB TMAT has sometimes been hidden in ZIA
          REAL*8 OWEIGHT
          INTEGER ICONN,I,ICLS,IC
          REAL*8 ETILDERET,WEIGHTRET,PFAC,WMIN
+         type(HElement) :: hel
 
          LOGICAL ISVALIDDET,ISUHFDET,LISINPATH,AREDETSEXCITS
          INTEGER IGETEXCITLEVEL
-         REAL*8 GETHELEMENT2,CALCPATHS_N
+         REAL*8 CALCPATHS_N
 
          INTEGER TST
          REAL*8 RAN2
@@ -2773,7 +2779,7 @@ C.. generate an excitation from this vertex
      &           NBASISMAX,.FALSE.,CUREX,TENTDETS(1,ITENT),ISEED,ICE,0)
                IF(.NOT.ISVALIDDET(TENTDETS(1,ITENT),NEL)) THEN
                   WRITE(6,*) "INVALID DET"
-                  CALL WRITEDET(6,TENTDETS(1,ITENT),NEL,.TRUE.)
+                  call write_det (6, TENTDETS(1,ITENT), .true.)
                   STOP "INVALID DET"
                ENDIF
 C.. We cannot deal with the case that the tentacle is already in the graph
@@ -2824,10 +2830,8 @@ C.. Fill out the parts which have changed
          DO I=0,I_V-1
             IF(I.EQ.IVERTMOVE) THEN
                ICE=-1
-               NHIJS(I)=GETHELEMENT2(NI,NIPATH(1,I),NEL,
-     &                  NBASISMAX,
-     &                  G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,
-     &                  ICE,ECORE)
+               hel = get_helement (nI, nIPath (:,I))
+               NHIJS(I) = hel%v
                ICE=0
                CALL CALCRHO2(NIPATH(1,I),NIPATH(1,I),BETA,
      &                  I_P,NEL,
@@ -2962,6 +2966,8 @@ C..  (|w'(ijk)| Sum_(j' in G&j'-l) w1(j')/N(j'))/Sum_(j''in G) w1(j'')
      &                        OETILDE,ETILDERET,WEIGHTRET,IOCLS,
      &                        ITREE,IACC,ISEED,BRR,NMSH,FCK,NTAY,
      &                        NMAX,ALAT,UMAT,ECORE,PFAC,WMIN)
+         use Determinants, only: get_helement, write_det
+         use HElem
          IMPLICIT NONE
          INTEGER I_V,NEL,IPATH(NEL,0:I_V)
          REAL*8 RHOIJ(0:I_V,0:I_V)
@@ -2988,10 +2994,11 @@ C..  (|w'(ijk)| Sum_(j' in G&j'-l) w1(j')/N(j'))/Sum_(j''in G) w1(j'')
          REAL*8 RH,PFAC,WMIN
  
          LOGICAL AREDETSEXCITS,ISVALIDDET,LISINPATH
-         REAL*8 GETHELEMENT2,CALCPATHS_N
+         REAL*8 CALCPATHS_N
          LOGICAL LBR
          INTEGER ICOUNT
          REAL*8 RAN2
+         type(helement) :: hel
 C.. First pick a vertex to excite from 
          R=RAN2(ISEED)*VWEIGHTS(1,I_V)
          IVERT=0
@@ -3012,7 +3019,7 @@ C.. Now use the excitor for this vertex to generate a new vertex
      &         NBASISMAX,.FALSE.,CUREX,NL,ISEED,ICE,0)
             IF(.NOT.ISVALIDDET(NL,NEL)) THEN
                WRITE(6,*) "INVALID DET"
-               CALL WRITEDET(6,NL,NEL,.TRUE.)
+               call write_det (6, NL, .true.)
                STOP "INVALID DET"
             ENDIF
             IF(.NOT.LISINPATH(NL,IPATH,NEL,I_V,-1)) THEN
@@ -3060,10 +3067,10 @@ C.. now get the rho matrix element
                IF(ABS(RH).GE.RHOEPS) THEN
                   RHOIJ2(I,I_V)=RH
                   RHOIJ2(I_V,I)=RH
-                  IF(I.EQ.0)
-     &               HIJS2(I_V)=GETHELEMENT2(IPATH(1,0),NL,NEL,
-     &                  NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,
-     &                  NMAX,ALAT,UMAT,ICE,ECORE)
+                  IF(I.EQ.0) then
+                     hel = get_helement (iPath(:,0), nL)
+                     HIJS2(I_V) = hel%v
+                  endif
                ELSE
                   RHOIJ2(I,I_V)=0.D0
                   RHOIJ2(I_V,I)=0.D0

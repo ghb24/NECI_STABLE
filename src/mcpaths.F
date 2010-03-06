@@ -1,10 +1,3 @@
-! To allow linking of code with the old GetHElement2, but which will give an error when run.
-      REAL*8 FUNCTION GETHELEMENT2()
-         STOP 'Wrong GETHELEMENT2'
-         GETHELEMENT2=huge(0.0d0)
-         RETURN
-      END
-
 
 C.. Calculate RHO^(P)_II without having a stored H matrix
 C.. Sum over distinct nodes, e.g. IJKLI, with paths up to I_HMAX
@@ -26,7 +19,7 @@ C.. DLWDB = d ln (wi) / d Beta.
      &              NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMat,NTAY,RHOEPS,
      &               LSTE,ICE,RIJLIST,NWHTAY,ILOGGING,ECORE,ILMAX,
      &               WLRI,WLSI,DBETA,DLWDB)
-         Use Determinants, only: GetHElement2
+         Use Determinants, only: get_helement, write_det
          USE HElem
          use SystemData, only: BasisFN
          USE PreCalc ,  only: GETVARS
@@ -120,7 +113,7 @@ C.. This will store the MP2 energy
             OPEN(11,FILE="MCSUMMARY",STATUS="OLD",ACCESS='APPEND')
 C.. go to end of file
 !            I=FSEEK(11,0,2)
-            CALL WRITEDET(11,NI,NEL,.TRUE.)
+            call write_det (11, NI, .true.)
          ENDIF
          IF(BTEST(ILOGGING,0)) THEN
             OPEN(10,FILE="PATHS",STATUS="UNKNOWN")
@@ -132,9 +125,7 @@ C.. Set the first node to I_I
          CALL NECI_ICOPY(NEL,NI,1,IPATH(1:NEL,0),1)
          CALL CALCRHO2(NI,NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,
      &            BRR,NMSH,FCK,NMAX,ALAT,UMAT,RH,NTAY,0,ECORE)
-         HIJS(0)=GETHELEMENT2(NI,NI,NEL,NBASISMAX,
-     &   G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,0,ECORE)
-C     &            HIJS(0))
+         HIJS(0) = get_helement (nI, nI, 0)
          RHOII(0)=RH
          RHOIJ(0,0)=RH
          WLRI=LOG(RHOII(0))
@@ -423,7 +414,7 @@ C.. save all log files
 !               CALL LOGNAN(NI,NEL,BETA,ITIME)
                WRITE(6,*) "WARNING: nan found at time",ITIME
                WRITE(6,"(A)",advance='no') "  nan det="
-               CALL WRITEDET(6,NI,NEL,.TRUE.)
+               call write_det (6, NI, .true.)
             ENDIF
             CALL WRITECLASSPATHS()
 ! If we've done a multi, we don't need to do any more
@@ -489,7 +480,7 @@ C.. MCPATHSR3 has the same method at each vertex level
      &               WLRI,WLSI,DBETA,DLWDB)
          USE HElem
          use SystemData, only: BasisFN
-         Use Determinants, only: GetHElement2
+         Use Determinants, only: get_helement, write_det
          USE STARDIAGMOD , only : fMCPR3StarNewExcit
          USE NODEDIAG , only : fMCPR3StarNodes
          USE GraphMorph , only : MorphGraph
@@ -625,7 +616,7 @@ C.. Pick graphs which may not contain distinct vertices
             OPEN(11,FILE="MCPATHS",STATUS="OLD",ACCESS='APPEND')
 C.. go to end of file
 !            I=FSEEK(11,0,2)
-            CALL WRITEDET(11,NI,NEL,.TRUE.)
+            call write_det (11, NI, .true.)
          ENDIF
          IF(BTEST(ILOGGING,0)) THEN
             OPEN(10,FILE="PATHS",STATUS="UNKNOWN")
@@ -635,8 +626,7 @@ C.. Set the first node to I_I
          CALL NECI_ICOPY(NEL,NI,1,IPATH(1:NEL,0),1)
          CALL CALCRHO2(NI,NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,
      &            BRR,NMSH,FCK,NMAX,ALAT,UMAT,RH,NTAY,0,ECORE)
-         HIJS(0)=GETHELEMENT2(NI,NI,NEL,NBASISMAX,
-     &   G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,0,ECORE)
+         HIJS(0) = get_helement (nI, nI, 0)
 C     &            HIJS(0))
          RHOII(0)=RH
          RHOIJ(0,0)=RH
@@ -760,7 +750,7 @@ C.. save all log files
 !               CALL LOGNAN(NI,NEL,BETA,ITIME)
                WRITE(6,*) "WARNING: nan found at time",ITIME
                WRITE(6,"(A)",advance='no') "  nan det="
-               CALL WRITEDET(6,NI,NEL,.TRUE.)
+               call write_det (6, NI, .true.)
             ENDIF
             CALL WRITECLASSPATHS()
          ENDDO
@@ -809,7 +799,7 @@ C.. using the appropriate weightings (Z-sums) from CALCPATH7.(26/01/04).
      &   MP2E,NTOTAL)  RESULT (FMCPR3RES)
          USE HElem
          use SystemData, only: BasisFN
-         Use Determinants, only: GetHElement2
+         Use Determinants, only: get_helement
          USE Logging , only : G_VMC_LOGCOUNT
          use CalcData , only : TMPTHEORY
          IMPLICIT NONE
@@ -1079,9 +1069,8 @@ C.. Add the new node to the path, and then recurse from it
                   CALL NECI_ICOPY(NEL,LSTE(1:NEL,I,IVLEVEL),1,
      &                     IPATH(1:NEL,I_VIND+1),1)
 C.. Get the H element so we can calculate the energy
-                  HIJS(I_VIND+1)=GETHELEMENT2(IPATH(1,0),
-     &               IPATH(1,I_VIND+1),NEL,NBASISMAX,
-     &              G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,-1,ECORE)
+                  HIJS(I_VIND+1) = get_helement (iPath(:,0), 
+     &                                           iPath(:,I_VIND+1))
                   BTABLE(I_VIND+1)=IVLEVEL
                   TOTAL=TOTAL+
      &                     FMCPR3(NI,BETA,I_P,IPATH,I_V,NEL,NBASISMAX,
@@ -1130,7 +1119,7 @@ C.,             If 1, only allow doubles.
      &   NTOTAL,EREF,VARSUM,WREF) RESULT (FMCPR3BRES)
          USE HElem
          use SystemData, only: BasisFN
-         Use Determinants, only: GetHElement2
+         Use Determinants, only: get_helement
          use CalcData , only : TVARCALC,TMPTHEORY
          USE Logging , only : G_VMC_LOGCOUNT
          USE PrecalcData , only : TPREVAR,PREWEIGHTEPS
@@ -1564,9 +1553,9 @@ C.. freeze the empties
 C.. Add it to the path, and recurse
                    CALL NECI_ICOPY(NEL,NJ,1,IPATH(1,I_VIND+1),1)
 C.. Get the H element so we can calculate the energy
-                   HIJS(I_VIND+1)=GETHELEMENT2(IPATH(1,0),
-     &               IPATH(1,I_VIND+1),NEL,NBASISMAX,
-     &              G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,-1,ECORE)
+                   HIJS(I_VIND+1) = get_helement (iPath(:,0), 
+     &                                            iPath(:,I_VIND+1))
+                   
                    TOTAL=TOTAL+
      &                  FMCPR3B(NI,BETA,I_P,IPATH,I_V,NEL,NBASISMAX,
      &                     G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,
@@ -1638,6 +1627,7 @@ C.. connected, and continue from after where this node was excited
       END
 
       SUBROUTINE WRITEPATH(NUNIT,IPATH,I_V,NEL,LTERM)
+         use Determinants, only: write_det
          IMPLICIT NONE
          INTEGER NUNIT,IPATH(NEL,0:I_V),I_V,NEL
          LOGICAL LTERM
@@ -1645,7 +1635,7 @@ C.. connected, and continue from after where this node was excited
          
          WRITE(NUNIT,"(A)",advance='no') "["
          DO J=0,I_V-1
-            CALL WRITEDET(NUNIT,IPATH(1,J),NEL,.FALSE.)
+            call write_det (NUNIT, IPATH(1,J), .false.)
             WRITE(NUNIT,"(A)",advance='no') ","
          ENDDO
          WRITE(NUNIT,"(A)",advance='no') "] "
@@ -1774,6 +1764,9 @@ C.. dramatically.  Code unfinished
      &   RHOEPS,LSTE,ICE,LIST,L,LT,NWHTAY,
      &   ILOGGING,TSYM,ECORE,ILMAX,DBETA,DLWDB)
             
+         use determinants, only: get_helement
+         use HElem
+
          IMPLICIT NONE
          INTEGER I_V,NEL,I_P,nBasisMax(5,*),G1(*),NBASIS,BRR(*),NMSH
          INTEGER NTAY(2),NWHTAY,ILOGGING,LT,NMAX
@@ -1794,7 +1787,6 @@ C.. LIST(J,2) = HIJ
          REAL*8 BETA,RHOEPS
          LOGICAL TSYM
          REAL*8 DBETA,DLWDB
-         REAL*8 GETHELEMENT2
          INTEGER NLIST,NLCUR,I,J,L
 
          REAL*8 RH,RHII
@@ -1808,6 +1800,7 @@ C.. LIST(J,2) = HIJ
 
          REAL*8 TH,C,S,T,TAU,ARP,ARQ
          INTEGER IPTR,JPTR
+         type(HElement) :: hel
          CALL NECI_ICOPY(NEL,NI,1,LSTE(1,0),1)
          ICE(0)=0
          NLIST=ILMAX
@@ -1843,9 +1836,8 @@ C.. Allocate storage space for the connections
      &             NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,
      &              RH,NTAY,0,ECORE)
                   LIST(NLCUR,0)=RH/RHII
-                  LIST(NLCUR,2)=GETHELEMENT2(NI,
-     &               LSTE(1,I),NEL,NBASISMAX,
-     &              G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,-1,ECORE)
+                  hel = get_helement (nI, lste(:,I))
+                  LIST(NLCUR,2) = hel%v
 C                  WRITE(6,*) (LIST(NLCUR,J),J=0,2)
                   NLCUR=NLCUR+1
                ENDIF
@@ -1973,6 +1965,8 @@ C.. and also includes the removal of subgraphs
      &   ) RESULT (FMCPR3NVSTARRES)
          
          use SystemData, only: BasisFN
+         use Determinants, only: get_helement
+         use HElem
          IMPLICIT NONE
          type(BasisFN) ISYM
          INTEGER I_V,NEL,I_P,NBASISMAX(*),G1(*),NBASIS,BRR(*),NMSH,NMAX
@@ -2001,7 +1995,7 @@ C.. NLIST contains the length of LSTE for each node
          REAL*8 DBETA,DLWDB,DLWDB2
          REAL*8 HIJS(0:I_V)
          INTEGER ICLS
-         REAL*8 GETHELEMENT2
+         type(HElement) :: hel
          IF(I_VIND.EQ.0) THEN
 C.. setup
             OPEN(19,FILE="STARDATA",STATUS="UNKNOWN")
@@ -2206,9 +2200,9 @@ C.. Add the new node to the path, and then recurse from it
                   CALL NECI_ICOPY(NEL,LSTE(1:NEL,I,IVLEVEL),1,
      &                     IPATH(1:NEL,I_VIND+1),1)
 C.. Get the H element so we can calculate the energy
-                  HIJS(I_VIND+1)=GETHELEMENT2(IPATH(1,0),
-     &               IPATH(1,I_VIND+1),NEL,NBASISMAX,
-     &              G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,-1,ECORE)
+                  
+                  hel = get_helement (iPath(:,0), iPath(:,I_VIND+1))
+                  HIJS(I_VIND+1) = hel%v
                   BTABLE(I_VIND+1)=IVLEVEL
                   TOTAL=TOTAL+
      &                 FMCPR3NVSTAR(NI,BETA,I_P,IPATH,I_V,NEL,NBASISMAX,

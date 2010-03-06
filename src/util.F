@@ -143,43 +143,6 @@
          RETURN
       END FUNCTION RAN2
 
-
-      REAL*8 FUNCTION FACTRL(N)
-         != Return the factorial of N, N!.
-         != This is not done in the most efficient way possible (i.e. use
-         != with care if N is large or if called many times!).
-         != The reader is referred to
-         != http://www.luschny.de/math/factorial/FastFactorialFunctions.htm
-         != if a more efficient procedure is desired.
-         implicit none
-         integer :: i,N
-         FACTRL=1.d0
-         do i=2,N
-             FACTRL=FACTRL*i
-         end do
-      end function FACTRL
-
-!This finds the binomial coefficient N C R
-      REAL*8 FUNCTION Choose(N,R)
-         IMPLICIT NONE
-         INTEGER :: N,R,i,K
-
-         IF(R.gt.N) THEN
-             Choose=0.D0
-             RETURN
-         ENDIF
-         IF(R.gt.(N/2)) THEN
-             K=N-R  !Faster
-         ELSE
-             K=R
-         ENDIF
-         Choose=1.D0
-         DO I=0,K-1
-             Choose=(Choose*(N-I))/(I+1)
-         ENDDO
-         RETURN
-      END FUNCTION Choose
-
       integer function record_length(bytes)
          ! Some compilers use record lengths in units of bytes.
          ! Some compilers use record lengths in units of words.

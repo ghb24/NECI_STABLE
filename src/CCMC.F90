@@ -1,4 +1,6 @@
 MODULE CCMC
+    use Determinants, only: get_helement, write_det, write_det_len
+    use HElem
    IMPLICIT NONE
    CONTAINS
 
@@ -111,7 +113,6 @@ MODULE CCMC
     SUBROUTINE PerformCCMCCycParInt()
       USe FCIMCParMod
       use CCMCData
-      Use Determinants, only: GetHElement3
       Use Logging, only: CCMCDebug
       use DetBitOps, only: DecodeBitDet
         IMPLICIT NONE
@@ -269,8 +270,8 @@ MODULE CCMC
                   iLutnI(:)=CurrentDets(:,j)
                   call AddBitExcitor(iLutnI,CurrentDets(:,l),iLutHF,iSgn)
                   if(iSgn.ne.0) then
-                     CALL DecodeBitDet(DetCurr,iLutnI(:))
-                     Htmp=GetHElement3(HFDet, DetCurr,2)
+                     CALL DecodeBitDet(DetCurr,iLutnI)
+                     Htmp = get_helement (HFDet, DetCurr, iLutHF, iLutnI)
                      dT1Sq=dT1Sq+(Real(Htmp%v,r2)*iSgn)
                      !WRITE(6,'(A,I,2G)', advance='no') 'T1',iSgn,real(Htmp%v,r2),dT1Sq
                      !call WriteBitEx(6,iLutHF,CurrentDets(:,j),.false.)
@@ -566,7 +567,7 @@ MODULE CCMC
                   IF(.not.tHPHF) CALL FindExcitBitDet(iLutnI,iLutnJ,IC,Ex)
                   IF(iDebug.gt.4) then
                       WRITE(6,*) "Random excited det level ",iC
-                      call WriteDet(6,nJ,nEl,.true.)
+                      call write_det (6, nJ, .true.)
                       Write(6,*) "Prob ex|from",Prob
                   endif
 !Prob is the Prob of choosing nJ from nI
@@ -656,7 +657,7 @@ MODULE CCMC
                   iPartDie=SelectedExcitorIndices(k)
    !Now get the full representation of the dying excitor
                   CALL DecodeBitDet(DetCurr,iLutnI)
-                  Htmp=GetHElement3(DetCurr,DetCurr,0)
+                  Htmp = get_helement (DetCurr, DetCurr, 0)
                   HDiagCurr=REAL(Htmp%v,r2)
                   HDiagCurr=HDiagCurr-Hii
                   iSgn=sign(1,CurrentSign(iPartDie))
@@ -1176,7 +1177,9 @@ LOGICAL FUNCTION GetNextCluster(CS,Dets,nDet,Amplitude,dTotAbsAmpl,iNumExcitors,
 !deal with the HF det separately.  iSize is already 0.
             CS%C%dAbsAmplitude=abs(Amplitude(1))
             if(iDebug.gt.3) WRITE(6,"(A,L3)",advance='no') "Next Tuple:",tDone
-            if(iDebug.gt.3) call WriteDet(6,CS%C%SelectedExcitorIndices,CS%C%iSize,.true.)
+            if(iDebug.gt.3) &
+                call write_det_len (6, CS%C%SelectedExcitorIndices, &
+                                    CS%C%iSize, .true.)
             return
          endif 
 
@@ -1194,7 +1197,9 @@ LOGICAL FUNCTION GetNextCluster(CS,Dets,nDet,Amplitude,dTotAbsAmpl,iNumExcitors,
             endif            
          else
             if(iDebug.gt.3) WRITE(6,"(A,L3)",advance='no') "Next Tuple:",tDone
-            if(iDebug.gt.3) call WriteDet(6,CS%C%SelectedExcitorIndices,CS%C%iSize,.true.)
+            if(iDebug.gt.3) &
+                call write_det_len (6, CS%C%SelectedExcitorIndices, &
+                                    CS%C%iSize, .true.)
             tNew=.true.  !Used for debug printing
             CS%C%dAbsAmplitude=abs(Amplitude(1))
 !            WRITE(6,*) 0,CS%C%dAbsAmplitude
@@ -1391,7 +1396,6 @@ LOGICAL FUNCTION GetNextSpawner(S,iDebug)
    use FciMCData, only: pDoubles,tTruncSpace
    use FciMCParMod, only: CheckAllowedTruncSpawn
    use SystemData, only : NIfTot,nEl,NIfD
-   use Determinants , only : GetHElement4
    use GenRandSymExcitNUMod , only : GenRandSymExcitScratchNU
    use SymExcit3, only: GenExcitations3
    use DetBitOps, only: FindExcitBitDet
@@ -1441,7 +1445,7 @@ LOGICAL FUNCTION GetNextSpawner(S,iDebug)
       CALL FindExcitBitDet(S%C%iLutDetCurr,S%iLutnJ,S%iExcitLevel,S%ExcitMat)
       IF(iDebug.gt.4) then
           WRITE(6,*) "Random excited det level ",S%iExcitLevel
-          call WriteDet(6,S%nJ,nEl,.true.)
+          call write_det(6, S%nJ, .true.)
           Write(6,*) "Prob ex|from",S%dProbSpawn
       endif
 !Prob is the Prob of choosing nJ from nI
@@ -1451,13 +1455,15 @@ LOGICAL FUNCTION GetNextSpawner(S,iDebug)
       IF(TTruncSpace) THEN
 !We have truncated the excitation space at a given excitation level. See if the spawn should be allowed.
           IF(CheckAllowedTruncSpawn(S%C%iExcitLevel,S%nJ,S%iLutnJ,S%iExcitLevel)) THEN
-            S%HIJ=GetHElement4(S%C%DetCurr,S%nJ,S%iExcitLevel,S%ExcitMat,tParity)
+            S%HIJ = get_helement (S%C%DetCurr, S%nJ, S%iExcitLevel, &
+                                  S%ExcitMat, tParity)
           ELSE
             S%HIJ=HElement(0)
           ENDIF
       ELSE
 !SD Space is not truncated - allow attempted spawn as usual
-            S%HIJ=GetHElement4(S%C%DetCurr,S%nJ,S%iExcitLevel,S%ExcitMat,tParity)
+            S%HIJ = get_helement (S%C%DetCurr, S%nJ, S%iExcitLevel, &
+                                        S%ExcitMat, tParity)
       ENDIF
    ENDIF
 END FUNCTION GetNextSpawner
@@ -1479,7 +1485,6 @@ SUBROUTINE CalcClusterEnergy(tFCI,Amplitude,nExcit,ExcitList,ExcitLevelIndex,Pro
    use FciMCData, only: HFDet
    use FciMCParMod, only: iLutHF,SumEContrib
    use FciMCData, only: ENumCyc,HFCyc 
-   use Determinants , only : GetHElement3
    use DetBitOps, only: DecodeBitDet
    IMPLICIT NONE
    LOGICAL tFCI
@@ -1515,8 +1520,8 @@ SUBROUTINE CalcClusterEnergy(tFCI,Amplitude,nExcit,ExcitList,ExcitLevelIndex,Pro
                iLutnI(:)=ExcitList(:,j)
                call AddBitExcitor(iLutnI,ExcitList(:,l),iLutHF,iSgn)
                if(iSgn.ne.0.and.dAmp.ne.0.d0) then
-                  CALL DecodeBitDet(DetCurr,iLutnI(:))
-                  Htmp=GetHElement3(HFDet, DetCurr,2)
+                  CALL DecodeBitDet(DetCurr,iLutnI)
+                  Htmp = get_helement (HFDet, DetCurr, iLutHF, iLutnI)
                   dAmp=dAmp/(Amplitude(1)**2)
                   dT1Sq=dT1Sq+(Real(Htmp%v,r2)*iSgn)*dAmp
 !                  dAmp=dAmp*2  !DEBUG
@@ -1543,7 +1548,7 @@ SUBROUTINE InitMP1Amplitude(tFCI,Amplitude,nExcit,ExcitList,ExcitLevelIndex,dIni
    use SystemData, only: nEl,nIfTot
    use FciMCData, only: HFDet
    use FciMCParMod, only: iLutHF,SumEContrib,BinSearchParts3
-   use Determinants , only : GetHElement3,GetH0Element3
+   use Determinants, only: GetH0Element3
    use DetBitOps, only: DecodeBitDet
    IMPLICIT NONE
    LOGICAL tFCI
@@ -1572,7 +1577,7 @@ SUBROUTINE InitMP1Amplitude(tFCI,Amplitude,nExcit,ExcitList,ExcitLevelIndex,dIni
       enddo
       CALL DecodeBitDet(DetCurr,ExcitList(:,j))
       if(iC.ge.1) then
-         Htmp=GetHElement3(HFDet, DetCurr,iC)
+         Htmp = get_helement (HFDet,  DetCurr, iC, iLutHF, ExcitList(:,j))
          H0tmp=GetH0Element3(DetCurr)
          H0tmp=H0tmp-H0HF
          Amplitude(j)=Amplitude(j)-dInitAmp*DREAL(Htmp)/DREAL(H0tmp)
@@ -1628,7 +1633,7 @@ END SUBROUTINE
       Use Logging, only: CCMCDebug,tCCMCLogTransitions,tCCMCLogUniq
       USE Logging , only : tHistSpawn,iWriteHistEvery
       USE SymData , only : nSymLabels
-      USE Determinants , only : FDet,GetHElement2,GetHElement4,GetHElement3
+      USE Determinants , only : FDet
       USE DetCalc , only : ICILevel,Det,FCIDetIndex
       use CalcData, only: Tau,DiagSft,InitWalkers,NEquilSteps
       USE HElem
@@ -1964,7 +1969,7 @@ END SUBROUTINE
                IC=CS%C%iExcitLevel
                CALL BinSearchParts3(CS%C%iLutDetCurr(:),FCIDets(:,:),Det,FCIDetIndex(IC),FCIDetIndex(IC+1)-1,PartIndex,tSuc)
                if(.not.tSuc) then
-                  Call WriteDet(6,CS%C%DetCurr,nEl,.true.)
+                  call write_det (6, CS%C%DetCurr, .true.)
                   Call Stop_All("CCMCStandalone","Failed to find det.")
                endif
                AmplitudeBuffer(PartIndex)=AmplitudeBuffer(PartIndex)+CS%C%dAbsAmplitude*CS%C%iSgn
@@ -2061,7 +2066,7 @@ END SUBROUTINE
                dProbDecompose=1
                iPartDie=1
             ENDIF 
-            Htmp=GetHElement3(CS%C%DetCurr,CS%C%DetCurr,0)
+            Htmp = get_helement (CS%C%DetCurr, CS%C%DetCurr, 0)
             HDiagCurr=REAL(Htmp%v,r2)
             HDiagCurr=HDiagCurr-Hii
 

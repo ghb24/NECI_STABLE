@@ -1,6 +1,7 @@
 ! Old, deprecated code.  No longer used.
       SUBROUTINE EXCIT_DUMP(UNT,NI,NEL,G1,NBASIS,NBASISMAX,
      &         NMEM,IFRZ)
+        use Determinants, only: write_det
          IMPLICIT NONE
          INTEGER NEL,NI(NEL),NBASIS
          INTEGER NLIST,nBasisMax(5,*)
@@ -20,6 +21,7 @@ C.. now call a routine to reset the current type's lists
      &         NTYPES,NTYPE,TFULL,TFREE,TTYPE,SPNS,
      &         NFULL,NFREE,
      &         TYPES,IFRZ)
+        use Determinants, only: write_det
          IMPLICIT NONE
          INTEGER NEL,NI(NEL),NBASIS
          INTEGER nBasisMax(5,*)
@@ -33,7 +35,7 @@ C.. now call a routine to reset the current type's lists
          
          IF(NTYPE.EQ.0) RETURN
 C..Debugging junk
-         CALL WRITEDET(UNT,NI,NEL,.FALSE.)
+         call write_det (UNT, NI, .false.)
          WRITE(UNT,"(5Z5,I4)") (TYPES(I,NTYPE),I=1,5)
         WRITE(UNT,"(9Z5,I4)")(TYPES(I,NTYPE),I=1,5),SPNS(1,1),SPNS(2,1),
      &      SPNS(1,2),SPNS(2,2),NTYPE
@@ -488,6 +490,7 @@ C.. Best not to call directly, but let  GENSYMEXCITIT() do the work
      &         TSYM,ISYM,NTYPES,NTYPE,TFULL,TFREE,TTYPE,SPNS,
      &         NFULL,NFREE,
      &         TYPES,IFRZ)
+        use Determinants, only: write_det
          IMPLICIT NONE
          INTEGER NEL,NI(NEL),NJ(NEL),NBASIS
          INTEGER NLIST,nBasisMax(5,*)
@@ -795,6 +798,7 @@ C.. We store the positions of the correct symmetry electrons within NI
 C.. in NFULL and NFREE
       SUBROUTINE GSETE_NEXTDET(SPNS,NFREE,NFULL,TSYM,ISYM,
      &            NI,NJ,NEL,IC,G1,NBASISMAX)
+         use Determinants, only: write_det
          IMPLICIT NONE
          INTEGER SPNS(2,2)
          INTEGER NFULL(2,2,-3:0)
@@ -825,7 +829,7 @@ C     &            ,'->',NFREE(2,SPNS(2,2),NFREE(2,SPNS(2,2),-1))
 C         IF(NJ(1).EQ.0) WRITE(6,*) "ERROR"
          IF(.NOT.ISVALIDDET(NJ,NEL)) THEN
             WRITE(6,*) "Invalid det in GSETE_NEXTDET"
-            CALL WRITEDET(6,NJ,NEL,.TRUE.)
+            call write_det (6, NJ, .true.)
             STOP "Invalid Determinant in GSETE_NEXTDET"
          ENDIF
          IF(TSYM) THEN
@@ -845,6 +849,7 @@ C.. For a given Excitation symmetry type, generate all excitatiosn
       SUBROUTINE GETSYMEXTYPEEXCITS(NI,NEL,G1,NBASIS,NBASISMAX,
      &         TSYM,ISYM,
      &         TYP,LIST,ICLIST,NLIST,IFRZ)
+        use Determinants, only: write_det
          IMPLICIT NONE
          INTEGER NEL,NI(NEL),NBASIS,LIST(NEL,NLIST),ICLIST(NLIST)
          INTEGER NLIST,nBasisMax(5,*)

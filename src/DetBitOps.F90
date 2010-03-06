@@ -626,13 +626,13 @@ module DetBitOps
                 if (elec == nel) exit
             enddo
         endif
-        if (CountBits(ilut, NIfD) > nel) then
-            call writedet(6, nI, nel, .true.)
-            write(6,'(2b32)'), ilut(0), ilut(1)
-            print*, 'bad bit det'
-            call flush(6)
-            call stop_all ('dec', 'bad')
-        endif
+        !if (CountBits(ilut, NIfD) > nel) then
+        !    call write_det(6, nI, nel, .true.)
+        !    write(6,'(2b32)'), ilut(0), ilut(1)
+        !    print*, 'bad bit det'
+        !    call flush(6)
+        !    call stop_all ('dec', 'bad')
+        !endif
     end subroutine DecodeBitDet
 
     subroutine FindExcitBitDet(iLutnI, iLutnJ, IC, ExcitMat, yama)
@@ -831,8 +831,9 @@ end module
                             perm = perm + (shift - iel2 + iexcit2)
                         end if
                     end if
-
+                    if (iexcit1 == max_excit .and. iexcit2 == max_excit) exit
                 end do
+                if (iexcit1 == max_excit .and. iexcit2 == max_excit) exit
             end do
 
             ! It seems that this test is faster than btest(perm,0)!

@@ -10,7 +10,7 @@ MODULE FciMCLoggingMod
     USE Logging , only : tPrintHElAccept,tSaveBlocking
     USE SystemData , only : NEl,NIfTot,NIfDBO
     USE SymData , only : nSymLabels
-    USE Determinants , only : GetHElement3,GetHElement4
+    USE Determinants , only : get_helement, get_helement_excit
     use GenRandSymExcitNUMod , only : GenRandSymExcitScratchNU,ScratchSize
     USE CalcData , only : NMCyc,StepsSft
     use DetBitOps, only: DetBitEQ, FindExcitBitDet, FindBitExcitLevel
@@ -530,10 +530,10 @@ MODULE FciMCLoggingMod
 
 ! Now find the HElement between these two determinants.        
         
-        CALL DecodeBitDet(nI,iLutCurr(0:NIfTot))
-        CALL DecodeBitDet(nJ,iLutSym(0:NIfTot))
+        CALL DecodeBitDet(nI,iLutCurr)
+        CALL DecodeBitDet(nJ,iLutSym)
 
-        CALL DecodeBitDet(nHF,iLutHF(0:NIfTot))
+        CALL DecodeBitDet(nHF,iLutHF)
 
 ! Want to replace the excited electrons in nI with the spin flipped versions.
 !        nJ(:)=nI(:)
@@ -555,14 +555,14 @@ MODULE FciMCLoggingMod
 
 
         DetsEqSpinCoup=.false.
-        DetsEqSpinCoup=DetBitEQ(iLutCurr(0:NIfTot),iLutSym(0:NIfTot),NIfDBO)
+        DetsEqSpinCoup=DetBitEQ(iLutCurr, iLutSym, NIfDBO)
 
-        HElHFI=GetHElement3(nHF,nI,-1)
-        HElHFJ=GetHElement3(nHF,nJ,-1)
+        HElHFI = get_helement (nHF, nI, iLutHF, iLutCurr)
+        HElHFI = get_helement (nHF, nJ, iLutHF, iLutSym)
 
         IF(.not.DetsEqSpinCoup) THEN
 
-            SpinCoupHEl=GetHElement3(nI,nJ,-1)
+            SpinCoupHEl = get_helement (nI, nJ, iLutCurr, iLutSym)
 
             IF((((REAL(HElHFI%v,r2)).lt.0.D0).and.((REAL(HElHFJ%v,r2)).gt.0.D0)).or.(((REAL(HElHFI%v,r2)).gt.0.D0).and.((REAL(HElHFJ%v,r2)).lt.0.D0))) THEN
 !                WRITE(6,*) '*'
@@ -650,23 +650,23 @@ MODULE FciMCLoggingMod
         DetsEqTri=.false.
 
         ! These routines find the bit representation of nJ and nK given the excitation matrices Ex and Ex2 respectively.
-        CALL FindExcitBitDet(iLutnJ,iLutnJ2,IC,Ex)
-        CALL FindExcitBitDet(iLutnJ,iLutnK,IC2,Ex2)
+        call FindExcitBitDet (iLutnJ, iLutnJ2, IC, Ex)
+        call FindExcitBitDet (iLutnJ, iLutnK, IC2, Ex2)
 
-        DetsEqTri=DetBitEQ(iLutnJ2(0:NIfTot),iLutnK(0:NIfTot),NIfDBO)
+        DetsEqTri = DetBitEQ (iLutnJ2, iLutnK, NIfDBO)
 
         IF(.not.DetsEqTri) THEN
             ! Add the connecting elements to the relevant sum.
 
             ! First quickly test if any of the determinants are the HF.
             tHF=.false.
-            tHF=DetBitEQ(iLutHF(0:NIfTot),iLutnJ(0:NIfTot),NIfDBO)
-            IF(.not.tHF) tHF=DetBitEQ(iLutHF(0:NIfTot),iLutnJ2(0:NIfTot),NIfDBO)
-            IF(.not.tHF) tHF=DetBitEQ(iLutHF(0:NIfTot),iLutnK(0:NIfTot),NIfDBO)
+            tHF = DetBitEQ(iLutHF, iLutnJ, NIfDBO)
+            IF(.not.tHF) tHF = DetBitEQ(iLutHF, iLutnJ2, NIfDBO)
+            IF(.not.tHF) tHF = DetBitEQ(iLutHF, iLutnK, NIfDBO)
 
             ! Calculate Hjk first (connecting element between two excitations), because if this is 0, no need to go further.
-            IC3 = FindBitExcitLevel(iLutnJ2, iLutnK, NEl)
-            Hjk=GetHElement3(nJ,nK,IC3)
+            IC3 = -1
+            Hjk = get_helement (nJ, nK, iLutnJ2, iLutnK, IC3)
 
             ! Histogram and add in the Hjk elements - regardless of whether or not this is 0.
             ! If the connection is not via a double or a single, the element will not be histogrammed, but it will always be 0,
@@ -689,11 +689,11 @@ MODULE FciMCLoggingMod
                 IF((REAL(Hjk%v,r2)).gt.0.D0) NoPos=NoPos+1
                 IF((REAL(Hjk%v,r2)).lt.0.D0) NoNeg=NoNeg+1
 
-                Hij=GetHElement4(DetCurr,nJ,IC,Ex,tParity)
+                Hij = get_helement_excit (DetCurr, nJ, IC, Ex, tParity)
                 IF((REAL(Hij%v,r2)).gt.0.D0) NoPos=NoPos+1
                 IF((REAL(Hij%v,r2)).lt.0.D0) NoNeg=NoNeg+1
 
-                Hik=GetHElement4(DetCurr,nK,IC2,Ex2,tParity2)
+                Hik = get_helement_excit (DetCurr, nK, IC2, Ex2, tParity2)
                 IF((REAL(Hik%v,r2)).gt.0.D0) NoPos=NoPos+1
                 IF((REAL(Hik%v,r2)).lt.0.D0) NoNeg=NoNeg+1
 
@@ -820,7 +820,7 @@ MODULE FciMCLoggingMod
 !        stop
 
         ! Need to find the H element between the current determinant and that which we're trying to spawn on.
-        HEl=GetHElement4(DetCurr,nJ,IC,Ex,tParity)
+        HEl = get_helement_excit (DetCurr, nJ, IC, Ex, tParity)
             
         IF(Child.eq.0) THEN
             ! Spawn not accepted.

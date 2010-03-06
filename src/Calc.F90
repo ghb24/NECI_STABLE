@@ -1,6 +1,7 @@
 MODULE Calc
         
         use CalcData
+        use Determinants, only: write_det
 
         IMPLICIT NONE
 
@@ -9,7 +10,7 @@ MODULE Calc
         subroutine SetCalcDefaults()
           != Set defaults for Calc data items.
 
-          Use Determinants, only : iActiveBasis, SpecDet, tSpecDet, nActiveSpace
+          Use Determinants, only: iActiveBasis, SpecDet, tSpecDet, nActiveSpace
           Use Determinants, only : tDefineDet
           Use DetCalc, only: iObs, jObs, kObs, tCorr, B2L, tRhoOfR, tFodM, DETINV
           Use DetCalc, only: icilevel, nBlk, nCycle, nEval, nKry, tBlock, tCalcHMat
@@ -1108,7 +1109,7 @@ MODULE Calc
           use SystemData, only: tUEG,nOccAlpha,nOccBeta,ElecPairs,tExactSizeSpace,tMCSizeSpace,MaxABPairs
           use IntegralsData, only: FCK, CST, nMax, UMat
           use IntegralsData, only: HFEDelta, HFMix, NHFIt, tHFCalc
-          Use Determinants, only: FDet, tSpecDet, SpecDet, GetHElement2
+          Use Determinants, only: FDet, tSpecDet, SpecDet, get_helement
           Use DetCalc, only: DetInv, nDet, tRead, ICILevel
           use global_utilities
           
@@ -1168,7 +1169,7 @@ MODULE Calc
           IF(.NOT.TREAD) THEN
 !             CALL WRITETMAT(NBASIS)
              IC=0
-             HDiagTemp=GETHELEMENT2(FDET,FDET,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,IC,ECORE)
+             HDiagTemp = get_helement(fDet, fDet, 0)
              WRITE(6,*) '<D0|H|D0>=',HDiagTemp
              WRITE(6,*) '<D0|T|D0>=',CALCT(FDET,NEL,G1,NBASIS)
              IF(TUEG) THEN
@@ -1219,7 +1220,7 @@ MODULE Calc
           ENDIF
           IF(TMONTE) THEN
              WRITE(6,"(A)",advance='no') 'MC Start Det: '
-             CALL WRITEDET(6,MCDET,NEL,.TRUE.)
+             call write_det (6, mcDet, .true.)
           ENDIF
 !C.. we need to calculate a value for RHOEPS, so we approximate that
 !C.. RHO_II~=exp(-BETA*H_II/p).  RHOEPS is a %ge of this
@@ -1417,7 +1418,7 @@ MODULE Calc
                    FLSI=FLSI-I_P*FLRI
                    ENDIF
                 ENDIF
-                CALL WRITEDET(14,NMRKS(1,III),NEL,.FALSE.)
+                call write_det (14, NMRKS(:,III), .false.)
                 GSEN=CALCDLWDB(III,NDET,NEVAL,CK,W,BETA,0.D0)
                 CALL GETSYM(NMRKS(1,III),NEL,G1,NBASISMAX,ISYM)
                 CALL GETSYMDEGEN(ISYM,NBASISMAX,IDEG)
@@ -1726,6 +1727,7 @@ MODULE Calc
          use legacy_data, only: irat
          use CalcData, only: tFCIMC
          use gnd_work_type
+         use Determinants, only: write_det
          IMPLICIT NONE
          INTEGER I_HMAX,NEL,NBASIS,I_VMAX
          INTEGER,ALLOCATABLE :: LSTE(:) !(NEL,NBASIS*NBASIS*NEL*NEL,0:I_VMAX-1)??!!
@@ -1801,7 +1803,7 @@ MODULE Calc
             IEND=ABS(DETINV)
          ELSEIF(TSPECDET) THEN
             WRITE(6,*) "Calculating vertex series for specific det:"
-            CALL WRITEDET(6,SPECDET,NEL,.TRUE.) 
+            call write_det (6, specdet, .true.) 
             ISTART=-1
             IEND=1
          ELSE
@@ -1826,12 +1828,13 @@ MODULE Calc
              CALL GETSYMDEGEN(ISYM,NBASISMAX,IDEG)
           ENDIF
           IF(III.GE.ISTART.AND..NOT.TDONE) THEN
-            IF(NPATHS.EQ.1.AND..NOT.TSPECDET.AND..NOT.TFCIMC) CALL WRITEDET(6,NI,NEL,.TRUE.) 
+            IF(NPATHS.EQ.1.AND..NOT.TSPECDET.AND..NOT.TFCIMC) &
+                call write_det (6, nI, .true.) 
             CALL MCPATHSR3(NI,BETA,I_P,I_HMAX,I_VMAX,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY, &
      &         RHOEPS,LSTE,ICE,RIJLIST,NWHTAY,ILOGGING,ECORE,ILMAX,WLRI,WLSI,DBETA,DLWDB2)
             IF(TLOG) THEN
                WRITE(15,"(I12)",advance='no') III
-               CALL WRITEDET(15,NI,NEL,.FALSE.)
+               call write_det (15, NI, .false.)
                WRITE(15,"(3G25.16)",advance='no') EXP(WLSI+HElP*WLRI),WLRI*HElP,WLSI
             ENDIF
             IF(TFIRST) THEN
@@ -1886,7 +1889,7 @@ MODULE Calc
 
 ! Given an input RHOEPSILON, create Fermi det D out of lowest orbitals and get RHOEPS (which is rhoepsilon * exp(-(beta/P)<D|H|D>
       REAL*8 FUNCTION GETRHOEPS(RHOEPSILON,BETA,NEL,NBASISMAX,G1,NHG, BRR,NMSH,FCK,NMAX,ALAT,UMAT,I_P,ECORE)
-         Use Determinants, only: GetHElement2
+         Use Determinants, only: get_helement
          USE HElem
          use SystemData, only: BasisFN
          IMPLICIT NONE
@@ -1901,9 +1904,8 @@ MODULE Calc
          ENDDO
          CALL NECI_SORTI(NEL,NI)
          BP=HElement(-BETA/I_P)
-         GETRHOEPS=DSQRT(SQ(HElement(RHOEPSILON)*EXP(BP*GETHELEMENT2(NI, &
-     &      NI,NEL,NBASISMAX,G1,NHG,BRR,NMSH,FCK,NMAX,ALAT,UMAT,        &
-     &         0,ECORE))))
+         GETRHOEPS=DSQRT(SQ(HElement(RHOEPSILON) * &
+                        EXP(BP*get_helement(nI, nI, 0))))
          RETURN
       END FUNCTION GetRhoEps
 
@@ -1923,8 +1925,8 @@ MODULE Calc
          DO J=1,NEL
             I=NI(J)
            TMAT=((ALAT(1)**2)*((G1(I)%K(1)**2)/(ALAT(1)**2)+   &
-     &         (G1(I)%K(2)**2)/(ALAT(2)**2)+                   &
-     &         (G1(I)%K(3)**2)/(ALAT(3)**2)))
+               (G1(I)%K(2)**2)/(ALAT(2)**2)+                   &
+               (G1(I)%K(3)**2)/(ALAT(3)**2)))
            TMAT=TMAT*CST
            CALCT2=CALCT2+TMAT
          ENDDO

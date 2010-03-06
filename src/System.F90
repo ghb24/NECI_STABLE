@@ -2,6 +2,7 @@
 MODULE System
 
     use SystemData
+    use CalcData, only: tRotoAnnihil
 
     IMPLICIT NONE
 
@@ -916,6 +917,12 @@ MODULE System
 
           if (tHPHF) then
               call stop_all (this_routine, "CSFs not compatible with HPHF")
+          endif
+
+          if (tRotoAnnihil) then
+              ! See Annihilation.F90:4240. Call to get_helement.
+              call stop_all (this_routine, "CSFs not compatible with &
+                                           &roto-annihilation")
           endif
       endif
 
