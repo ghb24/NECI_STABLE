@@ -12,8 +12,10 @@ PROGRAM BlkFCIMC
         POSITION='REWIND')
       OPEN(UNIT=12,FILE='BlockingInfo',STATUS='UNKNOWN')
       OPEN(UNIT=13,FILE='BlockingInfoEnergies',STATUS='UNKNOWN')
-      WRITE(12,"(A)") '#  Blocklength   Log_2 BL     MeanBlocks              SD-Blocks               Err-Blocks           Err in Err-Blocks'
-      WRITE(13,"(A)") '#  Blocklength   Log_2 BL     MeanBlocks              SD-Blocks               Err-Blocks           Err in Err-Blocks'
+      WRITE(12,"(A)") '#  Blocklength   Log_2 BL     MeanBlocks              SD-Blocks &
+                       &      Err-Blocks           Err in Err-Blocks'
+      WRITE(13,"(A)") '#  Blocklength   Log_2 BL     MeanBlocks              SD-Blocks &
+                       &      Err-Blocks           Err in Err-Blocks'
 
       READ(11,*) FirstLineRubbish
     
@@ -22,7 +24,8 @@ PROGRAM BlkFCIMC
 
       i=0
       do while(.true.)
-          READ(11,'(I12,G16.7,I10,G16.7,I12,3I13,3G17.9)',END=99) Iter,Sft,WalkCng,GrowRate,TotWalkers,Annihil,Died,Born,ProjE,AvShift,ProjEInst
+          READ(11,'(I12,G16.7,I10,G16.7,I12,3I13,3G17.9)',END=99) Iter,Sft,WalkCng, &
+                GrowRate,TotWalkers,Annihil,Died,Born,ProjE,AvShift,ProjEInst
           IF(Iter.ge.StartIter) THEN
               i=i+1
           ENDIF
@@ -50,7 +53,8 @@ PROGRAM BlkFCIMC
       READ(11,*) FirstLineRubbish
       i=0
       do while(.true.)
-          READ(11,'(I12,G16.7,I10,G16.7,I12,3I13,3G17.9)',END=98) Iter,Sft,WalkCng,GrowRate,TotWalkers,Annihil,Died,Born,ProjE,AvShift,ProjEInst
+          READ(11,'(I12,G16.7,I10,G16.7,I12,3I13,3G17.9)',END=98) Iter,Sft,WalkCng, &
+                 GrowRate,TotWalkers,Annihil,Died,Born,ProjE,AvShift,ProjEInst
           IF(Iter.ge.StartIter) THEN
               i=i+1
               Shifts(i)=Sft
