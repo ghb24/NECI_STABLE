@@ -31,7 +31,7 @@ INTEGER :: NDETWORK,I_HMAX,I_VMAX,G_VMC_SEED,HApp,iFullSpaceIter,MaxNoatHF,HFPop
 INTEGER :: IMCSTEPS,IEQSTEPS,MDK(5),Iters,NDets,iDetGroup
 INTEGER :: CUR_VERT,NHISTBOXES,I_P,LinePoints,iMaxExcitLevel
 INTEGER :: InitWalkers,NMCyc,StepsSft,FlipTauCyc,CLMax,MaxExcDom,MinExcDom
-INTEGER :: RhoApp,NEquilSteps,ShellFix,NoMagDets,iGuideDets,iNoDominantDets
+INTEGER :: RhoApp,NEquilSteps,ShellFix,NoMagDets,iGuideDets,iNoDominantDets,InitialPart
 INTEGER :: OccCASorbs,VirtCASorbs,iStarOrbs,iHighExcitsSing,iInitGuideParts,iAnnInterval
 
 

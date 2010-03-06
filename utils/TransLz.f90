@@ -414,9 +414,9 @@ PROGRAM TransLz
         ENDIF
     ENDIF
 
-!    do i=1,NORB
-!        WRITE(6,*) i,LzPairs(i)
-!    enddo
+    do i=1,NORB
+        WRITE(6,*) i,LzPairs(i)
+    enddo
 
     iPairs=(NORB*(NORB+1))/2
     iSize=(iPairs*(iPairs+1))/2

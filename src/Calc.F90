@@ -23,6 +23,7 @@ MODULE Calc
 
 !       Values for old parameters.
 !       These have no input options to change the defaults, but are used in the code.
+          InitialPart=1
           TRHOOFR = .false.
           TCORR = .false.
           TFODM = .false.
@@ -873,6 +874,10 @@ MODULE Calc
             case("STARTSINGLEPART")
 !A FCIMC option - this will start the simulation with a single positive particle at the HF, and fix the shift at its initial value, until the number of particles gets to the INITPARTICLES value.
                 TStartSinglePart=.true.
+                IF(item.lt.nitems) THEN
+                    !If an optional integer keyword is added, then InitialPart will indicate the number of particles to start at the HF determinant.
+                    call readi(InitialPart)
+                ENDIF
             case("MEMORYFACPART")
 !An FCIMC option - MemoryFac is the factor by which space will be made available for extra walkers compared to InitWalkers
                 CALL Getf(MemoryFacPart)
