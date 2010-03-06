@@ -368,7 +368,7 @@ help:
 \t@echo "utils         compile all utility programs."
 \t@echo "TransLz.x     compile the TransLz utility program."
 \t@echo "BlockFCIMC.x  compile the BlockFCIMC utility program."
-t@echo "clean          remove all compiled objects for the current platform and optimisation level." 
+\t@echo "clean          remove all compiled objects for the current platform and optimisation level." 
 \t@echo "cleanall      remove all compiled objects for all platforms and optimisation levels and the dependency files." 
 \t@echo "tags          run ctags on all source files."
 \t@echo "depend        update the list of dependencies.  Note that make 3.80 is buggy and running this causes an infinte loop."
