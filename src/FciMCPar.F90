@@ -1852,6 +1852,7 @@ MODULE FciMCParMod
     SUBROUTINE InitFCIMCCalcPar()
         use FciMCLoggingMOD , only : InitTriHElStats,InitSpinCoupHel
         use SystemData , only : tRotateOrbs
+        use CalcData , only : InitialPart
         INTEGER :: ierr,i,j,k,l,DetCurr(NEl),ReadWalkers,TotWalkersDet
         INTEGER :: DetLT,VecSlot,error,MemoryAlloc,Proc
         TYPE(HElement) :: rh,TempHii
@@ -2013,12 +2014,12 @@ MODULE FciMCParMod
                     WRITE(6,*) "HF processor is: ",Proc
                     IF(iProcIndex.eq.Proc) THEN
                         CurrentDets(:,1)=iLutHF(:)
-                        CurrentSign(1)=1
+                        CurrentSign(1)=InitialPart
                         IF(.not.tRegenDiagHEls) CurrentH(1)=0.D0
                     ENDIF
                 ELSE
                     CurrentDets(:,1)=iLutHF(:)
-                    CurrentSign(1)=1
+                    CurrentSign(1)=InitialPart
                     IF(.not.tRegenDiagHEls) CurrentH(1)=0.D0
 !                    IF((.not.TNoAnnihil).and.(.not.TAnnihilonproc)) THEN
                     IF((.not.TNoAnnihil).and.(.not.tRotoAnnihil)) THEN
@@ -2089,7 +2090,7 @@ MODULE FciMCParMod
                 CALL SetupExitGenPar(HFDet,CurrentExcits(1))
                 
                 IF(.not.TStartSinglePart) THEN
-                    IF(.not.tRotoAnnihil) THEN
+                    IF((.not.tRotoAnnihil).and.(.not.tDirectAnnihil)) THEN
 
                         do j=2,InitWalkers
 !Copy the HF excitation generator accross to each initial particle
@@ -2120,9 +2121,11 @@ MODULE FciMCParMod
                     IF(iProcIndex.eq.Proc) THEN
                         TotWalkers=1
                         TotWalkersOld=1
-                        TotParts=1
-                        TotPartsOld=1
+                        TotParts=InitialPart
+                        TotPartsOld=InitialPart
+                        NoatHF=InitialPart
                     ELSE
+                        NoatHF=0
                         TotWalkers=0
                         TotWalkersOld=0
                         TotParts=0
@@ -2130,23 +2133,26 @@ MODULE FciMCParMod
                     ENDIF
 !Initialise global variables for calculation on the root node
                     IF(iProcIndex.eq.root) THEN
+                        AllNoatHF=InitialPart
                         AllTotWalkers=1.D0
                         AllTotWalkersOld=1.D0
-                        AllTotParts=1.D0
-                        AllTotPartsOld=1.D0
+                        AllTotParts=REAL(InitialPart,r2)
+                        AllTotPartsOld=REAL(InitialPart,r2)
                         AllNoAbortedOld=0
                     ENDIF
                 ELSE
                     TotWalkers=1
                     TotWalkersOld=1
-                    TotParts=1
-                    TotPartsOld=1
+                    TotParts=InitialPart
+                    TotPartsOld=InitialPart
+                    NoatHF=InitialPart
 !Initialise global variables for calculation on the root node
                     IF(iProcIndex.eq.root) THEN
-                        AllTotWalkers=REAL(nProcessors,r2)
-                        AllTotWalkersOld=REAL(nProcessors,r2)
-                        AllTotParts=REAL(nProcessors,r2)
-                        AllTotPartsOld=REAL(nProcessors,r2)
+                        AllNoatHF=nProcessors*InitialPart
+                        AllTotWalkers=REAL(nProcessors*InitialPart,r2)
+                        AllTotWalkersOld=REAL(nProcessors*InitialPart,r2)
+                        AllTotParts=REAL(nProcessors*InitialPart,r2)
+                        AllTotPartsOld=REAL(nProcessors*InitialPart,r2)
                     ENDIF
                 ENDIF
             ELSE

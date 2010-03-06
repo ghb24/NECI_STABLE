@@ -661,10 +661,11 @@ The following options are only available in **FCIMC** calculations:
   
     This is not available in the parallel version.
 
-**STARTSINGLEPART**
+**STARTSINGLEPART** [InitialPart]
     This will start the simulation with a single positive particle at the HF,
     and fix the shift at its initial value, until the number of particles gets
-    to the INITPARTICLES value.
+    to the INITPARTICLES value. The optional integer argument can be used to 
+    augment the number of walkers at the HF determinant.
 
 **MEMORYFACPART** [MemoryFacPart]
     Default 10.D0
