@@ -19,7 +19,9 @@ Program ModelFCIQMC
     INTEGER*8, allocatable :: SumWalkListGround(:)
     ! workspace for lapack.  LScr = 4*NDet is more than sufficient
     REAL*8, allocatable :: Scr(:) 
-    LOGICAL :: tFixedShift
+    LOGICAL :: tFixedShift, taverage = .false.
+    integer :: nVaryShiftCycles
+    real*8 :: AverageShift, SumShift
 
     integer :: iargc
     character(255) :: input_file
@@ -91,6 +93,9 @@ Program ModelFCIQMC
 !Setup spawning
     WalkListGround(:)=0
     GroundShift=InitialShift
+    SumShift = 0.0d0
+    nVaryShiftCycles = 0
+    AverageShift = 0.0d0
     SumWalkListGround(:)=0
     OPEN(12,FILE='ModelFCIMCStats',STATUS='unknown')
 
@@ -106,6 +111,17 @@ Program ModelFCIQMC
             GrowRate=REAL(GroundTotParts,8)/REAL(OldGroundTotParts,8)
             IF(.not.tFixedShift) THEN
                 GroundShift=GroundShift-(log(GrowRate)*SftDamp)/(Tau*(StepsSft+0.D0))
+                ! Start averaging?
+                if (abs((GroundShift-EValues(1))/EValues(1)) < 0.05d0) then
+                    taverage = .true.
+!                    write (6,*) GroundShift,EValues(1),abs((GroundShift-EValues(1))/EValues(1))
+!                    stop
+                end if
+                if (taverage) then
+                    SumShift = SumShift + GroundShift
+                    nVaryShiftCycles = nVaryShiftCycles + 1
+                    AverageShift = SumShift/nVaryShiftCycles
+                end if
             ELSE
                 IF(GroundTotParts.ge.TargetWalk) THEN
                     tFixedShift=.false.
@@ -114,7 +130,7 @@ Program ModelFCIQMC
             OldGroundTotParts=GroundTotParts
 
             !Write out stats
-            WRITE(6,"(I8,F25.12,I15,I7)") Iter,GroundShift,GroundTotParts,WalkListGround(1)
+            WRITE(6,"(I8,2F25.12,I15,I7)") Iter,GroundShift,AverageShift,GroundTotParts,WalkListGround(1)
             WRITE(12,"(I8,F25.12,I15,I7)") Iter,GroundShift,GroundTotParts,WalkListGround(1)
 
             Norm=0.D0
