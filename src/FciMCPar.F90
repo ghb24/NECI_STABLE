@@ -2667,8 +2667,6 @@ MODULE FciMCParMod
         enddo
 
         Tag=125
-!        WRITE(6,*) "Get Here"
-!        CALL FLUSH(6)
 
         IF(iProcIndex.eq.root) THEN
 !First, check that we are going to receive the correct number of particles...
@@ -2919,7 +2917,8 @@ MODULE FciMCParMod
             
 !InitWalkers needs to be reset for the culling criteria
             IF(.not.tWalkContGrow) THEN
-                InitWalkers=AvWalkers
+!Now, let the total space allocated for storing walkers which have been read in to be equal to the initwalkers from the input file.
+!                InitWalkers=AvWalkers
             ELSE
                 TSinglePartPhase=.true.
             ENDIF
@@ -3128,7 +3127,6 @@ MODULE FciMCParMod
 !                CALL MPI_Barrier(MPI_COMM_WORLD,error)  !Sync
 !            ENDIF
 
-
             CurrWalkers=0
             do i=1,AllTotWalkers
                 iLutTemp(:)=0
@@ -3268,6 +3266,7 @@ MODULE FciMCParMod
             enddo
 
         ENDIF
+        CALL MPI_Barrier(MPI_COMM_WORLD,error)  !Sync
 
 
         IF(iProcIndex.eq.root) WRITE(6,'(I10,A)') INT(AllTotWalkers,i2)," configurations read in from POPSFILE and distributed."
