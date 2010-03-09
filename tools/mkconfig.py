@@ -368,7 +368,8 @@ help:
 \t@echo "utils         compile all utility programs."
 \t@echo "TransLz.x     compile the TransLz utility program."
 \t@echo "BlockFCIMC.x  compile the BlockFCIMC utility program."
-\t@echo "clean          remove all compiled objects for the current platform and optimisation level." 
+\t@echo "ModelFCIQMC.x compile the ModelFCIQMC example program."
+\t@echo "clean         remove all compiled objects for the current platform and optimisation level." 
 \t@echo "cleanall      remove all compiled objects for all platforms and optimisation levels and the dependency files." 
 \t@echo "tags          run ctags on all source files."
 \t@echo "depend        update the list of dependencies.  Note that make 3.80 is buggy and running this causes an infinte loop."
@@ -469,9 +470,9 @@ $(KCDEPEND_FILES): $(KDEP_DEST)/%%.d: %%.C
 # We assume that the source filename is *.f90, that the program name is based
 # upon the source filename and that the utility program requires (at most) the
 # same libraries as neci.
-MKUTIL = $(FC) $(FFLAGS) $< -o $@ $(LIBS)
+MKUTIL = $(FC) $(FFLAGS) $(F90FLAGS) $< -o $@ $(LIBS)
 
-UTILS = TransLz.x BlockFCIMC.x ModelFCIQMC
+UTILS = TransLz.x BlockFCIMC.x ModelFCIQMC.x
 
 # Target to compile all utility programs.
 utils: $(UTILS)
