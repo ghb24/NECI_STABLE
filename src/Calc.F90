@@ -36,6 +36,7 @@ MODULE Calc
 
 
 !       Calc defaults 
+          tRandomiseHashOrbs=.false.
           iAnnInterval=1
           tTruncCAS=.false.
           iFullSpaceIter=0
@@ -1013,6 +1014,9 @@ MODULE Calc
                     tGlobalSftCng=.true.
                 end if
 
+            case("RANDOMISEHASHORBS")
+!This will create a random 1-to-1 mapping between the orbitals, which should hopefully improve load balancing.
+                tRandomiseHashOrbs=.true.
             case("SPAWNASDETS")
 !This is a parallel FCIMC option, which means that the particles at the same determinant on each processor, will choose the same determinant to attempt spawning to and the 
 !probability of a successful spawn will be multiplied by the number of particles on the determinant.

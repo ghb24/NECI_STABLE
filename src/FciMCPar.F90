@@ -19,7 +19,7 @@ MODULE FciMCParMod
     use CalcData , only : GrowMaxFactor,CullFactor,TStartSinglePart,ScaleWalkers,Lambda,TLocalAnnihilation,tNoReturnStarDets
     use CalcData , only : NDets,RhoApp,TResumFCIMC,TNoAnnihil,MemoryFacPart,TAnnihilonproc,MemoryFacAnnihil,iStarOrbs,tAllSpawnStarDets
     use CalcData , only : FixedKiiCutoff,tFixShiftKii,tFixCASShift,tMagnetize,BField,NoMagDets,tSymmetricField,tStarOrbs,SinglesBias
-    use CalcData , only : tHighExcitsSing,iHighExcitsSing,tFindGuide,iGuideDets,tUseGuide,iInitGuideParts,tNoDomSpinCoup
+    use CalcData , only : tHighExcitsSing,iHighExcitsSing,tFindGuide,iGuideDets,tUseGuide,iInitGuideParts,tNoDomSpinCoup,tRandomiseHashOrbs
     use CalcData , only : tPrintDominant,iNoDominantDets,MaxExcDom,MinExcDom,tSpawnDominant,tMinorDetsStar,MaxNoatHF,HFPopThresh
     use CalcData , only : tCCMC,tTruncCAS,tTruncInitiator,tDelayTruncInit,IterTruncInit,NShiftEquilSteps,tWalkContGrow,tMCExcits,NoMCExcits
     use HPHFRandExcitMod , only : FindExcitBitDetSym,GenRandHPHFExcit,GenRandHPHFExcit2Scratch
@@ -8749,12 +8749,12 @@ MODULE FciMCParMod
         INTEGER :: DetLT,VecSlot,error,HFConn,MemoryAlloc,iMaxExcit,nStore(6),nJ(Nel),BRR2(nBasis),LargestOrb,nBits,HighEDet(NEl),iLutTemp(0:NIfTot)
         TYPE(HElement) :: rh,TempHii
         TYPE(BasisFn) HFSym
-        REAL*8 :: TotDets,SymFactor
+        REAL*8 :: TotDets,SymFactor,r
         CHARACTER(len=*), PARAMETER :: this_routine='SetupParameters'
         CHARACTER(len=12) :: abstr
-        LOGICAL :: tSuccess,tFoundOrbs(nBasis),tTurnBackBrillouin
+        LOGICAL :: tSuccess,tFoundOrbs(nBasis),tTurnBackBrillouin,FoundPair
         REAL :: Gap
-        INTEGER :: nSingles,nDoubles,HFLz
+        INTEGER :: nSingles,nDoubles,HFLz,ChosenOrb
 
 !        CALL MPIInit(.false.)       !Initialises MPI - now have variables iProcIndex and nProcessors
         WRITE(6,*) ""
@@ -8968,7 +8968,53 @@ MODULE FciMCParMod
         ELSE
             CALL RLUXGO(iRanLuxLev,Seed,0,0)
         ENDIF
+
         
+        IF(tRandomiseHashOrbs) THEN
+            ALLOCATE(RandomHash(nBasis),stat=ierr)
+            IF(ierr.ne.0) THEN
+                CALL Stop_All(this_routine,"Error in allocating RandomHash")
+            ENDIF
+            RandomHash(:)=0
+            IF(iProcIndex.eq.root) THEN
+                do i=1,nBasis
+                    FoundPair=.false.
+                    do while(.not.FoundPair)
+                        IF(tMerTwist) THEN
+                            CALL genrand_real2(r)
+                        ELSE
+                            CALL RANLUX(r,1)
+                        ENDIF
+                        ChosenOrb=INT(nBasis*r*1000)+1
+                        do j=1,nBasis
+                            IF(RandomHash(j).eq.ChosenOrb) EXIT
+                        enddo
+                        IF(j.eq.nBasis+1) THEN
+                            RandomHash(i)=ChosenOrb
+                            FoundPair=.true.
+                        ELSE
+                            FoundPair=.false.
+                        ENDIF
+                    enddo
+                enddo
+
+!                WRITE(6,*) "Random Orbital Indexing for hash:"
+!                WRITE(6,*) RandomHash(:)
+                do i=1,nBasis
+                    IF((RandomHash(i).eq.0).or.(RandomHash(i).gt.nBasis*1000)) THEN
+                        CALL Stop_All(this_routine,"Random Hash incorrectly calculated")
+                    ENDIF
+                    do j=i+1,nBasis
+                        IF(RandomHash(i).eq.RandomHash(j)) THEN
+                            CALL Stop_All(this_routine,"Random Hash incorrectly calculated")
+                        ENDIF
+                    enddo
+                enddo
+            ENDIF
+            !Now broadcast to all processors
+            CALL MPIIBCast(RandomHash,nBasis,Root)
+        ENDIF
+
         IF(tHPHF) THEN
             !IF(tLatticeGens) CALL Stop_All("SetupParameters","Cannot use HPHF with model systems currently.")
             IF(tROHF.or.(LMS.ne.0)) CALL Stop_All("SetupParameters","Cannot use HPHF with high-spin systems.")

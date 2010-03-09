@@ -238,5 +238,7 @@ MODULE FciMCData
       INTEGER , ALLOCATABLE :: ExtMask(:)        !These are masking arrays for the external orbitals in the cas space
       INTEGER , ALLOCATABLE :: CoreMask(:)       !These are masking arrays for the Core orbitals in the cas space
 
+      INTEGER , ALLOCATABLE :: RandomHash(:)    !This is a random indexing scheme by which the orbital indices are randomised to attempt to provide a better hashing performance
+
 
 END MODULE FciMCData

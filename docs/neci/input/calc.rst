@@ -667,6 +667,13 @@ The following options are only available in **FCIMC** calculations:
     to the INITPARTICLES value. The optional integer argument can be used to 
     augment the number of walkers at the HF determinant.
 
+**RANDOMISEHASHORBS**
+    Default false
+    This is provide a random 1-to-1 mapping between the orbital indices and a
+    random set of integers for use with the hashing algorithm. This effectively
+    eliminates load-imbalance when running in parallel, even for small numbers of
+    electrons and HPHF. Recommend use.
+
 **MEMORYFACPART** [MemoryFacPart]
     Default 10.D0
 

@@ -289,25 +289,42 @@ MODULE AnnihilationMod
     
     INTEGER FUNCTION DetermineDetProc(iLut)
         use systemdata , only: NIfDBO
+        use CalcData , only: tRandomiseHashOrbs
+        use FciMCData, only: RandomHash 
         INTEGER :: iLut(0:NIfTot),i,j,Elecs!,TempDet(NEl),MurmurHash2Wrapper
         INTEGER(KIND=i2) :: Summ!,RangeofBins,NextBin
 
 !        CALL DecodeBitDet(TempDet,iLut)
 !        i=MurmurHash2Wrapper(TempDet,NEl,13)
 !        write(6,*) i
-        
-        Summ=0
-        Elecs=0
-        lp2: do i=0,NIfDBO
-            do j=0,31
-                IF(BTEST(iLut(i),j)) THEN
-                    Elecs=Elecs+1
-                    Summ=(1099511628211_8*Summ)+((i*32)+(j+1))*Elecs
-                    IF(Elecs.eq.NEl) EXIT lp2
-                ENDIF
-            enddo
-        enddo lp2
-        DetermineDetProc=abs(mod(Summ,INT(nProcessors,8)))
+        IF(tRandomiseHashOrbs) THEN
+            Summ=0
+            Elecs=0
+            lp1: do i=0,NIfDBO
+                do j=0,31
+                    IF(BTEST(iLut(i),j)) THEN
+                        Elecs=Elecs+1
+                        Summ=(1099511628211_8*Summ)+RandomHash((i*32)+(j+1))*Elecs
+                        IF(Elecs.eq.NEl) EXIT lp1
+                    ENDIF
+                enddo
+            enddo lp1
+            DetermineDetProc=abs(mod(Summ,INT(nProcessors,8)))
+
+        ELSE
+            Summ=0
+            Elecs=0
+            lp2: do i=0,NIfDBO
+                do j=0,31
+                    IF(BTEST(iLut(i),j)) THEN
+                        Elecs=Elecs+1
+                        Summ=(1099511628211_8*Summ)+((i*32)+(j+1))*Elecs
+                        IF(Elecs.eq.NEl) EXIT lp2
+                    ENDIF
+                enddo
+            enddo lp2
+            DetermineDetProc=abs(mod(Summ,INT(nProcessors,8)))
+        ENDIF
 !        WRITE(6,*) DetermineDetProc,Summ,nProcessors
 
 !        RangeofBins=NINT(HUGE(RangeofBins)/(nProcessors/2.D0),8)
@@ -335,7 +352,7 @@ MODULE AnnihilationMod
 !        ELSE
 !            DetermineDetProc=INT(((abs(Summ)+0.D0)/(RangeofBins+0.D0)),4)+nProcessors/2
 !        ENDIF
-            
+
     END FUNCTION DetermineDetProc
 
     
