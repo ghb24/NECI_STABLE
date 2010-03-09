@@ -1,25 +1,38 @@
 Program ModelFCIQMC
     IMPLICIT NONE
-    INTEGER , PARAMETER :: NDet=100
-    INTEGER , PARAMETER :: LScr=4*NDet
-    REAL*8 , PARAMETER :: Tau=0.05
-    REAL*8 , PARAMETER :: SftDamp=0.05
-    INTEGER , PARAMETER :: StepsSft=25
-    INTEGER , PARAMETER :: NMCyc=1000000
-    INTEGER , PARAMETER :: InitialWalk=1 
-    INTEGER , PARAMETER :: TargetWalk=1000
-    REAL*8 , PARAMETER :: InitialShift=0.D0
-    REAL*8 :: KMat(NDet,NDet),Norm,GrowRate,GroundShift,rat,r,Norm1
+    INTEGER :: NDet=100
+    INTEGER :: LScr
+    REAL*8, PARAMETER :: Tau=0.05
+    REAL*8, PARAMETER :: SftDamp=0.05
+    INTEGER, PARAMETER :: StepsSft=25
+    INTEGER, PARAMETER :: NMCyc=1000000
+    INTEGER, PARAMETER :: InitialWalk=1 
+    INTEGER, PARAMETER :: TargetWalk=1000
+    REAL*8, PARAMETER :: InitialShift=0.D0
+    REAL*8 :: Norm,GrowRate,GroundShift,rat,r,Norm1
     INTEGER :: GroundTotParts,Iter,OldGroundTotParts
-    REAL*8 :: EigenVec(NDet,NDet),EValues(NDet),Scr(LScr),Check
+    REAL*8 :: Check
     INTEGER :: ierr,i,j,Die,Create,k
-    INTEGER :: WalkListGround(NDet),WalkListGroundSpawn(NDet)
-    INTEGER*8 :: SumWalkListGround(NDet)
+    ! Arrays for storing info.  All dimensions are NDet.
+    REAL*8, allocatable :: EigenVec(:,:),EValues(:),KMat(:,:) 
+    INTEGER, allocatable :: WalkListGround(:),WalkListGroundSpawn(:)
+    INTEGER*8, allocatable :: SumWalkListGround(:)
+    ! workspace for lapack.  LScr = 4*NDet is more than sufficient
+    REAL*8, allocatable :: Scr(:) 
     LOGICAL :: tFixedShift
-
 
 !Initialise rand
     call random_seed()
+
+    !Array allocation.
+    LScr = 4*NDet
+    allocate(KMat(NDet,NDet))
+    allocate(EigenVec(NDet,NDet))
+    allocate(EValues(NDet))
+    allocate(WalkListGround(NDet))
+    allocate(WalkListGroundSpawn(NDet))
+    allocate(SumWalkListGround(NDet))
+    allocate(Scr(LScr))
 
 !Set up KMat
     CALL SetUpKMat(KMat,NDet)
@@ -42,15 +55,6 @@ Program ModelFCIQMC
     enddo
     CLOSE(9)
 
-!    Norm=0.D0
-!    Norm1=0.D0
-    do i=1,NDet
-!        Norm=Norm+abs(EigenVec(i,1))
-        Norm1=Norm1+(EigenVec(i,1))**2
-    enddo
-!    WRITE(6,*) "Norm = ",Norm
-!    WRITE(6,*) "Norm for sq = ",Norm1
-
     WRITE(6,*) "Lowest eigenvalues: "
     OPEN(9,FILE="Eigenvalues",STATUS='UNKNOWN')
     do i=1,10
@@ -64,12 +68,10 @@ Program ModelFCIQMC
 !Setup spawning
     WalkListGround(:)=0
     GroundShift=InitialShift
-!    WalkListExcit(:)=0
     SumWalkListGround(:)=0
     OPEN(12,FILE='ModelFCIMCStats',STATUS='unknown')
 
     WalkListGround(1)=InitialWalk
-!    WalkListExcit(1)=-1     !Start off orthogonal
     tFixedShift=.true.
     OldGroundTotParts=InitialWalk
     
@@ -111,7 +113,6 @@ Program ModelFCIQMC
         ENDIF
 
 !Rezero spawning arrays    
-!        WalkListExcitSpawn(:)=0
         WalkListGroundSpawn(:)=0
 
 !Simulate dynamic for calculation of GS
