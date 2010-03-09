@@ -64,6 +64,8 @@ MODULE FciMCParMod
         TYPE(HElement) :: Hamii
         LOGICAL :: TIncrement,tWritePopsFound,tSoftExitFound,tSingBiasChange
         REAL(4) :: s,etime,tstart(2),tend(2)
+        INTEGER :: MaxWalkers,MinWalkers
+        real*8 :: AllTotWalkers,MeanWalkers
 
         TDebug=.false.  !Set debugging flag
 
@@ -218,6 +220,18 @@ MODULE FciMCParMod
      
 
 !        IF(TAutoCorr) CALL CalcAutoCorr()
+
+! Print out some load balancing stats nicely to end.
+        CALL MPI_Reduce(TotWalkers,MaxWalkers,1,MPI_INTEGER,MPI_MAX,root,MPI_COMM_WORLD,error)
+        CALL MPI_Reduce(TotWalkers,MinWalkers,1,MPI_INTEGER,MPI_MIN,root,MPI_COMM_WORLD,error)
+        CALL MPI_AllReduce(Real(TotWalkers,r2),AllTotWalkers,1,MPI_DOUBLE_PRECISION,MPI_SUM,MPI_COMM_WORLD,error)
+        if (iProcIndex.eq.Root) then
+            MeanWalkers=AllTotWalkers/nProcessors
+            write (6,'(/,1X,a55)') 'Load balancing information based on the last iteration:'
+            write (6,'(1X,a33,1X,f18.10)') 'Mean number of walkers/processor:',MeanWalkers
+            write (6,'(1X,a32,1X,i18)') 'Min number of walkers/processor:',MinWalkers
+            write (6,'(1X,a32,1X,i18,/)') 'Max number of walkers/processor:',MaxWalkers
+        end if
 
 !Deallocate memory
         CALL DeallocFCIMCMemPar()
