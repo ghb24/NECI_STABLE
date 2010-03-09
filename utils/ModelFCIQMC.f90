@@ -1,29 +1,67 @@
 Program ModelFCIQMC
     IMPLICIT NONE
-    INTEGER , PARAMETER :: NDet=100
-    INTEGER , PARAMETER :: LScr=4*NDet
-    REAL*8 , PARAMETER :: Tau=0.05
-    REAL*8 , PARAMETER :: SftDamp=0.05
-    INTEGER , PARAMETER :: StepsSft=25
-    INTEGER , PARAMETER :: NMCyc=1000000
-    INTEGER , PARAMETER :: InitialWalk=1 
-    INTEGER , PARAMETER :: TargetWalk=1000
-    REAL*8 , PARAMETER :: InitialShift=0.D0
-    REAL*8 :: KMat(NDet,NDet),Norm,GrowRate,GroundShift,rat,r,Norm1
+    INTEGER :: NDet=100
+    INTEGER :: LScr
+    REAL*8, PARAMETER :: Tau=0.05
+    REAL*8, PARAMETER :: SftDamp=0.05
+    INTEGER, PARAMETER :: StepsSft=25
+    INTEGER, PARAMETER :: NMCyc=1000000
+    INTEGER, PARAMETER :: InitialWalk=1 
+    INTEGER, PARAMETER :: TargetWalk=1000
+    REAL*8, PARAMETER :: InitialShift=0.D0
+    REAL*8 :: Norm,GrowRate,GroundShift,rat,r,Norm1
     INTEGER :: GroundTotParts,Iter,OldGroundTotParts
-    REAL*8 :: EigenVec(NDet,NDet),EValues(NDet),Scr(LScr),Check
+    REAL*8 :: Check
     INTEGER :: ierr,i,j,Die,Create,k
-    INTEGER :: WalkListGround(NDet),WalkListGroundSpawn(NDet)
-    INTEGER*8 :: SumWalkListGround(NDet)
-    LOGICAL :: tFixedShift
+    ! Arrays for storing info.  All dimensions are NDet.
+    REAL*8, allocatable :: EigenVec(:,:),EValues(:),KMat(:,:) 
+    INTEGER, allocatable :: WalkListGround(:),WalkListGroundSpawn(:)
+    INTEGER*8, allocatable :: SumWalkListGround(:)
+    ! workspace for lapack.  LScr = 4*NDet is more than sufficient
+    REAL*8, allocatable :: Scr(:) 
+    LOGICAL :: tFixedShift, taverage = .false.
+    integer :: nVaryShiftCycles
+    real*8 :: AverageShift, SumShift
 
+    integer :: iargc
+    character(255) :: input_file
+    logical :: tinput_file = .false.
 
 !Initialise rand
     call random_seed()
 
+    if (iargc() == 1) then
+        call getarg(1,input_file)
+        write (6,*) 'Reading Hamiltonian from file: ',trim(input_file)
+        ! Have been given an input file containing the Hamiltonian.
+        inquire(file=input_file,exist=tinput_file)
+        if (tinput_file) then
+            open(13,file=input_file,status='old',form='formatted')
+            read(13,*) NDet
+            close(13,status='keep')
+        else
+            write (6,*) 'Input file does not exist.'
+            stop
+        end if
+    end if
+
+    !Array allocation.
+    LScr = 4*NDet
+    allocate(KMat(NDet,NDet))
+    allocate(EigenVec(NDet,NDet))
+    allocate(EValues(NDet))
+    allocate(WalkListGround(NDet))
+    allocate(WalkListGroundSpawn(NDet))
+    allocate(SumWalkListGround(NDet))
+    allocate(Scr(LScr))
+
 !Set up KMat
-    CALL SetUpKMat(KMat,NDet)
-    WRITE(6,*) "Setting up K-Matrix..."
+    if (tinput_file) then
+        call ReadInKMat(NDet,input_file,KMat)
+    else
+        WRITE(6,*) "Setting up random K-Matrix..."
+        CALL SetUpKMat(NDet,KMat)
+    end if
 
 !Diagonalise KMat
     EigenVec(:,:)=KMat(:,:)
@@ -42,18 +80,9 @@ Program ModelFCIQMC
     enddo
     CLOSE(9)
 
-!    Norm=0.D0
-!    Norm1=0.D0
-    do i=1,NDet
-!        Norm=Norm+abs(EigenVec(i,1))
-        Norm1=Norm1+(EigenVec(i,1))**2
-    enddo
-!    WRITE(6,*) "Norm = ",Norm
-!    WRITE(6,*) "Norm for sq = ",Norm1
-
     WRITE(6,*) "Lowest eigenvalues: "
     OPEN(9,FILE="Eigenvalues",STATUS='UNKNOWN')
-    do i=1,10
+    do i=1,min(10,NDet)
         WRITE(9,*) i,EValues(i)
         WRITE(6,*) i,EValues(i)
     enddo
@@ -64,12 +93,13 @@ Program ModelFCIQMC
 !Setup spawning
     WalkListGround(:)=0
     GroundShift=InitialShift
-!    WalkListExcit(:)=0
+    SumShift = 0.0d0
+    nVaryShiftCycles = 0
+    AverageShift = 0.0d0
     SumWalkListGround(:)=0
     OPEN(12,FILE='ModelFCIMCStats',STATUS='unknown')
 
     WalkListGround(1)=InitialWalk
-!    WalkListExcit(1)=-1     !Start off orthogonal
     tFixedShift=.true.
     OldGroundTotParts=InitialWalk
     
@@ -81,6 +111,17 @@ Program ModelFCIQMC
             GrowRate=REAL(GroundTotParts,8)/REAL(OldGroundTotParts,8)
             IF(.not.tFixedShift) THEN
                 GroundShift=GroundShift-(log(GrowRate)*SftDamp)/(Tau*(StepsSft+0.D0))
+                ! Start averaging?
+                if (abs((GroundShift-EValues(1))/EValues(1)) < 0.05d0) then
+                    taverage = .true.
+!                    write (6,*) GroundShift,EValues(1),abs((GroundShift-EValues(1))/EValues(1))
+!                    stop
+                end if
+                if (taverage) then
+                    SumShift = SumShift + GroundShift
+                    nVaryShiftCycles = nVaryShiftCycles + 1
+                    AverageShift = SumShift/nVaryShiftCycles
+                end if
             ELSE
                 IF(GroundTotParts.ge.TargetWalk) THEN
                     tFixedShift=.false.
@@ -89,7 +130,7 @@ Program ModelFCIQMC
             OldGroundTotParts=GroundTotParts
 
             !Write out stats
-            WRITE(6,"(I8,F25.12,I15,I7)") Iter,GroundShift,GroundTotParts,WalkListGround(1)
+            WRITE(6,"(I8,2F25.12,I15,I7)") Iter,GroundShift,AverageShift,GroundTotParts,WalkListGround(1)
             WRITE(12,"(I8,F25.12,I15,I7)") Iter,GroundShift,GroundTotParts,WalkListGround(1)
 
             Norm=0.D0
@@ -111,7 +152,6 @@ Program ModelFCIQMC
         ENDIF
 
 !Rezero spawning arrays    
-!        WalkListExcitSpawn(:)=0
         WalkListGroundSpawn(:)=0
 
 !Simulate dynamic for calculation of GS
@@ -228,10 +268,13 @@ Program ModelFCIQMC
 End Program ModelFCIQMC
 
 
-SUBROUTINE SetUpKMat(KMat,NDet)
+SUBROUTINE SetUpKMat(NDet,KMat)
+    ! Sets up a random K Matrix.
     IMPLICIT NONE
-    INTEGER :: NDet,i,j
-    REAL*8 :: KMat(NDet,NDet),StartEl,EndEl,Step,ProbNonZero,OffDiagEl
+    INTEGER, INTENT(IN) :: NDet
+    REAL*8, INTENT(OUT) :: KMat(NDet,NDet)
+    INTEGER :: i,j
+    REAL*8 :: StartEl,EndEl,Step,ProbNonZero,OffDiagEl
     REAL*8 :: r
 
     KMat(:,:)=0.D0
@@ -268,3 +311,29 @@ SUBROUTINE SetUpKMat(KMat,NDet)
     enddo
 
 END SUBROUTINE SetUpKMat
+
+SUBROUTINE ReadInKMat(NDet,input_file,KMat)
+    ! Reads in a Hamiltonian matrix from
+    IMPLICIT NONE
+    INTEGER, INTENT(IN) :: NDet
+    character(255), intent(in) :: input_file
+    REAL*8, INTENT(OUT) :: KMat(NDet,NDet)
+    integer :: i,j
+    real*8 :: H00
+
+    ! The first line just contains the size of the Hamiltonian matrix.
+    ! This has already been read...
+    open(13,file=input_file,status='old',form='formatted')
+    read(13,*) i
+
+    do i = 1,NDet
+        read (13,*) (KMat(i,j),j=1,NDet)
+    end do
+
+    close(13,status='keep')
+
+    ! K_ij = H_ij - H00 d_ij
+    H00 = KMat(1,1)
+    forall (i=1:NDet) KMat(i,i) = KMat(i,i) - H00
+
+end subroutine ReadInKMat
