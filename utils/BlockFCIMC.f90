@@ -5,17 +5,15 @@ PROGRAM BlkFCIMC
       INTEGER :: i,Iter,WalkCng,TotWalkers,Annihil,Died,Born,StartIter,ierr,TotPoints
       INTEGER :: TotBlkSize,NoBlocks,BlockSize,VecInd,Blk,j
       REAL*8 :: Sft,GrowRate,ProjE,AvBlock,SumBlock,Mean,MeanSq,SD,Error,ErrorinError,AvShift,ProjEInst
-      REAL*8 :: AvBlockEn,SumBlockEn,MeanEn,MeanSqEn,SDEn,ErrorEn,ErrorinErrorEn
+      REAL*8 :: AvBlockEn,SumBlockEn,MeanEn,MeanSqEn,SDEn,ErrorEn,ErrorinErrorEn,MaxDeviation,MaxDeviationEn
       REAL*8 , ALLOCATABLE :: Shifts(:),Energies(:),BlkAv(:),BlkAvEn(:)
 
       OPEN(UNIT=11,FILE='FCIMCStats',STATUS='OLD',ACTION='READ',    &
         POSITION='REWIND')
       OPEN(UNIT=12,FILE='BlockingInfo',STATUS='UNKNOWN')
       OPEN(UNIT=13,FILE='BlockingInfoEnergies',STATUS='UNKNOWN')
-      WRITE(12,"(A)") '#  Blocklength   Log_2 BL     MeanBlocks              SD-Blocks &
-                       &      Err-Blocks           Err in Err-Blocks'
-      WRITE(13,"(A)") '#  Blocklength   Log_2 BL     MeanBlocks              SD-Blocks &
-                       &      Err-Blocks           Err in Err-Blocks'
+      WRITE(12,"(A)") '#  Blocklength   Log_2 BL     MeanBlocks              SD-Blocks               Err-Blocks           Err in Err-Blocks'
+      WRITE(13,"(A)") '#  Blocklength   Log_2 BL     MeanBlocks              SD-Blocks               Err-Blocks           Err in Err-Blocks'
 
       READ(11,*) FirstLineRubbish
     
@@ -24,8 +22,7 @@ PROGRAM BlkFCIMC
 
       i=0
       do while(.true.)
-          READ(11,'(I12,G16.7,I10,G16.7,I12,3I13,3G17.9)',END=99) Iter,Sft,WalkCng, &
-                GrowRate,TotWalkers,Annihil,Died,Born,ProjE,AvShift,ProjEInst
+          READ(11,'(I12,G16.7,I10,G16.7,I12,3I13,3G17.9)',END=99) Iter,Sft,WalkCng,GrowRate,TotWalkers,Annihil,Died,Born,ProjE,AvShift,ProjEInst
           IF(Iter.ge.StartIter) THEN
               i=i+1
           ENDIF
@@ -53,8 +50,7 @@ PROGRAM BlkFCIMC
       READ(11,*) FirstLineRubbish
       i=0
       do while(.true.)
-          READ(11,'(I12,G16.7,I10,G16.7,I12,3I13,3G17.9)',END=98) Iter,Sft,WalkCng, &
-                 GrowRate,TotWalkers,Annihil,Died,Born,ProjE,AvShift,ProjEInst
+          READ(11,'(I12,G16.7,I10,G16.7,I12,3I13,3G17.9)',END=98) Iter,Sft,WalkCng,GrowRate,TotWalkers,Annihil,Died,Born,ProjE,AvShift,ProjEInst
           IF(Iter.ge.StartIter) THEN
               i=i+1
               Shifts(i)=Sft
@@ -64,6 +60,26 @@ PROGRAM BlkFCIMC
 
 98    CONTINUE
       CLOSE(11)
+
+      Mean=0.D0
+      MeanEn=0.D0
+      do i=1,TotPoints
+          Mean=Mean+Shifts(i)
+          MeanEn=MeanEn+Energies(i)
+      enddo
+      Mean=Mean/REAL(TotPoints,8)
+      MeanEn=MeanEn/REAL(TotPoints,8)
+
+      MaxDeviation=0.D0
+      MaxDeviationEn=0.D0
+      do i=1,TotPoints
+          IF(ABS(Shifts(i)-Mean).gt.MaxDeviation) MaxDeviation=ABS(Shifts(i)-Mean)
+          IF(ABS(Energies(i)-MeanEn).gt.MaxDeviationEn) MaxDeviationEn=ABS(Energies(i)-MeanEn)
+      enddo
+
+      WRITE(6,"(A,2G25.16)") "Mean values for the shift and projected energy are: ",Mean,MeanEn
+      WRITE(6,"(A,2G25.16)") "Maximum deviations from the mean shift and projected energy are: ",MaxDeviation,MaxDeviationEn
+
 
 !Allocate data to hold averages of each block
       ALLOCATE(BlkAv(TotPoints),stat=ierr)
@@ -91,9 +107,9 @@ PROGRAM BlkFCIMC
       do i=0,TotBlkSize     !Loop over all blocks
 
           BlockSize=2**i
-          NoBlocks=0            !This is the counter for the number of blocks with a given blocksize
-          VecInd=1              !Start at the beginning of the list of data to create the blocks
-          BlkAv(:)=0.D0         !Rezero the block averages
+          NoBlocks=0              !This is the counter for the number of blocks with a given blocksize
+          VecInd=1                !Start at the beginning of the list of data to create the blocks
+          BlkAv(:)=0.D0           !Rezero the block averages
           BlkAvEn(:)=0.D0         !Rezero the block averages
 
           do while(VecInd.le.TotPoints)  !Carry on looping over the data until we have 
@@ -135,6 +151,7 @@ PROGRAM BlkFCIMC
           Mean=0.D0     
           MeanEn=0.D0     
           do j=1,NoBlocks
+!              WRITE(6,*) BlkAvEn(j)
               Mean=Mean+BlkAv(j)
               MeanSq=MeanSq+(BlkAv(j)**2)
               MeanEn=MeanEn+BlkAvEn(j)
