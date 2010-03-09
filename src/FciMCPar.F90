@@ -64,6 +64,8 @@ MODULE FciMCParMod
         TYPE(HElement) :: Hamii
         LOGICAL :: TIncrement,tWritePopsFound,tSoftExitFound,tSingBiasChange
         REAL(4) :: s,etime,tstart(2),tend(2)
+        INTEGER :: MaxWalkers,MinWalkers
+        real*8 :: AllTotWalkers,MeanWalkers
 
         TDebug=.false.  !Set debugging flag
 
@@ -218,6 +220,18 @@ MODULE FciMCParMod
      
 
 !        IF(TAutoCorr) CALL CalcAutoCorr()
+
+! Print out some load balancing stats nicely to end.
+        CALL MPI_Reduce(TotWalkers,MaxWalkers,1,MPI_INTEGER,MPI_MAX,root,MPI_COMM_WORLD,error)
+        CALL MPI_Reduce(TotWalkers,MinWalkers,1,MPI_INTEGER,MPI_MIN,root,MPI_COMM_WORLD,error)
+        CALL MPI_AllReduce(Real(TotWalkers,r2),AllTotWalkers,1,MPI_DOUBLE_PRECISION,MPI_SUM,MPI_COMM_WORLD,error)
+        if (iProcIndex.eq.Root) then
+            MeanWalkers=AllTotWalkers/nProcessors
+            write (6,'(/,1X,a55)') 'Load balancing information based on the last iteration:'
+            write (6,'(1X,a33,1X,f18.10)') 'Mean number of walkers/processor:',MeanWalkers
+            write (6,'(1X,a32,1X,i18)') 'Min number of walkers/processor:',MinWalkers
+            write (6,'(1X,a32,1X,i18,/)') 'Max number of walkers/processor:',MaxWalkers
+        end if
 
 !Deallocate memory
         CALL DeallocFCIMCMemPar()
@@ -1570,7 +1584,7 @@ MODULE FciMCParMod
 
                 MeanWalkers=AllTotWalkers/REAL(nProcessors,r2)
                 IF((WalkersDiffProc.gt.NINT(MeanWalkers/10.D0).and.(AllTotParts.gt.(REAL(nProcessors*500,r2))))) THEN
-                    WRITE(6,"(A,F20.10)") "Number of determinants assigned to each processor unbalanced. ", (WalkersDiffProc*10.D0)/REAL(MeanWalkers)
+                    WRITE(6,"(A62,F20.10,2i12)") "Number of determinants assigned to each processor unbalanced. ", (WalkersDiffProc*10.D0)/REAL(MeanWalkers),MinWalkersProc,MaxWalkersProc
                 ENDIF
             
             ENDIF
@@ -2500,11 +2514,6 @@ MODULE FciMCParMod
 
 !We also need to tell the root processor how many particles to expect from each node - these are gathered into WalkersonNodes
         CALL MPI_AllGather(TotWalkers,1,MPI_INTEGER,WalkersonNodes,1,MPI_INTEGER,MPI_COMM_WORLD,error)
-        do i=0,nProcessors-1
-            IF(INT(WalkersonNodes(i)/iPopsPartEvery).lt.1) THEN
-                RETURN
-            ENDIF
-        enddo
 
         Tag=125
 !        WRITE(6,*) "Get Here"
@@ -2660,11 +2669,6 @@ MODULE FciMCParMod
 
 !We also need to tell the root processor how many particles to expect from each node - these are gathered into WalkersonNodes
         CALL MPI_AllGather(TotWalkers,1,MPI_INTEGER,WalkersonNodes,1,MPI_INTEGER,MPI_COMM_WORLD,error)
-        do i=0,nProcessors-1
-            IF(INT(WalkersonNodes(i)/iPopsPartEvery).lt.1) THEN
-                RETURN
-            ENDIF
-        enddo
 
         Tag=125
 

@@ -50,7 +50,47 @@ contains
         endif
     end function choose
 
-    logical function int_arr_eq (a, b, len)
+    logical pure function int_arr_gt (a, b, len)
+
+        ! Make a comparison we can sort integer arrays by. Return true if the
+        ! first differing integer of a, b is such that a(i) > b(i).
+        !
+        ! In:  a, b - The arrays to compare
+        !      len  - An optional argument to specify the size to consider.
+        !             If not provided, then min(size(a), size(b)) is used.
+        ! Ret:      - If a > b
+    
+        integer, intent(in), dimension(:) :: a, b
+        integer, intent(in), optional :: len
+
+        integer llen, i
+
+        if (present(len)) then
+            llen = len
+        else
+            llen = min(size(a), size(b))
+        endif
+
+        ! Sort by the first integer first ...
+        i = 1
+        do i = 1, llen
+            if (a(i) /= b(i)) exit
+        enddo
+
+        ! Make the comparison
+        if (i > llen) then
+            int_arr_gt = .false.
+        else
+            if (a(i) > b(i)) then
+                int_arr_gt = .true.
+            else
+                int_arr_gt = .false.
+            endif
+        endif
+    end function int_arr_gt
+        
+
+    logical pure function int_arr_eq (a, b, len)
 
         ! If two specified integer arrays are equal, return true. Otherwise
         ! return false.
@@ -153,5 +193,44 @@ contains
         end if
 
     end function int_fmt
+
+    pure function binary_search (arr, val, data_size, num_items) result(pos)
+
+        integer, intent(in) :: data_size, num_items
+        integer, intent(in) :: arr(data_size, num_items)
+        integer, intent(in) :: val(data_size)
+        integer :: pos
+
+        integer :: hi, lo
+
+        ! The search range
+        lo = 1
+        hi = num_items
+
+        ! Narrow the search range down in steps.
+        do while (hi /= lo)
+            pos = int(real(hi + lo) / 2)
+
+            if (int_arr_eq(arr(:,pos), val, data_size)) then
+                exit
+            else if (int_arr_gt(val, arr(:,pos), data_size)) then
+                lo = pos + 1
+            else
+                hi = pos - 1
+            endif
+        enddo
+
+        ! If we have narrowed down to one position, and it is not the item, 
+        ! then return -pos to indicate that the item is not present, but that
+        ! this is the location it should be in.
+        if (hi == lo) then
+            if (int_arr_eq(arr(:,hi), val, data_size)) then
+                pos = hi
+            else
+                pos = -hi
+            endif
+        endif
+
+    end function
 
 end module
