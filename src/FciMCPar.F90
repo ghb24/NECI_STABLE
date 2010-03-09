@@ -2500,11 +2500,6 @@ MODULE FciMCParMod
 
 !We also need to tell the root processor how many particles to expect from each node - these are gathered into WalkersonNodes
         CALL MPI_AllGather(TotWalkers,1,MPI_INTEGER,WalkersonNodes,1,MPI_INTEGER,MPI_COMM_WORLD,error)
-        do i=0,nProcessors-1
-            IF(INT(WalkersonNodes(i)/iPopsPartEvery).lt.1) THEN
-                RETURN
-            ENDIF
-        enddo
 
         Tag=125
 !        WRITE(6,*) "Get Here"
@@ -2660,11 +2655,6 @@ MODULE FciMCParMod
 
 !We also need to tell the root processor how many particles to expect from each node - these are gathered into WalkersonNodes
         CALL MPI_AllGather(TotWalkers,1,MPI_INTEGER,WalkersonNodes,1,MPI_INTEGER,MPI_COMM_WORLD,error)
-        do i=0,nProcessors-1
-            IF(INT(WalkersonNodes(i)/iPopsPartEvery).lt.1) THEN
-                RETURN
-            ENDIF
-        enddo
 
         Tag=125
 !        WRITE(6,*) "Get Here"
