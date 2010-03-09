@@ -21,8 +21,27 @@ Program ModelFCIQMC
     REAL*8, allocatable :: Scr(:) 
     LOGICAL :: tFixedShift
 
+    integer :: iargc
+    character(255) :: input_file
+    logical :: tinput_file = .false.
+
 !Initialise rand
     call random_seed()
+
+    if (iargc() == 1) then
+        call getarg(1,input_file)
+        write (6,*) 'Reading Hamiltonian from file: ',trim(input_file)
+        ! Have been given an input file containing the Hamiltonian.
+        inquire(file=input_file,exist=tinput_file)
+        if (tinput_file) then
+            open(13,file=input_file,status='old',form='formatted')
+            read(13,*) NDet
+            close(13,status='keep')
+        else
+            write (6,*) 'Input file does not exist.'
+            stop
+        end if
+    end if
 
     !Array allocation.
     LScr = 4*NDet
@@ -35,8 +54,12 @@ Program ModelFCIQMC
     allocate(Scr(LScr))
 
 !Set up KMat
-    CALL SetUpKMat(KMat,NDet)
-    WRITE(6,*) "Setting up K-Matrix..."
+    if (tinput_file) then
+        call ReadInKMat(NDet,input_file,KMat)
+    else
+        WRITE(6,*) "Setting up random K-Matrix..."
+        CALL SetUpKMat(NDet,KMat)
+    end if
 
 !Diagonalise KMat
     EigenVec(:,:)=KMat(:,:)
@@ -57,7 +80,7 @@ Program ModelFCIQMC
 
     WRITE(6,*) "Lowest eigenvalues: "
     OPEN(9,FILE="Eigenvalues",STATUS='UNKNOWN')
-    do i=1,10
+    do i=1,min(10,NDet)
         WRITE(9,*) i,EValues(i)
         WRITE(6,*) i,EValues(i)
     enddo
@@ -229,10 +252,13 @@ Program ModelFCIQMC
 End Program ModelFCIQMC
 
 
-SUBROUTINE SetUpKMat(KMat,NDet)
+SUBROUTINE SetUpKMat(NDet,KMat)
+    ! Sets up a random K Matrix.
     IMPLICIT NONE
-    INTEGER :: NDet,i,j
-    REAL*8 :: KMat(NDet,NDet),StartEl,EndEl,Step,ProbNonZero,OffDiagEl
+    INTEGER, INTENT(IN) :: NDet
+    REAL*8, INTENT(OUT) :: KMat(NDet,NDet)
+    INTEGER :: i,j
+    REAL*8 :: StartEl,EndEl,Step,ProbNonZero,OffDiagEl
     REAL*8 :: r
 
     KMat(:,:)=0.D0
@@ -269,3 +295,29 @@ SUBROUTINE SetUpKMat(KMat,NDet)
     enddo
 
 END SUBROUTINE SetUpKMat
+
+SUBROUTINE ReadInKMat(NDet,input_file,KMat)
+    ! Reads in a Hamiltonian matrix from
+    IMPLICIT NONE
+    INTEGER, INTENT(IN) :: NDet
+    character(255), intent(in) :: input_file
+    REAL*8, INTENT(OUT) :: KMat(NDet,NDet)
+    integer :: i,j
+    real*8 :: H00
+
+    ! The first line just contains the size of the Hamiltonian matrix.
+    ! This has already been read...
+    open(13,file=input_file,status='old',form='formatted')
+    read(13,*) i
+
+    do i = 1,NDet
+        read (13,*) (KMat(i,j),j=1,NDet)
+    end do
+
+    close(13,status='keep')
+
+    ! K_ij = H_ij - H00 d_ij
+    H00 = KMat(1,1)
+    forall (i=1:NDet) KMat(i,i) = KMat(i,i) - H00
+
+end subroutine ReadInKMat
