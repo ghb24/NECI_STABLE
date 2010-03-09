@@ -466,9 +466,12 @@ $(KCDEPEND_FILES): $(KDEP_DEST)/%%.d: %%.C
 
 # Macro to compile a utility Fortran program contained within a single source
 # file.
-MKUTIL = $(FC) $(FFLAGS) $< -o $@
+# We assume that the source filename is *.f90, that the program name is based
+# upon the source filename and that the utility program requires (at most) the
+# same libraries as neci.
+MKUTIL = $(FC) $(FFLAGS) $< -o $@ $(LIBS)
 
-UTILS = TransLz.x BlockFCIMC.x
+UTILS = TransLz.x BlockFCIMC.x ModelFCIQMC
 
 # Target to compile all utility programs.
 utils: $(UTILS)
