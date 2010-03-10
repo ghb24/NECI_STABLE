@@ -16,14 +16,6 @@ module DetBitOps
         module procedure CountBits_elemental
     end interface
 
-    ! Non-modularised functions (sigh)
-    interface
-        logical function int_arr_eq (a, b, len)
-            integer, intent(in), dimension(:) :: a, b
-            integer, intent(in), optional :: len
-        end function
-    end interface
-
     contains
 
     ! This will count the bits set in a bit-string up to a number nBitsMax, if

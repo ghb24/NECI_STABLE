@@ -16,7 +16,7 @@ module csf
     use UMatCache, only: gtID
     use csf_data
     use timing
-    use util_mod, only: swap, int_arr_eq, choose
+    use util_mod, only: swap, choose
 
     implicit none
 
@@ -221,7 +221,7 @@ contains
             call set_timer (hel_timer0)
             hel_ret = get_csf_helement_0 (nI, nopen(1), nclosed(1), nup(1), &
                                           ndets(1), coeffs1, coeffs2, dets1,&
-                                          det_sum, int_arr_eq(yama1, yama2))
+                                          det_sum, all(yama1 == yama2))
             call halt_timer (hel_timer0)
             return
         endif
@@ -1452,7 +1452,7 @@ contains
             call genrand_real2(r)
             num = int(r*ncsf) + 1
             if ((.not.tForceChange) .or. (ncsf<2) .or. &
-                .not.int_arr_eq(yamas(num,:),yamas(0,:))) then
+                any(yamas(num,:) /= yamas(0,:))) then
 
                 call csf_apply_yama (nI, yamas(num, :))
                 exit

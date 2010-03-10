@@ -1,13 +1,110 @@
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! Generic routine macro definitions
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+! Swap the element a with the element b via a temporary variable.
+#define swap_def(type,name) elemental subroutine name (a, b); \
+    type, intent(inout) :: a, b; \
+    type :: tmp; \
+    tmp = a; \
+    a = b; \
+    b = tmp; \
+end subroutine
+
+! Make a comparison we can sort integer arrays by. Return true if the first
+! differing items of a, b is such that a(i) > b(i).
+!
+! In:  a, b - The arrays to compare
+! Ret:      - a > b
+#define arr_gt_def(type,name) pure function name (a, b) result (bGt); \
+    type, intent(in), dimension(:) :: a, b; \
+    logical :: bGt; \
+    integer :: i, length; \
+\
+    length = min(size(a), size(b)); \
+\
+    /* Sort by the first item first ... */ \
+    do i = 1, length; \
+        if (a(i) /= b(i)) exit; \
+    enddo; \
+\
+    /* Make the comparison */ \
+    if (i > length) then; \
+        bGt = .false.; \
+    else; \
+        bGt = a(i) > b(i); \
+    endif; \
+end function
+
+! Make a comparison we can sort integer arrays by. Return true if the first
+! differing items of a, b is such that a(i) < b(i).
+!
+! In:  a, b - The arrays to compare
+! Ret:      - a < b
+#define arr_lt_def(type,name) pure function name (a, b) result (bLt); \
+    type, intent(in), dimension(:) :: a, b; \
+    logical :: bLt; \
+    integer :: i, length; \
+\
+    length = min(size(a), size(b)); \
+\
+    /* Sort by the first item first ... */ \
+    do i = 1, length; \
+        if (a(i) /= b(i)) exit; \
+    enddo; \
+\
+    /* Make the comparison */ \
+    if (i > length) then; \
+        bLt = .false.; \
+    else; \
+        bLt = a(i) < b(i); \
+    endif; \
+end function
+
+
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! Module starts here
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module util_mod
     implicit none
+
+    ! Note that in these interfaces we do NOT include a version for reals, as
+    ! we are using -r8 in the compile scripts --> real == real*8.
+    ! If we choose to change this, then simply add a new version.
 
     ! An elemental routine to swap specified data.
     interface swap
         module procedure swap_int
         module procedure swap_doub
+        module procedure swap_cplx
+    end interface
+
+    ! Provide operators for array comparison
+    ! Not defined for complex data types, as ordering not defined.
+    interface arr_gt
+        module procedure arr_gt_int
+        module procedure arr_gt_doub
+    end interface
+
+    interface arr_lt
+        module procedure arr_lt_int
+        module procedure arr_lt_doub
     end interface
     
 contains
+
+    ! Swap routines for different variable types.
+    swap_def(integer, swap_int)
+    swap_def(real*8, swap_doub)
+    swap_def(complex*16, swap_cplx)
+
+    ! Comparison routines for arrays to allow sorting
+    arr_gt_def(integer, arr_gt_int)
+    arr_gt_def(real*8, arr_gt_doub)
+
+    arr_lt_def(integer, arr_lt_int)
+    arr_lt_def(real*8, arr_lt_doub)
 
     elemental real*8 function factrl (n)
 
@@ -50,107 +147,6 @@ contains
         endif
     end function choose
 
-    logical pure function int_arr_gt (a, b, len)
-
-        ! Make a comparison we can sort integer arrays by. Return true if the
-        ! first differing integer of a, b is such that a(i) > b(i).
-        !
-        ! In:  a, b - The arrays to compare
-        !      len  - An optional argument to specify the size to consider.
-        !             If not provided, then min(size(a), size(b)) is used.
-        ! Ret:      - If a > b
-    
-        integer, intent(in), dimension(:) :: a, b
-        integer, intent(in), optional :: len
-
-        integer llen, i
-
-        if (present(len)) then
-            llen = len
-        else
-            llen = min(size(a), size(b))
-        endif
-
-        ! Sort by the first integer first ...
-        i = 1
-        do i = 1, llen
-            if (a(i) /= b(i)) exit
-        enddo
-
-        ! Make the comparison
-        if (i > llen) then
-            int_arr_gt = .false.
-        else
-            if (a(i) > b(i)) then
-                int_arr_gt = .true.
-            else
-                int_arr_gt = .false.
-            endif
-        endif
-    end function int_arr_gt
-        
-
-    logical pure function int_arr_eq (a, b, len)
-
-        ! If two specified integer arrays are equal, return true. Otherwise
-        ! return false.
-        !
-        ! In:  a, b - The arrays to consider
-        !      len  - The maximum length to consider. Otherwise will use whole
-        !             length of array
-
-        integer, intent(in), dimension(:) :: a, b
-        integer, intent(in), optional :: len
-        
-        integer llen, i
-
-        ! Obtain the lengths of the arrays if a bound is not specified.
-        ! Return false if mismatched sizes and not specified.
-        if (present(len)) then
-            llen = len
-        else
-            if (size(a) /= size(b)) then
-                int_arr_eq = .false.
-                return
-            endif
-            llen = size(a)
-        endif
-
-        ! Run through the arrays. Return if they differ at any point.
-        do i=1,llen
-            if (a(i) /= b(i)) then
-                int_arr_eq = .false.
-                return
-            endif
-        enddo
-
-        ! If we get this far, they are equal
-        int_arr_eq = .true.
-    end function
-
-    elemental subroutine swap_doub (a, b)
-        
-        ! Swap the doubles A, B
-
-        real*8, intent(inout) :: a, b
-        real*8 :: tmp
-
-        tmp = a
-        a = b
-        b = tmp
-    end subroutine
-
-    elemental subroutine swap_int (a, b)
-
-        ! Swap the integers A, B
-
-        integer, intent(inout) :: a, b
-        integer :: tmp
-
-        tmp = a
-        a = b
-        b = tmp
-    end subroutine
 
     elemental function int_fmt(i, padding) result(fmt1)
 
@@ -211,9 +207,9 @@ contains
         do while (hi /= lo)
             pos = int(real(hi + lo) / 2)
 
-            if (int_arr_eq(arr(:,pos), val, data_size)) then
+            if (all(arr(:,pos) == val)) then
                 exit
-            else if (int_arr_gt(val, arr(:,pos), data_size)) then
+            else if (arr_gt(val, arr(:,pos))) then
                 lo = pos + 1
             else
                 hi = pos - 1
@@ -224,7 +220,7 @@ contains
         ! then return -pos to indicate that the item is not present, but that
         ! this is the location it should be in.
         if (hi == lo) then
-            if (int_arr_eq(arr(:,hi), val, data_size)) then
+            if (all(arr(:,hi) == val)) then
                 pos = hi
             else
                 pos = -hi

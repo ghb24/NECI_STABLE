@@ -17,7 +17,6 @@ module GenRandSymExcitCSF
                          shift_det_bit_singles_to_beta, count_open_orbs
     use Determinants, only: write_det
     use Parallel
-    use util_mod, only: int_arr_eq
     implicit none
 
 contains
@@ -1464,7 +1463,7 @@ contains
             if (bYama .and. (nopen > 2)) then
                 call get_csf_yama (nI, tmp_yama, nopen)
                 do i=1,numcsfs(0)
-                    if (.not. int_arr_eq (tmp_yama, csf0(i,:))) then
+                    if (any(tmp_yama /= csf0(i,:))) then
                         call csf_apply_yama (nJ(excit,:), csf0(i,:))
                         excit = excit + 1
                     endif
@@ -1853,7 +1852,7 @@ contains
                 ! Test if this CSF was enumerated as an excitation
                 if (bTestList) then
                     do j=1,nexcit
-                        if (int_arr_eq(nJ,nK(j,:))) exit
+                        if (all(nJ == nK(j,:))) exit
                     enddo
                     ! If we haven't found it, abort.
                     if (j <= nexcit) then
