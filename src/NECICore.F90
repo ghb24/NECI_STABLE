@@ -20,12 +20,16 @@ Subroutine NECICore(iCacheFlag,tCPMD,tVASP)
     ! Utility modules.
     use global_utilities
 
+    use quicksort
+
     Implicit none
     integer,intent(in) :: iCacheFlag
     logical,intent(in) :: tCPMD,tVASP
     type(timer), save :: proc_timer
     integer :: ios
     character(255) :: Filename
+    
+    call test_sort_arr_int ()
 
     ! Do the program initialisation.
     call NECICodeInit(tCPMD,tVASP)
