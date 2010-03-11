@@ -240,5 +240,8 @@ MODULE FciMCData
 
       INTEGER , ALLOCATABLE :: RandomHash(:)    !This is a random indexing scheme by which the orbital indices are randomised to attempt to provide a better hashing performance
 
+      INTEGER :: HFIter
+      REAL*8 :: ENumIter,IterEnergy
+
 
 END MODULE FciMCData

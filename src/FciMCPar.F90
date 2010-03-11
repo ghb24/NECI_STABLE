@@ -32,7 +32,7 @@ MODULE FciMCParMod
     USE Logging , only : NoACDets,BinRange,iNoBins,OffDiagBinRange,OffDiagMax,tPrintSpinCoupHEl!,iLagMin,iLagMax,iLagStep,tAutoCorr
     USE Logging , only : tPrintTriConnections,tHistTriConHels,tPrintHElAccept,tPrintFCIMCPsi,tCalcFCIMCPsi,NHistEquilSteps,tPrintOrbOcc,StartPrintOrbOcc
     USE Logging , only : tHFPopStartBlock,tIterStartBlock,IterStartBlocking,HFPopStartBlocking,tInitShiftBlocking,tHistHamil,iWriteHamilEvery
-    USE Logging , only : OrbOccs,OrbOccsTag,tPrintPopsDefault,iWriteBlockingEvery
+    USE Logging , only : OrbOccs,OrbOccsTag,tPrintPopsDefault,iWriteBlockingEvery,tBlockEveryIteration
     USE SymData , only : nSymLabels
     USE mt95 , only : genrand_real2
     USE Parallel
@@ -56,6 +56,7 @@ MODULE FciMCParMod
         use CalcData, only : iFullSpaceIter
         use UMatCache, only : UMatInd
         use FciMCLoggingMOD , only : PrintTriConnHist,PrintTriConnHElHist,FinaliseBlocking,FinaliseShiftBlocking,PrintShiftBlocking,PrintBlocking
+        USE FciMCLoggingMOD , only : SumInErrorContrib
         use RotateOrbsMod , only : RotateOrbs
         use NatOrbsMod , only : PrintOrbOccs
         TYPE(HDElement) :: Weight,Energyxw
@@ -65,7 +66,7 @@ MODULE FciMCParMod
         LOGICAL :: TIncrement,tWritePopsFound,tSoftExitFound,tSingBiasChange
         REAL(4) :: s,etime,tstart(2),tend(2)
         INTEGER :: MaxWalkers,MinWalkers
-        real*8 :: AllTotWalkers,MeanWalkers
+        real*8 :: AllTotWalkers,MeanWalkers,Inpair(2),Outpair(2)
 
         TDebug=.false.  !Set debugging flag
 
@@ -103,6 +104,16 @@ MODULE FciMCParMod
             ENDIF
             s=etime(tend)
             IterTime=IterTime+(tend(1)-tstart(1))
+
+            IF(tBlockEveryIteration) THEN
+                Inpair(1)=REAL(HFIter,r2)
+                Inpair(2)=ENumIter
+                CALL MPIDSumRootArr(Inpair,2,Outpair,Root)
+                IterEnergy=Outpair(2)/Outpair(1)
+                IF(tErrorBlocking.and.(iProcIndex.eq.Root)) CALL SumInErrorContrib(Iter,Outpair(2),Outpair(1))
+                ENumIter=0.D0
+                HFIter=0
+            ENDIF
 
             IF(mod(Iter,StepsSft).eq.0) THEN
 !This will communicate between all nodes, find the new shift (and other parameters) and broadcast them to the other nodes.
@@ -1783,7 +1794,7 @@ MODULE FciMCParMod
             ENDIF
 
 !Then we perform the blocking at the end of each update cycle.         
-            IF(tErrorBlocking) CALL SumInErrorContrib(Iter,AllENumCyc,AllHFCyc)
+            IF(tErrorBlocking.and.(.not.tBlockEveryIteration)) CALL SumInErrorContrib(Iter,AllENumCyc,AllHFCyc)
             IF(tShiftBlocking.and.(Iter.ge.(VaryShiftIter+IterShiftBlock))) CALL SumInShiftErrorContrib(Iter,DiagSft)
         ENDIF
 
@@ -8701,26 +8712,20 @@ MODULE FciMCParMod
                 WRITE(6,"(I12,G16.7,I10,G16.7,I12,3I11,3G17.9,2I10,G13.5,I12,G13.5)") Iter+PreviousCycles,DiagSft,INT(AllTotParts-AllTotPartsOld,i2),AllGrowRate,    &
  &                  INT(AllTotParts,i2),AllAnnihilated,AllNoDied,AllNoBorn,ProjectionE,ProjEIter,AllENumCyc/AllHFCyc,AllNoatHF,AllNoatDoubs,AccRat,INT(AllTotWalkers,i2),IterTime
 
-            ELSEIF(tTruncInitiator.or.tDelayTruncInit) THEN
-                WRITE(15,"(I12,G16.7,I10,G16.7,I12,3I13,3G17.9,2I10,G13.5,I12,G13.5,G17.5,I13,G13.5)") Iter+PreviousCycles,DiagSft,INT(AllTotParts-AllTotPartsOld,i2),AllGrowRate,   &
- &                  INT(AllTotParts,i2),AllAnnihilated,AllNoDied,AllNoBorn,ProjectionE,AvDiagSft,AllENumCyc/AllHFCyc,AllNoatHF,AllNoatDoubs,AccRat,INT(AllTotWalkers,i2),IterTime,&
- &                  REAL(AllSpawnFromSing)/REAL(AllNoBorn),WalkersDiffProc,TotImagTime
+            ELSE
+                
+                WRITE(15,"(I12,G16.7,I10,G16.7,I12,3I13,3G17.9,2I10,G13.5,I12,G13.5,G17.5,I13,G13.5,G17.9)") Iter+PreviousCycles,DiagSft,INT(AllTotParts-AllTotPartsOld,i2),AllGrowRate,   &
+ &                  INT(AllTotParts,i2),AllAnnihilated,AllNoDied,AllNoBorn,ProjectionE,AvDiagSft,AllENumCyc/AllHFCyc,AllNoatHF,AllNoatDoubs,AccRat,INT(AllTotWalkers,i2),IterTime,   &
+ &                  REAL(AllSpawnFromSing)/REAL(AllNoBorn),WalkersDiffProc,TotImagTime,IterEnergy
+                WRITE(6,"(I12,G16.7,I10,G16.7,I12,3I11,3G17.9,2I10,G13.5,I12,G13.5)") Iter+PreviousCycles,DiagSft,INT(AllTotParts-AllTotPartsOld,i2),AllGrowRate,    &
+ &                  INT(AllTotParts,i2),AllAnnihilated,AllNoDied,AllNoBorn,ProjectionE,AvDiagSft,AllENumCyc/AllHFCyc,AllNoatHF,AllNoatDoubs,AccRat,INT(AllTotWalkers,i2),IterTime
 
+            ENDIF
+            IF(tTruncInitiator.or.tDelayTruncInit) THEN
                 WRITE(16,"(I12,2I15,2G16.7,2I20,2G18.7)") Iter+PreviousCycles,AllNoAborted,AllNoAddedInitiators,(REAL(AllNoInitDets)/REAL(AllNoNonInitDets)),(REAL(AllNoInitWalk)/REAL(AllNoNonInitWalk)),&
  &                  AllNoDoubSpawns,AllNoExtraInitDoubs,DiagSftAbort,AvDiagSftAbort
-                WRITE(6,"(I12,G16.7,I10,G16.7,I12,3I11,3G17.9,2I10,G13.5,I12,G13.5)") Iter+PreviousCycles,DiagSft,INT(AllTotParts-AllTotPartsOld,i2),AllGrowRate,    &
- &                  INT(AllTotParts,i2),AllAnnihilated,AllNoDied,AllNoBorn,ProjectionE,AvDiagSft,AllENumCyc/AllHFCyc,AllNoatHF,AllNoatDoubs,AccRat,INT(AllTotWalkers,i2),IterTime
-
-            ELSE
-!                WRITE(15,"(I12,G16.7,I9,G16.7,I12,3I11,3G17.9,2I10,2G13.5,2I6)") Iter+PreviousCycles,DiagSft,AllTotWalkers-AllTotWalkersOld,AllGrowRate,   &
-! &                  AllTotWalkers,AllAnnihilated,AllNoDied,AllNoBorn,ProjectionE,ProjEIter,AllENumCyc/AllHFCyc,AllNoatHF,AllNoatDoubs,AccRat,AllMeanExcitLevel,AllMinExcitLevel,AllMaxExcitLevel
-!                WRITE(6,"(I12,G16.7,I9,G16.7,I12,3I11,3G17.9,2I10,2G13.5,2I6)") Iter+PreviousCycles,DiagSft,AllTotWalkers-AllTotWalkersOld,AllGrowRate,    &
-! &                  AllTotWalkers,AllAnnihilated,AllNoDied,AllNoBorn,ProjectionE,ProjEIter,AllENumCyc/AllHFCyc,AllNoatHF,AllNoatDoubs,AccRat,AllMeanExcitLevel,AllMinExcitLevel,AllMaxExcitLevel
-                WRITE(15,"(I12,G16.7,I10,G16.7,I12,3I13,3G17.9,2I10,G13.5,I12,G13.5,G13.5,I10,G13.5)") Iter+PreviousCycles,DiagSft,INT(AllTotParts-AllTotPartsOld,i2),AllGrowRate,   &
- &                  INT(AllTotParts,i2),AllAnnihilated,AllNoDied,AllNoBorn,ProjectionE,AvDiagSft,AllENumCyc/AllHFCyc,AllNoatHF,AllNoatDoubs,AccRat,INT(AllTotWalkers,i2),IterTime,REAL(AllSpawnFromSing)/REAL(AllNoBorn),WalkersDiffProc,TotImagTime
-                WRITE(6,"(I12,G16.7,I10,G16.7,I12,3I11,3G17.9,2I10,G13.5,I12,G13.5)") Iter+PreviousCycles,DiagSft,INT(AllTotParts-AllTotPartsOld,i2),AllGrowRate,    &
- &                  INT(AllTotParts,i2),AllAnnihilated,AllNoDied,AllNoBorn,ProjectionE,AvDiagSft,AllENumCyc/AllHFCyc,AllNoatHF,AllNoatDoubs,AccRat,INT(AllTotWalkers,i2),IterTime
             ENDIF
+
             
             CALL FLUSH(6)
             CALL FLUSH(15)
@@ -9128,6 +9133,9 @@ MODULE FciMCParMod
         NoDoubSpawns=0
         NoExtraInitDoubs=0
         TotImagTime=0.D0
+        HFIter=0
+        ENumIter=0.D0
+        IterEnergy=0.D0
 
 !Also reinitialise the global variables - should not necessarily need to do this...
         AllSumENum=0.D0
@@ -10452,6 +10460,7 @@ MODULE FciMCParMod
             IF(Iter.gt.NEquilSteps) SumNoatHF=SumNoatHF+WSign
             NoatHF=NoatHF+WSign
             HFCyc=HFCyc+WSign      !This is simply the number at HF*sign over the course of the update cycle 
+            HFIter=HFIter+WSign
 !            AvSign=AvSign+REAL(WSign,r2)
 !            AvSignHFD=AvSignHFD+REAL(WSign,r2)
             
@@ -10469,6 +10478,7 @@ MODULE FciMCParMod
 !            AvSign=AvSign+REAL(WSign,r2)
 !            AvSignHFD=AvSignHFD+REAL(WSign,r2)
             ENumCyc=ENumCyc+(REAL(HOffDiag%v,r2)*WSign/dProbFin)     !This is simply the Hij*sign summed over the course of the update cycle
+            ENumIter=ENumIter+(REAL(HOffDiag%v,r2)*WSign/dProbFin)
 !            WRITE(6,*) 2,SumENum,(REAL(HOffDiag%v,r2)*WSign/dProbFin)     !This is simply the Hij*sign summed over the course of the update cycle
 
             

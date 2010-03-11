@@ -249,6 +249,12 @@ FCIMC options
     prints out a set of stats relating to the sign and magnitude of the H element connecting i and j, Hij.
     These stats are printed in a file named SpinCoupHEl.
 
+**BLOCKEVERYITER**
+    Default=.false.
+    This will block the projected energy every iteration with the aim of achieving accurate error estimates. 
+    Two caveats - it does not take into account the serial correlation between the numerator and denominator of the energy
+    expression, and does require a small amount of additional communication each iteration.
+
 **CCMCDEBUG** iCCMCDebug
     Specify the CCMC debug level.  Default 0 (no debugging information printed).  Higher numbers will generate more
     information.

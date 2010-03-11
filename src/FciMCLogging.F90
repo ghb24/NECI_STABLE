@@ -7,7 +7,7 @@ MODULE FciMCLoggingMod
     USE Parallel
     USE HElem , only : HElement
     USE Logging , only : tPrintTriConnections,TriConMax,NoTriConBins,tHistTriConHEls,NoTriConHElBins,TriConHElSingMax,TriConHElDoubMax
-    USE Logging , only : tPrintHElAccept,tSaveBlocking
+    USE Logging , only : tPrintHElAccept,tSaveBlocking,tBlockEveryIteration
     USE SystemData , only : NEl,NIfTot,NIfDBO
     USE SymData , only : nSymLabels
     USE Determinants , only : get_helement, get_helement_excit
@@ -37,6 +37,7 @@ MODULE FciMCLoggingMod
 
 
 
+
     contains
 
     SUBROUTINE InitErrorBlocking(Iter)
@@ -55,7 +56,11 @@ MODULE FciMCLoggingMod
         StartBlockIter=Iter 
         ! This is the iteration the blocking was started.
 
-        TotNoBlockSizes=FLOOR( (LOG10((REAL(NMCyc-StartBlockIter))/(REAL(StepsSft)))) / (LOG10(2.D0)) )
+        IF(tBlockEveryIteration) THEN
+            TotNoBlockSizes=FLOOR( (LOG10(REAL(NMCyc-StartBlockIter))) / (LOG10(2.D0)) )
+        ELSE
+            TotNoBlockSizes=FLOOR( (LOG10((REAL(NMCyc-StartBlockIter))/(REAL(StepsSft)))) / (LOG10(2.D0)) )
+        ENDIF
         WRITE(6,*) 'Beginning blocking analysis of the errors in the projected energies.'
         WRITE(6,"(A,I6)") "The total number of different block sizes possible is: ",TotNoBlockSizes
         ! The blocks will have size 1,2,4,8,....,2**TotNoBlockSizes
@@ -130,7 +135,11 @@ MODULE FciMCLoggingMod
         ! ChangeVars gets called at the end of the run, wont actually start until the next iteration.
 
         TotNoBlockSizes=0
-        TotNoBlockSizes=FLOOR( (LOG10((REAL(NMCyc-StartBlockIter))/(REAL(StepsSft)))) / (LOG10(2.D0)) )
+        IF(tBlockEveryIteration) THEN
+            TotNoBlockSizes=FLOOR( (LOG10(REAL(NMCyc-StartBlockIter))) / (LOG10(2.D0)) )
+        ELSE
+            TotNoBlockSizes=FLOOR( (LOG10((REAL(NMCyc-StartBlockIter))/(REAL(StepsSft)))) / (LOG10(2.D0)) )
+        ENDIF
 
         CurrBlockSum(:)=0.D0
         BlockSum(:)=0.D0
@@ -163,7 +172,11 @@ MODULE FciMCLoggingMod
         REAL*8 :: AllENumCyc,AllHFCyc
 
 ! First we need to find out what number contribution to the blocking this is.
-        NoContrib=((Iter-StartBlockIter)/StepsSft)+1
+        IF(tBlockEveryIteration) THEN
+            NoContrib=(Iter-StartBlockIter)+1
+        ELSE
+            NoContrib=((Iter-StartBlockIter)/StepsSft)+1
+        ENDIF
 
 ! We then need to add the contribution from this cycle to all the relevant blocks.        
         
@@ -228,7 +241,11 @@ MODULE FciMCLoggingMod
 !First find out how many blocks would have been formed with the number of iterations actually performed. 
 
         NoContrib=0
-        NoContrib=((Iter-StartBlockIter)/StepsSft)+1
+        IF(tBlockEveryIteration) THEN
+            NoContrib=(Iter-StartBlockIter)+1
+        ELSE
+            NoContrib=((Iter-StartBlockIter)/StepsSft)+1
+        ENDIF
         IF(NoContrib.eq.1) RETURN
 
         NoBlockSizes=0

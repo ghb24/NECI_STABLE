@@ -21,6 +21,7 @@ MODULE Logging
     INTEGER IterStartBlocking,HFPopStartBlocking,NoDumpTruncs,NoTruncOrbsTag,TruncEvaluesTag,iWriteHamilEvery,OrbOccsTag
     INTEGER , ALLOCATABLE :: NoTruncOrbs(:)
     REAL*8 , ALLOCATABLE :: TruncEvalues(:),OrbOccs(:)
+    LOGICAL :: tBlockEveryIteration
 
 
 
@@ -399,6 +400,9 @@ MODULE Logging
 !which can be diagonalized. It will write out the hamiltonian every iWriteHamilEvery.
             tHistHamil=.true.
             IF(item.lt.nitems) call readi(iWriteHamilEvery)
+        case("BLOCKEVERYITER")
+!This will block the projected energy every iteration with the aim of achieving accurate error estimates. However, this does require a small amount of additional communication.
+            tBlockEveryIteration=.true.
         case("PRINTFCIMCPSI")
             tPrintFCIMCPsi=.true.
             tCalcFCIMCPsi=.true.
