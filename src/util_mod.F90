@@ -68,6 +68,11 @@ end function
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module util_mod
     implicit none
+    private
+
+    public :: swap, arr_lt, arr_gt, operator(.arrlt.), operator(.arrgt.)
+    public factrl, choose, int_fmt
+    
 
     ! Note that in these interfaces we do NOT include a version for reals, as
     ! we are using -r8 in the compile scripts --> real == real*8.
@@ -80,8 +85,20 @@ module util_mod
         module procedure swap_cplx
     end interface
 
-    ! Provide operators for array comparison
+    ! Provide operators for array comparison. Would like to use arr_gt, arr_lt
+    ! but fortran requires operators to only consist of letters
     ! Not defined for complex data types, as ordering not defined.
+    interface operator (.arrgt.)
+        module procedure arr_gt_int
+        module procedure arr_gt_doub
+    end interface
+
+    interface operator (.arrlt.)
+        module procedure arr_lt_int
+        module procedure arr_lt_doub
+    end interface
+
+    ! And a function interface to the same
     interface arr_gt
         module procedure arr_gt_int
         module procedure arr_gt_doub
@@ -91,7 +108,7 @@ module util_mod
         module procedure arr_lt_int
         module procedure arr_lt_doub
     end interface
-    
+
 contains
 
     ! Swap routines for different variable types.

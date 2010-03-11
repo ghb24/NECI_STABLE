@@ -32,7 +32,7 @@
             do j = lo + 1, hi; \
                 a = arr(:,j); \
                 do i = j - 1, 1, -1; \
-                    if (arr_lt(arr(:,i), a)) exit; \
+                    if (arr(:,i) .arrlt. a) exit; \
                     arr(:,i+1) = arr(:,i); \
                 enddo; \
                 arr(:,i+1) = a; \
@@ -50,11 +50,11 @@
             pivot = (lo + hi) / 2; \
             call swap (arr(:,pivot), arr(:,lo + 1)); \
 \
-            if (arr_gt(arr(:,lo), arr(:,hi))) \
+            if (arr(:,lo) .arrgt. arr(:,hi)) \
                 call swap (arr(:,lo), arr(:,hi)); \
-            if (arr_gt(arr(:,lo+1), arr(:,hi))) \
+            if (arr(:,lo+1) .arrgt. arr(:,hi)) \
                 call swap (arr(:,lo+1), arr(:,hi)); \
-            if (arr_gt(arr(:,lo), arr(:,lo+1))) \
+            if (arr(:,lo) .arrgt. arr(:,lo+1)) \
                 call swap (arr(:,lo), arr(:,lo+1)); \
 \
             i = lo + 1; \
@@ -63,13 +63,13 @@
             do while (.true.); \
                 /* Scand down list to find element > a */ \
                 i = i + 1; \
-                do while (arr_lt(arr(:,i), a)); \
+                do while (arr(:,i) .arrlt. a); \
                     i = i + 1; \
                 enddo; \
 \
                 /* Scan down list to find element < a */ \
                 j = j - 1; \
-                do while (arr_gt(arr(:,j), a)); \
+                do while (arr(:,j) .arrgt. a); \
                     j = j - 1; \
                 enddo; \
 \
@@ -107,7 +107,7 @@ end subroutine
 
 
 module quicksort
-    use util_mod, only: arr_gt, arr_lt, swap
+    use util_mod, only: swap, operator(.arrgt.), operator(.arrlt.)
     use mt95, only: genrand_real2
     implicit none
 
