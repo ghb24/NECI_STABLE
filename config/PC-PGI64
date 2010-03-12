@@ -2,18 +2,18 @@
 fc = pgf90
 f90flags = -Mfree 
 compiler = PGI-pgf95-on-LINUX
-cc = pgcc
-ccd = gcc
+cc = pgCC
+ccd = g++
 cpp = cpp -C -traditional
 cppflags =  -D__Linux -DPOINTER8
 ld = pgf90
-libs = -L ~/src/lib/fftw-3.1.2/lib -L ~/lib/fftw-3.1.2/lib -lfftw3 -llapack -lblas
+libs = -L ~/src/lib/fftw-3.1.2/lib -L ~/lib/fftw-3.1.2/lib -lfftw3 -llapack -lblas -pgcpplibs
 module_flag = -module
 
 [dbg]
-fflags = -g -r8 pc=64 -Msignextend -Minform=warn -Msecond_underscore
+fflags = -g -r8 pc=64 -Msignextend -Minform=warn
 cflags = -g -sb -C -errtags
 
 [opt]
-fflags = -r8 pc=64 -Msignextend -Minform=warn -Msecond_underscore -O4 -fast
+fflags = -r8 pc=64 -Msignextend -Minform=warn -O4 -fast
 cflags = -O

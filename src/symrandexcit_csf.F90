@@ -11,7 +11,7 @@ module GenRandSymExcitCSF
                    get_num_csfs, csf_apply_yama, csf_get_yamas, write_yama, &
                    get_csf_yama, num_csf_dets, csf_get_random_det, iscsf, &
                    det_to_random_csf
-    use mt95, only: genrand_real2
+    use dSFMT_interface, only: genrand_close_open
     use GenRandSymExcitNUMod, only: ClassCountInd, GenRandSymExcitScratchNU
     use DetBitOps, only: EncodeBitDet, DecodeBitDet, is_canonical_ms_order, &
                          shift_det_bit_singles_to_beta, count_open_orbs
@@ -129,7 +129,7 @@ contains
             case (4)
                 IC = 2
             case default
-                call genrand_real2(r)
+                r = genrand_close_open()
                 if ((r < pSingle) .and. btest(exFlag, 1)) then
                     IC = 1
                 else if ((r < pSingle+pDouble) .and. btest(exFlag,2)) then
@@ -312,7 +312,7 @@ contains
 
         ! Draw orbitals randomly until we find one unoccupied
         do i=1,250
-            call genrand_real2 (r)
+            r = genrand_close_open()
             orb = 2 * int(r*nBasis/2) + 1 ! beta
 
             ! If exciting to self, or to the other source, this is either
@@ -393,7 +393,7 @@ contains
         full_ind = ClassCountInd(2, sym(2), Ml(2))
         norbs = OrbClassCount(full_ind)
         do i=1,250
-            call genrand_real2 (r)
+            r = genrand_close_open()
             orb = int(r * norbs)
             ind = SymLabelCounts2(1,full_ind) + orb
             orb = SymLabelList2(ind)
@@ -510,7 +510,7 @@ contains
             elecs(1) = elec
             orbs(1) = orb
             do i=1,250
-                call genrand_real2 (r)
+                r = genrand_close_open()
                 elec = int(nel*r) + 1
                 orb = iand(nI(elec), csf_orbital_mask)
 
@@ -633,7 +633,7 @@ contains
         ! 250 attempts to pick randomly
         do i=1,250
             ! Pick an electron at random, and extract its orbital
-            call genrand_real2(r)
+            r = genrand_close_open()
             elec = int(nel*r) + 1
             orb = iand(nI(elec), csf_orbital_mask)
 
@@ -677,7 +677,7 @@ contains
         ! This is method 2 from symrandexcit2.
         norbs = OrbClassCount(symEx)
         do i=1,250
-         call genrand_real2(r)
+         r = genrand_close_open()
             orb2 = int(norbs*r)
             ind = SymLabelCounts2(1,symEx) + orb2
             orb2 = SymLabelList2(ind)

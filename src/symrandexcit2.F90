@@ -31,14 +31,13 @@ MODULE GenRandSymExcitNUMod
     use Determinants, only: get_helement, write_det
     use SymData, only: nSymLabels,TwoCycleSymGens
     use SymData, only: SymLabelList,SymLabelCounts
-    use mt95 , only : genrand_real2
+    use dSFMT_interface , only : genrand_close_open
     use SymExcitDataMod 
     use HElem
     use DetBitOps, only: FindExcitBitDet
     use sltcnd_mod, only: sltcnd_1
+    use constants, only: dp
     IMPLICIT NONE
-
-    INTEGER , PARAMETER :: r2=kind(0.d0)
 
     contains
 
@@ -96,7 +95,7 @@ MODULE GenRandSymExcitNUMod
             pDoubNew=pDoub
 
             IF(tMerTwist) THEN
-                CALL genrand_real2(r)
+                r = genrand_close_open()
             ELSE
                 CALL RANLUX(r,1)
             ENDIF
@@ -197,7 +196,7 @@ MODULE GenRandSymExcitNUMod
             pDoubNew=pDoub
 
             IF(tMerTwist) THEN
-                CALL genrand_real2(r)
+                r = genrand_close_open()
             ELSE
                 CALL RANLUX(r,1)
             ENDIF
@@ -316,9 +315,9 @@ MODULE GenRandSymExcitNUMod
         INTEGER :: ForbiddenOrbs,NExcitA,NExcitB,NExcitOtherWay
         REAL*8 :: pGen!,PabGivenij
 
-!        PabGivenij=(1.D0/real((NExcitA-ForbiddenOrbs),r2))*((1.D0/real(NExcitB,r2))+(1.D0/real(NExcitOtherWay,r2)))
-!        pGen=pDoubNew*(1.D0/real(ElecPairs,r2))*PabGivenij
-        pGen=pDoubNew*((1.D0/real(NExcitB,r2))+(1.D0/real(NExcitOtherWay,r2)))/(REAL((ElecPairs*(NExcitA-ForbiddenOrbs)),r2))
+!        PabGivenij=(1.D0/real((NExcitA-ForbiddenOrbs),dp))*((1.D0/real(NExcitB,dp))+(1.D0/real(NExcitOtherWay,dp)))
+!        pGen=pDoubNew*(1.D0/real(ElecPairs,dp))*PabGivenij
+        pGen=pDoubNew*((1.D0/real(NExcitB,dp))+(1.D0/real(NExcitOtherWay,dp)))/(REAL((ElecPairs*(NExcitA-ForbiddenOrbs)),dp))
 
     END SUBROUTINE FindDoubleProb
 
@@ -379,7 +378,7 @@ MODULE GenRandSymExcitNUMod
 
 !Choose the unoccupied orbital to exite to
             IF(tMerTwist) THEN
-                CALL genrand_real2(r)
+                r = genrand_close_open()
             ELSE
                 CALL RANLUX(r,1)
             ENDIF
@@ -438,7 +437,7 @@ MODULE GenRandSymExcitNUMod
                 
 !Draw randomly from the set of orbitals
                 IF(tMerTwist) THEN
-                    CALL genrand_real2(r)
+                    r = genrand_close_open()
                 ELSE
                     CALL RANLUX(r,1)
                 ENDIF
@@ -838,7 +837,7 @@ MODULE GenRandSymExcitNUMod
 
 !Choose the unoccupied orbital to excite to
                     IF(tMerTwist) THEN
-                        CALL genrand_real2(r)
+                        r = genrand_close_open()
                     ELSE
                         CALL RANLUX(r,1)
                     ENDIF
@@ -875,7 +874,7 @@ MODULE GenRandSymExcitNUMod
                         
 !Draw randomly from the set of orbitals
                         IF(tMerTwist) THEN
-                            CALL genrand_real2(r)
+                            r = genrand_close_open()
                         ELSE
                             CALL RANLUX(r,1)
                         ENDIF
@@ -910,7 +909,7 @@ MODULE GenRandSymExcitNUMod
 ! ==========================
 
                     IF(tMerTwist) THEN
-                        CALL genrand_real2(r)
+                        r = genrand_close_open()
                     ELSE
                         CALL RANLUX(r,1)
                     ENDIF
@@ -954,7 +953,7 @@ MODULE GenRandSymExcitNUMod
                         
 !Draw randomly from the set of orbitals
                         IF(tMerTwist) THEN
-                            CALL genrand_real2(r)
+                            r = genrand_close_open()
                         ELSE
                             CALL RANLUX(r,1)
                         ENDIF
@@ -1117,7 +1116,7 @@ MODULE GenRandSymExcitNUMod
         IF(IndInp.eq.-1) THEN
 !Find an index randomly.
             IF(tMerTwist) THEN
-                CALL genrand_real2(r)
+                r = genrand_close_open()
             ELSE
                 CALL RANLUX(r,1)
             ENDIF
@@ -1130,7 +1129,7 @@ MODULE GenRandSymExcitNUMod
 !X is number of elements at positions larger than ind
         X=ElecPairs-Ind
 !K is the number of complete rows after the element ind
-        K=INT((SQRT(8.D0*REAL(X,r2)+1.D0)-1.D0)/2.D0)
+        K=INT((SQRT(8.D0*REAL(X,dp)+1.D0)-1.D0)/2.D0)
         Elec1Ind=NEl-1-K
         Elec2Ind=NEl-X+((K*(K+1))/2)
 
@@ -1238,7 +1237,7 @@ MODULE GenRandSymExcitNUMod
 
 !Choose an electron randomly...
             IF(tMerTwist) THEN
-                CALL genrand_real2(r)
+                r = genrand_close_open()
             ELSE
                 CALL RANLUX(r,1)
             ENDIF
@@ -1290,7 +1289,7 @@ MODULE GenRandSymExcitNUMod
 
 !Choose the unoccupied orbital to exite to
         IF(tMerTwist) THEN
-            CALL genrand_real2(r)
+            r = genrand_close_open()
         ELSE
             CALL RANLUX(r,1)
         ENDIF
@@ -1358,7 +1357,7 @@ MODULE GenRandSymExcitNUMod
                 
 !Draw randomly from the set of orbitals
                 IF(tMerTwist) THEN
-                    CALL genrand_real2(r)
+                    r = genrand_close_open()
                 ELSE
                     CALL RANLUX(r,1)
                 ENDIF
@@ -1407,8 +1406,8 @@ MODULE GenRandSymExcitNUMod
 
 !Now we need to find the probability of creating this excitation.
 !This is: P_single x P(i) x P(a|i) x N/(N-ElecsWNoExcits)
-!        pGen=(1.D0-pDoubNew)*(1.D0/real(NEl,r2))*(1.D0/real(NExcit,r2))*((real(NEl,r2))/(real((NEl-ElecsWNoExcits),r2)))
-        pGen=(1.D0-pDoubNew)/(REAL((NExcit*(NEl-ElecsWNoExcits)),r2))
+!        pGen=(1.D0-pDoubNew)*(1.D0/real(NEl,dp))*(1.D0/real(NExcit,dp))*((real(NEl,dp))/(real((NEl-ElecsWNoExcits),dp)))
+        pGen=(1.D0-pDoubNew)/(REAL((NExcit*(NEl-ElecsWNoExcits)),dp))
 
 !        WRITE(6,*) "ElecsWNoExcits: ",ElecsWNoExcits
 
@@ -1538,8 +1537,8 @@ MODULE GenRandSymExcitNUMod
 !Now we need to find the probability of creating this excitation.
 !This is: P_single x P(i) x P(a|i) x N/(N-ElecsWNoExcits)
 !Prob of generating a single is 1-pDoub
-!            pGen=(1.D0-pDoub)*(1.D0/real(NEl,r2))*(1.D0/real(NExcitA,r2))*((real(NEl,r2))/(real((NEl-ElecsWNoExcits),r2)))
-            pGen=(1.D0-pDoub)/(REAL((NExcitA*(NEl-ElecsWNoExcits)),r2))
+!            pGen=(1.D0-pDoub)*(1.D0/real(NEl,dp))*(1.D0/real(NExcitA,dp))*((real(NEl,dp))/(real((NEl-ElecsWNoExcits),dp)))
+            pGen=(1.D0-pDoub)/(REAL((NExcitA*(NEl-ElecsWNoExcits)),dp))
 
         ELSE
 !Prob of generating a double excitation.
@@ -1625,9 +1624,9 @@ MODULE GenRandSymExcitNUMod
                 NExcitOtherWay=NExcitOtherWay-1     !The same goes for the probabilities the other way round.
             ENDIF
 
-!            PabGivenij=(1.D0/real((NExcitA-ForbiddenOrbs),r2))*((1.D0/real(NExcitB,r2))+(1.D0/real(NExcitOtherWay,r2)))
-!            pGen=pDoub*(1.D0/real(ElecPairs,r2))*PabGivenij
-            pGen=pDoub*((1.D0/real(NExcitB,r2))+(1.D0/real(NExcitOtherWay,r2)))/(REAL((ElecPairs*(NExcitA-ForbiddenOrbs)),r2))
+!            PabGivenij=(1.D0/real((NExcitA-ForbiddenOrbs),dp))*((1.D0/real(NExcitB,dp))+(1.D0/real(NExcitOtherWay,dp)))
+!            pGen=pDoub*(1.D0/real(ElecPairs,dp))*PabGivenij
+            pGen=pDoub*((1.D0/real(NExcitB,dp))+(1.D0/real(NExcitOtherWay,dp)))/(REAL((ElecPairs*(NExcitA-ForbiddenOrbs)),dp))
 !            WRITE(6,*) "***",pDoubNew,NExcitB,NExcitOtherWay,ElecPairs,NExcitA,ForbiddenOrbs,ElecSym,iSpn,SymA,SymB
 
         ENDIF
@@ -1700,7 +1699,7 @@ MODULE GenRandSymExcitNUMod
             IF(pDoubNew.gt.1.D0) CALL Stop_All(this_routine,"pDoub is greater than 1")
 
             IF(tMerTwist) THEN
-                CALL genrand_real2(r)
+                r = genrand_close_open()
             ELSE
                 CALL RANLUX(r,1)
             ENDIF
@@ -1785,7 +1784,7 @@ MODULE GenRandSymExcitNUMod
 
 !Choose an electron randomly...
             IF(tMerTwist) THEN
-                CALL genrand_real2(r)
+                r = genrand_close_open()
             ELSE
                 CALL RANLUX(r,1)
             ENDIF
@@ -1850,7 +1849,7 @@ MODULE GenRandSymExcitNUMod
             ExcitMat(2,1)=OrbA
             rh = sltcnd_1 (nI, ExcitMat, .false.)
         
-            SpawnProb(VecInd)=abs(REAL(rh%v,r2))
+            SpawnProb(VecInd)=abs(REAL(rh%v,dp))
             SpawnOrb(VecInd)=OrbA
             NormProb=NormProb+SpawnProb(VecInd)
             VecInd=VecInd+1
@@ -1867,11 +1866,11 @@ MODULE GenRandSymExcitNUMod
         ENDIF
 
 !We now have to find out how many children to spawn, based on the value of normprob.
-        rat=Tau*NormProb*REAL((NEl-ElecsWNoExcits)*nParts,r2)/(1.D0-PDoubNew)
+        rat=Tau*NormProb*REAL((NEl-ElecsWNoExcits)*nParts,dp)/(1.D0-PDoubNew)
         iCreate=INT(rat)
         rat=rat-REAL(iCreate)
         IF(tMerTwist) THEN
-            CALL genrand_real2(r)
+            r = genrand_close_open()
         ELSE
             CALL RANLUX(r,1)
         ENDIF
@@ -1883,7 +1882,7 @@ MODULE GenRandSymExcitNUMod
         IF(iCreate.gt.0) THEN
 !We want to spawn particles. This only question now is where. Run through the ab pairs again and choose based on the SpawnProb element.
             IF(tMerTwist) THEN
-                CALL genrand_real2(r)
+                r = genrand_close_open()
             ELSE
                 CALL RANLUX(r,1)
             ENDIF
@@ -2075,7 +2074,7 @@ MODULE GenRandSymExcitNUMod
                     Hel=Hel-GETUMATEL(NBASISMAX,UMAT,ALAT,nBasis,iSpinSkip,G1,SpatOrbi,SpatOrbj,j,SpatOrba)
                 ENDIF
 
-                SpawnProb(VecInd)=abs(REAL(Hel%v,r2))
+                SpawnProb(VecInd)=abs(REAL(Hel%v,dp))
                 SpawnOrbs(1,VecInd)=i
                 SpawnOrbs(2,VecInd)=OrbB
                 NormProb=NormProb+SpawnProb(VecInd)
@@ -2094,11 +2093,11 @@ MODULE GenRandSymExcitNUMod
         ENDIF
 
 !We now have to find out how many children to spawn, based on the value of normprob.
-        rat=Tau*NormProb*REAL(ElecPairs*nParts,r2)/PDoubNew
+        rat=Tau*NormProb*REAL(ElecPairs*nParts,dp)/PDoubNew
         iCreate=INT(rat)
         rat=rat-REAL(iCreate)
         IF(tMerTwist) THEN
-            CALL genrand_real2(r)
+            r = genrand_close_open()
         ELSE
             CALL RANLUX(r,1)
         ENDIF
@@ -2110,7 +2109,7 @@ MODULE GenRandSymExcitNUMod
         IF(iCreate.gt.0) THEN
 !We want to spawn particles. This only question now is where. Run through the ab pairs again and choose based on the SpawnProb element.
             IF(tMerTwist) THEN
-                CALL genrand_real2(r)
+                r = genrand_close_open()
             ELSE
                 CALL RANLUX(r,1)
             ENDIF
@@ -2138,7 +2137,7 @@ MODULE GenRandSymExcitNUMod
 
         Use SystemData , only : G1,NEl,tMerTwist,nOccAlpha,nOccBeta
         Use SystemData , only : NMAXX,NMAXY,NMAXZ,NIfTot
-        use mt95 , only : genrand_real2
+        use dSFMT_interface , only : genrand_close_open
 
         INTEGER :: i,nI(NEl),nJ(NEl),Elec1Ind,Elec2Ind,iSpn,iLutnI(0:NIfTot),kx,ky,kz,ktest(2),kb_ms,ms_sum
         INTEGER :: ChosenUnocc,Hole1BasisNum,Hole2BasisNum,ki(3),kj(3),ka(3),kb(3),ExcitMat(2,2),iSpinIndex
@@ -2149,7 +2148,7 @@ MODULE GenRandSymExcitNUMod
         ! This currently allows b orbitals to be created that are disallowed
         DO
             IF(tMerTwist) THEN
-                CALL genrand_real2(r)
+                r = genrand_close_open()
             ELSE
                 CALL RANLUX(r,1)
             ENDIF
@@ -2304,7 +2303,7 @@ MODULE GenRandSymExcitNUMod
     SUBROUTINE CreateExcitLattice(nI,iLutnI,nJ,tParity,ExcitMat,pGen)
         Use SystemData , only : G1,NEl,tMerTwist
         Use SystemData , only : NMAXX,NMAXY,NMAXZ,NIfTot
-        use mt95 , only : genrand_real2
+        use dSFMT_interface , only : genrand_close_open
 
         INTEGER :: i,j ! Loop variables
         INTEGER :: Elec1, Elec2
@@ -2319,10 +2318,10 @@ MODULE GenRandSymExcitNUMod
          
         ! Completely random ordering of electrons is important when considering ij->ab ij/->ba. This affects pgens for alpha/beta pairs.
         IF(tMerTwist) THEN
-            CALL genrand_real2(r(1))
+            r(1) = genrand_close_open()
             Elec1=INT(r(1)*NEl+1)
             DO
-                CALL genrand_real2(r(2))
+                r(2) = genrand_close_open()
                 Elec2=INT(r(2)*NEl+1)
                 IF(Elec2.ne.Elec1) EXIT
             ENDDO
@@ -2457,7 +2456,7 @@ MODULE GenRandSymExcitNUMod
         
         Use SystemData , only : G1,NEl,tMerTwist
         Use SystemData , only : NMAXX,NMAXY,NMAXZ,NIfTot
-        use mt95 , only : genrand_real2
+        use dSFMT_interface , only : genrand_close_open
 
         INTEGER :: i,j ! Loop variables
         INTEGER :: Elec1, Elec2, Hole1, Hole2,ms_sum,kx,ky,kz,ktest(2)
@@ -2474,10 +2473,10 @@ MODULE GenRandSymExcitNUMod
         DO
             ! Completely random ordering of electrons is important when considering ij->ab ij/->ba. This affects pgens for alpha/beta pairs.
             IF(tMerTwist) THEN
-                CALL genrand_real2(r(1))
+                r(1) = genrand_close_open()
                 Elec1=INT(r(1)*NEl+1)
                 DO
-                    CALL genrand_real2(r(2))
+                    r(2) = genrand_close_open()
                     Elec2=INT(r(2)*NEl+1)
                     IF(Elec2.ne.Elec1) EXIT
                 ENDDO
@@ -2493,10 +2492,10 @@ MODULE GenRandSymExcitNUMod
             rejections=rejections+1
 
             IF(tMerTwist) THEN
-                CALL genrand_real2(r(3))
+                r(3) = genrand_close_open()
                 Hole1=INT(r(3)*nBasis+1)
                 DO
-                    CALL genrand_real2(r(4))
+                    r(4) = genrand_close_open()
                     Hole2=INT(r(4)*nBasis+1)
                     IF(Hole1.ne.Hole2) EXIT
                 ENDDO

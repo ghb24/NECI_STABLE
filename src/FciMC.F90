@@ -13,10 +13,9 @@ USE global_utilities
 USE Logging , only : iWritePopsEvery,TPopsFile,TZeroProjE,TWriteDetE,MaxHistE,NoHistBins
 USE HElem
 use DetBitOps, only: EncodeBitDet
+use constants, only: dp
 IMPLICIT NONE
 SAVE
-
-INTEGER, PARAMETER :: r2=kind(0.d0)
 
 TYPE ExcitGenerator
     INTEGER , ALLOCATABLE :: ExcitData(:)      !This stores the excitation generator
@@ -281,7 +280,7 @@ SUBROUTINE PerformFCIMCyc()
 !However, we need to take into account that the determinants have different connectivity (mainly due to symmetry reasons)
 !Therefore we need to accept, dividing the probability by the uniform probability of selecting a determinant (1/conn)
 !This is then unbiased at the energy estimator again, so the PGen is divided by it...
-                        UniformPGen=1.D0/REAL(iCount,r2)
+                        UniformPGen=1.D0/REAL(iCount,dp)
                         Child=AttemptCreate(CurrentDets(:,j),CurrentSign(j),nJ,UniformPGen,IC)
                         Prob=Prob/UniformPGen
                     ELSE
@@ -311,13 +310,13 @@ SUBROUTINE PerformFCIMCyc()
 !Only need it for double excitations, since these are the only ones which contribute to energy
                         HOffDiag = get_helement(HFDet, nJ, 2)
                         HDiagTemp = get_helement (nJ, nJ, 0)
-                        HDiag=(REAL(HDiagTemp%v,r2))-Hii
+                        HDiag=(REAL(HDiagTemp%v,dp))-Hii
                     ELSEIF(ExcitLevel.eq.0) THEN
 !We know we are at HF - HDiag=0
                         HDiag=0.D0
                     ELSE
                         HDiagTemp = get_helement (nJ, nJ, 0)
-                        HDiag=(REAL(HDiagTemp%v,r2))-Hii
+                        HDiag=(REAL(HDiagTemp%v,dp))-Hii
                     ENDIF
 
                     do l=1,abs(Child)
@@ -327,7 +326,7 @@ SUBROUTINE PerformFCIMCyc()
                         IF(.not.TRegenExcitgens) NewExcits(VecSlot)%ExitGenForDet=.false.
                         NewIC(VecSlot)=ExcitLevel
                         NewH(1,VecSlot)=HDiag      !Diagonal H-element-Hii
-                        NewH(2,VecSlot)=REAL(HOffDiag%v,r2)       !Off-diagonal H-element
+                        NewH(2,VecSlot)=REAL(HOffDiag%v,dp)       !Off-diagonal H-element
                         IF(TUnbiasPGeninProjE) NewPGen(VecSlot)=Prob
                         VecSlot=VecSlot+1
                     enddo
@@ -682,7 +681,7 @@ SUBROUTINE PerformFCIMCyc()
                     HDiag=0.D0
                 ELSE
                     HDiagTemp = get_helement (nJ, nJ, 0)
-                    HDiag=(REAL(HDiagTemp%v,r2))-Hii
+                    HDiag=(REAL(HDiagTemp%v,dp))-Hii
                 ENDIF
 
                 do l=1,abs(Child)
@@ -692,7 +691,7 @@ SUBROUTINE PerformFCIMCyc()
                     IF(.not.TRegenExcitgens) NewExcits(VecSlot)%ExitGenForDet=.false.
                     NewIC(VecSlot)=ExcitLevel
                     NewH(1,VecSlot)=HDiag      !Diagonal H-element-Hii
-                    NewH(2,VecSlot)=REAL(HOffDiag%v,r2)       !Off-diagonal H-element
+                    NewH(2,VecSlot)=REAL(HOffDiag%v,dp)       !Off-diagonal H-element
                     VecSlot=VecSlot+1
                 enddo
                     
@@ -772,7 +771,7 @@ SUBROUTINE PerformFCIMCyc()
             ENDIF
             IF(nJ(1).eq.0) EXIT
             HConn = get_helement (CurrentDets(:,Walker), nJ, IC)
-            HConnReal=REAL(HConn%v,r2)
+            HConnReal=REAL(HConn%v,dp)
             IF(HConnReal.lt.0.D0) THEN
 !Connection is negative, therefore attempt to create a particle there - we are running through all walkers, so Prob=1.D0
                 Child=AttemptCreate(CurrentDets(:,Walker),CurrentSign(Walker),nJ,1.D0,IC,HConnReal)
@@ -798,7 +797,7 @@ SUBROUTINE PerformFCIMCyc()
                         HDiag=0.D0
                     ELSE
                         HDiagTemp = get_helement (nJ, nJ, 0)
-                        HDiag=(REAL(HDiagTemp%v,r2))-Hii
+                        HDiag=(REAL(HDiagTemp%v,dp))-Hii
                     ENDIF
 
                     do l=1,abs(Child)
@@ -808,7 +807,7 @@ SUBROUTINE PerformFCIMCyc()
                         IF(.not.TRegenExcitgens) NewExcits(VecSlot)%ExitGenForDet=.false.
                         NewIC(VecSlot)=ExcitLevel
                         NewH(1,VecSlot)=HDiag      !Diagonal H-element-Hii
-                        NewH(2,VecSlot)=REAL(HOffDiag%v,r2)       !Off-diagonal H-element
+                        NewH(2,VecSlot)=REAL(HOffDiag%v,dp)       !Off-diagonal H-element
                         VecSlot=VecSlot+1
                     enddo
                                 
@@ -897,7 +896,7 @@ SUBROUTINE PerformFCIMCyc()
 
 !First find how many to create at the root determinant
         Create=INT(abs(GraphVec(1)))
-        rat=abs(GraphVec(1))-REAL(Create,r2)
+        rat=abs(GraphVec(1))-REAL(Create,dp)
         IF(rat.gt.Ran2(Seed)) Create=Create+1
         IF(.not.WSign) Create=-Create
         IF(GraphVec(1).lt.0.D0) Create=-Create
@@ -920,7 +919,7 @@ SUBROUTINE PerformFCIMCyc()
             GraphVec(i)=GraphVec(i)/((NDets-1)*Prob)    !Augment the component by the chances of picking that determinant
 
             Create=INT(abs(GraphVec(i)))
-            rat=abs(GraphVec(i))-REAL(Create,r2)    !rat is now the fractional part, to be assigned stochastically
+            rat=abs(GraphVec(i))-REAL(Create,dp)    !rat is now the fractional part, to be assigned stochastically
             IF(rat.gt.Ran2(Seed)) Create=Create+1
             IF(abs(Create).gt.0) THEN
                 IF(.not.WSign) Create=-Create
@@ -945,7 +944,7 @@ SUBROUTINE PerformFCIMCyc()
                     NewSign(VecSlot)=ChildSign
                     NewIC(VecSlot)=ExcitLevel
                     NewH(1,VecSlot)=GraphKii(i)       !Diagonal H El previously stored
-                    NewH(2,VecSlot)=REAL(HOffDiag%v,r2)
+                    NewH(2,VecSlot)=REAL(HOffDiag%v,dp)
                     IF(.not.TRegenExcitgens) NewExcits(VecSlot)%ExitGenForDet=.false.
                     VecSlot=VecSlot+1
                 enddo
@@ -1009,7 +1008,7 @@ SUBROUTINE PerformFCIMCyc()
                 DetsinGraph(:,i)=nJ(:)
 !First find connection to root
                 Hamij = get_helement(nI, nJ, IC)
-                GraphRhoMat(1,i)=-Tau*REAL(Hamij%v,r2)
+                GraphRhoMat(1,i)=-Tau*REAL(Hamij%v,dp)
                 GraphRhoMat(i,1)=GraphRhoMat(1,i)
 
 !Then find connection to other determinants
@@ -1017,13 +1016,13 @@ SUBROUTINE PerformFCIMCyc()
                 do j=2,(i-1)
                     call EncodeBitDet (DetsInGraph(:,j), iLutTmp)
                     Hamij = get_helement(nJ, DetsInGraph(:,j), iLutnJ,iLutTmp)
-                    GraphRhoMat(i,j)=-Tau*REAL(Hamij%v,r2)
+                    GraphRhoMat(i,j)=-Tau*REAL(Hamij%v,dp)
                     GraphRhoMat(j,i)=GraphRhoMat(i,j)
                 enddo
 
 !Find diagonal element - and store it for later on...
                 Hamii = get_helement (nJ, nJ, 0)
-                GraphKii(i)=REAL(Hamii%v,r2)-Hii                !Again, the root value is not stored
+                GraphKii(i)=REAL(Hamii%v,dp)-Hii                !Again, the root value is not stored
                 GraphRhoMat(i,i)=1.D0-Tau*(GraphKii(i)-DiagSft)
 
                 i=i+1
@@ -1143,12 +1142,12 @@ SUBROUTINE PerformFCIMCyc()
 !            STOP
 !        ENDIF
 
-        MeanExcitLevel=(MeanExcitLevel/(real(SumWalkersCyc,r2)))
-        AvSign=AvSign/real(SumWalkersCyc,r2)
+        MeanExcitLevel=(MeanExcitLevel/(real(SumWalkersCyc,dp)))
+        AvSign=AvSign/real(SumWalkersCyc,dp)
         ProjectionE=SumENum/SumNoatHF
-        AccRat=(REAL(Acceptances,r2))/(REAL(SumWalkersCyc,r2))
+        AccRat=(REAL(Acceptances,dp))/(REAL(SumWalkersCyc,dp))
         ProjectionMP2=((SumHOverlapMP2/SumOverlapMP2)-Hii)/2.D0
-        AvConnection=SumConnections/REAL(SumWalkersCyc,r2)
+        AvConnection=SumConnections/REAL(SumWalkersCyc,dp)
 
 !Write out MC cycle number, Shift, Change in Walker no, Growthrate, New Total Walkers...
         IF(TProjEMP2) THEN
@@ -1205,7 +1204,7 @@ SUBROUTINE PerformFCIMCyc()
         REAL*8 :: Hij0      !This is the hamiltonian matrix element between DetCurr and HF
         REAL*8 :: DetE
 
-        MeanExcitLevel=MeanExcitLevel+real(ExcitLevel,r2)
+        MeanExcitLevel=MeanExcitLevel+real(ExcitLevel,dp)
         IF(MinExcitLevel.gt.ExcitLevel) MinExcitLevel=ExcitLevel
         IF(MaxExcitLevel.lt.ExcitLevel) MaxExcitLevel=ExcitLevel
         IF(ExcitLevel.eq.0) THEN
@@ -1305,7 +1304,7 @@ SUBROUTINE PerformFCIMCyc()
         IF(ExcitLevel.eq.2) THEN
 
             TempFjj=GetH0Element3(DetCurr)
-            MP1Compt=-Hij0/(Fii-(REAL(TempFjj%v,r2)))
+            MP1Compt=-Hij0/(Fii-(REAL(TempFjj%v,dp)))
             IF(WSign) THEN
                 SumOverlapMP2=SumOverlapMP2+MP1Compt
             ELSE
@@ -1394,14 +1393,14 @@ SUBROUTINE PerformFCIMCyc()
 !Excitation is less than or equal to a double - find connection to original walker
                     Hijtemp = get_helement (DetCurr, nJ, 2)
                     IF(WSign) THEN
-                        Hij=REAL(Hijtemp%v,r2)
+                        Hij=REAL(Hijtemp%v,dp)
                     ELSE
-                        Hij=-REAL(Hijtemp%v,r2)
+                        Hij=-REAL(Hijtemp%v,dp)
                     ENDIF
 !Find MP1 excitation compt
                     TempFjj=GetH0Element3(nJ)
                     Hij2temp = get_helement (HFDet, nJ, nJ_IC)
-                    MP1Compt=-(REAL(Hij2temp%v,r2))/(Fii-(REAL(TempFjj%v,r2)))
+                    MP1Compt=-(REAL(Hij2temp%v,dp))/(Fii-(REAL(TempFjj%v,dp)))
                     SumHOverlapMP2=SumHOverlapMP2+(MP1Compt*Hij)
 
 !...and then find overlap of this excitation with the MP1 wavefunction
@@ -1438,16 +1437,16 @@ SUBROUTINE PerformFCIMCyc()
 !                    OrbB=OrbB-NEl
 !                    
 !!Add <MP1|H|Psi>
-!                    SumHOverlapMP2=SumHOverlapMP2+(MP2ExcitComps(OrbI,OrbJ,OrbA,OrbB)*(real(Hijtemp%v,r2)))
+!                    SumHOverlapMP2=SumHOverlapMP2+(MP2ExcitComps(OrbI,OrbJ,OrbA,OrbB)*(real(Hijtemp%v,dp)))
 
                 ELSEIF(nJ_IC.eq.0) THEN
 !Excitation is the HF determinant - find connection to it
 
                     Hijtemp = get_helement (DetCurr, nJ, 0)
                     IF(WSign) THEN
-                        Hij=REAL(Hijtemp%v,r2)
+                        Hij=REAL(Hijtemp%v,dp)
                     ELSE
-                        Hij=-REAL(Hijtemp%v,r2)
+                        Hij=-REAL(Hijtemp%v,dp)
                     ENDIF
 
                     SumHOverlapMP2=SumHOverlapMP2+Hij
@@ -1690,7 +1689,7 @@ SUBROUTINE PerformFCIMCyc()
         LOGICAL :: WiSign,WjSign,AttemptAnn
 
         AttemptAnn=.false.
-        ConnStrength=REAL(Hij%v,r2)*Lambda
+        ConnStrength=REAL(Hij%v,dp)*Lambda
         IF(ConnStrength.lt.0.D0) THEN
 !Particles have a chance of annihilation if they are of opposite sign
             IF(WiSign) THEN
@@ -1715,7 +1714,7 @@ SUBROUTINE PerformFCIMCyc()
             ENDIF
         ENDIF
         ConnStrength=ABS(ConnStrength)
-        IF(ConnStrength.gt.1.D0) WRITE(6,*) "Warning - Annihilation/Reinforcing probability > 1",REAL(Hij%v,r2)
+        IF(ConnStrength.gt.1.D0) WRITE(6,*) "Warning - Annihilation/Reinforcing probability > 1",REAL(Hij%v,dp)
 
         IF(Ran2(Seed).gt.ConnStrength) THEN
             AttemptAnnihilatDist=0
@@ -1845,10 +1844,10 @@ SUBROUTINE PerformFCIMCyc()
 
 !Calculate Hii
         TempHii = get_helement (HFDet, HFDet, 0)
-        Hii=REAL(TempHii%v,r2)          !Diagonal Hamiltonian element for the HF determinant
+        Hii=REAL(TempHii%v,dp)          !Diagonal Hamiltonian element for the HF determinant
 
         TempHii=GetH0Element3(HFDet)
-        Fii=REAL(TempHii%v,r2)          !Fock-energy of the HF determinant
+        Fii=REAL(TempHii%v,dp)          !Fock-energy of the HF determinant
 
         IF(TPopsFile.and.(mod(iWritePopsEvery,StepsSft).ne.0)) THEN
             CALL Warning("InitFCIMCCalc","POPSFILE writeout should be a multiple of the update cycle length.")
@@ -2060,7 +2059,7 @@ SUBROUTINE PerformFCIMCyc()
                 enddo
             ENDIF
 
-            WRITE(6,"(A,F14.6,A)") "Initial memory (without excitgens) consists of : ",REAL(MemoryAlloc,r2)/1048576.D0," Mb"
+            WRITE(6,"(A,F14.6,A)") "Initial memory (without excitgens) consists of : ",REAL(MemoryAlloc,dp)/1048576.D0," Mb"
             WRITE(6,*) "Initial memory allocation sucessful..."
             CALL FLUSH(6)
 
@@ -2085,7 +2084,7 @@ SUBROUTINE PerformFCIMCyc()
                     enddo
                 ENDIF
                 MemoryAlloc=((INT(HFExcit%nExcitMemLen,8))+2)*4*INT(MaxWalkers,8)
-                WRITE(6,"(A,F14.6,A)") "Probable maximum memory for excitgens is : ",REAL(MemoryAlloc,r2)/1048576.D0," Mb" 
+                WRITE(6,"(A,F14.6,A)") "Probable maximum memory for excitgens is : ",REAL(MemoryAlloc,dp)/1048576.D0," Mb" 
                 WRITE(6,*) "Initial allocation of excitation generators successful..."
                 CALL FLUSH(6)
             ELSE
@@ -2177,8 +2176,8 @@ SUBROUTINE PerformFCIMCyc()
         WRITE(19,*) "# Determinant_energy_bin     Number from each excitation level..."
         
         do j=1,NoHistBins
-            LowEnergyofbin=(j-1)*MaxHistE/real(NoHistBins,r2)
-            HighEnergyofbin=j*MaxHistE/real(NoHistBins,r2)
+            LowEnergyofbin=(j-1)*MaxHistE/real(NoHistBins,dp)
+            HighEnergyofbin=j*MaxHistE/real(NoHistBins,dp)
             MeanEnergyofbin=(LowEnergyofbin+HighEnergyofbin)/2.D0
             WRITE(19,'(F20.10,I15)',advance='no') MeanEnergyofbin,EHistBins(1,j)
             do i=2,NEl-1
@@ -2287,8 +2286,8 @@ SUBROUTINE PerformFCIMCyc()
             Hij = get_helement (HFDet, nJ, iExcit)
             CALL GetH0Element(nJ,NEl,Arr,nBasis,ECore,Fjj)
 
-            Compt=real(Hij%v,r2)/(Fii-(REAL(Fjj%v,r2)))     !Calculate MP1 components
-            MP1Hij(VecSlot)=real(Hij%v,r2)                  !Store Hij to give to particles
+            Compt=real(Hij%v,dp)/(Fii-(REAL(Fjj%v,dp)))     !Calculate MP1 components
+            MP1Hij(VecSlot)=real(Hij%v,dp)                  !Store Hij to give to particles
             IF(Compt.lt.0.D0) THEN
                 MP1Sign(VecSlot)=.false.
                 IF(MP1Hij(VecSlot).lt.0.D0) THEN
@@ -2301,7 +2300,7 @@ SUBROUTINE PerformFCIMCyc()
             MP1Dets(1:NEl,VecSlot)=nJ(:)
             MP1Comps(VecSlot)=MP1Comps(VecSlot-1)+abs(Compt)
             SumMP1Compts=SumMP1Compts+abs(Compt)
-            MP2Energy=MP2Energy+((real(Hij%v,r2))**2)/(Fii-(REAL(Fjj%v,r2)))
+            MP2Energy=MP2Energy+((real(Hij%v,dp))**2)/(Fii-(REAL(Fjj%v,dp)))
 
             VecSlot=VecSlot+1
 
@@ -2354,7 +2353,7 @@ SUBROUTINE PerformFCIMCyc()
                 CurrentSign(j)=MP1Sign(i)
                 CurrentH(2,j)=MP1Hij(i)     !This is the off-diagonal element to HF det
                 Hjj = get_helement (MP1Dets(:,i), MP1Dets(:,i), 0)
-                CurrentH(1,j)=real(Hjj%v,r2)-Hii
+                CurrentH(1,j)=real(Hjj%v,dp)-Hii
             ENDIF
 
         enddo
@@ -2373,7 +2372,7 @@ SUBROUTINE PerformFCIMCyc()
         DEALLOCATE(MP1Hij)
         CALL LogMemDealloc(this_routine,MP1HijTag)
 
-        WRITE(6,"(A,F14.6,A)") "Initial memory (without excitgens) consists of : ",REAL(MemoryAlloc,r2)/1048576.D0," Mb"
+        WRITE(6,"(A,F14.6,A)") "Initial memory (without excitgens) consists of : ",REAL(MemoryAlloc,dp)/1048576.D0," Mb"
         WRITE(6,*) "Initial memory allocation sucessful..."
         CALL FLUSH(6)
 
@@ -2400,7 +2399,7 @@ SUBROUTINE PerformFCIMCyc()
                     CurrentExcits(i)%ExitgenForDet=.false.
                 ENDIF
             enddo
-            WRITE(6,"(A,F14.6,A)") "Probable maximum memory for excitgens is : ",REAL(MemoryAlloc,r2)/1048576.D0," Mb" 
+            WRITE(6,"(A,F14.6,A)") "Probable maximum memory for excitgens is : ",REAL(MemoryAlloc,dp)/1048576.D0," Mb" 
             WRITE(6,*) "Initial allocation of excitation generators successful..."
             CALL FLUSH(6)
         ELSE
@@ -2492,14 +2491,14 @@ SUBROUTINE PerformFCIMCyc()
             Denom=Arr(ExcitForm(2,1),2)-Arr(ExcitForm(1,1),2)+Arr(ExcitForm(2,2),2)-Arr(ExcitForm(1,2),2)
             Hij = get_helement (HFDet, nJ, iExcit)
 
-!            MP2ExcitComps(I,J,A,B)=-REAL(Hij%v,r2)/Denom    !Store MP2 Wavefunction
-            MP1Comp=-REAL(Hij%v,r2)/Denom
+!            MP2ExcitComps(I,J,A,B)=-REAL(Hij%v,dp)/Denom    !Store MP2 Wavefunction
+            MP1Comp=-REAL(Hij%v,dp)/Denom
             IF((ABS(MP1Comp)).gt.MaxCompt) THEN 
 !Find the maximum component of the MP2 wavefunction
                 MaxCompt=ABS(MP1Comp)
                 MaxComptDet(:)=nJ(:)
             ENDIF
-            MP2Energy=MP2Energy-(REAL(Hij%v,r2)**2)/Denom   !Calculate MP2 Energy
+            MP2Energy=MP2Energy-(REAL(Hij%v,dp)**2)/Denom   !Calculate MP2 Energy
 
         enddo
 
@@ -2695,7 +2694,7 @@ SUBROUTINE PerformFCIMCyc()
             
         MemoryAlloc=((2*NEl)+12)*4*MaxWalkers
 
-        WRITE(6,"(A,F14.6,A)") "Initial memory (without excitgens) consists of : ",REAL(MemoryAlloc,r2)/1048576.D0," Mb"
+        WRITE(6,"(A,F14.6,A)") "Initial memory (without excitgens) consists of : ",REAL(MemoryAlloc,dp)/1048576.D0," Mb"
         WRITE(6,*) "Initial memory allocation sucessful..."
         CALL FLUSH(6)
 
@@ -2725,9 +2724,9 @@ SUBROUTINE PerformFCIMCyc()
             IF(CurrentIC(j).eq.2) THEN
 !Only need it for double excitations, since these are the only ones which contribute to energy
                 HElemTemp = get_helement (HFDet, CurrentDets(:,j), 2)
-                CurrentH(2,j)=REAL(HElemTemp%v,r2)
+                CurrentH(2,j)=REAL(HElemTemp%v,dp)
                 HElemTemp = get_helement (CurrentDets(:,j),CurrentDets(:,j),0)
-                CurrentH(1,j)=REAL(HElemTemp%v,r2)-Hii
+                CurrentH(1,j)=REAL(HElemTemp%v,dp)-Hii
                 IF(.not.TRegenExcitgens) CurrentExcits(j)%ExitGenForDet=.false.
             ELSEIF(CurrentIC(j).eq.0) THEN
 !We know we are at HF - HDiag=0, and can use HF excitgen
@@ -2738,7 +2737,7 @@ SUBROUTINE PerformFCIMCyc()
             ELSE
                 IF(.not.TRegenExcitgens) CurrentExcits(j)%ExitGenForDet=.false.
                 HElemTemp = get_helement (CurrentDets(:,j),CurrentDets(:,j),0)
-                CurrentH(1,j)=(REAL(HElemTemp%v,r2))-Hii
+                CurrentH(1,j)=(REAL(HElemTemp%v,dp))-Hii
                 CurrentH(2,j)=0.D0
             ENDIF
 
@@ -2746,7 +2745,7 @@ SUBROUTINE PerformFCIMCyc()
             
         IF(.not.TRegenExcitgens) THEN
             MemoryAlloc=((INT(HFExcit%nExcitMemLen,8))+2)*4*INT(MaxWalkers,8)
-            WRITE(6,"(A,F14.6,A)") "Probable maximum memory for excitgens is : ",REAL(MemoryAlloc,r2)/1048576.D0," Mb" 
+            WRITE(6,"(A,F14.6,A)") "Probable maximum memory for excitgens is : ",REAL(MemoryAlloc,dp)/1048576.D0," Mb" 
             WRITE(6,*) "Initial allocation of excitation generators successful..."
             CALL FLUSH(6)
         ELSE
@@ -2969,10 +2968,10 @@ SUBROUTINE PerformFCIMCyc()
             rh = get_helement(DetCurr, nJ, IC)
         ENDIF
 
-        SumConnections=SumConnections+REAL(rh%v,r2)     !Sum the connections (success and failure) to find average connection strength
+        SumConnections=SumConnections+REAL(rh%v,dp)     !Sum the connections (success and failure) to find average connection strength
 
 !Divide by the probability of creating the excitation to negate the fact that we are only creating a few determinants
-        rat=Tau*abs(REAL(rh%v,r2))/Prob
+        rat=Tau*abs(REAL(rh%v,dp))/Prob
 
 !If probability is > 1, then we can just create multiple children at the chosen determinant
         ExtraCreate=INT(rat)
@@ -3200,7 +3199,7 @@ END FUNCTION Fact
 !
 !            Create=INT(abs(GraphVec(i)))
 !
-!            rat=abs(GraphVec(i))-REAL(Create,r2)    !rat is now the fractional part, to be assigned stochastically
+!            rat=abs(GraphVec(i))-REAL(Create,dp)    !rat is now the fractional part, to be assigned stochastically
 !            IF(rat.gt.Ran2(Seed)) Create=Create+1
 !            IF(.not.WSign) Create=-Create
 !            IF(GraphVec(i).lt.0.D0) Create=-Create
@@ -3369,8 +3368,8 @@ END FUNCTION Fact
 !
 !!Find diagonal element for root determinant
 !        Hamii=GetHElement2(nI,nI,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,0,ECore)
-!!        GraphRhoMat(1,1)=1.D0-Tau*((REAL(Hamii%v,r2)-REAL(Hii%v,r2))-(DiagSft/REAL(RhoApp,r2)))
-!        GraphRhoMat(1,1)=1.D0-Tau*((REAL(Hamii%v,r2)-REAL(Hii%v,r2))-DiagSft)
+!!        GraphRhoMat(1,1)=1.D0-Tau*((REAL(Hamii%v,dp)-REAL(Hii%v,dp))-(DiagSft/REAL(RhoApp,dp)))
+!        GraphRhoMat(1,1)=1.D0-Tau*((REAL(Hamii%v,dp)-REAL(Hii%v,dp))-DiagSft)
 !
 !        IF(TResumAllConns) THEN
 !!We want to run through all possible connections to nI...
@@ -3384,20 +3383,20 @@ END FUNCTION Fact
 !
 !!First find connection to root
 !                Hamij=GetHElement2(nI,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,IC,ECore)
-!                GraphRhoMat(1,i)=-Tau*REAL(Hamij%v,r2)
+!                GraphRhoMat(1,i)=-Tau*REAL(Hamij%v,dp)
 !                GraphRhoMat(i,1)=GraphRhoMat(1,i)
 !
 !!Then find connection to other determinants
 !                do j=2,(i-1)
 !                    Hamij=GetHElement2(nJ,DetsInGraph(:,j),NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,-1,ECore)
-!                    GraphRhoMat(i,j)=-Tau*REAL(Hamij%v,r2)
+!                    GraphRhoMat(i,j)=-Tau*REAL(Hamij%v,dp)
 !                    GraphRhoMat(j,i)=GraphRhoMat(i,j)
 !                enddo
 !
 !!Find diagonal element
 !                Hamii=GetHElement2(nJ,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,0,ECore)
-!!                GraphRhoMat(i,i)=1.D0-(Tau*((REAL(Hamii%v,r2)-REAL(Hii%v,r2))-(DiagSft/REAL(RhoApp,r2))))
-!                GraphRhoMat(i,i)=1.D0-Tau*((REAL(Hamii%v,r2)-REAL(Hii%v,r2))-DiagSft)
+!!                GraphRhoMat(i,i)=1.D0-(Tau*((REAL(Hamii%v,dp)-REAL(Hii%v,dp))-(DiagSft/REAL(RhoApp,dp))))
+!                GraphRhoMat(i,i)=1.D0-Tau*((REAL(Hamii%v,dp)-REAL(Hii%v,dp))-DiagSft)
 !                i=i+1   !Increment counter
 !            
 !            enddo   !loop over excitations
@@ -3436,20 +3435,20 @@ END FUNCTION Fact
 !
 !!First find connection to root
 !                    Hamij=GetHElement2(nI,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,IC,ECore)
-!                    GraphRhoMat(1,i)=-Tau*REAL(Hamij%v,r2)
+!                    GraphRhoMat(1,i)=-Tau*REAL(Hamij%v,dp)
 !                    GraphRhoMat(i,1)=GraphRhoMat(1,i)
 !
 !!Then find connection to other determinants
 !                    do j=2,(i-1)
 !                        Hamij=GetHElement2(nJ,DetsInGraph(:,j),NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,-1,ECore)
-!                        GraphRhoMat(i,j)=-Tau*REAL(Hamij%v,r2)
+!                        GraphRhoMat(i,j)=-Tau*REAL(Hamij%v,dp)
 !                        GraphRhoMat(j,i)=GraphRhoMat(i,j)
 !                    enddo
 !
 !!Find diagonal element
 !                    Hamii=GetHElement2(nJ,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,0,ECore)
-!!                GraphRhoMat(i,i)=1.D0-(Tau*((REAL(Hamii%v,r2)-REAL(Hii%v,r2))-(DiagSft/REAL(RhoApp,r2))))
-!                    GraphRhoMat(i,i)=1.D0-Tau*((REAL(Hamii%v,r2)-REAL(Hii%v,r2))-DiagSft)
+!!                GraphRhoMat(i,i)=1.D0-(Tau*((REAL(Hamii%v,dp)-REAL(Hii%v,dp))-(DiagSft/REAL(RhoApp,dp))))
+!                    GraphRhoMat(i,i)=1.D0-Tau*((REAL(Hamii%v,dp)-REAL(Hii%v,dp))-DiagSft)
 !
 !                    i=i+1   !increment the excit counter
 !                    Attempts=0      !Reset the attempts counter
@@ -3834,10 +3833,10 @@ END FUNCTION Fact
 !
 !!Add to the estimate for the energy if we want to keep the particle
 !                    IF(ActiveVecSign(j)) THEN
-!                        IF(Iter.gt.NEquilSteps) EnergyNum=EnergyNum+(REAL(Hamij%v,r2))
+!                        IF(Iter.gt.NEquilSteps) EnergyNum=EnergyNum+(REAL(Hamij%v,dp))
 !                        NoPositive=NoPositive+1
 !                    ELSE
-!                        IF(Iter.gt.NEquilSteps) EnergyNum=EnergyNum-(REAL(Hamij%v,r2))
+!                        IF(Iter.gt.NEquilSteps) EnergyNum=EnergyNum-(REAL(Hamij%v,dp))
 !                        NoNegative=NoNegative+1
 !                    ENDIF
 !                    IF(IC.eq.0) THEN
@@ -3872,10 +3871,10 @@ END FUNCTION Fact
 !
 !!Add to the estimate for the energy if we want to keep the particle
 !                        IF(ActiveVecSign(j)) THEN
-!                            IF(Iter.gt.NEquilSteps) EnergyNum=EnergyNum+(REAL(Hamij%v,r2))
+!                            IF(Iter.gt.NEquilSteps) EnergyNum=EnergyNum+(REAL(Hamij%v,dp))
 !                            NoPositive=NoPositive+1
 !                        ELSE
-!                            IF(Iter.gt.NEquilSteps) EnergyNum=EnergyNum-(REAL(Hamij%v,r2))
+!                            IF(Iter.gt.NEquilSteps) EnergyNum=EnergyNum-(REAL(Hamij%v,dp))
 !                            NoNegative=NoNegative+1
 !                        ENDIF
 !                        IF(IC.eq.0) THEN
@@ -3903,11 +3902,11 @@ END FUNCTION Fact
 !!Calculate the time average of the numerator and demonimator to calculate the running average of the energy - this will then not be affected by the case when there aren't any particles at the HF determinant
 !        SumNoatHF=SumNoatHF+NoatHF
 !        SumENum=SumENum+EnergyNum
-!        ProjectionE=(SumENum/(SumNoatHF+0.D0))-REAL(Hii%v,r2)
+!        ProjectionE=(SumENum/(SumNoatHF+0.D0))-REAL(Hii%v,dp)
 !
 !        IF(NoatHF.ne.0) THEN
 !!The energy cannot be calculated via the projection back onto the HF if there are no particles at HF
-!            SumE=SumE+((EnergyNum/(NoatHF+0.D0))-(REAL(Hii%v,r2)))
+!            SumE=SumE+((EnergyNum/(NoatHF+0.D0))-(REAL(Hii%v,dp)))
 !            ProjectionEInst=SumE/((Iter-CycwNoHF)+0.D0)
 !        ELSE
 !            CycwNoHF=CycwNoHF+1         !Record the fact that there are no particles at HF in this run, so we do not bias the average
@@ -4997,7 +4996,7 @@ END FUNCTION Fact
 !        CALL SetupExitgen(FDet,ExcitGens(1),nExcitMemLen,TotExcits)
 !        ICWalk(1)=0
 !        Hi0Array(1)=Hii
-!        HiiArray(1)=real(Hii%v,r2)
+!        HiiArray(1)=real(Hii%v,dp)
 !
 !        do i=2,InitWalkers
 !!Copy the excitation generator for FDet to all the other initial walkers
@@ -5008,10 +5007,10 @@ END FUNCTION Fact
 !            enddo
 !            ICWalk(i)=0
 !            Hi0Array(i)=Hii
-!            HiiArray(i)=real(Hii%v,r2)
+!            HiiArray(i)=real(Hii%v,dp)
 !        enddo
 !
-!        SumENum=real(Hii%v,r2)*InitWalkers
+!        SumENum=real(Hii%v,dp)*InitWalkers
 !        SumNoatHF=InitWalkers
 !
 !        SumDeathProb=0.D0
@@ -5022,16 +5021,16 @@ END FUNCTION Fact
 !!Cycle over all walkers
 !
 !!First we have to see if we're going to perform a self-hop, or allow an attempt at a diffusive move.
-!!                rat=Tau/(HiiArray(j)-(real(Hii%v,r2))-DiagSft)      !This is the probability of self-hopping, rather than attempting a diffusive move
-!!                rat=Tau*((HiiArray(j)/(real(Hii%v,r2)))-DiagSft)      !This is the probability of self-hopping, rather than attempting a diffusive move
-!                rat=0.8*(1.D0-Tau*((HiiArray(j)-(real(Hii%v,r2)))-DiagSft))      !This is the probability of self-hopping, rather than attempting a diffusive move
+!!                rat=Tau/(HiiArray(j)-(real(Hii%v,dp))-DiagSft)      !This is the probability of self-hopping, rather than attempting a diffusive move
+!!                rat=Tau*((HiiArray(j)/(real(Hii%v,dp)))-DiagSft)      !This is the probability of self-hopping, rather than attempting a diffusive move
+!                rat=0.8*(1.D0-Tau*((HiiArray(j)-(real(Hii%v,dp)))-DiagSft))      !This is the probability of self-hopping, rather than attempting a diffusive move
 !                                                        !Higher excitations have smaller prob, so resampled fewer times and lower excitations sampled for longer.
 !
 !                IF((rat.lt.0.D0).or.(rat.gt.1.D0)) CALL Stop_All("DiffusionMC","Incorrect self-hop probability")
 !                IF(rat.gt.Ran2(Seed)) THEN
 !!We want to self-hop. Resum in energy, but to not allow an attempted move away from excit. We also update the effect on the shift later.
 !                        
-!                        SumENum=SumENum+(real(Hi0Array(j)%v,r2))
+!                        SumENum=SumENum+(real(Hi0Array(j)%v,dp))
 !                        IF(ICWalk(j).eq.0) SumNoatHF=SumNoatHF+1
 !                        NewHii=HiiArray(j)
 !
@@ -5044,7 +5043,7 @@ END FUNCTION Fact
 !                    Hik=GetHElement2(CurrentDets(:,j),nK,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,NMax,ALat,UMat,ICK,ECore)
 !
 !!Attempt diffusion away to nJ
-!                    rat=Tau*abs(real(Hij%v,r2))/ProbJ
+!                    rat=Tau*abs(real(Hij%v,dp))/ProbJ
 !                
 !                    IF(rat.gt.1.D0) CALL Stop_All("AttemptDiffuse","*** Probability > 1 to diffuse.")
 !
@@ -5053,7 +5052,7 @@ END FUNCTION Fact
 !                   
 !                        CurrentDets(:,j)=nJ(:)
 !
-!                        IF(real(Hij%v,r2).gt.0.D0) THEN
+!                        IF(real(Hij%v,dp).gt.0.D0) THEN
 !!This is the anti-diffusion
 !                            IF(CurrentSign(j)) THEN
 !!Walker is positive
@@ -5069,10 +5068,10 @@ END FUNCTION Fact
 !                        ICWalk(j)=iGetExcitLevel(FDet,nJ,NEl)
 !                        IF(ICWalk(j).eq.2) THEN
 !                            Hi0Array(j)=GetHElement2(FDet,nJ,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,NMax,ALat,UMat,2,ECore)
-!                            SumENum=SumENum+(real(Hi0Array(j)%v,r2))
+!                            SumENum=SumENum+(real(Hi0Array(j)%v,dp))
 !                        ELSEIF(ICWalk(j).eq.0) THEN
 !                            Hi0Array(j)=Hii
-!                            SumENum=SumENum+(real(Hii%v,r2))
+!                            SumENum=SumENum+(real(Hii%v,dp))
 !                            SumNoatHF=SumNoatHF+1
 !                        ELSE
 !                            Hi0Array(j)=HElement(0.D0)
@@ -5082,12 +5081,12 @@ END FUNCTION Fact
 !                        CALL SetupExitgen(nJ,ExcitGens(j),nExcitMemLen,TotExcits)
 !
 !                        tempHii=GetHElement2(nJ,nJ,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,NMax,ALat,UMat,0,ECore)
-!                        NewHii=real(tempHii%v,r2)  !This is the new diagonal matrix element
+!                        NewHii=real(tempHii%v,dp)  !This is the new diagonal matrix element
 !                                                                                                       
 !                    ELSE
 !!Attempted diffusion away is not successful - still need to update the energy
 !                    
-!                        SumENum=SumENum+(real(Hi0Array(j)%v,r2))
+!                        SumENum=SumENum+(real(Hi0Array(j)%v,dp))
 !                        IF(ICWalk(j).eq.0) SumNoatHF=SumNoatHF+1
 !                        NewHii=HiiArray(j)
 !
@@ -5095,7 +5094,7 @@ END FUNCTION Fact
 !
 !                ENDIF
 !
-!                rat=Tau*(((HiiArray(j)-(real(Hii%v,r2)))-DiagSft)-(abs(real(Hik%v,r2))/ProbK))      !This is the prob of death, adjusted to unbias for the diffusion
+!                rat=Tau*(((HiiArray(j)-(real(Hii%v,dp)))-DiagSft)-(abs(real(Hik%v,dp))/ProbK))      !This is the prob of death, adjusted to unbias for the diffusion
 !
 !                HiiArray(j)=NewHii      !Now we can update the HiiArray to take into account if the walker has moved to a new position
 !
@@ -5103,7 +5102,7 @@ END FUNCTION Fact
 !
 !            enddo   !Finsh cycling over all walkers
 !            
-!            ProjectionE=(SumENum/(SumNoatHF+0.D0))-REAL(Hii%v,r2)
+!            ProjectionE=(SumENum/(SumNoatHF+0.D0))-REAL(Hii%v,dp)
 !
 !            IF(mod(Iter,StepsSft).eq.0) THEN
 !        

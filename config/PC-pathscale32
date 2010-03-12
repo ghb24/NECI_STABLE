@@ -1,19 +1,15 @@
 [main]
 fc = pathf95
-cc = pathcc
+cc = pathCC
 ld = pathf95
-libs = -L ~/src/lib/fftw-3.1.2/lib -L ~/local/lib/pathscale/fftw-3.1.2/lib -lfftw3 -llapack -lblas
+libs = -L ~/src/lib/fftw-3.1.2/lib -L ~/local/lib/pathscale/fftw-3.1.2/lib -lfftw3 -llapack -lblas -lstdc++
 cpp = cpp -C -traditional
 cppflags =  -D__Linux
 compiler = pathf95 -on-LINUX
 module_flag = -module
 
 [dbg]
-fflags = -r8 -g
+fflags = -r8 -g -fno-second-underscore
 
 [opt]
-fflags = -r8 -O3
-
-
-
-
+fflags = -r8 -O3 -fno-second-underscore

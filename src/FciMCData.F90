@@ -1,11 +1,11 @@
 MODULE FciMCData
       USE HElem
       USE global_utilities
+      use constants, only: dp
       IMPLICIT NONE
       SAVE
 
       INTEGER , PARAMETER :: Root=0   !This is the rank of the root processor
-      INTEGER , PARAMETER :: r2=kind(0.d0)
       INTEGER , PARAMETER :: i2=SELECTED_INT_KIND(18)
 !      REAL*8 , PARAMETER :: HEpsilon=0.D+0
     
@@ -31,7 +31,7 @@ MODULE FciMCData
       INTEGER , ALLOCATABLE , TARGET :: WalkVecDets(:,:),WalkVec2Dets(:,:)                !Contains determinant list
       INTEGER , ALLOCATABLE , TARGET :: WalkVecSign(:),WalkVec2Sign(:)                    !Contains sign list (1 = positive, -1 = negative)
 !      INTEGER , ALLOCATABLE , TARGET :: WalkVecIC(:),WalkVec2IC(:)                        !Contains excit level list
-      REAL(KIND=r2) , ALLOCATABLE , TARGET :: WalkVecH(:),WalkVec2H(:)                    !Diagonal hamiltonian element
+      REAL(KIND=dp) , ALLOCATABLE , TARGET :: WalkVecH(:),WalkVec2H(:)                    !Diagonal hamiltonian element
       INTEGER , ALLOCATABLE :: IndexTable(:),Index2Table(:)                               !Indexing for the annihilation
       INTEGER , ALLOCATABLE :: ProcessVec(:),Process2Vec(:)                               !Index for process rank of original walker
       INTEGER(KIND=i2) , ALLOCATABLE :: HashArray(:),Hash2Array(:)                         !Hashes for the walkers when annihilating
@@ -55,7 +55,7 @@ MODULE FciMCData
       INTEGER :: ParentInitiator,NoAborted,AllNoAborted                     !This is a variable for the CASSTAR approximation - keeps track of where spawned walkers have come from.
       INTEGER :: NoAbortedInCAS,NoAbortedOutCAS,NoInCAS,NoOutCAS
       REAL*8 :: AllGrowRateAbort
-      REAL(KIND=r2) :: AllNoAbortedOld 
+      REAL(KIND=dp) :: AllNoAbortedOld 
       INTEGER :: NoAddedInitiators,NoInitDets,NoNonInitDets,NoInitWalk,NoNonInitWalk,NoDoubSpawns
       INTEGER :: AllNoAddedInitiators,AllNoInitDets,AllNoNonInitDets,AllNoInitWalk,AllNoNonInitWalk,AllNoDoubSpawns
       INTEGER :: NoExtraInitDoubs,AllNoExtraInitDoubs
@@ -110,7 +110,7 @@ MODULE FciMCData
       REAL*8 :: AllGrowRate
 !      REAL*8 :: AllMeanExcitLevel
 !      INTEGER :: AllMinExcitLevel
-      REAL(KIND=r2) :: AllTotWalkers,AllTotWalkersOld,AllTotParts,AllTotPartsOld!,AllDetsNorm
+      REAL(KIND=dp) :: AllTotWalkers,AllTotWalkersOld,AllTotParts,AllTotPartsOld!,AllDetsNorm
 !      INTEGER :: AllMaxExcitLevel
       INTEGER(KIND=i2) :: AllSumWalkersCyc
       INTEGER :: AllAnnihilated,AllNoatHF,AllNoatDoubs,AllLocalAnn
@@ -192,11 +192,11 @@ MODULE FciMCData
 
       REAL(4) :: IterTime
     
-      REAL(KIND=r2) , ALLOCATABLE :: Histogram(:),AllHistogram(:),InstHist(:),AllInstHist(:),AttemptHist(:),AllAttemptHist(:),SpawnHist(:),AllSpawnHist(:)
-      REAL(KIND=r2) , ALLOCATABLE :: AvAnnihil(:),AllAvAnnihil(:),InstAnnihil(:),AllInstAnnihil(:)
-      REAL(KIND=r2) , ALLOCATABLE :: SinglesAttemptHist(:),AllSinglesAttemptHist(:),SinglesHist(:),AllSinglesHist(:),DoublesHist(:),AllDoublesHist(:),DoublesAttemptHist(:),AllDoublesAttemptHist(:)
-      REAL(KIND=r2) , ALLOCATABLE :: SinglesHistOccOcc(:),SinglesHistOccVirt(:),SinglesHistVirtOcc(:),SinglesHistVirtVirt(:)
-      REAL(KIND=r2) , ALLOCATABLE :: AllSinglesHistOccOcc(:),AllSinglesHistVirtOcc(:),AllSinglesHistOccVirt(:),AllSinglesHistVirtVirt(:)
+      REAL(KIND=dp) , ALLOCATABLE :: Histogram(:),AllHistogram(:),InstHist(:),AllInstHist(:),AttemptHist(:),AllAttemptHist(:),SpawnHist(:),AllSpawnHist(:)
+      REAL(KIND=dp) , ALLOCATABLE :: AvAnnihil(:),AllAvAnnihil(:),InstAnnihil(:),AllInstAnnihil(:)
+      REAL(KIND=dp) , ALLOCATABLE :: SinglesAttemptHist(:),AllSinglesAttemptHist(:),SinglesHist(:),AllSinglesHist(:),DoublesHist(:),AllDoublesHist(:),DoublesAttemptHist(:),AllDoublesAttemptHist(:)
+      REAL(KIND=dp) , ALLOCATABLE :: SinglesHistOccOcc(:),SinglesHistOccVirt(:),SinglesHistVirtOcc(:),SinglesHistVirtVirt(:)
+      REAL(KIND=dp) , ALLOCATABLE :: AllSinglesHistOccOcc(:),AllSinglesHistVirtOcc(:),AllSinglesHistOccVirt(:),AllSinglesHistVirtVirt(:)
 
       INTEGER :: MaxDet,iOffDiagNoBins
       INTEGER , ALLOCATABLE :: HistMinInd(:),HistMinInd2(:)

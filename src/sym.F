@@ -2104,7 +2104,7 @@ C.. Set to be totally symmetric
          use Determinants, only : FDet
          use DetCalc, only : ICILevel
          use SystemData, only : CalcDetCycles, CalcDetPrint,tFixLz
-         use mt95, only : genrand_real2 
+         use dSFMT_interface
          use soft_exit, only : ChangeVars
          use Parallel
          use DetBitops, only: EncodeBitDet
@@ -2178,6 +2178,10 @@ C.. Set to be totally symmetric
      &           form='formatted')
          ENDIF
 
+         ! With MerTwistRan the default seed was being used.
+         ! dSFMT does not initialise itself if not already initialised.
+         call dSFMT_init(5489)
+
          do i=1,CalcDetCycles
 
              TotalSym=0
@@ -2195,7 +2199,7 @@ C.. Set to be totally symmetric
                  tNotAllowed=.true.
                  do while(tNotAllowed)
 
-                     CALL genrand_real2(r)
+                     r = genrand_close_open()
                      alpha=2*(INT(SpatOrbs*r)+1)
                      IF(.not.BTEST(iLut((alpha-1)/32)
      &                      ,mod((alpha-1),32))) THEN
@@ -2233,7 +2237,7 @@ C.. Set to be totally symmetric
 
                  tNotAllowed=.true.
                  do while(tNotAllowed)
-                     CALL genrand_real2(r)
+                     r = genrand_close_open()
                      beta=2*(INT(SpatOrbs*r)+1)-1
                      IF(.not.BTEST(iLut((beta-1)/32)
      &                      ,mod((beta-1),32))) THEN

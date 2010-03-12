@@ -2,11 +2,12 @@
 fc = ftn
 f90flags = -Mfree 
 compiler = PGI-pgf95-on-LINUX
-cc = cc
-ccd = gcc
+cc = CC
+ccd = g++
 cpp = cpp -C -traditional
 cppflags =  -D__Linux -DPOINTER8 -DPARALLEL
 ld = ftn
+libs =  -pgcpplibs
 module_flag = -module
 
 [dbg]

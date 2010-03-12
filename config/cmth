@@ -6,13 +6,13 @@ ldflags = -Bstatic
 compiler = INTEL-ifort9-on-LINUX
 cpp = cpp -C -traditional
 cppflags = -D__Linux -DPOINTER8
-libs = -L ~/src/lib/fftw-3.1.2/lib -L ~/lib/fftw-3.1.2/lib -lfftw3  -lacml -cxxlib
+libs = -L ~/local/lib/lapack-3.1.1/ -L ~/local/lib/fftw-3.2/64/ifort/lib -lfftw3 -llapack -lblas -cxxlib
 module_flag = -module
 
 [dbg]
-fflags = -r8 -g
-cflags = -g -sb -C -errtags
+fflags = -g -traceback
+cflags = -g -traceback
 
 [opt]
-fflags = -r8 -O3 
+fflags = -O3 
 cflags = -O
