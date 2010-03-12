@@ -71,7 +71,7 @@ module util_mod
     private
 
     public :: swap, arr_lt, arr_gt, operator(.arrlt.), operator(.arrgt.)
-    public factrl, choose, int_fmt
+    public factrl, choose, int_fmt, binary_search
     
 
     ! Note that in these interfaces we do NOT include a version for reals, as
