@@ -186,6 +186,29 @@ or using a later version of pathscale---3.2 does not have this problem.
 
 Note that pathscale 3.1 is the default version of pathscale on HECToR.
 
+Compile-time options
+^^^^^^^^^^^^^^^^^^^^
+
+NECI uses C preprocessing to provide various compile-time options.  Many
+definitions are included automatically in the makefile and deal with some
+output options and give information on the codebase; another is for compiling
+the libraries needed for use with complex wavefunctions.
+
+The rest of the options are specified in the configuration files and are
+platform-dependent.  The important definitions are:
+
+HAVE_SSE2
+    The random number generator can use SSE2 instructions if available and
+    results in a substantial saving in the cost of generating random numbers.
+    This option is highly recommended on platforms with SSE2 instructions (the
+    majority of modern machines).
+__Linux
+    Used only in legacy code.  This option needs to be defined on linux platforms.
+PARALLEL
+    This option must be defined in order to compile the code in parallel.
+POINTER8
+    Used only in legacy code.  This option needs to be defined on 64-bit platforms.
+
 CPMD
 ----
 
