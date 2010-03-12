@@ -20,6 +20,8 @@ implicit none
 integer, parameter :: random_store_size=5*10**4
 real(dp), save :: random_store(random_store_size)
 
+! The next unused element in the store of random numbers.
+! WARNING: random_store should be accessed via genrand_real2_dSFMT!
 integer, save :: current_element=1
 
 real(dp), external :: genrand_close_open ! Given in dSFTM_wrapper.cpp.
