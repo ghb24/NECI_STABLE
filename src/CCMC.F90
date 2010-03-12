@@ -76,7 +76,7 @@ MODULE CCMC
 
 !Stochastically choose whether to die or not
         IF(tMerTwist) THEN
-            r = genrand_close_open() 
+            r = genrand_real2_dSFMT() 
         ELSE
             CALL RANLUX(r,1)
         ENDIF
@@ -476,7 +476,7 @@ MODULE CCMC
    ! Calculate the probability that we've reached this far in the loop
                         !We must have at least one excitor, so we cannot exit here.
                         if(i.gt.2) then
-                           r = genrand_close_open()  !On GHB's advice
+                           r = genrand_real2_dSFMT()  !On GHB's advice
                            if(r.lt.dProbSelNewExcitor) exit
                         endif
             
@@ -485,7 +485,7 @@ MODULE CCMC
       ! Select a new random walker
                         k=0
                         do while (k.eq.0)
-                           r = genrand_close_open()  !On GHB's advice
+                           r = genrand_real2_dSFMT()  !On GHB's advice
                            k=1+floor(r*(TotWalkers-1))    !This selects a unique excitor (which may be multiply populated)
                            if(k.ge.iHFDet) k=k+1          !We're not allowed to select the HF det
                            if(CurrentSign(k).eq.0) k=0
@@ -652,7 +652,7 @@ MODULE CCMC
                IF(iCompositeSize.GT.0) THEN
                   dProbDecompose=dNGenComposite
 !                  dProb=dProb/HFcount
-                  r = genrand_close_open()  !On GHB's advice
+                  r = genrand_real2_dSFMT()  !On GHB's advice
                   k=1+floor(r*iCompositeSize)
                   iPartDie=SelectedExcitorIndices(k)
    !Now get the full representation of the dying excitor
@@ -1144,7 +1144,7 @@ END SUBROUTINE IncrementOrderedTuple
 LOGICAL FUNCTION GetNextCluster(CS,Dets,nDet,Amplitude,dTotAbsAmpl,iNumExcitors,iMaxSizeIn,iDebug)
    use CCMCData, only: ClustSelector
    use SystemData, only: nIfTot
-   use dSFMT_interface , only : genrand_close_open
+   use dSFMT_interface , only : genrand_real2_dSFMT
    IMPLICIT NONE
    TYPE(ClustSelector) CS
    INTEGER nDet
@@ -1252,14 +1252,14 @@ LOGICAL FUNCTION GetNextCluster(CS,Dets,nDet,Amplitude,dTotAbsAmpl,iNumExcitors,
       do i=1,iMaxSize
 ! Calculate the probability that we've reached this far in the loop
                   !We must have at least one excitor, so we cannot exit here.
-         r = genrand_close_open()  !On GHB's advice
+         r = genrand_real2_dSFMT()  !On GHB's advice
 
          if(r.lt.CS%dProbSelNewExcitor) exit
 
 ! decide not to choose another walker with this prob.
          dProbNumExcit=dProbNumExcit*(1-CS%dProbSelNewExcitor)
 ! Select a new random walker
-         r = genrand_close_open()  !On GHB's advice
+         r = genrand_real2_dSFMT()  !On GHB's advice
          r=r*dTotAbsAmpl
          dCurTot=0
          do k=2,nDet
@@ -1637,7 +1637,7 @@ END SUBROUTINE
       USE DetCalc , only : ICILevel,Det,FCIDetIndex
       use CalcData, only: Tau,DiagSft,InitWalkers,NEquilSteps
       USE HElem
-      use dSFMT_interface , only : genrand_close_open
+      use dSFMT_interface , only : genrand_real2_dSFMT
       use FciMCParMod, only: WriteFciMCStats, WriteFciMCStatsHeader
       use DetBitOps, only: FindBitExcitLevel
       use constants, only: dp
@@ -2041,7 +2041,7 @@ END SUBROUTINE
 !  We modify the composite (t_a t_b t_c) -> (t_a t_b t_c - x) by changing just one of the parts
 !  t_a -> t_a (1- x/(t_a t_b t_c)).   
                dProbDecompose=1
-               r = genrand_close_open()  !On GHB's advice
+               r = genrand_real2_dSFMT()  !On GHB's advice
                k=1+floor(r*CS%C%iSize)
                iPartDie=CS%C%SelectedExcitorIndices(k)
                if(.true.) then

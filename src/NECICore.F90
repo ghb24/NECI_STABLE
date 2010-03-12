@@ -19,7 +19,6 @@ Subroutine NECICore(iCacheFlag,tCPMD,tVASP)
 
     ! Utility modules.
     use global_utilities
-!    use dSFMT_interface
 
     Implicit none
     integer,intent(in) :: iCacheFlag

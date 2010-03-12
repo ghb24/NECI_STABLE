@@ -5,7 +5,7 @@ MODULE AnnihilationMod
     USE DetCalc , only : Det,FCIDetIndex
     USE Logging , only : tHistSpawn
     USE Parallel
-    USE dSFMT_interface , only : genrand_close_open
+    USE dSFMT_interface , only : genrand_real2_dSFMT
     USE FciMCData
     use DetBitOps, only: DetBitEQ, DetBitLT, FindBitExcitLevel, decodebitdet
     use CalcData , only : tTruncInitiator
@@ -2988,7 +2988,7 @@ MODULE AnnihilationMod
 
                     ! call a random number between 1 and 0.
                     IF(tMerTwist) THEN
-                        r = genrand_close_open() 
+                        r = genrand_real2_dSFMT() 
                     ELSE
                         CALL RANLUX(r,1)
                     ENDIF
@@ -3024,7 +3024,7 @@ MODULE AnnihilationMod
 
                     ! call a random number between 1 and 0.
                     IF(tMerTwist) THEN
-                        r = genrand_close_open() 
+                        r = genrand_real2_dSFMT() 
                     ELSE
                         CALL RANLUX(r,1)
                     ENDIF
@@ -3459,7 +3459,7 @@ MODULE AnnihilationMod
 
                             ! call a random number
                             IF(tMerTwist) THEN
-                                r = genrand_close_open() 
+                                r = genrand_real2_dSFMT() 
                             ELSE
                                 CALL RANLUX(r,1)
                             ENDIF
@@ -3495,7 +3495,7 @@ MODULE AnnihilationMod
                                             tAnnihilateOne=.true.
                                         ELSEIF(MinorSpawnSign(k).eq.0) THEN
                                             IF(tMerTwist) THEN
-                                                r = genrand_close_open() 
+                                                r = genrand_real2_dSFMT() 
                                             ELSE
                                                 CALL RANLUX(r,1)
                                             ENDIF
@@ -3557,7 +3557,7 @@ MODULE AnnihilationMod
 
                             ! call a random number
                             IF(tMerTwist) THEN
-                                r = genrand_close_open() 
+                                r = genrand_real2_dSFMT() 
                             ELSE
                                 CALL RANLUX(r,1)
                             ENDIF
@@ -3580,7 +3580,7 @@ MODULE AnnihilationMod
                                             tAnnihilateOne=.true.
                                         ELSEIF(MinorStarSign(k).eq.0) THEN
                                             IF(tMerTwist) THEN
-                                                r = genrand_close_open() 
+                                                r = genrand_real2_dSFMT() 
                                             ELSE
                                                 CALL RANLUX(r,1)
                                             ENDIF

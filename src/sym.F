@@ -2199,7 +2199,7 @@ C.. Set to be totally symmetric
                  tNotAllowed=.true.
                  do while(tNotAllowed)
 
-                     r = genrand_close_open()
+                     r = genrand_real2_dSFMT()
                      alpha=2*(INT(SpatOrbs*r)+1)
                      IF(.not.BTEST(iLut((alpha-1)/32)
      &                      ,mod((alpha-1),32))) THEN
@@ -2237,7 +2237,7 @@ C.. Set to be totally symmetric
 
                  tNotAllowed=.true.
                  do while(tNotAllowed)
-                     r = genrand_close_open()
+                     r = genrand_real2_dSFMT()
                      beta=2*(INT(SpatOrbs*r)+1)-1
                      IF(.not.BTEST(iLut((beta-1)/32)
      &                      ,mod((beta-1),32))) THEN
