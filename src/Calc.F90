@@ -36,7 +36,7 @@ MODULE Calc
 
 
 !       Calc defaults 
-          tRandomiseHashOrbs=.false.
+          tRandomiseHashOrbs=.true.
           iAnnInterval=1
           tTruncCAS=.false.
           iFullSpaceIter=0
@@ -1016,7 +1016,16 @@ MODULE Calc
 
             case("RANDOMISEHASHORBS")
 !This will create a random 1-to-1 mapping between the orbitals, which should hopefully improve load balancing.
-                tRandomiseHashOrbs=.true.
+                if(item.lt.nitems) then
+                    call readu(w)
+                    select case(w)
+                    case("OFF")
+                        tRandomiseHashOrbs=.false.
+                    end select
+                else
+                    tRandomiseHashOrbs=.true.
+                end if
+
             case("SPAWNASDETS")
 !This is a parallel FCIMC option, which means that the particles at the same determinant on each processor, will choose the same determinant to attempt spawning to and the 
 !probability of a successful spawn will be multiplied by the number of particles on the determinant.
