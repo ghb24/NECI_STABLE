@@ -369,7 +369,7 @@ Subroutine MPIDSumRootArr(dValues, iLen, dReturn, root)
         dReturn(i)=dValues(i)
     enddo
 #endif
-end Subroutine MPIDSumArr
+end Subroutine MPIDSumRootArr
 
 !A wrapper for the mpi_bcast double precision routine, so it can be used in serial
 Subroutine MPIDBCast(dValues,iLen,Root)
