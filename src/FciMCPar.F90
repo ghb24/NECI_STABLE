@@ -2968,7 +2968,7 @@ MODULE FciMCParMod
         CALL MPI_Scatter(NodeSumNoatHF,1,MPI_DOUBLE_PRECISION,SumNoatHF,1,MPI_DOUBLE_PRECISION,root,MPI_COMM_WORLD,error)
 
         IF(tDirectAnnihil) THEN
-            IF(ScaleWalkers.ne.1) CALL Stop_All(this_routine,'Sorry, direct annihilation cannot cope with scaling just yet.')
+!            IF(ScaleWalkers.ne.1) CALL Stop_All(this_routine,'Sorry, direct annihilation cannot cope with scaling just yet.')
             IF(MemoryFacPart.le.1.D0) THEN
                 WRITE(6,*) 'MemoryFacPart must be larger than 1.0 when reading in a POPSFILE - increasing it to 1.50.'
                 MemoryFacPart=1.50
@@ -3288,7 +3288,7 @@ MODULE FciMCParMod
 
         IF(ScaleWalkers.ne.1) THEN
 
-            WRITE(6,*) "Rescaling walkers  by a factor of: ",ScaleWalkers
+            WRITE(6,*) "Rescaling walkers by a factor of: ",ScaleWalkers
 
             IF(tRotoAnnihil) THEN
                 IntegerPart=INT(ScaleWalkers)
@@ -3323,6 +3323,37 @@ MODULE FciMCParMod
                 ENDIF
 
 
+            ELSEIF(tDirectAnnihil) THEN
+! CurrWalkers is the number of determinants on a particular node, AllTotWalkers is the total over all nodes.
+                IntegerPart=INT(ScaleWalkers)
+                FracPart=ScaleWalkers-REAL(IntegerPart)
+
+                do l=1,CurrWalkers
+                    CurrentSign(l)=CurrentSign(l)*IntegerPart
+                    IF(tMerTwist) THEN
+                        r = genrand_real2_dSFMT() 
+                    ELSE
+                        CALL RANLUX(r,1)
+                    ENDIF
+                    IF(r.lt.FracPart) THEN
+!Stochastically create another particle
+                        IF(CurrentSign(l).lt.0) THEN
+                            CurrentSign(l)=CurrentSign(l)-1
+                        ELSE
+                            CurrentSign(l)=CurrentSign(l)+1
+                        ENDIF
+                    ENDIF
+                enddo
+
+                InitWalkers=NINT(InitWalkers*ScaleWalkers)  !New (average) number of initial particles for culling criteria
+!Other parameters don't change (I think) because the number of determinants isn't changing.                
+                TotWalkers=CurrWalkers
+                TotWalkersOld=CurrWalkers
+                IF(iProcIndex.eq.root) THEN
+!                    AllTotWalkers=TotWalkers
+                    AllTotWalkersOld=AllTotWalkers
+                    WRITE(6,'(A,I10)') " Number of initial walkers on this processor is now: ",INT(TotWalkers,i2)
+                ENDIF
             ELSE
 
 !Allocate memory for walkvec2, which will temporarily hold walkers
@@ -3413,13 +3444,13 @@ MODULE FciMCParMod
             ENDIF
                 
             IF(tDirectAnnihil) THEN
-                IF(iProcIndex.eq.root) THEN
-                    AllTotWalkers=TotWalkers
-                    AllTotWalkersOld=AllTotWalkers
-                    WRITE(6,'(A,I10)') " Number of initial walkers on this processor is now: ",INT(AllTotWalkers,i2)
-                ENDIF
                 TotWalkers=CurrWalkers
                 TotWalkersOld=CurrWalkers
+                IF(iProcIndex.eq.root) THEN
+!                    AllTotWalkers=TotWalkers
+                    AllTotWalkersOld=AllTotWalkers
+                    WRITE(6,'(A,I10)') " Number of initial walkers on this processor is now: ",INT(TotWalkers,i2)
+                ENDIF
             ELSE
 
                 TotWalkers=TempInitWalkers      !Set the total number of walkers
