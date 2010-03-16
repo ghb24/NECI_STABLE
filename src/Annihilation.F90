@@ -250,7 +250,7 @@ MODULE AnnihilationMod
 !inside or outside the active space.  This is different from before where two children spawned on the same determinant with the same sign, but both from outside the active
 !space will be killed.
                         SpawnedParts2(NIfTot,VecInd)=0
-                        NoDoubSpawns=NoDoubSpawns+1
+                        NoDoubSpawns=NoDoubSpawns+1.D0
                     ENDIF
                 ENDIF
                 SpawnedSign2(VecInd)=SpawnedSign2(VecInd)+SpawnedSign(i)
@@ -1567,7 +1567,7 @@ MODULE AnnihilationMod
 !If we are doing a CAS star calculation - then if the walkers that are left after annihilation have been spawned from determinants outside the active space,
 !then it is like these have been spawned on an unoccupied determinant and they are killed.
                             IF(SpawnedParts(NIfTot,i).eq.1) THEN
-                                NoAborted=NoAborted+ABS(SpawnedSign(i))
+                                NoAborted=NoAborted+ABS(REAL(SpawnedSign(i)))
 !                                WRITE(6,'(I20,A,3I20)') SpawnedSign(i),'walkers aborted from determinant:',SpawnedParts(:,i)
                                 SpawnedSign(i)=0
                                 ToRemove=ToRemove+1
@@ -1632,7 +1632,7 @@ MODULE AnnihilationMod
                     ELSEIF(tTruncInitiator) THEN
 !If doing a CAS star calculation - then if the signs on the current list is 0, and the walkers in the spawned list came from outside the cas space, these need to be killed.                        
                         IF(SpawnedParts(NIfTot,i).eq.1) THEN
-                            NoAborted=NoAborted+ABS(SpawnedSign(i))
+                            NoAborted=NoAborted+ABS(REAL(SpawnedSign(i)))
 !                            WRITE(6,'(I20,A,3I20)') SpawnedSign(i),'walkers aborted from determinant:',SpawnedParts(:,i)
                             SpawnedSign(i)=0
                             ToRemove=ToRemove+1
@@ -1717,7 +1717,7 @@ MODULE AnnihilationMod
 !want to check where the walkers came from - because if the newly spawned walkers are from a parent outside the active space they should be killed - as they have been
 !spawned on an unoccupied determinant.
                 IF(SpawnedParts(NIfTot,i).eq.1) THEN    !Walkers came from outside cas space.
-                    NoAborted=NoAborted+ABS(SpawnedSign(i))
+                    NoAborted=NoAborted+ABS(REAL(SpawnedSign(i)))
 !                    WRITE(6,'(I20,A,3I20)') SpawnedSign(i),'walkers aborted from determinant:',SpawnedParts(:,i)
                     SpawnedSign(i)=0
                     ToRemove=ToRemove+1
