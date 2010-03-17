@@ -1,6 +1,6 @@
 [main]
 fc = mpif90 -I /usr/local/Cluster-Apps/infinipath/2.2/mpi/include/mpich/intel9/x86_64/
-cc = mpic++
+cc = mpiCC
 ld = mpif90
 ccd = icpc
 compiler = INTEL-ifort9-on-LINUX
