@@ -163,7 +163,7 @@ contains
         !    fmt1: a format statement for an integer field which will hold
         !        i perfectly plus an amount of padding.
 
-        ! This does take i/o formatting to a slightly OCD level addmittedly...
+        ! This does take i/o formatting to a slightly OCD level, admittedly...
 
         character(2) :: fmt1
         integer, intent(in) :: i
