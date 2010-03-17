@@ -2507,12 +2507,16 @@ MODULE FciMCParMod
 !The root processors data will be stored in a temporary array while it recieves the data from the other processors.
 !This routine will write out to a popsfile. It transfers all walkers to the head node sequentially, so does not want to be called too often
     SUBROUTINE WriteToPopsfileParOneArr()
+        use util_mod, only: get_unique_filename
+        use CalcData, only: iPopsFileNoWrite
+        use Logging, only: tIncrementPops
         REAL*8 :: TempSumNoatHF
         INTEGER :: error,WalkersonNodes(0:nProcessors-1)
         INTEGER :: Stat(MPI_STATUS_SIZE),Tag,Total,i,j,k
         INTEGER , ALLOCATABLE :: OrigSign(:), OrigParts(:,:)
         INTEGER :: OrigSignTag=0,OrigPartsTag=0
         CHARACTER(len=*) , PARAMETER :: this_routine='WriteToPopsfileParOneArr'
+        character(255) :: popsfile
 
         CALL MPI_Barrier(MPI_COMM_WORLD,error)  !sync
 
@@ -2556,10 +2560,11 @@ MODULE FciMCParMod
                 ENDIF
             ENDIF
             IF(tBinPops) THEN
-                OPEN(17,FILE='POPSFILEHEAD',Status='replace')
+                call get_unique_filename('POPSFILEHEAD',tIncrementPops,.true.,iPopsFileNoWrite,popsfile)
             ELSE
-                OPEN(17,FILE='POPSFILE',Status='replace')
+                call get_unique_filename('POPSFILE',tIncrementPops,.true.,iPopsFileNoWrite,popsfile)
             ENDIF
+            OPEN(17,FILE=popsfile,Status='replace')
             WRITE(17,*) AllTotWalkers,"   TOTWALKERS (all nodes)"
             WRITE(17,*) DiagSft,"   DIAG SHIFT"
             WRITE(17,*) NINT(AllSumNoatHF,i2),"   SUMNOATHF (all nodes)"
@@ -2567,7 +2572,8 @@ MODULE FciMCParMod
             WRITE(17,*) Iter+PreviousCycles,"   PREVIOUS CYCLES"
             IF(tBinPops) THEN
                 CLOSE(17)
-                OPEN(17,FILE='POPSFILEBIN',Status='replace',form='unformatted')
+                call get_unique_filename('POPSFILEBIN',tIncrementPops,.true.,iPopsFileNoWrite,popsfile)
+                OPEN(17,FILE=popsfile,Status='replace',form='unformatted')
             ENDIF
 
             IF(tBinPops) THEN
@@ -2665,9 +2671,13 @@ MODULE FciMCParMod
 !This routine will write out to a popsfile. It transfers all walkers to the head node sequentially, so does not want to be called too often
 !When arriving at this routine, CurrentXXX are arrays with the data, and NewXXX will be used by the root processor to temporarily store the information
     SUBROUTINE WriteToPopsfilePar()
+        use util_mod, only: get_unique_filename
+        use CalcData, only: iPopsFileNoWrite
+        use Logging, only: tIncrementPops
         REAL*8 :: TempSumNoatHF
         INTEGER :: error,WalkersonNodes(0:nProcessors-1)
         INTEGER :: Stat(MPI_STATUS_SIZE),Tag,Total,i,j,k
+        character(255) :: popsfile
 
         CALL MPI_Barrier(MPI_COMM_WORLD,error)  !sync
 
@@ -2709,10 +2719,11 @@ MODULE FciMCParMod
                 ENDIF
             ENDIF
             IF(tBinPops) THEN
-                OPEN(17,FILE='POPSFILEHEAD',Status='replace')
+                call get_unique_filename('POPSFILEHEAD',tIncrementPops,.true.,iPopsFileNoWrite,popsfile)
             ELSE
-                OPEN(17,FILE='POPSFILE',Status='replace')
+                call get_unique_filename('POPSFILE',tIncrementPops,.true.,iPopsFileNoWrite,popsfile)
             ENDIF
+            OPEN(17,FILE=popsfile,Status='replace')
             WRITE(17,*) AllTotWalkers,"   TOTWALKERS (all nodes)"
             WRITE(17,*) DiagSft,"   DIAG SHIFT"
             WRITE(17,*) NINT(AllSumNoatHF,i2),"   SUMNOATHF (all nodes)"
@@ -2720,7 +2731,8 @@ MODULE FciMCParMod
             WRITE(17,*) Iter+PreviousCycles,"   PREVIOUS CYCLES"
             IF(tBinPops) THEN
                 CLOSE(17)
-                OPEN(17,FILE='POPSFILEBIN',Status='replace',form='unformatted')
+                call get_unique_filename('POPSFILEBIN',tIncrementPops,.true.,iPopsFileNoWrite,popsfile)
+                OPEN(17,FILE=popsfile,Status='replace',form='unformatted')
             ENDIF
 
             IF(tBinPops) THEN
@@ -2796,6 +2808,9 @@ MODULE FciMCParMod
 
 !This routine reads in particle configurations from a POPSFILE.
     SUBROUTINE ReadFromPopsfilePar()
+        use util_mod, only: get_unique_filename
+        use CalcData, only: iPopsFileNoRead
+        use Logging, only: tIncrementPops
         LOGICAL :: exists,First,tBinRead
         INTEGER :: AvWalkers,WalkerstoReceive(nProcessors)
         INTEGER*8 :: NodeSumNoatHF(nProcessors),TempAllSumNoatHF
@@ -2805,6 +2820,7 @@ MODULE FciMCParMod
         REAL*8 :: r,FracPart,TempTotWalkers,Gap
         TYPE(HElement) :: HElemTemp
         CHARACTER(len=*), PARAMETER :: this_routine='ReadFromPopsfilePar'
+        character(255) :: popsfile
         
         PreviousCycles=0    !Zero previous cycles
         SumENum=0.D0
@@ -2814,26 +2830,30 @@ MODULE FciMCParMod
         Tag=124             !Set Tag
         
         IF(tDirectAnnihil) THEN
-            INQUIRE(FILE='POPSFILE',EXIST=exists)
+            call get_unique_filename('POPSFILE',tIncrementPops,.false.,iPopsFileNoRead,popsfile)
+            INQUIRE(FILE=popsfile,EXIST=exists)
             IF(exists) THEN
-                OPEN(17,FILE='POPSFILE',Status='old')
+                OPEN(17,FILE=popsfile,Status='old')
                 tBinRead=.false.
             ELSE
                 tBinRead=.true.
-                INQUIRE(FILE='POPSFILEHEAD',EXIST=exists)
+                call get_unique_filename('POPSFILEHEAD',tIncrementPops,.false.,iPopsFileNoRead,popsfile)
+                INQUIRE(FILE=popsfile,EXIST=exists)
                 IF(.not.exists) THEN
-                    INQUIRE(FILE='POPSFILEBIN',EXIST=exists)
+                    call get_unique_filename('POPSFILEBIN',tIncrementPops,.false.,iPopsFileNoRead,popsfile)
+                    INQUIRE(FILE=popsfile,EXIST=exists)
                     IF(.not.exists) THEN
-                        CALL Stop_All(this_routine,"No POPSFILE's of any kind found.")
+                        CALL Stop_All(this_routine,"No POPSFILEs of any kind found.")
                     ELSE
-                        CALL Stop_All(this_routine,"POPSFILEBIN found, but POPSFILEHEAD also needed for header information")
+                        CALL Stop_All(this_routine,"POPSFILEBIN(.x) found, but POPSFILEHEAD(.x) also needed for header information")
                     ENDIF
                 ELSE
-                    INQUIRE(FILE='POPSFILEBIN',EXIST=exists)
+                    call get_unique_filename('POPSFILEBIN',tIncrementPops,.false.,iPopsFileNoRead,popsfile)
+                    INQUIRE(FILE=popsfile,EXIST=exists)
                     IF(.not.exists) THEN
-                        CALL Stop_All(this_routine,"POPSFILEHEAD found, but no POPSFILEBIN for particle information - this is also needed")
+                        CALL Stop_All(this_routine,"POPSFILEHEAD(.x) found, but no POPSFILEBIN(.x) for particle information - this is also needed")
                     ELSE
-                        OPEN(17,FILE='POPSFILEHEAD',Status='old')
+                        OPEN(17,FILE=popsfile,Status='old')
                     ENDIF
                 ENDIF
             ENDIF
@@ -2850,32 +2870,37 @@ MODULE FciMCParMod
 
             IF(tBinRead) THEN
                 CLOSE(17)
-                OPEN(17,FILE='POPSFILEBIN',Status='old',form='unformatted')
+                call get_unique_filename('POPSFILEBIN',tIncrementPops,.false.,iPopsFileNoRead,popsfile)
+                OPEN(17,FILE=popsfile,Status='old',form='unformatted')
             ENDIF
 
         ELSE
             IF(iProcIndex.eq.root) THEN
-                INQUIRE(FILE='POPSFILE',EXIST=exists)
+                call get_unique_filename('POPSFILE',tIncrementPops,.false.,iPopsFileNoRead,popsfile)
+                INQUIRE(FILE=popsfile,EXIST=exists)
                 IF(exists) THEN
-                    OPEN(17,FILE='POPSFILE',Status='old')
+                    OPEN(17,FILE=popsfile,Status='old')
                     tBinRead=.false.
                 ELSE
 !Reading in a binary file
                     tBinRead=.true.
-                    INQUIRE(FILE='POPSFILEHEAD',EXIST=exists)
+                    call get_unique_filename('POPSFILEHEAD',tIncrementPops,.false.,iPopsFileNoRead,popsfile)
+                    INQUIRE(FILE=popsfile,EXIST=exists)
                     IF(.not.exists) THEN
-                        INQUIRE(FILE='POPSFILEBIN',EXIST=exists)
+                        call get_unique_filename('POPSFILEBIN',tIncrementPops,.false.,iPopsFileNoRead,popsfile)
+                        INQUIRE(FILE=popsfile,EXIST=exists)
                         IF(.not.exists) THEN
                             CALL Stop_All(this_routine,"No POPSFILE's of any kind found.")
                         ELSE
                             CALL Stop_All(this_routine,"POPSFILEBIN found, but POPSFILEHEAD also needed for header information")
                         ENDIF
                     ELSE
-                        INQUIRE(FILE='POPSFILEBIN',EXIST=exists)
+                        call get_unique_filename('POPSFILEBIN',tIncrementPops,.false.,iPopsFileNoRead,popsfile)
+                        INQUIRE(FILE=popsfile,EXIST=exists)
                         IF(.not.exists) THEN
                             CALL Stop_All(this_routine,"POPSFILEHEAD found, but no POPSFILEBIN for particle information - this is also needed")
                         ELSE
-                            OPEN(17,FILE='POPSFILEHEAD',Status='old')
+                            OPEN(17,FILE=popsfile,Status='old')
                         ENDIF
                     ENDIF
                 ENDIF
@@ -2891,7 +2916,8 @@ MODULE FciMCParMod
 
                 IF(tBinRead) THEN
                     CLOSE(17)
-                    OPEN(17,FILE='POPSFILEBIN',Status='old',form='unformatted')
+                    call get_unique_filename('POPSFILEBIN',tIncrementPops,.false.,iPopsFileNoRead,popsfile)
+                    OPEN(17,FILE=popsfile,Status='old',form='unformatted')
                 ENDIF
             ENDIF
         ENDIF

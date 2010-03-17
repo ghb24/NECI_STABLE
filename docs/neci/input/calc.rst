@@ -584,10 +584,17 @@ The following options are applicable for both the **FCIMC** and **MCDETS** metho
 
 The following options are only available in **FCIMC** calculations:
 
-**READPOPS**
-    Read the initial walker configuration from the file POPSFILE.
-    **DIAGSHIFT** and **INITWALKERS** given in the input will be
-    overwritten with the values read in form POPSFILE.
+**READPOPS** [n]
+    Read the initial walker configuration from the POPSFILE* restart file (see
+    **POPSFILE** in the **LOGGING** section).  **DIAGSHIFT** and
+    **INITWALKERS** given in the input will be overwritten with the values read
+    in from the restart file.
+
+    If an integer n is given, then the initial walker configuration is read in from
+    the POPSFILE*.n restart file.  POPSFILE*.x is used (where x is the highest integer
+    for which POPSFILE*.x exists and POPSFILE*.x+1 does not) if no argument is
+    given if **INCREMENTPOPS** is specified in the logging section and otherwise
+    POPSFILE* is used.
 
 **SCALEWALKERS** [fScaleWalkers]
     Scale the number of walkers by fScaleWalkers, after having read in data from POPSFILE.

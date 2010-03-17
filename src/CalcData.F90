@@ -33,6 +33,7 @@ INTEGER :: CUR_VERT,NHISTBOXES,I_P,LinePoints,iMaxExcitLevel
 INTEGER :: InitWalkers,NMCyc,StepsSft,FlipTauCyc,CLMax,MaxExcDom,MinExcDom
 INTEGER :: RhoApp,NEquilSteps,ShellFix,NoMagDets,iGuideDets,iNoDominantDets,InitialPart
 INTEGER :: OccCASorbs,VirtCASorbs,iStarOrbs,iHighExcitsSing,iInitGuideParts,iAnnInterval
+integer :: iPopsFileNoRead, iPopsFileNoWrite
 
 
 REAL*8 :: g_MultiWeight(0:10),G_VMC_PI,G_VMC_FAC,BETAEQ
