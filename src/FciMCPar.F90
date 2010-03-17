@@ -517,13 +517,11 @@ MODULE FciMCParMod
             tTruncInitiator=.true.
         ENDIF
 
+        tHFFound=.false.
         IF(tHFInitiator) THEN
             Proc=DetermineDetProc(iLutHF)   !This wants to return a value between 0 -> nProcessors-1
-            IF(iProcIndex.eq.Proc) THEN
+            IF(iProcIndex.ne.Proc) THEN
 !The processor with the HF determinant on it will have to check through each determinant until its found.            
-                tHFFound=.false.
-            ELSE
-!The others wont, we know all determinants on these processors are not in the initial active space.            
                 tHFFound=.true.
             ENDIF
         ENDIF
@@ -839,12 +837,12 @@ MODULE FciMCParMod
 !                            tParentInCAS=TestIfDetInCAS(DetCurr)
                             IF(tTruncCAS) THEN
                                 tParentInCAS=TestIfDetInCASBit(CurrentDets(:,j))
-                            ELSEIF(tHFInitiator.and.(.not.tHFFound)) THEN
-                                tParentInCAS=DetBitEQ(CurrentDets(:,j),iLutHF,NIfDBO)
-                                IF(tParentInCAS) tHFFound=.true.
                             ELSEIF(tHFFound) THEN
 !The HF determinant has been found, the rest will therefore all be out of the active space.                            
                                 tParentInCAS=.false.
+                            ELSEIF(tHFInitiator) THEN
+                                tParentInCAS=DetBitEQ(CurrentDets(:,j),iLutHF,NIfDBO)
+                                IF(tParentInCAS) tHFFound=.true.
                             ENDIF
                             IF(tParentInCAS) THEN
                                 ParentInitiator=0
@@ -2301,8 +2299,7 @@ MODULE FciMCParMod
             ELSEIF(tDelayTruncInit) THEN
                 tTruncInitiator=.false.
             ENDIF
-
-       ENDIF
+        ENDIF
 
 
         IF(tPrintTriConnections.or.tHistTriConHEls.or.tPrintHElAccept) CALL InitTriHElStats()
@@ -8960,7 +8957,7 @@ MODULE FciMCParMod
             tNoSpinSymExcitgens=.true.   
         ENDIF
 
-        IF((.not.tTruncCAS).and.(.not.tTruncSpace)) THEN
+        IF(tTruncInitiator.and.(.not.tTruncCAS).and.(.not.tTruncSpace)) THEN
 !Have not defined an initiatial initiator space using the EXCITE keyword or TRUNCATECAS.  The initial initiator space then defaults to only the HF determinant.                
             tHFInitiator=.true.
         ELSE
