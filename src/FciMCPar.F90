@@ -119,7 +119,7 @@ MODULE FciMCParMod
 !This will communicate between all nodes, find the new shift (and other parameters) and broadcast them to the other nodes.
                 CALL CalcNewShift()
 
-                IF((tTruncCAS.or.tTruncSpace).and.(Iter.gt.iFullSpaceIter).and.(iFullSpaceIter.ne.0)) THEN
+                IF((tTruncCAS.or.tTruncSpace.or.tHFInitiator).and.(Iter.gt.iFullSpaceIter).and.(iFullSpaceIter.ne.0)) THEN
 !Test if we want to expand to the full space if an EXPANDSPACE variable has been set
                     IF(tHistSpawn.or.tCalcFCIMCPsi) THEN
                         IF(iProcIndex.eq.0) WRITE(6,*) "Unable to expand space since histgramming the wavefunction..."
@@ -127,6 +127,8 @@ MODULE FciMCParMod
                         ICILevel=0
                         tTruncSpace=.false.
                         tTruncCAS=.false.
+                        tHFInitiator=.false.
+                        IF(tTruncInitiator) tTruncInitiator=.false.
                         IF(iProcIndex.eq.0) THEN
                             WRITE(6,*) "Expanding to the full space on iteration ",Iter
                         ENDIF
@@ -493,7 +495,7 @@ MODULE FciMCParMod
         REAL*8 :: Prob,rat,HDiag,HDiagCurr
         INTEGER :: iDie,WalkExcitLevel,Proc             !Indicated whether a particle should self-destruct on DetCurr
         INTEGER :: ExcitLevel,TotWalkersNew,iGetExcitLevel_2,error,length,temp,Ex(2,2),WSign,p,Scratch1(ScratchSize),Scratch2(ScratchSize),Scratch3(Scratchsize),FDetSym,FDetSpin
-        LOGICAL :: tParity,tMainArr,tFilled,tCheckStarGenDet,tStarDet,tMinorDetList,tAnnihilateMinorTemp,tAnnihilateMinor,TestClosedShellDet,tParentInCAS
+        LOGICAL :: tParity,tMainArr,tFilled,tCheckStarGenDet,tStarDet,tMinorDetList,tAnnihilateMinorTemp,tAnnihilateMinor,TestClosedShellDet,tParentInCAS,tHFFound
         INTEGER(KIND=i2) :: HashTemp
         TYPE(HElement) :: HDiagTemp
         CHARACTER(LEN=MPI_MAX_ERROR_STRING) :: message
@@ -513,6 +515,17 @@ MODULE FciMCParMod
                 CALL MPI_BCast(Tau,1,MPI_DOUBLE_PRECISION,root,MPI_COMM_WORLD,error)
             ENDIF
             tTruncInitiator=.true.
+        ENDIF
+
+        IF(tHFInitiator) THEN
+            Proc=DetermineDetProc(iLutHF)   !This wants to return a value between 0 -> nProcessors-1
+            IF(iProcIndex.eq.Proc) THEN
+!The processor with the HF determinant on it will have to check through each determinant until its found.            
+                tHFFound=.false.
+            ELSE
+!The others wont, we know all determinants on these processors are not in the initial active space.            
+                tHFFound=.true.
+            ENDIF
         ENDIF
 
 !        IF(tRotoAnnihil) THEN
@@ -797,31 +810,7 @@ MODULE FciMCParMod
 !We want to spawn a child - find its information to store
 
                     IF(tTruncInitiator) THEN
-                        IF(tTruncCAS) THEN
-!                            tParentInCAS=TestIfDetInCAS(DetCurr)
-                            tParentInCAS=TestIfDetInCASBit(CurrentDets(:,j))
-                            IF(tParentInCAS) THEN
-                                ParentInitiator=0
-                                NoInitDets=NoInitDets+1.D0
-                                NoInitWalk=NoInitWalk+(ABS(REAL(CurrentSign(j))))
-!The parent walker from which we are attempting to spawn is in the active space - all children will carry this flag, and these spawn like usual.
-                            ELSEIF(tInitIncDoubs.and.(WalkExcitLevel.eq.2)) THEN
-                                ParentInitiator=0
-                                NoInitDets=NoInitDets+1.D0
-                                NoInitWalk=NoInitWalk+(ABS(REAL(CurrentSign(j))))
-                                NoExtraInitDoubs=NoExtraInitDoubs+1.D0
-                            ELSEIF(tAddtoInitiator.and.(ABS(CurrentSign(j)).gt.InitiatorWalkNo)) THEN
-                                ParentInitiator=0
-                                IF(mod(Iter,StepsSft).eq.0) NoAddedInitiators=NoAddedInitiators+1.D0
-                                NoInitDets=NoInitDets+1.D0
-                                NoInitWalk=NoInitWalk+(ABS(REAL(CurrentSign(j))))
-                            ELSE
-                                ParentInitiator=1
-                                NoNonInitDets=NoNonInitDets+1.D0
-                                NoNonInitWalk=NoNonInitWalk+(ABS(REAL(CurrentSign(j))))
-!The parent from which we are attempting to spawn is outside the active space - children spawned on unoccupied determinants with this flag will be killed.
-                            ENDIF
-                        ELSEIF(tTruncSpace) THEN
+                        IF(tTruncSpace) THEN
                             IF(WalkExcitLevel.le.ICILevel) THEN
                                 ParentInitiator=0
                                 NoInitDets=NoInitDets+1.D0
@@ -842,6 +831,41 @@ MODULE FciMCParMod
                                 NoNonInitDets=NoNonInitDets+1.D0
                                 NoNonInitWalk=NoNonInitWalk+(ABS(REAL(CurrentSign(j))))
 !Parent outside allowed space.                        
+                            ENDIF
+                        ELSE
+!This it the case where the fixed initiator space is defined using the CAS notation, or where it is limited to only the HF determinant.                           
+!I.e. when tTruncCAS or tHFInitiator are true.
+!If neither of these are true, the expandspace option must have been used and so the parent will always be in the initiator space. 
+!                            tParentInCAS=TestIfDetInCAS(DetCurr)
+                            IF(tTruncCAS) THEN
+                                tParentInCAS=TestIfDetInCASBit(CurrentDets(:,j))
+                            ELSEIF(tHFInitiator.and.(.not.tHFFound)) THEN
+                                tParentInCAS=DetBitEQ(CurrentDets(:,j),iLutHF,NIfDBO)
+                                IF(tParentInCAS) tHFFound=.true.
+                            ELSEIF(tHFFound) THEN
+!The HF determinant has been found, the rest will therefore all be out of the active space.                            
+                                tParentInCAS=.false.
+                            ENDIF
+                            IF(tParentInCAS) THEN
+                                ParentInitiator=0
+                                NoInitDets=NoInitDets+1.D0
+                                NoInitWalk=NoInitWalk+(ABS(REAL(CurrentSign(j))))
+!The parent walker from which we are attempting to spawn is in the active space - all children will carry this flag, and these spawn like usual.
+                            ELSEIF(tInitIncDoubs.and.(WalkExcitLevel.eq.2)) THEN
+                                ParentInitiator=0
+                                NoInitDets=NoInitDets+1.D0
+                                NoInitWalk=NoInitWalk+(ABS(REAL(CurrentSign(j))))
+                                NoExtraInitDoubs=NoExtraInitDoubs+1.D0
+                            ELSEIF(tAddtoInitiator.and.(ABS(CurrentSign(j)).gt.InitiatorWalkNo)) THEN
+                                ParentInitiator=0
+                                IF(mod(Iter,StepsSft).eq.0) NoAddedInitiators=NoAddedInitiators+1.D0
+                                NoInitDets=NoInitDets+1.D0
+                                NoInitWalk=NoInitWalk+(ABS(REAL(CurrentSign(j))))
+                            ELSE
+                                ParentInitiator=1
+                                NoNonInitDets=NoNonInitDets+1.D0
+                                NoNonInitWalk=NoNonInitWalk+(ABS(REAL(CurrentSign(j))))
+!The parent from which we are attempting to spawn is outside the active space - children spawned on unoccupied determinants with this flag will be killed.
                             ENDIF
                         ENDIF
                     ENDIF
@@ -2272,12 +2296,14 @@ MODULE FciMCParMod
                 CALL Stop_All(this_routine,'TRUNCINITIATOR can only be used with direct annihilation.') 
             ELSEIF(tFixShiftShell) THEN
                 CALL Stop_All(this_routine,'TRUNCINITIATOR cannot be used with the fixed shift shell approximation.') 
-            ELSEIF(tTruncInitiator.and.(.not.tTruncCAS).and.(.not.tTruncSpace)) THEN
-                CALL Stop_All(this_routine,'The initiator space has not been defined - need to use EXCITE X or TRUNCATECAS X Y.')
+!            ELSEIF(tTruncInitiator.and.(.not.tTruncCAS).and.(.not.tTruncSpace)) THEN
+!                CALL Stop_All(this_routine,'The initiator space has not been defined - need to use EXCITE X or TRUNCATECAS X Y.')
             ELSEIF(tDelayTruncInit) THEN
                 tTruncInitiator=.false.
             ENDIF
-        ENDIF
+
+       ENDIF
+
 
         IF(tPrintTriConnections.or.tHistTriConHEls.or.tPrintHElAccept) CALL InitTriHElStats()
         IF(tPrintSpinCoupHEl) CALL InitSpinCoupHEl()
@@ -8934,6 +8960,13 @@ MODULE FciMCParMod
             tNoSpinSymExcitgens=.true.   
         ENDIF
 
+        IF((.not.tTruncCAS).and.(.not.tTruncSpace)) THEN
+!Have not defined an initiatial initiator space using the EXCITE keyword or TRUNCATECAS.  The initial initiator space then defaults to only the HF determinant.                
+            tHFInitiator=.true.
+        ELSE
+            tHFInitiator=.false.
+        ENDIF
+
 !If using a CAS space truncation, write out this CAS space
         IF(tTruncCAS) THEN
             IF(tTruncInitiator) THEN
@@ -8956,9 +8989,11 @@ MODULE FciMCParMod
                 WRITE(6,'(I4)',advance='no') G1(BRR(I))%Ml
                 WRITE(6,'(2F19.9)')  ARR(I,1),ARR(BRR(I),2)
             ENDDO
+        ELSEIF(tTruncInitiator.and.tHFInitiator) THEN
+            WRITE(6,'(A)') " *********** INITIATOR METHOD IN USE ***********"
+            WRITE(6,'(A /)') " Starting with only the HF determinant in the fixed initiator space."
         ENDIF
-
-                                        
+ 
 !Setup excitation generator for the HF determinant. If we are using assumed sized excitgens, this will also be assumed size.
         IF(.not.tNoSpinSymExcitgens) THEN
             IF(tUseBrillouin.and.tNonUniRandExcits) THEN
@@ -9340,7 +9375,7 @@ MODULE FciMCParMod
             tPrintTriConnections .or. tHistTriConHEls .or. tCalcFCIMCPsi &
             .or. tTruncCAS .or. tListDets .or. tPartFreezeCore .or. &
             tPartFreezeVirt .or. tUEG .or. tHistHamil .or. TReadPops .or. &
-            tMCExcits .or. tCSF) THEN
+            tMCExcits .or. tCSF .or. tTruncInitiator) THEN
             WRITE(6,*) ""
             WRITE(6,*) "It is not possible to use to clean spawning routine..."
         ELSE

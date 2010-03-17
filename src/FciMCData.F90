@@ -59,6 +59,7 @@ MODULE FciMCData
       REAL*8 :: NoNonInitDets,NoInitWalk,NoNonInitWalk,NoDoubSpawns
       REAL*8 :: AllNoNonInitDets,AllNoInitWalk,AllNoNonInitWalk,AllNoDoubSpawns
       REAL*8 :: NoExtraInitDoubs,AllNoExtraInitDoubs
+      LOGICAL :: tHFInitiator
  
       REAL*8 :: AvDiagSftAbort,SumDiagSftAbort,DiagSftAbort     !This is the average diagonal shift value since it started varying, and the sum of the shifts since it started varying, and
                                                                 !the instantaneous shift, including the number of aborted as though they had lived.
