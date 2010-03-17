@@ -1480,8 +1480,8 @@ MODULE FciMCParMod
             inpairInit(8)=NoExtraInitDoubs
  
 !!            CALL MPI_Reduce(inpairInit,outpairInit,8,MPI_INTEGER,MPI_SUM,Root,MPI_COMM_WORLD,error)
-!            Call MPIISumArr(inpairInit,8,outpairInit)
-            CALL MPI_Reduce(inpairinit,outpairinit,8,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
+            Call MPIDSumArr(inpairInit,8,outpairInit)
+!            CALL MPI_Reduce(inpairinit,outpairinit,8,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
 
             AllNoAborted=outpairInit(1)
             AllNoAddedInitiators=outpairInit(2)
@@ -8226,8 +8226,8 @@ MODULE FciMCParMod
             inpairInit(8)=NoExtraInitDoubs
  
 !!            CALL MPI_Reduce(inpairInit,outpairInit,8,MPI_INTEGER,MPI_SUM,Root,MPI_COMM_WORLD,error)
-!            Call MPIISumArr(inpairInit,8,outpairInit)
-            CALL MPI_Reduce(inpairinit,outpairinit,8,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
+            Call MPIDSumArr(inpairInit,8,outpairInit)
+!            CALL MPI_Reduce(inpairinit,outpairinit,8,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
 
             AllNoAborted=outpairInit(1)
             AllNoAddedInitiators=outpairInit(2)
