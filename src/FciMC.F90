@@ -6,11 +6,12 @@ use CalcData , only : GrowMaxFactor,CullFactor,TMCDets,TNoBirth,Lambda,TDiffuse,
 use CalcData , only : TExtraPartDiff,TFullUnbias,TNodalCutoff,NodalCutoff,TNoAnnihil,TMCDiffusion
 use CalcData , only : NDets,RhoApp,TResumFCIMC,NEquilSteps,TSignShift,THFRetBias,PRet,TExcludeRandGuide
 use CalcData , only : TProjEMP2,TFixParticleSign,TStartSinglePart,MemoryFacPart,TRegenExcitgens,TUnbiasPGeninProjE
+use CalcData , only : iPopsFileNoRead,iPopsFileNoWrite
 use Determinants, only: FDet, get_helement, GetH0Element3, write_det
 USE DetCalc , only : NMRKS,ICILevel
 use IntegralsData , only : fck,NMax,UMat
 USE global_utilities
-USE Logging , only : iWritePopsEvery,TPopsFile,TZeroProjE,TWriteDetE,MaxHistE,NoHistBins
+USE Logging , only : iWritePopsEvery,TPopsFile,TZeroProjE,TWriteDetE,MaxHistE,NoHistBins, tIncrementPops
 USE HElem
 use DetBitOps, only: EncodeBitDet
 use constants, only: dp
@@ -2542,10 +2543,16 @@ SUBROUTINE PerformFCIMCyc()
     END SUBROUTINE InitBlocking
 
     SUBROUTINE WriteToPopsFile()
+
+        use util_mod, only: get_unique_filename
+
         INTEGER :: j,k
+        character (255) :: popsfile
+
+        call get_unique_filename('POPSFILE',tIncrementPops,.true.,iPopsFileNoWrite,popsfile)
 
         WRITE(6,*) "Writing to POPSFILE..."
-        OPEN(17,FILE='POPSFILE',Status='unknown')
+        OPEN(17,FILE=popsfile,Status='unknown')
         WRITE(17,*) TotWalkers, "   TOTWALKERS"
         WRITE(17,*) DiagSft, "   DIAGSHIFT"
         WRITE(17,*) SumNoatHF, "   SUMNOATHF"
@@ -2564,18 +2571,23 @@ SUBROUTINE PerformFCIMCyc()
     END SUBROUTINE WriteToPopsFile
     
     SUBROUTINE ReadFromPopsFile()
+
+        use util_mod, only: get_unique_filename
+
         INTEGER :: ierr,l,j,k,VecSlot,IntegerPart,iGetExcitLevel_2
         INTEGER*8 :: MemoryAlloc
         REAL*8 :: FracPart,Ran2
         TYPE(HElement) :: HElemTemp
         CHARACTER(len=*), PARAMETER :: this_routine='ReadFromPopsFile'
         LOGICAL :: exists
+        character(255) :: popsfile
 
-        INQUIRE(FILE='POPSFILE',EXIST=exists)
+        call get_unique_filename('POPSFILE',tIncrementPops,.false.,iPopsFileNoRead,popsfile)
+        INQUIRE(FILE=popsfile,EXIST=exists)
         IF(.not.exists) THEN
-            CALL Stop_All("ReadFromPopsFile","POPSFILE not present - cannot read in particle configuration")
+            CALL Stop_All("ReadFromPopsFile",trim(popsfile)//"not present - cannot read in particle configuration")
         ENDIF
-        OPEN(17,FILE='POPSFILE',Status='old')
+        OPEN(17,FILE=popsfile,Status='old')
 !Read in initial data
         READ(17,*) InitWalkers
         READ(17,*) DiagSft

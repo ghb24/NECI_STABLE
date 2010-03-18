@@ -164,12 +164,17 @@ FCIMC options
     This works in the same way as the normal popsfile, but only every iPopsPartEvery particle is printed out.
 
 **POPSFILE** [iWritePopsEvery]
-    Default: on.  Default iWritePopsEvery (optional argument) 100000.
-    Print out the determinants every iWritePopsEvery Monte-Carlo cycles.
-    iWritePopsEvery should idealy be a multiple of **STEPSSHIFT**, the number of 
-    cycles between updates to the diagonal shift performed in the 
-    **FCIMC** calculation, to make sure the start of the next simulation follows
-    smoothly
+    Default: on.  iWritePopsEvery is an optional argument.
+
+    Write out the necessary information to restart a calculation, including the
+    population of the walkers on each determinant.  This is written to 
+    POPSFILE or (if **BINARYPOPS** is specified) POPSFILEHEAD and POPSFILEBIN.
+
+    If iWritePopsEvery is supplied, then the determinant populations are
+    printed out every iWritePopsEvery Monte-Carlo cycles.  iWritePopsEvery
+    should idealy be a multiple of **STEPSSHIFT**, the number of cycles between
+    updates to the diagonal shift performed in the **FCIMC** calculation, to
+    make sure the start of the next simulation follows smoothly.
 
     A calculation can then be restarted at a later date by reading the
     determinants back in using **READPOPS** in the **CALC** section. 
@@ -184,6 +189,11 @@ FCIMC options
     This should now take up less disk space, and be written quicker. It can be read in as
     normal without specifying any extra criteria. Two files will be produced, a formatted
     file with the header info and a POPSFILEBIN with the walker information.
+
+**INCREMENTPOPS**
+    Append a unique suffix to the POPSFILE* restart file(s) to avoid
+    overwriting them.  Note that this can quickly fill up hard drives if used
+    with **POPSFILE** iWritePopsEvery: use with care!
 
 **ZEROPROJE**
     This is for FCIMC when reading in from a POPSFILE. If this is on, then the energy 

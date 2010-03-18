@@ -2403,9 +2403,10 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
       SUBROUTINE StarDiagMC(nEl,NList,List,ILMax,SI,DLWDB,Hii,MaxDiag)
          USE HElem
          use CalcData , only : InitWalkers,NMCyc,G_VMC_Seed,DiagSft,Tau,SftDamp,StepsSft
-         use CalcData , only : TReadPops,ScaleWalkers,TBinCancel
-         USE Logging , only : TPopsFile,TCalcWavevector,WavevectorPrint
+         use CalcData , only : TReadPops,ScaleWalkers,TBinCancel, iPopsFileNoRead, iPopsFileNoWrite
+         USE Logging , only : TPopsFile,TCalcWavevector,WavevectorPrint, tIncrementPops
          USE global_utilities
+         use util_mod, only: get_unique_filename
          IMPLICIT NONE
          CHARACTER(len=*), PARAMETER :: this_routine='StarDiagMC'
          INTEGER :: i,j,nEl,NList,ILMax,Info,ierr,WorkL,toprint,PreviousNMCyc
@@ -2425,6 +2426,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
              LOGICAL :: WSign=.true.
          END TYPE Walker
          TYPE(Walker) , POINTER :: WalkVec(:),WalkVec2(:)
+         character(255) :: popsfile
          
          proc_timer%timer_name='StarDiagMC'
          call set_timer(proc_timer)
@@ -2447,7 +2449,8 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
 
          IF(TReadPops) THEN
              WRITE(6,*) "Reading in POPSFILE to restart calculation..."
-             OPEN(17,FILE='POPSFILE',Status='old')
+             call get_unique_filename('POPSFILE',tIncrementPops,.false.,iPopsFileNoRead,popsfile)
+             OPEN(17,FILE=popsfile,Status='old')
              READ(17,*) InitWalkers
              READ(17,*) DiagSft
              READ(17,*) PreviousNMCyc
@@ -2975,7 +2978,8 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
 
          IF(TPopsFile) THEN
 !Print out current state of simulation, so it can be restarted if desired...
-             OPEN(16,file='POPSFILE',status='unknown')
+             call get_unique_filename('POPSFILE',tIncrementPops,.true.,iPopsFileNoWrite,popsfile)
+             OPEN(16,file=popsfile,status='unknown')
              WRITE(16,*) TotWalkers, "   TOTWALKERS"
              WRITE(16,*) DiagSft, "   DIAG SHIFT"
              IF(TReadPops) THEN

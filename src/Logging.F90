@@ -8,7 +8,7 @@ MODULE Logging
     INTEGER PreVarLogging,WavevectorPrint,NoHistBins
     REAL*8 MaxHistE,BinRange,OffDiagMax,OffDiagBinRange,TriConMax,TriConHElSingMax,TriConHElDoubMax
     LOGICAL TDistrib,TPopsFile,TCalcWavevector,TDetPops,tROFciDump,tROHistOffDiag,tROHistDoubExc,tROHistOnePartOrbEn,tPrintPopsDefault
-    LOGICAL TZeroProjE,TWriteDetE,TAutoCorr,tBinPops,tROHistogramAll,tROHistER,tHistSpawn,tROHistSingExc,tRoHistOneElInts
+    LOGICAL TZeroProjE,TWriteDetE,TAutoCorr,tBinPops,tIncrementPops,tROHistogramAll,tROHistER,tHistSpawn,tROHistSingExc,tRoHistOneElInts
     LOGICAL tROHistVirtCoulomb,tPrintInts,tHistEnergies,tPrintTriConnections,tHistTriConHEls,tPrintHElAccept,tTruncRODump
     LOGICAL tPrintFCIMCPsi,tCalcFCIMCPsi,tPrintSpinCoupHEl,tIterStartBlock,tHFPopStartBlock,tInitShiftBlocking,tTruncDumpbyVal
     LOGICAL tWriteTransMat,tHistHamil,tPrintOrbOcc
@@ -52,6 +52,7 @@ MODULE Logging
       TCalcWavevector=.false.
       WavevectorPrint=100
       TPopsFile=.true.
+      tIncrementPops = .false.
       tPrintPopsDefault=.true.
       TDistrib=.false.
       ILOGGINGDef=0
@@ -437,6 +438,9 @@ MODULE Logging
         case("BINARYPOPS")
 !This means that the popsfile (full or reduced) will now be written out in binary format. This should now take up less space, and be written quicker.
             tBinPops=.true.
+        case("INCREMENTPOPS")
+! Don't overwrite existing POPSFILES.
+            tIncrementPops = .true.
         case("CCMCDEBUG")
 !CCMC debugging level. Takes an integer 0-6
             call readi(CCMCDebug)
