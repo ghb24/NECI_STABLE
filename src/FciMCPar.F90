@@ -495,7 +495,7 @@ MODULE FciMCParMod
         REAL*8 :: Prob,rat,HDiag,HDiagCurr
         INTEGER :: iDie,WalkExcitLevel,Proc             !Indicated whether a particle should self-destruct on DetCurr
         INTEGER :: ExcitLevel,TotWalkersNew,iGetExcitLevel_2,error,length,temp,Ex(2,2),WSign,p,Scratch1(ScratchSize),Scratch2(ScratchSize),Scratch3(Scratchsize),FDetSym,FDetSpin
-        LOGICAL :: tParity,tMainArr,tFilled,tCheckStarGenDet,tStarDet,tMinorDetList,tAnnihilateMinorTemp,tAnnihilateMinor,TestClosedShellDet,tParentInCAS,tHFFound
+        LOGICAL :: tParity,tMainArr,tFilled,tCheckStarGenDet,tStarDet,tMinorDetList,tAnnihilateMinorTemp,tAnnihilateMinor,TestClosedShellDet,tParentInCAS,tHFFound,tHFFoundTemp
         INTEGER(KIND=i2) :: HashTemp
         TYPE(HElement) :: HDiagTemp
         CHARACTER(LEN=MPI_MAX_ERROR_STRING) :: message
@@ -518,6 +518,7 @@ MODULE FciMCParMod
         ENDIF
 
         tHFFound=.false.
+        tHFFoundTemp=.false.
         IF(tHFInitiator) THEN
             Proc=DetermineDetProc(iLutHF)   !This wants to return a value between 0 -> nProcessors-1
             IF(iProcIndex.ne.Proc) THEN
@@ -840,9 +841,14 @@ MODULE FciMCParMod
                             ELSEIF(tHFFound) THEN
 !The HF determinant has been found, the rest will therefore all be out of the active space.                            
                                 tParentInCAS=.false.
+                            ELSEIF(tHFFoundTemp) THEN
+!The HF determinant has been found and we are still running over the particles on the same determinant.                              
+                                tParentInCAS=.true.
                             ELSEIF(tHFInitiator) THEN
                                 tParentInCAS=DetBitEQ(CurrentDets(:,j),iLutHF,NIfDBO)
-                                IF(tParentInCAS) tHFFound=.true.
+                                IF(tParentInCAS) tHFFoundTemp=.true.
+!The temp parameter means we have found the HF determinant but we are still in the loop of running over the walkers on this determinant.
+!At the end of this loop, tHFFound becomes true becuase the HF has been and gone and the rest of the determinants need not be checked.
                             ENDIF
                             IF(tParentInCAS) THEN
                                 ParentInitiator=0
@@ -999,6 +1005,9 @@ MODULE FciMCParMod
                 ENDIF   !End if child created
 
             enddo   !End of cycling over mulitple particles on same determinant.
+
+            IF(tHFFoundTemp) tHFFound=.true.
+            tHFFoundTemp=.false.
 
 !We now have to decide whether the parent particle (j) wants to self-destruct or not...
 !For rotoannihilation, we can have multiple particles on the same determinant - these can be stochastically killed at the same time.
