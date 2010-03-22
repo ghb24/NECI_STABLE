@@ -239,6 +239,8 @@ contains
         if (hi == lo) then
             if (all(arr(:,hi) == val)) then
                 pos = hi
+            else if (arr_gt(val, arr(:,hi))) then
+                pos = -hi - 1
             else
                 pos = -hi
             endif
