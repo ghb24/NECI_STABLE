@@ -8,7 +8,7 @@ MODULE AnnihilationMod
     USE dSFMT_interface , only : genrand_real2_dSFMT
     USE FciMCData
     use DetBitOps, only: DetBitEQ, DetBitLT, FindBitExcitLevel, decodebitdet
-    use CalcData , only : tTruncInitiator
+    use CalcData , only : tTruncInitiator,tFreezeInit
     use Determinants, only: get_helement
     use hphf_integrals, only: hphf_diag_helement, hphf_off_diag_helement
     IMPLICIT NONE
@@ -1563,6 +1563,10 @@ MODULE AnnihilationMod
                         IF(SpawnedSign(i).eq.0) THEN
 !The number of particles were equal and opposite. We want to remove this entry from the spawned list.
                             ToRemove=ToRemove+1
+                            IF(tTruncInitiator.and.tFreezeInit) THEN
+                                IF(CurrentDets(NIfTot,PartInd).eq.0) InitRemoved=InitRemoved+1.D0
+                            ENDIF
+ 
                         ELSEIF(tTruncInitiator) THEN
 !If we are doing a CAS star calculation - then if the walkers that are left after annihilation have been spawned from determinants outside the active space,
 !then it is like these have been spawned on an unoccupied determinant and they are killed.
@@ -1571,7 +1575,11 @@ MODULE AnnihilationMod
 !                                WRITE(6,'(I20,A,3I20)') SpawnedSign(i),'walkers aborted from determinant:',SpawnedParts(:,i)
                                 SpawnedSign(i)=0
                                 ToRemove=ToRemove+1
+                                IF(tFreezeInit) THEN
+                                    IF(CurrentDets(NIfTot,PartInd).eq.0) InitRemoved=InitRemoved+1.D0
+                                ENDIF
                             ENDIF
+!Walkers remain on the determinant - want to carry across the flag for whether or not the determinant was in the instantaneous initiator space or not.                                
                         ENDIF
 
                     ELSE
@@ -1603,6 +1611,7 @@ MODULE AnnihilationMod
 
                         SpawnedSign(i)=0
                         ToRemove=ToRemove+1
+
                     ENDIF
 
                         
@@ -1625,6 +1634,7 @@ MODULE AnnihilationMod
                     ToRemove=ToRemove+1
 !                    RemoveInds(ToRemove)=i
 !                    AnnihilateInd=-SearchInd
+
                 ELSE
 !One of the signs on the list is actually 0. If this zero is on the spawned list, we need to mark it for removal.
                     IF(SpawnedSign(i).eq.0) THEN
@@ -1636,6 +1646,9 @@ MODULE AnnihilationMod
 !                            WRITE(6,'(I20,A,3I20)') SpawnedSign(i),'walkers aborted from determinant:',SpawnedParts(:,i)
                             SpawnedSign(i)=0
                             ToRemove=ToRemove+1
+                            IF(tFreezeInit) THEN
+                                IF(CurrentDets(NIfTot,PartInd).eq.0) InitRemoved=InitRemoved+1.D0
+                            ENDIF
                         ENDIF
                     ENDIF
                 ENDIF
@@ -1712,6 +1725,9 @@ MODULE AnnihilationMod
 !                    RemoveInds(ToRemove)=i
 !                ENDIF
 
+
+                IF(tTruncInitiator.and.tFreezeInit) SpawnedParts(NIfTot,i)=CurrentDets(NIfTot,PartInd)
+
             ELSEIF(tTruncInitiator) THEN
 !Determinant in newly spawned list is not found in currentdets - usually this would mean the walkers just stay in this list and get merged later - but in this case we            
 !want to check where the walkers came from - because if the newly spawned walkers are from a parent outside the active space they should be killed - as they have been
@@ -1721,6 +1737,9 @@ MODULE AnnihilationMod
 !                    WRITE(6,'(I20,A,3I20)') SpawnedSign(i),'walkers aborted from determinant:',SpawnedParts(:,i)
                     SpawnedSign(i)=0
                     ToRemove=ToRemove+1
+                ELSEIF(tFreezeInit) THEN
+!Otherwise if they're staying, they must not be part of that instantaneous initiator space.
+                    SpawnedParts(NIfTot,i)=1
                 ENDIF
             ENDIF
 

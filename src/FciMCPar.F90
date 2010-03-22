@@ -14,9 +14,9 @@ MODULE FciMCParMod
     use SystemData , only : NEl,Alat,Brr,ECore,G1,nBasis,nBasisMax,nMsh,Arr,LMS,tHPHF,tListDets,NIfD,NIfTot,NIfDBO,NIfY
     use SystemData , only : tHub,tReal,tNonUniRandExcits,tMerTwist,tRotatedOrbs,tImportanceSample,tFindCINatOrbs,tFixLz,LzTot,tUEG, tLatticeGens,tCSF
     use CalcData , only : InitWalkers,NMCyc,DiagSft,Tau,SftDamp,StepsSft,OccCASorbs,VirtCASorbs,tFindGroundDet,tDirectAnnihil
-    use CalcData , only : TStartMP1,NEquilSteps,TReadPops,TRegenExcitgens,TFixShiftShell,ShellFix,FixShift,tMultipleDetsSpawn
-    use CalcData , only : tConstructNOs,tAnnihilatebyRange,tRotoAnnihil,MemoryFacSpawn,tRegenDiagHEls,tSpawnAsDet
-    use CalcData , only : GrowMaxFactor,CullFactor,TStartSinglePart,ScaleWalkers,Lambda,TLocalAnnihilation,tNoReturnStarDets
+    use CalcData , only : TStartMP1,NEquilSteps,TReadPops,TRegenExcitgens,TFixShiftShell,ShellFix,FixShift,tMultipleDetsSpawn,FreezeInitAccum
+    use CalcData , only : tConstructNOs,tAnnihilatebyRange,tRotoAnnihil,MemoryFacSpawn,tRegenDiagHEls,tSpawnAsDet,FreezeInitIter,tFreezeInit
+    use CalcData , only : GrowMaxFactor,CullFactor,TStartSinglePart,ScaleWalkers,Lambda,TLocalAnnihilation,tNoReturnStarDets,tFreezeInit2,FreezeInitIter2
     use CalcData , only : NDets,RhoApp,TResumFCIMC,TNoAnnihil,MemoryFacPart,TAnnihilonproc,MemoryFacAnnihil,iStarOrbs,tAllSpawnStarDets
     use CalcData , only : FixedKiiCutoff,tFixShiftKii,tFixCASShift,tMagnetize,BField,NoMagDets,tSymmetricField,tStarOrbs,SinglesBias
     use CalcData , only : tHighExcitsSing,iHighExcitsSing,tFindGuide,iGuideDets,tUseGuide,iInitGuideParts,tNoDomSpinCoup,tRandomiseHashOrbs
@@ -495,7 +495,7 @@ MODULE FciMCParMod
         REAL*8 :: Prob,rat,HDiag,HDiagCurr
         INTEGER :: iDie,WalkExcitLevel,Proc             !Indicated whether a particle should self-destruct on DetCurr
         INTEGER :: ExcitLevel,TotWalkersNew,iGetExcitLevel_2,error,length,temp,Ex(2,2),WSign,p,Scratch1(ScratchSize),Scratch2(ScratchSize),Scratch3(Scratchsize),FDetSym,FDetSpin
-        LOGICAL :: tParity,tMainArr,tFilled,tCheckStarGenDet,tStarDet,tMinorDetList,tAnnihilateMinorTemp,tAnnihilateMinor,TestClosedShellDet,tParentInCAS,tHFFound,tHFFoundTemp
+        LOGICAL :: tParity,tMainArr,tFilled,tCheckStarGenDet,tStarDet,tMinorDetList,tAnnihilateMinorTemp,tAnnihilateMinor,TestClosedShellDet,tHFFound,tHFFoundTemp
         INTEGER(KIND=i2) :: HashTemp
         TYPE(HElement) :: HDiagTemp
         CHARACTER(LEN=MPI_MAX_ERROR_STRING) :: message
@@ -516,6 +516,9 @@ MODULE FciMCParMod
             ENDIF
             tTruncInitiator=.true.
         ENDIF
+
+        IF(Iter.eq.FreezeInitIter) tFreezeInit=.true.
+!        IF(Iter.eq.FreezeInitIter2) tFreezeInit2=.true.
 
         tHFFound=.false.
         tHFFoundTemp=.false.
@@ -635,6 +638,10 @@ MODULE FciMCParMod
             ! This is where the projected energy is calculated.
             call SumEContrib (DetCurr, WalkExcitLevel, CurrentSign(j), &
                               CurrentDets(:,j), HDiagCurr, 1.d0)
+
+                                          
+            IF(tTruncInitiator) CALL CalcParentFlag(j,tHFFound,tHFFoundTemp)
+
 
 !            IF(TResumFCIMC) CALL ResumGraphPar(DetCurr,CurrentSign(j),VecSlot,j)
 
@@ -803,76 +810,11 @@ MODULE FciMCParMod
 
 ! Want to put a wee routine in here that monitors the number of accepted vs the number of not accepted attempts at spawns, and the H elements that
 ! are involved in each.
-                IF(tPrintHElAccept) CALL TrackSpawnAttempts(Child,DetCurr,j,nJ,iLutnJ,IC,Ex,tParity)
-                
-                IF(Child.ne.0) THEN
-!We want to spawn a child - find its information to store
 
-                    IF(tTruncInitiator) THEN
-                        IF(tTruncSpace) THEN
-                            IF(WalkExcitLevel.le.ICILevel) THEN
-                                ParentInitiator=0
-                                NoInitDets=NoInitDets+1.D0
-                                NoInitWalk=NoInitWalk+(ABS(REAL(CurrentSign(j))))
-!Parent in allowed space.                        
-                            ELSEIF(tInitIncDoubs.and.(WalkExcitLevel.eq.2)) THEN
-                                ParentInitiator=0
-                                NoInitDets=NoInitDets+1.D0
-                                NoInitWalk=NoInitWalk+(ABS(REAL(CurrentSign(j))))
-                                NoExtraInitDoubs=NoExtraInitDoubs+1.D0
-                            ELSEIF(tAddtoInitiator.and.(ABS(CurrentSign(j)).gt.InitiatorWalkNo)) THEN
-                                ParentInitiator=0
-                                IF(mod(Iter,StepsSft).eq.0) NoAddedInitiators=NoAddedInitiators+1.D0
-                                NoInitDets=NoInitDets+1.D0
-                                NoInitWalk=NoInitWalk+(ABS(REAL(CurrentSign(j))))
-                            ELSE
-                                ParentInitiator=1
-                                NoNonInitDets=NoNonInitDets+1.D0
-                                NoNonInitWalk=NoNonInitWalk+(ABS(REAL(CurrentSign(j))))
-!Parent outside allowed space.                        
-                            ENDIF
-                        ELSE
-!This it the case where the fixed initiator space is defined using the CAS notation, or where it is limited to only the HF determinant.                           
-!I.e. when tTruncCAS or tHFInitiator are true.
-!If neither of these are true, the expandspace option must have been used and so the parent will always be in the initiator space. 
-!                            tParentInCAS=TestIfDetInCAS(DetCurr)
-                            IF(tTruncCAS) THEN
-                                tParentInCAS=TestIfDetInCASBit(CurrentDets(:,j))
-                            ELSEIF(tHFFound) THEN
-!The HF determinant has been found, the rest will therefore all be out of the active space.                            
-                                tParentInCAS=.false.
-                            ELSEIF(tHFFoundTemp) THEN
-!The HF determinant has been found and we are still running over the particles on the same determinant.                              
-                                tParentInCAS=.true.
-                            ELSEIF(tHFInitiator) THEN
-                                tParentInCAS=DetBitEQ(CurrentDets(:,j),iLutHF,NIfDBO)
-                                IF(tParentInCAS) tHFFoundTemp=.true.
-!The temp parameter means we have found the HF determinant but we are still in the loop of running over the walkers on this determinant.
-!At the end of this loop, tHFFound becomes true becuase the HF has been and gone and the rest of the determinants need not be checked.
-                            ENDIF
-                            IF(tParentInCAS) THEN
-                                ParentInitiator=0
-                                NoInitDets=NoInitDets+1.D0
-                                NoInitWalk=NoInitWalk+(ABS(REAL(CurrentSign(j))))
-!The parent walker from which we are attempting to spawn is in the active space - all children will carry this flag, and these spawn like usual.
-                            ELSEIF(tInitIncDoubs.and.(WalkExcitLevel.eq.2)) THEN
-                                ParentInitiator=0
-                                NoInitDets=NoInitDets+1.D0
-                                NoInitWalk=NoInitWalk+(ABS(REAL(CurrentSign(j))))
-                                NoExtraInitDoubs=NoExtraInitDoubs+1.D0
-                            ELSEIF(tAddtoInitiator.and.(ABS(CurrentSign(j)).gt.InitiatorWalkNo)) THEN
-                                ParentInitiator=0
-                                IF(mod(Iter,StepsSft).eq.0) NoAddedInitiators=NoAddedInitiators+1.D0
-                                NoInitDets=NoInitDets+1.D0
-                                NoInitWalk=NoInitWalk+(ABS(REAL(CurrentSign(j))))
-                            ELSE
-                                ParentInitiator=1
-                                NoNonInitDets=NoNonInitDets+1.D0
-                                NoNonInitWalk=NoNonInitWalk+(ABS(REAL(CurrentSign(j))))
-!The parent from which we are attempting to spawn is outside the active space - children spawned on unoccupied determinants with this flag will be killed.
-                            ENDIF
-                        ENDIF
-                    ENDIF
+                IF(tPrintHElAccept) CALL TrackSpawnAttempts(Child,DetCurr,j,nJ,iLutnJ,IC,Ex,tParity)
+
+                IF(Child.ne.0) THEN
+
 
                     IF(tHistHamil) THEN
                         CALL AddHistHamilEl(CurrentDets(:,j),iLutnJ,WalkExcitLevel,Child,1)   !Histogram the hamiltonian - iLutnI,iLutnJ,Excitlevel of parent,spawning indicator
@@ -1075,6 +1017,10 @@ MODULE FciMCParMod
                             SpawnedSign(ValidSpawnedList(iProcIndex))=CopySign
                             ValidSpawnedList(iProcIndex)=ValidSpawnedList(iProcIndex)+1
                         ENDIF
+                    ENDIF
+                ELSE
+                    IF(tTruncInitiator.and.tFreezeInit) THEN
+                        IF(CurrentDets(NIfTot,j).eq.0) InitRemoved=InitRemoved+1.D0
                     ENDIF
                 ENDIF
             ELSE    !Not rotoannihilation or direct annihilation
@@ -1403,6 +1349,89 @@ MODULE FciMCParMod
 
     END SUBROUTINE PerformFCIMCycPar
                         
+
+    SUBROUTINE CalcParentFlag(j,tHFFound,tHFFoundTemp)
+        USE CalcData , only : tAddtoInitiator,InitiatorWalkNo,tInitIncDoubs
+        INTEGER :: j,WalkExcitLevel
+        LOGICAL :: tParentInCAS,tHFFound,tHFFoundTemp
+
+        IF(tFreezeInit.and.(Iter.gt.FreezeInitIter)) THEN
+            ParentInitiator=CurrentDets(NIfTot,j)
+            IF(ParentInitiator.eq.0) THEN
+                NoInitDets=NoInitDets+1.D0
+                NoInitWalk=NoInitWalk+(ABS(REAL(CurrentSign(j))))
+            ELSE
+                NoNonInitDets=NoNonInitDets+1.D0
+                NoNonInitWalk=NoNonInitWalk+(ABS(REAL(CurrentSign(j))))
+            ENDIF
+        ELSE
+            IF(tTruncSpace) THEN
+                IF(WalkExcitLevel.le.ICILevel) THEN
+                    ParentInitiator=0
+                    NoInitDets=NoInitDets+1.D0
+                    NoInitWalk=NoInitWalk+(ABS(REAL(CurrentSign(j))))
+!Parent in allowed space.                        
+                ELSEIF(tInitIncDoubs.and.(WalkExcitLevel.eq.2)) THEN
+                    ParentInitiator=0
+                    NoInitDets=NoInitDets+1.D0
+                    NoInitWalk=NoInitWalk+(ABS(REAL(CurrentSign(j))))
+                    NoExtraInitDoubs=NoExtraInitDoubs+1.D0
+                ELSEIF(tAddtoInitiator.and.(ABS(CurrentSign(j)).gt.InitiatorWalkNo)) THEN
+                    ParentInitiator=0
+                    IF(mod(Iter,StepsSft).eq.0) NoAddedInitiators=NoAddedInitiators+1.D0
+                    NoInitDets=NoInitDets+1.D0
+                    NoInitWalk=NoInitWalk+(ABS(REAL(CurrentSign(j))))
+                ELSE
+                    ParentInitiator=1
+                    NoNonInitDets=NoNonInitDets+1.D0
+                    NoNonInitWalk=NoNonInitWalk+(ABS(REAL(CurrentSign(j))))
+!Parent outside allowed space.                        
+                ENDIF
+            ELSE
+!This it the case where the fixed initiator space is defined using the CAS notation, or where it is limited to only the HF determinant.                           
+!I.e. when tTruncCAS or tHFInitiator are true.
+!If neither of these are true, the expandspace option must have been used and so the parent will always be in the initiator space. 
+!                            tParentInCAS=TestIfDetInCAS(DetCurr)
+                IF(tTruncCAS) THEN
+                    tParentInCAS=TestIfDetInCASBit(CurrentDets(:,j))
+                ELSEIF(tHFFound) THEN
+!The HF determinant has been found, the rest will therefore all be out of the active space.                            
+                    tParentInCAS=.false.
+                ELSEIF(tHFFoundTemp) THEN
+!The HF determinant has been found and we are still running over the particles on the same determinant.                              
+                    tParentInCAS=.true.
+                ELSEIF(tHFInitiator) THEN
+                    tParentInCAS=DetBitEQ(CurrentDets(:,j),iLutHF,NIfDBO)
+                    IF(tParentInCAS) tHFFoundTemp=.true.
+!The temp parameter means we have found the HF determinant but we are still in the loop of running over the walkers on this determinant.
+!At the end of this loop, tHFFound becomes true becuase the HF has been and gone and the rest of the determinants need not be checked.
+                ENDIF
+                IF(tParentInCAS) THEN
+                    ParentInitiator=0
+                    NoInitDets=NoInitDets+1.D0
+                    NoInitWalk=NoInitWalk+(ABS(REAL(CurrentSign(j))))
+!The parent walker from which we are attempting to spawn is in the active space - all children will carry this flag, and these spawn like usual.
+                ELSEIF(tInitIncDoubs.and.(WalkExcitLevel.eq.2)) THEN
+                    ParentInitiator=0
+                    NoInitDets=NoInitDets+1.D0
+                    NoInitWalk=NoInitWalk+(ABS(REAL(CurrentSign(j))))
+                    NoExtraInitDoubs=NoExtraInitDoubs+1.D0
+                ELSEIF(tAddtoInitiator.and.(ABS(CurrentSign(j)).gt.InitiatorWalkNo)) THEN
+                    ParentInitiator=0
+                    IF(mod(Iter,StepsSft).eq.0) NoAddedInitiators=NoAddedInitiators+1.D0
+                    NoInitDets=NoInitDets+1.D0
+                    NoInitWalk=NoInitWalk+(ABS(REAL(CurrentSign(j))))
+                ELSE
+                    ParentInitiator=1
+                    NoNonInitDets=NoNonInitDets+1.D0
+                    NoNonInitWalk=NoNonInitWalk+(ABS(REAL(CurrentSign(j))))
+!The parent from which we are attempting to spawn is outside the active space - children spawned on unoccupied determinants with this flag will be killed.
+                ENDIF
+            ENDIF
+            IF(tFreezeInit.and.(Iter.eq.FreezeInitIter)) CurrentDets(NIfTot,j)=ParentInitiator
+        ENDIF
+
+    END SUBROUTINE CalcParentFlag                    
     
     
 !Every StepsSft steps, update the diagonal shift value (the running value for the correlation energy)
@@ -1414,7 +1443,7 @@ MODULE FciMCParMod
         INTEGER :: inpair(9),outpair(9)
         REAL*8 :: TempTotWalkers,TempTotParts
         REAL*8 :: TempSumNoatHF,MeanWalkers,TempSumWalkersCyc,TempAllSumWalkersCyc,TempNoMinorWalkers
-        REAL*8 :: inpairreal(3),outpairreal(3),inpairInit(8),outpairInit(8)
+        REAL*8 :: inpairreal(3),outpairreal(3),inpairInit(8),outpairInit(9)
         LOGICAL :: TBalanceNodesTemp,tReZeroShift
 
         TotImagTime=TotImagTime+StepsSft*Tau
@@ -1509,9 +1538,10 @@ MODULE FciMCParMod
             inpairInit(6)=NoNonInitWalk
             inpairInit(7)=NoDoubSpawns
             inpairInit(8)=NoExtraInitDoubs
+            inpairInit(9)=InitRemoved
  
 !!            CALL MPI_Reduce(inpairInit,outpairInit,8,MPI_INTEGER,MPI_SUM,Root,MPI_COMM_WORLD,error)
-            Call MPIDSumArr(inpairInit,8,outpairInit)
+            Call MPIDSumArr(inpairInit,9,outpairInit)
 !            CALL MPI_Reduce(inpairinit,outpairinit,8,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
 
             AllNoAborted=outpairInit(1)
@@ -1522,6 +1552,7 @@ MODULE FciMCParMod
             AllNoNonInitWalk=outpairInit(6)
             AllNoDoubSpawns=outpairInit(7)
             AllNoExtraInitDoubs=outpairInit(8)
+            AllInitRemoved=outpairInit(9)
         ENDIF
 
         CALL MPI_Reduce(TempTotWalkers,AllTotWalkers,1,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
@@ -1865,6 +1896,7 @@ MODULE FciMCParMod
         NoNonInitWalk=0.D0
         NoDoubSpawns=0.D0
         NoExtraInitDoubs=0.D0
+        InitRemoved=0.D0
 
 !Reset TotWalkersOld so that it is the number of walkers now
         TotWalkersOld=TotWalkers
@@ -1902,6 +1934,7 @@ MODULE FciMCParMod
         AllNoNonInitWalk=0.D0
         AllNoDoubSpawns=0.D0
         AllNoExtraInitDoubs=0.D0
+        AllInitRemoved=0.D0
 
 
 
@@ -8767,7 +8800,8 @@ MODULE FciMCParMod
                 WRITE(15,"(A2,A10,A16,A10,A16,A12,3A13,3A17,2A10,A13,A12,A13,A17,A13,A13)") "#","Step","Shift","WalkerCng","GrowRate","TotWalkers","Annihil","NoDied","NoBorn","Proj.E","Av.Shift",&
 &               "Proj.E.ThisCyc","NoatHF","NoatDoubs","AccRat","UniqueDets","IterTime","FracSpawnFrmSing","WalkDiffProc","TotImagTime"
 
-                WRITE(16,"(A2,A10,2A15,2A16,2A20,2A18)") "# ","Step","No Aborted","NoAddedtoInit","FracDetsInit","FracWalksInit","NoDoubSpawns","NoExtraDoubs","InstAbortShift","AvAbortShift"
+                WRITE(16,"(A2,A10,2A15,2A16,2A20,5A18)") "# ","Step","No Aborted","NoAddedtoInit","FracDetsInit","FracWalksInit","NoDoubSpawns","NoExtraDoubs","InstAbortShift","AvAbortShift",&
+&               "NoInitDets","NoNonInitDets","InitRemoved"
 
             ELSE
                 WRITE(6,"(A)") "       Step     Shift      WalkerCng    GrowRate       TotWalkers    Annihil    NoDied    NoBorn    Proj.E          Av.Shift     Proj.E.ThisCyc   NoatHF NoatDoubs      AccRat     UniqueDets     IterTime"
@@ -8814,8 +8848,8 @@ MODULE FciMCParMod
 
             ENDIF
             IF(tTruncInitiator.or.tDelayTruncInit) THEN
-                WRITE(16,"(I12,2G15.1,2G16.7,2G20.1,2G18.7)") Iter+PreviousCycles,AllNoAborted,AllNoAddedInitiators,(REAL(AllNoInitDets)/REAL(AllNoNonInitDets)),(REAL(AllNoInitWalk)/REAL(AllNoNonInitWalk)),&
- &                  AllNoDoubSpawns,AllNoExtraInitDoubs,DiagSftAbort,AvDiagSftAbort
+                WRITE(16,"(I12,2G15.1,2G16.7,2G20.1,5G18.7)") Iter+PreviousCycles,AllNoAborted,AllNoAddedInitiators,(REAL(AllNoInitDets)/REAL(AllNoNonInitDets)),&
+ &              (REAL(AllNoInitWalk)/REAL(AllNoNonInitWalk)),AllNoDoubSpawns,AllNoExtraInitDoubs,DiagSftAbort,AvDiagSftAbort,AllNoInitDets,AllNoNonInitDets,AllInitRemoved
             ENDIF
 
             
@@ -9233,6 +9267,7 @@ MODULE FciMCParMod
         NoNonInitWalk=0.D0
         NoDoubSpawns=0.D0
         NoExtraInitDoubs=0.D0
+        InitRemoved=0.D0
         TotImagTime=0.D0
         HFIter=0
         ENumIter=0.D0
@@ -9269,6 +9304,7 @@ MODULE FciMCParMod
         AllNoNonInitWalk=0.D0
         AllNoDoubSpawns=0.D0
         AllNoExtraInitDoubs=0.D0
+        AllInitRemoved=0.D0
  
 
         IF(tHistSpawn.or.(tCalcFCIMCPsi.and.tFCIMC).or.tHistHamil) THEN

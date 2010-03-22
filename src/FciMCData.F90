@@ -56,7 +56,7 @@ MODULE FciMCData
       INTEGER :: NoAbortedInCAS,NoAbortedOutCAS,NoInCAS,NoOutCAS
       REAL*8 :: AllGrowRateAbort,NoAborted,AllNoAborted,NoAddedInitiators,AllNoAddedInitiators,NoInitDets,AllNoInitDets
       REAL(KIND=dp) :: AllNoAbortedOld 
-      REAL*8 :: NoNonInitDets,NoInitWalk,NoNonInitWalk,NoDoubSpawns
+      REAL*8 :: NoNonInitDets,NoInitWalk,NoNonInitWalk,NoDoubSpawns,InitRemoved,AllInitRemoved
       REAL*8 :: AllNoNonInitDets,AllNoInitWalk,AllNoNonInitWalk,AllNoDoubSpawns
       REAL*8 :: NoExtraInitDoubs,AllNoExtraInitDoubs
       LOGICAL :: tHFInitiator
