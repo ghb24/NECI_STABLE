@@ -987,11 +987,17 @@ The following options are only available in **FCIMC** calculations:
     The arguments indicate the active electrons, and then the number of active virtual orbitals.
     These values can be dynamically updated throughout the simulation via use of the CHANGEVARS facility.
 
+    
+INITIATOR OPTIONS
+-----------------
+
 **TRUNCINITIATOR** 
     This is a parallel FCIMC option.  The keyword requires an initiator space to first be defined (usually 
-    via **TRUNCATECAS**, but could be by **EXCITE**).  
+    via **TRUNCATECAS**, but could be by **EXCITE**).  The absence of any defined fixed initiator space means
+    this defaults to be just the HF determinant.  I.e. all additional initiator determinants must be chosen
+    based on having sufficient populations.
     This is then a variation on a kind of CAS-star approach.  Spawning is subject to the contraint
-    that walkers spawned from determinants outside the active space only live if they are being spawned onto 
+    that walkers spawned from determinants outside the initiator space only live if they are being spawned onto 
     determinants that are already occupied.  If walkers spawned on a new determinant have non-initiator parents,
     these spawns are 'aborted'.  A special case is if in the same iteration walkers are spawned on a new 
     determinant both from inside and outside the active space - in this case we treat the active space to have 
