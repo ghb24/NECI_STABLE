@@ -8881,7 +8881,12 @@ MODULE FciMCParMod
         ENDIF
         
         IF(iProcIndex.eq.Root) THEN
-            OPEN(15,file='FCIMCStats',status='unknown')
+            if (tReadPops) then
+                ! Restart calculation.  Append to stats file (if it exists).
+                OPEN(15,file='FCIMCStats',status='unknown',access='append')
+            else
+                OPEN(15,file='FCIMCStats',status='unknown')
+            end if
             IF(tTruncInitiator.or.tDelayTruncInit) OPEN(16,file='INITIATORStats',status='unknown')
         ENDIF
 
