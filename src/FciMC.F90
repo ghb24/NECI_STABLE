@@ -1827,9 +1827,13 @@ SUBROUTINE PerformFCIMCyc()
         ENDIF
 
 !Open a file to store output
-        OPEN(15,file='FCIMCStats',status='unknown')
+        if (tReadPops) then
+            ! Restarting: append to FCIMCStats (if it exists)
+            OPEN(15,file='FCIMCStats',status='unknown', access='append')
+        else
+            OPEN(15,file='FCIMCStats',status='unknown')
+        end if
 
-!Store information specifically for the HF determinant
         ALLOCATE(HFDet(NEl),stat=ierr)
         CALL LogMemAlloc('HFDet',NEl,4,this_routine,HFDetTag)
         do i=1,NEl

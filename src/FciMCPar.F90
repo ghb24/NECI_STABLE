@@ -1811,6 +1811,10 @@ MODULE FciMCParMod
                 ENDIF
             ENDIF
 
+!Calculate the instantaneous value of the 'shift' from the HF population
+            HFShift=-1.D0/REAL(AllNoatHF,dp)*(REAL(AllNoatHF-OldAllNoatHF,dp)/(Tau*REAL(StepsSft,dp)))
+            InstShift=-1.D0/AllTotParts*((AllTotParts-AllTotPartsOld)/(Tau*REAL(StepsSft,dp)))
+
             IF(AllSumNoatHF.ne.0.D0) THEN
 !AllSumNoatHF can actually be 0 if we have equilsteps on.
                 ProjectionE=AllSumENum/AllSumNoatHF
@@ -1926,6 +1930,8 @@ MODULE FciMCParMod
 !Reset TotWalkersOld so that it is the number of walkers now
         TotWalkersOld=TotWalkers
         TotPartsOld=TotParts
+!Save the number at HF to use in the HFShift
+        OldAllNoatHF=AllNoatHF
 
 !Also reinitialise the global variables - should not necessarily need to do this...
 !        AllHFCyc=0.D0
@@ -2252,6 +2258,7 @@ MODULE FciMCParMod
                     ENDIF
 !Initialise global variables for calculation on the root node
                     IF(iProcIndex.eq.root) THEN
+                        OldAllNoatHF=InitialPart
                         AllNoatHF=InitialPart
                         AllTotWalkers=1.D0
                         AllTotWalkersOld=1.D0
@@ -2267,6 +2274,7 @@ MODULE FciMCParMod
                     NoatHF=InitialPart
 !Initialise global variables for calculation on the root node
                     IF(iProcIndex.eq.root) THEN
+                        OldAllNoatHF=nProcessors*InitialPart
                         AllNoatHF=nProcessors*InitialPart
                         AllTotWalkers=REAL(nProcessors*InitialPart,dp)
                         AllTotWalkersOld=REAL(nProcessors*InitialPart,dp)
@@ -8834,8 +8842,9 @@ MODULE FciMCParMod
 
             ELSE
                 WRITE(6,"(A)") "       Step     Shift      WalkerCng    GrowRate       TotWalkers    Annihil    NoDied    NoBorn    Proj.E          Av.Shift     Proj.E.ThisCyc   NoatHF NoatDoubs      AccRat     UniqueDets     IterTime"
-                WRITE(15,"(A)") "#       Step     Shift      WalkerCng    GrowRate       TotWalkers    Annihil    NoDied    NoBorn    Proj.E          Av.Shift"&
-&              // "Proj.E.ThisCyc   NoatHF NoatDoubs       AccRat     UniqueDets     IterTime    FracSpawnFromSing    WalkersDiffProc"
+                WRITE(15,"(A)") "#     1.Step   2.Shift    3.WalkerCng  4.GrowRate     5.TotWalkers  6.Annihil  7.NoDied  8.NoBorn  9.Proj.E       10.Av.Shift"&
+&              // " 11.Proj.E.ThisCyc  12.NoatHF 13.NoatDoubs  14.AccRat  15.UniqueDets  16.IterTime 17.FracSpawnFromSing  18.WalkersDiffProc  19.TotImagTime  20.ProjE.ThisIter "&
+&              // " 21.HFInstShift  22.TotInstShift"
             
             ENDIF
         ENDIF
@@ -8869,9 +8878,9 @@ MODULE FciMCParMod
 
             ELSE
                 
-                WRITE(15,"(I12,G16.7,I10,G16.7,I12,3I13,3G17.9,2I10,G13.5,I12,G13.5,G17.5,I13,G13.5,G17.9)") Iter+PreviousCycles,DiagSft,INT(AllTotParts-AllTotPartsOld,i2),AllGrowRate,   &
+                WRITE(15,"(I12,G16.7,I10,G16.7,I12,3I13,3G17.9,2I10,G13.5,I12,G13.5,G17.5,I13,G13.5,3G17.9)") Iter+PreviousCycles,DiagSft,INT(AllTotParts-AllTotPartsOld,i2),AllGrowRate,   &
  &                  INT(AllTotParts,i2),AllAnnihilated,AllNoDied,AllNoBorn,ProjectionE,AvDiagSft,AllENumCyc/AllHFCyc,AllNoatHF,AllNoatDoubs,AccRat,INT(AllTotWalkers,i2),IterTime,   &
- &                  REAL(AllSpawnFromSing)/REAL(AllNoBorn),WalkersDiffProc,TotImagTime,IterEnergy
+ &                  REAL(AllSpawnFromSing)/REAL(AllNoBorn),WalkersDiffProc,TotImagTime,IterEnergy,HFShift,InstShift
                 WRITE(6,"(I12,G16.7,I10,G16.7,I12,3I11,3G17.9,2I10,G13.5,I12,G13.5)") Iter+PreviousCycles,DiagSft,INT(AllTotParts-AllTotPartsOld,i2),AllGrowRate,    &
  &                  INT(AllTotParts,i2),AllAnnihilated,AllNoDied,AllNoBorn,ProjectionE,AvDiagSft,AllENumCyc/AllHFCyc,AllNoatHF,AllNoatDoubs,AccRat,INT(AllTotWalkers,i2),IterTime
 
@@ -8944,7 +8953,12 @@ MODULE FciMCParMod
         ENDIF
         
         IF(iProcIndex.eq.Root) THEN
-            OPEN(15,file='FCIMCStats',status='unknown')
+            if (tReadPops) then
+                ! Restart calculation.  Append to stats file (if it exists).
+                OPEN(15,file='FCIMCStats',status='unknown',access='append')
+            else
+                OPEN(15,file='FCIMCStats',status='unknown')
+            end if
             IF(tTruncInitiator.or.tDelayTruncInit) OPEN(16,file='INITIATORStats',status='unknown')
         ENDIF
 

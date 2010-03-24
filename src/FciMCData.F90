@@ -244,5 +244,10 @@ MODULE FciMCData
       INTEGER :: HFIter
       REAL*8 :: ENumIter,IterEnergy
 
+      REAL*8 :: HFShift     !A 'shift'-like value for the total energy which is taken from the growth of walkers on the HF determinant.
+      REAL*8 :: InstShift   !An instantaneous value for the shift from the growth of walkers.
+      INTEGER :: OldAllNoatHF
+
+
 
 END MODULE FciMCData
