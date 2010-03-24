@@ -19,9 +19,8 @@ MODULE CCMC
 !Multiple particles can be attempted to die at the same time - here, |WSign| > 1 and the probability of a death will be multiplied by |WSign|
 !dProb is an extra probability factor the death probability is multiplied by 
     INTEGER FUNCTION AttemptDieProbPar(DetCurr,Kii,IC,WSign,dProb)
-        use SystemData, only: nEl, tMerTwist
-        use CalcData , only : TFixShiftShell,ShellFix,FixShift,DiagSft,FixedKiiCutoff,Tau,tFixShiftKii
-        use CalcData , only : tFixCASShift
+        use SystemData, only: nEl
+        use CalcData , only : DiagSft,Tau
         use FciMCData
         use FciMCParMod, only: TestifDETinCAS
         use DetBitOps, only: FindExcitBitDet, FindBitExcitLevel
@@ -33,53 +32,14 @@ MODULE CCMC
         REAL*8 dProb
         LOGICAL :: tDETinCAS
 
-!Calculate the diagonal hamiltonian matrix element for the determinant
-!        rh=GetHElement2(DetCurr,DetCurr,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,0,ECore)
-!Subtract from the diagonal the value of the lowest hamiltonian matrix element
-!        rh=rh-Hii
-
-!Subtract the current value of the shift and multiply by tau
-        IF(TFixShiftShell.and.(.not.TSinglePartPhase)) THEN
-!            IF((IC.eq.0).or.(IC.eq.2)) THEN
-            IF(IC.le.ShellFix) THEN
-                rat=Tau*(Kii-FixShift)
-            ELSE
-                rat=Tau*(Kii-DiagSft)
-            ENDIF
-        ELSEIF(tFixShiftKii.and.(.not.TSinglePartPhase)) THEN
-            IF(Kii.le.FixedKiiCutoff) THEN
-                rat=Tau*(Kii-FixShift)
-            ELSE
-                rat=Tau*(Kii-DiagSft)
-            ENDIF
-        ELSEIF(tFixCASShift.and.(.not.TSinglePartPhase)) THEN
-! The 'TestifDETinCAS' function finds out if the determinant is in the complete active space or not.  If it is, the shift is fixed at 
-! the chosen fixed value (FixShift), if not the shift remains as the changing DiagSft value.
-           
-            tDETinCAS=TestifDETinCAS(DetCurr)
-            
-            IF(tDETinCAS) THEN
-                rat=Tau*(Kii-FixShift)
-            ELSE
-                rat=Tau*(Kii-DiagSft)
-            ENDIF
-        ELSE
-            rat=Tau*(Kii-DiagSft)
-        ENDIF
-
 !If there are multiple particles, decide how many to kill in total...
-        rat=rat*abs(WSign)
-        rat=rat*dProb
+        rat=Tau*(Kii-DiagSft)*abs(WSign)*dProb
 
         iKill=INT(rat)
         rat=rat-REAL(iKill)
 
 !Stochastically choose whether to die or not
-        IF(tMerTwist) THEN
-            r = genrand_real2_dSFMT() 
-        ELSE
-            CALL RANLUX(r,1)
-        ENDIF
+        r = genrand_real2_dSFMT() 
         IF(abs(rat).gt.r) THEN
             IF(rat.ge.0.D0) THEN
 !Depends whether we are trying to kill or give birth to particles.
@@ -580,13 +540,13 @@ MODULE CCMC
                   IF(TTruncSpace) THEN
 !We have truncated the excitation space at a given excitation level. See if the spawn should be allowed.
                       IF(CheckAllowedTruncSpawn(WalkExcitLevel,nJ,iLutnJ,IC)) THEN
-                          Child=AttemptCreatePar(DetCurr,iLutnI,iSgn,nJ,iLutnJ,Prob,IC,Ex,tParity,1,.false.)
+                          Child=AttemptCreatePar(DetCurr,iLutnI,iSgn,nJ,iLutnJ,Prob,IC,Ex,tParity)
                       ELSE
                           Child=0
                       ENDIF
                   ELSE
 !SD Space is not truncated - allow attempted spawn as usual
-                      Child=AttemptCreatePar(DetCurr,iLutnI,iSgn,nJ,iLutnJ,Prob,IC,Ex,tParity,1,.false.)
+                      Child=AttemptCreatePar(DetCurr,iLutnI,iSgn,nJ,iLutnJ,Prob,IC,Ex,tParity)
                   ENDIF
 
                   IF(iDebug.gt.4.or.((iDebug.eq.3.or.iDebug.eq.4).and.Child.ne.0)) THEN

@@ -13,7 +13,7 @@ logical :: tNoBrillouin, tVirtCoulombMax, tVirtExchangeMin, tHijSqrdMin
 logical :: tDiagonalizehij, tHFSingDoubExcMax, tSpinOrbs, tReadInCoeff
 logical :: tUseMP2VarDenMat, tAlpha, tStoreAsExcitations, tBin, tStarStore
 logical :: tVASP, tOffDiagSqrdMin, tOffDiagSqrdMax, tOffDiagmax, tShakeDelay
-logical :: tSeparateOccVirt, tmerTwist, tExactSizeSpace, tRotatedOrbs
+logical :: tSeparateOccVirt, tExactSizeSpace, tRotatedOrbs
 logical :: tImportanceSample, tERLocalization, tOffDiagMin, tFindCINatOrbs
 logical :: tNoRenormRandExcits, tAssumeSizeExcitgen, tCycleOrbs, tROIteration
 logical :: tShakeIter, tRotateOccOnly, tDoubExcMin, tUseHFOrbs, tRotateOrbs
@@ -39,9 +39,6 @@ integer :: Stot            ! Restrict S to Stot when using CSFs
 integer :: LMS             ! Restrict determinants/CSFs to Ms == LMS
 integer :: csf_trunc_level ! Max nopen for CSFs if tTruncateCSF enabled. Above
                            ! this, switch to using determinants.
-
-logical :: tListDets    ! A list of allowed determinants in FciMC will be read
-                        ! in and particles are only allowed here
 
 ! Inputs for CSFs
 logical :: tCSFOld        ! Use (Alex's) old CSF code

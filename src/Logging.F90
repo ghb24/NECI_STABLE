@@ -6,13 +6,13 @@ MODULE Logging
     INTEGER ILOGGING,ILOGGINGDef,iGlobalTimerLevel,nPrintTimer,G_VMC_LOGCOUNT
     INTEGER HFLOGLEVEL,iWritePopsEvery,StartPrintOrbOcc
     INTEGER PreVarLogging,WavevectorPrint,NoHistBins,MaxInitPop,HistInitPopsIter
-    REAL*8 MaxHistE,BinRange,OffDiagMax,OffDiagBinRange,TriConMax,TriConHElSingMax,TriConHElDoubMax
+    REAL*8 MaxHistE,BinRange,OffDiagMax,OffDiagBinRange
     LOGICAL TDistrib,TPopsFile,TCalcWavevector,TDetPops,tROFciDump,tROHistOffDiag,tROHistDoubExc,tROHistOnePartOrbEn,tPrintPopsDefault
     LOGICAL TZeroProjE,TWriteDetE,TAutoCorr,tBinPops,tIncrementPops,tROHistogramAll,tROHistER,tHistSpawn,tROHistSingExc,tRoHistOneElInts
-    LOGICAL tROHistVirtCoulomb,tPrintInts,tHistEnergies,tPrintTriConnections,tHistTriConHEls,tPrintHElAccept,tTruncRODump
+    LOGICAL tROHistVirtCoulomb,tPrintInts,tHistEnergies,tTruncRODump
     LOGICAL tPrintFCIMCPsi,tCalcFCIMCPsi,tPrintSpinCoupHEl,tIterStartBlock,tHFPopStartBlock,tInitShiftBlocking,tTruncDumpbyVal
     LOGICAL tWriteTransMat,tHistHamil,tPrintOrbOcc,tHistInitPops
-    INTEGER NoACDets(2:4),iPopsPartEvery,iWriteHistEvery,iNoBins,NoTriConBins,NoTriConHElBins,NHistEquilSteps,IterShiftBlock
+    INTEGER NoACDets(2:4),iPopsPartEvery,iWriteHistEvery,iNoBins,NHistEquilSteps,IterShiftBlock
     INTEGER CCMCDebug !CCMC Debugging Level 0-6.  Default 0
     LOGICAL tCCMCLogTransitions !Do we log transitions?  Only possible for very small systems
     LOGICAL tCCMCLogUniq !Do we log only unique clusters
@@ -76,14 +76,6 @@ MODULE Logging
       tROHistOnePartOrbEn=.false.
       tROHistOneElInts=.false.
       tPrintInts=.false.
-      tPrintTriConnections=.false.
-      TriConMax=0.50
-      NoTriConBins=10000
-      tHistTriConHEls=.false.
-      NoTriConHElBins=10000
-      TriConHElSingMax=1.D0
-      TriConHElDoubMax=0.50
-      tPrintHElAccept=.false.
       tPrintSpinCoupHEl=.false.
       tPrintFCIMCPsi=.false.
       tCalcFCIMCPsi=.false.
@@ -123,6 +115,7 @@ MODULE Logging
       LOGICAL eof
       INTEGER :: i,ierr
       CHARACTER (LEN=100) w
+      CHARACTER(*),PARAMETER :: t_r='LogReadInput'
 
       ILogging=iLoggingDef
 
@@ -348,23 +341,26 @@ MODULE Logging
 !This option takes each generated pair of determinant and excitation and finds 3rd determinant to make up a triangular connection.
 !The product of the three connecting elements are then histogrammed in two separate files. In one, the triangular connections that combine 
 !to be sign coherent are recorded, and in the other, those which are sign incoherent.
-            call readf(TriConMax)
-            call readi(NoTriConBins)
-            tPrintTriConnections=.true.
+            CALL Stop_All(t_r,"PRINTTRICONNECTIONS option depreciated")
+!            call readf(TriConMax)
+!            call readi(NoTriConBins)
+!            tPrintTriConnections=.true.
 
         case("HISTTRICONNELEMENTS")
 !This keyword takes the above triangles of connected determinants and histograms each connecting element that contributes to the triangle.
 !It then prints these according to whether they are single or double connecting elements.
 !It also prints a histogram and the average size of the Hjk elements (regardless of whether or not they are zero).
-            call readf(TriConHElSingMax)
-            call readf(TriConHElDoubMax)
-            call readi(NoTriConHElBins)
-            tHistTriConHEls=.true.
+            CALL Stop_All(t_r,"HISTTRICONNELEMENTS option depreciated")
+!            call readf(TriConHElSingMax)
+!            call readf(TriConHElDoubMax)
+!            call readi(NoTriConHElBins)
+!            tHistTriConHEls=.true.
 
         case("PRINTHELACCEPTSTATS")
 !This keyword prints out an extra file that keeps track of the H elements involved in spawning attempts that are accepted or not accepted.
 !It prints out the average H elements where spawning is accepted and the average where it is not accepted.
-            tPrintHElAccept=.true.
+            CALL Stop_All(t_r,"PRINTHELACCEPTSTATS option depreciated")
+!            tPrintHElAccept=.true.
 
         case("PRINTSPINCOUPHELS")
 !This option prints out the number of positive and negative (and their sums) H elements connecting two spin coupled determinants.            
