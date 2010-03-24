@@ -237,9 +237,6 @@ MODULE Calc
           HFPopThresh=0
           tFreezeInit=.false.
           FreezeInitIter=-1
-          tFreezeInit2=.false.
-          FreezeInitAccum=0
-          FreezeInitIter2=-1
 
           tNeedsVirts=.true.! Set if we need virtual orbitals  (usually set).  Will be unset (by Calc readinput) if I_VMAX=1 and TENERGY is false
 
@@ -961,13 +958,6 @@ MODULE Calc
 !At iteration number FreezeInitIter, the current initiator space is 'frozen'.  This means that the current initiator determinants will remain initiators (regardless of what happens to
 !their populations) and the non-initiators will stay that way.  This is an attempt to reduce the random error, and improve convergence.
                 call Geti(FreezeInitIter)
-
-            case("FREEZEINITIATOR2")
-!This is a slightly different version of the FREEZEINITIATOR.  In this, at FreezeInitIter, the rules change slightly so that initiators can only be accumulated but nothing can be 
-!removed from the initiator space.  This goes on for FreezeInitAccum iterations.  After this, spawning is restricted to only those determinants in the initiator space.
-!It is assumed that these are the most important determinants in the space.
-                call Geti(FreezeInitIter2)
-                call Geti(FreezeInitAccum)
 
             case("KEEPDOUBSPAWNS")
 !This means that two sets of walkers spawned on the same determinant with the same sign will live, whether they've come from inside or outside the CAS space.  Before, if both of these

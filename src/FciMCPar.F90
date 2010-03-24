@@ -14,9 +14,9 @@ MODULE FciMCParMod
     use SystemData , only : NEl,Alat,Brr,ECore,G1,nBasis,nBasisMax,nMsh,Arr,LMS,tHPHF,tListDets,NIfD,NIfTot,NIfDBO,NIfY
     use SystemData , only : tHub,tReal,tNonUniRandExcits,tMerTwist,tRotatedOrbs,tImportanceSample,tFindCINatOrbs,tFixLz,LzTot,tUEG, tLatticeGens,tCSF
     use CalcData , only : InitWalkers,NMCyc,DiagSft,Tau,SftDamp,StepsSft,OccCASorbs,VirtCASorbs,tFindGroundDet,tDirectAnnihil
-    use CalcData , only : TStartMP1,NEquilSteps,TReadPops,TRegenExcitgens,TFixShiftShell,ShellFix,FixShift,tMultipleDetsSpawn,FreezeInitAccum
+    use CalcData , only : TStartMP1,NEquilSteps,TReadPops,TRegenExcitgens,TFixShiftShell,ShellFix,FixShift,tMultipleDetsSpawn
     use CalcData , only : tConstructNOs,tAnnihilatebyRange,tRotoAnnihil,MemoryFacSpawn,tRegenDiagHEls,tSpawnAsDet,FreezeInitIter,tFreezeInit
-    use CalcData , only : GrowMaxFactor,CullFactor,TStartSinglePart,ScaleWalkers,Lambda,TLocalAnnihilation,tNoReturnStarDets,tFreezeInit2,FreezeInitIter2
+    use CalcData , only : GrowMaxFactor,CullFactor,TStartSinglePart,ScaleWalkers,Lambda,TLocalAnnihilation,tNoReturnStarDets
     use CalcData , only : NDets,RhoApp,TResumFCIMC,TNoAnnihil,MemoryFacPart,TAnnihilonproc,MemoryFacAnnihil,iStarOrbs,tAllSpawnStarDets
     use CalcData , only : FixedKiiCutoff,tFixShiftKii,tFixCASShift,tMagnetize,BField,NoMagDets,tSymmetricField,tStarOrbs,SinglesBias
     use CalcData , only : tHighExcitsSing,iHighExcitsSing,tFindGuide,iGuideDets,tUseGuide,iInitGuideParts,tNoDomSpinCoup,tRandomiseHashOrbs
@@ -28,11 +28,11 @@ MODULE FciMCParMod
     use GenRandSymExcitNUMod , only : GenRandSymExcitScratchNU,GenRandSymExcitNU,ScratchSize
     use IntegralsData , only : fck,NMax,UMat,tPartFreezeCore,NPartFrozen,NHolesFrozen,tPartFreezeVirt,NVirtPartFrozen,NElVirtFrozen
     USE UMatCache , only : GTID
-    USE Logging , only : iWritePopsEvery,TPopsFile,TZeroProjE,iPopsPartEvery,tBinPops,tHistSpawn,iWriteHistEvery,tHistEnergies,IterShiftBlock
-    USE Logging , only : NoACDets,BinRange,iNoBins,OffDiagBinRange,OffDiagMax,tPrintSpinCoupHEl!,iLagMin,iLagMax,iLagStep,tAutoCorr
+    USE Logging , only : iWritePopsEvery,TPopsFile,TZeroProjE,iPopsPartEvery,tBinPops,tHistSpawn,iWriteHistEvery,tHistEnergies,IterShiftBlock,AllHistInitPops
+    USE Logging , only : NoACDets,BinRange,iNoBins,OffDiagBinRange,OffDiagMax,tPrintSpinCoupHEl,AllHistInitPopsTag!,iLagMin,iLagMax,iLagStep,tAutoCorr
     USE Logging , only : tPrintTriConnections,tHistTriConHels,tPrintHElAccept,tPrintFCIMCPsi,tCalcFCIMCPsi,NHistEquilSteps,tPrintOrbOcc,StartPrintOrbOcc
-    USE Logging , only : tHFPopStartBlock,tIterStartBlock,IterStartBlocking,HFPopStartBlocking,tInitShiftBlocking,tHistHamil,iWriteHamilEvery
-    USE Logging , only : OrbOccs,OrbOccsTag,tPrintPopsDefault,iWriteBlockingEvery,tBlockEveryIteration
+    USE Logging , only : tHFPopStartBlock,tIterStartBlock,IterStartBlocking,HFPopStartBlocking,tInitShiftBlocking,tHistHamil,iWriteHamilEvery,HistInitPopsTag
+    USE Logging , only : OrbOccs,OrbOccsTag,tPrintPopsDefault,iWriteBlockingEvery,tBlockEveryIteration,tHistInitPops,MaxInitPop,HistInitPopsIter,HistInitPops
     USE SymData , only : nSymLabels
     USE dSFMT_interface , only : genrand_real2_dSFMT
     USE Parallel
@@ -56,7 +56,7 @@ MODULE FciMCParMod
         use CalcData, only : iFullSpaceIter
         use UMatCache, only : UMatInd
         use FciMCLoggingMOD , only : PrintTriConnHist,PrintTriConnHElHist,FinaliseBlocking,FinaliseShiftBlocking,PrintShiftBlocking,PrintBlocking
-        USE FciMCLoggingMOD , only : SumInErrorContrib
+        USE FciMCLoggingMOD , only : SumInErrorContrib,WriteInitPops
         use RotateOrbsMod , only : RotateOrbs
         use NatOrbsMod , only : PrintOrbOccs
         TYPE(HDElement) :: Weight,Energyxw
@@ -179,6 +179,11 @@ MODULE FciMCParMod
                 CALL WriteHamilHistogram()
             ENDIF
 
+            IF(tHistInitPops.and.(MOD(Iter,HistInitPopsIter).eq.0)) THEN
+                IF(iProcIndex.eq.0) WRITE(6,*) 'Writing out the spread of the initiator determinant populations.'
+                CALL WriteInitPops(Iter)
+            ENDIF
+
             Iter=Iter+1
 !End of MC cycle
         enddo
@@ -230,7 +235,15 @@ MODULE FciMCParMod
             DEALLOCATE(OrbOccs)
             CALL LogMemDeAlloc(this_routine,OrbOccsTag)
         ENDIF
-     
+
+        IF(tHistInitPops) THEN
+            DEALLOCATE(HistInitPops)
+            CALL LogMemDeAlloc(this_routine,HistInitPopsTag)
+            IF(iProcIndex.eq.0) THEN
+                DEALLOCATE(AllHistInitPops)
+                CALL LogMemDeAlloc(this_routine,AllHistInitPopsTag)
+            ENDIF
+        ENDIF
 
 !        IF(TAutoCorr) CALL CalcAutoCorr()
 
@@ -518,7 +531,6 @@ MODULE FciMCParMod
         ENDIF
 
         IF(Iter.eq.FreezeInitIter) tFreezeInit=.true.
-!        IF(Iter.eq.FreezeInitIter2) tFreezeInit2=.true.
 
         tHFFound=.false.
         tHFFoundTemp=.false.
@@ -1431,6 +1443,19 @@ MODULE FciMCParMod
             IF(tFreezeInit.and.(Iter.eq.FreezeInitIter)) CurrentDets(NIfTot,j)=ParentInitiator
         ENDIF
 
+        IF(tHistInitPops.and.(MOD(Iter,HistInitPopsIter).eq.0)) THEN
+            IF(ParentInitiator.eq.0) THEN
+!Just summing in those determinants which are initiators. 
+                IF(ABS(CurrentSign(j)).le.MaxInitPop) THEN
+                    HistInitPops(CurrentSign(j))=HistInitPops(CurrentSign(j))+1
+                ELSE
+                    WRITE(6,*) 'WARNING: Initiator population found out of the range of the histogram bins.'
+                    WRITE(6,'(A,I20)') ' Population: ',CurrentSign(j)
+                ENDIF
+            ENDIF
+        ENDIF
+
+
     END SUBROUTINE CalcParentFlag                    
     
     
@@ -1944,7 +1969,7 @@ MODULE FciMCParMod
     
 !This initialises the calculation, by allocating memory, setting up the initial walkers, and reading from a file if needed
     SUBROUTINE InitFCIMCCalcPar()
-        use FciMCLoggingMOD , only : InitTriHElStats,InitSpinCoupHel
+        use FciMCLoggingMOD , only : InitTriHElStats,InitSpinCoupHel,InitHistInitPops
         use SystemData , only : tRotateOrbs
         use CalcData , only : InitialPart
         INTEGER :: ierr,i,j,k,l,DetCurr(NEl),ReadWalkers,TotWalkersDet
@@ -2351,6 +2376,10 @@ MODULE FciMCParMod
             ALLOCATE(OrbOccs(nBasis),stat=ierr)
             CALL LogMemAlloc('OrbOccs',nBasis,8,this_routine,OrbOccsTag,ierr)
             OrbOccs(:)=0.D0
+        ENDIF
+
+        IF(tHistInitPops) THEN
+            CALL InitHistInitPops()
         ENDIF
 
         IF(MaxNoatHF.eq.0) THEN

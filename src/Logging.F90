@@ -5,21 +5,21 @@ MODULE Logging
 
     INTEGER ILOGGING,ILOGGINGDef,iGlobalTimerLevel,nPrintTimer,G_VMC_LOGCOUNT
     INTEGER HFLOGLEVEL,iWritePopsEvery,StartPrintOrbOcc
-    INTEGER PreVarLogging,WavevectorPrint,NoHistBins
+    INTEGER PreVarLogging,WavevectorPrint,NoHistBins,MaxInitPop,HistInitPopsIter
     REAL*8 MaxHistE,BinRange,OffDiagMax,OffDiagBinRange,TriConMax,TriConHElSingMax,TriConHElDoubMax
     LOGICAL TDistrib,TPopsFile,TCalcWavevector,TDetPops,tROFciDump,tROHistOffDiag,tROHistDoubExc,tROHistOnePartOrbEn,tPrintPopsDefault
     LOGICAL TZeroProjE,TWriteDetE,TAutoCorr,tBinPops,tIncrementPops,tROHistogramAll,tROHistER,tHistSpawn,tROHistSingExc,tRoHistOneElInts
     LOGICAL tROHistVirtCoulomb,tPrintInts,tHistEnergies,tPrintTriConnections,tHistTriConHEls,tPrintHElAccept,tTruncRODump
     LOGICAL tPrintFCIMCPsi,tCalcFCIMCPsi,tPrintSpinCoupHEl,tIterStartBlock,tHFPopStartBlock,tInitShiftBlocking,tTruncDumpbyVal
-    LOGICAL tWriteTransMat,tHistHamil,tPrintOrbOcc
+    LOGICAL tWriteTransMat,tHistHamil,tPrintOrbOcc,tHistInitPops
     INTEGER NoACDets(2:4),iPopsPartEvery,iWriteHistEvery,iNoBins,NoTriConBins,NoTriConHElBins,NHistEquilSteps,IterShiftBlock
     INTEGER CCMCDebug !CCMC Debugging Level 0-6.  Default 0
     LOGICAL tCCMCLogTransitions !Do we log transitions?  Only possible for very small systems
     LOGICAL tCCMCLogUniq !Do we log only unique clusters
     LOGICAL tSaveBlocking !Do not overwrite blocking files
     INTEGER iWriteBlockingEvery !How often to write out blocking files
-    INTEGER IterStartBlocking,HFPopStartBlocking,NoDumpTruncs,NoTruncOrbsTag,TruncEvaluesTag,iWriteHamilEvery,OrbOccsTag
-    INTEGER , ALLOCATABLE :: NoTruncOrbs(:)
+    INTEGER IterStartBlocking,HFPopStartBlocking,NoDumpTruncs,NoTruncOrbsTag,TruncEvaluesTag,iWriteHamilEvery,OrbOccsTag,HistInitPopsTag,AllHistInitPopsTag
+    INTEGER , ALLOCATABLE :: NoTruncOrbs(:),HistInitPops(:),AllHistInitPops(:)
     REAL*8 , ALLOCATABLE :: TruncEvalues(:),OrbOccs(:)
     LOGICAL :: tBlockEveryIteration
 
@@ -101,6 +101,9 @@ MODULE Logging
       tWriteTransMat=.false.
       tCCMCLogTransitions=.false.
       tCCMCLogUniq=.true.
+      tHistInitPops=.false.
+      MaxInitPop=1000
+      HistInitPopsIter=100000
 
 
 ! Feb08 defaults
@@ -366,6 +369,13 @@ MODULE Logging
         case("PRINTSPINCOUPHELS")
 !This option prints out the number of positive and negative (and their sums) H elements connecting two spin coupled determinants.            
             tPrintSpinCoupHEl=.true.
+
+        case("HISTINITIATORPOPS")
+!This option prints out a file (at every HistInitPopsIter iteration) containing the populations of the initiator determinants and the number
+!with this population. The range of populations histogrammed goes from -MaxInitPop -> MaxInitPop.
+            tHistInitPops=.true.
+            call readi(MaxInitPop)
+            call readi(HistInitPopsIter)
         
         case("AUTOCORR")
 !This is a Parallel FCIMC option - it will calculate the largest weight MP1 determinants and histogramm them

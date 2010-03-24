@@ -24,12 +24,12 @@ LOGICAL :: TFixShiftKii,tMagnetize,tSymmetricField,tFixCASShift,tAllSpawnStarDet
 LOGICAL :: TDistAnnihil,TLocalAnnihilation,tGlobalSftCng,tAnnihilatebyrange
 LOGICAL :: tRotoAnnihil,tRegenDiagHEls,tSpawnAsDet,tFindGroundDet,tStarOrbs,tHighExcitsSing
 LOGICAL :: tTruncCAS,tTruncInitiator,tDelayTruncInit,tKeepDoubleSpawns,tAddtoInitiator    !Truncation the FCIMC excitation space by CAS
-LOGICAL :: tInitIncDoubs,tWalkContGrow,tRandomiseHashOrbs,tFreezeInit,tFreezeInit2
+LOGICAL :: tInitIncDoubs,tWalkContGrow,tRandomiseHashOrbs,tFreezeInit
 
 INTEGER :: NWHTAY(3,10),NPATHS,NoMoveDets,NoMCExcits,IterTruncInit,InitiatorWalkNo,NShiftEquilSteps
 INTEGER :: NDETWORK,I_HMAX,I_VMAX,G_VMC_SEED,HApp,iFullSpaceIter,MaxNoatHF,HFPopThresh
-INTEGER :: IMCSTEPS,IEQSTEPS,MDK(5),Iters,NDets,iDetGroup,FreezeInitIter,FreezeInitAccum
-INTEGER :: CUR_VERT,NHISTBOXES,I_P,LinePoints,iMaxExcitLevel,FreezeInitIter2
+INTEGER :: IMCSTEPS,IEQSTEPS,MDK(5),Iters,NDets,iDetGroup,FreezeInitIter
+INTEGER :: CUR_VERT,NHISTBOXES,I_P,LinePoints,iMaxExcitLevel
 INTEGER :: InitWalkers,NMCyc,StepsSft,FlipTauCyc,CLMax,MaxExcDom,MinExcDom
 INTEGER :: RhoApp,NEquilSteps,ShellFix,NoMagDets,iGuideDets,iNoDominantDets,InitialPart
 INTEGER :: OccCASorbs,VirtCASorbs,iStarOrbs,iHighExcitsSing,iInitGuideParts,iAnnInterval

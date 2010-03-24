@@ -7,7 +7,7 @@ MODULE FciMCLoggingMod
     USE Parallel
     USE HElem , only : HElement
     USE Logging , only : tPrintTriConnections,TriConMax,NoTriConBins,tHistTriConHEls,NoTriConHElBins,TriConHElSingMax,TriConHElDoubMax
-    USE Logging , only : tPrintHElAccept,tSaveBlocking,tBlockEveryIteration
+    USE Logging , only : tPrintHElAccept,tSaveBlocking,tBlockEveryIteration,MaxInitPop,HistInitPops,HistInitPopsTag,AllHistInitPops,AllHistInitPopsTag
     USE SystemData , only : NEl,NIfTot,NIfDBO
     USE SymData , only : nSymLabels
     USE Determinants , only : get_helement, get_helement_excit
@@ -384,6 +384,51 @@ MODULE FciMCLoggingMod
  
 
     END SUBROUTINE FinaliseShiftBlocking
+
+
+    SUBROUTINE InitHistInitPops()
+        INTEGER :: ierr
+    
+
+        ALLOCATE(HistInitPops((-1*MaxInitPop):MaxInitPop),stat=ierr)
+        CALL LogMemAlloc('HistInitPops',((2*MaxInitPop)+1),4,'InitHistInitPops',HistInitPopsTag,ierr)
+        HistInitPops(:)=0
+
+        IF(iProcIndex.eq.0) THEN
+            ALLOCATE(AllHistInitPops((-1*MaxInitPop):MaxInitPop),stat=ierr)
+            CALL LogMemAlloc('HistInitPops',((2*MaxInitPop)+1),4,'InitHistInitPops',AllHistInitPopsTag,ierr)
+            AllHistInitPops(:)=0
+        ENDIF
+
+    END SUBROUTINE InitHistInitPops
+
+
+    SUBROUTINE WriteInitPops(Iter)
+        CHARACTER(len=21) :: abstr
+        INTEGER :: i,Iter,error
+
+!This will open a file called InitPops-"Iter" on unit number 17.
+        abstr=''
+        write(abstr,'(I12)') Iter
+        abstr='InitPops-'//adjustl(abstr)
+
+#ifdef PARALLEL
+        CALL MPI_Reduce(HistInitPops(((-1)*MaxInitPop):MaxInitPop),AllHistInitPops(((-1)*MaxInitPop):MaxInitPop),((2*MaxInitPop)+1),MPI_INTEGER,MPI_SUM,0,MPI_COMM_WORLD,error)
+#else        
+        AllHistInitPops(:)=HistInitPops(:)
+#endif
+
+        IF(iProcIndex.eq.0) THEN
+            OPEN(42,FILE=abstr,STATUS='unknown')
+            do i=((-1)*MaxInitPop),MaxInitPop
+                IF(AllHistInitPops(i).ne.0) WRITE(42,'(2I20)') i,AllHistInitPops(i)
+            enddo
+            CLOSE(42)
+            AllHistInitPops(:)=0
+        ENDIF
+        HistInitPops(:)=0
+
+    END SUBROUTINE WriteInitPops
 
 
 
