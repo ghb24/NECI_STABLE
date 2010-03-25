@@ -3401,7 +3401,7 @@ MODULE FciMCParMod
         use CalcData, only : tFCIMC
         use CalcData , only : tRandomiseHashOrbs
         use Calc, only : VirtCASorbs,OccCASorbs,G_VMC_Seed
-        use CalcData , only : MemoryFacPart,MemoryFacAnnihil,MemoryFacSpawn
+        use CalcData , only : MemoryFacPart,MemoryFacAnnihil,MemoryFacSpawn,TauFactor,StepsSftImag
         use Determinants , only : GetH0Element3
         use SymData , only : nSymLabels,SymLabelList,SymLabelCounts
         use Logging , only : tTruncRODump
@@ -3893,7 +3893,17 @@ MODULE FciMCParMod
         ENDIF
         WRITE(6,*) "Non-uniform excitation generators in use."
         CALL CalcApproxpDoubles(HFConn)
-
+        IF(TauFactor.ne.0.D0) THEN
+            WRITE(6,*) "TauFactor detected. Resetting Tau."
+            Tau=TauFactor/REAL(HFConn,dp)
+            WRITE(6,*) "Tau set to: ",Tau
+        ENDIF
+        IF(StepsSftImag.ne.0.D0) THEN
+            WRITE(6,*) "StepsShiftImag detected. Resetting StepsShift."
+            StepsSft=NINT(StepsSftImag/Tau)
+            IF(StepsSft.eq.0) StepsSft=1
+            WRITE(6,*) "StepsShift set to: ",StepsSft
+        ENDIF
 !        IF(tConstructNOs) THEN
 !! This is the option for constructing the natural orbitals actually during a NECI calculation.  This is different (and probably a lot more complicated and doesn't 
 !! currently work) from the FINDCINATORBS option which finds the natural orbitals given a final wavefunction.
