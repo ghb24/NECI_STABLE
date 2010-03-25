@@ -20,81 +20,12 @@ Subroutine NECICore(iCacheFlag,tCPMD,tVASP)
     ! Utility modules.
     use global_utilities
 
-    use sort_mod
-    use mt95, only: genrand_real2
-
     Implicit none
     integer,intent(in) :: iCacheFlag
     logical,intent(in) :: tCPMD,tVASP
     type(timer), save :: proc_timer
     integer :: ios
     character(255) :: Filename
-
-    ! TESTING:
-    integer :: arr(3,40), i, j
-    real*8 :: brr(30)
-    integer :: crr(10)
-    real*8 :: drr(10)
-    real*8 :: r
-
-    do i=1,size(arr(:,1))
-        do j=1,size(arr(1,:))
-            call genrand_real2(r)
-            arr(i,j) = int(r * 100)
-        enddo
-    enddo
-
-    print*, 'INIT'
-    do i=1,size(arr(1,:))
-        print*, arr(:,i)
-    enddo
-
-    call sort (arr)
-
-    print*, 'FINAL'
-    do i=1,size(arr(1,:))
-        print*, arr(:,i)
-    enddo
-
-    do i=1,size(brr)
-        call genrand_real2(r)
-        brr(i) = r*10
-    enddo
-
-    print*, 'INIT2'
-    do i=1,size(brr)
-        print*, brr(i)
-    enddo
-
-    call sort (brr)
-
-    print*, 'FINAL2'
-    do i=1,size(brr)
-        print*, brr(i)
-    enddo
-
-    do i=1,size(crr)
-        crr(i) = size(crr)-i+1
-        drr(i) = real(i)/10
-    enddo
-
-    print*, 'INIT3'
-    do i=1,size(crr)
-        print*, crr(i), drr(i)
-    enddo
-
-    call sort (crr, drr)
-
-    print*, 'FINAL3'
-    do i=1,size(crr)
-        print*, crr(i), drr(i)
-    enddo
-
-
-    call stop_all('end', 'test')
-
-    call stop_all('end', 'test')
-    
     ! Do the program initialisation.
     call NECICodeInit(tCPMD,tVASP)
 
