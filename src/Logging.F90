@@ -5,7 +5,7 @@ MODULE Logging
 
     INTEGER ILOGGING,ILOGGINGDef,iGlobalTimerLevel,nPrintTimer,G_VMC_LOGCOUNT
     INTEGER HFLOGLEVEL,iWritePopsEvery,StartPrintOrbOcc
-    INTEGER PreVarLogging,WavevectorPrint,NoHistBins,MaxInitPop,HistInitPopsIter
+    INTEGER PreVarLogging,WavevectorPrint,NoHistBins,HistInitPopsIter
     REAL*8 MaxHistE,BinRange,OffDiagMax,OffDiagBinRange
     LOGICAL TDistrib,TPopsFile,TCalcWavevector,TDetPops,tROFciDump,tROHistOffDiag,tROHistDoubExc,tROHistOnePartOrbEn,tPrintPopsDefault
     LOGICAL TZeroProjE,TWriteDetE,TAutoCorr,tBinPops,tIncrementPops,tROHistogramAll,tROHistER,tHistSpawn,tROHistSingExc,tRoHistOneElInts
@@ -19,7 +19,7 @@ MODULE Logging
     LOGICAL tSaveBlocking !Do not overwrite blocking files
     INTEGER iWriteBlockingEvery !How often to write out blocking files
     INTEGER IterStartBlocking,HFPopStartBlocking,NoDumpTruncs,NoTruncOrbsTag,TruncEvaluesTag,iWriteHamilEvery,OrbOccsTag,HistInitPopsTag,AllHistInitPopsTag
-    INTEGER , ALLOCATABLE :: NoTruncOrbs(:),HistInitPops(:),AllHistInitPops(:)
+    INTEGER , ALLOCATABLE :: NoTruncOrbs(:),HistInitPops(:,:),AllHistInitPops(:,:)
     REAL*8 , ALLOCATABLE :: TruncEvalues(:),OrbOccs(:)
     LOGICAL :: tBlockEveryIteration
 
@@ -94,7 +94,6 @@ MODULE Logging
       tCCMCLogTransitions=.false.
       tCCMCLogUniq=.true.
       tHistInitPops=.false.
-      MaxInitPop=1000
       HistInitPopsIter=100000
 
 
@@ -367,10 +366,9 @@ MODULE Logging
             tPrintSpinCoupHEl=.true.
 
         case("HISTINITIATORPOPS")
-!This option prints out a file (at every HistInitPopsIter iteration) containing the populations of the initiator determinants and the number
-!with this population. The range of populations histogrammed goes from -MaxInitPop -> MaxInitPop.
+!This option prints out a file (at every HistInitPopsIter iteration) containing the natural log of the populations of the initiator determinants 
+!and the number with this population. The range of populations histogrammed goes from ln(N_add) -> ln(1,000,000) with 50,000 bins.
             tHistInitPops=.true.
-            call readi(MaxInitPop)
             call readi(HistInitPopsIter)
         
         case("AUTOCORR")

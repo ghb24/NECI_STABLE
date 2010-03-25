@@ -27,7 +27,7 @@ MODULE FciMCParMod
     USE Logging , only : BinRange,iNoBins,OffDiagBinRange,OffDiagMax,AllHistInitPopsTag
     USE Logging , only : tPrintFCIMCPsi,tCalcFCIMCPsi,NHistEquilSteps,tPrintOrbOcc,StartPrintOrbOcc
     USE Logging , only : tHFPopStartBlock,tIterStartBlock,IterStartBlocking,HFPopStartBlocking,tInitShiftBlocking,tHistHamil,iWriteHamilEvery,HistInitPopsTag
-    USE Logging , only : OrbOccs,OrbOccsTag,tPrintPopsDefault,iWriteBlockingEvery,tBlockEveryIteration,tHistInitPops,MaxInitPop,HistInitPopsIter,HistInitPops
+    USE Logging , only : OrbOccs,OrbOccsTag,tPrintPopsDefault,iWriteBlockingEvery,tBlockEveryIteration,tHistInitPops,HistInitPopsIter,HistInitPops
     USE SymData , only : nSymLabels
     USE dSFMT_interface , only : genrand_real2_dSFMT
     USE Parallel
@@ -268,6 +268,19 @@ MODULE FciMCParMod
             ENDIF
             tTruncInitiator=.true.
         ENDIF
+
+
+
+        tHFFound=.false.
+        tHFFoundTemp=.false.
+        IF(tHFInitiator) THEN
+            Proc=DetermineDetProc(iLutHF)   !This wants to return a value between 0 -> nProcessors-1
+            IF(iProcIndex.ne.Proc) THEN
+!The processor with the HF determinant on it will have to check through each determinant until its found.            
+                tHFFound=.true.
+            ENDIF
+        ENDIF
+        IF(tFlipHighPopFound) CALL FlipHighPopDet()
         
 !VecSlot indicates the next free position in NewDets
         VecSlot=1
@@ -570,7 +583,8 @@ MODULE FciMCParMod
 
     SUBROUTINE CalcParentFlag(j,tHFFound,tHFFoundTemp)
         USE CalcData , only : tAddtoInitiator,InitiatorWalkNo,tInitIncDoubs
-        INTEGER :: j,WalkExcitLevel
+        USE FciMCLoggingMOD, only : InitBinMin,InitBinIter
+        INTEGER :: j,WalkExcitLevel,InitBinNo
         LOGICAL :: tParentInCAS,tHFFound,tHFFoundTemp
 
         IF(tTruncSpace) THEN
@@ -638,20 +652,92 @@ MODULE FciMCParMod
         ENDIF
 
         IF(tHistInitPops.and.(MOD(Iter,HistInitPopsIter).eq.0)) THEN
-            IF(ParentInitiator.eq.0) THEN
+            IF((ParentInitiator.eq.0).and.((ABS(CurrentSign(j)).gt.InitiatorWalkNo))) THEN
 !Just summing in those determinants which are initiators. 
-                IF(ABS(CurrentSign(j)).le.MaxInitPop) THEN
-                    HistInitPops(CurrentSign(j))=HistInitPops(CurrentSign(j))+1
+
+!Need to figure out which bin to put them in though.
+                IF(CurrentSign(j).lt.0) THEN
+                    InitBinNo=(FLOOR(((log(REAL(ABS(CurrentSign(j)))))-InitBinMin)/InitBinIter))+1
+                    IF((InitBinNo.ge.1).and.(InitBinNo.le.25000)) THEN
+                        HistInitPops(1,InitBinNo)=HistInitPops(1,InitBinNo)+1
+                    ELSE
+                        CALL Stop_All('CalcParentFlag','Trying to histogram outside the range of the bins.')
+                    ENDIF
+
                 ELSE
-                    WRITE(6,*) 'WARNING: Initiator population found out of the range of the histogram bins.'
-                    WRITE(6,'(A,I20)') ' Population: ',CurrentSign(j)
+                    InitBinNo=(FLOOR(((log(REAL(CurrentSign(j))))-InitBinMin)/InitBinIter))+1
+ 
+                    IF((InitBinNo.ge.1).and.(InitBinNo.le.25000)) THEN
+                        HistInitPops(2,InitBinNo)=HistInitPops(2,InitBinNo)+1
+                    ELSE
+                        CALL Stop_All('CalcParentFlag','Trying to histogram outside the range of the bins.')
+                    ENDIF
                 ENDIF
             ENDIF
         ENDIF
 
+        IF(tFlipHighPopSign.and.(ParentInitiator.eq.0)) THEN
+            IF(CurrentSign(j).lt.MaxInitPop) THEN
+                MaxInitPop=CurrentSign(j)
+                HighPopFlip=j
+            ENDIF
+
+            tFlipHighPopFound=.true.     
+        ENDIF
+
+
+
+
 
     END SUBROUTINE CalcParentFlag                    
     
+
+    SUBROUTINE FlipHighPopDet()
+!Found the highest population on each processor, need to find out which of these has the highest of all.
+        INTEGER :: MaxPops(nProcessors),error,i,MaxPop,MaxPopProc,InitDetCurr(NEl)
+
+
+        WRITE(6,*) 'Highest populated determinant has pop',CurrentSign(HighPopflip)
+
+!Need some sort of mpi to send these all into an array, hopefully so that processor 0 in position 0, then 1, etc etc.
+
+        CALL MPI_Gather(CurrentSign(HighPopFlip),1,MPI_INTEGER,MaxPops,1,MPI_INTEGER,Root,MPI_COMM_WORLD,error)
+
+        IF(iProcIndex.eq.Root) THEN
+            WRITE(6,*) 'MaxPops',MaxPops
+
+            MaxPop=MaxPops(1)
+            do i=2,nProcessors
+                IF(MaxPops(i).lt.MaxPop) THEN
+                    MaxPop=MaxPops(i)
+                    MaxPopProc=i-1
+                ENDIF
+            enddo
+        ENDIF
+
+        CALL MPI_Bcast(MaxPopProc,1,MPI_INTEGER,Root,MPI_COMM_WORLD,error)
+        IF(error.ne.0) CALL Stop_All('FlipHighPopDet','Error in MPI_Bcast.')
+
+
+        IF(iProcIndex.eq.MaxPopProc) THEN
+
+            WRITE(6,*) 'The most highly populated determinant with the opposite sign to the HF has ',CurrentSign(HighPopFlip),' walkers.'
+            WRITE(6,*) 'Flipping the sign of this determinant.'
+            WRITE(6,*) 'In bit representation this is: ',CurrentDets(:,HighPopFlip)
+            CALL DecodeBitDet(InitDetCurr,CurrentDets(:,HighPopFlip))
+            WRITE(6,*) 'which has orbitals: ',InitDetCurr
+
+            CurrentSign(HighPopFlip)=(-1)*CurrentSign(HighPopFlip)
+
+        ENDIF
+
+        tFlipHighPopFound=.false.
+        tFlipHighPopSign=.false.
+
+
+    END SUBROUTINE FlipHighPopDet
+
+
     
 !Every StepsSft steps, update the diagonal shift value (the running value for the correlation energy)
 !We don't want to do this too often, since we want the population levels to acclimatise between changing the shifts
@@ -1254,6 +1340,9 @@ MODULE FciMCParMod
         IF(tHistInitPops) THEN
             CALL InitHistInitPops()
         ENDIF
+        tFlipHighPopFound=.false.
+        tFlipHighPopSign=.false.
+        MaxInitPop=0
 
         IF(MaxNoatHF.eq.0) THEN
             MaxNoatHF=InitWalkers*nProcessors
@@ -1529,6 +1618,7 @@ MODULE FciMCParMod
                 IF(.not.exists) THEN
                     CALL Stop_All(this_routine,"POPSFILEHEAD(.x) found, but no POPSFILEBIN(.x) for particle information - this is also needed")
                 ELSE
+                    call get_unique_filename('POPSFILEHEAD',tIncrementPops,.false.,iPopsFileNoRead,popsfile)
                     OPEN(17,FILE=popsfile,Status='old')
                 ENDIF
             ENDIF

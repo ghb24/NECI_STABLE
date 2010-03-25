@@ -6,7 +6,7 @@ MODULE FciMCLoggingMod
     USE Global_utilities
     USE Parallel
     USE HElem , only : HElement
-    USE Logging , only : tSaveBlocking,tBlockEveryIteration,MaxInitPop,HistInitPops,HistInitPopsTag,AllHistInitPops,AllHistInitPopsTag
+    USE Logging , only : tSaveBlocking,tBlockEveryIteration,HistInitPops,HistInitPopsTag,AllHistInitPops,AllHistInitPopsTag
     USE SystemData , only : NEl,NIfTot,NIfDBO
     USE SymData , only : nSymLabels
     USE Determinants , only : get_helement, get_helement_excit
@@ -20,7 +20,7 @@ MODULE FciMCLoggingMod
 
     INTEGER , PARAMETER :: Root=0   !This is the rank of the root processor
     REAL*8 :: NoNotAccept,NoAccept,TotHElNotAccept,TotHElAccept,MaxHElNotAccept,MinHElAccept
-    REAL*8 :: NoPosSpinCoup,NoNegSpinCoup,SumPosSpinCoup,SumNegSpinCoup,SumHFCon,SumSpinCon
+    REAL*8 :: NoPosSpinCoup,NoNegSpinCoup,SumPosSpinCoup,SumNegSpinCoup,SumHFCon,SumSpinCon,InitBinMin,InitBinIter,InitBinMax
 
     REAL*8 , ALLOCATABLE :: CurrBlockSum(:),BlockSum(:),BlockSqrdSum(:)
     REAL*8 , ALLOCATABLE :: CurrShiftBlockSum(:),ShiftBlockSum(:),ShiftBlockSqrdSum(:)
@@ -379,18 +379,24 @@ MODULE FciMCLoggingMod
 
 
     SUBROUTINE InitHistInitPops()
+        USE CalcData , only : InitiatorWalkNo
         INTEGER :: ierr
     
 
-        ALLOCATE(HistInitPops((-1*MaxInitPop):MaxInitPop),stat=ierr)
-        CALL LogMemAlloc('HistInitPops',((2*MaxInitPop)+1),4,'InitHistInitPops',HistInitPopsTag,ierr)
-        HistInitPops(:)=0
+        ALLOCATE(HistInitPops(2,25000),stat=ierr)
+        CALL LogMemAlloc('HistInitPops',50000,4,'InitHistInitPops',HistInitPopsTag,ierr)
+        HistInitPops(:,:)=0
 
         IF(iProcIndex.eq.0) THEN
-            ALLOCATE(AllHistInitPops((-1*MaxInitPop):MaxInitPop),stat=ierr)
-            CALL LogMemAlloc('HistInitPops',((2*MaxInitPop)+1),4,'InitHistInitPops',AllHistInitPopsTag,ierr)
-            AllHistInitPops(:)=0
+            ALLOCATE(AllHistInitPops(2,25000),stat=ierr)
+            CALL LogMemAlloc('HistInitPops',50000,4,'InitHistInitPops',AllHistInitPopsTag,ierr)
+            AllHistInitPops(:,:)=0
         ENDIF
+
+        InitBinMin=log(REAL(InitiatorWalkNo+1))
+        InitBinMax=log(1000000.D0)
+        InitBinIter=ABS(InitBinMax-InitBinMin)/25000.0
+
 
     END SUBROUTINE InitHistInitPops
 
@@ -398,6 +404,7 @@ MODULE FciMCLoggingMod
     SUBROUTINE WriteInitPops(Iter)
         CHARACTER(len=21) :: abstr
         INTEGER :: i,Iter,error
+        REAL*8 :: InitBinCurr
 
 !This will open a file called InitPops-"Iter" on unit number 17.
         abstr=''
@@ -405,20 +412,30 @@ MODULE FciMCLoggingMod
         abstr='InitPops-'//adjustl(abstr)
 
 #ifdef PARALLEL
-        CALL MPI_Reduce(HistInitPops(((-1)*MaxInitPop):MaxInitPop),AllHistInitPops(((-1)*MaxInitPop):MaxInitPop),((2*MaxInitPop)+1),MPI_INTEGER,MPI_SUM,0,MPI_COMM_WORLD,error)
+        CALL MPI_Reduce(HistInitPops,AllHistInitPops,2*25000,MPI_INTEGER,MPI_SUM,0,MPI_COMM_WORLD,error)
 #else        
-        AllHistInitPops(:)=HistInitPops(:)
+        AllHistInitPops(:,:)=HistInitPops(:,:)
 #endif
 
         IF(iProcIndex.eq.0) THEN
             OPEN(42,FILE=abstr,STATUS='unknown')
-            do i=((-1)*MaxInitPop),MaxInitPop
-                IF(AllHistInitPops(i).ne.0) WRITE(42,'(2I20)') i,AllHistInitPops(i)
+
+            InitBinCurr=(-1)*InitBinMax            
+            do i=25000,1,-1
+                IF(AllHistInitPops(1,i).ne.0) WRITE(42,'(F20.10,2I20)') InitBinCurr,(-1)*(NINT(EXP(ABS(InitBinCurr)))),AllHistInitPops(1,i)
+                InitBinCurr=InitBinCurr+InitBinIter
             enddo
+
+            InitBinCurr=InitBinMin
+            do i=1,25000
+                IF(AllHistInitPops(2,i).ne.0) WRITE(42,'(F20.10,2I20)') InitBinCurr,NINT(EXP(InitBinCurr)),AllHistInitPops(2,i)
+                InitBinCurr=InitBinCurr+InitBinIter
+            enddo
+ 
             CLOSE(42)
-            AllHistInitPops(:)=0
+            AllHistInitPops(:,:)=0
         ENDIF
-        HistInitPops(:)=0
+        HistInitPops(:,:)=0
 
     END SUBROUTINE WriteInitPops
 
