@@ -23,7 +23,6 @@ MODULE System
       CalcDetPrint=1000
       CalcDetCycles=10000
       tFixLz=.false.
-      tListDets=.false.
       tStoreSpinOrbs=.false.    !by default we store/lookup integrals as spatial integrals
       tNoBrillouin=.true.
       tBrillouinsDefault=.true.
@@ -34,12 +33,10 @@ MODULE System
       tMaxHLGap=.false.
       tUMatEps=.false.
       UMatEps=0.D0
-      tImportanceSample=.false.
       tExactSizeSpace=.false.
-      tMerTwist=.true.
       iRanLuxLev=3      !This is the default level of quality for the random number generator.
       tNoSymGenRandExcits=.false.
-      tNonUniRandExcits=.false.
+      tNonUniRandExcits=.true. 
       tCycleOrbs=.false.
       TSTARSTORE=.false.
       TSTARBIN=.false.
@@ -700,18 +697,6 @@ MODULE System
 !This is the level of quality for the random number generator. Values go from 1 -> 4. 3 is default.
             call readi(iRanLuxLev)
 
-        case("MERSENNETWIST")
-!An alternative random number generator.
-            IF(item.lt.nitems) THEN
-                call readu(w)
-                select case(w)
-                    case("OFF")
-                        tMerTwist=.false.
-                end select
-            ELSE
-                tMerTwist=.true.
-            ENDIF
-
         case("CALCEXACTSIZESPACE")
 !This option will calculate the exact size of the symmetry allowed space of determinants. Will scale badly.
             tExactSizeSpace=.true.
@@ -739,14 +724,16 @@ MODULE System
                         tNoSymGenRandExcits=.true.
                     case("IMPORTANCESAMPLE")
 !Importance sample the excitations for FCIMCPar
-                        tImportanceSample=.true.
+                        CALL Stop_All("ReadSysInp","IMPORTANCESAMPLE option depreciated")
+!                        tImportanceSample=.true.
                     case default
                         call Stop_All("ReadSysInp",trim(w)//" not a valid keyword")
                 end select
             enddo
         case("SPAWNLISTDETS")
 !This option will mean that a file called SpawnOnlyDets will be read in, and only these determinants will be allowed to be spawned at.
-            tListDets=.true.
+            CALL Stop_All("ReadSysInp","SPAWNLISTDETS option depreciated")
+!            tListDets=.true.
         case("UMATEPSILON")
 !This is an option for systems which are reaad in from an FCIDUMP file. Any two-electron integrals which are smaller in
 !magnitude than the value set for UMatEps will be set to zero.
