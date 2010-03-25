@@ -149,7 +149,9 @@ PROGRAM BlkFCIMC
 
 !First, find the mean & sd of all blocks...
           Mean=0.D0     
+          MeanSq=0.D0     
           MeanEn=0.D0     
+          MeanSqEn=0.D0     
           do j=1,NoBlocks
 !              WRITE(6,*) BlkAvEn(j)
               Mean=Mean+BlkAv(j)
