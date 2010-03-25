@@ -1,127 +1,12 @@
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-! Generic routine macro definitions
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
-! Swap the element a with the element b via a temporary variable.
-#define swap_def(type,name) elemental subroutine name (a, b); \
-    type, intent(inout) :: a, b; \
-    type :: tmp; \
-    tmp = a; \
-    a = b; \
-    b = tmp; \
-end subroutine
-
-! Make a comparison we can sort integer arrays by. Return true if the first
-! differing items of a, b is such that a(i) > b(i).
-!
-! In:  a, b - The arrays to compare
-! Ret:      - a > b
-#define arr_gt_def(type,name) pure function name (a, b) result (bGt); \
-    type, intent(in), dimension(:) :: a, b; \
-    logical :: bGt; \
-    integer :: i, length; \
-\
-    length = min(size(a), size(b)); \
-\
-    /* Sort by the first item first ... */ \
-    do i = 1, length; \
-        if (a(i) /= b(i)) exit; \
-    enddo; \
-\
-    /* Make the comparison */ \
-    if (i > length) then; \
-        bGt = .false.; \
-    else; \
-        bGt = a(i) > b(i); \
-    endif; \
-end function
-
-! Make a comparison we can sort integer arrays by. Return true if the first
-! differing items of a, b is such that a(i) < b(i).
-!
-! In:  a, b - The arrays to compare
-! Ret:      - a < b
-#define arr_lt_def(type,name) pure function name (a, b) result (bLt); \
-    type, intent(in), dimension(:) :: a, b; \
-    logical :: bLt; \
-    integer :: i, length; \
-\
-    length = min(size(a), size(b)); \
-\
-    /* Sort by the first item first ... */ \
-    do i = 1, length; \
-        if (a(i) /= b(i)) exit; \
-    enddo; \
-\
-    /* Make the comparison */ \
-    if (i > length) then; \
-        bLt = .false.; \
-    else; \
-        bLt = a(i) < b(i); \
-    endif; \
-end function
-
-
-
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-! Module starts here
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module util_mod
+    use util_mod_cpts
     implicit none
     private
 
     public :: swap, arr_lt, arr_gt, operator(.arrlt.), operator(.arrgt.)
     public factrl, choose, int_fmt
     
-
-    ! Note that in these interfaces we do NOT include a version for reals, as
-    ! we are using -r8 in the compile scripts --> real == real*8.
-    ! If we choose to change this, then simply add a new version.
-
-    ! An elemental routine to swap specified data.
-    interface swap
-        module procedure swap_int
-        module procedure swap_doub
-        module procedure swap_cplx
-    end interface
-
-    ! Provide operators for array comparison. Would like to use arr_gt, arr_lt
-    ! but fortran requires operators to only consist of letters
-    ! Not defined for complex data types, as ordering not defined.
-    interface operator (.arrgt.)
-        module procedure arr_gt_int
-        module procedure arr_gt_doub
-    end interface
-
-    interface operator (.arrlt.)
-        module procedure arr_lt_int
-        module procedure arr_lt_doub
-    end interface
-
-    ! And a function interface to the same
-    interface arr_gt
-        module procedure arr_gt_int
-        module procedure arr_gt_doub
-    end interface
-
-    interface arr_lt
-        module procedure arr_lt_int
-        module procedure arr_lt_doub
-    end interface
-
 contains
-
-    ! Swap routines for different variable types.
-    swap_def(integer, swap_int)
-    swap_def(real*8, swap_doub)
-    swap_def(complex*16, swap_cplx)
-
-    ! Comparison routines for arrays to allow sorting
-    arr_gt_def(integer, arr_gt_int)
-    arr_gt_def(real*8, arr_gt_doub)
-
-    arr_lt_def(integer, arr_lt_int)
-    arr_lt_def(real*8, arr_lt_doub)
 
     elemental real*8 function factrl (n)
 
@@ -163,7 +48,6 @@ contains
             enddo
         endif
     end function choose
-
 
     elemental function int_fmt(i, padding) result(fmt1)
 
