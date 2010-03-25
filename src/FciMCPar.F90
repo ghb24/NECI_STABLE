@@ -250,6 +250,8 @@ MODULE FciMCParMod
         TYPE(HElement) :: HDiagTemp
         CHARACTER(LEN=MPI_MAX_ERROR_STRING) :: message
         REAL :: Gap
+        
+        CALL set_timer(Walker_Time,30)
 
         IF(TDebug.and.(mod(Iter,10).eq.0)) THEN
             WRITE(11,*) Iter,TotWalkers,NoatHF,NoatDoubs,MaxIndex,TotParts
@@ -266,18 +268,6 @@ MODULE FciMCParMod
             ENDIF
             tTruncInitiator=.true.
         ENDIF
-
-        tHFFound=.false.
-        tHFFoundTemp=.false.
-        IF(tHFInitiator) THEN
-            Proc=DetermineDetProc(iLutHF)   !This wants to return a value between 0 -> nProcessors-1
-            IF(iProcIndex.ne.Proc) THEN
-!The processor with the HF determinant on it will have to check through each determinant until its found.            
-                tHFFound=.true.
-            ENDIF
-        ENDIF
-
-        CALL set_timer(Walker_Time,30)
         
 !VecSlot indicates the next free position in NewDets
         VecSlot=1
@@ -287,14 +277,18 @@ MODULE FciMCParMod
         iPartBloom=0
 !ValidSpawndList now holds the next free position in the newly-spawned list, but for each processor.
         ValidSpawnedList(:)=InitialSpawnedSlots(:)
-
+        tHFFound=.false.
+        tHFFoundTemp=.false.
+        IF(iProcIndex.ne.iHFProc) tHFFound=.true.
+!The processor with the HF determinant on it will have to check through each determinant until its found. Once found, tHFFound is true and it no longer needs to be checked.           
         CALL InitHistMin()
+
 
         do j=1,TotWalkers
 !j runs through all current walkers
 !If we are rotoannihilating/direct annihilating, the sign indicates the sum of the signs on the determinant, and hence j loops over determinants, not particles.
             !WRITE(6,*) Iter,j,TotWalkers
-            CALL FLUSH(6)
+!            CALL FLUSH(6)
 
 !First, decode the bit-string representation of the determinant the walker is on, into a string of naturally-ordered integers
 !            WRITE(6,*) 'CurrentDet (bit)',CurrentDets(:,j)
@@ -1175,48 +1169,46 @@ MODULE FciMCParMod
             IF(.not.tRegenDiagHEls) THEN
                 CurrentH=>WalkVecH
             ENDIF
-
-            IF(TStartSinglePart) THEN
-                Proc=DetermineDetProc(iLutHF)
-                WRITE(6,*) "HF processor is: ",Proc
-                IF(iProcIndex.eq.Proc) THEN
-                    CurrentDets(:,1)=iLutHF(:)
-                    CurrentSign(1)=InitialPart
-                    IF(.not.tRegenDiagHEls) CurrentH(1)=0.D0
-                ENDIF
-            ELSE
-                Proc=DetermineDetProc(iLutHF)
-                WRITE(6,*) "HF processor is: ",Proc
-                IF(iProcIndex.eq.Proc) THEN
-                    CurrentDets(:,1)=iLutHF(:)
-                    CurrentSign(1)=InitWalkers
-                    IF(.not.tRegenDiagHEls) CurrentH(1)=0.D0
-                ENDIF
-            ENDIF
-
-            WRITE(6,"(A,F14.6,A)") " Initial memory (without excitgens + temp arrays) consists of : ",REAL(MemoryAlloc,dp)/1048576.D0," Mb/Processor"
-            WRITE(6,*) "Only one array of memory to store main particle list allocated..."
-            WRITE(6,*) "Initial memory allocation sucessful..."
-            CALL FLUSH(6)
-
-!Put a barrier here so all processes synchronise
-            CALL MPI_Barrier(MPI_COMM_WORLD,error)
         
-            IF(TStartSinglePart) THEN
-                Proc=DetermineDetProc(iLutHF)
-                IF(iProcIndex.eq.Proc) THEN
+            iHFProc=DetermineDetProc(iLutHF)   !This wants to return a value between 0 -> nProcessors-1
+            WRITE(6,*) "HF processor is: ",iHFProc
+
+!Setup initial walker local variables
+            IF(iProcIndex.eq.iHFProc) THEN
+                CurrentDets(:,1)=iLutHF(:)
+                IF(.not.tRegenDiagHEls) CurrentH(1)=0.D0
+                IF(TStartSinglePart) THEN
+                    CurrentSign(1)=InitialPart
                     TotWalkers=1
                     TotWalkersOld=1
                     TotParts=InitialPart
                     TotPartsOld=InitialPart
                     NoatHF=InitialPart
                 ELSE
+                    CurrentSign(1)=InitWalkers
+                    TotWalkers=1
+                    TotWalkersOld=1
+                    TotParts=InitWalkers
+                    TotPartsOld=InitWalkers
+                ENDIF
+
+            ELSE
+                IF(tStartSinglePart) THEN
                     NoatHF=0
                     TotWalkers=0
                     TotWalkersOld=0
                     TotParts=0
                     TotPartsOld=0
+                ELSE
+                    TotWalkers=0
+                    TotWalkersOld=0
+                    TotParts=0
+                    TotPartsOld=0
                 ENDIF
+            ENDIF
+
+        
+            IF(TStartSinglePart) THEN
 !Initialise global variables for calculation on the root node
                 IF(iProcIndex.eq.root) THEN
                     OldAllNoatHF=InitialPart
@@ -1229,18 +1221,6 @@ MODULE FciMCParMod
                 ENDIF
             ELSE
 !In this, only one processor has initial particles.
-                Proc=DetermineDetProc(iLutHF)
-                IF(iProcIndex.eq.Proc) THEN
-                    TotWalkers=1
-                    TotWalkersOld=1
-                    TotParts=InitWalkers
-                    TotPartsOld=InitWalkers
-                ELSE
-                    TotWalkers=0
-                    TotWalkersOld=0
-                    TotParts=0
-                    TotPartsOld=0
-                ENDIF
                 IF(iProcIndex.eq.Root) THEN
                     AllTotWalkers=1.D0
                     AllTotWalkersOld=1.D0
@@ -1248,10 +1228,17 @@ MODULE FciMCParMod
                     AllTotPartsOld=REAL(InitWalkers,dp)
                     AllNoAbortedOld=0.D0
                 ENDIF
-
             ENDIF
+        
+            WRITE(6,"(A,F14.6,A)") " Initial memory (without excitgens + temp arrays) consists of : ",REAL(MemoryAlloc,dp)/1048576.D0," Mb/Processor"
+            WRITE(6,*) "Only one array of memory to store main particle list allocated..."
+            WRITE(6,*) "Initial memory allocation sucessful..."
+            CALL FLUSH(6)
 
         ENDIF   !End if initial walkers method
+            
+!Put a barrier here so all processes synchronise
+        CALL MPI_Barrier(MPI_COMM_WORLD,error)
 
         IF(tTruncInitiator.or.tDelayTruncInit) THEN
             IF(tDelayTruncInit) tTruncInitiator=.false.

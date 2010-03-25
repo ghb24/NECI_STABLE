@@ -150,6 +150,8 @@ MODULE FciMCData
       REAL*8 :: InstShift   !An instantaneous value for the shift from the growth of walkers.
       INTEGER :: OldAllNoatHF
 
+      INTEGER :: iHFProc    !Processor index for HF determinant
+
       
       
       
