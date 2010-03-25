@@ -227,9 +227,20 @@ contains
             if (all(arr(:,pos) == val)) then
                 exit
             else if (arr_gt(val, arr(:,pos))) then
+                ! val is "greater" than arr(:,pos).
+                ! The lowest position val can take is hence pos + 1 (i.e. if
+                ! val is greater than pos by smaller than pos + 1).
                 lo = pos + 1
             else
-                hi = pos - 1
+                ! arr(:,pos) is "greater" than val.
+                ! The highest position val can take is hence pos (i.e. if val is
+                ! smaller than pos but greater than pos - 1).  This is why
+                ! we differ slightly from a standard binary search (where lo
+                ! is set to be pos+1 and hi to be pos-1 accordingly), as
+                ! a standard binary search assumes that the element you are
+                ! searching for actually appears in the array being
+                ! searched...
+                hi = pos
             endif
         enddo
 
