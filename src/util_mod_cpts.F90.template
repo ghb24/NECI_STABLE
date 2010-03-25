@@ -1,0 +1,113 @@
+[int]
+type = integer
+
+[doub]
+type = real*8
+=========================
+
+module util_mod_cpts
+	implicit none
+
+	! Note that in these interfaces we do NOT include a version for reals, as
+	! we are using -r8 in the compile scripts --> real == real*8
+	! If we choose to change this, then simply add a new version.
+	
+	! Swap the  specified variables
+	! n.b. If we want to implement this for complex variables / helements then
+	!      we need to put it in another template file, as >, < are not defined
+	!      for complex data types.
+	interface swap
+		module procedure swap_%(name)s
+	end interface
+
+	! Operator and function to test if arr1 > arr2 (if the first differing
+	! element is larger)
+	interface operator(.arrgt.)
+		module procedure arr_gt_%(name)s
+	end interface
+
+	interface arr_gt
+		module procedure arr_gt_%(name)s
+	end interface
+
+	! Operator and function to test if arr1 < arr2 (if the first differing
+	! element is larger)
+	interface operator(.arrlt.)
+		module procedure arr_lt_%(name)s
+	end interface
+
+	interface arr_lt
+		module procedure arr_lt_%(name)s
+	end interface
+
+contains
+
+	elemental subroutine swap_%(name)s (a, b)
+
+		! Sway the element a with the element b via a temporary variable.
+		!
+		! InOut: a, b - The elements to swap.
+
+		%(type)s, intent(inout) :: a, b
+		%(type)s :: tmp
+
+		tmp = a
+		a = b
+		b = tmp
+	end subroutine
+
+	pure function arr_gt_%(name)s (a, b) result (bGt)
+
+		! Make a comparison we can sort arrays by. Return true if the
+		! first differing items of a, b is such that a(i) > b(I).
+		!
+		! In:  a, b - The arrays to compare
+		! Ret: bGt  - a > b
+
+		%(type)s, intent(in), dimension(:) :: a, b
+		logical :: bGt
+		integer :: i, length
+
+		length = min(size(a), size(b))
+
+		! Sort by the first item first...
+		do i = 1, length
+			if (a(i) /= b(i)) exit
+		enddo
+
+		! Make the comparison
+		if (i > length) then
+			bGt = .false.
+		else
+			bGt = a(i) > b(i)
+		endif
+	end function
+
+	pure function arr_lt_%(name)s (a, b) result (bLt)
+		
+		! Make a comparison we can sort arrays by. Return true if the first
+		! differing items of a, b is such that a(i) < b(i).
+		!
+		! In:  a, b - The arrays to compare
+		! Ret: bLt  - a < b
+
+		%(type)s, intent(in), dimension(:) :: a, b
+		logical :: bLt
+		integer :: I, length
+
+		length = min(size(a), size(b))
+
+		! Sort by the first item first...
+		do i = 1, length
+			if (a(i) /= b(i)) exit
+		enddo
+
+		! Make the comparison
+		if (i > length) then
+			bLt = .false.
+		else
+			bLt = a(i) < b(i)
+		endif
+	end function
+
+end module

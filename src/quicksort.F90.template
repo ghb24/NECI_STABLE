@@ -1,0 +1,228 @@
+#############################################
+############## Sort scalars #################
+#############################################
+[int]
+type1 = integer
+type2 = !
+arr2_prefix = !
+end_of_decl = )
+op_gt = >
+op_lt = <
+count = size(arr)
+
+[doub]
+type1 = real*8
+
+##############################################
+############### Sort arrays ##################
+##############################################
+[arr_int]
+type1 = integer, dimension(:)
+op_gt = .arrgt.
+op_lt = .arrlt.
+count = size(arr(1,:))
+
+[arr_doub]
+type1 = real*8, dimension(:)
+
+##############################################
+############ Sort by scalars #################
+[int_int]
+type1 = integer
+type2 = integer
+arr2_prefix = 
+end_of_decl = , arr2)
+op_gt = >
+op_lt = <
+count = size(arr)
+
+[int_doub]
+type2 = real*8
+
+[int_arr_int]
+type2 = integer, dimension(:)
+
+[int_arr_doub]
+type2 = real*8, dimension(:)
+
+[doub_int]
+type1 = real*8
+type2 = integer
+
+[doub_doub]
+type2 = real*8
+
+[doub_arr_int]
+type2 = integer, dimension(:)
+
+[doub_arr_doub]
+type2 = real*8, dimension(:)
+
+###############################################
+########## Sort by integer array ##############
+###############################################
+[arr_int_arr_int]
+type1 = integer, dimension(:)
+type2 = integer, dimension(:)
+arr2_prefix = 
+end_of_decl = , arr2)
+op_gt = .arrgt.
+op_lt = .arrlt.
+count = size(arr(1,:))
+
+[arr_int_arr_doub]
+type2 = real*8, dimension(:)
+
+[arr_int_int]
+type2 = integer
+
+[arr_int_doub]
+type2 = real*8
+
+#################################################
+############# Sort by double array ##############
+#################################################
+[arr_doub_doub]
+type1 = real*8, dimension(:)
+
+[arr_doub_int]
+type2 = integer
+
+[arr_doub_arr_doub]
+type2 = real*8, dimension(:)
+
+[arr_doub_arr_int]
+type2 = integer, dimension(:)
+
+===================
+
+module sort_mod
+    use util_mod, only: operator(.arrlt.), operator(.arrgt.), swap
+    use helem
+
+    interface sort
+        module procedure sort_%(name)s
+    end interface
+
+contains
+    subroutine sort_%(name)s (arr%(end_of_decl)s
+
+        ! Perform a quicksort on an array of integers, arr(n). Uses the 
+        ! sample code in NumericalRecipies as a base.
+        ! Optionally sort arr2 in parallel (in the routines it is enabled)
+
+        ! sort needs auxiliary storage of length 2*log_2(n).
+        integer, parameter :: nStackMax = 50
+        integer, parameter :: nInsertionSort = 7
+
+        %(type1)s, intent(inout) :: arr(:)
+        %(type2)s, intent(inout) :: arr2(:)
+
+        ! Oh, how lovely it would be to be able to use push/pop and not need
+        ! to guess a size of the stack to start with
+        integer :: stack(nStackMax), nstack
+        integer :: pivot, lo, hi, n, i, j
+        ! n.b. This size statement is removed if type1 is scalar ...
+        %(type1)s :: a(size(arr(1)))
+        %(type2)s :: a2(size(arr2(1)))
+        character(*), parameter :: this_routine = 'name'
+
+        ! The size of the array to sort
+        n = %(count)s
+
+        nstack = 0
+        lo = 1
+        hi = n
+        do while (.true.)
+            ! If the section/partition we are looking at is smaller than
+            ! nInsertSort then perform an insertion sort 
+            if (hi - lo < nInsertionSort) then
+                do j = lo + 1, hi
+                    a = arr(j)
+                    %(arr2_prefix)s a2 = arr2(j)
+                    do i = j - 1, 1, -1
+                        if (arr(i) %(op_lt)s a) exit
+                        arr(i+1) = arr(i)
+                        %(arr2_prefix)s arr2(i+1) = arr2(i)
+                    enddo
+                    arr(i+1) = a
+                    %(arr2_prefix)s arr2(i+1) = a2
+                enddo
+
+                if (nstack == 0) exit
+                hi = stack(nstack)
+                lo = stack(nstack-1)
+                nstack = nstack - 2
+
+            ! Otherwise start partitioning with quicksort. 
+            else;
+                ! Pick a partitioning element, and arrange such that
+                ! arr(lo) <= arr(lo+1) <= arr(hi) 
+                pivot = (lo + hi) / 2
+                call swap (arr(pivot), arr(lo + 1))
+                %(arr2_prefix)s call swap (arr2(pivot), arr2(lo+1))
+
+                if (arr(lo) %(op_gt)s arr(hi)) then
+                    call swap (arr(lo), arr(hi))
+                    %(arr2_prefix)s call swap (arr2(lo), arr2(hi))
+                endif
+                if (arr(lo+1) %(op_gt)s arr(hi)) then
+                    call swap (arr(lo+1), arr(hi))
+                    %(arr2_prefix)s call swap (arr2(lo+1), arr2(hi))
+                endif
+                if (arr(lo) %(op_gt)s arr(lo+1)) then
+                    call swap (arr(lo), arr(lo+1))
+                    %(arr2_prefix)s call swap (arr2(lo), arr2(lo+1))
+                endif
+
+                i = lo + 1
+                j = hi
+                a = arr(lo + 1) !! a is the pivot value
+                %(arr2_prefix)s a2 = arr2(lo + 1)
+                do while (.true.)
+                    ! Scand down list to find element > a 
+                    i = i + 1
+                    do while (arr(i) %(op_lt)s a)
+                        i = i + 1
+                    enddo
+
+                    ! Scan down list to find element < a 
+                    j = j - 1
+                    do while (arr(j) %(op_gt)s a)
+                        j = j - 1
+                    enddo
+
+                    ! When the pointers crossed, partitioning is complete. 
+                    if (j < i) exit
+
+                    ! Swap the elements, so that all elements < a end up
+                    ! in lower indexed variables. 
+                    call swap (arr(i), arr(j))
+                    %(arr2_prefix)s call swap (arr2(i), arr2(j))
+                enddo;
+
+                ! Insert partitioning element 
+                arr(lo + 1) = arr(j)
+                arr(j) = a
+                %(arr2_prefix)s arr2(lo + 1) = arr2(j)
+                %(arr2_prefix)s arr2(j) = a2
+
+                ! Push the larger of the partitioned sections onto the stack
+                ! of sections to look at later.
+                ! --> need fewest stack elements. 
+                nstack = nstack + 2
+                if (nstack > nStackMax) call stop_all (this_routine, &
+                                        "parameter nStackMax too small")
+                if (hi - i + 1 >= j - 1) then
+                    stack(nstack) = hi
+                    stack(nstack-1) = i
+                    hi = j - 1
+                else
+                    stack(nstack) = j - 1
+                    stack(nstack-1) = lo
+                    lo = i
+                endif
+            endif
+        enddo
+    end subroutine
+end module
