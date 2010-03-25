@@ -1194,13 +1194,13 @@ MODULE FciMCParMod
 !Output if there has been a particle bloom this iteration. A negative number indicates that particles were created from a single excitation.
         IF((iPartBloom.ne.0).and.(iProcIndex.eq.0)) THEN
             IF(tAddtoInitiator.and.(iPartBloom.gt.0)) THEN
-                WRITE(6,"(A,I,A,I,A)") "Particle Blooms of more than 'n_add' in iteration ",Iter," :  A max of ",abs(iPartBloom)," particles created in one attempt from double excit."
+                WRITE(6,"(A,I5,A,I3,A)") "Particle Blooms of more than 'n_add' in iteration ",Iter," :  A max of ",abs(iPartBloom)," particles created in one attempt from double excit."
             ELSEIF(tAddtoInitiator) THEN
-                WRITE(6,"(A,I,A,I,A)") "Particle Blooms of more than 'n_add' in iteration ",Iter," :  A max of ",abs(iPartBloom)," particles created in one attempt from single excit."
+                WRITE(6,"(A,I5,A,I3,A)") "Particle Blooms of more than 'n_add' in iteration ",Iter," :  A max of ",abs(iPartBloom)," particles created in one attempt from single excit."
             ELSEIF(iPartBloom.gt.0) THEN
-                WRITE(6,"(A,I,A,I,A)") "LARGE Particle Blooms in iteration ",Iter," :  A max of ",abs(iPartBloom)," particles created in one attempt from double excit."
+                WRITE(6,"(A,I5,A,I3,A)") "LARGE Particle Blooms in iteration ",Iter," :  A max of ",abs(iPartBloom)," particles created in one attempt from double excit."
             ELSE
-                WRITE(6,"(A,I,A,I,A)") "LARGE Particle Blooms in iteration ",Iter," :  A max of ",abs(iPartBloom)," particles created in one attempt from single excit."
+                WRITE(6,"(A,I5,A,I3,A)") "LARGE Particle Blooms in iteration ",Iter," :  A max of ",abs(iPartBloom)," particles created in one attempt from single excit."
             ENDIF
         ENDIF
 
