@@ -84,19 +84,19 @@ def super_module(template, config):
 	specified module name will be varied in the output (so that it can be
 	properly included in the super-module).'''
 
-	re_mod = re.compile ('module (.*)')
+	re_mod = re.compile ('(\n\s*module[\s^\n]*([^\s]*))\n')
 
 	m = re_mod.search(template)
-	print 'Generating super module: %s' % m.group(0)
+	print 'Generating super module: %s' % m.group(2)
 
 	# Change module in template to be a sub-module with associated name
-	substr = "%s_%%(name)s" % m.group(0)
+	substr = "%s_%%(name)s\n" % m.group(1)
 	template = re_mod.sub (substr, template)
 
 	# Construct super module
-	super_mod = m.group(0) + "\n"
+	super_mod = m.group(1) + "\n"
 	for s in config:
-		super_mod += "    use " + m.group(1) + "_" + s + "\n"
+		super_mod += "    use " + m.group(2) + "_" + s + "\n"
 	super_mod += "end module\n"
 
 	return (template,super_mod)
@@ -137,23 +137,21 @@ def adj_arrays (template, config):
 	# Extract all of the variables of the managed types, so we can adjust
 	# any required array sizes.
 	for type in types:
-		re_var = re.compile ('\n\s*%%\(%s\)s.*::\s*([^()]*)'
-		                     '([\s^\n]*\(([:,]*)\))*$' % type)
+		#re_var = re.compile ('\n\s*%%\(%s\)s.*::\s*([^()]*)([\s^\n]*\(([:,]*)\))*\n' % type)
+		re_var = re.compile ('\n\s*%%\(%s\)s.*::\s*([^()]*)([\s^\n]*\(([:,]*)\))*.*\n' % type)
+
 		for v in re_var.finditer(template):
-			if v.group(3) == None:
+			if v.group(2) == None:
 				vars[v.group(1)] = (type, types[type])
 			else:
 				vars[v.group(1)] = (type, types[type] + v.group(3).count(":"))
-			print 'found: ', v.group(0), '|||', v.group(1), 'AAA', v.group(2), 'bbb', v.group(3)
 
 			# If we are sizing an array based on the size of another, remove
 			# this condition if the type is actually a scalar in this case.
-			if types[type] == 0 and v.group(3) == None:
-				print 'in modifier routine', v.group(1)
-				re_fix = re.compile ('(\n\s*%%\(%s\)s.*::[\s^\n]*([^()]*))'
-				                     '([\s^\n]*\(([^()]|\(([^()]|'
-									 '\([^()]*\))*\))*\))*' % type)
-				print 'modified: ', re_fix.sub("\\1", template[v.start():v.end()+20], 1)
+			if types[type] == 0 and v.group(2) == None:
+				re_fix = re.compile ('(\n\s*%%\(%s\)s.*::[\s^\n]*([^()\n]*))'
+				                     '([\s^\n]*\(([^()\n]|\(([^()\n]|'
+									 '\([^()\n]*\))*\))*\))*' % type)
 				template = (template[0:v.start()] + 
 				            re_fix.sub("\\1", template[v.start():], 1))
 

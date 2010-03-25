@@ -6,10 +6,11 @@ type = real*8
 =========================
 
 module util_mod_cpts
+	implicit none
 
-    ! Note that in these interfaces we do NOT include a version for reals, as
-    ! we are using -r8 in the compile scripts --> real == real*8.
-    ! If we choose to change this, then simply add a new version.
+	! Note that in these interfaces we do NOT include a version for reals, as
+	! we are using -r8 in the compile scripts --> real == real*8
+	! If we choose to change this, then simply add a new version.
 	
 	! Swap the  specified variables
 	! n.b. If we want to implement this for complex variables / helements then
@@ -25,7 +26,7 @@ module util_mod_cpts
 		module procedure arr_gt_%(name)s
 	end interface
 
-	interface operator(arr_gt)
+	interface arr_gt
 		module procedure arr_gt_%(name)s
 	end interface
 
@@ -35,7 +36,7 @@ module util_mod_cpts
 		module procedure arr_lt_%(name)s
 	end interface
 
-	interface operator(arr_lt)
+	interface arr_lt
 		module procedure arr_lt_%(name)s
 	end interface
 

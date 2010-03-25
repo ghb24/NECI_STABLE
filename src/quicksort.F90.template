@@ -25,8 +25,8 @@ count = size(arr(1,:))
 [arr_doub]
 type1 = real*8, dimension(:)
 
-###############################################
-############# Sort by scalars #################
+##############################################
+############ Sort by scalars #################
 [int_int]
 type1 = integer
 type2 = integer
@@ -74,7 +74,7 @@ count = size(arr(1,:))
 type2 = real*8, dimension(:)
 
 [arr_int_int]
-type1 = integer
+type2 = integer
 
 [arr_int_doub]
 type2 = real*8
@@ -97,7 +97,7 @@ type2 = integer, dimension(:)
 ===================
 
 module sort_mod
-    use util_mod, only: operator(.arrlt.), operator(.arrgt.)
+    use util_mod, only: operator(.arrlt.), operator(.arrgt.), swap
     use helem
 
     interface sort
@@ -141,7 +141,7 @@ contains
                     a = arr(j)
                     %(arr2_prefix)s a2 = arr2(j)
                     do i = j - 1, 1, -1
-                        if (arr(i) .arrlt. a) exit
+                        if (arr(i) %(op_lt)s a) exit
                         arr(i+1) = arr(i)
                         %(arr2_prefix)s arr2(i+1) = arr2(i)
                     enddo
@@ -162,15 +162,15 @@ contains
                 call swap (arr(pivot), arr(lo + 1))
                 %(arr2_prefix)s call swap (arr2(pivot), arr2(lo+1))
 
-                if (arr(lo) .arrgt. arr(hi)) then
+                if (arr(lo) %(op_gt)s arr(hi)) then
                     call swap (arr(lo), arr(hi))
                     %(arr2_prefix)s call swap (arr2(lo), arr2(hi))
                 endif
-                if (arr(lo+1) .arrgt. arr(hi)) then
+                if (arr(lo+1) %(op_gt)s arr(hi)) then
                     call swap (arr(lo+1), arr(hi))
                     %(arr2_prefix)s call swap (arr2(lo+1), arr2(hi))
                 endif
-                if (arr(lo) .arrgt. arr(lo+1)) then
+                if (arr(lo) %(op_gt)s arr(lo+1)) then
                     call swap (arr(lo), arr(lo+1))
                     %(arr2_prefix)s call swap (arr2(lo), arr2(lo+1))
                 endif
@@ -182,13 +182,13 @@ contains
                 do while (.true.)
                     ! Scand down list to find element > a 
                     i = i + 1
-                    do while (arr(i) .arrlt. a)
+                    do while (arr(i) %(op_lt)s a)
                         i = i + 1
                     enddo
 
                     ! Scan down list to find element < a 
                     j = j - 1
-                    do while (arr(j) .arrgt. a)
+                    do while (arr(j) %(op_gt)s a)
                         j = j - 1
                     enddo
 
@@ -211,7 +211,7 @@ contains
                 ! of sections to look at later.
                 ! --> need fewest stack elements. 
                 nstack = nstack + 2
-                if (nstack > nStackMax) call stop_all (this_routine,
+                if (nstack > nStackMax) call stop_all (this_routine, &
                                         "parameter nStackMax too small")
                 if (hi - i + 1 >= j - 1) then
                     stack(nstack) = hi

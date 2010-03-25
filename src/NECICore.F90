@@ -20,7 +20,7 @@ Subroutine NECICore(iCacheFlag,tCPMD,tVASP)
     ! Utility modules.
     use global_utilities
 
-    use quicksort
+    use sort_mod
 
     Implicit none
     integer,intent(in) :: iCacheFlag
