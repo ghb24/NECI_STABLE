@@ -34,7 +34,7 @@ module soft_exit
                          SumENum, SumNoatHF, HFPopCyc, ProjEIterSum, &
                          Histogram, AvAnnihil, VaryShiftCycles, SumDiagSft, &
                          VaryShiftIter, CurrentDets, CurrentSign, iLutHF, &
-                         TotWalkers,tFlipHighPopSign
+                         TotWalkers,tFlipHighPopSign,tPrintHighPop
     use CalcData, only: Tau, DiagSft, SftDamp, StepsSft, SinglesBias, &
                         OccCASOrbs, VirtCASOrbs, NMCyc, tTruncCAS, &
                         NEquilSteps, tTruncInitiator, InitiatorWalkNo
@@ -93,10 +93,11 @@ contains
         !   ADDTOINIT XXX    Will change the cutt-off population for which walkers are added to the initiator space.  Pop must be *above* specified value.
         !   SCALEHF XXX      Will scale the number of walkers at HF by the specified factor
         !   FLIPHIGHPOPSIGN  Will flip the sign of the determinant with the highest population of different sign to the HF (-ve).
+        !   PRINTHIGHPOPDET  Will print the determinant with the highest population of different sign to the HF.
 
        integer :: error,i,ios,NewNMCyc, pos
        logical :: tSoftExitFound,tWritePopsFound,exists,AnyExist,deleted_file
-       logical :: tEof,any_deleted_file,tChangeParams(27),tSingBiasChange
+       logical :: tEof,any_deleted_file,tChangeParams(28),tSingBiasChange
        real*8 :: hfScaleFactor
        Character(len=100) :: w
 
@@ -203,6 +204,8 @@ contains
                            call readf(hfScaleFactor)
                        case("FLIPHIGHPOPSIGN")
                            tChangeParams(27) = .true.
+                       case("PRINTHIGHPOPDET")
+                           tChangeParams(28) = .true.
                        END SELECT
                    End Do
                    close(13,status='delete')
@@ -214,7 +217,7 @@ contains
                if (any_deleted_file) exit
            end do
 #ifdef PARALLEL
-           CALL MPI_BCast(tChangeParams,27,MPI_LOGICAL,i,MPI_COMM_WORLD,error)
+           CALL MPI_BCast(tChangeParams,28,MPI_LOGICAL,i,MPI_COMM_WORLD,error)
 #endif
 
            IF(tChangeParams(1)) THEN
@@ -508,6 +511,16 @@ contains
 #endif
                IF(iProcIndex.eq.0) WRITE(6,'(A)') 'Request to flip the sign of the determinant with the highest population of different sign to the HF.'
            ENDIF   
+           IF(tChangeParams(28)) THEN
+               tFlipHighPopSign=.true.
+               tPrintHighPop=.true.
+#ifdef PARALLEL
+               CALL MPI_BCast(tFlipHighPopSign,1,MPI_LOGICAL,i,MPI_COMM_WORLD,error)
+               CALL MPI_BCast(tPrintHighPop,1,MPI_LOGICAL,i,MPI_COMM_WORLD,error)
+#endif
+               IF(iProcIndex.eq.0) WRITE(6,'(A)') 'Request to print the determinant with the highest population of different sign to the HF.'
+           ENDIF   
+ 
        endif
 
 99     IF (ios.gt.0) THEN

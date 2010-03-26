@@ -160,6 +160,8 @@ MODULE FciMCParMod
             IF(tHistInitPops.and.(MOD(Iter,HistInitPopsIter).eq.0)) THEN
                 IF(iProcIndex.eq.0) WRITE(6,*) 'Writing out the spread of the initiator determinant populations.'
                 CALL WriteInitPops(Iter)
+                tFlipHighPopSign=.true.
+                tPrintHighPop=.true.
             ENDIF
 
             Iter=Iter+1
@@ -269,8 +271,6 @@ MODULE FciMCParMod
             tTruncInitiator=.true.
         ENDIF
 
-
-
         tHFFound=.false.
         tHFFoundTemp=.false.
         IF(tHFInitiator) THEN
@@ -279,9 +279,13 @@ MODULE FciMCParMod
 !The processor with the HF determinant on it will have to check through each determinant until its found.            
                 tHFFound=.true.
             ENDIF
-        ENDIF
-        IF(tFlipHighPopFound) CALL FlipHighPopDet()
+        ENDIF        
         
+        MaxInitPopPos=0
+        MaxInitPopNeg=0
+
+        CALL MPI_Barrier(MPI_COMM_WORLD,error)
+
 !VecSlot indicates the next free position in NewDets
         VecSlot=1
 !Reset number at HF and doubles
@@ -349,7 +353,8 @@ MODULE FciMCParMod
             ! This is where the projected energy is calculated.
             call SumEContrib (DetCurr, WalkExcitLevel, CurrentSign(j),CurrentDets(:,j), HDiagCurr, 1.d0)
 
-            IF(tTruncInitiator) CALL CalcParentFlag(j,tHFFound,tHFFoundTemp)
+            IF(tTruncInitiator) CALL CalcParentFlag(j,tHFFound,tHFFoundTemp,VecSlot)
+!            IF(Iter.gt.20) WRITE(6,*) 'CurrentSign(highpopflip)',CurrentSign(HighPopFlip)
 
             tFilled=.false.     !This is for regenerating excitations from the same determinant multiple times. There will be a time saving if we can store the excitation generators temporarily.
             IF(tMCExcits) THEN
@@ -523,6 +528,9 @@ MODULE FciMCParMod
 !Finish cycling over walkers
         enddo
 
+
+        IF(tFlipHighPopSign) CALL FlipHighPopDet()
+
 !SumWalkersCyc calculates the total number of walkers over an update cycle on each process
         SumWalkersCyc=SumWalkersCyc+(INT(TotParts,i2))
 !        WRITE(6,*) "Born, Die: ",NoBorn, NoDied
@@ -581,10 +589,10 @@ MODULE FciMCParMod
     END SUBROUTINE PerformFCIMCycPar
                         
 
-    SUBROUTINE CalcParentFlag(j,tHFFound,tHFFoundTemp)
+    SUBROUTINE CalcParentFlag(j,tHFFound,tHFFoundTemp,VecSlot)
         USE CalcData , only : tAddtoInitiator,InitiatorWalkNo,tInitIncDoubs
         USE FciMCLoggingMOD, only : InitBinMin,InitBinIter
-        INTEGER :: j,WalkExcitLevel,InitBinNo
+        INTEGER :: j,WalkExcitLevel,InitBinNo,VecSlot
         LOGICAL :: tParentInCAS,tHFFound,tHFFoundTemp
 
         IF(tTruncSpace) THEN
@@ -677,16 +685,15 @@ MODULE FciMCParMod
         ENDIF
 
         IF(tFlipHighPopSign.and.(ParentInitiator.eq.0)) THEN
-            IF(CurrentSign(j).lt.MaxInitPop) THEN
-                MaxInitPop=CurrentSign(j)
-                HighPopFlip=j
+            IF(CurrentSign(j).lt.MaxInitPopNeg) THEN
+                MaxInitPopNeg=CurrentSign(j)
+                HighPopNeg=VecSlot
             ENDIF
-
-            tFlipHighPopFound=.true.     
+            IF(CurrentSign(j).gt.MaxInitPopPos) THEN
+                MaxInitPopPos=CurrentSign(j)
+                HighPopPos=VecSlot
+            ENDIF
         ENDIF
-
-
-
 
 
     END SUBROUTINE CalcParentFlag                    
@@ -694,45 +701,69 @@ MODULE FciMCParMod
 
     SUBROUTINE FlipHighPopDet()
 !Found the highest population on each processor, need to find out which of these has the highest of all.
-        INTEGER :: MaxPops(nProcessors),error,i,MaxPop,MaxPopProc,InitDetCurr(NEl)
+        INTEGER :: MaxPopsNeg(nProcessors),MaxPopsPos(nProcessors),error,i,MaxPopPos,MaxPopNeg,MaxPopNegProc
+        INTEGER :: MaxPopPosProc,InitDetCurr(NEl)
 
-
-        WRITE(6,*) 'Highest populated determinant has pop',CurrentSign(HighPopflip)
+!        WRITE(6,*) 'HighPopFlip2',HighPopFlip
+!        WRITE(6,*) 'Highest populated determinant has pop',CurrentSign(HighPopflip)
 
 !Need some sort of mpi to send these all into an array, hopefully so that processor 0 in position 0, then 1, etc etc.
 
-        CALL MPI_Gather(CurrentSign(HighPopFlip),1,MPI_INTEGER,MaxPops,1,MPI_INTEGER,Root,MPI_COMM_WORLD,error)
+        CALL MPI_AllGather(CurrentSign(HighPopNeg),1,MPI_INTEGER,MaxPopsNeg,1,MPI_INTEGER,MPI_COMM_WORLD,error)
+        CALL MPI_AllGather(CurrentSign(HighPopPos),1,MPI_INTEGER,MaxPopsPos,1,MPI_INTEGER,MPI_COMM_WORLD,error)
 
-        IF(iProcIndex.eq.Root) THEN
-            WRITE(6,*) 'MaxPops',MaxPops
+!        IF(iProcIndex.eq.Root) THEN
+!            WRITE(6,*) 'MaxPops',MaxPops
 
-            MaxPop=MaxPops(1)
-            do i=2,nProcessors
-                IF(MaxPops(i).lt.MaxPop) THEN
-                    MaxPop=MaxPops(i)
-                    MaxPopProc=i-1
-                ENDIF
-            enddo
+        MaxPopNeg=MaxPopsNeg(1)
+        MaxPopPos=MaxPopsPos(1)
+        do i=2,nProcessors
+            IF(MaxPopsNeg(i).lt.MaxPopNeg) THEN
+                MaxPopNeg=MaxPopsNeg(i)
+                MaxPopNegProc=i-1
+            ELSE
+                MaxPopNegProc=0
+            ENDIF
+            IF(MaxPopsPos(i).lt.MaxPopPos) THEN
+                MaxPopPos=MaxPopsPos(i)
+                MaxPopPosProc=i-1
+            ELSE
+                MaxPopPosProc=0
+            ENDIF
+        enddo
+!        ENDIF
+
+!        CALL MPI_Bcast(MaxPopProc,1,MPI_INTEGER,Root,MPI_COMM_WORLD,error)
+!        IF(error.ne.0) CALL Stop_All('FlipHighPopDet','Error in MPI_Bcast.')
+
+
+        IF(iProcIndex.eq.MaxPopNegProc) THEN
+
+            WRITE(6,'(A75,I10,A9)') 'The most highly populated determinant with the opposite sign to the HF has ',CurrentSign(HighPopNeg),' walkers.'
+!            WRITE(6,*) 'In bit representation this is: ',CurrentDets(:,HighPopFlip)
+            CALL DecodeBitDet(InitDetCurr,CurrentDets(:,HighPopNeg))
+            CALL write_det (6, InitDetCurr, .true.)
+
+            IF(.not.tPrintHighPop) THEN
+                WRITE(6,*) 'Flipping the sign of this determinant.'
+                CurrentSign(HighPopNeg)=(-1)*CurrentSign(HighPopNeg)
+            ENDIF
+
         ENDIF
 
-        CALL MPI_Bcast(MaxPopProc,1,MPI_INTEGER,Root,MPI_COMM_WORLD,error)
-        IF(error.ne.0) CALL Stop_All('FlipHighPopDet','Error in MPI_Bcast.')
+        IF(iProcIndex.eq.MaxPopPosProc) THEN
 
-
-        IF(iProcIndex.eq.MaxPopProc) THEN
-
-            WRITE(6,*) 'The most highly populated determinant with the opposite sign to the HF has ',CurrentSign(HighPopFlip),' walkers.'
-            WRITE(6,*) 'Flipping the sign of this determinant.'
-            WRITE(6,*) 'In bit representation this is: ',CurrentDets(:,HighPopFlip)
-            CALL DecodeBitDet(InitDetCurr,CurrentDets(:,HighPopFlip))
-            WRITE(6,*) 'which has orbitals: ',InitDetCurr
-
-            CurrentSign(HighPopFlip)=(-1)*CurrentSign(HighPopFlip)
+            WRITE(6,'(A71,I10,A9)') 'The most highly populated determinant with the same sign as the HF has ',CurrentSign(HighPopPos),' walkers.'
+!            WRITE(6,*) 'In bit representation this is: ',CurrentDets(:,HighPopFlip)
+            CALL DecodeBitDet(InitDetCurr,CurrentDets(:,HighPopPos))
+            CALL write_det (6, InitDetCurr, .true.)
+!            WRITE(6,*) 'The occupied orbitals in this determinant are as follows: '!,InitDetCurr
+!            call write_det (6, InitDetCurr, .true.)
 
         ENDIF
 
-        tFlipHighPopFound=.false.
         tFlipHighPopSign=.false.
+        tPrintHighPop=.false.
 
 
     END SUBROUTINE FlipHighPopDet
@@ -1340,9 +1371,10 @@ MODULE FciMCParMod
         IF(tHistInitPops) THEN
             CALL InitHistInitPops()
         ENDIF
-        tFlipHighPopFound=.false.
         tFlipHighPopSign=.false.
-        MaxInitPop=0
+        tPrintHighPop=.false.
+        MaxInitPopPos=0
+        MaxInitPopNeg=0
 
         IF(MaxNoatHF.eq.0) THEN
             MaxNoatHF=InitWalkers*nProcessors
@@ -4014,7 +4046,7 @@ MODULE FciMCParMod
         IF(TStartSinglePart) THEN
             WRITE(6,"(A,F9.3,A,I9)") " Initial number of particles set to 1, and shift will be held at ",DiagSft," until particle number on root node gets to ",InitWalkers
         ELSE
-            WRITE(6,*) " Initial number of walkers per processor chosen to be: ", InitWalkers
+            WRITE(6,*) "Initial number of walkers per processor chosen to be: ", InitWalkers
         ENDIF
  
 
