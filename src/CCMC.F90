@@ -898,6 +898,8 @@ MODULE CCMC
 ! Since we are (also) allowed all sizes from i=0 ... iSize-1, we add in sum_i=0^iSize-1 Binomial(N,i) too
 
 !Heaven help you if you give it an unordered cluster.
+
+!NB Clust's indices are 2-based (i.e. the first 1-, 2-, and 3- clusters are : [2],[2,3],[2,3,4])
    INTEGER FUNCTION GetUniqClusterIndex(Clust,iSize,TL)
       use CCMCData, only: CCTransitionLog
       IMPLICIT NONE
@@ -914,13 +916,12 @@ MODULE CCMC
       enddo
       do I=1,iSize
          if(i>1) then
-            ind=ind+Binomial(TL%nExcitors-Clust(i-1),iSize-i+1)
+            ind=ind+Binomial(TL%nExcitors-(Clust(i-1)-1),iSize-i+1)
          else
             ind=ind+Binomial(TL%nExcitors,iSize-i+1)
          endif
-         ind=ind-Binomial(TL%nExcitors-Clust(i)+1,iSize-i+1)
+         ind=ind-Binomial(TL%nExcitors-(Clust(i)-1)+1,iSize-i+1)
       enddo
-      if(ind.gt.0)  ind=ind-1
       GetUniqClusterIndex=ind
    END FUNCTION GetUniqClusterIndex
 
@@ -1762,7 +1763,6 @@ END SUBROUTINE
          dTotAbsAmpl=Amplitude(1,iCurAmpList)
       endif
 
-      if(lLogTransitions) call InitTransitionLog(TL,nAmpl,nEl,.not.tCCMCLogUniq)
 
       iShiftLeft=StepsSft-1  !So the first one comes at StepsSft
       if(iProcIndex.eq.root) then
@@ -1795,6 +1795,8 @@ END SUBROUTINE
             iNumExcitors=nEl  !Otherwise just the number of electrons is the max number of excitors
          ENDIF
       ENDIF
+
+      if(lLogTransitions) call InitTransitionLog(TL,nAmpl,iNumExcitors,.not.tCCMCLogUniq)
 
       if(tExactCluster) then
          CALL InitClustSelectorFull(CSMain,iNumExcitors)
@@ -2028,8 +2030,7 @@ END SUBROUTINE
                   endif
                   Amplitude(PartIndex,iCurAmpList)=Amplitude(PartIndex,iCurAmpList)+rat
                   if(lLogTransitions.and.Iter.gt.NEquilSteps) then
-                     FakeArray(1)=PartIndex
-                     call LogTransition(TL,CS%C%SelectedExcitorIndices(:),CS%C%iSize,FakeArray,1,rat,CS%C%dProbNorm)
+                     call LogTransition(TL,CS%C%SelectedExcitorIndices(:),CS%C%iSize,PartIndex,rat,CS%C%dProbNorm)
                   endif
                endif
             enddo !GetNextSpawner
@@ -2135,8 +2136,7 @@ END SUBROUTINE
 !            r=Amplitude(iPartDie,iOldAmpList)*rat 
             Amplitude(iPartDie,iCurAmpList)=Amplitude(iPartDie,iCurAmpList)-r
             if(lLogTransitions.and.Iter.gt.NEquilSteps) then
-               FakeArray(1)=iPartDie
-               call LogTransition(TL,CS%C%SelectedExcitorIndices(:),CS%C%iSize,FakeArray,1,-r,CS%C%dProbNorm)
+               call LogTransition(TL,CS%C%SelectedExcitorIndices(:),CS%C%iSize,iPartDie,-r,CS%C%dProbNorm)
             endif
 ! The two next lines are the ancien regime
 !            r=iSgn*Tau*(HDiagCurr-DiagSft)*dClusterNorm/dProbNorm !(dProb*dProbNorm)
@@ -2392,11 +2392,11 @@ SUBROUTINE GetNextNonZeroExcitorD(Pos,List,iMin,iMax)
    enddo
 END SUBROUTINE GetNextNonZeroExcitorD
 
-   SUBROUTINE InitTransitionLog(TL,nAmpl,nEl,tNonUniq)
+   SUBROUTINE InitTransitionLog(TL,nAmpl,nMaxClusterSize,tNonUniq)
       use CCMCData, only: CCTransitionLog
       IMPLICIT NONE
       TYPE(CCTransitionLog) TL
-      INTEGER nAmpl,nEl
+      INTEGER nAmpl,nMaxClusterSize
       LOGICAL tNonUniq
 
       INTEGER i
@@ -2405,7 +2405,7 @@ END SUBROUTINE GetNextNonZeroExcitorD
       TL%tNonUniq=tNonUniq
       TL%nExcitors=nAmpl-1
 
-      TL%nMaxSize=min(nEl,TL%nExcitors)
+      TL%nMaxSize=min(nMaxClusterSize,TL%nExcitors)
       ! We create a transition matrix where each element correpsonds to a cluster.  We encode cluster X=(a_{X_i}) = (x,y,z)  as an 'bit' string in base Det sum_{i=1}^{|X|} (X_i)*(Det)**(i-1)
       if(tNonUniq) then
          WRITE(6,*) "Using non-unique logging"
@@ -2415,16 +2415,17 @@ END SUBROUTINE GetNextNonZeroExcitorD
          TL%MaxIndex=-1
          do i=0,TL%nMaxSize
             TL%MaxIndex=TL%MaxIndex+Binomial(TL%nExcitors,i)
-enddo
+         enddo
       endif
       WRITE(6,*) "Max Cluster Index:",TL%MaxIndex
-      allocate(TL%dProbTransition(2,2,0:TL%MaxIndex,0:TL%MaxIndex))
+      write(6,*) "Logging memory>",(8*2*2*(TL%MaxIndex+1)*(nAmpl+1))/1048576, " Mb"
+      allocate(TL%dProbTransition(2,2,0:TL%MaxIndex,0:nAmpl))
       allocate(TL%dProbClust(2,0:TL%MaxIndex))
       allocate(TL%dProbUniqClust(2,-1:TL%MaxIndex))
       TL%dProbTransition(:,:,:,:)=0
       TL%dProbClust(:,:)=0
       TL%dProbUniqClust(:,:)=0
-   end subroutine
+   end subroutine InitTransitionLog
    SUBROUTINE WriteTransitionLog(iUnit,TL,Amplitude,nCycles,dTotAbsAmp,dTotNorm)
       use CCMCData, only: CCTransitionLog
       IMPLICIT NONE
@@ -2461,16 +2462,20 @@ enddo
       do i=0,TL%MaxIndex
          flin=0
          flout=0
-         do j=0,TL%MaxIndex 
+         do j=0,TL%nExcitors+1 
             if(TL%dProbTransition(1,2,i,j).ne.0) then
                Call WriteClusterInd(iUnit,i,.false.,TL)
                WRITE(iUnit,"(A)",advance='no') "=>"
                Call WriteClusterInd(iUnit,j,.false.,TL)
                WRITE(iUnit,"(2G25.17)") TL%dProbTransition(1,1,i,j)/nCycles,TL%dProbTransition(1,2,i,j)/nCycles
             endif
-            flin=flin+TL%dProbTransition(1,1,j,i)/nCycles
             flout=flout+TL%dProbTransition(1,1,i,j)/nCycles
          enddo
+         if(i<=TL%nExcitors+1) then
+            do j=0,TL%MaxIndex
+               flin=flin+TL%dProbTransition(1,1,j,i)/nCycles
+            enddo
+         endif
          flint=flint+flin
          floutt=floutt+flout
          if(flin.ne.0.or.flout.ne.0) then
@@ -2481,45 +2486,57 @@ enddo
       enddo
       WRITE(iUnit,"(A)") "Transition Probabilities normalized by # FromCluster: value per cycle;   number per cycle"
       do i=0,TL%MaxIndex
-         do j=0,TL%MaxIndex 
+         do j=0,TL%nExcitors+1 
             if(TL%dProbTransition(1,2,i,j).ne.0) then
                Call WriteClusterInd(iUnit,i,.false.,TL)
                WRITE(iUnit,"(A)",advance='no') "=>"
                Call WriteClusterInd(iUnit,j,.false.,TL)
-               WRITE(iUnit,"(2G25.17)") TL%dProbTransition(1,1,i,j)/TL%dProbClust(2,i),TL%dProbTransition(1,2,i,j)/TL%dProbClust(2,i)
+               if(TL%tNonUniq) THEN
+                  WRITE(iUnit,"(2G25.17)") TL%dProbTransition(1,1,i,j)/TL%dProbClust(2,i),TL%dProbTransition(1,2,i,j)/TL%dProbClust(2,i)
+               else
+                  WRITE(iUnit,"(2G25.17)") TL%dProbTransition(1,1,i,j)/TL%dProbUniqClust(2,i),TL%dProbTransition(1,2,i,j)/TL%dProbUniqClust(2,i)
+               endif
             endif
          enddo
       enddo
       WRITE(iUnit,"(A)") "Renormalized Transition Probabilities"
       do i=0,TL%MaxIndex
-         do j=0,TL%MaxIndex 
+         do j=0,TL%nExcitors+1 
             if(TL%dProbTransition(1,2,i,j).ne.0) then
                Call WriteClusterInd(iUnit,i,.false.,TL)
                WRITE(iUnit,"(A)",advance='no') "=>"
                Call WriteClusterInd(iUnit,j,.false.,TL)
                k=GetClusterIndLevel(i)
                r=Amplitude(1)*(dAveTotAbsAmp/dAveNorm)**k
-               WRITE(iUnit,"(2G25.17)") TL%dProbTransition(2,1,i,j)/(TL%dProbClust(2,i)*r),TL%dProbTransition(2,2,i,j)/(TL%dProbClust(2,i)*r)
+               if(TL%tNonUniq) THEN
+                  WRITE(iUnit,"(2G25.17)") TL%dProbTransition(2,1,i,j)/(TL%dProbClust(2,i)*r),TL%dProbTransition(2,2,i,j)/(TL%dProbClust(2,i)*r)
+               else
+                  WRITE(iUnit,"(2G25.17)") TL%dProbTransition(2,1,i,j)/(TL%dProbUniqClust(2,i)*r),TL%dProbTransition(2,2,i,j)/(TL%dProbUniqClust(2,i)*r)
+               endif
 !                  WRITE(iUnit,"(2G25.17)") TL%dProbTransition(2,1,i,j)/TL%dProbClust(2,i)
             endif
          enddo
       enddo
       WRITE(iUnit,*) "Biased Renormalized Transition Probabilities"
       do i=0,TL%MaxIndex
-         do j=0,TL%MaxIndex 
+         do j=0,TL%nExcitors+1 
             if(TL%dProbTransition(1,2,i,j).ne.0) then
                Call WriteClusterInd(iUnit,i,.false.,TL)
                WRITE(iUnit,"(A)",advance='no') "=>"
                Call WriteClusterInd(iUnit,j,.false.,TL)
                k=GetClusterIndLevel(i)
                r=Amplitude(1)*(dAveTotAbsAmp/dAveNorm)**k
-               WRITE(iUnit,"(2G25.17)") TL%dProbTransition(1,1,i,j)/(TL%dProbClust(2,i)*r),TL%dProbTransition(1,2,i,j)/(TL%dProbClust(2,i))
+               if(TL%tNonUniq) THEN
+                  WRITE(iUnit,"(2G25.17)") TL%dProbTransition(1,1,i,j)/(TL%dProbClust(2,i)*r),TL%dProbTransition(1,2,i,j)/(TL%dProbClust(2,i))
+               else
+                  WRITE(iUnit,"(2G25.17)") TL%dProbTransition(1,1,i,j)/(TL%dProbUniqClust(2,i)*r),TL%dProbTransition(1,2,i,j)/(TL%dProbUniqClust(2,i))
+               endif
             endif
          enddo
       enddo
       WRITE(iUnit,"(A)") "Transition values/number transitions: Plain;   Debiased"
       do i=0,TL%MaxIndex
-         do j=0,TL%MaxIndex 
+         do j=0,TL%nExcitors+1
             if(TL%dProbTransition(1,2,i,j).ne.0) then
                Call WriteClusterInd(iUnit,i,.false.,TL)
                WRITE(iUnit,"(A)",advance='no') "=>"
@@ -2536,16 +2553,16 @@ enddo
       deallocate(TL%dProbClust)
       deallocate(TL%dProbTransition)
    end subroutine 
-   subroutine LogTransition(TL,C1,C1size,C2,C2size,value,dProbNorm)
+   subroutine LogTransition(TL,C1,C1size,C2,value,dProbNorm)
       use CCMCData, only: CCTransitionLog
       IMPLICIT NONE
       TYPE(CCTransitionLog) TL
       INTEGER C1size,C2size
-      INTEGER C1(C1size),C2(C2size)
+      INTEGER C1(C1size),C2
       INTEGER i1,i2
       REAL*8 value,dProbNorm 
       i1=GetClusterIndex(C1,C1size,TL)
-      i2=GetClusterIndex(C2,C2size,TL)
+      i2=C2-1
    ! We create a transition matrix where each element correpsonds to a cluster.  We encode cluster X=(a_{X_i}) = (x,y,z)  as an 'bit' string in base Det sum_{i=1}^{|X|} (X_i)*(Det)**(i-1)
       TL%dProbTransition(1,1,i1,i2)=TL%dProbTransition(1,1,i1,i2)+value
       TL%dProbTransition(1,2,i1,i2)=TL%dProbTransition(1,2,i1,i2)+1
@@ -2612,6 +2629,10 @@ enddo
 !  This includes multiple selections of the same excitor as well as combinations of excitors which produce a 0 sign.
       TL%dProbUniqClust(1,i)=TL%dProbUniqClust(1,i)+1/(C%dProbNorm*C%dClusterNorm)
       TL%dProbUniqClust(2,i)=TL%dProbUniqClust(2,i)+1
+!      WRITE(6,"(A)",advance='no') "LC: "
+!      Call WriteCluster(6,C,.false.)
+!      Call WriteClusterInd(6,i,.false.,TL)
+!      WRITE(6,"(I)") i
    end subroutine LogCluster
 
 ! Find the largest nMax amplitudes (out of Amps(nDet)) for each excitation level and print them
@@ -2635,7 +2656,7 @@ enddo
          nBest=0
          do i=LevIndex(iLev),LevIndex(iLev+1)-1
             dCur=abs(Amps(i))
-            if(dCur>dMinBest) then
+            if(nBest<nMax.or.dCur>dMinBest) then
                do j=nBest,1,-1
                   if (BestAbsAmp(j)>dCur) exit
                enddo
