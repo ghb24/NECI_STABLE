@@ -4,7 +4,8 @@ module util_mod
     private
 
     public :: swap, arr_lt, arr_gt, operator(.arrlt.), operator(.arrgt.)
-    public factrl, choose, int_fmt, binary_search
+    public :: factrl, choose, int_fmt, binary_search
+    public :: append_ext, get_unique_filename
     
 contains
 
