@@ -584,10 +584,17 @@ The following options are applicable for both the **FCIMC** and **MCDETS** metho
 
 The following options are only available in **FCIMC** calculations:
 
-**READPOPS**
-    Read the initial walker configuration from the file POPSFILE.
-    **DIAGSHIFT** and **INITWALKERS** given in the input will be
-    overwritten with the values read in form POPSFILE.
+**READPOPS** [n]
+    Read the initial walker configuration from the POPSFILE* restart file (see
+    **POPSFILE** in the **LOGGING** section).  **DIAGSHIFT** and
+    **INITWALKERS** given in the input will be overwritten with the values read
+    in from the restart file.
+
+    If an integer n is given, then the initial walker configuration is read in from
+    the POPSFILE*.n restart file.  POPSFILE*.x is used (where x is the highest integer
+    for which POPSFILE*.x exists and POPSFILE*.x+1 does not) if no argument is
+    given if **INCREMENTPOPS** is specified in the logging section and otherwise
+    POPSFILE* is used.
 
 **SCALEWALKERS** [fScaleWalkers]
     Scale the number of walkers by fScaleWalkers, after having read in data from POPSFILE.
@@ -666,6 +673,17 @@ The following options are only available in **FCIMC** calculations:
     and fix the shift at its initial value, until the number of particles gets
     to the INITPARTICLES value. The optional integer argument can be used to 
     augment the number of walkers at the HF determinant.
+
+**RANDOMISEHASHORBS** [**OFF**]
+    Default on
+
+    This provides a random 1-to-1 mapping between the orbital indices and a
+    random set of integers for use with the hashing algorithm. The hash of the
+    occupied orbitals in a determinant determines which processor the determinant
+    is sent to in FCIQMC calculations.
+    
+    This effectively eliminates load-imbalance when running in parallel, even
+    for small numbers of electrons and HPHF. Recommended.
 
 **MEMORYFACPART** [MemoryFacPart]
     Default 10.D0
@@ -969,11 +987,17 @@ The following options are only available in **FCIMC** calculations:
     The arguments indicate the active electrons, and then the number of active virtual orbitals.
     These values can be dynamically updated throughout the simulation via use of the CHANGEVARS facility.
 
+    
+INITIATOR OPTIONS
+-----------------
+
 **TRUNCINITIATOR** 
     This is a parallel FCIMC option.  The keyword requires an initiator space to first be defined (usually 
-    via **TRUNCATECAS**, but could be by **EXCITE**).  
+    via **TRUNCATECAS**, but could be by **EXCITE**).  The absence of any defined fixed initiator space means
+    this defaults to be just the HF determinant.  I.e. all additional initiator determinants must be chosen
+    based on having sufficient populations.
     This is then a variation on a kind of CAS-star approach.  Spawning is subject to the contraint
-    that walkers spawned from determinants outside the active space only live if they are being spawned onto 
+    that walkers spawned from determinants outside the initiator space only live if they are being spawned onto 
     determinants that are already occupied.  If walkers spawned on a new determinant have non-initiator parents,
     these spawns are 'aborted'.  A special case is if in the same iteration walkers are spawned on a new 
     determinant both from inside and outside the active space - in this case we treat the active space to have 

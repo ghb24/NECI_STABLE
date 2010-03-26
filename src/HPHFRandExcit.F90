@@ -7,9 +7,9 @@ MODULE HPHFRandExcitMod
 ![ P(i->a) + P(i->b) + P(j->a) + P(j->b) ]/2
 !We therefore need to find the excitation matrix between the determinant which wasn't excited and the determinant which was created.
 
-    use SystemData, only: nEl,tMerTwist,NIfTot,tCSF,NIfD,NIfDBO
+    use SystemData, only: nEl,NIfTot,tCSF,NIfD,NIfDBO
     use SymData, only: nSymLabels
-    use mt95 , only : genrand_real2
+    use dSFMT_interface , only : genrand_real2_dSFMT
     use GenRandSymExcitNUMod , only : GenRandSymExcitScratchNU,ConstructClassCounts,CalcNonUniPGen,ScratchSize 
     use DetBitOps, only: DetBitLT, DetBitEQ, FindExcitBitDet,FindBitExcitLevel
     use HElem
@@ -65,11 +65,7 @@ MODULE HPHFRandExcitMod
         ENDIF
 
 !If det is open-shell we choose one of the determinants with 50% chance to create an excitation from.
-        IF(tMerTwist) THEN
-            CALL genrand_real2(r)
-        ELSE
-            CALL RANLUX(r,1)
-        ENDIF
+        r = genrand_real2_dSFMT()
 !This will find the full ordered form for nI2 and its bit representation. (Is this always needed?)
         CALL FindDetSpinSym(nI,nI2,NEl)
         CALL FindExcitBitDetSym(iLutnI,iLutnI2)

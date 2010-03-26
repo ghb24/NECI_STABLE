@@ -7,7 +7,7 @@ module csf
     use memorymanager, only: LogMemAlloc, LogMemDealloc
     use integralsdata, only: umat, fck, nmax
     use HElem
-    use mt95, only: genrand_real2
+    use dSFMT_interface, only: genrand_real2_dSFMT
     use sltcnd_mod, only: sltcnd, sltcnd_2
     use DetBitOps, only: EncodeBitDet, FindBitExcitLevel, count_open_orbs, &
                          get_bit_open_unique_ind, FindSpatialBitExcitLevel
@@ -1337,7 +1337,7 @@ contains
 
         ! Select nchoose positions at random, and place them at the end.
         do i=1,nchoose
-            call genrand_real2(r)
+            r = genrand_real2_dSFMT()
             pos = int(real(nopen-i+1,8)*r) + 1
 
             if (pos /= nopen-i+1) then
@@ -1449,7 +1449,7 @@ contains
 
         ! Pick and apply a random one
         do while (.true.)
-            call genrand_real2(r)
+            r = genrand_real2_dSFMT()
             num = int(r*ncsf) + 1
             if ((.not.tForceChange) .or. (ncsf<2) .or. &
                 any(yamas(num,:) /= yamas(0,:))) then

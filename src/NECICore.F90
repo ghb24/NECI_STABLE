@@ -46,6 +46,8 @@ Subroutine NECICore(iCacheFlag,tCPMD,tVASP)
 
     call NECICalcInit(iCacheFlag)
 
+!    call test_mt()
+
 !   Actually do the calculations we're meant to.  :-)
     call CalcDoCalc()
 

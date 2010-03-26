@@ -90,7 +90,7 @@ my_make := $(MAKE) -f $(my_makefile)
 
 # pre-processing.
 CPP = %(cpp)s
-CPPFLAGS = %(cppflags)s -DMAXMEM='$(MAXMEM)' -D_VCS_VER='$(VCS_VERSION)' $(WORKING_DIR_CHANGES) -D_CONFIG='"$(CONFIG) ($(OPT))"'
+CPPFLAGS = -DMAXMEM='$(MAXMEM)' -D_VCS_VER='$(VCS_VERSION)' $(WORKING_DIR_CHANGES) -D_CONFIG='"$(CONFIG) ($(OPT))"' -DDSFMT_MEXP=19937 %(cppflags)s 
 
 # use compiler with perl scripts to avoid cascade compilation.
 compiler = %(compiler)s
@@ -130,7 +130,7 @@ CONFIG = %(config)s
 OPT = %(opt_level)s
 
 # Directories containing source files (space separated list).
-SRC = src
+SRC = src src/lib
 
 # Directories in which compiled objects are placed.
 DEST = dest/$(CONFIG)/$(OPT)
@@ -188,37 +188,37 @@ MAXMEM = %(max_mem)i # RAM available, in MB.  Used by the memory logger.
 # Find source files and resultant object files.
 
 # Source extensions.
-EXTS = .F90 .F .C .c
+EXTS = .F90 .F .c .cpp
 
 # Source filenames.
 find_files = $(wildcard $(1)/*$(2))
 FSRCFILES := $(foreach dir,$(SRC),$(call find_files,$(dir),.F))
 F90SRCFILES := $(foreach dir,$(SRC),$(call find_files,$(dir),.F90))
 F90TMPSRCFILES := $(foreach dir,$(SRC),$(call find_files,$(dir),.F90.template))
-CSRCFILES := $(foreach dir,$(SRC),$(call find_files,$(dir),.C))
+cppSRCFILES := $(foreach dir,$(SRC),$(call find_files,$(dir),.cpp))
 cSRCFILES := $(foreach dir,$(SRC),$(call find_files,$(dir),.c))
-SRCFILES := $(FSRCFILES) $(F90SRCFILES) $(F90TMPSRCFILES) $(CSRCFILES) $(cSRCFILES)
+SRCFILES := $(FSRCFILES) $(F90SRCFILES) $(F90TMPSRCFILES) $(cppSRCFILES) $(cSRCFILES)
 
 # Objects (strip path and replace extension of source files with .o).
 FOBJ_bare := $(addsuffix .o,$(basename $(notdir $(FSRCFILES))))
 F90OBJ_bare := $(addsuffix .o,$(basename $(notdir $(F90SRCFILES))))
 F90TMPOBJ_bare := $(addsuffix .o,$(basename $(basename $(notdir $(F90TMPSRCFILES)))))
-COBJ_bare := $(addsuffix .o,$(basename $(notdir $(CSRCFILES))))
+cppOBJ_bare := $(addsuffix .o,$(basename $(notdir $(cppSRCFILES))))
 cOBJ_bare := $(addsuffix .o,$(basename $(notdir $(cSRCFILES))))
 
 # Full path to all objects (gamma-point).
 FOBJ := $(addprefix $(GDEST)/, $(FOBJ_bare))
 F90OBJ := $(addprefix $(GDEST)/, $(F90OBJ_bare))
 F90TMPOBJ := $(addprefix $(GDEST)/, $(F90TMPOBJ_bare))
-COBJ := $(addprefix $(GDEST)/, $(COBJ_bare))
+cppOBJ := $(addprefix $(GDEST)/, $(cppOBJ_bare))
 cOBJ := $(addprefix $(GDEST)/, $(cOBJ_bare))
-OBJECTS := $(FOBJ) $(F90OBJ) $(F90TMPOBJ) $(COBJ) $(cOBJ)
+OBJECTS := $(FOBJ) $(F90OBJ) $(F90TMPOBJ) $(cppOBJ) $(cOBJ)
 
 # Similarly for the kpoint objects.
 KFOBJ := $(addprefix $(KDEST)/, $(FOBJ_bare))
 KF90OBJ := $(addprefix $(KDEST)/, $(F90OBJ_bare))
 KF90TMPOBJ := $(addprefix $(KDEST)/, $(F90TMPOBJ_bare))
-KCOBJ := $(addprefix $(KDEST)/, $(COBJ_bare))
+KcppOBJ := $(addprefix $(KDEST)/, $(cppOBJ_bare))
 KcOBJ := $(addprefix $(KDEST)/, $(cOBJ_bare))
 
 # Objects for standalone NECI.
@@ -248,11 +248,11 @@ FDEPEND = $(FRDEPEND) $(FCDEPEND)
 # We don't need these when we first compile, only when we recompile.
 # We achieve this (most of the time) by recompiling the C dependencies every
 # time we compile.
-CDEPEND_FILES = $(addprefix $(GDEP_DEST)/,$(notdir $(COBJ:.o=.d)))
+cppDEPEND_FILES = $(addprefix $(GDEP_DEST)/,$(notdir $(cppOBJ:.o=.d)))
 cDEPEND_FILES = $(addprefix $(GDEP_DEST)/,$(notdir $(cOBJ:.o=.d)))
-KCDEPEND_FILES = $(addprefix $(KDEP_DEST)/,$(notdir $(KCOBJ:.o=.d)))
+KcppDEPEND_FILES = $(addprefix $(KDEP_DEST)/,$(notdir $(KcppOBJ:.o=.d)))
 KcDEPEND_FILES = $(addprefix $(KDEP_DEST)/,$(notdir $(KcOBJ:.o=.d)))
-CDEPEND = $(CDEPEND_FILES) $(cDEPEND_FILES) $(KCDEPEND_FILES) $(KcDEPEND_FILES)
+CDEPEND = $(cppDEPEND_FILES) $(cDEPEND_FILES) $(KcppDEPEND_FILES) $(KcDEPEND_FILES)
 
 #-----
 # Goals
@@ -393,9 +393,12 @@ help:
 
 # Some more helpful macros.
 CPP_BODY = $(CPPFLAGS) $< $@
-C_BODY = $(CFLAGS) -c $< -o $@ 
+C_BODY = $(CFLAGS) $(CPPFLAGS) -c $< -o $@ 
 MAKE_C_GDEPS = $(CCD) $(CFLAGS) -MM -MT \$$\(GDEST\)/$(addsuffix .o,$(basename $(notdir $@))) $< -o $@
 MAKE_C_KDEPS = $(CCD) $(CFLAGS) -MM -MT \$$\(KDEST\)/$(addsuffix .o,$(basename $(notdir $@))) $< -o $@
+
+# Include paths
+INCLUDE_PATH = $(addprefix -I ,$(SRC))
 
 # stat command for checking last modified time.
 system = $(shell uname -s)
@@ -444,42 +447,42 @@ $(GDEST)/%%.F90: %%.F90.template
 # requiring the .o and .mod files have the same "last modified" time.
 %%.mod:
 \ttest -e $@ && test ! -e $(@:.mod=.time) && test $(shell $(stat_cmd) $@) -eq $(shell $(stat_cmd) $<) && touch $(@:.mod=.time) || true
-\tperl -w $(TOOLS)/compile_mod.pl -cmp "perl -w $(TOOLS)/compare_module_file.pl -compiler $(compiler)" -fc "$(FC) $(FFLAGS) $(F90FLAGS) %(module_flag)s$(dir $@) -I $(SRC) -c $(<:.o=.f90) -o $<" -provides "$@" -requires "$(<:.o=.f90)"
+\tperl -w $(TOOLS)/compile_mod.pl -cmp "perl -w $(TOOLS)/compare_module_file.pl -compiler $(compiler)" -fc "$(FC) $(FFLAGS) $(F90FLAGS) %(module_flag)s$(dir $@) $(INCLUDE_PATH) -c $(<:.o=.f90) -o $<" -provides "$@" -requires "$(<:.o=.f90)"
 
 $(F90OBJ) $(F90TMPOBJ) $(KF90OBJ): %%.o: %%.f90
-\tperl -w $(TOOLS)/compile_mod.pl -cmp "perl -w $(TOOLS)/compare_module_file.pl -compiler $(compiler)" -fc "$(FC) $(FFLAGS) $(F90FLAGS) %(module_flag)s$(dir $@) -I $(SRC) -c $< -o $@" -provides "$@" -requires "$^"
+\tperl -w $(TOOLS)/compile_mod.pl -cmp "perl -w $(TOOLS)/compare_module_file.pl -compiler $(compiler)" -fc "$(FC) $(FFLAGS) $(F90FLAGS) %(module_flag)s$(dir $@) $(INCLUDE_PATH) -c $< -o $@" -provides "$@" -requires "$^"
 
 $(FOBJ) $(KFOBJ): %%.o: %%.f
-\tperl -w $(TOOLS)/compile_mod.pl -cmp "perl -w $(TOOLS)/compare_module_file.pl -compiler $(compiler)" -fc "$(FC) $(FFLAGS) $(F77FLAGS) %(module_flag)s$(dir $@) -I $(SRC) -c $< -o $@" -provides "$@" -requires "$^"
+\tperl -w $(TOOLS)/compile_mod.pl -cmp "perl -w $(TOOLS)/compare_module_file.pl -compiler $(compiler)" -fc "$(FC) $(FFLAGS) $(F77FLAGS) %(module_flag)s$(dir $@) $(INCLUDE_PATH) -c $< -o $@" -provides "$@" -requires "$^"
 
 # Compiling C source files...
 # a) gamma-point.
-$(COBJ): $(GDEST)/%%.o: %%.C
-\t$(CC) $(CPPFLAGS) $(C_BODY)
+$(cppOBJ): $(GDEST)/%%.o: %%.cpp
+\t$(CC) $(C_BODY)
 
 $(cOBJ): $(GDEST)/%%.o: %%.c
 \t$(CC) $(C_BODY)
 
 # b) k-point.
-$(KCOBJ): $(KDEST)/%%.o: %%.C
-\t$(CC) $(CPPFLAGS) -D__CMPLX $(C_BODY)
+$(KcppOBJ): $(KDEST)/%%.o: %%.cpp
+\t$(CC) -D__CMPLX $(C_BODY)
 
 $(KcOBJ): $(KDEST)/%%.o: %%.c
-\t$(CC) $(C_BODY)
+\t$(CC) -D__CMPLX $(C_BODY)
 
 # Update C dependency files.
 # a) gamma-point.
 $(cDEPEND_FILES): $(GDEP_DEST)/%%.d: %%.c
 \t$(MAKE_C_GDEPS)
 
-$(CDEPEND_FILES): $(GDEP_DEST)/%%.d: %%.C
+$(cppDEPEND_FILES): $(GDEP_DEST)/%%.d: %%.cpp
 \t$(MAKE_C_GDEPS)
 
 # b) k-point.
 $(KcDEPEND_FILES): $(KDEP_DEST)/%%.d: %%.c
 \t$(MAKE_C_KDEPS)
 
-$(KCDEPEND_FILES): $(KDEP_DEST)/%%.d: %%.C
+$(KcppDEPEND_FILES): $(KDEP_DEST)/%%.d: %%.cpp
 \t$(MAKE_C_KDEPS)
 
 #-----

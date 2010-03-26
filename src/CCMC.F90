@@ -19,13 +19,12 @@ MODULE CCMC
 !Multiple particles can be attempted to die at the same time - here, |WSign| > 1 and the probability of a death will be multiplied by |WSign|
 !dProb is an extra probability factor the death probability is multiplied by 
     INTEGER FUNCTION AttemptDieProbPar(DetCurr,Kii,IC,WSign,dProb)
-        use SystemData, only: nEl, tMerTwist
-        use CalcData , only : TFixShiftShell,ShellFix,FixShift,DiagSft,FixedKiiCutoff,Tau,tFixShiftKii
-        use CalcData , only : tFixCASShift
+        use SystemData, only: nEl
+        use CalcData , only : DiagSft,Tau
         use FciMCData
         use FciMCParMod, only: TestifDETinCAS
         use DetBitOps, only: FindExcitBitDet, FindBitExcitLevel
-        use mt95
+        use dSFMT_interface
         IMPLICIT NONE
         INTEGER :: DetCurr(NEl),iKill,IC,WSign
 !        TYPE(HElement) :: rh,rhij
@@ -33,53 +32,14 @@ MODULE CCMC
         REAL*8 dProb
         LOGICAL :: tDETinCAS
 
-!Calculate the diagonal hamiltonian matrix element for the determinant
-!        rh=GetHElement2(DetCurr,DetCurr,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,0,ECore)
-!Subtract from the diagonal the value of the lowest hamiltonian matrix element
-!        rh=rh-Hii
-
-!Subtract the current value of the shift and multiply by tau
-        IF(TFixShiftShell.and.(.not.TSinglePartPhase)) THEN
-!            IF((IC.eq.0).or.(IC.eq.2)) THEN
-            IF(IC.le.ShellFix) THEN
-                rat=Tau*(Kii-FixShift)
-            ELSE
-                rat=Tau*(Kii-DiagSft)
-            ENDIF
-        ELSEIF(tFixShiftKii.and.(.not.TSinglePartPhase)) THEN
-            IF(Kii.le.FixedKiiCutoff) THEN
-                rat=Tau*(Kii-FixShift)
-            ELSE
-                rat=Tau*(Kii-DiagSft)
-            ENDIF
-        ELSEIF(tFixCASShift.and.(.not.TSinglePartPhase)) THEN
-! The 'TestifDETinCAS' function finds out if the determinant is in the complete active space or not.  If it is, the shift is fixed at 
-! the chosen fixed value (FixShift), if not the shift remains as the changing DiagSft value.
-           
-            tDETinCAS=TestifDETinCAS(DetCurr)
-            
-            IF(tDETinCAS) THEN
-                rat=Tau*(Kii-FixShift)
-            ELSE
-                rat=Tau*(Kii-DiagSft)
-            ENDIF
-        ELSE
-            rat=Tau*(Kii-DiagSft)
-        ENDIF
-
 !If there are multiple particles, decide how many to kill in total...
-        rat=rat*abs(WSign)
-        rat=rat*dProb
+        rat=Tau*(Kii-DiagSft)*abs(WSign)*dProb
 
         iKill=INT(rat)
         rat=rat-REAL(iKill)
 
 !Stochastically choose whether to die or not
-        IF(tMerTwist) THEN
-            CALL genrand_real2(r) 
-        ELSE
-            CALL RANLUX(r,1)
-        ENDIF
+        r = genrand_real2_dSFMT() 
         IF(abs(rat).gt.r) THEN
             IF(rat.ge.0.D0) THEN
 !Depends whether we are trying to kill or give birth to particles.
@@ -272,8 +232,8 @@ MODULE CCMC
                   if(iSgn.ne.0) then
                      CALL DecodeBitDet(DetCurr,iLutnI)
                      Htmp = get_helement (HFDet, DetCurr, iLutHF, iLutnI)
-                     dT1Sq=dT1Sq+(Real(Htmp%v,r2)*iSgn)
-                     !WRITE(6,'(A,I,2G)', advance='no') 'T1',iSgn,real(Htmp%v,r2),dT1Sq
+                     dT1Sq=dT1Sq+(Real(Htmp%v,dp)*iSgn)
+                     !WRITE(6,'(A,I,2G)', advance='no') 'T1',iSgn,real(Htmp%v,dp),dT1Sq
                      !call WriteBitEx(6,iLutHF,CurrentDets(:,j),.false.)
                      !call WriteBitEx(6,iLutHF,CurrentDets(:,l),.false.)
                      !call WriteBitEx(6,iLutHF,iLutnI,.true.)
@@ -284,7 +244,7 @@ MODULE CCMC
 !          if(WalkExcitLevel.eq.1.or.WalkExcitLevel.eq.2) then
 !            CALL DecodeBitDet(DetCurr,CurrentDets(:,j))
 !            Htmp=GetHElement3(HFDet, DetCurr,WalkExcitLevel)
-!            AJWTProjE=AJWTProjE+(Real(Htmp%v,r2)*CurrentSign(j))
+!            AJWTProjE=AJWTProjE+(Real(Htmp%v,dp)*CurrentSign(j))
 !          endif
 !#endif
 !Go through all particles on the current walker det
@@ -476,7 +436,7 @@ MODULE CCMC
    ! Calculate the probability that we've reached this far in the loop
                         !We must have at least one excitor, so we cannot exit here.
                         if(i.gt.2) then
-                           call genrand_real2(r)  !On GHB's advice
+                           r = genrand_real2_dSFMT()  !On GHB's advice
                            if(r.lt.dProbSelNewExcitor) exit
                         endif
             
@@ -485,7 +445,7 @@ MODULE CCMC
       ! Select a new random walker
                         k=0
                         do while (k.eq.0)
-                           call genrand_real2(r)  !On GHB's advice
+                           r = genrand_real2_dSFMT()  !On GHB's advice
                            k=1+floor(r*(TotWalkers-1))    !This selects a unique excitor (which may be multiply populated)
                            if(k.ge.iHFDet) k=k+1          !We're not allowed to select the HF det
                            if(CurrentSign(k).eq.0) k=0
@@ -580,13 +540,13 @@ MODULE CCMC
                   IF(TTruncSpace) THEN
 !We have truncated the excitation space at a given excitation level. See if the spawn should be allowed.
                       IF(CheckAllowedTruncSpawn(WalkExcitLevel,nJ,iLutnJ,IC)) THEN
-                          Child=AttemptCreatePar(DetCurr,iLutnI,iSgn,nJ,iLutnJ,Prob,IC,Ex,tParity,1,.false.)
+                          Child=AttemptCreatePar(DetCurr,iLutnI,iSgn,nJ,iLutnJ,Prob,IC,Ex,tParity)
                       ELSE
                           Child=0
                       ENDIF
                   ELSE
 !SD Space is not truncated - allow attempted spawn as usual
-                      Child=AttemptCreatePar(DetCurr,iLutnI,iSgn,nJ,iLutnJ,Prob,IC,Ex,tParity,1,.false.)
+                      Child=AttemptCreatePar(DetCurr,iLutnI,iSgn,nJ,iLutnJ,Prob,IC,Ex,tParity)
                   ENDIF
 
                   IF(iDebug.gt.4.or.((iDebug.eq.3.or.iDebug.eq.4).and.Child.ne.0)) THEN
@@ -652,13 +612,13 @@ MODULE CCMC
                IF(iCompositeSize.GT.0) THEN
                   dProbDecompose=dNGenComposite
 !                  dProb=dProb/HFcount
-                  call genrand_real2(r)  !On GHB's advice
+                  r = genrand_real2_dSFMT()  !On GHB's advice
                   k=1+floor(r*iCompositeSize)
                   iPartDie=SelectedExcitorIndices(k)
    !Now get the full representation of the dying excitor
                   CALL DecodeBitDet(DetCurr,iLutnI)
                   Htmp = get_helement (DetCurr, DetCurr, 0)
-                  HDiagCurr=REAL(Htmp%v,r2)
+                  HDiagCurr=REAL(Htmp%v,dp)
                   HDiagCurr=HDiagCurr-Hii
                   iSgn=sign(1,CurrentSign(iPartDie))
                ELSE
@@ -1144,7 +1104,7 @@ END SUBROUTINE IncrementOrderedTuple
 LOGICAL FUNCTION GetNextCluster(CS,Dets,nDet,Amplitude,dTotAbsAmpl,iNumExcitors,iMaxSizeIn,iDebug)
    use CCMCData, only: ClustSelector
    use SystemData, only: nIfTot
-   use mt95 , only : genrand_real2
+   use dSFMT_interface , only : genrand_real2_dSFMT
    IMPLICIT NONE
    TYPE(ClustSelector) CS
    INTEGER nDet
@@ -1252,14 +1212,14 @@ LOGICAL FUNCTION GetNextCluster(CS,Dets,nDet,Amplitude,dTotAbsAmpl,iNumExcitors,
       do i=1,iMaxSize
 ! Calculate the probability that we've reached this far in the loop
                   !We must have at least one excitor, so we cannot exit here.
-         call genrand_real2(r)  !On GHB's advice
+         r = genrand_real2_dSFMT()  !On GHB's advice
 
          if(r.lt.CS%dProbSelNewExcitor) exit
 
 ! decide not to choose another walker with this prob.
          dProbNumExcit=dProbNumExcit*(1-CS%dProbSelNewExcitor)
 ! Select a new random walker
-         call genrand_real2(r)  !On GHB's advice
+         r = genrand_real2_dSFMT()  !On GHB's advice
          r=r*dTotAbsAmpl
          dCurTot=0
          do k=2,nDet
@@ -1486,6 +1446,7 @@ SUBROUTINE CalcClusterEnergy(tFCI,Amplitude,nExcit,ExcitList,ExcitLevelIndex,Pro
    use FciMCParMod, only: iLutHF,SumEContrib
    use FciMCData, only: ENumCyc,HFCyc 
    use DetBitOps, only: DecodeBitDet
+   use constants, only: dp
    IMPLICIT NONE
    LOGICAL tFCI
    REAL*8 Amplitude(nExcit)
@@ -1499,7 +1460,6 @@ SUBROUTINE CalcClusterEnergy(tFCI,Amplitude,nExcit,ExcitList,ExcitLevelIndex,Pro
    INTEGER DetCurr(nEl)
    TYPE(HElement) HTmp
    INTEGER iLutnI(0:nIfTot)
-   INTEGER , PARAMETER :: r2=kind(0.d0)
    iC=0
    dT1Sq=0
    do j=1,nExcit
@@ -1523,7 +1483,7 @@ SUBROUTINE CalcClusterEnergy(tFCI,Amplitude,nExcit,ExcitList,ExcitLevelIndex,Pro
                   CALL DecodeBitDet(DetCurr,iLutnI)
                   Htmp = get_helement (HFDet, DetCurr, iLutHF, iLutnI)
                   dAmp=dAmp/(Amplitude(1)**2)
-                  dT1Sq=dT1Sq+(Real(Htmp%v,r2)*iSgn)*dAmp
+                  dT1Sq=dT1Sq+(Real(Htmp%v,dp)*iSgn)*dAmp
 !                  dAmp=dAmp*2  !DEBUG
                   if (iProcIndex.eq.root) call SumEContrib(DetCurr,2,iSgn,iLutnI(:),dTmp,1/dAmp)
                endif
@@ -1550,6 +1510,7 @@ SUBROUTINE InitMP1Amplitude(tFCI,Amplitude,nExcit,ExcitList,ExcitLevelIndex,dIni
    use FciMCParMod, only: iLutHF,SumEContrib,BinSearchParts3
    use Determinants, only: GetH0Element3
    use DetBitOps, only: DecodeBitDet
+   use constants, only: dp
    IMPLICIT NONE
    LOGICAL tFCI
    REAL*8 Amplitude(nExcit)
@@ -1565,7 +1526,6 @@ SUBROUTINE InitMP1Amplitude(tFCI,Amplitude,nExcit,ExcitList,ExcitLevelIndex,dIni
    INTEGER iLutnI(0:nIfTot)
    INTEGER PartIndex
    LOGICAL tSuc
-   INTEGER , PARAMETER :: r2=kind(0.d0)
    iC=0
    H0HF=GetH0Element3(HFDet)
    Amplitude(:)=0
@@ -1637,12 +1597,12 @@ END SUBROUTINE
       USE DetCalc , only : ICILevel,Det,FCIDetIndex
       use CalcData, only: Tau,DiagSft,InitWalkers,NEquilSteps
       USE HElem
-      use mt95 , only : genrand_real2
+      use dSFMT_interface , only : genrand_real2_dSFMT
       use FciMCParMod, only: WriteFciMCStats, WriteFciMCStatsHeader
       use DetBitOps, only: FindBitExcitLevel
+      use constants, only: dp
       IMPLICIT NONE
       TYPE(HDElement) Weight,EnergyxW
-      INTEGER , PARAMETER :: r2=kind(0.d0)
       CHARACTER(len=*), PARAMETER :: this_routine='CCMCStandalone'
       INTEGER ierr
       REAL*8, ALLOCATABLE,target :: Amplitude(:,:) !(Det, 2)
@@ -2041,7 +2001,7 @@ END SUBROUTINE
 !  We modify the composite (t_a t_b t_c) -> (t_a t_b t_c - x) by changing just one of the parts
 !  t_a -> t_a (1- x/(t_a t_b t_c)).   
                dProbDecompose=1
-               call genrand_real2(r)  !On GHB's advice
+               r = genrand_real2_dSFMT()  !On GHB's advice
                k=1+floor(r*CS%C%iSize)
                iPartDie=CS%C%SelectedExcitorIndices(k)
                if(.true.) then
@@ -2067,7 +2027,7 @@ END SUBROUTINE
                iPartDie=1
             ENDIF 
             Htmp = get_helement (CS%C%DetCurr, CS%C%DetCurr, 0)
-            HDiagCurr=REAL(Htmp%v,r2)
+            HDiagCurr=REAL(Htmp%v,dp)
             HDiagCurr=HDiagCurr-Hii
 
 !Also, we want to find out the excitation level of the determinant - we only need to find out if its connected or not (so excitation level of 3 or more is ignored.

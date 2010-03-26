@@ -1,19 +1,19 @@
 [main]
 fc = ftn
-cc = pathcc
+cc = CC
 ld = ftn
 ldflags = -m64
-libs = -lfftw3 -lacml
+libs = -lfftw3 -lacml -lstdc++
 cpp = cpp -C -traditional
-cppflags =  -D__Linux -DPOINTER8 -DPARALLEL
+cppflags =  -D__Linux -DPOINTER8 -DPARALLEL -DHAVE_SSE2
 compiler = pathf95-on-LINUX
 module_flag = -module
 
 [dbg]
-fflags = -g
+fflags = -g -fno-second-underscore
 cflags = -g
 ldflags = -g -Bstatic
 
 [opt]
-fflags = -O3 -OPT:Ofast -LNO:simd_verbose=ON
+fflags = -O3 -OPT:Ofast -LNO:simd_verbose=ON -fno-second-underscore
 ldflags = -O3

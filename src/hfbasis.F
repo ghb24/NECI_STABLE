@@ -798,7 +798,7 @@ C.. vector unless transposed
          NELS(2)=(LMS+NEL)/2
          NELS(1)=NEL-NELS(2)
          WRITE(6,'(4(A,'//int_fmt(nel)//'))') " N_alpha:",NELS(1),      &
-     &   " ;N_beta:",  NELS(2)," ; LMS:",LMS," ; NEl:",NEL
+     &   " ; N_beta:",  NELS(2)," ; LMS:",LMS," ; NEl:",NEL
          NEL=0
          DO IS=1,2
             IF(LMS.GE.0) THEN
