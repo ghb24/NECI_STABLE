@@ -36,6 +36,8 @@ MODULE Calc
 
 
 !       Calc defaults 
+          StepsSftImag=0.D0
+          TauFactor=0.D0
           tStartMP1=.false.
           tRandomiseHashOrbs=.true.
           iAnnInterval=1
@@ -745,12 +747,18 @@ MODULE Calc
             case("DIAGSHIFT")
 !For FCIMC, this is the amount extra the diagonal elements will be shifted. This is proportional to the deathrate of walkers on the determinant
                 call getf(DiagSft)
+            case("TAUFACTOR")
+!For FCIMC, this is the factor by which 1/(HF connectivity) will be multiplied by to give the timestep for the calculation.
+                call getf(TauFactor)
             case("TAU")
 !For FCIMC, this can be considered the timestep of the simulation. It is a constant which will increase/decrease the rate of spawning/death for a given iteration.
                 call getf(Tau)
             case("SHIFTDAMP")
 !For FCIMC, this is the damping parameter with respect to the update in the DiagSft value for a given number of MC cycles.
                 call getf(SftDamp)
+            case("STEPSSHIFTIMAG")
+!For FCIMC, this is the amount of imaginary time which will elapse between updates of the shift.
+                call getf(StepsSftImag)
             case("STEPSSHIFT")
 !For FCIMC, this is the number of steps taken before the Diag shift is updated
                 call geti(StepsSft)
@@ -775,8 +783,8 @@ MODULE Calc
                 TBinCancel=.true.
             case("STARTMP1")
 !For FCIMC, this has an initial configuration of walkers which is proportional to the MP1 wavefunction
-                CALL Stop_All(t_r,"STARTMP1 option depreciated")
-!                TStartMP1=.true.
+!                CALL Stop_All(t_r,"STARTMP1 option depreciated")
+                TStartMP1=.true.
             case("GROWMAXFACTOR")
 !For FCIMC, this is the factor to which the initial number of particles is allowed to go before it is culled
                 call getf(GrowMaxFactor)
