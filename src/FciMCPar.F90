@@ -4768,7 +4768,7 @@ MODULE FciMCParMod
 
         IF(tPrintOrbOcc.and.(Iter.ge.StartPrintOrbOcc)) THEN
             do i=1,NEl
-                OrbOccs(DetCurr(i))=OrbOccs(DetCurr(i))+(WSign*WSign)
+                OrbOccs(DetCurr(i))=OrbOccs(DetCurr(i))+REAL(WSign*WSign)
             enddo
         ENDIF
 
