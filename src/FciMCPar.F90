@@ -159,7 +159,7 @@ MODULE FciMCParMod
 
             IF(tHistInitPops.and.(MOD(Iter,HistInitPopsIter).eq.0)) THEN
                 IF(iProcIndex.eq.0) WRITE(6,*) 'Writing out the spread of the initiator determinant populations.'
-                CALL WriteInitPops(Iter)
+                CALL WriteInitPops(Iter+PreviousCycles)
             ENDIF
 
             Iter=Iter+1
