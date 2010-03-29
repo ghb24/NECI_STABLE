@@ -274,8 +274,7 @@ MODULE FciMCParMod
         tHFFound=.false.
         tHFFoundTemp=.false.
         IF(tHFInitiator) THEN
-            Proc=DetermineDetProc(iLutHF)   !This wants to return a value between 0 -> nProcessors-1
-            IF(iProcIndex.ne.Proc) THEN
+            IF(iProcIndex.ne.iHFProc) THEN
 !The processor with the HF determinant on it will have to check through each determinant until its found.            
                 tHFFound=.true.
             ENDIF
@@ -316,9 +315,9 @@ MODULE FciMCParMod
 
             IF(tTruncSpace.or.tHistSpawn.or.tCalcFCIMCPsi.or.tHistHamil) THEN
 !We need to know the exact excitation level for truncated calculations.
-                WalkExcitLevel = FindBitExcitLevel(iLutHF, CurrentDets(:,j),nel)
+                WalkExcitLevel = FindBitExcitLevel(iLutRef, CurrentDets(:,j),nel)
             ELSE
-                WalkExcitLevel = FindBitExcitLevel(iLutHF, CurrentDets(:,j),2)
+                WalkExcitLevel = FindBitExcitLevel(iLutRef, CurrentDets(:,j),2)
             ENDIF
 
             IF(tRegenDiagHEls) THEN
@@ -775,12 +774,14 @@ MODULE FciMCParMod
     SUBROUTINE CalcNewShift()
         USE FciMCLoggingMOD , only : PrintSpawnAttemptStats,InitErrorBlocking,SumInErrorContrib
         USE FciMCLoggingMOD , only : InitShiftErrorBlocking,SumInShiftErrorContrib
+        USE CalcData , only : tCheckHighestPop,tChangeProjEDet,tRestartHighPop,FracLargerDet
         INTEGER :: error,rc,MaxAllowedWalkers,MaxWalkersProc,MinWalkersProc
-        INTEGER :: inpair(6),outpair(6)
+        INTEGER :: inpair(6),outpair(6),HighPopin(2),HighPopout(2),DetCurr(NEl),i
         REAL*8 :: TempTotWalkers,TempTotParts
         REAL*8 :: TempSumNoatHF,MeanWalkers,TempSumWalkersCyc,TempAllSumWalkersCyc
         REAL*8 :: inpairreal(3),outpairreal(3),inpairInit(9),outpairInit(9)
         LOGICAL :: tReZeroShift
+        TYPE(HElement) :: TempHii,HDiagTemp
 
         TotImagTime=TotImagTime+StepsSft*Tau
 
@@ -872,7 +873,7 @@ MODULE FciMCParMod
         ENDIF
 
         CALL MPI_Reduce(TempTotWalkers,AllTotWalkers,1,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
-        CALL MPI_Reduce(TempTotParts,AllTotParts,1,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
+        CALL MPI_AllReduce(TempTotParts,AllTotParts,1,MPI_DOUBLE_PRECISION,MPI_SUM,MPI_COMM_WORLD,error)
 
         IF(iProcIndex.eq.0) THEN
             IF(AllTotWalkers.le.0.2) THEN
@@ -927,9 +928,69 @@ MODULE FciMCParMod
             IF((WalkersDiffProc.gt.NINT(MeanWalkers/10.D0).and.(AllTotParts.gt.(REAL(nProcessors*500,dp))))) THEN
                 WRITE(6,"(A62,F20.10,2i12)") "Number of determinants assigned to each processor unbalanced. ", (WalkersDiffProc*10.D0)/REAL(MeanWalkers),MinWalkersProc,MaxWalkersProc
             ENDIF
-        
         ENDIF
+        IF(tCheckHighestPop) THEN
+            HighPopin(1)=iHighestPop
+            HighPopin(2)=iProcIndex
+            CALL MPI_AllReduce(HighPopin,HighPopout,1,MPI_2INTEGER,MPI_MAXLOC,MPI_COMM_WORLD,error)
+                    
+!Now, the root processor contains information about the highest populated determinant, and the processor which is it held on.
+            IF(((INT(FracLargerDet*REAL(AllNoatHF,dp))).lt.HighPopout(1)).and.(AllTotParts.gt.10000)) THEN
+                IF(iProcIndex.eq.Root) WRITE(6,"(A,2I10)") "Highest weighted determinant not reference det: ",HighPopout(1),AllNoatHF
+                IF(tChangeProjEDet) THEN
+!Meed to communicate to all processors that iLutRef has changed.
 
+                    CALL MPI_BCast(HighestPopDet(0:NIfTot),NIfTot+1,MPI_INTEGER,HighPopout(2),MPI_COMM_WORLD,error)
+                    iLutRef(:)=HighestPopDet(:)
+                    CALL DecodeBitDet(ProjEDet,iLutRef(:))
+                    WRITE(6,"(A)",advance='no') "Changing projected energy reference determinant to:"
+                    CALL Write_det(6,ProjEDet,.true.)
+                    IF(tHPHF) THEN
+                        TempHii = hphf_diag_helement (ProjEDet, iLutRef)
+                    ELSE
+                        TempHii = get_helement (ProjEDet, ProjEDet, 0)
+                    ENDIF
+                    Hii=REAL(TempHii%v,dp)
+                    WRITE(6,"(A,G25.15)") "Reference energy now set to: ",Hii
+
+
+                    SumENum=0.D0
+                    SumNoatHF=0
+                    HFPopCyc=0
+                    ProjEIterSum=0.D0
+                    VaryShiftCycles=0
+                    SumDiagSft=0.D0
+                    IF(iProcIndex.eq.0) THEN
+                        WRITE(6,*) "Zeroing all average energy estimators..."
+                    ENDIF
+                    WRITE(6,*) "Regenerating the stored diagonal HElements for all walkers..."
+                    do i=1,TotWalkers
+                        CALL DecodeBitDet(DetCurr,CurrentDets(:,i))
+                        if (tHPHF) then
+                            HDiagtemp = hphf_diag_helement (DetCurr,CurrentDets(:,i))
+                        else
+                            HDiagTemp = get_helement (DetCurr, DetCurr, 0)
+                        endif
+                        CurrentH(i)=(REAL(HDiagTemp%v,dp))-Hii
+                    enddo
+                ELSEIF(tRestartHighPop) THEN
+                    CALL MPI_BCast(HighestPopDet,NIfTot+1,MPI_INTEGER,HighPopout(2),MPI_COMM_WORLD,error)
+                    iLutRef(:)=HighestPopDet(:)
+                    CALL DecodeBitDet(ProjEDet,iLutRef(:))
+                    WRITE(6,"(A)",advance='no') "Changing projected energy reference determinant to:"
+                    CALL Write_det(6,ProjEDet,.true.)
+                    IF(tHPHF) THEN
+                        TempHii = hphf_diag_helement (ProjEDet, iLutRef)
+                    ELSE
+                        TempHii = get_helement (ProjEDet, ProjEDet, 0)
+                    ENDIF
+                    Hii=REAL(TempHii%v,dp)
+                    WRITE(6,"(A,G25.15)") "Reference energy now set to: ",Hii
+                    CALL ChangeRefDet(Hii,ProjEDet,iLutRef)
+                    RETURN
+                ENDIF
+            ENDIF
+        ENDIF
 
 !AlliUniqueDets corresponds to the total number of unique determinants, summed over all iterations in the last update cycle, and over all processors.
 !Divide by StepsSft to get the average number of unique determinants visited over a single iteration.
@@ -2196,6 +2257,7 @@ MODULE FciMCParMod
 !projection onto a different determinant.
     SUBROUTINE ChangeRefDet(HDiagCurr,DetCurr,iLutCurr)
         use Determinants , only : GetH0Element3
+        use FciMCLoggingMod , only : RestartBlocking, RestartShiftBlocking
         INTEGER :: iLutCurr(0:NIfTot),DetCurr(NEl),i,nStore(6),ierr,iMaxExcit
         INTEGER :: iLutTemp(0:NIfTot)
         INTEGER :: nJ(NEl)
@@ -2225,6 +2287,11 @@ MODULE FciMCParMod
         IF(TDebug) CLOSE(11)
         CALL SetupParameters()
         CALL InitFCIMCCalcPar()
+        IF(iProcIndex.eq.0) THEN
+            CALL RestartBlocking(Iter)
+            CALL RestartShiftBlocking(Iter)
+        ENDIF
+
 
 
     END SUBROUTINE ChangeRefDet
@@ -2377,6 +2444,10 @@ MODULE FciMCParMod
         DEALLOCATE(HFDet)
         CALL LogMemDealloc(this_routine,HFDetTag)
         DEALLOCATE(iLutHF)
+        DEALLOCATE(iLutRef)
+        DEALLOCATE(ProjEDet)
+        IF(ALLOCATED(HighestPopDet)) DEALLOCATE(HighestPopDet)
+        IF(ALLOCATED(RandomHash)) DEALLOCATE(RandomHash)
 
         IF(ALLOCATED(SpinInvBrr)) THEN
             CALL LogMemDealloc(this_routine,SpinInvBRRTag)
@@ -3383,22 +3454,15 @@ MODULE FciMCParMod
 !Print out initial starting configurations
             WRITE(6,*) ""
             IF(tTruncInitiator.or.tDelayTruncInit) THEN
-                WRITE(6,"(A2,A10,A16,A10,A16,A12,3A11,3A17,2A10,A13,A12,A13)") "#","Step","Shift","WalkerCng","GrowRate","TotWalkers","Annihil","NoDied","NoBorn","Proj.E","Av.Shift","Proj.E.ThisCyc",&
-&               "NoatHF","NoatDoubs","AccRat","UniqueDets","IterTime"
-
-                WRITE(15,"(A2,A10,A16,A10,A16,A12,3A13,3A17,2A10,A13,A12,A13,A17,A13,A13)") "#","Step","Shift","WalkerCng","GrowRate","TotWalkers","Annihil","NoDied","NoBorn","Proj.E","Av.Shift",&
-&               "Proj.E.ThisCyc","NoatHF","NoatDoubs","AccRat","UniqueDets","IterTime","FracSpawnFrmSing","WalkDiffProc","TotImagTime"
-
                 WRITE(16,"(A2,A10,2A15,2A16,2A20,5A18)") "# ","Step","No Aborted","NoAddedtoInit","FracDetsInit","FracWalksInit","NoDoubSpawns","NoExtraDoubs","InstAbortShift","AvAbortShift",&
 &               "NoInitDets","NoNonInitDets","InitRemoved"
 
-            ELSE
-                WRITE(6,"(A)") "       Step     Shift      WalkerCng    GrowRate       TotWalkers    Annihil    NoDied    NoBorn    Proj.E          Av.Shift     Proj.E.ThisCyc   NoatHF NoatDoubs      AccRat     UniqueDets     IterTime"
-                WRITE(15,"(A)") "#     1.Step   2.Shift    3.WalkerCng  4.GrowRate     5.TotWalkers  6.Annihil  7.NoDied  8.NoBorn  9.Proj.E       10.Av.Shift"&
-&              // " 11.Proj.E.ThisCyc  12.NoatHF 13.NoatDoubs  14.AccRat  15.UniqueDets  16.IterTime 17.FracSpawnFromSing  18.WalkersDiffProc  19.TotImagTime  20.ProjE.ThisIter "&
-&              // " 21.HFInstShift  22.TotInstShift"
-            
             ENDIF
+            WRITE(6,"(A)") "       Step     Shift      WalkerCng    GrowRate       TotWalkers    Annihil    NoDied    NoBorn    Proj.E          Av.Shift     Proj.E.ThisCyc   NoatHF NoatDoubs      AccRat     UniqueDets     IterTime"
+            WRITE(15,"(A)") "#     1.Step   2.Shift    3.WalkerCng  4.GrowRate     5.TotWalkers  6.Annihil  7.NoDied  8.NoBorn  9.Proj.E       10.Av.Shift"&
+&           // " 11.Proj.E.ThisCyc  12.NoatHF 13.NoatDoubs  14.AccRat  15.UniqueDets  16.IterTime 17.FracSpawnFromSing  18.WalkersDiffProc  19.TotImagTime  20.ProjE.ThisIter "&
+&           // " 21.HFInstShift  22.TotInstShift  23.Tot-Proj.E.ThisCyc"
+            
         ENDIF
 
     END SUBROUTINE WriteFciMCStatsHeader
@@ -3407,9 +3471,9 @@ MODULE FciMCParMod
 
         IF(iProcIndex.eq.root) THEN
 
-            WRITE(15,"(I12,G16.7,I10,G16.7,I12,3I13,3G17.9,2I10,G13.5,I12,G13.5,G17.5,I13,G13.5,3G17.9)") Iter+PreviousCycles,DiagSft,INT(AllTotParts-AllTotPartsOld,i2),AllGrowRate,   &
+            WRITE(15,"(I12,G16.7,I10,G16.7,I12,3I13,3G17.9,2I10,G13.5,I12,G13.5,G17.5,I13,G13.5,4G17.9)") Iter+PreviousCycles,DiagSft,INT(AllTotParts-AllTotPartsOld,i2),AllGrowRate,   &
   &                INT(AllTotParts,i2),AllAnnihilated,AllNoDied,AllNoBorn,ProjectionE,AvDiagSft,AllENumCyc/AllHFCyc,AllNoatHF,AllNoatDoubs,AccRat,INT(AllTotWalkers,i2),IterTime,   &
-  &                REAL(AllSpawnFromSing)/REAL(AllNoBorn),WalkersDiffProc,TotImagTime,IterEnergy,HFShift,InstShift
+  &                REAL(AllSpawnFromSing)/REAL(AllNoBorn),WalkersDiffProc,TotImagTime,IterEnergy,HFShift,InstShift,AllENumCyc/AllHFCyc+Hii
             WRITE(6,"(I12,G16.7,I10,G16.7,I12,3I11,3G17.9,2I10,G13.5,I12,G13.5)") Iter+PreviousCycles,DiagSft,INT(AllTotParts-AllTotPartsOld,i2),AllGrowRate,    &
   &                INT(AllTotParts,i2),AllAnnihilated,AllNoDied,AllNoBorn,ProjectionE,AvDiagSft,AllENumCyc/AllHFCyc,AllNoatHF,AllNoatDoubs,AccRat,INT(AllTotWalkers,i2),IterTime
 
@@ -3436,7 +3500,7 @@ MODULE FciMCParMod
         use CalcData, only : tFCIMC
         use CalcData , only : tRandomiseHashOrbs
         use Calc, only : VirtCASorbs,OccCASorbs,G_VMC_Seed
-        use CalcData , only : MemoryFacPart,MemoryFacAnnihil,MemoryFacSpawn,TauFactor,StepsSftImag
+        use CalcData , only : MemoryFacPart,MemoryFacAnnihil,MemoryFacSpawn,TauFactor,StepsSftImag,tCheckHighestPop
         use Determinants , only : GetH0Element3
         use SymData , only : nSymLabels,SymLabelList,SymLabelCounts
         use Logging , only : tTruncRODump
@@ -3532,6 +3596,19 @@ MODULE FciMCParMod
         nBits = CountBits(iLutHF, NIfD, NEl)
         IF(nBits.ne.NEl) THEN
             CALL Stop_All(this_routine,"CountBits FAIL")
+        ENDIF
+
+        !iLutRef is the reference determinant for the projected energy.
+        ALLOCATE(iLutRef(0:NIfTot),stat=ierr)
+        ALLOCATE(ProjEDet(NEl),stat=ierr)
+        IF(ierr.ne.0) CALL Stop_All(this_routine,"Cannot allocate memory for iLutRef")
+        iLutRef(:)=iLutHF(:)
+        ProjEDet(:)=HFDet(:)
+
+        IF(tCheckHighestPop) THEN
+            ALLOCATE(HighestPopDet(0:NIfTot),stat=ierr)
+            IF(ierr.ne.0) CALL Stop_All(this_routine,"Cannot allocate memory for iLutHF")
+            HighestPopDet(:)=0
         ENDIF
 
 !Check that the symmetry routines have set the symmetry up correctly...
@@ -4667,10 +4744,10 @@ MODULE FciMCParMod
             NoatDoubs=NoatDoubs+abs(WSign)
 !At double excit - find and sum in energy
             IF(tHPHF) THEN
-                HOffDiag = hphf_off_diag_helement (HFDet, DetCurr, iLutHF, &
+                HOffDiag = hphf_off_diag_helement (ProjEDet, DetCurr, iLutRef, &
                                                    iLutCurr)
             ELSE
-                HOffDiag = get_helement (HFDet, DetCurr, ExcitLevel, iLutHF, &
+                HOffDiag = get_helement (ProjEDet, DetCurr, ExcitLevel, iLutRef, &
                                          iLutCurr)
             ENDIF
             IF(Iter.gt.NEquilSteps) SumENum=SumENum+(REAL(HOffDiag%v,dp)*WSign/dProbFin)
@@ -4691,10 +4768,10 @@ MODULE FciMCParMod
 !For Rotated orbitals, brillouins theorem also cannot hold, and energy contributions from walkers on singly excited determinants must
 !be included in the energy values along with the doubles.
             IF(tHPHF) THEN
-                HOffDiag = hphf_off_diag_helement (HFDet, DetCurr, iLutHF, &
+                HOffDiag = hphf_off_diag_helement (ProjEDet, DetCurr, iLutRef, &
                                                    iLutCurr)
             ELSE
-                HOffDiag = get_helement (HFDet, DetCurr, ExcitLevel, ilutHF, &
+                HOffDiag = get_helement (ProjEDet, DetCurr, ExcitLevel, ilutRef, &
                                          iLutCurr)
             ENDIF
             IF(Iter.gt.NEquilSteps) SumENum=SumENum+(REAL(HOffDiag%v,dp)*WSign/dProbFin)

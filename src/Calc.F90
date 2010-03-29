@@ -36,6 +36,7 @@ MODULE Calc
 
 
 !       Calc defaults 
+          tCheckHighestPop=.false.
           StepsSftImag=0.D0
           TauFactor=0.D0
           tStartMP1=.false.
@@ -855,6 +856,18 @@ MODULE Calc
             case("PROJECTE-MP2")
 !This will find the energy by projection of the configuration of walkers onto the MP2 wavefunction.
                 TProjEMP2=.true.
+            case("PROJE-CHANGEREF")
+                tCheckHighestPop=.true.
+                tChangeProjEDet=.true.
+                IF(item.lt.nitems) then
+                    call Getf(FracLargerDet)
+                ENDIF
+            case("RESTARTLARGEPOP")
+                tCheckHighestPop=.true.
+                tRestartHighPop=.true.
+                IF(item.lt.nitems) then
+                    call Getf(FracLargerDet)
+                ENDIF
             case("FIXPARTICLESIGN")
 !This uses a modified hamiltonian, whereby all the positive off-diagonal hamiltonian matrix elements are zero. Instead, their diagonals are modified to change the
 !on-site death rate. Particles now have a fixed (positive) sign which cannot be changed and so no annihilation occurs.

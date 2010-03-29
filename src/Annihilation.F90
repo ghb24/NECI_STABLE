@@ -515,6 +515,7 @@ MODULE AnnihilationMod
 !the annihilation process. Therefore we will not multiply specify determinants when we merge the lists.
     SUBROUTINE InsertRemoveParts(ValidSpawned,TotWalkersNew)
         use DetBitOps, only: DecodeBitDet
+        use CalcData , only : tCheckHighestPop
         INTEGER :: TotWalkersNew,ValidSpawned
         INTEGER :: i,DetsMerged,nJ(NEl),ierr
         REAL*8 :: HDiag
@@ -540,6 +541,14 @@ MODULE AnnihilationMod
                         ENDIF
                     ENDIF
                     TotParts=TotParts+abs(CurrentSign(i))
+                    IF(tCheckHighestPop) THEN
+!If this option is on, then we want to compare the weight on each determinant to the weight at the HF determinant.
+!Record the highest weighted determinant on each processor.
+                        IF((abs(CurrentSign(i))).gt.iHighestPop) THEN
+                            iHighestPop=abs(CurrentSign(i))
+                            HighestPopDet(:)=CurrentDets(:,i)
+                        ENDIF
+                    ENDIF
                 ENDIF
             enddo
             TotWalkersNew=TotWalkersNew-DetsMerged

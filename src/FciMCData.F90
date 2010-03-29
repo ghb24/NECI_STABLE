@@ -152,6 +152,10 @@ MODULE FciMCData
 
       INTEGER :: iHFProc    !Processor index for HF determinant
 
+      !This data is for calculating the highest population determinant, and potentially restarting the calculation based on this determinant, or changing the determiant which the energy is calculated from.
+      INTEGER :: iHighestPop
+      INTEGER , ALLOCATABLE :: HighestPopDet(:),ProjEDet(:),iLutRef(:)
+
       
       
       
