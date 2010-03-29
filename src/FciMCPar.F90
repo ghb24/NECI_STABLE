@@ -1667,6 +1667,9 @@ MODULE FciMCParMod
         IF(DiagSft.eq.0.D0) tWalkContGrow=.true.
 
         IF(tBinRead) THEN
+!Test for the end of the file.
+!If this is not the end of the file, there is one more keyword that tells us the calculation had not entered variable shift mode yet.
+!Want to put this test at the end of the non-binary file too.
             CLOSE(17)
             call get_unique_filename('POPSFILEBIN',tIncrementPops,.false.,iPopsFileNoRead,popsfile)
             OPEN(17,FILE=popsfile,Status='old',form='unformatted')
