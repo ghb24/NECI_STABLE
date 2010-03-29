@@ -159,7 +159,7 @@ MODULE FciMCParMod
 
             IF(tHistInitPops.and.(MOD(Iter,HistInitPopsIter).eq.0)) THEN
                 IF(iProcIndex.eq.0) WRITE(6,*) 'Writing out the spread of the initiator determinant populations.'
-                CALL WriteInitPops(Iter)
+                CALL WriteInitPops(Iter+PreviousCycles)
                 tFlipHighPopSign=.true.
                 tPrintHighPop=.true.
             ENDIF
@@ -3414,7 +3414,7 @@ MODULE FciMCParMod
   &                INT(AllTotParts,i2),AllAnnihilated,AllNoDied,AllNoBorn,ProjectionE,AvDiagSft,AllENumCyc/AllHFCyc,AllNoatHF,AllNoatDoubs,AccRat,INT(AllTotWalkers,i2),IterTime
 
             IF(tTruncInitiator.or.tDelayTruncInit) THEN
-                WRITE(16,"(I12,2G15.1,2G16.7,2G20.1,5G18.7)") Iter+PreviousCycles,AllNoAborted,AllNoAddedInitiators,(REAL(AllNoInitDets)/REAL(AllNoNonInitDets)),&
+                WRITE(16,"(I12,2F15.1,2G16.7,2F20.1,2F18.7,3F18.1)") Iter+PreviousCycles,AllNoAborted,AllNoAddedInitiators,(REAL(AllNoInitDets)/REAL(AllNoNonInitDets)),&
  &              (REAL(AllNoInitWalk)/REAL(AllNoNonInitWalk)),AllNoDoubSpawns,AllNoExtraInitDoubs,DiagSftAbort,AvDiagSftAbort,AllNoInitDets,AllNoNonInitDets,AllInitRemoved
             ENDIF
 
@@ -4803,7 +4803,7 @@ MODULE FciMCParMod
 
         IF(tPrintOrbOcc.and.(Iter.ge.StartPrintOrbOcc)) THEN
             do i=1,NEl
-                OrbOccs(DetCurr(i))=OrbOccs(DetCurr(i))+(WSign*WSign)
+                OrbOccs(DetCurr(i))=OrbOccs(DetCurr(i))+REAL(WSign*WSign)
             enddo
         ENDIF
 
