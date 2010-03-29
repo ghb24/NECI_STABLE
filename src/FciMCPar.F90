@@ -3379,7 +3379,7 @@ MODULE FciMCParMod
   &                INT(AllTotParts,i2),AllAnnihilated,AllNoDied,AllNoBorn,ProjectionE,AvDiagSft,AllENumCyc/AllHFCyc,AllNoatHF,AllNoatDoubs,AccRat,INT(AllTotWalkers,i2),IterTime
 
             IF(tTruncInitiator.or.tDelayTruncInit) THEN
-                WRITE(16,"(I12,2G15.1,2G16.7,2G20.1,5G18.7)") Iter+PreviousCycles,AllNoAborted,AllNoAddedInitiators,(REAL(AllNoInitDets)/REAL(AllNoNonInitDets)),&
+                WRITE(16,"(I12,2F15.1,2G16.7,2F20.1,2F18.7,3F18.1)") Iter+PreviousCycles,AllNoAborted,AllNoAddedInitiators,(REAL(AllNoInitDets)/REAL(AllNoNonInitDets)),&
  &              (REAL(AllNoInitWalk)/REAL(AllNoNonInitWalk)),AllNoDoubSpawns,AllNoExtraInitDoubs,DiagSftAbort,AvDiagSftAbort,AllNoInitDets,AllNoNonInitDets,AllInitRemoved
             ENDIF
 
