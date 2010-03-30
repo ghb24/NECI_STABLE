@@ -31,7 +31,7 @@ INTEGER :: CUR_VERT,NHISTBOXES,I_P,LinePoints,iMaxExcitLevel
 INTEGER :: InitWalkers,NMCyc,StepsSft,CLMax
 INTEGER :: NEquilSteps,InitialPart
 INTEGER :: OccCASorbs,VirtCASorbs,iAnnInterval
-integer :: iPopsFileNoRead, iPopsFileNoWrite
+integer :: iPopsFileNoRead, iPopsFileNoWrite,iWeightPopRead
 
 
 REAL*8 :: g_MultiWeight(0:10),G_VMC_PI,G_VMC_FAC,BETAEQ

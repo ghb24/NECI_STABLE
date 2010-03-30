@@ -1668,12 +1668,12 @@ MODULE FciMCParMod
     SUBROUTINE ReadFromPopsfilePar()
         use util_mod, only: get_unique_filename
         use CalcData, only: iPopsFileNoRead
-        use CalcData , only : MemoryFacPart,MemoryFacAnnihil,MemoryFacSpawn
+        use CalcData , only : MemoryFacPart,MemoryFacAnnihil,MemoryFacSpawn,iWeightPopRead
         use Logging, only: tIncrementPops,tZeroProjE
         LOGICAL :: exists,First,tBinRead
         INTEGER :: AvWalkers,WalkerstoReceive(nProcessors)
         INTEGER*8 :: NodeSumNoatHF(nProcessors),TempAllSumNoatHF
-        REAL*8 :: TempTotParts
+        REAL*8 :: TempTotParts,TempCurrWalkers
         INTEGER :: TempInitWalkers,error,i,j,k,l,total,ierr,MemoryAlloc,Tag,iLutTemp(0:NIfTot),TempSign,Proc,CurrWalkers
         INTEGER :: Stat(MPI_STATUS_SIZE),AvSumNoatHF,VecSlot,IntegerPart,HFPointer,TempnI(NEl),ExcitLevel,VecInd,DetsMerged
         REAL*8 :: r,FracPart,TempTotWalkers,Gap
@@ -1724,6 +1724,12 @@ MODULE FciMCParMod
         READ(17,*) TempAllSumNoatHF     !AllSumNoatHF stored as integer for compatability with serial POPSFILEs
         READ(17,*) AllSumENum
         READ(17,*) PreviousCycles
+
+        IF(iProcIndex.eq.Root) THEN
+            IF(iWeightPopRead.ne.0) THEN
+                WRITE(6,"(A,I15,A,I4,A)") "Although ",AllTotWalkers," configurations will be read in, only determinants with a weight of over ",iWeightPopRead," will be stored."
+            ENDIF
+        ENDIF
 
         IF(DiagSft.eq.0.D0) tWalkContGrow=.true.
 
@@ -1892,15 +1898,17 @@ MODULE FciMCParMod
                 READ(17,*) iLutTemp(0:NIfTot),TempSign
             ENDIF
             Proc=DetermineDetProc(iLutTemp)   !This wants to return a value between 0 -> nProcessors-1
-            IF(Proc.eq.iProcIndex) THEN
+            IF((Proc.eq.iProcIndex).and.(abs(TempSign).ge.iWeightPopRead)) THEN
                 CurrWalkers=CurrWalkers+1
                 CurrentDets(0:NIfTot,CurrWalkers)=iLutTemp(0:NIfTot)
                 CurrentSign(CurrWalkers)=TempSign
             ENDIF
         enddo
         CLOSE(17)
+        TempCurrWalkers=REAL(CurrWalkers,dp)
 
         CALL MPI_Barrier(MPI_COMM_WORLD,error)  !Sync
+        CALL MPI_AllReduce(TempCurrWalkers,AllTotWalkers,1,MPI_DOUBLE_PRECISION,MPI_SUM,MPI_COMM_WORLD,error)
 
         IF(iProcIndex.eq.root) WRITE(6,'(I10,A)') INT(AllTotWalkers,i2)," configurations read in from POPSFILE and distributed."
 
