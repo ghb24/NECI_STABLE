@@ -1727,7 +1727,7 @@ MODULE FciMCParMod
 
         IF(iProcIndex.eq.Root) THEN
             IF(iWeightPopRead.ne.0) THEN
-                WRITE(6,"(A,I15,A,I4,A)") "Although ",AllTotWalkers," configurations will be read in, only determinants with a weight of over ",iWeightPopRead," will be stored."
+                WRITE(6,"(A,I15,A,I4,A)") "Although ",NINT(AllTotWalkers,i2)," configurations will be read in, only determinants with a weight of over ",iWeightPopRead," will be stored."
             ENDIF
         ENDIF
 
