@@ -36,6 +36,7 @@ MODULE Calc
 
 
 !       Calc defaults 
+          iWeightPopRead=0
           tCheckHighestPop=.false.
           StepsSftImag=0.D0
           TauFactor=0.D0
@@ -767,6 +768,15 @@ MODULE Calc
 !For FCIMC, this indicates that the initial walker configuration will be read in from the file POPSFILE, which must be present.
 !DiagSft and InitWalkers will be overwritten with the values in that file.
                 TReadPops=.true.
+                if (item.lt.nitems) then
+                    call readi(iPopsFileNoRead)
+                    iPopsFileNoWrite = iPopsFileNoRead
+                    iPopsFileNoRead = -iPopsFileNoRead-1
+                end if
+            case("READPOPSTHRESH")
+!When reading in a popsfile, this will only save the determinant, if the number of particles on this determinant is greater than iWeightPopRead.
+                tReadPops=.true.
+                call readi(iWeightPopRead)
                 if (item.lt.nitems) then
                     call readi(iPopsFileNoRead)
                     iPopsFileNoWrite = iPopsFileNoRead

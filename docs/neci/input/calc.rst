@@ -596,6 +596,12 @@ The following options are only available in **FCIMC** calculations:
     given if **INCREMENTPOPS** is specified in the logging section and otherwise
     POPSFILE* is used.
 
+**READPOPSTHRESH** [iWeightPopRead] [n]
+    This works in the same way as **READPOPS**, however it also takes an integer argument
+    iWeightPopRead, which is a threshold for each determinant. The number of particles on each
+    determinant must exceed this number, or else the particles on the determinant are not
+    stored.
+
 **SCALEWALKERS** [fScaleWalkers]
     Scale the number of walkers by fScaleWalkers, after having read in data from POPSFILE.
 
