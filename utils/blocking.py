@@ -4,7 +4,8 @@
 blocking.py [options] file1 file2 ... fileN
 
 Perform blocking analysis, where file1 file2 ... fileN are files containing the
-data to be analysed.  An arbitrary (positive) number of files can be analysed.'''
+data to be analysed.  An arbitrary (positive) number of files can be analysed.
+Lines with a # as the first non-space character are treated as comments and are ignored.'''
 
 from math import sqrt
 import operator
@@ -55,6 +56,7 @@ start_index: block only data with an index greater than or equal to start_index.
         self.datafiles = datafiles
         self.start_regex = re.compile(start_regex)
         self.end_regex = re.compile(end_regex)
+        self.comment_regex = re.compile('^ *#')
         self.index_col = index_col
         self.data_col = data_col
         self.start_index = start_index
@@ -73,11 +75,10 @@ start_index: block only data with an index greater than or equal to start_index.
             have_data = False
             for line in f:
                 # have we hit the end of the data?
-                #if re.match(self.end_regex, line):
-                if not line.strip():
+                if re.match(self.end_regex, line):
                     have_data = False
                 # do we have data to extract?
-                if have_data:
+                if have_data and not re.match(self.comment_regex, line):
                     d = line.split()
                     (index, value) = (float(d[self.index_col]), float(d[self.data_col]))
                     if index >= self.start_index:
@@ -147,11 +148,9 @@ This destroys the data stored in self.data'''
         '''Print out the blocking data and show a graph of the behaviour of the standard deviation with block size.'''
 
         # print blocking output
-        fmt = pretty_format('block size', self.stats[0].block_size, 1)
-        fmt += ' ' + pretty_format('mean', self.stats[0].mean, 1)
-        fmt += ' ' + pretty_format('standard deviation', self.stats[0].sd, 1)
-        fmt += ' ' + pretty_format('standard deviation error', self.stats[0].sd_error, 1)
+        fmt = '%-10s   %-16s  %-18s   %-24s'
         print fmt % ('block size', 'mean', 'standard deviation', 'standard deviation error')
+        fmt = '%-10i  %-16.12g   %-18.12g   %-24.12g'
         for stat in self.stats:
             print fmt % (stat.block_size, stat.mean, stat.sd, stat.sd_error)
 
@@ -160,9 +159,10 @@ This destroys the data stored in self.data'''
             blocks = [stat.block_size for stat in self.stats]
             sd = [stat.sd for stat in self.stats]
             sd_error = [stat.sd_error for stat in self.stats]
-            pylab.plot(blocks, sd)
+            pylab.semilogx(blocks, sd, basex=2)
             pylab.errorbar(blocks, sd, yerr=sd_error)
-            pylab.xlim(blocks[0]+1, 1)
+            xmax = 2**pylab.ceil(pylab.log2(blocks[0]+1))
+            pylab.xlim(xmax, 1)
             pylab.xlabel('Block size')
             pylab.ylabel('Standard deviation')
             pylab.draw()
@@ -172,7 +172,7 @@ def parse_options(args):
     '''Parse command line options.'''
 
     parser = optparse.OptionParser(usage = __doc__)
-    parser.add_option('-s', '--start', dest='start_regex', default='^ # iterations', help='Set the regular expression indicating the start of a data block.  Default: %default.')
+    parser.add_option('-s', '--start', dest='start_regex', default='^ #', help='Set the regular expression indicating the start of a data block.  Default: %default.')
     parser.add_option('-e', '--end', dest='end_regex', type='string', default=r'^ *$', help='Set the regular expression indicating the end of a data block.  Default: %default.')
     parser.add_option('-i', '--index', dest='index_col', type='int', default=0, help='Set the column (starting from 0) containing the index labelling each data item (e.g. number of Monte Carlo cycles). Default: %default.')
     parser.add_option('-d', '--data', dest='data_col', type='int', default=1, help='Set the column (starting from 0) containing the data items. Default: %default.')
@@ -185,16 +185,6 @@ def parse_options(args):
         sys.exit(1)
 
     return (options, filenames)
-
-def pretty_format(header, value, padding=0):
-    '''Return a format string which will hold both the name and value of the data item without truncation.
-
-padding (optional integer): amount of space to add to format string.
-'''
-    if value:
-        return '%%-%is' % (max(len(str(value)), len(str(header)))+padding)
-    else:
-        return '%%-%is' % (len(str(header))+padding)
 
 if __name__ == '__main__':
     (options, filenames) = parse_options(sys.argv[1:])
