@@ -1342,6 +1342,8 @@ SUBROUTINE CollapseCluster(C,iLutHF,Amplitude,nDet,iDebug)
 !First, decode the bit-string representation of the determinant the walker is on, into a string of naturally-ordered integers
    CALL DecodeBitDet(C%DetCurr,C%iLutDetCurr)
    C%iExcitLevel = FindBitExcitLevel(iLutHF, C%iLutDetCurr, nel)
+!  An excitor applied to the HF det will give a sign 1 if it's an even excitor and -1 if it's an odd excitor
+   if(iand(C%iExcitLevel,1)==1) C%iSgn=-C%iSgn    
    if(iDebug.gt.4) WRITE(6,*) "Excitation Level ", C%iExcitLevel
 
 END SUBROUTINE CollapseCluster
@@ -1532,6 +1534,7 @@ SUBROUTINE CalcClusterEnergy(tFCI,Amplitude,nExcit,ExcitList,ExcitLevelIndex,Pro
          endif
       endif
    enddo
+!   write(6,*) "T1Sq:",dT1Sq
    ProjE=ENumCyc/(HFCyc+0.d0)
 END SUBROUTINE CalcClusterEnergy
 
@@ -1700,6 +1703,8 @@ END SUBROUTINE
       INTEGER iMaxLevel
 
       TYPE(CCTransitionLog) TL
+
+      INTEGER*8 Fact  !Factorial
 
 
 
@@ -1995,6 +2000,8 @@ END SUBROUTINE
                ENDIF
 !               write(6,*) -CS%C%iSgn,Tau,S%HIJ%v,CS%C%dAbsAmplitude,S%dProbSpawn,CS%C%dProbNorm,CS%C%dClusterNorm
                rat=-CS%C%iSgn*Tau*S%HIJ%v*CS%C%dAbsAmplitude/(S%dProbSpawn*CS%C%dProbNorm*CS%C%dClusterNorm)  !Old version
+!               if(CS%C%iSize.gt.1) rat=rat/CS%C%iSize
+!               rat=-CS%C%iSgn*Tau*S%HIJ%v*CS%C%dAbsAmplitude/(S%dProbSpawn*CS%C%dProbNorm*CS%C%dClusterNorm)  !Old version
 
 ! CS%C%dAbsAmplitude is there so that the change in the amp depends on the current amp.
 
@@ -2028,6 +2035,9 @@ END SUBROUTINE
                      call WriteDExcitorList(6,Amplitude(i:j,iCurAmpList),FciDets(:,i:j),i-1,j-i+1,0.d0,"Excitors in that level")
                      call Stop_All("CCMCStandalone","Cannot find excitor in list.")
                   endif
+!  An excitor applied to the HF det will give a sign 1 if it's an even excitor and -1 if it's an odd excitor.
+!   Here we convert from a det back to an excitor.
+                  if(iand(IC,1)==1) rat=-rat
                   Amplitude(PartIndex,iCurAmpList)=Amplitude(PartIndex,iCurAmpList)+rat
                   if(lLogTransitions.and.Iter.gt.NEquilSteps) then
                      call LogTransition(TL,CS%C%SelectedExcitorIndices(:),CS%C%iSize,PartIndex,rat,CS%C%dProbNorm)
@@ -2060,12 +2070,15 @@ END SUBROUTINE
 !                  dProbDecompose=dProbDecompose/CS%C%dAbsAmplitude
 !                  dProbDecompose=dProbDecompose*CS%C%iSgn*Amplitude(iPartDie,iOldAmpList)/abs(Amplitude(1,iOldAmpList))
                endif
+               IC=CS%C%iExcitLevel
             ELSEIF(CS%C%iSize.EQ.1) THEN
                dProbDecompose=1
                iPartDie=CS%C%SelectedExcitorIndices(1)
+               IC=CS%C%iExcitLevel
             ELSE
                dProbDecompose=1
                iPartDie=1
+               IC=0
             ENDIF 
             Htmp = get_helement (CS%C%DetCurr, CS%C%DetCurr, 0)
             HDiagCurr=REAL(Htmp%v,dp)
@@ -2103,6 +2116,14 @@ END SUBROUTINE
 !            rat=Tau*(HDiagCurr-DiagSft)*dClusterNorm*dProb/dProbNorm !(dProb*dProbNorm)
             rat=Tau*(HDiagCurr-DiagSft)*dProbDecompose/(CS%C%dProbNorm*CS%C%dClusterProb) !(dProb*dProbNorm)  !The old version
             rat=rat*CS%C%dAbsAmplitude
+
+! This appears to cause horrors.
+!  An excitor applied to the HF det will give a sign 1 if it's an even excitor and -1 if it's an odd excitor.
+!   Here we convert from a det back to an excitor.
+!            if(iand(IC,1)==1) rat=-rat
+
+! We've now calculated rat fully
+
             r=rat*sign(1.d0,Amplitude(iPartDie,iOldAmpList))
             rat=rat/abs(Amplitude(iPartDie,iOldAmpList))  !Take into account we're killing at a different place from the cluster
 
@@ -2230,7 +2251,7 @@ SUBROUTINE AddBitExcitor(iLutnI,iLutnJ,iLutRef,iSgn)
 !    i,j,k  (i<j<k)
 !  This correpsonds to a^+_i a^+_j a^+_k |0>
 
-! Thus an excitor applied to the HF det will yield the postive determinant
+!  An excitor applied to the HF det will give a sign 1 if it's an even excitor and -1 if it's an odd excitor
 
 !To compose two excitors, we must move the annihilation operators to the right,
 ! and the creation operators to the left.  Each switch of operators incurs a sign flip.
