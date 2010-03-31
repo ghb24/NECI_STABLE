@@ -196,17 +196,6 @@ MODULE FciMCParMod
 
         IF(tPrintOrbOcc) THEN
             CALL PrintOrbOccs(OrbOccs)
-            DEALLOCATE(OrbOccs)
-            CALL LogMemDeAlloc(this_routine,OrbOccsTag)
-        ENDIF
-
-        IF(tHistInitPops) THEN
-            DEALLOCATE(HistInitPops)
-            CALL LogMemDeAlloc(this_routine,HistInitPopsTag)
-            IF(iProcIndex.eq.0) THEN
-                DEALLOCATE(AllHistInitPops)
-                CALL LogMemDeAlloc(this_routine,AllHistInitPopsTag)
-            ENDIF
         ENDIF
 
 ! Print out some load balancing stats nicely to end.
@@ -2419,6 +2408,20 @@ MODULE FciMCParMod
             DEALLOCATE(CoreMask)
             DEALLOCATE(ExtMask)
         ENDIF
+        IF(tPrintOrbOcc) THEN
+            DEALLOCATE(OrbOccs)
+            CALL LogMemDeAlloc(this_routine,OrbOccsTag)
+        ENDIF
+
+        IF(tHistInitPops) THEN
+            DEALLOCATE(HistInitPops)
+            CALL LogMemDeAlloc(this_routine,HistInitPopsTag)
+            IF(iProcIndex.eq.0) THEN
+                DEALLOCATE(AllHistInitPops)
+                CALL LogMemDeAlloc(this_routine,AllHistInitPopsTag)
+            ENDIF
+        ENDIF
+
 
 
 !There seems to be some problems freeing the derived mpi type.
