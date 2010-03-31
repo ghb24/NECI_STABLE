@@ -691,6 +691,24 @@ The following options are only available in **FCIMC** calculations:
     This effectively eliminates load-imbalance when running in parallel, even
     for small numbers of electrons and HPHF. Recommended.
 
+**PROJE-CHANGEREF** [FracLargerDet]
+    This will change the determinant which the projected energy is calculated from 
+    by changing the reference if its population exceeds FracLargerDet*{pop on current ref}.
+
+**RESTARTLARGEPOP** [FracLargerDet]
+    Similar to **PROJE-CHANGEREF**, but the simulation will be restarted with the
+    same initial conditions if the new reference determinant population exceeds
+    FracLargerDet*{pop on current ref} at any point in the calculation.
+
+**TAUFACTOR** [TauFactor]
+    This option can be used as an alternative to specifying a **TAU** value. This is the factor 
+    by which 1/(HF connectivity) will be multiplied by to give the timestep for the 
+    calculation.
+
+**STEPSSHIFTIMAG** [StepsSftImag]
+    This option can be used as an alternative to specifying a **STEPSSHIFT** value.
+    This is the amount of imaginary time which will elapse between updates of the shift.
+
 **MEMORYFACPART** [MemoryFacPart]
     Default 10.D0
 

@@ -196,17 +196,6 @@ MODULE FciMCParMod
 
         IF(tPrintOrbOcc) THEN
             CALL PrintOrbOccs(OrbOccs)
-            DEALLOCATE(OrbOccs)
-            CALL LogMemDeAlloc(this_routine,OrbOccsTag)
-        ENDIF
-
-        IF(tHistInitPops) THEN
-            DEALLOCATE(HistInitPops)
-            CALL LogMemDeAlloc(this_routine,HistInitPopsTag)
-            IF(iProcIndex.eq.0) THEN
-                DEALLOCATE(AllHistInitPops)
-                CALL LogMemDeAlloc(this_routine,AllHistInitPopsTag)
-            ENDIF
         ENDIF
 
 ! Print out some load balancing stats nicely to end.
@@ -889,6 +878,9 @@ MODULE FciMCParMod
 !Now, the root processor contains information about the highest populated determinant, and the processor which is it held on.
             IF(((INT(FracLargerDet*REAL(AllNoatHF,dp))).lt.HighPopout(1)).and.(AllTotParts.gt.10000)) THEN
                 IF(iProcIndex.eq.Root) WRITE(6,"(A,2I10)") "Highest weighted determinant not reference det: ",HighPopout(1),AllNoatHF
+!                WRITE(6,"(A,4I12)") "Highest weighted determinant not reference det: ",iter,HighPopout(2),HighPopout(1),AllNoatHF
+!                CALL WriteBitDet(6,HighestPopDet,.true.)
+!                WRITE(6,*) iHighestPop
                 IF(tChangeProjEDet) THEN
 !Meed to communicate to all processors that iLutRef has changed.
 
@@ -2419,6 +2411,20 @@ MODULE FciMCParMod
             DEALLOCATE(CoreMask)
             DEALLOCATE(ExtMask)
         ENDIF
+        IF(tPrintOrbOcc) THEN
+            DEALLOCATE(OrbOccs)
+            CALL LogMemDeAlloc(this_routine,OrbOccsTag)
+        ENDIF
+
+        IF(tHistInitPops) THEN
+            DEALLOCATE(HistInitPops)
+            CALL LogMemDeAlloc(this_routine,HistInitPopsTag)
+            IF(iProcIndex.eq.0) THEN
+                DEALLOCATE(AllHistInitPops)
+                CALL LogMemDeAlloc(this_routine,AllHistInitPopsTag)
+            ENDIF
+        ENDIF
+
 
 
 !There seems to be some problems freeing the derived mpi type.
@@ -3440,7 +3446,7 @@ MODULE FciMCParMod
   &                INT(AllTotParts,i2),AllAnnihilated,AllNoDied,AllNoBorn,ProjectionE,AvDiagSft,AllENumCyc/AllHFCyc,AllNoatHF,AllNoatDoubs,AccRat,INT(AllTotWalkers,i2),IterTime
 
             IF(tTruncInitiator.or.tDelayTruncInit) THEN
-                WRITE(16,"(I12,2F15.1,2G16.7,2F20.1,2F18.7,3F18.1)") Iter+PreviousCycles,AllNoAborted,AllNoAddedInitiators,(REAL(AllNoInitDets)/REAL(AllNoNonInitDets)),&
+                WRITE(16,"(I12,4G16.7,2F20.1,2F18.7,3F18.1)") Iter+PreviousCycles,AllNoAborted,AllNoAddedInitiators,(REAL(AllNoInitDets)/REAL(AllNoNonInitDets)),&
  &              (REAL(AllNoInitWalk)/REAL(AllNoNonInitWalk)),AllNoDoubSpawns,AllNoExtraInitDoubs,DiagSftAbort,AvDiagSftAbort,AllNoInitDets,AllNoNonInitDets,AllInitRemoved
             ENDIF
 
