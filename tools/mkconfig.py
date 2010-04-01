@@ -194,26 +194,30 @@ EXTS = .F90 .F .c .cpp
 find_files = $(wildcard $(1)/*$(2))
 FSRCFILES := $(foreach dir,$(SRC),$(call find_files,$(dir),.F))
 F90SRCFILES := $(foreach dir,$(SRC),$(call find_files,$(dir),.F90))
+F90TMPSRCFILES := $(foreach dir,$(SRC),$(call find_files,$(dir),.F90.template))
 cppSRCFILES := $(foreach dir,$(SRC),$(call find_files,$(dir),.cpp))
 cSRCFILES := $(foreach dir,$(SRC),$(call find_files,$(dir),.c))
-SRCFILES := $(FSRCFILES) $(F90SRCFILES) $(CSRCFILES) $(cSRCFILES)
+SRCFILES := $(FSRCFILES) $(F90SRCFILES) $(F90TMPSRCFILES) $(cppSRCFILES) $(cSRCFILES)
 
 # Objects (strip path and replace extension of source files with .o).
 FOBJ_bare := $(addsuffix .o,$(basename $(notdir $(FSRCFILES))))
 F90OBJ_bare := $(addsuffix .o,$(basename $(notdir $(F90SRCFILES))))
+F90TMPOBJ_bare := $(addsuffix .o,$(basename $(basename $(notdir $(F90TMPSRCFILES)))))
 cppOBJ_bare := $(addsuffix .o,$(basename $(notdir $(cppSRCFILES))))
 cOBJ_bare := $(addsuffix .o,$(basename $(notdir $(cSRCFILES))))
 
 # Full path to all objects (gamma-point).
 FOBJ := $(addprefix $(GDEST)/, $(FOBJ_bare))
 F90OBJ := $(addprefix $(GDEST)/, $(F90OBJ_bare))
+F90TMPOBJ := $(addprefix $(GDEST)/, $(F90TMPOBJ_bare))
 cppOBJ := $(addprefix $(GDEST)/, $(cppOBJ_bare))
 cOBJ := $(addprefix $(GDEST)/, $(cOBJ_bare))
-OBJECTS := $(FOBJ) $(F90OBJ) $(cppOBJ) $(cOBJ)
+OBJECTS := $(FOBJ) $(F90OBJ) $(F90TMPOBJ) $(cppOBJ) $(cOBJ)
 
 # Similarly for the kpoint objects.
 KFOBJ := $(addprefix $(KDEST)/, $(FOBJ_bare))
 KF90OBJ := $(addprefix $(KDEST)/, $(F90OBJ_bare))
+KF90TMPOBJ := $(addprefix $(KDEST)/, $(F90TMPOBJ_bare))
 KcppOBJ := $(addprefix $(KDEST)/, $(cppOBJ_bare))
 KcOBJ := $(addprefix $(KDEST)/, $(cOBJ_bare))
 
@@ -313,11 +317,16 @@ cleanall:
 # Generate dependency files for Fortran source files.
 # We assume that all module files are in *.F90 files.
 # This requires the JSS modified version of sfmakepend (supplied with neci).
+# sds50: sed command to avoid tinkering with sfmakedepend to work with templates.
 $(FRDEPEND):
-\t$(TOOLS)/sfmakedepend --file - --cpp --fext=f90 --depend=mod --silent --objdir \$$\(GDEST\) --moddir \$$\(GDEST\) $(FSRCFILES) $(F90SRCFILES) > $(FRDEPEND)
+\t$(TOOLS)/sfmakedepend --file - --cpp --fext=f90 --depend=mod --silent --objdir \$$\(GDEST\) --moddir \$$\(GDEST\) $(FSRCFILES) $(F90SRCFILES) $(F90TMPSRCFILES) > $(FRDEPEND).temp
+\tsed -e "s/^\(.*\.mod:.*\)\.F90\.template\(.o\)/\\1\\2/g" $(FRDEPEND).temp | sed -e "s/^\(.*\)\.F90\.template\(\.o:\)/\\1\\2/g" > $(FRDEPEND)
+\t-rm -f $(FRDEPEND).temp
 
 $(FCDEPEND):
-\t$(TOOLS)/sfmakedepend --file - --cpp --fext=f90 --depend=mod --silent --objdir \$$\(KDEST\) --moddir \$$\(KDEST\) $(FSRCFILES) $(F90SRCFILES) > $(FCDEPEND)
+\t$(TOOLS)/sfmakedepend --file - --cpp --fext=f90 --depend=mod --silent --objdir \$$\(KDEST\) --moddir \$$\(KDEST\) $(FSRCFILES) $(F90SRCFILES) $(F90TMPSRCFILES) > $(FCDEPEND).temp
+\tsed -e "s/^\(.*\.mod:.*\)\.F90\.template\(.o\)/\\1\\2/g" $(FCDEPEND).temp | sed -e "s/^\(.*\)\.F90\.template\(\.o:\)/\\1\\2/g" > $(FCDEPEND)
+\t-rm -f $(FCDEPEND).temp
 
 # Generate all dependency files.
 depend: 
@@ -418,6 +427,17 @@ $(KDEST)/%%.f90: %%.F90
 $(KDEST)/%%.f: %%.F
 \t$(CPP) -D__CMPLX $(CPP_BODY)
 
+# 1.b) With an option to generate from template files.
+$(GDEST)/%%.f90: $(GDEST)/%%.F90
+\t$(CPP) $(CPP_BODY)
+
+$(KDEST)/%%.f90: $(GDEST)/%%.F90
+\t$(CPP) -D__CMPLX $(CPP_BODY)
+
+$(GDEST)/%%.F90: %%.F90.template
+\t$(TOOLS)/f90_template.py $< $@
+
+
 # 2. Compile.
 
 # We assume that all module files are .F90 files.
@@ -429,7 +449,7 @@ $(KDEST)/%%.f: %%.F
 \ttest -e $@ && test ! -e $(@:.mod=.time) && test $(shell $(stat_cmd) $@) -eq $(shell $(stat_cmd) $<) && touch $(@:.mod=.time) || true
 \tperl -w $(TOOLS)/compile_mod.pl -cmp "perl -w $(TOOLS)/compare_module_file.pl -compiler $(compiler)" -fc "$(FC) $(FFLAGS) $(F90FLAGS) %(module_flag)s$(dir $@) $(INCLUDE_PATH) -c $(<:.o=.f90) -o $<" -provides "$@" -requires "$(<:.o=.f90)"
 
-$(F90OBJ) $(KF90OBJ): %%.o: %%.f90
+$(F90OBJ) $(F90TMPOBJ) $(KF90OBJ): %%.o: %%.f90
 \tperl -w $(TOOLS)/compile_mod.pl -cmp "perl -w $(TOOLS)/compare_module_file.pl -compiler $(compiler)" -fc "$(FC) $(FFLAGS) $(F90FLAGS) %(module_flag)s$(dir $@) $(INCLUDE_PATH) -c $< -o $@" -provides "$@" -requires "$^"
 
 $(FOBJ) $(KFOBJ): %%.o: %%.f
