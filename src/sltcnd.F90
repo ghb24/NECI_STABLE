@@ -1,7 +1,7 @@
 #include "macros.h"
 
 module sltcnd_mod
-    use SystemData, only: nel, nBasisMax, tExch, FCOUL, NIfTot, G1, ALAT
+    use SystemData, only: nel, nBasisMax, tExch, FCOUL, NIfTot, G1, ALAT, tUEG
     use SystemData, only: nBasis!, iSpinSkip
     ! HACK - We use nBasisMax(2,3) here rather than iSpinSkip, as it appears
     !        to be more reliably set (see for example test H2O_RI)
@@ -13,7 +13,7 @@ module sltcnd_mod
     use UMatCache, only: GTID
     use IntegralsData, only: UMAT
     use OneEInts, only: GetTMatEl
-    use Integrals, only: GetUMatEl
+    use Integrals, only: GetUMatEl, GetUEGUMatElDouble
     use DetBitOps, only: count_open_orbs, FindBitExcitLevel
     use csf_data, only: csf_sort_det_block
     use timing
@@ -288,17 +288,27 @@ contains
         ! physical notation).
         if ( (G1(ex(1,1))%Ms == G1(ex(2,1))%Ms) .and. &
              (G1(ex(1,2))%Ms == G1(ex(2,2))%Ms) ) then
-             hel = GetUMATEl (nBasisMax, UMAT, ALAT, nBasis, nBasisMax(2,3), &
+             if (tUEG) then ! Special case for UEG, see comment on GetUEGUMatElDouble
+                hel = GetUEGUMatElDouble(nBasisMax, UMAT, ALAT, nBasis, nBasisMax(2,3), &
                               G1, id(1,1), id(1,2), id(2,1), id(2,2))
+             else
+                hel = GetUMATEl (nBasisMax, UMAT, ALAT, nBasis, nBasisMax(2,3), &
+                              G1, id(1,1), id(1,2), id(2,1), id(2,2))
+             endif
         else
             hel = HElement(0)
         endif
 
         if ( (G1(ex(1,1))%Ms == G1(ex(2,2))%Ms) .and. &
              (G1(ex(1,2))%Ms == G1(Ex(2,1))%Ms) ) then
-             hel = hel - GetUMATEl (nBasismax, UMAT, ALAT, nBasis, &
+             if (tUEG) then ! Special case for UEG, see comment on GetUEGUMatElDouble
+                hel = hel - GetUEGUMatElDouble(nBasisMax, UMAT, ALAT, nBasis, nBasisMax(2,3), &
+                              G1, id(1,1), id(1,2), id(2,1), id(2,2))
+             else
+                hel = hel - GetUMATEl (nBasismax, UMAT, ALAT, nBasis, &
                                     nBasisMax(2,3), G1, id(1,1), id(1,2), &
                                     id(2,2), id(2,1))
+             endif
         endif
 
         if (tSign) hel = -hel

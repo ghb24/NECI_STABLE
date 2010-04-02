@@ -1501,14 +1501,33 @@ MODULE Integrals
          ENDIF
 
       ELSEIF(NBASISMAX(1,3).EQ.-1) THEN
-         CALL GetUEGUmatEl(IDI,IDJ,IDK,IDL,ISS,G1,ALAT,iPeriodicDampingType,GetUMatEl)
+         CALL GetUEGUmatEl(IDI,IDJ,IDK,IDL,ISS,G1,ALAT,iPeriodicDampingType,GetUMatEl,.true.)
       ENDIF
       ! WRITE(6,*) 'GetUmatEl', GetUMatEl,IDI,IDJ,IDK,IDL
 
       RETURN
     END FUNCTION GetUMatEl
 
+    function GetUEGUMatElDouble(NBASISMAX,UMATstore,ALAT,NHG,ISS,G1,IDI,IDJ,IDK,IDL)
+        use SystemData, only: BasisFN
+        use SystemData, only: iPeriodicDampingType
+        use UMatCache
+        IMPLICIT NONE
+        TYPE(HElement) GetUEGUMatElDouble
+        INTEGER nBasisMax(5,*),NHG,ISS
+        TYPE(HElement) UMATstore(*)
+        TYPE(BasisFN) G1(NHG)
+        REAL*8 ALAT(3)
+        INTEGER IDI,IDJ,IDK,IDL
+        ! This is a wrapper that calls GetUEGUMatEl in the case of a double excitation
+        ! in this case, spin information needs to be passed to GetUEGUMatEl in an exceptional
+        ! case: when < ij | ab > can be confused for < ij | ji > by loss of spin information.
+        ! This matters due to exchange cut-off meaning that < ij | ab > is treated differently
+        ! depending on whether it is a coulomb or an exchange integral.
+        ! Called from sltcnd_2 only at the moment.
+        CALL GetUEGUmatEl(IDI,IDJ,IDK,IDL,ISS,G1,ALAT,iPeriodicDampingType,GetUEGUMatElDouble,.false.)
 
+    end function GetUEGUMatElDouble
 
     SUBROUTINE WRITESYMCLASSES(NBASIS)
       USE HElem
