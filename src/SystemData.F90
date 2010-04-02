@@ -5,6 +5,10 @@ implicit none
 save
 
 ! Why is so little of this commented.  'tis horrific.  AJWT.
+! Agree.
+! But...
+! I blame the original authors for setting the precedent... JSS
+! ;-)
 
 logical :: tStarBin, tReadInt, tHFOrder, tDFRead, tPBC, tUEG, tCPMD, tHUB
 logical :: tHPHF, tHPHFInts, tUHF, tSPN, tParity, tUseBrillouin, tExch, tReal
