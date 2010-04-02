@@ -172,7 +172,7 @@ def parse_options(args):
     '''Parse command line options.'''
 
     parser = optparse.OptionParser(usage = __doc__)
-    parser.add_option('-s', '--start', dest='start_regex', default='^ #', help='Set the regular expression indicating the start of a data block.  Default: %default.')
+    parser.add_option('-s', '--start', dest='start_regex', default='^ *#', help='Set the regular expression indicating the start of a data block.  Default: %default.')
     parser.add_option('-e', '--end', dest='end_regex', type='string', default=r'^ *$', help='Set the regular expression indicating the end of a data block.  Default: %default.')
     parser.add_option('-i', '--index', dest='index_col', type='int', default=0, help='Set the column (starting from 0) containing the index labelling each data item (e.g. number of Monte Carlo cycles). Default: %default.')
     parser.add_option('-d', '--data', dest='data_col', type='int', default=1, help='Set the column (starting from 0) containing the data items. Default: %default.')
