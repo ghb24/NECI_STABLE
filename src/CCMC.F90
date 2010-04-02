@@ -1,4 +1,6 @@
 MODULE CCMC
+    use Determinants, only: get_helement, write_det, write_det_len
+    use HElem
    IMPLICIT NONE
    CONTAINS
 
@@ -17,13 +19,12 @@ MODULE CCMC
 !Multiple particles can be attempted to die at the same time - here, |WSign| > 1 and the probability of a death will be multiplied by |WSign|
 !dProb is an extra probability factor the death probability is multiplied by 
     INTEGER FUNCTION AttemptDieProbPar(DetCurr,Kii,IC,WSign,dProb)
-        use SystemData, only: nEl, tMerTwist
-        use CalcData , only : TFixShiftShell,ShellFix,FixShift,DiagSft,FixedKiiCutoff,Tau,tFixShiftKii
-        use CalcData , only : tFixCASShift
+        use SystemData, only: nEl
+        use CalcData , only : DiagSft,Tau
         use FciMCData
         use FciMCParMod, only: TestifDETinCAS
         use DetBitOps, only: FindExcitBitDet, FindBitExcitLevel
-        use mt95
+        use dSFMT_interface
         IMPLICIT NONE
         INTEGER :: DetCurr(NEl),iKill,IC,WSign
 !        TYPE(HElement) :: rh,rhij
@@ -31,53 +32,14 @@ MODULE CCMC
         REAL*8 dProb
         LOGICAL :: tDETinCAS
 
-!Calculate the diagonal hamiltonian matrix element for the determinant
-!        rh=GetHElement2(DetCurr,DetCurr,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,0,ECore)
-!Subtract from the diagonal the value of the lowest hamiltonian matrix element
-!        rh=rh-Hii
-
-!Subtract the current value of the shift and multiply by tau
-        IF(TFixShiftShell.and.(.not.TSinglePartPhase)) THEN
-!            IF((IC.eq.0).or.(IC.eq.2)) THEN
-            IF(IC.le.ShellFix) THEN
-                rat=Tau*(Kii-FixShift)
-            ELSE
-                rat=Tau*(Kii-DiagSft)
-            ENDIF
-        ELSEIF(tFixShiftKii.and.(.not.TSinglePartPhase)) THEN
-            IF(Kii.le.FixedKiiCutoff) THEN
-                rat=Tau*(Kii-FixShift)
-            ELSE
-                rat=Tau*(Kii-DiagSft)
-            ENDIF
-        ELSEIF(tFixCASShift.and.(.not.TSinglePartPhase)) THEN
-! The 'TestifDETinCAS' function finds out if the determinant is in the complete active space or not.  If it is, the shift is fixed at 
-! the chosen fixed value (FixShift), if not the shift remains as the changing DiagSft value.
-           
-            tDETinCAS=TestifDETinCAS(DetCurr)
-            
-            IF(tDETinCAS) THEN
-                rat=Tau*(Kii-FixShift)
-            ELSE
-                rat=Tau*(Kii-DiagSft)
-            ENDIF
-        ELSE
-            rat=Tau*(Kii-DiagSft)
-        ENDIF
-
 !If there are multiple particles, decide how many to kill in total...
-        rat=rat*abs(WSign)
-        rat=rat*dProb
+        rat=Tau*(Kii-DiagSft)*abs(WSign)*dProb
 
         iKill=INT(rat)
         rat=rat-REAL(iKill)
 
 !Stochastically choose whether to die or not
-        IF(tMerTwist) THEN
-            CALL genrand_real2(r) 
-        ELSE
-            CALL RANLUX(r,1)
-        ENDIF
+        r = genrand_real2_dSFMT() 
         IF(abs(rat).gt.r) THEN
             IF(rat.ge.0.D0) THEN
 !Depends whether we are trying to kill or give birth to particles.
@@ -111,7 +73,6 @@ MODULE CCMC
     SUBROUTINE PerformCCMCCycParInt()
       USe FCIMCParMod
       use CCMCData
-      Use Determinants, only: GetHElement3
       Use Logging, only: CCMCDebug
       use DetBitOps, only: DecodeBitDet
         IMPLICIT NONE
@@ -269,10 +230,10 @@ MODULE CCMC
                   iLutnI(:)=CurrentDets(:,j)
                   call AddBitExcitor(iLutnI,CurrentDets(:,l),iLutHF,iSgn)
                   if(iSgn.ne.0) then
-                     CALL DecodeBitDet(DetCurr,iLutnI(:))
-                     Htmp=GetHElement3(HFDet, DetCurr,2)
-                     dT1Sq=dT1Sq+(Real(Htmp%v,r2)*iSgn)
-                     !WRITE(6,'(A,I,2G)', advance='no') 'T1',iSgn,real(Htmp%v,r2),dT1Sq
+                     CALL DecodeBitDet(DetCurr,iLutnI)
+                     Htmp = get_helement (HFDet, DetCurr, iLutHF, iLutnI)
+                     dT1Sq=dT1Sq+(Real(Htmp%v,dp)*iSgn)
+                     !WRITE(6,'(A,I,2G)', advance='no') 'T1',iSgn,real(Htmp%v,dp),dT1Sq
                      !call WriteBitEx(6,iLutHF,CurrentDets(:,j),.false.)
                      !call WriteBitEx(6,iLutHF,CurrentDets(:,l),.false.)
                      !call WriteBitEx(6,iLutHF,iLutnI,.true.)
@@ -283,7 +244,7 @@ MODULE CCMC
 !          if(WalkExcitLevel.eq.1.or.WalkExcitLevel.eq.2) then
 !            CALL DecodeBitDet(DetCurr,CurrentDets(:,j))
 !            Htmp=GetHElement3(HFDet, DetCurr,WalkExcitLevel)
-!            AJWTProjE=AJWTProjE+(Real(Htmp%v,r2)*CurrentSign(j))
+!            AJWTProjE=AJWTProjE+(Real(Htmp%v,dp)*CurrentSign(j))
 !          endif
 !#endif
 !Go through all particles on the current walker det
@@ -475,7 +436,7 @@ MODULE CCMC
    ! Calculate the probability that we've reached this far in the loop
                         !We must have at least one excitor, so we cannot exit here.
                         if(i.gt.2) then
-                           call genrand_real2(r)  !On GHB's advice
+                           r = genrand_real2_dSFMT()  !On GHB's advice
                            if(r.lt.dProbSelNewExcitor) exit
                         endif
             
@@ -484,7 +445,7 @@ MODULE CCMC
       ! Select a new random walker
                         k=0
                         do while (k.eq.0)
-                           call genrand_real2(r)  !On GHB's advice
+                           r = genrand_real2_dSFMT()  !On GHB's advice
                            k=1+floor(r*(TotWalkers-1))    !This selects a unique excitor (which may be multiply populated)
                            if(k.ge.iHFDet) k=k+1          !We're not allowed to select the HF det
                            if(CurrentSign(k).eq.0) k=0
@@ -566,7 +527,7 @@ MODULE CCMC
                   IF(.not.tHPHF) CALL FindExcitBitDet(iLutnI,iLutnJ,IC,Ex)
                   IF(iDebug.gt.4) then
                       WRITE(6,*) "Random excited det level ",iC
-                      call WriteDet(6,nJ,nEl,.true.)
+                      call write_det (6, nJ, .true.)
                       Write(6,*) "Prob ex|from",Prob
                   endif
 !Prob is the Prob of choosing nJ from nI
@@ -579,13 +540,13 @@ MODULE CCMC
                   IF(TTruncSpace) THEN
 !We have truncated the excitation space at a given excitation level. See if the spawn should be allowed.
                       IF(CheckAllowedTruncSpawn(WalkExcitLevel,nJ,iLutnJ,IC)) THEN
-                          Child=AttemptCreatePar(DetCurr,iLutnI,iSgn,nJ,iLutnJ,Prob,IC,Ex,tParity,1,.false.)
+                          Child=AttemptCreatePar(DetCurr,iLutnI,iSgn,nJ,iLutnJ,Prob,IC,Ex,tParity)
                       ELSE
                           Child=0
                       ENDIF
                   ELSE
 !SD Space is not truncated - allow attempted spawn as usual
-                      Child=AttemptCreatePar(DetCurr,iLutnI,iSgn,nJ,iLutnJ,Prob,IC,Ex,tParity,1,.false.)
+                      Child=AttemptCreatePar(DetCurr,iLutnI,iSgn,nJ,iLutnJ,Prob,IC,Ex,tParity)
                   ENDIF
 
                   IF(iDebug.gt.4.or.((iDebug.eq.3.or.iDebug.eq.4).and.Child.ne.0)) THEN
@@ -651,13 +612,13 @@ MODULE CCMC
                IF(iCompositeSize.GT.0) THEN
                   dProbDecompose=dNGenComposite
 !                  dProb=dProb/HFcount
-                  call genrand_real2(r)  !On GHB's advice
+                  r = genrand_real2_dSFMT()  !On GHB's advice
                   k=1+floor(r*iCompositeSize)
                   iPartDie=SelectedExcitorIndices(k)
    !Now get the full representation of the dying excitor
                   CALL DecodeBitDet(DetCurr,iLutnI)
-                  Htmp=GetHElement3(DetCurr,DetCurr,0)
-                  HDiagCurr=REAL(Htmp%v,r2)
+                  Htmp = get_helement (DetCurr, DetCurr, 0)
+                  HDiagCurr=REAL(Htmp%v,dp)
                   HDiagCurr=HDiagCurr-Hii
                   iSgn=sign(1,CurrentSign(iPartDie))
                ELSE
@@ -897,6 +858,8 @@ MODULE CCMC
 ! Since we are (also) allowed all sizes from i=0 ... iSize-1, we add in sum_i=0^iSize-1 Binomial(N,i) too
 
 !Heaven help you if you give it an unordered cluster.
+
+!NB Clust's indices are 2-based (i.e. the first 1-, 2-, and 3- clusters are : [2],[2,3],[2,3,4])
    INTEGER FUNCTION GetUniqClusterIndex(Clust,iSize,TL)
       use CCMCData, only: CCTransitionLog
       IMPLICIT NONE
@@ -913,13 +876,12 @@ MODULE CCMC
       enddo
       do I=1,iSize
          if(i>1) then
-            ind=ind+Binomial(TL%nExcitors-Clust(i-1),iSize-i+1)
+            ind=ind+Binomial(TL%nExcitors-(Clust(i-1)-1),iSize-i+1)
          else
             ind=ind+Binomial(TL%nExcitors,iSize-i+1)
          endif
-         ind=ind-Binomial(TL%nExcitors-Clust(i)+1,iSize-i+1)
+         ind=ind-Binomial(TL%nExcitors-(Clust(i)-1)+1,iSize-i+1)
       enddo
-      if(ind.gt.0)  ind=ind-1
       GetUniqClusterIndex=ind
    END FUNCTION GetUniqClusterIndex
 
@@ -1143,7 +1105,7 @@ END SUBROUTINE IncrementOrderedTuple
 LOGICAL FUNCTION GetNextCluster(CS,Dets,nDet,Amplitude,dTotAbsAmpl,iNumExcitors,iMaxSizeIn,iDebug)
    use CCMCData, only: ClustSelector
    use SystemData, only: nIfTot
-   use mt95 , only : genrand_real2
+   use dSFMT_interface , only : genrand_real2_dSFMT
    IMPLICIT NONE
    TYPE(ClustSelector) CS
    INTEGER nDet
@@ -1176,7 +1138,9 @@ LOGICAL FUNCTION GetNextCluster(CS,Dets,nDet,Amplitude,dTotAbsAmpl,iNumExcitors,
 !deal with the HF det separately.  iSize is already 0.
             CS%C%dAbsAmplitude=abs(Amplitude(1))
             if(iDebug.gt.3) WRITE(6,"(A,L3)",advance='no') "Next Tuple:",tDone
-            if(iDebug.gt.3) call WriteDet(6,CS%C%SelectedExcitorIndices,CS%C%iSize,.true.)
+            if(iDebug.gt.3) &
+                call write_det_len (6, CS%C%SelectedExcitorIndices, &
+                                    CS%C%iSize, .true.)
             return
          endif 
 
@@ -1194,7 +1158,9 @@ LOGICAL FUNCTION GetNextCluster(CS,Dets,nDet,Amplitude,dTotAbsAmpl,iNumExcitors,
             endif            
          else
             if(iDebug.gt.3) WRITE(6,"(A,L3)",advance='no') "Next Tuple:",tDone
-            if(iDebug.gt.3) call WriteDet(6,CS%C%SelectedExcitorIndices,CS%C%iSize,.true.)
+            if(iDebug.gt.3) &
+                call write_det_len (6, CS%C%SelectedExcitorIndices, &
+                                    CS%C%iSize, .true.)
             tNew=.true.  !Used for debug printing
             CS%C%dAbsAmplitude=abs(Amplitude(1))
 !            WRITE(6,*) 0,CS%C%dAbsAmplitude
@@ -1247,14 +1213,14 @@ LOGICAL FUNCTION GetNextCluster(CS,Dets,nDet,Amplitude,dTotAbsAmpl,iNumExcitors,
       do i=1,iMaxSize
 ! Calculate the probability that we've reached this far in the loop
                   !We must have at least one excitor, so we cannot exit here.
-         call genrand_real2(r)  !On GHB's advice
+         r = genrand_real2_dSFMT()  !On GHB's advice
 
          if(r.lt.CS%dProbSelNewExcitor) exit
 
 ! decide not to choose another walker with this prob.
          dProbNumExcit=dProbNumExcit*(1-CS%dProbSelNewExcitor)
 ! Select a new random walker
-         call genrand_real2(r)  !On GHB's advice
+         r = genrand_real2_dSFMT()  !On GHB's advice
          r=r*dTotAbsAmpl
          dCurTot=0
          do k=2,nDet
@@ -1308,7 +1274,7 @@ END FUNCTION GetNextCluster
 
 !This collapses a set of excitors into a single excitor/determinant, taking into account the various
 ! sign exchanges needed as well as the signs of the excitors from Amplitude
-SUBROUTINE CollapseCluster(C,iLutHF,Amplitude,nDet,iDebug)
+SUBROUTINE CollapseCluster(C,iLutHF,Amplitude,nDet,iDebug,tExToDet)
    use CCMCData
    use SystemData, only : NIfTot,nEl
    use DetBitOps, only: DecodeBitDet, FindBitExcitLevel
@@ -1318,17 +1284,22 @@ SUBROUTINE CollapseCluster(C,iLutHF,Amplitude,nDet,iDebug)
    REAL*8 Amplitude(1:nDet)
    INTEGER nDet
    INTEGER iDebug
+   LOGICAL tExToDet
 
    INTEGER i
    C%iLutDetCurr(:)=iLutHF(:)
    C%iSgn=1 !The sign of the first excitor
    do i=1,C%iSize 
-      C%iSgn=C%iSgn*int(sign(1.d0,Amplitude(C%SelectedExcitorIndices(i))))
+!      C%iSgn=C%iSgn*int(sign(1.d0,Amplitude(C%SelectedExcitorIndices(i))))
       call AddBitExcitor(C%iLutDetCurr,C%SelectedExcitors(:,i),iLutHF,C%iSgn)
       IF(iDebug.gt.3) Write(6,*) "Results of addition ",i, "Sign ",C%iSgn,':'
       if(C%iSgn.eq.0) exit
       IF(iDebug.gt.3) call WriteBitEx(6,iLutHF,C%iLutDetCurr,.true.)
    enddo
+   do i=1,C%iSize 
+      C%iSgn=C%iSgn*int(sign(1.d0,Amplitude(C%SelectedExcitorIndices(i))))
+   enddo
+   IF(iDebug.gt.3) Write(6,*) "Final sign including amplitudes ",C%iSgn
    iF(iDebug.gt.0) CALL FLUSH(6)
    if(C%iSgn.eq.0) return
 
@@ -1336,9 +1307,61 @@ SUBROUTINE CollapseCluster(C,iLutHF,Amplitude,nDet,iDebug)
 !First, decode the bit-string representation of the determinant the walker is on, into a string of naturally-ordered integers
    CALL DecodeBitDet(C%DetCurr,C%iLutDetCurr)
    C%iExcitLevel = FindBitExcitLevel(iLutHF, C%iLutDetCurr, nel)
+! We need to calculate the sign change from excitor to det:
+   if(tExToDet) C%iSgn=C%iSgn*ExcitToDetSign(iLutHF,C%iLutDetCurr,C%iExcitLevel)
    if(iDebug.gt.4) WRITE(6,*) "Excitation Level ", C%iExcitLevel
 
 END SUBROUTINE CollapseCluster
+
+FUNCTION ExcitToDetSign(iLutRef,iLutDet,iLevel)
+   use SystemData, only: nIfTot,nEl,nIfD
+   IMPLICIT NONE
+   INTEGER ExcitToDetSign
+   INTEGER iLevel
+   INTEGER iLutRef(0:nIfTot),iLutDet(0:nIfTot)
+   INTEGER iSgn,i,j,mask
+   INTEGER iAnnihil, iCreation
+   iSgn=1
+   iAnnihil=iLevel
+   iCreation=iLevel
+!   write(6,*) "Excitation level ",iLevel
+!   write(6,*) "Ref",iLutRef
+!   write(6,*) "Det",iLutDet
+   DO i=0,nIfTot
+      mask=ieor(iLutRef(i),iLutDet(i))
+      Do j=0,31
+         if(btest(iLutRef(i),j)) then
+! electron is in ref det
+!            WRITE(6,*) "Bit ",i*31+j," set in ref"
+            if(btest(mask,j)) then
+!               WRITE(6,*) "Bit ",i*31+j," not set in det"
+               ! electron not in this det, so we annihilate
+               iAnnihil=iAnnihil-1
+            else
+!propagate the rest of the operators through
+               if(iand(iAnnihil+iCreation,1)) iSgn=-iSgn  
+            endif
+         else
+!virtual orb
+            if(btest(mask,j)) then
+               ! electron is in this det, so we create
+               iCreation=iCreation-1
+            endif
+         endif
+      enddo
+   enddo
+   if(iAnnihil+iCreation.ne.0) then
+      call WriteBitEx(6,iLutRef,iLutDet,.false.)
+      write(6,*) " left over annihil: ", iAnnihil," left over creation: ", iCreation
+      call Stop_All("Failed to normal order excitor.","ExcitToDetSign")
+   endif
+!   call WriteBitEx(6,iLutRef,iLutDet,.false.)
+!   write(6,*) " Ex2Det sign: ",iSgn
+   ExcitToDetSign=iSgn
+   return
+end function ExcitToDetSign            
+   
+   
 
 !Reset a Spawner to use a new (collapsed) Cluster. This takes a pointer to the cluster for reference purposes, so the cluster and any structure it is derived from must have a TARGET attribute.
 SUBROUTINE ResetSpawner(S,C,nSpawn)
@@ -1391,7 +1414,6 @@ LOGICAL FUNCTION GetNextSpawner(S,iDebug)
    use FciMCData, only: pDoubles,tTruncSpace
    use FciMCParMod, only: CheckAllowedTruncSpawn
    use SystemData, only : NIfTot,nEl,NIfD
-   use Determinants , only : GetHElement4
    use GenRandSymExcitNUMod , only : GenRandSymExcitScratchNU
    use SymExcit3, only: GenExcitations3
    use DetBitOps, only: FindExcitBitDet
@@ -1441,7 +1463,7 @@ LOGICAL FUNCTION GetNextSpawner(S,iDebug)
       CALL FindExcitBitDet(S%C%iLutDetCurr,S%iLutnJ,S%iExcitLevel,S%ExcitMat)
       IF(iDebug.gt.4) then
           WRITE(6,*) "Random excited det level ",S%iExcitLevel
-          call WriteDet(6,S%nJ,nEl,.true.)
+          call write_det(6, S%nJ, .true.)
           Write(6,*) "Prob ex|from",S%dProbSpawn
       endif
 !Prob is the Prob of choosing nJ from nI
@@ -1451,13 +1473,15 @@ LOGICAL FUNCTION GetNextSpawner(S,iDebug)
       IF(TTruncSpace) THEN
 !We have truncated the excitation space at a given excitation level. See if the spawn should be allowed.
           IF(CheckAllowedTruncSpawn(S%C%iExcitLevel,S%nJ,S%iLutnJ,S%iExcitLevel)) THEN
-            S%HIJ=GetHElement4(S%C%DetCurr,S%nJ,S%iExcitLevel,S%ExcitMat,tParity)
+            S%HIJ = get_helement (S%C%DetCurr, S%nJ, S%iExcitLevel, &
+                                  S%ExcitMat, tParity)
           ELSE
             S%HIJ=HElement(0)
           ENDIF
       ELSE
 !SD Space is not truncated - allow attempted spawn as usual
-            S%HIJ=GetHElement4(S%C%DetCurr,S%nJ,S%iExcitLevel,S%ExcitMat,tParity)
+            S%HIJ = get_helement (S%C%DetCurr, S%nJ, S%iExcitLevel, &
+                                        S%ExcitMat, tParity)
       ENDIF
    ENDIF
 END FUNCTION GetNextSpawner
@@ -1472,13 +1496,15 @@ END FUNCTION GetNextSpawner
 ! ProjE                        The projected energy for this cycle is returned here.
 
 SUBROUTINE CalcClusterEnergy(tFCI,Amplitude,nExcit,ExcitList,ExcitLevelIndex,ProjE)
+   use Parallel, only: iProcIndex
+   use FciMCData, only: root
    use CCMCData
    use SystemData, only: nEl,nIfTot
    use FciMCData, only: HFDet
    use FciMCParMod, only: iLutHF,SumEContrib
    use FciMCData, only: ENumCyc,HFCyc 
-   use Determinants , only : GetHElement3
    use DetBitOps, only: DecodeBitDet
+   use constants, only: dp
    IMPLICIT NONE
    LOGICAL tFCI
    REAL*8 Amplitude(nExcit)
@@ -1492,7 +1518,6 @@ SUBROUTINE CalcClusterEnergy(tFCI,Amplitude,nExcit,ExcitList,ExcitLevelIndex,Pro
    INTEGER DetCurr(nEl)
    TYPE(HElement) HTmp
    INTEGER iLutnI(0:nIfTot)
-   INTEGER , PARAMETER :: r2=kind(0.d0)
    iC=0
    dT1Sq=0
    do j=1,nExcit
@@ -1504,7 +1529,7 @@ SUBROUTINE CalcClusterEnergy(tFCI,Amplitude,nExcit,ExcitList,ExcitLevelIndex,Pro
       if(Amplitude(j).lt.0) i=-1
       dAmp=abs(Amplitude(j))/Amplitude(1)
       if(dAmp.ne.0.d0) then
-         call SumEContrib(DetCurr,iC,i,ExcitList(:,j),dTmp,1/dAmp)
+         if (iProcIndex.eq.root) call SumEContrib(DetCurr,iC,i,ExcitList(:,j),dTmp,1/dAmp)
 ! Deal with T_1^2
          if(iC.eq.1.and..not.tFCI) then
             do l=j+1,ExcitLevelIndex(2)-1
@@ -1513,17 +1538,18 @@ SUBROUTINE CalcClusterEnergy(tFCI,Amplitude,nExcit,ExcitList,ExcitLevelIndex,Pro
                iLutnI(:)=ExcitList(:,j)
                call AddBitExcitor(iLutnI,ExcitList(:,l),iLutHF,iSgn)
                if(iSgn.ne.0.and.dAmp.ne.0.d0) then
-                  CALL DecodeBitDet(DetCurr,iLutnI(:))
-                  Htmp=GetHElement3(HFDet, DetCurr,2)
+                  CALL DecodeBitDet(DetCurr,iLutnI)
+                  Htmp = get_helement (HFDet, DetCurr, iLutHF, iLutnI)
                   dAmp=dAmp/(Amplitude(1)**2)
-                  dT1Sq=dT1Sq+(Real(Htmp%v,r2)*iSgn)*dAmp
+                  dT1Sq=dT1Sq+(Real(Htmp%v,dp)*iSgn)*dAmp
 !                  dAmp=dAmp*2  !DEBUG
-                  call SumEContrib(DetCurr,2,iSgn,iLutnI(:),dTmp,1/dAmp)
+                  if (iProcIndex.eq.root) call SumEContrib(DetCurr,2,iSgn,iLutnI(:),dTmp,1/dAmp)
                endif
             enddo
          endif
       endif
    enddo
+!   write(6,*) "T1Sq:",dT1Sq
    ProjE=ENumCyc/(HFCyc+0.d0)
 END SUBROUTINE CalcClusterEnergy
 
@@ -1541,8 +1567,9 @@ SUBROUTINE InitMP1Amplitude(tFCI,Amplitude,nExcit,ExcitList,ExcitLevelIndex,dIni
    use SystemData, only: nEl,nIfTot
    use FciMCData, only: HFDet
    use FciMCParMod, only: iLutHF,SumEContrib,BinSearchParts3
-   use Determinants , only : GetHElement3,GetH0Element3
+   use Determinants, only: GetH0Element3
    use DetBitOps, only: DecodeBitDet
+   use constants, only: dp
    IMPLICIT NONE
    LOGICAL tFCI
    REAL*8 Amplitude(nExcit)
@@ -1558,7 +1585,6 @@ SUBROUTINE InitMP1Amplitude(tFCI,Amplitude,nExcit,ExcitList,ExcitLevelIndex,dIni
    INTEGER iLutnI(0:nIfTot)
    INTEGER PartIndex
    LOGICAL tSuc
-   INTEGER , PARAMETER :: r2=kind(0.d0)
    iC=0
    H0HF=GetH0Element3(HFDet)
    Amplitude(:)=0
@@ -1570,7 +1596,7 @@ SUBROUTINE InitMP1Amplitude(tFCI,Amplitude,nExcit,ExcitList,ExcitLevelIndex,dIni
       enddo
       CALL DecodeBitDet(DetCurr,ExcitList(:,j))
       if(iC.ge.1) then
-         Htmp=GetHElement3(HFDet, DetCurr,iC)
+         Htmp = get_helement (HFDet,  DetCurr, iC, iLutHF, ExcitList(:,j))
          H0tmp=GetH0Element3(DetCurr)
          H0tmp=H0tmp-H0HF
          Amplitude(j)=Amplitude(j)-dInitAmp*DREAL(Htmp)/DREAL(H0tmp)
@@ -1592,6 +1618,7 @@ SUBROUTINE InitMP1Amplitude(tFCI,Amplitude,nExcit,ExcitList,ExcitLevelIndex,dIni
                endif
             enddo
          endif
+         Amplitude(j)=Amplitude(j)*ExcitToDetSign(iLutHF,ExcitList(:,j),IC)
       endif
 !      call WriteBitEx(6,iLutHF,ExcitList(:,j),.false.)
 !      write(6,*) Amplitude(j)
@@ -1604,6 +1631,8 @@ END SUBROUTINE
    SUBROUTINE CCMCStandalone(Weight,Energyxw)
       Use global_utilities
       use SystemData, only: nEl,nIfD,nIfTot
+      use Parallel, only: iProcIndex
+      use FciMCData, only: root
       use CCMCData, only: tCCMCFCI,dInitAmplitude,dProbSelNewExcitor,tExactCluster,tExactSpawn,nSpawnings,tSpawnProp,tCCBuffer
       use CCMCData, only: ClustSelector,Spawner,CCTransitionLog
       use DetCalc, only: Det       ! The number of Dets/Excitors in FCIDets
@@ -1624,16 +1653,16 @@ END SUBROUTINE
       Use Logging, only: CCMCDebug,tCCMCLogTransitions,tCCMCLogUniq
       USE Logging , only : tHistSpawn,iWriteHistEvery
       USE SymData , only : nSymLabels
-      USE Determinants , only : FDet,GetHElement2,GetHElement4,GetHElement3
+      USE Determinants , only : FDet
       USE DetCalc , only : ICILevel,Det,FCIDetIndex
       use CalcData, only: Tau,DiagSft,InitWalkers,NEquilSteps
       USE HElem
-      use mt95 , only : genrand_real2
+      use dSFMT_interface , only : genrand_real2_dSFMT
       use FciMCParMod, only: WriteFciMCStats, WriteFciMCStatsHeader
       use DetBitOps, only: FindBitExcitLevel
+      use constants, only: dp
       IMPLICIT NONE
       TYPE(HDElement) Weight,EnergyxW
-      INTEGER , PARAMETER :: r2=kind(0.d0)
       CHARACTER(len=*), PARAMETER :: this_routine='CCMCStandalone'
       INTEGER ierr
       REAL*8, ALLOCATABLE,target :: Amplitude(:,:) !(Det, 2)
@@ -1690,6 +1719,8 @@ END SUBROUTINE
       INTEGER iMaxLevel
 
       TYPE(CCTransitionLog) TL
+
+      INTEGER*8 Fact  !Factorial
 
 
 
@@ -1753,10 +1784,13 @@ END SUBROUTINE
          dTotAbsAmpl=Amplitude(1,iCurAmpList)
       endif
 
-      if(lLogTransitions) call InitTransitionLog(TL,nAmpl,nEl,.not.tCCMCLogUniq)
 
       iShiftLeft=StepsSft-1  !So the first one comes at StepsSft
-      WalkerScale=100000/dInitAmplitude
+      if(iProcIndex.eq.root) then
+         WalkerScale=100000/dInitAmplitude
+      else
+         WalkerScale=0
+      endif
       TotWalkers=WalkerScale*dTotAbsAmpl
       TotParts=WalkerScale*dTotAbsAmpl
       TotWalkersOld=WalkerScale*dTotAbsAmpl
@@ -1783,6 +1817,8 @@ END SUBROUTINE
          ENDIF
       ENDIF
 
+      if(lLogTransitions) call InitTransitionLog(TL,nAmpl,iNumExcitors,.not.tCCMCLogUniq)
+
       if(tExactCluster) then
          CALL InitClustSelectorFull(CSMain,iNumExcitors)
       else
@@ -1808,21 +1844,49 @@ END SUBROUTINE
 !               Amplitude(1,iCurAmpList)=dInitAmplitude
 !               iNumExcitors=0
 !               dTotAbsAmpl=Amplitude(1,iCurAmpList)
-               Amplitude(1,iCurAmpList)=0.7766105304008256*dInitAmplitude
-               Amplitude(2,iCurAmpList)=-0.4375219663886841*dInitAmplitude
-               Amplitude(3,iCurAmpList)= 0.4375219663886849*dInitAmplitude
-               Amplitude(4,iCurAmpList)=-0.1184277920308680*dInitAmplitude!-0.1184277920308680
-!               Amplitude(5,iCurAmpList)=-0.1184277920308680*dInitAmplitude!-0.1184277920308680
-               if(.not.tCCMCFCI) Amplitude(4,iCurAmpList)=Amplitude(4,iCurAmpList)-Amplitude(2,iCurAmpList)*Amplitude(3,iCurAmpList)/(Amplitude(1,iCurAmpList))
+               Amplitude(1,iCurAmpList)=dInitAmplitude
+               Amplitude(2,iCurAmpList)=-0.134142786*dInitAmplitude
+               Amplitude(3,iCurAmpList)=-0.134142786*dInitAmplitude
+               Amplitude(4,iCurAmpList)=-0.998958918*dInitAmplitude
+               if(tCCMCFCI) then
+                  Amplitude(5,iCurAmpList)=-0.013810233*dInitAmplitude
+               else
+                  Amplitude(5,iCurAmpList)=-0.031804520*dInitAmplitude
+               endif
+#if 0
+               Amplitude(1,iCurAmpList)=dInitAmplitude
+               Amplitude(4,iCurAmpList)=1.3297076*dInitAmplitude
+               Amplitude(2,iCurAmpList)=-1.1567470*dInitAmplitude
+               Amplitude(3,iCurAmpList)=0.0045795*dInitAmplitude
+               Amplitude(5,iCurAmpList)=-0.0004134*dInitAmplitude
+               Amplitude(6,iCurAmpList)=0.5385217*dInitAmplitude
+               Amplitude(15,iCurAmpList)=-0.0104507*dInitAmplitude*-1
+               Amplitude(11,iCurAmpList)=-0.0104507*dInitAmplitude*-1
+               Amplitude(17,iCurAmpList)=-0.0019899*dInitAmplitude
+               Amplitude(13,iCurAmpList)=-0.0019899*dInitAmplitude
+               Amplitude(7,iCurAmpList)=-0.0010984*dInitAmplitude*-1
+               Amplitude(8,iCurAmpList)=-0.0009255*dInitAmplitude
+               Amplitude(16,iCurAmpList)=0.0009071*dInitAmplitude
+               Amplitude(12,iCurAmpList)=0.0009071*dInitAmplitude
+               Amplitude(14,iCurAmpList)=-0.0001296*dInitAmplitude
+               Amplitude(10,iCurAmpList)=-0.0001296*dInitAmplitude
+               Amplitude(9,iCurAmpList)=0.0000018*dInitAmplitude
+#endif
+!               Amplitude(1,iCurAmpList)=0.7766105304008256*dInitAmplitude
+!               Amplitude(2,iCurAmpList)=-0.4375219663886841*dInitAmplitude
+!               Amplitude(3,iCurAmpList)= 0.4375219663886849*dInitAmplitude
+!               Amplitude(4,iCurAmpList)=-0.1184277920308680*dInitAmplitude!-0.1184277920308680
+!!               Amplitude(5,iCurAmpList)=-0.1184277920308680*dInitAmplitude!-0.1184277920308680
 !               if(.not.tCCMCFCI) Amplitude(4,iCurAmpList)=Amplitude(4,iCurAmpList)-Amplitude(2,iCurAmpList)*Amplitude(3,iCurAmpList)/(Amplitude(1,iCurAmpList))
-!               Amplitude(4,iCurAmplist)=Amplitude(4,iCurAmpList)/2
-               r=0
-               do j=1,4
-                  r=r+abs(Amplitude(j,iCurAmpList))
-               enddo
-               do j=1,4
-                  Amplitude(j,iCurAmpList)=Amplitude(j,iCurAmpList)*dInitAmplitude/r
-               enddo
+!!               if(.not.tCCMCFCI) Amplitude(4,iCurAmpList)=Amplitude(4,iCurAmpList)-Amplitude(2,iCurAmpList)*Amplitude(3,iCurAmpList)/(Amplitude(1,iCurAmpList))
+!!               Amplitude(4,iCurAmplist)=Amplitude(4,iCurAmpList)/2
+!               r=0
+!               do j=1,4
+!                  r=r+abs(Amplitude(j,iCurAmpList))
+!               enddo
+!               do j=1,4
+!                  Amplitude(j,iCurAmpList)=Amplitude(j,iCurAmpList)*dInitAmplitude/r
+!               enddo
          endif
 ! Copy the old Amp list to the new
          iOldAmpList=iCurAmpList
@@ -1877,7 +1941,11 @@ END SUBROUTINE
 !         TotParts=dPsiTotAbsAmpl*WalkerScale
          dTotExcitors=(dTotAbsAmpl+abs(Amplitude(1,iCurAmpList)))
          TotParts=dTotExcitors*WalkerScale
-         TotWalkers=TotParts
+         if(iProcIndex.eq.root) then 
+            TotWalkers=TotParts 
+         else
+            TotWalkers=0
+         endif
 
 
 
@@ -1931,7 +1999,8 @@ END SUBROUTINE
                Write(6,*) "Cluster norm           : ",CS%C%dClusterNorm
             endif
 
-            CALL CollapseCluster(CS%C,iLutHF,OldAmpl(:),nCurAmpl,iDebug)
+!The final logic tells it whether to convert from an excitor to a det.
+            CALL CollapseCluster(CS%C,iLutHF,OldAmpl(:),nCurAmpl,iDebug,.not.(tCCBuffer.and.tPostBuffering))
             IF(iDebug.gt.4) then
                WRITE(6,*) "Chosen det/excitor is:"
                call WriteBitDet(6,CS%C%iLutDetCurr,.true.)
@@ -1952,7 +2021,7 @@ END SUBROUTINE
                IC=CS%C%iExcitLevel
                CALL BinSearchParts3(CS%C%iLutDetCurr(:),FCIDets(:,:),Det,FCIDetIndex(IC),FCIDetIndex(IC+1)-1,PartIndex,tSuc)
                if(.not.tSuc) then
-                  Call WriteDet(6,CS%C%DetCurr,nEl,.true.)
+                  call write_det (6, CS%C%DetCurr, .true.)
                   Call Stop_All("CCMCStandalone","Failed to find det.")
                endif
                AmplitudeBuffer(PartIndex)=AmplitudeBuffer(PartIndex)+CS%C%dAbsAmplitude*CS%C%iSgn
@@ -1976,6 +2045,8 @@ END SUBROUTINE
                ENDIF
 !               write(6,*) -CS%C%iSgn,Tau,S%HIJ%v,CS%C%dAbsAmplitude,S%dProbSpawn,CS%C%dProbNorm,CS%C%dClusterNorm
                rat=-CS%C%iSgn*Tau*S%HIJ%v*CS%C%dAbsAmplitude/(S%dProbSpawn*CS%C%dProbNorm*CS%C%dClusterNorm)  !Old version
+!               if(CS%C%iSize.gt.1) rat=rat/CS%C%iSize
+!               rat=-CS%C%iSgn*Tau*S%HIJ%v*CS%C%dAbsAmplitude/(S%dProbSpawn*CS%C%dProbNorm*CS%C%dClusterNorm)  !Old version
 
 ! CS%C%dAbsAmplitude is there so that the change in the amp depends on the current amp.
 
@@ -2009,10 +2080,12 @@ END SUBROUTINE
                      call WriteDExcitorList(6,Amplitude(i:j,iCurAmpList),FciDets(:,i:j),i-1,j-i+1,0.d0,"Excitors in that level")
                      call Stop_All("CCMCStandalone","Cannot find excitor in list.")
                   endif
+! We need to calculate the sign change from excitor to det:
+!   Here we convert from a det back to an excitor.
+                  rat=rat*ExcitToDetSign(iLutHF,S%iLutnJ,IC)
                   Amplitude(PartIndex,iCurAmpList)=Amplitude(PartIndex,iCurAmpList)+rat
                   if(lLogTransitions.and.Iter.gt.NEquilSteps) then
-                     FakeArray(1)=PartIndex
-                     call LogTransition(TL,CS%C%SelectedExcitorIndices(:),CS%C%iSize,FakeArray,1,rat,CS%C%dProbNorm)
+                     call LogTransition(TL,CS%C%SelectedExcitorIndices(:),CS%C%iSize,PartIndex,rat,CS%C%dProbNorm)
                   endif
                endif
             enddo !GetNextSpawner
@@ -2024,7 +2097,7 @@ END SUBROUTINE
 !  We modify the composite (t_a t_b t_c) -> (t_a t_b t_c - x) by changing just one of the parts
 !  t_a -> t_a (1- x/(t_a t_b t_c)).   
                dProbDecompose=1
-               call genrand_real2(r)  !On GHB's advice
+               r = genrand_real2_dSFMT()  !On GHB's advice
                k=1+floor(r*CS%C%iSize)
                iPartDie=CS%C%SelectedExcitorIndices(k)
                if(.true.) then
@@ -2038,19 +2111,23 @@ END SUBROUTINE
 !NB N_T = 1/N_0
                
 !dAbsAmplitude is | t_x1 t_x2 ... | / N_0 ^|X| 
-                  dProbDecompose=CS%C%iSgn
+                  dProbDecompose=1
+!                  dProbDecompose=CS%C%iSgn
 !                  dProbDecompose=dProbDecompose/CS%C%dAbsAmplitude
 !                  dProbDecompose=dProbDecompose*CS%C%iSgn*Amplitude(iPartDie,iOldAmpList)/abs(Amplitude(1,iOldAmpList))
                endif
+               IC=CS%C%iExcitLevel
             ELSEIF(CS%C%iSize.EQ.1) THEN
                dProbDecompose=1
                iPartDie=CS%C%SelectedExcitorIndices(1)
+               IC=CS%C%iExcitLevel
             ELSE
                dProbDecompose=1
                iPartDie=1
+               IC=0
             ENDIF 
-            Htmp=GetHElement3(CS%C%DetCurr,CS%C%DetCurr,0)
-            HDiagCurr=REAL(Htmp%v,r2)
+            Htmp = get_helement (CS%C%DetCurr, CS%C%DetCurr, 0)
+            HDiagCurr=REAL(Htmp%v,dp)
             HDiagCurr=HDiagCurr-Hii
 
 !Also, we want to find out the excitation level of the determinant - we only need to find out if its connected or not (so excitation level of 3 or more is ignored.
@@ -2084,8 +2161,18 @@ END SUBROUTINE
 !dProb = 1
 !            rat=Tau*(HDiagCurr-DiagSft)*dClusterNorm*dProb/dProbNorm !(dProb*dProbNorm)
             rat=Tau*(HDiagCurr-DiagSft)*dProbDecompose/(CS%C%dProbNorm*CS%C%dClusterProb) !(dProb*dProbNorm)  !The old version
-            rat=rat*CS%C%dAbsAmplitude
-            r=rat*sign(1.d0,Amplitude(iPartDie,iOldAmpList))
+            rat=rat*(CS%C%dAbsAmplitude*CS%C%iSgn)
+
+! This appears to cause horrors.
+!  An excitor applied to the HF det will give a sign 1 if it's an even excitor and -1 if it's an odd excitor.
+!   Here we convert from a det back to an excitor.
+!            if(iand(IC,1)==1) rat=-rat
+
+! We've now calculated rat fully
+
+            rat=rat*ExcitToDetSign(iLutHF,FCIDets(:,iPartDie),IC)
+            r=rat
+!            r=rat*sign(1.d0,Amplitude(iPartDie,iOldAmpList))
             rat=rat/abs(Amplitude(iPartDie,iOldAmpList))  !Take into account we're killing at a different place from the cluster
 
 
@@ -2118,8 +2205,7 @@ END SUBROUTINE
 !            r=Amplitude(iPartDie,iOldAmpList)*rat 
             Amplitude(iPartDie,iCurAmpList)=Amplitude(iPartDie,iCurAmpList)-r
             if(lLogTransitions.and.Iter.gt.NEquilSteps) then
-               FakeArray(1)=iPartDie
-               call LogTransition(TL,CS%C%SelectedExcitorIndices(:),CS%C%iSize,FakeArray,1,-r,CS%C%dProbNorm)
+               call LogTransition(TL,CS%C%SelectedExcitorIndices(:),CS%C%iSize,iPartDie,-r,CS%C%dProbNorm)
             endif
 ! The two next lines are the ancien regime
 !            r=iSgn*Tau*(HDiagCurr-DiagSft)*dClusterNorm/dProbNorm !(dProb*dProbNorm)
@@ -2213,7 +2299,7 @@ SUBROUTINE AddBitExcitor(iLutnI,iLutnJ,iLutRef,iSgn)
 !    i,j,k  (i<j<k)
 !  This correpsonds to a^+_i a^+_j a^+_k |0>
 
-! Thus an excitor applied to the HF det will yield the postive determinant
+!  An excitor applied to the HF det will give a sign 1 if it's an even excitor and -1 if it's an odd excitor
 
 !To compose two excitors, we must move the annihilation operators to the right,
 ! and the creation operators to the left.  Each switch of operators incurs a sign flip.
@@ -2375,11 +2461,11 @@ SUBROUTINE GetNextNonZeroExcitorD(Pos,List,iMin,iMax)
    enddo
 END SUBROUTINE GetNextNonZeroExcitorD
 
-   SUBROUTINE InitTransitionLog(TL,nAmpl,nEl,tNonUniq)
+   SUBROUTINE InitTransitionLog(TL,nAmpl,nMaxClusterSize,tNonUniq)
       use CCMCData, only: CCTransitionLog
       IMPLICIT NONE
       TYPE(CCTransitionLog) TL
-      INTEGER nAmpl,nEl
+      INTEGER nAmpl,nMaxClusterSize
       LOGICAL tNonUniq
 
       INTEGER i
@@ -2388,7 +2474,7 @@ END SUBROUTINE GetNextNonZeroExcitorD
       TL%tNonUniq=tNonUniq
       TL%nExcitors=nAmpl-1
 
-      TL%nMaxSize=min(nEl,TL%nExcitors)
+      TL%nMaxSize=min(nMaxClusterSize,TL%nExcitors)
       ! We create a transition matrix where each element correpsonds to a cluster.  We encode cluster X=(a_{X_i}) = (x,y,z)  as an 'bit' string in base Det sum_{i=1}^{|X|} (X_i)*(Det)**(i-1)
       if(tNonUniq) then
          WRITE(6,*) "Using non-unique logging"
@@ -2398,16 +2484,17 @@ END SUBROUTINE GetNextNonZeroExcitorD
          TL%MaxIndex=-1
          do i=0,TL%nMaxSize
             TL%MaxIndex=TL%MaxIndex+Binomial(TL%nExcitors,i)
-enddo
+         enddo
       endif
       WRITE(6,*) "Max Cluster Index:",TL%MaxIndex
-      allocate(TL%dProbTransition(2,2,0:TL%MaxIndex,0:TL%MaxIndex))
+      write(6,*) "Logging memory>",(8*2*2*(TL%MaxIndex+1)*(nAmpl+1))/1048576, " Mb"
+      allocate(TL%dProbTransition(2,2,0:TL%MaxIndex,0:nAmpl))
       allocate(TL%dProbClust(2,0:TL%MaxIndex))
       allocate(TL%dProbUniqClust(2,-1:TL%MaxIndex))
       TL%dProbTransition(:,:,:,:)=0
       TL%dProbClust(:,:)=0
       TL%dProbUniqClust(:,:)=0
-   end subroutine
+   end subroutine InitTransitionLog
    SUBROUTINE WriteTransitionLog(iUnit,TL,Amplitude,nCycles,dTotAbsAmp,dTotNorm)
       use CCMCData, only: CCTransitionLog
       IMPLICIT NONE
@@ -2444,16 +2531,20 @@ enddo
       do i=0,TL%MaxIndex
          flin=0
          flout=0
-         do j=0,TL%MaxIndex 
+         do j=0,TL%nExcitors+1 
             if(TL%dProbTransition(1,2,i,j).ne.0) then
                Call WriteClusterInd(iUnit,i,.false.,TL)
                WRITE(iUnit,"(A)",advance='no') "=>"
                Call WriteClusterInd(iUnit,j,.false.,TL)
                WRITE(iUnit,"(2G25.17)") TL%dProbTransition(1,1,i,j)/nCycles,TL%dProbTransition(1,2,i,j)/nCycles
             endif
-            flin=flin+TL%dProbTransition(1,1,j,i)/nCycles
             flout=flout+TL%dProbTransition(1,1,i,j)/nCycles
          enddo
+         if(i<=TL%nExcitors+1) then
+            do j=0,TL%MaxIndex
+               flin=flin+TL%dProbTransition(1,1,j,i)/nCycles
+            enddo
+         endif
          flint=flint+flin
          floutt=floutt+flout
          if(flin.ne.0.or.flout.ne.0) then
@@ -2464,45 +2555,57 @@ enddo
       enddo
       WRITE(iUnit,"(A)") "Transition Probabilities normalized by # FromCluster: value per cycle;   number per cycle"
       do i=0,TL%MaxIndex
-         do j=0,TL%MaxIndex 
+         do j=0,TL%nExcitors+1 
             if(TL%dProbTransition(1,2,i,j).ne.0) then
                Call WriteClusterInd(iUnit,i,.false.,TL)
                WRITE(iUnit,"(A)",advance='no') "=>"
                Call WriteClusterInd(iUnit,j,.false.,TL)
-               WRITE(iUnit,"(2G25.17)") TL%dProbTransition(1,1,i,j)/TL%dProbClust(2,i),TL%dProbTransition(1,2,i,j)/TL%dProbClust(2,i)
+               if(TL%tNonUniq) THEN
+                  WRITE(iUnit,"(2G25.17)") TL%dProbTransition(1,1,i,j)/TL%dProbClust(2,i),TL%dProbTransition(1,2,i,j)/TL%dProbClust(2,i)
+               else
+                  WRITE(iUnit,"(2G25.17)") TL%dProbTransition(1,1,i,j)/TL%dProbUniqClust(2,i),TL%dProbTransition(1,2,i,j)/TL%dProbUniqClust(2,i)
+               endif
             endif
          enddo
       enddo
       WRITE(iUnit,"(A)") "Renormalized Transition Probabilities"
       do i=0,TL%MaxIndex
-         do j=0,TL%MaxIndex 
+         do j=0,TL%nExcitors+1 
             if(TL%dProbTransition(1,2,i,j).ne.0) then
                Call WriteClusterInd(iUnit,i,.false.,TL)
                WRITE(iUnit,"(A)",advance='no') "=>"
                Call WriteClusterInd(iUnit,j,.false.,TL)
                k=GetClusterIndLevel(i)
                r=Amplitude(1)*(dAveTotAbsAmp/dAveNorm)**k
-               WRITE(iUnit,"(2G25.17)") TL%dProbTransition(2,1,i,j)/(TL%dProbClust(2,i)*r),TL%dProbTransition(2,2,i,j)/(TL%dProbClust(2,i)*r)
+               if(TL%tNonUniq) THEN
+                  WRITE(iUnit,"(2G25.17)") TL%dProbTransition(2,1,i,j)/(TL%dProbClust(2,i)*r),TL%dProbTransition(2,2,i,j)/(TL%dProbClust(2,i)*r)
+               else
+                  WRITE(iUnit,"(2G25.17)") TL%dProbTransition(2,1,i,j)/(TL%dProbUniqClust(2,i)*r),TL%dProbTransition(2,2,i,j)/(TL%dProbUniqClust(2,i)*r)
+               endif
 !                  WRITE(iUnit,"(2G25.17)") TL%dProbTransition(2,1,i,j)/TL%dProbClust(2,i)
             endif
          enddo
       enddo
       WRITE(iUnit,*) "Biased Renormalized Transition Probabilities"
       do i=0,TL%MaxIndex
-         do j=0,TL%MaxIndex 
+         do j=0,TL%nExcitors+1 
             if(TL%dProbTransition(1,2,i,j).ne.0) then
                Call WriteClusterInd(iUnit,i,.false.,TL)
                WRITE(iUnit,"(A)",advance='no') "=>"
                Call WriteClusterInd(iUnit,j,.false.,TL)
                k=GetClusterIndLevel(i)
                r=Amplitude(1)*(dAveTotAbsAmp/dAveNorm)**k
-               WRITE(iUnit,"(2G25.17)") TL%dProbTransition(1,1,i,j)/(TL%dProbClust(2,i)*r),TL%dProbTransition(1,2,i,j)/(TL%dProbClust(2,i))
+               if(TL%tNonUniq) THEN
+                  WRITE(iUnit,"(2G25.17)") TL%dProbTransition(1,1,i,j)/(TL%dProbClust(2,i)*r),TL%dProbTransition(1,2,i,j)/(TL%dProbClust(2,i))
+               else
+                  WRITE(iUnit,"(2G25.17)") TL%dProbTransition(1,1,i,j)/(TL%dProbUniqClust(2,i)*r),TL%dProbTransition(1,2,i,j)/(TL%dProbUniqClust(2,i))
+               endif
             endif
          enddo
       enddo
       WRITE(iUnit,"(A)") "Transition values/number transitions: Plain;   Debiased"
       do i=0,TL%MaxIndex
-         do j=0,TL%MaxIndex 
+         do j=0,TL%nExcitors+1
             if(TL%dProbTransition(1,2,i,j).ne.0) then
                Call WriteClusterInd(iUnit,i,.false.,TL)
                WRITE(iUnit,"(A)",advance='no') "=>"
@@ -2519,16 +2622,16 @@ enddo
       deallocate(TL%dProbClust)
       deallocate(TL%dProbTransition)
    end subroutine 
-   subroutine LogTransition(TL,C1,C1size,C2,C2size,value,dProbNorm)
+   subroutine LogTransition(TL,C1,C1size,C2,value,dProbNorm)
       use CCMCData, only: CCTransitionLog
       IMPLICIT NONE
       TYPE(CCTransitionLog) TL
       INTEGER C1size,C2size
-      INTEGER C1(C1size),C2(C2size)
+      INTEGER C1(C1size),C2
       INTEGER i1,i2
       REAL*8 value,dProbNorm 
       i1=GetClusterIndex(C1,C1size,TL)
-      i2=GetClusterIndex(C2,C2size,TL)
+      i2=C2-1
    ! We create a transition matrix where each element correpsonds to a cluster.  We encode cluster X=(a_{X_i}) = (x,y,z)  as an 'bit' string in base Det sum_{i=1}^{|X|} (X_i)*(Det)**(i-1)
       TL%dProbTransition(1,1,i1,i2)=TL%dProbTransition(1,1,i1,i2)+value
       TL%dProbTransition(1,2,i1,i2)=TL%dProbTransition(1,2,i1,i2)+1
@@ -2595,6 +2698,10 @@ enddo
 !  This includes multiple selections of the same excitor as well as combinations of excitors which produce a 0 sign.
       TL%dProbUniqClust(1,i)=TL%dProbUniqClust(1,i)+1/(C%dProbNorm*C%dClusterNorm)
       TL%dProbUniqClust(2,i)=TL%dProbUniqClust(2,i)+1
+!      WRITE(6,"(A)",advance='no') "LC: "
+!      Call WriteCluster(6,C,.false.)
+!      Call WriteClusterInd(6,i,.false.,TL)
+!      WRITE(6,"(I)") i
    end subroutine LogCluster
 
 ! Find the largest nMax amplitudes (out of Amps(nDet)) for each excitation level and print them
@@ -2618,7 +2725,7 @@ enddo
          nBest=0
          do i=LevIndex(iLev),LevIndex(iLev+1)-1
             dCur=abs(Amps(i))
-            if(dCur>dMinBest) then
+            if(nBest<nMax.or.dCur>dMinBest) then
                do j=nBest,1,-1
                   if (BestAbsAmp(j)>dCur) exit
                enddo

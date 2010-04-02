@@ -1,5 +1,3 @@
-module soft_exit
-
 ! JSS, based almost entirely on work by GHB.
 
 ! During the calculation, test for the existence of the file CHANGEVARS.  
@@ -28,7 +26,29 @@ module soft_exit
 !         call quiet_stop()
 !     end if
 
-implicit none
+module soft_exit
+
+    use SystemData, only: nel, nBasis, NIfTot
+    use util_mod, only: binary_search
+    use FciMCData, only: iter, CASMin, CASMax, tTruncSpace, tSinglePartPhase,&
+                         SumENum, SumNoatHF, HFPopCyc, ProjEIterSum, &
+                         Histogram, AvAnnihil, VaryShiftCycles, SumDiagSft, &
+                         VaryShiftIter, CurrentDets, CurrentSign, iLutHF, &
+                         TotWalkers,tPrintHighPop
+    use CalcData, only: Tau, DiagSft, SftDamp, StepsSft, SinglesBias, &
+                        OccCASOrbs, VirtCASOrbs, NMCyc, tTruncCAS, &
+                        NEquilSteps, tTruncInitiator, InitiatorWalkNo
+    use DetCalc, only: ICILevel
+    use IntegralsData, only: tPartFreezeCore, NPartFrozen, NHolesFrozen, &
+                             NVirtPartFrozen, NelVirtFrozen, tPartFreezeVirt
+    use Parallel
+    use Input
+    use Logging, only: tHistSpawn, tCalcFCIMCPsi, tIterStartBlock, &
+                       IterStartBlocking, tHFPopStartBlock, NHistEquilSteps
+    use FCIMCLoggingMOD, only: PrintBlocking, RestartBlocking, &
+                               PrintShiftBlocking, RestartShiftBlocking
+    use AnnihilationMod, only: DetermineDetProc
+    implicit none
 
 contains
 
@@ -71,21 +91,13 @@ contains
         !   HISTEQUILSTEPS XXX      Will change the iteration at which the histogramming begins to the value specified.
         !   TRUNCINITIATOR   Will expand the CAS calculation to a TRUNCINITIATOR calculation if DELAYTRUNCINITIATOR is present in the input.
         !   ADDTOINIT XXX    Will change the cutt-off population for which walkers are added to the initiator space.  Pop must be *above* specified value.
+        !   SCALEHF XXX      Will scale the number of walkers at HF by the specified factor
+        !   PRINTHIGHPOPDET  Will print the determinant with the highest population of different sign to the HF.
 
-       use SystemData, only : NEl,nBasis
-       use FciMCData, only : Iter,CASMin,CASMax,tTruncSpace,tSinglePartPhase,SumENum,SumNoatHF,HFPopCyc,ProjEIterSum,Histogram,AvAnnihil
-       use FciMCData, only : VaryShiftCycles,SumDiagSft,VaryShiftIter 
-       use CalcData, only : Tau,DiagSft,SftDamp,StepsSft,SinglesBias,OccCASOrbs,VirtCASOrbs,NMCyc,tTruncCAS,NEquilSteps,tTruncInitiator,InitiatorWalkNo
-       use DetCalc, only : ICILevel 
-       use IntegralsData , only : tPartFreezeCore,NPartFrozen,NHolesFrozen,NVirtPartFrozen,NElVirtFrozen,tPartFreezeVirt
-       use Parallel
-       use Input
-       use Logging, only: tHistSpawn,tCalcFCIMCPsi,tIterStartBlock,IterStartBlocking,tHFPopStartBlock,NHistEquilSteps
-       use FCIMCLoggingMOD, only : PrintBlocking,RestartBlocking,PrintShiftBlocking,RestartShiftBlocking
-       implicit none
-       integer :: error,i,ios,NewNMCyc
+       integer :: error,i,ios,NewNMCyc, pos
        logical :: tSoftExitFound,tWritePopsFound,exists,AnyExist,deleted_file
-       logical :: tEof,any_deleted_file,tChangeParams(25),tSingBiasChange
+       logical :: tEof,any_deleted_file,tChangeParams(27),tSingBiasChange
+       real*8 :: hfScaleFactor
        Character(len=100) :: w
 
        tSoftExitFound=.false.
@@ -103,7 +115,7 @@ contains
                WRITE(6,*) "CHANGEVARS file detected on iteration ",Iter
            ENDIF
 !Set the defaults
-           tChangeParams(1:25)=.false.
+           tChangeParams = .false.
            deleted_file=.false.
            do i=0,nProcessors-1
                ! This causes each processor to attempt to delete
@@ -186,6 +198,11 @@ contains
                        CASE("ADDTOINIT")
                            tChangeParams(25)=.true.
                            CALL Readi(InitiatorWalkNo)
+                       case("SCALEHF")
+                           tChangeParams(26) = .true.
+                           call readf(hfScaleFactor)
+                       case("PRINTHIGHPOPDET")
+                           tChangeParams(27) = .true.
                        END SELECT
                    End Do
                    close(13,status='delete')
@@ -197,7 +214,7 @@ contains
                if (any_deleted_file) exit
            end do
 #ifdef PARALLEL
-           CALL MPI_BCast(tChangeParams,25,MPI_LOGICAL,i,MPI_COMM_WORLD,error)
+           CALL MPI_BCast(tChangeParams,27,MPI_LOGICAL,i,MPI_COMM_WORLD,error)
 #endif
 
            IF(tChangeParams(1)) THEN
@@ -467,6 +484,31 @@ contains
                    WRITE(6,'(A,I5)') "Cutoff population for determinants to be added to the initiator space changed to ",InitiatorWalkNo
                ENDIF
            ENDIF
+           if (tChangeParams(26)) then
+#ifdef PARALLEL
+               call MPI_BCast(HFScaleFactor, 1, MPI_DOUBLE_PRECISION, i, &
+                              MPI_COMM_WORLD, error)
+#endif
+               if (iProcIndex == 0) then
+                   write (6, '(a,f10.4)') "Number at Hartree-Fock scaled by &
+                          &factor: ", hfScaleFactor
+               endif
+
+               SumNoatHF = SumNoatHF * hfScaleFactor
+               if (iProcIndex == DetermineDetProc(iLutHF)) then
+                   pos = binary_search (CurrentDets, iLutHF, NIfTot+1, &
+                                        TotWalkers)
+                   CurrentSign(pos) = CurrentSign(pos) * hfScaleFactor
+               endif
+           endif
+           IF(tChangeParams(27)) THEN
+               tPrintHighPop=.true.
+#ifdef PARALLEL
+               CALL MPI_BCast(tPrintHighPop,1,MPI_LOGICAL,i,MPI_COMM_WORLD,error)
+#endif
+               IF(iProcIndex.eq.0) WRITE(6,'(A)') 'Request to print the determinant with the highest population of different sign to the HF.'
+           ENDIF   
+ 
        endif
 
 99     IF (ios.gt.0) THEN

@@ -927,7 +927,7 @@ FUNCTION MCPATHSPRE(point,NI,BETA,I_P,IPATH,K,G1,NMSH,         &
               DBETA,DLWDB2,HIJS,L,LT,IFRZ,MP2E,NTOTAL,DLWDB,TOTAL,GIDHO,ENERGYLIMS,KSYM)
 
     USE HElem
-    Use Determinants, only: GetHElement3
+    Use Determinants, only: get_helement
     use SystemData, only: BasisFN
     Use Logging, only: PrevarLogging
     use global_utilities
@@ -1130,7 +1130,7 @@ FUNCTION MCPATHSPRE(point,NI,BETA,I_P,IPATH,K,G1,NMSH,         &
                 CALL CALCRHO2(NI,NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,Arr,ALAT,UMAT,RH,NTAY,0,ECORE)
                 RHOII(0)=RH
                 RHOIJ(0,0)=RHOII(0)
-                HIJS(0)=GETHELEMENT3(NI,NI,0)
+                HIJS(0) = get_helement(nI, nI, 0)
 ! These variables have been passed in and represent the precalculated values for 1..I_VMIN-1 vertices
 !Do these variable want to stay the same no matter what vertex level MC we are on?
                 CALL GETSYM(NI,NEL,G1,NBASISMAX,KSYM)

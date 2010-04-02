@@ -2104,10 +2104,11 @@ C.. Set to be totally symmetric
          use Determinants, only : FDet
          use DetCalc, only : ICILevel
          use SystemData, only : CalcDetCycles, CalcDetPrint,tFixLz
-         use mt95, only : genrand_real2 
+         use dSFMT_interface
          use soft_exit, only : ChangeVars
          use Parallel
          use DetBitops, only: EncodeBitDet
+         use util_mod, only: choose
          IMPLICIT NONE
          INTEGER :: IUNIT,OverallSym,j,SpatOrbs,FDetMom
          INTEGER :: FDetiLut(0:NIfTot),ExcitLev,iLut(0:NIfTot)
@@ -2115,7 +2116,7 @@ C.. Set to be totally symmetric
          INTEGER :: Momz
          INTEGER*8 :: Accept,AcceptAll,i
          INTEGER*8 :: ExcitBin(0:NEl),ExcitBinAll(0:NEl)
-         REAL*8 :: FullSpace,r,Choose,Frac
+         REAL*8 :: FullSpace,r,Frac
          REAL*8 :: SizeLevel(0:NEl) 
          LOGICAL :: tTruncSpace,tDummy,tDummy2,tSoftExitFound
          LOGICAL :: tNotAllowed,tAcc,IsAllowedHPHF
@@ -2177,6 +2178,10 @@ C.. Set to be totally symmetric
      &           form='formatted')
          ENDIF
 
+         ! With MerTwistRan the default seed was being used.
+         ! dSFMT does not initialise itself if not already initialised.
+         call dSFMT_init(5489)
+
          do i=1,CalcDetCycles
 
              TotalSym=0
@@ -2194,7 +2199,7 @@ C.. Set to be totally symmetric
                  tNotAllowed=.true.
                  do while(tNotAllowed)
 
-                     CALL genrand_real2(r)
+                     r = genrand_real2_dSFMT()
                      alpha=2*(INT(SpatOrbs*r)+1)
                      IF(.not.BTEST(iLut((alpha-1)/32)
      &                      ,mod((alpha-1),32))) THEN
@@ -2232,7 +2237,7 @@ C.. Set to be totally symmetric
 
                  tNotAllowed=.true.
                  do while(tNotAllowed)
-                     CALL genrand_real2(r)
+                     r = genrand_real2_dSFMT()
                      beta=2*(INT(SpatOrbs*r)+1)-1
                      IF(.not.BTEST(iLut((beta-1)/32)
      &                      ,mod((beta-1),32))) THEN
@@ -2377,7 +2382,7 @@ C.. Set to be totally symmetric
      &                 REAL(AcceptAll,8))*Frac*FullSpace
                  enddo
                  IF(iProcIndex.eq.0) THEN
-                     WRITE(14,"(2I16,G25.10,F30.5)",advance='no') i,    &
+                     WRITE(14,"(2I16,2G35.15)",advance='no') i,         &
      &                  AcceptAll,Frac,Frac*FullSpace
                      do j=0,NEl
                          WRITE(14,"(F30.5)",advance='no') SizeLevel(j)
@@ -2411,7 +2416,7 @@ C.. Set to be totally symmetric
          enddo
 
          IF(iProcIndex.eq.0) THEN
-             WRITE(14,"(2I16,G25.10,F30.5)",advance='no') i,AcceptAll,  &
+             WRITE(14,"(2I16,2G35.15)",advance='no') i,AcceptAll,       &
      &           Frac,Frac*FullSpace
                  do j=0,NEl
                      WRITE(14,"(F30.5)",advance='no') SizeLevel(j)
@@ -2464,12 +2469,13 @@ C.. Set to be totally symmetric
          use SymData , only : TwoCycleSymGens
          use SystemData , only : nEl,G1,nBasis,nOccAlpha,nOccBeta
          use Determinants , only : FDet
+         use util_mod, only: choose
          IMPLICIT NONE
          INTEGER :: ClassCounts(2,0:7),Lim0a,Lim0b,Lim1a,Lim1b,Lim2a
          INTEGER :: Lima(0:7),Limb(0:7),a0,a1,a2,a3,a4,a5,a6,a7,NAlph
          INTEGER :: b0,b1,b2,b3,b4,b5,b6,b7,NBet,i,IUNIT,OverallSym
          INTEGER :: FDetSym,Lim2b
-         REAL*8 :: Choose,Space,SpaceGrow
+         REAL*8 :: Space,SpaceGrow
          LOGICAL :: Sym(0:7)
 
          IF(.not.TwoCycleSymGens) THEN
@@ -2654,6 +2660,7 @@ C.. Set to be totally symmetric
          use SystemData , only : nEl,G1,nBasis,nOccAlpha,nOccBeta,Brr
          use Determinants , only : FDet
          use DetCalc , only : ICILevel
+         use util_mod, only: choose
          IMPLICIT NONE
          INTEGER :: ClassCountsOcc(0:7),Lim0a,Lim0b,Lim1a,Lim1b,Lim2a
          INTEGER :: ClassCountsVirt(0:7),Lim2b,NAlphOcc,NAlphVirt
@@ -2665,7 +2672,7 @@ C.. Set to be totally symmetric
          INTEGER :: b0o,b1o,b2o,b3o,b4o,b5o,b6o,b7o,OverallSym
          INTEGER :: b0v,b1v,b2v,b3v,b4v,b5v,b6v,b7v,NBetOcc,i,IUNIT
          INTEGER :: FDetSym,NBetVirt
-         REAL*8 :: Choose,Space,SpaceGrow,SpaceGrow2
+         REAL*8 :: Space,SpaceGrow,SpaceGrow2
          LOGICAL :: Sym(0:7)
 
          IF(.not.TwoCycleSymGens) THEN

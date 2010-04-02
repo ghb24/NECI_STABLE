@@ -717,6 +717,7 @@ C.. Generate initial density matrix, as well as a guess at the HF DET
       SUBROUTINE GENHFGUESS(FMAT,NSPINS,NSBASIS,R1,R2,WORK,BRR,G1,TRANS,
      &            LMS,FRAND,NELS,HFDET)
          use SystemData, only: BasisFN
+         use Determinants, only: write_det
          Use HElem
          IMPLICIT NONE
          INTEGER NSPINS,NSBASIS
@@ -778,7 +779,7 @@ C.. vector unless transposed
 C            CALL LOWDIN_ORTH(FMAT(1,1,ISPN),NSBASIS,R1,R2,WORK)
          ENDDO
          CALL NECI_SORTI(NEL,HFDET)
-         CALL WRITEDET(6,HFDET,NEL,.TRUE.)
+         call write_det (6, HFDET, .true.)
       END
 C.. Generate an initial determinant of specified spin
       SUBROUTINE GENFDET(BRR,G1,NBASIS,LMS,NEL,FDET)
@@ -797,7 +798,7 @@ C.. vector unless transposed
          NELS(2)=(LMS+NEL)/2
          NELS(1)=NEL-NELS(2)
          WRITE(6,'(4(A,'//int_fmt(nel)//'))') " N_alpha:",NELS(1),      &
-     &   " ;N_beta:",  NELS(2)," ; LMS:",LMS," ; NEl:",NEL
+     &   " ; N_beta:",  NELS(2)," ; LMS:",LMS," ; NEl:",NEL
          NEL=0
          DO IS=1,2
             IF(LMS.GE.0) THEN
@@ -904,6 +905,7 @@ C.. Unrestricted Hartree Fock with a gradient descent method.
      &      UMAT,HFE,HFBASIS,NHFIT,NEL,MS,NSPINS,NSBASIS,HFES,
      &      HFMIX,CMAT,OCMAT,DEDCIJ,DMAT,EDELTA,CDELTA,R1,R2,WORK,TRHF,
      &      IHFMETHOD,TREADHF,FRAND,HFDET,ILOGGING)
+         use Determinants, only: write_det
          IMPLICIT NONE
          INTEGER NSPINS,NSBASIS
          INTEGER NBASIS,G1(*),ISS,nBasisMax(5,*)
@@ -991,7 +993,7 @@ C.. Initialize our HF det in NDET1
                ENDIF
             ENDDO
          ENDDO 
-         CALL WRITEDET(6,NDET1(1),NEL,.TRUE.)
+         call write_det (6, NDET1(1), .true.)
          BR=.TRUE.
          WRITE(6,*) "Iteration   Energy     MSD   Fock Energy"
          IHFIT=0

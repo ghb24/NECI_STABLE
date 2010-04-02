@@ -6,34 +6,27 @@ MODULE FciMCLoggingMod
     USE Global_utilities
     USE Parallel
     USE HElem , only : HElement
-    USE Logging , only : tPrintTriConnections,TriConMax,NoTriConBins,tHistTriConHEls,NoTriConHElBins,TriConHElSingMax,TriConHElDoubMax
-    USE Logging , only : tPrintHElAccept
+    USE Logging , only : tSaveBlocking,tBlockEveryIteration,HistInitPops,HistInitPopsTag,AllHistInitPops,AllHistInitPopsTag
     USE SystemData , only : NEl,NIfTot,NIfDBO
     USE SymData , only : nSymLabels
-    USE Determinants , only : GetHElement3,GetHElement4
+    USE Determinants , only : get_helement, get_helement_excit
     use GenRandSymExcitNUMod , only : GenRandSymExcitScratchNU,ScratchSize
     USE CalcData , only : NMCyc,StepsSft
     use DetBitOps, only: DetBitEQ, FindExcitBitDet, FindBitExcitLevel
+    use constants, only: dp
 
     IMPLICIT NONE
     save
 
     INTEGER , PARAMETER :: Root=0   !This is the rank of the root processor
-    INTEGER , PARAMETER :: r2=kind(0.d0)
-    REAL*8 , ALLOCATABLE :: SignCohTriHist(:,:),SignIncohTriHist(:,:),SignCohHFTriHist(:,:),SignIncohHFTriHist(:,:),TriConnHElHistSing(:,:),TriConnHElHistDoub(:,:)
-    REAL*8 , ALLOCATABLE :: AllSignCohTriHist(:,:),AllSignIncohTriHist(:,:),AllSignCohHFTriHist(:,:),AllSignIncohHFTriHist(:,:)
-    REAL*8 , ALLOCATABLE :: AllTriConnHElHistSing(:,:),AllTriConnHElHistDoub(:,:),TriHjkHistSing(:,:),TriHjkHistDoub(:,:),AllTriHjkHistSing(:,:),AllTriHjkHistDoub(:,:)
-    REAL*8 :: NoSignCohTri,NoSignInCohTri,SignCohTri,SignInCohTri,TriConHEls(3,2) 
-    INTEGER :: SignCohTriHistTag,SignIncohTriHistTag,SignCohHFTriHistTag,SignIncohHFTriHistTag,TriConnHElHistSingTag,TriConnHElHistDoubTag
-    INTEGER :: AllSignCohTriHistTag,AllSignIncohTriHistTag,AllSignCohHFTriHistTag,AllSignIncohHFTriHistTag
-    INTEGER :: AllTriConnHElHistSingTag,AllTriConnHElHistDoubTag,TriHjkHistSingTag,TriHjkHistDoubTag,AllTriHjkHistSingTag,AllTriHjkHistDoubTag
     REAL*8 :: NoNotAccept,NoAccept,TotHElNotAccept,TotHElAccept,MaxHElNotAccept,MinHElAccept
-    REAL*8 :: NoPosSpinCoup,NoNegSpinCoup,SumPosSpinCoup,SumNegSpinCoup,SumHFCon,SumSpinCon
+    REAL*8 :: NoPosSpinCoup,NoNegSpinCoup,SumPosSpinCoup,SumNegSpinCoup,SumHFCon,SumSpinCon,InitBinMin,InitBinIter,InitBinMax
 
     REAL*8 , ALLOCATABLE :: CurrBlockSum(:),BlockSum(:),BlockSqrdSum(:)
     REAL*8 , ALLOCATABLE :: CurrShiftBlockSum(:),ShiftBlockSum(:),ShiftBlockSqrdSum(:)
     INTEGER :: CurrBlockSumTag,BlockSumTag,BlockSqrdSumTag,TotNoBlockSizes,StartBlockIter
     INTEGER :: CurrShiftBlockSumTag,ShiftBlockSumTag,ShiftBlockSqrdSumTag,TotNoShiftBlockSizes,StartShiftBlockIter
+
 
 
 
@@ -55,7 +48,11 @@ MODULE FciMCLoggingMod
         StartBlockIter=Iter 
         ! This is the iteration the blocking was started.
 
-        TotNoBlockSizes=FLOOR( (LOG10((REAL(NMCyc-StartBlockIter))/(REAL(StepsSft)))) / (LOG10(2.D0)) )
+        IF(tBlockEveryIteration) THEN
+            TotNoBlockSizes=FLOOR( (LOG10(REAL(NMCyc-StartBlockIter))) / (LOG10(2.D0)) )
+        ELSE
+            TotNoBlockSizes=FLOOR( (LOG10((REAL(NMCyc-StartBlockIter))/(REAL(StepsSft)))) / (LOG10(2.D0)) )
+        ENDIF
         WRITE(6,*) 'Beginning blocking analysis of the errors in the projected energies.'
         WRITE(6,"(A,I6)") "The total number of different block sizes possible is: ",TotNoBlockSizes
         ! The blocks will have size 1,2,4,8,....,2**TotNoBlockSizes
@@ -130,7 +127,11 @@ MODULE FciMCLoggingMod
         ! ChangeVars gets called at the end of the run, wont actually start until the next iteration.
 
         TotNoBlockSizes=0
-        TotNoBlockSizes=FLOOR( (LOG10((REAL(NMCyc-StartBlockIter))/(REAL(StepsSft)))) / (LOG10(2.D0)) )
+        IF(tBlockEveryIteration) THEN
+            TotNoBlockSizes=FLOOR( (LOG10(REAL(NMCyc-StartBlockIter))) / (LOG10(2.D0)) )
+        ELSE
+            TotNoBlockSizes=FLOOR( (LOG10((REAL(NMCyc-StartBlockIter))/(REAL(StepsSft)))) / (LOG10(2.D0)) )
+        ENDIF
 
         CurrBlockSum(:)=0.D0
         BlockSum(:)=0.D0
@@ -163,7 +164,11 @@ MODULE FciMCLoggingMod
         REAL*8 :: AllENumCyc,AllHFCyc
 
 ! First we need to find out what number contribution to the blocking this is.
-        NoContrib=((Iter-StartBlockIter)/StepsSft)+1
+        IF(tBlockEveryIteration) THEN
+            NoContrib=(Iter-StartBlockIter)+1
+        ELSE
+            NoContrib=((Iter-StartBlockIter)/StepsSft)+1
+        ENDIF
 
 ! We then need to add the contribution from this cycle to all the relevant blocks.        
         
@@ -223,16 +228,31 @@ MODULE FciMCLoggingMod
     SUBROUTINE PrintBlocking(Iter)
         INTEGER :: i,NoBlocks,Iter,NoBlockSizes,NoContrib
         REAL*8 :: MeanEn,MeanEnSqrd,StandardDev,Error,ErrorinError
+        CHARACTER(len=30) :: abstr
 
 !First find out how many blocks would have been formed with the number of iterations actually performed. 
 
         NoContrib=0
-        NoContrib=((Iter-StartBlockIter)/StepsSft)+1
+        IF(tBlockEveryIteration) THEN
+            NoContrib=(Iter-StartBlockIter)+1
+        ELSE
+            NoContrib=((Iter-StartBlockIter)/StepsSft)+1
+        ENDIF
+        IF(NoContrib.eq.1) RETURN
 
         NoBlockSizes=0
         NoBlockSizes=FLOOR( (LOG10(REAL(NoContrib-1)))/ (LOG10(2.D0)))
 
-        OPEN(62,file='BLOCKINGANALYSIS',status='unknown')
+        IF(tSaveBlocking) THEN
+!We are saving the blocking files - write to new file.
+            abstr=''
+            write(abstr,'(I12)') Iter
+            abstr='BLOCKINGANALYSIS-'//adjustl(abstr)
+            OPEN(62,file=abstr,status='unknown')
+        ELSE
+            OPEN(62,file='BLOCKINGANALYSIS',status='unknown')
+        ENDIF
+
         WRITE(62,'(I4,A,I4)') NoBlockSizes,' blocks were formed with sizes from 1 to ',(2**(NoBlockSizes))
         WRITE(62,'(3A16,5A20)') '1.Block No.','2.Block Size  ','3.No. of Blocks','4.Mean E','5.Mean E^2','6.SD','7.Error','8.ErrorinError'
 
@@ -240,7 +260,6 @@ MODULE FciMCLoggingMod
             
             ! First need to find out how many blocks of this particular size contributed to the final sum in BlockSum.
             ! NoContrib is the total number of contributions to the blocking throughout the simulation.
-
             NoBlocks=0
             NoBlocks=FLOOR(REAL(NoContrib/(2**i)))
             ! This finds the lowest integer multiple of 2**i (the block size). 
@@ -359,442 +378,66 @@ MODULE FciMCLoggingMod
     END SUBROUTINE FinaliseShiftBlocking
 
 
+    SUBROUTINE InitHistInitPops()
+        USE CalcData , only : InitiatorWalkNo
+        INTEGER :: ierr
+    
 
-    SUBROUTINE InitTriHElStats()
-        INTEGER :: i,ierr
-        REAL*8 :: BinVal,BinIter
-        CHARACTER(len=*), PARAMETER :: this_routine='InitTriHElStats'
+        ALLOCATE(HistInitPops(2,25000),stat=ierr)
+        CALL LogMemAlloc('HistInitPops',50000,4,'InitHistInitPops',HistInitPopsTag,ierr)
+        HistInitPops(:,:)=0
 
-        IF(tPrintTriConnections) THEN
-            NoSignCohTri=0.D0
-            NoSignInCohTri=0.D0
-            SignCohTri=0.D0
-            SignInCohTri=0.D0
-            IF(iProcIndex.eq.root) THEN
-                OPEN(77,file='TriConnTotals',status='unknown')
-                WRITE(77,"(A12,2A24,8A20)") "1.Iteration","2.No. Sign Coh Loops","3.No. Sign Incoh Loops","4.Sign Coh Tot","5.Sign Incoh Tot","6.Sign Coh/Iter",&
-                                                &"7.Sign Incoh/Iter","8.Sign Coh/Loop","9.Sign Incoh/Loop","10.Ratio No.","11.Ratio Val."
-            ENDIF
-
-! Set up histogramms.
-            ALLOCATE(SignCohTriHist(2,NoTriConBins),stat=ierr)
-            CALL LogMemAlloc('SignCohTriHist',2*NoTriConBins,8,this_routine,SignCohTriHistTag,ierr)
-            ALLOCATE(SignIncohTriHist(2,NoTriConBins),stat=ierr)
-            CALL LogMemAlloc('SignIncohTriHist',2*NoTriConBins,8,this_routine,SignIncohTriHistTag,ierr)
- 
-            ALLOCATE(SignCohHFTriHist(2,NoTriConBins),stat=ierr)
-            CALL LogMemAlloc('SignCohHFTriHist',2*NoTriConBins,8,this_routine,SignCohHFTriHistTag,ierr)
-            ALLOCATE(SignIncohHFTriHist(2,NoTriConBins),stat=ierr)
-            CALL LogMemAlloc('SignIncohHFTriHist',2*NoTriConBins,8,this_routine,SignIncohHFTriHistTag,ierr)
- 
-            SignCohTriHist(:,:)=0.D0
-            SignIncohTriHist(:,:)=0.D0
-            SignCohHFTriHist(:,:)=0.D0
-            SignIncohHFTriHist(:,:)=0.D0
-
-            IF(iProcIndex.eq.Root) THEN
-                ALLOCATE(AllSignCohTriHist(2,NoTriConBins),stat=ierr)
-                CALL LogMemAlloc('AllSignCohTriHist',2*NoTriConBins,8,this_routine,AllSignCohTriHistTag,ierr)
-                ALLOCATE(AllSignIncohTriHist(2,NoTriConBins),stat=ierr)
-                CALL LogMemAlloc('AllSignIncohTriHist',2*NoTriConBins,8,this_routine,AllSignIncohTriHistTag,ierr)
-     
-                ALLOCATE(AllSignCohHFTriHist(2,NoTriConBins),stat=ierr)
-                CALL LogMemAlloc('AllSignCohHFTriHist',2*NoTriConBins,8,this_routine,AllSignCohHFTriHistTag,ierr)
-                ALLOCATE(AllSignIncohHFTriHist(2,NoTriConBins),stat=ierr)
-                CALL LogMemAlloc('AllSignIncohHFTriHist',2*NoTriConBins,8,this_routine,AllSignIncohHFTriHistTag,ierr)
-     
-                AllSignCohTriHist(:,:)=0.D0
-                AllSignIncohTriHist(:,:)=0.D0
-                AllSignCohHFTriHist(:,:)=0.D0
-                AllSignIncohHFTriHist(:,:)=0.D0
-            ENDIF
- 
-            BinIter=ABS(TriConMax)/REAL(NoTriConBins)
-
-            BinVal=0.D0
-            do i=1,NoTriConBins
-                SignCohTriHist(1,i)=BinVal
-                SignIncohTriHist(1,i)=(-1)*BinVal
-                SignCohHFTriHist(1,i)=BinVal
-                SignIncohHFTriHist(1,i)=(-1)*BinVal
-                BinVal=BinVal+BinIter
-            enddo
+        IF(iProcIndex.eq.0) THEN
+            ALLOCATE(AllHistInitPops(2,25000),stat=ierr)
+            CALL LogMemAlloc('HistInitPops',50000,4,'InitHistInitPops',AllHistInitPopsTag,ierr)
+            AllHistInitPops(:,:)=0
         ENDIF
 
-        IF(tHistTriConHEls) THEN
-            TriConHEls(:,:)=0.D0
-            ! TriConHEls(1,1) - number of singles
-            ! TriConHEls(1,2) - sum of single elements
-            ! TriConHEls(2,1) - number of doubles
-            ! TriConHEls(2,2) - sum of double elements
-            ! TriConHEls(3,1) - number of Hjk elements
-            ! TriConHEls(3,2) - sum of Hjk elements
-            ALLOCATE(TriConnHElHistSing(2,NoTriConHElBins),stat=ierr)
-            CALL LogMemAlloc('TriConnHElHistSing',2*NoTriConHElBins,8,this_routine,TriConnHElHistSingTag,ierr)
-            ALLOCATE(TriConnHElHistDoub(2,NoTriConHElBins),stat=ierr)
-            CALL LogMemAlloc('TriConnHElHistDoub',2*NoTriConHElBins,8,this_routine,TriConnHElHistDoubTag,ierr)
-            ALLOCATE(TriHjkHistSing(2,NoTriConHElBins),stat=ierr)
-            CALL LogMemAlloc('TriHjkHistSing',2*NoTriConHElBins,8,this_routine,TriHjkHistSingTag,ierr)
-            ALLOCATE(TriHjkHistDoub(2,NoTriConHElBins),stat=ierr)
-            CALL LogMemAlloc('TriHjkHistDoub',2*NoTriConHElBins,8,this_routine,TriHjkHistDoubTag,ierr)
-
-            TriConnHElHistSing(:,:)=0.D0
-            TriConnHElHistDoub(:,:)=0.D0
-            TriHjkHistSing(:,:)=0.D0
-            TriHjkHistDoub(:,:)=0.D0
- 
-            IF(iProcIndex.eq.Root) THEN
-                ALLOCATE(AllTriConnHElHistSing(2,NoTriConHElBins),stat=ierr)
-                CALL LogMemAlloc('AllTriConnHElHistSing',2*NoTriConHElBins,8,this_routine,AllTriConnHElHistSingTag,ierr)
-                ALLOCATE(AllTriConnHElHistDoub(2,NoTriConHElBins),stat=ierr)
-                CALL LogMemAlloc('AllTriConnHElHistDoub',2*NoTriConHElBins,8,this_routine,AllTriConnHElHistDoubTag,ierr)
-                ALLOCATE(AllTriHjkHistSing(2,NoTriConHElBins),stat=ierr)
-                CALL LogMemAlloc('AllTriHjkHistSing',2*NoTriConHElBins,8,this_routine,AllTriHjkHistSingTag,ierr)
-                ALLOCATE(AllTriHjkHistDoub(2,NoTriConHElBins),stat=ierr)
-                CALL LogMemAlloc('AllTriHjkHistDoub',2*NoTriConHElBins,8,this_routine,AllTriHjkHistDoubTag,ierr)
-
-                AllTriConnHElHistSing(:,:)=0.D0
-                AllTriConnHElHistDoub(:,:)=0.D0
-                AllTriHjkHistSing(:,:)=0.D0
-                AllTriHjkHistDoub(:,:)=0.D0
-            ENDIF
-     
-            BinIter=ABS(2*TriConHElSingMax)/REAL(NoTriConHElBins)
-            BinVal=(-1)*TriConHElSingMax
-            do i=1,NoTriConHElBins
-                TriConnHElHistSing(1,i)=BinVal
-                TriHjkHistSing(1,i)=BinVal
-                BinVal=BinVal+BinIter
-            enddo
- 
-            BinIter=ABS(2*TriConHElDoubMax)/REAL(NoTriConHElBins)
-            BinVal=(-1)*TriConHElDoubMax
-            do i=1,NoTriConHElBins
-                TriConnHElHistDoub(1,i)=BinVal
-                TriHjkHistDoub(1,i)=BinVal
-                BinVal=BinVal+BinIter
-            enddo
-
-        ENDIF
+        InitBinMin=log(REAL(InitiatorWalkNo+1))
+        InitBinMax=log(1000000.D0)
+        InitBinIter=ABS(InitBinMax-InitBinMin)/25000.0
 
 
-        IF(tPrintHElAccept) THEN
-            NoNotAccept=0.D0
-            NoAccept=0.D0
-            TotHElNotAccept=0.D0
-            TotHElAccept=0.D0
-            MaxHElNotAccept=0.D0
-            MinHElAccept=0.D0
-            IF(iProcIndex.eq.root) THEN
-                OPEN(84,file='HElsAcceptance',status='unknown')
-                WRITE(84,'(A10,7A20)') "Iteration","No. Not Accepted","No. Accepted","Ratio NotAcc/Acc","Av.HEl Not Accept","Av.HEl Accept","Max HEl Not Accept","Min HEl Accept"
-            ENDIF
-        ENDIF
-
-    ENDSUBROUTINE InitTriHElStats
+    END SUBROUTINE InitHistInitPops
 
 
+    SUBROUTINE WriteInitPops(Iter)
+        CHARACTER(len=21) :: abstr
+        INTEGER :: i,Iter,error
+        REAL*8 :: InitBinCurr
 
-
-    SUBROUTINE FindSpinCoupHEl(iLutHF,iLutCurr)
-! Fed into here is a doubly excited occupied determinant - want to take the two excited orbitals and flip their spins.
-! Then find the coupling H element between the original and spin-flipped determinants and add it to the stats.
-        USE HPHFRandExcitMod , only : FindExcitBitDetSym 
-        use DetBitOps, only: DecodeBitdet
-        use SystemData, only: NIfTot, nel
-        INTEGER :: iLutCurr(0:NIfTot),iLutHF(0:NIfTot),i
-        INTEGER :: iLutSym(0:NIfTot),nI(NEl),nJ(NEl),nHF(NEl),Ex(2,2)
-        TYPE(HElement) :: SpinCoupHEl,HElHFI,HElHFJ
-        LOGICAL :: DetsEqSpinCoup,tSign
-
-! First get the spin flipped determinant.
-! Can do this in two ways.  Either flip the spin of all electrons - this means that doubly occupied spat orbs will be unchanged or
-
-        CALL FindExcitBitDetSym(iLutCurr,iLutSym)
-
-
-! - just flip the sign of the two excited electrons.
-!        CALL GetBitExcitation(iLutHF,iLutCurr,Ex,tSign)
-        ! Electrons Ex(1,1) and Ex(1,2) are excited to Ex(2,1) and Ex(2,2)
-
-
-! Now find the HElement between these two determinants.        
-        
-        CALL DecodeBitDet(nI,iLutCurr(0:NIfTot))
-        CALL DecodeBitDet(nJ,iLutSym(0:NIfTot))
-
-        CALL DecodeBitDet(nHF,iLutHF(0:NIfTot))
-
-! Want to replace the excited electrons in nI with the spin flipped versions.
-!        nJ(:)=nI(:)
-!        do i=1,NEl
-!            IF(nJ(i).eq.Ex(2,1)) THEN
-!                IF(MOD(nJ(i),2).eq.0) THEN
-!                    nJ(i)=Ex(2,1)-1
-!                ELSE
-!                    nJ(i)=Ex(2,1)+1
-!                ENDIF
-!            ELSEIF(nJ(i).eq.Ex(2,2)) THEN
-!                IF(MOD(nJ(i),2).eq.0) THEN
-!                    nJ(i)=Ex(2,2)-1
-!                ELSE
-!                    nJ(i)=Ex(2,2)+1
-!                ENDIF
-!            ENDIF
-!        enddo
-
-
-        DetsEqSpinCoup=.false.
-        DetsEqSpinCoup=DetBitEQ(iLutCurr(0:NIfTot),iLutSym(0:NIfTot),NIfDBO)
-
-        HElHFI=GetHElement3(nHF,nI,-1)
-        HElHFJ=GetHElement3(nHF,nJ,-1)
-
-        IF(.not.DetsEqSpinCoup) THEN
-
-            SpinCoupHEl=GetHElement3(nI,nJ,-1)
-
-            IF((((REAL(HElHFI%v,r2)).lt.0.D0).and.((REAL(HElHFJ%v,r2)).gt.0.D0)).or.(((REAL(HElHFI%v,r2)).gt.0.D0).and.((REAL(HElHFJ%v,r2)).lt.0.D0))) THEN
-!                WRITE(6,*) '*'
-!                WRITE(6,'(A30,F15.6,A30,F15.6)') 'HEl between HF and one det : ',REAL(HElHFI%v,r2),' and to the spin coupled : ',REAL(HElHFJ%v,r2)
-!                WRITE(6,*) 'HFDet',nHF(:)
-!                WRITE(6,*) 'First Det',nI(:)
-!                WRITE(6,*) 'Second Det',nJ(:)
-
-                IF((REAL(SpinCoupHEl%v,r2)).lt.0.D0) THEN
-                    NoNegSpinCoup=NoNegSpinCoup+1.D0
-                    SumNegSpinCoup=SumNegSpinCoup+REAL(SpinCoupHEl%v,r2)
-                ELSEIF((REAL(SpinCoupHEl%v,r2)).gt.0.D0) THEN
-                    NoPosSpinCoup=NoPosSpinCoup+1.D0
-                    SumPosSpinCoup=SumPosSpinCoup+REAL(SpinCoupHEl%v,r2)
-                ENDIF
-!                WRITE(6,*) 'Spin coupled HEl',REAL(SpinCoupHEl%v,r2)            
-                SumHFCon=SumHFCon+ABS(REAL(HElHFI%v,r2))
-                SumSpinCon=SumSpinCon+ABS(REAL(SpinCoupHEl%v,r2))
-
-            ENDIF
-
-            IF(((((REAL(HElHFI%v,r2)).lt.0.D0).and.((REAL(HElHFJ%v,r2)).lt.0.D0)).or.(((REAL(HElHFI%v,r2)).gt.0.D0).and.((REAL(HElHFJ%v,r2)).gt.0.D0)))&
-            &.and.(REAL(SpinCoupHEl%v,r2).ne.0.D0)) THEN
-                WRITE(6,*) '*'
-                WRITE(6,'(A30,F15.6,A30,F15.6)') 'HEl between HF and one det : ',REAL(HElHFI%v,r2),' and to the spin coupled : ',REAL(HElHFJ%v,r2)
-                WRITE(6,*) 'HFDet',nHF(:)
-                WRITE(6,*) 'First Det',nI(:)
-                WRITE(6,*) 'Second Det',nJ(:)
-
-                WRITE(6,*) 'Spin coupled HEl',REAL(SpinCoupHEl%v,r2)            
-                CALL FLUSH(6)
-                WRITE(6,*) '******* Determinants have the same sign with HF, but non-zero connecting element.'
-!                CALL Stop_All("FindSpinCoupHEl","Determinants have the same sign with HF, but non-zero connecting element.")
-            ENDIF
-        ENDIF
-
-
-    ENDSUBROUTINE FindSpinCoupHEl
-
-
-
-    SUBROUTINE PrintSpinCoupHEl(Iteration)
-        REAL*8 :: SpinCoupHElStats(4),AllSpinCoupHElStats(4)
-        INTEGER :: error,Iteration
-
-!Write to files the sum of the sign coherent and incoherent triangles. 
-        SpinCoupHElStats(1)=NoPosSpinCoup
-        SpinCoupHElStats(2)=NoNegSpinCoup
-        SpinCoupHElStats(3)=SumPosSpinCoup
-        SpinCoupHElStats(4)=SumNegSpinCoup
-        AllSpinCoupHElStats(:)=0.D0
+!This will open a file called InitPops-"Iter" on unit number 17.
+        abstr=''
+        write(abstr,'(I12)') Iter
+        abstr='InitPops-'//adjustl(abstr)
 
 #ifdef PARALLEL
-        CALL MPI_Reduce(SpinCoupHElStats,AllSpinCoupHElStats,4,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
+        CALL MPI_Reduce(HistInitPops,AllHistInitPops,2*25000,MPI_INTEGER,MPI_SUM,0,MPI_COMM_WORLD,error)
 #else        
-        AllSpinCoupHElStats=SpinCoupHElStats
+        AllHistInitPops(:,:)=HistInitPops(:,:)
 #endif
 
-        IF(iProcIndex.eq.Root) THEN
+        IF(iProcIndex.eq.0) THEN
+            OPEN(42,FILE=abstr,STATUS='unknown')
 
-!            WRITE(87,'(I8,10F19.6)') Iteration,AllSpinCoupHElStats(1),AllSpinCoupHElStats(2),AllSpinCoupHElStats(3),AllSpinCoupHElStats(4),(AllSpinCoupHElStats(3)+AllSpinCoupHElStats(4)),&
-            WRITE(87,'(I8,11F18.6)') Iteration,AllSpinCoupHElStats(1),AllSpinCoupHElStats(2),AllSpinCoupHElStats(3),AllSpinCoupHElStats(4),&
-                                             &(AllSpinCoupHElStats(1)/REAL(Iteration)),(AllSpinCoupHElStats(2)/REAL(Iteration)),(AllSpinCoupHElStats(3)/REAL(Iteration)),&
-!                                             &(AllSpinCoupHElStats(4)/REAL(Iteration)),((AllSpinCoupHElStats(3)+AllSpinCoupHElStats(4))/REAL(Iteration))
-                                             &(AllSpinCoupHElStats(4)/REAL(Iteration)),SumHFCon,SumSpinCon,SumSpinCon/SumHFCon
-        ENDIF
+            InitBinCurr=(-1)*InitBinMax            
+            do i=25000,1,-1
+                IF(AllHistInitPops(1,i).ne.0) WRITE(42,'(F20.10,2I20)') InitBinCurr,(-1)*(NINT(EXP(ABS(InitBinCurr)))),AllHistInitPops(1,i)
+                InitBinCurr=InitBinCurr+InitBinIter
+            enddo
 
-    ENDSUBROUTINE PrintSpinCoupHEl
+            InitBinCurr=InitBinMin
+            do i=1,25000
+                IF(AllHistInitPops(2,i).ne.0) WRITE(42,'(F20.10,2I20)') InitBinCurr,NINT(EXP(InitBinCurr)),AllHistInitPops(2,i)
+                InitBinCurr=InitBinCurr+InitBinIter
+            enddo
  
-
-
-
-    SUBROUTINE FindTriConnections(DetCurr,iLutnJ,iLutHF,nJ,IC,Ex,pDoubles,tFilled,tParity,Scratch1,Scratch2,exflag)
-        use systemdata, only: nifd
-        TYPE(HElement) :: Hjk,Hij,Hik,HEl
-        INTEGER :: iLutnJ(0:NIfTot),k,DetCurr(NEl),nJ(NEl),IC,Ex(2,2),Scratch1(ScratchSize),Scratch2(ScratchSize)
-        INTEGER :: nK(NEl),IC2,IC3,Ex2(2,2),iLutnJ2(0:NIfTot),iLutnK(0:NIfTot),BinNo,NoPos,NoNeg,ICgen,iLutHF(0:NIfTot),exflag
-        LOGICAL :: tParity2,DetsEqTri,tHF,tFilled,tParity
-        REAL*8 :: Prob2,pDoubles
-        
-
-        CALL GenRandSymExcitScratchNU(DetCurr,iLutnJ,nK,pDoubles,IC2,Ex2,tParity2,exFlag,Prob2,Scratch1,Scratch2,tFilled)
-
-        ! Need to check that the determinant we just generated is not the same as nJ.
-        DetsEqTri=.false.
-
-        ! These routines find the bit representation of nJ and nK given the excitation matrices Ex and Ex2 respectively.
-        CALL FindExcitBitDet(iLutnJ,iLutnJ2,IC,Ex)
-        CALL FindExcitBitDet(iLutnJ,iLutnK,IC2,Ex2)
-
-        DetsEqTri=DetBitEQ(iLutnJ2(0:NIfTot),iLutnK(0:NIfTot),NIfDBO)
-
-        IF(.not.DetsEqTri) THEN
-            ! Add the connecting elements to the relevant sum.
-
-            ! First quickly test if any of the determinants are the HF.
-            tHF=.false.
-            tHF=DetBitEQ(iLutHF(0:NIfTot),iLutnJ(0:NIfTot),NIfDBO)
-            IF(.not.tHF) tHF=DetBitEQ(iLutHF(0:NIfTot),iLutnJ2(0:NIfTot),NIfDBO)
-            IF(.not.tHF) tHF=DetBitEQ(iLutHF(0:NIfTot),iLutnK(0:NIfTot),NIfDBO)
-
-            ! Calculate Hjk first (connecting element between two excitations), because if this is 0, no need to go further.
-            IC3 = FindBitExcitLevel(iLutnJ2, iLutnK, NEl)
-            Hjk=GetHElement3(nJ,nK,IC3)
-
-            ! Histogram and add in the Hjk elements - regardless of whether or not this is 0.
-            ! If the connection is not via a double or a single, the element will not be histogrammed, but it will always be 0,
-            ! and this will be added into the sum.
-
-            TriConHEls(3,1)=TriConHEls(3,1)+1.D0
-            TriConHEls(3,2)=TriConHEls(3,2)+ABS(REAL(Hjk%v,r2))
-            IF(IC3.eq.1) THEN
-                BinNo=CEILING((REAL(Hjk%v,r2)+TriConHElSingMax)*NoTriConHElBins)/(2*TriConHElSingMax)
-                TriHjkHistSing(2,BinNo)=TriHjkHistSing(2,BinNo)+1.D0
-            ELSEIF(IC3.eq.2) THEN
-                BinNo=CEILING((REAL(Hjk%v,r2)+TriConHElDoubMax)*NoTriConHElBins)/(2*TriConHElDoubMax)
-                TriHjkHistDoub(2,BinNo)=TriHjkHistDoub(2,BinNo)+1.D0
-            ENDIF 
-
-            ! Now histogram all the stats from the whole loops.
-            IF((REAL(Hjk%v,r2)).ne.0.D0) THEN
-                NoPos=0
-                NoNeg=0
-                IF((REAL(Hjk%v,r2)).gt.0.D0) NoPos=NoPos+1
-                IF((REAL(Hjk%v,r2)).lt.0.D0) NoNeg=NoNeg+1
-
-                Hij=GetHElement4(DetCurr,nJ,IC,Ex,tParity)
-                IF((REAL(Hij%v,r2)).gt.0.D0) NoPos=NoPos+1
-                IF((REAL(Hij%v,r2)).lt.0.D0) NoNeg=NoNeg+1
-
-                Hik=GetHElement4(DetCurr,nK,IC2,Ex2,tParity2)
-                IF((REAL(Hik%v,r2)).gt.0.D0) NoPos=NoPos+1
-                IF((REAL(Hik%v,r2)).lt.0.D0) NoNeg=NoNeg+1
-
-                ! If there are 1 or 3 positive elements, the triangular connection is 'sign coherent'.
-                ! i.e. if a walker starts with a positive sign at i, it would return to i with a positive sign after completing the 
-                ! three cycle loop.
-                ! If there are 0 or 2 positive elements, the walker would return with the opposite sign from its starting point, 
-                ! and the loop is considered 'sign incoherent'.
-
-                IF((NoPos.eq.1).or.(NoPos.eq.3)) THEN
-                    SignCohTri=SignCohTri+(REAL(Hjk%v,r2)*REAL(Hij%v,r2)*REAL(Hik%v,r2))
-                    NoSignCohTri=NoSignCohTri+1.D0
-                    BinNo=CEILING(((REAL(Hjk%v,r2)*REAL(Hij%v,r2)*REAL(Hik%v,r2))*NoTriConBins)/TriConMax)
-                    IF((BinNo.gt.NoTriConBins)) THEN
-                        WRITE(6,*) 'The value about to be histogrammed is :',(REAL(Hjk%v,r2)*REAL(Hij%v,r2)*REAL(Hik%v,r2))
-                        CALL FLUSH(6)
-                        CALL Stop_All('PerformFCIMCCycle','Trying to histogram the sign coherent triangles of determinants, &
-                                                                                & but a value is outside the chosen range.')
-                    ELSEIF((BinNo.le.0).and.((REAL(Hjk%v,r2)*REAL(Hij%v,r2)*REAL(Hik%v,r2)).ne.0.D0)) THEN
-                        WRITE(6,*) 'The value about to be histogrammed is :',(REAL(Hjk%v,r2)*REAL(Hij%v,r2)*REAL(Hik%v,r2))
-                        CALL FLUSH(6)
-                        CALL Stop_All('PerformFCIMCCycle','Trying to histogram the sign coherent triangles of determinants, &
-                                                                                & but a value is below 0.')
-                    ELSEIF(BinNo.gt.0) THEN
-                        SignCohTriHist(2,BinNo)=SignCohTriHist(2,BinNo)+1.D0
-                        IF(tHF) SignCohHFTriHist(2,BinNo)=SignCohHFTriHist(2,BinNo)+1.D0
-                    ENDIF
-                ELSEIF((NoNeg.eq.1).or.(NoNeg.eq.3)) THEN
-                    SignIncohTri=SignIncohTri+(REAL(Hjk%v,r2)*REAL(Hij%v,r2)*REAL(Hik%v,r2))
-                    NoSignIncohTri=NoSignIncohTri+1.D0
-                    BinNo=CEILING((ABS((REAL(Hjk%v,r2)*REAL(Hij%v,r2)*REAL(Hik%v,r2)))*NoTriConBins)/TriConMax)
-                    IF((BinNo.gt.NoTriConBins)) THEN
-                        WRITE(6,*) 'The value about to be histogrammed is :',(REAL(Hjk%v,r2)*REAL(Hij%v,r2)*REAL(Hik%v,r2))
-                        CALL FLUSH(6)
-                        CALL Stop_All('PerformFCIMCCycle','Trying to histogram the sign coherent triangles of determinants, &
-                                                                                & but a value is outside the chosen range.')
-                    ELSEIF((BinNo.le.0).and.((REAL(Hjk%v,r2)*REAL(Hij%v,r2)*REAL(Hik%v,r2)).ne.0.D0)) THEN
-                        WRITE(6,*) 'The value about to be histogrammed is :',(REAL(Hjk%v,r2)*REAL(Hij%v,r2)*REAL(Hik%v,r2))
-                        CALL FLUSH(6)
-                        CALL Stop_All('PerformFCIMCCycle','Trying to histogram the sign coherent triangles of determinants, &
-                                                                                & but a value is below 0.')
-                    ELSEIF(BinNo.gt.0) THEN 
-                        SignIncohTriHist(2,BinNo)=SignIncohTriHist(2,BinNo)+1.D0
-                        IF(tHF) SignIncohHFTriHist(2,BinNo)=SignIncohHFTriHist(2,BinNo)+1.D0
-                    ENDIF
-                ENDIF
-
-                ! TriConHEls(1,1) - number of singles
-                ! TriConHEls(1,2) - sum of single elements
-                ! TriConHEls(2,1) - number of doubles
-                ! TriConHEls(2,2) - sum of double elements
-         
-                k=1
-                do while (k.le.3)
-                    ! consider each of the 3 H elements, whose excitation levels have been calculated.
-                    IF(k.eq.1) THEN
-                        ICgen=IC3
-                        HEl=Hjk
-                    ELSEIF(k.eq.2) THEN
-                        ICgen=IC2
-                        HEl=Hik
-                    ELSEIF(k.eq.3) THEN
-                        ICgen=IC
-                        HEl=Hij
-                    ELSE
-                        WRITE(6,*) 'error in k'
-                        CALL FLUSH(6)
-                        stop
-                    ENDIF
-
-                    ! add the H elements to the appropriate histogram, depending on their excitation level.
-                    IF(ICgen.eq.1) THEN
-                        TriConHEls(1,1)=TriConHEls(1,1)+1.D0
-                        TriConHEls(1,2)=TriConHEls(1,2)+ABS(REAL(HEl%v,r2))
-                        BinNo=CEILING((REAL(HEl%v,r2)+TriConHElSingMax)*NoTriConHElBins)/(2*TriConHElSingMax)
-                        TriConnHElHistSing(2,BinNo)=TriConnHElHistSing(2,BinNo)+1.D0
-                    ELSEIF(ICgen.eq.2) THEN
-                        TriConHEls(2,1)=TriConHEls(2,1)+1.D0
-                        TriConHEls(2,2)=TriConHEls(2,2)+ABS(REAL(HEl%v,r2))
-                        BinNo=CEILING((REAL(HEl%v,r2)+TriConHElDoubMax)*NoTriConHElBins)/(2*TriConHElDoubMax)
-                        TriConnHElHistDoub(2,BinNo)=TriConnHElHistDoub(2,BinNo)+1.D0
-                    ELSE
-                        WRITE(6,*) 'H element value : ',REAL(HEl%v,r2)
-                        WRITE(6,*) 'IC (excitation level) : ',ICgen
-                        CALL Stop_All('PerformFCIMCCycle','An H element is neither a single nor double, but it is supposedly &
-                                                           & connected.')
-                    ENDIF
-
-                    IF(BinNo.gt.NoTriConHElBins) THEN
-                        WRITE(6,*) 'The value about to be histogrammed is :',(REAL(HEl%v,r2))
-                        WRITE(6,*) 'With excitation level : ',ICgen
-                        CALL FLUSH(6)
-                        CALL Stop_All('PerformFCIMCCycle','Trying to histogram an H element in a triangle of determinants, &
-                                                                                & but the value is outside the chosen range.')
-                    ENDIF
-                    IF((BinNo.le.0).and.(REAL(HEl%v,r2).ne.0.D0)) THEN
-                        WRITE(6,*) 'The value about to be histogrammed is :',(REAL(HEl%v,r2))
-                        WRITE(6,*) 'With excitation level : ',ICgen
-                        WRITE(6,*) 'Bin number : ',BinNo
-                        CALL FLUSH(6)
-                        CALL Stop_All('PerformFCIMCCycle','Trying to histogram an H element in a triangle of determinants, &
-                                                                                & but the value is below 0.')
-                    ENDIF
-
-                    k=k+1
-                enddo
-
-            ENDIF
+            CLOSE(42)
+            AllHistInitPops(:,:)=0
         ENDIF
+        HistInitPops(:,:)=0
 
-    ENDSUBROUTINE FindTriConnections
+    END SUBROUTINE WriteInitPops
 
 
     SUBROUTINE TrackSpawnAttempts(Child,DetCurr,j,nJ,iLutnJ,IC,Ex,tParity)
@@ -810,18 +453,18 @@ MODULE FciMCLoggingMod
 !        stop
 
         ! Need to find the H element between the current determinant and that which we're trying to spawn on.
-        HEl=GetHElement4(DetCurr,nJ,IC,Ex,tParity)
+        HEl = get_helement_excit (DetCurr, nJ, IC, Ex, tParity)
             
         IF(Child.eq.0) THEN
             ! Spawn not accepted.
             NoNotAccept=NoNotAccept+1.D0
-            TotHElNotAccept=TotHElNotAccept+ABS(REAL(HEl%v,r2))
-            IF(ABS(REAL(HEl%v,r2)).gt.ABS(MaxHElNotAccept)) MaxHElNotAccept=ABS(REAL(HEl%v,r2))
+            TotHElNotAccept=TotHElNotAccept+ABS(REAL(HEl%v,dp))
+            IF(ABS(REAL(HEl%v,dp)).gt.ABS(MaxHElNotAccept)) MaxHElNotAccept=ABS(REAL(HEl%v,dp))
         ELSE
             ! Spawn accepted.
             NoAccept=NoAccept+1.D0
-            TotHElAccept=TotHElAccept+ABS(REAL(HEl%v,r2))
-            IF((MinHElAccept.eq.0.D0).or.(ABS(REAL(HEl%v,r2)).lt.ABS(MinHElAccept))) MinHElAccept=ABS(REAL(HEl%v,r2))
+            TotHElAccept=TotHElAccept+ABS(REAL(HEl%v,dp))
+            IF((MinHElAccept.eq.0.D0).or.(ABS(REAL(HEl%v,dp)).lt.ABS(MinHElAccept))) MinHElAccept=ABS(REAL(HEl%v,dp))
         ENDIF
 
     ENDSUBROUTINE TrackSpawnAttempts
@@ -880,223 +523,6 @@ MODULE FciMCLoggingMod
         ENDIF
 
     ENDSUBROUTINE PrintSpawnAttemptStats
-
-    SUBROUTINE PrintTriConnStats(Iteration)
-        REAL*8 :: TriConStats(4),AllTriConStats(4)
-        INTEGER :: error,Iteration
-
-!Write to files the sum of the sign coherent and incoherent triangles. 
-        TriConStats(1)=NoSignCohTri
-        TriConStats(2)=NoSignIncohTri
-        TriConStats(3)=SignCohTri
-        TriConStats(4)=SignIncohTri
-        AllTriConStats(:)=0.D0
-
-#ifdef PARALLEL
-        CALL MPI_Reduce(TriConStats,AllTriConStats,4,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
-#else
-        AllTriConStats=TriConStats
-#endif
-
-        IF(iProcIndex.eq.Root) THEN
-            WRITE(77,"(I12,2F24.2,8F20.10)") Iteration,AllTriConStats(1),AllTriConStats(2),AllTriConStats(3),AllTriConStats(4),(AllTriConStats(3)/(Iteration)),&
-                                             &(AllTriConStats(4)/(Iteration)),(AllTriConStats(3)/AllTriConStats(1)),(AllTriConStats(4)/AllTriConStats(2)),&
-                                             &(AllTriConStats(1)/AllTriConStats(2)),(ABS(AllTriConStats(3)/AllTriConStats(4)))
-        ENDIF
-
-    ENDSUBROUTINE PrintTriConnStats
- 
- 
-    SUBROUTINE PrintTriConnHist()
-        INTEGER :: error,i
-        CHARACTER(len=*), PARAMETER :: this_routine='PrintTriConnHist'
-
-#ifdef PARALLEL
-        CALL MPI_Reduce(SignCohTriHist,AllSignCohTriHist,2*NoTriConBins,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
-        CALL MPI_Reduce(SignIncohTriHist,AllSignIncohTriHist,2*NoTriConBins,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
-
-        CALL MPI_Reduce(SignCohHFTriHist,AllSignCohHFTriHist,2*NoTriConBins,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
-        CALL MPI_Reduce(SignIncohHFTriHist,AllSignIncohHFTriHist,2*NoTriConBins,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
-#else
-        AllSignCohTriHist=SignCohTriHist
-        AllSignIncohTriHist=SignIncohTriHist
-        AllSignCohHFTriHist=SignCohHFTriHist
-        AllSignIncohHFTriHist=SignIncohHFTriHist
-#endif
-
-        IF(iProcIndex.eq.Root) THEN
-            OPEN(78,file='TriConnHistograms',status='unknown')
-            WRITE(78,"(4A25)") "Sign Coh Bin Value","No. in bin","SignIncoh Bin Value","No. in bin"
-            OPEN(79,file='TriConnHFHistograms',status='unknown')
-            WRITE(79,"(4A25)") "Sign Coh Bin Value","No. in bin","SignIncoh Bin Value","No. in bin"
- 
-            do i=1,NoTriConBins
-                IF((AllSignCohTriHist(2,i).ne.0.D0).or.(AllSignIncohTriHist(2,i).ne.0.D0)) THEN
-                    WRITE(78,"(4F25.10)") SignCohTriHist(1,i),AllSignCohTriHist(2,i),SignIncohTriHist(1,i),AllSignIncohTriHist(2,i)
-                ENDIF
-                IF((AllSignCohHFTriHist(2,i).ne.0.D0).or.(AllSignIncohHFTriHist(2,i).ne.0.D0)) THEN
-                    WRITE(79,"(4F25.10)") SignCohHFTriHist(1,i),AllSignCohHFTriHist(2,i),SignIncohHFTriHist(1,i),AllSignIncohHFTriHist(2,i)
-                ENDIF
-            enddo 
-            CLOSE(78)
-            CLOSE(79)
-        ENDIF
-
-#ifdef PARALLEL
-        CALL MPI_Barrier(MPI_COMM_WORLD,error)
-#endif
-
-        DEALLOCATE(SignIncohTriHist)
-        CALL LogMemDealloc(this_routine,SignIncohTriHistTag)
-        DEALLOCATE(SignCohTriHist)
-        CALL LogMemDealloc(this_routine,SignCohTriHistTag)
-        DEALLOCATE(SignCohHFTriHist)
-        CALL LogMemDealloc(this_routine,SignCohHFTriHistTag)
-        DEALLOCATE(SignIncohHFTriHist)
-        CALL LogMemDealloc(this_routine,SignIncohHFTriHistTag)
-
-        IF(iProcIndex.eq.Root) THEN
-            DEALLOCATE(AllSignCohTriHist)
-            CALL LogMemDealloc(this_routine,AllSignCohTriHistTag)
-            DEALLOCATE(AllSignIncohTriHist)
-            CALL LogMemDealloc(this_routine,AllSignIncohTriHistTag)
-            DEALLOCATE(AllSignCohHFTriHist)
-            CALL LogMemDealloc(this_routine,AllSignCohHFTriHistTag)
-            DEALLOCATE(AllSignIncohHFTriHist)
-            CALL LogMemDealloc(this_routine,AllSignIncohHFTriHistTag)
-        ENDIF
-
-
-    ENDSUBROUTINE PrintTriConnHist
-
-
-    SUBROUTINE PrintTriConnHElHist()
-        INTEGER :: error,i
-        CHARACTER(len=*), PARAMETER :: this_routine='PrintTriConnHElHist'
-        REAL*8 :: AllTriConHEls(3,2)
-
-
-        AllTriConHEls(:,:)=0.D0
-#ifdef PARALLEL
-        CALL MPI_Reduce(TriConHEls,AllTriConHEls,6,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
-#else
-        AllTriConHEls=TriConHEls
-#endif
-        ! TriConHEls(1,1) - number of singles
-        ! TriConHEls(1,2) - sum of single elements
-        ! TriConHEls(2,1) - number of doubles
-        ! TriConHEls(2,2) - sum of double elements
-        ! TriConHEls(3,1) - number of Hjk elements
-        ! TriConHEls(3,2) - sum of Hjk elements
-        IF(iProcIndex.eq.Root) THEN
-            WRITE(6,*) "***"
-            WRITE(6,*) "*** Stats for determinants connected in triangular forms. ***"
-            WRITE(6,*) "Number of single H elements included in the histograms : ",AllTriConHEls(1,1)
-            WRITE(6,*) "These elements sum to : ",AllTriConHEls(1,2)
-            WRITE(6,*) "which amounts to an average SINGLE H element size of : ",(AllTriConHEls(1,2)/AllTriConHEls(1,1)) 
-            WRITE(6,*) "***"
-            WRITE(6,*) "Number of double H elements included in the histograms : ",AllTriConHEls(2,1)
-            WRITE(6,*) "These elements sum to : ",AllTriConHEls(2,2)
-            WRITE(6,*) "which amounts to an average DOUBLE H element size of : ",(AllTriConHEls(2,2)/AllTriConHEls(2,1)) 
-            WRITE(6,*) "***"
-            WRITE(6,*) "The average size of all H elements is then : ",((AllTriConHEls(2,2)+AllTriConHEls(1,2))/(AllTriConHEls(1,1)+AllTriConHEls(2,1)))
-            WRITE(6,*) "***"
-            WRITE(6,*) "***"
-            WRITE(6,*) "Number of Hjk elements histogrammed : ",AllTriConHEls(3,1)
-            WRITE(6,*) "These elements sum to : ",AllTriConHEls(3,2)
-            WRITE(6,*) "which amounts to an average Hjk elements size of : ",(AllTriConHEls(3,2)/AllTriConHEls(3,1))
-            WRITE(6,*) "***"
-        ENDIF
-
-#ifdef PARALLEL
-        CALL MPI_Reduce(TriConnHElHistSing,AllTriConnHElHistSing,2*NoTriConHElBins,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
-        CALL MPI_Reduce(TriConnHElHistDoub,AllTriConnHElHistDoub,2*NoTriConHElBins,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
-
-        CALL MPI_Reduce(TriHjkHistSing,AllTriHjkHistSing,2*NoTriConHElBins,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
-        CALL MPI_Reduce(TriHjkHistDoub,AllTriHjkHistDoub,2*NoTriConHElBins,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
-#else
-        AllTriConnHElHistSing=TriConnHElHistSing
-        AllTriConnHElHistDoub=TriConnHElHistDoub
-        AllTriHjkHistSing=TriHjkHistSing
-        AllTriHjkHistDoub=TriHjkHistDoub
-#endif
-
-        IF(iProcIndex.eq.Root) THEN
-            OPEN(80,file='TriConHElHistSing',status='unknown')
-            WRITE(80,"(2A25)") "Bin Value","No. in bin"
-            OPEN(81,file='TriConHElHistDoub',status='unknown')
-            WRITE(81,"(2A25)") "Bin Value","No. in bin"
- 
-            OPEN(82,file='TriHjkHistSing',status='unknown')
-            WRITE(82,"(2A25)") "Bin Value","No. in bin"
-            OPEN(83,file='TriHjkHistDoub',status='unknown')
-            WRITE(83,"(2A25)") "Bin Value","No. in bin"
-
-            do i=1,NoTriConHElBins
-                IF(AllTriConnHElHistSing(2,i).ne.0.D0) THEN
-                    WRITE(80,"(2F25.10)") TriConnHElHistSing(1,i),AllTriConnHElHistSing(2,i)
-                ENDIF
-                IF(AllTriConnHElHistDoub(2,i).ne.0.D0) THEN
-                    WRITE(81,"(2F25.10)") TriConnHElHistDoub(1,i),AllTriConnHElHistDoub(2,i)
-                ENDIF
-                IF(AllTriHjkHistSing(2,i).ne.0.D0) THEN
-                    WRITE(82,"(2F25.10)") TriHjkHistSing(1,i),AllTriHjkHistSing(2,i)
-                ENDIF
-                IF(AllTriHjkHistDoub(2,i).ne.0.D0) THEN
-                    WRITE(83,"(2F25.10)") TriHjkHistDoub(1,i),AllTriHjkHistDoub(2,i)
-                ENDIF
-            enddo 
-            CLOSE(80)
-            CLOSE(81)
-            CLOSE(82)
-            CLOSE(83)
-        ENDIF
-
-#ifdef PARALLEL
-        CALL MPI_Barrier(MPI_COMM_WORLD,error)
-#endif
-
-        DEALLOCATE(TriConnHElHistSing)
-        CALL LogMemDealloc(this_routine,TriConnHElHistSingTag)
-        DEALLOCATE(TriConnHElHistDoub)
-        CALL LogMemDealloc(this_routine,TriConnHElHistDoubTag)
-        DEALLOCATE(TriHjkHistSing)
-        CALL LogMemDealloc(this_routine,TriHjkHistSingTag)
-        DEALLOCATE(TriHjkHistDoub)
-        CALL LogMemDealloc(this_routine,TriHjkHistDoubTag)
-
-        IF(iProcIndex.eq.Root) THEN
-            DEALLOCATE(AllTriConnHElHistSing)
-            CALL LogMemDealloc(this_routine,AllTriConnHElHistSingTag)
-            DEALLOCATE(AllTriConnHElHistDoub)
-            CALL LogMemDealloc(this_routine,AllTriConnHElHistDoubTag)
-            DEALLOCATE(AllTriHjkHistSing)
-            CALL LogMemDealloc(this_routine,AllTriHjkHistSingTag)
-            DEALLOCATE(AllTriHjkHistDoub)
-            CALL LogMemDealloc(this_routine,AllTriHjkHistDoubTag)
-        ENDIF
-        
-    ENDSUBROUTINE PrintTriConnHElHist
-
-
-!These are available to both serial and parallel
-    SUBROUTINE InitSpinCoupHEl()
-
-        NoNegSpinCoup=0.D0
-        NoPosSpinCoup=0.D0
-        SumNegSpinCoup=0.D0
-        SumPosSpinCoup=0.D0
-        SumHFCon=0.D0
-        SumSpinCon=0.D0
-        
-        IF(iProcIndex.eq.root) THEN
-            OPEN(87,file='SpinCoupHEl',status='unknown')
-!            WRITE(87,'(A8,10A19)') "1.Iter","2.No.Pos HEls","3.No.Neg HEls","4.Sum Pos HEl","5.Sum Neg HEl","6.Net Sum HEl","7.No.Pos/Iter","8.No.Neg/Iter","9.Sum Pos/Iter","10.Sum Neg/Iter","11.Net Sum/Iter"
-            WRITE(87,'(A8,11A18)') "1.Iter","2.No.Pos HEls","3.No.Neg HEls","4.Sum Pos HEl","5.Sum Neg HEl","6.No.Pos/Iter","7.No.Neg/Iter","8.Sum Pos/Iter","9.Sum Neg/Iter",&
-            &"10.Sum HF HEls","11.Sum SpinCoup","12.HF HEl/SpinHEl"
-        ENDIF
-
-    ENDSUBROUTINE InitSpinCoupHEl
 
 ENDMODULE FciMCLoggingMod
 

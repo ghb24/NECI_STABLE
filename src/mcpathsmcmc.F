@@ -152,9 +152,10 @@ C.. save all log files
       END
 
       REAL*8 FUNCTION GETNLOOPS(I_V,NBASIS,NEL)
+        use util_mod, only: factrl
          IMPLICIT NONE
          INTEGER I_V,NBASIS,NEL,I
-         REAL*8 NL,FNCR,FACTRL,NL2
+         REAL*8 NL,FNCR,NL2
          REAL*8 N,E
          N=NEL
          E=NBASIS-NEL

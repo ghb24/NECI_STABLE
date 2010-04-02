@@ -13,7 +13,7 @@ logical :: tNoBrillouin, tVirtCoulombMax, tVirtExchangeMin, tHijSqrdMin
 logical :: tDiagonalizehij, tHFSingDoubExcMax, tSpinOrbs, tReadInCoeff
 logical :: tUseMP2VarDenMat, tAlpha, tStoreAsExcitations, tBin, tStarStore
 logical :: tVASP, tOffDiagSqrdMin, tOffDiagSqrdMax, tOffDiagmax, tShakeDelay
-logical :: tSeparateOccVirt, tmerTwist, tExactSizeSpace, tRotatedOrbs
+logical :: tSeparateOccVirt, tExactSizeSpace, tRotatedOrbs
 logical :: tImportanceSample, tERLocalization, tOffDiagMin, tFindCINatOrbs
 logical :: tNoRenormRandExcits, tAssumeSizeExcitgen, tCycleOrbs, tROIteration
 logical :: tShakeIter, tRotateOccOnly, tDoubExcMin, tUseHFOrbs, tRotateOrbs
@@ -40,9 +40,6 @@ integer :: LMS             ! Restrict determinants/CSFs to Ms == LMS
 integer :: csf_trunc_level ! Max nopen for CSFs if tTruncateCSF enabled. Above
                            ! this, switch to using determinants.
 
-logical :: tListDets    ! A list of allowed determinants in FciMC will be read
-                        ! in and particles are only allowed here
-
 ! Inputs for CSFs
 logical :: tCSFOld        ! Use (Alex's) old CSF code
 logical :: tCSF           ! Use CSFs
@@ -54,10 +51,13 @@ logical :: tMCSizeSpace
 integer*8 :: CalcDetPrint, CalcDetCycles   ! parameters
 
 ! Inputs for the UEG
+logical :: tUEGTrueEnergies ! This is the logical for use of unscaled energies in the UEG calculation; will normally break spawning
 logical :: tLatticeGens   ! Use new UEG excitation generators
 logical :: tNoFailAb
 logical :: tUEGOffset     ! Use twisted boundary conditions
 real*8 :: k_offset(3)      ! UEG parameter for twist-averaging
+logical :: tUEGSpecifyMomentum ! UEG parameter to allow specification of total momentum
+integer :: k_momentum(3) ! UEG parameter for total momentum
 
 ! For the UEG, we damp the exchange interactions.
 !    0 means none

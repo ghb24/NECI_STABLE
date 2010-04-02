@@ -1,4 +1,5 @@
     MODULE STARDIAGMOD
+        use Determinants, only: get_helement
         USE HElem
         IMPLICIT NONE
       
@@ -41,7 +42,6 @@
          use CalcData , only : TMPTHEORY,StarProd,TStarStars,TLanczos,TMCStar
          use SystemData , only : TSTOREASEXCITATIONS,BasisFN
          use IntegralsData , only : TCalcRhoProd,TSumProd,TCalcRealProd,TCalcExcitStar,TDiagStarStars,TLinRootChange
-         Use Determinants, only: GetHElement2
          use global_utilities
          IMPLICIT NONE
          Type(BasisFN) G1(*)
@@ -166,7 +166,7 @@
          i=0
          ExcitInfo(i,0)=1.D0
          ExcitInfo(i,1)=1.D0
-         ExcitInfo(i,2)=GetHElement2(nI,nI,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,nMax,ALat,UMat,00,ECore)
+         ExcitInfo(i,2) = get_helement (nI, nI, 0)
          IF(TMCStar) THEN
 !Hii is HF energy - <D0|H|D0>, ExcitInfo(i,1) now is <Di|H|Di>-Hii. 
 !All diagonal elements are therefore positive, and increasing down the leading diagonal.
@@ -222,7 +222,7 @@
                   !RHO_JJ elements
                    IF(TMCStar) THEN
 !If we are solving star using MC, then we want the Hamiltonian matrix, rather than rho matrix elements for diagonal elements, and subtract the HF energy from them all
-                       ExcitInfo(i,0)=GetHElement2(nJ,nJ,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,nMax,ALat,UMat,0,ECore)
+                       ExcitInfo(i,0) = get_helement (nJ, nJ, 0)
                        ExcitInfo(i,0)=ExcitInfo(i,0)-Hii
                        IF(ExcitInfo(i,0).agt.MaxDiag) MaxDiag=ExcitInfo(i,0)%v
                    ELSE
@@ -238,7 +238,7 @@
 !                  ENDDO
 !765               CONTINUE
                endif
-               ExcitInfo(i,2)=GetHElement2(nIExcitFormat,nJ,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,nMax,ALat,UMat,iExcit,ECore)
+               ExcitInfo(i,2) = get_helement (nIExcitFormat, nJ, iExcit)
 !               write(75,*) rh,rh/rhii
 !Now do MP2
                Hijs(1)=ExcitInfo(i,2)
@@ -395,7 +395,6 @@
 !crosslinking, TNoDoubs must be set.
         SUBROUTINE CalcExcitStar(iMaxExcit,iExcit,nI,rhii,Beta,i_p,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,nMax,ALat,UMat,nTay,ECore,RhoEps) 
             use IntegralsData , only : TQuadValMax,TQuadVecMax,TJustQuads,TNoDoubs
-            Use Determinants, only: GetHElement2
             use SystemData, only: BasisFN
             use global_utilities
             IMPLICIT NONE
@@ -522,7 +521,7 @@
 !Calculate rhi_ij and H_ij from HF to excited star root
                 CALL CalcRho2(nI,DoublePath,Beta,i_P,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,nMax,ALat,UMat,rh,nTay,iExcit2,ECore)
                 rhij=rh/rhii
-                Hij=GetHElement2(nI,DoublePath,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,nMax,ALat,UMat,iExcit2,ECore)
+                Hij = get_helement (nI, DoublePath, iExcit2)
                 
 !Reinitialise excitation generators
                 HFFound=.false.
@@ -2093,8 +2092,8 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
       FUNCTION FMCPR3STAR2(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY, &
            RHOEPS,LSTE,ICE,LIST,L,LT,NWHTAY,ILOGGING,TSYM,ECORE,ILMAX,DBETA,DLWDB)
          USE HElem     
-         Use Determinants, only: GetHElement2
          use SystemData, only: BasisFN
+         use Determinants, only: get_helement
          IMPLICIT NONE
          TYPE(HDElement) FMCPR3Star2
          TYPE(BasisFN) G1(*)
@@ -2139,7 +2138,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
                   CALL CALCRHO2(LSTE(1,I),LSTE(1,I),BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT, &
                     RH,NTAY,0,ECORE)
                   LIST(NLCUR,0)=RH/RHII
-                  LIST(NLCUR,2)=GETHELEMENT2(NI,LSTE(1,I),NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,-1,ECORE)
+                  LIST(nLCur, 2) = get_helement (nI, LSTE(:,I))
 !                  CALL WRITEDET(6,LSTE(1,I),NEL,.FALSE.)
 !                  WRITE(6,*) (LIST(NLCUR,J),J=0,2)
                   NLCUR=NLCUR+1
@@ -2404,9 +2403,10 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
       SUBROUTINE StarDiagMC(nEl,NList,List,ILMax,SI,DLWDB,Hii,MaxDiag)
          USE HElem
          use CalcData , only : InitWalkers,NMCyc,G_VMC_Seed,DiagSft,Tau,SftDamp,StepsSft
-         use CalcData , only : TReadPops,ScaleWalkers,TBinCancel
-         USE Logging , only : TPopsFile,TCalcWavevector,WavevectorPrint
+         use CalcData , only : TReadPops,ScaleWalkers,TBinCancel, iPopsFileNoRead, iPopsFileNoWrite
+         USE Logging , only : TPopsFile,TCalcWavevector,WavevectorPrint, tIncrementPops
          USE global_utilities
+         use util_mod, only: get_unique_filename
          IMPLICIT NONE
          CHARACTER(len=*), PARAMETER :: this_routine='StarDiagMC'
          INTEGER :: i,j,nEl,NList,ILMax,Info,ierr,WorkL,toprint,PreviousNMCyc
@@ -2426,6 +2426,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
              LOGICAL :: WSign=.true.
          END TYPE Walker
          TYPE(Walker) , POINTER :: WalkVec(:),WalkVec2(:)
+         character(255) :: popsfile
          
          proc_timer%timer_name='StarDiagMC'
          call set_timer(proc_timer)
@@ -2448,7 +2449,8 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
 
          IF(TReadPops) THEN
              WRITE(6,*) "Reading in POPSFILE to restart calculation..."
-             OPEN(17,FILE='POPSFILE',Status='old')
+             call get_unique_filename('POPSFILE',tIncrementPops,.false.,iPopsFileNoRead,popsfile)
+             OPEN(17,FILE=popsfile,Status='old')
              READ(17,*) InitWalkers
              READ(17,*) DiagSft
              READ(17,*) PreviousNMCyc
@@ -2976,7 +2978,8 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
 
          IF(TPopsFile) THEN
 !Print out current state of simulation, so it can be restarted if desired...
-             OPEN(16,file='POPSFILE',status='unknown')
+             call get_unique_filename('POPSFILE',tIncrementPops,.true.,iPopsFileNoWrite,popsfile)
+             OPEN(16,file=popsfile,status='unknown')
              WRITE(16,*) TotWalkers, "   TOTWALKERS"
              WRITE(16,*) DiagSft, "   DIAG SHIFT"
              IF(TReadPops) THEN

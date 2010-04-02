@@ -99,7 +99,7 @@ MODULE GraphMorph
         use SystemData, only: Alat,Beta,Brr,ECore,G1,nBasis,nBasisMax,nMsh,Arr
         use CalcData , only : i_P,G_VMC_Seed
         use IntegralsData, only : fck,nMax,UMat,nTay
-        USE Determinants , only : GetHElement2
+        USE Determinants , only : get_helement
         IMPLICIT NONE
         TYPE(HDElement) :: Weight,Energyxw
         REAL*8 :: LowestE,BestSI

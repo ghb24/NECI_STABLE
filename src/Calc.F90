@@ -1,6 +1,7 @@
 MODULE Calc
         
         use CalcData
+        use Determinants, only: write_det
 
         IMPLICIT NONE
 
@@ -9,7 +10,7 @@ MODULE Calc
         subroutine SetCalcDefaults()
           != Set defaults for Calc data items.
 
-          Use Determinants, only : iActiveBasis, SpecDet, tSpecDet, nActiveSpace
+          Use Determinants, only: iActiveBasis, SpecDet, tSpecDet, nActiveSpace
           Use Determinants, only : tDefineDet
           Use DetCalc, only: iObs, jObs, kObs, tCorr, B2L, tRhoOfR, tFodM, DETINV
           Use DetCalc, only: icilevel, nBlk, nCycle, nEval, nKry, tBlock, tCalcHMat
@@ -22,6 +23,7 @@ MODULE Calc
 
 !       Values for old parameters.
 !       These have no input options to change the defaults, but are used in the code.
+          InitialPart=1
           TRHOOFR = .false.
           TCORR = .false.
           TFODM = .false.
@@ -34,43 +36,27 @@ MODULE Calc
 
 
 !       Calc defaults 
+          iWeightPopRead=0
+          tCheckHighestPop=.false.
+          StepsSftImag=0.D0
+          TauFactor=0.D0
+          tStartMP1=.false.
+          tRandomiseHashOrbs=.true.
           iAnnInterval=1
           tTruncCAS=.false.
           iFullSpaceIter=0
-          tDirectAnnihil=.false.
-          tMultipleDetsSpawn=.false.
           iDetGroup=2
-          tHighExcitsSing=.false.
-          iHighExcitsSing=0
           tFindDets=.false.
           SinglesBias=1.D0
-          tAllSpawnStarDets=.false.
-          tNoReturnStarDets=.false.
-          iStarOrbs=0
-          tStarOrbs=.false.
           tFindGroundDet=.false.
           tSpawnAsDet=.false.
+          tDirectAnnihil=.true.
           tRegenDiagHEls=.false.
           tRotoAnnihil=.false.
-          tAnnihilatebyrange=.true.
-          tSymmetricField=.false.
-          NoMagDets=1
-          BField=0.D0
-          tMagnetize=.false.
-          tConstructNOs=.false.
-          tFixShiftKii=.false.
-          FixedKiiCutoff=0.D0
-          tFixCASShift=.false.
           OccCASorbs=0
           VirtCASorbs=0
           tGlobalSftCng=.true. 
-          TLocalAnnihilation=.false.
-          TDistAnnihil=.false.
-          TAnnihilonproc=.false.
           TUnbiasPGeninProjE=.false.
-          TFixShiftShell=.false.
-          FixShift=0.D0
-          ShellFix=0
           TRegenExcitgens=.false.
           MemoryFacPart=10.D0
           MemoryFacAnnihil=10.D0
@@ -78,37 +64,26 @@ MODULE Calc
           TStartSinglePart=.false.
           TFixParticleSign=.false.
           TProjEMP2=.false.
-          TExcludeRandGuide=.false.
           THFRetBias=.false.
           TSignShift=.false.
           NEquilSteps=0
           NShiftEquilSteps=1000
-          RhoApp=10
-          TResumFCIMC=.false.
           TRhoElems=.false.
           TReturnPathMC=.false.
           CLMax=NEl
           PRet=1.D0
-          TMCDiffusion=.false.
           TNoAnnihil=.false.
-          TNodalCutoff=.false.
-          NodalCutoff=0.75
           TFullUnbias=.false.
-          TExtraPartDiff=.false.
-          TFlipTau=.false.
-          FlipTauCyc=73     !A prime
-          Lambda=0.D0
-          TDiffuse=.false.
-          TNoBirth=.false.
           GrowMaxFactor=5.D0
           CullFactor=2.D0
-          TStartMP1=.false.
           TFCIMC=.false.
           TCCMC=.false.
           TMCDets=.false.
           TBinCancel=.false.  
           ScaleWalkers=1.D0
           TReadPops=.false.
+          iPopsFileNoRead = 0
+          iPopsFileNoWrite = 0
           tWalkContGrow=.false.
           StepsSft=100
           SftDamp=10.0
@@ -210,17 +185,6 @@ MODULE Calc
           TENPT=.false.
           TLADDER=.false. 
           tDefineDet=.false.
-          tFindGuide=.false.
-          iGuideDets=100
-          tUseGuide=.false.
-          iInitGuideParts=1000000
-          tPrintDominant=.false.
-          iNoDominantDets=100
-          tNoDomSpinCoup=.false.
-          MinExcDom=3
-          MaxExcDom=3
-          tSpawnDominant=.false.
-          tMinorDetsStar=.false.
           tTruncInitiator=.false.
           tDelayTruncInit=.false.
           tKeepDoubleSpawns=.false.
@@ -257,6 +221,7 @@ MODULE Calc
           use UMatCache, only: gen2CPMDInts
           use CCMCData, only: dInitAmplitude,dProbSelNewExcitor,nSpawnings,tSpawnProp
           use global_utilities
+          use Parallel, only : nProcessors
           IMPLICIT NONE
           LOGICAL eof
           CHARACTER (LEN=100) w
@@ -339,7 +304,8 @@ MODULE Calc
 ! The EQUILSTEPS keyword specifies the number of iterations which must pass before the 
 ! population of the singles is counted towards the projection energy. 
             case("CONSTRUCTNATORBS")
-                tConstructNOs = .true.
+                CALL Stop_All(t_r,"CONSTRUCTNATORBS option depreciated")
+!                tConstructNOs = .true.
             
             case("ENDCALC")
                 exit calc
@@ -627,46 +593,53 @@ MODULE Calc
             case("FINDGUIDINGFUNCTION")
 ! At the end of a calculation, this keyword sets the spawning calculation to print out the iGuideDets
 ! most populated determinants, to be read in as a guiding (or annihilating) function in a following calculation.
-                tFindGuide=.true.
-                call geti(iGuideDets)
+                CALL Stop_All(t_r,"FINDGUIDINGFUNCTION option depreciated")
+!                tFindGuide=.true.
+!                call geti(iGuideDets)
 
             case("USEGUIDINGFUNCTION")
 ! This keyword sets the calculationg to read in a guiding function from a file GUIDINGFUNC.  This function then sits
 ! in the back of a calculation, able to annihilate particle, but not allowed to spawn or die.
 ! iInitGuideParts specifies how many walkers start on the HF determinant, and the remaining determinants are populated
 ! based on their populations from the previous calculation relative to the HF.
-                tUseGuide=.true.
-                call geti(iInitGuideParts)
+                CALL Stop_All(t_r,"USEGUIDINGFUNCTION option depreciated")
+!                tUseGuide=.true.
+!                call geti(iInitGuideParts)
 
             case("SPAWNDOMINANTONLY")
 ! This option sets the calculation to read in from a file DOMINANTDETS.  The determinants from this file make up a list of 
 ! determinants on which spawning is allowed for the excitation levels included.
 ! Spawning onto determinants that have the listed excitation level, but are not read in from this file is forbidden.
-                tSpawnDominant=.true.
+                CALL Stop_All(t_r,"SPAWNDOMINANTONLY option depreciated")
+                
+!                tSpawnDominant=.true.
 
             case("PRINTDOMINANTDETS")
 ! This option finds the iNoDominantDets most populated determinants with excitation level between MinExcDom and MaxExcDom and
 ! prints them to a file named DOMINANTDETS.  This can be later read in as the allowed determinants for spawing in a restricted calc.
-                tPrintDominant=.true.
-                call geti(iNoDominantDets)
-                call geti(MinExcDom)
-                call geti(MaxExcDom)
+                CALL Stop_All(t_r,"PRINTDOMINANTDETS option depreciated")
+!                tPrintDominant=.true.
+!                call geti(iNoDominantDets)
+!                call geti(MinExcDom)
+!                call geti(MaxExcDom)
 
             case("PRINTDOMSPINCOUPLED")
 ! This option finds the iNoDominantDets most populated determinants with excitation level between MinExcDom and MaxExcDom and
 ! prints them to a file named DOMINANTDETS.  This can be later read in as the allowed determinants for spawing in a restricted calc.
-                if(item.lt.nitems) then
-                    call readu(w)
-                    select case(w)
-                    case("OFF")
-                        tNoDomSpinCoup=.true.
-                    end select
-                else
-                    tNoDomSpinCoup=.false.
-                end if
+                CALL Stop_All(t_r,"PRINTDOMSPINCOUPLED option depreciated")
+!                if(item.lt.nitems) then
+!                    call readu(w)
+!                    select case(w)
+!                    case("OFF")
+!                        tNoDomSpinCoup=.true.
+!                    end select
+!                else
+!                    tNoDomSpinCoup=.false.
+!                end if
 
             case("STARMINORDETERMINANTS")
-                tMinorDetsStar=.true.
+                CALL Stop_All(t_r,"STARMINORDETERMINANTS option depreciated")
+!                tMinorDetsStar=.true.
 ! This option goes along with the SPAWNDOMINANTONLY option.  However, if this keyword is present, spawning onto determinants that are not in the 
 ! dominant determinants list is allowed, however once spawned into this "insignificant" region, walkers may only spawn back onto the determinant 
 ! from which they came.  In the mean time, walkers on "insignificant" determinants may live/die and annihilate like any others.
@@ -744,6 +717,10 @@ MODULE Calc
             case("INITWALKERS")
 !For FCIMC, this is the number of walkers to start with
                 call geti(InitWalkers)
+            case("TOTALWALKERS")
+!This is now input as the total number, rather than the number per processor, and it is changed to the number per processor here.
+                call geti(InitWalkers)
+                InitWalkers=NINT(REAL(InitWalkers)/REAL(nProcessors))
             case("MAXNOATHF")
 !If the number of walkers at the HF determinant reaches this number, the shift is allowed to change. (This is the total number across all processors).                
 !If a second integer is present, this determinants the threshhold for the HF population.  If the HF population drops below MaxNoatHF-HFPopThresh, the
@@ -772,12 +749,18 @@ MODULE Calc
             case("DIAGSHIFT")
 !For FCIMC, this is the amount extra the diagonal elements will be shifted. This is proportional to the deathrate of walkers on the determinant
                 call getf(DiagSft)
+            case("TAUFACTOR")
+!For FCIMC, this is the factor by which 1/(HF connectivity) will be multiplied by to give the timestep for the calculation.
+                call getf(TauFactor)
             case("TAU")
 !For FCIMC, this can be considered the timestep of the simulation. It is a constant which will increase/decrease the rate of spawning/death for a given iteration.
                 call getf(Tau)
             case("SHIFTDAMP")
 !For FCIMC, this is the damping parameter with respect to the update in the DiagSft value for a given number of MC cycles.
                 call getf(SftDamp)
+            case("STEPSSHIFTIMAG")
+!For FCIMC, this is the amount of imaginary time which will elapse between updates of the shift.
+                call getf(StepsSftImag)
             case("STEPSSHIFT")
 !For FCIMC, this is the number of steps taken before the Diag shift is updated
                 call geti(StepsSft)
@@ -785,6 +768,20 @@ MODULE Calc
 !For FCIMC, this indicates that the initial walker configuration will be read in from the file POPSFILE, which must be present.
 !DiagSft and InitWalkers will be overwritten with the values in that file.
                 TReadPops=.true.
+                if (item.lt.nitems) then
+                    call readi(iPopsFileNoRead)
+                    iPopsFileNoWrite = iPopsFileNoRead
+                    iPopsFileNoRead = -iPopsFileNoRead-1
+                end if
+            case("READPOPSTHRESH")
+!When reading in a popsfile, this will only save the determinant, if the number of particles on this determinant is greater than iWeightPopRead.
+                tReadPops=.true.
+                call readi(iWeightPopRead)
+                if (item.lt.nitems) then
+                    call readi(iPopsFileNoRead)
+                    iPopsFileNoWrite = iPopsFileNoRead
+                    iPopsFileNoRead = -iPopsFileNoRead-1
+                end if
             case("WALKCONTGROW")
 !This option goes with the above READPOPS option.  If this is present - the INITWALKERS value is not overwritten, and the walkers are continued to be allowed to grow before reaching                
 !this value.  Without this keyword, when a popsfile is read in, the number of walkers is kept at the number in the POPSFILE regardless of whether the shift had been allowed to change in the previous calc.
@@ -797,6 +794,7 @@ MODULE Calc
                 TBinCancel=.true.
             case("STARTMP1")
 !For FCIMC, this has an initial configuration of walkers which is proportional to the MP1 wavefunction
+!                CALL Stop_All(t_r,"STARTMP1 option depreciated")
                 TStartMP1=.true.
             case("GROWMAXFACTOR")
 !For FCIMC, this is the factor to which the initial number of particles is allowed to go before it is culled
@@ -814,25 +812,31 @@ MODULE Calc
                 call geti(NShiftEquilSteps)
             case("NOBIRTH")
 !For FCIMC, this means that the off-diagonal matrix elements become zero, and so all we get is an exponential decay of the initial populations on the determinants, at a rate which can be exactly calculated and compared against.
-                TNoBirth=.true.
+                CALL Stop_All(t_r,"NOBIRTH option depreciated")
+!                TNoBirth=.true.
             case("MCDIFFUSE")
-                TDiffuse=.true.
+                CALL Stop_All(t_r,"MCDIFFUSE option depreciated")
+!                TDiffuse=.true.
 !Lambda indicates the amount of diffusion compared to spawning in the FCIMC algorithm.
-                call getf(Lambda)
+!                call getf(Lambda)
             case("FLIPTAU")
 !This indicates that time is to be reversed every FlipTauCyc cycles in the FCIMC algorithm. This might help with undersampling problems.
-                TFlipTau=.true.
-                call geti(FlipTauCyc)
+                CALL Stop_All(t_r,"FLIPTAU option depreciated")
+!                TFlipTau=.true.
+!                call geti(FlipTauCyc)
             case("NON-PARTCONSDIFF")
 !This is a seperate partitioning of the diffusion matrices in FCIMC in which the antidiffusion matrix (+ve connections) create a net increase of two particles.
-                TExtraPartDiff=.true.
+                CALL Stop_All(t_r,"NON-PARTCONSDIFF option depreciated")
+!                TExtraPartDiff=.true.
             case("FULLUNBIASDIFF")
 !This is for FCIMC, and fully unbiases for the diffusion process by summing over all connections
-                TFullUnbias=.true.
+                CALL Stop_All(t_r,"FULLUNBIASDIFF option depreciated")
+!                TFullUnbias=.true.
             case("NODALCUTOFF")
 !This is for all types of FCIMC, and constrains a determinant to be of the same sign as the MP1 wavefunction at that determinant, if the normalised component of the MP1 wavefunction is greater than the NodalCutoff value.
-                TNodalCutoff=.true.
-                call getf(NodalCutoff)
+                CALL Stop_All(t_r,"NODALCUTOFF option depreciated")
+!                TNodalCutoff=.true.
+!                call getf(NodalCutoff)
             case("NOANNIHIL")
 !For FCIMC, this removes the annihilation of particles on the same determinant step.
                 TNoAnnihil=.true.
@@ -844,7 +848,8 @@ MODULE Calc
                 call getf(PRet)
             case("RHOAPP")
 !This is for resummed FCIMC, it indicates the number of propagation steps around each subgraph before particles are assigned to the nodes
-                call geti(RhoApp)
+                CALL Stop_All(t_r,"RHOAPP option depreciated")
+!                call geti(RhoApp)
             case("SIGNSHIFT")
 !This is for FCIMC and involves calculating the change in shift depending on the absolute value of the sum of the signs of the walkers.
 !This should hopefully mean that annihilation is implicitly taken into account.
@@ -856,10 +861,23 @@ MODULE Calc
                 call getf(PRet)
             case("EXCLUDERANDGUIDE")
 !This is an alternative method to unbias for the HFRetBias. It invloves disallowing random excitations back to the guiding function (HF Determinant)
-                TExcludeRandGuide=.true.
+                CALL Stop_All(t_r,"EXCLUDERANDGUIDE option depreciated")
+!                TExcludeRandGuide=.true.
             case("PROJECTE-MP2")
 !This will find the energy by projection of the configuration of walkers onto the MP2 wavefunction.
                 TProjEMP2=.true.
+            case("PROJE-CHANGEREF")
+                tCheckHighestPop=.true.
+                tChangeProjEDet=.true.
+                IF(item.lt.nitems) then
+                    call Getf(FracLargerDet)
+                ENDIF
+            case("RESTARTLARGEPOP")
+                tCheckHighestPop=.true.
+                tRestartHighPop=.true.
+                IF(item.lt.nitems) then
+                    call Getf(FracLargerDet)
+                ENDIF
             case("FIXPARTICLESIGN")
 !This uses a modified hamiltonian, whereby all the positive off-diagonal hamiltonian matrix elements are zero. Instead, their diagonals are modified to change the
 !on-site death rate. Particles now have a fixed (positive) sign which cannot be changed and so no annihilation occurs.
@@ -867,6 +885,10 @@ MODULE Calc
             case("STARTSINGLEPART")
 !A FCIMC option - this will start the simulation with a single positive particle at the HF, and fix the shift at its initial value, until the number of particles gets to the INITPARTICLES value.
                 TStartSinglePart=.true.
+                IF(item.lt.nitems) THEN
+                    !If an optional integer keyword is added, then InitialPart will indicate the number of particles to start at the HF determinant.
+                    call readi(InitialPart)
+                ENDIF
             case("MEMORYFACPART")
 !An FCIMC option - MemoryFac is the factor by which space will be made available for extra walkers compared to InitWalkers
                 CALL Getf(MemoryFacPart)
@@ -887,15 +909,17 @@ MODULE Calc
             case("FIXSHELLSHIFT")
 !An FCIMC option. With this, the shift is fixed at a value given here, but only for excitations which are less than <ShellFix>. This will almost definitly give the wrong answers for both the energy
 !and the shift, but may be of use in equilibration steps to maintain particle density at low excitations, before writing out the data and letting the shift change.
-                TFixShiftShell=.true.
-                CALL Geti(ShellFix)
-                CALL Getf(FixShift)
+                CALL Stop_All(t_r,"FIXSHELLSHIFT option depreciated")
+!                TFixShiftShell=.true.
+!                CALL Geti(ShellFix)
+!                CALL Getf(FixShift)
             case("FIXKIISHIFT")
 !A Parallel FCIMC option. Similar to FixShellShift option, but will fix the shifts of the particles which have a diagonal
 !matrix element Kii of less than the cutoff, FixedKiiCutOff.
-                TFixShiftKii=.true.
-                CALL Getf(FixedKiiCutoff)
-                CALL Getf(FixShift)
+                CALL Stop_All(t_r,"FIXKIISHIFT option depreciated")
+!                TFixShiftKii=.true.
+!                CALL Getf(FixedKiiCutoff)
+!                CALL Getf(FixShift)
             
             case("FIXCASSHIFT")                
 !A Parallel FCIMC option similar to the FixShellShift and FixShiftKii options.
@@ -903,10 +927,11 @@ MODULE Calc
 !lowest unoccupied spin orbitals (VirtCASorbs).  The shift is then fixed only for determinants 
 !which have completely occupied spin orbitals for those lower in energy than the active space, 
 !and completely unoccupied spin orbitals above the active space.  i.e. the electrons are only excited within the active space.  
-                TFixCASShift=.true.
-                call Geti(OccCASorbs)
-                call Geti(VirtCASorbs)
-                call Getf(FixShift)
+                CALL Stop_All(t_r,"FIXKIISHIFT option depreciated")
+!                TFixCASShift=.true.
+!                call Geti(OccCASorbs)
+!                call Geti(VirtCASorbs)
+!                call Getf(FixShift)
 
             case("TRUNCATECAS")
 !A Parallel FCIMC option. With this, the excitation space of the determinants will only include the determinants accessible to the CAS
@@ -954,29 +979,33 @@ MODULE Calc
                 TUnbiasPGeninProjE=.true.
             case("ANNIHILATEONPROCS")
 !A parallel FCIMC option. With this, walkers will only be annihilated with other walkers on the same processor. 
-                TAnnihilonproc=.true.
+                CALL Stop_All(t_r,"ANNIHILATEONPROCS option depreciated")
+!                TAnnihilonproc=.true.
             case("ANNIHILATDISTANCE")
 !A Serial FCIMC experimental option. With this, walkers have the ability to annihilate each other as long as they are connected, which they will do with probability = Lambda*Hij
-                TDistAnnihil=.true.
-                call Getf(Lambda)
+                CALL Stop_All(t_r,"ANNIHILATEONPROCS option depreciated")
+!                TDistAnnihil=.true.
+!                call Getf(Lambda)
             case("ANNIHILATERANGE")
 !This option should give identical results whether on or off. It means that hashes are histogrammed and sent to processors, rather than sent due to the value of mod(hash,nprocs).
 !This removes the need for a second full sorting of the list of hashes, but may have load-balancing issues for the algorithm.
 !This now is on by default, and can only be turned off by specifying OFF after the input.
-                IF(item.lt.nitems) then
-                    call readu(w)
-                    select case(w)
-                    case("OFF")
-                        tAnnihilatebyrange=.false.
-                    end select
-                ELSE
-                    tAnnihilatebyrange=.true.
-                ENDIF
+                CALL Stop_All(t_r,"ANNIHILATEONPROCS option depreciated")
+!                IF(item.lt.nitems) then
+!                    call readu(w)
+!                    select case(w)
+!                    case("OFF")
+!                        tAnnihilatebyrange=.false.
+!                    end select
+!                ELSE
+!                    tAnnihilatebyrange=.true.
+!                ENDIF
             case("ROTOANNIHILATION")
 !A parallel FCIMC option which is a different - and hopefully better scaling - algorithm. This is substantially different to previously. It should involve much less memory.
 !MEMORYFACANNIHIL is no longer needed (MEMORYFACPART still is), and you will need to specift a MEMORYFACSPAWN since newly spawned walkers are held on a different array each iteration.
 !Since the newly-spawned particles are annihilated initially among themselves, you can still specift ANNIHILATEATRANGE as a keyword, which will change things.
-                tRotoAnnihil=.true.
+                CALL Stop_All(t_r,"ROTOANNIHILATION option depreciated")
+!                tRotoAnnihil=.true.
             case("DIRECTANNIHILATION")
 !A parallel FCIMC option which is a different annihilation algorithm. It has elements in common with both rotoannihilation and the hashing annihilation, but hopefully will be quicker and
 !better scaling with number of processors. It has no explicit loop over processors.
@@ -984,8 +1013,9 @@ MODULE Calc
             case("LOCALANNIHIL")
 !A parallel FCIMC experimental option. This will attempt to compensate for undersampled systems, by including extra annihilation for walkers which are the sole occupier of determiants
 !This annihilation is governed by the parameter Lambda, which is also used in other circumstances as a variable, but should not be used at the same time.
-                TLocalAnnihilation=.true.
-                call Getf(Lambda)
+                CALL Stop_All(t_r,"LOCALANNIHIL option depreciated")
+!                TLocalAnnihilation=.true.
+!                call Getf(Lambda)
             case("ANNIHILATEEVERY")
 !In FCIMC, this will result in annihilation only every iAnnInterval iterations
                 call Geti(iAnnInterval)
@@ -1002,6 +1032,18 @@ MODULE Calc
                     tGlobalSftCng=.true.
                 end if
 
+            case("RANDOMISEHASHORBS")
+!This will create a random 1-to-1 mapping between the orbitals, which should hopefully improve load balancing.
+                if(item.lt.nitems) then
+                    call readu(w)
+                    select case(w)
+                    case("OFF")
+                        tRandomiseHashOrbs=.false.
+                    end select
+                else
+                    tRandomiseHashOrbs=.true.
+                end if
+
             case("SPAWNASDETS")
 !This is a parallel FCIMC option, which means that the particles at the same determinant on each processor, will choose the same determinant to attempt spawning to and the 
 !probability of a successful spawn will be multiplied by the number of particles on the determinant.
@@ -1009,42 +1051,46 @@ MODULE Calc
             case("MAGNETIZE")
 !This is a parallel FCIMC option. It chooses the largest weighted MP1 components and records their sign. If then a particle occupies this determinant and is of the opposite sign, it energy,
 !i.e. diagonal matrix element is raised by an energy given by BField.
-                tMagnetize=.true.
-                tSymmetricField=.false.
-                call Geti(NoMagDets)
-                call Getf(BField)
+                CALL Stop_All(t_r,"MAGNETIZE option depreciated")
+!                tMagnetize=.true.
+!                tSymmetricField=.false.
+!                call Geti(NoMagDets)
+!                call Getf(BField)
             case("FINDGROUNDDET")
 !A parallel FCIMC option. If this is on, then if a determinant is found with an energy lower than the energy of the current reference determinant, the energies are rezeroed and the
 !reference changed to the new determinant. For a HF basis, this cannot happen, but with rotated orbital will be important.
                 tFindGroundDet=.true.
             case("STARORBS")
 !A parallel FCIMC option. Star orbs means that determinants which contain these orbitals can only be spawned at from the HF determinant, and conversly, can only spawn back at the HF determinant.
-                call geti(iStarOrbs)
-                if(item.lt.nitems) then
-                    call readu(w)
-                    select case(w)
-                    case("NORETURN")
-!This option will mean that particles spawned at these high energy determinants will not be allowed to spawn back at HF, but will be left to die.
-                        tNoReturnStarDets=.true.
-                    case("ALLSPAWNSTARDETS")
-!This option will mean that all particles can spawn at the star determinants and annihilation will take place there. Once there however, they are left to die, and cannot spawn anywhere else.
-                        tAllSpawnStarDets=.true.
-                    end select
-                else
-                    tNoReturnStarDets=.false.
-                endif
-                tStarOrbs=.true.
+                CALL Stop_All(t_r,"STARORBS option depreciated")
+!                call geti(iStarOrbs)
+!                if(item.lt.nitems) then
+!                    call readu(w)
+!                    select case(w)
+!                    case("NORETURN")
+!!This option will mean that particles spawned at these high energy determinants will not be allowed to spawn back at HF, but will be left to die.
+!                        tNoReturnStarDets=.true.
+!                    case("ALLSPAWNSTARDETS")
+!!This option will mean that all particles can spawn at the star determinants and annihilation will take place there. Once there however, they are left to die, and cannot spawn anywhere else.
+!                        tAllSpawnStarDets=.true.
+!                    end select
+!                else
+!                    tNoReturnStarDets=.false.
+!                endif
+!                tStarOrbs=.true.
             case("EXCITETRUNCSING")
 !This is a parallel FCIMC option, where excitations between determinants where at least one of the determinants is above iHighExcitsSing will be restricted to be single excitations.
-                tHighExcitsSing=.true.
-                call readi(iHighExcitsSing)
+                CALL Stop_All(t_r,"EXCITETRUNCSING option depreciated")
+!                tHighExcitsSing=.true.
+!                call readi(iHighExcitsSing)
             case("MAGNETIZESYM")
 !A parallel FCIMC option. Similar to the MAGNETIZE option, but in addition to the energy being raised for particles of the opposite sign, the energy is lowered by the same amount for particles
 !of 'parallel' sign.
-                call Geti(NoMagDets)
-                call Getf(BField)
-                tSymmetricField=.true.
-                tMagnetize=.true.
+                CALL Stop_All(t_r,"MAGNETIZESYM option depreciated")
+!                call Geti(NoMagDets)
+!                call Getf(BField)
+!                tSymmetricField=.true.
+!                tMagnetize=.true.
             case("SINGLESBIAS")
 !This is a parallel FCIMC option, where the single excitations from any determinant will be favoured compared to the simple ratio of number of doubles to singles from HF by multiplying the number of singles by this factor.
                 call Getf(SinglesBias)
@@ -1059,8 +1105,9 @@ MODULE Calc
                 call geti(iFullSpaceIter)
             case("MULTIPLEDETSSPAWN")
 !This option creates connections from iDetGroup randomly chosen determinants and attempts to spawn from them all at once. This should hopefully mean that annihilations are implicitly done.
-                tMultipleDetsSpawn=.true.
-                call Geti(iDetGroup)
+                CALL Stop_All(t_r,"MULTIPLEDETSSPAWN option depreciated")
+!                tMultipleDetsSpawn=.true.
+!                call Geti(iDetGroup)
             case default
                 call report("Keyword "                                &
      &            //trim(w)//" not recognized in CALC block",.true.)
@@ -1068,15 +1115,6 @@ MODULE Calc
           end do calc
           IF((.not.TReadPops).and.(ScaleWalkers.ne.1.D0)) THEN
               call report("Can only specify to scale walkers if READPOPS is set",.true.)
-          ENDIF
-          IF(tFixShiftKii.and.tFixShiftShell) THEN
-              call Stop_All("ReadCalc","Cannot have both fixshellshift and fixshiftkii options")
-          ENDIF
-          IF(tFixShiftKii.and.tFixCASShift) THEN
-              call Stop_All("ReadCalc","Cannot have both fixshiftkii and fixCASshift options")
-          ENDIF
-          IF(tFixCASShift.and.tFixShiftShell) THEN
-              call Stop_All("ReadCalc","Cannot have both fixCASshift and fixshiftshell options")
           ENDIF
 
           ! Set if we need virtual orbitals  (usually set).  Will be unset (by
@@ -1098,7 +1136,7 @@ MODULE Calc
           use SystemData, only: tUEG,nOccAlpha,nOccBeta,ElecPairs,tExactSizeSpace,tMCSizeSpace,MaxABPairs
           use IntegralsData, only: FCK, CST, nMax, UMat
           use IntegralsData, only: HFEDelta, HFMix, NHFIt, tHFCalc
-          Use Determinants, only: FDet, tSpecDet, SpecDet, GetHElement2
+          Use Determinants, only: FDet, tSpecDet, SpecDet, get_helement
           Use DetCalc, only: DetInv, nDet, tRead, ICILevel
           use global_utilities
           
@@ -1158,7 +1196,7 @@ MODULE Calc
           IF(.NOT.TREAD) THEN
 !             CALL WRITETMAT(NBASIS)
              IC=0
-             HDiagTemp=GETHELEMENT2(FDET,FDET,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,IC,ECORE)
+             HDiagTemp = get_helement(fDet, fDet, 0)
              WRITE(6,*) '<D0|H|D0>=',HDiagTemp
              WRITE(6,*) '<D0|T|D0>=',CALCT(FDET,NEL,G1,NBASIS)
              IF(TUEG) THEN
@@ -1209,7 +1247,7 @@ MODULE Calc
           ENDIF
           IF(TMONTE) THEN
              WRITE(6,"(A)",advance='no') 'MC Start Det: '
-             CALL WRITEDET(6,MCDET,NEL,.TRUE.)
+             call write_det (6, mcDet, .true.)
           ENDIF
 !C.. we need to calculate a value for RHOEPS, so we approximate that
 !C.. RHO_II~=exp(-BETA*H_II/p).  RHOEPS is a %ge of this
@@ -1407,7 +1445,7 @@ MODULE Calc
                    FLSI=FLSI-I_P*FLRI
                    ENDIF
                 ENDIF
-                CALL WRITEDET(14,NMRKS(1,III),NEL,.FALSE.)
+                call write_det (14, NMRKS(:,III), .false.)
                 GSEN=CALCDLWDB(III,NDET,NEVAL,CK,W,BETA,0.D0)
                 CALL GETSYM(NMRKS(1,III),NEL,G1,NBASISMAX,ISYM)
                 CALL GETSYMDEGEN(ISYM,NBASISMAX,IDEG)
@@ -1483,8 +1521,8 @@ MODULE Calc
          use input
          use UMatCache , only : TSTARSTORE
          use CalcData , only : CALCP_SUB2VSTAR,CALCP_LOGWEIGHT,TMCDIRECTSUM,g_Multiweight,G_VMC_FAC,TMPTHEORY
-         use CalcData, only : STARPROD,TDIAGNODES,TSTARSTARS,TGraphMorph,TStarTrips,THDiag,TMCStar,TFCIMC,TMCDets,TMCDiffusion,tCCMC
-         use CalcData , only : TRhoElems,TReturnPathMC, TResumFCIMC, tFCIMCSerial
+         use CalcData, only : STARPROD,TDIAGNODES,TSTARSTARS,TGraphMorph,TStarTrips,THDiag,TMCStar,TFCIMC,TMCDets,tCCMC
+         use CalcData , only : TRhoElems,TReturnPathMC, tFCIMCSerial
          use CCMCData, only: tExactCluster,tCCMCFCI,tAmplitudes,tExactSpawn,tCCBuffer
          use Logging, only: tCalcFCIMCPsi
          implicit none
@@ -1503,9 +1541,11 @@ MODULE Calc
                       call readu(w)
                       select case(w)
                       case("MCDIFFUSION")
-                          TMCDiffusion=.true.
+!                          TMCDiffusion=.true.
+                          CALL Stop_All("inpgetmethod","MCDIFFUSION option depreciated")
                       case("RESUMFCIMC")
-                          TResumFCIMC=.true.
+!                          TResumFCIMC=.true.
+                          CALL Stop_All("inpgetmethod","MCDIFFUSION option depreciated")
                       case("SERIAL")
                           tFCIMCSerial=.true.
                       case default
@@ -1716,6 +1756,7 @@ MODULE Calc
          use legacy_data, only: irat
          use CalcData, only: tFCIMC
          use gnd_work_type
+         use Determinants, only: write_det
          IMPLICIT NONE
          INTEGER I_HMAX,NEL,NBASIS,I_VMAX
          INTEGER,ALLOCATABLE :: LSTE(:) !(NEL,NBASIS*NBASIS*NEL*NEL,0:I_VMAX-1)??!!
@@ -1791,7 +1832,7 @@ MODULE Calc
             IEND=ABS(DETINV)
          ELSEIF(TSPECDET) THEN
             WRITE(6,*) "Calculating vertex series for specific det:"
-            CALL WRITEDET(6,SPECDET,NEL,.TRUE.) 
+            call write_det (6, specdet, .true.) 
             ISTART=-1
             IEND=1
          ELSE
@@ -1816,12 +1857,13 @@ MODULE Calc
              CALL GETSYMDEGEN(ISYM,NBASISMAX,IDEG)
           ENDIF
           IF(III.GE.ISTART.AND..NOT.TDONE) THEN
-            IF(NPATHS.EQ.1.AND..NOT.TSPECDET.AND..NOT.TFCIMC) CALL WRITEDET(6,NI,NEL,.TRUE.) 
+            IF(NPATHS.EQ.1.AND..NOT.TSPECDET.AND..NOT.TFCIMC) &
+                call write_det (6, nI, .true.) 
             CALL MCPATHSR3(NI,BETA,I_P,I_HMAX,I_VMAX,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY, &
      &         RHOEPS,LSTE,ICE,RIJLIST,NWHTAY,ILOGGING,ECORE,ILMAX,WLRI,WLSI,DBETA,DLWDB2)
             IF(TLOG) THEN
                WRITE(15,"(I12)",advance='no') III
-               CALL WRITEDET(15,NI,NEL,.FALSE.)
+               call write_det (15, NI, .false.)
                WRITE(15,"(3G25.16)",advance='no') EXP(WLSI+HElP*WLRI),WLRI*HElP,WLSI
             ENDIF
             IF(TFIRST) THEN
@@ -1876,7 +1918,7 @@ MODULE Calc
 
 ! Given an input RHOEPSILON, create Fermi det D out of lowest orbitals and get RHOEPS (which is rhoepsilon * exp(-(beta/P)<D|H|D>
       REAL*8 FUNCTION GETRHOEPS(RHOEPSILON,BETA,NEL,NBASISMAX,G1,NHG, BRR,NMSH,FCK,NMAX,ALAT,UMAT,I_P,ECORE)
-         Use Determinants, only: GetHElement2
+         Use Determinants, only: get_helement
          USE HElem
          use SystemData, only: BasisFN
          IMPLICIT NONE
@@ -1891,9 +1933,8 @@ MODULE Calc
          ENDDO
          CALL NECI_SORTI(NEL,NI)
          BP=HElement(-BETA/I_P)
-         GETRHOEPS=DSQRT(SQ(HElement(RHOEPSILON)*EXP(BP*GETHELEMENT2(NI, &
-     &      NI,NEL,NBASISMAX,G1,NHG,BRR,NMSH,FCK,NMAX,ALAT,UMAT,        &
-     &         0,ECORE))))
+         GETRHOEPS=DSQRT(SQ(HElement(RHOEPSILON) * &
+                        EXP(BP*get_helement(nI, nI, 0))))
          RETURN
       END FUNCTION GetRhoEps
 
@@ -1913,8 +1954,8 @@ MODULE Calc
          DO J=1,NEL
             I=NI(J)
            TMAT=((ALAT(1)**2)*((G1(I)%K(1)**2)/(ALAT(1)**2)+   &
-     &         (G1(I)%K(2)**2)/(ALAT(2)**2)+                   &
-     &         (G1(I)%K(3)**2)/(ALAT(3)**2)))
+               (G1(I)%K(2)**2)/(ALAT(2)**2)+                   &
+               (G1(I)%K(3)**2)/(ALAT(3)**2)))
            TMAT=TMAT*CST
            CALCT2=CALCT2+TMAT
          ENDDO

@@ -11,21 +11,15 @@ module GenRandSymExcitCSF
                    get_num_csfs, csf_apply_yama, csf_get_yamas, write_yama, &
                    get_csf_yama, num_csf_dets, csf_get_random_det, iscsf, &
                    det_to_random_csf
-    use mt95, only: genrand_real2
+    use dSFMT_interface, only: genrand_real2_dSFMT
     use GenRandSymExcitNUMod, only: ClassCountInd, GenRandSymExcitScratchNU
     use DetBitOps, only: EncodeBitDet, DecodeBitDet, is_canonical_ms_order, &
                          shift_det_bit_singles_to_beta, count_open_orbs
+    use Determinants, only: write_det
     use Parallel
     use util_mod, only: int_arr_eq
     implicit none
 
-    ! Non-modularised functions (sigh)
-    interface
-        real*8 pure function choose(N,R)
-            integer, intent(in) :: N,R
-        end function
-    end interface
-    
 contains
     
     subroutine GenRandSymCSFExcit (nI, iLut, nJ, pSingle, pDouble, IC, &
@@ -114,7 +108,7 @@ contains
                 write(6,'("This is because of difficulties with other &
                           &symmetries setup.")')
                 write(6,'("If you want to use these excitation generators &
-                          &then add NOSYMGEN to the input to ignor symmetry &
+                          &then add NOSYMGEN to the input to ignore symmetry &
                           &while generating excitations.")')
                 call flush(6)
                 call stop_all(this_routine,"GenRandsymExcitCSF can only be &
@@ -135,7 +129,7 @@ contains
             case (4)
                 IC = 2
             case default
-                call genrand_real2(r)
+                r = genrand_real2_dSFMT()
                 if ((r < pSingle) .and. btest(exFlag, 1)) then
                     IC = 1
                 else if ((r < pSingle+pDouble) .and. btest(exFlag,2)) then
@@ -318,7 +312,7 @@ contains
 
         ! Draw orbitals randomly until we find one unoccupied
         do i=1,250
-            call genrand_real2 (r)
+            r = genrand_real2_dSFMT()
             orb = 2 * int(r*nBasis/2) + 1 ! beta
 
             ! If exciting to self, or to the other source, this is either
@@ -372,7 +366,7 @@ contains
             write(6,'("Desired symmetry of orbital pair =",i3)') &
                 symProd
             write(6,*) 'src', orbs(1), orbs(2)
-            call writedet(6,nI,nel,.true.)
+            call write_det (6, nI, .true.)
             call flush(6)
             call stop_all(this_routine, "Cannot find an unoccupied orbital &
                          &for a double excitation after 250 attempts.")
@@ -399,7 +393,7 @@ contains
         full_ind = ClassCountInd(2, sym(2), Ml(2))
         norbs = OrbClassCount(full_ind)
         do i=1,250
-            call genrand_real2 (r)
+            r = genrand_real2_dSFMT()
             orb = int(r * norbs)
             ind = SymLabelCounts2(1,full_ind) + orb
             orb = SymLabelList2(ind)
@@ -436,7 +430,7 @@ contains
             write(6,'("excitation after 250 attempts.")')
             write(6,'("Desired symmetry of orbital pair =",i3)') &
                 symProd
-            call writedet(6,nI,nel,.true.)
+            call write_det (6, nI, .true.)
             write(6,*) 'src', orbs(1), orbs(2)
             write(6,*) 'tgt', orbA
             call flush(6)
@@ -516,7 +510,7 @@ contains
             elecs(1) = elec
             orbs(1) = orb
             do i=1,250
-                call genrand_real2 (r)
+                r = genrand_real2_dSFMT()
                 elec = int(nel*r) + 1
                 orb = iand(nI(elec), csf_orbital_mask)
 
@@ -538,7 +532,7 @@ contains
                     endif
                 else
                     if (G1(orb)%Ms == 1) then
-                        call writedet(6, nI, nel, .true.)
+                        call write_det (6, nI, .true.)
                         write (6,'("elec, orb: ",2i4)') elec, orb
                         call stop_all (this_routine, "Invalid spin")
                     endif
@@ -639,7 +633,7 @@ contains
         ! 250 attempts to pick randomly
         do i=1,250
             ! Pick an electron at random, and extract its orbital
-            call genrand_real2(r)
+            r = genrand_real2_dSFMT()
             elec = int(nel*r) + 1
             orb = iand(nI(elec), csf_orbital_mask)
 
@@ -668,7 +662,7 @@ contains
 
         if (i > 250) then
             write(6,'("Cannot find single excitation after 250 attempts")')
-            call writedet (6, nI, nel, .true.)
+            call write_det (6, nI, .true.)
             call flush(6)
             call stop_all(this_routine, "Cannot find single excitation after &
                                         &250 attempts")
@@ -683,7 +677,7 @@ contains
         ! This is method 2 from symrandexcit2.
         norbs = OrbClassCount(symEx)
         do i=1,250
-         call genrand_real2(r)
+         r = genrand_real2_dSFMT()
             orb2 = int(norbs*r)
             ind = SymLabelCounts2(1,symEx) + orb2
             orb2 = SymLabelList2(ind)
@@ -717,7 +711,7 @@ contains
             print*, G1(orb)%Sym%S, symEx
             print*, SymLabelList2(SymLabelCounts2(1,symEx):SymLabelCounts2(1,symEx)+OrbClassCount(symEx)-1)
             write(6,'("Number of orbitals to legitimately pick =",i4)') nexcit
-            call writedet(6,nI,nel,.true.)
+            call write_det (6, nI, .true.)
             call flush(6)
             call stop_all(this_routine, "Cannot find an unoccupied orbital &
                          &for a single excitation after 250 attempts.")
@@ -1034,7 +1028,7 @@ contains
         if (lnopen > 0) then
             if (present(yamas)) then
                 if (nopen2 /= lnopen) then
-                    call writedet (6, nJ(1,:), nel, .true.)
+                    call write_det (6, nJ(1,:), .true.)
                     call stop_all (this_routine, "Incorrect value of nopen2")
                 endif
 
@@ -1678,7 +1672,7 @@ contains
                                       nJ(excit:excit+ndets-1, :), ilut, &
                                       nopen, 2, ndets, lnopen2, csfpp)
                             case default
-                                call writedet(6, nJ(excit,:), nel, .true.)
+                                call write_det(6, nJ(excit,:), .true.)
                                 print*, excitmat(1,:), excitmat(2,:)
                                 print*, 'invalid lnopen2', lnopen2, nopeN
                                 print*, 'case', int((lnopen2 - nopen)/2)
@@ -1731,7 +1725,7 @@ contains
         nopen = count_open_orbs (iLut)
 
         write (6, '("Starting determinant: ")', advance='no')
-        call writedet(6, nI, nel, .true.)
+        call write_det (6, nI, .true.)
 
         ! Obtain the orbital symmetries for the following steps
         call ConstructClassCountsSpatial(nI, nel-nopen, CCDblS, CCSglS, CCUnS)
@@ -1752,7 +1746,7 @@ contains
             endif
 
             write (6, '(i6,": ")', advance='no') i
-            call writedet (6, nK(i,:), nel, .true.)
+            call write_det (6, nK(i,:), .true.)
             call TestGenRandSymCSFExcit (nK(i,:), 4000000, 0.2d0, 0.75d0, 7, &
                                          10000)
         enddo
@@ -1810,9 +1804,9 @@ contains
                 ! Output a list of all generated CSFs
                 open (9, file='genCSF', status='unknown', position='append')
                 write(9,'(i5, "Excitations from ")', advance='no'), nexcit
-                call writedet(9, nI, nel, .true.)
+                call write_det (9, nI, .true.)
                 do i=1,nexcit
-                    call writedet(9, nK(i,:), nel, .true.)
+                    call write_det (9, nK(i,:), .true.)
                 enddo
                 write(9,'("------------------")')
                 close(9)
@@ -1865,7 +1859,7 @@ contains
                     if (j <= nexcit) then
                         ex_list(j) = .true.
                     else
-                        call writedet (6, nJ, nel, .true.)
+                        call write_det (6, nJ, .true.)
                         call stop_all (this_routine, "CSF not in list of &
                                       &enumerated CSFs")
                     endif
@@ -1940,7 +1934,7 @@ contains
 
         ! Similarly for the doubles histograms
         open (9,file="DoublesHist",status='unknown',position='append')
-        call writedet(9,ni,nel,.true.)
+        call write_det (9, ni, .true.)
         do i=1,nbasis !-1
             do j=i+1,nbasis
                 do k=1,nbasis
@@ -1959,7 +1953,7 @@ contains
         if (bTestList) then
             do i=1,nexcit
                 if (ex_list(i) .eqv. .false.) then
-                    call writedet(6, nK(i,:), nel, .true.)
+                    call write_det (6, nK(i,:), .true.)
                     call stop_all (this_routine, "Excitation in list not &
                                   &generated stochastically")
                 endif

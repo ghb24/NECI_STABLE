@@ -90,7 +90,7 @@ my_make := $(MAKE) -f $(my_makefile)
 
 # pre-processing.
 CPP = %(cpp)s
-CPPFLAGS = %(cppflags)s -DMAXMEM='$(MAXMEM)' -D_VCS_VER='$(VCS_VERSION)' $(WORKING_DIR_CHANGES) -D_CONFIG='"$(CONFIG) ($(OPT))"'
+CPPFLAGS = -DMAXMEM='$(MAXMEM)' -D_VCS_VER='$(VCS_VERSION)' $(WORKING_DIR_CHANGES) -D_CONFIG='"$(CONFIG) ($(OPT))"' -DDSFMT_MEXP=19937 %(cppflags)s 
 
 # use compiler with perl scripts to avoid cascade compilation.
 compiler = %(compiler)s
@@ -130,7 +130,7 @@ CONFIG = %(config)s
 OPT = %(opt_level)s
 
 # Directories containing source files (space separated list).
-SRC = src
+SRC = src src/lib
 
 # Directories in which compiled objects are placed.
 DEST = dest/$(CONFIG)/$(OPT)
@@ -188,33 +188,33 @@ MAXMEM = %(max_mem)i # RAM available, in MB.  Used by the memory logger.
 # Find source files and resultant object files.
 
 # Source extensions.
-EXTS = .F90 .F .C .c
+EXTS = .F90 .F .c .cpp
 
 # Source filenames.
 find_files = $(wildcard $(1)/*$(2))
 FSRCFILES := $(foreach dir,$(SRC),$(call find_files,$(dir),.F))
 F90SRCFILES := $(foreach dir,$(SRC),$(call find_files,$(dir),.F90))
-CSRCFILES := $(foreach dir,$(SRC),$(call find_files,$(dir),.C))
+cppSRCFILES := $(foreach dir,$(SRC),$(call find_files,$(dir),.cpp))
 cSRCFILES := $(foreach dir,$(SRC),$(call find_files,$(dir),.c))
 SRCFILES := $(FSRCFILES) $(F90SRCFILES) $(CSRCFILES) $(cSRCFILES)
 
 # Objects (strip path and replace extension of source files with .o).
 FOBJ_bare := $(addsuffix .o,$(basename $(notdir $(FSRCFILES))))
 F90OBJ_bare := $(addsuffix .o,$(basename $(notdir $(F90SRCFILES))))
-COBJ_bare := $(addsuffix .o,$(basename $(notdir $(CSRCFILES))))
+cppOBJ_bare := $(addsuffix .o,$(basename $(notdir $(cppSRCFILES))))
 cOBJ_bare := $(addsuffix .o,$(basename $(notdir $(cSRCFILES))))
 
 # Full path to all objects (gamma-point).
 FOBJ := $(addprefix $(GDEST)/, $(FOBJ_bare))
 F90OBJ := $(addprefix $(GDEST)/, $(F90OBJ_bare))
-COBJ := $(addprefix $(GDEST)/, $(COBJ_bare))
+cppOBJ := $(addprefix $(GDEST)/, $(cppOBJ_bare))
 cOBJ := $(addprefix $(GDEST)/, $(cOBJ_bare))
-OBJECTS := $(FOBJ) $(F90OBJ) $(COBJ) $(cOBJ)
+OBJECTS := $(FOBJ) $(F90OBJ) $(cppOBJ) $(cOBJ)
 
 # Similarly for the kpoint objects.
 KFOBJ := $(addprefix $(KDEST)/, $(FOBJ_bare))
 KF90OBJ := $(addprefix $(KDEST)/, $(F90OBJ_bare))
-KCOBJ := $(addprefix $(KDEST)/, $(COBJ_bare))
+KcppOBJ := $(addprefix $(KDEST)/, $(cppOBJ_bare))
 KcOBJ := $(addprefix $(KDEST)/, $(cOBJ_bare))
 
 # Objects for standalone NECI.
@@ -244,16 +244,16 @@ FDEPEND = $(FRDEPEND) $(FCDEPEND)
 # We don't need these when we first compile, only when we recompile.
 # We achieve this (most of the time) by recompiling the C dependencies every
 # time we compile.
-CDEPEND_FILES = $(addprefix $(GDEP_DEST)/,$(notdir $(COBJ:.o=.d)))
+cppDEPEND_FILES = $(addprefix $(GDEP_DEST)/,$(notdir $(cppOBJ:.o=.d)))
 cDEPEND_FILES = $(addprefix $(GDEP_DEST)/,$(notdir $(cOBJ:.o=.d)))
-KCDEPEND_FILES = $(addprefix $(KDEP_DEST)/,$(notdir $(KCOBJ:.o=.d)))
+KcppDEPEND_FILES = $(addprefix $(KDEP_DEST)/,$(notdir $(KcppOBJ:.o=.d)))
 KcDEPEND_FILES = $(addprefix $(KDEP_DEST)/,$(notdir $(KcOBJ:.o=.d)))
-CDEPEND = $(CDEPEND_FILES) $(cDEPEND_FILES) $(KCDEPEND_FILES) $(KcDEPEND_FILES)
+CDEPEND = $(cppDEPEND_FILES) $(cDEPEND_FILES) $(KcppDEPEND_FILES) $(KcDEPEND_FILES)
 
 #-----
 # Goals
 
-.PHONY: clean cleanall depend rmdeps help neci.x
+.PHONY: clean cleanall depend rmdeps help neci.x utils $(UTILS)
 
 # First, some helpful macros.
 
@@ -305,7 +305,7 @@ $(LIB)/kneci-vasp.$(CONFIG).$(OPT).a: $(OBJECTS_KVASP)
 \t$(ARCHIVE)
 
 clean: 
-\trm -f {$(GDEST),$(KDEST)}/*.{f,f90,mod,o,c,x,a,d} $(EXE)/neci.x $(LIB)/*.a
+\trm -f {$(GDEST),$(KDEST)}/*.{f,f90,mod,o,c,x,a,d} $(EXE)/*.$(CONFIG).$(OPT).x $(LIB)/*.$(CONFIG).$(OPT).a
 
 cleanall:
 \trm -rf dest lib bin
@@ -356,15 +356,19 @@ help:
 \t@echo "make [target(s)]"
 \t@echo
 \t@echo "Targets:"
-\t@echo "neci.x        make neci.x."
-\t@echo "new           run clean and then build neci.x."
-\t@echo "gneci-cpmd    make neci library for integration with gamma-point version of cpmd."
-\t@echo "kneci-cpmd    make neci library for integration with k-point version of cpmd."
-\t@echo "cpmdlibs      make both libraries for integration with cpmd."
-\t@echo "gneci-vasp    make neci library for integration with gamma-point version of vasp."
-\t@echo "kneci-vasp    make neci library for integration with k-point version of vasp."
-\t@echo "vasplibs      make both libraries for integration with vasp."
-\t@echo "libs          make all libraries for integration with cpmd and vasp."
+\t@echo "neci.x        compile neci.x."
+\t@echo "new           run clean and then compile neci.x."
+\t@echo "gneci-cpmd    compile neci library for integration with gamma-point version of cpmd."
+\t@echo "kneci-cpmd    compile neci library for integration with k-point version of cpmd."
+\t@echo "cpmdlibs      compile both libraries for integration with cpmd."
+\t@echo "gneci-vasp    compile neci library for integration with gamma-point version of vasp."
+\t@echo "kneci-vasp    compile neci library for integration with k-point version of vasp."
+\t@echo "vasplibs      compile both libraries for integration with vasp."
+\t@echo "libs          compile all libraries for integration with cpmd and vasp."
+\t@echo "utils         compile all utility programs."
+\t@echo "TransLz.x     compile the TransLz utility program."
+\t@echo "BlockFCIMC.x  compile the BlockFCIMC utility program."
+\t@echo "ModelFCIQMC.x compile the ModelFCIQMC example program."
 \t@echo "clean         remove all compiled objects for the current platform and optimisation level." 
 \t@echo "cleanall      remove all compiled objects for all platforms and optimisation levels and the dependency files." 
 \t@echo "tags          run ctags on all source files."
@@ -380,9 +384,22 @@ help:
 
 # Some more helpful macros.
 CPP_BODY = $(CPPFLAGS) $< $@
-C_BODY = $(CFLAGS) -c $< -o $@ 
+C_BODY = $(CFLAGS) $(CPPFLAGS) -c $< -o $@ 
 MAKE_C_GDEPS = $(CCD) $(CFLAGS) -MM -MT \$$\(GDEST\)/$(addsuffix .o,$(basename $(notdir $@))) $< -o $@
 MAKE_C_KDEPS = $(CCD) $(CFLAGS) -MM -MT \$$\(KDEST\)/$(addsuffix .o,$(basename $(notdir $@))) $< -o $@
+
+# Include paths
+INCLUDE_PATH = $(addprefix -I ,$(SRC))
+
+# stat command for checking last modified time.
+system = $(shell uname -s)
+# BSD (ie OSX as far as we're concerned) has a different stat command.
+ifeq ($(system),Darwin)
+\tstat_cmd = stat -f %%m
+else
+\t# Linux systems.
+\tstat_cmd = stat --format=%%Y
+endif
 
 # Compiling fortran source files...
 
@@ -409,44 +426,75 @@ $(KDEST)/%%.f: %%.F
 # file using the object rule and so don't need to produce the .mod file again.  We test for the latter condition by
 # requiring the .o and .mod files have the same "last modified" time.
 %%.mod:
-\ttest -e $@ && test ! -e $(@:.mod=.time) && test $(stat -f %%m $@) -eq $(stat -f %%m $<) && touch $(@:.mod=.time) || true
-\tperl -w $(TOOLS)/compile_mod.pl -cmp "perl -w $(TOOLS)/compare_module_file.pl -compiler $(compiler)" -fc "$(FC) $(FFLAGS) $(F90FLAGS) %(module_flag)s$(dir $@) -I $(SRC) -c $(<:.o=.f90) -o $<" -provides "$@" -requires "$(<:.o=.f90)"
+\ttest -e $@ && test ! -e $(@:.mod=.time) && test $(shell $(stat_cmd) $@) -eq $(shell $(stat_cmd) $<) && touch $(@:.mod=.time) || true
+\tperl -w $(TOOLS)/compile_mod.pl -cmp "perl -w $(TOOLS)/compare_module_file.pl -compiler $(compiler)" -fc "$(FC) $(FFLAGS) $(F90FLAGS) %(module_flag)s$(dir $@) $(INCLUDE_PATH) -c $(<:.o=.f90) -o $<" -provides "$@" -requires "$(<:.o=.f90)"
 
 $(F90OBJ) $(KF90OBJ): %%.o: %%.f90
-\tperl -w $(TOOLS)/compile_mod.pl -cmp "perl -w $(TOOLS)/compare_module_file.pl -compiler $(compiler)" -fc "$(FC) $(FFLAGS) $(F90FLAGS) %(module_flag)s$(dir $@) -I $(SRC) -c $< -o $@" -provides "$@" -requires "$^"
+\tperl -w $(TOOLS)/compile_mod.pl -cmp "perl -w $(TOOLS)/compare_module_file.pl -compiler $(compiler)" -fc "$(FC) $(FFLAGS) $(F90FLAGS) %(module_flag)s$(dir $@) $(INCLUDE_PATH) -c $< -o $@" -provides "$@" -requires "$^"
 
 $(FOBJ) $(KFOBJ): %%.o: %%.f
-\tperl -w $(TOOLS)/compile_mod.pl -cmp "perl -w $(TOOLS)/compare_module_file.pl -compiler $(compiler)" -fc "$(FC) $(FFLAGS) $(F77FLAGS) %(module_flag)s$(dir $@) -I $(SRC) -c $< -o $@" -provides "$@" -requires "$^"
+\tperl -w $(TOOLS)/compile_mod.pl -cmp "perl -w $(TOOLS)/compare_module_file.pl -compiler $(compiler)" -fc "$(FC) $(FFLAGS) $(F77FLAGS) %(module_flag)s$(dir $@) $(INCLUDE_PATH) -c $< -o $@" -provides "$@" -requires "$^"
 
 # Compiling C source files...
 # a) gamma-point.
-$(COBJ): $(GDEST)/%%.o: %%.C
-\t$(CC) $(CPPFLAGS) $(C_BODY)
+$(cppOBJ): $(GDEST)/%%.o: %%.cpp
+\t$(CC) $(C_BODY)
 
 $(cOBJ): $(GDEST)/%%.o: %%.c
 \t$(CC) $(C_BODY)
 
 # b) k-point.
-$(KCOBJ): $(KDEST)/%%.o: %%.C
-\t$(CC) $(CPPFLAGS) -D__CMPLX $(C_BODY)
+$(KcppOBJ): $(KDEST)/%%.o: %%.cpp
+\t$(CC) -D__CMPLX $(C_BODY)
 
 $(KcOBJ): $(KDEST)/%%.o: %%.c
-\t$(CC) $(C_BODY)
+\t$(CC) -D__CMPLX $(C_BODY)
 
 # Update C dependency files.
 # a) gamma-point.
 $(cDEPEND_FILES): $(GDEP_DEST)/%%.d: %%.c
 \t$(MAKE_C_GDEPS)
 
-$(CDEPEND_FILES): $(GDEP_DEST)/%%.d: %%.C
+$(cppDEPEND_FILES): $(GDEP_DEST)/%%.d: %%.cpp
 \t$(MAKE_C_GDEPS)
 
 # b) k-point.
 $(KcDEPEND_FILES): $(KDEP_DEST)/%%.d: %%.c
 \t$(MAKE_C_KDEPS)
 
-$(KCDEPEND_FILES): $(KDEP_DEST)/%%.d: %%.C
+$(KcppDEPEND_FILES): $(KDEP_DEST)/%%.d: %%.cpp
 \t$(MAKE_C_KDEPS)
+
+#-----
+# Utilities
+
+# Macro to compile a utility Fortran program contained within a single source
+# file.
+# We assume that the source filename is *.f90, that the program name is based
+# upon the source filename and that the utility program requires (at most) the
+# same libraries as neci.
+MKUTIL = $(FC) $(FFLAGS) $(F90FLAGS) $< -o $@ $(LIBS)
+
+UTILS = TransLz.x BlockFCIMC.x ModelFCIQMC.x
+
+# Target to compile all utility programs.
+utils: $(UTILS)
+
+# Target to point *.x to bin/*.x for utility programs.
+$(UTILS): %%: $(EXE)/%%
+
+# Utilities are compiled as bin/*.config.opt.x.
+# The static pattern (before the first :) results in matching only
+# bin/$(UTILS).
+# bin/*.x links to bin/*.config.opt.x.
+$(addprefix $(EXE)/,$(UTILS)): $(EXE)/%%.x: $(EXE)/%%.$(CONFIG).$(OPT).x
+\t$(LINK)
+
+# Compile bin/*.config.opt.x from utils/*.f90
+# The static pattern results in applying this to only targets of the form $(EXE)/*.$(CONFIG).$(OPT).x
+# where *.x is one of the programs defined in $(UTILS).
+$(addprefix $(EXE)/,$(addsuffix .$(CONFIG).$(OPT).x,$(basename $(UTILS)))): $(EXE)/%%.$(CONFIG).$(OPT).x: utils/%%.f90
+\t$(MKUTIL)
 
 #-----
 # Include dependency files

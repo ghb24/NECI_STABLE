@@ -1,5 +1,5 @@
 C.. This would seem to sort both ARR and BRR into ascending ARR order [AJWT20031001]
-C.. Further investigation shows it is the quicksort from Numerical Recipes, taking two arrays to be sorted, ARR, BRR according to the order of ARR [AJWT20040407]
+C.. Further investigation shows it is the heapsort from Numerical Recipes, taking two arrays to be sorted, ARR, BRR according to the order of ARR [JSS 03/03/2010]
       SUBROUTINE NECI_SORT2(N,ARR,BRR)
       IMPLICIT REAL*8 (A-H,O-Z)
       INTEGER, PARAMETER :: M=7,NSTACK=50
@@ -96,7 +96,7 @@ C.. Further investigation shows it is the quicksort from Numerical Recipes, taki
       END 
 
 C.. This would seem to sort both ARR and BRR into ascending ARR order [AJWT20031001]
-C.. Further investigation shows it is the quicksort from Numerical Recipes, taking two arrays to be sorted, ARR, BRR according to the order of ARR [AJWT20040407]
+C.. Further investigation shows it is the heapsort from Numerical Recipes, taking two arrays to be sorted, ARR, BRR according to the order of ARR [JSS 03/03/2010]
 C.. This version has ARR as an int and BRR as a real 
       SUBROUTINE SORT2_(N,ARR,BRR)
       IMPLICIT REAL*8 (A-H,O-Z)
@@ -194,7 +194,7 @@ C.. This version has ARR as an int and BRR as a real
       RETURN
       END 
 C.. This would seem to sort both ARR and BRR into ascending ARR order [AJWT20031001]
-C.. Further investigation shows it is the quicksort from Numerical Recipes, taking two arrays to be sorted, ARR, BRR according to the order of ARR [AJWT20040407]
+C.. Further investigation shows it is the heapsort from Numerical Recipes, taking two arrays to be sorted, ARR, BRR according to the order of ARR [JSS 03/03/2010]
 C.. This version has ARR as an int and BRR as an array of length BD of reals
       SUBROUTINE SORTIRN(N,ARR,BRR,BD)
       IMPLICIT NONE
@@ -292,7 +292,7 @@ C.. This version has ARR as an int and BRR as an array of length BD of reals
       RETURN
       END 
 C.. This would seem to sort both ABS(ARR) and BRR into ascending ARR order [AJWT20031001]
-C.. Further investigation shows it is the quicksort from Numerical Recipes, taking two arrays to be sorted, ARR, BRR according to the order of ARR [AJWT20040407]
+C.. Further investigation shows it is the heapsort from Numerical Recipes, taking two arrays to be sorted, ARR, BRR according to the order of ARR [JSS 03/03/2010]
 C.. This version has ARR as a real and BRR as an array of length BD of integers
       SUBROUTINE SORTRNI(N,ARR,BRR,BD)
       IMPLICIT NONE
@@ -646,7 +646,7 @@ C.. This version has ARR as a real and BRR as an array of length BD of integers
 
 
 C.. This would seem to sort both ARR and BRR into ascending ARR order [AJWT20031001]
-C.. Further investigation shows it is the quicksort from Numerical Recipes, taking two arrays to be sorted, ARR, BRR according to the order of ARR [AJWT20040407]
+C.. Further investigation shows it is the heapsort from Numerical Recipes, taking two arrays to be sorted, ARR, BRR according to the order of ARR [JSS 03/03/2010]
 C.. This version has ARR BRR and CRR as arrays of length BD of reals.  Sort is based on Arr(1,:)
       SUBROUTINE SORT3RN(N,ARR,BRR,CRR,BD)
       IMPLICIT NONE
@@ -767,7 +767,7 @@ C.. This version has ARR BRR and CRR as arrays of length BD of reals.  Sort is b
       RETURN
       END 
 C.. This would seem to sort both ARR and BRR into ascending ARR order [AJWT20031001]
-C.. Further investigation shows it is the quicksort from Numerical Recipes, taking two arrays to be sorted, ARR, BRR according to the order of ARR [AJWT20040407]
+C.. Further investigation shows it is the heapsort from Numerical Recipes, taking two arrays to be sorted, ARR, BRR according to the order of ARR [JSS 03/03/2010]
 C.. We only sort every NSKIP item in the array.
       SUBROUTINE SORT2SKIP(N,ARR,BRR,NSKIP)
       IMPLICIT REAL*8 (A-H,O-Z)
@@ -865,7 +865,7 @@ C.. We only sort every NSKIP item in the array.
       END 
 
 C.. This would seem to sort both ARR and BRR into ascending ARR order [AJWT20031001]
-C.. Further investigation shows it is the quicksort from Numerical Recipes, taking two arrays to be sorted, ARR, BRR according to the order of ARR [AJWT20040407]
+C.. Further investigation shows it is the heapsort from Numerical Recipes, taking two arrays to be sorted, ARR, BRR according to the order of ARR [JSS 03/03/2010]
 C.. We only sort every NSKIP item in the array.
 C.. This version has ARR as an int and BRR as a real 
       SUBROUTINE SORT2SKIP_(N,ARR,BRR,NSKIP)

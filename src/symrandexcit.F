@@ -223,6 +223,7 @@ C.. Actually generate a det
       use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
       use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
       use SymData, only: SymClass,SymLabelCounts,SymLabelList
+      use Determinants, only: write_det
       IMPLICIT NONE
       INTEGER NBASIS
       INTEGER NEL,NI(NEL),EXCITTYPES(5,NEXCITTYPES),NEXCITTYPES
@@ -333,8 +334,8 @@ C.. Actually generate a det
                      IF(.NOT.ISVALIDDET(NK,NEL)) THEN
             
                        WRITE(6,*) "INVALID DET SYMGENRANDEXCITIT SINGLE"
-                       CALL WRITEDET(6,NK,NEL,.TRUE.)
-                       CALL WRITEDET(6,NI,NEL,.TRUE.)
+                       call write_det (6, NK, .true.)
+                       call write_det (6, NI, .true.)
                        WRITE(6,*) I,ITOSL,K,L
                        WRITE(6,*)                                       &
      &                  (2*SYMLABELLIST(SYMLABELCOUNTS(1,ITO)+K)+ISPN,  &
@@ -747,6 +748,7 @@ C.. Actually generate a det
       Subroutine SymGenRandExcitIt2_Single_GetTo(iSeed,nI,nEl,I,iSpn,
      &   iTo,nK,ExcitMat,TParity)
       use SymData, only: SymClass,SymLabelCounts,SymLabelList
+        use Determinants, only: write_det
          IMPLICIT NONE
          INTEGER iSeed
          INTEGER nEl,nI(nEl)
@@ -791,8 +793,8 @@ C.. Actually generate a det
                      IF(.NOT.ISVALIDDET(NK,NEL)) THEN
             
                        WRITE(6,*) "INVALID DET SYMGENRANDEXCITIT SINGLE"
-                       CALL WRITEDET(6,NK,NEL,.TRUE.)
-                       CALL WRITEDET(6,NI,NEL,.TRUE.)
+                       call write_det (6, NK, .true.)
+                       call write_det (6, NI, .true.)
                        WRITE(6,*) I,ITOSL,K,L
                        WRITE(6,*)                                       &
      &                  (2*SYMLABELLIST(SYMLABELCOUNTS(1,ITO)+K)+ISPN,  &

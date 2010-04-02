@@ -342,6 +342,35 @@ Subroutine MPIDSumArr(dValues, iLen, dReturn)
 #endif
 end Subroutine MPIDSumArr
 
+
+Subroutine MPIDSumRootArr(dValues, iLen, dReturn, root)
+   !=  In:
+   !=     dValues(iLen)  Array of real*8s.  The corresponding elements for each
+   !=                    processor are summed and returnd into dReturn(iLen).
+   !=     iLen           Length of the arrays.
+   !=     root           Processor which to sum the result to.
+   !=  Out:
+   !=     dReturn(iLen)  Array of real*8s to get the results.
+   != The arrays however are declared as scalar values. This is so that we can pass scalar
+   != quantities without it getting annoyed with associating a scalar with a vector when we
+   != just want to sum single numbers. Since we are parsing by reference, it should mean that
+   != arrays are ok too.
+   real*8 dValues(iLen), dReturn(iLen)
+   integer iLen,i,root
+   integer ierr,rc
+#ifdef PARALLEL
+   call MPI_REDUCE(dValues,dReturn,iLen,MPI_DOUBLE_PRECISION,MPI_SUM,root,MPI_COMM_WORLD,ierr)
+   if (ierr .ne. MPI_SUCCESS) then
+      print *,'Error starting MPI program. Terminating.'
+      call MPI_ABORT(MPI_COMM_WORLD, rc, ierr)
+   end if
+#else
+    do i=1,iLen
+        dReturn(i)=dValues(i)
+    enddo
+#endif
+end Subroutine MPIDSumRootArr
+
 !A wrapper for the mpi_bcast double precision routine, so it can be used in serial
 Subroutine MPIDBCast(dValues,iLen,Root)
     REAL*8 :: dValues

@@ -1,0 +1,310 @@
+module util_mod
+    implicit none
+
+    ! An elemental routine to swap specified data.
+    interface swap
+        module procedure swap_int
+        module procedure swap_doub
+    end interface
+    
+contains
+
+    elemental real*8 function factrl (n)
+
+        ! Return the factorial on n, i.e. n!
+        ! This is not done in the most efficient way possible (i.e. use with
+        ! care if N is large, or if called many times!).
+        ! If a more efficient procedure is required, refer to:
+        ! http://www.luschny.de/math/factorial/FastFactorialFunctions.htm.
+
+        integer, intent(in) :: n
+        integer :: i
+
+        factrl = 1
+        do i = 2, n
+            factrl = factrl * i
+        enddo
+    end function factrl
+
+    elemental real*8 function choose (n, r)
+        
+        ! Return the binomail coefficient nCr
+
+        integer, intent(in) :: n, r
+        integer :: i, k
+
+        if (r > n) then
+            choose = 0
+        else
+            ! Always use the smaller possibility
+            if (r > (n / 2)) then
+                k = n - r
+            else
+                k = r
+            endif
+
+            choose = 1
+            do i = 0, k-1
+                choose = (choose * (n - i)) / (i + 1)
+            enddo
+        endif
+    end function choose
+
+    logical pure function int_arr_gt (a, b, len)
+
+        ! Make a comparison we can sort integer arrays by. Return true if the
+        ! first differing integer of a, b is such that a(i) > b(i).
+        !
+        ! In:  a, b - The arrays to compare
+        !      len  - An optional argument to specify the size to consider.
+        !             If not provided, then min(size(a), size(b)) is used.
+        ! Ret:      - If a > b
+    
+        integer, intent(in), dimension(:) :: a, b
+        integer, intent(in), optional :: len
+
+        integer llen, i
+
+        if (present(len)) then
+            llen = len
+        else
+            llen = min(size(a), size(b))
+        endif
+
+        ! Sort by the first integer first ...
+        i = 1
+        do i = 1, llen
+            if (a(i) /= b(i)) exit
+        enddo
+
+        ! Make the comparison
+        if (i > llen) then
+            int_arr_gt = .false.
+        else
+            if (a(i) > b(i)) then
+                int_arr_gt = .true.
+            else
+                int_arr_gt = .false.
+            endif
+        endif
+    end function int_arr_gt
+        
+
+    logical pure function int_arr_eq (a, b, len)
+
+        ! If two specified integer arrays are equal, return true. Otherwise
+        ! return false.
+        !
+        ! In:  a, b - The arrays to consider
+        !      len  - The maximum length to consider. Otherwise will use whole
+        !             length of array
+
+        integer, intent(in), dimension(:) :: a, b
+        integer, intent(in), optional :: len
+        
+        integer llen, i
+
+        ! Obtain the lengths of the arrays if a bound is not specified.
+        ! Return false if mismatched sizes and not specified.
+        if (present(len)) then
+            llen = len
+        else
+            if (size(a) /= size(b)) then
+                int_arr_eq = .false.
+                return
+            endif
+            llen = size(a)
+        endif
+
+        ! Run through the arrays. Return if they differ at any point.
+        do i=1,llen
+            if (a(i) /= b(i)) then
+                int_arr_eq = .false.
+                return
+            endif
+        enddo
+
+        ! If we get this far, they are equal
+        int_arr_eq = .true.
+    end function
+
+    elemental subroutine swap_doub (a, b)
+        
+        ! Swap the doubles A, B
+
+        real*8, intent(inout) :: a, b
+        real*8 :: tmp
+
+        tmp = a
+        a = b
+        b = tmp
+    end subroutine
+
+    elemental subroutine swap_int (a, b)
+
+        ! Swap the integers A, B
+
+        integer, intent(inout) :: a, b
+        integer :: tmp
+
+        tmp = a
+        a = b
+        b = tmp
+    end subroutine
+
+    elemental function int_fmt(i, padding) result(fmt1)
+
+        ! In:
+        !    i: an integer
+        !    padding (optional): amount of padding to add to format statement.
+        !        The default amount is 2.  The padding is used to include the
+        !        sign if i is negative.
+        ! Returns:
+        !    fmt1: a format statement for an integer field which will hold
+        !        i perfectly plus an amount of padding.
+
+        ! This does take i/o formatting to a slightly OCD level, admittedly...
+
+        character(2) :: fmt1
+        integer, intent(in) :: i
+        integer, intent(in), optional :: padding
+        integer :: p
+        real :: r
+
+        if (present(padding)) then
+            p = padding
+        else
+            p  = 2
+        end if
+
+        if (i == 0 .or. i==1) then
+            r = 1.0
+        else
+            r = log10(real(abs(i)+1))
+        end if
+
+        if (r < 10) then
+            write (fmt1,'("i",i1)') ceiling(r+p)
+        else if (r < 100) then
+            write (fmt1,'("i",i2)') ceiling(r+p)
+        else
+            ! By this point we'll have hit integer overflow anyway...
+            write (fmt1,'("i",i3)') ceiling(r+p)
+        end if
+
+    end function int_fmt
+
+    pure function binary_search (arr, val, data_size, num_items) result(pos)
+
+        integer, intent(in) :: data_size, num_items
+        integer, intent(in) :: arr(data_size, num_items)
+        integer, intent(in) :: val(data_size)
+        integer :: pos
+
+        integer :: hi, lo
+
+        ! The search range
+        lo = 1
+        hi = num_items
+
+        ! Narrow the search range down in steps.
+        do while (hi /= lo)
+            pos = int(real(hi + lo) / 2)
+
+            if (int_arr_eq(arr(:,pos), val, data_size)) then
+                exit
+            else if (int_arr_gt(val, arr(:,pos), data_size)) then
+                lo = pos + 1
+            else
+                hi = pos - 1
+            endif
+        enddo
+
+        ! If we have narrowed down to one position, and it is not the item, 
+        ! then return -pos to indicate that the item is not present, but that
+        ! this is the location it should be in.
+        if (hi == lo) then
+            if (int_arr_eq(arr(:,hi), val, data_size)) then
+                pos = hi
+            else
+                pos = -hi
+            endif
+        endif
+
+    end function
+
+    subroutine append_ext(stem, n, s)
+
+        ! Returns stem.n in s.
+
+        character(*), intent(in) :: stem
+        integer, intent(in) :: n
+        character(*), intent(out) :: s
+        character(10) :: ext
+
+        write (ext,'('//int_fmt(n,0)//')') n
+        s = stem//'.'//ext
+
+    end subroutine append_ext
+
+    subroutine get_unique_filename(stem, tincrement, tnext, istart, filename)
+
+        ! Find a filename which is either the "newest" or the next to be used.
+        ! The filename is assumed to be stem.x, where x is an integer.
+
+        ! In:
+        !    stem: stem of the filename.
+        !    tincrement: the filename is given as stem.x if true, otherwise the
+        !        filename is simply set to be equal to stem.
+        !    tnext: the next unused filename is found if true, else the
+        !        filename is set to be stem.x where stem.x exists and stem.x+1
+        !        doesn't and x is greater than istart or unless the file
+        !        stem exists, then the filename is set to be stem (with no
+        !        extension).
+        !    istart: the integer of the first x value to check.
+        !        If istart is negative, then the filename is set to be stem.x,
+        !        where x = |istart+1|.  This overrides everything else.
+        ! Out:
+        !    filename.
+
+        character(*), intent(in) :: stem
+        logical, intent(in) :: tincrement, tnext
+        integer, intent(in) :: istart
+        character(*), intent(out) :: filename
+
+        integer :: i
+        logical :: exists
+
+        if (tincrement) then
+            i = istart
+            exists = .true.
+            do while (exists)
+                call append_ext(stem, i, filename)
+                inquire(file=filename,exist=exists)
+                i = i + 1
+            end do
+            if (.not.tnext) then
+                ! actually want the last file which existed.
+                ! this will return stem.istart if stem.istart doesn't exist.
+                i = max(istart,i - 2)
+                call append_ext(stem, i, filename)
+            end if
+        else
+            filename = stem
+        end if
+
+        if (.not.tnext) then
+            inquire(file=filename,exist=exists)
+            if (.not.exists) then
+                inquire(file=stem,exist=exists)
+                if (exists) filename = stem
+            end if
+        end if
+
+        if (istart < 0) then
+            call append_ext(stem, abs(i+1), filename)
+        end if
+
+    end subroutine get_unique_filename
+
+end module

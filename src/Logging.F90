@@ -5,20 +5,23 @@ MODULE Logging
 
     INTEGER ILOGGING,ILOGGINGDef,iGlobalTimerLevel,nPrintTimer,G_VMC_LOGCOUNT
     INTEGER HFLOGLEVEL,iWritePopsEvery,StartPrintOrbOcc
-    INTEGER PreVarLogging,WavevectorPrint,NoHistBins
-    REAL*8 MaxHistE,BinRange,OffDiagMax,OffDiagBinRange,TriConMax,TriConHElSingMax,TriConHElDoubMax
+    INTEGER PreVarLogging,WavevectorPrint,NoHistBins,HistInitPopsIter
+    REAL*8 MaxHistE,BinRange,OffDiagMax,OffDiagBinRange
     LOGICAL TDistrib,TPopsFile,TCalcWavevector,TDetPops,tROFciDump,tROHistOffDiag,tROHistDoubExc,tROHistOnePartOrbEn,tPrintPopsDefault
-    LOGICAL TZeroProjE,TWriteDetE,TAutoCorr,tBinPops,tROHistogramAll,tROHistER,tHistSpawn,tROHistSingExc,tRoHistOneElInts
-    LOGICAL tROHistVirtCoulomb,tPrintInts,tHistEnergies,tPrintTriConnections,tHistTriConHEls,tPrintHElAccept,tTruncRODump
+    LOGICAL TZeroProjE,TWriteDetE,TAutoCorr,tBinPops,tIncrementPops,tROHistogramAll,tROHistER,tHistSpawn,tROHistSingExc,tRoHistOneElInts
+    LOGICAL tROHistVirtCoulomb,tPrintInts,tHistEnergies,tTruncRODump
     LOGICAL tPrintFCIMCPsi,tCalcFCIMCPsi,tPrintSpinCoupHEl,tIterStartBlock,tHFPopStartBlock,tInitShiftBlocking,tTruncDumpbyVal
-    LOGICAL tWriteTransMat,tHistHamil,tPrintOrbOcc
-    INTEGER NoACDets(2:4),iPopsPartEvery,iWriteHistEvery,iNoBins,NoTriConBins,NoTriConHElBins,NHistEquilSteps,IterShiftBlock
+    LOGICAL tWriteTransMat,tHistHamil,tPrintOrbOcc,tHistInitPops
+    INTEGER NoACDets(2:4),iPopsPartEvery,iWriteHistEvery,iNoBins,NHistEquilSteps,IterShiftBlock
     INTEGER CCMCDebug !CCMC Debugging Level 0-6.  Default 0
     LOGICAL tCCMCLogTransitions !Do we log transitions?  Only possible for very small systems
     LOGICAL tCCMCLogUniq !Do we log only unique clusters
-    INTEGER IterStartBlocking,HFPopStartBlocking,NoDumpTruncs,NoTruncOrbsTag,TruncEvaluesTag,iWriteHamilEvery,OrbOccsTag
-    INTEGER , ALLOCATABLE :: NoTruncOrbs(:)
+    LOGICAL tSaveBlocking !Do not overwrite blocking files
+    INTEGER iWriteBlockingEvery !How often to write out blocking files
+    INTEGER IterStartBlocking,HFPopStartBlocking,NoDumpTruncs,NoTruncOrbsTag,TruncEvaluesTag,iWriteHamilEvery,OrbOccsTag,HistInitPopsTag,AllHistInitPopsTag
+    INTEGER , ALLOCATABLE :: NoTruncOrbs(:),HistInitPops(:,:),AllHistInitPops(:,:)
     REAL*8 , ALLOCATABLE :: TruncEvalues(:),OrbOccs(:)
+    LOGICAL :: tBlockEveryIteration
 
 
 
@@ -30,6 +33,8 @@ MODULE Logging
       use default_sets
       implicit none
 
+      iWriteBlockingEvery=1000
+      tSaveBlocking=.false.
       OffDiagBinRange=0.001
       OffDiagMax=1.D0
       BinRange=0.001
@@ -47,6 +52,7 @@ MODULE Logging
       TCalcWavevector=.false.
       WavevectorPrint=100
       TPopsFile=.true.
+      tIncrementPops = .false.
       tPrintPopsDefault=.true.
       TDistrib=.false.
       ILOGGINGDef=0
@@ -70,14 +76,6 @@ MODULE Logging
       tROHistOnePartOrbEn=.false.
       tROHistOneElInts=.false.
       tPrintInts=.false.
-      tPrintTriConnections=.false.
-      TriConMax=0.50
-      NoTriConBins=10000
-      tHistTriConHEls=.false.
-      NoTriConHElBins=10000
-      TriConHElSingMax=1.D0
-      TriConHElDoubMax=0.50
-      tPrintHElAccept=.false.
       tPrintSpinCoupHEl=.false.
       tPrintFCIMCPsi=.false.
       tCalcFCIMCPsi=.false.
@@ -95,6 +93,8 @@ MODULE Logging
       tWriteTransMat=.false.
       tCCMCLogTransitions=.false.
       tCCMCLogUniq=.true.
+      tHistInitPops=.false.
+      HistInitPopsIter=100000
 
 
 ! Feb08 defaults
@@ -114,6 +114,7 @@ MODULE Logging
       LOGICAL eof
       INTEGER :: i,ierr
       CHARACTER (LEN=100) w
+      CHARACTER(*),PARAMETER :: t_r='LogReadInput'
 
       ILogging=iLoggingDef
 
@@ -125,6 +126,12 @@ MODULE Logging
         call readu(w)
         select case(w)
 
+        case("PRINTNEWBLOCKING")
+!This is the iteration interval period to write out the blocking files.
+            call readi(iWriteBlockingEvery)
+        case("SAVEBLOCKING")
+!In this case, blocking files are not overwritten each time they are printed out, but 
+            tSaveBlocking=.true.
         case("ERRORBLOCKING")
 !Performs blocking analysis on the errors in the instantaneous projected energy to get the error involved.
 !This is default on, but can be turned off with this keyword followed by OFF.
@@ -153,6 +160,7 @@ MODULE Logging
 
         case("BLOCKINGSTARTITER")
 !This keyword can be used if we want to start the blocking error analysis at a particular iteration.            
+!If it is a negative integer, then this means that the blocking will start when we come out of fixed shift mode.
             tIterStartBlock=.true.
             tHFPopStartBlock=.false.
             call readi(IterStartBlocking)
@@ -332,27 +340,36 @@ MODULE Logging
 !This option takes each generated pair of determinant and excitation and finds 3rd determinant to make up a triangular connection.
 !The product of the three connecting elements are then histogrammed in two separate files. In one, the triangular connections that combine 
 !to be sign coherent are recorded, and in the other, those which are sign incoherent.
-            call readf(TriConMax)
-            call readi(NoTriConBins)
-            tPrintTriConnections=.true.
+            CALL Stop_All(t_r,"PRINTTRICONNECTIONS option depreciated")
+!            call readf(TriConMax)
+!            call readi(NoTriConBins)
+!            tPrintTriConnections=.true.
 
         case("HISTTRICONNELEMENTS")
 !This keyword takes the above triangles of connected determinants and histograms each connecting element that contributes to the triangle.
 !It then prints these according to whether they are single or double connecting elements.
 !It also prints a histogram and the average size of the Hjk elements (regardless of whether or not they are zero).
-            call readf(TriConHElSingMax)
-            call readf(TriConHElDoubMax)
-            call readi(NoTriConHElBins)
-            tHistTriConHEls=.true.
+            CALL Stop_All(t_r,"HISTTRICONNELEMENTS option depreciated")
+!            call readf(TriConHElSingMax)
+!            call readf(TriConHElDoubMax)
+!            call readi(NoTriConHElBins)
+!            tHistTriConHEls=.true.
 
         case("PRINTHELACCEPTSTATS")
 !This keyword prints out an extra file that keeps track of the H elements involved in spawning attempts that are accepted or not accepted.
 !It prints out the average H elements where spawning is accepted and the average where it is not accepted.
-            tPrintHElAccept=.true.
+            CALL Stop_All(t_r,"PRINTHELACCEPTSTATS option depreciated")
+!            tPrintHElAccept=.true.
 
         case("PRINTSPINCOUPHELS")
 !This option prints out the number of positive and negative (and their sums) H elements connecting two spin coupled determinants.            
             tPrintSpinCoupHEl=.true.
+
+        case("HISTINITIATORPOPS")
+!This option prints out a file (at every HistInitPopsIter iteration) containing the natural log of the populations of the initiator determinants 
+!and the number with this population. The range of populations histogrammed goes from ln(N_add) -> ln(1,000,000) with 50,000 bins.
+            tHistInitPops=.true.
+            call readi(HistInitPopsIter)
         
         case("AUTOCORR")
 !This is a Parallel FCIMC option - it will calculate the largest weight MP1 determinants and histogramm them
@@ -388,6 +405,9 @@ MODULE Logging
 !which can be diagonalized. It will write out the hamiltonian every iWriteHamilEvery.
             tHistHamil=.true.
             IF(item.lt.nitems) call readi(iWriteHamilEvery)
+        case("BLOCKEVERYITER")
+!This will block the projected energy every iteration with the aim of achieving accurate error estimates. However, this does require a small amount of additional communication.
+            tBlockEveryIteration=.true.
         case("PRINTFCIMCPSI")
             tPrintFCIMCPsi=.true.
             tCalcFCIMCPsi=.true.
@@ -422,6 +442,9 @@ MODULE Logging
         case("BINARYPOPS")
 !This means that the popsfile (full or reduced) will now be written out in binary format. This should now take up less space, and be written quicker.
             tBinPops=.true.
+        case("INCREMENTPOPS")
+! Don't overwrite existing POPSFILES.
+            tIncrementPops = .true.
         case("CCMCDEBUG")
 !CCMC debugging level. Takes an integer 0-6
             call readi(CCMCDebug)

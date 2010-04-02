@@ -7,8 +7,8 @@ module csf
     use memorymanager, only: LogMemAlloc, LogMemDealloc
     use integralsdata, only: umat, fck, nmax
     use HElem
-    use mt95, only: genrand_real2
-    use sltcnd_csf_mod, only: sltcnd_csf, sltcnd_csf_2
+    use dSFMT_interface, only: genrand_real2_dSFMT
+    use sltcnd_mod, only: sltcnd, sltcnd_2
     use DetBitOps, only: EncodeBitDet, FindBitExcitLevel, count_open_orbs, &
                          get_bit_open_unique_ind, FindSpatialBitExcitLevel
     use OneEInts, only: GetTMatEl
@@ -16,15 +16,12 @@ module csf
     use UMatCache, only: gtID
     use csf_data
     use timing
-    use util_mod, only: swap, int_arr_eq
+    use util_mod, only: swap, int_arr_eq, choose
 
     implicit none
 
     ! Non-modularised functions (sigh)
     interface
-        real*8 pure function choose(N,R)
-            integer, intent(in) :: N,R
-        end function
         subroutine writedet(nunit,ni,nel,lterm)
             integer nunit,nel,ni(nel)
             logical lterm
@@ -256,7 +253,7 @@ contains
                 sum1 = Helement(0)
                 do j=1,ndets(2)
                     if (coeffs2(j) /= 0) then
-                        Hel = sltcnd_csf (dets1(:,i), dets2(:,j), &
+                        Hel = sltcnd (dets1(:,i), dets2(:,j), &
                                           ilut1(:,i), ilut2(:,j))
                         sum1 = sum1 + Hel * HElement(coeffs2(j))
                     endif
@@ -323,7 +320,7 @@ contains
         hel_ret = helement(0)
         do i=1,ndets(1)
             if (coeffs(i) /= 0) then
-                hel = sltcnd_csf (dets(:,i), nJ, ilut(:,i), ilutJ)
+                hel = sltcnd (dets(:,i), nJ, ilut(:,i), ilutJ)
                 hel_ret = hel_ret + hel*helement(coeffs(i))
             endif
         enddo
@@ -468,7 +465,7 @@ contains
                     ex(2,:) = ab_pair(ex(1,:))
 
                     ! We know this is a double spin-orbital excitation.
-                    hel = sltcnd_csf_2 (ex, .false.)
+                    hel = sltcnd_2 (ex, .false.)
 
                     hel_ret = hel_ret &
                               + hel*helement(coeffs1(det)*coeffs2(indj))&
@@ -1340,7 +1337,7 @@ contains
 
         ! Select nchoose positions at random, and place them at the end.
         do i=1,nchoose
-            call genrand_real2(r)
+            r = genrand_real2_dSFMT()
             pos = int(real(nopen-i+1,8)*r) + 1
 
             if (pos /= nopen-i+1) then
@@ -1452,7 +1449,7 @@ contains
 
         ! Pick and apply a random one
         do while (.true.)
-            call genrand_real2(r)
+            r = genrand_real2_dSFMT()
             num = int(r*ncsf) + 1
             if ((.not.tForceChange) .or. (ncsf<2) .or. &
                 .not.int_arr_eq(yamas(num,:),yamas(0,:))) then
