@@ -1313,6 +1313,16 @@ SUBROUTINE CollapseCluster(C,iLutHF,Amplitude,nDet,iDebug,tExToDet)
 
 END SUBROUTINE CollapseCluster
 
+
+!Excitors and determinants are different although both can be specified by a LookUpTable.
+!  Excitors are of the form
+!  e.g. t_ij^ab  means   a^+_a a^+_b a_j a_i  (where i<j and a<b).
+!  our determinants are specified by an ordered list of occupied orbitals:
+!    i,j,k  (i<j<k)
+!  This correpsonds to a^+_i a^+_j a^+_k |0>
+
+!  Applying the excitor to the reference det may lead to a change in sign.  That is calculated here.
+
 FUNCTION ExcitToDetSign(iLutRef,iLutDet,iLevel)
    use SystemData, only: nIfTot,nEl,nIfD
    IMPLICIT NONE
@@ -1339,7 +1349,7 @@ FUNCTION ExcitToDetSign(iLutRef,iLutDet,iLevel)
                iAnnihil=iAnnihil-1
             else
 !propagate the rest of the operators through
-               if(iand(iAnnihil+iCreation,1)) iSgn=-iSgn  
+               if(iand(iAnnihil+iCreation,1).ne.0) iSgn=-iSgn  
             endif
          else
 !virtual orb
@@ -2163,14 +2173,12 @@ END SUBROUTINE
             rat=Tau*(HDiagCurr-DiagSft)*dProbDecompose/(CS%C%dProbNorm*CS%C%dClusterProb) !(dProb*dProbNorm)  !The old version
             rat=rat*(CS%C%dAbsAmplitude*CS%C%iSgn)
 
-! This appears to cause horrors.
-!  An excitor applied to the HF det will give a sign 1 if it's an even excitor and -1 if it's an odd excitor.
+
+
 !   Here we convert from a det back to an excitor.
-!            if(iand(IC,1)==1) rat=-rat
+            rat=rat*ExcitToDetSign(iLutHF,FCIDets(:,iPartDie),IC)
 
 ! We've now calculated rat fully
-
-            rat=rat*ExcitToDetSign(iLutHF,FCIDets(:,iPartDie),IC)
             r=rat
 !            r=rat*sign(1.d0,Amplitude(iPartDie,iOldAmpList))
             rat=rat/abs(Amplitude(iPartDie,iOldAmpList))  !Take into account we're killing at a different place from the cluster
@@ -2299,10 +2307,10 @@ SUBROUTINE AddBitExcitor(iLutnI,iLutnJ,iLutRef,iSgn)
 !    i,j,k  (i<j<k)
 !  This correpsonds to a^+_i a^+_j a^+_k |0>
 
-!  An excitor applied to the HF det will give a sign 1 if it's an even excitor and -1 if it's an odd excitor
-
 !To compose two excitors, we must move the annihilation operators to the right,
 ! and the creation operators to the left.  Each switch of operators incurs a sign flip.
+
+!NB excitors and dets are different (there may be a sign change).  See ExcitToDetSign
 
 !First the occ
    do i=0,nIfD
