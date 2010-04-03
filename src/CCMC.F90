@@ -1528,6 +1528,8 @@ SUBROUTINE CalcClusterEnergy(tFCI,Amplitude,nExcit,ExcitList,ExcitLevelIndex,Pro
       i=1
       if(Amplitude(j).lt.0) i=-1
       dAmp=abs(Amplitude(j))/Amplitude(1)
+! Need to convert from excitor to det
+      dAmp=dAmp*ExcitToDetSign(iLutHF,ExcitList(:,j),iC)
       if(dAmp.ne.0.d0) then
          if (iProcIndex.eq.root) call SumEContrib(DetCurr,iC,i,ExcitList(:,j),dTmp,1/dAmp)
 ! Deal with T_1^2
@@ -1539,6 +1541,8 @@ SUBROUTINE CalcClusterEnergy(tFCI,Amplitude,nExcit,ExcitList,ExcitLevelIndex,Pro
                call AddBitExcitor(iLutnI,ExcitList(:,l),iLutHF,iSgn)
                if(iSgn.ne.0.and.dAmp.ne.0.d0) then
                   CALL DecodeBitDet(DetCurr,iLutnI)
+! Need to convert from excitor to det
+                  dAmp=dAmp*ExcitToDetSign(iLutHF,iLutnI,2)
                   Htmp = get_helement (HFDet, DetCurr, iLutHF, iLutnI)
                   dAmp=dAmp/(Amplitude(1)**2)
                   dT1Sq=dT1Sq+(Real(Htmp%v,dp)*iSgn)*dAmp
