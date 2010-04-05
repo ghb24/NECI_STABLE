@@ -303,7 +303,7 @@ contains
              (G1(ex(1,2))%Ms == G1(Ex(2,1))%Ms) ) then
              if (tUEG) then ! Special case for UEG, see comment on GetUEGUMatElDouble
                 hel = hel - GetUEGUMatElDouble(nBasisMax, UMAT, ALAT, nBasis, nBasisMax(2,3), &
-                              G1, id(1,1), id(1,2), id(2,2), id(2,1))
+                              G1, id(1,1), id(1,2), id(2,1), id(2,2))
              else
                 hel = hel - GetUMATEl (nBasismax, UMAT, ALAT, nBasis, &
                                     nBasisMax(2,3), G1, id(1,1), id(1,2), &
