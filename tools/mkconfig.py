@@ -367,6 +367,7 @@ help:
 \t@echo "libs          compile all libraries for integration with cpmd and vasp."
 \t@echo "utils         compile all utility programs."
 \t@echo "TransLz.x     compile the TransLz utility program."
+\t@echo "ConvertMolpFCID.x   compile the program to create Fock energies in the MOLPRO FCIDUMP."
 \t@echo "BlockFCIMC.x  compile the BlockFCIMC utility program."
 \t@echo "ModelFCIQMC.x compile the ModelFCIQMC example program."
 \t@echo "clean         remove all compiled objects for the current platform and optimisation level." 
@@ -475,7 +476,7 @@ $(KcppDEPEND_FILES): $(KDEP_DEST)/%%.d: %%.cpp
 # same libraries as neci.
 MKUTIL = $(FC) $(FFLAGS) $(F90FLAGS) $< -o $@ $(LIBS)
 
-UTILS = TransLz.x BlockFCIMC.x ModelFCIQMC.x
+UTILS = TransLz.x BlockFCIMC.x ModelFCIQMC.x ConvertMolpFCID.x 
 
 # Target to compile all utility programs.
 utils: $(UTILS)
