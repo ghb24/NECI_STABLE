@@ -18,6 +18,7 @@ PROGRAM BlkFCIMC
       &SD-Blocks               Err-Blocks           Err in Err-Blocks'
 
       READ(11,*) FirstLineRubbish
+      READ(11,*) FirstLineRubbish
     
       WRITE(6,*) "Enter the iteration number from which you want to start the blocking analysis:"
       READ(*,*) StartIter
@@ -50,6 +51,7 @@ PROGRAM BlkFCIMC
 
 !Reread in data to fill arrays
       REWIND 11
+      READ(11,*) FirstLineRubbish
       READ(11,*) FirstLineRubbish
       i=0
       do while(.true.)
