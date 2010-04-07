@@ -36,6 +36,7 @@ MODULE Calc
 
 
 !       Calc defaults 
+          iRestartWalkNum=0
           iWeightPopRead=0
           tCheckHighestPop=.false.
           StepsSftImag=0.D0
@@ -877,6 +878,9 @@ MODULE Calc
                 tRestartHighPop=.true.
                 IF(item.lt.nitems) then
                     call Getf(FracLargerDet)
+                ENDIF
+                IF(item.lt.nitems) then
+                    call Geti(iRestartWalkNum)
                 ENDIF
             case("FIXPARTICLESIGN")
 !This uses a modified hamiltonian, whereby all the positive off-diagonal hamiltonian matrix elements are zero. Instead, their diagonals are modified to change the
