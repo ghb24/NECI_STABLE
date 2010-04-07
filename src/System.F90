@@ -995,6 +995,15 @@ MODULE System
 
           IF(TUEG) THEN
              WRITE(6,'(A)') '  *** UNIFORM ELECTRON GAS CALCULATION ***  ' 
+             if (iPeriodicDampingType /= 0) then
+                 ! We are using either a screened or an attenuated Coulomb
+                 ! potential for calculating the exchange integrals.
+                 ! This means that we need to be able to distinguish between
+                 ! exchange integrals and normal Coulomb integrals and hence we
+                 ! should refer to spin-orbitals throughout.
+                 nBasisMax(2,3) = 1
+                 tStoreSpinOrbs = .true.
+             end if
              IF(FUEGRS.NE.0.D0) THEN
                 WRITE(6,'(A,I10)') '  Electron Gas Rs set to ',FUEGRS
                 OMEGA=BOX*BOX*BOX*BOA*COA

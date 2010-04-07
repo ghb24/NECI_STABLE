@@ -158,9 +158,8 @@ MODULE FciMCParMod
             ENDIF
 
             IF(tHistInitPops.and.(MOD(Iter,HistInitPopsIter).eq.0)) THEN
-                IF(iProcIndex.eq.0) WRITE(6,*) 'Writing out the spread of the initiator determinant populations.'
+                IF(iProcIndex.eq.0) WRITE(6,'(A)') 'Writing out the spread of the initiator determinant populations.'
                 CALL WriteInitPops(Iter+PreviousCycles)
-                tFlipHighPopSign=.true.
                 tPrintHighPop=.true.
             ENDIF
 
@@ -197,17 +196,6 @@ MODULE FciMCParMod
 
         IF(tPrintOrbOcc) THEN
             CALL PrintOrbOccs(OrbOccs)
-            DEALLOCATE(OrbOccs)
-            CALL LogMemDeAlloc(this_routine,OrbOccsTag)
-        ENDIF
-
-        IF(tHistInitPops) THEN
-            DEALLOCATE(HistInitPops)
-            CALL LogMemDeAlloc(this_routine,HistInitPopsTag)
-            IF(iProcIndex.eq.0) THEN
-                DEALLOCATE(AllHistInitPops)
-                CALL LogMemDeAlloc(this_routine,AllHistInitPopsTag)
-            ENDIF
         ENDIF
 
 ! Print out some load balancing stats nicely to end.
@@ -282,6 +270,8 @@ MODULE FciMCParMod
         
         MaxInitPopPos=0
         MaxInitPopNeg=0
+        HighPopNeg=1
+        HighPopPos=1
 
         CALL MPI_Barrier(MPI_COMM_WORLD,error)
 
@@ -303,7 +293,7 @@ MODULE FciMCParMod
         do j=1,TotWalkers
 !j runs through all current walkers
 !If we are rotoannihilating/direct annihilating, the sign indicates the sum of the signs on the determinant, and hence j loops over determinants, not particles.
-            !WRITE(6,*) Iter,j,TotWalkers
+!            WRITE(6,*) 'Iter: j : TotWalkers',Iter,j,TotWalkers
 !            CALL FLUSH(6)
 
 !First, decode the bit-string representation of the determinant the walker is on, into a string of naturally-ordered integers
@@ -352,7 +342,8 @@ MODULE FciMCParMod
             ! This is where the projected energy is calculated.
             call SumEContrib (DetCurr, WalkExcitLevel, CurrentSign(j),CurrentDets(:,j), HDiagCurr, 1.d0)
 
-            IF(tTruncInitiator) CALL CalcParentFlag(j,tHFFound,tHFFoundTemp,VecSlot)
+            IF(tTruncInitiator) CALL CalcParentFlag(j,tHFFound,tHFFoundTemp,VecSlot,Iter)
+
 !            IF(Iter.gt.20) WRITE(6,*) 'CurrentSign(highpopflip)',CurrentSign(HighPopFlip)
 
             tFilled=.false.     !This is for regenerating excitations from the same determinant multiple times. There will be a time saving if we can store the excitation generators temporarily.
@@ -366,7 +357,7 @@ MODULE FciMCParMod
 
             do p=1,Loop
 !we are simply looping over all the particles on the determinant
-
+                
                 IF(tHPHF) THEN
 !                    CALL GenRandHPHFExcit(DetCurr,CurrentDets(:,j),nJ,iLutnJ,pDoubles,exFlag,Prob)
                     CALL GenRandHPHFExcit2Scratch(DetCurr,CurrentDets(:,j),nJ,iLutnJ,pDoubles,exFlag,Prob,Scratch1,Scratch2,tFilled,tGenMatHEl)
@@ -384,14 +375,14 @@ MODULE FciMCParMod
 !Calculate number of children to spawn
                 IF(IsNullDet(nJ)) THEN
                     Child=0
-                ELSEIF(((TTruncSpace.or.tTruncCAS).and.(.not.tTruncInitiator)).or.tPartFreezeCore.or.tPartFreezeVirt.or.tFixLz.or.tUEG) THEN
+                ELSEIF((tTruncCAS.and.(.not.tTruncInitiator)).or.TTruncSpace.or.tPartFreezeCore.or.tPartFreezeVirt.or.tFixLz.or.tUEG) THEN
 !We have truncated the excitation space at a given excitation level. See if the spawn should be allowed.
 !If we are using the CASStar - all spawns are allowed so no need to check.
 !                    WRITE(6,*) 'cheking if a spawn is allowed'
 !                    WRITE(6,*) 'tTruncSpace',tTruncSpace
 !                    WRITE(6,*) 'tTruncCAS',tTruncCAS
 !                    WRITE(6,*) 'tTruncInitiator',tTruncInitiator
-
+                    IF(.not.tHPHF) call EncodeBitDet (nJ, iLutnJ)
                     IF(CheckAllowedTruncSpawn(WalkExcitLevel,nJ,iLutnJ,IC)) THEN
                         Child=AttemptCreatePar(DetCurr,CurrentDets(:,j),CurrentSign(j),nJ,iLutnJ,Prob,IC,Ex,tParity)
                     ELSE
@@ -527,8 +518,7 @@ MODULE FciMCParMod
 !Finish cycling over walkers
         enddo
 
-
-        IF(tFlipHighPopSign) CALL FlipHighPopDet()
+        IF(tPrintHighPop) CALL FindHighPopDet(Iter+PreviousCycles)
 
 !SumWalkersCyc calculates the total number of walkers over an update cycle on each process
         SumWalkersCyc=SumWalkersCyc+(INT(TotParts,i2))
@@ -588,74 +578,50 @@ MODULE FciMCParMod
     END SUBROUTINE PerformFCIMCycPar
                         
 
-    SUBROUTINE CalcParentFlag(j,tHFFound,tHFFoundTemp,VecSlot)
+    SUBROUTINE CalcParentFlag(j,tHFFound,tHFFoundTemp,VecSlot,Iter)
         USE CalcData , only : tAddtoInitiator,InitiatorWalkNo,tInitIncDoubs
         USE FciMCLoggingMOD, only : InitBinMin,InitBinIter
-        INTEGER :: j,WalkExcitLevel,InitBinNo,VecSlot
+        INTEGER :: j,WalkExcitLevel,InitBinNo,VecSlot,Iter
         LOGICAL :: tParentInCAS,tHFFound,tHFFoundTemp
 
-        IF(tTruncSpace) THEN
-            IF(WalkExcitLevel.le.ICILevel) THEN
-                ParentInitiator=0
-                NoInitDets=NoInitDets+1.D0
-                NoInitWalk=NoInitWalk+(ABS(REAL(CurrentSign(j))))
-!Parent in allowed space.                        
-            ELSEIF(tInitIncDoubs.and.(WalkExcitLevel.eq.2)) THEN
-                ParentInitiator=0
-                NoInitDets=NoInitDets+1.D0
-                NoInitWalk=NoInitWalk+(ABS(REAL(CurrentSign(j))))
-                NoExtraInitDoubs=NoExtraInitDoubs+1.D0
-            ELSEIF(tAddtoInitiator.and.(ABS(CurrentSign(j)).gt.InitiatorWalkNo)) THEN
-                ParentInitiator=0
-                IF(mod(Iter,StepsSft).eq.0) NoAddedInitiators=NoAddedInitiators+1.D0
-                NoInitDets=NoInitDets+1.D0
-                NoInitWalk=NoInitWalk+(ABS(REAL(CurrentSign(j))))
-            ELSE
-                ParentInitiator=1
-                NoNonInitDets=NoNonInitDets+1.D0
-                NoNonInitWalk=NoNonInitWalk+(ABS(REAL(CurrentSign(j))))
-!Parent outside allowed space.                        
-            ENDIF
-        ELSE
 !This it the case where the fixed initiator space is defined using the CAS notation, or where it is limited to only the HF determinant.                           
 !I.e. when tTruncCAS or tHFInitiator are true.
 !If neither of these are true, the expandspace option must have been used and so the parent will always be in the initiator space. 
 !                            tParentInCAS=TestIfDetInCAS(DetCurr)
-            IF(tTruncCAS) THEN
-                tParentInCAS=TestIfDetInCASBit(CurrentDets(:,j))
-            ELSEIF(tHFFound) THEN
+        IF(tTruncCAS) THEN
+            tParentInCAS=TestIfDetInCASBit(CurrentDets(0:NIfD,j))
+        ELSEIF(tHFFound) THEN
 !The HF determinant has been found, the rest will therefore all be out of the active space.                            
-                tParentInCAS=.false.
-            ELSEIF(tHFFoundTemp) THEN
+            tParentInCAS=.false.
+        ELSEIF(tHFFoundTemp) THEN
 !The HF determinant has been found and we are still running over the particles on the same determinant.                              
-                tParentInCAS=.true.
-            ELSEIF(tHFInitiator) THEN
-                tParentInCAS=DetBitEQ(CurrentDets(:,j),iLutHF,NIfDBO)
-                IF(tParentInCAS) tHFFoundTemp=.true.
+            tParentInCAS=.true.
+        ELSEIF(tHFInitiator) THEN
+            tParentInCAS=DetBitEQ(CurrentDets(:,j),iLutHF,NIfDBO)
+            IF(tParentInCAS) tHFFoundTemp=.true.
 !The temp parameter means we have found the HF determinant but we are still in the loop of running over the walkers on this determinant.
 !At the end of this loop, tHFFound becomes true becuase the HF has been and gone and the rest of the determinants need not be checked.
-            ENDIF
-            IF(tParentInCAS) THEN
-                ParentInitiator=0
-                NoInitDets=NoInitDets+1.D0
-                NoInitWalk=NoInitWalk+(ABS(REAL(CurrentSign(j))))
+        ENDIF
+        IF(tParentInCAS) THEN
+            ParentInitiator=0
+            NoInitDets=NoInitDets+1.D0
+            NoInitWalk=NoInitWalk+(ABS(REAL(CurrentSign(j))))
 !The parent walker from which we are attempting to spawn is in the active space - all children will carry this flag, and these spawn like usual.
-            ELSEIF(tInitIncDoubs.and.(WalkExcitLevel.eq.2)) THEN
-                ParentInitiator=0
-                NoInitDets=NoInitDets+1.D0
-                NoInitWalk=NoInitWalk+(ABS(REAL(CurrentSign(j))))
-                NoExtraInitDoubs=NoExtraInitDoubs+1.D0
-            ELSEIF(tAddtoInitiator.and.(ABS(CurrentSign(j)).gt.InitiatorWalkNo)) THEN
-                ParentInitiator=0
-                IF(mod(Iter,StepsSft).eq.0) NoAddedInitiators=NoAddedInitiators+1.D0
-                NoInitDets=NoInitDets+1.D0
-                NoInitWalk=NoInitWalk+(ABS(REAL(CurrentSign(j))))
-            ELSE
-                ParentInitiator=1
-                NoNonInitDets=NoNonInitDets+1.D0
-                NoNonInitWalk=NoNonInitWalk+(ABS(REAL(CurrentSign(j))))
+        ELSEIF(tInitIncDoubs.and.(WalkExcitLevel.eq.2)) THEN
+            ParentInitiator=0
+            NoInitDets=NoInitDets+1.D0
+            NoInitWalk=NoInitWalk+(ABS(REAL(CurrentSign(j))))
+            NoExtraInitDoubs=NoExtraInitDoubs+1.D0
+        ELSEIF(tAddtoInitiator.and.(ABS(CurrentSign(j)).gt.InitiatorWalkNo)) THEN
+            ParentInitiator=0
+            IF(mod(Iter,StepsSft).eq.0) NoAddedInitiators=NoAddedInitiators+1.D0
+            NoInitDets=NoInitDets+1.D0
+            NoInitWalk=NoInitWalk+(ABS(REAL(CurrentSign(j))))
+        ELSE
+            ParentInitiator=1
+            NoNonInitDets=NoNonInitDets+1.D0
+            NoNonInitWalk=NoNonInitWalk+(ABS(REAL(CurrentSign(j))))
 !The parent from which we are attempting to spawn is outside the active space - children spawned on unoccupied determinants with this flag will be killed.
-            ENDIF
         ENDIF
 
         IF(tHistInitPops.and.(MOD(Iter,HistInitPopsIter).eq.0)) THEN
@@ -683,7 +649,7 @@ MODULE FciMCParMod
             ENDIF
         ENDIF
 
-        IF(tFlipHighPopSign.and.(ParentInitiator.eq.0)) THEN
+        IF(tPrintHighPop.and.(ParentInitiator.eq.0)) THEN
             IF(CurrentSign(j).lt.MaxInitPopNeg) THEN
                 MaxInitPopNeg=CurrentSign(j)
                 HighPopNeg=VecSlot
@@ -698,74 +664,49 @@ MODULE FciMCParMod
     END SUBROUTINE CalcParentFlag                    
     
 
-    SUBROUTINE FlipHighPopDet()
+    SUBROUTINE FindHighPopDet(Iter)
 !Found the highest population on each processor, need to find out which of these has the highest of all.
         INTEGER :: MaxPopsNeg(nProcessors),MaxPopsPos(nProcessors),error,i,MaxPopPos,MaxPopNeg,MaxPopNegProc
-        INTEGER :: MaxPopPosProc,InitDetCurr(NEl)
+        INTEGER :: MaxPopPosProc,InitDetCurr(NEl),Iter,DetPos(0:NIfTot),DetNeg(0:NIfTot)
+        INTEGER :: HighPopInNeg(2),HighPopInPos(2),HighPopoutNeg(2),HighPopoutPos(2)
 
-!        WRITE(6,*) 'HighPopFlip2',HighPopFlip
-!        WRITE(6,*) 'Highest populated determinant has pop',CurrentSign(HighPopflip)
+!        WRITE(6,*) 'HighPopPos',HighPopPos
+!        WRITE(6,*) 'CurrentSign(HighPopPos)',CurrentSign(HighPopPos)
 
-!Need some sort of mpi to send these all into an array, hopefully so that processor 0 in position 0, then 1, etc etc.
+        HighPopInNeg(1)=CurrentSign(HighPopNeg)
+        HighPopInNeg(2)=iProcIndex
+        CALL MPI_AllReduce(HighPopinNeg,HighPopoutNeg,1,MPI_2INTEGER,MPI_MINLOC,MPI_COMM_WORLD,error)
 
-        CALL MPI_AllGather(CurrentSign(HighPopNeg),1,MPI_INTEGER,MaxPopsNeg,1,MPI_INTEGER,MPI_COMM_WORLD,error)
-        CALL MPI_AllGather(CurrentSign(HighPopPos),1,MPI_INTEGER,MaxPopsPos,1,MPI_INTEGER,MPI_COMM_WORLD,error)
+        HighPopInPos(1)=CurrentSign(HighPopPos)
+        HighPopInPos(2)=iProcIndex
+        CALL MPI_AllReduce(HighPopinPos,HighPopoutPos,1,MPI_2INTEGER,MPI_MAXLOC,MPI_COMM_WORLD,error)
 
-!        IF(iProcIndex.eq.Root) THEN
-!            WRITE(6,*) 'MaxPops',MaxPops
+!Now, on all processors, HighPopoutPos(1) is the highest positive population, and HighPopoutNeg(1) is the highest negative population.
+!HighPopoutPos(2) is the processor the highest population came from.
 
-        MaxPopNeg=MaxPopsNeg(1)
-        MaxPopPos=MaxPopsPos(1)
-        do i=2,nProcessors
-            IF(MaxPopsNeg(i).lt.MaxPopNeg) THEN
-                MaxPopNeg=MaxPopsNeg(i)
-                MaxPopNegProc=i-1
-            ELSE
-                MaxPopNegProc=0
-            ENDIF
-            IF(MaxPopsPos(i).lt.MaxPopPos) THEN
-                MaxPopPos=MaxPopsPos(i)
-                MaxPopPosProc=i-1
-            ELSE
-                MaxPopPosProc=0
-            ENDIF
-        enddo
-!        ENDIF
+        DetNeg(:)=CurrentDets(:,HighPopNeg)
+        DetPos(:)=CurrentDets(:,HighPopPos)
+        CALL MPI_Bcast(DetNeg,1,MPI_INTEGER,HighPopoutNeg(2),MPI_COMM_WORLD,error)
+        CALL MPI_Bcast(DetPos,1,MPI_INTEGER,HighPopoutPos(2),MPI_COMM_WORLD,error)
 
-!        CALL MPI_Bcast(MaxPopProc,1,MPI_INTEGER,Root,MPI_COMM_WORLD,error)
-!        IF(error.ne.0) CALL Stop_All('FlipHighPopDet','Error in MPI_Bcast.')
-
-
-        IF(iProcIndex.eq.MaxPopNegProc) THEN
-
-            WRITE(6,'(A75,I10,A9)') 'The most highly populated determinant with the opposite sign to the HF has ',CurrentSign(HighPopNeg),' walkers.'
+        IF(iProcIndex.eq.0) THEN
+            WRITE(6,'(A75,I10,A9)') 'The most highly populated determinant with the opposite sign to the HF has ',HighPopoutNeg(1),' walkers.'
 !            WRITE(6,*) 'In bit representation this is: ',CurrentDets(:,HighPopFlip)
-            CALL DecodeBitDet(InitDetCurr,CurrentDets(:,HighPopNeg))
+            CALL DecodeBitDet(InitDetCurr,DetNeg(:))
             CALL write_det (6, InitDetCurr, .true.)
-
-            IF(.not.tPrintHighPop) THEN
-                WRITE(6,*) 'Flipping the sign of this determinant.'
-                CurrentSign(HighPopNeg)=(-1)*CurrentSign(HighPopNeg)
-            ENDIF
-
         ENDIF
 
-        IF(iProcIndex.eq.MaxPopPosProc) THEN
-
-            WRITE(6,'(A71,I10,A9)') 'The most highly populated determinant with the same sign as the HF has ',CurrentSign(HighPopPos),' walkers.'
+        IF(iProcIndex.eq.0) THEN
+            WRITE(6,'(A71,I10,A9)') 'The most highly populated determinant with the same sign as the HF has ',HighPopoutPos(1),' walkers.'
 !            WRITE(6,*) 'In bit representation this is: ',CurrentDets(:,HighPopFlip)
-            CALL DecodeBitDet(InitDetCurr,CurrentDets(:,HighPopPos))
+            CALL DecodeBitDet(InitDetCurr,DetPos(:))
             CALL write_det (6, InitDetCurr, .true.)
-!            WRITE(6,*) 'The occupied orbitals in this determinant are as follows: '!,InitDetCurr
-!            call write_det (6, InitDetCurr, .true.)
-
         ENDIF
 
-        tFlipHighPopSign=.false.
         tPrintHighPop=.false.
 
 
-    END SUBROUTINE FlipHighPopDet
+    END SUBROUTINE FindHighPopDet
 
 
     
@@ -774,7 +715,7 @@ MODULE FciMCParMod
     SUBROUTINE CalcNewShift()
         USE FciMCLoggingMOD , only : PrintSpawnAttemptStats,InitErrorBlocking,SumInErrorContrib
         USE FciMCLoggingMOD , only : InitShiftErrorBlocking,SumInShiftErrorContrib
-        USE CalcData , only : tCheckHighestPop,tChangeProjEDet,tRestartHighPop,FracLargerDet
+        USE CalcData , only : tCheckHighestPop,tChangeProjEDet,tRestartHighPop,FracLargerDet,iRestartWalkNum
         INTEGER :: error,rc,MaxAllowedWalkers,MaxWalkersProc,MinWalkersProc
         INTEGER :: inpair(6),outpair(6),HighPopin(2),HighPopout(2),DetCurr(NEl),i
         REAL*8 :: TempTotWalkers,TempTotParts
@@ -937,6 +878,9 @@ MODULE FciMCParMod
 !Now, the root processor contains information about the highest populated determinant, and the processor which is it held on.
             IF(((INT(FracLargerDet*REAL(AllNoatHF,dp))).lt.HighPopout(1)).and.(AllTotParts.gt.10000)) THEN
                 IF(iProcIndex.eq.Root) WRITE(6,"(A,2I10)") "Highest weighted determinant not reference det: ",HighPopout(1),AllNoatHF
+!                WRITE(6,"(A,4I12)") "Highest weighted determinant not reference det: ",iter,HighPopout(2),HighPopout(1),AllNoatHF
+!                CALL WriteBitDet(6,HighestPopDet,.true.)
+!                WRITE(6,*) iHighestPop
                 IF(tChangeProjEDet) THEN
 !Meed to communicate to all processors that iLutRef has changed.
 
@@ -973,7 +917,7 @@ MODULE FciMCParMod
                         endif
                         CurrentH(i)=(REAL(HDiagTemp%v,dp))-Hii
                     enddo
-                ELSEIF(tRestartHighPop) THEN
+                ELSEIF(tRestartHighPop.and.(iRestartWalkNum.le.AllTotParts)) THEN
                     CALL MPI_BCast(HighestPopDet,NIfTot+1,MPI_INTEGER,HighPopout(2),MPI_COMM_WORLD,error)
                     iLutRef(:)=HighestPopDet(:)
                     CALL DecodeBitDet(ProjEDet,iLutRef(:))
@@ -1432,7 +1376,6 @@ MODULE FciMCParMod
         IF(tHistInitPops) THEN
             CALL InitHistInitPops()
         ENDIF
-        tFlipHighPopSign=.false.
         tPrintHighPop=.false.
         MaxInitPopPos=0
         MaxInitPopNeg=0
@@ -1668,12 +1611,12 @@ MODULE FciMCParMod
     SUBROUTINE ReadFromPopsfilePar()
         use util_mod, only: get_unique_filename
         use CalcData, only: iPopsFileNoRead
-        use CalcData , only : MemoryFacPart,MemoryFacAnnihil,MemoryFacSpawn
+        use CalcData , only : MemoryFacPart,MemoryFacAnnihil,MemoryFacSpawn,iWeightPopRead
         use Logging, only: tIncrementPops,tZeroProjE
         LOGICAL :: exists,First,tBinRead
         INTEGER :: AvWalkers,WalkerstoReceive(nProcessors)
         INTEGER*8 :: NodeSumNoatHF(nProcessors),TempAllSumNoatHF
-        REAL*8 :: TempTotParts
+        REAL*8 :: TempTotParts,TempCurrWalkers
         INTEGER :: TempInitWalkers,error,i,j,k,l,total,ierr,MemoryAlloc,Tag,iLutTemp(0:NIfTot),TempSign,Proc,CurrWalkers
         INTEGER :: Stat(MPI_STATUS_SIZE),AvSumNoatHF,VecSlot,IntegerPart,HFPointer,TempnI(NEl),ExcitLevel,VecInd,DetsMerged
         REAL*8 :: r,FracPart,TempTotWalkers,Gap
@@ -1724,6 +1667,12 @@ MODULE FciMCParMod
         READ(17,*) TempAllSumNoatHF     !AllSumNoatHF stored as integer for compatability with serial POPSFILEs
         READ(17,*) AllSumENum
         READ(17,*) PreviousCycles
+
+        IF(iProcIndex.eq.Root) THEN
+            IF(iWeightPopRead.ne.0) THEN
+                WRITE(6,"(A,I15,A,I4,A)") "Although ",NINT(AllTotWalkers,i2)," configurations will be read in, only determinants with a weight of over ",iWeightPopRead," will be stored."
+            ENDIF
+        ENDIF
 
         IF(DiagSft.eq.0.D0) tWalkContGrow=.true.
 
@@ -1892,15 +1841,17 @@ MODULE FciMCParMod
                 READ(17,*) iLutTemp(0:NIfTot),TempSign
             ENDIF
             Proc=DetermineDetProc(iLutTemp)   !This wants to return a value between 0 -> nProcessors-1
-            IF(Proc.eq.iProcIndex) THEN
+            IF((Proc.eq.iProcIndex).and.(abs(TempSign).ge.iWeightPopRead)) THEN
                 CurrWalkers=CurrWalkers+1
                 CurrentDets(0:NIfTot,CurrWalkers)=iLutTemp(0:NIfTot)
                 CurrentSign(CurrWalkers)=TempSign
             ENDIF
         enddo
         CLOSE(17)
+        TempCurrWalkers=REAL(CurrWalkers,dp)
 
         CALL MPI_Barrier(MPI_COMM_WORLD,error)  !Sync
+        CALL MPI_AllReduce(TempCurrWalkers,AllTotWalkers,1,MPI_DOUBLE_PRECISION,MPI_SUM,MPI_COMM_WORLD,error)
 
         IF(iProcIndex.eq.root) WRITE(6,'(I10,A)') INT(AllTotWalkers,i2)," configurations read in from POPSFILE and distributed."
 
@@ -2000,6 +1951,9 @@ MODULE FciMCParMod
         IF(iProcIndex.eq.root) AllTotPartsOld=AllTotParts
 
         WRITE(6,'(A,F20.1)') ' The total number of particles read from the POPSFILE is: ',AllTotParts
+
+!        WRITE(6,*) 'InitWalkers*nProcessors', InitWalkers*nProcessors
+!        WRITE(6,*) "REAL('')",REAL(InitWalkers,dp)*REAL(nProcessors,dp)
 
         RETURN
 
@@ -2457,6 +2411,20 @@ MODULE FciMCParMod
             DEALLOCATE(CoreMask)
             DEALLOCATE(ExtMask)
         ENDIF
+        IF(tPrintOrbOcc) THEN
+            DEALLOCATE(OrbOccs)
+            CALL LogMemDeAlloc(this_routine,OrbOccsTag)
+        ENDIF
+
+        IF(tHistInitPops) THEN
+            DEALLOCATE(HistInitPops)
+            CALL LogMemDeAlloc(this_routine,HistInitPopsTag)
+            IF(iProcIndex.eq.0) THEN
+                DEALLOCATE(AllHistInitPops)
+                CALL LogMemDeAlloc(this_routine,AllHistInitPopsTag)
+            ENDIF
+        ENDIF
+
 
 
 !There seems to be some problems freeing the derived mpi type.
@@ -3478,7 +3446,7 @@ MODULE FciMCParMod
   &                INT(AllTotParts,i2),AllAnnihilated,AllNoDied,AllNoBorn,ProjectionE,AvDiagSft,AllENumCyc/AllHFCyc,AllNoatHF,AllNoatDoubs,AccRat,INT(AllTotWalkers,i2),IterTime
 
             IF(tTruncInitiator.or.tDelayTruncInit) THEN
-                WRITE(16,"(I12,2F15.1,2G16.7,2F20.1,2F18.7,3F18.1)") Iter+PreviousCycles,AllNoAborted,AllNoAddedInitiators,(REAL(AllNoInitDets)/REAL(AllNoNonInitDets)),&
+                WRITE(16,"(I12,4G16.7,2F20.1,2F18.7,3F18.1)") Iter+PreviousCycles,AllNoAborted,AllNoAddedInitiators,(REAL(AllNoInitDets)/REAL(AllNoNonInitDets)),&
  &              (REAL(AllNoInitWalk)/REAL(AllNoNonInitWalk)),AllNoDoubSpawns,AllNoExtraInitDoubs,DiagSftAbort,AvDiagSftAbort,AllNoInitDets,AllNoNonInitDets,AllInitRemoved
             ENDIF
 
@@ -3669,8 +3637,8 @@ MODULE FciMCParMod
 ! These are stored using spin orbitals.
 !Assume that if we want to use the non-uniform random excitation generator, we also want to use the NoSpinSym full excitation generators if they are needed. 
 
-        IF(tTruncInitiator.and.(.not.tTruncCAS).and.(.not.tTruncSpace)) THEN
-!Have not defined an initiatial initiator space using the EXCITE keyword or TRUNCATECAS.  The initial initiator space then defaults to only the HF determinant.                
+        IF(tTruncInitiator.and.(.not.tTruncCAS)) THEN
+!Have not defined an initiatial initiator space using TRUNCATECAS.  The initial initiator space then defaults to only the HF determinant.                
             tHFInitiator=.true.
         ELSE
             tHFInitiator=.false.
@@ -4293,7 +4261,7 @@ MODULE FciMCParMod
 
         CheckAllowedTruncSpawn=.true.
 
-        IF(tTruncSpace.and.(.not.tTruncInitiator)) THEN
+        IF(tTruncSpace) THEN
 !We are truncating the space by excitation level
             IF(tHPHF) THEN
 !With HPHF, we can't rely on this, since one excitation could be a single, and one a double. Also, IC is not returned.
@@ -4343,7 +4311,7 @@ MODULE FciMCParMod
         IF((tTruncCAS.and.(.not.tTruncInitiator)).and.CheckAllowedTruncSpawn) THEN
 !This flag determines if the FCI space is restricted by whether the determinants are in the predescribed CAS.
 !            IF(.not.TestIfDetinCAS(nJ)) THEN
-            IF(.not.TestIfDetinCASBit(iLutnJ)) THEN
+            IF(.not.TestIfDetinCASBit(iLutnJ(0:NIfD))) THEN
 !Excitation not in allowed CAS space.
                 CheckAllowedTruncSpawn=.false.
             ENDIF

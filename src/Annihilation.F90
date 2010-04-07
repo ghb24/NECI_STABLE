@@ -595,6 +595,7 @@ MODULE AnnihilationMod
 
         TotParts=0
         DetsMerged=0
+        iHighestPop=0
         IF(TotWalkersNew.gt.0) THEN
             do i=1,TotWalkersNew
                 IF(CurrentSign(i).eq.0) THEN

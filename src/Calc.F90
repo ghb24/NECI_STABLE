@@ -36,6 +36,8 @@ MODULE Calc
 
 
 !       Calc defaults 
+          iRestartWalkNum=0
+          iWeightPopRead=0
           tCheckHighestPop=.false.
           StepsSftImag=0.D0
           TauFactor=0.D0
@@ -772,6 +774,15 @@ MODULE Calc
                     iPopsFileNoWrite = iPopsFileNoRead
                     iPopsFileNoRead = -iPopsFileNoRead-1
                 end if
+            case("READPOPSTHRESH")
+!When reading in a popsfile, this will only save the determinant, if the number of particles on this determinant is greater than iWeightPopRead.
+                tReadPops=.true.
+                call readi(iWeightPopRead)
+                if (item.lt.nitems) then
+                    call readi(iPopsFileNoRead)
+                    iPopsFileNoWrite = iPopsFileNoRead
+                    iPopsFileNoRead = -iPopsFileNoRead-1
+                end if
             case("WALKCONTGROW")
 !This option goes with the above READPOPS option.  If this is present - the INITWALKERS value is not overwritten, and the walkers are continued to be allowed to grow before reaching                
 !this value.  Without this keyword, when a popsfile is read in, the number of walkers is kept at the number in the POPSFILE regardless of whether the shift had been allowed to change in the previous calc.
@@ -867,6 +878,9 @@ MODULE Calc
                 tRestartHighPop=.true.
                 IF(item.lt.nitems) then
                     call Getf(FracLargerDet)
+                ENDIF
+                IF(item.lt.nitems) then
+                    call Geti(iRestartWalkNum)
                 ENDIF
             case("FIXPARTICLESIGN")
 !This uses a modified hamiltonian, whereby all the positive off-diagonal hamiltonian matrix elements are zero. Instead, their diagonals are modified to change the
