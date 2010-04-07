@@ -715,7 +715,7 @@ MODULE FciMCParMod
     SUBROUTINE CalcNewShift()
         USE FciMCLoggingMOD , only : PrintSpawnAttemptStats,InitErrorBlocking,SumInErrorContrib
         USE FciMCLoggingMOD , only : InitShiftErrorBlocking,SumInShiftErrorContrib
-        USE CalcData , only : tCheckHighestPop,tChangeProjEDet,tRestartHighPop,FracLargerDet
+        USE CalcData , only : tCheckHighestPop,tChangeProjEDet,tRestartHighPop,FracLargerDet,iRestartWalkNum
         INTEGER :: error,rc,MaxAllowedWalkers,MaxWalkersProc,MinWalkersProc
         INTEGER :: inpair(6),outpair(6),HighPopin(2),HighPopout(2),DetCurr(NEl),i
         REAL*8 :: TempTotWalkers,TempTotParts
@@ -917,7 +917,7 @@ MODULE FciMCParMod
                         endif
                         CurrentH(i)=(REAL(HDiagTemp%v,dp))-Hii
                     enddo
-                ELSEIF(tRestartHighPop) THEN
+                ELSEIF(tRestartHighPop.and.(iRestartWalkNum.le.AllTotParts)) THEN
                     CALL MPI_BCast(HighestPopDet,NIfTot+1,MPI_INTEGER,HighPopout(2),MPI_COMM_WORLD,error)
                     iLutRef(:)=HighestPopDet(:)
                     CALL DecodeBitDet(ProjEDet,iLutRef(:))
