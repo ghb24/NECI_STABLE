@@ -207,6 +207,7 @@ subroutine NECICalcEnd(iCacheFlag)
     use Integrals, only: IntCleanup
     use Determinants, only: DetCleanup
     use Calc, only: CalcCleanup
+    use shared_alloc, only: cleanup_shared_alloc
 
     implicit none
     integer,intent(in) :: iCacheFlag
@@ -216,6 +217,7 @@ subroutine NECICalcEnd(iCacheFlag)
     call DetCleanup()
     call IntCleanup(iCacheFlag)
     call SysCleanup()
+    call cleanup_shared_alloc ()
 
     return
 end subroutine NECICalcEnd

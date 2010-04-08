@@ -132,12 +132,13 @@ module shared_alloc
 	public :: shared_allocate, shared_deallocate
 
     interface
-        type(c_ptr) function alloc_shared_worker (nm, sz)
+		subroutine alloc_shared_worker (nm, pt, sz)
             use, intrinsic :: iso_c_binding
             implicit none
+            character*5, intent(in) :: nm
+			type(c_ptr), intent(inout) :: pt
             integer(c_size_t), value :: sz
-            character(*), intent(in) :: nm
-        end function
+        end subroutine
         subroutine dealloc_shared_worker (ptr)
             use, intrinsic :: iso_c_binding
             implicit none
@@ -161,16 +162,29 @@ contains
 		integer, intent(in) :: dim1
 		integer, intent(in), optional :: dim2, dim3, dim4, dim5, dim6, dim7
 
-		integer :: num_dim
+		integer :: num_dim, sz
 		integer :: dims((len_trim('%(dim)s') + 1) / 2) ! compile time const.
 		%(type)s :: tester
+		character(len=len_trim(nm)+1) :: name_tmp
 		type(c_ptr) :: tmp
 
 		num_dim = size(dims)
 
+		! For c_f_pointer, need the dimensions in an array.
+		dims(1) = dim1
+		if (num_dim > 1) dims(2) = dim2
+		if (num_dim > 2) dims(3) = dim3
+		if (num_dim > 3) dims(4) = dim4
+		if (num_dim > 4) dims(5) = dim5
+		if (num_dim > 5) dims(6) = dim6
+		if (num_dim > 6) dims(7) = dim7
+
+		sz = %(sizeof)s * product(dims)
+
 		! Allocate the shared memory
-		tmp = alloc_shared_worker (trim(nm)//c_null_char, &
-		                           int(%(sizeof)s * dim1, kind=c_size_t))
+		name_tmp = trim(nm)//c_null_char
+		call alloc_shared_worker (trim(nm)//c_null_char, tmp, &
+		                          int(sz, kind=c_size_t))
 
 		! For c_f_pointer, need the dimensions in an array.
 		dims(1) = dim1
@@ -184,8 +198,8 @@ contains
 		! Assign to a fortran pointer.
 		call c_f_pointer (tmp, ptr, dims)
 
-		write (6, '("Allocated ", i10, "bytes of shared memory named: ", a)')&
-		       nm
+		write (6, '("Allocated ", i10, " bytes of shared memory named: ", a)')&
+		       sz, nm
 	end subroutine
 
 	subroutine shared_deallocate_%(name)s (ptr)

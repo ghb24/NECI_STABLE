@@ -2,6 +2,8 @@
 MODULE Integrals
 
     use IntegralsData
+    use shared_alloc, only: shared_allocate, shared_deallocate
+    use global_utilities
 
     IMPLICIT NONE
 
@@ -379,13 +381,15 @@ MODULE Integrals
       IF(TCPMD) THEN
 !.. We don't need to do init any 4-index integrals, but we do need to init the 2-index
          WRITE(6,*) " *** INITIALIZING CPMD 2-index integrals ***"
-         Allocate(UMat(1), stat=ierr)
+         call shared_allocate ("umat", umat, 1)
+         !Allocate(UMat(1), stat=ierr)
          LogAlloc(ierr, 'UMat', 1,HElementSizeB, tagUMat)
          CALL GENSymStatePairs(nBasis/2,.false.)
          CALL SetupTMAT(nBasis,2,TMATINT)
          CALL CPMDINIT2INDINT(nBasis,I,NBASISMAX,ISPINSKIP,G1,NEL,ECORE,THFORDER,ARR,BRR,iCacheFlag)
       ELSEIF(tVASP) THEN
-         Allocate(UMat(1), stat=ierr)
+         call shared_allocate ("umat", umat, 1)
+         !Allocate(UMat(1), stat=ierr)
          LogAlloc(ierr, 'UMat', 1,HElementSizeB, tagUMat)
          CALL GENSymStatePairs(nBasis/2,.false.)
          CALL SetupTMAT(nBasis,2,TMATINT)
@@ -397,13 +401,15 @@ MODULE Integrals
 !read in integral and put in cache
 !change flag to read integrals from cache
       ELSEIF(TREADINT.AND.TDFREAD) THEN
-         Allocate(UMat(1), stat=ierr)
+         call shared_allocate ("umat", umat, 1)
+         !Allocate(UMat(1), stat=ierr)
          LogAlloc(ierr, 'UMat', 1,HElementSizeB, tagUMat)
          CALL SetupTMAT(nBasis,2,TMATINT)
          Call ReadDalton1EIntegrals(G1,nBasis,Arr,Brr,ECore)
          Call ReadDF2EIntegrals(nBasis,I)
       ELSEIF(TREADINT.AND.tRIIntegrals) THEN
-         Allocate(UMat(1), stat=ierr)
+         call shared_allocate ("umat", umat, 1)
+         !Allocate(UMat(1), stat=ierr)
          LogAlloc(ierr, 'UMat', 1,HElementSizeB, tagUMat)
 !Why is this called twice here?!
          CALL SetupTMAT(nBasis,2,TMATINT)
@@ -414,7 +420,8 @@ MODULE Integrals
          NBASISMAX(2,3)=0
          WRITE(6,*) ' ECORE=',ECORE
       ELSEIF(tReadInt.and.tCacheFCIDUMPInts) THEN
-         ALLOCATE(UMat(1),stat=ierr)
+         call shared_allocate ("umat", umat, 1)
+         !ALLOCATE(UMat(1),stat=ierr)
          LogAlloc(ierr,'UMat',1,HElementSizeB,tagUMat)
          CALL SetupTMAT(nBasis,iSpinSkip,TMATINT)
 !Now set up the UMatCache (**what size is allocated**.)
@@ -454,7 +461,8 @@ MODULE Integrals
          CALL CREATEINVBRR(BRR,nBasis)
          Call InitStarStoreUMat(nEl/2, nBasis/2)
          CALL GetUMatSize(nBasis,nEl,2,UMATINT)
-         Allocate(UMat(UMatInt), stat=ierr)
+         call shared_allocate ("umat", umat, UMatInt)
+         !Allocate(UMat(UMatInt), stat=ierr)
          LogAlloc(ierr, 'UMat', UMatInt,HElementSizeB, tagUMat)
          UMat=HElement(0.d0)
          CALL SETUPUMAT2D_DF()
@@ -475,7 +483,8 @@ MODULE Integrals
          WRITE(6,*) "UMatSize: ",UMATINT
          UMatMem=REAL(UMatInt,8)*REAL(HElementSizeB,8)*(9.536743164D-7)
          WRITE(6,"(A,G20.10,A)") " UMatMemory: ",UMatMem, " Mb/Processor"
-         Allocate(UMat(UMatInt), stat=ierr)
+         call shared_allocate ("umat", umat, UMatInt)
+         !Allocate(UMat(UMatInt), stat=ierr)
          LogAlloc(ierr, 'UMat', UMatInt,HElementSizeB, tagUMat)
          UMat=HElement(0.d0)
 !nBasisMax(2,3) is iSpinSkip = 1 if UHF and 2 if RHF/ROHF
@@ -496,7 +505,8 @@ MODULE Integrals
                   WRITE(6,*) "Generating 2e integrals"
     !!C.. Generate the 2e integrals (UMAT)
                   CALL GetUMatSize(nBasis,nEl,iSpinSkip,UMATINT)
-                  Allocate(UMat(UMatInt), stat=ierr)
+                  call shared_allocate ("umat", umat, UMatInt)
+                  !Allocate(UMat(UMatInt), stat=ierr)
                   LogAlloc(ierr, 'UMat', UMatInt,HElementSizeB, tagUMat)
                   UMat=HElement(0.d0)
                   WRITE(6,*) "Size of UMat is: ",UMATINT
@@ -506,7 +516,8 @@ MODULE Integrals
                   WRITE(6,*) "Generating 2e integrals"
     !!C.. Generate the 2e integrals (UMAT)
                   CALL GetUMatSize(nBasis,nEl,iSpinSkip,UMATINT)
-                  Allocate(UMat(UMatInt), stat=ierr)
+                  call shared_allocate ("umat", umat, UMatInt)
+                  !Allocate(UMat(UMatInt), stat=ierr)
                   LogAlloc(ierr, 'UMat', UMatInt,HElementSizeB, tagUMat)
                   UMat=HElement(0.d0)
     !!C.. Non-periodic hubbard (mom space)
@@ -518,7 +529,8 @@ MODULE Integrals
                      ISPINSKIP=-1
                      NBASISMAX(2,3)=-1
                      WRITE(6,*) "Not precomputing HUBBARD 2-e integrals"
-                     Allocate(UMat(1), stat=ierr)
+                     call shared_allocate ("umat", umat, 1)
+                     !Allocate(UMat(1), stat=ierr)
                      LogAlloc(ierr, 'UMat', 1,HElementSizeB, tagUMat)
                      UMAT(1)=UHUB/OMEGA
                   ENDIF
@@ -547,7 +559,8 @@ MODULE Integrals
                WRITE(6,*) "Generating 2e integrals"
     !!C.. Generate the 2e integrals (UMAT)
                CALL GetUMatSize(nBasis,nEl,iSpinSkip,UMATINT)
-               Allocate(UMat(UMatInt), stat=ierr)
+               call shared_allocate ("umat", umat, UMatInt)
+               !Allocate(UMat(UMatInt), stat=ierr)
                LogAlloc(ierr, 'UMat', UMatInt,HElementSizeB, tagUMat)
                UMat=HElement(0.d0)
                CALL GEN_COUL(NEL,NBASISMAX,nBasis,G1,NMSH,NMAX,FCK,UMAT,ISPINSKIP,ZIA)
@@ -558,7 +571,8 @@ MODULE Integrals
             ENDIF
          ELSE
             WRITE(6,*) "Not precomputing 2-e integrals"
-            Allocate(UMat(1), stat=ierr)
+            call shared_allocate ("umat", umat, 1)
+            !Allocate(UMat(1), stat=ierr)
             LogAlloc(ierr, 'UMat', 1,HElementSizeB, tagUMat)
          ENDIF
          CALL N_MEMORY_CHECK()
@@ -655,13 +669,15 @@ MODULE Integrals
          !TMAT2=HElement(0.d0)
          IF(NBASISMAX(1,3).GE.0.AND.ISPINSKIP.NE.0) THEN
             CALL GetUMatSize(nBasis,(nEl-NFROZEN-NFROZENIN),iSpinSkip,UMATINT)
-                Allocate(UMat2(UMatInt), stat=ierr)
-                LogAlloc(ierr, 'UMat2', UMatInt,HElementSizeB, tagUMat)
+                call shared_allocate ("umat2", umat2, UMatInt)
+                !Allocate(UMat2(UMatInt), stat=ierr)
+                LogAlloc(ierr, 'UMat2', UMatInt,HElementSizeB, tagUMat2)
             UMAT2=HElement(0.d0)
          ELSE
 !!C.. we don't precompute 4-e integrals, so don't allocate a large UMAT
-            Allocate(UMat2(1), stat=ierr)
-            LogAlloc(ierr, 'UMat2', 1,HElementSizeB, tagUMat)
+            call shared_allocate ("umat2", umat2, 1)
+            !Allocate(UMat2(1), stat=ierr)
+            LogAlloc(ierr, 'UMat2', 1,HElementSizeB, tagUMat2)
          ENDIF 
          CALL N_MEMORY_CHECK()
 
@@ -687,7 +703,8 @@ MODULE Integrals
 !!C.. Now we can remove the old UMATRIX, and set the pointer UMAT to point
 !!C.. to UMAT2
          LogDealloc(tagUMat)
-         Deallocate(UMat)
+         call shared_deallocate(umat)
+         !Deallocate(UMat)
          UMat=>UMat2
          nullify(UMat2)
          tagUMat=tagUMat2
@@ -733,22 +750,31 @@ MODULE Integrals
     End Subroutine IntFreeze
 
 
+    subroutine IntCleanup (iCacheFlag)
+        use SystemData, only: G1, nBasis
+        use UMatCache, only: iDumpCacheFlag, tReadInCache, nStates, &
+                             nStatesDump, DumpUMatCache, DestroyUMatCache, &
+                             WriteUMatCacheStats
+        integer :: iCacheFlag
+        character(*), parameter :: this_routine = 'IntCleanup'
 
-    Subroutine IntCleanup(iCacheFlag)
-      use SystemData, only: G1, nBasis
-      Use UMatCache, only: iDumpCacheFlag,tReadInCache,nStates, nStatesDump, DumpUMatCache, DestroyUMatCache, WriteUMatCacheStats
-      INTEGER iCacheFlag
-      if ((btest(iDumpCacheFlag,0).and.(nStatesDump.lt.nStates.or..not.tReadInCache)).or.btest(iDumpCacheFlag,1)) then
-      call DumpUMatCache(nBasis,G1)
-      end if
-!If we're told explicitly not to destroy the cache, we don't
-      if(.NOT.BTEST(iCacheFlag,0)) THEN
-         CALL DESTROYUMATCACHE()
-      ELSE
-         Call WriteUMatCacheStats()
-      ENDIF
-    END Subroutine IntCleanup
+        if ((btest(iDumpCacheFlag, 0) .and. &
+            (nStatesDump < nStates .or. .not. tReadInCache)) .or. &
+            btest(iDumpCacheFlag, 1)) call DumpUMatCache (nBasis, G1)
 
+        ! If we're told explicitly not to destroy the cache, we don't
+        if (.not. btest(iCacheFlag, 0)) then
+            call DestroyUMatCache ()
+        else
+            call WriteUMatCacheStats ()
+        endif
+
+        ! Cleanup UMAT array
+        if (associated(UMAT)) then
+            LogDealloc (tagUMat)
+            call shared_deallocate (UMAT)
+        endif
+    end subroutine
 
 !This routine takes the frozen orbitals and modifies ECORE, UMAT, BRR etc accordingly.
     SUBROUTINE IntFREEZEBASIS(NHG,NBASIS,UMAT,UMAT2,ECORE,           &

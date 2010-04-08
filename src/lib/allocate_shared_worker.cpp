@@ -34,13 +34,12 @@ map<void*,map_det_t> g_shared_mem_map;
 // This function acquires a named region of shared memory, of the specified
 // size, allocating or resizing it if necessary. It then returns this as a
 // standard C pointer --> requires fortran 2003 features to use.
-extern "C" void * alloc_shared_worker_ (const char * name, const size_t size)
+extern "C" void alloc_shared_worker_ (const char * name, void ** ptr,
+		                              const size_t size)
 {
 	// Acquire a named shared memory file descriptor. nb. Enforce 10 character
 	// name limit.
-	string nametmp = name;
-	nametmp = nametmp.substr(0, 10);
-	int fd = shm_open (nametmp.c_str(), O_CREAT | O_RDWR, (mode_t)0600);
+	int fd = shm_open (name, O_CREAT | O_RDWR, (mode_t)0600);
 	if (fd == -1)
 		stop_all_ (__FUNCTION__, "Creating shared memory object failed.");
 
@@ -49,19 +48,16 @@ extern "C" void * alloc_shared_worker_ (const char * name, const size_t size)
 		stop_all_ (__FUNCTION__, "Setting size of shared memory regoin failed.");
 
 	// Map the region into the current address space.
-	void * ptr = mmap (NULL, size, PROT_READ | PROT_WRITE, MAP_SHARED, 
+	*ptr = mmap (NULL, size, PROT_READ | PROT_WRITE, MAP_SHARED, 
 			fd, 0);
-	if (ptr == MAP_FAILED)
+	if (*ptr == MAP_FAILED)
 		stop_all_ (__FUNCTION__, "Mapping shared memory failed.");
 
 	// Once we have mapped the region, it will remain available even when the
 	// file descriptor has closed.
 	close(fd);
 
-	g_shared_mem_map[ptr] = map_det_t(nametmp, size);
-
-	// Return the pointer, and store the details for easy retrieval later.
-	return ptr;
+	g_shared_mem_map[*ptr] = map_det_t(name, size);
 }
 
 //
@@ -86,7 +82,7 @@ extern "C" void dealloc_shared_worker_ (void * ptr)
 
 //
 // Clean up any shared allocations which have not been properly deallocated.
-extern "C" void cleanup_shared_alloc ()
+extern "C" void cleanup_shared_alloc_ ()
 {
 	// Iterate through the list of shared allocations
 	map<void*,map_det_t>::iterator iter;
