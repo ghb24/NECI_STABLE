@@ -200,3 +200,10 @@ contains
 		nullify(ptr)
 	end subroutine
 end module
+
+supermodule shared_alloc
+	interface
+		subroutine cleanup_shared_alloc ()
+		end subroutine
+	end interface
+end supermodule

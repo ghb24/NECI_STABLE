@@ -93,10 +93,19 @@ def super_module(template, config):
 	substr = "%s_%%(name)s\n" % m.group(1)
 	template = re_mod.sub (substr, template)
 
+	# Extract any lines for the super module from the template file
+	re_supermod = re.compile ('(\n\s*supermodule[\s^\n]*([^\s\n]*))\n((.|\n)*?)(end supermodule)')
+	m_super = re_supermod.search(template)
+	if m_super:
+		print 'Found super module: %s.' % m.group(2)
+		template = template[:m_super.start()] + template[m_super.end()+1:]
+
 	# Construct super module
 	super_mod = m.group(1) + "\n"
 	for s in config:
-		super_mod += "    use " + m.group(2) + "_" + s + "\n"
+		super_mod += "\tuse " + m.group(2) + "_" + s + "\n"
+
+	if m_super: super_mod += m_super.group(3)
 	super_mod += "end module\n"
 
 	return (template,super_mod)

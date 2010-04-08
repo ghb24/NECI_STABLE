@@ -84,3 +84,25 @@ extern "C" void dealloc_shared_worker_ (void * ptr)
 	g_shared_mem_map.erase(det);
 }
 
+//
+// Clean up any shared allocations which have not been properly deallocated.
+extern "C" void cleanup_shared_alloc ()
+{
+	// Iterate through the list of shared allocations
+	map<void*,map_det_t>::iterator iter;
+	for (iter = g_shared_mem_map.begin(); iter != g_shared_mem_map.end();
+	     ++iter) {
+		size_t size = iter->second.size;
+		void * ptr = iter->first;
+		string name = iter->second.name;
+
+		printf ("Non-deallocated shared memory found: %s, %d bytes\n",
+				name.c_str(), int(size));
+
+		munmap (ptr, size);
+		shm_unlink (name.c_str());
+	}
+
+	g_shared_mem_map.clear();
+}
+
