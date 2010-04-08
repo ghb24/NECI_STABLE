@@ -1394,7 +1394,7 @@ SUBROUTINE WRITEBASIS(NUNIT,G1,NHG,ARR,BRR)
   ! Write out the current basis to unit nUnit
   use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
   use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB, nel
-  use Determinants, only: fdet
+  use DeterminantData, only: fdet
   IMPLICIT NONE
   INTEGER NUNIT,NHG,BRR(NHG),I
   integer :: pos
