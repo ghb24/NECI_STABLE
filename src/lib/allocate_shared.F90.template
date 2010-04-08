@@ -128,6 +128,9 @@ module shared_alloc
 	use HElem
 	implicit none
 
+	private
+	public :: shared_allocate, shared_deallocate
+
     interface
         type(c_ptr) function alloc_shared_worker (nm, sz)
             use, intrinsic :: iso_c_binding
