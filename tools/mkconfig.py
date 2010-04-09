@@ -318,15 +318,13 @@ cleanall:
 # We assume that all module files are in *.F90 files.
 # This requires the JSS modified version of sfmakepend (supplied with neci).
 # sds50: sed command to avoid tinkering with sfmakedepend to work with templates.
+MKDEPEND = $(TOOLS)/sfmakedepend --file - --cpp --fext=f90 --depend=mod --silent $(FSRCFILES) $(F90SRCFILES) $(F90TMPSRCFILES) 
+RMTEMPLATE = sed -e 's/\.F90\.template//g'
 $(FRDEPEND):
-\t$(TOOLS)/sfmakedepend --file - --cpp --fext=f90 --depend=mod --silent --objdir \$$\(GDEST\) --moddir \$$\(GDEST\) $(FSRCFILES) $(F90SRCFILES) $(F90TMPSRCFILES) > $(FRDEPEND).temp
-	sed -e "s/^\(.*\.mod:.*\)\.F90\.template\(.o\)/\\1\\2/g" $(FRDEPEND).temp | sed -e "s/^\(.*\)\.F90\.template\(\.o:\)/\\1\\2/g" > $(FRDEPEND)
-	-rm -f $(FRDEPEND).temp
+\t$(MKDEPEND) --objdir \$$\(GDEST\) --moddir \$$\(GDEST\) | $(RMTEMPLATE) > $@
 
 $(FCDEPEND):
-\t$(TOOLS)/sfmakedepend --file - --cpp --fext=f90 --depend=mod --silent --objdir \$$\(KDEST\) --moddir \$$\(KDEST\) $(FSRCFILES) $(F90SRCFILES) $(F90TMPSRCFILES) > $(FCDEPEND).temp
-	sed -e "s/^\(.*\.mod:.*\)\.F90\.template\(.o\)/\\1\\2/g" $(FCDEPEND).temp | sed -e "s/^\(.*\)\.F90\.template\(\.o:\)/\\1\\2/g" > $(FCDEPEND)
-	-rm -f $(FCDEPEND).temp
+\t$(MKDEPEND) --objdir \$$\(KDEST\) --moddir \$$\(KDEST\) | $(RMTEMPLATE) > $@
 
 # Generate all dependency files.
 depend: 
@@ -427,15 +425,18 @@ $(KDEST)/%%.f90: %%.F90
 $(KDEST)/%%.f: %%.F
 \t$(CPP) -D__CMPLX $(CPP_BODY)
 
-# 1.b) With an option to generate from template files.
+# c) With an option to generate from template files.
+$(GDEST)/%%.F90: %%.F90.template
+\t$(TOOLS)/f90_template.py $< $@
+
+$(KDEST)/%%.F90: %%.F90.template
+\t$(TOOLS)/f90_template.py $< $@
+
 $(GDEST)/%%.f90: $(GDEST)/%%.F90
 \t$(CPP) $(CPP_BODY)
 
 $(KDEST)/%%.f90: $(GDEST)/%%.F90
 \t$(CPP) -D__CMPLX $(CPP_BODY)
-
-$(GDEST)/%%.F90: %%.F90.template
-\t$(TOOLS)/f90_template.py $< $@
 
 
 # 2. Compile.
@@ -451,6 +452,8 @@ $(GDEST)/%%.F90: %%.F90.template
 
 $(F90OBJ) $(F90TMPOBJ) $(KF90OBJ): %%.o: %%.f90
 \tperl -w $(TOOLS)/compile_mod.pl -cmp "perl -w $(TOOLS)/compare_module_file.pl -compiler $(compiler)" -fc "$(FC) $(FFLAGS) $(F90FLAGS) %(module_flag)s$(dir $@) $(INCLUDE_PATH) -c $< -o $@" -provides "$@" -requires "$^"
+$(F90OBJ) $(F90TMPOBJ) $(KF90OBJ) $(KF90TMPOBJ): %%.o: %%.f90
+\tperl -w $(TOOLS)/compile_mod.pl -cmp "perl -w $(TOOLS)/compare_module_file.pl -compiler $(compiler)" -fc "$(FC) $(FFLAGS) $(F90FLAGS) %(module_flag)s$(dir $@) -I $(SRC) -c $< -o $@" -provides "$@" -requires "$^"
 
 $(FOBJ) $(KFOBJ): %%.o: %%.f
 \tperl -w $(TOOLS)/compile_mod.pl -cmp "perl -w $(TOOLS)/compare_module_file.pl -compiler $(compiler)" -fc "$(FC) $(FFLAGS) $(F77FLAGS) %(module_flag)s$(dir $@) $(INCLUDE_PATH) -c $< -o $@" -provides "$@" -requires "$^"
