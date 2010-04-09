@@ -155,29 +155,16 @@ module shared_alloc
 
 contains
 
-	subroutine shared_allocate_%(name)s (nm, ptr, dim1, dim2, dim3, dim4, dim5, dim6, dim7)
+	subroutine shared_allocate_%(name)s (nm, ptr, dims)
 
 		character(*), intent(in) :: nm
 		%(type)s, dimension(%(dim)s), intent(inout), pointer :: ptr
-		integer, intent(in) :: dim1
-		integer, intent(in), optional :: dim2, dim3, dim4, dim5, dim6, dim7
+		integer, intent(in) :: dims((len_trim('%(dim)s') + 1) / 2) ! compile time const.
 
-		integer :: num_dim, sz
-		integer :: dims((len_trim('%(dim)s') + 1) / 2) ! compile time const.
+		integer :: sz
 		%(type)s :: tester
 		character(len=len_trim(nm)+1) :: name_tmp
 		type(c_ptr) :: tmp
-
-		num_dim = size(dims)
-
-		! For c_f_pointer, need the dimensions in an array.
-		dims(1) = dim1
-		if (num_dim > 1) dims(2) = dim2
-		if (num_dim > 2) dims(3) = dim3
-		if (num_dim > 3) dims(4) = dim4
-		if (num_dim > 4) dims(5) = dim5
-		if (num_dim > 5) dims(6) = dim6
-		if (num_dim > 6) dims(7) = dim7
 
 		sz = %(sizeof)s * product(dims)
 
@@ -185,15 +172,6 @@ contains
 		name_tmp = trim(nm)//c_null_char
 		call alloc_shared_worker (trim(nm)//c_null_char, tmp, &
 		                          int(sz, kind=c_size_t))
-
-		! For c_f_pointer, need the dimensions in an array.
-		dims(1) = dim1
-		if (num_dim > 1) dims(2) = dim2
-		if (num_dim > 2) dims(3) = dim3
-		if (num_dim > 3) dims(4) = dim4
-		if (num_dim > 4) dims(5) = dim5
-		if (num_dim > 5) dims(6) = dim6
-		if (num_dim > 6) dims(7) = dim7
 
 		! Assign to a fortran pointer.
 		call c_f_pointer (tmp, ptr, dims)

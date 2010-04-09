@@ -381,14 +381,14 @@ MODULE Integrals
       IF(TCPMD) THEN
 !.. We don't need to do init any 4-index integrals, but we do need to init the 2-index
          WRITE(6,*) " *** INITIALIZING CPMD 2-index integrals ***"
-         call shared_allocate ("umat", umat, 1)
+         call shared_allocate ("umat", umat, (/1/))
          !Allocate(UMat(1), stat=ierr)
          LogAlloc(ierr, 'UMat', 1,HElementSizeB, tagUMat)
          CALL GENSymStatePairs(nBasis/2,.false.)
          CALL SetupTMAT(nBasis,2,TMATINT)
          CALL CPMDINIT2INDINT(nBasis,I,NBASISMAX,ISPINSKIP,G1,NEL,ECORE,THFORDER,ARR,BRR,iCacheFlag)
       ELSEIF(tVASP) THEN
-         call shared_allocate ("umat", umat, 1)
+         call shared_allocate ("umat", umat, (/1/))
          !Allocate(UMat(1), stat=ierr)
          LogAlloc(ierr, 'UMat', 1,HElementSizeB, tagUMat)
          CALL GENSymStatePairs(nBasis/2,.false.)
@@ -401,14 +401,14 @@ MODULE Integrals
 !read in integral and put in cache
 !change flag to read integrals from cache
       ELSEIF(TREADINT.AND.TDFREAD) THEN
-         call shared_allocate ("umat", umat, 1)
+         call shared_allocate ("umat", umat, (/1/))
          !Allocate(UMat(1), stat=ierr)
          LogAlloc(ierr, 'UMat', 1,HElementSizeB, tagUMat)
          CALL SetupTMAT(nBasis,2,TMATINT)
          Call ReadDalton1EIntegrals(G1,nBasis,Arr,Brr,ECore)
          Call ReadDF2EIntegrals(nBasis,I)
       ELSEIF(TREADINT.AND.tRIIntegrals) THEN
-         call shared_allocate ("umat", umat, 1)
+         call shared_allocate ("umat", umat, (/1/))
          !Allocate(UMat(1), stat=ierr)
          LogAlloc(ierr, 'UMat', 1,HElementSizeB, tagUMat)
 !Why is this called twice here?!
@@ -420,7 +420,7 @@ MODULE Integrals
          NBASISMAX(2,3)=0
          WRITE(6,*) ' ECORE=',ECORE
       ELSEIF(tReadInt.and.tCacheFCIDUMPInts) THEN
-         call shared_allocate ("umat", umat, 1)
+         call shared_allocate ("umat", umat, (/1/))
          !ALLOCATE(UMat(1),stat=ierr)
          LogAlloc(ierr,'UMat',1,HElementSizeB,tagUMat)
          CALL SetupTMAT(nBasis,iSpinSkip,TMATINT)
@@ -461,7 +461,7 @@ MODULE Integrals
          CALL CREATEINVBRR(BRR,nBasis)
          Call InitStarStoreUMat(nEl/2, nBasis/2)
          CALL GetUMatSize(nBasis,nEl,2,UMATINT)
-         call shared_allocate ("umat", umat, UMatInt)
+         call shared_allocate ("umat", umat, (/UMatInt/))
          !Allocate(UMat(UMatInt), stat=ierr)
          LogAlloc(ierr, 'UMat', UMatInt,HElementSizeB, tagUMat)
          UMat=HElement(0.d0)
@@ -483,7 +483,7 @@ MODULE Integrals
          WRITE(6,*) "UMatSize: ",UMATINT
          UMatMem=REAL(UMatInt,8)*REAL(HElementSizeB,8)*(9.536743164D-7)
          WRITE(6,"(A,G20.10,A)") " UMatMemory: ",UMatMem, " Mb/Processor"
-         call shared_allocate ("umat", umat, UMatInt)
+         call shared_allocate ("umat", umat, (/UMatInt/))
          !Allocate(UMat(UMatInt), stat=ierr)
          LogAlloc(ierr, 'UMat', UMatInt,HElementSizeB, tagUMat)
          UMat=HElement(0.d0)
@@ -505,7 +505,7 @@ MODULE Integrals
                   WRITE(6,*) "Generating 2e integrals"
     !!C.. Generate the 2e integrals (UMAT)
                   CALL GetUMatSize(nBasis,nEl,iSpinSkip,UMATINT)
-                  call shared_allocate ("umat", umat, UMatInt)
+                  call shared_allocate ("umat", umat, (/UMatInt/))
                   !Allocate(UMat(UMatInt), stat=ierr)
                   LogAlloc(ierr, 'UMat', UMatInt,HElementSizeB, tagUMat)
                   UMat=HElement(0.d0)
@@ -516,7 +516,7 @@ MODULE Integrals
                   WRITE(6,*) "Generating 2e integrals"
     !!C.. Generate the 2e integrals (UMAT)
                   CALL GetUMatSize(nBasis,nEl,iSpinSkip,UMATINT)
-                  call shared_allocate ("umat", umat, UMatInt)
+                  call shared_allocate ("umat", umat, (/UMatInt/))
                   !Allocate(UMat(UMatInt), stat=ierr)
                   LogAlloc(ierr, 'UMat', UMatInt,HElementSizeB, tagUMat)
                   UMat=HElement(0.d0)
@@ -529,7 +529,7 @@ MODULE Integrals
                      ISPINSKIP=-1
                      NBASISMAX(2,3)=-1
                      WRITE(6,*) "Not precomputing HUBBARD 2-e integrals"
-                     call shared_allocate ("umat", umat, 1)
+                     call shared_allocate ("umat", umat, (/1/))
                      !Allocate(UMat(1), stat=ierr)
                      LogAlloc(ierr, 'UMat', 1,HElementSizeB, tagUMat)
                      UMAT(1)=UHUB/OMEGA
@@ -559,7 +559,7 @@ MODULE Integrals
                WRITE(6,*) "Generating 2e integrals"
     !!C.. Generate the 2e integrals (UMAT)
                CALL GetUMatSize(nBasis,nEl,iSpinSkip,UMATINT)
-               call shared_allocate ("umat", umat, UMatInt)
+               call shared_allocate ("umat", umat, (/UMatInt/))
                !Allocate(UMat(UMatInt), stat=ierr)
                LogAlloc(ierr, 'UMat', UMatInt,HElementSizeB, tagUMat)
                UMat=HElement(0.d0)
@@ -571,7 +571,7 @@ MODULE Integrals
             ENDIF
          ELSE
             WRITE(6,*) "Not precomputing 2-e integrals"
-            call shared_allocate ("umat", umat, 1)
+            call shared_allocate ("umat", umat, (/1/))
             !Allocate(UMat(1), stat=ierr)
             LogAlloc(ierr, 'UMat', 1,HElementSizeB, tagUMat)
          ENDIF
@@ -669,13 +669,13 @@ MODULE Integrals
          !TMAT2=HElement(0.d0)
          IF(NBASISMAX(1,3).GE.0.AND.ISPINSKIP.NE.0) THEN
             CALL GetUMatSize(nBasis,(nEl-NFROZEN-NFROZENIN),iSpinSkip,UMATINT)
-                call shared_allocate ("umat2", umat2, UMatInt)
+                call shared_allocate ("umat2", umat2, (/UMatInt/))
                 !Allocate(UMat2(UMatInt), stat=ierr)
                 LogAlloc(ierr, 'UMat2', UMatInt,HElementSizeB, tagUMat2)
             UMAT2=HElement(0.d0)
          ELSE
 !!C.. we don't precompute 4-e integrals, so don't allocate a large UMAT
-            call shared_allocate ("umat2", umat2, 1)
+            call shared_allocate ("umat2", umat2, (/1/))
             !Allocate(UMat2(1), stat=ierr)
             LogAlloc(ierr, 'UMat2', 1,HElementSizeB, tagUMat2)
          ENDIF 

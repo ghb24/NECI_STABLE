@@ -85,7 +85,7 @@ MODULE HFCalc
                 NULLIFY(TMAT2D2)
 !C.. Allocate the new matrix
                CALL GetUMatSize(nBasis,nEl,1,UMATINT)
-               call shared_allocate ("umat2", umat2, UMatInt)
+               call shared_allocate ("umat2", umat2, (/UMatInt/))
                !Allocate(UMat2(UMatInt), stat=ierr)
                LogAlloc(ierr,'UMAT2', UMatInt, HElementSizeB, tagUMat2)
                UMAT2=HElement(0.d0)
