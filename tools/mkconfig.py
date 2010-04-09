@@ -138,6 +138,8 @@ DEST = dest/$(CONFIG)/$(OPT)
 GDEST = $(DEST)/real
 # COMPLEX (k-point) objects
 KDEST = $(DEST)/cmplx
+# .F90 files produced from .F90.template files.
+TDEST = $(DEST)/template
 
 # Directories for dependencies.  It's safer to share them between all
 # config directories.
@@ -161,12 +163,8 @@ space := $(empty) $(empty) # stupid make language...
 VPATH = $(subst $(space),:,$(SRC) $(DEST))
 
 # Create output directories if they don't exist.
-make_gdest := $(shell test -e $(GDEST) || mkdir -p $(GDEST))
-make_kdest := $(shell test -e $(KDEST) || mkdir -p $(KDEST))
-make_gdep_dest := $(shell test -e $(GDEP_DEST) || mkdir -p $(GDEP_DEST))
-make_kdep_dest := $(shell test -e $(KDEP_DEST) || mkdir -p $(KDEP_DEST))
-make_exe := $(shell test -e $(EXE) || mkdir -p $(EXE))
-make_lib := $(shell test -e $(LIB) || mkdir -p $(LIB))
+DIRS = $(GDEST) $(KDEST) $(TDEST) $(GDEP_DEST) $(KDEP_DEST) $(EXE) $(LIB)
+make_dirs := $(foreach outdir, $(DIRS), $(shell test -e $(outdir) || mkdir -p $(outdir)))
 
 #-----
 # VCS info.
@@ -188,7 +186,7 @@ MAXMEM = %(max_mem)i # RAM available, in MB.  Used by the memory logger.
 # Find source files and resultant object files.
 
 # Source extensions.
-EXTS = .F90 .F .c .cpp
+EXTS = .F90 .F .c .cpp .F90.template
 
 # Source filenames.
 find_files = $(wildcard $(1)/*$(2))
@@ -309,7 +307,7 @@ $(LIB)/kneci-vasp.$(CONFIG).$(OPT).a: $(OBJECTS_KVASP)
 \t$(ARCHIVE)
 
 clean: 
-\trm -f {$(GDEST),$(KDEST)}/*.{f,f90,mod,o,c,x,a,d} $(EXE)/*.$(CONFIG).$(OPT).x $(LIB)/*.$(CONFIG).$(OPT).a
+\trm -f {$(GDEST),$(KDEST),$(TDEST)}/* $(EXE)/*.$(CONFIG).$(OPT).x $(LIB)/*.$(CONFIG).$(OPT).a
 
 cleanall:
 \trm -rf dest lib bin
@@ -429,13 +427,13 @@ $(KDEST)/%%.f: %%.F
 \t$(CPP) -D__CMPLX $(CPP_BODY)
 
 # 1.b) With an option to generate from template files.
-$(GDEST)/%%.f90: $(GDEST)/%%.F90
+$(GDEST)/%%.f90: $(TDEST)/%%.F90
 \t$(CPP) $(CPP_BODY)
 
-$(KDEST)/%%.f90: $(GDEST)/%%.F90
+$(KDEST)/%%.f90: $(TDEST)/%%.F90
 \t$(CPP) -D__CMPLX $(CPP_BODY)
 
-$(GDEST)/%%.F90: %%.F90.template
+$(TDEST)/%%.F90: %%.F90.template
 \t$(TOOLS)/f90_template.py $< $@
 
 
@@ -450,7 +448,7 @@ $(GDEST)/%%.F90: %%.F90.template
 \ttest -e $@ && test ! -e $(@:.mod=.time) && test $(shell $(stat_cmd) $@) -eq $(shell $(stat_cmd) $<) && touch $(@:.mod=.time) || true
 \tperl -w $(TOOLS)/compile_mod.pl -cmp "perl -w $(TOOLS)/compare_module_file.pl -compiler $(compiler)" -fc "$(FC) $(FFLAGS) $(F90FLAGS) %(module_flag)s$(dir $@) $(INCLUDE_PATH) -c $(<:.o=.f90) -o $<" -provides "$@" -requires "$(<:.o=.f90)"
 
-$(F90OBJ) $(F90TMPOBJ) $(KF90OBJ): %%.o: %%.f90
+$(F90OBJ) $(F90TMPOBJ) $(KF90OBJ) $(KF90TMPOBJ): %%.o: %%.f90
 \tperl -w $(TOOLS)/compile_mod.pl -cmp "perl -w $(TOOLS)/compare_module_file.pl -compiler $(compiler)" -fc "$(FC) $(FFLAGS) $(F90FLAGS) %(module_flag)s$(dir $@) $(INCLUDE_PATH) -c $< -o $@" -provides "$@" -requires "$^"
 
 $(FOBJ) $(KFOBJ): %%.o: %%.f
