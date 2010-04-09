@@ -316,15 +316,13 @@ cleanall:
 # We assume that all module files are in *.F90 files.
 # This requires the JSS modified version of sfmakepend (supplied with neci).
 # sds50: sed command to avoid tinkering with sfmakedepend to work with templates.
+MKDEPEND = $(TOOLS)/sfmakedepend --file - --cpp --fext=f90 --depend=mod --silent $(FSRCFILES) $(F90SRCFILES) $(F90TMPSRCFILES) 
+RMTEMPLATE = sed -e 's/\.F90\.template//g'
 $(FRDEPEND):
-\t$(TOOLS)/sfmakedepend --file - --cpp --fext=f90 --depend=mod --silent --objdir \$$\(GDEST\) --moddir \$$\(GDEST\) $(FSRCFILES) $(F90SRCFILES) $(F90TMPSRCFILES) > $(FRDEPEND).temp
-\tsed -e "s/^\(.*\.mod:.*\)\.F90\.template\(.o\)/\\1\\2/g" $(FRDEPEND).temp | sed -e "s/^\(.*\)\.F90\.template\(\.o:\)/\\1\\2/g" > $(FRDEPEND)
-\t-rm -f $(FRDEPEND).temp
+\t$(MKDEPEND) --objdir \$$\(GDEST\) --moddir \$$\(GDEST\) | $(RMTEMPLATE) > $@
 
 $(FCDEPEND):
-\t$(TOOLS)/sfmakedepend --file - --cpp --fext=f90 --depend=mod --silent --objdir \$$\(KDEST\) --moddir \$$\(KDEST\) $(FSRCFILES) $(F90SRCFILES) $(F90TMPSRCFILES) > $(FCDEPEND).temp
-\tsed -e "s/^\(.*\.mod:.*\)\.F90\.template\(.o\)/\\1\\2/g" $(FCDEPEND).temp | sed -e "s/^\(.*\)\.F90\.template\(\.o:\)/\\1\\2/g" > $(FCDEPEND)
-\t-rm -f $(FCDEPEND).temp
+\t$(MKDEPEND) --objdir \$$\(KDEST\) --moddir \$$\(KDEST\) | $(RMTEMPLATE) > $@
 
 # Generate all dependency files.
 depend: 
