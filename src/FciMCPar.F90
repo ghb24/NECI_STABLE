@@ -293,7 +293,7 @@ MODULE FciMCParMod
         do j=1,TotWalkers
 !j runs through all current walkers
 !If we are rotoannihilating/direct annihilating, the sign indicates the sum of the signs on the determinant, and hence j loops over determinants, not particles.
-            !WRITE(6,*) Iter,j,TotWalkers
+!            WRITE(6,*) 'Iter: j : TotWalkers',Iter,j,TotWalkers
 !            CALL FLUSH(6)
 
 !First, decode the bit-string representation of the determinant the walker is on, into a string of naturally-ordered integers
@@ -357,7 +357,7 @@ MODULE FciMCParMod
 
             do p=1,Loop
 !we are simply looping over all the particles on the determinant
-
+                
                 IF(tHPHF) THEN
 !                    CALL GenRandHPHFExcit(DetCurr,CurrentDets(:,j),nJ,iLutnJ,pDoubles,exFlag,Prob)
                     CALL GenRandHPHFExcit2Scratch(DetCurr,CurrentDets(:,j),nJ,iLutnJ,pDoubles,exFlag,Prob,Scratch1,Scratch2,tFilled,tGenMatHEl)
@@ -382,7 +382,7 @@ MODULE FciMCParMod
 !                    WRITE(6,*) 'tTruncSpace',tTruncSpace
 !                    WRITE(6,*) 'tTruncCAS',tTruncCAS
 !                    WRITE(6,*) 'tTruncInitiator',tTruncInitiator
-
+                    IF(.not.tHPHF) call EncodeBitDet (nJ, iLutnJ)
                     IF(CheckAllowedTruncSpawn(WalkExcitLevel,nJ,iLutnJ,IC)) THEN
                         Child=AttemptCreatePar(DetCurr,CurrentDets(:,j),CurrentSign(j),nJ,iLutnJ,Prob,IC,Ex,tParity)
                     ELSE
@@ -589,7 +589,7 @@ MODULE FciMCParMod
 !If neither of these are true, the expandspace option must have been used and so the parent will always be in the initiator space. 
 !                            tParentInCAS=TestIfDetInCAS(DetCurr)
         IF(tTruncCAS) THEN
-            tParentInCAS=TestIfDetInCASBit(CurrentDets(:,j))
+            tParentInCAS=TestIfDetInCASBit(CurrentDets(0:NIfD,j))
         ELSEIF(tHFFound) THEN
 !The HF determinant has been found, the rest will therefore all be out of the active space.                            
             tParentInCAS=.false.
@@ -715,7 +715,7 @@ MODULE FciMCParMod
     SUBROUTINE CalcNewShift()
         USE FciMCLoggingMOD , only : PrintSpawnAttemptStats,InitErrorBlocking,SumInErrorContrib
         USE FciMCLoggingMOD , only : InitShiftErrorBlocking,SumInShiftErrorContrib
-        USE CalcData , only : tCheckHighestPop,tChangeProjEDet,tRestartHighPop,FracLargerDet
+        USE CalcData , only : tCheckHighestPop,tChangeProjEDet,tRestartHighPop,FracLargerDet,iRestartWalkNum
         INTEGER :: error,rc,MaxAllowedWalkers,MaxWalkersProc,MinWalkersProc
         INTEGER :: inpair(6),outpair(6),HighPopin(2),HighPopout(2),DetCurr(NEl),i
         REAL*8 :: TempTotWalkers,TempTotParts
@@ -917,7 +917,7 @@ MODULE FciMCParMod
                         endif
                         CurrentH(i)=(REAL(HDiagTemp%v,dp))-Hii
                     enddo
-                ELSEIF(tRestartHighPop) THEN
+                ELSEIF(tRestartHighPop.and.(iRestartWalkNum.le.AllTotParts)) THEN
                     CALL MPI_BCast(HighestPopDet,NIfTot+1,MPI_INTEGER,HighPopout(2),MPI_COMM_WORLD,error)
                     iLutRef(:)=HighestPopDet(:)
                     CALL DecodeBitDet(ProjEDet,iLutRef(:))
@@ -1951,6 +1951,9 @@ MODULE FciMCParMod
         IF(iProcIndex.eq.root) AllTotPartsOld=AllTotParts
 
         WRITE(6,'(A,F20.1)') ' The total number of particles read from the POPSFILE is: ',AllTotParts
+
+!        WRITE(6,*) 'InitWalkers*nProcessors', InitWalkers*nProcessors
+!        WRITE(6,*) "REAL('')",REAL(InitWalkers,dp)*REAL(nProcessors,dp)
 
         RETURN
 
@@ -4308,7 +4311,7 @@ MODULE FciMCParMod
         IF((tTruncCAS.and.(.not.tTruncInitiator)).and.CheckAllowedTruncSpawn) THEN
 !This flag determines if the FCI space is restricted by whether the determinants are in the predescribed CAS.
 !            IF(.not.TestIfDetinCAS(nJ)) THEN
-            IF(.not.TestIfDetinCASBit(iLutnJ)) THEN
+            IF(.not.TestIfDetinCASBit(iLutnJ(0:NIfD))) THEN
 !Excitation not in allowed CAS space.
                 CheckAllowedTruncSpawn=.false.
             ENDIF

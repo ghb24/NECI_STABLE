@@ -1569,9 +1569,24 @@ END MODULE Integrals
 !  We calculate <ii|ii>cell with a potenial v(r)=1/r (r<Rc) and 0 (r>=Rc)
 !  Rc=ALAT(4).
 
+! Evaluation a diagonal matrix element via Slater--Condon rules gives:
+! < D | H | D > = \sum_i < i | T | i > + 1/2 \sum_ij < ij || ij >
+!               = \sum_i [< i | T | i > + < ii || ii >] + \sum_i>j < ij || ij >
+! < ii || ii > normally cancel out.  However, in the UEG the Coulomb integral
+! < ii | ii  > is infinite but the sum cancels out exactly with the interactions
+! with the background (cf Ewald summations).
+! The exchange interaction contains an integrable divergence which converges
+! slowly with system size.  Speed of convergence can be increased by using
+! either an attenuated (better) or screened (use attentuated) potential to
+! evaluate the exchange integrals.  This leads to:
+! < ii || ii > = < ii | ii > - < ii | ii >_cell
+!              = -2*pi*R_c/2
+! It is easiest to include this periodic image correction with the kinetic
+! (one-electron) terms.
+
 SUBROUTINE CALCTMATUEG(NBASIS,ALAT,G1,CST,TPERIODIC,OMEGA)
   USE HElem
-  use SystemData, only: BasisFN, k_offset
+  use SystemData, only: BasisFN, k_offset, iPeriodicDampingType
   USE OneEInts, only : SetupTMAT,TMAT2D,TSTARSTORE
   IMPLICIT NONE
   INTEGER NBASIS
@@ -1593,7 +1608,7 @@ SUBROUTINE CALCTMATUEG(NBASIS,ALAT,G1,CST,TPERIODIC,OMEGA)
     TMAT2D(I,I)=TMAT2D(I,I)*HElement(CST)
 !..  The G=0 component is explicitly calculated for the cell interactions as 2 PI Rc**2 .
 !   we *1/2 as we attribute only half the interaction to this cell.
-    IF(TPERIODIC) TMAT2D(I,I)=TMAT2D(I,I)-HElement(PI*ALAT(4)**2/OMEGA)
+    IF(TPERIODIC .and. iPeriodicDampingType/=0) TMAT2D(I,I)=TMAT2D(I,I)-HElement(PI*ALAT(4)**2/OMEGA)
     WRITE(10,*) I,I,TMAT2D(I,I)
   ENDDO
   CLOSE(10)

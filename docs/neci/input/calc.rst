@@ -695,10 +695,12 @@ The following options are only available in **FCIMC** calculations:
     This will change the determinant which the projected energy is calculated from 
     by changing the reference if its population exceeds FracLargerDet*{pop on current ref}.
 
-**RESTARTLARGEPOP** [FracLargerDet]
+**RESTARTLARGEPOP** [FracLargerDet] [iRestartWalkNum]
     Similar to **PROJE-CHANGEREF**, but the simulation will be restarted with the
     same initial conditions if the new reference determinant population exceeds
-    FracLargerDet*{pop on current ref} at any point in the calculation.
+    FracLargerDet*{pop on current ref} at any point in the calculation. A second optional
+    integer argument indicates the total number of walkers which there much be in the system
+    before the simulation can be restarted. By default this is 10,000.
 
 **TAUFACTOR** [TauFactor]
     This option can be used as an alternative to specifying a **TAU** value. This is the factor 

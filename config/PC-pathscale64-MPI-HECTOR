@@ -5,7 +5,7 @@ ld = ftn
 ldflags = -m64
 libs = -lfftw3 -lacml -lstdc++ -lrt
 cpp = cpp -C -traditional
-cppflags =  -D__Linux -DPOINTER8 -DPARALLEL -DHAVE_SSE2
+cppflags =  -D__Linux -DPOINTER8 -DPARALLEL
 compiler = pathf95-on-LINUX
 module_flag = -module
 
