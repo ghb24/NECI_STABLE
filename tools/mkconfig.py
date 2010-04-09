@@ -116,7 +116,7 @@ endif
 # linker, linker flags and libraries.
 LD = %(ld)s
 LDFLAGS = %(ldflags)s
-LIBS = %(libs)s
+LIBS = %(libs)s -lrt
 
 # For building neci library.
 AR = ar
