@@ -1,5 +1,7 @@
 MODULE CCMC
     use Determinants, only: get_helement, write_det, write_det_len
+    use sort_mod
+
     use HElem
    IMPLICIT NONE
    CONTAINS
@@ -2529,7 +2531,7 @@ enddo
 !Now make a sorted unique version
       Inds(:)=C%SelectedExcitorIndices(:)
       iS=C%iSize
-      call neci_sorti(iS,Inds)
+      call sort (Inds)
       i=2
       j=1
       do while (j.le.iS.and.i.le.C%iSize)

@@ -783,6 +783,7 @@ C.. indicate we have traversed a particular vertex
 
       RECURSIVE INTEGER FUNCTION IMCPR4N(IADJ,I_V,IPATH,IND) 
      &   RESULT (IMCPR4NRES)
+         use sort_mod
          IMPLICIT NONE
          INTEGER IADJ(0:I_V-1,0:I_V-1),I_V,IPATH(0:I_V-1),IND
          INTEGER I,J,INODE,ITOT
@@ -853,7 +854,7 @@ C.. If the new basis fn's in our original det or our new one, we loop again
             ENDDO
             NJ(I)=J
          ENDDO
-         CALL NECI_SORTI(NEL,NJ)
+         call sort (nJ)
 C         WRITE(41,*) IGETEXCITLEVEL(NI,NJ,NEL),NI(1),NI(2),NJ(1),NJ(2)
          RETURN
       END
@@ -1613,6 +1614,7 @@ C.. Invert the matrix, and pass the multiplicative factor on.
       SUBROUTINE GENRANDOMEXCITSYM(NI,NEL,NBASIS,G1,IEXLEVEL,ISEED,
      &            NBASISMAX,KSYM,NJ)
          use SystemData, only: BasisFN
+         use sort_mod
          IMPLICIT NONE
          INTEGER NEL,NI(NEL),NBASIS,IEXLEVEL,ISEED,NJ(NEL)
          INTEGER I,J,K,IEX,IEXL2
@@ -1649,7 +1651,7 @@ C.. If the new basis fn's in our original det or our new one, we loop again
                ENDDO
                NJ(I)=J
             ENDDO
-            CALL NECI_SORTI(NEL,NJ)
+            call sort (nJ)
             BR=LCHKSYM(NI,NJ,NEL,G1,NBASISMAX)
             BR2=.NOT.BR
          ENDDO
@@ -1673,6 +1675,7 @@ C.. If the new basis fn's in our original det or our new one, we loop again
       SUBROUTINE GENRANDOMSPINEXCIT(NI,NEL,G1,NBASIS,NBASISMAX,NEXCITS,
      &      ISEED,NJ)
          use SystemData, only: BasisFN
+         use sort_mod
          IMPLICIT NONE
          INTEGER NEL,NI(NEL),NBASIS,NEXCITS,ISEED,NJ(NEL)
          INTEGER I,J,K,IEXL2,NB2,NA,NB,NEX1,NEX2
@@ -1746,7 +1749,7 @@ C            WRITE(57,"(A2)",advance='no') "AB"
             NJ(IEX2)=IIEX2
          ENDIF
          NJ(IEX1)=IIEX1 
-         CALL NECI_SORTI(NEL,NJ)
+         call sort (nJ)
 C         CALL WRITEDET(57,NJ,NEL,.TRUE.)
 C         CALL FLUSH(57)
          RETURN

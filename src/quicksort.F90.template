@@ -99,6 +99,10 @@ type2 = integer, dimension(:)
 module sort_mod
     use util_mod, only: operator(.arrlt.), operator(.arrgt.), swap
     use helem
+	implicit none
+	
+	private
+	public :: sort
 
     interface sort
         module procedure sort_%(name)s

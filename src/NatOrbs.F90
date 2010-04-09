@@ -70,6 +70,7 @@ MODULE NatOrbsMod
         USE RotateOrbsData , only : SymLabelList2,SymLabelCounts2,SymLabelCounts2Tag,SymLabelListInv,NoOrbs,SpatOrbs,FillOneRDM_time
         USE RotateOrbsData , only : FillMP2VDM_Time,DiagNatOrbMat_Time,OrderCoeff_Time,FillCoeff_Time,NoFrozenVirt
         USE HElem
+        use sort_mod
         IMPLICIT NONE
         INTEGER :: NoSpinCyc,SymOrbsTempTag
         REAL*8 , ALLOCATABLE :: NatOrbMat(:,:),Evalues(:)
@@ -132,6 +133,7 @@ MODULE NatOrbsMod
         CHARACTER(len=*) , PARAMETER :: this_routine='SetupNatOrbLabels'
         INTEGER , ALLOCATABLE :: LabVirtOrbs(:),LabOccOrbs(:),SymVirtOrbs(:),SymOccOrbs(:)
         INTEGER :: LabVirtOrbsTag,LabOccOrbsTag,SymVirtOrbsTag,SymOccOrbsTag
+        integer :: lo, hi
         
 
 ! The earlier test should pick this up, if it crashes here, will want to put in an earlier test so that we don't 
@@ -352,13 +354,17 @@ MODULE NatOrbsMod
             IF(x.eq.1) THEN
                 do i=1,16
                     IF(SymLabelCounts2(2,i).ne.0) THEN
-                        CALL NECI_SORTI(SymLabelCounts2(2,i),SymLabelList2(SymLabelCounts2(1,i):(SymLabelCounts2(1,i)+SymLabelCounts2(2,i)-1)))
+                        lo = symLabelCounts2(1, i)
+                        hi = lo + symLabelCounts2(2, i) - 1
+                        call sort (symLabelList2 (lo:hi))
                     ENDIF
                 enddo
             ELSEIF(x.eq.2) THEN
                 do i=17,32
                     IF(SymLabelCounts2(2,i).ne.0) THEN
-                        CALL NECI_SORTI(SymLabelCounts2(2,i),SymLabelList2(SymLabelCounts2(1,i):(SymLabelCounts2(1,i)+SymLabelCounts2(2,i)-1)))
+                        lo = symLabelCounts2(1, i)
+                        hi = lo + symLabelCounts2(2, i) - 1
+                        call sort (symLabelList2 (lo:hi))
                     ENDIF
                 enddo
             ENDIF

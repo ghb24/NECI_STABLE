@@ -429,6 +429,7 @@ C..    Otherwise all will.
      &  IPARITY,NDET,IFDET,TCHKEX,NDCH,ICLIST,TORDER,IEXLEV)
          use SystemData, only: BasisFN,BasisFNSize
          use legacy_data, only: CSF_NBSTART
+         use sort_mod
          IMPLICIT NONE
          INTEGER NEL,NBASIS,BRR(NBASIS),NBASISMAX(*)
          INTEGER NMRKS(NEL,*),NDET,G1(*)
@@ -572,7 +573,7 @@ C.. we'll deal with spin in the CSF generation
                IF(.NOT.TPARITY.OR.LCHKSYM(ISYM,KSYM)) THEN
 C.. go and create a set of CSFs from these electrons
                 CALL NECI_ICOPY(NEL,NI,1,NJ,1)
-                IF(.NOT.TORDER) CALL NECI_SORTI(NEL,NJ)
+                IF(.NOT.TORDER) call sort (nJ)
                 IF(TCHKEX) IC=IGETEXCITLEVEL(NDCH,NJ,NEL)
                 IF(.NOT.TCHKEX.OR.IC.LE.IEXLEV)
      &           CALL CSFGENCSFS(NJ,NEL,NOPEN,NCLOSED,NMRKS,NDET,TCOUNT,
@@ -1023,6 +1024,7 @@ C.. spin-projection composition of each determinant
 C.. if SORDER2(1) is non-zero, we store SORDER in there on return
       SUBROUTINE CSFGENOPENDETS(NCI,NEL,DETLIST,DORDERLIST,SORDER2,
      &   ISTART,IEND)
+         use sort_mod
          IMPLICIT NONE
          INTEGER NEL,ISTART,IEND
          INTEGER NCI(NEL),DETLIST(NEL,*)
@@ -1072,7 +1074,7 @@ C.. an alpha
                   DETLIST(NCLOSED+I,ICOUNT)=IOPEN(I)+1
                ENDIF
             ENDDO
-            CALL NECI_SORTI(NEL,DETLIST(1,ICOUNT))
+            call sort (detList(:,iCount))
             ICOUNT=ICOUNT+1
             CALL CSFINCCHOOSEINDICES(INDICES,NOPEN,NBETA,TDONE)
          ENDDO

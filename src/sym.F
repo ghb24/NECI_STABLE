@@ -424,9 +424,10 @@ C.. Precompute a list of the symmetry product of all pairs of symmetry labels
          use SymData, only: tAbelianFastExcitGen,tAbelian
          use SymData, only: tStoreStateList
          use global_utilities
+         use sort_mod
          IMPLICIT NONE
          INTEGER I,IDECOMP,TOT,NPRODS,NSTATES
-         INTEGER TEMPLIST(NSTATES)
+         INTEGER TEMPLIST(NSTATES), lo, hi
          LOGICAL FRZ
          character(*), parameter :: this_routine='GenSymStatePairs'
 
@@ -485,15 +486,17 @@ C.. add a new sym label
                SYMLABELCOUNTS(2,TEMPLIST(I))=1
                SYMLABELCOUNTS(1,TEMPLIST(I))=I
 C.. sort the symlabellist
-               CALL NECI_SORTI(SYMLABELCOUNTS(2,TEMPLIST(I-1)),
-     &            SYMLABELLIST(SYMLABELCOUNTS(1,TEMPLIST(I-1))))
+               lo = symLabelcounts(1, tempList(i-1))
+               hi = lo + symLabelCounts(2, tempList(i-1)) - 1
+               call sort (symLabelList (lo:hi))
             ELSE
                SYMLABELCOUNTS(2,TEMPLIST(I))=
      &            SYMLABELCOUNTS(2,TEMPLIST(I))+1
             ENDIF
          ENDDO
-         CALL NECI_SORTI(SYMLABELCOUNTS(2,TEMPLIST(I-1)),
-     &         SYMLABELLIST(SYMLABELCOUNTS(1,TEMPLIST(I-1))))
+         lo = symLabelcounts(1,tempList(i-1))
+         hi = lo + symLabelCounts(2,tempList(i-1)) - 1
+         call sort (symLabelList(lo:hi))
 !         DO I=1,NSYMLABELS
 !            WRITE(6,*) "NSL",I,SYMLABELCOUNTS(1,I),SYMLABELCOUNTS(2,I)
 !     &         SymLabels(I)

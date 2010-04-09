@@ -719,6 +719,7 @@ C.. Generate initial density matrix, as well as a guess at the HF DET
          use SystemData, only: BasisFN
          use Determinants, only: write_det
          Use HElem
+         use sort_mod
          IMPLICIT NONE
          INTEGER NSPINS,NSBASIS
          Type(HElement) FMAT(NSBASIS,NSBASIS,NSPINS)
@@ -778,13 +779,14 @@ C.. vector unless transposed
             CALL GRAMSCHMIDT(FMAT(1,1,ISPN),NSBASIS)
 C            CALL LOWDIN_ORTH(FMAT(1,1,ISPN),NSBASIS,R1,R2,WORK)
          ENDDO
-         CALL NECI_SORTI(NEL,HFDET)
+         call sort (HFDet(1:nel))
          call write_det (6, HFDET, .true.)
       END
 C.. Generate an initial determinant of specified spin
       SUBROUTINE GENFDET(BRR,G1,NBASIS,LMS,NEL,FDET)
          use SystemData, only: BasisFN
          use util_mod, only: int_fmt
+         use sort_mod
          IMPLICIT NONE
          INTEGER BRR(*)
          TYPE(BasisFN) G1(*)
@@ -820,7 +822,7 @@ C.. vector unless transposed
                IREAL=IREAL+1
             ENDDO
          ENDDO
-         CALL NECI_SORTI(NEL,FDET)
+         call sort (fDet(1:nel))
       END
 
       SUBROUTINE HFLINMIX(FMAT,OFMAT,NSPINS,N,FMIX,R1,R2,WORK)

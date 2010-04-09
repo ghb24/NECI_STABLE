@@ -10,6 +10,7 @@ MODULE Determinants
     use sltcnd_mod, only: sltcnd, sltcnd_excit, sltcnd_2, sltcnd_compat, &
                           sltcnd_knowIC
     use global_utilities
+    use sort_mod
     use DetBitOps, only: EncodeBitDet
     implicit none
 
@@ -500,6 +501,7 @@ END MODULE Determinants
         Use Determinants, only: FDet, nUHFDet, write_det, write_det_len
         use SystemData, only : nEl, nBasis, nBasisMax,BasisFN,G1,tFixLz
         use IntegralsData, only : nFrozen,nFrozenIn
+        use sort_mod
         implicit none
         integer i,j
         INTEGER GG(*),Lz
@@ -517,7 +519,7 @@ END MODULE Determinants
                   J=J+1
                ENDIF
             ENDDO
-            CALL NECI_SORTI(NEL,FDET)
+            call sort(fdet)
             IF(J.NE.NEL-NFROZEN-NFROZENIN) THEN
                WRITE(6,*) "Failed Freezing Det:"
                call write_det (6, FDET, .true.)
@@ -535,7 +537,7 @@ END MODULE Determinants
                   J=J+1
                ENDIF
             ENDDO
-            CALL NECI_SORTI(NEL,nUHFDET)
+            call sort (nUHFDet(1:nel))
             IF(J.NE.NEL-NFROZEN-NFROZENIN) THEN
                WRITE(6,*) "Failed Freezing Det:"
                call write_det (6, nUHFDET, .true.)
@@ -647,7 +649,7 @@ END MODULE Determinants
             ENDDO
             MCDET(I)=EL
          ENDDO
-         CALL NECI_SORTI(NEL,MCDET)
+         call sort (mcDet)
          RETURN
       END
 

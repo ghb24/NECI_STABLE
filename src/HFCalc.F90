@@ -16,6 +16,7 @@ MODULE HFCalc
       use IntegralsData, only: UMat, tagUMat
       Use UMatCache, only: GetUMatSize
       Use OneEInts, only: TMat2D, SetupTMat2, DestroyTMat
+      use sort_mod
       character(25), parameter :: this_routine='HFDoCalc'
       Type(HElement),ALLOCATABLE :: HFBASIS(:),HFE(:)
       Type(HElement),pointer :: UMat2(:)
@@ -112,7 +113,7 @@ MODULE HFCalc
                   DO I=1,NEL
                      NUHFDET(I)=BRR(I)
                   ENDDO
-                  CALL NECI_SORTI(NEL,NUHFDET)
+                  call sort (nUHFDet(1:nel))
                ELSE
                   NBASISMAX(4,5)=2
                ENDIF

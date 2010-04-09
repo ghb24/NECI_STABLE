@@ -20,6 +20,7 @@
      &         ILOGGING)
          use SystemData, only: BasisFN
          use global_utilities
+         use sort_mod
          IMPLICIT REAL*8 (A-H,O-Z)
          INTEGER NDET,NRHO
          INTEGER RHOIJLAB(*),RHOIJROWS(NDET+1)
@@ -68,7 +69,7 @@ C.. Hard code the start position as the NEL lowest energy basis fns
             NI(I)=BRR(I)
          ENDDO
 C.. NI will not now be in order of basis fn, so we need to sort it
-         CALL NECI_SORTI(NEL,NI)
+         call sort (nI)
 C.. Now find which number determinant this corresponds to
          II=IFINDDET2(NI,NEL,G1,NMRKS,NBASIS,NDET)
          LSTI(1,NFIRST)=II
@@ -610,6 +611,7 @@ C.. if there's space, we store
 
       SUBROUTINE GENNEWDET2(NI,NJ,NEL,NBASIS,NBASISMAX,G1,ISEED,NCH,BRR)
          use SystemData, only: BasisFN
+         use sort_mod
          IMPLICIT NONE
          INTEGER nBasisMax(5,*),NI(NEL),NJ(NEL),NQN(5)
          TYPE(BasisFN) G1(NBASIS)
@@ -657,7 +659,7 @@ C.. make sure the new basis fn isn't already in the det.  if so, go round again
             IF(.NOT.L) THEN
                ND=ND-1
                NJ(IEL)=IT
-               CALL NECI_SORTI(NEL,NJ)
+               call sort (nJ)
 C.. if we've more electrons to change, we go round again
                IF(ND.GT.0) L=.TRUE.
             ENDIF
@@ -670,6 +672,7 @@ C.. gen a new det from this one in a generic spatial basis.
 C.. We do this by exciting an electron into a spinorbital of close energy.
 C.. This does not take into account any symmetries.
       SUBROUTINE GENNEWDET3(NI,NJ,NEL,NBASIS,NBASISMAX,G1,ISEED,NCH,BRR)
+         use sort_mod
          IMPLICIT NONE
          INTEGER nBasisMax(5,*),NI(NEL),NJ(NEL),NQN(5),G1(*)
          INTEGER NCH,ND,BRR(NBASIS),NBASIS,NEL,ISEED
@@ -713,7 +716,7 @@ C.. make sure the new basis fn isn't already in the det.  if so, go round again
             IF(.NOT.L) THEN
                ND=ND-1
                NJ(IEL)=IT
-               CALL NECI_SORTI(NEL,NJ)
+               call sort (nJ)
 C.. if we've more electrons to change, we go round again
                IF(ND.GT.0) L=.TRUE.
             ENDIF
@@ -833,6 +836,7 @@ C            WRITE(6,*) "Store ",NODE
      &         G1,NMRKS,NEL,NBASISMAX,NBASIS,BRR,IEQSTEPS,
      &         ILOGGING)
          use global_utilities
+         use sort_mod
          IMPLICIT REAL*8 (A-H,O-Z)
          INTEGER NDET
          INTEGER ISEED
@@ -863,7 +867,7 @@ C.. Hard code the start position as the NEL lowest energy basis fns
             NI(I)=BRR(I)
          ENDDO
 C.. NI will not now be in order of basis fn, so we need to sort it
-         CALL NECI_SORTI(NEL,NI)
+         call sort (nI)
 C.. Now find which number determinant this corresponds to
          II=IFINDDET2(NI,NEL,G1,NMRKS,NBASIS,NDET)
          WLRI=WLRIS(II)

@@ -46,6 +46,7 @@ C.. The recursive routine in GNDTS.  IELEC is the current electron
      &  NMRKS,TCOUNT,G1,TSPN,LMS,TPARITY,
      &  SymRestrict,II,IELECS,ISPINS,IELEC,KJ)
       use SystemData, only: BasisFN,tFixLz
+      use sort_mod
       IMPLICIT NONE
       INTEGER NEL,NHG,LMS,II
       INTEGER NMRKS(NEL,*)
@@ -73,7 +74,7 @@ C.. If we're on the last electron
             DO I=1,NEL
                NI(I)=BRR(IELECS(I))
             ENDDO
-            CALL NECI_SORTI(NEL,NI)
+            call sort (nI)
             CALL GETSYM(NI,NEL,G1,NBASISMAX,KI)
             CALL GetLz(NI,NEL,KI%Ml) 
             IF(.NOT.TPARITY) THEN

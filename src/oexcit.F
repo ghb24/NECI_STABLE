@@ -799,6 +799,7 @@ C.. in NFULL and NFREE
       SUBROUTINE GSETE_NEXTDET(SPNS,NFREE,NFULL,TSYM,ISYM,
      &            NI,NJ,NEL,IC,G1,NBASISMAX)
          use Determinants, only: write_det
+         use sort_mod
          IMPLICIT NONE
          INTEGER SPNS(2,2)
          INTEGER NFULL(2,2,-3:0)
@@ -825,7 +826,7 @@ C     &            ,'->',NFREE(2,SPNS(2,2),NFREE(2,SPNS(2,2),-1))
          ELSE
             IC=1
          ENDIF
-         CALL NECI_SORTI(NEL,NJ)
+         call sort (nJ)
 C         IF(NJ(1).EQ.0) WRITE(6,*) "ERROR"
          IF(.NOT.ISVALIDDET(NJ,NEL)) THEN
             WRITE(6,*) "Invalid det in GSETE_NEXTDET"

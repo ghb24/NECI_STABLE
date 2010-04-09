@@ -17,6 +17,7 @@ MODULE RotateOrbsMod
     USE Timing , only : end_timing,print_timing_report
     USE Soft_exit, only : test_SOFTEXIT
     USE RotateOrbsData 
+    use sort_mod
     IMPLICIT NONE
     INTEGER , PARAMETER :: Root=0   !This is the rank of the root processor
     INTEGER , ALLOCATABLE :: Lab(:,:),LabVirtOrbs(:),LabOccOrbs(:),SymLabelList3Inv(:)
@@ -1478,6 +1479,7 @@ MODULE RotateOrbsMod
 ! This means that two iterations of the rotate orbs routine will be performed, the first treats the occupied orbitals and the second
 ! the virtual.
         INTEGER :: i,j,ierr,t,SymCurr,Symi,SymVirtOrbsTag,SymOccOrbsTag,Temp
+        integer :: lo, hi
         INTEGER , ALLOCATABLE :: SymVirtOrbs(:),SymOccOrbs(:)
         CHARACTER(len=*) , PARAMETER :: this_routine='InitOrbitalSeparation'
 
@@ -1600,7 +1602,9 @@ MODULE RotateOrbsMod
         ! Go through each symmetry group, making sure the orbital pairs are ordered lowest to highest.
         do i=1,16
             IF(SymLabelCounts2(2,i).ne.0) THEN
-                CALL NECI_SORTI(SymLabelCounts2(2,i),SymLabelList2(SymLabelCounts2(1,i):(SymLabelCounts2(1,i)+SymLabelCounts2(2,i)-1)))
+                lo = symLabelCounts2(1,i)
+                hi = lo + symLabelCounts2(2,i) - 1
+                call sort (symLabelList2(lo:hi))
             ENDIF
         enddo
 

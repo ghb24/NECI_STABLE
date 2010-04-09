@@ -1,5 +1,6 @@
     MODULE STARDIAGMOD
         use Determinants, only: get_helement
+        use sort_mod
         USE HElem
         IMPLICIT NONE
       
@@ -3581,7 +3582,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
       lp0:  DO i=1,nEl
                IF(nK(i).EQ.iEx(1,1)) THEN
                   nK(i)=iEx(2,1)
-                  CALL NECI_SORTI(nEl,nK)
+                  call sort (nK)
                   exit lp0
                endif
             end do lp0
@@ -3599,7 +3600,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
         lp1:DO i=1,nEl
                IF(nK(i).EQ.iEx(1,1)) THEN
                   nK(i)=iEx(2,2)
-                  CALL NECI_SORTI(nEl,nK)
+                  call sort (nK)
                   exit lp1
                endif
             end do lp1
@@ -3617,7 +3618,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
        lp2: DO i=1,nEl
                IF(nK(i).EQ.iEx(1,2)) THEN
                   nK(i)=iEx(2,1)
-                  CALL NECI_SORTI(nEl,nK)
+                  call sort (nK)
                   exit lp2
                endif
             end do lp2
@@ -3635,7 +3636,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
    lp3:     DO i=1,nEl
                IF(nK(i).EQ.iEx(1,2)) THEN
                   nK(i)=iEx(2,2)
-                  CALL NECI_SORTI(nEl,nK)
+                  call sort (nK)
                   exit lp3
                endif
             end do lp3
@@ -3700,7 +3701,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
                 ENDIF
             ENDDO
         ENDDO
-        CALL NECI_SORTI(nEl,nJ)
+        call sort (nJ)
       END
       
      !Routine which takes a root determinant (nI), and a double excitation (nJ), and calculates the orbitals which have been excited.

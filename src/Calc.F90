@@ -1895,9 +1895,10 @@ MODULE Calc
 
 ! Given an input RHOEPSILON, create Fermi det D out of lowest orbitals and get RHOEPS (which is rhoepsilon * exp(-(beta/P)<D|H|D>
       REAL*8 FUNCTION GETRHOEPS(RHOEPSILON,BETA,NEL,NBASISMAX,G1,NHG, BRR,NMSH,FCK,NMAX,ALAT,UMAT,I_P,ECORE)
-         Use Determinants, only: get_helement
+         Use Determinants, only: get_helement, write_det
          USE HElem
          use SystemData, only: BasisFN
+         use sort_mod
          IMPLICIT NONE
          INTEGER NEL,NI(NEL),I,nBasisMax(5,*),I_P
          INTEGER BRR(*),NMSH,NMAX,NHG
@@ -1908,7 +1909,7 @@ MODULE Calc
          DO I=1,NEL
             NI(I)=BRR(I)
          ENDDO
-         CALL NECI_SORTI(NEL,NI)
+         call sort (nI)
          BP=HElement(-BETA/I_P)
          GETRHOEPS=DSQRT(SQ(HElement(RHOEPSILON) * &
                         EXP(BP*get_helement(nI, nI, 0))))
