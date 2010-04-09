@@ -5,7 +5,7 @@ ld = gfortran
 cpp = cpp -C -traditional
 cppflags = -D__Linux -DGFORTRAN
 fflags = -fcray-pointer -ffree-line-length-none -J$(DEST)
-libs = -L/sw/lib/ -lfftw3 -framework vecLib -lstdc++ -lrt
+libs = -L/sw/lib/ -lfftw3 -framework vecLib -lstdc++
 
 [dbg]
 fflags = -g 

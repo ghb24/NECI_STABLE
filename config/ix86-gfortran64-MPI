@@ -6,7 +6,7 @@ ldflags = -m64
 compiler = GCC-f95-on-LINUX
 cpp = cpp -C -traditional
 cppflags = -D__Linux -DPOINTER8 -DPARALLEL
-libs = -L ~/lib/fftw-3.1.2/lib -lfftw3 -llapack -lblas -lstdc++ -lrt
+libs = -L ~/lib/fftw-3.1.2/lib -lfftw3 -llapack -lblas -lstdc++
 module_flag = -M
 
 [dbg]
