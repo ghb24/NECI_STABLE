@@ -2409,7 +2409,7 @@ MODULE FciMCParMod
         ENDIF
         IF(ALLOCATED(CoreMask)) THEN
             DEALLOCATE(CoreMask)
-            DEALLOCATE(ExtMask)
+            DEALLOCATE(CASMask)
         ENDIF
         IF(tPrintOrbOcc) THEN
             DEALLOCATE(OrbOccs)
@@ -4053,35 +4053,20 @@ MODULE FciMCParMod
             IF(VirtCASOrbs.gt.(nBasis-NEl)) CALL Stop_All("SetupParameters","Virtual orbitals in CAS space specified is greater than number of unoccupied orbitals")
 
 !Create the bit masks for the bit calculation of these properties.
-            ALLOCATE(ExtMask(0:NIfD))
+            ALLOCATE(CASMask(0:NIfD))
             ALLOCATE(CoreMask(0:NIfD))
-            ExtMask(:)=0
+            CASMask(:)=0
             CoreMask(:)=0
             do i=1,nBasis
                 IF(SpinInvBRR(i).gt.CASmax) THEN
                     !Orbital is in external space
-                    ExtMask((SpinInvBRR(i)-1)/32) = ibset(ExtMask((i-1)/32),MOD((i-1),32))
-!                    CoreMask = ibclr(CoreMask((i-1)/32),MOD((i-1),32))
+                    CASMask((SpinInvBRR(i)-1)/32) = ibset(CASMask((i-1)/32),MOD((i-1),32))
                 ELSEIF(SpinInvBRR(i).le.CASmin) THEN
                     !Orbital is in core space
-!                    ExtMask = ibclr(ExtMask((i-1)/32),MOD((i-1),32))
                     CoreMask((SpinInvBRR(i)-1)/32) = ibset(CoreMask((i-1)/32),MOD((i-1),32))
-!                    WRITE(6,*) "Setting orbital: ", SpinInvBRR(i)
-                ELSE
-                    !Orbital is in CAS space - these bits should already be cleared
-!                    ExtMask = ibclr(ExtMask((i-1)/32),MOD((i-1),32))
-!                    CoreMask = ibclr(CoreMask((i-1)/32),MOD((i-1),32))
+                    CASMask((SpinInvBRR(i)-1)/32) = ibset(CASMask((i-1)/32),MOD((i-1),32))
                 ENDIF
             enddo
-
-!            do i=1,nBasis
-!                IF(BTEST(CoreMask((i-1)/32),MOD((i-1),32))) THEN
-!                    WRITE(6,"(I4)",advance='no') 1
-!                ELSE
-!                    WRITE(6,"(I4)",advance='no') 0
-!                ENDIF
-!            enddo
-!            WRITE(6,*) ""
 
         ENDIF
         IF(tPartFreezeCore) THEN
@@ -4174,29 +4159,20 @@ MODULE FciMCParMod
     ENDSUBROUTINE CheckforBrillouins
 
     LOGICAL FUNCTION TestifDETinCASBit(iLutnI)
-        INTEGER :: iLutnI(0:NIfD),i,Ext(0:NIfD),Core(0:NIfD)
+        ! In:
+        !    iLutNI: bit string representation of a determinant.
+        ! Returns:
+        !    true if the determinant is in the complete active space.
+        INTEGER, INTENT(IN) :: iLutnI(0:NIfD)
 
-        Ext(:) = iand(iLutnI(:),ExtMask(:))
+        ! A determinant is in the CAS iff
+        !  a) all orbitals in the core space are occupied;
+        !  b) no orbitals in the external space are occupied;
+        ! Thus ANDing the determinant with CASMask (containing set bits for the
+        ! core and external orbitals) will give precisely the core orbitals
+        ! if the determinant is in the CAS.
+        TestifDETinCASBit = all(iand(iLutNI,CASMask) == CoreMask)
 
-        do i=0,NIfD
-            IF(Ext(i).ne.0) THEN
-                TestifDETinCASBit=.false.
-                RETURN
-            ENDIF
-        enddo
-
-        Core(:) = iand(iLutnI(:),CoreMask(:))
-
-        do i=0,NIfD
-            IF(Core(i).ne.CoreMask(i)) THEN
-                TestifDETinCASBit=.false.
-                RETURN
-            ENDIF
-        enddo
-
-        TestifDETinCASBit=.true.
-
-        RETURN
     END FUNCTION TestifDETinCASBit
 
     LOGICAL FUNCTION TestifDETinCAS(CASDet)
