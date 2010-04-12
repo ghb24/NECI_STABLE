@@ -2,13 +2,16 @@
 ############## Sort scalars #################
 #############################################
 [int]
-type1 = integer
+type1 = integer(kind=int32)
 type2 = !
 arr2_prefix = !
 end_of_decl = )
 op_gt = >
 op_lt = <
 count = size(arr)
+
+[int64]
+type1 = integer(kind=int64)
 
 [doub]
 type1 = real*8
@@ -17,10 +20,13 @@ type1 = real*8
 ############### Sort arrays ##################
 ##############################################
 [arr_int]
-type1 = integer, dimension(:)
+type1 = integer(kind=int32), dimension(:)
 op_gt = .arrgt.
 op_lt = .arrlt.
 count = size(arr(1,:))
+
+[arr_int64]
+type1 = integer(kind=int64), dimension(:)
 
 [arr_doub]
 type1 = real*8, dimension(:)
@@ -28,8 +34,8 @@ type1 = real*8, dimension(:)
 ##############################################
 ############ Sort by scalars #################
 [int_int]
-type1 = integer
-type2 = integer
+type1 = integer(kind=int32)
+type2 = integer(kind=int32)
 arr2_prefix = 
 end_of_decl = , arr2)
 op_gt = >
@@ -40,20 +46,20 @@ count = size(arr)
 type2 = real*8
 
 [int_arr_int]
-type2 = integer, dimension(:)
+type2 = integer(kind=int32), dimension(:)
 
 [int_arr_doub]
 type2 = real*8, dimension(:)
 
 [doub_int]
 type1 = real*8
-type2 = integer
+type2 = integer(kind=int32)
 
 [doub_doub]
 type2 = real*8
 
 [doub_arr_int]
-type2 = integer, dimension(:)
+type2 = integer(kind=int32), dimension(:)
 
 [doub_arr_doub]
 type2 = real*8, dimension(:)
@@ -62,8 +68,8 @@ type2 = real*8, dimension(:)
 ########## Sort by integer array ##############
 ###############################################
 [arr_int_arr_int]
-type1 = integer, dimension(:)
-type2 = integer, dimension(:)
+type1 = integer(kind=int32), dimension(:)
+type2 = integer(kind=int32), dimension(:)
 arr2_prefix = 
 end_of_decl = , arr2)
 op_gt = .arrgt.
@@ -74,7 +80,7 @@ count = size(arr(1,:))
 type2 = real*8, dimension(:)
 
 [arr_int_int]
-type2 = integer
+type2 = integer(kind=int32)
 
 [arr_int_doub]
 type2 = real*8
@@ -86,18 +92,19 @@ type2 = real*8
 type1 = real*8, dimension(:)
 
 [arr_doub_int]
-type2 = integer
+type2 = integer(kind=int32)
 
 [arr_doub_arr_doub]
 type2 = real*8, dimension(:)
 
 [arr_doub_arr_int]
-type2 = integer, dimension(:)
+type2 = integer(kind=int32), dimension(:)
 
 ===================
 
 module sort_mod
     use util_mod, only: operator(.arrlt.), operator(.arrgt.), swap
+	use constants
     use helem
 	implicit none
 	

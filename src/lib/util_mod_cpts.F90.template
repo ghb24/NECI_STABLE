@@ -1,11 +1,15 @@
 [int]
-type = integer
+type = integer(kind=int32)
+
+[int64]
+type = integer(kind=int64)
 
 [doub]
 type = real*8
 =========================
 
 module util_mod_cpts
+	use constants
 	implicit none
 
 	! Note that in these interfaces we do NOT include a version for reals, as
