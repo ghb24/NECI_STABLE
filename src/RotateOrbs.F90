@@ -1523,7 +1523,7 @@ MODULE RotateOrbsMod
             ENDIF
         enddo
         
-        CALL NECI_SORT2I(NoOcc,SymOccOrbs,LabOccOrbs)
+        call sort (SymOccOrbs, LabOccOrbs)
         ! Sorts LabOrbs according to the order of SymOccOrbs (i.e. in terms of symmetry). 
 
         do i=1,NoOrbs-NoOcc
@@ -1536,7 +1536,7 @@ MODULE RotateOrbsMod
             ENDIF
         enddo
         
-        CALL NECI_SORT2I((NoOrbs-NoOcc),SymVirtOrbs,LabVirtOrbs)
+        call sort (SymVirtOrbs, LabVirtOrbs)
 
 ! SymLabelList2 is then filled with the symmetry ordered occupied then virtual arrays.        
         do i=1,NoOcc

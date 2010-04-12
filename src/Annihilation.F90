@@ -11,6 +11,7 @@ MODULE AnnihilationMod
     use CalcData , only : tTruncInitiator
     use Determinants, only: get_helement
     use hphf_integrals, only: hphf_diag_helement, hphf_off_diag_helement
+    use sort_mod
     IMPLICIT NONE
 
     contains
@@ -1243,8 +1244,10 @@ MODULE AnnihilationMod
         CALL MPIAlltoAllvI(IndexTable1(1:ToAnnihilateonProc),sendcounts,disps,IndexTable2,recvcounts,recvdisps,error)
         CALL MPIAlltoAllvI(SpawnedSign(1:ToAnnihilateonProc),sendcounts,disps,SpawnedSign2(1:),recvcounts,recvdisps,error)
 
-!We now need to take with the index, the sign to remain on the entry, as it does not necessarily want to be totally annihilated.
-        CALL NECI_SORT2I(ToAnnihilateonProc,IndexTable2(1:ToAnnihilateonProc),SpawnedSign2(1:ToAnnihilateonProc))
+        ! We now need to take with the index, the sign to remain on the entry,
+        ! as it does not necessarily want to be totally annihilated
+        call sort (IndexTable2(1:ToAnnihilateonProc), &
+                   SpawnedSign2(1:ToAnnihilateonProc))
 !        CALL SORTIILongL(ToAnnihilateonProc,Index2Table(1:ToAnnihilateonProc),HashArray(1:ToAnnihilateonProc),CurrentSign(1:ToAnnihilateonProc))
 
         IF(ToAnnihilateonProc.ne.0) THEN

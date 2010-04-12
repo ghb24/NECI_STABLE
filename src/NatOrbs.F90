@@ -211,7 +211,7 @@ MODULE NatOrbsMod
                     SymOccOrbs(i)=INT(G1(LabOccOrbs(i))%sym%S,4)
                 ENDIF
             enddo
-            IF(tSeparateOccVirt) CALL NECI_SORT2I(NoOcc,SymOccOrbs,LabOccOrbs)
+            IF(tSeparateOccVirt) call sort (SymOccOrbs, LabOccOrbs)
             ! Sorts LabOrbs according to the order of SymOccOrbs (i.e. in terms of symmetry). 
 
 
@@ -251,7 +251,7 @@ MODULE NatOrbsMod
 !                WRITE(6,*) LabVirtOrbs(i),SymVirtOrbs(i)
 !            enddo
 
-            CALL NECI_SORT2I((SpatOrbs-NoOcc),SymVirtOrbs,LabVirtOrbs)
+            call sort (SymVirtOrbs, LabVirtOrbs)
             ! Sorts LabOrbs according to the order of SymOccOrbs (i.e. in terms of symmetry). 
 
 !            WRITE(6,*) 'after sort'
