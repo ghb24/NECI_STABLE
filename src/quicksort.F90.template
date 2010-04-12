@@ -9,6 +9,8 @@ end_of_decl = )
 op_gt = >
 op_lt = <
 count = size(arr)
+arr3_prefix = !
+type3 = !
 
 [int64]
 type1 = integer(kind=int64)
@@ -100,6 +102,20 @@ type2 = real*8, dimension(:)
 [arr_doub_arr_int]
 type2 = integer(kind=int32), dimension(:)
 
+
+################################################
+############ More specific sorts ###############
+################################################
+[int_arr_int64_logical]
+type1 = integer(kind=int32)
+type2 = integer(kind=int64), dimension(:)
+type3 = logical
+arr3_prefix = 
+end_of_decl = , arr2, arr3)
+op_gt = >
+op_lt = <
+count = size(arr)
+
 ===================
 
 module sort_mod
@@ -128,6 +144,7 @@ contains
 
         %(type1)s, intent(inout) :: arr(:)
         %(type2)s, intent(inout) :: arr2(:)
+		%(type3)s, intent(inout) :: arr3(:)
 
         ! Oh, how lovely it would be to be able to use push/pop and not need
         ! to guess a size of the stack to start with
@@ -136,6 +153,7 @@ contains
         ! n.b. This size statement is removed if type1 is scalar ...
         %(type1)s :: a(size(arr(1)))
         %(type2)s :: a2(size(arr2(1)))
+        %(type3)s :: a3(size(arr3(1)))
         character(*), parameter :: this_routine = 'name'
 
         ! The size of the array to sort
@@ -151,13 +169,16 @@ contains
                 do j = lo + 1, hi
                     a = arr(j)
                     %(arr2_prefix)s a2 = arr2(j)
+                    %(arr3_prefix)s a3 = arr3(j)
                     do i = j - 1, 1, -1
                         if (arr(i) %(op_lt)s a) exit
                         arr(i+1) = arr(i)
                         %(arr2_prefix)s arr2(i+1) = arr2(i)
+                        %(arr3_prefix)s arr3(i+1) = arr3(i)
                     enddo
                     arr(i+1) = a
                     %(arr2_prefix)s arr2(i+1) = a2
+                    %(arr3_prefix)s arr3(i+1) = a3
                 enddo
 
                 if (nstack == 0) exit
@@ -172,24 +193,29 @@ contains
                 pivot = (lo + hi) / 2
                 call swap (arr(pivot), arr(lo + 1))
                 %(arr2_prefix)s call swap (arr2(pivot), arr2(lo+1))
+                %(arr3_prefix)s call swap (arr3(pivot), arr3(lo+1))
 
                 if (arr(lo) %(op_gt)s arr(hi)) then
                     call swap (arr(lo), arr(hi))
                     %(arr2_prefix)s call swap (arr2(lo), arr2(hi))
+                    %(arr3_prefix)s call swap (arr3(lo), arr3(hi))
                 endif
                 if (arr(lo+1) %(op_gt)s arr(hi)) then
                     call swap (arr(lo+1), arr(hi))
                     %(arr2_prefix)s call swap (arr2(lo+1), arr2(hi))
+                    %(arr3_prefix)s call swap (arr3(lo+1), arr3(hi))
                 endif
                 if (arr(lo) %(op_gt)s arr(lo+1)) then
                     call swap (arr(lo), arr(lo+1))
                     %(arr2_prefix)s call swap (arr2(lo), arr2(lo+1))
+                    %(arr3_prefix)s call swap (arr3(lo), arr3(lo+1))
                 endif
 
                 i = lo + 1
                 j = hi
                 a = arr(lo + 1) !! a is the pivot value
                 %(arr2_prefix)s a2 = arr2(lo + 1)
+                %(arr3_prefix)s a3 = arr3(lo + 1)
                 do while (.true.)
                     ! Scand down list to find element > a 
                     i = i + 1
@@ -210,13 +236,16 @@ contains
                     ! in lower indexed variables. 
                     call swap (arr(i), arr(j))
                     %(arr2_prefix)s call swap (arr2(i), arr2(j))
+                    %(arr3_prefix)s call swap (arr3(i), arr3(j))
                 enddo;
 
                 ! Insert partitioning element 
                 arr(lo + 1) = arr(j)
                 arr(j) = a
                 %(arr2_prefix)s arr2(lo + 1) = arr2(j)
+                %(arr3_prefix)s arr3(lo + 1) = arr3(j)
                 %(arr2_prefix)s arr2(j) = a2
+                %(arr3_prefix)s arr3(j) = a3
 
                 ! Push the larger of the partitioned sections onto the stack
                 ! of sections to look at later.
