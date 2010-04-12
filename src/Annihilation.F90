@@ -1248,7 +1248,6 @@ MODULE AnnihilationMod
         ! as it does not necessarily want to be totally annihilated
         call sort (IndexTable2(1:ToAnnihilateonProc), &
                    SpawnedSign2(1:ToAnnihilateonProc))
-!        CALL SORTIILongL(ToAnnihilateonProc,Index2Table(1:ToAnnihilateonProc),HashArray(1:ToAnnihilateonProc),CurrentSign(1:ToAnnihilateonProc))
 
         IF(ToAnnihilateonProc.ne.0) THEN
 !Copy across the data, apart from ones which have an index given by the indicies in Index2Table(1:ToAnnihilateonProc)
