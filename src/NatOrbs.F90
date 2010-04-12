@@ -1132,8 +1132,9 @@ MODULE NatOrbsMod
                     IF(tRotateOccOnly) EndSort=NoOcc+SpatOrbs
                 ENDIF
 
-                CALL SortEvecbyEvalPlus1(((EndSort-StartSort)+1),Evalues(StartSort:EndSort),((EndSort-StartSort)+1),NatOrbMat(StartSort:EndSort,&
-                                            &StartSort:EndSort),SymOrbsTemp(StartSort:EndSort))
+                call sort (Evalues(startSort:endSort), &
+                           natOrbMat(startSort:endSort, startSort:endSort), &
+                           symOrbsTemp(startSort:endSort))
 
             enddo
                
@@ -1171,8 +1172,9 @@ MODULE NatOrbsMod
                     IF(tRotateVirtOnly) StartSort=SpatOrbs+NoOcc+1
                 ENDIF
 
-                CALL SortEvecbyEvalPlus1(((EndSort-StartSort)+1),Evalues(StartSort:EndSort),((EndSort-StartSort)+1),&
-                                            &NatOrbMat(StartSort:EndSort,StartSort:EndSort),SymLabelList3(StartSort:EndSort))
+                call sort (EValues(startSort:endSort), &
+                           NatOrbMat(startSort:endSort, startSort:endSort), &
+                           symLabelList3(startSort:endSort))
             enddo 
             
         ENDIF
