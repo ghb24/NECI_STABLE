@@ -157,6 +157,7 @@ def adj_arrays (template, config):
 
 	# Replace the relevant occurrances
 	for var in vars:
+		config['dim-%s' % var] = '%d' % vars[var][1]
 		# If we are considering dimensionality of 2 or larger
 		if vars[var][1] > 1:
 			dimstr = ":,"*(vars[var][1]-1)

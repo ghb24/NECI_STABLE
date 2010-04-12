@@ -822,7 +822,9 @@ C.. vector unless transposed
                IREAL=IREAL+1
             ENDDO
          ENDDO
+         print*, 'init det', fdet(1:nel)
          call sort (fDet(1:nel))
+         print*, 'final det', fdet(1:nel)
       END
 
       SUBROUTINE HFLINMIX(FMAT,OFMAT,NSPINS,N,FMIX,R1,R2,WORK)
