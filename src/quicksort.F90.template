@@ -57,6 +57,9 @@ type2 = integer(kind=int32), dimension(:)
 [int_arr_doub]
 type2 = real*8, dimension(:)
 
+[int_arr_helem]
+type2 = type(helement), dimension(:)
+
 [doub_int]
 type1 = real*8
 type2 = integer(kind=int32)

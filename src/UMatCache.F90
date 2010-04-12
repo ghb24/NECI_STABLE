@@ -635,6 +635,7 @@ MODULE UMatCache
          ! The cache consists of an unordered set (in the standard UMatCache
          ! sense) of labels and elements.
          ! We must order this, and then distribute the elements throughout each set of SLOTS.
+         use helem
          IMPLICIT NONE
          INTEGER I,J,K,N,nK
          DO I=1,nPairs
@@ -643,7 +644,7 @@ MODULE UMatCache
             N=J-1
 ! N is now the last element and thus number of elements.
 ! Sort according to label
-            call sortIRN(UMatLabels(1:N,I), UMatCacheData(:,1:N,i))
+            call sort (UMatLabels(1:N, i), UMatCacheData(:, 1:N, i))
             K=nSlots
 ! Now copy element among the whole array for this, from the end.
 ! (Multiple copies of the same integral in an unfilled cache make adding
