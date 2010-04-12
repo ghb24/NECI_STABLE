@@ -923,8 +923,14 @@ MODULE AnnihilationMod
             ENDIF
 
         ELSE
-!We can try to sort the hashes by range, which may result in worse load-balancing, but will remove the need for a second sort of the hashes once they have been sent to the correct processor.
-            CALL Sort4ILong(ValidSpawned,HashArray1(1:ValidSpawned),IndexTable1(1:ValidSpawned),ProcessVec1(1:ValidSpawned),SpawnedSign(1:ValidSpawned))
+            ! We can try to sort the hashes by range, which may result in 
+            ! worse load-balancing, but will remove the need for a second 
+            ! sort of the hashes once they have been sent to the correct 
+            ! processor.
+            call sort (HashArray1(1:ValidSpawned), &
+                       IndexTable(1:ValidSpawned), &
+                       ProcessVec1(1:ValidSpawned), &
+                       SpawnedSign(1:ValidSpawned))
 !We also need to know the ranges of the hashes to send to each processor. Each range should be the same.
             IF(nProcessors.ne.1) THEN
                 Rangeofbins=INT(HUGE(Rangeofbins)/(nProcessors/2),8)
@@ -1039,9 +1045,13 @@ MODULE AnnihilationMod
         CALL MPIAlltoAllvI(ProcessVec1(1:ValidSpawned),sendcounts,disps,ProcessVec2,recvcounts,recvdisps,error)
 
         IF(.not.tAnnihilatebyrange) THEN
-!The hashes now need to be sorted again - this time by their number
-!This sorting would be redundant if we had initially sorted the hashes by range (ie tAnnihilatebyrange).
-            CALL Sort4ILong(MaxIndex,HashArray2(1:MaxIndex),IndexTable2(1:MaxIndex),ProcessVec2(1:MaxIndex),SpawnedSign2(1:MaxIndex))
+            ! The hashes now need to be sorted again - this time by their 
+            ! number. This sorting would be redundant if we had initially 
+            ! sorted the hashes by range (ie tAnnihilatebyrange).
+            call sort (HashArray2(1:MaxIndex), &
+                       IndexTable2(1:MaxIndex), &
+                       ProcessVec2(1:MaxIndex), &
+                       SpawnedSign2(1:MaxIndex))
         ELSE
 !Here, because we have ordered the hashes initially numerically, we have a set of ordered lists. It is therefore easier to sort them.
 !We have to work out how to run sequentially through the hashes, which are a set of nProc seperate ordered lists.
