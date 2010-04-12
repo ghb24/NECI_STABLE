@@ -120,13 +120,20 @@ op_gt = >
 op_lt = <
 count = size(arr)
 
+[int_int_int64_int]
+type1 = integer(kind=int32)
+type2 = integer(kind=int32)
+type3 = integer(kind=int64)
+type4 = integer(kind=int32)
+arr4_prefix = 
+end_of_decl = , arr2, arr3, arr4)
+
 [int64_int64_int_int_int]
 type1 = integer(kind=int64)
 type2 = integer(kind=int64)
 type3 = integer(kind=int32)
 type4 = integer(kind=int32)
 type5 = integer(kind=int32)
-arr4_prefix = 
 arr5_prefix = 
 end_of_decl = , arr2, arr3, arr4, arr5)
 

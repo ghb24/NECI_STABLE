@@ -1209,8 +1209,12 @@ MODULE AnnihilationMod
 !Is the list already ordered according to CPU? Is this further sort even necessary?
 
         IF(ToAnnihilateIndex.gt.1) THEN
-!Do not actually have to take indextable, hash2array or newsign with it...
-            CALL Sort2IILongI(ToAnnihilateIndex,ProcessVec1(1:ToAnnihilateIndex),IndexTable1(1:ToAnnihilateIndex),HashArray1(1:ToAnnihilateIndex),SpawnedSign(1:ToAnnihilateIndex))
+            ! Do not actually have to take indextable, hash2array or newsign 
+            ! with it...
+            call sort (ProcessVec1(1:ToAnnihilateIndex), &
+                       IndexTable1(1:ToAnnihilateIndex), &
+                       HashArray1(1:ToAnnihilateIndex), &
+                       SpawnedSign(1:ToAnnihilateIndex))
         ENDIF
 
 !We now need to regenerate sendcounts and disps
