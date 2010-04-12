@@ -908,6 +908,7 @@ C.. Unrestricted Hartree Fock with a gradient descent method.
      &      HFMIX,CMAT,OCMAT,DEDCIJ,DMAT,EDELTA,CDELTA,R1,R2,WORK,TRHF,
      &      IHFMETHOD,TREADHF,FRAND,HFDET,ILOGGING)
          use Determinants, only: write_det
+         use sort_mod
          IMPLICIT NONE
          INTEGER NSPINS,NSBASIS
          INTEGER NBASIS,G1(*),ISS,nBasisMax(5,*)
@@ -1146,7 +1147,8 @@ C                        HFES(I,ISPN)=HFES(I,ISPN)-EN
                INORDER(I,ISPN)=I
             ENDDO
             CALL DCOPY(NSBASIS,HFES(1,ISPN),1,EORDER(1,ISPN),1)
-            CALL NECI_SORT2(NSBASIS,EORDER(1,ISPN),INORDER(1,ISPN))
+            call sort (eorder(1:nsBasis, iSpn), 
+     &                 inOrder(1:nsBasis, iSpn))
          ENDDO
       IF(BR) THEN
 C.. Now re-order the orbitals
@@ -1388,6 +1390,7 @@ C.. HFBASIS(HFBASISFN,PRIMBASISFN) has PRIMBASISFN varying slowest
          RETURN
       END
       SUBROUTINE ORDERBASISHF(ARR,BRR,HFE,HFBASIS,G1,NBASIS,FDET,NEL)
+         use sort_mod
          IMPLICIT NONE
          INTEGER NBASIS,BRR(NBASIS)
          REAL*8 ARR(NBASIS,2),HFE(NBASIS),HFBASIS(NBASIS,NBASIS)
@@ -1430,7 +1433,8 @@ C         G1(3,BRR(1))=J
 C.. We don't have degenerate orbitals
 C.. First deal with the last set of degenerate orbitals
 C.. We sort them into order of BRR
-               CALL SORT2_(ITOT,BRR(I-ITOT),ARR(I-ITOT,1))
+               call sort (brr(i-itot:i-1), arr(i-itot:i-1,1))
+!               CALL SORT2_(ITOT,BRR(I-ITOT),ARR(I-ITOT,1))
 C.. now setup the new degenerate set.
                J=J+1
                ITOT=1

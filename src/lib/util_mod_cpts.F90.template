@@ -18,10 +18,14 @@ type = complex*8
 
 [cplx_doub]
 type = complex*16
+
+[helem]
+type = type(helement)
 =========================
 
 module util_mod_cpts
 	use constants
+	use helem
 	implicit none
 
 	! Swap the  specified variables

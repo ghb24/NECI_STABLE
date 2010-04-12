@@ -120,6 +120,16 @@ op_gt = >
 op_lt = <
 count = size(arr)
 
+[hel_hel_hel]
+type1 = type(helement)
+type2 = type(helement)
+type3 = type(helement)
+
+[doub_doub_doub]
+type1 = real(kind=dp)
+type2 = real(kind=dp)
+type3 = real(kind=dp)
+
 [int_int_int64_int]
 type1 = integer(kind=int32)
 type2 = integer(kind=int32)
@@ -127,6 +137,12 @@ type3 = integer(kind=int64)
 type4 = integer(kind=int32)
 arr4_prefix = 
 end_of_decl = , arr2, arr3, arr4)
+
+[doub_doub_doub_int]
+type1 = real(kind=dp)
+type2 = real(kind=dp)
+type3 = real(kind=dp)
+type4 = integer(kind=int32)
 
 [int64_int_int_int]
 type1 = integer(kind=int64)

@@ -632,6 +632,7 @@ END MODULE Determinants
       END
 
       SUBROUTINE GENRANDOMDET(NEL,NBASIS,MCDET)
+         use sort_mod
          IMPLICIT NONE
          INTEGER NEL,NBASIS,MCDET(NEL)
          INTEGER I,J,EL,SEED

@@ -44,6 +44,18 @@ MODULE HElem
          module procedure HElemFromZVal
          module procedure HElemFromHDElem
       end interface
+      interface operator (.eq.)
+          module procedure HElemEq
+      end interface
+      interface operator (.ne.)
+          module procedure HElemNEq
+      end interface
+      interface operator (.gt.)
+          module procedure HElemGt
+      end interface
+      interface operator (.lt.)
+          module procedure HElemLt
+      end interface
       interface EXP
          module procedure HElemExp
       end interface
@@ -110,6 +122,22 @@ MODULE HElem
       end interface
       CONTAINS
 
+      elemental logical function HElemEq (a, b)
+         type(helement), intent(in) :: a, b
+         HElemEq = a%v .eq. b%v
+      end function
+      elemental logical function HElemNEq (a, b)
+         type(helement), intent(in) :: a, b
+         HElemNEq = a%v .ne. b%v
+      end function
+      elemental logical function HElemGt (a, b)
+         type(helement), intent(in) :: a, b
+         HElemGt = a%v .gt. b%v
+      end function
+      elemental logical function HElemLt (a, b)
+         type(helement), intent(in) :: a, b
+         HElemLt = a%v .lt. b%v
+      end function
       SUBROUTINE HElemFromVal(h,v)
          TYPE(HElement), intent(out) :: h
          REAL*8, intent(in) :: v

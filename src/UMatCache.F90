@@ -3,6 +3,7 @@ MODULE UMatCache
     USE HElem
     use SystemData , only : TSTARSTORE, tROHF,tStoreSpinOrbs
     use util_mod, only: swap
+    use sort_mod
 
       IMPLICIT NONE
 
@@ -642,7 +643,7 @@ MODULE UMatCache
             N=J-1
 ! N is now the last element and thus number of elements.
 ! Sort according to label
-            CALL SortIRN(N,UMatLabels(1,I),UMatCacheData(0,1,I),nTypes*HElementSize)
+            call sortIRN(UMatLabels(1:N,I), UMatCacheData(:,1:N,i))
             K=nSlots
 ! Now copy element among the whole array for this, from the end.
 ! (Multiple copies of the same integral in an unfilled cache make adding

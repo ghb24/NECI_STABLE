@@ -816,6 +816,7 @@ C.. add that node to the path, and recurse
       END
 
       SUBROUTINE GENRANDOMEXCIT(NI,NEL,NBASIS,IEXLEVEL,ISEED,NJ)
+         use sort_mod
          IMPLICIT NONE
          INTEGER NEL,NI(NEL),NBASIS,IEXLEVEL,ISEED,NJ(NEL)
          INTEGER I,J,K,IEX,IEXL2

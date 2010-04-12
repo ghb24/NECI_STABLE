@@ -211,6 +211,7 @@ C.. h_ij=(E_i+xi) delta_ij - Sum_k f_k (ik|jk)
          use OneEInts, only: TMat2D,tCPMDSymTMat,TMatSym
          use OneEInts, only: TMatInd
          use global_utilities
+         use sort_mod
          IMPLICIT NONE
          INTEGER NHG,NTFROZEN
          TYPE(HElement) CPMD1EINT(NSTATES,NSTATES)
@@ -341,8 +342,10 @@ C.. Now we order it if we need to
          IF(TORDER) THEN
             WRITE(6,*) "Re-ordering CPMD orbitals according ",
      &        "to one-electron energies."
-           CALL NECI_SORT2(NSTATESUSED-NLOCK,DIAGTMAT(NLOCK+1),
-     &         STATEORDER(NLOCK+1))
+           call sort (diagTMAT(nlock+1:nStatesUsed), 
+     &                stateOrder(nlock+1:nStatesUsed))
+!           CALL NECI_SORT2(NSTATESUSED-NLOCK,DIAGTMAT(NLOCK+1),
+!     &         STATEORDER(NLOCK+1))
 C.. Now copy to BRR
             DO I=1,NSTATES
                BRR(2*I-1)=STATEORDER(I)*2-1

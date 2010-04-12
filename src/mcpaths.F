@@ -2315,6 +2315,7 @@ C.. Use an iterative Order(N) root-finding method to diagonalize the
 C.. star matrix read in from STARDATA
       SUBROUTINE READSTARDIAG(NROOTS1,I_P,RII,HII,SI,DLWDB)
          use global_utilities
+         use sort_mod
          IMPLICIT NONE
          INTEGER NROOTS,I_P,NROOTS1
          REAL*8 SI,DLWDB,RII,HII
@@ -2350,7 +2351,8 @@ C.. we need to sort A and B (and the list of hamil values) into ascending A orde
 C         DO I=1,NROOTS
 C            WRITE(6,*) RIIS(I),RIJS(I),NR(I)
 C         ENDDO
-         CALL SORT3R1I(NROOTS,RIIS(1),RIJS(1),HIJS(1),NR(1))
+         call sort (RIIS(1:nroots), rijs(1:nroots), hijs(1:nroots),
+     &              nr(1:nroots))
 C         WRITE(6,*)
 C         DO I=1,NROOTS
 C            WRITE(6,*) RIIS(I),RIJS(I),NR(I)

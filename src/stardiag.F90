@@ -678,7 +678,8 @@
             
 !First it is necessary to order the rho_jj elements, so that the range that the linear approximation needs to hold can be worked out.
 !This routine sorts into ASCENDING order of rho_jj - therefore rho_jj max = ExcitInfo(iMaxExcit,0) = 1
-            CALL SORT3RN(iMaxExcit+1,ExcitInfo(0:iMaxExcit,0),ExcitInfo(0:iMaxExcit,1),ExcitInfo(0:iMaxExcit,2),HElementSize)
+            ! Sort elements 0:iMaxExcit.
+            call sort (excitInfo(:,0), excitInfo(:,1), excitInfo(:,2))
 
 !Reverse order of array ExcitInfo, as have coded up the other way round! - rho_jj max = ExcitInfo(0,0) = 1, and then in decending order.
             HalfiExcit=INT((iMaxExcit+1)/2)
@@ -1045,7 +1046,7 @@
             
 !First it is necessary to order the rho_jj elements, so that the range that the linear approximation needs to hold can be worked out.
 !This routine sorts into ASCENDING order of rho_jj - therefore rho_jj max = ExcitInfo(iMaxExcit,0) = 1
-            CALL SORT3RN(iMaxExcit+1,ExcitInfo(0:iMaxExcit,0),ExcitInfo(0:iMaxExcit,1),ExcitInfo(0:iMaxExcit,2),HElementSize)
+            call sort (excitInfo(:,0), excitInfo(:,1), excitInfo(:,2))
 
 !Reverse order of array ExcitInfo, as have coded up the other way round! - rho_jj max = ExcitInfo(0,0) = 1 - rho_jj elements then decrease
             HalfiExcit=INT((iMaxExcit+1)/2)
@@ -1329,7 +1330,7 @@
             
 !First it is necessary to order the rho_jj elements, so that the range that the linear approximation needs to hold can be worked out.
 !This routine sorts into ASCENDING order of rho_jj - therefore rho_jj max = ExcitInfo(iMaxExcit,0) = 1
-            CALL SORT3RN(iMaxExcit+1,ExcitInfo(0:iMaxExcit,0),ExcitInfo(0:iMaxExcit,1),ExcitInfo(0:iMaxExcit,2),HElementSize)
+            call sort (excitInfo(:,0), excitInfo(:,1), excitInfo(:,1))
 
 !Reverse order of array ExcitInfo, as have coded up the other way round! - rho_jj max = ExcitInfo(0,0) = 1
             HalfiExcit=INT((iMaxExcit+1)/2)
@@ -1698,8 +1699,9 @@
             call LogMemDealloc(this_routine,tagExcitInfo)
             Deallocate(ExcitInfo)
 
-!Resort again - so that root is in element 0, then ordered by rho_jj in ascending order - probably not needed...
-            CALL SORT3RN(TotExcits,ExcitInfo2(1:TotExcits,0),ExcitInfo2(1:TotExcits,1),ExcitInfo2(1:TotExcits,2),HElementSize)
+            ! Resort again - so that root is in element 0, then ordered by 
+            ! rho_jj in ascending order - probably not needed...
+            call sort (excitInfo2(:,0), excitInfo2(:,0), excitInfo2(:,0))
             
             ExcitInfo => ExcitInfo2
 
@@ -2268,6 +2270,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
       SUBROUTINE STARDIAGSC(LSTE,NEL,NLIST,LIST,ILMAX,I_P,SI,DBETA,DLWDB)
          USE HElem
          use global_utilities
+         use sort_mod
          IMPLICIT NONE
          INTEGER NEL,I_P
          INTEGER LSTE(NEL,NLIST),NLIST,ILMAX
@@ -2290,7 +2293,8 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
          proc_timer%timer_name='STARDIAGSC'
          call set_timer(proc_timer)
 
-         CALL SORT3RN(NLIST-1,LIST(2,0),LIST(2,1),LIST(2,2),HElementSize)
+         ! n.b. This ONLY works with helementsize = 1, i.e. real integrals.
+         call sort (list(2:nList-1,0), list(2:nList-1,1), list(2:nList-1,2))
          
          PRODVERT=(NLIST-1)*(NLIST-2)/2
          TOTVERT=PRODVERT+NLIST
@@ -3209,6 +3213,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
          USE HElem
          use IntegralsData , only : TCalcRealProd
          use global_utilities
+         use sort_mod
          IMPLICIT NONE
          INTEGER NEL,I_P
          INTEGER LSTE(NEL,NLIST),NLIST,ILMAX
@@ -3236,7 +3241,8 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
          allocate(WORK(WORKL),stat=err)
          call LogMemAlloc('WORK',WORKL,8,this_routine,tagWORK,err)
 
-         CALL SORT3RN(NLIST-1,LIST(2,0),LIST(2,1),LIST(2,2),HElementSize)
+         ! Requires real integrals (not assuming helements)
+         call sort (list(2:nList-1,0), list(2:nList-1,1), list(2:nList-1,2))
 
          RIJMAT=0.d0
 !.. Now we fill the RIJ array
@@ -3346,6 +3352,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
          use IntegralsData , only : TQUADRHO,TEXPRHO
          USE HElem
          use global_utilities
+         use sort_mod
          IMPLICIT NONE
          INTEGER NEL,I_P
          INTEGER LSTE(NEL,NLIST),NLIST,ILMAX
@@ -3365,7 +3372,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
 !.. we need to sort A and B (and the list of hamil values) into ascending A order
 !         WRITE(6,*) (LIST(I,2),I=1,NLIST)
 !         WRITE(6,*) (LIST(I,1),I=1,NLIST)
-         CALL SORT3RN(NLIST-1,LIST(1,0),LIST(1,1),LIST(1,2),HElementSize)
+         call sort (list(1:nlist-1,0), list(1:nlist-1,1), list(1:nlist-1,2))
 !         WRITE(6,*) (LIST(I,2),I=1,NLIST)
 !         WRITE(6,*) (LIST(I,1),I=1,NLIST)
 
@@ -3541,6 +3548,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
       SUBROUTINE StarAddSingles(nI,nJ,ExcitInfo,iExcit,iMaxExcit,rhii,rhoeps,Beta,i_P,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,nMax,ALat,UMat,nTay,ECore)
          USE HElem      
          use SystemData, only: BasisFN
+         use sort_mod
          IMPLICIT NONE
          Type(BasisFN) G1(*)
          INTEGER nI(nEl),nEl,i_P,nBasisMax(5,*),Brr(nBasis),nBasis,nMsh
@@ -3686,6 +3694,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
 
       !Routine which takes the excitation form for the determinant, and calculates the full path.
       SUBROUTINE GETFULLPATH(nI,nEl,noexcits,Orbchange,nJ)
+        use sort_mod
         IMPLICIT NONE
         INTEGER :: nI(nEl),nJ(nEl),nEl,noexcits,Orbchange(noexcits*noexcits)
         INTEGER :: I,J

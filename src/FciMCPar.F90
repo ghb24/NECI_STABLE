@@ -2599,8 +2599,9 @@ MODULE FciMCParMod
             
             IF(iProcIndex.eq.0) THEN
 
-!We now want to order AllHistogram, taking the corresponding element(s) of FCIDets with it...
-                CALL SortRNI(Det,AllHistogram,FCIDets,NIfTot+1)
+                ! We now want to order AllHistogram, taking the corresponding
+                ! element(s) of FCIDets with it...
+                call sort (AllHistogram, FCIDets)
                 
                 OPEN(17,FILE='FCIMCPsi',STATUS='UNKNOWN')
 
