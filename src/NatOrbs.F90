@@ -1603,7 +1603,7 @@ MODULE NatOrbsMod
 !        enddo
 
 !        CALL SortEvecbyEval(NoOrbs,OrbEnergies(1:NoOrbs),1,EvalueEnergies(1,1:NoOrbs))
-        CALL Sort2Real(NoOrbs,OrbEnergies(1:NoOrbs),EvalueEnergies(1:NoOrbs))
+        call sort (orbEnergies(1:noOrbs), EvalueEnergies(1:noOrbs))
 
         OPEN(73,FILE='EVALUES-ENERGY',status='unknown')
         do i=1,NoOrbs

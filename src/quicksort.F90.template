@@ -163,7 +163,7 @@ extra_arrs = arr2, arr3, arr4, arr5,
 
 ===================
 
-#define srt_ind(i) (((i)*nskip)+1)
+#define srt_ind(i) (((i)*nskip_)+1)
 
 module sort_mod
     use util_mod, only: operator(.arrlt.), operator(.arrgt.), swap
@@ -179,7 +179,7 @@ module sort_mod
     end interface
 
 contains
-    subroutine sort_%(name)s (arr, %(extra_arrs)snskip_)
+    subroutine sort_%(name)s (arr, %(extra_arrs)snskip)
 
         ! Perform a quicksort on an array of integers, arr(n). Uses the 
         ! sample code in NumericalRecipies as a base.
@@ -188,7 +188,7 @@ contains
         ! sort needs auxiliary storage of length 2*log_2(n).
         integer, parameter :: nStackMax = 50
         integer, parameter :: nInsertionSort = 7
-		integer, intent(in), optional :: nskip_
+		integer, intent(in), optional :: nskip
 
         %(type1)s, intent(inout) :: arr(:)
         %(type2)s, intent(inout) :: arr2(:)
@@ -198,7 +198,7 @@ contains
 
         ! Oh, how lovely it would be to be able to use push/pop and not need
         ! to guess a size of the stack to start with
-        integer :: stack(nStackMax), nstack, nskip
+        integer :: stack(nStackMax), nstack, nskip_
         integer :: pivot, lo, hi, n, i, j
         ! n.b. This size statement is removed if type1 is scalar ...
         %(type1)s :: a(size(arr(1)))
@@ -208,10 +208,10 @@ contains
         %(type5)s :: a5(size(arr5(1)))
         character(*), parameter :: this_routine = 'name'
 
-		if (present(nskip_)) then
-			nskip = nskip_
+		if (present(nskip)) then
+			nskip_ = nskip
 		else
-			nskip = 1
+			nskip_ = 1
 		endif
 
         ! The size of the array to sort. 
@@ -219,7 +219,7 @@ contains
 		! array, multiply indices by nskip and add ! 1 (hence zero based)
 		! **** See local macro srt_ind() ******
 		lo = lbound(arr, %(dim-arr)s) - 1
-		n = ((ubound(arr, %(dim-arr)s) - lo -1)/nskip) + 1
+		n = ((ubound(arr, %(dim-arr)s) - lo -1)/nskip_) + 1
 		hi = lo + n - 1
 
         nstack = 0

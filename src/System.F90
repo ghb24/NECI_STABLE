@@ -3,6 +3,7 @@ MODULE System
 
     use SystemData
     use CalcData, only: tRotoAnnihil
+    use sort_mod
 
     IMPLICIT NONE
 
@@ -1402,6 +1403,7 @@ END SUBROUTINE WRITEBASIS
 
 SUBROUTINE ORDERBASIS(NBASIS,ARR,BRR,ORBORDER,NBASISMAX,G1)
   use SystemData, only: BasisFN
+  use sort_mod
   implicit none
   INTEGER NBASIS,BRR(NBASIS),ORBORDER(8,2),nBasisMax(5,*)
   INTEGER BRR2(NBASIS)
@@ -1436,10 +1438,10 @@ SUBROUTINE ORDERBASIS(NBASIS,ARR,BRR,ORBORDER,NBASISMAX,G1)
               IBFN=IBFN+1
            ENDDO
         ENDDO
-! Beta sort
-        CALL SORT2SKIP(IDONE-ITOT,ARR2(ITOT+1,1),BRR2(ITOT+1),2)
-! Alpha sort
-        CALL SORT2SKIP(IDONE-ITOT,ARR2(ITOT+2,1),BRR2(ITOT+2),2)
+        ! Beta sort
+        call sort (arr2(itot+1:idone,1), brr2(itot+1:idone), nskip=2)
+        ! Alpha sort
+        call sort (arr2(itot+2:idone,1), brr2(itot+2:idone), nskip=2)
         ITOT=IDONE
      ENDDO
      DO I=1,NBASIS
@@ -1453,9 +1455,9 @@ SUBROUTINE ORDERBASIS(NBASIS,ARR,BRR,ORBORDER,NBASISMAX,G1)
      CALL DCOPY(NBASIS,ARR2,1,ARR,1) 
   ENDIF
 ! beta sort
-  CALL SORT2SKIP(NBASIS-IDONE,ARR(IDONE+1,1),BRR(IDONE+1),2)
+  call sort (arr(idone+1:nbasis,1), brr(idone+1:nbasis), nskip=2)
 ! alpha sort
-  CALL SORT2SKIP(NBASIS-IDONE,ARR(IDONE+2,1),BRR(IDONE+2),2)
+  call sort (arr(idone+2:nbasis,1), brr(idone+2:nbasis), nskip=2)
 !.. We need to now go through each set of degenerate orbitals, and make
 !.. the correct ones are paired together in BRR otherwise bad things
 !.. happen in FREEZEBASIS
@@ -1471,7 +1473,7 @@ SUBROUTINE ORDERBASIS(NBASIS,ARR,BRR,ORBORDER,NBASISMAX,G1)
 !.. We don't have degenerate orbitals
 !.. First deal with the last set of degenerate orbitals
 !.. We sort them into order of BRR
-           CALL SORT2SKIP_(ITOT,BRR(I-ITOT), ARR(I-ITOT,1),2)
+           call sort (brr(i-itot:i-1), arr(i-itot:i-1,1), nskip=2)
 !.. now setup the new degenerate set.
            J=J+2
            ITOT=2
@@ -1484,7 +1486,7 @@ SUBROUTINE ORDERBASIS(NBASIS,ARR,BRR,ORBORDER,NBASISMAX,G1)
 !               G(3,BRR(I))=J
         ENDIF
      ENDDO
-     CALL SORT2SKIP_(ITOT,BRR(I-ITOT),ARR(I-ITOT,1),2)
+     call sort (brr(i-itot:i-1), arr(i-itot:i-1,1), nskip=2)
   ENDDO
 END subroutine ORDERBASIS
 
