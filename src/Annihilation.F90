@@ -856,6 +856,7 @@ MODULE AnnihilationMod
         use DetBitOps, only: DecodeBitDet
         use CalcData, only: tReadPops,tAnnihilatebyRange
         INTEGER(KIND=i2) , ALLOCATABLE :: HashArray1(:),HashArray2(:)
+        integer(kind=i2) , allocatable :: HashArrayTmp(:)
         INTEGER , ALLOCATABLE :: IndexTable1(:),IndexTable2(:),ProcessVec1(:),ProcessVec2(:),TempSign(:)
         INTEGER :: i,j,k,ToAnnihilateIndex,ValidSpawned,ierr,error,sendcounts(nProcessors)
         INTEGER :: TotWalkersDet,InitialBlockIndex,FinalBlockIndex,ToAnnihilateOnProc,VecSlot
@@ -873,6 +874,7 @@ MODULE AnnihilationMod
 !These arrays may as well be kept all the way through the simulation?
         ALLOCATE(HashArray1(MaxSpawned),stat=ierr)
         ALLOCATE(HashArray2(MaxSpawned),stat=ierr)
+        ALLOCATE(HashArrayTmp(MaxSpawned),stat=ierr)
         ALLOCATE(IndexTable1(MaxSpawned),stat=ierr)
         ALLOCATE(IndexTable2(MaxSpawned),stat=ierr)
         ALLOCATE(ProcessVec1(MaxSpawned),stat=ierr)
@@ -898,7 +900,14 @@ MODULE AnnihilationMod
 !Next, order the hash array, taking the index, CPU and sign with it...
         IF(.not.tAnnihilatebyRange) THEN
 !Order the array by abs(mod(Hash,nProcessors)). This will result in a more load-balanced system (no need to actually take ProcessVec1 - this will always be iProcIndex here.
-            CALL SortMod4ILong(ValidSpawned,HashArray1(1:ValidSpawned),IndexTable1(1:ValidSpawned),ProcessVec1(1:ValidSpawned),SpawnedSign(1:ValidSpawned),nProcessors)
+
+            HashArrayTmp(1:ValidSpawned) = &
+                        abs(mod(HashArray1(1:ValidSpawned), nProcessors))
+            call sort (HashArrayTmp(1:ValidSpawned), &
+                       HashArray(1:ValidSpawned), &
+                       IndexTable1(1:ValidSpawned), &
+                       ProcessVec1(1:ValidSpawned), &
+                       SpawnedSign(1:ValidSpawned))
 
 !Send counts is the size of each block of ordered dets which are going to each processor. This could be binary searched for extra speed
             IF(ValidSpawned.gt.0) THEN
@@ -1314,6 +1323,7 @@ MODULE AnnihilationMod
         DEALLOCATE(TempSign)
         DEALLOCATE(HashArray1)
         DEALLOCATE(HashArray2)
+        DEALLOCATE(HashArrayTmp)
         DEALLOCATE(IndexTable1)
         DEALLOCATE(IndexTable2)
         DEALLOCATE(ProcessVec1)

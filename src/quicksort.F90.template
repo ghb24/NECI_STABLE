@@ -3,14 +3,18 @@
 #############################################
 [int]
 type1 = integer(kind=int32)
-type2 = !
-arr2_prefix = !
 end_of_decl = )
 op_gt = >
 op_lt = <
 count = size(arr)
-arr3_prefix = !
+type2 = !
 type3 = !
+type4 = !
+type5 = !
+arr2_prefix = !
+arr3_prefix = !
+arr4_prefix = !
+arr5_prefix = !
 
 [int64]
 type1 = integer(kind=int64)
@@ -116,6 +120,17 @@ op_gt = >
 op_lt = <
 count = size(arr)
 
+[int64_int64_int_int_int]
+type1 = integer(kind=int64)
+type2 = integer(kind=int64)
+type3 = integer(kind=int32)
+type4 = integer(kind=int32)
+type5 = integer(kind=int32)
+arr4_prefix = 
+arr5_prefix = 
+end_of_decl = , arr2, arr3, arr4, arr5)
+
+
 ===================
 
 module sort_mod
@@ -145,6 +160,8 @@ contains
         %(type1)s, intent(inout) :: arr(:)
         %(type2)s, intent(inout) :: arr2(:)
 		%(type3)s, intent(inout) :: arr3(:)
+		%(type4)s, intent(inout) :: arr4(:)
+		%(type5)s, intent(inout) :: arr5(:)
 
         ! Oh, how lovely it would be to be able to use push/pop and not need
         ! to guess a size of the stack to start with
@@ -154,6 +171,8 @@ contains
         %(type1)s :: a(size(arr(1)))
         %(type2)s :: a2(size(arr2(1)))
         %(type3)s :: a3(size(arr3(1)))
+        %(type4)s :: a4(size(arr4(1)))
+        %(type5)s :: a5(size(arr5(1)))
         character(*), parameter :: this_routine = 'name'
 
         ! The size of the array to sort
@@ -170,15 +189,21 @@ contains
                     a = arr(j)
                     %(arr2_prefix)s a2 = arr2(j)
                     %(arr3_prefix)s a3 = arr3(j)
+                    %(arr4_prefix)s a4 = arr4(j)
+                    %(arr5_prefix)s a5 = arr5(j)
                     do i = j - 1, 1, -1
                         if (arr(i) %(op_lt)s a) exit
                         arr(i+1) = arr(i)
                         %(arr2_prefix)s arr2(i+1) = arr2(i)
                         %(arr3_prefix)s arr3(i+1) = arr3(i)
+                        %(arr4_prefix)s arr4(i+1) = arr4(i)
+                        %(arr5_prefix)s arr5(i+1) = arr5(i)
                     enddo
                     arr(i+1) = a
                     %(arr2_prefix)s arr2(i+1) = a2
                     %(arr3_prefix)s arr3(i+1) = a3
+                    %(arr4_prefix)s arr4(i+1) = a4
+                    %(arr5_prefix)s arr5(i+1) = a5
                 enddo
 
                 if (nstack == 0) exit
@@ -194,21 +219,29 @@ contains
                 call swap (arr(pivot), arr(lo + 1))
                 %(arr2_prefix)s call swap (arr2(pivot), arr2(lo+1))
                 %(arr3_prefix)s call swap (arr3(pivot), arr3(lo+1))
+                %(arr4_prefix)s call swap (arr4(pivot), arr4(lo+1))
+                %(arr5_prefix)s call swap (arr5(pivot), arr5(lo+1))
 
                 if (arr(lo) %(op_gt)s arr(hi)) then
                     call swap (arr(lo), arr(hi))
                     %(arr2_prefix)s call swap (arr2(lo), arr2(hi))
                     %(arr3_prefix)s call swap (arr3(lo), arr3(hi))
+                    %(arr4_prefix)s call swap (arr4(lo), arr4(hi))
+                    %(arr5_prefix)s call swap (arr5(lo), arr5(hi))
                 endif
                 if (arr(lo+1) %(op_gt)s arr(hi)) then
                     call swap (arr(lo+1), arr(hi))
                     %(arr2_prefix)s call swap (arr2(lo+1), arr2(hi))
                     %(arr3_prefix)s call swap (arr3(lo+1), arr3(hi))
+                    %(arr4_prefix)s call swap (arr4(lo+1), arr4(hi))
+                    %(arr5_prefix)s call swap (arr5(lo+1), arr5(hi))
                 endif
                 if (arr(lo) %(op_gt)s arr(lo+1)) then
                     call swap (arr(lo), arr(lo+1))
                     %(arr2_prefix)s call swap (arr2(lo), arr2(lo+1))
                     %(arr3_prefix)s call swap (arr3(lo), arr3(lo+1))
+                    %(arr4_prefix)s call swap (arr4(lo), arr4(lo+1))
+                    %(arr5_prefix)s call swap (arr5(lo), arr5(lo+1))
                 endif
 
                 i = lo + 1
@@ -216,6 +249,8 @@ contains
                 a = arr(lo + 1) !! a is the pivot value
                 %(arr2_prefix)s a2 = arr2(lo + 1)
                 %(arr3_prefix)s a3 = arr3(lo + 1)
+                %(arr4_prefix)s a4 = arr4(lo + 1)
+                %(arr5_prefix)s a5 = arr5(lo + 1)
                 do while (.true.)
                     ! Scand down list to find element > a 
                     i = i + 1
@@ -237,6 +272,8 @@ contains
                     call swap (arr(i), arr(j))
                     %(arr2_prefix)s call swap (arr2(i), arr2(j))
                     %(arr3_prefix)s call swap (arr3(i), arr3(j))
+                    %(arr4_prefix)s call swap (arr4(i), arr4(j))
+                    %(arr5_prefix)s call swap (arr5(i), arr5(j))
                 enddo;
 
                 ! Insert partitioning element 
@@ -244,8 +281,12 @@ contains
                 arr(j) = a
                 %(arr2_prefix)s arr2(lo + 1) = arr2(j)
                 %(arr3_prefix)s arr3(lo + 1) = arr3(j)
+                %(arr4_prefix)s arr4(lo + 1) = arr4(j)
+                %(arr5_prefix)s arr5(lo + 1) = arr5(j)
                 %(arr2_prefix)s arr2(j) = a2
                 %(arr3_prefix)s arr3(j) = a3
+                %(arr4_prefix)s arr4(j) = a4
+                %(arr5_prefix)s arr5(j) = a5
 
                 ! Push the larger of the partitioned sections onto the stack
                 ! of sections to look at later.
