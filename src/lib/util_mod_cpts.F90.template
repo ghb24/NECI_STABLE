@@ -27,6 +27,10 @@ type = type(Symmetry)
 
 [sympairprod]
 type = type(SymPairProd)
+
+[starwalker]
+type = type(star_walker)
+
 =========================
 
 module util_mod_cpts
@@ -34,7 +38,11 @@ module util_mod_cpts
 	use helem
 	use SystemData, only: Symmetry, assignment(=)
 	use symdata, only: SymPairProd, assignment(=)
+    use StarDiagData
 	implicit none
+
+    private
+    public :: swap
 
 	! Swap the  specified variables
 	! n.b. If we want to implement this for complex variables / helements then

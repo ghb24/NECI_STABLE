@@ -2412,6 +2412,8 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
          USE Logging , only : TPopsFile,TCalcWavevector,WavevectorPrint, tIncrementPops
          USE global_utilities
          use util_mod, only: get_unique_filename
+         use sort_mod
+         use StarDiagData, only: star_walker
          IMPLICIT NONE
          CHARACTER(len=*), PARAMETER :: this_routine='StarDiagMC'
          INTEGER :: i,j,nEl,NList,ILMax,Info,ierr,WorkL,toprint,PreviousNMCyc
@@ -2424,13 +2426,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
          REAL*8 :: rat,r,SumENum,ProjectionE
          LOGICAL :: DetSign
          REAL*8 , ALLOCATABLE :: HMat(:,:),WList(:),Work(:)
-         TYPE Walker
-!Det indicates the determinant that the walker is currently at. WSign: +ve = .true. , -ve = .false.
-!Initially, dets are HF and sign is positive
-             INTEGER :: Det=1
-             LOGICAL :: WSign=.true.
-         END TYPE Walker
-         TYPE(Walker) , POINTER :: WalkVec(:),WalkVec2(:)
+         TYPE(star_walker) , POINTER :: WalkVec(:),WalkVec2(:)
          character(255) :: popsfile
          
          proc_timer%timer_name='StarDiagMC'
@@ -2581,8 +2577,9 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
                  WRITE(6,*) "Scaling number of walkers by: ",ScaleWalkers
                  ReadWalkers=InitWalkers
                  InitWalkers=0
-!First, count the total number of initial walkers on each determinant - sort into list
-                 CALL SORTIW(ReadWalkers,WalkVec2(1:ReadWalkers))
+                 ! First, count the total number of initial walkers on each 
+                 ! determinant - sort into list
+                 call sort (WalkVec2(1:ReadWalkers))
 
                  j=1
 !j is the counter over all read in walkers - it indicates when we have reached the end of the entire list
@@ -2808,10 +2805,14 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
               IF(.true.) THEN
 
                   IF(.NOT.TBinCancel) THEN
-!This method of canceling down pairs of opposite sign walkers is based on ordering the list of determinants
-!Once ordered, each block of walkers on similar determinants can be analysed, and the residual walker concentration moved to WalkVec
-!First need to order the vector of new walkers according to determinant the walker is on - this is an NlogN scaling operation
-                      CALL SORTIW(TotWalkersNew,WalkVec2(1:TotWalkersNew))
+                      ! This method of canceling down pairs of opposite sign 
+                      ! walkers is based on ordering the list of determinants
+                      ! Once ordered, each block of walkers on similar 
+                      ! determinants can be analysed, and the residual walker
+                      ! concentration moved to WalkVec First need to order 
+                      ! the vector of new walkers according to determinant 
+                      ! the walker is on - this is an NlogN scaling operation.
+                      call sort (WalkVec2(1:TotWalkersNew))
 
                       j=1
 !j is the counter over all TotWalkersNew - it indicates when we have reached the end of the entire list

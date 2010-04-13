@@ -28,6 +28,9 @@ type1 = type(Symmetry)
 [sympairprod]
 type1 = type(SymPairProd)
 
+[starwalker]
+type1 = type(star_walker)
+
 ##############################################
 ############### Sort arrays ##################
 ##############################################
@@ -45,6 +48,7 @@ type1 = real*8, dimension(:)
 
 ##############################################
 ############ Sort by scalars #################
+##############################################
 [int_int]
 type1 = integer(kind=int32)
 type2 = integer(kind=int32)
@@ -116,7 +120,6 @@ type2 = real*8, dimension(:)
 
 [arr_doub_arr_int]
 type2 = integer(kind=int32), dimension(:)
-
 
 ################################################
 ############ More specific sorts ###############
@@ -191,6 +194,7 @@ module sort_mod
 	                      operator(.gt.), operator(.lt.), assignment(=)
 	use symdata, only: SymPairProd, operator(.eq.), operator(.ne.), &
 	                   operator(.gt.), operator(.lt.), assignment(=)
+    use StarDiagData
 	implicit none
 	
 	private
