@@ -16,6 +16,7 @@ USE HElem
 use DetBitOps, only: EncodeBitDet
 use constants, only: dp
 use FciMCData, only: ExcitGenerator
+use sort_mod
 IMPLICIT NONE
 SAVE
 
@@ -1680,7 +1681,35 @@ SUBROUTINE PerformFCIMCyc()
         INTEGER :: DetLT
 
 !First, it is necessary to sort the list of determinants
-        CALL SortParts(TotWalkersNew,NewDets(:,1:TotWalkersNew),NEl)
+        if (tUnbiasPGenInProjE) then
+            if (tRegenExcitgens) then
+                call sort (NewDets(:,1:TotWalkersNew), &
+                           newH(:,1:TotWalkersNew), &
+                           newIC(1:TotWalkersNew), &
+                           newSign(1:TotWalkersNew), &
+                           newPGen(1:TotWalkersNew))
+            else
+                call sort (NewDets(:,1:TotWalkersNew), &
+                           newH(:,1:TotWalkersNew), &
+                           newIC(1:TotWalkersNew), &
+                           newSign(1:TotWalkersNew), &
+                           newPGen(1:TotWalkersNew), &
+                           newExcits(1:TotWalkersNew))
+            endif
+        else
+            if (tRegenExcitgens) then
+                call sort (NewDets(:,1:TotWalkersNew), &
+                           newH(:,1:TotWalkersNew), &
+                           newIC(1:TotWalkersNew), &
+                           newSign(1:TotWalkersNew))
+            else
+                call sort (NewDets(:,1:TotWalkersNew), &
+                           newH(:,1:TotWalkersNew), &
+                           newIC(1:TotWalkersNew), &
+                           newSign(1:TotWalkersNew), &
+                           newExcits(1:totWalkersNew))
+            endif
+        endif
 
 !Once ordered, each block of walkers on similar determinants can be analysed, and the residual walker concentration moved to CurrentDets
         j=1
@@ -2664,95 +2693,6 @@ SUBROUTINE PerformFCIMCyc()
         RETURN
 
     END SUBROUTINE ReadFromPopsFile
-
-
-
-! Based on SORTI, SORTPARTS sorts arrays of integers, representing the determinant the walkers are on
-! It then takes all the corresponding info with it
-! Dets is the array (length N) of integers to sort
-! NElecs is the length (in numbers of integers) of each element of Dets
-! Vectors of NewXXX will be sorted correspondingly
-    SUBROUTINE SortParts(N,Dets,NElecs)
-        TYPE(ExcitGenerator) :: ExcitTemp
-        REAL*8 :: HTemp(2),PGenTemp
-        INTEGER :: ICTemp
-        INTEGER :: TempDet(NElecs)     !This stores a single element of the vector temporarily     
-        LOGICAL :: WSignTemp
-        INTEGER N,I,L,IR,J,NElecs
-        INTEGER Dets(NElecs,N)
-        INTEGER DETLT
-
-        IF(N.LE.1) RETURN
-        L=N/2+1 
-        IR=N
-10      CONTINUE
-        IF(L.GT.1)THEN
-            L=L-1
-!            CALL NECI_ICOPY(NElecs,Dets(1,L),1,TempDet,1)          !Copy Lth element to temp
-            TempDet(:)=Dets(:,L)
-            HTemp(:)=NewH(:,L)
-            ICTemp=NewIC(L)
-            WSignTemp=NewSign(L)
-            IF(.not.TRegenExcitgens) CALL CopyExitgen(NewExcits(L),ExcitTemp)
-            IF(TUnbiasPGeninProjE) PGenTemp=NewPGen(L)
-        ELSE
-!            CALL NECI_ICOPY(NElecs,Dets(1,IR),1,TempDet,1)         !Copy IRth elements to temp
-            TempDet(:)=Dets(:,IR)
-            HTemp(:)=NewH(:,IR)
-            ICTemp=NewIC(IR)
-            WSignTemp=NewSign(IR)
-            IF(TUnbiasPGeninProjE) PGenTemp=NewPGen(IR)
-            IF(.not.TRegenExcitgens) CALL CopyExitgen(NewExcits(IR),ExcitTemp)
-
-!            CALL NECI_ICOPY(NElecs,Dets(1,1),1,Dets(1,IR),1)       !Copy 1st element to IRth element
-            Dets(:,IR)=Dets(:,1)
-            NewH(:,IR)=NewH(:,1)
-            NewIC(IR)=NewIC(1)
-            NewSign(IR)=NewSign(1)
-            IF(TUnbiasPGeninProjE) NewPGen(IR)=NewPGen(1)
-            IF(.not.TRegenExcitgens) CALL CopyExitgen(NewExcits(1),NewExcits(IR))
-            IR=IR-1
-            IF(IR.EQ.1)THEN
-!                CALL NECI_ICOPY(NElecs,TempDet,1,Dets(1,1),1)        !Copy temp element to 1st element
-                Dets(:,1)=TempDet(:)
-                NewH(:,1)=HTemp(:)
-                NewIC(1)=ICTemp
-                NewSign(1)=WSignTemp
-                IF(TUnbiasPGeninProjE) NewPGen(1)=PGenTemp
-                IF(.not.TRegenExcitgens) CALL CopyExitgen(ExcitTemp,NewExcits(1))
-                RETURN
-            ENDIF
-        ENDIF
-        I=L
-        J=L+L
-20      IF(J.LE.IR)THEN
-            IF(J.LT.IR)THEN
-                IF((DETLT(Dets(1,J),Dets(1,J+1),NElecs)).eq.-1) J=J+1
-            ENDIF
-            IF((DETLT(TempDet,Dets(1,J),NElecs)).eq.-1)THEN
-!                CALL NECI_ICOPY(NElecs,Dets(1,J),1,Dets(1,I),1)      !Copy Jth element to Ith element
-                Dets(:,I)=Dets(:,J)
-                NewH(:,I)=NewH(:,J)
-                NewIC(I)=NewIC(J)
-                NewSign(I)=NewSign(J)
-                IF(TUnbiasPGeninProjE) NewPGen(I)=NewPGen(J)
-                IF(.not.TRegenExcitgens) CALL CopyExitgen(NewExcits(J),NewExcits(I))
-                I=J
-                J=J+J
-            ELSE
-                J=IR+1
-            ENDIF
-            GO TO 20
-        ENDIF
-!        CALL NECI_ICOPY(NElecs,TempDet,1,Dets(1,I),1)                !Copy from temp element to Ith element
-        Dets(:,I)=TempDet(:)
-        NewH(:,I)=HTemp(:)
-        NewIC(I)=ICTemp
-        NewSign(I)=WSignTemp
-        IF(TUnbiasPGeninProjE) NewPGen(I)=PGenTemp
-        IF(.not.TRegenExcitgens) CALL CopyExitgen(ExcitTemp,NewExcits(I))
-        GO TO 10
-    END SUBROUTINE SortParts
 
 
 !This routine copies an excitation generator from origExcit to NewExit, if the original claims that it is for the correct determinant

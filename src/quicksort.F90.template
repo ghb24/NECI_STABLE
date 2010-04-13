@@ -6,15 +6,16 @@ type1 = integer(kind=int32)
 extra_arrs = 
 op_gt = >
 op_lt = <
-count = size(arr)
 type2 = !
 type3 = !
 type4 = !
 type5 = !
+type6 = !
 arr2_prefix = !
 arr3_prefix = !
 arr4_prefix = !
 arr5_prefix = !
+arr6_prefix = !
 
 [int64]
 type1 = integer(kind=int64)
@@ -38,7 +39,6 @@ type1 = type(star_walker)
 type1 = integer(kind=int32), dimension(:)
 op_gt = .arrgt.
 op_lt = .arrlt.
-count = size(arr(1,:))
 
 [arr_int64]
 type1 = integer(kind=int64), dimension(:)
@@ -56,7 +56,6 @@ arr2_prefix =
 extra_arrs = arr2,
 op_gt = >
 op_lt = <
-count = size(arr)
 
 [int_doub]
 type2 = real*8
@@ -95,7 +94,6 @@ type1 = integer(kind=int32), dimension(:)
 type2 = integer(kind=int32), dimension(:)
 op_gt = .arrgt.
 op_lt = .arrlt.
-count = size(arr(1,:))
 
 [arr_int_arr_doub]
 type2 = real*8, dimension(:)
@@ -137,7 +135,6 @@ type2 = integer(kind=int64), dimension(:)
 type3 = logical
 op_gt = >
 op_lt = <
-count = size(arr)
 
 [int_arr_int_doub]
 type2 = integer(kind=int32), dimension(:)
@@ -186,6 +183,33 @@ type5 = integer(kind=int32)
 arr5_prefix = 
 extra_arrs = arr2, arr3, arr4, arr5,
 
+##################################################
+############### For FciMC.F90 ####################
+##################################################
+[arr_int_arr_doub_int_logical]
+type5 = !
+arr5_prefix = !
+extra_arrs = arr2, arr3, arr4, 
+op_gt = .arrgt.
+op_lt = .arrlt.
+type1 = integer(kind=int32), dimension(:)
+type2 = real(kind=dp), dimension(:)
+type3 = integer(kind=int32)
+type4 = logical
+
+[aint_adoub_int_log_egen]
+type5 = type(excitGenerator)
+arr5_prefix =
+extra_arrs = arr2, arr3, arr4, arr5,
+
+[arr_int_arr_doub_int_logical_doub]
+type5 = real(kind=dp)
+
+[aint_adoub_int_log_egen_doub]
+type6 = type(excitGenerator)
+arr6_prefix =
+extra_arrs = arr2, arr3, arr4, arr5, arr6,
+
 
 ===================
 
@@ -199,6 +223,7 @@ module sort_mod
 	                      operator(.gt.), operator(.lt.), assignment(=)
 	use symdata, only: SymPairProd, operator(.eq.), operator(.ne.), &
 	                   operator(.gt.), operator(.lt.), assignment(=)
+    use FciMCData, only: ExcitGenerator, assignment(=)
     use StarDiagData
 	implicit none
 	
@@ -226,6 +251,7 @@ contains
 		%(type3)s, intent(inout) :: arr3(:)
 		%(type4)s, intent(inout) :: arr4(:)
 		%(type5)s, intent(inout) :: arr5(:)
+		%(type6)s, intent(inout) :: arr6(:)
 
         ! Oh, how lovely it would be to be able to use push/pop and not need
         ! to guess a size of the stack to start with
@@ -237,6 +263,7 @@ contains
         %(type3)s :: a3(size(arr3(1)))
         %(type4)s :: a4(size(arr4(1)))
         %(type5)s :: a5(size(arr5(1)))
+        %(type6)s :: a6(size(arr6(1)))
         character(*), parameter :: this_routine = 'name'
 
 		if (present(nskip)) then
@@ -264,6 +291,7 @@ contains
                     %(arr3_prefix)s a3 = arr3(srt_ind(j))
                     %(arr4_prefix)s a4 = arr4(srt_ind(j))
                     %(arr5_prefix)s a5 = arr5(srt_ind(j))
+                    %(arr6_prefix)s a6 = arr6(srt_ind(j))
                     do i = j - 1, 0, -1
                         if (arr(srt_ind(i)) %(op_lt)s a) exit
                         arr(srt_ind(i+1)) = arr(srt_ind(i))
@@ -271,12 +299,14 @@ contains
                         %(arr3_prefix)s arr3(srt_ind(i+1)) = arr3(srt_ind(i))
                         %(arr4_prefix)s arr4(srt_ind(i+1)) = arr4(srt_ind(i))
                         %(arr5_prefix)s arr5(srt_ind(i+1)) = arr5(srt_ind(i))
+                        %(arr6_prefix)s arr6(srt_ind(i+1)) = arr6(srt_ind(i))
                     enddo
                     arr(srt_ind(i+1)) = a
                     %(arr2_prefix)s arr2(srt_ind(i+1)) = a2
                     %(arr3_prefix)s arr3(srt_ind(i+1)) = a3
                     %(arr4_prefix)s arr4(srt_ind(i+1)) = a4
                     %(arr5_prefix)s arr5(srt_ind(i+1)) = a5
+                    %(arr6_prefix)s arr6(srt_ind(i+1)) = a6
                 enddo
 
                 if (nstack == 0) exit
@@ -294,6 +324,7 @@ contains
                 %(arr3_prefix)s call swap (arr3(srt_ind(pivot)), arr3(srt_ind(lo+1)))
                 %(arr4_prefix)s call swap (arr4(srt_ind(pivot)), arr4(srt_ind(lo+1)))
                 %(arr5_prefix)s call swap (arr5(srt_ind(pivot)), arr5(srt_ind(lo+1)))
+                %(arr6_prefix)s call swap (arr6(srt_ind(pivot)), arr6(srt_ind(lo+1)))
 
                 if (arr(srt_ind(lo)) %(op_gt)s arr(srt_ind(hi))) then
                     call swap (arr(srt_ind(lo)), arr(srt_ind(hi)))
@@ -301,6 +332,7 @@ contains
                     %(arr3_prefix)s call swap (arr3(srt_ind(lo)), arr3(srt_ind(hi)))
                     %(arr4_prefix)s call swap (arr4(srt_ind(lo)), arr4(srt_ind(hi)))
                     %(arr5_prefix)s call swap (arr5(srt_ind(lo)), arr5(srt_ind(hi)))
+                    %(arr6_prefix)s call swap (arr6(srt_ind(lo)), arr6(srt_ind(hi)))
                 endif
                 if (arr(srt_ind(lo+1)) %(op_gt)s arr(srt_ind(hi))) then
                     call swap (arr(srt_ind(lo+1)), arr(srt_ind(hi)))
@@ -308,6 +340,7 @@ contains
                     %(arr3_prefix)s call swap (arr3(srt_ind(lo+1)), arr3(srt_ind(hi)))
                     %(arr4_prefix)s call swap (arr4(srt_ind(lo+1)), arr4(srt_ind(hi)))
                     %(arr5_prefix)s call swap (arr5(srt_ind(lo+1)), arr5(srt_ind(hi)))
+                    %(arr6_prefix)s call swap (arr6(srt_ind(lo+1)), arr6(srt_ind(hi)))
                 endif
                 if (arr(srt_ind(lo)) %(op_gt)s arr(srt_ind(lo+1))) then
                     call swap (arr(srt_ind(lo)), arr(srt_ind(lo+1)))
@@ -315,6 +348,7 @@ contains
                     %(arr3_prefix)s call swap (arr3(srt_ind(lo)), arr3(srt_ind(lo+1)))
                     %(arr4_prefix)s call swap (arr4(srt_ind(lo)), arr4(srt_ind(lo+1)))
                     %(arr5_prefix)s call swap (arr5(srt_ind(lo)), arr5(srt_ind(lo+1)))
+                    %(arr6_prefix)s call swap (arr6(srt_ind(lo)), arr6(srt_ind(lo+1)))
                 endif
 
                 i = lo + 1
@@ -324,6 +358,7 @@ contains
                 %(arr3_prefix)s a3 = arr3(srt_ind(lo + 1))
                 %(arr4_prefix)s a4 = arr4(srt_ind(lo + 1))
                 %(arr5_prefix)s a5 = arr5(srt_ind(lo + 1))
+                %(arr6_prefix)s a6 = arr6(srt_ind(lo + 1))
                 do while (.true.)
                     ! Scand down list to find element > a 
                     i = i + 1
@@ -347,6 +382,7 @@ contains
                     %(arr3_prefix)s call swap (arr3(srt_ind(i)), arr3(srt_ind(j)))
                     %(arr4_prefix)s call swap (arr4(srt_ind(i)), arr4(srt_ind(j)))
                     %(arr5_prefix)s call swap (arr5(srt_ind(i)), arr5(srt_ind(j)))
+                    %(arr6_prefix)s call swap (arr6(srt_ind(i)), arr6(srt_ind(j)))
                 enddo;
 
                 ! Insert partitioning element 
@@ -356,10 +392,12 @@ contains
                 %(arr3_prefix)s arr3(srt_ind(lo + 1)) = arr3(srt_ind(j))
                 %(arr4_prefix)s arr4(srt_ind(lo + 1)) = arr4(srt_ind(j))
                 %(arr5_prefix)s arr5(srt_ind(lo + 1)) = arr5(srt_ind(j))
+                %(arr6_prefix)s arr6(srt_ind(lo + 1)) = arr6(srt_ind(j))
                 %(arr2_prefix)s arr2(srt_ind(j)) = a2
                 %(arr3_prefix)s arr3(srt_ind(j)) = a3
                 %(arr4_prefix)s arr4(srt_ind(j)) = a4
                 %(arr5_prefix)s arr5(srt_ind(j)) = a5
+                %(arr6_prefix)s arr6(srt_ind(j)) = a6
 
                 ! Push the larger of the partitioned sections onto the stack
                 ! of sections to look at later.
