@@ -171,8 +171,7 @@ MODULE AnnihilationMod
 
 !We want to sort the list of newly spawned particles, in order for quicker binary searching later on. (this is not essential, but should proove faster)
 !They should remain sorted after annihilation between spawned
-        CALL SortBitDets(ValidSpawned,SpawnedParts(:,1:ValidSpawned), &
-                         SpawnedSign(1:ValidSpawned))
+        call sort(SpawnedParts(:,1:ValidSpawned), SpawnedSign(1:ValidSpawned))
         IF(tHistSpawn) HistMinInd2(1:NEl)=FCIDetIndex(1:NEl)
 
 !First, we compress the list of spawned particles, so that they are only specified at most once in each processors list.
@@ -804,8 +803,7 @@ MODULE AnnihilationMod
         INTEGER :: ValidSpawned,DetCurr(0:NIfTot),i,j,k,LowBound,HighBound,WSign
         INTEGER :: VecSlot,TotSign
 
-        CALL SortBitDets(ValidSpawned,SpawnedParts(:,1:ValidSpawned), &
-                         SpawnedSign(1:ValidSpawned))
+        call sort (SpawnedParts(:,1:ValidSpawned),SpawnedSign(1:ValidSpawned))
 
         VecSlot=1
         i=1
@@ -904,7 +902,7 @@ MODULE AnnihilationMod
             HashArrayTmp(1:ValidSpawned) = &
                         abs(mod(HashArray1(1:ValidSpawned), nProcessors))
             call sort (HashArrayTmp(1:ValidSpawned), &
-                       HashArray(1:ValidSpawned), &
+                       HashArray1(1:ValidSpawned), &
                        IndexTable1(1:ValidSpawned), &
                        ProcessVec1(1:ValidSpawned), &
                        SpawnedSign(1:ValidSpawned))
@@ -928,7 +926,7 @@ MODULE AnnihilationMod
             ! sort of the hashes once they have been sent to the correct 
             ! processor.
             call sort (HashArray1(1:ValidSpawned), &
-                       IndexTable(1:ValidSpawned), &
+                       IndexTable1(1:ValidSpawned), &
                        ProcessVec1(1:ValidSpawned), &
                        SpawnedSign(1:ValidSpawned))
 !We also need to know the ranges of the hashes to send to each processor. Each range should be the same.
@@ -1237,7 +1235,7 @@ MODULE AnnihilationMod
                 WRITE(6,*) "***"
                 WRITE(6,*) sendcounts(:)
                 WRITE(6,*) "***"
-                WRITE(6,*) HashArray(1:ToAnnihilateIndex)
+                WRITE(6,*) HashArray1(1:ToAnnihilateIndex)
                 WRITE(6,*) "***"
                 WRITE(6,*) IndexTable1(1:ToAnnihilateIndex)
 

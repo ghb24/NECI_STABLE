@@ -14,6 +14,7 @@ MODULE HPHFRandExcitMod
     use DetBitOps, only: DetBitLT, DetBitEQ, FindExcitBitDet,FindBitExcitLevel
     use HElem
     use sltcnd_mod, only: sltcnd_excit
+    use sort_mod
     IMPLICIT NONE
 !    SAVE
 !    INTEGER :: Count=0
@@ -703,7 +704,7 @@ MODULE HPHFRandExcitMod
 
 !Now sort the list, so that it can be easily binary searched.
         ALLOCATE(ExcitGen(iUniqueHPHF))
-        CALL SortBitDets(iUniqueHPHF,UniqueHPHFList(:,1:iUniqueHPHF),ExcitGen)
+        call sort (UniqueHPHFList(:,1:iUniqueHPHF), ExcitGen)
         DEALLOCATE(ExcitGen)
 
         WRITE(6,*) "Unique HPHF wavefunctions are: "

@@ -2204,7 +2204,7 @@ MODULE FciMCParMod
         INTEGER :: Length,PartList(0:NIfTot,Length),SignList(Length)
         INTEGER :: i,VecInd,DetsMerged
 
-        CALL SortBitDets(Length,PartList,SignList)
+        call sort (PartList, SignList)
 
 !Now compress the list.
         VecInd=1
@@ -2237,7 +2237,7 @@ MODULE FciMCParMod
         REAL*8 :: HList(Length)
         INTEGER :: i,DetsMerged,VecInd
 
-        CALL SortBitDetswH(Length,PartList,SignList,HList)
+        call sort (PartList, SignList, HList)
 !        CALL CheckOrdering(PartList(:,1:Length),SignList(1:Length),Length,.false.)
   
 !Now compress...
@@ -4779,82 +4779,6 @@ MODULE FciMCParMod
 
 END MODULE FciMCParMod
 
-!The Exitgen manipulation routines are outside the module to allow them to be used in AnnihilationMod
-!This routine copies an excitation generator from origExcit to NewExit, if the original claims that it is for the correct determinant
-SUBROUTINE CopyExitgenPar(OrigExit,NewExit,DelOldCopy)
-    use FCIMCParMod
-    TYPE(ExcitPointer) :: OrigExit,NewExit
-    LOGICAL :: DelOldCopy
-    INTEGER :: ierr
-    
-    IF(ASSOCIATED(NewExit%PointToExcit)) THEN
-        CALL Stop_All("CopyExitgenPar","Trying to copy an excitation, but new pointer is already associated.")
-    ENDIF
-    IF(.not.ASSOCIATED(OrigExit%PointToExcit)) THEN
-!We have not got a new pointer - it hasn't been created yet.
-        RETURN
-    ENDIF
-
-    NewExit%PointToExcit => OrigExit%PointToExcit
-    NewExit%IndexinExArr=OrigExit%IndexinExArr
-
-    IF(DelOldCopy) THEN
-!Delete the old excitation - i.e. we are moving excitation generators, rather than copying them.
-        OrigExit%PointToExcit=>null()
-    ELSE
-! We are copying, so increment the number of objects pointing at the excitgen.
-        EXCITGENS(NewExit%IndexinExArr)%nPointed=EXCITGENS(NewExit%IndexinExArr)%nPointed+1
-    ENDIF
-
-    RETURN
-
-END SUBROUTINE CopyExitgenPar
-
-SUBROUTINE SetupExitgenPar(nI,ExcitGen)
-    use FCIMCParMod
-    TYPE(ExcitPointer) :: ExcitGen
-    INTEGER :: ierr,iMaxExcit,nExcitMemLen,nJ(NEl),MinIndex,i
-    INTEGER :: nI(NEl),nStore(6)
-
-    IF(ASSOCIATED(ExcitGen%PointToExcit)) THEN
-!The determinant already has an associated excitation generator set up.
-        RETURN
-    ELSE
-
-!First, we need to find the next free element in the excitgens array...
-!This is simply FreeIndArray(BackOfList)
-        MinIndex=FreeIndArray(BackOfList)
-!Increment BackOfList in a circular fashion.
-        IF(BackOfList.eq.MaxWalkersPart) THEN
-            BackOfList=1
-        ELSE
-            BackOfList=BackOfList+1
-        ENDIF
-
-        IF(associated(ExcitGens(MinIndex)%ExcitData)) THEN
-            CALL Stop_All("SetupExitgenPar","Index chosen to create excitation generator is not free.")
-        ENDIF
-
-!MinIndex is the array element we want to point our new excitation generator to.
-!Setup excit generators for this determinant
-        iMaxExcit=0
-        nStore(1:6)=0
-        CALL GenSymExcitIt2(nI,NEl,G1,nBasis,nBasisMax,.TRUE.,EXCITGENS(MinIndex)%nExcitMemLen,nJ,iMaxExcit,0,nStore,3)
-        ALLOCATE(EXCITGENS(MinIndex)%ExcitData(EXCITGENS(MinIndex)%nExcitMemLen),stat=ierr)
-        IF(ierr.ne.0) CALL Stop_All("SetupExcitGen","Problem allocating excitation generator")
-        EXCITGENS(MinIndex)%ExcitData(1)=0
-        CALL GenSymExcitIt2(nI,NEl,G1,nBasis,nBasisMax,.TRUE.,EXCITGENS(MinIndex)%ExcitData,nJ,iMaxExcit,0,nStore,3)
-
-!Indicate that the excitation generator is now correctly allocated and pointed to by one particle.
-        EXCITGENS(MinIndex)%nPointed=1
-
-!Now point Excitgen to this value
-        ExcitGen%PointToExcit=>EXCITGENS(MinIndex)%ExcitData
-        ExcitGen%IndexinExArr=MinIndex
-
-    ENDIF
-
-END SUBROUTINE SetupExitgenPar
             
 
 !This is the same as BinSearchParts1, but this time, it searches though the full list of determinants created by the full diagonalizer when the histogramming option is on.

@@ -15,14 +15,9 @@ USE Logging , only : iWritePopsEvery,TPopsFile,TZeroProjE,TWriteDetE,MaxHistE,No
 USE HElem
 use DetBitOps, only: EncodeBitDet
 use constants, only: dp
+use FciMCData, only: ExcitGenerator
 IMPLICIT NONE
 SAVE
-
-TYPE ExcitGenerator
-    INTEGER , ALLOCATABLE :: ExcitData(:)      !This stores the excitation generator
-    INTEGER :: nExcitMemLen                    !This is the length of the excitation generator
-    LOGICAL :: ExitGenForDet=.false.           !This is true when the excitation generator stored corresponds to the determinant
-END TYPE
 
 TYPE(ExcitGenerator) , ALLOCATABLE , TARGET :: WalkVecExcits(:),WalkVec2Excits(:)   !This will store the excitation generators for the particles on each node
 INTEGER , ALLOCATABLE , TARGET :: WalkVecDets(:,:),WalkVec2Dets(:,:)    !Contains determinant list
@@ -285,7 +280,7 @@ SUBROUTINE PerformFCIMCyc()
 !Copy across children - cannot copy excitation generators, as do not know them
                     NewDets(:,VecSlot)=nJ(:)
                     NewSign(VecSlot)=WSign
-                    IF(.not.TRegenExcitgens) NewExcits(VecSlot)%ExitGenForDet=.false.
+                    IF(.not.TRegenExcitgens) NewExcits(VecSlot)%ExcitGenForDet=.false.
                     NewIC(VecSlot)=ExcitLevel
                     NewH(1,VecSlot)=HDiag      !Diagonal H-element-Hii
                     NewH(2,VecSlot)=REAL(HOffDiag%v,dp)       !Off-diagonal H-element
@@ -641,7 +636,7 @@ SUBROUTINE PerformFCIMCyc()
 !!Copy across children - cannot copy excitation generators, as do not know them
 !                    NewDets(:,VecSlot)=nJ(:)
 !                    NewSign(VecSlot)=WSign
-!                    IF(.not.TRegenExcitgens) NewExcits(VecSlot)%ExitGenForDet=.false.
+!                    IF(.not.TRegenExcitgens) NewExcits(VecSlot)%ExcitGenForDet=.false.
 !                    NewIC(VecSlot)=ExcitLevel
 !                    NewH(1,VecSlot)=HDiag      !Diagonal H-element-Hii
 !                    NewH(2,VecSlot)=REAL(HOffDiag%v,dp)       !Off-diagonal H-element
@@ -757,7 +752,7 @@ SUBROUTINE PerformFCIMCyc()
 !!Copy across children - cannot copy excitation generators, as do not know them
 !                        NewDets(:,VecSlot)=nJ(:)
 !                        NewSign(VecSlot)=WSign
-!                        IF(.not.TRegenExcitgens) NewExcits(VecSlot)%ExitGenForDet=.false.
+!                        IF(.not.TRegenExcitgens) NewExcits(VecSlot)%ExcitGenForDet=.false.
 !                        NewIC(VecSlot)=ExcitLevel
 !                        NewH(1,VecSlot)=HDiag      !Diagonal H-element-Hii
 !                        NewH(2,VecSlot)=REAL(HOffDiag%v,dp)       !Off-diagonal H-element
@@ -898,7 +893,7 @@ SUBROUTINE PerformFCIMCyc()
 !                    NewIC(VecSlot)=ExcitLevel
 !                    NewH(1,VecSlot)=GraphKii(i)       !Diagonal H El previously stored
 !                    NewH(2,VecSlot)=REAL(HOffDiag%v,dp)
-!                    IF(.not.TRegenExcitgens) NewExcits(VecSlot)%ExitGenForDet=.false.
+!                    IF(.not.TRegenExcitgens) NewExcits(VecSlot)%ExcitGenForDet=.false.
 !                    VecSlot=VecSlot+1
 !                enddo
 !
@@ -1440,7 +1435,7 @@ SUBROUTINE PerformFCIMCyc()
                 IF(TUnbiasPGeninProjE) CurrentPGen(Chosen)=CurrentPGen(TotWalkers)
                 IF(.not.TRegenExcitgens) THEN
                     CALL CopyExitgen(CurrentExcits(TotWalkers),CurrentExcits(Chosen))
-                    CurrentExcits(TotWalkers)%ExitGenForDet=.false.
+                    CurrentExcits(TotWalkers)%ExcitGenForDet=.false.
                 ENDIF
 
                 TotWalkers=TotWalkers-1
@@ -2297,7 +2292,7 @@ SUBROUTINE PerformFCIMCyc()
                     CALL CopyExitGen(HFExcit,CurrentExcits(i))
                 ELSE
 !We are at a double excitation - simply tell it to find the excitation generator when it is needed
-                    CurrentExcits(i)%ExitgenForDet=.false.
+                    CurrentExcits(i)%ExcitgenForDet=.false.
                 ENDIF
             enddo
             WRITE(6,"(A,F14.6,A)") "Probable maximum memory for excitgens is : ",REAL(MemoryAlloc,dp)/1048576.D0," Mb" 
@@ -2639,7 +2634,7 @@ SUBROUTINE PerformFCIMCyc()
                 CurrentH(2,j)=REAL(HElemTemp%v,dp)
                 HElemTemp = get_helement (CurrentDets(:,j),CurrentDets(:,j),0)
                 CurrentH(1,j)=REAL(HElemTemp%v,dp)-Hii
-                IF(.not.TRegenExcitgens) CurrentExcits(j)%ExitGenForDet=.false.
+                IF(.not.TRegenExcitgens) CurrentExcits(j)%ExcitGenForDet=.false.
             ELSEIF(CurrentIC(j).eq.0) THEN
 !We know we are at HF - HDiag=0, and can use HF excitgen
                 IF(.not.TRegenExcitgens) CALL CopyExitGen(HFExcit,CurrentExcits(j))
@@ -2647,7 +2642,7 @@ SUBROUTINE PerformFCIMCyc()
                 CurrentH(2,j)=0.D0
                 
             ELSE
-                IF(.not.TRegenExcitgens) CurrentExcits(j)%ExitGenForDet=.false.
+                IF(.not.TRegenExcitgens) CurrentExcits(j)%ExcitGenForDet=.false.
                 HElemTemp = get_helement (CurrentDets(:,j),CurrentDets(:,j),0)
                 CurrentH(1,j)=(REAL(HElemTemp%v,dp))-Hii
                 CurrentH(2,j)=0.D0
@@ -2768,9 +2763,9 @@ SUBROUTINE PerformFCIMCyc()
         IF(Allocated(NewExit%ExcitData)) THEN
             DEALLOCATE(NewExit%ExcitData)
         ENDIF
-        IF(.not.OrigExit%ExitGenForDet) THEN
+        IF(.not.OrigExit%ExcitGenForDet) THEN
 !See if we actually want the excitation generator - is it for the correct determinant
-            NewExit%ExitGenForDet=.false.
+            NewExit%ExcitGenForDet=.false.
             RETURN
         ELSE
 !We want to copy the excitation generator
@@ -2783,7 +2778,7 @@ SUBROUTINE PerformFCIMCyc()
             NewExit%ExcitData(:)=OrigExit%ExcitData(:)
 !            NewExit%ExcitData(:)=OrigExit%ExcitData(:)
             NewExit%nExcitMemLen=OrigExit%nExcitMemLen
-            NewExit%ExitGenForDet=.true.
+            NewExit%ExcitGenForDet=.true.
         ENDIF
 
         RETURN
@@ -2796,7 +2791,7 @@ SUBROUTINE PerformFCIMCyc()
         INTEGER :: nI(NEl),nStore(6),iCount,IC!,Exitlevel,iGetExcitLevel
 !        REAL*8 :: Prob
 
-        IF(ExcitGen%ExitGenForDet) THEN
+        IF(ExcitGen%ExcitGenForDet) THEN
 !The excitation generator is already allocated for the determinant in question - no need to recreate it
             IF(.not.Allocated(ExcitGen%ExcitData)) THEN
                 CALL Stop_All("SetupExitgen","Excitation generator meant to already be set up")
@@ -2823,7 +2818,7 @@ SUBROUTINE PerformFCIMCyc()
 !            IF(ABS((1.D0/iMaxExcit)-Prob).gt.1.D-07) WRITE(6,"I5,I5,I9,2G20.10") ExitLevel,IC,iMaxExcit,1.D0/iMaxExcit,Prob
             
 !Indicate that the excitation generator is now correctly allocated.
-            ExcitGen%ExitGenForDet=.true.
+            ExcitGen%ExcitGenForDet=.true.
 
         ENDIF
 

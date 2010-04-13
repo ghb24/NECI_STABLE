@@ -157,22 +157,6 @@ MODULE FciMCData
       
       !*****************  Redundant variables ************************
     
-      TYPE ExcitGenerator
-          INTEGER , POINTER :: ExcitData(:)=>null()   !This stores the excitation generator
-          INTEGER :: nExcitMemLen                     !This is the length of the excitation generator
-          INTEGER :: nPointed                         !This indicates the number of elements in the excitation pointer arrays which are pointing to this position
-      END TYPE
-
-      TYPE ExcitPointer
-          INTEGER , POINTER :: PointToExcit(:)        !This is a pointer to the excitation generator in ExcitGens
-          INTEGER :: IndexinExArr                     !This is the index in ExcitGens which we are pointing at
-      END TYPE
-
-      TYPE(ExcitGenerator) , ALLOCATABLE :: ExcitGens(:)  !This is the array to store all the excitation generators
-      INTEGER , ALLOCATABLE :: FreeIndArray(:)            !This is a circular list of the free positions to put excitation generators in ExcitGens.
-      INTEGER :: BackofList,FrontOfList                   !This indicates where in the list we are.
-                                                        !We add indices which become available in ExcitGens to the front of the list, and when we use them up,
-                                                        !take off the back of the list. It is circular and so will repeat indefinitly.
 
       INTEGER , ALLOCATABLE , TARGET :: WalkVec2Dets(:,:),WalkVec2Sign(:)
       REAL(KIND=dp) , ALLOCATABLE , TARGET :: WalkVec2H(:)
@@ -184,9 +168,7 @@ MODULE FciMCData
       INTEGER , POINTER :: NewDets(:,:)
       INTEGER , POINTER :: NewSign(:)
       REAL*8 , POINTER :: NewH(:)
-      TYPE(ExcitPointer) , POINTER :: CurrentExcits(:), NewExcits(:)
 
-      TYPE(ExcitGenerator) :: HFExcit         !This is the excitation generator for the HF determinant
       INTEGER(KIND=i2) :: HFHash               !This is the hash for the HF determinant
 !This is information needed by the thermostating, so that the correct change in walker number can be calculated, and hence the correct shift change.
 !NoCulls is the number of culls in a given shift update cycle for each variable
@@ -194,5 +176,43 @@ MODULE FciMCData
 !CullInfo is the number of walkers before and after the cull (elements 1&2), and the third element is the previous number of steps before this cull...
 !Only 10 culls/growth increases are allowed in a given shift cycle
       INTEGER :: CullInfo(10,3)
+
+      ! Only used in FciMC, but put here to allow access to a data module for
+      ! the sorting routines etc.
+      type excitGenerator
+          integer, allocatable :: excitdata(:) ! The excitation generator
+          integer :: nExcitMemLen           ! Length of excitation gen.
+          logical :: excitGenForDet = .false.   ! true if excitation generator
+                                               ! stored corresponds to the
+                                               ! determinant.
+      end type
+
+      interface assignment(=)
+          module procedure excitgenerator_assign
+      end interface
+
+contains
+
+    elemental subroutine excitgenerator_assign (lhs, rhs)
+        type(excitGenerator), intent(inout) :: lhs
+        type(excitGenerator), intent(in) :: rhs
+        character(*), parameter :: this_routine = 'excitgenerator_assign'
+        integer :: ierr
+
+        if (allocated(lhs%excitData)) deallocate(lhs%excitData)
+
+        ! Do we actually want the excitation generator? Is it for the correct
+        ! determinant?
+        if (.not. rhs%excitGenForDet) then
+            lhs%excitGenForDet = .false.
+        else
+            ! Now copy the excitation generator.
+            allocate (lhs%excitData(rhs%nExcitMemLen))
+
+            lhs%excitData = rhs%excitData
+            lhs%nExcitMemLen = rhs%nExcitMemLen
+            lhs%excitGenForDet = .true.
+        endif
+    end subroutine
 
 END MODULE FciMCData

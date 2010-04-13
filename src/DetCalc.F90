@@ -685,15 +685,12 @@ CONTAINS
                 IF(.not.tEnergy) THEN
 !                    WRITE(6,*) i,FCIDetIndex(i),FCIDetIndex(i+1)-1
 !                    CALL FLUSH(6)
-                    CALL SortBitDets(FCIDetIndex(i+1)-FCIDetIndex(i), &
-                            FCIDets(:,FCIDetIndex(i):(FCIDetIndex(i+1)-1)), &
-                            temp(FCIDetIndex(i):(FCIDetIndex(i+1)-1)))
+                    call sort (FCIDets(:,FCIDetIndex(i):FCIDetIndex(i+1)-1), &
+                               temp(FCIDetIndex(i):FCIDetIndex(i+1)-1))
                 ELSE
-                    CALL SortBitDetswH( &
-                            FCIDetIndex(i+1)-FCIDetIndex(i), &
-                            FCIDets(:,FCIDetIndex(i):(FCIDetIndex(i+1)-1)), &
-                            temp(FCIDetIndex(i):(FCIDetIndex(i+1)-1)), &
-                            FCIGS(FCIDetIndex(i):(FCIDetIndex(i+1)-1)))
+                    call sort (FCIDets(:,FCIDetIndex(i):FCIDetIndex(i+1)-1), &
+                               temp(FCIDetIndex(i):FCIDetIndex(i+1)-1), &
+                               FCIGS(FCIDetIndex(i):FCIDetIndex(i+1)-1))
                 ENDIF
             enddo
 
