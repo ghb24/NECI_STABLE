@@ -2,6 +2,7 @@
 MODULE DetCalc
         Use HElem
         use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
+        use sort_mod
         
     IMPLICIT NONE
      save
@@ -650,11 +651,12 @@ CONTAINS
                 WRITE(6,*) "Number at excitation level: ",i," is: ",FCIDetIndex(i+1)
             enddo
 
-!We now want to sort the determinants according to the excitation level (stored in Temp)
+            ! We now want to sort the determinants according to the 
+            ! excitation level (stored in Temp)
             IF(.not.tEnergy) THEN
-                CALL SORTDETS(Det,Temp(1:Det),1,FCIDets(:,1:Det),NIfTot+1)
+                call sort (temp(1:Det), FCIDets(:,1:Det))
             ELSE
-                CALL SORTDETSwREALS(Det,Temp(1:Det),1,FCIDets(:,1:Det),NIfTot+1,FCIGS(1:Det),1)
+                call sort (temp(1:Det), FCIDets(:,1:Det), FCIGS(1:Det))
 !                CALL Stop_All("DetCalc","Cannot do histogramming FCI without JUSTFINDDETS at the moment (need new sorting - bug ghb24)")
             ENDIF
 

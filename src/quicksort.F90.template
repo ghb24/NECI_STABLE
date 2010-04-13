@@ -131,6 +131,10 @@ op_gt = >
 op_lt = <
 count = size(arr)
 
+[int_arr_int_doub]
+type2 = integer(kind=int32), dimension(:)
+type3 = real(kind=dp)
+
 [hel_hel_hel]
 type1 = type(helement)
 type2 = type(helement)
