@@ -22,6 +22,12 @@ type1 = integer(kind=int64)
 [doub]
 type1 = real*8
 
+[sym]
+type1 = type(Symmetry)
+
+[sympairprod]
+type1 = type(SymPairProd)
+
 ##############################################
 ############### Sort arrays ##################
 ##############################################
@@ -72,6 +78,10 @@ type2 = integer(kind=int32), dimension(:)
 
 [doub_arr_doub]
 type2 = real*8, dimension(:)
+
+[sym_arr_int]
+type1 = type(Symmetry)
+type2 = integer(kind=int32), dimension(:)
 
 ###############################################
 ########## Sort by integer array ##############
@@ -173,6 +183,10 @@ module sort_mod
     use util_mod, only: operator(.arrlt.), operator(.arrgt.), swap
 	use constants
     use helem
+	use SystemData, only: Symmetry, operator(.eq.), operator(.ne.), &
+	                      operator(.gt.), operator(.lt.), assignment(=)
+	use symdata, only: SymPairProd, operator(.eq.), operator(.ne.), &
+	                   operator(.gt.), operator(.lt.), assignment(=)
 	implicit none
 	
 	private

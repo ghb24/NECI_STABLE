@@ -21,11 +21,19 @@ type = complex*16
 
 [helem]
 type = type(helement)
+
+[sym]
+type = type(Symmetry)
+
+[sympairprod]
+type = type(SymPairProd)
 =========================
 
 module util_mod_cpts
 	use constants
 	use helem
+	use SystemData, only: Symmetry, assignment(=)
+	use symdata, only: SymPairProd, assignment(=)
 	implicit none
 
 	! Swap the  specified variables

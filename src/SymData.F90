@@ -4,25 +4,50 @@
 ! 4. memory {,de}allocation
 module SymData
 
-    use SystemData, only: BasisFn,Symmetry,SymmetrySize
+    use SystemData, only: BasisFn, Symmetry, SymmetrySize, assignment(=), &
+                          operator(.eq.), operator(.ne.), operator(.gt.), &
+                          operator(.lt.)
 
     implicit none
 
     save
 
-    !Hold information about pairs of orbitals according to the symmetry of their product.
-    TYPE SymPairProd 
-        TYPE(Symmetry) Sym  !The symmetry of a set of pairs
-        INTEGER nPairs      !The number of pairs where the direct product of the syms of the orbs in the pair is Sym
-        INTEGER nIndex      !The index of the first of these pairs in the complete list of pairs (SymStatePairs)
-        INTEGER nPairsStateSS !For abelian, SymPairProds actually holds info on pairs of sym classes not individual
-                              !states.  This is the number of pairs of states which could be generated.            
-                              !  This is if the states have the same spin 
-        INTEGER nPairsStateOS !For abelian, SymPairProds actually holds info on pairs of sym classes not individual 
-                              !states.  This is the number of pairs of states which could be generated.          
-                              !  This is if the states have opposite spin                                     
-    ENDTYPE
-    INTEGER, PARAMETER :: SymPairProdSize=SymmetrySize+4
+    ! Hold information about pairs of orbitals according to the symmetry of 
+    ! their product.
+    type SymPairProd 
+        type(Symmetry) :: Sym    ! The symmetry of a set of pairs.
+        integer :: nPairs        ! The number of pairs where the direct 
+                                 ! product of the syms of the orbs in the 
+                                 ! pair is Sym.
+        integer :: nIndex        ! The index of the first of these pairs in 
+                                 ! the complete list of pairs (SymStatePairs).
+        integer :: nPairsStateSS ! For abelian, SymPairProds actually holds 
+                                 ! info on pairs of sym classes not individual
+                                 ! states. This is the number of pairs of 
+                                 ! states which could be generated.
+                                 ! This is if the states have the same spin.
+        integer :: nPairsStateOS ! For abelian, SymPairProds actually holds 
+                                 ! info on pairs of sym classes not individual
+                                 ! states. This is the number of pairs of 
+                                 ! states which could be generated.
+                                 ! This is if the states have opposite spin.
+    end type
+    integer, parameter :: SymPairProdSize=SymmetrySize+4
+    interface assignment(=)
+        module procedure SymPairAssign
+    end interface
+    interface operator(.eq.)
+        module procedure SymPairEq
+    end interface
+    interface operator(.ne.)
+        module procedure SymPairNEq
+    end interface
+    interface operator(.gt.)
+        module procedure SymPairGt
+    end interface
+    interface operator(.lt.)
+        module procedure SymPairLt
+    end interface
 
     !Used for  SymSetupExcits* to hold internal data.  Each symclass corresponds to a single symmetry of an orbital which is present in the determinant being excited from
     TYPE SymClass 
@@ -158,5 +183,82 @@ module SymData
     INTEGER :: tagIRREPCHARS
     INTEGER :: tagSymStatePairs
     INTEGER :: tagSymPairProds
+
+contains
+    elemental subroutine SymPairAssign (lhs, rhs)
+        type(SymPairProd), intent(out) :: lhs
+        type(SymPairProd), intent(in) :: rhs
+        lhs%Sym = rhs%Sym
+        lhs%nPairs = rhs%nPairs
+        lhs%nIndex = rhs%nIndex
+        lhs%nPairsStateSS = rhs%nPairsStateSS
+        lhs%nPairsStateOS = rhs%nPairsStateOS
+    end subroutine
+    elemental logical function SymPairEq (a, b)
+        type(SymPairProd), intent(in) :: a, b
+        if (a%Sym /= b%Sym .or. a%nPairs /= a%nPairs .or. &
+            a%nIndex /= b%nIndex .or. a%nPairsStateSS /= b%nPairsStateSS &
+            .or. a%nPairsStateOS /= b%nPairsStateOs) then
+            SymPairEq = .false.
+        else
+            SymPairEq = .true.
+        endif
+    end function
+    elemental logical function SymPairNEq (a, b)
+        type(SymPairProd), intent(in) :: a, b
+        if (a%Sym /= b%Sym .or. a%nPairs /= a%nPairs .or. &
+            a%nIndex /= b%nIndex .or. a%nPairsStateSS /= b%nPairsStateSS &
+            .or. a%nPairsStateOS /= b%nPairsStateOs) then
+            SymPairNEq = .true.
+        else
+            SymPairNEq = .false.
+        endif
+    end function
+    elemental function SymPairGt (a, b) result (bGt)
+        ! Compare the first differing term in a,b. TRUE if the term in a is >.
+        type(SymPairProd), intent(in) :: a, b
+        logical :: bGt
+        bGt = .false.
+        if (a%Sym == b%Sym) then
+            if (a%nPairs == b%nPairs) then
+                if (a%nIndex == b%nIndex) then
+                    if (a%nPairsStateSS == b%nPairsStateSS) then
+                        if (a%nPairsStateOS > b%nPairsStateOS) bGt = .true.
+                    else
+                        if (a%nPairsStateSS > b%nPairsStateSS) bGt = .true.
+                    endif
+                else
+                    if (a%nIndex > b%nIndex) bGt = .true.
+                endif
+            else
+                if (a%nPairs > b%nPairs) bGt = .true.
+            endif
+        else
+            if (a%Sym > b%Sym) bGt = .true.
+        endif
+    end function
+    elemental function SymPairLt (a, b) result (bLt)
+        ! Compare the first differing term in a,b. TRUE if the term in a is <.
+        type(SymPairProd), intent(in) :: a, b
+        logical :: bLt
+        bLt = .false.
+        if (a%Sym == b%Sym) then
+            if (a%nPairs == b%nPairs) then
+                if (a%nIndex == b%nIndex) then
+                    if (a%nPairsStateSS == b%nPairsStateSS) then
+                        if (a%nPairsStateOS < b%nPairsStateOS) bLt = .true.
+                    else
+                        if (a%nPairsStateSS < b%nPairsStateSS) bLt = .true.
+                    endif
+                else
+                    if (a%nIndex < b%nIndex) bLt = .true.
+                endif
+            else
+                if (a%nPairs < b%nPairs) bLt = .true.
+            endif
+        else
+            if (a%Sym < b%Sym) bLt = .true.
+        endif
+    end function
 
 end module SymData

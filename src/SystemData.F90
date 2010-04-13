@@ -160,5 +160,45 @@ LOGICAL :: tHFNoOrder
 !  and group them under the same symrep
 LOGICAL :: tSymIgnoreEnergies
 
+! Operators for type(symmetry)
+interface assignment (=)
+    module procedure SymAssign
+end interface
+interface operator (.eq.)
+    module procedure SymEq
+end interface
+interface operator (.ne.)
+    module procedure SymNEq
+end interface
+interface operator (.gt.)
+    module procedure SymGt
+end interface
+interface operator (.lt.)
+    module procedure SymLt
+end interface
+
+contains
+    ! Operations on type(symmetry)
+    elemental subroutine SymAssign (lhs, rhs)
+        type(Symmetry), intent(out) :: lhs
+        type(Symmetry), intent(in) :: rhs
+        lhs%S = rhs%S
+    end subroutine
+    elemental logical function SymEq (a, b)
+        type(Symmetry), intent(in) :: a, b
+        SymEq = a%S .eq. b%S
+    end function
+    elemental logical function SymNEq (a, b)
+        type(Symmetry), intent(in) :: a, b
+        SymNEq = a%S .ne. b%S
+    end function
+    elemental logical function SymGt (a, b)
+        type(Symmetry), intent(in) :: a, b
+        SymGt = a%S .gt. b%S
+    end function
+    elemental logical function SymLt (a, b)
+        type(Symmetry), intent(in) :: a, b
+        SymLt = a%S .lt. b%S
+    end function
 
 end module SystemData

@@ -518,7 +518,7 @@ C.. Now enumerate all pairs, and classify their product, but don't store them.
             CALL GenSymPairs(nSymLabels,0)
 
 C.. Now sort the SymPairProds into order
-            CALL SORTSYMARR(nSymPairProds,SymPairProds,SymPairProdSize)
+            call sort (symPairProds(1:nSymPairProds))
             TOT=0
             DO I=1,nSymPairProds
 !               WRITE(6,"(I4,Z8,4I4)")
@@ -561,7 +561,7 @@ C.. Now enumerate all pairs, and classify their product, but don't store them.
             CALL GENALLSymStatePairs(NSTATES,.FALSE.,FRZ)
 
 C.. Now sort the SymPairProds into order
-            CALL SORTSYMARR(nSymPairProds,SymPairProds,SymPairProdSize)
+            call sort (symPairProds(1:nSymPairProds))
             TOT=0
 !            write(6,*) "SymPairs",nSymPairProds
             DO I=1,nSymPairProds

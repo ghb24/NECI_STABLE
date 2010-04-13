@@ -88,6 +88,7 @@ C.. If we're just counting, we don't need to keep DSTORE
          use SymData, only: nSymPairProds,nSymLabels
          use global_utilities
          use legacy_data, only: irat
+         use sort_mod
          IMPLICIT NONE
          INTEGER NEL,NI(NEL),NBASIS
          TYPE(BasisFN) G1(nBasis)
@@ -294,8 +295,7 @@ C     &         SYMPRODCOUNT(2,I),SYMPRODCOUNT(3,I)
 C         ENDDO
 
 C.  We sort the array of Symmetry products (and its associated SymProdCount info), into ascending order of product, for easy searching later.
-         CALL SORTSYMIARR(NPR,SymProds(1),SymmetrySize,
-     &                                             SymProdCount(:,1),3)
+         call sort (symProds(1:npr), symProdCount(:,1:npr)) 
 !         WRITE(6,*) NPR," Symmetry Products"
 !         WRITE(6,*) NPAIRS," Orbital Pairs"
 C.. Create a cumulative sum.
@@ -1061,8 +1061,9 @@ C.. We list them and then sort them
       Subroutine SymSetupExcits_CreateClassSymProds(nPr,nPairs,nCl,
      &   SymProds, ThisClassCount, PrevClassCount, ClassCount,Classes,
      &   SymProdCount)
-         use SystemData, only: Symmetry,SymmetrySize
+         use SystemData, only: Symmetry,SymmetrySize, nel
          use SymData, only: SymClass,SymClasses,SymLabels
+         use sort_mod
          IMPLICIT NONE
          INTEGER nPr,nPairs,nCl
          TYPE(Symmetry) SymProds(0:*)
@@ -1156,8 +1157,7 @@ C     &         SYMPRODCOUNT(2,I),SYMPRODCOUNT(3,I)
 C         ENDDO
 
 C.  We sort the array of Symmetry products (and its associated SymProdCount info), into ascending order of product, for easy searching later.
-         CALL SORTSYMIARR(NPR,SymProds(1),SymmetrySize,
-     &                                             SymProdCount(:,1),3)
+         call sort (symProds(1:npr), symProdCount(:,1:npr))
 !         WRITE(6,*) NPR," Symmetry Products"
 !         WRITE(6,*) NPAIRS," Orbital Pairs"
 C.. Create a cumulative sum.
