@@ -1881,6 +1881,7 @@ SUBROUTINE PerformFCIMCyc()
 
         IF(TStartMP1) THEN
 !Start the initial distribution off at the distribution of the MP1 eigenvector
+            CALL Stop_All("InitFciMCCalc","STARTMP1 option is depreciated except when using CCMC.")            
 
             IF(TUnbiasPGeninProjE) CALL Stop_All("InitFciMCCalc","Cannot use option UnbiasPGeninProjE with StartMP1")
 

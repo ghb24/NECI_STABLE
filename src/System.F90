@@ -996,6 +996,15 @@ MODULE System
 
           IF(TUEG) THEN
              WRITE(6,'(A)') '  *** UNIFORM ELECTRON GAS CALCULATION ***  ' 
+             if (iPeriodicDampingType /= 0) then
+                 ! We are using either a screened or an attenuated Coulomb
+                 ! potential for calculating the exchange integrals.
+                 ! This means that we need to be able to distinguish between
+                 ! exchange integrals and normal Coulomb integrals and hence we
+                 ! should refer to spin-orbitals throughout.
+                 nBasisMax(2,3) = 1
+                 tStoreSpinOrbs = .true.
+             end if
              IF(FUEGRS.NE.0.D0) THEN
                 WRITE(6,'(A,I10)') '  Electron Gas Rs set to ',FUEGRS
                 OMEGA=BOX*BOX*BOX*BOA*COA
@@ -1385,16 +1394,32 @@ END MODULE System
 SUBROUTINE WRITEBASIS(NUNIT,G1,NHG,ARR,BRR)
   ! Write out the current basis to unit nUnit
   use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
-  use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
+  use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB, nel
+  use DeterminantData, only: fdet
   IMPLICIT NONE
   INTEGER NUNIT,NHG,BRR(NHG),I
+  integer :: pos
   TYPE(BASISFN) G1(NHG)
   REAL*8 ARR(NHG,2)
+
+  ! nb. Cannot use EncodeBitDet as would be easy, as nifd, niftot etc are not
+  !     filled in yet. --> track pos.
+  if (.not. associated(fdet)) &
+      write(nunit,'("HF determinant not yet defined.")')
+  pos = 1
+
   DO I=1,NHG
       WRITE(NUNIT,'(6I7)',advance='no') I,BRR(I),G1(BRR(I))%K(1), G1(BRR(I))%K(2),G1(BRR(I))%K(3), G1(BRR(I))%MS
       CALL WRITESYM(NUNIT,G1(BRR(I))%SYM,.FALSE.)
       WRITE(NUNIT,'(I4)',advance='no') G1(BRR(I))%Ml
-      WRITE(NUNIT,'(2F19.9)')  ARR(I,1),ARR(BRR(I),2)
+      WRITE(NUNIT,'(2F19.9)', advance='no')  ARR(I,1),ARR(BRR(I),2)
+      if (associated(fdet)) then
+          do while (pos < nel .and. fdet(pos) < i)
+              pos = pos + 1
+          enddo
+          if (i == fdet(pos)) write (nunit, '(" #")', advance='no')
+      endif
+      write (nunit,*)
   ENDDO
   RETURN
 END SUBROUTINE WRITEBASIS

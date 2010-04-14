@@ -2460,19 +2460,19 @@ MODULE GenRandSymExcitNUMod
         jSpin=G1(Ex(1,2))%Ms
         IF (iSpin.eq.-1) THEN ! i is a beta spin
             IF (jSpin.eq.-1) THEN ! ij is beta/beta
-                pAIJ=1.0/(nBasis/2-nOccBeta)
+                pAIJ=1.D0/(nBasis/2-nOccBeta)
             ELSE !ij is alpha/beta
-                pAIJ=1.0/(nBasis-Nel)
+                pAIJ=1.D0/(nBasis-Nel)
             ENDIF
         ELSE ! i is an alpha spin
             IF (jSpin.eq.1) THEN ! ij is alpha/alpha
-                pAIJ=1.0/(nBasis/2-nOccAlpha)
+                pAIJ=1.D0/(nBasis/2-nOccAlpha)
             ELSE
-                pAIJ=1.0/(nBasis/2-nOccBeta)
+                pAIJ=1.D0/(nBasis-Nel)
             ENDIF
         ENDIF
         ! Note, p(b|ij)=p(a|ij) for this system
-        pGen=2.0/(NEl*(NEl-1))*2.0*pAIJ
+        pGen=(2.D0/(NEl*(NEl-1)))*2.D0*pAIJ
 
     END SUBROUTINE CalcPGenLattice
 

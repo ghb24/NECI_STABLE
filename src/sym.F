@@ -2385,7 +2385,7 @@ C.. Set to be totally symmetric
      &                 REAL(AcceptAll,8))*Frac*FullSpace
                  enddo
                  IF(iProcIndex.eq.0) THEN
-                     WRITE(14,"(2I16,G25.10,F30.5)",advance='no') i,    &
+                     WRITE(14,"(2I16,2G35.15)",advance='no') i,         &
      &                  AcceptAll,Frac,Frac*FullSpace
                      do j=0,NEl
                          WRITE(14,"(F30.5)",advance='no') SizeLevel(j)
@@ -2419,7 +2419,7 @@ C.. Set to be totally symmetric
          enddo
 
          IF(iProcIndex.eq.0) THEN
-             WRITE(14,"(2I16,G25.10,F30.5)",advance='no') i,AcceptAll,  &
+             WRITE(14,"(2I16,2G35.15)",advance='no') i,AcceptAll,       &
      &           Frac,Frac*FullSpace
                  do j=0,NEl
                      WRITE(14,"(F30.5)",advance='no') SizeLevel(j)

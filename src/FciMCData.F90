@@ -26,13 +26,13 @@ MODULE FciMCData
       INTEGER , POINTER :: SpawnedSign(:),SpawnedSign2(:)
 
       INTEGER :: ParentInitiator                                !This is a variable for the CASSTAR approximation - keeps track of where spawned walkers have come from.
-      INTEGER :: NoAbortedInCAS,NoAbortedOutCAS,NoInCAS,NoOutCAS,HighPopFlip,MaxInitPop
+      INTEGER :: NoAbortedInCAS,NoAbortedOutCAS,NoInCAS,NoOutCAS,HighPopNeg,HighPopPos,MaxInitPopNeg,MaxInitPopPos
       REAL*8 :: AllGrowRateAbort,NoAborted,AllNoAborted,NoAddedInitiators,AllNoAddedInitiators,NoInitDets,AllNoInitDets
       REAL(KIND=dp) :: AllNoAbortedOld 
       REAL*8 :: NoNonInitDets,NoInitWalk,NoNonInitWalk,NoDoubSpawns,InitRemoved,AllInitRemoved
       REAL*8 :: AllNoNonInitDets,AllNoInitWalk,AllNoNonInitWalk,AllNoDoubSpawns
       REAL*8 :: NoExtraInitDoubs,AllNoExtraInitDoubs
-      LOGICAL :: tHFInitiator,tFlipHighPopFound,tFlipHighPopSign
+      LOGICAL :: tHFInitiator,tPrintHighPop
  
       REAL*8 :: AvDiagSftAbort,SumDiagSftAbort,DiagSftAbort     !This is the average diagonal shift value since it started varying, and the sum of the shifts since it started varying, and
                                                                 !the instantaneous shift, including the number of aborted as though they had lived.
@@ -151,6 +151,10 @@ MODULE FciMCData
       INTEGER :: OldAllNoatHF
 
       INTEGER :: iHFProc    !Processor index for HF determinant
+
+      !This data is for calculating the highest population determinant, and potentially restarting the calculation based on this determinant, or changing the determiant which the energy is calculated from.
+      INTEGER :: iHighestPop
+      INTEGER , ALLOCATABLE :: HighestPopDet(:),ProjEDet(:),iLutRef(:)
 
       
       
