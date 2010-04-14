@@ -140,7 +140,9 @@ def adj_arrays (template, config):
 		#re_var = re.compile ('\n\s*%%\(%s\)s.*::\s*([^()]*)([\s^\n]*\(([:,]*)\))*\n' % type)
 		re_var = re.compile ('\n\s*%%\(%s\)s.*::\s*([^()]*)([\s^\n]*\(([:,]*)\))*.*\n' % type)
 
-		for v in re_var.finditer(template):
+		v = re_var.search(template)
+		offset = 0
+		while v:
 			if v.group(2) == None:
 				vars[v.group(1)] = (type, types[type])
 			else:
@@ -149,11 +151,13 @@ def adj_arrays (template, config):
 			# If we are sizing an array based on the size of another, remove
 			# this condition if the type is actually a scalar in this case.
 			if types[type] == 0 and v.group(2) == None:
-				re_fix = re.compile ('(\n\s*%%\(%s\)s.*::[\s^\n]*([^()\n]*))'
-				                     '([\s^\n]*\(([^()\n]|\(([^()\n]|'
-									 '\([^()\n]*\))*\))*\))*' % type)
-				template = (template[0:v.start()] + 
-				            re_fix.sub("\\1", template[v.start():], 1))
+				re_fix = re.compile ('(\n\s*%%\(%s\)s.*::[\s^\n]*([^\(\)\n]*))'
+				                     '([\s^\n]*\(([^\(\)\n]|\(([^\(\)\n]|'
+									 '\([^\(\)\n]*\))*\))*\))*' % type)
+				template = (template[0:v.start()+offset] + 
+				            re_fix.sub("\\1", template[v.start()+offset:], 1))
+			offset = offset + v.start() + 1
+			v = re_var.search(template[offset:])
 
 	# Replace the relevant occurrances
 	for var in vars:

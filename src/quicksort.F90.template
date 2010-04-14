@@ -216,7 +216,7 @@ extra_arrs = arr2, arr3, arr4, arr5, arr6,
 #define srt_ind(i) (((i)*nskip_)+1)
 
 module sort_mod
-    use util_mod, only: operator(.arrlt.), operator(.arrgt.), swap
+    use util_mod, only: operator(.arrlt.), operator(.arrgt.)
 	use constants
     use helem
 	use SystemData, only: Symmetry, operator(.eq.), operator(.ne.), &
@@ -264,6 +264,14 @@ contains
         %(type4)s :: a4(size(arr4(1)))
         %(type5)s :: a5(size(arr5(1)))
         %(type6)s :: a6(size(arr6(1)))
+
+        ! Temporary variables for swapping
+        %(type1)s :: tmp1(size(arr(1)))
+        %(type2)s :: tmp2(size(arr2(1)))
+        %(type3)s :: tmp3(size(arr3(1)))
+        %(type4)s :: tmp4(size(arr4(1)))
+        %(type5)s :: tmp5(size(arr5(1)))
+        %(type6)s :: tmp6(size(arr6(1)))
         character(*), parameter :: this_routine = 'name'
 
 		if (present(nskip)) then
@@ -319,36 +327,84 @@ contains
                 ! Pick a partitioning element, and arrange such that
                 ! arr(lo) <= arr(lo+1) <= arr(hi) 
                 pivot = (lo + hi) / 2
-                call swap (arr(srt_ind(pivot)), arr(srt_ind(lo + 1)))
-                %(arr2_prefix)s call swap (arr2(srt_ind(pivot)), arr2(srt_ind(lo+1)))
-                %(arr3_prefix)s call swap (arr3(srt_ind(pivot)), arr3(srt_ind(lo+1)))
-                %(arr4_prefix)s call swap (arr4(srt_ind(pivot)), arr4(srt_ind(lo+1)))
-                %(arr5_prefix)s call swap (arr5(srt_ind(pivot)), arr5(srt_ind(lo+1)))
-                %(arr6_prefix)s call swap (arr6(srt_ind(pivot)), arr6(srt_ind(lo+1)))
+                tmp1 = arr(srt_ind(pivot))
+                arr(srt_ind(pivot)) = arr(srt_ind(lo + 1))
+                arr(srt_ind(lo + 1)) = tmp1
+                %(arr2_prefix)s tmp2 = arr2(srt_ind(pivot))
+                %(arr2_prefix)s arr2(srt_ind(pivot)) = arr2(srt_ind(lo+1))
+                %(arr2_prefix)s arr2(srt_ind(lo+1)) = tmp2
+                %(arr3_prefix)s tmp3 = arr3(srt_ind(pivot))
+                %(arr3_prefix)s arr3(srt_ind(pivot)) = arr3(srt_ind(lo+1))
+                %(arr3_prefix)s arr3(srt_ind(lo+1)) = tmp3
+                %(arr4_prefix)s tmp4 = arr4(srt_ind(pivot))
+                %(arr4_prefix)s arr4(srt_ind(pivot)) = arr4(srt_ind(lo+1))
+                %(arr4_prefix)s arr4(srt_ind(lo+1)) = tmp4
+                %(arr5_prefix)s tmp5 = arr5(srt_ind(pivot))
+                %(arr5_prefix)s arr5(srt_ind(pivot)) = arr5(srt_ind(lo+1))
+                %(arr5_prefix)s arr5(srt_ind(lo+1)) = tmp5
+                %(arr6_prefix)s tmp6 = arr6(srt_ind(pivot))
+                %(arr6_prefix)s arr6(srt_ind(pivot)) = arr6(srt_ind(lo+1))
+                %(arr6_prefix)s arr6(srt_ind(lo+1)) = tmp6
 
                 if (arr(srt_ind(lo)) %(op_gt)s arr(srt_ind(hi))) then
-                    call swap (arr(srt_ind(lo)), arr(srt_ind(hi)))
-                    %(arr2_prefix)s call swap (arr2(srt_ind(lo)), arr2(srt_ind(hi)))
-                    %(arr3_prefix)s call swap (arr3(srt_ind(lo)), arr3(srt_ind(hi)))
-                    %(arr4_prefix)s call swap (arr4(srt_ind(lo)), arr4(srt_ind(hi)))
-                    %(arr5_prefix)s call swap (arr5(srt_ind(lo)), arr5(srt_ind(hi)))
-                    %(arr6_prefix)s call swap (arr6(srt_ind(lo)), arr6(srt_ind(hi)))
+                    tmp1 = arr(srt_ind(lo))
+                    arr(srt_ind(lo)) = arr(srt_ind(hi))
+                    arr(srt_ind(hi)) = tmp1
+                    %(arr2_prefix)s tmp2 = arr2(srt_ind(lo))
+                    %(arr2_prefix)s arr2(srt_ind(lo)) = arr2(srt_ind(hi))
+                    %(arr2_prefix)s arr2(srt_ind(hi)) = tmp2
+                    %(arr3_prefix)s tmp3 = arr3(srt_ind(lo))
+                    %(arr3_prefix)s arr3(srt_ind(lo)) = arr3(srt_ind(hi))
+                    %(arr3_prefix)s arr3(srt_ind(hi)) = tmp3
+                    %(arr4_prefix)s tmp4 = arr4(srt_ind(lo))
+                    %(arr4_prefix)s arr4(srt_ind(lo)) = arr4(srt_ind(hi))
+                    %(arr4_prefix)s arr4(srt_ind(hi)) = tmp4
+                    %(arr5_prefix)s tmp5 = arr5(srt_ind(lo))
+                    %(arr5_prefix)s arr5(srt_ind(lo)) = arr5(srt_ind(hi))
+                    %(arr5_prefix)s arr5(srt_ind(hi)) = tmp5
+                    %(arr6_prefix)s tmp6 = arr6(srt_ind(lo))
+                    %(arr6_prefix)s arr6(srt_ind(lo)) = arr6(srt_ind(hi))
+                    %(arr6_prefix)s arr6(srt_ind(hi)) = tmp6
                 endif
                 if (arr(srt_ind(lo+1)) %(op_gt)s arr(srt_ind(hi))) then
-                    call swap (arr(srt_ind(lo+1)), arr(srt_ind(hi)))
-                    %(arr2_prefix)s call swap (arr2(srt_ind(lo+1)), arr2(srt_ind(hi)))
-                    %(arr3_prefix)s call swap (arr3(srt_ind(lo+1)), arr3(srt_ind(hi)))
-                    %(arr4_prefix)s call swap (arr4(srt_ind(lo+1)), arr4(srt_ind(hi)))
-                    %(arr5_prefix)s call swap (arr5(srt_ind(lo+1)), arr5(srt_ind(hi)))
-                    %(arr6_prefix)s call swap (arr6(srt_ind(lo+1)), arr6(srt_ind(hi)))
+                    tmp1 = arr(srt_ind(lo+1))
+                    arr(srt_ind(lo+1)) = arr(srt_ind(hi))
+                    arr(srt_ind(hi)) = tmp1
+                    %(arr2_prefix)s tmp2 = arr2(srt_ind(lo+1))
+                    %(arr2_prefix)s arr2(srt_ind(lo+1)) = arr2(srt_ind(hi))
+                    %(arr2_prefix)s arr2(srt_ind(hi)) = tmp2
+                    %(arr3_prefix)s tmp3 = arr3(srt_ind(lo+1))
+                    %(arr3_prefix)s arr3(srt_ind(lo+1)) = arr3(srt_ind(hi))
+                    %(arr3_prefix)s arr3(srt_ind(hi)) = tmp3
+                    %(arr4_prefix)s tmp4 = arr4(srt_ind(lo+1))
+                    %(arr4_prefix)s arr4(srt_ind(lo+1)) = arr4(srt_ind(hi))
+                    %(arr4_prefix)s arr4(srt_ind(hi)) = tmp4
+                    %(arr5_prefix)s tmp5 = arr5(srt_ind(lo+1))
+                    %(arr5_prefix)s arr5(srt_ind(lo+1)) = arr5(srt_ind(hi))
+                    %(arr5_prefix)s arr5(srt_ind(hi)) = tmp5
+                    %(arr6_prefix)s tmp6 = arr6(srt_ind(lo+1))
+                    %(arr6_prefix)s arr6(srt_ind(lo+1)) = arr6(srt_ind(hi))
+                    %(arr6_prefix)s arr6(srt_ind(hi)) = tmp6
                 endif
                 if (arr(srt_ind(lo)) %(op_gt)s arr(srt_ind(lo+1))) then
-                    call swap (arr(srt_ind(lo)), arr(srt_ind(lo+1)))
-                    %(arr2_prefix)s call swap (arr2(srt_ind(lo)), arr2(srt_ind(lo+1)))
-                    %(arr3_prefix)s call swap (arr3(srt_ind(lo)), arr3(srt_ind(lo+1)))
-                    %(arr4_prefix)s call swap (arr4(srt_ind(lo)), arr4(srt_ind(lo+1)))
-                    %(arr5_prefix)s call swap (arr5(srt_ind(lo)), arr5(srt_ind(lo+1)))
-                    %(arr6_prefix)s call swap (arr6(srt_ind(lo)), arr6(srt_ind(lo+1)))
+                    tmp1 = arr(srt_ind(lo))
+                    arr(srt_ind(lo)) = arr(srt_ind(lo+1))
+                    arr(srt_ind(lo+1)) = tmp1
+                    %(arr2_prefix)s tmp2 = arr2(srt_ind(lo))
+                    %(arr2_prefix)s arr2(srt_ind(lo)) = arr2(srt_ind(lo+1))
+                    %(arr2_prefix)s arr2(srt_ind(lo+1)) = tmp2
+                    %(arr3_prefix)s tmp3 = arr3(srt_ind(lo))
+                    %(arr3_prefix)s arr3(srt_ind(lo)) = arr3(srt_ind(lo+1))
+                    %(arr3_prefix)s arr3(srt_ind(lo+1)) = tmp3
+                    %(arr4_prefix)s tmp4 = arr4(srt_ind(lo))
+                    %(arr4_prefix)s arr4(srt_ind(lo)) = arr4(srt_ind(lo+1))
+                    %(arr4_prefix)s arr4(srt_ind(lo+1)) = tmp4
+                    %(arr5_prefix)s tmp5 = arr5(srt_ind(lo))
+                    %(arr5_prefix)s arr5(srt_ind(lo)) = arr5(srt_ind(lo+1))
+                    %(arr5_prefix)s arr5(srt_ind(lo+1)) = tmp5
+                    %(arr6_prefix)s tmp6 = arr6(srt_ind(lo))
+                    %(arr6_prefix)s arr6(srt_ind(lo)) = arr6(srt_ind(lo+1))
+                    %(arr6_prefix)s arr6(srt_ind(lo+1)) = tmp6
                 endif
 
                 i = lo + 1
@@ -377,12 +433,24 @@ contains
 
                     ! Swap the elements, so that all elements < a end up
                     ! in lower indexed variables. 
-                    call swap (arr(srt_ind(i)), arr(srt_ind(j)))
-                    %(arr2_prefix)s call swap (arr2(srt_ind(i)), arr2(srt_ind(j)))
-                    %(arr3_prefix)s call swap (arr3(srt_ind(i)), arr3(srt_ind(j)))
-                    %(arr4_prefix)s call swap (arr4(srt_ind(i)), arr4(srt_ind(j)))
-                    %(arr5_prefix)s call swap (arr5(srt_ind(i)), arr5(srt_ind(j)))
-                    %(arr6_prefix)s call swap (arr6(srt_ind(i)), arr6(srt_ind(j)))
+                    tmp1 = arr(srt_ind(i))
+                    arr(srt_ind(i)) = arr(srt_ind(j))
+                    arr(srt_ind(j)) = tmp1
+                    %(arr2_prefix)s tmp2 = arr2(srt_ind(i))
+                    %(arr2_prefix)s arr2(srt_ind(i)) = arr2(srt_ind(j))
+                    %(arr2_prefix)s arr2(srt_ind(j)) = tmp2
+                    %(arr3_prefix)s tmp3 = arr3(srt_ind(i))
+                    %(arr3_prefix)s arr3(srt_ind(i)) = arr3(srt_ind(j))
+                    %(arr3_prefix)s arr3(srt_ind(j)) = tmp3
+                    %(arr4_prefix)s tmp4 = arr4(srt_ind(i))
+                    %(arr4_prefix)s arr4(srt_ind(i)) = arr4(srt_ind(j))
+                    %(arr4_prefix)s arr4(srt_ind(j)) = tmp4
+                    %(arr5_prefix)s tmp5 = arr5(srt_ind(i))
+                    %(arr5_prefix)s arr5(srt_ind(i)) = arr5(srt_ind(j))
+                    %(arr5_prefix)s arr5(srt_ind(j)) = tmp5
+                    %(arr6_prefix)s tmp6 = arr6(srt_ind(i))
+                    %(arr6_prefix)s arr6(srt_ind(i)) = arr6(srt_ind(j))
+                    %(arr6_prefix)s arr6(srt_ind(j)) = tmp6
                 enddo;
 
                 ! Insert partitioning element 
