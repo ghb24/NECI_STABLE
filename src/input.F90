@@ -204,7 +204,7 @@ INTEGER, INTENT(IN), OPTIONAL :: inunit
 CHARACTER(LEN=255) :: w, f
 CHARACTER :: term
 
-INTEGER, SAVE :: lrecl = 128
+INTEGER, SAVE :: lrecl = 256
 INTEGER :: in, fail, i, k, l, m
 
 eof=.false.

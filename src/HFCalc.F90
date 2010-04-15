@@ -17,6 +17,7 @@ MODULE HFCalc
       Use UMatCache, only: GetUMatSize
       Use OneEInts, only: TMat2D, SetupTMat2, DestroyTMat
       use sort_mod
+      use shared_alloc, only: shared_allocate, shared_deallocate
       character(25), parameter :: this_routine='HFDoCalc'
       Type(HElement),ALLOCATABLE :: HFBASIS(:),HFE(:)
       Type(HElement),pointer :: UMat2(:)
@@ -85,7 +86,8 @@ MODULE HFCalc
                 NULLIFY(TMAT2D2)
 !C.. Allocate the new matrix
                CALL GetUMatSize(nBasis,nEl,1,UMATINT)
-               Allocate(UMat2(UMatInt), stat=ierr)
+               call shared_allocate ("umat2", umat2, (/UMatInt/))
+               !Allocate(UMat2(UMatInt), stat=ierr)
                LogAlloc(ierr,'UMAT2', UMatInt, HElementSizeB, tagUMat2)
                UMAT2=HElement(0.d0)
 !C.. We need to pass the TMAT to CALCHFUMAT as TMAT is no longer diagona
@@ -98,7 +100,8 @@ MODULE HFCalc
 !C.. Now we can remove the old UMATRIX, and set the pointer UMAT to point
 !C.. to UMAT2
                LogDealloc(tagUMat)
-               Deallocate(UMat)
+               call shared_deallocate (umat)
+               !Deallocate(UMat)
                UMat=>UMat2
                nullify(UMat2)
                tagUMat=tagUMat2

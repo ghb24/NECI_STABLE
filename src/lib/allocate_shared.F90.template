@@ -1,0 +1,204 @@
+[int1]
+type = integer
+sizeof = sizeof_int
+dim = :
+elem1 = 1
+
+[int2]
+dim = :,:
+elem1 = 1,1
+
+[int3]
+dim = :,:,:
+elem1 = 1,1,1
+
+[int4]
+dim = :,:,:,:
+elem1 = 1,1,1,1
+
+[int5]
+dim = :,:,:,:,:
+elem1 = 1,1,1,1,1
+
+[int6]
+dim = :,:,:,:,:,:
+elem1 = 1,1,1,1,1,1
+
+[int7]
+dim = :,:,:,:,:,:,:
+elem1 = 1,1,1,1,1,1,1
+
+[doub1]
+type = real*8
+sizeof = sizeof_dp
+dim = :
+elem1 = 1
+
+[doub2]
+dim = :,:
+elem1 = 1,1
+
+[doub3]
+dim = :,:,:
+elem1 = 1,1,1
+
+[doub4]
+dim = :,:,:,:
+elem1 = 1,1,1,1
+
+[doub5]
+dim = :,:,:,:,:
+elem1 = 1,1,1,1,1
+
+[doub6]
+dim = :,:,:,:,:,:
+elem1 = 1,1,1,1,1,1
+
+[doub7]
+dim = :,:,:,:,:,:,:
+elem1 = 1,1,1,1,1,1,1
+
+[real1]
+type = real*4
+sizeof = sizeof_sp
+dim = :
+elem1 = 1
+
+[real2]
+dim = :,:
+elem1 = 1,1
+
+[real3]
+dim = :,:,:
+elem1 = 1,1,1
+
+[real4]
+dim = :,:,:,:
+elem1 = 1,1,1,1
+
+[real5]
+dim = :,:,:,:,:
+elem1 = 1,1,1,1,1
+
+[real6]
+dim = :,:,:,:,:,:
+elem1 = 1,1,1,1,1,1
+
+[real7]
+dim = :,:,:,:,:,:,:
+elem1 = 1,1,1,1,1,1,1
+
+[helem1]
+type = type(helement)
+sizeof = sizeof_helement
+dim = :
+elem1 = 1
+
+[helem2]
+dim = :,:
+elem1 = 1,1
+
+[helem3]
+dim = :,:,:
+elem1 = 1,1,1
+
+[helem4]
+dim = :,:,:,:
+elem1 = 1,1,1,1
+
+[helem5]
+dim = :,:,:,:,:
+elem1 = 1,1,1,1,1
+
+[helem6]
+dim = :,:,:,:,:,:
+elem1 = 1,1,1,1,1,1
+
+[helem7]
+dim = :,:,:,:,:,:,:
+elem1 = 1,1,1,1,1,1,1
+
+
+=========================
+
+
+module shared_alloc
+	use, intrinsic :: iso_c_binding
+	use constants
+	use HElem
+	implicit none
+
+	private
+	public :: shared_allocate, shared_deallocate
+
+    interface
+		subroutine alloc_shared_worker (nm, pt, sz)
+            use, intrinsic :: iso_c_binding
+            implicit none
+            character*5, intent(in) :: nm
+			type(c_ptr), intent(inout) :: pt
+            integer(c_size_t), value :: sz
+        end subroutine
+        subroutine dealloc_shared_worker (ptr)
+            use, intrinsic :: iso_c_binding
+            implicit none
+            type(c_ptr), value :: ptr
+        end subroutine
+    end interface
+
+	interface shared_allocate
+		module procedure shared_allocate_%(name)s
+	end interface
+	interface shared_deallocate
+		module procedure shared_deallocate_%(name)s
+	end interface
+
+contains
+
+	subroutine shared_allocate_%(name)s (nm, ptr, dims)
+
+		character(*), intent(in) :: nm
+		%(type)s, dimension(%(dim)s), intent(inout), pointer :: ptr
+		integer, intent(in) :: dims((len_trim('%(dim)s') + 1) / 2) ! compile time const.
+
+		integer :: sz
+		%(type)s :: tester
+		character(len=len_trim(nm)+1) :: name_tmp
+		type(c_ptr) :: tmp
+
+		sz = %(sizeof)s * product(dims)
+
+		! Allocate the shared memory
+		name_tmp = trim(nm)//c_null_char
+		call alloc_shared_worker (trim(nm)//c_null_char, tmp, &
+		                          int(sz, kind=c_size_t))
+
+		! Assign to a fortran pointer.
+		call c_f_pointer (tmp, ptr, dims)
+
+		write (6, '("Allocated ", i10, " bytes of shared memory named: ", a)')&
+		       sz, nm
+	end subroutine
+
+	subroutine shared_deallocate_%(name)s (ptr)
+		%(type)s, dimension(%(dim)s), intent(inout), pointer :: ptr
+		%(type)s, pointer :: pt1
+		type(c_ptr) :: tmp
+
+		! Get a pointer to the first element. c_loc requries its argument to
+		! be a scalar variable.
+		pt1 => ptr(%(elem1)s)
+
+		tmp = c_loc(pt1)
+		call dealloc_shared_worker (tmp)
+
+		nullify(ptr)
+	end subroutine
+end module
+
+supermodule shared_alloc
+	interface
+		subroutine cleanup_shared_alloc ()
+		end subroutine
+	end interface
+end supermodule
