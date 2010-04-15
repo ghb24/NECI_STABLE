@@ -1819,7 +1819,7 @@ END SUBROUTINE
       IF(tHistSpawn) THEN
          Call InitHistMin() !Setup Histogramming arrays if needed 
       ENDIF
-      WRITE(6,*) "After hist"
+      call flush(6)
       CALL WriteFciMCStatsHeader()
 !      CALL WriteFCIMCStats()
 
