@@ -1613,7 +1613,8 @@ SUBROUTINE InitMP1Amplitude(tFCI,Amplitude,nExcit,ExcitList,ExcitLevelIndex,dIni
          Htmp = get_helement (HFDet,  DetCurr, iC, iLutHF, ExcitList(:,j))
          H0tmp=GetH0Element3(DetCurr)
          H0tmp=H0tmp-H0HF
-         Amplitude(j)=Amplitude(j)-dInitAmp*DREAL(Htmp)/DREAL(H0tmp)
+         dTmp=DREAL(H0tmp)
+         if(abs(dTmp)>1e-3) Amplitude(j)=Amplitude(j)-dInitAmp*DREAL(Htmp)/dTmp
          if(iC.eq.1.and..not.tFCI) then
             do l=ExcitLevelIndex(1),j-1
                iSgn=1
@@ -1760,6 +1761,7 @@ END SUBROUTINE
          nAmpl=Det
          iMaxLevel=nEl
       endif
+      write(6,*) "Number of stored amplitudes: ",nAmpl
 ! Setup Memory
       Allocate(Amplitude(nAmpl,2),stat=ierr)
       LogAlloc(ierr,'Amplitude',nAmpl*2,8,tagAmplitude)
