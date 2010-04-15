@@ -581,7 +581,8 @@ MODULE FciMCParMod
     SUBROUTINE CalcParentFlag(j,tHFFound,tHFFoundTemp,VecSlot,Iter)
         USE CalcData , only : tAddtoInitiator,InitiatorWalkNo,tInitIncDoubs
         USE FciMCLoggingMOD, only : InitBinMin,InitBinIter
-        INTEGER :: j,WalkExcitLevel,InitBinNo,VecSlot,Iter
+        INTEGER , INTENT(IN) :: j,VecSlot,Iter
+        INTEGER :: j,WalkExcitLevel,InitBinNo
         LOGICAL :: tParentInCAS,tHFFound,tHFFoundTemp
 
 !This it the case where the fixed initiator space is defined using the CAS notation, or where it is limited to only the HF determinant.                           
@@ -4688,12 +4689,12 @@ MODULE FciMCParMod
     SUBROUTINE SumEContrib(DetCurr,ExcitLevel,WSign,iLutCurr,HDiagCurr,dProbFin)
         use SystemData, only : tNoBrillouin
         use CalcData, only: tFCIMC
-        INTEGER :: DetCurr(NEl),ExcitLevel,i,HighIndex,LowIndex,iLutCurr(0:NIfTot),WSign,Bin
+        INTEGER , intent(in) :: DetCurr(NEl),ExcitLevel,WSign,iLutCurr(0:NIfTot)
+        INTEGER :: i,HighIndex,LowIndex,Bin
         INTEGER :: PartInd,iLutSym(0:NIfTot),OpenOrbs
         LOGICAL :: CompiPath,tSuccess,iLut2(0:NIfTot)
-        REAL*8 :: HDiagCurr
+        REAL*8 , intent(in) :: HDiagCurr,dProbFin
         TYPE(HElement) :: HOffDiag
-        real*8 dProbFin
 !        write(81,*) DetCurr,ExcitLevel,WSign,iLutCurr,HDiagCurr,dProb
 
 !        MeanExcitLevel=MeanExcitLevel+real(ExcitLevel,dp)

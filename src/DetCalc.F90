@@ -763,7 +763,7 @@ CONTAINS
                         WRITE(17,"(A,G25.16,A)",advance='no') " ",FCIGS(i),"  "
                         Call WriteBitDet(17,FCIDets(:,i),.true.)
                    enddo
-                    CLOSE(17)
+                   CLOSE(17)
                 ENDIF
                 DEALLOCATE(FCIGS)
             ELSE
