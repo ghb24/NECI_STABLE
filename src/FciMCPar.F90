@@ -582,7 +582,7 @@ MODULE FciMCParMod
         USE CalcData , only : tAddtoInitiator,InitiatorWalkNo,tInitIncDoubs
         USE FciMCLoggingMOD, only : InitBinMin,InitBinIter
         INTEGER , INTENT(IN) :: j,VecSlot,Iter
-        INTEGER :: j,WalkExcitLevel,InitBinNo
+        INTEGER :: WalkExcitLevel,InitBinNo
         LOGICAL :: tParentInCAS,tHFFound,tHFFoundTemp
 
 !This it the case where the fixed initiator space is defined using the CAS notation, or where it is limited to only the HF determinant.                           
