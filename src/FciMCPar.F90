@@ -14,7 +14,7 @@ MODULE FciMCParMod
     use SystemData , only : NEl,Alat,Brr,ECore,G1,nBasis,nBasisMax,nMsh,Arr,LMS,tHPHF,NIfD,NIfTot,NIfDBO,NIfY
     use SystemData , only : tHub,tReal,tRotatedOrbs,tFindCINatOrbs,tFixLz,LzTot,tUEG, tLatticeGens,tCSF
     use CalcData , only : InitWalkers,NMCyc,DiagSft,Tau,SftDamp,StepsSft,OccCASorbs,VirtCASorbs,tFindGroundDet
-    use CalcData , only : NEquilSteps,TReadPops,tRegenDiagHEls
+    use CalcData , only : NEquilSteps,TReadPops,tRegenDiagHEls, iFullSpaceIter
     use CalcData , only : GrowMaxFactor,CullFactor,TStartSinglePart,ScaleWalkers,MaxNoatHF,HFPopThresh
     use CalcData , only : tCCMC,tTruncCAS,tTruncInitiator,tDelayTruncInit,IterTruncInit,NShiftEquilSteps,tWalkContGrow,tMCExcits,NoMCExcits
     use HPHFRandExcitMod, only: FindExcitBitDetSym, GenRandHPHFExcit, &
@@ -25,7 +25,7 @@ MODULE FciMCParMod
                                     ScratchSize
     use GenRandSymExcitCSF, only: gen_csf_excit
     use IntegralsData , only : fck,NMax,UMat,tPartFreezeCore,NPartFrozen,NHolesFrozen,tPartFreezeVirt,NVirtPartFrozen,NElVirtFrozen
-    USE UMatCache , only : GTID
+    use UMatCache, only: GTID, UMatInd
     USE Logging , only : iWritePopsEvery,TPopsFile,iPopsPartEvery,tBinPops,tHistSpawn,iWriteHistEvery,tHistEnergies,IterShiftBlock,AllHistInitPops
     USE Logging , only : BinRange,iNoBins,OffDiagBinRange,OffDiagMax,AllHistInitPopsTag
     USE Logging , only : tPrintFCIMCPsi,tCalcFCIMCPsi,NHistEquilSteps,tPrintOrbOcc,StartPrintOrbOcc
@@ -42,6 +42,12 @@ MODULE FciMCParMod
     use hphf_integrals, only: hphf_diag_helement, hphf_off_diag_helement
     use util_mod, only: choose
     use constants, only: dp
+    use soft_exit, only: ChangeVars 
+    use FciMCLoggingMod, only: FinaliseBlocking, FinaliseShiftBlocking, &
+                               PrintShiftBlocking, PrintBlocking, &
+                               SumInErrorContrib, WriteInitPops
+    use RotateOrbsMod, only: RotateOrbs
+    use NatOrbsMod, only: PrintOrbOccs
     implicit none
 
     interface
@@ -88,13 +94,6 @@ MODULE FciMCParMod
 #ifdef PARALLEL
 
     SUBROUTINE FciMCPar(Weight,Energyxw)
-        use soft_exit, only : ChangeVars 
-        use CalcData, only : iFullSpaceIter
-        use UMatCache, only : UMatInd
-        use FciMCLoggingMOD , only : FinaliseBlocking,FinaliseShiftBlocking,PrintShiftBlocking,PrintBlocking
-        USE FciMCLoggingMOD , only : SumInErrorContrib,WriteInitPops
-        use RotateOrbsMod , only : RotateOrbs
-        use NatOrbsMod , only : PrintOrbOccs
         TYPE(HDElement) :: Weight,Energyxw
         INTEGER :: i,j,error,HFConn
         CHARACTER(len=*), PARAMETER :: this_routine='FciMCPar'
@@ -111,11 +110,17 @@ MODULE FciMCParMod
 !        CALL MPI_Comm_set_errhandler(MPI_COMM_WORLD,MPI_ERRORS_RETURN,error)
 !        CALL MPI_Comm_set_errhandler(MPI_COMM_WORLD,MPI_ERRORS_ARE_FATAL,error)
         
-        CALL SetupParameters()
-        CALL InitFCIMCCalcPar()
-        CALL WriteFciMCStatsHeader()
+        call SetupParameters()
+        call InitFCIMCCalcPar()
+        call init_fcimc_fn_pointers () 
 
-        CALL WriteFCIMCStats()
+        ! Initial output
+        call WriteFciMCStatsHeader()
+        call WriteFCIMCStats()
+
+        ! Put a barrier here so all processes synchronise before we begin.
+        call MPI_Barrier(MPI_COMM_WORLD,error)
+
 
 !Start MC simulation...
         TIncrement=.true.   !If TIncrement is true, it means that when it comes out of the loop, it wants to subtract 1 from the Iteration count to get the true number of iterations
@@ -1455,10 +1460,21 @@ MODULE FciMCParMod
         IF((NMCyc.ne.0).and.(tRotateOrbs.and.(.not.tFindCINatOrbs))) CALL Stop_All(this_routine,"Currently not set up to rotate and then go straight into a spawning &
                                                                                     & calculation.  Ordering of orbitals is incorrect.  This may be fixed if needed.")
 
+    end subroutine InitFCIMCCalcPar
 
-        ! Setup the function pointers.
+    subroutine init_fcimc_fn_pointers ()
+
+        ! Call wrapper functions in C to assign a collection of function 
+        ! pointers. These will be passed as arguments to FciMCycPar, allowing
+        ! it to directly call the correct subroutines for various actions.
+        !
+        ! The main advantage of this is that it avoids testing all of the
+        ! conditionals for every single particle, during every iteration.
+
+        ! We only support direct annihilation at the moment
         call set_annihilator (DirectAnnihilation)
-        
+
+        ! Select the excitation generator
         if (tHPHF) then
             call set_excit_generator (gen_hphf_excit)
         elseif (tCSF) then
@@ -1466,11 +1482,7 @@ MODULE FciMCParMod
         else
             call set_excit_generator (gen_rand_excit)
         endif
-
-        ! Put a barrier here so all processes synchronise
-        call MPI_Barrier(MPI_COMM_WORLD,error)
-
-    end subroutine InitFCIMCCalcPar
+    end subroutine
 
 
     SUBROUTINE CheckOrdering(DetArray,SignArray,NoDets,tCheckSignCoher)
