@@ -86,8 +86,9 @@ MODULE AnnihilationMod
 !This is a new annihilation algorithm. In this, determinants are kept on predefined processors, and newlyspawned particles are sent here so that all the annihilations are
 !done on a predetermined processor, and not rotated around all of them.
     SUBROUTINE DirectAnnihilation(TotWalkersNew)
+        integer, intent(in) :: TotWalkersNew
         integer :: i
-        INTEGER :: MaxIndex,TotWalkersNew
+        INTEGER :: MaxIndex
 !        WRITE(6,*) "Direct annihilation"
 !        CALL FLUSH(6)
 

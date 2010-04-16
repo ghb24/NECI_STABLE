@@ -39,8 +39,21 @@ MODULE FciMCParMod
     use hphf_integrals, only: hphf_diag_helement, hphf_off_diag_helement
     use util_mod, only: choose
     use constants, only: dp
-    IMPLICIT NONE
-    SAVE
+    implicit none
+
+    interface
+        subroutine call_fcimc_cyc_par () bind(c)
+        end subroutine
+        subroutine set_annihilator (annihil) bind(c)
+            implicit none
+            interface
+                subroutine annihil (totWalkersNew)
+                    implicit none
+                    integer, intent(in) :: totWalkersNew
+                end subroutine
+            end interface
+        end subroutine
+    end interface
 
     contains
 
@@ -87,7 +100,7 @@ MODULE FciMCParMod
             IF(tCCMC) THEN
                 CALL PerformCCMCCycPar()
             ELSE
-                CALL PerformFCIMCycPar()
+                call call_fcimc_cyc_par ()
             ENDIF
             s=etime(tend)
             IterTime=IterTime+(tend(1)-tstart(1))
@@ -225,7 +238,7 @@ MODULE FciMCParMod
 
 
 !This is the heart of FCIMC, where the MC Cycles are performed.
-    SUBROUTINE PerformFCIMCycPar()
+    SUBROUTINE PerformFCIMCycPar(annihilate) bind(c)
         USE FciMCLoggingMOD , only : TrackSpawnAttempts
         use GenRandSymExcitCSF, only: GenRandSymCSFExcit
         USE CalcData , only : tAddtoInitiator,InitiatorWalkNo,tInitIncDoubs
@@ -240,6 +253,13 @@ MODULE FciMCParMod
         TYPE(HElement) :: HDiagTemp
         CHARACTER(LEN=MPI_MAX_ERROR_STRING) :: message
         REAL :: Gap
+
+        interface
+            subroutine annihilate (totWalkersNew)
+                implicit none
+                integer, intent(in) :: totWalkersNew
+            end subroutine
+        end interface
         
         CALL set_timer(Walker_Time,30)
 
@@ -571,7 +591,8 @@ MODULE FciMCParMod
 !        CALL FLUSH(6)
 
 !This is the direct annihilation algorithm. The newly spawned walkers should be in a seperate array (SpawnedParts) and the other list should be ordered.
-        CALL DirectAnnihilation(TotWalkersNew)
+        call annihilate (totWalkersNew)
+        !CALL DirectAnnihilation(TotWalkersNew)
 
         CALL halt_timer(Annihil_Time)
         
@@ -1389,11 +1410,14 @@ MODULE FciMCParMod
         IF((NMCyc.ne.0).and.(tRotateOrbs.and.(.not.tFindCINatOrbs))) CALL Stop_All(this_routine,"Currently not set up to rotate and then go straight into a spawning &
                                                                                     & calculation.  Ordering of orbitals is incorrect.  This may be fixed if needed.")
 
-!Put a barrier here so all processes synchronise
-        CALL MPI_Barrier(MPI_COMM_WORLD,error)
-        RETURN
 
-    END SUBROUTINE InitFCIMCCalcPar
+        ! Setup the function pointers.
+        call set_annihilator (DirectAnnihilation)
+
+        ! Put a barrier here so all processes synchronise
+        call MPI_Barrier(MPI_COMM_WORLD,error)
+
+    end subroutine InitFCIMCCalcPar
 
 
     SUBROUTINE CheckOrdering(DetArray,SignArray,NoDets,tCheckSignCoher)
