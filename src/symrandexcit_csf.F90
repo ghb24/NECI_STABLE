@@ -25,7 +25,7 @@ contains
     
     subroutine gen_csf_excit (nI, iLut, nJ, ilutnJ, exFlag, IC, &
                                    excitMat, tParity, pGen, tFilled, CCdblS, &
-                                   CCSglS, CCUnS, tGenMatEl)
+                                   CCSglS, CCUnS)
 
         ! Generate an excitation from a CSF at random, as specified by exFlag,
         ! and return the Excitation matrix and the probability of generating
@@ -50,7 +50,6 @@ contains
 
         ! Unused:
         integer, intent(out) :: iLutnJ(0:niftot)
-        logical, intent(in) :: tGenMatEl
 
         ! We only need the spatial terms for the CSF stuff. However, keep the
         ! full 1-ScratchSize array, so we can pass it through to the normal
@@ -80,7 +79,7 @@ contains
             end select
             call gen_rand_excit (nI, iLut, nJ, iLutnJ, exTmp, IC, ExcitMat, &
                                  tParity, pGen, tFilled, CCDblS, CCUnS, &
-                                 CCSglS, tGenMatEl)
+                                 CCSglS)
 
             ! If we have fallen back below the truncation level, then
             ! regenerate a CSF (pick Yamanouchi symbol at random).
@@ -1853,7 +1852,7 @@ contains
             ! Generate a random excitation
             call gen_csf_excit (nI, iLut, nJ, iLutnJ, exFlag, IC, ExcitMat, &
                                 tParity, pGen, tFilled, CCDblS, CCSglS, &
-                                CCUnS, .false.)
+                                CCUnS)
 
             ! Only average etc. for an allowed transition
             if (nJ(1) /= 0) then

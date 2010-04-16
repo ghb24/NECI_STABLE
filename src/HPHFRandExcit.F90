@@ -35,7 +35,6 @@ MODULE HPHFRandExcitMod
         integer :: arrunused(scratchsize)
         INTEGER :: ClassCountUnocc2(ScratchSize),ClassCountUnocc3(ScratchSize)
         LOGICAL :: tGenClassCountnI,tGenClassCountnI2,TestClosedShellDet,tParity,tSign,tSwapped
-        logical :: unused
 
 !        Count=Count+1
 !        WRITE(6,*) "COUNT: ",Count
@@ -51,8 +50,7 @@ MODULE HPHFRandExcitMod
 
             call gen_rand_excit (nI, iLutni, nJ, iLutnJ, exFlag, Ic, &
                                  ExcitMat, tParity, pGen, tGenClassCountnI, &
-                                 ClassCount2, ClassCountUnocc2, arrunused, &
-                                 unused)
+                                 ClassCount2, ClassCountUnocc2, arrunused)
                                  
             IF(IsNullDet(nJ)) RETURN
             
@@ -86,8 +84,7 @@ MODULE HPHFRandExcitMod
             ! Excite to nJ from nI
             call gen_rand_excit (nI, iLutni, nJ, iLutnJ, exFlag, Ic, &
                                  ExcitMat, tParity, pGen, tGenClassCountnI, &
-                                 ClassCount2, ClassCountUnocc2, arrunused, &
-                                 unused)
+                                 ClassCount2, ClassCountUnocc2, arrunused)
             IF(IsNullDet(nJ)) RETURN
 
 !Find Bit-representation of excitation.
@@ -116,7 +113,7 @@ MODULE HPHFRandExcitMod
 !            CALL FindDetSpinSym(nI,nI2,NEl)
         call gen_rand_excit (nI2, iLutni2, nJ, iLutnJ, exFlag, Ic, ExcitMat, &
                              tParity, pGen, tGenClassCountnI2, ClassCount3, &
-                             ClassCountUnocc3, arrunused, unused)
+                             ClassCountUnocc3, arrunused)
         IF(IsNullDet(nJ)) RETURN
 
 !Find Bit-representation of excitation.
@@ -188,7 +185,8 @@ MODULE HPHFRandExcitMod
 
     subroutine gen_hphf_excit (nI, iLutnI, nJ, iLutnJ, exFlag, IC, ExcitMat, &
                                tParity, pGen, tFilled, ClassCount2, &
-                               ClassCountUnocc2, scratch, tGenMatEl)
+                               ClassCountUnocc2, scratch)
+        use FciMCData, only: tGenMatHEl
 
         integer, intent(in) :: nI(nel), iLutnI(0:niftot)
         integer, intent(in) :: exFlag
@@ -199,7 +197,6 @@ MODULE HPHFRandExcitMod
         integer, intent(inout) :: scratch(ScratchSize) ! Not used
         logical, intent(out) :: tParity ! Not used
         logical, intent(inout) :: tFilled
-        logical, intent(in) :: tGenMatEl
         real*8, intent(out) :: pGen
 
         integer :: iLutnJ2(0:niftot), nJ2(nel), ex2(2,2), excitLevel
@@ -211,7 +208,7 @@ MODULE HPHFRandExcitMod
 
         call gen_rand_excit (nI, iLutnI, nJ, iLutnJ, exFlag, IC, ExcitMat, &
                              tSignOrig, pGen, tFilled, Classcount2, &
-                             ClassCountUnocc2, scratch, tGenMatEl)
+                             ClassCountUnocc2, scratch)
 
 !        Count=Count+1
 !        WRITE(6,*) "COUNT: ",Count
@@ -231,7 +228,7 @@ MODULE HPHFRandExcitMod
 
         IF(TestClosedShellDet(iLutnJ)) THEN
 !There is only one way which we could have generated the excitation nJ since it has no spin-partner. Also, we will always return the 'correct' version.
-            IF(tGenMatEl) THEN
+            IF(tGenMatHEl) THEN
 !Generate matrix element -> HPHF to closed shell det.
                 IF(TestClosedShellDet(iLutnI)) THEN
                     !Closed shell -> Closed Shell
@@ -273,7 +270,7 @@ MODULE HPHFRandExcitMod
 !!We cannot guarentee that the pGens are going to be the same - in fact, generally, they wont be.
                 pGen=pGen+pGen2
 
-                IF(tGenMatEl) THEN
+                IF(tGenMatHEl) THEN
 !Generate matrix element to open shell excitation
                     IF(TestClosedShellDet(iLutnI)) THEN    !Closed shell -> Open shell : Want to sum in SQRT(2)* Hij
                         
@@ -348,7 +345,7 @@ MODULE HPHFRandExcitMod
 
             ELSEIF(ExcitLevel.eq.0) THEN
 !We have generated the same HPHF. MatEl wants to be zero.
-                IF(tGenMatEl) THEN
+                IF(tGenMatHEl) THEN
                     MatEl=0.D0
                     pGen=1.D0/(REAL(MatEl,8))
                 ENDIF
@@ -357,7 +354,7 @@ MODULE HPHFRandExcitMod
                 
 !                CALL ReturnAlphaOpenDet(nJ,nJ2,iLutnJ,iLutnJ2,.false.,.true.,tSwapped)
 
-                IF(tGenMatEl) THEN
+                IF(tGenMatHEl) THEN
 !iLutnI MUST be open-shell here, since otherwise it would have been connected to iLutnJ2. Also, we know the cross connection (i.e. MatEl2 = 0)
                     IF(tSwapped) THEN
                         CALL CalcOpenOrbs(iLutnJ,OpenOrbsJ)
@@ -549,6 +546,7 @@ MODULE HPHFRandExcitMod
         Use SystemData , only : NEl,nBasis,G1,nBasisMax
         use DetBitOps, only: EncodeBitDet, DecodeBitDet
         use GenRandSymExcitNuMod, only: scratchsize
+        use FciMCData, only: tGenMatHEl
         IMPLICIT NONE
         INTEGER :: ClassCount2(ScratchSize),nIX(NEl)
         INTEGER :: ClassCountUnocc2(ScratchSize)
@@ -560,7 +558,7 @@ MODULE HPHFRandExcitMod
         REAL*8 , ALLOCATABLE :: Weights(:)
         INTEGER :: iMaxExcit,nStore(6),nExcitMemLen,j,k,l
         integer :: icunused, exunused(2,2), scratch3(scratchsize)
-        logical :: tParityunused
+        logical :: tParityunused, tTmp
 
         CALL EncodeBitDet(nI,iLutnI)
         CALL FindDetSpinSym(nI,nI2,NEl)
@@ -756,10 +754,13 @@ MODULE HPHFRandExcitMod
             IF(mod(i,10000).eq.0) WRITE(6,"(A,I10)") "Iteration: ",i
 
             CALL GenRandHPHFExcit(nI,iLutnI,nJ,iLutnJ,pDoub,3,pGen)
+            tTmp = tGenMatHEl
+            tGenMatHel = .false.
             call gen_hphf_excit (nI, iLutnI, nJ, iLutnJ, 3, icunused, &
                                  exunused, tparityunused, pGen, &
                                  tGenClassCountnI, ClassCount2, &
-                                 ClassCountUnocc2, scratch3, .false.)
+                                 ClassCountUnocc2, scratch3)
+            tGenMatHel = tTmp
 !            CALL GenRandSymExcitNU(nI,iLut,nJ,pDoub,IC,ExcitMat,TParity,exFlag,pGen)
 
 !Search through the list of HPHF wavefunctions to find slot.

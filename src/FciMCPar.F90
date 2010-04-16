@@ -53,6 +53,16 @@ MODULE FciMCParMod
     interface
         subroutine call_fcimc_cyc_par () bind(c)
         end subroutine
+
+
+        ! **********************************************************
+        ! ************************* NOTE ***************************
+        ! ANY changes to the following interfaces MUST be replicated in the
+        ! interface declarations for the function pointers passed into
+        ! FciMCycPar
+        ! --> Otherwise BAD things (may) happen at runtime, in a
+        !     non-deterministic (but probably segfault) manner.
+        ! **********************************************************
         subroutine set_annihilator (annihil) bind(c)
             implicit none
             interface
@@ -67,7 +77,7 @@ MODULE FciMCParMod
             interface
                 subroutine gen (nI, iLutI, nJ, iLutJ, &
                                  exFlag, IC, ex, tParity, pGen, tFilled, &
-                                 scratch1, scratch2, scratch3, tGenMatHel)
+                                 scratch1, scratch2, scratch3)
 
                     use SystemData, only: nel, niftot
                     use GenRandSymExcitNUMod, only: scratchsize
@@ -83,7 +93,6 @@ MODULE FciMCParMod
                     real*8, intent(out) :: pGen
                     logical, intent(inout) :: tFilled
                     logical, intent(out) :: tParity
-                    logical, intent(in) :: tGenMatHel ! Only for HPHF
                 end subroutine
             end interface
         end subroutine
@@ -287,6 +296,14 @@ MODULE FciMCParMod
         CHARACTER(LEN=MPI_MAX_ERROR_STRING) :: message
         REAL :: Gap
 
+        ! **********************************************************
+        ! ************************* NOTE ***************************
+        ! ANY changes to the following interfaces MUST be replicated in the
+        ! interface declarations for the function pointer setting functions
+        ! at the top of the module.
+        ! --> Otherwise BAD things (may) happen at runtime, in a
+        !     non-deterministic (but probably segfault) manner.
+        ! **********************************************************
         interface
             subroutine annihilate (totWalkersNew)
                 implicit none
@@ -294,7 +311,7 @@ MODULE FciMCParMod
             end subroutine
             subroutine generate_excitation (nI, iLutI, nJ, iLutJ, &
                              exFlag, IC, ex, tParity, pGen, tFilled, &
-                             scratch1, scratch2, scratch3, tGenMatHel)
+                             scratch1, scratch2, scratch3)
 
                 use SystemData, only: nel, niftot
                 use GenRandSymExcitNUMod, only: scratchsize
@@ -310,7 +327,6 @@ MODULE FciMCParMod
                 real*8, intent(out) :: pGen
                 logical, intent(inout) :: tFilled
                 logical, intent(out) :: tParity
-                logical, intent(in) :: tGenMatHel ! Only for HPHF
             end subroutine
         end interface
         
@@ -438,8 +454,7 @@ MODULE FciMCParMod
 
                 call generate_excitation (DetCurr, CurrentDets(:,j), nJ, &
                                ilutnJ, exFlag, IC, ex, tParity, prob, &
-                               tFilled, scratch1, scratch2, scratch3, &
-                               tGenMatHel)
+                               tFilled, scratch1, scratch2, scratch3)
 
 !Calculate number of children to spawn
                 IF(IsNullDet(nJ)) THEN
