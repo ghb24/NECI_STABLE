@@ -96,6 +96,10 @@ MODULE FciMCParMod
                 end subroutine
             end interface
         end subroutine
+        subroutine set_max_excit_level (ex_level) bind(c)
+            implicit none
+            integer, intent(in) :: ex_level
+        end subroutine
     end interface
 
     contains
@@ -281,7 +285,9 @@ MODULE FciMCParMod
 
 
 !This is the heart of FCIMC, where the MC Cycles are performed.
-    SUBROUTINE PerformFCIMCycPar(annihilate, generate_excitation) bind(c)
+    subroutine PerformFCIMCycPar(annihilate, generate_excitation, maxExLevel)&
+               bind(c)
+
         USE FciMCLoggingMOD , only : TrackSpawnAttempts
         USE CalcData , only : tAddtoInitiator,InitiatorWalkNo,tInitIncDoubs
         use detbitops, only : countbits
@@ -295,6 +301,8 @@ MODULE FciMCParMod
         HElement_t :: HDiagTemp
         CHARACTER(LEN=MPI_MAX_ERROR_STRING) :: message
         REAL :: Gap
+
+        integer, intent(in) :: maxExLevel
 
         ! **********************************************************
         ! ************************* NOTE ***************************
@@ -393,18 +401,16 @@ MODULE FciMCParMod
 !            call flush(6)
 
             ! Decode determinant from (stored) bit-representation.
-            CALL DecodeBitDet(DetCurr,CurrentDets(:,j))
+            call DecodeBitDet(DetCurr,CurrentDets(:,j))
 
-!Also, we want to find out the excitation level - we only need to find out if its connected or not (so excitation level of 3 or more is ignored.
-!This can be changed easily by increasing the final argument.
+            ! We only need to find out if determinant is connected to the
+            ! reference (so no ex. level above 2 required, except for HPHF
+            ! or truncated etc.)
+            walkExcitLevel = FindBitExcitLevel (iLutRef, CurrentDets(:,j), &
+                                                maxExLevel)
 
-            IF(tTruncSpace.or.tHistSpawn.or.tCalcFCIMCPsi.or.tHistHamil) THEN
-!We need to know the exact excitation level for truncated calculations.
-                WalkExcitLevel = FindBitExcitLevel(iLutRef, CurrentDets(:,j),nel)
-            ELSE
-                WalkExcitLevel = FindBitExcitLevel(iLutRef, CurrentDets(:,j),2)
-            ENDIF
-
+            ! sds: I assume that we can ALWAYS store the diagonal elements
+            !      --> We really should get rid of this.
             IF(tRegenDiagHEls) THEN
 !We are not storing the diagonal hamiltonian elements for each particle. Therefore, we need to regenerate them.
 !Need to find H-element!
@@ -423,19 +429,20 @@ MODULE FciMCParMod
 !HDiags are stored.
                 HDiagCurr=CurrentH(j)
             ENDIF
-            IF(tFindGroundDet) THEN
-                IF(HDiagCurr.lt.0.D0) THEN
-!We have found a determinant lower in energy that the "root" determinant.
-!This should not happen in a HF basis, but can happen if the orbitals have been rotated.
-                    CALL ChangeRefDet(HDiagCurr,DetCurr,CurrentDets(:,j))
-                    EXIT
-                ENDIF
-            ENDIF
+
+            ! Test if we have found a determinant which is lower in E than
+            ! the 'root' determinant. Should not happen in an (unrotated)
+            ! HF basis.
+            if (tFindGroundDet .and. HDiagCurr < 0) then
+                call ChangeRefDet (HDiagCurr, DetCurr, CurrentDets(:,j))
+                exit
+            endif
 
             ! Sum in any energy contribution from the determinant, including 
             ! other parameters, such as excitlevel info.
             ! This is where the projected energy is calculated.
-            call SumEContrib (DetCurr, WalkExcitLevel, CurrentSign(j),CurrentDets(:,j), HDiagCurr, 1.d0)
+            call SumEContrib (DetCurr, WalkExcitLevel, CurrentSign(j), &
+                              CurrentDets(:,j), HDiagCurr, 1.d0)
 
             IF(tTruncInitiator) CALL CalcParentFlag(j,tHFFound,tHFFoundTemp,VecSlot,Iter)
 
@@ -450,7 +457,6 @@ MODULE FciMCParMod
 
             do p = 1, loop
                 ! Loop over all the particles on the determinant.
-                
 
                 call generate_excitation (DetCurr, CurrentDets(:,j), nJ, &
                                ilutnJ, exFlag, IC, ex, tParity, prob, &
@@ -1498,6 +1504,18 @@ MODULE FciMCParMod
         else
             call set_excit_generator (gen_rand_excit)
         endif
+
+        ! In the main loop, we only need to find out if a determinant is
+        ! connected to the reference det or not (so no ex. level above 2 is
+        ! required). Except in some cases where we need to know the maximum
+        ! excitation level
+        if (tTruncSpace .or. tHistSpawn .or. tCalcFCIMCPsi .or. &
+            tHistHamil) then
+            call set_max_excit_level (nel)
+        else
+            call set_max_excit_level (2)
+        endif
+
     end subroutine
 
 
