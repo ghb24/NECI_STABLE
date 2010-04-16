@@ -1,7 +1,7 @@
 C.. Ti=Sum_a,b(c_ia* c_ib <u_a(1)|h(1)|u_b(1)>)
 C..   =Sum_a(|c_ia|^2 <u_a|(p^2)/2|u_a>)
       SUBROUTINE CALCHFTMAT(NBASIS,HFBASIS,NORBUSED)
-        USE HElem
+        use constants, only: dp
         USE OneEInts, only : GetTMATEl,TMAT2D,TMAT2D2,TSTARSTORE
          IMPLICIT NONE
          INTEGER NBASIS
@@ -16,7 +16,7 @@ C.. HFBASIS(HFBASISFN,PRIMBASISFN) has PRIMBASISFN varying slowest
                DO A=1,NBASIS
                   DO B=1,NBASIS
                     SUM1=SUM1+HFBASIS(I,A)*HFBASIS(J,B)*
-     &                   DREAL(GetTMATEl(A,B))
+     &                   (GetTMATEl(A,B))
                   ENDDO
                ENDDO
                TMAT2D2(I,J)=SUM1
@@ -29,7 +29,7 @@ C.. HFBASIS(HFBASISFN,PRIMBASISFN) has PRIMBASISFN varying slowest
 C.. Ti=Sum_a,b(c_ia* c_ib <u_a(1)|h(1)|u_b(1)>)
 C..   =Sum_a(|c_ia|^2 <u_a|(p^2)/2|u_a>)
       SUBROUTINE READHFTMAT(NBASIS,HFBASIS)
-         USE HElem
+         use constants, only: dp
          USE OneEInts, only : TMAT2D2
          IMPLICIT NONE
          INTEGER NBASIS
@@ -265,7 +265,8 @@ C.. HFBASIS(HFBASISFN,PRIMBASISFN) has PRIMBASISFN varying slowest
       SUBROUTINE CALCHFBASIS(NBASIS,ISS,NBASISMAX,G1,ARR,BRR,ECORE,
      &      UMAT,HFE,HFBASIS,NHFIT,NEL,MS,HFMIX,EDELTA,CDELTA,TRHF,
      &      IHFMETHOD,TREADHF,FRAND,HFDET,ILOGGING)
-         Use HElem
+         use constants, only: dp
+         use HElem, only: HElement_t_size
          use global_utilities
          IMPLICIT NONE
          INTEGER NBASIS,G1(*),ISS,nBasisMax(5,*)
@@ -273,13 +274,13 @@ C.. HFBASIS(HFBASISFN,PRIMBASISFN) has PRIMBASISFN varying slowest
          REAL*8 ECORE
          REAL*8 ARR(NBASIS)
          INTEGER BRR(NBASIS)
-         Type(HElement) HFBASIS(NBASIS,NBASIS)
+         HElement_t HFBASIS(NBASIS,NBASIS)
          REAL*8 HFE(NBASIS)
-         Type(HElement),allocatable :: FMAT(:),OFMAT(:)
-         Type(HElement),allocatable :: DMAT(:),ODMAT(:)
-         Type(HElement),allocatable :: WORK(:)
+         HElement_t,allocatable :: FMAT(:),OFMAT(:)
+         HElement_t,allocatable :: DMAT(:),ODMAT(:)
+         HElement_t,allocatable :: WORK(:)
          REAL*8,allocatable :: HFES(:)
-         Type(HElement),allocatable :: R1(:),R2(:)
+         HElement_t,allocatable :: R1(:),R2(:)
          integer, save :: tagR1=0,tagR2=0,tagHFES=0,tagFMAT=0,tagOFMat=0
          integer, save :: tagWork=0,tagDMAT=0,tagODMat=0
          INTEGER NHFIT,NEL,NSTART(NEL)
@@ -300,32 +301,32 @@ C         IF(TRHF) STOP 'RHF not supported'
          NSBASIS=NBASIS/NSPINS
 C         IF(TRHF) NSPINS=1
          allocate(FMAT(NSBASIS*NSBASIS*NSPINS))
-         call LogMemAlloc('FMAT',NSBASIS*NSBASIS*NSPINS,HElementSize*8,
-     &                                             this_routine,tagFMAT)
+         call LogMemAlloc('FMAT',NSBASIS*NSBASIS*NSPINS,
+     &                           HElement_t_size*8,this_routine,tagFMAT)
          allocate(OFMAT(NSBASIS*NSBASIS*NSPINS))
-         call LogMemAlloc('OFMAT',NSBASIS*NSBASIS*NSPINS,HElementSize*8,
-     &                                            this_routine,tagOFMAT)
+         call LogMemAlloc('OFMAT',NSBASIS*NSBASIS*NSPINS,
+     &                          HElement_t_size*8,this_routine,tagOFMAT)
          allocate(DMAT(NSBASIS*NSBASIS*NSPINS))
-         call LogMemAlloc('DMAT',NSBASIS*NSBASIS*NSPINS,HElementSize*8,
-     &                                             this_routine,tagDMAT)
+         call LogMemAlloc('DMAT',NSBASIS*NSBASIS*NSPINS,
+     &                           HElement_t_size*8,this_routine,tagDMAT)
          allocate(ODMAT(NSBASIS*NSBASIS*NSPINS))
-         call LogMemAlloc('ODMAT',NSBASIS*NSBASIS*NSPINS,HElementSize*8,
-     &                                            this_routine,tagODMAT)
+         call LogMemAlloc('ODMAT',NSBASIS*NSBASIS*NSPINS,
+     &                          HElement_t_size*8,this_routine,tagODMAT)
          allocate(WORK(NSBASIS*3))
-         call LogMemAlloc('WORK',NSBASIS*3,HElementSize*8,
+         call LogMemAlloc('WORK',NSBASIS*3,HElement_t_size*8,
      &                                             this_routine,tagWORK)
          allocate(R1(NSBASIS*NSBASIS))
-         call LogMemAlloc('R1',NSBASIS*NSBASIS,HElementSize*8,
+         call LogMemAlloc('R1',NSBASIS*NSBASIS,HElement_t_size*8,
      &                                             this_routine,tagR1)
          allocate(R2(NSBASIS*NSBASIS))
-         call LogMemAlloc('R2',NSBASIS*NSBASIS,HElementSize*8,
+         call LogMemAlloc('R2',NSBASIS*NSBASIS,HElement_t_size*8,
      &                                             this_routine,tagR2)
          allocate(HFES(NSBASIS*NSPINS))
          call LogMemAlloc('HFES',NSBASIS*NSPINS,8,this_routine,tagHFES)
 C.. Generate initial HFBASIS vectors as the energy ordered single
 C.. particle basis fns, separated into up and down blocks
-         FMAT=HElement(0.d0)
-         DMAT=HElement(0.d0)
+         FMAT=(0.d0)
+         DMAT=(0.d0)
          IF(IHFMETHOD.EQ.0.OR.IHFMETHOD.EQ.-1) THEN
             CALL UHFSCF(NBASIS,ISS,NBASISMAX,G1,ARR,BRR,ECORE,
      &         UMAT,HFE,HFBASIS,NHFIT,NEL,MS,FMAT,DMAT,ODMAT,WORK,
@@ -355,7 +356,8 @@ C.. Unrestricted HF SCF code
      &      UMAT,HFE,HFBASIS,NHFIT,NEL,MS,FMAT,DMAT,ODMAT,WORK,
      &      NSPINS,NSBASIS,HFES,OFMAT,HFMIX,EDELTA,CDELTA,TRHF,R1,R2,
      &      IHFMETHOD,TREADHF,FRAND,HFDET,ILOGGING)
-         Use HElem
+         use constants, only: dp
+         use HElem, only: HElement_t_size
          IMPLICIT NONE
          INTEGER NSPINS,NSBASIS
          INTEGER NBASIS,G1(*),ISS,nBasisMax(5,*)
@@ -363,12 +365,12 @@ C.. Unrestricted HF SCF code
          REAL*8 ECORE
          REAL*8 ARR(NBASIS)
          INTEGER BRR(NBASIS)
-         Type(HElement) HFBASIS(NBASIS,NBASIS)
+         HElement_t HFBASIS(NBASIS,NBASIS)
          REAL*8 HFES(NSBASIS,NSPINS),HFE(NBASIS)
-         Type(HElement) FMAT(NSBASIS,NSBASIS,NSPINS)
-         Type(HElement) OFMAT(NSBASIS,NSBASIS,NSPINS)
-         Type(HElement) DMAT(NSBASIS,NSBASIS,NSPINS)
-         Type(HElement) ODMAT(NSBASIS,NSBASIS,NSPINS)
+         HElement_t FMAT(NSBASIS,NSBASIS,NSPINS)
+         HElement_t OFMAT(NSBASIS,NSBASIS,NSPINS)
+         HElement_t DMAT(NSBASIS,NSBASIS,NSPINS)
+         HElement_t ODMAT(NSBASIS,NSBASIS,NSPINS)
          REAL*8 WORK(NBASIS*3),HFMIX
          REAL*8 R1(NSBASIS,NSBASIS),R2(NSBASIS,NSBASIS)
          INTEGER NHFIT,NEL,NSTART(NEL)
@@ -421,13 +423,13 @@ C         EDELTA=1.D-8
       ENDIF
       DO WHILE(BR)
          IF(IRHFB.GT.0) THEN
-            CALL DCOPY(NSBASIS*NSBASIS*HElementSize,FMAT(1,1,IRHFB),1,
-     &         FMAT(1,1,3-IRHFB),1)
-            CALL DCOPY(NSBASIS*NSBASIS*HElementSize,DMAT(1,1,IRHFB),1,
-     &         DMAT(1,1,3-IRHFB),1)
+            CALL DCOPY(NSBASIS*NSBASIS*HElement_t_size,FMAT(1,1,IRHFB),
+     &         1,FMAT(1,1,3-IRHFB),1)
+            CALL DCOPY(NSBASIS*NSBASIS*HElement_t_size,DMAT(1,1,IRHFB),
+     &         1,DMAT(1,1,3-IRHFB),1)
          ENDIF 
-         CALL DCOPY(NSBASIS*NSBASIS*NSPINS*HElementSize,DMAT,1,ODMAT,1)
-         CALL DCOPY(NSBASIS*NSBASIS*NSPINS*HElementSize,FMAT,1,OFMAT,1)
+       CALL DCOPY(NSBASIS*NSBASIS*NSPINS*HElement_t_size,DMAT,1,ODMAT,1)
+       CALL DCOPY(NSBASIS*NSBASIS*NSPINS*HElement_t_size,FMAT,1,OFMAT,1)
 C.. Construct the Density Matrix
          CALL GENDMAT(NSPINS,NSBASIS,NELS,FMAT,DMAT,.FALSE.,ISS,G1)
 C.. See how much our density matrix has changed from last time
@@ -436,7 +438,7 @@ C.. See how much our density matrix has changed from last time
             DO I=1,NSBASIS 
                DO J=1,NSBASIS
                   IF(.NOT.TRHF.OR.TRHF.AND.ISPN.EQ.IRHFB) 
-     &               RMSD=RMSD+SQ(DMAT(I,J,ISPN)-ODMAT(I,J,ISPN))
+     &               RMSD=RMSD+abs(DMAT(I,J,ISPN)-ODMAT(I,J,ISPN))**2
                ENDDO
             ENDDO
          ENDDO
@@ -482,7 +484,7 @@ C.. Now add back in some of our original F matrix
       IF(BTEST(ILOGGING,11))
      &   CALL WRITEHFPSIALL(NBASIS,FMAT,HFES,G1,NSPINS,NSBASIS,.FALSE.) 
 C.. We write out HFMAT  
-      HFBASIS=HElement(0.d0)
+      HFBASIS=(0.d0)
          DO I=1,NSBASIS
             DO ISPN=1,NSPINS
               K=(I-1)*NSPINS+ISPN
@@ -502,17 +504,17 @@ C.. HFBASIS(HFBASISFN,PRIMBASISFN) has PRIMBASISFN varying slowest
          use Integrals, only: GetUMatEl
          USE Logging, only: HFLogLevel
          use SystemData, only: BasisFN
-         Use HElem
+         use constants, only: dp
          IMPLICIT NONE
          INTEGER NSPINS,NSBASIS,NELS(NSPINS)
-         Type(HElement) FMAT(NSBASIS,NSBASIS,NSPINS)
-         Type(HElement) DMAT(NSBASIS,NSBASIS,NSPINS)
+         HElement_t FMAT(NSBASIS,NSBASIS,NSPINS)
+         HElement_t DMAT(NSBASIS,NSBASIS,NSPINS)
          LOGICAL LTRANS
          INTEGER ISS
          Type(BasisFN) G1(*)
 
          INTEGER ISPN,I,J,K
-         Type(HElement) TOT
+         HElement_t TOT
 C.. Construct the Density Matrix
          DO ISPN=1,NSPINS
             DO I=1,NSBASIS
@@ -522,11 +524,19 @@ C.. Sum over occupied orbitals for our spin
                   DO K=1,NELS(ISPN)
 C.. eigenvector N is in FMAT(i,N,ISPN), where i is the component of the
 C.. vector
+#ifdef __CMPLX
                      IF(LTRANS) THEN
                         TOT=TOT+DCONJG(FMAT(K,I,ISPN))*FMAT(K,J,ISPN)
                      ELSE
                         TOT=TOT+FMAT(I,K,ISPN)*DCONJG(FMAT(J,K,ISPN))
                      ENDIF
+#else
+                     IF(LTRANS) THEN
+                        TOT=TOT+(FMAT(K,I,ISPN))*FMAT(K,J,ISPN)
+                     ELSE
+                        TOT=TOT+FMAT(I,K,ISPN)*(FMAT(J,K,ISPN))
+                     ENDIF
+#endif
                   ENDDO
                   DMAT(I,J,ISPN)=TOT
                   DMAT(J,I,ISPN)=TOT
@@ -543,15 +553,15 @@ C.. vector
          USE UMatCache, only: GTID
          use Integrals, only: GetUMatEl
          USE Logging, only: HFLogLevel
-         USE HElem
+         use constants, only: dp
          use SystemData, only: BasisFN
          use IntegralsData, only: DMatEpsilon
          IMPLICIT NONE
          INTEGER NSBASIS,NSPINS,nBasisMax(5,*)
-         Type(HElement) FMAT(NSBASIS,NSBASIS,NSPINS)
-         Type(HElement) DMAT(NSBASIS,NSBASIS,NSPINS)
+         HElement_t FMAT(NSBASIS,NSBASIS,NSPINS)
+         HElement_t DMAT(NSBASIS,NSBASIS,NSPINS)
 !         REAL*8 TMAT(NSBASIS*NSPINS,NSBASIS*NSPINS)
-         TYPE(HElement) UMAT(*),TOT
+         HElement_t UMAT(*),TOT
          INTEGER I,J,K,L,ISPN,ISPN2,ID1,ID2,ID3,ID4
          REAL*8 ALAT(3)
          LOGICAL TRHF,TTRANS
@@ -564,7 +574,7 @@ C         ELSE
             RHFMUL=1.D0
 C         ENDIF
 C.. Construct the Fock Matrix
-         FMAT=HElement(0.d0)
+         FMAT=(0.d0)
 C. <ui|F|uj>=tij+Sum_kl(Dkl <ui uk|U|uj ul>-s<ui uk|U|ul uj>) where s=1 if i,k same spin
          DO ISPN=1,NSPINS
             DO I=1,NSBASIS
@@ -580,16 +590,16 @@ C.. Now sum in the alpha and beta block of u matrix
                         DO L=1,NSBASIS
                            ID3 = GTID((K-1)*NSPINS+ISPN2)
                            ID4 = GTID((L-1)*NSPINS+ISPN2)
-                           IF(DMAT(K,L,ISPN2).AGT.DmatEpsilon)
-     &                      TOT=TOT+HElement(RHFMUL)*
+                           IF(abs(DMAT(K,L,ISPN2)).gt.DmatEpsilon)
+     &                      TOT=TOT+(RHFMUL)*
      &                  DMAT(K,L,ISPN2)*GetUMatEl(NBasisMax,UMat,ALAT,
      &                     NSBASIS*NSPINS,ISS,G1,ID1,ID3,ID2,ID4)
 !                           WRITE(6,"(4I3)", advance='no') I,J,K,L
-!                           WRITE(6,*) HElement(RHFMUL)*
+!                           WRITE(6,*) (RHFMUL)*
 !     &                  DMAT(K,L,ISPN2)*GetUMatEl(NBasisMax,UMat,ALAT,
 !     &                     NSBASIS*NSPINS,ISS,G1,ID1,ID3,ID2,ID4)
                            IF(ISPN2.EQ.ISPN
-     &                        .AND.(DMAT(K,L,ISPN2).AGT.DmatEpsilon))
+     &                       .AND.(abs(DMAT(K,L,ISPN2)).gt.DmatEpsilon))
      &                        TOT=TOT-
      &                  DMAT(K,L,ISPN2)*GetUMatEl(NBasisMax,UMat,ALat,
      &                     NSBASIS*NSPINS,ISS,G1,ID1,ID3,ID4,ID2)
@@ -601,7 +611,9 @@ C.. Now sum in the alpha and beta block of u matrix
                      ENDDO
                   ENDDO
                   FMAT(I,J,ISPN)=TOT
+#ifdef __CMPLX
                   FMAT(J,I,ISPN)=DCONJG(TOT)
+#endif
                ENDDO
             ENDDO
             IF(HFLogLevel.gt.0) 
@@ -613,18 +625,19 @@ C.. Now sum in the alpha and beta block of u matrix
      &         ECORE,ECUR)
          USE OneEInts, only : GetTMatEl
          USE Logging, only :HFLogLevel
-         USE HElem
+         use constants, only: dp
+         use HElem, only: HElement_t_size
          IMPLICIT NONE
          INTEGER NSPINS,NSBASIS,NELS(NSPINS)
          REAL*8 HFES(NSBASIS,NSPINS)
-         Type(HElement) FMAT(NSBASIS,NSBASIS,NSPINS)
-         Type(HElement) DMAT(NSBASIS,NSBASIS,NSPINS)
+         HElement_t FMAT(NSBASIS,NSBASIS,NSPINS)
+         HElement_t DMAT(NSBASIS,NSBASIS,NSPINS)
 !         REAL*8 TMAT(NSBASIS*NSPINS,NSBASIS*NSPINS)
          REAL*8 ECUR,ECORE
-         Type(HElement) WORK(3*NSBASIS),RWORK(3*NSBASIS)
+         HElement_t WORK(3*NSBASIS),RWORK(3*NSBASIS)
 
          INTEGER INFO
-         Type(HElement) TOT,TOT2
+         HElement_t TOT,TOT2
          INTEGER ISPN,I,J,K         
 
 C.. First calculate the HF energy double counting contrib
@@ -641,7 +654,7 @@ C.. First calculate the HF energy double counting contrib
 
 C.. Now diagonalize the Fock matrix 
          DO ISPN=1,NSPINS
-            IF(HElementSize.EQ.1) THEN
+            IF(HElement_t_size.EQ.1) THEN
                CALL DSYEV('V','U',NSBASIS,FMAT(1,1,ISPN),NSBASIS,
      &            HFES(1,ISPN),WORK,3*NSBASIS, INFO)
             ELSE
@@ -663,12 +676,12 @@ C.. now calculate the sum of the occupied Fock orbitals
          TOT2=0.D0
          DO ISPN=1,NSPINS
             DO I=1,NELS(ISPN)
-               TOT2=TOT2+HElement(HFES(I,ISPN))
+               TOT2=TOT2+(HFES(I,ISPN))
             ENDDO
          ENDDO
 C.. subtract out the double counting term, and add in the core energy
-!         WRITE(6,*) "ECUR=",TOT2-TOT/HElement(2.D0)+HElement(ECORE)
-         ECUR=DREAL(TOT2)-DREAL(TOT)/2.D0+ECORE
+!         WRITE(6,*) "ECUR=",TOT2-TOT/(2.D0)+(ECORE)
+         ECUR=(TOT2)-(TOT)/2.D0+ECORE
          RETURN
       END
       SUBROUTINE WRITEHFPSIALL(NBASIS,FMAT,HFES,G1,NSPINS,NSBASIS,
@@ -718,10 +731,10 @@ C.. Generate initial density matrix, as well as a guess at the HF DET
      &            LMS,FRAND,NELS,HFDET)
          use SystemData, only: BasisFN
          use Determinants, only: write_det
-         Use HElem
+         use constants, only: dp
          IMPLICIT NONE
          INTEGER NSPINS,NSBASIS
-         Type(HElement) FMAT(NSBASIS,NSBASIS,NSPINS)
+         HElement_t FMAT(NSBASIS,NSBASIS,NSPINS)
          REAL*8 PI,R
          INTEGER ISPN,I,J,ISEED,irand
          REAL*8 RAN2
@@ -739,7 +752,7 @@ C.. vector unless transposed
          ISEED=1007
          irand=1
          R=RAN2(irand)
-         FMAT=HElement(0.d0)
+         FMAT=(0.d0)
          WRITE(6,*) "Generating HF Guess..."
          NEL=0
          DO IS=1,NSPINS
@@ -757,9 +770,9 @@ C.. vector unless transposed
                ENDDO
                NELR=(BRR(IREAL)-1)/NSPINS+1
                IF(TRANS) THEN
-                  FMAT(I,NELR,ISPN)=HElement(1.D0)
+                  FMAT(I,NELR,ISPN)=(1.D0)
                ELSE
-                  FMAT(NELR,I,ISPN)=HElement(1.D0)
+                  FMAT(NELR,I,ISPN)=(1.D0)
                ENDIF
                IF(I.LE.NELS(IS)) THEN
                   WRITE(6,"(I4,A)",advance='no'),BRR(IREAL),","
@@ -772,7 +785,7 @@ C.. vector unless transposed
             DO I=1,NSBASIS
                DO J=1,NSBASIS
                   FMAT(I,J,ISPN)=FMAT(I,J,ISPN)+
-     &               HElement(FRAND*RAN2(irand))
+     &               (FRAND*RAN2(irand))
                ENDDO
             ENDDO
             CALL GRAMSCHMIDT(FMAT(1,1,ISPN),NSBASIS)
@@ -824,18 +837,18 @@ C.. vector unless transposed
       END
 
       SUBROUTINE HFLINMIX(FMAT,OFMAT,NSPINS,N,FMIX,R1,R2,WORK)
-         Use HElem
+         use constants, only: dp
          IMPLICIT NONE
          INTEGER N,NSPINS
          REAL*8 FMIX
-         Type(HElement) FMAT(N,N,NSPINS),OFMAT(N,N,NSPINS)
+         HElement_t FMAT(N,N,NSPINS),OFMAT(N,N,NSPINS)
          REAL*8 R1(*),R2(*),WORK(*)
          INTEGER I,J,ISPN
          DO ISPN=1,NSPINS
             DO I=1,N
                DO J=1,N
-                  FMAT(I,J,ISPN)=HElement(FMIX)*FMAT(I,J,ISPN)
-     &               +HElement(1.D0-FMIX)*OFMAT(I,J,ISPN)
+                  FMAT(I,J,ISPN)=(FMIX)*FMAT(I,J,ISPN)
+     &               +(1.D0-FMIX)*OFMAT(I,J,ISPN)
                ENDDO
             ENDDO
             IF(N.LT.3) THEN
@@ -1278,7 +1291,7 @@ C.. TOT now contains dE/dcij, so we store this
      &         ECORE, NBASIS,G1,NBASISMAX,NELS,NEL,ECUR,ISS)            
          USE UMatCache, only : UMatInd,GTID
          use OneEInts, only: GetTMatEl
-         USE HElem
+         use constants, only: dp
          IMPLICIT NONE
          REAL*8 CMAT(NSBASIS,NSBASIS,NSPINS)
          REAL*8 DEDCIJ(NSBASIS,NSBASIS,NSPINS)
@@ -1305,7 +1318,7 @@ C.. TMAT ID
 C.. deal with the one-electron integrals first
                   DO A=1,NSBASIS
                      IDA=(A-1)*NSPINS+1+KSPN-1
-                     TOT=TOT+CMAT(K,A,KSPN)*DREAL(GetTMATEl(IDA,IDF))
+                     TOT=TOT+CMAT(K,A,KSPN)*(GetTMATEl(IDA,IDF))
                   ENDDO
 C.. UMAT ID
                   IDF = GTID((F-1)*NSPINS+1+KSPN-1)
@@ -1443,14 +1456,15 @@ C               G1(3,BRR(I))=J
       END
 
       SUBROUTINE Write_HEMatrix(CHAR,M,N,A)
-      Use HElem 
+      use constants, only: dp 
+      use HElem, only: HElement_t_size
       IMPLICIT NONE
       CHARACTER(*) CHAR
-      Type(HElement) A(M,N)
+      HElement_t A(M,N)
       Integer I,M,N,J
       WRITE(6,*) CHAR
       DO I=1,M
-         IF(HElementSize.EQ.1) THEN
+         IF(HElement_t_size.EQ.1) THEN
            WRITE(6,"(12E15.6)") (A(I,J),J=1,N)
          ELSE
            WRITE(6,"(6('(',E15.6,',',E15.6,')'))") (A(I,J),J=1,N)

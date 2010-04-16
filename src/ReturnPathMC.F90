@@ -11,7 +11,7 @@ MODULE ReturnPathMCMod
 !    use IntegralsData , only : fck,NMax,UMat,nTay
 !    USE global_utilities
 !    use constants, only: dp
-    USE HElem
+    use constants, only: dp
 !    IMPLICIT NONE
 !    SAVE
 !
@@ -76,15 +76,15 @@ MODULE ReturnPathMCMod
 !    REAL*8 :: MeanExit
 !
 !    REAL*8 :: Hii,rhii
-!    TYPE(HElement) :: HFDiag
+!    HElement_t :: HFDiag
 
     contains
 
     SUBROUTINE ReturnPathMC(Weight,Energyxw)
-        TYPE(HDElement) :: Weight,Energyxw
+        real(dp) :: Weight,Energyxw
 !        INTEGER :: j
 !        CHARACTER , PARAMETER :: this_routine='ReturnPathMC'
-!        TYPE(HElement) :: HiiHEl,rhiiHEl
+!        HElement_t :: HiiHEl,rhiiHEl
 
         CALL Stop_All("ReturnPathMC","This code has been commented out.")
 
@@ -134,8 +134,8 @@ MODULE ReturnPathMCMod
 !
 !        enddo   !End MC Cycle
 !
-!        Weight=HDElement(0.D0)
-!        Energyxw=HDElement(SumENum/REAL(SumNoatHF,dp))
+!        Weight=(0.D0)
+!        Energyxw=(SumENum/REAL(SumNoatHF,dp))
 !
 !!Deallocate Memory
 !        do j=1,MaxWalkers
@@ -441,7 +441,7 @@ MODULE ReturnPathMCMod
 !        TYPE(Part) :: Particle
 !        INTEGER :: NewChainLength,VecSlot,nJ(NEl),ExcitLevel,IC
 !        REAL*8 :: DiagElem,hHi0
-!        TYPE(HElement) :: ConntoHF
+!        HElement_t :: ConntoHF
 !        LOGICAL :: WSign
 !
 !        IF(Particle%ChainLength.eq.NewChainLength) THEN
@@ -489,7 +489,7 @@ MODULE ReturnPathMCMod
 !                ELSE
 !!Need calculate the connection to HF - we are at a double excitation
 !                    ConntoHF=GetHElement2(NewVec(VecSlot)%Det,FDet,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,NMax,ALat,UMat,Particle%IC0(NewChainLength),ECore)
-!                    NewVec(VecSlot)%Hi0=REAL(ConntoHF%v,dp)
+!                    NewVec(VecSlot)%Hi0=REAL(ConntoHF,dp)
 !                ENDIF
 !                
 !                NewVec(VecSlot)%ChainLength=NewChainLength
@@ -667,7 +667,7 @@ MODULE ReturnPathMCMod
 !        LOGICAL :: LSame
 !        REAL*8 :: Conn      !For off-diagonal, this = Hij. For Diagonal, this equals Ei-E0
 !        REAL*8 :: UExp
-!        TYPE(HElement) :: EDiag,RH,EDiag2
+!        HElement_t :: EDiag,RH,EDiag2
 !
 !        IF(LSame) THEN
 !
@@ -687,13 +687,13 @@ MODULE ReturnPathMCMod
 !!We want a diagonal element - this is exactly the same as in calcrho2
 !            call GetH0Element(nI,nEl,Arr,nBasis,ECore,EDiag2)
 !            call GetH0Element(nJ,nEl,Arr,nBasis,ECore,EDiag)
-!            EDiag=(EDiag2+EDiag)/HElement(2.D0)
+!            EDiag=(EDiag2+EDiag)/(2.D0)
 !            UExp=-Tau*Conn
-!            RH=EXP(-Tau*REAL(EDiag%v,dp))*UExp
+!            RH=EXP(-Tau*REAL(EDiag,dp))*UExp
 !
 !        ENDIF
 !
-!        GetSpawnRhoEl=REAL(RH%v,dp)
+!        GetSpawnRhoEl=REAL(RH,dp)
 !
 !    END FUNCTION GetSpawnRhoEl
 !
@@ -809,13 +809,13 @@ MODULE ReturnPathMCMod
 !!However, if TRhoElems is on, then it returns Ei-E0 for diagonal elements.
 !    REAL*8 FUNCTION GetConnection(nI,nJ,IC)
 !        INTEGER :: nI(NEl),nJ(NEl),IC
-!        TYPE(HElement) :: rhiiHEl,HiiHEl
+!        HElement_t :: rhiiHEl,HiiHEl
 !
 !        IF(TRhoElems.and.(IC.eq.0)) THEN
 !!We want to calculate rho transition matrix elements
 !
 !!            CALL CalcRho2(nI,nJ,Beta,i_P,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,Arr,ALat,UMat,rhiiHEl,nTay,IC,ECore)
-!!            GetConnection=REAL(rhiiHEl%v,dp)
+!!            GetConnection=REAL(rhiiHEl,dp)
 !
 !!            IF(IC.eq.0) THEN
 !!We are after Hii-H00 so subtract the reference energy
@@ -824,13 +824,13 @@ MODULE ReturnPathMCMod
 !
 !            call GetH0Element(nI,NEl,Arr,nBasis,ECore,rhiiHEl)
 !            rhiiHEl=rhiiHEl-HFDiag
-!            GetConnection=Real(rhiiHEl%v,dp)
+!            GetConnection=Real(rhiiHEl,dp)
 !
 !        ELSE
 !!We want to calculate Hamiltonian transition matrix elements
 !                
 !            HiiHEl=GetHElement2(nI,nJ,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,NMax,ALat,UMat,IC,ECore)
-!            GetConnection=REAL(HiiHEl%v,dp)
+!            GetConnection=REAL(HiiHEl,dp)
 !            
 !            IF(IC.eq.0) THEN
 !!We are after Hii-H00 so subtract the reference energy
@@ -875,7 +875,7 @@ MODULE ReturnPathMCMod
 !    SUBROUTINE InitRetPathMC()
 !        INTEGER :: ierr,j
 !        CHARACTER , PARAMETER :: this_routine='InitRetPath'
-!        TYPE(HElement) :: HiiHel,rhiiHel
+!        HElement_t :: HiiHel,rhiiHel
 !
 !        SumWalkersCyc=0
 !        MeanExit=0.D0
@@ -890,15 +890,15 @@ MODULE ReturnPathMCMod
 !
 !!Provide various tests that variables are within allowed ranges
 !        IF((PRet.gt.1.D0).or.(PRet.lt.0.D0)) CALL Stop_All("ReturnPathMC","PRet must be a normalised probability")
-!        IF(HElementSize.gt.1) CALL Stop_All("ReturnPathMC","ReturnPathMC cannot function with complex orbitals.")
+!        IF(HElement_t_size.gt.1) CALL Stop_All("ReturnPathMC","ReturnPathMC cannot function with complex orbitals.")
 !
 !        MaxWalkers=InitWalkers*MemoryFac    !Set maximum number of allowed walkers
 !
 !!Calculate Hii and rhii
 !        HiiHEl=GetHElement2(HFDet,HFDet,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,NMax,ALat,UMat,0,ECore)
-!        Hii=REAL(HiiHEl%v,dp)
+!        Hii=REAL(HiiHEl,dp)
 !        CALL CalcRho2(HFDet,HFDet,Beta,i_P,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,Arr,ALat,UMat,rhiiHEl,nTay,0,ECore)
-!        rhii=REAL(rhiiHEl%v,dp)
+!        rhii=REAL(rhiiHEl,dp)
 !        call GetH0Element(HFDet,NEl,Arr,nBasis,ECore,HFDiag)
 !
 !        IF(TRhoElems) THEN

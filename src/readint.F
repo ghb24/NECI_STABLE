@@ -439,7 +439,7 @@ C.. set momentum to 0
 !If tReadFreezeInts is false, then if we are cacheing the FCIDUMP file, then we will read and cache all the integrals.
       SUBROUTINE READFCIINT(UMAT,NBASIS,ECORE,ARR,BRR,G1,               &
      &   tReadFreezeInts)
-         USE HElem
+         use constants, only: dp
          use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB,NEl
          use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
          use SystemData, only: UMatEps,tUMatEps,tCacheFCIDUMPInts
@@ -455,7 +455,7 @@ C.. set momentum to 0
          REAL*8 ECORE,ARR(NBASIS,2)
          REAL*8 UMAT(*)
          REAL*8 Z
-         TYPE(HElement) UMatEl
+         HElement_t UMatEl
          TYPE(BasisFN) G1(*)
          INTEGER I,J,K,L,BRR(NBASIS),X,Y,A,B,iCache,iCacheI,iType
          INTEGER NORB,NELEC,MS2,ORBSYM(1000),ISYM,SYMMAX,SYML(1000)
@@ -533,7 +533,7 @@ C.. set momentum to 0
 
          IF(iProcIndex.eq.0) THEN
              IF(.not.TSTARSTORE) THEN
-                 TMAT2D(:,:)=HElement(0.D0)
+                 TMAT2D(:,:)=(0.D0)
              ENDIF
 101          READ(8,'(1X,G20.12,4I3)',END=199) Z,I,J,K,L
              IF(tROHF) THEN
@@ -575,9 +575,9 @@ C.. 1-e integrals
 C.. These are stored as spinorbitals (with elements between different spins being 0
                     DO ISPN=1,ISPINS
 
-                       IF((TMAT2D(ISPINS*I-ISPN+1,ISPINS*J-ISPN+1)%v    &
+                       IF((TMAT2D(ISPINS*I-ISPN+1,ISPINS*J-ISPN+1)      &
      &                      .ne.0.D0).and.abs(TMAT2D(ISPINS*I-ISPN+1,   &
-     &                      ISPINS*J-ISPN+1)%v-Z).gt.1.D-7) THEN
+     &                      ISPINS*J-ISPN+1)-Z).gt.1.D-7) THEN
                 WRITE(6,*) i,j,Z,TMAT2D(ISPINS*I-ISPN+1,ISPINS*J-ISPN+1)
                            CALL Stop_All("ReadFCIInt","Error filling "  &
      &                    //"TMAT - different values for same orbitals")
@@ -671,7 +671,7 @@ C.. AJWT removed the restriction to TSTARSTORE
          ENDIF
          IF((.not.tRIIntegrals).and.(.not.tCacheFCIDUMPInts)) THEN
              CALL GetUMATSize(nBasis,NEl,iSpins,UMatSize)
-             CALL MPIDBCastArr(UMAT,UMatSize,0)    !This is not an HElement, as it is actually passed in as a real*8, even though it is HElem in IntegralsData
+             CALL MPIDBCastArr(UMAT,UMatSize,0)    !This is not an , as it is actually passed in as a real*8, even though it is HElem in IntegralsData
          ENDIF
          IF(tCacheFCIDUMPInts) THEN
 !Need to broadcast the cache...
@@ -709,7 +709,7 @@ C.. If we've changed the eigenvalues, we write out the basis again
 
       !This is a copy of the routine above, but now for reading in binary files of integrals
       SUBROUTINE READFCIINTBIN(UMAT,NBASIS,ECORE,ARR,BRR,G1)
-         USE HElem
+         use constants, only: dp
          use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
          use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
          USE UMatCache , only : UMatInd,UMAT2D,TUMAT2D

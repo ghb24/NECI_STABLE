@@ -2,13 +2,13 @@
      &	NHG,HAMIL,G1,LAB,NROW,TCOUNT,NMSH,FCK,
      &	NMAX,ALAT,UMAT,ICMAX,GC,TMC,ECORE,BRR)
       use global_utilities
-      USE HElem
+      use constants, only: dp
       Use Determinants, only: get_helement
       use SystemData , only : BasisFN
       use CalcData , only : TStar
       IMPLICIT NONE
 C      IMPLICIT REAL*8 (A-H,O-Z)
-      TYPE(HElement) HAMIL(*)
+      HElement_t HAMIL(*)
       INTEGER NDET,NEL,NMSH,NMAX
       INTEGER LAB(*)
       TYPE(BasisFn) G1(*)
@@ -18,12 +18,12 @@ C..Cube Arrays
       COMPLEX*16 FCK(NMSH,NMSH,NMSH)
       REAL*8 ALAT(3),ECORE
       INTEGER nBasisMax(5,*),NHG,BRR(*)
-      TYPE(HElement) UMat(*)
+      HElement_t UMat(*)
 C..
       INTEGER ICMAX,KI,IBEG,IBEGJ,KJ,IC,I,J,IMAX,IDAMAX
       LOGICAL TCOUNT,TMC
       INTEGER IGETEXCITLEVEL_2,STEP,IMAXJ
-      TYPE(HElement) totSUM
+      HElement_t totSUM
       type(timer), save :: proc_timer
 !      LOGICAL TSTAR
 C ==-------------------------------------------------------------------==
@@ -81,8 +81,8 @@ C..
 C            CALL SLTCND(NEL,NBASISMAX,NHG,
 C     &		NMRKS(1:NEL,KI),NMRKS(1:NEL,KJ),G1,IC,NMSH,
 C     &		FCK,NMAX,ALAT,UMAT,TOTSUM)
-            IF(ABS(TOTSUM%v).LT.1.D-10) TOTSUM%v=0.D0
-            IF(TOTSUM%v.NE.0.D0.OR.KI.EQ.KJ) THEN
+            IF(ABS(TOTSUM).LT.1.D-10) TOTSUM=0.D0
+            IF(TOTSUM.NE.0.D0.OR.KI.EQ.KJ) THEN
                GC=GC+1
 C..   Stores the number of non-zero elements in each row
                NROW(KI)=NROW(KI)+1

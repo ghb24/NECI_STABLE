@@ -1135,7 +1135,7 @@ MODULE Calc
 
 
         Subroutine CalcInit()
-          use HElem , only : HElement
+          use constants, only: dp
           use SystemData, only: G1, Alat, Beta, BRR, ECore, LMS, nBasis, nBasisMax, STot,tCSF,nMsh,nEl
           use SystemData, only: tUEG,nOccAlpha,nOccBeta,ElecPairs,tExactSizeSpace,tMCSizeSpace,MaxABPairs
           use IntegralsData, only: FCK, CST, nMax, UMat
@@ -1149,7 +1149,7 @@ MODULE Calc
           
           INTEGER I, IC,J
           INTEGER nList
-          TYPE(HElement) HDiagTemp
+          HElement_t HDiagTemp
           character(*), parameter :: this_routine='CalcInit'
 
           Allocate(MCDet(nEl))
@@ -1754,7 +1754,7 @@ MODULE Calc
       SUBROUTINE CALCRHOPII3(BETA,I_P,I_HMAX,I_VMAX,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY, &
      &            RHOEPS,NWHTAY,NPATHS,ILOGGING,ECORE,TNPDERIV,DBETA,DETINV,TSPN,LMS,TPARITY,SymRestrict,     &
      &            TSPECDET,SPECDET,nActiveBasis)
-         USE HElem
+         use constants, only: dp
          use global_utilities
          use SystemData, only: BasisFN,BasisFNSize
          use legacy_data, only: irat
@@ -1765,8 +1765,8 @@ MODULE Calc
          INTEGER I_HMAX,NEL,NBASIS,I_VMAX
          INTEGER,ALLOCATABLE :: LSTE(:) !(NEL,NBASIS*NBASIS*NEL*NEL,0:I_VMAX-1)??!!
          INTEGER,ALLOCATABLE :: ICE(:)  !(NBASIS*NBASIS*NEL*NEL,0:I_VMAX-1)??!!
-         TYPE(HElement)  UMAT(*)
-         TYPE(HElement),allocatable  :: RIJLIST(:)
+         HElement_t  UMAT(*)
+         HElement_t,allocatable  :: RIJLIST(:)
          integer,save :: tagRIJList=0,tagLSTE=0,tagICE=0
          REAL*8 BETA,FCK(*),ALAT(*),RHOEPS
          INTEGER NPATHS,NI(NEL),I_P,nBasisMax(5,*)
@@ -1777,19 +1777,19 @@ MODULE Calc
          TYPE(BasisFN) ISYM,SymRestrict
          LOGICAL TSPN,TPARITY,TSYM
          REAL*8 DBETA,ECORE
-         TYPE(HDElement) WLRI,WLSI,WLRI1,WLRI2,WLSI1,WLSI2,WI,DLWDB
-         TYPE(HDElement) TOT,WLRI0,WLSI0,WINORM,HElP,NORM
+         real(dp) WLRI,WLSI,WLRI1,WLRI2,WLSI1,WLSI2,WI,DLWDB
+         real(dp) TOT,WLRI0,WLSI0,WINORM,HElP,NORM
          LOGICAL TNPDERIV,TDONE,TFIRST
          INTEGER DETINV
          INTEGER ISTART,IEND,IDEG
          LOGICAL TSPECDET,TLOG
          INTEGER SPECDET(NEL)
-         TYPE(HDElement) DLWDB2,DLWDB3,DLWDB4,TOT2
+         real(dp) DLWDB2,DLWDB3,DLWDB4,TOT2
          INTEGER nActiveBasis(2)
          type(timer), save :: proc_timer
          character(len=*), parameter :: thisroutine='CALCRHOPII3'
          TLOG=BTEST(ILOGGING,1)
-         HElP=HDElement(I_P)
+         HElP=(I_P)
          TSYM=.TRUE.
          TOT=0.D0
          TOT2=0.D0
@@ -1881,15 +1881,15 @@ MODULE Calc
      &            NMAX,ALAT,UMAT,NTAY,RHOEPS,LSTE,ICE,RIJLIST,NWHTAY, ILOGGING,ECORE,ILMAX,WLRI1,WLSI1,DBETA,DLWDB3)
                CALL MCPATHSR3(NI,BETA-DBETA,I_P,I_HMAX,I_VMAX,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,   &
      &            NMAX,ALAT,UMAT,NTAY,RHOEPS,LSTE,ICE,RIJLIST,NWHTAY, ILOGGING,ECORE,ILMAX,WLRI2,WLSI2,DBETA,DLWDB4)
-               DLWDB=-(HElP*(WLRI1-WLRI2)+(WLSI1-WLSI2))/HDElement(2*DBETA)
+               DLWDB=-(HElP*(WLRI1-WLRI2)+(WLSI1-WLSI2))/(2*DBETA)
             ELSE
                DLWDB=DLWDB2
             ENDIF
 !.. we calculate the energy with weightings normalized to the weight of
 !.. the Fermi determinant, otherwise the numbers blow up
             WINORM=EXP(HElP*(WLRI-WLRI0)+(WLSI-WLSI0))
-            NORM=NORM+HDElement(IDEG)*WINORM
-            TOT=TOT+HDElement(IDEG)*WINORM*DLWDB
+            NORM=NORM+(IDEG)*WINORM
+            TOT=TOT+(IDEG)*WINORM*DLWDB
             IF(TLOG) WRITE(15,"(G25.16,I5)") DLWDB,IDEG
             IF(DETINV.EQ.III) THEN
                IF(TLOG) CALL FLUSH(15)
@@ -1923,22 +1923,22 @@ MODULE Calc
 ! Given an input RHOEPSILON, create Fermi det D out of lowest orbitals and get RHOEPS (which is rhoepsilon * exp(-(beta/P)<D|H|D>
       REAL*8 FUNCTION GETRHOEPS(RHOEPSILON,BETA,NEL,NBASISMAX,G1,NHG, BRR,NMSH,FCK,NMAX,ALAT,UMAT,I_P,ECORE)
          Use Determinants, only: get_helement
-         USE HElem
+         use constants, only: dp
          use SystemData, only: BasisFN
          IMPLICIT NONE
          INTEGER NEL,NI(NEL),I,nBasisMax(5,*),I_P
          INTEGER BRR(*),NMSH,NMAX,NHG
          COMPLEX*16 FCK(*)
          REAL*8 RHOEPSILON,BETA,ECORE,ALAT(*)
-         TYPE(HElement) BP,UMat(*)
+         HElement_t BP,UMat(*)
          TYPE(BasisFN) G1(*)
          DO I=1,NEL
             NI(I)=BRR(I)
          ENDDO
          CALL NECI_SORTI(NEL,NI)
-         BP=HElement(-BETA/I_P)
-         GETRHOEPS=DSQRT(SQ(HElement(RHOEPSILON) * &
-                        EXP(BP*get_helement(nI, nI, 0))))
+         BP=(-BETA/I_P)
+         GETRHOEPS=ABS((RHOEPSILON) * &
+                        EXP(BP*get_helement(nI, nI, 0)))
          RETURN
       END FUNCTION GetRhoEps
 
@@ -1946,7 +1946,7 @@ MODULE Calc
 
 ! Calculate the kinetic energy of the UEG (this differs from CALCT by including the constant CST
       REAL*8 FUNCTION CALCT2(NI,NEL,G1,ALAT,NBASIS,CST)
-         USE HElem
+         use constants, only: dp
          use SystemData, only: BasisFN
          IMPLICIT NONE
          INTEGER NEL,NI(NEL),NBASIS,I,J

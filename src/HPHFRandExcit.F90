@@ -17,6 +17,7 @@ MODULE HPHFRandExcitMod
     use DetBitOps, only: DetBitLT, DetBitEQ, FindExcitBitDet, &
                          FindBitExcitLevel
     use FciMCData, only: pDoubles
+    use constants, only: dp
     use HElem
     use sltcnd_mod, only: sltcnd_excit
     IMPLICIT NONE
@@ -204,14 +205,13 @@ MODULE HPHFRandExcitMod
         integer :: iLutnJ2(0:niftot), nJ2(nel), ex2(2,2), excitLevel
         integer :: openOrbsI, openOrbsJ, nI2(nel), iLutnI2(0:niftot)
         real*8 :: pGen2
-        type(helement) :: MatEl, MatEl2
+        HElement_t :: MatEl, MatEl2
         logical :: tGenClassCountnI, TestClosedShellDet, tSign, tSignOrig
         logical :: tSwapped
 
         call gen_rand_excit (nI, iLutnI, nJ, iLutnJ, exFlag, IC, ExcitMat, &
                              tSignOrig, pGen, tFilled, Classcount2, &
                              ClassCountUnocc2, scratch, tGenMatEl)
-
 
 !        Count=Count+1
 !        WRITE(6,*) "COUNT: ",Count
@@ -236,11 +236,11 @@ MODULE HPHFRandExcitMod
                 IF(TestClosedShellDet(iLutnI)) THEN
                     !Closed shell -> Closed Shell
                     MatEl = sltcnd_excit (nI, nJ, IC, ExcitMat, tSignOrig)
-                    pGen=pGen/REAL(MatEl%v,8)
+                    pGen=pGen/REAL(MatEl,8)
                 ELSE
                     !Open shell -> Closed Shell
                     MatEl = sltcnd_excit (nI, nJ, IC, ExcitMat, tSignOrig)
-                    pGen=pGen/(REAL(MatEl%v,8)*SQRT(2.D0))
+                    pGen=pGen/(REAL(MatEl,8)*SQRT(2.D0))
                 ENDIF
             ENDIF
         ELSE
@@ -283,7 +283,7 @@ MODULE HPHFRandExcitMod
                             MatEl = sltcnd_excit (nI, nJ, IC, ExcitMat, &
                                                   tSignOrig)
                         ENDIF
-                        pGen=pGen/(REAL(MatEl%v,8)*SQRT(2.D0))
+                        pGen=pGen/(REAL(MatEl,8)*SQRT(2.D0))
 
                     ELSE     !Open shell -> Open shell
                         
@@ -324,7 +324,7 @@ MODULE HPHFRandExcitMod
 !                            CALL GetExcitation(nI2,nJ,NEl,Ex2,tSign)
 !                            CALL SltCndExcit2(NEl,nBasisMax,nBasis,nI2,nJ,G1,NEl-ExcitLevel,NMSH,FCK,NMAX,ALAT,UMat,MatEl2,Ex2,tSign)
 
-!                            IF((MatEl3%v-MatEl2%v).gt.1.D-7) THEN!.and..not.tSwapped.and.((mod(OpenOrbsJ,2).eq.0.and.mod(OpenOrbsI,2).eq.1).or.(mod(OpenOrbsJ,2).eq.1.and.mod(OpenOrbsI,2).eq.0))) THEN
+!                            IF((MatEl3-MatEl2).gt.1.D-7) THEN!.and..not.tSwapped.and.((mod(OpenOrbsJ,2).eq.0.and.mod(OpenOrbsI,2).eq.1).or.(mod(OpenOrbsJ,2).eq.1.and.mod(OpenOrbsI,2).eq.0))) THEN
 !                                WRITE(6,*) MatEl3,MatEl2,ExcitLevel,IC,tSwapped,OpenOrbsI,OpenOrbsJ
 !                                WRITE(6,*) "***********, ERROR"
 !                                CALL Stop_All("ikb","Error in getting correct HEl - 2")
@@ -338,7 +338,7 @@ MODULE HPHFRandExcitMod
                             ENDIF
 !                            WRITE(6,*) "MatEl2 NEW: ",MatEl2
                         ENDIF
-                        pGen=pGen/(REAL(MatEl%v,8))
+                        pGen=pGen/(REAL(MatEl,8))
                     
                     ENDIF   !Endif from open/closed shell det
 
@@ -349,8 +349,8 @@ MODULE HPHFRandExcitMod
             ELSEIF(ExcitLevel.eq.0) THEN
 !We have generated the same HPHF. MatEl wants to be zero.
                 IF(tGenMatEl) THEN
-                    MatEl%v=0.D0
-                    pGen=1.D0/(REAL(MatEl%v,8))
+                    MatEl=0.D0
+                    pGen=1.D0/(REAL(MatEl,8))
                 ENDIF
 
             ELSE
@@ -375,7 +375,7 @@ MODULE HPHFRandExcitMod
                         MatEl = sltcnd_excit (nI, nJ, IC, ExcitMat, tSignOrig)
                     ENDIF
 
-                    pGen=pGen/(REAL(MatEl%v,8))
+                    pGen=pGen/(REAL(MatEl,8))
                         
                 ENDIF
 
@@ -385,7 +385,7 @@ MODULE HPHFRandExcitMod
         ENDIF
 
 !        CALL HPHFGetOffDiagHElement(nI,nJ,iLutnI,iLutnJ,MatEl2)
-!        IF((MatEl2%v-MatEl%v).gt.1.D-7) THEN
+!        IF((MatEl2-MatEl).gt.1.D-7) THEN
 !            WRITE(6,*) MatEl2,MatEl
 !            CALL Stop_All("ikb","Error in getting correct HEl - 2")
 !        ENDIF

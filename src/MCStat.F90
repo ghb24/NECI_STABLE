@@ -1,10 +1,10 @@
 MODULE MCStat
-      USE HElem
+      use constants, only: dp
       IMPLICIT NONE
       TYPE BlockStats
-         TYPE(HDElement), POINTER :: wCurBlock(:)  !(0:)
-         TYPE(HDElement), POINTER :: wBlockSum(:)  !(0:)
-         TYPE(HDElement), POINTER :: wBlockSumSq(:)  !(0:)
+         real(dp), POINTER :: wCurBlock(:)  !(0:)
+         real(dp), POINTER :: wBlockSum(:)  !(0:)
+         real(dp), POINTER :: wBlockSumSq(:)  !(0:)
          INTEGER                       iBlocks
          INTEGER                       iBMax
          !Histogram average value of block:
@@ -14,7 +14,7 @@ MODULE MCStat
          Real*8, Pointer          :: bucketMax(:)  !(0:)
       END TYPE
       TYPE BlockStatsCov
-         TYPE(HDElement), POINTER :: wBlockSum(:)  !(0:)
+         real(dp), POINTER :: wBlockSum(:)  !(0:)
          INTEGER                       iBlocks
          INTEGER                       iBMax
       END TYPE
@@ -26,17 +26,17 @@ MODULE MCStat
          !  Magically, F90 will know the relevant numbers of rows and columns in this once it has been created.
          INTEGER*8, POINTER         :: nGen(:,:)  !(0:,0:)
          INTEGER*8, POINTER         :: nAcc(:,:)  !(0:,0:)
-         TYPE(HDElement), POINTER :: wWeighting(:)  !(0:)
-         TYPE(HDElement), POINTER :: wWeightingSq(:)  !(0:)
-         TYPE(HDElement), POINTER :: wGraphWeight(:)  !(0:)
-         TYPE(HDElement), POINTER :: wGraphWeightSq(:)  !(0:)
-         TYPE(HDElement), POINTER :: wDelta(:)  !(0:)
-         TYPE(HDElement), POINTER :: wDeltaSq(:)  !(0:)
-         TYPE(HDElement), POINTER :: wWeightedDelta(:)  !(0:)
-         TYPE(HDElement), POINTER :: wWeightedDeltaSq(:)  !(0:)
-         TYPE(HDElement), POINTER :: wTrees(:)  !(0:)
-         TYPE(HDElement), POINTER :: wNonTreesPos(:)  !(0:)
-         TYPE(HDElement), POINTER :: wNonTreesNeg(:)  !(0:)
+         real(dp), POINTER :: wWeighting(:)  !(0:)
+         real(dp), POINTER :: wWeightingSq(:)  !(0:)
+         real(dp), POINTER :: wGraphWeight(:)  !(0:)
+         real(dp), POINTER :: wGraphWeightSq(:)  !(0:)
+         real(dp), POINTER :: wDelta(:)  !(0:)
+         real(dp), POINTER :: wDeltaSq(:)  !(0:)
+         real(dp), POINTER :: wWeightedDelta(:)  !(0:)
+         real(dp), POINTER :: wWeightedDeltaSq(:)  !(0:)
+         real(dp), POINTER :: wTrees(:)  !(0:)
+         real(dp), POINTER :: wNonTreesPos(:)  !(0:)
+         real(dp), POINTER :: wNonTreesNeg(:)  !(0:)
          INTEGER*8, POINTER         :: nGraphs(:)  !(0:)
          INTEGER*8, POINTER         :: nNonTreesNeg(:)  !(0:)
          INTEGER*8, POINTER         :: nNonTreesPos(:)  !(0:)
@@ -46,21 +46,21 @@ MODULE MCStat
          INTEGER*8                     iSeqLen
          INTEGER                       nSeqs
          REAL*8                        fSeqLenSq
-         TYPE(HDElement)               woWeight
-         TYPE(HDElement)               woDelta
+         real(dp)               woWeight
+         real(dp)               woDelta
          INTEGER                       ioClass
-         TYPE(HDElement)               wRefValue
-         TYPE(HDElement)               wRefWeight
+         real(dp)               wRefValue
+         real(dp)               wRefWeight
          REAL*8                        foProb
       END TYPE
       CONTAINS
          SUBROUTINE GetStats(MCS,iV,wAvgWeighting,wAvgWeightedValue,wAvgDelta)
             TYPE(MCStats) MCS
             INTEGER iV
-            TYPE(HDElement) wAvgWeighting,wAvgWeightedValue,wAvgDelta
-            wAvgWeighting=MCS%wWeighting(iV)/HDElement(0.D0+MCS%nGraphs(iV))
-            wAvgWeightedValue=MCS%wRefValue*wAvgWeighting+MCS%wWeightedDelta(iV)/HDElement(0.D0+MCS%nGraphs(iV))
-            wAvgDelta=MCS%wDelta(iV)/HDElement(0.D0+MCS%nGraphs(iV))
+            real(dp) wAvgWeighting,wAvgWeightedValue,wAvgDelta
+            wAvgWeighting=MCS%wWeighting(iV)/(0.D0+MCS%nGraphs(iV))
+            wAvgWeightedValue=MCS%wRefValue*wAvgWeighting+MCS%wWeightedDelta(iV)/(0.D0+MCS%nGraphs(iV))
+            wAvgDelta=MCS%wDelta(iV)/(0.D0+MCS%nGraphs(iV))
          END subroutine
 !  The constructor
          SUBROUTINE CreateBlockStats(BS,iBlocks)
@@ -72,9 +72,9 @@ MODULE MCStat
             ALLOCATE(BS%wCurBlock(0:iBlocks))
             ALLOCATE(BS%wBlockSum(0:iBlocks))
             ALLOCATE(BS%wBlockSumSq(0:iBlocks))
-            BS%wCurBlock=HDElement(0.D0)
-            BS%wBlockSum=HDElement(0.D0)
-            BS%wBlockSumSq=HDElement(0.D0)
+            BS%wCurBlock=(0.D0)
+            BS%wBlockSum=(0.D0)
+            BS%wBlockSumSq=(0.D0)
             BS%iBlocks=iBlocks
             !Histogram setup
             BS%bucketCount = 250
@@ -93,7 +93,7 @@ MODULE MCStat
             TYPE(BlockStatsCov) BSC
             INTEGER iBlocks
             ALLOCATE(BSC%wBlockSum(0:iBlocks))
-            BSC%wBlockSum=HDElement(0.D0)
+            BSC%wBlockSum=(0.D0)
             BSC%iBlocks=iBlocks
          END subroutine
          SUBROUTINE DestroyBlockStatsCov(BSC)
@@ -112,11 +112,11 @@ MODULE MCStat
             INTEGER iMaxCycles
             INTEGER i,j
             INTEGER iBlocks
-            TYPE(HDElement) wRefValue, wRefWeight
+            real(dp) wRefValue, wRefWeight
             iBlocks=iMaxCycles
 !LOG(iMaxCycles+0.D0)/LOG(2.D0)+1
             MCS%iVMax=iV
-            i=HDElementSize
+            i=1
             CALL CreateBlockStats(MCS%BlockDeltaSign,iBlocks)
             CALL CreateBlockStats(MCS%BlockSign,iBlocks)
             CALL CreateBlockStats(MCS%BlockRatio,iBlocks)
@@ -133,20 +133,20 @@ MODULE MCStat
             ALLOCATE(MCS%wDeltaSq(0:iV))
             ALLOCATE(MCS%wWeightedDelta(0:iV))
             ALLOCATE(MCS%wWeightedDeltaSq(0:iV))
-            MCS%wWeighting=HDElement(0.D0)
-            MCS%wWeightingSq=HDElement(0.D0)
-            MCS%wGraphWeight=HDElement(0.D0)
-            MCS%wGraphWeightSq=HDElement(0.D0)
-            MCS%wDelta=HDElement(0.D0)
-            MCS%wWeightedDelta=HDElement(0.D0)
-            MCS%wDeltaSq=HDElement(0.D0)
-            MCS%wWeightedDeltaSq=HDElement(0.D0)
+            MCS%wWeighting=(0.D0)
+            MCS%wWeightingSq=(0.D0)
+            MCS%wGraphWeight=(0.D0)
+            MCS%wGraphWeightSq=(0.D0)
+            MCS%wDelta=(0.D0)
+            MCS%wWeightedDelta=(0.D0)
+            MCS%wDeltaSq=(0.D0)
+            MCS%wWeightedDeltaSq=(0.D0)
             ALLOCATE(MCS%wTrees(0:iV))
             ALLOCATE(MCS%wNonTreesPos(0:iV))
             ALLOCATE(MCS%wNonTreesNeg(0:iV))
-            MCS%wTrees=HDElement(0.D0)
-            MCS%wNonTreesPos=HDElement(0.D0)
-            MCS%wNonTreesneg=HDElement(0.D0)
+            MCS%wTrees=(0.D0)
+            MCS%wNonTreesPos=(0.D0)
+            MCS%wNonTreesneg=(0.D0)
             ALLOCATE(MCS%nGraphs(0:iV))
             ALLOCATE(MCS%nNonTreesNeg(0:iV))
             ALLOCATE(MCS%nNonTreesPos(0:iV))
@@ -194,7 +194,7 @@ MODULE MCStat
             INTEGER*8 nTimes
             REAL*8 fProb
             INTEGER iV,iTree,iAcc,ioV,igV,iClass
-            TYPE(HDElement) wWeighting,wValue,wWeightedValue,wGraphWeight,wVal,wDelta
+            real(dp) wWeighting,wValue,wWeightedValue,wGraphWeight,wVal,wDelta
             INTEGER i,ioBMax,j
             REAL*8 cc,ave1,ave2,std1,std2,hh,top,bot,calc
             INTEGER*8 no,nc,nt,nn,nnn
@@ -210,25 +210,25 @@ MODULE MCStat
                tNewSeq=.TRUE.
             ENDIF
             IF(tNewSeq) THEN
-               ave1=M%wWeightedDelta(0)%v/M%nGraphs(0)
+               ave1=M%wWeightedDelta(0)/M%nGraphs(0)
                top=ave1
-!               std1=sqrt(M%wDeltaSq(0)%v/M%nGraphs(0)-ave1*ave1)
+!               std1=sqrt(M%wDeltaSq(0)/M%nGraphs(0)-ave1*ave1)
                !M%wWeighting(0) gives the running sum of the weightings for the vertex level begin sampled
-                ave2=M%wWeighting(0)%v/M%nGraphs(0)
+                ave2=M%wWeighting(0)/M%nGraphs(0)
                !bot is Wref + running average of the weighting - wRefWeight is the running sum of weights over all previous vertex levels
-               bot=M%wRefWeight%v+ave2
+               bot=M%wRefWeight+ave2
 !               std2=sqrt(1.D0-ave2*ave2)
 !               cc=std1/ave1+std2/ave2
                CALL CalcStDev(M,cc)
                hh=ave1/ave2
                !calc gives us the running deltas for the MC run
-               calc=(top/bot)+M%wRefValue%v
+               calc=(top/bot)+M%wRefValue
                !Gives convergence of energy estimator and denominator
 !               write (22,"(2G25.16)") calc, bot
 !               write(12,*) M%nGraphs(0), calc !a running count of how delta changes
                
                 !To create movie
-!                WRITE(6,*) M%wRefValue%v  
+!                WRITE(6,*) M%wRefValue  
 !                IF((ioV.eq.2).and.(MOD(M%nGraphs(0),500).eq.0)) THEN    
 !              !      WRITE(102,*) "*********"
 !                    WRITE(102,"(I12,I4,2G25.16)") M%nGraphs(0),ioV,calc,cc
@@ -241,7 +241,7 @@ MODULE MCStat
 !                ENDIF
                 
 !VMC file - No. graphs, Sequence length, vertex level, Class, 
-               IF(tLog) WRITE(22,"(I20,I15,2I3,8G25.16)") M%nGraphs(0),M%iSeqLen,ioV,M%ioClass,M%woWeight%v,M%woDelta%v,ave2,ave1,cc,M%foProb,hh,calc
+               IF(tLog) WRITE(22,"(I20,I15,2I3,8G25.16)") M%nGraphs(0),M%iSeqLen,ioV,M%ioClass,M%woWeight,M%woDelta,ave2,ave1,cc,M%foProb,hh,calc
                M%iSeqLen=1
             ENDIF
             IF(iAcc.GT.0) THEN
@@ -258,7 +258,7 @@ MODULE MCStat
                CALL AddN(M%nTrees,iV,nTimes) 
                CALL AddW(M%wTrees,iV,nTimes,wGraphWeight)
             ELSE
-               IF(wGraphWeight%v.GT.0.D0) THEN
+               IF(wGraphWeight.GT.0.D0) THEN
                   CALL AddN(M%nNonTreesPos,iV,nTimes)
                   CALL AddW(M%wNonTreesPos,iV,nTimes,wGraphWeight)
                ELSE
@@ -314,8 +314,8 @@ MODULE MCStat
          WRITE(iUnit,*) "#MCBLOCKS for ",nGraphs," steps."
          DO i=0,M%iBMax
             nBlocks=Int(nGraphs/2**i)
-            blockAvg=M%wBlockSum(i)%v/nBlocks
-            blockVar=M%wBlockSumSq(i)%v/nBlocks-blockAvg**2
+            blockAvg=M%wBlockSum(i)/nBlocks
+            blockVar=M%wBlockSumSq(i)/nBlocks-blockAvg**2
 !This /(nBlocks-1) comes from Flyvbjerg's paper, and is because we are working out the best estimator of the stdev,not the actual stdev.
             blockError=SQRT(ABS(blockVar/(nBlocks-1.D0)))
             blockErrorError=blockError/SQRT(ABS(2.D0*(nBlocks-1.D0)))
@@ -344,12 +344,12 @@ MODULE MCStat
 
          nBlocks=Int(MCStat%nGraphs(0)/2**blockIndex)
          !Calculate averages of numerator & denominator
-         weightDeltaAvg=DReal(BlockWeightDelta%wBlockSum(blockIndex))/nBlocks
-         weightAvg=DReal(BlockWeight%wBlockSum(blockIndex))/nBlocks
+         weightDeltaAvg=(BlockWeightDelta%wBlockSum(blockIndex))/nBlocks
+         weightAvg=(BlockWeight%wBlockSum(blockIndex))/nBlocks
          !Calculate variances of n&d and the covariance between them
-         weightDeltaVar=DReal(BlockWeightDelta%wBlockSumSq(blockIndex))/nBlocks-weightDeltaAvg**2
-         weightVar=DReal(BlockWeight%wBlockSumSq(blockIndex))/nBlocks-weightAvg**2
-         coVar=DReal(BlockProduct%wBlockSum(blockIndex))/nBlocks-weightAvg*weightDeltaAvg
+         weightDeltaVar=(BlockWeightDelta%wBlockSumSq(blockIndex))/nBlocks-weightDeltaAvg**2
+         weightVar=(BlockWeight%wBlockSumSq(blockIndex))/nBlocks-weightAvg**2
+         coVar=(BlockProduct%wBlockSum(blockIndex))/nBlocks-weightAvg*weightDeltaAvg
          !Estimate the variance & error in the ratio (Data Reduction and Error Analysis for Physical Sceinces (8C.13) p58-64)
          jj=(weightDeltaAvg/weightAvg)**2
          kk=weightDeltaVar/weightDeltaAvg**2+weightVar/weightAvg**2-2*coVar/(weightAvg*weightDeltaAvg)
@@ -372,12 +372,12 @@ MODULE MCStat
             !Calculate an estimate for the error using blocks of this size (2**i)
             Call EstimateError(MCStat, estimatedError, i)
             !Find average, variance & error in the blocking of the actaul ratio 
-            ratioAvg=DReal(BlockRatio%wBlockSum(i))/nBlocks
-            ratioVar=DReal(BlockRatio%wBlockSumSq(i))/nBlocks-ratioAvg**2
+            ratioAvg=(BlockRatio%wBlockSum(i))/nBlocks
+            ratioVar=(BlockRatio%wBlockSumSq(i))/nBlocks-ratioAvg**2
             ratioError=Sqrt(ratioVar/(nBlocks-1))
             !Write to 'blocking' file:
             Write(iUnit, "(I3, 3G25.16)") i, ratioAvg, ratioError, estimatedError
-            !ee=/HDElement(SQRT(ABS(2.D0*(nBlocks-1.D0))))
+            !ee=/(SQRT(ABS(2.D0*(nBlocks-1.D0))))
          ENDDO
       END subroutine
 
@@ -474,9 +474,9 @@ MODULE MCStat
          TYPE(BlockStats) BS, BDS, BlockRatio
          TYPE(BlockStatsCov) BSDS
          LOGICAL tNewPower
-         TYPE(HDElement) wDS,wS,wValTotDS,wValTotS
+         real(dp) wDS,wS,wValTotDS,wValTotS
          INTEGER*8 no,nc,nt,iBlockSize,nGraphs,nTimes
-         TYPE(HDElement) bbS,bbDS
+         real(dp) bbS,bbDS
          INTEGER i,iobmax
 
             iBlockSize=1
@@ -488,23 +488,23 @@ MODULE MCStat
                no=nGraphs-nTimes !number of graphs before this cycle
                nc=MOD(no,iBlockSize) !number of samples currently in wCurBlock
 ! If we don't already have a sum for this block size, get it from the stats
-               IF(.NOT.(BS%wCurBlock(i).AGT.0.D0).AND.no.LT.iBlockSize) BS%wCurBlock(i)=(wValTotS)-HDElement(nTimes)*wS
-               IF(.NOT.(BDS%wCurBlock(i).AGT.0.D0).AND.no.LT.iBlockSize) BDS%wCurBlock(i)=(wValTotDS)-HDElement(nTimes)*wDS
+               IF(.NOT.abs(BS%wCurBlock(i)).gt.0.D0.AND.no.LT.iBlockSize) BS%wCurBlock(i)=(wValTotS)-(nTimes)*wS
+               IF(.NOT.abs(BDS%wCurBlock(i)).gt.0.D0.AND.no.LT.iBlockSize) BDS%wCurBlock(i)=(wValTotDS)-(nTimes)*wDS
                IF(nc+nt.GE.iBlockSize.AND.nc.NE.0) THEN
 !  Add enough from the new set to fill the old to nn, and send to BlockSum
-                  bbS=(wS*HDElement(iBlockSize-nc)+BS%wCurBlock(i))/HDElement(iBlockSize)
+                  bbS=(wS*(iBlockSize-nc)+BS%wCurBlock(i))/(iBlockSize)
                   bbS=bbS+M%wRefWeight
-                  bbDS=(wDS*HDElement(iBlockSize-nc)+BDS%wCurBlock(i))/HDElement(iBlockSize)
+                  bbDS=(wDS*(iBlockSize-nc)+BDS%wCurBlock(i))/(iBlockSize)
                   BSDS%wBlockSum(i)=BSDS%wBlockSum(i)+(bbS*bbDS)
                   BS%wBlockSum(i)=BS%wBlockSum(i)+bbS
                   BS%wBlockSumSq(i)=BS%wBlockSumSq(i)+(bbS*bbS)
                   BDS%wBlockSum(i)=BDS%wBlockSum(i)+bbDS
                   BDS%wBlockSumSq(i)=BDS%wBlockSumSq(i)+(bbDS*bbDS)
-                  If (bbS%v.ne.0) Then
+                  If (bbS.ne.0) Then
                       BlockRatio%wBlockSum(i)=BlockRatio%wBlockSum(i)+(bbDS/bbs)
                       BlockRatio%wBlockSumSq(i)=BlockRatio%wBlockSumSq(i)+(bbDS/bbs)*(bbDS/bbs)
                   End If
-                  If (bbDS%v.NE.0) Then
+                  If (bbDS.NE.0) Then
                       Call AddToHistogram(BDS, bbDS, i, 1)
                   EndIf
                   nt=nt-(iBlockSize-nc)
@@ -512,24 +512,24 @@ MODULE MCStat
                   BDS%wCurBlock(i)=0.D0
               ENDIF
 !  Now add in all blocks of length nn from the remainder
-               bbS=HDElement(Int(nt/iBlockSize))*wS !there are nn lots of wVal - but we want the average
-               If (bbS%v.ne.0) bbS=bbS+M%wRefWeight
-               bbDS=HDElement(Int(nt/iBlockSize))*wDS
+               bbS=(Int(nt/iBlockSize))*wS !there are nn lots of wVal - but we want the average
+               If (bbS.ne.0) bbS=bbS+M%wRefWeight
+               bbDS=(Int(nt/iBlockSize))*wDS
                BSDS%wBlockSum(i)=BSDS%wBlockSum(i)+(bbS*bbDS)
                BS%wBlockSum(i)=BS%wBlockSum(i)+bbS
                BS%wBlockSumSq(i)=BS%wBlockSumSq(i)+(bbS*bbS)
                BDS%wBlockSum(i)=BDS%wBlockSum(i)+bbDS
                BDS%wBlockSumSq(i)=BDS%wBlockSumSq(i)+(bbDS*bbDS)
-               If (bbS%v.ne.0) Then
+               If (bbS.ne.0) Then
                   BlockRatio%wBlockSum(i)=BlockRatio%wBlockSum(i)+(bbDS/bbs)
                   BlockRatio%wBlockSumSq(i)=BlockRatio%wBlockSumSq(i)+(bbDS/bbs)*(bbDS/bbs)
                End If
-               If (bbDS%v.NE.0) Then 
+               If (bbDS.NE.0) Then 
                    Call AddToHistogram(BDS, wDS, i, Int(nt/iBlockSize)) 
                EndIf
 !  Add in the remainder
-               BS%wCurBlock(i)=BS%wCurBlock(i)+HDElement(MOD(nt,iBlockSize))*wS
-               BDS%wCurBlock(i)=BDS%wCurBlock(i)+HDElement(MOD(nt,iBlockSize))*wDS
+               BS%wCurBlock(i)=BS%wCurBlock(i)+(MOD(nt,iBlockSize))*wS
+               BDS%wCurBlock(i)=BDS%wCurBlock(i)+(MOD(nt,iBlockSize))*wDS
                iBlockSize=iBlockSize*2
                i=i+1
             ENDDO
@@ -540,11 +540,11 @@ MODULE MCStat
 
     Subroutine AddToHistogram(BS, newBlock, blockSizeIndex, blockCount)
          Type(BlockStats) BS
-         Type(HDElement) newBlock
+         real(dp) newBlock
          Integer blockSizeIndex, bucketIndex, blockCount
          Real*8 bucketWidth, newBlockV
 
-         newBlockV = newBlock%v         
+         newBlockV = newBlock         
 
          If (newBlockV.GT.BS%bucketMax(blockSizeIndex)) Then 
              BS%buckets(blockSizeIndex, BS%bucketCount)=BS%buckets(blockSizeIndex, BS%bucketCount)+blockCount
@@ -580,12 +580,12 @@ MODULE MCStat
          TYPE(MCStats) M
          INTEGER iUnit
          REAL*8 Time,rStDev
-         TYPE(HDElement) iC
+         real(dp) iC
          iC=M%nGraphs(0)+0.D0
          CALL CalcStDev(M,rStDev)
          WRITE(iUnit,"(I3,I10,11G25.16,I10,G25.16)") 0,M%nGraphs(0),                         &
      &                   M%wWeighting(0)/iC,                                             &
-     &              SQRT(DREAL(M%wWeightingSq(0)/iC-(M%wWeighting(0)*M%wWeighting(0)/(iC*iC)))), &
+     &              SQRT((M%wWeightingSq(0)/iC-(M%wWeighting(0)*M%wWeighting(0)/(iC*iC)))), &
      &                   M%wDelta(0)/iC,                                                       &
      &                   M%wWeightedDelta(0)/M%wWeighting(0),                                   &
      &                   M%wDeltaSq(0)/iC,                                          &
@@ -622,18 +622,18 @@ MODULE MCStat
             nind=M%nseqs
 !            WRITE(6,*) "N,NIND:",N,NIND
 
-            uv=M%wWeightedDelta(0)%v/n
-            suv2=M%wDeltaSq(0)%v/n-uv*uv
+            uv=M%wWeightedDelta(0)/n
+            suv2=M%wDeltaSq(0)/n-uv*uv
             suv2=suv2/nind
 !            WRITE(6,*) "UV, SUV2,%",uv,suv2, suv2/(uv*uv)
          
-            v=M%wWeighting(0)%v/n
+            v=M%wWeighting(0)/n
             sv2=1.D0-v*v
             sv2=sv2/nind
 !            WRITE(6,*) "V, SV2,%", v, sv2, sv2/(v*v)
 
-            u=M%wDelta(0)%v/n
-            su2=M%wDeltaSq(0)%v/n-u*u
+            u=M%wDelta(0)/n
+            su2=M%wDeltaSq(0)/n-u*u
             su2=su2/nind
 !            WRITE(6,*) "U,SU2", u,su2,su2/(u*u)
 !            WRITE(6,*) "", u
@@ -657,9 +657,9 @@ MODULE MCStat
             TYPE(MCStats) M
             CHARACTER*20 STR2
             INTEGER I,J
-            TYPE(HDElement) OW,OE,iC
+            real(dp) OW,OE,iC
             REAL*8 Time,fAveSeqLen
-            iC=HDElement(M%nGraphs(0))
+            iC=(M%nGraphs(0))
             WRITE(iUnit,"(I12,2G25.16,F19.7,2I12,G25.12)") ,M%iVMax,M%wWeighting(0)/iC-OW,M%wWeighting(0)/iC,Time,M%nGraphs(0),M%nGraphs(0)-M%nGraphs(1),M%wDelta(0)/iC-OE
             WRITE(STR2,"(A,I5,A)") "(A,",M%iVMax+1,"I)"
             WRITE(iUnit,STR2) "GRAPHS(V)",(M%nGraphs(I),I=0,M%iVMax)
@@ -688,9 +688,9 @@ MODULE MCStat
             TYPE(MCStats) M
             CHARACTER*20 STR2
             INTEGER I,J
-            TYPE(HDElement) OW,OE,iC,wAvgWeighting,wAvgWeightedValue,wAvgDelta
+            real(dp) OW,OE,iC,wAvgWeighting,wAvgWeightedValue,wAvgDelta
             REAL*8 Time,fAveSeqLen
-            iC=HDElement(M%nGraphs(0))
+            iC=(M%nGraphs(0))
             Call GetStats(M,0,wAvgWeighting,wAvgWeightedValue,wAvgDelta)
             WRITE(iUnit,"(I12,2G25.16,F19.7,2I12,G25.12)") ,M%iVMax,wAvgWeighting,wAvgWeighting+OW,Time,M%nGraphs(0),M%nGraphs(0)-M%nGraphs(1),wAvgWeightedValue
             WRITE(STR2,"(A,I5,A)") "(A,",M%iVMax+1,"I10)"
@@ -714,8 +714,8 @@ MODULE MCStat
             WRITE(iUnit,*) "Seq Len: ",fAveSeqLen,"+-",SQRT((M%fSeqLenSq/M%nSeqs)-fAveSeqLen**2)
          END subroutine
          SUBROUTINE AddWS(w,wSq,iV,nTimes,wV)
-            TYPE(HDElement) :: w(0:iV),wSq(0:iV)
-            TYPE(HDElement) wV,t
+            real(dp) :: w(0:iV),wSq(0:iV)
+            real(dp) wV,t
             INTEGER iV
             INTEGER*8 nTimes
             t=nTimes+0.D0
@@ -727,8 +727,8 @@ MODULE MCStat
             wSq(iV)=wSq(iV)+t
          END subroutine
          SUBROUTINE AddW(w,iV,nTimes,wV)
-            TYPE(HDElement) :: w(0:iV)
-            TYPE(HDElement) wV,t
+            real(dp) :: w(0:iV)
+            real(dp) wV,t
             INTEGER iV
             INTEGER*8 nTimes
             t=nTimes+0.D0

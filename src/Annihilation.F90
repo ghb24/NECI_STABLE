@@ -588,7 +588,7 @@ MODULE AnnihilationMod
         INTEGER :: TotWalkersNew,ValidSpawned
         INTEGER :: i,DetsMerged,nJ(NEl),ierr
         REAL*8 :: HDiag
-        TYPE(HElement) :: HDiagTemp
+        HElement_t :: HDiagTemp
 
 !If we want to do this while only keeping the data in one array, the first thing which is needed, is for the annihilated
 !determinants to be removed from the main array. These are denoted by zeros in the sign array for it.
@@ -690,7 +690,7 @@ MODULE AnnihilationMod
                         else
                             HDiagTemp = get_helement (nJ, nJ, 0)
                         endif
-                        HDiag=(REAL(HDiagTemp%v,8))-Hii
+                        HDiag=(REAL(HDiagTemp,8))-Hii
                     endif
                     CurrentH(i)=HDiag
                 enddo

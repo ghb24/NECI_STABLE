@@ -472,23 +472,24 @@ C.. we diagonalize the HIJ elements and work out e^-beta lambda.
 C.. See 1/7/04
       RECURSIVE FUNCTION HDIAG_CPP(HIJ,
      &       I_P,I_V,IMISS,TSUB,BETA,DLWDB,HIJS) result (HDIAG_CPPRES)
-         USE HElem
+         use constants, only: dp
          use global_utilities
+         use HElem
          IMPLICIT NONE
          INTEGER I_P,I_V
          type(timer), save :: proc_timer
-         TYPE(HElement) HIJ(I_V+1,I_V+1),RIJMAT(I_V,I_V)
+         HElement_t HIJ(I_V+1,I_V+1),RIJMAT(I_V,I_V)
          REAL*8 WLIST(I_V),WORK(3*I_V)         
-         TYPE(HElement) NWORK(4*I_V)
+         HElement_t NWORK(4*I_V)
          INTEGER INFO,I,J,IMISS,II,IJ
-         TYPE(HDElement) SI,SI2
+         real(dp) SI,SI2
 C.. do we subtract out lower vertices here or later?
          LOGICAL TSUB
          REAL*8 BETA
-         TYPE(HElement) HIJS(I_V+1),HIJS2(I_V),DLWT,T,U
-         TYPE(HDElement) HDiag_CPPRES
-         TYPE(HDElement) R,S,DLWDB,DD2
-         TYPE(HDElement) RII
+         HElement_t HIJS(I_V+1),HIJS2(I_V),DLWT,T,U
+         real(dp) HDiag_CPPRES
+         real(dp) R,S,DLWDB,DD2
+         real(dp) RII
 ! Optimise the 1V case
          IF(I_V.EQ.1) THEN
             DLWDB=HIJ(1,1)
@@ -503,7 +504,7 @@ C.. Diagonalize
 C         WRITE(6,*) "...",I_V,IMISS
          proc_timer%timer_name='HDIAG_CPP '
          call set_timer(proc_timer,55)
-         RIJMAT(1:I_V,1:I_V)=HElement(0.d0)
+         RIJMAT(1:I_V,1:I_V)=(0.d0)
          DLWDB=0.D0
          II=0
          DO I=1,I_V+1
@@ -532,7 +533,7 @@ CIMISS-1
                DLWDB=DLWDB-DD2
             ENDDO
          ENDIF
-         IF(HElementSize.EQ.1) THEN
+         IF(HElement_t_size.EQ.1) THEN
             CALL DSYEV('V','U',I_V,RIJMAT,I_V,
      &            WLIST,WORK,3*I_V,INFO)
             IF(INFO.NE.0) THEN
@@ -547,7 +548,7 @@ C.. appropriate projection onto the root
             DO I=1,I_V
 C            WRITE(6,*) WLIST(I),RIJMAT(1,I)
                R=HIJ(1,1)
-               R=EXP(-BETA*(WLIST(I)-R%v))
+               R=EXP(-BETA*(WLIST(I)-R))
                S=RIJMAT(1,I)*RIJMAT(1,I)
                SI2=SI2+S*R
 C/RII
@@ -575,16 +576,20 @@ C.. appropriate projection onto the root
             DLWT=0.D0
             DO I=1,I_V
 C            WRITE(6,*) WLIST(I),RIJMAT(1,I)
-               S=SQ(RIJMAT(1,I))
+               S=abs(RIJMAT(1,I))**2
                R=HIJ(1,1)
-               R=DEXP(-BETA*(WLIST(I)-R%v))
+               R=DEXP(-BETA*(WLIST(I)-R))
                SI2=SI2+S*R
 C%/RII
 C.. calculate <D|H exp(-b H)|D>/RHO_ii^P
                U=R
 C/RII
                DO J=1,I_V
+#ifdef __CMPLX
                   T=HIJS2(J)*RIJMAT(J,I)*DCONJG(RIJMAT(1,I))
+#else
+                  T=HIJS2(J)*RIJMAT(J,I)*(RIJMAT(1,I))
+#endif
                   DLWT=DLWT+T*U
 !                 WRITE(6,*) I,J,HIJS(J),RIJMAT(J,I),RIJMAT(1,I),T,U,DLWT
                ENDDO
@@ -600,21 +605,22 @@ C.. See 1/7/04
       RECURSIVE FUNCTION RHODIAG_CPP(RHOIJ,
      &    I_P,I_V,IMISS,TSUB,DBETA,DLWDB,HIJS,tLogWeight) 
      &      RESULT (RHODIAG_CPPRES)
-         USE HElem
+         use constants, only: dp
          use global_utilities
+         use HElem
          IMPLICIT NONE
          INTEGER I_P,I_V
          type(timer), save :: proc_timer
-         TYPE(HElement) RHOIJ(I_V+1,I_V+1),HIJS(I_V+1),HIJS2(I_V)
-         TYPE(HElement) RIJMAT(I_V,I_V),NWORK(4*I_V),S,DLWT,S2
+         HElement_t RHOIJ(I_V+1,I_V+1),HIJS(I_V+1),HIJS2(I_V)
+         HElement_t RIJMAT(I_V,I_V),NWORK(4*I_V),S,DLWT,S2
          REAL*8 WORK(3*I_V),R
          REAL*8 WLIST(I_V)         
          INTEGER INFO,I,J,IMISS,II,IJ
-         TYPE(HDElement) SI,SI2,SS,SS2
+         real(dp) SI,SI2,SS,SS2
 C.. do we subtract out lower vertices here or later?
          LOGICAL TSUB
-         TYPE(HDElement) DLWDB,RII,DD2
-         TYPE(HDElement) RhoDiag_CPPRES
+         real(dp) DLWDB,RII,DD2
+         real(dp) RhoDiag_CPPRES
          REAL*8 DBETA
          LOGICAL tLogWeight
 ! Optimise the 1V case
@@ -632,7 +638,7 @@ C.. Diagonalize
 C         WRITE(6,*) "...",I_V,IMISS
          proc_timer%timer_name='RHODIAG_C2'
          call set_timer(proc_timer,55)
-         RIJMAT(1:I_V,1:I_V)=HElement(0.d0)
+         RIJMAT(1:I_V,1:I_V)=(0.d0)
          IF(DBETA.NE.0.D0) DLWDB=0.D0
          II=0
          DO I=1,I_V+1
@@ -678,7 +684,7 @@ C            WRITE(6,*) "SI=",SI
             ENDDO
          ENDIF
 C         WRITE(6,*) I_V
-         IF(HElementSize.EQ.1) THEN
+         IF(HElement_t_size.EQ.1) THEN
             CALL DSYEV('V','U',I_V,RIJMAT,I_V,
      &            WLIST,WORK,3*I_V,INFO)
             IF(INFO.NE.0) THEN
@@ -691,7 +697,7 @@ C.. divide through by RHOII^P
             SI2=0.D0
             DO I=1,I_V
 C               WRITE(6,*) WLIST(I),RIJMAT(1,I)
-               R=DREAL(RII)
+               R=(RII)
                R=((WLIST(I)/R)**I_P)
                S=R
                SS=S*RIJMAT(1,I)*RIJMAT(1,I)
@@ -732,15 +738,19 @@ C.. divide through by RHOII^P
             SI2=0.D0
             DLWT=0.D0
             DO I=1,I_V
-               R=DREAL(RII)
+               R=(RII)
                SS=((WLIST(I)/R)**I_P)
-               SS2=SQ(RIJMAT(1,I))
+               SS2=abs(RIJMAT(1,I))**2
                SI2=SI2+SS*SS2
                IF(DBETA.NE.0.D0) THEN
 C.. calculate <D|H exp(-b H)|D>/RHO_ii^P
                   DO J=1,I_V
                      S=SS
+#ifdef __CMPLX
                      S=S*RIJMAT(J,I)*DCONJG(RIJMAT(1,I))
+#else
+                     S=S*RIJMAT(J,I)*(RIJMAT(1,I))
+#endif
                      DLWT=DLWT+S*HIJS2(J)
                   ENDDO
                ENDIF
@@ -780,21 +790,22 @@ C.. calculate <D|H exp(-b H)|D>/RHO_ii^P
 !  As rhodiag_cpp, but only deal with this vertex level, and subtract out the two-vertex star contribtion from this vertex level.
       FUNCTION RHODIAG_CPPS2VS(RHOIJ,
      &            I_P,I_V,IMISS,TSUB,DBETA,DLWDB,HIJS)
-         USE HElem
+         use constants, only: dp
          use global_utilities
+         use HElem
          IMPLICIT NONE
          INTEGER I_P,I_V
          type(timer), save :: proc_timer
-         TYPE(HElement) RHOIJ(I_V+1,I_V+1),HIJS(I_V+1),HIJS2(I_V)
-         TYPE(HElement) RIJMAT(I_V,I_V),NWORK(4*I_V),S,DLWT,S2
+         HElement_t RHOIJ(I_V+1,I_V+1),HIJS(I_V+1),HIJS2(I_V)
+         HElement_t RIJMAT(I_V,I_V),NWORK(4*I_V),S,DLWT,S2
          REAL*8 WORK(3*I_V),R
          REAL*8 WLIST(I_V)         
          INTEGER INFO,I,J,IMISS,II,IJ
-         TYPE(HDElement) SI,SI2,SS,SS2
+         real(dp) SI,SI2,SS,SS2
 C.. do we subtract out lower vertices here or later?
          LOGICAL TSUB
-         TYPE(HDElement) DLWDB,RII,DD2
-         TYPE(HDElement) RhoDiag_CPPS2VS
+         real(dp) DLWDB,RII,DD2
+         real(dp) RhoDiag_CPPS2VS
          REAL*8 DBETA
 ! Optimise the 1V case
          IF(I_V.EQ.1) THEN
@@ -808,7 +819,7 @@ C.. Diagonalize
 C         WRITE(6,*) "...",I_V,IMISS
          proc_timer%timer_name='RHODIAG_C2'
          call set_timer(proc_timer,55)
-         RIJMAT(1:I_V,1:I_V)=HElement(0.d0)
+         RIJMAT(1:I_V,1:I_V)=(0.d0)
          DO J=1,I_V
             RIJMAT(1,J)=RHOIJ(1,J)
             RIJMAT(J,J)=RHOIJ(J,J)
@@ -816,7 +827,7 @@ C         WRITE(6,*) "...",I_V,IMISS
          ENDDO
          SI=0.D0
 !  No need to deal with small submatrices
-         IF(HElementSize.EQ.1) THEN
+         IF(HElement_t_size.EQ.1) THEN
             CALL DSYEV('V','U',I_V,RIJMAT,I_V,
      &            WLIST,WORK,3*I_V,INFO)
             IF(INFO.NE.0) THEN
@@ -829,7 +840,7 @@ C.. divide through by RHOII^P
             SI2=0.D0
             DO I=1,I_V
 C               WRITE(6,*) WLIST(I),RIJMAT(1,I)
-               R=DREAL(RII)
+               R=(RII)
                R=((WLIST(I)/R)**I_P)
                S=R
                SS=S*RIJMAT(1,I)*RIJMAT(1,I)
@@ -861,15 +872,19 @@ C.. divide through by RHOII^P
             SI2=0.D0
             DLWT=0.D0
             DO I=1,I_V
-               R=DREAL(RII)
+               R=(RII)
                SS=((WLIST(I)/R)**I_P)
-               SS2=SQ(RIJMAT(1,I))
+               SS2=abs(RIJMAT(1,I))**2
                SI2=SI2+SS*SS2
                IF(DBETA.NE.0.D0) THEN
 C.. calculate <D|H exp(-b H)|D>/RHO_ii^P
                   DO J=1,I_V
                      S=SS
+#ifdef __CMPLX
                      S=S*RIJMAT(J,I)*DCONJG(RIJMAT(1,I))
+#else
+                     S=S*RIJMAT(J,I)*(RIJMAT(1,I))
+#endif
                      DLWT=DLWT+S*HIJS2(J)
                   ENDDO
                ENDIF
@@ -886,23 +901,24 @@ C.. calculate <D|H exp(-b H)|D>/RHO_ii^P
 ! As HDIAG_CPP, but return the subtraction out of the 2-vertex star part.
       FUNCTION HDIAG_CPPS2VS(HIJ,
      &            I_P,I_V,IMISS,TSUB,BETA,DLWDB,HIJS)
-         USE HElem
+         use constants, only: dp
          use global_utilities
+         use HElem
          IMPLICIT NONE
          INTEGER I_P,I_V
          type(timer), save :: proc_timer
-         TYPE(HElement) HIJ(I_V+1,I_V+1),RIJMAT(I_V,I_V)
+         HElement_t HIJ(I_V+1,I_V+1),RIJMAT(I_V,I_V)
          REAL*8 WLIST(I_V),WORK(3*I_V)         
-         TYPE(HElement) NWORK(4*I_V)
+         HElement_t NWORK(4*I_V)
          INTEGER INFO,I,J,IMISS,II,IJ
-         TYPE(HDElement) SI,SI2
+         real(dp) SI,SI2
 C.. do we subtract out lower vertices here or later?
          LOGICAL TSUB
          REAL*8 BETA
-         TYPE(HElement) HIJS(I_V+1),HIJS2(I_V),DLWT,T,U
-         TYPE(HDElement) HDiag_CPPS2VS
-         TYPE(HDElement) R,S,DLWDB,DD2
-         TYPE(HDElement) RII
+         HElement_t HIJS(I_V+1),HIJS2(I_V),DLWT,T,U
+         real(dp) HDiag_CPPS2VS
+         real(dp) R,S,DLWDB,DD2
+         real(dp) RII
 ! Optimise the 1V case
          IF(I_V.EQ.1) THEN
             RII=HIJ(1,1)
@@ -918,7 +934,7 @@ C.. Diagonalize
 C         WRITE(6,*) "...",I_V,IMISS
          proc_timer%timer_name='HDIAG_CPP '
          call set_timer(proc_timer,55)
-         RIJMAT(1:I_V,1:I_V)=HElement(0.d0)
+         RIJMAT(1:I_V,1:I_V)=(0.d0)
          II=0
          DO I=1,I_V
             RIJMAT(I,J)=HIJ(I,J)
@@ -929,7 +945,7 @@ C         WRITE(6,*) "...",I_V,IMISS
 C.. Now subtract out the smaller submatrices first
 C.. In order to count the subsets only once, we need to only
 C.. remove up to IMISS 
-         IF(HElementSize.EQ.1) THEN
+         IF(HElement_t_size.EQ.1) THEN
             CALL DSYEV('V','U',I_V,RIJMAT,I_V,
      &            WLIST,WORK,3*I_V,INFO)
             IF(INFO.NE.0) THEN
@@ -944,7 +960,7 @@ C.. appropriate projection onto the root
             DO I=1,I_V
 C            WRITE(6,*) WLIST(I),RIJMAT(1,I)
                R=HIJ(1,1)
-               R=EXP(-BETA*(WLIST(I)-R%v))
+               R=EXP(-BETA*(WLIST(I)-R))
                S=RIJMAT(1,I)*RIJMAT(1,I)
                SI2=SI2+S*R
 C/RII
@@ -972,16 +988,20 @@ C.. appropriate projection onto the root
             DLWT=0.D0
             DO I=1,I_V
 C            WRITE(6,*) WLIST(I),RIJMAT(1,I)
-               S=SQ(RIJMAT(1,I))
+               S=abs(RIJMAT(1,I))**2
                R=HIJ(1,1)
-               R=DEXP(-BETA*(WLIST(I)-R%v))
+               R=DEXP(-BETA*(WLIST(I)-R))
                SI2=SI2+S*R
 C%/RII
 C.. calculate <D|H exp(-b H)|D>/RHO_ii^P
                U=R
 C/RII
                DO J=1,I_V
+#ifdef __CMPLX
                   T=HIJS2(J)*RIJMAT(J,I)*DCONJG(RIJMAT(1,I))
+#else
+                  T=HIJS2(J)*RIJMAT(J,I)*(RIJMAT(1,I))
+#endif
                   DLWT=DLWT+T*U
 !                 WRITE(6,*) I,J,HIJS(J),RIJMAT(J,I),RIJMAT(1,I),T,U,DLWT
                ENDDO
