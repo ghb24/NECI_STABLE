@@ -310,14 +310,20 @@ MODULE FciMCParMod
         CALL InitHistMin()
 
 
+        ! This is a bit of a hack based on the fact that we mean something 
+        ! different by exFlag for CSFs than in normal determinential code.
+        ! It would be nice to fix this properly
+        if (tCSF) exFlag = 7
+        
         do j=1,TotWalkers
-!j runs through all current walkers
-!If we are rotoannihilating/direct annihilating, the sign indicates the sum of the signs on the determinant, and hence j loops over determinants, not particles.
-!            WRITE(6,*) 'Iter: j : TotWalkers',Iter,j,TotWalkers
-!            CALL FLUSH(6)
+            ! N.B. j indicates the number of determinants, not the number
+            !      of walkers.
+! *** DEBUG ***
+!            write (6,*) 'Iter: j : TotWalkers', Iter, j, TotWalkers
+!            write (6,*) 'CurrentDet (bit)', CurrentDets(:,j)
+!            call flush(6)
 
-!First, decode the bit-string representation of the determinant the walker is on, into a string of naturally-ordered integers
-!            WRITE(6,*) 'CurrentDet (bit)',CurrentDets(:,j)
+            ! Decode determinant from (stored) bit-representation.
             CALL DecodeBitDet(DetCurr,CurrentDets(:,j))
 
 !Also, we want to find out the excitation level - we only need to find out if its connected or not (so excitation level of 3 or more is ignored.
@@ -364,28 +370,22 @@ MODULE FciMCParMod
 
             IF(tTruncInitiator) CALL CalcParentFlag(j,tHFFound,tHFFoundTemp,VecSlot,Iter)
 
-!            IF(Iter.gt.20) WRITE(6,*) 'CurrentSign(highpopflip)',CurrentSign(HighPopFlip)
+            ! Indicate that the scratch storage used for excitation generation
+            ! from the same walker has not been filled (it is filled when we
+            ! excite from the first particle on a determinant).
+            tfilled = .false.
 
-            tFilled=.false.     !This is for regenerating excitations from the same determinant multiple times. There will be a time saving if we can store the excitation generators temporarily.
-            IF(tMCExcits) THEN
-!Multiple spawning attempt per walker.
-                Loop=abs(CurrentSign(j))*NoMCExcits
-            ELSE
-!Here, we spawn each particle on the determinant in a seperate attempt.
-                Loop=abs(CurrentSign(j))
-            ENDIF
+            ! Current sign --> number of walkers on determinant. Multiply up
+            ! if attempting multiple excitations from each walker (defalult 1)
+            loop = abs (CurrentSign(j)) * noMCExcits
 
-            do p=1,Loop
-!we are simply looping over all the particles on the determinant
+            do p = 1, loop
+                ! Loop over all the particles on the determinant.
                 
                 IF(tHPHF) THEN
 !                    CALL GenRandHPHFExcit(DetCurr,CurrentDets(:,j),nJ,iLutnJ,pDoubles,exFlag,Prob)
                     CALL GenRandHPHFExcit2Scratch(DetCurr,CurrentDets(:,j),nJ,iLutnJ,pDoubles,exFlag,Prob,Scratch1,Scratch2,tFilled,tGenMatHEl)
                 elseif (tCSF) then
-                    ! This is a bit of a hack based on the fact
-                    ! that we mean something different by exFlag
-                    ! than the normal determinential code.
-                    exFlag = 7
                     call GenRandSymCSFExcit (DetCurr, CurrentDets(:,j), nJ, pSingles, pDoubles, IC, Ex, exFlag, Prob, Scratch1, Scratch2, Scratch3, tFilled, tParity)
                 else
                     CALL GenRandSymExcitScratchNU(DetCurr,CurrentDets(:,j),nJ,pDoubles,IC,Ex,tParity,exFlag,Prob,Scratch1,Scratch2,tFilled)
@@ -590,7 +590,9 @@ MODULE FciMCParMod
 !        WRITE(6,*) "Get into annihilation"
 !        CALL FLUSH(6)
 
-!This is the direct annihilation algorithm. The newly spawned walkers should be in a seperate array (SpawnedParts) and the other list should be ordered.
+        ! For the direct annihilation algorithm. The newly spawned 
+        ! walkers should be in a seperate array (SpawnedParts) and the other 
+        ! list should be ordered.
         call annihilate (totWalkersNew)
         !CALL DirectAnnihilation(TotWalkersNew)
 
