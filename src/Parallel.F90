@@ -30,7 +30,7 @@ module Parallel
 !=     MPIStopAll  Abort all processors
 !=     MPIISum     Sum an array of integers among all processors, and distribute the results array to each.
 !=     MPIDSum     As MPIISum but for real*8
-!=     MPIHelSum   As MPIDSum but for Type(HElement)
+!=     MPIHelSum   As MPIDSum but for HElement_t
 
    ! mpi USE is in mixed case to avoid it being picked up by the the Configure
    ! script, as it doesn't require a module file.
@@ -402,11 +402,12 @@ End Subroutine MPIDBCastArr
 
 !A wrapper for the mpi_bcast double precision routine, but for HElements, so it can be used in serial
 Subroutine MPIHElemBCast(dValues,iLen,Root)
-    use HElem
-    TYPE(HElement) :: dValues(*)
+    use constants, only: dp
+    use HElem, only: HElement_t_size
+    HElement_t :: dValues(*)
     INTEGER :: iLen,Root,error,rc
 #ifdef PARALLEL
-    CALL MPI_Bcast(dValues,iLen*HElementSize,MPI_DOUBLE_PRECISION,Root,MPI_COMM_WORLD,error)
+    CALL MPI_Bcast(dValues,iLen*HElement_t_size,MPI_DOUBLE_PRECISION,Root,MPI_COMM_WORLD,error)
     if(error.ne.MPI_SUCCESS) then
         print *,'Error broadcasting values in MPIDBCast. Terminating.'
         call MPI_ABORT(MPI_COMM_WORLD,rc,error)
@@ -529,18 +530,19 @@ end subroutine MPIDSumRoot
 
 Subroutine MPIHElSum(dValues, iLen, dReturn)
    !=  In:
-   !=     dValues(iLen)  Array of Type(HElement).  The corresponding elements
+   !=     dValues(iLen)  Array of HElement_t.  The corresponding elements
    !=                    for each processor are summed and returnd into dReturn(iLen).
    !=     iLen           Length of the arrays.
    !=  Out:
-   !=     dReturn(iLen)  (out) Array of Type(HElement) to get the results.
-   Use HElem
-   Type(HElement) dValues(:), dReturn(:)
+   !=     dReturn(iLen)  (out) Array of HElement_t to get the results.
+   use constants, only: dp
+   use HElem, only: HElement_t_size
+   HElement_t dValues(:), dReturn(:)
    integer iLen
    integer g, ierr,rc
 #ifdef PARALLEL
    g=MPI_COMM_WORLD
-   call MPI_ALLREDUCE(dValues,dReturn,iLen*HElementSize,MPI_DOUBLE_PRECISION,MPI_SUM,g,ierr)
+   call MPI_ALLREDUCE(dValues,dReturn,iLen*HElement_t_size,MPI_DOUBLE_PRECISION,MPI_SUM,g,ierr)
    if (ierr .ne. MPI_SUCCESS) then
       print *,'Error starting MPI program. Terminating.'
       call MPI_ABORT(MPI_COMM_WORLD, rc, ierr)

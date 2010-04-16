@@ -1,19 +1,19 @@
 !See 5/1/07
 SUBROUTINE AddMPEnergy(Hij,iV,iMaxOrder,Arr,nBasis,iPath,nEl,tLog,ECore,MPEs)
-   USE HElem
+   use constants, only: dp
    use CalcData , only : TMODMPTHEORY,TENPT
    IMPLICIT NONE
    INTEGER iV,nEl,nBasis,iMaxOrder
-   TYPE(HElement) Hij(0:iV,0:iV)
-   TYPE(HElement) V(1:iV,1:iV)
+   HElement_t Hij(0:iV,0:iV)
+   HElement_t V(1:iV,1:iV)
    REAL*8 Arr(nBasis,2)
    INTEGER iPath(nEl,0:iV)
    LOGICAL tLog,tSign,tLogged
    INTEGER i,j
-   TYPE(HElement) Fi(1:iV),E1
+   HElement_t Fi(1:iV),E1
    INTEGER iOrder
-   TYPE(HDElement) MPEs(2:iV),E,ECore
-   TYPE(HElement) MPE
+   real(dp) MPEs(2:iV),E,ECore
+   HElement_t MPE
 !E1 is the HF Energy.  Ei are Fock energy differences.
    MPE=ECore
    DO i=1,iV
@@ -26,7 +26,7 @@ SUBROUTINE AddMPEnergy(Hij,iV,iMaxOrder,Arr,nBasis,iPath,nEl,tLog,ECore,MPEs)
 !Use standard MP denominator
          Fi(i)=ECore
          DO j=1,nEl
-            Fi(i)=Fi(i)+HElement(Arr(iPath(j,i-1),2))
+            Fi(i)=Fi(i)+(Arr(iPath(j,i-1),2))
          ENDDO
          IF(tModMPTheory.and.i.gt.1) THEN
 !Encoded in the diagonal part of Hij is the <ij||ij>+<ab||ab> sum for the modified MP Theory
@@ -72,7 +72,7 @@ SUBROUTINE AddMPEnergy(Hij,iV,iMaxOrder,Arr,nBasis,iPath,nEl,tLog,ECore,MPEs)
       END SELECT
       E=MPE
       MPEs(iOrder)=MPEs(iOrder)+E
-      IF(TLOG.AND. ABS(E%v) .GT. 1.D-9) THEN
+      IF(TLOG.AND. ABS(E) .GT. 1.D-9) THEN
          IF(iOrder.EQ.2) CALL WRITEPATH(13,IPATH,2,NEL,.FALSE.)
          WRITE(13,"(G25.16)",advance='no') E
          tLogged=.TRUE.
@@ -88,11 +88,11 @@ END
 ! Vij=<Di|V|Dj>
 ! Fj=<Dj|F|Dj>
 SUBROUTINE CalcVij(Hij,Vij,Fi,E1,iV)
-   USE HElem
+   use constants, only: dp
    IMPLICIT NONE
-   TYPE(HElement) Hij(1:iV+1,1:iV+1)
-   TYPE(HElement) Vij(1:iV,1:iV)
-   TYPE(HElement) Fi(1:iV),E1
+   HElement_t Hij(1:iV+1,1:iV+1)
+   HElement_t Vij(1:iV,1:iV)
+   HElement_t Fi(1:iV),E1
    INTEGER iV,i,j
    DO i=1,iV
       DO j=1,iV
@@ -106,10 +106,10 @@ END
 !.. Calculate the contribution to the MP2 energy from 
 !.. the determinant making this a 2-v graph.
       SUBROUTINE ADDMP2E(HIJS,ARR,NBASIS,IPATH,NEL,TLOG,MP2E)
-         USE HElem
+         use constants, only: dp
          use CalcData , only : TLADDER
          IMPLICIT NONE
-         TYPE(HElement) HIJS(0:2)
+         HElement_t HIJS(0:2)
          REAL*8 ARR(NBASIS,2)
          INTEGER IPATH(NEL,0:2),NEL,NBASIS
          INTEGER NI(NEL),NJ(NEL)
@@ -160,9 +160,9 @@ END
          ENDDO
          IF(tLadder) then
 !Ladder sum perturbation theory
-            DENOM=DENOM+SQ(HIJS(1))
+            DENOM=DENOM+abs(HIJS(1))**2
          ENDIF
-         CONTR=SQ(HIJS(1))/DENOM
+         CONTR=abs(HIJS(1))**2/DENOM
          IF(TLOG.AND.CONTR.GT.1.D-9) THEN
             CALL WRITEPATH(13,IPATH,2,NEL,.FALSE.)
             WRITE(13,"(G25.16)",advance='no') -CONTR
@@ -174,10 +174,10 @@ END
 
       Subroutine ModMPDiagElement(hEl,nI,nJ,nEl,nBasisMax,UMat,ALat,nBasis,iss,G1)
          use Integrals, only : GetUMatEl
-         USE HElem
+         use constants, only: dp
          use SystemData, only: BasisFN
          implicit none
-         Type(HElement) hEl,UMat(*)
+         HElement_t hEl,UMat(*)
          integer nEl,nI(nEl),nJ(nEl),nBasis
          integer nBasisMax(5,*)
          type(BasisFn) G1(*)

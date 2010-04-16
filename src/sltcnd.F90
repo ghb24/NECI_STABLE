@@ -9,7 +9,7 @@ module sltcnd_mod
     !       --> Talk to George/Alex to see what impact that might have?
     ! TODO: It would be nice to reduce the number of variants of sltcnd_...
     !       which are floating around.
-    use HElem
+    use constants, only: dp
     use UMatCache, only: GTID
     use IntegralsData, only: UMAT
     use OneEInts, only: GetTMatEl
@@ -30,7 +30,7 @@ contains
         ! Ret: hel          - The H matrix element
 
         integer, intent(in) :: nI(nel), nJ(nel), IC
-        type(HElement) :: hel
+        HElement_t :: hel
 
         integer :: ex(2,2)
         logical :: tParity
@@ -54,12 +54,12 @@ contains
 
         case default
             ! The determinants differ by more than 2 orbitals
-            hel = helement(0)
+            hel = (0)
         end select
     end function sltcnd_compat
 
 
-    type(HElement) function sltcnd_excit (nI, nJ, IC, ex, tParity)
+    HElement_t function sltcnd_excit (nI, nJ, IC, ex, tParity)
         
         ! Use the Slater-Condon Rules to evaluate the H-matrix element between
         ! two determinants, where the excitation matrix is already known.
@@ -94,7 +94,7 @@ contains
 
         case default
             ! The determinants differ yb more than 2 orbitals
-            sltcnd_excit%v = 0
+            sltcnd_excit = 0
         end select
     end function
 
@@ -112,7 +112,7 @@ contains
         integer, intent(in) :: nI(nel), nJ(nel)
         integer, intent(in) :: iLutI(0:NIfTot), iLutJ(0:NIfTot)
         integer, intent(in) :: IC
-        type(HElement) :: hel
+        HElement_t :: hel
         integer :: ex(2,2)
         logical :: tSign
 
@@ -135,12 +135,12 @@ contains
 
         case default
             ! The determinants differ by more than two orbitals
-            hel%v = 0
+            hel = 0
         endselect
 
     end function
     
-    type(HElement) function sltcnd (nI, nJ, iLutI, iLutJ, ICret)
+    HElement_t function sltcnd (nI, nJ, iLutI, iLutJ, ICret)
         
         ! Use the Slater-Condon Rules to evaluate the H matrix element between
         ! two determinants. Make no assumptions about ordering of orbitals.
@@ -169,11 +169,11 @@ contains
 
     function sltcnd_0 (nI) result(hel)
 
-        ! Calculate the HElement by the SlaterCondon Rules when the two
+        ! Calculate the  by the SlaterCondon Rules when the two
         ! determinants are the same (so we only need to specify one).
 
         integer, intent(in) :: nI(nel)
-        type (HElement) :: hel, hel_sing, hel_doub, hel_tmp
+        HElement_t :: hel, hel_sing, hel_doub, hel_tmp
         integer :: id(nel), ids, i, j, idN, idX
 
         ! Sum in the one electron integrals (KE --> TMAT)
@@ -184,8 +184,8 @@ contains
 
         ! Sum in the two electron contributions. Use max(id...) as we cannot
         ! guarantee that if j>i then nI(j)>nI(i).
-        hel_doub = HElement(0)
-        hel_tmp = HElement(0)
+        hel_doub = (0)
+        hel_tmp = (0)
         do i=1,nel-1
             do j=i+1,nel
                 idX = max(id(i), id(j))
@@ -216,17 +216,17 @@ contains
         hel_doub = hel_doub + hel_tmp
 
         ! If we are scaling the coulomb interaction, do so here.
-        hel = hel_sing + (hel_doub * HElement(FCOUL))
+        hel = hel_sing + (hel_doub * (FCOUL))
     end function sltcnd_0
 
     function sltcnd_1 (nI, ex, tSign) result(hel)
 
-        ! Calculate the HElement by the Slater-Condon Rules when the two
+        ! Calculate the  by the Slater-Condon Rules when the two
         ! determinants differ by one orbital exactly.
 
         integer, intent(in) :: nI(nel), ex(2)
         logical, intent(in) :: tSign
-        type (HElement) :: hel
+        HElement_t :: hel
         integer :: id_ex(2), id, i
 
         ! Obtain spatial rather than spin indices if required
@@ -235,7 +235,7 @@ contains
         ! Sum in the diagonal terms (same in both dets)
         ! Coulomb term only included if Ms values of ex(1) and ex(2) are the
         ! same.
-        hel = HElement(0)
+        hel = (0)
         if (G1(ex(1))%Ms == G1(ex(2))%Ms) then
             do i=1,nel
                 if (ex(1) /= nI(i)) then
@@ -266,19 +266,19 @@ contains
         ! consider the non-diagonal part of the kinetic energy -
         ! <psi_a|T|psi_a'> where a, a' are the only basis fns that differ in
         ! nI, nJ
-        hel = (hel*HElement(FCOUL)) + GetTMATEl(ex(1), ex(2))
+        hel = (hel*(FCOUL)) + GetTMATEl(ex(1), ex(2))
 
         if (tSign) hel = -hel
     end function sltcnd_1
     
     function sltcnd_2 (ex, tSign) result (hel)
 
-        ! Calculate the HElement by the Slater-Condon Rules when the two
+        ! Calculate the  by the Slater-Condon Rules when the two
         ! determinants differ by two orbitals exactly (the simplest case).
 
         integer, intent(in) :: ex(2,2)
         logical, intent(in) :: tSign
-        type (HElement) :: hel
+        HElement_t :: hel
         integer :: id(2,2)
 
         ! Obtain spatial rather than spin indices if required
@@ -291,7 +291,7 @@ contains
              hel = GetUMATEl (nBasisMax, UMAT, ALAT, nBasis, nBasisMax(2,3), &
                               G1, id(1,1), id(1,2), id(2,1), id(2,2))
         else
-            hel = HElement(0)
+            hel = (0)
         endif
 
         if ( (G1(ex(1,1))%Ms == G1(ex(2,2))%Ms) .and. &

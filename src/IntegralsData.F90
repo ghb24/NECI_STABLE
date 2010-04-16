@@ -1,6 +1,6 @@
 module IntegralsData
 
-use HElem, only: HElement
+use constants, only: dp
 
 IMPLICIT NONE
 save
@@ -23,7 +23,7 @@ REAL*8 :: DMatEpsilon !  The cutoff for density matrix elements
 Logical :: tPostFreezeHF ! Do we do HF after freezing
 
 !  From NECI.F
-TYPE(HElement), pointer :: UMAT(:)      
+HElement_t, pointer :: UMAT(:)      
 INTEGER :: tagUMat=0
 COMPLEX*16,pointer :: FCK(:) => null()
 INTEGER :: tagFCK=0

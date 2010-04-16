@@ -8,7 +8,7 @@ module OneEInts
 ! orbitals after freezing has been done. The "original" versions are used in the
 ! pre-freezing stage.
 
-USE HElem
+use constants, only: dp
 use SystemData, only: TSTARSTORE
 
 implicit none
@@ -22,15 +22,15 @@ public
 ! where i and j must span the same representation in order for <i|h|j> 
 ! to be non-zero.
 ! The symmetries used in Dalton and Molpro are all Abelian.
-TYPE(HElement), dimension(:), POINTER :: TMATSYM
+HElement_t, dimension(:), POINTER :: TMATSYM
 ! For non-Abelian symmetries, we store the entire <i|h|j> matrix, as 
 ! the direct products of the representations can contain the totally
 ! symmetric representation (and are not necessarily the same).  We could
 ! compress this in a similar fashion at some point.
-TYPE(HElement), dimension(:,:), POINTER :: TMAT2D
+HElement_t, dimension(:,:), POINTER :: TMAT2D
 
-TYPE(HElement), dimension(:), POINTER :: TMATSYM2
-TYPE(HElement), dimension(:,:), POINTER :: TMAT2D2
+HElement_t, dimension(:), POINTER :: TMATSYM2
+HElement_t, dimension(:,:), POINTER :: TMAT2D2
 
 ! True if using TMatSym in CPMD (currently only if using k-points, which form
 ! an Abelian group).
@@ -167,8 +167,8 @@ contains
         ! In: i,j - Spin orbitals
 
         integer, intent(in) :: i, j
-        type(HElement) :: ret
-        type(HElement) :: t
+        HElement_t :: ret
+        HElement_t :: t
 
         if (tStarStore) then
             ret = TMatSym(TMatInd(i, j))
@@ -180,8 +180,12 @@ contains
             else
                 ! Work around a bug in gfortran's parser: it doesn't like
                 ! doing dconjg(TMatSym).
+#ifdef __CMPLX
                 t = TMatSym(TmatInd(i,j))
                 ret = dconjg(t)
+#else
+                ret = TMatSym(TmatInd(i,j))
+#endif
             endif
         else
             ret = TMat2D(i, j)
@@ -195,16 +199,20 @@ contains
       ! Used post-freezing. See also GetTMatEl.
         IMPLICIT NONE
         INTEGER I,J
-        TYPE(HElement) GetNEWTMATEl
+        HElement_t GetNEWTMATEl
 
         IF(TSTARSTORE) THEN
             GetNEWTMATEl=TMATSYM2(NEWTMATInd(I,J))
         else if (tCPMDSymTMat) then
+#ifdef __CMPLX
             if (j.ge.i) then
                 GetNewTMatEl=TMATSYM2(TMatInd(I,J))
             else
                 GetNewTMatEl=dConjg(TMATSYM2(TMatInd(I,J)))
             end if
+#else
+            GetNewTMatEl=TMATSYM2(TMatInd(I,J))
+#endif
         ELSE
             GetNEWTMATEl=TMAT2D2(I,J)
         ENDIF
@@ -265,7 +273,7 @@ contains
             DO II=1,NSYMLABELS
                 DO I=SYMLABELCOUNTSCUM(II-1)+1,SYMLABELCOUNTSCUM(II)
                     DO J=SYMLABELCOUNTSCUM(II-1)+1,I
-                        WRITE(12,*) I,J,DREAL(GetTMATEl((2*I),(2*J)))
+                        WRITE(12,*) I,J,GetTMATEl((2*I),(2*J))
                         CALL FLUSH(12)
                     ENDDO
                 ENDDO
@@ -273,7 +281,7 @@ contains
         ELSE
             DO I=1,NBASIS,2
                 DO J=1,NBASIS,2
-                    WRITE(12,*) (I+1)/2,(J+1)/2,DREAL(GetTMATEl(I,J))
+                    WRITE(12,*) (I+1)/2,(J+1)/2, GetTMATEl(I,J)
                 ENDDO
             ENDDO
         ENDIF
@@ -284,7 +292,7 @@ contains
             DO II=1,NSYMLABELS
                 DO I=SYMLABELCOUNTSCUM(II-1)+1,SYMLABELCOUNTSCUM(II)
                     DO J=SYMLABELCOUNTSCUM(II-1)+1,I
-                        WRITE(12,*) I,J,DREAL(GetNEWTMATEl((2*I),(2*J)))
+                        WRITE(12,*) I,J,GetNEWTMATEl((2*I),(2*J))
                         CALL FLUSH(12)
                     ENDDO
                 ENDDO
@@ -329,6 +337,7 @@ contains
         use SymData, only: SymLabelCounts,SymLabelCountsCum,SymClasses
         use SymData, only: SymLabelIntsCum,nSymLabels,StateSymMap
         use SymData, only: tagSymLabelIntsCum,tagStateSymMap,tagSymLabelCountsCum
+        use HElem, only: HElement_t_size
         use global_utilities
         IMPLICIT NONE
         integer Nirrep,nBasis,iSS,nBi,i,basirrep,t,ierr,iState,nStateIrrep
@@ -411,8 +420,8 @@ contains
             !Refer to TMatSym(-1) for when <i|h|j> is zero by symmetry.
             
             Allocate(TMATSYM(-1:iSize),STAT=ierr)
-            Call LogMemAlloc('TMATSym',iSize+2,HElementSize*8,thisroutine,tagTMATSYM,ierr)
-            TMATSYM=HElement(0.d0)
+            Call LogMemAlloc('TMATSym',iSize+2,HElement_t_size*8,thisroutine,tagTMATSYM,ierr)
+            TMATSYM=(0.d0)
 
         ELSE
 
@@ -420,8 +429,8 @@ contains
             ! zero by symmetry).
             iSize=nBasis*nBasis
             Allocate(TMAT2D(nBasis,nBasis),STAT=ierr)
-            call LogMemAlloc('TMAT2D',nBasis*nBasis,HElementSize*8,thisroutine,tagTMat2D)
-            TMAT2D=HElement(0.d0)
+            call LogMemAlloc('TMAT2D',nBasis*nBasis,HElement_t_size*8,thisroutine,tagTMat2D)
+            TMAT2D=(0.d0)
         
         ENDIF
     
@@ -445,6 +454,7 @@ contains
         use SymData, only: SymLabelIntsCum2,nSymLabels,StateSymMap2
         use SymData, only: tagSymLabelIntsCum2,tagStateSymMap2,tagSymLabelCountsCum2
         use global_utilities
+        use HElem, only: HElement_t_size
         IMPLICIT NONE
         integer Nirrep,nBasisfrz,iSS,nBi,i,basirrep,t,ierr,iState,nStateIrrep
         integer iSize
@@ -516,8 +526,8 @@ contains
             !Refer to TMatSym(-1) for when <i|h|j> is zero by symmetry.
             
             Allocate(TMATSYM2(-1:iSize),STAT=ierr)
-            CALL LogMemAlloc('TMatSym2',iSize+2,HElementSize*8,thisroutine,tagTMATSYM2,ierr)
-            TMATSYM2=HElement(0.d0)
+            CALL LogMemAlloc('TMatSym2',iSize+2,HElement_t_size*8,thisroutine,tagTMATSYM2,ierr)
+            TMATSYM2=(0.d0)
 
         ELSE
 
@@ -525,8 +535,8 @@ contains
             ! zero by symmetry).
             iSize=nBasisFRZ*nBasisFRZ
             Allocate(TMAT2D2(nBasisFRZ,nBasisFRZ),STAT=ierr)
-            call LogMemAlloc('TMAT2D2',nBasisFRZ*nBasisFRZ,HElementSize*8,thisroutine,tagTMat2D2)
-            TMAT2D2=HElement(0.d0)
+            call LogMemAlloc('TMAT2D2',nBasisFRZ*nBasisFRZ,HElement_t_size*8,thisroutine,tagTMat2D2)
+            TMAT2D2=(0.d0)
         
         ENDIF
       END SUBROUTINE SetupTMat2
@@ -586,7 +596,7 @@ contains
         ! post-freezing.  Once freezing is done, clear all the pre-freezing
         ! arrays and point them to the post-freezing arrays, so the code
         ! referencing pre-freezing arrays can be used post-freezing.
-        USE HElem
+        use constants, only: dp
         USE UMatCache
         use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
         use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB

@@ -33,7 +33,7 @@ MODULE GenRandSymExcitNUMod
     use SymData, only: SymLabelList,SymLabelCounts
     use dSFMT_interface , only : genrand_real2_dSFMT
     use SymExcitDataMod 
-    use HElem
+    use constants, only: dp
     use DetBitOps, only: FindExcitBitDet
     use sltcnd_mod, only: sltcnd_1
     use constants, only: dp
@@ -1693,7 +1693,7 @@ MODULE GenRandSymExcitNUMod
         INTEGER :: ExcitMat(2,2),SpawnOrb(nBasis),Eleci,ElecSym,NExcit,VecInd,ispn,EndSymState,j
         REAL*8 :: Tau,SpawnProb(nBasis),NormProb,r,rat
         LOGICAL :: tParity,SymAllowed
-        TYPE(HElement) :: rh
+        HElement_t :: rh
 
 !First, we need to do an O[N] operation to find the number of occupied alpha electrons, number of occupied beta electrons
 !and number of occupied electrons of each symmetry class and spin. This is similar to the ClassCount array.
@@ -1793,7 +1793,7 @@ MODULE GenRandSymExcitNUMod
             ExcitMat(2,1)=OrbA
             rh = sltcnd_1 (nI, ExcitMat, .false.)
         
-            SpawnProb(VecInd)=abs(REAL(rh%v,dp))
+            SpawnProb(VecInd)=abs(REAL(rh,dp))
             SpawnOrb(VecInd)=OrbA
             NormProb=NormProb+SpawnProb(VecInd)
             VecInd=VecInd+1
@@ -1852,11 +1852,11 @@ MODULE GenRandSymExcitNUMod
 
             IF(WSign.gt.0) THEN
                 !Parent particle is positive
-                IF(real(rh%v).gt.0.D0) THEN
+                IF(real(rh).gt.0.D0) THEN
                     iCreate=-iCreate     !-ve walker created
                 ENDIF
             ELSE
-                IF(real(rh%v).lt.0.D0) THEN
+                IF(real(rh).lt.0.D0) THEN
                     iCreate=-iCreate    !-ve walkers created
                 ENDIF
             ENDIF
@@ -1869,7 +1869,7 @@ MODULE GenRandSymExcitNUMod
     SUBROUTINE CreateDoubExcitBiased(nI,nJ,iLut,ExcitMat,tParity,nParts,WSign,Tau,iCreate)
         INTEGER :: nI(NEl),nJ(NEl),iLut(0:NIfTot),ExcitMat(2,2),iCreate,iSpn,OrbA,OrbB,SymProduct
         INTEGER :: Elec1Ind,Elec2Ind,nParts,WSign,SumMl
-        TYPE(HElement) :: rh
+        HElement_t :: rh
         LOGICAL :: tParity
         REAL*8 :: Tau
 
@@ -1892,11 +1892,11 @@ MODULE GenRandSymExcitNUMod
 
             IF(WSign.gt.0) THEN
                 !Parent particle is positive
-                IF(real(rh%v).gt.0.D0) THEN
+                IF(real(rh).gt.0.D0) THEN
                     iCreate=-iCreate     !-ve walker created
                 ENDIF
             ELSE
-                IF(real(rh%v).lt.0.D0) THEN
+                IF(real(rh).lt.0.D0) THEN
                     iCreate=-iCreate    !-ve walkers created
                 ENDIF
             ENDIF
@@ -1912,7 +1912,7 @@ MODULE GenRandSymExcitNUMod
         INTEGER :: SpatOrbi,SpatOrbj,Spini,Spinj,i,aspn,bspn,SymA,SymB,SpatOrba,EndSymState,VecInd
         REAL*8 :: Tau,SpawnProb(MaxABPairs),NormProb,rat,r
         INTEGER :: SpawnOrbs(2,MaxABPairs),j,nParts,SpinIndex,Ind
-        TYPE(HElement) :: HEl
+        HElement_t :: HEl
 
 !We want the spatial orbital number for the ij pair (Elec1Ind is the index in nI).
 !Later, we'll have to use GTID for UHF.
@@ -2004,13 +2004,13 @@ MODULE GenRandSymExcitNUMod
                 IF( Spini.EQ.aspn.and.Spinj.eq.bspn) THEN
                     Hel=GETUMATEL(NBASISMAX,UMAT,ALAT,nBasis,iSpinSkip,G1,SpatOrbi,SpatOrbj,SpatOrba,j)
                 ELSE
-                    Hel=HElement(0.D0)
+                    Hel=(0.D0)
                 ENDIF
                 IF(Spini.EQ.bspn.and.Spinj.EQ.aspn) THEN
                     Hel=Hel-GETUMATEL(NBASISMAX,UMAT,ALAT,nBasis,iSpinSkip,G1,SpatOrbi,SpatOrbj,j,SpatOrba)
                 ENDIF
 
-                SpawnProb(VecInd)=abs(REAL(Hel%v,dp))
+                SpawnProb(VecInd)=abs(REAL(Hel,dp))
                 SpawnOrbs(1,VecInd)=i
                 SpawnOrbs(2,VecInd)=OrbB
                 NormProb=NormProb+SpawnProb(VecInd)

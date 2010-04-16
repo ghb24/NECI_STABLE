@@ -22,13 +22,14 @@
         use DetBitOps, only: DecodeBitDet, DetBitEQ
         use hphf_integrals, only: hphf_diag_helement, hphf_off_diag_helement
         USE HElem
+        use constants, only: dp
         IMPLICIT NONE
 !        INTEGER :: list1(0:NIfTot,nlist1max),list2(0:NIfTot,1:nlist2)
         INTEGER :: list2(0:NIfTot,1:nlist2)
         INTEGER :: nlisto,nlist1,nlist2,nlo,i,DetCurr(0:NIfTot) 
         INTEGER :: ips,ips1,SignList2(nlist2)!,SignList1(nlist1max),
 !        REAL*8 :: HList(nlist1max)
-        TYPE(HElement) :: HDiagTemp
+        HElement_t :: HDiagTemp
         REAL*8 :: HDiag
         INTEGER :: nJ(NEl),j,nlist1max
 !        LOGICAL :: tbin
@@ -75,7 +76,7 @@
 !!Reference determinant is not HF
 !                   CALL DecodeBitDet(nJ,list2(0:NIfTot,i))
 !                   HDiagTemp=GetHElement3(nJ,nJ,0)
-!                   HDiag=(REAL(HDiagTemp%v,8))
+!                   HDiag=(REAL(HDiagTemp,8))
 !               ENDIF
            ELSE
                CALL DecodeBitDet(nJ,list2(:,i))
@@ -84,7 +85,7 @@
                else
                    HDiagTemp = get_helement (nJ, nJ, 0)
                endif
-               HDiag=(REAL(HDiagTemp%v,8))-Hii
+               HDiag=(REAL(HDiagTemp,8))-Hii
            ENDIF
            CurrentH(ips+i-1)=HDiag
                

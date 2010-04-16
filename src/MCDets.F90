@@ -13,7 +13,7 @@
 
 
 MODULE MCDets
-!   use HElem
+!   use constants, only: dp
 !   IMPLICIT NONE
 !   logical,parameter    :: tLogExGens=.false.           !Turn on memory logging for excitation generators?  Best not to as slow
 !
@@ -32,18 +32,18 @@ MODULE MCDets
 !
 !! ParticleData holds the non-array info for each particle
 !Type ParticleData
-!   type(HDElement)         hHii        !Its diagonal Hamil element
+!   real(dp)         hHii        !Its diagonal Hamil element
 !   integer                 iWeight     !Its weight (the number of subparticles in it)
 !   integer                 iSgn        !Its sign
 !   integer                 IC0         !Its excitation level away from HF determinant
-!   type(HElement)          hHi0        !Its Hamiltonian matrix element between itself and HF determinant
+!   HElement_t          hHi0        !Its Hamiltonian matrix element between itself and HF determinant
 !   integer                 iParent     !The index of the parent node
 !   integer                 iBefore     !The child node from this which is less than it 
 !   integer                 iAfter      !The child node from this which is greater than it
 !   Type(ExcitGen),pointer::exGen       !A pointer to the excitation generator which manages its own existence with reference counting
 !   integer                 iProgeny    !  Set to the number of children we have spawned at this particle
 !End Type
-!integer, parameter :: ParticleDataSize=HDElementSize+HElementSize+7
+!integer, parameter :: ParticleDataSize=Size+HElement_t_size+7
 !integer, parameter :: ParticleDataSizeB=ParticleDataSize*8
 !
 !! Particle contains all info about each particle
@@ -75,7 +75,7 @@ MODULE MCDets
 contains
 
 subroutine MCDetsCalc(nI,iSeed,nCycles,dTau,dMu,nMaxParticles,nInitParticles,iStep,dInitShift,GrowMaxFactor,CullFactor)
-!   Use HElem
+!   use constants, only: dp
 !   Use global_utilities
 !   Use Determinants, only: GetHElement3
 !   use SystemData, only: BasisFN,nEl
@@ -90,11 +90,11 @@ subroutine MCDetsCalc(nI,iSeed,nCycles,dTau,dMu,nMaxParticles,nInitParticles,iSt
 !   integer iC        ! The level of excitation returned
 !   integer ierr      !errors in memory allocation
 !   integer iCycle    !Cycle counter
-!   Type(Helement) hHij
-!   Type(Helement) hRhIJ  
-!   Type(Helement) hRhJJ  
+!   HElement_t hHij
+!   HElement_t hRhIJ  
+!   HElement_t hRhJJ  
 ! 
-!   Type(HDElement) EShift, EHF,hHjj
+!   real(dp) EShift, EHF,hHjj
 !   integer iParticle
 !
 !   
@@ -164,7 +164,7 @@ subroutine MCDetsCalc(nI,iSeed,nCycles,dTau,dMu,nMaxParticles,nInitParticles,iSt
 !   call AllocParticleList(PL(1),nMaxParticles,nEl)
 !   call AllocParticleList(PL(2),nMaxParticles,nEl)
 !!Setup single particle with weight nInitParticles at the HF det - Current PL, FDet, Initial Particles, Sign, HF Energy (diag elem), Exitgen for nI, Returned value whether node was in list.
-!   call AddParticle(PL(iPL),nI,nInitParticles,+1,EHF,HElement(EHF%v),0,exGen,iPreExisted)
+!   call AddParticle(PL(iPL),nI,nInitParticles,+1,EHF,(EHF),0,exGen,iPreExisted)
 !
 !   iOldCount=nInitParticles
 !
@@ -236,7 +236,7 @@ end subroutine MCDetsCalc
 !   Type(ParticleList) PL
 !   integer iStep,NoCulls,iOldCount,GrowthSteps,j,k
 !   real*8 dMu,dTau,GrowRate
-!   Type(HDElement) EShift
+!   real(dp) EShift
 !!CullInfo is the number of walkers before and after the cull (columns 1&2), and the third element is the previous number of steps before this cull...
 !!Only 15 culls/growth increases are allowed in a given shift cycle
 !   integer CullInfo(15,3)   
@@ -262,7 +262,7 @@ end subroutine MCDetsCalc
 !
 !   ENDIF
 !
-!   EShift=EShift-HDElement(dMu*log(GrowRate)/(dTau*iStep))
+!   EShift=EShift-(dMu*log(GrowRate)/(dTau*iStep))
 !
 !   RETURN
 !
@@ -345,7 +345,7 @@ end subroutine MCDetsCalc
 !   integer icmin,icmax
 !   real*8 icmean
 !   real*8 dTau
-!   Type(HDElement) EShift
+!   real(dp) EShift
 !   integer iSeed
 !   Type(ExcitGen),pointer :: ExGen
 !   Type(Particle) P
@@ -427,8 +427,8 @@ end subroutine MCDetsCalc
 !   integer iParticle
 !   integer iSubPart
 !   integer iAction
-!   Type(HElement) hHij,hHi0
-!   Type(HDelement) HHjj,EHF
+!   HElement_t hHij,hHi0
+!   real(dp) HHjj,EHF
 !   integer nJ(nEl),nI(nEl),IC0
 !   integer iC,iCount,ExtraCreate
 !   integer iNode,iGetExcitLevel
@@ -482,13 +482,13 @@ end subroutine MCDetsCalc
 !               IC0=iGetExcitLevel(nI,nJ,nEl)
 !               IF(IC0.eq.0) THEN
 !!Particle created is on the HF det - hHi0 is HF Energy
-!                  hHi0=HElement(EHF%v)
+!                  hHi0=(EHF)
 !               ELSEIF(IC0.eq.2) THEN
 !!Created particle is a double excit - calculate connection back to HF
 !                  hHi0=GetHElement3(nI,nJ,IC0)
 !               ELSE
 !!Created particle is a single/ > double, therefore connection back to HF = 0
-!                  hHi0=HElement(0.D0)
+!                  hHi0=(0.D0)
 !               ENDIF
 !
 !            else
@@ -567,8 +567,8 @@ end subroutine MCDetsCalc
 !   Type(ParticleList) PL
 !   integer nI(PL%nEl)
 !   integer iWeight,iSgn,IC0
-!   Type(HDElement) hHii
-!   Type(HElement) hHi0
+!   real(dp) hHii
+!   HElement_t hHi0
 !   Type(ExcitGen), pointer :: ExGen
 !   integer iNode,iAction
 !   integer iPreExisted
@@ -589,8 +589,8 @@ end subroutine MCDetsCalc
 !   Type(ParticleList) PL
 !   integer nI(PL%nEl)
 !   integer iWeight,iSgn,IC0
-!   Type(HDElement) hHii
-!   Type(HElement) hHi0
+!   real(dp) hHii
+!   HElement_t hHi0
 !   Type(ExcitGen), pointer :: ExGen
 !   integer iNode,iAction
 !   if(iAction.eq.0) then

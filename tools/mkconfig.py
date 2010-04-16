@@ -91,6 +91,8 @@ my_make := $(MAKE) -f $(my_makefile)
 # pre-processing.
 CPP = %(cpp)s
 CPPFLAGS = -DMAXMEM='$(MAXMEM)' -D_VCS_VER='$(VCS_VERSION)' $(WORKING_DIR_CHANGES) -D_CONFIG='"$(CONFIG) ($(OPT))"' -DDSFMT_MEXP=19937 %(cppflags)s 
+GCPPFLAG = -DHElement_t="real(dp)"
+KCPPFLAG = -DHElement_t="complex(dp)"
 
 # use compiler with perl scripts to avoid cascade compilation.
 compiler = %(compiler)s
@@ -408,17 +410,17 @@ endif
 # 1. Pre-processing.
 # a) gamma-point.
 $(GDEST)/%%.f90: %%.F90
-\t$(CPP) $(CPP_BODY)
+\t$(CPP) $(CPP_BODY) $(GCPPFLAG)
 
 $(GDEST)/%%.f: %%.F
-\t$(CPP) $(CPP_BODY)
+\t$(CPP) $(CPP_BODY) $(GCPPFLAG)
 
 # b) k-point.
 $(KDEST)/%%.f90: %%.F90
-\t$(CPP) -D__CMPLX $(CPP_BODY)
+\t$(CPP) -D__CMPLX $(CPP_BODY) $(KCPPFLAG)
 
 $(KDEST)/%%.f: %%.F
-\t$(CPP) -D__CMPLX $(CPP_BODY)
+\t$(CPP) -D__CMPLX $(CPP_BODY) $(KCPPFLAG)
 
 # 2. Compile.
 

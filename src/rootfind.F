@@ -1,10 +1,10 @@
 
       SUBROUTINE PLOTROOTSTAR(N,A,B,ROOTS,NROOTS)
-         USE HElem
+         use constants, only: dp
          use legacy_data, only: CALCP_N, CALCP_NT, CALCP_SUM, CALCP_HSUM
          IMPLICIT NONE
          INTEGER N,I,J,NROOTS
-         TYPE(HElement) A(0:N),B(0:N)
+         HElement_t A(0:N),B(0:N)
          real*8 ROOTS(0:NROOTS),HIGHZ,DELTA,Z
          REAL*8 STAR,STARPROD,PROD,PROD2,STARPROD2
 
@@ -17,7 +17,7 @@
          WRITE(97,*) N," excitations" 
          WRITE(97,*) "rhoii   rhoij"
          DO I=1,N
-            WRITE(97,*) DREAL(A(I)), DREAL(B(I))
+            WRITE(97,*) (A(I)), (B(I))
          ENDDO
          CALL FLUSH(97)
          
@@ -25,7 +25,7 @@
          DO WHILE(Z.LE.HIGHZ)
             STAR=0.D0
             DO I=1,N
-                STAR=STAR+SQ(B(I))/(Z-DREAL(A(I)))
+                STAR=STAR+abs(B(I))**2/(Z-(A(I)))
             ENDDO
             STARPROD=0.D0
             DO I=1,N
@@ -33,17 +33,18 @@
                 DO J=1,N
                     IF(J.eq.I) CYCLE
 !                    WRITE(97,*) I,J
-                    PROD=PROD+SQ(B(J))/(Z-(DREAL(A(I))*DREAL(A(J))))
+                    PROD=PROD+abs(B(J))**2/(Z-((A(I))*(A(J))))
                 ENDDO
-                STARPROD=STARPROD+SQ(B(I))/(Z-DREAL(A(I))-PROD)
+                STARPROD=STARPROD+abs(B(I))**2/(Z-(A(I))-PROD)
             ENDDO
             STARPROD2=0.D0
             DO I=1,N
                 PROD2=0.D0
                 DO J=1,N
-                    PROD2=PROD2+SQ(B(J))/(Z-(DREAL(A(I))*DREAL(A(J))))
+                    PROD2=PROD2+ 
+     &                        abs(B(J))**2/(Z-((A(I))*(A(J))))
                 ENDDO
-                STARPROD2=STARPROD2+SQ(B(I))/(Z-DREAL(A(I))-PROD2)
+                STARPROD2=STARPROD2+abs(B(I))**2/(Z-(A(I))-PROD2)
             ENDDO
             Z=Z+DELTA
             WRITE(66,"(4F14.10)") Z,STAR,STARPROD,STARPROD2
@@ -67,11 +68,11 @@ C.. star.  THere are N spokes and 1 pivot, and thus N+1 roots
 C.. A and B are sorted in ascending order of A
 
       SUBROUTINE FINDROOTSTAR(N,A,B,ROOTS,NROOTS)
-         USE HElem
+         use constants, only: dp
          use IntegralsData , only : NRCONV,RFCONV,NRSTEPSMAX
          IMPLICIT NONE
          INTEGER N,I,J,NROOTS,NMIN,K,JTOT
-         TYPE(HElement) A(0:N),B(0:N)
+         HElement_t A(0:N),B(0:N)
          real*8 ROOTS(0:NROOTS),INITHIGH,INITLOW,DELTA
          REAL*8 XHIGH,XLOW,X,VAL,DERIV,OX,VALLOW,VALHIGH
          LOGICAL LOWPOLE,HIGHPOLE
@@ -87,8 +88,8 @@ C.. pole
          I=NROOTS
 !         WRITE(76,*) "Total roots = ",NROOTS
 !  This will be bounded from below by A(I+NMIN)
-         XLOW=DREAL(A(I+NMIN))
-         XHIGH=2*DREAL(A(I+NMIN))
+         XLOW=(A(I+NMIN))
+         XHIGH=2*(A(I+NMIN))
 C.. The value at XHIGH is always bigger than at XLOW
 
 !  When I=0, there is no min.
@@ -319,18 +320,18 @@ C.. Now polish off with some Newton Raphson
             ROOTS(I)=X
 !            WRITE(76,*) "Root found: ",X
             DO WHILE(I.GT.0.AND.
-     &          ABS(DREAL(A(NMIN+I))-DREAL(A(NMIN+I-1))).LT.1.D-9)
+     &          ABS(REAL(A(NMIN+I),dp)-REAL(A(NMIN+I-1),dp)).LT.1.D-9)
                I=I-1
-               ROOTS(I)=DREAL(A(NMIN+I))
+               ROOTS(I)=(A(NMIN+I))
 C               WRITE(6,*),I,A(I),B(I)
 !               WRITE(76,*) "Root found2:",A(I+NMIN),B(I+NMIN)
             ENDDO
-            XHIGH=DREAL(A(NMIN+I))
+            XHIGH=(A(NMIN+I))
             I=I-1
             IF(I.EQ.1) THEN
                XLOW=-1.D0
             ELSE
-               XLOW=DREAL(A(NMIN+I))
+               XLOW=(A(NMIN+I))
             ENDIF
          ENDDO
 !         WRITE(76,*) ROOTS(:)
@@ -338,28 +339,28 @@ C               WRITE(6,*),I,A(I),B(I)
       END
 
       SUBROUTINE CALCSTARPOLYVALUE(N,A,B,X,VAL)
-         USE HElem
+         use constants, only: dp
          IMPLICIT NONE
          INTEGER N
-         TYPE(HElement) A(0:N),B(0:N)
+         HElement_t A(0:N),B(0:N)
          REAL*8 X,VAL
          INTEGER I
-         VAL=DREAL(A(0))-X
+         VAL=(A(0))-X
          DO I=1,N
-            VAL=VAL+SQ(B(I))/(X-DREAL(A(I)))
+            VAL=VAL+abs(B(I))**2/(X-(A(I)))
          ENDDO
          RETURN
       END
       SUBROUTINE CALCSTARPOLYDERIV(N,A,B,X,VAL)
-         USE HElem
+         use constants, only: dp
          IMPLICIT NONE
          INTEGER N
-         TYPE(HElement) A(0:N),B(0:N)
+         HElement_t A(0:N),B(0:N)
          REAL*8 X,VAL
          INTEGER I
          VAL=-1.D0
          DO I=1,N
-            VAL=VAL-SQ(B(I))/((X-DREAL(A(I)))**2)
+            VAL=VAL-abs(B(I))**2/((X-(A(I)))**2)
          ENDDO
          RETURN
       END
