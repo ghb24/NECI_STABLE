@@ -6,13 +6,14 @@ module GenRandSymExcitCSF
                           nbasismax, lztot, tFixLz, iMaxLz, tTruncateCSF, &
                           tTruncateCSF, csf_trunc_level, LMS
     use SymExcitDataMod
+    use FciMCData, only: pSingles, pDoubles
     use SymData, only: TwoCycleSymGens, nSymLabels
     use csf, only: csf_orbital_mask, csf_test_bit, csf_apply_random_yama, &
                    get_num_csfs, csf_apply_yama, csf_get_yamas, write_yama, &
                    get_csf_yama, num_csf_dets, csf_get_random_det, iscsf, &
                    det_to_random_csf
     use dSFMT_interface, only: genrand_real2_dSFMT
-    use GenRandSymExcitNUMod, only: ClassCountInd, GenRandSymExcitScratchNU
+    use GenRandSymExcitNUMod, only: ClassCountInd, gen_rand_excit
     use DetBitOps, only: EncodeBitDet, DecodeBitDet, is_canonical_ms_order, &
                          shift_det_bit_singles_to_beta, count_open_orbs
     use Determinants, only: write_det
@@ -22,9 +23,9 @@ module GenRandSymExcitCSF
 
 contains
     
-    subroutine GenRandSymCSFExcit (nI, iLut, nJ, pSingle, pDouble, IC, &
-                                   ExcitMat, exFlag, pGen, CCDblS, CCSglS, &
-                                   CCUnS, tFilled, tParity)
+    subroutine gen_csf_excit (nI, iLut, nJ, ilutnJ, exFlag, IC, &
+                                   excitMat, tParity, pGen, tFilled, CCdblS, &
+                                   CCSglS, CCUnS, tGenMatEl)
 
         ! Generate an excitation from a CSF at random, as specified by exFlag,
         ! and return the Excitation matrix and the probability of generating
@@ -36,18 +37,20 @@ contains
         !
         ! In:  nI        - CSF/determinant to excite from
         !      iLut      - Bit representation of nI
-        !      pSingle   - Probability of single excitation
-        !      pDouble   - Probability of double excitation
         !      tFilled   - Are the utility (scratch) arrays CCDbl... already
         !                  filled for this case
         !      CCDblS... - Arrays to fill with counts of spatial orbitals
         !                  which are singles, doubles or unoccupied
+
         integer, intent(in)    :: nI(nel), iLut(0:NIfTot), exFlag
         integer, intent(out)   :: nJ(nel), IC, ExcitMat(2,2)
         logical, intent(inout) :: tFilled
         logical, intent(out)   :: tParity
-        real*8,  intent(in)    :: pSingle, pDouble
         real*8,  intent(out)   :: pGen
+
+        ! Unused:
+        integer, intent(out) :: iLutnJ(0:niftot)
+        logical, intent(in) :: tGenMatEl
 
         ! We only need the spatial terms for the CSF stuff. However, keep the
         ! full 1-ScratchSize array, so we can pass it through to the normal
@@ -75,9 +78,9 @@ contains
                 case default
                     exTmp = 3
             end select
-            call GenRandSymExcitScratchNU (nI, iLut, nJ, pDouble, IC, &
-                                           ExcitMat, tParity, exTmp, pGen, &
-                                           CCDblS, CCUnS, tFilled)
+            call gen_rand_excit (nI, iLut, nJ, iLutnJ, exTmp, IC, ExcitMat, &
+                                 tParity, pGen, tFilled, CCDblS, CCUnS, &
+                                 CCSglS, tGenMatEl)
 
             ! If we have fallen back below the truncation level, then
             ! regenerate a CSF (pick Yamanouchi symbol at random).
@@ -130,15 +133,15 @@ contains
                 IC = 2
             case default
                 r = genrand_real2_dSFMT()
-                if ((r < pSingle) .and. btest(exFlag, 1)) then
+                if ((r < pSingles) .and. btest(exFlag, 1)) then
                     IC = 1
-                else if ((r < pSingle+pDouble) .and. btest(exFlag,2)) then
+                else if ((r < pSingles+pDoubles) .and. btest(exFlag,2)) then
                     IC = 2
                 else if (btest(exFlag, 0)) then
                     IC = 0
                 else
-                    call stop_all (this_routine, "Mismatch between pSingle, &
-                                  &pDouble and exFlag")
+                    call stop_all (this_routine, "Mismatch between pSingles, &
+                                  &pDoubles and exFlag")
                 endif
         end select
 
@@ -159,15 +162,15 @@ contains
                 if (ncsf < 2) then
                     nJ(1) = 0
                 else
-                    pGen = (1-pSingle-pDouble) / (ncsf - 1)
+                    pGen = (1-pSingles-pDoubles) / (ncsf - 1)
                 endif
             endif
         case (1) ! Create single excitation
             call CSFCreateSingleExcit (nI, nJ, CCDblS, CCSglS, CCUnS, iLut, &
-                                    ExcitMat, nopen, pSingle, pGen)
+                                    ExcitMat, nopen, pSingles, pGen)
         case (2) ! Create double excitation
             call CSFCreateDoubleExcit (nI, nJ, CCDblS, CCSglS, CCUnS, iLut, &
-                                       ExcitMat, nopen, pDouble, pGen)
+                                       ExcitMat, nopen, pDoubles, pGen)
         endselect
     end subroutine
 
@@ -1781,6 +1784,8 @@ contains
         ! Histogram the generation probabilities.
         real*8,  allocatable, dimension(:,:) :: SinglesHist, AllSinglesHist
         real*8,  allocatable, dimension(:,:,:,:) :: DoublesHist,AllDoublesHist
+        ! Unused
+        integer :: iLutnJ(0:niftot)
 
         ! Generate bit representation, and count open shell electrons
         call EncodeBitDet (nI, iLut)
@@ -1789,6 +1794,10 @@ contains
         ! Obtain the orbital symmetries for the following steps
         call ConstructClassCountsSpatial(nI, nel-nopen, CCDblS, CCSglS, CCUnS)
         tFilled = .true.
+
+        ! Set the global variables appropriately.
+        pSingles = pSingle
+        pDoubles = pDouble
 
         ! Count the excitations
         bTestList = .true.
@@ -1842,9 +1851,9 @@ contains
         open(9, file='AvContrib', status='unknown', position='append')
         do i=1,iterations
             ! Generate a random excitation
-            call GenRandSymCSFExcit (nI, iLut, nJ, pSingle, pDouble, IC, &
-                                     ExcitMat, exFlag, pGen, CCDblS, CCSglS, &
-                                     CCUnS, tFilled, tParity)
+            call gen_csf_excit (nI, iLut, nJ, iLutnJ, exFlag, IC, ExcitMat, &
+                                tParity, pGen, tFilled, CCDblS, CCSglS, &
+                                CCUnS, .false.)
 
             ! Only average etc. for an allowed transition
             if (nJ(1) /= 0) then

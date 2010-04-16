@@ -17,10 +17,13 @@ MODULE FciMCParMod
     use CalcData , only : NEquilSteps,TReadPops,tRegenDiagHEls
     use CalcData , only : GrowMaxFactor,CullFactor,TStartSinglePart,ScaleWalkers,MaxNoatHF,HFPopThresh
     use CalcData , only : tCCMC,tTruncCAS,tTruncInitiator,tDelayTruncInit,IterTruncInit,NShiftEquilSteps,tWalkContGrow,tMCExcits,NoMCExcits
-    use HPHFRandExcitMod , only : FindExcitBitDetSym,GenRandHPHFExcit,GenRandHPHFExcit2Scratch
+    use HPHFRandExcitMod, only: FindExcitBitDetSym, GenRandHPHFExcit, &
+                                gen_hphf_excit
     use Determinants, only: FDet, get_helement, write_det
     USE DetCalc , only : ICILevel,nDet,Det,FCIDetIndex
-    use GenRandSymExcitNUMod , only : GenRandSymExcitScratchNU,GenRandSymExcitNU,ScratchSize
+    use GenRandSymExcitNUMod, only: gen_rand_excit, GenRandSymExcitNU, &
+                                    ScratchSize
+    use GenRandSymExcitCSF, only: gen_csf_excit
     use IntegralsData , only : fck,NMax,UMat,tPartFreezeCore,NPartFrozen,NHolesFrozen,tPartFreezeVirt,NVirtPartFrozen,NElVirtFrozen
     USE UMatCache , only : GTID
     USE Logging , only : iWritePopsEvery,TPopsFile,iPopsPartEvery,tBinPops,tHistSpawn,iWriteHistEvery,tHistEnergies,IterShiftBlock,AllHistInitPops
@@ -50,6 +53,31 @@ MODULE FciMCParMod
                 subroutine annihil (totWalkersNew)
                     implicit none
                     integer, intent(in) :: totWalkersNew
+                end subroutine
+            end interface
+        end subroutine
+        subroutine set_excit_generator (gen) bind(c)
+            implicit none
+            interface
+                subroutine gen (nI, iLutI, nJ, iLutJ, &
+                                 exFlag, IC, ex, tParity, pGen, tFilled, &
+                                 scratch1, scratch2, scratch3, tGenMatHel)
+
+                    use SystemData, only: nel, niftot
+                    use GenRandSymExcitNUMod, only: scratchsize
+                    implicit none
+
+                    integer, intent(in) :: nI(nel), iLutI(0:niftot)
+                    integer, intent(in) :: exFlag
+                    integer, intent(inout) :: scratch1(scratchsize)
+                    integer, intent(inout) :: scratch2(scratchsize)
+                    integer, intent(inout) :: scratch3(scratchsize)
+                    integer, intent(out) :: nJ(nel), iLutJ(0:niftot)
+                    integer, intent(out) :: ic, ex(2,2)
+                    real*8, intent(out) :: pGen
+                    logical, intent(inout) :: tFilled
+                    logical, intent(out) :: tParity
+                    logical, intent(in) :: tGenMatHel ! Only for HPHF
                 end subroutine
             end interface
         end subroutine
@@ -238,9 +266,8 @@ MODULE FciMCParMod
 
 
 !This is the heart of FCIMC, where the MC Cycles are performed.
-    SUBROUTINE PerformFCIMCycPar(annihilate) bind(c)
+    SUBROUTINE PerformFCIMCycPar(annihilate, generate_excitation) bind(c)
         USE FciMCLoggingMOD , only : TrackSpawnAttempts
-        use GenRandSymExcitCSF, only: GenRandSymCSFExcit
         USE CalcData , only : tAddtoInitiator,InitiatorWalkNo,tInitIncDoubs
         use detbitops, only : countbits
         INTEGER :: VecSlot,i,j,k,l,CopySign,Loop,iPartBloom
@@ -258,6 +285,26 @@ MODULE FciMCParMod
             subroutine annihilate (totWalkersNew)
                 implicit none
                 integer, intent(in) :: totWalkersNew
+            end subroutine
+            subroutine generate_excitation (nI, iLutI, nJ, iLutJ, &
+                             exFlag, IC, ex, tParity, pGen, tFilled, &
+                             scratch1, scratch2, scratch3, tGenMatHel)
+
+                use SystemData, only: nel, niftot
+                use GenRandSymExcitNUMod, only: scratchsize
+                implicit none
+
+                integer, intent(in) :: nI(nel), iLutI(0:niftot)
+                integer, intent(in) :: exFlag
+                integer, intent(inout) :: scratch1(scratchsize)
+                integer, intent(inout) :: scratch2(scratchsize)
+                integer, intent(inout) :: scratch3(scratchsize)
+                integer, intent(out) :: nJ(nel), iLutJ(0:niftot)
+                integer, intent(out) :: ic, ex(2,2)
+                real*8, intent(out) :: pGen
+                logical, intent(inout) :: tFilled
+                logical, intent(out) :: tParity
+                logical, intent(in) :: tGenMatHel ! Only for HPHF
             end subroutine
         end interface
         
@@ -382,15 +429,11 @@ MODULE FciMCParMod
             do p = 1, loop
                 ! Loop over all the particles on the determinant.
                 
-                IF(tHPHF) THEN
-!                    CALL GenRandHPHFExcit(DetCurr,CurrentDets(:,j),nJ,iLutnJ,pDoubles,exFlag,Prob)
-                    CALL GenRandHPHFExcit2Scratch(DetCurr,CurrentDets(:,j),nJ,iLutnJ,pDoubles,exFlag,Prob,Scratch1,Scratch2,tFilled,tGenMatHEl)
-                elseif (tCSF) then
-                    call GenRandSymCSFExcit (DetCurr, CurrentDets(:,j), nJ, pSingles, pDoubles, IC, Ex, exFlag, Prob, Scratch1, Scratch2, Scratch3, tFilled, tParity)
-                else
-                    CALL GenRandSymExcitScratchNU(DetCurr,CurrentDets(:,j),nJ,pDoubles,IC,Ex,tParity,exFlag,Prob,Scratch1,Scratch2,tFilled)
-!                    WRITE(6,'(A,8I3)') 'determinant generated for spawning',nJ
-                ENDIF
+
+                call generate_excitation (DetCurr, CurrentDets(:,j), nJ, &
+                               ilutnJ, exFlag, IC, ex, tParity, prob, &
+                               tFilled, scratch1, scratch2, scratch3, &
+                               tGenMatHel)
 
 !Calculate number of children to spawn
                 IF(IsNullDet(nJ)) THEN
@@ -1415,6 +1458,14 @@ MODULE FciMCParMod
 
         ! Setup the function pointers.
         call set_annihilator (DirectAnnihilation)
+        
+        if (tHPHF) then
+            call set_excit_generator (gen_hphf_excit)
+        elseif (tCSF) then
+            call set_excit_generator (gen_csf_excit)
+        else
+            call set_excit_generator (gen_rand_excit)
+        endif
 
         ! Put a barrier here so all processes synchronise
         call MPI_Barrier(MPI_COMM_WORLD,error)

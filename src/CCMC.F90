@@ -90,6 +90,10 @@ MODULE CCMC
 ! Temporary Storage
         INTEGER iLutnI(0:nIfTot)
 
+        ! Unused
+        logical :: unused
+        integer :: scratch3(scratchsize)
+
 !The sign of the resultant composite
         INTEGER iSgn
 
@@ -521,7 +525,9 @@ MODULE CCMC
 !we are simply looping over all the particles on the determinant
 !This will only be a help if most determinants are multiply occupied.
 
-               CALL GenRandSymExcitScratchNU(DetCurr,iLutnI,nJ,pDoubles,IC,Ex,tParity,exFlag,Prob,Scratch1,Scratch2,tFilled)
+               call gen_rand_excit (DetCurr, iLutnI, nJ, iLutnJ, exFlag, IC, &
+                                    Ex, tParity, Prob, tFilled, Scratch1, &
+                                    Scratch2, Scratch3, unused)
                if(.not.IsNullDet(nJ)) then  !Check it hasn't given us a null determinant as it couldn't find one in a sensible time.
 !We need to calculate the bit-representation of this new child. This can be done easily since the ExcitMat is known.
                   IF(.not.tHPHF) CALL FindExcitBitDet(iLutnI,iLutnJ,IC,Ex)
@@ -1424,7 +1430,7 @@ LOGICAL FUNCTION GetNextSpawner(S,iDebug)
    use FciMCData, only: pDoubles,tTruncSpace
    use FciMCParMod, only: CheckAllowedTruncSpawn
    use SystemData, only : NIfTot,nEl,NIfD
-   use GenRandSymExcitNUMod , only : GenRandSymExcitScratchNU
+   use GenRandSymExcitNUMod , only : gen_rand_excit, scratchsize
    use SymExcit3, only: GenExcitations3
    use DetBitOps, only: FindExcitBitDet
    IMPLICIT NONE
@@ -1434,6 +1440,12 @@ LOGICAL FUNCTION GetNextSpawner(S,iDebug)
    LOGICAL tFilled
    LOGICAL tParity
    LOGICAL tDone
+
+    ! unused
+    integer :: iLutnJ(0:niftot)
+    logical :: unused
+    integer :: scratch3(scratchsize)
+
    tDone=.false.
    S%iIndex=S%iIndex+1
    S%bValid=.false.
@@ -1442,7 +1454,10 @@ LOGICAL FUNCTION GetNextSpawner(S,iDebug)
          GetNextSpawner=.false.
       else
          tFilled=S%iIndex.gt.1     !This is for regenerating excitations from the same determinant multiple times. There will be a time saving if we can store the excitation generators temporarily.
-         CALL GenRandSymExcitScratchNU(S%C%DetCurr,S%C%iLutDetCurr,S%nJ,pDoubles,S%iExcitLevel,S%ExcitMat,tParity,S%exFlag,S%dProbSpawn,S%Scratch1,S%Scratch2,tFilled)
+         call gen_rand_excit (S%C%DetCurr, S%C%iLutDetCurr, S%nJ, iLutnJ, &
+                              S%exFlag, S%iExcitLevel, S%ExcitMat, tParity, &
+                              S%dProbSpawn, tFilled, S%Scratch1, S%Scratch2, &
+                              scratch3, unused)
          GetNextSpawner=.true.
          S%dProbSpawn=S%dProbSpawn*S%nSpawnings
       endif
