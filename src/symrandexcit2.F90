@@ -2216,7 +2216,12 @@ MODULE GenRandSymExcitNUMod
             pAIJ=1.0/(nBasis/2-nOccAlpha)
         ENDIF
         ! Note, p(b|ij)=p(a|ij) for this system
-        pGen=2.0/(NEl*(NEl-1))*2.0*pAIJ
+        if (tUEG) then
+            pGen=2.0/(NEl*(NEl-1))*2.0*pAIJ
+        else ! i.e. if hubbard model, use modified probabilities
+            ! hubbard model can't spawn alpha/alpha and beta/beta type excitations
+            pGen=2.0/(NEl*(NEl/2))*2.0*pAIJ
+        endif
 
     END SUBROUTINE CreateDoubExcitLattice
 
@@ -2241,25 +2246,28 @@ MODULE GenRandSymExcitNUMod
 !        CALL PickElecPair(nI,Elec1Ind,Elec2Ind,SymProduct,iSpn,SumMl,-1)
          
         ! Completely random ordering of electrons is important when considering ij->ab ij/->ba. This affects pgens for alpha/beta pairs.
-        r(1) = genrand_real2_dSFMT()
-        Elec1=INT(r(1)*NEl+1)
         DO
-            r(2) = genrand_real2_dSFMT()
-            Elec2=INT(r(2)*NEl+1)
-            IF(Elec2.ne.Elec1) EXIT
-        ENDDO
-        Elec1Ind=Elec1
-        Elec2Ind=Elec2
-        IF((G1(nI(Elec1Ind))%Ms.eq.-1).and.(G1(nI(Elec2Ind))%Ms.eq.-1)) THEN
-            iSpn=1
-        ELSE
-            IF((G1(nI(Elec1Ind))%Ms.eq.1).and.(G1(nI(Elec2Ind))%Ms.eq.1)) THEN 
-                iSpn=3
+            r(1) = genrand_real2_dSFMT()
+            Elec1=INT(r(1)*NEl+1)
+            DO
+                r(2) = genrand_real2_dSFMT()
+                Elec2=INT(r(2)*NEl+1)
+                IF(Elec2.ne.Elec1) EXIT
+            ENDDO
+            Elec1Ind=Elec1
+            Elec2Ind=Elec2
+            IF((G1(nI(Elec1Ind))%Ms.eq.-1).and.(G1(nI(Elec2Ind))%Ms.eq.-1)) THEN
+                iSpn=1
             ELSE
-                iSpn=2
+                IF((G1(nI(Elec1Ind))%Ms.eq.1).and.(G1(nI(Elec2Ind))%Ms.eq.1)) THEN 
+                    iSpn=3
+                ELSE
+                    iSpn=2
+                ENDIF
             ENDIF
-        ENDIF
-        
+            IF((tHub.and.iSpn.ne.2).or.(tUEG)) EXIT ! alpha/beta pairs are the only pairs generated for the hubbard model
+        ENDDO
+
         IF(tNoFailAb)THEN ! pGen is calculated first because there might be no excitations available for this ij pair
 
             IF(tHub) CALL Stop_All("CreateExcitLattice", "This doesn't work with Hubbard Model")
