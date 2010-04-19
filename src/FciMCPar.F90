@@ -524,6 +524,7 @@ MODULE FciMCParMod
             walkExcitLevel = FindBitExcitLevel (iLutRef, CurrentDets(:,j), &
                                                 max_calc_ex_level)
 
+            ! Should be able to make this function pointer-able
             if (tRegenDiagHEls) then
                 ! We are not storing the diagonal hamiltonian elements for 
                 ! each particle. Therefore, we need to regenerate them.
@@ -1604,6 +1605,9 @@ MODULE FciMCParMod
         else
             ! Use this variable to store the bloom cutoff level.
             InitiatorWalkNo = 25
+            bloom_warn_string = '("Particle blooms of more than 25 in &
+                                &iteration ", i14, ": A max of ", i8, &
+                                &"particles created in one attempt from ")'
         endif
 
         ! Perform the correct statistics on new child particles
