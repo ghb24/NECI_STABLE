@@ -19,7 +19,8 @@ MODULE FciMCParMod
     use CalcData , only : tCCMC,tTruncCAS,tTruncInitiator,tDelayTruncInit,IterTruncInit,NShiftEquilSteps,tWalkContGrow,tMCExcits,NoMCExcits
     use HPHFRandExcitMod, only: FindExcitBitDetSym, GenRandHPHFExcit, &
                                 gen_hphf_excit
-    use Determinants, only: FDet, get_helement, write_det
+    use Determinants, only: FDet, get_helement, write_det, &
+                            get_helement_det_only
     USE DetCalc , only : ICILevel,nDet,Det,FCIDetIndex
     use GenRandSymExcitNUMod, only: gen_rand_excit, GenRandSymExcitNU, &
                                     ScratchSize
@@ -38,8 +39,9 @@ MODULE FciMCParMod
     USE AnnihilationMod
     use DetBitops, only: EncodeBitDet, DecodeBitDet, DetBitEQ, DetBitLT
     use DetBitOps, only: FindExcitBitDet, FindBitExcitLevel
-    use csf, only: get_csf_bit_yama, iscsf, csf_orbital_mask
-    use hphf_integrals, only: hphf_diag_helement, hphf_off_diag_helement
+    use csf, only: get_csf_bit_yama, iscsf, csf_orbital_mask, get_csf_helement
+    use hphf_integrals, only: hphf_diag_helement, hphf_off_diag_helement, &
+                              hphf_spawn_sign, hphf_off_diag_helement_spawn
     use util_mod, only: choose
     use constants, only: dp
     use soft_exit, only: ChangeVars 
@@ -100,6 +102,69 @@ MODULE FciMCParMod
             implicit none
             integer, intent(in) :: ex_level
         end subroutine
+        subroutine set_attempt_create (attempt_create) bind(c)
+            implicit none
+            interface
+            function attempt_create (get_spawn_helement, nI, iLutI, wSign, &
+                                     nJ, iLutJ, prob, ic, ex, tPar, exLevel)&
+                                     result(child)
+                use SystemData, only: nel, niftot
+                use constants, only: dp
+                implicit none
+                integer, intent(in) :: nI(nel), iLutI(0:nIfTot), nJ(nel)
+                integer, intent(inout) :: iLutJ(0:nIfTot)
+                integer, intent(in) :: wSign, ic, ex(2,2), exLevel
+                logical, intent(in) :: tPar
+                real(dp), intent(inout) :: prob
+                integer :: child
+
+                interface
+                    function get_spawn_helement (nI, nJ, ilutI, ilutJ, ic, &
+                                                 ex, tParity, prob) &
+                                                 result (hel)
+                        use SystemData, only: nel, niftot
+                        use constants, only: dp
+                        implicit none
+                        integer, intent(in) :: nI(nel), nJ(nel)
+                        integer, intent(in) :: iLutI(0:niftot),iLutJ(0:niftot)
+                        integer, intent(in) :: ic, ex(2,2)
+                        logical, intent(in) :: tParity
+                        real(dp), intent(in) :: prob
+                        HElement_t :: hel
+                    end function
+                end interface
+            end function
+            end interface
+        end subroutine
+        subroutine set_get_spawn_helement (get_spawn_helement) bind(c)
+            implicit none
+            interface
+                function get_spawn_helement (nI, nJ, ilutI, ilutJ, ic, &
+                                             ex, tParity, prob) result (hel)
+                    use SystemData, only: nel, niftot
+                    use constants, only: dp
+                    implicit none
+                    integer, intent(in) :: nI(nel), nJ(nel)
+                    integer, intent(in) :: iLutI(0:niftot),iLutJ(0:niftot)
+                    integer, intent(in) :: ic, ex(2,2)
+                    logical, intent(in) :: tParity
+                    real(dp), intent(in) :: prob
+                    HElement_t :: hel
+                end function
+            end interface
+        end subroutine
+        subroutine set_encode_child (encode_child) bind(c)
+            implicit none
+            interface
+                subroutine encode_child (nJ, iLutnJ)
+                    use SystemData, only: nel, niftot
+                    implicit none
+                    integer, intent(in) :: nJ(nel)
+                    integer, intent(out) :: iLutnJ(0:nIfTot)
+                end subroutine
+            end interface
+        end subroutine
+
     end interface
 
     contains
@@ -285,8 +350,10 @@ MODULE FciMCParMod
 
 
 !This is the heart of FCIMC, where the MC Cycles are performed.
-    subroutine PerformFCIMCycPar(annihilate, generate_excitation, maxExLevel)&
-               bind(c)
+    subroutine PerformFCIMCycPar(annihilate, generate_excitation, maxExLevel,&
+                                 attempt_create, get_spawn_helement, &
+                                 encode_child)&
+                                 bind(c)
 
         USE FciMCLoggingMOD , only : TrackSpawnAttempts
         USE CalcData , only : tAddtoInitiator,InitiatorWalkNo,tInitIncDoubs
@@ -320,11 +387,10 @@ MODULE FciMCParMod
             subroutine generate_excitation (nI, iLutI, nJ, iLutJ, &
                              exFlag, IC, ex, tParity, pGen, tFilled, &
                              scratch1, scratch2, scratch3)
-
                 use SystemData, only: nel, niftot
                 use GenRandSymExcitNUMod, only: scratchsize
+                use constants, only: dp
                 implicit none
-
                 integer, intent(in) :: nI(nel), iLutI(0:niftot)
                 integer, intent(in) :: exFlag
                 integer, intent(inout) :: scratch1(scratchsize)
@@ -332,9 +398,56 @@ MODULE FciMCParMod
                 integer, intent(inout) :: scratch3(scratchsize)
                 integer, intent(out) :: nJ(nel), iLutJ(0:niftot)
                 integer, intent(out) :: ic, ex(2,2)
-                real*8, intent(out) :: pGen
+                real(dp), intent(out) :: pGen
                 logical, intent(inout) :: tFilled
                 logical, intent(out) :: tParity
+            end subroutine
+            function attempt_create (get_spawn_helement, nI, iLutI, wSign, &
+                                     nJ, iLutJ, prob, ic, ex, tPar, exLevel)&
+                                     result(child)
+                use SystemData, only: nel, niftot
+                use constants, only: dp
+                implicit none
+                integer, intent(in) :: nI(nel), iLutI(0:nIfTot), nJ(nel)
+                integer, intent(inout) :: iLutJ(0:nIfTot)
+                integer, intent(in) :: wSign, ic, ex(2,2), exLevel
+                logical, intent(in) :: tPar
+                real(dp), intent(inout) :: prob
+                integer :: child
+
+                interface
+                    function get_spawn_helement (nI, nJ, ilutI, ilutJ, ic, &
+                                                 ex, tParity, prob) &
+                                                 result (hel)
+                        use SystemData, only: nel, niftot
+                        use constants, only: dp
+                        implicit none
+                        integer, intent(in) :: nI(nel), nJ(nel)
+                        integer, intent(in) :: iLutI(0:niftot),iLutJ(0:niftot)
+                        integer, intent(in) :: ic, ex(2,2)
+                        logical, intent(in) :: tParity
+                        real(dp), intent(in) :: prob
+                        HElement_t :: hel
+                    end function
+                end interface
+            end function
+            function get_spawn_helement (nI, nJ, ilutI, ilutJ, ic, &
+                                         ex, tParity, prob) result (hel)
+                use SystemData, only: nel, niftot
+                use constants, only: dp
+                implicit none
+                integer, intent(in) :: nI(nel), nJ(nel)
+                integer, intent(in) :: iLutI(0:niftot),iLutJ(0:niftot)
+                integer, intent(in) :: ic, ex(2,2)
+                logical, intent(in) :: tParity
+                real(dp), intent(in) :: prob
+                HElement_t :: hel
+            end function
+            subroutine encode_child (nJ, iLutnJ)
+                use SystemData, only: nel, niftot
+                implicit none
+                integer, intent(in) :: nJ(nel)
+                integer, intent(out) :: iLutnJ(0:nIfTot)
             end subroutine
         end interface
         
@@ -403,6 +516,8 @@ MODULE FciMCParMod
             ! Decode determinant from (stored) bit-representation.
             call DecodeBitDet(DetCurr,CurrentDets(:,j))
 
+            ! TODO: The next couple of bits could be done automatically
+
             ! We only need to find out if determinant is connected to the
             ! reference (so no ex. level above 2 required, except for HPHF
             ! or truncated etc.)
@@ -462,40 +577,36 @@ MODULE FciMCParMod
                                ilutnJ, exFlag, IC, ex, tParity, prob, &
                                tFilled, scratch1, scratch2, scratch3)
 
-!Calculate number of children to spawn
-                IF(IsNullDet(nJ)) THEN
-                    Child=0
-                ELSEIF((tTruncCAS.and.(.not.tTruncInitiator)).or.TTruncSpace.or.tPartFreezeCore.or.tPartFreezeVirt.or.tFixLz.or.tUEG) THEN
-!We have truncated the excitation space at a given excitation level. See if the spawn should be allowed.
-!If we are using the CASStar - all spawns are allowed so no need to check.
-!                    WRITE(6,*) 'cheking if a spawn is allowed'
-!                    WRITE(6,*) 'tTruncSpace',tTruncSpace
-!                    WRITE(6,*) 'tTruncCAS',tTruncCAS
-!                    WRITE(6,*) 'tTruncInitiator',tTruncInitiator
-                    IF(.not.tHPHF) call EncodeBitDet (nJ, iLutnJ)
-                    IF(CheckAllowedTruncSpawn(WalkExcitLevel,nJ,iLutnJ,IC)) THEN
-                        Child=AttemptCreatePar(DetCurr,CurrentDets(:,j),CurrentSign(j),nJ,iLutnJ,Prob,IC,Ex,tParity)
-                    ELSE
-!Attempted excitation is above the excitation level cutoff - do not allow the creation of children
-                        Child=0
-                    ENDIF
-                ELSE
-!SD Space is not truncated - allow attempted spawn as usual
-
-!                    WRITE(6,'(A,3I20,A,8I3)') 'Child to be created from:',CurrentDets(:,j),' which is ',DetCurr(:)
-!                    WRITE(6,'(A,3I20,A,8I3)') 'Child to be created on:',iLutnJ(:),' which is ',nJ(:)
-                    !print*, 'attempt create'
-                    Child=AttemptCreatePar(DetCurr,CurrentDets(:,j),CurrentSign(j),nJ,iLutnJ,Prob,IC,Ex,tParity)
-                    !print*, 'attempted'
-                    !if (child /= 0) then
-                        !WRITE(6,'(A,3I20)') 'Child to be created on:',iLutnJ(:)
-                        !WRITE(6,*) 'Child',Child
-                    !endif
-
-                ENDIF
+                if (.not. IsNullDet(nJ)) then
+                    child = attempt_create (get_spawn_helement, DetCurr, &
+                                        CurrentDets(:,j), CurrentSign(j), &
+                                        nJ,iLutnJ, Prob, IC, ex, tParity, &
+                                        walkExcitLevel)
+                else
+                    child = 0
+                endif
 
                 IF(Child.ne.0) THEN
 
+                    call encode_child (nJ, iLutnJ)
+
+                    ! We know we want to create a particle, so encode the bit
+                    ! representation here. Could we do this earlier?
+                    ! call post_create_encode (iLutCurr, iLutnJ, ic, ex)
+
+                    ! Do histogramming here if we want to. Or at least in the
+                    ! statistics routine. If doing histogramming, not too
+                    ! worried about speed
+                    ! --> Do both in a statistics function which then calls
+                    !     the normal one.
+
+
+                    
+
+
+                    ! TODO:
+                    ! call new_child_stats
+                    ! call create_particle
 
                     IF(tHistHamil) THEN
                         CALL AddHistHamilEl(CurrentDets(:,j),iLutnJ,WalkExcitLevel,Child,1)   !Histogram the hamiltonian - iLutnI,iLutnJ,Excitlevel of parent,spawning indicator
@@ -551,11 +662,16 @@ MODULE FciMCParMod
             IF(tHFFoundTemp) tHFFound=.true.
             tHFFoundTemp=.false.
 
-!We now have to decide whether the parent particle (j) wants to self-destruct or not...
-!For rotoannihilation, we can have multiple particles on the same determinant - these can be stochastically killed at the same time.
+            ! TODO:
+            ! call attempt_die (DetCurr, HDiagCurr, WalkExcitLevel, &
+            !                   CurrentSign(j))
 
-            iDie=AttemptDiePar(DetCurr,HDiagCurr,WalkExcitLevel,CurrentSign(j))
-            NoDied=NoDied+iDie          !Update death counter
+            ! Do particles on determinant j die?
+            iDie = AttemptDiePar (DetCurr, HDiagCurr, WalkExcitLevel, &
+                                  CurrentSign(j))
+
+            ! Update death counter
+            NoDied = NoDied + iDie
 
 !iDie can be positive to indicate the number of deaths, or negative to indicate the number of births
 !We slot the particles back into the same array and position VecSlot if the particle survives. If it dies, then j increases, moving onto the next
@@ -1516,6 +1632,40 @@ MODULE FciMCParMod
             call set_max_excit_level (2)
         endif
 
+        ! How many children should we spawn given an excitation?
+        if ((tTruncCas .and. (.not. tTruncInitiator)) .or. tTruncSpace .or. &
+            tPartFreezeCore .or. tPartFreezeVirt .or. tFixLz .or. tUEG) then
+            if (tHPHF .or. tCSF) then
+                call set_attempt_create (attempt_create_trunc_spawn)
+            else
+                call set_attempt_create (attempt_create_trunc_spawn_encode)
+            endif
+        else
+            call set_attempt_create (attempt_create_normal)
+        endif
+
+        ! In attempt create, how should we evaluate the off diagonal matrix
+        ! elements between a parent and its (potentially) spawned offspring?
+        if (tCSF) then
+            call set_get_spawn_helement (get_csf_helement)
+        elseif (tHPHF) then
+            if (tGenMatHEL) then
+                print*, 'tgenmathel', tgenmathel
+                call set_get_spawn_helement (hphf_spawn_sign)
+                print*, 'set element1'
+            else
+                call set_get_spawn_helement (hphf_off_diag_helement_spawn)
+                print*, 'set element2'
+            endif
+        else
+            call set_get_spawn_helement (get_helement_det_only)
+        endif
+
+        ! Once we have generated the children, do we need to encode them?
+        if (.not. (tCSF .or. tHPHF)) then
+            call set_encode_child (EncodeBitDet)
+        endif
+
     end subroutine
 
 
@@ -2083,6 +2233,135 @@ MODULE FciMCParMod
 
     END SUBROUTINE ReadFromPopsfilePar
 
+    function attempt_create_trunc_spawn (get_spawn_helement, DetCurr,&
+                                         iLutCurr, wSign, nJ, iLutnJ, prob, &
+                                         ic, ex, tparity, walkExcitLevel) &
+                                         result(child)
+        integer, intent(in) :: DetCurr(nel), iLutCurr(0:NIfTot), nJ(nel)
+        integer, intent(inout) :: iLutnJ(0:niftot)
+        integer, intent(in) :: wSign, ic, ex(2,2), walkExcitLevel
+        logical, intent(in) :: tParity
+        real(dp), intent(inout) :: prob
+        integer :: child
+
+        interface
+            function get_spawn_helement (nI, nJ, ilutI, ilutJ, ic, ex, &
+                                         tParity, prob) result (hel)
+                use SystemData, only: nel, niftot
+                use constants, only: dp
+                implicit none
+                integer, intent(in) :: nI(nel), nJ(nel)
+                integer, intent(in) :: iLutI(0:niftot), iLutJ(0:niftot)
+                integer, intent(in) :: ic, ex(2,2)
+                logical, intent(in) :: tParity
+                real(dp), intent(in) :: prob
+                HElement_t :: hel
+            end function
+        end interface
+
+        if (CheckAllowedTruncSpawn (walkExcitLevel, nJ, iLutnJ, IC)) then
+            child = attempt_create_normal (get_spawn_helement, DetCurr, &
+                               iLutCurr, wSign, nJ, iLutnJ, prob, ic, ex, &
+                               tParity, walkExcitLevel)
+        else
+            child = 0
+        endif
+    end function
+
+    function attempt_create_trunc_spawn_encode (get_spawn_helement, DetCurr,&
+                                         iLutCurr, wSign, nJ, iLutnJ, prob, &
+                                         ic, ex, tparity, walkExcitLevel) &
+                                         result(child)
+
+        integer, intent(in) :: DetCurr(nel), iLutCurr(0:NIfTot), nJ(nel)
+        integer, intent(inout) :: iLutnJ(0:niftot)
+        integer, intent(in) :: wSign, ic, ex(2,2), walkExcitLevel
+        logical, intent(in) :: tParity
+        real(dp), intent(inout) :: prob
+        integer :: child
+
+        interface
+            function get_spawn_helement (nI, nJ, ilutI, ilutJ, ic, ex, &
+                                         tParity, prob) result (hel)
+                use SystemData, only: nel, niftot
+                use constants, only: dp
+                implicit none
+                integer, intent(in) :: nI(nel), nJ(nel)
+                integer, intent(in) :: iLutI(0:niftot), iLutJ(0:niftot)
+                integer, intent(in) :: ic, ex(2,2)
+                logical, intent(in) :: tParity
+                real(dp), intent(in) :: prob
+                HElement_t :: hel
+            end function
+        end interface
+
+        call EncodeBitDet (nJ, iLutnJ)
+        if (CheckAllowedTruncSpawn (walkExcitLevel, nJ, iLutnJ, IC)) then
+            child = attempt_create_normal (get_spawn_helement, DetCurr, &
+                               iLutCurr, wSign, nJ, iLutnJ, prob, ic, ex, &
+                               tParity, walkExcitLevel)
+        else
+            child = 0
+        endif
+    end function
+
+    function attempt_create_normal (get_spawn_helement, DetCurr, iLutCurr, &
+                                    wSign, nJ, iLutnJ, prob, ic, ex, tparity,&
+                                    walkExcitLevel) result(child)
+
+        integer, intent(in) :: DetCurr(nel), iLutCurr(0:NIfTot), nJ(nel)
+        integer, intent(inout) :: iLutnJ(0:niftot)
+        integer, intent(in) :: wSign, ic, ex(2,2), walkExcitLevel
+        logical, intent(in) :: tParity
+        real(dp), intent(inout) :: prob
+        integer :: child
+
+        interface
+            function get_spawn_helement (nI, nJ, ilutI, ilutJ, ic, ex, &
+                                         tParity, prob) result (hel)
+                use SystemData, only: nel, niftot
+                use constants, only: dp
+                implicit none
+                integer, intent(in) :: nI(nel), nJ(nel)
+                integer, intent(in) :: iLutI(0:niftot), iLutJ(0:niftot)
+                integer, intent(in) :: ic, ex(2,2)
+                logical, intent(in) :: tParity
+                real(dp), intent(in) :: prob
+                HElement_t :: hel
+            end function
+        end interface
+        
+        real(dp) :: rat, r
+        integer :: extracreate
+        HElement_t :: rh
+
+        ! If we are generating multiple excitotions, then the probability of
+        ! spawning on them must be reduced by the number of excitations
+        ! generated (i.e. the excitation is likely to arise a factor of
+        ! NoMCExcits more often)
+        prob = prob * real(NoMCExcits, dp)
+
+        rh = get_spawn_helement (DetCurr, nJ, iLutCurr, iLutnJ, ic, ex, &
+                                 tParity, prob)
+
+        rat = tau * abs(rh) / prob
+
+        ! If probability > 1, then we just create multiple children at the
+        ! chosen determinant.
+        extraCreate = int(rat)
+        rat = rat - real(extraCreate, dp)
+
+        ! Stochastically choose whether to create or not.
+        r = genrand_real2_dSFMT ()
+        if (rat > r) then
+            child = -sign(sign(1, int(rh)), wSign)
+            child = child + sign(extraCreate, child)
+        else
+            child = 0
+            child = -sign(sign(extraCreate, int(rh)), wSign)
+        endif
+
+    end function
 
 !This function tells us whether we should create a child particle on nJ, from a parent particle on DetCurr with sign WSign, created with probability Prob
 !It returns zero if we are not going to create a child, or -1/+1 if we are to create a child, giving the sign of the new particle

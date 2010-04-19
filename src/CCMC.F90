@@ -91,7 +91,6 @@ MODULE CCMC
         INTEGER iLutnI(0:nIfTot)
 
         ! Unused
-        logical :: unused
         integer :: scratch3(scratchsize)
 
 !The sign of the resultant composite
@@ -527,7 +526,7 @@ MODULE CCMC
 
                call gen_rand_excit (DetCurr, iLutnI, nJ, iLutnJ, exFlag, IC, &
                                     Ex, tParity, Prob, tFilled, Scratch1, &
-                                    Scratch2, Scratch3, unused)
+                                    Scratch2, Scratch3)
                if(.not.IsNullDet(nJ)) then  !Check it hasn't given us a null determinant as it couldn't find one in a sensible time.
 !We need to calculate the bit-representation of this new child. This can be done easily since the ExcitMat is known.
                   IF(.not.tHPHF) CALL FindExcitBitDet(iLutnI,iLutnJ,IC,Ex)
@@ -1443,7 +1442,6 @@ LOGICAL FUNCTION GetNextSpawner(S,iDebug)
 
     ! unused
     integer :: iLutnJ(0:niftot)
-    logical :: unused
     integer :: scratch3(scratchsize)
 
    tDone=.false.
@@ -1457,7 +1455,7 @@ LOGICAL FUNCTION GetNextSpawner(S,iDebug)
          call gen_rand_excit (S%C%DetCurr, S%C%iLutDetCurr, S%nJ, iLutnJ, &
                               S%exFlag, S%iExcitLevel, S%ExcitMat, tParity, &
                               S%dProbSpawn, tFilled, S%Scratch1, S%Scratch2, &
-                              scratch3, unused)
+                              scratch3)
          GetNextSpawner=.true.
          S%dProbSpawn=S%dProbSpawn*S%nSpawnings
       endif

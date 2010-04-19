@@ -171,6 +171,8 @@ contains
             call CSFCreateDoubleExcit (nI, nJ, CCDblS, CCSglS, CCUnS, iLut, &
                                        ExcitMat, nopen, pDoubles, pGen)
         endselect
+
+        if (.not. IsNullDet(nJ)) call EncodeBitDet (nJ, iLutnJ)
     end subroutine
 
     subroutine CSFCreateDoubleExcit (nI, nJ, CCDblS, CCSglS, CCUnS, iLut, &
