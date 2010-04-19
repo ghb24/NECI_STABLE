@@ -1,7 +1,7 @@
 !This module is to be used for various types of walker MC annihilation in serial and parallel.
 MODULE AnnihilationMod
     use SystemData , only : NEl,tHPHF,NIfTot,NIfDBO
-    use CalcData , only : TRegenExcitgens,tRegenDiagHEls,tKeepDoubleSpawns
+    use CalcData , only : TRegenExcitgens,tKeepDoubleSpawns
     USE DetCalc , only : Det,FCIDetIndex
     USE Logging , only : tHistSpawn
     USE Parallel
@@ -606,9 +606,7 @@ MODULE AnnihilationMod
                     IF(DetsMerged.ne.0) THEN
                         CurrentDets(0:NIfTot,i-DetsMerged)=CurrentDets(0:NIfTot,i)
                         CurrentSign(i-DetsMerged)=CurrentSign(i)
-                        IF(.not.tRegenDiagHEls) THEN
-                            CurrentH(i-DetsMerged)=CurrentH(i)
-                        ENDIF
+                        CurrentH(i-DetsMerged)=CurrentH(i)
                     ENDIF
                     TotParts=TotParts+abs(CurrentSign(i))
                     IF(tCheckHighestPop) THEN
@@ -660,45 +658,32 @@ MODULE AnnihilationMod
 !The final list will be of length TotWalkersNew+ValidSpawned. This will be returned in the first element of MergeLists updated.
 
        
-        IF(tRegenDiagHEls) THEN
-            IF(TotWalkersNew.eq.0) THEN
+        IF(TotWalkersNew.eq.0) THEN
 !Merging algorithm will not work with no determinants in the main list.
-                TotWalkersNew=ValidSpawned
-                do i=1,ValidSpawned
-                    CurrentDets(:,i)=SpawnedParts(:,i)
-                    CurrentSign(i)=SpawnedSign(i)
-                enddo
-            ELSE
-                CALL MergeLists(TotWalkersNew,MaxWalkersPart,ValidSpawned,SpawnedParts(0:NIfTot,1:ValidSpawned),SpawnedSign(1:ValidSpawned))
-            ENDIF
-        ELSE
-            IF(TotWalkersNew.eq.0) THEN
-!Merging algorithm will not work with no determinants in the main list.
-                TotWalkersNew=ValidSpawned
-                do i=1,ValidSpawned
-                    CurrentDets(:,i)=SpawnedParts(:,i)
-                    CurrentSign(i)=SpawnedSign(i)
+            TotWalkersNew=ValidSpawned
+            do i=1,ValidSpawned
+                CurrentDets(:,i)=SpawnedParts(:,i)
+                CurrentSign(i)=SpawnedSign(i)
 !We want to calculate the diagonal hamiltonian matrix element for the new particle to be merged.
-                    if (DetBitEQ(CurrentDets(:,i), iLutHF, NIfDBO)) then
+                if (DetBitEQ(CurrentDets(:,i), iLutHF, NIfDBO)) then
 !We know we are at HF - HDiag=0
-                        HDiag=0.D0
+                    HDiag=0.D0
+                else
+                    call DecodeBitDet (nJ, CurrentDets(:,i))
+                    if (tHPHF) then
+                        HDiagTemp = hphf_diag_helement (nJ, &
+                                                        CurrentDets(:,i))
                     else
-                        call DecodeBitDet (nJ, CurrentDets(:,i))
-                        if (tHPHF) then
-                            HDiagTemp = hphf_diag_helement (nJ, &
-                                                            CurrentDets(:,i))
-                        else
-                            HDiagTemp = get_helement (nJ, nJ, 0)
-                        endif
-                        HDiag=(REAL(HDiagTemp,8))-Hii
+                        HDiagTemp = get_helement (nJ, nJ, 0)
                     endif
-                    CurrentH(i)=HDiag
-                enddo
-            ELSE
-                CALL MergeListswH(TotWalkersNew,MaxWalkersPart,ValidSpawned,SpawnedParts(0:NIfTot,1:ValidSpawned),SpawnedSign(1:ValidSpawned))
-            ENDIF
-
+                    HDiag=(REAL(HDiagTemp,8))-Hii
+                endif
+                CurrentH(i)=HDiag
+            enddo
+        ELSE
+            CALL MergeListswH(TotWalkersNew,MaxWalkersPart,ValidSpawned,SpawnedParts(0:NIfTot,1:ValidSpawned),SpawnedSign(1:ValidSpawned))
         ENDIF
+
         TotWalkers=TotWalkersNew
 
 !        CALL CheckOrdering(CurrentDets,CurrentSign(1:TotWalkers),TotWalkers,.true.)

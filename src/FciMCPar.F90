@@ -15,12 +15,12 @@ MODULE FciMCParMod
     use SystemData , only : tHub,tReal,tRotatedOrbs,tFindCINatOrbs,tFixLz,LzTot,tUEG, tLatticeGens,tCSF
     use CalcData, only: InitWalkers, NMCyc, DiagSft, Tau, SftDamp, StepsSft, &
                         OccCASorbs, VirtCASorbs, tFindGroundDet, NEquilSteps,&
-                        tReadPops, tRegenDiagHEls, iFullSpaceIter, MaxNoAtHF,&
+                        tReadPops, iFullSpaceIter, MaxNoAtHF, tInitIncDoubs, &
                         GrowMaxFactor, CullFactor, tStartSinglePart, tCCMC, &
                         ScaleWalkers, HFPopThresh, tTruncCAS, NoMCExcits, &
                         tTruncInitiator, tDelayTruncInit, IterTruncInit, &
                         NShiftEquilSteps, tWalkContGrow, tMCExcits, &
-                        tAddToInitiator, InitiatorWalkNo, tInitIncDoubs
+                        tAddToInitiator, InitiatorWalkNo
     use HPHFRandExcitMod, only: FindExcitBitDetSym, GenRandHPHFExcit, &
                                 gen_hphf_excit
     use Determinants, only: FDet, get_helement, write_det, &
@@ -69,15 +69,6 @@ MODULE FciMCParMod
         ! --> Otherwise BAD things (may) happen at runtime, in a
         !     non-deterministic (but probably segfault) manner.
         ! **********************************************************
-        subroutine set_annihilator (annihil) bind(c)
-            implicit none
-            interface
-                subroutine annihil (totWalkersNew)
-                    implicit none
-                    integer, intent(in) :: totWalkersNew
-                end subroutine
-            end interface
-        end subroutine
         subroutine set_excit_generator (gen) bind(c)
             implicit none
             interface
@@ -350,14 +341,13 @@ MODULE FciMCParMod
 
 
 !This is the heart of FCIMC, where the MC Cycles are performed.
-    subroutine PerformFCIMCycPar(annihilate, generate_excitation, &
-                                 attempt_create, get_spawn_helement, &
-                                 encode_child)&
+    subroutine PerformFCIMCycPar(generate_excitation, attempt_create, &
+                                 get_spawn_helement, encode_child)&
                                  bind(c)
 
         USE FciMCLoggingMOD , only : TrackSpawnAttempts
         use detbitops, only : countbits
-        INTEGER :: VecSlot,i,j,k,l,CopySign,Loop
+        INTEGER :: VecSlot,i,j,k,l,CopySign
         INTEGER :: nJ(NEl),ierr,IC,Child,iCount,DetCurr(NEl),iLutnJ(0:NIfTot)
         REAL*8 :: Prob,rat,HDiag,HDiagCurr
         INTEGER :: iDie,WalkExcitLevel,Proc             !Indicated whether a particle should self-destruct on DetCurr
@@ -377,10 +367,6 @@ MODULE FciMCParMod
         !     non-deterministic (but probably segfault) manner.
         ! **********************************************************
         interface
-            subroutine annihilate (totWalkersNew)
-                implicit none
-                integer, intent(in) :: totWalkersNew
-            end subroutine
             subroutine generate_excitation (nI, iLutI, nJ, iLutJ, &
                              exFlag, IC, ex, tParity, pGen, tFilled, &
                              scratch1, scratch2, scratch3)
@@ -502,18 +488,12 @@ MODULE FciMCParMod
         ! It would be nice to fix this properly
         if (tCSF) exFlag = 7
         
+        ! N.B. j indicates the number of determinants, not the number
+        !      of walkers.
         do j=1,TotWalkers
-            ! N.B. j indicates the number of determinants, not the number
-            !      of walkers.
-! *** DEBUG ***
-!            write (6,*) 'Iter: j : TotWalkers', Iter, j, TotWalkers
-!            write (6,*) 'CurrentDet (bit)', CurrentDets(:,j)
-!            call flush(6)
-
             ! Decode determinant from (stored) bit-representation.
+            ! TODO: put these parent-related tests into a routine.
             call DecodeBitDet(DetCurr,CurrentDets(:,j))
-
-            ! TODO: The next couple of bits could be done automatically
 
             ! We only need to find out if determinant is connected to the
             ! reference (so no ex. level above 2 required, except for HPHF
@@ -521,26 +501,8 @@ MODULE FciMCParMod
             walkExcitLevel = FindBitExcitLevel (iLutRef, CurrentDets(:,j), &
                                                 max_calc_ex_level)
 
-            ! sds: I assume that we can ALWAYS store the diagonal elements
-            !      --> We really should get rid of this.
-            IF(tRegenDiagHEls) THEN
-!We are not storing the diagonal hamiltonian elements for each particle. Therefore, we need to regenerate them.
-!Need to find H-element!
-                IF(DetBitEQ(CurrentDets(0:NIfTot,j),iLutHF,NIfDBO).and.(.not.(tHub.and.tReal))) THEN
-!We know we are at HF - HDiag=0
-                    HDiagCurr=0.D0
-                ELSE
-                    if (tHPHF) then
-                        HDiagtemp = hphf_diag_helement (DetCurr,CurrentDets(:,j))
-                    else
-                        HDiagTemp = get_helement (DetCurr, DetCurr, 0)
-                    endif
-                    HDiagCurr=(REAL(HDiagTemp,dp))-Hii
-                ENDIF
-            ELSE
-!HDiags are stored.
-                HDiagCurr=CurrentH(j)
-            ENDIF
+            ! Retrieve the diagonal helement for current determinant.
+            HDiagCurr=CurrentH(j)
 
             ! Test if we have found a determinant which is lower in E than
             ! the 'root' determinant. Should not happen in an (unrotated)
@@ -556,19 +518,18 @@ MODULE FciMCParMod
             call SumEContrib (DetCurr, WalkExcitLevel, CurrentSign(j), &
                               CurrentDets(:,j), HDiagCurr, 1.d0)
 
-            IF(tTruncInitiator) CALL CalcParentFlag(j,tHFFound,tHFFoundTemp,VecSlot,Iter)
+            IF(tTruncInitiator) &
+                call CalcParentFlag(j,tHFFound,tHFFoundTemp,VecSlot,Iter)
 
             ! Indicate that the scratch storage used for excitation generation
             ! from the same walker has not been filled (it is filled when we
             ! excite from the first particle on a determinant).
             tfilled = .false.
 
-            ! Current sign --> number of walkers on determinant. Multiply up
-            ! if attempting multiple excitations from each walker (defalult 1)
-            loop = abs (CurrentSign(j)) * noMCExcits
-
-            ! Loop over all the particles on the determinant.
-            do p = 1, loop
+            ! Loop over all the particles on the determinant. CurrentSign has
+            ! number of walkers. Multiply up by noMCExcits if attempting 
+            ! multiple excitations from each walker (default 1)
+            do p = 1, abs(CurrentSign(j)) * noMCExcits
                 ! Generate a (random) excitation
                 call generate_excitation (DetCurr, CurrentDets(:,j), nJ, &
                                ilutnJ, exFlag, IC, ex, tParity, prob, &
@@ -657,7 +618,7 @@ MODULE FciMCParMod
 !                        NewSign(VecSlot)=CopySign
                     CurrentDets(:,VecSlot)=CurrentDets(:,j)
                     CurrentSign(VecSlot)=CopySign
-                    IF(.not.tRegenDiagHEls) CurrentH(VecSlot)=HDiagCurr
+                    CurrentH(VecSlot)=HDiagCurr
                     VecSlot=VecSlot+1
                 ELSE
 !                        CALL Stop_All("PerformFCIMCyc","Creating anti-particles")
@@ -725,8 +686,7 @@ MODULE FciMCParMod
         ! For the direct annihilation algorithm. The newly spawned 
         ! walkers should be in a seperate array (SpawnedParts) and the other 
         ! list should be ordered.
-        call annihilate (totWalkersNew)
-        !CALL DirectAnnihilation(TotWalkersNew)
+        call DirectAnnihilation (totWalkersNew)
 
         CALL halt_timer(Annihil_Time)
         
@@ -1440,13 +1400,9 @@ MODULE FciMCParMod
             CALL LogMemAlloc('WalkVecDets',MaxWalkersPart*(NIfTot+1),4,this_routine,WalkVecDetsTag,ierr)
             WalkVecDets(0:NIfTot,1:MaxWalkersPart)=0
 
-            IF(.not.tRegenDiagHEls) THEN
-                ALLOCATE(WalkVecH(MaxWalkersPart),stat=ierr)
-                CALL LogMemAlloc('WalkVecH',MaxWalkersPart,8,this_routine,WalkVecHTag,ierr)
-                WalkVecH(:)=0.d0
-            ELSE
-                WRITE(6,"(A,F14.6,A)") " Diagonal H-Elements will not be stored. This will *save* ",REAL(MaxWalkersPart*8,dp)/1048576.D0," Mb/Processor"
-            ENDIF
+            ALLOCATE(WalkVecH(MaxWalkersPart),stat=ierr)
+            CALL LogMemAlloc('WalkVecH',MaxWalkersPart,8,this_routine,WalkVecHTag,ierr)
+            WalkVecH(:)=0.d0
             
             ALLOCATE(WalkVecSign(MaxWalkersPart),stat=ierr)
             CALL LogMemAlloc('WalkVecSign',MaxWalkersPart,4,this_routine,WalkVecSignTag,ierr)
@@ -1454,10 +1410,6 @@ MODULE FciMCParMod
 !            CALL LogMemAlloc('WalkVec2Sign',MaxWalkersPart,4,this_routine,WalkVec2SignTag,ierr)
             MemoryAlloc=(NIfTot+1+3)*MaxWalkersPart*4    !Memory Allocated in bytes
 
-            IF(tRegenDiagHEls) THEN
-                MemoryAlloc=MemoryAlloc-(MaxWalkersPart*8)
-            ENDIF
-            
             WalkVecSign(:)=0
 
             WRITE(6,"(A,I12,A)") " Spawning vectors allowing for a total of ",MaxSpawned," particles to be spawned in any one iteration."
@@ -1485,9 +1437,7 @@ MODULE FciMCParMod
 !Allocate pointers to the correct walker arrays
             CurrentDets=>WalkVecDets
             CurrentSign=>WalkVecSign
-            IF(.not.tRegenDiagHEls) THEN
-                CurrentH=>WalkVecH
-            ENDIF
+            CurrentH=>WalkVecH
         
             iHFProc=DetermineDetProc(iLutHF)   !This wants to return a value between 0 -> nProcessors-1
             WRITE(6,*) "HF processor is: ",iHFProc
@@ -1495,7 +1445,7 @@ MODULE FciMCParMod
 !Setup initial walker local variables
             IF(iProcIndex.eq.iHFProc) THEN
                 CurrentDets(:,1)=iLutHF(:)
-                IF(.not.tRegenDiagHEls) CurrentH(1)=0.D0
+                CurrentH(1)=0.D0
                 IF(TStartSinglePart) THEN
                     CurrentSign(1)=InitialPart
                     TotWalkers=1
@@ -1595,9 +1545,6 @@ MODULE FciMCParMod
         !
         ! The main advantage of this is that it avoids testing all of the
         ! conditionals for every single particle, during every iteration.
-
-        ! We only support direct annihilation at the moment
-        call set_annihilator (DirectAnnihilation)
 
         ! Select the excitation generator
         if (tHPHF) then
@@ -2082,18 +2029,12 @@ MODULE FciMCParMod
         CurrentSign=>WalkVecSign
 
 !Need to now allocate other arrays
-        IF(.not.tRegenDiagHEls) THEN
-            ALLOCATE(WalkVecH(MaxWalkersPart),stat=ierr)
-            CALL LogMemAlloc('WalkVecH',MaxWalkersPart,8,this_routine,WalkVecHTag,ierr)
-            WalkVecH(:)=0.d0
-        ELSE
-            WRITE(6,"(A,F14.6,A)") "Diagonal H-Elements will not be stored. This will *save* ",REAL(MaxWalkersPart*4*2,dp)/1048576.D0," Mb/Processor"
-        ENDIF
+        ALLOCATE(WalkVecH(MaxWalkersPart),stat=ierr)
+        CALL LogMemAlloc('WalkVecH',MaxWalkersPart,8,this_routine,WalkVecHTag,ierr)
+        WalkVecH(:)=0.d0
 
-        IF(.not.tRegenDiagHEls) THEN
-            CurrentH=>WalkVecH
-            NewH=>WalkVec2H
-        ENDIF
+        CurrentH=>WalkVecH
+        NewH=>WalkVec2H
         NewDets=>WalkVec2Dets
         NewSign=>WalkVec2Sign
 
@@ -2170,9 +2111,6 @@ MODULE FciMCParMod
         WRITE(6,*) "Initial Diagonal Shift (ECorr guess) is now: ",DiagSft
 
         MemoryAlloc=((NIfTot+1+3)*MaxWalkersPart*4)
-        IF(tRegenDiagHEls) THEN
-            MemoryAlloc=MemoryAlloc-(MaxWalkersPart*4*2)
-        ENDIF
 
         WRITE(6,"(A,F14.6,A)") " Initial memory (without excitgens) consists of : ",REAL(MemoryAlloc,dp)/1048576.D0," Mb"
         WRITE(6,*) "Initial memory allocation successful..."
@@ -2188,7 +2126,7 @@ MODULE FciMCParMod
             CALL DecodeBitDet(TempnI,CurrentDets(:,j))
             Excitlevel = FindBitExcitLevel(iLutHF, CurrentDets(:,j), 2)
             IF(Excitlevel.eq.0) THEN
-                IF(.not.tRegenDiagHEls) CurrentH(j)=0.D0
+                CurrentH(j)=0.D0
                 IF(First) THEN
 !First run - create the excitation.
                     HFPointer=j
@@ -2196,16 +2134,13 @@ MODULE FciMCParMod
                 ENDIF
 
             ELSE
-                IF(.not.tRegenDiagHEls) THEN
-                    if (tHPHF) then
-                        HElemTemp = hphf_diag_helement (TempnI, &
-                                                        CurrentDets(:,j))
-                    else
-                        HElemTemp = get_helement (TempnI, TempnI, 0)
-                    endif
-                    CurrentH(j)=REAL(HElemTemp,dp)-Hii
-                ENDIF
-
+                if (tHPHF) then
+                    HElemTemp = hphf_diag_helement (TempnI, &
+                                                    CurrentDets(:,j))
+                else
+                    HElemTemp = get_helement (TempnI, TempnI, 0)
+                endif
+                CurrentH(j)=REAL(HElemTemp,dp)-Hii
             ENDIF
             TotParts=TotParts+abs(CurrentSign(j))
 
@@ -2778,10 +2713,8 @@ MODULE FciMCParMod
         CALL LogMemDealloc(this_routine,WalkVecDetsTag)
         DEALLOCATE(WalkVecSign)
         CALL LogMemDealloc(this_routine,WalkVecSignTag)
-        IF(.not.tRegenDiagHEls) THEN
-            DEALLOCATE(WalkVecH)
-            CALL LogMemDealloc(this_routine,WalkVecHTag)
-        ENDIF
+        DEALLOCATE(WalkVecH)
+        CALL LogMemDealloc(this_routine,WalkVecHTag)
         DEALLOCATE(SpawnVec)
         CALL LogMemDealloc(this_routine,SpawnVecTag)
         DEALLOCATE(SpawnVec2)
