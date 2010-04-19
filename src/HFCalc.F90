@@ -1,6 +1,6 @@
 #include "macros.h"
 MODULE HFCalc
-   use HElem
+   use constants, only: dp
    implicit none
    save
    contains
@@ -16,10 +16,11 @@ MODULE HFCalc
       use IntegralsData, only: UMat, tagUMat
       Use UMatCache, only: GetUMatSize
       Use OneEInts, only: TMat2D, SetupTMat2, DestroyTMat
+      use HElem
       character(25), parameter :: this_routine='HFDoCalc'
-      Type(HElement),ALLOCATABLE :: HFBASIS(:),HFE(:)
-      Type(HElement),pointer :: UMat2(:)
-      Type(HElement),pointer :: TMat2D2(:,:)
+      HElement_t,ALLOCATABLE :: HFBASIS(:),HFE(:)
+      HElement_t,pointer :: UMat2(:)
+      HElement_t,pointer :: TMat2D2(:,:)
       integer i, ierr
       integer nOrbUsed
       integer UMatInt, TMatInt
@@ -30,16 +31,16 @@ MODULE HFCalc
 !C.. primitive basis.
 !C.. We load the coeffs from a file HFBASIS
          IF(THFBASIS.OR.THFCALC.OR.(THFORDER.AND..NOT.TCPMD)) THEN
-            ! NOTE: while HFBasis and HFE are declared to be HElement arrays,
+            ! NOTE: while HFBasis and HFE are declared to be  arrays,
             ! many of the following routines assume them to be real arrays.
             ! These need to be changed for use with complex code.
             allocate(HFBasis(nBasis*nBasis))
-            call LogMemAlloc('HFBASIS',nBasis*nBasis,HElementSize*8,this_routine,tagHFBasis)
-            HFBASIS=HElement(0.d0)
+            call LogMemAlloc('HFBASIS',nBasis*nBasis,HElement_t_size*8,this_routine,tagHFBasis)
+            HFBASIS=(0.d0)
 !C.. Allocate an array to store the HF Energies
             allocate(HFE(nBasis))
-            call LogMemAlloc('HFE',nBasis,HElementSize*8,this_routine,tagHFE)
-            HFE=HElement(0.d0)
+            call LogMemAlloc('HFE',nBasis,HElement_t_size*8,this_routine,tagHFE)
+            HFE=(0.d0)
             IF(THFORDER.AND..NOT.THFBASIS) THEN
 !C.. If we're not using HF, but just calculating the HF order
 !C.. We generate the HF energies (this has no mixing or randomisation, so should jsut
@@ -85,8 +86,8 @@ MODULE HFCalc
 !C.. Allocate the new matrix
                CALL GetUMatSize(nBasis,nEl,1,UMATINT)
                Allocate(UMat2(UMatInt), stat=ierr)
-               LogAlloc(ierr,'UMAT2', UMatInt, HElementSizeB, tagUMat2)
-               UMAT2=HElement(0.d0)
+               LogAlloc(ierr,'UMAT2', UMatInt, HElement_t_sizeB, tagUMat2)
+               UMAT2=(0.d0)
 !C.. We need to pass the TMAT to CALCHFUMAT as TMAT is no longer diagona
 !C.. This also modified G1, ARR, BRR
                IF(TREADTUMAT) THEN

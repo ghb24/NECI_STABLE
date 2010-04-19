@@ -18,7 +18,7 @@ MODULE SymExcit2
 
 !  Enumerate the weights of all possible determinants to excite from in a given excittype.
       SUBROUTINE EnumExcitFromWeights(ExcitType, ews,OrbPairs, SymProdInd,Norm,iCount,G1,nBasisMax,UMat,Arr,nBasis)
-         USE HElem
+         use constants, only: dp
          use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
          use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
          IMPLICIT NONE
@@ -27,7 +27,7 @@ MODULE SymExcit2
          INTEGER OrbPairs(2,*)
          REAL*8 Norm
          INTEGER iCount
-         TYPE(HElement) UMat(*)
+         HElement_t UMat(*)
          REAL*8 Arr(nBasis,2)
          TYPE(ExcitWeight) ews(*)
          TYPE(BasisFN) G1(*)
@@ -60,7 +60,7 @@ MODULE SymExcit2
       SUBROUTINE EnumExcitWeights(ExcitType,iFromIndex,iLUT,ews,OrbPairs,SymProdInd,Norm,iCount,G1,NBASISMAX,UMAT,Arr,NBASIS)
          use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
          use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
-         USE HElem
+         use constants, only: dp
          use SymData, only: SymPairProds,SymStatePairs
          INTEGER ExcitType(5)
          INTEGER NBASIS
@@ -74,7 +74,7 @@ MODULE SymExcit2
          LOGICAL L1B,L1A,L2B,L2A
          INTEGER nBasisMax(5,*)
          TYPE(BasisFN) G1(*)
-         TYPE(HElement) UMAT(*)
+         HElement_t UMAT(*)
          REAL*8 Norm
          TYPE(ExcitWeight) ews(*)
          INTEGER K
@@ -151,13 +151,13 @@ MODULE SymExcit2
 ! Add the weight of the excitation to the list in ExWeights
 ! I,J are from, K,L are to
       SUBROUTINE AddExcitWeight(I,J,A,B,ExWeights,Norm,iCount,G1,NBASISMAX,UMAT,Arr,NBASIS)
-         USE HElem
+         use constants, only: dp
          use SystemData, only: BasisFN
          INTEGER I,J,A,B
          REAL*8 R,Norm
          INTEGER nBasisMax(5,*),NBASIS
          TYPE(BasisFN) G1(*)
-         TYPE(HElement) UMAT(*)
+         HElement_t UMAT(*)
          TYPE(ExcitWeight) ExWeights(iCount+1)
          INTEGER iCount
          REAL*8 Arr(nBasis,2)
@@ -174,13 +174,13 @@ MODULE SymExcit2
 ! Add the weight of the 'from' excitation to the list in ExWeights
 ! I,J are from
       SUBROUTINE AddExcitFromWeight(I,J,ExWeights,Norm,iCount,G1,nBasisMax,UMat,Arr,nBasis)
-         USE HElem
+         use constants, only: dp
          use SystemData, only: BasisFN
          INTEGER I,J,A,B
          REAL*8 R,Norm
          INTEGER nBasisMax(5,*),nBasis
          TYPE(BasisFN) G1(*)
-         TYPE(HElement) UMat(*)
+         HElement_t UMat(*)
          TYPE(ExcitWeight) ExWeights(iCount+1)
          INTEGER iCount
          REAL*8 Arr(nBasis,2)
@@ -195,7 +195,7 @@ MODULE SymExcit2
 !        A sub called to generate an unnormalised weight for an ij->?? excitation
 !          We return a function of the energies of the orbitals, exp(-(ei+ej)/a)
       SUBROUTINE ExcitFromWeighting(I,J,Weight,G1,nBasisMax,UMat,Arr,nBasis)
-         USE HElem
+         use constants, only: dp
          use SystemData, only: BasisFN
          IMPLICIT NONE
          INTEGER nBasisMax(5,*),nBasis
@@ -203,7 +203,7 @@ MODULE SymExcit2
 !  We fake ISS
          INTEGER I,J,K,L
          REAL*8 WEIGHT
-         TYPE(HElement) UMAT(*),W
+         HElement_t UMAT(*),W
          REAL*8 Arr(nBasis,2)
          !No weighting
          IF(EXCITFUNCS(10)) THEN
@@ -252,7 +252,7 @@ MODULE SymExcit2
 !        A sub called to generate an unnormalised weight for a given ij->kl excitation
 !          We return a function of the U matrix element (|<ij|u|kl>|^2)^G_VMC_EXCITWEIGHT
       SUBROUTINE EXCITWEIGHTING(I,J,K,L,WEIGHT,G1,NBASISMAX,UMAT,Arr,NBASIS)
-         USE HElem
+         use constants, only: dp
          USE UMatCache , only : GTID
          use Integrals, only : GetUMatEl
          use SystemData, only: BasisFN
@@ -266,7 +266,7 @@ MODULE SymExcit2
          INTEGER I,J,K,L
          type(timer), save :: proc_timer
          REAL*8 WEIGHT,W2
-         TYPE(HElement) UMAT(*),W
+         HElement_t UMAT(*),W
          REAL*8 Arr(nBasis,2),Alat(3)
          IF(G_VMC_EXCITWEIGHT(CUR_VERT).EQ.0.D0) THEN
             WEIGHT=1.D0
@@ -280,9 +280,9 @@ MODULE SymExcit2
             IDL = GTID(L)
             W=GetUMatEl(NBASISMAX,UMAT,Alat,NBASIS,ISS,G1,IDI,IDJ,IDK,IDL)
             IF(TUPOWER) THEN
-                WEIGHT=1.D0+(SQRT(SQ(W)))**(G_VMC_EXCITWEIGHT(CUR_VERT))
+                WEIGHT=1.D0+(abs(W))**(G_VMC_EXCITWEIGHT(CUR_VERT))
             ELSE
-                WEIGHT=EXP(SQRT(SQ(W))*G_VMC_EXCITWEIGHT(CUR_VERT))
+                WEIGHT=EXP(abs(W)*G_VMC_EXCITWEIGHT(CUR_VERT))
             ENDIF
 !            call halt_timer(proc_timer)
          ENDIF
@@ -335,7 +335,7 @@ MODULE SymExcit2
 
 !  WARNING - this currently only works for abelian symmetry groups
       SUBROUTINE GenExcitProbInternal(nI,nJ,nEl,G1,nBasisMax,UMat,Arr,nBasis,OrbPairs,SymProdInd,iLUT,SymProds,ExcitTypes,iTotal,pGen)
-         USE HElem
+         use constants, only: dp
          use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
          use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
          use SymData, only: nSymPairProds,SymPairProds
@@ -351,7 +351,7 @@ MODULE SymExcit2
          TYPE(Symmetry) SymProds(0:*)
          LOGICAL SYMEQ
          INTEGER nBasisMax(5,*)
-         TYPE(HElement) UMat(*)
+         HElement_t UMat(*)
          TYPE(ExcitWeight), allocatable :: ews(:)
          integer, save :: tagews=0
          INTEGER iLUT(*)
@@ -459,7 +459,7 @@ MODULE SymExcit2
 !We wish to calculate whether NJ is an excitation of NI.
 !WARNING - this currently only works for abelian symmetry groups
       SUBROUTINE IsConnectedDetInternal(nI,nJ,nEl,G1,nBasisMax,nBasis,OrbPairs,SymProdInd,iLUT,SymProds,ExcitTypes,iTotal,tIsConnectedDet)
-         USE HElem
+         use constants, only: dp
          use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
          use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
          IMPLICIT NONE

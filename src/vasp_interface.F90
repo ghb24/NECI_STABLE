@@ -14,10 +14,11 @@ integer :: nKP,nStates,KPMsh(3)
 contains
 
    subroutine NECIReceiveVASPData(vasp_nbands,vasp_nkpts,vasp_kpnts,vasp_kpmsh,vasp_xi,vasp_kpntind,vasp_eigv,vasp_umat2D,vasp_nEl)
-      use HElem
+      use constants, only: dp
       use SystemData, only: nEl
       use UMatCache, only: SetupUMatCache,UMat2D,tagUMat2D,tUMat2D
       use global_utilities
+      use HElem
       implicit none
       integer :: vasp_nbands,vasp_nkpts,vasp_kpntind(vasp_nbands*vasp_nkpts),vasp_kpmsh(3)
       real(dp) :: vasp_kpnts(3,vasp_nkpts),vasp_xi,vasp_eigv(vasp_nbands*vasp_nkpts)
@@ -53,10 +54,10 @@ contains
       ! Set up UMat2D
       tUMat2D=.TRUE.
       Allocate(UMat2D(nStates,nStates),STAT=ierr)
-      call LogMemAlloc('UMat2D',nStates**2,HElementSize*8,thisroutine,tagUMat2D,ierr)
+      call LogMemAlloc('UMat2D',nStates**2,HElement_t_size*8,thisroutine,tagUMat2D,ierr)
       do i=1,nStates
          do j=1,nStates
-            UMat2D(i,j)=HElement(vasp_umat2d(i,j))
+            UMat2D(i,j)=(vasp_umat2d(i,j))
          end do
       end do
       

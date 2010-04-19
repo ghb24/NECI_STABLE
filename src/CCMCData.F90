@@ -1,5 +1,5 @@
 module CCMCData
-   use HElem
+   use constants, only: dp
    implicit none
    save
    real*8   dT1SqCuml
@@ -66,7 +66,7 @@ TYPE Spawner
    INTEGER, allocatable :: nJ(:)           !The det which is spawned to.
    INTEGER, allocatable :: iLutnJ(:)       !The det from which to spawn
    INTEGER iExcitLevel                     !The excitation level of the resultant det from the composite cluster
-   TYPE(HElement)       :: HIJ
+   HElement_t       :: HIJ
    REAL*8               :: dProbSpawn      !Prob that we spawned here (including the number of spawning events)
    INTEGER              :: ExcitMat(2,2)   !Internal data corresponding to the excitation matrix of the last generated det.
    INTEGER              :: ExFlag

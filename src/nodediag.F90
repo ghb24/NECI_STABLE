@@ -11,7 +11,7 @@
 !This would reduce the scaling to M^6 - same as CID
 
     MODULE NODEDIAG
-      USE HElem
+      use constants, only: dp
       use SystemData, only: BasisFN
       use IntegralsData, only: tDiscoNodes
       use Determinants, only: get_helement, get_helement_excit
@@ -28,10 +28,10 @@
       INTEGER, ALLOCATABLE :: ijorbs(:,:)
 
 !Stores the final star matrix in the same way as in stardiag.F90
-      TYPE(HElement), ALLOCATABLE :: EXCITINFO(:,:)
+      HElement_t, ALLOCATABLE :: EXCITINFO(:,:)
 
 !The rho_ii rho matrix element
-      TYPE(HElement) :: rhii
+      HElement_t :: rhii
       REAL*8 :: totlinks
       INTEGER :: crosslinks
 
@@ -41,6 +41,7 @@
       contains
 
       FUNCTION fMCPR3StarNodes(nI,Beta,i_P,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,nMax,ALat,UMat,nTay,RhoEps,L,LT,nWHTay,iLogging,tSym,ECore,dBeta,dLWdb)
+      use HElem
       TYPE(BasisFN) G1(*)
       INTEGER nI(nEl),nEl,i_P,nBasisMax(5,*),Brr(nBasis),nBasis,nMsh
       INTEGER nMax,nTay(2),L,LT,nWHTay,iLogging,iMaxExcit,nExcitMemLen
@@ -49,15 +50,15 @@
       INTEGER nStore(6),iExcit,invsbrr(nBasis),orbone,orbtwo,t
       INTEGER, ALLOCATABLE :: nExcit(:)
       COMPLEX*16 fck(*)
-      TYPE(HElement) UMat(*)
+      HElement_t UMat(*)
       REAL*8 Beta,ALat(3),RhoEps,ECore,dBeta
-      TYPE(HDElement) dLWdB
-      TYPE(HDElement) fMCPR3StarNodes
-      TYPE(HElement) HIJS(0:2)
+      real(dp) dLWdB
+      real(dp) fMCPR3StarNodes
+      HElement_t HIJS(0:2)
       LOGICAL tSym,COMPIPATH
       character(*), parameter :: t_r='fMCPR3StarNodes'
 
-      IF(HElementSize.GT.1) STOP "NODEDIAG cannot function with complex orbitals currently"
+      IF(HElement_t_size.GT.1) STOP "NODEDIAG cannot function with complex orbitals currently"
 
 !First need to allocate memory to hold the maximum number of double excitations
 !No point to count them explicitly, since even if not connected to root, could still be connected to other double excitations.
@@ -140,7 +141,7 @@
 !Allocate Memory for ExcitInfo
       ALLOCATE(EXCITINFO(0:totexcits,0:2),stat=ierr)
       CALL LogMemAlloc("EXCITINFO",3*(totexcits+1),8,t_r,tagEXCITINFO,iErr)
-      EXCITINFO=HElement(0.d0)
+      EXCITINFO=(0.d0)
       
 !Calculate rho_ii and H_ii, and put into ExcitInfo. Again, we divide all rho elements through by rho_ii (Therefore rho_ii element=1)
       CALL CalcRho2(nI,nI,Beta,i_P,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,nMax,ALat,UMat,rhii,nTay,0,ECore)
@@ -161,7 +162,7 @@
 
       t=0
       do i=1,ExcitInfoElems
-        IF(EXCITINFO(i,1).agt.RhoEps) t=t+1
+        IF(abs(EXCITINFO(i,1)).gt.RhoEps) t=t+1
       enddo
       WRITE(6,*) "Number of objects attached to resultant star = ",t
       WRITE(6,*) "Average rhoelement of links between excitations = ", totlinks/crosslinks
@@ -191,7 +192,7 @@
         IMPLICIT NONE
         Type(BasisFN) G1(*)
         COMPLEX*16 fck(*)
-        TYPE(HElement) UMat(*),rh,Hel
+        HElement_t UMat(*),rh,Hel
         INTEGER novirt,ierr,i,j,ijpair(2),node,nI(nEl),nJ(nEl),nK(nEl),i_P
         INTEGER nBasisMax(5,*),nBasis,Brr(nBasis),nMsh,nMax,nTay(2),WORKMEM,INFO
         INTEGER ExcitInfoElems,nEl,Orbchange(4),iExcit
@@ -227,7 +228,7 @@
 !            WRITE(68,*) nJ(:)
 !Calculate diagonal rho elements and store them in the matrix            
             CALL CalcRho2(nJ,nJ,Beta,i_P,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,nMax,ALat,UMat,rh,nTay,0,ECore)
-            NODERHOMAT((i-1)*novirt+i)=DREAL(rh/rhii)
+            NODERHOMAT((i-1)*novirt+i)=(rh/rhii)
         enddo
 
 !Next, find offdiagonal elements
@@ -236,15 +237,15 @@
                 nJ(:)=FULLPATHS(:,i)
                 nK(:)=FULLPATHS(:,j)
                 IF(TDISCONODES) THEN
-                    rh=HElement(0.D0)
+                    rh=(0.D0)
                 ELSE
                     CALL CalcRho2(nJ,nK,Beta,i_P,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,nMax,ALat,UMat,rh,nTay,2,ECore)
                 ENDIF
 !Fill matrix of determinants in node to diagonalise
-                IF(rh.agt.RhoEps) THEN
+                IF(abs(rh).gt.RhoEps) THEN
                     crosslinks=crosslinks+1
-                    totlinks=totlinks+DREAL(rh)
-                    NODERHOMAT(((i-1)*novirt)+j)=DREAL(rh/rhii)
+                    totlinks=totlinks+(rh)
+                    NODERHOMAT(((i-1)*novirt)+j)=(rh/rhii)
                 ENDIF
             enddo
         enddo
@@ -327,11 +328,11 @@
                     nJ(:)=FULLPATHS(:,j)
                     CALL CalcRho2(nI,nJ,Beta,i_P,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,nMax,ALat,UMat,rh,nTay,2,ECore)
 !Eigenvectors are COLUMNS
-                    EXCITINFO(ExcitInfoElems,1)=EXCITINFO(ExcitInfoElems,1)+(rh/rhii)*HElement(NODERHOMAT((novirt*(j-1))+i))
+                    EXCITINFO(ExcitInfoElems,1)=EXCITINFO(ExcitInfoElems,1)+(rh/rhii)*(NODERHOMAT((novirt*(j-1))+i))
 
 !H Elements dealt with in the same way
                     Hel = get_helement(nI, nJ)
-                    EXCITINFO(ExcitInfoElems,2)=EXCITINFO(ExcitInfoElems,2)+Hel*HElement(NODERHOMAT((novirt*(j-1))+i))
+                    EXCITINFO(ExcitInfoElems,2)=EXCITINFO(ExcitInfoElems,2)+Hel*(NODERHOMAT((novirt*(j-1))+i))
                 ENDDO
             ENDIF
         ENDDO

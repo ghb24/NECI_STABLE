@@ -4,7 +4,7 @@ MODULE RotateOrbsMod
     USE Parallel 
     USE IntegralsData , only : UMAT,nFrozen,ChemPot
     USE UMatCache , only : UMatInd
-    USE HElem , only : HElement
+    use constants, only: dp
     USE SystemData , only : ConvergedForce,TimeStep,tLagrange,tShake,tShakeApprox,ShakeConverged,tROIteration,ROIterMax,tShakeIter,ShakeIterMax,OrbEnMaxAlpha
     USE SystemData , only : G1,ARR,NEl,nBasis,LMS,ECore,tSeparateOccVirt,Brr,nBasisMax,OrbOrder,lNoSymmetry,tRotatedOrbs,tERLocalization,tRotateOccOnly
     USE SystemData, only : tOffDiagMin,DiagWeight,OffDiagWeight,tRotateVirtOnly,tOffDiagSqrdMax,tOffDiagSqrdMin,tOffDiagMax,tDoubExcMin,tOneElIntMax,tOnePartOrbEnMax
@@ -1043,7 +1043,7 @@ MODULE RotateOrbsMod
 !        WRITE(6,*) 'i,j,TMAT2D'
 !        do i=1,NoOrbs*2
 !            do j=1,NoOrbs*2
-!                WRITE(6,'(F20.10)',advance='no') REAL(TMAT2D(i,j)%v,8)
+!                WRITE(6,'(F20.10)',advance='no') REAL(TMAT2D(i,j),8)
 !            enddo
 !            WRITE(6,*) ''
 !        enddo
@@ -1120,11 +1120,11 @@ MODULE RotateOrbsMod
                 IF(((.not.tERLocalization).and.(.not.tReadInCoeff).and.(.not.tUseMP2VarDenMat).and.(.not.tFindCINatOrbs))&
                 &.or.(tERLocalization.and.tStoreSpinOrbs)) THEN
                     IF(tStoreSpinOrbs) THEN
-                        s=REAL(TMAT2D(i,j)%v,8)
+                        s=REAL(TMAT2D(i,j),8)
                         TMAT2DTemp(a,g)=s
                         TMAT2DTemp(g,a)=s
                     ELSE
-                        s=REAL(TMAT2D(2*i,2*j)%v,8)
+                        s=REAL(TMAT2D(2*i,2*j),8)
                         TMAT2DTemp(a,g)=s
                         TMAT2DTemp(g,a)=s
                     ENDIF
@@ -1135,7 +1135,7 @@ MODULE RotateOrbsMod
                     k=SymLabelList2(b)
                     do d=1,b
                         l=SymLabelList2(d)
-                        t=REAL(UMAT(UMatInd(i,k,j,l,0,0))%v,8)
+                        t=REAL(UMAT(UMatInd(i,k,j,l,0,0)),8)
                         UMATTemp01(a,g,b,d)=t                   !a,g,d,b chosen to make 'transform2elint' steps more efficient
                         UMATTemp01(g,a,b,d)=t
                         UMATTemp01(a,g,d,b)=t
@@ -2126,10 +2126,10 @@ MODULE RotateOrbsMod
                     a2=SymLabelList2(a)
                     do g=1,a
                         g2=SymLabelList2(g)
-                        FourIndInts(a,g,b,d)=REAL(UMAT(UMatInd(a2,b2,g2,d2,0,0))%v,8)
-                        FourIndInts(g,a,b,d)=REAL(UMAT(UMatInd(a2,b2,g2,d2,0,0))%v,8)
-                        FourIndInts(a,g,d,b)=REAL(UMAT(UMatInd(a2,b2,g2,d2,0,0))%v,8)
-                        FourIndInts(g,a,d,b)=REAL(UMAT(UMatInd(a2,b2,g2,d2,0,0))%v,8)
+                        FourIndInts(a,g,b,d)=REAL(UMAT(UMatInd(a2,b2,g2,d2,0,0)),8)
+                        FourIndInts(g,a,b,d)=REAL(UMAT(UMatInd(a2,b2,g2,d2,0,0)),8)
+                        FourIndInts(a,g,d,b)=REAL(UMAT(UMatInd(a2,b2,g2,d2,0,0)),8)
+                        FourIndInts(g,a,d,b)=REAL(UMAT(UMatInd(a2,b2,g2,d2,0,0)),8)
                     enddo
                 enddo
                 Temp4indints(:,:)=0.D0
@@ -3980,7 +3980,7 @@ MODULE RotateOrbsMod
                 do k=1,NoOcc+1
 !                    IF(k.eq.j) CYCLE
 !                    IF(k.eq.i) CYCLE
-                    SingExcit(i,j)=SingExcit(i,j)+REAL(TMAT2D(2*a,2*b)%v,8)+((2*FourIndInts(i,k,j,k))-FourIndInts(i,k,k,j))
+                    SingExcit(i,j)=SingExcit(i,j)+REAL(TMAT2D(2*a,2*b),8)+((2*FourIndInts(i,k,j,k))-FourIndInts(i,k,k,j))
                 enddo
                 IF(SingExcit(i,j).gt.MaxFII) MaxFII=SingExcit(i,j)
                 IF(SingExcit(i,j).lt.MinFII) MinFII=SingExcit(i,j)
@@ -4949,9 +4949,9 @@ MODULE RotateOrbsMod
                         do i=1,(NoOrbs-(NoFrozenVirt))
                             a=SymLabelList3(i)
                             IF(tUseMP2VarDenMat.or.tFindCINatOrbs.or.tReadInCoeff) THEN
-                                UMAT(UMatInd(a,b,g,d,0,0))=HElement(FourIndInts(i,k,j,l))
+                                UMAT(UMatInd(a,b,g,d,0,0))=(FourIndInts(i,k,j,l))
                             ELSE
-                                UMAT(UMatInd(a,b,g,d,0,0))=HElement(FourIndInts(i,j,k,l))
+                                UMAT(UMatInd(a,b,g,d,0,0))=(FourIndInts(i,j,k,l))
                             ENDIF
                         enddo
                     enddo
@@ -4965,7 +4965,7 @@ MODULE RotateOrbsMod
 !        WRITE(6,*) 'TMAT2D before transformation' 
 !        do l=1,nBasis
 !            do k=1,nBasis
-!                WRITE(6,'(F10.6)',advance='no') REAL(TMAT2D(k,l)%v,8)
+!                WRITE(6,'(F10.6)',advance='no') REAL(TMAT2D(k,l),8)
 !            enddo
 !            WRITE(6,*) ''
 !        enddo
@@ -4987,9 +4987,9 @@ MODULE RotateOrbsMod
 !                    do a=1,NoOrbs
 !                        c=SymLabelList2(a)
 !                        IF(tStoreSpinOrbs) THEN
-!                            NewTMAT=NewTMAT+(CoeffT1(a,k)*REAL(TMAT2D(c,d)%v,8))
+!                            NewTMAT=NewTMAT+(CoeffT1(a,k)*REAL(TMAT2D(c,d),8))
 !                        ELSE
-!                            NewTMAT=NewTMAT+(CoeffT1(a,k)*REAL(TMAT2D(2*c,2*d)%v,8))
+!                            NewTMAT=NewTMAT+(CoeffT1(a,k)*REAL(TMAT2D(2*c,2*d),8))
 !                        ENDIF
 !                    enddo
                     ! NewTMAT is then <i|h|b> for a particular i and b.
@@ -4999,10 +4999,10 @@ MODULE RotateOrbsMod
                     ! NewTMAT02 become <i|h|j> for a particular i and j.
 !                enddo
 !                IF(tStoreSpinOrbs) THEN
-!                    TMAT2D(i,j)=HElement(NewTMAT02)
+!                    TMAT2D(i,j)=(NewTMAT02)
 !                ELSE
-!                    TMAT2D(2*i,2*j)=HElement(NewTMAT02)
-!                    TMAT2D(2*i-1,2*j-1)=HElement(NewTMAT02)
+!                    TMAT2D(2*i,2*j)=(NewTMAT02)
+!                    TMAT2D(2*i-1,2*j-1)=(NewTMAT02)
 !                ENDIF
 !            enddo
 !        enddo
@@ -5016,9 +5016,9 @@ MODULE RotateOrbsMod
                 do b=1,NoOrbs
                     d=SymLabelList2(b)
                     IF(tStoreSpinOrbs) THEN
-                        NewTMAT=NewTMAT+(CoeffT1(b,k)*REAL(TMAT2D(d,a)%v,8))
+                        NewTMAT=NewTMAT+(CoeffT1(b,k)*REAL(TMAT2D(d,a),8))
                     ELSE
-                        NewTMAT=NewTMAT+(CoeffT1(b,k)*REAL(TMAT2D(2*d,a)%v,8))
+                        NewTMAT=NewTMAT+(CoeffT1(b,k)*REAL(TMAT2D(2*d,a),8))
                     ENDIF
                 enddo
                 IF(tStoreSpinOrbs) THEN
@@ -5053,15 +5053,15 @@ MODULE RotateOrbsMod
                     IF(NoDumpTruncs.gt.1) THEN
                         TMAT2DNew(k,j)=NewTMAT
                     ELSE
-                        TMAT2D(k,j)=HElement(NewTMAT)
+                        TMAT2D(k,j)=(NewTMAT)
                     ENDIF
                 ELSE
                     IF(NoDumpTruncs.gt.1) THEN
                         TMAT2DNew(k,2*j)=NewTMAT
                         TMAT2DNew(k,2*j-1)=NewTMAT
                     ELSE
-                        TMAT2D(k,2*j)=HElement(NewTMAT)
-                        TMAT2D(k,2*j-1)=HElement(NewTMAT)
+                        TMAT2D(k,2*j)=(NewTMAT)
+                        TMAT2D(k,2*j-1)=(NewTMAT)
                     ENDIF
                 ENDIF
             enddo
@@ -5071,7 +5071,7 @@ MODULE RotateOrbsMod
 !        WRITE(6,*) 'TMAT2D after transformation'
 !        do l=1,nBasis
 !            do k=1,nBasis
-!                WRITE(6,'(F10.6)',advance='no') REAL(TMAT2D(k,l)%v,8)
+!                WRITE(6,'(F10.6)',advance='no') REAL(TMAT2D(k,l),8)
 !            enddo
 !            WRITE(6,*) ''
 !        enddo
@@ -5146,9 +5146,9 @@ MODULE RotateOrbsMod
                     ! it is kind of unnecessary - although it may be used to speed things up.
                     do l=1,j
 !                        Syml=INT(G1(l*2)%sym%S,4)
-!                        IF((Syml.eq.Sym).and.((REAL(UMat(UMatInd(i,j,k,l,0,0))%v,8)).ne.0.D0)) &
-                        IF((ABS(REAL(UMat(UMatInd(i,j,k,l,0,0))%v,8))).ne.0.D0) &
-                                        &WRITE(48,'(F21.12,4I3)') REAL(UMat(UMatInd(i,j,k,l,0,0))%v,8),i,k,j,l 
+!                        IF((Syml.eq.Sym).and.((REAL(UMat(UMatInd(i,j,k,l,0,0)),8)).ne.0.D0)) &
+                        IF((ABS(REAL(UMat(UMatInd(i,j,k,l,0,0)),8))).ne.0.D0) &
+                                        &WRITE(48,'(F21.12,4I3)') REAL(UMat(UMatInd(i,j,k,l,0,0)),8),i,k,j,l 
                     enddo
                 enddo
            enddo
@@ -5163,7 +5163,7 @@ MODULE RotateOrbsMod
                    ! Potential to put symmetry in here.
 !                    do k=i,SpatOrbs
 !                        Symk=INT(G1(k*2)%sym%S,4)
-!                        IF(Symk.eq.Sym) WRITE(48,'(F21.12,4I3)') REAL(UMat(UMatInd(i,j,k,l,0,0))%v,8),i,k,j,l 
+!                        IF(Symk.eq.Sym) WRITE(48,'(F21.12,4I3)') REAL(UMat(UMatInd(i,j,k,l,0,0)),8),i,k,j,l 
 !                    enddo
 !                enddo
 !            enddo
@@ -5175,9 +5175,9 @@ MODULE RotateOrbsMod
             ! Symmetry?
             do i=k,(NoOrbs-(NoFrozenVirt))
                 IF(tStoreSpinOrbs) THEN
-                    IF((REAL(TMAT2D(i,k)%v,8)).ne.0.D0) WRITE(48,'(F21.12,4I3)') REAL(TMAT2D(i,k)%v,8),i,k,0,0
+                    IF((REAL(TMAT2D(i,k),8)).ne.0.D0) WRITE(48,'(F21.12,4I3)') REAL(TMAT2D(i,k),8),i,k,0,0
                 ELSE
-                    IF((REAL(TMAT2D(2*i,2*k)%v,8)).ne.0.D0) WRITE(48,'(F21.12,4I3)') REAL(TMAT2D(2*i,2*k)%v,8),i,k,0,0
+                    IF((REAL(TMAT2D(2*i,2*k),8)).ne.0.D0) WRITE(48,'(F21.12,4I3)') REAL(TMAT2D(2*i,2*k),8),i,k,0,0
                 ENDIF
             enddo
         enddo
@@ -5265,7 +5265,7 @@ MODULE RotateOrbsMod
                     do l=1,j
                         d=SymLabelList3Inv(l)
 !                        Syml=INT(G1(l*2)%sym%S,4)
-!                        IF((Syml.eq.Sym).and.((REAL(UMat(UMatInd(i,j,k,l,0,0))%v,8)).ne.0.D0)) &
+!                        IF((Syml.eq.Sym).and.((REAL(UMat(UMatInd(i,j,k,l,0,0)),8)).ne.0.D0)) &
 !                        WRITE(6,*) i,a,k,g,j,b,l,d,FourIndInts(a,b,g,d)
                         IF((ABS(FourIndInts(a,g,b,d))).ne.0.D0) &
                                         &WRITE(48,'(F21.12,4I3)') FourIndInts(a,g,b,d),i,k,j,l 

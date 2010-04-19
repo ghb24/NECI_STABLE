@@ -30,7 +30,7 @@ C.,             If 1, only allow doubles.
      &   ILOGGING,TSYM,ECORE,DBETA,DLWDB,HIJS,L,LT,IFRZ,FSCALE,MP2E,
      &   NTOTAL,I_VMAX,EREF,VARSUM,WREF) RESULT (FMCPR3B2RES)
          Use Determinants, only: get_helement
-         USE HElem 
+         use constants, only: dp 
          USE Logging , only : G_VMC_LOGCOUNT
          USE PrecalcData , only : TPREVAR,PREWEIGHTEPS
          use CalcData , only : TVARCALC,TMPTHEORY,TMODMPTHEORY
@@ -42,13 +42,13 @@ C.,             If 1, only allow doubles.
          INTEGER NTAY,I_VIND,NWHTAY,ILOGGING,J,K,I_VMAX,II
          INTEGER I
          COMPLEX*16 FCK(*)
-         TYPE(HElement) UMAT(*),R
+         HElement_t UMAT(*),R
          REAL*8 ALAT(*),ECORE
-         TYPE(HDElement) TOTAL,FMCPR3B2RES,Prob
-         TYPE(HDElement) CALCPATHS_N
+         real(dp) TOTAL,FMCPR3B2RES,Prob
+         real(dp) CALCPATHS_N
          INTEGER IPATH(NEL,0:I_V),DUMMY(0:I_V)
-         TYPE(HElement) HIJ(0:I_V,0:I_V),RH
-         TYPE(HDElement) DLWDB,DLWDB2,EREF,WREF
+         HElement_t HIJ(0:I_V,0:I_V),RH
+         real(dp) DLWDB,DLWDB2,EREF,WREF
          INTEGER INODE(NEL)
          INTEGER NI(NEL),NJ(NEL)
          INTEGER I_HMAX
@@ -56,7 +56,7 @@ C.,             If 1, only allow doubles.
          LOGICAL TSYM,T
          LOGICAL TLOG,TLOG2,TLOG3,TLOG4,TLOG5,TLOG6
          REAL*8 DBETA(*)
-         TYPE(HElement) HIJS(0:I_V)
+         HElement_t HIJS(0:I_V)
          INTEGER ICLS
          INTEGER NMEM(*),NMEMLEN
          POINTER(IP_NMEM,NMEM)
@@ -79,7 +79,7 @@ C.,             If 1, only allow doubles.
          INTEGER EX(2,2),ICIL,ICILMAX
          INTEGER STORE(6)
          REAL*8 FSCALE,FSC2
-         TYPE(HDElement) MP2E(2:i_VMax),MPEs(2:i_VMax),NTOTAL,MPEn
+         real(dp) MP2E(2:i_VMax),MPEs(2:i_VMax),NTOTAL,MPEn
          INTEGER EXFLAG
 
          REAL*8 GETHELEMENT
@@ -137,7 +137,7 @@ C.. This is the current node (set by our parent)
          rh = get_helement(INODE, INODE, 0)
          HIJ(I_VIND,I_VIND)=RH
 C.. we note that if this node has rho_II=0 (i.e. RH=0) then we just return
-         IF(.NOT.(RH.AGT.0.D0)) THEN
+         IF(.not.abs(RH).gt.0.D0) THEN
             FMCPR3B2RES=0.D0
             RETURN
          ENDIF
@@ -177,7 +177,7 @@ C.. NMAX has ARR hidden in it.
      &             iPath(1,i_V-1),NEL,NBASISMAX,UMat,ALat,nBasis,
      &               NBASISMAX(2,3),G1)
                Endif
-               MPEs=HDElement(0.d0)
+               MPEs=(0.d0)
                CALL AddMPEnergy(Hij,i_V,i_vmax,NMAX,nBasis,
      &            iPath,nEl,tLog,ECORE,MPEs)
                MPEn=0.D0
@@ -204,65 +204,65 @@ C.. NMAX has ARR hidden in it.
                  
                 Call CalcWriteGraphPGen(J,IPATH,I_V,nEl,LOCTAB,G1,
      &                   nBasisMax,UMat,NMAX,nBasis,Prob,DUMMY)
-                 SumX  =SumX   + DREAL(MPEn)
-                 SumY  =SumY   + DREAL(Prob)
-                 SumXsq=SumXsq + DREAL(MPEn*MPEn/Prob)
-                 SumYsq=SumYsq + DREAL(Prob)
-                 SumXY =SumXY  + DREAL(MPEn)
+                 SumX  =SumX   + (MPEn)
+                 SumY  =SumY   + (Prob)
+                 SumXsq=SumXsq + (MPEn*MPEn/Prob)
+                 SumYsq=SumYsq + (Prob)
+                 SumXY =SumXY  + (MPEn)
               ELSE
               !Variance given by ((w*E)**2)/P, but DLWDB2 is E*w and want deltas
                 !X are terms in the numerator, Y are the terms in the denominator
 !DBETA(2) is GraphEpsilon                 
-               IF ((TOTAL.age.DBETA(2)).and.
-     &                (TOTAL%v.ge.PREWEIGHTEPS)) THEN!.and.(RHOEPS.le.1.D-08)) THEN
+               IF ((abs(TOTAL).ge.DBETA(2)).and.
+     &                (TOTAL.ge.PREWEIGHTEPS)) THEN!.and.(RHOEPS.le.1.D-08)) THEN
 !     &        .and.(DBETA(2).le.1.D-08).and.(DBETA(3).le.1.D-08)) THEN
                      
                    CALL  CalcWriteGraphPGen(J,IPATH,I_V,nEl,LOCTAB,G1,
      &                       nBasisMax,UMat,NMAX,nBasis,Prob,DUMMY)
                   
-                   SumX  =SumX   + DLWDB2%v-(EREF%v*TOTAL%v)
-                   SumY  =SumY   + TOTAL%v
-                   SumXsq=SumXsq + (DLWDB2%v-(EREF%v*TOTAL%v))**2/Prob%v
-!                   SumYsq=SumYsq + Prob%v*(TOTAL%v/Prob%v+WREF%v)**2
-                   SumYsq=SumYsq + ((TOTAL%v)**2)/Prob%v
-                   SumXY =SumXY  + (DLWDB2%v-(EREF%v*TOTAL%v))*TOTAL%v/
-     &                                  Prob%v
-!                   SumXY =SumXY  + (TOTAL%v/Prob%v+WREF%v)
-!     &                                  *(DLWDB2%v-(EREF%v*TOTAL%v))
-                   SumP=SumP+Prob%v
+                   SumX  =SumX   + DLWDB2-(EREF*TOTAL)
+                   SumY  =SumY   + TOTAL
+                   SumXsq=SumXsq + (DLWDB2-(EREF*TOTAL))**2/Prob
+!                   SumYsq=SumYsq + Prob*(TOTAL/Prob+WREF)**2
+                   SumYsq=SumYsq + ((TOTAL)**2)/Prob
+                   SumXY =SumXY  + (DLWDB2-(EREF*TOTAL))*TOTAL/
+     &                                  Prob
+!                   SumXY =SumXY  + (TOTAL/Prob+WREF)
+!     &                                  *(DLWDB2-(EREF*TOTAL))
+                   SumP=SumP+Prob
           
-!                    WRITE(29,*) EREF%v, WREF%v
+!                    WRITE(29,*) EREF, WREF
 !                    CALL FLUSH(29)
           
            !FullEnergy Representation - WRONG(with DLWDB2=DLWDB2/TOTAL)
-!           SumX=SumX+DLWDB2%v*TOTAL%v
-!           SumY=SumY+TOTAL%v
-!           SumXsq=SumXsq+(((TOTAL%v*DLWDB2%v)**2)/Prob%v)
-!           SumYsq=SumYsq+(((TOTAL%v)**2)/Prob%v)
-!           SumXY=SumXY+((TOTAL%v**2)*DLWDB2%v)/Prob%v
+!           SumX=SumX+DLWDB2*TOTAL
+!           SumY=SumY+TOTAL
+!           SumXsq=SumXsq+(((TOTAL*DLWDB2)**2)/Prob)
+!           SumYsq=SumYsq+(((TOTAL)**2)/Prob)
+!           SumXY=SumXY+((TOTAL**2)*DLWDB2)/Prob
            
            
            
            
            !Delta representation, written out in full(with DLWDB2=DLWDB2/TOTAL)
-!           SumX=SumX+(DLWDB2%v-EREF%v)*TOTAL%v
-!           SumY=SumY+TOTAL%v+(Prob%v*WREF%v)
-!           SumY=SumY+TOTAL%v
-!           SumXsq=SumXsq+(((TOTAL%v*(DLWDB2%v-EREF%v))**2)/Prob%v)
-!           SumYsq=SumYsq+(((TOTAL%v)**2)/Prob%v)+
-!     &                   (2*WREF%v*TOTAL%v)+((WREF%v**2)*Prob%v)
-!           SumXY=SumXY+(((TOTAL%v**2)*(DLWDB2%v-EREF%v))/Prob%v)+
-!     &                  (WREF%v*TOTAL%v*(DLWDB2%v-EREF%v))      
+!           SumX=SumX+(DLWDB2-EREF)*TOTAL
+!           SumY=SumY+TOTAL+(Prob*WREF)
+!           SumY=SumY+TOTAL
+!           SumXsq=SumXsq+(((TOTAL*(DLWDB2-EREF))**2)/Prob)
+!           SumYsq=SumYsq+(((TOTAL)**2)/Prob)+
+!     &                   (2*WREF*TOTAL)+((WREF**2)*Prob)
+!           SumXY=SumXY+(((TOTAL**2)*(DLWDB2-EREF))/Prob)+
+!     &                  (WREF*TOTAL*(DLWDB2-EREF))      
 
-!                   SumX=SumX   + DLWDB2%v-(EREF%v*TOTAL%v)
-!                   SumY  =SumY   + TOTAL%v+WREF%v*Prob%v
-!                   SumXsq=SumXsq + (DLWDB2%v-(EREF%v*TOTAL%v))**2/Prob%v
-!                   SumYsq=SumYsq + Prob%v*(TOTAL%v/Prob%v+WREF%v)**2
-!                   SumXY =SumXY  + (TOTAL%v/Prob%v+WREF%v)
-!     &                                  *(DLWDB2%v-(EREF%v*TOTAL%v))
+!                   SumX=SumX   + DLWDB2-(EREF*TOTAL)
+!                   SumY  =SumY   + TOTAL+WREF*Prob
+!                   SumXsq=SumXsq + (DLWDB2-(EREF*TOTAL))**2/Prob
+!                   SumYsq=SumYsq + Prob*(TOTAL/Prob+WREF)**2
+!                   SumXY =SumXY  + (TOTAL/Prob+WREF)
+!     &                                  *(DLWDB2-(EREF*TOTAL))
                   
 !                    IF(.not.TPREVAR) THEN
-!                        SumP=SumP+DREAL(Prob)
+!                        SumP=SumP+(Prob)
 !                    ENDIF
 !                ELSE 
 !                  Prob=0.d0        DO NOT WANT TO SHOW NORM PROBS IF NOT INCLUDING THEM ALL             
@@ -420,12 +420,16 @@ C.. Now make sure it's not already in the path
                IF(.NOT.TFAIL) THEN
 C.. see if we're connected to what we were excited from
                  RH = get_helement (iPath(:, iExFrom), nJ, ic)
-                  IF(.NOT.(RH.AGE.RHOEPS)) THEN
+                  IF(.NOT.(abs(RH).GE.RHOEPS)) THEN
 C.. if we're not connected to this node, we fail now
                      RH=0.D0
                      TFAIL=.TRUE.
                   ENDIF
+#ifdef __CMPLX
                   HIJ(I_VIND+1,IEXFROM)=DCONJG(RH)
+#else
+                  HIJ(I_VIND+1,IEXFROM)=(RH)
+#endif
                   HIJ(IEXFROM,I_VIND+1)=RH
                ENDIF
            
@@ -441,13 +445,17 @@ C.. we don't need to calc the connection to the node we excited from
 C.. because we've just done that
                   IF(.NOT.TFAIL.AND.II.NE.IEXFROM) THEN
                      rh = get_helement(iPath(:, iI), nJ)
-                     IF(.NOT.(RH.AGE.RHOEPS)) RH=0.D0
+                     IF(.NOT.(abs(RH).GE.RHOEPS)) RH=0.D0
+#ifdef __CMPLX
                      HIJ(I_VIND+1,II)=DCONJG(RH)
+#else
+                     HIJ(I_VIND+1,II)=(RH)
+#endif
                      HIJ(II,I_VIND+1)=RH
                    IF(IsConnectedDet(IPATH(1,II),NJ,nEl,LOCTAB(1,II),
      &                  G1,nBasisMax,nBasis)) THEN
 !if rhoeps is zero then always set TFAIL.  if rhoeps isn't zero, then set TFAIL if Rh isn't zero (i.e. we've included it before)
-                     IF(RH%v.NE.0.D0.OR.RHOEPS.EQ.0.D0) THEN
+                     IF(RH.NE.0.D0.OR.RHOEPS.EQ.0.D0) THEN
 C.. If the node to which this node (NJ) is attached was known about at
 C.. the time of node II, we are allowed to have a connection between
 C.. node NJ and II.  Otherwise, this node must not be attached to II, as
@@ -537,9 +545,9 @@ C.. connected, and continue from after where this node was excited
         If (TVARCALC(I_V).and.(I_VIND.eq.0).and.(.not.TPREVAR)) Then
         
         
-                 SumYsq=SumYsq+(2*WREF%v*SumY)+(((WREF%v)**2)*SumP)
-                 SumY=SumY+(WREF%v*SumP)
-                 SumXY=SumXY+(WREF%v*SumX)
+                 SumYsq=SumYsq+(2*WREF*SumY)+(((WREF)**2)*SumP)
+                 SumY=SumY+(WREF*SumP)
+                 SumXY=SumXY+(WREF*SumX)
 
 !           write(6,"A, 5G26.15") "Terms in estimated variance:",
 !     &        SumX, SumY, SumXsq, SumYsq, SumXY
@@ -562,13 +570,13 @@ C.. connected, and continue from after where this node was excited
         
         IF (TPREVAR.and.I_VIND.eq.0) THEN
 
-                SumYsq=SumYsq+(2*WREF%v*SumY)+(((WREF%v)**2)*SumP)
-                SumY=SumY+(WREF%v*SumP)
-                SumXY=SumXY+(WREF%v*SumX)
+                SumYsq=SumYsq+(2*WREF*SumY)+(((WREF)**2)*SumP)
+                SumY=SumY+(WREF*SumP)
+                SumXY=SumXY+(WREF*SumX)
                 
 !          OPEN(44,FILE="HDIAGVARTERMS",STATUS="UNKNOWN")
 
-!            WRITE(43,*) EREF%v,WREF%v
+!            WRITE(43,*) EREF,WREF
           VARSUM=((SumX/SumY)**2)*((SumXsq/(SumX**2))+(SumYsq/(SumY**2))
      &          -2*SumXY/(SumX*SumY))
 !            WRITE(44,*) g_VMC_ExcitWeights
@@ -587,12 +595,12 @@ C.. connected, and continue from after where this node was excited
       END
 
       Subroutine WriteGraphEnergies(IPATH, I_V, nEl,nBasis,Arr,Weight)
-         USE HElem
+         use constants, only: dp
          Integer I_V, nEl, nBasis, IPATH(nEl,0:I_V), EX(2,2), T
          Real*8 Arr(nBasis, 2),Energytonew,Energyfromnew
          REAL*8 Energyfromold,Energytoold
          REAL*8 totWeight,avWeight
-         Type(HDElement) Weight
+         real(dp) Weight
          INTEGER g
          DATA g/0/
          DATA totWeight/0.D0/
@@ -614,14 +622,14 @@ C.. connected, and continue from after where this node was excited
              Energyfromnew=Arr(EX(1,1),2)+Arr(EX(1,2),2)
          End If
          IF (Energyfromnew.eq.Energyfromold) THEN
-             totWeight=totWeight+Weight%v
+             totWeight=totWeight+Weight
              g=g+1
          ELSE
              avWeight=totWeight/g
              Write(56, "(G25.16,I9,G25.16)") avWeight,g,                
      &        Energyfromold
              avWeight=0.D0
-             totWeight=Weight%v
+             totWeight=Weight
              g=1
          ENDIF
              Energyfromold=Energyfromnew
@@ -630,7 +638,7 @@ C.. connected, and continue from after where this node was excited
          End
          Subroutine GetGraphstats(IPATH, I_V, nEl,nBasis,Arr,Weight,
      &      NBASISMAX,UMAT,G1,DLWDB2)
-         USE HElem
+         use constants, only: dp
          USE UMatCache , only : GTID
          use Integrals, only : GetUMatEl
          use SystemData, only: BasisFN
@@ -639,8 +647,8 @@ C.. connected, and continue from after where this node was excited
          REAL*8 ARR(nBasis,2),EnergyTo,EnergyFrom,Percendoub
          INTEGER I,J,K,L,ISS,IDI,IDJ,IDL,IDK,nBasisMax(5,*)
          INTEGER EXCITLEV,IGETEXCITLEVEL_,hist
-         TYPE(HDElement) Weight,DLWDB2
-         TYPE(HElement) UMAT(*),ME
+         real(dp) Weight,DLWDB2
+         HElement_t UMAT(*),ME
          TYPE(BasisFN) G1(NBASIS)
          LOGICAL AREDETSEXCITS,CONNECT23
          integer c
@@ -658,7 +666,7 @@ C.. connected, and continue from after where this node was excited
             OPEN(56,FILE="GRAPHSTATS",STATUS="UNKNOWN")
             CALL GetEXCITATION(IPATH(1:NEL,0),IPATH(1:NEL,1),NEL,EX,T)
          
-            IF((EX(1,2).eq.0).and.(Weight%v.gt.0.D0)) THEN
+            IF((EX(1,2).eq.0).and.(Weight.gt.0.D0)) THEN
 !               Energy=Arr(Ex(1,1),2)
                 STOP 'Should not be here for 2v graphs'
                 RETURN
@@ -677,7 +685,7 @@ C.. connected, and continue from after where this node was excited
                 EnergyFrom=Arr(EX(1,1),2)+Arr(EX(1,2),2)
                 EnergyTo=Arr(EX(2,1),2)+Arr(EX(2,2),2)
             ENDIF
-            WRITE(56,"(3G25.16)") Weight%v,Energyto,ME%v
+            WRITE(56,"(3G25.16)") Weight,Energyto,ME
         ELSEIF(I_V.eq.3) THEN
             c=c+1
             
@@ -718,22 +726,22 @@ C.. connected, and continue from after where this node was excited
                         EnergyFrom=Arr(EX(1,1),2)+Arr(EX(1,2),2)
                         EnergyTo=Arr(EX(2,1),2)+Arr(EX(2,2),2)
                         IF(MOD(c,75).eq.0) THEN
-                            WRITE(56,"(4G25.16,I3,G25.16)") Weight%v,
-     &                       DLWDB2%v,EnergyFrom,EnergyTo,EXCITLEV,ME%v
+                            WRITE(56,"(4G25.16,I3,G25.16)") Weight,
+     &                       DLWDB2,EnergyFrom,EnergyTo,EXCITLEV,ME
                         ELSEIF(MOD(c,75).eq.25) THEN
-                            WRITE(57,"(4G25.16,I3,G25.16)") Weight%v,
-     &                       DLWDB2%v,EnergyFrom,EnergyTo,EXCITLEV,ME%v
+                            WRITE(57,"(4G25.16,I3,G25.16)") Weight,
+     &                       DLWDB2,EnergyFrom,EnergyTo,EXCITLEV,ME
                         ELSEIF(MOD(c,75).eq.50) THEN
-                            WRITE(58,"(4G25.16,I3,G25.16)") Weight%v,
-     &                       DLWDB2%v,EnergyFrom,EnergyTo,EXCITLEV,ME%v
+                            WRITE(58,"(4G25.16,I3,G25.16)") Weight,
+     &                       DLWDB2,EnergyFrom,EnergyTo,EXCITLEV,ME
                         ENDIF
                     ELSEIF(EX(1,2).eq.0) THEN
                         SINGLE=SINGLE+1
                         !Histogramming
 !                       WRITE(124,"30I3") IPATH(1:NEL,0),IPATH(1:NEL,1),
 !     &                      IPATH(1:NEL,2)
-!                        hist=NINT(log10(Weight%v))
-!                        IF(Weight%v.lt.1D-20) hist=-20
+!                        hist=NINT(log10(Weight))
+!                        IF(Weight.lt.1D-20) hist=-20
 !                            do p=-20,3
 !                                IF(hist.eq.p) THEN
 !                                    histogram(p)=histogram(p)+1
@@ -769,14 +777,14 @@ C.. connected, and continue from after where this node was excited
                         EnergyFrom=Arr(EX(1,1),2)+Arr(EX(1,2),2)
                         EnergyTo=Arr(EX(2,1),2)+Arr(EX(2,2),2)
                         IF(MOD(c,75).eq.0) THEN
-                            WRITE(59,"(4G25.16,I3,G25.16)") Weight%v,
-     &                        DLWDB2%v,EnergyFrom,EnergyTo,EXCITLEV,ME%v
+                            WRITE(59,"(4G25.16,I3,G25.16)") Weight,
+     &                        DLWDB2,EnergyFrom,EnergyTo,EXCITLEV,ME
                         ELSEIF(MOD(c,75).eq.25) THEN
-                            WRITE(60,"(4G25.16,I3,G25.16)") Weight%v,
-     &                       DLWDB2%v,EnergyFrom,EnergyTo,EXCITLEV,ME%v
+                            WRITE(60,"(4G25.16,I3,G25.16)") Weight,
+     &                       DLWDB2,EnergyFrom,EnergyTo,EXCITLEV,ME
                         ELSEIF(MOD(c,75).eq.50) THEN
-                            WRITE(61,"(4G25.16,I3,G25.16)") Weight%v,
-     &                       DLWDB2%v,EnergyFrom,EnergyTo,EXCITLEV,ME%v
+                            WRITE(61,"(4G25.16,I3,G25.16)") Weight,
+     &                       DLWDB2,EnergyFrom,EnergyTo,EXCITLEV,ME
                         ENDIF
                     ENDIF
                 ENDIF

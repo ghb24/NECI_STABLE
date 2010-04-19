@@ -1,6 +1,6 @@
 MODULE CCMC
     use Determinants, only: get_helement, write_det, write_det_len
-    use HElem
+    use constants, only: dp
    IMPLICIT NONE
    CONTAINS
 
@@ -27,7 +27,7 @@ MODULE CCMC
         use dSFMT_interface
         IMPLICIT NONE
         INTEGER :: DetCurr(NEl),iKill,IC,WSign
-!        TYPE(HElement) :: rh,rhij
+!        HElement_t :: rh,rhij
         REAL*8 :: r,rat,Kii
         REAL*8 dProb
         LOGICAL :: tDETinCAS
@@ -111,7 +111,7 @@ MODULE CCMC
 
 ! The number of excitors we select to make the composite.
         INTEGER iCompositeSize
-        TYPE(HElement) Htmp
+        HElement_t Htmp
 
         INTEGER, allocatable :: iKillDetIndices(:,:)
         INTEGER iDeaths
@@ -232,8 +232,8 @@ MODULE CCMC
                   if(iSgn.ne.0) then
                      CALL DecodeBitDet(DetCurr,iLutnI)
                      Htmp = get_helement (HFDet, DetCurr, iLutHF, iLutnI)
-                     dT1Sq=dT1Sq+(Real(Htmp%v,dp)*iSgn)
-                     !WRITE(6,'(A,I,2G)', advance='no') 'T1',iSgn,real(Htmp%v,dp),dT1Sq
+                     dT1Sq=dT1Sq+(Real(Htmp,dp)*iSgn)
+                     !WRITE(6,'(A,I,2G)', advance='no') 'T1',iSgn,real(Htmp,dp),dT1Sq
                      !call WriteBitEx(6,iLutHF,CurrentDets(:,j),.false.)
                      !call WriteBitEx(6,iLutHF,CurrentDets(:,l),.false.)
                      !call WriteBitEx(6,iLutHF,iLutnI,.true.)
@@ -244,7 +244,7 @@ MODULE CCMC
 !          if(WalkExcitLevel.eq.1.or.WalkExcitLevel.eq.2) then
 !            CALL DecodeBitDet(DetCurr,CurrentDets(:,j))
 !            Htmp=GetHElement3(HFDet, DetCurr,WalkExcitLevel)
-!            AJWTProjE=AJWTProjE+(Real(Htmp%v,dp)*CurrentSign(j))
+!            AJWTProjE=AJWTProjE+(Real(Htmp,dp)*CurrentSign(j))
 !          endif
 !#endif
 !Go through all particles on the current walker det
@@ -618,7 +618,7 @@ MODULE CCMC
    !Now get the full representation of the dying excitor
                   CALL DecodeBitDet(DetCurr,iLutnI)
                   Htmp = get_helement (DetCurr, DetCurr, 0)
-                  HDiagCurr=REAL(Htmp%v,dp)
+                  HDiagCurr=REAL(Htmp,dp)
                   HDiagCurr=HDiagCurr-Hii
                   iSgn=sign(1,CurrentSign(iPartDie))
                ELSE
@@ -1486,7 +1486,7 @@ LOGICAL FUNCTION GetNextSpawner(S,iDebug)
             S%HIJ = get_helement (S%C%DetCurr, S%nJ, S%iExcitLevel, &
                                   S%ExcitMat, tParity)
           ELSE
-            S%HIJ=HElement(0)
+            S%HIJ=(0)
           ENDIF
       ELSE
 !SD Space is not truncated - allow attempted spawn as usual
@@ -1526,7 +1526,7 @@ SUBROUTINE CalcClusterEnergy(tFCI,Amplitude,nExcit,ExcitList,ExcitLevelIndex,Pro
    INTEGER iC,i,j,l,iSgn
    REAL*8 dT1Sq,dAmp,dTmp
    INTEGER DetCurr(nEl)
-   TYPE(HElement) HTmp
+   HElement_t HTmp
    INTEGER iLutnI(0:nIfTot)
    iC=0
    dT1Sq=0
@@ -1551,7 +1551,7 @@ SUBROUTINE CalcClusterEnergy(tFCI,Amplitude,nExcit,ExcitList,ExcitLevelIndex,Pro
                   CALL DecodeBitDet(DetCurr,iLutnI)
                   Htmp = get_helement (HFDet, DetCurr, iLutHF, iLutnI)
                   dAmp=dAmp/(Amplitude(1)**2)
-                  dT1Sq=dT1Sq+(Real(Htmp%v,dp)*iSgn)*dAmp
+                  dT1Sq=dT1Sq+(Real(Htmp,dp)*iSgn)*dAmp
 !                  dAmp=dAmp*2  !DEBUG
                   if (iProcIndex.eq.root) call SumEContrib(DetCurr,2,iSgn,iLutnI(:),dTmp,1/dAmp)
                endif
@@ -1591,7 +1591,7 @@ SUBROUTINE InitMP1Amplitude(tFCI,Amplitude,nExcit,ExcitList,ExcitLevelIndex,dIni
    INTEGER iC,i,j,l,iSgn
    REAL*8 dT1Sq,dAmp,dTmp
    INTEGER DetCurr(nEl)
-   TYPE(HElement) HTmp,H0Tmp,H0HF
+   HElement_t HTmp,H0Tmp,H0HF
    INTEGER iLutnI(0:nIfTot)
    INTEGER PartIndex
    LOGICAL tSuc
@@ -1609,7 +1609,7 @@ SUBROUTINE InitMP1Amplitude(tFCI,Amplitude,nExcit,ExcitList,ExcitLevelIndex,dIni
          Htmp = get_helement (HFDet,  DetCurr, iC, iLutHF, ExcitList(:,j))
          H0tmp=GetH0Element3(DetCurr)
          H0tmp=H0tmp-H0HF
-         Amplitude(j)=Amplitude(j)-dInitAmp*DREAL(Htmp)/DREAL(H0tmp)
+         Amplitude(j)=Amplitude(j)-dInitAmp*(Htmp)/(H0tmp)
          if(iC.eq.1.and..not.tFCI) then
             do l=ExcitLevelIndex(1),j-1
                iSgn=1
@@ -1666,13 +1666,13 @@ END SUBROUTINE
       USE Determinants , only : FDet
       USE DetCalc , only : ICILevel,Det,FCIDetIndex
       use CalcData, only: Tau,DiagSft,InitWalkers,NEquilSteps
-      USE HElem
+      use constants, only: dp
       use dSFMT_interface , only : genrand_real2_dSFMT
       use FciMCParMod, only: WriteFciMCStats, WriteFciMCStatsHeader
       use DetBitOps, only: FindBitExcitLevel
       use constants, only: dp
       IMPLICIT NONE
-      TYPE(HDElement) Weight,EnergyxW
+      real(dp) Weight,EnergyxW
       CHARACTER(len=*), PARAMETER :: this_routine='CCMCStandalone'
       INTEGER ierr
       REAL*8, ALLOCATABLE,target :: Amplitude(:,:) !(Det, 2)
@@ -1699,7 +1699,7 @@ END SUBROUTINE
       INTEGER iMaxExcit
       LOGICAL :: tParity,tFilled
       INTEGER iSgn
-      TYPE(HElement) rh,HTmp
+      HElement_t rh,HTmp
       REAL*8 HDiagCurr
       REAL*8 dTmp,dPsiTotAbsAmpl,dClusterNorm
       INTEGER iShiftLeft
@@ -2053,14 +2053,14 @@ END SUBROUTINE
                IF(iDebug.gt.4) THEN
                   WRITE(6,*) "HIJ: ",S%HIJ
                ENDIF
-!               write(6,*) -CS%C%iSgn,Tau,S%HIJ%v,CS%C%dAbsAmplitude,S%dProbSpawn,CS%C%dProbNorm,CS%C%dClusterNorm
-               rat=-CS%C%iSgn*Tau*S%HIJ%v*CS%C%dAbsAmplitude/(S%dProbSpawn*CS%C%dProbNorm*CS%C%dClusterNorm)  !Old version
+!               write(6,*) -CS%C%iSgn,Tau,S%HIJ,CS%C%dAbsAmplitude,S%dProbSpawn,CS%C%dProbNorm,CS%C%dClusterNorm
+               rat=-CS%C%iSgn*Tau*S%HIJ*CS%C%dAbsAmplitude/(S%dProbSpawn*CS%C%dProbNorm*CS%C%dClusterNorm)  !Old version
 !               if(CS%C%iSize.gt.1) rat=rat/CS%C%iSize
-!               rat=-CS%C%iSgn*Tau*S%HIJ%v*CS%C%dAbsAmplitude/(S%dProbSpawn*CS%C%dProbNorm*CS%C%dClusterNorm)  !Old version
+!               rat=-CS%C%iSgn*Tau*S%HIJ*CS%C%dAbsAmplitude/(S%dProbSpawn*CS%C%dProbNorm*CS%C%dClusterNorm)  !Old version
 
 ! CS%C%dAbsAmplitude is there so that the change in the amp depends on the current amp.
 
-!               rat=-CS%C%iSgn*Tau*S%HIJ%v*CS%C%dAmplitude/(S%dProbSpawn*CS%C%dSelectionProb)
+!               rat=-CS%C%iSgn*Tau*S%HIJ*CS%C%dAmplitude/(S%dProbSpawn*CS%C%dSelectionProb)
                IF(iDebug.gt.3) THEN
 !We've not printed this out before
                   call WriteBitEx(6,iLutHF,CS%C%iLutDetCurr,.false.)
@@ -2137,7 +2137,7 @@ END SUBROUTINE
                IC=0
             ENDIF 
             Htmp = get_helement (CS%C%DetCurr, CS%C%DetCurr, 0)
-            HDiagCurr=REAL(Htmp%v,dp)
+            HDiagCurr=REAL(Htmp,dp)
             HDiagCurr=HDiagCurr-Hii
 
 !Also, we want to find out the excitation level of the determinant - we only need to find out if its connected or not (so excitation level of 3 or more is ignored.
@@ -2272,8 +2272,8 @@ END SUBROUTINE
          LogDealloc(tagAmplitudeBuffer)
          DeAllocate(AmplitudeBuffer)
       endif
-      Weight=HDElement(0.D0)
-      Energyxw=HDElement(ProjectionE)
+      Weight=(0.D0)
+      Energyxw=(ProjectionE)
    END SUBROUTINE CCMCStandalone
 
 !Add the excitation in iLutnJ to iLutnI and return it in iLutnI.  iSgn is

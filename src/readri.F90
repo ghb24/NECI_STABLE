@@ -1,5 +1,5 @@
 subroutine InitRIBasis(nEl,nBasisMax,Len,lMs)
-   USE HElem
+   use constants, only: dp
    Use SymData , only : tAbelian
 ! lenrec is the number of auxiliary basis functions
    use UMatCache
@@ -33,7 +33,7 @@ subroutine InitRIBasis(nEl,nBasisMax,Len,lMs)
 END
 
 SUBROUTINE GetRI2EInt(a,b,c,d,res)
-   USE HElem 
+   use constants, only: dp 
    use UMatCache
    implicit none
    integer a,b,c,d
