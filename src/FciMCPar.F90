@@ -358,18 +358,6 @@ MODULE FciMCParMod
 
         USE FciMCLoggingMOD , only : TrackSpawnAttempts
         use detbitops, only : countbits
-        INTEGER :: VecSlot,i,j,k,l,CopySign
-        INTEGER :: nJ(NEl),ierr,IC,Child,iCount,DetCurr(NEl),iLutnJ(0:NIfTot)
-        REAL*8 :: Prob,rat,HDiag,HDiagCurr
-        INTEGER :: iDie,WalkExcitLevel,Proc             !Indicated whether a particle should self-destruct on DetCurr
-        INTEGER :: ExcitLevel,iGetExcitLevel_2,error,length,temp,Ex(2,2),WSign,p,Scratch1(ScratchSize),Scratch2(ScratchSize),Scratch3(Scratchsize),FDetSym,FDetSpin
-        LOGICAL :: tParity,tMainArr,tFilled,TestClosedShellDet,tHFFound,tHFFoundTemp
-        INTEGER(KIND=i2) :: HashTemp
-        HElement_t :: HDiagTemp
-        CHARACTER(LEN=MPI_MAX_ERROR_STRING) :: message
-        REAL :: Gap
-
-        integer :: TotWalkersNew
 
         ! **********************************************************
         ! ************************* NOTE ***************************
@@ -452,7 +440,17 @@ MODULE FciMCParMod
                 integer, intent(in) :: ic, walkExLevel, child
             end subroutine
         end interface
-        
+
+        ! Now the local, iteration specific, variables
+        integer :: VecSlot, j, p, error
+        integer :: DetCurr(nel), nJ(nel), iLutnJ(0:niftot)
+        integer :: IC, child, walkExcitLevel, ex(2,2), TotWalkersNew
+        integer, dimension(ScratchSize) :: scratch1, scratch2, scratch3
+        integer(i2) :: HashTemp
+        logical :: tFilled, tParity, tHFFound, tHFFoundTemp
+        real(dp) :: prob, HDiagCurr
+        HElement_t :: HDiagTemp
+
         call set_timer(Walker_Time,30)
 
         IF(tDelayTruncInit.and.(Iter.ge.IterTruncInit)) THEN 
@@ -512,7 +510,7 @@ MODULE FciMCParMod
                                                 max_calc_ex_level)
 
             ! Retrieve the diagonal helement for current determinant.
-            HDiagCurr=CurrentH(j)
+            HDiagCurr = CurrentH(j)
 
             ! Test if we have found a determinant which is lower in E than
             ! the 'root' determinant. Should not happen in an (unrotated)
