@@ -1650,12 +1650,9 @@ MODULE FciMCParMod
             call set_get_spawn_helement (get_csf_helement)
         elseif (tHPHF) then
             if (tGenMatHEL) then
-                print*, 'tgenmathel', tgenmathel
                 call set_get_spawn_helement (hphf_spawn_sign)
-                print*, 'set element1'
             else
                 call set_get_spawn_helement (hphf_off_diag_helement_spawn)
-                print*, 'set element2'
             endif
         else
             call set_get_spawn_helement (get_helement_det_only)
@@ -2344,7 +2341,7 @@ MODULE FciMCParMod
         rh = get_spawn_helement (DetCurr, nJ, iLutCurr, iLutnJ, ic, ex, &
                                  tParity, prob)
 
-        rat = tau * abs(rh) / prob
+        rat = tau * abs(rh / prob)
 
         ! If probability > 1, then we just create multiple children at the
         ! chosen determinant.
@@ -2354,11 +2351,10 @@ MODULE FciMCParMod
         ! Stochastically choose whether to create or not.
         r = genrand_real2_dSFMT ()
         if (rat > r) then
-            child = -sign(sign(1, int(rh)), wSign)
+            child = -sign(1, wSign) * sign(1, int(rh))
             child = child + sign(extraCreate, child)
         else
-            child = 0
-            child = -sign(sign(extraCreate, int(rh)), wSign)
+            child = -sign(1, wSign) * sign(extraCreate, int(rh))
         endif
 
     end function
