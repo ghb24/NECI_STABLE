@@ -13,10 +13,14 @@
 MODULE FciMCParMod
     use SystemData , only : NEl,Alat,Brr,ECore,G1,nBasis,nBasisMax,nMsh,Arr,LMS,tHPHF,NIfD,NIfTot,NIfDBO,NIfY
     use SystemData , only : tHub,tReal,tRotatedOrbs,tFindCINatOrbs,tFixLz,LzTot,tUEG, tLatticeGens,tCSF
-    use CalcData , only : InitWalkers,NMCyc,DiagSft,Tau,SftDamp,StepsSft,OccCASorbs,VirtCASorbs,tFindGroundDet
-    use CalcData , only : NEquilSteps,TReadPops,tRegenDiagHEls, iFullSpaceIter
-    use CalcData , only : GrowMaxFactor,CullFactor,TStartSinglePart,ScaleWalkers,MaxNoatHF,HFPopThresh
-    use CalcData , only : tCCMC,tTruncCAS,tTruncInitiator,tDelayTruncInit,IterTruncInit,NShiftEquilSteps,tWalkContGrow,tMCExcits,NoMCExcits
+    use CalcData, only: InitWalkers, NMCyc, DiagSft, Tau, SftDamp, StepsSft, &
+                        OccCASorbs, VirtCASorbs, tFindGroundDet, NEquilSteps,&
+                        tReadPops, tRegenDiagHEls, iFullSpaceIter, MaxNoAtHF,&
+                        GrowMaxFactor, CullFactor, tStartSinglePart, tCCMC, &
+                        ScaleWalkers, HFPopThresh, tTruncCAS, NoMCExcits, &
+                        tTruncInitiator, tDelayTruncInit, IterTruncInit, &
+                        NShiftEquilSteps, tWalkContGrow, tMCExcits, &
+                        tAddToInitiator, InitiatorWalkNo, tInitIncDoubs
     use HPHFRandExcitMod, only: FindExcitBitDetSym, GenRandHPHFExcit, &
                                 gen_hphf_excit
     use Determinants, only: FDet, get_helement, write_det, &
@@ -97,10 +101,6 @@ MODULE FciMCParMod
                     logical, intent(out) :: tParity
                 end subroutine
             end interface
-        end subroutine
-        subroutine set_max_excit_level (ex_level) bind(c)
-            implicit none
-            integer, intent(in) :: ex_level
         end subroutine
         subroutine set_attempt_create (attempt_create) bind(c)
             implicit none
@@ -350,15 +350,14 @@ MODULE FciMCParMod
 
 
 !This is the heart of FCIMC, where the MC Cycles are performed.
-    subroutine PerformFCIMCycPar(annihilate, generate_excitation, maxExLevel,&
+    subroutine PerformFCIMCycPar(annihilate, generate_excitation, &
                                  attempt_create, get_spawn_helement, &
                                  encode_child)&
                                  bind(c)
 
         USE FciMCLoggingMOD , only : TrackSpawnAttempts
-        USE CalcData , only : tAddtoInitiator,InitiatorWalkNo,tInitIncDoubs
         use detbitops, only : countbits
-        INTEGER :: VecSlot,i,j,k,l,CopySign,Loop,iPartBloom
+        INTEGER :: VecSlot,i,j,k,l,CopySign,Loop
         INTEGER :: nJ(NEl),ierr,IC,Child,iCount,DetCurr(NEl),iLutnJ(0:NIfTot)
         REAL*8 :: Prob,rat,HDiag,HDiagCurr
         INTEGER :: iDie,WalkExcitLevel,Proc             !Indicated whether a particle should self-destruct on DetCurr
@@ -368,8 +367,6 @@ MODULE FciMCParMod
         HElement_t :: HDiagTemp
         CHARACTER(LEN=MPI_MAX_ERROR_STRING) :: message
         REAL :: Gap
-
-        integer, intent(in) :: maxExLevel
 
         ! **********************************************************
         ! ************************* NOTE ***************************
@@ -522,7 +519,7 @@ MODULE FciMCParMod
             ! reference (so no ex. level above 2 required, except for HPHF
             ! or truncated etc.)
             walkExcitLevel = FindBitExcitLevel (iLutRef, CurrentDets(:,j), &
-                                                maxExLevel)
+                                                max_calc_ex_level)
 
             ! sds: I assume that we can ALWAYS store the diagonal elements
             !      --> We really should get rid of this.
@@ -570,13 +567,14 @@ MODULE FciMCParMod
             ! if attempting multiple excitations from each walker (defalult 1)
             loop = abs (CurrentSign(j)) * noMCExcits
 
+            ! Loop over all the particles on the determinant.
             do p = 1, loop
-                ! Loop over all the particles on the determinant.
-
+                ! Generate a (random) excitation
                 call generate_excitation (DetCurr, CurrentDets(:,j), nJ, &
                                ilutnJ, exFlag, IC, ex, tParity, prob, &
                                tFilled, scratch1, scratch2, scratch3)
 
+                ! If a valid excitation, see if we should spawn children.
                 if (.not. IsNullDet(nJ)) then
                     child = attempt_create (get_spawn_helement, DetCurr, &
                                         CurrentDets(:,j), CurrentSign(j), &
@@ -586,13 +584,10 @@ MODULE FciMCParMod
                     child = 0
                 endif
 
-                IF(Child.ne.0) THEN
-
-                    call encode_child (nJ, iLutnJ)
-
+                if (child /= 0) then
                     ! We know we want to create a particle, so encode the bit
-                    ! representation here. Could we do this earlier?
-                    ! call post_create_encode (iLutCurr, iLutnJ, ic, ex)
+                    ! representation if it isn't already.
+                    call encode_child (nJ, iLutnJ)
 
                     ! Do histogramming here if we want to. Or at least in the
                     ! statistics routine. If doing histogramming, not too
@@ -600,64 +595,17 @@ MODULE FciMCParMod
                     ! --> Do both in a statistics function which then calls
                     !     the normal one.
 
+                    !IF(tHistHamil) THEN
+                    !    CALL AddHistHamilEl(CurrentDets(:,j),iLutnJ,WalkExcitLevel,Child,1)   !Histogram the hamiltonian - iLutnI,iLutnJ,Excitlevel of parent,spawning indicator
+                    !ENDIF
 
-                    
+                    call new_child_stats_normal (CurrentDets(:,j), iLutnJ, &
+                                                 ic, child, walkExcitLevel)
 
-
-                    ! TODO:
-                    ! call new_child_stats
-                    ! call create_particle
-
-                    IF(tHistHamil) THEN
-                        CALL AddHistHamilEl(CurrentDets(:,j),iLutnJ,WalkExcitLevel,Child,1)   !Histogram the hamiltonian - iLutnI,iLutnJ,Excitlevel of parent,spawning indicator
-                    ENDIF
-
-!                    WRITE(6,'("Spawning particle to:")',advance='no')
-!                    call writedet(6,nJ,nel,.true.)
-!                    ExcitLevel=iGetExcitLevel_2(HFDet,nJ,NEl,NEl)
-!                    WRITE(6,*) "Excitlevel:", ExcitLevel
-                    NoBorn=NoBorn+abs(Child)     !Update counter about particle birth
-                    IF(IC.eq.1) THEN
-                        SpawnFromSing=SpawnFromSing+abs(Child)
-                    ENDIF
-
-                    IF(tAddtoInitiator.and.(abs(Child).gt.InitiatorWalkNo)) THEN
-                        IF(abs(Child).gt.abs(iPartBloom)) THEN
-                            IF(IC.eq.1) THEN
-                                iPartBloom=-abs(Child)
-                            ELSE
-                                iPartBloom=abs(Child)
-                            ENDIF
-                        ENDIF
-                    ELSEIF(abs(Child).gt.25) THEN
-!If more than 25 particles are created in one go, then log this fact and print out later that this has happened.
-                        IF(abs(Child).gt.abs(iPartBloom)) THEN
-                            IF(IC.eq.1) THEN
-                                iPartBloom=-abs(Child)
-                            ELSE
-                                iPartBloom=abs(Child)
-                            ENDIF
-                        ENDIF
-                    ENDIF
-
-!In direct annihilation, we spawn particles into a seperate array, but we do not store them contiguously in the SpawnedParts/SpawnedSign arrays.
-!The processor that the newly-spawned particle is going to be sent to has to be determined, and then it will get put into the the appropriate element determined by ValidSpawnedList.
-                    !WRITE(6,'(A,3I20)') 'when dealing with directannihilation',iLutnJ(:)
-                    Proc=DetermineDetProc(iLutnJ)   !This wants to return a value between 0 -> nProcessors-1
-                    !WRITE(6,*) iLutnJ(:),Proc,ValidSpawnedList(Proc),Child,TotWalkers
-                    !CALL FLUSH(6)
-                    SpawnedParts(:,ValidSpawnedList(Proc))=iLutnJ(:)
-                    SpawnedSign(ValidSpawnedList(Proc))=Child
-                    IF(tTruncInitiator) SpawnedParts(NIfTot,ValidSpawnedList(Proc))=ParentInitiator
-!                        WRITE(6,*) 'SpawnedParts',SpawnedParts(:,ValidSpawnedList(Proc))
-                    ValidSpawnedList(Proc)=ValidSpawnedList(Proc)+1
-!Set the last integer of the determinant in SpawnedParts to be either 0 or 1 according to whether it's parent is inside or outside the active space.
-
-                    Acceptances=Acceptances+ABS(Child)      !Sum the number of created children to use in acceptance ratio
+                    call create_particle (iLutnJ, child)
                 
-                ENDIF   !End if child created
-
-            enddo   !End of cycling over mulitple particles on same determinant.
+                endif   ! (child /= 0). Child created
+            enddo ! Cycling over mulitple particles on same determinant.
 
             IF(tHFFoundTemp) tHFFound=.true.
             tHFFoundTemp=.false.
@@ -733,24 +681,22 @@ MODULE FciMCParMod
 !Since VecSlot holds the next vacant slot in the array, TotWalkers will be one less than this.
         TotWalkersNew=VecSlot-1
 
-!Output if there has been a particle bloom this iteration. A negative number indicates that particles were created from a single excitation.
-        IF((iPartBloom.ne.0).and.(iProcIndex.eq.0)) THEN
-            IF(tAddtoInitiator.and.(iPartBloom.gt.0)) THEN
-                WRITE(6,"(A,I14,A,I8,A)") "Particle Blooms of more than 'n_add' in iteration ",Iter," :  A max of ",abs(iPartBloom)," particles created in one attempt from double excit."
-            ELSEIF(tAddtoInitiator) THEN
-                WRITE(6,"(A,I14,A,I8,A)") "Particle Blooms of more than 'n_add' in iteration ",Iter," :  A max of ",abs(iPartBloom)," particles created in one attempt from single excit."
-            ELSEIF(iPartBloom.gt.0) THEN
-                WRITE(6,"(A,I14,A,I8,A)") "LARGE Particle Blooms in iteration ",Iter," :  A max of ",abs(iPartBloom)," particles created in one attempt from double excit."
-            ELSE
-                WRITE(6,"(A,I14,A,I8,A)") "LARGE Particle Blooms in iteration ",Iter," :  A max of ",abs(iPartBloom)," particles created in one attempt from single excit."
-            ENDIF
-        ENDIF
+        ! Has there been a particle bloom this iteration?
+        if ( abs(iPartBloom) > InitiatorWalkNo) then
+            write (6, bloom_warn_string, advance='no'), iter, abs(iPartBloom)
+            if (iPartBloom > 0) then
+                write (6, '("double excit.")')
+            else
+                write (6, '("single excit.")')
+            endif
+        endif
 
-        rat=REAL(TotWalkersNew,dp)/REAL(MaxWalkersPart,dp)
-        IF(rat.gt.0.95) THEN
-            WRITE(6,'(A)') "*WARNING* - Number of particles/determinants has increased to over 95% of MaxWalkersPart"
-            CALL FLUSH(6)
-        ENDIF
+        rat = real(TotWalkersNew,dp) / real(MaxWalkersPart,dp)
+        if (rat > 0.95) then
+            write (6, '(a)') '*WARNING* - Number of particles/determinants &
+                             &has increased to over 95% of MaxWakersPart'
+            call flush(6)
+        end if
 
 !Need to test whether any of the sublists are getting to the end of their allotted space.
         IF(nProcessors.gt.1) THEN
@@ -785,10 +731,51 @@ MODULE FciMCParMod
         CALL halt_timer(Annihil_Time)
         
     END SUBROUTINE PerformFCIMCycPar
+
+    subroutine new_child_stats_normal (iLutI, iLutJ, ic, child, walkExLevel)
+
+        integer, intent(in) :: iLutI(0:niftot), iLutJ(0:niftot)
+        integer, intent(in) :: ic, child, walkExLevel
+        
+        noBorn = noBorn + abs(child)
+
+        if (ic == 1) SpawnFromSing = SpawnFromSing + abs(child)
+
+        if (abs(child) > abs(iPartBloom)) then
+            iPartBloom = sign(child, 2*ic - 3)
+        endif
+
+    end subroutine
                         
+    subroutine create_particle (iLutJ, child)
+
+        ! Create a child in the spawned particles arrays. We spawn particles
+        ! into a separate array, but non-contiguously. The processor that the
+        ! newly-spawned particle is going to be sent to has to be determined,
+        ! and then it will be put into the appropriate element determined by
+        ! ValidSpawnedList
+
+        integer, intent(in) :: iLutJ(0:niftot), child
+        integer :: proc
+
+        proc = DetermineDetProc(iLutJ)    ! 0 -> nProcessors-1
+
+        SpawnedParts(:,ValidSpawnedList(proc)) = iLutJ
+        SpawnedSign(ValidSpawnedList(Proc)) = child
+
+        ! TODO: have this already stored in iLut, but ignored for hashing?
+        ! Set the last integer of the determinant to be either 0 or 1
+        ! according to if its parent is inside or outside the active space.
+        if (tTruncInitiator) &
+            SpawnedParts(niftot, ValidSpawnedList(proc)) = parentInitiator
+
+        ValidSpawnedList(proc) = ValidSpawnedList(proc) + 1
+
+        ! Sum the number of created children to use in acceptance ratio.
+        acceptances = acceptances + abs(child)
+    end subroutine
 
     SUBROUTINE CalcParentFlag(j,tHFFound,tHFFoundTemp,VecSlot,Iter)
-        USE CalcData , only : tAddtoInitiator,InitiatorWalkNo,tInitIncDoubs
         USE FciMCLoggingMOD, only : InitBinMin,InitBinIter
         INTEGER , INTENT(IN) :: j,VecSlot,Iter
         INTEGER :: WalkExcitLevel,InitBinNo
@@ -1627,9 +1614,9 @@ MODULE FciMCParMod
         ! excitation level
         if (tTruncSpace .or. tHistSpawn .or. tCalcFCIMCPsi .or. &
             tHistHamil) then
-            call set_max_excit_level (nel)
+            max_calc_ex_level = nel
         else
-            call set_max_excit_level (2)
+            max_calc_ex_level = 2
         endif
 
         ! How many children should we spawn given an excitation?
@@ -1661,6 +1648,16 @@ MODULE FciMCParMod
         ! Once we have generated the children, do we need to encode them?
         if (.not. (tCSF .or. tHPHF)) then
             call set_encode_child (EncodeBitDet)
+        endif
+
+        ! What message should we display for a particle bloom?
+        if (tAddToInitiator) then
+            bloom_warn_string = '("Particle blooms of more than n_add in &
+                                &iteration ", i14, ": A max of ", i8, &
+                                &"particles created in one attempt from ")'
+        else
+            ! Use this variable to store the bloom cutoff level.
+            InitiatorWalkNo = 25
         endif
 
     end subroutine
@@ -2351,10 +2348,10 @@ MODULE FciMCParMod
         ! Stochastically choose whether to create or not.
         r = genrand_real2_dSFMT ()
         if (rat > r) then
-            child = -sign(1, wSign) * sign(1, int(rh))
+            child = -nint(sign(1.0_dp, wsign*rh))
             child = child + sign(extraCreate, child)
         else
-            child = -sign(1, wSign) * sign(extraCreate, int(rh))
+            child = -extraCreate*nint(sign(1.0_dp, wsign*rh))
         endif
 
     end function
