@@ -477,7 +477,7 @@ $(KcppDEPEND_FILES): $(KDEP_DEST)/%%.d: %%.cpp
 # same libraries as neci.
 MKUTIL = $(FC) $(FFLAGS) $(F90FLAGS) $< -o $@ $(LIBS)
 
-UTILS = TransLz.x BlockFCIMC.x ModelFCIQMC.x ConvertMolpFCID.x ConvertPOPSFILE.x CalcVibSpectrum.x  
+UTILS = TransLz.x BlockFCIMC.x ModelFCIQMC.x ConvertMolpFCID.x ConvertPOPSFILE.x RoVibSpectrum/CalcVibSpectrum.x  
 
 # Target to compile all utility programs.
 utils: $(UTILS)

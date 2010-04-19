@@ -1,5 +1,14 @@
 #!/usr/bin/python
 
+#To calculate the rotational/vibrational from a binding curve of a diatomic the following inputs are needed:
+#RESULTS file:
+#Containing the distance between nuclei (in bohr) in the first column, and the total energy relative to the
+#completely dissociated limit in the second.
+#inputVib file:
+#Example of which is given in this folder
+#This script is then run (it calls CalcVibSpectrum.x).
+#The method followed can be found in Bytautas et al. J.Chem.Phys 127 (2007)
+
 import sys,os
 from pylab import *
 from scipy import *
