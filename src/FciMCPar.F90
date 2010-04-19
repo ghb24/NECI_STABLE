@@ -155,7 +155,18 @@ MODULE FciMCParMod
                 end subroutine
             end interface
         end subroutine
-
+        subroutine set_new_child_stats (new_child_stats) bind(c)
+            implicit none
+            interface
+                subroutine new_child_stats (iLutI, iLutJ, ic, walkExLevel, &
+                                            child)
+                    use SystemData, only: nel, niftot
+                    implicit none
+                    integer, intent(in) :: ilutI(0:niftot), iLutJ(0:niftot)
+                    integer, intent(in) :: ic, walkExLevel, child
+                end subroutine
+            end interface
+        end subroutine
     end interface
 
     contains
@@ -342,8 +353,8 @@ MODULE FciMCParMod
 
 !This is the heart of FCIMC, where the MC Cycles are performed.
     subroutine PerformFCIMCycPar(generate_excitation, attempt_create, &
-                                 get_spawn_helement, encode_child)&
-                                 bind(c)
+                                 get_spawn_helement, encode_child, &
+                                 new_child_stats) bind(c)
 
         USE FciMCLoggingMOD , only : TrackSpawnAttempts
         use detbitops, only : countbits
@@ -431,6 +442,12 @@ MODULE FciMCParMod
                 implicit none
                 integer, intent(in) :: nJ(nel)
                 integer, intent(out) :: iLutnJ(0:nIfTot)
+            end subroutine
+            subroutine new_child_stats (iLutI, iLutJ, ic, walkExLevel, child)
+                use SystemData, only: nel, niftot
+                implicit none
+                integer, intent(in) :: ilutI(0:niftot), iLutJ(0:niftot)
+                integer, intent(in) :: ic, walkExLevel, child
             end subroutine
         end interface
         
@@ -550,18 +567,8 @@ MODULE FciMCParMod
                     ! representation if it isn't already.
                     call encode_child (nJ, iLutnJ)
 
-                    ! Do histogramming here if we want to. Or at least in the
-                    ! statistics routine. If doing histogramming, not too
-                    ! worried about speed
-                    ! --> Do both in a statistics function which then calls
-                    !     the normal one.
-
-                    !IF(tHistHamil) THEN
-                    !    CALL AddHistHamilEl(CurrentDets(:,j),iLutnJ,WalkExcitLevel,Child,1)   !Histogram the hamiltonian - iLutnI,iLutnJ,Excitlevel of parent,spawning indicator
-                    !ENDIF
-
-                    call new_child_stats_normal (CurrentDets(:,j), iLutnJ, &
-                                                 ic, child, walkExcitLevel)
+                    call new_child_stats (CurrentDets(:,j), iLutnJ, ic, &
+                                          child, walkExcitLevel)
 
                     call create_particle (iLutnJ, child)
                 
@@ -1605,6 +1612,13 @@ MODULE FciMCParMod
         else
             ! Use this variable to store the bloom cutoff level.
             InitiatorWalkNo = 25
+        endif
+
+        ! Perform the correct statistics on new child particles
+        if (tHistHamil) then
+            call set_new_child_stats (new_child_stats_hist_hamil)
+        else
+            call set_new_child_stats (new_child_stats_normal)
         endif
 
     end subroutine
@@ -3209,49 +3223,57 @@ MODULE FciMCParMod
 
     END SUBROUTINE WriteHamilHistogram
 
+    subroutine new_child_stats_hist_hamil (iLutI, iLutJ, ic, walkExLevel, &
+                                           child)
+        ! Based on old AddHistHamilEl. Histograms the hamiltonian matrix, and 
+        ! then calls the normal statistics routine.
 
-    SUBROUTINE AddHistHamilEl(iLutnI,iLutnJ,WalkExcitLevel,Child,iTypeMatEl)
-        INTEGER :: iTypeMatEl,WalkExcitLevel,iLutnI(0:NIfD),iLutnJ(0:NIfD),Child
-        LOGICAL :: tSuccess
-        INTEGER :: PartInd,PartIndChild,ChildExcitLevel
+        integer, intent(in) :: iLutI(0:niftot), iLutJ(0:niftot)
+        integer, intent(in) :: ic, walkExLevel, child
+        character(*), parameter :: this_routine = 'new_child_stats_hist_hamil'
 
-        IF(iTypeMatEl.eq.1) THEN
-        !This is a spawning event
-        !Need to histogram the hamiltonian - find the correct indicies of parent and child.
-            IF(WalkExcitLevel.eq.NEl) THEN
-                CALL BinSearchParts2(iLutnI,FCIDetIndex(WalkExcitLevel),Det,PartInd,tSuccess)
-            ELSEIF(WalkExcitLevel.eq.0) THEN
-                PartInd=1
-                tSuccess=.true.
-            ELSE
-                CALL BinSearchParts2(iLutnI,FCIDetIndex(WalkExcitLevel),FCIDetIndex(WalkExcitLevel+1)-1,PartInd,tSuccess)
-            ENDIF
-            IF(.not.tSuccess) THEN
-                CALL Stop_All("AddHistHamil","Cannot find determinant nI in list")
-            ENDIF
-            ChildExcitLevel = FindBitExcitLevel(iLutHF, iLutnJ, nel)
-            IF(ChildExcitLevel.eq.NEl) THEN
-                CALL BinSearchParts2(iLutnJ,FCIDetIndex(ChildExcitLevel),Det,PartIndChild,tSuccess)
-            ELSEIF(ChildExcitLevel.eq.0) THEN
-                PartIndChild=1
-                tSuccess=.true.
-            ELSE
-                CALL BinSearchParts2(iLutnJ,FCIDetIndex(ChildExcitLevel),FCIDetIndex(ChildExcitLevel+1)-1,PartIndChild,tSuccess)
-            ENDIF
-            IF(.not.tSuccess) THEN
-                CALL Stop_All("AddHistHamil","Cannot find determinant nJ in list")
-            ENDIF
-            
-            HistHamil(PartIndChild,PartInd)=HistHamil(PartIndChild,PartInd)+(1.D0*Child)
-            HistHamil(PartInd,PartIndChild)=HistHamil(PartInd,PartIndChild)+(1.D0*Child)
-            AvHistHamil(PartIndChild,PartInd)=AvHistHamil(PartIndChild,PartInd)+(1.D0*Child)
-            AvHistHamil(PartInd,PartIndChild)=AvHistHamil(PartInd,PartIndChild)+(1.D0*Child)
-        ENDIF
+        integer :: partInd, partIndChild, childExLevel
+        logical :: tSuccess
 
-    END SUBROUTINE AddHistHamilEl
+        if (walkExLevel == nel) then
+            call BinSearchParts2 (iLutI, FCIDetIndex(walkExLevel), Det, &
+                                  PartInd, tSuccess)
+        else
+            call BinSearchParts2 (iLutI, FCIDetIndex(walkExLevel), &
+                                  FciDetIndex(walkExLevel+1)-1, partInd, &
+                                  tSuccess)
+        endif
 
+        if (.not. tSuccess) &
+            call stop_all (this_routine, 'Cannot find determinant nI in list')
 
-    
+        childExLevel = FindBitExcitLevel (iLutHF, iLutJ, nel)
+        if (childExLevel == nel) then
+            call BinSearchParts2 (iLutJ, FCIDetIndex(childExLevel), Det, &
+                                  partIndChild, tSuccess)
+        elseif (childExLevel == 0) then
+            partIndChild = 1
+            tSuccess = .true.
+        else
+            call BinSearchParts2 (iLutJ, FCIDetIndex(childExLevel), &
+                                  FciDetIndex(childExLevel+1)-1, &
+                                  partIndChild, tSuccess)
+        endif
+
+        histHamil (partIndChild, partInd) = &
+                histHamil (partIndChild, partInd) + (1.0_dp * child)
+        histHamil (partInd, partIndChild) = &
+                histHamil (partInd, partIndChild) + (1.0_dp * child)
+        avHistHamil (partIndChild, partInd) = &
+                avHistHamil (partIndChild, partInd) + (1.0_dp * child)
+        avHistHamil (partInd, partIndChild) = &
+                avHistHamil (partInd, partIndChild) + (1.0_dp * child)
+
+        ! Call the normal stats routine
+        call new_child_stats_normal (iLutI, iLutJ, ic, walkExLevel, child)
+
+    end subroutine
+
 #else
 ! AJWT
 ! Bringing you a better FciMCPar.  A vision for the future...
