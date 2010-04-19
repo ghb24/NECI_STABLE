@@ -362,12 +362,14 @@ MODULE FciMCParMod
         INTEGER :: nJ(NEl),ierr,IC,Child,iCount,DetCurr(NEl),iLutnJ(0:NIfTot)
         REAL*8 :: Prob,rat,HDiag,HDiagCurr
         INTEGER :: iDie,WalkExcitLevel,Proc             !Indicated whether a particle should self-destruct on DetCurr
-        INTEGER :: ExcitLevel,TotWalkersNew,iGetExcitLevel_2,error,length,temp,Ex(2,2),WSign,p,Scratch1(ScratchSize),Scratch2(ScratchSize),Scratch3(Scratchsize),FDetSym,FDetSpin
+        INTEGER :: ExcitLevel,iGetExcitLevel_2,error,length,temp,Ex(2,2),WSign,p,Scratch1(ScratchSize),Scratch2(ScratchSize),Scratch3(Scratchsize),FDetSym,FDetSpin
         LOGICAL :: tParity,tMainArr,tFilled,TestClosedShellDet,tHFFound,tHFFoundTemp
         INTEGER(KIND=i2) :: HashTemp
         HElement_t :: HDiagTemp
         CHARACTER(LEN=MPI_MAX_ERROR_STRING) :: message
         REAL :: Gap
+
+        integer :: TotWalkersNew
 
         ! **********************************************************
         ! ************************* NOTE ***************************
@@ -451,15 +453,11 @@ MODULE FciMCParMod
             end subroutine
         end interface
         
-        CALL set_timer(Walker_Time,30)
-
-        IF(TDebug.and.(mod(Iter,10).eq.0)) THEN
-            WRITE(11,*) Iter,TotWalkers,NoatHF,NoatDoubs,MaxIndex,TotParts
-            CALL FLUSH(11)
-        ENDIF
+        call set_timer(Walker_Time,30)
 
         IF(tDelayTruncInit.and.(Iter.ge.IterTruncInit)) THEN 
             IF(Iter.eq.IterTruncInit) THEN
+                ! Why do this? Why not just get all procs to do division?
                 IF(iProcIndex.eq.root) THEN
                     Tau=Tau/10.D0
                     WRITE(6,'(A,F10.5)') 'Beginning truncated initiator calculation and reducing tau by a factor of 10. New tau is : ',Tau
@@ -469,36 +467,31 @@ MODULE FciMCParMod
             tTruncInitiator=.true.
         ENDIF
 
-        tHFFound=.false.
-        tHFFoundTemp=.false.
-        IF(tHFInitiator) THEN
-            IF(iProcIndex.ne.iHFProc) THEN
-!The processor with the HF determinant on it will have to check through each determinant until its found.            
-                tHFFound=.true.
-            ENDIF
-        ENDIF        
-        
         MaxInitPopPos=0
         MaxInitPopNeg=0
         HighPopNeg=1
         HighPopPos=1
 
+        ! Synchronise processors
         CALL MPI_Barrier(MPI_COMM_WORLD,error)
 
-!VecSlot indicates the next free position in NewDets
-        VecSlot=1
-!Reset number at HF and doubles
-        NoatHF=0
-        NoatDoubs=0
-        iPartBloom=0
-!ValidSpawndList now holds the next free position in the newly-spawned list, but for each processor.
-        ValidSpawnedList(:)=InitialSpawnedSlots(:)
-        tHFFound=.false.
-        tHFFoundTemp=.false.
-        IF(iProcIndex.ne.iHFProc) tHFFound=.true.
-!The processor with the HF determinant on it will have to check through each determinant until its found. Once found, tHFFound is true and it no longer needs to be checked.           
-        CALL InitHistMin()
+        ! Reset iteration variables
+        VecSlot = 1    ! Next position to write into CurrentDets
+        NoatHF = 0     ! Number at HF and doubles for stats
+        NoatDoubs = 0
+        iPartBloom = 0 ! Max number spawned from an excitation
+        ! Next free position in newly spawned list.
+        ValidSpawnedList = InitialSpawnedSlots
+        tHFFound = .false.
+        tHFFoundTemp = .false.
+        
+        ! The processor with the HF determinant on it will have to check 
+        ! through each determinant until it's found. Once found, tHFFound is
+        ! true, and it no longer needs to be checked.
+        if (iProcIndex /= iHFProc) tHFFound = .true.
 
+        ! Initialise histograms if necessary
+        call InitHistMin()
 
         ! This is a bit of a hack based on the fact that we mean something 
         ! different by exFlag for CSFs than in normal determinential code.
@@ -536,7 +529,7 @@ MODULE FciMCParMod
                               CurrentDets(:,j), HDiagCurr, 1.d0)
 
             IF(tTruncInitiator) &
-                call CalcParentFlag(j,tHFFound,tHFFoundTemp,VecSlot,Iter)
+                call CalcParentFlag(j, tHFFound, tHFFoundTemp, VecSlot, Iter)
 
             ! Indicate that the scratch storage used for excitation generation
             ! from the same walker has not been filled (it is filled when we
@@ -578,123 +571,32 @@ MODULE FciMCParMod
             IF(tHFFoundTemp) tHFFound=.true.
             tHFFoundTemp=.false.
 
-            ! TODO:
-            ! call attempt_die (DetCurr, HDiagCurr, WalkExcitLevel, &
-            !                   CurrentSign(j))
+            ! DEBUG
+            ! if (VecSlot > j) call stop_all (this_routine, 'vecslot > j')
+            call walker_death (DetCurr, CurrentDets(:,j), HDiagCurr, &
+                               CurrentSign(j), VecSlot)
 
-            ! Do particles on determinant j die?
-            iDie = AttemptDiePar (DetCurr, HDiagCurr, WalkExcitLevel, &
-                                  CurrentSign(j))
-
-            ! Update death counter
-            NoDied = NoDied + iDie
-
-!iDie can be positive to indicate the number of deaths, or negative to indicate the number of births
-!We slot the particles back into the same array and position VecSlot if the particle survives. If it dies, then j increases, moving onto the next
-!entry, but VecSlot remains where it is, meaning that j should never be less that VecSlot
-            IF(CurrentSign(j).le.0) THEN
-                CopySign=CurrentSign(j)+iDie    !Copy sign is the total number of particles x sign that we want to copy accross.
-                IF(CopySign.le.0) THEN
-!If we are copying to the main array, we have to ensure that we maintain sign-coherence in the array. Therefore, if we are spawning anti-particles,
-!it wants to go in the spawning array, rather than the main array, so it has a chance to annihilate.
-                    tMainArr=.true.
-                ELSE
-                    tMainArr=.false.
-                ENDIF
-            ELSE
-                CopySign=CurrentSign(j)-iDie
-                IF(CopySign.ge.0) THEN
-                    tMainArr=.true.
-                ELSE
-                    tMainArr=.false.
-                ENDIF
-            ENDIF
-
-            IF(tMainArr.and.(VecSlot.gt.j)) THEN
-!We only have a single array, therefore surviving particles are simply transferred back into the original array.
-!However, this can not happen if we want to overwrite particles that we haven't even got to yet.
-!However, this should not happen under normal circumstances...
-                tMainArr=.false.
-                CALL Stop_All("PerformFCIMCyc","About to overwrite particles which haven't been reached yet. This should not happen in normal situations.")
-            ENDIF
-
-            IF(CopySign.ne.0) THEN
-
-                IF(tMainArr) THEN
-!                        NewDets(:,VecSlot)=CurrentDets(:,j)
-!                        NewSign(VecSlot)=CopySign
-                    CurrentDets(:,VecSlot)=CurrentDets(:,j)
-                    CurrentSign(VecSlot)=CopySign
-                    CurrentH(VecSlot)=HDiagCurr
-                    VecSlot=VecSlot+1
-                ELSE
-!                        CALL Stop_All("PerformFCIMCyc","Creating anti-particles")
-!Here, we are creating anti-particles, and so to keep the sign-coherence of the main array assured, we transfer them to the spawning array.
-!This should generally not happen under normal circumstances.
-                    SpawnedParts(:,ValidSpawnedList(iProcIndex))=CurrentDets(:,j)
-                    SpawnedSign(ValidSpawnedList(iProcIndex))=CopySign
-                    ValidSpawnedList(iProcIndex)=ValidSpawnedList(iProcIndex)+1
-                ENDIF
-            ENDIF
-
-!Finish cycling over walkers
-        enddo
+        enddo ! Loop over determinants.
 
         IF(tPrintHighPop) CALL FindHighPopDet(Iter+PreviousCycles)
 
-!SumWalkersCyc calculates the total number of walkers over an update cycle on each process
-        SumWalkersCyc=SumWalkersCyc+(INT(TotParts,i2))
-!        WRITE(6,*) "Born, Die: ",NoBorn, NoDied
+        ! SumWalkersCyc calculates the total number of walkers over an update
+        ! cycle on each process.
+        SumWalkersCyc = SumWalkersCyc + int(TotParts, i2)
 
-!Since VecSlot holds the next vacant slot in the array, TotWalkers will be one less than this.
-        TotWalkersNew=VecSlot-1
+        ! Since VecSlot holds the next vacant slot in the array, TotWalkers
+        ! should be one less than this.
+        TotWalkersNew = VecSlot - 1
 
-        ! Has there been a particle bloom this iteration?
-        if ( abs(iPartBloom) > InitiatorWalkNo) then
-            write (6, bloom_warn_string, advance='no'), iter, abs(iPartBloom)
-            if (iPartBloom > 0) then
-                write (6, '("double excit.")')
-            else
-                write (6, '("single excit.")')
-            endif
-        endif
-
-        rat = real(TotWalkersNew,dp) / real(MaxWalkersPart,dp)
-        if (rat > 0.95) then
-            write (6, '(a)') '*WARNING* - Number of particles/determinants &
-                             &has increased to over 95% of MaxWakersPart'
-            call flush(6)
-        end if
-
-!Need to test whether any of the sublists are getting to the end of their allotted space.
-        IF(nProcessors.gt.1) THEN
-            do i=0,nProcessors-1
-                rat=(ValidSpawnedList(i)-InitialSpawnedSlots(i))/(InitialSpawnedSlots(1)+0.D0)
-!                    WRITE(6,*) rat,(ValidSpawnedList(i)-InitialSpawnedSlots(i)),InitialSpawnedSlots(1)
-                IF(rat.gt.0.95) THEN
-                    WRITE(6,'(A)') "*WARNING* - Highest processor spawned particles has reached over 95% of MaxSpawned"
-                    CALL FLUSH(6)
-                ENDIF
-            enddo
-        ELSE
-            rat=(ValidSpawnedList(0)+0.D0)/(MaxSpawned+0.D0)
-            IF(rat.gt.0.9) THEN
-                WRITE(6,'(A)') "*WARNING* - Number of spawned particles has reached over 90% of MaxSpawned"
-                CALL FLUSH(6)
-            ENDIF
-        ENDIF
+        ! Print bloom/memory warnings
+        call end_iteration_print_warn (totWalkersNew)
+        call halt_timer (walker_time)
         
-        CALL halt_timer(Walker_Time)
-        CALL set_timer(Annihil_Time,30)
-!        CALL MPI_Barrier(MPI_COMM_WORLD,error)
-!        WRITE(6,*) "Get into annihilation"
-!        CALL FLUSH(6)
-
         ! For the direct annihilation algorithm. The newly spawned 
         ! walkers should be in a seperate array (SpawnedParts) and the other 
         ! list should be ordered.
+        call set_timer (annihil_time, 30)
         call DirectAnnihilation (totWalkersNew)
-
         CALL halt_timer(Annihil_Time)
         
     END SUBROUTINE PerformFCIMCycPar
@@ -740,6 +642,54 @@ MODULE FciMCParMod
 
         ! Sum the number of created children to use in acceptance ratio.
         acceptances = acceptances + abs(child)
+    end subroutine
+
+    subroutine end_iteration_print_warn (totWalkersNew)
+        
+        ! Worker function for PerformFciMCycPar. Prints warnings about 
+        ! particle blooms and memory usage.
+        integer, intent(in) :: totWalkersNew
+        integer :: i
+        real(dp) :: rat
+
+        ! Has there been a particle bloom this iteration?
+        if ( abs(iPartBloom) > InitiatorWalkNo) then
+            write (6, bloom_warn_string, advance='no'), iter, abs(iPartBloom)
+            if (iPartBloom > 0) then
+                write (6, '("double excit.")')
+            else
+                write (6, '("single excit.")')
+            endif
+        endif
+
+        ! Too many particles?
+        rat = real(TotWalkersNew,dp) / real(MaxWalkersPart,dp)
+        if (rat > 0.95) then
+            write (6, '(a)') '*WARNING* - Number of particles/determinants &
+                             &has increased to over 95% of MaxWakersPart.'
+            call flush(6)
+        end if
+
+        ! Are ony of the sublists near the end of their alloted space?
+        if (nProcessors > 1) then
+            do i = 0, nProcessors-1
+                rat = real(ValidSpawnedList(i) - InitialSpawnedSlots(i),dp) /&
+                             real(InitialSpawnedSlots(1), dp)
+                if (rat > 0.95) then
+                    write (6, '(a)') '*WARNING* - Highest processor spawned &
+                                     &particles has reached over 95% of &
+                                     &MaxSpawned.'
+                    call flush(6)
+                endif
+            enddo
+        else
+            rat = real(ValidSpawnedList(0), dp) / real(MaxSpawned, dp)
+            if (rat > 0.95) then
+                write (6, '(a)') '*WARNING* - Number of spawned particles has&
+                                 & reached over 95% of MaxSpawned.'
+                call flush(6)
+            endif
+        endif
     end subroutine
 
     SUBROUTINE CalcParentFlag(j,tHFFound,tHFFoundTemp,VecSlot,Iter)
@@ -2507,50 +2457,83 @@ MODULE FciMCParMod
 
     END FUNCTION AttemptCreatePar
 
+    subroutine walker_death (DetCurr, iLutCurr, Kii, wSign, VecSlot)
+
+        integer, intent(in) :: DetCurr(nel), iLutCurr(0:niftot), wSign
+        integer, intent(inout) :: VecSlot
+        real(dp), intent(in) :: Kii
+        
+        integer :: iDie, CopySign
+
+        ! Do particles on determinant die? iDie can be both +ve (deaths), or
+        ! -ve (births, if shift > 0)
+        iDie = attempt_die_par (DetCurr, Kii, wSign)
+
+        ! Update death counter
+        NoDied = NoDied + iDie
+
+        ! Calculate new number of particles on.
+        CopySign = wSign - (iDie * sign(1, wSign))
+
+        ! Normall slot particles back into main array at position vecslot.
+        ! This will normally increment with j, except when a particle dies
+        ! completely (so VecSlot <= j, and we can't overwrite a walker we
+        ! haven't got to yet).
+        ! If we change the sign of a particle, we need to spawn an
+        ! anti-particle --> it goes in the spawning array to give it a chance
+        ! to annihilate. (Not into main array, or we loose sign-coherence)
+        if (CopySign /= 0) then
+            if (sign(1, CopySign) == sign(1, wSign)) then
+                CurrentDets(:,VecSlot) = iLutCurr
+                CurrentSign(VecSlot) = CopySign
+                CurrentH(VecSlot) = Kii
+                VecSlot = VecSlot + 1
+            else
+                SpawnedParts(:,ValidSpawnedList(iProcIndex)) = iLutCurr
+                SpawnedSign(ValidSpawnedList(iProcIndex)) = CopySign
+                ValidSpawnedList(iProcIndex) = ValidSpawnedList(iProcIndex)+1
+            endif
+        else
+        endif
+
+    end subroutine
 
 
-!This function tells us whether we should kill the particle at determinant DetCurr
-!If also diffusing, then we need to know the probability with which we have spawned. This will reduce the death probability.
-!The function allows multiple births(if +ve shift) or deaths from the same particle.
-!The returned number is the number of deaths if positive, and the number of births if negative.
-!Multiple particles can be attempted to die at the same time - here, |WSign| > 1 and the probability of a death will be multiplied by |WSign|
-    INTEGER FUNCTION AttemptDiePar(DetCurr,Kii,IC,WSign)
-        IMPLICIT NONE
-        INTEGER :: DetCurr(NEl),iKill,IC,WSign
-!        HElement_t :: rh,rhij
-        REAL*8 :: r,rat,Kii
-        LOGICAL :: tDETinCAS
+    function attempt_die_par (DetCurr, Kii, wSign) result(ndie)
+        
+        ! Should we kill the particle at determinant DetCurr. If also 
+        ! diffusing, then we need to know the probability with which we have
+        ! spawned. This will reduce the death probability.
+        ! The function allows multiple births (if +ve shift), or deaths from
+        ! the same particle. The returned number is the number of deaths if
+        ! positive, and the
+        !
+        ! In:  DetCurr - The determinant to consider
+        !      Kii     - The diagonal matrix element of DetCurr (-Ecore)
+        !      wSign   - The sign of the determinant being considered. If
+        !                |wSign| > 1, attempt to die multiple particles at
+        !                once (multiply probability of death by |wSign|)
+        ! Ret: ndie    - The number of deaths (if +ve), or births (If -ve).
 
+        integer, intent(in) :: DetCurr(nel), wSign
+        real(dp), intent(in) :: Kii
+        integer :: ndie
 
-!Calculate the diagonal hamiltonian matrix element for the determinant
-!        rh=GetHElement2(DetCurr,DetCurr,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,0,ECore)
-!Subtract from the diagonal the value of the lowest hamiltonian matrix element
-!        rh=rh-Hii
+        real(dp) :: r, rat
+        logical :: tDetInCAS
 
-!Subtract the current value of the shift and multiply by tau
-!If there are multiple particles, decide how many to kill in total...
-        rat=Tau*(Kii-DiagSft)*abs(WSign)
+        ! Subtract the current value of the shift, and multiply by tau.
+        ! If there are multiple particles, scale the probability.
+        rat = tau * (Kii - DiagSft) * abs(wSign)
 
-        iKill=INT(rat)
-        rat=rat-REAL(iKill)
+        ndie = int(rat)
+        rat = rat - real(ndie, dp)
 
-!Stochastically choose whether to die or not
+        ! Choose to die or not stochastically
         r = genrand_real2_dSFMT() 
-        IF(abs(rat).gt.r) THEN
-            IF(rat.ge.0.D0) THEN
-!Depends whether we are trying to kill or give birth to particles.
-                iKill=iKill+1
-            ELSE
-                iKill=iKill-1
-            ENDIF
-        ENDIF
+        if (abs(rat) > r) ndie = ndie + nint(sign(1.0_dp, rat))
 
-        AttemptDiePar=iKill
-
-        RETURN
-
-    END FUNCTION AttemptDiePar
-   
+    end function
 
 !This routine will change the reference determinant to DetCurr. It will also re-zero all the energy estimators, since they now correspond to
 !projection onto a different determinant.
