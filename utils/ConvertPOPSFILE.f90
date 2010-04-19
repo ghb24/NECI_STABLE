@@ -1,10 +1,12 @@
 PROGRAM ConvertPOPSFILE
       !Convert a SymDETS file to a POPSFILE
       IMPLICIT NONE
-      INTEGER NIfD,nBasis,ExcitLev,nDet,i,Num,TotWalkers,TotParts,Parts,WriteParts,j,k,DetBitLT
+      INTEGER NIfD,nBasis,ExcitLev,nDet,i,Num,TotWalkers,TotParts,Parts,WriteParts,j,k,DetBitLT,junk,nOrbFull,nElecFroz,Index,NIfFull
       REAL*8 :: Norm,Weight,TotWeight,rat,r,FracPart
-      INTEGER , ALLOCATABLE :: Det(:),Dets(:,:),Signs(:)
-      LOGICAL :: tHPHF,IsAllowedHPHFDet,IsOpenShell
+      INTEGER , ALLOCATABLE :: Det(:),Dets(:,:),Signs(:),Mapping(:),FullFrozOrbs(:)
+      LOGICAL :: tHPHF,IsAllowedHPHFDet,IsOpenShell,tInit,tMapping
+
+      junk=0
 
       WRITE(6,*) "How many basis functions?..."
       READ(*,*) nBasis
@@ -18,6 +20,43 @@ PROGRAM ConvertPOPSFILE
 
       WRITE(6,*) "Do you want this POPSFILE to be suitable for use in an HPHF calculation? (T/F) "
       READ(*,*) tHPHF
+      WRITE(6,*) "Is this POPSFILE to be used for an i-FCIQMC calculation (T), or a full spawning run (F)?"
+      READ(*,*) tInit
+
+      WRITE(6,*) "Do you want to use an orbital mapping to a full system?..."
+      READ(*,*) tMapping
+
+      IF(tMapping) THEN
+          WRITE(6,*) "How many orbitals in the full space?..."
+          READ(*,*) nOrbFull
+
+          WRITE(6,*) "How many electrons have been frozen?..."
+          READ(*,*) nElecFroz
+
+          NIfFull=nOrbFull/32
+
+          ALLOCATE(FullFrozOrbs(nElecFroz))
+
+          IF(nElecFroz.ne.0) THEN
+              OPEN(9,FILE='CoreFrozOrbs',STATUS='old',action='read')
+
+              do i=1,nElecFroz
+                  READ(9,*) FullFrozOrbs(i)
+              enddo
+              CLOSE(9)
+          ENDIF
+          ALLOCATE(Mapping(nBasis))
+          OPEN(9,FILE='Mapping',STATUS='old',action='read')
+          do i=1,nBasis
+              READ(9,*) Index,Mapping(Index)   !Orbital index in frozen system , Orbital index in full system.
+          enddo
+          CLOSE(9)
+
+      ELSE
+          NIfFull=NIfD
+
+      ENDIF
+
 
       OPEN(8,FILE='SymDETS',STATUS='old',action='read')
 
@@ -31,10 +70,11 @@ PROGRAM ConvertPOPSFILE
 
           IF(tHPHF) THEN
               IF(IsAllowedHPHFDet(Det(0:NIfD),NIfD)) THEN
-                  Norm=Norm+(Weight*2.D0)**2
                   IF(IsOpenShell(Det(0:NIfD),NIfD)) THEN
+                      Norm=Norm+Weight*Weight*2.D0
                       TotWeight=TotWeight+abs(Weight)*(sqrt(2.D0))
                   ELSE
+                      Norm=Norm+Weight*Weight
                       TotWeight=TotWeight+abs(Weight)
                   ENDIF
               ENDIF
@@ -94,17 +134,23 @@ PROGRAM ConvertPOPSFILE
       WRITE(6,*) "Total number of determinants occupied in POPSFILE = ", WriteParts
       CLOSE(8)
 
-      ALLOCATE(Dets(0:NIfD,WriteParts))
+      ALLOCATE(Dets(0:NIfFull,WriteParts))
       ALLOCATE(Signs(WriteParts))
 
       REWIND(13)
       do i=1,WriteParts
-          READ(13,*) j,Dets(0:NIfD,i),Signs(i)
+          READ(13,*) j,Det(0:NIfD),Signs(i)
+          IF(tMapping) THEN
+              CALL ConvertDetToNewBasis(Det(0:NIfD),Dets(0:NIfFull,i),NIfD,NIfFull,nElecFroz,FullFrozOrbs,Mapping,nBasis)
+          ELSE
+              Dets(0:NIfFull,i)=Det(0:NIfD)
+          ENDIF
       enddo
       close(13,status='delete')
 
+
       WRITE(6,*) "Sorting list of determinants..."
-      CALL SortBitDets(WriteParts,Dets,Signs,NIfD)
+      CALL SortBitDets(WriteParts,Dets,Signs,NIfFull)
 
 !      do i=2,WriteParts
 !          WRITE(6,*) DetBitLT(Dets(0:NIfD,i),Dets(0:NIfD,i-1),NIfD)
@@ -119,9 +165,10 @@ PROGRAM ConvertPOPSFILE
       WRITE(17,*) 0.D0,"   SUMENUM ( \sum<D0|H|Psi> - all nodes)"
       WRITE(17,*) 0,"   PREVIOUS CYCLES"
       do i=1,WriteParts
-          do k=0,NIfD
+          do k=0,NIfFull
               WRITE(17,"(I20)",advance='no') Dets(k,i)
           enddo
+          IF(tInit) WRITE(17,"(I20)",advance='no') junk
           WRITE(17,*) Signs(i)
       enddo
 
@@ -129,7 +176,8 @@ PROGRAM ConvertPOPSFILE
 
 END PROGRAM ConvertPOPSFILE
 
-    LOGICAL FUNCTION IsOpenShell(iLutnI,NIfD)
+    LOGICAL FUNCTION IsOpenShell(iLut,NIfD)
+        IMPLICIT NONE
         INTEGER :: iLut(0:NIfD),iLutAlpha(0:NIfD),iLutBeta(0:NIfD),MaskAlpha,MaskBeta,i,NIfD
 
         iLutAlpha(:)=0
@@ -334,4 +382,32 @@ END PROGRAM ConvertPOPSFILE
 
       END SUBROUTINE SortBitDets
 
+
+      SUBROUTINE ConvertDetToNewBasis(iLut,iLutNew,NIfD,NIfFull,nElecFroz,FullFrozOrbs,Mapping,nBasis)
+        IMPLICIT NONE
+        INTEGER :: iLut(0:NIfD),iLutNew(0:NIfFull),NIfD,NIfFull,nElecFroz,FullFrozOrbs(nElecFroz),Mapping(nBasis),nBasis
+        INTEGER :: i,j,elec,pos,OccOrb
+
+            iLutNew(0:NIfFull)=0
+
+            do i=0,NIfD
+                do j=0,31
+                    if(btest(iLut(i),j)) then
+                        !An electron is at this orbital
+                        elec=elec+1
+                        OccOrb=(i*32)+(j+1)
+
+                        pos = (Mapping(OccOrb)-1)/32
+                        iLutNew(pos)=ibset(iLutNew(pos),mod(Mapping(OccOrb)-1,32))
+
+                    endif
+                enddo
+            enddo
+
+            do i=1,nElecFroz
+                pos = (FullFrozOrbs(i) - 1) / 32
+                iLutNew(pos)=ibset(iLutNew(pos),mod(FullFrozOrbs(i) - 1,32))
+            enddo
+
+      END SUBROUTINE ConvertDetToNewBasis
 
