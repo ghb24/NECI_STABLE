@@ -1,5 +1,5 @@
 MODULE FciMCData
-      USE HElem
+      use constants, only: dp
       USE global_utilities
       use constants, only: dp
       IMPLICIT NONE
@@ -74,7 +74,7 @@ MODULE FciMCData
       REAL*8 :: AllSumNoatHF,AllSumENum,AllAvSign,AllAvSignHFD
       INTEGER :: AllNoBorn,AllNoDied,MaxSpawned
   
-      TYPE(HElement) :: rhii
+      HElement_t :: rhii
       REAL*8 :: Hii,Fii
 
       LOGICAL :: TSinglePartPhase                 !This is true if TStartSinglePart is true, and we are still in the phase where the shift is fixed and particle numbers are growing

@@ -29,7 +29,7 @@ subroutine VaspSystemInit(ArrLEN)
 end subroutine VaspSystemInit
 
 subroutine VASPInitIntegrals(nOrbUsed,ECore,tOrder)
-   use HElem
+   use constants, only: dp
    use SystemData, only: BasisFN,nEl
    use OneEInts, only: TMatSym, TMatInd
    use vasp_interface
@@ -42,7 +42,7 @@ subroutine VASPInitIntegrals(nOrbUsed,ECore,tOrder)
    logical :: tOrder
    type(timer), save :: proc_timer
    integer :: I,J,II,A,B,nStatesUsed,ierr
-   type(HElement) :: HarXC,HarXCSum
+   HElement_t :: HarXC,HarXCSum
    character(*), parameter :: thisroutine='VASPInitIntegrals'
    
    proc_timer%timer_name='VASPInitInts'
@@ -64,12 +64,12 @@ subroutine VASPInitIntegrals(nOrbUsed,ECore,tOrder)
          if (I.ne.J) then
             A=min(I,J)
             B=max(I,J)
-            HarXC=HarXC-HElement(2)*UMat2D(A,B)+UMat2D(B,A)
+            HarXC=HarXC-(2)*UMat2D(A,B)+UMat2D(B,A)
          end if
          if (i.le.j) HarXCSum=HarXCSum+HarXC
       end do
       II=I*2-1
-      TMATSYM(TMatInd(II+1,II+1))=HElement(eigv(I))-HarXC
+      TMATSYM(TMatInd(II+1,II+1))=(eigv(I))-HarXC
       write (10,*) I,J,TMATSYM(TMatInd(II+1,II+1))
    end do
    

@@ -218,7 +218,7 @@ C.. Actually generate a det
      &               SYMPRODIND,ILUT,ORBPAIRS,IEXCIT,ISPN,IFROM,ITO,    &
      &               I,J,K,L,ICC,LS,ITOTAL,ISEED,                       &
      &               NK,IC,G1,NBASISMAX,UMAT,ARR,NBASIS,PGEN)      
-      USE HElem
+      use constants, only: dp
       USE symexcit2
       use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
       use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
@@ -250,7 +250,7 @@ C.. Actually generate a det
       LOGICAL ISVALIDDET
       TYPE(BasisFN) G1(nBasis)
       INTEGER nBasisMax(5,*)
-      TYPE(HElement) UMAT(*)
+      HElement_t UMAT(*)
       REAL*8 RCOUNT,R
       REAL*8 PGEN
       TYPE(ExcitWeight) ews(*)

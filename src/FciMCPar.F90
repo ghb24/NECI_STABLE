@@ -54,10 +54,10 @@ MODULE FciMCParMod
         USE FciMCLoggingMOD , only : SumInErrorContrib,WriteInitPops
         use RotateOrbsMod , only : RotateOrbs
         use NatOrbsMod , only : PrintOrbOccs
-        TYPE(HDElement) :: Weight,Energyxw
+        real(dp) :: Weight,Energyxw
         INTEGER :: i,j,error,HFConn
         CHARACTER(len=*), PARAMETER :: this_routine='FciMCPar'
-        TYPE(HElement) :: Hamii
+        HElement_t :: Hamii
         LOGICAL :: TIncrement,tWritePopsFound,tSoftExitFound,tSingBiasChange
         REAL(4) :: s,etime,tstart(2),tend(2)
         INTEGER :: MaxWalkers,MinWalkers
@@ -189,8 +189,8 @@ MODULE FciMCParMod
 
         IF(tHistHamil) CALL WriteHamilHistogram()
 
-        Weight=HDElement(0.D0)
-        Energyxw=HDElement(ProjectionE)
+        Weight=(0.D0)
+        Energyxw=(ProjectionE)
 
         IF(tHistEnergies) CALL WriteHistogramEnergies()
 
@@ -237,7 +237,7 @@ MODULE FciMCParMod
         INTEGER :: ExcitLevel,TotWalkersNew,iGetExcitLevel_2,error,length,temp,Ex(2,2),WSign,p,Scratch1(ScratchSize),Scratch2(ScratchSize),Scratch3(Scratchsize),FDetSym,FDetSpin
         LOGICAL :: tParity,tMainArr,tFilled,TestClosedShellDet,tHFFound,tHFFoundTemp
         INTEGER(KIND=i2) :: HashTemp
-        TYPE(HElement) :: HDiagTemp
+        HElement_t :: HDiagTemp
         CHARACTER(LEN=MPI_MAX_ERROR_STRING) :: message
         REAL :: Gap
         
@@ -322,7 +322,7 @@ MODULE FciMCParMod
                     else
                         HDiagTemp = get_helement (DetCurr, DetCurr, 0)
                     endif
-                    HDiagCurr=(REAL(HDiagTemp%v,dp))-Hii
+                    HDiagCurr=(REAL(HDiagTemp,dp))-Hii
                 ENDIF
             ELSE
 !HDiags are stored.
@@ -723,7 +723,7 @@ MODULE FciMCParMod
         REAL*8 :: TempSumNoatHF,MeanWalkers,TempSumWalkersCyc,TempAllSumWalkersCyc
         REAL*8 :: inpairreal(3),outpairreal(3),inpairInit(9),outpairInit(9)
         LOGICAL :: tReZeroShift
-        TYPE(HElement) :: TempHii,HDiagTemp
+        HElement_t :: TempHii,HDiagTemp
 
         TotImagTime=TotImagTime+StepsSft*Tau
 
@@ -895,7 +895,7 @@ MODULE FciMCParMod
                     ELSE
                         TempHii = get_helement (ProjEDet, ProjEDet, 0)
                     ENDIF
-                    Hii=REAL(TempHii%v,dp)
+                    Hii=REAL(TempHii,dp)
                     WRITE(6,"(A,G25.15)") "Reference energy now set to: ",Hii
 
 
@@ -916,7 +916,7 @@ MODULE FciMCParMod
                         else
                             HDiagTemp = get_helement (DetCurr, DetCurr, 0)
                         endif
-                        CurrentH(i)=(REAL(HDiagTemp%v,dp))-Hii
+                        CurrentH(i)=(REAL(HDiagTemp,dp))-Hii
                     enddo
                 ELSEIF(tRestartHighPop.and.(iRestartWalkNum.le.AllTotParts)) THEN
                     CALL MPI_BCast(HighestPopDet,NIfTot+1,MPI_INTEGER,HighPopout(2),MPI_COMM_WORLD,error)
@@ -929,7 +929,7 @@ MODULE FciMCParMod
                     ELSE
                         TempHii = get_helement (ProjEDet, ProjEDet, 0)
                     ENDIF
-                    Hii=REAL(TempHii%v,dp)
+                    Hii=REAL(TempHii,dp)
                     WRITE(6,"(A,G25.15)") "Reference energy now set to: ",Hii
                     CALL ChangeRefDet(Hii,ProjEDet,iLutRef)
                     RETURN
@@ -1215,7 +1215,7 @@ MODULE FciMCParMod
         use CalcData , only : MemoryFacPart,MemoryFacAnnihil,MemoryFacSpawn
         INTEGER :: ierr,i,j,k,l,DetCurr(NEl),ReadWalkers,TotWalkersDet
         INTEGER :: DetLT,VecSlot,error,MemoryAlloc,Proc
-        TYPE(HElement) :: rh,TempHii
+        HElement_t :: rh,TempHii
         LOGICAL :: exists
         REAL*8 :: TotDets
         CHARACTER(len=*), PARAMETER :: this_routine='InitFCIMCPar'
@@ -1621,7 +1621,7 @@ MODULE FciMCParMod
         INTEGER :: TempInitWalkers,error,i,j,k,l,total,ierr,MemoryAlloc,Tag,iLutTemp(0:NIfTot),TempSign,Proc,CurrWalkers
         INTEGER :: Stat(MPI_STATUS_SIZE),AvSumNoatHF,VecSlot,IntegerPart,HFPointer,TempnI(NEl),ExcitLevel,VecInd,DetsMerged
         REAL*8 :: r,FracPart,TempTotWalkers,Gap
-        TYPE(HElement) :: HElemTemp
+        HElement_t :: HElemTemp
         CHARACTER(len=*), PARAMETER :: this_routine='ReadFromPopsfilePar'
         character(255) :: popsfile
         
@@ -1936,7 +1936,7 @@ MODULE FciMCParMod
                     else
                         HElemTemp = get_helement (TempnI, TempnI, 0)
                     endif
-                    CurrentH(j)=REAL(HElemTemp%v,dp)-Hii
+                    CurrentH(j)=REAL(HElemTemp,dp)-Hii
                 ENDIF
 
             ENDIF
@@ -1971,7 +1971,7 @@ MODULE FciMCParMod
         LOGICAL :: tParity,SymAllowed,tSuccess
         integer :: yama(NIfY)
         REAL*8 :: Prob,r,rat
-        TYPE(HElement) :: rh,rhcheck
+        HElement_t :: rh,rhcheck
 
         IF(tMCExcits) THEN
 !If we are generating multiple excitations, then the probability of spawning on them must be reduced by the number of excitations generated.
@@ -1988,7 +1988,7 @@ MODULE FciMCParMod
 
                 rat=Tau/abs(Prob)
 
-                rh%v=Prob ! to get the signs right for later on.
+                rh=Prob ! to get the signs right for later on.
 !                WRITE(6,*) Prob, DetCurr(:),"***",nJ(:)
 !                WRITE(6,*) "******"
 !                CALL HPHFGetOffDiagHElement(DetCurr,nJ,iLutCurr,iLutnJ,rh)
@@ -1998,8 +1998,8 @@ MODULE FciMCParMod
 !However, the excitation generator can generate the same HPHF again. If this is done, the routine will send the matrix element back as zero.
                 rh = hphf_off_diag_helement (DetCurr, nJ, iLutCurr, iLutnJ)
 !Divide by the probability of creating the excitation to negate the fact that we are only creating a few determinants
-                rat=Tau*abs(rh%v)/Prob
-!                WRITE(6,*) Prob/rh%v, DetCurr(:),"***",nJ(:)
+                rat=Tau*abs(rh)/Prob
+!                WRITE(6,*) Prob/rh, DetCurr(:),"***",nJ(:)
 !                WRITE(6,*) "******"
 
             ENDIF
@@ -2007,19 +2007,19 @@ MODULE FciMCParMod
 !Normal determinant spawn
 
             rh = get_helement (DetCurr, nJ, IC, Ex, tParity)
-            !WRITE(6,*) rh%v
+            !WRITE(6,*) rh
 
 !Divide by the probability of creating the excitation to negate the fact that we are only creating a few determinants
-            rat=Tau*abs(rh%v)/Prob
+            rat=Tau*abs(rh)/Prob
         ENDIF
         IF(CCMCDebug.gt.5) WRITE(6,*) "Connection H-element to spawnee:",rh
 !        CALL IsSymAllowedExcit(DetCurr,nJ,IC,Ex,SymAllowed) 
-!        IF((.not.SymAllowed).and.(abs(rh%v).gt.0.D0)) THEN
-!            WRITE(17,*) rh%v
+!        IF((.not.SymAllowed).and.(abs(rh).gt.0.D0)) THEN
+!            WRITE(17,*) rh
 !        ENDIF
 
 !        rhcheck=GetHElement2(DetCurr,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,IC,ECore)
-!        IF(rh%v.ne.rhcheck%v) THEN
+!        IF(rh.ne.rhcheck) THEN
 !            WRITE(6,*) "DetCurr: ",DetCurr(:)
 !            WRITE(6,*) "nJ: ",nJ(:)
 !            WRITE(6,*) "EX: ",Ex(1,:),Ex(2,:)
@@ -2027,7 +2027,7 @@ MODULE FciMCParMod
 !            STOP
 !        ENDIF
 
-!        IF(abs(rh%v).le.HEpsilon) THEN
+!        IF(abs(rh).le.HEpsilon) THEN
 !            AttemptCreatePar=0
 !            RETURN
 !        ENDIF
@@ -2041,13 +2041,13 @@ MODULE FciMCParMod
         r = genrand_real2_dSFMT() 
         IF(rat.gt.r) THEN
 !            IF(Iter.eq.18925) THEN
-!                WRITE(6,*) "Created",rh%v,rat
+!                WRITE(6,*) "Created",rh,rat
 !            ENDIF
 
 !Child is created - what sign is it?
             IF(WSign.gt.0) THEN
 !Parent particle is positive
-                IF(real(rh%v).gt.0.D0) THEN
+                IF(real(rh).gt.0.D0) THEN
                     AttemptCreatePar=-1     !-ve walker created
                 ELSE
                     AttemptCreatePar=1      !+ve walker created
@@ -2055,7 +2055,7 @@ MODULE FciMCParMod
 
             ELSE
 !Parent particle is negative
-                IF(real(rh%v).gt.0.D0) THEN
+                IF(real(rh).gt.0.D0) THEN
                     AttemptCreatePar=1      !+ve walker created
                 ELSE
                     AttemptCreatePar=-1     !-ve walker created
@@ -2065,7 +2065,7 @@ MODULE FciMCParMod
         ELSE
 !No child particle created
 !            IF(Iter.eq.18925) THEN
-!                WRITE(6,*) "Not Created",rh%v,rat
+!                WRITE(6,*) "Not Created",rh,rat
 !            ENDIF
             AttemptCreatePar=0
         ENDIF
@@ -2082,13 +2082,13 @@ MODULE FciMCParMod
             ELSEIF(AttemptCreatePar.eq.0) THEN
 !No particles were stochastically created, but some particles are still definatly created - we need to determinant their sign...
                 IF(WSign.gt.0) THEN
-                    IF(real(rh%v).gt.0.D0) THEN
+                    IF(real(rh).gt.0.D0) THEN
                         AttemptCreatePar=-ExtraCreate    !Additional particles are negative
                     ELSE
                         AttemptCreatePar=ExtraCreate       !Additional particles are positive
                     ENDIF
                 ELSE
-                    IF(real(rh%v).gt.0.D0) THEN
+                    IF(real(rh).gt.0.D0) THEN
                         AttemptCreatePar=ExtraCreate
                     ELSE
                         AttemptCreatePar=-ExtraCreate
@@ -2111,12 +2111,12 @@ MODULE FciMCParMod
         ENDIF
 
 !        IF(AttemptCreatePar.ne.0) THEN
-!            WRITE(6,"(A,F15.5,I5,G25.15,I8,G25.15)") "Outwards ", rat,ExtraCreate,real(rh%v),Prob
+!            WRITE(6,"(A,F15.5,I5,G25.15,I8,G25.15)") "Outwards ", rat,ExtraCreate,real(rh),Prob
 !        ENDIF
 
         IF(tHistEnergies) THEN
 !First histogram off-diagonal matrix elements.
-            Bin=INT((real(rh%v,dp)+OffDiagMax)/OffDiagBinRange)+1
+            Bin=INT((real(rh,dp)+OffDiagMax)/OffDiagBinRange)+1
             IF(Bin.le.0.or.Bin.gt.iOffDiagNoBins) THEN
                 CALL Stop_All("AttemptCreatePar","Trying to histogram off-diagonal matrix elements, but outside histogram array bounds.")
             ENDIF
@@ -2150,7 +2150,7 @@ MODULE FciMCParMod
             ELSE
                 rh = get_helement (nJ, nJ, 0)
             ENDIF
-            Bin=INT((real(rh%v,dp)-Hii)/BinRange)+1
+            Bin=INT((real(rh,dp)-Hii)/BinRange)+1
             IF(Bin.gt.iNoBins) THEN
                 CALL Stop_All("AttemptCreatePar","Histogramming energies higher than the arrays can cope with. Increase iNoBins or BinRange")
             ENDIF
@@ -2173,7 +2173,7 @@ MODULE FciMCParMod
     INTEGER FUNCTION AttemptDiePar(DetCurr,Kii,IC,WSign)
         IMPLICIT NONE
         INTEGER :: DetCurr(NEl),iKill,IC,WSign
-!        TYPE(HElement) :: rh,rhij
+!        HElement_t :: rh,rhij
         REAL*8 :: r,rat,Kii
         LOGICAL :: tDETinCAS
 
@@ -2216,7 +2216,7 @@ MODULE FciMCParMod
         INTEGER :: iLutCurr(0:NIfTot),DetCurr(NEl),i,nStore(6),ierr,iMaxExcit
         INTEGER :: iLutTemp(0:NIfTot)
         INTEGER :: nJ(NEl)
-        TYPE(HElement) :: TempHii
+        HElement_t :: TempHii
         REAL*8 :: HDiagCurr
 
 !        CALL Stop_All("ChangeRefDet","This option does not currently work. Bug ghb24 if its needed")
@@ -2707,7 +2707,7 @@ MODULE FciMCParMod
         INTEGER :: i,j,bits,iLut(0:NIfTot),error,IterRead
         TYPE(BasisFN) :: ISym
         REAL*8 :: norm,norm1,norm2,norm3,ShiftRead,AllERead,NumParts
-        TYPE(HElement) :: HEL
+        HElement_t :: HEL
         CHARACTER(len=22) :: abstr,abstr2
         LOGICAL :: exists
 
@@ -2829,7 +2829,7 @@ MODULE FciMCParMod
 !                                HEL=GetHElement3(NMRKS(:,j),NMRKS(:,j),0)
 !                                norm=norm+(AllHistogram(i))**2
 !                                norm1=norm1+(AllInstHist(i))**2
-!                                WRITE(17,"(5G25.16)") REAL(HEL%v,8),AllHistogram(i),norm,AllInstHist(i),norm1
+!                                WRITE(17,"(5G25.16)") REAL(HEL,8),AllHistogram(i),norm,AllInstHist(i),norm1
 !                            ENDIF
 !                            EXIT
 !                        ENDIF
@@ -2932,7 +2932,7 @@ MODULE FciMCParMod
 !  It's not yet complete, but at least compiles and runs
 
     SUBROUTINE FciMCPar(Weight,Energyxw)
-    TYPE(HDElement) :: Weight,Energyxw
+    real(dp) :: Weight,Energyxw
 
         CALL Stop_All("FciMCPar","Entering the wrong FCIMCPar parallel routine")
 
@@ -3476,9 +3476,10 @@ MODULE FciMCParMod
         use DetCalc, only : NMRKS,tagNMRKS,FCIDets
         use SymExcit3, only : CountExcitations3 
         use DetBitOps, only: CountBits
+        use HElem
         INTEGER :: ierr,i,j,k,l,DetCurr(NEl),ReadWalkers,TotWalkersDet,HFDetTest(NEl),Seed,alpha,beta,symalpha,symbeta,endsymstate
         INTEGER :: DetLT,VecSlot,error,HFConn,MemoryAlloc,iMaxExcit,nStore(6),nJ(Nel),BRR2(nBasis),LargestOrb,nBits,HighEDet(NEl),iLutTemp(0:NIfTot)
-        TYPE(HElement) :: rh,TempHii
+        HElement_t :: rh,TempHii
         TYPE(BasisFn) HFSym
         REAL*8 :: TotDets,SymFactor,r
         CHARACTER(len=*), PARAMETER :: this_routine='SetupParameters'
@@ -3510,7 +3511,7 @@ MODULE FciMCParMod
             OPEN(11,FILE=abstr,STATUS='UNKNOWN')
         ENDIF
 
-        IF(HElementSize.gt.1) THEN
+        IF(HElement_t_size.gt.1) THEN
             CALL Stop_All("FCIMCPar","FciMCPar cannot function with complex orbitals.")
         ENDIF
         
@@ -3742,10 +3743,10 @@ MODULE FciMCParMod
         ELSE
             TempHii = get_helement (HFDet, HFDet, 0)
         ENDIF
-        Hii=REAL(TempHii%v,dp)
+        Hii=REAL(TempHii,dp)
         WRITE(6,*) "Reference Energy set to: ",Hii
         TempHii=GetH0Element3(HFDet)
-        Fii=REAL(TempHii%v,dp)
+        Fii=REAL(TempHii,dp)
 
 !Find the highest energy determinant...
         IF(.not.tSpn) THEN
@@ -3758,8 +3759,8 @@ MODULE FciMCParMod
             ELSE
                 TempHii = get_helement (HighEDet, HighEDet, 0)
             ENDIF
-            WRITE(6,"(A,G25.15)") "Highest energy determinant is (approximately): ",TempHii%v
-            WRITE(6,"(A,F25.15)") "This means tau should be no more than about ",-2.D0/TempHii%v
+            WRITE(6,"(A,G25.15)") "Highest energy determinant is (approximately): ",TempHii
+            WRITE(6,"(A,F25.15)") "This means tau should be no more than about ",-2.D0/TempHii
 !            WRITE(6,*) "Highest energy determinant is: ", HighEDet(:)
         ENDIF
 
@@ -4670,7 +4671,7 @@ MODULE FciMCParMod
         INTEGER :: PartInd,iLutSym(0:NIfTot),OpenOrbs
         LOGICAL :: CompiPath,tSuccess,iLut2(0:NIfTot)
         REAL*8 , intent(in) :: HDiagCurr,dProbFin
-        TYPE(HElement) :: HOffDiag
+        HElement_t :: HOffDiag
 !        write(81,*) DetCurr,ExcitLevel,WSign,iLutCurr,HDiagCurr,dProb
 
 !        MeanExcitLevel=MeanExcitLevel+real(ExcitLevel,dp)
@@ -4695,12 +4696,12 @@ MODULE FciMCParMod
                 HOffDiag = get_helement (ProjEDet, DetCurr, ExcitLevel, iLutRef, &
                                          iLutCurr)
             ENDIF
-            IF(Iter.gt.NEquilSteps) SumENum=SumENum+(REAL(HOffDiag%v,dp)*WSign/dProbFin)
+            IF(Iter.gt.NEquilSteps) SumENum=SumENum+(REAL(HOffDiag,dp)*WSign/dProbFin)
 !            AvSign=AvSign+REAL(WSign,dp)
 !            AvSignHFD=AvSignHFD+REAL(WSign,dp)
-            ENumCyc=ENumCyc+(REAL(HOffDiag%v,dp)*WSign/dProbFin)     !This is simply the Hij*sign summed over the course of the update cycle
-            ENumIter=ENumIter+(REAL(HOffDiag%v,dp)*WSign/dProbFin)
-!            WRITE(6,*) 2,SumENum,(REAL(HOffDiag%v,dp)*WSign/dProbFin)     !This is simply the Hij*sign summed over the course of the update cycle
+            ENumCyc=ENumCyc+(REAL(HOffDiag,dp)*WSign/dProbFin)     !This is simply the Hij*sign summed over the course of the update cycle
+            ENumIter=ENumIter+(REAL(HOffDiag,dp)*WSign/dProbFin)
+!            WRITE(6,*) 2,SumENum,(REAL(HOffDiag,dp)*WSign/dProbFin)     !This is simply the Hij*sign summed over the course of the update cycle
 
             
             
@@ -4719,11 +4720,11 @@ MODULE FciMCParMod
                 HOffDiag = get_helement (ProjEDet, DetCurr, ExcitLevel, ilutRef, &
                                          iLutCurr)
             ENDIF
-            IF(Iter.gt.NEquilSteps) SumENum=SumENum+(REAL(HOffDiag%v,dp)*WSign/dProbFin)
+            IF(Iter.gt.NEquilSteps) SumENum=SumENum+(REAL(HOffDiag,dp)*WSign/dProbFin)
 !            AvSign=AvSign+REAL(WSign,dp)
 !            AvSignHFD=AvSignHFD+REAL(WSign,dp)
-            ENumCyc=ENumCyc+(REAL(HOffDiag%v,dp)*WSign/dProbFin)     !This is simply the Hij*sign summed over the course of the update cycle
-!            WRITE(6,*) 1,SumENum,(REAL(HOffDiag%v,dp)*WSign/dProbFin)     !This is simply the Hij*sign summed over the course of the update cycle
+            ENumCyc=ENumCyc+(REAL(HOffDiag,dp)*WSign/dProbFin)     !This is simply the Hij*sign summed over the course of the update cycle
+!            WRITE(6,*) 1,SumENum,(REAL(HOffDiag,dp)*WSign/dProbFin)     !This is simply the Hij*sign summed over the course of the update cycle
           endif 
 
         ENDIF

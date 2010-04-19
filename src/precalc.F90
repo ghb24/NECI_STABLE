@@ -227,7 +227,7 @@ SUBROUTINE GETVARS(NI,BETA,I_P,IPATH,I,G1,NMSH,              &
      &         FCK,NMAX,UMAT,NTAY,RHOEPS,RHOII,RHOIJ,LOCTAB,TSYM,ECORE,          &
      &         DBETA,DLWDB2,HIJS,L,LT,IFRZ,MP2E,NTOTAL,DLWDB,TOTAL,TLOGP,KSYM,NWHTAY,I_VMAX)
 
-     USE HElem
+     use constants, only: dp
      use SystemData, only: BasisFN
      IMPLICIT NONE
      TYPE(BasisFN) G1(*),KSYM
@@ -252,10 +252,10 @@ SUBROUTINE GETVARS(NI,BETA,I_P,IPATH,I,G1,NMSH,              &
      REAL*8 ORBENERGY,ENERGYLIMS(2),xxx,g_VMC_FINAL(6,2:10)
      REAL*8 G_VMC_EXCITFINAL(2:10),VARIANCES(2:PREIV_MAX)
      LOGICAL TSYM,NOTHING,TLOGP,DEALLOC,LOWNEL,check
-     TYPE(HElement) UMat(*),RHOIJ(0:PREIV_MAX,0:PREIV_MAX)
-     TYPE(HDElement) TOTAL,DLWDB,DLWDB2,EREF,FMCPR3B,FMCPR3B2,F(2:PREIV_MAX)
-     TYPE(HElement) HIJS(0:PREIV_MAX)
-     TYPE(HDElement) MP2E(2:PREIV_MAX),RHOII(0:PREIV_MAX)
+     HElement_t UMat(*),RHOIJ(0:PREIV_MAX,0:PREIV_MAX)
+     real(dp) TOTAL,DLWDB,DLWDB2,EREF,FMCPR3B,FMCPR3B2,F(2:PREIV_MAX)
+     HElement_t HIJS(0:PREIV_MAX)
+     real(dp) MP2E(2:PREIV_MAX),RHOII(0:PREIV_MAX)
      CHARACTER(len=12) :: abstr
 !     REAL*8 MCPATHSPRE
 !     EXTERNAL MCPATHSPRE
@@ -866,7 +866,7 @@ FUNCTION VARIANCEAB(pointab,NI,BETA,I_P,IPATH,K,G1,NMSH,        &
            FCK,NMAX,UMAT,NTAY,RHOEPS,RHOII,RHOIJ,LOCTAB,TSYM,ECORE,            &
            DBETA,DLWDB2,HIJS,L,LT,IFRZ,MP2E,NTOTAL,DLWDB,TOTAL,GIDHO,ENERGYLIMS,KSYM)
 
-    USE HElem
+    use constants, only: dp
     use SystemData, only: BasisFN
     IMPLICIT NONE
     REAL*8 pointab(*),VARIANCEAB
@@ -884,10 +884,10 @@ FUNCTION VARIANCEAB(pointab,NI,BETA,I_P,IPATH,K,G1,NMSH,        &
     COMPLEX*16 FCK(*)
     LOGICAL TSYM,G
     REAL*8 BETA,ECORE,NTOTAL,RHOEPS,DBETA,ENERGYLIMS(2)
-    TYPE(HElement) UMat(*),RHOIJ(0:PREIV_MAX,0:PREIV_MAX)
-    TYPE(HDElement) TOTAL,DLWDB,DLWDB2,EREF,FMCPR3B,FMCPR3B2,F(2:PREIV_MAX)
-    TYPE(HElement) HIJS(0:PREIV_MAX)
-    TYPE(HDElement) MP2E(2:PREIV_MAX),RHOII(0:PREIV_MAX)
+    HElement_t UMat(*),RHOIJ(0:PREIV_MAX,0:PREIV_MAX)
+    real(dp) TOTAL,DLWDB,DLWDB2,EREF,FMCPR3B,FMCPR3B2,F(2:PREIV_MAX)
+    HElement_t HIJS(0:PREIV_MAX)
+    real(dp) MP2E(2:PREIV_MAX),RHOII(0:PREIV_MAX)
     
     G=.false.
     
@@ -926,7 +926,7 @@ FUNCTION MCPATHSPRE(point,NI,BETA,I_P,IPATH,K,G1,NMSH,         &
               FCK,NMAX,UMAT,NTAY,RHOEPS,RHOII,RHOIJ,LOCTAB,TSYM,ECORE,        &
               DBETA,DLWDB2,HIJS,L,LT,IFRZ,MP2E,NTOTAL,DLWDB,TOTAL,GIDHO,ENERGYLIMS,KSYM)
 
-    USE HElem
+    use constants, only: dp
     Use Determinants, only: get_helement
     use SystemData, only: BasisFN
     Use Logging, only: PrevarLogging
@@ -948,17 +948,17 @@ FUNCTION MCPATHSPRE(point,NI,BETA,I_P,IPATH,K,G1,NMSH,         &
     LOGICAL TSYM,FIRST(2:8)
     REAL*8 NTOTAL,BETA,ECORE,RHOEPS,DBETA,VARSUM,point,MCPATHSPRE
     REAL*8 PROB,SumX,SumY,SumXsq,SumYsq,SumXY,ORIGIMPORT
-    TYPE(HElement) UMat(*),RHOIJ(0:PREIV_MAX,0:PREIV_MAX)
-    TYPE(HDElement) DLWDB,TOTAL,DLWDB2,EREF,FMCPR3B,FMCPR3B2,F(2:PREIV_MAX)
-    TYPE(HElement) HIJS(0:PREIV_MAX)
-    TYPE(HDElement) MP2E(2:PREIV_MAX),RHOII(0:PREIV_MAX),TOTAL2
+    HElement_t UMat(*),RHOIJ(0:PREIV_MAX,0:PREIV_MAX)
+    real(dp) DLWDB,TOTAL,DLWDB2,EREF,FMCPR3B,FMCPR3B2,F(2:PREIV_MAX)
+    HElement_t HIJS(0:PREIV_MAX)
+    real(dp) MP2E(2:PREIV_MAX),RHOII(0:PREIV_MAX),TOTAL2
     ! Saved values only go up to a vertex level of 6 - increase values if we want to go to higher vertex levels
     REAL*8 NTOTSAV(1:7),ENERGYLIMS(2),PGR,SUMPGEN,NTOTAL2
-    TYPE(HDElement) DLWSAV(1:7),TOTSAV(1:7),RH,DLWDBCORE,WCORE,FF,OWEIGHT,OETILDE,FMCPR4D2
+    real(dp) DLWSAV(1:7),TOTSAV(1:7),RH,DLWDBCORE,WCORE,FF,OWEIGHT,OETILDE,FMCPR4D2
     REAL*8 INWI,PFAC,OPROB,VarX,VarY,Covar,NORMALISE
     DATA NTOTSAV/7*1.D0/
-    DATA TOTSAV/7*HDElement(1.D0)/
-    DATA DLWSAV/7*HDElement(0.D0)/
+    DATA TOTSAV/7*1.D0/
+    DATA DLWSAV/7*0.D0/
     DATA FIRST/7*.TRUE. /
     SAVE NTOTSAV,TOTSAV,DLWSAV
     SAVE FIRST,NORMALISE,DEALLOCYC
@@ -1031,7 +1031,7 @@ FUNCTION MCPATHSPRE(point,NI,BETA,I_P,IPATH,K,G1,NMSH,         &
         
 !    do D=2,K
         NTOTAL2=NTOTSAV(K-1)
-        TOTAL2=TOTSAV(K-1)%v
+        TOTAL2=TOTSAV(K-1)
         L=0
         LT=0
         VARSUM=0.D0
@@ -1204,12 +1204,12 @@ FUNCTION MCPATHSPRE(point,NI,BETA,I_P,IPATH,K,G1,NMSH,         &
 
                    IF(MEMSAV(K)) THEN
                         GRAPHS(:,:,b)=IPATH(:,0:K)
-                        GRAPHPARAMS(1,b)=OWEIGHT%v
-                        GRAPHPARAMS(2,b)=(DLWDB2%v-EREF%v)
+                        GRAPHPARAMS(1,b)=OWEIGHT
+                        GRAPHPARAMS(2,b)=(DLWDB2-EREF)
                         GRAPHPARAMS(3,b)=OPROB
                         !PVERTMEMS(0,b)=EXCITGEN(0)
                         PVERTMEMS(0:K,b)=EXCITGEN(0:K)
-!                   WRITE(6,("5G25.16")) FF%v,OWEIGHT%v,DLWDB2%v,OPROB,OETILDE%v
+!                   WRITE(6,("5G25.16")) FF,OWEIGHT,DLWDB2,OPROB,OETILDE
 !                   CALL FLUSH(6)
                    
                     ELSE
@@ -1227,11 +1227,11 @@ FUNCTION MCPATHSPRE(point,NI,BETA,I_P,IPATH,K,G1,NMSH,         &
                         CALL CalcWriteGraphPGen(J,IPATH,K,NEl,LOCTAB,G1,               &
                                   NBASISMAX,UMat,Arr,NBASIS,PROB,EXCITGEN(0:K))
                    
-                        SumX=SumX+((OWEIGHT%v*DLWDB2%v)/OPROB)
-                        SumY=SumY+((OWEIGHT%v+(WCORE%v*PROB))/OPROB)
-                        SumXsq=SumXsq+(((OWEIGHT%v*DLWDB2%v)**2)/(OPROB*PROB))
-                        SumYsq=SumYsq+((((OWEIGHT%v/PROB)+WCORE%v)**2)*(PROB/OPROB))
-                        SumXY=SumXY+(((OWEIGHT%v/PROB)+WCORE%v)*(OWEIGHT%v*DLWDB2%v/PROB)*    &
+                        SumX=SumX+((OWEIGHT*DLWDB2)/OPROB)
+                        SumY=SumY+((OWEIGHT+(WCORE*PROB))/OPROB)
+                        SumXsq=SumXsq+(((OWEIGHT*DLWDB2)**2)/(OPROB*PROB))
+                        SumYsq=SumYsq+((((OWEIGHT/PROB)+WCORE)**2)*(PROB/OPROB))
+                        SumXY=SumXY+(((OWEIGHT/PROB)+WCORE)*(OWEIGHT*DLWDB2/PROB)*    &
                                 (PROB/OPROB))
 
                         IF(GIDHO.eq.3) THEN
@@ -1287,10 +1287,10 @@ FUNCTION MCPATHSPRE(point,NI,BETA,I_P,IPATH,K,G1,NMSH,         &
                 DO aa=1,CYCLES
             !
                     SumX=SumX+((GRAPHPARAMS(1,aa)*GRAPHPARAMS(2,aa))/GRAPHPARAMS(3,aa))
-                    SumY=SumY+((GRAPHPARAMS(1,aa)+(WCORE%v*PGENLIST(aa)))/GRAPHPARAMS(3,aa))
+                    SumY=SumY+((GRAPHPARAMS(1,aa)+(WCORE*PGENLIST(aa)))/GRAPHPARAMS(3,aa))
                     SumXsq=SumXsq+(((GRAPHPARAMS(1,aa)*GRAPHPARAMS(2,aa))**2)/(GRAPHPARAMS(3,aa)*PGENLIST(aa)))
-                    SumYsq=SumYsq+((((GRAPHPARAMS(1,aa)/PGENLIST(aa))+WCORE%v)**2)*(PGENLIST(aa)/GRAPHPARAMS(3,aa)))
-                    SumXY=SumXY+(((GRAPHPARAMS(1,aa)/PGENLIST(aa))+WCORE%v)*(GRAPHPARAMS(1,aa)*GRAPHPARAMS(2,aa)/PGENLIST(aa))*    &
+                    SumYsq=SumYsq+((((GRAPHPARAMS(1,aa)/PGENLIST(aa))+WCORE)**2)*(PGENLIST(aa)/GRAPHPARAMS(3,aa)))
+                    SumXY=SumXY+(((GRAPHPARAMS(1,aa)/PGENLIST(aa))+WCORE)*(GRAPHPARAMS(1,aa)*GRAPHPARAMS(2,aa)/PGENLIST(aa))*    &
                         (PGENLIST(aa)/GRAPHPARAMS(3,aa)))
             !
             
@@ -1345,7 +1345,7 @@ SUBROUTINE GETGRAPHS(METH,CYCLES,GRAPHS,GRAPHPARAMS,PVERTMEMS,NI,BETA,I_P,IPATH,
                          NMSH,FCK,NMAX,UMAT,NTAY,RHOEPS,RHOII,RHOIJ,TSYM,           &
                          ECORE,KSYM,DBETA,DLWDB2,HIJS,NMEM,ISEED)
 
-    USE HElem
+    use constants, only: dp
     use SystemData, only: BasisFN
     use Logging, only: PreVarLogging
     IMPLICIT NONE
@@ -1356,10 +1356,10 @@ SUBROUTINE GETGRAPHS(METH,CYCLES,GRAPHS,GRAPHPARAMS,PVERTMEMS,NI,BETA,I_P,IPATH,
     COMPLEX*16 FCK(*)
     REAL*8 BETA,ECORE,RHOEPS,DBETA,OPROB
     LOGICAL TSYM
-    TYPE(HElement) UMat(*),RHOIJ(0:PREIV_MAX,0:PREIV_MAX)
-    TYPE(HElement) HIJS(0:PREIV_MAX)
-    TYPE(HDElement) DLWDB2,RHOII(0:PREIV_MAX),OETILDE,FMCPR4D2
-    TYPE(HDElement) FF,OWEIGHT
+    HElement_t UMat(*),RHOIJ(0:PREIV_MAX,0:PREIV_MAX)
+    HElement_t HIJS(0:PREIV_MAX)
+    real(dp) DLWDB2,RHOII(0:PREIV_MAX),OETILDE,FMCPR4D2
+    real(dp) FF,OWEIGHT
     INTEGER GRAPHS(NEL,0:I_V,CYCLES),ISEED,ILOGGING,I_OVCUR
 #if defined(POINTER8)
     INTEGER*8 PVERTMEMS(0:I_V,CYCLES)
@@ -1398,13 +1398,13 @@ SUBROUTINE GETGRAPHS(METH,CYCLES,GRAPHS,GRAPHPARAMS,PVERTMEMS,NI,BETA,I_P,IPATH,
                               I_OCLS,ITREE,OWEIGHT,PFAC,IACC,INWI,I_V,EXCITGEN)
 
         GRAPHS(:,:,b)=IPATH(:,0:I_V)
-        GRAPHPARAMS(1,b)=OWEIGHT%v
-        GRAPHPARAMS(2,b)=DLWDB2%v
+        GRAPHPARAMS(1,b)=OWEIGHT
+        GRAPHPARAMS(2,b)=DLWDB2
         GRAPHPARAMS(3,b)=OPROB
         PVERTMEMS(:,b)=EXCITGEN
         
         !E/w
-        WRITE(6,"(5G25.16)") FF%v,OWEIGHT%v,DLWDB2%v,OPROB,OETILDE%v
+        WRITE(6,"(5G25.16)") FF,OWEIGHT,DLWDB2,OPROB,OETILDE
         CALL FLUSH(6)
     ENDDO
 
@@ -1417,7 +1417,7 @@ SUBROUTINE BRENTALGO(brent,ax,bx,cx,fun,tol,xmin,NI,BETA,I_P,IPATH,K,    &
      &                 G1,NMSH,FCK,NMAX,UMAT,NTAY,RHOEPS,RHOII,   &
      &                 RHOIJ,LOCTAB,TSYM,ECORE,DBETA,DLWDB2,HIJS,L,LT,IFRZ,MP2E,       &
      &                 NTOTAL,DLWDB,TOTAL,GIDHO,TLOGP,INITFUNC,ENERGYLIMS,KSYM)
-    USE HElem
+    use constants, only: dp
     use SystemData, only: BasisFN
     IMPLICIT NONE
     TYPE(BasisFN) G1(*),KSYM
@@ -1432,10 +1432,10 @@ SUBROUTINE BRENTALGO(brent,ax,bx,cx,fun,tol,xmin,NI,BETA,I_P,IPATH,K,    &
     COMPLEX*16 FCK(*)
     LOGICAL TSYM,TLOGP
     REAL*8 BETA,ECORE,NTOTAL,RHOEPS,DBETA,VARSUM,fun,INITFUNC
-    TYPE(HElement) UMat(*),RHOIJ(0:PREIV_MAX,0:PREIV_MAX)
-    TYPE(HDElement) TOTAL,DLWDB,DLWDB2,EREF,FMCPR3B,FMCPR3B2,F(2:PREIV_MAX)
-    TYPE(HElement) HIJS(0:PREIV_MAX)
-    TYPE(HDElement) MP2E(2:PREIV_MAX),RHOII(0:PREIV_MAX)
+    HElement_t UMat(*),RHOIJ(0:PREIV_MAX,0:PREIV_MAX)
+    real(dp) TOTAL,DLWDB,DLWDB2,EREF,FMCPR3B,FMCPR3B2,F(2:PREIV_MAX)
+    HElement_t HIJS(0:PREIV_MAX)
+    real(dp) MP2E(2:PREIV_MAX),RHOII(0:PREIV_MAX)
     INTEGER ITMAX
 !    EXTERNAL fun
     REAL*8 brent,ax,bx,cx,tol,xmin,CGOLD,ZEPS,ENERGYLIMS(2)
@@ -1591,7 +1591,7 @@ SUBROUTINE POWELL(p,xi,n,np,ftol,iter,fret,NI,BETA,I_P,IPATH,Q,                 
      &        KSYM,LOWNEL)
 
     
-    USE HElem
+    use constants, only: dp
     use SystemData, only: BasisFN
     IMPLICIT NONE
     TYPE(BasisFN) G1(*),KSYM
@@ -1607,10 +1607,10 @@ SUBROUTINE POWELL(p,xi,n,np,ftol,iter,fret,NI,BETA,I_P,IPATH,Q,                 
     LOGICAL TSYM,TLOGP,LOWNEL
     REAL*8 fret,ftol,p(np),xi(np,np),BETA,ECORE,NTOTAL,RHOEPS
     REAL*8 DBETA,VARSUM,ENERGYLIMS(2)
-    TYPE(HElement) UMat(*),RHOIJ(0:PREIV_MAX,0:PREIV_MAX)
-    TYPE(HDElement) TOTAL,DLWDB,DLWDB2,EREF,FMCPR3B,FMCPR3B2,F(2:PREIV_MAX)
-    TYPE(HElement) HIJS(0:PREIV_MAX)
-    TYPE(HDElement) MP2E(2:PREIV_MAX),RHOII(0:PREIV_MAX)
+    HElement_t UMat(*),RHOIJ(0:PREIV_MAX,0:PREIV_MAX)
+    real(dp) TOTAL,DLWDB,DLWDB2,EREF,FMCPR3B,FMCPR3B2,F(2:PREIV_MAX)
+    HElement_t HIJS(0:PREIV_MAX)
+    real(dp) MP2E(2:PREIV_MAX),RHOII(0:PREIV_MAX)
 !    REAL*8 varianceab
 !    EXTERNAL varianceab 
     PARAMETER (NMAXI=4,ITMAX=200)
@@ -1712,7 +1712,7 @@ SUBROUTINE linmin(p,xi,n,fret,NI,BETA,I_P,IPATH,Q,G1,NMSH,         &
      &       FCK,NMAX,UMAT,NTAY,RHOEPS,RHOII,RHOIJ,LOCTAB,TSYM,ECORE,             &
      &       DBETA,DLWDB2,HIJS,L,LT,IFRZ,MP2E,NTOTAL,DLWDB,TOTAL,GIDHO,TLOGP,ENERGYLIMS,KSYM)
     
-    USE HElem
+    use constants, only: dp
     use SystemData, only: BasisFN
     IMPLICIT NONE
     TYPE(BasisFN) G1(*),KSYM
@@ -1727,10 +1727,10 @@ SUBROUTINE linmin(p,xi,n,fret,NI,BETA,I_P,IPATH,Q,G1,NMSH,         &
     COMPLEX*16 FCK(*)
     LOGICAL TSYM,TLOGP
     REAL*8 BETA,ECORE,NTOTAL,RHOEPS,DBETA,VARSUM,ENERGYLIMS(2)
-    TYPE(HElement) UMat(*),RHOIJ(0:PREIV_MAX,0:PREIV_MAX)
-    TYPE(HDElement) TOTAL,DLWDB,DLWDB2,EREF,FMCPR3B,FMCPR3B2,F(2:PREIV_MAX)
-    TYPE(HElement) HIJS(0:PREIV_MAX)
-    TYPE(HDElement) MP2E(2:PREIV_MAX),RHOII(0:PREIV_MAX)
+    HElement_t UMat(*),RHOIJ(0:PREIV_MAX,0:PREIV_MAX)
+    real(dp) TOTAL,DLWDB,DLWDB2,EREF,FMCPR3B,FMCPR3B2,F(2:PREIV_MAX)
+    HElement_t HIJS(0:PREIV_MAX)
+    real(dp) MP2E(2:PREIV_MAX),RHOII(0:PREIV_MAX)
     INTEGER n,NMAXI
     REAL*8 fret,p(n),xi(n),TOL,pl(n),ph(n)
     PARAMETER (NMAXI=4, TOL=1.D-03)      !Maximum anticipated n
@@ -1775,7 +1775,7 @@ FUNCTION f1dim(x,NI,BETA,I_P,IPATH,Q,G1,NMSH,                  &
      &          FCK,NMAX,UMAT,NTAY,RHOEPS,RHOII,RHOIJ,LOCTAB,TSYM,ECORE,      &
      &          DBETA,DLWDB2,HIJS,L,LT,IFRZ,MP2E,NTOTAL,DLWDB,TOTAL,GIDHO,ENERGYLIMS,KSYM) 
 
-    USE HElem
+    use constants, only: dp
     use SystemData, only: BasisFN
     IMPLICIT NONE
     TYPE(BasisFN) G1(*),KSYM
@@ -1790,10 +1790,10 @@ FUNCTION f1dim(x,NI,BETA,I_P,IPATH,Q,G1,NMSH,                  &
     COMPLEX*16 FCK(*)
     LOGICAL TSYM,LISNAN
     REAL*8 BETA,ECORE,NTOTAL,RHOEPS,DBETA
-    TYPE(HElement) UMat(*),RHOIJ(0:PREIV_MAX,0:PREIV_MAX)
-    TYPE(HDElement) TOTAL,DLWDB,DLWDB2,EREF,FMCPR3B,FMCPR3B2,F(2:PREIV_MAX)
-    TYPE(HElement) HIJS(0:PREIV_MAX)
-    TYPE(HDElement) MP2E(2:PREIV_MAX),RHOII(0:PREIV_MAX)
+    HElement_t UMat(*),RHOIJ(0:PREIV_MAX,0:PREIV_MAX)
+    real(dp) TOTAL,DLWDB,DLWDB2,EREF,FMCPR3B,FMCPR3B2,F(2:PREIV_MAX)
+    HElement_t HIJS(0:PREIV_MAX)
+    real(dp) MP2E(2:PREIV_MAX),RHOII(0:PREIV_MAX)
     INTEGER NMAXI
     REAL*8 f1dim,func,x,ENERGYLIMS(2)
     PARAMETER (NMAXI=4)
@@ -1822,7 +1822,7 @@ SUBROUTINE mnbrak(ax,bx,cx,fa,fb,fc,func,NI,BETA,I_P,IPATH,Q,G1,NMSH,   &
                FCK,NMAX,UMAT,NTAY,RHOEPS,RHOII,RHOIJ,LOCTAB,TSYM,ECORE,                &
                DBETA,DLWDB2,HIJS,L,LT,IFRZ,MP2E,NTOTAL,DLWDB,TOTAL,GIDHO,TLOGP,ENERGYLIMS,KSYM)
     
-    USE HElem
+    use constants, only: dp
     use SystemData, only: BasisFN
     IMPLICIT NONE
     REAL*8 ax,bx,cx,fa,fb,fc,func,GOLD,GLIMIT,MINI
@@ -1840,10 +1840,10 @@ SUBROUTINE mnbrak(ax,bx,cx,fa,fb,fc,func,NI,BETA,I_P,IPATH,Q,G1,NMSH,   &
     LOGICAL TSYM,TLOGP
     REAL*8 BETA,ECORE,NTOTAL,RHOEPS,DBETA,savedax,savedbx
     REAL*8 ENERGYLIMS(2)
-    TYPE(HElement) UMat(*),RHOIJ(0:PREIV_MAX,0:PREIV_MAX)
-    TYPE(HDElement) TOTAL,DLWDB,DLWDB2,EREF,FMCPR3B,FMCPR3B2,F(2:PREIV_MAX)
-    TYPE(HElement) HIJS(0:PREIV_MAX)
-    TYPE(HDElement) MP2E(2:PREIV_MAX),RHOII(0:PREIV_MAX)
+    HElement_t UMat(*),RHOIJ(0:PREIV_MAX,0:PREIV_MAX)
+    real(dp) TOTAL,DLWDB,DLWDB2,EREF,FMCPR3B,FMCPR3B2,F(2:PREIV_MAX)
+    HElement_t HIJS(0:PREIV_MAX)
+    real(dp) MP2E(2:PREIV_MAX),RHOII(0:PREIV_MAX)
 !    EXTERNAL func
     !Given a function 'func', and given distinct initial points ax and bx, this routine searches in the downhill direction (defined by the function as evaluated at the initial points) and returns new points ax,bx,cx that bracket a minimum of the function.
     !Also returned are the function values at the three points, fa, fb, fc.
@@ -1955,7 +1955,7 @@ SUBROUTINE MAKEGRID(NI,BETA,I_P,IPATH,K,G1,NMSH,         &
         FCK,NMAX,UMAT,NTAY,RHOEPS,RHOII,RHOIJ,LOCTAB,TSYM,ECORE,        &
         DBETA,DLWDB2,HIJS,L,LT,IFRZ,MP2E,NTOTAL,DLWDB,TOTAL,GIDHO,ENERGYLIMS,KSYM,UNITNO)
 
-    USE HElem
+    use constants, only: dp
     use SystemData, only: BasisFN
     IMPLICIT NONE
     TYPE(BasisFN) G1(*),KSYM
@@ -1971,10 +1971,10 @@ SUBROUTINE MAKEGRID(NI,BETA,I_P,IPATH,K,G1,NMSH,         &
     COMPLEX*16 FCK(*)
     LOGICAL TSYM
     REAL*8 NTOTAL,BETA,ECORE,RHOEPS,DBETA,VARSUM,A,B
-    TYPE(HElement) UMat(*),RHOIJ(0:PREIV_MAX,0:PREIV_MAX)
-    TYPE(HDElement) DLWDB,TOTAL,DLWDB2,EREF
-    TYPE(HElement) HIJS(0:PREIV_MAX)
-    TYPE(HDElement) MP2E(2:PREIV_MAX),RHOII(0:PREIV_MAX)
+    HElement_t UMat(*),RHOIJ(0:PREIV_MAX,0:PREIV_MAX)
+    real(dp) DLWDB,TOTAL,DLWDB2,EREF
+    HElement_t HIJS(0:PREIV_MAX)
+    real(dp) MP2E(2:PREIV_MAX),RHOII(0:PREIV_MAX)
     ! Saved values only go up to a vertex level of 6 - increase values if we want to go to higher vertex levels
     REAL*8 ENERGYLIMS(2),origvals(2),p(2),origval
 !    EXTERNAL MCPATHSPRE
