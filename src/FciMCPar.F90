@@ -69,15 +69,6 @@ MODULE FciMCParMod
         ! --> Otherwise BAD things (may) happen at runtime, in a
         !     non-deterministic (but probably segfault) manner.
         ! **********************************************************
-        subroutine set_annihilator (annihil) bind(c)
-            implicit none
-            interface
-                subroutine annihil (totWalkersNew)
-                    implicit none
-                    integer, intent(in) :: totWalkersNew
-                end subroutine
-            end interface
-        end subroutine
         subroutine set_excit_generator (gen) bind(c)
             implicit none
             interface
@@ -156,11 +147,11 @@ MODULE FciMCParMod
         subroutine set_encode_child (encode_child) bind(c)
             implicit none
             interface
-                subroutine encode_child (nJ, iLutnJ)
+                subroutine encode_child (ilutI, ilutJ, ic, ex)
                     use SystemData, only: nel, niftot
                     implicit none
-                    integer, intent(in) :: nJ(nel)
-                    integer, intent(out) :: iLutnJ(0:nIfTot)
+                    integer, intent(in) :: iLutI(0:nifTot), ic, ex(2,2)
+                    integer, intent(out) :: iLutJ(0:nIfTot)
                 end subroutine
             end interface
         end subroutine
@@ -377,10 +368,6 @@ MODULE FciMCParMod
         !     non-deterministic (but probably segfault) manner.
         ! **********************************************************
         interface
-            subroutine annihilate (totWalkersNew)
-                implicit none
-                integer, intent(in) :: totWalkersNew
-            end subroutine
             subroutine generate_excitation (nI, iLutI, nJ, iLutJ, &
                              exFlag, IC, ex, tParity, pGen, tFilled, &
                              scratch1, scratch2, scratch3)
@@ -440,11 +427,11 @@ MODULE FciMCParMod
                 real(dp), intent(in) :: prob
                 HElement_t :: hel
             end function
-            subroutine encode_child (nJ, iLutnJ)
+            subroutine encode_child (ilutI, ilutJ, ic, ex)
                 use SystemData, only: nel, niftot
                 implicit none
-                integer, intent(in) :: nJ(nel)
-                integer, intent(out) :: iLutnJ(0:nIfTot)
+                integer, intent(in) :: ilutI(0:niftot), ic, ex(2,2)
+                integer, intent(out) :: iLutJ(0:nIfTot)
             end subroutine
             subroutine new_child_stats (iLutI, iLutJ, ic, walkExLevel, child)
                 use SystemData, only: nel, niftot
@@ -588,7 +575,7 @@ MODULE FciMCParMod
                 if (child /= 0) then
                     ! We know we want to create a particle, so encode the bit
                     ! representation if it isn't already.
-                    call encode_child (nJ, iLutnJ)
+                    call encode_child (CurrentDets(:,j), iLutnJ, ic, ex)
 
                     call new_child_stats (CurrentDets(:,j), iLutnJ, ic, &
                                           child, walkExcitLevel)
@@ -1543,9 +1530,6 @@ MODULE FciMCParMod
         ! The main advantage of this is that it avoids testing all of the
         ! conditionals for every single particle, during every iteration.
 
-        ! We only support direct annihilation at the moment
-        call set_annihilator (DirectAnnihilation)
-
         ! Select the excitation generator
         if (tHPHF) then
             call set_excit_generator (gen_hphf_excit)
@@ -1594,7 +1578,7 @@ MODULE FciMCParMod
 
         ! Once we have generated the children, do we need to encode them?
         if (.not. (tCSF .or. tHPHF)) then
-            call set_encode_child (EncodeBitDet)
+            call set_encode_child (FindExcitBitDet)
         endif
 
         ! What message should we display for a particle bloom?
@@ -2458,7 +2442,7 @@ MODULE FciMCParMod
                 ! therefore leave all singles as beta, when we switch to dets.
                 call EncodeBitDet (nJ, iLutnJ)
             else
-                call FindExcitBitDet(iLutCurr,iLutnJ,IC,Ex,yama)
+                call FindExcitBitDet(iLutCurr,iLutnJ,IC,Ex)
             endif
         ENDIF
 

@@ -635,7 +635,7 @@ module DetBitOps
         !endif
     end subroutine DecodeBitDet
 
-    subroutine FindExcitBitDet(iLutnI, iLutnJ, IC, ExcitMat, yama)
+    subroutine FindExcitBitDet(iLutnI, iLutnJ, IC, ExcitMat)
 
         ! This routine will find the bit-representation of an excitation by
         ! constructing the new ilut from the old one and the excitation matrix
@@ -643,11 +643,9 @@ module DetBitOps
         ! In:  iLutnI (0:NIfD) - source bit det
         !      IC              - Excitation level
         !      ExcitMat(2,2)   - Excitation Matrix
-        !      yama (NIfY)     - Yamanouchi symbol to apply (optional)
         ! Out: iLutnJ (0:NIfD) - New bit det
 
         integer, intent(in) :: iLutnI (0:NIfTot), IC, ExcitMat(2,2)
-        integer, intent(in), optional :: yama (NIfY)
         integer, intent(out) :: iLutnJ (0:NIfTot)
         integer :: pos(2,2), bit(2,2), i
         integer :: ilut(0:NIfTot)
@@ -669,9 +667,6 @@ module DetBitOps
             enddo
         endif
 
-        ! If we supply a Yamanouchi symbol, apply it to the new bit
-        ! determinant. This allows use of CSFs.
-        if (present(yama)) ilutnJ(NIfTot-NIfY+1:NIfTot) = yama
     end subroutine FindExcitBitDet
 
     subroutine shift_det_bit_singles_to_beta (iLut)
