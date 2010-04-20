@@ -1,6 +1,6 @@
 MODULE CCMC
     use Determinants, only: get_helement, write_det, write_det_len
-    use constants, only: dp
+    use constants, only: dp,int64
    IMPLICIT NONE
    CONTAINS
 
@@ -765,7 +765,7 @@ MODULE CCMC
 !***Birth/death processes finished. Tidy up and then annihilate.
 
 !SumWalkersCyc calculates the total number of walkers over an update cycle on each process
-        SumWalkersCyc=SumWalkersCyc+(INT(TotParts,i2))
+        SumWalkersCyc=SumWalkersCyc+(INT(TotParts,int64))
 !        WRITE(6,*) "Born, Die: ",NoBorn, NoDied
 
 

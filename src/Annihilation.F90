@@ -710,7 +710,7 @@ MODULE AnnihilationMod
         use CalcData , only: tRandomiseHashOrbs
         use FciMCData, only: RandomHash 
         INTEGER :: iLut(0:NIfTot),i,j,Elecs!,TempDet(NEl),MurmurHash2Wrapper
-        INTEGER(KIND=i2) :: Summ!,RangeofBins,NextBin
+        INTEGER(KIND=int64) :: Summ!,RangeofBins,NextBin
 
 !        CALL DecodeBitDet(TempDet,iLut)
 !        i=MurmurHash2Wrapper(TempDet,NEl,13)
@@ -750,7 +750,7 @@ MODULE AnnihilationMod
     
     FUNCTION CreateHash(DetCurr)
         INTEGER :: DetCurr(NEl),i
-        INTEGER(KIND=i2) :: CreateHash
+        INTEGER(KIND=int64) :: CreateHash
 
         CreateHash=0
         do i=1,NEl
@@ -933,13 +933,13 @@ MODULE AnnihilationMod
     SUBROUTINE AnnihilateBetweenSpawned(ValidSpawned)
         use DetBitOps, only: DecodeBitDet
         use CalcData, only: tReadPops,tAnnihilatebyRange
-        INTEGER(KIND=i2) , ALLOCATABLE :: HashArray1(:),HashArray2(:)
+        INTEGER(KIND=int64) , ALLOCATABLE :: HashArray1(:),HashArray2(:)
         INTEGER , ALLOCATABLE :: IndexTable1(:),IndexTable2(:),ProcessVec1(:),ProcessVec2(:),TempSign(:)
         INTEGER :: i,j,k,ToAnnihilateIndex,ValidSpawned,ierr,error,sendcounts(nProcessors)
         INTEGER :: TotWalkersDet,InitialBlockIndex,FinalBlockIndex,ToAnnihilateOnProc,VecSlot
         INTEGER :: disps(nProcessors),recvcounts(nProcessors),recvdisps(nProcessors),nJ(NEl)
         INTEGER :: Minsendcounts,Maxsendcounts,DebugIter,SubListInds(2,nProcessors),MinProc,MinInd
-        INTEGER(KIND=i2) :: HashCurr,MinBin,RangeofBins,NextBinBound,MinHash
+        INTEGER(KIND=int64) :: HashCurr,MinBin,RangeofBins,NextBinBound,MinHash
         CHARACTER(len=*), PARAMETER :: this_routine='AnnihilateBetweenSpawned'
 
         CALL set_timer(AnnSpawned_time,30)

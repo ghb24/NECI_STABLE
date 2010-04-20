@@ -105,6 +105,7 @@ F90FLAGS = %(f90flags)s
 
 # c compiler and flags.
 CC = %(cc)s
+#CFLAGS = %(cflags)s -D__INT64=1
 CFLAGS = %(cflags)s
 
 # Some servers (I'm looking at you, darwin) have a buggy implementation of the
