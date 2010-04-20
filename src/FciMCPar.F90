@@ -515,7 +515,7 @@ MODULE FciMCParMod
             if (tRegenDiagHEls) then
                 ! We are not storing the diagonal hamiltonian elements for 
                 ! each particle. Therefore, we need to regenerate them.
-                if (DetBitEQ(CurrentDets(0:NIfTot,j), iLutHF, NIfDBO) .and. &
+                if (DetBitEQ(CurrentDets(:,j), iLutHF, NIfDBO) .and. &
                     (.not.(tHub .and. tReal))) then
                     HDiagCurr = 0
                 else
@@ -2528,14 +2528,13 @@ MODULE FciMCParMod
             if (sign(1, CopySign) == sign(1, wSign)) then
                 CurrentDets(:,VecSlot) = iLutCurr
                 CurrentSign(VecSlot) = CopySign
-                CurrentH(VecSlot) = Kii
+                if (.not.tRegenDiagHEls) CurrentH(VecSlot) = Kii
                 VecSlot = VecSlot + 1
             else
                 SpawnedParts(:,ValidSpawnedList(iProcIndex)) = iLutCurr
                 SpawnedSign(ValidSpawnedList(iProcIndex)) = CopySign
                 ValidSpawnedList(iProcIndex) = ValidSpawnedList(iProcIndex)+1
             endif
-        else
         endif
 
     end subroutine
