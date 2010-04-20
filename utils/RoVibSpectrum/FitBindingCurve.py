@@ -153,8 +153,6 @@ for i in range(len(aname)):
     f.write ("%.10f      %s \n" % (fit[i], aname[i]))
 f.close()
 
-show()
-
 print "\nCalling CalcVibSpectrum program..."
 print "This calculates the pure vibrational spectrum, which is printed in the PUREVIB file."
 print "A plot of the vibrational energy levels and wavefunction solutions can be viewed by loading GnuplotVib.gpi"
@@ -421,6 +419,9 @@ print "The fit is saved to Bv_vs_v.eps in the PlotsofFittings folder, and the co
 
 print "\nStep 4/4: Using D_v values calculated in step 1 to find the Dunham coefficients of the form Y_k2, D_e and beta_e."
 print "The equation is of the form D_v = Sum_k Y_k2 ( v + 1/2)^k = D_e + beta_e(v + 1/2) + ..."
+
+filename='BvDvValues'
+data = scipy.io.array_import.read_array(filename)
 
 def residuals(Yk_2,Dv, v):
     err = Dv-peval(v,Yk_2)
