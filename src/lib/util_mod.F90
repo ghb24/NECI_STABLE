@@ -1,4 +1,6 @@
 module util_mod
+    use ieee_arithmetic
+    use constants, only: dp
     implicit none
 
     ! An elemental routine to swap specified data.
@@ -6,7 +8,7 @@ module util_mod
         module procedure swap_int
         module procedure swap_doub
     end interface
-    
+
 contains
 
     elemental real*8 function factrl (n)
@@ -306,5 +308,16 @@ contains
         end if
 
     end subroutine get_unique_filename
+
+    ! Slightly nicer versions of these ieee functions.
+    real(dp) function get_nan ()
+        get_nan = ieee_value(1.0_dp, ieee_quiet_nan)
+    end function
+
+    elemental logical function isnan (r)
+        real(dp), intent(in) :: r
+
+        isnan = ieee_is_nan (r)
+    end function
 
 end module

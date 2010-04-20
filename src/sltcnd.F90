@@ -13,7 +13,7 @@ module sltcnd_mod
     use UMatCache, only: GTID
     use IntegralsData, only: UMAT
     use OneEInts, only: GetTMatEl
-    use Integrals, only: GetUMatEl
+    use Integrals, only: get_umat_el
     use DetBitOps, only: count_open_orbs, FindBitExcitLevel
     use csf_data, only: csf_sort_det_block
     use timing
@@ -190,9 +190,7 @@ contains
             do j=i+1,nel
                 idX = max(id(i), id(j))
                 idN = min(id(i), id(j))
-                hel_doub = hel_doub + GetUMATEl(nBasisMax, UMAT, ALAT, &
-                                                nBasis, nBasisMax(2,3), G1, &
-                                                idN, idX, idN, idX)
+                hel_doub = hel_doub + get_umat_el (idN, idX, idN, idX)
             enddo
         enddo
                 
@@ -206,9 +204,7 @@ contains
                     if (G1(nI(i))%Ms == G1(nI(j))%Ms) then
                         idX = max(id(i), id(j))
                         idN = min(id(i), id(j))
-                        hel_tmp = hel_tmp - GetUMATEl(nBasisMax, UMAT, ALAT, &
-                                                      nBasis, nBasisMax(2,3),&
-                                                      G1, idN, idX, idX, idN)
+                        hel_tmp = hel_tmp - get_umat_el (idN, idX, idX, idN)
                     endif
                 enddo
             enddo
@@ -240,9 +236,7 @@ contains
             do i=1,nel
                 if (ex(1) /= nI(i)) then
                     id = gtID(nI(i))
-                    hel = hel + GetUMATEl (nBasisMax, UMAT, ALAT, nBasis, &
-                                           nBasisMax(2,3), G1, id_ex(1), id, &
-                                           id_ex(2), id)
+                    hel = hel + get_umat_el (id_ex(1), id, id_ex(2), id)
                 endif
             enddo
         endif
@@ -255,9 +249,7 @@ contains
                 if (ex(1) /= nI(i)) then
                     if (G1(ex(1))%Ms == G1(nI(i))%Ms) then
                         id = gtID(nI(i))
-                        hel = hel - GetUMATEl (nBasisMax, UMAT, ALAT, nBasis,&
-                                               nBasisMax(2,3), G1, id_ex(1),&
-                                               id, id, id_ex(2))
+                        hel = hel - get_umat_el (id_ex(1), id, id, id_ex(2))
                     endif
                 endif
             enddo
@@ -288,17 +280,14 @@ contains
         ! physical notation).
         if ( (G1(ex(1,1))%Ms == G1(ex(2,1))%Ms) .and. &
              (G1(ex(1,2))%Ms == G1(ex(2,2))%Ms) ) then
-             hel = GetUMATEl (nBasisMax, UMAT, ALAT, nBasis, nBasisMax(2,3), &
-                              G1, id(1,1), id(1,2), id(2,1), id(2,2))
+             hel = get_umat_el (id(1,1), id(1,2), id(2,1), id(2,2))
         else
             hel = (0)
         endif
 
         if ( (G1(ex(1,1))%Ms == G1(ex(2,2))%Ms) .and. &
              (G1(ex(1,2))%Ms == G1(Ex(2,1))%Ms) ) then
-             hel = hel - GetUMATEl (nBasismax, UMAT, ALAT, nBasis, &
-                                    nBasisMax(2,3), G1, id(1,1), id(1,2), &
-                                    id(2,2), id(2,1))
+             hel = hel - get_umat_el (id(1,1), id(1,2), id(2,2), id(2,1))
         endif
 
         if (tSign) hel = -hel

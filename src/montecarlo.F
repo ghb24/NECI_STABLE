@@ -1,25 +1,10 @@
-      LOGICAL FUNCTION LISNAN(W)
-         IMPLICIT NONE
-         REAL*8 W
-         LISNAN=.FALSE.
-         IF(W.EQ.0.AND.W*1.EQ.1) LISNAN=.TRUE.
-         RETURN
-      END
-
-      REAL*8 FUNCTION GETNAN()
-         A=1
-         B=1
-         GETNAN=LOG(A-2*B)
-         RETURN
-      END
-
-
        REAL*8 FUNCTION DMONTECARLO(I_P,NDET,RHOIJROWS,RHOIJ,RHOIJ1,
      &         RHOIJ2,BETA,DBETA,RHOIJLAB,NRHOMAXWIDTH,I_HMAX,IMCSTEPS,
      &         G1,NMRKS,NEL,NBASISMAX,NBASIS,BRR,IEQSTEPS,NWHTAY,
      &         ILOGGING)
          use SystemData, only: BasisFN
          use global_utilities
+         use util_mod, only: get_nan, isnan
          IMPLICIT REAL*8 (A-H,O-Z)
          INTEGER NDET,NRHO
          INTEGER RHOIJLAB(*),RHOIJROWS(NDET+1)
@@ -36,7 +21,6 @@ C         INTEGER NI(4,NEL), NJ(4,NEL)
          INTEGER,ALLOCATABLE :: LSTI(:,:) ! (3,*)
          REAL*8,ALLOCATABLE :: DLWDBS(:),WLRIS(:),WLSIS(:)
          integer, save :: tagLSTI=0,tagDLWDBS=0,tagWLRIS=0,tagWLSIS=0
-         LOGICAL LISNAN
          REAL*8 RAN2
          type(timer), save :: proc_timer
          character(*), parameter :: thisroutine='DMONTECARLO'
@@ -114,7 +98,7 @@ C.. Calculate RHO_JJ
                CALL MCPATHSR(IJ,I_P,NDET,RHOIJROWS,RHOIJ,RHOIJLAB,
      &               NRHOMAXWIDTH,I_HMAX,NWHTAY,ILOGGING,WLRJ,WLSJ)
 
-               NIND=ISTORERII(IJ,WLRJ,WLSJ,GETNAN(),LSTI,WLRIS,WLSIS,
+               NIND=ISTORERII(IJ,WLRJ,WLSJ,get_nan(),LSTI,WLRIS,WLSIS,
      &               DLWDBS,LISTMAX,NFIRST,1)
             ELSE
                WLRJ=WLRIS(IND)
@@ -131,7 +115,7 @@ C..  As our acceptance probabilities are W_J/W_I, a value of W_J that is
 C..  <=0 (caused by an S_J<=0) would never be accepted, so we reject W_J
 C..  where ln S_I=NaN
 C..  NB - this NaN test may not be portable
-            IF(LISNAN(WLSJ)) THEN
+            IF(isnan(WLSJ)) THEN
                LACC=.FALSE.
             ELSE
                DLRAT=I_P*(WLRJ-WLRI)+(WLSJ-WLSI)
@@ -148,9 +132,9 @@ C.. use up a random number to keep consistency.
                ENDIF
             ENDIF
             IF(LACC) THEN
-               DLWDB=GETNAN()
+               DLWDB=get_nan()
                IF(IND.NE.0) DLWDB=DLWDBS(IND)
-               IF(LISNAN(DLWDB)) THEN
+               IF(isnan(DLWDB)) THEN
                   CALL MCPATHSR(IJ,I_P,NDET,RHOIJROWS,RHOIJ1,RHOIJLAB,
      &               NRHOMAXWIDTH,I_HMAX,NWHTAY,ILOGGING,WLRI1,WLSI1)
                   CALL MCPATHSR(IJ,I_P,NDET,RHOIJROWS,RHOIJ2,RHOIJLAB,
@@ -269,6 +253,7 @@ C.. We couldn't find it
          use global_utilities
          use legacy_data, only: irat
          use Determinants, only: get_helement
+         use util_mod, only: isnan, get_nan
          IMPLICIT REAL*8 (A-H,O-Z)
          INTEGER IPATH(I_P+1)
          INTEGER ISEED
@@ -290,7 +275,6 @@ C0:NBASIS*NBASIS*NEL*NEL,0:I_HMAX-1)
          integer, save :: tagDLWDBS=0,tagWLRIS=0,tagWLSIS=0
 
          INTEGER I_HMAX,I_VMAX
-         LOGICAL LISNAN
          REAL*8 SUMSQ,BETAEQ,BETAC,DBETAC
          INTEGER IEQ1,IEQ2
          INTEGER NCH
@@ -379,11 +363,11 @@ C..     NMSH->NMRKS
 C..     NMAX->RHOIJ1
 C..     ALAT->RHOIJ2
 C..     BETA->NHG
-               DLWDB=GETNAN()
+               DLWDB=get_nan()
         CALL MCPATHSR3(NI,BETA,I_P,I_HMAX,I_VMAX,NEL,NBASISMAX,G1,
      &      NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,RHOEPS,LSTE,ICE,
      &      RIJLIST,NWHTAY,ILOGGING,ECORE,ILMAX,WLRI,WLSI,DBETAC,DLWDB)
-         IF(LISNAN(DLWDB)) THEN
+         IF(isnan(DLWDB)) THEN
         CALL MCPATHSR3(NI,BETA,I_P,I_HMAX,I_VMAX,NEL,NBASISMAX,G1,
      &     NBASIS,BRR,NMSH,NMAX,NMAX,ALAT,UMAT,NTAY,RHOEPS,LSTE,ICE,
      &     RIJLIST,NWHTAY,ILOGGING,ECORE,ILMAX,WLRI1,WLSI1,DBETAC,DLWDB)
@@ -392,11 +376,11 @@ C..     BETA->NHG
      &     RIJLIST,NWHTAY,ILOGGING,ECORE,ILMAX,WLRI2,WLSI2,DBETAC,DLWDB)
          ENDIF
       ELSE
-               DLWDB=GETNAN()
+               DLWDB=get_nan()
         CALL MCPATHSR3(NI,BETAC,I_P,I_HMAX,I_VMAX,NEL,NBASISMAX,G1,
      &      NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,RHOEPS,LSTE,ICE,
      &      RIJLIST,NWHTAY,ILOGGING,ECORE,ILMAX,WLRI,WLSI,DBETAC,DLWDB)
-         IF(LISNAN(DLWDB)) THEN
+         IF(isnan(DLWDB)) THEN
       CALL MCPATHSR3(NI,BETAC+DBETAC,I_P,I_HMAX,I_VMAX,NEL,NBASISMAX,G1,
      &      NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,RHOEPS,LSTE,ICE,
      &     RIJLIST,NWHTAY,ILOGGING,ECORE,ILMAX,WLRI2,WLSI2,DBETAC,DLWDB)
@@ -405,7 +389,7 @@ C..     BETA->NHG
      &     RIJLIST,NWHTAY,ILOGGING,ECORE,ILMAX,WLRI1,WLSI1,DBETAC,DLWDB)
          ENDIF
       ENDIF
-         IF(LISNAN(DLWDB))
+         IF(isnan(DLWDB))
      &         DLWDB=-(I_P*(WLRI2-WLRI1)+(WLSI2-WLSI1))/(2*DBETAC)
          WLRIS(NFIRST)=WLRI
          WLSIS(NFIRST)=WLSI
@@ -480,7 +464,7 @@ C..     NMSH->NMRKS
 C..     NMAX->RHOIJ1
 C..     ALAT->RHOIJ2
 C..     BETA->NHG
-               DLWDB=GETNAN()
+               DLWDB=get_nan()
             CALL MCPATHSR3(NJ,BETA,I_P,I_HMAX,I_VMAX,NEL,NBASISMAX,G1,
      &          NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,RHOEPS,LSTE,
      &          ICE,RIJLIST,NWHTAY,ILOGGING,ECORE,ILMAX,WLRJ,WLSJ,
@@ -488,7 +472,7 @@ C..     BETA->NHG
                NIND=ISTORERII(NJ,WLRJ,WLSJ,DLWDB,LSTDET,WLRIS,WLSIS,
      &               DLWDBS,LISTMAX,NFIRST,NEL)
                ELSE
-               DLWDB=GETNAN()
+               DLWDB=get_nan()
             CALL MCPATHSR3(NJ,BETAC,I_P,I_HMAX,I_VMAX,NEL,NBASISMAX,G1,
      &          NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,RHOEPS,LSTE,
      &          ICE,RIJLIST,NWHTAY,ILOGGING,ECORE,ILMAX,WLRJ,WLSJ,
@@ -512,7 +496,7 @@ C..  As our acceptance probabilities are W_J/W_I, a value of W_J that is
 C..  <=0 (caused by an S_J<=0) would never be accepted, so we reject W_J
 C..  where ln S_I=NaN
 C..  NB - this NaN test may not be portable
-            IF(LISNAN(WLSJ)) THEN
+            IF(isnan(WLSJ)) THEN
 C.. if we've got a nan as our weight we don't accept
                LACC=.FALSE.
             ELSE
@@ -534,7 +518,7 @@ C.. so we must calc it.
 
             IF(LACC) THEN
                IF(IND.NE.0) DLWDB=DLWDBS(IND)
-               IF(LISNAN(DLWDB)) THEN
+               IF(isnan(DLWDB)) THEN
                   IF (NTAY.LT.0) THEN
 C..     NTAY<0 => Exact new method
 C..     FCK->RHOIJ
@@ -833,6 +817,7 @@ C            WRITE(6,*) "Store ",NODE
      &         G1,NMRKS,NEL,NBASISMAX,NBASIS,BRR,IEQSTEPS,
      &         ILOGGING)
          use global_utilities
+         use util_mod, only: isnan
          IMPLICIT REAL*8 (A-H,O-Z)
          INTEGER NDET
          INTEGER ISEED
@@ -842,7 +827,6 @@ C            WRITE(6,*) "Store ",NODE
          INTEGER BRR(NBASIS)
          INTEGER G1(*),NMRKS(NEL,NDET),nBasisMax(5,*)
          REAL*8 DLWDBS(NDET),WLRIS(NDET),WLSIS(NDET)
-         LOGICAL LISNAN
          REAL*8 RAN2
          type(timer), save :: proc_timer
 
@@ -904,7 +888,7 @@ C..  As our acceptance probabilities are W_J/W_I, a value of W_J that is
 C..  <=0 (caused by an S_J<=0) would never be accepted, so we reject W_J
 C..  where ln S_I=NaN
 C..  NB - this NaN test may not be portable
-            IF(LISNAN(WLSJ)) THEN
+            IF(isnan(WLSJ)) THEN
                LACC=.FALSE.
             ELSE
                DLRAT=I_P*(WLRJ-WLRI)+(WLSJ-WLSI)

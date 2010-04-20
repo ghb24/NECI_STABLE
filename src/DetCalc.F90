@@ -1126,7 +1126,7 @@ END MODULE DetCalc
          REAL*8 W(NEVAL)
          REAL*8 RHII,FLRI,FLSI,ETRIAL,BETA,RH,R
          INTEGER I_P,I,IK,ILOGGING
-         LOGICAL LISNAN,TWARN
+         LOGICAL TWARN
          RH=0.D0
          RHII=0.D0
          TWARN=.FALSE.
@@ -1161,7 +1161,7 @@ END MODULE DetCalc
             RH=RH+R*EXP(-(W(IK)-W(1))*BETA)
          ENDDO
          FLSI=LOG(RH)-W(1)*BETA-I_P*FLRI
-         IF(LISNAN((RH+1)-RH)) THEN
+         IF(ISNAN((RH+1)-RH)) THEN
             RH=0
             FLSI=0
          ENDIF

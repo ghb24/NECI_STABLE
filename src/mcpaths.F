@@ -69,7 +69,7 @@ CNEL,0:NBASIS*NBASIS*NEL*NEL,0:I_VMAX-1)
          HElement_t RIJLIST(*)
 C0:NBASIS*NBASIS*NEL*NEL,0:I_VMAX-1)
          INTEGER NLIST(0:I_VMAX-1),LSTP(0:I_VMAX-1),BTABLE(0:I_VMAX)
-         LOGICAL TLOG,TSYM,LISNAN
+         LOGICAL TLOG,TSYM
          REAL*8 DBETA
          real(dp) DLWDB,DLWDB2,EREF,ODLWDB2
          HElement_t  HIJS(0:I_VMAX)
@@ -407,7 +407,7 @@ C.. setup spin excitation generator
      &            TOTAL,NTIME-OTIME,L,STD,DLWDB2
                CALL FLUSH(11)
             ENDIF
-            IF(LISNAN(TOTAL)) THEN
+            IF(ISNAN(TOTAL)) THEN
 C.. save all log files
                ITIME=etime(tarr)
                CALL FLUSH(11)
@@ -522,7 +522,7 @@ CNEL,0:NBASIS*NBASIS*NEL*NEL,0:I_VMAX-1)
          HElement_t RIJLIST(*)
 C0:NBASIS*NBASIS*NEL*NEL,0:I_VMAX-1)
          INTEGER NLIST(0:I_VMAX-1),LSTP(0:I_VMAX-1),BTABLE(0:I_VMAX)
-         LOGICAL TLOG,TSYM,LISNAN
+         LOGICAL TLOG,TSYM
          REAL*8 DBETA
          HElement_t HIJS(0:I_VMAX)
 #if defined(POINTER8)
@@ -743,7 +743,7 @@ c            WRITE(6,*) I_V,F(I_V),TOTAL,get_total_time(proc_timer2),L,LT
                WRITE(11,*)
                CALL FLUSH(11)
             ENDIF
-            IF(LISNAN(TOTAL)) THEN
+            IF(ISNAN(TOTAL)) THEN
 C.. save all log files
                ITIME=etime(tarr)
                CALL FLUSH(11)

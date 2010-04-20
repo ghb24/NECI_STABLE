@@ -16,13 +16,24 @@ typedef uint32_t uint_t;
 #endif
 
 class complex_sp_t {
+public:
 	float real;
 	float imag;
 };
 
 class complex_dp_t {
+public:
 	double real;
 	double imag;
+};
+
+class basisfn_t {
+public:
+	int32_t k[3];
+	int32_t Ms;
+	int32_t Ml;
+	int32_t spacer;
+	int64_t sym;
 };
 
 // A type(helement) equivalent

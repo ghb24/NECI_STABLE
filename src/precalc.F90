@@ -962,7 +962,6 @@ FUNCTION MCPATHSPRE(point,NI,BETA,I_P,IPATH,K,G1,NMSH,         &
     DATA FIRST/7*.TRUE. /
     SAVE NTOTSAV,TOTSAV,DLWSAV
     SAVE FIRST,NORMALISE,DEALLOCYC
-    LOGICAL LISNAN
     INTEGER ISEED,aaa,t,tt
     INTEGER I_OCLS,ITREE,ILOGGING,I_OVCUR,IACC
     REAL*8 ORIGEXCITWEIGHTS(6),ORIGEXCITWEIGHT
@@ -1788,7 +1787,7 @@ FUNCTION f1dim(x,NI,BETA,I_P,IPATH,Q,G1,NMSH,                  &
      INTEGER LOCTAB(3,PREIV_MAX)
 #endif
     COMPLEX*16 FCK(*)
-    LOGICAL TSYM,LISNAN
+    LOGICAL TSYM
     REAL*8 BETA,ECORE,NTOTAL,RHOEPS,DBETA
     HElement_t UMat(*),RHOIJ(0:PREIV_MAX,0:PREIV_MAX)
     real(dp) TOTAL,DLWDB,DLWDB2,EREF,FMCPR3B,FMCPR3B2,F(2:PREIV_MAX)
@@ -1806,7 +1805,7 @@ FUNCTION f1dim(x,NI,BETA,I_P,IPATH,Q,G1,NMSH,                  &
     COMMON /f1com/ pcom,xicom,ncom
     do j=1,ncom
         xt(j)=pcom(j)+x*xicom(j)
-!        IF(LISNAN(xt(j))) THEN
+!        IF(isnan(xt(j))) THEN
 !            WRITE(6,*) xt(j)
 !            WRITE(6,*) pcom(j),x,xicom(j)
 !            CALL FLUSH(6)

@@ -1,9 +1,55 @@
 #include "macros.h"
-MODULE Integrals
+module Integrals
 
+    use SystemData, only: tStoreSpinOrbs, tFixLz, nBasisMax, iSpinSkip, &
+                          tStarStore, nBasis
+    use UmatCache, only: tUmat2D, UMatInd, umat2d
+    use util_mod, only: get_nan
     use IntegralsData
 
-    IMPLICIT NONE
+    implicit none
+
+    interface
+        ! n.b. i, j, k, l are the indices returned by gtid, not the spin-orb
+        !      numbers (unless tStoreSpinOrbs)
+        ! This is the C wrapper function to call instead of GetUMatEl
+        function get_umat_el (i, j, k, l) result(hel) bind(c)
+            use constants, only: dp
+            implicit none
+            integer, intent(in) :: i, j, k, l
+            HElement_t :: hel
+        end function
+
+        ! Subroutine to set the get_umat_el function pointer
+        subroutine set_getumatel_fn (fn) bind(c)
+            implicit none
+            interface
+                function fn (i, j, k, l) result(hel) bind(c)
+                    use constants, only: dp
+                    implicit none
+                    integer, intent(in) :: i, j, k, l
+                    HElement_t :: hel
+                end function
+            end interface
+        end subroutine
+
+        ! Two options to pass to set_getumatel_fn, as wrappers for the 
+        ! tFixLz case.
+        function get_umat_el_fixlz_storespinorbs (i, j, k, l) &
+                                                  result(hel) bind(c)
+            use constants, only: dp
+            implicit none
+            integer, intent(in) :: i, j, k, l
+            HElement_t :: hel
+        end function
+        function get_umat_el_fixlz_notspinorbs (i, j, k, l) &
+                                                result(hel) bind(c)
+            use constants, only: dp
+            implicit none
+            integer, intent(in) :: i, j, k, l
+            HElement_t :: hel
+        end function
+    end interface
 
     contains
 
@@ -601,6 +647,10 @@ MODULE Integrals
 !         enddo
 !     enddo
 
+    ! Setup the umatel pointers as well
+    call init_getumatel_fn_pointers ()
+
+
     End Subroutine IntInit
         
 
@@ -700,6 +750,9 @@ MODULE Integrals
       ENDIF
 !      CALL WRITETMAT(NBASIS)
 !      CALL WRITESYMCLASSES(NBASIS)
+
+        ! Setup the umatel pointers as well
+        call init_getumatel_fn_pointers ()
       
       ! This indicates the upper-bound for the determinants when expressed in
       ! bit-form. This will equal INT(nBasis/32).
@@ -1274,6 +1327,110 @@ MODULE Integrals
 
     end function GetUMatEl2
 
+    subroutine init_getumatel_fn_pointers ()
+
+        integer :: iss
+        character(*), parameter :: this_routine = 'init_getumatel_fn_pointers'
+
+        if (nBasisMax(1,3) >= 0) then
+            ! This is a hack. iss is not what it should be. grr.
+            iss = nBasisMax(2,3)
+            if (iss == 0) then
+                ! Store <ij|ij> and <ij|ji> in umat2d.
+                ! n.b. <ij|jk> == <ii|jj>
+                !
+                ! If complex, more difficult:
+                ! <ii|ii> is always real and allowed.
+                ! <ij|ij> is always real and allowed (densities i*i, j*j)
+                ! <ij|ji> is always reald and allowed (codensities i*j, and
+                !                                      j*i = (i*j)*)
+                ! <ii|jj> is not stored in umat2d, and may not be allowed by
+                !         symmetry. It can be complex.
+                ! If orbitals are real, we substitute <ij|ij> for <ii|jj>
+
+                if (tumat2d) then
+                    call stop_all (this_routine, "Getting there!!!")
+                    ! call umat2d routine
+                else
+                    call stop_all (this_routine, "Getting there!!!")
+                    ! see if in the cache. This is the fallback if ids are
+                    ! such that umat2d canot be used anyway.
+                endif
+            else if (iss == -1) then
+                call stop_all (this_routine, "Getting there!!!")
+                ! Non-stored hubbard integral
+                ! Set GetHubUMatEl
+            else
+                if (tStarStore) then
+                    if (.not. tumat2d) &
+                        call stop_all (this_routine, &
+                                       'UMat2D is required for tStarStore')
+                    write (6, '(" Setting StarStore GetUMatEl routine")')
+                    call set_getumatel_fn (get_umat_el_starstore)
+                else
+                    write (6, '(" Setting normal GetUMatEl routine")')
+                    call set_getumatel_fn (get_umat_el_normal)
+                endif
+            endif
+        else if (nBasisMax(1,3) == -1) then
+            call stop_all (this_routine, "Getting there!!!")
+            ! GetUEGUmatEl
+        endif
+
+        ! Note that this comes AFTER the above tests
+        ! --> the tfixlz case is earlier in the list and will therefore be
+        !     executed first.
+        if (tFixLz) then
+            if (tStoreSpinOrbs) then
+                call set_getumatel_fn (get_umat_el_fixlz_storespinorbs)
+            else
+                call set_getumatel_fn (get_umat_el_fixlz_notspinorbs)
+            endif
+        endif
+
+    end subroutine
+
+    function get_umat_el_normal (idi, idj, idk, idl) result(hel) bind(c)
+        
+        ! The normal, cached case for getumatel
+
+        integer, intent(in) :: idi, idj, idk, idl
+        HElement_t :: hel
+
+        hel = UMAT (UMatInd(idi, idj, idk, idl, 0, 0))
+    end function
+
+    function get_umat_el_starstore (idi, idj, idk, idl) result(hel) bind(c)
+
+        ! The case when tStarStore and tUMat2D are set
+
+        integer, intent(in) :: idi, idj, idk, idl
+        integer :: i, j
+        HElement_t :: hel
+
+        if ( (idi == idj) .and. (idi == idk) .and. (idi == idl) ) then
+            hel = umat2d (idi, idi)
+        else if ( (idi == idk) .and. (idj == idl) ) then
+            i = min (idi, idj)
+            j = max (idi, idj)
+            hel = umat2d (i, j)
+        else if ( (idi == idl) .and. (idj == idk) ) then
+            i = max (idi, idj)
+            j = min (idi, idj)
+            hel = umat2d (i, j)
+        else if ( (idi == idj) .and. (idk == idl) ) then
+            i = max (idi, idk)
+            j = min (idi, idk)
+            hel = umat2d (i, j)
+        else
+            i = UMatInd (idi, idj, idk, idl, nBasis/2, 0)
+            if (i == -1) then
+                hel = get_nan ()
+            else
+                hel = UMAT (i)
+            endif
+        endif
+    end function
 
 
     FUNCTION GetUMatEl(NBASISMAX,UMATstore,ALAT,NHG,ISS,G1,IDI,IDJ,IDK,IDL)
@@ -1297,7 +1454,7 @@ MODULE Integrals
       HElement_t GetUMatEl
       INTEGER nBasisMax(5,*),I,J,K,L,NHG,ISS
       TYPE(BasisFN) G1(NHG)
-      REAL*8 ALAT(3),GetNan
+      REAL*8 ALAT(3)
       HElement_t UMATstore(*)
       HElement_t UElems(0:nTypes-1)
       complex*16 vasp_int(1,0:1)
@@ -1499,7 +1656,7 @@ MODULE Integrals
                   IF(XXX.ne.-1) THEN
                      GETUMATEL=UMATstore(XXX)
                   ELSE
-                     GETUMATEL=(GETNAN())
+                     GETUMATEL = get_nan()
                   ENDIF
                ENDIF
             ELSE

@@ -46,7 +46,7 @@ CNEL,0:NBASIS*NBASIS*NEL*NEL,0:I_VMAX-1)
          HElement_t RIJLIST(*)
 C0:NBASIS*NBASIS*NEL*NEL,0:I_VMAX-1)
          INTEGER NLIST(0:I_VMAX-1),LSTP(0:I_VMAX-1),BTABLE(0:I_VMAX)
-         LOGICAL TLOG,TSYM,LISNAN
+         LOGICAL TLOG,TSYM
          INTEGER ICOUNT,ISEED,I_V,L,LT
          REAL*8 FNCR,GETNLOOPS,DBETA
          INTEGER IEXCITS,ITIME
@@ -597,7 +597,7 @@ C ,F(I_V),FSQ(I_V)
               ENDIF
             ENDIF
             CALL FLUSH(11)
-!            IF(LISNAN(F(I_V))) THEN
+!            IF(ISNAN(F(I_V))) THEN
 C.. save all log files
 !               ITIME=etime(tarr)
 !               CALL FLUSH(11)
@@ -1808,6 +1808,7 @@ C.. weight.
          USE SystemData , only : BasisFN
          USE PrecalcData , only : TPREVAR
          use CalcData , only : TMPTHEORY,TMCDIRECTSUM
+         use util_mod, only: isnan
          IMPLICIT NONE
          TYPE(BasisFN) KSYM
          real(dp) FMCPR4D2
@@ -1852,7 +1853,7 @@ C.. weight.
          REAL*8 OXIJ(0:I_OVCUR-1,0:I_OVCUR-1),OPROB,PR,R2
          real(dp) OETILDE,WEIGHT,OWEIGHT,ETILDE
          INTEGER I_OVCUR,IOCLS,ITREE
-         LOGICAL LISNAN,ISVALIDDET
+         LOGICAL ISVALIDDET
          INTEGER IACC
          REAL*8 PFAC
          REAL*8 RAN2
@@ -1936,7 +1937,7 @@ C..                     = p(B) gen(A) / (p(A) gen(B))
 !            WRITE(40,"(5G)",advance='no') OPROB,RH,(WEIGHT), (OWEIGHT),PR
             IF(RHX.EQ.0.D0.OR..NOT.abs(OWEIGHT).gt.0.D0) PR=0.D0
             IF(.not.TPREVAR) THEN
-                IF(LISNAN(WEIGHT)) THEN
+                IF(isnan(WEIGHT)) THEN
                     WRITE(60,*) WEIGHT,ETILDE,RHX
                     CALL WRITEPATH(60,IPATH,I_V,NEL,.FALSE.)
                     CALL WRITERHOMAT(60,RHOIJ,I_V,NEL,.TRUE.)
@@ -2075,7 +2076,7 @@ C.. Unbias the sum
 
          INTEGER IGETEXCITLEVEL
          LOGICAL ISUHFDET,LISINPATH
-         LOGICAL LISNAN,ISVALIDDET
+         LOGICAL ISVALIDDET
          REAL*8 RAN2
          REAL*8 pGen,pGen2
          HElement_t :: hel
@@ -2321,6 +2322,7 @@ C.. a wrongly biased MC
          use CalcData , only : G_VMC_PI
          use Determinants, only: get_helement, write_det
          use constants, only: dp
+         use util_mod, only: isnan
          IMPLICIT NONE
          TYPE(BasisFN) :: KSYM
          INTEGER NEL,NI(NEL),I_P,IPATH(NEL,0:I_V),I_V
@@ -2356,7 +2358,7 @@ C.. a wrongly biased MC
          REAL*8 OHIJS(0:I_V),OXIJ(0:I_V-1,0:I_V-1)
          REAL*8 OETILDE,OPROB,PR,R2,WEIGHT,OWEIGHT
          INTEGER I_OVCUR,IOCLS,ITREE
-         LOGICAL LISNAN,ISVALIDDET
+         LOGICAL ISVALIDDET
          INTEGER IACC
          REAL*8 NRHOII(0:I_V),NRHOIJ(0:I_V,0:I_V)
          INTEGER NIPATH(NEL,0:I_V),IACCNODE
@@ -2630,7 +2632,7 @@ C..                     = p(B) gen(A) / (p(A) gen(B))
             PR=(OPROB/RH)*ABS(WEIGHT/OWEIGHT)
             IF(RH.EQ.0.D0.OR.WEIGHT.EQ.0.D0) PR=0.D0
             R2=RAN2(ISEED)
-            IF(LISNAN(WEIGHT)) THEN
+            IF(isnan(WEIGHT)) THEN
                WRITE(60,*) WEIGHT,ETILDE,RH
                CALL WRITEPATH(60,IPATH,I_V,NEL,.FALSE.)
                CALL WRITERHOMAT(60,RHOIJ,I_V,NEL,.TRUE.)
