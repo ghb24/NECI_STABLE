@@ -9,9 +9,38 @@ module hphf_integrals
     use IntegralsData, only: UMat,FCK,NMAX
     implicit none
 
-    
+    interface hphf_off_diag_helement
+        module procedure hphf_off_diag_helement_norm
+        module procedure hphf_off_diag_helement_spawn
+    end interface
+
     contains
-    function hphf_off_diag_helement (nI, nJ, iLutnI, iLutnJ) result(hel)
+
+    function hphf_spawn_sign (nI, nJ, iLutI, iLutJ, ic, ex, &
+                                  tParity, prob) result (hel)
+        integer, intent(in) :: nI(nel), nJ(nel), ic, ex(2,2)
+        integer, intent(in) :: iLutI(0:NIfTot), iLutJ(0:NIfTot)
+        logical, intent(in) :: tParity
+        real(dp), intent(in) :: prob
+        HElement_t :: hel
+
+        hel = sign(1.0_dp, prob)
+
+    end function
+
+    ! TODO: comment as to why!
+    function hphf_off_diag_helement_spawn (nI, nJ, iLutI, iLutJ, ic, ex, &
+                                           tParity, prob) result (hel)
+        integer, intent(in) :: nI(nel), nJ(nel), ic, ex(2,2)
+        integer, intent(in) :: iLutI(0:NIfTot), iLutJ(0:NIfTot)
+        logical, intent(in) :: tParity
+        real(dp), intent(in) :: prob
+        HElement_t :: hel
+
+        hel = hphf_off_diag_helement_norm (nI, nJ, iLutI, iLutJ)
+    end function
+
+    function hphf_off_diag_helement_norm (nI, nJ, iLutnI, iLutnJ) result(hel)
 
         ! Find the  between two half-projected hartree-fock 
         ! determinants (different ones). NI and nJ have to be uniquely 
@@ -85,7 +114,7 @@ module hphf_integrals
             
             endif
         endif
-    end function hphf_off_diag_helement
+    end function
 
 
     function hphf_diag_helement (nI, iLutnI) result(hel)

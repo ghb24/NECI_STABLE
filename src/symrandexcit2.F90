@@ -27,6 +27,7 @@ MODULE GenRandSymExcitNUMod
     use SystemData, only: ALAT,iSpinSkip,tFixLz,iMaxLz,NIfTot,tUEG,tNoFailAb,tLatticeGens, tHub
     use SystemData, only: nEl,G1, nBasis,nBasisMax,tNoSymGenRandExcits
     use SystemData, only: Arr,nMax,tCycleOrbs,nOccAlpha,nOccBeta,ElecPairs,MaxABPairs
+    use FciMCData, only: pDoubles
     use IntegralsData, only: UMat
     use Determinants, only: get_helement, write_det
     use SymData, only: nSymLabels,TwoCycleSymGens
@@ -41,22 +42,38 @@ MODULE GenRandSymExcitNUMod
 
     contains
 
-!This routine is the same as GenRandSymExcitNU, but you can pass in the ClassCount arrays, so they do not have to be recalculated each time
-!we want an excitation. If tFilled is false, then it wil assume that they are unfilled and calculate them. It will then return the arrays
-!with tFilled = .true. for use in the next excitation.
-!The two arrays want to be integers, both of size (2,1:nSymLabels)
-    SUBROUTINE GenRandSymExcitScratchNU(nI,iLut,nJ,pDoub,IC,ExcitMat,tParity,exFlag,pGen,ClassCount2,ClassCountUnocc2,tFilled)
-        INTEGER :: nI(NEl),nJ(NEl),IC,ExcitMat(2,2),exFlag
-        INTEGER :: ClassCount2(ScratchSize)
-        INTEGER :: ClassCountUnocc2(ScratchSize)
-!        INTEGER , SAVE :: Iter=0
-        INTEGER :: ILUT(0:NIfTot),i!,DetSym
-        LOGICAL :: tNoSuccess,tParity,tFilled
-        REAL*8 :: pDoub,pGen,r
-        CHARACTER , PARAMETER :: this_routine='GenRandSymExcitNU'
+    subroutine gen_rand_excit (nI, ilut, nJ, ilutnJ, exFlag, IC, ExcitMat, &
+                               tParity, pGen, tFilled, ClassCount2, &
+                               ClassCountUnocc2, scratchUnused)
 
-!        Iter=Iter+1
-!        WRITE(6,*) Iter,tFilled,nSymLabels
+        ! This routine is the same as GenRandSymexcitNu, but you can pass in 
+        ! the class count arrays so that they do not have to be recalculated 
+        ! each time for the same excitation. If tFilled is false, it will 
+        ! assume they are unfilled and calculate them, returning the arrays 
+        ! and tFilled=T.
+        ! The two arrays want to be integers, both of size (1, 1:nSymLabels)
+
+        integer, intent(in) :: nI(nel), iLut(0:niftot)
+        integer, intent(in) :: exFlag
+        integer, intent(out) :: nJ(nel)
+        integer, intent(out) :: IC, ExcitMat(2,2)
+        integer, intent(inout) :: ClassCount2(ScratchSize)
+        integer, intent(inout) :: ClasscountUnocc2(ScratchSize)
+        logical, intent(out) :: tParity
+        logical, intent(inout) :: tFilled
+        real*8, intent(out) :: pgen
+
+        ! Not used
+        integer, intent(out) :: ilutnJ(0:niftot)
+        integer, intent(inout) :: scratchUnused(ScratchSize)
+
+        logical  :: tNoSuccess
+        real*8 :: r
+        character(*), parameter :: this_routine = 'gen_rand_excit'
+
+        ! Just in case
+        ilutnJ(0) = -1
+
         IF((tUEG.and.tLatticeGens) .or. (tHub.and.tLatticeGens)) THEN
             call CreateExcitLattice(nI,iLut,nJ,tParity,ExcitMat,pGen)
             IC=2
@@ -92,7 +109,7 @@ MODULE GenRandSymExcitNUMod
 !ExFlag is 1 for singles, 2 for just doubles, and 3 for both.
         IF(ExFlag.eq.3) THEN
 !Choose whether to generate a double or single excitation. Prob of generating a double is given by pDoub.
-            pDoubNew=pDoub
+            pDoubNew=pDoubles
 
             r = genrand_real2_dSFMT()
             IF(r.lt.pDoubNew) THEN
@@ -136,7 +153,7 @@ MODULE GenRandSymExcitNUMod
 !            CALL Stop_All("GenRand","WrongSym")
 !        ENDIF
 
-    END SUBROUTINE GenRandSymExcitScratchNU
+    end subroutine
 
     SUBROUTINE GenRandSymExcitNU(nI,iLut,nJ,pDoub,IC,ExcitMat,TParity,exFlag,pGen)
         INTEGER :: nI(NEl),nJ(NEl),IC,ExcitMat(2,2),exFlag
@@ -2807,7 +2824,7 @@ END SUBROUTINE SpinOrbSymSetup
 !number of excitations generated using the full enumeration excitation generation. This can be done for both doubles and singles, or one of them.
 SUBROUTINE TestGenRandSymExcitNU(nI,Iterations,pDoub,exFlag,iWriteEvery)
     Use SystemData , only : NEl,nBasis,G1,nBasisMax,LzTot,NIfTot,tUEG,tLatticeGens,tHub
-    Use GenRandSymExcitNUMod , only : GenRandSymExcitScratchNU,ConstructClassCounts,ScratchSize
+    use GenRandSymExcitNUMod, only: gen_rand_excit, ConstructClassCounts,ScratchSize
     Use SymData , only : nSymLabels
     use Parallel
 !    use soft_exit , only : ChangeVars 
@@ -2816,7 +2833,7 @@ SUBROUTINE TestGenRandSymExcitNU(nI,Iterations,pDoub,exFlag,iWriteEvery)
     IMPLICIT NONE
     INTEGER :: i,Iterations,exFlag,nI(NEl),nJ(NEl),IC,ExcitMat(2,2),kx,ky,kz,ktrial(2)
     REAL*8 :: pDoub,pGen,AverageContrib,AllAverageContrib
-    INTEGER :: ClassCount2(ScratchSize),iLut(0:NIfTot),Scratch1(ScratchSize),Scratch2(ScratchSize),iLutnJ(0:NIfTot)
+    INTEGER :: ClassCount2(ScratchSize),iLut(0:NIfTot),Scratch1(ScratchSize),Scratch2(ScratchSize),scratch3(scratchsize),iLutnJ(0:NIfTot)
     INTEGER :: ClassCountUnocc2(ScratchSize),iExcit,iWriteEvery
     LOGICAL :: tParity,tFilled
     REAL*8 , ALLOCATABLE :: DoublesHist(:,:,:,:),SinglesHist(:,:),AllDoublesHist(:,:,:,:),AllSinglesHist(:,:)
@@ -2901,7 +2918,9 @@ lp2: do while(.true.)
             WRITE(6,"(A,I10)") "Iteration: ",i
         ENDIF
 
-        CALL GenRandSymExcitScratchNU(nI,iLut,nJ,pDoub,IC,ExcitMat,TParity,exFlag,pGen,Scratch1,Scratch2,tFilled)
+        call gen_rand_excit (nI, iLut, nJ, iLutnJ, exFlag, IC, ExcitMat, &
+                             tParity, pGen, tFilled, Scratch1, Scratch2, &
+                             Scratch3)
         IF(nJ(1).eq.0) THEN
 !            ForbiddenIter=ForbiddenIter+1
             CYCLE

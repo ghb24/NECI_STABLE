@@ -101,7 +101,7 @@ MODULE Calc
           THDiag=.false.
           GrowGraphsExpo=2.D0
           TGrowInitGraph=.false.
-          NoMCExcits=5000
+          NoMCExcits=1
           TMCExcits=.false.
           TMaxExcit=.false.
           TFullDiag=.false.

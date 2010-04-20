@@ -372,6 +372,32 @@ contains
         if (IC == 0)  hel = hel + (ECore)
     end function get_helement_excit
 
+    function get_helement_det_only (nI, nJ, iLutI, iLutJ, ic, ex, tParity, &
+                                    prob) result (hel)
+        
+        ! Calculate the Hamiltonian Matrix Element for a determinant as above.
+        ! This function assumes that we have got it correct for determinants
+        ! (i.e. no error checking), and no conditionals. It also has extra
+        ! arguments for compatibility with the function pointer methods.
+        !
+        ! In:  nI, nJ       - The determinants to evaluate
+        !      iLutI, iLutJ - Bit representations (unused)
+        !      ic           - The number of orbitals i,j differ by
+        !      ex           - Excitation matrix
+        !      tParity      - Parity of the excitation
+        ! Ret: hel          - The H matrix element
+
+        integer, intent(in) :: nI(nel), nJ(nel), ic, ex(2,2)
+        integer, intent(in) :: iLutI(0:NIfTot), iLutJ(0:NIfTot)
+        logical, intent(in) :: tParity
+        real(dp), intent(in) :: prob
+        HElement_t :: hel
+
+        hel = sltcnd_excit (nI, nJ, IC, ex, tParity)
+
+        if (IC == 0) hel = hel + ECore
+    end function
+
 
       HElement_t function GetH0Element3(nI)
          ! Wrapper for GetH0Element.

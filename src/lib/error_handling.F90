@@ -1,3 +1,23 @@
+subroutine stop_all_c (sub_name, error_msg) bind(c, name='stop_all')
+    implicit none
+
+    interface
+        pure integer function strlen (str) bind(c)
+            implicit none
+            character(*), intent(in) :: str
+        end function
+    end interface
+
+    character(*), intent(in) :: sub_name, error_msg
+    character(len=strlen(sub_name)) :: sub_name_tmp
+    character(len=strlen(error_msg)) :: error_msg_tmp
+
+    sub_name_tmp = sub_name(1:len(sub_name_tmp))
+    error_msg_tmp = error_msg(1:len(error_msg_tmp))
+    call stop_all (sub_name_tmp, error_msg_tmp)
+end subroutine
+
+
 subroutine stop_all(sub_name,error_msg)
 != Stop calculation due to an error.
 != Exit with code 999.

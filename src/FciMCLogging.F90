@@ -9,7 +9,6 @@ MODULE FciMCLoggingMod
     USE SystemData , only : NEl,NIfTot,NIfDBO
     USE SymData , only : nSymLabels
     USE Determinants , only : get_helement, get_helement_excit
-    use GenRandSymExcitNUMod , only : GenRandSymExcitScratchNU,ScratchSize
     USE CalcData , only : NMCyc,StepsSft
     use DetBitOps, only: DetBitEQ, FindExcitBitDet, FindBitExcitLevel
     use constants, only: dp

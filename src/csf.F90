@@ -47,6 +47,20 @@ contains
         endif
     end function
 
+    ! TODO: This can be massively improved. Note that we have iLutI, iLutJ.
+    !       CSFGetHelement (nI, nJ) not needed? or does it call this?
+    function get_csf_helement (nI, nJ, iLutI, iLutJ, ic, ex, tParity, prob) &
+             result (hel)
+        integer, intent(in) :: nI(nel), nJ(nel), ic, ex(2,2)
+        integer, intent(in) :: iLutI(0:NIfTot), iLutJ(0:NIfTot)
+        logical, intent(in) :: tParity
+        real(dp), intent(in) :: prob
+        HElement_t :: hel
+
+        hel = CSFGetHelement (nI, nJ)
+
+    end function
+
     function CSFGetHelement (nI, nJ) result(hel_ret)
         
         ! Calculate the H-matrix element between two CSFs (nI, nJ)
