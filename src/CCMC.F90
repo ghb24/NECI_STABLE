@@ -76,7 +76,7 @@ MODULE CCMC
       Use Logging, only: CCMCDebug
       use DetBitOps, only: DecodeBitDet
         IMPLICIT NONE
-        INTEGER :: VecSlot,i,j,k,l,CopySign,iPartBloom
+        INTEGER :: VecSlot,i,j,k,l,CopySign
         INTEGER :: nJ(NEl),ierr,IC,Child,DetCurr(NEl),iLutnJ(0:NIfTot)
         REAL*8 :: Prob,rat,HDiagCurr,r
         INTEGER :: iDie,WalkExcitLevel,Proc
