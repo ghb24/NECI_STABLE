@@ -170,13 +170,16 @@ PROGRAM CalcVibSpectrum
                 enddo
                 OPEN(18,FILE="PUREVIB",status='unknown')
                 WRITE(18,'(A1,A6,3A30)') '#',' v','G_v (E_h)','G_v - G_0 (E_h)','G_v - G_0 (cm-1)'
-                WRITE(18,'(A1,A6,A30,2F30.10)') '#',' ZPO','---',Evectors(1),Evectors(1)*219474.63
                 do v=1,(Rpoints-1)
-! Only print points that have vibrational frequencies less than the depth of the well (well the depth of the ZPO since that where we vibrationally excite from).
+! Only print points that have vibrational frequencies less than the depth of the well (well the depth of the ZPE since that where we vibrationally excite from).
                     IF(((Evectors(v)*219474.63)-(Evectors(1)*219474.63)).lt.(ABS(Veq*219474.63)-(Evectors(1)*219474.63))) THEN
                         WRITE(18,'(I7,3F30.10)') (v-1),Evectors(v),(Evectors(v)-Evectors(1)),((Evectors(v)*219474.63)-(Evectors(1)*219474.63))
                     ENDIF
                 enddo
+                WRITE(18,'(A1,A6,A30,2F30.10)') '#',' ZPE','E_h : cm-1',Evectors(1),Evectors(1)*219474.63
+                WRITE(18,'(A1,A6,A30,2F30.10)') '#',' D_0','E_h : cm-1',ABS(Veq)-Evectors(1),((ABS(Veq)*219474.63)-(Evectors(1)*219474.63))
+                WRITE(18,'(A1,A6,A30,2F30.10)') '#',' D_e','E_h : cm-1',ABS(Veq),ABS(Veq)*219474.63
+                WRITE(18,'(A1,A6,A30,F30.10)') '#',' R_e','bohr',Requilib
                 CLOSE(18)
 
                 OPEN(18,FILE="POT.WAVFNS",status='unknown')

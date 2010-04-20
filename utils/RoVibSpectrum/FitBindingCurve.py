@@ -153,6 +153,8 @@ for i in range(len(aname)):
     f.write ("%.10f      %s \n" % (fit[i], aname[i]))
 f.close()
 
+show()
+
 print "\nCalling CalcVibSpectrum program..."
 print "This calculates the pure vibrational spectrum, which is printed in the PUREVIB file."
 print "A plot of the vibrational energy levels and wavefunction solutions can be viewed by loading GnuplotVib.gpi"
@@ -411,7 +413,7 @@ ax.legend(loc=1, markerscale=0.1)
 savefig('PlotsofFittings/Bv_vs_v.eps')
 #show()
 
-YkmFile.write (" %i      %.15f       %.15f       %.10f          %.10f\n" % (0,(fit5[0]*219474.63),(fit5[1]*219474.63),(fit5[2]*219474.63),(fit5[3]*219474.63)))
+YkmFile.write (" %i      %.15f       %.15f       %.10f          %.10f\n" % (1,(fit5[0]*219474.63),(fit5[1]*219474.63),(fit5[2]*219474.63),(fit5[3]*219474.63)))
 
 print "This fit gives a B_e value of: ",(fit5[0]*219474.63)
 print "and an alpha_e value of: ",(fit5[1]*219474.63*(-1.0))
@@ -487,11 +489,13 @@ ax.legend(loc=1, markerscale=0.1)
 savefig('PlotsofFittings/Dv_vs_v.eps')
 #show()
 
-YkmFile.write (" %i      %.15f       %.15f        %.10f           %.10f\n" % (0,(fit6[0]*219474.63),(fit6[1]*219474.63),(fit6[2]*219474.63),(fit6[3]*219474.63)))
+YkmFile.write (" %i      %.15f       %.15f        %.10f           %.10f\n" % (2,(fit6[0]*219474.63),(fit6[1]*219474.63),(fit6[2]*219474.63),(fit6[3]*219474.63)))
 
 print "This fit gives a D_e value of: ",(fit6[0]*219474.63)
 print "and a beta_e value of: ",(fit6[1]*219474.63)
 print "The fit is saved to Dv_vs_v.eps in the PlotsofFittings folder, and the coefficients and calculated constants printed in YkmDunhamCoeffs"
+print "Note: The very small values of D_v make the it difficult to get an accurate fit, therefore the D_e values from the minimum of the"
+print "potential curve (printed at the bottom of PUREVIB) are the values usually used."
 
 YkmFile.write (" %s                 %.15f                    %.10f\n" % ('omega_e (E_h : cm-1)',(fit4[1]),(fit4[1]*219474.63)))
 YkmFile.write (" %s                 %.15f                    %.10f\n" % ('B_e (E_h : cm-1)',(fit5[0]),(fit5[0]*219474.63)))
