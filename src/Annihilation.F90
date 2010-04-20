@@ -18,69 +18,70 @@ MODULE AnnihilationMod
     !TODO:
     !   H Elements - send through logical to decide whether to create or not.
     !   Parallel spawned parts - create the ValidSpawnedList itself.
-!    SUBROUTINE AnnihilationInterface(TotDets,MainParts,MainSign,MaxMainInd,SpawnDets,SpawnParts,SpawnSign,MaxSpawnInd)
-!!This is an interface routine to the Direct Annihilation routines.
-!!It is not quite as fast as the main annihilation routines since there is a small degree of initialisation required
-!!which can be achieved on-the-fly if increased performance is required.
-!
-!!       MainParts(:,:)      This is the main list of particles as determinants. It must be ordered, sign-coherent,
-!!                           (i.e. annihilation-free), and each determinant must only be specified once.
-!!                           The number of particles (with sign) on each determinant should be stored in MainSign,
-!!                           and there should not be a determinant entry with 'zero' particles associated with it.
-!!                           The fastest-moving index is associated with the bit-representation, i.e. 0 -> NIfTot
-!!                           This is returned as a list of all particles fully annihilated and merged maintaining order
-!!                           with the spawned list.
-!!       MaxMainInd          This is the size of the 'Main' lists (same on all processes).
-!!       TotDets             in: This is number of determinants specified in MainParticles on each process.
-!!                           out: This is the new number of determinants, having been annihilated and merged with the
-!!                                spawned list.
-!!       MainSign(:)         This is the signed number of particles on the determinants specified in the equivalent
-!!                           entry in the MainParticles array.
-!!       SpawnParts(:,:)     This is the list of particles to attempt to annihilate. Unlike the Main list, this list
-!!                           does *not* need to be ordered or sign coherent, and can also contain 'zero' sign particles.
-!!       MaxSpawnInd         This is the size of the SpawnParts array.
-!!       SpawnDets           This is the number of spawned particles in SpawnParts.
-!!       SpawnSign(:)        This is the signed number of particles on the determinants specified in the equivalent
-!!                           entry in the SpawnParts array.
-!
-!        INTEGER, INTENT(IN) :: MaxMainInd,MaxSpawnInd
-!        INTEGER, INTENT(INOUT) :: TotDets, MainParts(0:NIfTot,MaxMainInd),MainSign(MaxMainInd)
-!        INTEGER, INTENT(INOUT) :: SpawnParts(0:NIfTot,MaxSpawnInd),SpawnDets,SpawnSign(MaxSpawnInd)
-!        INTEGER :: ierr
-!        CHARACTER(len=*) , PARAMETER :: this_routine='AnnihilationInterface'
-!
-!        IF(.not.(ALLOCATED(ValidSpawnedList))) THEN
-!!This needs to be filled correctly before annihilation can take place.
-!            ALLOCATE(ValidSpawnedList(0:nProcessors-1),stat=ierr)
-!        ENDIF
-!        IF(.not.(ALLOCATED(SpawnVec2))) THEN
-!!This is required scratch space of the size of the spawned arrays
-!            ALLOCATE(SpawnVec2(0:NIfTot,MaxSpawnInd),stat=ierr)
-!            CALL LogMemAlloc('SpawnVec2',MaxSpawnInd*(NIfTot+1),4,this_routine,SpawnVec2Tag,ierr)
-!            SpawnVec2(:,:)=0
-!            ALLOCATE(SpawnSignVec2(0:MaxSpawnInd),stat=ierr)
-!            CALL LogMemAlloc('SpawnSignVec2',MaxSpawnInd+1,4,this_routine,SpawnSignVec2Tag,ierr)
-!            SpawnSignVec2(:)=0
-!        ENDIF
-!
-!        IF(nProcessors.eq.1) THEN
-!            ValidSpawnedList(0)=SpawnDets+1   !Add one since it always indicates the next free slot.
-!        ELSE
-!            CALL Stop_All(this_routine,"Ordering the SpawnedParts for parallel annihilation not yet implemented")
-!        ENDIF
-!
-!        MaxWalkersPart=MaxMainInd
-!!Point at correct arrays... will need to sort out how these are swapped in the main routine.
-!        CurrentDets => MainParts
-!        CurrentSign => MainSign
-!        SpawnedParts => SpawnDets
-!        SpawnedSign => SpawnSign
-!        SpawnedParts2 => SpawnVec2
-!        SpawnedSign2 => SpawnSignVec2
-!
-!        CALL DirectAnnihilation(TotDets)
-!
-!    END SUBROUTINE AnnihilationInterface
+    SUBROUTINE AnnihilationInterface(TotDets,MainParts,MainSign,MaxMainInd,SpawnDets,SpawnParts,SpawnSign,MaxSpawnInd)
+!This is an interface routine to the Direct Annihilation routines.
+!It is not quite as fast as the main annihilation routines since there is a small degree of initialisation required
+!which can be achieved on-the-fly if increased performance is required.
+
+!       MainParts(:,:)      This is the main list of particles as determinants. It must be ordered, sign-coherent,
+!                           (i.e. annihilation-free), and each determinant must only be specified once.
+!                           The number of particles (with sign) on each determinant should be stored in MainSign,
+!                           and there should not be a determinant entry with 'zero' particles associated with it.
+!                           The fastest-moving index is associated with the bit-representation, i.e. 0 -> NIfTot
+!                           This is returned as a list of all particles fully annihilated and merged maintaining order
+!                           with the spawned list.
+!       MaxMainInd          This is the size of the 'Main' lists (same on all processes).
+!       TotDets             in: This is number of determinants specified in MainParticles on each process.
+!                           out: This is the new number of determinants, having been annihilated and merged with the
+!                                spawned list.
+!       MainSign(:)         This is the signed number of particles on the determinants specified in the equivalent
+!                           entry in the MainParticles array.
+!       SpawnParts(:,:)     This is the list of particles to attempt to annihilate. Unlike the Main list, this list
+!                           does *not* need to be ordered or sign coherent, and can also contain 'zero' sign particles.
+!       MaxSpawnInd         This is the size of the SpawnParts array.
+!       SpawnDets           This is the number of spawned particles in SpawnParts.
+!       SpawnSign(:)        This is the signed number of particles on the determinants specified in the equivalent
+!                           entry in the SpawnParts array.
+
+        INTEGER, INTENT(IN) :: MaxMainInd,MaxSpawnInd
+        INTEGER, INTENT(INOUT) :: TotDets
+        INTEGER, INTENT(INOUT) , TARGET :: MainParts(0:NIfTot,MaxMainInd),SpawnParts(0:NIfTot,MaxSpawnInd),MainSign(MaxMainInd),SpawnSign(MaxSpawnInd)
+        INTEGER, INTENT(INOUT) :: SpawnDets
+        INTEGER :: ierr
+        CHARACTER(len=*) , PARAMETER :: this_routine='AnnihilationInterface'
+
+        IF(.not.(ALLOCATED(ValidSpawnedList))) THEN
+!This needs to be filled correctly before annihilation can take place.
+            ALLOCATE(ValidSpawnedList(0:nProcessors-1),stat=ierr)
+        ENDIF
+        IF(.not.(ALLOCATED(SpawnVec2))) THEN
+!This is required scratch space of the size of the spawned arrays
+            ALLOCATE(SpawnVec2(0:NIfTot,MaxSpawnInd),stat=ierr)
+            CALL LogMemAlloc('SpawnVec2',MaxSpawnInd*(NIfTot+1),4,this_routine,SpawnVec2Tag,ierr)
+            SpawnVec2(:,:)=0
+            ALLOCATE(SpawnSignVec2(0:MaxSpawnInd),stat=ierr)
+            CALL LogMemAlloc('SpawnSignVec2',MaxSpawnInd+1,4,this_routine,SpawnSignVec2Tag,ierr)
+            SpawnSignVec2(:)=0
+        ENDIF
+
+        IF(nProcessors.eq.1) THEN
+            ValidSpawnedList(0)=SpawnDets+1   !Add one since it always indicates the next free slot.
+        ELSE
+            CALL Stop_All(this_routine,"Ordering the SpawnedParts for parallel annihilation not yet implemented")
+        ENDIF
+
+        MaxWalkersPart=MaxMainInd
+!Point at correct arrays... will need to sort out how these are swapped in the main routine.
+        CurrentDets => MainParts
+        CurrentSign => MainSign
+        SpawnedParts => SpawnParts
+        SpawnedSign => SpawnSign
+        SpawnedParts2 => SpawnVec2
+        SpawnedSign2 => SpawnSignVec2
+
+        CALL DirectAnnihilation(TotDets)
+
+    END SUBROUTINE AnnihilationInterface
 
 
 !This is a new annihilation algorithm. In this, determinants are kept on predefined processors, and newlyspawned particles are sent here so that all the annihilations are
