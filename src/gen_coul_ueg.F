@@ -355,7 +355,7 @@ C..Cube arrays
       END
 
       SUBROUTINE GetUEGUmatEl(IDI,IDJ,IDK,IDL,ISS,G1,ALAT,
-     &      iExchangeDampingType,UMatEl,tOverrideExchange)
+     &      iExchangeDampingType,UMatEl)
          use SystemData, only: BasisFN
          IMPLICIT NONE
          INTEGER IDI,IDJ,IDK,IDL,ISS
@@ -364,15 +364,6 @@ C..Cube arrays
          INTEGER I,J,K,L,A,B,C
          REAL*8 UMatEl,ALAT(4),G,G2
          LOGICAL TCOULOMB,TEXCHANGE
-         logical :: tOverrideExchange
-            ! This is either true - when called by sltcnd_2
-            ! or false, every other time
-            ! When true, it overrides the exchange flag to FALSE
-            ! The reason for this is that a double can never be of the form
-            ! < ij | ji >
-            ! However, < ij | ab > type integrals can appear as < ij | ji >
-            ! integrals to this routine when i and b share spatial orbitals
-            ! and so do j and a (as required by momentum conservation).
          REAL*8, PARAMETER :: PI=3.1415926535897932384626433832795029D0
          I=(IDI-1)*ISS+1
          J=(IDJ-1)*ISS+1
@@ -382,7 +373,6 @@ C..Cube arrays
          TEXCHANGE=.FALSE.
          IF(I.EQ.K.AND.J.EQ.L) TCOULOMB=.TRUE.
          IF(I.EQ.L.AND.J.EQ.K) TEXCHANGE=.TRUE.
-         if(tOverrideExchange) tExchange=.false.
 !   The Uniform electron gas
          A=G1(I)%k(1)-G1(K)%k(1)
          B=G1(I)%k(2)-G1(K)%k(2)

@@ -13,16 +13,24 @@
 MODULE FciMCParMod
     use SystemData , only : NEl,Alat,Brr,ECore,G1,nBasis,nBasisMax,nMsh,Arr,LMS,tHPHF,NIfD,NIfTot,NIfDBO,NIfY
     use SystemData , only : tHub,tReal,tRotatedOrbs,tFindCINatOrbs,tFixLz,LzTot,tUEG, tLatticeGens,tCSF
-    use CalcData , only : InitWalkers,NMCyc,DiagSft,Tau,SftDamp,StepsSft,OccCASorbs,VirtCASorbs,tFindGroundDet
-    use CalcData , only : NEquilSteps,TReadPops,tRegenDiagHEls
-    use CalcData , only : GrowMaxFactor,CullFactor,TStartSinglePart,ScaleWalkers,MaxNoatHF,HFPopThresh
-    use CalcData , only : tCCMC,tTruncCAS,tTruncInitiator,tDelayTruncInit,IterTruncInit,NShiftEquilSteps,tWalkContGrow,tMCExcits,NoMCExcits
-    use HPHFRandExcitMod , only : FindExcitBitDetSym,GenRandHPHFExcit,GenRandHPHFExcit2Scratch
-    use Determinants, only: FDet, get_helement, write_det
+    use CalcData, only: InitWalkers, NMCyc, DiagSft, Tau, SftDamp, StepsSft, &
+                        OccCASorbs, VirtCASorbs, tFindGroundDet, NEquilSteps,&
+                        tReadPops, tRegenDiagHEls, iFullSpaceIter, MaxNoAtHF,&
+                        GrowMaxFactor, CullFactor, tStartSinglePart, tCCMC, &
+                        ScaleWalkers, HFPopThresh, tTruncCAS, NoMCExcits, &
+                        tTruncInitiator, tDelayTruncInit, IterTruncInit, &
+                        NShiftEquilSteps, tWalkContGrow, tMCExcits, &
+                        tAddToInitiator, InitiatorWalkNo, tInitIncDoubs
+    use HPHFRandExcitMod, only: FindExcitBitDetSym, GenRandHPHFExcit, &
+                                gen_hphf_excit
+    use Determinants, only: FDet, get_helement, write_det, &
+                            get_helement_det_only
     USE DetCalc , only : ICILevel,nDet,Det,FCIDetIndex
-    use GenRandSymExcitNUMod , only : GenRandSymExcitScratchNU,GenRandSymExcitNU,ScratchSize
+    use GenRandSymExcitNUMod, only: gen_rand_excit, GenRandSymExcitNU, &
+                                    ScratchSize
+    use GenRandSymExcitCSF, only: gen_csf_excit
     use IntegralsData , only : fck,NMax,UMat,tPartFreezeCore,NPartFrozen,NHolesFrozen,tPartFreezeVirt,NVirtPartFrozen,NElVirtFrozen
-    USE UMatCache , only : GTID
+    use UMatCache, only: GTID, UMatInd
     USE Logging , only : iWritePopsEvery,TPopsFile,iPopsPartEvery,tBinPops,tHistSpawn,iWriteHistEvery,tHistEnergies,IterShiftBlock,AllHistInitPops
     USE Logging , only : BinRange,iNoBins,OffDiagBinRange,OffDiagMax,AllHistInitPopsTag
     USE Logging , only : tPrintFCIMCPsi,tCalcFCIMCPsi,NHistEquilSteps,tPrintOrbOcc,StartPrintOrbOcc
@@ -35,29 +43,142 @@ MODULE FciMCParMod
     USE AnnihilationMod
     use DetBitops, only: EncodeBitDet, DecodeBitDet, DetBitEQ, DetBitLT
     use DetBitOps, only: FindExcitBitDet, FindBitExcitLevel
-    use csf, only: get_csf_bit_yama, iscsf, csf_orbital_mask
-    use hphf_integrals, only: hphf_diag_helement, hphf_off_diag_helement
+    use csf, only: get_csf_bit_yama, iscsf, csf_orbital_mask, get_csf_helement
+    use hphf_integrals, only: hphf_diag_helement, hphf_off_diag_helement, &
+                              hphf_spawn_sign, hphf_off_diag_helement_spawn
     use util_mod, only: choose
     use constants, only: dp
-    IMPLICIT NONE
-    SAVE
+    use soft_exit, only: ChangeVars 
+    use FciMCLoggingMod, only: FinaliseBlocking, FinaliseShiftBlocking, &
+                               PrintShiftBlocking, PrintBlocking, &
+                               SumInErrorContrib, WriteInitPops
+    use RotateOrbsMod, only: RotateOrbs
+    use NatOrbsMod, only: PrintOrbOccs
+    implicit none
+
+    interface
+        subroutine call_fcimc_cyc_par () bind(c)
+        end subroutine
+
+
+        ! **********************************************************
+        ! ************************* NOTE ***************************
+        ! ANY changes to the following interfaces MUST be replicated in the
+        ! interface declarations for the function pointers passed into
+        ! FciMCycPar
+        ! --> Otherwise BAD things (may) happen at runtime, in a
+        !     non-deterministic (but probably segfault) manner.
+        ! **********************************************************
+        subroutine set_excit_generator (gen) bind(c)
+            implicit none
+            interface
+                subroutine gen (nI, iLutI, nJ, iLutJ, &
+                                 exFlag, IC, ex, tParity, pGen, tFilled, &
+                                 scratch1, scratch2, scratch3)
+
+                    use SystemData, only: nel, niftot
+                    use GenRandSymExcitNUMod, only: scratchsize
+                    implicit none
+
+                    integer, intent(in) :: nI(nel), iLutI(0:niftot)
+                    integer, intent(in) :: exFlag
+                    integer, intent(inout) :: scratch1(scratchsize)
+                    integer, intent(inout) :: scratch2(scratchsize)
+                    integer, intent(inout) :: scratch3(scratchsize)
+                    integer, intent(out) :: nJ(nel), iLutJ(0:niftot)
+                    integer, intent(out) :: ic, ex(2,2)
+                    real*8, intent(out) :: pGen
+                    logical, intent(inout) :: tFilled
+                    logical, intent(out) :: tParity
+                end subroutine
+            end interface
+        end subroutine
+        subroutine set_attempt_create (attempt_create) bind(c)
+            implicit none
+            interface
+            function attempt_create (get_spawn_helement, nI, iLutI, wSign, &
+                                     nJ, iLutJ, prob, ic, ex, tPar, exLevel)&
+                                     result(child)
+                use SystemData, only: nel, niftot
+                use constants, only: dp
+                implicit none
+                integer, intent(in) :: nI(nel), iLutI(0:nIfTot), nJ(nel)
+                integer, intent(inout) :: iLutJ(0:nIfTot)
+                integer, intent(in) :: wSign, ic, ex(2,2), exLevel
+                logical, intent(in) :: tPar
+                real(dp), intent(inout) :: prob
+                integer :: child
+
+                interface
+                    function get_spawn_helement (nI, nJ, ilutI, ilutJ, ic, &
+                                                 ex, tParity, prob) &
+                                                 result (hel)
+                        use SystemData, only: nel, niftot
+                        use constants, only: dp
+                        implicit none
+                        integer, intent(in) :: nI(nel), nJ(nel)
+                        integer, intent(in) :: iLutI(0:niftot),iLutJ(0:niftot)
+                        integer, intent(in) :: ic, ex(2,2)
+                        logical, intent(in) :: tParity
+                        real(dp), intent(in) :: prob
+                        HElement_t :: hel
+                    end function
+                end interface
+            end function
+            end interface
+        end subroutine
+        subroutine set_get_spawn_helement (get_spawn_helement) bind(c)
+            implicit none
+            interface
+                function get_spawn_helement (nI, nJ, ilutI, ilutJ, ic, &
+                                             ex, tParity, prob) result (hel)
+                    use SystemData, only: nel, niftot
+                    use constants, only: dp
+                    implicit none
+                    integer, intent(in) :: nI(nel), nJ(nel)
+                    integer, intent(in) :: iLutI(0:niftot),iLutJ(0:niftot)
+                    integer, intent(in) :: ic, ex(2,2)
+                    logical, intent(in) :: tParity
+                    real(dp), intent(in) :: prob
+                    HElement_t :: hel
+                end function
+            end interface
+        end subroutine
+        subroutine set_encode_child (encode_child) bind(c)
+            implicit none
+            interface
+                subroutine encode_child (ilutI, ilutJ, ic, ex)
+                    use SystemData, only: nel, niftot
+                    implicit none
+                    integer, intent(in) :: iLutI(0:nifTot), ic, ex(2,2)
+                    integer, intent(out) :: iLutJ(0:nIfTot)
+                end subroutine
+            end interface
+        end subroutine
+        subroutine set_new_child_stats (new_child_stats) bind(c)
+            implicit none
+            interface
+                subroutine new_child_stats (iLutI, iLutJ, ic, walkExLevel, &
+                                            child)
+                    use SystemData, only: nel, niftot
+                    implicit none
+                    integer, intent(in) :: ilutI(0:niftot), iLutJ(0:niftot)
+                    integer, intent(in) :: ic, walkExLevel, child
+                end subroutine
+            end interface
+        end subroutine
+    end interface
 
     contains
 
 #ifdef PARALLEL
 
     SUBROUTINE FciMCPar(Weight,Energyxw)
-        use soft_exit, only : ChangeVars 
-        use CalcData, only : iFullSpaceIter
-        use UMatCache, only : UMatInd
-        use FciMCLoggingMOD , only : FinaliseBlocking,FinaliseShiftBlocking,PrintShiftBlocking,PrintBlocking
-        USE FciMCLoggingMOD , only : SumInErrorContrib,WriteInitPops
-        use RotateOrbsMod , only : RotateOrbs
-        use NatOrbsMod , only : PrintOrbOccs
-        TYPE(HDElement) :: Weight,Energyxw
+
+        real(dp) :: Weight, Energyxw
         INTEGER :: i,j,error,HFConn
         CHARACTER(len=*), PARAMETER :: this_routine='FciMCPar'
-        TYPE(HElement) :: Hamii
+        HElement_t :: Hamii
         LOGICAL :: TIncrement,tWritePopsFound,tSoftExitFound,tSingBiasChange
         REAL(4) :: s,etime,tstart(2),tend(2)
         INTEGER :: MaxWalkers,MinWalkers
@@ -70,11 +191,17 @@ MODULE FciMCParMod
 !        CALL MPI_Comm_set_errhandler(MPI_COMM_WORLD,MPI_ERRORS_RETURN,error)
 !        CALL MPI_Comm_set_errhandler(MPI_COMM_WORLD,MPI_ERRORS_ARE_FATAL,error)
         
-        CALL SetupParameters()
-        CALL InitFCIMCCalcPar()
-        CALL WriteFciMCStatsHeader()
+        call SetupParameters()
+        call InitFCIMCCalcPar()
+        call init_fcimc_fn_pointers () 
 
-        CALL WriteFCIMCStats()
+        ! Initial output
+        call WriteFciMCStatsHeader()
+        call WriteFCIMCStats()
+
+        ! Put a barrier here so all processes synchronise before we begin.
+        call MPI_Barrier(MPI_COMM_WORLD,error)
+
 
 !Start MC simulation...
         TIncrement=.true.   !If TIncrement is true, it means that when it comes out of the loop, it wants to subtract 1 from the Iteration count to get the true number of iterations
@@ -87,7 +214,7 @@ MODULE FciMCParMod
             IF(tCCMC) THEN
                 CALL PerformCCMCCycPar()
             ELSE
-                CALL PerformFCIMCycPar()
+                call call_fcimc_cyc_par ()
             ENDIF
             s=etime(tend)
             IterTime=IterTime+(tend(1)-tstart(1))
@@ -189,8 +316,8 @@ MODULE FciMCParMod
 
         IF(tHistHamil) CALL WriteHamilHistogram()
 
-        Weight=HDElement(0.D0)
-        Energyxw=HDElement(ProjectionE)
+        Weight=(0.D0)
+        Energyxw=(ProjectionE)
 
         IF(tHistEnergies) CALL WriteHistogramEnergies()
 
@@ -225,31 +352,110 @@ MODULE FciMCParMod
 
 
 !This is the heart of FCIMC, where the MC Cycles are performed.
-    SUBROUTINE PerformFCIMCycPar()
-        USE FciMCLoggingMOD , only : TrackSpawnAttempts
-        use GenRandSymExcitCSF, only: GenRandSymCSFExcit
-        USE CalcData , only : tAddtoInitiator,InitiatorWalkNo,tInitIncDoubs
-        use detbitops, only : countbits
-        INTEGER :: VecSlot,i,j,k,l,CopySign,Loop,iPartBloom
-        INTEGER :: nJ(NEl),ierr,IC,Child,iCount,DetCurr(NEl),iLutnJ(0:NIfTot)
-        REAL*8 :: Prob,rat,HDiag,HDiagCurr
-        INTEGER :: iDie,WalkExcitLevel,Proc             !Indicated whether a particle should self-destruct on DetCurr
-        INTEGER :: ExcitLevel,TotWalkersNew,iGetExcitLevel_2,error,length,temp,Ex(2,2),WSign,p,Scratch1(ScratchSize),Scratch2(ScratchSize),Scratch3(Scratchsize),FDetSym,FDetSpin
-        LOGICAL :: tParity,tMainArr,tFilled,TestClosedShellDet,tHFFound,tHFFoundTemp
-        INTEGER(KIND=i2) :: HashTemp
-        TYPE(HElement) :: HDiagTemp
-        CHARACTER(LEN=MPI_MAX_ERROR_STRING) :: message
-        REAL :: Gap
-        
-        CALL set_timer(Walker_Time,30)
+    subroutine PerformFCIMCycPar(generate_excitation, attempt_create, &
+                                 get_spawn_helement, encode_child, &
+                                 new_child_stats) bind(c)
 
-        IF(TDebug.and.(mod(Iter,10).eq.0)) THEN
-            WRITE(11,*) Iter,TotWalkers,NoatHF,NoatDoubs,MaxIndex,TotParts
-            CALL FLUSH(11)
-        ENDIF
+        USE FciMCLoggingMOD , only : TrackSpawnAttempts
+        use detbitops, only : countbits
+
+        ! **********************************************************
+        ! ************************* NOTE ***************************
+        ! ANY changes to the following interfaces MUST be replicated in the
+        ! interface declarations for the function pointer setting functions
+        ! at the top of the module.
+        ! --> Otherwise BAD things (may) happen at runtime, in a
+        !     non-deterministic (but probably segfault) manner.
+        ! **********************************************************
+        interface
+            subroutine generate_excitation (nI, iLutI, nJ, iLutJ, &
+                             exFlag, IC, ex, tParity, pGen, tFilled, &
+                             scratch1, scratch2, scratch3)
+                use SystemData, only: nel, niftot
+                use GenRandSymExcitNUMod, only: scratchsize
+                use constants, only: dp
+                implicit none
+                integer, intent(in) :: nI(nel), iLutI(0:niftot)
+                integer, intent(in) :: exFlag
+                integer, intent(inout) :: scratch1(scratchsize)
+                integer, intent(inout) :: scratch2(scratchsize)
+                integer, intent(inout) :: scratch3(scratchsize)
+                integer, intent(out) :: nJ(nel), iLutJ(0:niftot)
+                integer, intent(out) :: ic, ex(2,2)
+                real(dp), intent(out) :: pGen
+                logical, intent(inout) :: tFilled
+                logical, intent(out) :: tParity
+            end subroutine
+            function attempt_create (get_spawn_helement, nI, iLutI, wSign, &
+                                     nJ, iLutJ, prob, ic, ex, tPar, exLevel)&
+                                     result(child)
+                use SystemData, only: nel, niftot
+                use constants, only: dp
+                implicit none
+                integer, intent(in) :: nI(nel), iLutI(0:nIfTot), nJ(nel)
+                integer, intent(inout) :: iLutJ(0:nIfTot)
+                integer, intent(in) :: wSign, ic, ex(2,2), exLevel
+                logical, intent(in) :: tPar
+                real(dp), intent(inout) :: prob
+                integer :: child
+
+                interface
+                    function get_spawn_helement (nI, nJ, ilutI, ilutJ, ic, &
+                                                 ex, tParity, prob) &
+                                                 result (hel)
+                        use SystemData, only: nel, niftot
+                        use constants, only: dp
+                        implicit none
+                        integer, intent(in) :: nI(nel), nJ(nel)
+                        integer, intent(in) :: iLutI(0:niftot),iLutJ(0:niftot)
+                        integer, intent(in) :: ic, ex(2,2)
+                        logical, intent(in) :: tParity
+                        real(dp), intent(in) :: prob
+                        HElement_t :: hel
+                    end function
+                end interface
+            end function
+            function get_spawn_helement (nI, nJ, ilutI, ilutJ, ic, &
+                                         ex, tParity, prob) result (hel)
+                use SystemData, only: nel, niftot
+                use constants, only: dp
+                implicit none
+                integer, intent(in) :: nI(nel), nJ(nel)
+                integer, intent(in) :: iLutI(0:niftot),iLutJ(0:niftot)
+                integer, intent(in) :: ic, ex(2,2)
+                logical, intent(in) :: tParity
+                real(dp), intent(in) :: prob
+                HElement_t :: hel
+            end function
+            subroutine encode_child (ilutI, ilutJ, ic, ex)
+                use SystemData, only: nel, niftot
+                implicit none
+                integer, intent(in) :: ilutI(0:niftot), ic, ex(2,2)
+                integer, intent(out) :: iLutJ(0:nIfTot)
+            end subroutine
+            subroutine new_child_stats (iLutI, iLutJ, ic, walkExLevel, child)
+                use SystemData, only: nel, niftot
+                implicit none
+                integer, intent(in) :: ilutI(0:niftot), iLutJ(0:niftot)
+                integer, intent(in) :: ic, walkExLevel, child
+            end subroutine
+        end interface
+
+        ! Now the local, iteration specific, variables
+        integer :: VecSlot, j, p, error
+        integer :: DetCurr(nel), nJ(nel), iLutnJ(0:niftot)
+        integer :: IC, child, walkExcitLevel, ex(2,2), TotWalkersNew
+        integer, dimension(ScratchSize) :: scratch1, scratch2, scratch3
+        integer(i2) :: HashTemp
+        logical :: tFilled, tParity, tHFFound, tHFFoundTemp
+        real(dp) :: prob, HDiagCurr
+        HElement_t :: HDiagTemp
+
+        call set_timer(Walker_Time,30)
 
         IF(tDelayTruncInit.and.(Iter.ge.IterTruncInit)) THEN 
             IF(Iter.eq.IterTruncInit) THEN
+                ! Why do this? Why not just get all procs to do division?
                 IF(iProcIndex.eq.root) THEN
                     Tau=Tau/10.D0
                     WRITE(6,'(A,F10.5)') 'Beginning truncated initiator calculation and reducing tau by a factor of 10. New tau is : ',Tau
@@ -259,329 +465,254 @@ MODULE FciMCParMod
             tTruncInitiator=.true.
         ENDIF
 
-        tHFFound=.false.
-        tHFFoundTemp=.false.
-        IF(tHFInitiator) THEN
-            IF(iProcIndex.ne.iHFProc) THEN
-!The processor with the HF determinant on it will have to check through each determinant until its found.            
-                tHFFound=.true.
-            ENDIF
-        ENDIF        
-        
         MaxInitPopPos=0
         MaxInitPopNeg=0
         HighPopNeg=1
         HighPopPos=1
 
+        ! Synchronise processors
         CALL MPI_Barrier(MPI_COMM_WORLD,error)
 
-!VecSlot indicates the next free position in NewDets
-        VecSlot=1
-!Reset number at HF and doubles
-        NoatHF=0
-        NoatDoubs=0
-        iPartBloom=0
-!ValidSpawndList now holds the next free position in the newly-spawned list, but for each processor.
-        ValidSpawnedList(:)=InitialSpawnedSlots(:)
-        tHFFound=.false.
-        tHFFoundTemp=.false.
-        IF(iProcIndex.ne.iHFProc) tHFFound=.true.
-!The processor with the HF determinant on it will have to check through each determinant until its found. Once found, tHFFound is true and it no longer needs to be checked.           
-        CALL InitHistMin()
+        ! Reset iteration variables
+        VecSlot = 1    ! Next position to write into CurrentDets
+        NoatHF = 0     ! Number at HF and doubles for stats
+        NoatDoubs = 0
+        iPartBloom = 0 ! Max number spawned from an excitation
+        ! Next free position in newly spawned list.
+        ValidSpawnedList = InitialSpawnedSlots
+        tHFFound = .false.
+        tHFFoundTemp = .false.
+        
+        ! The processor with the HF determinant on it will have to check 
+        ! through each determinant until it's found. Once found, tHFFound is
+        ! true, and it no longer needs to be checked.
+        if (iProcIndex /= iHFProc) tHFFound = .true.
 
+        ! Initialise histograms if necessary
+        call InitHistMin()
 
+        ! This is a bit of a hack based on the fact that we mean something 
+        ! different by exFlag for CSFs than in normal determinential code.
+        ! It would be nice to fix this properly
+        if (tCSF) exFlag = 7
+        
         do j=1,TotWalkers
-!j runs through all current walkers
-!If we are rotoannihilating/direct annihilating, the sign indicates the sum of the signs on the determinant, and hence j loops over determinants, not particles.
-!            WRITE(6,*) 'Iter: j : TotWalkers',Iter,j,TotWalkers
-!            CALL FLUSH(6)
+            ! N.B. j indicates the number of determinants, not the number
+            !      of walkers.
 
-!First, decode the bit-string representation of the determinant the walker is on, into a string of naturally-ordered integers
-!            WRITE(6,*) 'CurrentDet (bit)',CurrentDets(:,j)
-            CALL DecodeBitDet(DetCurr,CurrentDets(:,j))
+            ! Decode determinant from (stored) bit-representation.
+            call DecodeBitDet(DetCurr,CurrentDets(:,j))
 
-!Also, we want to find out the excitation level - we only need to find out if its connected or not (so excitation level of 3 or more is ignored.
-!This can be changed easily by increasing the final argument.
+            ! TODO: The next couple of bits could be done automatically
 
-            IF(tTruncSpace.or.tHistSpawn.or.tCalcFCIMCPsi.or.tHistHamil) THEN
-!We need to know the exact excitation level for truncated calculations.
-                WalkExcitLevel = FindBitExcitLevel(iLutRef, CurrentDets(:,j),nel)
-            ELSE
-                WalkExcitLevel = FindBitExcitLevel(iLutRef, CurrentDets(:,j),2)
-            ENDIF
+            ! We only need to find out if determinant is connected to the
+            ! reference (so no ex. level above 2 required, except for HPHF
+            ! or truncated etc.)
+            walkExcitLevel = FindBitExcitLevel (iLutRef, CurrentDets(:,j), &
+                                                max_calc_ex_level)
 
-            IF(tRegenDiagHEls) THEN
-!We are not storing the diagonal hamiltonian elements for each particle. Therefore, we need to regenerate them.
-!Need to find H-element!
-                IF(DetBitEQ(CurrentDets(0:NIfTot,j),iLutHF,NIfDBO).and.(.not.(tHub.and.tReal))) THEN
-!We know we are at HF - HDiag=0
-                    HDiagCurr=0.D0
-                ELSE
+            ! Should be able to make this function pointer-able
+            if (tRegenDiagHEls) then
+                ! We are not storing the diagonal hamiltonian elements for 
+                ! each particle. Therefore, we need to regenerate them.
+                if (DetBitEQ(CurrentDets(:,j), iLutHF, NIfDBO) .and. &
+                    (.not.(tHub .and. tReal))) then
+                    HDiagCurr = 0
+                else
                     if (tHPHF) then
                         HDiagtemp = hphf_diag_helement (DetCurr,CurrentDets(:,j))
                     else
                         HDiagTemp = get_helement (DetCurr, DetCurr, 0)
                     endif
-                    HDiagCurr=(REAL(HDiagTemp%v,dp))-Hii
-                ENDIF
-            ELSE
-!HDiags are stored.
-                HDiagCurr=CurrentH(j)
-            ENDIF
-            IF(tFindGroundDet) THEN
-                IF(HDiagCurr.lt.0.D0) THEN
-!We have found a determinant lower in energy that the "root" determinant.
-!This should not happen in a HF basis, but can happen if the orbitals have been rotated.
-                    CALL ChangeRefDet(HDiagCurr,DetCurr,CurrentDets(:,j))
-                    EXIT
-                ENDIF
-            ENDIF
+                    HDiagCurr = real(HDiagTemp, dp)-Hii
+                endif
+            else
+                ! HDiags are stored.
+                HDiagCurr = CurrentH(j)
+            endif
+
+            ! Test if we have found a determinant which is lower in E than
+            ! the 'root' determinant. Should not happen in an (unrotated)
+            ! HF basis.
+            if (tFindGroundDet .and. HDiagCurr < 0) then
+                call ChangeRefDet (HDiagCurr, DetCurr, CurrentDets(:,j))
+                exit
+            endif
 
             ! Sum in any energy contribution from the determinant, including 
             ! other parameters, such as excitlevel info.
             ! This is where the projected energy is calculated.
-            call SumEContrib (DetCurr, WalkExcitLevel, CurrentSign(j),CurrentDets(:,j), HDiagCurr, 1.d0)
+            call SumEContrib (DetCurr, WalkExcitLevel, CurrentSign(j), &
+                              CurrentDets(:,j), HDiagCurr, 1.d0)
 
-            IF(tTruncInitiator) CALL CalcParentFlag(j,tHFFound,tHFFoundTemp,VecSlot,Iter)
+            IF(tTruncInitiator) &
+                call CalcParentFlag(j, tHFFound, tHFFoundTemp, VecSlot, Iter)
 
-!            IF(Iter.gt.20) WRITE(6,*) 'CurrentSign(highpopflip)',CurrentSign(HighPopFlip)
+            ! Indicate that the scratch storage used for excitation generation
+            ! from the same walker has not been filled (it is filled when we
+            ! excite from the first particle on a determinant).
+            tfilled = .false.
 
-            tFilled=.false.     !This is for regenerating excitations from the same determinant multiple times. There will be a time saving if we can store the excitation generators temporarily.
-            IF(tMCExcits) THEN
-!Multiple spawning attempt per walker.
-                Loop=abs(CurrentSign(j))*NoMCExcits
-            ELSE
-!Here, we spawn each particle on the determinant in a seperate attempt.
-                Loop=abs(CurrentSign(j))
-            ENDIF
+            ! Loop over all the particles on the determinant. CurrentSign has
+            ! number of walkers. Multiply up by noMCExcits if attempting 
+            ! multiple excitations from each walker (default 1)
+            do p = 1, abs(CurrentSign(j)) * noMCExcits
+                ! Generate a (random) excitation
+                call generate_excitation (DetCurr, CurrentDets(:,j), nJ, &
+                               ilutnJ, exFlag, IC, ex, tParity, prob, &
+                               tFilled, scratch1, scratch2, scratch3)
 
-            do p=1,Loop
-!we are simply looping over all the particles on the determinant
-                
-                IF(tHPHF) THEN
-!                    CALL GenRandHPHFExcit(DetCurr,CurrentDets(:,j),nJ,iLutnJ,pDoubles,exFlag,Prob)
-                    CALL GenRandHPHFExcit2Scratch(DetCurr,CurrentDets(:,j),nJ,iLutnJ,pDoubles,exFlag,Prob,Scratch1,Scratch2,tFilled,tGenMatHEl)
-                elseif (tCSF) then
-                    ! This is a bit of a hack based on the fact
-                    ! that we mean something different by exFlag
-                    ! than the normal determinential code.
-                    exFlag = 7
-                    call GenRandSymCSFExcit (DetCurr, CurrentDets(:,j), nJ, pSingles, pDoubles, IC, Ex, exFlag, Prob, Scratch1, Scratch2, Scratch3, tFilled, tParity)
+                ! If a valid excitation, see if we should spawn children.
+                if (.not. IsNullDet(nJ)) then
+                    child = attempt_create (get_spawn_helement, DetCurr, &
+                                        CurrentDets(:,j), CurrentSign(j), &
+                                        nJ,iLutnJ, Prob, IC, ex, tParity, &
+                                        walkExcitLevel)
                 else
-                    CALL GenRandSymExcitScratchNU(DetCurr,CurrentDets(:,j),nJ,pDoubles,IC,Ex,tParity,exFlag,Prob,Scratch1,Scratch2,tFilled)
-!                    WRITE(6,'(A,8I3)') 'determinant generated for spawning',nJ
-                ENDIF
+                    child = 0
+                endif
 
-!Calculate number of children to spawn
-                IF(IsNullDet(nJ)) THEN
-                    Child=0
-                ELSEIF((tTruncCAS.and.(.not.tTruncInitiator)).or.TTruncSpace.or.tPartFreezeCore.or.tPartFreezeVirt.or.tFixLz.or.tUEG) THEN
-!We have truncated the excitation space at a given excitation level. See if the spawn should be allowed.
-!If we are using the CASStar - all spawns are allowed so no need to check.
-!                    WRITE(6,*) 'cheking if a spawn is allowed'
-!                    WRITE(6,*) 'tTruncSpace',tTruncSpace
-!                    WRITE(6,*) 'tTruncCAS',tTruncCAS
-!                    WRITE(6,*) 'tTruncInitiator',tTruncInitiator
-                    IF(.not.tHPHF) call EncodeBitDet (nJ, iLutnJ)
-                    IF(CheckAllowedTruncSpawn(WalkExcitLevel,nJ,iLutnJ,IC)) THEN
-                        Child=AttemptCreatePar(DetCurr,CurrentDets(:,j),CurrentSign(j),nJ,iLutnJ,Prob,IC,Ex,tParity)
-                    ELSE
-!Attempted excitation is above the excitation level cutoff - do not allow the creation of children
-                        Child=0
-                    ENDIF
-                ELSE
-!SD Space is not truncated - allow attempted spawn as usual
+                if (child /= 0) then
+                    ! We know we want to create a particle, so encode the bit
+                    ! representation if it isn't already.
+                    call encode_child (CurrentDets(:,j), iLutnJ, ic, ex)
 
-!                    WRITE(6,'(A,3I20,A,8I3)') 'Child to be created from:',CurrentDets(:,j),' which is ',DetCurr(:)
-!                    WRITE(6,'(A,3I20,A,8I3)') 'Child to be created on:',iLutnJ(:),' which is ',nJ(:)
-                    !print*, 'attempt create'
-                    Child=AttemptCreatePar(DetCurr,CurrentDets(:,j),CurrentSign(j),nJ,iLutnJ,Prob,IC,Ex,tParity)
-                    !print*, 'attempted'
-                    !if (child /= 0) then
-                        !WRITE(6,'(A,3I20)') 'Child to be created on:',iLutnJ(:)
-                        !WRITE(6,*) 'Child',Child
-                    !endif
+                    call new_child_stats (CurrentDets(:,j), iLutnJ, ic, &
+                                          child, walkExcitLevel)
 
-                ENDIF
-
-                IF(Child.ne.0) THEN
-
-
-                    IF(tHistHamil) THEN
-                        CALL AddHistHamilEl(CurrentDets(:,j),iLutnJ,WalkExcitLevel,Child,1)   !Histogram the hamiltonian - iLutnI,iLutnJ,Excitlevel of parent,spawning indicator
-                    ENDIF
-
-!                    WRITE(6,'("Spawning particle to:")',advance='no')
-!                    call writedet(6,nJ,nel,.true.)
-!                    ExcitLevel=iGetExcitLevel_2(HFDet,nJ,NEl,NEl)
-!                    WRITE(6,*) "Excitlevel:", ExcitLevel
-                    NoBorn=NoBorn+abs(Child)     !Update counter about particle birth
-                    IF(IC.eq.1) THEN
-                        SpawnFromSing=SpawnFromSing+abs(Child)
-                    ENDIF
-
-                    IF(tAddtoInitiator.and.(abs(Child).gt.InitiatorWalkNo)) THEN
-                        IF(abs(Child).gt.abs(iPartBloom)) THEN
-                            IF(IC.eq.1) THEN
-                                iPartBloom=-abs(Child)
-                            ELSE
-                                iPartBloom=abs(Child)
-                            ENDIF
-                        ENDIF
-                    ELSEIF(abs(Child).gt.25) THEN
-!If more than 25 particles are created in one go, then log this fact and print out later that this has happened.
-                        IF(abs(Child).gt.abs(iPartBloom)) THEN
-                            IF(IC.eq.1) THEN
-                                iPartBloom=-abs(Child)
-                            ELSE
-                                iPartBloom=abs(Child)
-                            ENDIF
-                        ENDIF
-                    ENDIF
-
-!In direct annihilation, we spawn particles into a seperate array, but we do not store them contiguously in the SpawnedParts/SpawnedSign arrays.
-!The processor that the newly-spawned particle is going to be sent to has to be determined, and then it will get put into the the appropriate element determined by ValidSpawnedList.
-                    !WRITE(6,'(A,3I20)') 'when dealing with directannihilation',iLutnJ(:)
-                    Proc=DetermineDetProc(iLutnJ)   !This wants to return a value between 0 -> nProcessors-1
-                    !WRITE(6,*) iLutnJ(:),Proc,ValidSpawnedList(Proc),Child,TotWalkers
-                    !CALL FLUSH(6)
-                    SpawnedParts(:,ValidSpawnedList(Proc))=iLutnJ(:)
-                    SpawnedSign(ValidSpawnedList(Proc))=Child
-                    IF(tTruncInitiator) SpawnedParts(NIfTot,ValidSpawnedList(Proc))=ParentInitiator
-!                        WRITE(6,*) 'SpawnedParts',SpawnedParts(:,ValidSpawnedList(Proc))
-                    ValidSpawnedList(Proc)=ValidSpawnedList(Proc)+1
-!Set the last integer of the determinant in SpawnedParts to be either 0 or 1 according to whether it's parent is inside or outside the active space.
-
-                    Acceptances=Acceptances+ABS(Child)      !Sum the number of created children to use in acceptance ratio
+                    call create_particle (iLutnJ, child)
                 
-                ENDIF   !End if child created
-
-            enddo   !End of cycling over mulitple particles on same determinant.
+                endif   ! (child /= 0). Child created
+            enddo ! Cycling over mulitple particles on same determinant.
 
             IF(tHFFoundTemp) tHFFound=.true.
             tHFFoundTemp=.false.
 
-!We now have to decide whether the parent particle (j) wants to self-destruct or not...
-!For rotoannihilation, we can have multiple particles on the same determinant - these can be stochastically killed at the same time.
+            ! DEBUG
+            ! if (VecSlot > j) call stop_all (this_routine, 'vecslot > j')
+            call walker_death (DetCurr, CurrentDets(:,j), HDiagCurr, &
+                               CurrentSign(j), VecSlot)
 
-            iDie=AttemptDiePar(DetCurr,HDiagCurr,WalkExcitLevel,CurrentSign(j))
-            NoDied=NoDied+iDie          !Update death counter
-
-!iDie can be positive to indicate the number of deaths, or negative to indicate the number of births
-!We slot the particles back into the same array and position VecSlot if the particle survives. If it dies, then j increases, moving onto the next
-!entry, but VecSlot remains where it is, meaning that j should never be less that VecSlot
-            IF(CurrentSign(j).le.0) THEN
-                CopySign=CurrentSign(j)+iDie    !Copy sign is the total number of particles x sign that we want to copy accross.
-                IF(CopySign.le.0) THEN
-!If we are copying to the main array, we have to ensure that we maintain sign-coherence in the array. Therefore, if we are spawning anti-particles,
-!it wants to go in the spawning array, rather than the main array, so it has a chance to annihilate.
-                    tMainArr=.true.
-                ELSE
-                    tMainArr=.false.
-                ENDIF
-            ELSE
-                CopySign=CurrentSign(j)-iDie
-                IF(CopySign.ge.0) THEN
-                    tMainArr=.true.
-                ELSE
-                    tMainArr=.false.
-                ENDIF
-            ENDIF
-
-            IF(tMainArr.and.(VecSlot.gt.j)) THEN
-!We only have a single array, therefore surviving particles are simply transferred back into the original array.
-!However, this can not happen if we want to overwrite particles that we haven't even got to yet.
-!However, this should not happen under normal circumstances...
-                tMainArr=.false.
-                CALL Stop_All("PerformFCIMCyc","About to overwrite particles which haven't been reached yet. This should not happen in normal situations.")
-            ENDIF
-
-            IF(CopySign.ne.0) THEN
-
-                IF(tMainArr) THEN
-!                        NewDets(:,VecSlot)=CurrentDets(:,j)
-!                        NewSign(VecSlot)=CopySign
-                    CurrentDets(:,VecSlot)=CurrentDets(:,j)
-                    CurrentSign(VecSlot)=CopySign
-                    IF(.not.tRegenDiagHEls) CurrentH(VecSlot)=HDiagCurr
-                    VecSlot=VecSlot+1
-                ELSE
-!                        CALL Stop_All("PerformFCIMCyc","Creating anti-particles")
-!Here, we are creating anti-particles, and so to keep the sign-coherence of the main array assured, we transfer them to the spawning array.
-!This should generally not happen under normal circumstances.
-                    SpawnedParts(:,ValidSpawnedList(iProcIndex))=CurrentDets(:,j)
-                    SpawnedSign(ValidSpawnedList(iProcIndex))=CopySign
-                    ValidSpawnedList(iProcIndex)=ValidSpawnedList(iProcIndex)+1
-                ENDIF
-            ENDIF
-
-!Finish cycling over walkers
-        enddo
+        enddo ! Loop over determinants.
 
         IF(tPrintHighPop) CALL FindHighPopDet(Iter+PreviousCycles)
 
-!SumWalkersCyc calculates the total number of walkers over an update cycle on each process
-        SumWalkersCyc=SumWalkersCyc+(INT(TotParts,i2))
-!        WRITE(6,*) "Born, Die: ",NoBorn, NoDied
+        ! SumWalkersCyc calculates the total number of walkers over an update
+        ! cycle on each process.
+        SumWalkersCyc = SumWalkersCyc + int(TotParts, i2)
 
-!Since VecSlot holds the next vacant slot in the array, TotWalkers will be one less than this.
-        TotWalkersNew=VecSlot-1
+        ! Since VecSlot holds the next vacant slot in the array, TotWalkers
+        ! should be one less than this.
+        TotWalkersNew = VecSlot - 1
 
-!Output if there has been a particle bloom this iteration. A negative number indicates that particles were created from a single excitation.
-        IF((iPartBloom.ne.0).and.(iProcIndex.eq.0)) THEN
-            IF(tAddtoInitiator.and.(iPartBloom.gt.0)) THEN
-                WRITE(6,"(A,I14,A,I8,A)") "Particle Blooms of more than 'n_add' in iteration ",Iter," :  A max of ",abs(iPartBloom)," particles created in one attempt from double excit."
-            ELSEIF(tAddtoInitiator) THEN
-                WRITE(6,"(A,I14,A,I8,A)") "Particle Blooms of more than 'n_add' in iteration ",Iter," :  A max of ",abs(iPartBloom)," particles created in one attempt from single excit."
-            ELSEIF(iPartBloom.gt.0) THEN
-                WRITE(6,"(A,I14,A,I8,A)") "LARGE Particle Blooms in iteration ",Iter," :  A max of ",abs(iPartBloom)," particles created in one attempt from double excit."
-            ELSE
-                WRITE(6,"(A,I14,A,I8,A)") "LARGE Particle Blooms in iteration ",Iter," :  A max of ",abs(iPartBloom)," particles created in one attempt from single excit."
-            ENDIF
-        ENDIF
-
-        rat=REAL(TotWalkersNew,dp)/REAL(MaxWalkersPart,dp)
-        IF(rat.gt.0.95) THEN
-            WRITE(6,'(A)') "*WARNING* - Number of particles/determinants has increased to over 95% of MaxWalkersPart"
-            CALL FLUSH(6)
-        ENDIF
-
-!Need to test whether any of the sublists are getting to the end of their allotted space.
-        IF(nProcessors.gt.1) THEN
-            do i=0,nProcessors-1
-                rat=(ValidSpawnedList(i)-InitialSpawnedSlots(i))/(InitialSpawnedSlots(1)+0.D0)
-!                    WRITE(6,*) rat,(ValidSpawnedList(i)-InitialSpawnedSlots(i)),InitialSpawnedSlots(1)
-                IF(rat.gt.0.95) THEN
-                    WRITE(6,'(A)') "*WARNING* - Highest processor spawned particles has reached over 95% of MaxSpawned"
-                    CALL FLUSH(6)
-                ENDIF
-            enddo
-        ELSE
-            rat=(ValidSpawnedList(0)+0.D0)/(MaxSpawned+0.D0)
-            IF(rat.gt.0.9) THEN
-                WRITE(6,'(A)') "*WARNING* - Number of spawned particles has reached over 90% of MaxSpawned"
-                CALL FLUSH(6)
-            ENDIF
-        ENDIF
+        ! Print bloom/memory warnings
+        call end_iteration_print_warn (totWalkersNew)
+        call halt_timer (walker_time)
         
-        CALL halt_timer(Walker_Time)
-        CALL set_timer(Annihil_Time,30)
-!        CALL MPI_Barrier(MPI_COMM_WORLD,error)
-!        WRITE(6,*) "Get into annihilation"
-!        CALL FLUSH(6)
-
-!This is the direct annihilation algorithm. The newly spawned walkers should be in a seperate array (SpawnedParts) and the other list should be ordered.
-        CALL DirectAnnihilation(TotWalkersNew)
-
+        ! For the direct annihilation algorithm. The newly spawned 
+        ! walkers should be in a seperate array (SpawnedParts) and the other 
+        ! list should be ordered.
+        call set_timer (annihil_time, 30)
+        call DirectAnnihilation (totWalkersNew)
         CALL halt_timer(Annihil_Time)
         
     END SUBROUTINE PerformFCIMCycPar
+
+    subroutine new_child_stats_normal (iLutI, iLutJ, ic, child, walkExLevel)
+
+        integer, intent(in) :: iLutI(0:niftot), iLutJ(0:niftot)
+        integer, intent(in) :: ic, child, walkExLevel
+        
+        noBorn = noBorn + abs(child)
+
+        if (ic == 1) SpawnFromSing = SpawnFromSing + abs(child)
+
+        if (abs(child) > abs(iPartBloom)) then
+            iPartBloom = sign(child, 2*ic - 3)
+        endif
+
+    end subroutine
                         
+    subroutine create_particle (iLutJ, child)
+
+        ! Create a child in the spawned particles arrays. We spawn particles
+        ! into a separate array, but non-contiguously. The processor that the
+        ! newly-spawned particle is going to be sent to has to be determined,
+        ! and then it will be put into the appropriate element determined by
+        ! ValidSpawnedList
+
+        integer, intent(in) :: iLutJ(0:niftot), child
+        integer :: proc
+
+        proc = DetermineDetProc(iLutJ)    ! 0 -> nProcessors-1
+
+        SpawnedParts(:,ValidSpawnedList(proc)) = iLutJ
+        SpawnedSign(ValidSpawnedList(Proc)) = child
+
+        ! TODO: have this already stored in iLut, but ignored for hashing?
+        ! Set the last integer of the determinant to be either 0 or 1
+        ! according to if its parent is inside or outside the active space.
+        if (tTruncInitiator) &
+            SpawnedParts(niftot, ValidSpawnedList(proc)) = parentInitiator
+
+        ValidSpawnedList(proc) = ValidSpawnedList(proc) + 1
+
+        ! Sum the number of created children to use in acceptance ratio.
+        acceptances = acceptances + abs(child)
+    end subroutine
+
+    subroutine end_iteration_print_warn (totWalkersNew)
+        
+        ! Worker function for PerformFciMCycPar. Prints warnings about 
+        ! particle blooms and memory usage.
+        integer, intent(in) :: totWalkersNew
+        integer :: i
+        real(dp) :: rat
+
+        ! Has there been a particle bloom this iteration?
+        if ( abs(iPartBloom) > InitiatorWalkNo) then
+            write (6, bloom_warn_string, advance='no'), iter, abs(iPartBloom)
+            if (iPartBloom > 0) then
+                write (6, '("double excit.")')
+            else
+                write (6, '("single excit.")')
+            endif
+        endif
+
+        ! Too many particles?
+        rat = real(TotWalkersNew,dp) / real(MaxWalkersPart,dp)
+        if (rat > 0.95) then
+            write (6, '(a)') '*WARNING* - Number of particles/determinants &
+                             &has increased to over 95% of MaxWakersPart.'
+            call flush(6)
+        end if
+
+        ! Are ony of the sublists near the end of their alloted space?
+        if (nProcessors > 1) then
+            do i = 0, nProcessors-1
+                rat = real(ValidSpawnedList(i) - InitialSpawnedSlots(i),dp) /&
+                             real(InitialSpawnedSlots(1), dp)
+                if (rat > 0.95) then
+                    write (6, '(a)') '*WARNING* - Highest processor spawned &
+                                     &particles has reached over 95% of &
+                                     &MaxSpawned.'
+                    call flush(6)
+                endif
+            enddo
+        else
+            rat = real(ValidSpawnedList(0), dp) / real(MaxSpawned, dp)
+            if (rat > 0.95) then
+                write (6, '(a)') '*WARNING* - Number of spawned particles has&
+                                 & reached over 95% of MaxSpawned.'
+                call flush(6)
+            endif
+        endif
+    end subroutine
 
     SUBROUTINE CalcParentFlag(j,tHFFound,tHFFoundTemp,VecSlot,Iter)
-        USE CalcData , only : tAddtoInitiator,InitiatorWalkNo,tInitIncDoubs
         USE FciMCLoggingMOD, only : InitBinMin,InitBinIter
-        INTEGER :: j,WalkExcitLevel,InitBinNo,VecSlot,Iter
+        INTEGER , INTENT(IN) :: j,VecSlot,Iter
+        INTEGER :: WalkExcitLevel,InitBinNo
         LOGICAL :: tParentInCAS,tHFFound,tHFFoundTemp
 
 !This it the case where the fixed initiator space is defined using the CAS notation, or where it is limited to only the HF determinant.                           
@@ -715,14 +846,14 @@ MODULE FciMCParMod
     SUBROUTINE CalcNewShift()
         USE FciMCLoggingMOD , only : PrintSpawnAttemptStats,InitErrorBlocking,SumInErrorContrib
         USE FciMCLoggingMOD , only : InitShiftErrorBlocking,SumInShiftErrorContrib
-        USE CalcData , only : tCheckHighestPop,tChangeProjEDet,tRestartHighPop,FracLargerDet
+        USE CalcData , only : tCheckHighestPop,tChangeProjEDet,tRestartHighPop,FracLargerDet,iRestartWalkNum
         INTEGER :: error,rc,MaxAllowedWalkers,MaxWalkersProc,MinWalkersProc
         INTEGER :: inpair(6),outpair(6),HighPopin(2),HighPopout(2),DetCurr(NEl),i
         REAL*8 :: TempTotWalkers,TempTotParts
         REAL*8 :: TempSumNoatHF,MeanWalkers,TempSumWalkersCyc,TempAllSumWalkersCyc
         REAL*8 :: inpairreal(3),outpairreal(3),inpairInit(9),outpairInit(9)
         LOGICAL :: tReZeroShift
-        TYPE(HElement) :: TempHii,HDiagTemp
+        HElement_t :: TempHii,HDiagTemp
 
         TotImagTime=TotImagTime+StepsSft*Tau
 
@@ -894,7 +1025,7 @@ MODULE FciMCParMod
                     ELSE
                         TempHii = get_helement (ProjEDet, ProjEDet, 0)
                     ENDIF
-                    Hii=REAL(TempHii%v,dp)
+                    Hii=REAL(TempHii,dp)
                     WRITE(6,"(A,G25.15)") "Reference energy now set to: ",Hii
 
 
@@ -915,9 +1046,9 @@ MODULE FciMCParMod
                         else
                             HDiagTemp = get_helement (DetCurr, DetCurr, 0)
                         endif
-                        CurrentH(i)=(REAL(HDiagTemp%v,dp))-Hii
+                        CurrentH(i)=(REAL(HDiagTemp,dp))-Hii
                     enddo
-                ELSEIF(tRestartHighPop) THEN
+                ELSEIF(tRestartHighPop.and.(iRestartWalkNum.le.AllTotParts)) THEN
                     CALL MPI_BCast(HighestPopDet,NIfTot+1,MPI_INTEGER,HighPopout(2),MPI_COMM_WORLD,error)
                     iLutRef(:)=HighestPopDet(:)
                     CALL DecodeBitDet(ProjEDet,iLutRef(:))
@@ -928,7 +1059,7 @@ MODULE FciMCParMod
                     ELSE
                         TempHii = get_helement (ProjEDet, ProjEDet, 0)
                     ENDIF
-                    Hii=REAL(TempHii%v,dp)
+                    Hii=REAL(TempHii,dp)
                     WRITE(6,"(A,G25.15)") "Reference energy now set to: ",Hii
                     CALL ChangeRefDet(Hii,ProjEDet,iLutRef)
                     RETURN
@@ -1214,7 +1345,7 @@ MODULE FciMCParMod
         use CalcData , only : MemoryFacPart,MemoryFacAnnihil,MemoryFacSpawn
         INTEGER :: ierr,i,j,k,l,DetCurr(NEl),ReadWalkers,TotWalkersDet
         INTEGER :: DetLT,VecSlot,error,MemoryAlloc,Proc
-        TYPE(HElement) :: rh,TempHii
+        HElement_t :: rh,TempHii
         LOGICAL :: exists
         REAL*8 :: TotDets
         CHARACTER(len=*), PARAMETER :: this_routine='InitFCIMCPar'
@@ -1388,11 +1519,89 @@ MODULE FciMCParMod
         IF((NMCyc.ne.0).and.(tRotateOrbs.and.(.not.tFindCINatOrbs))) CALL Stop_All(this_routine,"Currently not set up to rotate and then go straight into a spawning &
                                                                                     & calculation.  Ordering of orbitals is incorrect.  This may be fixed if needed.")
 
-!Put a barrier here so all processes synchronise
-        CALL MPI_Barrier(MPI_COMM_WORLD,error)
-        RETURN
+    end subroutine InitFCIMCCalcPar
 
-    END SUBROUTINE InitFCIMCCalcPar
+    subroutine init_fcimc_fn_pointers ()
+
+        ! Call wrapper functions in C to assign a collection of function 
+        ! pointers. These will be passed as arguments to FciMCycPar, allowing
+        ! it to directly call the correct subroutines for various actions.
+        !
+        ! The main advantage of this is that it avoids testing all of the
+        ! conditionals for every single particle, during every iteration.
+
+        ! Select the excitation generator
+        if (tHPHF) then
+            call set_excit_generator (gen_hphf_excit)
+        elseif (tCSF) then
+            call set_excit_generator (gen_csf_excit)
+        else
+            call set_excit_generator (gen_rand_excit)
+        endif
+
+        ! In the main loop, we only need to find out if a determinant is
+        ! connected to the reference det or not (so no ex. level above 2 is
+        ! required). Except in some cases where we need to know the maximum
+        ! excitation level
+        if (tTruncSpace .or. tHistSpawn .or. tCalcFCIMCPsi .or. &
+            tHistHamil) then
+            max_calc_ex_level = nel
+        else
+            max_calc_ex_level = 2
+        endif
+
+        ! How many children should we spawn given an excitation?
+        if ((tTruncCas .and. (.not. tTruncInitiator)) .or. tTruncSpace .or. &
+            tPartFreezeCore .or. tPartFreezeVirt .or. tFixLz .or. tUEG) then
+            if (tHPHF .or. tCSF) then
+                call set_attempt_create (attempt_create_trunc_spawn)
+            else
+                call set_attempt_create (attempt_create_trunc_spawn_encode)
+            endif
+        else
+            call set_attempt_create (attempt_create_normal)
+        endif
+
+        ! In attempt create, how should we evaluate the off diagonal matrix
+        ! elements between a parent and its (potentially) spawned offspring?
+        if (tCSF) then
+            call set_get_spawn_helement (get_csf_helement)
+        elseif (tHPHF) then
+            if (tGenMatHEL) then
+                call set_get_spawn_helement (hphf_spawn_sign)
+            else
+                call set_get_spawn_helement (hphf_off_diag_helement_spawn)
+            endif
+        else
+            call set_get_spawn_helement (get_helement_det_only)
+        endif
+
+        ! Once we have generated the children, do we need to encode them?
+        if (.not. (tCSF .or. tHPHF)) then
+            call set_encode_child (FindExcitBitDet)
+        endif
+
+        ! What message should we display for a particle bloom?
+        if (tAddToInitiator) then
+            bloom_warn_string = '("Particle blooms of more than n_add in &
+                                &iteration ", i14, ": A max of ", i8, &
+                                &"particles created in one attempt from ")'
+        else
+            ! Use this variable to store the bloom cutoff level.
+            InitiatorWalkNo = 25
+            bloom_warn_string = '("Particle blooms of more than 25 in &
+                                &iteration ", i14, ": A max of ", i8, &
+                                &"particles created in one attempt from ")'
+        endif
+
+        ! Perform the correct statistics on new child particles
+        if (tHistHamil) then
+            call set_new_child_stats (new_child_stats_hist_hamil)
+        else
+            call set_new_child_stats (new_child_stats_normal)
+        endif
+
+    end subroutine
 
 
     SUBROUTINE CheckOrdering(DetArray,SignArray,NoDets,tCheckSignCoher)
@@ -1620,7 +1829,7 @@ MODULE FciMCParMod
         INTEGER :: TempInitWalkers,error,i,j,k,l,total,ierr,MemoryAlloc,Tag,iLutTemp(0:NIfTot),TempSign,Proc,CurrWalkers
         INTEGER :: Stat(MPI_STATUS_SIZE),AvSumNoatHF,VecSlot,IntegerPart,HFPointer,TempnI(NEl),ExcitLevel,VecInd,DetsMerged
         REAL*8 :: r,FracPart,TempTotWalkers,Gap
-        TYPE(HElement) :: HElemTemp
+        HElement_t :: HElemTemp
         CHARACTER(len=*), PARAMETER :: this_routine='ReadFromPopsfilePar'
         character(255) :: popsfile
         
@@ -1935,7 +2144,7 @@ MODULE FciMCParMod
                     else
                         HElemTemp = get_helement (TempnI, TempnI, 0)
                     endif
-                    CurrentH(j)=REAL(HElemTemp%v,dp)-Hii
+                    CurrentH(j)=REAL(HElemTemp,dp)-Hii
                 ENDIF
 
             ENDIF
@@ -1959,6 +2168,134 @@ MODULE FciMCParMod
 
     END SUBROUTINE ReadFromPopsfilePar
 
+    function attempt_create_trunc_spawn (get_spawn_helement, DetCurr,&
+                                         iLutCurr, wSign, nJ, iLutnJ, prob, &
+                                         ic, ex, tparity, walkExcitLevel) &
+                                         result(child)
+        integer, intent(in) :: DetCurr(nel), iLutCurr(0:NIfTot), nJ(nel)
+        integer, intent(inout) :: iLutnJ(0:niftot)
+        integer, intent(in) :: wSign, ic, ex(2,2), walkExcitLevel
+        logical, intent(in) :: tParity
+        real(dp), intent(inout) :: prob
+        integer :: child
+
+        interface
+            function get_spawn_helement (nI, nJ, ilutI, ilutJ, ic, ex, &
+                                         tParity, prob) result (hel)
+                use SystemData, only: nel, niftot
+                use constants, only: dp
+                implicit none
+                integer, intent(in) :: nI(nel), nJ(nel)
+                integer, intent(in) :: iLutI(0:niftot), iLutJ(0:niftot)
+                integer, intent(in) :: ic, ex(2,2)
+                logical, intent(in) :: tParity
+                real(dp), intent(in) :: prob
+                HElement_t :: hel
+            end function
+        end interface
+
+        if (CheckAllowedTruncSpawn (walkExcitLevel, nJ, iLutnJ, IC)) then
+            child = attempt_create_normal (get_spawn_helement, DetCurr, &
+                               iLutCurr, wSign, nJ, iLutnJ, prob, ic, ex, &
+                               tParity, walkExcitLevel)
+        else
+            child = 0
+        endif
+    end function
+
+    function attempt_create_trunc_spawn_encode (get_spawn_helement, DetCurr,&
+                                         iLutCurr, wSign, nJ, iLutnJ, prob, &
+                                         ic, ex, tparity, walkExcitLevel) &
+                                         result(child)
+
+        integer, intent(in) :: DetCurr(nel), iLutCurr(0:NIfTot), nJ(nel)
+        integer, intent(inout) :: iLutnJ(0:niftot)
+        integer, intent(in) :: wSign, ic, ex(2,2), walkExcitLevel
+        logical, intent(in) :: tParity
+        real(dp), intent(inout) :: prob
+        integer :: child
+
+        interface
+            function get_spawn_helement (nI, nJ, ilutI, ilutJ, ic, ex, &
+                                         tParity, prob) result (hel)
+                use SystemData, only: nel, niftot
+                use constants, only: dp
+                implicit none
+                integer, intent(in) :: nI(nel), nJ(nel)
+                integer, intent(in) :: iLutI(0:niftot), iLutJ(0:niftot)
+                integer, intent(in) :: ic, ex(2,2)
+                logical, intent(in) :: tParity
+                real(dp), intent(in) :: prob
+                HElement_t :: hel
+            end function
+        end interface
+
+        call EncodeBitDet (nJ, iLutnJ)
+        if (CheckAllowedTruncSpawn (walkExcitLevel, nJ, iLutnJ, IC)) then
+            child = attempt_create_normal (get_spawn_helement, DetCurr, &
+                               iLutCurr, wSign, nJ, iLutnJ, prob, ic, ex, &
+                               tParity, walkExcitLevel)
+        else
+            child = 0
+        endif
+    end function
+
+    function attempt_create_normal (get_spawn_helement, DetCurr, iLutCurr, &
+                                    wSign, nJ, iLutnJ, prob, ic, ex, tparity,&
+                                    walkExcitLevel) result(child)
+
+        integer, intent(in) :: DetCurr(nel), iLutCurr(0:NIfTot), nJ(nel)
+        integer, intent(inout) :: iLutnJ(0:niftot)
+        integer, intent(in) :: wSign, ic, ex(2,2), walkExcitLevel
+        logical, intent(in) :: tParity
+        real(dp), intent(inout) :: prob
+        integer :: child
+
+        interface
+            function get_spawn_helement (nI, nJ, ilutI, ilutJ, ic, ex, &
+                                         tParity, prob) result (hel)
+                use SystemData, only: nel, niftot
+                use constants, only: dp
+                implicit none
+                integer, intent(in) :: nI(nel), nJ(nel)
+                integer, intent(in) :: iLutI(0:niftot), iLutJ(0:niftot)
+                integer, intent(in) :: ic, ex(2,2)
+                logical, intent(in) :: tParity
+                real(dp), intent(in) :: prob
+                HElement_t :: hel
+            end function
+        end interface
+        
+        real(dp) :: rat, r
+        integer :: extracreate
+        HElement_t :: rh
+
+        ! If we are generating multiple excitotions, then the probability of
+        ! spawning on them must be reduced by the number of excitations
+        ! generated (i.e. the excitation is likely to arise a factor of
+        ! NoMCExcits more often)
+        prob = prob * real(NoMCExcits, dp)
+
+        rh = get_spawn_helement (DetCurr, nJ, iLutCurr, iLutnJ, ic, ex, &
+                                 tParity, prob)
+
+        rat = tau * abs(rh / prob)
+
+        ! If probability > 1, then we just create multiple children at the
+        ! chosen determinant.
+        extraCreate = int(rat)
+        rat = rat - real(extraCreate, dp)
+
+        ! Stochastically choose whether to create or not.
+        r = genrand_real2_dSFMT ()
+        if (rat > r) then
+            child = -nint(sign(1.0_dp, wsign*rh))
+            child = child + sign(extraCreate, child)
+        else
+            child = -extraCreate*nint(sign(1.0_dp, wsign*rh))
+        endif
+
+    end function
 
 !This function tells us whether we should create a child particle on nJ, from a parent particle on DetCurr with sign WSign, created with probability Prob
 !It returns zero if we are not going to create a child, or -1/+1 if we are to create a child, giving the sign of the new particle
@@ -1970,7 +2307,7 @@ MODULE FciMCParMod
         LOGICAL :: tParity,SymAllowed,tSuccess
         integer :: yama(NIfY)
         REAL*8 :: Prob,r,rat
-        TYPE(HElement) :: rh,rhcheck
+        HElement_t :: rh,rhcheck
 
         IF(tMCExcits) THEN
 !If we are generating multiple excitations, then the probability of spawning on them must be reduced by the number of excitations generated.
@@ -1987,7 +2324,7 @@ MODULE FciMCParMod
 
                 rat=Tau/abs(Prob)
 
-                rh%v=Prob ! to get the signs right for later on.
+                rh=Prob ! to get the signs right for later on.
 !                WRITE(6,*) Prob, DetCurr(:),"***",nJ(:)
 !                WRITE(6,*) "******"
 !                CALL HPHFGetOffDiagHElement(DetCurr,nJ,iLutCurr,iLutnJ,rh)
@@ -1997,8 +2334,8 @@ MODULE FciMCParMod
 !However, the excitation generator can generate the same HPHF again. If this is done, the routine will send the matrix element back as zero.
                 rh = hphf_off_diag_helement (DetCurr, nJ, iLutCurr, iLutnJ)
 !Divide by the probability of creating the excitation to negate the fact that we are only creating a few determinants
-                rat=Tau*abs(rh%v)/Prob
-!                WRITE(6,*) Prob/rh%v, DetCurr(:),"***",nJ(:)
+                rat=Tau*abs(rh)/Prob
+!                WRITE(6,*) Prob/rh, DetCurr(:),"***",nJ(:)
 !                WRITE(6,*) "******"
 
             ENDIF
@@ -2006,19 +2343,19 @@ MODULE FciMCParMod
 !Normal determinant spawn
 
             rh = get_helement (DetCurr, nJ, IC, Ex, tParity)
-            !WRITE(6,*) rh%v
+            !WRITE(6,*) rh
 
 !Divide by the probability of creating the excitation to negate the fact that we are only creating a few determinants
-            rat=Tau*abs(rh%v)/Prob
+            rat=Tau*abs(rh)/Prob
         ENDIF
         IF(CCMCDebug.gt.5) WRITE(6,*) "Connection H-element to spawnee:",rh
 !        CALL IsSymAllowedExcit(DetCurr,nJ,IC,Ex,SymAllowed) 
-!        IF((.not.SymAllowed).and.(abs(rh%v).gt.0.D0)) THEN
-!            WRITE(17,*) rh%v
+!        IF((.not.SymAllowed).and.(abs(rh).gt.0.D0)) THEN
+!            WRITE(17,*) rh
 !        ENDIF
 
 !        rhcheck=GetHElement2(DetCurr,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,IC,ECore)
-!        IF(rh%v.ne.rhcheck%v) THEN
+!        IF(rh.ne.rhcheck) THEN
 !            WRITE(6,*) "DetCurr: ",DetCurr(:)
 !            WRITE(6,*) "nJ: ",nJ(:)
 !            WRITE(6,*) "EX: ",Ex(1,:),Ex(2,:)
@@ -2026,7 +2363,7 @@ MODULE FciMCParMod
 !            STOP
 !        ENDIF
 
-!        IF(abs(rh%v).le.HEpsilon) THEN
+!        IF(abs(rh).le.HEpsilon) THEN
 !            AttemptCreatePar=0
 !            RETURN
 !        ENDIF
@@ -2040,13 +2377,13 @@ MODULE FciMCParMod
         r = genrand_real2_dSFMT() 
         IF(rat.gt.r) THEN
 !            IF(Iter.eq.18925) THEN
-!                WRITE(6,*) "Created",rh%v,rat
+!                WRITE(6,*) "Created",rh,rat
 !            ENDIF
 
 !Child is created - what sign is it?
             IF(WSign.gt.0) THEN
 !Parent particle is positive
-                IF(real(rh%v).gt.0.D0) THEN
+                IF(real(rh).gt.0.D0) THEN
                     AttemptCreatePar=-1     !-ve walker created
                 ELSE
                     AttemptCreatePar=1      !+ve walker created
@@ -2054,7 +2391,7 @@ MODULE FciMCParMod
 
             ELSE
 !Parent particle is negative
-                IF(real(rh%v).gt.0.D0) THEN
+                IF(real(rh).gt.0.D0) THEN
                     AttemptCreatePar=1      !+ve walker created
                 ELSE
                     AttemptCreatePar=-1     !-ve walker created
@@ -2064,7 +2401,7 @@ MODULE FciMCParMod
         ELSE
 !No child particle created
 !            IF(Iter.eq.18925) THEN
-!                WRITE(6,*) "Not Created",rh%v,rat
+!                WRITE(6,*) "Not Created",rh,rat
 !            ENDIF
             AttemptCreatePar=0
         ENDIF
@@ -2081,13 +2418,13 @@ MODULE FciMCParMod
             ELSEIF(AttemptCreatePar.eq.0) THEN
 !No particles were stochastically created, but some particles are still definatly created - we need to determinant their sign...
                 IF(WSign.gt.0) THEN
-                    IF(real(rh%v).gt.0.D0) THEN
+                    IF(real(rh).gt.0.D0) THEN
                         AttemptCreatePar=-ExtraCreate    !Additional particles are negative
                     ELSE
                         AttemptCreatePar=ExtraCreate       !Additional particles are positive
                     ENDIF
                 ELSE
-                    IF(real(rh%v).gt.0.D0) THEN
+                    IF(real(rh).gt.0.D0) THEN
                         AttemptCreatePar=ExtraCreate
                     ELSE
                         AttemptCreatePar=-ExtraCreate
@@ -2105,17 +2442,17 @@ MODULE FciMCParMod
                 ! therefore leave all singles as beta, when we switch to dets.
                 call EncodeBitDet (nJ, iLutnJ)
             else
-                call FindExcitBitDet(iLutCurr,iLutnJ,IC,Ex,yama)
+                call FindExcitBitDet(iLutCurr,iLutnJ,IC,Ex)
             endif
         ENDIF
 
 !        IF(AttemptCreatePar.ne.0) THEN
-!            WRITE(6,"(A,F15.5,I5,G25.15,I8,G25.15)") "Outwards ", rat,ExtraCreate,real(rh%v),Prob
+!            WRITE(6,"(A,F15.5,I5,G25.15,I8,G25.15)") "Outwards ", rat,ExtraCreate,real(rh),Prob
 !        ENDIF
 
         IF(tHistEnergies) THEN
 !First histogram off-diagonal matrix elements.
-            Bin=INT((real(rh%v,dp)+OffDiagMax)/OffDiagBinRange)+1
+            Bin=INT((real(rh,dp)+OffDiagMax)/OffDiagBinRange)+1
             IF(Bin.le.0.or.Bin.gt.iOffDiagNoBins) THEN
                 CALL Stop_All("AttemptCreatePar","Trying to histogram off-diagonal matrix elements, but outside histogram array bounds.")
             ENDIF
@@ -2149,7 +2486,7 @@ MODULE FciMCParMod
             ELSE
                 rh = get_helement (nJ, nJ, 0)
             ENDIF
-            Bin=INT((real(rh%v,dp)-Hii)/BinRange)+1
+            Bin=INT((real(rh,dp)-Hii)/BinRange)+1
             IF(Bin.gt.iNoBins) THEN
                 CALL Stop_All("AttemptCreatePar","Histogramming energies higher than the arrays can cope with. Increase iNoBins or BinRange")
             ENDIF
@@ -2162,50 +2499,82 @@ MODULE FciMCParMod
 
     END FUNCTION AttemptCreatePar
 
+    subroutine walker_death (DetCurr, iLutCurr, Kii, wSign, VecSlot)
+
+        integer, intent(in) :: DetCurr(nel), iLutCurr(0:niftot), wSign
+        integer, intent(inout) :: VecSlot
+        real(dp), intent(in) :: Kii
+        
+        integer :: iDie, CopySign
+
+        ! Do particles on determinant die? iDie can be both +ve (deaths), or
+        ! -ve (births, if shift > 0)
+        iDie = attempt_die_par (DetCurr, Kii, wSign)
+
+        ! Update death counter
+        NoDied = NoDied + iDie
+
+        ! Calculate new number of particles on.
+        CopySign = wSign - (iDie * sign(1, wSign))
+
+        ! Normall slot particles back into main array at position vecslot.
+        ! This will normally increment with j, except when a particle dies
+        ! completely (so VecSlot <= j, and we can't overwrite a walker we
+        ! haven't got to yet).
+        ! If we change the sign of a particle, we need to spawn an
+        ! anti-particle --> it goes in the spawning array to give it a chance
+        ! to annihilate. (Not into main array, or we loose sign-coherence)
+        if (CopySign /= 0) then
+            if (sign(1, CopySign) == sign(1, wSign)) then
+                CurrentDets(:,VecSlot) = iLutCurr
+                CurrentSign(VecSlot) = CopySign
+                if (.not.tRegenDiagHEls) CurrentH(VecSlot) = Kii
+                VecSlot = VecSlot + 1
+            else
+                SpawnedParts(:,ValidSpawnedList(iProcIndex)) = iLutCurr
+                SpawnedSign(ValidSpawnedList(iProcIndex)) = CopySign
+                ValidSpawnedList(iProcIndex) = ValidSpawnedList(iProcIndex)+1
+            endif
+        endif
+
+    end subroutine
 
 
-!This function tells us whether we should kill the particle at determinant DetCurr
-!If also diffusing, then we need to know the probability with which we have spawned. This will reduce the death probability.
-!The function allows multiple births(if +ve shift) or deaths from the same particle.
-!The returned number is the number of deaths if positive, and the number of births if negative.
-!Multiple particles can be attempted to die at the same time - here, |WSign| > 1 and the probability of a death will be multiplied by |WSign|
-    INTEGER FUNCTION AttemptDiePar(DetCurr,Kii,IC,WSign)
-        IMPLICIT NONE
-        INTEGER :: DetCurr(NEl),iKill,IC,WSign
-!        TYPE(HElement) :: rh,rhij
-        REAL*8 :: r,rat,Kii
-        LOGICAL :: tDETinCAS
+    function attempt_die_par (DetCurr, Kii, wSign) result(ndie)
+        
+        ! Should we kill the particle at determinant DetCurr. If also 
+        ! diffusing, then we need to know the probability with which we have
+        ! spawned. This will reduce the death probability.
+        ! The function allows multiple births (if +ve shift), or deaths from
+        ! the same particle. The returned number is the number of deaths if
+        ! positive, and the
+        !
+        ! In:  DetCurr - The determinant to consider
+        !      Kii     - The diagonal matrix element of DetCurr (-Ecore)
+        !      wSign   - The sign of the determinant being considered. If
+        !                |wSign| > 1, attempt to die multiple particles at
+        !                once (multiply probability of death by |wSign|)
+        ! Ret: ndie    - The number of deaths (if +ve), or births (If -ve).
 
+        integer, intent(in) :: DetCurr(nel), wSign
+        real(dp), intent(in) :: Kii
+        integer :: ndie
 
-!Calculate the diagonal hamiltonian matrix element for the determinant
-!        rh=GetHElement2(DetCurr,DetCurr,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,0,ECore)
-!Subtract from the diagonal the value of the lowest hamiltonian matrix element
-!        rh=rh-Hii
+        real(dp) :: r, rat
+        logical :: tDetInCAS
 
-!Subtract the current value of the shift and multiply by tau
-!If there are multiple particles, decide how many to kill in total...
-        rat=Tau*(Kii-DiagSft)*abs(WSign)
+        ! Subtract the current value of the shift, and multiply by tau.
+        ! If there are multiple particles, scale the probability.
+        rat = tau * (Kii - DiagSft) * abs(wSign)
 
-        iKill=INT(rat)
-        rat=rat-REAL(iKill)
+        ndie = int(rat)
+        rat = rat - real(ndie, dp)
 
-!Stochastically choose whether to die or not
+        ! Choose to die or not stochastically
         r = genrand_real2_dSFMT() 
-        IF(abs(rat).gt.r) THEN
-            IF(rat.ge.0.D0) THEN
-!Depends whether we are trying to kill or give birth to particles.
-                iKill=iKill+1
-            ELSE
-                iKill=iKill-1
-            ENDIF
-        ENDIF
+        if (abs(rat) > r) ndie = ndie + nint(sign(1.0_dp, rat))
 
-        AttemptDiePar=iKill
-
-        RETURN
-
-    END FUNCTION AttemptDiePar
-   
+    end function
 
 !This routine will change the reference determinant to DetCurr. It will also re-zero all the energy estimators, since they now correspond to
 !projection onto a different determinant.
@@ -2215,7 +2584,7 @@ MODULE FciMCParMod
         INTEGER :: iLutCurr(0:NIfTot),DetCurr(NEl),i,nStore(6),ierr,iMaxExcit
         INTEGER :: iLutTemp(0:NIfTot)
         INTEGER :: nJ(NEl)
-        TYPE(HElement) :: TempHii
+        HElement_t :: TempHii
         REAL*8 :: HDiagCurr
 
 !        CALL Stop_All("ChangeRefDet","This option does not currently work. Bug ghb24 if its needed")
@@ -2409,7 +2778,7 @@ MODULE FciMCParMod
         ENDIF
         IF(ALLOCATED(CoreMask)) THEN
             DEALLOCATE(CoreMask)
-            DEALLOCATE(ExtMask)
+            DEALLOCATE(CASMask)
         ENDIF
         IF(tPrintOrbOcc) THEN
             DEALLOCATE(OrbOccs)
@@ -2706,7 +3075,7 @@ MODULE FciMCParMod
         INTEGER :: i,j,bits,iLut(0:NIfTot),error,IterRead
         TYPE(BasisFN) :: ISym
         REAL*8 :: norm,norm1,norm2,norm3,ShiftRead,AllERead,NumParts
-        TYPE(HElement) :: HEL
+        HElement_t :: HEL
         CHARACTER(len=22) :: abstr,abstr2
         LOGICAL :: exists
 
@@ -2828,7 +3197,7 @@ MODULE FciMCParMod
 !                                HEL=GetHElement3(NMRKS(:,j),NMRKS(:,j),0)
 !                                norm=norm+(AllHistogram(i))**2
 !                                norm1=norm1+(AllInstHist(i))**2
-!                                WRITE(17,"(5G25.16)") REAL(HEL%v,8),AllHistogram(i),norm,AllInstHist(i),norm1
+!                                WRITE(17,"(5G25.16)") REAL(HEL,8),AllHistogram(i),norm,AllInstHist(i),norm1
 !                            ENDIF
 !                            EXIT
 !                        ENDIF
@@ -2880,49 +3249,57 @@ MODULE FciMCParMod
 
     END SUBROUTINE WriteHamilHistogram
 
+    subroutine new_child_stats_hist_hamil (iLutI, iLutJ, ic, walkExLevel, &
+                                           child)
+        ! Based on old AddHistHamilEl. Histograms the hamiltonian matrix, and 
+        ! then calls the normal statistics routine.
 
-    SUBROUTINE AddHistHamilEl(iLutnI,iLutnJ,WalkExcitLevel,Child,iTypeMatEl)
-        INTEGER :: iTypeMatEl,WalkExcitLevel,iLutnI(0:NIfD),iLutnJ(0:NIfD),Child
-        LOGICAL :: tSuccess
-        INTEGER :: PartInd,PartIndChild,ChildExcitLevel
+        integer, intent(in) :: iLutI(0:niftot), iLutJ(0:niftot)
+        integer, intent(in) :: ic, walkExLevel, child
+        character(*), parameter :: this_routine = 'new_child_stats_hist_hamil'
 
-        IF(iTypeMatEl.eq.1) THEN
-        !This is a spawning event
-        !Need to histogram the hamiltonian - find the correct indicies of parent and child.
-            IF(WalkExcitLevel.eq.NEl) THEN
-                CALL BinSearchParts2(iLutnI,FCIDetIndex(WalkExcitLevel),Det,PartInd,tSuccess)
-            ELSEIF(WalkExcitLevel.eq.0) THEN
-                PartInd=1
-                tSuccess=.true.
-            ELSE
-                CALL BinSearchParts2(iLutnI,FCIDetIndex(WalkExcitLevel),FCIDetIndex(WalkExcitLevel+1)-1,PartInd,tSuccess)
-            ENDIF
-            IF(.not.tSuccess) THEN
-                CALL Stop_All("AddHistHamil","Cannot find determinant nI in list")
-            ENDIF
-            ChildExcitLevel = FindBitExcitLevel(iLutHF, iLutnJ, nel)
-            IF(ChildExcitLevel.eq.NEl) THEN
-                CALL BinSearchParts2(iLutnJ,FCIDetIndex(ChildExcitLevel),Det,PartIndChild,tSuccess)
-            ELSEIF(ChildExcitLevel.eq.0) THEN
-                PartIndChild=1
-                tSuccess=.true.
-            ELSE
-                CALL BinSearchParts2(iLutnJ,FCIDetIndex(ChildExcitLevel),FCIDetIndex(ChildExcitLevel+1)-1,PartIndChild,tSuccess)
-            ENDIF
-            IF(.not.tSuccess) THEN
-                CALL Stop_All("AddHistHamil","Cannot find determinant nJ in list")
-            ENDIF
-            
-            HistHamil(PartIndChild,PartInd)=HistHamil(PartIndChild,PartInd)+(1.D0*Child)
-            HistHamil(PartInd,PartIndChild)=HistHamil(PartInd,PartIndChild)+(1.D0*Child)
-            AvHistHamil(PartIndChild,PartInd)=AvHistHamil(PartIndChild,PartInd)+(1.D0*Child)
-            AvHistHamil(PartInd,PartIndChild)=AvHistHamil(PartInd,PartIndChild)+(1.D0*Child)
-        ENDIF
+        integer :: partInd, partIndChild, childExLevel
+        logical :: tSuccess
 
-    END SUBROUTINE AddHistHamilEl
+        if (walkExLevel == nel) then
+            call BinSearchParts2 (iLutI, FCIDetIndex(walkExLevel), Det, &
+                                  PartInd, tSuccess)
+        else
+            call BinSearchParts2 (iLutI, FCIDetIndex(walkExLevel), &
+                                  FciDetIndex(walkExLevel+1)-1, partInd, &
+                                  tSuccess)
+        endif
 
+        if (.not. tSuccess) &
+            call stop_all (this_routine, 'Cannot find determinant nI in list')
 
-    
+        childExLevel = FindBitExcitLevel (iLutHF, iLutJ, nel)
+        if (childExLevel == nel) then
+            call BinSearchParts2 (iLutJ, FCIDetIndex(childExLevel), Det, &
+                                  partIndChild, tSuccess)
+        elseif (childExLevel == 0) then
+            partIndChild = 1
+            tSuccess = .true.
+        else
+            call BinSearchParts2 (iLutJ, FCIDetIndex(childExLevel), &
+                                  FciDetIndex(childExLevel+1)-1, &
+                                  partIndChild, tSuccess)
+        endif
+
+        histHamil (partIndChild, partInd) = &
+                histHamil (partIndChild, partInd) + (1.0_dp * child)
+        histHamil (partInd, partIndChild) = &
+                histHamil (partInd, partIndChild) + (1.0_dp * child)
+        avHistHamil (partIndChild, partInd) = &
+                avHistHamil (partIndChild, partInd) + (1.0_dp * child)
+        avHistHamil (partInd, partIndChild) = &
+                avHistHamil (partInd, partIndChild) + (1.0_dp * child)
+
+        ! Call the normal stats routine
+        call new_child_stats_normal (iLutI, iLutJ, ic, walkExLevel, child)
+
+    end subroutine
+
 #else
 ! AJWT
 ! Bringing you a better FciMCPar.  A vision for the future...
@@ -2931,7 +3308,7 @@ MODULE FciMCParMod
 !  It's not yet complete, but at least compiles and runs
 
     SUBROUTINE FciMCPar(Weight,Energyxw)
-    TYPE(HDElement) :: Weight,Energyxw
+    real(dp) :: Weight,Energyxw
 
         CALL Stop_All("FciMCPar","Entering the wrong FCIMCPar parallel routine")
 
@@ -3475,9 +3852,10 @@ MODULE FciMCParMod
         use DetCalc, only : NMRKS,tagNMRKS,FCIDets
         use SymExcit3, only : CountExcitations3 
         use DetBitOps, only: CountBits
+        use HElem
         INTEGER :: ierr,i,j,k,l,DetCurr(NEl),ReadWalkers,TotWalkersDet,HFDetTest(NEl),Seed,alpha,beta,symalpha,symbeta,endsymstate
         INTEGER :: DetLT,VecSlot,error,HFConn,MemoryAlloc,iMaxExcit,nStore(6),nJ(Nel),BRR2(nBasis),LargestOrb,nBits,HighEDet(NEl),iLutTemp(0:NIfTot)
-        TYPE(HElement) :: rh,TempHii
+        HElement_t :: rh,TempHii
         TYPE(BasisFn) HFSym
         REAL*8 :: TotDets,SymFactor,r
         CHARACTER(len=*), PARAMETER :: this_routine='SetupParameters'
@@ -3509,7 +3887,7 @@ MODULE FciMCParMod
             OPEN(11,FILE=abstr,STATUS='UNKNOWN')
         ENDIF
 
-        IF(HElementSize.gt.1) THEN
+        IF(HElement_t_size.gt.1) THEN
             CALL Stop_All("FCIMCPar","FciMCPar cannot function with complex orbitals.")
         ENDIF
         
@@ -3741,10 +4119,10 @@ MODULE FciMCParMod
         ELSE
             TempHii = get_helement (HFDet, HFDet, 0)
         ENDIF
-        Hii=REAL(TempHii%v,dp)
+        Hii=REAL(TempHii,dp)
         WRITE(6,*) "Reference Energy set to: ",Hii
         TempHii=GetH0Element3(HFDet)
-        Fii=REAL(TempHii%v,dp)
+        Fii=REAL(TempHii,dp)
 
 !Find the highest energy determinant...
         IF(.not.tSpn) THEN
@@ -3757,8 +4135,8 @@ MODULE FciMCParMod
             ELSE
                 TempHii = get_helement (HighEDet, HighEDet, 0)
             ENDIF
-            WRITE(6,"(A,G25.15)") "Highest energy determinant is (approximately): ",TempHii%v
-            WRITE(6,"(A,F25.15)") "This means tau should be no more than about ",-2.D0/TempHii%v
+            WRITE(6,"(A,G25.15)") "Highest energy determinant is (approximately): ",TempHii
+            WRITE(6,"(A,F25.15)") "This means tau should be no more than about ",-2.D0/TempHii
 !            WRITE(6,*) "Highest energy determinant is: ", HighEDet(:)
         ENDIF
 
@@ -4053,35 +4431,20 @@ MODULE FciMCParMod
             IF(VirtCASOrbs.gt.(nBasis-NEl)) CALL Stop_All("SetupParameters","Virtual orbitals in CAS space specified is greater than number of unoccupied orbitals")
 
 !Create the bit masks for the bit calculation of these properties.
-            ALLOCATE(ExtMask(0:NIfD))
+            ALLOCATE(CASMask(0:NIfD))
             ALLOCATE(CoreMask(0:NIfD))
-            ExtMask(:)=0
+            CASMask(:)=0
             CoreMask(:)=0
             do i=1,nBasis
                 IF(SpinInvBRR(i).gt.CASmax) THEN
                     !Orbital is in external space
-                    ExtMask((SpinInvBRR(i)-1)/32) = ibset(ExtMask((i-1)/32),MOD((i-1),32))
-!                    CoreMask = ibclr(CoreMask((i-1)/32),MOD((i-1),32))
+                    CASMask((SpinInvBRR(i)-1)/32) = ibset(CASMask((i-1)/32),MOD((i-1),32))
                 ELSEIF(SpinInvBRR(i).le.CASmin) THEN
                     !Orbital is in core space
-!                    ExtMask = ibclr(ExtMask((i-1)/32),MOD((i-1),32))
                     CoreMask((SpinInvBRR(i)-1)/32) = ibset(CoreMask((i-1)/32),MOD((i-1),32))
-!                    WRITE(6,*) "Setting orbital: ", SpinInvBRR(i)
-                ELSE
-                    !Orbital is in CAS space - these bits should already be cleared
-!                    ExtMask = ibclr(ExtMask((i-1)/32),MOD((i-1),32))
-!                    CoreMask = ibclr(CoreMask((i-1)/32),MOD((i-1),32))
+                    CASMask((SpinInvBRR(i)-1)/32) = ibset(CASMask((i-1)/32),MOD((i-1),32))
                 ENDIF
             enddo
-
-!            do i=1,nBasis
-!                IF(BTEST(CoreMask((i-1)/32),MOD((i-1),32))) THEN
-!                    WRITE(6,"(I4)",advance='no') 1
-!                ELSE
-!                    WRITE(6,"(I4)",advance='no') 0
-!                ENDIF
-!            enddo
-!            WRITE(6,*) ""
 
         ENDIF
         IF(tPartFreezeCore) THEN
@@ -4174,29 +4537,20 @@ MODULE FciMCParMod
     ENDSUBROUTINE CheckforBrillouins
 
     LOGICAL FUNCTION TestifDETinCASBit(iLutnI)
-        INTEGER :: iLutnI(0:NIfD),i,Ext(0:NIfD),Core(0:NIfD)
+        ! In:
+        !    iLutNI: bit string representation of a determinant.
+        ! Returns:
+        !    true if the determinant is in the complete active space.
+        INTEGER, INTENT(IN) :: iLutnI(0:NIfD)
 
-        Ext(:) = iand(iLutnI(:),ExtMask(:))
+        ! A determinant is in the CAS iff
+        !  a) all orbitals in the core space are occupied;
+        !  b) no orbitals in the external space are occupied;
+        ! Thus ANDing the determinant with CASMask (containing set bits for the
+        ! core and external orbitals) will give precisely the core orbitals
+        ! if the determinant is in the CAS.
+        TestifDETinCASBit = all(iand(iLutNI,CASMask) == CoreMask)
 
-        do i=0,NIfD
-            IF(Ext(i).ne.0) THEN
-                TestifDETinCASBit=.false.
-                RETURN
-            ENDIF
-        enddo
-
-        Core(:) = iand(iLutnI(:),CoreMask(:))
-
-        do i=0,NIfD
-            IF(Core(i).ne.CoreMask(i)) THEN
-                TestifDETinCASBit=.false.
-                RETURN
-            ENDIF
-        enddo
-
-        TestifDETinCASBit=.true.
-
-        RETURN
     END FUNCTION TestifDETinCASBit
 
     LOGICAL FUNCTION TestifDETinCAS(CASDet)
@@ -4688,12 +5042,12 @@ MODULE FciMCParMod
     SUBROUTINE SumEContrib(DetCurr,ExcitLevel,WSign,iLutCurr,HDiagCurr,dProbFin)
         use SystemData, only : tNoBrillouin
         use CalcData, only: tFCIMC
-        INTEGER :: DetCurr(NEl),ExcitLevel,i,HighIndex,LowIndex,iLutCurr(0:NIfTot),WSign,Bin
+        INTEGER , intent(in) :: DetCurr(NEl),ExcitLevel,WSign,iLutCurr(0:NIfTot)
+        INTEGER :: i,HighIndex,LowIndex,Bin
         INTEGER :: PartInd,iLutSym(0:NIfTot),OpenOrbs
         LOGICAL :: CompiPath,tSuccess,iLut2(0:NIfTot)
-        REAL*8 :: HDiagCurr
-        TYPE(HElement) :: HOffDiag
-        real*8 dProbFin
+        REAL*8 , intent(in) :: HDiagCurr,dProbFin
+        HElement_t :: HOffDiag
 !        write(81,*) DetCurr,ExcitLevel,WSign,iLutCurr,HDiagCurr,dProb
 
 !        MeanExcitLevel=MeanExcitLevel+real(ExcitLevel,dp)
@@ -4718,12 +5072,12 @@ MODULE FciMCParMod
                 HOffDiag = get_helement (ProjEDet, DetCurr, ExcitLevel, iLutRef, &
                                          iLutCurr)
             ENDIF
-            IF(Iter.gt.NEquilSteps) SumENum=SumENum+(REAL(HOffDiag%v,dp)*WSign/dProbFin)
+            IF(Iter.gt.NEquilSteps) SumENum=SumENum+(REAL(HOffDiag,dp)*WSign/dProbFin)
 !            AvSign=AvSign+REAL(WSign,dp)
 !            AvSignHFD=AvSignHFD+REAL(WSign,dp)
-            ENumCyc=ENumCyc+(REAL(HOffDiag%v,dp)*WSign/dProbFin)     !This is simply the Hij*sign summed over the course of the update cycle
-            ENumIter=ENumIter+(REAL(HOffDiag%v,dp)*WSign/dProbFin)
-!            WRITE(6,*) 2,SumENum,(REAL(HOffDiag%v,dp)*WSign/dProbFin)     !This is simply the Hij*sign summed over the course of the update cycle
+            ENumCyc=ENumCyc+(REAL(HOffDiag,dp)*WSign/dProbFin)     !This is simply the Hij*sign summed over the course of the update cycle
+            ENumIter=ENumIter+(REAL(HOffDiag,dp)*WSign/dProbFin)
+!            WRITE(6,*) 2,SumENum,(REAL(HOffDiag,dp)*WSign/dProbFin)     !This is simply the Hij*sign summed over the course of the update cycle
 
             
             
@@ -4742,11 +5096,11 @@ MODULE FciMCParMod
                 HOffDiag = get_helement (ProjEDet, DetCurr, ExcitLevel, ilutRef, &
                                          iLutCurr)
             ENDIF
-            IF(Iter.gt.NEquilSteps) SumENum=SumENum+(REAL(HOffDiag%v,dp)*WSign/dProbFin)
+            IF(Iter.gt.NEquilSteps) SumENum=SumENum+(REAL(HOffDiag,dp)*WSign/dProbFin)
 !            AvSign=AvSign+REAL(WSign,dp)
 !            AvSignHFD=AvSignHFD+REAL(WSign,dp)
-            ENumCyc=ENumCyc+(REAL(HOffDiag%v,dp)*WSign/dProbFin)     !This is simply the Hij*sign summed over the course of the update cycle
-!            WRITE(6,*) 1,SumENum,(REAL(HOffDiag%v,dp)*WSign/dProbFin)     !This is simply the Hij*sign summed over the course of the update cycle
+            ENumCyc=ENumCyc+(REAL(HOffDiag,dp)*WSign/dProbFin)     !This is simply the Hij*sign summed over the course of the update cycle
+!            WRITE(6,*) 1,SumENum,(REAL(HOffDiag,dp)*WSign/dProbFin)     !This is simply the Hij*sign summed over the course of the update cycle
           endif 
 
         ENDIF

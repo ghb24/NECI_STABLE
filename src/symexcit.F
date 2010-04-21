@@ -3548,7 +3548,7 @@ C                     CALL WRITEDET(6,NK,NEL,.TRUE.)
       SUBROUTINE IsConnectedDet2(nI,nJ,nEl,G1,nBasisMax,
      &      nBasis,OrbPairs,SymProdInd,iLUT,SymProds,ExcitTypes,iTotal,
      &      tIsConnected)
-         USE HElem
+         use constants, only: dp
          USE symexcit2
          use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
          use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
@@ -3571,14 +3571,14 @@ C                     CALL WRITEDET(6,NK,NEL,.TRUE.)
 ! We require the excitation generator of I, which is used to pass info to GenExcitProbInternal (in symexcit2.F90)
       SUBROUTINE GenExcitProb(nI,nJ,nEl,nIExcitor,G1,nBasisMax,UMat,Arr,
      &      nBasis,pGen)
-         USE HElem
+         use constants, only: dp
          use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
          use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB, NIfTot
          use SymData, only: SymClassSize
          IMPLICIT NONE
          INTEGER nEl,nI(nEl),nJ(nEl),nIExcitor(*),nBasis,nBasisMax(*)
          TYPE(BasisFN) G1(nBasis) 
-         TYPE(HElement) UMat(*)
+         HElement_t UMat(*)
          INTEGER DStore(*)
 #ifdef POINTER8
          INTEGER*8 LOC
@@ -3616,7 +3616,7 @@ C                     CALL WRITEDET(6,NK,NEL,.TRUE.)
       SUBROUTINE GenExcitProb2(nI,nJ,nEl,G1,nBasisMax,UMat,Arr,
      &      nBasis,OrbPairs,SymProdInd,iLUT,SymProds,ExcitTypes,iTotal,
      &      pGen)
-         USE HElem
+         use constants, only: dp
          USE symexcit2
          use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
          use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
@@ -3624,7 +3624,7 @@ C                     CALL WRITEDET(6,NK,NEL,.TRUE.)
          INTEGER nEl,nI(nEl),nJ(nEl),nBasis,nBasisMax(5,*)
          INTEGER ExcitTypes(5,*)
          TYPE(BasisFN) G1(nBasis) 
-         TYPE(HElement) UMat(*)
+         HElement_t UMat(*)
          INTEGER iLUT(*),iTotal
          INTEGER OrbPairs(2,*)
          INTEGER SymProdInd(2,3,0:*)
@@ -3639,7 +3639,7 @@ C                     CALL WRITEDET(6,NK,NEL,.TRUE.)
       SUBROUTINE CalcWriteGraphPGen(iUnit,iGraph,iV,nEl,LOCTAB,G1,
      &            nBasisMax,UMat,Arr,nBasis,pGenGraph,EXCITGEN)
          USE symexcit2
-         USE HElem
+         use constants, only: dp
          USE PrecalcData , only : PRE_TAY,TPREVAR
          use SystemData, only: BasisFN
          IMPLICIT NONE
@@ -3665,7 +3665,7 @@ C.    We must create one.
 
          TYPE(BasisFN) G1(nBasis)
          INTEGER nBasisMax(*)
-         TYPE(HElement) UMat(*)
+         HElement_t UMat(*)
          REAL*8 Arr(nBasis,2)
          INTEGER nBasis,IC,INODE2(NEL)
          REAL*8 pGen, pGenGraph

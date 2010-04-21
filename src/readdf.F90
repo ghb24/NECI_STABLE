@@ -2,7 +2,7 @@
 SUBROUTINE InitDFBasis(nEl,nBasisMax,Len,lMs)
          use SystemData , only : tStoreSpinOrbs
          use record_handler
-         USE HElem
+         use constants, only: dp
          use UMatCache
          implicit none
          integer nEl,nBasisMax(5,*),Len,lMs
@@ -40,7 +40,6 @@ SUBROUTINE InitDFBasis(nEl,nBasisMax,Len,lMs)
          use precision
          use record_handler
          use global_utilities
-         USE HElem
          use UMatCache
          implicit none
          character(*), parameter :: C_file='SAV_D____a'
@@ -52,7 +51,7 @@ SUBROUTINE InitDFBasis(nEl,nBasisMax,Len,lMs)
          integer info,i,j,k
          real*8 r
          integer nBasis,nOrbUsed,ierr
-         real(dp) array(1000)
+         real*8 :: array(1000)
 
          WRITE(6,*) "Opening Density fitting matrix files"
          file_status= 'ADD'
@@ -144,7 +143,7 @@ SUBROUTINE InitDFBasis(nEl,nBasisMax,Len,lMs)
 !DFInts(x,yz) is (x|u|yz)
 !DFFitInts(x,y) is (x|u|y)
       SUBROUTINE GetDF2EInt(a,b,c,d,res)
-         USE HElem 
+         use constants, only: dp 
          use UMatCache
          implicit none
          integer a,b,c,d
@@ -249,7 +248,7 @@ SUBROUTINE InitDFBasis(nEl,nBasisMax,Len,lMs)
          endif
       END
       SUBROUTINE ReadDalton1EIntegrals(G1,nBasis,Arr,Brr,ECore)
-         USE HElem
+         use constants, only: dp
          use SystemData, only: BasisFN,BasisFNSize,Symmetry,NullBasisFn
          USE OneEInts, only : TMATind,TMAT2D,TMATSYM,TSTARSTORE
          implicit none
@@ -268,15 +267,15 @@ SUBROUTINE InitDFBasis(nEl,nBasisMax,Len,lMs)
                ECore=val
             elseif(j.ne.0) then
                 IF(TSTARSTORE) THEN
-                    TMatSYM(TMATInd(i*2-1,j*2-1))=HElement(val)
-                    TMatSYM(TMATInd(i*2,j*2))=HElement(val)
-                    TMatSYM(TMATInd(j*2-1,i*2-1))=HElement(val)
-                    TMatSYM(TMATInd(j*2,i*2))=HElement(val)
+                    TMatSYM(TMATInd(i*2-1,j*2-1))=(val)
+                    TMatSYM(TMATInd(i*2,j*2))=(val)
+                    TMatSYM(TMATInd(j*2-1,i*2-1))=(val)
+                    TMatSYM(TMATInd(j*2,i*2))=(val)
                 ELSE
-                    TMat2D(i*2-1,j*2-1)=HElement(val)
-                    TMat2D(i*2,j*2)=HElement(val)
-                    TMat2D(j*2-1,i*2-1)=HElement(val)
-                    TMat2D(j*2,i*2)=HElement(val)
+                    TMat2D(i*2-1,j*2-1)=(val)
+                    TMat2D(i*2,j*2)=(val)
+                    TMat2D(j*2-1,i*2-1)=(val)
+                    TMat2D(j*2,i*2)=(val)
                 ENDIF
             endif
          enddo
@@ -326,7 +325,7 @@ SUBROUTINE InitDFBasis(nEl,nBasisMax,Len,lMs)
 !DFFitInts(x,y) is (x|u|y)
 !This is slower but calculates more accurately.
       SUBROUTINE GetDF2EInt2OrderOverlap(a,b,c,d,res)
-         USE HElem 
+         use constants, only: dp 
          use UMatCache
          implicit none
          integer a,b,c,d
@@ -350,7 +349,7 @@ SUBROUTINE InitDFBasis(nEl,nBasisMax,Len,lMs)
       END
 
       SUBROUTINE GetDF2EInt2OrderCoulomb(a,b,c,d,res)
-         USE HElem 
+         use constants, only: dp 
          use UMatCache
          implicit none
          integer a,b,c,d
@@ -373,7 +372,7 @@ SUBROUTINE InitDFBasis(nEl,nBasisMax,Len,lMs)
 !         WRITE(6,*) "D2",a,b,c,d,res,res1,res2,res3
       END
       SUBROUTINE DFCalcInvFitInts(dPower)
-         USE HElem
+         use constants, only: dp
          use UMatCache
          use global_utilities
          implicit none
