@@ -623,7 +623,8 @@ MODULE FciMCParMod
         
     end subroutine
 
-    subroutine new_child_stats_normal (iLutI, iLutJ, ic, child, walkExLevel)
+    subroutine new_child_stats_normal (iLutI, iLutJ, ic, child, walkExLevel)&
+                                      bind(c)
 
         integer, intent(in) :: iLutI(0:niftot), iLutJ(0:niftot)
         integer, intent(in) :: ic, child, walkExLevel
@@ -2176,7 +2177,7 @@ MODULE FciMCParMod
     function attempt_create_trunc_spawn (get_spawn_helement, DetCurr,&
                                          iLutCurr, wSign, nJ, iLutnJ, prob, &
                                          ic, ex, tparity, walkExcitLevel) &
-                                         result(child)
+                                         result(child) bind(c)
         integer, intent(in) :: DetCurr(nel), iLutCurr(0:NIfTot), nJ(nel)
         integer, intent(inout) :: iLutnJ(0:niftot)
         integer, intent(in) :: wSign, ic, ex(2,2), walkExcitLevel
@@ -2186,7 +2187,7 @@ MODULE FciMCParMod
 
         interface
             function get_spawn_helement (nI, nJ, ilutI, ilutJ, ic, ex, &
-                                         tParity, prob) result (hel)
+                                         tParity, prob) result (hel) bind(c)
                 use SystemData, only: nel, niftot
                 use constants, only: dp
                 implicit none
@@ -2211,7 +2212,7 @@ MODULE FciMCParMod
     function attempt_create_trunc_spawn_encode (get_spawn_helement, DetCurr,&
                                          iLutCurr, wSign, nJ, iLutnJ, prob, &
                                          ic, ex, tparity, walkExcitLevel) &
-                                         result(child)
+                                         result(child) bind(c)
 
         integer, intent(in) :: DetCurr(nel), iLutCurr(0:NIfTot), nJ(nel)
         integer, intent(inout) :: iLutnJ(0:niftot)
@@ -2222,7 +2223,7 @@ MODULE FciMCParMod
 
         interface
             function get_spawn_helement (nI, nJ, ilutI, ilutJ, ic, ex, &
-                                         tParity, prob) result (hel)
+                                         tParity, prob) result (hel) bind(c)
                 use SystemData, only: nel, niftot
                 use constants, only: dp
                 implicit none
@@ -2247,7 +2248,7 @@ MODULE FciMCParMod
 
     function attempt_create_normal (get_spawn_helement, DetCurr, iLutCurr, &
                                     wSign, nJ, iLutnJ, prob, ic, ex, tparity,&
-                                    walkExcitLevel) result(child)
+                                    walkExcitLevel) result(child) bind(c)
 
         integer, intent(in) :: DetCurr(nel), iLutCurr(0:NIfTot), nJ(nel)
         integer, intent(inout) :: iLutnJ(0:niftot)
@@ -2258,7 +2259,7 @@ MODULE FciMCParMod
 
         interface
             function get_spawn_helement (nI, nJ, ilutI, ilutJ, ic, ex, &
-                                         tParity, prob) result (hel)
+                                         tParity, prob) result (hel) bind(c)
                 use SystemData, only: nel, niftot
                 use constants, only: dp
                 implicit none
@@ -3255,7 +3256,7 @@ MODULE FciMCParMod
     END SUBROUTINE WriteHamilHistogram
 
     subroutine new_child_stats_hist_hamil (iLutI, iLutJ, ic, walkExLevel, &
-                                           child)
+                                           child) bind(c)
         ! Based on old AddHistHamilEl. Histograms the hamiltonian matrix, and 
         ! then calls the normal statistics routine.
 
