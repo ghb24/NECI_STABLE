@@ -6,7 +6,7 @@ module DetBitOps
     use csf_data, only: iscsf, csf_yama_bit, csf_orbital_mask, csf_test_bit
     ! TODO: remove
     use systemdata, only: g1
-    use constant, only: n_int,bits_n_int
+    use constants, only: n_int,bits_n_int
     implicit none
 
     ! http://gurmeetsingh.wordpress.com/2008/08/05/fast-bit-counting-routines/
