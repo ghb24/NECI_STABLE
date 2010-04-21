@@ -354,7 +354,8 @@ MODULE FciMCParMod
 !This is the heart of FCIMC, where the MC Cycles are performed.
     subroutine PerformFCIMCycPar(generate_excitation, attempt_create, &
                                  get_spawn_helement, encode_child, &
-                                 new_child_stats) bind(c)
+                                 new_child_stats) &
+                                 bind(c, name='performfcimcycpar')
 
         USE FciMCLoggingMOD , only : TrackSpawnAttempts
         use detbitops, only : countbits
@@ -616,7 +617,7 @@ MODULE FciMCParMod
         call DirectAnnihilation (totWalkersNew)
         CALL halt_timer(Annihil_Time)
         
-    END SUBROUTINE PerformFCIMCycPar
+    end subroutine
 
     subroutine new_child_stats_normal (iLutI, iLutJ, ic, child, walkExLevel)
 
