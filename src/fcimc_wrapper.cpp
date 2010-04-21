@@ -68,10 +68,11 @@ void call_fcimc_cyc_par ()
 
 	if (!g_new_child_stats)
 		stop_all (__FUNCTION__, "No routine for new child statistics is set.");
-
+#ifdef PARALLEL
 	performfcimcycpar (g_generate_excitation, g_attempt_create, 
 	                   g_get_spawn_helement, g_encode_child,
 					   g_new_child_stats);
+#endif
 }
 
 }

@@ -229,16 +229,13 @@ SUBROUTINE GETVARS(NI,BETA,I_P,IPATH,I,G1,NMSH,              &
 
      use constants, only: dp
      use SystemData, only: BasisFN
+     use mcpathsdata, only: EGP
      IMPLICIT NONE
      TYPE(BasisFN) G1(*),KSYM
      INTEGER I_P,METH,CYCLES,NMSH,NTAY(2),I,L,LT,Q
      INTEGER NI(NEL),IFRZ(0:NBASIS,PREIV_MAX),NMAX
      INTEGER IPATH(NEL,0:PREIV_MAX),GIDHO,n,gg,zz
-#if defined(POINTER8)
-     INTEGER*8 LOCTAB(3,PREIV_MAX)
-#else
-     INTEGER LOCTAB(3,PREIV_MAX)
-#endif
+     type(EGP) LOCTAB(PREIV_MAX)
      INTEGER iters,r,s,rr,UNITNO,vv,kk,cc,I_VMAX,NWHTAY(3,I_VMAX)
      COMPLEX*16 FCK(*)
      REAL*8 BETA,ECORE,NTOTAL,RHOEPS,DBETA,VARSUM
@@ -868,6 +865,7 @@ FUNCTION VARIANCEAB(pointab,NI,BETA,I_P,IPATH,K,G1,NMSH,        &
 
     use constants, only: dp
     use SystemData, only: BasisFN
+    use mcpathsdata, only: EGP
     IMPLICIT NONE
     REAL*8 pointab(*),VARIANCEAB
 !    EXTERNAL MCPATHSPRE
@@ -876,11 +874,7 @@ FUNCTION VARIANCEAB(pointab,NI,BETA,I_P,IPATH,K,G1,NMSH,        &
     INTEGER I_P,METH,CYCLES,NMSH,NTAY(2),L,LT,K,D
     INTEGER NI(NEL),IFRZ(0:NBASIS,PREIV_MAX),GIDHO
     INTEGER IPATH(NEL,0:PREIV_MAX),NMAX
-#if defined(POINTER8)
-     INTEGER*8 LOCTAB(3,PREIV_MAX)
-#else
-     INTEGER LOCTAB(3,PREIV_MAX)
-#endif
+    TYPE(EGP) LOCTAB(PREIV_MAX)
     COMPLEX*16 FCK(*)
     LOGICAL TSYM,G
     REAL*8 BETA,ECORE,NTOTAL,RHOEPS,DBETA,ENERGYLIMS(2)
@@ -932,16 +926,14 @@ FUNCTION MCPATHSPRE(point,NI,BETA,I_P,IPATH,K,G1,NMSH,         &
     Use Logging, only: PrevarLogging
     use global_utilities
     use legacy_data, only: irat
+    use mcpathsdata, only: EGP
+    use mcpaths, only: fmcpr3b
     IMPLICIT NONE
     TYPE(BasisFN) G1(*),KSYM
     INTEGER I_P,METH,CYCLES,NMSH,NTAY(2),L,LT,K
     INTEGER NI(NEL),IFRZ(0:NBASIS,PREIV_MAX),I,CNWHTAY
     INTEGER IPATH(NEL,0:PREIV_MAX),GIDHO
-#if defined(POINTER8)
-     INTEGER*8 LOCTAB(3,PREIV_MAX)
-#else
-     INTEGER LOCTAB(3,PREIV_MAX)
-#endif
+    TYPE(EGP) LOCTAB(PREIV_MAX)
     INTEGER sss,ierr,ierr2,ierr3,STORE(6),NMEMLEN,INODE2(NEL)
     INTEGER IEXCITS,J,EXCITGEN(0:PREIV_MAX),ierr4,b,dd,bb,aa,DEALLOCYC(2),NMAX
     COMPLEX*16 FCK(*)
@@ -949,7 +941,7 @@ FUNCTION MCPATHSPRE(point,NI,BETA,I_P,IPATH,K,G1,NMSH,         &
     REAL*8 NTOTAL,BETA,ECORE,RHOEPS,DBETA,VARSUM,point,MCPATHSPRE
     REAL*8 PROB,SumX,SumY,SumXsq,SumYsq,SumXY,ORIGIMPORT
     HElement_t UMat(*),RHOIJ(0:PREIV_MAX,0:PREIV_MAX)
-    real(dp) DLWDB,TOTAL,DLWDB2,EREF,FMCPR3B,FMCPR3B2,F(2:PREIV_MAX)
+    real(dp) DLWDB,TOTAL,DLWDB2,EREF,FMCPR3B2,F(2:PREIV_MAX)
     HElement_t HIJS(0:PREIV_MAX)
     real(dp) MP2E(2:PREIV_MAX),RHOII(0:PREIV_MAX),TOTAL2
     ! Saved values only go up to a vertex level of 6 - increase values if we want to go to higher vertex levels
@@ -1419,16 +1411,13 @@ SUBROUTINE BRENTALGO(brent,ax,bx,cx,fun,tol,xmin,NI,BETA,I_P,IPATH,K,    &
      &                 NTOTAL,DLWDB,TOTAL,GIDHO,TLOGP,INITFUNC,ENERGYLIMS,KSYM)
     use constants, only: dp
     use SystemData, only: BasisFN
+    use mcpathsdata, only: EGP
     IMPLICIT NONE
     TYPE(BasisFN) G1(*),KSYM
     INTEGER I_P,METH,CYCLES,NMSH,NTAY(2),K,L,LT
     INTEGER NI(NEL),IFRZ(0:NBASIS,PREIV_MAX)
     INTEGER IPATH(NEL,0:PREIV_MAX),GIDHO,NMAX
-#if defined(POINTER8)
-     INTEGER*8 LOCTAB(3,PREIV_MAX)
-#else
-     INTEGER LOCTAB(3,PREIV_MAX)
-#endif
+    TYPE(EGP) LOCTAB(PREIV_MAX)
     COMPLEX*16 FCK(*)
     LOGICAL TSYM,TLOGP
     REAL*8 BETA,ECORE,NTOTAL,RHOEPS,DBETA,VARSUM,fun,INITFUNC
@@ -1593,16 +1582,13 @@ SUBROUTINE POWELL(p,xi,n,np,ftol,iter,fret,NI,BETA,I_P,IPATH,Q,                 
     
     use constants, only: dp
     use SystemData, only: BasisFN
+    use mcpathsdata, only: EGP
     IMPLICIT NONE
     TYPE(BasisFN) G1(*),KSYM
     INTEGER iter,n,np,ITMAX,I_P,NMSH,NTAY(2),L,LT,NMAXI
     INTEGER NI(NEL),IFRZ(0:NBASIS,PREIV_MAX),Q
     INTEGER IPATH(NEL,0:PREIV_MAX),GIDHO,NMAX
-#if defined(POINTER8)
-     INTEGER*8 LOCTAB(3,PREIV_MAX)
-#else
-     INTEGER LOCTAB(3,PREIV_MAX)
-#endif
+    TYPE(EGP) LOCTAB(PREIV_MAX)
     COMPLEX*16 FCK(*)
     LOGICAL TSYM,TLOGP,LOWNEL
     REAL*8 fret,ftol,p(np),xi(np,np),BETA,ECORE,NTOTAL,RHOEPS
@@ -1714,16 +1700,13 @@ SUBROUTINE linmin(p,xi,n,fret,NI,BETA,I_P,IPATH,Q,G1,NMSH,         &
     
     use constants, only: dp
     use SystemData, only: BasisFN
+    use mcpathsdata, only: EGP
     IMPLICIT NONE
     TYPE(BasisFN) G1(*),KSYM
     INTEGER I_P,NMSH,NTAY(2),Q,L,LT,GIDHO
     INTEGER NI(NEL),IFRZ(0:NBASIS,PREIV_MAX)
     INTEGER IPATH(NEL,0:PREIV_MAX),NMAX
-#if defined(POINTER8)
-     INTEGER*8 LOCTAB(3,PREIV_MAX)
-#else
-     INTEGER LOCTAB(3,PREIV_MAX)
-#endif
+    TYPE(EGP) LOCTAB(PREIV_MAX)
     COMPLEX*16 FCK(*)
     LOGICAL TSYM,TLOGP
     REAL*8 BETA,ECORE,NTOTAL,RHOEPS,DBETA,VARSUM,ENERGYLIMS(2)
@@ -1777,16 +1760,13 @@ FUNCTION f1dim(x,NI,BETA,I_P,IPATH,Q,G1,NMSH,                  &
 
     use constants, only: dp
     use SystemData, only: BasisFN
+    use mcpathsdata, only: EGP
     IMPLICIT NONE
     TYPE(BasisFN) G1(*),KSYM
     INTEGER I_P,METH,CYCLES,NMSH,NTAY(2),L,LT,K,D,Q
     INTEGER NI(NEL),IFRZ(0:NBASIS,PREIV_MAX)
     INTEGER IPATH(NEL,0:PREIV_MAX),GIDHO,NMAX
-#if defined(POINTER8)
-     INTEGER*8 LOCTAB(3,PREIV_MAX)
-#else
-     INTEGER LOCTAB(3,PREIV_MAX)
-#endif
+    TYPE(EGP) LOCTAB(PREIV_MAX)
     COMPLEX*16 FCK(*)
     LOGICAL TSYM,LISNAN
     REAL*8 BETA,ECORE,NTOTAL,RHOEPS,DBETA
@@ -1824,6 +1804,7 @@ SUBROUTINE mnbrak(ax,bx,cx,fa,fb,fc,func,NI,BETA,I_P,IPATH,Q,G1,NMSH,   &
     
     use constants, only: dp
     use SystemData, only: BasisFN
+    use mcpathsdata, only: EGP
     IMPLICIT NONE
     REAL*8 ax,bx,cx,fa,fb,fc,func,GOLD,GLIMIT,MINI
     PARAMETER (GOLD=1.618034, GLIMIT=100.D0,MINI=1.D-20)
@@ -1831,11 +1812,7 @@ SUBROUTINE mnbrak(ax,bx,cx,fa,fb,fc,func,NI,BETA,I_P,IPATH,Q,G1,NMSH,   &
     INTEGER I_P,METH,CYCLES,NMSH,NTAY(2),L,LT,Q
     INTEGER NI(NEL),IFRZ(0:NBASIS,PREIV_MAX),GIDHO,NMAX
     INTEGER IPATH(NEL,0:PREIV_MAX),t
-#if defined(POINTER8)
-     INTEGER*8 LOCTAB(3,PREIV_MAX)
-#else
-     INTEGER LOCTAB(3,PREIV_MAX)
-#endif
+    TYPE(EGP) LOCTAB(PREIV_MAX)
     COMPLEX*16 FCK(*)
     LOGICAL TSYM,TLOGP
     REAL*8 BETA,ECORE,NTOTAL,RHOEPS,DBETA,savedax,savedbx
@@ -1957,16 +1934,13 @@ SUBROUTINE MAKEGRID(NI,BETA,I_P,IPATH,K,G1,NMSH,         &
 
     use constants, only: dp
     use SystemData, only: BasisFN
+    use mcpathsdata, only: EGP
     IMPLICIT NONE
     TYPE(BasisFN) G1(*),KSYM
     INTEGER I_P,NMSH,NTAY(2),K
     INTEGER L,LT,NI(NEL),IFRZ(0:NBASIS,PREIV_MAX)
     INTEGER IPATH(NEL,0:PREIV_MAX),GIDHO,NMAX
-#if defined(POINTER8)
-     INTEGER*8 LOCTAB(3,PREIV_MAX)
-#else
-     INTEGER LOCTAB(3,PREIV_MAX)
-#endif
+    TYPE(EGP) LOCTAB(PREIV_MAX)
     INTEGER IEXCITS,UNITNO
     COMPLEX*16 FCK(*)
     LOGICAL TSYM

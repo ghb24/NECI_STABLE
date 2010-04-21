@@ -36,6 +36,7 @@ C.,             If 1, only allow doubles.
          use CalcData , only : TVARCALC,TMPTHEORY,TMODMPTHEORY
          use CalcData , only : lNoTriples
          use SystemData, only: BasisFN
+         use mcpathsdata, only: EGP
          IMPLICIT NONE
          TYPE(BasisFN) G1(*),ISYM
          INTEGER I_V,NEL,I_P,nBasisMax(5,*),NBASIS,BRR(*),NMSH,NMAX
@@ -58,19 +59,11 @@ C.,             If 1, only allow doubles.
          REAL*8 DBETA(*)
          HElement_t HIJS(0:I_V)
          INTEGER ICLS
-         INTEGER NMEM(*),NMEMLEN
-         POINTER(IP_NMEM,NMEM)
-         POINTER(IP_CURGEN,CURGEN)
-         POINTER(IP_OGEN,OGEN)
-         INTEGER OGEN(*)
-         INTEGER CURGEN(*)
-#if defined(POINTER8)
-         INTEGER*8 LOCTAB(3,I_V)
-         INTEGER*8 LOCTAB2(3,I_V)
-#else
-         INTEGER LOCTAB(3,I_V)
-         INTEGER LOCTAB2(3,I_V)
-#endif
+         INTEGER, pointer :: NMEM(:),OGEN(:),CURGEN(:)
+
+         INTEGER NMEMLEN
+         TYPE(EGP) LOCTAB(I_V)
+         TYPE(EGP) LOCTAB2(I_V)
          LOGICAL TFAIL,TNEXT
          INTEGER L,LT,IVLEVEL,IEXFROM,IVLMAX,IVLMIN
          INTEGER ICMPDETS
@@ -326,7 +319,7 @@ C.. Initialiaze the excitation generators
          STORE(1)=0
          CALL GENSYMEXCITIT2(INODE,NEL,G1,NBASIS,NBASISMAX,
      &         .TRUE.,NMEMLEN,NJ,IC,IFRZ(0,I_VIND+1),STORE,EXFLAG)
-         CALL N_MEMORY(IP_NMEM,NMEMLEN,'NMEM')
+         allocate(NMEM(NMEMLEN))
          NMEM(1)=0
          CALL GENSYMEXCITIT2(INODE,NEL,G1,NBASIS,NBASISMAX,
      &         .TRUE.,NMEM,NJ,IC,IFRZ(0,I_VIND+1),STORE,EXFLAG)
@@ -363,9 +356,9 @@ C.. was generated from (or just the root if there is none)
          IVLEVEL=IVLMAX
 
 C.. Set these just in case
-         IP_CURGEN=IP_NMEM
-         LOCTAB(2,I_VIND+1)=NMEMLEN
-         LOCTAB(3,I_VIND+1)=IVLEVEL-1
+         CURGEN=>NMEM
+         LOCTAB(I_VIND+1)%l=NMEMLEN
+         LOCTAB(I_VIND+1)%v=IVLEVEL-1
          
          DO WHILE (IVLEVEL.GT.IVLMIN)
 C.. If we're at I_VIND+1, then we don't need to create a new copy of the 
@@ -375,27 +368,28 @@ C.. generator, as no other sub-recursion is using it yet
             IF(IVLEVEL.LE.I_VIND) THEN
 C.. create a copy
 
-               CALL N_MEMORY(IP_CURGEN,LOCTAB2(2,IVLEVEL),'CURGEN')
-               IP_OGEN=LOCTAB2(1,IVLEVEL)
-               CALL NECI_ICOPY(LOCTAB2(2,IVLEVEL),OGEN,1,CURGEN,1)
+               nullify(CURGEN)
+               allocate(CURGEN(LOCTAB2(IVLEVEL)%l))
+               OGEN=>LOCTAB2(IVLEVEL)%p
+               OGEN=CURGEN
                I_VIND=I_VIND+1
                I_VIND=I_VIND-1
                IF(IAND(IFRZ(0,I_VIND+1),8).NE.0) THEN
 C.. We need to reset the generator if we're only generating stars.
 C.. Because we now have some frozen orbitals, the original excitation
 C.. will not be re-generated.
-                  CALL RESETEXIT2(IPATH(1,LOCTAB(3,IVLEVEL)),NEL,G1,
+                  CALL RESETEXIT2(IPATH(1,LOCTAB(IVLEVEL)%v),NEL,G1,
      &               NBASIS,NBASISMAX,CURGEN,IFRZ2)
                ENDIF
-               LOCTAB2(2,I_VIND+1)=LOCTAB(2,IVLEVEL)
-               LOCTAB2(3,I_VIND+1)=LOCTAB(3,IVLEVEL)
+               LOCTAB2(I_VIND+1)%l=LOCTAB(IVLEVEL)%l
+               LOCTAB2(I_VIND+1)%v=LOCTAB(IVLEVEL)%v
             ELSE
-               IP_CURGEN=IP_NMEM
-               LOCTAB2(2,I_VIND+1)=NMEMLEN
-               LOCTAB2(3,I_VIND+1)=IVLEVEL-1
+               CURGEN=>NMEM
+               LOCTAB2(I_VIND+1)%l=NMEMLEN
+               LOCTAB2(I_VIND+1)%v=IVLEVEL-1
             ENDIF
-            IEXFROM=LOCTAB2(3,I_VIND+1)
-            LOCTAB2(1,I_VIND+1)=IP_CURGEN
+            IEXFROM=LOCTAB2(I_VIND+1)%v
+            LOCTAB2(I_VIND+1)%p=>CURGEN
             DO WHILE(.NOT.TNEXT)
 C.. Now use the generator to make the next node,NJ
                CALL GENSYMEXCITIT2(IPATH(1,IEXFROM),NEL,G1,
@@ -452,7 +446,7 @@ C.. because we've just done that
                      HIJ(I_VIND+1,II)=(RH)
 #endif
                      HIJ(II,I_VIND+1)=RH
-                   IF(IsConnectedDet(IPATH(1,II),NJ,nEl,LOCTAB(1,II),
+                   IF(IsConnectedDet(IPATH(1,II),NJ,nEl,LOCTAB(II)%p,
      &                  G1,nBasisMax,nBasis)) THEN
 !if rhoeps is zero then always set TFAIL.  if rhoeps isn't zero, then set TFAIL if Rh isn't zero (i.e. we've included it before)
                      IF(RH.NE.0.D0.OR.RHOEPS.EQ.0.D0) THEN
@@ -530,16 +524,16 @@ C.. Get the H element so we can calculate the energy
             ENDDO
             IF(IVLEVEL.LE.I_VIND) THEN
 C.. free the copy
-               CALL N_FREEM(IP_CURGEN)
-               IP_CURGEN=0
-               LOCTAB2(1,IVLEVEL)=0
+               deallocate(CURGEN)
+               nullify(CURGEN)
+               nullify(LOCTAB2(IVLEVEL)%p)
             ENDIF
 C.. for the next iterator, we want to find the node to which we are
 C.. connected, and continue from after where this node was excited
-            IVLEVEL=LOCTAB2(3,IVLEVEL)
+            IVLEVEL=LOCTAB2(IVLEVEL)%v
          ENDDO
-         CALL N_FREEM(IP_NMEM)
-         LOCTAB(1,I_VIND+1)=0
+         deallocate(NMEM)
+         nullify(LOCTAB(I_VIND+1)%p)
          FMCPR3B2RES=TOTAL
 
         If (TVARCALC(I_V).and.(I_VIND.eq.0).and.(.not.TPREVAR)) Then

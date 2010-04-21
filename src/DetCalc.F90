@@ -960,16 +960,19 @@ END MODULE DetCalc
          use DetCalc, only: NMRKS
          use legacy_data, only: irat
          use Determinants, only: write_det
+         use mcpaths, only: mcpathsr3
          implicit none
          character(25), parameter :: this_routine = 'CalcRhoPII2'
          INTEGER NEL,I_P,I_HMAX,I_VMAX,NDET,nBasisMax(5,*),nBasis
-         INTEGER BRR(*),NMSH,NMAX(*),NTAY,ILOGGING
+         INTEGER BRR(*),NMSH,NMAX,NTAY,ILOGGING
          type(timer), save :: proc_timer
          HElement_t UMat(*)
          real(dp) DLWDB, DLWDB2, DLWDB3, DLWDB4
-         TYPE(BasisFN) g1(*),ALAT(*)
+         TYPE(BasisFN) g1(*)
+         REAL*8 ALAT(*)
          LOGICAL TSYM
-         REAL*8 BETA,FCK(*),RHOEPS
+         REAL*8 BETA,RHOEPS
+         COMPLEX*16 FCK(*)
 
          
          INTEGER, ALLOCATABLE :: LSTE(:),ICE(:)
@@ -1035,7 +1038,7 @@ END MODULE DetCalc
          DO III=ISTART,IEND
             IF(III.NE.0) THEN
               IF(NPATHS.EQ.1) call write_det (6, NMRKS(:,III), .true.) 
-               CALL MCPATHSR3(NMRKS(1,III),BETA,I_P,I_HMAX,I_VMAX,NEL, NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT, &
+               CALL MCPATHSR3(NMRKS(:,III),BETA,I_P,I_HMAX,I_VMAX,NEL, NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT, &
      &         UMAT,NTAY, RHOEPS,LSTE,ICE,RIJLIST,NWHTAY,ILOGGING,ECORE,ILMAX, WLRI,WLSI,DBETA,DLWDB2)
             ELSE
                CALL MCPATHSR3(SPECDET,BETA,I_P,I_HMAX,I_VMAX,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY, &
@@ -1064,11 +1067,11 @@ END MODULE DetCalc
             IF(TNPDERIV) THEN
 !.. if we're calculating the derivatives too
                IF(III.NE.0) THEN
-               CALL MCPATHSR3(NMRKS(1,III),BETA+DBETA,I_P,I_HMAX,    &
+               CALL MCPATHSR3(NMRKS(:,III),BETA+DBETA,I_P,I_HMAX,    &
      &            I_VMAX,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,       &
      &            NMAX,ALAT,UMAT,NTAY,RHOEPS,LSTE,ICE,RIJLIST,NWHTAY,&
      &            ILOGGING,ECORE,ILMAX,WLRI1,WLSI1,DBETA,DLWDB3)
-               CALL MCPATHSR3(NMRKS(1,III),BETA-DBETA,I_P,I_HMAX,    &
+               CALL MCPATHSR3(NMRKS(:,III),BETA-DBETA,I_P,I_HMAX,    &
      &            I_VMAX,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,       &
      &            NMAX,ALAT,UMAT,NTAY,RHOEPS,LSTE,ICE,RIJLIST,NWHTAY,&
      &            ILOGGING,ECORE,ILMAX,WLRI2,WLSI2,DBETA,DLWDB4)
@@ -1099,7 +1102,7 @@ END MODULE DetCalc
                CALL FLUSH(42)
                WRITE(6,*) "Investigating det ",DETINV
                CALL FLUSH(6)
-               CALL WIRD_SUBSET(NMRKS(1,DETINV),BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY, &
+               CALL WIRD_SUBSET(NMRKS(:,DETINV),BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY, &
      &       RHOEPS,ILOGGING,TSYM,ECORE)
             ENDIF
           ENDDO
@@ -1288,7 +1291,8 @@ END MODULE DetCalc
             CALL CALCRHOPII(I,NDET,NEVAL,CK,W,BETA,I_P,ILOGGING,ECORE,WLRIS(I),WLSIS(I),TWARN)
             DLWDBS(I)=CALCDLWDB(I,NDET,NEVAL,CK,W,BETA,ECORE)
          ENDDO
-         EN=DMONTECARLOEXWI(NDET,WLRIS,WLSIS,DLWDBS,I_P,IMCSTEPS,G1,NMRKS,NEL,NBASISMAX,NBASIS,BRR,IEQSTEPS,ILOGGING)
+         STOP "DMONTECARLOEXWI is no longer functional."
+!         EN=DMONTECARLOEXWI(NDET,WLRIS,WLSIS,DLWDBS,I_P,IMCSTEPS,G1,NMRKS,NEL,NBASISMAX,NBASIS,BRR,IEQSTEPS,ILOGGING)
          WRITE(6,*) "EXACT MC RESULT=",EN
          DOEXMC=EN
          RETURN

@@ -1282,7 +1282,7 @@ MODULE Calc
           use Parallel_Calc
 !          Use MCDets, only: MCDetsCalc
 !Calls
-          REAL*8 DMonteCarlo2
+!          REAL*8 DMonteCarlo2
 !Local Vars
           REAL*8 EN, ExEn, GsEN
           REAL*8 FLRI, FLSI
@@ -1376,7 +1376,8 @@ MODULE Calc
              IF(NTAY(1).GT.0) THEN
                 WRITE(6,*) "Using approx RHOs generated on the fly, NTAY=",NTAY(1)
 !C.. NMAX is now ARR
-                EN=DMONTECARLO2(MCDET,I_P,BETA,DBETA,I_HMAX,I_VMAX,IMCSTEPS,G1,NEL,NBASISMAX,nBasis,BRR,IEQSTEPS,NMSH,FCK,ARR,ALAT,UMAT,NTAY,RHOEPS,NWHTAY,ILOGGING,ECORE,BETAEQ) 
+                STOP "DMONTECARLO2 is now non-functional."
+!                EN=DMONTECARLO2(MCDET,I_P,BETA,DBETA,I_HMAX,I_VMAX,IMCSTEPS,G1,NEL,NBASISMAX,nBasis,BRR,IEQSTEPS,NMSH,FCK,ARR,ALAT,UMAT,NTAY,RHOEPS,NWHTAY,ILOGGING,ECORE,BETAEQ) 
              ELSEIF(NTAY(1).EQ.0) THEN
                 IF(TENERGY) THEN
                    WRITE(6,*) "Using exact RHOs generated on the fly"
@@ -1388,9 +1389,10 @@ MODULE Calc
 !C..         UMAT=NDET
 !C..         ALAT=NMRKS
 !C..         NMAX=ARR
-                   EN=DMONTECARLO2(MCDET,I_P,BETA,DBETA,I_HMAX,I_VMAX,IMCSTEPS,             &
-     &                G1,NEL,NBASISMAX,nBasis,BRR,IEQSTEPS,                                 &
-     &                NEVAL,W,CK,ARR,NMRKS,NDET,NTAY,RHOEPS,NWHTAY,ILOGGING,ECORE,BETAEQ)
+                STOP "DMONTECARLO2 is now non-functional."
+!                   EN=DMONTECARLO2(MCDET,I_P,BETA,DBETA,I_HMAX,I_VMAX,IMCSTEPS,             &
+!     &                G1,NEL,NBASISMAX,nBasis,BRR,IEQSTEPS,                                 &
+!     &                NEVAL,W,CK,ARR,NMRKS,NDET,NTAY,RHOEPS,NWHTAY,ILOGGING,ECORE,BETAEQ)
                 ELSE
                    STOP "TENERGY not set, but NTAY=0" 
                 ENDIF
@@ -1761,6 +1763,7 @@ MODULE Calc
          use CalcData, only: tFCIMC
          use gnd_work_type
          use Determinants, only: write_det
+         use mcpaths, only: mcpathsr3
          IMPLICIT NONE
          INTEGER I_HMAX,NEL,NBASIS,I_VMAX
          INTEGER,ALLOCATABLE :: LSTE(:) !(NEL,NBASIS*NBASIS*NEL*NEL,0:I_VMAX-1)??!!
@@ -1768,11 +1771,12 @@ MODULE Calc
          HElement_t  UMAT(*)
          HElement_t,allocatable  :: RIJLIST(:)
          integer,save :: tagRIJList=0,tagLSTE=0,tagICE=0
-         REAL*8 BETA,FCK(*),ALAT(*),RHOEPS
+         REAL*8 BETA,ALAT(*),RHOEPS
+         COMPLEX*16 FCK(*)
          INTEGER NPATHS,NI(NEL),I_P,nBasisMax(5,*)
          INTEGER Work(GNDWorkSize+2*NEL)
          TYPE(BASISFN) G1(NBASIS)
-         INTEGER BRR(NBASIS),NMSH,NMAX(*),NTAY,ILOGGING
+         INTEGER BRR(NBASIS),NMSH,NMAX,NTAY,ILOGGING
          INTEGER III,NWHTAY,I,IMAX,ILMAX,LMS
          TYPE(BasisFN) ISYM,SymRestrict
          LOGICAL TSPN,TPARITY,TSYM
