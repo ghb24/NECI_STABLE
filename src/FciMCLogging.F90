@@ -5,12 +5,10 @@ MODULE FciMCLoggingMod
 
     USE Global_utilities
     USE Parallel
-    USE HElem , only : HElement
     USE Logging , only : tSaveBlocking,tBlockEveryIteration,HistInitPops,HistInitPopsTag,AllHistInitPops,AllHistInitPopsTag
     USE SystemData , only : NEl,NIfTot,NIfDBO
     USE SymData , only : nSymLabels
     USE Determinants , only : get_helement, get_helement_excit
-    use GenRandSymExcitNUMod , only : GenRandSymExcitScratchNU,ScratchSize
     USE CalcData , only : NMCyc,StepsSft
     use DetBitOps, only: DetBitEQ, FindExcitBitDet, FindBitExcitLevel
     use constants, only: dp
@@ -443,7 +441,7 @@ MODULE FciMCLoggingMod
     SUBROUTINE TrackSpawnAttempts(Child,DetCurr,j,nJ,iLutnJ,IC,Ex,tParity)
         INTEGER :: Child,DetCurr(NEl),j,nJ(NEl),iLutnJ(0:NIfTot),IC,Ex(2,2)
         LOGICAL :: tParity
-        TYPE(HElement) :: HEl
+        HElement_t :: HEl
 
 !        WRITE(6,*) 'Child',Child
 !        WRITE(6,*) 'DetCurr',DetCurr
@@ -458,13 +456,13 @@ MODULE FciMCLoggingMod
         IF(Child.eq.0) THEN
             ! Spawn not accepted.
             NoNotAccept=NoNotAccept+1.D0
-            TotHElNotAccept=TotHElNotAccept+ABS(REAL(HEl%v,dp))
-            IF(ABS(REAL(HEl%v,dp)).gt.ABS(MaxHElNotAccept)) MaxHElNotAccept=ABS(REAL(HEl%v,dp))
+            TotHElNotAccept=TotHElNotAccept+ABS(REAL(HEl,dp))
+            IF(ABS(REAL(HEl,dp)).gt.ABS(MaxHElNotAccept)) MaxHElNotAccept=ABS(REAL(HEl,dp))
         ELSE
             ! Spawn accepted.
             NoAccept=NoAccept+1.D0
-            TotHElAccept=TotHElAccept+ABS(REAL(HEl%v,dp))
-            IF((MinHElAccept.eq.0.D0).or.(ABS(REAL(HEl%v,dp)).lt.ABS(MinHElAccept))) MinHElAccept=ABS(REAL(HEl%v,dp))
+            TotHElAccept=TotHElAccept+ABS(REAL(HEl,dp))
+            IF((MinHElAccept.eq.0.D0).or.(ABS(REAL(HEl,dp)).lt.ABS(MinHElAccept))) MinHElAccept=ABS(REAL(HEl,dp))
         ENDIF
 
     ENDSUBROUTINE TrackSpawnAttempts

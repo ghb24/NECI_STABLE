@@ -2076,7 +2076,7 @@ C.. Set to be totally symmetric
 
 
       SUBROUTINE WRITESYMCLASSES(NBASIS)
-        USE HElem
+        use constants, only: dp
         USE UMatCache
         use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
         use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB

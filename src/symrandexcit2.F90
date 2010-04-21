@@ -27,13 +27,14 @@ MODULE GenRandSymExcitNUMod
     use SystemData, only: ALAT,iSpinSkip,tFixLz,iMaxLz,NIfTot,tUEG,tNoFailAb,tLatticeGens, tHub
     use SystemData, only: nEl,G1, nBasis,nBasisMax,tNoSymGenRandExcits
     use SystemData, only: Arr,nMax,tCycleOrbs,nOccAlpha,nOccBeta,ElecPairs,MaxABPairs
+    use FciMCData, only: pDoubles
     use IntegralsData, only: UMat
     use Determinants, only: get_helement, write_det
     use SymData, only: nSymLabels,TwoCycleSymGens
     use SymData, only: SymLabelList,SymLabelCounts
     use dSFMT_interface , only : genrand_real2_dSFMT
     use SymExcitDataMod 
-    use HElem
+    use constants, only: dp
     use DetBitOps, only: FindExcitBitDet
     use sltcnd_mod, only: sltcnd_1
     use constants, only: dp
@@ -41,22 +42,38 @@ MODULE GenRandSymExcitNUMod
 
     contains
 
-!This routine is the same as GenRandSymExcitNU, but you can pass in the ClassCount arrays, so they do not have to be recalculated each time
-!we want an excitation. If tFilled is false, then it wil assume that they are unfilled and calculate them. It will then return the arrays
-!with tFilled = .true. for use in the next excitation.
-!The two arrays want to be integers, both of size (2,1:nSymLabels)
-    SUBROUTINE GenRandSymExcitScratchNU(nI,iLut,nJ,pDoub,IC,ExcitMat,tParity,exFlag,pGen,ClassCount2,ClassCountUnocc2,tFilled)
-        INTEGER :: nI(NEl),nJ(NEl),IC,ExcitMat(2,2),exFlag
-        INTEGER :: ClassCount2(ScratchSize)
-        INTEGER :: ClassCountUnocc2(ScratchSize)
-!        INTEGER , SAVE :: Iter=0
-        INTEGER :: ILUT(0:NIfTot),i!,DetSym
-        LOGICAL :: tNoSuccess,tParity,tFilled
-        REAL*8 :: pDoub,pGen,r
-        CHARACTER , PARAMETER :: this_routine='GenRandSymExcitNU'
+    subroutine gen_rand_excit (nI, ilut, nJ, ilutnJ, exFlag, IC, ExcitMat, &
+                               tParity, pGen, tFilled, ClassCount2, &
+                               ClassCountUnocc2, scratchUnused)
 
-!        Iter=Iter+1
-!        WRITE(6,*) Iter,tFilled,nSymLabels
+        ! This routine is the same as GenRandSymexcitNu, but you can pass in 
+        ! the class count arrays so that they do not have to be recalculated 
+        ! each time for the same excitation. If tFilled is false, it will 
+        ! assume they are unfilled and calculate them, returning the arrays 
+        ! and tFilled=T.
+        ! The two arrays want to be integers, both of size (1, 1:nSymLabels)
+
+        integer, intent(in) :: nI(nel), iLut(0:niftot)
+        integer, intent(in) :: exFlag
+        integer, intent(out) :: nJ(nel)
+        integer, intent(out) :: IC, ExcitMat(2,2)
+        integer, intent(inout) :: ClassCount2(ScratchSize)
+        integer, intent(inout) :: ClasscountUnocc2(ScratchSize)
+        logical, intent(out) :: tParity
+        logical, intent(inout) :: tFilled
+        real*8, intent(out) :: pgen
+
+        ! Not used
+        integer, intent(out) :: ilutnJ(0:niftot)
+        integer, intent(inout) :: scratchUnused(ScratchSize)
+
+        logical  :: tNoSuccess
+        real*8 :: r
+        character(*), parameter :: this_routine = 'gen_rand_excit'
+
+        ! Just in case
+        ilutnJ(0) = -1
+
         IF((tUEG.and.tLatticeGens) .or. (tHub.and.tLatticeGens)) THEN
             call CreateExcitLattice(nI,iLut,nJ,tParity,ExcitMat,pGen)
             IC=2
@@ -92,7 +109,7 @@ MODULE GenRandSymExcitNUMod
 !ExFlag is 1 for singles, 2 for just doubles, and 3 for both.
         IF(ExFlag.eq.3) THEN
 !Choose whether to generate a double or single excitation. Prob of generating a double is given by pDoub.
-            pDoubNew=pDoub
+            pDoubNew=pDoubles
 
             r = genrand_real2_dSFMT()
             IF(r.lt.pDoubNew) THEN
@@ -136,7 +153,7 @@ MODULE GenRandSymExcitNUMod
 !            CALL Stop_All("GenRand","WrongSym")
 !        ENDIF
 
-    END SUBROUTINE GenRandSymExcitScratchNU
+    end subroutine
 
     SUBROUTINE GenRandSymExcitNU(nI,iLut,nJ,pDoub,IC,ExcitMat,TParity,exFlag,pGen)
         INTEGER :: nI(NEl),nJ(NEl),IC,ExcitMat(2,2),exFlag
@@ -1693,7 +1710,7 @@ MODULE GenRandSymExcitNUMod
         INTEGER :: ExcitMat(2,2),SpawnOrb(nBasis),Eleci,ElecSym,NExcit,VecInd,ispn,EndSymState,j
         REAL*8 :: Tau,SpawnProb(nBasis),NormProb,r,rat
         LOGICAL :: tParity,SymAllowed
-        TYPE(HElement) :: rh
+        HElement_t :: rh
 
 !First, we need to do an O[N] operation to find the number of occupied alpha electrons, number of occupied beta electrons
 !and number of occupied electrons of each symmetry class and spin. This is similar to the ClassCount array.
@@ -1793,7 +1810,7 @@ MODULE GenRandSymExcitNUMod
             ExcitMat(2,1)=OrbA
             rh = sltcnd_1 (nI, ExcitMat, .false.)
         
-            SpawnProb(VecInd)=abs(REAL(rh%v,dp))
+            SpawnProb(VecInd)=abs(REAL(rh,dp))
             SpawnOrb(VecInd)=OrbA
             NormProb=NormProb+SpawnProb(VecInd)
             VecInd=VecInd+1
@@ -1852,11 +1869,11 @@ MODULE GenRandSymExcitNUMod
 
             IF(WSign.gt.0) THEN
                 !Parent particle is positive
-                IF(real(rh%v).gt.0.D0) THEN
+                IF(real(rh).gt.0.D0) THEN
                     iCreate=-iCreate     !-ve walker created
                 ENDIF
             ELSE
-                IF(real(rh%v).lt.0.D0) THEN
+                IF(real(rh).lt.0.D0) THEN
                     iCreate=-iCreate    !-ve walkers created
                 ENDIF
             ENDIF
@@ -1869,7 +1886,7 @@ MODULE GenRandSymExcitNUMod
     SUBROUTINE CreateDoubExcitBiased(nI,nJ,iLut,ExcitMat,tParity,nParts,WSign,Tau,iCreate)
         INTEGER :: nI(NEl),nJ(NEl),iLut(0:NIfTot),ExcitMat(2,2),iCreate,iSpn,OrbA,OrbB,SymProduct
         INTEGER :: Elec1Ind,Elec2Ind,nParts,WSign,SumMl
-        TYPE(HElement) :: rh
+        HElement_t :: rh
         LOGICAL :: tParity
         REAL*8 :: Tau
 
@@ -1892,11 +1909,11 @@ MODULE GenRandSymExcitNUMod
 
             IF(WSign.gt.0) THEN
                 !Parent particle is positive
-                IF(real(rh%v).gt.0.D0) THEN
+                IF(real(rh).gt.0.D0) THEN
                     iCreate=-iCreate     !-ve walker created
                 ENDIF
             ELSE
-                IF(real(rh%v).lt.0.D0) THEN
+                IF(real(rh).lt.0.D0) THEN
                     iCreate=-iCreate    !-ve walkers created
                 ENDIF
             ENDIF
@@ -1912,7 +1929,7 @@ MODULE GenRandSymExcitNUMod
         INTEGER :: SpatOrbi,SpatOrbj,Spini,Spinj,i,aspn,bspn,SymA,SymB,SpatOrba,EndSymState,VecInd
         REAL*8 :: Tau,SpawnProb(MaxABPairs),NormProb,rat,r
         INTEGER :: SpawnOrbs(2,MaxABPairs),j,nParts,SpinIndex,Ind
-        TYPE(HElement) :: HEl
+        HElement_t :: HEl
 
 !We want the spatial orbital number for the ij pair (Elec1Ind is the index in nI).
 !Later, we'll have to use GTID for UHF.
@@ -2004,13 +2021,13 @@ MODULE GenRandSymExcitNUMod
                 IF( Spini.EQ.aspn.and.Spinj.eq.bspn) THEN
                     Hel=GETUMATEL(NBASISMAX,UMAT,ALAT,nBasis,iSpinSkip,G1,SpatOrbi,SpatOrbj,SpatOrba,j)
                 ELSE
-                    Hel=HElement(0.D0)
+                    Hel=(0.D0)
                 ENDIF
                 IF(Spini.EQ.bspn.and.Spinj.EQ.aspn) THEN
                     Hel=Hel-GETUMATEL(NBASISMAX,UMAT,ALAT,nBasis,iSpinSkip,G1,SpatOrbi,SpatOrbj,j,SpatOrba)
                 ENDIF
 
-                SpawnProb(VecInd)=abs(REAL(Hel%v,dp))
+                SpawnProb(VecInd)=abs(REAL(Hel,dp))
                 SpawnOrbs(1,VecInd)=i
                 SpawnOrbs(2,VecInd)=OrbB
                 NormProb=NormProb+SpawnProb(VecInd)
@@ -2216,7 +2233,12 @@ MODULE GenRandSymExcitNUMod
             pAIJ=1.0/(nBasis/2-nOccAlpha)
         ENDIF
         ! Note, p(b|ij)=p(a|ij) for this system
-        pGen=2.0/(NEl*(NEl-1))*2.0*pAIJ
+        if (tUEG) then
+            pGen=2.0/(NEl*(NEl-1))*2.0*pAIJ
+        else ! i.e. if hubbard model, use modified probabilities
+            ! hubbard model can't spawn alpha/alpha and beta/beta type excitations
+            pGen=2.0/(NEl*(NEl/2))*2.0*pAIJ
+        endif
 
     END SUBROUTINE CreateDoubExcitLattice
 
@@ -2241,25 +2263,28 @@ MODULE GenRandSymExcitNUMod
 !        CALL PickElecPair(nI,Elec1Ind,Elec2Ind,SymProduct,iSpn,SumMl,-1)
          
         ! Completely random ordering of electrons is important when considering ij->ab ij/->ba. This affects pgens for alpha/beta pairs.
-        r(1) = genrand_real2_dSFMT()
-        Elec1=INT(r(1)*NEl+1)
         DO
-            r(2) = genrand_real2_dSFMT()
-            Elec2=INT(r(2)*NEl+1)
-            IF(Elec2.ne.Elec1) EXIT
-        ENDDO
-        Elec1Ind=Elec1
-        Elec2Ind=Elec2
-        IF((G1(nI(Elec1Ind))%Ms.eq.-1).and.(G1(nI(Elec2Ind))%Ms.eq.-1)) THEN
-            iSpn=1
-        ELSE
-            IF((G1(nI(Elec1Ind))%Ms.eq.1).and.(G1(nI(Elec2Ind))%Ms.eq.1)) THEN 
-                iSpn=3
+            r(1) = genrand_real2_dSFMT()
+            Elec1=INT(r(1)*NEl+1)
+            DO
+                r(2) = genrand_real2_dSFMT()
+                Elec2=INT(r(2)*NEl+1)
+                IF(Elec2.ne.Elec1) EXIT
+            ENDDO
+            Elec1Ind=Elec1
+            Elec2Ind=Elec2
+            IF((G1(nI(Elec1Ind))%Ms.eq.-1).and.(G1(nI(Elec2Ind))%Ms.eq.-1)) THEN
+                iSpn=1
             ELSE
-                iSpn=2
+                IF((G1(nI(Elec1Ind))%Ms.eq.1).and.(G1(nI(Elec2Ind))%Ms.eq.1)) THEN 
+                    iSpn=3
+                ELSE
+                    iSpn=2
+                ENDIF
             ENDIF
-        ENDIF
-        
+            IF((tHub.and.iSpn.ne.2).or.(tUEG)) EXIT ! alpha/beta pairs are the only pairs generated for the hubbard model
+        ENDDO
+
         IF(tNoFailAb)THEN ! pGen is calculated first because there might be no excitations available for this ij pair
 
             IF(tHub) CALL Stop_All("CreateExcitLattice", "This doesn't work with Hubbard Model")
@@ -2799,7 +2824,7 @@ END SUBROUTINE SpinOrbSymSetup
 !number of excitations generated using the full enumeration excitation generation. This can be done for both doubles and singles, or one of them.
 SUBROUTINE TestGenRandSymExcitNU(nI,Iterations,pDoub,exFlag,iWriteEvery)
     Use SystemData , only : NEl,nBasis,G1,nBasisMax,LzTot,NIfTot,tUEG,tLatticeGens,tHub
-    Use GenRandSymExcitNUMod , only : GenRandSymExcitScratchNU,ConstructClassCounts,ScratchSize
+    use GenRandSymExcitNUMod, only: gen_rand_excit, ConstructClassCounts,ScratchSize
     Use SymData , only : nSymLabels
     use Parallel
 !    use soft_exit , only : ChangeVars 
@@ -2808,7 +2833,7 @@ SUBROUTINE TestGenRandSymExcitNU(nI,Iterations,pDoub,exFlag,iWriteEvery)
     IMPLICIT NONE
     INTEGER :: i,Iterations,exFlag,nI(NEl),nJ(NEl),IC,ExcitMat(2,2),kx,ky,kz,ktrial(2)
     REAL*8 :: pDoub,pGen,AverageContrib,AllAverageContrib
-    INTEGER :: ClassCount2(ScratchSize),iLut(0:NIfTot),Scratch1(ScratchSize),Scratch2(ScratchSize),iLutnJ(0:NIfTot)
+    INTEGER :: ClassCount2(ScratchSize),iLut(0:NIfTot),Scratch1(ScratchSize),Scratch2(ScratchSize),scratch3(scratchsize),iLutnJ(0:NIfTot)
     INTEGER :: ClassCountUnocc2(ScratchSize),iExcit,iWriteEvery
     LOGICAL :: tParity,tFilled
     REAL*8 , ALLOCATABLE :: DoublesHist(:,:,:,:),SinglesHist(:,:),AllDoublesHist(:,:,:,:),AllSinglesHist(:,:)
@@ -2893,7 +2918,9 @@ lp2: do while(.true.)
             WRITE(6,"(A,I10)") "Iteration: ",i
         ENDIF
 
-        CALL GenRandSymExcitScratchNU(nI,iLut,nJ,pDoub,IC,ExcitMat,TParity,exFlag,pGen,Scratch1,Scratch2,tFilled)
+        call gen_rand_excit (nI, iLut, nJ, iLutnJ, exFlag, IC, ExcitMat, &
+                             tParity, pGen, tFilled, Scratch1, Scratch2, &
+                             Scratch3)
         IF(nJ(1).eq.0) THEN
 !            ForbiddenIter=ForbiddenIter+1
             CYCLE

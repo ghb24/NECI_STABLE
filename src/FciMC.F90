@@ -12,7 +12,7 @@ USE DetCalc , only : NMRKS,ICILevel
 use IntegralsData , only : fck,NMax,UMat
 USE global_utilities
 USE Logging , only : iWritePopsEvery,TPopsFile,TZeroProjE,TWriteDetE,MaxHistE,NoHistBins, tIncrementPops
-USE HElem
+use constants, only: dp
 use DetBitOps, only: EncodeBitDet
 use constants, only: dp
 IMPLICIT NONE
@@ -75,7 +75,7 @@ REAL*8 :: SumOverlapMP2     !This is the overlap of the walker distribution with
 REAL*8 :: SumHOverlapMP2    !This is the overlap of the excitations of the walkers with MP2, summed over all iterations
 REAL*8 :: ProjectionMP2     !This is the energy calculated by <Psi_MP1|H|Psi>/<Psi_MP1|Psi>
 
-TYPE(HElement) :: rhii,FZero
+HElement_t :: rhii,FZero
 REAL*8 :: Hii,Fii
 
 LOGICAL :: TSinglePartPhase                 !This is true if TStartSinglePart is true, and we are still in the phase where the shift is fixed and particle numbers are growing
@@ -90,9 +90,9 @@ contains
 
 SUBROUTINE FciMC(Weight,Energyxw)
 use soft_exit, only: test_SOFTEXIT
-TYPE(HDElement) :: Weight,Energyxw
+real(dp) :: Weight,Energyxw
 CHARACTER(len=*), PARAMETER :: this_routine='FCIMC'
-TYPE(HElement) :: Hamii
+HElement_t :: Hamii
 LOGICAL :: TIncrement
 
 Walker_time%timer_name='Walker_time'
@@ -150,8 +150,8 @@ enddo
 IF(TIncrement) Iter=Iter-1         !Subtract one, since Iter is a loop variable, and therefore incremented on exit of the loop
 IF(TPopsFile) CALL WriteToPopsFile()
 
-Weight=HDElement(0.D0)
-Energyxw=HDElement(ProjectionE)
+Weight=(0.D0)
+Energyxw=(ProjectionE)
 
 !Deallocate memory
 CALL DeallocFCIMCMem()
@@ -172,7 +172,7 @@ SUBROUTINE PerformFCIMCyc()
         INTEGER :: iDie             !Indicated whether a particle should self-destruct on DetCurr
         INTEGER :: ExcitLevel,iGetExcitLevel_2,MaxExcits
         LOGICAL :: WSign,SpawnBias,SameDet,TGenGuideDet
-        TYPE(HElement) :: HDiagTemp,HOffDiag
+        HElement_t :: HDiagTemp,HOffDiag
 
 !Set the timer for the walker loop - this should not be done always, as it will be time-consuming
         CALL set_timer(Walker_time,20)
@@ -272,13 +272,13 @@ SUBROUTINE PerformFCIMCyc()
 !Only need it for double excitations, since these are the only ones which contribute to energy
                     HOffDiag = get_helement(HFDet, nJ, 2)
                     HDiagTemp = get_helement (nJ, nJ, 0)
-                    HDiag=(REAL(HDiagTemp%v,dp))-Hii
+                    HDiag=(REAL(HDiagTemp,dp))-Hii
                 ELSEIF(ExcitLevel.eq.0) THEN
 !We know we are at HF - HDiag=0
                     HDiag=0.D0
                 ELSE
                     HDiagTemp = get_helement (nJ, nJ, 0)
-                    HDiag=(REAL(HDiagTemp%v,dp))-Hii
+                    HDiag=(REAL(HDiagTemp,dp))-Hii
                 ENDIF
 
                 do l=1,abs(Child)
@@ -288,7 +288,7 @@ SUBROUTINE PerformFCIMCyc()
                     IF(.not.TRegenExcitgens) NewExcits(VecSlot)%ExitGenForDet=.false.
                     NewIC(VecSlot)=ExcitLevel
                     NewH(1,VecSlot)=HDiag      !Diagonal H-element-Hii
-                    NewH(2,VecSlot)=REAL(HOffDiag%v,dp)       !Off-diagonal H-element
+                    NewH(2,VecSlot)=REAL(HOffDiag,dp)       !Off-diagonal H-element
                     IF(TUnbiasPGeninProjE) NewPGen(VecSlot)=Prob
                     VecSlot=VecSlot+1
                 enddo
@@ -489,7 +489,7 @@ SUBROUTINE PerformFCIMCyc()
 !        LOGICAL :: SpawnBias,WSign,SameDet,TGenGuideDet
 !        REAL*8 :: TotProb,Ran2,Prob,HDiag
 !        INTEGER :: j,VecSlot,Child,iCount,IC,nJ(NEl),MaxExcits,ExcitLevel,iGetExcitLevel_2,iDie,l
-!        TYPE(HElement) :: HOffDiag,HDiagTemp
+!        HElement_t :: HOffDiag,HDiagTemp
 !
 !!We want the simplest guiding function - if we're at a double, attempt to spawn at HF with PRet probability
 !        SpawnBias=.false.
@@ -634,7 +634,7 @@ SUBROUTINE PerformFCIMCyc()
 !                    HDiag=0.D0
 !                ELSE
 !                    HDiagTemp = get_helement (nJ, nJ, 0)
-!                    HDiag=(REAL(HDiagTemp%v,dp))-Hii
+!                    HDiag=(REAL(HDiagTemp,dp))-Hii
 !                ENDIF
 !
 !                do l=1,abs(Child)
@@ -644,7 +644,7 @@ SUBROUTINE PerformFCIMCyc()
 !                    IF(.not.TRegenExcitgens) NewExcits(VecSlot)%ExitGenForDet=.false.
 !                    NewIC(VecSlot)=ExcitLevel
 !                    NewH(1,VecSlot)=HDiag      !Diagonal H-element-Hii
-!                    NewH(2,VecSlot)=REAL(HOffDiag%v,dp)       !Off-diagonal H-element
+!                    NewH(2,VecSlot)=REAL(HOffDiag,dp)       !Off-diagonal H-element
 !                    VecSlot=VecSlot+1
 !                enddo
 !                    
@@ -702,7 +702,7 @@ SUBROUTINE PerformFCIMCyc()
 !    SUBROUTINE FixParticleSignIter(Walker,VecSlot)
 !        INTEGER :: Walker,VecSlot,nStore(6),nJ(NEl),IC,Child,ExcitLevel,iGetExcitLevel_2
 !        INTEGER :: iDie,l
-!        TYPE(HElement) :: HConn,HOffDiag,HDiagTemp
+!        HElement_t :: HConn,HOffDiag,HDiagTemp
 !        TYPE(ExcitGenerator) :: TempExcitgen
 !        LOGICAL :: WSign
 !        REAL*8 :: SpinFlipContrib,HConnReal,HDiag,DiagDeath
@@ -724,7 +724,7 @@ SUBROUTINE PerformFCIMCyc()
 !            ENDIF
 !            IF(nJ(1).eq.0) EXIT
 !            HConn = get_helement (CurrentDets(:,Walker), nJ, IC)
-!            HConnReal=REAL(HConn%v,dp)
+!            HConnReal=REAL(HConn,dp)
 !            IF(HConnReal.lt.0.D0) THEN
 !!Connection is negative, therefore attempt to create a particle there - we are running through all walkers, so Prob=1.D0
 !                Child=AttemptCreate(CurrentDets(:,Walker),CurrentSign(Walker),nJ,1.D0,IC,HConnReal)
@@ -750,7 +750,7 @@ SUBROUTINE PerformFCIMCyc()
 !                        HDiag=0.D0
 !                    ELSE
 !                        HDiagTemp = get_helement (nJ, nJ, 0)
-!                        HDiag=(REAL(HDiagTemp%v,dp))-Hii
+!                        HDiag=(REAL(HDiagTemp,dp))-Hii
 !                    ENDIF
 !
 !                    do l=1,abs(Child)
@@ -760,7 +760,7 @@ SUBROUTINE PerformFCIMCyc()
 !                        IF(.not.TRegenExcitgens) NewExcits(VecSlot)%ExitGenForDet=.false.
 !                        NewIC(VecSlot)=ExcitLevel
 !                        NewH(1,VecSlot)=HDiag      !Diagonal H-element-Hii
-!                        NewH(2,VecSlot)=REAL(HOffDiag%v,dp)       !Off-diagonal H-element
+!                        NewH(2,VecSlot)=REAL(HOffDiag,dp)       !Off-diagonal H-element
 !                        VecSlot=VecSlot+1
 !                    enddo
 !                                
@@ -829,7 +829,7 @@ SUBROUTINE PerformFCIMCyc()
 !    SUBROUTINE ResumGraph(nI,WSign,VecSlot,VecInd,nIExcitGen)
 !        INTEGER :: nI(NEl),VecSlot,VecInd,ExcitLevel,iGetExcitLevel_2,Create,i,j
 !        TYPE(ExcitGenerator) , OPTIONAL :: nIExcitGen
-!        TYPE(HElement) :: HOffDiag
+!        HElement_t :: HOffDiag
 !        LOGICAL :: WSign,ChildSign
 !        REAL*8 :: Prob,rat,Ran2
 !
@@ -897,7 +897,7 @@ SUBROUTINE PerformFCIMCyc()
 !                    NewSign(VecSlot)=ChildSign
 !                    NewIC(VecSlot)=ExcitLevel
 !                    NewH(1,VecSlot)=GraphKii(i)       !Diagonal H El previously stored
-!                    NewH(2,VecSlot)=REAL(HOffDiag%v,dp)
+!                    NewH(2,VecSlot)=REAL(HOffDiag,dp)
 !                    IF(.not.TRegenExcitgens) NewExcits(VecSlot)%ExitGenForDet=.false.
 !                    VecSlot=VecSlot+1
 !                enddo
@@ -915,7 +915,7 @@ SUBROUTINE PerformFCIMCyc()
 !        TYPE(ExcitGenerator) , OPTIONAL :: nIExcitGen
 !        REAL*8 :: Prob,Kii,ExcitProb
 !        LOGICAL :: SameDet,CompiPath
-!        TYPE(HElement) :: Hamij,Hamii
+!        HElement_t :: Hamij,Hamii
 !        integer :: iLutnJ(nel), iLutTmp(nel)
 !
 !        GraphRhoMat=0.d0
@@ -961,7 +961,7 @@ SUBROUTINE PerformFCIMCyc()
 !                DetsinGraph(:,i)=nJ(:)
 !!First find connection to root
 !                Hamij = get_helement(nI, nJ, IC)
-!                GraphRhoMat(1,i)=-Tau*REAL(Hamij%v,dp)
+!                GraphRhoMat(1,i)=-Tau*REAL(Hamij,dp)
 !                GraphRhoMat(i,1)=GraphRhoMat(1,i)
 !
 !!Then find connection to other determinants
@@ -969,13 +969,13 @@ SUBROUTINE PerformFCIMCyc()
 !                do j=2,(i-1)
 !                    call EncodeBitDet (DetsInGraph(:,j), iLutTmp)
 !                    Hamij = get_helement(nJ, DetsInGraph(:,j), iLutnJ,iLutTmp)
-!                    GraphRhoMat(i,j)=-Tau*REAL(Hamij%v,dp)
+!                    GraphRhoMat(i,j)=-Tau*REAL(Hamij,dp)
 !                    GraphRhoMat(j,i)=GraphRhoMat(i,j)
 !                enddo
 !
 !!Find diagonal element - and store it for later on...
 !                Hamii = get_helement (nJ, nJ, 0)
-!                GraphKii(i)=REAL(Hamii%v,dp)-Hii                !Again, the root value is not stored
+!                GraphKii(i)=REAL(Hamii,dp)-Hii                !Again, the root value is not stored
 !                GraphRhoMat(i,i)=1.D0-Tau*(GraphKii(i)-DiagSft)
 !
 !                i=i+1
@@ -1241,13 +1241,13 @@ SUBROUTINE PerformFCIMCyc()
 !        REAL*8 :: Hij0,MP1Compt,Hij,Hjj
 !        LOGICAL :: WSign,tSign
 !        TYPE(ExcitGenerator) :: TempExcitgen
-!        TYPE(HElement) :: Hijtemp,TempFjj,Hij2temp
+!        HElement_t :: Hijtemp,TempFjj,Hij2temp
 !
 !!First calculate the overlap of the wavefunction with the MP2 wavefunction - only doubles/HF will contribute
 !        IF(ExcitLevel.eq.2) THEN
 !
 !            TempFjj=GetH0Element3(DetCurr)
-!            MP1Compt=-Hij0/(Fii-(REAL(TempFjj%v,dp)))
+!            MP1Compt=-Hij0/(Fii-(REAL(TempFjj,dp)))
 !            IF(WSign) THEN
 !                SumOverlapMP2=SumOverlapMP2+MP1Compt
 !            ELSE
@@ -1336,14 +1336,14 @@ SUBROUTINE PerformFCIMCyc()
 !!Excitation is less than or equal to a double - find connection to original walker
 !                    Hijtemp = get_helement (DetCurr, nJ, 2)
 !                    IF(WSign) THEN
-!                        Hij=REAL(Hijtemp%v,dp)
+!                        Hij=REAL(Hijtemp,dp)
 !                    ELSE
-!                        Hij=-REAL(Hijtemp%v,dp)
+!                        Hij=-REAL(Hijtemp,dp)
 !                    ENDIF
 !!Find MP1 excitation compt
 !                    TempFjj=GetH0Element3(nJ)
 !                    Hij2temp = get_helement (HFDet, nJ, nJ_IC)
-!                    MP1Compt=-(REAL(Hij2temp%v,dp))/(Fii-(REAL(TempFjj%v,dp)))
+!                    MP1Compt=-(REAL(Hij2temp,dp))/(Fii-(REAL(TempFjj,dp)))
 !                    SumHOverlapMP2=SumHOverlapMP2+(MP1Compt*Hij)
 !
 !!...and then find overlap of this excitation with the MP1 wavefunction
@@ -1380,16 +1380,16 @@ SUBROUTINE PerformFCIMCyc()
 !!                    OrbB=OrbB-NEl
 !!                    
 !!!Add <MP1|H|Psi>
-!!                    SumHOverlapMP2=SumHOverlapMP2+(MP2ExcitComps(OrbI,OrbJ,OrbA,OrbB)*(real(Hijtemp%v,dp)))
+!!                    SumHOverlapMP2=SumHOverlapMP2+(MP2ExcitComps(OrbI,OrbJ,OrbA,OrbB)*(real(Hijtemp,dp)))
 !
 !                ELSEIF(nJ_IC.eq.0) THEN
 !!Excitation is the HF determinant - find connection to it
 !
 !                    Hijtemp = get_helement (DetCurr, nJ, 0)
 !                    IF(WSign) THEN
-!                        Hij=REAL(Hijtemp%v,dp)
+!                        Hij=REAL(Hijtemp,dp)
 !                    ELSE
-!                        Hij=-REAL(Hijtemp%v,dp)
+!                        Hij=-REAL(Hijtemp,dp)
 !                    ENDIF
 !
 !                    SumHOverlapMP2=SumHOverlapMP2+Hij
@@ -1512,7 +1512,7 @@ SUBROUTINE PerformFCIMCyc()
 !        INTEGER :: TotWalkersNew,iGetExcitLevel_2,VecSlot,i,j,WalkerScale
 !        INTEGER , ALLOCATABLE :: KillArrayOnSite(:),KillArrayAtDist(:)
 !        INTEGER :: ierr,Connection,DetCurr(NEl),InteractionResult
-!        TYPE(HElement) :: Hij
+!        HElement_t :: Hij
 !        REAL*8 :: ConnStrength
 !        LOGICAL :: WSign
 !
@@ -1627,12 +1627,12 @@ SUBROUTINE PerformFCIMCyc()
 !!1 means that the particles should be doubled
 !!-1 means that the particles should be annihilated
 !    INTEGER FUNCTION AttemptAnnihilatDist(Hij,WiSign,WjSign)
-!        TYPE(HElement) :: Hij
+!        HElement_t :: Hij
 !        REAL*8 :: ConnStrength,Ran2
 !        LOGICAL :: WiSign,WjSign,AttemptAnn
 !
 !        AttemptAnn=.false.
-!        ConnStrength=REAL(Hij%v,dp)*Lambda
+!        ConnStrength=REAL(Hij,dp)*Lambda
 !        IF(ConnStrength.lt.0.D0) THEN
 !!Particles have a chance of annihilation if they are of opposite sign
 !            IF(WiSign) THEN
@@ -1657,7 +1657,7 @@ SUBROUTINE PerformFCIMCyc()
 !            ENDIF
 !        ENDIF
 !        ConnStrength=ABS(ConnStrength)
-!        IF(ConnStrength.gt.1.D0) WRITE(6,*) "Warning - Annihilation/Reinforcing probability > 1",REAL(Hij%v,dp)
+!        IF(ConnStrength.gt.1.D0) WRITE(6,*) "Warning - Annihilation/Reinforcing probability > 1",REAL(Hij,dp)
 !
 !        IF(Ran2(Seed).gt.ConnStrength) THEN
 !            AttemptAnnihilatDist=0
@@ -1757,14 +1757,15 @@ SUBROUTINE PerformFCIMCyc()
 !This initialises the calculation, by allocating memory, setting up the initial walkers, and reading from a file if needed
     SUBROUTINE InitFCIMCCalc()
         use CalcData, only : EXCITFUNCS
+        use HElem
         INTEGER :: ierr,i,j,k,l,DetCurr(NEl),ReadWalkers,TotWalkersDet
         INTEGER :: DetLT,VecSlot,error,HFConn
         INTEGER*8 :: MemoryAlloc
         REAL*8 :: Ran2
-        TYPE(HElement) :: rh,TempHii
+        HElement_t :: rh,TempHii
         CHARACTER(len=*), PARAMETER :: this_routine='InitFCIMC'
 
-        IF(HElementSize.gt.1) THEN
+        IF(HElement_t_size.gt.1) THEN
             CALL Stop_All("FCIMCPar","FciMCPar cannot function with complex orbitals.")
         ENDIF
 
@@ -1791,10 +1792,10 @@ SUBROUTINE PerformFCIMCyc()
 
 !Calculate Hii
         TempHii = get_helement (HFDet, HFDet, 0)
-        Hii=REAL(TempHii%v,dp)          !Diagonal Hamiltonian element for the HF determinant
+        Hii=REAL(TempHii,dp)          !Diagonal Hamiltonian element for the HF determinant
 
         TempHii=GetH0Element3(HFDet)
-        Fii=REAL(TempHii%v,dp)          !Fock-energy of the HF determinant
+        Fii=REAL(TempHii,dp)          !Fock-energy of the HF determinant
 
         IF(TPopsFile.and.(mod(iWritePopsEvery,StepsSft).ne.0)) THEN
             CALL Warning("InitFCIMCCalc","POPSFILE writeout should be a multiple of the update cycle length.")
@@ -2098,7 +2099,7 @@ SUBROUTINE PerformFCIMCyc()
     SUBROUTINE InitWalkersMP1()
         INTEGER :: HFConn,ierr,VecSlot,nJ(NEl),nStore(6),iExcit,i,j,WalkersonHF
         REAL*8 :: SumMP1Compts,MP2Energy,Compt,Ran2,r
-        TYPE(HElement) :: Hij,Hjj,Fjj
+        HElement_t :: Hij,Hjj,Fjj
         INTEGER , ALLOCATABLE :: MP1Dets(:,:)
         REAL*8 , ALLOCATABLE :: MP1Comps(:),MP1Hij(:)
         LOGICAL , ALLOCATABLE :: MP1Sign(:)
@@ -2188,8 +2189,8 @@ SUBROUTINE PerformFCIMCyc()
             Hij = get_helement (HFDet, nJ, iExcit)
             CALL GetH0Element(nJ,NEl,Arr,nBasis,ECore,Fjj)
 
-            Compt=real(Hij%v,dp)/(Fii-(REAL(Fjj%v,dp)))     !Calculate MP1 components
-            MP1Hij(VecSlot)=real(Hij%v,dp)                  !Store Hij to give to particles
+            Compt=real(Hij,dp)/(Fii-(REAL(Fjj,dp)))     !Calculate MP1 components
+            MP1Hij(VecSlot)=real(Hij,dp)                  !Store Hij to give to particles
             IF(Compt.lt.0.D0) THEN
                 MP1Sign(VecSlot)=.false.
                 IF(MP1Hij(VecSlot).lt.0.D0) THEN
@@ -2202,7 +2203,7 @@ SUBROUTINE PerformFCIMCyc()
             MP1Dets(1:NEl,VecSlot)=nJ(:)
             MP1Comps(VecSlot)=MP1Comps(VecSlot-1)+abs(Compt)
             SumMP1Compts=SumMP1Compts+abs(Compt)
-            MP2Energy=MP2Energy+((real(Hij%v,dp))**2)/(Fii-(REAL(Fjj%v,dp)))
+            MP2Energy=MP2Energy+((real(Hij,dp))**2)/(Fii-(REAL(Fjj,dp)))
 
             VecSlot=VecSlot+1
 
@@ -2255,7 +2256,7 @@ SUBROUTINE PerformFCIMCyc()
                 CurrentSign(j)=MP1Sign(i)
                 CurrentH(2,j)=MP1Hij(i)     !This is the off-diagonal element to HF det
                 Hjj = get_helement (MP1Dets(:,i), MP1Dets(:,i), 0)
-                CurrentH(1,j)=real(Hjj%v,dp)-Hii
+                CurrentH(1,j)=real(Hjj,dp)-Hii
             ENDIF
 
         enddo
@@ -2318,7 +2319,7 @@ SUBROUTINE PerformFCIMCyc()
         INTEGER :: A,B,t,MaxComptDet(NEl),Compts
         REAL*8 :: Denom,MaxCompt,MP2Energy,MP1Comp
         LOGICAL :: tSign
-        TYPE(HElement) :: Hij
+        HElement_t :: Hij
         CHARACTER(Len=*) , PARAMETER :: this_routine='InitMP2Calc'
         
 !The MP1 wavefunction components are no longer precalculated, but rather calculated on the fly now.
@@ -2393,14 +2394,14 @@ SUBROUTINE PerformFCIMCyc()
             Denom=Arr(ExcitForm(2,1),2)-Arr(ExcitForm(1,1),2)+Arr(ExcitForm(2,2),2)-Arr(ExcitForm(1,2),2)
             Hij = get_helement (HFDet, nJ, iExcit)
 
-!            MP2ExcitComps(I,J,A,B)=-REAL(Hij%v,dp)/Denom    !Store MP2 Wavefunction
-            MP1Comp=-REAL(Hij%v,dp)/Denom
+!            MP2ExcitComps(I,J,A,B)=-REAL(Hij,dp)/Denom    !Store MP2 Wavefunction
+            MP1Comp=-REAL(Hij,dp)/Denom
             IF((ABS(MP1Comp)).gt.MaxCompt) THEN 
 !Find the maximum component of the MP2 wavefunction
                 MaxCompt=ABS(MP1Comp)
                 MaxComptDet(:)=nJ(:)
             ENDIF
-            MP2Energy=MP2Energy-(REAL(Hij%v,dp)**2)/Denom   !Calculate MP2 Energy
+            MP2Energy=MP2Energy-(REAL(Hij,dp)**2)/Denom   !Calculate MP2 Energy
 
         enddo
 
@@ -2478,7 +2479,7 @@ SUBROUTINE PerformFCIMCyc()
         INTEGER :: ierr,l,j,k,VecSlot,IntegerPart,iGetExcitLevel_2
         INTEGER*8 :: MemoryAlloc
         REAL*8 :: FracPart,Ran2
-        TYPE(HElement) :: HElemTemp
+        HElement_t :: HElemTemp
         CHARACTER(len=*), PARAMETER :: this_routine='ReadFromPopsFile'
         LOGICAL :: exists
         character(255) :: popsfile
@@ -2637,9 +2638,9 @@ SUBROUTINE PerformFCIMCyc()
             IF(CurrentIC(j).eq.2) THEN
 !Only need it for double excitations, since these are the only ones which contribute to energy
                 HElemTemp = get_helement (HFDet, CurrentDets(:,j), 2)
-                CurrentH(2,j)=REAL(HElemTemp%v,dp)
+                CurrentH(2,j)=REAL(HElemTemp,dp)
                 HElemTemp = get_helement (CurrentDets(:,j),CurrentDets(:,j),0)
-                CurrentH(1,j)=REAL(HElemTemp%v,dp)-Hii
+                CurrentH(1,j)=REAL(HElemTemp,dp)-Hii
                 IF(.not.TRegenExcitgens) CurrentExcits(j)%ExitGenForDet=.false.
             ELSEIF(CurrentIC(j).eq.0) THEN
 !We know we are at HF - HDiag=0, and can use HF excitgen
@@ -2650,7 +2651,7 @@ SUBROUTINE PerformFCIMCyc()
             ELSE
                 IF(.not.TRegenExcitgens) CurrentExcits(j)%ExitGenForDet=.false.
                 HElemTemp = get_helement (CurrentDets(:,j),CurrentDets(:,j),0)
-                CurrentH(1,j)=(REAL(HElemTemp%v,dp))-Hii
+                CurrentH(1,j)=(REAL(HElemTemp,dp))-Hii
                 CurrentH(2,j)=0.D0
             ENDIF
 
@@ -2871,20 +2872,20 @@ SUBROUTINE PerformFCIMCyc()
         LOGICAL :: WSign
         REAL*8 :: Prob,Ran2,rat
         REAL*8 , OPTIONAL :: Hij
-        TYPE(HElement) :: rh
+        HElement_t :: rh
 
         IF(present(Hij)) THEN
 !Connection between determinants is specified in Hij argument
-            rh=HElement(Hij)
+            rh=(Hij)
         ELSE
 !Calculate off diagonal hamiltonian matrix element between determinants
             rh = get_helement(DetCurr, nJ, IC)
         ENDIF
 
-        SumConnections=SumConnections+REAL(rh%v,dp)     !Sum the connections (success and failure) to find average connection strength
+        SumConnections=SumConnections+REAL(rh,dp)     !Sum the connections (success and failure) to find average connection strength
 
 !Divide by the probability of creating the excitation to negate the fact that we are only creating a few determinants
-        rat=Tau*abs(REAL(rh%v,dp))/Prob
+        rat=Tau*abs(REAL(rh,dp))/Prob
 
 !If probability is > 1, then we can just create multiple children at the chosen determinant
         ExtraCreate=INT(rat)
@@ -2896,7 +2897,7 @@ SUBROUTINE PerformFCIMCyc()
 !Child is created - what sign is it?
             IF(WSign) THEN
 !Parent particle is positive
-                IF(real(rh%v).gt.0.D0) THEN
+                IF(real(rh).gt.0.D0) THEN
                     AttemptCreate=-1     !-ve walker created
                 ELSE
                     AttemptCreate=1      !+ve walker created
@@ -2904,7 +2905,7 @@ SUBROUTINE PerformFCIMCyc()
 
             ELSE
 !Parent particle is negative
-                IF(real(rh%v).gt.0.D0) THEN
+                IF(real(rh).gt.0.D0) THEN
                     AttemptCreate=1      !+ve walker created
                 ELSE
                     AttemptCreate=-1     !-ve walker created
@@ -2928,13 +2929,13 @@ SUBROUTINE PerformFCIMCyc()
             ELSEIF(AttemptCreate.eq.0) THEN
 !No particles were stochastically created, but some particles are still definatly created - we need to determinant their sign...
                 IF(WSign) THEN
-                    IF(real(rh%v).gt.0.D0) THEN
+                    IF(real(rh).gt.0.D0) THEN
                         AttemptCreate=-1*ExtraCreate    !Additional particles are negative
                     ELSE
                         AttemptCreate=ExtraCreate       !Additional particles are positive
                     ENDIF
                 ELSE
-                    IF(real(rh%v).gt.0.D0) THEN
+                    IF(real(rh).gt.0.D0) THEN
                         AttemptCreate=ExtraCreate
                     ELSE
                         AttemptCreate=-1*ExtraCreate
@@ -2954,7 +2955,7 @@ SUBROUTINE PerformFCIMCyc()
     INTEGER FUNCTION AttemptDie(DetCurr,Kii,IC)
         IMPLICIT NONE
         INTEGER :: DetCurr(NEl),iKill,IC
-!        TYPE(HElement) :: rh,rhij
+!        HElement_t :: rh,rhij
         REAL*8 :: Ran2,rat,Kii
 
 !Calculate the diagonal hamiltonian matrix element for the determinant
@@ -3237,7 +3238,7 @@ END FUNCTION Fact
 !        INTEGER :: nI(NEl),IC,iCount,nJ(NEl),i,j,Attempts,TotExcits,ierr,TotComps
 !        REAL*8 :: Prob,RemovedProb
 !        TYPE(ExcitGenerator) :: ExcitGen
-!        TYPE(HElement) :: Hamii,Hamij
+!        HElement_t :: Hamii,Hamij
 !        LOGICAL :: SameDet,CompiPath
 !
 !        IF(TResumAllConns) THEN
@@ -3259,8 +3260,8 @@ END FUNCTION Fact
 !
 !!Find diagonal element for root determinant
 !        Hamii=GetHElement2(nI,nI,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,0,ECore)
-!!        GraphRhoMat(1,1)=1.D0-Tau*((REAL(Hamii%v,dp)-REAL(Hii%v,dp))-(DiagSft/REAL(RhoApp,dp)))
-!        GraphRhoMat(1,1)=1.D0-Tau*((REAL(Hamii%v,dp)-REAL(Hii%v,dp))-DiagSft)
+!!        GraphRhoMat(1,1)=1.D0-Tau*((REAL(Hamii,dp)-REAL(Hii,dp))-(DiagSft/REAL(RhoApp,dp)))
+!        GraphRhoMat(1,1)=1.D0-Tau*((REAL(Hamii,dp)-REAL(Hii,dp))-DiagSft)
 !
 !        IF(TResumAllConns) THEN
 !!We want to run through all possible connections to nI...
@@ -3274,20 +3275,20 @@ END FUNCTION Fact
 !
 !!First find connection to root
 !                Hamij=GetHElement2(nI,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,IC,ECore)
-!                GraphRhoMat(1,i)=-Tau*REAL(Hamij%v,dp)
+!                GraphRhoMat(1,i)=-Tau*REAL(Hamij,dp)
 !                GraphRhoMat(i,1)=GraphRhoMat(1,i)
 !
 !!Then find connection to other determinants
 !                do j=2,(i-1)
 !                    Hamij=GetHElement2(nJ,DetsInGraph(:,j),NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,-1,ECore)
-!                    GraphRhoMat(i,j)=-Tau*REAL(Hamij%v,dp)
+!                    GraphRhoMat(i,j)=-Tau*REAL(Hamij,dp)
 !                    GraphRhoMat(j,i)=GraphRhoMat(i,j)
 !                enddo
 !
 !!Find diagonal element
 !                Hamii=GetHElement2(nJ,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,0,ECore)
-!!                GraphRhoMat(i,i)=1.D0-(Tau*((REAL(Hamii%v,dp)-REAL(Hii%v,dp))-(DiagSft/REAL(RhoApp,dp))))
-!                GraphRhoMat(i,i)=1.D0-Tau*((REAL(Hamii%v,dp)-REAL(Hii%v,dp))-DiagSft)
+!!                GraphRhoMat(i,i)=1.D0-(Tau*((REAL(Hamii,dp)-REAL(Hii,dp))-(DiagSft/REAL(RhoApp,dp))))
+!                GraphRhoMat(i,i)=1.D0-Tau*((REAL(Hamii,dp)-REAL(Hii,dp))-DiagSft)
 !                i=i+1   !Increment counter
 !            
 !            enddo   !loop over excitations
@@ -3326,20 +3327,20 @@ END FUNCTION Fact
 !
 !!First find connection to root
 !                    Hamij=GetHElement2(nI,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,IC,ECore)
-!                    GraphRhoMat(1,i)=-Tau*REAL(Hamij%v,dp)
+!                    GraphRhoMat(1,i)=-Tau*REAL(Hamij,dp)
 !                    GraphRhoMat(i,1)=GraphRhoMat(1,i)
 !
 !!Then find connection to other determinants
 !                    do j=2,(i-1)
 !                        Hamij=GetHElement2(nJ,DetsInGraph(:,j),NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,-1,ECore)
-!                        GraphRhoMat(i,j)=-Tau*REAL(Hamij%v,dp)
+!                        GraphRhoMat(i,j)=-Tau*REAL(Hamij,dp)
 !                        GraphRhoMat(j,i)=GraphRhoMat(i,j)
 !                    enddo
 !
 !!Find diagonal element
 !                    Hamii=GetHElement2(nJ,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,0,ECore)
-!!                GraphRhoMat(i,i)=1.D0-(Tau*((REAL(Hamii%v,dp)-REAL(Hii%v,dp))-(DiagSft/REAL(RhoApp,dp))))
-!                    GraphRhoMat(i,i)=1.D0-Tau*((REAL(Hamii%v,dp)-REAL(Hii%v,dp))-DiagSft)
+!!                GraphRhoMat(i,i)=1.D0-(Tau*((REAL(Hamii,dp)-REAL(Hii,dp))-(DiagSft/REAL(RhoApp,dp))))
+!                    GraphRhoMat(i,i)=1.D0-Tau*((REAL(Hamii,dp)-REAL(Hii,dp))-DiagSft)
 !
 !                    i=i+1   !increment the excit counter
 !                    Attempts=0      !Reset the attempts counter
@@ -3651,7 +3652,7 @@ END FUNCTION Fact
 !        LOGICAL , POINTER :: ActiveVecSign(:)
 !        REAL*8 :: EigenComp,EnergyNum
 !        LOGICAL :: Component
-!        TYPE(HElement) :: Hamij,Fj!,rhjj,rhij
+!        HElement_t :: Hamij,Fj!,rhjj,rhij
 !
 !!We first need to point to the active array
 !        IF(iArray.eq.1) THEN
@@ -3699,7 +3700,7 @@ END FUNCTION Fact
 !                IF(IC.eq.2) THEN
 !!We are at a double excitation - first find the desired sign of the determinant.
 !                    Hamij=GetHElement2(FDet,ActiveVecDets(:,j),NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,IC,ECore)
-!                    IF((real(Hamij%v)).lt.0) THEN
+!                    IF((real(Hamij)).lt.0) THEN
 !!Negative Hamiltonian connection indicates that the component of the MP1 wavevector is positive
 !                        Component=.true.
 !                    ELSE
@@ -3724,10 +3725,10 @@ END FUNCTION Fact
 !
 !!Add to the estimate for the energy if we want to keep the particle
 !                    IF(ActiveVecSign(j)) THEN
-!                        IF(Iter.gt.NEquilSteps) EnergyNum=EnergyNum+(REAL(Hamij%v,dp))
+!                        IF(Iter.gt.NEquilSteps) EnergyNum=EnergyNum+(REAL(Hamij,dp))
 !                        NoPositive=NoPositive+1
 !                    ELSE
-!                        IF(Iter.gt.NEquilSteps) EnergyNum=EnergyNum-(REAL(Hamij%v,dp))
+!                        IF(Iter.gt.NEquilSteps) EnergyNum=EnergyNum-(REAL(Hamij,dp))
 !                        NoNegative=NoNegative+1
 !                    ENDIF
 !                    IF(IC.eq.0) THEN
@@ -3743,7 +3744,7 @@ END FUNCTION Fact
 !                    IF(IC.eq.2) THEN
 !                        CALL GetH0Element(ActiveVecDets(:,j),NEl,Arr,nBasis,ECore,Fj)
 !!EigenComp is now the component of the normalised MP1 wavefunction for the double excitation WalkVecDets(:,j)
-!                        EigenComp=abs(((Hamij%v)/(Fj%v-FZero%v))/MPNorm)
+!                        EigenComp=abs(((Hamij)/(Fj-FZero))/MPNorm)
 !                    ELSE
 !!Here, EigenComp is the component of the normalised MP1 wavefunction at the HF determinant (should always be +ve)
 !                        EigenComp=1.D0/MPNorm
@@ -3762,10 +3763,10 @@ END FUNCTION Fact
 !
 !!Add to the estimate for the energy if we want to keep the particle
 !                        IF(ActiveVecSign(j)) THEN
-!                            IF(Iter.gt.NEquilSteps) EnergyNum=EnergyNum+(REAL(Hamij%v,dp))
+!                            IF(Iter.gt.NEquilSteps) EnergyNum=EnergyNum+(REAL(Hamij,dp))
 !                            NoPositive=NoPositive+1
 !                        ELSE
-!                            IF(Iter.gt.NEquilSteps) EnergyNum=EnergyNum-(REAL(Hamij%v,dp))
+!                            IF(Iter.gt.NEquilSteps) EnergyNum=EnergyNum-(REAL(Hamij,dp))
 !                            NoNegative=NoNegative+1
 !                        ENDIF
 !                        IF(IC.eq.0) THEN
@@ -3793,11 +3794,11 @@ END FUNCTION Fact
 !!Calculate the time average of the numerator and demonimator to calculate the running average of the energy - this will then not be affected by the case when there aren't any particles at the HF determinant
 !        SumNoatHF=SumNoatHF+NoatHF
 !        SumENum=SumENum+EnergyNum
-!        ProjectionE=(SumENum/(SumNoatHF+0.D0))-REAL(Hii%v,dp)
+!        ProjectionE=(SumENum/(SumNoatHF+0.D0))-REAL(Hii,dp)
 !
 !        IF(NoatHF.ne.0) THEN
 !!The energy cannot be calculated via the projection back onto the HF if there are no particles at HF
-!            SumE=SumE+((EnergyNum/(NoatHF+0.D0))-(REAL(Hii%v,dp)))
+!            SumE=SumE+((EnergyNum/(NoatHF+0.D0))-(REAL(Hii,dp)))
 !            ProjectionEInst=SumE/((Iter-CycwNoHF)+0.D0)
 !        ELSE
 !            CycwNoHF=CycwNoHF+1         !Record the fact that there are no particles at HF in this run, so we do not bias the average
@@ -3998,7 +3999,7 @@ END FUNCTION Fact
 !        INTEGER :: nStore(6),nExcitMemLen,nJ(NEl),iMaxExcit,nExcitTag=0,iExcit,WalkersOnDet
 !        INTEGER , ALLOCATABLE :: nExcit(:)
 !        REAL*8 , ALLOCATABLE :: Eigenvector(:)
-!        TYPE(HElement) :: rhij,rhjj,Hamij,Fj,MP2E
+!        HElement_t :: rhij,rhjj,Hamij,Fj,MP2E
 !
 !        IF((WaveType.eq.1).or.(WaveType.eq.2)) THEN
 !!If WaveType=1, we want to calculate the MP1 wavevector as our initial configuration, and WaveType=2 is the star wavevector
@@ -4057,9 +4058,9 @@ END FUNCTION Fact
 !                do j=1,NEl
 !                    ExcitStore(j,i)=nJ(j)
 !                enddo
-!!                Eigenvector(i)=(rhij%v)/((rhjj%v)-TypeChange)
-!                MP2E=MP2E%v-((Hamij%v)**2)/((Fj%v)-(FZero%v))
-!                Eigenvector(i)=(Hamij%v)/(Fj%v-FZero%v)
+!!                Eigenvector(i)=(rhij)/((rhjj)-TypeChange)
+!                MP2E=MP2E-((Hamij)**2)/((Fj)-(FZero))
+!                Eigenvector(i)=(Hamij)/(Fj-FZero)
 !                SumComp=SumComp+Eigenvector(i)
 !            enddo
 !
@@ -4070,7 +4071,7 @@ END FUNCTION Fact
 !            DEALLOCATE(nExcit)
 !            CALL LogMemDealloc(this_routine,nExcitTag)
 !
-!            DiagSft=real(MP2E%v,KIND(0.D0))
+!            DiagSft=real(MP2E,KIND(0.D0))
 !
 !        ENDIF
 !
@@ -4184,7 +4185,7 @@ END FUNCTION Fact
 !        IMPLICIT NONE
 !        INTEGER :: ierr,i,j,k,l,DetCurr(NEl),ReadWalkers,TotWalkersDet
 !        INTEGER :: DetLT,VecSlot
-!        TYPE(HElement) :: rh
+!        HElement_t :: rh
 !        CHARACTER(len=*), PARAMETER :: this_routine='InitFCIMC'
 !
 !
@@ -4414,7 +4415,7 @@ END FUNCTION Fact
 !                
 !                do j=1,SizeOfSpace
 !                    rh=GetHElement2(FDet,NMRKS(:,j),NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,-1,ECore)
-!                    WRITE(67,"(F10.5)",advance='no') rh%v
+!                    WRITE(67,"(F10.5)",advance='no') rh
 !                enddo
 !                WRITE(67,*) ""
 !                WRITE(67,*) ""
@@ -4457,7 +4458,7 @@ END FUNCTION Fact
 !        CHARACTER(len=*), PARAMETER :: this_routine='CalcNodalSurface'
 !        INTEGER :: nStore(6),nExcitMemLen,nJ(NEl),iMaxExcit,nExcitTag=0,iExcit
 !        INTEGER , ALLOCATABLE :: nExcit(:)
-!        TYPE(HElement) :: Fj,Hamij!,rhij,rhjj
+!        HElement_t :: Fj,Hamij!,rhij,rhjj
 !
 !        WRITE(6,"(A,F19.9)") "Calculating the nodal structure of the MP1 wavefunction with a normalised cutoff of ",NodalCutoff
 !
@@ -4496,8 +4497,8 @@ END FUNCTION Fact
 !!We want the value of rho_jj/rho_ii
 !!            rhjj=rhjj/rhii
 !!EigenComp is now the component of the MP1 wavefunction for nJ, but unnormalised
-!!            EigenComp=(rhij%v)/((rhjj%v)-1.D0)
-!            EigenComp=(Hamij%v)/(Fj%v-FZero%v)
+!!            EigenComp=(rhij)/((rhjj)-1.D0)
+!            EigenComp=(Hamij)/(Fj-FZero)
 !            MPNorm=MPNorm+(EigenComp**2)
 !        enddo
 !
@@ -4530,8 +4531,8 @@ END FUNCTION Fact
 !!We want the value of rho_jj/rho_ii
 !!            rhjj=rhjj/rhii
 !!EigenComp is now the component of the MP1 wavefunction for nJ, but now normalised
-!!            EigenComp=abs(((rhij%v)/((rhjj%v)-1.D0))/MPNorm)
-!            EigenComp=abs(((Hamij%v)/(Fj%v-FZero%v))/MPNorm)
+!!            EigenComp=abs(((rhij)/((rhjj)-1.D0))/MPNorm)
+!            EigenComp=abs(((Hamij)/(Fj-FZero))/MPNorm)
 !            IF(EigenComp.gt.abs(NodalCutoff)) THEN
 !!Increase the counter of number of determinants with fixed sign
 !                FixedSign=FixedSign+1
@@ -4554,20 +4555,20 @@ END FUNCTION Fact
 !        INTEGER :: DetCurr(NEl),nJ(NEl),IC,i,CreateAtI,CreateAtJ
 !        REAL*8 :: Prob,Ran2,rat
 !        LOGICAL :: WSign,KeepOrig
-!        TYPE(HElement) :: rh
+!        HElement_t :: rh
 !
 !!Calculate off-diagonal hamiltonian matrix element between determinants
 !        rh=GetHElement2(DetCurr,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,IC,ECore)
 !        
 !!rat is the probability of diffusing to nJ
-!        rat=Tau*Lambda*abs(rh%v)/Prob
+!        rat=Tau*Lambda*abs(rh)/Prob
 !
 !        IF(rat.gt.1.D0) CALL Stop_All("AttemptDiffuse","*** Probability > 1 to diffuse.")
 !
 !        IF(rat.gt.Ran2(Seed)) THEN
 !            IF(TExtraPartDiff) THEN
 !!We want to perform the non-total number conserving diffusion matrix - anti-diffusion creates 2 new particles
-!                IF(real(rh%v).gt.0.D0) THEN
+!                IF(real(rh).gt.0.D0) THEN
 !!Perform anti-diffusion - particle number will increase
 !                    IF(WSign) THEN
 !!We have a positive walker
@@ -4594,7 +4595,7 @@ END FUNCTION Fact
 !                ENDIF
 !            ELSE
 !!We are performing a number-conserving diffusion process - this will have a different diagonal birth/death unbiasing probability
-!                IF(real(rh%v).gt.0.D0) THEN
+!                IF(real(rh).gt.0.D0) THEN
 !!Perform anti-diffusion, but conserve total particle number
 !                    IF(WSign) THEN
 !                        KeepOrig=.false.
@@ -4637,11 +4638,11 @@ END FUNCTION Fact
 !        INTEGER :: DetCurr(NEl),nJ(NEl),IC,StoreNumTo,StoreNumFrom,DetLT,i,ExtraCreate
 !        LOGICAL :: WSign
 !        REAL*8 :: Prob,Ran2,rat,Kik
-!        TYPE(HElement) :: rh
+!        HElement_t :: rh
 !
 !!Calculate off diagonal hamiltonian matrix element between determinants
 !        IF(TNoBirth) THEN
-!            rh=HElement(0.D0)
+!            rh=(0.D0)
 !        ELSE
 !            rh=GetHElement2(DetCurr,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,IC,ECore)
 !        ENDIF
@@ -4649,13 +4650,13 @@ END FUNCTION Fact
 !!Divide by the probability of creating the excitation to negate the fact that we are only creating a few determinants
 !        IF(TDiffuse) THEN
 !            IF(TExtraPartDiff) THEN
-!                Kik=Tau*rh%v/Prob
+!                Kik=Tau*rh/Prob
 !            ELSE
-!                Kik=Tau*abs(rh%v)/Prob
+!                Kik=Tau*abs(rh)/Prob
 !            ENDIF
 !            rat=(1.D0-Lambda)*abs(Kik)
 !        ELSE
-!            rat=Tau*abs(rh%v)/Prob
+!            rat=Tau*abs(rh)/Prob
 !        ENDIF
 !
 !!        IF(rat.lt.0.D0) THEN
@@ -4672,7 +4673,7 @@ END FUNCTION Fact
 !!Child is created - what sign is it?
 !            IF(WSign) THEN
 !!Parent particle is positive
-!                IF(real(rh%v).gt.0.D0) THEN
+!                IF(real(rh).gt.0.D0) THEN
 !                    AttemptCreate=-1     !-ve walker created
 !                ELSE
 !                    AttemptCreate=1      !+ve walker created
@@ -4680,7 +4681,7 @@ END FUNCTION Fact
 !
 !            ELSE
 !!Parent particle is negative
-!                IF(real(rh%v).gt.0.D0) THEN
+!                IF(real(rh).gt.0.D0) THEN
 !                    AttemptCreate=1      !+ve walker created
 !                ELSE
 !                    AttemptCreate=-1     !-ve walker created
@@ -4704,13 +4705,13 @@ END FUNCTION Fact
 !            ELSEIF(AttemptCreate.eq.0) THEN
 !!No particles were stochastically created, but some particles are still definatly created - we need to determinant their sign...
 !                IF(WSign) THEN
-!                    IF(real(rh%v).gt.0.D0) THEN
+!                    IF(real(rh).gt.0.D0) THEN
 !                        AttemptCreate=-1*ExtraCreate    !Additional particles are negative
 !                    ELSE
 !                        AttemptCreate=ExtraCreate       !Additional particles are positive
 !                    ENDIF
 !                ELSE
-!                    IF(real(rh%v).gt.0.D0) THEN
+!                    IF(real(rh).gt.0.D0) THEN
 !                        AttemptCreate=ExtraCreate
 !                    ELSE
 !                        AttemptCreate=-1*ExtraCreate
@@ -4765,7 +4766,7 @@ END FUNCTION Fact
 !        INTEGER :: DetCurr(NEl),DetLT,iKill,nExcitMemLen,nStore(6),nExcit(nExcitMemLen)
 !        INTEGER :: nJ(NEl),IC,iMaxExcit,ierr,nExcitTag=0
 !        CHARACTER(len=*) , PARAMETER :: this_routine='AttemptDie'
-!        TYPE(HElement) :: rh,rhij
+!        HElement_t :: rh,rhij
 !        REAL*8 :: Ran2,rat,Kik
 !
 !!Test if determinant is FDet - in a strongly single-configuration problem, this will save time
@@ -4794,7 +4795,7 @@ END FUNCTION Fact
 !                        CALL GenSymExcitIt2(DetCurr,NEl,G1,nBasis,nBasisMax,.FALSE.,nExcit,nJ,IC,0,nStore,exFlag)
 !                        IF(nJ(1).eq.0) EXIT
 !                        rhij=GetHElement2(DetCurr,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,IC,ECore)
-!                        Kik=Kik+(rhij%v)
+!                        Kik=Kik+(rhij)
 !                    enddo
 !
 !                    CALL ResetExIt2(DetCurr,NEl,G1,nBasis,nBasisMax,nExcit,0)
@@ -4802,7 +4803,7 @@ END FUNCTION Fact
 !                    Kik=Kik*Tau    !Unbias with the tau*sum of connected elements
 !                ENDIF
 !
-!                rat=(Tau*((rh%v)-DiagSft))+(Lambda*Kik)     !This is now the probability with the correct unbiasing
+!                rat=(Tau*((rh)-DiagSft))+(Lambda*Kik)     !This is now the probability with the correct unbiasing
 !
 !            ELSE
 !                IF(TFullUnbias) THEN
@@ -4815,7 +4816,7 @@ END FUNCTION Fact
 !!                        CALL WRITEDET(6,nJ,NEl,.true.)
 !                        IF(nJ(1).eq.0) EXIT
 !                        rhij=GetHElement2(DetCurr,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,IC,ECore)
-!                        Kik=Kik+abs(rhij%v)
+!                        Kik=Kik+abs(rhij)
 !                    enddo
 !
 !                    CALL ResetExIt2(DetCurr,NEl,G1,nBasis,nBasisMax,nExcit,0)
@@ -4823,13 +4824,13 @@ END FUNCTION Fact
 !                    Kik=Kik*Tau    !Unbias with the tau*sum of connected elements
 !                ENDIF
 !
-!                rat=(Tau*((rh%v)-DiagSft))-(Lambda*Kik)     !This is now the probability with the correct unbiasing
+!                rat=(Tau*((rh)-DiagSft))-(Lambda*Kik)     !This is now the probability with the correct unbiasing
 !
 !            ENDIF
 !
 !        ELSE
 !!Subtract the current value of the shift and multiply by tau
-!            rat=Tau*((rh%v)-DiagSft)
+!            rat=Tau*((rh)-DiagSft)
 !        ENDIF
 !
 !!        IF(rat.gt.1.D0) THEN
@@ -4863,8 +4864,8 @@ END FUNCTION Fact
 !        CHARACTER(len=*) , PARAMETER :: this_routine='MCDiffusion'
 !        INTEGER :: nJ(NEl),nK(NEl),ICJ,ICK,iCountJ,iCountK,i,j,iGetExcitLevel
 !        REAL*8 :: ProbJ,ProbK,Ran2,rat,NewHii,SumDeathProb,ExpectedWalkers
-!        TYPE(HElement) :: Hij,Hik,tempHii
-!        TYPE(HElement) , ALLOCATABLE :: Hi0Array(:)
+!        HElement_t :: Hij,Hik,tempHii
+!        HElement_t , ALLOCATABLE :: Hi0Array(:)
 !        INTEGER , ALLOCATABLE :: ICWalk(:)
 !        REAL*8 , ALLOCATABLE :: HiiArray(:)
 !
@@ -4887,7 +4888,7 @@ END FUNCTION Fact
 !        CALL SetupExitgen(FDet,ExcitGens(1),nExcitMemLen,TotExcits)
 !        ICWalk(1)=0
 !        Hi0Array(1)=Hii
-!        HiiArray(1)=real(Hii%v,dp)
+!        HiiArray(1)=real(Hii,dp)
 !
 !        do i=2,InitWalkers
 !!Copy the excitation generator for FDet to all the other initial walkers
@@ -4898,10 +4899,10 @@ END FUNCTION Fact
 !            enddo
 !            ICWalk(i)=0
 !            Hi0Array(i)=Hii
-!            HiiArray(i)=real(Hii%v,dp)
+!            HiiArray(i)=real(Hii,dp)
 !        enddo
 !
-!        SumENum=real(Hii%v,dp)*InitWalkers
+!        SumENum=real(Hii,dp)*InitWalkers
 !        SumNoatHF=InitWalkers
 !
 !        SumDeathProb=0.D0
@@ -4912,16 +4913,16 @@ END FUNCTION Fact
 !!Cycle over all walkers
 !
 !!First we have to see if we're going to perform a self-hop, or allow an attempt at a diffusive move.
-!!                rat=Tau/(HiiArray(j)-(real(Hii%v,dp))-DiagSft)      !This is the probability of self-hopping, rather than attempting a diffusive move
-!!                rat=Tau*((HiiArray(j)/(real(Hii%v,dp)))-DiagSft)      !This is the probability of self-hopping, rather than attempting a diffusive move
-!                rat=0.8*(1.D0-Tau*((HiiArray(j)-(real(Hii%v,dp)))-DiagSft))      !This is the probability of self-hopping, rather than attempting a diffusive move
+!!                rat=Tau/(HiiArray(j)-(real(Hii,dp))-DiagSft)      !This is the probability of self-hopping, rather than attempting a diffusive move
+!!                rat=Tau*((HiiArray(j)/(real(Hii,dp)))-DiagSft)      !This is the probability of self-hopping, rather than attempting a diffusive move
+!                rat=0.8*(1.D0-Tau*((HiiArray(j)-(real(Hii,dp)))-DiagSft))      !This is the probability of self-hopping, rather than attempting a diffusive move
 !                                                        !Higher excitations have smaller prob, so resampled fewer times and lower excitations sampled for longer.
 !
 !                IF((rat.lt.0.D0).or.(rat.gt.1.D0)) CALL Stop_All("DiffusionMC","Incorrect self-hop probability")
 !                IF(rat.gt.Ran2(Seed)) THEN
 !!We want to self-hop. Resum in energy, but to not allow an attempted move away from excit. We also update the effect on the shift later.
 !                        
-!                        SumENum=SumENum+(real(Hi0Array(j)%v,dp))
+!                        SumENum=SumENum+(real(Hi0Array(j),dp))
 !                        IF(ICWalk(j).eq.0) SumNoatHF=SumNoatHF+1
 !                        NewHii=HiiArray(j)
 !
@@ -4934,7 +4935,7 @@ END FUNCTION Fact
 !                    Hik=GetHElement2(CurrentDets(:,j),nK,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,NMax,ALat,UMat,ICK,ECore)
 !
 !!Attempt diffusion away to nJ
-!                    rat=Tau*abs(real(Hij%v,dp))/ProbJ
+!                    rat=Tau*abs(real(Hij,dp))/ProbJ
 !                
 !                    IF(rat.gt.1.D0) CALL Stop_All("AttemptDiffuse","*** Probability > 1 to diffuse.")
 !
@@ -4943,7 +4944,7 @@ END FUNCTION Fact
 !                   
 !                        CurrentDets(:,j)=nJ(:)
 !
-!                        IF(real(Hij%v,dp).gt.0.D0) THEN
+!                        IF(real(Hij,dp).gt.0.D0) THEN
 !!This is the anti-diffusion
 !                            IF(CurrentSign(j)) THEN
 !!Walker is positive
@@ -4959,25 +4960,25 @@ END FUNCTION Fact
 !                        ICWalk(j)=iGetExcitLevel(FDet,nJ,NEl)
 !                        IF(ICWalk(j).eq.2) THEN
 !                            Hi0Array(j)=GetHElement2(FDet,nJ,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,NMax,ALat,UMat,2,ECore)
-!                            SumENum=SumENum+(real(Hi0Array(j)%v,dp))
+!                            SumENum=SumENum+(real(Hi0Array(j),dp))
 !                        ELSEIF(ICWalk(j).eq.0) THEN
 !                            Hi0Array(j)=Hii
-!                            SumENum=SumENum+(real(Hii%v,dp))
+!                            SumENum=SumENum+(real(Hii,dp))
 !                            SumNoatHF=SumNoatHF+1
 !                        ELSE
-!                            Hi0Array(j)=HElement(0.D0)
+!                            Hi0Array(j)=(0.D0)
 !                        ENDIF
 !
 !!Create and save new excitation generator
 !                        CALL SetupExitgen(nJ,ExcitGens(j),nExcitMemLen,TotExcits)
 !
 !                        tempHii=GetHElement2(nJ,nJ,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,NMax,ALat,UMat,0,ECore)
-!                        NewHii=real(tempHii%v,dp)  !This is the new diagonal matrix element
+!                        NewHii=real(tempHii,dp)  !This is the new diagonal matrix element
 !                                                                                                       
 !                    ELSE
 !!Attempted diffusion away is not successful - still need to update the energy
 !                    
-!                        SumENum=SumENum+(real(Hi0Array(j)%v,dp))
+!                        SumENum=SumENum+(real(Hi0Array(j),dp))
 !                        IF(ICWalk(j).eq.0) SumNoatHF=SumNoatHF+1
 !                        NewHii=HiiArray(j)
 !
@@ -4985,7 +4986,7 @@ END FUNCTION Fact
 !
 !                ENDIF
 !
-!                rat=Tau*(((HiiArray(j)-(real(Hii%v,dp)))-DiagSft)-(abs(real(Hik%v,dp))/ProbK))      !This is the prob of death, adjusted to unbias for the diffusion
+!                rat=Tau*(((HiiArray(j)-(real(Hii,dp)))-DiagSft)-(abs(real(Hik,dp))/ProbK))      !This is the prob of death, adjusted to unbias for the diffusion
 !
 !                HiiArray(j)=NewHii      !Now we can update the HiiArray to take into account if the walker has moved to a new position
 !
@@ -4993,7 +4994,7 @@ END FUNCTION Fact
 !
 !            enddo   !Finsh cycling over all walkers
 !            
-!            ProjectionE=(SumENum/(SumNoatHF+0.D0))-REAL(Hii%v,dp)
+!            ProjectionE=(SumENum/(SumNoatHF+0.D0))-REAL(Hii,dp)
 !
 !            IF(mod(Iter,StepsSft).eq.0) THEN
 !        

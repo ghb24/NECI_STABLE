@@ -329,7 +329,7 @@ C         SUM2=SUM2-UMAT(ID(I),ID(J),ID(J),ID(I))
 C.. Calculate <phi_a phi_b | U | phi_c phi_d> from <u_i u_j|U|u_k u_l>
       SUBROUTINE GETTRUMATEL(A,B,C,D,UMAT,NBASISMAX,NHG,BTRANS,NSBASIS,
      &            NSPINS,ISS,TOTSUM)
-         USE HElem
+         use constants, only: dp
          use Integrals, Only : GetUMatEl
          USE UMatCache , Only : GTID
          use SystemData, only: BasisFN
@@ -337,13 +337,13 @@ C.. Calculate <phi_a phi_b | U | phi_c phi_d> from <u_i u_j|U|u_k u_l>
          TYPE(BasisFN) G1(1)
          INTEGER A,B,C,D
          INTEGER I,J,K,L
-         Type(HElement) UMAT(*)
+         HElement_t UMAT(*)
 C.. was (NHG/ISS,NHG/ISS,NHG/ISS,NHG/ISS)
          REAL*8 BTRANS(NSBASIS,NSBASIS,NSPINS)
          REAL*8 ALAT(3)
          INTEGER NSPINS,NSBASIS
          INTEGER NHG,ISS,nBasisMax(5,*)
-         TYPE(HElement) TOTSUM,SUM1,SUM2,SUM3
+         HElement_t TOTSUM,SUM1,SUM2,SUM3
          INTEGER ASPN,BSPN,CSPN,DSPN,AE,BE,CE,DE
          INTEGER IDI,IDJ,IDK,IDL
          ASPN=MOD(A-1,NSPINS)+1
@@ -374,15 +374,15 @@ C.. and then from it get the ID within UMAT
                   SUM3=0.D0
                   DO L=1,NSBASIS
                      IDL = GTID((L-1)*NSPINS+1+DSPN-1)
-                     SUM3=SUM3+HElement(BTRANS(DE,L,DSPN))*
+                     SUM3=SUM3+(BTRANS(DE,L,DSPN))*
      &       GETUMATEL(NBASISMAX,UMAT,ALAT,NHG,ISS,G1,IDI,IDJ,IDK,IDL)
 C     &                  UMAT(IDI,IDJ,IDK,IDL)
                   ENDDO
-                  SUM2=SUM2+SUM3*HElement(BTRANS(CE,K,CSPN))
+                  SUM2=SUM2+SUM3*(BTRANS(CE,K,CSPN))
                ENDDO
-               SUM1=SUM1+SUM2*HElement(BTRANS(BE,J,BSPN))
+               SUM1=SUM1+SUM2*(BTRANS(BE,J,BSPN))
             ENDDO
-            TOTSUM=TOTSUM+SUM1*HElement(BTRANS(AE,I,ASPN))
+            TOTSUM=TOTSUM+SUM1*(BTRANS(AE,I,ASPN))
          ENDDO
          RETURN
       END
@@ -390,7 +390,7 @@ C     &                  UMAT(IDI,IDJ,IDK,IDL)
 C.. Calculate <phi_a | T | phi_c > from <u_i |T|u_k>
       SUBROUTINE GETTRTMATEL(A,C,NHG,BTRANS,NSBASIS,
      &            NSPINS,TOTSUM)
-         USE HElem
+         use constants, only: dp
          USE OneEInts, Only : GetTMatEl
          IMPLICIT NONE
          INTEGER A,C
@@ -419,7 +419,7 @@ C.. We have to generate the normal basis number corresponding to I
             DO K=1,NSBASIS
                IDK=(K-1)*NSPINS+1+CSPN-1
                SUM2=SUM2+BTRANS(CE,K,CSPN)*
-     &            DREAL(GetTMATEl(IDI,IDK))
+     &            (GetTMATEl(IDI,IDK))
             ENDDO
             TOTSUM=TOTSUM+SUM2*BTRANS(AE,I,ASPN)
          ENDDO

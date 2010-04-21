@@ -1,6 +1,6 @@
 #include "macros.h"
 MODULE Determinants
-    Use HElem
+    use constants, only: dp
     use SystemData, only: BasisFN, tCSF, nel, G1, Brr, ECore, ALat, NMSH, &
                           nBasis, nBasisMax, tStoreAsExcitations, tHPHFInts, &
                           NIfToT, tCSF
@@ -89,7 +89,7 @@ contains
     
     Subroutine DetInit()
         Use global_utilities
-        Use HElem
+        use constants, only: dp
         use SystemData, only: nel, Alat, Boa, Coa, BOX, BRR, ECore
         use SystemData, only: G1, LMS, nBasis, STot, tCSFOLD, Arr,tHub,tUEG
         use SymData , only : nSymLabels,SymLabelList,SymLabelCounts,TwoCycleSymGens
@@ -248,7 +248,7 @@ contains
         integer, intent(in) :: nI(nel), nJ(nel)
         integer, intent(in), optional :: iLutI(0:NIfTot), iLutJ(0:NIfTot)
         integer, intent(in) :: IC
-        type(HElement) :: hel
+        HElement_t :: hel
 
         character(*), parameter :: this_routine = 'get_helement_compat'
 
@@ -273,7 +273,7 @@ contains
         endif
 
         ! Add in ECore if for a diagonal element
-        if (IC == 0) hel = hel + helement(ECore)
+        if (IC == 0) hel = hel + (ECore)
     end function
     
     function get_helement_normal (nI, nJ, iLutI, iLutJ, ICret) result(hel)
@@ -288,7 +288,7 @@ contains
         integer, intent(in) :: nI(nel), nJ(nel)
         integer, intent(in), optional :: iLutI(0:NIfTot), iLutJ(0:NIfTot)
         integer, intent(out), optional :: ICret
-        type(helement) :: hel
+        HElement_t :: hel
 
         character(*), parameter :: this_routine = 'get_helement_normal'
         integer :: ex(2,2), IC, ilut(0:NIfTot,2)
@@ -325,7 +325,7 @@ contains
         endif
 
         ! Add in ECore for a diagonal element
-        if (IC == 0) hel = hel + HElement(ECore)
+        if (IC == 0) hel = hel + (ECore)
 
         ! If requested, return IC
         if (present(ICret)) then
@@ -349,7 +349,7 @@ contains
         integer, intent(in) :: nI(nel), nJ(nel), IC
         integer, intent(in) :: ExcitMat(2,2)
         logical, intent(in) :: tParity
-        type(HElement) :: hel
+        HElement_t :: hel
 
         character(*), parameter :: this_routine = 'get_helement_excit'
 
@@ -369,11 +369,37 @@ contains
 
         hel = sltcnd_excit (nI, nJ, IC, ExcitMat, tParity)
 
-        if (IC == 0)  hel = hel + HElement(ECore)
+        if (IC == 0)  hel = hel + (ECore)
     end function get_helement_excit
 
+    function get_helement_det_only (nI, nJ, iLutI, iLutJ, ic, ex, tParity, &
+                                    prob) result (hel)
+        
+        ! Calculate the Hamiltonian Matrix Element for a determinant as above.
+        ! This function assumes that we have got it correct for determinants
+        ! (i.e. no error checking), and no conditionals. It also has extra
+        ! arguments for compatibility with the function pointer methods.
+        !
+        ! In:  nI, nJ       - The determinants to evaluate
+        !      iLutI, iLutJ - Bit representations (unused)
+        !      ic           - The number of orbitals i,j differ by
+        !      ex           - Excitation matrix
+        !      tParity      - Parity of the excitation
+        ! Ret: hel          - The H matrix element
 
-      type(HElement) function GetH0Element3(nI)
+        integer, intent(in) :: nI(nel), nJ(nel), ic, ex(2,2)
+        integer, intent(in) :: iLutI(0:NIfTot), iLutJ(0:NIfTot)
+        logical, intent(in) :: tParity
+        real(dp), intent(in) :: prob
+        HElement_t :: hel
+
+        hel = sltcnd_excit (nI, nJ, IC, ex, tParity)
+
+        if (IC == 0) hel = hel + ECore
+    end function
+
+
+      HElement_t function GetH0Element3(nI)
          ! Wrapper for GetH0Element.
          ! Returns the matrix element of the unperturbed Hamiltonian, which is
          ! just the sum of the eigenvalues of the occupied orbitals and the core
@@ -382,10 +408,10 @@ contains
          !  consistent with GetHElement3, i.e. offer the most abstraction possible.
          ! In: 
          !    nI(nEl)  list of occupied spin orbitals in the determinant.
-         use HElem
+         use constants, only: dp
          use SystemData, only: nEl,nBasis,Arr,ECore
          integer nI(nEl)
-         type(HElement) hEl
+         HElement_t hEl
          call GetH0Element(nI,nEl,Arr(1:nBasis,1:2),nBasis,ECore,hEl)
          GetH0Element3=hEl
       end function
@@ -407,10 +433,10 @@ END MODULE Determinants
          !  Out:
          !     hEl      <D_i|H_0|D_i>, the unperturbed Hamiltonian matrix element.
          use SystemData , only : TSTOREASEXCITATIONS
-         USE HElem
+         use constants, only: dp
          implicit none
          integer nI(nEl),nEl,nBasis
-         type(HElement) hEl
+         HElement_t hEl
          real*8 Arr(nBasis,2),ECore
          integer i
          if(tStoreAsExcitations.and.nI(1).eq.-1) then
@@ -418,15 +444,15 @@ END MODULE Determinants
 !Next is the parity of the permutation required to lineup occupied->excited.  Then follows a list of the indexes of the L occupied orbitals within the HFDET, and then L virtual spinorbitals.
             hEl=0.d0
             do i=4,nI(2)+4-1
-               hEl=hEl-HElement(Arr(nI(i),2))
+               hEl=hEl-(Arr(nI(i),2))
             enddo
             do i=i,i+nI(2)-1
-               hEl=hEl+HElement(Arr(nI(i),2))
+               hEl=hEl+(Arr(nI(i),2))
             enddo
          else
             hEl=ECore
             do i=1,nEl
-               hEl=hEl+HElement(Arr(nI(i),2))
+               hEl=hEl+(Arr(nI(i),2))
             enddo
          endif
 !         call writedet(77,nI,nel,.false.)
@@ -681,7 +707,7 @@ END MODULE Determinants
 
 ! Calculate the one-electron part of the energy of a det
       REAL*8 FUNCTION CALCT(NI,NEL,G1,NBASIS)
-         USE HElem
+         use constants, only: dp
          USE SystemData, only : BasisFN
          USE OneEInts, only : GetTMatEl
          IMPLICIT NONE
@@ -691,7 +717,7 @@ END MODULE Determinants
          CALCT=0.D0
          IF(ISCSF(NI,NEL)) RETURN
          DO I=1,NEL
-            CALCT=CALCT+DREAL(GetTMATEl(NI(I),NI(I)))
+            CALCT=CALCT+GetTMATEl(NI(I),NI(I))
          ENDDO
          RETURN
       END

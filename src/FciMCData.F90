@@ -1,5 +1,5 @@
 MODULE FciMCData
-      USE HElem
+      use constants, only: dp
       USE global_utilities
       use constants, only: dp
       IMPLICIT NONE
@@ -65,6 +65,8 @@ MODULE FciMCData
       REAL*8 :: ENumCyc           !This is the sum of doubles*sign*Hij on a given processor over the course of the update cycle
       REAL*8 :: AllENumCyc        !This is the sum of double*sign*Hij over all processors over the course of the update cycle
       REAL*8 :: ProjEIter,ProjEIterSum    !This is the energy estimator where each update cycle contributes an energy and each is given equal weighting.
+      integer :: iPartBloom   ! The maximum number of children spawned from a
+                              ! single excitation. Used to calculate blooms.
 
 !These are the global variables, calculated on the root processor, from the values above
       REAL*8 :: AllGrowRate
@@ -74,7 +76,7 @@ MODULE FciMCData
       REAL*8 :: AllSumNoatHF,AllSumENum,AllAvSign,AllAvSignHFD
       INTEGER :: AllNoBorn,AllNoDied,MaxSpawned
   
-      TYPE(HElement) :: rhii
+      HElement_t :: rhii
       REAL*8 :: Hii,Fii
 
       LOGICAL :: TSinglePartPhase                 !This is true if TStartSinglePart is true, and we are still in the phase where the shift is fixed and particle numbers are growing
@@ -156,6 +158,10 @@ MODULE FciMCData
       INTEGER :: iHighestPop
       INTEGER , ALLOCATABLE :: HighestPopDet(:),ProjEDet(:),iLutRef(:)
 
+      ! These are variables used to control the behaviour of PerformFciMCycPar
+      ! without passing them directly to it.
+      character(150) :: bloom_warn_string
+      integer :: max_calc_ex_level
       
       
       

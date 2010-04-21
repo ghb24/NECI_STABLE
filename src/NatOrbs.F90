@@ -15,7 +15,7 @@ MODULE NatOrbsMod
         use SystemData, only: NIfY, NIfTot
         USE RotateOrbsData , only : SymLabelList2,SymLabelCounts2,SymLabelCounts2Tag,SymLabelListInv,NoOrbs,SpatOrbs,FillOneRDM_time
         USE RotateOrbsData , only : FillMP2VDM_Time,DiagNatOrbMat_Time,OrderCoeff_Time,FillCoeff_Time,NoFrozenVirt
-        USE HElem
+        use constants, only: dp
         IMPLICIT NONE
         INTEGER :: NoSpinCyc,SymOrbsTempTag
         REAL*8 , ALLOCATABLE :: NatOrbMat(:,:),Evalues(:)
@@ -582,7 +582,7 @@ MODULE NatOrbsMod
         INTEGER :: Startab,Endab,NoOcc,NoOccC,Startc,Endc,Starti,Endi,Startj,Endj
         REAL*8 :: MP2VDMSum
         CHARACTER(len=*), PARAMETER :: this_routine='FillMP2VDM'
-        TYPE(HElement) :: HEl01,HEl02
+        HElement_t :: HEl01,HEl02
 
 ! Calculating the MP2VDM (D2_ab) matrix whose eigenvectors become the transformation matrix.        
 ! This goes in the natural orbital matrix of this module.
@@ -701,34 +701,34 @@ MODULE NatOrbsMod
                                                 HEl01=GETUMATEL(nBasisMax,UMAT,ALAT,nBasis,iSpinSkip,G1,a,c,i,j)
                                                 HEl02=GETUMATEL(nBasisMax,UMAT,ALAT,nBasis,iSpinSkip,G1,b,c,i,j)
                                                 MP2VDMSum=MP2VDMSum+&
-                                                            &(( (REAL(HEl01%v,8)) * (2.D0*(REAL(HEl02%v,8))) )/&
+                                                            &(( (REAL(HEl01,8)) * (2.D0*(REAL(HEl02,8))) )/&
                                                             &( (ARR(2*i,2)+ARR(2*j,2)-ARR(2*a,2)-ARR(2*c,2)) * (ARR(2*i,2)+ARR(2*j,2)-ARR(2*b,2)-ARR(2*c,2)) ) )
 
                                                 HEl02=GETUMATEL(nBasisMax,UMAT,ALAT,nBasis,iSpinSkip,G1,c,b,i,j)
                                                 MP2VDMSum=MP2VDMSum-&                                            
-                                                            &(( (REAL(HEl01%v,8)) * (REAL(HEl02%v,8)) )/&
+                                                            &(( (REAL(HEl01,8)) * (REAL(HEl02,8)) )/&
                                                             &( (ARR(2*i,2)+ARR(2*j,2)-ARR(2*a,2)-ARR(2*c,2)) * (ARR(2*i,2)+ARR(2*j,2)-ARR(2*c,2)-ARR(2*b,2)) ) )
  
                                             ELSEIF(tStoreSpinOrbs) THEN
                                                 IF((ARR(i,2)+ARR(j,2)-ARR(a,2)-ARR(c,2)).eq.0.D0) THEN
-                                                    IF((REAL(UMAT(UMatInd(a,c,i,j,0,0))%v,8)).ne.0.D0) THEN
-                                                        WRITE(6,*) i,j,a,c,REAL(UMAT(UMatInd(a,c,i,j,0,0))%v,8)
+                                                    IF((REAL(UMAT(UMatInd(a,c,i,j,0,0)),8)).ne.0.D0) THEN
+                                                        WRITE(6,*) i,j,a,c,REAL(UMAT(UMatInd(a,c,i,j,0,0)),8)
                                                         CALL Stop_All(this_routine,"Dividing a non-zero by zero.")
                                                     ENDIF
                                                 ENDIF
                                                 MP2VDMSum=MP2VDMSum+&
-                                                            &(( (REAL(UMAT(UMatInd(a,c,i,j,0,0))%v,8)) * (2.D0*(REAL(UMAT(UMatInd(b,c,i,j,0,0))%v,8))) )/&
+                                                            &(( (REAL(UMAT(UMatInd(a,c,i,j,0,0)),8)) * (2.D0*(REAL(UMAT(UMatInd(b,c,i,j,0,0)),8))) )/&
                                                             &( (ARR(i,2)+ARR(j,2)-ARR(a,2)-ARR(c,2)) * (ARR(i,2)+ARR(j,2)-ARR(b,2)-ARR(c,2)) ) )
                                                 MP2VDMSum=MP2VDMSum-&                                            
-                                                            &(( (REAL(UMAT(UMatInd(a,c,i,j,0,0))%v,8)) * (REAL(UMAT(UMatInd(c,b,i,j,0,0))%v,8)) )/&
+                                                            &(( (REAL(UMAT(UMatInd(a,c,i,j,0,0)),8)) * (REAL(UMAT(UMatInd(c,b,i,j,0,0)),8)) )/&
                                                             &( (ARR(i,2)+ARR(j,2)-ARR(a,2)-ARR(c,2)) * (ARR(i,2)+ARR(j,2)-ARR(c,2)-ARR(b,2)) ) )
                  
                                             ELSE
                                                 MP2VDMSum=MP2VDMSum+&
-                                                            &(( (REAL(UMAT(UMatInd(a,c,i,j,0,0))%v,8)) * (2.D0*(REAL(UMAT(UMatInd(b,c,i,j,0,0))%v,8))) )/&
+                                                            &(( (REAL(UMAT(UMatInd(a,c,i,j,0,0)),8)) * (2.D0*(REAL(UMAT(UMatInd(b,c,i,j,0,0)),8))) )/&
                                                             &( (ARR(2*i,2)+ARR(2*j,2)-ARR(2*a,2)-ARR(2*c,2)) * (ARR(2*i,2)+ARR(2*j,2)-ARR(2*b,2)-ARR(2*c,2)) ) )
                                                 MP2VDMSum=MP2VDMSum-&                                            
-                                                            &(( (REAL(UMAT(UMatInd(a,c,i,j,0,0))%v,8)) * (REAL(UMAT(UMatInd(c,b,i,j,0,0))%v,8)) )/&
+                                                            &(( (REAL(UMAT(UMatInd(a,c,i,j,0,0)),8)) * (REAL(UMAT(UMatInd(c,b,i,j,0,0)),8)) )/&
                                                             &( (ARR(2*i,2)+ARR(2*j,2)-ARR(2*a,2)-ARR(2*c,2)) * (ARR(2*i,2)+ARR(2*j,2)-ARR(2*c,2)-ARR(2*b,2)) ) )
                                             ENDIF
  

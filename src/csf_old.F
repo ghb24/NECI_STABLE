@@ -838,15 +838,15 @@ C.. remove NDCH if necessary
 
       subroutine CSFGETHELEMENTOLD(NCI,NCJ,NEL,NBASISMAX,
      &   G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMat,ECORE,TOTSUM)
-         use HELem
+         use constants, only: dp
          use SystemData, only: basisfn
          type(basisfn) G1(*)
          integer nbasis,brr(*),nmsh,nmax
          real*8 alat(*)
-         type(helement) umat(*)
+         HElement_t umat(*)
          complex*16 fck(*)
          integer nel,nci(nel),ncj(nel),nbasismax(5,*)
-         type(helement) TOTsum
+         HElement_t TOTsum
          real*8 ecore
 
          call csfgethelement(nci,ncj,nel,nbasismax,g1,nbasis,
@@ -856,7 +856,7 @@ C.. remove NDCH if necessary
 C.. Get the Hamiltonian Element between two CSFs
       SUBROUTINE CSFGETHELEMENT(NCI,NCJ,NEL,NBASISMAX,
      &   G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMat,ECORE,TOTSUM)
-         USE HElem
+         use constants, only: dp
          Use Determinants, only: get_helement
          use SystemData, only: BasisFN
          use global_utilities
@@ -864,10 +864,10 @@ C.. Get the Hamiltonian Element between two CSFs
          TYPE(BasisFN) G1(*)
          INTEGER NBASIS,BRR(*),NMSH,NMAX
          REAL*8 ALAT(*)
-         TYPE(HElement) UMat(*)
+         HElement_t UMat(*)
          COMPLEX*16 FCK(*)
          INTEGER NEL,NCI(NEL),NCJ(NEL),nBasisMax(5,*)
-         TYPE(HElement) TOTSUM,SUM2,HEL
+         HElement_t TOTSUM,SUM2,HEL
          REAL*8 ECORE
          
          INTEGER,ALLOCATABLE :: LISTD1(:,:),LISTD2(:,:)
@@ -952,9 +952,9 @@ C.. NOPEN has number of open electrons, and NDETS has #open dets
                   COEFF2=COEFFLIST2(J)
                ENDIF
                hel = get_helement(LISTD1(:,I), LISTD2(:,J))
-               SUM2=SUM2+HEL*HElement(COEFF2)
+               SUM2=SUM2+HEL*(COEFF2)
             ENDDO
-            TOTSUM=TOTSUM+SUM2*HElement(COEFF1)
+            TOTSUM=TOTSUM+SUM2*(COEFF1)
          ENDDO
          deallocate(LISTD1,DOLISTD1,LISTD2,DOLISTD2,COEFFLIST2)
          call LogMemDealloc(this_routine,tagLISTD1)

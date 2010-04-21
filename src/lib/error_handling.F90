@@ -1,3 +1,36 @@
+subroutine stop_all_c (sub_name, error_msg) bind(c, name='stop_all')
+    use, intrinsic :: iso_c_binding
+    implicit none
+
+    interface
+        pure integer(c_int) function strlen (str) bind(c)
+            use, intrinsic :: iso_c_binding
+            implicit none
+            character(c_char), intent(in) :: str(*)
+        end function
+        type(c_ptr) function strncpy (dest, src, len) bind(c)
+            use, intrinsic :: iso_c_binding
+            implicit none
+            character(c_char), intent(out) :: dest(*)
+            character(c_char), intent(in) :: src(*)
+            integer(c_size_t), intent(in) :: len
+        end function
+    end interface
+
+    character(c_char), intent(in) :: sub_name(*), error_msg(*)
+    type(c_ptr) :: tmp
+    character(len=strlen(sub_name)) :: sub_name_tmp
+    character(len=strlen(error_msg)) :: error_msg_tmp
+
+    tmp = strncpy (sub_name_tmp, sub_name, int(len(sub_name_tmp), c_size_t))
+    tmp = strncpy (error_msg_tmp, error_msg, int(len(error_msg_tmp),c_size_t))
+
+    !sub_name_tmp(1:2) = sub_name(1:2) !sub_name(1:len(sub_name_tmp))
+    !error_msg_tmp(:) = error_msg(1:len(error_msg_tmp))
+    call stop_all (sub_name_tmp, error_msg_tmp)
+end subroutine
+
+
 subroutine stop_all(sub_name,error_msg)
 != Stop calculation due to an error.
 != Exit with code 999.
