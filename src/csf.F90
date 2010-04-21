@@ -518,6 +518,7 @@ contains
         ! TODO: shift declaratino of dets into here --> we only need it to be
         !       nopen long, as we don't generate the dets.
 
+        use constants, only: bits_n_int
         integer, intent(in) :: nI(nel), nJ(nel), nopen(2), nclosed(2)
         integer, intent(in) :: iLutI(0:NIfTot), iLutJ(0:NIfTot)
         integer, intent(in) :: nup(2), ndets(2)
