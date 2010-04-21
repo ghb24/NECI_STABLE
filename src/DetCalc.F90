@@ -1,6 +1,6 @@
 #include "macros.h"
 MODULE DetCalc
-        use constants, only: dp
+        use constants, only: dp,n_int
         use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
         
     IMPLICIT NONE
@@ -22,7 +22,7 @@ MODULE DetCalc
       INTEGER Det   ! The number of determinants with the same sym
                     ! as the reference det.  This is the number of
                     ! dets in FCIDets
-      INTEGER, Allocatable :: FCIDets(:,:)  !This will contain a list of determinants of the same symmetry as the reference det, with dets in compressed form.  Usually (NIfTot, Det)
+      INTEGER(kind=n_int), Allocatable :: FCIDets(:,:)  !This will contain a list of determinants of the same symmetry as the reference det, with dets in compressed form.  Usually (NIfTot, Det)
       INTEGER, Allocatable :: FCIDetIndex(:)!This indicates where the excitation levels start in the FCIDets array(will go from 0->NEl+1).
 
       LOGICAL TCALCHMAT,TENERGY,TREAD,TBLOCK
@@ -310,7 +310,6 @@ CONTAINS
     
     Subroutine DoDetCalc
       Use global_utilities
-      use constants, only: dp
       use Determinants , only : get_helement,FDet
       use SystemData, only : Alat, arr, brr, boa, box, coa, ecore, g1,Beta
       use SystemData, only : nBasis, nBasisMax,nEl,nMsh,LzTot,NIfTot
@@ -338,7 +337,8 @@ CONTAINS
         INTEGER GC,I,ICMAX,MaxDet,Bits
         INTEGER iDeg,III,IN,IND,INDZ
         INTEGER NBLOCK!,OpenOrbs,OpenOrbsSym,Ex(2,NEl)
-        INTEGER nKry1,ilut(0:NIfTot),nK(NEl)!,iLutSym(0:NIfD),nJ(NEl)
+        INTEGER nKry1,nK(NEl)!,nJ(NEl)
+        INTEGER(KIND=n_int) :: ilut(0:NIfTot)
         
         INTEGER J,JR,iGetExcitLevel_2,ExcitLevel
         INTEGER LSCR,LISCR,MaxIndex
