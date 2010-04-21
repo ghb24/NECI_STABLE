@@ -21,6 +21,12 @@ C.. Setup for symmetry routine below.
          LOGICAL TCOUNT
          INTEGER ILEVEL
          INTEGER iMinElec1,iMaxElec1
+
+#ifdef __INT64
+         CALL Stop_All("SYMSETUPEXCITS","Old excitation "               &
+     &      \\"generators will not work with INT64 C flag.")
+#endif
+
          STORE(1:6)=0
          CALL N_MEMORY(IP_DSTORE,SymClassSize*NEL+NIfTot+1
      &      +SymmetrySize*(NEL*NEL+1),
@@ -136,6 +142,10 @@ C.. If we're just counting, we don't need to keep DSTORE
          INTEGER iMinElec1,iMaxElec1
          type(timer), save :: proc_timer
          proc_timer%timer_name='SYMSUEXCIT'
+#ifdef __INT64
+         CALL Stop_All("SYMSETUPEXCITS2","Old excitation "              &
+     &      \\"generators will not work with INT64 C flag.")
+#endif
          
          call set_timer(proc_timer,65)
 
@@ -771,6 +781,10 @@ C..      ENDIF(.NOT.TCOUNT)
          INTEGER I         
          type(timer), save :: proc_timer
          proc_timer%timer_name='SYMSUEXCIT'
+#ifdef __INT64
+         CALL Stop_All("SYMSETUPEXCITS3","Old excitation "              &
+     &      \\"generators will not work with INT64 C flag.")
+#endif
          
          call set_timer(proc_timer,65)
          Call SymSetupExcits_CreateClassList(nI,nEl,Classes,
@@ -1270,6 +1284,10 @@ C.. SYMPAIRPRODS(1:NSYMPAIRPRODS) is a global list of all SYMPRODs available, th
 C.. symlabels (listed in SymStatePairs), and the index of the start of this list
 C.. For a given (unique) SymPairProds(J)%Sym, I=SymPairProds(J)%Index.
 C.. [ SymStatePairs(1,I) , SymStatePairs(2,I) ] is the pair of symlabels whose prod is of that symmetry.
+#ifdef __INT64
+         CALL Stop_All("SymSetupExcits_CountVirtProds","Old excitation "&
+     &      \\"generators will not work with INT64 C flag.")
+#endif
 
          NDOUB=0
          DO I=1,NPR
@@ -1837,6 +1855,10 @@ C.. And the doubles
          INTEGER LSTE(NEL,*),ICLIST(*),ICOUNT
          type(BasisFN) ISYM
          character(50) error_msg
+#ifdef __INT64
+         CALL Stop_All("SYMGENALLEXCITS","Old excitation "              &
+     &      \\"generators will not work with INT64 C flag.")
+#endif
 
          ICOUNT=0
          if(tAbelianFastExcitGen) then
@@ -2219,6 +2241,10 @@ C.. A modified version of GENSYMEXCITIT2.  This has min and max electron 1 speci
 #endif
          INTEGER ILEVEL,Pos1,Pos2,Pos3
          INTEGER iMinElec1, iMaxElec1
+#ifdef __INT64
+         CALL Stop_All("GENSYMEXCITIT2Par","Old excitation "            &
+     &      \\"generators will not work with INT64 C flag.")
+#endif
 
          IF(TSETUP) THEN
 C.. This is the first time we've been called for setup.
@@ -2452,6 +2478,10 @@ C.. 1,1= 1B, 1,2=1A; 2,1=2B, 2,2=2A.
       LOGICAL tDebugPrint
       INTEGER iMinElec1, iMaxElec1
       tDebugPrint=.false.
+#ifdef __INT64
+         CALL Stop_All("SYMGENEXCITIT","Old excitation "               &
+     &      \\"generators will not work with INT64 C flag.")
+#endif
 
       DO WHILE(.TRUE.)
 C.. see if we need a new EXCIT
@@ -3116,6 +3146,10 @@ C.. 1,1= 1B, 1,2=1A; 2,1=2B, 2,2=2A.
 
          INTEGER iRet
          iRet=0
+#ifdef __INT64
+         CALL Stop_All("SymGenExcitItOld_GenDouble","Old excitation "   &
+     &      \\"generators will not work with INT64 C flag.")
+#endif
 C.. doubles
          SPP=SymPairProds(ITO)%Sym
 C.. See if we need a new K.  L is the spin label, and goes from 1..4.
@@ -3378,6 +3412,10 @@ C.. 1,1= 1B, 1,2=1A; 2,1=2B, 2,2=2A.
          INTEGER iLooped
          INTEGER iTo1,iTo2
          iRet=0
+#ifdef __INT64
+         CALL Stop_All("SymGenExcitIt_GenDouble","Old excitation "   &
+     &      \\"generators will not work with INT64 C flag.")
+#endif
 C.. doubles
          SPP=SymPairProds(ITO)%Sym
 C.. See if we need a new K.  L is the spin label, and goes from 1..4.
@@ -3535,6 +3573,10 @@ C                     CALL WRITEDET(6,NK,NEL,.TRUE.)
          INTEGER LOC
 #endif
          POINTER(IP_DSTORE,DSTORE)
+#ifdef __INT64
+         CALL Stop_All("IsConnectedDet","Old excitation "               &
+     &      \\"generators will not work with INT64 C flag.")
+#endif
          IP_DSTORE=LOC(nIExcitor(nIExcitor(1)))
          CALL IsConnectedDet2(nI,nJ,nEl,G1,nBasisMax,nBasis,
      &      nIExcitor(nIExcitor(4)),nIExcitor(nIExcitor(5)),
@@ -3561,6 +3603,10 @@ C                     CALL WRITEDET(6,NK,NEL,.TRUE.)
          INTEGER SymProdInd(2,3,0:*)
          TYPE(Symmetry) SymProds(0:*)
          LOGICAL tIsConnected
+#ifdef __INT64
+         CALL Stop_All("IsConnectedDet2","Old excitation "              &
+     &      \\"generators will not work with INT64 C flag.")
+#endif
          CALL IsConnectedDetInternal(nI,nJ,nEl,G1,nBasisMax,nBasis,
      & OrbPairs,SymProdInd,iLUT,SymProds,ExcitTypes,iTotal,tIsConnected)
       END
@@ -3588,6 +3634,10 @@ C                     CALL WRITEDET(6,NK,NEL,.TRUE.)
          POINTER(IP_DSTORE,DSTORE)
          REAL*8 pGen
          REAL*8 Arr(nBasis,2)
+#ifdef __INT64
+         CALL Stop_All("GenExcitProb","Old excitation "                 &
+     &      \\"generators will not work with INT64 C flag.")
+#endif
          IP_DSTORE=LOC(nIExcitor(nIExcitor(1)))
          CALL GenExcitProb2(nI,nJ,nEl,G1,nBasisMax,UMat,Arr,nBasis,
      &      nIExcitor(nIExcitor(4)),nIExcitor(nIExcitor(5)),

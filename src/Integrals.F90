@@ -610,7 +610,7 @@ MODULE Integrals
       use SystemData, only: G1,iSpinSkip,NIfD,NIfY,NIfP,NIfTot,tCSF,NIfDBO
       use SystemData, only: nBasis,nEl,arr,nbasismax
       use UMatCache, only: GetUMatSize
-      use constants, only: dp
+      use constants, only: dp,bits_n_int
       use SymData , only : TwoCycleSymGens
       use CalcData , only : tTruncInitiator,tDelayTruncInit
       use FciMCData , only : tDebug
@@ -705,12 +705,12 @@ MODULE Integrals
       ! bit-form. This will equal INT(nBasis/32).
       ! The actual total length for a determinant in bit form will be 
       ! NoIntforDet+1 + NIfY (which is the size of the Yamanouchi symbol)
-      NIfD=INT(nBasis/32)
+      NIfD=INT(nBasis/bits_n_int)
 
       ! NIfY gives space to store number of open shell e-
       ! and the Yamanouchi symbol in a bit representation
       if (tCSF) then
-          NIfY = int(nel/32)+1
+          NIfY = int(nel/bits_n_int)+1
       else
           NIfY = 0
       endif
@@ -725,7 +725,9 @@ MODULE Integrals
       endif
       NIfTot = NIfTot + NIfP
 
-      IF(tDebug) WRITE(6,*) "Setting integer length of determinants as bit-strings to: ",NIfD+NIfY+NIfP+1
+      WRITE(6,*) "Setting integer length of determinants as bit-strings to: ",NIfD+NIfY+NIfP+1
+      WRITE(6,*) "Setting integer bit-length of determinants as bit-strings to: ",bits_n_int
+
          
       IF(COULDAMPORB.GT.0) THEN
          FCOULDAMPMU=(ARR(COULDAMPORB,1)+ARR(COULDAMPORB+1,1))/2
