@@ -476,7 +476,7 @@ module mcpaths
          COMPLEX*16 FCK(*)
          HElement_t UMat(*), RH
          INTEGER I_P,I_HMAX,BRR(*),NMSH,NMAX
-         INTEGER NTAY(2),NWHTAY,ILOGGING,I,I_V
+         INTEGER NTAY(2),NWHTAY(3,I_VMAX),ILOGGING,I,I_V
          type(timer), save :: proc_timer,proc_timer2
          INTEGER L,LT,ITIME,K
          REAL*8 BETA,ECORE
@@ -497,7 +497,7 @@ module mcpaths
          LOGICAL TLOG,TSYM,LISNAN
          REAL*8 DBETA
          HElement_t HIJS(0:I_VMAX)
-         type(EGP), target ::  LOCTAB(100)
+         type(EGP), target ::  LOCTAB(I_VMAX)
          real(dp) FMCPR4B,FMCPR4C,FMCPR4D,FMCPR4D2
          real(dp) DLWDB,DLWDB2,EREF
          REAL*8 NTIME,OTIME,VARSUM
@@ -540,7 +540,7 @@ module mcpaths
 !C.. H=-3 is unbiased, and H=-4 is biased
             CALL MCPATHSR4(NI,BETA,I_P,I_HMAX,I_VMAX,NEL,NBASISMAX,G1,  &
      &              NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,RHOEPS,     &
-     &               LSTE,ICE,RIJLIST,NWHTAY,ILOGGING,ECORE,ILMAX,      &
+     &               LSTE,ICE,RIJLIST,NWHTAY(1,1),ILOGGING,ECORE,ILMAX,      &
      &               WLRI,WLSI,DBETA,DLWDB,0)
             CALL WRITECLASSPATHS()
             RETURN
@@ -548,7 +548,7 @@ module mcpaths
 !C.. Markov Chain Monte Carlo
             CALL MCPATHSR5(NI,BETA,I_P,I_HMAX,I_VMAX,NEL,NBASISMAX,G1,  &
      &              NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,RHOEPS,     &
-     &               LSTE,ICE,RIJLIST,NWHTAY,ILOGGING,ECORE,ILMAX,      &
+     &               LSTE,ICE,RIJLIST,NWHTAY(1,1),ILOGGING,ECORE,ILMAX,      &
      &               WLRI,WLSI)
             CALL WRITECLASSPATHS()
             RETURN
@@ -556,7 +556,7 @@ module mcpaths
 !C.. Pick the largest cluster
             CALL MCPATHSR6(NI,BETA,I_P,I_HMAX,I_VMAX,NEL,NBASISMAX,G1,  &
      &              NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,RHOEPS,     &
-     &               LSTE,ICE,RIJLIST,NWHTAY,ILOGGING,ECORE,ILMAX,      &
+     &               LSTE,ICE,RIJLIST,NWHTAY(1,1),ILOGGING,ECORE,ILMAX,      &
      &               WLRI,WLSI,DBETA,DLWDB)
             RETURN
          ELSEIF(I_HMAX.EQ.-10) THEN
@@ -572,7 +572,7 @@ module mcpaths
 !C.. Pick graphs which may not contain distinct vertices 
             CALL MCPATHSR2(NI,BETA,I_P,I_HMAX,NEL,NBASISMAX,G1,         &
      &              NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,RHOEPS,     &
-     &               LSTE,ICE,NWHTAY,ILOGGING,ECORE,ILMAX,WLRI,WLSI,    &
+     &               LSTE,ICE,NWHTAY(1,1),ILOGGING,ECORE,ILMAX,WLRI,WLSI,    &
      &               TSYM)
             RETURN
          ENDIF
@@ -621,7 +621,7 @@ module mcpaths
             F(I_V)=FMCPR3(NI,BETA,I_P,IPATH,I_V,NEL,NBASISMAX,G1,NBASIS,   &
      &            BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,RHOEPS,                 &
      &            0,RHOII,RHOIJ,LSTE,ICE,RIJLIST,                          &
-     &            NWHTAY,L,LT,I_HMAX,NLIST,LSTP,                           &
+     &            NWHTAY(1,1),L,LT,I_HMAX,NLIST,LSTP,                           &
      &            BTABLE,ILOGGING,TSYM,ECORE,ILMAX,DBETA,DLWDB2,HIJS,      &
      &            MP2E,NTOTAL)
             ELSEIF(I_HMAX.EQ.-8) THEN
@@ -632,7 +632,7 @@ module mcpaths
             
                F(I_V)=FMCPR3B(NI,BETA,I_P,IPATH,I_V,NEL,                   &
      &        NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,        &
-     &        RHOEPS,0,RHOII,RHOIJ,NWHTAY,I_HMAX,LOCTAB,                   &
+     &        RHOEPS,0,RHOII,RHOIJ,NWHTAY(1,1),I_HMAX,LOCTAB,                   &
      &         ILOGGING,TSYM,ECORE,DBETA,DLWDB2,HIJS,L,LT,IFRZ,1.D0,       &
      &         MP2E,NTOTAL,EREF,VARSUM,TOTAL)
             ELSEIF(I_HMAX.EQ.-20) THEN 
@@ -644,7 +644,7 @@ module mcpaths
             
                F(I_V)=FMCPR3B2(NI,BETA,I_P,IPATH,I_V,NEL,                  &
      &        NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,        &
-     &        RHOEPS,0,RHOIJ,NWHTAY,I_HMAX,LOCTAB,                         &
+     &        RHOEPS,0,RHOIJ,NWHTAY(1,1),I_HMAX,LOCTAB,                         &
      &         ILOGGING,TSYM,ECORE,DBETA,DLWDB2,HIJS,L,LT,IFRZ,1.D0,       &
      &        MP2E,NTOTAL,I_VMAX,EREF,VARSUM,TOTAL)
             ELSEIF(I_HMAX.EQ.-9) THEN
@@ -653,13 +653,13 @@ module mcpaths
                F(I_V)=FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,      &
      &            BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,RHOEPS,                 &
      &            LSTE,ICE,RIJLIST,L,LT,                                   &
-     &            NWHTAY,ILOGGING,TSYM,ECORE,ILMAX,DBETA,DLWDB2)
+     &            NWHTAY(1,1),ILOGGING,TSYM,ECORE,ILMAX,DBETA,DLWDB2)
             ELSEIF(I_HMAX.EQ.-21) THEN
                IF(TDIAGNODES) THEN
 ! This code prediagonalises connected nodes of virtual orbitals, before solving as a star.
                 F(I_V)=fMCPR3StarNodes(NI,BETA,I_P,NEL,NBASISMAX,G1,       &
      &              NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,RHOEPS,        &
-     &              L,LT,NWHTAY,ILOGGING,TSYM,ECORE,DBETA,DLWDB2)       
+     &              L,LT,NWHTAY(1,1),ILOGGING,TSYM,ECORE,DBETA,DLWDB2)       
                ELSEIF(TGraphMorph) THEN
 !This involves iterativly improving a graph in order to maximise the connections between determinants.
                     IF(I_VMAX.ne.2) STOP 'Error in vertex number'
@@ -684,7 +684,7 @@ module mcpaths
 !C.. forcing them to be disconnected. - this uses new excitation generators
                F(I_V)=FMCPR3STARNewExcit(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS, &
      &            BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,RHOEPS,L,LT,               &
-     &            NWHTAY,ILOGGING,TSYM,ECORE,DBETA,DLWDB2,MP2E)               
+     &            NWHTAY(1,1),ILOGGING,TSYM,ECORE,DBETA,DLWDB2,MP2E)               
                ENDIF
             ENDIF
             call halt_timer(proc_timer2)
@@ -1112,6 +1112,9 @@ module mcpaths
          INTEGER NMEMLEN
          INTEGER, pointer :: OGEN(:)
          INTEGER, pointer :: CURGEN(:)
+!C.. LOCTAB(1)%p is the address of the generator used to create node 1 in
+!C.. the path (i.e. J).  LOCTAB(1)%l is the length of the generator (i.e. 
+!C.. the amount of memory used to store it)
          TYPE(EGP) LOCTAB(:)
          TYPE(EGP) LOCTAB2(I_VIND+1)
          LOGICAL TFAIL,TNEXT,T
@@ -1129,7 +1132,7 @@ module mcpaths
          REAL*8 VARSUM,SumX,SumY,SumXY,SumXsq,SumYsq,SumP
          DATA SumP/0.D0/
          SAVE SumX,SumY,SumXY,SumXsq,SumYsq,SumP
-         write(6, *) "FMCPR3B I_VIND:",I_VIND
+!         write(6, *) "FMCPR3B I_VIND:",I_VIND
          IF(BTEST(NWHTAY,0).AND.I_VIND.EQ.0) WRITE(6,*) "FMCPR3 ForceRoot."
          IF(BTEST(NWHTAY,1).AND.I_VIND.EQ.0) WRITE(6,*) "FMCPR3 ForceStar."
          SELECT CASE (IAND(NWHTAY,24))
@@ -1165,7 +1168,7 @@ module mcpaths
 !C            ENDDO
 !C         WRITE(10,*) "V_",I_VIND
 !C.. LOCTAB(1)%p is the address of the generator used to create node 1 in
-!C.. the path (i.e. J).  LOCTAB(2)%len is the length of the generator (i.e. 
+!C.. the path (i.e. J).  LOCTAB(1)%l is the length of the generator (i.e. 
 !C.. the amount of memory used to store it)
          TLOG=BTEST(ILOGGING,0)
          TLOG6=BTEST(ILOGGING,2)
@@ -1192,12 +1195,13 @@ module mcpaths
 !C.. the paths for it
             CALL NECI_ICOPY(NEL,NI,1,IPATH(1:NEL,I_V),1) 
             RHOII(I_V)=RHOII(0)
-!C            DO J=1,I_VIND+1
+!            CALL WRITEPATH(6,IPATH,I_VIND+1,NEL,.TRUE.)
+!            DO J=1,I_VIND
 !C            DO I=0,NBASIS
 !C               WRITE(10,"(I2)",advance='no'),IFRZ(I,J)
 !C            ENDDO
-!C            WRITE(10,*) LOCTAB(J)%v
-!C            ENDDO
+!              WRITE(6,*) J,":",loc(loctab(J)%p),LOCTAB(J)%v
+!            ENDDO
             IF(TLOG6) THEN
                IF(.NOT.TLOG3) THEN
                   CALL WRITEPATH(10,IPATH,I_V,NEL,.FALSE.)
@@ -1293,6 +1297,7 @@ module mcpaths
 !C     &         .TRUE.,NMEMLEN,NJ,IC,IFRZ(0,I_VIND+1))
          allocate(NMEM(NMEMLEN))
 !C         WRITE(6,"(A,I)") "NMEM",NMEMLEN
+!         write(6,*) "alloc NMEM", loc(NMEM)
          NMEM(1)=0
          CALL GENSYMEXCITIT2(INODE,NEL,G1,NBASIS,NBASISMAX,                      &
      &         .TRUE.,NMEM,NJ,IC,IFRZ(0,I_VIND+1),STORE,EXFLAG)
@@ -1355,8 +1360,9 @@ module mcpaths
 !C.. create a copy
                nullify(CURGEN)
                allocate(CURGEN(LOCTAB2(IVLEVEL)%l))
+!               write(6,*) "alloc CURGEN for level ",IVLEVEL, loc(CURGEN)
                OGEN=>LOCTAB2(IVLEVEL)%p
-               CURGEN(:)=OGEN(:)
+               CURGEN(1:LOCTAB2(IVLEVEL)%l)=OGEN(1:LOCTAB2(IVLEVEL)%l)
 !!               CALL NECI_ICOPY(LOCTAB2(2,IVLEVEL),OGEN,1,CURGEN,1)
 !To stop optimization problem with pgi6.1-6
                I_VIND=I_VIND+1
@@ -1377,6 +1383,7 @@ module mcpaths
             ENDIF
             IEXFROM=LOCTAB2(I_VIND+1)%v
             LOCTAB2(I_VIND+1)%p=>CURGEN
+!            write(6,*) "goes to LOCTAB2(",I_VIND+1,")%p", loc(LOCTAB2(I_VIND+1)%p)
             DO WHILE(.NOT.TNEXT)
 !C               CALL EXCIT_DUMP(10,IPATH(1,IEXFROM),NEL,G1,NBASIS,
 !C     &         NBASISMAX,CURGEN,IFRZ2)
@@ -1445,10 +1452,13 @@ module mcpaths
 !C.. LOCTAB(3,V) is the vertex from which vertex V was excited
 !C.   The last node never has an excitation generator, as it never needs one in the full graph generation scheme.
 !                     IF(abs(RH ).gt. 0.D0) THEN
-                     IF(IsConnectedDet(IPATH(1,II),NJ,nEl,LOCTAB(II)%p,             &
+                     IF(II<I_VIND) then
+!                      WRITE(6,*) "ICD", II
+!                      call flush(6)
+                      IF(IsConnectedDet(IPATH(1,II),NJ,nEl,LOCTAB(II+1)%p,             &
      &                  G1,nBasisMax,nBasis)) THEN
 !if rhoeps is zero then always set TFAIL.  if rhoeps isn't zero, then set TFAIL if Rh isn't zero (i.e. we've included it before)
-                     IF(RH.NE.0.D0.OR.RHOEPS.EQ.0.D0) THEN
+                       IF(RH.NE.0.D0.OR.RHOEPS.EQ.0.D0) THEN
 !C.. If the node to which this node (NJ) is attached was known about at
 !C.. the time of node II, we are allowed to have a connection between
 !C.. node NJ and II.  Otherwise, this node must not be attached to II, as
@@ -1463,9 +1473,10 @@ module mcpaths
 !C.. we're not allowed to count this node
                            TFAIL=.TRUE.                  
                         ENDIF
-!                        WRITE(6,*) RH,TFAIL
+                       ENDIF
                       ENDIF
-                     ENDIF
+                     endif
+!                     WRITE(6,*) RH,TFAIL
                   ENDIF
                ENDDO
                IF(.NOT.TFAIL) THEN
@@ -1523,16 +1534,22 @@ module mcpaths
             ENDDO
             IF(IVLEVEL.LE.I_VIND) THEN
 !C.. free the copy
+!               Write(6,*) "Level ",IVLEVEL," of ",I_VIND
+!               write(6,*) "dealloc CURGEN", loc(CURGEN)
                deallocate(CURGEN)
                nullify(CURGEN)
+!               write(6,*) "nullify LOCTAB2(",IVLEVEL,")%p: ", loc(LOCTAB2(IVLEVEL)%p)
                nullify(LOCTAB2(IVLEVEL)%p)
             ENDIF
 !C.. for the next iterator, we want to find the node to which we are
 !C.. connected, and continue from after where this node was excited
             IVLEVEL=LOCTAB2(IVLEVEL)%v
          ENDDO
+!         Write(6,*) "End of ",I_VIND
+!         write(6,*) "dealloc NMEM", loc(NMEM)
          deallocate(NMEM)
-         nullify(LOCTAB(I_VIND+1)%p)
+!         write(6,*) "nullify LOCTAB(",I_VIND+1,")%p: ", loc(LOCTAB(I_VIND+1)%p)
+!         nullify(LOCTAB(I_VIND+1)%p)
          FMCPR3BRES=TOTAL
 
          If (TVARCALC(I_V).and.(I_VIND.eq.0).and.(.not.TPREVAR)) Then
@@ -1575,7 +1592,8 @@ module mcpaths
            SumYsq=0.D0
            SumXY=0.D0
        ENDIF
-         
+!       WRITE(6,*) "Leaving ",I_VIND
+!       call flush(6) 
        RETURN
       END FUNCTION
 

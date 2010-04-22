@@ -949,7 +949,7 @@ END MODULE DetCalc
          implicit none
          character(25), parameter :: this_routine = 'CalcRhoPII2'
          INTEGER NEL,I_P,I_HMAX,I_VMAX,NDET,nBasisMax(5,*),nBasis
-         INTEGER BRR(*),NMSH,NMAX,NTAY,ILOGGING
+         INTEGER BRR(*),NMSH,NMAX,NTAY(2),ILOGGING
          type(timer), save :: proc_timer
          HElement_t UMat(*)
          real(dp) DLWDB, DLWDB2, DLWDB3, DLWDB4
@@ -964,7 +964,7 @@ END MODULE DetCalc
          REAL*8 , ALLOCATABLE :: RIJLIST(:,:)
          INTEGER,SAVE :: RIJLISTTag=0,LSTEtag=0,ICEtag=0
          INTEGER NPATHS,ierr
-         INTEGER III,NWHTAY,I,IMAX,ILMAX
+         INTEGER III,NWHTAY(3,I_VMAX),I,IMAX,ILMAX
          REAL*8 WLRI,WLSI,ECORE,DBETA,WLRI1,WLRI2,WLSI1,WLSI2,WI
          REAL*8 TOT, NORM,WLRI0,WLSI0,WINORM
          LOGICAL TNPDERIV
