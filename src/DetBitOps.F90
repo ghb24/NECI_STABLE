@@ -137,7 +137,7 @@ module DetBitOps
     elemental function count_set_bits (a) result (nbits)
         integer(n_int), intent(in) :: a
         integer :: nbits
-        integer :: tmp
+        integer(n_int) :: tmp
 
 #ifdef __INT64
         integer(n_int), parameter :: m1 = Z'5555555555555555'
@@ -146,7 +146,7 @@ module DetBitOps
         integer(n_int), parameter :: m4 = Z'0101010101010101'
 
         ! For 64 bit integers:
-        tmp = a - iand(ishft(tmp,-1), m1)
+        tmp = a - iand(ishft(a,-1), m1)
         tmp = iand(tmp, m2) + iand(ishft(tmp,-2), m2)
         tmp = iand(tmp, m3) + iand(ishft(tmp,-4), m3)
         nbits = ishft(tmp*m4, -56)
@@ -157,7 +157,7 @@ module DetBitOps
         integer(n_int), parameter :: m4 = Z'01010101'
 
         ! For 32 bit integers:
-        tmp = a - iand(ishft(tmp,-1), m1)
+        tmp = a - iand(ishft(a,-1), m1)
         tmp = iand(tmp, m2) + iand(ishft(tmp, -2), m2)
         tmp = iand((tmp+ishft(tmp, -4)), m3) * m4
         nbits = ishft(tmp, -24)
