@@ -1276,11 +1276,14 @@ END MODULE DetCalc
 !Given exact eigenvalues and vectors, do monte carlo in det space with exact weights and E~
        REAL*8 FUNCTION DOEXMC(NDET,NEVAL,CK,W,BETA,I_P,ILOGGING,ECORE,IMCSTEPS,G1,NMRKS,NEL,NBASISMAX,NBASIS,BRR,IEQSTEPS)
          use constants, only: dp
-         INTEGER NDET,NEVAL,I_P,ILOGGING
+         use SystemData, only: BasisFn
+         implicit none
+         INTEGER NDET,NEVAL,I_P,ILOGGING, NBASISMAX(5,7), NBASIS, NEL, BRR(NBASIS), IMCSTEPS, NMRKS(:,:), IEQSTEPS
          HElement_t CK(NEVAL)
+         type(BasisFn) G1(nBasis)
          REAL*8 W(NEVAL),BETA,ECORE
-
          REAL*8 DLWDBS(NDET),WLRIS(NDET),WLSIS(NDET),EN
+         real*8 CALCDLWDB, DMONTECARLOEXWI
          INTEGER I
          LOGICAL TWARN
          

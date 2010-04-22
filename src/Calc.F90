@@ -1280,7 +1280,7 @@ MODULE Calc
           use IntegralsData, only: HFEDelta, HFMix,nTay
           Use Logging, only: iLogging
           use Parallel_Calc
-!          Use MCDets, only: MCDetsCalc
+
 !Calls
           REAL*8 DMonteCarlo2
 !Local Vars
@@ -1291,9 +1291,6 @@ MODULE Calc
           integer iSeed
           iSeed=7 
 
-!          call MCDetsCalc(FDet, iSeed, nwhtay(1))
-!          stop
-    
 !C.. we need to calculate a value for RHOEPS, so we approximate that
 !C.. RHO_II~=exp(-BETA*H_II/p).  RHOEPS is a %ge of this 
 !C.. If we haven't already calced RHOEPS, do it now
