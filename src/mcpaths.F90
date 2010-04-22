@@ -24,7 +24,7 @@ module mcpaths
          Use Determinants, only: get_helement, write_det
          use constants, only: dp
          use SystemData, only: BasisFN
-         USE PreCalc ,  only: GETVARS
+!         USE PreCalc ,  only: GETVARS
          USE STARDIAGMOD , only: fMCPR3StarNewExcit
          USE GraphMorph , only : MorphGraph
          USE StarDiagTripMod , only : StarDiagTrips
@@ -55,7 +55,7 @@ module mcpaths
          INTEGER L,LT,K,J
          real*4 otime,itime,etime,tarr(2)
          REAL*8 BETA,ECORE
-         real(dp) WLRI,WLSI,FMCPR3
+         real(dp) WLRI,WLSI
          HElement_t UMat(*),RH
          REAL*8 NTOTAL
 
@@ -77,7 +77,7 @@ module mcpaths
          real(dp) DLWDB,DLWDB2,EREF,ODLWDB2
          HElement_t  HIJS(0:I_VMAX)
          TYPE(EGP) LOCTAB(I_VMAX)
-         real(dp) FMCPR3B,FMCPR4B,FMCPR4C,FMCPR4D,FMCPR4D2
+         real(dp) FMCPR4B,FMCPR4C,FMCPR4D,FMCPR4D2
          real(dp) FMCPR3STAR,FMCPR3NVSTAR,FMCPR3B2
          INTEGER I_CHMAX,CNWHTAY
          INTEGER ISEED,ICOUNT
@@ -481,7 +481,7 @@ module mcpaths
          INTEGER L,LT,ITIME,K
          REAL*8 BETA,ECORE
          real*4 etime,tarr(2)
-         real(dp) WLRI,WLSI,FMCPR3
+         real(dp) WLRI,WLSI
          real(dp) F(2:I_VMAX)
          CHARACTER*40 STR
          HElement_t RHOIJ(0:I_VMAX,0:I_VMAX)
@@ -498,7 +498,7 @@ module mcpaths
          REAL*8 DBETA
          HElement_t HIJS(0:I_VMAX)
          type(EGP), target ::  LOCTAB(100)
-         real(dp) FMCPR3B,FMCPR4B,FMCPR4C,FMCPR4D,FMCPR4D2
+         real(dp) FMCPR4B,FMCPR4C,FMCPR4D,FMCPR4D2
          real(dp) DLWDB,DLWDB2,EREF
          REAL*8 NTIME,OTIME,VARSUM
          INTEGER IFRZ(0:NBASIS,I_VMAX)
@@ -1074,7 +1074,7 @@ module mcpaths
 !C..             If 1 only allow singles.
 !C.. Bit 4 (16)  If 0 allow all types of excitations
 !C.,             If 1, only allow doubles.
-      RECURSIVE FUNCTION FMCPR3B(NI,BETA,I_P,IPATH,I_V,NEL,                      &
+         RECURSIVE FUNCTION FMCPR3B(NI,BETA,I_P,IPATH,I_V,NEL,          &
      &   NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,                   &
      &   RHOEPS,I_VIND,RHOII,RHOIJ,NWHTAY,I_HMAX,LOCTAB,                         &
      &   ILOGGING,TSYM,ECORE,DBETA,DLWDB,HIJS,L,LT,IFRZ,FSCALE,MP2E,             &

@@ -12,9 +12,10 @@ MODULE Calc
 
           Use Determinants, only: iActiveBasis, SpecDet, tSpecDet, nActiveSpace
           Use Determinants, only : tDefineDet
-          Use DetCalc, only: iObs, jObs, kObs, tCorr, B2L, tRhoOfR, tFodM, DETINV
-          Use DetCalc, only: icilevel, nBlk, nCycle, nEval, nKry, tBlock, tCalcHMat
+          Use DetCalc, only: iObs, jObs, kObs, tCorr, tRhoOfR, tFodM, DETINV
+          Use DetCalc, only: icilevel, nCycle, tBlock, tCalcHMat
           Use DetCalc, only: tEnergy, tRead,tFindDets
+          Use DetCalcData, only: B2L,nKry,nEval,nBlk
           use IntegralsData, only: tNeedsVirts
           use SystemData, only : Beta,nEl
           use CCMCData, only: dInitAmplitude,dProbSelNewExcitor,nSpawnings,tSpawnProp
@@ -1275,7 +1276,8 @@ MODULE Calc
           use SystemData, only: Alat, Arr,Brr, Beta, ECore, G1, LMS, LMS2, nBasis,NMSH, nBasisMax
           use SystemData, only: SymRestrict, tCSFOLD, tParity, tSpn, ALat, Beta
           use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB,BasisFN,BasisFNSize,BasisFNSizeB,nEl
-          Use DetCalcData, only : CK, DetInv, nDet, nEval, tEnergy, tRead, nmrks, w
+          Use DetCalcData, only : nDet, nEval, nmrks, w
+          use DetCalc, only: CK, DetInv, tEnergy, tRead
           Use Determinants, only: FDet, nActiveBasis, SpecDet, tSpecDet
           use IntegralsData, only: FCK, NMAX, UMat, FCK
           use IntegralsData, only: HFEDelta, HFMix,nTay

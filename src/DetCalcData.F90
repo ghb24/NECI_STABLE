@@ -14,5 +14,10 @@ module DetCalcData
       INTEGER :: tagCK=0
       REAL*8, pointer :: W(:)  ! (nEval) This will contain the eigenvalues
       INTEGER tagW
+      
+      REAL*8 B2L  ! From Calc
+      INTEGER NEVAL  !The number of eigenvectors requested
+      INTEGER NBLK   !The number of Lanczos Blocks
+      INTEGER NKRY   !The number of Lanczos Krylov vectors
 
 end module

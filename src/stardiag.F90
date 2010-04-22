@@ -3026,7 +3026,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
 !Use a Lanczos routine to find the first NEval eigenvectors of the rho matrix, and from this the energy of the star graph.
       SUBROUTINE StarDiagLanc(nEl,NList,List,ILMax,i_P,SI,DBeta,DLWDB)
          use constants, only: dp
-         USE DetCalc , only : B2L,nBlk,nKry,NEval
+         USE DetCalcData , only : B2L,nBlk,nKry,NEval
          USE global_utilities
          use HElem
          IMPLICIT NONE

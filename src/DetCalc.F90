@@ -8,10 +8,6 @@ MODULE DetCalc
      save
 
 !From input
-      REAL*8 B2L  ! From Calc
-      INTEGER NEVAL  !The number of eigenvectors requested
-      INTEGER NBLK   !The number of Lanczos Blocks
-      INTEGER NKRY   !The number of Lanczos Krylov vectors
       INTEGER NCYCLE !The Max number of Lanczos cycles
       INTEGER DETINV !The index in the list of dets of a det to investigate
       INTEGER IOBS,JOBS,KOBS
