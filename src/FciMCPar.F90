@@ -2209,16 +2209,10 @@ MODULE FciMCParMod
     function attempt_create_trunc_spawn (get_spawn_helement, DetCurr,&
                                          iLutCurr, wSign, nJ, iLutnJ, prob, &
                                          ic, ex, tparity, walkExcitLevel) &
-<<<<<<< HEAD:src/FciMCPar.F90
-                                         result(child) bind(c)
+                                         result(child)
         integer, intent(in) :: DetCurr(nel), nJ(nel) 
         integer(kind=n_int), intent(in) :: iLutCurr(0:NIfTot)
         integer(kind=n_int), intent(inout) :: iLutnJ(0:niftot)
-=======
-                                         result(child)
-        integer, intent(in) :: DetCurr(nel), iLutCurr(0:NIfTot), nJ(nel)
-        integer, intent(inout) :: iLutnJ(0:niftot)
->>>>>>> master:src/FciMCPar.F90
         integer, intent(in) :: wSign, ic, ex(2,2), walkExcitLevel
         logical, intent(in) :: tParity
         real(dp), intent(inout) :: prob
