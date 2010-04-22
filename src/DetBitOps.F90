@@ -60,7 +60,7 @@ module DetBitOps
     end function CountBits_sparse
 
     ! Try counting using a nifty bit of bitwise arithmetic
-    ! See comments for CountBits_sparse.
+    ! See comments for CountBits_sparse and count_set_bits.
     integer function Countbits_nifty (iLut, nLast, nBitsMax)
         integer, intent(in), optional :: nBitsMax
         integer, intent(in) :: nLast
@@ -76,17 +76,13 @@ module DetBitOps
 
         CountBits_nifty = 0
         do i=0,nLast
-            tmp = iLut(i)
-            tmp = tmp - iand(ishft(tmp, -1), Z'55555555')
-            tmp = iand(tmp, Z'33333333') + iand(ishft(tmp, -2), Z'33333333')
-            tmp = iand((tmp+ishft(tmp, -4)), Z'F0F0F0F') * Z'1010101'
-            CountBits_nifty = CountBits_nifty + ishft(tmp, -24)
-
+            CountBits_nifty = CountBits_nifty + count_set_bits(iLut(i))
             if (CountBits_nifty .gt. lnBitsMax) then
                 CountBits_nifty = lnBitsmax+1
                 return
             endif
         enddo       
+
     end function CountBits_nifty
 
     ! Using elemental routines rather than an explicit do-loop. Should be
@@ -131,16 +127,35 @@ module DetBitOps
     ! * Summing 8 bit fields together can be performed via a multiplication
     !   followed by a right shift.
     elemental function count_set_bits (a) result (nbits)
-        integer, intent(in) :: a
+        integer(n_int), intent(in) :: a
         integer :: nbits
         integer :: tmp
 
-        tmp = a
-        tmp = tmp - iand(ishft(tmp,-1), Z'55555555')
-        tmp = iand(tmp, Z'33333333') + iand(ishft(tmp, -2), Z'33333333')
-        tmp = iand((tmp+ishft(tmp, -4)), Z'F0F0F0F') * Z'1010101'
+#ifdef __INT64
+        integer(n_int), parameter :: m1 = Z'5555555555555555'
+        integer(n_int), parameter :: m2 = Z'3333333333333333'
+        integer(n_int), parameter :: m3 = Z'0f0f0f0f0f0f0f0f'
+        integer(n_int), parameter :: m4 = Z'0101010101010101'
+
+        ! For 64 bit integers:
+        tmp = a - iand(ishft(tmp,-1), m1)
+        tmp = iand(tmp, m2) + iand(ishft(tmp,-2), m2)
+        tmp = iand(tmp, m3) + iand(ishft(tmp,-4), m3)
+        nbits = ishft(tmp*m4, -56)
+#else
+        integer(n_int), parameter :: m1 = Z'55555555'
+        integer(n_int), parameter :: m2 = Z'33333333'
+        integer(n_int), parameter :: m3 = Z'0F0F0F0F'
+        integer(n_int), parameter :: m4 = Z'01010101'
+
+        ! For 32 bit integers:
+        tmp = a - iand(ishft(tmp,-1), m1)
+        tmp = iand(tmp, m2) + iand(ishft(tmp, -2), m2)
+        tmp = iand((tmp+ishft(tmp, -4)), m3) * m4
         nbits = ishft(tmp, -24)
-    end function
+#endif
+
+    end function count_set_bits
 
     integer function count_open_orbs (iLut)
         
