@@ -9,28 +9,21 @@ subroutine stop_all_c (sub_name, error_msg) bind(c, name='stop_all')
             character(c_char), intent(in) :: str(*)
             integer(c_int) :: len
         end function
-        type(c_ptr) function strncpy (dest, src, len) bind(c)
-            use, intrinsic :: iso_c_binding
-            implicit none
-            type(c_ptr), value :: dest
-            character(c_char), intent(in) :: src(*)
-            integer(c_size_t), intent(in) :: len
-        end function
     end interface
 
-    character(c_char), intent(in) :: sub_name(*), error_msg(*)
+    character(c_char), target, intent(in) :: sub_name(*), error_msg(*)
     type(c_ptr) :: tmp
     character(len=strlen(sub_name)), target :: sub_name_tmp
     character(len=strlen(error_msg)), target :: error_msg_tmp
 
-    tmp = strncpy (c_loc(sub_name_tmp), sub_name, &
-                   int(len(sub_name_tmp), c_size_t))
-    tmp = strncpy (c_loc(error_msg_tmp), error_msg, &
-                   int(len(error_msg_tmp),c_size_t))
+    ! Convert from C character to standard fortran character string.
+    ! Note that strlen does not include the null character at the end of the
+    ! C string.  This is the behaviour we want.
+    sub_name_tmp = transfer(sub_name(:strlen(sub_name)), sub_name_tmp)
+    error_msg_tmp = transfer(error_msg(:strlen(error_msg)), error_msg_tmp)
 
-    !sub_name_tmp(1:2) = sub_name(1:2) !sub_name(1:len(sub_name_tmp))
-    !error_msg_tmp(:) = error_msg(1:len(error_msg_tmp))
     call stop_all (sub_name_tmp, error_msg_tmp)
+
 end subroutine
 
 

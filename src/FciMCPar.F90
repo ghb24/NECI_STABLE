@@ -105,8 +105,8 @@ MODULE FciMCParMod
                                        ptr_excit_generator, &
                                        ptr_attempt_create, &
                                        ptr_get_spawn_helement, &
-                                       ptr_new_child_stats, &
-                                       ptr_encode_child)
+                                       ptr_encode_child, &
+                                       ptr_new_child_stats)
             ENDIF
             s=etime(tend)
             IterTime=IterTime+(tend(1)-tstart(1))
@@ -352,6 +352,13 @@ MODULE FciMCParMod
         end interface
     
         call assign_proc (ptr_encode_child, encode_child)
+    end subroutine
+
+    subroutine null_encode_child (ilutI, ilutJ, ic, ex)
+        use SystemData, only: nel, niftot
+        implicit none
+        integer, intent(in) :: ilutI(0:niftot), ic, ex(2,2)
+        integer, intent(out) :: ilutj(0:niftot)
     end subroutine
 
     subroutine set_new_child_stats (new_child_stats)
@@ -1602,6 +1609,8 @@ MODULE FciMCParMod
         ! Once we have generated the children, do we need to encode them?
         if (.not. (tCSF .or. tHPHF)) then
             call set_encode_child (FindExcitBitDet)
+        else
+            call set_encode_child (null_encode_child)
         endif
 
         ! What message should we display for a particle bloom?
