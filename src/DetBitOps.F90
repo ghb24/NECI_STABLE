@@ -881,6 +881,8 @@ end module
     LOGICAL FUNCTION TestClosedShellDet(iLut)
         use systemdata, only: NIfD
         use constants, only: n_int
+        use DetBitOps, only: MaskAlpha,MaskBeta
+        IMPLICIT NONE
         INTEGER(kind=n_int) :: iLut(0:NIfD),iLutAlpha(0:NIfD),iLutBeta(0:NIfD)
         INTEGER :: i
         
@@ -912,8 +914,9 @@ end module
 ! ************************
     SUBROUTINE CalcOpenOrbs(iLut,OpenOrbs)
         use systemdata, only: NIfD, nel
-        use DetBitOps, only: CountBits
         use constants, only: n_int
+        use DetBitOps, only: CountBits,MaskAlpha,MaskBeta
+        IMPLICIT NONE
         INTEGER(kind=n_int) :: iLut(0:NIfD),iLutAlpha(0:NIfD),iLutBeta(0:NIfD)
         INTEGER :: i,OpenOrbs
         
@@ -1004,6 +1007,7 @@ end module
       use SystemData, only: NIfTot,NIfDBO
       use DetBitOps, only: DetBitLT
       use constants, only: n_int
+      IMPLICIT NONE
       INTEGER N,I,L,IR,J
       INTEGER(KIND=n_int) RA(0:NIfTot,N)
       INTEGER RB(N),RRB
@@ -1067,6 +1071,7 @@ end module
       use DetBitOps, only: Det2BitLT
       use SystemData, only: NIfTot,NIfDBO
       use constants, only: n_int
+      IMPLICIT NONE
       INTEGER N,I,L,IR,J
       INTEGER(KIND=n_int) RA(0:NIfTot,N),RA2(0:NIfTot,N)
       INTEGER RB(N),RC(N),RD(N),RRB
@@ -1132,6 +1137,7 @@ end module
           use DetBitOps, only: DetExcitBitLT
           use SystemData, only: NIftot, nel, NIfDBO
           use constants, only: n_int
+      IMPLICIT NONE
       INTEGER N,I,L,IR,J
       INTEGER(KIND=n_int) RA(0:NIfTot,N)
       INTEGER RB(N),RRB
@@ -1188,6 +1194,7 @@ end module
       SUBROUTINE SortBitSign(N,RA,RB)
         use Systemdata, only: NIfTot
         use constants, only: n_int
+      IMPLICIT NONE
       INTEGER N,I,L,IR,J
       INTEGER RA(N)
       INTEGER(KIND=n_int) :: RB(0:NIfTot,N)
@@ -1245,6 +1252,7 @@ end module
         use systemdata, only: NIfTot, nel, NIfDBO
         use DetBitOps, only: DetBitLT
         use constants, only: n_int
+      IMPLICIT NONE
       INTEGER N,I,L,IR,J
       INTEGER(KIND=n_int) :: RA(0:NIfTot,N)
       INTEGER RB(N),RRB
