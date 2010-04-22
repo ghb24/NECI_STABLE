@@ -185,7 +185,7 @@ MODULE HPHFRandExcitMod
 
     subroutine gen_hphf_excit (nI, iLutnI, nJ, iLutnJ, exFlag, IC, ExcitMat, &
                                tParity, pGen, tFilled, ClassCount2, &
-                               ClassCountUnocc2, scratch) bind(c)
+                               ClassCountUnocc2, scratch)
         use FciMCData, only: tGenMatHEl
 
         integer, intent(in) :: nI(nel), iLutnI(0:niftot)

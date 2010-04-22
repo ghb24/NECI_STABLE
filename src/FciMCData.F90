@@ -1,7 +1,7 @@
 MODULE FciMCData
+      use, intrinsic :: iso_c_binding
       use constants, only: dp
-      USE global_utilities
-      use constants, only: dp
+      use global_utilities
       IMPLICIT NONE
       SAVE
 
@@ -158,12 +158,22 @@ MODULE FciMCData
       INTEGER :: iHighestPop
       INTEGER , ALLOCATABLE :: HighestPopDet(:),ProjEDet(:),iLutRef(:)
 
+
+      ! ********************** FCIMCPar control variables *****************
       ! These are variables used to control the behaviour of PerformFciMCycPar
       ! without passing them directly to it.
       character(150) :: bloom_warn_string
       integer :: max_calc_ex_level
-      
-      
+
+      ! Here are the FUNCTION POINTERS for use with PerformFciMCycPar
+      ! Use with extreme care, and keep your interfaces up to date or bad
+      ! things (namely segfaults) will happen
+
+      type(c_ptr) :: ptr_excit_generator
+      type(c_ptr) :: ptr_attempt_create
+      type(c_ptr) :: ptr_get_spawn_helement
+      type(c_ptr) :: ptr_new_child_stats
+      type(c_ptr) :: ptr_encode_child
       
       !*****************  Redundant variables ************************
     
