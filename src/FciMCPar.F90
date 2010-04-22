@@ -354,6 +354,13 @@ MODULE FciMCParMod
         call assign_proc (ptr_encode_child, encode_child)
     end subroutine
 
+    subroutine null_encode_child (ilutI, ilutJ, ic, ex)
+        use SystemData, only: nel, niftot
+        implicit none
+        integer, intent(in) :: ilutI(0:niftot), ic, ex(2,2)
+        integer, intent(out) :: ilutj(0:niftot)
+    end subroutine
+
     subroutine set_new_child_stats (new_child_stats)
         use, intrinsic :: iso_c_binding
         implicit none
@@ -1602,6 +1609,8 @@ MODULE FciMCParMod
         ! Once we have generated the children, do we need to encode them?
         if (.not. (tCSF .or. tHPHF)) then
             call set_encode_child (FindExcitBitDet)
+        else
+            call set_encode_child (null_encode_child)
         endif
 
         ! What message should we display for a particle bloom?
