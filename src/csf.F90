@@ -50,7 +50,7 @@ contains
     ! TODO: This can be massively improved. Note that we have iLutI, iLutJ.
     !       CSFGetHelement (nI, nJ) not needed? or does it call this?
     function get_csf_helement (nI, nJ, iLutI, iLutJ, ic, ex, tParity, prob) &
-             result (hel) bind(c)
+             result (hel)
         integer, intent(in) :: nI(nel), nJ(nel), ic, ex(2,2)
         integer(kind=n_int), intent(in) :: iLutI(0:NIfTot), iLutJ(0:NIfTot)
         logical, intent(in) :: tParity

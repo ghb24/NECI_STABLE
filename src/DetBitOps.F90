@@ -667,7 +667,7 @@ module DetBitOps
         !endif
     end subroutine DecodeBitDet
 
-    subroutine FindExcitBitDet(iLutnI, iLutnJ, IC, ExcitMat) bind(c)
+    subroutine FindExcitBitDet(iLutnI, iLutnJ, IC, ExcitMat)
 
         ! This routine will find the bit-representation of an excitation by
         ! constructing the new ilut from the old one and the excitation matrix

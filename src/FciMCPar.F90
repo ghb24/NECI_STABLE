@@ -56,127 +56,6 @@ MODULE FciMCParMod
     use NatOrbsMod, only: PrintOrbOccs
     implicit none
 
-    interface
-        subroutine call_fcimc_cyc_par () bind(c)
-        end subroutine
-
-
-        ! **********************************************************
-        ! ************************* NOTE ***************************
-        ! ANY changes to the following interfaces MUST be replicated in the
-        ! interface declarations for the function pointers passed into
-        ! FciMCycPar
-        ! --> Otherwise BAD things (may) happen at runtime, in a
-        !     non-deterministic (but probably segfault) manner.
-        ! **********************************************************
-        subroutine set_excit_generator (gen) bind(c)
-            implicit none
-            interface
-                subroutine gen (nI, iLutI, nJ, iLutJ, &
-                                 exFlag, IC, ex, tParity, pGen, tFilled, &
-                                 scratch1, scratch2, scratch3) bind(c)
-
-                    use SystemData, only: nel, niftot
-                    use GenRandSymExcitNUMod, only: scratchsize
-                    use constants, only: n_int
-                    implicit none
-
-                    integer, intent(in) :: nI(nel) 
-                    integer(kind=n_int), intent(in) :: iLutI(0:niftot)
-                    integer, intent(in) :: exFlag
-                    integer, intent(inout) :: scratch1(scratchsize)
-                    integer, intent(inout) :: scratch2(scratchsize)
-                    integer, intent(inout) :: scratch3(scratchsize)
-                    integer, intent(out) :: nJ(nel) 
-                    integer(kind=n_int), intent(out) :: iLutJ(0:niftot)
-                    integer, intent(out) :: ic, ex(2,2)
-                    real*8, intent(out) :: pGen
-                    logical, intent(inout) :: tFilled
-                    logical, intent(out) :: tParity
-                end subroutine
-            end interface
-        end subroutine
-        subroutine set_attempt_create (attempt_create) bind(c)
-            implicit none
-            interface
-            function attempt_create (get_spawn_helement, nI, iLutI, wSign, &
-                                     nJ, iLutJ, prob, ic, ex, tPar, exLevel)&
-                                     result(child) bind(c)
-                use SystemData, only: nel, niftot
-                use constants, only: dp,n_int
-                implicit none
-                integer, intent(in) :: nI(nel), nJ(nel)
-                integer(kind=n_int), intent(in) :: iLutI(0:niftot)
-                integer(kind=n_int), intent(inout) :: iLutJ(0:nIfTot)
-                integer, intent(in) :: wSign, ic, ex(2,2), exLevel
-                logical, intent(in) :: tPar
-                real(dp), intent(inout) :: prob
-                integer :: child
-
-                interface
-                    function get_spawn_helement (nI, nJ, ilutI, ilutJ, ic, &
-                                                 ex, tParity, prob) &
-                                                 result (hel) bind(c)
-                        use SystemData, only: nel, niftot
-                        use constants, only: dp,n_int
-                        implicit none
-                        integer, intent(in) :: nI(nel), nJ(nel)
-                        integer(kind=n_int), intent(in) :: iLutI(0:niftot),iLutJ(0:niftot)
-                        integer, intent(in) :: ic, ex(2,2)
-                        logical, intent(in) :: tParity
-                        real(dp), intent(in) :: prob
-                        HElement_t :: hel
-                    end function
-                end interface
-            end function
-            end interface
-        end subroutine
-        subroutine set_get_spawn_helement (get_spawn_helement) bind(c)
-            implicit none
-            interface
-                function get_spawn_helement (nI, nJ, ilutI, ilutJ, ic, &
-                                             ex, tParity, prob) &
-                                             result (hel) bind(c)
-                    use SystemData, only: nel, niftot
-                    use constants, only: dp,n_int
-                    implicit none
-                    integer, intent(in) :: nI(nel), nJ(nel)
-                    integer(kind=n_int), intent(in) :: iLutI(0:niftot),iLutJ(0:niftot)
-                    integer, intent(in) :: ic, ex(2,2)
-                    logical, intent(in) :: tParity
-                    real(dp), intent(in) :: prob
-                    HElement_t :: hel
-                end function
-            end interface
-        end subroutine
-        subroutine set_encode_child (encode_child) bind(c)
-            implicit none
-            interface
-                subroutine encode_child (ilutI, ilutJ, ic, ex) bind(c)
-                    use SystemData, only: nel, niftot
-                    use constants, only: n_int
-                    implicit none
-                    integer(kind=n_int), intent(in) :: iLutI(0:nifTot)
-                    integer, intent(in) :: ic, ex(2,2)
-                    integer(kind=n_int), intent(out) :: iLutJ(0:nIfTot)
-                end subroutine
-            end interface
-        end subroutine
-        subroutine set_new_child_stats (new_child_stats) bind(c)
-            implicit none
-            interface
-                subroutine new_child_stats (iLutI, iLutJ, ic, walkExLevel, &
-                                            child) bind(c)
-                    use SystemData, only: nel, niftot
-                    use constants, only: n_int
-                    implicit none
-                    integer(kind=n_int), intent(in) :: ilutI(0:niftot), iLutJ(0:niftot)
-                    integer, intent(in) :: ic, walkExLevel, child
-                end subroutine
-            end interface
-        end subroutine
-    end interface
-
     contains
 
 #ifdef PARALLEL
@@ -222,7 +101,12 @@ MODULE FciMCParMod
             IF(tCCMC) THEN
                 CALL PerformCCMCCycPar()
             ELSE
-                call call_fcimc_cyc_par ()
+                call sub_dispatcher_5 (PerformFciMCycPar, &
+                                       ptr_excit_generator, &
+                                       ptr_attempt_create, &
+                                       ptr_get_spawn_helement, &
+                                       ptr_encode_child, &
+                                       ptr_new_child_stats)
             ENDIF
             s=etime(tend)
             IterTime=IterTime+(tend(1)-tstart(1))
@@ -358,12 +242,141 @@ MODULE FciMCParMod
 
     END SUBROUTINE FciMCPar
 
+    ! **********************************************************
+    ! ************************* NOTE ***************************
+    ! ANY changes to the following interfaces MUST be replicated in the
+    ! interface declarations for the function pointers passed into
+    ! FciMCycPar
+    ! --> Otherwise BAD things (may) happen at runtime, in a
+    !     non-deterministic (but probably segfault) manner.
+    ! **********************************************************
 
-!This is the heart of FCIMC, where the MC Cycles are performed.
+    ! These wrapper functions exist only to enforce interfaces at compile
+    ! time. And to contain the access to the (slightly hackish) assign_proc
+    subroutine set_excit_generator (gen)
+        use, intrinsic :: iso_c_binding
+        implicit none
+        interface
+            subroutine gen (nI, iLutI, nJ, iLutJ, exFlag, IC, ex, tParity, &
+                            pGen, tFilled, scratch1, scratch2, scratch3)
+
+                use SystemData, only: nel, niftot
+                use GenRandSymExcitNUMod, only: scratchsize
+                implicit none
+
+                integer, intent(in) :: nI(nel), iLutI(0:niftot)
+                integer, intent(in) :: exFlag
+                integer, intent(inout) :: scratch1(scratchsize)
+                integer, intent(inout) :: scratch2(scratchsize)
+                integer, intent(inout) :: scratch3(scratchsize)
+                integer, intent(out) :: nJ(nel), iLutJ(0:niftot)
+                integer, intent(out) :: ic, ex(2,2)
+                real*8, intent(out) :: pGen
+                logical, intent(inout) :: tFilled
+                logical, intent(out) :: tParity
+            end subroutine
+        end interface
+
+        call assign_proc (ptr_excit_generator, gen)
+    end subroutine
+
+    subroutine set_attempt_create (attempt_create)
+        use, intrinsic :: iso_c_binding
+        implicit none
+        interface
+            function attempt_create (get_spawn_helement, nI, iLutI, wSign, &
+                                     nJ, iLutJ, prob, ic, ex, tPar, exLevel)&
+                                     result(child)
+                use SystemData, only: nel, niftot
+                use constants, only: dp
+                implicit none
+                integer, intent(in) :: nI(nel), iLutI(0:nIfTot), nJ(nel)
+                integer, intent(inout) :: iLutJ(0:nIfTot)
+                integer, intent(in) :: wSign, ic, ex(2,2), exLevel
+                logical, intent(in) :: tPar
+                real(dp), intent(inout) :: prob
+                integer :: child
+
+                interface
+                    function get_spawn_helement (nI, nJ, ilutI, ilutJ, ic, &
+                                                 ex, tParity, prob) &
+                                                 result (hel)
+                        use SystemData, only: nel, niftot
+                        use constants, only: dp
+                        implicit none
+                        integer, intent(in) :: nI(nel), nJ(nel)
+                        integer, intent(in) :: iLutI(0:niftot),iLutJ(0:niftot)
+                        integer, intent(in) :: ic, ex(2,2)
+                        logical, intent(in) :: tParity
+                        real(dp), intent(in) :: prob
+                        HElement_t :: hel
+                    end function
+                end interface
+            end function
+        end interface
+    
+        call assign_proc (ptr_attempt_create, attempt_create)
+    end subroutine
+
+    subroutine set_get_spawn_helement (get_spawn_helement)
+        use, intrinsic :: iso_c_binding
+        implicit none
+        interface
+            function get_spawn_helement (nI, nJ, ilutI, ilutJ, ic, &
+                                         ex, tParity, prob) result (hel)
+                use SystemData, only: nel, niftot
+                use constants, only: dp
+                implicit none
+                integer, intent(in) :: nI(nel), nJ(nel)
+                integer, intent(in) :: iLutI(0:niftot),iLutJ(0:niftot)
+                integer, intent(in) :: ic, ex(2,2)
+                logical, intent(in) :: tParity
+                real(dp), intent(in) :: prob
+                HElement_t :: hel
+            end function
+        end interface
+
+        call assign_proc (ptr_get_spawn_helement, get_spawn_helement)
+    end subroutine
+
+    subroutine set_encode_child (encode_child)
+        use, intrinsic :: iso_c_binding
+        implicit none
+        interface
+            subroutine encode_child (ilutI, ilutJ, ic, ex)
+                use SystemData, only: nel, niftot
+                implicit none
+                integer, intent(in) :: iLutI(0:nifTot), ic, ex(2,2)
+                integer, intent(out) :: iLutJ(0:nIfTot)
+            end subroutine
+        end interface
+    
+        call assign_proc (ptr_encode_child, encode_child)
+    end subroutine
+
+    subroutine set_new_child_stats (new_child_stats)
+        use, intrinsic :: iso_c_binding
+        implicit none
+        interface
+            subroutine new_child_stats (iLutI, iLutJ, ic, walkExLevel, &
+                                        child)
+                use SystemData, only: nel, niftot
+                implicit none
+                integer, intent(in) :: ilutI(0:niftot), iLutJ(0:niftot)
+                integer, intent(in) :: ic, walkExLevel, child
+            end subroutine
+        end interface
+
+        call assign_proc (ptr_new_child_stats, new_child_stats)
+    end subroutine
+
+    ! This is the heart of FCIMC, where the MC Cycles are performed.
+    !
+    ! Note: This should only be called indirectly:
+    !       call fn_dispatcher_5 (PerformFCIMCycPar, ptr_...)
     subroutine PerformFCIMCycPar(generate_excitation, attempt_create, &
                                  get_spawn_helement, encode_child, &
-                                 new_child_stats) &
-                                 bind(c, name='performfcimcycpar')
+                                 new_child_stats)
 
         USE FciMCLoggingMOD , only : TrackSpawnAttempts
         use detbitops, only : countbits
@@ -379,7 +392,7 @@ MODULE FciMCParMod
         interface
             subroutine generate_excitation (nI, iLutI, nJ, iLutJ, &
                              exFlag, IC, ex, tParity, pGen, tFilled, &
-                             scratch1, scratch2, scratch3) bind(c)
+                             scratch1, scratch2, scratch3)
                 use SystemData, only: nel, niftot
                 use GenRandSymExcitNUMod, only: scratchsize
                 use constants, only: dp,n_int
@@ -399,7 +412,7 @@ MODULE FciMCParMod
             end subroutine
             function attempt_create (get_spawn_helement, nI, iLutI, wSign, &
                                      nJ, iLutJ, prob, ic, ex, tPar, exLevel)&
-                                     result(child) bind(c)
+                                     result(child)
                 use SystemData, only: nel, niftot
                 use constants, only: dp,n_int
                 implicit none
@@ -414,7 +427,7 @@ MODULE FciMCParMod
                 interface
                     function get_spawn_helement (nI, nJ, ilutI, ilutJ, ic, &
                                                  ex, tParity, prob) &
-                                                 result (hel) bind(c)
+                                                 result (hel)
                         use SystemData, only: nel, niftot
                         use constants, only: dp,n_int
                         implicit none
@@ -429,7 +442,7 @@ MODULE FciMCParMod
             end function
             function get_spawn_helement (nI, nJ, ilutI, ilutJ, ic, &
                                          ex, tParity, prob) &
-                                         result (hel) bind(c)
+                                         result (hel)
                 use SystemData, only: nel, niftot
                 use constants, only: dp,n_int
                 implicit none
@@ -440,7 +453,7 @@ MODULE FciMCParMod
                 real(dp), intent(in) :: prob
                 HElement_t :: hel
             end function
-            subroutine encode_child (ilutI, ilutJ, ic, ex) bind(c)
+            subroutine encode_child (ilutI, ilutJ, ic, ex)
                 use SystemData, only: nel, niftot
                 use constants, only: n_int
                 implicit none
@@ -448,8 +461,7 @@ MODULE FciMCParMod
                 integer, intent(in) :: ic, ex(2,2)
                 integer(kind=n_int), intent(out) :: iLutJ(0:nIfTot)
             end subroutine
-            subroutine new_child_stats (iLutI, iLutJ, ic, walkExLevel, child)&
-                                        bind(c)
+            subroutine new_child_stats (iLutI, iLutJ, ic, walkExLevel, child)
                 use SystemData, only: nel, niftot
                 use constants, only: n_int
                 implicit none
@@ -636,8 +648,7 @@ MODULE FciMCParMod
         
     end subroutine
 
-    subroutine new_child_stats_normal (iLutI, iLutJ, ic, child, walkExLevel)&
-                                      bind(c)
+    subroutine new_child_stats_normal (iLutI, iLutJ, ic, child, walkExLevel)
 
         integer(kind=n_int), intent(in) :: iLutI(0:niftot), iLutJ(0:niftot)
         integer, intent(in) :: ic, child, walkExLevel
@@ -2198,10 +2209,16 @@ MODULE FciMCParMod
     function attempt_create_trunc_spawn (get_spawn_helement, DetCurr,&
                                          iLutCurr, wSign, nJ, iLutnJ, prob, &
                                          ic, ex, tparity, walkExcitLevel) &
+<<<<<<< HEAD:src/FciMCPar.F90
                                          result(child) bind(c)
         integer, intent(in) :: DetCurr(nel), nJ(nel) 
         integer(kind=n_int), intent(in) :: iLutCurr(0:NIfTot)
         integer(kind=n_int), intent(inout) :: iLutnJ(0:niftot)
+=======
+                                         result(child)
+        integer, intent(in) :: DetCurr(nel), iLutCurr(0:NIfTot), nJ(nel)
+        integer, intent(inout) :: iLutnJ(0:niftot)
+>>>>>>> master:src/FciMCPar.F90
         integer, intent(in) :: wSign, ic, ex(2,2), walkExcitLevel
         logical, intent(in) :: tParity
         real(dp), intent(inout) :: prob
@@ -2209,7 +2226,7 @@ MODULE FciMCParMod
 
         interface
             function get_spawn_helement (nI, nJ, ilutI, ilutJ, ic, ex, &
-                                         tParity, prob) result (hel) bind(c)
+                                         tParity, prob) result (hel)
                 use SystemData, only: nel, niftot
                 use constants, only: dp,n_int
                 implicit none
@@ -2234,7 +2251,7 @@ MODULE FciMCParMod
     function attempt_create_trunc_spawn_encode (get_spawn_helement, DetCurr,&
                                          iLutCurr, wSign, nJ, iLutnJ, prob, &
                                          ic, ex, tparity, walkExcitLevel) &
-                                         result(child) bind(c)
+                                         result(child)
 
         integer, intent(in) :: DetCurr(nel), nJ(nel) 
         integer(kind=n_int), intent(in) :: iLutCurr(0:NIfTot)
@@ -2246,7 +2263,7 @@ MODULE FciMCParMod
 
         interface
             function get_spawn_helement (nI, nJ, ilutI, ilutJ, ic, ex, &
-                                         tParity, prob) result (hel) bind(c)
+                                         tParity, prob) result (hel)
                 use SystemData, only: nel, niftot
                 use constants, only: dp,n_int
                 implicit none
@@ -2271,7 +2288,7 @@ MODULE FciMCParMod
 
     function attempt_create_normal (get_spawn_helement, DetCurr, iLutCurr, &
                                     wSign, nJ, iLutnJ, prob, ic, ex, tparity,&
-                                    walkExcitLevel) result(child) bind(c)
+                                    walkExcitLevel) result(child)
 
         integer, intent(in) :: DetCurr(nel), nJ(nel) 
         integer(kind=n_int), intent(in) :: iLutCurr(0:NIfTot)
@@ -2283,7 +2300,7 @@ MODULE FciMCParMod
 
         interface
             function get_spawn_helement (nI, nJ, ilutI, ilutJ, ic, ex, &
-                                         tParity, prob) result (hel) bind(c)
+                                         tParity, prob) result (hel)
                 use SystemData, only: nel, niftot
                 use constants, only: dp,n_int
                 implicit none
@@ -3284,7 +3301,7 @@ MODULE FciMCParMod
     END SUBROUTINE WriteHamilHistogram
 
     subroutine new_child_stats_hist_hamil (iLutI, iLutJ, ic, walkExLevel, &
-                                           child) bind(c)
+                                           child)
         ! Based on old AddHistHamilEl. Histograms the hamiltonian matrix, and 
         ! then calls the normal statistics routine.
 

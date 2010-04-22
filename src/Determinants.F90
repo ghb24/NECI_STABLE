@@ -376,7 +376,7 @@ contains
     end function get_helement_excit
 
     function get_helement_det_only (nI, nJ, iLutI, iLutJ, ic, ex, tParity, &
-                                    prob) result (hel) bind(c)
+                                    prob) result (hel)
         
         ! Calculate the Hamiltonian Matrix Element for a determinant as above.
         ! This function assumes that we have got it correct for determinants

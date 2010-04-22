@@ -26,7 +26,7 @@ contains
     
     subroutine gen_csf_excit (nI, iLut, nJ, ilutnJ, exFlag, IC, &
                                    excitMat, tParity, pGen, tFilled, CCdblS, &
-                                   CCSglS, CCUnS) bind(c)
+                                   CCSglS, CCUnS)
 
         ! Generate an excitation from a CSF at random, as specified by exFlag,
         ! and return the Excitation matrix and the probability of generating

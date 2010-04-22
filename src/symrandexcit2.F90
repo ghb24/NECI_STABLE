@@ -43,7 +43,7 @@ MODULE GenRandSymExcitNUMod
 
     subroutine gen_rand_excit (nI, ilut, nJ, ilutnJ, exFlag, IC, ExcitMat, &
                                tParity, pGen, tFilled, ClassCount2, &
-                               ClassCountUnocc2, scratchUnused) bind(c)
+                               ClassCountUnocc2, scratchUnused)
 
         ! This routine is the same as GenRandSymexcitNu, but you can pass in 
         ! the class count arrays so that they do not have to be recalculated 

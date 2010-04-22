@@ -17,7 +17,7 @@ module hphf_integrals
     contains
 
     function hphf_spawn_sign (nI, nJ, iLutI, iLutJ, ic, ex, &
-                                  tParity, prob) result (hel) bind(c)
+                                  tParity, prob) result (hel)
         integer, intent(in) :: nI(nel), nJ(nel), ic, ex(2,2)
         integer(kind=n_int), intent(in) :: iLutI(0:NIfTot), iLutJ(0:NIfTot)
         logical, intent(in) :: tParity
@@ -30,7 +30,7 @@ module hphf_integrals
 
     ! TODO: comment as to why!
     function hphf_off_diag_helement_spawn (nI, nJ, iLutI, iLutJ, ic, ex, &
-                                           tParity, prob) result (hel) bind(c)
+                                           tParity, prob) result (hel)
         integer, intent(in) :: nI(nel), nJ(nel), ic, ex(2,2)
         integer(kind=n_int), intent(in) :: iLutI(0:NIfTot), iLutJ(0:NIfTot)
         logical, intent(in) :: tParity
