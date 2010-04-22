@@ -26,12 +26,12 @@ module DetBitOps
     end interface
 
     ! Non-modularised functions (sigh)
-    interface
-        logical function int_arr_eq (a, b, len)
-            integer, intent(in), dimension(:) :: a, b
-            integer, intent(in), optional :: len
-        end function
-    end interface
+!    interface
+!        logical function int_arr_eq (a, b, len)
+!            integer, intent(in), dimension(:) :: a, b
+!            integer, intent(in), optional :: len
+!        end function
+!    end interface
 
     contains
 

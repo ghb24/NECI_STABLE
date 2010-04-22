@@ -262,14 +262,17 @@ MODULE FciMCParMod
 
                 use SystemData, only: nel, niftot
                 use GenRandSymExcitNUMod, only: scratchsize
+                use constants, only: n_int
                 implicit none
 
-                integer, intent(in) :: nI(nel), iLutI(0:niftot)
+                integer, intent(in) :: nI(nel) 
+                integer(kind=n_int), intent(in) :: iLutI(0:niftot)
                 integer, intent(in) :: exFlag
                 integer, intent(inout) :: scratch1(scratchsize)
                 integer, intent(inout) :: scratch2(scratchsize)
                 integer, intent(inout) :: scratch3(scratchsize)
-                integer, intent(out) :: nJ(nel), iLutJ(0:niftot)
+                integer, intent(out) :: nJ(nel) 
+                integer(kind=n_int), intent(out) :: iLutJ(0:niftot)
                 integer, intent(out) :: ic, ex(2,2)
                 real*8, intent(out) :: pGen
                 logical, intent(inout) :: tFilled
@@ -288,10 +291,11 @@ MODULE FciMCParMod
                                      nJ, iLutJ, prob, ic, ex, tPar, exLevel)&
                                      result(child)
                 use SystemData, only: nel, niftot
-                use constants, only: dp
+                use constants, only: n_int,dp
                 implicit none
-                integer, intent(in) :: nI(nel), iLutI(0:nIfTot), nJ(nel)
-                integer, intent(inout) :: iLutJ(0:nIfTot)
+                integer, intent(in) :: nI(nel), nJ(nel) 
+                integer(kind=n_int), intent(in) :: iLutI(0:nIfTot)
+                integer(kind=n_int), intent(inout) :: iLutJ(0:nIfTot)
                 integer, intent(in) :: wSign, ic, ex(2,2), exLevel
                 logical, intent(in) :: tPar
                 real(dp), intent(inout) :: prob
@@ -302,10 +306,10 @@ MODULE FciMCParMod
                                                  ex, tParity, prob) &
                                                  result (hel)
                         use SystemData, only: nel, niftot
-                        use constants, only: dp
+                        use constants, only: n_int,dp
                         implicit none
                         integer, intent(in) :: nI(nel), nJ(nel)
-                        integer, intent(in) :: iLutI(0:niftot),iLutJ(0:niftot)
+                        integer(kind=n_int), intent(in) :: iLutI(0:niftot),iLutJ(0:niftot)
                         integer, intent(in) :: ic, ex(2,2)
                         logical, intent(in) :: tParity
                         real(dp), intent(in) :: prob
@@ -325,10 +329,10 @@ MODULE FciMCParMod
             function get_spawn_helement (nI, nJ, ilutI, ilutJ, ic, &
                                          ex, tParity, prob) result (hel)
                 use SystemData, only: nel, niftot
-                use constants, only: dp
+                use constants, only: n_int,dp
                 implicit none
                 integer, intent(in) :: nI(nel), nJ(nel)
-                integer, intent(in) :: iLutI(0:niftot),iLutJ(0:niftot)
+                integer(kind=n_int), intent(in) :: iLutI(0:niftot),iLutJ(0:niftot)
                 integer, intent(in) :: ic, ex(2,2)
                 logical, intent(in) :: tParity
                 real(dp), intent(in) :: prob
@@ -345,9 +349,11 @@ MODULE FciMCParMod
         interface
             subroutine encode_child (ilutI, ilutJ, ic, ex)
                 use SystemData, only: nel, niftot
+                use constants, only: n_int
                 implicit none
-                integer, intent(in) :: iLutI(0:nifTot), ic, ex(2,2)
-                integer, intent(out) :: iLutJ(0:nIfTot)
+                integer(kind=n_int), intent(in) :: iLutI(0:nifTot)
+                integer, intent(in) :: ic, ex(2,2)
+                integer(kind=n_int), intent(out) :: iLutJ(0:nIfTot)
             end subroutine
         end interface
     
@@ -356,9 +362,11 @@ MODULE FciMCParMod
 
     subroutine null_encode_child (ilutI, ilutJ, ic, ex)
         use SystemData, only: nel, niftot
+        use constants, only: n_int
         implicit none
-        integer, intent(in) :: ilutI(0:niftot), ic, ex(2,2)
-        integer, intent(out) :: ilutj(0:niftot)
+        integer(kind=n_int), intent(in) :: ilutI(0:niftot)
+        integer, intent(in) :: ic, ex(2,2)
+        integer(kind=n_int), intent(out) :: ilutj(0:niftot)
     end subroutine
 
     subroutine set_new_child_stats (new_child_stats)
@@ -368,8 +376,9 @@ MODULE FciMCParMod
             subroutine new_child_stats (iLutI, iLutJ, ic, walkExLevel, &
                                         child)
                 use SystemData, only: nel, niftot
+                use constants, only: n_int
                 implicit none
-                integer, intent(in) :: ilutI(0:niftot), iLutJ(0:niftot)
+                integer(kind=n_int), intent(in) :: ilutI(0:niftot), iLutJ(0:niftot)
                 integer, intent(in) :: ic, walkExLevel, child
             end subroutine
         end interface

@@ -26,7 +26,7 @@
 
 #ifdef __INT64
          CALL Stop_All("GenRandSymExcitIt4","Old excitation "           &
-     &      \\"generators will not work with INT64 C flag.")
+     &      //"generators will not work with INT64 C flag.")
 #endif
 
          IF(tAssumeSizeExcitgen) THEN
@@ -113,7 +113,7 @@ C.. This version is based on GenRandSymExcitIt2, but does not need values it ext
 #endif
 #ifdef __INT64
          CALL Stop_All("GenRandSymExcitIt4","Old excitation "           &
-     &      \\"generators will not work with INT64 C flag.")
+     &      //"generators will not work with INT64 C flag.")
 #endif
          IF(tAssumeSizeExcitgen) THEN
 !Excitgen is set up differently...
@@ -972,7 +972,7 @@ C.. Actually generate a det
 
 #ifdef __INT64
          CALL Stop_All("GenRandSymExcitIt4","Old excitation "           &
-     &      \\"generators will not work with INT64 C flag.")
+     &      //"generators will not work with INT64 C flag.")
 #endif
              
          iTo=ExcitTypes(4,iExcit)   !This is the symmetry of the virtual pair type

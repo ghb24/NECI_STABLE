@@ -1200,7 +1200,7 @@ contains
 
         use constants, only: bits_n_int
         integer, intent(in) :: nI(nel)
-        integer(kind=n_int), intent(out) :: yama(NIfY)
+        integer, intent(out) :: yama(NIfY)
         integer :: i, pos, bit, nopen
 
         nopen = 0

@@ -91,6 +91,7 @@ my_make := $(MAKE) -f $(my_makefile)
 # pre-processing.
 CPP = %(cpp)s
 CPPFLAGS = -DMAXMEM='$(MAXMEM)' -D_VCS_VER='$(VCS_VERSION)' $(WORKING_DIR_CHANGES) -D_CONFIG='"$(CONFIG).($(OPT))"' -DDSFMT_MEXP=19937 %(cppflags)s 
+# -D__INT64=1
 GCPPFLAG = -DHElement_t="real(dp)"
 KCPPFLAG = -DHElement_t="complex(dp)"
 
@@ -105,7 +106,6 @@ F90FLAGS = %(f90flags)s
 
 # c compiler and flags.
 CC = %(cc)s
-#CFLAGS = %(cflags)s -D__INT64=1
 CFLAGS = %(cflags)s
 
 # Some servers (I'm looking at you, darwin) have a buggy implementation of the
