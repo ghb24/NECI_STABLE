@@ -10,13 +10,12 @@ module Integrals
     implicit none
 
     interface
-        function get_umat_el (fn, i, j, k, l, fn2) result(hel)
+        function get_umat_el (fn, i, j, k, l) result(hel)
             use, intrinsic :: iso_c_binding
             use constants, only: dp
             implicit none
             type(c_ptr), intent(in), value :: fn
             integer, intent(in) :: i, j, k, l
-            type(c_ptr), intent(in) :: fn2
             HElement_t :: hel
         end function
     end interface
@@ -1767,9 +1766,10 @@ SUBROUTINE CALCTMATUEG(NBASIS,ALAT,G1,CST,TPERIODIC,OMEGA)
 END SUBROUTINE CALCTMATUEG
 
 ! See Integrals.F90 for an interface for this function.
-function get_umat_el (fn, i, j, k, l, fn2) result(hel)
+function get_umat_el (fn, i, j, k, l) result(hel)
     use, intrinsic :: iso_c_binding
     use constants, only: dp
+    use IntegralsData, only: ptr_getumatel_2
     implicit none
 
     interface
@@ -1784,8 +1784,7 @@ function get_umat_el (fn, i, j, k, l, fn2) result(hel)
     end interface
 
     integer, intent(in) :: i, j, k, l
-    type(c_ptr), intent(in) :: fn2
     HElement_t :: hel
 
-    hel = fn (i, j, k, l, fn2)
+    hel = fn (i, j, k, l, ptr_getumatel_2)
 end function
