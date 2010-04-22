@@ -16,7 +16,7 @@
 ! The list1 will be binary searched to find insertion points. Generally, if list2 > list1/2,
 ! a linear search would be quicker.
     SUBROUTINE MergeListswH(nlist1,nlist1max,nlist2,list2,SignList2)
-        USE FciMCParMOD , only : iLutHF,Hii,CurrentDets,CurrentSign,CurrentH
+        USE FciMCParMOD , only : Hii,CurrentDets,CurrentSign,CurrentH
         USE SystemData , only : NEl,tHPHF,NIfTot,NIfDBO
         USE Determinants , only : get_helement
         use DetBitOps, only: DecodeBitDet, DetBitEQ
@@ -69,24 +69,13 @@
            CurrentDets(:,ips+i-1)=list2(:,i)
            CurrentSign(ips+i-1)=SignList2(i)
 !We want to calculate the diagonal hamiltonian matrix element for the new particle to be merged.
-           IF(DetBitEQ(list2(:,i),iLutHF,NIfDBO)) THEN
-!We know we are at HF - HDiag=0
-               HDiag=0.D0
-!               IF(tHub.and.tReal) THEN
-!!Reference determinant is not HF
-!                   CALL DecodeBitDet(nJ,list2(0:NIfTot,i))
-!                   HDiagTemp=GetHElement3(nJ,nJ,0)
-!                   HDiag=(REAL(HDiagTemp,8))
-!               ENDIF
-           ELSE
-               CALL DecodeBitDet(nJ,list2(:,i))
-               if (tHPHF) then
-                   HDiagTemp = hphf_diag_helement (nJ, list2(:,i))
-               else
-                   HDiagTemp = get_helement (nJ, nJ, 0)
-               endif
-               HDiag=(REAL(HDiagTemp,8))-Hii
-           ENDIF
+           CALL DecodeBitDet(nJ,list2(:,i))
+           if (tHPHF) then
+               HDiagTemp = hphf_diag_helement (nJ, list2(:,i))
+           else
+               HDiagTemp = get_helement (nJ, nJ, 0)
+           endif
+           HDiag=(REAL(HDiagTemp,8))-Hii
            CurrentH(ips+i-1)=HDiag
                
 !           write(6,*) ' newly inserted member on position:'                             &
@@ -109,7 +98,7 @@
 
 !This routine is the same as MergeListswH, but will not generate the diagonal hamiltonian matrix elements to go with the inserted determinants
     SUBROUTINE MergeLists(nlist1,nlist1max,nlist2,list2,SignList2)
-        USE FciMCParMOD , only : iLutHF,Hii,CurrentDets,CurrentSign
+        USE FciMCParMOD , only : Hii,CurrentDets,CurrentSign
         USE SystemData , only : NEl, NIfTot
         USE HElem
         use constants, only : n_int
