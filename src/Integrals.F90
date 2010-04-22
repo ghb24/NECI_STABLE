@@ -2,7 +2,7 @@
 module Integrals
 
     use SystemData, only: tStoreSpinOrbs, tFixLz, nBasisMax, iSpinSkip, &
-                          tStarStore, nBasis
+                          tStarStore, nBasis, G1
     use UmatCache, only: tUmat2D, UMatInd, umat2d
     use util_mod, only: get_nan
     use IntegralsData
@@ -1390,17 +1390,71 @@ contains
             if (tStoreSpinOrbs) then
                 write (6, '(" Setting GetUmatEl to use fixed lz with &
                             &tStoreSpinOrbs set")')
-                call stop_all ("Not", "yet")
-                !call set_getumatel_fn (get_umat_el_fixlz_storespinorbs)
+                call set_getumatel_stack (get_umat_el_fixlz_storespinorbs)
             else
                 write (6, '(" Setting GetUmatEl to use fixed lz without &
                             &tStoreSpinOrbs set")')
-                call stop_all ("Not", "yet")
-                !call set_getumatel_fn (get_umat_el_fixlz_notspinorbs)
+                call set_getumatel_stack (get_umat_el_fixlz_notspinorbs)
             endif
         endif
 
     end subroutine
+
+    function get_umat_el_fixlz_storespinorbs (i, j, k, l, fn2) result(hel)
+
+        ! Consider the case where we are fixing Lz symmetry, and are storing
+        ! spin orbitals
+        
+        interface
+            function fn2 (i, j, k, l) result (hel)
+                use constants, only: dp
+                implicit none
+                integer, intent(in) :: i, j, k, l
+                HElement_t :: hel
+            end function
+        end interface
+
+        integer, intent(in) :: i, j, k, l
+        HElement_t :: hel
+
+        ! If we are fixing Lz, then <ij|kl> != <kj|il> necessarily, since we
+        ! have complex orbitals (though real integrals) and want to ensure
+        ! that we conserve momentum. i.e. momentum of bra = mom of ket.
+        if ( (G1(i)%Ml + G1(j)%Ml) /= (G1(k)%Ml + G1(l)%Ml) ) then
+            hel = 0
+        else
+            hel = fn2 (i, j, k, l)
+        endif
+
+    end function
+
+    function get_umat_el_fixlz_notspinorbs (i, j, k, l, fn2) result(hel)
+
+        ! Consider the case where we are fixing Lz symmetry, and are not
+        ! storing spin orbitals
+        
+        interface
+            function fn2 (i, j, k, l) result (hel)
+                use constants, only: dp
+                implicit none
+                integer, intent(in) :: i, j, k, l
+                HElement_t :: hel
+            end function
+        end interface
+
+        integer, intent(in) :: i, j, k, l
+        HElement_t :: hel
+
+        ! If we are fixing Lz, then <ij|kl> != <kj|il> necessarily, since we
+        ! have complex orbitals (though real integrals) and want to ensure
+        ! that we conserve momentum. i.e. momentum of bra = mom of ket.
+        if ( (G1(2*i)%Ml + G1(2*j)%Ml) /= (G1(2*k)%Ml + G1(2*l)%Ml) ) then
+            hel = 0
+        else
+            hel = fn2 (i, j, k, l)
+        endif
+
+    end function
 
     function get_umat_el_normal (idi, idj, idk, idl) result(hel)
         
