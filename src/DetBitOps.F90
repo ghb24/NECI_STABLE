@@ -9,6 +9,14 @@ module DetBitOps
     use constants, only: n_int,bits_n_int,end_n_int
     implicit none
 
+#ifdef __INT64
+    INTEGER(KIND=n_int), PARAMETER :: MaskBeta=Z'5555555555555555'    !This is 1010101... in binary
+    INTEGER(KIND=n_int), PARAMETER :: MaskAlpha=Z'AAAAAAAAAAAAAAAA'   !This is 0101010... in binary
+#else
+    INTEGER(KIND=n_int), PARAMETER :: MaskBeta=1431655765    !This is 1010101... in binary
+    INTEGER(KIND=n_int), PARAMETER :: MaskAlpha=-1431655766  !This is 0101010... in binary
+#endif
+
     ! http://gurmeetsingh.wordpress.com/2008/08/05/fast-bit-counting-routines/
     ! for a variety of interesting bit counters
     interface CountBits
@@ -166,13 +174,8 @@ module DetBitOps
         integer(kind=n_int), intent(in) :: iLut(0:NIfD)
         integer(kind=n_int), dimension(0:NIfD) :: alpha, beta
 
-#ifdef __INT64
-        alpha = iand(iLut, Z'AAAAAAAAAAAAAAAA')
-        beta = iand(iLut, Z'5555555555555555')
-#else
-        alpha = iand(iLut, Z'AAAAAAAA')
-        beta = iand(iLut, Z'55555555')
-#endif
+        alpha = iand(iLut, MaskAlpha)
+        beta = iand(iLut, MaskBeta)
         alpha = ishft(alpha, -1)
         alpha = ieor(alpha, beta)
         
@@ -222,17 +225,10 @@ module DetBitOps
         integer(kind=n_int), dimension(0:NIfD,2) :: alpha, beta, sing, doub, tmp
 
         ! Obtain the alphas and betas
-#ifdef __INT64
-        alpha(:,1) = iand(ilutI, Z'AAAAAAAAAAAAAAAA')
-        alpha(:,2) = iand(ilutJ, Z'AAAAAAAAAAAAAAAA')
-        beta(:,1) = iand(ilutI, Z'5555555555555555')
-        beta(:,2) = iand(ilutJ, Z'5555555555555555')
-#else
-        alpha(:,1) = iand(ilutI, Z'AAAAAAAA')
-        alpha(:,2) = iand(ilutJ, Z'AAAAAAAA')
-        beta(:,1) = iand(ilutI, Z'55555555')
-        beta(:,2) = iand(ilutJ, Z'55555555')
-#endif
+        alpha(:,1) = iand(ilutI, MaskAlpha)
+        alpha(:,2) = iand(ilutJ, MaskAlpha)
+        beta(:,1) = iand(ilutI, MaskBeta)
+        beta(:,2) = iand(ilutJ, MaskBeta)
 
         ! Bit strings separating doubles, and singles shifted to beta pos.
         doub = iand(beta, ishft(alpha, -1))
@@ -315,23 +311,13 @@ module DetBitOps
         integer(kind=n_int) :: alpha(0:NIfD), beta(0:NIfD)
 
         ! Obtain all the singles in I,J
-#ifdef __INT64
-        alpha = iand(iLutI, Z'AAAAAAAAAAAAAAAA')
-        beta = iand(iLutI, Z'5555555555555555')
-#else
-        alpha = iand(iLutI, Z'AAAAAAAA')
-        beta = iand(iLutI, Z'55555555')
-#endif
+        alpha = iand(iLutI, MaskAlpha)
+        beta = iand(iLutI, MaskBeta)
         alpha = ishft(alpha, -1)
         sing(:,1) = ieor(alpha, beta)
 
-#ifdef __INT64
-        alpha = iand(iLutJ, Z'AAAAAAAAAAAAAAAA')
-        beta = iand(iLutJ, Z'5555555555555555')
-#else
-        alpha = iand(iLutJ, Z'AAAAAAAA')
-        beta = iand(iLutJ, Z'55555555')
-#endif
+        alpha = iand(iLutJ, MaskAlpha)
+        beta = iand(iLutJ, MaskBeta)
         alpha = ishft(alpha, -1)
         sing(:,2) = ieor(alpha, beta)
 
@@ -720,17 +706,10 @@ module DetBitOps
         integer(kind=n_int), intent(inout) :: iLut(0:NIfD)
         integer(kind=n_int) :: iA(0:NIfD), iB(0:NIfD)
 
-#ifdef __INT64
         ! Extract the betas
-        iB = iand(iLut, Z'5555555555555555')
+        iB = iand(iLut, MaskBeta)
         ! Extract the alphas and shift them into beta positions.
-        iA = ishft(iand(iLut, Z'AAAAAAAAAAAAAAAA'), -1)
-#else
-        ! Extract the betas
-        iB = iand(iLut, Z'55555555')
-        ! Extract the alphas and shift them into beta positions.
-        iA = ishft(iand(iLut, Z'AAAAAAAA'), -1)
-#endif
+        iA = ishft(iand(iLut, MaskAlpha), -1)
         
         ! Generate the doubles
         iLut = iand(iB, iA)
@@ -749,13 +728,8 @@ module DetBitOps
         integer i
 
         call EncodeBitDet(nI, alpha)
-#ifdef __INT64
-        beta = iand(alpha, Z'5555555555555555')
-        tmp = iand(alpha, Z'AAAAAAAAAAAAAAAA')
-#else
-        beta = iand(alpha, Z'55555555')
-        tmp = iand(alpha, Z'AAAAAAAA')
-#endif
+        beta = iand(alpha, MaskBeta)
+        tmp = iand(alpha, MaskAlpha)
 
         alpha = iand(tmp, not(ishft(beta,1))) ! Only alpha singles
         beta = iand(beta, not(ishft(tmp,-1)))  ! Only beta singles
@@ -907,18 +881,11 @@ end module
     LOGICAL FUNCTION TestClosedShellDet(iLut)
         use systemdata, only: NIfD
         use constants, only: n_int
-        INTEGER(kind=n_int) :: iLut(0:NIfD),iLutAlpha(0:NIfD),iLutBeta(0:NIfD),MaskAlpha,MaskBeta
+        INTEGER(kind=n_int) :: iLut(0:NIfD),iLutAlpha(0:NIfD),iLutBeta(0:NIfD)
         INTEGER :: i
         
         iLutAlpha(:)=0
         iLutBeta(:)=0
-#ifdef __INT64
-        MaskBeta=Z'5555555555555555'    !This is 1010101... in binary
-        MaskAlpha=Z'AAAAAAAAAAAAAAAA'   !This is 0101010... in binary
-#else
-        MaskBeta=1431655765    !This is 1010101... in binary
-        MaskAlpha=-1431655766  !This is 0101010... in binary
-#endif
         TestClosedShellDet=.true.
 
         do i=0,NIfD
@@ -947,18 +914,11 @@ end module
         use systemdata, only: NIfD, nel
         use DetBitOps, only: CountBits
         use constants, only: n_int
-        INTEGER(kind=n_int) :: iLut(0:NIfD),iLutAlpha(0:NIfD),iLutBeta(0:NIfD),MaskAlpha,MaskBeta
+        INTEGER(kind=n_int) :: iLut(0:NIfD),iLutAlpha(0:NIfD),iLutBeta(0:NIfD)
         INTEGER :: i,OpenOrbs
         
         iLutAlpha(:)=0
         iLutBeta(:)=0
-#ifdef __INT64
-        MaskBeta=Z'5555555555555555'    !This is 1010101... in binary
-        MaskAlpha=Z'AAAAAAAAAAAAAAAA'   !This is 0101010... in binary
-#else
-        MaskBeta=1431655765    !This is 1010101... in binary
-        MaskAlpha=-1431655766  !This is 0101010... in binary
-#endif
 
 !        do i=0,NIfD
 !

@@ -15,7 +15,7 @@ MODULE HPHFRandExcitMod
     use GenRandSymExcitNUMod, only: gen_rand_excit, ConstructClassCounts, &
                                     CalcNonUniPGen, ScratchSize 
     use DetBitOps, only: DetBitLT, DetBitEQ, FindExcitBitDet, &
-                         FindBitExcitLevel
+                         FindBitExcitLevel,MaskAlpha,MaskBeta
     use FciMCData, only: pDoubles
     use constants, only: dp,n_int
     use HElem
@@ -482,20 +482,12 @@ MODULE HPHFRandExcitMod
     SUBROUTINE FindExcitBitDetSym(iLut,iLutSym)
         IMPLICIT NONE
         INTEGER(KIND=n_int) :: iLut(0:NIfTot),iLutSym(0:NIfTot),iLutAlpha(0:NIfTot),iLutBeta(0:NIfTot)
-        INTEGER(KIND=n_int) :: MaskAlpha,MaskBeta
         INTEGER :: i
 
 !        WRITE(6,*) "******"
         iLutSym(:)=0
         iLutAlpha(:)=0
         iLutBeta(:)=0
-#ifdef __INT64
-        MaskBeta=Z'AAAAAAAAAAAAAAAA'    !This is 1010101... in binary
-        MaskAlpha=Z'5555555555555555'  !This is 0101010... in binary
-#else
-        MaskBeta=1431655765    !This is 1010101... in binary
-        MaskAlpha=-1431655766  !This is 0101010... in binary
-#endif
 
 !        WRITE(6,*) "MaskAlpha: "
 !        do i=0,31
