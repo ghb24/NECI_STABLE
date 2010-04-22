@@ -83,11 +83,11 @@ MODULE Logging
       tPrintOrbOcc=.false.
       StartPrintOrbOcc=0
       CCMCDebug=0
-      tHFPopStartBlock=.true.
+      tHFPopStartBlock=.false.
       tIterStartBlock=.false.
       IterStartBlocking=0
       HFPopStartBlocking=100
-      tInitShiftBlocking=.true.
+      tInitShiftBlocking=.false.
       IterShiftBlock=0
       NoDumpTruncs=0
       tWriteTransMat=.false.
