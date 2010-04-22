@@ -726,16 +726,16 @@ MODULE AnnihilationMod
             Elecs=0
             lp1: do i=0,NIfDBO
 #ifdef __INT64
-                do j=0,31
-#else
                 do j=0,63
+#else
+                do j=0,31
 #endif
                     IF(BTEST(iLut(i),j)) THEN
                         Elecs=Elecs+1
 #ifdef __INT64
-                        Summ=(1099511628211_8*Summ)+RandomHash((i*32)+(j+1))*Elecs
-#else
                         Summ=(1099511628211_8*Summ)+RandomHash((i*64)+(j+1))*Elecs
+#else
+                        Summ=(1099511628211_8*Summ)+RandomHash((i*32)+(j+1))*Elecs
 #endif
                         IF(Elecs.eq.NEl) EXIT lp1
                     ENDIF
@@ -748,16 +748,16 @@ MODULE AnnihilationMod
             Elecs=0
             lp2: do i=0,NIfDBO
 #ifdef __INT64
-                do j=0,31
-#else
                 do j=0,63
+#else
+                do j=0,31
 #endif
                     IF(BTEST(iLut(i),j)) THEN
                         Elecs=Elecs+1
 #ifdef __INT64
-                        Summ=(1099511628211_8*Summ)+((i*32)+(j+1))*Elecs
-#else
                         Summ=(1099511628211_8*Summ)+((i*64)+(j+1))*Elecs
+#else
+                        Summ=(1099511628211_8*Summ)+((i*32)+(j+1))*Elecs
 #endif
                         IF(Elecs.eq.NEl) EXIT lp2
                     ENDIF
@@ -765,7 +765,7 @@ MODULE AnnihilationMod
             enddo lp2
             DetermineDetProc=abs(mod(Summ,INT(nProcessors,8)))
         ENDIF
-!        WRITE(6,*) DetermineDetProc,Summ,nProcessors
+!        WRITE(6,*) iLut(0:niftot),DetermineDetProc,Summ,nProcessors
 
     END FUNCTION DetermineDetProc
 
