@@ -22,11 +22,11 @@
         use DetBitOps, only: DecodeBitDet, DetBitEQ
         use hphf_integrals, only: hphf_diag_helement, hphf_off_diag_helement
         USE HElem
-        use constants, only: dp
+        use constants, only: dp,n_int
         IMPLICIT NONE
 !        INTEGER :: list1(0:NIfTot,nlist1max),list2(0:NIfTot,1:nlist2)
-        INTEGER :: list2(0:NIfTot,1:nlist2)
-        INTEGER :: nlisto,nlist1,nlist2,nlo,i,DetCurr(0:NIfTot) 
+        INTEGER(KIND=n_int) :: list2(0:NIfTot,1:nlist2),DetCurr(0:NIfTot) 
+        INTEGER :: nlisto,nlist1,nlist2,nlo,i
         INTEGER :: ips,ips1,SignList2(nlist2)!,SignList1(nlist1max),
 !        REAL*8 :: HList(nlist1max)
         HElement_t :: HDiagTemp
@@ -112,9 +112,10 @@
         USE FciMCParMOD , only : iLutHF,Hii,CurrentDets,CurrentSign
         USE SystemData , only : NEl, NIfTot
         USE HElem
+        use constants, only : n_int
         IMPLICIT NONE
-        INTEGER :: list2(0:NIfTot,1:nlist2)
-        INTEGER :: nlisto,nlist1,nlist2,nlo,i,DetCurr(0:NIfTot) 
+        INTEGER(KIND=n_int) :: list2(0:NIfTot,1:nlist2),DetCurr(0:NIfTot) 
+        INTEGER :: nlisto,nlist1,nlist2,nlo,i
         INTEGER :: ips,ips1,SignList2(nlist2)!,SignList1(nlist1max)
         REAL*8 :: HDiag
         INTEGER :: nJ(NEl),j,nlist1max
@@ -178,8 +179,9 @@
         use SystemData, only: NIfTot,NIfDBO
         use DetBitOps, only: DetBitLT
         USE FciMCParMOD , only : CurrentDets
+        use constants, only: n_int
         IMPLICIT NONE
-        INTEGER :: n,DetCurr(0:NIfTot)!,list(0:NIFTot,n)
+        INTEGER(KIND=n_int) :: n,DetCurr(0:NIfTot)!,list(0:NIFTot,n)
         INTEGER :: nlo,nup,i,ipos,ncurr,CompPart
 !        logical :: tbin
 !        if(.not.tbin) goto 200
@@ -264,10 +266,10 @@
     SUBROUTINE searchgen(n,list,DetCurr,ipos)
         use SystemData, only: NIfTot,NIfDBO
         use DetBitOps, only: DetBitLT
+        use constants, only: n_int
         IMPLICIT NONE
-        INTEGER :: n,DetCurr(0:NIfTot)
-        INTEGER :: nlo,nup,i,ipos,ncurr,CompPart
-        INTEGER :: list(0:NIfTot,n)
+        INTEGER(KIND=n_int) :: DetCurr(0:NIfTot),list(0:NIfTot,n)
+        INTEGER :: nlo,nup,i,ipos,ncurr,CompPart,n
 !        logical :: tbin
 !        if(.not.tbin) goto 200
 !.......................................................................
