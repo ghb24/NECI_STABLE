@@ -2,6 +2,7 @@
 MODULE DetCalc
         use constants, only: dp
         use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
+        use DetCalcData
         
     IMPLICIT NONE
      save
@@ -13,17 +14,10 @@ MODULE DetCalc
       INTEGER NKRY   !The number of Lanczos Krylov vectors
       INTEGER NCYCLE !The Max number of Lanczos cycles
       INTEGER DETINV !The index in the list of dets of a det to investigate
-      INTEGER ICILEVEL ! The maximum excitation level up to which to enumerate dets.  
       INTEGER IOBS,JOBS,KOBS
       LOGICAL TRHOOFR,TCORR,TFODM
 
 
-      INTEGER NDET  ! The total number of determinants we have listed
-      INTEGER Det   ! The number of determinants with the same sym
-                    ! as the reference det.  This is the number of
-                    ! dets in FCIDets
-      INTEGER, Allocatable :: FCIDets(:,:)  !This will contain a list of determinants of the same symmetry as the reference det, with dets in compressed form.  Usually (NIfTot, Det)
-      INTEGER, Allocatable :: FCIDetIndex(:)!This indicates where the excitation levels start in the FCIDets array(will go from 0->NEl+1).
 
       LOGICAL TCALCHMAT,TENERGY,TREAD,TBLOCK
       LOGICAL tFindDets           !Set if we are to enumerate all determinants within given constraints
@@ -37,14 +31,9 @@ MODULE DetCalc
       HElement_t, pointer :: HAMIL(:)    !The Hamiltonian in compressed form.  Contains only non-zero elements.  The total number of elements is in LenHamil
       INTEGER :: tagHamil=0
       INTEGER LenHamil                       !The Total number of non-zero elements in the compressed Hamiltonian
-      INTEGER, pointer :: NMRKS(:,:)=>null() !(NEL-NFROZEN,nDet)  A list of all determinants which have been enumerated.  
-      INTEGER :: tagNMRKS=0
       INTEGER iFDet                       ! The index of the Fermi det in the list of dets.
-      HElement_t, pointer :: CK(:,:)  !  (nDet,nEval) This will store the eventual eigenvectors
       HElement_t, pointer :: CKN(:,:) !  (nDet,nEval)  Temporary storage for the Lanczos routine
-      INTEGER :: tagCK=0, tagCKN=0
-      REAL*8, pointer :: W(:)  ! (nEval) This will contain the eigenvalues
-      INTEGER tagW
+      INTEGER :: tagCKN=0
 
       REAL*8 , ALLOCATABLE :: ExpandedHamil(:,:)    ! (NDet,NDet) This is the hamiltonian in expanded form, so that it can be histogrammed against.
 
@@ -960,16 +949,19 @@ END MODULE DetCalc
          use DetCalc, only: NMRKS
          use legacy_data, only: irat
          use Determinants, only: write_det
+         use mcpaths, only: mcpathsr3
          implicit none
          character(25), parameter :: this_routine = 'CalcRhoPII2'
          INTEGER NEL,I_P,I_HMAX,I_VMAX,NDET,nBasisMax(5,*),nBasis
-         INTEGER BRR(*),NMSH,NMAX(*),NTAY,ILOGGING
+         INTEGER BRR(*),NMSH,NMAX,NTAY,ILOGGING
          type(timer), save :: proc_timer
          HElement_t UMat(*)
          real(dp) DLWDB, DLWDB2, DLWDB3, DLWDB4
-         TYPE(BasisFN) g1(*),ALAT(*)
+         TYPE(BasisFN) g1(*)
+         REAL*8 ALAT(*)
          LOGICAL TSYM
-         REAL*8 BETA,FCK(*),RHOEPS
+         REAL*8 BETA,RHOEPS
+         COMPLEX*16 FCK(*)
 
          
          INTEGER, ALLOCATABLE :: LSTE(:),ICE(:)
@@ -1035,7 +1027,7 @@ END MODULE DetCalc
          DO III=ISTART,IEND
             IF(III.NE.0) THEN
               IF(NPATHS.EQ.1) call write_det (6, NMRKS(:,III), .true.) 
-               CALL MCPATHSR3(NMRKS(1,III),BETA,I_P,I_HMAX,I_VMAX,NEL, NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT, &
+               CALL MCPATHSR3(NMRKS(:,III),BETA,I_P,I_HMAX,I_VMAX,NEL, NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT, &
      &         UMAT,NTAY, RHOEPS,LSTE,ICE,RIJLIST,NWHTAY,ILOGGING,ECORE,ILMAX, WLRI,WLSI,DBETA,DLWDB2)
             ELSE
                CALL MCPATHSR3(SPECDET,BETA,I_P,I_HMAX,I_VMAX,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY, &
@@ -1064,11 +1056,11 @@ END MODULE DetCalc
             IF(TNPDERIV) THEN
 !.. if we're calculating the derivatives too
                IF(III.NE.0) THEN
-               CALL MCPATHSR3(NMRKS(1,III),BETA+DBETA,I_P,I_HMAX,    &
+               CALL MCPATHSR3(NMRKS(:,III),BETA+DBETA,I_P,I_HMAX,    &
      &            I_VMAX,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,       &
      &            NMAX,ALAT,UMAT,NTAY,RHOEPS,LSTE,ICE,RIJLIST,NWHTAY,&
      &            ILOGGING,ECORE,ILMAX,WLRI1,WLSI1,DBETA,DLWDB3)
-               CALL MCPATHSR3(NMRKS(1,III),BETA-DBETA,I_P,I_HMAX,    &
+               CALL MCPATHSR3(NMRKS(:,III),BETA-DBETA,I_P,I_HMAX,    &
      &            I_VMAX,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,       &
      &            NMAX,ALAT,UMAT,NTAY,RHOEPS,LSTE,ICE,RIJLIST,NWHTAY,&
      &            ILOGGING,ECORE,ILMAX,WLRI2,WLSI2,DBETA,DLWDB4)
@@ -1099,7 +1091,7 @@ END MODULE DetCalc
                CALL FLUSH(42)
                WRITE(6,*) "Investigating det ",DETINV
                CALL FLUSH(6)
-               CALL WIRD_SUBSET(NMRKS(1,DETINV),BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY, &
+               CALL WIRD_SUBSET(NMRKS(:,DETINV),BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY, &
      &       RHOEPS,ILOGGING,TSYM,ECORE)
             ENDIF
           ENDDO
@@ -1288,7 +1280,8 @@ END MODULE DetCalc
             CALL CALCRHOPII(I,NDET,NEVAL,CK,W,BETA,I_P,ILOGGING,ECORE,WLRIS(I),WLSIS(I),TWARN)
             DLWDBS(I)=CALCDLWDB(I,NDET,NEVAL,CK,W,BETA,ECORE)
          ENDDO
-         EN=DMONTECARLOEXWI(NDET,WLRIS,WLSIS,DLWDBS,I_P,IMCSTEPS,G1,NMRKS,NEL,NBASISMAX,NBASIS,BRR,IEQSTEPS,ILOGGING)
+         STOP "DMONTECARLOEXWI is no longer functional."
+!         EN=DMONTECARLOEXWI(NDET,WLRIS,WLSIS,DLWDBS,I_P,IMCSTEPS,G1,NMRKS,NEL,NBASISMAX,NBASIS,BRR,IEQSTEPS,ILOGGING)
          WRITE(6,*) "EXACT MC RESULT=",EN
          DOEXMC=EN
          RETURN

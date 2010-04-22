@@ -38,7 +38,7 @@ module soft_exit
     use CalcData, only: Tau, DiagSft, SftDamp, StepsSft, SinglesBias, &
                         OccCASOrbs, VirtCASOrbs, NMCyc, tTruncCAS, &
                         NEquilSteps, tTruncInitiator, InitiatorWalkNo
-    use DetCalc, only: ICILevel
+    use DetCalcData, only: ICILevel
     use IntegralsData, only: tPartFreezeCore, NPartFrozen, NHolesFrozen, &
                              NVirtPartFrozen, NelVirtFrozen, tPartFreezeVirt
     use Parallel
