@@ -105,8 +105,8 @@ MODULE FciMCParMod
                                        ptr_excit_generator, &
                                        ptr_attempt_create, &
                                        ptr_get_spawn_helement, &
-                                       ptr_new_child_stats, &
-                                       ptr_encode_child)
+                                       ptr_encode_child, &
+                                       ptr_new_child_stats)
             ENDIF
             s=etime(tend)
             IterTime=IterTime+(tend(1)-tstart(1))
