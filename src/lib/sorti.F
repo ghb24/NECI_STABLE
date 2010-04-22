@@ -263,7 +263,7 @@ C.. NRB is the length of each row in RB
       INTEGER(KIND=n_int) RB(NRB,N),RRB(NRB)
       INTEGER RRA(NRA)
       INTEGER NRB,NRA
-      LOGICAL DETLT
+      INTEGER DETLT
  
       IF(N.LE.1) RETURN
       L=N/2+1
@@ -321,7 +321,7 @@ C.. NRC is the length of each row in RC
       INTEGER(Kind=n_int) RB(NRB,N),RRB(NRB)
       REAL*8 RC(NRC,N),RRC(NRC)
       INTEGER RRA(NRA),NRB,NRA
-      LOGICAL DETLT
+      INTEGER DETLT
  
       IF(N.LE.1) RETURN
       L=N/2+1
