@@ -1141,7 +1141,8 @@ MODULE Calc
           use IntegralsData, only: FCK, CST, nMax, UMat
           use IntegralsData, only: HFEDelta, HFMix, NHFIt, tHFCalc
           Use Determinants, only: FDet, tSpecDet, SpecDet, get_helement
-          Use DetCalc, only: DetInv, nDet, tRead, ICILevel
+          Use DetCalc, only: DetInv, nDet, tRead
+          Use DetCalcData, only:  ICILevel
           use global_utilities
           
           REAL*8 CalcT, CalcT2, GetRhoEps
@@ -1274,7 +1275,7 @@ MODULE Calc
           use SystemData, only: Alat, Arr,Brr, Beta, ECore, G1, LMS, LMS2, nBasis,NMSH, nBasisMax
           use SystemData, only: SymRestrict, tCSFOLD, tParity, tSpn, ALat, Beta
           use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB,BasisFN,BasisFNSize,BasisFNSizeB,nEl
-          Use DetCalc, only : CK, DetInv, nDet, nEval, tEnergy, tRead, nmrks, w
+          Use DetCalcData, only : CK, DetInv, nDet, nEval, tEnergy, tRead, nmrks, w
           Use Determinants, only: FDet, nActiveBasis, SpecDet, tSpecDet
           use IntegralsData, only: FCK, NMAX, UMat, FCK
           use IntegralsData, only: HFEDelta, HFMix,nTay

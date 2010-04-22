@@ -38,7 +38,7 @@ module mcpaths
      &          TMPTHEORY,TMCDIRECTSUM,TDIAGNODES,TGraphMorph,           &
      &          calcp_logweight,TFCIMC,TReturnPathMC,tFCIMCSerial 
          use CalcData, only: tCCMC
-         use Calc, only: TStarTrips
+         use CalcData, only: TStarTrips
          USE Logging , only : G_VMC_LOGCOUNT
          USE PrecalcData , only : PREIV_MAX,TPREVAR
          USE CCMC, only: CCMCStandalone
@@ -465,7 +465,7 @@ module mcpaths
          USE PrecalcData , only : TPREVAR
          use CalcData , only : TMPTHEORY,TDIAGNODES,TGraphMorph
          use CalcData, only : calcp_logweight,TFCIMC,TReturnPathMC
-         use Calc, only: TStarTrips
+         use CalcData, only: TStarTrips
          use global_utilities
          use mcpathsdata, only: EGP
          IMPLICIT NONE

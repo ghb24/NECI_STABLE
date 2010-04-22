@@ -829,7 +829,7 @@ MODULE CCMC
 
 ! We create a transition matrix where each element correpsonds to a cluster.  We encode cluster X=(a_{X_i}) = (x,y,z)  as an 'bit' string in base Det-1 sum_{i=1}^{|X|} (X_i-1)*(Det-1)**(i-1)
    INTEGER FUNCTION GetClusterIndex(Clust,iSize,TL)
-      use DetCalc, only: Det       ! The number of Dets/Excitors in FCIDets
+      use DetCalcData, only: Det       ! The number of Dets/Excitors in FCIDets
       Use CCMCData, only: CCTransitionLog
       IMPLICIT NONE
       INTEGER iSize,Clust(iSize)
@@ -892,7 +892,7 @@ MODULE CCMC
 
 ! We create a transition matrix where each element correpsonds to a cluster.  We encode cluster X=(a_{X_i}) = (x,y,z)  as an 'bit' string in base Det-1 sum_{i=1}^{|X|} (X_i-1)*(Det-1)**(i-1)
    INTEGER FUNCTION GetClusterIndLevel(oind)
-      use DetCalc, only: Det       ! The number of Dets/Excitors in FCIDets
+      use DetCalcData, only: Det       ! The number of Dets/Excitors in FCIDets
       IMPLICIT NONE
       INTEGER i
       INTEGER ind,oind
@@ -909,7 +909,7 @@ MODULE CCMC
 !Write a Cluster index, decompressing it into its individual excitors.
 ! We create a transition matrix where each element correpsonds to a cluster.  We encode cluster X=(a_{X_i}) = (x,y,z)  as an 'bit' string in base Det sum_{i=1}^{|X|} (X_i)*(Det)**(i-1)
    SUBROUTINE WriteClusterInd(iUnit,ind0,lTerm,TL,tNonUniq)
-      use DetCalc, only: Det,FciDets       ! The number of Dets/Excitors in FCIDets
+      use DetCalcData, only: Det,FciDets       ! The number of Dets/Excitors in FCIDets
       use FCIMCParMod, only: iLutHF
       use CCMCData, only: Cluster,CCTransitionLog
       IMPLICIT NONE
@@ -998,7 +998,7 @@ MODULE CCMC
 
 !Write a Cluster.
    SUBROUTINE WriteCluster(iUnit,C,lTerm)
-      use DetCalc, only: Det,FciDets       ! The number of Dets/Excitors in FCIDets
+      use DetCalcData, only: Det,FciDets       ! The number of Dets/Excitors in FCIDets
       use FCIMCParMod, only: iLutHF
       use CCMCData, only:  Cluster
       IMPLICIT NONE
@@ -1709,9 +1709,9 @@ subroutine AttemptSpawn(S,C,Amplitude,dTol,TL,iDebug)
    use FciMCParMod, only: BinSearchParts3
    Use CalcData, only: Tau
    use DetBitOps, only: FindBitExcitLevel
-   use DetCalc, only: FCIDets   ! (0:NIfTot, Det).  Lists all allowed excitors in compressed form
-   use DetCalc, only:FCIDetIndex! (0:nEl+1).  The index of the different excitation levels
-   use DetCalc, only: Det       ! The number of Dets/Excitors in FCIDets
+   use DetCalcData, only: FCIDets   ! (0:NIfTot, Det).  Lists all allowed excitors in compressed form
+   use DetCalcData, only:FCIDetIndex! (0:nEl+1).  The index of the different excitation levels
+   use DetCalcData, only: Det       ! The number of Dets/Excitors in FCIDets
    Use Logging, only: tCCMCLogTransitions
    use FciMCData, only: Iter
    use CalcData, only: NEquilSteps
@@ -1780,9 +1780,9 @@ subroutine AttemptDie(C,CurAmpl,OldAmpl,TL,iDebug)
    use CCMCData, only: Cluster,CCTransitionLog
    use FciMCData, only: Hii
    Use CalcData, only: Tau,DiagSft
-   use DetCalc, only: FCIDets   ! (0:NIfTot, Det).  Lists all allowed excitors in compressed form
-   use DetCalc, only:FCIDetIndex! (0:nEl+1).  The index of the different excitation levels
-   use DetCalc, only: Det       ! The number of Dets/Excitors in FCIDets
+   use DetCalcData, only: FCIDets   ! (0:NIfTot, Det).  Lists all allowed excitors in compressed form
+   use DetCalcData, only:FCIDetIndex! (0:nEl+1).  The index of the different excitation levels
+   use DetCalcData, only: Det       ! The number of Dets/Excitors in FCIDets
    use constants, only: dp
    use FciMCParMod, only: iLutHF
    Use Logging, only: lLogTransitions=>tCCMCLogTransitions
@@ -1914,9 +1914,9 @@ end subroutine AttemptDie
       use FciMCData, only: root
       use CCMCData, only: tCCMCFCI,dInitAmplitude,dProbSelNewExcitor,tExactCluster,tExactSpawn,nSpawnings,tCCBuffer
       use CCMCData, only: ClustSelector,Spawner,CCTransitionLog
-      use DetCalc, only: Det       ! The number of Dets/Excitors in FCIDets
-      use DetCalc, only: FCIDets   ! (0:NIfTot, Det).  Lists all allowed excitors in compressed form
-      use DetCalc, only:FCIDetIndex! (0:nEl+1).  The index of the different excitation levels
+      use DetCalcData, only: Det       ! The number of Dets/Excitors in FCIDets
+      use DetCalcData, only: FCIDets   ! (0:NIfTot, Det).  Lists all allowed excitors in compressed form
+      use DetCalcData, only:FCIDetIndex! (0:nEl+1).  The index of the different excitation levels
       use CalcData, only: NMCyc    ! The number of MC Cycles
       use CalcData, only: StepsSft ! The number of steps between shift updates
       use CalcData, only: TStartMP1
@@ -1930,7 +1930,7 @@ end subroutine AttemptDie
       use FciMCParMod, only: WriteHistogram
       Use Logging, only: CCMCDebug,tCCMCLogTransitions,tCCMCLogUniq
       USE Logging , only : tHistSpawn,iWriteHistEvery
-      USE DetCalc , only : ICILevel
+      USE DetCalcData , only : ICILevel
       use CalcData, only: InitWalkers,NEquilSteps
       use FciMCParMod, only: WriteFciMCStats, WriteFciMCStatsHeader
       use constants, only: dp

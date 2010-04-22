@@ -2,7 +2,7 @@
 MODULE AnnihilationMod
     use SystemData , only : NEl,tHPHF,NIfTot,NIfDBO
     use CalcData , only : TRegenExcitgens,tRegenDiagHEls,tKeepDoubleSpawns
-    USE DetCalc , only : Det,FCIDetIndex
+    USE DetCalcData , only : Det,FCIDetIndex
     USE Logging , only : tHistSpawn
     USE Parallel
     USE dSFMT_interface , only : genrand_real2_dSFMT

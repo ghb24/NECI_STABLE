@@ -25,7 +25,7 @@ MODULE FciMCParMod
                                 gen_hphf_excit
     use Determinants, only: FDet, get_helement, write_det, &
                             get_helement_det_only
-    USE DetCalc , only : ICILevel,nDet,Det,FCIDetIndex
+    USE DetCalcData , only : ICILevel,nDet,Det,FCIDetIndex
     use GenRandSymExcitNUMod, only: gen_rand_excit, GenRandSymExcitNU, &
                                     ScratchSize
     use GenRandSymExcitCSF, only: gen_csf_excit
@@ -3022,7 +3022,7 @@ MODULE FciMCParMod
 
 !Similar to WriteHistogram, but will only print out in order of maximum component, and only the averaged wavefunction
     SUBROUTINE PrintFCIMCPsi()
-        use DetCalc , only : FCIDets
+        use DetCalcData , only : FCIDets
         INTEGER :: error,i,nI(NEl),ExcitLevel,j
         REAL*8 :: norm,norm1
 
@@ -3845,12 +3845,12 @@ MODULE FciMCParMod
         USE dSFMT_interface , only : dSFMT_init
         use CalcData, only : tFCIMC
         use CalcData , only : tRandomiseHashOrbs
-        use Calc, only : VirtCASorbs,OccCASorbs,G_VMC_Seed
+        use CalcData, only : VirtCASorbs,OccCASorbs,G_VMC_Seed
         use CalcData , only : MemoryFacPart,MemoryFacAnnihil,MemoryFacSpawn,TauFactor,StepsSftImag,tCheckHighestPop
         use Determinants , only : GetH0Element3
         use SymData , only : nSymLabels,SymLabelList,SymLabelCounts
         use Logging , only : tTruncRODump
-        use DetCalc, only : NMRKS,tagNMRKS,FCIDets
+        use DetCalcData, only : NMRKS,tagNMRKS,FCIDets
         use SymExcit3, only : CountExcitations3 
         use DetBitOps, only: CountBits
         use HElem
@@ -5295,7 +5295,7 @@ END SUBROUTINE SetupExitgenPar
 !This is outside the module so it is accessible to AnnihilateMod
 SUBROUTINE BinSearchParts2(iLut,MinInd,MaxInd,PartInd,tSuccess)
     use SystemData , only : NIfTot,NIfDBO
-    use DetCalc , only : FCIDets
+    use DetCalcData , only : FCIDets
     use DetBitOps, only: DetBitLT
     INTEGER :: iLut(0:NIfTot),MinInd,MaxInd,PartInd
     INTEGER :: i,j,N,Comp

@@ -2,6 +2,7 @@
 MODULE DetCalc
         use constants, only: dp
         use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
+        use DetCalcData
         
     IMPLICIT NONE
      save
@@ -13,17 +14,10 @@ MODULE DetCalc
       INTEGER NKRY   !The number of Lanczos Krylov vectors
       INTEGER NCYCLE !The Max number of Lanczos cycles
       INTEGER DETINV !The index in the list of dets of a det to investigate
-      INTEGER ICILEVEL ! The maximum excitation level up to which to enumerate dets.  
       INTEGER IOBS,JOBS,KOBS
       LOGICAL TRHOOFR,TCORR,TFODM
 
 
-      INTEGER NDET  ! The total number of determinants we have listed
-      INTEGER Det   ! The number of determinants with the same sym
-                    ! as the reference det.  This is the number of
-                    ! dets in FCIDets
-      INTEGER, Allocatable :: FCIDets(:,:)  !This will contain a list of determinants of the same symmetry as the reference det, with dets in compressed form.  Usually (NIfTot, Det)
-      INTEGER, Allocatable :: FCIDetIndex(:)!This indicates where the excitation levels start in the FCIDets array(will go from 0->NEl+1).
 
       LOGICAL TCALCHMAT,TENERGY,TREAD,TBLOCK
       LOGICAL tFindDets           !Set if we are to enumerate all determinants within given constraints
@@ -37,14 +31,9 @@ MODULE DetCalc
       HElement_t, pointer :: HAMIL(:)    !The Hamiltonian in compressed form.  Contains only non-zero elements.  The total number of elements is in LenHamil
       INTEGER :: tagHamil=0
       INTEGER LenHamil                       !The Total number of non-zero elements in the compressed Hamiltonian
-      INTEGER, pointer :: NMRKS(:,:)=>null() !(NEL-NFROZEN,nDet)  A list of all determinants which have been enumerated.  
-      INTEGER :: tagNMRKS=0
       INTEGER iFDet                       ! The index of the Fermi det in the list of dets.
-      HElement_t, pointer :: CK(:,:)  !  (nDet,nEval) This will store the eventual eigenvectors
       HElement_t, pointer :: CKN(:,:) !  (nDet,nEval)  Temporary storage for the Lanczos routine
-      INTEGER :: tagCK=0, tagCKN=0
-      REAL*8, pointer :: W(:)  ! (nEval) This will contain the eigenvalues
-      INTEGER tagW
+      INTEGER :: tagCKN=0
 
       REAL*8 , ALLOCATABLE :: ExpandedHamil(:,:)    ! (NDet,NDet) This is the hamiltonian in expanded form, so that it can be histogrammed against.
 
