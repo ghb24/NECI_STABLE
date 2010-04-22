@@ -40,7 +40,7 @@ C.,             If 1, only allow doubles.
          IMPLICIT NONE
          TYPE(BasisFN) G1(*),ISYM
          INTEGER I_V,NEL,I_P,nBasisMax(5,*),NBASIS,BRR(*),NMSH,NMAX
-         INTEGER NTAY,I_VIND,NWHTAY,ILOGGING,J,K,I_VMAX,II
+         INTEGER NTAY(2),I_VIND,NWHTAY,ILOGGING,J,K,I_VMAX,II
          INTEGER I
          COMPLEX*16 FCK(*)
          HElement_t UMAT(*),R
@@ -62,9 +62,9 @@ C.,             If 1, only allow doubles.
          INTEGER, pointer :: NMEM(:),OGEN(:),CURGEN(:)
 
          INTEGER NMEMLEN
-         TYPE(EGP) LOCTAB(I_V)
-         TYPE(EGP) LOCTAB2(I_V)
          LOGICAL TFAIL,TNEXT
+         TYPE(EGP) LOCTAB(:)
+         TYPE(EGP) LOCTAB2(I_VIND+1)
          INTEGER L,LT,IVLEVEL,IEXFROM,IVLMAX,IVLMIN
          INTEGER ICMPDETS
          INTEGER IC
@@ -332,7 +332,8 @@ C.. nodes in the direct line back to I
 
 C.. We do this by taking a copy of LOCTAB (excluding the generator
 C.. from this node, which we haven't put in yet)
-         CALL NECI_ICOPY(I_VIND*3*2,LOCTAB,1,LOCTAB2,1)
+         IF(I_VIND>0) LOCTAB2(1:I_VIND)=LOCTAB(1:I_VIND)
+!         CALL NECI_ICOPY(I_VIND*3*2,LOCTAB,1,LOCTAB2,1)
 C.. Now start at this node, and work backwards along the path to I.
 C.. (This is equivalent to working through all previous nodes in the
 C.. path, as those which are not on our direct route back to I will have 
@@ -371,7 +372,7 @@ C.. create a copy
                nullify(CURGEN)
                allocate(CURGEN(LOCTAB2(IVLEVEL)%l))
                OGEN=>LOCTAB2(IVLEVEL)%p
-               OGEN=CURGEN
+               CURGEN(1:LOCTAB2(IVLEVEL)%l)=OGEN(1:LOCTAB2(IVLEVEL)%l)
                I_VIND=I_VIND+1
                I_VIND=I_VIND-1
                IF(IAND(IFRZ(0,I_VIND+1),8).NE.0) THEN
@@ -391,11 +392,11 @@ C.. will not be re-generated.
             IEXFROM=LOCTAB2(I_VIND+1)%v
             LOCTAB2(I_VIND+1)%p=>CURGEN
             DO WHILE(.NOT.TNEXT)
-C.. Now use the generator to make the next node,NJ
+!C.. Now use the generator to make the next node,NJ
                CALL GENSYMEXCITIT2(IPATH(1,IEXFROM),NEL,G1,
      &         NBASIS,NBASISMAX,
      &         .FALSE.,CURGEN,NJ,IC,IFRZ2,STORE,EXFLAG)
-C.. Check to see it's actually been generated
+!C.. Check to see it's actually been generated
                IF(NJ(1).EQ.0) THEN
                   TFAIL=.TRUE.
                   TNEXT=.TRUE.
@@ -446,7 +447,8 @@ C.. because we've just done that
                      HIJ(I_VIND+1,II)=(RH)
 #endif
                      HIJ(II,I_VIND+1)=RH
-                   IF(IsConnectedDet(IPATH(1,II),NJ,nEl,LOCTAB(II)%p,
+                     IF(II<I_VIND) then
+                   IF(IsConnectedDet(IPATH(1,II),NJ,nEl,LOCTAB(II+1)%p,
      &                  G1,nBasisMax,nBasis)) THEN
 !if rhoeps is zero then always set TFAIL.  if rhoeps isn't zero, then set TFAIL if Rh isn't zero (i.e. we've included it before)
                      IF(RH.NE.0.D0.OR.RHOEPS.EQ.0.D0) THEN
@@ -462,6 +464,7 @@ C.. no loops
 C.. we're not allowed to count this node
                            TFAIL=.TRUE.                  
                         ENDIF
+                       ENDIF
                       ENDIF
                      ENDIF
                   ENDIF
@@ -533,7 +536,7 @@ C.. connected, and continue from after where this node was excited
             IVLEVEL=LOCTAB2(IVLEVEL)%v
          ENDDO
          deallocate(NMEM)
-         nullify(LOCTAB(I_VIND+1)%p)
+!         nullify(LOCTAB(I_VIND+1)%p)
          FMCPR3B2RES=TOTAL
 
         If (TVARCALC(I_V).and.(I_VIND.eq.0).and.(.not.TPREVAR)) Then
