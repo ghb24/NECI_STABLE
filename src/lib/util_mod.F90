@@ -51,6 +51,7 @@ contains
     end function choose
 
     logical pure function int_arr_gt (a, b, len)
+        use constants, only: n_int
 
         ! Make a comparison we can sort integer arrays by. Return true if the
         ! first differing integer of a, b is such that a(i) > b(i).
@@ -59,8 +60,10 @@ contains
         !      len  - An optional argument to specify the size to consider.
         !             If not provided, then min(size(a), size(b)) is used.
         ! Ret:      - If a > b
+        !NOTE: These will sort by the bit-string integer length, n_int.
+        !Therefore, these may be 32 or 64 bit integers.
     
-        integer, intent(in), dimension(:) :: a, b
+        integer(kind=n_int), intent(in), dimension(:) :: a, b
         integer, intent(in), optional :: len
 
         integer llen, i
@@ -91,6 +94,7 @@ contains
         
 
     logical pure function int_arr_eq (a, b, len)
+        use constants, only: n_int
 
         ! If two specified integer arrays are equal, return true. Otherwise
         ! return false.
@@ -98,8 +102,10 @@ contains
         ! In:  a, b - The arrays to consider
         !      len  - The maximum length to consider. Otherwise will use whole
         !             length of array
+        !NOTE: These will sort by the bit-string integer length, n_int.
+        !Therefore, these may be 32 or 64 bit integers.
 
-        integer, intent(in), dimension(:) :: a, b
+        integer(kind=n_int), intent(in), dimension(:) :: a, b
         integer, intent(in), optional :: len
         
         integer llen, i
@@ -194,11 +200,14 @@ contains
 
     end function int_fmt
 
+!NOTE!! This can only be used for binary searching determinant bit strings now.
+!We can template it if it wants to be more general in the future.
     pure function binary_search (arr, val, data_size, num_items) result(pos)
+        use constants, only: n_int
 
         integer, intent(in) :: data_size, num_items
-        integer, intent(in) :: arr(data_size, num_items)
-        integer, intent(in) :: val(data_size)
+        integer(kind=n_int), intent(in) :: arr(data_size, num_items)
+        integer(kind=n_int), intent(in) :: val(data_size)
         integer :: pos
 
         integer :: hi, lo
