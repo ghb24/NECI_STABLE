@@ -10,48 +10,55 @@ module Integrals
     implicit none
 
     interface
-        ! n.b. i, j, k, l are the indices returned by gtid, not the spin-orb
-        !      numbers (unless tStoreSpinOrbs)
-        ! This is the C wrapper function to call instead of GetUMatEl
-        function get_umat_el (i, j, k, l) result(hel) bind(c)
+        function get_umat_el (fn, i, j, k, l, fn2) result(hel)
+            use, intrinsic :: iso_c_binding
             use constants, only: dp
             implicit none
+            type(c_ptr), intent(in), value :: fn
             integer, intent(in) :: i, j, k, l
-            HElement_t :: hel
-        end function
-
-        ! Subroutine to set the get_umat_el function pointer
-        subroutine set_getumatel_fn (fn) bind(c)
-            implicit none
-            interface
-                function fn (i, j, k, l) result(hel) bind(c)
-                    use constants, only: dp
-                    implicit none
-                    integer, intent(in) :: i, j, k, l
-                    HElement_t :: hel
-                end function
-            end interface
-        end subroutine
-
-        ! Two options to pass to set_getumatel_fn, as wrappers for the 
-        ! tFixLz case.
-        function get_umat_el_fixlz_storespinorbs (i, j, k, l) &
-                                                  result(hel) bind(c)
-            use constants, only: dp
-            implicit none
-            integer, intent(in) :: i, j, k, l
-            HElement_t :: hel
-        end function
-        function get_umat_el_fixlz_notspinorbs (i, j, k, l) &
-                                                result(hel) bind(c)
-            use constants, only: dp
-            implicit none
-            integer, intent(in) :: i, j, k, l
+            type(c_ptr), intent(in) :: fn2
             HElement_t :: hel
         end function
     end interface
 
-    contains
+contains
+
+    subroutine set_getumatel_fn (fn)
+        implicit none
+        interface
+            function fn (i, j, k, l) result(hel)
+                use constants, only: dp
+                implicit none
+                integer, intent(in) :: i, j, k, l
+                HElement_t :: hel
+            end function
+        end interface
+
+        call assign_proc (ptr_getumatel, fn)
+    end subroutine
+
+    subroutine set_getumatel_stack (fn)
+        implicit none
+        interface
+            function fn (i, j, k, l, fn2) result(hel)
+                use constants, only: dp
+                implicit none
+                interface
+                    function fn2 (i, j, k, l) result (hel)
+                        use constants, only: dp
+                        implicit none
+                        integer, intent(in) :: i, j, k, l
+                        HElement_t :: hel
+                    end function
+                end interface
+                integer, intent(in) :: i, j, k, l
+                HElement_t :: hel
+            end function
+        end interface
+
+        ptr_getumatel_2 = ptr_getumatel
+        call assign_proc (ptr_getumatel, fn)
+    end subroutine
 
     subroutine SetIntDefaults()
       != Set defaults for Calc data items.
@@ -1382,15 +1389,21 @@ module Integrals
         !     executed first.
         if (tFixLz) then
             if (tStoreSpinOrbs) then
-                call set_getumatel_fn (get_umat_el_fixlz_storespinorbs)
+                write (6, '(" Setting GetUmatEl to use fixed lz with &
+                            &tStoreSpinOrbs set")')
+                call stop_all ("Not", "yet")
+                !call set_getumatel_fn (get_umat_el_fixlz_storespinorbs)
             else
-                call set_getumatel_fn (get_umat_el_fixlz_notspinorbs)
+                write (6, '(" Setting GetUmatEl to use fixed lz without &
+                            &tStoreSpinOrbs set")')
+                call stop_all ("Not", "yet")
+                !call set_getumatel_fn (get_umat_el_fixlz_notspinorbs)
             endif
         endif
 
     end subroutine
 
-    function get_umat_el_normal (idi, idj, idk, idl) result(hel) bind(c)
+    function get_umat_el_normal (idi, idj, idk, idl) result(hel)
         
         ! The normal, cached case for getumatel
 
@@ -1400,7 +1413,7 @@ module Integrals
         hel = UMAT (UMatInd(idi, idj, idk, idl, 0, 0))
     end function
 
-    function get_umat_el_starstore (idi, idj, idk, idl) result(hel) bind(c)
+    function get_umat_el_starstore (idi, idj, idk, idl) result(hel)
 
         ! The case when tStarStore and tUMat2D are set
 
@@ -1753,3 +1766,26 @@ SUBROUTINE CALCTMATUEG(NBASIS,ALAT,G1,CST,TPERIODIC,OMEGA)
   RETURN
 END SUBROUTINE CALCTMATUEG
 
+! See Integrals.F90 for an interface for this function.
+function get_umat_el (fn, i, j, k, l, fn2) result(hel)
+    use, intrinsic :: iso_c_binding
+    use constants, only: dp
+    implicit none
+
+    interface
+        function fn (i, j, k, l, fn2) result(hel)
+            use constants, only: dp
+            use, intrinsic :: iso_c_binding
+            implicit none
+            integer, intent(in) :: i, j, k, l
+            type(c_ptr), intent(in), value :: fn2
+            HElement_t :: hel
+        end function
+    end interface
+
+    integer, intent(in) :: i, j, k, l
+    type(c_ptr), intent(in) :: fn2
+    HElement_t :: hel
+
+    hel = fn (i, j, k, l, fn2)
+end function

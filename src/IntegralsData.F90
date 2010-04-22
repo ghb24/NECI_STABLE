@@ -1,5 +1,6 @@
 module IntegralsData
 
+use, intrinsic :: iso_c_binding
 use constants, only: dp
 
 IMPLICIT NONE
@@ -21,6 +22,11 @@ REAL*8 :: HFMix,HFEDelta,HFCDelta
 REAL*8 :: HFRand
 REAL*8 :: DMatEpsilon !  The cutoff for density matrix elements
 Logical :: tPostFreezeHF ! Do we do HF after freezing
+
+! Function pointers to control the behaviour of get_umat_el
+type(c_ptr) :: ptr_getumatel
+type(c_ptr) :: ptr_getumatel_2
+
 
 !  From NECI.F
 HElement_t, pointer :: UMAT(:)      
