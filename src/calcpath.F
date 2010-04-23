@@ -64,6 +64,7 @@ C            IF(I_V.EQ.3) CALCPATHS=CP3CI2(RHOII,RHOIJ,I_P)
      &      I_HMAX,I_P,WEIGHT,NEL,I_VMAX,ILOGGING,DBETA,DLWDB,HIJS,ICLS)
          use constants, only: dp
          use CalcData , only : CALCP_SUB2VSTAR,CALCP_LOGWEIGHT
+         use CalcData, only: GraphEpsilon
          use global_utilities
          IMPLICIT NONE
          real(dp) CalcPaths_N
@@ -86,10 +87,7 @@ C.. RHOII2 is constructed to contain the RHOII for each point in the path
          HElement_t HIJS(1:I_V),RHOIJ(0:I_V,0:I_V),RH
          INTEGER ICLASS,ILG,ISGN
          REAL*8 WEIGHT
-!DBETA has two parts
-!DBETA(1) is DBETA
-!DBETA(2) is GRAPHEPSILON
-         REAL*8 DBETA(2)
+         REAL*8 DBETA
          real(dp) DLWDB
          INTEGER ILOGGING
          type(timer), save :: proc_timer
@@ -150,8 +148,7 @@ C            IF(I_V.EQ.3) CALCPATHS=CP3CI2(RHOII,RHOIJ,I_P)
 !     &               NWHTAY,I_HIND,NEL,IPATH2,IP2,1.D0,RHOII2,I_VMAX,
 !     &               ILOGGING)
          ENDIF
-!DBETA(2) is GRAPHEPSILON
-         IF(.NOT.(abs(CALCPATHS).GE.abs(DBETA(2)))) THEN
+         IF(.NOT.(abs(CALCPATHS).GE.abs(GraphEpsilon))) THEN
             CALCPATHS=0.D0
             DLWDB=0.D0
          ENDIF

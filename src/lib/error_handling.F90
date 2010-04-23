@@ -23,10 +23,10 @@ subroutine stop_all_c (sub_name, error_msg) bind(c, name='stop_all')
     character(len=strlen(sub_name)), target :: sub_name_tmp
     character(len=strlen(error_msg)), target :: error_msg_tmp
 
-    tmp = strncpy (c_loc(sub_name_tmp), sub_name, &
-                   int(len(sub_name_tmp), c_size_t))
-    tmp = strncpy (c_loc(error_msg_tmp), error_msg, &
-                   int(len(error_msg_tmp),c_size_t))
+!   tmp = strncpy (c_loc(sub_name_tmp), sub_name, &
+!                  int(len(sub_name_tmp), c_size_t))
+!    tmp = strncpy (c_loc(error_msg_tmp), error_msg, &
+!                  int(len(error_msg_tmp),c_size_t))
 
     !sub_name_tmp(1:2) = sub_name(1:2) !sub_name(1:len(sub_name_tmp))
     !error_msg_tmp(:) = error_msg(1:len(error_msg_tmp))

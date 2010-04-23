@@ -174,13 +174,9 @@ MODULE Calc
           BETAP=1.D-4
           TBETAP=.false.
           RHOEPSILON=1.D-6
-!DBETA now has  three elements
-!          DBETA(1) is DBETA
-!          DBETA(2) is GRAPHEPSILON
-!          DBETA(3) is PGENEPSILON
-          DBETA(1)=-1.D0
-          DBETA(2)=0.D0
-          DBETA(3)=0.D0
+          DBETA=-1.D0
+          GraphEpsilon=0
+          PGenEpsilon=0
           StarConv=1.d-3
           calcp_sub2vstar=.false.
           calcp_logweight=.false.
@@ -531,7 +527,7 @@ MODULE Calc
                 NPATHS = -1
             case("DERIV")
                 TNPDERIV = .true.
-               if (DBETA(1) .lt. 0 ) then
+               if (DBETA .lt. 0 ) then
                   call report("Only calculate energy with derivatives"&
      &            //" if delta_beta positive",.true.)
                    TNPDERIV = .false.
@@ -661,13 +657,13 @@ MODULE Calc
                     call report("Warning - declared beta/p and p. Using p.",.true.)
                 end if
             case("DELTABETA")
-                call getf(DBETA(1))
+                call getf(DBETA)
             case("RHOEPSILON")
                 call getf(RHOEPSILON)
             case("GRAPHEPSILON")
-                call getf(DBETA(2))
+                call getf(GraphEpsilon)
             case("PGENEPSILON")
-                call getf(DBETA(3))
+                call getf(PGenEpsilon)
 !This indicates the number of times the eigenvalues of the star matrix should be evaluated to achieve the linear approximation when STARSTARS set,
             case("LINEPOINTSSTAR")
                 call geti(LinePoints)

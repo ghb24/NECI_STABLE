@@ -44,6 +44,7 @@ module mcpaths
          USE CCMC, only: CCMCStandalone
          use global_utilities
          use mcpathsdata, only: EGP
+         use mcpathshdiag, only: fmcpr3b2
          IMPLICIT NONE
          TYPE(BasisFN) :: G1(*),KSYM
          INTEGER I_VMAX,NEL,NBASIS
@@ -78,7 +79,7 @@ module mcpaths
          HElement_t  HIJS(0:I_VMAX)
          TYPE(EGP) LOCTAB(I_VMAX)
          real(dp) FMCPR4B,FMCPR4C,FMCPR4D,FMCPR4D2
-         real(dp) FMCPR3STAR,FMCPR3NVSTAR,FMCPR3B2
+         real(dp) FMCPR3STAR,FMCPR3NVSTAR
          INTEGER I_CHMAX,CNWHTAY
          INTEGER ISEED,ICOUNT
          real(dp) FF,DLWDB3,TEMPTOT
@@ -468,6 +469,7 @@ module mcpaths
          use CalcData, only: TStarTrips
          use global_utilities
          use mcpathsdata, only: EGP
+         use mcpathshdiag, only: fmcpr3b2
          IMPLICIT NONE
          TYPE(BasisFN) G1(*)
          INTEGER I_VMAX,NEL,NBASIS
@@ -504,7 +506,7 @@ module mcpaths
          INTEGER IFRZ(0:NBASIS,I_VMAX)
          real(dp) MP2E(2:I_VMAX),H00,FF
          REAL*8 NTOTAL
-         real(dp) FMCPR3STAR,FMCPR3B2
+         real(dp) FMCPR3STAR
          write(6,*) "MCPATHSR3:  I_HMAX=",I_HMAX
 ! Init the weight of the 1-v graph
          WLSI=1.D0

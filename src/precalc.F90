@@ -293,6 +293,7 @@ FUNCTION MCPATHSPRE(point,NI,BETA,I_P,IPATH,K,G1,NMSH,         &
     use legacy_data, only: irat
     use mcpathsdata, only: EGP
     use mcpaths, only: fmcpr3b
+    use mcpathshdiag, only: fmcpr3b2
     IMPLICIT NONE
     TYPE(BasisFN) G1(*),KSYM
     INTEGER I_P,METH,CYCLES,NMSH,NTAY(2),L,LT,K
@@ -306,7 +307,7 @@ FUNCTION MCPATHSPRE(point,NI,BETA,I_P,IPATH,K,G1,NMSH,         &
     REAL*8 NTOTAL,BETA,ECORE,RHOEPS,DBETA,VARSUM,point,MCPATHSPRE
     REAL*8 PROB,SumX,SumY,SumXsq,SumYsq,SumXY,ORIGIMPORT
     HElement_t UMat(*),RHOIJ(0:PREIV_MAX,0:PREIV_MAX)
-    real(dp) DLWDB,TOTAL,DLWDB2,EREF,FMCPR3B2,F(2:PREIV_MAX)
+    real(dp) DLWDB,TOTAL,DLWDB2,EREF,F(2:PREIV_MAX)
     HElement_t HIJS(0:PREIV_MAX)
     real(dp) MP2E(2:PREIV_MAX),RHOII(0:PREIV_MAX),TOTAL2
     ! Saved values only go up to a vertex level of 6 - increase values if we want to go to higher vertex levels
