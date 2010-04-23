@@ -8,7 +8,7 @@ use CalcData , only : NEquilSteps,TSignShift,THFRetBias,PRet
 use CalcData , only : TProjEMP2,TFixParticleSign,TStartSinglePart,MemoryFacPart,TRegenExcitgens,TUnbiasPGeninProjE
 use CalcData , only : iPopsFileNoRead,iPopsFileNoWrite
 use Determinants, only: FDet, get_helement, GetH0Element3, write_det
-USE DetCalc , only : NMRKS,ICILevel
+USE DetCalcData , only : NMRKS,ICILevel
 use IntegralsData , only : fck,NMax,UMat
 USE global_utilities
 USE Logging , only : iWritePopsEvery,TPopsFile,TZeroProjE,TWriteDetE,MaxHistE,NoHistBins, tIncrementPops

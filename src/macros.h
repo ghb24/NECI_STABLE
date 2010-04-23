@@ -3,7 +3,7 @@
 #define IsNullDet(nI) (nI(1).eq.0)
 
 ! Is the specified orbital occupied or not?
-#define IsOcc(ilut,orb) btest(ilut((orb-1)/32), mod(orb-1,32))
+#define IsOcc(ilut,orb) btest(ilut((orb-1)/bits_n_int), mod(orb-1,bits_n_int))
 #define IsNotOcc(ilut,orb) (.not.IsOcc(ilut,orb))
 
 ! Is the specified orbital alpha or beta? Generate the appropriate pair.

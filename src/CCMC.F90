@@ -1,6 +1,6 @@
 MODULE CCMC
     use Determinants, only: get_helement, write_det, write_det_len
-    use constants, only: dp
+    use constants, only: dp,int64,n_int,end_n_int
    IMPLICIT NONE
    CONTAINS
 
@@ -77,18 +77,19 @@ MODULE CCMC
       use DetBitOps, only: DecodeBitDet
         IMPLICIT NONE
         INTEGER :: VecSlot,i,j,k,l,CopySign
-        INTEGER :: nJ(NEl),ierr,IC,Child,DetCurr(NEl),iLutnJ(0:NIfTot)
+        INTEGER :: nJ(NEl),ierr,IC,Child,DetCurr(NEl)
+        INTEGER(KIND=n_int) :: iLutnJ(0:NIfTot)
         REAL*8 :: Prob,rat,HDiagCurr,r
         INTEGER :: iDie,WalkExcitLevel,Proc
         INTEGER :: ExcitLevel,TotWalkersNew,iGetExcitLevel_2,Ex(2,2),WSign,p,Scratch1(ScratchSize),Scratch2(ScratchSize)
         LOGICAL :: tParity,tFilled
         
 ! We select up to nEl excitors at a time and store them here
-        INTEGER :: SelectedExcitors(0:NIfTot,nEl)     
+        INTEGER(KIND=n_int) :: SelectedExcitors(0:NIfTot,nEl)     
         INTEGER :: SelectedExcitorIndices(nEl)     
 
 ! Temporary Storage
-        INTEGER iLutnI(0:nIfTot)
+        INTEGER(KIND=n_int) :: iLutnI(0:nIfTot)
 
         ! Unused
         integer :: scratch3(scratchsize)
@@ -765,7 +766,7 @@ MODULE CCMC
 !***Birth/death processes finished. Tidy up and then annihilate.
 
 !SumWalkersCyc calculates the total number of walkers over an update cycle on each process
-        SumWalkersCyc=SumWalkersCyc+(INT(TotParts,i2))
+        SumWalkersCyc=SumWalkersCyc+(INT(TotParts,int64))
 !        WRITE(6,*) "Born, Die: ",NoBorn, NoDied
 
 
@@ -829,7 +830,7 @@ MODULE CCMC
 
 ! We create a transition matrix where each element correpsonds to a cluster.  We encode cluster X=(a_{X_i}) = (x,y,z)  as an 'bit' string in base Det-1 sum_{i=1}^{|X|} (X_i-1)*(Det-1)**(i-1)
    INTEGER FUNCTION GetClusterIndex(Clust,iSize,TL)
-      use DetCalc, only: Det       ! The number of Dets/Excitors in FCIDets
+      use DetCalcData, only: Det       ! The number of Dets/Excitors in FCIDets
       Use CCMCData, only: CCTransitionLog
       IMPLICIT NONE
       INTEGER iSize,Clust(iSize)
@@ -892,7 +893,7 @@ MODULE CCMC
 
 ! We create a transition matrix where each element correpsonds to a cluster.  We encode cluster X=(a_{X_i}) = (x,y,z)  as an 'bit' string in base Det-1 sum_{i=1}^{|X|} (X_i-1)*(Det-1)**(i-1)
    INTEGER FUNCTION GetClusterIndLevel(oind)
-      use DetCalc, only: Det       ! The number of Dets/Excitors in FCIDets
+      use DetCalcData, only: Det       ! The number of Dets/Excitors in FCIDets
       IMPLICIT NONE
       INTEGER i
       INTEGER ind,oind
@@ -909,7 +910,7 @@ MODULE CCMC
 !Write a Cluster index, decompressing it into its individual excitors.
 ! We create a transition matrix where each element correpsonds to a cluster.  We encode cluster X=(a_{X_i}) = (x,y,z)  as an 'bit' string in base Det sum_{i=1}^{|X|} (X_i)*(Det)**(i-1)
    SUBROUTINE WriteClusterInd(iUnit,ind0,lTerm,TL,tNonUniq)
-      use DetCalc, only: Det,FciDets       ! The number of Dets/Excitors in FCIDets
+      use DetCalcData, only: Det,FciDets       ! The number of Dets/Excitors in FCIDets
       use FCIMCParMod, only: iLutHF
       use CCMCData, only: Cluster,CCTransitionLog
       IMPLICIT NONE
@@ -998,7 +999,7 @@ MODULE CCMC
 
 !Write a Cluster.
    SUBROUTINE WriteCluster(iUnit,C,lTerm)
-      use DetCalc, only: Det,FciDets       ! The number of Dets/Excitors in FCIDets
+      use DetCalcData, only: Det,FciDets       ! The number of Dets/Excitors in FCIDets
       use FCIMCParMod, only: iLutHF
       use CCMCData, only:  Cluster
       IMPLICIT NONE
@@ -1115,7 +1116,7 @@ LOGICAL FUNCTION GetNextCluster(CS,Dets,nDet,Amplitude,dTotAbsAmpl,iNumExcitors,
    TYPE(ClustSelector) CS
    INTEGER nDet
    REAL*8 Amplitude(nDet)
-   INTEGER Dets(0:nIfTot,nDet)
+   INTEGER(KIND=n_int) Dets(0:nIfTot,nDet)
    REAL*8 dTotAbsAmpl
    INTEGER iDebug,iMaxSizeIn
 
@@ -1285,7 +1286,7 @@ SUBROUTINE CollapseCluster(C,iLutHF,Amplitude,nDet,iDebug,tExToDet)
    use DetBitOps, only: DecodeBitDet, FindBitExcitLevel
    IMPLICIT NONE
    TYPE(Cluster) C
-   INTEGER iLutHF(0:nIfTot)
+   INTEGER(KIND=n_int) :: iLutHF(0:nIfTot)
    REAL*8 Amplitude(1:nDet)
    INTEGER nDet
    INTEGER iDebug
@@ -1333,8 +1334,9 @@ FUNCTION ExcitToDetSign(iLutRef,iLutDet,iLevel)
    IMPLICIT NONE
    INTEGER ExcitToDetSign
    INTEGER iLevel
-   INTEGER iLutRef(0:nIfTot),iLutDet(0:nIfTot)
-   INTEGER iSgn,i,j,mask
+   INTEGER(KIND=n_int) iLutRef(0:nIfTot),iLutDet(0:nIfTot)
+   INTEGER iSgn,i,j
+   INTEGER(KIND=n_int) mask
    INTEGER iAnnihil, iCreation
    iSgn=1
    iAnnihil=iLevel
@@ -1344,7 +1346,7 @@ FUNCTION ExcitToDetSign(iLutRef,iLutDet,iLevel)
 !   write(6,*) "Det",iLutDet
    DO i=0,nIfTot
       mask=ieor(iLutRef(i),iLutDet(i))
-      Do j=0,31
+      Do j=0,end_n_int
          if(btest(iLutRef(i),j)) then
 ! electron is in ref det
 !            WRITE(6,*) "Bit ",i*31+j," set in ref"
@@ -1441,7 +1443,7 @@ LOGICAL FUNCTION GetNextSpawner(S,iDebug)
    LOGICAL tDone
 
     ! unused
-    integer :: iLutnJ(0:niftot)
+    integer(kind=n_int) :: iLutnJ(0:niftot)
     integer :: scratch3(scratchsize)
 
    tDone=.false.
@@ -1532,7 +1534,7 @@ SUBROUTINE CalcClusterEnergy(tFCI,Amplitude,nExcit,ExcitList,ExcitLevelIndex,Pro
    LOGICAL tFCI
    REAL*8 Amplitude(nExcit)
    INTEGER nExcit
-   INTEGER ExcitList(0:nIfTot,nExcit)
+   INTEGER(kind=n_int) ExcitList(0:nIfTot,nExcit)
    INTEGER ExcitLevelIndex(0:nEl+1)
    REAL*8 ProjE
 
@@ -1540,7 +1542,7 @@ SUBROUTINE CalcClusterEnergy(tFCI,Amplitude,nExcit,ExcitList,ExcitLevelIndex,Pro
    REAL*8 dT1Sq,dAmp,dTmp
    INTEGER DetCurr(nEl)
    HElement_t HTmp
-   INTEGER iLutnI(0:nIfTot)
+   INTEGER(kind=n_int) iLutnI(0:nIfTot)
    iC=0
    dT1Sq=0
    do j=1,nExcit
@@ -1597,7 +1599,7 @@ SUBROUTINE InitMP1Amplitude(tFCI,Amplitude,nExcit,ExcitList,ExcitLevelIndex,dIni
    LOGICAL tFCI
    REAL*8 Amplitude(nExcit)
    INTEGER nExcit
-   INTEGER ExcitList(0:nIfTot,nExcit)
+   INTEGER(KIND=n_int) ExcitList(0:nIfTot,nExcit)
    INTEGER ExcitLevelIndex(0:nEl+1)
    REAL*8 dInitAmp,dTotAbsAmpl
 
@@ -1605,7 +1607,7 @@ SUBROUTINE InitMP1Amplitude(tFCI,Amplitude,nExcit,ExcitList,ExcitLevelIndex,dIni
    REAL*8 dT1Sq,dAmp,dTmp
    INTEGER DetCurr(nEl)
    HElement_t HTmp,H0Tmp,H0HF
-   INTEGER iLutnI(0:nIfTot)
+   INTEGER(KIND=n_int) iLutnI(0:nIfTot)
    INTEGER PartIndex
    LOGICAL tSuc
    iC=0
@@ -1709,9 +1711,9 @@ subroutine AttemptSpawn(S,C,Amplitude,dTol,TL,iDebug)
    use FciMCParMod, only: BinSearchParts3
    Use CalcData, only: Tau
    use DetBitOps, only: FindBitExcitLevel
-   use DetCalc, only: FCIDets   ! (0:NIfTot, Det).  Lists all allowed excitors in compressed form
-   use DetCalc, only:FCIDetIndex! (0:nEl+1).  The index of the different excitation levels
-   use DetCalc, only: Det       ! The number of Dets/Excitors in FCIDets
+   use DetCalcData, only: FCIDets   ! (0:NIfTot, Det).  Lists all allowed excitors in compressed form
+   use DetCalcData, only:FCIDetIndex! (0:nEl+1).  The index of the different excitation levels
+   use DetCalcData, only: Det       ! The number of Dets/Excitors in FCIDets
    Use Logging, only: tCCMCLogTransitions
    use FciMCData, only: Iter
    use CalcData, only: NEquilSteps
@@ -1780,9 +1782,9 @@ subroutine AttemptDie(C,CurAmpl,OldAmpl,TL,iDebug)
    use CCMCData, only: Cluster,CCTransitionLog
    use FciMCData, only: Hii
    Use CalcData, only: Tau,DiagSft
-   use DetCalc, only: FCIDets   ! (0:NIfTot, Det).  Lists all allowed excitors in compressed form
-   use DetCalc, only:FCIDetIndex! (0:nEl+1).  The index of the different excitation levels
-   use DetCalc, only: Det       ! The number of Dets/Excitors in FCIDets
+   use DetCalcData, only: FCIDets   ! (0:NIfTot, Det).  Lists all allowed excitors in compressed form
+   use DetCalcData, only:FCIDetIndex! (0:nEl+1).  The index of the different excitation levels
+   use DetCalcData, only: Det       ! The number of Dets/Excitors in FCIDets
    use constants, only: dp
    use FciMCParMod, only: iLutHF
    Use Logging, only: lLogTransitions=>tCCMCLogTransitions
@@ -1914,9 +1916,9 @@ end subroutine AttemptDie
       use FciMCData, only: root
       use CCMCData, only: tCCMCFCI,dInitAmplitude,dProbSelNewExcitor,tExactCluster,tExactSpawn,nSpawnings,tCCBuffer
       use CCMCData, only: ClustSelector,Spawner,CCTransitionLog
-      use DetCalc, only: Det       ! The number of Dets/Excitors in FCIDets
-      use DetCalc, only: FCIDets   ! (0:NIfTot, Det).  Lists all allowed excitors in compressed form
-      use DetCalc, only:FCIDetIndex! (0:nEl+1).  The index of the different excitation levels
+      use DetCalcData, only: Det       ! The number of Dets/Excitors in FCIDets
+      use DetCalcData, only: FCIDets   ! (0:NIfTot, Det).  Lists all allowed excitors in compressed form
+      use DetCalcData, only:FCIDetIndex! (0:nEl+1).  The index of the different excitation levels
       use CalcData, only: NMCyc    ! The number of MC Cycles
       use CalcData, only: StepsSft ! The number of steps between shift updates
       use CalcData, only: TStartMP1
@@ -1930,7 +1932,7 @@ end subroutine AttemptDie
       use FciMCParMod, only: WriteHistogram
       Use Logging, only: CCMCDebug,tCCMCLogTransitions,tCCMCLogUniq
       USE Logging , only : tHistSpawn,iWriteHistEvery
-      USE DetCalc , only : ICILevel
+      USE DetCalcData , only : ICILevel
       use CalcData, only: InitWalkers,NEquilSteps
       use FciMCParMod, only: WriteFciMCStats, WriteFciMCStatsHeader
       use constants, only: dp
@@ -2233,9 +2235,9 @@ SUBROUTINE AddBitExcitor(iLutnI,iLutnJ,iLutRef,iSgn)
    use SystemData, only : nEl,nIfD, NIfTot
    use DetBitOps, only: FindBitExcitLevel
    IMPLICIT NONE
-   INTEGER iLutnI(0:nIfTot), iLutnJ(0:nIfTot),iLutRef(0:nIfTot)
-   INTEGER iLutTmp(0:nIfTot)
-   INTEGER T1,T2,T3
+   INTEGER(KIND=n_int) iLutnI(0:nIfTot), iLutnJ(0:nIfTot),iLutRef(0:nIfTot)
+   INTEGER(KIND=n_int) iLutTmp(0:nIfTot)
+   INTEGER(KIND=n_int) T1,T2,T3
    INTEGER iSgn
 ! We need to run through the bits of J and I concurrently, setting bits of I
    INTEGER i,j
@@ -2287,7 +2289,7 @@ SUBROUTINE AddBitExcitor(iLutnI,iLutnJ,iLutRef,iSgn)
       T1=IAND(NOT(iLutnI(i)),iLutRef(i))
       T2=IAND(NOT(iLutnJ(i)),iLutRef(i))
       T3=0
-      do j=0,31
+      do j=0,end_n_int
 !      WRITE(6,'(A,B33.32,B33.32,B33.32)') 'T1,T3,T2: ',T1,T3,T2
          if(BTEST(T1,j)) THEN
             iTmpLevel=iTmpLevel+1
@@ -2331,7 +2333,7 @@ SUBROUTINE AddBitExcitor(iLutnI,iLutnJ,iLutRef,iSgn)
 ! with the appropriate sign change.
 ! iI,iJ and iTmpLevel indicate the number of annihilators left in I J or Tmp.
       T3=0
-      do j=31,0,-1
+      do j=end_n_int,0,-1
 !      WRITE(6,'(A,B33.32,B33.32,B33.32)') 'T1,T3,T2: ',T1,IOR(T3,ieor(iLutTmp(i),iLutRef(i))),T2
          if(BTEST(T1,j)) THEN
             iTmpLevel=iTmpLevel+1
@@ -2358,7 +2360,7 @@ subroutine WriteDExcitorList(iUnit,Amplitude,Dets,offset,nDet,dTol,Title)
    use FciMCParMod, only: iLutHF
    IMPLICIT NONE
    INTEGER iUnit,nDet
-   INTEGER Dets(0:nIfTot,nDet)
+   INTEGER(KIND=n_int) Dets(0:nIfTot,nDet)
    REAL*8 Amplitude(nDet),dTol
    CHARACTER(len=*) Title
    INTEGER j,offset
@@ -2669,7 +2671,7 @@ END SUBROUTINE GetNextNonZeroExcitorD
       implicit none
       integer iUnit, nLev,nMax
       real*8 Amps(*)
-      INTEGER Dets(0:nIfTot,*)
+      INTEGER(KIND=n_int) Dets(0:nIfTot,*)
       INTEGER LevIndex(0:nLev+1) 
       
       integer BestIndex(nMax+1)

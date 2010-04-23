@@ -2,7 +2,7 @@
 MODULE AnnihilationMod
     use SystemData , only : NEl,tHPHF,NIfTot,NIfDBO
     use CalcData , only : TRegenExcitgens,tRegenDiagHEls,tKeepDoubleSpawns
-    USE DetCalc , only : Det,FCIDetIndex
+    USE DetCalcData , only : Det,FCIDetIndex
     USE Logging , only : tHistSpawn
     USE Parallel
     USE dSFMT_interface , only : genrand_real2_dSFMT
@@ -11,6 +11,7 @@ MODULE AnnihilationMod
     use CalcData , only : tTruncInitiator
     use Determinants, only: get_helement
     use hphf_integrals, only: hphf_diag_helement, hphf_off_diag_helement
+    use constants, only: n_int
     IMPLICIT NONE
 
     contains
@@ -19,6 +20,7 @@ MODULE AnnihilationMod
     !   H Elements - send through logical to decide whether to create or not.
     !   Parallel spawned parts - create the ValidSpawnedList itself.
     SUBROUTINE AnnihilationInterface(TotDets,MainParts,MainSign,MaxMainInd,SpawnDets,SpawnParts,SpawnSign,MaxSpawnInd)
+        use constants, only: size_n_int
 !This is an interface routine to the Direct Annihilation routines.
 !It is not quite as fast as the main annihilation routines since there is a small degree of initialisation required
 !which can be achieved on-the-fly if increased performance is required.
@@ -45,7 +47,8 @@ MODULE AnnihilationMod
 
         INTEGER, INTENT(IN) :: MaxMainInd,MaxSpawnInd
         INTEGER, INTENT(INOUT) :: TotDets
-        INTEGER, INTENT(INOUT) , TARGET :: MainParts(0:NIfTot,MaxMainInd),SpawnParts(0:NIfTot,MaxSpawnInd),MainSign(MaxMainInd),SpawnSign(MaxSpawnInd)
+        INTEGER(KIND=n_int), INTENT(INOUT) , TARGET :: MainParts(0:NIfTot,MaxMainInd),SpawnParts(0:NIfTot,MaxSpawnInd)
+        INTEGER, INTENT(INOUT) , TARGET :: MainSign(MaxMainInd),SpawnSign(MaxSpawnInd)
         INTEGER, INTENT(INOUT) :: SpawnDets
         INTEGER :: ierr
         CHARACTER(len=*) , PARAMETER :: this_routine='AnnihilationInterface'
@@ -57,10 +60,10 @@ MODULE AnnihilationMod
         IF(.not.(ALLOCATED(SpawnVec2))) THEN
 !This is required scratch space of the size of the spawned arrays
             ALLOCATE(SpawnVec2(0:NIfTot,MaxSpawnInd),stat=ierr)
-            CALL LogMemAlloc('SpawnVec2',MaxSpawnInd*(NIfTot+1),4,this_routine,SpawnVec2Tag,ierr)
+            CALL LogMemAlloc('SpawnVec2',MaxSpawnInd*(NIfTot+1),size_n_int,this_routine,SpawnVec2Tag,ierr)
             SpawnVec2(:,:)=0
             ALLOCATE(SpawnSignVec2(0:MaxSpawnInd),stat=ierr)
-            CALL LogMemAlloc('SpawnSignVec2',MaxSpawnInd+1,4,this_routine,SpawnSignVec2Tag,ierr)
+            CALL LogMemAlloc('SpawnSignVec2',MaxSpawnInd+1,size_n_int,this_routine,SpawnSignVec2Tag,ierr)
             SpawnSignVec2(:)=0
         ENDIF
 
@@ -145,6 +148,7 @@ MODULE AnnihilationMod
 
 !This routine is used for sending the determinants to the correct processors. 
     SUBROUTINE SendProcNewParts(MaxIndex)
+        use constants, only: MpiDetInt
         REAL :: Gap
         INTEGER :: i,sendcounts(nProcessors),disps(nProcessors),recvcounts(nProcessors),recvdisps(nProcessors),error
         INTEGER :: MaxIndex,MaxSendIndex
@@ -215,7 +219,7 @@ MODULE AnnihilationMod
 !            WRITE(6,*) i,"***",SpawnedParts(:,i)
 !        enddo
 #ifdef PARALLEL
-        CALL MPI_AlltoAllv(SpawnedParts(:,1:MaxSendIndex),sendcounts,disps,MPI_INTEGER,SpawnedParts2,recvcounts,recvdisps,MPI_INTEGER,MPI_COMM_WORLD,error)
+        CALL MPI_AlltoAllv(SpawnedParts(:,1:MaxSendIndex),sendcounts,disps,MpiDetInt,SpawnedParts2,recvcounts,recvdisps,MpiDetInt,MPI_COMM_WORLD,error)
 #else
         SpawnedParts2(0:NIfTot,1:MaxIndex)=SpawnedParts(0:NIfTot,1:MaxSendIndex)
 #endif
@@ -710,8 +714,9 @@ MODULE AnnihilationMod
         use systemdata , only: NIfDBO
         use CalcData , only: tRandomiseHashOrbs
         use FciMCData, only: RandomHash 
-        INTEGER :: iLut(0:NIfTot),i,j,Elecs!,TempDet(NEl),MurmurHash2Wrapper
-        INTEGER(KIND=i2) :: Summ!,RangeofBins,NextBin
+        INTEGER(KIND=n_int) :: iLut(0:NIfTot)
+        INTEGER :: i,j,Elecs!,TempDet(NEl),MurmurHash2Wrapper
+        INTEGER(KIND=int64) :: Summ!,RangeofBins,NextBin
 
 !        CALL DecodeBitDet(TempDet,iLut)
 !        i=MurmurHash2Wrapper(TempDet,NEl,13)
@@ -720,10 +725,18 @@ MODULE AnnihilationMod
             Summ=0
             Elecs=0
             lp1: do i=0,NIfDBO
+#ifdef __INT64
+                do j=0,63
+#else
                 do j=0,31
+#endif
                     IF(BTEST(iLut(i),j)) THEN
                         Elecs=Elecs+1
+#ifdef __INT64
+                        Summ=(1099511628211_8*Summ)+RandomHash((i*64)+(j+1))*Elecs
+#else
                         Summ=(1099511628211_8*Summ)+RandomHash((i*32)+(j+1))*Elecs
+#endif
                         IF(Elecs.eq.NEl) EXIT lp1
                     ENDIF
                 enddo
@@ -734,24 +747,32 @@ MODULE AnnihilationMod
             Summ=0
             Elecs=0
             lp2: do i=0,NIfDBO
+#ifdef __INT64
+                do j=0,63
+#else
                 do j=0,31
+#endif
                     IF(BTEST(iLut(i),j)) THEN
                         Elecs=Elecs+1
+#ifdef __INT64
+                        Summ=(1099511628211_8*Summ)+((i*64)+(j+1))*Elecs
+#else
                         Summ=(1099511628211_8*Summ)+((i*32)+(j+1))*Elecs
+#endif
                         IF(Elecs.eq.NEl) EXIT lp2
                     ENDIF
                 enddo
             enddo lp2
             DetermineDetProc=abs(mod(Summ,INT(nProcessors,8)))
         ENDIF
-!        WRITE(6,*) DetermineDetProc,Summ,nProcessors
+!        WRITE(6,*) iLut(0:niftot),DetermineDetProc,Summ,nProcessors
 
     END FUNCTION DetermineDetProc
 
     
     FUNCTION CreateHash(DetCurr)
         INTEGER :: DetCurr(NEl),i
-        INTEGER(KIND=i2) :: CreateHash
+        INTEGER(KIND=int64) :: CreateHash
 
         CreateHash=0
         do i=1,NEl
@@ -824,12 +845,12 @@ MODULE AnnihilationMod
 !The buffer wants to be able to hold (MaxSpawned+1)x(NIfD+2) integers (*4 for in bytes). If we could work out the maximum ValidSpawned accross the determinants,
 !it could get reduced to this... 
         IF(nProcessors.ne.1) THEN
-            ALLOCATE(mpibuffer(8*(MaxSpawned+1)*(NIfTot+2)),stat=ierr)
+            ALLOCATE(mpibuffer(8*(MaxSpawned+1)*(2*NIfTot+2)),stat=ierr)
             IF(ierr.ne.0) THEN
                 CALL Stop_All("RotoAnnihilation","Error allocating memory for transfer buffers...")
             ENDIF
 #ifdef PARALLEL
-            CALL MPI_Buffer_attach(mpibuffer,8*(MaxSpawned+1)*(NIfTot+2),error)
+            CALL MPI_Buffer_attach(mpibuffer,8*(MaxSpawned+1)*(2*NIfTot+2),error)
 #endif
             IF(error.ne.0) THEN
                 CALL Stop_All("RotoAnnihilation","Error allocating memory for transfer buffers...")
@@ -858,7 +879,7 @@ MODULE AnnihilationMod
 
 #ifdef PARALLEL
 !Detach buffers
-            CALL MPI_Buffer_detach(mpibuffer,8*(MaxSpawned+1)*(NIfTot+2),error)
+            CALL MPI_Buffer_detach(mpibuffer,8*(MaxSpawned+1)*(2*NIfTot+2),error)
 #endif
             DEALLOCATE(mpibuffer)
         ENDIF
@@ -880,7 +901,8 @@ MODULE AnnihilationMod
     
     SUBROUTINE AnnihilateBetweenSpawnedOneProc(ValidSpawned)
         use DetBitOps, only: DecodeBitDet
-        INTEGER :: ValidSpawned,DetCurr(0:NIfTot),i,j,k,LowBound,HighBound,WSign
+        INTEGER(KIND=n_int) :: DetCurr(0:NIfTot)
+        INTEGER :: ValidSpawned,i,j,k,LowBound,HighBound,WSign
         INTEGER :: VecSlot,TotSign
 
         CALL SortBitDets(ValidSpawned,SpawnedParts(:,1:ValidSpawned), &
@@ -934,13 +956,13 @@ MODULE AnnihilationMod
     SUBROUTINE AnnihilateBetweenSpawned(ValidSpawned)
         use DetBitOps, only: DecodeBitDet
         use CalcData, only: tReadPops,tAnnihilatebyRange
-        INTEGER(KIND=i2) , ALLOCATABLE :: HashArray1(:),HashArray2(:)
+        INTEGER(KIND=int64) , ALLOCATABLE :: HashArray1(:),HashArray2(:)
         INTEGER , ALLOCATABLE :: IndexTable1(:),IndexTable2(:),ProcessVec1(:),ProcessVec2(:),TempSign(:)
         INTEGER :: i,j,k,ToAnnihilateIndex,ValidSpawned,ierr,error,sendcounts(nProcessors)
         INTEGER :: TotWalkersDet,InitialBlockIndex,FinalBlockIndex,ToAnnihilateOnProc,VecSlot
         INTEGER :: disps(nProcessors),recvcounts(nProcessors),recvdisps(nProcessors),nJ(NEl)
         INTEGER :: Minsendcounts,Maxsendcounts,DebugIter,SubListInds(2,nProcessors),MinProc,MinInd
-        INTEGER(KIND=i2) :: HashCurr,MinBin,RangeofBins,NextBinBound,MinHash
+        INTEGER(KIND=int64) :: HashCurr,MinBin,RangeofBins,NextBinBound,MinHash
         CHARACTER(len=*), PARAMETER :: this_routine='AnnihilateBetweenSpawned'
 
         CALL set_timer(AnnSpawned_time,30)
@@ -1415,7 +1437,8 @@ MODULE AnnihilationMod
     END SUBROUTINE AnnihilateBetweenSpawned
 
     SUBROUTINE LinSearchParts(DetArray,iLut,MinInd,MaxInd,PartInd,tSuccess)
-        INTEGER :: iLut(0:NIfTot),MinInd,MaxInd,PartInd,DetArray(0:NIfTot,1:MaxInd)
+        INTEGER(KIND=n_int) :: iLut(0:NIfTot),DetArray(0:NIfTot,1:MaxInd)
+        INTEGER :: MinInd,MaxInd,PartInd
         INTEGER :: i,j,N,Comp
         LOGICAL :: tSuccess
 
@@ -1444,7 +1467,8 @@ MODULE AnnihilationMod
 !If failure, then the index will be one less than the index that the particle would be in if it was present in the list.
 !(or close enough!)
     SUBROUTINE BinSearchParts(iLut,MinInd,MaxInd,PartInd,tSuccess)
-        INTEGER :: iLut(0:NIfTot),MinInd,MaxInd,PartInd
+        INTEGER(KIND=n_int) :: iLut(0:NIfTot)
+        INTEGER :: MinInd,MaxInd,PartInd
         INTEGER :: i,j,N,Comp
         LOGICAL :: tSuccess
 
@@ -1535,6 +1559,7 @@ MODULE AnnihilationMod
 !3) Do we want one of two sets of data? If two, then we need to set up a pointer system. If not, then how do we know how many particles to recieve without
 !       extra communication?
     SUBROUTINE RotateParticles(ValidSpawned)
+        use constants, only: MpiDetInt
         INTEGER :: error,ValidSpawned
 #ifdef PARALLEL
         INTEGER, DIMENSION(MPI_STATUS_SIZE) :: Stat 
@@ -1556,7 +1581,7 @@ MODULE AnnihilationMod
 !        CALL FLUSH(6)
 
 !...and then send the particles themselves...
-        CALL MPI_BSend(SpawnedParts(0:NIfTot,1:ValidSpawned),ValidSpawned*(NIfTot+1),MPI_INTEGER,MOD(iProcIndex+1,nProcessors),456,MPI_COMM_WORLD,error)
+        CALL MPI_BSend(SpawnedParts(0:NIfTot,1:ValidSpawned),ValidSpawned*(NIfTot+1),MpiDetInt,MOD(iProcIndex+1,nProcessors),456,MPI_COMM_WORLD,error)
         IF(error.ne.MPI_SUCCESS) THEN
             CALL Stop_All("RotateParticles","Error in sending particles")
         ENDIF
@@ -1574,7 +1599,7 @@ MODULE AnnihilationMod
 !Update the ValidSpawned variable for this new set of data we are about to receive...
         ValidSpawned=SpawnedSign2(0)
 
-        CALL MPI_Recv(SpawnedParts2(0:NIfTot,1:ValidSpawned),ValidSpawned*(NIfTot+1),MPI_INTEGER,MOD(iProcIndex+nProcessors-1,nProcessors),456,MPI_COMM_WORLD,Stat,error)
+        CALL MPI_Recv(SpawnedParts2(0:NIfTot,1:ValidSpawned),ValidSpawned*(NIfTot+1),MpiDetInt,MOD(iProcIndex+nProcessors-1,nProcessors),456,MPI_COMM_WORLD,Stat,error)
         IF(error.ne.MPI_SUCCESS) THEN
             CALL Stop_All("RotateParticles","Error in receiving particles")
         ENDIF

@@ -11,7 +11,7 @@ MODULE FciMCLoggingMod
     USE Determinants , only : get_helement, get_helement_excit
     USE CalcData , only : NMCyc,StepsSft
     use DetBitOps, only: DetBitEQ, FindExcitBitDet, FindBitExcitLevel
-    use constants, only: dp
+    use constants, only: dp,n_int
 
     IMPLICIT NONE
     save
@@ -439,7 +439,8 @@ MODULE FciMCLoggingMod
 
 
     SUBROUTINE TrackSpawnAttempts(Child,DetCurr,j,nJ,iLutnJ,IC,Ex,tParity)
-        INTEGER :: Child,DetCurr(NEl),j,nJ(NEl),iLutnJ(0:NIfTot),IC,Ex(2,2)
+        INTEGER :: Child,DetCurr(NEl),j,nJ(NEl),IC,Ex(2,2)
+        INTEGER(KIND=n_int) :: iLutnJ(0:NIfTot)
         LOGICAL :: tParity
         HElement_t :: HEl
 

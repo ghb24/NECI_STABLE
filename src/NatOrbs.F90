@@ -369,7 +369,7 @@ MODULE NatOrbsMod
 
 
     SUBROUTINE FillOneRDM()
-        USE DetCalc , only : Det,FCIDets,FCIDetIndex,ICILevel
+        USE DetCalcData , only : Det,FCIDets,FCIDetIndex,ICILevel
         use DetBitOps, only: DecodeBitDet, FindBitExcitLevel
 ! Det is the number of determinants in FCIDets.
 ! FCIDets contains the list of all determinants in the system in bit string representation, FCIDets(0:NIfTot,1:Det) 

@@ -12,7 +12,7 @@
 #include "macros.h"
 
 
-MODULE MCDets
+!MODULE MCDets
 !   use constants, only: dp
 !   IMPLICIT NONE
 !   logical,parameter    :: tLogExGens=.false.           !Turn on memory logging for excitation generators?  Best not to as slow
@@ -72,9 +72,9 @@ MODULE MCDets
 !ParticleData - non-array info for each particle
 !ParticleList - Contains the whole binary tree - all particles (including particleData type and determinant for each one), and details about the overall tree
 !Particle - holds data for a single particle - a single determinant and its data
-contains
+!contains
 
-subroutine MCDetsCalc(nI,iSeed,nCycles,dTau,dMu,nMaxParticles,nInitParticles,iStep,dInitShift,GrowMaxFactor,CullFactor)
+!subroutine MCDetsCalc(nI,iSeed,nCycles,dTau,dMu,nMaxParticles,nInitParticles,iStep,dInitShift,GrowMaxFactor,CullFactor)
 !   use constants, only: dp
 !   Use global_utilities
 !   Use Determinants, only: GetHElement3
@@ -127,7 +127,7 @@ subroutine MCDetsCalc(nI,iSeed,nCycles,dTau,dMu,nMaxParticles,nInitParticles,iSt
 !!   nInitParticles=1000
 !!   iStep=10
 
-    CALL Stop_All("MCDetsCalc","This code has been commented out.")
+!    CALL Stop_All("MCDetsCalc","This code has been commented out.")
 
 !    NoCulls=0
 !    CullInfo=0
@@ -228,7 +228,7 @@ subroutine MCDetsCalc(nI,iSeed,nCycles,dTau,dMu,nMaxParticles,nInitParticles,iSt
 !
 !   CLOSE(15)
 
-end subroutine MCDetsCalc
+!end subroutine MCDetsCalc
 
 
 !!Routine to update the shift
@@ -935,4 +935,4 @@ end subroutine MCDetsCalc
 !   enddo !iParticle
 !end subroutine CleanupParticles
 
-end Module MCDets
+!end Module MCDets

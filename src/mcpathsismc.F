@@ -1807,8 +1807,9 @@ C.. weight.
          use constants, only: dp
          USE SystemData , only : BasisFN
          USE PrecalcData , only : TPREVAR
-         use CalcData , only : TMPTHEORY,TMCDIRECTSUM
+         use CalcData, only: tMPTheory, tMCDirectSum, pGenEpsilon
          use util_mod, only: isnan
+         use CalcData , only : TMPTHEORY,TMCDIRECTSUM,PGenEpsilon
          IMPLICIT NONE
          TYPE(BasisFN) KSYM
          real(dp) FMCPR4D2
@@ -1831,7 +1832,7 @@ C.. weight.
          LOGICAL LISINPATH
          INTEGER IGETEXCITLEVEL
          LOGICAL TLOG,TLOG2,TLOG3
-         REAL*8 RP,DBETA(3)
+         REAL*8 RP,DBETA
          real(dp) DLWDB,DLWDB2
          HElement_t HIJS(0:I_V)
          LOGICAL ISUHFDET
@@ -1870,13 +1871,12 @@ C.. Take a copy of the old path and rho matrix etc.
         ENDIF
          IF(.not.abs(INWI).gt.0.D0) THEN
 !.. Generate a new graph
-!  DBETA(3) has PGENEPSILON hidden in it.
             RHX=-1
             IC=0
             TLOG=BTEST(ILOGGING,2)
             TLOG2=BTEST(ILOGGING,3)
             TLOG3=BTEST(ILOGGING,6)
-            DO WHILE (RHX.LE.DBETA(3))
+            DO WHILE (RHX.LE.PGenEpsilon)
                CALL FMCPR4D2GENGRAPH(NI,NEL,BETA,I_P,IPATH,I_V,XIJ,
      &           NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,
      &           NTAY,RHOEPS,RHOII,RHOIJ,ECORE,ISEED,HIJS,NMEM,I_HMAX,
@@ -1888,7 +1888,7 @@ C.. GETPATHPROB gives us the probability of generating the path
                IC=IC+1
                IF(IC.GT.10000) THEN
                   WRITE(6,*) "Have thrown away 10000 graphs with pGen<",
-     &               DBETA(3) 
+     &               PGenEpsilon 
               STOP "Have thrown away 10000 graphs with pGen<pGenEpsilon"
                ENDIF
             ENDDO

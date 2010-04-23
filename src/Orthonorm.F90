@@ -1,7 +1,7 @@
 SUBROUTINE OrthoNormx(n,m,a)
-
+   implicit none
    REAL*8 :: work(n),tau(n),a(m,n)
-   INTEGER :: k,n,m,lda,lwork,info
+   INTEGER :: i, j, k,n,m,lda,lwork,info
    REAL*8 , ALLOCATABLE :: aTa(:,:)
 
 !Input the number of vectors, n, the dimensionality of the space, m, and the matrix of vectors, a(m,n). 

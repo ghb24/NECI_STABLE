@@ -1,5 +1,5 @@
 module CCMCData
-   use constants, only: dp
+   use constants, only: dp,n_int
    implicit none
    save
    real*8   dT1SqCuml
@@ -17,9 +17,9 @@ module CCMCData
 
 !This contains information as to a chosen Cluster
 TYPE Cluster 
-   INTEGER, allocatable :: SelectedExcitors(:,:)      !(0:NIfTot,nEl)  !The excitors which make up this cluster
+   INTEGER(KIND=n_int), allocatable :: SelectedExcitors(:,:)      !(0:NIfTot,nEl)  !The excitors which make up this cluster
    INTEGER, allocatable :: SelectedExcitorIndices(:)  !(nEl)     !The indices in a list of excitors, of the excitors which make up this cluster
-   INTEGER, allocatable :: iLutDetCurr(:)             !(0:NIfTot) The determinant made from collapsing this cluster in bit representation
+   INTEGER(KIND=n_int), allocatable :: iLutDetCurr(:)             !(0:NIfTot) The determinant made from collapsing this cluster in bit representation
    INTEGER, allocatable :: DetCurr(:)                 !(nEl) The determinant made from collapsing this cluster.
    INTEGER  iSize
    INTEGER  iSgn                                      !The sign of the determinant after collapsing the cluster
@@ -64,7 +64,7 @@ TYPE Spawner
    INTEGER, allocatable :: Scratch1(:)
    INTEGER, allocatable :: Scratch2(:)
    INTEGER, allocatable :: nJ(:)           !The det which is spawned to.
-   INTEGER, allocatable :: iLutnJ(:)       !The det from which to spawn
+   INTEGER(KIND=n_int), allocatable :: iLutnJ(:)       !The det from which to spawn
    INTEGER iExcitLevel                     !The excitation level of the resultant det from the composite cluster
    HElement_t       :: HIJ
    REAL*8               :: dProbSpawn      !Prob that we spawned here (including the number of spawning events)
