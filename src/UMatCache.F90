@@ -21,8 +21,8 @@ MODULE UMatCache
 
       HElement_t, Pointer :: UMatCacheData(:,:,:) !(0:nTypes-1,nSlots,nPairs)
       INTEGER, Pointer :: UMatLabels(:,:) !(nSlots,nPairs)
-      INTEGER nSlots,nPairs,nTypes
-      INTEGER nStates
+      INTEGER :: nSlots, nPairs, nTypes
+      INTEGER :: nStates
 
 ! tSmallUMat is set if we have nStates slots per pair for storing the <ik|jk> integrals.
 ! This should only be used prior to freezing to store precalculated integrals.
@@ -76,12 +76,12 @@ MODULE UMatCache
       LOGICAL gen2CPMDInts
 
 ! nHits and nMisses are the number of cache hits and misses.
-      INTEGER nHits,nMisses
+      INTEGER :: nHits, nMisses
 ! The number of cache overwrites
-      INTEGER iCacheOvCount
+      INTEGER :: iCacheOvCount
 
 ! Some various translation tables to convert between different orderings of states.
-      LOGICAL tTransGTID,tTransFindx
+      LOGICAL :: tTransGTID, tTransFindx
       INTEGER, Pointer :: TransTable(:) !(NSTATES)
       INTEGER, Pointer :: InvTransTable(:) !(NSTATES)
 
@@ -856,7 +856,6 @@ MODULE UMatCache
          
          INTEGER onSlots,onPairs,ierr
          LOGICAL toSmallUMat,tlog,toUMat2D
-         logical GetCachedUMatEl
          character(len=*),parameter :: thisroutine='FreezeUMatCacheInt'
                   
          toUMat2D=tUMat2D
@@ -1062,7 +1061,6 @@ MODULE UMatCache
       integer  iSlot,iPair
       HElement_t UMatEl(0:nTypes-1),DummyUMatEl(0:nTypes-1)
       logical  tDummy,testfile
-      logical GetCachedUMatEl
       inquire(file="CacheDump",exist=testfile)
       if (.not.testfile) then
           write (6,*) 'CacheDump does not exist.'
@@ -1109,7 +1107,6 @@ MODULE UMatCache
       ! Variables
       integer iPair,iSlot,i,j,k,l,iCache1,iCache2,A,B,iType
       logical LSymSym
-      logical GetCachedUMatEl
       type(Symmetry) TotSymRep
       HElement_t UMatEl
       type(Symmetry) Sym,Symprod,SymConj
@@ -1181,114 +1178,6 @@ MODULE UMatCache
         if (tTransGTID) id = TransTable(id)
     end function
       
-      
-END MODULE UMatCache
-! Still useful to keep CacheUMatEl and GetCachedUMatEl outside of the module for
-! CPMD interaction (though this should be fixed: the problem lies with the type
-! mismatch (GKElement and ) in the argument list).
-
-
-
-! Set an element in the cache.  All the work has been done for us before as the
-! element we have to set is in (ICACHEI,ICACHE) iType tells us whether we need
-! to swap/conjugate the nTypes integrals within the slot We still need to fill
-! out the space before or after  us if we've been put in the middle of a block
-! of duplicates.
-      SUBROUTINE CACHEUMATEL(A,B,UMATEL,ICACHE,ICACHEI,iType)
-         ! In:
-         !    A,B: cache indices of the element.
-         !    UMatEl: element being stored.  For calculations involving real
-         !            orbitals, this is a array of size 1 containing the
-         !            <ij|u|kl> integral (nTypes=1).  For calculations involving
-         !            complex orbtials, this is an array of size 2 containing
-         !            the <ij|u|kl> and <il|u|jk> integrals (nTypes=2).
-         !    ICache: Segment index of the cache for storing integrals involving 
-         !            index A (often equal to A).
-         !    ICacheI: Slot within ICache segment for storing UMatEl involving
-         !             B.
-         !    iType: See notes below.
-         use constants, only: dp
-         use UMatCache
-         IMPLICIT NONE
-         INTEGER A,B,ICACHE,ICACHEI
-         HElement_t UMATEL(0:NTYPES-1),TMP(0:NTYPES-1)
-         INTEGER OLAB,IC1,I,J,ITOTAL
-         INTEGER iType
-         INTEGER iIntPos
-         SAVE ITOTAL
-         DATA ITOTAL /0/
-         if (nSlots.eq.0) return
-!         WRITE(6,*) "CU",A,B,UMATEL,iType
-!         WRITE(6,*) A,ICache,B,ICacheI
-         if(nTypes.gt.1) then
-! A number of different cases to deal with depending on the order the integral came in (see GetCachedUMatEl for details)
-!  First get which pos in the slot will be the new first pos
-            iIntPos=iand(iType,1) 
-!  If bit 1 is set we must conjg the (to-be-)first integral
-#ifdef __CMPLX
-            if(btest(iType,1)) then
-               Tmp(0)=dconjg(UMatEl(iIntPos))
-            else
-               Tmp(0)=UMatEl(iIntPos)
-            endif
-#else
-            Tmp(0)=UMatEl(iIntPos)
-#endif
-!  If bit 2 is set we must conjg the (to-be-)second integral
-#ifdef __CMPLX
-            if(btest(iType,2)) then
-               Tmp(1)=dconjg(UMatEl(1-iIntPos))
-            else
-               Tmp(1)=UMatEl(1-iIntPos)
-            endif
-#else
-            Tmp(1)=UMatEl(1-iIntPos)
-#endif
-            UMatEl=Tmp
-         endif
-!         WRITE(6,*) "CU",A,B,UMATEL,iType
-!         WRITE(69,*) NSLOTS,A,B,UMATEL,ICACHE,ICACHEI
-         IF(NSLOTS.EQ.NPAIRS.OR.UMATCACHEFLAG.EQ.1.OR.tSmallUMat) THEN
-!   small system.  only store a single element
-            UMATLABELS(ICACHEI,ICACHE)=B
-            UMatCacheData(:,ICACHEI,ICACHE)=UMATEL
-            ITOTAL=ITOTAL+1
-            RETURN
-         ENDIF
-         IC1=ICACHEI
-!         WRITE(6,*) "ICI",ICACHEI,ICACHE
-         OLAB=UMATLABELS(ICACHEI,ICACHE)
-!   If we're in a block of prior, fill after
-         DO WHILE(OLAB.LT.B.AND.ICACHEI.LE.NSLOTS)
-            UMatCacheData(:,ICACHEI,ICACHE)=UMATEL
-            UMATLABELS(ICACHEI,ICACHE)=B
-!            IF(ICACHEI.LT.1.OR.ICACHE.LT.1.OR.ICACHEI.GT.NSLOTS.OR.ICACHE.GT.NPAIRS) THEN
-!               WRITE(6,*) ICACHEI,ICACHE
-!               STOP "a"
-!            ENDIF
-            ICACHEI=ICACHEI+1
-            IF(ICACHEI.LE.NSLOTS) THEN
-               OLAB=UMATLABELS(ICACHEI,ICACHE)
-            ELSE
-               OLAB=0
-            ENDIF
-         ENDDO
-         IF(OLAB.EQ.0) ICACHEI=IC1
-!        WRITE(6,*) "ICI2",ICACHEI,ICACHE
-         DO WHILE((OLAB.GT.B.OR.OLAB.EQ.0).AND.ICACHEI.GT.0)
-            UMatCacheData(:,ICACHEI,ICACHE)=UMATEL
-            UMATLABELS(ICACHEI,ICACHE)=B
-!            IF(ICACHEI.LT.1.OR.ICACHE.LT.1.OR.ICACHEI.GT.NSLOTS.OR.ICACHE.GT.NPAIRS) THEN
-!               WRITE(6,*) ICACHEI,ICACHE
-!               STOP "b"
-!            ENDIF
-            ICACHEI=ICACHEI-1
-            OLAB=UMATLABELS(ICACHEI,ICACHE)
-         ENDDO
-      END SUBROUTINE CacheUMatEl
-
-
-
       LOGICAL FUNCTION GETCACHEDUMATEL(IDI,IDJ,IDK,IDL,UMATEL,ICACHE,ICACHEI,A,B,ITYPE)
          ! In:
          !    IDI,IDJ,IDK,IDL: orbitals indices of the integral(s). These are
@@ -1314,7 +1203,6 @@ END MODULE UMatCache
 ! Note: (i,k)>(j,l) := (k>l) || ((k==l)&&(i>j))
 
          use constants, only: dp
-         use UMatCache
          use HElem, only: HElement_t_size
 !         use SystemData, only : nBasis,G1
          IMPLICIT NONE
@@ -1501,3 +1389,111 @@ END MODULE UMatCache
          ENDIF
          RETURN
       END FUNCTION GETCACHEDUMATEL
+      
+END MODULE UMatCache
+! Still useful to keep CacheUMatEl and GetCachedUMatEl outside of the module for
+! CPMD interaction (though this should be fixed: the problem lies with the type
+! mismatch (GKElement and ) in the argument list).
+
+
+
+! Set an element in the cache.  All the work has been done for us before as the
+! element we have to set is in (ICACHEI,ICACHE) iType tells us whether we need
+! to swap/conjugate the nTypes integrals within the slot We still need to fill
+! out the space before or after  us if we've been put in the middle of a block
+! of duplicates.
+      SUBROUTINE CACHEUMATEL(A,B,UMATEL,ICACHE,ICACHEI,iType)
+         ! In:
+         !    A,B: cache indices of the element.
+         !    UMatEl: element being stored.  For calculations involving real
+         !            orbitals, this is a array of size 1 containing the
+         !            <ij|u|kl> integral (nTypes=1).  For calculations involving
+         !            complex orbtials, this is an array of size 2 containing
+         !            the <ij|u|kl> and <il|u|jk> integrals (nTypes=2).
+         !    ICache: Segment index of the cache for storing integrals involving 
+         !            index A (often equal to A).
+         !    ICacheI: Slot within ICache segment for storing UMatEl involving
+         !             B.
+         !    iType: See notes below.
+         use constants, only: dp
+         use UMatCache
+         IMPLICIT NONE
+         INTEGER A,B,ICACHE,ICACHEI
+         HElement_t UMATEL(0:NTYPES-1),TMP(0:NTYPES-1)
+         INTEGER OLAB,IC1,I,J,ITOTAL
+         INTEGER iType
+         INTEGER iIntPos
+         SAVE ITOTAL
+         DATA ITOTAL /0/
+         if (nSlots.eq.0) return
+!         WRITE(6,*) "CU",A,B,UMATEL,iType
+!         WRITE(6,*) A,ICache,B,ICacheI
+         if(nTypes.gt.1) then
+! A number of different cases to deal with depending on the order the integral came in (see GetCachedUMatEl for details)
+!  First get which pos in the slot will be the new first pos
+            iIntPos=iand(iType,1) 
+!  If bit 1 is set we must conjg the (to-be-)first integral
+#ifdef __CMPLX
+            if(btest(iType,1)) then
+               Tmp(0)=dconjg(UMatEl(iIntPos))
+            else
+               Tmp(0)=UMatEl(iIntPos)
+            endif
+#else
+            Tmp(0)=UMatEl(iIntPos)
+#endif
+!  If bit 2 is set we must conjg the (to-be-)second integral
+#ifdef __CMPLX
+            if(btest(iType,2)) then
+               Tmp(1)=dconjg(UMatEl(1-iIntPos))
+            else
+               Tmp(1)=UMatEl(1-iIntPos)
+            endif
+#else
+            Tmp(1)=UMatEl(1-iIntPos)
+#endif
+            UMatEl=Tmp
+         endif
+!         WRITE(6,*) "CU",A,B,UMATEL,iType
+!         WRITE(69,*) NSLOTS,A,B,UMATEL,ICACHE,ICACHEI
+         IF(NSLOTS.EQ.NPAIRS.OR.UMATCACHEFLAG.EQ.1.OR.tSmallUMat) THEN
+!   small system.  only store a single element
+            UMATLABELS(ICACHEI,ICACHE)=B
+            UMatCacheData(:,ICACHEI,ICACHE)=UMATEL
+            ITOTAL=ITOTAL+1
+            RETURN
+         ENDIF
+         IC1=ICACHEI
+!         WRITE(6,*) "ICI",ICACHEI,ICACHE
+         OLAB=UMATLABELS(ICACHEI,ICACHE)
+!   If we're in a block of prior, fill after
+         DO WHILE(OLAB.LT.B.AND.ICACHEI.LE.NSLOTS)
+            UMatCacheData(:,ICACHEI,ICACHE)=UMATEL
+            UMATLABELS(ICACHEI,ICACHE)=B
+!            IF(ICACHEI.LT.1.OR.ICACHE.LT.1.OR.ICACHEI.GT.NSLOTS.OR.ICACHE.GT.NPAIRS) THEN
+!               WRITE(6,*) ICACHEI,ICACHE
+!               STOP "a"
+!            ENDIF
+            ICACHEI=ICACHEI+1
+            IF(ICACHEI.LE.NSLOTS) THEN
+               OLAB=UMATLABELS(ICACHEI,ICACHE)
+            ELSE
+               OLAB=0
+            ENDIF
+         ENDDO
+         IF(OLAB.EQ.0) ICACHEI=IC1
+!        WRITE(6,*) "ICI2",ICACHEI,ICACHE
+         DO WHILE((OLAB.GT.B.OR.OLAB.EQ.0).AND.ICACHEI.GT.0)
+            UMatCacheData(:,ICACHEI,ICACHE)=UMATEL
+            UMATLABELS(ICACHEI,ICACHE)=B
+!            IF(ICACHEI.LT.1.OR.ICACHE.LT.1.OR.ICACHEI.GT.NSLOTS.OR.ICACHE.GT.NPAIRS) THEN
+!               WRITE(6,*) ICACHEI,ICACHE
+!               STOP "b"
+!            ENDIF
+            ICACHEI=ICACHEI-1
+            OLAB=UMATLABELS(ICACHEI,ICACHE)
+         ENDDO
+      END SUBROUTINE CacheUMatEl
+
+
+
