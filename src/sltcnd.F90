@@ -9,7 +9,7 @@ module sltcnd_mod
     !       --> Talk to George/Alex to see what impact that might have?
     ! TODO: It would be nice to reduce the number of variants of sltcnd_...
     !       which are floating around.
-    use constants, only: dp
+    use constants, only: dp,n_int
     use UMatCache, only: GTID
     use IntegralsData, only: UMAT
     use OneEInts, only: GetTMatEl
@@ -110,7 +110,7 @@ contains
         ! Ret: hel          - The H matrix element
 
         integer, intent(in) :: nI(nel), nJ(nel)
-        integer, intent(in) :: iLutI(0:NIfTot), iLutJ(0:NIfTot)
+        integer(kind=n_int), intent(in) :: iLutI(0:NIfTot), iLutJ(0:NIfTot)
         integer, intent(in) :: IC
         HElement_t :: hel
         integer :: ex(2,2)
@@ -153,7 +153,7 @@ contains
         ! Ret: sltcnd        - The H matrix element
 
         integer, intent(in) :: nI(nel), nJ(nel)
-        integer, intent(in) :: iLutI(0:NIfTot), iLutJ(0:NIfTot)
+        integer(kind=n_int), intent(in) :: iLutI(0:NIfTot), iLutJ(0:NIfTot)
         integer, intent(out), optional :: ICret
         integer :: IC
 

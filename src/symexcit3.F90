@@ -5,6 +5,7 @@ MODULE SymExcit3
 ! are truncating (or freezing) orbitals in such a way as to remove different alpha symm irreps from the beta.
 
     USE SystemData, only: NEl,G1,nBasis,tNoSymGenRandExcits, NIfTot
+    use constants, only: n_int
     USE GenRandSymExcitNUMod, only: SymLabelList2,SymLabelCounts2,ClassCountInd,ScratchSize
     IMPLICIT NONE
 
@@ -124,7 +125,8 @@ MODULE SymExcit3
 ! If tParity is true, two orbitals need to be switched in order to better represent the excitation, therefore a 
 ! negative sign must be included when finding the H element.
 ! When there are no more symmetry allowed excitations, tAllExcitFound becomes true.
-        INTEGER :: nI(NEl),iLut(0:NIfTot),nJ(NEl),nSingles,nDoubles,ExcitMat3(2,2),exflag
+        INTEGER(KIND=n_int) :: iLut(0:NIfTot)
+        INTEGER :: nJ(NEl),nSingles,nDoubles,ExcitMat3(2,2),exflag,nI(NEl)
         LOGICAL :: tCountOnly,tAllExcitFound,tParity
 
         IF(exflag.eq.2) THEN
@@ -162,7 +164,9 @@ MODULE SymExcit3
 ! When the last single is found it then finds the first double excitation, unless exflag=1 in which tAllExcitFound 
 ! becomes true and no more excitations are generated.
         USE SymData, only: nSymLabels
-        INTEGER :: i,a,nI(NEl),Orbi,Orba,Symi,Finala,iLut(0:NIfTot),nJ(NEl)
+        use constants, only: bits_n_int
+        INTEGER :: i,a,nI(NEl),Orbi,Orba,Symi,Finala,nJ(NEl)
+        INTEGER(KIND=n_int) :: iLut(0:NIfTot)
         INTEGER :: Orbj,Orbb,NoOcc,k,ExcitMat3(2,2),exflag,SymInd,Spina
         LOGICAL :: tInitOrbsFound,tParity,tAllExcitFound,tEndaOrbs
         INTEGER , SAVE :: OrbiIndex,OrbaIndex,Spini,NewSym,OldSym
@@ -266,7 +270,7 @@ MODULE SymExcit3
 ! Need to also make sure orbital a is unoccupied, so make sure the orbital is not in nI.
             NoOcc=0
             IF(.not.tEndaOrbs) THEN
-                do while (BTEST(iLut((Orba-1)/32),MOD((Orba-1),32)))
+                do while (BTEST(iLut((Orba-1)/bits_n_int),MOD((Orba-1),bits_n_int)))
 ! While this is true, Orba is occupied, so keep incrementing Orba until it is not.                    
                     NoOcc=NoOcc+1
                     IF(OrbaIndex+NoOcc.gt.nBasis) THEN
@@ -327,7 +331,9 @@ MODULE SymExcit3
 ! or vice versa.
         USE SystemData , only: ElecPairs
         USE GenRandSymExcitNUMod , only: PickElecPair,FindNewDet 
-        INTEGER :: nI(NEl),iLut(0:NIfTot),Orbj,Orbi,Orba,Orbb,OrbbSpin,Syma,Symb,NewSym,SymInd
+        use constants, only: bits_n_int
+        INTEGER :: nI(NEl),Orbj,Orbi,Orba,Orbb,OrbbSpin,Syma,Symb,NewSym,SymInd
+        INTEGER(KIND=n_int) :: iLut(0:NIfTot)
         INTEGER :: Elec1Ind,Elec2Ind,SymProduct,iSpn,Spinb,nJ(NEl),i,k,ExcitMat3(2,2),SumMl
         INTEGER , SAVE :: ijInd,OrbaChosen,OrbbIndex,Spina
         LOGICAL :: tDoubleExcitFound,tFirsta,tFirstb,tNewij,tNewa,tAllExcitFound,tParity
@@ -389,7 +395,7 @@ MODULE SymExcit3
 !                WRITE(6,*) "Chosen index, orbital for a: ",OrbaChosen,Orba
 
 ! The orbital chosen must be unoccupied.  This is just a test to make sure this is the case.
-                do while (BTEST(iLut((Orba-1)/32),MOD((Orba-1),32))) 
+                do while (BTEST(iLut((Orba-1)/bits_n_int),MOD((Orba-1),bits_n_int))) 
 
 ! If not, we move onto the next orbital.                    
                     IF(iSpn.ne.2) THEN
@@ -485,7 +491,7 @@ MODULE SymExcit3
                         ELSE
                             Orbb=SymLabelList2(OrbbIndex)
 ! Checking the orbital b is unoccupied and > a.                        
-                            do while ((BTEST(iLut((Orbb-1)/32),MOD((Orbb-1),32))).or.(Orbb.le.Orba))
+                            do while ((BTEST(iLut((Orbb-1)/bits_n_int),MOD((Orbb-1),bits_n_int))).or.(Orbb.le.Orba))
                                 !Orbital is occupied - try again
                                 IF(OrbbIndex.ge.(SymLabelCounts2(1,SymInd)+SymLabelCounts2(2,SymInd)-1)) THEN
                                     !Reached end of symmetry block - need new a

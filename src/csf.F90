@@ -6,7 +6,7 @@ module csf
                           NIfY, LMS, NIfTot, NIfD, iSpinSkip, STOT, ECore
     use memorymanager, only: LogMemAlloc, LogMemDealloc
     use integralsdata, only: umat, fck, nmax
-    use constants, only: dp
+    use constants, only: dp,n_int
     use dSFMT_interface, only: genrand_real2_dSFMT
     use sltcnd_mod, only: sltcnd, sltcnd_2
     use DetBitOps, only: EncodeBitDet, FindBitExcitLevel, count_open_orbs, &
@@ -50,9 +50,9 @@ contains
     ! TODO: This can be massively improved. Note that we have iLutI, iLutJ.
     !       CSFGetHelement (nI, nJ) not needed? or does it call this?
     function get_csf_helement (nI, nJ, iLutI, iLutJ, ic, ex, tParity, prob) &
-             result (hel) bind(c)
+             result (hel)
         integer, intent(in) :: nI(nel), nJ(nel), ic, ex(2,2)
-        integer, intent(in) :: iLutI(0:NIfTot), iLutJ(0:NIfTot)
+        integer(kind=n_int), intent(in) :: iLutI(0:NIfTot), iLutJ(0:NIfTot)
         logical, intent(in) :: tParity
         real(dp), intent(in) :: prob
         HElement_t :: hel
@@ -73,8 +73,8 @@ contains
         integer, intent(in) :: NI(nel), NJ(nel)
         HElement_t :: hel_ret
 
-        integer :: nopen(2), nclosed(2), nup(2), ndets(2)
-        integer :: iLutI(0:NIfTot), iLutJ(0:NIfTot), IC, i
+        integer :: nopen(2), nclosed(2), nup(2), ndets(2), IC, i
+        integer(kind=n_int) :: iLutI(0:NIfTot), iLutJ(0:NIfTot)
         integer :: S(2), Ms(2)
         logical :: bCSF(2), bBothCSF
 
@@ -165,7 +165,7 @@ contains
         ! function spaghetti code in the variable declarations.
 
         integer, intent(in) :: nI(nel), nJ(nel), nopen(2), nclosed(2)
-        integer, intent(in) :: iLutI(0:NIfTot), iLutJ(0:NIfTot)
+        integer(kind=n_int), intent(in) :: iLutI(0:NIfTot), iLutJ(0:NIfTot)
         integer, intent(in) :: nup(2), ndets(2), IC
         HElement_t :: hel_ret
 
@@ -173,7 +173,7 @@ contains
         integer :: yama1(nopen(1)), yama2(nopen(2))
         real*8 :: coeffs1(ndets(1)), coeffs2(ndets(2))
         integer :: dets1(nel, ndets(1)), dets2(nel, ndets(2))
-        integer :: ilut1(0:NIfTot,ndets(1)), ilut2(0:NIfTot,ndets(2))
+        integer(kind=n_int) :: ilut1(0:NIfTot,ndets(1)), ilut2(0:NIfTot,ndets(2))
         integer :: det_sum(ndets(1))
 
         integer :: det, i, j
@@ -294,7 +294,7 @@ contains
         ! TODO: make nopen(2) --> nopen etc.
 
         integer, intent(in) :: nI(nel), nJ(nel), nopen(2), nclosed(2)
-        integer, intent(in) :: iLutI(0:NIfTot), iLutJ(0:NIfTot)
+        integer(kind=n_int), intent(in) :: iLutI(0:NIfTot), iLutJ(0:NIfTot)
         integer, intent(in) :: nup(2), ndets(2), IC
         HElement_t :: hel_ret
 
@@ -302,7 +302,7 @@ contains
         integer :: yama(nopen(1))
         real*8 :: coeffs(ndets(1))
         integer :: dets(nel, ndets(1))
-        integer :: ilut(0:NIfTot,ndets(1))
+        integer(kind=n_int) :: ilut(0:NIfTot,ndets(1))
 
         integer :: det, i
         HElement_t :: hel
@@ -518,8 +518,9 @@ contains
         ! TODO: shift declaratino of dets into here --> we only need it to be
         !       nopen long, as we don't generate the dets.
 
+        use constants, only: bits_n_int
         integer, intent(in) :: nI(nel), nJ(nel), nopen(2), nclosed(2)
-        integer, intent(in) :: iLutI(0:NIfTot), iLutJ(0:NIfTot)
+        integer(kind=n_int), intent(in) :: iLutI(0:NIfTot), iLutJ(0:NIfTot)
         integer, intent(in) :: nup(2), ndets(2)
         integer, intent(in) :: yama1(nopen(1)), yama2(nopen(2))
         real*8, intent(out) :: coeffs1(ndets(1)), coeffs2(ndets(2))
@@ -820,8 +821,9 @@ contains
         ! As for csf_get_dets, but working with a bit representation of the
         ! permutation rather than separate integers
         
+        use constants, only: bits_n_int
         integer, intent(in) :: ndets, nup, nopen
-        integer, intent(out) :: ilut(NIfY,ndets)
+        integer(kind=n_int), intent(out) :: ilut(NIfY,ndets)
         integer :: i, det, comb(nup)
         logical :: bInc
 
@@ -830,8 +832,8 @@ contains
         forall (i=1:nup) comb(i) = i
         ilut = 1
         do det = 1, ndets
-            forall (i=1:nup) ilut((comb(i)-1)/32,det) = &
-                            ibclr(ilut((comb(i)-1)/32,det), mod(comb(i)-1,32))
+            forall (i=1:nup) ilut((comb(i)-1)/bits_n_int,det) = &
+                            ibclr(ilut((comb(i)-1)/bits_n_int,det), mod(comb(i)-1,bits_n_int))
 
             do i=1,nup
                 bInc = .false.
@@ -900,7 +902,7 @@ contains
         ! Note that det(perm(1)) /= det(perm(2)) (one must equal 1, the other
         ! must equal 2).
         ! 
-        ! Currently this assumes that nopen <= 32. This is reasonable as a CSF
+        ! Currently this assumes that nopen <= bits_n_int. This is reasonable as a CSF
         ! of that size would be unfeasible to use - we assume that on such a
         ! large system we would be using TRUNCATE-CSF. This might change with
         ! use of the initiator algorithm, in which case we will have to
@@ -924,6 +926,7 @@ contains
 
     ! TODO: comment
 
+        use constants, only: bits_n_int
         integer, intent(in) :: det(nopen), perm(2)
         integer, intent(in) :: ndets, nopen, deti
         integer, intent(in) :: det_sum(ndets)
@@ -931,7 +934,7 @@ contains
 
         integer :: sumdet, hi, lo
 
-        if (nopen > 32) call stop_all ("det_perm_pos", "nopen too large. Need&
+        if (nopen > bits_n_int) call stop_all ("det_perm_pos", "nopen too large. Need&
                                    & to move to multi-integer representation")
 
         ! Calculate the new sum value
@@ -1195,6 +1198,7 @@ contains
         ! a bit determinant - the same as part of the bit det obtained by
         ! EncodeBitDet.
 
+        use constants, only: bits_n_int
         integer, intent(in) :: nI(nel)
         integer, intent(out) :: yama(NIfY)
         integer :: i, pos, bit, nopen
@@ -1204,8 +1208,8 @@ contains
         do i=1,nel
             ! Only consider open electrons. The first has csf_yama_bit set.
             if (nopen > 0 .or. btest(nI(i), csf_yama_bit)) then
-                pos = 1 + nopen / 32
-                bit = mod(nopen, 32)
+                pos = 1 + nopen / bits_n_int
+                bit = mod(nopen, bits_n_int)
 
                 if (btest(nI(i), csf_yama_bit)) &
                     yama(pos) = ibset(yama(pos), bit)
@@ -1260,7 +1264,8 @@ contains
         ! and the Ms value for the specified csf.
         ! NB. The Ms value is no longer being used. We ASSERT that Ms == STOT
 
-        integer, intent(in) :: NI(nel), ilut(0:NIfTot)
+        integer, intent(in) :: NI(nel) 
+        integer(kind=n_int), intent(in) :: ilut(0:NIfTot)
         integer, intent(out) :: nopen, nclosed
         integer, intent(out) :: S, Ms
         integer i

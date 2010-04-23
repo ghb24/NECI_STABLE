@@ -1,5 +1,5 @@
 module hphf_integrals
-    use constants, only: dp
+    use constants, only: dp,n_int
     use SystemData, only: NEl, nBasisMax, G1, nBasis, Brr, NIftot, NIfDBO, &
                           tHub, ECore, ALat, NMSH, NIftot
     use IntegralsData, only: UMat,FCK,NMAX
@@ -17,9 +17,9 @@ module hphf_integrals
     contains
 
     function hphf_spawn_sign (nI, nJ, iLutI, iLutJ, ic, ex, &
-                                  tParity, prob) result (hel) bind(c)
+                                  tParity, prob) result (hel)
         integer, intent(in) :: nI(nel), nJ(nel), ic, ex(2,2)
-        integer, intent(in) :: iLutI(0:NIfTot), iLutJ(0:NIfTot)
+        integer(kind=n_int), intent(in) :: iLutI(0:NIfTot), iLutJ(0:NIfTot)
         logical, intent(in) :: tParity
         real(dp), intent(in) :: prob
         HElement_t :: hel
@@ -30,9 +30,9 @@ module hphf_integrals
 
     ! TODO: comment as to why!
     function hphf_off_diag_helement_spawn (nI, nJ, iLutI, iLutJ, ic, ex, &
-                                           tParity, prob) result (hel) bind(c)
+                                           tParity, prob) result (hel)
         integer, intent(in) :: nI(nel), nJ(nel), ic, ex(2,2)
-        integer, intent(in) :: iLutI(0:NIfTot), iLutJ(0:NIfTot)
+        integer(kind=n_int), intent(in) :: iLutI(0:NIfTot), iLutJ(0:NIfTot)
         logical, intent(in) :: tParity
         real(dp), intent(in) :: prob
         HElement_t :: hel
@@ -51,10 +51,11 @@ module hphf_integrals
         ! Ret: hel          - The calculated matrix element
 
         integer, intent(in) :: nI(nel), nJ(nel)
-        integer, intent(in) :: iLutnI(0:NIfTot), iLutnJ(0:NIfTot)
+        integer(kind=n_int), intent(in) :: iLutnI(0:NIfTot), iLutnJ(0:NIfTot)
         HElement_t :: hel
 
-        integer :: nI2(nel), iLutnI2(0:NIfTot)
+        integer :: nI2(nel) 
+        integer(kind=n_int) :: iLutnI2(0:NIfTot)
         integer :: ExcitLevel, OpenOrbsI, OpenOrbsJ, Ex(2,2)
         HElement_t :: MatEl2
         logical :: TestClosedShellDet, tSymmetricInts, tSign
@@ -126,10 +127,12 @@ module hphf_integrals
         !      iLutnI  - Bit representation of I
         ! Ret: hel   - The calculated matrix element
 
-        integer, intent(in) :: nI(nel), iLutnI(0:NIfTot)
+        integer, intent(in) :: nI(nel) 
+        integer(kind=n_int), intent(in) :: iLutnI(0:NIfTot)
         HElement_t :: hel
 
-        integer :: nI2(nel), iLutnI2(0:NIfTot)
+        integer :: nI2(nel)
+        integer(kind=n_int) :: iLutnI2(0:NIfTot)
         integer :: ExcitLevel, OpenOrbs
         HElement_t :: MatEl2
         logical :: TestClosedShellDet

@@ -15,9 +15,9 @@ MODULE HPHFRandExcitMod
     use GenRandSymExcitNUMod, only: gen_rand_excit, ConstructClassCounts, &
                                     CalcNonUniPGen, ScratchSize 
     use DetBitOps, only: DetBitLT, DetBitEQ, FindExcitBitDet, &
-                         FindBitExcitLevel
+                         FindBitExcitLevel,MaskAlpha,MaskBeta
     use FciMCData, only: pDoubles
-    use constants, only: dp
+    use constants, only: dp,n_int
     use HElem
     use sltcnd_mod, only: sltcnd_excit
     IMPLICIT NONE
@@ -28,8 +28,10 @@ MODULE HPHFRandExcitMod
 
 !nI will always be the determinant with the first open-shell having an alpha spin-orbital occupied.
     SUBROUTINE GenRandHPHFExcit(nI,iLutnI,nJ,iLutnJ,pDoub,exFlag,pGen)
-        INTEGER :: nI(NEl),iLutnI(0:NIfTot),iLutnJ(0:NIfTot),nJ(NEl),exFlag,ExcitMat(2,2),IC
-        INTEGER :: iLutnJ2(0:NIfTot),nI2(NEl),nJ2(NEl),Ex2(2,2),ExcitLevel,iLutnI2(0:NIfTot)
+        INTEGER :: nI(NEl),nJ(NEl),exFlag,ExcitMat(2,2),IC
+        INTEGER(KIND=n_int) :: iLutnI(0:NIfTot),iLutnJ(0:NIfTot)
+        INTEGER(KIND=n_int) :: iLutnJ2(0:NIfTot),iLutnI2(0:NIfTot)
+        INTEGER :: nI2(NEl),nJ2(NEl),Ex2(2,2),ExcitLevel
         REAL*8 :: pDoub,pGen,r,pGen2
         INTEGER :: ClassCount2(ScratchSize),ClassCount3(ScratchSize)
         integer :: arrunused(scratchsize)
@@ -185,12 +187,14 @@ MODULE HPHFRandExcitMod
 
     subroutine gen_hphf_excit (nI, iLutnI, nJ, iLutnJ, exFlag, IC, ExcitMat, &
                                tParity, pGen, tFilled, ClassCount2, &
-                               ClassCountUnocc2, scratch) bind(c)
+                               ClassCountUnocc2, scratch)
         use FciMCData, only: tGenMatHEl
 
-        integer, intent(in) :: nI(nel), iLutnI(0:niftot)
+        integer, intent(in) :: nI(nel) 
+        integer(kind=n_int), intent(in) :: iLutnI(0:niftot)
         integer, intent(in) :: exFlag
-        integer, intent(out) :: nJ(nel), iLutnJ(0:niftot)
+        integer, intent(out) :: nJ(nel)
+        integer(kind=n_int), intent(out) :: iLutnJ(0:niftot)
         integer, intent(out) :: IC, ExcitMat(2,2)
         integer, intent(inout) :: ClassCount2(ScratchSize)
         integer, intent(inout) :: ClasscountUnocc2(ScratchSize)
@@ -199,8 +203,8 @@ MODULE HPHFRandExcitMod
         logical, intent(inout) :: tFilled
         real*8, intent(out) :: pGen
 
-        integer :: iLutnJ2(0:niftot), nJ2(nel), ex2(2,2), excitLevel
-        integer :: openOrbsI, openOrbsJ, nI2(nel), iLutnI2(0:niftot)
+        integer(kind=n_int) :: iLutnJ2(0:niftot), iLutnI2(0:niftot)
+        integer :: openOrbsI, openOrbsJ, nI2(nel), nJ2(nel), ex2(2,2), excitLevel 
         real*8 :: pGen2
         HElement_t :: MatEl, MatEl2
         logical :: tGenClassCountnI, TestClosedShellDet, tSign, tSignOrig
@@ -397,7 +401,8 @@ MODULE HPHFRandExcitMod
 !iLutnI (nI) is returned as this determinant, with iLutSym (nJ) being the other.
 !If tCalciLutSym is false, iLutSym will be calculated from iLutnI. Otherwise, it won't.
     SUBROUTINE ReturnAlphaOpenDet(nI,nJ,iLutnI,iLutSym,tCalciLutSym,tCalcnISym,tSwapped)
-        INTEGER :: iLutSym(0:NIfTot),nI(NEl),iLutnI(0:NIfTot),nJ(NEl),iLutTemp(0:NIfTot),i,nTemp(NEl)
+        INTEGER(KIND=n_int) :: iLutSym(0:NIfTot),iLutnI(0:NIfTot),iLutTemp(0:NIfTot)
+        INTEGER :: i,nTemp(NEl),nJ(NEl),nI(NEl)
         LOGICAL :: tCalciLutSym,tCalcnISym,tSwapped
 
         if (tCSF) then
@@ -476,15 +481,13 @@ MODULE HPHFRandExcitMod
 !symmetric partner, also in bit form.
     SUBROUTINE FindExcitBitDetSym(iLut,iLutSym)
         IMPLICIT NONE
-        INTEGER :: iLut(0:NIfTot),iLutSym(0:NIfTot)
-        INTEGER :: iLutAlpha(0:NIfTot),iLutBeta(0:NIfTot),MaskAlpha,MaskBeta,i
+        INTEGER(KIND=n_int) :: iLut(0:NIfTot),iLutSym(0:NIfTot),iLutAlpha(0:NIfTot),iLutBeta(0:NIfTot)
+        INTEGER :: i
 
 !        WRITE(6,*) "******"
         iLutSym(:)=0
         iLutAlpha(:)=0
         iLutBeta(:)=0
-        MaskBeta=1431655765    !This is 1010101... in binary
-        MaskAlpha=-1431655766  !This is 0101010... in binary
 
 !        WRITE(6,*) "MaskAlpha: "
 !        do i=0,31
@@ -553,8 +556,9 @@ MODULE HPHFRandExcitMod
         INTEGER :: i,Iterations,nI(NEl),nJ(NEl),DetConn,nI2(NEl),nJ2(NEl),DetConn2,iUniqueHPHF,iUniqueBeta,PartInd,ierr,iExcit
         REAL*8 :: pDoub,pGen
         LOGICAL :: Unique,TestClosedShellDet,Die,tGenClassCountnI,tSwapped
-        INTEGER :: iLutnI(0:NIfTot),iLutnJ(0:NIfTot),iLutnI2(0:NIfTot),iLutSym(0:NIfTot)
-        INTEGER , ALLOCATABLE :: ConnsAlpha(:,:),ConnsBeta(:,:),ExcitGen(:),UniqueHPHFList(:,:)
+        INTEGER(KIND=n_int) :: iLutnI(0:NIfTot),iLutnJ(0:NIfTot),iLutnI2(0:NIfTot),iLutSym(0:NIfTot)
+        INTEGER(KIND=n_int), ALLOCATABLE :: ConnsAlpha(:,:),ConnsBeta(:,:),UniqueHPHFList(:,:)
+        INTEGER , ALLOCATABLE :: ExcitGen(:)
         REAL*8 , ALLOCATABLE :: Weights(:)
         INTEGER :: iMaxExcit,nStore(6),nExcitMemLen,j,k,l
         integer :: icunused, exunused(2,2), scratch3(scratchsize)
@@ -801,8 +805,8 @@ MODULE HPHFRandExcitMod
     END SUBROUTINE TestGenRandHPHFExcit
 
     SUBROUTINE BinSearchListHPHF(iLut,List,Length,MinInd,MaxInd,PartInd,tSuccess)
-        INTEGER :: iLut(0:NIfTot),MinInd,MaxInd,PartInd
-        INTEGER :: List(0:NIfTot,Length),Length
+        INTEGER(KIND=n_int) :: iLut(0:NIfTot),List(0:NIfTot,Length)
+        INTEGER :: Length,MinInd,MaxInd,PartInd
         INTEGER :: i,j,N,Comp
         LOGICAL :: tSuccess
 

@@ -234,6 +234,7 @@ contains
     End Subroutine DetInit
 
     function get_helement_compat (nI, nJ, IC, iLutI, iLutJ) result (hel)
+        use constants, only: n_int
        
         ! Get the matrix element of the hamiltonian. This assumes that we
         ! already know IC. We do not need to know iLutI, iLutJ (although
@@ -246,7 +247,7 @@ contains
         ! Ret: hel          - The desired matrix element.
 
         integer, intent(in) :: nI(nel), nJ(nel)
-        integer, intent(in), optional :: iLutI(0:NIfTot), iLutJ(0:NIfTot)
+        integer(kind=n_int), intent(in), optional :: iLutI(0:NIfTot), iLutJ(0:NIfTot)
         integer, intent(in) :: IC
         HElement_t :: hel
 
@@ -277,6 +278,7 @@ contains
     end function
     
     function get_helement_normal (nI, nJ, iLutI, iLutJ, ICret) result(hel)
+        use constants, only: n_int
 
         ! Get the matrix element of the hamiltonian.
         !
@@ -286,12 +288,13 @@ contains
         ! Ret: hel          - The desired matrix element.
         
         integer, intent(in) :: nI(nel), nJ(nel)
-        integer, intent(in), optional :: iLutI(0:NIfTot), iLutJ(0:NIfTot)
+        integer(kind=n_int), intent(in), optional :: iLutI(0:NIfTot), iLutJ(0:NIfTot)
         integer, intent(out), optional :: ICret
         HElement_t :: hel
 
         character(*), parameter :: this_routine = 'get_helement_normal'
-        integer :: ex(2,2), IC, ilut(0:NIfTot,2)
+        integer :: ex(2,2), IC
+        integer(kind=n_int) :: ilut(0:NIfTot,2)
 
         if (tHPHFInts) &
             call stop_all (this_routine, "Should not be calling HPHF &
@@ -373,7 +376,7 @@ contains
     end function get_helement_excit
 
     function get_helement_det_only (nI, nJ, iLutI, iLutJ, ic, ex, tParity, &
-                                    prob) result (hel) bind(c)
+                                    prob) result (hel)
         
         ! Calculate the Hamiltonian Matrix Element for a determinant as above.
         ! This function assumes that we have got it correct for determinants
@@ -387,8 +390,9 @@ contains
         !      tParity      - Parity of the excitation
         ! Ret: hel          - The H matrix element
 
+        use constants, only: n_int
         integer, intent(in) :: nI(nel), nJ(nel), ic, ex(2,2)
-        integer, intent(in) :: iLutI(0:NIfTot), iLutJ(0:NIfTot)
+        integer(kind=n_int), intent(in) :: iLutI(0:NIfTot), iLutJ(0:NIfTot)
         logical, intent(in) :: tParity
         real(dp), intent(in) :: prob
         HElement_t :: hel
@@ -727,8 +731,10 @@ END MODULE Determinants
          use SystemData, only : nEl, nIfTot
          use DetBitops, only: DecodeBitDet
          use Determinants, only: write_det
+         use constants, only: n_int
          implicit none
-         integer nUnit,nI(nEl),iLutnI(0:nIfTot)
+         integer nUnit,nI(nEl)
+         integer(kind=n_int) :: iLutnI(0:nIfTot)
          logical lTerm
          CALL DecodeBitDet(nI,iLutnI)
          call write_det (nUnit, nI, lTerm)
@@ -737,8 +743,10 @@ END MODULE Determinants
 ! Write bit-determinant NI to unit NUnit.  Set LTerm if to add a newline at end.  Also prints CSFs
       SUBROUTINE WriteBitEx(nUnit,iLutRef,iLutnI,lTerm)
          use SystemData, only : nEl, NIfTot
+         use constants, only: n_int
          implicit none
-         integer nUnit,nExpI(nEl),iLutRef(0:nIfTot),iLutnI(0:nIfTot)
+         integer nUnit,nExpI(nEl)
+         integer(kind=n_int) :: iLutRef(0:nIfTot),iLutnI(0:nIfTot)
          integer Ex(2,nEl)
          logical lTerm
          logical tSign

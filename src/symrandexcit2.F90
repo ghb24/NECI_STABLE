@@ -34,17 +34,16 @@ MODULE GenRandSymExcitNUMod
     use SymData, only: SymLabelList,SymLabelCounts
     use dSFMT_interface , only : genrand_real2_dSFMT
     use SymExcitDataMod 
-    use constants, only: dp
     use DetBitOps, only: FindExcitBitDet
     use sltcnd_mod, only: sltcnd_1
-    use constants, only: dp
+    use constants, only: dp,n_int,bits_n_int
     IMPLICIT NONE
 
     contains
 
     subroutine gen_rand_excit (nI, ilut, nJ, ilutnJ, exFlag, IC, ExcitMat, &
                                tParity, pGen, tFilled, ClassCount2, &
-                               ClassCountUnocc2, scratchUnused) bind(c)
+                               ClassCountUnocc2, scratchUnused)
 
         ! This routine is the same as GenRandSymexcitNu, but you can pass in 
         ! the class count arrays so that they do not have to be recalculated 
@@ -53,7 +52,8 @@ MODULE GenRandSymExcitNUMod
         ! and tFilled=T.
         ! The two arrays want to be integers, both of size (1, 1:nSymLabels)
 
-        integer, intent(in) :: nI(nel), iLut(0:niftot)
+        integer, intent(in) :: nI(nel)
+        integer(kind=n_int), intent(in) :: iLut(0:niftot)
         integer, intent(in) :: exFlag
         integer, intent(out) :: nJ(nel)
         integer, intent(out) :: IC, ExcitMat(2,2)
@@ -64,7 +64,7 @@ MODULE GenRandSymExcitNUMod
         real*8, intent(out) :: pgen
 
         ! Not used
-        integer, intent(out) :: ilutnJ(0:niftot)
+        integer(kind=n_int), intent(out) :: ilutnJ(0:niftot)
         integer, intent(inout) :: scratchUnused(ScratchSize)
 
         logical  :: tNoSuccess
@@ -158,8 +158,8 @@ MODULE GenRandSymExcitNUMod
     SUBROUTINE GenRandSymExcitNU(nI,iLut,nJ,pDoub,IC,ExcitMat,TParity,exFlag,pGen)
         INTEGER :: nI(NEl),nJ(NEl),IC,ExcitMat(2,2),exFlag
         INTEGER :: ClassCount2(ScratchSize)
-        INTEGER :: ClassCountUnocc2(ScratchSize)
-        INTEGER :: ILUT(0:NIfTot),i
+        INTEGER :: ClassCountUnocc2(ScratchSize),i
+        INTEGER(KIND=n_int) :: ILUT(0:NIfTot)
         LOGICAL :: tNoSuccess,tParity
         REAL*8 :: pDoub,pGen,r
         CHARACTER , PARAMETER :: this_routine='GenRandSymExcitNU'
@@ -246,9 +246,9 @@ MODULE GenRandSymExcitNUMod
 
     SUBROUTINE CreateDoubExcit(nI,nJ,ClassCount2,ClassCountUnocc2,ILUT,ExcitMat,tParity,pGen)
         INTEGER :: nI(NEl),nJ(NEl),ExcitMat(2,2),NExcitOtherWay,OrbB
-        INTEGER :: ClassCount2(ScratchSize)
+        INTEGER :: ClassCount2(ScratchSize),NExcitB,SpinOrbA,OrbA,SymB,NExcitA
         INTEGER :: ClassCountUnocc2(ScratchSize),SumMl,MlA,MlB
-        INTEGER :: ILUT(0:NIfTot),NExcitB,SpinOrbA,OrbA,SymB,NExcitA
+        INTEGER(KIND=n_int) :: ILUT(0:NIfTot)
         INTEGER :: Elec1Ind,Elec2Ind,SymProduct,iSpn,ForbiddenOrbs,SymA
         REAL*8 :: pGen
         LOGICAL :: tParity,tAOrbFail
@@ -332,8 +332,8 @@ MODULE GenRandSymExcitNUMod
 
     SUBROUTINE PickBOrb(nI,iSpn,ILUT,ClassCountUnocc2,SpinOrbA,OrbA,SymA,OrbB,SymB,NExcit,SymProduct,SumMl,MlA,MlB,NExcitOtherWay)
         INTEGER :: nI(NEl),iSpn,SpinOrbA,OrbA,SymB,NExcit,SymProduct,NExcitOtherWay
-        INTEGER :: OrbB,Attempts,SpinOrbB,ChosenUnocc,Ind,SumMl,MlA,MlB
-        INTEGER :: ILUT(0:NIfTot),SymA,nOrbs,z,i
+        INTEGER :: OrbB,Attempts,SpinOrbB,ChosenUnocc,Ind,SumMl,MlA,MlB,SymA,nOrbs,z,i
+        INTEGER(KIND=n_int) :: ILUT(0:NIfTot)
         INTEGER :: ClassCountUnocc2(ScratchSize)
         REAL*8 :: r
 
@@ -408,7 +408,7 @@ MODULE GenRandSymExcitNUMod
                 ENDIF
 
 !Find out if the orbital is in the determinant, or is the other unocc picked
-                IF((.not.(BTEST(ILUT((OrbB-1)/32),MOD((OrbB-1),32)))).and.(OrbB.ne.OrbA)) THEN
+                IF((.not.(BTEST(ILUT((OrbB-1)/bits_n_int),MOD((OrbB-1),bits_n_int)))).and.(OrbB.ne.OrbA)) THEN
 !The orbital is not found in the original determinant - increment z
                     z=z+1
                     IF(z.eq.ChosenUnocc) THEN
@@ -454,7 +454,7 @@ MODULE GenRandSymExcitNUMod
 !                WRITE(6,*) "SymLabelList(1:nBasis): ",SymLabelList(1:nBasis)
 
 !Find out if orbital is in nI or not. Accept if it isn't in it.
-                IF((.not.(BTEST(ILUT((OrbB-1)/32),MOD((OrbB-1),32)))).and.(OrbB.ne.OrbA)) THEN
+                IF((.not.(BTEST(ILUT((OrbB-1)/bits_n_int),MOD((OrbB-1),bits_n_int)))).and.(OrbB.ne.OrbA)) THEN
 !Orbital not in nI. Accept.
                     EXIT
                 ENDIF
@@ -800,7 +800,7 @@ MODULE GenRandSymExcitNUMod
     SUBROUTINE PickAOrb(nI,iSpn,ILUT,ClassCountUnocc2,NExcit,Elec1Ind,Elec2Ind,SpinOrbA,OrbA,SymA,SymB,SymProduct,SumMl,MlA,MlB,ForbiddenOrbs,tAOrbFail)
         INTEGER :: nI(NEl),iSpn,Elec1Ind,Elec2Ind,SpinOrbA,AttemptsOverall,SymA,ForbiddenOrbs
         INTEGER :: NExcit,ChosenUnocc,z,i,OrbA,Attempts,SymB,SymProduct,SumMl,MlA,MlB
-        INTEGER :: ILUT(0:NIfTot)
+        INTEGER(KIND=n_int) :: ILUT(0:NIfTot)
         INTEGER :: ClassCountUnocc2(ScratchSize)
         LOGICAL :: tAOrbFail
         REAL*8 :: r
@@ -844,7 +844,7 @@ MODULE GenRandSymExcitNUMod
                     do i=0,nBasis-1
 
                         !We need to find if allowed
-                        IF(.not.BTEST(ILUT(i/32),MOD(i,32))) THEN
+                        IF(.not.BTEST(ILUT(i/bits_n_int),MOD(i,bits_n_int))) THEN
                             !Is not in the original determinant - allow if sym allowed
                             !Now check that its symmetry allowed
                             SpinOrbA=G1(i+1)%Ms
@@ -874,7 +874,7 @@ MODULE GenRandSymExcitNUMod
                         ChosenUnocc=INT(nBasis*r)
 
 !Find out if orbital is in nI or not. Accept if it isn't in it.
-                        IF(.not.(BTEST(ILUT(ChosenUnocc/32),MOD(ChosenUnocc,32)))) THEN
+                        IF(.not.(BTEST(ILUT(ChosenUnocc/bits_n_int),MOD(ChosenUnocc,bits_n_int)))) THEN
 !Orbital not in nI. Accept.
                             EXIT
                         ENDIF
@@ -916,7 +916,7 @@ MODULE GenRandSymExcitNUMod
                         ENDIF
 
                         !We need to find if allowed
-                        IF(.not.BTEST(ILUT((OrbA-1)/32),MOD((OrbA-1),32))) THEN
+                        IF(.not.BTEST(ILUT((OrbA-1)/bits_n_int),MOD((OrbA-1),bits_n_int))) THEN
                             !Is not in the original determinant - allow
                             !Now check that its symmetry allowed
                             IF(IsAOrbSymAllowed(iSpn,OrbA,SpinOrbA,SymProduct,SumMl,SymA,SymB,MlA,MlB,ClassCountUnocc2)) THEN
@@ -952,7 +952,7 @@ MODULE GenRandSymExcitNUMod
                         ENDIF
 
 !Find out if orbital is in nI or not. Accept if it isn't in it.
-                        IF(.not.(BTEST(ILUT((ChosenUnocc-1)/32),MOD((ChosenUnocc-1),32)))) THEN
+                        IF(.not.(BTEST(ILUT((ChosenUnocc-1)/bits_n_int),MOD((ChosenUnocc-1),bits_n_int)))) THEN
 !Orbital not in nI. Accept.
                             EXIT
                         ENDIF
@@ -1201,8 +1201,8 @@ MODULE GenRandSymExcitNUMod
         INTEGER :: Eleci,ElecSym,nI(NEl),nJ(NEl),NExcit,iSpn,ChosenUnocc
         INTEGER :: ExcitMat(2,2),ExcitLevel,iGetExcitLevel
         INTEGER :: ClassCount2(ScratchSize)
-        INTEGER :: ClassCountUnocc2(ScratchSize),k,ElecK,Ind,SymIndex
-        INTEGER :: ILUT(0:NIfTot),Ind1,Ind2
+        INTEGER :: ClassCountUnocc2(ScratchSize),k,ElecK,Ind,SymIndex,Ind1,Ind2
+        INTEGER(KIND=n_int) :: ILUT(0:NIfTot)
         REAL*8 :: r,pGen
         LOGICAL :: tParity,IsValidDet,SymAllowed
 
@@ -1294,7 +1294,7 @@ MODULE GenRandSymExcitNUMod
             ENDIF
 
 !Find out if the orbital is in the determinant.
-            IF(.not.(BTEST(ILUT((Orb-1)/32),MOD(Orb-1,32)))) THEN
+            IF(.not.(BTEST(ILUT((Orb-1)/bits_n_int),MOD(Orb-1,bits_n_int)))) THEN
 !The orbital is not found in the original determinant - increment z
                 z=z+1
                 IF(z.eq.ChosenUnocc) THEN
@@ -1339,7 +1339,7 @@ MODULE GenRandSymExcitNUMod
                 ENDIF
 
 !Find out if orbital is in nI or not. Accept if it isn't in it.
-                IF(.not.(BTEST(ILUT((Orb-1)/32),MOD(Orb-1,32)))) THEN
+                IF(.not.(BTEST(ILUT((Orb-1)/bits_n_int),MOD(Orb-1,bits_n_int)))) THEN
 !Orbital not in nI. Accept.
                     EXIT
                 ENDIF
@@ -1401,7 +1401,7 @@ MODULE GenRandSymExcitNUMod
 
 !            do i=1,NEl
 !Create ILUT for O[1] comparison of orbitals in root determinant - This is now read in
-!                ILUT((nI(I)-1)/32)=IBSET(ILUT((NI(I)-1)/32),MOD(NI(I)-1,32))
+!                ILUT((nI(I)-1)/bits_n_int)=IBSET(ILUT((NI(I)-1)/bits_n_int),MOD(NI(I)-1,bits_n_int))
 !            enddo
 !All orbitals are in irrep 0
             ClassCount2(ClassCountInd(1,0,0))=nOccAlpha
@@ -1414,7 +1414,7 @@ MODULE GenRandSymExcitNUMod
             do i=1,NEl
                 
 !Create ILUT for O[1] comparison of orbitals in root determinant - This is now read in
-!                ILUT((nI(I)-1)/32)=IBSET(ILUT((NI(I)-1)/32),MOD(NI(I)-1,32))
+!                ILUT((nI(I)-1)/bits_n_int)=IBSET(ILUT((NI(I)-1)/bits_n_int),MOD(NI(I)-1,bits_n_int))
 
                 IF(G1(nI(i))%Ms.eq.1) THEN
 !orbital is an alpha orbital and symmetry of the orbital can be found in G1
@@ -1636,8 +1636,8 @@ MODULE GenRandSymExcitNUMod
 !Because of this, tau is needed for the timestep of the simulation, and iCreate is returned as the number of children to create
 !on the determinant. If this is zero, then no childred are to be created.
     SUBROUTINE GenRandSymExcitBiased(nI,iLut,nJ,pDoub,IC,ExcitMat,TParity,exFlag,nParts,WSign,tau,iCreate)
-        INTEGER :: nI(NEl),nJ(NEl),IC,ExcitMat(2,2),Attempts,exFlag
-        INTEGER :: ILUT(0:NIfTot),i,iCreate,nParts,WSign,ElecsWNoExcits
+        INTEGER :: nI(NEl),nJ(NEl),IC,ExcitMat(2,2),Attempts,exFlag,i,iCreate,nParts,WSign,ElecsWNoExcits
+        INTEGER(KIND=n_int) :: ILUT(0:NIfTot)
         LOGICAL :: tNoSuccess,tParity
         REAL*8 :: pDoub,pGen,r,tau
         CHARACTER , PARAMETER :: this_routine='GenRandSymExcitBiased'
@@ -1705,8 +1705,9 @@ MODULE GenRandSymExcitNUMod
     SUBROUTINE CreateSingleExcitBiased(nI,nJ,iLut,ExcitMat,tParity,ElecsWNoExcits,nParts,WSign,Tau,iCreate)
         Use SystemData, only: FCoul
         INTEGER :: ClassCount2(ScratchSize),i,Attempts,OrbA
-        INTEGER :: ClassCountUnocc2(ScratchSize)
-        INTEGER :: ElecsWNoExcits,nParts,WSign,iCreate,nI(NEl),nJ(NEl),iLut(0:NIfTot),Ind
+        INTEGER :: ClassCountUnocc2(ScratchSize),Ind
+        INTEGER :: ElecsWNoExcits,nParts,WSign,iCreate,nI(NEl),nJ(NEl)
+        INTEGER(KIND=n_int) :: iLut(0:NIfTot)
         INTEGER :: ExcitMat(2,2),SpawnOrb(nBasis),Eleci,ElecSym,NExcit,VecInd,ispn,EndSymState,j
         REAL*8 :: Tau,SpawnProb(nBasis),NormProb,r,rat
         LOGICAL :: tParity,SymAllowed
@@ -1801,7 +1802,7 @@ MODULE GenRandSymExcitNUMod
 !                OrbA=SymLabelList(1,j)
 !            ENDIF
 
-            IF(BTEST(ILUT((OrbA-1)/32),MOD((OrbA-1),32))) THEN
+            IF(BTEST(ILUT((OrbA-1)/bits_n_int),MOD((OrbA-1),bits_n_int))) THEN
 !Orbital is in nI...not an unoccupied orbital
                 CYCLE
             ENDIF
@@ -1884,7 +1885,8 @@ MODULE GenRandSymExcitNUMod
         
 
     SUBROUTINE CreateDoubExcitBiased(nI,nJ,iLut,ExcitMat,tParity,nParts,WSign,Tau,iCreate)
-        INTEGER :: nI(NEl),nJ(NEl),iLut(0:NIfTot),ExcitMat(2,2),iCreate,iSpn,OrbA,OrbB,SymProduct
+        INTEGER :: nI(NEl),nJ(NEl),ExcitMat(2,2),iCreate,iSpn,OrbA,OrbB,SymProduct
+        INTEGER(KIND=n_int) :: iLut(0:NIfTot)
         INTEGER :: Elec1Ind,Elec2Ind,nParts,WSign,SumMl
         HElement_t :: rh
         LOGICAL :: tParity
@@ -1925,7 +1927,8 @@ MODULE GenRandSymExcitNUMod
 
     SUBROUTINE CalcAllab(nI,ILUT,Elec1Ind,Elec2Ind,SymProduct,iSpn,OrbA,OrbB,nParts,iCreate,Tau)
         use Integrals , only : GetUMatEl
-        INTEGER :: nI(NEl),iLut(0:NIfTot),Elec1Ind,Elec2Ind,SymProduct,iSpn,OrbA,OrbB,iCreate
+        INTEGER :: nI(NEl),Elec1Ind,Elec2Ind,SymProduct,iSpn,OrbA,OrbB,iCreate
+        INTEGER(KIND=n_int) :: iLut(0:NIfTot)
         INTEGER :: SpatOrbi,SpatOrbj,Spini,Spinj,i,aspn,bspn,SymA,SymB,SpatOrba,EndSymState,VecInd
         REAL*8 :: Tau,SpawnProb(MaxABPairs),NormProb,rat,r
         INTEGER :: SpawnOrbs(2,MaxABPairs),j,nParts,SpinIndex,Ind
@@ -1959,7 +1962,7 @@ MODULE GenRandSymExcitNUMod
             ENDIF
             
 !We also want to check that the a orbital we have picked is not already in the determinant we are exciting from.
-            IF(BTEST(ILUT((i-1)/32),MOD((i-1),32))) THEN
+            IF(BTEST(ILUT((i-1)/bits_n_int),MOD((i-1),bits_n_int))) THEN
 !Orbital is in nI...do not make a pair from this.
                 CYCLE
             ENDIF
@@ -2012,7 +2015,7 @@ MODULE GenRandSymExcitNUMod
                     CYCLE
                 ENDIF
 
-                IF(BTEST(ILUT((OrbB-1)/32),MOD((OrbB-1),32))) THEN
+                IF(BTEST(ILUT((OrbB-1)/bits_n_int),MOD((OrbB-1),bits_n_int))) THEN
 !Orbital is in nI...do not make a pair from this.
                     CYCLE
                 ENDIF
@@ -2079,12 +2082,10 @@ MODULE GenRandSymExcitNUMod
 ! For a given ij pair in the UEG or Hubbard model, this generates ab as a double excitation efficiently.
 ! This takes into account the momentum conservation rule, i.e. that kb=ki+ki-ka(+G).
     SUBROUTINE CreateDoubExcitLattice(nI,iLutnI,nJ,tParity,ExcitMat,pGen,Elec1Ind,Elec2Ind,iSpn)
+        Use SystemData , only : NMAXX,NMAXY,NMAXZ
 
-        Use SystemData , only : G1,NEl,nOccAlpha,nOccBeta
-        Use SystemData , only : NMAXX,NMAXY,NMAXZ,NIfTot
-        use dSFMT_interface , only : genrand_real2_dSFMT
-
-        INTEGER :: i,nI(NEl),nJ(NEl),Elec1Ind,Elec2Ind,iSpn,iLutnI(0:NIfTot),kx,ky,kz,ktest(2),kb_ms,ms_sum
+        INTEGER :: i,nI(NEl),nJ(NEl),Elec1Ind,Elec2Ind,iSpn,kx,ky,kz,ktest(2),kb_ms,ms_sum
+        INTEGER(KIND=n_int) :: iLutnI(0:NIfTot)
         INTEGER :: ChosenUnocc,Hole1BasisNum,Hole2BasisNum,ki(3),kj(3),ka(3),kb(3),ExcitMat(2,2),iSpinIndex
         LOGICAL :: tAllowedExcit,tParity
         REAL*8 :: r,pGen,pAIJ
@@ -2101,7 +2102,7 @@ MODULE GenRandSymExcitNUMod
                 & -(1-(iSpn/3)) ! alpha numbered even, iSpn/3 returns 1 for alpha/alpha, 0 for beta/beta
             ENDIF
             ! Check a isn't occupied
-            IF(.not.(BTEST(iLutnI((ChosenUnocc-1)/32),MOD(ChosenUnocc-1,32)))) THEN
+            IF(.not.(BTEST(iLutnI((ChosenUnocc-1)/bits_n_int),MOD(ChosenUnocc-1,bits_n_int)))) THEN
             !Orbital not in nI. Accept.
                 EXIT
             ENDIF
@@ -2144,7 +2145,7 @@ MODULE GenRandSymExcitNUMod
             Hole2BasisNum=kPointToBasisFn(kb(1),kb(2),1,iSpinIndex)
 
             ! Is b occupied?
-            IF(BTEST(iLutnI((Hole2BasisNum-1)/32),MOD(Hole2BasisNum-1,32))) THEN
+            IF(BTEST(iLutnI((Hole2BasisNum-1)/bits_n_int),MOD(Hole2BasisNum-1,bits_n_int))) THEN
             !Orbital is in nI. Reject.
                 nJ(1)=0
                 RETURN
@@ -2188,7 +2189,7 @@ MODULE GenRandSymExcitNUMod
             ENDIF
 
             ! Is b occupied?
-            IF(BTEST(iLutnI((Hole2BasisNum-1)/32),MOD(Hole2BasisNum-1,32))) THEN
+            IF(BTEST(iLutnI((Hole2BasisNum-1)/bits_n_int),MOD(Hole2BasisNum-1,bits_n_int))) THEN
             !Orbital is in nI. Reject.
                 tAllowedExcit=.false.
             ENDIF
@@ -2247,13 +2248,12 @@ MODULE GenRandSymExcitNUMod
     ! For UEG there is a more sophisticated algorithm that allows more ijab choices to be rejected before going back to the main
     ! code.
     SUBROUTINE CreateExcitLattice(nI,iLutnI,nJ,tParity,ExcitMat,pGen)
-        Use SystemData , only : G1,NEl
-        Use SystemData , only : NMAXX,NMAXY,NMAXZ,NIfTot
-        use dSFMT_interface , only : genrand_real2_dSFMT
+        Use SystemData , only : NMAXX,NMAXY,NMAXZ
 
         INTEGER :: i,j ! Loop variables
         INTEGER :: Elec1, Elec2
-        INTEGER :: nI(NEl),nJ(NEl),Elec1Ind,Elec2Ind,ElecIndStore,ExcitMat(2,2),iLutnI(0:NIfTot),SymProduct,SumMl,iSpn
+        INTEGER :: nI(NEl),nJ(NEl),Elec1Ind,Elec2Ind,ElecIndStore,ExcitMat(2,2),SymProduct,SumMl,iSpn
+        INTEGER(KIND=n_int) :: iLutnI(0:NIfTot)
         INTEGER :: ki(3),kj(3),kTrial(3),iElecInExcitRange,iExcludedKFromElec1,iAllowedExcites
         INTEGER :: KaXLowerLimit,KaXUpperLimit,KaXRange,KaYLowerLimit,KaYUpperLimit,KaYRange,KaZLowerLimit,KaZUpperLimit,KaZRange
         LOGICAL :: tParity,tDoubleCount,tExtraPoint
@@ -2398,14 +2398,12 @@ MODULE GenRandSymExcitNUMod
     ! Based around a very simple generation algorithm: find unique i, j, a, b, then reject
     ! Currently not working
     SUBROUTINE CreateExcitLattice2(nI,iLutnI,nJ,tParity,ExcitMat,pGen)
-        
-        Use SystemData , only : G1,NEl
-        Use SystemData , only : NMAXX,NMAXY,NMAXZ,NIfTot
-        use dSFMT_interface , only : genrand_real2_dSFMT
+        Use SystemData , only : NMAXX,NMAXY,NMAXZ
 
         INTEGER :: i,j ! Loop variables
         INTEGER :: Elec1, Elec2, Hole1, Hole2,ms_sum,kx,ky,kz,ktest(2)
-        INTEGER :: nI(NEl),nJ(NEl),Elec1Ind,Elec2Ind,ElecIndStore,ExcitMat(2,2),iLutnI(0:NIfTot),SymProduct,SumMl,iSpn,rejections
+        INTEGER :: nI(NEl),nJ(NEl),Elec1Ind,Elec2Ind,ElecIndStore,ExcitMat(2,2),SymProduct,SumMl,iSpn,rejections
+        INTEGER(KIND=n_int) :: iLutnI(0:NIfTot)
         INTEGER :: ki(3),kj(3),kTrial(3),iElecInExcitRange,iExcludedKFromElec1,iAllowedExcites
         INTEGER :: KaXLowerLimit,KaXUpperLimit,KaXRange,KaYLowerLimit,KaYUpperLimit,KaYRange,KaZLowerLimit,KaZUpperLimit,KaZRange
         LOGICAL :: tParity,tDoubleCount,tExtraPoint
@@ -2440,8 +2438,8 @@ MODULE GenRandSymExcitNUMod
                 IF(Hole1.ne.Hole2) EXIT
             ENDDO
             
-            IF(BTEST(iLutnI((Hole1-1)/32),MOD(Hole1-1,32))) CYCLE
-            IF(BTEST(iLutnI((Hole2-1)/32),MOD(Hole2-1,32))) CYCLE
+            IF(BTEST(iLutnI((Hole1-1)/bits_n_int),MOD(Hole1-1,bits_n_int))) CYCLE
+            IF(BTEST(iLutnI((Hole2-1)/bits_n_int),MOD(Hole2-1,bits_n_int))) CYCLE
         
             ! Electon collisions
             IF(Elec1.eq.Hole1) CYCLE
@@ -2830,10 +2828,12 @@ SUBROUTINE TestGenRandSymExcitNU(nI,Iterations,pDoub,exFlag,iWriteEvery)
 !    use soft_exit , only : ChangeVars 
     use DetBitOps , only : EncodeBitDet, FindExcitBitDet
     use GenRandSymExcitNUMod, only: IsMomentumAllowed
+    use constants, only: n_int
     IMPLICIT NONE
     INTEGER :: i,Iterations,exFlag,nI(NEl),nJ(NEl),IC,ExcitMat(2,2),kx,ky,kz,ktrial(2)
     REAL*8 :: pDoub,pGen,AverageContrib,AllAverageContrib
-    INTEGER :: ClassCount2(ScratchSize),iLut(0:NIfTot),Scratch1(ScratchSize),Scratch2(ScratchSize),scratch3(scratchsize),iLutnJ(0:NIfTot)
+    INTEGER :: ClassCount2(ScratchSize),Scratch1(ScratchSize),Scratch2(ScratchSize),scratch3(scratchsize)
+    INTEGER(KIND=n_int) :: iLutnJ(0:NIfTot),iLut(0:NIfTot)
     INTEGER :: ClassCountUnocc2(ScratchSize),iExcit,iWriteEvery
     LOGICAL :: tParity,tFilled
     REAL*8 , ALLOCATABLE :: DoublesHist(:,:,:,:),SinglesHist(:,:),AllDoublesHist(:,:,:,:),AllSinglesHist(:,:)
@@ -2898,7 +2898,7 @@ lp2: do while(.true.)
 
 !    do i=1,NEl
 !!Create ILUT for O[1] comparison of orbitals in root determinant - This is now read in
-!        ILUT((nI(i)-1)/32)=IBSET(ILUT((NI(i)-1)/32),MOD(NI(i)-1,32))
+!        ILUT((nI(i)-1)/bits_n_int)=IBSET(ILUT((NI(i)-1)/bits_n_int),MOD(NI(i)-1,bits_n_int))
 !    enddo
     CALL EncodeBitDet(nI,iLut)
 

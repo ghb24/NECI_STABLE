@@ -256,12 +256,13 @@ C.. NRA is the length (in numbers of integers) of each element of NRA
 C.. RB is the 2D array of integers
 C.. NRB is the length of each row in RB
       SUBROUTINE SORTDETS(N,RA,NRA,RB,NRB)
+      use constants, only: n_int
       IMPLICIT REAL*8 (A-H,O-Z) 
       INTEGER N,I,L,IR,J
       INTEGER RA(NRA,N)
-      INTEGER RB(NRB,N)
-      INTEGER RRA(NRA),RRB(NRB),NRB
-
+      INTEGER(KIND=n_int) RB(NRB,N),RRB(NRB)
+      INTEGER RRA(NRA)
+      INTEGER NRB,NRA
       INTEGER DETLT
  
       IF(N.LE.1) RETURN
@@ -313,12 +314,13 @@ C.. NRB is the length of each row in RB
 C.. RC is the 2D array of REALS
 C.. NRC is the length of each row in RC
       SUBROUTINE SORTDETSwREALS(N,RA,NRA,RB,NRB,RC,NRC)
+      use constants, only: n_int
       IMPLICIT NONE
       INTEGER N,I,L,IR,J
-      INTEGER RA(NRA,N)
-      INTEGER RB(NRB,N),NRC
+      INTEGER RA(NRA,N),NRC
+      INTEGER(Kind=n_int) RB(NRB,N),RRB(NRB)
       REAL*8 RC(NRC,N),RRC(NRC)
-      INTEGER RRA(NRA),RRB(NRB),NRB,NRA
+      INTEGER RRA(NRA),NRB,NRA
       INTEGER DETLT
  
       IF(N.LE.1) RETURN

@@ -47,7 +47,7 @@ MODULE FciMCParMod
     use hphf_integrals, only: hphf_diag_helement, hphf_off_diag_helement, &
                               hphf_spawn_sign, hphf_off_diag_helement_spawn
     use util_mod, only: choose
-    use constants, only: dp
+    use constants, only: dp,int64,n_int
     use soft_exit, only: ChangeVars 
     use FciMCLoggingMod, only: FinaliseBlocking, FinaliseShiftBlocking, &
                                PrintShiftBlocking, PrintBlocking, &
@@ -55,121 +55,6 @@ MODULE FciMCParMod
     use RotateOrbsMod, only: RotateOrbs
     use NatOrbsMod, only: PrintOrbOccs
     implicit none
-
-    interface
-        subroutine call_fcimc_cyc_par () bind(c)
-        end subroutine
-
-
-        ! **********************************************************
-        ! ************************* NOTE ***************************
-        ! ANY changes to the following interfaces MUST be replicated in the
-        ! interface declarations for the function pointers passed into
-        ! FciMCycPar
-        ! --> Otherwise BAD things (may) happen at runtime, in a
-        !     non-deterministic (but probably segfault) manner.
-        ! **********************************************************
-        subroutine set_excit_generator (gen) bind(c)
-            implicit none
-            interface
-                subroutine gen (nI, iLutI, nJ, iLutJ, &
-                                 exFlag, IC, ex, tParity, pGen, tFilled, &
-                                 scratch1, scratch2, scratch3) bind(c)
-
-                    use SystemData, only: nel, niftot
-                    use GenRandSymExcitNUMod, only: scratchsize
-                    implicit none
-
-                    integer, intent(in) :: nI(nel), iLutI(0:niftot)
-                    integer, intent(in) :: exFlag
-                    integer, intent(inout) :: scratch1(scratchsize)
-                    integer, intent(inout) :: scratch2(scratchsize)
-                    integer, intent(inout) :: scratch3(scratchsize)
-                    integer, intent(out) :: nJ(nel), iLutJ(0:niftot)
-                    integer, intent(out) :: ic, ex(2,2)
-                    real*8, intent(out) :: pGen
-                    logical, intent(inout) :: tFilled
-                    logical, intent(out) :: tParity
-                end subroutine
-            end interface
-        end subroutine
-        subroutine set_attempt_create (attempt_create) bind(c)
-            implicit none
-            interface
-            function attempt_create (get_spawn_helement, nI, iLutI, wSign, &
-                                     nJ, iLutJ, prob, ic, ex, tPar, exLevel)&
-                                     result(child) bind(c)
-                use SystemData, only: nel, niftot
-                use constants, only: dp
-                implicit none
-                integer, intent(in) :: nI(nel), iLutI(0:nIfTot), nJ(nel)
-                integer, intent(inout) :: iLutJ(0:nIfTot)
-                integer, intent(in) :: wSign, ic, ex(2,2), exLevel
-                logical, intent(in) :: tPar
-                real(dp), intent(inout) :: prob
-                integer :: child
-
-                interface
-                    function get_spawn_helement (nI, nJ, ilutI, ilutJ, ic, &
-                                                 ex, tParity, prob) &
-                                                 result (hel) bind(c)
-                        use SystemData, only: nel, niftot
-                        use constants, only: dp
-                        implicit none
-                        integer, intent(in) :: nI(nel), nJ(nel)
-                        integer, intent(in) :: iLutI(0:niftot),iLutJ(0:niftot)
-                        integer, intent(in) :: ic, ex(2,2)
-                        logical, intent(in) :: tParity
-                        real(dp), intent(in) :: prob
-                        HElement_t :: hel
-                    end function
-                end interface
-            end function
-            end interface
-        end subroutine
-        subroutine set_get_spawn_helement (get_spawn_helement) bind(c)
-            implicit none
-            interface
-                function get_spawn_helement (nI, nJ, ilutI, ilutJ, ic, &
-                                             ex, tParity, prob) &
-                                             result (hel) bind(c)
-                    use SystemData, only: nel, niftot
-                    use constants, only: dp
-                    implicit none
-                    integer, intent(in) :: nI(nel), nJ(nel)
-                    integer, intent(in) :: iLutI(0:niftot),iLutJ(0:niftot)
-                    integer, intent(in) :: ic, ex(2,2)
-                    logical, intent(in) :: tParity
-                    real(dp), intent(in) :: prob
-                    HElement_t :: hel
-                end function
-            end interface
-        end subroutine
-        subroutine set_encode_child (encode_child) bind(c)
-            implicit none
-            interface
-                subroutine encode_child (ilutI, ilutJ, ic, ex) bind(c)
-                    use SystemData, only: nel, niftot
-                    implicit none
-                    integer, intent(in) :: iLutI(0:nifTot), ic, ex(2,2)
-                    integer, intent(out) :: iLutJ(0:nIfTot)
-                end subroutine
-            end interface
-        end subroutine
-        subroutine set_new_child_stats (new_child_stats) bind(c)
-            implicit none
-            interface
-                subroutine new_child_stats (iLutI, iLutJ, ic, walkExLevel, &
-                                            child) bind(c)
-                    use SystemData, only: nel, niftot
-                    implicit none
-                    integer, intent(in) :: ilutI(0:niftot)
-                    integer, intent(in) :: iLutJ(0:niftot)
-                    integer, intent(in) :: ic, walkExLevel, child
-                end subroutine
-            end interface
-        end subroutine
-    end interface
 
     contains
 
@@ -216,7 +101,12 @@ MODULE FciMCParMod
             IF(tCCMC) THEN
                 CALL PerformCCMCCycPar()
             ELSE
-                call call_fcimc_cyc_par ()
+                call sub_dispatcher_5 (PerformFciMCycPar, &
+                                       ptr_excit_generator, &
+                                       ptr_attempt_create, &
+                                       ptr_get_spawn_helement, &
+                                       ptr_encode_child, &
+                                       ptr_new_child_stats)
             ENDIF
             s=etime(tend)
             IterTime=IterTime+(tend(1)-tstart(1))
@@ -352,12 +242,157 @@ MODULE FciMCParMod
 
     END SUBROUTINE FciMCPar
 
+    ! **********************************************************
+    ! ************************* NOTE ***************************
+    ! ANY changes to the following interfaces MUST be replicated in the
+    ! interface declarations for the function pointers passed into
+    ! FciMCycPar
+    ! --> Otherwise BAD things (may) happen at runtime, in a
+    !     non-deterministic (but probably segfault) manner.
+    ! **********************************************************
 
-!This is the heart of FCIMC, where the MC Cycles are performed.
+    ! These wrapper functions exist only to enforce interfaces at compile
+    ! time. And to contain the access to the (slightly hackish) assign_proc
+    subroutine set_excit_generator (gen)
+        use, intrinsic :: iso_c_binding
+        implicit none
+        interface
+            subroutine gen (nI, iLutI, nJ, iLutJ, exFlag, IC, ex, tParity, &
+                            pGen, tFilled, scratch1, scratch2, scratch3)
+
+                use SystemData, only: nel, niftot
+                use GenRandSymExcitNUMod, only: scratchsize
+                use constants, only: n_int
+                implicit none
+
+                integer, intent(in) :: nI(nel) 
+                integer(kind=n_int), intent(in) :: iLutI(0:niftot)
+                integer, intent(in) :: exFlag
+                integer, intent(inout) :: scratch1(scratchsize)
+                integer, intent(inout) :: scratch2(scratchsize)
+                integer, intent(inout) :: scratch3(scratchsize)
+                integer, intent(out) :: nJ(nel) 
+                integer(kind=n_int), intent(out) :: iLutJ(0:niftot)
+                integer, intent(out) :: ic, ex(2,2)
+                real*8, intent(out) :: pGen
+                logical, intent(inout) :: tFilled
+                logical, intent(out) :: tParity
+            end subroutine
+        end interface
+
+        call assign_proc (ptr_excit_generator, gen)
+    end subroutine
+
+    subroutine set_attempt_create (attempt_create)
+        use, intrinsic :: iso_c_binding
+        implicit none
+        interface
+            function attempt_create (get_spawn_helement, nI, iLutI, wSign, &
+                                     nJ, iLutJ, prob, ic, ex, tPar, exLevel)&
+                                     result(child)
+                use SystemData, only: nel, niftot
+                use constants, only: n_int,dp
+                implicit none
+                integer, intent(in) :: nI(nel), nJ(nel) 
+                integer(kind=n_int), intent(in) :: iLutI(0:nIfTot)
+                integer(kind=n_int), intent(inout) :: iLutJ(0:nIfTot)
+                integer, intent(in) :: wSign, ic, ex(2,2), exLevel
+                logical, intent(in) :: tPar
+                real(dp), intent(inout) :: prob
+                integer :: child
+
+                interface
+                    function get_spawn_helement (nI, nJ, ilutI, ilutJ, ic, &
+                                                 ex, tParity, prob) &
+                                                 result (hel)
+                        use SystemData, only: nel, niftot
+                        use constants, only: n_int,dp
+                        implicit none
+                        integer, intent(in) :: nI(nel), nJ(nel)
+                        integer(kind=n_int), intent(in) :: iLutI(0:niftot),iLutJ(0:niftot)
+                        integer, intent(in) :: ic, ex(2,2)
+                        logical, intent(in) :: tParity
+                        real(dp), intent(in) :: prob
+                        HElement_t :: hel
+                    end function
+                end interface
+            end function
+        end interface
+    
+        call assign_proc (ptr_attempt_create, attempt_create)
+    end subroutine
+
+    subroutine set_get_spawn_helement (get_spawn_helement)
+        use, intrinsic :: iso_c_binding
+        implicit none
+        interface
+            function get_spawn_helement (nI, nJ, ilutI, ilutJ, ic, &
+                                         ex, tParity, prob) result (hel)
+                use SystemData, only: nel, niftot
+                use constants, only: n_int,dp
+                implicit none
+                integer, intent(in) :: nI(nel), nJ(nel)
+                integer(kind=n_int), intent(in) :: iLutI(0:niftot),iLutJ(0:niftot)
+                integer, intent(in) :: ic, ex(2,2)
+                logical, intent(in) :: tParity
+                real(dp), intent(in) :: prob
+                HElement_t :: hel
+            end function
+        end interface
+
+        call assign_proc (ptr_get_spawn_helement, get_spawn_helement)
+    end subroutine
+
+    subroutine set_encode_child (encode_child)
+        use, intrinsic :: iso_c_binding
+        implicit none
+        interface
+            subroutine encode_child (ilutI, ilutJ, ic, ex)
+                use SystemData, only: nel, niftot
+                use constants, only: n_int
+                implicit none
+                integer(kind=n_int), intent(in) :: iLutI(0:nifTot)
+                integer, intent(in) :: ic, ex(2,2)
+                integer(kind=n_int), intent(out) :: iLutJ(0:nIfTot)
+            end subroutine
+        end interface
+    
+        call assign_proc (ptr_encode_child, encode_child)
+    end subroutine
+
+    subroutine null_encode_child (ilutI, ilutJ, ic, ex)
+        use SystemData, only: nel, niftot
+        use constants, only: n_int
+        implicit none
+        integer(kind=n_int), intent(in) :: ilutI(0:niftot)
+        integer, intent(in) :: ic, ex(2,2)
+        integer(kind=n_int), intent(out) :: ilutj(0:niftot)
+    end subroutine
+
+    subroutine set_new_child_stats (new_child_stats)
+        use, intrinsic :: iso_c_binding
+        implicit none
+        interface
+            subroutine new_child_stats (iLutI, iLutJ, ic, walkExLevel, &
+                                        child)
+                use SystemData, only: nel, niftot
+                use constants, only: n_int
+                implicit none
+                integer(kind=n_int), intent(in) :: ilutI(0:niftot), iLutJ(0:niftot)
+                integer, intent(in) :: ic, walkExLevel, child
+            end subroutine
+        end interface
+
+        call assign_proc (ptr_new_child_stats, new_child_stats)
+    end subroutine
+
+    ! This is the heart of FCIMC, where the MC Cycles are performed.
+    !
+    ! Note: This should only be called indirectly:
+    !       call fn_dispatcher_5 (PerformFCIMCycPar, ptr_...)
     subroutine PerformFCIMCycPar(generate_excitation, attempt_create, &
                                  get_spawn_helement, encode_child, &
-                                 new_child_stats) &
-                                 bind(c, name='performfcimcycpar')
+                                 new_child_stats)
 
         USE FciMCLoggingMOD , only : TrackSpawnAttempts
         use detbitops, only : countbits
@@ -373,17 +408,19 @@ MODULE FciMCParMod
         interface
             subroutine generate_excitation (nI, iLutI, nJ, iLutJ, &
                              exFlag, IC, ex, tParity, pGen, tFilled, &
-                             scratch1, scratch2, scratch3) bind(c)
+                             scratch1, scratch2, scratch3)
                 use SystemData, only: nel, niftot
                 use GenRandSymExcitNUMod, only: scratchsize
-                use constants, only: dp
+                use constants, only: dp,n_int
                 implicit none
-                integer, intent(in) :: nI(nel), iLutI(0:niftot)
+                integer, intent(in) :: nI(nel)
+                integer(kind=n_int), intent(in) :: iLutI(0:niftot)
                 integer, intent(in) :: exFlag
                 integer, intent(inout) :: scratch1(scratchsize)
                 integer, intent(inout) :: scratch2(scratchsize)
                 integer, intent(inout) :: scratch3(scratchsize)
-                integer, intent(out) :: nJ(nel), iLutJ(0:niftot)
+                integer, intent(out) :: nJ(nel) 
+                integer(kind=n_int), intent(out) :: iLutJ(0:niftot)
                 integer, intent(out) :: ic, ex(2,2)
                 real(dp), intent(out) :: pGen
                 logical, intent(inout) :: tFilled
@@ -391,12 +428,13 @@ MODULE FciMCParMod
             end subroutine
             function attempt_create (get_spawn_helement, nI, iLutI, wSign, &
                                      nJ, iLutJ, prob, ic, ex, tPar, exLevel)&
-                                     result(child) bind(c)
+                                     result(child)
                 use SystemData, only: nel, niftot
-                use constants, only: dp
+                use constants, only: dp,n_int
                 implicit none
-                integer, intent(in) :: nI(nel), iLutI(0:nIfTot), nJ(nel)
-                integer, intent(inout) :: iLutJ(0:nIfTot)
+                integer, intent(in) :: nI(nel), nJ(nel)
+                integer(kind=n_int), intent(in) :: iLutI(0:nifTot)
+                integer(kind=n_int), intent(inout) :: iLutJ(0:nIfTot)
                 integer, intent(in) :: wSign, ic, ex(2,2), exLevel
                 logical, intent(in) :: tPar
                 real(dp), intent(inout) :: prob
@@ -405,12 +443,12 @@ MODULE FciMCParMod
                 interface
                     function get_spawn_helement (nI, nJ, ilutI, ilutJ, ic, &
                                                  ex, tParity, prob) &
-                                                 result (hel) bind(c)
+                                                 result (hel)
                         use SystemData, only: nel, niftot
-                        use constants, only: dp
+                        use constants, only: dp,n_int
                         implicit none
                         integer, intent(in) :: nI(nel), nJ(nel)
-                        integer, intent(in) :: iLutI(0:niftot),iLutJ(0:niftot)
+                        integer(kind=n_int), intent(in) :: iLutI(0:niftot),iLutJ(0:niftot)
                         integer, intent(in) :: ic, ex(2,2)
                         logical, intent(in) :: tParity
                         real(dp), intent(in) :: prob
@@ -420,38 +458,41 @@ MODULE FciMCParMod
             end function
             function get_spawn_helement (nI, nJ, ilutI, ilutJ, ic, &
                                          ex, tParity, prob) &
-                                         result (hel) bind(c)
+                                         result (hel)
                 use SystemData, only: nel, niftot
-                use constants, only: dp
+                use constants, only: dp,n_int
                 implicit none
                 integer, intent(in) :: nI(nel), nJ(nel)
-                integer, intent(in) :: iLutI(0:niftot),iLutJ(0:niftot)
+                integer(kind=n_int), intent(in) :: iLutI(0:niftot),iLutJ(0:niftot)
                 integer, intent(in) :: ic, ex(2,2)
                 logical, intent(in) :: tParity
                 real(dp), intent(in) :: prob
                 HElement_t :: hel
             end function
-            subroutine encode_child (ilutI, ilutJ, ic, ex) bind(c)
+            subroutine encode_child (ilutI, ilutJ, ic, ex)
                 use SystemData, only: nel, niftot
+                use constants, only: n_int
                 implicit none
-                integer, intent(in) :: ilutI(0:niftot), ic, ex(2,2)
-                integer, intent(out) :: iLutJ(0:nIfTot)
+                integer(kind=n_int), intent(in) :: ilutI(0:niftot)
+                integer, intent(in) :: ic, ex(2,2)
+                integer(kind=n_int), intent(out) :: iLutJ(0:nIfTot)
             end subroutine
-            subroutine new_child_stats (iLutI, iLutJ, ic, walkExLevel, child)&
-                                        bind(c)
+            subroutine new_child_stats (iLutI, iLutJ, ic, walkExLevel, child)
                 use SystemData, only: nel, niftot
+                use constants, only: n_int
                 implicit none
-                integer, intent(in) :: ilutI(0:niftot), iLutJ(0:niftot)
+                integer(kind=n_int), intent(in) :: ilutI(0:niftot), iLutJ(0:niftot)
                 integer, intent(in) :: ic, walkExLevel, child
             end subroutine
         end interface
 
         ! Now the local, iteration specific, variables
         integer :: VecSlot, j, p, error
-        integer :: DetCurr(nel), nJ(nel), iLutnJ(0:niftot)
+        integer :: DetCurr(nel), nJ(nel) 
+        integer(kind=n_int) :: iLutnJ(0:niftot)
         integer :: IC, child, walkExcitLevel, ex(2,2), TotWalkersNew
         integer, dimension(ScratchSize) :: scratch1, scratch2, scratch3
-        integer(i2) :: HashTemp
+        integer(int64) :: HashTemp
         logical :: tFilled, tParity, tHFFound, tHFFoundTemp
         real(dp) :: prob, HDiagCurr
         HElement_t :: HDiagTemp
@@ -604,7 +645,7 @@ MODULE FciMCParMod
 
         ! SumWalkersCyc calculates the total number of walkers over an update
         ! cycle on each process.
-        SumWalkersCyc = SumWalkersCyc + int(TotParts, i2)
+        SumWalkersCyc = SumWalkersCyc + int(TotParts, int64)
 
         ! Since VecSlot holds the next vacant slot in the array, TotWalkers
         ! should be one less than this.
@@ -623,10 +664,9 @@ MODULE FciMCParMod
         
     end subroutine
 
-    subroutine new_child_stats_normal (iLutI, iLutJ, ic, child, walkExLevel)&
-                                      bind(c)
+    subroutine new_child_stats_normal (iLutI, iLutJ, ic, child, walkExLevel)
 
-        integer, intent(in) :: iLutI(0:niftot), iLutJ(0:niftot)
+        integer(kind=n_int), intent(in) :: iLutI(0:niftot), iLutJ(0:niftot)
         integer, intent(in) :: ic, child, walkExLevel
         
         noBorn = noBorn + abs(child)
@@ -647,7 +687,8 @@ MODULE FciMCParMod
         ! and then it will be put into the appropriate element determined by
         ! ValidSpawnedList
 
-        integer, intent(in) :: iLutJ(0:niftot), child
+        integer(kind=n_int), intent(in) :: iLutJ(0:niftot)
+        integer, intent(in) :: child
         integer :: proc
 
         proc = DetermineDetProc(iLutJ)    ! 0 -> nProcessors-1
@@ -804,7 +845,8 @@ MODULE FciMCParMod
     SUBROUTINE FindHighPopDet(Iter)
 !Found the highest population on each processor, need to find out which of these has the highest of all.
         INTEGER :: MaxPopsNeg(nProcessors),MaxPopsPos(nProcessors),error,i,MaxPopPos,MaxPopNeg,MaxPopNegProc
-        INTEGER :: MaxPopPosProc,InitDetCurr(NEl),Iter,DetPos(0:NIfTot),DetNeg(0:NIfTot)
+        INTEGER :: MaxPopPosProc,InitDetCurr(NEl),Iter
+        INTEGER(KIND=n_int) :: DetPos(0:NIfTot),DetNeg(0:NIfTot)
         INTEGER :: HighPopInNeg(2),HighPopInPos(2),HighPopoutNeg(2),HighPopoutPos(2)
 
 !        WRITE(6,*) 'HighPopPos',HighPopPos
@@ -853,6 +895,7 @@ MODULE FciMCParMod
         USE FciMCLoggingMOD , only : PrintSpawnAttemptStats,InitErrorBlocking,SumInErrorContrib
         USE FciMCLoggingMOD , only : InitShiftErrorBlocking,SumInShiftErrorContrib
         USE CalcData , only : tCheckHighestPop,tChangeProjEDet,tRestartHighPop,FracLargerDet,iRestartWalkNum
+        USE constants, only : MpiDetInt
         INTEGER :: error,rc,MaxAllowedWalkers,MaxWalkersProc,MinWalkersProc
         INTEGER :: inpair(6),outpair(6),HighPopin(2),HighPopout(2),DetCurr(NEl),i
         REAL*8 :: TempTotWalkers,TempTotParts
@@ -1021,7 +1064,7 @@ MODULE FciMCParMod
                 IF(tChangeProjEDet) THEN
 !Meed to communicate to all processors that iLutRef has changed.
 
-                    CALL MPI_BCast(HighestPopDet(0:NIfTot),NIfTot+1,MPI_INTEGER,HighPopout(2),MPI_COMM_WORLD,error)
+                    CALL MPI_BCast(HighestPopDet(0:NIfTot),NIfTot+1,MpiDetInt,HighPopout(2),MPI_COMM_WORLD,error)
                     iLutRef(:)=HighestPopDet(:)
                     CALL DecodeBitDet(ProjEDet,iLutRef(:))
                     WRITE(6,"(A)",advance='no') "Changing projected energy reference determinant to:"
@@ -1055,7 +1098,7 @@ MODULE FciMCParMod
                         CurrentH(i)=(REAL(HDiagTemp,dp))-Hii
                     enddo
                 ELSEIF(tRestartHighPop.and.(iRestartWalkNum.le.AllTotParts)) THEN
-                    CALL MPI_BCast(HighestPopDet,NIfTot+1,MPI_INTEGER,HighPopout(2),MPI_COMM_WORLD,error)
+                    CALL MPI_BCast(HighestPopDet,NIfTot+1,MpiDetInt,HighPopout(2),MPI_COMM_WORLD,error)
                     iLutRef(:)=HighestPopDet(:)
                     CALL DecodeBitDet(ProjEDet,iLutRef(:))
                     WRITE(6,"(A)",advance='no') "Changing projected energy reference determinant to:"
@@ -1349,6 +1392,7 @@ MODULE FciMCParMod
         use SystemData , only : tRotateOrbs
         use CalcData , only : InitialPart
         use CalcData , only : MemoryFacPart,MemoryFacAnnihil,MemoryFacSpawn
+        use constants , only : size_n_int
         INTEGER :: ierr,i,j,k,l,DetCurr(NEl),ReadWalkers,TotWalkersDet
         INTEGER :: DetLT,VecSlot,error,MemoryAlloc,Proc
         HElement_t :: rh,TempHii
@@ -1377,7 +1421,7 @@ MODULE FciMCParMod
             CALL MPI_Barrier(MPI_COMM_WORLD,error)
 !Allocate memory to hold walkers
             ALLOCATE(WalkVecDets(0:NIfTot,MaxWalkersPart),stat=ierr)
-            CALL LogMemAlloc('WalkVecDets',MaxWalkersPart*(NIfTot+1),4,this_routine,WalkVecDetsTag,ierr)
+            CALL LogMemAlloc('WalkVecDets',MaxWalkersPart*(NIfTot+1),size_n_int,this_routine,WalkVecDetsTag,ierr)
             WalkVecDets(0:NIfTot,1:MaxWalkersPart)=0
 
             IF(.not.tRegenDiagHEls) THEN
@@ -1392,7 +1436,7 @@ MODULE FciMCParMod
             CALL LogMemAlloc('WalkVecSign',MaxWalkersPart,4,this_routine,WalkVecSignTag,ierr)
 !            ALLOCATE(WalkVec2Sign(MaxWalkersPart),stat=ierr)
 !            CALL LogMemAlloc('WalkVec2Sign',MaxWalkersPart,4,this_routine,WalkVec2SignTag,ierr)
-            MemoryAlloc=(NIfTot+1+3)*MaxWalkersPart*4    !Memory Allocated in bytes
+            MemoryAlloc=(NIfTot+1+3)*MaxWalkersPart*size_n_int    !Memory Allocated in bytes
 
             IF(tRegenDiagHEls) THEN
                 MemoryAlloc=MemoryAlloc-(MaxWalkersPart*8)
@@ -1402,10 +1446,10 @@ MODULE FciMCParMod
 
             WRITE(6,"(A,I12,A)") " Spawning vectors allowing for a total of ",MaxSpawned," particles to be spawned in any one iteration."
             ALLOCATE(SpawnVec(0:NIftot,MaxSpawned),stat=ierr)
-            CALL LogMemAlloc('SpawnVec',MaxSpawned*(NIfTot+1),4,this_routine,SpawnVecTag,ierr)
+            CALL LogMemAlloc('SpawnVec',MaxSpawned*(NIfTot+1),size_n_int,this_routine,SpawnVecTag,ierr)
             SpawnVec(:,:)=0
             ALLOCATE(SpawnVec2(0:NIfTot,MaxSpawned),stat=ierr)
-            CALL LogMemAlloc('SpawnVec2',MaxSpawned*(NIfTot+1),4,this_routine,SpawnVec2Tag,ierr)
+            CALL LogMemAlloc('SpawnVec2',MaxSpawned*(NIfTot+1),size_n_int,this_routine,SpawnVec2Tag,ierr)
             SpawnVec2(:,:)=0
             ALLOCATE(SpawnSignVec(0:MaxSpawned),stat=ierr)
             CALL LogMemAlloc('SpawnSignVec',MaxSpawned+1,4,this_routine,SpawnSignVecTag,ierr)
@@ -1420,7 +1464,7 @@ MODULE FciMCParMod
             SpawnedSign=>SpawnSignVec
             SpawnedSign2=>SpawnSignVec2
 
-            MemoryAlloc=MemoryAlloc+(((MaxSpawned+1)*2)+(2*MaxSpawned*(1+NIfTot)))*4
+            MemoryAlloc=MemoryAlloc+(((MaxSpawned+1)*2)+(2*MaxSpawned*(1+NIfTot)))*size_n_int
 
 !Allocate pointers to the correct walker arrays
             CurrentDets=>WalkVecDets
@@ -1585,6 +1629,8 @@ MODULE FciMCParMod
         ! Once we have generated the children, do we need to encode them?
         if (.not. (tCSF .or. tHPHF)) then
             call set_encode_child (FindExcitBitDet)
+        else
+            call set_encode_child (null_encode_child)
         endif
 
         ! What message should we display for a particle bloom?
@@ -1611,7 +1657,8 @@ MODULE FciMCParMod
 
 
     SUBROUTINE CheckOrdering(DetArray,SignArray,NoDets,tCheckSignCoher)
-        INTEGER :: NoDets,DetArray(0:NIfTot,1:NoDets),i,j
+        INTEGER :: NoDets,i,j
+        INTEGER(KIND=n_int) :: DetArray(0:NIfTot,1:NoDets)
         INTEGER :: SignArray(1:NoDets),Comp
         LOGICAL :: tCheckSignCoher
 
@@ -1663,6 +1710,7 @@ MODULE FciMCParMod
         use util_mod, only: get_unique_filename
         use CalcData, only: iPopsFileNoWrite
         use Logging, only: tIncrementPops
+        use constants, only: size_n_int,MpiDetInt
         REAL*8 :: TempSumNoatHF
         INTEGER :: error,WalkersonNodes(0:nProcessors-1)
         INTEGER :: Stat(MPI_STATUS_SIZE),Tag,Total,i,j,k
@@ -1701,9 +1749,9 @@ MODULE FciMCParMod
 !Write header information
             IF(iPopsPartEvery.ne.1) THEN
                 IF(tBinPops) THEN
-                    WRITE(6,"(A,I12,A)") "Writing a binary reduced POPSFILEBIN, printing a total of ",INT(AllTotWalkers,i2), " particles."
+                    WRITE(6,"(A,I12,A)") "Writing a binary reduced POPSFILEBIN, printing a total of ",INT(AllTotWalkers,int64), " particles."
                 ELSE
-                    WRITE(6,"(A,I12,A)") "Writing a reduced POPSFILE, printing a total of ",INT(AllTotWalkers,i2), " particles."
+                    WRITE(6,"(A,I12,A)") "Writing a reduced POPSFILE, printing a total of ",INT(AllTotWalkers,int64), " particles."
                 ENDIF
             ELSE
                 IF(tBinPops) THEN
@@ -1720,7 +1768,7 @@ MODULE FciMCParMod
             OPEN(17,FILE=popsfile,Status='replace')
             WRITE(17,*) AllTotWalkers,"   TOTWALKERS (all nodes)"
             WRITE(17,*) DiagSft,"   DIAG SHIFT"
-            WRITE(17,*) NINT(AllSumNoatHF,i2),"   SUMNOATHF (all nodes)"
+            WRITE(17,*) NINT(AllSumNoatHF,int64),"   SUMNOATHF (all nodes)"
             WRITE(17,*) AllSumENum,"   SUMENUM ( \sum<D0|H|Psi> - all nodes)"
             WRITE(17,*) Iter+PreviousCycles,"   PREVIOUS CYCLES"
             IF(tBinPops) THEN
@@ -1754,7 +1802,7 @@ MODULE FciMCParMod
             ALLOCATE(OrigSign(TotWalkers),stat=error)
             CALL LogMemAlloc('OrigSign',TotWalkers,4,this_routine,OrigSignTag,error)
             ALLOCATE(OrigParts(0:NIfTot,TotWalkers),stat=error)
-            CALL LogMemAlloc('OrigParts',TotWalkers*(NIfTot+1),4,this_routine,OrigPartsTag,error)
+            CALL LogMemAlloc('OrigParts',TotWalkers*(NIfTot+1),size_n_int,this_routine,OrigPartsTag,error)
             do i=1,TotWalkers
                 OrigSign(i)=CurrentSign(i)
                 OrigParts(:,i)=CurrentDets(:,i)
@@ -1764,7 +1812,7 @@ MODULE FciMCParMod
 !We can overwrite the head nodes information, since we have now stored it elsewhere.
             do i=1,nProcessors-1
 !Run through all other processors...receive the data...
-                CALL MPI_Recv(CurrentDets(0:NIfTot,1:WalkersonNodes(i)),WalkersonNodes(i)*(NIfTot+1),MPI_INTEGER,i,Tag,MPI_COMM_WORLD,Stat,error)
+                CALL MPI_Recv(CurrentDets(0:NIfTot,1:WalkersonNodes(i)),WalkersonNodes(i)*(NIfTot+1),MpiDetInt,i,Tag,MPI_COMM_WORLD,Stat,error)
                 CALL MPI_Recv(CurrentSign(1:WalkersonNodes(i)),WalkersonNodes(i),MPI_INTEGER,i,Tag,MPI_COMM_WORLD,Stat,error)
 !                WRITE(6,*) "Recieved walkers for processor ",i
 !                CALL FLUSH(6)
@@ -1806,7 +1854,7 @@ MODULE FciMCParMod
 
         ELSE
 !All other processors need to send their data to root...
-            CALL MPI_Send(CurrentDets(0:NIfTot,1:TotWalkers),TotWalkers*(NIfTot+1),MPI_INTEGER,root,Tag,MPI_COMM_WORLD,error)
+            CALL MPI_Send(CurrentDets(0:NIfTot,1:TotWalkers),TotWalkers*(NIfTot+1),MpiDetInt,root,Tag,MPI_COMM_WORLD,error)
             CALL MPI_Send(CurrentSign(1:TotWalkers),TotWalkers,MPI_INTEGER,root,Tag,MPI_COMM_WORLD,error)
 !            WRITE(6,*) "Have sent info to head node..."
 !            CALL FLUSH(6)
@@ -1828,11 +1876,13 @@ MODULE FciMCParMod
         use CalcData, only: iPopsFileNoRead
         use CalcData , only : MemoryFacPart,MemoryFacAnnihil,MemoryFacSpawn,iWeightPopRead
         use Logging, only: tIncrementPops,tZeroProjE
+        use constants, only: size_n_int
         LOGICAL :: exists,First,tBinRead
         INTEGER :: AvWalkers,WalkerstoReceive(nProcessors)
         INTEGER*8 :: NodeSumNoatHF(nProcessors),TempAllSumNoatHF
         REAL*8 :: TempTotParts,TempCurrWalkers
-        INTEGER :: TempInitWalkers,error,i,j,k,l,total,ierr,MemoryAlloc,Tag,iLutTemp(0:NIfTot),TempSign,Proc,CurrWalkers
+        INTEGER :: TempInitWalkers,error,i,j,k,l,total,ierr,MemoryAlloc,Tag,TempSign,Proc,CurrWalkers
+        INTEGER(KIND=n_int) :: iLutTemp(0:NIfTot)
         INTEGER :: Stat(MPI_STATUS_SIZE),AvSumNoatHF,VecSlot,IntegerPart,HFPointer,TempnI(NEl),ExcitLevel,VecInd,DetsMerged
         REAL*8 :: r,FracPart,TempTotWalkers,Gap
         HElement_t :: HElemTemp
@@ -1885,7 +1935,7 @@ MODULE FciMCParMod
 
         IF(iProcIndex.eq.Root) THEN
             IF(iWeightPopRead.ne.0) THEN
-                WRITE(6,"(A,I15,A,I4,A)") "Although ",NINT(AllTotWalkers,i2)," configurations will be read in, only determinants with a weight of over ",iWeightPopRead," will be stored."
+                WRITE(6,"(A,I15,A,I4,A)") "Although ",NINT(AllTotWalkers,int64)," configurations will be read in, only determinants with a weight of over ",iWeightPopRead," will be stored."
             ENDIF
         ENDIF
 
@@ -1944,9 +1994,9 @@ MODULE FciMCParMod
             SumENum=AllSumENum/REAL(nProcessors,dp)     !Divide up the SumENum over all processors
             AvSumNoatHF=NINT(AllSumNoatHF/real(nProcessors,dp)) !This is the average Sumnoathf
             do i=1,nProcessors-1
-                NodeSumNoatHF(i)=INT(AvSumNoatHF,i2)
+                NodeSumNoatHF(i)=INT(AvSumNoatHF,int64)
             enddo
-            NodeSumNoatHF(nProcessors)=NINT(AllSumNoatHF,i2)-INT((AvSumNoatHF*(nProcessors-1)),i2)
+            NodeSumNoatHF(nProcessors)=NINT(AllSumNoatHF,int64)-INT((AvSumNoatHF*(nProcessors-1)),int64)
 
             ProjectionE=AllSumENum/AllSumNoatHF
                 
@@ -1992,7 +2042,7 @@ MODULE FciMCParMod
 !Allocate memory to hold walkers at least temporarily
         ALLOCATE(WalkVecDets(0:NIfTot,MaxWalkersPart),stat=ierr)
         IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating WalkVecDets array.')
-        CALL LogMemAlloc('WalkVecDets',MaxWalkersPart*(NIfTot+1),4,this_routine,WalkVecDetsTag,ierr)
+        CALL LogMemAlloc('WalkVecDets',MaxWalkersPart*(NIfTot+1),size_n_int,this_routine,WalkVecDetsTag,ierr)
 !        WalkVecDets(0:NIfTot,1:MaxWalkersPart)=0
         WalkVecDets(:,:)=0
         ALLOCATE(WalkVecSign(MaxWalkersPart),stat=ierr)
@@ -2004,10 +2054,10 @@ MODULE FciMCParMod
 
         WRITE(6,"(A,I12,A)") " Spawning vectors allowing for a total of ",MaxSpawned," particles to be spawned in any one iteration."
         ALLOCATE(SpawnVec(0:NIfTot,MaxSpawned),stat=ierr)
-        CALL LogMemAlloc('SpawnVec',MaxSpawned*(NIfTot+1),4,this_routine,SpawnVecTag,ierr)
+        CALL LogMemAlloc('SpawnVec',MaxSpawned*(NIfTot+1),size_n_int,this_routine,SpawnVecTag,ierr)
         SpawnVec(:,:)=0
         ALLOCATE(SpawnVec2(0:NIfTot,MaxSpawned),stat=ierr)
-        CALL LogMemAlloc('SpawnVec2',MaxSpawned*(NIfTot+1),4,this_routine,SpawnVec2Tag,ierr)
+        CALL LogMemAlloc('SpawnVec2',MaxSpawned*(NIfTot+1),size_n_int,this_routine,SpawnVec2Tag,ierr)
         SpawnVec2(:,:)=0
         ALLOCATE(SpawnSignVec(0:MaxSpawned),stat=ierr)
         CALL LogMemAlloc('SpawnSignVec',MaxSpawned+1,4,this_routine,SpawnSignVecTag,ierr)
@@ -2022,7 +2072,7 @@ MODULE FciMCParMod
         SpawnedSign=>SpawnSignVec
         SpawnedSign2=>SpawnSignVec2
 
-        MemoryAlloc=MemoryAlloc+(((MaxSpawned+1)*2)+(2*MaxSpawned*(1+NIfTot)))*4
+        MemoryAlloc=MemoryAlloc+(((MaxSpawned+1)*2)+(2*MaxSpawned*(1+NIfTot)))*size_n_int
 
 !Allocate pointers to the correct walker arrays...
         CurrentDets=>WalkVecDets
@@ -2068,7 +2118,7 @@ MODULE FciMCParMod
         CALL MPI_Barrier(MPI_COMM_WORLD,error)  !Sync
         CALL MPI_AllReduce(TempCurrWalkers,AllTotWalkers,1,MPI_DOUBLE_PRECISION,MPI_SUM,MPI_COMM_WORLD,error)
 
-        IF(iProcIndex.eq.root) WRITE(6,'(I10,A)') INT(AllTotWalkers,i2)," configurations read in from POPSFILE and distributed."
+        IF(iProcIndex.eq.root) WRITE(6,'(I10,A)') INT(AllTotWalkers,int64)," configurations read in from POPSFILE and distributed."
 
         IF(ScaleWalkers.ne.1) THEN
 
@@ -2098,7 +2148,7 @@ MODULE FciMCParMod
             IF(iProcIndex.eq.root) THEN
 !                    AllTotWalkers=TotWalkers
                 AllTotWalkersOld=AllTotWalkers
-                WRITE(6,'(A,I10)') " Number of initial walkers on this processor is now: ",INT(TotWalkers,i2)
+                WRITE(6,'(A,I10)') " Number of initial walkers on this processor is now: ",INT(TotWalkers,int64)
             ENDIF
 
         ELSE
@@ -2109,14 +2159,14 @@ MODULE FciMCParMod
             IF(iProcIndex.eq.root) THEN
 !                AllTotWalkers=TotWalkers
                 AllTotWalkersOld=AllTotWalkers
-                WRITE(6,'(A,I10)') " Number of initial walkers on this processor is now: ",INT(TotWalkers,i2)
+                WRITE(6,'(A,I10)') " Number of initial walkers on this processor is now: ",INT(TotWalkers,int64)
             ENDIF
 
         ENDIF
             
         WRITE(6,*) "Initial Diagonal Shift (ECorr guess) is now: ",DiagSft
 
-        MemoryAlloc=((NIfTot+1+3)*MaxWalkersPart*4)
+        MemoryAlloc=((NIfTot+1+3)*MaxWalkersPart*size_n_int)
         IF(tRegenDiagHEls) THEN
             MemoryAlloc=MemoryAlloc-(MaxWalkersPart*4*2)
         ENDIF
@@ -2177,9 +2227,10 @@ MODULE FciMCParMod
     function attempt_create_trunc_spawn (get_spawn_helement, DetCurr,&
                                          iLutCurr, wSign, nJ, iLutnJ, prob, &
                                          ic, ex, tparity, walkExcitLevel) &
-                                         result(child) bind(c)
-        integer, intent(in) :: DetCurr(nel), iLutCurr(0:NIfTot), nJ(nel)
-        integer, intent(inout) :: iLutnJ(0:niftot)
+                                         result(child)
+        integer, intent(in) :: DetCurr(nel), nJ(nel) 
+        integer(kind=n_int), intent(in) :: iLutCurr(0:NIfTot)
+        integer(kind=n_int), intent(inout) :: iLutnJ(0:niftot)
         integer, intent(in) :: wSign, ic, ex(2,2), walkExcitLevel
         logical, intent(in) :: tParity
         real(dp), intent(inout) :: prob
@@ -2187,12 +2238,12 @@ MODULE FciMCParMod
 
         interface
             function get_spawn_helement (nI, nJ, ilutI, ilutJ, ic, ex, &
-                                         tParity, prob) result (hel) bind(c)
+                                         tParity, prob) result (hel)
                 use SystemData, only: nel, niftot
-                use constants, only: dp
+                use constants, only: dp,n_int
                 implicit none
                 integer, intent(in) :: nI(nel), nJ(nel)
-                integer, intent(in) :: iLutI(0:niftot), iLutJ(0:niftot)
+                integer(kind=n_int), intent(in) :: iLutI(0:niftot), iLutJ(0:niftot)
                 integer, intent(in) :: ic, ex(2,2)
                 logical, intent(in) :: tParity
                 real(dp), intent(in) :: prob
@@ -2212,10 +2263,11 @@ MODULE FciMCParMod
     function attempt_create_trunc_spawn_encode (get_spawn_helement, DetCurr,&
                                          iLutCurr, wSign, nJ, iLutnJ, prob, &
                                          ic, ex, tparity, walkExcitLevel) &
-                                         result(child) bind(c)
+                                         result(child)
 
-        integer, intent(in) :: DetCurr(nel), iLutCurr(0:NIfTot), nJ(nel)
-        integer, intent(inout) :: iLutnJ(0:niftot)
+        integer, intent(in) :: DetCurr(nel), nJ(nel) 
+        integer(kind=n_int), intent(in) :: iLutCurr(0:NIfTot)
+        integer(kind=n_int), intent(inout) :: iLutnJ(0:niftot)
         integer, intent(in) :: wSign, ic, ex(2,2), walkExcitLevel
         logical, intent(in) :: tParity
         real(dp), intent(inout) :: prob
@@ -2223,12 +2275,12 @@ MODULE FciMCParMod
 
         interface
             function get_spawn_helement (nI, nJ, ilutI, ilutJ, ic, ex, &
-                                         tParity, prob) result (hel) bind(c)
+                                         tParity, prob) result (hel)
                 use SystemData, only: nel, niftot
-                use constants, only: dp
+                use constants, only: dp,n_int
                 implicit none
                 integer, intent(in) :: nI(nel), nJ(nel)
-                integer, intent(in) :: iLutI(0:niftot), iLutJ(0:niftot)
+                integer(kind=n_int), intent(in) :: iLutI(0:niftot), iLutJ(0:niftot)
                 integer, intent(in) :: ic, ex(2,2)
                 logical, intent(in) :: tParity
                 real(dp), intent(in) :: prob
@@ -2248,10 +2300,11 @@ MODULE FciMCParMod
 
     function attempt_create_normal (get_spawn_helement, DetCurr, iLutCurr, &
                                     wSign, nJ, iLutnJ, prob, ic, ex, tparity,&
-                                    walkExcitLevel) result(child) bind(c)
+                                    walkExcitLevel) result(child)
 
-        integer, intent(in) :: DetCurr(nel), iLutCurr(0:NIfTot), nJ(nel)
-        integer, intent(inout) :: iLutnJ(0:niftot)
+        integer, intent(in) :: DetCurr(nel), nJ(nel) 
+        integer(kind=n_int), intent(in) :: iLutCurr(0:NIfTot)
+        integer(kind=n_int), intent(inout) :: iLutnJ(0:niftot)
         integer, intent(in) :: wSign, ic, ex(2,2), walkExcitLevel
         logical, intent(in) :: tParity
         real(dp), intent(inout) :: prob
@@ -2259,12 +2312,12 @@ MODULE FciMCParMod
 
         interface
             function get_spawn_helement (nI, nJ, ilutI, ilutJ, ic, ex, &
-                                         tParity, prob) result (hel) bind(c)
+                                         tParity, prob) result (hel)
                 use SystemData, only: nel, niftot
-                use constants, only: dp
+                use constants, only: dp,n_int
                 implicit none
                 integer, intent(in) :: nI(nel), nJ(nel)
-                integer, intent(in) :: iLutI(0:niftot), iLutJ(0:niftot)
+                integer(kind=n_int), intent(in) :: iLutI(0:niftot), iLutJ(0:niftot)
                 integer, intent(in) :: ic, ex(2,2)
                 logical, intent(in) :: tParity
                 real(dp), intent(in) :: prob
@@ -2308,10 +2361,10 @@ MODULE FciMCParMod
     INTEGER FUNCTION AttemptCreatePar(DetCurr,iLutCurr,WSign,nJ,iLutnJ,Prob,IC,Ex,tParity)
         use GenRandSymExcitNUMod , only : GenRandSymExcitBiased
         use Logging, only : CCMCDebug
-        INTEGER :: DetCurr(NEl),nJ(NEl),IC,StoreNumTo,StoreNumFrom,DetLT,i,ExtraCreate,Ex(2,2),WSign
-        INTEGER :: iLutCurr(0:NIfTot),Bin,iLutnJ(0:NIfTot),PartInd,ExcitLev,iLut(0:NIfTot),iLut2(0:NIfTot)
+        INTEGER :: DetCurr(NEl),nJ(NEl),IC,StoreNumTo,StoreNumFrom,DetLT,i,ExtraCreate,Ex(2,2),WSign,Bin,PartInd,ExcitLev
+        INTEGER(KIND=n_int) :: iLutCurr(0:NIfTot),iLutnJ(0:NIfTot),iLut(0:NIfTot),iLut2(0:NIfTot)
         LOGICAL :: tParity,SymAllowed,tSuccess
-        integer :: yama(NIfY)
+        integer(KIND=n_int) :: yama(NIfY)
         REAL*8 :: Prob,r,rat
         HElement_t :: rh,rhcheck
 
@@ -2507,7 +2560,8 @@ MODULE FciMCParMod
 
     subroutine walker_death (DetCurr, iLutCurr, Kii, wSign, VecSlot)
 
-        integer, intent(in) :: DetCurr(nel), iLutCurr(0:niftot), wSign
+        integer, intent(in) :: DetCurr(nel), wSign 
+        integer(kind=n_int), intent(in) :: iLutCurr(0:niftot)
         integer, intent(inout) :: VecSlot
         real(dp), intent(in) :: Kii
         
@@ -2587,8 +2641,8 @@ MODULE FciMCParMod
     SUBROUTINE ChangeRefDet(HDiagCurr,DetCurr,iLutCurr)
         use Determinants , only : GetH0Element3
         use FciMCLoggingMod , only : RestartBlocking, RestartShiftBlocking
-        INTEGER :: iLutCurr(0:NIfTot),DetCurr(NEl),i,nStore(6),ierr,iMaxExcit
-        INTEGER :: iLutTemp(0:NIfTot)
+        INTEGER :: DetCurr(NEl),i,nStore(6),ierr,iMaxExcit
+        INTEGER(KIND=n_int) :: iLutTemp(0:NIfTot), iLutCurr(0:NIfTot)
         INTEGER :: nJ(NEl)
         HElement_t :: TempHii
         REAL*8 :: HDiagCurr
@@ -2632,7 +2686,8 @@ MODULE FciMCParMod
 !This routine will take the particle and sign lists, sort them and then compress them so each determinant is only specified once. This requires sign-coherent lists.
 !The 'length' will be returned as the length of the new list.
     SUBROUTINE SortCompressLists(Length,PartList,SignList)
-        INTEGER :: Length,PartList(0:NIfTot,Length),SignList(Length)
+        INTEGER :: Length,SignList(Length)
+        INTEGER(KIND=n_int) :: PartList(0:NIfTot,Length)
         INTEGER :: i,VecInd,DetsMerged
 
         CALL SortBitDets(Length,PartList,SignList)
@@ -2664,7 +2719,8 @@ MODULE FciMCParMod
 !The 'length' will be returned as the length of the new list.
 !In this version, the hamiltonian matrix elements will be fed through with the rest of the list and taken with the particles.
     SUBROUTINE SortCompressListswH(Length,PartList,SignList,HList)
-        INTEGER :: Length,PartList(0:NIfTot,Length),SignList(Length),j
+        INTEGER :: Length,SignList(Length),j
+        INTEGER(KIND=n_int) :: PartList(0:NIfTot,Length)
         REAL*8 :: HList(Length)
         INTEGER :: i,DetsMerged,VecInd
 
@@ -3078,7 +3134,8 @@ MODULE FciMCParMod
 !This routine will write out the average wavevector from the spawning run up until now.
     SUBROUTINE WriteHistogram()
         use SystemData , only : BasisFN
-        INTEGER :: i,j,bits,iLut(0:NIfTot),error,IterRead
+        INTEGER :: i,j,bits,error,IterRead
+        INTEGER(Kind=n_int) :: iLut(0:NIfTot)
         TYPE(BasisFN) :: ISym
         REAL*8 :: norm,norm1,norm2,norm3,ShiftRead,AllERead,NumParts
         HElement_t :: HEL
@@ -3256,11 +3313,11 @@ MODULE FciMCParMod
     END SUBROUTINE WriteHamilHistogram
 
     subroutine new_child_stats_hist_hamil (iLutI, iLutJ, ic, walkExLevel, &
-                                           child) bind(c)
+                                           child)
         ! Based on old AddHistHamilEl. Histograms the hamiltonian matrix, and 
         ! then calls the normal statistics routine.
 
-        integer, intent(in) :: iLutI(0:niftot), iLutJ(0:niftot)
+        integer(kind=n_int), intent(in) :: iLutI(0:niftot), iLutJ(0:niftot)
         integer, intent(in) :: ic, walkExLevel, child
         character(*), parameter :: this_routine = 'new_child_stats_hist_hamil'
 
@@ -3822,11 +3879,11 @@ MODULE FciMCParMod
 
         IF(iProcIndex.eq.root) THEN
 
-            WRITE(15,"(I12,G16.7,I10,G16.7,I12,3I13,3G17.9,2I10,G13.5,I12,G13.5,G17.5,I13,G13.5,4G17.9)") Iter+PreviousCycles,DiagSft,INT(AllTotParts-AllTotPartsOld,i2),AllGrowRate,   &
-  &                INT(AllTotParts,i2),AllAnnihilated,AllNoDied,AllNoBorn,ProjectionE,AvDiagSft,AllENumCyc/AllHFCyc,AllNoatHF,AllNoatDoubs,AccRat,INT(AllTotWalkers,i2),IterTime,   &
+            WRITE(15,"(I12,G16.7,I10,G16.7,I12,3I13,3G17.9,2I10,G13.5,I12,G13.5,G17.5,I13,G13.5,4G17.9)") Iter+PreviousCycles,DiagSft,INT(AllTotParts-AllTotPartsOld,int64),AllGrowRate,   &
+  &                INT(AllTotParts,int64),AllAnnihilated,AllNoDied,AllNoBorn,ProjectionE,AvDiagSft,AllENumCyc/AllHFCyc,AllNoatHF,AllNoatDoubs,AccRat,INT(AllTotWalkers,int64),IterTime,   &
   &                REAL(AllSpawnFromSing)/REAL(AllNoBorn),WalkersDiffProc,TotImagTime,IterEnergy,HFShift,InstShift,AllENumCyc/AllHFCyc+Hii
-            WRITE(6,"(I12,G16.7,I10,G16.7,I12,3I11,3G17.9,2I10,G13.5,I12,G13.5)") Iter+PreviousCycles,DiagSft,INT(AllTotParts-AllTotPartsOld,i2),AllGrowRate,    &
-  &                INT(AllTotParts,i2),AllAnnihilated,AllNoDied,AllNoBorn,ProjectionE,AvDiagSft,AllENumCyc/AllHFCyc,AllNoatHF,AllNoatDoubs,AccRat,INT(AllTotWalkers,i2),IterTime
+            WRITE(6,"(I12,G16.7,I10,G16.7,I12,3I11,3G17.9,2I10,G13.5,I12,G13.5)") Iter+PreviousCycles,DiagSft,INT(AllTotParts-AllTotPartsOld,int64),AllGrowRate,    &
+  &                INT(AllTotParts,int64),AllAnnihilated,AllNoDied,AllNoBorn,ProjectionE,AvDiagSft,AllENumCyc/AllHFCyc,AllNoatHF,AllNoatDoubs,AccRat,INT(AllTotWalkers,int64),IterTime
 
             IF(tTruncInitiator.or.tDelayTruncInit) THEN
                 WRITE(16,"(I12,4G16.7,2F20.1,2F18.7,3F18.1)") Iter+PreviousCycles,AllNoAborted,AllNoAddedInitiators,(REAL(AllNoInitDets)/REAL(AllNoNonInitDets)),&
@@ -3858,9 +3915,11 @@ MODULE FciMCParMod
         use DetCalcData, only : NMRKS,tagNMRKS,FCIDets
         use SymExcit3, only : CountExcitations3 
         use DetBitOps, only: CountBits
+        use constants, only: bits_n_int
         use HElem
         INTEGER :: ierr,i,j,k,l,DetCurr(NEl),ReadWalkers,TotWalkersDet,HFDetTest(NEl),Seed,alpha,beta,symalpha,symbeta,endsymstate
-        INTEGER :: DetLT,VecSlot,error,HFConn,MemoryAlloc,iMaxExcit,nStore(6),nJ(Nel),BRR2(nBasis),LargestOrb,nBits,HighEDet(NEl),iLutTemp(0:NIfTot)
+        INTEGER :: DetLT,VecSlot,error,HFConn,MemoryAlloc,iMaxExcit,nStore(6),nJ(Nel),BRR2(nBasis),LargestOrb,nBits,HighEDet(NEl)
+        INTEGER(KIND=n_int) :: iLutTemp(0:NIfTot)
         HElement_t :: rh,TempHii
         TYPE(BasisFn) HFSym
         REAL*8 :: TotDets,SymFactor,r
@@ -4444,11 +4503,12 @@ MODULE FciMCParMod
             do i=1,nBasis
                 IF(SpinInvBRR(i).gt.CASmax) THEN
                     !Orbital is in external space
-                    CASMask((SpinInvBRR(i)-1)/32) = ibset(CASMask((i-1)/32),MOD((i-1),32))
+                    CASMask((SpinInvBRR(i)-1)/bits_n_int) = ibset(CASMask((i-1)/bits_n_int),MOD((i-1),bits_n_int))
+
                 ELSEIF(SpinInvBRR(i).le.CASmin) THEN
                     !Orbital is in core space
-                    CoreMask((SpinInvBRR(i)-1)/32) = ibset(CoreMask((i-1)/32),MOD((i-1),32))
-                    CASMask((SpinInvBRR(i)-1)/32) = ibset(CASMask((i-1)/32),MOD((i-1),32))
+                    CoreMask((SpinInvBRR(i)-1)/bits_n_int) = ibset(CoreMask((i-1)/bits_n_int),MOD((i-1),bits_n_int))
+                    CASMask((SpinInvBRR(i)-1)/bits_n_int) = ibset(CASMask((i-1)/bits_n_int),MOD((i-1),bits_n_int))
                 ENDIF
             enddo
 
@@ -4547,7 +4607,7 @@ MODULE FciMCParMod
         !    iLutNI: bit string representation of a determinant.
         ! Returns:
         !    true if the determinant is in the complete active space.
-        INTEGER, INTENT(IN) :: iLutnI(0:NIfD)
+        INTEGER(KIND=n_int), INTENT(IN) :: iLutnI(0:NIfD)
 
         ! A determinant is in the CAS iff
         !  a) all orbitals in the core space are occupied;
@@ -4616,7 +4676,8 @@ MODULE FciMCParMod
 !We pass in the excitation level of the original particle, the two representations of the excitation (we only need the bit-representation of the excitation
 !for HPHF) and the magnitude of the excitation (for determinant representation).
     LOGICAL FUNCTION CheckAllowedTruncSpawn(WalkExcitLevel,nJ,iLutnJ,IC)
-        INTEGER :: nJ(NEl),WalkExcitLevel,iLutnJ(0:NIfTot),ExcitLevel,IC,iGetExcitLevel_2,i,NoInFrozenCore,TotalLz,MinVirt
+        INTEGER :: nJ(NEl),WalkExcitLevel,ExcitLevel,IC,iGetExcitLevel_2,i,NoInFrozenCore,TotalLz,MinVirt
+        INTEGER(KIND=n_int) :: iLutnJ(0:NIfTot)
         INTEGER :: kx,ky,kz ! For UEG
 
         CheckAllowedTruncSpawn=.true.
@@ -4747,8 +4808,9 @@ MODULE FciMCParMod
 
 !This is the same as BinSearchParts1, but this time, the list to search is passed in as an argument. The list goes from 1 to Length, but only between MinInd and MaxInd is actually searched.
     SUBROUTINE BinSearchParts3(iLut,List,Length,MinInd,MaxInd,PartInd,tSuccess)
-        INTEGER :: iLut(0:NIfTot),MinInd,MaxInd,PartInd
-        INTEGER :: List(0:NIfTot,Length),Length
+        INTEGER :: MinInd,MaxInd,PartInd
+        INTEGER :: Length
+        INTEGER(KIND=n_int) :: iLut(0:NIfTot), List(0:NIfTot,Length)
         INTEGER :: i,j,N,Comp
         LOGICAL :: tSuccess
 
@@ -4968,26 +5030,6 @@ MODULE FciMCParMod
         
     END SUBROUTINE CreateSpinInvBRR
 
-! This creates a hash based not only on one current determinant, but is also dependent on the 
-! determinant from which the walkers on this determinant came.
-    FUNCTION CreateHashBit(DetCurr)
-        INTEGER :: DetCurr(0:NIfTot),i,Elecs,j
-        INTEGER(KIND=i2) :: CreateHashBit
-
-        CreateHashBit=0
-        Elecs=0
-        do i=0,NIfTot
-            do j=0,31
-                IF(BTEST(DetCurr(i),j)) THEN
-                    CreateHashBit=(1099511628211_8*CreateHashBit)+((i*32)+(j+1))*j
-                    Elecs=Elecs+1
-                    IF(Elecs.eq.NEl) RETURN
-                ENDIF
-            enddo
-        enddo
-
-    END FUNCTION CreateHashBit
-
 !This will store all the double excitations.
     SUBROUTINE StoreDoubs()
         use SystemData , only : tUseBrillouin
@@ -5048,10 +5090,12 @@ MODULE FciMCParMod
     SUBROUTINE SumEContrib(DetCurr,ExcitLevel,WSign,iLutCurr,HDiagCurr,dProbFin)
         use SystemData, only : tNoBrillouin
         use CalcData, only: tFCIMC
-        INTEGER , intent(in) :: DetCurr(NEl),ExcitLevel,WSign,iLutCurr(0:NIfTot)
+        INTEGER , intent(in) :: DetCurr(NEl),ExcitLevel,WSign
+        INTEGER(KIND=n_int), intent(in) :: iLutCurr(0:NIfTot)
         INTEGER :: i,HighIndex,LowIndex,Bin
-        INTEGER :: PartInd,iLutSym(0:NIfTot),OpenOrbs
-        LOGICAL :: CompiPath,tSuccess,iLut2(0:NIfTot)
+        INTEGER :: PartInd,OpenOrbs
+        INTEGER(KIND=n_int) :: iLutSym(0:NIfTot)
+        LOGICAL :: CompiPath,tSuccess
         REAL*8 , intent(in) :: HDiagCurr,dProbFin
         HElement_t :: HOffDiag
 !        write(81,*) DetCurr,ExcitLevel,WSign,iLutCurr,HDiagCurr,dProb
@@ -5302,7 +5346,9 @@ SUBROUTINE BinSearchParts2(iLut,MinInd,MaxInd,PartInd,tSuccess)
     use SystemData , only : NIfTot,NIfDBO
     use DetCalcData , only : FCIDets
     use DetBitOps, only: DetBitLT
-    INTEGER :: iLut(0:NIfTot),MinInd,MaxInd,PartInd
+    use constants, only: n_int
+    INTEGER :: MinInd,MaxInd,PartInd
+    INTEGER(KIND=n_int) :: iLut(0:NIfTot)
     INTEGER :: i,j,N,Comp
     LOGICAL :: tSuccess
 

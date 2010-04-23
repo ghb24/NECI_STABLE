@@ -5,7 +5,7 @@ module DetCalcData
       INTEGER Det   ! The number of determinants with the same sym
                     ! as the reference det.  This is the number of
                     ! dets in FCIDets
-      INTEGER, Allocatable :: FCIDets(:,:)  !This will contain a list of determinants of the same symmetry as the reference det, with dets in compressed form.  Usually (NIfTot, Det)
+      INTEGER(kind=n_int), Allocatable :: FCIDets(:,:)  !This will contain a list of determinants of the same symmetry as the reference det, with dets in compressed form.  Usually (NIfTot, Det)
       INTEGER, Allocatable :: FCIDetIndex(:)!This indicates where the excitation levels start in the FCIDets array(will go from 0->NEl+1).
       INTEGER ICILEVEL ! The maximum excitation level up to which to enumerate dets.  
       INTEGER :: tagNMRKS=0

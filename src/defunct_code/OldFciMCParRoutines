@@ -6883,4 +6883,24 @@ END SUBROUTINE DissociateExitgen
         WeightatDets(:)=0   !Rezero the array for the next iteration
     END SUBROUTINE WriteHistogrammedDets
     
-    
+
+! This creates a hash based not only on one current determinant, but is also dependent on the 
+! determinant from which the walkers on this determinant came.
+    FUNCTION CreateHashBit(DetCurr)
+        INTEGER :: i,Elecs,j
+        INTEGER(Kind=n_int) :: DetCurr(0:NIfTot)
+        INTEGER(KIND=i2) :: CreateHashBit
+
+        CreateHashBit=0
+        Elecs=0
+        do i=0,NIfTot
+            do j=0,31
+                IF(BTEST(DetCurr(i),j)) THEN
+                    CreateHashBit=(1099511628211_8*CreateHashBit)+((i*32)+(j+1))*j
+                    Elecs=Elecs+1
+                    IF(Elecs.eq.NEl) RETURN
+                ENDIF
+            enddo
+        enddo
+
+    END FUNCTION CreateHashBit
