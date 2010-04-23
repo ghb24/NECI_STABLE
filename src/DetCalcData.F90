@@ -1,6 +1,6 @@
 ! Contain data used by other modules after DetCalc has done its stuff
 module DetCalcData
-      use constants, only: dp
+      use constants, only: dp,n_int
       INTEGER NDET  ! The total number of determinants we have listed
       INTEGER Det   ! The number of determinants with the same sym
                     ! as the reference det.  This is the number of
