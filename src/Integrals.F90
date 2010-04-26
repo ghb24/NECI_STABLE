@@ -10,6 +10,8 @@ module Integrals
     use util_mod, only: get_nan
     use vasp_neci_interface
     use IntegralsData
+    use gen_coul_ueg_mod, only: gen_coul_hubnpbc, get_ueg_umat_el, &
+                                get_hub_umat_el
     use HElem, only: HElement_t_size, HElement_t_sizeB
 
     implicit none
@@ -595,7 +597,7 @@ contains
                   LogAlloc(ierr, 'UMat', UMatInt,HElement_t_sizeB, tagUMat)
                   UMat=(0.d0)
     !!C.. Non-periodic hubbard (mom space)
-                  CALL GEN_COUL_HUBNPBC(NEL,NBASISMAX,nBasis,G1,NMSH,NMAX,FCK,UMAT,ISPINSKIP,THUB,UHUB,OMEGA)
+                  call gen_coul_hubnpbc
                ELSE
     !!C.. Most normal Hubbards
                   IF(.NOT.TUEG) THEN
@@ -1397,9 +1399,8 @@ contains
                     call set_getumatel_fn (get_umat_el_cache)
                 endif
             else if (iss == -1) then
-                call stop_all (this_routine, "Getting there!!!")
                 ! Non-stored hubbard integral
-                ! Set GetHubUMatEl
+                call set_getumatel_fn (get_hub_umat_el)
             else
                 if (tStarStore) then
                     if (.not. tumat2d) &
@@ -1413,8 +1414,8 @@ contains
                 endif
             endif
         else if (nBasisMax(1,3) == -1) then
-            call stop_all (this_routine, "Getting there!!!")
-            ! GetUEGUmatEl
+            ! UEG integral
+            call set_getumatel_fn (get_ueg_umat_el)
         endif
 
         ! Note that this comes AFTER the above tests
@@ -1894,7 +1895,7 @@ contains
          ELSEIF(ISS.EQ.-1) THEN
 
 !  A  non-stored hubbard integral.
-            CALL GetHubUMatEl(IDI,IDJ,IDK,IDL,UMatstore,nBasisMax,G1,GetUMatEl)
+            GetUMatEl = get_hub_umat_el (idi, idj, idk, idl)
 
          ELSE
             IF(TSTARSTORE) THEN
@@ -1930,7 +1931,7 @@ contains
          ENDIF
 
       ELSEIF(NBASISMAX(1,3).EQ.-1) THEN
-         CALL GetUEGUmatEl(IDI,IDJ,IDK,IDL,ISS,G1,ALAT,iPeriodicDampingType,GetUMatEl)
+        GetUMatEl = get_ueg_umat_el (idi, idj, idk, idl)
       ENDIF
       ! WRITE(6,*) 'GetUmatEl', GetUMatEl,IDI,IDJ,IDK,IDL
 
