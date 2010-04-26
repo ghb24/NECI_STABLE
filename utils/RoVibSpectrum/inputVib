@@ -1,0 +1,9 @@
+22              Maximum vib level to be printed for fitting to find Bv and Dv.
+10              J Rot value max used for finding Bv and Dv. 
+18.998404       Mass of atom 1
+18.998404       Mass of atom 2
+1.D0            R_in
+15.D0           R_out (bounds of kinetic energy grid)
+500             Number of points on kinetic energy grid 
+11              Maximum vib level to be plot as wavefunctions.
+2.2 5.0         Bounds (in bohr) for which potential and wavefunctions are to be plot.

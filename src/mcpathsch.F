@@ -31,7 +31,7 @@ CNEL,0:NBASIS*NBASIS*NEL*NEL,0:I_VMAX-1)
          REAL*8 RIJLIST(*)
 C0:NBASIS*NBASIS*NEL*NEL,0:I_VMAX-1)
          INTEGER NLIST(0:I_VMAX-1),LSTP(0:I_VMAX-1),BTABLE(0:I_VMAX)
-         LOGICAL TLOG,TSYM,LISNAN
+         LOGICAL TLOG,TSYM
          INTEGER ICOUNT,ISEED,I_VMOVE
          INTEGER IADJ(0:I_VMAX-1,0:I_VMAX-1),ADJ
          REAL*8 FNCR
@@ -92,7 +92,7 @@ c            WRITE(6,*) I_V,F(I_V),TOTAL,get_total_time(proc_timer2),L,LT
             IF(TLOG)
      &         WRITE(11,"(I12,2G25.16,F19.7,I12)")
      &            I_V,F(I_V),TOTAL,get_total_time(proc_timer2),ICOUNT
-            IF(LISNAN(F(I_V))) THEN
+            IF(ISNAN(F(I_V))) THEN
 C.. save all log files
                ITIME=etime(t)
                CALL FLUSH(11)

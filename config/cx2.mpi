@@ -1,0 +1,18 @@
+[main]
+fc = mpif90
+cc = mpic++
+ld = mpif90
+ldflags = -i-dynamic
+compiler = INTEL-ifort9-on-LINUX
+cpp = cpp -C -traditional
+cppflags = -D__Linux -DPOINTER8 -DPARALLEL -DHAVE_SSE2
+libs = -L /apps/fftw/3.2.2/lib/ -L ~/local/lib -llapack -lblas -lfftw3 -cxxlib
+module_flag = -module
+
+[dbg]
+fflags = -r8 -g -warn
+cflags = -g -warn
+
+[opt]
+fflags = -r8 -O3 
+cflags = -O

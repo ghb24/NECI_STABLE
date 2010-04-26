@@ -1,3 +1,32 @@
+subroutine stop_all_c (sub_name, error_msg) bind(c, name='stop_all')
+    use, intrinsic :: iso_c_binding
+    implicit none
+
+    interface
+        pure function strlen (str) result(len) bind(c)
+            use, intrinsic :: iso_c_binding
+            implicit none
+            character(c_char), intent(in) :: str(*)
+            integer(c_int) :: len
+        end function
+    end interface
+
+    character(c_char), target, intent(in) :: sub_name(*), error_msg(*)
+    type(c_ptr) :: tmp
+    character(len=strlen(sub_name)), target :: sub_name_tmp
+    character(len=strlen(error_msg)), target :: error_msg_tmp
+
+    ! Convert from C character to standard fortran character string.
+    ! Note that strlen does not include the null character at the end of the
+    ! C string.  This is the behaviour we want.
+    sub_name_tmp = transfer(sub_name(:strlen(sub_name)), sub_name_tmp)
+    error_msg_tmp = transfer(error_msg(:strlen(error_msg)), error_msg_tmp)
+
+    call stop_all (sub_name_tmp, error_msg_tmp)
+
+end subroutine
+
+
 subroutine stop_all(sub_name,error_msg)
 != Stop calculation due to an error.
 != Exit with code 999.

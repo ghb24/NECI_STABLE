@@ -6,7 +6,7 @@ module csf
                           NIfY, LMS, NIfTot, NIfD, iSpinSkip, STOT, ECore
     use memorymanager, only: LogMemAlloc, LogMemDealloc
     use integralsdata, only: umat, fck, nmax
-    use HElem
+    use constants, only: dp,n_int
     use dSFMT_interface, only: genrand_real2_dSFMT
     use sltcnd_mod, only: sltcnd, sltcnd_2
     use DetBitOps, only: EncodeBitDet, FindBitExcitLevel, count_open_orbs, &
@@ -47,6 +47,20 @@ contains
         endif
     end function
 
+    ! TODO: This can be massively improved. Note that we have iLutI, iLutJ.
+    !       CSFGetHelement (nI, nJ) not needed? or does it call this?
+    function get_csf_helement (nI, nJ, iLutI, iLutJ, ic, ex, tParity, prob) &
+             result (hel)
+        integer, intent(in) :: nI(nel), nJ(nel), ic, ex(2,2)
+        integer(kind=n_int), intent(in) :: iLutI(0:NIfTot), iLutJ(0:NIfTot)
+        logical, intent(in) :: tParity
+        real(dp), intent(in) :: prob
+        HElement_t :: hel
+
+        hel = CSFGetHelement (nI, nJ)
+
+    end function
+
     function CSFGetHelement (nI, nJ) result(hel_ret)
         
         ! Calculate the H-matrix element between two CSFs (nI, nJ)
@@ -57,10 +71,10 @@ contains
         ! Ret: hel_ret  - The H-matrix element
 
         integer, intent(in) :: NI(nel), NJ(nel)
-        type(HElement) :: hel_ret
+        HElement_t :: hel_ret
 
-        integer :: nopen(2), nclosed(2), nup(2), ndets(2)
-        integer :: iLutI(0:NIfTot), iLutJ(0:NIfTot), IC, i
+        integer :: nopen(2), nclosed(2), nup(2), ndets(2), IC, i
+        integer(kind=n_int) :: iLutI(0:NIfTot), iLutJ(0:NIfTot)
         integer :: S(2), Ms(2)
         logical :: bCSF(2), bBothCSF
 
@@ -80,7 +94,7 @@ contains
         if ( (.not. bCSF(1)) .and. (.not. bCSF(2)) ) &
             call stop_all (this_routine, "Only for use with at least one CSF")
 
-        ! If the CSFs differ by more than 2 spin orbitals, the HElement=0
+        ! If the CSFs differ by more than 2 spin orbitals, the =0
         if (.not. bBothCSF) then
             IC = FindSpatialBitExcitLevel (iLutI, iLutJ)
         else
@@ -88,7 +102,7 @@ contains
         endif
 
         if (IC > 2) then
-            hel_ret = HElement(0)
+            hel_ret = (0)
             return
         endif
 
@@ -102,7 +116,7 @@ contains
         ! Assume Ms is maintained as Ms==S
         ! .or. (Ms(1).ne.Ms(2))) then
         if (bBothCSF .and. (S(1).ne.S(2))) then
-            hel_ret = HElement(0) 
+            hel_ret = (0) 
             return
         endif
 
@@ -151,19 +165,19 @@ contains
         ! function spaghetti code in the variable declarations.
 
         integer, intent(in) :: nI(nel), nJ(nel), nopen(2), nclosed(2)
-        integer, intent(in) :: iLutI(0:NIfTot), iLutJ(0:NIfTot)
+        integer(kind=n_int), intent(in) :: iLutI(0:NIfTot), iLutJ(0:NIfTot)
         integer, intent(in) :: nup(2), ndets(2), IC
-        type(HElement) :: hel_ret
+        HElement_t :: hel_ret
 
         ! Working arrays. Sizes calculated in calling function.
         integer :: yama1(nopen(1)), yama2(nopen(2))
         real*8 :: coeffs1(ndets(1)), coeffs2(ndets(2))
         integer :: dets1(nel, ndets(1)), dets2(nel, ndets(2))
-        integer :: ilut1(0:NIfTot,ndets(1)), ilut2(0:NIfTot,ndets(2))
+        integer(kind=n_int) :: ilut1(0:NIfTot,ndets(1)), ilut2(0:NIfTot,ndets(2))
         integer :: det_sum(ndets(1))
 
         integer :: det, i, j
-        type(HElement) :: sum1, Hel
+        HElement_t :: sum1, Hel
         type(timer), save :: hel_timer0, hel_timer2, hel_timer1, hel_timer
 
         hel_timer%timer_name = 'Hel_timer'
@@ -247,18 +261,18 @@ contains
 
         ! Sum in all of the H-matrix terms between each of the component
         ! determinants.
-        hel_ret = helement(0)
+        hel_ret = (0)
         do i=1,ndets(1)
             if (coeffs1(i) /= 0) then
-                sum1 = Helement(0)
+                sum1 = (0)
                 do j=1,ndets(2)
                     if (coeffs2(j) /= 0) then
                         Hel = sltcnd (dets1(:,i), dets2(:,j), &
                                           ilut1(:,i), ilut2(:,j))
-                        sum1 = sum1 + Hel * HElement(coeffs2(j))
+                        sum1 = sum1 + Hel * (coeffs2(j))
                     endif
                 enddo
-                hel_ret = hel_ret + sum1*HElement(coeffs1(i))
+                hel_ret = hel_ret + sum1*(coeffs1(i))
             endif
         enddo
 
@@ -280,18 +294,18 @@ contains
         ! TODO: make nopen(2) --> nopen etc.
 
         integer, intent(in) :: nI(nel), nJ(nel), nopen(2), nclosed(2)
-        integer, intent(in) :: iLutI(0:NIfTot), iLutJ(0:NIfTot)
+        integer(kind=n_int), intent(in) :: iLutI(0:NIfTot), iLutJ(0:NIfTot)
         integer, intent(in) :: nup(2), ndets(2), IC
-        type(HElement) :: hel_ret
+        HElement_t :: hel_ret
 
         ! Working arrays. Sizes calculated in calling function.
         integer :: yama(nopen(1))
         real*8 :: coeffs(ndets(1))
         integer :: dets(nel, ndets(1))
-        integer :: ilut(0:NIfTot,ndets(1))
+        integer(kind=n_int) :: ilut(0:NIfTot,ndets(1))
 
         integer :: det, i
-        type(HElement) :: hel
+        HElement_t :: hel
 
         ! Extract the Yamanouchi symbol from the CSF
         call get_csf_yama (nI, yama, nopen(1))
@@ -317,11 +331,11 @@ contains
         enddo
 
         ! Sum in all of the H-matrix terms
-        hel_ret = helement(0)
+        hel_ret = (0)
         do i=1,ndets(1)
             if (coeffs(i) /= 0) then
                 hel = sltcnd (dets(:,i), nJ, ilut(:,i), ilutJ)
-                hel_ret = hel_ret + hel*helement(coeffs(i))
+                hel_ret = hel_ret + hel*(coeffs(i))
             endif
         enddo
 
@@ -341,12 +355,12 @@ contains
         integer, intent(in) :: dets1(nel,ndets)
         integer, intent(in) :: det_sum(ndets)
         logical, intent(in) :: bEqual
-        type(HElement) :: hel_ret
+        HElement_t :: hel_ret
 
         integer :: nK(nel), id(nel), ex(2,2), elecs(2), sumdet
         integer :: ndown, idX, idN, ids, det, indj, i, j
         real*8 :: diag_coeff
-        type(HElement) :: hel, hel2
+        HElement_t :: hel, hel2
 
         ! TODO: bEqual
         ! TODO: commenting
@@ -358,15 +372,15 @@ contains
         ! Sum the coefficients of the diagonal matrix elements
         diag_coeff = sum(coeffs1*coeffs2)
 
-        hel_ret = helement(0)
+        hel_ret = (0)
         if (diag_coeff /= 0) then
             ! Sum in the one electron integrals
-            hel_ret = helement(diag_coeff) * &
+            hel_ret = (diag_coeff) * &
                           sum(gettmatel(nK, nK))
 
             ! Sum in the terms which involve closed shell orbitals, which
             ! are the same across all involved determinants.
-            hel = helement(0)
+            hel = (0)
             do i=1,nclosed-1,2
                 ! Within an orbital pair
                 hel = hel + GetUmatEl(nBasisMax, UMAT, ALAT, nBasis, &
@@ -376,11 +390,11 @@ contains
                 ! Between closed electron pairs
                 if (i < nclosed-2) then
                     do j=i+2,nclosed-1,2
-                        hel = hel + helement(4) * &
+                        hel = hel + (4) * &
                                 GetUmatEl(nBasisMax, UMAT, ALAT, nBasis, &
                                           iSpinSkip, G1, id(i), id(j), &
                                           id(i), id(j))
-                        hel = hel - helement(2) * &
+                        hel = hel - (2) * &
                                 GetUMatEl(nBasisMax, UMAT, ALAT, nBasis, &
                                           iSpinSkip, G1, id(i), id(j), &
                                           id(j), id(i))
@@ -391,18 +405,18 @@ contains
                 do j=nclosed+1,nel
                     idX = max(id(i), id(j))
                     idN = min(id(i), id(j))
-                    hel = hel + helement(2) * &
+                    hel = hel + (2) * &
                                 getUMatEl(nBasisMax, UMAT, ALAT, nBasis, &
                                           iSpinSkip, G1, idN, idX,idN,idX)
                     hel = hel - GetUmatEl(nBasisMax, UMAT, ALAT, nBasis, &
                                           iSpinSkip, G1, idN, idX,idX,idN)
                 enddo
             enddo
-            hel_ret = hel_ret + helement(diag_coeff)*hel
+            hel_ret = hel_ret + (diag_coeff)*hel
         endif
 
         ! Sum in terms between orbitals pairs that differ
-        hel = helement(0)
+        hel = (0)
         do i=nclosed+1,nel-1
             do j=i+1,nel
                 idX = max(id(i), id(j))
@@ -417,13 +431,13 @@ contains
                         ids = ieor(dets1(i,det), dets1(j,det))
                         if (ids == 0) then
                             hel = hel - hel2 * &
-                                       helement(coeffs1(det)*coeffs2(det))
+                                       (coeffs1(det)*coeffs2(det))
                         endif
                     endif
                 enddo
 
                 if (diag_coeff /= 0) then
-                    hel = hel + helement(diag_coeff) * &
+                    hel = hel + (diag_coeff) * &
                                 GetUMatEl(nBasisMax, UMAT, ALAT, &
                                           nBasis, iSpinSkip, G1, &
                                           idN, idX, idN, idX)
@@ -468,8 +482,8 @@ contains
                     hel = sltcnd_2 (ex, .false.)
 
                     hel_ret = hel_ret &
-                              + hel*helement(coeffs1(det)*coeffs2(indj))&
-                              + hel*helement(coeffs1(indj)*coeffs2(det))
+                              + hel*(coeffs1(det)*coeffs2(indj))&
+                              + hel*(coeffs1(indj)*coeffs2(det))
                 endif
 
                 call det_hel_2_pair (elecs(1), elecs(2), nopen, &
@@ -479,7 +493,7 @@ contains
 
         ! If this a diagonal matrix element, sum in ECore
         if (bEqual) then
-            hel_ret = hel_ret + helement(ECore)
+            hel_ret = hel_ret + (ECore)
         endif
         
     end function
@@ -488,7 +502,7 @@ contains
                                  nup, ndets, dets1, dets2, yama1, yama2, &
                                  coeffs1, coeffs2) result(hel_ret)
 
-        ! Given a case where IC == 2, calculate the helement. Thus we can make
+        ! Given a case where IC == 2, calculate the . Thus we can make
         ! some rather stark approximations. In particular, as we definitely
         ! differ by 2 spatial oribitals, only those orbitals can differ in Ms
         ! value, otherwise the overall pair differs my more than 2 spin
@@ -504,13 +518,14 @@ contains
         ! TODO: shift declaratino of dets into here --> we only need it to be
         !       nopen long, as we don't generate the dets.
 
+        use constants, only: bits_n_int
         integer, intent(in) :: nI(nel), nJ(nel), nopen(2), nclosed(2)
-        integer, intent(in) :: iLutI(0:NIfTot), iLutJ(0:NIfTot)
+        integer(kind=n_int), intent(in) :: iLutI(0:NIfTot), iLutJ(0:NIfTot)
         integer, intent(in) :: nup(2), ndets(2)
         integer, intent(in) :: yama1(nopen(1)), yama2(nopen(2))
         real*8, intent(out) :: coeffs1(ndets(1)), coeffs2(ndets(2))
         integer, intent(inout) :: dets1(nel, ndets(1)), dets2(nel, ndets(2))
-        type(HElement) :: hel_ret, hel, sum1, umatel(2)
+        HElement_t :: hel_ret, hel, sum1, umatel(2)
 
         integer :: nop_uniq(2), det, i, j, k, l, m, ex(2,2), &
                    uniq_id(4,2), ms1(ndets(1)), ms2(ndets(2)), &
@@ -615,7 +630,7 @@ contains
         ! looping code... --> the matrix is block diagonalised.
         j = 1
         i = 1
-        hel_ret = HElement(0)
+        hel_ret = (0)
         do while (i <= ndets(1) .and. j <= ndets(2))
 
             ! Avoid the extra terms which appear if the nopen values are
@@ -638,7 +653,7 @@ contains
             ! For each valid determinant in CSF1, loop through all of the
             ! connected determinants on the other determinant.
             if (coeffs1(i) /= 0) then
-                sum1 = HElement(0)
+                sum1 = (0)
                 k = j
                 do while (k <= ndets(2))
                     if (coeffs2(k) /= 0) then
@@ -658,7 +673,7 @@ contains
                         enddo
 
                         ! Include only those terms allowed by Ms symmetry.
-                        hel = HElement(0)
+                        hel = (0)
                         if ( (ex_ms(1,1) == ex_ms(2,1)) .and. &
                              (ex_ms(1,2) == ex_ms(2,2)) ) then
                             hel = hel + umatel(1)
@@ -674,14 +689,14 @@ contains
                         if (tSign_tmp) hel = -hel
 
                         ! Update the overall sum.
-                        sum1 = sum1 + hel*HElement(coeffs2(k))
+                        sum1 = sum1 + hel*(coeffs2(k))
                     endif
 
                     ! Increment the second index, but remain within the block
                     k = k + 1
                     if (dets_change2(k-1)) exit
                 enddo
-                hel_ret = hel_ret + sum1*HElement(coeffs1(i))
+                hel_ret = hel_ret + sum1*(coeffs1(i))
             endif
 
             ! If appropriate, move the second index on to the next block
@@ -806,8 +821,9 @@ contains
         ! As for csf_get_dets, but working with a bit representation of the
         ! permutation rather than separate integers
         
+        use constants, only: bits_n_int
         integer, intent(in) :: ndets, nup, nopen
-        integer, intent(out) :: ilut(NIfY,ndets)
+        integer(kind=n_int), intent(out) :: ilut(NIfY,ndets)
         integer :: i, det, comb(nup)
         logical :: bInc
 
@@ -816,8 +832,8 @@ contains
         forall (i=1:nup) comb(i) = i
         ilut = 1
         do det = 1, ndets
-            forall (i=1:nup) ilut((comb(i)-1)/32,det) = &
-                            ibclr(ilut((comb(i)-1)/32,det), mod(comb(i)-1,32))
+            forall (i=1:nup) ilut((comb(i)-1)/bits_n_int,det) = &
+                            ibclr(ilut((comb(i)-1)/bits_n_int,det), mod(comb(i)-1,bits_n_int))
 
             do i=1,nup
                 bInc = .false.
@@ -886,7 +902,7 @@ contains
         ! Note that det(perm(1)) /= det(perm(2)) (one must equal 1, the other
         ! must equal 2).
         ! 
-        ! Currently this assumes that nopen <= 32. This is reasonable as a CSF
+        ! Currently this assumes that nopen <= bits_n_int. This is reasonable as a CSF
         ! of that size would be unfeasible to use - we assume that on such a
         ! large system we would be using TRUNCATE-CSF. This might change with
         ! use of the initiator algorithm, in which case we will have to
@@ -910,6 +926,7 @@ contains
 
     ! TODO: comment
 
+        use constants, only: bits_n_int
         integer, intent(in) :: det(nopen), perm(2)
         integer, intent(in) :: ndets, nopen, deti
         integer, intent(in) :: det_sum(ndets)
@@ -917,7 +934,7 @@ contains
 
         integer :: sumdet, hi, lo
 
-        if (nopen > 32) call stop_all ("det_perm_pos", "nopen too large. Need&
+        if (nopen > bits_n_int) call stop_all ("det_perm_pos", "nopen too large. Need&
                                    & to move to multi-integer representation")
 
         ! Calculate the new sum value
@@ -1181,6 +1198,7 @@ contains
         ! a bit determinant - the same as part of the bit det obtained by
         ! EncodeBitDet.
 
+        use constants, only: bits_n_int
         integer, intent(in) :: nI(nel)
         integer, intent(out) :: yama(NIfY)
         integer :: i, pos, bit, nopen
@@ -1190,8 +1208,8 @@ contains
         do i=1,nel
             ! Only consider open electrons. The first has csf_yama_bit set.
             if (nopen > 0 .or. btest(nI(i), csf_yama_bit)) then
-                pos = 1 + nopen / 32
-                bit = mod(nopen, 32)
+                pos = 1 + nopen / bits_n_int
+                bit = mod(nopen, bits_n_int)
 
                 if (btest(nI(i), csf_yama_bit)) &
                     yama(pos) = ibset(yama(pos), bit)
@@ -1246,7 +1264,8 @@ contains
         ! and the Ms value for the specified csf.
         ! NB. The Ms value is no longer being used. We ASSERT that Ms == STOT
 
-        integer, intent(in) :: NI(nel), ilut(0:NIfTot)
+        integer, intent(in) :: NI(nel) 
+        integer(kind=n_int), intent(in) :: ilut(0:NIfTot)
         integer, intent(out) :: nopen, nclosed
         integer, intent(out) :: S, Ms
         integer i

@@ -1,10 +1,10 @@
 
       FUNCTION CALCPATHS(IPATH,RHOII,RHOIJ,I_V,
      &      I_HMAX,I_P,NWHTAY,NEL,I_VMAX,ILOGGING)
-         USE HElem
+         use constants, only: dp
          use global_utilities
          IMPLICIT NONE
-         TYPE(HDElement) CALCPATHS
+         real(dp) CALCPATHS
          INTEGER NEL,I_V,I_P,NWHTAY,I_HMAX,I_VMAX
 C.. IPATH contains the vertices we can choose from
 C.. IPATH2 contains the path we are constructing (listing the dets)
@@ -15,12 +15,12 @@ C.. 12/7/05 - this should now just be the number 0.D0 - it is not used
 
 
 C.. RHOII2 is constructed to contain the RHOII for each point in the path
-         TYPE(HElement) RHOIJ(0:I_V,0:I_V),RH
-         TYPE(HDElement) TOTAL,RHOCUML,RHOII(0:I_V),RHOII2(0:I_HMAX)
-         TYPE(HDElement) DLWDB
+         HElement_t RHOIJ(0:I_V,0:I_V),RH
+         real(dp) TOTAL,RHOCUML,RHOII(0:I_V),RHOII2(0:I_HMAX)
+         real(dp) DLWDB
          INTEGER ILOGGING
          type(timer), save :: proc_timer
-         TYPE(HDElement) RhoDiag_CPP, CalcPaths_2, CalcPaths_3,
+         real(dp) RhoDiag_CPP, CalcPaths_2, CalcPaths_3,
      &      CalcPaths_4, CalcPaths_R
          INTEGER I_HIND
 
@@ -62,11 +62,12 @@ C            IF(I_V.EQ.3) CALCPATHS=CP3CI2(RHOII,RHOIJ,I_P)
 
       FUNCTION CALCPATHS_N(IPATH,RHOII,RHOIJ,I_V,
      &      I_HMAX,I_P,WEIGHT,NEL,I_VMAX,ILOGGING,DBETA,DLWDB,HIJS,ICLS)
-         USE HElem
+         use constants, only: dp
          use CalcData , only : CALCP_SUB2VSTAR,CALCP_LOGWEIGHT
+         use CalcData, only: GraphEpsilon
          use global_utilities
          IMPLICIT NONE
-         TYPE(HDElement) CalcPaths_N
+         real(dp) CalcPaths_N
          INTEGER NEL,I_V,I_P,NWHTAY,I_HMAX,I_VMAX,ICLS
 C.. IPATH contains the vertices we can choose from
 C.. IPATH2 contains the path we are constructing (listing the dets)
@@ -79,23 +80,20 @@ C.. 12/7/05 - this should now just be the number 0.D0 - it is not used
 
 
 C.. RHOII2 is constructed to contain the RHOII for each point in the path
-         TYPE(HDElement) RHOII(0:I_V),TOTAL,RHOCUML
+         real(dp) RHOII(0:I_V),TOTAL,RHOCUML
 ! removed as no longer used
-!         TYPE(HDElement) RHOII2(0:i_hmax)
-         TYPE(HDElement) CALCPATHS
-         TYPE(HElement) HIJS(1:I_V),RHOIJ(0:I_V,0:I_V),RH
+!         real(dp) RHOII2(0:i_hmax)
+         real(dp) CALCPATHS
+         HElement_t HIJS(1:I_V),RHOIJ(0:I_V,0:I_V),RH
          INTEGER ICLASS,ILG,ISGN
          REAL*8 WEIGHT
-!DBETA has two parts
-!DBETA(1) is DBETA
-!DBETA(2) is GRAPHEPSILON
-         REAL*8 DBETA(2)
-         TYPE(HDElement) DLWDB
+         REAL*8 DBETA
+         real(dp) DLWDB
          INTEGER ILOGGING
          type(timer), save :: proc_timer
-         TYPE(HDElement) RhoDiag_CPP, CalcPaths_2, CalcPaths_3,
+         real(dp) RhoDiag_CPP, CalcPaths_2, CalcPaths_3,
      &      CalcPaths_4, CalcPaths_R,HDiag_CPP
-         TYPE(HDElement) RhoDiag_CPPS2VS,HDiag_CPPS2VS
+         real(dp) RhoDiag_CPPS2VS,HDiag_CPPS2VS
          INTEGER I_HIND
          proc_timer%timer_name='CALCPATHS '
          call set_timer(proc_timer,50)
@@ -106,7 +104,7 @@ C.. we use a diagonalization version rather than contour etc.
 C.. subtracting out lower vertex paths at this level
 C            WRITE(6,*) "-----"
             IF(I_HMAX.EQ.-19.OR.I_HMAX.EQ.-20) THEN
-!.NOT.(RHOII(0).AGT.0.D0)) THEN
+!.NOT.(abs(RHOII(0)).gt.0.D0)) THEN
 C.. We actually diagonalize a matrix of Hij elements rather than a matrix of
 C.. RHOIJ elements.  We send beta in from RHOII(1)
                if(calcp_sub2vstar) then
@@ -150,26 +148,25 @@ C            IF(I_V.EQ.3) CALCPATHS=CP3CI2(RHOII,RHOIJ,I_P)
 !     &               NWHTAY,I_HIND,NEL,IPATH2,IP2,1.D0,RHOII2,I_VMAX,
 !     &               ILOGGING)
          ENDIF
-!DBETA(2) is GRAPHEPSILON
-         IF(.NOT.(CALCPATHS.AGE.DBETA(2))) THEN
+         IF(.NOT.(abs(CALCPATHS).GE.abs(GraphEpsilon))) THEN
             CALCPATHS=0.D0
             DLWDB=0.D0
          ENDIF
          CALCPATHS_N=CALCPATHS
          IF(I_V.LE.5) THEN
             IF(WEIGHT.GT.0.D0)
-     &       CALL CLASSPATHS(DREAL(CALCPATHS)/WEIGHT,
-     &            DREAL(DLWDB)/WEIGHT,WEIGHT,RHOIJ,
+     &       CALL CLASSPATHS((CALCPATHS)/WEIGHT,
+     &            (DLWDB)/WEIGHT,WEIGHT,RHOIJ,
      &            I_V,ICLS)
          ENDIF
          call halt_timer(proc_timer)
          RETURN
       END
       SUBROUTINE CLASSPATHS(RHOC,HC,WEIGHT,RHOIJ,I_V,ICLASS)
-         USE HElem
+         use constants, only: dp
          use legacy_data, only: CALCP_N, CALCP_NT, CALCP_SUM, CALCP_HSUM
          IMPLICIT NONE
-         TYPE(HElement) RHOIJ(0:I_V,0:I_V)
+         HElement_t RHOIJ(0:I_V,0:I_V)
          REAL*8 RHOC,HC,WEIGHT
          INTEGER I_V,ILG,ISGN,ICLASS
          INTEGER INCR

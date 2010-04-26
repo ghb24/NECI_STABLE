@@ -28,7 +28,7 @@ subroutine ParMP2(nI)
    != to be handled at once, removing the need to any integrals to be stored.
    != 2. Implement for standalone NECI calculations (molecular, Hubbard etc).
 
-   USE HElem
+   use constants, only: dp
    use System, only: AreSameSpatialOrb
    use SystemData, only: nBasisMax,nEl,Beta,ARR,nBasis,ECore,G1,tCPMD,Symmetry
    use CalcData, only: NWHTAY
@@ -49,11 +49,11 @@ subroutine ParMP2(nI)
    integer :: ic,exlen,iC0,ExcitOrbs(2,2),ExLevel
    integer, pointer :: Ex(:)
    integer :: nJ(nEl),weight
-   TYPE(HElement) dU(2)
-   Type(HDElement) :: dE1,dE2
-   Type(HElement) :: dE,dEtot(2),dE0
+   HElement_t dU(2)
+   real(dp) :: dE1,dE2
+   HElement_t :: dE,dEtot(2),dE0
    ! MPIHelSum requires arrays as input/output.
-   Type(HElement) :: dEarr(2)
+   HElement_t :: dEarr(2)
    type(Symmetry) :: iSym1,iSym2
    type(Symmetry) :: iSym1Conj,iSym2Conj
    type(Symmetry) :: SymConj
@@ -119,7 +119,7 @@ subroutine ParMP2(nI)
    CALL GENSYMEXCITIT3Par(NI, .False.,EX,nJ,IC,0,STORE,ExLevel,iMinElec,iMaxElec)
    i=0
    j=0
-   dETot=HElement(0.d0)
+   dETot=(0.d0)
 
    DO WHILE(NJ(1).NE.0)
 ! NJ(1) is zero when there are no more excitations.
@@ -263,8 +263,8 @@ subroutine ParMP2(nI)
          if (weight.ne.0) then
 
             j=j+1
-            dE2=HDElement(Arr(Excit(2,1),2)-Arr(Excit(1,1),2))
-            dU=HElement(0.d0)
+            dE2=(Arr(Excit(2,1),2)-Arr(Excit(1,1),2))
+            dU=(0.d0)
             if (Excit(2,2).eq.0) then
                 ! Single excitation.
                 ! dU=\sum_J 2<IJ|AJ>-<IJ|JA> (in terms of spatial orbitals).
@@ -284,23 +284,23 @@ subroutine ParMP2(nI)
                         iSym2=SymLabels(KPntInd(JA))
                         iSym2Conj=SymConj(iSym2)
                         if (iSym2%s.eq.iSym1%s.or.iSym2Conj%s.eq.iSym1%s) then
-                            dU(1)=dU(1)+HElement(2)*GetUMatEl2(IA,JA,AA,JA)-GetUMatEl2(IA,JA,JA,AA)
+                            dU(1)=dU(1)+(2)*GetUMatEl2(IA,JA,AA,JA)-GetUMatEl2(IA,JA,JA,AA)
                         else if (iSym2%s.gt.iSym2Conj%s) then
                             ! <i j,k_j | a j,k_j> = <i j,-k_j | a j,-k_j>
                             ! Count it here to reduce integrals to be evaluated.
-                            dU(1)=dU(1)+HElement(4)*GetUMatEl2(IA,JA,AA,JA)-GetUMatEl2(IA,JA,JA,AA)
+                            dU(1)=dU(1)+(4)*GetUMatEl2(IA,JA,AA,JA)-GetUMatEl2(IA,JA,JA,AA)
                         else if (iSym2%s.lt.iSym2Conj%s) then
                             ! Already added <ij|ji>.
                             dU(1)=dU(1)-GetUMatEl2(IA,JA,JA,AA)
                         end if
                     else
-                        dU(1)=dU(1)+HElement(2)*GetUMatEl2(IA,JA,AA,JA)-GetUMatEl2(IA,JA,JA,AA)
+                        dU(1)=dU(1)+(2)*GetUMatEl2(IA,JA,AA,JA)-GetUMatEl2(IA,JA,JA,AA)
                     end if
                 end do
                 dU(1)=dU(1)+GetTMATEl(Excit(1,1),Excit(2,1))
             else
                 ! Double excitation
-                dE2=dE2+HDElement(Arr(Excit(2,2),2)-Arr(Excit(1,2),2))
+                dE2=dE2+(Arr(Excit(2,2),2)-Arr(Excit(1,2),2))
                 ! Obtain the <ij|ab> and <ij|ba> integrals as required.  These
                 ! are combined evaulated below for the various contributions to
                 ! the MP2 energy.
@@ -314,21 +314,21 @@ subroutine ParMP2(nI)
 
             if (Excit(1,2).eq.0) then
                 ! Singles contribution.
-                call getMP2E(HDElement(0.d0),dE2,dU(1),dE)
-                dETot(1)=dETot(1)+HElement(weight)*dE
+                call getMP2E(0.d0,dE2,dU(1),dE)
+                dETot(1)=dETot(1)+(weight)*dE
             else
                 ! Doubles contributions.
-                if (dU(2).agt.0.d0) then
+                if (abs(dU(2)).gt.0.d0) then
                     ! Get e.g. (1a,2b)->(3a,4b) and (1a,2b)->(3b,4a) for "free"
                     ! when we evaluate (1a,2a)->(3a,4a).
-                    call getMP2E(HDElement(0.d0),dE2,dU(1),dE)
-                    dETot(2)=dETot(2)+HElement(weight)*dE
-                    call getMP2E(HDElement(0.d0),dE2,dU(2),dE)
-                    dETot(2)=dETot(2)+HElement(weight)*dE
+                    call getMP2E(0.d0,dE2,dU(1),dE)
+                    dETot(2)=dETot(2)+(weight)*dE
+                    call getMP2E(0.d0,dE2,dU(2),dE)
+                    dETot(2)=dETot(2)+(weight)*dE
                 end if
                 dU(1)=dU(1)-dU(2)
-                call getMP2E(HDElement(0.d0),dE2,dU(1),dE)
-                dETot(2)=dETot(2)+HElement(weight)*dE
+                call getMP2E(0.d0,dE2,dU(1),dE)
+                dETot(2)=dETot(2)+(weight)*dE
             end if
 
          ! END of more efficient approach.
@@ -374,7 +374,7 @@ Subroutine Par2vSum(nI)
    !=  Issues:
    !=     * Some problems remain with how electrons are distributed over processors.
    !=     * Doesn't work for CPMD calculations.
-   USE HElem
+   use constants, only: dp
    use SystemData, only: nEl,Beta
    Use Determinants, only: get_helement
    IMPLICIT NONE
@@ -386,9 +386,9 @@ Subroutine Par2vSum(nI)
    integer ic,exlen,iC0
    integer, pointer :: Ex(:)
    integer nJ(nEl)
-   TYPE(HElement) dU
-   Type(HDElement) dE1,dE2
-   Type(HElement) dEw,dw,dEwtot,dwtot,dTots(2),dTots2(2)
+   HElement_t dU
+   real(dp) dE1,dE2
+   HElement_t dEw,dw,dEwtot,dwtot,dTots(2),dTots2(2)
    iC0=0
    i=iProcIndex+1
    write(6,*) "Proc ",i,"/",nProcessors
@@ -401,10 +401,10 @@ Subroutine Par2vSum(nI)
 !  Initialize.  If we're the first processor then we add in the 1-vertex graph.
    if(iProcIndex.EQ.0) THEN
       dEwTot=dE1
-      dwTot=HElement(1.d0)
+      dwTot=(1.d0)
    ELSE
       dEwTot=0.D0
-      dwTot=HElement(0.d0)
+      dwTot=(0.d0)
    ENDIF
 
 ! Now enumerate all 2v graphs
@@ -450,11 +450,11 @@ subroutine getMP2E(dE1,dE2,dU,dE)
    != Out:
    !=    dE = |< 1 | H | 2 >|^2 / (dE2 - dE1)
    !=         contribution to the MP2 energy.
-   use HElem
+   use constants, only: dp
    implicit none
-   type(HDElement) dE1,dE2
-   type(HElement) dU,dE
-   dE=Sq(dU)/(dE1%v-dE2%v)
+   real(dp) dE1,dE2
+   HElement_t dU,dE
+   dE=abs(dU)**2/(dE1-dE2)
 end subroutine getMP2E
 
 
@@ -484,13 +484,13 @@ subroutine Get2vWeightEnergy(dE1,dE2,dU,dBeta,dw,dEt)
    != Out:
    !=    dw     weight of the graph, w_i[G]
    !=    dEt    weighted contribution of the graph, w_i[G] \tilde{E}_i[G]
-   use HElem
+   use constants, only: dp
    implicit none
-   type(HDElement) dE1,dE2
-   type(HElement) dU,dEt,dw
+   real(dp) dE1,dE2
+   HElement_t dU,dEt,dw
    real*8 dBeta
-   type(HElement) dEp,dEm,dD,dEx,dD2,dTmp
-   if(abs(dU%v).eq.0.d0) then
+   HElement_t dEp,dEm,dD,dEx,dD2,dTmp
+   if(abs(dU).eq.0.d0) then
       ! Determinants are not connected.
       ! => zero contribution.
       dw=0.D0
@@ -501,11 +501,11 @@ subroutine Get2vWeightEnergy(dE1,dE2,dU,dBeta,dw,dEt)
 !  Calculate eigenvalues.
 !   write (6,*) dE1,dE2,dU
 
-   dD=HElement((dE1%v+dE2%v)**2-4*(dE1%v*dE2%v)+4*abs(dU%v)**2)
+   dD=((dE1+dE2)**2-4*(dE1*dE2)+4*abs(dU)**2)
 
 !   write (6,*) dD
 
-   dD=sqrt(dD%v)/2
+   dD=sqrt(dD)/2
    dEp=(dE1+dE2)/2
    dEm=dEp-dD
    dEp=dEp+dD
@@ -513,17 +513,21 @@ subroutine Get2vWeightEnergy(dE1,dE2,dU,dBeta,dw,dEt)
 !   write (6,*) dD,dEp,dEm
 
 !  The normalized first coefficient of an eigenvector is U/sqrt((dE1-dEpm)**2+U**2)
-   dD=1/sqrt((dE1%v-dEp%v)**2+abs(dU%v)**2) ! normalisation factor
-   dD2=dD%v*(dEp%v-dE1%v)               ! second coefficient
+   dD=1/sqrt((dE1-dEp)**2+abs(dU)**2) ! normalisation factor
+   dD2=dD*(dEp-dE1)               ! second coefficient
    dD=dD*dU                           ! first coefficient
    
 !   write (6,*) dD,dD2
 
 !dD is the eigenvector component
-   dEx=exp(-dBeta*(dEp%v-dE1%v))
-   dw=sq(abs(dD))*dEx%v
-   dEt=dE1%v*sq(abs(dD))*dEx%v
+   dEx=exp(-dBeta*(dEp-dE1))
+   dw=abs(dD)**2*dEx
+   dEt=dE1*abs(dD)**2*dEx
+#ifdef __CMPLX
    dEt=dEt+dU*dD*dconjg(dD2)*dEx
+#else
+   dEt=dEt+dU*dD*(dD2)*dEx
+#endif
    
 !   write (6,*) dEx,dw,dEt
 
@@ -534,13 +538,22 @@ subroutine Get2vWeightEnergy(dE1,dE2,dU,dBeta,dw,dEt)
 !      dD=dD*dU
 !  Instead we just swap dD2 and dD around
    dTmp=dD
+#ifdef __CMPLX
    dD=dconjg(dD2)
    dD2=-dconjg(dTmp)
-   dEx=exp(-dBeta*(dEm%v-dE1%v))
-   dw=dw+HElement(sq(abs(dD))*dEx%v)
+#else
+   dD=(dD2)
+   dD2=-(dTmp)
+#endif
+   dEx=exp(-dBeta*(dEm-dE1))
+   dw=dw+(abs(dD)**2*dEx)
 !   write(6,*) dEm,dD,dD2,dw,dEx
-   dEt=dEt+HElement(dE1%v*sq(abs(dD))*dEx%v)
+   dEt=dEt+(dE1*abs(dD)**2*dEx)
+#ifdef __CMPLX
    dEt=dEt+dU*dD*dconjg(dD2)*dEx
+#else
+   dEt=dEt+dU*dD*(dD2)*dEx
+#endif
 
 !  Now, we already have calculated the effect of the one-vertex graph, so
 !  we need to remove the double-counting of this from the 2-vertex graph.
@@ -548,8 +561,8 @@ subroutine Get2vWeightEnergy(dE1,dE2,dU,dBeta,dw,dEt)
 !     w_i[i] = exp(-\beta E_i)
 !     w_i[i] \tilde{E}_i[i] = exp(-\beta E_i) E_i
 !  As we factor out exp(-\beta E_i), this becomes just:
-   dEt=dEt-HElement(dE1%v)
-   dw=dw-HElement(1)
+   dEt=dEt-(dE1)
+   dw=dw-(1)
    write (6,*) 'wE,E',dEt,dw
    
 end subroutine Get2vWeightEnergy

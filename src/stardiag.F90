@@ -1,7 +1,7 @@
     MODULE STARDIAGMOD
         use Determinants, only: get_helement
         use sort_mod
-        USE HElem
+        use constants, only: dp
         IMPLICIT NONE
       
 !.. ExcitInfo will contain all the info needed to work out the value of the star
@@ -9,14 +9,14 @@
 !.. ExcitInfo(J,0) = RHOJJ
 !.. ExcitInfo(J,1) = RHOIJ
 !.. ExcitInfo(J,2) = HIJ
-         TYPE(HElement), POINTER :: ExcitInfo(:,:)
-         TYPE(HElement), ALLOCATABLE, TARGET :: ExcitInfo2(:,:)
+         HElement_t, POINTER :: ExcitInfo(:,:)
+         HElement_t, ALLOCATABLE, TARGET :: ExcitInfo2(:,:)
          integer :: tagExcitInfo=0
          integer :: tagExcitInfo2=0
-         TYPE(HElement), ALLOCATABLE :: temprhos(:,:)
+         HElement_t, ALLOCATABLE :: temprhos(:,:)
 
 !Offrho is used with TSumProd to store the original star off-diagonal elements when using TSumProd, which changes the values in EXCITINFO
-         TYPE(HElement), ALLOCATABLE :: Offrho(:)
+         HElement_t, ALLOCATABLE :: Offrho(:)
 
 !If we are keeping a list of excitations in the star, then allocate EXCITSTORE to hold the excitations, in the form of o o v v orbitals
          INTEGER, ALLOCATABLE :: EXCITSTORE(:,:)
@@ -29,7 +29,7 @@
          REAL*8, ALLOCATABLE :: OffDiagProdRho(:,:)
 
 !Used with TSumProd, rhiiadd is the value to resum back into the root to account for quadruple excitations
-         TYPE(HElement) :: rhiiadd
+         HElement_t :: rhiiadd
 
          integer, save :: tagOnDiagProdRho=0,tagOffDiagProdRho=0,tagEXCITSTORE=0,tagOffrho=0,tagtemprhos=0
          integer, save :: tagProdPositions=0
@@ -44,16 +44,17 @@
          use SystemData , only : TSTOREASEXCITATIONS,BasisFN
          use IntegralsData , only : TCalcRhoProd,TSumProd,TCalcRealProd,TCalcExcitStar,TDiagStarStars,TLinRootChange
          use global_utilities
+         use HElem
          IMPLICIT NONE
          Type(BasisFN) G1(*)
          INTEGER nI(nEl),nEl,i_P,nBasisMax(5,*),Brr(nBasis),nBasis,nMsh
          INTEGER nMax,nTay(2),L,LT,nWHTay,iLogging
          COMPLEX*16 fck(*)
-         TYPE(HElement) UMat(*)
+         HElement_t UMat(*)
          REAL*8 Beta, ALat(3),RhoEps,ECore,dBeta,MaxDiag
-         TYPE(HDElement) dLWdB
-         TYPE(HDElement) fMCPR3StarNewExcit
-         TYPE(HElement) HIJS(0:2)
+         real(dp) dLWdB
+         real(dp) fMCPR3StarNewExcit
+         HElement_t HIJS(0:2)
 !         REAL*8 LARGERHOJJ(10000)
          INTEGER iPath(nEl,0:2),UniqProd
          LOGICAL tSym
@@ -72,8 +73,8 @@
          INTEGER nJ(nEl),iExcit,iMaxExcit,excitcount,Prodnum
          INTEGER iErr,nK(nEl),nL(nEl)
          INTEGER nRoots,i,j
-         TYPE(HElement) rh,rhii,EHFDiff,Hii
-         TYPE(HDElement) MP2E(2:2)        
+         HElement_t rh,rhii,EHFDiff,Hii
+         real(dp) MP2E(2:2)        
          LOGICAL tStarSingles,tCountExcits
          INTEGER nIExcitFormat(nEl)
 !         REAL*8 , ALLOCATABLE :: SortedHij(:)
@@ -82,7 +83,7 @@
 !This needs to be removed, as it'll eventually be an input parameter
 
 !         LARGERHOJJ(:)=0.D0
-         fMCPR3StarNewExcit=HDElement(0.D0)
+         fMCPR3StarNewExcit=(0.D0)
          IF(tStoreAsExcitations) THEN
             nIExcitFormat(1)=-1
             nIExcitFormat(2)=0
@@ -125,7 +126,7 @@
                 CALL GenSymExcitIt2(nI,nEl,G1,nBasis,nBasisMax,.false.,nExcit,nJ,iExcit,0,nStore,exFlag)
                 IF(nJ(1).eq.0) exit lp2
                 CALL CalcRho2(nIExcitFormat,nJ,Beta,i_P,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,nMax,ALat,UMat,rh,nTay,iExcit,ECore)
-                IF(rh.agt.RhoEps) excitcount=excitcount+1
+                IF(abs(rh).gt.RhoEps) excitcount=excitcount+1
             enddo lp2
 
             !Set number of excitations to number of connected determinants, and reset generator
@@ -150,7 +151,7 @@
          ENDIF
          Write(6,*) "Allocating storage for ",iMaxExcit," excitations."
          Allocate(ExcitInfo(0:iMaxExcit,0:2),stat=iErr)
-         call LogMemAlloc('ExcitInfo',3*(iMaxExcit+1),8*HElementSize,this_routine,tagExcitInfo,iErr)
+         call LogMemAlloc('ExcitInfo',3*(iMaxExcit+1),8*HElement_t_size,this_routine,tagExcitInfo,iErr)
 !If we are keeping a list of excitations in the star, then allocate EXCITSTORE to hold the excitations, in the form of o o v v orbitals
          IF(TCalcRealProd.or.TSumProd.or.TCalcExcitStar) THEN
              ALLOCATE(EXCITSTORE(4,iMaxExcit),stat=iErr)
@@ -202,7 +203,7 @@
 !           Calculate rhoij element
             CALL CalcRho2(nIExcitFormat,nJ,Beta,i_P,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,nMax,ALat,UMat,rh,nTay,iExcit,ECore)
             
-            if(rh .agt. RhoEps) then
+            if(abs(rh ).gt. RhoEps) then
            
 !               WRITE(33,*) nJ(:)
                i=i+1
@@ -216,7 +217,7 @@
                if(btest(nwhtay,5)) then
                   call GetH0Element(nJ,nEl,nMax,nBasis,ECore,rh)
                   rh=rh+EHFDiff
-                  rh=rh*HElement(-Beta/I_P)
+                  rh=rh*(-Beta/I_P)
                   rh=exp(rh)
                   ExcitInfo(i,0)=rh/rhii
                else
@@ -225,15 +226,15 @@
 !If we are solving star using MC, then we want the Hamiltonian matrix, rather than rho matrix elements for diagonal elements, and subtract the HF energy from them all
                        ExcitInfo(i,0) = get_helement (nJ, nJ, 0)
                        ExcitInfo(i,0)=ExcitInfo(i,0)-Hii
-                       IF(ExcitInfo(i,0).agt.MaxDiag) MaxDiag=ExcitInfo(i,0)%v
+                       IF(abs(ExcitInfo(i,0)).gt.MaxDiag) MaxDiag=ExcitInfo(i,0)
                    ELSE
                        CALL CalcRho2(nJ,nJ,Beta,i_P,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,nMax,ALat,UMat,rh,nTay,0,ECore)
                        ExcitInfo(i,0)=rh/rhii
                    ENDIF
                   
 !                  do j=1,10000
-!                    IF((rh.agt.LARGERHOJJ(J)).or.(LARGERHOJJ(J).eq.0.D0)) THEN
-!                        LARGERHOJJ(J)=rh%v
+!                    IF(abs((rh).gt.LARGERHOJJ(J)).or.(LARGERHOJJ(J).eq.0.D0)) THEN
+!                        LARGERHOJJ(J)=rh
 !                        GOTO 765
 !                    ENDIF
 !                  ENDDO
@@ -260,7 +261,7 @@
 !Quick test to see range of Hij values
 !         ALLOCATE(SortedHij(iExcit))
 !         do l=1,iExcit
-!            SortedHij(l)=ABS(REAL(ExcitInfo(l,2)%v,KIND(0.D0)))
+!            SortedHij(l)=ABS(REAL(ExcitInfo(l,2),KIND(0.D0)))
 !            Norm=Norm+SortedHij(l)**5
 !         enddo
 !         CALL SORT(iExcit,SortedHij)
@@ -398,9 +399,10 @@
             use IntegralsData , only : TQuadValMax,TQuadVecMax,TJustQuads,TNoDoubs
             use SystemData, only: BasisFN
             use global_utilities
+            use HElem
             IMPLICIT NONE
             TYPE(BasisFN) G1(*)
-            TYPE(HElement) :: rhii,UMat(*),rh,rhij,Hij
+            HElement_t :: rhii,UMat(*),rh,rhij,Hij
             COMPLEX*16 :: fck(*)
             REAL*8 :: Beta,ALat(3),ECore,RhoEps
             INTEGER :: DoublePath(nEl),nStore2(6),exFlag2,iMaxExcit2,nJ(nEl),nExcitMemLen2
@@ -424,7 +426,7 @@
             
             proc_timer%timer_name='CalcExcitStar'
             call set_timer(proc_timer)
-            IF(HElementSize.ne.1) STOP 'Only real orbitals allowed'
+            IF(HElement_t_size.ne.1) STOP 'Only real orbitals allowed'
             
 !Allow only double excitations
             exFlag2=2
@@ -464,7 +466,7 @@
                         ENDIF
                     ENDIF
                     CALL CalcRho2(DoublePath,nJ,Beta,i_P,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,nMax,ALat,UMat,rh,nTay,iExcit2,ECore)
-                    IF(rh.agt.RhoEps) THEN
+                    IF(abs(rh).gt.RhoEps) THEN
                         QuadExcits=QuadExcits+1
                         NoExcitsInStar(i)=NoExcitsInStar(i)+1
                     ENDIF
@@ -495,8 +497,8 @@
 
 !Now go through all excitations, finding the excited star, and diagonalising, adding the eigenvalues and vectors to ExcitInfo2(0:TotExcits,0:2)
             ALLOCATE(ExcitInfo2(0:TotExcits,0:2),stat=iErr)
-            call LogMemAlloc('ExcitInfo2',3*(TotExcits+1),8*HElementSize,this_routine,tagExcitInfo2,iErr)
-            ExcitInfo2=HElement(0.d0)
+            call LogMemAlloc('ExcitInfo2',3*(TotExcits+1),8*HElement_t_size,this_routine,tagExcitInfo2,iErr)
+            ExcitInfo2=(0.d0)
 
 !Fill original star matrix - INCORRECT - do not want to include original excitations - these are already included in the prediagonalised elements
 !            do i=0,iExcit
@@ -509,8 +511,8 @@
 !            NextVertex=iExcit+1
 
 !All that is not included is the original i spoke
-            ExcitInfo2(0,0)=HElement(1.D0)
-            ExcitInfo2(0,1)=HElement(1.D0)
+            ExcitInfo2(0,0)=(1.D0)
+            ExcitInfo2(0,1)=(1.D0)
             ExcitInfo2(0,2)=ExcitInfo(0,2)
             
             NextVertex=1
@@ -539,8 +541,8 @@
                 CALL LogMemAlloc("ExcitStarInfo",(NoExcitsInStar(i)+1)*2,8,this_routine,tagExcitStarInfo,iErr)
                 ExcitStarInfo=0.d0
                 
-                ExcitStarInfo(0,0)=DREAL(rh/rhii)
-                ExcitStarInfo(0,1)=DREAL(rh/rhii)
+                ExcitStarInfo(0,0)=(rh/rhii)
+                ExcitStarInfo(0,1)=(rh/rhii)
                 j=0
                 
                 lp: do while(.true.)
@@ -572,13 +574,13 @@
 
 !Calculate rho_jk for excited stars
                     CALL CalcRho2(DoublePath,nJ,Beta,i_P,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,nMax,ALat,UMat,rh,nTay,iExcit2,ECore)
-                    IF(rh.agt.RhoEps) THEN
+                    IF(abs(rh).gt.RhoEps) THEN
                         j=j+1
-                        ExcitStarInfo(j,1)=DREAL(rh/rhii)
+                        ExcitStarInfo(j,1)=(rh/rhii)
 
 !Calculate rho_kk for quadruple excitations
                         CALL CalcRho2(nJ,nJ,Beta,i_P,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,nMax,ALat,UMat,rh,nTay,0,ECore)
-                        ExcitStarInfo(j,0)=DREAL(rh/rhii)
+                        ExcitStarInfo(j,0)=(rh/rhii)
 
                         IF(j.gt.NoExcitsInStar(i)) STOP 'Incorrect Counting here'
                     ENDIF
@@ -629,9 +631,9 @@
                 
 !Now it is necessary to reattach the eigenvectors back to the original star matrix...
                 Do j=1,(NoExcitsInStar(i)+1)
-                    ExcitInfo2(NextVertex,0)=HElement(ExcitStarVals(j))
-                    ExcitInfo2(NextVertex,1)=rhij*HElement(ExcitStarVecs(j))
-                    ExcitInfo2(NextVertex,2)=Hij*HElement(ExcitStarVecs(j))
+                    ExcitInfo2(NextVertex,0)=(ExcitStarVals(j))
+                    ExcitInfo2(NextVertex,1)=rhij*(ExcitStarVecs(j))
+                    ExcitInfo2(NextVertex,2)=Hij*(ExcitStarVecs(j))
                     NextVertex=NextVertex+1
                 enddo
 
@@ -660,6 +662,7 @@
 !A testing routine which writes out eigenvectors and values from various modified star matrices
         SUBROUTINE GraphRootChange(iMaxExcit,iExcit,RhoEps)
             use global_utilities
+            use HElem
             IMPLICIT NONE
             INTEGER :: iMaxExcit,iExcit,HalfiExcit,i,j,calcs,lowtoprint,toprint,k
             INTEGER :: NoDegens,iErr
@@ -667,8 +670,8 @@
             LOGICAL :: degen
             REAL*8 :: r,gap,minimum,RhoEps
             REAL*8, ALLOCATABLE :: Vals(:),Vecs(:),DiagRhos(:),Diffs(:,:)
-            TYPE(HElement) :: tmp(3)
-            TYPE(HElement), ALLOCATABLE :: TESTER(:)
+            HElement_t :: tmp(3)
+            HElement_t, ALLOCATABLE :: TESTER(:)
             integer, save :: tagDegenPos=0
             character(*), parameter :: this_routine='GraphRootChange'
 
@@ -695,12 +698,12 @@
                 ExcitInfo(i-1,2)=tmp(3)
             enddo
             
-            IF(.not.(ExcitInfo(iExcit,0).agt.0.1d0)) STOP 'Reordering incorrect'
+            IF(.not.abs(ExcitInfo(iExcit,0)).gt.0.1d0) STOP 'Reordering incorrect'
             WRITE(6,*) "Minimum rho_jj is :", ExcitInfo(iExcit,0)
 
 ! Ensures that all determinants are non-degenerate - useful for testing
 !            do i=1,iExcit
-!                ExcitInfo(i,0)=HElement(exp(-0.0001*i))
+!                ExcitInfo(i,0)=(exp(-0.0001*i))
 !            enddo
 
 !It is necessary to find the sets of degenerate rho_jj elements, in order to predict which are non-zero eigenvectors.
@@ -710,7 +713,7 @@
             do while(i.lt.iExcit)
                 i=i+1
                 degen=.true.
-                do while((DREAL(ExcitInfo(i,0)).eq.DREAL(ExcitInfo(i+1,0))).and.(i.lt.iExcit))
+                do while((REAL(ExcitInfo(i,0),8).eq.REAL(ExcitInfo(i+1,0),8)).and.(i.lt.iExcit))
                     i=i+1
                 enddo
                 NoDegens=NoDegens+1
@@ -731,7 +734,7 @@
             j=0
             do while(i.lt.iExcit)
                 i=i+1
-                do while((DREAL(ExcitInfo(i,0)).eq.DREAL(ExcitInfo(i+1,0))).and.(i.lt.iExcit))
+                do while((REAL(ExcitInfo(i,0),8).eq.REAL(ExcitInfo(i+1,0),8)).and.(i.lt.iExcit))
                     i=i+1
                 enddo
                 j=j+1
@@ -755,7 +758,7 @@
             DiagRhos=0.d0
 
             calcs=100
-            minimum=1.D0-((1.D0-DREAL(ExcitInfo(iExcit,0)))*2)
+            minimum=1.D0-((1.D0-REAL(ExcitInfo(iExcit,0),8))*2)
             WRITE(6,*) "Minimum root value to search for is: ", minimum
             CALL FLUSH(6)
             gap=(1.D0-minimum)/(calcs-1)
@@ -775,7 +778,7 @@
 
 !            ALLOCATE(TESTER(iExcit))
 !            do i=1,iExcit
-!                TESTER(i)=HElement(0.D0)
+!                TESTER(i)=(0.D0)
 !            enddo
             
             j=0
@@ -784,8 +787,8 @@
 !Fill matrix as normal, but change root element from 1 -> little lower than rho_jj
                 do i=2,iExcit+1
 !Comment out as appropriate (all elements multiplied by r, or just root
-!                    DiagRhos(i)=DREAL(ExcitInfo(i-1,0))
-                    DiagRhos(i)=DREAL(ExcitInfo(i-1,0))*r
+!                    DiagRhos(i)=(ExcitInfo(i-1,0))
+                    DiagRhos(i)=(ExcitInfo(i-1,0))*r
                 enddo
                 DiagRhos(1)=r
 
@@ -902,20 +905,21 @@
         SUBROUTINE GetStarStars(iMaxExcit,iExcit,RhoEps)
             use IntegralsData , only : TExcitStarsRootChange,TRmRootExcitStarsRootChange
             use global_utilities
+            use HElem
             IMPLICIT NONE
             INTEGER :: NextVertex,i,j,iErr,iMaxExcit,iExcit
             type(timer), save :: proc_timer
             REAL*8, ALLOCATABLE :: NewDiagRhos(:),Vals(:),Vecs(:)
-            TYPE(HElement), ALLOCATABLE :: NewOffDiagRhos(:)
+            HElement_t, ALLOCATABLE :: NewOffDiagRhos(:)
             integer, save :: tagVals=0,tagVecs=0,tagNewDiagRhos=0,tagNewOffDiagRhos=0
             REAL*8 :: RhoValue,RhoEps,OffRhoValue
-            TYPE(HElement) :: Rhoia
+            HElement_t :: Rhoia
             LOGICAL :: FoundRoot
             character(*), parameter :: this_routine='GetStarStars'
 
             proc_timer%timer_name='GetStarStars'
             call set_timer(proc_timer)
-            IF(HElementSize.ne.1) STOP 'Only real orbitals allowed in GetStarStars'
+            IF(HElement_t_size.ne.1) STOP 'Only real orbitals allowed in GetStarStars'
 
             WRITE(6,*) "Explicitly diagonalising approximate excited stars from HF star template"
             IF(TExcitStarsRootChange) THEN
@@ -925,15 +929,15 @@
             ALLOCATE(NewDiagRhos(iExcit+1),stat=iErr)
             CALL LogMemAlloc("NewDiagRhos",iExcit+1,8,this_routine,tagNewDiagRhos,iErr)
             ALLOCATE(NewOffDiagRhos(iExcit),stat=iErr)
-            CALL LogMemAlloc("NewOffDiagRhos",iExcit,8*HElementSize,this_routine,tagNewOffDiagRhos,iErr)
-            NewOffDiagRhos=HElement(0.d0)
+            CALL LogMemAlloc("NewOffDiagRhos",iExcit,8*HElement_t_size,this_routine,tagNewOffDiagRhos,iErr)
+            NewOffDiagRhos=(0.d0)
             ALLOCATE(ExcitInfo2(0:iExcit*(iExcit+1),0:2),stat=iErr)
-            call LogMemAlloc('ExcitInfo2',(iExcit*(iExcit+1)+1)*3,8*HElementSize,this_routine,tagExcitInfo2,iErr)
-            ExcitInfo2=HElement(0.d0)
+            call LogMemAlloc('ExcitInfo2',(iExcit*(iExcit+1)+1)*3,8*HElement_t_size,this_routine,tagExcitInfo2,iErr)
+            ExcitInfo2=(0.d0)
             iMaxExcit=iExcit*(iExcit+1)
             
-            ExcitInfo2(0,0)=HElement(1.D0)
-            ExcitInfo2(0,1)=HElement(1.D0)
+            ExcitInfo2(0,0)=(1.D0)
+            ExcitInfo2(0,1)=(1.D0)
             ExcitInfo2(0,2)=ExcitInfo(0,2)
             NextVertex=1
             
@@ -954,29 +958,29 @@
                 NewDiagRhos=0.d0
                 Vals=0.d0
                 Vecs=0.d0
-                RhoValue=DREAL(ExcitInfo(i,0))
-                OffRhoValue=DREAL(ExcitInfo(i,1))
+                RhoValue=(ExcitInfo(i,0))
+                OffRhoValue=(ExcitInfo(i,1))
                 
 !Fill matrix of excited star to prediagonalise
                 NewDiagRhos(1)=RhoValue
                 do j=1,iExcit
                     IF(TExcitStarsRootChange) THEN
 !Only change the root element for the excited star matrix. 
-                        NewDiagRhos(j+1)=DREAL(ExcitInfo(j,0))
+                        NewDiagRhos(j+1)=(ExcitInfo(j,0))
                     
 !Remove connection to itself in the excited star.
                     ELSEIF(TRmRootExcitStarsRootChange) THEN
-                        IF((DREAL(ExcitInfo(j,0)).eq.RhoValue).and.(OffRhoValue.eq.DREAL(ExcitInfo(j,1))).and.(.not.FoundRoot)) THEN
+                        IF((REAL(ExcitInfo(j,0),dp).eq.RhoValue).and.(OffRhoValue.eq.REAL(ExcitInfo(j,1),dp)).and.(.not.FoundRoot)) THEN
                             NewDiagRhos(j+1)=0.D0
-                            NewOffDiagRhos(j+1)=HElement(0.D0)
+                            NewOffDiagRhos(j+1)=(0.D0)
                             FoundRoot=.true.
                         ELSE
-                            NewDiagRhos(j+1)=DREAL(ExcitInfo(j,0))
+                            NewDiagRhos(j+1)=(ExcitInfo(j,0))
                         ENDIF
 
 !Multiply all diagonal elements by current rho_jj value
                     ELSE
-                        NewDiagRhos(j+1)=DREAL(ExcitInfo(j,0))*RhoValue
+                        NewDiagRhos(j+1)=(ExcitInfo(j,0))*RhoValue
                     ENDIF
                 enddo
 
@@ -989,13 +993,13 @@
                 
                 do j=1,iExcit+1
 
-                    Rhoia=ExcitInfo(i,1)*HElement(Vecs(j))
+                    Rhoia=ExcitInfo(i,1)*(Vecs(j))
 
-                    IF(Rhoia.agt.RhoEps) THEN
+                    IF(abs(Rhoia).gt.RhoEps) THEN
 !Return excited star values to ExcitInfo2
-                        ExcitInfo2(NextVertex,0)=HElement(Vals(j))
+                        ExcitInfo2(NextVertex,0)=(Vals(j))
                         ExcitInfo2(NextVertex,1)=Rhoia
-                        ExcitInfo2(NextVertex,2)=ExcitInfo(i,2)*HElement(Vecs(j))
+                        ExcitInfo2(NextVertex,2)=ExcitInfo(i,2)*(Vecs(j))
                         NextVertex=NextVertex+1
                     ENDIF
 
@@ -1028,6 +1032,7 @@
         SUBROUTINE GetLinRootChangeStars(iMaxExcit,iExcit,RhoEps,nWHTay)
             use CalcData , only : LinePoints
             use global_utilities
+            use HElem
             IMPLICIT NONE
             INTEGER :: i,j,iMaxExcit,iExcit,nWHTay,HalfiExcit,ierr,lowerrhojj
             type(timer), save :: proc_timer
@@ -1036,12 +1041,12 @@
             LOGICAL :: ReachMax
             REAL*8, ALLOCATABLE :: AllVals(:),AllVecs(:),DiagRhos(:)
             integer, save :: tagAllVals=0,tagAllVecs=0,tagDiagRhos=0
-            TYPE(HElement) :: tmp(3)
+            HElement_t :: tmp(3)
             character(*), parameter :: this_routine='GetLinRootChangeStars'
 
             proc_timer%timer_name='GetLinRootChangeStars'
             call set_timer(proc_timer)
-            IF(HElementSize.ne.1) STOP 'Only real orbitals allowed'
+            IF(HElement_t_size.ne.1) STOP 'Only real orbitals allowed'
             WRITE(6,*) "Stars where only root changes to be included, using a linear approximation of eigenvalues"
             
 !First it is necessary to order the rho_jj elements, so that the range that the linear approximation needs to hold can be worked out.
@@ -1068,13 +1073,13 @@
 !Take 'Linepoints' points along the change in rho_jj to calculate the gradient of the line for each eigenvalue, and the first element of the eigenvectors.
 !Only two points are strictly needed, but 'Linepoints' will be taken so that the validity of the linear approximation can be calculated.
 !Assign largest diagonal multiplicative constant to simply be the original star graph, i.e. rho_ii/rho_ii is the root
-            IF((ABS(DREAL(ExcitInfo(0,0))-1.D0)).gt.1.D-07) THEN
+            IF((ABS(REAL(ExcitInfo(0,0),dp)-1.D0)).gt.1.D-07) THEN
                 STOP 'First element of original star matrix should equal 1.D0'
             ENDIF
             LineRhoValues(1)=1.D0
 
 !ExcitInfo(iExcit,0) is the smallest rho_jj value.
-            WRITE(6,*) "Smallest rho_jj value is ", DREAL(ExcitInfo(iExcit,0))
+            WRITE(6,*) "Smallest rho_jj value is ", REAL(ExcitInfo(iExcit,0),dp)
 
 !Calculate the number of eigenvectors which contribute to the excited star with the smallest root...
 !First calculate the contribution from largest eigenvector...
@@ -1085,9 +1090,9 @@
             ALLOCATE(DiagRhos(iExcit+1),stat=ierr)
             CALL LogMemAlloc("DiagRhos",iExcit+1,8,this_routine,tagDiagRhos,iErr)
             do j=2,iExcit+1
-                DiagRhos(j)=DREAL(ExcitInfo(j-1,0))
+                DiagRhos(j)=REAL(ExcitInfo(j-1,0))
             enddo
-            DiagRhos(1)=DREAL(ExcitInfo(iExcit,0))
+            DiagRhos(1)=REAL(ExcitInfo(iExcit,0))
             CALL GetValsnVecs(iExcit+1,DiagRhos,ExcitInfo(1:iExcit,1),AllVals,AllVecs)
             Vector=AllVecs(iExcit+1)
             i=0
@@ -1107,9 +1112,9 @@
             
 !Try fitting not accros whole range of rho_jj values, but just the highest values - closer linear relationship
 !            lowerrhojj=INT(iExcit/50)
-!            RhoGap=(1.D0-DREAL(ExcitInfo(lowerrhojj,0)))/(LinePoints-1)
+!            RhoGap=(1.D0-REAL(ExcitInfo(lowerrhojj,0)))/(LinePoints-1)
 !Instead of fitting to a certain distance down the list of rho_jjs, pick a minimum rootchange value directly from the spread.
-             lowrhojj=1.D0-((1.D0-DREAL(ExcitInfo(iExcit,0)))/50)
+             lowrhojj=1.D0-((1.D0-REAL(ExcitInfo(iExcit,0),dp))/50)
              RhoGap=(1.D0-lowrhojj)/(LinePoints-1)
 
 !Calculate the spread of Rho_jj values which the linear approximation will be based around. Initially, this is just a linear spread.
@@ -1118,7 +1123,7 @@
             enddo
 
 !LineRhoValues(LinePoints) should be the same as ExcitInfo(iExcit,0)
-!            IF(ABS(LineRhoValues(LinePoints)-DREAL(ExcitInfo(iExcit,0))).gt.1.D-09) THEN
+!            IF(ABS(LineRhoValues(LinePoints)-(ExcitInfo(iExcit,0))).gt.1.D-09) THEN
 !                STOP 'LineRhoValues(LinePoints) should be the same as the lowest rho_jj value'
 !            ENDIF
             IF(.NOT.BTEST(NWHTAY,0)) THEN
@@ -1142,7 +1147,7 @@
 
 !First diagonal element is RhoValue. The other diagonal elements are given by ExcitInfo(1:iExcit,0)
                     do j=2,iExcit+1
-                        DiagRhos(j)=DREAL(ExcitInfo(j-1,0))
+                        DiagRhos(j)=(ExcitInfo(j-1,0))
                     enddo
                     DiagRhos(1)=RhoValue
                     
@@ -1237,19 +1242,19 @@
 
 !Linearly change diagonal elements - rho_jj' = GradVal*(rho_jj - 1) + eigenmax
             ALLOCATE(ExcitInfo2(0:iExcit,0:2),stat=ierr)
-            call LogMemAlloc('ExcitInfo2',3*(iExcit+1),8*HElementSize,this_routine,tagExcitInfo2,iErr)
-            ExcitInfo2=HElement(0.d0)
+            call LogMemAlloc('ExcitInfo2',3*(iExcit+1),8*HElement_t_size,this_routine,tagExcitInfo2,iErr)
+            ExcitInfo2=(0.d0)
             
 !Put HF determinant into element 0
-            ExcitInfo2(0,0)=HElement(1.D0)
-            ExcitInfo2(0,1)=HElement(1.D0)
+            ExcitInfo2(0,0)=(1.D0)
+            ExcitInfo2(0,1)=(1.D0)
             ExcitInfo2(0,2)=ExcitInfo(0,2)
 
 !Diagonal elements and Hamiltonian elements do not change, since assume eigenvectors are 1 or 0...
             do i=1,iExcit
                 ExcitInfo2(i,1)=ExcitInfo(i,1)
                 ExcitInfo2(i,2)=ExcitInfo(i,2)
-                ExcitInfo2(i,0)=EigenMax+(GradVal*(DREAL(ExcitInfo(i,0))-1.D0))
+                ExcitInfo2(i,0)=EigenMax+(GradVal*((ExcitInfo(i,0))-1.D0))
             enddo
 
             CALL LogMemDealloc(this_routine,tagExcitInfo)
@@ -1290,11 +1295,12 @@
             use CalcData , only : LinePoints
             use IntegralsData , only : TQuadValMax,TQuadVecMax
             use global_utilities
+            use HElem
             IMPLICIT NONE
             INTEGER :: i,j,iErr,CSE,NextVertex,iMaxExcit
             type(timer), save :: proc_timer
             INTEGER :: iExcit,TotExcits,HalfiExcit
-            TYPE(HDElement) :: tmp(3)
+            real(dp) :: tmp(3)
             LOGICAL :: TVal
             REAL*8 :: RhoGap,RhoValue,RhoEps,Rhoia,StarEigens(iExcit+1,2)
             REAL*8 :: meanx,Sxx,ValMax,VecMax,HMax,Rhoaa
@@ -1324,7 +1330,7 @@
 
             proc_timer%timer_name='GetLinStarStars'
             call set_timer(proc_timer)
-            IF(HElementSize.ne.1) STOP 'Only real orbitals allowed'
+            IF(HElement_t_size.ne.1) STOP 'Only real orbitals allowed'
             WRITE(6,*) "Stars of double excitations to be included in calculation using a linear approximation of eigenvalues"
             WRITE(6,*) iExcit*(iExcit+1)," possible extra excitations"
             
@@ -1353,14 +1359,14 @@
             ALLOCATE(LineRhoValues(LinePoints))
 
 !Assign largest diagonal multiplicative constant to simply be the original star graph, i.e. rho_ii/rho_ii is the root
-            IF((ABS(DREAL(ExcitInfo(0,0))-1.D0)).gt.1.D-07) THEN
+            IF((ABS(REAL(ExcitInfo(0,0),dp)-1.D0)).gt.1.D-07) THEN
                 STOP 'First element of original star matrix should equal 1.D0'
             ENDIF
             LineRhoValues(1)=1.D0
 
 !ExcitInfo(iExcit,0) is the smallest rho_jj value.
-            WRITE(6,*) "Smallest rho_jj value is ", DREAL(ExcitInfo(iExcit,0))
-            RhoGap=(1.D0-DREAL(ExcitInfo(iExcit,0)))/(LinePoints-1)
+            WRITE(6,*) "Smallest rho_jj value is ", REAL(ExcitInfo(iExcit,0),dp)
+            RhoGap=(1.D0-ExcitInfo(iExcit,0))/(LinePoints-1)
 
 !Calculate the spread of Rho_jj values which the linear approximation will be based around. Initially, this is just a linear spread.
             do i=2,LinePoints
@@ -1368,7 +1374,7 @@
             enddo
 
 !LineRhoValues(LinePoints) should be the same as ExcitInfo(iExcit,0)
-            IF(ABS(LineRhoValues(LinePoints)-DREAL(ExcitInfo(iExcit,0))).gt.1.D-07) THEN
+            IF(ABS(LineRhoValues(LinePoints)-REAL(ExcitInfo(iExcit,0),dp)).gt.1.D-07) THEN
                 STOP 'LineRhoValues(LinePoints) should be the same as the lowest rho_jj value'
             ENDIF
 
@@ -1390,10 +1396,10 @@
 
 !Multiply the diagonal elements by the value of rho_jj we want                
                 do j=1,iExcit+1
-                    IF(DREAL(ExcitInfo(j-1,0)).lt.0.8) THEN
+                    IF(REAL(ExcitInfo(j-1,0),dp).lt.0.8) THEN
                         STOP 'rho_jj value too small, or incorrect for linear approximation'
                     ENDIF
-                    NewDiagRhos(j)=DREAL(ExcitInfo(j-1,0))*RhoValue
+                    NewDiagRhos(j)=(ExcitInfo(j-1,0))*RhoValue
                 enddo
 
 !Find the values for eigenvalues and eigenvectors of this matrix, and put them into the relevant ValsDODMS and VecsDODMS
@@ -1587,7 +1593,7 @@
 !Cycle through all possible eigenvectors of each excited star
                 do j=1,iExcit+1
 
-                    rhoia=(ExcitInfo(i,1)%v)*(GradVecs(j)*((ExcitInfo(i,0)%v)-1.D0)+StarEigens(j,2))
+                    rhoia=(ExcitInfo(i,1))*(GradVecs(j)*((ExcitInfo(i,0))-1.D0)+StarEigens(j,2))
                     
                     IF((ABS(rhoia).gt.RhoEps).and.(.not.TQuadValMax).and.(.not.TQuadVecMax)) THEN
                         !Include all quadruple excitations (ficticious and real)
@@ -1614,9 +1620,9 @@
 !            TotExcits=iExcit+CSE
             TotExcits=CSE
             ALLOCATE(ExcitInfo2(0:TotExcits,0:2),stat=iErr)
-            CALL LogMemAlloc("ExcitInfo2",(TotExcits+1)*3*HElementSize,8,this_routine,tagExcitInfo2,iErr)
-            call LogMemAlloc('ExcitInfo2',3*(TotExcits+1),8*HElementSize,this_routine,tagExcitInfo2,iErr)
-            ExcitInfo2=HElement(0.d0)
+            CALL LogMemAlloc("ExcitInfo2",(TotExcits+1)*3*HElement_t_size,8,this_routine,tagExcitInfo2,iErr)
+            call LogMemAlloc('ExcitInfo2',3*(TotExcits+1),8*HElement_t_size,this_routine,tagExcitInfo2,iErr)
+            ExcitInfo2=(0.d0)
 
 !Fill original star matrix - NO!! Do not want to double count i --> j excitations.
 !Only need to include the original root, i
@@ -1629,8 +1635,8 @@
 !
 !            enddo
 
-             ExcitInfo2(0,0)=HElement(1.D0)
-             ExcitInfo2(0,1)=HElement(1.D0)
+             ExcitInfo2(0,0)=(1.D0)
+             ExcitInfo2(0,1)=(1.D0)
              ExcitInfo2(0,2)=ExcitInfo(0,2)
 
 !            WRITE(6,*) "Original Hij elements :"
@@ -1648,14 +1654,14 @@
                 
                 do j=1,iExcit+1
 
-                    rhoia=(ExcitInfo(i,1)%v)*(GradVecs(j)*((ExcitInfo(i,0)%v)-1.D0)+StarEigens(j,2))
-                    rhoaa=GradVals(j)*(DREAL(ExcitInfo(i,0))-1.D0)+StarEigens(j,1)
+                    rhoia=(ExcitInfo(i,1))*(GradVecs(j)*((ExcitInfo(i,0))-1.D0)+StarEigens(j,2))
+                    rhoaa=GradVals(j)*(ExcitInfo(i,0)-1.D0)+StarEigens(j,1)
                     
 !Include all quadruple excitations with large enough connection to root
                     IF((ABS(rhoia).gt.RhoEps).and.(.not.TQuadValMax).and.(.not.TQuadVecMax)) THEN
-                        ExcitInfo2(NextVertex,1)=HElement(rhoia)
-                        ExcitInfo2(NextVertex,0)=HElement(GradVals(j))*(ExcitInfo(i,0)-HElement(1.D0))+HElement(StarEigens(j,1))
-                        ExcitInfo2(NextVertex,2)=ExcitInfo(i,2)*(HElement(GradVecs(j))*(ExcitInfo(i,0)-HElement(1.D0))+HElement(StarEigens(j,2)))
+                        ExcitInfo2(NextVertex,1)=(rhoia)
+                        ExcitInfo2(NextVertex,0)=(GradVals(j))*(ExcitInfo(i,0)-(1.D0))+(StarEigens(j,1))
+                        ExcitInfo2(NextVertex,2)=ExcitInfo(i,2)*((GradVecs(j))*(ExcitInfo(i,0)-(1.D0))+(StarEigens(j,2)))
                         NextVertex=NextVertex+1
                     
                     ELSEIF((ABS(rhoia).gt.RhoEps).and.(TQuadValMax.or.TQuadVecMax)) THEN
@@ -1664,12 +1670,12 @@
                         IF((rhoaa.gt.ValMax).and.(TQuadValMax)) THEN
                             ValMax=rhoaa
                             VecMax=rhoia
-                            HMax=DREAL(ExcitInfo(i,2))*(GradVecs(j)*(DREAL(ExcitInfo(i,0))-1.D0)+StarEigens(j,2))
+                            HMax=(ExcitInfo(i,2))*(GradVecs(j)*((ExcitInfo(i,0))-1.D0)+StarEigens(j,2))
                             TVal=.true.
                         ELSEIF((ABS(rhoia).gt.VecMax).and.(TQuadVecMax)) THEN
                             ValMax=rhoaa
                             VecMax=rhoia
-                            HMax=DREAL(ExcitInfo(i,2))*(GradVecs(j)*(DREAL(ExcitInfo(i,0))-1.D0)+StarEigens(j,2))
+                            HMax=(ExcitInfo(i,2))*(GradVecs(j)*((ExcitInfo(i,0))-1.D0)+StarEigens(j,2))
                             TVal=.true.
                         ENDIF
                     ENDIF
@@ -1680,9 +1686,9 @@
                 
 !Put largest values into ExcitInfo2
                 IF((TQuadValMax.or.TQuadVecMax).and.(ValMax.gt.1.D-09).and.TVal) THEN
-                    ExcitInfo2(NextVertex,0)=HElement(ValMax)
-                    ExcitInfo2(NextVertex,1)=HElement(VecMax)
-                    ExcitInfo2(NextVertex,2)=HElement(HMax)
+                    ExcitInfo2(NextVertex,0)=(ValMax)
+                    ExcitInfo2(NextVertex,1)=(VecMax)
+                    ExcitInfo2(NextVertex,2)=(HMax)
                     NextVertex=NextVertex+1
                 ENDIF
                 
@@ -1726,7 +1732,7 @@
             IMPLICIT NONE
             INTEGER :: Dimen,i,INFO,iErr,j
             REAL*8 :: DiagRhos(1:Dimen),Vals(Dimen),Vecs(Dimen)
-            TYPE(HElement) :: OffDiagRhos(2:Dimen)
+            HElement_t :: OffDiagRhos(2:Dimen)
             REAL*8, ALLOCATABLE :: StarMat(:,:),WLIST(:),WORK(:)
             integer, save :: tagStarMat=0,tagWLIST=0,tagWORK=0
             character(*), parameter :: this_routine='GetValsnVecs'
@@ -1742,8 +1748,8 @@
 
                 do i=2,Dimen
                     StarMat(i,i)=DiagRhos(i)
-                    StarMat(1,i)=OffDiagRhos(i)%v
-                    StarMat(i,1)=OffDiagRhos(i)%v
+                    StarMat(1,i)=OffDiagRhos(i)
+                    StarMat(i,1)=OffDiagRhos(i)
                 enddo
                 StarMat(1,1)=DiagRhos(1)
 
@@ -1786,10 +1792,11 @@
             use global_utilities
             use IntegralsData , only : TCalcRealProd,TCalcRhoProd,TSumProd
             use SystemData, only: BasisFN
+            use HElem
             IMPLICIT NONE
             INTEGER :: iExcit,ProdNum,Uniqprod,ProdOrbs(8),i_P,nEl,nBasisMax(*),Brr(nBasis),nBasis,nMsh,nMax,nTay(2),ierr,i,ni(nEl),nj(nEl),nk(nEl),nl(nEl)
             COMPLEX*16 fck(*)
-            TYPE(HElement) UMat(*),rh,rhii
+            HElement_t UMat(*),rh,rhii
             TYPE(BasisFN) G1(*)
             REAL*8 :: Beta,ALat(3),ECore
             character(*), parameter :: this_routine='GetStarProds'
@@ -1801,7 +1808,7 @@
 
                 rhiiadd=0.D0
                 ALLOCATE(Offrho(iExcit),stat=iErr)
-                CALL LogMemAlloc("OffRho",iExcit,8*HElementSize,this_routine,tagOffrho,iErr)
+                CALL LogMemAlloc("OffRho",iExcit,8*HElement_t_size,this_routine,tagOffrho,iErr)
 
 !   Temporarily fill Offrho with the original off-diagonal rho elements, which can be used in countprodexcits, since the rhoelements in EXCITINFO are modified in the routine.
                 DO I=1,iExcit
@@ -1817,7 +1824,7 @@
                 IF(ProdNum.gt.0) THEN
                     WRITE(6,*) "Sum of product diagonal rho elements is ", rhiiadd
                     WRITE(6,*) "Number of unique products is ", UniqProd
-!                    rhiiadd=(rhiiadd%v+DREAL(UniqProd))/(2*UniqProd)
+!                    rhiiadd=(rhiiadd+(UniqProd))/(2*UniqProd)
 !   rhiiadd now in divided by the number of product excitations we are resumming in, to give an average value for the diagonal rho elements for the quadruple product excitations.
                     rhiiadd=rhiiadd/ProdNum
 !                    ExcitInfo(0,0)=rhiiadd
@@ -1827,7 +1834,7 @@
                     ExcitInfo(0,1)=ExcitInfo(0,1)+rhiiadd
                     WRITE(6,*) "New root is now ",ExcitInfo(0,0) 
                 ELSE
-                    IF(rhiiadd.agt.(0.D0)) STOP 'rhiiadd should be zero as no products'
+                    IF(abs(rhiiadd).gt.(0.D0)) STOP 'rhiiadd should be zero as no products'
                 ENDIF
             ENDIF
 
@@ -1850,7 +1857,7 @@
 
                 DO I=1,ProdNum
 !Approximate on-diag elements as product of consituent excits (exact for FPLD)(remember, they are divided by rhoii^2)
-                    OnDiagProdRho(I)=DREAL(ExcitInfo(ProdPositions(1,I),0)*ExcitInfo(ProdPositions(2,I),0))
+                    OnDiagProdRho(I)=(ExcitInfo(ProdPositions(1,I),0)*ExcitInfo(ProdPositions(2,I),0))
 
                     IF(TCalcRhoProd) THEN
                         IF(I.eq.1) WRITE(6,*) "Calculating off-diagonal rho elements for product excitations exactly"
@@ -1864,14 +1871,14 @@
                         CALL GetFullPath(nI,nEl,2,EXCITSTORE(:,ProdPositions(2,I)),nL)
 !nJ is now the product IPATH, and nK and nL the two consituent determinants
                         CALL CalcRho2(nK,nJ,Beta,i_P,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,nMax,ALat,UMat,rh,nTay,2,ECore)
-                        OffDiagProdRho(1,I)=DREAL(rh/rhii)
+                        OffDiagProdRho(1,I)=(rh/rhii)
                         CALL CalcRho2(nL,nJ,Beta,i_P,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,nMax,ALat,UMat,rh,nTay,2,ECore)
-                        OffDiagProdRho(2,I)=DREAL(rh/rhii)
+                        OffDiagProdRho(2,I)=(rh/rhii)
                     ELSE
                         IF(I.eq.1) WRITE(6,*) "Approximating off-diagonal elements for product excitations"
 !Approximate the off-diag rho elements between product excitation and constituent determinant as being equal to the rho element between the root and other constituent determinant.
-                        OffDiagProdRho(1,I)=ExcitInfo(ProdPositions(2,I),1)%v
-                        OffDiagProdRho(2,I)=ExcitInfo(ProdPositions(1,I),1)%v
+                        OffDiagProdRho(1,I)=ExcitInfo(ProdPositions(2,I),1)
+                        OffDiagProdRho(2,I)=ExcitInfo(ProdPositions(1,I),1)
                     ENDIF
                 ENDDO
             ENDIF
@@ -1954,6 +1961,7 @@
 
       SUBROUTINE CountProdExcits(ProdNum,setup,iExcit,UniqProd)
         use IntegralsData , only : TSumProd
+        use HElem
         IMPLICIT NONE
         INTEGER ProdNum!,ProdPositions(2,length),EXCITSTORE(4,iMaxExcit),
         INTEGER iExcit,I,J
@@ -2007,9 +2015,10 @@
 !.. This sets up the excitation generators and the memory - using the old excitation generators
 FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY, &
                      RHOEPS,LSTE,ICE,LIST,L,LT,NWHTAY,ILOGGING,TSYM,ECORE,ILMAX,DBETA,DLWDB)
-         USE HElem      
+         use constants, only: dp      
          use global_utilities
          use legacy_data, only: irat
+         use HElem
          IMPLICIT NONE
          INTEGER I_V,NEL,I_P,NBASISMAX(*),G1(*),NBASIS,BRR(*),NMSH,NMAX
          INTEGER NTAY,NWHTAY,ILOGGING,LT
@@ -2021,7 +2030,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
          INTEGER LSTE(NEL,0:ILMAX)
          INTEGER ICE(0:ILMAX)
          REAL*8 LIST(0:ILMAX,0:2)
-         TYPE(HDElement) FMCPR3Star
+         real(dp) FMCPR3Star
 !.. New lists are generated here
          INTEGER,ALLOCATABLE :: NLSTE(:,:)
          REAL*8,ALLOCATABLE ::  NLIST(:)
@@ -2044,10 +2053,10 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
          REAL*8 RH,RHII
 
          INTEGER NORDER,NMIN
-         TYPE(HDElement) FMCPR3STAR2
+         real(dp) FMCPR3STAR2
          character(*), parameter :: this_routine='FMCPR3STAR'
   
-         IF(HElementSize.NE.1) STOP 'FMCPR3STAR cannot work with complex orbitals.' 
+         IF(HElement_t_size.NE.1) STOP 'FMCPR3STAR cannot work with complex orbitals.' 
          SELECT CASE (IAND(NWHTAY,24))
          CASE(0)
 !.. Allow both singles and doubles
@@ -2094,16 +2103,16 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
 !..   This is the heart of the function, called once the excitations are found.
       FUNCTION FMCPR3STAR2(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY, &
            RHOEPS,LSTE,ICE,LIST,L,LT,NWHTAY,ILOGGING,TSYM,ECORE,ILMAX,DBETA,DLWDB)
-         USE HElem     
+         use constants, only: dp     
          use SystemData, only: BasisFN
          use Determinants, only: get_helement
          IMPLICIT NONE
-         TYPE(HDElement) FMCPR3Star2
+         real(dp) FMCPR3Star2
          TYPE(BasisFN) G1(*)
          INTEGER I_V,NEL,I_P,nBasisMax(5,*),NBASIS,BRR(*),NMSH,NMAX
          INTEGER NTAY,NWHTAY,ILOGGING,LT
          REAL*8 ALAT(*),ECORE
-         TYPE(HElement) UMat(*)
+         HElement_t UMat(*)
          COMPLEX*16 FCK(*)
          INTEGER NI(NEL),ILMAX
 !.. LSTE is a list of excitations (which we will generate)
@@ -2118,13 +2127,13 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
 !.. LIST(J,1) = RHOIJ
 !.. LIST(J,2) = HIJ
 
-         TYPE(HElement) LIST(0:ILMAX,0:2)
+         HElement_t LIST(0:ILMAX,0:2)
          REAL*8 BETA,RHOEPS
          LOGICAL TSYM
          REAL*8 DBETA,DLWDB
          INTEGER NLIST,NLCUR,I,J,L
 
-         TYPE(HElement) RHII,RH
+         HElement_t RHII,RH
          NLIST=ILMAX
 
          NLCUR=0
@@ -2133,7 +2142,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
             IF(LSTE(1,I).NE.0) THEN
                CALL CALCRHO2(NI,LSTE(1,I),BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT, &
                   RH,NTAY,ICE(I),ECORE)
-               IF(RH .AGT. RHOEPS) THEN
+               IF(abs(RH ).gt. RHOEPS) THEN
                   IF(NLCUR.NE.I) CALL NECI_ICOPY(NEL,LSTE(1,I),1,LSTE(1,NLCUR),1)
                   ICE(NLCUR)=ICE(I)
                   IF(NLCUR.EQ.0) RHII=RH
@@ -2167,7 +2176,8 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
 
       SUBROUTINE STARDIAGREALPROD(NEL,NLIST,LIST,ILMAX,I_P,SI,DBETA,DLWDB,ProdNum,EXCITSTORE,ProdPositions,OnDiagProdRho,OffDiagProdRho)
          !NLIST is now no. original excitations (+ root) - ILMAX is max possible excitations +1
-         USE HElem
+         use constants, only: dp
+         use HElem
          use global_utilities
          IMPLICIT NONE
          INTEGER NEL,I_P
@@ -2184,12 +2194,12 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
          INTEGER I,J,err
          character(*),parameter :: this_routine='STARDIAGREALPROD'
          
-         IF(HElementSize.GT.1) STOP "STARDIAGREALPROD cannot function with complex orbitals."
+         IF(HElement_t_size.GT.1) STOP "STARDIAGREALPROD cannot function with complex orbitals."
 
          proc_timer%timer_name='STARDIAGRP'
          call set_timer(proc_timer)
          !Is there a need to sort the matrix? If there is, we have problems!
-         !CALL SORT3RN(NLIST-1,LIST(2,0),LIST(2,1),LIST(2,2),HElementSize)
+         !CALL SORT3RN(NLIST-1,LIST(2,0),LIST(2,1),LIST(2,2),HElement_t_size)
          
          TOTVERT=NLIST+ProdNum
          allocate(RIJMAT(TOTVERT**2),stat=err)
@@ -2268,7 +2278,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
          
          
       SUBROUTINE STARDIAGSC(LSTE,NEL,NLIST,LIST,ILMAX,I_P,SI,DBETA,DLWDB)
-         USE HElem
+         use constants, only: dp
          use global_utilities
          use sort_mod
          IMPLICIT NONE
@@ -2285,10 +2295,10 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
          INTEGER WORKL,INFO,PRODVERT,ierr
          REAL*8 SI,DLWDB,DBETA
          INTEGER I,J,err
-         TYPE(HElement) RR
+         HElement_t RR
          character(*),parameter :: this_routine='STARDIAGSC'
 
-         IF(HElementSize.GT.1) STOP "STARDIAGSC cannot function with complex orbitals."
+         IF(HElement_t_size.GT.1) STOP "STARDIAGSC cannot function with complex orbitals."
 
          proc_timer%timer_name='STARDIAGSC'
          call set_timer(proc_timer)
@@ -2406,7 +2416,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
 !Use a MC sampling technique to find the eigenvector correesponding to the smallest eigenvalue.
 !List now contains diagonal hamiltonian matrix elements-Hii in the ExcitInfo(i,0), rather than rho elements.
       SUBROUTINE StarDiagMC(nEl,NList,List,ILMax,SI,DLWDB,Hii,MaxDiag)
-         USE HElem
+         use constants, only: dp
          use CalcData , only : InitWalkers,NMCyc,G_VMC_Seed,DiagSft,Tau,SftDamp,StepsSft
          use CalcData , only : TReadPops,ScaleWalkers,TBinCancel, iPopsFileNoRead, iPopsFileNoWrite
          USE Logging , only : TPopsFile,TCalcWavevector,WavevectorPrint, tIncrementPops
@@ -2432,7 +2442,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
          proc_timer%timer_name='StarDiagMC'
          call set_timer(proc_timer)
 
-         IF(HElementSize.GT.1) THEN
+         IF(HElement_t_size.GT.1) THEN
              CALL Stop_All("StarDiagMC","StarDiagMC cannot function with complex orbitals.")
          ENDIF
          
@@ -3019,9 +3029,10 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
 
 !Use a Lanczos routine to find the first NEval eigenvectors of the rho matrix, and from this the energy of the star graph.
       SUBROUTINE StarDiagLanc(nEl,NList,List,ILMax,i_P,SI,DBeta,DLWDB)
-         USE HElem
-         USE DetCalc , only : B2L,nBlk,nKry,NEval
+         use constants, only: dp
+         USE DetCalcData , only : B2L,nBlk,nKry,NEval
          USE global_utilities
+         use HElem
          IMPLICIT NONE
          CHARACTER(len=*), PARAMETER :: this_routine='StarDiagLanc'
          INTEGER :: nEl,i_P,NList,ILMax,i,j,LenMat,ICMax
@@ -3038,7 +3049,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
          REAL*8 , ALLOCATABLE :: Mat(:),CK(:,:),CKN(:,:)
          INTEGER , ALLOCATABLE :: Lab(:),NRow(:),ISCR(:),Index(:)
          
-         IF(HElementSize.GT.1) THEN
+         IF(HElement_t_size.GT.1) THEN
              CALL Stop_All("StarDiagLanc","StarDiagLanc cannot function with complex orbitals.")
          ENDIF
 
@@ -3211,7 +3222,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
         
       
       SUBROUTINE STARDIAG(LSTE,NEL,NLIST,LIST,ILMAX,I_P,SI,DBETA,DLWDB)
-         USE HElem
+         use constants, only: dp
          use IntegralsData , only : TCalcRealProd
          use global_utilities
          use sort_mod
@@ -3225,10 +3236,10 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
          INTEGER WORKL,INFO
          REAL*8 SI,DLWDB,DBETA,OD
          INTEGER I,J,err
-         TYPE(HElement) RR
+         HElement_t RR
          character(*),parameter :: this_routine='STARDIAG'
          
-         IF(HElementSize.GT.1) THEN
+         IF(HElement_t_size.GT.1) THEN
              CALL Stop_All("StarDiag","STARDIAG cannot function with complex orbitals.")
          END IF
 
@@ -3313,9 +3324,9 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
 !         ENDDO
 !         DO I=NLIST,1,-1
 !            RR=1.d0
-!            IF(I.LT.NLIST) RR=HElement(WLIST(I)-LIST(I+1,0))
+!            IF(I.LT.NLIST) RR=(WLIST(I)-LIST(I+1,0))
 !            write(6,"(I,3G)") I-1,WLIST(I),LIST(I+1,0),RR
-!            IF(RR.AGT.1.d-10)  WRITE(6,*) 1/(RIJMAT((I-1)*NLIST+1)**2),RIJMAT((I-1)*NLIST+1)**2
+!            IF(abs(RR).gt.1.d-10)  WRITE(6,*) 1/(RIJMAT((I-1)*NLIST+1)**2),RIJMAT((I-1)*NLIST+1)**2
 !         ENDDO
          DO I=0,NLIST-1
             SI=SI+RIJMAT(I*NLIST+1)*RIJMAT(I*NLIST+1)*(WLIST(I+1)**I_P)
@@ -3351,16 +3362,16 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
       SUBROUTINE STARDIAG2(LSTE,NEL,NLIST,LIST,ILMAX,BETA,I_P,SI,DBETA,DLWDB,NROOTS,iLogging)
          use CalcData , only : STARCONV
          use IntegralsData , only : TQUADRHO,TEXPRHO
-         USE HElem
+         use constants, only: dp
          use global_utilities
          use sort_mod
          IMPLICIT NONE
          INTEGER NEL,I_P
          INTEGER LSTE(NEL,NLIST),NLIST,ILMAX
-         TYPE(HElement) LIST(0:ILMAX-1,0:2)
+         HElement_t LIST(0:ILMAX-1,0:2)
          type(timer), save :: proc_timer
          REAL*8 SI,DLWDB,DBETA,NORM,E0,BETA,osi
-         TYPE(HElement) DLWDB2,RR
+         HElement_t DLWDB2,RR
          INTEGER I,J,NROOTS
          REAL*8 ROOTS(0:NROOTS),RPN,R
          INTEGER iLogging
@@ -3384,7 +3395,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
 !  nRoots is one more than the number of excitations
 !we've been asked to search to see how many roots we need for convergence.
             i=nRoots-1
-            do while (i.gt.0.and.abs((nRoots-i)*(List(i,0)%v**I_P)).ge.STARCONV)
+            do while (i.gt.0.and.abs((nRoots-i)*(List(i,0)**I_P)).ge.STARCONV)
                i=i-1
             enddo
             nRoots=nRoots-1-i
@@ -3396,8 +3407,8 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
 !  Take into account the cumulative values as we go down the list, not just the absolute value of the rest
             i=nRoots-1
             si=1
-            do while (i.gt.0.and.abs((nRoots-i)*(List(i,0)%v**I_P)/si).ge.1.d-2)
-               Si=SI+List(i,0)%v**I_P
+            do while (i.gt.0.and.abs((nRoots-i)*(List(i,0)**I_P)/si).ge.1.d-2)
+               Si=SI+List(i,0)**I_P
                i=i-1
             enddo
             nRoots=nRoots-1-i
@@ -3413,12 +3424,12 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
 !         WRITE(6,*) "ROOTS ARE: " 
 !         WRITE(6,*) ROOTS(:)
          WRITE(6,*) "Highest root:",ROOTS(NROOTS)
-         E0=List(0,2)%v
+         E0=List(0,2)
          lWarned=.false.
 !.. divide through by highest eigenvalue to stop things blowing up
 !         DO I=1,NROOTS
 !            WRITE(6,*) ROOTS(I)
-!,list(NLIST-NROOTS+I-1,0)%v
+!,list(NLIST-NROOTS+I-1,0)
 !         ENDDO
          iEigv=0 
          iDegen=0
@@ -3427,9 +3438,9 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
          DO I=NROOTS,1,-1
             iDegen=iDegen+1
             RR=1.d0
-            IF(I.LT.NROOTS) RR=HElement(ROOTS(I))-LIST(NLIST-NROOTS+I,0)
+            IF(I.LT.NROOTS) RR=(ROOTS(I))-LIST(NLIST-NROOTS+I,0)
 !            write(6,"(I,3G)") I,ROOTS(I),LIST(NLIST-NROOTS+I,0),RR
-            IF(ROOTS(I).EQ.LIST(NLIST-NROOTS+I-1,0)%v.OR..NOT.(RR.AGT.1.d-13)) THEN
+            IF(ROOTS(I).EQ.LIST(NLIST-NROOTS+I-1,0).OR..NOT.abs(RR).gt.1.d-13) THEN
 !.. If we're in a degenerate set of eigenvectors, we calculate things a
 !.. little differently
 !.. k is the vertex which the degeneracies couple to
@@ -3451,14 +3462,14 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
                endif
 !List(0,:) is the HF det.  We set its value in the eigenvector to 1.  The remaining NLIST-1 items are used to normalize.
                DO J=1,NLIST-1
-                  RR=HElement(ROOTS(I))-LIST(J,0)
-                  IF(.NOT.(RR.AGT.1d-13)) THEN
+                  RR=(ROOTS(I))-LIST(J,0)
+                  IF(.NOT.abs(RR).gt.1d-13) THEN
 !see comment below
                      WRITE(6,"(A,I6,A,G25.16,A,G25.16,A,I6)") "WARNING: Eigenvalue I=",I,":",ROOTS(I), " dangerously close to rhojj=",abs(LIST(J,0))," J=",J
                      WRITE(6,"(A,I6,2G25.16)") "POLE,NUMER",J,abs(LIST(J,0)),abs(LIST(J,1))
                      WRITE(6,"(A,I6,2G25.16)") "POLE,NUMER",J-1,abs(LIST(J-1,0)),abs(LIST(J-1,1))
                   ENDIF
-                  NORM=NORM+SQ(LIST(J,1)/RR)
+                  NORM=NORM+abs(LIST(J,1)/RR)**2
                ENDDO
 !.. We add in the first element of the eigenvector * lambda**P
 ! As a test for size consistency - use expansion of exp(rho)-1 instead of normal rho matrix - c.f QCISD
@@ -3490,11 +3501,15 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
                   DLWDB2=LIST(0,2)
 !                  WRITE(6,*) LIST(1,2),SQRT(1/NORM)
                   DO J=1,NLIST-1
-                     DLWDB2=DLWDB2+LIST(J,2)*(DCONJG(LIST(J,1))/(HElement(ROOTS(I))-LIST(J,0)))
+#if __CMPLX
+                     DLWDB2=DLWDB2+LIST(J,2)*(DCONJG(LIST(J,1))/((ROOTS(I))-LIST(J,0)))
+#else
+                     DLWDB2=DLWDB2+LIST(J,2)*((LIST(J,1))/((ROOTS(I))-LIST(J,0)))
+#endif
 !                WRITE(6,*) LIST(J,2),
 !     &            LIST(J,1)/((ROOTS(I+1)-LIST(J,0))*SQRT(NORM))
                   ENDDO
-                  DLWDB=DLWDB+DLWDB2%v*RPN
+                  DLWDB=DLWDB+DLWDB2*RPN
                ENDIF
 !               WRITE(6,*) ROOTS(I+1)**I_P,DLWDB2*(ROOTS(I+1)**I_P)/NORM
 !               WRITE(6,*)
@@ -3514,7 +3529,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
              IF(ABS(NORMCHECK-1).gt.0.01) WRITE(6,*)  "WARNING: Norm differs from 1 by more than 0.01.  Convergence may not be reached."
          ENDIF
          SI=SI-1.D0
-         DLWDB=DLWDB-LIST(0,2)%v
+         DLWDB=DLWDB-LIST(0,2)
          call halt_timer(proc_timer)
          RETURN
       END
@@ -3547,7 +3562,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
 !        ADDSINGLES specifies to add the singles which are en-route to each double to that double as spokes, and prediagonalize them.
 !  i.e. if the double is (ij->ab), then singles (i->a),(i->b),(j->a) and (j->b) are created in a star with (ij->ab), the result diagonalized, and the eigenvalues and vectors used to create new spokes.  Only works with NEW
       SUBROUTINE StarAddSingles(nI,nJ,ExcitInfo,iExcit,iMaxExcit,rhii,rhoeps,Beta,i_P,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,nMax,ALat,UMat,nTay,ECore)
-         USE HElem      
+         use constants, only: dp      
          use SystemData, only: BasisFN
          use sort_mod
          IMPLICIT NONE
@@ -3555,9 +3570,9 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
          INTEGER nI(nEl),nEl,i_P,nBasisMax(5,*),Brr(nBasis),nBasis,nMsh
          INTEGER nMax,nTay(2),L,LT,nWHTay,iLogging
          COMPLEX*16 fck(*)
-         TYPE(HElement) UMat(*)
+         HElement_t UMat(*)
          REAL*8 Beta, ALat(3),RhoEps,ECore,dBeta
-         TYPE(HElement)  ExcitInfo(0:iMaxExcit,0:2)
+         HElement_t  ExcitInfo(0:iMaxExcit,0:2)
 !.. New lists are generated here
 !.. This will contain all the info needed to work out the value of the
 !.. star
@@ -3568,15 +3583,15 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
 
          INTEGER nJ(nEl),iExcit,iEx(2,2),nK(nEl)
          LOGICAL tDummy
-         type(HElement) StarMat(5,5),rh,rhii
+         HElement_t StarMat(5,5),rh,rhii
          integer i,iExc,iMaxExcit
 
 !Needed for diagonalizer
          REAL*8 WLIST(5),WORK(3*5)         
-         TYPE(HElement) NWORK(4*5)
+         HElement_t NWORK(4*5)
          INTEGER INFO
 
-         StarMat=HElement(0.d0)
+         StarMat=(0.d0)
          iEx(1,1)=2
 !.. Get the orbitals which are excited in going from I to J
 !.. IEX(1,*) are in I, and IEX(2,*) are in J
@@ -3598,7 +3613,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
             CALL CalcRho2(nJ,nK,Beta,i_P,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,nMax,ALat,UMat,rh,nTay,1,ECore)
 !            call writedet(6,nk,nel,.false.)
 !            write(6,*) rh
-            IF(rh.age.rhoeps) then
+            IF(abs(rh).ge.rhoeps) then
                iExc=iExc+1
                StarMat(1,iExc)=rh/rhii
                CALL CalcRho2(nK,nK,Beta,i_P,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,nMax,ALat,UMat,rh,nTay,0,ECore)
@@ -3616,7 +3631,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
             CALL CalcRho2(nJ,nK,Beta,i_P,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,nMax,ALat,UMat,rh,nTay,1,ECore)
 !            call writedet(6,nk,nel,.false.)
 !            write(6,*) rh
-            IF(rh.age.rhoeps) then
+            IF(abs(rh).ge.rhoeps) then
                iExc=iExc+1
                StarMat(1,iExc)=rh/rhii
                CALL CalcRho2(nK,nK,Beta,i_P,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,nMax,ALat,UMat,rh,nTay,0,ECore)
@@ -3634,7 +3649,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
             CALL CalcRho2(nJ,nK,Beta,i_P,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,nMax,ALat,UMat,rh,nTay,1,ECore)
 !            call writedet(6,nk,nel,.false.)
 !            write(6,*) rh
-            IF(rh.age.rhoeps) then
+            IF(abs(rh).ge.rhoeps) then
                iExc=iExc+1
                StarMat(1,iExc)=rh/rhii
                CALL CalcRho2(nK,nK,Beta,i_P,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,nMax,ALat,UMat,rh,nTay,0,ECore)
@@ -3652,7 +3667,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
             CALL CalcRho2(nJ,nK,Beta,i_P,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,nMax,ALat,UMat,rh,nTay,1,ECore)
 !            call writedet(6,nk,nel,.false.)
 !            write(6,*) rh
-            IF(rh.age.rhoeps) then
+            IF(abs(rh).ge.rhoeps) then
                iExc=iExc+1
                StarMat(1,iExc)=rh/rhii
                CALL CalcRho2(nK,nK,Beta,i_P,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,nMax,ALat,UMat,rh,nTay,0,ECore)
@@ -3660,7 +3675,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
             ENDIF
 
 ! Now diagonalize.
-            IF(HElementSize.EQ.1) THEN
+            IF(HElement_t_size.EQ.1) THEN
 !real case
                CALL DSYEV('V','U',iExc,StarMat,5,WLIST,WORK,3*iExc,INFO)
                IF(INFO.NE.0) THEN
@@ -3685,7 +3700,11 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
 !  r_j -> rho_jj
 !  |v_{lj}|^2 is the amount of the original j there is in each of the new eigenvectors l.
                ExcitInfo(iExcit+i-1,0)=WList(i)
-               rh=sqrt(dreal(StarMat(1,i)*DCONJG(StarMat(1,I))))
+#ifdef __CMPLX
+               rh=sqrt((StarMat(1,i)*DCONJG(StarMat(1,I))))
+#else
+               rh=sqrt((StarMat(1,i)*(StarMat(1,I))))
+#endif
                ExcitInfo(iExcit+i-1,1)=ExcitInfo(iExcit,1)*rh
                ExcitInfo(iExcit+i-1,2)=ExcitInfo(iExcit,2)*rh
             enddo

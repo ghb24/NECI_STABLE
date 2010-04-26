@@ -6,7 +6,16 @@ module DetBitOps
     use csf_data, only: iscsf, csf_yama_bit, csf_orbital_mask, csf_test_bit
     ! TODO: remove
     use systemdata, only: g1
+    use constants, only: n_int,bits_n_int,end_n_int
     implicit none
+
+#ifdef __INT64
+    INTEGER(KIND=n_int), PARAMETER :: MaskBeta=Z'5555555555555555'              !This is 1010101... in binary
+    INTEGER(KIND=n_int), PARAMETER :: MaskAlpha=IShftC(MaskBeta,1,bits_n_int)   !This is 0101010... in binary
+#else
+    INTEGER(KIND=n_int), PARAMETER :: MaskBeta=1431655765    !This is 1010101... in binary
+    INTEGER(KIND=n_int), PARAMETER :: MaskAlpha=-1431655766  !This is 0101010... in binary
+#endif
 
     ! http://gurmeetsingh.wordpress.com/2008/08/05/fast-bit-counting-routines/
     ! for a variety of interesting bit counters
@@ -26,14 +35,16 @@ module DetBitOps
     ! Counts bits set in integer array (0:nLast)
     integer function CountBits_sparse (iLut, nLast, nBitsMax)
         integer, intent(in), optional :: nBitsMax
-        integer, intent(in) :: nLast, iLut(0:nLast)
-        integer :: iLutTemp(0:nLast), i, lnBitsMax
+        integer, intent(in) :: nLast 
+        integer(kind=n_int), intent(in) :: iLut(0:nLast)
+        integer(kind=n_int) :: iLutTemp(0:nLast)
+        integer :: i, lnBitsMax
 
         ! By default, allow all the bits to be set
         if (present(nBitsMax)) then
             lnBitsMax = nBitsMax
         else
-            lnBitsMax = 32 * (nLast+1)
+            lnBitsMax = bits_n_int * (nLast+1)
         endif
 
         CountBits_sparse = 0
@@ -49,39 +60,37 @@ module DetBitOps
     end function CountBits_sparse
 
     ! Try counting using a nifty bit of bitwise arithmetic
-    ! See comments for CountBits_sparse.
+    ! See comments for CountBits_sparse and count_set_bits.
     integer function Countbits_nifty (iLut, nLast, nBitsMax)
         integer, intent(in), optional :: nBitsMax
-        integer, intent(in) :: nLast, iLut(0:nLast)
+        integer, intent(in) :: nLast
+        integer(kind=n_int), intent(in) :: iLut(0:nLast)
         integer ::tmp, i, lnBitsMax
 
         ! By default, allow all the bits to be set
         if (present(nBitsMax)) then
             lnBitsMax = nBitsMax
         else
-            lnBitsMax = 32 * (nLast+1)
+            lnBitsMax = bits_n_int * (nLast+1)
         endif
 
         CountBits_nifty = 0
         do i=0,nLast
-            tmp = iLut(i)
-            tmp = tmp - iand(ishft(tmp, -1), Z'55555555')
-            tmp = iand(tmp, Z'33333333') + iand(ishft(tmp, -2), Z'33333333')
-            tmp = iand((tmp+ishft(tmp, -4)), Z'F0F0F0F') * Z'1010101'
-            CountBits_nifty = CountBits_nifty + ishft(tmp, -24)
-
+            CountBits_nifty = CountBits_nifty + count_set_bits(iLut(i))
             if (CountBits_nifty .gt. lnBitsMax) then
                 CountBits_nifty = lnBitsmax+1
                 return
             endif
         enddo       
+
     end function CountBits_nifty
 
     ! Using elemental routines rather than an explicit do-loop. Should be
     ! faster.
     function CountBits_elemental (iLut, nLast, nBitsMax) result(nbits)
         integer, intent(in), optional :: nBitsMax
-        integer, intent(in) :: nLast, iLut(0:nLast)
+        integer, intent(in) :: nLast
+        integer(kind=n_int), intent(in) :: iLut(0:nLast)
         integer :: nbits
 
         nbits = sum(count_set_bits(iLut))
@@ -118,16 +127,35 @@ module DetBitOps
     ! * Summing 8 bit fields together can be performed via a multiplication
     !   followed by a right shift.
     elemental function count_set_bits (a) result (nbits)
-        integer, intent(in) :: a
+        integer(n_int), intent(in) :: a
         integer :: nbits
-        integer :: tmp
+        integer(n_int) :: tmp
 
-        tmp = a
-        tmp = tmp - iand(ishft(tmp,-1), Z'55555555')
-        tmp = iand(tmp, Z'33333333') + iand(ishft(tmp, -2), Z'33333333')
-        tmp = iand((tmp+ishft(tmp, -4)), Z'F0F0F0F') * Z'1010101'
+#ifdef __INT64
+        integer(n_int), parameter :: m1 = Z'5555555555555555'
+        integer(n_int), parameter :: m2 = Z'3333333333333333'
+        integer(n_int), parameter :: m3 = Z'0f0f0f0f0f0f0f0f'
+        integer(n_int), parameter :: m4 = Z'0101010101010101'
+
+        ! For 64 bit integers:
+        tmp = a - iand(ishft(a,-1), m1)
+        tmp = iand(tmp, m2) + iand(ishft(tmp,-2), m2)
+        tmp = iand(tmp, m3) + iand(ishft(tmp,-4), m3)
+        nbits = ishft(tmp*m4, -56)
+#else
+        integer(n_int), parameter :: m1 = Z'55555555'
+        integer(n_int), parameter :: m2 = Z'33333333'
+        integer(n_int), parameter :: m3 = Z'0F0F0F0F'
+        integer(n_int), parameter :: m4 = Z'01010101'
+
+        ! For 32 bit integers:
+        tmp = a - iand(ishft(a,-1), m1)
+        tmp = iand(tmp, m2) + iand(ishft(tmp, -2), m2)
+        tmp = iand((tmp+ishft(tmp, -4)), m3) * m4
         nbits = ishft(tmp, -24)
-    end function
+#endif
+
+    end function count_set_bits
 
     integer function count_open_orbs (iLut)
         
@@ -135,11 +163,11 @@ module DetBitOps
         !
         ! In:  iLut (0:NIfD) - Source bit det
 
-        integer, intent(in) :: iLut(0:NIfD)
-        integer, dimension(0:NIfD) :: alpha, beta
+        integer(kind=n_int), intent(in) :: iLut(0:NIfD)
+        integer(kind=n_int), dimension(0:NIfD) :: alpha, beta
 
-        alpha = iand(iLut, Z'AAAAAAAA')
-        beta = iand(iLut, Z'55555555')
+        alpha = iand(iLut, MaskAlpha)
+        beta = iand(iLut, MaskBeta)
         alpha = ishft(alpha, -1)
         alpha = ieor(alpha, beta)
         
@@ -156,9 +184,9 @@ module DetBitOps
         !      maxExLevel        - An (optional) maximum ex level to consider
         ! Ret: FindBitExcitLevel - The number of orbitals i,j differ by
 
-        integer, intent(in) :: iLutnI(0:NIfD), iLutnJ(0:NIfD)
+        integer(kind=n_int), intent(in) :: iLutnI(0:NIfD), iLutnJ(0:NIfD)
         integer, intent(in), optional :: maxExLevel
-        integer :: tmp(0:NIfD)
+        integer(kind=n_int) :: tmp(0:NIfD)
 
         ! Obtain a bit string with only the excited orbitals one one det.
         tmp = ieor(iLutnI, iLutnJ)
@@ -170,6 +198,7 @@ module DetBitOps
         else
             FindBitExcitLevel = CountBits(tmp, NIfD)
         endif
+
     end function FindBitExcitLevel
 
     function FindSpatialBitExcitLevel (iLutI, iLutJ, maxExLevel) result(IC)
@@ -182,16 +211,16 @@ module DetBitOps
         !      maxExLevel   - An (optional) maximum ex level to consider
         ! Ret: IC           - The numbero f orbitals i,j differ by
 
-        integer, intent(in) :: iLutI(0:NIfD), iLutJ(0:NIfD)
+        integer(kind=n_int), intent(in) :: iLutI(0:NIfD), iLutJ(0:NIfD)
         integer, intent(in), optional :: maxExLevel
         integer :: IC
-        integer, dimension(0:NIfD,2) :: alpha, beta, sing, doub, tmp
+        integer(kind=n_int), dimension(0:NIfD,2) :: alpha, beta, sing, doub, tmp
 
         ! Obtain the alphas and betas
-        alpha(:,1) = iand(ilutI, Z'AAAAAAAA')
-        alpha(:,2) = iand(ilutJ, Z'AAAAAAAA')
-        beta(:,1) = iand(ilutI, Z'55555555')
-        beta(:,2) = iand(ilutJ, Z'55555555')
+        alpha(:,1) = iand(ilutI, MaskAlpha)
+        alpha(:,2) = iand(ilutJ, MaskAlpha)
+        beta(:,1) = iand(ilutI, MaskBeta)
+        beta(:,2) = iand(ilutJ, MaskBeta)
 
         ! Bit strings separating doubles, and singles shifted to beta pos.
         doub = iand(beta, ishft(alpha, -1))
@@ -221,11 +250,12 @@ module DetBitOps
         !                       number of orbital I,J differ by
         ! Out:   ex           - Excitation matrix between I,J
 
-        integer, intent(in) :: iLutI(0:NIfD), iLutJ(0:NIfD)
+        integer(kind=n_int), intent(in) :: iLutI(0:NIfD), iLutJ(0:NIfD)
         integer, intent(inout)  :: IC
         integer, intent(out), dimension(2,IC) :: ex
 
-        integer :: ilut(0:NIfD,2), pos(2), max_ic, i, j, k
+        integer(kind=n_int) :: ilut(0:NIfD,2)
+        integer :: pos(2), max_ic, i, j, k
 
         ! Obtain bit representations of I,J containing only unique orbitals
         ilut(:,1) = ieor(ilutI, ilutJ)
@@ -236,13 +266,13 @@ module DetBitOps
         pos = 0
         IC = 0
         do i=0,NIfD
-            do j=0,31
+            do j=0,bits_n_int
                 do k=1,2
                     if (pos(k) < max_ic) then
                         if (btest(ilut(i,k), j)) then
                             pos(k) = pos(k) + 1
                             IC = max(IC, pos(k))
-                            ex(k, pos(k)) = 32*i + j + 1
+                            ex(k, pos(k)) = bits_n_int*i + j + 1
                         endif
                     endif
                 enddo
@@ -262,23 +292,24 @@ module DetBitOps
         ! Out: op_ind       - Array of unique single indices for I,J
         !      nop          - Number of unique singles in each of I,J
 
-        integer, intent(in) :: iLutI(0:NIfD), iLutJ(0:NIfD)
+        integer(kind=n_int), intent(in) :: iLutI(0:NIfD), iLutJ(0:NIfD)
         integer, intent(in) :: IC
         integer, intent(out) :: op_ind(2*IC, 2), nop(2)
         integer, intent(out) :: tsign_id (IC,2), nsign(2)
         character(*), parameter :: this_routine = 'get_bit_open_unique_ind'
 
-        integer :: i, j, det, ilut(0:NIfD,2), sing(0:NIfD,2), det2
-        integer :: alpha(0:NIfD), beta(0:NIfD), sing_ind(2)
+        integer :: i, j, det, det2, sing_ind(2) 
+        integer(kind=n_int) :: ilut(0:NIfD,2), sing(0:NIfD,2)
+        integer(kind=n_int) :: alpha(0:NIfD), beta(0:NIfD)
 
         ! Obtain all the singles in I,J
-        alpha = iand(iLutI, Z'AAAAAAAA')
-        beta = iand(iLutI, Z'55555555')
+        alpha = iand(iLutI, MaskAlpha)
+        beta = iand(iLutI, MaskBeta)
         alpha = ishft(alpha, -1)
         sing(:,1) = ieor(alpha, beta)
 
-        alpha = iand(iLutJ, Z'AAAAAAAA')
-        beta = iand(iLutJ, Z'55555555')
+        alpha = iand(iLutJ, MaskAlpha)
+        beta = iand(iLutJ, MaskBeta)
         alpha = ishft(alpha, -1)
         sing(:,2) = ieor(alpha, beta)
 
@@ -291,7 +322,7 @@ module DetBitOps
         sing_ind = 0
         nsign = 0
         do i=0,NIfD
-            do j=0,31
+            do j=0,bits_n_int
                 ! TODO: If CSF, increment in steps of 2.
                 do det=1,2
                     if (nop(det) < 2*IC) then
@@ -332,7 +363,7 @@ module DetBitOps
     ! false otherwise.
     logical function DetBitEQ(iLutI,iLutJ,nLast)
         integer, intent(in), optional :: nLast
-        integer, intent(in) :: iLutI(0:NIfTot), iLutJ(0:NIfTot)
+        integer(kind=n_int), intent(in) :: iLutI(0:NIfTot), iLutJ(0:NIfTot)
         integer :: i, lnLast
 
         if(iLutI(0).ne.iLutJ(0)) then
@@ -359,7 +390,7 @@ module DetBitOps
     ! are identical, or -1 if iLutI is "more" than iLutJ
     integer function DetBitLT(iLutI,iLutJ,nLast)
         integer, intent(in), optional :: nLast
-        integer, intent(in) :: iLutI(0:NIfTot), iLutJ(0:NIfTot)
+        integer(kind=n_int), intent(in) :: iLutI(0:NIfTot), iLutJ(0:NIfTot)
         integer :: i, lnLast
 
         !First, compare first integers
@@ -396,8 +427,9 @@ module DetBitOps
     ! if iLut2I is "more than iLut2J, and 0 if these are still identical.
     integer function Det2BitLT(iLutI,iLutJ,iLut2I,iLut2J,nLast)
         integer, intent(in), optional :: nLast
-        integer :: iLutI(0:NIfTot),iLutJ(0:NIfTot),i
-        integer :: iLut2I(0:NIfTot),iLut2J(0:NIfTot),lnLast
+        integer :: i,lnLast
+        integer(kind=n_int) :: iLutI(0:NIfTot),iLutJ(0:NIfTot)
+        integer(kind=n_int) :: iLut2I(0:NIfTot),iLut2J(0:NIfTot)
 
         IF(iLutI(0).lt.iLutJ(0)) THEN
             ! First, compare first integers
@@ -453,8 +485,8 @@ module DetBitOps
     ! these are the same does it move on to determinants.
     integer function DetExcitBitLT(iLutI,iLutJ,iLutHF,nLast)
         integer, intent(in), optional :: nLast
-        integer, intent(in) :: iLutI(0:NIftot), iLutJ(0:NIfTot)
-        integer, intent(in) :: iLutHF(0:NIfTot)
+        integer(kind=n_int), intent(in) :: iLutI(0:NIftot), iLutJ(0:NIfTot)
+        integer(kind=n_int), intent(in) :: iLutHF(0:NIfTot)
         integer i, ExcitLevelI, ExcitLevelJ,lnLast
         
         ExcitLevelI = FindBitExcitLevel(iLutI, iLutHF, nel)
@@ -509,7 +541,7 @@ module DetBitOps
     ! If this is a csf, the csf is contained afterwards.
     subroutine EncodeBitDet(nI,iLut)
         integer, intent(in) :: nI(nel)
-        integer, intent(out) :: iLut(0:NIfTot)
+        integer(kind=n_int), intent(out) :: iLut(0:NIfTot)
         integer :: i, det, pos, nopen
         logical :: open_shell
 
@@ -524,20 +556,20 @@ module DetBitOps
 
                 ! Set the bit in the bit representation
                 det = iand(nI(i), csf_orbital_mask)
-                iLut((det-1)/32) = ibset(iLut((det-1)/32),mod(det-1,32))
+                iLut((det-1)/bits_n_int) = ibset(iLut((det-1)/bits_n_int),mod(det-1,bits_n_int))
 
                 if (open_shell) then
                     if (btest(nI(i), csf_yama_bit)) then
-                        pos = NIfD + 1 + (nopen/32)
-                        iLut(pos) = ibset(iLut(pos), mod(nopen,32))
+                        pos = NIfD + 1 + (nopen/bits_n_int)
+                        iLut(pos) = ibset(iLut(pos), mod(nopen,bits_n_int))
                     endif
                     nopen = nopen + 1
                 endif
             enddo
         else
             do i=1,nel
-                pos = (nI(i) - 1) / 32
-                iLut(pos)=ibset(iLut(pos),mod(nI(i)-1,32))
+                pos = (nI(i) - 1) / bits_n_int
+                iLut(pos)=ibset(iLut(pos),mod(nI(i)-1,bits_n_int))
             enddo
         endif
     end subroutine EncodeBitDet
@@ -546,7 +578,7 @@ module DetBitOps
     ! the natural ordered NEl integer for of the det.
     ! If CSFs are enabled, transefer the yamanouchi symbol as well.
     subroutine DecodeBitDet(nI,iLut)
-        integer, intent(in) :: iLut(0:NIfTot)
+        integer(kind=n_int), intent(in) :: iLut(0:NIfTot)
         integer, intent(out) :: nI(nel)
         integer :: i, j, elec, pos, nopen
         logical :: bIsCsf
@@ -569,14 +601,14 @@ module DetBitOps
         if (bIsCsf) then
             ! Consider the closed shell electrons first
             do i=0,NIfD
-                do j=0,30,2
+                do j=0,bits_n_int-2,2
                     if (btest(iLut(i),j)) then
                         if (btest(iLut(i),j+1)) then
                             ! An electron pair is in this spatial orbital
                             ! (2 matched spin orbitals)
                             elec = elec + 2
-                            nI(elec-1) = (32*i) + (j+1)
-                            nI(elec) = (32*i) + (j+2)
+                            nI(elec-1) = (bits_n_int*i) + (j+1)
+                            nI(elec) = (bits_n_int*i) + (j+2)
                             if (elec == nel) return
                         endif
                     endif
@@ -587,13 +619,13 @@ module DetBitOps
             ! TODO: can we move in steps of two, to catch unmatched pairs?
             nopen = 0
             do i=0,NIfD
-                do j=0,31
+                do j=0,end_n_int
                     if (btest(iLut(i),j)) then
                         if (.not.btest(iLut(i),xor(j,1))) then
                             elec = elec + 1
-                            nI(elec) = (32*i) + (j+1)
-                            pos = NIfD + 1 + (nopen/32)
-                            if (btest(iLut(Pos),mod(nopen,32))) then
+                            nI(elec) = (bits_n_int*i) + (j+1)
+                            pos = NIfD + 1 + (nopen/bits_n_int)
+                            if (btest(iLut(Pos),mod(nopen,bits_n_int))) then
                                 nI(elec) = ibset(nI(elec),csf_yama_bit)
                             endif
                             nopen = nopen + 1
@@ -607,11 +639,11 @@ module DetBitOps
             nI = ibset(nI, csf_test_bit)
         else
             do i=0,NIfD
-                do j=0,31
+                do j=0,end_n_int
                     if(btest(iLut(i),j)) then
                         !An electron is at this orbital
                         elec=elec+1
-                        nI(elec)=(i*32)+(j+1)
+                        nI(elec)=(i*bits_n_int)+(j+1)
                         if (elec == nel) exit
                     endif
                 enddo
@@ -627,7 +659,7 @@ module DetBitOps
         !endif
     end subroutine DecodeBitDet
 
-    subroutine FindExcitBitDet(iLutnI, iLutnJ, IC, ExcitMat, yama)
+    subroutine FindExcitBitDet(iLutnI, iLutnJ, IC, ExcitMat)
 
         ! This routine will find the bit-representation of an excitation by
         ! constructing the new ilut from the old one and the excitation matrix
@@ -635,14 +667,13 @@ module DetBitOps
         ! In:  iLutnI (0:NIfD) - source bit det
         !      IC              - Excitation level
         !      ExcitMat(2,2)   - Excitation Matrix
-        !      yama (NIfY)     - Yamanouchi symbol to apply (optional)
         ! Out: iLutnJ (0:NIfD) - New bit det
 
-        integer, intent(in) :: iLutnI (0:NIfTot), IC, ExcitMat(2,2)
-        integer, intent(in), optional :: yama (NIfY)
-        integer, intent(out) :: iLutnJ (0:NIfTot)
+        integer, intent(in) :: IC, ExcitMat(2,2)
+        integer(kind=n_int), intent(in) :: iLutnI (0:NIfTot)
+        integer(kind=n_int), intent(out) :: iLutnJ (0:NIfTot)
         integer :: pos(2,2), bit(2,2), i
-        integer :: ilut(0:NIfTot)
+        integer(kind=n_int) :: ilut(0:NIfTot)
 
         iLutnJ = iLutnI
         if (IC == 0) then
@@ -651,8 +682,8 @@ module DetBitOps
             endif
         else
             ! Which integer and bit in ilut represent each element?
-            pos = (excitmat - 1) / 32
-            bit = mod(excitmat - 1, 32)
+            pos = (excitmat - 1) / bits_n_int
+            bit = mod(excitmat - 1, bits_n_int)
 
             ! Clear bits for excitation source, and set bits for target
             do i=1,IC
@@ -661,20 +692,16 @@ module DetBitOps
             enddo
         endif
 
-        ! If we supply a Yamanouchi symbol, apply it to the new bit
-        ! determinant. This allows use of CSFs.
-        if (present(yama)) ilutnJ(NIfTot-NIfY+1:NIfTot) = yama
     end subroutine FindExcitBitDet
 
     subroutine shift_det_bit_singles_to_beta (iLut)
-        integer, intent(inout) :: iLut(0:NIfD)
-        integer :: iA(0:NIfD), iB(0:NIfD)
+        integer(kind=n_int), intent(inout) :: iLut(0:NIfD)
+        integer(kind=n_int) :: iA(0:NIfD), iB(0:NIfD)
 
         ! Extract the betas
-        iB = iand(iLut, Z'55555555')
-
+        iB = iand(iLut, MaskBeta)
         ! Extract the alphas and shift them into beta positions.
-        iA = ishft(iand(iLut, Z'AAAAAAAA'), -1)
+        iA = ishft(iand(iLut, MaskAlpha), -1)
         
         ! Generate the doubles
         iLut = iand(iB, iA)
@@ -688,13 +715,13 @@ module DetBitOps
     ! the alpha singles.
     logical function is_canonical_ms_order (nI)
         integer, intent(in) :: nI(nel)
-        integer, dimension(0:NIfTot) :: alpha, beta, tmp
+        integer(kind=n_int), dimension(0:NIfTot) :: alpha, beta, tmp
         integer :: first_beta_byte, first_beta_bit
         integer i
 
         call EncodeBitDet(nI, alpha)
-        beta = iand(alpha, Z'55555555')
-        tmp = iand(alpha, Z'AAAAAAAA')
+        beta = iand(alpha, MaskBeta)
+        tmp = iand(alpha, MaskAlpha)
 
         alpha = iand(tmp, not(ishft(beta,1))) ! Only alpha singles
         beta = iand(beta, not(ishft(tmp,-1)))  ! Only beta singles
@@ -716,13 +743,13 @@ module DetBitOps
             is_canonical_ms_order = .true.
         else
             ! Now we need to consider the bits.
-            do i=0,31
+            do i=0,end_n_int
                 if (btest(beta(first_beta_byte),i)) exit
             enddo
             first_beta_bit = i
 
             ! TODO: steps of 2, as alpha/beta even/odd...
-            do i=31,first_beta_bit,-1
+            do i=end_n_int,first_beta_bit,-1
                 if (btest(alpha(first_beta_byte), i)) exit
             enddo
             if (i < first_beta_bit) is_canonical_ms_order = .true.
@@ -752,8 +779,9 @@ end module
 
         use SystemData, only: NIfD, nel
         use DetBitOps, only: CountBits_nifty
+        use constants, only: n_int,bits_n_int,end_n_int
         implicit none
-        integer, intent(in) :: iLutnI(0:NIfD), iLutnJ(0:NIfD)
+        integer(kind=n_int), intent(in) :: iLutnI(0:NIfD), iLutnJ(0:NIfD)
         integer, intent(inout) :: Ex(2,*)
         logical, intent(out) :: tSign
         integer :: i, j, iexcit1, iexcit2, perm, iel1, iel2, shift, max_excit
@@ -800,7 +828,7 @@ end module
 
             do i = 0, NIfD
                 if (iLutnI(i) == iLutnJ(i)) cycle
-                do j = 0, 31
+                do j = 0, end_n_int
 
                     testI = btest(iLutnI(i),j)
                     testJ = btest(iLutnJ(i),j)
@@ -812,14 +840,14 @@ end module
                         if (.not.testJ) then
                             ! occupied in iLutnI but not in iLutnJ
                             iexcit1 = iexcit1 + 1
-                            Ex(1,iexcit1) = i*32+j+1
+                            Ex(1,iexcit1) = i*bits_n_int+j+1
                             perm = perm + (shift - iel1 + iexcit1)
                         end if
                     else
                         if (testJ) then
                             ! occupied in iLutnI but not in iLutnJ
                             iexcit2 = iexcit2 + 1
-                            Ex(2,iexcit2) = i*32+j+1
+                            Ex(2,iexcit2) = i*bits_n_int+j+1
                             perm = perm + (shift - iel2 + iexcit2)
                         end if
                     end if
@@ -844,12 +872,14 @@ end module
 !This function will return true if the determinant is closed shell, or false if not.
     LOGICAL FUNCTION TestClosedShellDet(iLut)
         use systemdata, only: NIfD
-        INTEGER :: iLut(0:NIfD),iLutAlpha(0:NIfD),iLutBeta(0:NIfD),MaskAlpha,MaskBeta,i
+        use constants, only: n_int
+        use DetBitOps, only: MaskAlpha,MaskBeta
+        IMPLICIT NONE
+        INTEGER(kind=n_int) :: iLut(0:NIfD),iLutAlpha(0:NIfD),iLutBeta(0:NIfD)
+        INTEGER :: i
         
         iLutAlpha(:)=0
         iLutBeta(:)=0
-        MaskBeta=1431655765    !This is 1010101... in binary
-        MaskAlpha=-1431655766  !This is 0101010... in binary
         TestClosedShellDet=.true.
 
         do i=0,NIfD
@@ -876,13 +906,14 @@ end module
 ! ************************
     SUBROUTINE CalcOpenOrbs(iLut,OpenOrbs)
         use systemdata, only: NIfD, nel
-        use DetBitOps, only: CountBits
-        INTEGER :: iLut(0:NIfD),iLutAlpha(0:NIfD),iLutBeta(0:NIfD),MaskAlpha,MaskBeta,i,OpenOrbs
+        use constants, only: n_int
+        use DetBitOps, only: CountBits,MaskAlpha,MaskBeta
+        IMPLICIT NONE
+        INTEGER(kind=n_int) :: iLut(0:NIfD),iLutAlpha(0:NIfD),iLutBeta(0:NIfD)
+        INTEGER :: i,OpenOrbs
         
         iLutAlpha(:)=0
         iLutBeta(:)=0
-        MaskBeta=1431655765    !This is 1010101... in binary
-        MaskAlpha=-1431655766  !This is 0101010... in binary
 
 !        do i=0,NIfD
 !
@@ -914,8 +945,10 @@ end module
 
 !This routine will find the largest bit set in a bit-string (i.e. the highest value orbital)
     SUBROUTINE LargestBitSet(iLut,NIfD,LargestOrb)
+        use constants, only: bits_n_int,end_n_int,n_int
         IMPLICIT NONE
-        INTEGER :: LargestOrb, iLut(0:NIfD),NIfD,i,j
+        INTEGER :: LargestOrb, NIfD,i,j
+        INTEGER(KIND=n_int) :: iLut(0:NIfD)
 
 !        do i=NIfD,0,-1
 !!Count down through the integers in the bit string.
@@ -928,13 +961,13 @@ end module
 !        LargestOrb=LargestOrb+(i*32)
 
         outer: do i=NIfD,0,-1
-            do j=31,0,-1
+            do j=end_n_int,0,-1
                 IF(BTEST(iLut(i),j)) THEN
                     EXIT outer
                 ENDIF
             enddo
         enddo outer
-        LargestOrb=(i*32)+j+1
+        LargestOrb=(i*bits_n_int)+j+1
 
     END SUBROUTINE LargestBitSet
 
@@ -943,14 +976,16 @@ end module
 !NOTE! This routine will find i and a, but not distinguish between them. To calculate which one i is,
 !you would need to do another XOR with the original orbital and find out which bit this corresponded to.
     SUBROUTINE FindSingleOrbs(iLutnI,iLutnJ,NIfD,Orbs)
+        use constants, only: n_int,bits_n_int
         IMPLICIT NONE
-        INTEGER :: iLutnI(0:NIfD),iLutnJ(0:NIfD),NIfD,Orbs(2)
-        INTEGER :: iLutExcited(0:NIfD)
+        INTEGER(KIND=n_int) :: iLutnI(0:NIfD),iLutnJ(0:NIfD)
+        INTEGER :: NIfD,Orbs(2)
+        INTEGER(kind=n_int) :: iLutExcited(0:NIfD)
 
         iLutExcited(:)=IEOR(iLutnI(:),iLutnJ(:))
         CALL LargestBitSet(iLutExcited,NIfD,Orbs(1))
 !Found first orbital. Now clear this from the list and search again for the second....
-        iLutExcited((Orbs(1)-1)/32)=IBCLR(iLutExcited((Orbs(1)-1)/32),mod(Orbs(1)-1,32))
+        iLutExcited((Orbs(1)-1)/bits_n_int)=IBCLR(iLutExcited((Orbs(1)-1)/bits_n_int),mod(Orbs(1)-1,bits_n_int))
         CALL LargestBitSet(iLutExcited,NIfD,Orbs(2))
 
     END SUBROUTINE FindSingleOrbs

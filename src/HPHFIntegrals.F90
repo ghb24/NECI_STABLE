@@ -1,5 +1,5 @@
 module hphf_integrals
-    use HElem
+    use constants, only: dp,n_int
     use SystemData, only: NEl, nBasisMax, G1, nBasis, Brr, NIftot, NIfDBO, &
                           tHub, ECore, ALat, NMSH, NIftot
     use IntegralsData, only: UMat,FCK,NMAX
@@ -9,11 +9,40 @@ module hphf_integrals
     use IntegralsData, only: UMat,FCK,NMAX
     implicit none
 
-    
-    contains
-    function hphf_off_diag_helement (nI, nJ, iLutnI, iLutnJ) result(hel)
+    interface hphf_off_diag_helement
+        module procedure hphf_off_diag_helement_norm
+        module procedure hphf_off_diag_helement_spawn
+    end interface
 
-        ! Find the HELement between two half-projected hartree-fock 
+    contains
+
+    function hphf_spawn_sign (nI, nJ, iLutI, iLutJ, ic, ex, &
+                                  tParity, prob) result (hel)
+        integer, intent(in) :: nI(nel), nJ(nel), ic, ex(2,2)
+        integer(kind=n_int), intent(in) :: iLutI(0:NIfTot), iLutJ(0:NIfTot)
+        logical, intent(in) :: tParity
+        real(dp), intent(in) :: prob
+        HElement_t :: hel
+
+        hel = sign(1.0_dp, prob)
+
+    end function
+
+    ! TODO: comment as to why!
+    function hphf_off_diag_helement_spawn (nI, nJ, iLutI, iLutJ, ic, ex, &
+                                           tParity, prob) result (hel)
+        integer, intent(in) :: nI(nel), nJ(nel), ic, ex(2,2)
+        integer(kind=n_int), intent(in) :: iLutI(0:NIfTot), iLutJ(0:NIfTot)
+        logical, intent(in) :: tParity
+        real(dp), intent(in) :: prob
+        HElement_t :: hel
+
+        hel = hphf_off_diag_helement_norm (nI, nJ, iLutI, iLutJ)
+    end function
+
+    function hphf_off_diag_helement_norm (nI, nJ, iLutnI, iLutnJ) result(hel)
+
+        ! Find the  between two half-projected hartree-fock 
         ! determinants (different ones). NI and nJ have to be uniquely 
         ! chosen, so that their spin-coupled determinant will not arise.
         !
@@ -22,19 +51,20 @@ module hphf_integrals
         ! Ret: hel          - The calculated matrix element
 
         integer, intent(in) :: nI(nel), nJ(nel)
-        integer, intent(in) :: iLutnI(0:NIfTot), iLutnJ(0:NIfTot)
-        type(HElement) :: hel
+        integer(kind=n_int), intent(in) :: iLutnI(0:NIfTot), iLutnJ(0:NIfTot)
+        HElement_t :: hel
 
-        integer :: nI2(nel), iLutnI2(0:NIfTot)
+        integer :: nI2(nel) 
+        integer(kind=n_int) :: iLutnI2(0:NIfTot)
         integer :: ExcitLevel, OpenOrbsI, OpenOrbsJ, Ex(2,2)
-        type(HElement) :: MatEl2
+        HElement_t :: MatEl2
         logical :: TestClosedShellDet, tSymmetricInts, tSign
 
         if (DetBitEQ(iLutnI, iLutnJ, NIfDBO)) then
             ! Do not allow an 'off-diagonal' matrix element. The problem is 
             ! that the HPHF excitation generator can generate the same HPHF 
             ! function. We do not want to allow spawns here.
-            hel = HElement(0)
+            hel = (0)
             return
         endif
 
@@ -46,14 +76,14 @@ module hphf_integrals
                 ! OTHERWISE Closed shell -> closed shell. Both the alpha and 
                 ! beta of the same orbital have been moved to the same new 
                 ! orbital. The matrix element is the same as before.
-                hel = hel * HELement(sqrt(2.d0))
+                hel = hel * (sqrt(2.d0))
             endif
         else
             if (TestClosedShellDet(iLutnJ)) then
                 ! Open shell -> Closed shell. I am pretty sure that if one of
                 ! the determinants is connected, then the other is connected 
                 ! with the same IC (+matrix element?). Test this later.
-                hel = hel * HElement(sqrt(2.d0))
+                hel = hel * (sqrt(2.d0))
             else
                 ! Open shell -> Open shell. Find the spin pair of nJ.
                 call FindExcitBitDetSym(iLutnI, iLutnI2)
@@ -85,7 +115,7 @@ module hphf_integrals
             
             endif
         endif
-    end function hphf_off_diag_helement
+    end function
 
 
     function hphf_diag_helement (nI, iLutnI) result(hel)
@@ -97,12 +127,14 @@ module hphf_integrals
         !      iLutnI  - Bit representation of I
         ! Ret: hel   - The calculated matrix element
 
-        integer, intent(in) :: nI(nel), iLutnI(0:NIfTot)
-        type(HElement) :: hel
+        integer, intent(in) :: nI(nel) 
+        integer(kind=n_int), intent(in) :: iLutnI(0:NIfTot)
+        HElement_t :: hel
 
-        integer :: nI2(nel), iLutnI2(0:NIfTot)
+        integer :: nI2(nel)
+        integer(kind=n_int) :: iLutnI2(0:NIfTot)
         integer :: ExcitLevel, OpenOrbs
-        type(HElement) :: MatEl2
+        HElement_t :: MatEl2
         logical :: TestClosedShellDet
 
         hel = sltcnd_excit (nI, nI, 0)
@@ -129,6 +161,6 @@ module hphf_integrals
             endif
         endif
 
-        hel = hel + HELement(ECore)
+        hel = hel + (ECore)
     end function hphf_diag_helement
 end module

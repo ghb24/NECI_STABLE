@@ -16,19 +16,20 @@
 ! The list1 will be binary searched to find insertion points. Generally, if list2 > list1/2,
 ! a linear search would be quicker.
     SUBROUTINE MergeListswH(nlist1,nlist1max,nlist2,list2,SignList2)
-        USE FciMCParMOD , only : iLutHF,Hii,CurrentDets,CurrentSign,CurrentH
+        USE FciMCParMOD , only : Hii,CurrentDets,CurrentSign,CurrentH
         USE SystemData , only : NEl,tHPHF,NIfTot,NIfDBO
         USE Determinants , only : get_helement
         use DetBitOps, only: DecodeBitDet, DetBitEQ
         use hphf_integrals, only: hphf_diag_helement, hphf_off_diag_helement
         USE HElem
+        use constants, only: dp,n_int
         IMPLICIT NONE
 !        INTEGER :: list1(0:NIfTot,nlist1max),list2(0:NIfTot,1:nlist2)
-        INTEGER :: list2(0:NIfTot,1:nlist2)
-        INTEGER :: nlisto,nlist1,nlist2,nlo,i,DetCurr(0:NIfTot) 
+        INTEGER(KIND=n_int) :: list2(0:NIfTot,1:nlist2),DetCurr(0:NIfTot) 
+        INTEGER :: nlisto,nlist1,nlist2,nlo,i
         INTEGER :: ips,ips1,SignList2(nlist2)!,SignList1(nlist1max),
 !        REAL*8 :: HList(nlist1max)
-        TYPE(HElement) :: HDiagTemp
+        HElement_t :: HDiagTemp
         REAL*8 :: HDiag
         INTEGER :: nJ(NEl),j,nlist1max
 !        LOGICAL :: tbin
@@ -68,24 +69,13 @@
            CurrentDets(:,ips+i-1)=list2(:,i)
            CurrentSign(ips+i-1)=SignList2(i)
 !We want to calculate the diagonal hamiltonian matrix element for the new particle to be merged.
-           IF(DetBitEQ(list2(:,i),iLutHF,NIfDBO)) THEN
-!We know we are at HF - HDiag=0
-               HDiag=0.D0
-!               IF(tHub.and.tReal) THEN
-!!Reference determinant is not HF
-!                   CALL DecodeBitDet(nJ,list2(0:NIfTot,i))
-!                   HDiagTemp=GetHElement3(nJ,nJ,0)
-!                   HDiag=(REAL(HDiagTemp%v,8))
-!               ENDIF
-           ELSE
-               CALL DecodeBitDet(nJ,list2(:,i))
-               if (tHPHF) then
-                   HDiagTemp = hphf_diag_helement (nJ, list2(:,i))
-               else
-                   HDiagTemp = get_helement (nJ, nJ, 0)
-               endif
-               HDiag=(REAL(HDiagTemp%v,8))-Hii
-           ENDIF
+           CALL DecodeBitDet(nJ,list2(:,i))
+           if (tHPHF) then
+               HDiagTemp = hphf_diag_helement (nJ, list2(:,i))
+           else
+               HDiagTemp = get_helement (nJ, nJ, 0)
+           endif
+           HDiag=(REAL(HDiagTemp,8))-Hii
            CurrentH(ips+i-1)=HDiag
                
 !           write(6,*) ' newly inserted member on position:'                             &
@@ -108,12 +98,13 @@
 
 !This routine is the same as MergeListswH, but will not generate the diagonal hamiltonian matrix elements to go with the inserted determinants
     SUBROUTINE MergeLists(nlist1,nlist1max,nlist2,list2,SignList2)
-        USE FciMCParMOD , only : iLutHF,Hii,CurrentDets,CurrentSign
+        USE FciMCParMOD , only : Hii,CurrentDets,CurrentSign
         USE SystemData , only : NEl, NIfTot
         USE HElem
+        use constants, only : n_int
         IMPLICIT NONE
-        INTEGER :: list2(0:NIfTot,1:nlist2)
-        INTEGER :: nlisto,nlist1,nlist2,nlo,i,DetCurr(0:NIfTot) 
+        INTEGER(KIND=n_int) :: list2(0:NIfTot,1:nlist2),DetCurr(0:NIfTot) 
+        INTEGER :: nlisto,nlist1,nlist2,nlo,i
         INTEGER :: ips,ips1,SignList2(nlist2)!,SignList1(nlist1max)
         REAL*8 :: HDiag
         INTEGER :: nJ(NEl),j,nlist1max
@@ -177,8 +168,9 @@
         use SystemData, only: NIfTot,NIfDBO
         use DetBitOps, only: DetBitLT
         USE FciMCParMOD , only : CurrentDets
+        use constants, only: n_int
         IMPLICIT NONE
-        INTEGER :: n,DetCurr(0:NIfTot)!,list(0:NIFTot,n)
+        INTEGER(KIND=n_int) :: n,DetCurr(0:NIfTot)!,list(0:NIFTot,n)
         INTEGER :: nlo,nup,i,ipos,ncurr,CompPart
 !        logical :: tbin
 !        if(.not.tbin) goto 200
@@ -263,10 +255,10 @@
     SUBROUTINE searchgen(n,list,DetCurr,ipos)
         use SystemData, only: NIfTot,NIfDBO
         use DetBitOps, only: DetBitLT
+        use constants, only: n_int
         IMPLICIT NONE
-        INTEGER :: n,DetCurr(0:NIfTot)
-        INTEGER :: nlo,nup,i,ipos,ncurr,CompPart
-        INTEGER :: list(0:NIfTot,n)
+        INTEGER(KIND=n_int) :: DetCurr(0:NIfTot),list(0:NIfTot,n)
+        INTEGER :: nlo,nup,i,ipos,ncurr,CompPart,n
 !        logical :: tbin
 !        if(.not.tbin) goto 200
 !.......................................................................

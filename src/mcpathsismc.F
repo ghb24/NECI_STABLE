@@ -13,7 +13,7 @@ C.. NMAX has ARR hidden in it.
      &              NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,RHOEPS,
      &               LSTE,ICE,RIJLIST,NWHTAY,ILOGGING,ECORE,ILMAX,
      &               WLRI,WLSI,DBETA,DLWDB,I_VMIN)
-         USE HElem
+         use constants, only: dp
          Use Determinants, only: get_helement, write_det
          USE MCStat
          use CalcData , only : G_VMC_PI,G_VMC_FAC,G_VMC_SEED,CUR_VERT,
@@ -29,37 +29,37 @@ C.. NMAX has ARR hidden in it.
          type(timer), save :: proc_timer
          type(timer), save :: proc_timer2
          CHARACTER*20 STR,STR2
-         TYPE(HDElement) TOTAL,RHOII(0:I_VMAX)
-         TYPE(HElement) RHOIJ(0:I_VMAX,0:I_VMAX),RH
-         TYPE(HDElement) FLNSUM,FLNRII
+         real(dp) TOTAL,RHOII(0:I_VMAX)
+         HElement_t RHOIJ(0:I_VMAX,0:I_VMAX),RH
+         real(dp) FLNSUM,FLNRII
          REAL*8 ALAT(3),RHOEPS,BETA
-         TYPE(HElement) UMAT(*)
+         HElement_t UMAT(*)
          COMPLEX*16 FCK(*)
          REAL*8 ECORE
-         TYPE(HDElement) FF
-         TYPE(HDElement) WLRI,WLSI
+         real(dp) FF
+         real(dp) WLRI,WLSI
          TYPE(BasisFN) G1(*),KSYM
          INTEGER nBasisMax(5,*),BRR(*)
          INTEGER LSTE(*),ILMAX,I_VMAX,NEL,NBASIS
 CNEL,0:NBASIS*NBASIS*NEL*NEL,0:I_VMAX-1)
          INTEGER ICE(*)
-         TYPE(HElement) RIJLIST(*)
+         HElement_t RIJLIST(*)
 C0:NBASIS*NBASIS*NEL*NEL,0:I_VMAX-1)
          INTEGER NLIST(0:I_VMAX-1),LSTP(0:I_VMAX-1),BTABLE(0:I_VMAX)
-         LOGICAL TLOG,TSYM,LISNAN
+         LOGICAL TLOG,TSYM
          INTEGER ICOUNT,ISEED,I_V,L,LT
          REAL*8 FNCR,GETNLOOPS,DBETA
          INTEGER IEXCITS,ITIME
-         TYPE(HDElement) FMCPR4
+         real(dp) FMCPR4
          INTEGER EXCITGEN(0:I_VMAX) 
-         TYPE(HDElement) FMCPR4B,FMCPR4C,FMCPR4D2
-         TYPE(HDElement) FMCPR4D3
-         TYPE(HDElement) DLWDB,DLWDB2,DLWDB3
-         TYPE(HElement) HIJS(0:I_VMAX)
+         real(dp) FMCPR4B,FMCPR4C,FMCPR4D2
+         real(dp) FMCPR4D3
+         real(dp) DLWDB,DLWDB2,DLWDB3
+         HElement_t HIJS(0:I_VMAX)
          INTEGER INODE2(NEL)
          INTEGER NMEM(*),NMEMLEN
          POINTER (IP_NMEM,NMEM)
-         TYPE(HDElement) ODLWDB,OWEIGHT,DLWDBSQ
+         real(dp) ODLWDB,OWEIGHT,DLWDBSQ
          REAL*8 OPROB,R
          INTEGER ITREE
          INTEGER I_VCUR,I_VM1,I_VM2,I_OVCUR,IOCLS,NTR
@@ -67,18 +67,18 @@ C0:NBASIS*NBASIS*NEL*NEL,0:I_VMAX-1)
          REAL*8 VWEIGHTS(2,0:I_VMAX)
          INTEGER VEXCITS(0:I_VMAX),TST
          REAL*8 PFAC
-         TYPE(HDElement) WMIN,SUMDLWDB
+         real(dp) WMIN,SUMDLWDB
          REAL*8 RAN2
 C.. do some blocking analysis
          INTEGER NN,BMAX,OBMAX
          INTEGER STORE(6)
-         TYPE(HDElement) DLWDBCORE,WCORE
+         real(dp) DLWDBCORE,WCORE
          INTEGER IOV,IGV,IACC
          LOGICAL TSEQ,TBLOCKING
          REAL*8 PREJ,PGR
          REAL*4 etime,OTIME,NTIME,tarr(2)
          INTEGER*8 LP
-         type (helement) :: hel
+         HElement_t :: hel
          OTIME=etime(tarr)
          TST=0
          proc_timer%timer_name='MCPATHSR4 '
@@ -107,7 +107,7 @@ C.. Set the first node to I_I
          RHOIJ(0,0)=RHOII(0)
          WLRI=LOG(RHOII(0))
          hel = get_helement (nI, nI, 0)
-         HIJS(0) = hel%v
+         HIJS(0) = hel
          TOTAL=1.D0
 C.. These variables have been passed in and represent the precalculated values for 1..I_VMIN-1 vertices
          DLWDBCORE=DLWDB
@@ -272,7 +272,7 @@ C                  DLWDB2=0.D0
                   
                   !  write(6,*) ODLWDB,OPROB
                     !Generate an I_V vertex graph:
-!      WRITE(43,"(I3,4G25.16)") I_VCUR,ECORE,DLWDB2%v, ODLWDB%v,OWEIGHT%v
+!      WRITE(43,"(I3,4G25.16)") I_VCUR,ECORE,DLWDB2, ODLWDB,OWEIGHT
                             
                     FF=FMCPR4D2(NI,BETA,I_P,IPATH,I_VCUR,NEL,NBASISMAX,
      &                  G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,
@@ -281,7 +281,7 @@ C                  DLWDB2=0.D0
      &                   ODLWDB,OPROB,I_OVCUR,IOCLS,ITREE,OWEIGHT,PFAC,
      &                   IACC,0.D0,I_VMAX,EXCITGEN)
                     
-!     WRITE(43,"(I3,4G25.16)") I_VCUR,ECORE,DLWDB2%v, ODLWDB%v,OWEIGHT%v
+!     WRITE(43,"(I3,4G25.16)") I_VCUR,ECORE,DLWDB2, ODLWDB,OWEIGHT
 !                  CALL FLUSH(43)
                     
                     !Set up values for the AddGraph routine later:
@@ -290,9 +290,9 @@ C                  DLWDB2=0.D0
 !                    i_VCur=i_v
 !MPTheory has weights = 1, and does not need to be further divided.
                     IF(.NOT.tMPTheory) THEN
-                     FF=oWeight/HDElement(oProb) 
+                     FF=oWeight/(oProb) 
                     ENDIF
-                    DLWDB2=oWeight*DLWDB2/HDElement(oProb)
+                    DLWDB2=oWeight*DLWDB2/(oProb)
                   ELSE
 C.. see if we want to increase the number of vertices
                     I_OVCUR=I_VCUR
@@ -435,12 +435,12 @@ C                         WRITE(6,*) TSEQ,I_OVCUR,I_VCUR
 !.. The probability of a string of N of these rejectances is (p0 pr)^N, so work out how many we're going to
 !.. get in a row
                            IF(TVVDISALLOW) THEN
-                              PREJ=(DREAL(WCORE)/ABS(DREAL(OWEIGHT)))*
+                              PREJ=((WCORE)/ABS((OWEIGHT)))*
      &                           OPROB
                               PREJ=1.D0-MIN(PREJ,1.D0)
                               PGR=PREJ*(1.D0) !-G_VMC_FAC)
                            ELSE
-                              PREJ=(DREAL(WCORE)/ABS(DREAL(OWEIGHT)))*
+                              PREJ=((WCORE)/ABS((OWEIGHT)))*
      &                           OPROB/(1.D0-G_VMC_FAC)
                               PREJ=1.D0-MIN(PREJ,1.D0)
                               PGR=PREJ*(1.D0-G_VMC_FAC)
@@ -539,8 +539,8 @@ C.. FF for ETILDE, ODLWDB for OETILDE,
                     ENDIF
                   ENDIF
                   LP=1
-                  If (FF%v.eq.0) Then
-         CALL AddGraph(MCSt,LP,I_VCUR,HDElement(0.D0),HDElement(0.D0)
+                  If (FF.eq.0) Then
+         CALL AddGraph(MCSt,LP,I_VCUR,(0.D0),(0.D0)
      &               ,OWEIGHT,IOCLS, ITREE,
      &               IACC,IOV,IGV,BTEST(ILOGGING,10),OPROB,
      &               TBLOCKING)
@@ -556,14 +556,14 @@ C.. FF for ETILDE, ODLWDB for OETILDE,
                  !    CALL WriteStats(MCSt,12)
                      If(tMCDirectSum) Then
                        Write(12, "(I9, 6G25.16)") iCount,
-     &                 MCSt%wWeightedDelta(0)%v
-     &                 /(MCSt%wWeighting(0)%v+(iCount+1)*WCore%v),
-     &                 MCSt%wWeightedDelta(0)%v,
-     &                 MCSt%wWeighting(0)%v, (iCount+1)*WCore%v,
-     &      MCSt%wWeightedDeltaSq(0)%v/iCount
-     &             -(MCSt%wWeightedDelta(0)%v/iCount)**2,
-     &      MCSt%wWeightingSq(0)%v/iCount
-     &             -(MCSt%wWeighting(0)%v/iCount)**2
+     &                 MCSt%wWeightedDelta(0)
+     &                 /(MCSt%wWeighting(0)+(iCount+1)*WCore),
+     &                 MCSt%wWeightedDelta(0),
+     &                 MCSt%wWeighting(0), (iCount+1)*WCore,
+     &      MCSt%wWeightedDeltaSq(0)/iCount
+     &             -(MCSt%wWeightedDelta(0)/iCount)**2,
+     &      MCSt%wWeightingSq(0)/iCount
+     &             -(MCSt%wWeighting(0)/iCount)**2
                      Else
                        Write(12, "(I9, 3G25.16)") iCount, 
      &                  MCSt%wWeightedDelta(0)/MCSt%wWeighting(0),
@@ -577,7 +577,7 @@ C.. FF for ETILDE, ODLWDB for OETILDE,
 !            F(I_V)=F(I_V)/NWHTAY
 !            FSQ(I_V)=FSQ(I_V)/NWHTAY
 !            DLWDB=DLWDB+DLWDB3/NWHTAY
-!            STD=SQRT(ABS(DREAL(FSQ(I_V)-F(I_V)*F(I_V))))
+!            STD=SQRT(ABS((FSQ(I_V)-F(I_V)*F(I_V))))
 !            TOTAL=TOTAL+F(I_V)
 c            WRITE(6,*) I_V,F(I_V),TOTAL,get_total_time(proc_timer2),L,LT
 !            IF(TLOG)
@@ -597,7 +597,7 @@ C ,F(I_V),FSQ(I_V)
               ENDIF
             ENDIF
             CALL FLUSH(11)
-!            IF(LISNAN(F(I_V))) THEN
+!            IF(ISNAN(F(I_V))) THEN
 C.. save all log files
 !               ITIME=etime(tarr)
 !               CALL FLUSH(11)
@@ -617,8 +617,8 @@ caa            CALL FLUSH(10)
          I_VCUR=0
          IGV=0
          IACC=1
-         If (FF%v.eq.0) Then
-         CALL AddGraph(MCSt,LP,I_VCUR,HDElement(0.D0),HDElement(0.D0)
+         If (FF.eq.0) Then
+         CALL AddGraph(MCSt,LP,I_VCUR,(0.D0),(0.D0)
      &               ,OWEIGHT,IOCLS, ITREE,
      &               IACC,IOV,IGV,BTEST(ILOGGING,10),0.D0,
      &               BTEST(ILOGGING,13))
@@ -684,9 +684,9 @@ C.. setup spin excitation generator
          ELSE
             Call GetStats(MCSt,0,TOTAL,DLWDB2,WLSI)
             DLWDB=DLWDB2
-            IF(TOTAL%v.LT.0.D0) THEN
-               TOTAL%v=-TOTAL%v
-               DLWDB%v=-DLWDB%v
+            IF(TOTAL.LT.0.D0) THEN
+               TOTAL=-TOTAL
+               DLWDB=-DLWDB
             ENDIF
             DLWDB=DLWDB
             WLSI=TOTAL-WCORE
@@ -877,7 +877,7 @@ C.. not very efficient.
      &   ECORE,ISEED,KSYM,DBETA,DLWDB,HIJS)
          use SystemData , only : BasisFN
          use Determinants, only: get_helement
-         use HElem
+         use constants, only: dp
          IMPLICIT NONE
          TYPE(BasisFN) :: KSYM
          INTEGER NEL,NI(NEL),I_P,IPATH(NEL,0:I_V),I_V
@@ -898,7 +898,7 @@ C.. not very efficient.
          REAL*8 HIJS(0:I_V)
          LOGICAL ISUHFDET
          INTEGER ICLS
-         type(HElement) :: hel
+         HElement_t :: hel
          RP=0
          I_VNEXT=1
          CALL NECI_ICOPY(NEL,IPATH(1,0),1,INODE,1)
@@ -966,7 +966,7 @@ C.. Update the rho and X (probability) matrices with this new node
                   ENDIF
                   IF(I.EQ.0) THEN
                      hel = get_helement (nI, iNode)
-                     HIJS(I_vNext) = hel%v
+                     HIJS(I_vNext) = hel
                   ENDIF
                   CALL CALCRHO2(INODE,IPATH(1,I),BETA,I_P,NEL,
      &             NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,
@@ -1037,7 +1037,7 @@ C.. XIJ is proportional to RHO_JJ**ABS(RP).
      &   RHOEPS,RHOII,RHOIJ,NWHTAY,I_HMAX,ILOGGING,TSYM,
      &   ECORE,ISEED,KSYM,DBETA,DLWDB,HIJS)
          use SystemData , only : BasisFN
-         use HElem
+         use constants, only: dp
          use Determinants, only: get_helement
          IMPLICIT NONE
          TYPE(BasisFN) :: KSYM
@@ -1059,7 +1059,7 @@ C.. XIJ is proportional to RHO_JJ**ABS(RP).
          REAL*8 DBETA,DLWDB,HIJS(0:I_V)
          INTEGER ICLS
          REAL*8 RAN2
-         type(HElement) :: hel
+         HElement_t :: hel
 C.. we hard code RP as P/50, although this should be an empirical
 C.. parameter.
          RP=-I_P/50.D0
@@ -1128,7 +1128,7 @@ C                     XIJ(I,I_VNEXT)=1.D0/XIJ(I,I)
      &                  RHOII(I_VNEXT)**ABS(RP)/XIJ(I,I)
                      if(I == 0) then
                         hel = get_helement(nI, iNode, ICE)
-                        HIJS(I_vNext) = hel%v
+                        HIJS(I_vNext) = hel
                      endif
                   ELSE
                      RHOIJ(I,I_VNEXT)=0.D0
@@ -1198,7 +1198,7 @@ C..
          use SystemData , only : BasisFN
          use CalcData , only : G_VMC_PI
          use Determinants, only: get_helement
-         use HElem
+         use constants, only: dp
          IMPLICIT NONE
          TYPE(BasisFN) :: KSYM
          INTEGER NEL,NI(NEL),I_P,IPATH(NEL,0:I_V),I_V
@@ -1232,7 +1232,7 @@ C..
          INTEGER STORE(6)
          REAL*8 RAN2
          REAL*8 pGen,pGen2
-         type(HElement) :: hel
+         HElement_t :: hel
 C.. PEXCIT(NODE) is the probability of selecting NODE and
 C.. those before it.
          PEXCIT(1)=1.D0
@@ -1373,7 +1373,7 @@ C.. Update the rho and X (probability) matrices with this new node
                   ENDIF
                   IF(I.EQ.0) THEN
                       hel = get_helement (nI, iNode)
-                     HIJS(I_VNEXT) = hel%v
+                     HIJS(I_VNEXT) = hel
                   ENDIF
                   CALL CALCRHO2(INODE,IPATH(1,I),BETA,I_P,NEL,
      &             NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,
@@ -1808,35 +1808,37 @@ C.. weight.
      &   RHOEPS,RHOII,RHOIJ,NWHTAY,I_HMAX,ILOGGING,TSYM,
      &   ECORE,ISEED,KSYM,DBETA,DLWDB,HIJS,NMEM,OETILDE,OPROB,
      &   I_OVCUR,IOCLS,ITREE,OWEIGHT,PFAC,IACC,INWI,I_VMAX,EXCITGEN)
-         USE HElem
+         use constants, only: dp
          USE SystemData , only : BasisFN
          USE PrecalcData , only : TPREVAR
-         use CalcData , only : TMPTHEORY,TMCDIRECTSUM
+         use CalcData, only: tMPTheory, tMCDirectSum, pGenEpsilon
+         use util_mod, only: isnan
+         use CalcData , only : TMPTHEORY,TMCDIRECTSUM,PGenEpsilon
          IMPLICIT NONE
          TYPE(BasisFN) KSYM
-         TYPE(HDElement) FMCPR4D2
+         real(dp) FMCPR4D2
          INTEGER NEL,NI(NEL),I_P,IPATH(NEL,0:I_V),I_V,I_VMAX
          INTEGER nBasisMax(5,*),G1,NBASIS,BRR(NBASIS),NMAX
          INTEGER NTAY,NWHTAY,I_HMAX,ILOGGING,ISEED,NMSH
          LOGICAL TSYM
          REAL*8 BETA,ALAT(*),ECORE
          COMPLEX*16 FCK
-         TYPE(HElement) UMat(*) 
+         HElement_t UMat(*) 
          REAL*8 RHOEPS
-         TYPE(HDElement) RHOII(0:I_V),INWI
-         TYPE(HElement) RHOIJ(0:I_V,0:I_V)
+         real(dp) RHOII(0:I_V),INWI
+         HElement_t RHOIJ(0:I_V,0:I_V)
          INTEGER LSTE(NEL),NLIST
          INTEGER INODE(NEL),I_VNEXT,INODE2(NEL),ICOUNT
          INTEGER I,J,K,ICE,IC
          REAL*8 XIJ(0:I_V-1,0:I_V-1)         
-         TYPE(HDElement) CALCPATHS_N
+         real(dp) CALCPATHS_N
          REAL*8 X,GETPATHPROB2,RHX
          LOGICAL LISINPATH
          INTEGER IGETEXCITLEVEL
          LOGICAL TLOG,TLOG2,TLOG3
-         REAL*8 RP,DBETA(3)
-         TYPE(HDElement) DLWDB,DLWDB2
-         TYPE(HElement)HIJS(0:I_V)
+         REAL*8 RP,DBETA
+         real(dp) DLWDB,DLWDB2
+         HElement_t HIJS(0:I_V)
          LOGICAL ISUHFDET
          REAL*8 PEXCIT(I_V),R
          INTEGER NEXNODE
@@ -1849,37 +1851,36 @@ C.. weight.
          INTEGER EXCITGEN(0:I_V)
 #endif
          INTEGER ICLS
-         TYPE(HDElement) ORHOII(0:I_OVCUR)
-         TYPE(HElement) ORHOIJ(0:I_OVCUR,0:I_OVCUR)
+         real(dp) ORHOII(0:I_OVCUR)
+         HElement_t ORHOIJ(0:I_OVCUR,0:I_OVCUR)
          INTEGER OIPATH(NEL,0:I_OVCUR)
-         TYPE(HElement) OHIJS(0:I_OVCUR)
+         HElement_t OHIJS(0:I_OVCUR)
          REAL*8 OXIJ(0:I_OVCUR-1,0:I_OVCUR-1),OPROB,PR,R2
-         TYPE(HDElement) OETILDE,WEIGHT,OWEIGHT,ETILDE
+         real(dp) OETILDE,WEIGHT,OWEIGHT,ETILDE
          INTEGER I_OVCUR,IOCLS,ITREE
-         LOGICAL LISNAN,ISVALIDDET
+         LOGICAL ISVALIDDET
          INTEGER IACC
          REAL*8 PFAC
          REAL*8 RAN2
          INTEGER STORE(6)
-         TYPE(HDElement) MPEs(2:i_VMax)
+         real(dp) MPEs(2:i_VMax)
          
 C.. Take a copy of the old path and rho matrix etc.
-         IF(OWEIGHT%v.ne.0.D0) THEN
+         IF(OWEIGHT.ne.0.D0) THEN
             CALL DCOPY(I_OVCUR+1,RHOII,1,ORHOII,1)
             CALL DCOPY((I_OVCUR+1)**2,RHOIJ,1,ORHOIJ,1)
             CALL DCOPY(I_OVCUR+1,HIJS,1,OHIJS,1)
             CALL DCOPY(I_OVCUR*I_OVCUR,XIJ,1,OXIJ,1)
             CALL NECI_ICOPY(NEL*(1+I_OVCUR),IPATH,1,OIPATH,1)
         ENDIF
-         IF(.NOT.(INWI.AGT.0.D0)) THEN
+         IF(.not.abs(INWI).gt.0.D0) THEN
 !.. Generate a new graph
-!  DBETA(3) has PGENEPSILON hidden in it.
             RHX=-1
             IC=0
             TLOG=BTEST(ILOGGING,2)
             TLOG2=BTEST(ILOGGING,3)
             TLOG3=BTEST(ILOGGING,6)
-            DO WHILE (RHX.LE.DBETA(3))
+            DO WHILE (RHX.LE.PGenEpsilon)
                CALL FMCPR4D2GENGRAPH(NI,NEL,BETA,I_P,IPATH,I_V,XIJ,
      &           NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,
      &           NTAY,RHOEPS,RHOII,RHOIJ,ECORE,ISEED,HIJS,NMEM,I_HMAX,
@@ -1891,14 +1892,14 @@ C.. GETPATHPROB gives us the probability of generating the path
                IC=IC+1
                IF(IC.GT.10000) THEN
                   WRITE(6,*) "Have thrown away 10000 graphs with pGen<",
-     &               DBETA(3) 
+     &               PGenEpsilon 
               STOP "Have thrown away 10000 graphs with pGen<pGenEpsilon"
                ENDIF
             ENDDO
             ICLS=0
             IF(TMPTHEORY) THEN
 ! MP Theory requires HDIAG
-               MPEs=HDElement(0.d0)
+               MPEs=(0.d0)
                CALL AddMPEnergy(RHOIJ,i_V,i_vmax,NMAX,nBasis,
      &            iPath,nEl,.false.,ECORE,MPEs)
                ETILDE=0.D0
@@ -1919,7 +1920,7 @@ C.. we use the gestalt
             ETILDE=DLWDB
          ENDIF
 C.. Now do an accept/reject
-         IF(.NOT.(OWEIGHT.AGT.0.D0)) THEN
+         IF(.NOT.abs(OWEIGHT).gt.0.D0) THEN
 C.. this is the first time round, so we automatically accept the new
 C.. configuration
             OETILDE=ETILDE
@@ -1936,11 +1937,11 @@ C.. Accept the new configuration with prob (|S'(new)|/|S'(old)|)*(OPROB/RH)
 C.. acc(A->B)/acc(B->A) = p(B) gen(B->A) / (p(A) gen(A->B))
 C..                     = p(B) gen(A) / (p(A) gen(B))
 
-            PR=(OPROB/RHX)*ABS(DREAL(WEIGHT/OWEIGHT))
-!            WRITE(40,"(5G)",advance='no') OPROB,RH,DREAL(WEIGHT), DREAL(OWEIGHT),PR
-            IF(RHX.EQ.0.D0.OR..NOT.(OWEIGHT.AGT.0.D0)) PR=0.D0
+            PR=(OPROB/RHX)*ABS((WEIGHT/OWEIGHT))
+!            WRITE(40,"(5G)",advance='no') OPROB,RH,(WEIGHT), (OWEIGHT),PR
+            IF(RHX.EQ.0.D0.OR..NOT.abs(OWEIGHT).gt.0.D0) PR=0.D0
             IF(.not.TPREVAR) THEN
-                IF(LISNAN(WEIGHT)) THEN
+                IF(isnan(WEIGHT)) THEN
                     WRITE(60,*) WEIGHT,ETILDE,RHX
                     CALL WRITEPATH(60,IPATH,I_V,NEL,.FALSE.)
                     CALL WRITERHOMAT(60,RHOIJ,I_V,NEL,.TRUE.)
@@ -1999,16 +2000,17 @@ C.. reject the new, and copy in the old
             WRITE(10,"(3E25.16, 2I7)") WEIGHT,RHX,ETILDE,ICLS,IACC
          ENDIF
          IF(TMPTHEORY.AND..NOT.tMCDirectSum) THEN
-            DLWDB=ETILDE/HDElement(OPROB)
+            DLWDB=ETILDE/(OPROB)
             FMCPR4D2=OPROB
-         ELSEIF(tMCDirectSum.AND.RHX.GT.0.D0.AND.(WEIGHT.AGT.0.D0)) THEN
+         ELSEIF(tMCDirectSum.AND.RHX.GT.0.D0.AND.
+     &                                   (abs(WEIGHT).gt.0.D0)) THEN
 C.. Unbias the sum 
             DLWDB=ETILDE/WEIGHT
             FMCPR4D2=WEIGHT/WEIGHT
-         ELSEIF(RHX.GT.0.D0.AND.(WEIGHT.AGT.0.D0)) THEN
+         ELSEIF(RHX.GT.0.D0.AND.abs(WEIGHT).gt.0.D0) THEN
 C.. Unbias the sum 
-            DLWDB=ETILDE/HDElement(ABS(DREAL(WEIGHT)))
-            FMCPR4D2=WEIGHT/HDElement(ABS(DREAL(WEIGHT)))
+            DLWDB=ETILDE/(ABS((WEIGHT)))
+            FMCPR4D2=WEIGHT/(ABS((WEIGHT)))
          ELSE
             FMCPR4D2=0.D0
             DLWDB=0.D0
@@ -2034,13 +2036,13 @@ C.. Unbias the sum
      &   PVERTMEMS2)
          use CalcData , only : G_VMC_PI
          USE PrecalcData , only : TPREVAR
-         USE HElem
+         use constants, only: dp
          use Determinants, only: get_helement, write_det
          use SystemData, only: BasisFN
          IMPLICIT NONE
          INTEGER NEL,I_V,IPATH(NEL,0:I_V),NI(NEL)
          REAL*8 BETA,ALAT(*),ECORE
-         TYPE(HElement) Umat(*)
+         HElement_t Umat(*)
          TYPE(BasisFN) G1(*)
          INTEGER I_P,nBasisMax(5,*),NBASIS,BRR(*),NMSH
          INTEGER NMAX,NTAY
@@ -2053,10 +2055,10 @@ C.. Unbias the sum
          INTEGER I_HMAX
 
          REAL*8 RHOEPS
-         TYPE(HDElement) RHOII(0:I_V)
-         TYPE(HElement) RHOIJ(0:I_V,0:I_V)
+         real(dp) RHOII(0:I_V)
+         HElement_t RHOIJ(0:I_V,0:I_V)
          REAL*8 XIJ(0:I_V-1,0:I_V-1)         
-         TYPE(HElement) HIJS(0:I_V)
+         HElement_t HIJS(0:I_V)
          INTEGER ISEED
 
          REAL*8 PEXCIT(I_V)
@@ -2073,15 +2075,15 @@ C.. Unbias the sum
          POINTER (IP_CUREX,CUREX),(IP_NEWEX,NEWEX)
          INTEGER STORE(6)
          REAL*8 R
-         TYPE(HElement) RH
+         HElement_t RH
          INTEGER ICE,I,ICOUNT,IC
 
          INTEGER IGETEXCITLEVEL
          LOGICAL ISUHFDET,LISINPATH
-         LOGICAL LISNAN,ISVALIDDET
+         LOGICAL ISVALIDDET
          REAL*8 RAN2
          REAL*8 pGen,pGen2
-         type(helement) :: hel
+         HElement_t :: hel
 
          !Deallocate Excitation Generators after precalc
          IF(I_HMAX.EQ.154) THEN
@@ -2096,7 +2098,7 @@ C.. those before it.
          IF(I_HMAX.EQ.-19) THEN
 !.. We're actually storing H matrices in RHOIJ rather than rho matrices
             hel = get_helement (nI, nI, 0)
-            RHOIJ(0,0) = hel%v
+            RHOIJ(0,0) = hel
             RHOII(1)=BETA
          ENDIF
          PEXCIT(1)=1.D0
@@ -2238,13 +2240,13 @@ C.. Update the rho and X (probability) matrices with this new node
                   ELSE
                      IF(I.EQ.0) THEN
                          hel = get_helement (nI, iNode)
-                         HIJS(I_VNEXT) = hel%v
+                         HIJS(I_VNEXT) = hel
                      ENDIF
                      CALL CALCRHO2(INODE,IPATH(1,I),BETA,I_P,NEL,
      &             NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,
      &             RH,NTAY,ICE,ECORE)
                   ENDIF
-                  IF(RH.AGT.RHOEPS) THEN
+                  IF(abs(RH).gt.RHOEPS) THEN
                      RHOIJ(I_VNEXT,I)=RH
                      RHOIJ(I,I_VNEXT)=RH
                   ELSE
@@ -2323,7 +2325,8 @@ C.. a wrongly biased MC
          use SystemData , only : BasisFN
          use CalcData , only : G_VMC_PI
          use Determinants, only: get_helement, write_det
-         use HElem
+         use constants, only: dp
+         use util_mod, only: isnan
          IMPLICIT NONE
          TYPE(BasisFN) :: KSYM
          INTEGER NEL,NI(NEL),I_P,IPATH(NEL,0:I_V),I_V
@@ -2359,7 +2362,7 @@ C.. a wrongly biased MC
          REAL*8 OHIJS(0:I_V),OXIJ(0:I_V-1,0:I_V-1)
          REAL*8 OETILDE,OPROB,PR,R2,WEIGHT,OWEIGHT
          INTEGER I_OVCUR,IOCLS,ITREE
-         LOGICAL LISNAN,ISVALIDDET
+         LOGICAL ISVALIDDET
          INTEGER IACC
          REAL*8 NRHOII(0:I_V),NRHOIJ(0:I_V,0:I_V)
          INTEGER NIPATH(NEL,0:I_V),IACCNODE
@@ -2368,7 +2371,7 @@ C.. a wrongly biased MC
          INTEGER IEXNUM,NTENT
          REAL*8 RAN2
          INTEGER STORE(6)
-         type(HElement) :: hel
+         HElement_t :: hel
 C         WRITE(6,*) "START:",LOC(NMEM)
 
 C.. number of tentacles
@@ -2514,7 +2517,7 @@ C.. we will later.  Just put a dummy value in for now
                      ENDIF
                      IF(I.EQ.0) THEN
                          hel = get_helement (nI, iNode)
-                         NHIJS(I_VNEXT) = hel%v
+                         NHIJS(I_VNEXT) = hel
                      ENDIF
                      CALL CALCRHO2(INODE,NIPATH(1,I),BETA,I_P,NEL,
      &                  NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,
@@ -2633,7 +2636,7 @@ C..                     = p(B) gen(A) / (p(A) gen(B))
             PR=(OPROB/RH)*ABS(WEIGHT/OWEIGHT)
             IF(RH.EQ.0.D0.OR.WEIGHT.EQ.0.D0) PR=0.D0
             R2=RAN2(ISEED)
-            IF(LISNAN(WEIGHT)) THEN
+            IF(isnan(WEIGHT)) THEN
                WRITE(60,*) WEIGHT,ETILDE,RH
                CALL WRITEPATH(60,IPATH,I_V,NEL,.FALSE.)
                CALL WRITERHOMAT(60,RHOIJ,I_V,NEL,.TRUE.)
@@ -2711,7 +2714,7 @@ C.. NB TMAT has sometimes been hidden in ZIA
      &   WMIN)
          use SystemData , only : BasisFN
          use Determinants, only: get_helement, write_det
-         use HElem
+         use constants, only: dp
          IMPLICIT NONE
          TYPE(BasisFN) :: KSym
          INTEGER NEL,NI(NEL),I_P
@@ -2742,7 +2745,7 @@ C.. NB TMAT has sometimes been hidden in ZIA
          REAL*8 OWEIGHT
          INTEGER ICONN,I,ICLS,IC
          REAL*8 ETILDERET,WEIGHTRET,PFAC,WMIN
-         type(HElement) :: hel
+         HElement_t :: hel
 
          LOGICAL ISVALIDDET,ISUHFDET,LISINPATH,AREDETSEXCITS
          INTEGER IGETEXCITLEVEL
@@ -2835,7 +2838,7 @@ C.. Fill out the parts which have changed
             IF(I.EQ.IVERTMOVE) THEN
                ICE=-1
                hel = get_helement (nI, nIPath (:,I))
-               NHIJS(I) = hel%v
+               NHIJS(I) = hel
                ICE=0
                CALL CALCRHO2(NIPATH(1,I),NIPATH(1,I),BETA,
      &                  I_P,NEL,
@@ -2971,7 +2974,7 @@ C..  (|w'(ijk)| Sum_(j' in G&j'-l) w1(j')/N(j'))/Sum_(j''in G) w1(j'')
      &                        ITREE,IACC,ISEED,BRR,NMSH,FCK,NTAY,
      &                        NMAX,ALAT,UMAT,ECORE,PFAC,WMIN)
          use Determinants, only: get_helement, write_det
-         use HElem
+         use constants, only: dp
          IMPLICIT NONE
          INTEGER I_V,NEL,IPATH(NEL,0:I_V)
          REAL*8 RHOIJ(0:I_V,0:I_V)
@@ -3002,7 +3005,7 @@ C..  (|w'(ijk)| Sum_(j' in G&j'-l) w1(j')/N(j'))/Sum_(j''in G) w1(j'')
          LOGICAL LBR
          INTEGER ICOUNT
          REAL*8 RAN2
-         type(helement) :: hel
+         HElement_t :: hel
 C.. First pick a vertex to excite from 
          R=RAN2(ISEED)*VWEIGHTS(1,I_V)
          IVERT=0
@@ -3073,7 +3076,7 @@ C.. now get the rho matrix element
                   RHOIJ2(I_V,I)=RH
                   IF(I.EQ.0) then
                      hel = get_helement (iPath(:,0), nL)
-                     HIJS2(I_V) = hel%v
+                     HIJS2(I_V) = hel
                   endif
                ELSE
                   RHOIJ2(I,I_V)=0.D0

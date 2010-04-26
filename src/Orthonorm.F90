@@ -1,7 +1,7 @@
 SUBROUTINE OrthoNormx(n,m,a)
-
+   implicit none
    REAL*8 :: work(n),tau(n),a(m,n)
-   INTEGER :: k,n,m,lda,lwork,info
+   INTEGER :: i, j, k,n,m,lda,lwork,info
    REAL*8 , ALLOCATABLE :: aTa(:,:)
 
 !Input the number of vectors, n, the dimensionality of the space, m, and the matrix of vectors, a(m,n). 
@@ -67,23 +67,24 @@ END SUBROUTINE OrthoNormx
 !MAT is NxN and is returned as an orthogal matrix
 !R1 and R2 are NxN workspaces
       SUBROUTINE LOWDIN_ORTH(MAT,N,R1,R2,WORK)
-         Use HElem
+         use constants, only: dp
+         use HElem
          IMPLICIT NONE
          INTEGER N
-         Type(HElement) MAT(N,N),R1(N,N),R2(N,N)
+         HElement_t MAT(N,N),R1(N,N),R2(N,N)
          REAL*8 L(N),LL,RWORK(3*N)
-         Type(HElement) WORK(3*N)
+         HElement_t WORK(3*N)
          INTEGER INFO,I,J
 !R=MAT
 !S= R1=1.D0 * R * RT + 0.D0*R1
-         IF(HElementSize.EQ.1) THEN
+         IF(HElement_t_size.EQ.1) THEN
             CALL DGEMM('N','T',N,N,N,1.D0,MAT,N,MAT,N,0.D0,R1,N)
          ELSE
             CALL ZGEMM('N','C',N,N,N,(1.D0,0.d0),MAT,N,MAT,N,(0.D0,0.d0),R1,N)
          ENDIF
 !         CALL Write_HEMatrix("R",N,N,R1)
 ! Diagonalize S=R1 into eigenvectors U=R1 and eigenvalues L
-         IF(HElementSize.EQ.1) THEN
+         IF(HElement_t_size.EQ.1) THEN
             CALL DSYEV('V','U',N,R1,N,L,WORK,N*3,INFO)
          ELSE
             CALL ZHEEV('V','U',N,R1,N,L,WORK,N*3,RWORK,INFO)
@@ -96,7 +97,7 @@ END SUBROUTINE OrthoNormx
 ! Calculate P = S^(-1/2) R = U L^(-1/2) UT R.  U=R1
 ! First let R2=U R. U=R1.  R=MAT
 ! R2=1.D0 * R1 * MAT + 0.D0*R1
-         IF(HElementSize.EQ.1) THEN
+         IF(HElement_t_size.EQ.1) THEN
             CALL DGEMM('T','N',N,N,N,1.D0,R1,N,MAT,N,0.D0,R2,N)
          ELSE
             CALL ZGEMM('C','N',N,N,N,(1.D0,0.D0),R1,N,MAT,N,(0.D0,0.d0),R2,N)
@@ -106,12 +107,12 @@ END SUBROUTINE OrthoNormx
          DO I=1,N
             LL=L(I)**(-0.5D0)
             DO J=1,N
-               R2(I,J)=R2(I,J)*HElement(LL)
+               R2(I,J)=R2(I,J)*(LL)
             ENDDO
          ENDDO
 ! Now let MAT = P = U (L^(-1/2) UT R) = U R2.  U=R1
 ! MAT=1.D0 * U * R2 + 0.D0*MAT
-         IF(HElementSize.EQ.1) THEN
+         IF(HElement_t_size.EQ.1) THEN
             CALL DGEMM('N','N',N,N,N,1.D0,R1,N,R2,N,0.D0,MAT,N)
          ELSE
             CALL ZGEMM('N','N',N,N,N,(1.D0,0.D0),R1,N,R2,N,(0.D0,0.d0),MAT,N)
@@ -121,10 +122,10 @@ END SUBROUTINE OrthoNormx
  
       SUBROUTINE GRAMSCHMIDT(MAT,LEN)
 ! MAT(IELEMENT,IVECTOR)
-         Use HElem
+         use constants, only: dp
          IMPLICIT NONE
          INTEGER LEN
-         Type(HElement) MAT(LEN,LEN),DOT
+         HElement_t MAT(LEN,LEN),DOT
          REAL*8 NORM,SNORM
          INTEGER I,J,K
          DO I=1,LEN
@@ -133,7 +134,11 @@ END SUBROUTINE OrthoNormx
                DOT=0.D0
                NORM=0.D0
                DO K=1,LEN
+#ifdef __CMPLX
                   DOT=DOT+DCONJG(MAT(K,J))*MAT(K,I)
+#else
+                  DOT=DOT+(MAT(K,J))*MAT(K,I)
+#endif
                ENDDO
                DO K=1,LEN
                   MAT(K,I)=MAT(K,I)-MAT(K,J)*DOT
@@ -141,13 +146,13 @@ END SUBROUTINE OrthoNormx
             ENDDO
             NORM=0.D0
             DO K=1,LEN
-               NORM=NORM+SQ(MAT(K,I))
+               NORM=NORM+abs(MAT(K,I))**2
             ENDDO        
             SNORM=SQRT(NORM)    
 !            WRITE(6,*) NORM
             DO K=1,LEN
 !               WRITE(6,*) MAT(K,I),MAT(K,I)/SNORM
-               MAT(K,I)=MAT(K,I)/HElement(SNORM)
+               MAT(K,I)=MAT(K,I)/(SNORM)
             ENDDO
          ENDDO
          RETURN

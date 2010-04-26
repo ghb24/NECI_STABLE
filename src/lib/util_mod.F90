@@ -1,6 +1,8 @@
 module util_mod
     use util_mod_comparisons
     use util_mod_cpts
+    use ieee_arithmetic
+    use constants, only: dp
     implicit none
     private
 
@@ -8,6 +10,12 @@ module util_mod
     public :: factrl, choose, int_fmt, binary_search
     public :: append_ext, get_unique_filename
     
+    ! An elemental routine to swap specified data.
+    interface swap
+        module procedure swap_int
+        module procedure swap_doub
+    end interface
+
 contains
 
     elemental real*8 function factrl (n)
@@ -50,6 +58,92 @@ contains
             enddo
         endif
     end function choose
+    
+    logical pure function det_int_arr_gt (a, b, len)
+        use constants, only: n_int
+
+        ! Make a comparison we can sort determinant integer arrays by. Return true if the
+        ! first differing integer of a, b is such that a(i) > b(i).
+        !
+        ! In:  a, b - The arrays to compare
+        !      len  - An optional argument to specify the size to consider.
+        !             If not provided, then min(size(a), size(b)) is used.
+        ! Ret:      - If a > b
+        !NOTE: These will sort by the bit-string integer length, n_int.
+        !Therefore, these may be 32 or 64 bit integers and should
+        !only be used as such.
+    
+        integer(kind=n_int), intent(in), dimension(:) :: a, b
+        integer, intent(in), optional :: len
+
+        integer llen, i
+
+        if (present(len)) then
+            llen = len
+        else
+            llen = min(size(a), size(b))
+        endif
+
+        ! Sort by the first integer first ...
+        i = 1
+        do i = 1, llen
+            if (a(i) /= b(i)) exit
+        enddo
+
+        ! Make the comparison
+        if (i > llen) then
+            det_int_arr_gt = .false.
+        else
+            if (a(i) > b(i)) then
+                det_int_arr_gt = .true.
+            else
+                det_int_arr_gt = .false.
+            endif
+        endif
+    end function det_int_arr_gt
+        
+
+    logical pure function det_int_arr_eq (a, b, len)
+        use constants, only: n_int
+
+        ! If two specified integer arrays are equal, return true. Otherwise
+        ! return false.
+        !
+        ! In:  a, b - The arrays to consider
+        !      len  - The maximum length to consider. Otherwise will use whole
+        !             length of array
+        !NOTE: These will sort by the bit-string integer length, n_int.
+        !Therefore, these may be 32 or 64 bit integers and should
+        !only be used as such.
+
+        integer(kind=n_int), intent(in), dimension(:) :: a, b
+        integer, intent(in), optional :: len
+        
+        integer llen, i
+
+        ! Obtain the lengths of the arrays if a bound is not specified.
+        ! Return false if mismatched sizes and not specified.
+        if (present(len)) then
+            llen = len
+        else
+            if (size(a) /= size(b)) then
+                det_int_arr_eq = .false.
+                return
+            endif
+            llen = size(a)
+        endif
+
+        ! Run through the arrays. Return if they differ at any point.
+        do i=1,llen
+            if (a(i) /= b(i)) then
+                det_int_arr_eq = .false.
+                return
+            endif
+        enddo
+
+        ! If we get this far, they are equal
+        det_int_arr_eq = .true.
+    end function det_int_arr_eq
 
     elemental function int_fmt(i, padding) result(fmt1)
 
@@ -93,11 +187,14 @@ contains
 
     end function int_fmt
 
+!NOTE!! This can only be used for binary searching determinant bit strings now.
+!We can template it if it wants to be more general in the future.
     pure function binary_search (arr, val, data_size, num_items) result(pos)
+        use constants, only: n_int
 
         integer, intent(in) :: data_size, num_items
-        integer, intent(in) :: arr(data_size, num_items)
-        integer, intent(in) :: val(data_size)
+        integer(kind=n_int), intent(in) :: arr(data_size, num_items)
+        integer(kind=n_int), intent(in) :: val(data_size)
         integer :: pos
 
         integer :: hi, lo
@@ -218,5 +315,16 @@ contains
         end if
 
     end subroutine get_unique_filename
+
+    ! Slightly nicer versions of these ieee functions.
+    real(dp) function get_nan ()
+        get_nan = ieee_value(1.0_dp, ieee_quiet_nan)
+    end function
+
+    elemental logical function isnan (r)
+        real(dp), intent(in) :: r
+
+        isnan = ieee_is_nan (r)
+    end function
 
 end module

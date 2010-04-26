@@ -1,5 +1,5 @@
     MODULE StarDiagTripMod
-      USE HElem
+      use constants, only: dp
 !      USE global_utilities
 !      use SystemData , only : NEl
 !      USE Determinants , only : FDet
@@ -12,7 +12,7 @@
 !.. ExcitInfo(J,0) = RHOJJ
 !.. ExcitInfo(J,1) = RHOIJ
 !.. ExcitInfo(J,2) = HIJ
-!      TYPE(HElement) , ALLOCATABLE :: ExcitInfo(:,:)
+!      HElement_t , ALLOCATABLE :: ExcitInfo(:,:)
 !      INTEGER :: ExcitInfoTag=0
 !
 !!Triples stores info on the number of triples from each double
@@ -20,7 +20,7 @@
 !      INTEGER :: TriplesTag=0
 !
 !!TripsInfo stores the star information for the excited stars the same way as ExcitInfo
-!      TYPE(HElement) , ALLOCATABLE :: TripsInfo(:,:)
+!      HElement_t , ALLOCATABLE :: TripsInfo(:,:)
 !      INTEGER :: TripsInfoTag=0
 !
 !!Incase we want to do a complete diagonalisation of the triples star
@@ -33,8 +33,8 @@
 !      REAL*8 , ALLOCATABLE :: Vecs(:)
 !      INTEGER :: ValsTag=0,VecsTag=0
 !      
-!      TYPE(HElement) :: rhii
-!      TYPE(HElement) :: Hii
+!      HElement_t :: rhii
+!      HElement_t :: Hii
 
       Contains
 
@@ -53,8 +53,8 @@
 !        REAL*8 , ALLOCATABLE :: TempDiags(:),Work(:),Vals2(:)
 !        INTEGER :: TempDiagsTag=0,WorkTag=0,Vals2Tag=0
 !        REAL*8 :: Energy
-        TYPE(HDElement) :: Weight,Energyxw
-!        TYPE(HElement) :: rh,rhjj,rhij,Norm,OffDiagNorm,Hij,rhjk
+        real(dp) :: Weight,Energyxw
+!        HElement_t :: rh,rhjj,rhij,Norm,OffDiagNorm,Hij,rhjk
 !        INTEGER , ALLOCATABLE :: nExcit(:),nExcit2(:)
 !        INTEGER :: nExcitTag,ierr,exFlagHF,exFlagDoub,iMaxExcit,ExcitCount
 !        INTEGER :: Meth,nStore(6),nExcitMemLen,nJ(NEl),iExcit,nStore2(6)
@@ -65,7 +65,7 @@
 
         CALL Stop_All("StarDiagTrips","This code has now been commented out.")
 
-!        IF(HElementSize.gt.1) STOP 'Only Real orbitals allowed in StarDiagTrips so far'
+!        IF(HElement_t_size.gt.1) STOP 'Only Real orbitals allowed in StarDiagTrips so far'
 !    
 !        proc_timerTrips%timer_name='StarDiagTrips'
 !        call set_timer(proc_timerTrips)
@@ -108,7 +108,7 @@
 !                CALL GenSymExcitIt2(FDet,NEl,G1,nBasis,nBasisMax,.false.,nExcit,nJ,iExcit,0,nStore,exFlagHF)
 !                IF(nJ(1).eq.0) exit lp2
 !                CALL CalcRho2(FDet,nJ,Beta,i_P,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,Arr,ALat,UMat,rh,nTay,iExcit,ECore)
-!                IF(rh.agt.RhoEps) THEN
+!                IF(abs(rh).gt.RhoEps) THEN
 !!Count contribution from double excitation...
 !                    ExcitCount=ExcitCount+1
 !                    ExcitCountDoubs=ExcitCountDoubs+1
@@ -127,13 +127,13 @@
 !                        CALL GenSymExcitIt2(nJ,NEl,G1,nBasis,nBasisMax,.false.,nExcit2,nK,iExcit2,0,nStore2,exFlagDoub)
 !                        IF(nK(1).eq.0) exit lp1
 !!                        CALL CalcRho2(nJ,nK,Beta,i_P,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,Arr,ALat,UMat,rh,nTay,iExcit2,ECore)
-!                        rh=HElement(0.D0)
+!                        rh=(0.D0)
 !!Uncomment this code if you want to only allow triple excitations from each double
 !!                        IC=iGetExcitLevel(FDet,nK,NEl)
 !!                        IF(IC.ne.3) THEN
-!!                            rh=HElement(0.D0)
+!!                            rh=(0.D0)
 !!                        ENDIF
-!                        IF(rh.agt.RhoEps) THEN
+!                        IF(abs(rh).gt.RhoEps) THEN
 !                            i=i+1
 !                            ExcitCount=ExcitCount+1
 !                        ENDIF
@@ -172,17 +172,17 @@
 !            CALL LogMemAlloc('HamMat',ExcitCount+1,8,this_routine,HamMatTag)
 !            HamMat=0.d0
 !            Hii=GetHElement2(FDet,FDet,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,NMax,ALat,UMat,0,ECore)
-!            HamMat(1)=Hii%v
+!            HamMat(1)=Hii
 !            
 !        ENDIF
 !
 !        ALLOCATE(ExcitInfo(0:ExcitCount,0:2),stat=ierr)
-!        CALL LogMemAlloc('ExcitInfo',(ExcitCount+1)*3,8*HElementSize,this_routine,ExcitInfoTag)
-!        ExcitInfo=HElement(0.d0)
+!        CALL LogMemAlloc('ExcitInfo',(ExcitCount+1)*3,8*HElement_t_size,this_routine,ExcitInfoTag)
+!        ExcitInfo=(0.d0)
 !
 !!Still divide all elements by rhii
-!        ExcitInfo(0,0)=HElement(1.D0)
-!        ExcitInfo(0,1)=HElement(1.D0)
+!        ExcitInfo(0,0)=(1.D0)
+!        ExcitInfo(0,1)=(1.D0)
 !        ExcitInfo(0,2)=GetHElement2(FDet,FDet,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,NMax,ALat,UMat,0,ECore)
 !        
 !!Reinitialise HF excitation generator
@@ -201,7 +201,7 @@
 !            CALL GenSymExcitIt2(FDet,NEl,G1,nBasis,nBasisMax,.false.,nExcit,nJ,iExcit,0,nStore,exFlagHF)
 !            IF(nJ(1).eq.0) exit lp3
 !            CALL CalcRho2(FDet,nJ,Beta,i_P,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,Arr,ALat,UMat,rhij,nTay,iExcit,ECore)
-!            IF(rhij.agt.RhoEps) THEN
+!            IF(abs(rhij).gt.RhoEps) THEN
 !                j=j+1
 !
 !!Find matrix elements for double excitation
@@ -209,21 +209,21 @@
 !                Hij=GetHElement2(FDet,nJ,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,NMax,ALat,UMat,iExcit,ECore)
 !                IF(TFullDiag) THEN
 !                    TotElem=TotElem+1
-!                    ExcitMat(1,TotElem)=(rhij%v)/(rhii%v)
-!                    ExcitMat(TotElem,1)=(rhij%v)/(rhii%v)
-!                    ExcitMat(TotElem,TotElem)=(rhjj%v)/(rhii%v)
-!                    HamMat(TotElem)=(Hij%v)
+!                    ExcitMat(1,TotElem)=(rhij)/(rhii)
+!                    ExcitMat(TotElem,1)=(rhij)/(rhii)
+!                    ExcitMat(TotElem,TotElem)=(rhjj)/(rhii)
+!                    HamMat(TotElem)=(Hij)
 !                    DoubIndex=TotElem
 !                ENDIF
 !
 !!Allocate memory for triples star
 !                ALLOCATE(TripsInfo(0:Triples(j),0:1),stat=ierr)
-!                CALL LogMemAlloc('TripsInfo',(Triples(j)+1)*2,8*HElementSize,this_routine,TripsInfoTag)
-!                TripsInfo=HElement(0.d0)
+!                CALL LogMemAlloc('TripsInfo',(Triples(j)+1)*2,8*HElement_t_size,this_routine,TripsInfoTag)
+!                TripsInfo=(0.d0)
 !
 !!Need to divide everything by the rhjj element. The final eigenvalues will need to be multiplied by them at the end
-!                TripsInfo(0,0)=HElement(1.D0)
-!                TripsInfo(0,1)=HElement(1.D0)
+!                TripsInfo(0,0)=(1.D0)
+!                TripsInfo(0,1)=(1.D0)
 !
 !!Now, setup excitation generators from each double excitation
 !                nStore2(1)=0
@@ -243,14 +243,14 @@
 !           lp4: do while(.true.)
 !                    CALL GenSymExcitIt2(nJ,NEl,G1,nBasis,nBasisMax,.false.,nExcit2,nK,iExcit2,0,nStore2,exFlagDoub)
 !                    IF(nK(1).eq.0) exit lp4
-!                    rhjk=HElement(0.D0)
+!                    rhjk=(0.D0)
 !!                    CALL CalcRho2(nJ,nK,Beta,i_P,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,Arr,ALat,UMat,rhjk,nTay,iExcit2,ECore)
 !!Uncomment this code if you want to only allow triple excitations from each double
 !!                    IC=iGetExcitLevel(FDet,nK,NEl)
 !!                    IF(IC.ne.3) THEN
-!!                        rh=HElement(0.D0)
+!!                        rh=(0.D0)
 !!                    ENDIF
-!                    IF(rhjk.agt.RhoEps) THEN
+!                    IF(abs(rhjk).gt.RhoEps) THEN
 !                        i=i+1
 !                        TripsInfo(i,1)=rhjk/rhjj
 !                        
@@ -260,9 +260,9 @@
 !
 !                        IF(TFullDiag) THEN
 !                            TotElem=TotElem+1
-!                            ExcitMat(DoubIndex,TotElem)=(rhjk%v)/(rhii%v)
-!                            ExcitMat(TotElem,DoubIndex)=(rhjk%v)/(rhii%v)
-!                            ExcitMat(TotElem,TotElem)=(rh%v)/(rhii%v)
+!                            ExcitMat(DoubIndex,TotElem)=(rhjk)/(rhii)
+!                            ExcitMat(TotElem,DoubIndex)=(rhjk)/(rhii)
+!                            ExcitMat(TotElem,TotElem)=(rh)/(rhii)
 !                        ENDIF
 !
 !                    ENDIF
@@ -293,7 +293,7 @@
 !                    ALLOCATE(TempDiags(i+1),stat=ierr)
 !                    CALL LogMemAlloc('TempDiags',i+1,8,this_routine,TempDiagsTag)
 !                    do k=1,i+1
-!                        TempDiags(k)=TripsInfo(k-1,0)%v
+!                        TempDiags(k)=TripsInfo(k-1,0)
 !                    enddo
 !
 !                    CALL GetValsnVecs(i+1,TempDiags(1:i+1),TripsInfo(1:i,1),Vals,Vecs)
@@ -319,9 +319,9 @@
 !!The eigenvectors from the excited stars now need to be reattached to the original root...
 !                do k=1,i+1
 !                    Vert=Vert+1
-!                    ExcitInfo(Vert,0)=HElement(Vals(k))*Norm
-!                    ExcitInfo(Vert,1)=HElement(Vecs(k))*OffDiagNorm
-!                    ExcitInfo(Vert,2)=HElement(Vecs(k))*Hij
+!                    ExcitInfo(Vert,0)=(Vals(k))*Norm
+!                    ExcitInfo(Vert,1)=(Vecs(k))*OffDiagNorm
+!                    ExcitInfo(Vert,2)=(Vecs(k))*Hij
 !                enddo
 !
 !                DEALLOCATE(Vecs)
@@ -383,7 +383,7 @@
 !!        IF(.NOT.BTEST(Meth,0)) THEN
 !!This will diagonalise each excited star fully - v. slow - order N^3
 !!            WRITE(6,*) "Beginning Complete Star Tridiagonalization"
-!            CALL StarDiag(0,NEl,ExcitCount+1,ExcitInfo,ExcitCount+1,i_P,Weight,dBeta(1),Energyxw)
+!            CALL StarDiag(0,NEl,ExcitCount+1,ExcitInfo,ExcitCount+1,i_P,Weight,dBeta,Energyxw)
 !
 !!        ELSE
 !!Use polynomial diagonalisation, order N
@@ -403,10 +403,10 @@
 !!            ENDIF
 !
 !
-!!            CALL SORT3RN(ExcitCount,ExcitInfo(1:ExcitCount,0),ExcitInfo(1:ExcitCount,1),ExcitInfo(1:ExcitCount,2),HElementSize)
+!!            CALL SORT3RN(ExcitCount,ExcitInfo(1:ExcitCount,0),ExcitInfo(1:ExcitCount,1),ExcitInfo(1:ExcitCount,2),HElement_t_size)
 !
 !
-!!            CALL StarDiag2(0,NEl,ExcitCount+1,ExcitInfo,ExcitCount+1,Beta,i_P,Weight,dBeta(1),Energyxw,nRoots,iLogging)
+!!            CALL StarDiag2(0,NEl,ExcitCount+1,ExcitInfo,ExcitCount+1,Beta,i_P,Weight,dBeta,Energyxw,nRoots,iLogging)
 !!
 !!        ENDIF
 !
@@ -451,7 +451,7 @@
 !                Energy=Energy+HamMat(i)*ABS(ExcitMat(i,ExcitCount+1))
 !            enddo
 !            Energy=Energy/(ABS(ExcitMat(1,ExcitCount+1)))
-!            Energy=Energy+(Hii%v)
+!            Energy=Energy+(Hii)
 !
 !            WRITE(6,"(A,G25.17)") "From complete diagonalisation of the rho matrix, the energy is given as: ",Energy
 !

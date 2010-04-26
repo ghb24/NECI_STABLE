@@ -90,7 +90,10 @@ my_make := $(MAKE) -f $(my_makefile)
 
 # pre-processing.
 CPP = %(cpp)s
-CPPFLAGS = -DMAXMEM='$(MAXMEM)' -D_VCS_VER='$(VCS_VERSION)' $(WORKING_DIR_CHANGES) -D_CONFIG='"$(CONFIG) ($(OPT))"' -DDSFMT_MEXP=19937 %(cppflags)s 
+CPPFLAGS = -DMAXMEM='$(MAXMEM)' -D_VCS_VER='$(VCS_VERSION)' $(WORKING_DIR_CHANGES) -D_CONFIG='"$(CONFIG).($(OPT))"' -DDSFMT_MEXP=19937 %(cppflags)s 
+# -D__INT64=1
+GCPPFLAG = -DHElement_t="real(dp)"
+KCPPFLAG = -DHElement_t="complex(dp)"
 
 # use compiler with perl scripts to avoid cascade compilation.
 compiler = %(compiler)s
@@ -375,6 +378,7 @@ help:
 \t@echo "ConvertMolpFCID.x   compile the program to create Fock energies in the MOLPRO FCIDUMP."
 \t@echo "BlockFCIMC.x  compile the BlockFCIMC utility program."
 \t@echo "ModelFCIQMC.x compile the ModelFCIQMC example program."
+\t@echo "ConvertPOPSFILE.x compile the ConvertPOPSFILE program."
 \t@echo "clean         remove all compiled objects for the current platform and optimisation level." 
 \t@echo "cleanall      remove all compiled objects for all platforms and optimisation levels and the dependency files." 
 \t@echo "tags          run ctags on all source files."
@@ -412,17 +416,17 @@ endif
 # 1. Pre-processing.
 # a) gamma-point.
 $(GDEST)/%%.f90: %%.F90
-\t$(CPP) $(CPP_BODY)
+\t$(CPP) $(CPP_BODY) $(GCPPFLAG)
 
 $(GDEST)/%%.f: %%.F
-\t$(CPP) $(CPP_BODY)
+\t$(CPP) $(CPP_BODY) $(GCPPFLAG)
 
 # b) k-point.
 $(KDEST)/%%.f90: %%.F90
-\t$(CPP) -D__CMPLX $(CPP_BODY)
+\t$(CPP) -D__CMPLX $(CPP_BODY) $(KCPPFLAG)
 
 $(KDEST)/%%.f: %%.F
-\t$(CPP) -D__CMPLX $(CPP_BODY)
+\t$(CPP) -D__CMPLX $(CPP_BODY) $(KCPPFLAG)
 
 # c) With an option to generate from template files.
 $(GDEST)/%%.f90: $(TDEST)/%%.F90
@@ -493,7 +497,7 @@ $(KcppDEPEND_FILES): $(KDEP_DEST)/%%.d: %%.cpp
 # same libraries as neci.
 MKUTIL = $(FC) $(FFLAGS) $(F90FLAGS) $< -o $@ $(LIBS)
 
-UTILS = TransLz.x BlockFCIMC.x ModelFCIQMC.x ConvertMolpFCID.x 
+UTILS = TransLz.x BlockFCIMC.x ModelFCIQMC.x ConvertMolpFCID.x ConvertPOPSFILE.x RoVibSpectrum/CalcVibSpectrum.x  
 
 # Target to compile all utility programs.
 utils: $(UTILS)

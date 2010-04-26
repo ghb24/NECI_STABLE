@@ -2079,7 +2079,7 @@ C.. Set to be totally symmetric
 
 
       SUBROUTINE WRITESYMCLASSES(NBASIS)
-        USE HElem
+        use constants, only: dp
         USE UMatCache
         use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
         use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
@@ -2110,11 +2110,12 @@ C.. Set to be totally symmetric
          use dSFMT_interface
          use soft_exit, only : ChangeVars
          use Parallel
+         use constants, only : n_int,bits_n_int
          use DetBitops, only: EncodeBitDet
          use util_mod, only: choose
          IMPLICIT NONE
-         INTEGER :: IUNIT,OverallSym,j,SpatOrbs,FDetMom
-         INTEGER :: FDetiLut(0:NIfTot),ExcitLev,iLut(0:NIfTot)
+         INTEGER :: IUNIT,OverallSym,j,SpatOrbs,FDetMom,ExcitLev
+         INTEGER(KIND=n_int) :: FDetiLut(0:NIfTot),iLut(0:NIfTot)
          INTEGER :: FDetSym,TotalSym,TotalMom,alpha,beta,ierr,Momx,Momy
          INTEGER :: Momz
          INTEGER*8 :: Accept,AcceptAll,i
@@ -2204,11 +2205,12 @@ C.. Set to be totally symmetric
 
                      r = genrand_real2_dSFMT()
                      alpha=2*(INT(SpatOrbs*r)+1)
-                     IF(.not.BTEST(iLut((alpha-1)/32)
-     &                      ,mod((alpha-1),32))) THEN
+                     IF(.not.BTEST(iLut((alpha-1)/bits_n_int)
+     &                      ,mod((alpha-1),bits_n_int))) THEN
                          !Has *not* been picked before
-                         iLut((alpha-1)/32)=
-     &                       IBSET(iLut((alpha-1)/32),mod(alpha-1,32))
+                         iLut((alpha-1)/bits_n_int)=
+     &                       IBSET(iLut((alpha-1)/bits_n_int)
+     &                          ,mod(alpha-1,bits_n_int))
                          tNotAllowed=.false.
                      ENDIF
                  enddo
@@ -2222,7 +2224,8 @@ C.. Set to be totally symmetric
                      Momy=Momy+G1(alpha)%k(2)
                      Momz=Momz+G1(alpha)%k(3)
                  ENDIF
-           IF(.not.BTEST(FDetiLut((alpha-1)/32),mod((alpha-1),32))) THEN
+                 IF(.not.BTEST(FDetiLut((alpha-1)/bits_n_int)
+     &               ,mod((alpha-1),bits_n_int))) THEN
                      !orbital chosen is *not* in the reference determinant
                      ExcitLev=ExcitLev+1
                  ENDIF
@@ -2242,11 +2245,12 @@ C.. Set to be totally symmetric
                  do while(tNotAllowed)
                      r = genrand_real2_dSFMT()
                      beta=2*(INT(SpatOrbs*r)+1)-1
-                     IF(.not.BTEST(iLut((beta-1)/32)
-     &                      ,mod((beta-1),32))) THEN
+                     IF(.not.BTEST(iLut((beta-1)/bits_n_int)
+     &                      ,mod((beta-1),bits_n_int))) THEN
                          !Has *not* been picked before
-                         iLut((beta-1)/32)=
-     &                       IBSET(iLut((beta-1)/32),mod(beta-1,32))
+                         iLut((beta-1)/bits_n_int)=
+     &                       IBSET(iLut((beta-1)/bits_n_int)
+     &                           ,mod(beta-1,bits_n_int))
                          tNotAllowed=.false.
                      ENDIF
                  enddo
@@ -2260,7 +2264,8 @@ C.. Set to be totally symmetric
                      Momy=Momy+G1(beta)%k(2)
                      Momz=Momz+G1(beta)%k(3)
                  ENDIF
-            IF(.not.BTEST(FDetiLut((beta-1)/32),mod((beta-1),32))) THEN
+            IF(.not.BTEST(FDetiLut((beta-1)/bits_n_int)
+     &                   ,mod((beta-1),bits_n_int))) THEN
                      !orbital chosen is *not* in the reference determinant
                      ExcitLev=ExcitLev+1
                  ENDIF
@@ -2441,8 +2446,10 @@ C.. Set to be totally symmetric
           USE SystemData , only : nIfTot
           USE HPHFRandExcitMod , only : ReturnAlphaOpenDet
           USE DetBitOps , only : DecodeBitDet
+          use constants , only : n_int
           IMPLICIT NONE
-          INTEGER :: nI(NEl),NEl,iLutnI(0:NIfTot),iLutSym(0:NIfTot)
+          INTEGER :: nI(NEl),NEl
+          INTEGER(KIND=n_int) :: iLutnI(0:NIfTot),iLutSym(0:NIfTot)
           INTEGER :: nJ(NEl)
           LOGICAL :: IsAllowedHPHF,tClosedShell,tSwapped
           LOGICAL :: TestClosedShellDet

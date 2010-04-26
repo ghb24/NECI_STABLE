@@ -61,11 +61,11 @@ C..
 C ==----------------------------------------------------------------==   
       SUBROUTINE WRITE_PSI(BOX,BOA,COA,NDET,NEVAL,
      &    NBASISMAX,NEL,CK,W)
-      USE HElem
+      use constants, only: dp
       IMPLICIT NONE
       INTEGER nBasisMax(5,*)
 C..
-      TYPE(HElement) CK(NDET,NEVAL)
+      HElement_t CK(NDET,NEVAL)
       REAL*8 W(NEVAL),BOA,BOX,COA
       INTEGER I,K,NEVAL,NDET,NEL,J
 C..
@@ -88,11 +88,11 @@ C..
 
       SUBROUTINE WRITE_PSI_COMP(BOX,BOA,COA,NDET,NEVAL,
      &    NBASISMAX,NEL,CK,W)
-      USE HElem
+      use constants, only: dp
       IMPLICIT NONE
       INTEGER nBasisMax(5,*)
 C..
-      TYPE(HElement) CK(NDET,NEVAL)
+      HElement_t CK(NDET,NEVAL)
       REAL*8 W(NEVAL),BOA,BOX,COA
       INTEGER I,K,NEVAL,NDET,NEL,J
 C..
@@ -102,7 +102,7 @@ C..
       WRITE(10,*) BOX,BOA,COA
       DO I=1,NEVAL
         DO J=1,NDET
-          IF(CK(J,I).AGT. 1.D-2) THEN
+          IF(abs(CK(J,I)).gt. 1.D-2) THEN
             WRITE(10,"(2I5)",advance='no') I,J
             WRITE(10,*) CK(J,I),ABS(CK(J,I))
          ENDIF

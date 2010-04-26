@@ -1,14 +1,15 @@
 !Diagonalize a compressed hamiltonian (in HAMIL), returning eigenvalues in W and eigenvectors in CK.
        SUBROUTINE HDIAG(NDET,HAMIL,LAB,NROW,CK,W,WORK2,WORK,LENHAMIL,
      &                     NBLOCKSTARTS,NBLOCKS,BLOCKSYM)
-         USE HElem
+         use constants, only: dp
          use SystemData, only: BasisFN
          use global_utilities
+         use HElem, only: HElement_t_size
          IMPLICIT NONE
          INTEGER NDET,LENHAMIL
          INTEGER NROW(NDET),LAB(*)
-         TYPE(HElement)  HAMIL(*),CK(NDET,NDET),WORK2,WORK
-!         TYPE(HElement) CopyCK(NDET,NDET)
+         HElement_t  HAMIL(*),CK(NDET,NDET),WORK2,WORK
+!         HElement_t CopyCK(NDET,NDET)
          REAL*8 W(NDET)
          INTEGER I,J,IND,INDZ,INFO,LDA,NBS
          INTEGER NBLOCKS,NBLOCKSTARTS(NBLOCKS+1)
@@ -52,7 +53,7 @@ C.. Now we fill the RIJ array
 C.. Diagonalize
          DO I=1,NBLOCKS
             NBS=NBLOCKSTARTS(I)
-            IF(HElementSize.EQ.1) THEN
+            IF(HElement_t_size.EQ.1) THEN
                CALL DSYEV('V','U',NBLOCKSTARTS(I+1)-NBS,CK(NBS,NBS),
      &            NDET,W(NBS),WORK2,3*NDET,INFO)
             ELSE
@@ -79,11 +80,11 @@ C.. CK now contains the eigenvectors, and W the eigenvalues
 !the coefficient of the desired eigenvector. The average for this is obviously zero.
 !This is called from HDIAG, but will generally be commented out, since it is just for interest.
       SUBROUTINE ExcitChangeTest(Vecs,Vals,HMAT,NDET)
-         USE HElem
+         use constants, only: dp
          IMPLICIT NONE
          INTEGER NDET,i,j,NExcit,INFO,bin,nbins
-         TYPE(HElement) Vecs(NDET,NDET),HMAT(NDET,NDET),KMAT(NDET,NDET)
-         TYPE(HElement) TrialEigenvec(NDET),Norm
+         HElement_t Vecs(NDET,NDET),HMAT(NDET,NDET),KMAT(NDET,NDET)
+         HElement_t TrialEigenvec(NDET),Norm
          REAL*8 Vals(NDET),KVals(NDET),Work(3*NDET),S(NDET,NDET+1),SSUM
          REAL*8 MinS,MaxS,RangeBins
          INTEGER , ALLOCATABLE :: SHist(:,:)
@@ -92,22 +93,22 @@ C.. CK now contains the eigenvectors, and W the eigenvalues
 !Vals(1) contains ground state
 !Check that eigenvectors are correct by multiplying matrix by first eigenvector
 !         TrialEigenvec=0.d0
-!         Norm=HElement(0.D0)
+!         Norm=(0.D0)
 !         do i=1,NDET
 !             do j=1,NDET
 !                 TrialEigenvec(i)=TrialEigenvec(i)+HMAT(i,j)*Vecs(j,1)
 !             enddo
 !             Norm=Norm+(Vecs(i,1)*Vecs(i,1))
 !         enddo
-!         WRITE(6,*) "Norm for first eigenvector is: ", Norm%v
+!         WRITE(6,*) "Norm for first eigenvector is: ", Norm
 !         do i=1,NDET
-!             TrialEigenvec(i)=TrialEigenvec(i)/HElement(Vals(1))
+!             TrialEigenvec(i)=TrialEigenvec(i)/(Vals(1))
 !             WRITE(6,*) Vals(i)
 !             WRITE(6,*) TrialEigenvec(i),Vecs(i,1)
 !         enddo
 
 !Create the k matrix...
-         KMAT=HElement(0.d0)
+         KMAT=(0.d0)
          DO i=1,NDET
              KMAT(i,i)=Vals(1)
          ENDDO
@@ -151,17 +152,17 @@ C.. CK now contains the eigenvectors, and W the eigenvalues
              do j=1,NDET
 !We only want excitations, so remove the diagonal contribution
                  IF(i.eq.j) CYCLE
-                 IF(KMAT(i,j).agt.0.D0) NExcit=NExcit+1
+                 IF(abs(KMAT(i,j)).gt.0.D0) NExcit=NExcit+1
              enddo
 
 !             IF(NExcit.lt.1) STOP 'ERROR IN COUNTING EXCITS'
 
              do j=1,NDET
                  IF(i.eq.j) CYCLE
-                 IF(KMAT(i,j).agt.0.D0) THEN
+                 IF(abs(KMAT(i,j)).gt.0.D0) THEN
 !For each excitation of each determinant i, find its contribution to the change of expansion coefficient
-                     S(i,j)=((KMAT(i,i)%v/(NExcit+0.D0))*Vecs(i,1)%v)+
-     &                        ((KMAT(i,j)%v)*Vecs(j,1)%v)
+                     S(i,j)=((KMAT(i,i)/(NExcit+0.D0))*Vecs(i,1))+
+     &                        ((KMAT(i,j))*Vecs(j,1))
                      IF(S(i,j).lt.MinS) MinS=S(i,j)
                      IF(S(i,j).gt.MaxS) MaxS=S(i,j)
                  ENDIF
@@ -198,7 +199,7 @@ C.. CK now contains the eigenvectors, and W the eigenvalues
 
              do j=1,NDET
                  IF(i.eq.j) CYCLE
-                 IF(KMAT(i,j).agt.0.D0) THEN
+                 IF(abs(KMAT(i,j)).gt.0.D0) THEN
 !j is excitation of i - find which bin the overlap goes into
                      Bin=1
                      do while(S(i,j).ge.RangeHist(Bin+1))
@@ -234,7 +235,7 @@ C.. CK now contains the eigenvectors, and W the eigenvalues
          use SystemData, only: BasisFN
          use global_utilities
          use Determinants, only: get_helement
-         use HElem
+         use constants, only: dp
          IMPLICIT NONE
          INTEGER NDET,NEL,NBLOCKS,NBLOCKSTARTS(NBLOCKS),NMRKS(NEL,NDET)
          INTEGER nBasisMax(5,*),NBASIS
@@ -253,7 +254,7 @@ C.. CK now contains the eigenvectors, and W the eigenvalues
          INTEGER GELOWEST,IDEG
          type(timer), save :: proc_timer
          TYPE(BasisFN) BLOCKSYM(NBLOCKS)
-         type(helement) :: hel
+         HElement_t :: hel
          character(*),parameter :: this_routine='HDIAG_NH'
          proc_timer%timer_name=this_routine
          call set_timer(proc_timer)
@@ -288,7 +289,7 @@ C.. Go through the blocks forming the hamil matrix
             DO J=0,NBLK-1
                DO K=J,NBLK-1
                   hel = get_helement (NMRKS(:,NBS+J), NMRKS(:,NBS+K))
-                  CK(J*NBLK+K+1) = hel%v
+                  CK(J*NBLK+K+1) = hel
                ENDDO
             ENDDO
 C.. Diagonalize

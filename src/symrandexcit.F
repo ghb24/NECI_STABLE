@@ -4,7 +4,7 @@
      &        ICOUNT,EXCITMAT,TPARITY)
          use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
          use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
-         use SystemData, only: nEl,G1, nBasis,nBasisMax, NIfTot
+         use SystemData, only: nEl,G1, nBasis,nBasisMax
          use SystemData, only: Arr,nMax,tAssumeSizeExcitgen
          use IntegralsData, only: UMat
          use SymData, only: SymClassSize,nSymPairProds,nSymLabels
@@ -23,23 +23,24 @@
 #else
          INTEGER LOC
 #endif
+
          IF(tAssumeSizeExcitgen) THEN
 !Excitgen is set up differently...
 ! 1         NEXCIT
 ! 2         NEXCITTYPES
-! 3                                 -    SymClassSize*NEL+NIfTot+3                                 DSTORE
-! SymClassSize*NEL+NIfTot+4      -    SymClassSize*NEL+NIfTot+1+15*nSymPairProds+10*nSymLabels+2  EXCITTYPES
-! SymClassSize*NEL+NIfTot+1+15*nSymPairProds+10*nSymLabels+3      -    SymClassSize*NEL+NIfTot+1+15*nSymPairProds+10*nSymLabels+NEL*(NEL-1)+2  ORBPAIRS
-! SymClassSize*NEL+NIfTot+1+15*nSymPairProds+10*nSymLabels+NEL*(NEL-1)+3   -   SymClassSize*NEL+NIfTot+1+15*nSymPairProds+10*nSymLabels+NEL*(NEL-1)+(nSymLabels+1)*6+2  SYMPRODIND
+! 3                                 -    SymClassSize*NEL+nBasis/32+3                                 DSTORE
+! SymClassSize*NEL+nBasis/32+4      -    SymClassSize*NEL+nBasis/32+1+15*nSymPairProds+10*nSymLabels+2  EXCITTYPES
+! SymClassSize*NEL+nBasis/32+1+15*nSymPairProds+10*nSymLabels+3      -    SymClassSize*NEL+nBasis/32+1+15*nSymPairProds+10*nSymLabels+NEL*(NEL-1)+2  ORBPAIRS
+! SymClassSize*NEL+nBasis/32+1+15*nSymPairProds+10*nSymLabels+NEL*(NEL-1)+3   -   SymClassSize*NEL+nBasis/32+1+15*nSymPairProds+10*nSymLabels+NEL*(NEL-1)+(nSymLabels+1)*6+2  SYMPRODIND
 
 ! DSTORE(1)      -   SymClassSize*NEL         CLASSES
 ! DSTORE(NEL*SymClassSize+1)                     ILUT
 
              IP_DSTORE=LOC(NMEM(3))
-             Pos1=SymClassSize*NEL+NIfTot+4
-             Pos2=SymClassSize*NEL+NIfTot+4+15*nSymPairProds+
+             Pos1=SymClassSize*NEL+nBasis/32+4
+             Pos2=SymClassSize*NEL+nBasis/32+4+15*nSymPairProds+
      &             10*nSymLabels
-             Pos3=SymClassSize*NEL+NIfTot+4+15*nSymPairProds+
+             Pos3=SymClassSize*NEL+nBasis/32+4+15*nSymPairProds+
      &             10*nSymLabels+NEL*(NEL-1)
             
             CALL SymGenRandExcitIt2(NI,NEL,NMEM(Pos1),DSTORE(1),
@@ -86,7 +87,7 @@ C.. This version is based on GenRandSymExcitIt2, but does not need values it ext
      &      ICOUNT)
          use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
          use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
-         use SystemData, only: nEl,G1, nBasis,nBasisMax, NIfTot
+         use SystemData, only: nEl,G1, nBasis,nBasisMax
          use SystemData, only: Arr,nMax,tAssumeSizeExcitgen
          use IntegralsData, only: UMat
          use SymData, only: SymClassSize,nSymPairProds,nSymLabels
@@ -109,19 +110,19 @@ C.. This version is based on GenRandSymExcitIt2, but does not need values it ext
 !Excitgen is set up differently...
 ! 1         NEXCIT
 ! 2         NEXCITTYPES
-! 3                                 -    SymClassSize*NEL+NIfTot+3                                 DSTORE
-! SymClassSize*NEL+NIfTot+4      -    SymClassSize*NEL+NIfTot+1+15*nSymPairProds+10*nSymLabels+2  EXCITTYPES
-! SymClassSize*NEL+NIfTot+1+15*nSymPairProds+10*nSymLabels+3      -    SymClassSize*NEL+NIfTot+1+15*nSymPairProds+10*nSymLabels+NEL*(NEL-1)+2  ORBPAIRS
-! SymClassSize*NEL+NIfTot+1+15*nSymPairProds+10*nSymLabels+NEL*(NEL-1)+3   -   SymClassSize*NEL+NIfTot+1+15*nSymPairProds+10*nSymLabels+NEL*(NEL-1)+(nSymLabels+1)*6+2  SYMPRODIND
+! 3                                 -    SymClassSize*NEL+nBasis/32+3                                 DSTORE
+! SymClassSize*NEL+nBasis/32+4      -    SymClassSize*NEL+nBasis/32+1+15*nSymPairProds+10*nSymLabels+2  EXCITTYPES
+! SymClassSize*NEL+nBasis/32+1+15*nSymPairProds+10*nSymLabels+3      -    SymClassSize*NEL+nBasis/32+1+15*nSymPairProds+10*nSymLabels+NEL*(NEL-1)+2  ORBPAIRS
+! SymClassSize*NEL+nBasis/32+1+15*nSymPairProds+10*nSymLabels+NEL*(NEL-1)+3   -   SymClassSize*NEL+nBasis/32+1+15*nSymPairProds+10*nSymLabels+NEL*(NEL-1)+(nSymLabels+1)*6+2  SYMPRODIND
 
 ! DSTORE(1)      -   SymClassSize*NEL         CLASSES
 ! DSTORE(NEL*SymClassSize+1)                     ILUT
 
              IP_DSTORE=LOC(NMEM(3))
-             Pos1=SymClassSize*NEL+NIfTot+4
-             Pos2=SymClassSize*NEL+NIfTot+4+15*nSymPairProds+
+             Pos1=SymClassSize*NEL+nBasis/32+4
+             Pos2=SymClassSize*NEL+nBasis/32+4+15*nSymPairProds+
      &             10*nSymLabels
-             Pos3=SymClassSize*NEL+NIfTot+4+15*nSymPairProds+
+             Pos3=SymClassSize*NEL+nBasis/32+4+15*nSymPairProds+
      &             10*nSymLabels+NEL*(NEL-1)
             
             CALL SymGenRandExcitIt2(NI,NEL,NMEM(Pos1),DSTORE(1),
@@ -218,7 +219,7 @@ C.. Actually generate a det
      &               SYMPRODIND,ILUT,ORBPAIRS,IEXCIT,ISPN,IFROM,ITO,    &
      &               I,J,K,L,ICC,LS,ITOTAL,ISEED,                       &
      &               NK,IC,G1,NBASISMAX,UMAT,ARR,NBASIS,PGEN)      
-      USE HElem
+      use constants, only: dp
       USE symexcit2
       use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
       use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
@@ -250,7 +251,7 @@ C.. Actually generate a det
       LOGICAL ISVALIDDET
       TYPE(BasisFN) G1(nBasis)
       INTEGER nBasisMax(5,*)
-      TYPE(HElement) UMAT(*)
+      HElement_t UMAT(*)
       REAL*8 RCOUNT,R
       REAL*8 PGEN
       TYPE(ExcitWeight) ews(*)
@@ -959,7 +960,7 @@ C.. Actually generate a det
          LOGICAL :: NotSelectedPair,Check1,Check2,ISVALIDDET,TParity
          INTEGER K,J,iGetExcitLevel,ExcitLevel
          REAL*8 RAN2
-             
+
          iTo=ExcitTypes(4,iExcit)   !This is the symmetry of the virtual pair type
 
          do while(.true.)   !Cycle until we find an acceptable virtual pair to excite to.

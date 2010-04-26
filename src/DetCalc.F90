@@ -1,30 +1,18 @@
 #include "macros.h"
 MODULE DetCalc
-        Use HElem
+        use constants, only: dp,n_int
         use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
         use sort_mod
+        use DetCalcData
         
     IMPLICIT NONE
      save
 
 !From input
-      REAL*8 B2L  ! From Calc
-      INTEGER NEVAL  !The number of eigenvectors requested
-      INTEGER NBLK   !The number of Lanczos Blocks
-      INTEGER NKRY   !The number of Lanczos Krylov vectors
       INTEGER NCYCLE !The Max number of Lanczos cycles
       INTEGER DETINV !The index in the list of dets of a det to investigate
-      INTEGER ICILEVEL ! The maximum excitation level up to which to enumerate dets.  
       INTEGER IOBS,JOBS,KOBS
       LOGICAL TRHOOFR,TCORR,TFODM
-
-
-      INTEGER NDET  ! The total number of determinants we have listed
-      INTEGER Det   ! The number of determinants with the same sym
-                    ! as the reference det.  This is the number of
-                    ! dets in FCIDets
-      INTEGER, Allocatable :: FCIDets(:,:)  !This will contain a list of determinants of the same symmetry as the reference det, with dets in compressed form.  Usually (NIfTot, Det)
-      INTEGER, Allocatable :: FCIDetIndex(:)!This indicates where the excitation levels start in the FCIDets array(will go from 0->NEl+1).
 
       LOGICAL TCALCHMAT,TENERGY,TREAD,TBLOCK
       LOGICAL tFindDets           !Set if we are to enumerate all determinants within given constraints
@@ -35,17 +23,12 @@ MODULE DetCalc
       INTEGER,ALLOCATABLE :: NBLOCKSTARTS(:) !Index of the first det of different symmetry blocks in the complete list of dets
       INTEGER :: tagNBLOCKSTARTS=0
       INTEGER NBLOCKS                        !Number of Symmetry blocks
-      Type(HElement), pointer :: HAMIL(:)    !The Hamiltonian in compressed form.  Contains only non-zero elements.  The total number of elements is in LenHamil
+      HElement_t, pointer :: HAMIL(:)    !The Hamiltonian in compressed form.  Contains only non-zero elements.  The total number of elements is in LenHamil
       INTEGER :: tagHamil=0
       INTEGER LenHamil                       !The Total number of non-zero elements in the compressed Hamiltonian
-      INTEGER, pointer :: NMRKS(:,:)=>null() !(NEL-NFROZEN,nDet)  A list of all determinants which have been enumerated.  
-      INTEGER :: tagNMRKS=0
       INTEGER iFDet                       ! The index of the Fermi det in the list of dets.
-      TYPE(HElement), pointer :: CK(:,:)  !  (nDet,nEval) This will store the eventual eigenvectors
-      TYPE(HElement), pointer :: CKN(:,:) !  (nDet,nEval)  Temporary storage for the Lanczos routine
-      INTEGER :: tagCK=0, tagCKN=0
-      REAL*8, pointer :: W(:)  ! (nEval) This will contain the eigenvalues
-      INTEGER tagW
+      HElement_t, pointer :: CKN(:,:) !  (nDet,nEval)  Temporary storage for the Lanczos routine
+      INTEGER :: tagCKN=0
 
       REAL*8 , ALLOCATABLE :: ExpandedHamil(:,:)    ! (NDet,NDet) This is the hamiltonian in expanded form, so that it can be histogrammed against.
 
@@ -63,6 +46,7 @@ CONTAINS
         use SystemData, only : tParity, tSpn,Symmetry,STot, NullBasisFn
         use CCMCData,   only : tCCBuffer !This is messy, but I don't see anywhere else to put it. AJWT
         use legacy_data, only: irat
+        use HElem
         Type(BasisFn) ISym
 
         integer i,ii,j
@@ -207,7 +191,7 @@ CONTAINS
 !C.. Use HAMIL to temporarily hold a list of excitation levels
             CALL NECI_ICOPY(NEL,FDET,1,NMRKS,1)
             Allocate(Hamil(II), stat=ierr)
-            LogAlloc(ierr, 'HAMIL', II, HElementSizeB, tagHamil)
+            LogAlloc(ierr, 'HAMIL', II, HElement_t_sizeB, tagHamil)
             NDET=0
             CALL GENEXCIT(FDET,iExcitLevel,NBASIS,NEL,NMRKS(1,2),HAMIL,NDET,1,G1,.TRUE.,NBASISMAX,.FALSE.)
             Deallocate(Hamil)
@@ -281,14 +265,14 @@ CONTAINS
 !C ==----------------------------------------------------------------==
 !C..Set up memory for c's, nrow and the label
          IF(TCALCHMAT) THEN
-            WRITE(6,*) "CK Size",NDET*NEVAL*HElementSize
+            WRITE(6,*) "CK Size",NDET*NEVAL*HElement_t_size
             Allocate(CkN(nDet,nEval), stat=ierr)
-            LogAlloc(ierr,'CKN',nDet*nEval, HElementSizeB, tagCKN)
-            CKN=HElement(0.d0)
+            LogAlloc(ierr,'CKN',nDet*nEval, HElement_t_sizeB, tagCKN)
+            CKN=(0.d0)
 !C..
             Allocate(Ck(nDet,nEval), stat=ierr)
-            LogAlloc(ierr,'CK',nDet*nEval, HElementSizeB, tagCK)
-            CK=HElement(0.d0)
+            LogAlloc(ierr,'CK',nDet*nEval, HElement_t_sizeB, tagCK)
+            CK=(0.d0)
 !C..
             allocate(W(nEval), stat=ierr)
             LogAlloc(ierr, 'W', nEval,8,tagW)
@@ -310,7 +294,6 @@ CONTAINS
     
     Subroutine DoDetCalc
       Use global_utilities
-      Use HElem
       use Determinants , only : get_helement,FDet
       use SystemData, only : Alat, arr, brr, boa, box, coa, ecore, g1,Beta
       use SystemData, only : nBasis, nBasisMax,nEl,nMsh,LzTot,NIfTot
@@ -321,10 +304,11 @@ CONTAINS
       use Parallel, only : iProcIndex
       use DetBitops, only: EncodeBitDet, DetBitEQ
       use legacy_data, only: irat
+     use HElem
 
       REAL*8 , ALLOCATABLE :: TKE(:),A(:,:),V(:),AM(:),BM(:),T(:),WT(:),SCR(:),WH(:),WORK2(:),V2(:,:),FCIGS(:)
-      TYPE(HElement), ALLOCATABLE :: WORK(:)
-      TYPE(HElement) :: HEl!,MatEl,MatEl2
+      HElement_t, ALLOCATABLE :: WORK(:)
+      HElement_t :: HEl!,MatEl,MatEl2
       INTEGER , ALLOCATABLE :: LAB(:),NROW(:),INDEX(:),ISCR(:),Temp(:)
 
       integer :: LabTag=0,NRowTag=0,TKETag=0,ATag=0,VTag=0,AMTag=0,BMTag=0,TTag=0
@@ -337,7 +321,8 @@ CONTAINS
         INTEGER GC,I,ICMAX,MaxDet,Bits
         INTEGER iDeg,III,IN,IND,INDZ
         INTEGER NBLOCK!,OpenOrbs,OpenOrbsSym,Ex(2,NEl)
-        INTEGER nKry1,ilut(0:NIfTot),nK(NEl)!,iLutSym(0:NIfD),nJ(NEl)
+        INTEGER nKry1,nK(NEl)!,nJ(NEl)
+        INTEGER(KIND=n_int) :: ilut(0:NIfTot)
         
         INTEGER J,JR,iGetExcitLevel_2,ExcitLevel
         INTEGER LSCR,LISCR,MaxIndex
@@ -383,8 +368,8 @@ CONTAINS
 !C..Now we know size, allocate memory to HAMIL and LAB
          LENHAMIL=GC
          Allocate(Hamil(LenHamil), stat=ierr)
-         LogAlloc(ierr, 'HAMIL', LenHamil, HElementSizeB, tagHamil)
-         HAMIL=HElement(0.d0)
+         LogAlloc(ierr, 'HAMIL', LenHamil, HElement_t_sizeB, tagHamil)
+         HAMIL=(0.d0)
 !C..
          ALLOCATE(LAB(LENHAMIL),stat=ierr)
          CALL LogMemAlloc('LAB',LenHamil,4,this_routine,LabTag,ierr)
@@ -407,8 +392,8 @@ CONTAINS
              DO I=1,NDet
                 INDZ=INDZ+NROW(I)
                 DO WHILE (IND.LT.INDZ)
-                   ExpandedHamil(I,LAB(IND))=REAL(HAMIL(IND)%v,8)
-                   ExpandedHamil(LAB(IND),I)=REAL(HAMIL(IND)%v,8)
+                   ExpandedHamil(I,LAB(IND))=REAL(HAMIL(IND),8)
+                   ExpandedHamil(LAB(IND),I)=REAL(HAMIL(IND),8)
                    IND=IND+1
                 ENDDO
              ENDDO
@@ -436,7 +421,7 @@ CONTAINS
                   J=J+NROW(JR)
                ENDDO
                WRITE(8,"(2I12)",advance='no') JR,LAB(I)
-               IF(HElementSize.EQ.1) THEN
+               IF(HElement_t_size.EQ.1) THEN
                   WRITE(8,*) HAMIL(I)
                ELSE
                   WRITE(8,*) HAMIL(I),ABS(HAMIL(I))
@@ -467,7 +452,7 @@ CONTAINS
          IF(NBLK.NE.0) THEN
 !C..Things needed for Friesner-Pollard diagonalisation
             IF(TMC) STOP 'TMC and TENERGY set - Stopping'
-            IF(HElementSize.NE.1)  STOP 'Cannot do Lanczos on Complex orbitals.'
+            IF(HElement_t_size.NE.1)  STOP 'Cannot do Lanczos on Complex orbitals.'
             NKRY1=NKRY+1
             NBLOCK=MIN(NEVAL,NBLK)
             LSCR=MAX(NDET*NEVAL,8*NBLOCK*NKRY)
@@ -540,7 +525,7 @@ CONTAINS
             WRITE(6,*) "NBLK=0.  Doing exact diagonalization."
             IF(TCALCHMAT) THEN
                ALLOCATE(WORK(4*NDET),stat=ierr)
-               CALL LogMemAlloc('WORK',4*NDET,8*HElementSize,this_routine,WorkTag,ierr)
+               CALL LogMemAlloc('WORK',4*NDET,8*HElement_t_size,this_routine,WorkTag,ierr)
                ALLOCATE(WORK2(3*NDET),stat=ierr)
                CALL LogMemAlloc('WORK2',3*NDET,8,this_routine,WORK2Tag,ierr)
                CALL HDIAG(NDET,HAMIL,LAB,NROW,CK,W,WORK2,WORK,LENHAMIL,NBLOCKSTARTS,NBLOCKS,BLOCKSYM)
@@ -603,7 +588,7 @@ CONTAINS
                 CALL GETSYM(NMRKS(1,i),NEL,G1,NBASISMAX,ISYM)
                 IF(ISym%Sym%S.eq.IHFSYM%Sym%S) THEN
                     Det=Det+1
-                    IF(tEnergy) norm=norm+(REAL(CK(i,1)%v,8))**2
+                    IF(tEnergy) norm=norm+(REAL(CK(i,1),8))**2
                 ENDIF
             enddo
             WRITE(6,"(I25,A,I4,A)") Det," determinants of symmetry ",IHFSym%Sym%S," found."
@@ -627,7 +612,7 @@ CONTAINS
                 CALL GetLz(NMRKS(1,i),NEL,Lz)
 !                IF((NMRKS(1,i).eq.28).and.(NMRKS(2,i).eq.29).and.(NMRKS(3,i).eq.30).and.(NMRKS(4,i).eq.31)) THEN
 !                    WRITE(6,*) "Found Det: ",NMRKS(:,i)
-!                    WRITE(6,*) i,iSym%Sym%S,REAL(CK(i)%v,8)
+!                    WRITE(6,*) i,iSym%Sym%S,REAL(CK(i),8)
 !                ENDIF
                 IF((ISym%Sym%S.eq.IHFSYM%Sym%S).and.(Lz.eq.LzTot)) THEN
                     Det=Det+1
@@ -637,7 +622,7 @@ CONTAINS
                     Temp(Det)=ExcitLevel    !Temp will now temporarily hold the excitation level of the determinant.
                     CALL EncodeBitDet(NMRKS(:,i),FCIDets(0:NIfTot,Det))
                     IF(tEnergy) THEN
-                        FCIGS(Det)=REAL(CK(i,1)%v,8)/norm
+                        FCIGS(Det)=REAL(CK(i,1),8)/norm
                     ENDIF
                 ENDIF
             enddo
@@ -732,7 +717,7 @@ CONTAINS
 !                                CALL HPHFGetOffDiagHElement(NMRKS(1:NEl,1),nK,MatEl)
 !                            ENDIF
 !                            CALL HPHFGetDiagHElement(nK,MatEl2)
-!!                            WRITE(23,"(A,2I14,3G20.10,I5,2G20.10)") "Closed ",FCIDets(0:NIfD,i),iLutSym(:),FCIGS(i),FCIGS(j),FCIGS(i)+FCIGS(j),OpenOrbs,MatEl%v,MatEl2%v
+!!                            WRITE(23,"(A,2I14,3G20.10,I5,2G20.10)") "Closed ",FCIDets(0:NIfD,i),iLutSym(:),FCIGS(i),FCIGS(j),FCIGS(i)+FCIGS(j),OpenOrbs,MatEl,MatEl2
 !!                        WRITE(23,"(A,2I14,3G20.10,I5)") "Closed ",FCIDets(0:NIfD,i),iLutSym(:),FCIGS(i),FCIGS(j),FCIGS(i)+FCIGS(j),OpenOrbs
 !                    ELSE
 !                        IF(abs(FCIGS(i)).gt.1.D-5) THEN 
@@ -743,7 +728,7 @@ CONTAINS
 !                            CALL HPHFGetDiagHElement(nK,MatEl2)
 !!                            Ex(1,1)=NEl
 !!                            CALL GETEXCITATION(nJ,nK,NEl,Ex,TSign)
-!                            WRITE(23,"(A,3I14,3G20.10,I5,2G20.10)") "Open   ",i,FCIDets(0:NIfD,i),iLutSym(:),FCIGS(i),FCIGS(j),FCIGS(i)+FCIGS(j),OpenOrbs,MatEl%v,MatEl2%v
+!                            WRITE(23,"(A,3I14,3G20.10,I5,2G20.10)") "Open   ",i,FCIDets(0:NIfD,i),iLutSym(:),FCIGS(i),FCIGS(j),FCIGS(i)+FCIGS(j),OpenOrbs,MatEl,MatEl2
 !                        ENDIF
 !                    ENDIF
 !                ENDIF
@@ -762,7 +747,7 @@ CONTAINS
                         WRITE(17,"(A,G25.16,A)",advance='no') " ",FCIGS(i),"  "
                         Call WriteBitDet(17,FCIDets(:,i),.true.)
                    enddo
-                    CLOSE(17)
+                   CLOSE(17)
                 ENDIF
                 DEALLOCATE(FCIGS)
             ELSE
@@ -821,8 +806,8 @@ CONTAINS
 !                                 Det=Det+1
 !                                 WRITE(17,"(2I12)",advance='no') Det,iLut(0)
 !                                 HEL=GetHElement3(NMRKS(:,j),NMRKS(:,j),0)
-!                                 norm=norm+(REAL(CK(j)%v,8))**2
-!                                 WRITE(17,"(3G25.16)") REAL(HEL%v,8),REAL(CK(j)%v,8),norm
+!                                 norm=norm+(REAL(CK(j),8))**2
+!                                 WRITE(17,"(3G25.16)") REAL(HEL,8),REAL(CK(j),8),norm
 !                             ENDIF
 !                             EXIT
 !                         ENDIF
@@ -950,31 +935,35 @@ END MODULE DetCalc
      &            NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,  &
      &   NTAY,RHOEPS,NWHTAY,NPATHS,ILOGGING,ECORE,TNPDERIV,DBETA,   &
      &   DETINV,TSPECDET,SPECDET)
-         use HElem
+         use constants, only: dp
          use SystemData, only: BasisFN
          use CalcData, only: tFCIMC
          use global_utilities
          use DetCalc, only: NMRKS
          use legacy_data, only: irat
          use Determinants, only: write_det
+         use mcpaths, only: mcpathsr3
          implicit none
          character(25), parameter :: this_routine = 'CalcRhoPII2'
          INTEGER NEL,I_P,I_HMAX,I_VMAX,NDET,nBasisMax(5,*),nBasis
-         INTEGER BRR(*),NMSH,NMAX(*),NTAY,ILOGGING
+         INTEGER BRR(*),NMSH,NMAX,NTAY(2),ILOGGING
          type(timer), save :: proc_timer
-         TYPE(HElement) UMat(*)
-         TYPE(HDElement) DLWDB, DLWDB2, DLWDB3, DLWDB4
-         TYPE(BasisFN) g1(*),ALAT(*)
+         HElement_t UMat(*)
+         real(dp) DLWDB, DLWDB2, DLWDB3, DLWDB4
+         TYPE(BasisFN) g1(*)
+         REAL*8 ALAT(3)
          LOGICAL TSYM
-         REAL*8 BETA,FCK(*),RHOEPS
+         REAL*8 BETA,RHOEPS
+         COMPLEX*16 FCK(*)
 
          
-         INTEGER, ALLOCATABLE :: LSTE(:),ICE(:)
-         REAL*8 , ALLOCATABLE :: RIJLIST(:,:)
+         INTEGER, ALLOCATABLE :: LSTE(:,:,:),ICE(:,:)
+         HElement_t , ALLOCATABLE :: RIJLIST(:,:)
          INTEGER,SAVE :: RIJLISTTag=0,LSTEtag=0,ICEtag=0
          INTEGER NPATHS,ierr
-         INTEGER III,NWHTAY,I,IMAX,ILMAX
-         REAL*8 WLRI,WLSI,ECORE,DBETA,WLRI1,WLRI2,WLSI1,WLSI2,WI
+         INTEGER III,NWHTAY(3,I_VMAX),I,IMAX,ILMAX
+         real(dp) WLRI,WLSI
+         REAL*8 ECORE,DBETA,WLRI1,WLRI2,WLSI1,WLSI2,WI
          REAL*8 TOT, NORM,WLRI0,WLSI0,WINORM
          LOGICAL TNPDERIV
          INTEGER DETINV
@@ -992,11 +981,11 @@ END MODULE DetCalc
 !.. we don't need lists for I_HMAX=8
          IF((I_HMAX.GE.-10.AND.I_HMAX.LE.-7)      .OR.I_HMAX.LE.-12) ILMAX=1
 !         ILMAX=(NBASIS-NEL)**2*NEL*NEL/4
-         ALLOCATE(LSTE((1+ILMAX)*NEL*IMAX),stat=ierr)
+         ALLOCATE(LSTE(NEL,0:ILMAX,0:IMAX),stat=ierr)
          call LogMemAlloc('LSTE',size(LSTE),4,this_routine,LSTEtag,ierr)
-         ALLOCATE(ICE((ILMAX+1)*IMAX),stat=ierr)
+         ALLOCATE(ICE(0:ILMAX,0:IMAX),stat=ierr)
          call LogMemAlloc('ICE',size(ICE),4,this_routine,ICEtag,ierr)
-         ALLOCATE(RIJLIST(0:ILMAX,IMAX*2),stat=ierr)
+         ALLOCATE(RIJLIST(0:ILMAX,0:IMAX*2),stat=ierr)
          CALL LogMemAlloc('RIJLIST',(1+ILMAX)*IMAX*2,8,this_routine,RIJLISTTag,ierr)
          IF(I_VMAX.NE.0) THEN
             WRITE(6,*) "Using Vertex approximation.  I_VMAX=",I_VMAX
@@ -1032,7 +1021,7 @@ END MODULE DetCalc
          DO III=ISTART,IEND
             IF(III.NE.0) THEN
               IF(NPATHS.EQ.1) call write_det (6, NMRKS(:,III), .true.) 
-               CALL MCPATHSR3(NMRKS(1,III),BETA,I_P,I_HMAX,I_VMAX,NEL, NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT, &
+               CALL MCPATHSR3(NMRKS(:,III),BETA,I_P,I_HMAX,I_VMAX,NEL, NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT, &
      &         UMAT,NTAY, RHOEPS,LSTE,ICE,RIJLIST,NWHTAY,ILOGGING,ECORE,ILMAX, WLRI,WLSI,DBETA,DLWDB2)
             ELSE
                CALL MCPATHSR3(SPECDET,BETA,I_P,I_HMAX,I_VMAX,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY, &
@@ -1061,11 +1050,11 @@ END MODULE DetCalc
             IF(TNPDERIV) THEN
 !.. if we're calculating the derivatives too
                IF(III.NE.0) THEN
-               CALL MCPATHSR3(NMRKS(1,III),BETA+DBETA,I_P,I_HMAX,    &
+               CALL MCPATHSR3(NMRKS(:,III),BETA+DBETA,I_P,I_HMAX,    &
      &            I_VMAX,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,       &
      &            NMAX,ALAT,UMAT,NTAY,RHOEPS,LSTE,ICE,RIJLIST,NWHTAY,&
      &            ILOGGING,ECORE,ILMAX,WLRI1,WLSI1,DBETA,DLWDB3)
-               CALL MCPATHSR3(NMRKS(1,III),BETA-DBETA,I_P,I_HMAX,    &
+               CALL MCPATHSR3(NMRKS(:,III),BETA-DBETA,I_P,I_HMAX,    &
      &            I_VMAX,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,       &
      &            NMAX,ALAT,UMAT,NTAY,RHOEPS,LSTE,ICE,RIJLIST,NWHTAY,&
      &            ILOGGING,ECORE,ILMAX,WLRI2,WLSI2,DBETA,DLWDB4)
@@ -1090,13 +1079,13 @@ END MODULE DetCalc
                 WINORM=1.D0
             ENDIF
             NORM=NORM+WINORM
-            TOT=TOT+WINORM*DREAL(DLWDB)
+            TOT=TOT+WINORM*(DLWDB)
             WRITE(42,*) DLWDB
             IF(DETINV.EQ.III.AND.III.NE.0) THEN
                CALL FLUSH(42)
                WRITE(6,*) "Investigating det ",DETINV
                CALL FLUSH(6)
-               CALL WIRD_SUBSET(NMRKS(1,DETINV),BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY, &
+               CALL WIRD_SUBSET(NMRKS(:,DETINV),BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY, &
      &       RHOEPS,ILOGGING,TSYM,ECORE)
             ENDIF
           ENDDO
@@ -1116,14 +1105,14 @@ END MODULE DetCalc
 !.. FLSI will remain usable, but will be equal to log RHII(P), so the 
 !.. sum I_P*FLRI+FLSI will still retain the correct value.
       SUBROUTINE CALCRHOPII(I,NDET,NEVAL,CK,W,BETA,I_P,ILOGGING,ETRIAL,FLRI,FLSI,TWARN)
-         USE HElem
+         use constants, only: dp
          IMPLICIT NONE
          INTEGER NDET,NEVAL
-         TYPE(HElement) CK(NDET,NEVAL)
+         HElement_t CK(NDET,NEVAL)
          REAL*8 W(NEVAL)
          REAL*8 RHII,FLRI,FLSI,ETRIAL,BETA,RH,R
          INTEGER I_P,I,IK,ILOGGING
-         LOGICAL LISNAN,TWARN
+         LOGICAL TWARN
          RH=0.D0
          RHII=0.D0
          TWARN=.FALSE.
@@ -1132,7 +1121,7 @@ END MODULE DetCalc
 !.. First we work out RHO_II
 !         WRITE(6,*) BETA,I_P
          DO IK=1,NEVAL
-            R=SQ(CK(I,IK))
+            R=abs(CK(I,IK))**2
             R=R*EXP(-(W(IK)-W(1))*BETA/I_P)
             RHII=RHII+R
          ENDDO
@@ -1154,11 +1143,11 @@ END MODULE DetCalc
          ENDIF
 !.. Now we work out RHO^(P)_II/RHO_II^P = sI         
          DO IK=1,NEVAL
-            R=SQ(CK(I,IK))
+            R=abs(CK(I,IK))**2
             RH=RH+R*EXP(-(W(IK)-W(1))*BETA)
          ENDDO
          FLSI=LOG(RH)-W(1)*BETA-I_P*FLRI
-         IF(LISNAN((RH+1)-RH)) THEN
+         IF(ISNAN((RH+1)-RH)) THEN
             RH=0
             FLSI=0
          ENDIF
@@ -1168,10 +1157,10 @@ END MODULE DetCalc
 
 !  Given an exact calculation of eigen-vectors and -values, calculate the expectation value of E(Beta)
       REAL*8 FUNCTION CALCMCEN(NDET,NEVAL,CK,W,BETA,ETRIAL)
-         USE HElem
+         use constants, only: dp
          IMPLICIT NONE
          INTEGER NDET,NEVAL,IK
-         TYPE(HElement) CK(NDET,NEVAL)
+         HElement_t CK(NDET,NEVAL)
          REAL*8  W(NEVAL),BETA,DNORM,EN,ETRIAL
          EN=0.D0
          DNORM=0.D0
@@ -1185,34 +1174,35 @@ END MODULE DetCalc
 
 !  Given an exact calculation of eigen-vectors and -values, calculate the expectation value of E~(Beta)_I for det I
       REAL*8 FUNCTION CALCDLWDB(I,NDET,NEVAL,CK,W,BETA,ETRIAL)
-         USE HElem
+         use constants, only: dp
          IMPLICIT NONE
          INTEGER NDET,NEVAL,IK,I
-         TYPE(HElement) CK(NDET,NEVAL)
+         HElement_t CK(NDET,NEVAL)
          REAL*8  W(NEVAL),BETA,DNORM,EN,ETRIAL
          EN=0.D0
          DNORM=0.D0
          DO IK=1,NEVAL
-            EN=EN+SQ(CK(I,IK))*(W(IK))*EXP(-(W(IK)-W(1))*BETA)
-            DNORM=DNORM+SQ(CK(I,IK))*EXP(-(W(IK)-W(1))*BETA)
+            EN=EN+abs(CK(I,IK))**2*(W(IK))*EXP(-(W(IK)-W(1))*BETA)
+            DNORM=DNORM+abs(CK(I,IK))**2*EXP(-(W(IK)-W(1))*BETA)
          ENDDO
          CALCDLWDB=EN/DNORM
          RETURN
       END
 
       SUBROUTINE CFF_CHCK(NDET,NEVAL,NM,NBASISMAX,NEL,G1,CG,ALAT,TKE,NHG,ILOGGING)
-      USE HElem
+      use constants, only: dp
       USE OneEInts, only : GetTMATEl
       use SystemData, only: BasisFN
+      use HElem
       IMPLICIT NONE
-      TYPE(HElement) CG(NDET,NEVAL)
+      HElement_t CG(NDET,NEVAL)
       INTEGER NM(NEL,*),NDET,NEL,NEVAL
       REAL*8 ALAT(3),TKE(NEVAL)
       INTEGER NBASISMAX(3,2),NHG,ILOGGING
       TYPE(BASISFN) G1(*)
       CHARACTER*255 STR
       REAL*8 PI,S,SUM1
-      TYPE(HDElement) AUX
+      real(dp) AUX
       INTEGER I,J,IN,IEL,L
 !..Calculate the expectation value of the kinetic energy
 !..<Psi|T|Psi>
@@ -1226,14 +1216,14 @@ END MODULE DetCalc
 !((ALAT(1)**2)*((G1(1,NM(J,I))**2)/(ALAT(1)**2)+
 !     &     (G1(2,NM(J,I))**2)/(ALAT(2)**2)+
 !     &     (G1(3,NM(J,I))**2)/(ALAT(3)**2)))
-            SUM1=SUM1+DREAL(AUX)
+            SUM1=SUM1+(AUX)
           ENDDO
 !..Cube multiplier
 !          CST=PI*PI/(2.D0*ALAT(1)*ALAT(1))
 !.. Deal with the UEG
 !          IF(NBASISMAX(1,1).LE.0) CST=CST*4.D0
 !          SUM1=CST*SUM1 
-          TKE(IN)=TKE(IN)+SUM1*SQ(CG(I,IN))
+          TKE(IN)=TKE(IN)+SUM1*abs(CG(I,IN))**2
         ENDDO
       ENDDO
 ! ==--------------------------------------------------------------==
@@ -1248,17 +1238,17 @@ END MODULE DetCalc
         ENDIF
         S=0.D0
         DO I=1,NDET
-         IF(CG(I,J).AGT.1.D-15) THEN
+         IF(abs(CG(I,J)).gt.1.D-15) THEN
             DO IEL=1,NEL
                WRITE(10,"(I3,I3,2I3,2X)",advance='no') (G1(NM(1,IEL))%K(L),L=1,5)
             ENDDO
-            IF(HElementSize.EQ.1) THEN
+            IF(HElement_t_size.EQ.1) THEN
                WRITE(10,"(F19.9,1X,I7)") CG(I,J),I
             ELSE
                WRITE(10,"(F19.9,1X,I7)") CG(I,J),I
             ENDIF
          ENDIF
-         S=S+SQ(CG(I,J))
+         S=S+abs(CG(I,J))**2
         ENDDO
         WRITE(10,'(A,F19.5)') ' SQUARE OF COEFFICIENTS : ' , S
         WRITE(10,*)
@@ -1271,12 +1261,15 @@ END MODULE DetCalc
 
 !Given exact eigenvalues and vectors, do monte carlo in det space with exact weights and E~
        REAL*8 FUNCTION DOEXMC(NDET,NEVAL,CK,W,BETA,I_P,ILOGGING,ECORE,IMCSTEPS,G1,NMRKS,NEL,NBASISMAX,NBASIS,BRR,IEQSTEPS)
-         use HElem, only: HElement
-         INTEGER NDET,NEVAL,I_P,ILOGGING
-         type(HElement) CK(NEVAL)
+         use constants, only: dp
+         use SystemData, only: BasisFn
+         implicit none
+         INTEGER NDET,NEVAL,I_P,ILOGGING, NBASISMAX(5,7), NBASIS, NEL, BRR(NBASIS), IMCSTEPS, NMRKS(:,:), IEQSTEPS
+         HElement_t CK(NEVAL)
+         type(BasisFn) G1(nBasis)
          REAL*8 W(NEVAL),BETA,ECORE
-
          REAL*8 DLWDBS(NDET),WLRIS(NDET),WLSIS(NDET),EN
+         real*8 CALCDLWDB, DMONTECARLOEXWI
          INTEGER I
          LOGICAL TWARN
          
@@ -1284,7 +1277,8 @@ END MODULE DetCalc
             CALL CALCRHOPII(I,NDET,NEVAL,CK,W,BETA,I_P,ILOGGING,ECORE,WLRIS(I),WLSIS(I),TWARN)
             DLWDBS(I)=CALCDLWDB(I,NDET,NEVAL,CK,W,BETA,ECORE)
          ENDDO
-         EN=DMONTECARLOEXWI(NDET,WLRIS,WLSIS,DLWDBS,I_P,IMCSTEPS,G1,NMRKS,NEL,NBASISMAX,NBASIS,BRR,IEQSTEPS,ILOGGING)
+         STOP "DMONTECARLOEXWI is no longer functional."
+!         EN=DMONTECARLOEXWI(NDET,WLRIS,WLSIS,DLWDBS,I_P,IMCSTEPS,G1,NMRKS,NEL,NBASISMAX,NBASIS,BRR,IEQSTEPS,ILOGGING)
          WRITE(6,*) "EXACT MC RESULT=",EN
          DOEXMC=EN
          RETURN

@@ -201,7 +201,7 @@ C.. (ab|cd) is the 4-index Coulomb integral between states, i,j,k,l
 C.. h_ij=(E_i+xi) delta_ij - Sum_k f_k (ik|jk)
       SUBROUTINE CPMDINIT2INDINT(NHG,NORBUSED,NBASISMAX,ISS,G1,NEL,
      &      ECORE,TORDER,ARR,BRR,iCacheFlag)
-         USE HElem
+         use constants, only: dp
          use CPMDData, only: nStates,PIInt,EIonIon,EigenValues,tagPIInt
          use SystemData, only: BasisFN
          use Integrals, only: GetUMatEl
@@ -214,13 +214,13 @@ C.. h_ij=(E_i+xi) delta_ij - Sum_k f_k (ik|jk)
          use sort_mod
          IMPLICIT NONE
          INTEGER NHG,NTFROZEN
-         TYPE(HElement) CPMD1EINT(NSTATES,NSTATES)
+         HElement_t CPMD1EINT(NSTATES,NSTATES)
          INTEGER I,J,K,NSTATESUSED,NORBUSED,II,JJ
          type(timer), save :: proc_timer
          REAL*8 F,ALAT(3)  !ALAT just dummy for GetUMatEl.
-         TYPE(HElement) U,TOT,sum1
+         HElement_t U,TOT,sum1
          INTEGER ISS,NBASISMAX(*)
-         TYPE(HElement) UMAT(0)  ! UMAT dummy for GetUMatEl.
+         HElement_t UMAT(0)  ! UMAT dummy for GetUMatEl.
 
          TYPE(BASISFN) G1(NHG)
          REAL*8 ECORE
@@ -295,23 +295,28 @@ C   JSS  Calculate the elements of the type <ij|ij> and <ij|ji> efficiently.
 
                   TOT=0.D0
                   IF(I.EQ.J) THEN
-                      TOT=TOT+HElement(EIGENVALUES(I)+PIInt(I)/2.d0)
+                      TOT=TOT+(EIGENVALUES(I)+PIInt(I)/2.d0)
 !                      FockMat(I,J)=FockMat(I,J)+Eigenvalues(I)
                   END IF
                   TOT=TOT-CPMD1EINT(I,J)
-                  TOT=TOT-HElement(HarInt(i,j))
+                  TOT=TOT-(HarInt(i,j))
 !                  FockMat(i,j)=FockMat(i,j)-dcmplx(CPMD1EInt(I,J))
                   IF (tCPMDSymTMat) THEN
                       TMATSYM(TMatInd(II+1,JJ+1))=TOT ! Indexing needs to be compatiable with TMatInd.
                   ELSE
                       TMAT2D(II,JJ)=TOT
                       TMAT2D(II+1,JJ+1)=TOT
+#ifdef __CMPLX
                       TMAT2D(JJ,II)=dconjg(TOT)
                       TMAT2D(JJ+1,II+1)=dconjg(TOT)
+#else
+                      TMAT2D(JJ,II)=(TOT)
+                      TMAT2D(JJ+1,II+1)=(TOT)
+#endif
                   ENDIF
                   WRITE(10,*) I,J,TOT
                   IF(I.EQ.J) THEN
-                     DIAGTMAT(I)=SQRT(SQ(TOT))
+                     DIAGTMAT(I)=ABS(TOT)
                      STATEORDER(I)=I
                   ENDIF
 

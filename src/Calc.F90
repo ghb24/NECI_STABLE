@@ -12,9 +12,10 @@ MODULE Calc
 
           Use Determinants, only: iActiveBasis, SpecDet, tSpecDet, nActiveSpace
           Use Determinants, only : tDefineDet
-          Use DetCalc, only: iObs, jObs, kObs, tCorr, B2L, tRhoOfR, tFodM, DETINV
-          Use DetCalc, only: icilevel, nBlk, nCycle, nEval, nKry, tBlock, tCalcHMat
+          Use DetCalc, only: iObs, jObs, kObs, tCorr, tRhoOfR, tFodM, DETINV
+          Use DetCalc, only: icilevel, nCycle, tBlock, tCalcHMat
           Use DetCalc, only: tEnergy, tRead,tFindDets
+          Use DetCalcData, only: B2L,nKry,nEval,nBlk
           use IntegralsData, only: tNeedsVirts
           use SystemData, only : Beta,nEl
           use CCMCData, only: dInitAmplitude,dProbSelNewExcitor,nSpawnings,tSpawnProp
@@ -101,7 +102,7 @@ MODULE Calc
           THDiag=.false.
           GrowGraphsExpo=2.D0
           TGrowInitGraph=.false.
-          NoMCExcits=5000
+          NoMCExcits=1
           TMCExcits=.false.
           TMaxExcit=.false.
           TFullDiag=.false.
@@ -173,13 +174,9 @@ MODULE Calc
           BETAP=1.D-4
           TBETAP=.false.
           RHOEPSILON=1.D-6
-!DBETA now has  three elements
-!          DBETA(1) is DBETA
-!          DBETA(2) is GRAPHEPSILON
-!          DBETA(3) is PGENEPSILON
-          DBETA(1)=-1.D0
-          DBETA(2)=0.D0
-          DBETA(3)=0.D0
+          DBETA=-1.D0
+          GraphEpsilon=0
+          PGenEpsilon=0
           StarConv=1.d-3
           calcp_sub2vstar=.false.
           calcp_logweight=.false.
@@ -530,7 +527,7 @@ MODULE Calc
                 NPATHS = -1
             case("DERIV")
                 TNPDERIV = .true.
-               if (DBETA(1) .lt. 0 ) then
+               if (DBETA .lt. 0 ) then
                   call report("Only calculate energy with derivatives"&
      &            //" if delta_beta positive",.true.)
                    TNPDERIV = .false.
@@ -660,13 +657,13 @@ MODULE Calc
                     call report("Warning - declared beta/p and p. Using p.",.true.)
                 end if
             case("DELTABETA")
-                call getf(DBETA(1))
+                call getf(DBETA)
             case("RHOEPSILON")
                 call getf(RHOEPSILON)
             case("GRAPHEPSILON")
-                call getf(DBETA(2))
+                call getf(GraphEpsilon)
             case("PGENEPSILON")
-                call getf(DBETA(3))
+                call getf(PGenEpsilon)
 !This indicates the number of times the eigenvalues of the star matrix should be evaluated to achieve the linear approximation when STARSTARS set,
             case("LINEPOINTSSTAR")
                 call geti(LinePoints)
@@ -1135,13 +1132,14 @@ MODULE Calc
 
 
         Subroutine CalcInit()
-          use HElem , only : HElement
+          use constants, only: dp
           use SystemData, only: G1, Alat, Beta, BRR, ECore, LMS, nBasis, nBasisMax, STot,tCSF,nMsh,nEl
           use SystemData, only: tUEG,nOccAlpha,nOccBeta,ElecPairs,tExactSizeSpace,tMCSizeSpace,MaxABPairs
           use IntegralsData, only: FCK, CST, nMax, UMat
           use IntegralsData, only: HFEDelta, HFMix, NHFIt, tHFCalc
           Use Determinants, only: FDet, tSpecDet, SpecDet, get_helement
-          Use DetCalc, only: DetInv, nDet, tRead, ICILevel
+          Use DetCalc, only: DetInv, nDet, tRead
+          Use DetCalcData, only:  ICILevel
           use global_utilities
           
           REAL*8 CalcT, CalcT2, GetRhoEps
@@ -1149,7 +1147,7 @@ MODULE Calc
           
           INTEGER I, IC,J
           INTEGER nList
-          TYPE(HElement) HDiagTemp
+          HElement_t HDiagTemp
           character(*), parameter :: this_routine='CalcInit'
 
           Allocate(MCDet(nEl))
@@ -1274,15 +1272,16 @@ MODULE Calc
           use SystemData, only: Alat, Arr,Brr, Beta, ECore, G1, LMS, LMS2, nBasis,NMSH, nBasisMax
           use SystemData, only: SymRestrict, tCSFOLD, tParity, tSpn, ALat, Beta
           use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB,BasisFN,BasisFNSize,BasisFNSizeB,nEl
-          Use DetCalc, only : CK, DetInv, nDet, nEval, tEnergy, tRead, nmrks, w
+          Use DetCalcData, only : nDet, nEval, nmrks, w
+          use DetCalc, only: CK, DetInv, tEnergy, tRead
           Use Determinants, only: FDet, nActiveBasis, SpecDet, tSpecDet
           use IntegralsData, only: FCK, NMAX, UMat, FCK
           use IntegralsData, only: HFEDelta, HFMix,nTay
           Use Logging, only: iLogging
           use Parallel_Calc
-!          Use MCDets, only: MCDetsCalc
+
 !Calls
-          REAL*8 DMonteCarlo2
+!          REAL*8 DMonteCarlo2
 !Local Vars
           REAL*8 EN, ExEn, GsEN
           REAL*8 FLRI, FLSI
@@ -1291,9 +1290,6 @@ MODULE Calc
           integer iSeed
           iSeed=7 
 
-!          call MCDetsCalc(FDet, iSeed, nwhtay(1))
-!          stop
-    
 !C.. we need to calculate a value for RHOEPS, so we approximate that
 !C.. RHO_II~=exp(-BETA*H_II/p).  RHOEPS is a %ge of this 
 !C.. If we haven't already calced RHOEPS, do it now
@@ -1376,7 +1372,8 @@ MODULE Calc
              IF(NTAY(1).GT.0) THEN
                 WRITE(6,*) "Using approx RHOs generated on the fly, NTAY=",NTAY(1)
 !C.. NMAX is now ARR
-                EN=DMONTECARLO2(MCDET,I_P,BETA,DBETA,I_HMAX,I_VMAX,IMCSTEPS,G1,NEL,NBASISMAX,nBasis,BRR,IEQSTEPS,NMSH,FCK,ARR,ALAT,UMAT,NTAY,RHOEPS,NWHTAY,ILOGGING,ECORE,BETAEQ) 
+                STOP "DMONTECARLO2 is now non-functional."
+!                EN=DMONTECARLO2(MCDET,I_P,BETA,DBETA,I_HMAX,I_VMAX,IMCSTEPS,G1,NEL,NBASISMAX,nBasis,BRR,IEQSTEPS,NMSH,FCK,ARR,ALAT,UMAT,NTAY,RHOEPS,NWHTAY,ILOGGING,ECORE,BETAEQ) 
              ELSEIF(NTAY(1).EQ.0) THEN
                 IF(TENERGY) THEN
                    WRITE(6,*) "Using exact RHOs generated on the fly"
@@ -1388,9 +1385,10 @@ MODULE Calc
 !C..         UMAT=NDET
 !C..         ALAT=NMRKS
 !C..         NMAX=ARR
-                   EN=DMONTECARLO2(MCDET,I_P,BETA,DBETA,I_HMAX,I_VMAX,IMCSTEPS,             &
-     &                G1,NEL,NBASISMAX,nBasis,BRR,IEQSTEPS,                                 &
-     &                NEVAL,W,CK,ARR,NMRKS,NDET,NTAY,RHOEPS,NWHTAY,ILOGGING,ECORE,BETAEQ)
+                STOP "DMONTECARLO2 is now non-functional."
+!                   EN=DMONTECARLO2(MCDET,I_P,BETA,DBETA,I_HMAX,I_VMAX,IMCSTEPS,             &
+!     &                G1,NEL,NBASISMAX,nBasis,BRR,IEQSTEPS,                                 &
+!     &                NEVAL,W,CK,ARR,NMRKS,NDET,NTAY,RHOEPS,NWHTAY,ILOGGING,ECORE,BETAEQ)
                 ELSE
                    STOP "TENERGY not set, but NTAY=0" 
                 ENDIF
@@ -1754,42 +1752,44 @@ MODULE Calc
       SUBROUTINE CALCRHOPII3(BETA,I_P,I_HMAX,I_VMAX,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY, &
      &            RHOEPS,NWHTAY,NPATHS,ILOGGING,ECORE,TNPDERIV,DBETA,DETINV,TSPN,LMS,TPARITY,SymRestrict,     &
      &            TSPECDET,SPECDET,nActiveBasis)
-         USE HElem
+         use constants, only: dp
          use global_utilities
          use SystemData, only: BasisFN,BasisFNSize
          use legacy_data, only: irat
          use CalcData, only: tFCIMC
          use gnd_work_type
          use Determinants, only: write_det
+         use mcpaths, only: mcpathsr3
          IMPLICIT NONE
          INTEGER I_HMAX,NEL,NBASIS,I_VMAX
-         INTEGER,ALLOCATABLE :: LSTE(:) !(NEL,NBASIS*NBASIS*NEL*NEL,0:I_VMAX-1)??!!
-         INTEGER,ALLOCATABLE :: ICE(:)  !(NBASIS*NBASIS*NEL*NEL,0:I_VMAX-1)??!!
-         TYPE(HElement)  UMAT(*)
-         TYPE(HElement),allocatable  :: RIJLIST(:)
+         INTEGER,ALLOCATABLE :: LSTE(:,:,:) !(NEL,NBASIS*NBASIS*NEL*NEL,0:I_VMAX-1)??!!
+         INTEGER,ALLOCATABLE :: ICE(:,:)  !(NBASIS*NBASIS*NEL*NEL,0:I_VMAX-1)??!!
+         HElement_t  UMAT(*)
+         HElement_t,allocatable  :: RIJLIST(:,:)
          integer,save :: tagRIJList=0,tagLSTE=0,tagICE=0
-         REAL*8 BETA,FCK(*),ALAT(*),RHOEPS
+         REAL*8 BETA,ALAT(3),RHOEPS
+         COMPLEX*16 FCK(*)
          INTEGER NPATHS,NI(NEL),I_P,nBasisMax(5,*)
          INTEGER Work(GNDWorkSize+2*NEL)
-         TYPE(BASISFN) G1(NBASIS)
-         INTEGER BRR(NBASIS),NMSH,NMAX(*),NTAY,ILOGGING
-         INTEGER III,NWHTAY,I,IMAX,ILMAX,LMS
+         TYPE(BASISFN) G1(*)
+         INTEGER BRR(*),NMSH,NMAX,NTAY(2),ILOGGING
+         INTEGER III,NWHTAY(3,I_VMAX),I,IMAX,ILMAX,LMS
          TYPE(BasisFN) ISYM,SymRestrict
          LOGICAL TSPN,TPARITY,TSYM
          REAL*8 DBETA,ECORE
-         TYPE(HDElement) WLRI,WLSI,WLRI1,WLRI2,WLSI1,WLSI2,WI,DLWDB
-         TYPE(HDElement) TOT,WLRI0,WLSI0,WINORM,HElP,NORM
+         real(dp) WLRI,WLSI,WLRI1,WLRI2,WLSI1,WLSI2,WI,DLWDB
+         real(dp) TOT,WLRI0,WLSI0,WINORM,HElP,NORM
          LOGICAL TNPDERIV,TDONE,TFIRST
          INTEGER DETINV
          INTEGER ISTART,IEND,IDEG
          LOGICAL TSPECDET,TLOG
          INTEGER SPECDET(NEL)
-         TYPE(HDElement) DLWDB2,DLWDB3,DLWDB4,TOT2
+         real(dp) DLWDB2,DLWDB3,DLWDB4,TOT2
          INTEGER nActiveBasis(2)
          type(timer), save :: proc_timer
          character(len=*), parameter :: thisroutine='CALCRHOPII3'
          TLOG=BTEST(ILOGGING,1)
-         HElP=HDElement(I_P)
+         HElP=(I_P)
          TSYM=.TRUE.
          TOT=0.D0
          TOT2=0.D0
@@ -1803,11 +1803,11 @@ MODULE Calc
 !.. We don't need to store lists for I_HMAX=-8
          ILMAX=(NBASIS-NEL)**2*NEL*NEL/4
          IF((I_HMAX.GE.-10.AND.I_HMAX.LE.-7).OR.I_HMAX.LE.-12) ILMAX=1
-         allocate(LSTE((1+ILMAX)*NEL*IMAX))
+         allocate(LSTE(NEL,0:ILMAX,0:IMAX))
          call LogMemAlloc('LSTE',size(LSTE),4/IRAT,thisroutine,tagLSTE)
-         allocate(ICE((1+ILMAX)*IMAX))
+         allocate(ICE(0:ILMAX,0:IMAX))
          call LogMemAlloc('ICE',size(ICE),4/IRAT,thisroutine,tagICE)
-         allocate(RIJList((1+ILMAX)*IMAX*2))
+         allocate(RIJList(0:ILMAX,0:IMAX*2))
          call LogMemAlloc('RIJList',(1+ILMAX)*IMAX*2,8,thisroutine, tagRIJList)
 !:         CALL PRINT_MEMORY()
          IF(I_VMAX.NE.0) THEN
@@ -1881,15 +1881,15 @@ MODULE Calc
      &            NMAX,ALAT,UMAT,NTAY,RHOEPS,LSTE,ICE,RIJLIST,NWHTAY, ILOGGING,ECORE,ILMAX,WLRI1,WLSI1,DBETA,DLWDB3)
                CALL MCPATHSR3(NI,BETA-DBETA,I_P,I_HMAX,I_VMAX,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,   &
      &            NMAX,ALAT,UMAT,NTAY,RHOEPS,LSTE,ICE,RIJLIST,NWHTAY, ILOGGING,ECORE,ILMAX,WLRI2,WLSI2,DBETA,DLWDB4)
-               DLWDB=-(HElP*(WLRI1-WLRI2)+(WLSI1-WLSI2))/HDElement(2*DBETA)
+               DLWDB=-(HElP*(WLRI1-WLRI2)+(WLSI1-WLSI2))/(2*DBETA)
             ELSE
                DLWDB=DLWDB2
             ENDIF
 !.. we calculate the energy with weightings normalized to the weight of
 !.. the Fermi determinant, otherwise the numbers blow up
             WINORM=EXP(HElP*(WLRI-WLRI0)+(WLSI-WLSI0))
-            NORM=NORM+HDElement(IDEG)*WINORM
-            TOT=TOT+HDElement(IDEG)*WINORM*DLWDB
+            NORM=NORM+(IDEG)*WINORM
+            TOT=TOT+(IDEG)*WINORM*DLWDB
             IF(TLOG) WRITE(15,"(G25.16,I5)") DLWDB,IDEG
             IF(DETINV.EQ.III) THEN
                IF(TLOG) CALL FLUSH(15)
@@ -1923,7 +1923,7 @@ MODULE Calc
 ! Given an input RHOEPSILON, create Fermi det D out of lowest orbitals and get RHOEPS (which is rhoepsilon * exp(-(beta/P)<D|H|D>
       REAL*8 FUNCTION GETRHOEPS(RHOEPSILON,BETA,NEL,NBASISMAX,G1,NHG, BRR,NMSH,FCK,NMAX,ALAT,UMAT,I_P,ECORE)
          Use Determinants, only: get_helement, write_det
-         USE HElem
+         use constants, only: dp
          use SystemData, only: BasisFN
          use sort_mod
          IMPLICIT NONE
@@ -1931,7 +1931,7 @@ MODULE Calc
          INTEGER BRR(*),NMSH,NMAX,NHG
          COMPLEX*16 FCK(*)
          REAL*8 RHOEPSILON,BETA,ECORE,ALAT(*)
-         TYPE(HElement) BP,UMat(*)
+         HElement_t BP,UMat(*)
          TYPE(BasisFN) G1(*)
          DO I=1,NEL
             NI(I)=BRR(I)
@@ -1947,7 +1947,7 @@ MODULE Calc
 
 ! Calculate the kinetic energy of the UEG (this differs from CALCT by including the constant CST
       REAL*8 FUNCTION CALCT2(NI,NEL,G1,ALAT,NBASIS,CST)
-         USE HElem
+         use constants, only: dp
          use SystemData, only: BasisFN
          IMPLICIT NONE
          INTEGER NEL,NI(NEL),NBASIS,I,J

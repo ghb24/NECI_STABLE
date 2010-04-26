@@ -1,5 +1,9 @@
 module constants
 
+#ifdef PARALLEL
+uSE mpi
+#endif
+
 ! Constant data.
 
 integer, parameter :: sp = selected_real_kind(6,37)
@@ -19,6 +23,40 @@ integer, parameter :: sizeof_sp = 4
 integer, parameter :: sizeof_helement = 16
 #else
 integer, parameter :: sizeof_helement = 8
+#endif
+
+#ifdef __INT64
+
+! Kind parameter for 64-bit integers.
+integer, parameter :: n_int=selected_int_kind(18)
+
+! MPI integer kind associated with n_int.
+#ifdef PARALLEL
+integer, parameter :: MpiDetInt=MPI_INTEGER8
+#endif
+
+#else
+
+! Kind parameter for 32-bit integers.
+integer, parameter :: n_int=selected_int_kind(8)
+
+! MPI integer kind associated with n_int.
+#ifdef PARALLEL
+integer, parameter :: MpiDetInt=MPI_INTEGER
+#endif
+
+#endif
+
+! Number of bits in an n_int integer.
+integer, parameter :: bits_n_int = bit_size(int(0,n_int))
+! Number of bytes in an n_int integer.
+integer, parameter :: size_n_int = bits_n_int/8
+! Index of last bit in an n_int integer (bits are indexed 0,1,...,bits_n_int-1).
+integer, parameter :: end_n_int = bits_n_int - 1
+
+#ifndef PARALLEL
+! This should not be used in serial.  Set to a nonsense value.
+integer, parameter :: MpiDetInt=-1
 #endif
 
 end module constants

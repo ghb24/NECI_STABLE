@@ -36,12 +36,14 @@ integer :: iPopsFileNoRead, iPopsFileNoWrite,iWeightPopRead,iRestartWalkNum
 
 REAL*8 :: g_MultiWeight(0:10),G_VMC_PI,G_VMC_FAC,BETAEQ
 REAL*8 :: G_VMC_EXCITWEIGHT(10),G_VMC_EXCITWEIGHTS(6,10)
-REAL*8 :: BETAP,RHOEPSILON,DBETA(3),STARCONV,GraphBias
+REAL*8 :: BETAP,RHOEPSILON,DBETA,STARCONV,GraphBias
 REAL*8 :: GrowGraphsExpo,DiagSft,Tau,SftDamp,ScaleWalkers
 REAL*8 :: GrowMaxFactor,CullFactor,PRet,FracLargerDet
 REAL*8 :: MemoryFacPart,MemoryFacAnnihil
 REAL*8 :: MemoryFacSpawn,SinglesBias,TauFactor,StepsSftImag
 
+REAL*8 :: GraphEpsilon
+REAL*8 :: PGenEpsilon
 
 
 !// additional from NECI.F
