@@ -952,18 +952,19 @@ END MODULE DetCalc
          HElement_t UMat(*)
          real(dp) DLWDB, DLWDB2, DLWDB3, DLWDB4
          TYPE(BasisFN) g1(*)
-         REAL*8 ALAT(*)
+         REAL*8 ALAT(3)
          LOGICAL TSYM
          REAL*8 BETA,RHOEPS
          COMPLEX*16 FCK(*)
 
          
-         INTEGER, ALLOCATABLE :: LSTE(:),ICE(:)
-         REAL*8 , ALLOCATABLE :: RIJLIST(:,:)
+         INTEGER, ALLOCATABLE :: LSTE(:,:,:),ICE(:,:)
+         HElement_t , ALLOCATABLE :: RIJLIST(:,:)
          INTEGER,SAVE :: RIJLISTTag=0,LSTEtag=0,ICEtag=0
          INTEGER NPATHS,ierr
          INTEGER III,NWHTAY(3,I_VMAX),I,IMAX,ILMAX
-         REAL*8 WLRI,WLSI,ECORE,DBETA,WLRI1,WLRI2,WLSI1,WLSI2,WI
+         real(dp) WLRI,WLSI
+         REAL*8 ECORE,DBETA,WLRI1,WLRI2,WLSI1,WLSI2,WI
          REAL*8 TOT, NORM,WLRI0,WLSI0,WINORM
          LOGICAL TNPDERIV
          INTEGER DETINV
@@ -981,11 +982,11 @@ END MODULE DetCalc
 !.. we don't need lists for I_HMAX=8
          IF((I_HMAX.GE.-10.AND.I_HMAX.LE.-7)      .OR.I_HMAX.LE.-12) ILMAX=1
 !         ILMAX=(NBASIS-NEL)**2*NEL*NEL/4
-         ALLOCATE(LSTE((1+ILMAX)*NEL*IMAX),stat=ierr)
+         ALLOCATE(LSTE(NEL,0:ILMAX,0:IMAX),stat=ierr)
          call LogMemAlloc('LSTE',size(LSTE),4,this_routine,LSTEtag,ierr)
-         ALLOCATE(ICE((ILMAX+1)*IMAX),stat=ierr)
+         ALLOCATE(ICE(0:ILMAX,0:IMAX),stat=ierr)
          call LogMemAlloc('ICE',size(ICE),4,this_routine,ICEtag,ierr)
-         ALLOCATE(RIJLIST(0:ILMAX,IMAX*2),stat=ierr)
+         ALLOCATE(RIJLIST(0:ILMAX,0:IMAX*2),stat=ierr)
          CALL LogMemAlloc('RIJLIST',(1+ILMAX)*IMAX*2,8,this_routine,RIJLISTTag,ierr)
          IF(I_VMAX.NE.0) THEN
             WRITE(6,*) "Using Vertex approximation.  I_VMAX=",I_VMAX
