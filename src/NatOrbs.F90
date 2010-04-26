@@ -583,6 +583,7 @@ MODULE NatOrbsMod
 ! Ref : J. Chem. Phys. 131, 034113 (2009) - note: in Eqn 1, the cb indices are the wrong way round (should be bc).
         USE Integrals , only : GetUMatEl
         USE SystemData , only : tUEG
+        use constants, only: dp
         INTEGER :: a,b,c,i,j,a2,b2,c2,i2,j2,x,y,z,w
         INTEGER :: Startab,Endab,NoOcc,NoOccC,Startc,Endc,Starti,Endi,Startj,Endj
         REAL*8 :: MP2VDMSum

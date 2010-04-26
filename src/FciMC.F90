@@ -15,7 +15,7 @@ USE Logging , only : iWritePopsEvery,TPopsFile,TZeroProjE,TWriteDetE,MaxHistE,No
 use constants, only: dp
 use DetBitOps, only: EncodeBitDet
 use constants, only: dp
-use FciMCData, only: ExcitGenerator
+use FciMCData, only: ExcitGenerator, HFExcit
 use sort_mod
 IMPLICIT NONE
 SAVE
@@ -38,7 +38,6 @@ TYPE(ExcitGenerator) , POINTER :: CurrentExcits(:), NewExcits(:)
 
 INTEGER , ALLOCATABLE :: HFDet(:)       !This will store the HF determinant
 INTEGER :: HFDetTag=0
-TYPE(ExcitGenerator) :: HFExcit         !This is the excitation generator for the HF determinant
 
 INTEGER :: Seed,MaxWalkers,TotWalkers,TotWalkersOld,TotSign,TotSignOld,PreviousNMCyc,Iter,NoComps
 INTEGER :: exFlag=3

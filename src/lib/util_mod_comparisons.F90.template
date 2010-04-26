@@ -10,9 +10,6 @@ type = real(kind=sp)
 [doub]
 type = real(kind=dp)
 
-[helem]
-type = type(helement)
-
 [sym]
 type = type(Symmetry)
 

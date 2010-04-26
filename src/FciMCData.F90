@@ -188,15 +188,6 @@ MODULE FciMCData
       INTEGER , POINTER :: NewSign(:)
       REAL*8 , POINTER :: NewH(:)
 
-      type(ExcitGenerator) :: HFExcit         !This is the excitation generator for the HF determinant
-      integer(int64) :: HFHash               !This is the hash for the HF determinant
-!This is information needed by the thermostating, so that the correct change in walker number can be calculated, and hence the correct shift change.
-!NoCulls is the number of culls in a given shift update cycle for each variable
-      INTEGER :: NoCulls=0
-!CullInfo is the number of walkers before and after the cull (elements 1&2), and the third element is the previous number of steps before this cull...
-!Only 10 culls/growth increases are allowed in a given shift cycle
-      INTEGER :: CullInfo(10,3)
-
       ! Only used in FciMC, but put here to allow access to a data module for
       ! the sorting routines etc.
       type excitGenerator
@@ -206,6 +197,15 @@ MODULE FciMCData
                                                ! stored corresponds to the
                                                ! determinant.
       end type
+
+      type(ExcitGenerator) :: HFExcit         !This is the excitation generator for the HF determinant
+      integer(int64) :: HFHash               !This is the hash for the HF determinant
+!This is information needed by the thermostating, so that the correct change in walker number can be calculated, and hence the correct shift change.
+!NoCulls is the number of culls in a given shift update cycle for each variable
+      INTEGER :: NoCulls=0
+!CullInfo is the number of walkers before and after the cull (elements 1&2), and the third element is the previous number of steps before this cull...
+!Only 10 culls/growth increases are allowed in a given shift cycle
+      INTEGER :: CullInfo(10,3)
 
       interface assignment(=)
           module procedure excitgenerator_assign

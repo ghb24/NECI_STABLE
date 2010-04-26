@@ -732,6 +732,7 @@ C.. Generate initial density matrix, as well as a guess at the HF DET
          use SystemData, only: BasisFN
          use Determinants, only: write_det
          use sort_mod
+         use constants, only: dp
          IMPLICIT NONE
          INTEGER NSPINS,NSBASIS
          HElement_t FMAT(NSBASIS,NSBASIS,NSPINS)

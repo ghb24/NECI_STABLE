@@ -955,7 +955,7 @@ MODULE AnnihilationMod
     SUBROUTINE AnnihilateBetweenSpawned(ValidSpawned)
         use DetBitOps, only: DecodeBitDet
         use CalcData, only: tReadPops,tAnnihilatebyRange
-        integer(int64), allocatable :: HashArray1(:), HashArry2(:), HashArrayTmp(:)
+        integer(int64), allocatable :: HashArray1(:), HashArray2(:), HashArrayTmp(:)
         INTEGER , ALLOCATABLE :: IndexTable1(:),IndexTable2(:),ProcessVec1(:),ProcessVec2(:),TempSign(:)
         INTEGER :: i,j,k,ToAnnihilateIndex,ValidSpawned,ierr,error,sendcounts(nProcessors)
         INTEGER :: TotWalkersDet,InitialBlockIndex,FinalBlockIndex,ToAnnihilateOnProc,VecSlot

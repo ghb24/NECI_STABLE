@@ -8,14 +8,8 @@ module util_mod
 
     public :: swap, arr_lt, arr_gt, operator(.arrlt.), operator(.arrgt.)
     public :: factrl, choose, int_fmt, binary_search
-    public :: append_ext, get_unique_filename
+    public :: append_ext, get_unique_filename, get_nan, isnan
     
-    ! An elemental routine to swap specified data.
-    interface swap
-        module procedure swap_int
-        module procedure swap_doub
-    end interface
-
 contains
 
     elemental real*8 function factrl (n)

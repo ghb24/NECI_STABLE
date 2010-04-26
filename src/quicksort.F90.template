@@ -66,9 +66,6 @@ type2 = integer(kind=int32), dimension(:)
 [int_arr_doub]
 type2 = real*8, dimension(:)
 
-[int_arr_helem]
-type2 = type(helement), dimension(:)
-
 [doub_int]
 type1 = real*8
 type2 = integer(kind=int32)
@@ -139,11 +136,6 @@ op_lt = <
 [int_arr_int_doub]
 type2 = integer(kind=int32), dimension(:)
 type3 = real(kind=dp)
-
-[hel_hel_hel]
-type1 = type(helement)
-type2 = type(helement)
-type3 = type(helement)
 
 [doub_doub_doub]
 type1 = real(kind=dp)
@@ -218,7 +210,6 @@ extra_arrs = arr2, arr3, arr4, arr5, arr6,
 module sort_mod
     use util_mod, only: operator(.arrlt.), operator(.arrgt.)
 	use constants
-    use helem
 	use SystemData, only: Symmetry, operator(.eq.), operator(.ne.), &
 	                      operator(.gt.), operator(.lt.), assignment(=)
 	use symdata, only: SymPairProd, operator(.eq.), operator(.ne.), &

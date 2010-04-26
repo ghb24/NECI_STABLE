@@ -2078,6 +2078,7 @@ end module mcpaths
 !C.. star matrix read in from STARDATA
       SUBROUTINE READSTARDIAG(NROOTS1,I_P,RII,HII,SI,DLWDB)
          use global_utilities
+         use sort_mod
          IMPLICIT NONE
          INTEGER NROOTS,I_P,NROOTS1
          REAL*8 SI,DLWDB,RII,HII

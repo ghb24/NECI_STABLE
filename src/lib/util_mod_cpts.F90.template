@@ -19,9 +19,6 @@ type = complex*8
 [cplx_doub]
 type = complex*16
 
-[helem]
-type = type(helement)
-
 [sym]
 type = type(Symmetry)
 

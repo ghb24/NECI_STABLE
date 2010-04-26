@@ -18,6 +18,7 @@ MODULE HFCalc
       Use OneEInts, only: TMat2D, SetupTMat2, DestroyTMat
       use sort_mod
       use shared_alloc, only: shared_allocate, shared_deallocate
+      use HElem, only: helement_t_size, helement_t_sizeb
       character(25), parameter :: this_routine='HFDoCalc'
       HElement_t,ALLOCATABLE :: HFBASIS(:),HFE(:)
       HElement_t,pointer :: UMat2(:)

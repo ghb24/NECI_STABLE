@@ -88,36 +88,6 @@ elem1 = 1,1,1,1,1,1
 dim = :,:,:,:,:,:,:
 elem1 = 1,1,1,1,1,1,1
 
-[helem1]
-type = type(helement)
-sizeof = sizeof_helement
-dim = :
-elem1 = 1
-
-[helem2]
-dim = :,:
-elem1 = 1,1
-
-[helem3]
-dim = :,:,:
-elem1 = 1,1,1
-
-[helem4]
-dim = :,:,:,:
-elem1 = 1,1,1,1
-
-[helem5]
-dim = :,:,:,:,:
-elem1 = 1,1,1,1,1
-
-[helem6]
-dim = :,:,:,:,:,:
-elem1 = 1,1,1,1,1,1
-
-[helem7]
-dim = :,:,:,:,:,:,:
-elem1 = 1,1,1,1,1,1,1
-
 
 =========================
 

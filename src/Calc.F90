@@ -1931,15 +1931,15 @@ MODULE Calc
          INTEGER BRR(*),NMSH,NMAX,NHG
          COMPLEX*16 FCK(*)
          REAL*8 RHOEPSILON,BETA,ECORE,ALAT(*)
-         HElement_t BP,UMat(*)
+         HElement_t BP, UMat(*), tmp
          TYPE(BasisFN) G1(*)
          DO I=1,NEL
             NI(I)=BRR(I)
          ENDDO
          call sort (nI)
-         BP=HElement(-BETA/I_P)
-         GETRHOEPS=DSQRT(SQ(HElement(RHOEPSILON) * &
-                        EXP(BP*get_helement(nI, nI, 0))))
+         BP=-BETA/I_P
+         tmp = RHOEPSILON * exp(BP*get_helement(nI, nI, 0))
+         GETRHOEPS = sqrt(tmp * tmp)
          RETURN
       END FUNCTION GetRhoEps
 

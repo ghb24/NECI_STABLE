@@ -12,10 +12,6 @@ module Integrals
     use IntegralsData
     use shared_alloc, only: shared_allocate, shared_deallocate
     use global_utilities
-
-    IMPLICIT NONE
-
-    contains
     use gen_coul_ueg_mod, only: gen_coul_hubnpbc, get_ueg_umat_el, &
                                 get_hub_umat_el
     use HElem, only: HElement_t_size, HElement_t_sizeB

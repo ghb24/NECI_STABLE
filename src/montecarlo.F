@@ -146,6 +146,7 @@ C.. gen a new det from this one in a generic spatial basis.
 C.. We do this by exciting an electron into a spinorbital of close energy.
 C.. This does not take into account any symmetries.
       SUBROUTINE GENNEWDET3(NI,NJ,NEL,NBASIS,NBASISMAX,G1,ISEED,NCH,BRR)
+        use sort_mod
          IMPLICIT NONE
          INTEGER nBasisMax(5,*),NI(NEL),NJ(NEL),NQN(5),G1(*)
          INTEGER NCH,ND,BRR(NBASIS),NBASIS,NEL,ISEED
@@ -189,7 +190,7 @@ C.. make sure the new basis fn isn't already in the det.  if so, go round again
             IF(.NOT.L) THEN
                ND=ND-1
                NJ(IEL)=IT
-               CALL NECI_SORTI(NEL,NJ)
+               call sort(nJ(1:nel))
 C.. if we've more electrons to change, we go round again
                IF(ND.GT.0) L=.TRUE.
             ENDIF

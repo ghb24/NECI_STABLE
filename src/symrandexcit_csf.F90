@@ -18,7 +18,6 @@ module GenRandSymExcitCSF
                          shift_det_bit_singles_to_beta, count_open_orbs
     use Determinants, only: write_det
     use Parallel
-    use util_mod, only: int_arr_eq
     use constants, only: n_int, bits_n_int
     implicit none
 
