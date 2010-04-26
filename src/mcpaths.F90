@@ -70,7 +70,7 @@ module mcpaths
          INTEGER LSTE(*),ILMAX
 !CNEL,0:NBASIS*NBASIS*NEL*NEL,0:I_VMAX-1)
          INTEGER ICE(*)
-         HElement_t RIJLIST(*)
+         HElement_t RIJLIST(:,:)
 !C0:NBASIS*NBASIS*NEL*NEL,0:I_VMAX-1)
          INTEGER NLIST(0:I_VMAX-1),LSTP(0:I_VMAX-1),BTABLE(0:I_VMAX)
          LOGICAL TLOG,TSYM
@@ -490,10 +490,11 @@ module mcpaths
          real(dp) RHOII(0:I_VMAX),TOTAL,FLNSUM,FLNRII
          REAL*8 ALAT(3),RHOEPS
          INTEGER nBasisMax(5,*)
-         INTEGER LSTE(*),ILMAX
+         INTEGER, allocatable :: LSTE(:,:,:)
+         INTEGER ILMAX
 !CNEL,0:NBASIS*NBASIS*NEL*NEL,0:I_VMAX-1)
-         INTEGER ICE(*)
-         HElement_t RIJLIST(*)
+         INTEGER, allocatable :: ICE(:,:)
+         HElement_t RIJLIST(:,:)
 !C0:NBASIS*NBASIS*NEL*NEL,0:I_VMAX-1)
          INTEGER NLIST(0:I_VMAX-1),LSTP(0:I_VMAX-1),BTABLE(0:I_VMAX)
          LOGICAL TLOG,TSYM
@@ -1758,7 +1759,7 @@ end module mcpaths
          INTEGER LSTE(NEL,0:ILMAX,0:I_V-1),NI(NEL)
          INTEGER LSTP(0:I_V),LSTP2(0:I_V),NLIST(0:I_V)
          INTEGER ICE(0:ILMAX,0:I_V-1)
-         REAL*8 RIJLIST(0:ILMAX,0:I_V-1)
+         HElement_t RIJLIST(0:ILMAX,0:I_V-1)
          INTEGER IVLEVEL,I_HMAX,IC,BTABLE(0:I_V)
          REAL*8 RH,BETA,RHOEPS
          LOGICAL LSAME,TSYM

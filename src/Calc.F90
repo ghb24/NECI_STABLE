@@ -1762,17 +1762,17 @@ MODULE Calc
          use mcpaths, only: mcpathsr3
          IMPLICIT NONE
          INTEGER I_HMAX,NEL,NBASIS,I_VMAX
-         INTEGER,ALLOCATABLE :: LSTE(:) !(NEL,NBASIS*NBASIS*NEL*NEL,0:I_VMAX-1)??!!
-         INTEGER,ALLOCATABLE :: ICE(:)  !(NBASIS*NBASIS*NEL*NEL,0:I_VMAX-1)??!!
+         INTEGER,ALLOCATABLE :: LSTE(:,:,:) !(NEL,NBASIS*NBASIS*NEL*NEL,0:I_VMAX-1)??!!
+         INTEGER,ALLOCATABLE :: ICE(:,:)  !(NBASIS*NBASIS*NEL*NEL,0:I_VMAX-1)??!!
          HElement_t  UMAT(*)
-         HElement_t,allocatable  :: RIJLIST(:)
+         HElement_t,allocatable  :: RIJLIST(:,:)
          integer,save :: tagRIJList=0,tagLSTE=0,tagICE=0
-         REAL*8 BETA,ALAT(*),RHOEPS
+         REAL*8 BETA,ALAT(3),RHOEPS
          COMPLEX*16 FCK(*)
          INTEGER NPATHS,NI(NEL),I_P,nBasisMax(5,*)
          INTEGER Work(GNDWorkSize+2*NEL)
-         TYPE(BASISFN) G1(NBASIS)
-         INTEGER BRR(NBASIS),NMSH,NMAX,NTAY(2),ILOGGING
+         TYPE(BASISFN) G1(*)
+         INTEGER BRR(*),NMSH,NMAX,NTAY(2),ILOGGING
          INTEGER III,NWHTAY(3,I_VMAX),I,IMAX,ILMAX,LMS
          TYPE(BasisFN) ISYM,SymRestrict
          LOGICAL TSPN,TPARITY,TSYM
@@ -1803,11 +1803,11 @@ MODULE Calc
 !.. We don't need to store lists for I_HMAX=-8
          ILMAX=(NBASIS-NEL)**2*NEL*NEL/4
          IF((I_HMAX.GE.-10.AND.I_HMAX.LE.-7).OR.I_HMAX.LE.-12) ILMAX=1
-         allocate(LSTE((1+ILMAX)*NEL*IMAX))
+         allocate(LSTE(NEL,0:ILMAX,0:IMAX))
          call LogMemAlloc('LSTE',size(LSTE),4/IRAT,thisroutine,tagLSTE)
-         allocate(ICE((1+ILMAX)*IMAX))
+         allocate(ICE(0:ILMAX,0:IMAX))
          call LogMemAlloc('ICE',size(ICE),4/IRAT,thisroutine,tagICE)
-         allocate(RIJList((1+ILMAX)*IMAX*2))
+         allocate(RIJList(0:ILMAX,0:IMAX*2))
          call LogMemAlloc('RIJList',(1+ILMAX)*IMAX*2,8,thisroutine, tagRIJList)
 !:         CALL PRINT_MEMORY()
          IF(I_VMAX.NE.0) THEN

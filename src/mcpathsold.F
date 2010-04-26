@@ -357,7 +357,7 @@ C,, I_I as the ultimate node
 
 C.. Randomly walk through paths length I_P in CI space. v inefficient (5/11/03)
 C.. (Requires whole rho matrix)
-      SUBROUTINE MCPATHS(I_I,I_P,NDET,RHOIJROWS,RHOIJ,RHOIJLAB,
+      SUBROUTINE MCPATHS0(I_I,I_P,NDET,RHOIJROWS,RHOIJ,RHOIJLAB,
      &               NRHOMAXWIDTH)
          use global_utilities
          IMPLICIT REAL*8 (A-H,O-Z)
@@ -371,7 +371,7 @@ C.. (Requires whole rho matrix)
          REAL*8 RAN2
          REAL(KIND=4) :: SecondSeed=0.0
          type(timer), save :: proc_timer
-         proc_timer%timer_name='MCPATHS   '
+         proc_timer%timer_name='MCPATHS0  '
          call set_timer(proc_timer)
 C.. Randomize the seed:
          ISEED=INT(SECNDS(SecondSeed))
