@@ -48,27 +48,31 @@ module mcpathshdiag
          REAL*8 ALAT(*),ECORE
          real(dp) TOTAL,FMCPR3B2RES,Prob
          real(dp) CALCPATHS_N
-         INTEGER IPATH(NEL,0:I_V),DUMMY(0:I_V)
-         HElement_t HIJ(0:I_V,0:I_V),RH
+         INTEGER IPATH(NEL,0:I_V)
+         real(dp) RHOII(0:I_V)
          real(dp) DLWDB,DLWDB2,EREF,WREF
+         HElement_t HIJ(0:I_V,0:I_V),RH
          INTEGER INODE(NEL)
          INTEGER NI(NEL),NJ(NEL)
          INTEGER I_HMAX
          REAL*8 BETA,RHOEPS
-         LOGICAL TSYM,T
+         LOGICAL TSYM
          LOGICAL TLOG,TLOG2,TLOG3,TLOG4,TLOG5,TLOG6
          REAL*8 DBETA
          HElement_t HIJS(0:I_V)
          INTEGER ICLS
-         INTEGER, pointer :: NMEM(:),OGEN(:),CURGEN(:)
+         INTEGER,pointer :: NMEM(:)
 
          INTEGER NMEMLEN
-         LOGICAL TFAIL,TNEXT
+         INTEGER, pointer :: OGEN(:)
+         INTEGER, pointer :: CURGEN(:)
          TYPE(EGP) LOCTAB(:)
          TYPE(EGP) LOCTAB2(I_VIND+1)
+         LOGICAL TFAIL,TNEXT,T
          INTEGER L,LT,IVLEVEL,IEXFROM,IVLMAX,IVLMIN
          INTEGER ICMPDETS
          INTEGER IC
+         INTEGER DUMMY(0:I_V)
          INTEGER IFRZ(0:NBASIS,I_V),IFRZ2(0:NBASIS)
          INTEGER EX(2,2),ICIL,ICILMAX
          INTEGER STORE(6)
@@ -76,14 +80,13 @@ module mcpathshdiag
          real(dp) MP2E(2:i_VMax),MPEs(2:i_VMax),NTOTAL,MPEn
          INTEGER EXFLAG
 
-         REAL*8 GETHELEMENT
-         REAL*8 BETADATA(0:1)
          LOGICAL ISCONNECTEDDET
          REAL*8 VARSUM,SumX,SumY,SumXY,SumXsq,SumYsq,SumP
          DATA SumP/0.D0/
          SAVE SumX,SumY,SumXY,SumXsq,SumYsq,SumP
 
          integer iGetExcitLevel
+         RHOII(:)=0
             
             SELECT CASE (IAND(NWHTAY,24))
             CASE(0)
@@ -107,15 +110,15 @@ module mcpathshdiag
                IFRZ(0,1)=0
             ENDIF
          ENDIF
-         IFRZ2(0:(NBASIS)) =0
-         CALL NECI_ICOPY(NBASIS+1,IFRZ(0,I_VIND+1),1,IFRZ2,1) 
+         IFRZ2(0:NBASIS) =0
+         CALL NECI_ICOPY(NBASIS+1,IFRZ(0,I_VIND+1),1,IFRZ2,1)
          
 !C            DO I=0,NBASIS
 !C               WRITE(10,"(I2)",advance='no'),IFRZ2(I)
 !C            ENDDO
 !C         WRITE(10,*) "V_",I_VIND
-!C.. LOCTAB(1,1) is the address of the generator used to create node 1 in
-!C.. the path (i.e. J).  LOCTAB(1,2) is the length of the generator (i.e. 
+!C.. LOCTAB(1)%p is the address of the generator used to create node 1 in
+!C.. the path (i.e. J).  LOCTAB(1)%l is the length of the generator (i.e. 
 !C.. the amount of memory used to store it)
          TLOG=BTEST(ILOGGING,0)
          TLOG6=BTEST(ILOGGING,2)
@@ -149,11 +152,10 @@ module mcpathshdiag
             IF(TLOG2) CALL WRITERHOMAT(10,HIJ,I_V,NEL,.TRUE.)
 !C.. 
             ICLS=0
-!C.. Store beta in RHOII(1) (calling it BETADATA)
-            BETADATA(0)=0.D0
-            BETADATA(1)=BETA
+            RHOII(0)=0
+            RHOII(1)=BETA
             TOTAL=TOTAL+                                                &
-     &         CALCPATHS_N(IPATH,BETADATA,HIJ,I_V,I_HMAX,               &
+     &         CALCPATHS_N(IPATH,RHOII,HIJ,I_V,I_HMAX,               &
      &         I_P,FSCALE,NEL,I_VMAX,ILOGGING,DBETA,DLWDB2,HIJS,ICLS)
             NTOTAL=NTOTAL+TOTAL
 !C.. Sum up the components of <D|H exp(-b H)|D>
