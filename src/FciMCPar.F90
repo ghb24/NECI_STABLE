@@ -1058,7 +1058,13 @@ MODULE FciMCParMod
                     
 !Now, the root processor contains information about the highest populated determinant, and the processor which is it held on.
             IF(((INT(FracLargerDet*REAL(AllNoatHF,dp))).lt.HighPopout(1)).and.(AllTotParts.gt.10000)) THEN
-                IF(iProcIndex.eq.Root) WRITE(6,"(A,2I10)") "Highest weighted determinant not reference det: ",HighPopout(1),AllNoatHF
+                IF(iProcIndex.eq.Root) THEN
+                    IF(tHPHF) THEN
+                        WRITE(6,"(A,2I10)") "Highest weighted CLOSED-SHELL determinant not reference det: ",HighPopout(1),AllNoatHF
+                    ELSE
+                        WRITE(6,"(A,2I10)") "Highest weighted determinant not reference det: ",HighPopout(1),AllNoatHF
+                    ENDIF
+                ENDIF
 !                WRITE(6,"(A,4I12)") "Highest weighted determinant not reference det: ",iter,HighPopout(2),HighPopout(1),AllNoatHF
 !                CALL WriteBitDet(6,HighestPopDet,.true.)
 !                WRITE(6,*) iHighestPop
