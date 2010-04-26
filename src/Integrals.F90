@@ -1701,6 +1701,7 @@ contains
 
 
     FUNCTION GetUMatEl(NBASISMAX,UMATstore,ALAT,NHG,ISS,G1,IDI,IDJ,IDK,IDL)
+        use systemdata, only: basisfn
       ! Get a U matrix element <ij|u|kl> in multifarious ways, where orbitals
       ! are spatial orbitals.  Either from a passed-in UMAT, or ALAT parameters
       ! (Hubbard, UEG, particle in a box), or from UMatcache (CPMD, DF).
@@ -1712,230 +1713,19 @@ contains
       !    NHG: # basis functions.`
       !    G1: symmetry and momentum information on the basis functions.
       !    IDI,IDJ,IDK,IDL: indices for integral.
-      use SystemData, only: Symmetry,BasisFN,tVASP,tRIIntegrals,tCacheFCIDUMPInts,tStoreSpinOrbs,tFixLz
-      use SystemData, only: iPeriodicDampingType
-      use UMatCache
-      use vasp_neci_interface, only: CONSTRUCT_IJAB_one
-      IMPLICIT NONE
+
+      ! This function only exists for backward compatibility, and acts as
+      ! another layer of wrapper
+      ! --> For Speed call the get_umat_el function directly.
+
       HElement_t GetUMatEl
-      INTEGER nBasisMax(5,*),I,J,K,L,NHG,ISS
+      INTEGER nBasisMax(5,*),NHG,ISS
       TYPE(BasisFN) G1(NHG)
       REAL*8 ALAT(3)
       HElement_t UMATstore(*)
-      HElement_t UElems(0:nTypes-1)
-      complex*16 vasp_int(1,0:1)
-      INTEGER A,B,C,XXX
       INTEGER IDI,IDJ,IDK,IDL
-      REAL*8 tot
-!      real*8, PARAMETER :: PI=3.14159265358979323846264338327950288419716939937510D0
-      INTEGER ICACHE,ICACHEI,ITYPE
-      LOGICAL LSYMSYM
-      TYPE(Symmetry) SYM,SYMPROD,SYMCONJ
-      Type(Symmetry) TotSymRep
-      logical calc2ints
-!   IF NBASISMAX(1,3) is less than zero, we directly give the integral.
-!   Otherwise we just look it up in umat
-!      WRITE(6,*) "INT",IDI,IDJ,IDK,IDL
-!      WRITE(6,*) NBASISMAX(2,3),ISS,tUMat2D
 
-      IF(tFixLz) THEN
-!If we are fixing Lz, then <ij|kl>!=<kj|il> necessarily, since we have complex orbitals (though real integrals) and 
-!want to ensure that we conserve momentum, i.e. momentum of bra = mom of ket
-          IF(tStoreSpinOrbs) THEN
-              IF((G1(IDI)%Ml+G1(IDJ)%Ml).ne.(G1(IDK)%Ml+G1(IDL)%Ml)) THEN
-                  GetUMatEl=(0.D0)
-                  RETURN
-              ENDIF
-          ELSE
-              IF((G1(2*IDI)%Ml+G1(2*IDJ)%Ml).ne.(G1(2*IDK)%Ml+G1(2*IDL)%Ml)) THEN
-                  GetUMatEl=(0.D0)
-                  RETURN
-              ENDIF
-          ENDIF
-      ENDIF
-
-      IF(NBASISMAX(1,3).GE.0) THEN
-!   See if we need to calculate on the fly
-         IF(ISS.EQ.0) THEN
-
-!  JSS - store <ij|ij> and <ij|ji> in UMAT2D.
-!   Remember permutations.  
-!   <ij|ji> = <ii|jj>
-
-!.. Complex case is more difficult.
-
-!  <ii|ii> is always real and allowed
-!  <ij|ij> is always real and allowed (densities i*i and j*j)
-!  <ij|ji> is always real and allowed (codensities i*j and j*i = (i*j)*)
-!  <ii|jj> is not stored in UMAT2D, and may not be allowed by symmetry.  It can be complex.
-!  If orbitals are real, we substitute <ij|ij> for <ii|jj>
-            IF (IDI.eq.IDJ.and.IDI.eq.IDK.and.IDI.eq.IDL.AND.TUMAT2D) THEN
-!    <ii|ii>
-               GETUMATEL=UMAT2D(IDI,IDI)
-            ELSE IF (IDI.eq.IDK.and.IDJ.eq.IDL.AND.TUMAT2D) THEN
-!   <ij|ij>
-               I=MIN(IDI,IDJ)
-               J=MAX(IDI,IDJ)
-               GETUMATEL=UMAT2D(I,J)
-            ELSE IF (IDI.eq.IDL.and.IDJ.eq.IDK.AND.TUMAT2D) THEN
-!   <ij|ji>
-               I=MAX(IDI,IDJ)
-               J=MIN(IDI,IDJ)
-               GETUMATEL=UMAT2D(I,J)
-            ELSE IF ((tCacheFCIDUMPInts.or.tRIIntegrals).and.IDI.eq.IDJ.and.IDK.eq.IDL.AND.TUMAT2D.AND.HElement_t_size.EQ.1) THEN
-!   <ii|jj> = <ij|ji> Only for real systems (and not for the local exchange
-!   scheme.)
-              I=MAX(IDI,IDK)
-              J=MIN(IDI,IDK)
-              GETUMATEL=UMAT2D(I,J)
-            ELSE
-!   Check to see if the umat element is in the cache
-               I=IDI
-               J=IDJ
-               K=IDK
-               L=IDL
-               SYM=TotSymRep()
-               IF(tStoreSpinOrbs) THEN
-!UHF/ROHF (but not explicit ROHF in input) calculation - integrals stored as spin-orbitals already...
-!Also assume real orbitals, since this can only be done by tCacheFCIDUMPInts
-                   SYM=SYMPROD(SYM,G1(I)%Sym)
-                   SYM=SYMPROD(SYM,G1(J)%Sym)
-                   SYM=SYMPROD(SYM,G1(K)%Sym)
-                   SYM=SYMPROD(SYM,G1(L)%Sym)
-               ELSE
-                   SYM=SYMPROD(SYM,SYMCONJ(G1(I*2-1)%Sym))
-                   SYM=SYMPROD(SYM,SYMCONJ(G1(J*2-1)%Sym))
-                   SYM=SYMPROD(SYM,G1(K*2-1)%Sym)
-                   SYM=SYMPROD(SYM,G1(L*2-1)%Sym)
-               ENDIF
-!               WRITE(6,*) SYM
-!   Check the symmetry of the 4-index integrals
-               IF(.NOT.LSYMSYM(SYM)) THEN
-                   GETUMATEL=0.D0
-                   RETURN
-               ELSE
-             
-!First check whether we can reduce a set of k-points to a simpler symmetry related one
-                  If(HasKPoints()) THEN
-                     IF(TTRANSFINDX) THEN
-                        I=TransTable(I)
-                        J=TransTable(J)
-                        K=TransTable(K)
-                        L=TransTable(L)
-                     ENDIF
-                     ! As we're not looping over i,j,k,l, it's safe to return the
-                     ! k-pnt related labels in the same variables.
-                     call KPntSymInt(I,J,K,L,I,J,K,L)
-                     IF(TTRANSFINDX) THEN
-                        I=InvTransTable(I)
-                        J=InvTransTable(J)
-                        K=InvTransTable(K)
-                        L=InvTransTable(L)
-                     ENDIF
-                  ENDIF
-!   This will rearrange I,J,K,L into the correct order
-!   (i,k)<=(j,l) and i<=k, j<=l.
-                  IF(GETCACHEDUMATEL(I,J,K,L,GETUMATEL,ICACHE,ICACHEI,A,B,ITYPE)) THEN
-!                     WRITE(6,*) "Not Cached"
-!   We don't have a stored UMAT - we call to generate it.
-                     IF(tDFInts.or.tRIIntegrals) THEN
-!   We're using density fitting
-                        Call GetDF2EInt(I,J,K,L,UElems)
-                        GetUMatEl=UElems(0)
-                     ELSEIF(tCacheFCIDUMPInts) THEN
-                        GetUMatEl=(0.D0)
-                     ELSE IF (tVASP) then
-                        IF(TTRANSFINDX) THEN
-                           CALL CONSTRUCT_IJAB_one(TRANSTABLE(I),TRANSTABLE(J),TRANSTABLE(K),TRANSTABLE(L),vasp_int(1,0))
-                           CALL CONSTRUCT_IJAB_one(TRANSTABLE(I),TRANSTABLE(L),TRANSTABLE(K),TRANSTABLE(J),vasp_int(1,1))
-                        ELSE
-                           CALL CONSTRUCT_IJAB_one(I,J,K,L,vasp_int(1,0))
-                           CALL CONSTRUCT_IJAB_one(I,L,K,J,vasp_int(1,1))
-                        END IF
-                        UElems(0)=(vasp_int(1,0))
-                        UElems(1)=(vasp_int(1,1))
-                        GetUMatEl=UElems(0)
-!  Bit 0 tells us which integral in the slot we need
-                        GETUMATEL=UElems(IAND(ITYPE,1))
-!  Bit 1 tells us whether we need to complex conj the integral
-#ifdef __CMPLX
-                        IF(BTEST(ITYPE,1)) GETUMATEL=DCONJG(GETUMATEL)
-#endif
-                     ELSE
-!   Otherwise we call CPMD
-!   Only need <IJ|KL> if we're doing a 2-vertex calculation unless the integral
-!   is for a single excitation, in which case we need <IL|JK> as well.
-                        calc2ints=gen2CPMDInts.or.(IDI.eq.IDJ.or.IDI.eq.IDK.or.IDI.eq.IDL.or.IDJ.eq.IDK.or.IDJ.eq.IDL)
-                        IF(TTRANSFINDX) THEN
-                           CALL INITFINDXI(TRANSTABLE(I),TRANSTABLE(J),TRANSTABLE(K),TRANSTABLE(L),UElems,calc2ints)
-                        ELSE
-                           CALL INITFINDXI(I,J,K,L,UElems,calc2ints)
-!InitFindxI returns up to two integrals in UElems
-!  <ij|u|kl> and <kj|u|il> (which are distinct when complex orbitals are used).
-!  TYPE 0          TYPE 1
-
-                        ENDIF
-!  Bit 0 tells us which integral in the slot we need
-                        GETUMATEL=UElems(IAND(ITYPE,1))
-!  Bit 1 tells us whether we need to complex conj the integral
-#ifdef __CMPLX
-                        IF(BTEST(ITYPE,1)) GETUMATEL=DCONJG(GETUMATEL)
-#endif
-                     ENDIF
-!                     WRITE(6,*) "Caching",UElems
-!  Because we've asked for the integral in the form to be stored, we store as iType=0
-                     IF((ICACHE.NE.0).and.(.not.tCacheFCIDUMPInts)) CALL CACHEUMATEL(A,B,UElems,ICACHE,ICACHEI,0)
-                     NMISSES=NMISSES+1
-                  ELSE
-                     NHITS=NHITS+1
-                  ENDIF
-               ENDIF
-            ENDIF
-
-         ELSEIF(ISS.EQ.-1) THEN
-
-!  A  non-stored hubbard integral.
-            GetUMatEl = get_hub_umat_el (idi, idj, idk, idl)
-
-         ELSE
-            IF(TSTARSTORE) THEN
-               IF(.not.TUMAT2D) STOP 'UMAT2D should be on'
-               IF(IDI.eq.IDJ.and.IDI.eq.IDK.and.IDI.eq.IDL) THEN
-!       <ii|ii>
-                  GETUMATEL=UMAT2D(IDI,IDI)
-               ELSEIF (IDI.eq.IDK.and.IDJ.eq.IDL) THEN
-!      <ij|ij> - coulomb
-                  I=MIN(IDI,IDJ)
-                  J=MAX(IDI,IDJ)
-                  GETUMATEL=UMAT2D(I,J)
-               ELSEIF (IDI.eq.IDL.and.IDJ.eq.IDK) THEN
-!      <ij|ji> - exchange
-                  I=MAX(IDI,IDJ)
-                  J=MIN(IDI,IDJ)
-                  GETUMATEL=UMAT2D(I,J)
-               ELSEIF (IDI.eq.IDJ.and.IDK.eq.IDL) THEN
-                  I=MAX(IDI,IDK)
-                  J=MIN(IDI,IDK)
-                  GETUMATEL=UMAT2D(I,J)
-               ELSE
-                  XXX=UMatInd(IDI,IDJ,IDK,IDL,NHG/2,0)
-                  IF(XXX.ne.-1) THEN
-                     GETUMATEL=UMATstore(XXX)
-                  ELSE
-                     GETUMATEL = get_nan()
-                  ENDIF
-               ENDIF
-            ELSE
-               GETUMATEL=UMATstore(UMatInd(IDI,IDJ,IDK,IDL,0,0))
-            ENDIF
-         ENDIF
-
-      ELSEIF(NBASISMAX(1,3).EQ.-1) THEN
-        GetUMatEl = get_ueg_umat_el (idi, idj, idk, idl)
-      ENDIF
-      ! WRITE(6,*) 'GetUmatEl', GetUMatEl,IDI,IDJ,IDK,IDL
-
-      RETURN
+      getumatel = get_umat_el (ptr_getumatel, idi, idj, idk, idl)
     END FUNCTION GetUMatEl
 
 
