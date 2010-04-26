@@ -892,6 +892,7 @@ MODULE FciMCParMod
 !Every StepsSft steps, update the diagonal shift value (the running value for the correlation energy)
 !We don't want to do this too often, since we want the population levels to acclimatise between changing the shifts
     SUBROUTINE CalcNewShift()
+        USE SystemData , only: tNoBrillouin
         USE FciMCLoggingMOD , only : PrintSpawnAttemptStats,InitErrorBlocking,SumInErrorContrib
         USE FciMCLoggingMOD , only : InitShiftErrorBlocking,SumInShiftErrorContrib
         USE CalcData , only : tCheckHighestPop,tChangeProjEDet,tRestartHighPop,FracLargerDet,iRestartWalkNum
@@ -1069,6 +1070,8 @@ MODULE FciMCParMod
                     CALL DecodeBitDet(ProjEDet,iLutRef(:))
                     WRITE(6,"(A)",advance='no') "Changing projected energy reference determinant to:"
                     CALL Write_det(6,ProjEDet,.true.)
+                    tNoBrillouin=.true.
+                    WRITE(6,*) "Ensuring that Brillouin's theorem no longer used..."
                     IF(tHPHF) THEN
                         TempHii = hphf_diag_helement (ProjEDet, iLutRef)
                     ELSE
@@ -1103,6 +1106,8 @@ MODULE FciMCParMod
                     CALL DecodeBitDet(ProjEDet,iLutRef(:))
                     WRITE(6,"(A)",advance='no') "Changing projected energy reference determinant to:"
                     CALL Write_det(6,ProjEDet,.true.)
+                    tNoBrillouin=.true.
+                    WRITE(6,*) "Ensuring that Brillouin's theorem no longer used..."
                     IF(tHPHF) THEN
                         TempHii = hphf_diag_helement (ProjEDet, iLutRef)
                     ELSE
