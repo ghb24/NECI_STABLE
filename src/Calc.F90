@@ -94,6 +94,7 @@ MODULE Calc
           dInitAmplitude=1.d0
           dProbSelNewExcitor=0.7d0
           nSpawnings=1
+          nClustSelections=1
           tSpawnProp=.false.
           NMCyc=2000
           DiagSft=0.D0
@@ -217,7 +218,7 @@ MODULE Calc
           Use DetCalc, only: tEnergy, tRead,tFindDets
           use IntegralsData, only: tNeedsVirts,NFROZEN
           use UMatCache, only: gen2CPMDInts
-          use CCMCData, only: dInitAmplitude,dProbSelNewExcitor,nSpawnings,tSpawnProp
+          use CCMCData, only: dInitAmplitude,dProbSelNewExcitor,nSpawnings,tSpawnProp,nClustSelections
           use global_utilities
           use Parallel, only : nProcessors
           IMPLICIT NONE
@@ -738,6 +739,9 @@ MODULE Calc
             case("NSPAWNINGS")
 !For Amplitude CCMC the number of spawnings for each cluster.
                 call geti(nSpawnings)
+            case("NCLUSTSELECTIONS")
+!For Particle CCMC the number of  cluster.
+                call geti(nClustSelections)
             case("SPAWNPROP")
 !For Amplitude CCMC use NSPAWNINGS as a total number of spawnings, and distribute them according to the Amplitudes of clusters.
                tSpawnProp=.true.
@@ -1567,6 +1571,9 @@ MODULE Calc
                   do while(item.lt.nitems)
                     call readu(w)
                     select case(w)
+                    case("PARTICLE")
+                       tFCIMC=.false.  !We don't use the FCIMC code, but use a standalone.
+                       tAmplitudes=.false.
                     case("AMPLITUDE")
                        tAmplitudes=.true.
                        tFCIMC=.false.  !We don't use the FCIMC code, but use a standalone.

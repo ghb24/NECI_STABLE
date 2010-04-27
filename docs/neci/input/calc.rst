@@ -451,7 +451,7 @@ Experimental methods
     **SERIAL** will force NECI to run the serial FCIMC code (which differs
     substantially from the parallel) even if the code was compiled in parallel.
 
-**VERTEX** **CCMC** [**FCI**] [**EXACTCLUSTER**] [**AMPLITUDE**] [**EXACTSPAWN**] [**BUFFER**]
+**VERTEX** **CCMC** [**FCI**] [**EXACTCLUSTER**] [**AMPLITUDE**] [**EXACTSPAWN**] [**BUFFER**] [**PARTICLE**]
     Perform Monte Carlo calculations over coupled cluster excitation space, which
     is sampled using a series of 'particles' (or 'walkers').
 
@@ -468,8 +468,14 @@ Experimental methods
     the stochastic sampling, and explicitly attempts spawning from all clusters in the space.
 
     **AMPLITUDE** will enumerate the whole of the allowed space, and assign a floating-point
-    amplitude to each excitor.  These amplitudes are stochastically sampled (**INITWALKERS**
+    amplitude to each excitor.  These amplitudes are stochastically sampled (**INITWALKERS** * **NCLUSTSELECTIONS**)
     times per MC cycle), and used to propagate the CCMC.
+      This appears to now be functional.
+
+    **PARTICLE** uses the **AMPLITUDE** code, but performs discrete sampling.  It samples 
+    excitors through particles which exist at excitors like FCIMC.  
+    These particles are stochastically sampled (**NCLUSTSELECTIONS** times per excitor per MC cycle),
+    and used to propagate the CCMC.
 
     **EXACTSPAWN** causes spawning to be done exactly - i.e. all allowed connected determinants
     from a given cluster are spawned to.
@@ -1110,6 +1116,13 @@ The following option are only available in **MCSTAR** calculations:
 **NSPAWNINGS** nSpawnings
 
    For CCMC, this is the number of spawnings attempted from each cluster (unless **EXACTSPAWN** is specified).  Default 1
+
+**NCLUSTSELECTIONS** nClustSelections
+
+   For CCMC, this is the number of cluster selections attempted.
+      For **AMPLITUDE** this is each cycle.  
+      For **PARTICLE** this is for each excitor.
+   Default 1
 
 **SPAWNPROP**
    For Amplitude CCMC use NSPAWNINGS as a total number of spawnings, and distribute them according to the Amplitudes of clusters.

@@ -41,7 +41,8 @@ module mcpaths
          use CalcData, only: TStarTrips
          USE Logging , only : G_VMC_LOGCOUNT
          USE PrecalcData , only : PREIV_MAX,TPREVAR
-         USE CCMC, only: CCMCStandalone
+         USE CCMC, only: CCMCStandalone,CCMCStandaloneParticle,
+     &      tAmplitude
          use global_utilities
          use mcpathsdata, only: EGP
          use mcpathshdiag, only: fmcpr3b2
@@ -255,7 +256,11 @@ module mcpaths
                     CALL FciMC(F(I_V),DLWDB2)
 #endif
                ELSEIF(tCCMC) THEN
-                  CALL CCMCStandAlone(F(I_V),DLWDB2)
+                  if(tAmplitude) THEN
+                     CALL CCMCStandAlone(F(I_V),DLWDB2)
+                  else
+                     CALL CCMCStandaloneParticle(F(I_V),DLWDB2)
+                  endif
                ELSEIF(TReturnPathMC) THEN
 !A MC simulation involving replicating particles, constrained to returning paths is run
                     CALL ReturnPathMC(F(I_V),DLWDB2)
