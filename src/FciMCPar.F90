@@ -1794,6 +1794,7 @@ MODULE FciMCParMod
                 call get_unique_filename('POPSFILE',tIncrementPops,.true.,iPopsFileNoWrite,popsfile)
             ENDIF
             OPEN(17,FILE=popsfile,Status='replace')
+            WRITE(17,"(A)") "# POPSFILE VERSION 2"
 #ifdef __INT64
             WRITE(17,'(A12,L5,A8,L5,A8,L5,A12,L5)') '64BitDets=',.TRUE.,'HPHF=',tHPHF,'Lz=',tFixLz,'Initiator=',tTruncInitiator
 #else
@@ -1906,7 +1907,7 @@ MODULE FciMCParMod
 !This routine reads in particle configurations from a POPSFILE.
     SUBROUTINE ReadFromPopsfilePar()
         use util_mod, only: get_unique_filename
-        use CalcData, only: iPopsFileNoRead,tOldPopsfile
+        use CalcData, only: iPopsFileNoRead
         use CalcData , only : MemoryFacPart,MemoryFacAnnihil,MemoryFacSpawn,iWeightPopRead
         use Logging, only: tIncrementPops,tZeroProjE
         use constants, only: size_n_int,bits_n_int
@@ -1918,11 +1919,12 @@ MODULE FciMCParMod
         INTEGER*8 :: iLutTemp64(0:NIfTot)
         INTEGER :: iLutTemp32(0:NIfTot)
         INTEGER(KIND=n_int) :: iLutTemp(0:NIfTot)
-        INTEGER :: Stat(MPI_STATUS_SIZE),AvSumNoatHF,VecSlot,IntegerPart,HFPointer,TempnI(NEl),ExcitLevel,VecInd,DetsMerged,NIfWriteOut,pos,orb
+        INTEGER :: Stat(MPI_STATUS_SIZE),AvSumNoatHF,VecSlot,IntegerPart,HFPointer,TempnI(NEl),ExcitLevel
+        INTEGER :: VecInd,DetsMerged,NIfWriteOut,pos,orb,PopsVersion
         REAL*8 :: r,FracPart,TempTotWalkers,Gap
         HElement_t :: HElemTemp
         CHARACTER(len=*), PARAMETER :: this_routine='ReadFromPopsfilePar'
-        character(255) :: popsfile
+        character(255) :: popsfile,FirstLine
         character(len=24) :: junk,junk2,junk3,junk4,junk5
         LOGICAL :: tPop64BitDets,tPopHPHF,tPopLz,tPopInitiator
         
@@ -1962,9 +1964,23 @@ MODULE FciMCParMod
             ENDIF
         ENDIF
 
+        READ(17,'(a255)') FirstLine
+
+        IF(INDEX(FirstLine,'VERSION').eq.0) THEN
+!No version number to be found
+            PopsVersion=1
+            REWIND(17)
+        ELSE
+            !Found version - which number is it?
+            REWIND(17)
+            READ(17,*) FirstLine,FirstLine,FirstLine,PopsVersion
+        ENDIF
+        WRITE(6,"(A,I5,A)") "Version",PopsVersion," POPSFILE detected"
+
+
 
 !Read in initial data on processors which have a popsfile
-        IF(.not.tOldPopsfile) THEN
+        IF(PopsVersion.eq.2) THEN
             READ(17,'(A12,L5,A8,L5,A8,L5,A12,L5)') junk,tPop64BitDets,junk2,tPopHPHF,junk3,tPopLz,junk4,tPopInitiator
         ELSE
             WRITE(6,'(A)') "Reading in from depreciated POPSFILE - assuming that parameters are the same as when POPSFILE was written"
@@ -2139,19 +2155,19 @@ MODULE FciMCParMod
 ! The hashing will be different in the new calculation from the one where the POPSFILE was produced, this means we must recalculate the processor each determinant wants to go to.                
 ! This is done by reading in all walkers to the root and then distributing them in the same way as the spawning steps are done - by finding the determinant and sending it there.
 
-        IF((.not.tOldPOPSFILE).and.tHPHF.and.(.not.tPopHPHF)) THEN
+        IF((PopsVersion.ne.1).and.tHPHF.and.(.not.tPopHPHF)) THEN
             CALL Stop_All(this_routine,"HPHF on, but HPHF was not used in creation of the POPSFILE")
         ENDIF
-        IF((.not.tOldPOPSFILE).and.tFixLz.and.(.not.tPopLz)) THEN
+        IF((PopsVersion.ne.1).and.tFixLz.and.(.not.tPopLz)) THEN
             CALL Stop_All(this_routine,"Lz on, but Lz was not used in creation of the POPSFILE")
         ENDIF
-        IF((.not.tOldPOPSFILE).and.(.not.tHPHF).and.tPopHPHF) THEN
+        IF((PopsVersion.ne.1).and.(.not.tHPHF).and.tPopHPHF) THEN
             CALL Stop_All(this_routine,"HPHF off, but HPHF was used for creation of the POPSFILE")
         ENDIF
-        IF((.not.tOldPOPSFILE).and.(.not.tFixLz).and.tPopLz) THEN
+        IF((PopsVersion.ne.1).and.(.not.tFixLz).and.tPopLz) THEN
             CALL Stop_All(this_routine,"Lz off, but Lz was used for creation of the POPSFILE")
         ENDIF
-        IF(tOldPOPSFILE) THEN
+        IF(PopsVersion.eq.1) THEN
             tPop64BitDets=.false.
             NIfWriteOut=nBasis/32
             IF(tTruncInitiator) NIfWriteOut=NIfWriteOut+1
@@ -2160,7 +2176,7 @@ MODULE FciMCParMod
         CurrWalkers=0
         do i=1,AllTotWalkers
             iLutTemp(:)=0
-            IF(.not.tOldPOPSFILE) THEN
+            IF(PopsVersion.ne.1) THEN
                 IF(tBinRead) THEN
                     IF(tPop64BitDets) THEN
                         READ(17) iLutTemp64(0:NIfD),TempSign
@@ -2175,6 +2191,7 @@ MODULE FciMCParMod
                     ENDIF
                 ENDIF
             ELSE
+                !POPSFILE v. 1 only printed out 32 bit determinant strings.
                 IF(tBinRead) THEN
                     READ(17) iLutTemp32(0:NIfWriteOut),TempSign
                 ELSE
