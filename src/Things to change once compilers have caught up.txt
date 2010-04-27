@@ -12,3 +12,5 @@ Compiler bugs
    -M flag fixes this for versions .ge. 4.4, but breaks it otherwise. For these
    versions, it is necessary to manually link to the mpi.mod file for it to find it
    while retaining the path to put compiled .mod files.
+   An alternative workaround is to manually add the MPI library path to the
+   search path using -I.
