@@ -588,11 +588,13 @@ MODULE AnnihilationMod
 !The key feature which makes this work, is that it is impossible for the same determinant to be specified in both the spawned and main list at the end of
 !the annihilation process. Therefore we will not multiply specify determinants when we merge the lists.
     SUBROUTINE InsertRemoveParts(ValidSpawned,TotWalkersNew)
+        use SystemData, only: NIfD,tHPHF
         use DetBitOps, only: DecodeBitDet
         use CalcData , only : tCheckHighestPop
         INTEGER :: TotWalkersNew,ValidSpawned
         INTEGER :: i,DetsMerged,nJ(NEl),ierr
         REAL*8 :: HDiag
+        LOGICAL :: TestClosedShellDet
         HElement_t :: HDiagTemp
 
 !If we want to do this while only keeping the data in one array, the first thing which is needed, is for the annihilated
@@ -620,8 +622,17 @@ MODULE AnnihilationMod
 !If this option is on, then we want to compare the weight on each determinant to the weight at the HF determinant.
 !Record the highest weighted determinant on each processor.
                         IF((abs(CurrentSign(i))).gt.iHighestPop) THEN
-                            iHighestPop=abs(CurrentSign(i))
-                            HighestPopDet(:)=CurrentDets(:,i)
+                            IF(tHPHF) THEN
+                                !For HPHF functions, we restrict ourselves to closed shell determinants for simplicity.
+                                IF(TestClosedShellDet(CurrentDets(0:NIfD,i))) THEN
+                                    !HPHF func is closed shell - we can move to this without problems.
+                                    iHighestPop=abs(CurrentSign(i))
+                                    HighestPopDet(:)=CurrentDets(:,i)
+                                ENDIF
+                            ELSE
+                                iHighestPop=abs(CurrentSign(i))
+                                HighestPopDet(:)=CurrentDets(:,i)
+                            ENDIF
                         ENDIF
                     ENDIF
                 ENDIF

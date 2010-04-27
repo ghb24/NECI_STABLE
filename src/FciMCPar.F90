@@ -892,6 +892,7 @@ MODULE FciMCParMod
 !Every StepsSft steps, update the diagonal shift value (the running value for the correlation energy)
 !We don't want to do this too often, since we want the population levels to acclimatise between changing the shifts
     SUBROUTINE CalcNewShift()
+        USE SystemData , only: tNoBrillouin
         USE FciMCLoggingMOD , only : PrintSpawnAttemptStats,InitErrorBlocking,SumInErrorContrib
         USE FciMCLoggingMOD , only : InitShiftErrorBlocking,SumInShiftErrorContrib
         USE CalcData , only : tCheckHighestPop,tChangeProjEDet,tRestartHighPop,FracLargerDet,iRestartWalkNum
@@ -1057,7 +1058,13 @@ MODULE FciMCParMod
                     
 !Now, the root processor contains information about the highest populated determinant, and the processor which is it held on.
             IF(((INT(FracLargerDet*REAL(AllNoatHF,dp))).lt.HighPopout(1)).and.(AllTotParts.gt.10000)) THEN
-                IF(iProcIndex.eq.Root) WRITE(6,"(A,2I10)") "Highest weighted determinant not reference det: ",HighPopout(1),AllNoatHF
+                IF(iProcIndex.eq.Root) THEN
+                    IF(tHPHF) THEN
+                        WRITE(6,"(A,2I10)") "Highest weighted CLOSED-SHELL determinant not reference det: ",HighPopout(1),AllNoatHF
+                    ELSE
+                        WRITE(6,"(A,2I10)") "Highest weighted determinant not reference det: ",HighPopout(1),AllNoatHF
+                    ENDIF
+                ENDIF
 !                WRITE(6,"(A,4I12)") "Highest weighted determinant not reference det: ",iter,HighPopout(2),HighPopout(1),AllNoatHF
 !                CALL WriteBitDet(6,HighestPopDet,.true.)
 !                WRITE(6,*) iHighestPop
@@ -1069,6 +1076,8 @@ MODULE FciMCParMod
                     CALL DecodeBitDet(ProjEDet,iLutRef(:))
                     WRITE(6,"(A)",advance='no') "Changing projected energy reference determinant to:"
                     CALL Write_det(6,ProjEDet,.true.)
+                    tNoBrillouin=.true.
+                    WRITE(6,*) "Ensuring that Brillouin's theorem no longer used..."
                     IF(tHPHF) THEN
                         TempHii = hphf_diag_helement (ProjEDet, iLutRef)
                     ELSE
@@ -1103,6 +1112,8 @@ MODULE FciMCParMod
                     CALL DecodeBitDet(ProjEDet,iLutRef(:))
                     WRITE(6,"(A)",advance='no') "Changing projected energy reference determinant to:"
                     CALL Write_det(6,ProjEDet,.true.)
+                    tNoBrillouin=.true.
+                    WRITE(6,*) "Ensuring that Brillouin's theorem no longer used..."
                     IF(tHPHF) THEN
                         TempHii = hphf_diag_helement (ProjEDet, iLutRef)
                     ELSE
@@ -1710,11 +1721,12 @@ MODULE FciMCParMod
         use util_mod, only: get_unique_filename
         use CalcData, only: iPopsFileNoWrite
         use Logging, only: tIncrementPops
-        use constants, only: size_n_int,MpiDetInt
+        use constants, only: size_n_int,MpiDetInt,n_int
         REAL*8 :: TempSumNoatHF
         INTEGER :: error,WalkersonNodes(0:nProcessors-1)
         INTEGER :: Stat(MPI_STATUS_SIZE),Tag,Total,i,j,k
-        INTEGER , ALLOCATABLE :: OrigSign(:), OrigParts(:,:)
+        INTEGER , ALLOCATABLE :: OrigSign(:)
+        INTEGER(KIND=n_int), ALLOCATABLE :: OrigParts(:,:)
         INTEGER :: OrigSignTag=0,OrigPartsTag=0
         CHARACTER(len=*) , PARAMETER :: this_routine='WriteToPopsfileParOneArr'
         character(255) :: popsfile
@@ -1747,6 +1759,21 @@ MODULE FciMCParMod
 !            ENDIF
 
 !Write header information
+#ifdef __INT64
+            IF(iPopsPartEvery.ne.1) THEN
+                IF(tBinPops) THEN
+                    WRITE(6,"(A,I12,A)") "Writing a 64-bit binary reduced POPSFILEBIN, printing a total of ",INT(AllTotWalkers,int64), " particles."
+                ELSE
+                    WRITE(6,"(A,I12,A)") "Writing a 64-bit reduced POPSFILE, printing a total of ",INT(AllTotWalkers,int64), " particles."
+                ENDIF
+            ELSE
+                IF(tBinPops) THEN
+                    WRITE(6,*) "Writing to 64-bit binary POPSFILEBIN..."
+                ELSE
+                    WRITE(6,*) "Writing to 64-bit POPSFILE..."
+                ENDIF
+            ENDIF
+#else
             IF(iPopsPartEvery.ne.1) THEN
                 IF(tBinPops) THEN
                     WRITE(6,"(A,I12,A)") "Writing a binary reduced POPSFILEBIN, printing a total of ",INT(AllTotWalkers,int64), " particles."
@@ -1760,12 +1787,18 @@ MODULE FciMCParMod
                     WRITE(6,*) "Writing to POPSFILE..."
                 ENDIF
             ENDIF
+#endif
             IF(tBinPops) THEN
                 call get_unique_filename('POPSFILEHEAD',tIncrementPops,.true.,iPopsFileNoWrite,popsfile)
             ELSE
                 call get_unique_filename('POPSFILE',tIncrementPops,.true.,iPopsFileNoWrite,popsfile)
             ENDIF
             OPEN(17,FILE=popsfile,Status='replace')
+#ifdef __INT64
+            WRITE(17,'(A12,L5,A8,L5,A8,L5,A12,L5)') '64BitDets=',.TRUE.,'HPHF=',tHPHF,'Lz=',tFixLz,'Initiator=',tTruncInitiator
+#else
+            WRITE(17,'(A12,L5,A8,L5,A8,L5,A12,L5)') '64BitDets=',.FALSE.,'HPHF=',tHPHF,'Lz=',tFixLz,'Initiator=',tTruncInitiator
+#endif
             WRITE(17,*) AllTotWalkers,"   TOTWALKERS (all nodes)"
             WRITE(17,*) DiagSft,"   DIAG SHIFT"
             WRITE(17,*) NINT(AllSumNoatHF,int64),"   SUMNOATHF (all nodes)"
@@ -1781,15 +1814,15 @@ MODULE FciMCParMod
                 do j=1,TotWalkers
 !First write out walkers on head node
                     IF(mod(j,iPopsPartEvery).eq.0) THEN
-                        WRITE(17) CurrentDets(0:NIfTot,j),CurrentSign(j)
+                        WRITE(17) CurrentDets(0:NIfD,j),CurrentSign(j)
                     ENDIF
                 enddo
             ELSE
                 do j=1,TotWalkers
 !First write out walkers on head node
                     IF(mod(j,iPopsPartEvery).eq.0) THEN
-                        do k=0,NIfTot
-                            WRITE(17,"(I20)",advance='no') CurrentDets(k,j)
+                        do k=0,NIfD
+                            WRITE(17,"(I24)",advance='no') CurrentDets(k,j)
                         enddo
                         WRITE(17,*) CurrentSign(j)
                     ENDIF
@@ -1821,14 +1854,14 @@ MODULE FciMCParMod
                 IF(tBinPops) THEN
                     do j=1,WalkersonNodes(i)
                         IF(mod(j,iPopsPartEvery).eq.0) THEN
-                            WRITE(17) CurrentDets(0:NIfTot,j),CurrentSign(j)
+                            WRITE(17) CurrentDets(0:NIfD,j),CurrentSign(j)
                         ENDIF
                     enddo
                 ELSE
                     do j=1,WalkersonNodes(i)
                         IF(mod(j,iPopsPartEvery).eq.0) THEN
-                            do k=0,NIfTot
-                                WRITE(17,"(I20)",advance='no') CurrentDets(k,j)
+                            do k=0,NIfD
+                                WRITE(17,"(I24)",advance='no') CurrentDets(k,j)
                             enddo
                             WRITE(17,*) CurrentSign(j)
                         ENDIF
@@ -1873,21 +1906,25 @@ MODULE FciMCParMod
 !This routine reads in particle configurations from a POPSFILE.
     SUBROUTINE ReadFromPopsfilePar()
         use util_mod, only: get_unique_filename
-        use CalcData, only: iPopsFileNoRead
+        use CalcData, only: iPopsFileNoRead,tOldPopsfile
         use CalcData , only : MemoryFacPart,MemoryFacAnnihil,MemoryFacSpawn,iWeightPopRead
         use Logging, only: tIncrementPops,tZeroProjE
-        use constants, only: size_n_int
+        use constants, only: size_n_int,bits_n_int
         LOGICAL :: exists,First,tBinRead
         INTEGER :: AvWalkers,WalkerstoReceive(nProcessors)
         INTEGER*8 :: NodeSumNoatHF(nProcessors),TempAllSumNoatHF
         REAL*8 :: TempTotParts,TempCurrWalkers
-        INTEGER :: TempInitWalkers,error,i,j,k,l,total,ierr,MemoryAlloc,Tag,TempSign,Proc,CurrWalkers
+        INTEGER :: TempInitWalkers,error,i,j,k,l,total,ierr,MemoryAlloc,Tag,TempSign,Proc,CurrWalkers,ii
+        INTEGER*8 :: iLutTemp64(0:NIfTot)
+        INTEGER :: iLutTemp32(0:NIfTot)
         INTEGER(KIND=n_int) :: iLutTemp(0:NIfTot)
-        INTEGER :: Stat(MPI_STATUS_SIZE),AvSumNoatHF,VecSlot,IntegerPart,HFPointer,TempnI(NEl),ExcitLevel,VecInd,DetsMerged
+        INTEGER :: Stat(MPI_STATUS_SIZE),AvSumNoatHF,VecSlot,IntegerPart,HFPointer,TempnI(NEl),ExcitLevel,VecInd,DetsMerged,NIfWriteOut,pos,orb
         REAL*8 :: r,FracPart,TempTotWalkers,Gap
         HElement_t :: HElemTemp
         CHARACTER(len=*), PARAMETER :: this_routine='ReadFromPopsfilePar'
         character(255) :: popsfile
+        character(len=24) :: junk,junk2,junk3,junk4,junk5
+        LOGICAL :: tPop64BitDets,tPopHPHF,tPopLz,tPopInitiator
         
         PreviousCycles=0    !Zero previous cycles
         SumENum=0.D0
@@ -1927,6 +1964,11 @@ MODULE FciMCParMod
 
 
 !Read in initial data on processors which have a popsfile
+        IF(.not.tOldPopsfile) THEN
+            READ(17,'(A12,L5,A8,L5,A8,L5,A12,L5)') junk,tPop64BitDets,junk2,tPopHPHF,junk3,tPopLz,junk4,tPopInitiator
+        ELSE
+            WRITE(6,'(A)') "Reading in from depreciated POPSFILE - assuming that parameters are the same as when POPSFILE was written"
+        ENDIF
         READ(17,*) AllTotWalkers
         READ(17,*) DiagSft
         READ(17,*) TempAllSumNoatHF     !AllSumNoatHF stored as integer for compatability with serial POPSFILEs
@@ -2097,18 +2139,88 @@ MODULE FciMCParMod
 ! The hashing will be different in the new calculation from the one where the POPSFILE was produced, this means we must recalculate the processor each determinant wants to go to.                
 ! This is done by reading in all walkers to the root and then distributing them in the same way as the spawning steps are done - by finding the determinant and sending it there.
 
+        IF((.not.tOldPOPSFILE).and.tHPHF.and.(.not.tPopHPHF)) THEN
+            CALL Stop_All(this_routine,"HPHF on, but HPHF was not used in creation of the POPSFILE")
+        ENDIF
+        IF((.not.tOldPOPSFILE).and.tFixLz.and.(.not.tPopLz)) THEN
+            CALL Stop_All(this_routine,"Lz on, but Lz was not used in creation of the POPSFILE")
+        ENDIF
+        IF((.not.tOldPOPSFILE).and.(.not.tHPHF).and.tPopHPHF) THEN
+            CALL Stop_All(this_routine,"HPHF off, but HPHF was used for creation of the POPSFILE")
+        ENDIF
+        IF((.not.tOldPOPSFILE).and.(.not.tFixLz).and.tPopLz) THEN
+            CALL Stop_All(this_routine,"Lz off, but Lz was used for creation of the POPSFILE")
+        ENDIF
+        IF(tOldPOPSFILE) THEN
+            tPop64BitDets=.false.
+            NIfWriteOut=nBasis/32
+            IF(tTruncInitiator) NIfWriteOut=NIfWriteOut+1
+        ENDIF
+
         CurrWalkers=0
         do i=1,AllTotWalkers
             iLutTemp(:)=0
-            IF(tBinRead) THEN
-                READ(17) iLutTemp(0:NIfTot),TempSign
+            IF(.not.tOldPOPSFILE) THEN
+                IF(tBinRead) THEN
+                    IF(tPop64BitDets) THEN
+                        READ(17) iLutTemp64(0:NIfD),TempSign
+                    ELSE
+                        READ(17) iLutTemp32(0:NIfD),TempSign
+                    ENDIF
+                ELSE
+                    IF(tPop64BitDets) THEN
+                        READ(17,*) iLutTemp64(0:NIfD),TempSign
+                    ELSE
+                        READ(17,*) iLutTemp32(0:NIfD),TempSign
+                    ENDIF
+                ENDIF
             ELSE
-                READ(17,*) iLutTemp(0:NIfTot),TempSign
+                IF(tBinRead) THEN
+                    READ(17) iLutTemp32(0:NIfWriteOut),TempSign
+                ELSE
+                    READ(17,*) iLutTemp32(0:NIfWriteOut),TempSign
+                ENDIF
             ENDIF
+
+#ifdef __INT64
+            IF(.not.tPop64BitDets) THEN
+        !If we are using 64 bit integers, but have read in 32 bit integers, then we need to convert them.
+                do ii=0,nBasis/32
+                    do j=0,31
+                        if(btest(iLutTemp32(ii),j)) then
+                           orb=(ii*32)+j+1
+                           pos=(orb-1)/bits_n_int
+                           iLutTemp(pos)=ibset(iLutTemp(pos),mod(orb-1,bits_n_int))
+                       endif
+                   enddo
+               enddo
+
+            ELSE
+                iLutTemp(:)=iLutTemp64(:)
+            ENDIF
+
+#else
+!If we are using 32 bit integers, but have read in 64 bit integers, then we need to convert them.
+            IF(tPop64BitDets) THEN
+                do ii=0,nBasis/64
+                    do j=0,63
+                        if(btest(iLutTemp64(ii),j)) then
+                           orb=(ii*64)+j+1
+                           pos=(orb-1)/bits_n_int
+                           iLutTemp(pos)=ibset(iLutTemp(pos),mod(orb-1,bits_n_int))
+                       endif
+                   enddo
+               enddo
+
+            ELSE
+                iLutTemp(:)=iLutTemp32(:)
+            ENDIF
+        
+#endif
             Proc=DetermineDetProc(iLutTemp)   !This wants to return a value between 0 -> nProcessors-1
             IF((Proc.eq.iProcIndex).and.(abs(TempSign).ge.iWeightPopRead)) THEN
                 CurrWalkers=CurrWalkers+1
-                CurrentDets(0:NIfTot,CurrWalkers)=iLutTemp(0:NIfTot)
+                CurrentDets(0:NIfD,CurrWalkers)=iLutTemp(0:NIfD)
                 CurrentSign(CurrWalkers)=TempSign
             ENDIF
         enddo
@@ -2146,7 +2258,7 @@ MODULE FciMCParMod
             TotWalkers=CurrWalkers
             TotWalkersOld=CurrWalkers
             IF(iProcIndex.eq.root) THEN
-!                    AllTotWalkers=TotWalkers
+!                AllTotWalkers=TotWalkers
                 AllTotWalkersOld=AllTotWalkers
                 WRITE(6,'(A,I10)') " Number of initial walkers on this processor is now: ",INT(TotWalkers,int64)
             ENDIF
