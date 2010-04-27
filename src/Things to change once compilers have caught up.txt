@@ -8,3 +8,7 @@ Compiler bugs
 -------------
 
 1. Remove the pathscale hack in fcimc_wrapper.F90
+2. gfortran has a bug sorting module locations. Changing to the -J rather than
+   -M flag fixes this for versions .ge. 4.4, but breaks it otherwise. For these
+   versions, it is necessary to manually link to the mpi.mod file for it to find it
+   while retaining the path to put compiled .mod files.
