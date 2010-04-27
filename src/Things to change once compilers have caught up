@@ -1,0 +1,3 @@
+use ieee_arithmetic for isnan and get_nan
+
+Remove the pathscale hack in fcimc_wrapper.F90
