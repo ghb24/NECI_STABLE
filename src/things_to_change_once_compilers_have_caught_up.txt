@@ -1,0 +1,10 @@
+Fortran 2003 features
+---------------------
+
+1. Use ieee_arithmetic for isnan and get_nan.
+2. Fortran function pointers rather than using c_ptrs from iso_c_binding.
+
+Compiler bugs
+-------------
+
+1. Remove the pathscale hack in fcimc_wrapper.F90
