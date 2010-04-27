@@ -2460,10 +2460,10 @@ MODULE FciMCParMod
         ! Stochastically choose whether to create or not.
         r = genrand_real2_dSFMT ()
         if (rat > r) then
-            child = -nint(sign(1.0_dp, wsign*rh))
+            child = -nint(sign(1.0_dp, wsign*real(rh,dp)))
             child = child + sign(extraCreate, child)
         else
-            child = -extraCreate*nint(sign(1.0_dp, wsign*rh))
+            child = -extraCreate*nint(sign(1.0_dp, wsign*real(rh,dp)))
         endif
 
     end function
