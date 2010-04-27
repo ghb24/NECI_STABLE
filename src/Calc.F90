@@ -37,6 +37,7 @@ MODULE Calc
 
 
 !       Calc defaults 
+          tOldPopsfile=.false.
           iRestartWalkNum=0
           iWeightPopRead=0
           tCheckHighestPop=.false.
@@ -762,6 +763,16 @@ MODULE Calc
             case("STEPSSHIFT")
 !For FCIMC, this is the number of steps taken before the Diag shift is updated
                 call geti(StepsSft)
+            case("READOLDPOPS")
+!For FCIMC, this indicates that the initial walker configuration will be read in from the file POPSFILE, which must be present.
+!DiagSft and InitWalkers will be overwritten with the values in that file.
+                TReadPops=.true.
+                tOldPopsfile=.true.
+                if (item.lt.nitems) then
+                    call readi(iPopsFileNoRead)
+                    iPopsFileNoWrite = iPopsFileNoRead
+                    iPopsFileNoRead = -iPopsFileNoRead-1
+                end if
             case("READPOPS")
 !For FCIMC, this indicates that the initial walker configuration will be read in from the file POPSFILE, which must be present.
 !DiagSft and InitWalkers will be overwritten with the values in that file.
