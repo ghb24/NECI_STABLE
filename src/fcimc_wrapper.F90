@@ -14,11 +14,11 @@ subroutine assign_proc (ptr, proc)
     !      compiler to crash on valid code.
 #ifdef __PATHSCALE__
 #ifdef __PTR64
-    type(int64), intent(in), value :: proc
-    type(int64), intent(inout) :: ptr
+    integer(int64), intent(in), value :: proc
+    integer(int64), intent(inout) :: ptr
 #else
-    type(int32), intent(in), value :: proc
-    type(int32), intent(inout) :: ptr
+    integer(int32), intent(in), value :: proc
+    integer(int32), intent(inout) :: ptr
 #endif
 #else
     type(c_ptr), intent(in), value :: proc
