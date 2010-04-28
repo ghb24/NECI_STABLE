@@ -1,7 +1,6 @@
 module util_mod
     use util_mod_comparisons
     use util_mod_cpts
-    use ieee_arithmetic
     use constants, only: dp
     implicit none
     private
@@ -181,8 +180,9 @@ contains
 
     end function int_fmt
 
-!NOTE!! This can only be used for binary searching determinant bit strings now.
-!We can template it if it wants to be more general in the future.
+    ! NOTE: This can only be used for binary searching determinant bit 
+    !       strings now. We can template it if it wants to be more general 
+    !       in the future if needed.
     pure function binary_search (arr, val, data_size, num_items) result(pos)
         use constants, only: n_int
 
@@ -310,15 +310,25 @@ contains
 
     end subroutine get_unique_filename
 
-    ! Slightly nicer versions of these ieee functions.
+    ! If all of the compilers supported ieee_arithmetic
+    ! --> could use ieee_value(1.0_dp, ieee_quiet_nan)
     real(dp) function get_nan ()
-        get_nan = ieee_value(1.0_dp, ieee_quiet_nan)
+        real(dp) :: a, b
+        a = 1
+        b = 1
+        get_nan = log (a-2*b)
     end function
 
+    ! If all of the compilers supported ieee_arithmetic
+    ! --> could use ieee_is_nan (r)
     elemental logical function isnan (r)
         real(dp), intent(in) :: r
 
-        isnan = ieee_is_nan (r)
+        if ( (r == 0) .and. (r * 1 == 1) ) then
+            isnan = .true.
+        else
+            isnan = .false.
+        endif
     end function
 
 end module
