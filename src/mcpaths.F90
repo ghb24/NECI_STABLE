@@ -1,4 +1,5 @@
 module mcpaths
+    use util_mod, only: isnan
    contains
 
 !C.. Calculate RHO^(P)_II without having a stored H matrix
