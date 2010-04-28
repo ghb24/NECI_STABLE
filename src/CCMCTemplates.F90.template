@@ -1,18 +1,29 @@
 [int]
 type1=integer(kind=int32)
 unity=1
+size=4
 
 [double]
 type1=real*8
 unity=1.d0
+size=8
 
 ===================
+#include "macros.h"
+
 
 module ClusterList
    use Determinants, only: get_helement, write_det, write_det_len
    use constants, only: dp, int32, n_int
    use CCMCData, only: ExcitToDetSign,AddBitExcitor
+   implicit none
 
+   type AmplitudeList_%(name)s
+      %(type1)s, allocatable, target ::   Amplitude(:,:)
+      %(type1)s, allocatable         ::   CumlAmplitude(:)
+      integer tagAmplitude
+      integer tagCumlAmplitude
+   end type
 
    interface WriteMaxExcitorList
       module procedure WriteMaxExcitorList_%(name)s
@@ -35,8 +46,32 @@ module ClusterList
    interface CollapseCluster
       module procedure collapsecluster_%(name)s
    end interface
+   interface AllocateAmplitudeList
+      module procedure AllocateAmplitudeList_%(name)s
+   end interface
+   interface DeallocateAmplitudeList
+      module procedure DeallocateAmplitudeList_%(name)s
+   end interface
+      
 
 contains
+   subroutine AllocateAmplitudeList_%(name)s (AL,nAmpl,nLists)
+      Type(AmplitudeList_%(name)s) AL
+      integer nAmpl,nLists
+      Allocate(AL%%Amplitude(nAmpl,nLists))
+      LogAlloc(ierr,'AL%%Amplitude',nAmpl*nLists,%(size)s,AL%%tagAmplitude)
+      Allocate(AL%%CumlAmplitude(nAmpl))
+      LogAlloc(ierr,'AL%%CumlAmplitude',nAmpl,4,AL%%tagCumlAmplitude)
+   end subroutine AllocateAmplitudeList_%(name)s 
+
+   subroutine DeallocateAmplitudeList_%(name)s (AL)
+      Type(AmplitudeList_%(name)s) AL
+      LogDealloc(AL%%tagAmplitude)
+      Deallocate(AL%%Amplitude)
+      LogDealloc(AL%%tagCumlAmplitude)
+      Deallocate(AL%%CumlAmplitude)
+   end subroutine DeallocateAmplitudeList_%(name)s 
+   
 ! Find the largest nMax amplitudes (out of Amps(nDet)) for each excitation level and print them
    subroutine  WriteMaxExcitorList_%(name)s (iUnit,Amps,Dets,LevIndex,nLev,nMax)
       use SystemData, only: nIfTot

@@ -1576,41 +1576,39 @@ subroutine AttemptDie(C,CurAmpl,OldAmpl,TL,iDebug)
 end subroutine AttemptDie
 
 
-<<<<<<< Updated upstream:src/CCMC.F90
-   SUBROUTINE CCMCStandalone(Weight,Energyxw)
-      Use global_utilities
-      use SystemData, only: nEl,nIfD,nIfTot
-      use Parallel, only: iProcIndex
-      use FciMCData, only: root
-      use CCMCData, only: tCCMCFCI,dInitAmplitude,dProbSelNewExcitor,tExactCluster,tExactSpawn,nSpawnings,tCCBuffer
-      use CCMCData, only: ClustSelector,Spawner,CCTransitionLog
-      use DetCalcData, only: Det       ! The number of Dets/Excitors in FCIDets
-      use DetCalcData, only: FCIDets   ! (0:NIfTot, Det).  Lists all allowed excitors in compressed form
-      use DetCalcData, only:FCIDetIndex! (0:nEl+1).  The index of the different excitation levels
-      use CalcData, only: NMCyc    ! The number of MC Cycles
-      use CalcData, only: StepsSft ! The number of steps between shift updates
-      use CalcData, only: TStartMP1
-      use FciMCData, only: Iter
-      use FciMCData, only: TotParts,TotWalkers,TotWalkersOld,TotPartsOld,AllTotPartsOld,AllTotWalkersOld
-      use FciMCData, only: tTruncSpace
-      use FciMCData, only: ProjectionE
-      use FciMCParMod, only: iLutHF
-      use FciMCParMod, only: CheckAllowedTruncSpawn, SetupParameters,BinSearchParts3
-      use FciMCParMod, only: CalcNewShift,InitHistMin
-      use FciMCParMod, only: WriteHistogram
-      Use Logging, only: CCMCDebug,tCCMCLogTransitions,tCCMCLogUniq
-      USE Logging , only : tHistSpawn,iWriteHistEvery
-      USE DetCalcData , only : ICILevel
-      use CalcData, only: InitWalkers,NEquilSteps
-      use FciMCParMod, only: WriteFciMCStats, WriteFciMCStatsHeader
-      use constants, only: dp
-      use ClusterList
-      IMPLICIT NONE
-      real(dp) Weight,EnergyxW
-      CHARACTER(len=*), PARAMETER :: this_routine='CCMCStandalone'
-      INTEGER ierr
-      REAL*8, ALLOCATABLE,target :: Amplitude(:,:) !(Det, 2)
-      INTEGER tagAmplitude
+SUBROUTINE CCMCStandalone(Weight,Energyxw)
+   Use global_utilities
+   use SystemData, only: nEl,nIfD,nIfTot
+   use Parallel, only: iProcIndex
+   use FciMCData, only: root
+   use CCMCData, only: tCCMCFCI,dInitAmplitude,dProbSelNewExcitor,tExactCluster,tExactSpawn,nSpawnings,tCCBuffer
+   use CCMCData, only: ClustSelector,Spawner,CCTransitionLog
+   use DetCalcData, only: Det       ! The number of Dets/Excitors in FCIDets
+   use DetCalcData, only: FCIDets   ! (0:NIfTot, Det).  Lists all allowed excitors in compressed form
+   use DetCalcData, only:FCIDetIndex! (0:nEl+1).  The index of the different excitation levels
+   use CalcData, only: NMCyc    ! The number of MC Cycles
+   use CalcData, only: StepsSft ! The number of steps between shift updates
+   use CalcData, only: TStartMP1
+   use FciMCData, only: Iter
+   use FciMCData, only: TotParts,TotWalkers,TotWalkersOld,TotPartsOld,AllTotPartsOld,AllTotWalkersOld
+   use FciMCData, only: tTruncSpace
+   use FciMCData, only: ProjectionE
+   use FciMCParMod, only: iLutHF
+   use FciMCParMod, only: CheckAllowedTruncSpawn, SetupParameters,BinSearchParts3
+   use FciMCParMod, only: CalcNewShift,InitHistMin
+   use FciMCParMod, only: WriteHistogram
+   Use Logging, only: CCMCDebug,tCCMCLogTransitions,tCCMCLogUniq
+   USE Logging , only : tHistSpawn,iWriteHistEvery
+   USE DetCalcData , only : ICILevel
+   use CalcData, only: InitWalkers,NEquilSteps
+   use FciMCParMod, only: WriteFciMCStats, WriteFciMCStatsHeader
+   use constants, only: dp
+   use ClusterList
+   IMPLICIT NONE
+   real(dp) Weight,EnergyxW
+   CHARACTER(len=*), PARAMETER :: this_routine='CCMCStandalone'
+   INTEGER ierr
+   TYPE(AmplitudeList_double) :: AL
 
    INTEGER nSelects              ! The number of selections of clusters to make
    INTEGER iNumExcitors          ! The number of non-zero excitors (excluding the ref det)
@@ -1668,8 +1666,7 @@ end subroutine AttemptDie
       iMaxAmpLevel=nEl
    endif
 ! Setup Memory
-   Allocate(Amplitude(nAmpl,2),stat=ierr)
-   LogAlloc(ierr,'Amplitude',nAmpl*2,8,tagAmplitude)
+   call AllocateAmplitudeList(AL,nAmpl,2)
 
    if(tTruncSpace) then
       if(tCCMCFCI) then
@@ -1694,15 +1691,15 @@ end subroutine AttemptDie
    endif
 
 ! Now setup the amplitude list.  Let's start with nothing initially, and
-   Amplitude(:,:)=0
+   AL%Amplitude(:,:)=0
 !  place ampl 1 in the HF det
    if(tStartMP1) then
       write(6,*) "Initializing with MP1 amplitudes."
-      CALL InitMP1Amplitude(tCCMCFCI,Amplitude(:,iCurAmpList),nAmpl,FciDets,FCIDetIndex,dInitAmplitude,dTotAbsAmpl)
+      CALL InitMP1Amplitude(tCCMCFCI,AL%Amplitude(:,iCurAmpList),nAmpl,FciDets,FCIDetIndex,dInitAmplitude,dTotAbsAmpl)
    else
-      Amplitude(1,iCurAmpList)=dInitAmplitude
+      AL%Amplitude(1,iCurAmpList)=dInitAmplitude
       iNumExcitors=0
-      dTotAbsAmpl=Amplitude(1,iCurAmpList)
+      dTotAbsAmpl=AL%Amplitude(1,iCurAmpList)
    endif
    dAmpPrintTol=(dTolerance*dInitAmplitude)
    if(iDebug.ge.4) dAmpPrintTol=0
@@ -1756,13 +1753,13 @@ end subroutine AttemptDie
 ! Copy the old Amp list to the new
       iOldAmpList=iCurAmpList
       iCurAmpList=3-iCurAmpList
-      Amplitude(:,iCurAmpList)=Amplitude(:,iOldAmpList)
+      AL%Amplitude(:,iCurAmpList)=AL%Amplitude(:,iOldAmpList)
       IF(iDebug.gt.1) THEN
          write(6,*) "Cycle ",Iter
-         call WriteExcitorList(6,Amplitude(:,iCurAmpList),FciDets,0,nAmpl,dAmpPrintTol,"Excitor list")
+         call WriteExcitorList(6,AL%Amplitude(:,iCurAmpList),FciDets,0,nAmpl,dAmpPrintTol,"Excitor list")
       endif
-      call CalcTotals(iNumExcitors,dTotAbsAmpl,Amplitude(:,iCurAmpList),nAmpl,dTolerance*dInitAmplitude,WalkerScale,iDebug)
-      CALL CalcClusterEnergy(tCCMCFCI,Amplitude(:,iCurAmpList),nAmpl,FciDets,FCIDetIndex,dProjE)
+      call CalcTotals(iNumExcitors,dTotAbsAmpl,AL%Amplitude(:,iCurAmpList),nAmpl,dTolerance*dInitAmplitude,WalkerScale,iDebug)
+      CALL CalcClusterEnergy(tCCMCFCI,AL%Amplitude(:,iCurAmpList),nAmpl,FciDets,FCIDetIndex,dProjE)
       
       IF(iDebug.gt.1) THEN
          WRITE(6,*) "Total non-zero excitors: ",iNumExcitors
@@ -1781,7 +1778,7 @@ end subroutine AttemptDie
       tMoreClusters=.true.
       tPostBuffering=.false.
       nCurAmpl=nAmpl
-      OldAmpl=>Amplitude(:,iOldAmpList)
+      OldAmpl=>AL%Amplitude(:,iOldAmpList)
 !A standard run has PostBuffering .false. and selects purely from the main cluster selector.
 !A buffered run first has PostBuffering .false., selecting from the main CS, and storing the cumulative amplitudes in AmplitudeBuffer
 !        second, it has   PostBuffering .true.,  selecting from the CSBuff and spawning and dying from there.
@@ -1789,7 +1786,7 @@ end subroutine AttemptDie
       do while (tMoreClusters)
          if(.not.tPostBuffering) then
             i=min(iNumExcitors,nEl)
-            tMoreClusters=GetNextCluster(CS,FciDets,nAmpl,Amplitude(:,iOldAmpList),dTotAbsAmpl,iNumExcitors,i,iDebug)
+            tMoreClusters=GetNextCluster(CS,FciDets,nAmpl,AL%Amplitude(:,iOldAmpList),dTotAbsAmpl,iNumExcitors,i,iDebug)
             if(tCCBuffer.and..not.tMoreClusters) then
                if(iDebug.gt.2) WRITE(6,*) "Buffering Complete.  Now Spawning."
                tPostBuffering=.true.
@@ -1856,11 +1853,11 @@ end subroutine AttemptDie
 !GetNextSpawner will generate either all possible spawners sequentially, or a single randomly chosen one (or none at all, if the randomly chosen one is disallowed)
          do while (GetNextSpawner(S,iDebug))
             if(.not.S%bValid) cycle
-            call AttemptSpawn(S,CS%C,Amplitude(:,iCurAmpList),dTolerance*dInitAmplitude,TL,iDebug)
+            call AttemptSpawn(S,CS%C,AL%Amplitude(:,iCurAmpList),dTolerance*dInitAmplitude,TL,iDebug)
          enddo !GetNextSpawner
 ! Now deal with birth/death.
          if((.not.tTruncSpace).or.CS%C%iExcitLevel<=iMaxAmpLevel)          &
-  &            call AttemptDie(CS%C,Amplitude(:,iCurAmpList),Amplitude(:,iOldAmpList),TL,iDebug)
+  &            call AttemptDie(CS%C,AL%Amplitude(:,iCurAmpList),AL%Amplitude(:,iOldAmpList),TL,iDebug)
       enddo ! Cluster choices
 
 ! Collate stats
@@ -1876,23 +1873,22 @@ end subroutine AttemptDie
       ENDIF
       if(Iter.gt.NEquilSteps) then
          dAveTotAbsAmp=dAveTotAbsAmp+dTotAbsAmpl
-         dAveNorm=dAveNorm+Amplitude(1,iCurAmpList)
+         dAveNorm=dAveNorm+AL%Amplitude(1,iCurAmpList)
       endif
       Iter=Iter+1
    enddo !MC Cycles
 
-      if(iDebug.gt.1) call WriteExcitorList(6,Amplitude(:,iCurAmpList),FciDets,0,nAmpl,dAmpPrintTol,"Final Excitor list")
+      if(iDebug.gt.1) call WriteExcitorList(6,AL%Amplitude(:,iCurAmpList),FciDets,0,nAmpl,dAmpPrintTol,"Final Excitor list")
 
 ! Find the largest 10 amplitudes in each level
-      call WriteMaxExcitorList(6,Amplitude(:,iCurAmpList),FciDets,FCIDetIndex,iMaxAmpLevel,10)
+      call WriteMaxExcitorList(6,AL%Amplitude(:,iCurAmpList),FciDets,FCIDetIndex,iMaxAmpLevel,10)
       nullify(OldAmpl)
       nullify(CS)
       if(lLogTransitions) then
-         call WriteTransitionLog(6,TL,Amplitude(:,iCurAmpList),NMCyc-NEquilSteps,dAveTotAbsAmp,dAveNorm)
+         call WriteTransitionLog(6,TL,AL%Amplitude(:,iCurAmpList),NMCyc-NEquilSteps,dAveTotAbsAmp,dAveNorm)
          call DeleteTransitionLog(TL)
    endif
-   LogDealloc(tagAmplitude)
-   DeAllocate(Amplitude)
+   call DeallocateAmplitudeList(AL)
    if(tCCBuffer) then
       LogDealloc(tagAmplitudeBuffer)
       DeAllocate(AmplitudeBuffer)
@@ -1931,9 +1927,7 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
    real(dp) Weight,EnergyxW
    CHARACTER(len=*), PARAMETER :: this_routine='CCMCStandalone'
    INTEGER ierr
-   REAL*8, ALLOCATABLE,target :: Amplitude(:,:) !(Det, 2)
-   INTEGER tagAmplitude
-
+   TYPE(AmplitudeList_int):: AL
 
    INTEGER nSelects              ! The number of selections of clusters to make
    INTEGER iNumExcitors          ! The number of non-zero excitors (excluding the ref det)
@@ -1969,6 +1963,8 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
    INTEGER SpawnList(:,:)
    REAL*8  SpawnAmps(:)
 
+   integer nMaxAmpl
+
 
    WRITE(6,*) "Entering CCMC Standalone Particle..."
    iDebug=CCMCDebug
@@ -1986,8 +1982,7 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
       iMaxAmpLevel=nEl
    endif
 ! Setup Memory
-   Allocate(Amplitude(nAmpl,2),stat=ierr)
-   LogAlloc(ierr,'Amplitude',nAmpl*2,8,tagAmplitude)
+   call AllocateAmplitudeList(AL,nMaxAmpl,1)
 
    if(tTruncSpace) then
       if(tCCMCFCI) then
@@ -2002,7 +1997,7 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
    endif
 
 ! Now setup the amplitude list.  Let's start with nothing initially, and
-   Amplitude(:,:)=0
+   AL%Amplitude(:,:)=0
 !  !  place ampl 1 in the HF det
 !   if(tStartMP1) then
 !      write(6,*) "Initializing with MP1 amplitudes."
@@ -2048,15 +2043,12 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
    Iter=1
    do while (Iter.le.NMCyc)
 ! Copy the old Amp list to the new
-      iOldAmpList=iCurAmpList
-      iCurAmpList=3-iCurAmpList
-      Amplitude(:,iCurAmpList)=Amplitude(:,iOldAmpList)
       IF(iDebug.gt.1) THEN
          write(6,*) "Cycle ",Iter
-         call WriteDExcitorList(6,Amplitude(:,iCurAmpList),FciDets,0,nAmpl,dAmpPrintTol,"Excitor list")
+         call WriteDExcitorList(6,AL%Amplitude(:,iCurAmpList),FciDets,0,nAmpl,dAmpPrintTol,"Excitor list")
       endif
-      call CalcTotals(iNumExcitors,dTotAbsAmpl,Amplitude(:,iCurAmpList),nAmpl,dTolerance*dInitAmplitude,WalkerScale,iDebug)
-      CALL CalcClusterEnergy(tCCMCFCI,Amplitude(:,iCurAmpList),nAmpl,FciDets,FCIDetIndex,dProjE)
+      call CalcTotals(iNumExcitors,dTotAbsAmpl,AL%Amplitude(:,iCurAmpList),nAmpl,dTolerance*dInitAmplitude,WalkerScale,iDebug)
+      CALL CalcClusterEnergy(tCCMCFCI,AL%Amplitude(:,iCurAmpList),nAmpl,FciDets,FCIDetIndex,dProjE)
       
       IF(iDebug.gt.1) THEN
          WRITE(6,*) "Total non-zero excitors: ",iNumExcitors
@@ -2070,7 +2062,7 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
       tMoreClusters=.true.
       do while (tMoreClusters)
          i=min(iNumExcitors,nEl)
-         tMoreClusters=GetNextCluster(CS,FciDets,nAmpl,Amplitude(:,iOldAmpList),dTotAbsAmpl,iNumExcitors,i,iDebug)
+         tMoreClusters=GetNextCluster(CS,FciDets,nAmpl,AL%Amplitude(:,iCurAmpList),dTotAbsAmpl,iNumExcitors,i,iDebug)
          if(.not.tMoreClusters) exit
 !Now form the cluster
          IF(iDebug.gt.3) then
@@ -2131,19 +2123,18 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
       ENDIF
       if(Iter.gt.NEquilSteps) then
          dAveTotAbsAmp=dAveTotAbsAmp+dTotAbsAmpl
-         dAveNorm=dAveNorm+Amplitude(1,iCurAmpList)
+         dAveNorm=dAveNorm+AL%Amplitude(1,iCurAmpList)
       endif
       Iter=Iter+1
    enddo !MC Cycles
 
-   if(iDebug.gt.1) call WriteDExcitorList(6,Amplitude(:,iCurAmpList),FciDets,0,nAmpl,dAmpPrintTol,"Final Excitor list")
+   if(iDebug.gt.1) call WriteDExcitorList(6,AL%Amplitude(:,iCurAmpList),FciDets,0,nAmpl,dAmpPrintTol,"Final Excitor list")
 
 ! Find the largest 10 amplitudes in each level
-   call WriteMaxDExcitorList(6,Amplitude(:,iCurAmpList),FciDets,FCIDetIndex,iMaxAmpLevel,10)
-   LogDealloc(tagAmplitude)
-   DeAllocate(Amplitude)
-   Weight=HDElement(0.D0)
-   Energyxw=HDElement(ProjectionE)
+   call WriteMaxDExcitorList(6,AL%Amplitude(:,iCurAmpList),FciDets,FCIDetIndex,iMaxAmpLevel,10)
+   call DeallocateAmplitudeList(AL)
+   Weight=0.D0
+   Energyxw=ProjectionE
 END SUBROUTINE CCMCStandaloneParticle
 
 
