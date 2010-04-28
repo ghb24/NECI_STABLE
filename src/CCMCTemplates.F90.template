@@ -13,13 +13,14 @@ size=8
 
 
 module ClusterList
+   use memorymanager, only: LogMemAlloc, LogMemDealloc
    use Determinants, only: get_helement, write_det, write_det_len
    use constants, only: dp, int32, n_int
    use CCMCData, only: ExcitToDetSign,AddBitExcitor
    implicit none
 
    type AmplitudeList_%(name)s
-      %(type1)s, allocatable, target ::   Amplitude(:,:)
+      %(type1)s, allocatable ::   Amplitude(:,:)
       %(type1)s, allocatable         ::   CumlAmplitude(:)
       integer tagAmplitude
       integer tagCumlAmplitude
@@ -52,10 +53,14 @@ module ClusterList
    interface DeallocateAmplitudeList
       module procedure DeallocateAmplitudeList_%(name)s
    end interface
+   interface CalcTotals
+      module procedure CalcTotals_%(name)s
+   end interface
       
 
 contains
    subroutine AllocateAmplitudeList_%(name)s (AL,nAmpl,nLists)
+      CHARACTER(len=*), PARAMETER :: this_routine='AllocateAmplitudeList_%(name)s'
       Type(AmplitudeList_%(name)s) AL
       integer nAmpl,nLists
       Allocate(AL%%Amplitude(nAmpl,nLists))
@@ -65,6 +70,7 @@ contains
    end subroutine AllocateAmplitudeList_%(name)s 
 
    subroutine DeallocateAmplitudeList_%(name)s (AL)
+      CHARACTER(len=*), PARAMETER :: this_routine='DeallocateAmplitudeList_%(name)s'
       Type(AmplitudeList_%(name)s) AL
       LogDealloc(AL%%tagAmplitude)
       Deallocate(AL%%Amplitude)
@@ -459,5 +465,61 @@ SUBROUTINE CollapseCluster_%(name)s (C,iLutHF,Amplitude,nDet,iDebug,tExToDet)
    if(iDebug.gt.4) WRITE(6,*) "Excitation Level ", C%%iExcitLevel
 
 END SUBROUTINE CollapseCluster_%(name)s
+
+!Calculate the total cluster amplitude as well as the magnitude of the e^T.
+subroutine CalcTotals_%(name)s (iNumExcitors,dTotAbsAmpl,Amplitude,nAmpl,dTol,WalkerScale,iDebug)
+   use Parallel, only: iProcIndex
+   use FciMCData, only: root
+   use CCMCData, only: tCCMCFCI
+   use FciMCData, only: TotParts,TotWalkers
+   implicit none
+   integer iNumExcitors,nAmpl
+   real*8 dTotAbsAmpl,dTol
+   %(type1)s Amplitude(nAmpl)
+   integer iDebug
+   real*8 WalkerScale
+
+   integer i,j
+   real*8 dPsiTotAbsAmpl,dTmp
+   real*8 dTotExcitors
+
+   iNumExcitors=0
+   dTotAbsAmpl=0
+   do j=2,nAmpl
+      if(abs(Amplitude(j)).gt.dTol) then
+         iNumExcitors=iNumExcitors+1
+         dTotAbsAmpl=dTotAbsAmpl+abs(Amplitude(j))
+      ENDIF
+   enddo
+
+!  The total cluster wavefunction has the following structure
+!
+!  Psi_CC = N_0 exp( T / N_0) = N_0 + T + T^2 / (2! N_0) + T^3 / (3! (N_0)^2) + ...
+!
+!  Instead of the full Psi_CC, we use |_ Psi_CC _| which is truncated at the excitation level corresponding to the number of excitation operators.
+!
+!  We pick clusters from each level of excitation separately.
+!  Were we to use Psi_CC, each level n would have an sum absolute amplitude of N_0 (T/N_0)^n, so the total sum absolute amplitude is N_0 exp(T/N_0).
+!  For |_ Psi_CC _| we must truncate this sum manually.
+   dPsiTotAbsAmpl=0
+   dTmp=Amplitude(1)
+   do i=0,iNumExcitors
+      if(abs(dTmp).lt.1d-8*abs(dPsiTotAbsAmpl)) exit
+      dPsiTotAbsAmpl=dPsiTotAbsAmpl+dTmp
+      dTmp=dTmp*dTotAbsAmpl/Amplitude(1)
+      if(i.gt.0) dTmp=dTmp/i
+      if(tCCMCFCI.and.i.gt.0) exit !FCI doesn't exponentiate
+   enddo
+   if(iDebug.gt.2) WRITE(6,"(A,I5,A,I5)") "Finished calculating total cluster amplitude at level ",i-1,"/",iNumExcitors
+   if(iDebug.gt.1) WRITE(6,*) "Total cluster amplitude: ",dPsiTotAbsAmpl
+   dTotExcitors=(dTotAbsAmpl+abs(Amplitude(1)))
+   TotParts=dTotExcitors*WalkerScale
+   if(iProcIndex.eq.root) then 
+      TotWalkers=TotParts 
+   else
+      TotWalkers=0
+   endif
+end subroutine CalcTotals_%(name)s
+
 
 end module

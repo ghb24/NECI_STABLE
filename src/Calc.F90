@@ -18,7 +18,7 @@ MODULE Calc
           Use DetCalcData, only: B2L,nKry,nEval,nBlk
           use IntegralsData, only: tNeedsVirts
           use SystemData, only : Beta,nEl
-          use CCMCData, only: dInitAmplitude,dProbSelNewExcitor,nSpawnings,tSpawnProp
+          use CCMCData, only: dInitAmplitude,dProbSelNewExcitor,nSpawnings,tSpawnProp,nClustSelections
           use default_sets
           implicit none
 
