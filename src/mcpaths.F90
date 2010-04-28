@@ -1,5 +1,6 @@
 module mcpaths
-   contains
+    use util_mod, only: isnan
+contains
 
 !C.. Calculate RHO^(P)_II without having a stored H matrix
 !C.. Sum over distinct nodes, e.g. IJKLI, with paths up to I_HMAX
@@ -471,7 +472,6 @@ module mcpaths
          use global_utilities
          use mcpathsdata, only: EGP
          use mcpathshdiag, only: fmcpr3b2
-         use util_mod, only: isnan
          IMPLICIT NONE
          TYPE(BasisFN) G1(*)
          INTEGER I_VMAX,NEL,NBASIS
