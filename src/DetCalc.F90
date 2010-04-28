@@ -1106,6 +1106,7 @@ END MODULE DetCalc
 !.. sum I_P*FLRI+FLSI will still retain the correct value.
       SUBROUTINE CALCRHOPII(I,NDET,NEVAL,CK,W,BETA,I_P,ILOGGING,ETRIAL,FLRI,FLSI,TWARN)
          use constants, only: dp
+         use util_mod, only: isnan
          IMPLICIT NONE
          INTEGER NDET,NEVAL
          HElement_t CK(NDET,NEVAL)
