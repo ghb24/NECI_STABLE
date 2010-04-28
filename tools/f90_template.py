@@ -130,7 +130,6 @@ def adj_arrays (template, config):
 				else:
 					types[i] = 0
 
-
 	# What variables occur with those types? Store the dimensionality.
 	# I am not happy with how general this is - I am sure there are things
 	# which will break it.
@@ -171,14 +170,18 @@ def adj_arrays (template, config):
 	# Replace the relevant occurrances
 	for var in vars:
 		config['dim-%s' % var] = '%d' % vars[var][1]
-		# If we are considering dimensionality of 2 or larger
-		if vars[var][1] > 1:
-			dimstr = ":,"*(vars[var][1]-1)
-			redim = '%s\s*\(' % var
-			substr = ('%s(' % var) + dimstr
-			re_redim = re.compile (redim)
+		# Only consider types with a dimenison() term to be adjustable
+		# based on the num of dimensions in type. Need to get this far
+		# to set dim-%s.
+		if types[vars[var][0]] != 0:
+			# If we are considering dimensionality of 2 or larger
+			if vars[var][1] > 1:
+				dimstr = ":,"*(vars[var][1]-1)
+				redim = '%s\s*\(' % var
+				substr = ('%s(' % var) + dimstr
+				re_redim = re.compile (redim)
 
-			template = re_redim.sub (substr, template)
+				template = re_redim.sub (substr, template)
 
 	return (template, config)
 
