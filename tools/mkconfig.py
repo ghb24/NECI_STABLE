@@ -239,9 +239,16 @@ OBJECTS_KVASP := $(addprefix $(KDEST)/,$(notdir $(OBJECTS_RVASP)))
 
 # Fortran dependencies.
 # We need these before compiling any fortran files.
-FRDEPEND = $(GDEP_DEST)/.depend
-FCDEPEND = $(KDEP_DEST)/.depend
+# Some compilers (I'm looking at you pathscale) create module files with
+# UPPERCASE names.  It is useful to always compile with a consistent set of
+# dependencies (no matter what the platform) so we create dependency files which
+# have use uppercase and lowercase module names. 
+FRDEPEND = $(GDEP_DEST)/ldepend
+FCDEPEND = $(KDEP_DEST)/ldepend
 FDEPEND = $(FRDEPEND) $(FCDEPEND)
+FRDEPENDUP = $(GDEP_DEST)/UDEPEND
+FCDEPENDUP = $(KDEP_DEST)/UDEPEND
+FDEPENDUP = $(FRDEPENDUP) $(FCDEPENDUP)
 
 # C dependencies.
 # We don't need these when we first compile, only when we recompile.
@@ -316,19 +323,23 @@ cleanall:
 # Generate dependency files for Fortran source files.
 # We assume that all module files are in *.F90 files.
 # This requires the JSS modified version of sfmakepend (supplied with neci).
+MKDEPEND = $(TOOLS)/sfmakedepend --file - --cpp --fext=f90 --depend=mod --silent $(FSRCFILES) $(F90SRCFILES) 
 $(FRDEPEND):
-\t$(TOOLS)/sfmakedepend --file - --cpp --fext=f90 --depend=mod --silent --objdir \$$\(GDEST\) --moddir \$$\(GDEST\) $(FSRCFILES) $(F90SRCFILES) > $(FRDEPEND)
-
+\t$(MKDEPEND) --objdir \$$\(GDEST\) --moddir \$$\(GDEST\) > $(FRDEPEND)
 $(FCDEPEND):
-\t$(TOOLS)/sfmakedepend --file - --cpp --fext=f90 --depend=mod --silent --objdir \$$\(KDEST\) --moddir \$$\(KDEST\) $(FSRCFILES) $(F90SRCFILES) > $(FCDEPEND)
+\t$(MKDEPEND) --objdir \$$\(KDEST\) --moddir \$$\(KDEST\) > $(FCDEPEND)
+$(FRDEPENDUP):
+\t$(MKDEPEND) --case=upper --objdir \$$\(GDEST\) --moddir \$$\(GDEST\) > $(FRDEPENDUP)
+$(FCDEPENDUP):
+\t$(MKDEPEND) --case=upper --objdir \$$\(KDEST\) --moddir \$$\(KDEST\) > $(FCDEPENDUP)
 
 # Generate all dependency files.
 depend: 
-\t$(my_make) -B $(FDEPEND) $(CDEPEND)
+\t$(my_make) -B $(FDEPEND) $(FDEPENDUP) $(CDEPEND)
 
 # Delete dependency files.
 rmdeps:
-\trm -f $(FDEPEND) $(CDEPEND)
+\trm -f $(FDEPEND) $(FDEPENDUP) $(CDEPEND)
 
 tags: null_goal
 \tctags $(SRCFILES)
@@ -505,7 +516,14 @@ $(addprefix $(EXE)/,$(addsuffix .$(CONFIG).$(OPT).x,$(basename $(UTILS)))): $(EX
 # Include dependency files
 
 # Dependency files will be generated if they don't exist.
+ifeq ($(findstring pathf, $(compiler)), pathf)
+# Use dependencies based upon module files with UPPERCASE filenames.
+# This is needed for all pathscale compilers.
+include $(FDEPENDUP)
+else
+# Use dependencies based upon module files with lowercase filenames.
 include $(FDEPEND)
+endif
 include $(CDEPEND)
 '''
 
