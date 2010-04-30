@@ -12,6 +12,7 @@ module_flag = -module
 [dbg]
 fflags = -r8 -g
 cflags = -g -sb -C -errtags
+f90flags = -check bounds
 
 [opt]
 fflags = -r8 -O3 -ipo

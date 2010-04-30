@@ -10,6 +10,7 @@ libs = -L/sw/lib/ -lfftw3 -framework vecLib -lstdc++
 [dbg]
 fflags = -g 
 cflags = -g -sb -C -errtags
+f90flags = -fbounds-check
 
 [opt]
 fflags = -O4

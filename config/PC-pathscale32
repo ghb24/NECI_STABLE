@@ -10,6 +10,7 @@ module_flag = -module
 
 [dbg]
 fflags = -r8 -g -fno-second-underscore
+f90flags = -ffortran-bounds-check
 
 [opt]
 fflags = -r8 -O3 -fno-second-underscore
