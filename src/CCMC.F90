@@ -488,9 +488,9 @@ MODULE CCMC
                         write(6,'(I2)',advance='no') sign(1,CurrentSign(SelectedExcitorIndices(i)))
                         call WriteBitEx(6,iLutHF,SelectedExcitors(:,i),.true.)
                      enddo
-                     Write(6,*) "Level chosen Prob      : ",dProbNumExcit
-                     Write(6,*) "Select Prob given level: ",dClusterProb
-                     Write(6,*) "Prob norm              : ",dProbNorm
+                     Write(6,*) "   Level chosen Prob      : ",dProbNumExcit
+                     Write(6,*) "   Select Prob given level: ",dClusterProb
+                     Write(6,*) "   Prob norm              : ",dProbNorm
                   endif
                   dClusterProb=dProbNumExcit*dClusterProb
 ! Lets check the probs
@@ -511,6 +511,7 @@ MODULE CCMC
 
                IF(iDebug.gt.4) then
                   WRITE(6,*) "Chosen det/excitor is:"
+                  WRITE(6,"(A)",advance="no") "  "
                   call WriteBitDet(6,iLutnI,.true.)
                   CALL FLUSH(6)
                endif
@@ -535,15 +536,16 @@ MODULE CCMC
 !We need to calculate the bit-representation of this new child. This can be done easily since the ExcitMat is known.
                   IF(.not.tHPHF) CALL FindExcitBitDet(iLutnI,iLutnJ,IC,Ex)
                   IF(iDebug.gt.4) then
-                      WRITE(6,*) "Random excited det level ",iC
+                      WRITE(6,*) "  Random excited det level ",iC
+                      WRITE(6,"(A)",advance="no") "   "
                       call write_det (6, nJ, .true.)
-                      Write(6,*) "Prob ex|from",Prob
+                      Write(6,*) "  Prob ex|from",Prob
                   endif
 !Prob is the Prob of choosing nJ from nI
 !dClusterProb is the Probability of having chosen this cluster excitor (normalized such that <1/dClusterProb> = 1)
 !dProbNorm is the renormalization factor for this level of excitors - decreasing by HFcount for each extra level of excitors
                   Prob=Prob*dClusterProb*dProbNorm  !Now include the prob of choosing the det we spawned from
-                  if(iDebug.gt.4) Write(6,*) "Prob ex tot",Prob
+                  if(iDebug.gt.4) Write(6,*) "  Prob ex tot",Prob
                   if(iCompositeSize.gt.1) dProb=dProb
 !Calculate number of children to spawn
                   IF(TTruncSpace) THEN
@@ -560,6 +562,7 @@ MODULE CCMC
 
                   IF(iDebug.gt.4.or.((iDebug.eq.3.or.iDebug.eq.4).and.Child.ne.0)) THEN
    !We've not printed this out before
+                     write(6,"(A)",advance="no") "    "
                      call WriteBitEx(6,iLutHF,iLutnI,.false.)
                      write(6,'(A)',advance='no') ,' ==> '
                      call WriteBitEx(6,iLutHF,iLutnJ,.false.)
@@ -1058,21 +1061,22 @@ LOGICAL FUNCTION GetNextSpawner(S,iDebug)
       if(tDone) S%nJ(1)=0
    ENDIF
    if(GetNextSpawner.and.IsNullDet(S%nJ)) then
-      if(iDebug.gt.4) WRITE(6,*) "GetNextSpawner",S%iIndex
-      if(iDebug.gt.4) WRITE(6,*) "Excitation not found"
+      if(iDebug.gt.4) WRITE(6,*) " GetNextSpawner",S%iIndex
+      if(iDebug.gt.4) WRITE(6,*) "  Excitation not found"
    else if(GetNextSpawner) then  !Check it hasn't given us a null determinant as it couldn't find one in a sensible time.
 !We need to calculate the bit-representation of this new child. This can be done easily since the ExcitMat is known.
       S%bValid=.true.
-      if(iDebug.gt.4) WRITE(6,*) "GetNextSpawner",S%iIndex
+      if(iDebug.gt.4) WRITE(6,*) " GetNextSpawner",S%iIndex
       CALL FindExcitBitDet(S%C%iLutDetCurr,S%iLutnJ,S%iExcitLevel,S%ExcitMat)
       IF(iDebug.gt.4) then
-          WRITE(6,*) "Random excited det level ",S%iExcitLevel
+          WRITE(6,*) "  Random excited det level ",S%iExcitLevel
+          write(6,"(A)",advance="no") "   "
           call write_det(6, S%nJ, .true.)
-          Write(6,*) "Prob ex|from",S%dProbSpawn
+          Write(6,*) "  Prob ex|from",S%dProbSpawn
       endif
 !Prob is the Prob of choosing nJ from nI
 !dClusterProb is the Probability of having chosen this cluster excitor (normalized such that <1/dClusterProb> = 1)
-      if(iDebug.gt.4) Write(6,*) "Prob ex tot",S%dProbSpawn
+      if(iDebug.gt.4) Write(6,*) "  Prob ex tot",S%dProbSpawn
 !Calculate amplitude to spawn
       IF(TTruncSpace) THEN
 !We have truncated the excitation space at a given excitation level. See if the spawn should be allowed.
@@ -1344,7 +1348,7 @@ subroutine AttemptSpawn(S,C,Amplitude,dTol,TL,iDebug)
    logical tSuc
    integer PartIndex
    IF(iDebug.gt.4) THEN
-      WRITE(6,*) "HIJ: ",S%HIJ
+      WRITE(6,*) "  HIJ: ",S%HIJ
    ENDIF
    rat=-C%iSgn*Tau*S%HIJ*C%dAbsAmplitude/(S%dProbSpawn*C%dProbNorm*C%dClusterNorm)  
 
@@ -1352,6 +1356,7 @@ subroutine AttemptSpawn(S,C,Amplitude,dTol,TL,iDebug)
 
    IF(iDebug.gt.3) THEN
 !We've not printed this out before
+      write(6,"(A)",advance="no") "    "
       call WriteBitEx(6,iLutHF,C%iLutDetCurr,.false.)
       write(6,'(A)',advance='no') ,' ==> '
       call WriteBitEx(6,iLutHF,S%iLutnJ,.false.)
@@ -1480,14 +1485,14 @@ subroutine AttemptDie(C,CurAmpl,OldAmpl,TL,iDebug)
    rat=rat/abs(OldAmpl(iPartDie))  !Take into account we're killing at a different place from the cluster
 
    IF(iDebug.ge.4) then
-      WRITE(6,*) "Product Contributions to Number Died:"
-      WRITE(6,*) "Energy difference: ",HDiagCurr-DiagSft
-      WRITE(6,*) "Tau              : ",Tau
-      WRITE(6,*) "Sign             : ",C%iSgn
-      WRITE(6,*) "Cluster Prob     : ",C%dClusterProb
-      WRITE(6,*) "Cluster Norm     : ",C%dClusterNorm
-      WRITE(6,*) "1/dProbNorm      : ",1/C%dProbNorm
-      WRITE(6,*) "dAbsAmplitude   : ",C%dAbsAmplitude
+      WRITE(6,*) "   Product Contributions to Number Died:"
+      WRITE(6,*) "    Energy difference: ",HDiagCurr-DiagSft
+      WRITE(6,*) "    Tau              : ",Tau
+      WRITE(6,*) "    Sign             : ",C%iSgn
+      WRITE(6,*) "    Cluster Prob     : ",C%dClusterProb
+      WRITE(6,*) "    Cluster Norm     : ",C%dClusterNorm
+      WRITE(6,*) "    1/dProbNorm      : ",1/C%dProbNorm
+      WRITE(6,*) "    dAbsAmplitude    : ",C%dAbsAmplitude
    endif 
 
 !! rat is what we wish to modify t_a t_b t_c by. (but positive - we'll actually want to subtract it)
@@ -1527,20 +1532,20 @@ subroutine AttemptSpawnParticle(S,C,iDebug,SpawnList,SpawnAmps,nSpawned)
    use CCMCData, only: Spawner, Cluster
    Use CalcData, only: Tau
    use DetBitOps, only: FindBitExcitLevel
+   USE dSFMT_interface , only : genrand_real2_dSFMT
    implicit none
    type(Spawner) S
    type(Cluster) C
    INTEGER(KIND=n_int) :: SpawnList(0:nIfTot,*)
    INTEGER SpawnAmps(:)
    integer nSpawned
+   integer iSpawnAmp
    integer iDebug
 
-   real*8 rat
+   real*8 rat,r
    integer i,j
-   integer IC
-   stop "AttemptSpawnParticle not functional."
    IF(iDebug.gt.4) THEN
-      WRITE(6,*) "HIJ: ",S%HIJ
+      WRITE(6,*) "  HIJ: ",S%HIJ
    ENDIF
    rat=-C%iSgn*Tau*S%HIJ*C%dAbsAmplitude/(S%dProbSpawn*C%dProbNorm*C%dClusterNorm)  
 
@@ -1548,10 +1553,11 @@ subroutine AttemptSpawnParticle(S,C,iDebug,SpawnList,SpawnAmps,nSpawned)
 
    IF(iDebug.gt.3) THEN
 !We've not printed this out before
+      write(6,"(A)",advance="no") "    "
       call WriteBitEx(6,iLutHF,C%iLutDetCurr,.false.)
       write(6,'(A)',advance='no') ,' ==> '
       call WriteBitEx(6,iLutHF,S%iLutnJ,.false.)
-      WRITE(6,'(A,G25.16)',advance='no') "Children:",rat
+      WRITE(6,'(A,G25.16)',advance='no') " Children ratio:",rat
       if(iDebug.eq.3.and.C%iSize.gt.1) THEN
          write(6,'(A)',advance='no') ' from '
          do i=1,C%iSize
@@ -1561,10 +1567,26 @@ subroutine AttemptSpawnParticle(S,C,iDebug,SpawnList,SpawnAmps,nSpawned)
       write(6,*)
    endif
 !   Here we convert from a det back to an excitor.
-   rat=rat*ExcitToDetSign(iLutHF,S%iLutnJ,IC)
-   nSpawned=nSpawned+1
-   SpawnAmps(nSpawned)=rat
-   SpawnList(:,nSpawned)=S%iLutnJ(:)
+   rat=rat*ExcitToDetSign(iLutHF,S%iLutnJ,S%iExcitLevel)
+   r=abs(rat)
+   iSpawnAmp=floor(r)
+   if ((r-iSpawnAmp)>genrand_real2_dSFMT()) iSpawnAmp=iSpawnAmp+1
+   if(iSpawnAmp>0) then
+
+      nSpawned=nSpawned+1 !The index into the spawning list
+      if(rat>0) then
+         SpawnAmps(nSpawned)=iSpawnAmp
+      else
+         SpawnAmps(nSpawned)=-iSpawnAmp
+      endif
+      SpawnList(:,nSpawned)=S%iLutnJ(:)
+      IF(iDebug.gt.3) THEN
+   !We've not printed this out before
+         WRITE(6,*) "   Spawned ",iSpawnAmp
+      endif
+   else if(iDebug>3) then
+      WRITE(6,*) "   No Spawning"
+   endif
 end subroutine AttemptSpawnParticle
 !Take cluster C and make an anti-excitor corresponding to its collapsed version to take into account its death.
 subroutine AttemptDieParticle(C,iDebug,SpawnList,SpawnAmps,nSpawned)
@@ -1588,9 +1610,9 @@ subroutine AttemptDieParticle(C,iDebug,SpawnList,SpawnAmps,nSpawned)
    real*8 r,rat,HDiagCurr
    HElement_t Htmp
    integer i
+   integer iSpawnAmp
    real*8 dProbDecompose
 
-   stop "Not yet functional"
 ! We have to decompose our composite excitor into one of its parts.  
    IF(C%iSize.GT.1) THEN
 !This is an old version of death which may still work, but hasn't been tested
@@ -1652,14 +1674,14 @@ subroutine AttemptDieParticle(C,iDebug,SpawnList,SpawnAmps,nSpawned)
 !   rat=rat/abs(OldAmpl(iPartDie))  !Take into account we're killing at a different place from the cluster
 
    IF(iDebug.ge.4) then
-      WRITE(6,*) "Product Contributions to Number Died:"
-      WRITE(6,*) "Energy difference: ",HDiagCurr-DiagSft
-      WRITE(6,*) "Tau              : ",Tau
-      WRITE(6,*) "Sign             : ",C%iSgn
-      WRITE(6,*) "Cluster Prob     : ",C%dClusterProb
-      WRITE(6,*) "Cluster Norm     : ",C%dClusterNorm
-      WRITE(6,*) "1/dProbNorm      : ",1/C%dProbNorm
-      WRITE(6,*) "dAbsAmplitude   : ",C%dAbsAmplitude
+      WRITE(6,*) "   Product Contributions to Number Died:"
+      WRITE(6,*) "    Energy difference: ",HDiagCurr-DiagSft
+      WRITE(6,*) "    Tau              : ",Tau
+      WRITE(6,*) "    Sign             : ",C%iSgn
+      WRITE(6,*) "    Cluster Prob     : ",C%dClusterProb
+      WRITE(6,*) "    Cluster Norm     : ",C%dClusterNorm
+      WRITE(6,*) "    1/dProbNorm      : ",1/C%dProbNorm
+      WRITE(6,*) "    dAbsAmplitude   : ",C%dAbsAmplitude
    endif 
 
 !! rat is what we wish to modify t_a t_b t_c by. (but positive - we'll actually want to subtract it)
@@ -1672,23 +1694,34 @@ subroutine AttemptDieParticle(C,iDebug,SpawnList,SpawnAmps,nSpawned)
 !   IF(iDebug.ge.4) then
 !      WRITE(6,*) "Death ratio      : ",rat
 !   endif
-   
-   nSpawned=nSpawned+1
-   SpawnAmps(nSpawned)=-r
-   SpawnList(:,nSpawned)=C%iLutDetCurr(:)
-   IF(iDebug.gt.3.) then
-      Write(6,'(A,I7)',advance='no') " Killing at excitor: ",iPartDie
-      Write(6,'(A)',advance='no') " chosen "
-      call WriteBitEx(6,iLutHF,SpawnList(:,nSpawned),.false.)
-      WRITE(6,'(A,G25.16)',advance='no') "Number died ",r
-      if(C%iSize.gt.1) then
-         WRITE(6,'(A)',advance='no') " from "
-         do i=1,C%iSize
-            call WriteBitEx(6,iLutHF,C%SelectedExcitors(:,i),.false.)
-         enddo
+   rat=-rat  !The we're creating death   
+   r=abs(rat)
+   iSpawnAmp=floor(r)
+   if ((r-iSpawnAmp)>genrand_real2_dSFMT()) iSpawnAmp=iSpawnAmp+1
+   if(iSpawnAmp>0) then
+      nSpawned=nSpawned+1 !The index into the spawning list
+      IF(iDebug.gt.3.) then
+         Write(6,'(A,I7)',advance='no') " Killing at excitor: ",iPartDie
+         Write(6,'(A)',advance='no') " chosen "
+         call WriteBitEx(6,iLutHF,SpawnList(:,nSpawned),.false.)
+         WRITE(6,'(A,G25.16)',advance='no') "Number died ",r
+         if(C%iSize.gt.1) then
+            WRITE(6,'(A)',advance='no') " from "
+            do i=1,C%iSize
+               call WriteBitEx(6,iLutHF,C%SelectedExcitors(:,i),.false.)
+            enddo
+         endif
+         WRITE(6,*)
+         if(iDebug.eq.4) Write(6,'(A,G25.16)') "Prob: ",C%dProbNorm
       endif
-      WRITE(6,*)
-      if(iDebug.eq.4) Write(6,'(A,G25.16)') "Prob: ",C%dProbNorm
+      if(rat>0) then
+         SpawnAmps(nSpawned)=iSpawnAmp
+      else
+         SpawnAmps(nSpawned)=-iSpawnAmp
+      endif
+      SpawnList(:,nSpawned)=C%iLutDetCurr(:)
+   else if(iDebug>3) then
+      write(6,*) "   No Death"
    endif
 end subroutine AttemptDieParticle
 
@@ -1928,15 +1961,16 @@ SUBROUTINE CCMCStandalone(Weight,Energyxw)
             do i=1,CS%C%iSize
                call WriteBitEx(6,iLutHF,CS%C%SelectedExcitors(:,i),.true.)
             enddo
-            Write(6,*) "Select Prob given level: ",CS%C%dClusterProb
-            Write(6,*) "Prob norm              : ",CS%C%dProbNorm
-            Write(6,*) "Cluster norm           : ",CS%C%dClusterNorm
+            Write(6,*) "   Select Prob given level: ",CS%C%dClusterProb
+            Write(6,*) "   Prob norm              : ",CS%C%dProbNorm
+            Write(6,*) "   Cluster norm           : ",CS%C%dClusterNorm
          endif
 
 !The final logic tells it whether to convert from an excitor to a det.
          CALL CollapseCluster(CS%C,iLutHF,OldAmpl(:),nCurAmpl,iDebug,.not.(tCCBuffer.and.tPostBuffering))
          IF(iDebug.gt.4) then
             WRITE(6,*) "Chosen det/excitor is:"
+            WRITE(6,"(A)",advance="no") "  "
             call WriteBitDet(6,CS%C%iLutDetCurr,.true.)
             CALL FLUSH(6)
          endif
@@ -2019,9 +2053,6 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
    use FciMCData, only: root
    use CCMCData, only: tCCMCFCI,dInitAmplitude,dProbSelNewExcitor,tExactCluster,tExactSpawn,nSpawnings,tCCBuffer
    use CCMCData, only: ClustSelector,Spawner,CCTransitionLog
-   use DetCalcData, only: Det       ! The number of Dets/Excitors in FCIDets
-   use DetCalcData, only: FCIDets   ! (0:NIfTot, Det).  Lists all allowed excitors in compressed form
-   use DetCalcData, only:FCIDetIndex! (0:nEl+1).  The index of the different excitation levels
    use CalcData, only: NMCyc    ! The number of MC Cycles
    use CalcData, only: StepsSft ! The number of steps between shift updates
    use CalcData, only: TStartMP1
@@ -2038,11 +2069,14 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
    USE DetCalcData , only : ICILevel
    use CalcData, only: InitWalkers,NEquilSteps
    use FciMCParMod, only: WriteFciMCStats, WriteFciMCStatsHeader
+   USE dSFMT_interface , only : genrand_real2_dSFMT
    IMPLICIT NONE
    real(dp) Weight,EnergyxW
-   CHARACTER(len=*), PARAMETER :: this_routine='CCMCStandalone'
+   CHARACTER(len=*), PARAMETER :: this_routine='CCMCStandaloneParticle'
    INTEGER ierr
    TYPE(AmplitudeList_int),target :: AL
+   INTEGER, allocatable :: DetList(:,:)
+   INTEGER  tagDetList
 
    INTEGER nSelects              ! The number of selections of clusters to make
    INTEGER iNumExcitors          ! The number of non-zero excitors (excluding the ref det)
@@ -2089,14 +2123,18 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
    dTolerance=0 !1e-16
 
    if(ICILevel/=0)  then 
-      nAmpl=FciDetIndex(ICILevel+1)-1
       iMaxAmpLevel=ICILevel
    else
-      nAmpl=Det
       iMaxAmpLevel=nEl
    endif
+   nMaxAmpl=InitWalkers
+   WalkerScale=1
 ! Setup Memory
+   write(6,*) "Max Amplitude List size: ", nMaxAmpl
    call AllocateAmplitudeList(AL,nMaxAmpl,1)
+   Allocate(DetList(0:nIfTot,nMaxAmpl))
+   LogAlloc(ierr,'DetList',(nIfTot+1)*nMaxAmpl,4,tagDetList)
+   
 
    if(tTruncSpace) then
       if(tCCMCFCI) then
@@ -2118,6 +2156,7 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
 !      CALL InitMP1Amplitude(tCCMCFCI,Amplitude(:,iCurAmpList),nAmpl,FciDets,FCIDetIndex,dInitAmplitude,dTotAbsAmpl)
 !   else
       AL%Amplitude(1,iCurAmpList)=dInitAmplitude
+      nAmpl=1
       iNumExcitors=0
 !      dTotAbsAmpl=Amplitude(1,iCurAmpList)
 !   endif
@@ -2159,10 +2198,10 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
       nSpawned=0
       IF(iDebug.gt.1) THEN
          write(6,*) "Cycle ",Iter
-         call WriteExcitorList(6,AL%Amplitude(:,iCurAmpList),FciDets,0,nAmpl,dAmpPrintTol,"Excitor list")
+         call WriteExcitorList(6,AL%Amplitude(:,iCurAmpList),DetList,0,nAmpl,dAmpPrintTol,"Excitor list")
       endif
       call CalcTotals(iNumExcitors,dTotAbsAmpl,AL%Amplitude(:,iCurAmpList),nAmpl,dTolerance*dInitAmplitude,WalkerScale,iDebug)
-      CALL CalcClusterEnergy(tCCMCFCI,AL%Amplitude(:,iCurAmpList),nAmpl,FciDets,FCIDetIndex,dProjE)
+!      CALL CalcClusterEnergy(tCCMCFCI,AL%Amplitude(:,iCurAmpList),nAmpl,DetList,FCIDetIndex,dProjE)
       
       IF(iDebug.gt.1) THEN
          WRITE(6,*) "Total non-zero excitors: ",iNumExcitors
@@ -2176,7 +2215,7 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
       tMoreClusters=.true.
       do while (tMoreClusters)
          i=min(iNumExcitors,nEl)
-         tMoreClusters=GetNextCluster(CS,FciDets,nAmpl,AL%Amplitude(:,iCurAmpList),dTotAbsAmpl,iNumExcitors,i,iDebug)
+         tMoreClusters=GetNextCluster(CS,DetList,nAmpl,AL%Amplitude(:,iCurAmpList),dTotAbsAmpl,iNumExcitors,i,iDebug)
          if(.not.tMoreClusters) exit
 !Now form the cluster
          IF(iDebug.gt.3) then
@@ -2185,27 +2224,31 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
             do i=1,CS%C%iSize
                call WriteBitEx(6,iLutHF,CS%C%SelectedExcitors(:,i),.true.)
             enddo
-            Write(6,*) "Select Prob given level: ",CS%C%dClusterProb
-            Write(6,*) "Prob norm              : ",CS%C%dProbNorm
-            Write(6,*) "Cluster norm           : ",CS%C%dClusterNorm
+            Write(6,*) "   Select Prob given level: ",CS%C%dClusterProb
+            Write(6,*) "   Prob norm              : ",CS%C%dProbNorm
+            Write(6,*) "   Cluster norm           : ",CS%C%dClusterNorm
          endif
 
 !The final logic tells it whether to convert from an excitor to a det.
          CALL CollapseCluster(CS%C,iLutHF,AL%Amplitude(:,iCurAmpList),nAmpl,iDebug,.true.)
          IF(iDebug.gt.4) then
-            WRITE(6,*) "Chosen det/excitor is:"
+            WRITE(6,*) " Chosen det/excitor is:"
+            WRITE(6,"(A)",advance="no") "  "
             call WriteBitDet(6,CS%C%iLutDetCurr,.true.)
             CALL FLUSH(6)
          endif
          if(tTruncSpace.and.CS%C%iExcitLevel>iExcitLevelCluster) cycle !Don't try to die if we're truncated
 
-         if(iDebug.gt.5) call WriteCluster(6,CS%C,.true.)
+         if(iDebug.gt.5) then
+            write(6, "(A)", advance='no') "  "
+            call WriteCluster(6,CS%C,.true.)
+         endif
          if(CS%C%iSgn.eq.0) then
             if(iDebug.gt.3) write(6,*) "Sign Zero so moving to next cluster"
             cycle  !No point in doing anything
          endif
 
-         if(iDebug.gt.3) WRITE(6,*) "Cluster Amplitude: ",CS%C%iSgn*CS%C%dAbsAmplitude 
+         if(iDebug.gt.3) WRITE(6,*) " Cluster Amplitude: ",CS%C%iSgn*CS%C%dAbsAmplitude 
 !Now consider a number of possible spawning events
          CALL ResetSpawner(S,CS%C,nSpawnings)
 
@@ -2242,11 +2285,13 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
       Iter=Iter+1
    enddo !MC Cycles
 
-   if(iDebug.gt.1) call WriteExcitorList(6,AL%Amplitude(:,iCurAmpList),FciDets,0,nAmpl,dAmpPrintTol,"Final Excitor list")
+   if(iDebug.gt.1) call WriteExcitorList(6,AL%Amplitude(:,iCurAmpList),DetList,0,nAmpl,dAmpPrintTol,"Final Excitor list")
 
 ! Find the largest 10 amplitudes in each level
-   call WriteMaxExcitorList(6,AL%Amplitude(:,iCurAmpList),FciDets,FCIDetIndex,iMaxAmpLevel,10)
+!   call WriteMaxExcitorList(6,AL%Amplitude(:,iCurAmpList),DetList,FCIDetIndex,iMaxAmpLevel,10)
    call DeallocateAmplitudeList(AL)
+   LogDealloc(tagDetList)
+   Deallocate(DetList)
    Weight=0.D0
    Energyxw=ProjectionE
 END SUBROUTINE CCMCStandaloneParticle

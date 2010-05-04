@@ -445,14 +445,14 @@ SUBROUTINE CollapseCluster_%(name)s (C,iLutHF,Amplitude,nDet,iDebug,tExToDet)
    do i=1,C%%iSize 
 !      C%%iSgn=C%%iSgn*int(sign(%(unity)s,Amplitude(C%%SelectedExcitorIndices(i))))
       call AddBitExcitor(C%%iLutDetCurr,C%%SelectedExcitors(:,i),iLutHF,C%%iSgn)
-      IF(iDebug.gt.3) Write(6,*) "Results of addition ",i, "Sign ",C%%iSgn,':'
+      IF(iDebug.gt.3) Write(6,*) "   Results of addition ",i, "Sign ",C%%iSgn,':'
       if(C%%iSgn.eq.0) exit
       IF(iDebug.gt.3) call WriteBitEx(6,iLutHF,C%%iLutDetCurr,.true.)
    enddo
    do i=1,C%%iSize 
       C%%iSgn=C%%iSgn*int(sign(%(unity)s,Amplitude(C%%SelectedExcitorIndices(i))))
    enddo
-   IF(iDebug.gt.3) Write(6,*) "Final sign including amplitudes ",C%%iSgn
+   IF(iDebug.gt.3) Write(6,*) " Final sign including amplitudes ",C%%iSgn
    iF(iDebug.gt.0) CALL FLUSH(6)
    if(C%%iSgn.eq.0) return
 
@@ -462,7 +462,7 @@ SUBROUTINE CollapseCluster_%(name)s (C,iLutHF,Amplitude,nDet,iDebug,tExToDet)
    C%%iExcitLevel = FindBitExcitLevel(iLutHF, C%%iLutDetCurr, nel)
 ! We need to calculate the sign change from excitor to det:
    if(tExToDet) C%%iSgn=C%%iSgn*ExcitToDetSign(iLutHF,C%%iLutDetCurr,C%%iExcitLevel)
-   if(iDebug.gt.4) WRITE(6,*) "Excitation Level ", C%%iExcitLevel
+   if(iDebug.gt.4) WRITE(6,*) " Excitation Level ", C%%iExcitLevel
 
 END SUBROUTINE CollapseCluster_%(name)s
 
@@ -519,6 +519,7 @@ subroutine CalcTotals_%(name)s (iNumExcitors,dTotAbsAmpl,Amplitude,nAmpl,dTol,Wa
    else
       TotWalkers=0
    endif
+   if(iDebug.gt.3) WRITE(6,*) "Total walkers", TotWalkers
 end subroutine CalcTotals_%(name)s
 
 
