@@ -221,12 +221,8 @@ module sort_mod
 	private
 	public :: sort
 
-    interface sort
-        module procedure sort_%(name)s
-    end interface
-
 contains
-    subroutine sort_%(name)s (arr, %(extra_arrs)snskip)
+    subroutine sort (arr, %(extra_arrs)snskip)
 
         ! Perform a quicksort on an array of integers, arr(n). Uses the 
         ! sample code in NumericalRecipies as a base.
@@ -263,7 +259,7 @@ contains
         %(type4)s :: tmp4(size(arr4(1)))
         %(type5)s :: tmp5(size(arr5(1)))
         %(type6)s :: tmp6(size(arr6(1)))
-        character(*), parameter :: this_routine = 'name'
+        character(*), parameter :: this_routine = 'sort'
 
 		if (present(nskip)) then
 			nskip_ = nskip

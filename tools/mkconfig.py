@@ -329,14 +329,24 @@ cleanall:
 MKDEPEND = $(TOOLS)/sfmakedepend --file - --cpp --fext=f90 --depend=mod --silent $(FSRCFILES) $(F90SRCFILES) $(F90TMPSRCFILES) 
 RMTEMPLATE = sed -e 's/\.F90\.template//g'
 $(FRDEPEND):
+<<<<<<< HEAD:tools/mkconfig.py
 \t$(MKDEPEND) --objdir \$$\(GDEST\) --moddir \$$\(GDEST\) | $(RMTEMPLATE) > $@
 
 $(FCDEPEND):
 \t$(MKDEPEND) --objdir \$$\(KDEST\) --moddir \$$\(KDEST\) | $(RMTEMPLATE) > $@
+=======
+\t$(MKDEPEND) --objdir \$$\(GDEST\) --moddir \$$\(GDEST\) | $(RMTEMPLATE) > $(FRDEPEND)
+$(FCDEPEND):
+\t$(MKDEPEND) --objdir \$$\(KDEST\) --moddir \$$\(KDEST\) | $(RMTEMPLATE) > $(FCDEPEND)
+>>>>>>> master:tools/mkconfig.py
 $(FRDEPENDUP):
-\t$(MKDEPEND) --case=upper --objdir \$$\(GDEST\) --moddir \$$\(GDEST\) > $(FRDEPENDUP)
+\t$(MKDEPEND) --case=upper --objdir \$$\(GDEST\) --moddir \$$\(GDEST\) | $(RMTEMPLATE) > $(FRDEPENDUP)
 $(FCDEPENDUP):
+<<<<<<< HEAD:tools/mkconfig.py
 \t$(MKDEPEND) --case=upper --objdir \$$\(KDEST\) --moddir \$$\(KDEST\) > $(FCDEPENDUP)
+=======
+\t$(MKDEPEND) --case=upper --objdir \$$\(KDEST\) --moddir \$$\(KDEST\) | $(RMTEMPLATE) > $(FCDEPENDUP)
+>>>>>>> master:tools/mkconfig.py
 
 # Generate all dependency files.
 depend: 
