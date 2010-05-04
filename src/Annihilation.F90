@@ -80,8 +80,13 @@ MODULE AnnihilationMod
         CurrentSign => MainSign
         SpawnedParts => SpawnParts
         SpawnedSign => SpawnSign
+!These point to the scratch space
         SpawnedParts2 => SpawnVec2
         SpawnedSign2 => SpawnSignVec2
+
+!        WRITE(6,*) "Size of SpawnVec2 = ",size(SpawnVec2(0,:))
+!        WRITE(6,*) "LowerBound of SpawnVec2 = ",lbound(SpawnVec2,2)
+!        WRITE(6,*) "UpperBound of SpawnVec2 = ",ubound(SpawnVec2,2)
 
         CALL DirectAnnihilation(TotDets)
 
@@ -94,7 +99,10 @@ MODULE AnnihilationMod
         integer, intent(in) :: TotWalkersNew
         integer :: i
         INTEGER :: MaxIndex
-!        WRITE(6,*) "Direct annihilation"
+        INTEGER , POINTER :: PointTempSign(:)
+        INTEGER(KIND=n_int) , POINTER :: PointTemp(:,:)
+
+!        WRITE(6,*) "Direct annihilation",TotWalkersNew
 !        CALL FLUSH(6)
 
 !This routine will send all the newly-spawned particles to their correct processor. MaxIndex is returned as the new number of newly-spawned particles on the processor. May have duplicates.
@@ -105,18 +113,30 @@ MODULE AnnihilationMod
 !        WRITE(6,*) 'MaxIndex',MaxIndex
 !        CALL FLUSH(6)
 
-!CompressSpawnedList works on SpawnedParts arrays, so swap the pointers around.
-        IF(associated(SpawnedParts2,target=SpawnVec2)) THEN
-            SpawnedParts2 => SpawnVec
-            SpawnedSign2 => SpawnSignVec
-            SpawnedParts => SpawnVec2
-            SpawnedSign => SpawnSignVec2
-        ELSE
-            SpawnedParts => SpawnVec
-            SpawnedSign => SpawnSignVec
-            SpawnedParts2 => SpawnVec2
-            SpawnedSign2 => SpawnSignVec2
-        ENDIF
+!        IF(tInterface) THEN
+           !Simply swap the pointers
+           PointTemp => SpawnedParts2
+           PointTempSign => SpawnedSign2
+           SpawnedParts2 => SpawnedParts
+           SpawnedSign2 => SpawnedSign
+           SpawnedParts => PointTemp
+           SpawnedSign => PointTempSign 
+
+
+!        ELSE
+!!CompressSpawnedList works on SpawnedParts arrays, so swap the pointers around.
+!            IF(associated(SpawnedParts2,target=SpawnVec2)) THEN
+!                SpawnedParts2 => SpawnVec
+!                SpawnedSign2 => SpawnSignVec
+!                SpawnedParts => SpawnVec2
+!                SpawnedSign => SpawnSignVec2
+!            ELSE
+!                SpawnedParts => SpawnVec
+!                SpawnedSign => SpawnSignVec
+!                SpawnedParts2 => SpawnVec2
+!                SpawnedSign2 => SpawnSignVec2
+!            ENDIF
+!        ENDIF
 
 !Now we want to order and compress the spawned list of particles. This will also annihilate the newly spawned particles amongst themselves.
 !MaxIndex will change to reflect the final number of unique determinants in the newly-spawned list, and the particles will end up in the spawnedSign/SpawnedParts lists.
