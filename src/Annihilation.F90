@@ -100,7 +100,6 @@ MODULE AnnihilationMod
         integer :: i
         INTEGER :: MaxIndex
         INTEGER , POINTER :: PointTempSign(:)
-        INTEGER(KIND=n_int) , POINTER :: PointTemp(:,:)
         INTEGER(Kind=n_int) , POINTER :: PointTemp(:,:)
 
 !        WRITE(6,*) "Direct annihilation"
