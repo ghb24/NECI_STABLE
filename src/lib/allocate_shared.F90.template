@@ -116,16 +116,9 @@ module shared_alloc
         end subroutine
     end interface
 
-	interface shared_allocate
-		module procedure shared_allocate_%(name)s
-	end interface
-	interface shared_deallocate
-		module procedure shared_deallocate_%(name)s
-	end interface
-
 contains
 
-	subroutine shared_allocate_%(name)s (nm, ptr, dims)
+	subroutine shared_allocate (nm, ptr, dims)
 
 		character(*), intent(in) :: nm
 		%(type)s, dimension(%(dim)s), intent(inout), pointer :: ptr
@@ -150,7 +143,7 @@ contains
 		       sz, nm
 	end subroutine
 
-	subroutine shared_deallocate_%(name)s (ptr)
+	subroutine shared_deallocate (ptr)
 		%(type)s, dimension(%(dim)s), intent(inout), pointer :: ptr
 		%(type)s, pointer :: pt1
 		type(c_ptr) :: tmp

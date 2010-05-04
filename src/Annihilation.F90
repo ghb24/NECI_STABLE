@@ -101,8 +101,9 @@ MODULE AnnihilationMod
         INTEGER :: MaxIndex
         INTEGER , POINTER :: PointTempSign(:)
         INTEGER(KIND=n_int) , POINTER :: PointTemp(:,:)
+        INTEGER(Kind=n_int) , POINTER :: PointTemp(:,:)
 
-!        WRITE(6,*) "Direct annihilation",TotWalkersNew
+!        WRITE(6,*) "Direct annihilation"
 !        CALL FLUSH(6)
 
 !This routine will send all the newly-spawned particles to their correct processor. MaxIndex is returned as the new number of newly-spawned particles on the processor. May have duplicates.
@@ -113,29 +114,24 @@ MODULE AnnihilationMod
 !        WRITE(6,*) 'MaxIndex',MaxIndex
 !        CALL FLUSH(6)
 
-!        IF(tInterface) THEN
-           !Simply swap the pointers
-           PointTemp => SpawnedParts2
-           PointTempSign => SpawnedSign2
-           SpawnedParts2 => SpawnedParts
-           SpawnedSign2 => SpawnedSign
-           SpawnedParts => PointTemp
-           SpawnedSign => PointTempSign 
+!CompressSpawnedList works on SpawnedParts arrays, so swap the pointers around.
+        PointTemp => SpawnedParts2
+        PointTempSign => SpawnedSign2
+        SpawnedParts2 => SpawnedParts
+        SpawnedSign2 => SpawnedSign
+        SpawnedParts => PointTemp
+        SpawnedSign => PointTempSign
 
-
+!        IF(associated(SpawnedParts2,target=SpawnVec2)) THEN
+!            SpawnedParts2 => SpawnVec
+!            SpawnedSign2 => SpawnSignVec
+!            SpawnedParts => SpawnVec2
+!            SpawnedSign => SpawnSignVec2
 !        ELSE
-!!CompressSpawnedList works on SpawnedParts arrays, so swap the pointers around.
-!            IF(associated(SpawnedParts2,target=SpawnVec2)) THEN
-!                SpawnedParts2 => SpawnVec
-!                SpawnedSign2 => SpawnSignVec
-!                SpawnedParts => SpawnVec2
-!                SpawnedSign => SpawnSignVec2
-!            ELSE
-!                SpawnedParts => SpawnVec
-!                SpawnedSign => SpawnSignVec
-!                SpawnedParts2 => SpawnVec2
-!                SpawnedSign2 => SpawnSignVec2
-!            ENDIF
+!            SpawnedParts => SpawnVec
+!            SpawnedSign => SpawnSignVec
+!            SpawnedParts2 => SpawnVec2
+!            SpawnedSign2 => SpawnSignVec2
 !        ENDIF
 
 !Now we want to order and compress the spawned list of particles. This will also annihilate the newly spawned particles amongst themselves.
