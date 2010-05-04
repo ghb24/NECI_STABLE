@@ -135,12 +135,11 @@ MODULE AnnihilationMod
 
 !Now we want to order and compress the spawned list of particles. This will also annihilate the newly spawned particles amongst themselves.
 !MaxIndex will change to reflect the final number of unique determinants in the newly-spawned list, and the particles will end up in the spawnedSign/SpawnedParts lists.
-!        WRITE(6,*) "Transferred"
-!        CALL FLUSH(6)
+!        WRITE(6,*) "Transferred",MaxIndex
+
         CALL CompressSpawnedList(MaxIndex)
 
 !        WRITE(6,*) "List compressed",MaxIndex,TotWalkersNew
-!        CALL FLUSH(6)
 
 !Binary search the main list and copy accross/annihilate determinants which are found.
 !This will also remove the found determinants from the spawnedparts lists.
@@ -148,7 +147,6 @@ MODULE AnnihilationMod
         CALL AnnihilateSpawnedParts(MaxIndex,TotWalkersNew)
 
 !        WRITE(6,*) "Annihilation finished",MaxIndex,TotWalkersNew
-!        CALL FLUSH(6)
 
 !Put the surviving particles in the main list, maintaining order of the main list.
 !Now we insert the remaining newly-spawned particles back into the original list (keeping it sorted), and remove the annihilated particles from the main list.
@@ -156,7 +154,6 @@ MODULE AnnihilationMod
         CALL InsertRemoveParts(MaxIndex,TotWalkersNew)
 
 !       WRITE(6,*) "Surviving particles merged"
-!       CALL FLUSH(6)
 
         CALL halt_timer(Sort_Time)
 
@@ -384,6 +381,8 @@ MODULE AnnihilationMod
     SUBROUTINE AnnihilateSpawnedParts(ValidSpawned,TotWalkersNew)
         INTEGER :: ValidSpawned,MinInd,TotWalkersNew,PartInd,i,j,k,ToRemove,VecInd,SignProd,DetsMerged,PartIndex!,SearchInd,AnnihilateInd
         INTEGER :: ExcitLevel
+        INTEGER(KIND=n_int) , POINTER :: PointTemp(:,:)
+        INTEGER , POINTER :: PointTempSign(:)
         LOGICAL :: tSuccess,tSuc!,tSkipSearch
 
         CALL set_timer(AnnMain_time,30)
@@ -577,18 +576,28 @@ MODULE AnnihilationMod
                 WRITE(6,*) "***", Iter
                 CALL Stop_All("AnnihilateSpawnedParts","Incorrect number of particles removed from spawned list")
             ENDIF
-!We always want to annihilate from the SpawedParts and SpawnedSign arrays.
-            IF(associated(SpawnedParts2,target=SpawnVec2)) THEN
-                SpawnedParts2 => SpawnVec
-                SpawnedSign2 => SpawnSignVec
-                SpawnedParts => SpawnVec2
-                SpawnedSign => SpawnSignVec2
-            ELSE
-                SpawnedParts => SpawnVec
-                SpawnedSign => SpawnSignVec
-                SpawnedParts2 => SpawnVec2
-                SpawnedSign2 => SpawnSignVec2
-            ENDIF
+
+!We always want to annihilate from the SpawedParts and SpawnedSign arrays, so swap arrays again
+
+        PointTemp => SpawnedParts2
+        PointTempSign => SpawnedSign2
+        SpawnedParts2 => SpawnedParts
+        SpawnedSign2 => SpawnedSign
+        SpawnedParts => PointTemp
+        SpawnedSign => PointTempSign
+
+!
+!            IF(associated(SpawnedParts2,target=SpawnVec2)) THEN
+!                SpawnedParts2 => SpawnVec
+!                SpawnedSign2 => SpawnSignVec
+!                SpawnedParts => SpawnVec2
+!                SpawnedSign => SpawnSignVec2
+!            ELSE
+!                SpawnedParts => SpawnVec
+!                SpawnedSign => SpawnSignVec
+!                SpawnedParts2 => SpawnVec2
+!                SpawnedSign2 => SpawnSignVec2
+!            ENDIF
 
         ENDIF
 
