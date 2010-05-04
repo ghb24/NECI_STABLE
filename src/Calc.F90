@@ -226,6 +226,7 @@ MODULE Calc
           CHARACTER (LEN=100) w
           CHARACTER(*),PARAMETER :: t_r='CalcReadInput'
           INTEGER :: l,i,ierr
+          INTEGER :: tempMaxNoatHF,tempHFPopThresh
 
           calc: do
             call read_line(eof)
@@ -725,9 +726,11 @@ MODULE Calc
 !If a second integer is present, this determinants the threshhold for the HF population.  If the HF population drops below MaxNoatHF-HFPopThresh, the
 !number of walkers is allowed to grow again until MaxNoatHF is reachieved.
 !Without the second integer, MaxNoatHF-HFPopThresh=0, and the HF population can drop to 0 without any consequences.
-                call geti(MaxNoatHF)
+                call geti(tempMaxNoatHF)
+                MaxNoatHF=tempMaxNoatHF
                 if(item.lt.nitems) then
-                    call geti(HFPopThresh)
+                    call geti(tempHFPopThresh)
+                    HFPopThresh=tempHFPopThresh
                 else
                     HFPopThresh=MaxNoatHF 
                 end if

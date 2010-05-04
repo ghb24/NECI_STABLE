@@ -13,6 +13,7 @@ module_flag = -module
 fflags = -g -fno-second-underscore
 cflags = -g
 ldflags = -g -Bstatic
+f90flags = -ffortran-bounds-check
 
 [opt]
 fflags = -O3 -OPT:Ofast -LNO:simd_verbose=ON -fno-second-underscore

@@ -25,14 +25,14 @@ LOGICAL :: tTruncCAS,tTruncInitiator,tDelayTruncInit,tKeepDoubleSpawns,tAddtoIni
 LOGICAL :: tInitIncDoubs,tWalkContGrow,tRandomiseHashOrbs,tAnnihilatebyRange
 
 INTEGER :: NWHTAY(3,10),NPATHS,NoMoveDets,NoMCExcits,IterTruncInit,InitiatorWalkNo,NShiftEquilSteps
-INTEGER :: NDETWORK,I_HMAX,I_VMAX,G_VMC_SEED,HApp,iFullSpaceIter,MaxNoatHF,HFPopThresh
+INTEGER :: NDETWORK,I_HMAX,I_VMAX,G_VMC_SEED,HApp,iFullSpaceIter
 INTEGER :: IMCSTEPS,IEQSTEPS,MDK(5),Iters,NDets,iDetGroup
 INTEGER :: CUR_VERT,NHISTBOXES,I_P,LinePoints,iMaxExcitLevel
 INTEGER :: InitWalkers,NMCyc,StepsSft,CLMax
 INTEGER :: NEquilSteps,InitialPart
 INTEGER :: OccCASorbs,VirtCASorbs,iAnnInterval
 integer :: iPopsFileNoRead, iPopsFileNoWrite,iWeightPopRead,iRestartWalkNum
-
+INTEGER *8 :: MaxNoatHF,HFPopThresh
 
 REAL*8 :: g_MultiWeight(0:10),G_VMC_PI,G_VMC_FAC,BETAEQ
 REAL*8 :: G_VMC_EXCITWEIGHT(10),G_VMC_EXCITWEIGHTS(6,10)

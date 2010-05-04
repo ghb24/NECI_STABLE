@@ -1,6 +1,5 @@
 [main]
 fc = ftn
-f90flags = -Mfree 
 compiler = PGI-pgf95-on-LINUX
 cc = CC
 ccd = g++
@@ -13,7 +12,9 @@ module_flag = -module
 [dbg]
 fflags = -g
 cflags = -m64 -g -sb -C -errtags
+f90flags = -Mfree -Mbounds
 
 [opt]
 fflags = -fastsse -Minfo -Mneginfo
 cflags = -m64 -O2
+f90flags = -Mfree 
