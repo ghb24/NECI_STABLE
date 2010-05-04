@@ -34,23 +34,15 @@ module util_mod_comparisons
 		module procedure arr_gt_%(name)s
 	end interface
 
-	interface arr_gt
-		module procedure arr_gt_%(name)s
-	end interface
-
 	! Operator and function to test if arr1 < arr2 (if the first differing
 	! element is larger)
 	interface operator(.arrlt.)
 		module procedure arr_lt_%(name)s
 	end interface
 
-	interface arr_lt
-		module procedure arr_lt_%(name)s
-	end interface
-
 contains
 
-	pure function arr_gt_%(name)s (a, b) result (bGt)
+	pure function arr_gt (a, b) result (bGt)
 
 		! Make a comparison we can sort arrays by. Return true if the
 		! first differing items of a, b is such that a(i) > b(i).
@@ -77,7 +69,7 @@ contains
 		endif
 	end function
 
-	pure function arr_lt_%(name)s (a, b) result (bLt)
+	pure function arr_lt (a, b) result (bLt)
 		
 		! Make a comparison we can sort arrays by. Return true if the first
 		! differing items of a, b is such that a(i) < b(i).

@@ -185,6 +185,39 @@ def adj_arrays (template, config):
 
 	return (template, config)
 
+def interface_procs (template):
+	'''Create module procedure interfaces for all of the module procedures'''
+
+	print "Interface generation"
+
+	# Do we have procedures in this template file?
+	re_contains = re.compile ('\n\s*contains\s*\n')
+	m = re_contains.search(template)
+	if m:
+		interface = "\n"
+
+		# Find all of the functions or subroutines. Note that it requires functions to
+		# be new style functions, with results declared in result(ret) format.
+		#re_proc = re.compile ('\n\s*(subroutine|function)[\s^\n]+\(\w+\)[\s^\n]+\(')
+		re_proc = re.compile ('(\n\s*((elemental|pure)[\s^\n]+)*(subroutine|function)[\s^\n]+)(\w+)([\s^\n]*\()')
+
+		offset = m.start()
+		proc = re_proc.search(template[offset:])
+		while proc:
+			# For each procedure, append _%(name)s to all of the names.
+			template = (template[0:offset + proc.start()] +
+					   re_proc.sub("\\1\\5_%(name)s\\6", template[proc.start()+offset:], 1))
+			interface += ('\tinterface %s\n'
+			              '\t\tmodule procedure %s_%%(name)s\n'
+						  '\tend interface\n' % (proc.group(5), proc.group(5)))
+			offset = offset + proc.end() + 10
+			proc = re_proc.search(template[offset:])
+
+		interface += "contains\n"
+		template = template[0:m.start()] + interface + template[m.end():]
+
+	return template
+
 # Runtime entry point
 if __name__ == '__main__':
 	if len(sys.argv) < 2 or len(sys.argv) > 3:
@@ -204,6 +237,7 @@ if __name__ == '__main__':
 		# Read in the template
 		template = fin.read()
 		(template,super_mod) = super_module(template, config)
+		template = interface_procs (template)
 
 		# Write the output file
 		for s in config:
