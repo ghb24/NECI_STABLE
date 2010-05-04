@@ -347,7 +347,7 @@ rmdeps:
 \trm -f $(FDEPEND) $(FDEPENDUP) $(CDEPEND)
 
 tags: null_goal
-\tctags $(SRCFILES)
+\tctags --langmap=fortran:.F90.template $(SRCFILES)
 
 # Empty goal.  Depending on this will force a rule to be run.
 null_goal: ;

@@ -134,7 +134,10 @@ FUNCTION ExcitToDetSign(iLutRef,iLutDet,iLevel)
    enddo
    if(iAnnihil+iCreation.ne.0) then
       call WriteBitEx(6,iLutRef,iLutDet,.false.)
-      write(6,*) " left over annihil: ", iAnnihil," left over creation: ", iCreation
+      write(6,"(A,2Z17)") "Ref, Det:", iLutRef, iLutDet
+      write(6,*) "bits/byte", end_n_int+1
+      write(6,*) "Level:", iLevel
+      write(6,"(A,Z17,A,Z17)") " left over annihil: ", iAnnihil," left over creation: ", iCreation
       call Stop_All("Failed to normal order excitor.","ExcitToDetSign")
    endif
 !   call WriteBitEx(6,iLutRef,iLutDet,.false.)

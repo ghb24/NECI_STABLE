@@ -1545,6 +1545,7 @@ subroutine AttemptSpawnParticle(S,C,iDebug,SpawnList,SpawnAmps,nSpawned,nMaxSpaw
 
    real*8 rat,r
    integer i,j
+   integer IC
    IF(iDebug.gt.4) THEN
       WRITE(6,*) "  HIJ: ",S%HIJ
    ENDIF
@@ -1568,7 +1569,8 @@ subroutine AttemptSpawnParticle(S,C,iDebug,SpawnList,SpawnAmps,nSpawned,nMaxSpaw
       write(6,*)
    endif
 !   Here we convert from a det back to an excitor.
-   rat=rat*ExcitToDetSign(iLutHF,S%iLutnJ,S%iExcitLevel)
+   IC = FindBitExcitLevel(iLutHF, S%iLutnJ(:), nEl)
+   rat=rat*ExcitToDetSign(iLutHF,S%iLutnJ,IC)
    r=abs(rat)
    iSpawnAmp=floor(r)
    if ((r-iSpawnAmp)>genrand_real2_dSFMT()) iSpawnAmp=iSpawnAmp+1
@@ -2164,7 +2166,8 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
 !      write(6,*) "Initializing with MP1 amplitudes."
 !      CALL InitMP1Amplitude(tCCMCFCI,Amplitude(:,iCurAmpList),nAmpl,FciDets,FCIDetIndex,dInitAmplitude,dTotAbsAmpl)
 !   else
-      AL%Amplitude(1,iCurAmpList)=dInitAmplitude
+   AL%Amplitude(1,iCurAmpList)=dInitAmplitude
+   DetList(:,1)=iLutHF 
       nAmpl=1
       iNumExcitors=0
 !      dTotAbsAmpl=Amplitude(1,iCurAmpList)
@@ -2274,6 +2277,7 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
 ! At this point SpawnList contains a set of newly spawned particles and SpawnAmps the amount spawned
       if(nSpawned>0) then
          if(iDebug>2) write(6,*) "Calling Annihilation with ", nSpawned, " spawned."
+         if(iDebug>2) call WriteExcitorList(6,SpawnAmps,SpawnList,0,nSpawned,dAmpPrintTol,"Spawned list")
          call AnnihilationInterface(nAmpl,DetList,AL%Amplitude(:,iCurAmpList),nMaxAmpl,nSpawned,SpawnList,SpawnAmps,nMaxSpawn)
       else
          if(iDebug>2) write(6,*) "No spawnings in toto."
