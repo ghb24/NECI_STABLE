@@ -2272,8 +2272,12 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
       enddo ! Cluster choices
 
 ! At this point SpawnList contains a set of newly spawned particles and SpawnAmps the amount spawned
-      if(iDebug>2) write(6,*) "Calling Annihilation."
-      call AnnihilationInterface(nAmpl,DetList,AL%Amplitude(:,iCurAmpList),nMaxAmpl,nSpawned,SpawnList,SpawnAmps,nMaxSpawn)
+      if(nSpawned>0) then
+         if(iDebug>2) write(6,*) "Calling Annihilation with ", nSpawned, " spawned."
+         call AnnihilationInterface(nAmpl,DetList,AL%Amplitude(:,iCurAmpList),nMaxAmpl,nSpawned,SpawnList,SpawnAmps,nMaxSpawn)
+      else
+         if(iDebug>2) write(6,*) "No spawnings in toto."
+      endif 
       
 
 ! Collate stats
