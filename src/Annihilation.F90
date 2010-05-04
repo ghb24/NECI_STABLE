@@ -94,6 +94,8 @@ MODULE AnnihilationMod
         integer, intent(in) :: TotWalkersNew
         integer :: i
         INTEGER :: MaxIndex
+        INTEGER , POINTER :: PointTempSign(:)
+        INTEGER(Kind=n_int) , POINTER :: PointTemp(:,:)
 !        WRITE(6,*) "Direct annihilation"
 !        CALL FLUSH(6)
 
@@ -106,17 +108,24 @@ MODULE AnnihilationMod
 !        CALL FLUSH(6)
 
 !CompressSpawnedList works on SpawnedParts arrays, so swap the pointers around.
-        IF(associated(SpawnedParts2,target=SpawnVec2)) THEN
-            SpawnedParts2 => SpawnVec
-            SpawnedSign2 => SpawnSignVec
-            SpawnedParts => SpawnVec2
-            SpawnedSign => SpawnSignVec2
-        ELSE
-            SpawnedParts => SpawnVec
-            SpawnedSign => SpawnSignVec
-            SpawnedParts2 => SpawnVec2
-            SpawnedSign2 => SpawnSignVec2
-        ENDIF
+        PointTemp => SpawnedParts2
+        PointTempSign => SpawnedSign2
+        SpawnedParts2 => SpawnedParts
+        SpawnedSign2 => SpawnedSign
+        SpawnedParts => PointTemp
+        SpawnedSign => PointTempSign
+
+!        IF(associated(SpawnedParts2,target=SpawnVec2)) THEN
+!            SpawnedParts2 => SpawnVec
+!            SpawnedSign2 => SpawnSignVec
+!            SpawnedParts => SpawnVec2
+!            SpawnedSign => SpawnSignVec2
+!        ELSE
+!            SpawnedParts => SpawnVec
+!            SpawnedSign => SpawnSignVec
+!            SpawnedParts2 => SpawnVec2
+!            SpawnedSign2 => SpawnSignVec2
+!        ENDIF
 
 !Now we want to order and compress the spawned list of particles. This will also annihilate the newly spawned particles amongst themselves.
 !MaxIndex will change to reflect the final number of unique determinants in the newly-spawned list, and the particles will end up in the spawnedSign/SpawnedParts lists.
