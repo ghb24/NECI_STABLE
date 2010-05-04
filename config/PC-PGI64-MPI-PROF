@@ -1,6 +1,5 @@
 [main]
 fc = mpif90 
-f90flags = -Mfree 
 compiler = PGI-pgf95-on-LINUX
 cc = mpic++
 ccd = g++
@@ -13,8 +12,10 @@ module_flag = -module
 [dbg]
 fflags = -g -r8 pc=64 -Msignextend -Minform=warn
 cflags = -g -C
+f90flags = -Mfree -Mbounds
 
 [opt]
 fflags = -fastsse -tp k8-64 -r8 pc=64 -Msignextend -Minform=warn -Mprof=func
 cflags = -O2 -m64
 ldflags = -Mprof=func
+f90flags = -Mfree 

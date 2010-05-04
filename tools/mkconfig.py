@@ -241,9 +241,16 @@ OBJECTS_KVASP := $(addprefix $(KDEST)/,$(notdir $(OBJECTS_RVASP)))
 
 # Fortran dependencies.
 # We need these before compiling any fortran files.
-FRDEPEND = $(GDEP_DEST)/.depend
-FCDEPEND = $(KDEP_DEST)/.depend
+# Some compilers (I'm looking at you pathscale) create module files with
+# UPPERCASE names.  It is useful to always compile with a consistent set of
+# dependencies (no matter what the platform) so we create dependency files which
+# have use uppercase and lowercase module names. 
+FRDEPEND = $(GDEP_DEST)/ldepend
+FCDEPEND = $(KDEP_DEST)/ldepend
 FDEPEND = $(FRDEPEND) $(FCDEPEND)
+FRDEPENDUP = $(GDEP_DEST)/UDEPEND
+FCDEPENDUP = $(KDEP_DEST)/UDEPEND
+FDEPENDUP = $(FRDEPENDUP) $(FCDEPENDUP)
 
 # C dependencies.
 # We don't need these when we first compile, only when we recompile.
@@ -322,18 +329,21 @@ cleanall:
 MKDEPEND = $(TOOLS)/sfmakedepend --file - --cpp --fext=f90 --depend=mod --silent $(FSRCFILES) $(F90SRCFILES) $(F90TMPSRCFILES) 
 RMTEMPLATE = sed -e 's/\.F90\.template//g'
 $(FRDEPEND):
-\t$(MKDEPEND) --objdir \$$\(GDEST\) --moddir \$$\(GDEST\) | $(RMTEMPLATE) > $@
-
+\t$(MKDEPEND) --objdir \$$\(GDEST\) --moddir \$$\(GDEST\) | $(RMTEMPLATE) > $(FRDEPEND)
 $(FCDEPEND):
-\t$(MKDEPEND) --objdir \$$\(KDEST\) --moddir \$$\(KDEST\) | $(RMTEMPLATE) > $@
+\t$(MKDEPEND) --objdir \$$\(KDEST\) --moddir \$$\(KDEST\) | $(RMTEMPLATE) > $(FCDEPEND)
+$(FRDEPENDUP):
+\t$(MKDEPEND) --case=upper --objdir \$$\(GDEST\) --moddir \$$\(GDEST\) | $(RMTEMPLATE) > $(FRDEPENDUP)
+$(FCDEPENDUP):
+\t$(MKDEPEND) --case=upper --objdir \$$\(KDEST\) --moddir \$$\(KDEST\) | $(RMTEMPLATE) > $(FCDEPENDUP)
 
 # Generate all dependency files.
 depend: 
-\t$(my_make) -B $(FDEPEND) $(CDEPEND)
+\t$(my_make) -B $(FDEPEND) $(FDEPENDUP) $(CDEPEND)
 
 # Delete dependency files.
 rmdeps:
-\trm -f $(FDEPEND) $(CDEPEND)
+\trm -f $(FDEPEND) $(FDEPENDUP) $(CDEPEND)
 
 tags: null_goal
 \tctags $(SRCFILES)
@@ -522,7 +532,14 @@ $(addprefix $(EXE)/,$(addsuffix .$(CONFIG).$(OPT).x,$(basename $(UTILS)))): $(EX
 # Include dependency files
 
 # Dependency files will be generated if they don't exist.
+ifeq ($(findstring pathf, $(compiler)), pathf)
+# Use dependencies based upon module files with UPPERCASE filenames.
+# This is needed for all pathscale compilers.
+include $(FDEPENDUP)
+else
+# Use dependencies based upon module files with lowercase filenames.
 include $(FDEPEND)
+endif
 include $(CDEPEND)
 '''
 

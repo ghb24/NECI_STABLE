@@ -1095,7 +1095,7 @@ contains
          IMPLICIT NONE
          TYPE(BasisFN) G1(*),ISYM
          INTEGER I_V,NEL,I_P,nBasisMax(5,*),NBASIS,BRR(*),NMSH,NMAX
-         INTEGER NTAY(2),I_VIND,NWHTAY,ILOGGING,J,K,I_VMAX,II
+         INTEGER NTAY(2),I_VIND,NWHTAY,ILOGGING,J,K,II
          INTEGER I
          COMPLEX*16 FCK(*)
          HElement_t UMAT(*),R
@@ -1121,7 +1121,7 @@ contains
 !C.. the path (i.e. J).  LOCTAB(1)%l is the length of the generator (i.e. 
 !C.. the amount of memory used to store it)
          TYPE(EGP) LOCTAB(:)
-         TYPE(EGP) LOCTAB2(I_VIND+1)
+         TYPE(EGP) LOCTAB2(I_V)
          LOGICAL TFAIL,TNEXT,T
          INTEGER L,LT,IVLEVEL,IEXFROM,IVLMAX,IVLMIN
          INTEGER ICMPDETS
@@ -1218,7 +1218,7 @@ contains
 !C.. 
             ICLS=0
             TOTAL=TOTAL+ CALCPATHS_N(IPATH,RHOII,RHOIJ,I_V,I_HMAX,                      &
-     &         I_P,FSCALE,NEL,I_VMAX,ILOGGING,DBETA,DLWDB2,HIJS,ICLS)      
+     &         I_P,FSCALE,NEL,I_V,ILOGGING,DBETA,DLWDB2,HIJS,ICLS)      
 !C.. Sum up the components of <D|H exp(-b H)|D>
             DLWDB=DLWDB+DLWDB2
             NTOTAL=NTOTAL+TOTAL
