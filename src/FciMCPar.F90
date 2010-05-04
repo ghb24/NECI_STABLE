@@ -1017,7 +1017,7 @@ MODULE FciMCParMod
         IF(TSinglePartPhase) THEN
 !Exit the single particle phase if the number of walkers exceeds the value in the input file.
 !            CALL MPI_Barrier(MPI_COMM_WORLD,error)
-            IF((AllTotParts.gt.(InitWalkers*nProcessors)).or.(AllNoatHF.gt.MaxNoatHF)) THEN
+            IF((AllTotParts.gt.(INT(InitWalkers,int64)*INT(nProcessors,int64))).or.(AllNoatHF.gt.MaxNoatHF)) THEN
                 WRITE(6,*) "Exiting the single particle growth phase - shift can now change"
                 VaryShiftIter=Iter
                 TSinglePartPhase=.false.
