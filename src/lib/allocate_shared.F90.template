@@ -102,14 +102,14 @@ module shared_alloc
 	public :: shared_allocate, shared_deallocate
 
     interface
-		subroutine alloc_shared_worker (nm, pt, sz)
+		subroutine alloc_shared_worker (nm, pt, sz) bind(c)
             use, intrinsic :: iso_c_binding
             implicit none
-            character*5, intent(in) :: nm
+            character(1), intent(in) :: nm
 			type(c_ptr), intent(inout) :: pt
             integer(c_size_t), value :: sz
         end subroutine
-        subroutine dealloc_shared_worker (ptr)
+        subroutine dealloc_shared_worker (ptr) bind(c)
             use, intrinsic :: iso_c_binding
             implicit none
             type(c_ptr), value :: ptr
@@ -161,7 +161,7 @@ end module
 
 supermodule shared_alloc
 	interface
-		subroutine cleanup_shared_alloc ()
+		subroutine cleanup_shared_alloc () bind(c)
 		end subroutine
 	end interface
 end supermodule

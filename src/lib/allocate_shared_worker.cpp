@@ -13,7 +13,7 @@ using std::map;
 using std::string;
 
 // Prototype of stop_all function.
-extern "C" void stop_all_ (const char* a, const char* b);
+extern "C" void stop_all (const char* a, const char* b);
 
 // This shared memory mapping is the only bit of this file which is c++
 // rather than C, but it is definitely a better way of doing it than 
@@ -35,24 +35,24 @@ map<void*,map_det_t> g_shared_mem_map;
 // This function acquires a named region of shared memory, of the specified
 // size, allocating or resizing it if necessary. It then returns this as a
 // standard C pointer --> requires fortran 2003 features to use.
-extern "C" void alloc_shared_worker_ (const char * name, void ** ptr,
-		                              const size_t size)
+extern "C" void alloc_shared_worker (const char * name, void ** ptr,
+		                             const size_t size)
 {
 	// Acquire a named shared memory file descriptor. nb. Enforce 10 character
 	// name limit.
 	int fd = shm_open (name, O_CREAT | O_RDWR, (mode_t)0600);
 	if (fd == -1)
-		stop_all_ (__FUNCTION__, "Creating shared memory object failed.");
+		stop_all (__FUNCTION__, "Creating shared memory object failed.");
 
 	// Set the length of the named region to the required length
 	if (ftruncate(fd, size) == -1)
-		stop_all_ (__FUNCTION__, "Setting size of shared memory regoin failed.");
+		stop_all (__FUNCTION__, "Setting size of shared memory regoin failed.");
 
 	// Map the region into the current address space.
 	*ptr = mmap (NULL, size, PROT_READ | PROT_WRITE, MAP_SHARED, 
 			fd, 0);
 	if (*ptr == MAP_FAILED)
-		stop_all_ (__FUNCTION__, "Mapping shared memory failed.");
+		stop_all (__FUNCTION__, "Mapping shared memory failed.");
 
 	// Once we have mapped the region, it will remain available even when the
 	// file descriptor has closed.
@@ -65,14 +65,14 @@ extern "C" void alloc_shared_worker_ (const char * name, void ** ptr,
 // Given a C pointer to a region of shared memory, retrieve all of the
 // relevant details from the map, and then deallocate the memory and remove
 // the mapping.
-extern "C" void dealloc_shared_worker_ (void * ptr)
+extern "C" void dealloc_shared_worker (void * ptr)
 {
 	// Find the shared memory in the global list.
 	map<void*,map_det_t>::iterator det;
 	det = g_shared_mem_map.find(ptr);
 
 	if (det == g_shared_mem_map.end())
-		stop_all_ (__FUNCTION__, "The specified shared memory was not found.");
+		stop_all (__FUNCTION__, "The specified shared memory was not found.");
 
 	munmap (ptr, det->second.size);
 
@@ -83,7 +83,7 @@ extern "C" void dealloc_shared_worker_ (void * ptr)
 
 //
 // Clean up any shared allocations which have not been properly deallocated.
-extern "C" void cleanup_shared_alloc_ ()
+extern "C" void cleanup_shared_alloc ()
 {
 	// Iterate through the list of shared allocations
 	map<void*,map_det_t>::iterator iter;
