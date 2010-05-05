@@ -1,18 +1,21 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <stdarg.h>
+#include <errno.h>
+#include <string.h>
 #include <stdlib.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/mman.h>
+#include <sys/param.h>
 #include <unistd.h>
+#include <algorithm>
 #include <fcntl.h>
 #include <map>
 #include <string>
 using std::map;
 using std::string;
 
-// Prototype of stop_all function.
 extern "C" void stop_all (const char* a, const char* b);
 
 // This shared memory mapping is the only bit of this file which is c++
@@ -31,6 +34,8 @@ public:
 };
 map<void*,map_det_t> g_shared_mem_map;
 
+std::string cwd_name;
+
 //
 // This function acquires a named region of shared memory, of the specified
 // size, allocating or resizing it if necessary. It then returns this as a
@@ -38,27 +43,36 @@ map<void*,map_det_t> g_shared_mem_map;
 extern "C" void alloc_shared_worker (const char * name, void ** ptr,
 		                             const size_t size)
 {
+	// Get the current working directory name if needed
+	// --> Prepend to names asked for, to give unique name to avoid collisions
+	if (cwd_name.empty()) {
+		char temp[MAXPATHLEN];
+		cwd_name = getcwd(temp, MAXPATHLEN) ? string(temp) : string("NECI_LONG_PATH");
+		std::replace (cwd_name.begin(), cwd_name.end(), '/', '_');
+	}
+
 	// Acquire a named shared memory file descriptor. nb. Enforce 10 character
 	// name limit.
-	int fd = shm_open (name, O_CREAT | O_RDWR, (mode_t)0600);
+	string shared_name = cwd_name + name;
+	int fd = shm_open (shared_name.c_str(), O_CREAT | O_RDWR, (mode_t)0600);
 	if (fd == -1)
-		stop_all (__FUNCTION__, "Creating shared memory object failed.");
+		stop_all (__FUNCTION__, (string("creating shared memory object failed: ") + strerror(errno)).c_str());
 
 	// Set the length of the named region to the required length
 	if (ftruncate(fd, size) == -1)
-		stop_all (__FUNCTION__, "Setting size of shared memory regoin failed.");
+		stop_all (__FUNCTION__, (string("Setting size of shared memory region failed: ") + strerror(errno)).c_str());
 
 	// Map the region into the current address space.
 	*ptr = mmap (NULL, size, PROT_READ | PROT_WRITE, MAP_SHARED, 
 			fd, 0);
 	if (*ptr == MAP_FAILED)
-		stop_all (__FUNCTION__, "Mapping shared memory failed.");
+		stop_all (__FUNCTION__, (string("Mapping shared memory failed: ") + strerror(errno)).c_str());
 
 	// Once we have mapped the region, it will remain available even when the
 	// file descriptor has closed.
 	close(fd);
 
-	g_shared_mem_map[*ptr] = map_det_t(name, size);
+	g_shared_mem_map[*ptr] = map_det_t(shared_name, size);
 }
 
 //
