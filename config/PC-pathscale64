@@ -3,9 +3,8 @@ fc = pathf95
 cc = pathCC
 ld = pathf95
 ldflags = -m64
-libs = -L ~/src/lib/fftw-3.1.2/lib -L ~/local/lib/pathscale/fftw-3.1.2/lib -lfftw3 -lacml -lstdc++
-cpp = cpp -C -traditional -D__PATHSCALE__
-cppflags =  -D__Linux -DPOINTER8
+libs = -L ~/src/lib/fftw-3.1.2/lib -L ~/local/lib/pathscale/fftw-3.1.2/lib -lfftw3 -lacml -lstdc++ -lrt
+cppflags =  -D__Linux -DPOINTER8 -D__PATHSCALE__
 compiler = pathf95-on-LINUX
 module_flag = -module
 

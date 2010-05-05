@@ -6,7 +6,7 @@ ldflags = -i-dynamic
 compiler = INTEL-ifort9-on-LINUX
 cpp = cpp -C -traditional
 cppflags = -D__Linux -DPOINTER8 -DPARALLEL -DHAVE_SSE2
-libs = -L /apps/fftw/3.2.2-double/lib -L /apps/intel/ict/3.1.022/cmkl/10.0.011/lib/64 -lmkl_lapack -lmkl -lmkl_intel_thread -lmkl_core -lguide -lpthread -lm -lfftw3 -cxxlib
+libs = -L /apps/fftw/3.2.2-double/lib -L /apps/intel/ict/3.1.022/cmkl/10.0.011/lib/64 -lmkl_lapack -lmkl -lmkl_intel_thread -lmkl_core -lguide -lpthread -lm -lfftw3 -cxxlib -lrt
 module_flag = -module
 
 [dbg]

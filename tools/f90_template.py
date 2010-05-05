@@ -72,8 +72,11 @@ def read_config(fin):
 			config[s] = dict(parser.items(s))
 		config[s].update({'name' : s})
 
-		sys.stdout.write("%s%s" % (", " if sprev is not None else "", s))
+		if sprev:
+			sys.stdout.write(", ")
+		sys.stdout.write("%s" % (s))
 		sprev = s
+
 	print
 
 	return config

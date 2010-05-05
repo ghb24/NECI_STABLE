@@ -3,9 +3,9 @@ fc = ftn
 cc = CC
 ld = ftn
 ldflags = -m64
-libs = -lfftw3 -lacml -lstdc++
-cpp = cpp -C -traditional -D__PATHSCALE__
-cppflags =  -D__Linux -DPOINTER8 -DPARALLEL
+libs = -lfftw3 -lacml -lstdc++ -lrt
+cpp = cpp -C -traditional
+cppflags =  -D__Linux -DPOINTER8 -DPARALLEL -D__PATHSCALE__
 compiler = pathf95-on-LINUX
 module_flag = -module
 

@@ -576,28 +576,13 @@ MODULE AnnihilationMod
                 WRITE(6,*) "***", Iter
                 CALL Stop_All("AnnihilateSpawnedParts","Incorrect number of particles removed from spawned list")
             ENDIF
-
-!We always want to annihilate from the SpawedParts and SpawnedSign arrays, so swap arrays again
-
-        PointTemp => SpawnedParts2
-        PointTempSign => SpawnedSign2
-        SpawnedParts2 => SpawnedParts
-        SpawnedSign2 => SpawnedSign
-        SpawnedParts => PointTemp
-        SpawnedSign => PointTempSign
-
-!
-!            IF(associated(SpawnedParts2,target=SpawnVec2)) THEN
-!                SpawnedParts2 => SpawnVec
-!                SpawnedSign2 => SpawnSignVec
-!                SpawnedParts => SpawnVec2
-!                SpawnedSign => SpawnSignVec2
-!            ELSE
-!                SpawnedParts => SpawnVec
-!                SpawnedSign => SpawnSignVec
-!                SpawnedParts2 => SpawnVec2
-!                SpawnedSign2 => SpawnSignVec2
-!            ENDIF
+!We always want to annihilate from the SpawedParts and SpawnedSign arrays, so swap them around.
+            PointTemp => SpawnedParts2
+            PointTempSign => SpawnedSign2
+            SpawnedParts2 => SpawnedParts
+            SpawnedSign2 => SpawnedSign
+            SpawnedParts => PointTemp
+            SpawnedSign => PointTempSign
 
         ENDIF
 
