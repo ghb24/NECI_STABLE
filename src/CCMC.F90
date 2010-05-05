@@ -1678,6 +1678,7 @@ subroutine AttemptDieParticle(C,iDebug,SpawnList,SpawnAmps,nSpawned)
 !   rat=rat/abs(OldAmpl(iPartDie))  !Take into account we're killing at a different place from the cluster
 
    IF(iDebug.ge.4) then
+      WRITE(6,*) "   Death ratio       : ",r
       WRITE(6,*) "   Product Contributions to Number Died:"
       WRITE(6,*) "    Energy difference: ",HDiagCurr-DiagSft
       WRITE(6,*) "    Tau              : ",Tau
@@ -1685,7 +1686,7 @@ subroutine AttemptDieParticle(C,iDebug,SpawnList,SpawnAmps,nSpawned)
       WRITE(6,*) "    Cluster Prob     : ",C%dClusterProb
       WRITE(6,*) "    Cluster Norm     : ",C%dClusterNorm
       WRITE(6,*) "    1/dProbNorm      : ",1/C%dProbNorm
-      WRITE(6,*) "    dAbsAmplitude   : ",C%dAbsAmplitude
+      WRITE(6,*) "    dAbsAmplitude    : ",C%dAbsAmplitude
    endif 
 
 !! rat is what we wish to modify t_a t_b t_c by. (but positive - we'll actually want to subtract it)
@@ -2170,7 +2171,7 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
    DetList(:,1)=iLutHF 
       nAmpl=1
       iNumExcitors=0
-!      dTotAbsAmpl=Amplitude(1,iCurAmpList)
+   dTotAbsAmpl=AL%Amplitude(1,iCurAmpList)
 !   endif
    dAmpPrintTol=(dTolerance*dInitAmplitude)
    if(iDebug.ge.4) dAmpPrintTol=0
@@ -2213,12 +2214,14 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
          call WriteExcitorList(6,AL%Amplitude(:,iCurAmpList),DetList,0,nAmpl,dAmpPrintTol,"Excitor list")
       endif
       call CalcTotals(iNumExcitors,dTotAbsAmpl,AL%Amplitude(:,iCurAmpList),nAmpl,dTolerance*dInitAmplitude,WalkerScale,iDebug)
+      dProjE=0
 !      CALL CalcClusterEnergy(tCCMCFCI,AL%Amplitude(:,iCurAmpList),nAmpl,DetList,FCIDetIndex,dProjE)
       
       IF(iDebug.gt.1) THEN
          WRITE(6,*) "Total non-zero excitors: ",iNumExcitors
          WRITE(6,"(A,G30.22)") "Total abs Amplitudes: ",dTotAbsAmpl
-         WRITE(6,*) "Projected Energy: ",dProjE
+         WRITE(6,*) "Projected Energy: ", " not calculated"
+!dProjE
       endif 
 
 !  Loop over cluster selections
