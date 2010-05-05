@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python -tt
 '''Produce a .f90 file from the given .F90.template file to simulate the
 effects of using templates/generic functions in a language such as c++
 
