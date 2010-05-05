@@ -6,7 +6,7 @@ ccd = g++
 cpp = cpp -C -traditional
 cppflags =  -D__Linux -DPOINTER8 -DPARALLEL -DHAVE_SSE2
 ld = mpif90
-libs = -L ~/src/lib/fftw-3.1.2/lib -lffwt3 -lacml -pgcpplibs
+libs = -L ~/src/lib/fftw-3.1.2/lib -lffwt3 -lacml -pgcpplibs -lrt
 module_flag = -module
 
 [dbg]

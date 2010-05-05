@@ -6,7 +6,7 @@ ccd = g++
 cpp = cpp -C -traditional
 cppflags =  -D__Linux -DPOINTER8 -DPARALLEL -DHAVE_SSE2
 ld = ftn
-libs =  -pgcpplibs
+libs =  -pgcpplibs -lrt
 module_flag = -module
 
 [dbg]
