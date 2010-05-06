@@ -402,6 +402,8 @@ help:
 
 .SUFFIXES:
 .SUFFIXES: $(EXTS) .f .f90
+# Don't delete the intermediate .F90 files produced from template files.
+.SECONDARY: $(addprefix $(TDEST)/,$(notdir $(basename $(F90TMPSRCFILES))))
 
 # Some more helpful macros.
 CPP_BODY = $(CPPFLAGS) $< $@
