@@ -111,8 +111,17 @@ module shared_alloc
         end subroutine
         subroutine dealloc_shared_worker (ptr) bind(c)
             use, intrinsic :: iso_c_binding
+            use constants, only: int32, int64
             implicit none
-            type(c_ptr), value :: ptr
+#ifdef __PATHSCALE__
+#ifdef POINTER8
+            integer(int64) :: ptr
+#else
+            integer(int32) :: ptr
+#endif
+#else
+            type(c_ptr) :: ptr
+#endif
         end subroutine
     end interface
 
@@ -146,13 +155,25 @@ contains
 	subroutine shared_deallocate (ptr)
 		%(type)s, dimension(%(dim)s), intent(inout), pointer :: ptr
 		%(type)s, pointer :: pt1
+#ifdef __PATHSCALE__
+#ifdef POINTER8
+        integer(int64) :: tmp
+#else
+        integer(int32) :: tmp
+#endif
+#else
 		type(c_ptr) :: tmp
+#endif
 
 		! Get a pointer to the first element. c_loc requries its argument to
 		! be a scalar variable.
 		pt1 => ptr(%(elem1)s)
 
-		tmp = c_loc(pt1)
+#ifdef __PATHSCALE__
+		tmp = loc(ptr(%(elem1)s))
+#else
+        tmp = c_loc(pt1)
+#endif
 		call dealloc_shared_worker (tmp)
 
 		nullify(ptr)
