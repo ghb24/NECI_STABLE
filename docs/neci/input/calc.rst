@@ -1124,6 +1124,12 @@ The following option are only available in **MCSTAR** calculations:
       For **PARTICLE** this is for each excitor.
    Default 1
 
+**CCMCEXACTENERGY**
+   
+      For CCMC, if this is set, we calculate the projected energy exactly by considering all possible combinations of singles
+   amplitudes to form doubles.  This is an O((# singles)^2) per cycle and can become very slow for large systems.
+      If this is not set, then we sample the projected energy from every cluster we generate.
+
 **SPAWNPROP**
    For Amplitude CCMC use NSPAWNINGS as a total number of spawnings, and distribute them according to the Amplitudes of clusters.
    

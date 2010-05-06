@@ -14,6 +14,7 @@ module CCMCData
    LOGICAL  tSpawnProp     ! Set if we use spawning proportional to the cluster amplitude rather than equally
 
    LOGICAL  tCCBuffer      ! Buffer the CC Amplitudes - this is useful when there are many cluster selections which lead to the same collapsed det. It creates a combined amplitude of the det first and spawns from that.
+   LOGICAL  tExactEnergy   ! Do we calculate projected energy exactly rather than through sampling?
    
 
 !This contains information as to a chosen Cluster

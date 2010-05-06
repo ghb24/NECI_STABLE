@@ -19,6 +19,7 @@ MODULE Calc
           use IntegralsData, only: tNeedsVirts
           use SystemData, only : Beta,nEl
           use CCMCData, only: dInitAmplitude,dProbSelNewExcitor,nSpawnings,tSpawnProp,nClustSelections
+          use CCMCData, only: tExactEnergy
           use default_sets
           implicit none
 
@@ -95,6 +96,7 @@ MODULE Calc
           dProbSelNewExcitor=0.7d0
           nSpawnings=1
           nClustSelections=1
+          tExactEnergy=.false.
           tSpawnProp=.false.
           NMCyc=2000
           DiagSft=0.D0
@@ -219,6 +221,7 @@ MODULE Calc
           use IntegralsData, only: tNeedsVirts,NFROZEN
           use UMatCache, only: gen2CPMDInts
           use CCMCData, only: dInitAmplitude,dProbSelNewExcitor,nSpawnings,tSpawnProp,nClustSelections
+          use CCMCData, only: tExactEnergy
           use global_utilities
           use Parallel, only : nProcessors
           IMPLICIT NONE
@@ -745,6 +748,8 @@ MODULE Calc
             case("NCLUSTSELECTIONS")
 !For Particle CCMC the number of  cluster.
                 call geti(nClustSelections)
+            case("CCMCEXACTENERGY")
+               tExactEnergy=.true.
             case("SPAWNPROP")
 !For Amplitude CCMC use NSPAWNINGS as a total number of spawnings, and distribute them according to the Amplitudes of clusters.
                tSpawnProp=.true.

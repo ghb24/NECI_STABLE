@@ -1736,7 +1736,7 @@ SUBROUTINE CCMCStandalone(Weight,Energyxw)
    use Parallel, only: iProcIndex
    use FciMCData, only: root
    use CCMCData, only: tCCMCFCI,dInitAmplitude,dProbSelNewExcitor,tExactCluster,tExactSpawn,nSpawnings,tCCBuffer
-   use CCMCData, only: ClustSelector,Spawner,CCTransitionLog,nClustSelections
+   use CCMCData, only: ClustSelector,Spawner,CCTransitionLog,nClustSelections,tExactEnergy
    use DetCalcData, only: Det       ! The number of Dets/Excitors in FCIDets
    use DetCalcData, only: FCIDets   ! (0:NIfTot, Det).  Lists all allowed excitors in compressed form
    use DetCalcData, only:FCIDetIndex! (0:nEl+1).  The index of the different excitation levels
@@ -1750,7 +1750,7 @@ SUBROUTINE CCMCStandalone(Weight,Energyxw)
    use FciMCParMod, only: iLutHF
    use FciMCParMod, only: CheckAllowedTruncSpawn, SetupParameters,BinSearchParts3
    use FciMCParMod, only: CalcNewShift,InitHistMin
-   use FciMCParMod, only: WriteHistogram
+   use FciMCParMod, only: WriteHistogram,SumEContrib
    Use Logging, only: CCMCDebug,tCCMCLogTransitions,tCCMCLogUniq
    USE Logging , only : tHistSpawn,iWriteHistEvery
    USE DetCalcData , only : ICILevel
@@ -1902,7 +1902,6 @@ SUBROUTINE CCMCStandalone(Weight,Energyxw)
    CALL InitSpawner(S,tExactSpawn,ICILevel)
 
 ! Each cycle we select combinations of excitors randomly, and spawn and birth/die from them
-   Iter=1
    do while (Iter.le.NMCyc)
 ! Copy the old Amp list to the new
       iOldAmpList=iCurAmpList
@@ -1913,13 +1912,27 @@ SUBROUTINE CCMCStandalone(Weight,Energyxw)
          call WriteExcitorList(6,AL%Amplitude(:,iCurAmpList),FciDets,0,nAmpl,dAmpPrintTol,"Excitor list")
       endif
       call CalcTotals(iNumExcitors,dTotAbsAmpl,AL%Amplitude(:,iCurAmpList),nAmpl,dTolerance*dInitAmplitude,WalkerScale,iDebug)
-      CALL CalcClusterEnergy(tCCMCFCI,AL%Amplitude(:,iCurAmpList),nAmpl,FciDets,FCIDetIndex,dProjE)
-      
+      if(tExactEnergy) then
+         CALL CalcClusterEnergy(tCCMCFCI,AL%Amplitude(:,iCurAmpList),nAmpl,FciDets,FCIDetIndex,dProjE)
+      else
+         dProjE=ProjectionE
+      endif
+! Collate stats
+
+
       IF(iDebug.gt.1) THEN
          WRITE(6,*) "Total non-zero excitors: ",iNumExcitors
          WRITE(6,"(A,G30.22)") "Total abs Amplitudes: ",dTotAbsAmpl
          WRITE(6,*) "Projected Energy: ",dProjE
       endif 
+
+
+! Calc Shift
+      iShiftLeft=iShiftLeft-1
+
+!TotWalkers is used for this and is WalkerScale* total of all amplitudes
+      if(iShiftLeft.le.0)  Call CalcNewShift()
+      if(iShiftLeft.le.0)  iShiftLeft=StepsSft
 
 !  Loop over cluster selections
 !  Point to the main cluster selector, not the buffer
@@ -2001,6 +2014,10 @@ SUBROUTINE CCMCStandalone(Weight,Energyxw)
          endif
 
          if(iDebug.gt.3) WRITE(6,*) "Cluster Amplitude: ",CS%C%iSgn*CS%C%dAbsAmplitude 
+         if(iDebug.gt.3) WRITE(6,*) " Cluster Prob: ",CS%C%dSelectionProb
+         if(.not.tExactEnergy) then
+            CALL SumEContrib(CS%C%DetCurr,CS%C%iExcitLevel,CS%C%iSgn,CS%C%iLutDetCurr,0.d0,1.d0/CS%C%dSelectionProb)
+         endif
 !Now consider a number of possible spawning events
          CALL ResetSpawner(S,CS%C,nSpawnings)
 
@@ -2014,13 +2031,6 @@ SUBROUTINE CCMCStandalone(Weight,Energyxw)
   &            call AttemptDie(CS%C,AL%Amplitude(:,iCurAmpList),AL%Amplitude(:,iOldAmpList),TL,iDebug)
       enddo ! Cluster choices
 
-! Collate stats
-! Calc Shift
-      iShiftLeft=iShiftLeft-1
-
-!TotWalkers is used for this and is WalkerScale* total of all amplitudes
-      if(iShiftLeft.le.0)  Call CalcNewShift()
-      if(iShiftLeft.le.0)  iShiftLeft=StepsSft
 
       IF(tHistSpawn.and.(mod(Iter,iWriteHistEvery).eq.0)) THEN
           CALL WriteHistogram()
@@ -2068,7 +2078,7 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
    use FciMCParMod, only: iLutHF
    use FciMCParMod, only: CheckAllowedTruncSpawn, SetupParameters,BinSearchParts3
    use FciMCParMod, only: CalcNewShift,InitHistMin
-   use FciMCParMod, only: WriteHistogram
+   use FciMCParMod, only: WriteHistogram,SumEContrib
    Use Logging, only: CCMCDebug,tCCMCLogTransitions,tCCMCLogUniq
    USE Logging , only : tHistSpawn,iWriteHistEvery
    USE DetCalcData , only : ICILevel
@@ -2097,7 +2107,6 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
 
    INTEGER iShiftLeft            ! Number of steps left until we recalculate shift
    REAL*8 WalkerScale            ! Scale factor for turning floating point amplitudes into integer walkers.
-   REAL*8 dProjE                 ! Stores the Projected Energy
    REAL*8 dTolerance             ! The tolerance for when to regard a value as zero
    REAL*8 dAveTotAbsAmp          ! Average of Total absolute amplitude over all post-equil cycles
    REAL*8 dAveNorm               ! Average of Normalization (ampl of Ref) over all post-equil cycles
@@ -2206,23 +2215,30 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
    CALL InitSpawner(S,tExactSpawn,ICILevel)
 
 ! Each cycle we select combinations of excitors randomly, and spawn and birth/die from them
-   Iter=1
    do while (Iter.le.NMCyc)
+! Collate stats
       nSpawned=0
       IF(iDebug.gt.1) THEN
          write(6,*) "Cycle ",Iter
          call WriteExcitorList(6,AL%Amplitude(:,iCurAmpList),DetList,0,nAmpl,dAmpPrintTol,"Excitor list")
       endif
+
+
       call CalcTotals(iNumExcitors,dTotAbsAmpl,AL%Amplitude(:,iCurAmpList),nAmpl,dTolerance*dInitAmplitude,WalkerScale,iDebug)
-      dProjE=0
-!      CALL CalcClusterEnergy(tCCMCFCI,AL%Amplitude(:,iCurAmpList),nAmpl,DetList,FCIDetIndex,dProjE)
+
       
       IF(iDebug.gt.1) THEN
          WRITE(6,*) "Total non-zero excitors: ",iNumExcitors
          WRITE(6,"(A,G30.22)") "Total abs Amplitudes: ",dTotAbsAmpl
-         WRITE(6,*) "Projected Energy: ", " not calculated"
-!dProjE
       endif 
+
+
+! Calc Shift
+      iShiftLeft=iShiftLeft-1
+
+!TotWalkers is used for this and is WalkerScale* total of all amplitudes
+      if(iShiftLeft.le.0)  Call CalcNewShift()
+      if(iShiftLeft.le.0)  iShiftLeft=StepsSft
 
 !  Loop over cluster selections
 !  Point to the main cluster selector, not the buffer
@@ -2264,6 +2280,8 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
          endif
 
          if(iDebug.gt.3) WRITE(6,*) " Cluster Amplitude: ",CS%C%iSgn*CS%C%dAbsAmplitude 
+         if(iDebug.gt.3) WRITE(6,*) " Cluster Prob: ",CS%C%dSelectionProb
+         CALL SumEContrib(CS%C%DetCurr,CS%C%iExcitLevel,CS%C%iSgn,CS%C%iLutDetCurr,0.d0,CS%C%dSelectionProb)
 !Now consider a number of possible spawning events
          CALL ResetSpawner(S,CS%C,nSpawnings)
 
@@ -2287,13 +2305,6 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
       endif 
       
 
-! Collate stats
-! Calc Shift
-      iShiftLeft=iShiftLeft-1
-
-!TotWalkers is used for this and is WalkerScale* total of all amplitudes
-      if(iShiftLeft.le.0)  Call CalcNewShift()
-      if(iShiftLeft.le.0)  iShiftLeft=StepsSft
 
       IF(tHistSpawn.and.(mod(Iter,iWriteHistEvery).eq.0)) THEN
           CALL WriteHistogram()
