@@ -136,12 +136,12 @@ module shared_alloc
             implicit none
 #ifdef __PATHSCALE__
 #ifdef POINTER8
-            integer(int64) :: ptr
+            integer(int64), value :: ptr
 #else
-            integer(int32) :: ptr
+            integer(int32), value :: ptr
 #endif
 #else
-            type(c_ptr) :: ptr
+            type(c_ptr), value :: ptr
 #endif
         end subroutine
     end interface
