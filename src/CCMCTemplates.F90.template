@@ -168,7 +168,7 @@ end subroutine !WriteExcitorList
 ! ExcitLevelIndex(0:nEl+1)     is the index of the first det of each excitation level in ExcitList
 ! ProjE                        The projected energy for this cycle is returned here.
 
-SUBROUTINE CalcClusterEnergy (tFCI,Amplitude,nExcit,ExcitList,ExcitLevelIndex,ProjE)
+SUBROUTINE CalcClusterEnergy (tFCI,Amplitude,nExcit,ExcitList,ExcitLevelIndex,iDebug,ProjE)
    use Parallel, only: iProcIndex
    use FciMCData, only: root
    use CCMCData
@@ -178,6 +178,7 @@ SUBROUTINE CalcClusterEnergy (tFCI,Amplitude,nExcit,ExcitList,ExcitLevelIndex,Pr
    use FciMCData, only: ENumCyc,HFCyc 
    use DetBitOps, only: DecodeBitDet
    use constants, only: dp
+   use CCMCData, only: WriteCluster
    IMPLICIT NONE
    LOGICAL tFCI
    %(type1)s Amplitude(nExcit)
@@ -185,12 +186,16 @@ SUBROUTINE CalcClusterEnergy (tFCI,Amplitude,nExcit,ExcitList,ExcitLevelIndex,Pr
    INTEGER(kind=n_int) ExcitList(0:nIfTot,nExcit)
    INTEGER ExcitLevelIndex(0:nEl+1)
    REAL*8 ProjE
+   INTEGER iDebug
 
    INTEGER iC,i,j,l,iSgn
    REAL*8 dT1Sq,dAmp,dTmp
    INTEGER DetCurr(nEl)
    HElement_t HTmp
    INTEGER(kind=n_int) iLutnI(0:nIfTot)
+   Type(Cluster) C
+
+   allocate(C%%SelectedExcitors(0:nIfTot,2))
    iC=0
    dT1Sq=0
    do j=1,nExcit
@@ -204,6 +209,13 @@ SUBROUTINE CalcClusterEnergy (tFCI,Amplitude,nExcit,ExcitList,ExcitLevelIndex,Pr
       if(dAmp.ne.0.d0) then
          if (iProcIndex.eq.root) call SumEContrib(DetCurr,iC,i,ExcitList(:,j),dTmp,1/dAmp)
 ! Deal with T_1^2
+         if(iDebug>3) then
+            C%%SelectedExcitors(:,1)=ExcitList(:,j)
+            C%%iSize=1
+            if(j==1) C%%iSize=0
+            call WriteCluster(79,C,.false.)
+            write(79,*)  dAmp,i
+         endif
          if(iC.eq.1.and..not.tFCI) then
             do l=j+1,ExcitLevelIndex(2)-1
                iSgn=1
@@ -215,7 +227,12 @@ SUBROUTINE CalcClusterEnergy (tFCI,Amplitude,nExcit,ExcitList,ExcitLevelIndex,Pr
                   Htmp = get_helement (HFDet, DetCurr, iLutHF, iLutnI)
                   dAmp=dAmp/(Amplitude(1)**2)
                   dT1Sq=dT1Sq+(Real(Htmp,dp)*iSgn)*dAmp
-!                  dAmp=dAmp*2  !DEBUG
+                  if(iDebug) then
+                     C%%SelectedExcitors(:,2)=ExcitList(:,l)
+                     C%%iSize=2
+                     call WriteCluster(79,C,.false.)
+                     write(79,*)  dAmp,iSgn
+                  endif
                   if (iProcIndex.eq.root) call SumEContrib(DetCurr,2,iSgn,iLutnI(:),dTmp,1/dAmp)
                endif
             enddo
@@ -292,6 +309,54 @@ SUBROUTINE CalcClusterEnergyUnsrt (tFCI,Amplitude,nExcit,ExcitList,ProjE)
    ProjE=ENumCyc/(HFCyc+0.d0)
 END SUBROUTINE !CalcClusterEnergyUnsrt
 
+
+!Select a cluster from excitor amplitudes in Amplitude.
+!
+!  CS is a ClusterSelector which determines how the cluster is selected
+!
+!  Dets(0:nIfTot,1:nDet) is a list of excitors
+!  Amplitude(1:nDet)     is a list of excitor amplitudes, T
+!  dTotAbsAmplitude      is |T|
+!  iNumExcitors          is the number of non-zero elements of Amplitude
+!  iMaxSizeIn            is the maximum number of excitors to include in the cluster
+!                          MaxSize is set to the minimum of this and the number of possible excitors
+!  iDebug                gives debugging information
+
+!  This places the selected cluster in CS%%C and returns .true.
+!  If there are no more clusters (i.e. we've selected all that we wanted, or if 
+!   totally enumerating, we've run out) then return .false.
+!
+!  The full enumeration selects all clusters with equal probability.
+!
+!  Let s=CS%%dProbSelNewExcitor (0<r<1)
+!  The random algorithm selects clusters of size n with probability
+!
+!   P_size= / s (1-s)^(n-1)                  for n<iMaxSize,
+!           \ (1-s)^iMaxSize                 for n=iMaxSize
+
+!  Once the size is selected, the probability of choosing each excitor x_i, i=1..n is
+!    P_i = |t_(x_i)| / |T|
+!
+!  Therefore the probability of the cluster as a whole is
+!    P_cluster_given_size = n! Prod_i=1^n  P_i    where the n! accounts for the number of ways we could've selected the cluster.
+!    This is placed in CS%%C%%dClusterProb
+!
+!  The amplitude of the cluster must include the normalization:
+!     Psi_CC = N_0 exp( T / N_0) = N_0 + T + T^2 / (2! N_0) + T^3 / (3! (N_0)^2) + ...
+!
+!  We let A = N_0 Prod_i=1^n |t_x_i| / |N_0|
+!   and place this in CS%%C%%dAbsAmplitude.
+!   The sign is worked out later and put in CS%%C%%iSign
+!
+!  As we make multiple cluster selections, we create
+!     P_norm = nSelects * P_size
+!  which is the total prob of having selected a cluster of a given size
+!  and is placed in CS%%C%%dProbNorm
+!  
+!  The probability of having selected the cluster in total is
+!     P_total = P_norm * P_cluster_given_size
+!  and is placed in CS%%C%%dSelectionProb
+
 FUNCTION GetNextCluster (CS,Dets,nDet,Amplitude,dTotAbsAmpl,iNumExcitors,iMaxSizeIn,iDebug) result (GetNextCluster)
    use CCMCData, only: ClustSelector
    use SystemData, only: nIfTot
@@ -323,6 +388,7 @@ FUNCTION GetNextCluster (CS,Dets,nDet,Amplitude,dTotAbsAmpl,iNumExcitors,iMaxSiz
          CS%%C%%dProbNorm=1
          CS%%C%%dClusterProb=1
          CS%%C%%dClusterNorm=1
+         CS%%C%%dSelectionProb=1
          if(iDebug.gt.3.and.tNew) WRITE(6,*) "Cluster Selection: ", CS%%iIndex
          tNew=.false.
          if(CS%%iIndex.eq.1) then
@@ -350,8 +416,7 @@ FUNCTION GetNextCluster (CS,Dets,nDet,Amplitude,dTotAbsAmpl,iNumExcitors,iMaxSiz
          else
             if(iDebug.gt.3) WRITE(6,"(A,L3)",advance='no') "Next Tuple:",tDone
             if(iDebug.gt.3) &
-                call write_det_len (6, CS%%C%%SelectedExcitorIndices, &
-                                    CS%%C%%iSize, .true.)
+                call write_det_len (6, CS%%C%%SelectedExcitorIndices, CS%%C%%iSize, .true.)
             tNew=.true.  !Used for debug printing
             CS%%C%%dAbsAmplitude=abs(Amplitude(1))
 !            WRITE(6,*) 0,CS%%C%%dAbsAmplitude
@@ -369,37 +434,13 @@ FUNCTION GetNextCluster (CS,Dets,nDet,Amplitude,dTotAbsAmpl,iNumExcitors,iMaxSiz
          GetNextCluster=.false.
          return
       endif
-!  Now pick the cluster
 
-! Old comments
-! We wish to sum:
-! sum_A [ (1/2) sum_{B\ne A} [ (1/3) sum_{C\ne A,B} ... ]]
-!  since the sums over B and C are too large a space to do fully, we stochastically sum them:
-! sum_A [ (1/2)  1/X sum_i^X 1/p(B_i)  [  (1/3)  1/Y sum_j^Y 1/p(C_j) ... ]]
-!   where X and Y are the number of samples taken in the sums.
-
-! If B_i and C_j were selected uniformly randomly out of N-1 particles,  (remember we've already chosen A), 
-!  then p(B_i) would be 1/(N-1)  and  p(C_j) would be 1/(N-2)
-!  The total prefactor would then be
-!  [1/(XY)]  [(N-1) (N-2) / ( 2 . 3 )]     somwehat akin to the combinatorial coefficient.
-
-!  We wish to sample X and Y = 1, but p(B_i) and p(C_j) are not uniform.
-!  All in all, we then wish to use the total generation probability of this composite stochastically.
-!
-!  In this case it would be  [  p(B_i)  p(C_j) / ( 2 . 3 )  ]  p(Choosing this level)
-
-!  In fact, we need the contribution of the composite excitor to vary as (HFcount)^-(iCompositeSize-1)
-!    to account for the intermediate normalization.  We make this happen by multiplying the probability of 
-!    having generated the excitor by (HFcount)^(iCompositeSize-1)  (i.e. one HFcount for each level)
       dProbNumExcit=CS%%dProbSelNewExcitor
       CS%%C%%dProbNorm=CS%%nSelects
       CS%%C%%dClusterProb=1
       CS%%C%%dAbsAmplitude=abs(Amplitude(1))
       CS%%C%%dClusterNorm=1
-!Amplitude(1,iOldAmpList)
-!      iMaxExcit=min(nEl,iNumExcitors)
-!For FCI using amplitudes we only make a single selection
-!      if(tCCMCFCI) iMaxExcit=min(1,iMaxExcit)
+      CS%%C%%dSelectionNorm=abs(Amplitude(1))
       IF(iDebug.gt.5) Write(6,*) "Generating New Cluster.  Max size ",iMaxSize
       do i=1,iMaxSize
 ! Calculate the probability that we've reached this far in the loop
@@ -430,14 +471,13 @@ FUNCTION GetNextCluster (CS,Dets,nDet,Amplitude,dTotAbsAmpl,iNumExcitors,iMaxSiz
          CS%%C%%SelectedExcitors(:,i)=Dets(:,k)
          CS%%C%%dAbsAmplitude=CS%%C%%dAbsAmplitude*abs(Amplitude(k))/abs(Amplitude(1))  !For each new excit added to the composite, we multiply up to count the number of ways we could've generated it.
          CS%%C%%dClusterProb=CS%%C%%dClusterProb*i*abs(Amplitude(k))/dTotAbsAmpl  !For each new excit added to the composite, we multiply up to count the number of ways we could've generated it.
-!               if(i.gt.1)  dClusterProb=dClusterProb*(Det-1)
-!(Det-1) was empirically chosen
 !ClusterProb is used for DEATH
 
 ! This is the probability that this cluster was chosen (in any order), given (i.e. irrespective of)
 !  the number of selections and the level choice
 !ClusterNorm is used for BIRTH
          CS%%C%%dClusterNorm=CS%%C%%dClusterNorm*i*abs(Amplitude(k))/dTotAbsAmpl
+         CS%%C%%dSelectionNorm=CS%%C%%dSelectionNorm/(abs(Amplitude(1))*i)
       enddo
       IF(iDebug.gt.5) WRITE(6,*) 'prob out of sel routine.',dProbNumExcit
       if(i.gt.iMaxSize) THEN !We've been limited by the max number of excitations
@@ -460,7 +500,9 @@ FUNCTION GetNextCluster (CS,Dets,nDet,Amplitude,dTotAbsAmpl,iNumExcitors,iMaxSiz
 !  dClusterNorm is the probability that this cluster was chosen, given the level had already been selected.
 !  This includes multiple selections of the same excitor as well as combinations of excitors which produce a 0 sign.
       GetNextCluster=.true.
-      CS%%C%%dSelectionProb=CS%%C%%dAbsAmplitude/(CS%%C%%dProbNorm*CS%%C%%dClusterProb)
+      CS%%C%%dSelectionProb=CS%%C%%dProbNorm*CS%%C%%dClusterProb
+      CS%%C%%dSelectionNorm=CS%%C%%dProbNorm
+!/CS%%C%%dSelectionNorm
    endif
 END FUNCTION !GetNextCluster
 

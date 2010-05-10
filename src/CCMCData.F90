@@ -32,6 +32,8 @@ TYPE Cluster
 ! i.e. abs ( N0  (tI/N0) (tJ/N0) ... )
    REAL*8   dSelectionProb
 ! dSelectionProb is the probability that the cluster was selected
+   
+   REAL*8 dSelectionNorm
 
 
 
@@ -271,4 +273,21 @@ SUBROUTINE AddBitExcitor(iLutnI,iLutnJ,iLutRef,iSgn)
 !   write(6,*) 'x final sign:',iSgn
    return
 END SUBROUTINE AddBitExcitor
+
+!Write a Cluster.
+   SUBROUTINE WriteCluster(iUnit,C,lTerm)
+      use FCIMCParMod, only: iLutHF
+      IMPLICIT NONE
+      TYPE(Cluster) C
+      INTEGER i
+      LOGICAL lTerm
+      INTEGER iUnit
+      WRITE(iUnit,'(A)',advance='no') '['
+      do i=1,C%iSize
+         call WriteBitEx(iUnit,iLutHF,C%SelectedExcitors(:,i),.false.)
+         write(iUnit,'(A)',advance='no') ','
+      enddo
+      WRITE(iUnit,'(A)',advance='no') ']'
+      if(lTerm) WRITE(iUnit,*)
+   END SUBROUTINE WriteCluster
 end module CCMCData

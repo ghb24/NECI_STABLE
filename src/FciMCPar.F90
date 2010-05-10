@@ -5215,8 +5215,8 @@ MODULE FciMCParMod
     END SUBROUTINE InitHistMin
 
 !This routine sums in the energy contribution from a given walker and updates stats such as mean excit level
-!AJWT added optional argument dProb which is a probability that whatever gave this contribution as generated.
-!  It defaults to 1, and weights the contribution of this det. (Only in the projected energy)
+!AJWT added optional argument dProbFin which is a probability that whatever gave this contribution was generated.
+!  It defaults to 1, and weights the contribution of this det (only in the projected energy) by dividing its contribution by this number 
     SUBROUTINE SumEContrib(DetCurr,ExcitLevel,WSign,iLutCurr,HDiagCurr,dProbFin)
         use SystemData, only : tNoBrillouin
         use CalcData, only: tFCIMC
@@ -5235,10 +5235,10 @@ MODULE FciMCParMod
 !        IF(MaxExcitLevel.lt.ExcitLevel) MaxExcitLevel=ExcitLevel
 !        DetsNorm=DetsNorm+REAL((WSign**2),dp)
         IF(ExcitLevel.eq.0) THEN
-            IF(Iter.gt.NEquilSteps) SumNoatHF=SumNoatHF+WSign
-            NoatHF=NoatHF+WSign
-            HFCyc=HFCyc+WSign      !This is simply the number at HF*sign over the course of the update cycle 
-            HFIter=HFIter+WSign
+            IF(Iter.gt.NEquilSteps) SumNoatHF=SumNoatHF+WSign/dProbFin
+            NoatHF=NoatHF+WSign/dProbFin
+            HFCyc=HFCyc+WSign/dProbFin      !This is simply the number at HF*sign over the course of the update cycle 
+            HFIter=HFIter+WSign/dProbFin
 !            AvSign=AvSign+REAL(WSign,dp)
 !            AvSignHFD=AvSignHFD+REAL(WSign,dp)
             

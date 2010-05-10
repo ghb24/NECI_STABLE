@@ -918,7 +918,7 @@ MODULE CCMC
    SUBROUTINE WriteClusterInd(iUnit,ind0,lTerm,TL,tNonUniq)
       use DetCalcData, only: Det,FciDets       ! The number of Dets/Excitors in FCIDets
       use FCIMCParMod, only: iLutHF
-      use CCMCData, only: Cluster,CCTransitionLog
+      use CCMCData, only: Cluster,CCTransitionLog,WriteCluster
       IMPLICIT NONE
       INTEGER ind,ind0,i
       LOGICAL lTerm
@@ -1094,24 +1094,6 @@ LOGICAL FUNCTION GetNextSpawner(S,iDebug)
    ENDIF
 END FUNCTION GetNextSpawner
 
-!Write a Cluster.
-   SUBROUTINE WriteCluster(iUnit,C,lTerm)
-      use DetCalcData, only: Det,FciDets       ! The number of Dets/Excitors in FCIDets
-      use FCIMCParMod, only: iLutHF
-      use CCMCData, only:  Cluster
-      IMPLICIT NONE
-      TYPE(Cluster) C
-      INTEGER i
-      LOGICAL lTerm
-      INTEGER iUnit
-      WRITE(iUnit,'(A)',advance='no') '['
-      do i=1,C%iSize
-         call WriteBitEx(iUnit,iLutHF,C%SelectedExcitors(:,i),.false.)
-         write(iUnit,'(A)',advance='no') ','
-      enddo
-      WRITE(iUnit,'(A)',advance='no') ']'
-      if(lTerm) WRITE(iUnit,*)
-   END SUBROUTINE WriteCluster
 
 SUBROUTINE InitCluster(C)
    use CCMCData
@@ -1757,6 +1739,7 @@ SUBROUTINE CCMCStandalone(Weight,Energyxw)
    use CalcData, only: NEquilSteps
    use FciMCParMod, only: WriteFciMCStats, WriteFciMCStatsHeader
    use constants, only: dp
+   use CCMCData, only: WriteCluster
    use ClusterList
    IMPLICIT NONE
    real(dp) Weight,EnergyxW
@@ -1903,6 +1886,7 @@ SUBROUTINE CCMCStandalone(Weight,Energyxw)
 
 ! Each cycle we select combinations of excitors randomly, and spawn and birth/die from them
    do while (Iter.le.NMCyc)
+      if(iDebug>3)  write(79,*) "Cycle", Iter
 ! Copy the old Amp list to the new
       iOldAmpList=iCurAmpList
       iCurAmpList=3-iCurAmpList
@@ -1913,7 +1897,7 @@ SUBROUTINE CCMCStandalone(Weight,Energyxw)
       endif
       call CalcTotals(iNumExcitors,dTotAbsAmpl,AL%Amplitude(:,iCurAmpList),nAmpl,dTolerance*dInitAmplitude,WalkerScale,iDebug)
       if(tExactEnergy) then
-         CALL CalcClusterEnergy(tCCMCFCI,AL%Amplitude(:,iCurAmpList),nAmpl,FciDets,FCIDetIndex,dProjE)
+         CALL CalcClusterEnergy(tCCMCFCI,AL%Amplitude(:,iCurAmpList),nAmpl,FciDets,FCIDetIndex,iDebug,dProjE)
       else
          dProjE=ProjectionE
       endif
@@ -2016,7 +2000,11 @@ SUBROUTINE CCMCStandalone(Weight,Energyxw)
          if(iDebug.gt.3) WRITE(6,*) "Cluster Amplitude: ",CS%C%iSgn*CS%C%dAbsAmplitude 
          if(iDebug.gt.3) WRITE(6,*) " Cluster Prob: ",CS%C%dSelectionProb
          if(.not.tExactEnergy) then
-            CALL SumEContrib(CS%C%DetCurr,CS%C%iExcitLevel,CS%C%iSgn,CS%C%iLutDetCurr,0.d0,1.d0/CS%C%dSelectionProb)
+            if(iDebug>3) then
+               call WriteCluster(79,CS%C,.false.)
+               write(79,*)  (CS%C%dAbsAmplitude/AL%Amplitude(1,iOldAmpList))/CS%C%dSelectionProb,CS%C%iSgn !,CS%C%dSelectionProb,CS%C%dAbsAmplitude
+            endif
+            CALL SumEContrib(CS%C%DetCurr,CS%C%iExcitLevel,CS%C%iSgn,CS%C%iLutDetCurr,0.d0,CS%C%dSelectionNorm) !CS%C%dSelectionProb*AL%Amplitude(1,iOldAmpList)/CS%C%dAbsAmplitude)
          endif
 !Now consider a number of possible spawning events
          CALL ResetSpawner(S,CS%C,nSpawnings)
@@ -2067,6 +2055,7 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
    use Parallel, only: iProcIndex
    use FciMCData, only: root
    use CCMCData, only: tCCMCFCI,dInitAmplitude,dProbSelNewExcitor,tExactCluster,tExactSpawn,nSpawnings,tCCBuffer
+   use CCMCData, only: WriteCluster
    use CCMCData, only: ClustSelector,Spawner,nClustSelections
    use CalcData, only: NMCyc    ! The number of MC Cycles
    use CalcData, only: StepsSft ! The number of steps between shift updates
@@ -2281,7 +2270,7 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
 
          if(iDebug.gt.3) WRITE(6,*) " Cluster Amplitude: ",CS%C%iSgn*CS%C%dAbsAmplitude 
          if(iDebug.gt.3) WRITE(6,*) " Cluster Prob: ",CS%C%dSelectionProb
-         CALL SumEContrib(CS%C%DetCurr,CS%C%iExcitLevel,CS%C%iSgn,CS%C%iLutDetCurr,0.d0,CS%C%dSelectionProb)
+         CALL SumEContrib(CS%C%DetCurr,CS%C%iExcitLevel,CS%C%iSgn,CS%C%iLutDetCurr,0.d0,CS%C%dSelectionProb*AL%Amplitude(1,iCurAmpList)/CS%C%dAbsAmplitude)
 !Now consider a number of possible spawning events
          CALL ResetSpawner(S,CS%C,nSpawnings)
 
