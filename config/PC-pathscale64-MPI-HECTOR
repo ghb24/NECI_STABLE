@@ -1,20 +1,21 @@
 [main]
 fc = ftn
-cc = CC
+cc = g++
 ld = ftn
 ldflags = -m64
-libs = -lfftw3 -lacml -lstdc++
-cpp = cpp -C -traditional -D__PATHSCALE__
-cppflags =  -D__Linux -DPOINTER8 -DPARALLEL
+libs = -lfftw3 -lacml -lstdc++ -lrt
+cpp = cpp -C -traditional
+cppflags =  -D__Linux -DPOINTER8 -DPARALLEL -D__PATHSCALE__
 compiler = pathf95-on-LINUX
 module_flag = -module
 
 [dbg]
-fflags = -g -fno-second-underscore
-cflags = -g
+fflags = -g -fno-second-underscore -m64
+cflags = -g -m64
 ldflags = -g -Bstatic
 f90flags = -ffortran-bounds-check
 
 [opt]
-fflags = -O3 -OPT:Ofast -LNO:simd_verbose=ON -fno-second-underscore
+fflags = -O3 -OPT:Ofast -LNO:simd_verbose=ON -fno-second-underscore -m64
+cflags = -O -m64
 ldflags = -O3

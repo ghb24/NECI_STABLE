@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python -tt
 '''Produce a .f90 file from the given .F90.template file to simulate the
 effects of using templates/generic functions in a language such as c++
 
@@ -72,8 +72,11 @@ def read_config(fin):
 			config[s] = dict(parser.items(s))
 		config[s].update({'name' : s})
 
-		sys.stdout.write("%s%s" % (", " if sprev is not None else "", s))
+		if sprev:
+			sys.stdout.write(", ")
+		sys.stdout.write("%s" % (s))
 		sprev = s
+
 	print
 
 	return config

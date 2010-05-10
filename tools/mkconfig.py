@@ -92,6 +92,7 @@ my_make := $(MAKE) -f $(my_makefile)
 CPP = %(cpp)s
 CPPFLAGS = -DMAXMEM='$(MAXMEM)' -D_VCS_VER='$(VCS_VERSION)' $(WORKING_DIR_CHANGES) -D_CONFIG='"$(CONFIG).($(OPT))"' -DDSFMT_MEXP=19937 %(cppflags)s 
 # -D__INT64=1
+# -D__SHARED_MEM
 GCPPFLAG = -DHElement_t="real(dp)"
 KCPPFLAG = -DHElement_t="complex(dp)"
 
@@ -119,7 +120,7 @@ endif
 # linker, linker flags and libraries.
 LD = %(ld)s
 LDFLAGS = %(ldflags)s
-LIBS = %(libs)s -lrt
+LIBS = %(libs)s
 
 # For building neci library.
 AR = ar
@@ -401,6 +402,8 @@ help:
 
 .SUFFIXES:
 .SUFFIXES: $(EXTS) .f .f90
+# Don't delete the intermediate .F90 files produced from template files.
+.SECONDARY: $(addprefix $(TDEST)/,$(notdir $(basename $(F90TMPSRCFILES))))
 
 # Some more helpful macros.
 CPP_BODY = $(CPPFLAGS) $< $@
@@ -461,8 +464,6 @@ $(TDEST)/%%.F90: %%.F90.template
 
 $(F90OBJ) $(F90TMPOBJ) $(KF90OBJ) $(KF90TMPOBJ): %%.o: %%.f90
 \tperl -w $(TOOLS)/compile_mod.pl -cmp "perl -w $(TOOLS)/compare_module_file.pl -compiler $(compiler)" -fc "$(FC) $(FFLAGS) $(F90FLAGS) %(module_flag)s$(dir $@) $(INCLUDE_PATH) -c $< -o $@" -provides "$@" -requires "$^"
-$(F90OBJ) $(F90TMPOBJ) $(KF90OBJ) $(KF90TMPOBJ): %%.o: %%.f90
-\tperl -w $(TOOLS)/compile_mod.pl -cmp "perl -w $(TOOLS)/compare_module_file.pl -compiler $(compiler)" -fc "$(FC) $(FFLAGS) $(F90FLAGS) %(module_flag)s$(dir $@) -I $(SRC) -c $< -o $@" -provides "$@" -requires "$^"
 
 $(FOBJ) $(KFOBJ): %%.o: %%.f
 \tperl -w $(TOOLS)/compile_mod.pl -cmp "perl -w $(TOOLS)/compare_module_file.pl -compiler $(compiler)" -fc "$(FC) $(FFLAGS) $(F77FLAGS) %(module_flag)s$(dir $@) $(INCLUDE_PATH) -c $< -o $@" -provides "$@" -requires "$^"

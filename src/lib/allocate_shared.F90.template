@@ -3,90 +3,111 @@ type = integer
 sizeof = sizeof_int
 dim = :
 elem1 = 1
+alloc_str = dims(1)
 
 [int2]
 dim = :,:
 elem1 = 1,1
+alloc_str = dims(1), dims(2)
 
 [int3]
 dim = :,:,:
 elem1 = 1,1,1
+alloc_str = dims(1), dims(2), dims(3)
 
 [int4]
 dim = :,:,:,:
 elem1 = 1,1,1,1
+alloc_str = dims(1), dims(2), dims(3), dims(4)
 
 [int5]
 dim = :,:,:,:,:
 elem1 = 1,1,1,1,1
+alloc_str = dims(1), dims(2), dims(3), dims(4), dims(5)
 
 [int6]
 dim = :,:,:,:,:,:
 elem1 = 1,1,1,1,1,1
+alloc_str = dims(1), dims(2), dims(3), dims(4), dims(5), dims(6)
 
 [int7]
 dim = :,:,:,:,:,:,:
 elem1 = 1,1,1,1,1,1,1
+alloc_str = dims(1), dims(2), dims(3), dims(4), dims(5), dims(6), dims(7)
 
 [doub1]
 type = real*8
 sizeof = sizeof_dp
 dim = :
 elem1 = 1
+alloc_str = dims(1)
 
 [doub2]
 dim = :,:
 elem1 = 1,1
+alloc_str = dims(1), dims(2)
 
 [doub3]
 dim = :,:,:
 elem1 = 1,1,1
+alloc_str = dims(1), dims(2), dims(3)
 
 [doub4]
 dim = :,:,:,:
 elem1 = 1,1,1,1
+alloc_str = dims(1), dims(2), dims(3), dims(4)
 
 [doub5]
 dim = :,:,:,:,:
 elem1 = 1,1,1,1,1
+alloc_str = dims(1), dims(2), dims(3), dims(4), dims(5)
 
 [doub6]
 dim = :,:,:,:,:,:
 elem1 = 1,1,1,1,1,1
+alloc_str = dims(1), dims(2), dims(3), dims(4), dims(5), dims(6)
 
 [doub7]
 dim = :,:,:,:,:,:,:
 elem1 = 1,1,1,1,1,1,1
+alloc_str = dims(1), dims(2), dims(3), dims(4), dims(5), dims(6), dims(7)
 
 [real1]
 type = real*4
 sizeof = sizeof_sp
 dim = :
 elem1 = 1
+alloc_str = dims(1)
 
 [real2]
 dim = :,:
 elem1 = 1,1
+alloc_str = dims(1), dims(2)
 
 [real3]
 dim = :,:,:
 elem1 = 1,1,1
+alloc_str = dims(1), dims(2), dims(3)
 
 [real4]
 dim = :,:,:,:
 elem1 = 1,1,1,1
+alloc_str = dims(1), dims(2), dims(3), dims(4)
 
 [real5]
 dim = :,:,:,:,:
 elem1 = 1,1,1,1,1
+alloc_str = dims(1), dims(2), dims(3), dims(4), dims(5)
 
 [real6]
 dim = :,:,:,:,:,:
 elem1 = 1,1,1,1,1,1
+alloc_str = dims(1), dims(2), dims(3), dims(4), dims(5), dims(6)
 
 [real7]
 dim = :,:,:,:,:,:,:
 elem1 = 1,1,1,1,1,1,1
+alloc_str = dims(1), dims(2), dims(3), dims(4), dims(5), dims(6), dims(7)
 
 
 =========================
@@ -102,17 +123,26 @@ module shared_alloc
 	public :: shared_allocate, shared_deallocate
 
     interface
-		subroutine alloc_shared_worker (nm, pt, sz)
+		subroutine alloc_shared_worker (nm, pt, sz) bind(c)
             use, intrinsic :: iso_c_binding
             implicit none
-            character*5, intent(in) :: nm
+            character(1), intent(in) :: nm
 			type(c_ptr), intent(inout) :: pt
             integer(c_size_t), value :: sz
         end subroutine
-        subroutine dealloc_shared_worker (ptr)
+        subroutine dealloc_shared_worker (ptr) bind(c)
             use, intrinsic :: iso_c_binding
+            use constants, only: int32, int64
             implicit none
+#ifdef __PATHSCALE__
+#ifdef POINTER8
+            integer(int64), value :: ptr
+#else
+            integer(int32), value :: ptr
+#endif
+#else
             type(c_ptr), value :: ptr
+#endif
         end subroutine
     end interface
 
@@ -129,6 +159,7 @@ contains
 		character(len=len_trim(nm)+1) :: name_tmp
 		type(c_ptr) :: tmp
 
+#ifdef __SHARED_MEM
 		sz = %(sizeof)s * product(dims)
 
 		! Allocate the shared memory
@@ -141,27 +172,46 @@ contains
 
 		write (6, '("Allocated ", i10, " bytes of shared memory named: ", a)')&
 		       sz, nm
+#else
+        ! Sigh
+        allocate(ptr(%(alloc_str)s))
+#endif
 	end subroutine
 
 	subroutine shared_deallocate (ptr)
 		%(type)s, dimension(%(dim)s), intent(inout), pointer :: ptr
 		%(type)s, pointer :: pt1
+#ifdef __PATHSCALE__
+#ifdef POINTER8
+        integer(int64) :: tmp
+#else
+        integer(int32) :: tmp
+#endif
+#else
 		type(c_ptr) :: tmp
+#endif
 
+#ifdef __SHARED_MEM
 		! Get a pointer to the first element. c_loc requries its argument to
 		! be a scalar variable.
 		pt1 => ptr(%(elem1)s)
 
-		tmp = c_loc(pt1)
+#ifdef __PATHSCALE__
+		tmp = loc(ptr(%(elem1)s))
+#else
+        tmp = c_loc(pt1)
+#endif
 		call dealloc_shared_worker (tmp)
-
+#else
+        deallocate(ptr)
+#endif
 		nullify(ptr)
 	end subroutine
 end module
 
 supermodule shared_alloc
 	interface
-		subroutine cleanup_shared_alloc ()
+		subroutine cleanup_shared_alloc () bind(c)
 		end subroutine
 	end interface
 end supermodule

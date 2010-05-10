@@ -1,16 +1,18 @@
 [main]
 fc = pathf95
-cc = pathCC
+cc = g++
 ld = pathf95
-libs = -L ~/src/lib/fftw-3.1.2/lib -L ~/local/lib/pathscale/fftw-3.1.2/lib -lfftw3 -llapack -lblas -lstdc++
-cpp = cpp -C -traditional -D__PATHSCALE__
-cppflags =  -D__Linux
+libs = -L ~/src/lib/fftw-3.1.2/lib -L ~/local/lib/pathscale/fftw-3.1.2/lib -lfftw3 -llapack -lblas -lstdc++ -lrt
+cpp = cpp -C -traditional
+cppflags =  -D__Linux -D__PATHSCALE__
 compiler = pathf95 -on-LINUX
 module_flag = -module
 
 [dbg]
-fflags = -r8 -g -fno-second-underscore
+fflags = -r8 -g -fno-second-underscore -m32
+cflags = -g -m32
 f90flags = -ffortran-bounds-check
 
 [opt]
-fflags = -r8 -O3 -fno-second-underscore
+cflags = -O -m32
+fflags = -r8 -O3 -fno-second-underscore -m32
