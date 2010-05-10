@@ -455,18 +455,22 @@ $(TDEST)/%%.F90: %%.F90.template
 
 # We assume that all module files are .F90 files.
 # Fool compile_mod.pl.
-# If the .mod file exists but not the corresponding .time file, then it's possible we just compiled the relevant .f90
-# file using the object rule and so don't need to produce the .mod file again.  We test for the latter condition by
-# requiring the .o and .mod files have the same "last modified" time.
-%%.mod:
-\ttest -e $@ && test ! -e $(@:.mod=.time) && test $(shell $(stat_cmd) $@) -eq $(shell $(stat_cmd) $<) && touch $(@:.mod=.time) || true
-\tperl -w $(TOOLS)/compile_mod.pl -cmp "perl -w $(TOOLS)/compare_module_file.pl -compiler $(compiler)" -fc "$(FC) $(FFLAGS) $(F90FLAGS) %(module_flag)s$(dir $@) $(INCLUDE_PATH) -c $(<:.o=.f90) -o $<" -provides "$@" -requires "$(<:.o=.f90)"
+# It's possible that the corresponding .o rule is performed before the .mod rule.
+# When doing a clean build, the .time file associated with the .mod file doesn't 
+# exist unless the .mod file was created by the .mod rule.  This leads to files 
+# being compiled twice.  We create the .time file if it doesn't exist if the .mod 
+# file was created at the same time as the .o file (picking up files which are compiled 
+# quickly) or the .mod file is newer than the .f90 file (picking up complicated files
+# which take several seconds to compile).
+%.mod:
+\ttest -e $@ && test ! -e $(@:.mod=.time) && ( test $(shell $(stat_cmd) $@) -eq $(shell $(stat_cmd) $<) || test $(shell $(stat_cmd) $@) -gt $(shell $(stat_cmd) $(<:.o=.f90)) ) && touch $(@:.mod=.time) || true
+\tperl -w $(TOOLS)/compile_mod.pl -cmp "perl -w $(TOOLS)/compare_module_file.pl -compiler $(compiler)" -fc "$(FC) $(FFLAGS) $(F90FLAGS) -J $(dir $@) $(INCLUDE_PATH) -c $(<:.o=.f90) -o $<" -provides "$@" -requires "$(<:.o=.f90)"
 
-$(F90OBJ) $(F90TMPOBJ) $(KF90OBJ) $(KF90TMPOBJ): %%.o: %%.f90
-\tperl -w $(TOOLS)/compile_mod.pl -cmp "perl -w $(TOOLS)/compare_module_file.pl -compiler $(compiler)" -fc "$(FC) $(FFLAGS) $(F90FLAGS) %(module_flag)s$(dir $@) $(INCLUDE_PATH) -c $< -o $@" -provides "$@" -requires "$^"
+$(F90OBJ) $(F90TMPOBJ) $(KF90OBJ) $(KF90TMPOBJ): %.o: %.f90
+	perl -w $(TOOLS)/compile_mod.pl -cmp "perl -w $(TOOLS)/compare_module_file.pl -compiler $(compiler)" -fc "$(FC) $(FFLAGS) $(F90FLAGS) -J $(dir $@) $(INCLUDE_PATH) -c $< -o $@" -provides "$@" -requires "$^"
 
-$(FOBJ) $(KFOBJ): %%.o: %%.f
-\tperl -w $(TOOLS)/compile_mod.pl -cmp "perl -w $(TOOLS)/compare_module_file.pl -compiler $(compiler)" -fc "$(FC) $(FFLAGS) $(F77FLAGS) %(module_flag)s$(dir $@) $(INCLUDE_PATH) -c $< -o $@" -provides "$@" -requires "$^"
+$(FOBJ) $(KFOBJ): %.o: %.f
+	perl -w $(TOOLS)/compile_mod.pl -cmp "perl -w $(TOOLS)/compare_module_file.pl -compiler $(compiler)" -fc "$(FC) $(FFLAGS) $(F77FLAGS) -J $(dir $@) $(INCLUDE_PATH) -c $< -o $@" -provides "$@" -requires "$^"
 
 # Compiling C source files...
 # a) gamma-point.
