@@ -1,5 +1,6 @@
 module bit_reps
     use FciMCData, only: CurrentDets, WalkVecDets, MaxWalkersPart
+    use constants, only: lenof_sign
     implicit none
 
     ! Structure of a bit representation:
@@ -23,11 +24,10 @@ module bit_reps
 
     integer :: nIfDBO  ! Size used for bit operations (e.g. sorting)
 
-    integer :: nOffF   ! Offset of flags. in bytes
-    integer :: nIfF    ! Number of bytes to contain flags.
+    integer :: nOffFlag   ! Offset of flags. in bytes
+    integer :: nIfFlag    ! Number of bytes to contain flags.
 
     integer :: nOffSgn  ! Offset of signs in integers
-    integer :: nOffSgnI ! Offset of complex part of signs
     integer :: nIfSgn   ! Number of integers used for signs
 
 contains
@@ -58,7 +58,7 @@ contains
         ! Could use only 32-bits for this, except that it makes it very
         ! tricky to do do anything like sorting, as the latter 32-bits of the
         ! integer would contain random junk.
-        NOffY = NIfTot + 1
+        NOffY = NIfD + 1
         if (tCSF) then
             if (tTruncateCSF) then
                 NIfY = int(csf_trunc_level / bits_n_int) + 1
@@ -74,22 +74,28 @@ contains
                           &probably not a good idea.")
 
         ! The signs array
-        nOffSgn = NOffY + NIfY
-        nIfSgn = 1
+        NOffSgn = NOffY + NIfY
+        NIfSgn = 1
 #ifdef __CMPLX
-#ifdef __INT64
-        nOffSgnI = nOffSgn
-#else
-        nOffSgnI = nOffSgn + 1
-        nIfSgn = nIfSgn + 1
-#endif
+        NIfSgn = NIfSgn + 1     !TODO: If __INT64, adjust packing into one integer
 #endif
 
         ! The number of integers used for sorting / other bit manipulations
         NIfDBO = NIfD + NIfY
 
+        ! Integers for flags
+        if (tTruncInitiator) then
+            !If there are other options which require flags, then this criteria must be extended.
+            !However, do not increase this value from one, since we should only need max one integer
+            !for flags, and this is hardcoded in elsewhere.
+            NIfFlag = 1
+        else
+            NIfFlag = 0
+        endif
+        NOffFlag = NOffSgn + NIfSgn
+
         ! The total number of bits_n_int-bit integers used - 1
-        NIfTot = NIfD + NIfY
+        NIfTot = NIfD + NIfY + NIfSgn + NIfFlag
 
     end subroutine
 
@@ -98,20 +104,52 @@ contains
         ! Extract useful terms out of the bit-representation of a walker
 
         integer(n_int), intent(in) :: ilut(0:nIfTot)
-        integer, intent(out) :: nI(nel), sgn, flags
-        integer :: off, len
+        integer, intent(out) :: nI(nel), flags
+        integer, dimension(lenof_sign), intent(out) :: sgn
 
         call decode_bit_det (nI, ilut)
 
-        off = int(nOffSgn / size_n_int)
-        sft = mod(nOffSgn / size_n_int)
-        sgn = ishft(ilut(off), -8*sft)
+        sgn = iLut(NOffSgn:NOffSign+lenof_sign-1)
+        IF(NOffFlag.eq.1) THEN
+            flags = iLut(NOffFlag)
+        ELSE
+            flags = 0
+        ENDIF
 
-        off = int(nOffG / size_n_int)
-        sft = mod(nOffF / size_n_int)
-        sgn = ishft(ilut(off), -8*sft)
-        
     end subroutine extract_bit_rep
+
+    subroutine encode_flags (ilut, flag)
+
+        ! Add new flag information to a packaged walker.
+
+        integer(n_int), intent(inout) :: ilut(0:nIfTot)
+        integer, intent(out) :: flag
+
+        iLut(NOffFlag) = flag
+
+    end subroutine encode_flags
+
+    subroutine encode_sign (ilut, sgn)
+
+        ! Add new sign information to a packaged walker.
+
+        integer(n_int), intent(inout) :: ilut(0:nIfTot)
+        integer, dimension(lenof_sign), intent(out) :: sgn
+
+        iLut(NOffSgn:NOffSgn+NIfSgn-1) = sgn
+
+    end subroutine encode_sign
+
+    subroutine encode_det (ilut, Det)
+
+        ! Add new det information to a packaged walker.
+
+        integer(n_int), intent(inout) :: ilut(0:nIfTot)
+        integer(n_int), intent(out) :: Det(0:NIfDBO)
+
+        iLut(0:NIfDBO) = Det
+
+    end subroutine encode_det
 
     subroutine decode_bit_det (nI, iLut)
 

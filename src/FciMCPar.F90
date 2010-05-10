@@ -296,10 +296,11 @@ MODULE FciMCParMod
                 integer, intent(in) :: nI(nel), nJ(nel) 
                 integer(kind=n_int), intent(in) :: iLutI(0:nIfTot)
                 integer(kind=n_int), intent(inout) :: iLutJ(0:nIfTot)
-                integer, intent(in) :: wSign, ic, ex(2,2), exLevel
+                integer, intent(in) :: ic, ex(2,2), exLevel
+                integer, dimension(lenof_sign), intent(in) :: wSign
                 logical, intent(in) :: tPar
                 real(dp), intent(inout) :: prob
-                integer :: child
+                integer , dimension(lenof_sign) :: child        
 
                 interface
                     function get_spawn_helement (nI, nJ, ilutI, ilutJ, ic, &
@@ -379,7 +380,8 @@ MODULE FciMCParMod
                 use constants, only: n_int
                 implicit none
                 integer(kind=n_int), intent(in) :: ilutI(0:niftot), iLutJ(0:niftot)
-                integer, intent(in) :: ic, walkExLevel, child
+                integer, intent(in) :: ic, walkExLevel 
+                integer, dimension(lenof_sign) , intent(in) :: child
             end subroutine
         end interface
 
@@ -438,7 +440,7 @@ MODULE FciMCParMod
                 integer, intent(in) :: wSign, ic, ex(2,2), exLevel
                 logical, intent(in) :: tPar
                 real(dp), intent(inout) :: prob
-                integer :: child
+                integer, dimension(lenof_sign) :: child
 
                 interface
                     function get_spawn_helement (nI, nJ, ilutI, ilutJ, ic, &
@@ -482,7 +484,8 @@ MODULE FciMCParMod
                 use constants, only: n_int
                 implicit none
                 integer(kind=n_int), intent(in) :: ilutI(0:niftot), iLutJ(0:niftot)
-                integer, intent(in) :: ic, walkExLevel, child
+                integer, intent(in) :: ic, walkExLevel
+                integer, dimension(lenof_sign), intent(in) :: child
             end subroutine
         end interface
 
@@ -490,7 +493,8 @@ MODULE FciMCParMod
         integer :: VecSlot, j, p, error
         integer :: DetCurr(nel), nJ(nel) 
         integer(kind=n_int) :: iLutnJ(0:niftot)
-        integer :: IC, child, walkExcitLevel, ex(2,2), TotWalkersNew
+        integer :: IC, walkExcitLevel, ex(2,2), TotWalkersNew
+        integer, dimension(lenof_child) :: child
         integer, dimension(ScratchSize) :: scratch1, scratch2, scratch3
         integer(int64) :: HashTemp
         logical :: tFilled, tParity, tHFFound, tHFFoundTemp
@@ -547,7 +551,8 @@ MODULE FciMCParMod
             !      of walkers.
 
             ! Decode determinant from (stored) bit-representation.
-            call DecodeBitDet(DetCurr,CurrentDets(:,j))
+!            call DecodeBitDet(DetCurr,CurrentDets(:,j))
+            call extract_bit_rep(CurrentDets(:,j),DetCurr,SignCurr,FlagsCurr)
 
             ! TODO: The next couple of bits could be done automatically
 
@@ -588,9 +593,10 @@ MODULE FciMCParMod
             ! Sum in any energy contribution from the determinant, including 
             ! other parameters, such as excitlevel info.
             ! This is where the projected energy is calculated.
-            call SumEContrib (DetCurr, WalkExcitLevel, CurrentSign(j), &
+            call SumEContrib (DetCurr, WalkExcitLevel, SignCurr, &
                               CurrentDets(:,j), HDiagCurr, 1.d0)
 
+!This needs to be sorted once updated by dmc52                              
             IF(tTruncInitiator) &
                 call CalcParentFlag(j, tHFFound, tHFFoundTemp, VecSlot, Iter)
 
@@ -602,7 +608,7 @@ MODULE FciMCParMod
             ! Loop over all the particles on the determinant. CurrentSign has
             ! number of walkers. Multiply up by noMCExcits if attempting 
             ! multiple excitations from each walker (default 1)
-            do p = 1, abs(CurrentSign(j)) * noMCExcits
+            do p = 1, abs(SignCurr(1)) * noMCExcits
                 ! Generate a (random) excitation
                 call generate_excitation (DetCurr, CurrentDets(:,j), nJ, &
                                ilutnJ, exFlag, IC, ex, tParity, prob, &
@@ -611,14 +617,14 @@ MODULE FciMCParMod
                 ! If a valid excitation, see if we should spawn children.
                 if (.not. IsNullDet(nJ)) then
                     child = attempt_create (get_spawn_helement, DetCurr, &
-                                        CurrentDets(:,j), CurrentSign(j), &
+                                        CurrentDets(:,j), SignCurr, &
                                         nJ,iLutnJ, Prob, IC, ex, tParity, &
                                         walkExcitLevel)
                 else
                     child = 0
                 endif
 
-                if (child /= 0) then
+                if (child(1) /= 0) then
                     ! We know we want to create a particle, so encode the bit
                     ! representation if it isn't already.
                     call encode_child (CurrentDets(:,j), iLutnJ, ic, ex)
@@ -667,7 +673,8 @@ MODULE FciMCParMod
     subroutine new_child_stats_normal (iLutI, iLutJ, ic, child, walkExLevel)
 
         integer(kind=n_int), intent(in) :: iLutI(0:niftot), iLutJ(0:niftot)
-        integer, intent(in) :: ic, child, walkExLevel
+        integer, intent(in) :: ic, walkExLevel
+        integer, dimension(lenof_sign), intent(in) :: child
         
         noBorn = noBorn + abs(child)
 
@@ -2363,7 +2370,7 @@ MODULE FciMCParMod
         integer, intent(in) :: wSign, ic, ex(2,2), walkExcitLevel
         logical, intent(in) :: tParity
         real(dp), intent(inout) :: prob
-        integer :: child
+        integer, dimension(lenof_sign) :: child
 
         interface
             function get_spawn_helement (nI, nJ, ilutI, ilutJ, ic, ex, &
@@ -3448,9 +3455,9 @@ MODULE FciMCParMod
         ! then calls the normal statistics routine.
 
         integer(kind=n_int), intent(in) :: iLutI(0:niftot), iLutJ(0:niftot)
-        integer, intent(in) :: ic, walkExLevel, child
+        integer, intent(in) :: ic, walkExLevel
+        integer, dimension(lenof_sign) , intent(in) :: child
         character(*), parameter :: this_routine = 'new_child_stats_hist_hamil'
-
         integer :: partInd, partIndChild, childExLevel
         logical :: tSuccess
 
@@ -3480,13 +3487,13 @@ MODULE FciMCParMod
         endif
 
         histHamil (partIndChild, partInd) = &
-                histHamil (partIndChild, partInd) + (1.0_dp * child)
+                histHamil (partIndChild, partInd) + (1.0_dp * child(1))
         histHamil (partInd, partIndChild) = &
-                histHamil (partInd, partIndChild) + (1.0_dp * child)
+                histHamil (partInd, partIndChild) + (1.0_dp * child(1))
         avHistHamil (partIndChild, partInd) = &
-                avHistHamil (partIndChild, partInd) + (1.0_dp * child)
+                avHistHamil (partIndChild, partInd) + (1.0_dp * child(1))
         avHistHamil (partInd, partIndChild) = &
-                avHistHamil (partInd, partIndChild) + (1.0_dp * child)
+                avHistHamil (partInd, partIndChild) + (1.0_dp * child(1))
 
         ! Call the normal stats routine
         call new_child_stats_normal (iLutI, iLutJ, ic, walkExLevel, child)
@@ -5220,7 +5227,8 @@ MODULE FciMCParMod
     SUBROUTINE SumEContrib(DetCurr,ExcitLevel,WSign,iLutCurr,HDiagCurr,dProbFin)
         use SystemData, only : tNoBrillouin
         use CalcData, only: tFCIMC
-        INTEGER , intent(in) :: DetCurr(NEl),ExcitLevel,WSign
+        INTEGER , intent(in) :: DetCurr(NEl),ExcitLevel
+        INTEGER, DIMENSION(lenof_sign) , INTENT(IN) :: WSign
         INTEGER(KIND=n_int), intent(in) :: iLutCurr(0:NIfTot)
         INTEGER :: i,HighIndex,LowIndex,Bin
         INTEGER :: PartInd,OpenOrbs
@@ -5235,15 +5243,15 @@ MODULE FciMCParMod
 !        IF(MaxExcitLevel.lt.ExcitLevel) MaxExcitLevel=ExcitLevel
 !        DetsNorm=DetsNorm+REAL((WSign**2),dp)
         IF(ExcitLevel.eq.0) THEN
-            IF(Iter.gt.NEquilSteps) SumNoatHF=SumNoatHF+WSign
-            NoatHF=NoatHF+WSign
-            HFCyc=HFCyc+WSign      !This is simply the number at HF*sign over the course of the update cycle 
-            HFIter=HFIter+WSign
+            IF(Iter.gt.NEquilSteps) SumNoatHF=SumNoatHF+WSign(1)
+            NoatHF=NoatHF+WSign(1)
+            HFCyc=HFCyc+WSign(1)      !This is simply the number at HF*sign over the course of the update cycle 
+            HFIter=HFIter+WSign(1)
 !            AvSign=AvSign+REAL(WSign,dp)
 !            AvSignHFD=AvSignHFD+REAL(WSign,dp)
             
         ELSEIF(ExcitLevel.eq.2) THEN
-            NoatDoubs=NoatDoubs+abs(WSign)
+            NoatDoubs=NoatDoubs+abs(WSign(1))
 !At double excit - find and sum in energy
             IF(tHPHF) THEN
                 HOffDiag = hphf_off_diag_helement (ProjEDet, DetCurr, iLutRef, &
@@ -5252,11 +5260,11 @@ MODULE FciMCParMod
                 HOffDiag = get_helement (ProjEDet, DetCurr, ExcitLevel, iLutRef, &
                                          iLutCurr)
             ENDIF
-            IF(Iter.gt.NEquilSteps) SumENum=SumENum+(REAL(HOffDiag,dp)*WSign/dProbFin)
+            IF(Iter.gt.NEquilSteps) SumENum=SumENum+(REAL(HOffDiag,dp)*WSign(1)/dProbFin)
 !            AvSign=AvSign+REAL(WSign,dp)
 !            AvSignHFD=AvSignHFD+REAL(WSign,dp)
-            ENumCyc=ENumCyc+(REAL(HOffDiag,dp)*WSign/dProbFin)     !This is simply the Hij*sign summed over the course of the update cycle
-            ENumIter=ENumIter+(REAL(HOffDiag,dp)*WSign/dProbFin)
+            ENumCyc=ENumCyc+(REAL(HOffDiag,dp)*WSign(1)/dProbFin)     !This is simply the Hij*sign summed over the course of the update cycle
+            ENumIter=ENumIter+(REAL(HOffDiag,dp)*WSign(1)/dProbFin)
 !            WRITE(6,*) 2,SumENum,(REAL(HOffDiag,dp)*WSign/dProbFin)     !This is simply the Hij*sign summed over the course of the update cycle
 
             
@@ -5276,10 +5284,10 @@ MODULE FciMCParMod
                 HOffDiag = get_helement (ProjEDet, DetCurr, ExcitLevel, ilutRef, &
                                          iLutCurr)
             ENDIF
-            IF(Iter.gt.NEquilSteps) SumENum=SumENum+(REAL(HOffDiag,dp)*WSign/dProbFin)
+            IF(Iter.gt.NEquilSteps) SumENum=SumENum+(REAL(HOffDiag,dp)*WSign(1)/dProbFin)
 !            AvSign=AvSign+REAL(WSign,dp)
 !            AvSignHFD=AvSignHFD+REAL(WSign,dp)
-            ENumCyc=ENumCyc+(REAL(HOffDiag,dp)*WSign/dProbFin)     !This is simply the Hij*sign summed over the course of the update cycle
+            ENumCyc=ENumCyc+(REAL(HOffDiag,dp)*WSign(1)/dProbFin)     !This is simply the Hij*sign summed over the course of the update cycle
 !            WRITE(6,*) 1,SumENum,(REAL(HOffDiag,dp)*WSign/dProbFin)     !This is simply the Hij*sign summed over the course of the update cycle
           endif 
 
@@ -5302,28 +5310,28 @@ MODULE FciMCParMod
                     CALL FindExcitBitDetSym(iLutCurr,iLutSym)
                     IF(.not.DetBitEQ(iLutCurr,iLutSym)) THEN
                         IF(tFlippedSign) THEN
-                            Histogram(PartInd)=Histogram(PartInd)-(REAL(WSign,dp)/SQRT(2.0))/dProbFin
-                            IF(tHistSpawn) InstHist(PartInd)=InstHist(PartInd)-(REAL(WSign,dp)/SQRT(2.0))/dProbFin
+                            Histogram(PartInd)=Histogram(PartInd)-(REAL(WSign(1),dp)/SQRT(2.0))/dProbFin
+                            IF(tHistSpawn) InstHist(PartInd)=InstHist(PartInd)-(REAL(WSign(1),dp)/SQRT(2.0))/dProbFin
                         ELSE
-                            Histogram(PartInd)=Histogram(PartInd)+(REAL(WSign,dp)/SQRT(2.0))/dProbFin
-                            IF(tHistSpawn) InstHist(PartInd)=InstHist(PartInd)+(REAL(WSign,dp)/SQRT(2.0))/dProbFin
+                            Histogram(PartInd)=Histogram(PartInd)+(REAL(WSign(1),dp)/SQRT(2.0))/dProbFin
+                            IF(tHistSpawn) InstHist(PartInd)=InstHist(PartInd)+(REAL(WSign(1),dp)/SQRT(2.0))/dProbFin
                         ENDIF
                     ELSE
                         IF(tFlippedSign) THEN
-                            Histogram(PartInd)=Histogram(PartInd)-REAL(WSign,dp)/dProbFin
-                            IF(tHistSpawn) InstHist(PartInd)=InstHist(PartInd)-REAL(WSign,dp)/dProbFin
+                            Histogram(PartInd)=Histogram(PartInd)-REAL(WSign(1),dp)/dProbFin
+                            IF(tHistSpawn) InstHist(PartInd)=InstHist(PartInd)-REAL(WSign(1),dp)/dProbFin
                         ELSE
-                            Histogram(PartInd)=Histogram(PartInd)+REAL(WSign,dp)/dProbFin
-                            IF(tHistSpawn) InstHist(PartInd)=InstHist(PartInd)+REAL(WSign,dp)/dProbFin
+                            Histogram(PartInd)=Histogram(PartInd)+REAL(WSign(1),dp)/dProbFin
+                            IF(tHistSpawn) InstHist(PartInd)=InstHist(PartInd)+REAL(WSign(1),dp)/dProbFin
                         ENDIF
                     ENDIF
                 ELSE
                     IF(tFlippedSign) THEN
-                        Histogram(PartInd)=Histogram(PartInd)-REAL(WSign,dp)/dProbFin
-                        IF(tHistSpawn) InstHist(PartInd)=InstHist(PartInd)-REAL(WSign,dp)/dProbFin
+                        Histogram(PartInd)=Histogram(PartInd)-REAL(WSign(1),dp)/dProbFin
+                        IF(tHistSpawn) InstHist(PartInd)=InstHist(PartInd)-REAL(WSign(1),dp)/dProbFin
                     ELSE
-                        Histogram(PartInd)=Histogram(PartInd)+REAL(WSign,dp)/dProbFin
-                        IF(tHistSpawn) InstHist(PartInd)=InstHist(PartInd)+REAL(WSign,dp)/dProbFin
+                        Histogram(PartInd)=Histogram(PartInd)+REAL(WSign(1),dp)/dProbFin
+                        IF(tHistSpawn) InstHist(PartInd)=InstHist(PartInd)+REAL(WSign(1),dp)/dProbFin
                     ENDIF
                 ENDIF
                 IF(tHPHF) THEN
@@ -5341,19 +5349,19 @@ MODULE FciMCParMod
                             CALL CalcOpenOrbs(iLutSym,OpenOrbs)
                             IF(tFlippedSign) THEN
                                 IF(mod(OpenOrbs,2).eq.1) THEN
-                                    Histogram(PartInd)=Histogram(PartInd)+(REAL(WSign,dp)/SQRT(2.0))/dProbFin
-                                    IF(tHistSpawn) InstHist(PartInd)=InstHist(PartInd)+(REAL(WSign,dp)/SQRT(2.0))/dProbFin
+                                    Histogram(PartInd)=Histogram(PartInd)+(REAL(WSign(1),dp)/SQRT(2.0))/dProbFin
+                                    IF(tHistSpawn) InstHist(PartInd)=InstHist(PartInd)+(REAL(WSign(1),dp)/SQRT(2.0))/dProbFin
                                 ELSE
-                                    Histogram(PartInd)=Histogram(PartInd)-(REAL(WSign,dp)/SQRT(2.0))/dProbFin
-                                    IF(tHistSpawn) InstHist(PartInd)=InstHist(PartInd)-(REAL(WSign,dp)/SQRT(2.0))/dProbFin
+                                    Histogram(PartInd)=Histogram(PartInd)-(REAL(WSign(1),dp)/SQRT(2.0))/dProbFin
+                                    IF(tHistSpawn) InstHist(PartInd)=InstHist(PartInd)-(REAL(WSign(1),dp)/SQRT(2.0))/dProbFin
                                 ENDIF
                             ELSE
                                 IF(mod(OpenOrbs,2).eq.1) THEN
-                                    Histogram(PartInd)=Histogram(PartInd)-(REAL(WSign,dp)/SQRT(2.0))/dProbFin
-                                    IF(tHistSpawn) InstHist(PartInd)=InstHist(PartInd)-(REAL(WSign,dp)/SQRT(2.0))/dProbFin
+                                    Histogram(PartInd)=Histogram(PartInd)-(REAL(WSign(1),dp)/SQRT(2.0))/dProbFin
+                                    IF(tHistSpawn) InstHist(PartInd)=InstHist(PartInd)-(REAL(WSign(1),dp)/SQRT(2.0))/dProbFin
                                 ELSE
-                                    Histogram(PartInd)=Histogram(PartInd)+(REAL(WSign,dp)/SQRT(2.0))/dProbFin
-                                    IF(tHistSpawn) InstHist(PartInd)=InstHist(PartInd)+(REAL(WSign,dp)/SQRT(2.0))/dProbFin
+                                    Histogram(PartInd)=Histogram(PartInd)+(REAL(WSign(1),dp)/SQRT(2.0))/dProbFin
+                                    IF(tHistSpawn) InstHist(PartInd)=InstHist(PartInd)+(REAL(WSign(1),dp)/SQRT(2.0))/dProbFin
                                 ENDIF
                             ENDIF
                         ELSE
@@ -5377,12 +5385,12 @@ MODULE FciMCParMod
             IF(Bin.gt.iNoBins) THEN
                 CALL Stop_All("SumEContrib","Histogramming energies higher than the arrays can cope with. Increase iNoBins or BinRange")
             ENDIF
-            Histogram(Bin)=Histogram(Bin)+real(abs(WSign),dp)
+            Histogram(Bin)=Histogram(Bin)+real(abs(WSign(1)),dp)
         ENDIF
 
         IF(tPrintOrbOcc.and.(Iter.ge.StartPrintOrbOcc)) THEN
             do i=1,NEl
-                OrbOccs(DetCurr(i))=OrbOccs(DetCurr(i))+REAL(WSign*WSign)
+                OrbOccs(DetCurr(i))=OrbOccs(DetCurr(i))+REAL(WSign(1)*WSign(1))
             enddo
         ENDIF
 

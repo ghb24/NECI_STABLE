@@ -21,8 +21,10 @@ integer, parameter :: sizeof_dp = 8
 integer, parameter :: sizeof_sp = 4
 #ifdef __CMPLX
 integer, parameter :: sizeof_helement = 16
+integer, parameter :: lenof_sign = 2
 #else
 integer, parameter :: sizeof_helement = 8
+integer, parameter :: lenof_sign = 1
 #endif
 
 #ifdef __INT64
