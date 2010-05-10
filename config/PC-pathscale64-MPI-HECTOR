@@ -1,6 +1,6 @@
 [main]
 fc = ftn
-cc = g++
+cc = g++ -m64
 ld = ftn
 ldflags = -m64
 libs = -lfftw3 -lacml -lstdc++ -lrt
