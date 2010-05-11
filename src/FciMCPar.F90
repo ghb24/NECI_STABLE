@@ -13,7 +13,7 @@
 MODULE FciMCParMod
     use SystemData, only: nel, Brr, nBasis, nBasisMax, LMS, tHPHF, tHub, &
                           tReal, tRotatedOrbs, tFindCINatOrbs, tFixLz, &
-                          LzTot, tUEG, tLatticeGens, tCSF
+                          LzTot, tUEG, tLatticeGens, tCSF, G1, Arr
     use bit_reps, only: NIfD, NIfTot, NIfDBO, NIfY
     use CalcData, only: InitWalkers, NMCyc, DiagSft, Tau, SftDamp, StepsSft, &
                         OccCASorbs, VirtCASorbs, tFindGroundDet, NEquilSteps,&
@@ -43,8 +43,8 @@ MODULE FciMCParMod
     USE Parallel
     USE FciMCData
     USE AnnihilationMod
-    use DetBitops, only: EncodeBitDet, DecodeBitDet, DetBitEQ, DetBitLT
-    use DetBitOps, only: FindExcitBitDet, FindBitExcitLevel
+    use DetBitops, only: EncodeBitDet, DetBitEQ, DetBitLT, FindExcitBitDet, &
+                         FindBitExcitLevel
     use csf, only: get_csf_bit_yama, iscsf, csf_orbital_mask, get_csf_helement
     use hphf_integrals, only: hphf_diag_helement, hphf_off_diag_helement, &
                               hphf_spawn_sign, hphf_off_diag_helement_spawn
@@ -56,6 +56,7 @@ MODULE FciMCParMod
                                SumInErrorContrib, WriteInitPops
     use RotateOrbsMod, only: RotateOrbs
     use NatOrbsMod, only: PrintOrbOccs
+    use bit_reps, only: decode_bit_det
     implicit none
 
     contains
@@ -448,7 +449,8 @@ MODULE FciMCParMod
                 integer, intent(in) :: nI(nel), nJ(nel)
                 integer(kind=n_int), intent(in) :: iLutI(0:nifTot)
                 integer(kind=n_int), intent(inout) :: iLutJ(0:nIfTot)
-                integer, intent(in) :: wSign, ic, ex(2,2), exLevel
+                integer, intent(in) :: ic, ex(2,2), exLevel
+                integer, dimension(lenof_sign), intent(in) :: wSign
                 logical, intent(in) :: tPar
                 real(dp), intent(inout) :: prob
                 integer, dimension(lenof_sign) :: child
@@ -506,10 +508,10 @@ MODULE FciMCParMod
 
         ! Now the local, iteration specific, variables
         integer :: VecSlot, j, p, error
-        integer :: DetCurr(nel), nJ(nel) 
+        integer :: DetCurr(nel), nJ(nel), FlagsCurr
+        integer, dimension(lenof_sign) :: SignCurr, child
         integer(kind=n_int) :: iLutnJ(0:niftot)
         integer :: IC, walkExcitLevel, ex(2,2), TotWalkersNew
-        integer, dimension(lenof_child) :: child
         integer, dimension(ScratchSize) :: scratch1, scratch2, scratch3
         integer(int64) :: HashTemp
         logical :: tFilled, tParity, tHFFound, tHFFoundTemp
@@ -566,8 +568,8 @@ MODULE FciMCParMod
             !      of walkers.
 
             ! Decode determinant from (stored) bit-representation.
-!            call DecodeBitDet(DetCurr,CurrentDets(:,j))
-            call extract_bit_rep(CurrentDets(:,j),DetCurr,SignCurr,FlagsCurr)
+            call extract_bit_rep (CurrentDets(:,j), DetCurr, SignCurr, &
+                                  FlagsCurr)
 
             ! TODO: The next couple of bits could be done automatically
 
@@ -645,7 +647,7 @@ MODULE FciMCParMod
                     call encode_child (CurrentDets(:,j), iLutnJ, ic, ex)
 
                     call new_child_stats (CurrentDets(:,j), iLutnJ, ic, &
-                                          child, walkExcitLevel)
+                                          walkExcitLevel, child)
 
                     call create_particle (iLutnJ, child)
                 
@@ -685,18 +687,18 @@ MODULE FciMCParMod
         
     end subroutine
 
-    subroutine new_child_stats_normal (iLutI, iLutJ, ic, child, walkExLevel)
+    subroutine new_child_stats_normal (iLutI, iLutJ, ic, walkExLevel, child)
 
         integer(kind=n_int), intent(in) :: iLutI(0:niftot), iLutJ(0:niftot)
         integer, intent(in) :: ic, walkExLevel
         integer, dimension(lenof_sign), intent(in) :: child
         
-        noBorn = noBorn + abs(child)
+        noBorn = noBorn + abs(child(1))
 
-        if (ic == 1) SpawnFromSing = SpawnFromSing + abs(child)
+        if (ic == 1) SpawnFromSing = SpawnFromSing + abs(child(1))
 
-        if (abs(child) > abs(iPartBloom)) then
-            iPartBloom = sign(child, 2*ic - 3)
+        if (abs(child(1)) > abs(iPartBloom)) then
+            iPartBloom = sign(child(1), 2*ic - 3)
         endif
 
     end subroutine
@@ -710,13 +712,13 @@ MODULE FciMCParMod
         ! ValidSpawnedList
 
         integer(kind=n_int), intent(in) :: iLutJ(0:niftot)
-        integer, intent(in) :: child
+        integer, dimension(lenof_sign), intent(in) :: child
         integer :: proc
 
         proc = DetermineDetProc(iLutJ)    ! 0 -> nProcessors-1
 
         SpawnedParts(:,ValidSpawnedList(proc)) = iLutJ
-        SpawnedSign(ValidSpawnedList(Proc)) = child
+        SpawnedSign(ValidSpawnedList(Proc)) = child(1)
 
         ! TODO: have this already stored in iLut, but ignored for hashing?
         ! Set the last integer of the determinant to be either 0 or 1
@@ -727,7 +729,7 @@ MODULE FciMCParMod
         ValidSpawnedList(proc) = ValidSpawnedList(proc) + 1
 
         ! Sum the number of created children to use in acceptance ratio.
-        acceptances = acceptances + abs(child)
+        acceptances = acceptances + abs(child(1))
     end subroutine
 
     subroutine end_iteration_print_warn (totWalkersNew)
@@ -890,19 +892,17 @@ MODULE FciMCParMod
         CALL MPI_Bcast(DetNeg,1,MPI_INTEGER,HighPopoutNeg(2),MPI_COMM_WORLD,error)
         CALL MPI_Bcast(DetPos,1,MPI_INTEGER,HighPopoutPos(2),MPI_COMM_WORLD,error)
 
-        IF(iProcIndex.eq.0) THEN
-            WRITE(6,'(A75,I10,A9)') 'The most highly populated determinant with the opposite sign to the HF has ',HighPopoutNeg(1),' walkers.'
-!            WRITE(6,*) 'In bit representation this is: ',CurrentDets(:,HighPopFlip)
-            CALL DecodeBitDet(InitDetCurr,DetNeg(:))
-            CALL write_det (6, InitDetCurr, .true.)
-        ENDIF
+        if (iProcIndex == 0) then
+            write (6, '(a, i10, a)') 'The most highly populated determinant &
+                                  & with the opposite sign to the HF has ', &
+                                  HighPopoutNeg(1), ' walkers.'
+            call WriteBitDet (6, DetNeg, .true.)
 
-        IF(iProcIndex.eq.0) THEN
-            WRITE(6,'(A71,I10,A9)') 'The most highly populated determinant with the same sign as the HF has ',HighPopoutPos(1),' walkers.'
-!            WRITE(6,*) 'In bit representation this is: ',CurrentDets(:,HighPopFlip)
-            CALL DecodeBitDet(InitDetCurr,DetPos(:))
-            CALL write_det (6, InitDetCurr, .true.)
-        ENDIF
+            write (6, '(a, i10, a9)') 'The most highly populated determinant &
+                                  & with the same sign as the HF has ', &
+                                  HighPopoutPos(1), ' walkers.'
+            call WriteBitDet (6, DetPos, .true.)
+        endif
 
         tPrintHighPop=.false.
 
@@ -1093,9 +1093,11 @@ MODULE FciMCParMod
                 IF(tChangeProjEDet) THEN
 !Meed to communicate to all processors that iLutRef has changed.
 
+                    ! TODO: Can we do this without using a decode_bit_det
+                    !       call?
                     CALL MPI_BCast(HighestPopDet(0:NIfTot),NIfTot+1,MpiDetInt,HighPopout(2),MPI_COMM_WORLD,error)
                     iLutRef(:)=HighestPopDet(:)
-                    CALL DecodeBitDet(ProjEDet,iLutRef(:))
+                    call decode_bit_det (ProjEDet, iLutRef)
                     WRITE(6,"(A)",advance='no') "Changing projected energy reference determinant to:"
                     CALL Write_det(6,ProjEDet,.true.)
                     tNoBrillouin=.true.
@@ -1120,7 +1122,7 @@ MODULE FciMCParMod
                     ENDIF
                     WRITE(6,*) "Regenerating the stored diagonal HElements for all walkers..."
                     do i=1,TotWalkers
-                        CALL DecodeBitDet(DetCurr,CurrentDets(:,i))
+                        call decode_bit_det (DetCurr, CurrentDets(:,i))
                         if (tHPHF) then
                             HDiagtemp = hphf_diag_helement (DetCurr,CurrentDets(:,i))
                         else
@@ -1131,7 +1133,7 @@ MODULE FciMCParMod
                 ELSEIF(tRestartHighPop.and.(iRestartWalkNum.le.AllTotParts)) THEN
                     CALL MPI_BCast(HighestPopDet,NIfTot+1,MpiDetInt,HighPopout(2),MPI_COMM_WORLD,error)
                     iLutRef(:)=HighestPopDet(:)
-                    CALL DecodeBitDet(ProjEDet,iLutRef(:))
+                    call decode_bit_det (ProjEDet, iLutRef)
                     WRITE(6,"(A)",advance='no') "Changing projected energy reference determinant to:"
                     CALL Write_det(6,ProjEDet,.true.)
                     tNoBrillouin=.true.
@@ -2277,7 +2279,7 @@ MODULE FciMCParMod
             ENDIF
         
 #endif
-            CALL DecodeBitDet(TempnI,iLutTemp)
+            call decode_bit_det (TempnI, iLutTemp)
 !	     WRITE(6,*) TempnI
 !	     CALL FLUSH(6)
             Proc=DetermineDetProc(iLutTemp)   !This wants to return a value between 0 -> nProcessors-1
@@ -2357,7 +2359,7 @@ MODULE FciMCParMod
         First=.true.
         TotParts=0
         do j=1,TotWalkers
-            CALL DecodeBitDet(TempnI,CurrentDets(:,j))
+            call decode_bit_det (TempnI, currentDets(:,j))
             Excitlevel = FindBitExcitLevel(iLutHF, CurrentDets(:,j), 2)
             IF(Excitlevel.eq.0) THEN
                 IF(.not.tRegenDiagHEls) CurrentH(j)=0.D0
@@ -2406,7 +2408,8 @@ MODULE FciMCParMod
         integer, intent(in) :: DetCurr(nel), nJ(nel) 
         integer(kind=n_int), intent(in) :: iLutCurr(0:NIfTot)
         integer(kind=n_int), intent(inout) :: iLutnJ(0:niftot)
-        integer, intent(in) :: wSign, ic, ex(2,2), walkExcitLevel
+        integer, intent(in) :: ic, ex(2,2), walkExcitLevel
+        integer, dimension(lenof_sign), intent(in) :: wSign
         logical, intent(in) :: tParity
         real(dp), intent(inout) :: prob
         integer, dimension(lenof_sign) :: child
@@ -2444,10 +2447,11 @@ MODULE FciMCParMod
         integer, intent(in) :: DetCurr(nel), nJ(nel) 
         integer(kind=n_int), intent(in) :: iLutCurr(0:NIfTot)
         integer(kind=n_int), intent(inout) :: iLutnJ(0:niftot)
-        integer, intent(in) :: wSign, ic, ex(2,2), walkExcitLevel
+        integer, intent(in) :: ic, ex(2,2), walkExcitLevel
+        integer, dimension(lenof_sign), intent(in) :: wSign
         logical, intent(in) :: tParity
         real(dp), intent(inout) :: prob
-        integer :: child
+        integer, dimension(lenof_sign) :: child
 
         interface
             function get_spawn_helement (nI, nJ, ilutI, ilutJ, ic, ex, &
@@ -2482,10 +2486,11 @@ MODULE FciMCParMod
         integer, intent(in) :: DetCurr(nel), nJ(nel) 
         integer(kind=n_int), intent(in) :: iLutCurr(0:NIfTot)
         integer(kind=n_int), intent(inout) :: iLutnJ(0:niftot)
-        integer, intent(in) :: wSign, ic, ex(2,2), walkExcitLevel
+        integer, intent(in) :: ic, ex(2,2), walkExcitLevel
+        integer, dimension(lenof_sign), intent(in) :: wSign
         logical, intent(in) :: tParity
         real(dp), intent(inout) :: prob
-        integer :: child
+        integer, dimension(lenof_sign) :: child
 
         interface
             function get_spawn_helement (nI, nJ, ilutI, ilutJ, ic, ex, &
@@ -2526,10 +2531,10 @@ MODULE FciMCParMod
         ! Stochastically choose whether to create or not.
         r = genrand_real2_dSFMT ()
         if (rat > r) then
-            child = -nint(sign(1.0_dp, wsign*real(rh,dp)))
-            child = child + sign(extraCreate, child)
+            child(1) = -nint(sign(1.0_dp, wsign(1)*real(rh,dp)))
+            child(1) = child(1) + sign(extraCreate, child(1))
         else
-            child = -extraCreate*nint(sign(1.0_dp, wsign*real(rh,dp)))
+            child(1) = -extraCreate*nint(sign(1.0_dp, wsign(1)*real(rh,dp)))
         endif
 
     end function
@@ -3293,12 +3298,8 @@ MODULE FciMCParMod
                     norm=norm+AllHistogram(i)**2
 !write out FCIMC Component weight (normalised), current normalisation, excitation level
                     ExcitLevel = FindBitExcitLevel(iLutHF, FCIDets(:,i), nel)
-                    CALL DecodeBitDet(nI,FCIDets(0:NIfTot,i))
                     WRITE(17,"(I13,G25.16,I6,G20.10)",advance='no') i,AllHistogram(i),ExcitLevel,norm
-                    do j=1,NEl-1
-                        WRITE(17,"(I5)",advance='no') nI(j)
-                    enddo
-                    WRITE(17,"(I5)") nI(NEl)
+                    call WriteBitDet (17, FCIDets(:,i), .true.)
                 enddo
 
                 CLOSE(17)
@@ -4169,9 +4170,12 @@ MODULE FciMCParMod
 !test the encoding of the HFdet to bit representation.
         ALLOCATE(iLutHF(0:NIfDBO),stat=ierr)
         IF(ierr.ne.0) CALL Stop_All(this_routine,"Cannot allocate memory for iLutHF")
+
+        ! Test that the bit operations are working correctly...
+        ! TODO: Move this to using the extract_bit_det routines to test those
+        !       too...
         CALL EncodeBitDet(HFDet,iLutHF)
-!Test that the bit operations are working correctly...
-        CALL DecodeBitDet(HFDetTest,iLutHF)
+        call decode_bit_det (HFDetTest, iLutHF)
         do i=1,NEl
             IF(HFDetTest(i).ne.HFDet(i)) THEN
                 WRITE(6,*) "HFDet: ",HFDet(:)
@@ -5450,6 +5454,7 @@ SUBROUTINE BinSearchParts2(iLut,MinInd,MaxInd,PartInd,tSuccess)
     use DetCalcData , only : FCIDets
     use DetBitOps, only: DetBitLT
     use constants, only: n_int
+    use bit_reps, only: NIfTot
     INTEGER :: MinInd,MaxInd,PartInd
     INTEGER(KIND=n_int) :: iLut(0:NIfTot)
     INTEGER :: i,j,N,Comp
