@@ -4074,7 +4074,7 @@ MODULE FciMCParMod
         use HElem
         INTEGER :: ierr,i,j,k,l,DetCurr(NEl),ReadWalkers,TotWalkersDet,HFDetTest(NEl),Seed,alpha,beta,symalpha,symbeta,endsymstate
         INTEGER :: DetLT,VecSlot,error,HFConn,MemoryAlloc,iMaxExcit,nStore(6),nJ(Nel),BRR2(nBasis),LargestOrb,nBits,HighEDet(NEl)
-        INTEGER(KIND=n_int) :: iLutTemp(0:NIfTot)
+        INTEGER(KIND=n_int) :: iLutTemp(0:NIfDBO)
         HElement_t :: rh,TempHii
         TYPE(BasisFn) HFSym
         REAL*8 :: TotDets,SymFactor,r
@@ -4143,7 +4143,7 @@ MODULE FciMCParMod
         
 
 !test the encoding of the HFdet to bit representation.
-        ALLOCATE(iLutHF(0:NIfTot),stat=ierr)
+        ALLOCATE(iLutHF(0:NIfDBO),stat=ierr)
         IF(ierr.ne.0) CALL Stop_All(this_routine,"Cannot allocate memory for iLutHF")
         CALL EncodeBitDet(HFDet,iLutHF)
 !Test that the bit operations are working correctly...
@@ -4165,14 +4165,14 @@ MODULE FciMCParMod
         ENDIF
 
         !iLutRef is the reference determinant for the projected energy.
-        ALLOCATE(iLutRef(0:NIfTot),stat=ierr)
+        ALLOCATE(iLutRef(0:NIfDBO),stat=ierr)
         ALLOCATE(ProjEDet(NEl),stat=ierr)
         IF(ierr.ne.0) CALL Stop_All(this_routine,"Cannot allocate memory for iLutRef")
         iLutRef(:)=iLutHF(:)
         ProjEDet(:)=HFDet(:)
 
         IF(tCheckHighestPop) THEN
-            ALLOCATE(HighestPopDet(0:NIfTot),stat=ierr)
+            ALLOCATE(HighestPopDet(0:NIfDBO),stat=ierr)
             IF(ierr.ne.0) CALL Stop_All(this_routine,"Cannot allocate memory for iLutHF")
             HighestPopDet(:)=0
         ENDIF

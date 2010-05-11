@@ -26,7 +26,8 @@ module bit_reps
                        ! TODO: ensure Yamanouchi symbols are 32bit.
     integer :: nIfY    ! Number of bytes to represent a Yamanouchi symbol
 
-    integer :: nIfDBO  ! Size used for bit operations (e.g. sorting)
+    integer :: nIfDBO  ! Size used for bit operations (e.g. sorting) - this is 
+                       ! the determinant (+ Yamanouchi if needed)
 
     integer :: nOffFlag   ! Offset of flags. in bytes
     integer :: nIfFlag    ! Number of bytes to contain flags.
