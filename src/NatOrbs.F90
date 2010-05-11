@@ -16,6 +16,7 @@ MODULE NatOrbsMod
         USE RotateOrbsData , only : SymLabelList2,SymLabelCounts2,SymLabelCounts2Tag,SymLabelListInv,NoOrbs,SpatOrbs,FillOneRDM_time
         USE RotateOrbsData , only : FillMP2VDM_Time,DiagNatOrbMat_Time,OrderCoeff_Time,FillCoeff_Time,NoFrozenVirt
         use sort_mod
+        use bit_reps, only: decode_bit_det
         IMPLICIT NONE
         INTEGER :: NoSpinCyc,SymOrbsTempTag
         REAL*8 , ALLOCATABLE :: NatOrbMat(:,:),Evalues(:)
@@ -375,7 +376,7 @@ MODULE NatOrbsMod
 
     SUBROUTINE FillOneRDM()
         USE DetCalcData , only : Det,FCIDets,FCIDetIndex,ICILevel
-        use DetBitOps, only: DecodeBitDet, FindBitExcitLevel
+        use DetBitOps, only: FindBitExcitLevel
 ! Det is the number of determinants in FCIDets.
 ! FCIDets contains the list of all determinants in the system in bit string representation, FCIDets(0:NIfTot,1:Det) 
 ! ICILevel is the max excitation level of the calculation - as in EXCITE ICILevel.
@@ -527,9 +528,9 @@ MODULE NatOrbsMod
                             WRITE(6,*) CEILING(REAL(Ex(1,1)/2.D0)),CEILING(REAL(Ex(2,1)/2.D0))
                             WRITE(6,*) 'Orbi,',Orbi,'Orbj,',Orbj
                             WRITE(6,*) 'Sym(Orbi)',INT(G1(SymLabelList2(Orbi)*Spins)%sym%S,4),'Sym(Orbj)',INT(G1(SymLabelList2(Orbj)*Spins)%sym%S,4)
-                            CALL DecodeBitDet(nI,FCIDets(0:NIfTot,i))
+                            call decode_bit_det (nI, FCIDets(0:NIfTot,i))
                             WRITE(6,*) 'i',nI
-                            CALL DecodeBitDet(nJ,FCIDets(0:NIfTot,j))
+                            call decode_bit_det (nJ, FCIDets(0:NIfTot,j))
                             WRITE(6,*) 'j',nJ
                             WRITE(6,*) 'AllHistogram(i)',AllHistogram(i)
                             WRITE(6,*) 'AllHistogram(j)',AllHistogram(j)

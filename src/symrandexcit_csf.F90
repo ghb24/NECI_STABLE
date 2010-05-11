@@ -14,7 +14,7 @@ module GenRandSymExcitCSF
                    det_to_random_csf
     use dSFMT_interface, only: genrand_real2_dSFMT
     use GenRandSymExcitNUMod, only: ClassCountInd, gen_rand_excit
-    use DetBitOps, only: EncodeBitDet, DecodeBitDet, is_canonical_ms_order, &
+    use DetBitOps, only: EncodeBitDet, is_canonical_ms_order, &
                          shift_det_bit_singles_to_beta, count_open_orbs
     use Determinants, only: write_det
     use Parallel

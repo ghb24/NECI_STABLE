@@ -548,7 +548,8 @@ MODULE HPHFRandExcitMod
 !number of excitations generated using the full enumeration excitation generation.
     SUBROUTINE TestGenRandHPHFExcit(nI,Iterations,pDoub)
         Use SystemData , only : NEl,nBasis,G1,nBasisMax
-        use DetBitOps, only: EncodeBitDet, DecodeBitDet
+        use DetBitOps, only: EncodeBitDet
+        use bit_reps, only: decode_bit_det
         use GenRandSymExcitNuMod, only: scratchsize
         use FciMCData, only: tGenMatHEl
         IMPLICIT NONE
@@ -793,7 +794,7 @@ MODULE HPHFRandExcitMod
                 Die=.true.
             ENDIF
             WRITE(6,*) i,UniqueHPHFList(0:NIfTot,i),Weights(i)
-            CALL DecodeBitDet(nIX,UniqueHPHFList(0:NIfTot,i))
+            call decode_bit_det (nIX, UniqueHPHFList(0:NIfTot,i))
             WRITE(6,*) nIX(:)
             WRITE(8,*) i,UniqueHPHFList(0:NIfTot,i),Weights(i)
         enddo

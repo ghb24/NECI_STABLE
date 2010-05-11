@@ -11,8 +11,10 @@
 !   At the end are functions which do not require parallel directives, and are accessible
 !   for both parallel and non-parallel.
 MODULE FciMCParMod
-    use SystemData , only : NEl,Alat,Brr,ECore,G1,nBasis,nBasisMax,nMsh,Arr,LMS,tHPHF,NIfD,NIfTot,NIfDBO,NIfY
-    use SystemData , only : tHub,tReal,tRotatedOrbs,tFindCINatOrbs,tFixLz,LzTot,tUEG, tLatticeGens,tCSF
+    use SystemData, only: nel, Brr, nBasis, nBasisMax, LMS, tHPHF, tHub, &
+                          tReal, tRotatedOrbs, tFindCINatOrbs, tFixLz, &
+                          LzTot, tUEG, tLatticeGens, tCSF
+    use bit_reps, only: NIfD, NIfTot, NIfDBO, NIfY
     use CalcData, only: InitWalkers, NMCyc, DiagSft, Tau, SftDamp, StepsSft, &
                         OccCASorbs, VirtCASorbs, tFindGroundDet, NEquilSteps,&
                         tReadPops, tRegenDiagHEls, iFullSpaceIter, MaxNoAtHF,&
@@ -47,7 +49,7 @@ MODULE FciMCParMod
     use hphf_integrals, only: hphf_diag_helement, hphf_off_diag_helement, &
                               hphf_spawn_sign, hphf_off_diag_helement_spawn
     use util_mod, only: choose
-    use constants, only: dp,int64,n_int
+    use constants, only: dp, int64, n_int, lenof_sign
     use soft_exit, only: ChangeVars 
     use FciMCLoggingMod, only: FinaliseBlocking, FinaliseShiftBlocking, &
                                PrintShiftBlocking, PrintBlocking, &
@@ -260,7 +262,8 @@ MODULE FciMCParMod
             subroutine gen (nI, iLutI, nJ, iLutJ, exFlag, IC, ex, tParity, &
                             pGen, tFilled, scratch1, scratch2, scratch3)
 
-                use SystemData, only: nel, niftot
+                use SystemData, only: nel
+                use bit_reps, only: niftot
                 use GenRandSymExcitNUMod, only: scratchsize
                 use constants, only: n_int
                 implicit none
@@ -290,8 +293,9 @@ MODULE FciMCParMod
             function attempt_create (get_spawn_helement, nI, iLutI, wSign, &
                                      nJ, iLutJ, prob, ic, ex, tPar, exLevel)&
                                      result(child)
-                use SystemData, only: nel, niftot
-                use constants, only: n_int,dp
+                use SystemData, only: nel
+                use bit_reps, only: niftot
+                use constants, only: n_int, dp, lenof_sign
                 implicit none
                 integer, intent(in) :: nI(nel), nJ(nel) 
                 integer(kind=n_int), intent(in) :: iLutI(0:nIfTot)
@@ -306,7 +310,8 @@ MODULE FciMCParMod
                     function get_spawn_helement (nI, nJ, ilutI, ilutJ, ic, &
                                                  ex, tParity, prob) &
                                                  result (hel)
-                        use SystemData, only: nel, niftot
+                        use SystemData, only: nel
+                        use bit_reps, only: niftot
                         use constants, only: n_int,dp
                         implicit none
                         integer, intent(in) :: nI(nel), nJ(nel)
@@ -329,7 +334,8 @@ MODULE FciMCParMod
         interface
             function get_spawn_helement (nI, nJ, ilutI, ilutJ, ic, &
                                          ex, tParity, prob) result (hel)
-                use SystemData, only: nel, niftot
+                use SystemData, only: nel
+                use bit_reps, only: niftot
                 use constants, only: n_int,dp
                 implicit none
                 integer, intent(in) :: nI(nel), nJ(nel)
@@ -349,7 +355,8 @@ MODULE FciMCParMod
         implicit none
         interface
             subroutine encode_child (ilutI, ilutJ, ic, ex)
-                use SystemData, only: nel, niftot
+                use SystemData, only: nel
+                use bit_reps, only: niftot
                 use constants, only: n_int
                 implicit none
                 integer(kind=n_int), intent(in) :: iLutI(0:nifTot)
@@ -362,7 +369,8 @@ MODULE FciMCParMod
     end subroutine
 
     subroutine null_encode_child (ilutI, ilutJ, ic, ex)
-        use SystemData, only: nel, niftot
+        use SystemData, only: nel
+        use bit_reps, only: niftot
         use constants, only: n_int
         implicit none
         integer(kind=n_int), intent(in) :: ilutI(0:niftot)
@@ -376,8 +384,9 @@ MODULE FciMCParMod
         interface
             subroutine new_child_stats (iLutI, iLutJ, ic, walkExLevel, &
                                         child)
-                use SystemData, only: nel, niftot
-                use constants, only: n_int
+                use SystemData, only: nel
+                use bit_reps, only: niftot
+                use constants, only: n_int, lenof_sign
                 implicit none
                 integer(kind=n_int), intent(in) :: ilutI(0:niftot), iLutJ(0:niftot)
                 integer, intent(in) :: ic, walkExLevel 
@@ -411,7 +420,8 @@ MODULE FciMCParMod
             subroutine generate_excitation (nI, iLutI, nJ, iLutJ, &
                              exFlag, IC, ex, tParity, pGen, tFilled, &
                              scratch1, scratch2, scratch3)
-                use SystemData, only: nel, niftot
+                use SystemData, only: nel
+                use bit_reps, only: niftot
                 use GenRandSymExcitNUMod, only: scratchsize
                 use constants, only: dp,n_int
                 implicit none
@@ -431,8 +441,9 @@ MODULE FciMCParMod
             function attempt_create (get_spawn_helement, nI, iLutI, wSign, &
                                      nJ, iLutJ, prob, ic, ex, tPar, exLevel)&
                                      result(child)
-                use SystemData, only: nel, niftot
-                use constants, only: dp,n_int
+                use systemdata, only: nel
+                use bit_reps, only: niftot
+                use constants, only: dp, n_int, lenof_sign
                 implicit none
                 integer, intent(in) :: nI(nel), nJ(nel)
                 integer(kind=n_int), intent(in) :: iLutI(0:nifTot)
@@ -446,7 +457,8 @@ MODULE FciMCParMod
                     function get_spawn_helement (nI, nJ, ilutI, ilutJ, ic, &
                                                  ex, tParity, prob) &
                                                  result (hel)
-                        use SystemData, only: nel, niftot
+                        use systemdata, only: nel
+                        use bit_reps, only: niftot
                         use constants, only: dp,n_int
                         implicit none
                         integer, intent(in) :: nI(nel), nJ(nel)
@@ -461,7 +473,8 @@ MODULE FciMCParMod
             function get_spawn_helement (nI, nJ, ilutI, ilutJ, ic, &
                                          ex, tParity, prob) &
                                          result (hel)
-                use SystemData, only: nel, niftot
+                use systemdata, only: nel
+                use bit_reps, only: niftot
                 use constants, only: dp,n_int
                 implicit none
                 integer, intent(in) :: nI(nel), nJ(nel)
@@ -472,7 +485,8 @@ MODULE FciMCParMod
                 HElement_t :: hel
             end function
             subroutine encode_child (ilutI, ilutJ, ic, ex)
-                use SystemData, only: nel, niftot
+                use systemdata, only: nel
+                use bit_reps, only: niftot
                 use constants, only: n_int
                 implicit none
                 integer(kind=n_int), intent(in) :: ilutI(0:niftot)
@@ -480,8 +494,9 @@ MODULE FciMCParMod
                 integer(kind=n_int), intent(out) :: iLutJ(0:nIfTot)
             end subroutine
             subroutine new_child_stats (iLutI, iLutJ, ic, walkExLevel, child)
-                use SystemData, only: nel, niftot
-                use constants, only: n_int
+                use SystemData, only: nel
+                use bit_reps, only: niftot
+                use constants, only: n_int, lenof_sign
                 implicit none
                 integer(kind=n_int), intent(in) :: ilutI(0:niftot), iLutJ(0:niftot)
                 integer, intent(in) :: ic, walkExLevel
@@ -2375,7 +2390,8 @@ MODULE FciMCParMod
         interface
             function get_spawn_helement (nI, nJ, ilutI, ilutJ, ic, ex, &
                                          tParity, prob) result (hel)
-                use SystemData, only: nel, niftot
+                use SystemData, only: nel
+                use bit_reps, only: niftot
                 use constants, only: dp,n_int
                 implicit none
                 integer, intent(in) :: nI(nel), nJ(nel)
@@ -2412,7 +2428,8 @@ MODULE FciMCParMod
         interface
             function get_spawn_helement (nI, nJ, ilutI, ilutJ, ic, ex, &
                                          tParity, prob) result (hel)
-                use SystemData, only: nel, niftot
+                use SystemData, only: nel
+                use bit_reps, only: niftot
                 use constants, only: dp,n_int
                 implicit none
                 integer, intent(in) :: nI(nel), nJ(nel)
@@ -2449,7 +2466,8 @@ MODULE FciMCParMod
         interface
             function get_spawn_helement (nI, nJ, ilutI, ilutJ, ic, ex, &
                                          tParity, prob) result (hel)
-                use SystemData, only: nel, niftot
+                use SystemData, only: nel
+                use bit_reps, only: niftot
                 use constants, only: dp,n_int
                 implicit none
                 integer, intent(in) :: nI(nel), nJ(nel)
@@ -5405,7 +5423,6 @@ END MODULE FciMCParMod
 !This is the same as BinSearchParts1, but this time, it searches though the full list of determinants created by the full diagonalizer when the histogramming option is on.
 !This is outside the module so it is accessible to AnnihilateMod
 SUBROUTINE BinSearchParts2(iLut,MinInd,MaxInd,PartInd,tSuccess)
-    use SystemData , only : NIfTot,NIfDBO
     use DetCalcData , only : FCIDets
     use DetBitOps, only: DetBitLT
     use constants, only: n_int

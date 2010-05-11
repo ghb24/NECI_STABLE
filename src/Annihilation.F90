@@ -7,12 +7,13 @@ MODULE AnnihilationMod
     USE Parallel
     USE dSFMT_interface , only : genrand_real2_dSFMT
     USE FciMCData
-    use DetBitOps, only: DetBitEQ, DetBitLT, FindBitExcitLevel, decodebitdet
+    use DetBitOps, only: DetBitEQ, DetBitLT, FindBitExcitLevel
     use CalcData , only : tTruncInitiator
     use Determinants, only: get_helement
     use hphf_integrals, only: hphf_diag_helement, hphf_off_diag_helement
     use sort_mod
     use constants, only: n_int
+    use bit_reps, only: decode_bit_det
     IMPLICIT NONE
 
     contains
@@ -595,7 +596,6 @@ MODULE AnnihilationMod
 !the annihilation process. Therefore we will not multiply specify determinants when we merge the lists.
     SUBROUTINE InsertRemoveParts(ValidSpawned,TotWalkersNew)
         use SystemData, only: NIfD,tHPHF
-        use DetBitOps, only: DecodeBitDet
         use CalcData , only : tCheckHighestPop
         INTEGER :: TotWalkersNew,ValidSpawned
         INTEGER :: i,DetsMerged,nJ(NEl),ierr
@@ -705,7 +705,7 @@ MODULE AnnihilationMod
 !We know we are at HF - HDiag=0
                         HDiag=0.D0
                     else
-                        call DecodeBitDet (nJ, CurrentDets(:,i))
+                        call decode_bit_det (nJ, CurrentDets(:,i))
                         if (tHPHF) then
                             HDiagTemp = hphf_diag_helement (nJ, &
                                                             CurrentDets(:,i))
@@ -917,7 +917,6 @@ MODULE AnnihilationMod
 
     
     SUBROUTINE AnnihilateBetweenSpawnedOneProc(ValidSpawned)
-        use DetBitOps, only: DecodeBitDet
         INTEGER(KIND=n_int) :: DetCurr(0:NIfTot)
         INTEGER :: ValidSpawned,i,j,k,LowBound,HighBound,WSign
         INTEGER :: VecSlot,TotSign
@@ -970,7 +969,6 @@ MODULE AnnihilationMod
 !Might not need to send hashes in all-to-all - could just use them for determining where they go
 !Package up temp arrays?
     SUBROUTINE AnnihilateBetweenSpawned(ValidSpawned)
-        use DetBitOps, only: DecodeBitDet
         use CalcData, only: tReadPops,tAnnihilatebyRange
         integer(int64), allocatable :: HashArray1(:), HashArray2(:), HashArrayTmp(:)
         INTEGER , ALLOCATABLE :: IndexTable1(:),IndexTable2(:),ProcessVec1(:),ProcessVec2(:),TempSign(:)
@@ -1006,7 +1004,7 @@ MODULE AnnihilationMod
 !        WRITE(6,*) "***************************************"
         do i=1,ValidSpawned
             IndexTable1(i)=i
-            CALL DecodeBitDet(nJ,SpawnedParts(0:NIfTot,i))
+            call decode_bit_det (nJ, SpawnedParts(0:NIfTot,i))
             HashArray1(i)=CreateHash(nJ)
 !            IF(Iter.eq.1346.and.(HashArray1(i).eq.2905380077198165348)) THEN
 !                WRITE(6,*) "Hash found, ",i,SpawnedSign(i),HashArray1(i),SpawnedParts(0:NIfTot,i)

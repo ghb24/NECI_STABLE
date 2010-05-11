@@ -1,6 +1,10 @@
 module bit_reps
     use FciMCData, only: CurrentDets, WalkVecDets, MaxWalkersPart
-    use constants, only: lenof_sign
+    use SystemData, only: nel, tCSF, tTruncateCSF, nbasis, csf_trunc_level
+    use CalcData, only: tTruncInitiator
+    use csf_data, only: csf_yama_bit, csf_test_bit
+    use constants, only: lenof_sign, end_n_int, bits_n_int, n_int
+    use DetBitOps, only: count_open_orbs
     implicit none
 
     ! Structure of a bit representation:
@@ -48,6 +52,8 @@ contains
     subroutine init_bit_rep ()
 
         ! Set the values of nifd etc.
+
+        character(*), parameter :: this_routine = 'init_bit_rep'
 
         ! This indicates the upper-bound for the determinants when expressed
         ! in bit-form. This will equal int(nBasis/32).
@@ -97,6 +103,10 @@ contains
         ! The total number of bits_n_int-bit integers used - 1
         NIfTot = NIfD + NIfY + NIfSgn + NIfFlag
 
+        WRITE(6,*) "Setting integer length of determinants as bit-strings to: ", NIfTot + 1
+      WRITE(6,*) "Setting integer bit-length of determinants as bit-strings to: ", bits_n_int
+
+         
     end subroutine
 
     subroutine extract_bit_rep (ilut, nI, sgn, flags)
@@ -109,7 +119,7 @@ contains
 
         call decode_bit_det (nI, ilut)
 
-        sgn = iLut(NOffSgn:NOffSign+lenof_sign-1)
+        sgn = iLut(NOffSgn:NOffSgn+lenof_sign-1)
         IF(NOffFlag.eq.1) THEN
             flags = iLut(NOffFlag)
         ELSE
@@ -123,7 +133,7 @@ contains
         ! Add new flag information to a packaged walker.
 
         integer(n_int), intent(inout) :: ilut(0:nIfTot)
-        integer, intent(out) :: flag
+        integer, intent(in) :: flag
 
         iLut(NOffFlag) = flag
 
@@ -134,7 +144,7 @@ contains
         ! Add new sign information to a packaged walker.
 
         integer(n_int), intent(inout) :: ilut(0:nIfTot)
-        integer, dimension(lenof_sign), intent(out) :: sgn
+        integer, dimension(lenof_sign), intent(in) :: sgn
 
         iLut(NOffSgn:NOffSgn+NIfSgn-1) = sgn
 
@@ -145,7 +155,7 @@ contains
         ! Add new det information to a packaged walker.
 
         integer(n_int), intent(inout) :: ilut(0:nIfTot)
-        integer(n_int), intent(out) :: Det(0:NIfDBO)
+        integer(n_int), intent(in) :: Det(0:NIfDBO)
 
         iLut(0:NIfDBO) = Det
 
