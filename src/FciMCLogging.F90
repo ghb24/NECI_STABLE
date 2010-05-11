@@ -6,7 +6,8 @@ MODULE FciMCLoggingMod
     USE Global_utilities
     USE Parallel
     USE Logging , only : tSaveBlocking,tBlockEveryIteration,HistInitPops,HistInitPopsTag,AllHistInitPops,AllHistInitPopsTag
-    USE SystemData , only : NEl,NIfTot,NIfDBO
+    use SystemData, only: NEl
+    use bit_reps, only: NIfTot, NIfDBO
     USE SymData , only : nSymLabels
     USE Determinants , only : get_helement, get_helement_excit
     USE CalcData , only : NMCyc,StepsSft

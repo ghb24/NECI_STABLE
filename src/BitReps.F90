@@ -5,6 +5,7 @@ module bit_reps
     use csf_data, only: csf_yama_bit, csf_test_bit
     use constants, only: lenof_sign, end_n_int, bits_n_int, n_int
     use DetBitOps, only: count_open_orbs
+    use bit_rep_data
     implicit none
 
     ! Structure of a bit representation:

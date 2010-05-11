@@ -2,9 +2,9 @@
 ! This is a random excitation generator for use with csfs.
 ! Generate using a normalised and calculable probability.
 module GenRandSymExcitCSF
-    use Systemdata, only: nel, NIftot, tNoSymGenRandExcits, G1, nbasis, STOT,&
+    use Systemdata, only: nel, tNoSymGenRandExcits, G1, nbasis, STOT, LMS, &
                           nbasismax, lztot, tFixLz, iMaxLz, tTruncateCSF, &
-                          tTruncateCSF, csf_trunc_level, LMS
+                          tTruncateCSF, csf_trunc_level
     use SymExcitDataMod
     use FciMCData, only: pSingles, pDoubles
     use SymData, only: TwoCycleSymGens, nSymLabels
@@ -19,6 +19,7 @@ module GenRandSymExcitCSF
     use Determinants, only: write_det
     use Parallel
     use constants, only: n_int, bits_n_int
+    use bit_reps, only: NIfTot
     implicit none
 
 contains

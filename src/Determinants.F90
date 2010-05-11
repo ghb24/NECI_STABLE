@@ -3,7 +3,7 @@ MODULE Determinants
     use constants, only: dp
     use SystemData, only: BasisFN, tCSF, nel, G1, Brr, ECore, ALat, NMSH, &
                           nBasis, nBasisMax, tStoreAsExcitations, tHPHFInts, &
-                          NIfToT, tCSF
+                          tCSF
     use IntegralsData, only: UMat, FCK, NMAX
     use csf, only: det_to_random_csf, iscsf, csf_orbital_mask, &
                    csf_yama_bit, CSFGetHelement
@@ -13,6 +13,7 @@ MODULE Determinants
     use sort_mod
     use DetBitOps, only: EncodeBitDet
     use DeterminantData
+    use bit_reps, only: NIfTot
     implicit none
 
     interface get_helement
@@ -731,7 +732,8 @@ END MODULE Determinants
 
 ! Write bit-determinant NI to unit NUnit.  Set LTerm if to add a newline at end.  Also prints CSFs
       SUBROUTINE WriteBitDet(nUnit,iLutnI,lTerm)
-         use SystemData, only : nEl, nIfTot
+         use SystemData, only : nEl
+         use bit_reps, only: nIfTot
          use bit_reps, only: decode_bit_det
          use Determinants, only: write_det
          use constants, only: n_int
@@ -745,7 +747,8 @@ END MODULE Determinants
 
 ! Write bit-determinant NI to unit NUnit.  Set LTerm if to add a newline at end.  Also prints CSFs
       SUBROUTINE WriteBitEx(nUnit,iLutRef,iLutnI,lTerm)
-         use SystemData, only : nEl, NIfTot
+         use SystemData, only : nEl
+         use bit_reps, only: NIfTot
          use constants, only: n_int
          implicit none
          integer nUnit,nExpI(nEl)
