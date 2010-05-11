@@ -315,6 +315,28 @@ contains
 
     end subroutine get_unique_filename
 
+    function get_free_unit() result(free_unit)
+
+        ! Returns:
+        !    The first free file unit above 10 and less than or equal to
+        !    the paramater max_unit (currently set to 200).
+
+        integer, parameter :: max_unit = 100
+        integer :: free_unit
+        integer :: i
+        logical :: t_open, t_exist
+
+        do i = 10, max_unit
+            inquire(unit=i, opened=t_open, exist=t_exist)
+            if (.not.t_open .and. t_exist) then
+                free_unit = i
+                exit
+            end if
+        end do
+        if (i == max_unit+1) call stop_all('get_free_unit','Cannot find a free unit below max_unit.')
+
+    end function get_free_unit
+
     ! If all of the compilers supported ieee_arithmetic
     ! --> could use ieee_value(1.0_dp, ieee_quiet_nan)
     real(dp) function get_nan ()
