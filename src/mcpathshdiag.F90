@@ -184,7 +184,7 @@ module mcpathshdiag
                 
                    !WRITE(43,*) DLWDB2, EREF
                    !CALL FLUSH(43)
-!        write (*,*) "from mcpathshdiag, EREF=",EREF
+!        write (6,*) "from mcpathshdiag, EREF=",EREF
 !            IF (TVARCALC(I_V)) THEN
 !                CALL WRITEPATH(43,IPATH,I_V,NEL,.TRUE.)
 !            ENDIF
@@ -771,10 +771,11 @@ end module
                         ENDIF
                     ENDIF
                 ENDIF
-                IF((MOD(c,100000).eq.0)) THEN
-                    Percendoub=((DOUBLE+0.D0)/(DOUBLE+SINGLE+0.D0))*100
-                    WRITE(124,*) c,(SINGLE+DOUBLE),Percendoub
-                ENDIF
+! Looks like debug output...
+!                IF((MOD(c,100000).eq.0)) THEN
+!                    Percendoub=((DOUBLE+0.D0)/(DOUBLE+SINGLE+0.D0))*100
+!                    WRITE(124,*) c,(SINGLE+DOUBLE),Percendoub
+!                ENDIF
             ENDIF
         ENDIF
         RETURN
