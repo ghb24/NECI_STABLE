@@ -24,9 +24,10 @@ MODULE GenRandSymExcitNUMod
       !  These are forbidden since they have no possible b orbital which will give rise to a symmetry and
       !  spin allowed unoccupied a,b pair. The number of these orbitals, Q, is needed to calculate the
       !  normalised probability of generating the excitation.
-    use SystemData, only: ALAT,iSpinSkip,tFixLz,iMaxLz,NIfTot,tUEG,tNoFailAb,tLatticeGens, tHub
-    use SystemData, only: nEl,G1, nBasis,nBasisMax,tNoSymGenRandExcits
-    use SystemData, only: Arr,nMax,tCycleOrbs,nOccAlpha,nOccBeta,ElecPairs,MaxABPairs
+    use SystemData, only: ALAT, iSpinSkip, tFixLz, iMaxLz, tUEG, tNoFailAb, &
+                          tLatticeGens, tHub, nEl,G1, nBasis, nBasisMax, &
+                          tNoSymGenRandExcits, Arr, nMax, tCycleOrbs, &
+                          nOccAlpha, nOccBeta, ElecPairs, MaxABPairs
     use FciMCData, only: pDoubles
     use IntegralsData, only: UMat
     use Determinants, only: get_helement, write_det
@@ -37,6 +38,7 @@ MODULE GenRandSymExcitNUMod
     use DetBitOps, only: FindExcitBitDet
     use sltcnd_mod, only: sltcnd_1
     use constants, only: dp,n_int,bits_n_int
+    use bit_reps, only: NIfTot
     IMPLICIT NONE
 
     contains
@@ -2821,7 +2823,8 @@ END SUBROUTINE SpinOrbSymSetup
 !the excitation. This means that all excitations should be 0 or 1 after enough iterations. It will then count the excitations and compare the number to the
 !number of excitations generated using the full enumeration excitation generation. This can be done for both doubles and singles, or one of them.
 SUBROUTINE TestGenRandSymExcitNU(nI,Iterations,pDoub,exFlag,iWriteEvery)
-    Use SystemData , only : NEl,nBasis,G1,nBasisMax,LzTot,NIfTot,tUEG,tLatticeGens,tHub
+    use SystemData, only: NEl, nBasis, G1, nBasisMax, LzTot, tUEG, &
+                          tLatticeGens, tHub
     use GenRandSymExcitNUMod, only: gen_rand_excit, ConstructClassCounts,ScratchSize
     Use SymData , only : nSymLabels
     use Parallel
@@ -2829,6 +2832,7 @@ SUBROUTINE TestGenRandSymExcitNU(nI,Iterations,pDoub,exFlag,iWriteEvery)
     use DetBitOps , only : EncodeBitDet, FindExcitBitDet
     use GenRandSymExcitNUMod, only: IsMomentumAllowed
     use constants, only: n_int
+    use bit_reps, only: NIfTot
     IMPLICIT NONE
     INTEGER :: i,Iterations,exFlag,nI(NEl),nJ(NEl),IC,ExcitMat(2,2),kx,ky,kz,ktrial(2)
     REAL*8 :: pDoub,pGen,AverageContrib,AllAverageContrib

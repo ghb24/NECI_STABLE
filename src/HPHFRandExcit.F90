@@ -7,8 +7,7 @@ MODULE HPHFRandExcitMod
 ![ P(i->a) + P(i->b) + P(j->a) + P(j->b) ]/2
 !We therefore need to find the excitation matrix between the determinant which wasn't excited and the determinant which was created.
 
-    use SystemData, only: nel, niftot, tCSF, nifd, nifdbo, Alat, G1, nbasis,&
-                          nbasismax, nmsh, arr
+    use SystemData, only: nel, tCSF, Alat, G1, nbasis, nbasismax, nmsh, arr
     use IntegralsData, only: UMat, fck, nMax
     use SymData, only: nSymLabels
     use dSFMT_interface, only : genrand_real2_dSFMT
@@ -20,6 +19,7 @@ MODULE HPHFRandExcitMod
     use constants, only: dp,n_int
     use HElem
     use sltcnd_mod, only: sltcnd_excit
+    use bit_reps, only: NIfD, NIfDBO, NIfTot
     use sort_mod
     IMPLICIT NONE
 !    SAVE

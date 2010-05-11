@@ -1,6 +1,6 @@
 !This module is to be used for various types of walker MC annihilation in serial and parallel.
 MODULE AnnihilationMod
-    use SystemData , only : NEl,tHPHF,NIfTot,NIfDBO
+    use SystemData , only : NEl, tHPHF
     use CalcData , only : TRegenExcitgens,tRegenDiagHEls,tKeepDoubleSpawns
     USE DetCalcData , only : Det,FCIDetIndex
     USE Logging , only : tHistSpawn
@@ -13,7 +13,7 @@ MODULE AnnihilationMod
     use hphf_integrals, only: hphf_diag_helement, hphf_off_diag_helement
     use sort_mod
     use constants, only: n_int
-    use bit_reps, only: decode_bit_det
+    use bit_reps, only: decode_bit_det, NIfTot, NIfDBO
     IMPLICIT NONE
 
     contains
@@ -595,7 +595,8 @@ MODULE AnnihilationMod
 !The key feature which makes this work, is that it is impossible for the same determinant to be specified in both the spawned and main list at the end of
 !the annihilation process. Therefore we will not multiply specify determinants when we merge the lists.
     SUBROUTINE InsertRemoveParts(ValidSpawned,TotWalkersNew)
-        use SystemData, only: NIfD,tHPHF
+        use SystemData, only: tHPHF
+        use bit_reps, only: NIfD
         use CalcData , only : tCheckHighestPop
         INTEGER :: TotWalkersNew,ValidSpawned
         INTEGER :: i,DetsMerged,nJ(NEl),ierr
@@ -728,7 +729,7 @@ MODULE AnnihilationMod
     END SUBROUTINE InsertRemoveParts
     
     INTEGER FUNCTION DetermineDetProc(iLut)
-        use systemdata , only: NIfDBO
+        use bit_reps, only: NIfDBO
         use CalcData , only: tRandomiseHashOrbs
         use FciMCData, only: RandomHash 
         INTEGER(KIND=n_int) :: iLut(0:NIfTot)

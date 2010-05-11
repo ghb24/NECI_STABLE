@@ -3,7 +3,7 @@
 ! A new implementation file for csfs
 module csf
     use systemdata, only: nel, brr, ecore, alat, nmsh, nbasismax, G1, nbasis,&
-                          NIfY, LMS, NIfTot, NIfD, iSpinSkip, STOT, ECore
+                          LMS, iSpinSkip, STOT, ECore
     use memorymanager, only: LogMemAlloc, LogMemDealloc
     use integralsdata, only: umat, fck, nmax
     use constants, only: dp,n_int
@@ -17,6 +17,7 @@ module csf
     use csf_data
     use timing
     use util_mod, only: swap, choose
+    use bit_reps, only: NIfD, NIfTot, NIfY
 
     implicit none
 

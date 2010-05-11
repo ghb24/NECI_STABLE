@@ -1,8 +1,8 @@
 !This file contains a load of useful operations to perform on determinants represented as bit-strings.
 ! Start the process of modularising this bit!!
 module DetBitOps
-    use Systemdata, only: nel, NIfD, NIfY, NIfTot, tCSF, tTruncateCSF, &
-                          csf_trunc_level
+    use Systemdata, only: nel, tCSF, tTruncateCSF, & csf_trunc_level
+    use bit_rep_data, only: NIfY, NIfTot, NIfD
     use csf_data, only: iscsf, csf_yama_bit, csf_orbital_mask, csf_test_bit
     ! TODO: remove
     use systemdata, only: g1
@@ -693,7 +693,8 @@ end module
         !        True if an odd number of permutations is required to line up
         !        the determinants.
 
-        use SystemData, only: NIfD, nel
+        use SystemData, only: nel
+        use bit_rep_data, only: NIfD
         use DetBitOps, only: CountBits_nifty
         use constants, only: n_int,bits_n_int,end_n_int
         implicit none
@@ -787,7 +788,7 @@ end module
 
 !This function will return true if the determinant is closed shell, or false if not.
     LOGICAL FUNCTION TestClosedShellDet(iLut)
-        use systemdata, only: NIfD
+        use bit_rep_data, only: NIfD
         use constants, only: n_int
         use DetBitOps, only: MaskAlpha,MaskBeta
         IMPLICIT NONE
@@ -821,7 +822,8 @@ end module
 !       --> Returns nopen/2 <==> Ms=0
 ! ************************
     SUBROUTINE CalcOpenOrbs(iLut,OpenOrbs)
-        use systemdata, only: NIfD, nel
+        use bit_rep_data, only: NIfD
+        use systemdata, only: nel
         use constants, only: n_int
         use DetBitOps, only: CountBits,MaskAlpha,MaskBeta
         IMPLICIT NONE

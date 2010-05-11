@@ -28,7 +28,8 @@
 
 module soft_exit
 
-    use SystemData, only: nel, nBasis, NIfTot
+    use SystemData, only: nel, nBasis
+    use bit_reps, only: NIfTot
     use util_mod, only: binary_search
     use FciMCData, only: iter, CASMin, CASMax, tTruncSpace, tSinglePartPhase,&
                          SumENum, SumNoatHF, HFPopCyc, ProjEIterSum, &
