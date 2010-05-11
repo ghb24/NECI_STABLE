@@ -1921,7 +1921,7 @@ MODULE FciMCParMod
         INTEGER(KIND=n_int) :: iLutTemp(0:NIfTot)
         INTEGER :: Stat(MPI_STATUS_SIZE),AvSumNoatHF,VecSlot,IntegerPart,HFPointer,TempnI(NEl),ExcitLevel
         INTEGER :: VecInd,DetsMerged,NIfWriteOut,pos,orb,PopsVersion
-        REAL*8 :: r,FracPart,TempTotWalkers,Gap
+        REAL*8 :: r,FracPart,TempTotWalkers,Gap,DiagSftTemp
         HElement_t :: HElemTemp
         CHARACTER(len=*), PARAMETER :: this_routine='ReadFromPopsfilePar'
         character(255) :: popsfile,FirstLine
@@ -1986,7 +1986,7 @@ MODULE FciMCParMod
             WRITE(6,'(A)') "Reading in from depreciated POPSFILE - assuming that parameters are the same as when POPSFILE was written"
         ENDIF
         READ(17,*) AllTotWalkers
-        READ(17,*) DiagSft
+        READ(17,*) DiagSftTemp
         READ(17,*) TempAllSumNoatHF     !AllSumNoatHF stored as integer for compatability with serial POPSFILEs
         READ(17,*) AllSumENum
         READ(17,*) PreviousCycles
@@ -1997,7 +1997,15 @@ MODULE FciMCParMod
             ENDIF
         ENDIF
 
-        IF(DiagSft.eq.0.D0) tWalkContGrow=.true.
+        IF(.not.tWalkContGrow) THEN
+!If we want the walker number to continue growing, then take the diagonal shift from the input, rather than the POPSFILE.
+            DiagSft=DiagSftTemp
+        ENDIF
+
+        IF(DiagSftTemp.eq.0.D0) THEN
+            tWalkContGrow=.true.
+            DiagSft=DiagSftTemp
+        ENDIF
 
         IF(tBinRead) THEN
 !Test for the end of the file.
