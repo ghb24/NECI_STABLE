@@ -2085,7 +2085,8 @@ SUBROUTINE PerformFCIMCyc()
 
 !This routine writes out the histogram of the determinants energies
     SUBROUTINE WriteEnergyHist()
-        INTEGER :: i,j
+        use util_mod, only: get_free_unit
+        INTEGER :: i,j, iunit
         CHARACTER(Len=12) :: Filename
         REAL*8 :: LowEnergyofbin,HighEnergyofbin,MeanEnergyofbin
 !        CHARACTER(len=16) :: FormatSpec
@@ -2099,22 +2100,23 @@ SUBROUTINE PerformFCIMCyc()
 !        WRITE(6,*) FormatSpec
 !        CALL FLUSH(6)
 
-        OPEN(19,file='HISTEXCITS',Status='unknown')
+        iunit = get_free_unit()
+        OPEN(iunit,file='HISTEXCITS',Status='unknown')
 
-        WRITE(19,*) "# Determinant_energy_bin     Number from each excitation level..."
+        WRITE(iunit,*) "# Determinant_energy_bin     Number from each excitation level..."
         
         do j=1,NoHistBins
             LowEnergyofbin=(j-1)*MaxHistE/real(NoHistBins,dp)
             HighEnergyofbin=j*MaxHistE/real(NoHistBins,dp)
             MeanEnergyofbin=(LowEnergyofbin+HighEnergyofbin)/2.D0
-            WRITE(19,'(F20.10,I15)',advance='no') MeanEnergyofbin,EHistBins(1,j)
+            WRITE(iunit,'(F20.10,I15)',advance='no') MeanEnergyofbin,EHistBins(1,j)
             do i=2,NEl-1
-                WRITE(19,'(I15)',advance='no') EHistBins(i,j)
+                WRITE(iunit,'(I15)',advance='no') EHistBins(i,j)
             enddo
-            WRITE(19,'(I15)') EHistBins(NEl,j)
+            WRITE(iunit,'(I15)') EHistBins(NEl,j)
         enddo
 
-        CLOSE(19)
+        CLOSE(iunit)
 
         RETURN
 
@@ -2471,27 +2473,28 @@ SUBROUTINE PerformFCIMCyc()
 
     SUBROUTINE WriteToPopsFile()
 
-        use util_mod, only: get_unique_filename
+        use util_mod, only: get_unique_filename, get_free_unit
 
-        INTEGER :: j,k
+        INTEGER :: j,k, iunit
         character (255) :: popsfile
 
         call get_unique_filename('POPSFILE',tIncrementPops,.true.,iPopsFileNoWrite,popsfile)
 
         WRITE(6,*) "Writing to POPSFILE..."
-        OPEN(17,FILE=popsfile,Status='unknown')
-        WRITE(17,*) TotWalkers, "   TOTWALKERS"
-        WRITE(17,*) DiagSft, "   DIAGSHIFT"
-        WRITE(17,*) SumNoatHF, "   SUMNOATHF"
-        WRITE(17,*) SumENum,"   SUMENUM ( \sum<D0|H|Psi> )"
-        WRITE(17,*) Iter+PreviousCycles, "   PREVIOUS CYCLES"
+        iunit = get_free_unit()
+        OPEN(iunit,FILE=popsfile,Status='unknown')
+        WRITE(iunit,*) TotWalkers, "   TOTWALKERS"
+        WRITE(iunit,*) DiagSft, "   DIAGSHIFT"
+        WRITE(iunit,*) SumNoatHF, "   SUMNOATHF"
+        WRITE(iunit,*) SumENum,"   SUMENUM ( \sum<D0|H|Psi> )"
+        WRITE(iunit,*) Iter+PreviousCycles, "   PREVIOUS CYCLES"
         do j=1,TotWalkers
             do k=1,NEl
-                WRITE(17,"(I5)",advance='no') CurrentDets(k,j)
+                WRITE(iunit,"(I5)",advance='no') CurrentDets(k,j)
             enddo
-            WRITE(17,*) CurrentSign(j)
+            WRITE(iunit,*) CurrentSign(j)
         enddo
-        CLOSE(17)
+        CLOSE(iunit)
 
         RETURN
 
@@ -2499,9 +2502,9 @@ SUBROUTINE PerformFCIMCyc()
     
     SUBROUTINE ReadFromPopsFile()
 
-        use util_mod, only: get_unique_filename
+        use util_mod, only: get_unique_filename, get_free_unit
 
-        INTEGER :: ierr,l,j,k,VecSlot,IntegerPart,iGetExcitLevel_2
+        INTEGER :: ierr,l,j,k,VecSlot,IntegerPart,iGetExcitLevel_2, iunit
         INTEGER*8 :: MemoryAlloc
         REAL*8 :: FracPart,Ran2
         HElement_t :: HElemTemp
@@ -2514,13 +2517,14 @@ SUBROUTINE PerformFCIMCyc()
         IF(.not.exists) THEN
             CALL Stop_All("ReadFromPopsFile",trim(popsfile)//"not present - cannot read in particle configuration")
         ENDIF
-        OPEN(17,FILE=popsfile,Status='old')
+        iunit = get_free_unit()
+        OPEN(iunit,FILE=popsfile,Status='old')
 !Read in initial data
-        READ(17,*) InitWalkers
-        READ(17,*) DiagSft
-        READ(17,*) SumNoatHF
-        READ(17,*) SumENum
-        READ(17,*) PreviousCycles
+        READ(iunit,*) InitWalkers
+        READ(iunit,*) DiagSft
+        READ(iunit,*) SumNoatHF
+        READ(iunit,*) SumENum
+        READ(iunit,*) PreviousCycles
 
         WRITE(6,*) "Number of cycles in previous simulation: ",PreviousCycles
         IF(NEquilSteps.gt.0) THEN
@@ -2544,8 +2548,9 @@ SUBROUTINE PerformFCIMCyc()
         CALL LogMemAlloc('WalkVecSign',MaxWalkers,4,this_routine,WalkVecSignTag,ierr)
 
         do l=1,InitWalkers
-            READ(17,*) WalkVecDets(1:NEl,l),WalkVecSign(l)
+            READ(iunit,*) WalkVecDets(1:NEl,l),WalkVecSign(l)
         enddo
+        CLOSE(iunit)
 
         WRITE(6,*) InitWalkers," particles read in from POPSFILE..."
 
@@ -2691,7 +2696,6 @@ SUBROUTINE PerformFCIMCyc()
             WRITE(6,*) "Excitation generators not being saved to save memory..."
             CALL FLUSH(6)
         ENDIF
-        CLOSE(17)
         
         RETURN
 

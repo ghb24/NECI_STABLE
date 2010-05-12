@@ -404,8 +404,9 @@ MODULE FciMCLoggingMod
 
 
     SUBROUTINE WriteInitPops(Iter)
+        use util_mod, only: get_free_unit
         CHARACTER(len=21) :: abstr
-        INTEGER :: i,Iter,error
+        INTEGER :: i,Iter,error, iunit
         REAL*8 :: InitBinCurr
 
 !This will open a file called InitPops-"Iter" on unit number 17.
@@ -420,21 +421,22 @@ MODULE FciMCLoggingMod
 #endif
 
         IF(iProcIndex.eq.0) THEN
-            OPEN(42,FILE=abstr,STATUS='unknown')
+            iunit = get_free_unit()
+            OPEN(iunit,FILE=abstr,STATUS='unknown')
 
             InitBinCurr=(-1)*InitBinMax            
             do i=25000,1,-1
-                IF(AllHistInitPops(1,i).ne.0) WRITE(42,'(F20.10,2I20)') InitBinCurr,(-1)*(NINT(EXP(ABS(InitBinCurr)))),AllHistInitPops(1,i)
+                IF(AllHistInitPops(1,i).ne.0) WRITE(iunit,'(F20.10,2I20)') InitBinCurr,(-1)*(NINT(EXP(ABS(InitBinCurr)))),AllHistInitPops(1,i)
                 InitBinCurr=InitBinCurr+InitBinIter
             enddo
 
             InitBinCurr=InitBinMin
             do i=1,25000
-                IF(AllHistInitPops(2,i).ne.0) WRITE(42,'(F20.10,2I20)') InitBinCurr,NINT(EXP(InitBinCurr)),AllHistInitPops(2,i)
+                IF(AllHistInitPops(2,i).ne.0) WRITE(iunit,'(F20.10,2I20)') InitBinCurr,NINT(EXP(InitBinCurr)),AllHistInitPops(2,i)
                 InitBinCurr=InitBinCurr+InitBinIter
             enddo
  
-            CLOSE(42)
+            CLOSE(iunit)
             AllHistInitPops(:,:)=0
         ENDIF
         HistInitPops(:,:)=0

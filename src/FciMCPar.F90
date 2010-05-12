@@ -1718,7 +1718,7 @@ MODULE FciMCParMod
 !The root processors data will be stored in a temporary array while it recieves the data from the other processors.
 !This routine will write out to a popsfile. It transfers all walkers to the head node sequentially, so does not want to be called too often
     SUBROUTINE WriteToPopsfileParOneArr()
-        use util_mod, only: get_unique_filename
+        use util_mod, only: get_unique_filename, get_free_unit
         use CalcData, only: iPopsFileNoWrite
         use Logging, only: tIncrementPops
         use constants, only: size_n_int,MpiDetInt,n_int
@@ -1728,6 +1728,7 @@ MODULE FciMCParMod
         INTEGER , ALLOCATABLE :: OrigSign(:)
         INTEGER(KIND=n_int), ALLOCATABLE :: OrigParts(:,:)
         INTEGER :: OrigSignTag=0,OrigPartsTag=0
+        integer :: iunit
         CHARACTER(len=*) , PARAMETER :: this_routine='WriteToPopsfileParOneArr'
         character(255) :: popsfile
 
@@ -1793,29 +1794,30 @@ MODULE FciMCParMod
             ELSE
                 call get_unique_filename('POPSFILE',tIncrementPops,.true.,iPopsFileNoWrite,popsfile)
             ENDIF
-            OPEN(17,FILE=popsfile,Status='replace')
-            WRITE(17,"(A)") "# POPSFILE VERSION 2"
+            iunit = get_free_unit()
+            OPEN(iunit,FILE=popsfile,Status='replace')
+            WRITE(iunit,"(A)") "# POPSFILE VERSION 2"
 #ifdef __INT64
-            WRITE(17,'(A12,L5,A8,L5,A8,L5,A12,L5)') '64BitDets=',.TRUE.,'HPHF=',tHPHF,'Lz=',tFixLz,'Initiator=',tTruncInitiator
+            WRITE(iunit,'(A12,L5,A8,L5,A8,L5,A12,L5)') '64BitDets=',.TRUE.,'HPHF=',tHPHF,'Lz=',tFixLz,'Initiator=',tTruncInitiator
 #else
-            WRITE(17,'(A12,L5,A8,L5,A8,L5,A12,L5)') '64BitDets=',.FALSE.,'HPHF=',tHPHF,'Lz=',tFixLz,'Initiator=',tTruncInitiator
+            WRITE(iunit,'(A12,L5,A8,L5,A8,L5,A12,L5)') '64BitDets=',.FALSE.,'HPHF=',tHPHF,'Lz=',tFixLz,'Initiator=',tTruncInitiator
 #endif
-            WRITE(17,*) AllTotWalkers,"   TOTWALKERS (all nodes)"
-            WRITE(17,*) DiagSft,"   DIAG SHIFT"
-            WRITE(17,*) NINT(AllSumNoatHF,int64),"   SUMNOATHF (all nodes)"
-            WRITE(17,*) AllSumENum,"   SUMENUM ( \sum<D0|H|Psi> - all nodes)"
-            WRITE(17,*) Iter+PreviousCycles,"   PREVIOUS CYCLES"
+            WRITE(iunit,*) AllTotWalkers,"   TOTWALKERS (all nodes)"
+            WRITE(iunit,*) DiagSft,"   DIAG SHIFT"
+            WRITE(iunit,*) NINT(AllSumNoatHF,int64),"   SUMNOATHF (all nodes)"
+            WRITE(iunit,*) AllSumENum,"   SUMENUM ( \sum<D0|H|Psi> - all nodes)"
+            WRITE(iunit,*) Iter+PreviousCycles,"   PREVIOUS CYCLES"
             IF(tBinPops) THEN
-                CLOSE(17)
+                CLOSE(iunit)
                 call get_unique_filename('POPSFILEBIN',tIncrementPops,.true.,iPopsFileNoWrite,popsfile)
-                OPEN(17,FILE=popsfile,Status='replace',form='unformatted')
+                OPEN(iunit,FILE=popsfile,Status='replace',form='unformatted')
             ENDIF
 
             IF(tBinPops) THEN
                 do j=1,TotWalkers
 !First write out walkers on head node
                     IF(mod(j,iPopsPartEvery).eq.0) THEN
-                        WRITE(17) CurrentDets(0:NIfD,j),CurrentSign(j)
+                        WRITE(iunit) CurrentDets(0:NIfD,j),CurrentSign(j)
                     ENDIF
                 enddo
             ELSE
@@ -1823,9 +1825,9 @@ MODULE FciMCParMod
 !First write out walkers on head node
                     IF(mod(j,iPopsPartEvery).eq.0) THEN
                         do k=0,NIfD
-                            WRITE(17,"(I24)",advance='no') CurrentDets(k,j)
+                            WRITE(iunit,"(I24)",advance='no') CurrentDets(k,j)
                         enddo
-                        WRITE(17,*) CurrentSign(j)
+                        WRITE(iunit,*) CurrentSign(j)
                     ENDIF
                 enddo
             ENDIF
@@ -1855,16 +1857,16 @@ MODULE FciMCParMod
                 IF(tBinPops) THEN
                     do j=1,WalkersonNodes(i)
                         IF(mod(j,iPopsPartEvery).eq.0) THEN
-                            WRITE(17) CurrentDets(0:NIfD,j),CurrentSign(j)
+                            WRITE(iunit) CurrentDets(0:NIfD,j),CurrentSign(j)
                         ENDIF
                     enddo
                 ELSE
                     do j=1,WalkersonNodes(i)
                         IF(mod(j,iPopsPartEvery).eq.0) THEN
                             do k=0,NIfD
-                                WRITE(17,"(I24)",advance='no') CurrentDets(k,j)
+                                WRITE(iunit,"(I24)",advance='no') CurrentDets(k,j)
                             enddo
-                            WRITE(17,*) CurrentSign(j)
+                            WRITE(iunit,*) CurrentSign(j)
                         ENDIF
                     enddo
                 ENDIF
@@ -1873,7 +1875,7 @@ MODULE FciMCParMod
 
             enddo
 
-            CLOSE(17)
+            CLOSE(iunit)
 
 !Now we need to copy the head processors original information back to itself again.
             do i=1,TotWalkers
@@ -1906,7 +1908,7 @@ MODULE FciMCParMod
 
 !This routine reads in particle configurations from a POPSFILE.
     SUBROUTINE ReadFromPopsfilePar()
-        use util_mod, only: get_unique_filename
+        use util_mod, only: get_unique_filename, get_free_unit
         use CalcData, only: iPopsFileNoRead
         use CalcData , only : MemoryFacPart,MemoryFacAnnihil,MemoryFacSpawn,iWeightPopRead
         use Logging, only: tIncrementPops,tZeroProjE
@@ -1920,7 +1922,7 @@ MODULE FciMCParMod
         INTEGER :: iLutTemp32(0:nBasis/32+1)
         INTEGER(KIND=n_int) :: iLutTemp(0:NIfTot)
         INTEGER :: Stat(MPI_STATUS_SIZE),AvSumNoatHF,VecSlot,IntegerPart,HFPointer,TempnI(NEl),ExcitLevel
-        INTEGER :: VecInd,DetsMerged,NIfWriteOut,pos,orb,PopsVersion
+        INTEGER :: VecInd,DetsMerged,NIfWriteOut,pos,orb,PopsVersion, iunit
         REAL*8 :: r,FracPart,TempTotWalkers,Gap,DiagSftTemp
         HElement_t :: HElemTemp
         CHARACTER(len=*), PARAMETER :: this_routine='ReadFromPopsfilePar'
@@ -1936,9 +1938,10 @@ MODULE FciMCParMod
         Tag=124             !Set Tag
         
         call get_unique_filename('POPSFILE',tIncrementPops,.false.,iPopsFileNoRead,popsfile)
+        iunit = get_free_unit()
         INQUIRE(FILE=popsfile,EXIST=exists)
         IF(exists) THEN
-            OPEN(17,FILE=popsfile,Status='old')
+            OPEN(iunit,FILE=popsfile,Status='old')
             tBinRead=.false.
         ELSE
             tBinRead=.true.
@@ -1959,21 +1962,21 @@ MODULE FciMCParMod
                     CALL Stop_All(this_routine,"POPSFILEHEAD(.x) found, but no POPSFILEBIN(.x) for particle information - this is also needed")
                 ELSE
                     call get_unique_filename('POPSFILEHEAD',tIncrementPops,.false.,iPopsFileNoRead,popsfile)
-                    OPEN(17,FILE=popsfile,Status='old')
+                    OPEN(iunit,FILE=popsfile,Status='old')
                 ENDIF
             ENDIF
         ENDIF
 
-        READ(17,'(a255)') FirstLine
+        READ(iunit,'(a255)') FirstLine
 
         IF(INDEX(FirstLine,'VERSION').eq.0) THEN
 !No version number to be found
             PopsVersion=1
-            REWIND(17)
+            REWIND(iunit)
         ELSE
             !Found version - which number is it?
-            REWIND(17)
-            READ(17,*) FirstLine,FirstLine,FirstLine,PopsVersion
+            REWIND(iunit)
+            READ(iunit,*) FirstLine,FirstLine,FirstLine,PopsVersion
         ENDIF
         WRITE(6,"(A,I5,A)") "Version",PopsVersion," POPSFILE detected"
 
@@ -1981,15 +1984,15 @@ MODULE FciMCParMod
 
 !Read in initial data on processors which have a popsfile
         IF(PopsVersion.eq.2) THEN
-            READ(17,'(A12,L5,A8,L5,A8,L5,A12,L5)') junk,tPop64BitDets,junk2,tPopHPHF,junk3,tPopLz,junk4,tPopInitiator
+            READ(iunit,'(A12,L5,A8,L5,A8,L5,A12,L5)') junk,tPop64BitDets,junk2,tPopHPHF,junk3,tPopLz,junk4,tPopInitiator
         ELSE
             WRITE(6,'(A)') "Reading in from depreciated POPSFILE - assuming that parameters are the same as when POPSFILE was written"
         ENDIF
-        READ(17,*) AllTotWalkers
-        READ(17,*) DiagSftTemp
-        READ(17,*) TempAllSumNoatHF     !AllSumNoatHF stored as integer for compatability with serial POPSFILEs
-        READ(17,*) AllSumENum
-        READ(17,*) PreviousCycles
+        READ(iunit,*) AllTotWalkers
+        READ(iunit,*) DiagSftTemp
+        READ(iunit,*) TempAllSumNoatHF     !AllSumNoatHF stored as integer for compatability with serial POPSFILEs
+        READ(iunit,*) AllSumENum
+        READ(iunit,*) PreviousCycles
 
         IF(iProcIndex.eq.Root) THEN
             IF(iWeightPopRead.ne.0) THEN
@@ -2011,9 +2014,9 @@ MODULE FciMCParMod
 !Test for the end of the file.
 !If this is not the end of the file, there is one more keyword that tells us the calculation had not entered variable shift mode yet.
 !Want to put this test at the end of the non-binary file too.
-            CLOSE(17)
+            CLOSE(iunit)
             call get_unique_filename('POPSFILEBIN',tIncrementPops,.false.,iPopsFileNoRead,popsfile)
-            OPEN(17,FILE=popsfile,Status='old',form='unformatted')
+            OPEN(iunit,FILE=popsfile,Status='old',form='unformatted')
         ENDIF
 
         IF(iProcIndex.eq.Root) THEN
@@ -2196,23 +2199,23 @@ MODULE FciMCParMod
             IF(PopsVersion.ne.1) THEN
                 IF(tBinRead) THEN
                     IF(tPop64BitDets) THEN
-                        READ(17) iLutTemp64(0:NIfWriteOut),TempSign
+                        READ(iunit) iLutTemp64(0:NIfWriteOut),TempSign
                     ELSE
-                        READ(17) iLutTemp32(0:NIfWriteOut),TempSign
+                        READ(iunit) iLutTemp32(0:NIfWriteOut),TempSign
                     ENDIF
                 ELSE
                     IF(tPop64BitDets) THEN
-                        READ(17,*) iLutTemp64(0:NIfWriteOut),TempSign
+                        READ(iunit,*) iLutTemp64(0:NIfWriteOut),TempSign
                     ELSE
-                        READ(17,*) iLutTemp32(0:NIfWriteOut),TempSign
+                        READ(iunit,*) iLutTemp32(0:NIfWriteOut),TempSign
                     ENDIF
                 ENDIF
             ELSE
                 !POPSFILE v. 1 only printed out 32 bit determinant strings.
                 IF(tBinRead) THEN
-                    READ(17) iLutTemp32(0:NIfWriteOut),TempSign
+                    READ(iunit) iLutTemp32(0:NIfWriteOut),TempSign
                 ELSE
-                    READ(17,*) iLutTemp32(0:NIfWriteOut),TempSign
+                    READ(iunit,*) iLutTemp32(0:NIfWriteOut),TempSign
                 ENDIF
             ENDIF
 
@@ -2265,7 +2268,7 @@ MODULE FciMCParMod
                 CurrentSign(CurrWalkers)=TempSign
             ENDIF
         enddo
-        CLOSE(17)
+        CLOSE(iunit)
         TempCurrWalkers=REAL(CurrWalkers,dp)
 
         CALL MPI_Barrier(MPI_COMM_WORLD,error)  !Sync
@@ -3032,7 +3035,8 @@ MODULE FciMCParMod
 
 
     SUBROUTINE WriteHistogramEnergies()
-        INTEGER :: error,i
+        use util_mod, only: get_free_unit
+        INTEGER :: error,i, io(8)
         REAL*8 :: Norm,EnergyBin
 
         IF(iProcIndex.eq.Root) THEN
@@ -3146,52 +3150,61 @@ MODULE FciMCParMod
             do i=1,iOffDiagNoBins
                 AllSinglesHistVirtVirt(i)=AllSinglesHistVirtVirt(i)/Norm
             enddo
+
  
-            OPEN(17,FILE='EVERYENERGYHIST',STATUS='UNKNOWN')
-            OPEN(18,FILE='ATTEMPTENERGYHIST',STATUS='UNKNOWN')
-            OPEN(19,FILE='SPAWNENERGYHIST',STATUS='UNKNOWN')
+            io(1) = get_free_unit()
+            OPEN(io(1),FILE='EVERYENERGYHIST',STATUS='UNKNOWN')
+            io(2) = get_free_unit()
+            OPEN(io(2),FILE='ATTEMPTENERGYHIST',STATUS='UNKNOWN')
+            io(3) = get_free_unit()
+            OPEN(io(3),FILE='SPAWNENERGYHIST',STATUS='UNKNOWN')
 
             EnergyBin=BinRange/2.D0
             do i=1,iNoBins
-                IF(AllHistogram(i).gt.0.D0) WRITE(17,*) EnergyBin, AllHistogram(i)
-                IF(AllAttemptHist(i).gt.0.D0) WRITE(18,*) EnergyBin, AllAttemptHist(i)
-                IF(AllSpawnHist(i).gt.0.D0) WRITE(19,*) EnergyBin, AllSpawnHist(i)
+                IF(AllHistogram(i).gt.0.D0) WRITE(io(1),*) EnergyBin, AllHistogram(i)
+                IF(AllAttemptHist(i).gt.0.D0) WRITE(io(2),*) EnergyBin, AllAttemptHist(i)
+                IF(AllSpawnHist(i).gt.0.D0) WRITE(io(3),*) EnergyBin, AllSpawnHist(i)
                 EnergyBin=EnergyBin+BinRange
             enddo
-            CLOSE(17)
-            CLOSE(18)
-            CLOSE(19)
-            OPEN(20,FILE='SINGLESHIST',STATUS='UNKNOWN')
-            OPEN(21,FILE='ATTEMPTSINGLESHIST',STATUS='UNKNOWN')
-            OPEN(22,FILE='DOUBLESHIST',STATUS='UNKNOWN')
-            OPEN(23,FILE='ATTEMPTDOUBLESHIST',STATUS='UNKNOWN')
-            OPEN(24,FILE='SINGLESHISTOCCOCC',STATUS='UNKNOWN')
-            OPEN(25,FILE='SINGLESHISTOCCVIRT',STATUS='UNKNOWN')
-            OPEN(26,FILE='SINGLESHISTVIRTOCC',STATUS='UNKNOWN')
-            OPEN(27,FILE='SINGLESHISTVIRTVIRT',STATUS='UNKNOWN')
+            CLOSE(io(1))
+            CLOSE(io(2))
+            CLOSE(io(3))
+            OPEN(io(1),FILE='SINGLESHIST',STATUS='UNKNOWN')
+            OPEN(io(2),FILE='ATTEMPTSINGLESHIST',STATUS='UNKNOWN')
+            OPEN(io(3),FILE='DOUBLESHIST',STATUS='UNKNOWN')
+            io(4) = get_free_unit()
+            OPEN(io(4),FILE='ATTEMPTDOUBLESHIST',STATUS='UNKNOWN')
+            io(5) = get_free_unit()
+            OPEN(io(5),FILE='SINGLESHISTOCCOCC',STATUS='UNKNOWN')
+            io(6) = get_free_unit()
+            OPEN(io(6),FILE='SINGLESHISTOCCVIRT',STATUS='UNKNOWN')
+            io(7) = get_free_unit()
+            OPEN(io(7),FILE='SINGLESHISTVIRTOCC',STATUS='UNKNOWN')
+            io(8) = get_free_unit()
+            OPEN(io(8),FILE='SINGLESHISTVIRTVIRT',STATUS='UNKNOWN')
 
             EnergyBin=-OffDiagMax+OffDiagBinRange/2.D0
             do i=1,iOffDiagNoBins
-                IF(AllSinglesHist(i).gt.0.D0) WRITE(20,*) EnergyBin, AllSinglesHist(i)
-                IF(AllSinglesAttemptHist(i).gt.0.D0) WRITE(21,*) EnergyBin, AllSinglesAttemptHist(i)
-                IF(AllDoublesHist(i).gt.0.D0) WRITE(22,*) EnergyBin, AllDoublesHist(i)
-                IF(AllDoublesAttemptHist(i).gt.0.D0) WRITE(23,*) EnergyBin, AllDoublesAttemptHist(i)
-                IF(AllSinglesHistOccOcc(i).gt.0.D0) WRITE(24,*) EnergyBin, AllSinglesHistOccOcc(i)
-                IF(AllSinglesHistOccVirt(i).gt.0.D0) WRITE(25,*) EnergyBin, AllSinglesHistOccVirt(i)
-                IF(AllSinglesHistVirtOcc(i).gt.0.D0) WRITE(26,*) EnergyBin, AllSinglesHistVirtOcc(i)
-                IF(AllSinglesHistVirtVirt(i).gt.0.D0) WRITE(27,*) EnergyBin, AllSinglesHistVirtVirt(i)
+                IF(AllSinglesHist(i).gt.0.D0) WRITE(io(1),*) EnergyBin, AllSinglesHist(i)
+                IF(AllSinglesAttemptHist(i).gt.0.D0) WRITE(io(2),*) EnergyBin, AllSinglesAttemptHist(i)
+                IF(AllDoublesHist(i).gt.0.D0) WRITE(io(3),*) EnergyBin, AllDoublesHist(i)
+                IF(AllDoublesAttemptHist(i).gt.0.D0) WRITE(io(4),*) EnergyBin, AllDoublesAttemptHist(i)
+                IF(AllSinglesHistOccOcc(i).gt.0.D0) WRITE(io(5),*) EnergyBin, AllSinglesHistOccOcc(i)
+                IF(AllSinglesHistOccVirt(i).gt.0.D0) WRITE(io(6),*) EnergyBin, AllSinglesHistOccVirt(i)
+                IF(AllSinglesHistVirtOcc(i).gt.0.D0) WRITE(io(7),*) EnergyBin, AllSinglesHistVirtOcc(i)
+                IF(AllSinglesHistVirtVirt(i).gt.0.D0) WRITE(io(8),*) EnergyBin, AllSinglesHistVirtVirt(i)
                 EnergyBin=EnergyBin+OffDiagBinRange
 !                WRITE(6,*) i
             enddo
 
-            CLOSE(20)
-            CLOSE(21)
-            CLOSE(22)
-            CLOSE(23)
-            CLOSE(24)
-            CLOSE(25)
-            CLOSE(26)
-            CLOSE(27)
+            CLOSE(io(1))
+            CLOSE(io(2))
+            CLOSE(io(3))
+            CLOSE(io(4))
+            CLOSE(io(5))
+            CLOSE(io(6))
+            CLOSE(io(7))
+            CLOSE(io(8))
         ENDIF
 
     END SUBROUTINE WriteHistogramEnergies
@@ -3240,7 +3253,8 @@ MODULE FciMCParMod
 !Similar to WriteHistogram, but will only print out in order of maximum component, and only the averaged wavefunction
     SUBROUTINE PrintFCIMCPsi()
         use DetCalcData , only : FCIDets
-        INTEGER :: error,i,nI(NEl),ExcitLevel,j
+        use util_mod, only: get_free_unit
+        INTEGER :: error,i,nI(NEl),ExcitLevel,j, iunit
         REAL*8 :: norm,norm1
 
         CALL MPI_AllReduce(Histogram,AllHistogram,Det,MPI_DOUBLE_PRECISION,MPI_SUM,MPI_COMM_WORLD,error)
@@ -3264,7 +3278,7 @@ MODULE FciMCParMod
                 ! element(s) of FCIDets with it...
                 call sort (AllHistogram, FCIDets)
                 
-                OPEN(17,FILE='FCIMCPsi',STATUS='UNKNOWN')
+                OPEN(iunit,FILE='FCIMCPsi',STATUS='UNKNOWN')
 
                 norm=0.D0
                 do i=1,Det
@@ -3272,14 +3286,14 @@ MODULE FciMCParMod
 !write out FCIMC Component weight (normalised), current normalisation, excitation level
                     ExcitLevel = FindBitExcitLevel(iLutHF, FCIDets(:,i), nel)
                     CALL DecodeBitDet(nI,FCIDets(0:NIfTot,i))
-                    WRITE(17,"(I13,G25.16,I6,G20.10)",advance='no') i,AllHistogram(i),ExcitLevel,norm
+                    WRITE(iunit,"(I13,G25.16,I6,G20.10)",advance='no') i,AllHistogram(i),ExcitLevel,norm
                     do j=1,NEl-1
-                        WRITE(17,"(I5)",advance='no') nI(j)
+                        WRITE(iunit,"(I5)",advance='no') nI(j)
                     enddo
-                    WRITE(17,"(I5)") nI(NEl)
+                    WRITE(iunit,"(I5)") nI(NEl)
                 enddo
 
-                CLOSE(17)
+                CLOSE(iunit)
 
             ENDIF
         ENDIF
@@ -3291,7 +3305,8 @@ MODULE FciMCParMod
 !This routine will write out the average wavevector from the spawning run up until now.
     SUBROUTINE WriteHistogram()
         use SystemData , only : BasisFN
-        INTEGER :: i,j,bits,error,IterRead
+        use util_mod, only: get_free_unit
+        INTEGER :: i,j,bits,error,IterRead, io1, io2, io3
         INTEGER(Kind=n_int) :: iLut(0:NIfTot)
         TYPE(BasisFN) :: ISym
         REAL*8 :: norm,norm1,norm2,norm3,ShiftRead,AllERead,NumParts
@@ -3356,7 +3371,8 @@ MODULE FciMCParMod
                 ENDIF
             enddo
             
-            OPEN(17,FILE=abstr,STATUS='UNKNOWN')
+            io1 = get_free_unit()
+            OPEN(io1,FILE=abstr,STATUS='UNKNOWN')
 
             abstr=''
             write(abstr,'(I12)') Iter-iWriteHistEvery
@@ -3365,28 +3381,30 @@ MODULE FciMCParMod
             abstr2=''
             write(abstr2,'(I12)') Iter
             abstr2='Energies-'//adjustl(abstr2)
-            OPEN(29,FILE=abstr2,STATUS='NEW')
+            io2 = get_free_unit()
+            OPEN(io2,FILE=abstr2,STATUS='NEW')
 
             INQUIRE(FILE=abstr,EXIST=exists)
             IF(exists) THEN
-                OPEN(28,FILE=abstr,STATUS='OLD',POSITION='REWIND',ACTION='READ')
+                io3 = get_free_unit()
+                OPEN(io3,FILE=abstr,STATUS='OLD',POSITION='REWIND',ACTION='READ')
                 do while(.true.)
-                    READ(28,"(I13,3G25.16)",END=99) IterRead,ShiftRead,AllERead,NumParts
-                    WRITE(29,"(I13,3G25.16)") IterRead,ShiftRead,AllERead,NumParts
+                    READ(io3,"(I13,3G25.16)",END=99) IterRead,ShiftRead,AllERead,NumParts
+                    WRITE(io2,"(I13,3G25.16)") IterRead,ShiftRead,AllERead,NumParts
                 enddo
 99              CONTINUE
                 IF(AllHFCyc.eq.0) THEN
-                    WRITE(19,"(I13,3G25.16)") Iter,DiagSft,AllERead,AllTotPartsOld
+                    WRITE(io2,"(I13,3G25.16)") Iter,DiagSft,AllERead,AllTotPartsOld
                 ELSE
-                    WRITE(29,"(I13,3G25.16)") Iter,DiagSft,AllENumCyc/AllHFCyc,AllTotPartsOld
+                    WRITE(io2,"(I13,3G25.16)") Iter,DiagSft,AllENumCyc/AllHFCyc,AllTotPartsOld
                 ENDIF
-                CLOSE(29)
-                CLOSE(28)
+                CLOSE(io2)
+                CLOSE(io3)
 
             ELSE
-                OPEN(29,FILE=abstr2,STATUS='UNKNOWN')
-                WRITE(29,"(I13,3G25.16)") Iter,DiagSft,AllENumCyc/AllHFCyc,AllTotPartsOld
-                CLOSE(29)
+                OPEN(io2,FILE=abstr2,STATUS='UNKNOWN')
+                WRITE(io2,"(I13,3G25.16)") Iter,DiagSft,AllENumCyc/AllHFCyc,AllTotPartsOld
+                CLOSE(io2)
             ENDIF
 
 
@@ -3395,7 +3413,7 @@ MODULE FciMCParMod
             do i=1,Det
                 norm=norm+(AllHistogram(i))**2
                 norm1=norm1+(AllAvAnnihil(i))**2
-                WRITE(17,"(I13,6G25.16)") i,AllHistogram(i),norm,AllInstHist(i),AllInstAnnihil(i),AllAvAnnihil(i),norm1
+                WRITE(io1,"(I13,6G25.16)") i,AllHistogram(i),norm,AllInstHist(i),AllInstAnnihil(i),AllAvAnnihil(i),norm1
             enddo
 
 !            do i=1,Maxdet
@@ -3413,11 +3431,11 @@ MODULE FciMCParMod
 !                            CALL GETSYM(NMRKS(1,j),NEL,G1,NBASISMAX,ISYM)
 !                            IF(ISym%Sym%S.eq.0) THEN
 !                                Det=Det+1
-!                                WRITE(17,"(3I12)",advance='no') Det,iLut(0)
+!                                WRITE(io1,"(3I12)",advance='no') Det,iLut(0)
 !                                HEL=GetHElement3(NMRKS(:,j),NMRKS(:,j),0)
 !                                norm=norm+(AllHistogram(i))**2
 !                                norm1=norm1+(AllInstHist(i))**2
-!                                WRITE(17,"(5G25.16)") REAL(HEL,8),AllHistogram(i),norm,AllInstHist(i),norm1
+!                                WRITE(io1,"(5G25.16)") REAL(HEL,8),AllHistogram(i),norm,AllInstHist(i),norm1
 !                            ENDIF
 !                            EXIT
 !                        ENDIF
@@ -3425,7 +3443,7 @@ MODULE FciMCParMod
 !                ENDIF
 !
 !            ENDDO
-            CLOSE(17)
+            CLOSE(io1)
         ENDIF
         InstHist(:)=0.D0
         InstAnnihil(:)=0.D0
@@ -3434,7 +3452,9 @@ MODULE FciMCParMod
 
 !This routine will write out the average hamiltonian from the spawning run up until now.
     SUBROUTINE WriteHamilHistogram()
+        use util_mod, only: get_free_unit
         INTEGER :: i,j,error
+        integer :: iunit
         CHARACTER(len=22) :: abstr
 
 !This will open a file called HamilHist-"Iter" on unit number 17.
@@ -3456,14 +3476,15 @@ MODULE FciMCParMod
         
         IF(iProcIndex.eq.0) THEN
 !How do we normalise this!
-            OPEN(17,FILE=abstr,STATUS='UNKNOWN')
+            iunit = get_free_unit()
+            OPEN(iunit,FILE=abstr,STATUS='UNKNOWN')
             do i=1,Det
                 do j=1,Det
-                    WRITE(17,*) j,i,AllAvHistHamil(j,i),AllHistHamil(j,i)
+                    WRITE(iunit,*) j,i,AllAvHistHamil(j,i),AllHistHamil(j,i)
                 enddo
-                WRITE(17,*) ""
+                WRITE(iunit,*) ""
             enddo
-            CLOSE(17)
+            CLOSE(iunit)
         ENDIF
         HistHamil(:,:)=0.D0
 
