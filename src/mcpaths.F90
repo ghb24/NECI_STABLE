@@ -216,7 +216,7 @@ contains
 !C.. matrix of hij instead of rhoij
 
         EREF=DLWDB/TOTAL
-!        write(*,*) "from mcpaths.F", EREF 
+!        write (6,*) "from mcpaths.F", EREF 
             
                F(I_V)=FMCPR3B2(NI,BETA,I_P,IPATH,I_V,NEL,                  &
      &        NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,        &

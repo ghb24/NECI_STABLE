@@ -363,24 +363,24 @@ contains
       openit = .true.
       add_file = .true.
     case default
-      write(*,*)'ERROR: record_handler: Incorrect filestatus provided'
-      write(*,*)'filestatus = ',filestatus
+      write(6,*)'ERROR: record_handler: Incorrect filestatus provided'
+      write(6,*)'filestatus = ',filestatus
       print *,'Filename = ',trim(filename)
       info = -1
       return
   end select
   !
   if (error) then
-    write(*,*)'init_record_handler: ERROR: Inconsistent file status'
-    write(*,*)'File ',filename,' was expected to be ',filestatus
-    write(*,*)'but was found to be ',actual_file_status
+    write(6,*)'init_record_handler: ERROR: Inconsistent file status'
+    write(6,*)'File ',filename,' was expected to be ',filestatus
+    write(6,*)'but was found to be ',actual_file_status
     info = -1
     return
   endif
   !
   if (warn.and.l_print) then
-    write(*,*)'init_record_handler: WARNING: File to be overwritten seems'
-    write(*,*)'to be new to record_handler. File is ',filename
+    write(6,*)'init_record_handler: WARNING: File to be overwritten seems'
+    write(6,*)'to be new to record_handler. File is ',filename
   endif
   !
   if (add_file) then
@@ -409,8 +409,8 @@ contains
       call initialize_file_variables
     else
       if (iamopen.or.iexist) then
-        write(*,*)'ERROR: init_record_handler: Expecting to open a new file'
-        write(*,*)'but the file ',filename,' seems to exist. '
+        write(6,*)'ERROR: init_record_handler: Expecting to open a new file'
+        write(6,*)'but the file ',filename,' seems to exist. '
         info = -1
         return
       endif
@@ -431,8 +431,8 @@ contains
   if (readit) then
     inquire(file=filename,opened=iamopen,exist=iexist)
     if (.not.iexist) then
-      write(*,*)'ERROR: record_handler: Bad news. Your file ',filename
-      write(*,*)'does not exist.'
+      write(6,*)'ERROR: record_handler: Bad news. Your file ',filename
+      write(6,*)'does not exist.'
       info = -1
       return
     endif
@@ -455,7 +455,7 @@ contains
   endif
   !
   iam_init_record_handler = .true.
-  if (l_print) write(*,*)'...initialization complete for file ',filename
+  if (l_print) write(6,*)'...initialization complete for file ',filename
   return
   end subroutine init_record_handler
 
@@ -532,14 +532,14 @@ contains
   !
   if (l_check_len_rec1.or.l_check_num_recs) then
     if (file_status.eq.'NEW') then
-      write(*,*)'query_record_handler: Cannot check a new file :',filename
+      write(6,*)'query_record_handler: Cannot check a new file :',filename
       if (l_check_len_rec1) len_first_rec = -1
       if (l_check_num_recs) num_records = -1
     else
       call set_pointers(file_indx)
       inquire(file=filename,opened=l_file_open,exist=l_file_exists)
       if (.not.l_file_exists) then
-        write(*,*)'query_record_handler: ERROR nonexistent file: ',filename
+        write(6,*)'query_record_handler: ERROR nonexistent file: ',filename
         if (l_check_len_rec1) len_first_rec = -1
         if (l_check_num_recs) num_records = -1
         return
@@ -569,7 +569,7 @@ contains
         !to form the conceptual record 1 before we have the actual length of
         !this record.
         if (len_full_toc.lt.1) then
-          write(*,*)'query_record_handler: No records in file ',filename
+          write(6,*)'query_record_handler: No records in file ',filename
           len_first_rec = -1
         else
           len_first_rec = 0
@@ -600,12 +600,12 @@ contains
   endif
   !
   if (info.lt.0) then
-    write(*,*)' Index       filename'
-    write(*,*)'---------------------'
+    write(6,*)' Index       filename'
+    write(6,*)'---------------------'
     do i = 1, numfiles
-      write(*,*)i,ar_filename(i) 
+      write(6,*)i,ar_filename(i) 
     enddo
-    write(*,*)'====================='
+    write(6,*)'====================='
   endif
   !
   return
@@ -728,16 +728,16 @@ contains
     subroutine check_toc
     !perform some simple checks on the toc
     implicit none
-    if (l_print) write(*,*)'Length of the Table of Contents is ',len_full_toc
+    if (l_print) write(6,*)'Length of the Table of Contents is ',len_full_toc
     if (len_full_toc.eq.0) then
       if (l_print) then
-        write(*,*)'WARNING: Odd! There are no records to be read in this file.'
+        write(6,*)'WARNING: Odd! There are no records to be read in this file.'
       endif
     else
       if (toc(1).ne.2) then
-        write(*,*)'ERROR: This Table of Contents appears to be incorrect'
-        write(*,*)'Was the file ',filename,' written using record_handler'
-        write(*,*)'routine write_record ?'
+        write(6,*)'ERROR: This Table of Contents appears to be incorrect'
+        write(6,*)'Was the file ',filename,' written using record_handler'
+        write(6,*)'routine write_record ?'
         info = -1
         return
       endif
@@ -781,7 +781,7 @@ contains
   !
   if (.not.iam_init_record_handler) then
     if (l_print) then
-      write(*,*)'WARNING: Record_handler not initialized for file ',filename
+      write(6,*)'WARNING: Record_handler not initialized for file ',filename
     endif
     filestatus = 'OLD'
     call init_record_handler(filename,filestatus,info)
@@ -803,8 +803,8 @@ contains
   X = 0.0_dp
   !first a check on indexX 
   if ((indexX.le.0).or.(indexX.gt.len_full_toc)) then
-    write(*,*)'ERROR: record_handler: Illegal value of record position',indexX
-    write(*,*)'Number of records in file ',filename,' is ',len_full_toc
+    write(6,*)'ERROR: record_handler: Illegal value of record position',indexX
+    write(6,*)'Number of records in file ',filename,' is ',len_full_toc
     info = -1
     return
   endif
@@ -812,10 +812,10 @@ contains
   rec_num = toc(indexX)
   !One more check...just in case
   if (rec_num.eq.0) then
-    write(*,*)'MODULE record_handler: Internal error. Got zero record number'
-    write(*,*)'for record position ',indexX
-    write(*,*)'This should never have happened if the file being read was'
-    write(*,*)'written by record_handler. Was it?'
+    write(6,*)'MODULE record_handler: Internal error. Got zero record number'
+    write(6,*)'for record position ',indexX
+    write(6,*)'This should never have happened if the file being read was'
+    write(6,*)'written by record_handler. Was it?'
     print *,'Filename is ',trim(filename)
     info = -1
     return
@@ -835,9 +835,9 @@ contains
       if (labelX.eq.'        ') then
         !Blank label. Do nothing.
       else
-        write(*,*)'ERROR record_handler:The record read in had the wrong label'
-        write(*,*)'Label wanted is ',labelX
-        write(*,*)'Label of record read in is ',readlabel
+        write(6,*)'ERROR record_handler:The record read in had the wrong label'
+        write(6,*)'Label wanted is ',labelX
+        write(6,*)'Label of record read in is ',readlabel
         print *,'Filename is ',trim(filename)
         info = -1
         return
@@ -896,7 +896,7 @@ contains
   !
   if (.not.iam_init_record_handler) then
     if (l_print) then
-      write(*,*)'WARNING: Record_handler not initialized for file ',filename
+      write(6,*)'WARNING: Record_handler not initialized for file ',filename
     endif
     filestatus = 'NEW'
     call init_record_handler(filename,filestatus,info)
@@ -911,8 +911,8 @@ contains
   lenX = SIZE(X)
   len_indxX = SIZE(indicesX)
   if (lenX.ne.len_indxX) then
-    write(*,*)'ERROR: record_handler: arrays X and indicesX have different'
-    write(*,*)'lengths. Lengths are ',lenX, len_indxX
+    write(6,*)'ERROR: record_handler: arrays X and indicesX have different'
+    write(6,*)'lengths. Lengths are ',lenX, len_indxX
     print *,'Filename is ',trim(filename)
     info = -1
     return
@@ -970,8 +970,8 @@ contains
   return
   !
   !Errors come here
-1 write(*,*)'MODULE record_handler: A write-error has occured (not EOF or EOR)'
-  write(*,*)'file name =',filename,' record ',curr_rec
+1 write(6,*)'MODULE record_handler: A write-error has occured (not EOF or EOR)'
+  write(6,*)'file name =',filename,' record ',curr_rec
   info = -1
   return
   !
@@ -999,9 +999,9 @@ contains
   call find_file(filename,file_indx,info,actual_file_status=actual_status)
   if (info.lt.0) return
   if (expected_status.ne.actual_status) then
-    write(*,*)'ERROR: record_handler: In leave_record_handler'
-    write(*,*)'Unexpected file status. Was expecting an OLD file'
-    write(*,*)'but found a ',actual_status,' file.'
+    write(6,*)'ERROR: record_handler: In leave_record_handler'
+    write(6,*)'Unexpected file status. Was expecting an OLD file'
+    write(6,*)'but found a ',actual_status,' file.'
     print *,'Filename is ',trim(filename)
     info = -1
     return
@@ -1034,7 +1034,7 @@ contains
   !
   call nullify_pointers
   !
-  if (l_print) write(*,*)'Leaving record_handler. File ',filename,' is closed.'
+  if (l_print) write(6,*)'Leaving record_handler. File ',filename,' is closed.'
   !
   return
   end subroutine leave_record_handler
@@ -1056,28 +1056,28 @@ contains
   endif
   select case(stat)
   case(:-1)
-    write(*,*)'ERROR: record_handler: End-of-file or End-of-record'
+    write(6,*)'ERROR: record_handler: End-of-file or End-of-record'
     if (lrec) then
-      write(*,*)'encountered while reading file ',filename
-      write(*,*)'Record being read was ',record
+      write(6,*)'encountered while reading file ',filename
+      write(6,*)'Record being read was ',record
     elseif (lfile) then
-      write(*,*)'encountered while opening file ',filename
-      write(*,*)'Strange! How can this happen? '
+      write(6,*)'encountered while opening file ',filename
+      write(6,*)'Strange! How can this happen? '
     else
-      write(*,*)'Not sure what the operation was when this error occured.'
+      write(6,*)'Not sure what the operation was when this error occured.'
     endif
     info = -1
     return
   case(1:)
-    write(*,*)'ERROR: record_handler: File error other than EOR or EOF'
+    write(6,*)'ERROR: record_handler: File error other than EOR or EOF'
     if (lrec) then
-      write(*,*)'encountered while reading file ',filename
-      write(*,*)'Record being read was ',record
+      write(6,*)'encountered while reading file ',filename
+      write(6,*)'Record being read was ',record
     elseif (lfile) then
-      write(*,*)'encountered while opening file ',filename
-      write(*,*)'Strange! How can this happen? '
+      write(6,*)'encountered while opening file ',filename
+      write(6,*)'Strange! How can this happen? '
     else
-      write(*,*)'Not sure what the operation was when this error occured.'
+      write(6,*)'Not sure what the operation was when this error occured.'
     endif
     info = -1
     return
@@ -1116,7 +1116,7 @@ contains
       curr_toc(num_in_curr_toc) = curr_rec
       rec_curr_toc = 1    !this toc is to be written into record 1
       iam_init_bookkeeper = .true.
-      if (l_print) write(*,*)'Bookkeeper initialized'
+      if (l_print) write(6,*)'Bookkeeper initialized'
     else
       !Perform the following tasks
       !(0) Update the curr_toc to specify the starting record for this data set
@@ -1171,7 +1171,7 @@ contains
     call write_curr_toc(rec_curr_toc,info)
     if (info.lt.0) return
   else
-    write(*,*)'Wrong value of newold in MODULE record_handler. ',newold
+    write(6,*)'Wrong value of newold in MODULE record_handler. ',newold
     info = -1
     return
   endif
@@ -1196,8 +1196,8 @@ contains
     return
     !
     !Errors come here
-1   write(*,*)'MODULE record_handler: TOC: Write-error (not EOF or EOR)'
-    write(*,*)'file name =',filename,' record ',rec_curr_toc
+1   write(6,*)'MODULE record_handler: TOC: Write-error (not EOF or EOR)'
+    write(6,*)'file name =',filename,' record ',rec_curr_toc
     info = -1
     return
     !
@@ -1253,18 +1253,18 @@ contains
       ar_filename(file_indx) = filename
       if (l_status) actual_file_status = 'NEW'
     else
-      write(*,*)'MODULE record_handler: No space left in arrays to handle'
-      write(*,*)'the file ',filename
-      write(*,*)'Consider increasing the value of maxfiles in this module'
+      write(6,*)'MODULE record_handler: No space left in arrays to handle'
+      write(6,*)'the file ',filename
+      write(6,*)'Consider increasing the value of maxfiles in this module'
       call name_tmp_file(tmpfile,'out')
       !
       print *,'List of files in record_handler:'
-      write(*,*)' Index       filename'
-      write(*,*)'---------------------'
+      write(6,*)' Index       filename'
+      write(6,*)'---------------------'
       do i = 1, maxfiles
-        write(*,*)i,ar_filename(i) 
+        write(6,*)i,ar_filename(i) 
       enddo
-      write(*,*)'====================='
+      write(6,*)'====================='
       info = -1
       return
     endif

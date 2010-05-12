@@ -1282,6 +1282,7 @@ MODULE Calc
           use IntegralsData, only: HFEDelta, HFMix,nTay
           Use Logging, only: iLogging
           use Parallel_Calc
+          use util_mod, only: get_free_unit
 
 !Calls
 !          REAL*8 DMonteCarlo2
@@ -1290,7 +1291,7 @@ MODULE Calc
           REAL*8 FLRI, FLSI
           REAL*8 RH
           LOGICAL tWarn
-          integer iSeed
+          integer iSeed,iunit
           iSeed=7 
 
 !C.. we need to calculate a value for RHOEPS, so we approximate that
@@ -1314,15 +1315,16 @@ MODULE Calc
 !     &               NTAY,RHOEPS,NWHTAY,ECORE)
 !             ENDIF
              WRITE(6,*) "Calculating ",NPATHS," W_Is..."
+             iunit =get_free_unit()
              IF(BTEST(ILOGGING,1)) THEN
                 IF(I_HMAX.EQ.-10) THEN
-                   OPEN(11,FILE="MCSUMMARY",STATUS="UNKNOWN")
-                   WRITE(11,*) "Calculating ",NPATHS," W_Is..."
-                   CLOSE(11)
+                   OPEN(iunit,FILE="MCSUMMARY",STATUS="UNKNOWN")
+                   WRITE(iunit,*) "Calculating ",NPATHS," W_Is..."
+                   CLOSE(iunit)
                 ELSE
-                   OPEN(11,FILE="MCPATHS",STATUS="UNKNOWN")
-                   WRITE(11,*) "Calculating ",NPATHS," W_Is..."
-                   CLOSE(11)
+                   OPEN(iunit,FILE="MCPATHS",STATUS="UNKNOWN")
+                   WRITE(iunit,*) "Calculating ",NPATHS," W_Is..."
+                   CLOSE(iunit)
                 ENDIF
              ENDIF
              IF(NTAY(1).GT.0) THEN
@@ -1410,11 +1412,12 @@ MODULE Calc
           Use DetCalc, only: cK, nDet, nEval, tEnergy, tRead, W, NMRKS, DetInv
           Use Determinants, only: specdet, tSpecDet
           Use Logging, only: iLogging
+          Use util_mod, only: get_free_unit
           Use DetCalc, only: tFindDets
           real*8 flri, flsi
           REAL*8 En, ExEn, GSEn
           REAL*8 RH
-          INTEGER iDeg, III
+          INTEGER iDeg, III, iunit
           Type(BasisFN) iSym
           LOGICAL tWarn
           
@@ -1429,7 +1432,8 @@ MODULE Calc
                 GSEN=CALCDLWDB(1,NDET,NEVAL,CK,W,BETA,0.D0)
                 WRITE(6,"(A,F19.5)") "EXACT DLWDB(D0)=",GSEN
              ENDIF
-             OPEN(14,FILE='RHOPIIex',STATUS='UNKNOWN')
+             iunit = get_free_unit()
+             OPEN(iunit,FILE='RHOPIIex',STATUS='UNKNOWN')
              IF(NDETWORK.EQ.0.OR.NDETWORK.GT.NDET) NDETWORK=NDET
              DO III=1,NDETWORK
              
@@ -1450,14 +1454,14 @@ MODULE Calc
                    FLSI=FLSI-I_P*FLRI
                    ENDIF
                 ENDIF
-                call write_det (14, NMRKS(:,III), .false.)
+                call write_det (iunit, NMRKS(:,III), .false.)
                 GSEN=CALCDLWDB(III,NDET,NEVAL,CK,W,BETA,0.D0)
                 CALL GETSYM(NMRKS(1,III),NEL,G1,NBASISMAX,ISYM)
                 CALL GETSYMDEGEN(ISYM,NBASISMAX,IDEG)
-                WRITE(14,"(4G25.16,I5)") EXP(FLSI+I_P*FLRI),FLRI*I_P,FLSI,GSEN,IDEG
+                WRITE(iunit,"(4G25.16,I5)") EXP(FLSI+I_P*FLRI),FLRI*I_P,FLSI,GSEN,IDEG
              ENDDO
 !C             CLOSE(17)
-             CLOSE(14)
+             CLOSE(iunit)
           ENDIF
         
           IF(TMONTE.AND.TENERGY.AND.NTAY(1).EQ.-1) THEN
@@ -1757,6 +1761,7 @@ MODULE Calc
      &            TSPECDET,SPECDET,nActiveBasis)
          use constants, only: dp
          use global_utilities
+         use util_mod, only: get_free_unit 
          use SystemData, only: BasisFN,BasisFNSize
          use legacy_data, only: irat
          use CalcData, only: tFCIMC
@@ -1784,7 +1789,7 @@ MODULE Calc
          real(dp) TOT,WLRI0,WLSI0,WINORM,HElP,NORM
          LOGICAL TNPDERIV,TDONE,TFIRST
          INTEGER DETINV
-         INTEGER ISTART,IEND,IDEG
+         INTEGER ISTART,IEND,IDEG,iunit
          LOGICAL TSPECDET,TLOG
          INTEGER SPECDET(NEL)
          real(dp) DLWDB2,DLWDB3,DLWDB4,TOT2
@@ -1823,16 +1828,17 @@ MODULE Calc
             WRITE(6,*) "I_HMAX=I_VMAX=0. Using rho diagonalisation."
          ENDIF
          IF(TLOG) THEN
+           iunit = get_free_unit()
             IF(I_HMAX.EQ.-10) THEN
-               OPEN(11,FILE="MCSUMMARY",STATUS="UNKNOWN")
-               WRITE(11,*) "Calculating ",NPATHS," W_Is..."
-               CLOSE(11)
+               OPEN(iunit,FILE="MCSUMMARY",STATUS="UNKNOWN")
+               WRITE(iunit,*) "Calculating ",NPATHS," W_Is..."
+               CLOSE(iunit)
             ELSE
-               OPEN(11,FILE="MCPATHS",STATUS="UNKNOWN")
-               WRITE(11,*) "Calculating ",NPATHS," W_Is..."
-               CLOSE(11)
+               OPEN(iunit,FILE="MCPATHS",STATUS="UNKNOWN")
+               WRITE(iunit,*) "Calculating ",NPATHS," W_Is..."
+               CLOSE(iunit)
             ENDIF
-            OPEN(15,FILE='RHOPII',STATUS='UNKNOWN')
+            OPEN(iunit,FILE='RHOPII',STATUS='UNKNOWN')
          ENDIF
          IF(DETINV.NE.0) THEN
             ISTART=ABS(DETINV)
@@ -1869,9 +1875,9 @@ MODULE Calc
             CALL MCPATHSR3(NI,BETA,I_P,I_HMAX,I_VMAX,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY, &
      &         RHOEPS,LSTE,ICE,RIJLIST,NWHTAY,ILOGGING,ECORE,ILMAX,WLRI,WLSI,DBETA,DLWDB2)
             IF(TLOG) THEN
-               WRITE(15,"(I12)",advance='no') III
-               call write_det (15, NI, .false.)
-               WRITE(15,"(3G25.16)",advance='no') EXP(WLSI+HElP*WLRI),WLRI*HElP,WLSI
+               WRITE(iunit,"(I12)",advance='no') III
+               call write_det (iunit, NI, .false.)
+               WRITE(iunit,"(3G25.16)",advance='no') EXP(WLSI+HElP*WLRI),WLRI*HElP,WLSI
             ENDIF
             IF(TFIRST) THEN
                TFIRST=.FALSE.
@@ -1893,9 +1899,9 @@ MODULE Calc
             WINORM=EXP(HElP*(WLRI-WLRI0)+(WLSI-WLSI0))
             NORM=NORM+(IDEG)*WINORM
             TOT=TOT+(IDEG)*WINORM*DLWDB
-            IF(TLOG) WRITE(15,"(G25.16,I5)") DLWDB,IDEG
+            IF(TLOG) WRITE(iunit,"(G25.16,I5)") DLWDB,IDEG
             IF(DETINV.EQ.III) THEN
-               IF(TLOG) CALL FLUSH(15)
+               IF(TLOG) CALL FLUSH(iunit)
                WRITE(6,*) "Investigating det ",DETINV
                CALL FLUSH(6)
                CALL WIRD_SUBSET(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY, &
@@ -1906,7 +1912,7 @@ MODULE Calc
                III=III-1
            ENDIF
           ENDDO
-         IF(TLOG) CLOSE(15)
+         IF(TLOG) CLOSE(iunit)
          IF(TFIRST) THEN
             WRITE(6,*) "*** NO determinants found to calculate***"
          ELSE

@@ -552,6 +552,7 @@ MODULE HPHFRandExcitMod
         use bit_reps, only: decode_bit_det
         use GenRandSymExcitNuMod, only: scratchsize
         use FciMCData, only: tGenMatHEl
+        use util_mod, only: get_free_unit
         IMPLICIT NONE
         INTEGER :: ClassCount2(ScratchSize),nIX(NEl)
         INTEGER :: ClassCountUnocc2(ScratchSize)
@@ -562,7 +563,7 @@ MODULE HPHFRandExcitMod
         INTEGER(KIND=n_int), ALLOCATABLE :: ConnsAlpha(:,:),ConnsBeta(:,:),UniqueHPHFList(:,:)
         INTEGER , ALLOCATABLE :: ExcitGen(:)
         REAL*8 , ALLOCATABLE :: Weights(:)
-        INTEGER :: iMaxExcit,nStore(6),nExcitMemLen,j,k,l
+        INTEGER :: iMaxExcit,nStore(6),nExcitMemLen,j,k,l, iunit
         integer :: icunused, exunused(2,2), scratch3(scratchsize)
         logical :: tParityunused, tTmp
 
@@ -783,7 +784,8 @@ MODULE HPHFRandExcitMod
 
         enddo
         
-        OPEN(8,FILE="PGenHist",STATUS="UNKNOWN")
+        iunit = get_free_unit()
+        OPEN(iunit,FILE="PGenHist",STATUS="UNKNOWN")
 
 !normalise excitation probabilities
         Die=.false.
@@ -796,10 +798,10 @@ MODULE HPHFRandExcitMod
             WRITE(6,*) i,UniqueHPHFList(0:NIfTot,i),Weights(i)
             call decode_bit_det (nIX, UniqueHPHFList(0:NIfTot,i))
             WRITE(6,*) nIX(:)
-            WRITE(8,*) i,UniqueHPHFList(0:NIfTot,i),Weights(i)
+            WRITE(iunit,*) i,UniqueHPHFList(0:NIfTot,i),Weights(i)
         enddo
 
-        CLOSE(8)
+        CLOSE(iunit)
         IF(Die) THEN
             CALL Stop_All("IUB","TestFail")
         ENDIF

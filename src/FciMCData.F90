@@ -9,6 +9,10 @@ MODULE FciMCData
 
       INTEGER , PARAMETER :: Root=0   !This is the rank of the root processor
 
+      ! Units used to write to files
+      integer :: fcimcstats_unit ! FCIMCStats
+      integer :: initiatorstats_unit ! INITIATORStats
+
       INTEGER(KIND=n_int) , ALLOCATABLE , TARGET :: WalkVecDets(:,:)                !Contains determinant list
       REAL(KIND=dp) , ALLOCATABLE , TARGET :: WalkVecH(:)                    !Diagonal hamiltonian element
       INTEGER(KIND=n_int) , ALLOCATABLE , TARGET :: SpawnVec(:,:),SpawnVec2(:,:)

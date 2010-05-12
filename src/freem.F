@@ -42,7 +42,7 @@ C..Statistics and memory checks
           GOTO 100
         ENDIF
       ENDDO
-      WRITE(*,*) ' N_FREEM | Could not find pointer ',IP_XM
+      write (6,*) ' N_FREEM | Could not find pointer ',IP_XM
       CALL N_PRINT_MEMORY
       CALL Stop_All('N_FREEM',' NO SUCH POINTER')
   100 CONTINUE
@@ -62,7 +62,7 @@ c..free memory
 #ifdef CRAY
       CALL HPDEALLC(IP_XM,IERR,0)
       IF(IERR.NE.0) THEN
-        WRITE(*,*) ' N_FREEM | Error in deallocation of memory '
+        write (6,*) ' N_FREEM | Error in deallocation of memory '
         CALL Stop_All('N_FREEM',' ')
       ENDIF
 #elif __IBM
