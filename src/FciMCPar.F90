@@ -2181,16 +2181,15 @@ MODULE FciMCParMod
         IF(PopsVersion.eq.1) THEN
             tPop64BitDets=.false.
             NIfWriteOut=nBasis/32
-            IF(tTruncInitiator) NIfWriteOut=NIfWriteOut+1
-	ELSE
-	    IF(.not.tPop64BitDets) THEN
+            IF(tCSF) NIfWriteOut=NIfWriteOut+1
+        ELSE
+            IF(.not.tPop64BitDets) THEN
                 NIfWriteOut=nBasis/32
-                IF(tTruncInitiator) NIfWriteOut=NIfWriteOut+1
-	    ELSE
-		NIfWriteOut=nBasis/64
-                IF(tTruncInitiator) NIfWriteOut=NIfWriteOut+1
-	    ENDIF
-		
+                IF(tCSF) NIfWriteOut=NIfWriteOut+1
+            ELSE
+                NIfWriteOut=nBasis/64
+                IF(tCSF) NIfWriteOut=NIfWriteOut+1
+            ENDIF
         ENDIF
 
         CurrWalkers=0
