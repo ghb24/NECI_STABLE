@@ -16,6 +16,8 @@ MODULE Determinants
     use bit_reps, only: NIfTot
     implicit none
 
+    ! TODO: Add an interface for getting a diagonal helement with an ordered
+    !       list, or with only a bit-det
     interface get_helement
         module procedure get_helement_compat
         module procedure get_helement_excit

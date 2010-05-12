@@ -1,7 +1,7 @@
 !This file contains a load of useful operations to perform on determinants represented as bit-strings.
 ! Start the process of modularising this bit!!
 module DetBitOps
-    use Systemdata, only: nel, tCSF, tTruncateCSF, & csf_trunc_level
+    use Systemdata, only: nel, tCSF, tTruncateCSF, csf_trunc_level
     use bit_rep_data, only: NIfY, NIfTot, NIfD
     use csf_data, only: iscsf, csf_yama_bit, csf_orbital_mask, csf_test_bit
     ! TODO: remove

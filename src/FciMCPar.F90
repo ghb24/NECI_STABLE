@@ -660,7 +660,7 @@ MODULE FciMCParMod
             ! DEBUG
             ! if (VecSlot > j) call stop_all (this_routine, 'vecslot > j')
             call walker_death (DetCurr, CurrentDets(:,j), HDiagCurr, &
-                               CurrentSign(j), VecSlot)
+                               SignCurr, VecSlot)
 
         enddo ! Loop over determinants.
 
@@ -2544,11 +2544,12 @@ MODULE FciMCParMod
     INTEGER FUNCTION AttemptCreatePar(DetCurr,iLutCurr,WSign,nJ,iLutnJ,Prob,IC,Ex,tParity)
         use GenRandSymExcitNUMod , only : GenRandSymExcitBiased
         use Logging, only : CCMCDebug
-        INTEGER :: DetCurr(NEl),nJ(NEl),IC,StoreNumTo,StoreNumFrom,DetLT,i,ExtraCreate,Ex(2,2),WSign,Bin,PartInd,ExcitLev
+        INTEGER :: DetCurr(NEl),nJ(NEl),IC,StoreNumTo,StoreNumFrom,DetLT,i,ExtraCreate,Ex(2,2),Bin,PartInd,ExcitLev
         INTEGER(KIND=n_int) :: iLutCurr(0:NIfTot),iLutnJ(0:NIfTot),iLut(0:NIfTot),iLut2(0:NIfTot)
         LOGICAL :: tParity,SymAllowed,tSuccess
         integer(KIND=n_int) :: yama(NIfY)
         REAL*8 :: Prob,r,rat
+        integer, dimension(lenof_sign), intent(in) :: wSign
         HElement_t :: rh,rhcheck
 
         IF(tMCExcits) THEN
@@ -2623,7 +2624,7 @@ MODULE FciMCParMod
 !            ENDIF
 
 !Child is created - what sign is it?
-            IF(WSign.gt.0) THEN
+            IF(WSign(1).gt.0) THEN
 !Parent particle is positive
                 IF(real(rh).gt.0.D0) THEN
                     AttemptCreatePar=-1     !-ve walker created
@@ -2659,7 +2660,7 @@ MODULE FciMCParMod
                 AttemptCreatePar=AttemptCreatePar+ExtraCreate
             ELSEIF(AttemptCreatePar.eq.0) THEN
 !No particles were stochastically created, but some particles are still definatly created - we need to determinant their sign...
-                IF(WSign.gt.0) THEN
+                IF(WSign(1).gt.0) THEN
                     IF(real(rh).gt.0.D0) THEN
                         AttemptCreatePar=-ExtraCreate    !Additional particles are negative
                     ELSE
@@ -2743,10 +2744,11 @@ MODULE FciMCParMod
 
     subroutine walker_death (DetCurr, iLutCurr, Kii, wSign, VecSlot)
 
-        integer, intent(in) :: DetCurr(nel), wSign 
+        integer, intent(in) :: DetCurr(nel)
         integer(kind=n_int), intent(in) :: iLutCurr(0:niftot)
         integer, intent(inout) :: VecSlot
         real(dp), intent(in) :: Kii
+        integer, dimension(lenof_sign), intent(in) :: wSign
         
         integer :: iDie, CopySign
 
@@ -2758,7 +2760,7 @@ MODULE FciMCParMod
         NoDied = NoDied + iDie
 
         ! Calculate new number of particles on.
-        CopySign = wSign - (iDie * sign(1, wSign))
+        CopySign = wSign(1) - (iDie * sign(1, wSign(1)))
 
         ! Normall slot particles back into main array at position vecslot.
         ! This will normally increment with j, except when a particle dies
@@ -2768,7 +2770,7 @@ MODULE FciMCParMod
         ! anti-particle --> it goes in the spawning array to give it a chance
         ! to annihilate. (Not into main array, or we loose sign-coherence)
         if (CopySign /= 0) then
-            if (sign(1, CopySign) == sign(1, wSign)) then
+            if (sign(1, CopySign) == sign(1, wSign(1))) then
                 CurrentDets(:,VecSlot) = iLutCurr
                 CurrentSign(VecSlot) = CopySign
                 if (.not.tRegenDiagHEls) CurrentH(VecSlot) = Kii
@@ -2799,7 +2801,8 @@ MODULE FciMCParMod
         !                once (multiply probability of death by |wSign|)
         ! Ret: ndie    - The number of deaths (if +ve), or births (If -ve).
 
-        integer, intent(in) :: DetCurr(nel), wSign
+        integer, intent(in) :: DetCurr(nel)
+        integer, dimension(lenof_sign), intent(in) :: wSign
         real(dp), intent(in) :: Kii
         integer :: ndie
 
@@ -2808,7 +2811,7 @@ MODULE FciMCParMod
 
         ! Subtract the current value of the shift, and multiply by tau.
         ! If there are multiple particles, scale the probability.
-        rat = tau * (Kii - DiagSft) * abs(wSign)
+        rat = tau * (Kii - DiagSft) * abs(wSign(1))
 
         ndie = int(rat)
         rat = rat - real(ndie, dp)

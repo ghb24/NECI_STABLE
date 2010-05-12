@@ -17,9 +17,10 @@
 ! a linear search would be quicker.
     SUBROUTINE MergeListswH(nlist1,nlist1max,nlist2,list2,SignList2)
         USE FciMCParMOD , only : Hii,CurrentDets,CurrentSign,CurrentH
-        USE SystemData , only : NEl,tHPHF,NIfTot,NIfDBO
+        use SystemData, only: nel, tHPHF
+        use bit_reps, only: NIfTot, NIfDBO, decode_bit_det
         USE Determinants , only : get_helement
-        use DetBitOps, only: DecodeBitDet, DetBitEQ
+        use DetBitOps, only: DetBitEQ
         use hphf_integrals, only: hphf_diag_helement, hphf_off_diag_helement
         USE HElem
         use constants, only: dp,n_int
@@ -68,8 +69,10 @@
 !           write(6,'(20i15)') (list1(:,j),j=1,nlist1+nlist2)
            CurrentDets(:,ips+i-1)=list2(:,i)
            CurrentSign(ips+i-1)=SignList2(i)
-!We want to calculate the diagonal hamiltonian matrix element for the new particle to be merged.
-           CALL DecodeBitDet(nJ,list2(:,i))
+           
+           ! We want to calculate the diagonal hamiltonian matrix element for
+           ! the new particle to be merged.
+           call decode_bit_det (nJ, list2(:,i))
            if (tHPHF) then
                HDiagTemp = hphf_diag_helement (nJ, list2(:,i))
            else
@@ -99,7 +102,8 @@
 !This routine is the same as MergeListswH, but will not generate the diagonal hamiltonian matrix elements to go with the inserted determinants
     SUBROUTINE MergeLists(nlist1,nlist1max,nlist2,list2,SignList2)
         USE FciMCParMOD , only : Hii,CurrentDets,CurrentSign
-        USE SystemData , only : NEl, NIfTot
+        use SystemData, only: nel
+        use bit_reps, only: NIfTot
         USE HElem
         use constants, only : n_int
         IMPLICIT NONE
@@ -165,7 +169,7 @@
 !.. list(0:NIfTot,ipos) ge DetCurr(0:NIfTot)
 !..list is assumed to be in increasing order
     SUBROUTINE search(n,DetCurr,ipos)
-        use SystemData, only: NIfTot,NIfDBO
+        use bit_reps, only: NIfTot, NIfDBO
         use DetBitOps, only: DetBitLT
         USE FciMCParMOD , only : CurrentDets
         use constants, only: n_int
@@ -253,7 +257,7 @@
 !.. list(0:NIfTot,ipos) ge DetCurr(0:NIfTot)
 !..list is assumed to be in increasing order
     SUBROUTINE searchgen(n,list,DetCurr,ipos)
-        use SystemData, only: NIfTot,NIfDBO
+        use bit_reps, only: NIfTot, NIfDBO
         use DetBitOps, only: DetBitLT
         use constants, only: n_int
         IMPLICIT NONE

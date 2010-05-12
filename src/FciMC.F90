@@ -78,7 +78,7 @@ LOGICAL :: TSinglePartPhase                 !This is true if TStartSinglePart is
 INTEGER*8 , ALLOCATABLE :: EHistBins(:,:)   !This is to histogram the determinant energies..
 INTEGER :: EHistBinsTag=0
 
-TYPE(timer), save :: Walker_time, Annihil_time   
+TYPE(timer) :: Walker_time, Annihil_time   
 
 
 contains
