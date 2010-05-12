@@ -917,6 +917,7 @@ MODULE FciMCParMod
         IF(AllNoatHF.lt.0) THEN
 !Flip the sign if we're beginning to get a negative population on the HF
             WRITE(6,*) "No. at HF < 0 - flipping sign of entire ensemble of particles..."
+            WRITE(6,*) AllNoatHF
             CALL FlipSign()
             AllNoatHF=-AllNoatHF
             NoatHF=-NoatHF
@@ -3556,6 +3557,7 @@ MODULE FciMCParMod
         IF(AllNoatHF.lt.0) THEN
 !Flip the sign if we're beginning to get a negative population on the HF
             WRITE(6,*) "No. at HF < 0 - flipping sign of entire ensemble of particles..."
+            WRITE(6,*) AllNoatHF
             CALL FlipSign()
         ENDIF
                 
@@ -5235,10 +5237,11 @@ MODULE FciMCParMod
 !        IF(MaxExcitLevel.lt.ExcitLevel) MaxExcitLevel=ExcitLevel
 !        DetsNorm=DetsNorm+REAL((WSign**2),dp)
         IF(ExcitLevel.eq.0) THEN
-            IF(Iter.gt.NEquilSteps) SumNoatHF=SumNoatHF+WSign/dProbFin
-            NoatHF=NoatHF+WSign/dProbFin
-            HFCyc=HFCyc+WSign/dProbFin      !This is simply the number at HF*sign over the course of the update cycle 
-            HFIter=HFIter+WSign/dProbFin
+            WRITE(6,*) WSign,dProbFin
+            IF(Iter.gt.NEquilSteps) SumNoatHF=SumNoatHF+WSign
+            NoatHF=NoatHF+WSign
+            HFCyc=HFCyc+WSign      !This is simply the number at HF*sign over the course of the update cycle 
+            HFIter=HFIter+WSign
 !            AvSign=AvSign+REAL(WSign,dp)
 !            AvSignHFD=AvSignHFD+REAL(WSign,dp)
             

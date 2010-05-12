@@ -1509,7 +1509,7 @@ subroutine AttemptDie(C,CurAmpl,OldAmpl,TL,iDebug)
 end subroutine AttemptDie
 
 subroutine AttemptSpawnParticle(S,C,iDebug,SpawnList,SpawnAmps,nSpawned,nMaxSpawn)
-   use SystemData, only: nEl
+   use SystemData, only: nEl, nIfTot
    use FciMCParMod, only: iLutHF
    use CCMCData, only: Spawner, Cluster
    Use CalcData, only: Tau
