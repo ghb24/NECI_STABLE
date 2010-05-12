@@ -21,6 +21,7 @@ MODULE AnnihilationMod
     !TODO:
     !   H Elements - send through logical to decide whether to create or not.
     !   Parallel spawned parts - create the ValidSpawnedList itself.
+    !   Going to have to sort this out for the new packaged walkers - will have to package them up in this interface.
     SUBROUTINE AnnihilationInterface(TotDets,MainParts,MainSign,MaxMainInd,SpawnDets,SpawnParts,SpawnSign,MaxSpawnInd)
         use constants, only: size_n_int
 !This is an interface routine to the Direct Annihilation routines.
@@ -95,7 +96,6 @@ MODULE AnnihilationMod
         integer, intent(in) :: TotWalkersNew
         integer :: i
         INTEGER :: MaxIndex
-        INTEGER , POINTER :: PointTempSign(:)
         INTEGER(Kind=n_int) , POINTER :: PointTemp(:,:)
 !        WRITE(6,*) "Direct annihilation"
 !        CALL FLUSH(6)
@@ -110,23 +110,8 @@ MODULE AnnihilationMod
 
 !CompressSpawnedList works on SpawnedParts arrays, so swap the pointers around.
         PointTemp => SpawnedParts2
-        PointTempSign => SpawnedSign2
         SpawnedParts2 => SpawnedParts
-        SpawnedSign2 => SpawnedSign
         SpawnedParts => PointTemp
-        SpawnedSign => PointTempSign
-
-!        IF(associated(SpawnedParts2,target=SpawnVec2)) THEN
-!            SpawnedParts2 => SpawnVec
-!            SpawnedSign2 => SpawnSignVec
-!            SpawnedParts => SpawnVec2
-!            SpawnedSign => SpawnSignVec2
-!        ELSE
-!            SpawnedParts => SpawnVec
-!            SpawnedSign => SpawnSignVec
-!            SpawnedParts2 => SpawnVec2
-!            SpawnedSign2 => SpawnSignVec2
-!        ENDIF
 
 !Now we want to order and compress the spawned list of particles. This will also annihilate the newly spawned particles amongst themselves.
 !MaxIndex will change to reflect the final number of unique determinants in the newly-spawned list, and the particles will end up in the spawnedSign/SpawnedParts lists.
@@ -189,11 +174,17 @@ MODULE AnnihilationMod
 
 !We can now get recvdisps from recvcounts, since we want the data to be contiguous after the move.
         recvdisps(1)=0
+        recvcounts(1)=recvcounts(1)*(NIfTot+1)
+        disps(1)=disps(1)*(NIfTot+1)
+        sendcounts(1)=sendcounts(1)*(NIfTot+1)
         do i=2,nProcessors
-            recvdisps(i)=recvdisps(i-1)+recvcounts(i-1)
+            recvdisps(i)=(recvdisps(i-1)+recvcounts(i-1))*(NIfTot+1)
+            recvcounts(i)=recvcounts(i)*(NIfTot+1)
+            sendcounts(i)=sendcounts(i)*(NIfTot+1)
+            disps(i)=disps(i)*(NIfTot+1)
         enddo
 
-        MaxIndex=recvdisps(nProcessors)+recvcounts(nProcessors)
+        MaxIndex=(recvdisps(nProcessors)+recvcounts(nProcessors))/(NIfTot+1)
 !Max index is the largest occupied index in the array of hashes to be ordered in each processor 
         IF(MaxIndex.gt.(0.9*MaxSpawned)) THEN
             CALL Warning("SendProcNewParts","Maximum index of newly-spawned array is close to maximum length after annihilation send. Increase MemoryFacSpawn")
@@ -209,7 +200,7 @@ MODULE AnnihilationMod
 !        enddo
         
 !This is the main send of newly-spawned particles and signs to each determinants correct processor.
-        CALL MPIAlltoAllvI(SpawnedSign(1:MaxSendIndex),sendcounts,disps,SpawnedSign2(1:MaxIndex),recvcounts,recvdisps,error)
+!        CALL MPIAlltoAllvI(SpawnedSign(1:MaxSendIndex),sendcounts,disps,SpawnedSign2(1:MaxIndex),recvcounts,recvdisps,error)
         
 !        WRITE(6,*) MaxIndex, "Recieved signs: "
 !        do i=1,MaxIndex
@@ -217,12 +208,12 @@ MODULE AnnihilationMod
 !        enddo
 
 !Update the number of integers we need to send.
-        do i=1,nProcessors
-            sendcounts(i)=sendcounts(i)*(NIfTot+1)
-            disps(i)=disps(i)*(NIfTot+1)
-            recvcounts(i)=recvcounts(i)*(NIfTot+1)
-            recvdisps(i)=recvdisps(i)*(NIfTot+1)
-        enddo
+!        do i=1,nProcessors
+!            sendcounts(i)=sendcounts(i)*(NIfTot+1)
+!            disps(i)=disps(i)*(NIfTot+1)
+!            recvcounts(i)=recvcounts(i)*(NIfTot+1)
+!            recvdisps(i)=recvdisps(i)*(NIfTot+1)
+!        enddo
 
 !        WRITE(6,*) "Sent Particles: ", NINT(Gap),sendcounts(2)
 !        do i=NINT(Gap)+1,NINT(Gap)+sendcounts(2)
@@ -230,7 +221,7 @@ MODULE AnnihilationMod
 !            WRITE(6,*) i,"***",SpawnedParts(:,i)
 !        enddo
 #ifdef PARALLEL
-        CALL MPI_AlltoAllv(SpawnedParts(:,1:MaxSendIndex),sendcounts,disps,MpiDetInt,SpawnedParts2,recvcounts,recvdisps,MpiDetInt,MPI_COMM_WORLD,error)
+        CALL MPI_AlltoAllv(SpawnedParts(:,1:MaxSendIndex),sendcounts,disps,MpiDetInt,SpawnedParts2(:,1:MaxIndex),recvcounts,recvdisps,MpiDetInt,MPI_COMM_WORLD,error)
 #else
         SpawnedParts2(0:NIfTot,1:MaxIndex)=SpawnedParts(0:NIfTot,1:MaxSendIndex)
 #endif
