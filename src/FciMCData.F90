@@ -10,21 +10,17 @@ MODULE FciMCData
       INTEGER , PARAMETER :: Root=0   !This is the rank of the root processor
 
       INTEGER(KIND=n_int) , ALLOCATABLE , TARGET :: WalkVecDets(:,:)                !Contains determinant list
-      INTEGER , ALLOCATABLE , TARGET :: WalkVecSign(:)                    !Contains sign list (1 = positive, -1 = negative)
       REAL(KIND=dp) , ALLOCATABLE , TARGET :: WalkVecH(:)                    !Diagonal hamiltonian element
       INTEGER(KIND=n_int) , ALLOCATABLE , TARGET :: SpawnVec(:,:),SpawnVec2(:,:)
-      INTEGER , ALLOCATABLE , TARGET :: SpawnSignVec(:),SpawnSignVec2(:)
     
-      INTEGER :: WalkVecDetsTag=0,WalkVecSignTag=0
+      INTEGER :: WalkVecDetsTag=0
       INTEGER :: WalkVecHTag=0
-      INTEGER :: SpawnVecTag=0,SpawnVec2Tag=0,SpawnSignVecTag=0,SpawnSignVec2Tag=0
+      INTEGER :: SpawnVecTag=0,SpawnVec2Tag=0
 
 !Pointers to point at the correct arrays for use
       INTEGER(KIND=n_int) , POINTER :: CurrentDets(:,:)
-      INTEGER , POINTER :: CurrentSign(:)
       REAL*8 , POINTER :: CurrentH(:)
       INTEGER(KIND=n_int) , POINTER :: SpawnedParts(:,:),SpawnedParts2(:,:)
-      INTEGER , POINTER :: SpawnedSign(:),SpawnedSign2(:)
 
       INTEGER :: ParentInitiator                                !This is a variable for the CASSTAR approximation - keeps track of where spawned walkers have come from.
       INTEGER :: NoAbortedInCAS,NoAbortedOutCAS,NoInCAS,NoOutCAS,HighPopNeg,HighPopPos,MaxInitPopNeg,MaxInitPopPos
