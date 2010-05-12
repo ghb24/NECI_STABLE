@@ -3,11 +3,16 @@ module util_mod
     use util_mod_cpts
     use constants, only: dp
     implicit none
-    private
 
-    public :: swap, arr_lt, arr_gt, operator(.arrlt.), operator(.arrgt.)
-    public :: factrl, choose, int_fmt, binary_search
-    public :: append_ext, get_unique_filename, get_nan, isnan
+    ! sds: It would be nice to use a proper private/public interface here,
+    !      BUT PGI throws a wobbly on using the public definition on
+    !      a new declared operator. --> "Empty Operator" errors!
+    !      to fix when compilers work!
+!    private
+
+!    public :: swap, arr_lt, arr_gt, operator(.arrlt.), operator(.arrgt.)
+!    public :: factrl, choose, int_fmt, binary_search
+!    public :: append_ext, get_unique_filename, get_nan, isnan
     
 contains
 

@@ -11,7 +11,7 @@ module DetBitOps
 
 #ifdef __INT64
     INTEGER(KIND=n_int), PARAMETER :: MaskBeta=Z'5555555555555555'              !This is 1010101... in binary
-    INTEGER(KIND=n_int), PARAMETER :: MaskAlpha=IShftC(MaskBeta,1,bits_n_int)   !This is 0101010... in binary
+    INTEGER(KIND=n_int), PARAMETER :: MaskAlpha=IShft(MaskBeta,1)   !This is 0101010... in binary  
 #else
     INTEGER(KIND=n_int), PARAMETER :: MaskBeta=1431655765    !This is 1010101... in binary
     INTEGER(KIND=n_int), PARAMETER :: MaskAlpha=-1431655766  !This is 0101010... in binary

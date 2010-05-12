@@ -14,3 +14,5 @@ Compiler bugs
    while retaining the path to put compiled .mod files.
    An alternative workaround is to manually add the MPI library path to the
    search path using -I.
+3. PGI has issues with custom operators and public/private declarations in modules.
+   If these go away, remove the comments from the relevant sections of util_mod.
