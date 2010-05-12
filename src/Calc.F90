@@ -1838,7 +1838,7 @@ MODULE Calc
                WRITE(iunit,*) "Calculating ",NPATHS," W_Is..."
                CLOSE(iunit)
             ENDIF
-            OPEN(15,FILE='RHOPII',STATUS='UNKNOWN')
+            OPEN(iunit,FILE='RHOPII',STATUS='UNKNOWN')
          ENDIF
          IF(DETINV.NE.0) THEN
             ISTART=ABS(DETINV)
@@ -1875,9 +1875,9 @@ MODULE Calc
             CALL MCPATHSR3(NI,BETA,I_P,I_HMAX,I_VMAX,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY, &
      &         RHOEPS,LSTE,ICE,RIJLIST,NWHTAY,ILOGGING,ECORE,ILMAX,WLRI,WLSI,DBETA,DLWDB2)
             IF(TLOG) THEN
-               WRITE(15,"(I12)",advance='no') III
-               call write_det (15, NI, .false.)
-               WRITE(15,"(3G25.16)",advance='no') EXP(WLSI+HElP*WLRI),WLRI*HElP,WLSI
+               WRITE(iunit,"(I12)",advance='no') III
+               call write_det (iunit, NI, .false.)
+               WRITE(iunit,"(3G25.16)",advance='no') EXP(WLSI+HElP*WLRI),WLRI*HElP,WLSI
             ENDIF
             IF(TFIRST) THEN
                TFIRST=.FALSE.
@@ -1899,9 +1899,9 @@ MODULE Calc
             WINORM=EXP(HElP*(WLRI-WLRI0)+(WLSI-WLSI0))
             NORM=NORM+(IDEG)*WINORM
             TOT=TOT+(IDEG)*WINORM*DLWDB
-            IF(TLOG) WRITE(15,"(G25.16,I5)") DLWDB,IDEG
+            IF(TLOG) WRITE(iunit,"(G25.16,I5)") DLWDB,IDEG
             IF(DETINV.EQ.III) THEN
-               IF(TLOG) CALL FLUSH(15)
+               IF(TLOG) CALL FLUSH(iunit)
                WRITE(6,*) "Investigating det ",DETINV
                CALL FLUSH(6)
                CALL WIRD_SUBSET(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY, &
@@ -1912,7 +1912,7 @@ MODULE Calc
                III=III-1
            ENDIF
           ENDDO
-         IF(TLOG) CLOSE(15)
+         IF(TLOG) CLOSE(iunit)
          IF(TFIRST) THEN
             WRITE(6,*) "*** NO determinants found to calculate***"
          ELSE

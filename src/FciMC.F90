@@ -15,7 +15,7 @@ USE Logging , only : iWritePopsEvery,TPopsFile,TZeroProjE,TWriteDetE,MaxHistE,No
 use constants, only: dp
 use DetBitOps, only: EncodeBitDet
 use constants, only: dp
-use FciMCData, only: ExcitGenerator, HFExcit
+use FciMCData, only: ExcitGenerator, HFExcit, fcimcstats_unit
 use sort_mod
 IMPLICIT NONE
 SAVE
@@ -100,15 +100,15 @@ WRITE(6,*) ""
 !TotWalkersOld is the number of walkers last time the shift was changed
 IF(TProjEMP2) THEN
     WRITE(6,*) "       Step     Shift   WalkerCng   GrowRate    TotWalkers  Annihil NoDied NoBorn   Proj.E        Proj.MP2      NoatHF NoatDoubs  <s>          AccRat     AvConn         MeanEx  MinEx MaxEx"
-    WRITE(15,*) "#       Step     Shift   WalkerCng   GrowRate    TotWalkers  Annihil NoDied NoBorn   Proj.E        Proj.MP2      NoatHF NoatDoubs  <s>          AccRat     AvConn         MeanEx  MinEx MaxEx"
-    WRITE(15,"(I12,G15.6,I7,G15.6,I10,3I7,2G15.6,2I9,4G14.6,2I6)") PreviousCycles+Iter,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,Annihilated,NoDied,NoBorn,   &
+    WRITE(fcimcstats_unit,*) "#       Step     Shift   WalkerCng   GrowRate    TotWalkers  Annihil NoDied NoBorn   Proj.E        Proj.MP2      NoatHF NoatDoubs  <s>          AccRat     AvConn         MeanEx  MinEx MaxEx"
+    WRITE(fcimcstats_unit,"(I12,G15.6,I7,G15.6,I10,3I7,2G15.6,2I9,4G14.6,2I6)") PreviousCycles+Iter,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,Annihilated,NoDied,NoBorn,   &
     &          ProjectionE,ProjectionMP2,NoatHF,NoatDoubs,AvSign,AccRat,0.D0,MeanExcitLevel,MaxExcitLevel,MinExcitLevel
     WRITE(6,"(I12,G15.6,I7,G15.6,I10,3I7,2G15.6,2I9,4G14.6,2I6)") PreviousCycles+Iter,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,Annihilated,NoDied,NoBorn,    &
     &          ProjectionE,ProjectionMP2,NoatHF,NoatDoubs,AvSign,AccRat,0.D0,MeanExcitLevel,MaxExcitLevel,MinExcitLevel
 ELSE
     WRITE(6,*) "       Step     Shift   WalkerCng   GrowRate    TotWalkers  Annihil NoDied NoBorn   Proj.E        NoatHF NoatDoubs  <s>          AccRat     AvConn         MeanEx     MinEx MaxEx"
-    WRITE(15,*) "#      Step     Shift   WalkerCng   GrowRate    TotWalkers  Annihil NoDied NoBorn   Proj.E        NoatHF NoatDoubs  <s>          AccRat     AvConn         MeanEx     MinEx MaxEx"
-    WRITE(15,"(I12,G15.6,I7,G15.6,I10,3I7,G15.6,2I9,4G14.6,2I6)") PreviousCycles+Iter,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,Annihilated,NoDied,NoBorn,   &
+    WRITE(fcimcstats_unit,*) "#      Step     Shift   WalkerCng   GrowRate    TotWalkers  Annihil NoDied NoBorn   Proj.E        NoatHF NoatDoubs  <s>          AccRat     AvConn         MeanEx     MinEx MaxEx"
+    WRITE(fcimcstats_unit,"(I12,G15.6,I7,G15.6,I10,3I7,G15.6,2I9,4G14.6,2I6)") PreviousCycles+Iter,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,Annihilated,NoDied,NoBorn,   &
     &          ProjectionE,NoatHF,NoatDoubs,AvSign,AccRat,0.D0,MeanExcitLevel,MaxExcitLevel,MinExcitLevel
     WRITE(6,"(I12,G15.6,I7,G15.6,I10,3I7,G15.6,2I9,4G14.6,2I6)") PreviousCycles+Iter,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,Annihilated,NoDied,NoBorn,    &
     &          ProjectionE,NoatHF,NoatDoubs,AvSign,AccRat,0.D0,MeanExcitLevel,MaxExcitLevel,MinExcitLevel
@@ -151,7 +151,7 @@ Energyxw=(ProjectionE)
 !Deallocate memory
 CALL DeallocFCIMCMem()
 
-CLOSE(15)
+CLOSE(fcimcstats_unit)
 
 RETURN
 
@@ -1099,18 +1099,18 @@ SUBROUTINE PerformFCIMCyc()
 
 !Write out MC cycle number, Shift, Change in Walker no, Growthrate, New Total Walkers...
         IF(TProjEMP2) THEN
-            WRITE(15,"(I12,G15.6,I7,G15.6,I10,3I7,2G15.6,2I9,4G14.6,2I6)") PreviousCycles+Iter,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,Annihilated,NoDied,NoBorn,ProjectionE,  &
+            WRITE(fcimcstats_unit,"(I12,G15.6,I7,G15.6,I10,3I7,2G15.6,2I9,4G14.6,2I6)") PreviousCycles+Iter,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,Annihilated,NoDied,NoBorn,ProjectionE,  &
      &         ProjectionMP2,NoatHF,NoatDoubs,AvSign,AccRat,AvConnection,MeanExcitLevel,MinExcitLevel,MaxExcitLevel
             WRITE(6,"(I12,G15.6,I7,G15.6,I10,3I7,2G15.6,2I9,4G14.6,2I6)") PreviousCycles+Iter,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,Annihilated,NoDied,NoBorn,ProjectionE,   &
      &         ProjectionMP2,NoatHF,NoatDoubs,AvSign,AccRat,AvConnection,MeanExcitLevel,MinExcitLevel,MaxExcitLevel
         ELSE
-            WRITE(15,"(I12,G15.6,I7,G15.6,I10,3I7,G15.6,2I9,4G14.6,2I6)") PreviousCycles+Iter,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,Annihilated,NoDied,NoBorn,ProjectionE,  &
+            WRITE(fcimcstats_unit,"(I12,G15.6,I7,G15.6,I10,3I7,G15.6,2I9,4G14.6,2I6)") PreviousCycles+Iter,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,Annihilated,NoDied,NoBorn,ProjectionE,  &
      &         NoatHF,NoatDoubs,AvSign,AccRat,AvConnection,MeanExcitLevel,MinExcitLevel,MaxExcitLevel
             WRITE(6,"(I12,G15.6,I7,G15.6,I10,3I7,G15.6,2I9,4G14.6,2I6)") PreviousCycles+Iter,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,Annihilated,NoDied,NoBorn,ProjectionE,   &
      &         NoatHF,NoatDoubs,AvSign,AccRat,AvConnection,MeanExcitLevel,MinExcitLevel,MaxExcitLevel
         ENDIF
 !        WRITE(6,*) SumHOverlapMP2,SumOverlapMP2
-        CALL FLUSH(15)
+        CALL FLUSH(fcimcstats_unit)
         CALL FLUSH(6)
 
 !Now need to reinitialise all variables
@@ -1781,6 +1781,7 @@ SUBROUTINE PerformFCIMCyc()
     SUBROUTINE InitFCIMCCalc()
         use CalcData, only : EXCITFUNCS
         use HElem
+        use util_mod, only: get_free_unit
         INTEGER :: ierr,i,j,k,l,DetCurr(NEl),ReadWalkers,TotWalkersDet
         INTEGER :: DetLT,VecSlot,error,HFConn
         INTEGER*8 :: MemoryAlloc
@@ -1793,11 +1794,12 @@ SUBROUTINE PerformFCIMCyc()
         ENDIF
 
 !Open a file to store output
+        fcimcstats_unit = get_free_unit()
         if (tReadPops) then
             ! Restarting: append to FCIMCStats (if it exists)
-            OPEN(15,file='FCIMCStats',status='unknown', access='append')
+            OPEN(fcimcstats_unit,file='FCIMCStats',status='unknown', access='append')
         else
-            OPEN(15,file='FCIMCStats',status='unknown')
+            OPEN(fcimcstats_unit,file='FCIMCStats',status='unknown')
         end if
 
         ALLOCATE(HFDet(NEl),stat=ierr)
@@ -4085,15 +4087,15 @@ END FUNCTION Fact
 !                
 !            WRITE(6,*) ""
 !            WRITE(6,*) "    Step   Components   WalkersOnDet   Expected"
-!            WRITE(15,*) "#    Step   Components   WalkersOnDet   Expected"
+!            WRITE(fcimcstats_unit,*) "#    Step   Components   WalkersOnDet   Expected"
 !
 !            do i=1,NoComps
 !                InitPops(i)=abs(nint(Eigenvector(i)*GrowFactor))
 !                WRITE(6,"(2I9,2G16.7)") 0,i,InitPops(i),InitPops(i)
-!                WRITE(15,"(2I9,2G16.7)") 0,1,InitPops(i),InitPops(i)
+!                WRITE(fcimcstats_unit,"(2I9,2G16.7)") 0,1,InitPops(i),InitPops(i)
 !            enddo
 !            WRITE(6,*) ""
-!            WRITE(15,*) ""
+!            WRITE(fcimcstats_unit,*) ""
 !
 !!Can deallocate the eigenvector, but we want to keep the ExcitStore in order to compare the populations at a later date
 !            DEALLOCATE(Eigenvector)
@@ -4315,7 +4317,7 @@ END FUNCTION Fact
 !                
 !                WRITE(6,*) ""
 !                WRITE(6,*) "    Step   Components   WalkersOnDet   Expected"
-!                WRITE(15,*) "#    Step   Components   WalkersOnDet   Expected"
+!                WRITE(fcimcstats_unit,*) "#    Step   Components   WalkersOnDet   Expected"
 !
 !                ALLOCATE(InitPops(1),stat=ierr)
 !                CALL LogMemAlloc('InitPops',1,4,this_routine,InitPopsTag)
@@ -4328,7 +4330,7 @@ END FUNCTION Fact
 !                enddo
 !                InitPops(1)=InitWalkers
 !                WRITE(6,"(2I9,2G16.7)") 0,1,InitWalkers,InitWalkers
-!                WRITE(15,"(2I9,2G16.7)") 0,1,InitWalkers,InitWalkers
+!                WRITE(fcimcstats_unit,"(2I9,2G16.7)") 0,1,InitWalkers,InitWalkers
 !
 !            ELSEIF(TDetPops) THEN
 !                
@@ -4807,10 +4809,10 @@ END FUNCTION Fact
 !
 !        WRITE(6,*) "Performing MC Diffusion with ",InitWalkers," walkers."
 !        WRITE(6,*) " Iteration   Shift    ExpectedGrowthRate   ProjectionE"
-!        WRITE(15,*) "# Iteration   Shift    ExpectedGrowthRate   ProjectionE"
+!        WRITE(fcimcstats_unit,*) "# Iteration   Shift    ExpectedGrowthRate   ProjectionE"
 !        
 !        WRITE(6,"(I9,3G16.7)") 0,DiagSft,0.D0,0.D0
-!        WRITE(15,"(I9,3G16.7)") 0,DiagSft,0.D0,0.D0
+!        WRITE(fcimcstats_unit,"(I9,3G16.7)") 0,DiagSft,0.D0,0.D0
 !
 !!Need to store excitation generators for each of the particles
 !        ALLOCATE(ExcitGens(InitWalkers),stat=ierr)     !Array to hold excitation generators for each walker
@@ -4951,10 +4953,10 @@ END FUNCTION Fact
 !                SumDeathProb=0.D0
 !                            
 !                WRITE(6,"(I9,3G16.7)") Iter,DiagSft,GrowRate,ProjectionE
-!                WRITE(15,"(I9,3G16.7)") Iter,DiagSft,GrowRate,ProjectionE
+!                WRITE(fcimcstats_unit,"(I9,3G16.7)") Iter,DiagSft,GrowRate,ProjectionE
 !
 !                CALL FLUSH(6)
-!                CALL FLUSH(15)
+!                CALL FLUSH(fcimcstats_unit)
 !
 !            ENDIF
 !

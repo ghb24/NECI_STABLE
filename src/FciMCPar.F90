@@ -233,8 +233,8 @@ MODULE FciMCParMod
         CALL DeallocFCIMCMemPar()
 
         IF(iProcIndex.eq.Root) THEN
-            CLOSE(15)
-            IF(tTruncInitiator.or.tDelayTruncInit) CLOSE(16)
+            CLOSE(fcimcstats_unit)
+            IF(tTruncInitiator.or.tDelayTruncInit) CLOSE(initiatorstats_unit)
         ENDIF
         IF(TDebug) CLOSE(11)
 
@@ -2816,8 +2816,8 @@ MODULE FciMCParMod
         
         CALL DeallocFCIMCMemPar()
         IF(iProcIndex.eq.Root) THEN
-            CLOSE(15)
-            IF(tTruncInitiator.or.tDelayTruncInit) CLOSE(16)
+            CLOSE(fcimcstats_unit)
+            IF(tTruncInitiator.or.tDelayTruncInit) CLOSE(initiatorstats_unit)
 !            IF(TAutoCorr) CLOSE(44)
         ENDIF
         IF(TDebug) CLOSE(11)
@@ -4019,12 +4019,12 @@ MODULE FciMCParMod
 !Print out initial starting configurations
             WRITE(6,*) ""
             IF(tTruncInitiator.or.tDelayTruncInit) THEN
-                WRITE(16,"(A2,A10,2A15,2A16,2A20,5A18)") "# ","Step","No Aborted","NoAddedtoInit","FracDetsInit","FracWalksInit","NoDoubSpawns","NoExtraDoubs","InstAbortShift","AvAbortShift",&
+                WRITE(initiatorstats_unit,"(A2,A10,2A15,2A16,2A20,5A18)") "# ","Step","No Aborted","NoAddedtoInit","FracDetsInit","FracWalksInit","NoDoubSpawns","NoExtraDoubs","InstAbortShift","AvAbortShift",&
 &               "NoInitDets","NoNonInitDets","InitRemoved"
 
             ENDIF
             WRITE(6,"(A)") "       Step     Shift      WalkerCng    GrowRate       TotWalkers    Annihil    NoDied    NoBorn    Proj.E          Av.Shift     Proj.E.ThisCyc   NoatHF NoatDoubs      AccRat     UniqueDets     IterTime"
-            WRITE(15,"(A)") "#     1.Step   2.Shift    3.WalkerCng  4.GrowRate     5.TotWalkers  6.Annihil  7.NoDied  8.NoBorn  9.Proj.E       10.Av.Shift"&
+            WRITE(fcimcstats_unit,"(A)") "#     1.Step   2.Shift    3.WalkerCng  4.GrowRate     5.TotWalkers  6.Annihil  7.NoDied  8.NoBorn  9.Proj.E       10.Av.Shift"&
 &           // " 11.Proj.E.ThisCyc  12.NoatHF 13.NoatDoubs  14.AccRat  15.UniqueDets  16.IterTime 17.FracSpawnFromSing  18.WalkersDiffProc  19.TotImagTime  20.ProjE.ThisIter "&
 &           // " 21.HFInstShift  22.TotInstShift  23.Tot-Proj.E.ThisCyc"
             
@@ -4036,20 +4036,20 @@ MODULE FciMCParMod
 
         IF(iProcIndex.eq.root) THEN
 
-            WRITE(15,"(I12,G16.7,I10,G16.7,I12,3I13,3G17.9,2I10,G13.5,I12,G13.5,G17.5,I13,G13.5,4G17.9)") Iter+PreviousCycles,DiagSft,INT(AllTotParts-AllTotPartsOld,int64),AllGrowRate,   &
+            WRITE(fcimcstats_unit,"(I12,G16.7,I10,G16.7,I12,3I13,3G17.9,2I10,G13.5,I12,G13.5,G17.5,I13,G13.5,4G17.9)") Iter+PreviousCycles,DiagSft,INT(AllTotParts-AllTotPartsOld,int64),AllGrowRate,   &
   &                INT(AllTotParts,int64),AllAnnihilated,AllNoDied,AllNoBorn,ProjectionE,AvDiagSft,AllENumCyc/AllHFCyc,AllNoatHF,AllNoatDoubs,AccRat,INT(AllTotWalkers,int64),IterTime,   &
   &                REAL(AllSpawnFromSing)/REAL(AllNoBorn),WalkersDiffProc,TotImagTime,IterEnergy,HFShift,InstShift,AllENumCyc/AllHFCyc+Hii
             WRITE(6,"(I12,G16.7,I10,G16.7,I12,3I11,3G17.9,2I10,G13.5,I12,G13.5)") Iter+PreviousCycles,DiagSft,INT(AllTotParts-AllTotPartsOld,int64),AllGrowRate,    &
   &                INT(AllTotParts,int64),AllAnnihilated,AllNoDied,AllNoBorn,ProjectionE,AvDiagSft,AllENumCyc/AllHFCyc,AllNoatHF,AllNoatDoubs,AccRat,INT(AllTotWalkers,int64),IterTime
 
             IF(tTruncInitiator.or.tDelayTruncInit) THEN
-                WRITE(16,"(I12,4G16.7,2F20.1,2F18.7,3F18.1)") Iter+PreviousCycles,AllNoAborted,AllNoAddedInitiators,(REAL(AllNoInitDets)/REAL(AllNoNonInitDets)),&
+                WRITE(initiatorstats_unit,"(I12,4G16.7,2F20.1,2F18.7,3F18.1)") Iter+PreviousCycles,AllNoAborted,AllNoAddedInitiators,(REAL(AllNoInitDets)/REAL(AllNoNonInitDets)),&
  &              (REAL(AllNoInitWalk)/REAL(AllNoNonInitWalk)),AllNoDoubSpawns,AllNoExtraInitDoubs,DiagSftAbort,AvDiagSftAbort,AllNoInitDets,AllNoNonInitDets,AllInitRemoved
             ENDIF
 
             
             CALL FLUSH(6)
-            CALL FLUSH(15)
+            CALL FLUSH(fcimcstats_unit)
             
         ENDIF
 
@@ -4073,6 +4073,7 @@ MODULE FciMCParMod
         use SymExcit3, only : CountExcitations3 
         use DetBitOps, only: CountBits
         use constants, only: bits_n_int
+        use util_mod, only: get_free_unit
         use HElem
         INTEGER :: ierr,i,j,k,l,DetCurr(NEl),ReadWalkers,TotWalkersDet,HFDetTest(NEl),Seed,alpha,beta,symalpha,symbeta,endsymstate
         INTEGER :: DetLT,VecSlot,error,HFConn,MemoryAlloc,iMaxExcit,nStore(6),nJ(Nel),BRR2(nBasis),LargestOrb,nBits,HighEDet(NEl)
@@ -4114,13 +4115,14 @@ MODULE FciMCParMod
         ENDIF
         
         IF(iProcIndex.eq.Root) THEN
+            fcimcstats_unit = get_free_unit()
             if (tReadPops) then
                 ! Restart calculation.  Append to stats file (if it exists).
-                OPEN(15,file='FCIMCStats',status='unknown',access='append')
+                OPEN(fcimcstats_unit,file='FCIMCStats',status='unknown',access='append')
             else
-                OPEN(15,file='FCIMCStats',status='unknown')
+                OPEN(fcimcstats_unit,file='FCIMCStats',status='unknown')
             end if
-            IF(tTruncInitiator.or.tDelayTruncInit) OPEN(16,file='INITIATORStats',status='unknown')
+            IF(tTruncInitiator.or.tDelayTruncInit) OPEN(initiatorstats_unit,file='INITIATORStats',status='unknown')
         ENDIF
 
 !Store information specifically for the HF determinant
