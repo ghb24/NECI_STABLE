@@ -15,6 +15,7 @@ module Integrals
     use gen_coul_ueg_mod, only: gen_coul_hubnpbc, get_ueg_umat_el, &
                                 get_hub_umat_el
     use HElem, only: HElement_t_size, HElement_t_sizeB
+    use Parallel, only: iProcIndex
 
     implicit none
 
@@ -551,7 +552,7 @@ contains
          call shared_allocate ("umat", umat, (/UMatInt/))
          !Allocate(UMat(UMatInt), stat=ierr)
          LogAlloc(ierr, 'UMat', UMatInt,HElement_t_SizeB, tagUMat)
-         UMat = 0.d0
+         if (iprocindex == 0) UMat = 0.d0
          CALL SETUPUMAT2D_DF()
          IF(TBIN) THEN
              CALL READFCIINTBIN(UMAT,NBASIS,ECORE,ARR,BRR,G1)
@@ -573,7 +574,7 @@ contains
          call shared_allocate ("umat", umat, (/UMatInt/))
          !Allocate(UMat(UMatInt), stat=ierr)
          LogAlloc(ierr, 'UMat', UMatInt,HElement_t_SizeB, tagUMat)
-         UMat = 0.d0
+         if (iprocindex == 0) UMat = 0.d0
 !nBasisMax(2,3) is iSpinSkip = 1 if UHF and 2 if RHF/ROHF
          CALL SetupTMAT(nBasis,iSpinSkip,TMATINT)
          IF(TBIN) THEN

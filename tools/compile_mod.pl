@@ -257,7 +257,7 @@ sub TEST_RECOMPILE {
       if (/\.$mod_ext/i) { # if .mod file, check whether .time file exists too.
         ($filename = $item) =~ s/\.$mod_ext/.time/is ;
         -e $filename || do { $recompile = 1;
-                       print STDERR "Target $item does not exist, compilation forced.\n";
+                       print STDERR "Target $item ($filename) does not exist, compilation forced.\n";
                        last; };
       }
     }
@@ -278,7 +278,7 @@ sub TEST_RECOMPILE {
       if (/\.$mod_ext/i) { # if .mod file, check whether .time file exists too.
         ($filename = $item) =~ s/\.$mod_ext/.time/is ;
         -e $filename || do { $recompile = 1;
-                       print STDERR "Prerequisite $item does not exist, compilation forced.\n";
+                       print STDERR "Prerequisite $item ($filename) does not exist, compilation forced.\n";
                        last; };
       }
     }

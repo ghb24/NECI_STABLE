@@ -1917,12 +1917,12 @@ MODULE FciMCParMod
         INTEGER*8 :: NodeSumNoatHF(nProcessors),TempAllSumNoatHF
         REAL*8 :: TempTotParts,TempCurrWalkers
         INTEGER :: TempInitWalkers,error,i,j,k,l,total,ierr,MemoryAlloc,Tag,TempSign,Proc,CurrWalkers,ii
-        INTEGER*8 :: iLutTemp64(0:NIfTot)
-        INTEGER :: iLutTemp32(0:NIfTot)
+        INTEGER*8 :: iLutTemp64(0:nBasis/64+1)
+        INTEGER :: iLutTemp32(0:nBasis/32+1)
         INTEGER(KIND=n_int) :: iLutTemp(0:NIfTot)
         INTEGER :: Stat(MPI_STATUS_SIZE),AvSumNoatHF,VecSlot,IntegerPart,HFPointer,TempnI(NEl),ExcitLevel
         INTEGER :: VecInd,DetsMerged,NIfWriteOut,pos,orb,PopsVersion
-        REAL*8 :: r,FracPart,TempTotWalkers,Gap
+        REAL*8 :: r,FracPart,TempTotWalkers,Gap,DiagSftTemp
         HElement_t :: HElemTemp
         CHARACTER(len=*), PARAMETER :: this_routine='ReadFromPopsfilePar'
         character(255) :: popsfile,FirstLine
@@ -1987,7 +1987,7 @@ MODULE FciMCParMod
             WRITE(6,'(A)') "Reading in from depreciated POPSFILE - assuming that parameters are the same as when POPSFILE was written"
         ENDIF
         READ(17,*) AllTotWalkers
-        READ(17,*) DiagSft
+        READ(17,*) DiagSftTemp
         READ(17,*) TempAllSumNoatHF     !AllSumNoatHF stored as integer for compatability with serial POPSFILEs
         READ(17,*) AllSumENum
         READ(17,*) PreviousCycles
@@ -1998,7 +1998,15 @@ MODULE FciMCParMod
             ENDIF
         ENDIF
 
-        IF(DiagSft.eq.0.D0) tWalkContGrow=.true.
+        IF(.not.tWalkContGrow) THEN
+!If we want the walker number to continue growing, then take the diagonal shift from the input, rather than the POPSFILE.
+            DiagSft=DiagSftTemp
+        ENDIF
+
+        IF(DiagSftTemp.eq.0.D0) THEN
+            tWalkContGrow=.true.
+            DiagSft=DiagSftTemp
+        ENDIF
 
         IF(tBinRead) THEN
 !Test for the end of the file.
@@ -2172,6 +2180,15 @@ MODULE FciMCParMod
             tPop64BitDets=.false.
             NIfWriteOut=nBasis/32
             IF(tTruncInitiator) NIfWriteOut=NIfWriteOut+1
+	ELSE
+	    IF(.not.tPop64BitDets) THEN
+                NIfWriteOut=nBasis/32
+                IF(tTruncInitiator) NIfWriteOut=NIfWriteOut+1
+	    ELSE
+		NIfWriteOut=nBasis/64
+                IF(tTruncInitiator) NIfWriteOut=NIfWriteOut+1
+	    ENDIF
+		
         ENDIF
 
         CurrWalkers=0
@@ -2180,15 +2197,15 @@ MODULE FciMCParMod
             IF(PopsVersion.ne.1) THEN
                 IF(tBinRead) THEN
                     IF(tPop64BitDets) THEN
-                        READ(17) iLutTemp64(0:NIfD),TempSign
+                        READ(17) iLutTemp64(0:NIfWriteOut),TempSign
                     ELSE
-                        READ(17) iLutTemp32(0:NIfD),TempSign
+                        READ(17) iLutTemp32(0:NIfWriteOut),TempSign
                     ENDIF
                 ELSE
                     IF(tPop64BitDets) THEN
-                        READ(17,*) iLutTemp64(0:NIfD),TempSign
+                        READ(17,*) iLutTemp64(0:NIfWriteOut),TempSign
                     ELSE
-                        READ(17,*) iLutTemp32(0:NIfD),TempSign
+                        READ(17,*) iLutTemp32(0:NIfWriteOut),TempSign
                     ENDIF
                 ENDIF
             ELSE
@@ -2207,6 +2224,10 @@ MODULE FciMCParMod
                     do j=0,31
                         if(btest(iLutTemp32(ii),j)) then
                            orb=(ii*32)+j+1
+!			   IF(orb.lt.1.or.orb.gt.56) THEN
+!				WRITE(6,*) orb
+!				CALL FLUSH(6)
+!			   ENDIF
                            pos=(orb-1)/bits_n_int
                            iLutTemp(pos)=ibset(iLutTemp(pos),mod(orb-1,bits_n_int))
                        endif
@@ -2214,7 +2235,7 @@ MODULE FciMCParMod
                enddo
 
             ELSE
-                iLutTemp(:)=iLutTemp64(:)
+                iLutTemp(0:NIfD)=iLutTemp64(0:NIfD)
             ENDIF
 
 #else
@@ -2231,10 +2252,13 @@ MODULE FciMCParMod
                enddo
 
             ELSE
-                iLutTemp(:)=iLutTemp32(:)
+                iLutTemp(0:NIfD)=iLutTemp32(0:NIfD)
             ENDIF
         
 #endif
+            CALL DecodeBitDet(TempnI,iLutTemp)
+!	     WRITE(6,*) TempnI
+!	     CALL FLUSH(6)
             Proc=DetermineDetProc(iLutTemp)   !This wants to return a value between 0 -> nProcessors-1
             IF((Proc.eq.iProcIndex).and.(abs(TempSign).ge.iWeightPopRead)) THEN
                 CurrWalkers=CurrWalkers+1

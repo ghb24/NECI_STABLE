@@ -1021,7 +1021,7 @@ MODULE AnnihilationMod
 !Order the array by abs(mod(Hash,nProcessors)). This will result in a more load-balanced system (no need to actually take ProcessVec1 - this will always be iProcIndex here.
 
             HashArrayTmp(1:ValidSpawned) = &
-                        abs(mod(HashArray1(1:ValidSpawned), nProcessors))
+                        abs(mod(HashArray1(1:ValidSpawned), int(nProcessors,8)))
             call sort (HashArrayTmp(1:ValidSpawned), &
                        HashArray1(1:ValidSpawned), &
                        IndexTable1(1:ValidSpawned), &
