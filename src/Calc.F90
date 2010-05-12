@@ -1282,6 +1282,7 @@ MODULE Calc
           use IntegralsData, only: HFEDelta, HFMix,nTay
           Use Logging, only: iLogging
           use Parallel_Calc
+          use util_mod, only: get_free_unit
 
 !Calls
 !          REAL*8 DMonteCarlo2
@@ -1290,7 +1291,7 @@ MODULE Calc
           REAL*8 FLRI, FLSI
           REAL*8 RH
           LOGICAL tWarn
-          integer iSeed
+          integer iSeed,iunit
           iSeed=7 
 
 !C.. we need to calculate a value for RHOEPS, so we approximate that
@@ -1314,15 +1315,16 @@ MODULE Calc
 !     &               NTAY,RHOEPS,NWHTAY,ECORE)
 !             ENDIF
              WRITE(6,*) "Calculating ",NPATHS," W_Is..."
+             iunit =get_free_unit()
              IF(BTEST(ILOGGING,1)) THEN
                 IF(I_HMAX.EQ.-10) THEN
-                   OPEN(11,FILE="MCSUMMARY",STATUS="UNKNOWN")
-                   WRITE(11,*) "Calculating ",NPATHS," W_Is..."
-                   CLOSE(11)
+                   OPEN(iunit,FILE="MCSUMMARY",STATUS="UNKNOWN")
+                   WRITE(iunit,*) "Calculating ",NPATHS," W_Is..."
+                   CLOSE(iunit)
                 ELSE
-                   OPEN(11,FILE="MCPATHS",STATUS="UNKNOWN")
-                   WRITE(11,*) "Calculating ",NPATHS," W_Is..."
-                   CLOSE(11)
+                   OPEN(iunit,FILE="MCPATHS",STATUS="UNKNOWN")
+                   WRITE(iunit,*) "Calculating ",NPATHS," W_Is..."
+                   CLOSE(iunit)
                 ENDIF
              ENDIF
              IF(NTAY(1).GT.0) THEN
@@ -1757,6 +1759,7 @@ MODULE Calc
      &            TSPECDET,SPECDET,nActiveBasis)
          use constants, only: dp
          use global_utilities
+         use util_mod, only: get_free_unit 
          use SystemData, only: BasisFN,BasisFNSize
          use legacy_data, only: irat
          use CalcData, only: tFCIMC
@@ -1784,7 +1787,7 @@ MODULE Calc
          real(dp) TOT,WLRI0,WLSI0,WINORM,HElP,NORM
          LOGICAL TNPDERIV,TDONE,TFIRST
          INTEGER DETINV
-         INTEGER ISTART,IEND,IDEG
+         INTEGER ISTART,IEND,IDEG,iunit
          LOGICAL TSPECDET,TLOG
          INTEGER SPECDET(NEL)
          real(dp) DLWDB2,DLWDB3,DLWDB4,TOT2
@@ -1823,14 +1826,15 @@ MODULE Calc
             WRITE(6,*) "I_HMAX=I_VMAX=0. Using rho diagonalisation."
          ENDIF
          IF(TLOG) THEN
+           iunit = get_free_unit()
             IF(I_HMAX.EQ.-10) THEN
-               OPEN(11,FILE="MCSUMMARY",STATUS="UNKNOWN")
-               WRITE(11,*) "Calculating ",NPATHS," W_Is..."
-               CLOSE(11)
+               OPEN(iunit,FILE="MCSUMMARY",STATUS="UNKNOWN")
+               WRITE(iunit,*) "Calculating ",NPATHS," W_Is..."
+               CLOSE(iunit)
             ELSE
-               OPEN(11,FILE="MCPATHS",STATUS="UNKNOWN")
-               WRITE(11,*) "Calculating ",NPATHS," W_Is..."
-               CLOSE(11)
+               OPEN(iunit,FILE="MCPATHS",STATUS="UNKNOWN")
+               WRITE(iunit,*) "Calculating ",NPATHS," W_Is..."
+               CLOSE(iunit)
             ENDIF
             OPEN(15,FILE='RHOPII',STATUS='UNKNOWN')
          ENDIF

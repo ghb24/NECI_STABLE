@@ -47,9 +47,10 @@ CONTAINS
         use CCMCData,   only : tCCBuffer !This is messy, but I don't see anywhere else to put it. AJWT
         use legacy_data, only: irat
         use HElem
+        use util_mod, only: get_free_unit
         Type(BasisFn) ISym
 
-        integer i,ii,j
+        integer i,ii,j,iunit
         integer ierr
         integer nDetTot
         logical isvaliddet
@@ -214,13 +215,14 @@ CONTAINS
                NBLOCKSTARTS(1)=1
                NBLOCKSTARTS(2)=II+1
          ENDIF
-         OPEN(8,FILE='DETS',STATUS='UNKNOWN')
+         iunit = get_free_unit()
+         OPEN(iunit,FILE='DETS',STATUS='UNKNOWN')
          DO I=1,NDET
-            call write_det (8, NMRKS(:,I), .false.)
+            call write_det (iunit, NMRKS(:,I), .false.)
             CALL GETSYM(NMRKS(1,I),NEL,G1,NBASISMAX,ISYM)
-            CALL WRITESYM(8,ISym%Sym,.TRUE.)
+            CALL WRITESYM(iunit,ISym%Sym,.TRUE.)
          ENDDO
-         CLOSE(8)
+         CLOSE(iunit)
 
 !C.. Now generate the fermi determiant
 !C.. Work out the fermi det
@@ -278,10 +280,6 @@ CONTAINS
             LogAlloc(ierr, 'W', nEval,8,tagW)
             W=0.d0
          ENDIF
-!         IF(TREADRHO.AND..NOT.TREAD) THEN
-!            WRITE(10,*) "TREADRHO specified, but not TREAD.  Setting TREAD=.T."
-!            TREAD=.TRUE.
-!         ENDIF
 !C..
          IF(TREAD) THEN
            CALL READ_PSI(BOX,BOA,COA,NDET,NEVAL,NBASISMAX,NEL,CK,W)
@@ -294,6 +292,7 @@ CONTAINS
     
     Subroutine DoDetCalc
       Use global_utilities
+      use util_mod, only: get_free_unit
       use Determinants , only : get_helement,FDet
       use SystemData, only : Alat, arr, brr, boa, box, coa, ecore, g1,Beta
       use SystemData, only : nBasis, nBasisMax,nEl,nMsh,LzTot,NIfTot
@@ -324,7 +323,7 @@ CONTAINS
         INTEGER nKry1,nK(NEl)!,nJ(NEl)
         INTEGER(KIND=n_int) :: ilut(0:NIfTot)
         
-        INTEGER J,JR,iGetExcitLevel_2,ExcitLevel
+        INTEGER J,JR,iGetExcitLevel_2,ExcitLevel, iunit
         INTEGER LSCR,LISCR,MaxIndex
         LOGICAL tMC!,TestClosedShellDet,Found,tSign
         real*8 GetHElement, calct, calcmcen, calcdlwdb,norm
@@ -397,20 +396,22 @@ CONTAINS
                    IND=IND+1
                 ENDDO
              ENDDO
-             OPEN(8,FILE='FULLHAMIL',STATUS='UNKNOWN')
+             iunit = get_free_unit()
+             OPEN(iunit,FILE='FULLHAMIL',STATUS='UNKNOWN')
              DO I=1,NDET
                  DO J=1,NDET
-                     WRITE(8,*) J,I,ExpandedHamil(J,I)
+                     WRITE(iunit,*) J,I,ExpandedHamil(J,I)
                  ENDDO
-                 WRITE(8,*) ""
+                 WRITE(iunit,*) ""
              ENDDO
-             CLOSE(8)
+             CLOSE(iunit)
              DEALLOCATE(ExpandedHamil)
          ENDIF
 
          IF(BTEST(ILOGGING,7)) THEN
 !C.. we write out H now
-            OPEN(8,FILE='HAMIL',STATUS='UNKNOWN')
+            iunit = get_free_unit()
+            OPEN(iunit,FILE='HAMIL',STATUS='UNKNOWN')
             J=0
             JR=0
 !C            HMAX=-dflmax()
@@ -420,11 +421,11 @@ CONTAINS
                   JR=JR+1
                   J=J+NROW(JR)
                ENDDO
-               WRITE(8,"(2I12)",advance='no') JR,LAB(I)
+               WRITE(iunit,"(2I12)",advance='no') JR,LAB(I)
                IF(HElement_t_size.EQ.1) THEN
-                  WRITE(8,*) HAMIL(I)
+                  WRITE(iunit,*) HAMIL(I)
                ELSE
-                  WRITE(8,*) HAMIL(I),ABS(HAMIL(I))
+                  WRITE(iunit,*) HAMIL(I),ABS(HAMIL(I))
                ENDIF
 !C               CALL WRITEDET(14,NMRKS(1,JR),NEL,.FALSE.)
 !C               WRITE(14,"(A)",advance='no'),"|"
@@ -438,7 +439,7 @@ CONTAINS
 !C               IF(HAMIL(I).GT.HMAX) HMAX=HAMIL(I)
 !C               IF(HAMIL(I).LT.HMIN) HMIN=HAMIL(I)
             ENDDO
-            CLOSE(8)
+            CLOSE(iunit)
          ENDIF
         WRITE(6,*) '<D0|H|D0>=',GETHELEMENT(IFDET,IFDET,HAMIL,LAB,NROW,NDET)
         WRITE(6,*) '<D0|T|D0>=',CALCT(NMRKS(1,IFDET),NEL,G1,NBASIS) 
@@ -737,33 +738,35 @@ CONTAINS
             
             IF(tEnergy) THEN
                 IF(iProcIndex.eq.0) THEN
-                    OPEN(17,FILE='SymDETS',STATUS='UNKNOWN')
+                    iunit = get_free_unit()
+                    OPEN(iunit,FILE='SymDETS',STATUS='UNKNOWN')
 
                     do i=1,Det
-                        WRITE(17,"(2I13)",advance='no') i,temp(i)
+                        WRITE(iunit,"(2I13)",advance='no') i,temp(i)
                         do j=0,NIfTot
-                           WRITE(17,"(I13)",advance='no') FCIDets(j,i)
+                           WRITE(iunit,"(I13)",advance='no') FCIDets(j,i)
                         enddo
-                        WRITE(17,"(A,G25.16,A)",advance='no') " ",FCIGS(i),"  "
-                        Call WriteBitDet(17,FCIDets(:,i),.true.)
+                        WRITE(iunit,"(A,G25.16,A)",advance='no') " ",FCIGS(i),"  "
+                        Call WriteBitDet(iunit,FCIDets(:,i),.true.)
                    enddo
-                   CLOSE(17)
+                   CLOSE(iunit)
                 ENDIF
                 DEALLOCATE(FCIGS)
             ELSE
                 IF(iProcIndex.eq.0) THEN
-                    OPEN(17,FILE='SymDETS',STATUS='UNKNOWN')
-                    WRITE(17,*) "FCIDETIndex: ",FCIDetIndex(:)
-                    WRITE(17,*) "***"
+                    iunit = get_free_unit()
+                    OPEN(iunit,FILE='SymDETS',STATUS='UNKNOWN')
+                    WRITE(iunit,*) "FCIDETIndex: ",FCIDetIndex(:)
+                    WRITE(iunit,*) "***"
                     do i=1,Det
-                        WRITE(17,"(2I13)",advance='no') i,temp(i)
+                        WRITE(iunit,"(2I13)",advance='no') i,temp(i)
                         do j=0,NIfTot
-                           WRITE(17,"(I13)",advance='no') FCIDets(j,i)
+                           WRITE(iunit,"(I13)",advance='no') FCIDets(j,i)
                         enddo
-                        WRITE(17,"(A)",advance='no') " "
-                        Call WriteBitDet(17,FCIDets(:,i),.true.)
+                        WRITE(iunit,"(A)",advance='no') " "
+                        Call WriteBitDet(iunit,FCIDets(:,i),.true.)
                     enddo
-                    CLOSE(17)
+                    CLOSE(iunit)
                 ENDIF
             ENDIF !tEnergy - for dumping compressed ordered GS wavefunction
             DEALLOCATE(Temp)
@@ -831,14 +834,15 @@ CONTAINS
           IF(BTEST(ILOGGING,8)) CALL WRITE_PSI_COMP(BOX,BOA,COA,NDET,NEVAL,NBASISMAX,NEL,CK,W)
           WRITE(6,*) '       ==--------------------------------------------------== '
           WRITE(6,'(A5,5X,A15,1X,A18,1x,A20)') 'STATE','KINETIC ENERGY', 'COULOMB ENERGY', 'TOTAL ENERGY'
-          OPEN(15,FILE='ENERGIES',STATUS='UNKNOWN')
+          iunit = get_free_unit()
+          OPEN(iunit,FILE='ENERGIES',STATUS='UNKNOWN')
           DO IN=1,NEVAL
              WRITE(6,'(I5,2X,3(F19.11,2x))') IN,TKE(IN),W(IN)-TKE(IN),W(IN)
- !            WRITE(15,"(I7)",advance='no') IN
- !            CALL WRITEDET(15,NMRKS(1,IN),NEL,.FALSE.)
-             WRITE(15,"(F19.11)") W(IN)
+ !            WRITE(iunit,"(I7)",advance='no') IN
+ !            CALL WRITEDET(iunit,NMRKS(1,IN),NEL,.FALSE.)
+             WRITE(iunit,"(F19.11)") W(IN)
           ENDDO
-          CLOSE(15)
+          CLOSE(iunit)
           WRITE(6,*)   '       ==--------------------------------------------------== '
 !C., END energy calc
       ENDIF
@@ -936,6 +940,7 @@ END MODULE DetCalc
      &   NTAY,RHOEPS,NWHTAY,NPATHS,ILOGGING,ECORE,TNPDERIV,DBETA,   &
      &   DETINV,TSPECDET,SPECDET)
          use constants, only: dp
+         use util_mod, only: get_free_unit
          use SystemData, only: BasisFN
          use CalcData, only: tFCIMC
          use global_utilities
@@ -967,7 +972,7 @@ END MODULE DetCalc
          REAL*8 TOT, NORM,WLRI0,WLSI0,WINORM
          LOGICAL TNPDERIV
          INTEGER DETINV
-         INTEGER ISTART,IEND
+         INTEGER ISTART,IEND,iunit
          LOGICAL TSPECDET
          INTEGER SPECDET(NEL)
          TOT=0.D0
@@ -996,16 +1001,17 @@ END MODULE DetCalc
          ELSE
             WRITE(6,*) "I_HMAX=I_VMAX=0. Using rho diagonalisation."
          ENDIF
+         iunit = get_free_unit()
          IF(I_HMAX.EQ.-10) THEN
-            OPEN(11,FILE="MCSUMMARY",STATUS="UNKNOWN")
-            WRITE(11,*) "Calculating ",NPATHS," W_Is..."
-            CLOSE(11)
+            OPEN(iunit,FILE="MCSUMMARY",STATUS="UNKNOWN")
+            WRITE(iunit,*) "Calculating ",NPATHS," W_Is..."
+            CLOSE(iunit)
          ELSE
-            OPEN(11,FILE="MCPATHS",STATUS="UNKNOWN")
-            WRITE(11,*) "Calculating ",NPATHS," W_Is..."
-            CLOSE(11)
+            OPEN(iunit,FILE="MCPATHS",STATUS="UNKNOWN")
+            WRITE(iunit,*) "Calculating ",NPATHS," W_Is..."
+            CLOSE(iunit)
          ENDIF
-         OPEN(42,FILE='RHOPII',STATUS='UNKNOWN')
+         OPEN(iunit,FILE='RHOPII',STATUS='UNKNOWN')
          IF(DETINV.NE.0) THEN
             ISTART=ABS(DETINV)
             IEND=ABS(DETINV)
@@ -1028,16 +1034,16 @@ END MODULE DetCalc
      &         RHOEPS,LSTE,ICE,RIJLIST,NWHTAY,ILOGGING,ECORE,ILMAX, WLRI,WLSI,DBETA,DLWDB2)
             ENDIF
 !           WRITE(6,*) "III:",III
-            WRITE(42,"(I12)",advance='no') III
+            WRITE(iunit,"(I12)",advance='no') III
             IF(TSPECDET) THEN
 !             WRITE(6,*) "Writedet",NEL,III
-              call write_det (42, SPECDET, .false.)
+              call write_det (iunit, SPECDET, .false.)
             ELSE
 !               WRITE(6,*) "Writedet",NEL,III
 !               WRITE(6,*) NMRKS(1:NEL,III)
-               call write_det (42, NMRKS(:,III), .false.)
+               call write_det (iunit, NMRKS(:,III), .false.)
             ENDIF
-            WRITE(42,"(A,3G25.16)",advance='no') " ",EXP(WLSI+I_P*WLRI),WLRI*I_P,WLSI
+            WRITE(iunit,"(A,3G25.16)",advance='no') " ",EXP(WLSI+I_P*WLRI),WLRI*I_P,WLSI
 !            WRITE(6,*) "After Exp"
             IF(III.EQ.1) THEN
                WLRI0=WLRI
@@ -1080,16 +1086,16 @@ END MODULE DetCalc
             ENDIF
             NORM=NORM+WINORM
             TOT=TOT+WINORM*(DLWDB)
-            WRITE(42,*) DLWDB
+            WRITE(iunit,*) DLWDB
             IF(DETINV.EQ.III.AND.III.NE.0) THEN
-               CALL FLUSH(42)
+               CALL FLUSH(iunit)
                WRITE(6,*) "Investigating det ",DETINV
                CALL FLUSH(6)
                CALL WIRD_SUBSET(NMRKS(:,DETINV),BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY, &
      &       RHOEPS,ILOGGING,TSYM,ECORE)
             ENDIF
           ENDDO
-         CLOSE(42)
+         CLOSE(iunit)
          WRITE(6,*) "Summed approx E(Beta)=",TOT/NORM
          DEALLOCATE(RIJLIST,ICE,LSTE)
          CALL LogMemDealloc(this_routine,RIJLISTTag)
@@ -1192,12 +1198,13 @@ END MODULE DetCalc
 
       SUBROUTINE CFF_CHCK(NDET,NEVAL,NM,NBASISMAX,NEL,G1,CG,ALAT,TKE,NHG,ILOGGING)
       use constants, only: dp
+      use util_mod, only: get_free_unit
       USE OneEInts, only : GetTMATEl
       use SystemData, only: BasisFN
       use HElem
       IMPLICIT NONE
       HElement_t CG(NDET,NEVAL)
-      INTEGER NM(NEL,*),NDET,NEL,NEVAL
+      INTEGER NM(NEL,*),NDET,NEL,NEVAL, iunit
       REAL*8 ALAT(3),TKE(NEVAL)
       INTEGER NBASISMAX(3,2),NHG,ILOGGING
       TYPE(BASISFN) G1(*)
@@ -1230,31 +1237,32 @@ END MODULE DetCalc
 ! ==--------------------------------------------------------------==
       IF(.FALSE.) THEN
 !      IF(BTEST(ILOGGING,7)) THEN
-      OPEN(10,FILE='PSI',STATUS='UNKNOWN')
+      iunit = get_free_unit()
+      OPEN(iunit,FILE='PSI',STATUS='UNKNOWN')
       DO J=1,NEVAL
         IF(J.EQ.1) THEN
-          WRITE(10,*) ' GROUND STATE COEFFICIENTS  ' 
+          WRITE(iunit,*) ' GROUND STATE COEFFICIENTS  ' 
         ELSE
-          WRITE(10,*) ' COEFFICIENTS FOR EXCITED STATE NUMBER : ' , J
+          WRITE(iunit,*) ' COEFFICIENTS FOR EXCITED STATE NUMBER : ' , J
         ENDIF
         S=0.D0
         DO I=1,NDET
          IF(abs(CG(I,J)).gt.1.D-15) THEN
             DO IEL=1,NEL
-               WRITE(10,"(I3,I3,2I3,2X)",advance='no') (G1(NM(1,IEL))%K(L),L=1,5)
+               WRITE(iunit,"(I3,I3,2I3,2X)",advance='no') (G1(NM(1,IEL))%K(L),L=1,5)
             ENDDO
             IF(HElement_t_size.EQ.1) THEN
-               WRITE(10,"(F19.9,1X,I7)") CG(I,J),I
+               WRITE(iunit,"(F19.9,1X,I7)") CG(I,J),I
             ELSE
-               WRITE(10,"(F19.9,1X,I7)") CG(I,J),I
+               WRITE(iunit,"(F19.9,1X,I7)") CG(I,J),I
             ENDIF
          ENDIF
          S=S+abs(CG(I,J))**2
         ENDDO
-        WRITE(10,'(A,F19.5)') ' SQUARE OF COEFFICIENTS : ' , S
-        WRITE(10,*)
+        WRITE(iunit,'(A,F19.5)') ' SQUARE OF COEFFICIENTS : ' , S
+        WRITE(iunit,*)
       ENDDO
-      CLOSE(10)
+      CLOSE(iunit)
       ENDIF
       RETURN
       END
