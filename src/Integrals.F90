@@ -1763,18 +1763,21 @@ contains
       use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
       USE UMatCache
       use SymData, only: SymClasses,SymLabelCounts,nSymLabels
+      use util_mod, only: get_free_unit
       IMPLICIT NONE
-      INTEGER I,NBASIS
+      INTEGER I,NBASIS,iunit
       
+      iunit = get_free_unit()
+      open(iunit, file="SYMCLASSES", status="unknown")
       DO I=1,NBASIS/2
-          WRITE(13,*) I,SYMCLASSES(I)
-          CALL FLUSH(13)
+          WRITE(iunit,*) I,SYMCLASSES(I)
+          CALL FLUSH(iunit)
       ENDDO
       DO I=1,NSYMLABELS
-          WRITE(13,*) I,SYMLABELCOUNTS(2,I)
+          WRITE(iunit,*) I,SYMLABELCOUNTS(2,I)
       ENDDO
-      WRITE(13,*) "******************"
-      CALL FLUSH(13)
+      WRITE(iunit,*) "******************"
+      close(iunit)
     END subroutine writesymclasses
 
 END MODULE Integrals

@@ -1412,11 +1412,12 @@ MODULE Calc
           Use DetCalc, only: cK, nDet, nEval, tEnergy, tRead, W, NMRKS, DetInv
           Use Determinants, only: specdet, tSpecDet
           Use Logging, only: iLogging
+          Use util_mod, only: get_free_unit
           Use DetCalc, only: tFindDets
           real*8 flri, flsi
           REAL*8 En, ExEn, GSEn
           REAL*8 RH
-          INTEGER iDeg, III
+          INTEGER iDeg, III, iunit
           Type(BasisFN) iSym
           LOGICAL tWarn
           
@@ -1431,7 +1432,8 @@ MODULE Calc
                 GSEN=CALCDLWDB(1,NDET,NEVAL,CK,W,BETA,0.D0)
                 WRITE(6,"(A,F19.5)") "EXACT DLWDB(D0)=",GSEN
              ENDIF
-             OPEN(14,FILE='RHOPIIex',STATUS='UNKNOWN')
+             iunit = get_free_unit()
+             OPEN(iunit,FILE='RHOPIIex',STATUS='UNKNOWN')
              IF(NDETWORK.EQ.0.OR.NDETWORK.GT.NDET) NDETWORK=NDET
              DO III=1,NDETWORK
              
@@ -1452,14 +1454,14 @@ MODULE Calc
                    FLSI=FLSI-I_P*FLRI
                    ENDIF
                 ENDIF
-                call write_det (14, NMRKS(:,III), .false.)
+                call write_det (iunit, NMRKS(:,III), .false.)
                 GSEN=CALCDLWDB(III,NDET,NEVAL,CK,W,BETA,0.D0)
                 CALL GETSYM(NMRKS(1,III),NEL,G1,NBASISMAX,ISYM)
                 CALL GETSYMDEGEN(ISYM,NBASISMAX,IDEG)
-                WRITE(14,"(4G25.16,I5)") EXP(FLSI+I_P*FLRI),FLRI*I_P,FLSI,GSEN,IDEG
+                WRITE(iunit,"(4G25.16,I5)") EXP(FLSI+I_P*FLRI),FLRI*I_P,FLSI,GSEN,IDEG
              ENDDO
 !C             CLOSE(17)
-             CLOSE(14)
+             CLOSE(iunit)
           ENDIF
         
           IF(TMONTE.AND.TENERGY.AND.NTAY(1).EQ.-1) THEN
