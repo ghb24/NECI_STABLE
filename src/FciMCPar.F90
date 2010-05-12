@@ -917,6 +917,7 @@ MODULE FciMCParMod
         IF(AllNoatHF.lt.0) THEN
 !Flip the sign if we're beginning to get a negative population on the HF
             WRITE(6,*) "No. at HF < 0 - flipping sign of entire ensemble of particles..."
+            WRITE(6,*) AllNoatHF
             CALL FlipSign()
             AllNoatHF=-AllNoatHF
             NoatHF=-NoatHF
@@ -3603,6 +3604,7 @@ MODULE FciMCParMod
         IF(AllNoatHF.lt.0) THEN
 !Flip the sign if we're beginning to get a negative population on the HF
             WRITE(6,*) "No. at HF < 0 - flipping sign of entire ensemble of particles..."
+            WRITE(6,*) AllNoatHF
             CALL FlipSign()
         ENDIF
                 
@@ -5264,8 +5266,8 @@ MODULE FciMCParMod
     END SUBROUTINE InitHistMin
 
 !This routine sums in the energy contribution from a given walker and updates stats such as mean excit level
-!AJWT added optional argument dProb which is a probability that whatever gave this contribution as generated.
-!  It defaults to 1, and weights the contribution of this det. (Only in the projected energy)
+!AJWT added optional argument dProbFin which is a probability that whatever gave this contribution was generated.
+!  It defaults to 1, and weights the contribution of this det (only in the projected energy) by dividing its contribution by this number 
     SUBROUTINE SumEContrib(DetCurr,ExcitLevel,WSign,iLutCurr,HDiagCurr,dProbFin)
         use SystemData, only : tNoBrillouin
         use CalcData, only: tFCIMC

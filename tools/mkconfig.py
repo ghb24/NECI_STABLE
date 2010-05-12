@@ -329,13 +329,14 @@ cleanall:
 MKDEPEND = $(TOOLS)/sfmakedepend --file - --cpp --fext=f90 --depend=mod --silent $(FSRCFILES) $(F90SRCFILES) $(F90TMPSRCFILES) 
 RMTEMPLATE = sed -e 's/\.F90\.template//g'
 $(FRDEPEND):
-\t$(MKDEPEND) --objdir \$$\(GDEST\) --moddir \$$\(GDEST\) | $(RMTEMPLATE) > $(FRDEPEND)
+\t$(MKDEPEND) --objdir \$$\(GDEST\) --moddir \$$\(GDEST\) | $(RMTEMPLATE) > $@
+
 $(FCDEPEND):
-\t$(MKDEPEND) --objdir \$$\(KDEST\) --moddir \$$\(KDEST\) | $(RMTEMPLATE) > $(FCDEPEND)
+\t$(MKDEPEND) --objdir \$$\(KDEST\) --moddir \$$\(KDEST\) | $(RMTEMPLATE) > $@
 $(FRDEPENDUP):
-\t$(MKDEPEND) --case=upper --objdir \$$\(GDEST\) --moddir \$$\(GDEST\) | $(RMTEMPLATE) > $(FRDEPENDUP)
+\t$(MKDEPEND) --case=upper --objdir \$$\(GDEST\) --moddir \$$\(GDEST\) > $(FRDEPENDUP)
 $(FCDEPENDUP):
-\t$(MKDEPEND) --case=upper --objdir \$$\(KDEST\) --moddir \$$\(KDEST\) | $(RMTEMPLATE) > $(FCDEPENDUP)
+\t$(MKDEPEND) --case=upper --objdir \$$\(KDEST\) --moddir \$$\(KDEST\) > $(FCDEPENDUP)
 
 # Generate all dependency files.
 depend: 
@@ -346,7 +347,7 @@ rmdeps:
 \trm -f $(FDEPEND) $(FDEPENDUP) $(CDEPEND)
 
 tags: null_goal
-\tctags $(SRCFILES)
+\tctags --langmap=fortran:.F90.template $(SRCFILES)
 
 # Empty goal.  Depending on this will force a rule to be run.
 null_goal: ;
@@ -442,10 +443,10 @@ $(KDEST)/%%.f: %%.F
 
 # c) With an option to generate from template files.
 $(GDEST)/%%.f90: $(TDEST)/%%.F90
-\t$(CPP) $(CPP_BODY)
+\t$(CPP) $(CPP_BODY) $(GCPPFLAG) $(INCLUDE_PATH)
 
 $(KDEST)/%%.f90: $(TDEST)/%%.F90
-\t$(CPP) -D__CMPLX $(CPP_BODY)
+\t$(CPP) -D__CMPLX $(CPP_BODY) $(KCPPFLAG) $(INCLUDE_PATH)
 
 $(TDEST)/%%.F90: %%.F90.template
 \t$(TOOLS)/f90_template.py $< $@
