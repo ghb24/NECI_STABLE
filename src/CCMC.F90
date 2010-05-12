@@ -1887,6 +1887,7 @@ SUBROUTINE CCMCStandalone(Weight,Energyxw)
 ! Each cycle we select combinations of excitors randomly, and spawn and birth/die from them
    do while (Iter.le.NMCyc)
       if(iDebug>3)  write(79,*) "Cycle", Iter
+      if(iDebug>3)  write(89,*) "Cycle", Iter
 ! Copy the old Amp list to the new
       iOldAmpList=iCurAmpList
       iCurAmpList=3-iCurAmpList
@@ -1999,12 +2000,14 @@ SUBROUTINE CCMCStandalone(Weight,Energyxw)
 
          if(iDebug.gt.3) WRITE(6,*) "Cluster Amplitude: ",CS%C%iSgn*CS%C%dAbsAmplitude 
          if(iDebug.gt.3) WRITE(6,*) " Cluster Prob: ",CS%C%dSelectionProb
-         if(.not.tExactEnergy) then
+         if(.not.tExactEnergy.and.CS%C%iExcitLevel.le.2) then
             if(iDebug>3) then
                call WriteCluster(79,CS%C,.false.)
+               call WriteCluster(89,CS%C,.false.)
                write(79,*)  (CS%C%dAbsAmplitude/AL%Amplitude(1,iOldAmpList))/CS%C%dSelectionProb,CS%C%iSgn !,CS%C%dSelectionProb,CS%C%dAbsAmplitude
+               write(89,*)  CS%C%iSgn ,CS%C%dSelectionProb,CS%C%dProbNorm,CS%C%dAbsAmplitude,CS%C%dSelectionNorm
             endif
-            CALL SumEContrib(CS%C%DetCurr,CS%C%iExcitLevel,CS%C%iSgn,CS%C%iLutDetCurr,0.d0,CS%C%dSelectionNorm) !CS%C%dSelectionProb*AL%Amplitude(1,iOldAmpList)/CS%C%dAbsAmplitude)
+            CALL SumEContrib(CS%C%DetCurr,CS%C%iExcitLevel,CS%C%iSgn,CS%C%iLutDetCurr,0.d0,1/CS%C%dSelectionNorm)
          endif
 !Now consider a number of possible spawning events
          CALL ResetSpawner(S,CS%C,nSpawnings)
@@ -2270,7 +2273,7 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
 
          if(iDebug.gt.3) WRITE(6,*) " Cluster Amplitude: ",CS%C%iSgn*CS%C%dAbsAmplitude 
          if(iDebug.gt.3) WRITE(6,*) " Cluster Prob: ",CS%C%dSelectionProb
-         CALL SumEContrib(CS%C%DetCurr,CS%C%iExcitLevel,CS%C%iSgn,CS%C%iLutDetCurr,0.d0,CS%C%dSelectionProb*AL%Amplitude(1,iCurAmpList)/CS%C%dAbsAmplitude)
+         CALL SumEContrib(CS%C%DetCurr,CS%C%iExcitLevel,CS%C%iSgn,CS%C%iLutDetCurr,0.d0,1/CS%C%dSelectionNorm)
 !Now consider a number of possible spawning events
          CALL ResetSpawner(S,CS%C,nSpawnings)
 

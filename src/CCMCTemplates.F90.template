@@ -207,6 +207,7 @@ SUBROUTINE CalcClusterEnergy (tFCI,Amplitude,nExcit,ExcitList,ExcitLevelIndex,iD
       if(Amplitude(j).lt.0) i=-1
       dAmp=abs(Amplitude(j))/Amplitude(1)
       if(dAmp.ne.0.d0) then
+         i=i*ExcitToDetSign(iLutHF,ExcitList(:,j),iC)
          if (iProcIndex.eq.root) call SumEContrib(DetCurr,iC,i,ExcitList(:,j),dTmp,1/dAmp)
 ! Deal with T_1^2
          if(iDebug>3) then
@@ -223,6 +224,7 @@ SUBROUTINE CalcClusterEnergy (tFCI,Amplitude,nExcit,ExcitList,ExcitLevelIndex,iD
                iLutnI(:)=ExcitList(:,j)
                call AddBitExcitor(iLutnI,ExcitList(:,l),iLutHF,iSgn)
                if(iSgn.ne.0.and.dAmp.ne.0.d0) then
+                  iSgn=iSgn*ExcitToDetSign(iLutHF,iLutnI,2)
                   CALL DecodeBitDet(DetCurr,iLutnI)
                   Htmp = get_helement (HFDet, DetCurr, iLutHF, iLutnI)
                   dAmp=dAmp/(Amplitude(1)**2)
@@ -500,8 +502,14 @@ FUNCTION GetNextCluster (CS,Dets,nDet,Amplitude,dTotAbsAmpl,iNumExcitors,iMaxSiz
 !  This includes multiple selections of the same excitor as well as combinations of excitors which produce a 0 sign.
       GetNextCluster=.true.
       CS%%C%%dSelectionProb=CS%%C%%dProbNorm*CS%%C%%dClusterProb
+
 ! We normalize such that the normalization factor for the zero-excitor cluster is 1
-      CS%%C%%dSelectionNorm=CS%%C%%dProbNorm/(CS%%dProbSelNewExcitor*CS%%nSelects)
+!  dSelectionNorm = ( Amplitude of this cluster / Amplitude of zero-excitor cluster) * ( probability of generating zero-excitor / probability of generating us)
+!
+!                 = (dAbsAmplitude / N0) * ( P_norm(0) / (n! P_norm(n) (dAbsAmplitude/N0))
+      r=CS%%dProbSelNewExcitor
+      if(iMaxSize==0) r=1  !Cope with the case when there are no clusters
+      CS%%C%%dSelectionNorm=(CS%%C%%dAbsAmplitude/abs(Amplitude(1)))*(r*CS%%nSelects)/CS%%C%%dSelectionProb
 !/CS%%C%%dSelectionNorm
    endif
 END FUNCTION !GetNextCluster
