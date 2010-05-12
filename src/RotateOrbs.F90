@@ -123,7 +123,7 @@ MODULE RotateOrbsMod
             ENDIF            
 
             CALL FLUSH(6)
-            CALL FLUSH(12)
+            CALL FLUSH(transform_unit)
         ENDIF
 
 
@@ -139,7 +139,8 @@ MODULE RotateOrbsMod
 ! Where :  t_ij^ac = - < ab | ij > / ( E_a - E_i + E_b - Ej )
 ! Ref : J. Chem. Phys. 131, 034113 (2009) - note: in Eqn 1, the cb indices are the wrong way round (should be bc).
         USE NatOrbsMod , only : SetUpNatOrbLabels,FindNatOrbs,FillCoeffT1,DeallocateNatOrbs,PrintOccTable
-        INTEGER :: i,j,k,l,a,ierr,MinReadIn,MaxReadIn
+        use util_mod, only: get_free_unit
+        INTEGER :: i,j,k,l,a,ierr,MinReadIn,MaxReadIn, iunit
         CHARACTER(len=*) , PARAMETER :: this_routine='FindNatOrbitals'
 
 
@@ -323,13 +324,15 @@ MODULE RotateOrbsMod
 !                READ(72,*) CoeffT1
 !                CLOSE(72)
 
-                OPEN(72,FILE='TRANSFORMMAT',status='old')
+                
+                iunit = get_free_unit()
+                OPEN(iunit,FILE='TRANSFORMMAT',status='old')
                 do i=1,NoOrbs
                     do a=1,NoOrbs
-                        READ(72,*) CoeffT1(a,i)
+                        READ(iunit,*) CoeffT1(a,i)
                     enddo
                 enddo
-                CLOSE(72)
+                CLOSE(iunit)
           
 !                OPEN(78,FILE='TRANSFORMMATORIG',status='unknown')
 !                do i=1,NoOrbs
@@ -537,13 +540,14 @@ MODULE RotateOrbsMod
 
 
     SUBROUTINE WriteTransformMat()
-        INTEGER :: w,x,i,j,a,b
-
+        use util_mod, only: get_free_unit
+        INTEGER :: w,x,i,j,a,b,iunit
 
 ! This file is printed to be used to produce cube files from QChem.
 ! Line 1 is the coefficients of HF spatial orbitals 1 2 3 ... which form transformed orbital 1 etc.
 
-        OPEN(66,FILE='MOTRANSFORM',FORM='UNFORMATTED',access='direct', recl=8)
+        iunit = get_free_unit()
+        OPEN(iunit,FILE='MOTRANSFORM',FORM='UNFORMATTED',access='direct', recl=8)
 ! Need to put this back into the original order. 
 
         IF(tStoreSpinOrbs) THEN
@@ -556,16 +560,16 @@ MODULE RotateOrbsMod
                     
                 do a=1,NoOrbs-1,2
                     b=SymLabelListInv(a)
-!                    WRITE(66,rec=x) CoeffT1(b,j)
-                    WRITE(66,rec=x) CoeffT1(b,i)
+!                    WRITE(iunit,rec=x) CoeffT1(b,j)
+                    WRITE(iunit,rec=x) CoeffT1(b,i)
                     ! a/b are the original (HF) orbitals, and i/j the transformed
                 enddo
             enddo
             do i=2,NoOrbs,2
                 do a=2,NoOrbs,2
                     b=SymLabelListInv(a)
-!                    WRITE(66,rec=x) CoeffT1(b,j)
-                    WRITE(66,rec=x) CoeffT1(b,i)
+!                    WRITE(iunit,rec=x) CoeffT1(b,j)
+                    WRITE(iunit,rec=x) CoeffT1(b,i)
                     ! a/b are the original (HF) orbitals, and i/j the transformed
                 enddo
             enddo
@@ -581,8 +585,8 @@ MODULE RotateOrbsMod
                     ! Qchem/Dalton label j.
                     do a=1,SpatOrbs
                         b=SymLabelListInv(a)
-!                        WRITE(66,rec=x) CoeffT1(b,j)
-                        WRITE(66,rec=x) CoeffT1(b,i)
+!                        WRITE(iunit,rec=x) CoeffT1(b,j)
+                        WRITE(iunit,rec=x) CoeffT1(b,i)
                         x=x+1
                         ! a/b are the original (HF) orbitals, and i/j the transformed
                     enddo
@@ -591,9 +595,9 @@ MODULE RotateOrbsMod
                 ! print the whole matrix twice, once for alpha spin, once for beta.
             enddo
         ENDIF
-        CLOSE(66)
+        CLOSE(iunit)
  
-        OPEN(67,FILE='MOTRANSFORM02')
+        OPEN(iunit,FILE='MOTRANSFORM02')
 ! Need to put this back into the original order. 
         w=1
         x=1   !keep a counter of record number
@@ -606,29 +610,29 @@ MODULE RotateOrbsMod
                 ! Qchem/Dalton label j.
                 do a=1,SpatOrbs
                     b=SymLabelListInv(a)
-!                    WRITE(67,'(F20.10)',advance='no') CoeffT1(b,j)
-                    WRITE(67,'(F20.10)',advance='no') CoeffT1(b,i)
+!                    WRITE(iunit,'(F20.10)',advance='no') CoeffT1(b,j)
+                    WRITE(iunit,'(F20.10)',advance='no') CoeffT1(b,i)
                     x=x+1
                     ! a/b are the original (HF) orbitals, and i/j the transformed
                 enddo
-                WRITE(67,*) ''
+                WRITE(iunit,*) ''
             enddo
             w=w+1
             ! print the whole matrix twice, once for alpha spin, once for beta.
         enddo
-        CLOSE(67)
+        CLOSE(iunit)
 
-        OPEN(71,FILE='TRANSFORMMAT',status='unknown')
+        OPEN(iunit,FILE='TRANSFORMMAT',status='unknown')
         do i=1,NoOrbs
 !            j=SymLabelListInv(i)
             do a=1,NoOrbs
                 b=SymLabelListInv(a)
-!                WRITE(71,*) CoeffT1(b,j)
-                WRITE(71,*) CoeffT1(b,i)
+!                WRITE(iunit,*) CoeffT1(b,j)
+                WRITE(iunit,*) CoeffT1(b,i)
             enddo
         enddo
-        CALL FLUSH(71)
-        CLOSE(71)
+        CALL FLUSH(iunit)
+        CLOSE(iunit)
       
 
 
@@ -638,6 +642,7 @@ MODULE RotateOrbsMod
 
    
     SUBROUTINE InitLocalOrbs()
+        use util_mod, only: get_free_unit
         CHARACTER(len=*) , PARAMETER :: this_routine='InitLocalOrbs'
         INTEGER :: ierr
 
@@ -899,20 +904,21 @@ MODULE RotateOrbsMod
 
 
 ! Write out the headings for the results file.        
-        OPEN(12,FILE='Transform',STATUS='unknown')
+        transform_unit = get_free_unit()
+        OPEN(transform_unit,FILE='Transform',STATUS='unknown')
         IF(tLagrange) THEN
-            WRITE(12,"(A12,11A18)") "# Iteration","2.PotEnergy","3.PEInts","4.PEOrtho","5.Force","6.ForceInts","7.OrthoForce","8.Sum<ij|kl>^2",&
+            WRITE(transform_unit,"(A12,11A18)") "# Iteration","2.PotEnergy","3.PEInts","4.PEOrtho","5.Force","6.ForceInts","7.OrthoForce","8.Sum<ij|kl>^2",&
                                     &"9.OrthoNormCondition","10.DistMovedbyCs","11.DistMovedByLs","12.LambdaMag"
             WRITE(6,"(A12,11A19)") "Iteration","2.PotEnergy","3.PEInts","4.PEOrtho","5.Force","6.ForceInts","7.OrthoForce","8.Sum<ij|kl>^2",&
                                     &"9.OrthoNormCondition","10.DistMovedbyCs","11.DistMovedbyLs","12.LambdaMag"
         ELSEIF(tERLocalization.and.tHijSqrdMin) THEN
-            WRITE(12,"(A12,7A24)") "# Iteration","2.ERPotEnergy","3.HijSqrdPotEnergy","4.PotEnergy","5.Force","6.Totalcorrforce","7.OrthoNormCondition","8.DistMovedbyCs"
+            WRITE(transform_unit,"(A12,7A24)") "# Iteration","2.ERPotEnergy","3.HijSqrdPotEnergy","4.PotEnergy","5.Force","6.Totalcorrforce","7.OrthoNormCondition","8.DistMovedbyCs"
             WRITE(6,"(A12,7A24)") "# Iteration","2.ERPotEnergy","3.HijSqrdPotEnergy","4.PotEnergy","5.Force","6.Totalcorrforce","7.OrthoNormCondition","8.DistMovedbyCs"
         ELSEIF(tERLocalization) THEN
-            WRITE(12,"(A12,5A24)") "# Iteration","2.Sum_i<ii|ii>","3.Force","4.TotCorrForce","5.OrthoNormCondition","6.DistMovedbyCs"
+            WRITE(transform_unit,"(A12,5A24)") "# Iteration","2.Sum_i<ii|ii>","3.Force","4.TotCorrForce","5.OrthoNormCondition","6.DistMovedbyCs"
             WRITE(6,"(A12,5A24)") "Iteration","2.Sum_i<ii|ii>","3.Force","4.TotCorrForce","5.OrthoNormCondition","6.DistMovedbyCs"
         ELSE
-            WRITE(12,"(A12,5A24)") "# Iteration","2.PotEnergy","3.Force","4.Totalcorrforce","5.OrthoNormCondition","6.DistMovedbyCs"
+            WRITE(transform_unit,"(A12,5A24)") "# Iteration","2.PotEnergy","3.Force","4.Totalcorrforce","5.OrthoNormCondition","6.DistMovedbyCs"
             WRITE(6,"(A12,5A24)") "Iteration","2.PotEnergy","3.Force","4.TotCorrForce","5.OrthoNormCondition","6.DistMovedbyCs"
         ENDIF
 
@@ -1178,20 +1184,20 @@ MODULE RotateOrbsMod
 
         IF(tLagrange) THEN
             WRITE(6,"(I12,11F18.10)") Iteration,PotEnergy,PEInts,PEOrtho,Force,ForceInts,OrthoForce,TwoEInts,OrthoNorm,DistCs,DistLs,LambdaMag
-            WRITE(12,"(I12,11F18.10)") Iteration,PotEnergy,PEInts,PEOrtho,Force,ForceInts,OrthoForce,TwoEInts,OrthoNorm,DistCs,DistLs,LambdaMag
+            WRITE(transform_unit,"(I12,11F18.10)") Iteration,PotEnergy,PEInts,PEOrtho,Force,ForceInts,OrthoForce,TwoEInts,OrthoNorm,DistCs,DistLs,LambdaMag
         ELSEIF(tERLocalization.and.tHijSqrdMin) THEN
             IF(Mod(Iteration,10).eq.0) THEN
                 WRITE(6,"(I12,7F24.10)") Iteration,ERPotEnergy,HijSqrdPotEnergy,PotEnergy,Force,TotCorrectedForce,OrthoNorm,DistCs
-                WRITE(12,"(I12,7F24.10)") Iteration,ERPotEnergy,HijSqrdPotEnergy,PotEnergy,Force,TotCorrectedForce,OrthoNorm,DistCs
+                WRITE(transform_unit,"(I12,7F24.10)") Iteration,ERPotEnergy,HijSqrdPotEnergy,PotEnergy,Force,TotCorrectedForce,OrthoNorm,DistCs
             ENDIF
         ELSE
             IF(Mod(Iteration,10).eq.0) THEN
                 WRITE(6,"(I12,5F24.10)") Iteration,PotEnergy,Force,TotCorrectedForce,OrthoNorm,DistCs
-                WRITE(12,"(I12,5F24.10)") Iteration,PotEnergy,Force,TotCorrectedForce,OrthoNorm,DistCs
+                WRITE(transform_unit,"(I12,5F24.10)") Iteration,PotEnergy,Force,TotCorrectedForce,OrthoNorm,DistCs
             ENDIF
         ENDIF
         CALL FLUSH(6)
-        CALL FLUSH(12)
+        CALL FLUSH(transform_unit)
 
 ! after writing out stats, test for SOFTEXIT.
         if (test_SOFTEXIT()) then
@@ -2978,20 +2984,23 @@ MODULE RotateOrbsMod
 
     SUBROUTINE ShakeConstraints()
 ! DerivCoeff(k,a) is the unconstrained force on the original coefficients (CoeffT1(a,k)). 
+        use util_mod, only: get_free_unit
         INTEGER :: w,x,y,i,j,l,a,m,ShakeIteration,ConvergeCount,ierr,Const,SymM,SymMin
         REAL*8 :: TotCorConstraints,TotConstraints,TotLambdas
         REAL*8 :: TotUncorForce,TotDiffUncorCoeffs,TotDiffCorCoeffs
         LOGICAL :: tShakeNotConverged
+        integer, save :: shake_io
         CHARACTER(len=*), PARAMETER :: this_routine='ShakeConstraints'
 
 
 !        WRITE(6,*) "Beginning shakeconstraints calculation"
         IF(Iteration.eq.1) THEN
-            OPEN(8,FILE='SHAKEstats',STATUS='unknown')
-            WRITE(8,'(A20,4A35,A20)') 'Shake Iteration','Sum Lambdas','Total of corrected forces','Sum unconstrained constraints',&
+            shake_io = get_free_unit()
+            OPEN(shake_io,FILE='SHAKEstats',STATUS='unknown')
+            WRITE(shake_io,'(A20,4A35,A20)') 'Shake Iteration','Sum Lambdas','Total of corrected forces','Sum unconstrained constraints',&
                                         &'Sum corrected constraints','Converge count'
         ENDIF
-        IF(Mod(Iteration,10).eq.0) WRITE(8,*) 'Orbital rotation iteration = ',Iteration
+        IF(Mod(Iteration,10).eq.0) WRITE(shake_io,*) 'Orbital rotation iteration = ',Iteration
 
 
         ShakeIteration=0
@@ -3124,9 +3133,9 @@ MODULE RotateOrbsMod
 
 ! and to SHAKEstats file:
             CALL FLUSH(6)
-            CALL FLUSH(8)
+            CALL FLUSH(shake_io)
             IF(Mod(Iteration,10).eq.0) THEN
-                WRITE(8,'(I20,4F35.20,I20)') ShakeIteration,TotLambdas,TotCorrectedForce,TotConstraints,TotCorConstraints,ConvergeCount 
+                WRITE(shake_io,'(I20,4F35.20,I20)') ShakeIteration,TotLambdas,TotCorrectedForce,TotConstraints,TotCorConstraints,ConvergeCount 
             ENDIF
 
 ! If the convergence criteria is not met, use either the full matrix inversion method to find a new set of lambdas, or the shake algorithm 
@@ -3514,6 +3523,7 @@ MODULE RotateOrbsMod
 ! At the end of the orbital rotation, have a set of coefficients CoeffT1 which transform the HF orbitals into a set of linear
 ! combinations ui which minimise |<ij|kl>|^2.  This is the final subroutine after all iterations (but before the memory deallocation)
 ! that calculates the final 4 index integrals to be used in the NECI calculation.
+        use util_mod, only: get_free_unit
         INTEGER :: w,x,y,i,a,j,b
         REAL*8 :: TotGSConstraints,GSConstraint(TotNoConstraints),CoeffTemp(SpatOrbs,SpatOrbs)
         REAL*8 , ALLOCATABLE :: Ident(:,:)
@@ -3618,7 +3628,8 @@ MODULE RotateOrbsMod
 
 
     SUBROUTINE WriteSingHisttofile()
-        INTEGER :: i,j,k,BinNo,a,b
+        use util_mod, only: get_free_unit
+        INTEGER :: i,j,k,BinNo,a,b,iunit
         REAL*8 :: MaxFII,MinFII,BinIter,BinVal,SingExcit(NoOrbs,NoOrbs)
 
 
@@ -3718,24 +3729,26 @@ MODULE RotateOrbsMod
 
 
         IF(Iteration.eq.0) THEN
-            OPEN(74,FILE='HistHFSingijkVir',STATUS='unknown')
+            iunit = get_free_unit()
+            OPEN(iunit,FILE='HistHFSingijkVir',STATUS='unknown')
             do j=1,4002
                 IF((ROHistSCijkVir(2,j).ne.0).or.(ROHistSEijkVir(2,j).ne.0).or.(ROHistSASijkVir(2,j).ne.0)) THEN
-                    WRITE(74,'(6F20.10)') ROHistSCijkVir(1,j),ROHistSCijkVir(2,j),ROHistSEijkVir(1,j),ROHistSEijkVir(2,j),&
+                    WRITE(iunit,'(6F20.10)') ROHistSCijkVir(1,j),ROHistSCijkVir(2,j),ROHistSEijkVir(1,j),ROHistSEijkVir(2,j),&
                                                         &ROHistSASijkVir(1,j),ROHistSASijkVir(2,j)
                 ENDIF
             enddo
-            CLOSE(74)
+            CLOSE(iunit)
         ENDIF
         IF((Iteration.gt.1).and.(.not.tNotConverged)) THEN
-            OPEN(75,FILE='HistRotSingijkVir',STATUS='unknown')
+            iunit = get_free_unit()
+            OPEN(iunit,FILE='HistRotSingijkVir',STATUS='unknown')
             do j=1,4002
                 IF((ROHistSCijkVir(2,j).ne.0).or.(ROHistSEijkVir(2,j).ne.0).or.(ROHistSASijkVir(2,j).ne.0)) THEN
-                    WRITE(75,'(6F20.10)') ROHistSCijkVir(1,j),ROHistSCijkVir(2,j),ROHistSEijkVir(1,j),ROHistSEijkVir(2,j),&
+                    WRITE(iunit,'(6F20.10)') ROHistSCijkVir(1,j),ROHistSCijkVir(2,j),ROHistSEijkVir(1,j),ROHistSEijkVir(2,j),&
                                                         &ROHistSASijkVir(1,j),ROHistSASijkVir(2,j)
                 ENDIF
             enddo
-            CLOSE(75)
+            CLOSE(iunit)
         ENDIF
 
 
@@ -3835,24 +3848,26 @@ MODULE RotateOrbsMod
 
 
         IF(Iteration.eq.0) THEN
-            OPEN(70,FILE='HistHFSingkOcijVir',STATUS='unknown')
+            iunit = get_free_unit()
+            OPEN(iunit,FILE='HistHFSingkOcijVir',STATUS='unknown')
             do j=1,4002
                 IF((ROHistSCkOcijVir(2,j).ne.0).or.(ROHistSEkOcijVir(2,j).ne.0).or.(ROHistSASkOcijVir(2,j).ne.0)) THEN
-                    WRITE(70,'(6F20.10)') ROHistSCkOcijVir(1,j),ROHistSCkOcijVir(2,j),ROHistSEkOcijVir(1,j),ROHistSEkOcijVir(2,j),&
+                    WRITE(iunit,'(6F20.10)') ROHistSCkOcijVir(1,j),ROHistSCkOcijVir(2,j),ROHistSEkOcijVir(1,j),ROHistSEkOcijVir(2,j),&
                                                         &ROHistSASkOcijVir(1,j),ROHistSASkOcijVir(2,j)
                 ENDIF
             enddo
-            CLOSE(70)
+            CLOSE(iunit)
         ENDIF
         IF((Iteration.gt.1).and.(.not.tNotConverged)) THEN
-            OPEN(68,FILE='HistRotSingkOcijVir',STATUS='unknown')
+            iunit = get_free_unit()
+            OPEN(iunit,FILE='HistRotSingkOcijVir',STATUS='unknown')
             do j=1,4002
                 IF((ROHistSCkOcijVir(2,j).ne.0).or.(ROHistSEkOcijVir(2,j).ne.0).or.(ROHistSASkOcijVir(2,j).ne.0)) THEN
-                    WRITE(68,'(6F20.10)') ROHistSCkOcijVir(1,j),ROHistSCkOcijVir(2,j),ROHistSEkOcijVir(1,j),ROHistSEkOcijVir(2,j),&
+                    WRITE(iunit,'(6F20.10)') ROHistSCkOcijVir(1,j),ROHistSCkOcijVir(2,j),ROHistSEkOcijVir(1,j),ROHistSEkOcijVir(2,j),&
                                                         &ROHistSASkOcijVir(1,j),ROHistSASkOcijVir(2,j)
                 ENDIF
             enddo
-            CLOSE(68)
+            CLOSE(iunit)
         ENDIF
 
 
@@ -3951,24 +3966,26 @@ MODULE RotateOrbsMod
         enddo
 
         IF(Iteration.eq.0) THEN
-            OPEN(61,FILE='HistHFSingikOcjVir',STATUS='unknown')
+            iunit = get_free_unit()
+            OPEN(iunit,FILE='HistHFSingikOcjVir',STATUS='unknown')
             do j=1,4002
                 IF((ROHistSCikOcjVir(2,j).ne.0).or.(ROHistSEikOcjVir(2,j).ne.0).or.(ROHistSASikOcjVir(2,j).ne.0)) THEN 
-                    WRITE(61,'(6F20.10)') ROHistSCikOcjVir(1,j),ROHistSCikOcjVir(2,j),ROHistSEikOcjVir(1,j),ROHistSEikOcjVir(2,j),&
+                    WRITE(iunit,'(6F20.10)') ROHistSCikOcjVir(1,j),ROHistSCikOcjVir(2,j),ROHistSEikOcjVir(1,j),ROHistSEikOcjVir(2,j),&
                                                         &ROHistSASikOcjVir(1,j),ROHistSASikOcjVir(2,j)
                 ENDIF
             enddo
-            CLOSE(61)
+            CLOSE(iunit)
         ENDIF
         IF((Iteration.gt.1).and.(.not.tNotConverged)) THEN
-            OPEN(62,FILE='HistRotSingikOcjVir',STATUS='unknown')
+            iunit = get_free_unit()
+            OPEN(iunit,FILE='HistRotSingikOcjVir',STATUS='unknown')
             do j=1,4002
                 IF((ROHistSCikOcjVir(2,j).ne.0).or.(ROHistSEikOcjVir(2,j).ne.0).or.(ROHistSASikOcjVir(2,j).ne.0)) THEN 
-                    WRITE(62,'(6F20.10)') ROHistSCikOcjVir(1,j),ROHistSCikOcjVir(2,j),ROHistSEikOcjVir(1,j),ROHistSEikOcjVir(2,j),&
+                    WRITE(iunit,'(6F20.10)') ROHistSCikOcjVir(1,j),ROHistSCikOcjVir(2,j),ROHistSEikOcjVir(1,j),ROHistSEikOcjVir(2,j),&
                                                         &ROHistSASikOcjVir(1,j),ROHistSASikOcjVir(2,j)
                 ENDIF
             enddo
-            CLOSE(62)
+            CLOSE(iunit)
         ENDIF
 
 !Single excitations connected to the HF determinant.
@@ -4009,28 +4026,30 @@ MODULE RotateOrbsMod
         enddo
 
         IF(Iteration.eq.0) THEN
-            OPEN(56,FILE='HistHFSingExcHF',STATUS='unknown')
+            iunit = get_free_unit()
+            OPEN(iunit,FILE='HistHFSingExcHF',STATUS='unknown')
             do j=1,4002
                 IF(ROHistSing(2,j).ne.0) THEN
                     do i=1,2
-                        WRITE(56,'(F20.10)',advance='no') ROHistSing(i,j)
+                        WRITE(iunit,'(F20.10)',advance='no') ROHistSing(i,j)
                     enddo
-                    WRITE(56,*) ''
+                    WRITE(iunit,*) ''
                 ENDIF
             enddo
-            CLOSE(56)
+            CLOSE(iunit)
         ENDIF
         IF((Iteration.gt.1).and.(.not.tNotConverged)) THEN
-            OPEN(60,FILE='HistRotSingExcHF',STATUS='unknown')
+            iunit = get_free_unit()
+            OPEN(iunit,FILE='HistRotSingExcHF',STATUS='unknown')
             do j=1,4002
                 IF(ROHistSing(2,j).ne.0) THEN
                     do i=1,2
-                        WRITE(60,'(F20.10)',advance='no') ROHistSing(i,j)
+                        WRITE(iunit,'(F20.10)',advance='no') ROHistSing(i,j)
                     enddo
-                    WRITE(60,*) ''
+                    WRITE(iunit,*) ''
                 ENDIF
             enddo
-            CLOSE(60)
+            CLOSE(iunit)
         ENDIF
 
 
@@ -4041,7 +4060,8 @@ MODULE RotateOrbsMod
 
 
     SUBROUTINE WriteDoubHisttofile()
-        INTEGER :: i,j,k,l,BinNo
+        use util_mod, only: get_free_unit
+        INTEGER :: i,j,k,l,BinNo, iunit
         REAL*8 :: MaxFII,MinFII,BinIter,OnePartOrbEnValue,MinHFTMAT,BinVal
 
 
@@ -4133,22 +4153,24 @@ MODULE RotateOrbsMod
             enddo
 
             IF(Iteration.eq.0) THEN 
-                OPEN(54,FILE='HistHFDoubijOcklVir',STATUS='unknown')
+                iunit = get_free_unit()
+                OPEN(iunit,FILE='HistHFDoubijOcklVir',STATUS='unknown')
                 do j=1,4002
                     IF((ROHistDCijOcklVir(2,j).ne.0).or.(ROHistASijOcklVir(2,j).ne.0)) THEN
-                        WRITE(54,'(4F20.10)') ROHistDCijOcklVir(1,j),ROHistDCijOcklVir(2,j),ROHistASijOcklVir(1,j),ROHistASijOcklVir(2,j)
+                        WRITE(iunit,'(4F20.10)') ROHistDCijOcklVir(1,j),ROHistDCijOcklVir(2,j),ROHistASijOcklVir(1,j),ROHistASijOcklVir(2,j)
                     ENDIF
                 enddo
-                CLOSE(54)
+                CLOSE(iunit)
             ENDIF
             IF((.not.tNotConverged).and.(Iteration.gt.1)) THEN
-                OPEN(55,FILE='HistRotDoubijOcklVir',STATUS='unknown')
+                iunit = get_free_unit()
+                OPEN(iunit,FILE='HistRotDoubijOcklVir',STATUS='unknown')
                 do j=1,4002
                     IF((ROHistDCijOcklVir(2,j).ne.0).or.(ROHistASijOcklVir(2,j).ne.0)) THEN
-                        WRITE(55,'(4F20.10)') ROHistDCijOcklVir(1,j),ROHistDCijOcklVir(2,j),ROHistASijOcklVir(1,j),ROHistASijOcklVir(2,j)
+                        WRITE(iunit,'(4F20.10)') ROHistDCijOcklVir(1,j),ROHistDCijOcklVir(2,j),ROHistASijOcklVir(1,j),ROHistASijOcklVir(2,j)
                     ENDIF
                 enddo
-                CLOSE(55)
+                CLOSE(iunit)
             ENDIF
 
 
@@ -4223,22 +4245,24 @@ MODULE RotateOrbsMod
             enddo
 
             IF(Iteration.eq.0) THEN 
-                OPEN(51,FILE='HistHFDoubijklVirt',STATUS='unknown')
+                iunit = get_free_unit()
+                OPEN(iunit,FILE='HistHFDoubijklVirt',STATUS='unknown')
                 do j=1,4002
                     IF((ROHistDCijklVir(2,j).ne.0).or.(ROHistASijklVir(2,j).ne.0)) THEN
-                        WRITE(51,'(4F20.10)') ROHistDCijklVir(1,j),ROHistDCijklVir(2,j),ROHistASijklVir(1,j),ROHistASijklVir(2,j)
+                        WRITE(iunit,'(4F20.10)') ROHistDCijklVir(1,j),ROHistDCijklVir(2,j),ROHistASijklVir(1,j),ROHistASijklVir(2,j)
                     ENDIF
                 enddo
-                CLOSE(51)
+                CLOSE(iunit)
             ENDIF
             IF((.not.tNotConverged).and.(Iteration.gt.1)) THEN
-                OPEN(52,FILE='HistRotDoubijklVirt',STATUS='unknown')
+                iunit = get_free_unit()
+                OPEN(iunit,FILE='HistRotDoubijklVirt',STATUS='unknown')
                 do j=1,4002
                     IF((ROHistDCijklVir(2,j).ne.0).or.(ROHistASijklVir(2,j).ne.0)) THEN
-                        WRITE(52,'(4F20.10)') ROHistDCijklVir(1,j),ROHistDCijklVir(2,j),ROHistASijklVir(1,j),ROHistASijklVir(2,j)
+                        WRITE(iunit,'(4F20.10)') ROHistDCijklVir(1,j),ROHistDCijklVir(2,j),ROHistASijklVir(1,j),ROHistASijklVir(2,j)
                     ENDIF
                 enddo
-                CLOSE(52)
+                CLOSE(iunit)
             ENDIF
         ENDIF
    
@@ -4274,28 +4298,30 @@ MODULE RotateOrbsMod
             enddo
 
             IF(Iteration.eq.0) THEN 
-                OPEN(27,FILE='HistHFHijVirt',STATUS='unknown')
+                iunit = get_free_unit()
+                OPEN(iunit,FILE='HistHFHijVirt',STATUS='unknown')
                 do j=1,4002
                     IF(ROHistHijVirt(2,j).ne.0) THEN
                         do i=1,2
-                            WRITE(27,'(F20.10)',advance='no') ROHistHijVirt(i,j)
+                            WRITE(iunit,'(F20.10)',advance='no') ROHistHijVirt(i,j)
                         enddo
-                        WRITE(27,*) ''
+                        WRITE(iunit,*) ''
                     ENDIF
                 enddo
-                CLOSE(27)
+                CLOSE(iunit)
             ENDIF
             IF((.not.tNotConverged).and.(Iteration.gt.1)) THEN
-                OPEN(28,FILE='HistRotHijVirt',STATUS='unknown')
+                iunit = get_free_unit()
+                OPEN(iunit,FILE='HistRotHijVirt',STATUS='unknown')
                 do j=1,4002
                     IF(ROHistHijVirt(2,j).ne.0) THEN
                         do i=1,2
-                            WRITE(28,'(F20.10)',advance='no') ROHistHijVirt(i,j)
+                            WRITE(iunit,'(F20.10)',advance='no') ROHistHijVirt(i,j)
                         enddo
-                        WRITE(28,*) ''
+                        WRITE(iunit,*) ''
                     ENDIF
                 enddo
-                CLOSE(28)
+                CLOSE(iunit)
             ENDIF
  
 
@@ -4327,28 +4353,30 @@ MODULE RotateOrbsMod
             enddo
 
             IF(Iteration.eq.0) THEN 
-                OPEN(25,FILE='HistHFHijOccVirt',STATUS='unknown')
+                iunit = get_free_unit()
+                OPEN(iunit,FILE='HistHFHijOccVirt',STATUS='unknown')
                 do j=1,4002
                     IF(ROHistHijOccVirt(2,j).ne.0) THEN
                         do i=1,2
-                            WRITE(25,'(F20.10)',advance='no') ROHistHijOccVirt(i,j)
+                            WRITE(iunit,'(F20.10)',advance='no') ROHistHijOccVirt(i,j)
                         enddo
-                        WRITE(25,*) ''
+                        WRITE(iunit,*) ''
                     ENDIF
                 enddo
-                CLOSE(25)
+                CLOSE(iunit)
             ENDIF
             IF((.not.tNotConverged).and.(Iteration.gt.1)) THEN
-                OPEN(26,FILE='HistRotHijOccVirt',STATUS='unknown')
+                iunit = get_free_unit()
+                OPEN(iunit,FILE='HistRotHijOccVirt',STATUS='unknown')
                 do j=1,4002
                     IF(ROHistHijOccVirt(2,j).ne.0) THEN
                         do i=1,2
-                            WRITE(26,'(F20.10)',advance='no') ROHistHijOccVirt(i,j)
+                            WRITE(iunit,'(F20.10)',advance='no') ROHistHijOccVirt(i,j)
                         enddo
-                        WRITE(26,*) ''
+                        WRITE(iunit,*) ''
                     ENDIF
                 enddo
-                CLOSE(26)
+                CLOSE(iunit)
             ENDIF
  
 
@@ -4374,28 +4402,30 @@ MODULE RotateOrbsMod
             enddo
 
             IF(Iteration.eq.0) THEN 
-                OPEN(21,FILE='HistHFHii',STATUS='unknown')
+                iunit = get_free_unit()
+                OPEN(iunit,FILE='HistHFHii',STATUS='unknown')
                 do j=1,4002
                     IF(ROHistHii(2,j).ne.0) THEN
                         do i=1,2
-                            WRITE(21,'(F20.10)',advance='no') ROHistHii(i,j)
+                            WRITE(iunit,'(F20.10)',advance='no') ROHistHii(i,j)
                         enddo
-                        WRITE(21,*) ''
+                        WRITE(iunit,*) ''
                     ENDIF
                 enddo
-                CLOSE(21)
+                CLOSE(iunit)
             ENDIF
             IF((.not.tNotConverged).and.(Iteration.gt.1)) THEN
-                OPEN(20,FILE='HistRotHii',STATUS='unknown')
+                iunit = get_free_unit()
+                OPEN(iunit,FILE='HistRotHii',STATUS='unknown')
                 do j=1,4002
                     IF(ROHistHii(2,j).ne.0) THEN
                         do i=1,2
-                            WRITE(20,'(F20.10)',advance='no') ROHistHii(i,j)
+                            WRITE(iunit,'(F20.10)',advance='no') ROHistHii(i,j)
                         enddo
-                        WRITE(20,*) ''
+                        WRITE(iunit,*) ''
                     ENDIF
                 enddo
-                CLOSE(20)
+                CLOSE(iunit)
             ENDIF
         ENDIF
    
@@ -4432,28 +4462,30 @@ MODULE RotateOrbsMod
             enddo
 
             IF(Iteration.eq.0) THEN 
-                OPEN(23,FILE='HistHFOnePartOrbEn',STATUS='unknown')
+                iunit = get_free_unit()
+                OPEN(iunit,FILE='HistHFOnePartOrbEn',STATUS='unknown')
                 do j=1,4002
                     IF(ROHistOnePartOrbEn(2,j).ne.0) THEN
                         do i=1,2
-                            WRITE(23,'(F20.10)',advance='no') ROHistOnePartOrbEn(i,j)
+                            WRITE(iunit,'(F20.10)',advance='no') ROHistOnePartOrbEn(i,j)
                         enddo
-                        WRITE(23,*) ''
+                        WRITE(iunit,*) ''
                     ENDIF
                 enddo
-                CLOSE(23)
+                CLOSE(iunit)
             ENDIF
             IF((Iteration.gt.1).and.(.not.tNotConverged)) THEN
-                OPEN(22,FILE='HistRotOnePartOrbEn',STATUS='unknown')
+                iunit = get_free_unit()
+                OPEN(iunit,FILE='HistRotOnePartOrbEn',STATUS='unknown')
                 do j=1,4002
                     IF(ROHistOnePartOrbEn(2,j).ne.0) THEN
                         do i=1,2
-                            WRITE(22,'(F20.10)',advance='no') ROHistOnePartOrbEn(i,j)
+                            WRITE(iunit,'(F20.10)',advance='no') ROHistOnePartOrbEn(i,j)
                         enddo
-                        WRITE(22,*) ''
+                        WRITE(iunit,*) ''
                     ENDIF
                 enddo
-                CLOSE(22)
+                CLOSE(iunit)
             ENDIF
         ENDIF
   
@@ -4498,28 +4530,30 @@ MODULE RotateOrbsMod
             enddo
 
             IF(Iteration.eq.0) THEN 
-                OPEN(36,FILE='HistHFDoubExc',STATUS='unknown')
+                iunit = get_free_unit()
+                OPEN(iunit,FILE='HistHFDoubExc',STATUS='unknown')
                 do j=1,4002
                     IF(ROHistDoubExc(2,j).ne.0) THEN
                         do i=1,2
-                            WRITE(36,'(F20.10)',advance='no') ROHistDoubExc(i,j)
+                            WRITE(iunit,'(F20.10)',advance='no') ROHistDoubExc(i,j)
                         enddo
-                        WRITE(36,*) ''
+                        WRITE(iunit,*) ''
                     ENDIF
                 enddo
-                CLOSE(36)
+                CLOSE(iunit)
             ENDIF
             IF((Iteration.gt.1).and.(.not.tNotConverged)) THEN
-                OPEN(24,FILE='HistRotDoubExc',STATUS='unknown')
+                iunit = get_free_unit()
+                OPEN(iunit,FILE='HistRotDoubExc',STATUS='unknown')
                 do j=1,4002
                     IF(ROHistDoubExc(2,j).ne.0) THEN
                         do i=1,2
-                            WRITE(24,'(F20.10)',advance='no') ROHistDoubExc(i,j)
+                            WRITE(iunit,'(F20.10)',advance='no') ROHistDoubExc(i,j)
                         enddo
-                        WRITE(24,*) ''
+                        WRITE(iunit,*) ''
                     ENDIF
                 enddo
-                CLOSE(24)
+                CLOSE(iunit)
             ENDIF
         ENDIF
 
@@ -4546,29 +4580,31 @@ MODULE RotateOrbsMod
             enddo
 
             IF(Iteration.eq.0) THEN 
-                OPEN(32,FILE='HistHF-ER',STATUS='unknown')
+                iunit = get_free_unit()
+                OPEN(iunit,FILE='HistHF-ER',STATUS='unknown')
                 do j=1,4002
                     IF(ROHistER(2,j).ne.0) THEN
                         do i=1,2
-                            WRITE(32,'(F20.10)',advance='no') ROHistER(i,j)
+                            WRITE(iunit,'(F20.10)',advance='no') ROHistER(i,j)
                         enddo
-                        WRITE(32,*) ''
+                        WRITE(iunit,*) ''
                     ENDIF
                 enddo
-                CLOSE(32)
+                CLOSE(iunit)
             ENDIF
 
             IF((Iteration.gt.1).and.(.not.tNotConverged)) THEN
-                OPEN(34,FILE='HistRot-ER',STATUS='unknown')
+                iunit = get_free_unit()
+                OPEN(iunit,FILE='HistRot-ER',STATUS='unknown')
                 do j=1,4002
                     IF(ROHistER(2,j).ne.0) THEN
                         do i=1,2
-                            WRITE(34,'(F20.10)',advance='no') ROHistER(i,j)
+                            WRITE(iunit,'(F20.10)',advance='no') ROHistER(i,j)
                         enddo
-                        WRITE(34,*) ''
+                        WRITE(iunit,*) ''
                     ENDIF
                 enddo
-                CLOSE(34)
+                CLOSE(iunit)
             ENDIF
 
         ENDIF
@@ -4580,16 +4616,19 @@ MODULE RotateOrbsMod
 
 
     SUBROUTINE PrintIntegrals()
-        INTEGER :: i,j,k,l
+        use util_mod, only: get_free_unit
+        INTEGER :: i,j,k,l, io1, io2
         REAL*8 :: DiagOneElPot,ERPot,ijVirtOneElPot,ijVirtCoulPot,ijVirtExchPot
         REAL*8 :: singCoulijVirt,singExchijVirt,singCoulconHF,singExchconHF,ijklPot,ijklantisymPot,ijOccVirtOneElPot,ijOccVirtCoulPot,ijOccVirtExchPot
 
         IF(tInitIntValues) THEN
-            OPEN(17,FILE='DiagIntegrals',STATUS='unknown')
-            WRITE(17,'(A10,6A18)') "Iteration","<i|h|i> ivirt","<ii|ii> ivirt","<ij|ij> iOccjVirt","<ij|ji> iOccjVirt","<ij|ij> ijVirt","<ij|ji> ijVirt"
+            io1 = get_free_unit()
+            OPEN(io1,FILE='DiagIntegrals',STATUS='unknown')
+            WRITE(io1,'(A10,6A18)') "Iteration","<i|h|i> ivirt","<ii|ii> ivirt","<ij|ij> iOccjVirt","<ij|ji> iOccjVirt","<ij|ij> ijVirt","<ij|ji> ijVirt"
 
-            OPEN(18,FILE='SingExcIntegrals',STATUS='unknown')
-            WRITE(18,'(A10,6A18)') "Iteration","<i|h|j> iOccjVirt","<i|h|j> ijVirt","<ik|jk> HFcon","<ik|kj> HFcon","<ik|jk> ijVirt","<ik|kj> ijVirt"
+            io2 = get_free_unit()
+            OPEN(io2,FILE='SingExcIntegrals',STATUS='unknown')
+            WRITE(io2,'(A10,6A18)') "Iteration","<i|h|j> iOccjVirt","<i|h|j> ijVirt","<ik|jk> HFcon","<ik|kj> HFcon","<ik|jk> ijVirt","<ik|kj> ijVirt"
 
 
             DiagOneElPotInit=0.D0
@@ -4728,12 +4767,12 @@ MODULE RotateOrbsMod
         ijOccVirtExchPot=(ijOccVirtExchPot-ijOccVirtExchPot)/NoInts05
 
 
-        WRITE(17,'(I10,6F18.10)') Iteration,DiagOneElPot,ERPot,ijOccVirtCoulPot,ijOccVirtExchPot,ijVirtCoulPot,ijVirtExchPot
-        WRITE(18,'(I10,6F18.10)') Iteration,ijOccVirtOneElPot,ijVirtOneElPot,singCoulconHF,singExchconHF,singCoulijVirt,singExchijVirt
+        WRITE(io1,'(I10,6F18.10)') Iteration,DiagOneElPot,ERPot,ijOccVirtCoulPot,ijOccVirtExchPot,ijVirtCoulPot,ijVirtExchPot
+        WRITE(io2,'(I10,6F18.10)') Iteration,ijOccVirtOneElPot,ijVirtOneElPot,singCoulconHF,singExchconHF,singCoulijVirt,singExchijVirt
 
         IF((.not.tNotConverged).and.(.not.tInitIntValues)) THEN
-            CLOSE(17)
-            CLOSE(18)
+            CLOSE(io1)
+            CLOSE(io2)
         ENDIF
 
 
@@ -5106,7 +5145,8 @@ MODULE RotateOrbsMod
 
     SUBROUTINE PrintROFCIDUMP()
 !This prints out a new FCIDUMP file in the same format as the old one.
-        INTEGER :: i,j,k,l,Sym,Syml,LabelSymk
+        use util_mod, only: get_free_unit
+        INTEGER :: i,j,k,l,Sym,Syml,LabelSymk,iunit
         CHARACTER(len=5) :: Label
         CHARACTER(len=20) :: LabelFull
 
@@ -5119,28 +5159,29 @@ MODULE RotateOrbsMod
         WRITE(Label,'(I5)') NoFrozenVirt
         LabelFull='ROFCIDUMP-'//adjustl(Label)
 
-        OPEN(48,FILE=LabelFull,STATUS='unknown')
+        iunit = get_free_unit()
+        OPEN(iunit,FILE=LabelFull,STATUS='unknown')
         
-        WRITE(48,'(2A6,I3,A7,I3,A5,I2,A)') '&FCI ','NORB=',(NoOrbs-(NoFrozenVirt)),',NELEC=',NEl,',MS2=',LMS,','
-        WRITE(48,'(A9)',advance='no') 'ORBSYM='
+        WRITE(iunit,'(2A6,I3,A7,I3,A5,I2,A)') '&FCI ','NORB=',(NoOrbs-(NoFrozenVirt)),',NELEC=',NEl,',MS2=',LMS,','
+        WRITE(iunit,'(A9)',advance='no') 'ORBSYM='
         do i=1,(NoOrbs-(NoFrozenVirt))
             IF((tUseMP2VarDenMat.or.tFindCINatOrbs).and.(.not.lNoSymmetry).and.tTruncRODump) THEN
-                WRITE(48,'(I1,A1)',advance='no') (SymOrbs(i)+1),','
+                WRITE(iunit,'(I1,A1)',advance='no') (SymOrbs(i)+1),','
             ELSE
                 IF(tStoreSpinOrbs) THEN
-                    WRITE(48,'(I1,A1)',advance='no') (INT(G1(i)%sym%S,4)+1),','
+                    WRITE(iunit,'(I1,A1)',advance='no') (INT(G1(i)%sym%S,4)+1),','
                 ELSE
-                    WRITE(48,'(I1,A1)',advance='no') (INT(G1(i*2)%sym%S,4)+1),','
+                    WRITE(iunit,'(I1,A1)',advance='no') (INT(G1(i*2)%sym%S,4)+1),','
                 ENDIF
             ENDIF
         enddo
-        WRITE(48,*) ''
+        WRITE(iunit,*) ''
         IF(tStoreSpinOrbs) THEN
-            WRITE(48,'(A7,I1,A11)') 'ISYM=',1,' UHF=.TRUE.'
+            WRITE(iunit,'(A7,I1,A11)') 'ISYM=',1,' UHF=.TRUE.'
         ELSE
-            WRITE(48,'(A7,I1)') 'ISYM=',1
+            WRITE(iunit,'(A7,I1)') 'ISYM=',1
         ENDIF
-        WRITE(48,'(A5)') '&END'
+        WRITE(iunit,'(A5)') '&END'
        
         do i=1,(NoOrbs-(NoFrozenVirt))
             do k=1,i
@@ -5152,7 +5193,7 @@ MODULE RotateOrbsMod
 !                        Syml=INT(G1(l*2)%sym%S,4)
 !                        IF((Syml.eq.Sym).and.((REAL(UMat(UMatInd(i,j,k,l,0,0)),8)).ne.0.D0)) &
                         IF((ABS(REAL(UMat(UMatInd(i,j,k,l,0,0)),8))).ne.0.D0) &
-                                        &WRITE(48,'(F21.12,4I3)') REAL(UMat(UMatInd(i,j,k,l,0,0)),8),i,k,j,l 
+                                        &WRITE(iunit,'(F21.12,4I3)') REAL(UMat(UMatInd(i,j,k,l,0,0)),8),i,k,j,l 
                     enddo
                 enddo
            enddo
@@ -5167,7 +5208,7 @@ MODULE RotateOrbsMod
                    ! Potential to put symmetry in here.
 !                    do k=i,SpatOrbs
 !                        Symk=INT(G1(k*2)%sym%S,4)
-!                        IF(Symk.eq.Sym) WRITE(48,'(F21.12,4I3)') REAL(UMat(UMatInd(i,j,k,l,0,0)),8),i,k,j,l 
+!                        IF(Symk.eq.Sym) WRITE(iunit,'(F21.12,4I3)') REAL(UMat(UMatInd(i,j,k,l,0,0)),8),i,k,j,l 
 !                    enddo
 !                enddo
 !            enddo
@@ -5179,9 +5220,9 @@ MODULE RotateOrbsMod
             ! Symmetry?
             do i=k,(NoOrbs-(NoFrozenVirt))
                 IF(tStoreSpinOrbs) THEN
-                    IF((REAL(TMAT2D(i,k),8)).ne.0.D0) WRITE(48,'(F21.12,4I3)') REAL(TMAT2D(i,k),8),i,k,0,0
+                    IF((REAL(TMAT2D(i,k),8)).ne.0.D0) WRITE(iunit,'(F21.12,4I3)') REAL(TMAT2D(i,k),8),i,k,0,0
                 ELSE
-                    IF((REAL(TMAT2D(2*i,2*k),8)).ne.0.D0) WRITE(48,'(F21.12,4I3)') REAL(TMAT2D(2*i,2*k),8),i,k,0,0
+                    IF((REAL(TMAT2D(2*i,2*k),8)).ne.0.D0) WRITE(iunit,'(F21.12,4I3)') REAL(TMAT2D(2*i,2*k),8),i,k,0,0
                 ENDIF
             enddo
         enddo
@@ -5191,17 +5232,17 @@ MODULE RotateOrbsMod
 
         do k=1,(NoOrbs-(NoFrozenVirt))
             IF(tStoreSpinOrbs) THEN
-                WRITE(48,'(F21.12,4I3)') Arr(k,2),k,0,0,0
+                WRITE(iunit,'(F21.12,4I3)') Arr(k,2),k,0,0,0
             ELSE
-                WRITE(48,'(F21.12,4I3)') Arr(2*k,2),k,0,0,0
+                WRITE(iunit,'(F21.12,4I3)') Arr(2*k,2),k,0,0,0
             ENDIF
         enddo
 
-        WRITE(48,'(F21.12,4I3)') ECore,0,0,0,0
+        WRITE(iunit,'(F21.12,4I3)') ECore,0,0,0,0
         
-        CALL FLUSH(48)
+        CALL FLUSH(iunit)
 
-        CLOSE(48)
+        CLOSE(iunit)
 
         CALL halt_timer(PrintROFCIDUMP_Time)
 
@@ -5211,7 +5252,8 @@ MODULE RotateOrbsMod
 
     SUBROUTINE PrintRepeatROFCIDUMP()
 !This prints out a new FCIDUMP file in the same format as the old one.
-        INTEGER :: i,j,k,l,Sym,Syml,LabelSymk,ierr,a,b,g,d
+        use util_mod, only: get_free_unit
+        INTEGER :: i,j,k,l,Sym,Syml,LabelSymk,ierr,a,b,g,d, iunit
         CHARACTER(len=5) :: Label
         CHARACTER(len=20) :: LabelFull
         CHARACTER(len=*) , PARAMETER :: this_routine='PrintRepeatROFCIDUMP'
@@ -5225,28 +5267,29 @@ MODULE RotateOrbsMod
         WRITE(Label,'(I5)') NoFrozenVirt
         LabelFull='ROFCIDUMP-'//adjustl(Label)
 
-        OPEN(48,FILE=LabelFull,STATUS='unknown')
+        iunit = get_free_unit()
+        OPEN(iunit,FILE=LabelFull,STATUS='unknown')
         
-        WRITE(48,'(2A6,I3,A7,I3,A5,I2,A)') '&FCI ','NORB=',(NoOrbs-(NoFrozenVirt)),',NELEC=',NEl,',MS2=',LMS,','
-        WRITE(48,'(A9)',advance='no') 'ORBSYM='
+        WRITE(iunit,'(2A6,I3,A7,I3,A5,I2,A)') '&FCI ','NORB=',(NoOrbs-(NoFrozenVirt)),',NELEC=',NEl,',MS2=',LMS,','
+        WRITE(iunit,'(A9)',advance='no') 'ORBSYM='
         do i=1,(NoOrbs-(NoFrozenVirt))
             IF((tUseMP2VarDenMat.or.tFindCINatOrbs).and.(.not.lNoSymmetry).and.tTruncRODump) THEN
-                WRITE(48,'(I1,A1)',advance='no') (SymOrbs(i)+1),','
+                WRITE(iunit,'(I1,A1)',advance='no') (SymOrbs(i)+1),','
             ELSE
                 IF(tStoreSpinOrbs) THEN
-                    WRITE(48,'(I1,A1)',advance='no') (INT(G1(i)%sym%S,4)+1),','
+                    WRITE(iunit,'(I1,A1)',advance='no') (INT(G1(i)%sym%S,4)+1),','
                 ELSE
-                    WRITE(48,'(I1,A1)',advance='no') (INT(G1(i*2)%sym%S,4)+1),','
+                    WRITE(iunit,'(I1,A1)',advance='no') (INT(G1(i*2)%sym%S,4)+1),','
                 ENDIF
             ENDIF
         enddo
-        WRITE(48,*) ''
+        WRITE(iunit,*) ''
         IF(tStoreSpinOrbs) THEN
-            WRITE(48,'(A7,I1,A11)') 'ISYM=',1,' UHF=.TRUE.'
+            WRITE(iunit,'(A7,I1,A11)') 'ISYM=',1,' UHF=.TRUE.'
         ELSE
-            WRITE(48,'(A7,I1)') 'ISYM=',1
+            WRITE(iunit,'(A7,I1)') 'ISYM=',1
         ENDIF
-        WRITE(48,'(A5)') '&END'
+        WRITE(iunit,'(A5)') '&END'
 
  
         ALLOCATE(SymLabelList3Inv(NoOrbs),stat=ierr)
@@ -5272,7 +5315,7 @@ MODULE RotateOrbsMod
 !                        IF((Syml.eq.Sym).and.((REAL(UMat(UMatInd(i,j,k,l,0,0)),8)).ne.0.D0)) &
 !                        WRITE(6,*) i,a,k,g,j,b,l,d,FourIndInts(a,b,g,d)
                         IF((ABS(FourIndInts(a,g,b,d))).ne.0.D0) &
-                                        &WRITE(48,'(F21.12,4I3)') FourIndInts(a,g,b,d),i,k,j,l 
+                                        &WRITE(iunit,'(F21.12,4I3)') FourIndInts(a,g,b,d),i,k,j,l 
  
                     enddo
                 enddo
@@ -5288,9 +5331,9 @@ MODULE RotateOrbsMod
             ! Symmetry?
             do i=k,(NoOrbs-(NoFrozenVirt))
                 IF(tStoreSpinOrbs) THEN
-                    IF(TMAT2DNew(i,k).ne.0.D0) WRITE(48,'(F21.12,4I3)') TMAT2DNew(i,k),i,k,0,0
+                    IF(TMAT2DNew(i,k).ne.0.D0) WRITE(iunit,'(F21.12,4I3)') TMAT2DNew(i,k),i,k,0,0
                 ELSE
-                    IF(TMAT2DNew(2*i,2*k).ne.0.D0) WRITE(48,'(F21.12,4I3)') TMAT2DNew(2*i,2*k),i,k,0,0
+                    IF(TMAT2DNew(2*i,2*k).ne.0.D0) WRITE(iunit,'(F21.12,4I3)') TMAT2DNew(2*i,2*k),i,k,0,0
                 ENDIF
             enddo
         enddo
@@ -5301,33 +5344,33 @@ MODULE RotateOrbsMod
         IF(tUseMP2VarDenMat.or.tFindCINatOrbs.or.tUseHFOrbs) THEN
             IF(tStoreSpinOrbs) THEN
                 do k=1,(NoOrbs-(NoFrozenVirt))
-                    WRITE(48,'(F21.12,4I3)') ArrDiagNew(k),k,0,0,0
+                    WRITE(iunit,'(F21.12,4I3)') ArrDiagNew(k),k,0,0,0
                 enddo
             ELSE
 
                 do k=1,(NoOrbs-(NoFrozenVirt))
 
-                    WRITE(48,'(F21.12,4I3)') ArrDiagNew(k),k,0,0,0
+                    WRITE(iunit,'(F21.12,4I3)') ArrDiagNew(k),k,0,0,0
                 enddo
             ENDIF
         ELSE
             IF(tStoreSpinOrbs) THEN
                 do k=1,(NoOrbs-(NoFrozenVirt))
-                    WRITE(48,'(F21.12,4I3)') ArrNew(k,k),k,0,0,0
+                    WRITE(iunit,'(F21.12,4I3)') ArrNew(k,k),k,0,0,0
                 enddo
             ELSE
                 do k=1,(NoOrbs-(NoFrozenVirt))
-                    WRITE(48,'(F21.12,4I3)') ArrNew(k,k),k,0,0,0
+                    WRITE(iunit,'(F21.12,4I3)') ArrNew(k,k),k,0,0,0
                 enddo
             ENDIF
         ENDIF
 
 
-        WRITE(48,'(F21.12,4I3)') ECore,0,0,0,0
+        WRITE(iunit,'(F21.12,4I3)') ECore,0,0,0,0
         
-        CALL FLUSH(48)
+        CALL FLUSH(iunit)
 
-        CLOSE(48)
+        CLOSE(iunit)
 
         CALL halt_timer(PrintROFCIDUMP_Time)
 

@@ -1140,8 +1140,9 @@ MODULE NatOrbsMod
     SUBROUTINE FillCoeffT1
         USE RotateOrbsData , only : CoeffT1,SymLabelList3,SymOrbs,SymOrbsTag,TruncEval,NoRotOrbs,EvaluesTrunc,EvaluesTruncTag
         USE Logging , only : tTruncRODump,tTruncDumpbyVal
+        use util_mod, only: get_free_unit
         IMPLICIT NONE
-        INTEGER :: l,k,i,j,NoRotAlphBet,SymFirst
+        INTEGER :: l,k,i,j,NoRotAlphBet,SymFirst, io1, io2
         CHARACTER(len=*), PARAMETER :: this_routine='FillCoeffT1'
         CHARACTER(len=5) :: Label
         CHARACTER(len=20) :: LabelFull
@@ -1364,39 +1365,41 @@ MODULE NatOrbsMod
             WRITE(Label,'(I5)') NoFrozenVirt
             LabelFull='EVALUES-TRUNC-'//adjustl(Label)
 
-            OPEN(74,FILE=LabelFull,status='unknown')
+            io1 = get_free_unit()
+            OPEN(io1,FILE=LabelFull,status='unknown')
             IF(tStoreSpinOrbs) THEN
-                WRITE(74,*) NoOrbs-NoFrozenVirt
+                WRITE(io1,*) NoOrbs-NoFrozenVirt
                 do i=1,NoOrbs-NoFrozenVirt,2
-                    WRITE(74,'(I5,ES20.10,I5,A5,I5,ES20.10,I5)') i,EvaluesTrunc(i),SymOrbs(i),'  *  ',i+1,EvaluesTrunc(i+1),SymOrbs(i+1)
+                    WRITE(io1,'(I5,ES20.10,I5,A5,I5,ES20.10,I5)') i,EvaluesTrunc(i),SymOrbs(i),'  *  ',i+1,EvaluesTrunc(i+1),SymOrbs(i+1)
                 enddo
             ELSE
-                WRITE(74,*) NoOrbs-NoFrozenVirt
+                WRITE(io1,*) NoOrbs-NoFrozenVirt
                 do i=1,NoOrbs-NoFrozenVirt
-                    WRITE(74,'(ES20.10,I5)') EvaluesTrunc(i),SymOrbs(i)
+                    WRITE(io1,'(ES20.10,I5)') EvaluesTrunc(i),SymOrbs(i)
                 enddo
             ENDIF
-            CLOSE(74) 
+            CLOSE(io1) 
         ELSE
-            OPEN(73,FILE='EVALUES',status='unknown')
-            WRITE(73,*) NoOrbs
+            io2 = get_free_unit()
+            OPEN(io2,FILE='EVALUES',status='unknown')
+            WRITE(io2,*) NoOrbs
             IF(tStoreSpinOrbs) THEN
                 k=0
                 do i=1,NoOrbs,2
                     k=k+1
                     IF(tTruncRODump) THEN
-                        WRITE(73,'(2I5,ES20.10,I5,A5,I5,ES20.10,I5)') (NoOrbs-i+1),i,Evalues(k),SymOrbs(i),'  *  ',i+1,Evalues(k+SpatOrbs),SymOrbs(i+1)
+                        WRITE(io2,'(2I5,ES20.10,I5,A5,I5,ES20.10,I5)') (NoOrbs-i+1),i,Evalues(k),SymOrbs(i),'  *  ',i+1,Evalues(k+SpatOrbs),SymOrbs(i+1)
                     ELSE
-                        WRITE(73,'(2I5,ES20.10,I5,A5,I5,ES20.10,I5)') (NoOrbs-i+1),i,Evalues(k),INT(G1(SymLabelList3(k))%Sym%S,4),'  *  ',&
+                        WRITE(io2,'(2I5,ES20.10,I5,A5,I5,ES20.10,I5)') (NoOrbs-i+1),i,Evalues(k),INT(G1(SymLabelList3(k))%Sym%S,4),'  *  ',&
                                                              &i+1,Evalues(k+SpatOrbs),INT(G1(SymLabelList3(k+SpatOrbs))%Sym%S,4)
                     ENDIF
                 enddo
             ELSE
                 do i=1,SpatOrbs
-                    WRITE(73,'(3I5,ES20.10)') i,NoOrbs-i+1,(NoOrbs-i+1)*2,Evalues(i)
+                    WRITE(io2,'(3I5,ES20.10)') i,NoOrbs-i+1,(NoOrbs-i+1)*2,Evalues(i)
                 enddo
             ENDIF
-            CLOSE(73)
+            CLOSE(io2)
         ENDIF
 
         CALL HistNatOrbEvalues()
@@ -1406,13 +1409,13 @@ MODULE NatOrbsMod
 !            WRITE(6,*) NatOrbMat(:,i)
 !        enddo
 
-!        OPEN(74,FILE='TRANSFORMMAT',status='unknown')
+!        OPEN(io1,FILE='TRANSFORMMAT',status='unknown')
 !        do i=1,NoOrbs
 !            do j=1,NoOrbs-NoFrozenVirt
-!                WRITE(74,*) i,j,CoeffT1(i,j)
+!                WRITE(io1,*) i,j,CoeffT1(i,j)
 !            enddo
 !        enddo
-!        CLOSE(74)
+!        CLOSE(io1)
 
         CALL halt_timer(FillCoeff_Time)
  
@@ -1425,42 +1428,44 @@ MODULE NatOrbsMod
     SUBROUTINE HistNatOrbEvalues()
         USE Logging , only : tTruncRODump
         USE RotateOrbsData , only : CoeffT1,EvaluesTrunc
+        use util_mod, only: get_free_unit
         IMPLICIT NONE
-        INTEGER :: i,k,x,NoEvalues,a,b,NoOcc
+        INTEGER :: i,k,x,NoEvalues,a,b,NoOcc,io1, io2
         REAL*8 :: EvaluesCount(NoOrbs,2),EvalueEnergies(1:NoOrbs),OrbEnergies(1:NoOrbs)
         REAL*8 :: SumEvalues
+        
+        io1 = get_free_unit()
 
-
-        OPEN(74,FILE='EVALUES-PLOTRAT',status='unknown')
+        OPEN(io1,FILE='EVALUES-PLOTRAT',status='unknown')
         IF(tStoreSpinOrbs) THEN
             k=0
             do i=1,SpatOrbs
                 k=k+2
-                WRITE(74,'(F20.10,ES20.10)') REAL(k-1)/REAL(NoOrbs),Evalues(i)
-                WRITE(74,'(F20.10,ES20.10)') REAL(k)/REAL(NoOrbs),Evalues(SpatOrbs+i)
+                WRITE(io1,'(F20.10,ES20.10)') REAL(k-1)/REAL(NoOrbs),Evalues(i)
+                WRITE(io1,'(F20.10,ES20.10)') REAL(k)/REAL(NoOrbs),Evalues(SpatOrbs+i)
             enddo
         ELSEIF(tRotateOccOnly) THEN
             k=0
             do i=1,NoOcc
                 k=k+1
-                WRITE(74,'(F20.10,ES20.10)') REAL(k)/REAL(NoOcc),Evalues(i)
+                WRITE(io1,'(F20.10,ES20.10)') REAL(k)/REAL(NoOcc),Evalues(i)
             enddo
         ELSEIF(tRotateVirtOnly) THEN
             k=NoOcc
             do i=NoOcc+1,NoOrbs
                 k=k+1
-                WRITE(74,'(F20.10,ES20.10)') REAL(k-NoOcc)/REAL(NoOrbs-NoOcc),Evalues(i)
+                WRITE(io1,'(F20.10,ES20.10)') REAL(k-NoOcc)/REAL(NoOrbs-NoOcc),Evalues(i)
             enddo
         ELSE
             k=0
             do i=1,SpatOrbs
                 k=k+1
-                WRITE(74,'(F20.10,ES20.10)') REAL(k)/REAL(NoOrbs),Evalues(i)
+                WRITE(io1,'(F20.10,ES20.10)') REAL(k)/REAL(NoOrbs),Evalues(i)
             enddo
         ENDIF
-        CLOSE(74)
+        CLOSE(io1)
 
-!        OPEN(73,FILE='EVALUES-plot',status='unknown')
+!        OPEN(io2,FILE='EVALUES-plot',status='unknown')
 !        EvaluesCount(:,:)=0.D0
 
 !        do x=1,NoSpinCyc
@@ -1494,13 +1499,13 @@ MODULE NatOrbsMod
 !            NoEvalues=k
 
 !            do i=1,NoEvalues
-!                WRITE(73,*) EvaluesCount(i,1),Evaluescount(i,2)
+!                WRITE(io2,*) EvaluesCount(i,1),Evaluescount(i,2)
 !            enddo
 
 
 !        enddo
 
-!        CLOSE(73)
+!        CLOSE(io2)
 
 ! Want to write out the eigenvectors in order of the energy of the new orbitals - so that we can see the occupations 
 ! of the type of orbital.
@@ -1553,14 +1558,15 @@ MODULE NatOrbsMod
 !        CALL SortEvecbyEval(NoOrbs,OrbEnergies(1:NoOrbs),1,EvalueEnergies(1,1:NoOrbs))
         call sort (orbEnergies(1:noOrbs), EvalueEnergies(1:noOrbs))
 
-        OPEN(73,FILE='EVALUES-ENERGY',status='unknown')
+        io2 = get_free_unit()
+        OPEN(io2,FILE='EVALUES-ENERGY',status='unknown')
         do i=1,NoOrbs
-            WRITE(73,*) OrbEnergies(NoOrbs-i+1),EvalueEnergies(NoOrbs-i+1)
+            WRITE(io2,*) OrbEnergies(NoOrbs-i+1),EvalueEnergies(NoOrbs-i+1)
         enddo
-        WRITE(73,*) 'The sum of the occupation numbers (eigenvalues) = ',SumEvalues
-        WRITE(73,*) 'The number of electrons = ',NEl
-        CALL FLUSH(73)
-        CLOSE(73)
+        WRITE(io2,*) 'The sum of the occupation numbers (eigenvalues) = ',SumEvalues
+        WRITE(io2,*) 'The number of electrons = ',NEl
+        CALL FLUSH(io2)
+        CLOSE(io2)
         CALL FLUSH(6)
 
         CALL PrintOccTable()
@@ -1614,49 +1620,51 @@ MODULE NatOrbsMod
         USE Logging , only : tTruncRODump
         USE RotateOrbsData , only : CoeffT1,EvaluesTrunc
         USE SystemData , only : tUseHFOrbs
-        INTEGER x,i,a,b
+        use util_mod, only: get_free_unit
+        INTEGER x,i,a,b, io2
 
-        OPEN(73,FILE='OccupationTable',status='unknown')
+        io2 = get_free_unit()
+        OPEN(io2,FILE='OccupationTable',status='unknown')
         x=1
         do while (x.le.NoOrbs)
-            WRITE(73,'(A16,A5)',advance='no') 'HF Orb En    ','Sym'
+            WRITE(io2,'(A16,A5)',advance='no') 'HF Orb En    ','Sym'
             IF(.not.tUseHFOrbs) THEN
                 do i=x,x+9
                     IF(i.gt.NoOrbs) THEN
-                        WRITE(73,*) ''
+                        WRITE(io2,*) ''
                         EXIT
                     ENDIF
                     IF(tTruncRODump) THEN
-                        WRITE(73,'(ES16.6)',advance='no') EvaluesTrunc(i)
+                        WRITE(io2,'(ES16.6)',advance='no') EvaluesTrunc(i)
                     ELSE
-                        WRITE(73,'(ES16.6)',advance='no') Evalues(i)
+                        WRITE(io2,'(ES16.6)',advance='no') Evalues(i)
                     ENDIF
                 enddo
             ENDIF
-            WRITE(73,*) ''
+            WRITE(io2,*) ''
 
             do a=1,NoOrbs
                 b=SymLabelListInv(a)
                 IF(tStoreSpinOrbs) THEN
-                    WRITE(73,'(F16.10,I5)',advance='no') ARR(a,1),INT(G1(a)%sym%S,4)
+                    WRITE(io2,'(F16.10,I5)',advance='no') ARR(a,1),INT(G1(a)%sym%S,4)
                 ELSE
-                    WRITE(73,'(F16.10,I5)',advance='no') ARR(2*a,1),INT(G1(2*a)%sym%S,4)
+                    WRITE(io2,'(F16.10,I5)',advance='no') ARR(2*a,1),INT(G1(2*a)%sym%S,4)
                 ENDIF
                 do i=x,x+9
                     IF(i.gt.NoOrbs) THEN
-                        WRITE(73,*) ''
+                        WRITE(io2,*) ''
                         EXIT
                     ENDIF
-!                    WRITE(73,'(F16.10)',advance='no') NatOrbMat(b,i)
-                    WRITE(73,'(F16.10)',advance='no') CoeffT1(b,i)
+!                    WRITE(io2,'(F16.10)',advance='no') NatOrbMat(b,i)
+                    WRITE(io2,'(F16.10)',advance='no') CoeffT1(b,i)
                 enddo
-                WRITE(73,*) ''
+                WRITE(io2,*) ''
             enddo
-            WRITE(73,*) ''
+            WRITE(io2,*) ''
             x=x+10
         enddo
-        CALL FLUSH(73)
-        CLOSE(73)
+        CALL FLUSH(io2)
+        CLOSE(io2)
         CALL FLUSH(6)
         
 
@@ -1669,8 +1677,9 @@ MODULE NatOrbsMod
 ! occupied.
 ! This is essentially < Psi | a_p+ a_p | Psi > - the diagonal terms of the one electron reduced density matrix.
 !        USE Logging , only : OrbOccs
+        use util_mod, only: get_free_unit
         REAL*8 :: Norm,OrbOccs(nBasis)
-        INTEGER :: i,AllOrbOccsTag,ierr,error
+        INTEGER :: i,AllOrbOccsTag,ierr,error, iunit
         REAL*8 , ALLOCATABLE :: AllOrbOccs(:)
 
 
@@ -1696,12 +1705,13 @@ MODULE NatOrbsMod
                 AllOrbOccs(i)=AllOrbOccs(i)/Norm
             enddo
 
-            OPEN(12,FILE='ORBOCCUPATIONS',STATUS='UNKNOWN')
-            WRITE(12,'(A15,A30)') '# Orbital no.','Normalised occupation'
+            iunit = get_free_unit()
+            OPEN(iunit,FILE='ORBOCCUPATIONS',STATUS='UNKNOWN')
+            WRITE(iunit,'(A15,A30)') '# Orbital no.','Normalised occupation'
             do i=1,nBasis
-                WRITE(12,'(I15,F30.10)') i,AllOrbOccs(i)
+                WRITE(iunit,'(I15,F30.10)') i,AllOrbOccs(i)
             enddo
-            CLOSE(12)
+            CLOSE(iunit)
 
             DEALLOCATE(AllOrbOccs)
             CALL LogMemDeAlloc('PrintOrbOccs',AllOrbOccsTag)
@@ -1736,17 +1746,19 @@ MODULE NatOrbsMod
 !The 1-electron Reduced density matrix was inputted, and the natural orbitals constructed. From there, the
 !1 and 2 electron integrals were transformed and replaced into UMat.
     SUBROUTINE FindNatOrbsOld()
+        use util_mod, only: get_free_unit
         IMPLICIT NONE
-        INTEGER :: i,j
+        INTEGER :: i,j, iunit
 
-        OPEN(12,FILE='ONEEL-RDM',STATUS='UNKNOWN')
+        iunit = get_free_unit()
+        OPEN(iunit,FILE='ONEEL-RDM',STATUS='UNKNOWN')
         do i=1,nBasis
             do j=1,nBasis
-                WRITE(12,"(F18.7)",advance='no') NatOrbMat(i,j)
+                WRITE(iunit,"(F18.7)",advance='no') NatOrbMat(i,j)
             enddo
-            WRITE(12,*) ""
+            WRITE(iunit,*) ""
         enddo
-        CLOSE(12)
+        CLOSE(iunit)
 
         CALL Stop_All('FindNatOrbsOld','This is the old routine for finding the natural orbitals - likely buggy.')
 

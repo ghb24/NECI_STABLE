@@ -3198,12 +3198,15 @@ MODULE FciMCParMod
 
 
     subroutine gennct(n,t,icomb)
+       use util_mod, only: get_free_unit
        integer n,t
        integer c(t+2)
        integer j
        integer icomb
+       integer iunit
+       iunit = get_free_unit()
        icomb=0
-       open(90,file='COMBINATIONS',STATUS='UNKNOWN')
+       open(iunit,file='COMBINATIONS',STATUS='UNKNOWN')
 !      WRITE(6,*) ' Writing combinations to file COMBINATIONS'
        do j=1,t
            c(j)=j-1
@@ -3214,9 +3217,9 @@ MODULE FciMCParMod
 !      visit c(t)
        
        icomb=icomb+1
-!      write(90,'(20i3)' ) (c(j)+1,j=1,t)
+!      write(iunit,'(20i3)' ) (c(j)+1,j=1,t)
        
-       write(90,'(20i3)' ) (c(j),j=1,t)
+       write(iunit,'(20i3)' ) (c(j),j=1,t)
        
        do j=1,n
            if(c(j+1).ne.(c(j)+1)) goto 30
@@ -3225,7 +3228,7 @@ MODULE FciMCParMod
 30     continue
        if(j.gt.t) then 
 !           write(6,*) ' Generated combinations:',ICOMB
-           CLOSE(90)
+           CLOSE(iunit)
            RETURN
        endif
        c(j)=c(j)+1
