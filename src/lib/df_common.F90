@@ -29,17 +29,17 @@ else
 endif
 !
 if (info.lt.0) then
-  write(*,*)'ERROR code ',info,' from routine ',trim(from_routine)
-  write(*,*)'which was called by routine ',trim(called_by_routine)
-  write(*,*)'at line number ',line_no
+  write(6,*)'ERROR code ',info,' from routine ',trim(from_routine)
+  write(6,*)'which was called by routine ',trim(called_by_routine)
+  write(6,*)'at line number ',line_no
   if (i_stop) then
     call internal_error('check_info',__LINE__,'INFO flagged error')
   endif
 endif
 !if ((info.gt.0).and.g_debug) then     AJWT
 !  print *,'WARNING code ',info,' passed by ',trim(from_routine)
-!  write(*,*)'which was called by routine ',trim(called_by_routine)
-!  write(*,*)'at line number ',line_no
+!  write(6,*)'which was called by routine ',trim(called_by_routine)
+!  write(6,*)'at line number ',line_no
 !endif
 return
 end subroutine check_info
@@ -70,7 +70,7 @@ else
   info = -1
   select case(lflag)
   case(0)
-    write(*,*)'WARNING: File ',trim(fname),' is needed but is not present'
+    write(6,*)'WARNING: File ',trim(fname),' is needed but is not present'
   case(1)
   case default
   end select
@@ -496,10 +496,10 @@ else
 endif
 !
 if (info.ne.0) then
-  write(*,*)'Allocation error for object ',trim(object)
-  write(*,*)'Allocation attempted by routine ',trim(from_routine)
+  write(6,*)'Allocation error for object ',trim(object)
+  write(6,*)'Allocation attempted by routine ',trim(from_routine)
   if (present(line_no)) then
-    write(*,*)'at line number ',line_no
+    write(6,*)'at line number ',line_no
   endif
   if (istop) then
     call internal_error('check_allocate',__LINE__,'ALLOCATE error')
@@ -526,10 +526,10 @@ else
 endif
 !
 if (info.ne.0) then
-  write(*,*)'De-allocation error for object ',trim(object)
-  write(*,*)'De-allocation attempted by routine ',trim(from_routine)
+  write(6,*)'De-allocation error for object ',trim(object)
+  write(6,*)'De-allocation attempted by routine ',trim(from_routine)
   if (present(line_no)) then
-    write(*,*)'at line number ',line_no
+    write(6,*)'at line number ',line_no
   endif
   if (istop) then
     call internal_error('check_allocate',__LINE__,'DE-ALLOCATE error')
@@ -701,19 +701,19 @@ end subroutine getunit
                               & ( current_time - entry_time(posn) )
       !
     case('report')
-      write(*,*)
-      write(*,*)' Timing Report '
-      write(*,*)'==============='
-      write(*,fmt1)
+      write(6,*)
+      write(6,*)' Timing Report '
+      write(6,*)'==============='
+      write(6,fmt1)
       do posn = 1, current_len
-         write(*,fmt2)titles(posn),num_calls(posn),accumulated_time(posn)
+         write(6,fmt2)titles(posn),num_calls(posn),accumulated_time(posn)
       enddo
-      write(*,*)'===================================='
-      write(*,*)
+      write(6,*)'===================================='
+      write(6,*)
       !
     case default
-      write(*,*)'MY_TIMER: Wrong operation command given'
-      write(*,*)'Received: operation=',operation,' and title =',title
+      write(6,*)'MY_TIMER: Wrong operation command given'
+      write(6,*)'Received: operation=',operation,' and title =',title
   end select
   !
   return
@@ -745,13 +745,13 @@ end subroutine getunit
     integer indx
     !------------
     if (indx.eq.1) then
-      write(*,*)'WARNING: In Timing routine MY_TIMER: MAXLEN exceeded.'
-      write(*,*)'Skipping timing routine ',my_title
+      write(6,*)'WARNING: In Timing routine MY_TIMER: MAXLEN exceeded.'
+      write(6,*)'Skipping timing routine ',my_title
     elseif (indx.eq.2) THEN
-      write(*,*)'WARNING: In Timing routine MY_TIMER: Cannot find TITLE'
-      write(*,*)'Missing title is =',my_title
+      write(6,*)'WARNING: In Timing routine MY_TIMER: Cannot find TITLE'
+      write(6,*)'Missing title is =',my_title
     else
-      write(*,*)'WARNING: Wrong INDX value passed to SUBROUTINE ERROR'
+      write(6,*)'WARNING: Wrong INDX value passed to SUBROUTINE ERROR'
     endif
     return
     end subroutine error

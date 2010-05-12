@@ -226,81 +226,84 @@ contains
         use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
         use SymData, only: SymLabelCounts,SymLabelCountsCum,nSymLabels
         use SymData, only: SymLabelIntsCum,SymLabelIntsCum2,SymLabelCountsCum2
+        use util_mod, only: get_free_unit
         IMPLICIT NONE
-        INTEGER II,I,J,NBASIS
+        INTEGER II,I,J,NBASIS,iunit
         
+        iunit = get_free_unit()
+        open(iunit, file="TMATSYMLABEL", status="unknown")
         IF(associated(SYMLABELINTSCUM)) THEN
-            write(12,*) "SYMLABELCOUNTS,SYMLABELCOUNTSCUM,SYMLABELINTSCUM:"
+            write(iunit,*) "SYMLABELCOUNTS,SYMLABELCOUNTSCUM,SYMLABELINTSCUM:"
             DO I=1,NSYMLABELS
-                WRITE(12,"(I5)",advance='no') SYMLABELCOUNTS(2,I)
-                CALL FLUSH(12)
+                WRITE(iunit,"(I5)",advance='no') SYMLABELCOUNTS(2,I)
+                CALL FLUSH(iunit)
             ENDDO
-            WRITE(12,*) ""
+            WRITE(iunit,*) ""
             DO I=1,NSYMLABELS
-                WRITE(12,"(I5)",advance='no') SYMLABELCOUNTSCUM(I)
-                CALL FLUSH(12)
+                WRITE(iunit,"(I5)",advance='no') SYMLABELCOUNTSCUM(I)
+                CALL FLUSH(iunit)
             ENDDO
-            WRITE(12,*) ""
+            WRITE(iunit,*) ""
             DO I=1,NSYMLABELS
-                WRITE(12,"(I5)",advance='no') SYMLABELINTSCUM(I)
-                CALL FLUSH(12)
+                WRITE(iunit,"(I5)",advance='no') SYMLABELINTSCUM(I)
+                CALL FLUSH(iunit)
             ENDDO
-            WRITE(12,*) ""
-            WRITE(12,*) "**********************************"
+            WRITE(iunit,*) ""
+            WRITE(iunit,*) "**********************************"
         ENDIF
         IF(associated(SYMLABELINTSCUM2)) THEN
-            write(12,*) "SYMLABELCOUNTS,SYMLABELCOUNTSCUM2,SYMLABELINTSCUM2:"
+            write(iunit,*) "SYMLABELCOUNTS,SYMLABELCOUNTSCUM2,SYMLABELINTSCUM2:"
             DO I=1,NSYMLABELS
-                WRITE(12,"(I5)",advance='no') SYMLABELCOUNTS(2,I)
-                CALL FLUSH(12)
+                WRITE(iunit,"(I5)",advance='no') SYMLABELCOUNTS(2,I)
+                CALL FLUSH(iunit)
             ENDDO
-            WRITE(12,*) ""
+            WRITE(iunit,*) ""
             DO I=1,NSYMLABELS
-                WRITE(12,"(I5)",advance='no') SYMLABELCOUNTSCUM2(I)
-                CALL FLUSH(12)
+                WRITE(iunit,"(I5)",advance='no') SYMLABELCOUNTSCUM2(I)
+                CALL FLUSH(iunit)
             ENDDO
-            WRITE(12,*) ""
+            WRITE(iunit,*) ""
             DO I=1,NSYMLABELS
-                WRITE(12,"(I5)",advance='no') SYMLABELINTSCUM2(I)
-                CALL FLUSH(12)
+                WRITE(iunit,"(I5)",advance='no') SYMLABELINTSCUM2(I)
+                CALL FLUSH(iunit)
             ENDDO
-            WRITE(12,*) ""
-            WRITE(12,*) "**********************************"
-            CALL FLUSH(12)
+            WRITE(iunit,*) ""
+            WRITE(iunit,*) "**********************************"
+            CALL FLUSH(iunit)
         ENDIF
-        WRITE(12,*) "TMAT:"
+        WRITE(iunit,*) "TMAT:"
         IF(TSTARSTORE) THEN
             DO II=1,NSYMLABELS
                 DO I=SYMLABELCOUNTSCUM(II-1)+1,SYMLABELCOUNTSCUM(II)
                     DO J=SYMLABELCOUNTSCUM(II-1)+1,I
-                        WRITE(12,*) I,J,GetTMATEl((2*I),(2*J))
-                        CALL FLUSH(12)
+                        WRITE(iunit,*) I,J,GetTMATEl((2*I),(2*J))
+                        CALL FLUSH(iunit)
                     ENDDO
                 ENDDO
             ENDDO
         ELSE
             DO I=1,NBASIS,2
                 DO J=1,NBASIS,2
-                    WRITE(12,*) (I+1)/2,(J+1)/2, GetTMATEl(I,J)
+                    WRITE(iunit,*) (I+1)/2,(J+1)/2, GetTMATEl(I,J)
                 ENDDO
             ENDDO
         ENDIF
-        WRITE(12,*) "**********************************"
-        CALL FLUSH(12)
+        WRITE(iunit,*) "**********************************"
+        CALL FLUSH(iunit)
         IF(ASSOCIated(TMATSYM2).or.ASSOCIated(TMAT2D2)) THEN
-            WRITE(12,*) "TMAT2:"
+            WRITE(iunit,*) "TMAT2:"
             DO II=1,NSYMLABELS
                 DO I=SYMLABELCOUNTSCUM(II-1)+1,SYMLABELCOUNTSCUM(II)
                     DO J=SYMLABELCOUNTSCUM(II-1)+1,I
-                        WRITE(12,*) I,J,GetNEWTMATEl((2*I),(2*J))
-                        CALL FLUSH(12)
+                        WRITE(iunit,*) I,J,GetNEWTMATEl((2*I),(2*J))
+                        CALL FLUSH(iunit)
                     ENDDO
                 ENDDO
             ENDDO
         ENDIF
-        WRITE(12,*) "*********************************"
-        WRITE(12,*) "*********************************"
-        CALL FLUSH(12)
+        WRITE(iunit,*) "*********************************"
+        WRITE(iunit,*) "*********************************"
+        CALL FLUSH(iunit)
       END SUBROUTINE WriteTMat
         
 !Routine to calculate number of elements allocated for TMAT matrix
@@ -339,9 +342,10 @@ contains
         use SymData, only: tagSymLabelIntsCum,tagStateSymMap,tagSymLabelCountsCum
         use HElem, only: HElement_t_size
         use global_utilities
+        use util_mod, only: get_free_unit
         IMPLICIT NONE
         integer Nirrep,nBasis,iSS,nBi,i,basirrep,t,ierr,iState,nStateIrrep
-        integer iSize
+        integer iSize, iunit
         character(len=*),parameter :: thisroutine='SetupTMAT'
         
         ! If this is a CPMD k-point calculation, then we're operating
@@ -407,12 +411,15 @@ contains
             ! (which is in basirrep on exiting the above do loop)
             ! must equal the total # of basis functions.
             IF((SYMLABELCOUNTSCUM(Nirrep)+basirrep).ne.nBI) THEN
+                iunit = get_free_unit()
+                open(iunit, file="TMATSYMLABEL", status="unknown")
                 DO i=1,Nirrep
-                    WRITE(12,*) SYMLABELCOUNTSCUM(i)
+                    WRITE(iunit,*) SYMLABELCOUNTSCUM(i)
                 ENDDO
-                write(12,*) "***************"
-                write(12,*) NBI
-                CALL FLUSH(12)
+                write(iunit,*) "***************"
+                write(iunit,*) NBI
+                CALL FLUSH(iunit)
+                close(iunit)
                 STOP 'Not all basis functions found while setting up TMAT'
             ENDIF
             !iSize=iSize+2
@@ -454,10 +461,11 @@ contains
         use SymData, only: SymLabelIntsCum2,nSymLabels,StateSymMap2
         use SymData, only: tagSymLabelIntsCum2,tagStateSymMap2,tagSymLabelCountsCum2
         use global_utilities
+        use util_mod, only: get_free_unit
         use HElem, only: HElement_t_size
         IMPLICIT NONE
         integer Nirrep,nBasisfrz,iSS,nBi,i,basirrep,t,ierr,iState,nStateIrrep
-        integer iSize
+        integer iSize, iunit
         character(len=*),parameter :: thisroutine='SetupTMAT2'
         
         ! If this is a CPMD k-point calculation, then we're operating
@@ -515,9 +523,11 @@ contains
                 end do
             enddo
             IF((SYMLABELCOUNTSCUM2(Nirrep)+basirrep).ne.nBI) THEN
+                iunit = get_free_unit()
+                open(iunit, file="SYMLABELCOUNTS", status="unknown")
                 DO i=1,Nirrep
-                    WRITE(14,*) SYMLABELCOUNTS(2,i)
-                    CALL FLUSH(14)
+                    WRITE(iunit,*) SYMLABELCOUNTS(2,i)
+                    CALL FLUSH(iunit)
                 ENDDO
                 STOP 'Not all basis functions found while setting up TMAT2'
             ENDIF

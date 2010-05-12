@@ -224,7 +224,8 @@ MODULE FciMCLoggingMod
 
 
     SUBROUTINE PrintBlocking(Iter)
-        INTEGER :: i,NoBlocks,Iter,NoBlockSizes,NoContrib
+        use util_mod, only: get_free_unit
+        INTEGER :: i,NoBlocks,Iter,NoBlockSizes,NoContrib, iunit
         REAL*8 :: MeanEn,MeanEnSqrd,StandardDev,Error,ErrorinError
         CHARACTER(len=30) :: abstr
 
@@ -241,18 +242,19 @@ MODULE FciMCLoggingMod
         NoBlockSizes=0
         NoBlockSizes=FLOOR( (LOG10(REAL(NoContrib-1)))/ (LOG10(2.D0)))
 
+        iunit = get_free_unit()
         IF(tSaveBlocking) THEN
 !We are saving the blocking files - write to new file.
             abstr=''
             write(abstr,'(I12)') Iter
             abstr='BLOCKINGANALYSIS-'//adjustl(abstr)
-            OPEN(62,file=abstr,status='unknown')
+            OPEN(iunit,file=abstr,status='unknown')
         ELSE
-            OPEN(62,file='BLOCKINGANALYSIS',status='unknown')
+            OPEN(iunit,file='BLOCKINGANALYSIS',status='unknown')
         ENDIF
 
-        WRITE(62,'(I4,A,I4)') NoBlockSizes,' blocks were formed with sizes from 1 to ',(2**(NoBlockSizes))
-        WRITE(62,'(3A16,5A20)') '1.Block No.','2.Block Size  ','3.No. of Blocks','4.Mean E','5.Mean E^2','6.SD','7.Error','8.ErrorinError'
+        WRITE(iunit,'(I4,A,I4)') NoBlockSizes,' blocks were formed with sizes from 1 to ',(2**(NoBlockSizes))
+        WRITE(iunit,'(3A16,5A20)') '1.Block No.','2.Block Size  ','3.No. of Blocks','4.Mean E','5.Mean E^2','6.SD','7.Error','8.ErrorinError'
 
         do i=0,NoBlockSizes-1
             
@@ -276,18 +278,19 @@ MODULE FciMCLoggingMod
 
 !This is from the blocking paper, and indicates the error in the blocking error, due to the limited number of blocks available.
 
-            WRITE(62,'(3I16,5F20.10)') i,(2**i),NoBlocks,MeanEn,MeanEnSqrd,StandardDev,Error,ErrorinError
+            WRITE(iunit,'(3I16,5F20.10)') i,(2**i),NoBlocks,MeanEn,MeanEnSqrd,StandardDev,Error,ErrorinError
             
         enddo
 
-        CLOSE(62)
+        CLOSE(iunit)
 
 
     END SUBROUTINE PrintBlocking
 
 
     SUBROUTINE PrintShiftBlocking(Iter)
-        INTEGER :: i,NoBlocks,Iter,NoBlockSizes,NoContrib
+        use util_mod, only: get_free_unit
+        INTEGER :: i,NoBlocks,Iter,NoBlockSizes,NoContrib,iunit
         REAL*8 :: MeanShift,MeanShiftSqrd,StandardDev,Error,ErrorinError
 
 !First find out how many blocks would have been formed with the number of iterations actually performed. 
@@ -298,9 +301,10 @@ MODULE FciMCLoggingMod
         NoBlockSizes=0
         NoBlockSizes=FLOOR( (LOG10(REAL(NoContrib-1)))/ (LOG10(2.D0)))
 
-        OPEN(62,file='SHIFTBLOCKINGANALYSIS',status='unknown')
-        WRITE(62,'(I4,A,I4)') NoBlockSizes,' blocks were formed with sizes from 1 to ',(2**(NoBlockSizes))
-        WRITE(62,'(3A16,5A20)') '1.Block No.','2.Block Size  ','3.No. of Blocks','4.Mean Shift','5.Mean Shift^2','6.SD','7.Error','8.ErrorinError'
+        iunit = get_free_unit()
+        OPEN(iunit,file='SHIFTBLOCKINGANALYSIS',status='unknown')
+        WRITE(iunit,'(I4,A,I4)') NoBlockSizes,' blocks were formed with sizes from 1 to ',(2**(NoBlockSizes))
+        WRITE(iunit,'(3A16,5A20)') '1.Block No.','2.Block Size  ','3.No. of Blocks','4.Mean Shift','5.Mean Shift^2','6.SD','7.Error','8.ErrorinError'
 
         do i=0,NoBlockSizes-1
             
@@ -325,11 +329,11 @@ MODULE FciMCLoggingMod
 
 !This is from the blocking paper, and indicates the error in the blocking error, due to the limited number of blocks available.
 
-            WRITE(62,'(3I16,5F20.10)') i,(2**i),NoBlocks,MeanShift,MeanShiftSqrd,StandardDev,Error,ErrorinError
+            WRITE(iunit,'(3I16,5F20.10)') i,(2**i),NoBlocks,MeanShift,MeanShiftSqrd,StandardDev,Error,ErrorinError
             
         enddo
 
-        CLOSE(62)
+        CLOSE(iunit)
 
     END SUBROUTINE PrintShiftBlocking
 
@@ -400,8 +404,9 @@ MODULE FciMCLoggingMod
 
 
     SUBROUTINE WriteInitPops(Iter)
+        use util_mod, only: get_free_unit
         CHARACTER(len=21) :: abstr
-        INTEGER :: i,Iter,error
+        INTEGER :: i,Iter,error, iunit
         REAL*8 :: InitBinCurr
 
 !This will open a file called InitPops-"Iter" on unit number 17.
@@ -416,21 +421,22 @@ MODULE FciMCLoggingMod
 #endif
 
         IF(iProcIndex.eq.0) THEN
-            OPEN(42,FILE=abstr,STATUS='unknown')
+            iunit = get_free_unit()
+            OPEN(iunit,FILE=abstr,STATUS='unknown')
 
             InitBinCurr=(-1)*InitBinMax            
             do i=25000,1,-1
-                IF(AllHistInitPops(1,i).ne.0) WRITE(42,'(F20.10,2I20)') InitBinCurr,(-1)*(NINT(EXP(ABS(InitBinCurr)))),AllHistInitPops(1,i)
+                IF(AllHistInitPops(1,i).ne.0) WRITE(iunit,'(F20.10,2I20)') InitBinCurr,(-1)*(NINT(EXP(ABS(InitBinCurr)))),AllHistInitPops(1,i)
                 InitBinCurr=InitBinCurr+InitBinIter
             enddo
 
             InitBinCurr=InitBinMin
             do i=1,25000
-                IF(AllHistInitPops(2,i).ne.0) WRITE(42,'(F20.10,2I20)') InitBinCurr,NINT(EXP(InitBinCurr)),AllHistInitPops(2,i)
+                IF(AllHistInitPops(2,i).ne.0) WRITE(iunit,'(F20.10,2I20)') InitBinCurr,NINT(EXP(InitBinCurr)),AllHistInitPops(2,i)
                 InitBinCurr=InitBinCurr+InitBinIter
             enddo
  
-            CLOSE(42)
+            CLOSE(iunit)
             AllHistInitPops(:,:)=0
         ENDIF
         HistInitPops(:,:)=0
@@ -470,8 +476,9 @@ MODULE FciMCLoggingMod
         
 
     SUBROUTINE PrintSpawnAttemptStats(Iteration)
+        use util_mod, only: get_free_unit
         REAL*8 :: AllStats(4),AcceptStats(4),AllMaxHElNotAccept(1:nProcessors),AllMinHElAccept(1:nProcessors)
-        INTEGER :: i,error,Iteration
+        INTEGER :: i,error,Iteration, iunit
 
         ! Need to distribute the max and min values to all processors, but only if it has changed.        
         AcceptStats(1)=TotHElNotAccept       ! Total not accepted
@@ -518,7 +525,10 @@ MODULE FciMCLoggingMod
                 enddo
             ENDIF
 
-            WRITE(84,'(I10,2F20.1,5F20.6)') Iteration,AllStats(3),AllStats(4),AllStats(3)/AllStats(4),AllStats(1)/AllStats(3),AllStats(2)/AllStats(4),MaxHElNotAccept,MinHElAccept
+            iunit = get_free_unit()
+            open(iunit,file="SpawnAttemptStats",status="unknown")
+            WRITE(iunit,'(I10,2F20.1,5F20.6)') Iteration,AllStats(3),AllStats(4),AllStats(3)/AllStats(4),AllStats(1)/AllStats(3),AllStats(2)/AllStats(4),MaxHElNotAccept,MinHElAccept
+            close(iunit)
         ENDIF
 
     ENDSUBROUTINE PrintSpawnAttemptStats

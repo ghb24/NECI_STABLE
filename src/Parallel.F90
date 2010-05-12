@@ -56,7 +56,6 @@ Subroutine MPIInit(tExternal)
    !=
    != In:
    !=   tExternal True if using VASP/CPMD's MPI interface, so we don't have to initialise our own.
-   Use Determinants, only: FDet
    implicit none
    logical, intent(in) :: tExternal
    integer numtasks, rank, ierr, rc

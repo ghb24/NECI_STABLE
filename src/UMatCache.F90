@@ -1056,8 +1056,9 @@ MODULE UMatCache
 
       subroutine ReadInUMatCache()
       ! Read in cache file from CacheDump.
+      use util_mod, only: get_free_unit
       implicit none
-      integer  i,j,k,l,iCache1,iCache2,A,B,readerr,iType
+      integer  i,j,k,l,iCache1,iCache2,A,B,readerr,iType, iunit
       integer  iSlot,iPair
       HElement_t UMatEl(0:nTypes-1),DummyUMatEl(0:nTypes-1)
       logical  tDummy,testfile
@@ -1066,15 +1067,16 @@ MODULE UMatCache
           write (6,*) 'CacheDump does not exist.'
           return
       end if
-      open (21,file="CacheDump",status="old",iostat=readerr)
+      iunit = get_free_unit()
+      open (iunit,file="CacheDump",status="old",iostat=readerr)
       if (readerr.ne.0) then 
           write (6,*) 'Error reading CacheDump.'
           return
       end if
-      read (21,*) nStatesDump
+      read (iunit,*) nStatesDump
       readerr=0
       do while (readerr.eq.0)
-        read (21,*,iostat=readerr) i,j,k,l,UMatEl
+        read (iunit,*,iostat=readerr) i,j,k,l,UMatEl
         DummyUMatEl=UMatEl
         if (TTRANSFINDX) then
             i=TransTable(i)
@@ -1090,7 +1092,7 @@ MODULE UMatCache
             call CacheUMatEl(A,B,UMatEl,iCache1,iCache2,iType)
         end if
       end do
-      close(21)
+      close(iunit)
       return
       end subroutine ReadInUMatCache
 
@@ -1101,6 +1103,7 @@ MODULE UMatCache
       ! calculation.  Need to print out the full set of indices, as the number of
       ! states may change with the next calculation.
       use SystemData, only: Symmetry,BasisFN
+      use util_mod, only: get_free_unit
       implicit none
       integer  NHG
       type(BasisFN) G1(NHG)
@@ -1110,14 +1113,16 @@ MODULE UMatCache
       type(Symmetry) TotSymRep
       HElement_t UMatEl
       type(Symmetry) Sym,Symprod,SymConj
-      open (21,file="CacheDump",status="unknown")
+      integer iunit
+      iunit = get_free_unit()
+      open (iunit,file="CacheDump",status="unknown")
 !      do i=1,nPairs !Run through ik pairs
 !          do j=1,nSlots !Run through all pairs (unordered in the list)
-!              WRITE(21,*) i,j,UMatLabels(j,i),UMatCacheData(:,j,i)  !ik label, slot value, jl label, integral
+!              WRITE(iunit,*) i,j,UMatLabels(j,i),UMatCacheData(:,j,i)  !ik label, slot value, jl label, integral
 !          enddo
 !      enddo
-!      WRITE(21,*) "*****"
-      write (21,*) nStates
+!      WRITE(iunit,*) "*****"
+      write (iunit,*) nStates
       do iPair=1,nPairs
         do iSlot=iPair,nSlots
           call GetCacheIndexStates(iPair,i,k)
@@ -1134,12 +1139,12 @@ MODULE UMatCache
                   end if
                   ! Print out UmatCacheData as UMatEl holds just a single
                   ! integral.
-                  write (21,*) i,j,k,l,UMatCacheData(:,ICACHE2,ICACHE1)!,A,B
+                  write (iunit,*) i,j,k,l,UMatCacheData(:,ICACHE2,ICACHE1)!,A,B
               end if
           end if
         end do
       end do
-      close(21,status="keep")
+      close(iunit,status="keep")
       return
       end subroutine DumpUMatCache
 

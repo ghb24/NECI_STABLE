@@ -2078,26 +2078,6 @@ C.. Set to be totally symmetric
       END SUBROUTINE GETSYMTMATSIZE
 
 
-      SUBROUTINE WRITESYMCLASSES(NBASIS)
-        use constants, only: dp
-        USE UMatCache
-        use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
-        use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
-        use SymData, only: nSymLabels,SymClasses,SymLabelCounts
-        IMPLICIT NONE
-        INTEGER I,NBASIS
-        
-        DO I=1,NBASIS/2
-            WRITE(13,*) I,SYMCLASSES(I)
-            CALL FLUSH(13)
-        ENDDO
-        DO I=1,NSYMLABELS
-            WRITE(13,*) I,SYMLABELCOUNTS(2,I)
-        ENDDO
-        WRITE(13,*) "******************"
-        CALL FLUSH(13)
-      END
-
 !This routine *stochastically* finds the size of the determinant space. For certain symmetries, its hard to find the
 !allowed size of the determinant space. However, it can be simply found using a MC technique.
       SUBROUTINE FindSymMCSizeofSpace(IUNIT)

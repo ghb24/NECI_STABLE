@@ -23,9 +23,9 @@ SUBROUTINE OrthoNormx(n,m,a)
 
    call dgeqrf ( m, n, a, lda, tau, work, lwork, info )
    if ( info /= 0 ) then
-        write ( *, '(a)' ) ' '
-        write ( *, '(a)' ) 'Q_FACTOR - Warning:'
-        write ( *, '(a,i8)' ) '  DGEQRF returned nonzero INFO = ', info
+        write (6, '(a)' ) ' '
+        write (6, '(a)' ) 'Q_FACTOR - Warning:'
+        write (6, '(a,i8)' ) '  DGEQRF returned nonzero INFO = ', info
         stop
     end if
 
@@ -34,9 +34,9 @@ SUBROUTINE OrthoNormx(n,m,a)
     call dorgqr ( m, n, k, a, lda, tau, work, lwork, info )
 
     if ( info /= 0 ) then
-        write ( *, '(a)' ) ' '
-        write ( *, '(a)' ) 'Q_FACTOR - Warning:'
-        write ( *, '(a,i8)' ) '  DORGQR returned nonzero INFO = ', info
+        write (6, '(a)' ) ' '
+        write (6, '(a)' ) 'Q_FACTOR - Warning:'
+        write (6, '(a,i8)' ) '  DORGQR returned nonzero INFO = ', info
         stop
     end if
 

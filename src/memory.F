@@ -54,7 +54,7 @@ C     ==--------------------------------------------------------------==
       IERROR=0
       LEN=LENGTH+2
       IF(LEN.LT.0) THEN
-        WRITE(*,*) ' MEMORY| MEMORY REQUIRED:',LEN,' WORDS'
+        write (6,*) ' MEMORY| MEMORY REQUIRED:',LEN,' WORDS'
         CALL Stop_All('MEMORY','NEGATIVE OR TOO BIG VALUE')
       ENDIF
 #ifdef CRAY
@@ -74,7 +74,7 @@ C     Check if 8 * LEN is in the range of integer.
       IF(IRAT.EQ.2) THEN
 C       Integer=integer*4 : 2^31=2147483648, 2^28=268435456
         IF(LEN.GT.2**28) THEN
-          WRITE(*,*) ' MEMORY| MEMORY REQUIRED:',LEN,' WORDS'
+          write (6,*) ' MEMORY| MEMORY REQUIRED:',LEN,' WORDS'
           CALL Stop_All('MEMORY','TOO BIG VALUE')
         ENDIF
       ENDIF
@@ -106,12 +106,12 @@ CC /AJWT
 #endif
 #endif
       IF(IERROR.NE.0) THEN
-        WRITE(*,'(/,1X,64("*"))')
+        write (6,'(/,1X,64("*"))')
 !Used to be processor ME
-        WRITE(*,'(1X,A9,I6,A14,I12,A28,A10)') 'PROCESSOR',1,
+        write (6,'(1X,A9,I6,A14,I12,A28,A10)') 'PROCESSOR',1,
      *             ' ALLOCATION OF',LENGTH,' WORDS OF MEMORY FAILED
      *             FOR ',TAG
-        WRITE(*,'(1X,64("*"),/)')
+        write (6,'(1X,64("*"),/)')
         CALL LeaveMemoryManager
         CALL N_XSTRING(TAG,IA,IE)
         WRITE(LINE,'(A,A,A)') 'ALLOCATION FAILED (',TAG(IA:IE),')'

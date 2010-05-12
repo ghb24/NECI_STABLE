@@ -370,7 +370,7 @@ contains
         l = (idl - 1) * ISS + 1
 
         tCoulomb = .false.
-        tExchange = .true.
+        tExchange = .false.
         if ( (i == k) .and. (j == l) ) tCoulomb = .true.
         if ( (i == l) .and. (j == k) ) tExchange = .true.
 

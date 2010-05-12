@@ -14,12 +14,12 @@
          Z=0.9994
          HIGHZ=0.99941
          DELTA=0.0000001
-         WRITE(97,*) N," excitations" 
-         WRITE(97,*) "rhoii   rhoij"
-         DO I=1,N
-            WRITE(97,*) (A(I)), (B(I))
-         ENDDO
-         CALL FLUSH(97)
+!         WRITE(97,*) N," excitations" 
+!         WRITE(97,*) "rhoii   rhoij"
+!         DO I=1,N
+!            WRITE(97,*) (A(I)), (B(I))
+!         ENDDO
+!         CALL FLUSH(97)
          
          WRITE(66,*) "Z     STARVAL     PRODVAL    PRODVALALL"
          DO WHILE(Z.LE.HIGHZ)
