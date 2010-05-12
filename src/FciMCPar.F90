@@ -642,6 +642,7 @@ MODULE FciMCParMod
                 endif
 
                 if (child(1) /= 0) then
+                    ! This eventually wants to test for both real and complex children
                     ! We know we want to create a particle, so encode the bit
                     ! representation if it isn't already.
                     call encode_child (CurrentDets(:,j), iLutnJ, ic, ex)
@@ -660,7 +661,7 @@ MODULE FciMCParMod
             ! DEBUG
             ! if (VecSlot > j) call stop_all (this_routine, 'vecslot > j')
             call walker_death (DetCurr, CurrentDets(:,j), HDiagCurr, &
-                               CurrentSign(j), VecSlot)
+                               SignCurr, VecSlot)
 
         enddo ! Loop over determinants.
 
@@ -1430,6 +1431,7 @@ MODULE FciMCParMod
         use constants , only : size_n_int
         INTEGER :: ierr,i,j,k,l,DetCurr(NEl),ReadWalkers,TotWalkersDet
         INTEGER :: DetLT,VecSlot,error,MemoryAlloc,Proc
+        INTEGER, DIMENSION(lenof_sign) :: InitialSign
         HElement_t :: rh,TempHii
         LOGICAL :: exists
         REAL*8 :: TotDets
@@ -1438,12 +1440,9 @@ MODULE FciMCParMod
         IF(TReadPops) THEN
 !Read in particles from multiple POPSFILES for each processor
             WRITE(6,*) "Reading in initial particle configuration from POPSFILES..."
-
             CALL ReadFromPopsFilePar()
-
         ELSE
 !initialise the particle positions - start at HF with positive sign
-
 !Set the maximum number of walkers allowed
             MaxWalkersPart=NINT(MemoryFacPart*InitWalkers)
 !            WRITE(6,"(A,F14.5)") "Memory Factor for walkers is: ",MemoryFacPart
@@ -1486,24 +1485,15 @@ MODULE FciMCParMod
             ALLOCATE(SpawnVec2(0:NIfTot,MaxSpawned),stat=ierr)
             CALL LogMemAlloc('SpawnVec2',MaxSpawned*(NIfTot+1),size_n_int,this_routine,SpawnVec2Tag,ierr)
             SpawnVec2(:,:)=0
-            ALLOCATE(SpawnSignVec(0:MaxSpawned),stat=ierr)
-            CALL LogMemAlloc('SpawnSignVec',MaxSpawned+1,4,this_routine,SpawnSignVecTag,ierr)
-            SpawnSignVec(:)=0
-            ALLOCATE(SpawnSignVec2(0:MaxSpawned),stat=ierr)
-            CALL LogMemAlloc('SpawnSignVec2',MaxSpawned+1,4,this_routine,SpawnSignVec2Tag,ierr)
-            SpawnSignVec2(:)=0
 
 !Point at correct spawning arrays
             SpawnedParts=>SpawnVec
             SpawnedParts2=>SpawnVec2
-            SpawnedSign=>SpawnSignVec
-            SpawnedSign2=>SpawnSignVec2
 
-            MemoryAlloc=MemoryAlloc+(((MaxSpawned+1)*2)+(2*MaxSpawned*(1+NIfTot)))*size_n_int
+            MemoryAlloc=MemoryAlloc+(NIfTot+1)*MaxSpawned*2*size_n_int
 
 !Allocate pointers to the correct walker arrays
             CurrentDets=>WalkVecDets
-            CurrentSign=>WalkVecSign
             IF(.not.tRegenDiagHEls) THEN
                 CurrentH=>WalkVecH
             ENDIF
@@ -1513,17 +1503,20 @@ MODULE FciMCParMod
 
 !Setup initial walker local variables
             IF(iProcIndex.eq.iHFProc) THEN
-                CurrentDets(:,1)=iLutHF(:)
+                call encode_det(CurrentDets(:,1), iLutHF)
+                InitialSign = 0
                 IF(.not.tRegenDiagHEls) CurrentH(1)=0.D0
                 IF(TStartSinglePart) THEN
-                    CurrentSign(1)=InitialPart
+                    InitialSign(1) = InitialPart
+                    CALL encode_sign(CurrentDets(:,1), InitialSign)
                     TotWalkers=1
                     TotWalkersOld=1
                     TotParts=InitialPart
                     TotPartsOld=InitialPart
                     NoatHF=InitialPart
                 ELSE
-                    CurrentSign(1)=InitWalkers
+                    InitialSign(1) = InitWalkers 
+                    CALL encode_sign(CurrentDets(:,1), InitialSign)
                     TotWalkers=1
                     TotWalkersOld=1
                     TotParts=InitWalkers
@@ -2743,7 +2736,8 @@ MODULE FciMCParMod
 
     subroutine walker_death (DetCurr, iLutCurr, Kii, wSign, VecSlot)
 
-        integer, intent(in) :: DetCurr(nel), wSign 
+        integer, intent(in) :: DetCurr(nel), 
+        integer(n_int), dimension(lenof_sign), intent(in) :: wSign 
         integer(kind=n_int), intent(in) :: iLutCurr(0:niftot)
         integer, intent(inout) :: VecSlot
         real(dp), intent(in) :: Kii
