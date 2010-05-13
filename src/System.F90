@@ -1006,7 +1006,7 @@ MODULE System
                  tStoreSpinOrbs = .true.
              end if
              IF(FUEGRS.NE.0.D0) THEN
-                WRITE(6,'(A,I10)') '  Electron Gas Rs set to ',FUEGRS
+                WRITE(6,'(A,F20.16)') '  Electron Gas Rs set to ',FUEGRS
                 OMEGA=BOX*BOX*BOX*BOA*COA
 !C.. required density is (3/(4 pi rs^3))
 !C.. need omega to be (NEL* 4 pi rs^3 / 3)
