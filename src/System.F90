@@ -1013,7 +1013,7 @@ MODULE System
 !C.. need box to be (NEL*4 pi/(3 BOA COA))^(1/3) rs
                 BOX=(NEL*4.D0*PI/(3.D0*BOA*COA))**(1.D0/3.D0)
                 BOX=BOX*FUEGRS
-                WRITE(6,'(A)') "  Resetting box size to ", BOX
+                WRITE(6,'(A, F20.16)') "  Resetting box size to ", BOX
              ENDIF
           ENDIF
           IF(THUB) WRITE(6,'(A)') '  *** HUBBARD MODEL ***  ' 
