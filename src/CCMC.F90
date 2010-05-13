@@ -1567,6 +1567,32 @@ SUBROUTINE CalcClusterEnergy(tFCI,Amplitude,nExcit,ExcitList,ExcitLevelIndex,Pro
    ProjE=ENumCyc/(HFCyc+0.d0)
 END SUBROUTINE CalcClusterEnergy
 
+!This runs over all amplitudes and initializsed them with small random values
+! Amplitude(nExcit)            is the amplitude of each excitor
+! nExcit                       is the number of excitors
+SUBROUTINE InitRandAmplitude(Amplitude,nExcit,dInitAmp,dTotAbsAmpl)
+   use CCMCData
+   use SystemData, only: nEl,nIfTot
+   use FciMCData, only: HFDet
+   use FciMCParMod, only: iLutHF,SumEContrib,BinSearchParts3
+   use Determinants, only: GetH0Element3
+   use DetBitOps, only: DecodeBitDet
+   use constants, only: dp
+   use dSFMT_interface , only : genrand_real2_dSFMT
+   IMPLICIT NONE
+   REAL*8 Amplitude(nExcit)
+   INTEGER nExcit
+   REAL*8 dInitAmp,dTotAbsAmpl
+
+   INTEGER j
+   Amplitude(:)=0
+   Amplitude(1)=dInitAmp
+   dTotAbsAmpl=dInitAmp
+   do j=2,nExcit
+      Amplitude(j)=dInitAmp*(genrand_real2_dSFMT()-0.5)/1000
+      dTotAbsAmpl=dTotAbsAmpl+abs(Amplitude(j))
+   enddo
+END SUBROUTINE
 
 !This runs over all singles and doubles in the list of excitors and initiates according to the MP1 wavefunction
 
@@ -1794,6 +1820,9 @@ END SUBROUTINE
       if(tStartMP1) then
          write(6,*) "Initializing with MP1 amplitudes."
          CALL InitMP1Amplitude(tCCMCFCI,Amplitude(:,iCurAmpList),nAmpl,FciDets,FCIDetIndex,dInitAmplitude,dTotAbsAmpl)
+      elseif(ICILevel==1) then
+         write(6,*) "Initializing with random amplitudes."
+         CALL InitRandAmplitude(Amplitude(:,iCurAmpList),nAmpl,dInitAmplitude,dTotAbsAmpl)
       else
          Amplitude(1,iCurAmpList)=dInitAmplitude
          iNumExcitors=0
