@@ -45,6 +45,7 @@ CONTAINS
         use SystemData, only : Alat, arr, brr, boa, box, coa, ecore, g1,Beta
         use SystemData, only : tParity, tSpn,Symmetry,STot, NullBasisFn
         use CCMCData,   only : tCCBuffer !This is messy, but I don't see anywhere else to put it. AJWT
+        use Logging,    only : tLogDets
         use legacy_data, only: irat
         use HElem
         use util_mod, only: get_free_unit
@@ -215,14 +216,16 @@ CONTAINS
                NBLOCKSTARTS(1)=1
                NBLOCKSTARTS(2)=II+1
          ENDIF
-         iunit = get_free_unit()
-         OPEN(iunit,FILE='DETS',STATUS='UNKNOWN')
-         DO I=1,NDET
-            call write_det (iunit, NMRKS(:,I), .false.)
-            CALL GETSYM(NMRKS(1,I),NEL,G1,NBASISMAX,ISYM)
-            CALL WRITESYM(iunit,ISym%Sym,.TRUE.)
-         ENDDO
-         CLOSE(iunit)
+         if(tLogDets) THEN
+            iunit = get_free_unit()
+            OPEN(iunit,FILE='DETS',STATUS='UNKNOWN')
+            DO I=1,NDET
+               call write_det (iunit, NMRKS(:,I), .false.)
+               CALL GETSYM(NMRKS(1,I),NEL,G1,NBASISMAX,ISYM)
+               CALL WRITESYM(iunit,ISym%Sym,.TRUE.)
+            ENDDO
+            CLOSE(iunit)
+         endif
 
 !C.. Now generate the fermi determiant
 !C.. Work out the fermi det
@@ -298,7 +301,7 @@ CONTAINS
       use SystemData, only : nBasis, nBasisMax,nEl,nMsh,LzTot,NIfTot
       use SystemData, only : nBasis, nBasisMax,nEl,nMsh,NIfTot
       use IntegralsData, only: FCK,NMAX, UMat
-      Use Logging, only: iLogging,tHistSpawn,tHistHamil
+      Use Logging, only: iLogging,tHistSpawn,tHistHamil,tLogDets
       use SystemData, only  : tCSFOLD
       use Parallel, only : iProcIndex
       use DetBitops, only: EncodeBitDet, DetBitEQ
@@ -737,7 +740,7 @@ CONTAINS
 !            CLOSE(23)
             
             IF(tEnergy) THEN
-                IF(iProcIndex.eq.0) THEN
+                IF(tLogDETS.and.iProcIndex.eq.0) THEN
                     iunit = get_free_unit()
                     OPEN(iunit,FILE='SymDETS',STATUS='UNKNOWN')
 
@@ -753,7 +756,7 @@ CONTAINS
                 ENDIF
                 DEALLOCATE(FCIGS)
             ELSE
-                IF(iProcIndex.eq.0) THEN
+                IF(tLogDETS.and.iProcIndex.eq.0) THEN
                     iunit = get_free_unit()
                     OPEN(iunit,FILE='SymDETS',STATUS='UNKNOWN')
                     WRITE(iunit,*) "FCIDETIndex: ",FCIDetIndex(:)

@@ -224,6 +224,7 @@ MODULE Calc
           use CCMCData, only: tExactEnergy
           use global_utilities
           use Parallel, only : nProcessors
+          use Logging, only: tLogDets
           IMPLICIT NONE
           LOGICAL eof
           CHARACTER (LEN=100) w
@@ -254,6 +255,7 @@ MODULE Calc
             case("ENERGY")
                 TENERGY = .true.
                 TCALCHMAT = .true.
+                tLogDets=.true.
             case("LANCZOS")
 !Sets the diagonaliser for the GraphMorph algorithm to be Lanczos
                 TLanczos=.true.

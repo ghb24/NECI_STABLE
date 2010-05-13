@@ -1302,6 +1302,32 @@ SUBROUTINE InitMP1Amplitude(tFCI,Amplitude,nExcit,ExcitList,ExcitLevelIndex,dIni
    enddo
 END SUBROUTINE
 
+!This runs over all amplitudes and initializsed them with small random values
+! Amplitude(nExcit)            is the amplitude of each excitor
+! nExcit                       is the number of excitors
+SUBROUTINE InitRandAmplitude(Amplitude,nExcit,dInitAmp,dTotAbsAmpl)
+   use CCMCData
+   use SystemData, only: nEl,nIfTot
+   use FciMCData, only: HFDet
+   use FciMCParMod, only: iLutHF,SumEContrib,BinSearchParts3
+   use Determinants, only: GetH0Element3
+   use DetBitOps, only: DecodeBitDet
+   use constants, only: dp
+   use dSFMT_interface , only : genrand_real2_dSFMT
+   IMPLICIT NONE
+   REAL*8 Amplitude(nExcit)
+   INTEGER nExcit
+   REAL*8 dInitAmp,dTotAbsAmpl
+
+   INTEGER j
+   Amplitude(:)=0
+   Amplitude(1)=dInitAmp
+   dTotAbsAmpl=dInitAmp
+   do j=2,nExcit
+      Amplitude(j)=dInitAmp*(genrand_real2_dSFMT()-0.5)/1000
+      dTotAbsAmpl=dTotAbsAmpl+abs(Amplitude(j))
+   enddo
+END SUBROUTINE
 
 subroutine AttemptSpawn(S,C,Amplitude,dTol,TL,iDebug)
    use SystemData, only: nEl
@@ -1802,6 +1828,7 @@ SUBROUTINE CCMCStandalone(Weight,Energyxw)
       nAmpl=Det
       iMaxAmpLevel=nEl
    endif
+   write(6,*) "Number of stored amplitudes: ",nAmpl
 ! Setup Memory
    call AllocateAmplitudeList(AL,nAmpl,2)
 
@@ -1833,6 +1860,9 @@ SUBROUTINE CCMCStandalone(Weight,Energyxw)
    if(tStartMP1) then
       write(6,*) "Initializing with MP1 amplitudes."
       CALL InitMP1Amplitude(tCCMCFCI,AL%Amplitude(:,iCurAmpList),nAmpl,FciDets,FCIDetIndex,dInitAmplitude,dTotAbsAmpl)
+   elseif(ICILevel==1) then
+      write(6,*) "Initializing with random amplitudes."
+      CALL InitRandAmplitude(AL%Amplitude(:,iCurAmpList),nAmpl,dInitAmplitude,dTotAbsAmpl)
    else
       AL%Amplitude(1,iCurAmpList)=dInitAmplitude
       iNumExcitors=0
