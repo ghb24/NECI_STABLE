@@ -1,6 +1,6 @@
 [main]
 cpp = cpp -P -C -traditional 
-cppflags = -D__Linux -DLAPACK -DFFT_DEFAULT -DPOINTER8
+cppflags = -D__Linux -DLAPACK -DFFT_DEFAULT -DPOINTER8 -D__INT64
 compiler = GCC-f95-on-LINUX
 fc = gfortran
 f77flags = -m64 -fcray-pointer
