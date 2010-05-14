@@ -32,6 +32,9 @@ type1 = type(SymPairProd)
 [starwalker]
 type1 = type(star_walker)
 
+[cmplx]
+type1 = complex(dp)
+
 ##############################################
 ############### Sort arrays ##################
 ##############################################
@@ -180,6 +183,11 @@ type3 = real(kind=dp)
 type2 = real(kind=dp), dimension(:)
 type3 = integer(kind=int32)
 
+[cmplx_cmplx_cmplx]
+type1 = complex(dp)
+type2 = complex(dp)
+type3 = complex(dp)
+
 [int_int_int64_int]
 type1 = integer(kind=int32)
 type2 = integer(kind=int32)
@@ -254,6 +262,14 @@ module sort_mod
 	
 	private
 	public :: sort
+
+    ! Private operator for sorting complex numbers by their real values
+    interface operator(.gt.)
+        module procedure cmplx_gt_%(name)s
+    end interface
+    interface operator(.lt.)
+        module procedure cmplx_lt_%(name)s
+    end interface
 
 contains
     subroutine sort (arr, %(extra_arrs)snskip)
@@ -506,4 +522,21 @@ contains
             endif
         enddo
     end subroutine
+
+    ! A private comparison. This should not be available outside of the
+    ! module!
+    elemental function cmplx_gt (a, b) result (bGt)
+        complex(dp), intent(in) :: a, b
+        logical :: bGt
+
+        bGt = real(a, dp) > real(b, dp)
+    end function
+
+    elemental function cmplx_lt (a, b) result (bLt)
+        complex(dp), intent(in) :: a, b
+        logical :: bLt
+
+        bLt = real(a, dp) < real(b, dp)
+    end function
+        
 end module
