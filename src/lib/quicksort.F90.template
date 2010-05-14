@@ -69,6 +69,9 @@ type2 = integer(kind=int64), dimension(:)
 [int_arr_doub]
 type2 = real*8, dimension(:)
 
+[int_arr_complex]
+type2 = complex*16, dimension(:)
+
 [doub_int]
 type1 = real*8
 type2 = integer(kind=int32)
@@ -179,6 +182,11 @@ type3 = real(kind=dp)
 [doub_arr_doub_int]
 type2 = real(kind=dp), dimension(:)
 type3 = integer(kind=int32)
+
+#[complex_complex_complex]
+#type1 = complex(kind=dp)
+#type2 = complex(kind=dp)
+#type3 = complex(kind=dp)
 
 [int_int_int64_int]
 type1 = integer(kind=int32)
