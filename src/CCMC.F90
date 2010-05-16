@@ -2123,6 +2123,7 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
 
 
    WRITE(6,*) "Entering CCMC Standalone Particle..."
+   iRefPos=1  ! Start with HF det at start
    iDebug=CCMCDebug
 
    Call SetupParameters()
@@ -2166,11 +2167,11 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
 !      write(6,*) "Initializing with MP1 amplitudes."
 !      CALL InitMP1Amplitude(tCCMCFCI,Amplitude(:,iCurAmpList),nAmpl,FciDets,FCIDetIndex,dInitAmplitude,dTotAbsAmpl)
 !   else
-   AL%Amplitude(1,iCurAmpList)=dInitAmplitude
+   AL%Amplitude(iRefPos,iCurAmpList)=dInitAmplitude
    DetList(:,1)=iLutHF 
       nAmpl=1
       iNumExcitors=0
-   dTotAbsAmpl=AL%Amplitude(1,iCurAmpList)
+   dTotAbsAmpl=AL%Amplitude(iRefPos,iCurAmpList)
 !   endif
    dAmpPrintTol=(dTolerance*dInitAmplitude)
    if(iDebug.ge.4) dAmpPrintTol=0
@@ -2302,7 +2303,7 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
       ENDIF
       if(Iter.gt.NEquilSteps) then
          dAveTotAbsAmp=dAveTotAbsAmp+dTotAbsAmpl
-         dAveNorm=dAveNorm+AL%Amplitude(1,iCurAmpList)
+         dAveNorm=dAveNorm+AL%Amplitude(iRefPos,iCurAmpList)
       endif
       Iter=Iter+1
    enddo !MC Cycles
