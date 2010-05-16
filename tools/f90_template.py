@@ -5,7 +5,62 @@ effects of using templates/generic functions in a language such as c++
 Usage:
 	f90_template.py [infile] [outfile]
 
-TODO: fill in format information
+The template files are split into two sections. The first is a config section.
+Each desired configuration is demarcated with a section header of the type:
+
+[section_name]
+
+Beneath this are name/value pairs. These are used as a literal substitutions
+into the second section. This section implements a form of inheritance. All
+values declared in a section are available to the following sections unless
+explicitly changed.
+
+Note that beginning a type-name label with "type" implements a couple of
+additional features.
+
+************************
+
+The second section implements a module. Currently the script only supports 
+using one module. Any of the labels declared in the first section are
+available, and may be used as follows:
+
+	%(label-name)s
+
+In addition, there are a couple of extra labels present:
+
+	%(dim-name)s - For an array called 'name', this contains the dimenionality
+	               of the array.
+				   This is a little bit fragile at the moment, so should be 
+				   used with a bit of caution.
+	%(name)s - Contains the current configuration name as given in the first
+	           section.
+
+If a type has been declared in the first section, and that type contains a
+statement of dimension(...), then the script is able to adjust the
+dimensionality of of any references to that array so that array slices of the
+correct size are used. Please see src/lib/quicksort.F90.template for an
+example.
+
+An functions must be declared using the result(name) structure, i.e.
+
+	function test_fn (args) result(res)
+
+		type :: res
+		...
+	end function
+
+These functions, as well as all subroutines will be renamed to avoid name
+space clashes between templated modules, and an interface generated to allow access as expected.
+
+************************
+
+Supermodule:
+Once multiple, subtly renamed, modules have been produced in the output file,
+they are then all included into an overall module, with the specified name, 
+which can be used in the code.
+
+If there is anything to include in the module which does not need to be
+templated, then it can be included here. See allocate_shared.F90.template.
 '''
 import os
 import sys

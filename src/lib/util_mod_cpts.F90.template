@@ -45,17 +45,10 @@ module util_mod_cpts
     private
     public :: swap
 
-	! Swap the  specified variables
-	! n.b. If we want to implement this for complex variables / helements then
-	!      we need to put it in another template file, as >, < are not defined
-	!      for complex data types.
-	interface swap
-		module procedure swap_%(name)s
-	end interface
-
 contains
 
-	elemental subroutine swap_%(name)s (a, b)
+	! Swap the  specified variables
+	elemental subroutine swap (a, b)
 
 		! Sway the element a with the element b via a temporary variable.
 		!
