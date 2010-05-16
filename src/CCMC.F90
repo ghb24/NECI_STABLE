@@ -488,9 +488,9 @@ MODULE CCMC
                         write(6,'(I2)',advance='no') sign(1,CurrentSign(SelectedExcitorIndices(i)))
                         call WriteBitEx(6,iLutHF,SelectedExcitors(:,i),.true.)
                      enddo
-                     Write(6,*) "   Level chosen Prob      : ",dProbNumExcit
-                     Write(6,*) "   Select Prob given level: ",dClusterProb
-                     Write(6,*) "   Prob norm              : ",dProbNorm
+                     Write(6,"(A,G25.17)") "   Level chosen Prob      : ",dProbNumExcit
+                     Write(6,"(A,G25.17)") "   Select Prob given level: ",dClusterProb
+                     Write(6,"(A,G25.17)") "   Prob norm              : ",dProbNorm
                   endif
                   dClusterProb=dProbNumExcit*dClusterProb
 ! Lets check the probs
@@ -509,7 +509,7 @@ MODULE CCMC
                   if(iSgn.eq.0) cycle
                endif
 
-               IF(iDebug.gt.4) then
+               IF(iSgn/=0.and.iDebug.gt.4) then
                   WRITE(6,*) "Chosen det/excitor is:"
                   WRITE(6,"(A)",advance="no") "  "
                   call WriteBitDet(6,iLutnI,.true.)
@@ -1741,6 +1741,7 @@ SUBROUTINE CCMCStandalone(Weight,Energyxw)
    use constants, only: dp
    use CCMCData, only: WriteCluster
    use ClusterList
+   use CalcData, only: DiagSft
    IMPLICIT NONE
    real(dp) Weight,EnergyxW
    CHARACTER(len=*), PARAMETER :: this_routine='CCMCStandalone'
@@ -1912,12 +1913,6 @@ SUBROUTINE CCMCStandalone(Weight,Energyxw)
       endif 
 
 
-! Calc Shift
-      iShiftLeft=iShiftLeft-1
-
-!TotWalkers is used for this and is WalkerScale* total of all amplitudes
-      if(iShiftLeft.le.0)  Call CalcNewShift()
-      if(iShiftLeft.le.0)  iShiftLeft=StepsSft
 
 !  Loop over cluster selections
 !  Point to the main cluster selector, not the buffer
@@ -1952,10 +1947,6 @@ SUBROUTINE CCMCStandalone(Weight,Energyxw)
             i=min(iNumExcitors,nEl)
             tMoreClusters=GetNextCluster(CSBuff,FciDets,nBuffAmpl,AmplitudeBuffer(:),dTotAbsAmpl,1,i,iDebug)
          endif
-         if(tPostBuffering) then  !If we've finished buffering, we read from the buffer
-            i=min(iNumExcitors,nEl)
-            tMoreClusters=GetNextCluster(CSBuff,FciDets,nBuffAmpl,AmplitudeBuffer(:),dTotAbsAmpl,1,i,iDebug)
-         endif
          if(.not.tMoreClusters) exit
 !Now form the cluster
          IF(iDebug.gt.3) then
@@ -1964,14 +1955,14 @@ SUBROUTINE CCMCStandalone(Weight,Energyxw)
             do i=1,CS%C%iSize
                call WriteBitEx(6,iLutHF,CS%C%SelectedExcitors(:,i),.true.)
             enddo
-            Write(6,*) "   Select Prob given level: ",CS%C%dClusterProb
-            Write(6,*) "   Prob norm              : ",CS%C%dProbNorm
-            Write(6,*) "   Cluster norm           : ",CS%C%dClusterNorm
+            Write(6,"(A,G25.17)") "   Select Prob given level: ",CS%C%dClusterProb
+            Write(6,"(A,G25.17)") "   Prob norm              : ",CS%C%dProbNorm
+            Write(6,"(A,G25.17)") "   Cluster norm           : ",CS%C%dClusterNorm
          endif
 
 !The final logic tells it whether to convert from an excitor to a det.
          CALL CollapseCluster(CS%C,iLutHF,OldAmpl(:),nCurAmpl,iDebug,.not.(tCCBuffer.and.tPostBuffering))
-         IF(iDebug.gt.4) then
+         IF(CS%C%iSgn/=0.and.iDebug.gt.4) then
             WRITE(6,*) "Chosen det/excitor is:"
             WRITE(6,"(A)",advance="no") "  "
             call WriteBitDet(6,CS%C%iLutDetCurr,.true.)
@@ -1999,7 +1990,7 @@ SUBROUTINE CCMCStandalone(Weight,Energyxw)
          endif
 
          if(iDebug.gt.3) WRITE(6,*) "Cluster Amplitude: ",CS%C%iSgn*CS%C%dAbsAmplitude 
-         if(iDebug.gt.3) WRITE(6,*) " Cluster Prob: ",CS%C%dSelectionProb
+!         if(iDebug.gt.3) WRITE(6,*) " Cluster Prob: ",CS%C%dSelectionProb
          if(.not.tExactEnergy.and.CS%C%iExcitLevel.le.2) then
             if(iDebug>3) then
                call WriteCluster(79,CS%C,.false.)
@@ -2030,6 +2021,12 @@ SUBROUTINE CCMCStandalone(Weight,Energyxw)
          dAveTotAbsAmp=dAveTotAbsAmp+dTotAbsAmpl
          dAveNorm=dAveNorm+AL%Amplitude(1,iCurAmpList)
       endif
+! Calc Shift
+      iShiftLeft=iShiftLeft-1
+
+!TotWalkers is used for this and is WalkerScale* total of all amplitudes
+      if(iShiftLeft.le.0)  Call CalcNewShift()
+      if(iShiftLeft.le.0)  iShiftLeft=StepsSft
       Iter=Iter+1
    enddo !MC Cycles
 
@@ -2079,6 +2076,7 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
    USE dSFMT_interface , only : genrand_real2_dSFMT
    use CalcData, only: MemoryFacSpawn
    use AnnihilationMod, only: AnnihilationInterface
+   use CalcData, only: DiagSft
    IMPLICIT NONE
    real(dp) Weight,EnergyxW
    CHARACTER(len=*), PARAMETER :: this_routine='CCMCStandaloneParticle'
@@ -2216,6 +2214,7 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
       endif
 
 
+
       call CalcTotals(iNumExcitors,dTotAbsAmpl,AL%Amplitude(:,iCurAmpList),nAmpl,dTolerance*dInitAmplitude,WalkerScale,iDebug)
 
       
@@ -2224,13 +2223,13 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
          WRITE(6,"(A,G30.22)") "Total abs Amplitudes: ",dTotAbsAmpl
       endif 
 
-
 ! Calc Shift
       iShiftLeft=iShiftLeft-1
 
 !TotWalkers is used for this and is WalkerScale* total of all amplitudes
       if(iShiftLeft.le.0)  Call CalcNewShift()
       if(iShiftLeft.le.0)  iShiftLeft=StepsSft
+      write(6,*) "Shift: ",DiagSft
 
 !  Loop over cluster selections
 !  Point to the main cluster selector, not the buffer
@@ -2247,14 +2246,14 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
             do i=1,CS%C%iSize
                call WriteBitEx(6,iLutHF,CS%C%SelectedExcitors(:,i),.true.)
             enddo
-            Write(6,*) "   Select Prob given level: ",CS%C%dClusterProb
-            Write(6,*) "   Prob norm              : ",CS%C%dProbNorm
-            Write(6,*) "   Cluster norm           : ",CS%C%dClusterNorm
+            Write(6,"(A,G25.17)") "   Select Prob given level: ",CS%C%dClusterProb
+            Write(6,"(A,G25.17)") "   Prob norm              : ",CS%C%dProbNorm
+            Write(6,"(A,G25.17)") "   Cluster norm           : ",CS%C%dClusterNorm
          endif
 
 !The final logic tells it whether to convert from an excitor to a det.
          CALL CollapseCluster(CS%C,iLutHF,AL%Amplitude(:,iCurAmpList),nAmpl,iDebug,.true.)
-         IF(iDebug.gt.4) then
+         IF(CS%C%iSgn/=0.and.iDebug.gt.4) then
             WRITE(6,*) " Chosen det/excitor is:"
             WRITE(6,"(A)",advance="no") "  "
             call WriteBitDet(6,CS%C%iLutDetCurr,.true.)
@@ -2272,7 +2271,7 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
          endif
 
          if(iDebug.gt.3) WRITE(6,*) " Cluster Amplitude: ",CS%C%iSgn*CS%C%dAbsAmplitude 
-         if(iDebug.gt.3) WRITE(6,*) " Cluster Prob: ",CS%C%dSelectionProb
+!         if(iDebug.gt.3) WRITE(6,*) " Cluster Prob: ",CS%C%dSelectionProb
          CALL SumEContrib(CS%C%DetCurr,CS%C%iExcitLevel,CS%C%iSgn,CS%C%iLutDetCurr,0.d0,1/CS%C%dSelectionNorm)
 !Now consider a number of possible spawning events
          CALL ResetSpawner(S,CS%C,nSpawnings)
