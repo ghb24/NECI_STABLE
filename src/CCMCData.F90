@@ -52,6 +52,7 @@ TYPE ClustSelector
    INTEGER iMaxSize  !The maximum size of a cluster
    INTEGER nSelects  !If we're stochastically sampling the cluster space, this is the number of samples we take
    REAL*8 dProbSelNewExcitor  !The probability that we quit at every stage of selecting a new excitor for a cluster  
+   INTEGER iRefPos   !The Location in teh amplitude list of the reference det
    TYPE(Cluster) C
 
 END TYPE ClustSelector

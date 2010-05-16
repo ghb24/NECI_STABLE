@@ -1141,12 +1141,14 @@ SUBROUTINE InitClustSelectorRandom(CS,iMaxSize,nSelects,dProbSelNewEx)
    Call InitCluster(CS%C)
 END SUBROUTINE InitClustSelectorRandom
 
-SUBROUTINE ResetClustSelector(CS)
+SUBROUTINE ResetClustSelector(CS,iRefPos)
    use CCMCData
    IMPLICIT NONE
    TYPE(ClustSelector) CS
+   INTEGER iRefPos
    CS%iIndex=0
    CS%C%iSize=0
+   CS%iRefPos=iRefPos
 END SUBROUTINE ResetClustSelector
 
 !Takes an ordered tuple of length iSize, and gives the next one in sequence.
@@ -1786,8 +1788,11 @@ SUBROUTINE CCMCStandalone(Weight,Energyxw)
    INTEGER iMaxAmpLevel                   ! The maximum excitation level of a stored amplitude
 
    TYPE(CCTransitionLog) TL               ! Store data on transitions
+   INTEGER iRefPos
 
    WRITE(6,*) "Entering CCMC Standalone..."
+
+   iRefPos=1  !Always first element
    iDebug=CCMCDebug
 
    Call SetupParameters()
@@ -1897,9 +1902,9 @@ SUBROUTINE CCMCStandalone(Weight,Energyxw)
          write(6,*) "Cycle ",Iter
          call WriteExcitorList(6,AL%Amplitude(:,iCurAmpList),FciDets,0,nAmpl,dAmpPrintTol,"Excitor list")
       endif
-      call CalcTotals(iNumExcitors,dTotAbsAmpl,AL%Amplitude(:,iCurAmpList),nAmpl,dTolerance*dInitAmplitude,WalkerScale,iDebug)
+      call CalcTotals(iNumExcitors,dTotAbsAmpl,AL%Amplitude(:,iCurAmpList),nAmpl,dTolerance*dInitAmplitude,WalkerScale,iRefPos,iDebug)
       if(tExactEnergy) then
-         CALL CalcClusterEnergy(tCCMCFCI,AL%Amplitude(:,iCurAmpList),nAmpl,FciDets,FCIDetIndex,iDebug,dProjE)
+         CALL CalcClusterEnergy(tCCMCFCI,AL%Amplitude(:,iCurAmpList),nAmpl,FciDets,FCIDetIndex,iRefPos,iDebug,dProjE)
       else
          dProjE=ProjectionE
       endif
@@ -1917,9 +1922,9 @@ SUBROUTINE CCMCStandalone(Weight,Energyxw)
 !  Loop over cluster selections
 !  Point to the main cluster selector, not the buffer
       CS=>CSMain
-      call ResetClustSelector(CS)
+      call ResetClustSelector(CS,iRefPos)
       if(tCCBuffer) then
-         call ResetClustSelector(CSBuff)
+         call ResetClustSelector(CSBuff,iRefPos)
          AmplitudeBuffer(:)=0
       endif
       tMoreClusters=.true.
@@ -2118,12 +2123,16 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
    INTEGER, allocatable ::  SpawnAmps(:)
    INTEGER tagSpawnList,tagSpawnAmps
    INTEGER nSpawned,nMaxSpawn
+   LOGICAL tS
 
    integer nMaxAmpl
 
+   integer iRefPos      !The location of the reference det in the Amplitude array
+
 
    WRITE(6,*) "Entering CCMC Standalone Particle..."
-   iRefPos=1  ! Start with HF det at start
+
+   iRefPos=1
    iDebug=CCMCDebug
 
    Call SetupParameters()
@@ -2207,6 +2216,9 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
 
 ! Each cycle we select combinations of excitors randomly, and spawn and birth/die from them
    do while (Iter.le.NMCyc)
+!Find teh HF det
+      CALL BinSearchParts3(iLutHF,DetList,nAmpl,1,nAmpl,iRefPos,tS)
+      if(.not.tS) call Stop_All("CCMCStandaloneParticle","Failed to find HF det.")
 ! Collate stats
       nSpawned=0
       IF(iDebug.gt.1) THEN
@@ -2215,8 +2227,7 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
       endif
 
 
-
-      call CalcTotals(iNumExcitors,dTotAbsAmpl,AL%Amplitude(:,iCurAmpList),nAmpl,dTolerance*dInitAmplitude,WalkerScale,iDebug)
+      call CalcTotals(iNumExcitors,dTotAbsAmpl,AL%Amplitude(:,iCurAmpList),nAmpl,dTolerance*dInitAmplitude,WalkerScale,iRefPos,iDebug)
 
       
       IF(iDebug.gt.1) THEN
@@ -2224,17 +2235,17 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
          WRITE(6,"(A,G30.22)") "Total abs Amplitudes: ",dTotAbsAmpl
       endif 
 
+
 ! Calc Shift
       iShiftLeft=iShiftLeft-1
 
 !TotWalkers is used for this and is WalkerScale* total of all amplitudes
       if(iShiftLeft.le.0)  Call CalcNewShift()
       if(iShiftLeft.le.0)  iShiftLeft=StepsSft
-      write(6,*) "Shift: ",DiagSft
 
 !  Loop over cluster selections
 !  Point to the main cluster selector, not the buffer
-      call ResetClustSelector(CS)
+      call ResetClustSelector(CS,iRefPos)
       tMoreClusters=.true.
       do while (tMoreClusters)
          i=min(iNumExcitors,nEl)
