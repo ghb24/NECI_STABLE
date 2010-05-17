@@ -1707,7 +1707,7 @@
 
             ! Resort again - so that root is in element 0, then ordered by 
             ! rho_jj in ascending order - probably not needed...
-            call sort (excitInfo2(:,0), excitInfo2(:,0), excitInfo2(:,0))
+            call sort (excitInfo2(:,0))
             
             ExcitInfo => ExcitInfo2
 

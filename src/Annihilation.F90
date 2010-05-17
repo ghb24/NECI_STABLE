@@ -82,8 +82,13 @@ MODULE AnnihilationMod
         CurrentSign => MainSign
         SpawnedParts => SpawnParts
         SpawnedSign => SpawnSign
+!These point to the scratch space
         SpawnedParts2 => SpawnVec2
         SpawnedSign2 => SpawnSignVec2
+
+!        WRITE(6,*) "Size of SpawnVec2 = ",size(SpawnVec2(0,:))
+!        WRITE(6,*) "LowerBound of SpawnVec2 = ",lbound(SpawnVec2,2)
+!        WRITE(6,*) "UpperBound of SpawnVec2 = ",ubound(SpawnVec2,2)
 
         CALL DirectAnnihilation(TotDets)
 
@@ -97,6 +102,7 @@ MODULE AnnihilationMod
         integer :: i
         INTEGER :: MaxIndex
         INTEGER(Kind=n_int) , POINTER :: PointTemp(:,:)
+
 !        WRITE(6,*) "Direct annihilation"
 !        CALL FLUSH(6)
 
@@ -115,12 +121,11 @@ MODULE AnnihilationMod
 
 !Now we want to order and compress the spawned list of particles. This will also annihilate the newly spawned particles amongst themselves.
 !MaxIndex will change to reflect the final number of unique determinants in the newly-spawned list, and the particles will end up in the spawnedSign/SpawnedParts lists.
-!        WRITE(6,*) "Transferred"
-!        CALL FLUSH(6)
+!        WRITE(6,*) "Transferred",MaxIndex
+
         CALL CompressSpawnedList(MaxIndex)
 
 !        WRITE(6,*) "List compressed",MaxIndex,TotWalkersNew
-!        CALL FLUSH(6)
 
 !Binary search the main list and copy accross/annihilate determinants which are found.
 !This will also remove the found determinants from the spawnedparts lists.
@@ -128,7 +133,6 @@ MODULE AnnihilationMod
         CALL AnnihilateSpawnedParts(MaxIndex,TotWalkersNew)
 
 !        WRITE(6,*) "Annihilation finished",MaxIndex,TotWalkersNew
-!        CALL FLUSH(6)
 
 !Put the surviving particles in the main list, maintaining order of the main list.
 !Now we insert the remaining newly-spawned particles back into the original list (keeping it sorted), and remove the annihilated particles from the main list.
@@ -136,7 +140,6 @@ MODULE AnnihilationMod
         CALL InsertRemoveParts(MaxIndex,TotWalkersNew)
 
 !       WRITE(6,*) "Surviving particles merged"
-!       CALL FLUSH(6)
 
         CALL halt_timer(Sort_Time)
 

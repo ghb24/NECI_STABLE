@@ -109,6 +109,42 @@ dim = :,:,:,:,:,:,:
 elem1 = 1,1,1,1,1,1,1
 alloc_str = dims(1), dims(2), dims(3), dims(4), dims(5), dims(6), dims(7)
 
+[complex1]
+type = complex*16
+sizeof = sizeof_complexdp
+dim = :
+elem1 = 1
+alloc_str = dims(1)
+
+[complex2]
+dim = :,:
+elem1 = 1,1
+alloc_str = dims(1), dims(2)
+
+[complex3]
+dim = :,:,:
+elem1 = 1,1,1
+alloc_str = dims(1), dims(2), dims(3)
+
+[complex4]
+dim = :,:,:,:
+elem1 = 1,1,1,1
+alloc_str = dims(1), dims(2), dims(3), dims(4)
+
+[complex5]
+dim = :,:,:,:,:
+elem1 = 1,1,1,1,1
+alloc_str = dims(1), dims(2), dims(3), dims(4), dims(5)
+
+[complex6]
+dim = :,:,:,:,:,:
+elem1 = 1,1,1,1,1,1
+alloc_str = dims(1), dims(2), dims(3), dims(4), dims(5), dims(6)
+
+[complex7]
+dim = :,:,:,:,:,:,:
+elem1 = 1,1,1,1,1,1,1
+alloc_str = dims(1), dims(2), dims(3), dims(4), dims(5), dims(6), dims(7)
 
 =========================
 

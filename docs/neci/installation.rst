@@ -197,17 +197,39 @@ the libraries needed for use with complex wavefunctions.
 The rest of the options are specified in the configuration files and are
 platform-dependent.  The important definitions are:
 
+DSFMT_MEXP
+    neci uses the dSFMT random number generator (RNG).  It is based on
+    a Mersenne Twister algorithm, is extremely fast and produces high quality
+    random numbers.  See http://www.math.sci.hiroshima-u.ac.jp/~m-mat/MT/SFMT/index.html
+    for more details.
+
+    DSFMT_EXP sets the exponent of the period of the RNG.  Allowed values are
+    521, 1279, 2203, 4253, 11213, 19937, 44497, 86243,
+    132049 and 216091 and lead to, for example, random numbers with a period of
+    a Mersenne Prime such as 2^512-1.
+
+    An exponent of 19937 is set by default.  Do not change this unless you know
+    what you're doing!
 HAVE_SSE2
     The random number generator can use SSE2 instructions if available and
     results in a substantial saving in the cost of generating random numbers.
     This option is highly recommended on platforms with SSE2 instructions (the
     majority of modern machines).
+__INT64
+    Use 64-bit integers rather than 32-bit integers to store the determinant bit-strings.
+    This makes bit operations substantially faster.  Highly recommended if more
+    than 32 basis functions are used on a 64-bit platform.
+
+    Note that using 64-bit integers cause FCIQMC results to change (but not
+    within statistical significance for converged calculations) due to changes
+    in how determinants are ordered in memory and distributed to processors and
+    so the exact stocastic sequence is altered.
 __Linux
     Used only in legacy code.  This option needs to be defined on linux platforms.
 PARALLEL
     This option must be defined in order to compile the code in parallel.
 POINTER8
-    Used only in legacy code.  This option needs to be defined on 64-bit platforms.
+    Used only in legacy code and to work around a bug in the pathscale compiler.  This option needs to be defined on 64-bit platforms.
 
 CPMD
 ----

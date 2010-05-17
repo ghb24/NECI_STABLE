@@ -33,9 +33,11 @@ contains
         integer :: i, elec
         logical open_shell, bCSF
 
-        ! Is this a csf?
-        bCSF = tCSF .and. iscsf(nI)
-        open_shell = .false.
+        if(nlen>0) then
+           ! Is this a csf?
+           bCSF = tCSF .and. iscsf(nI)
+           open_shell = .false.
+        endif
 
         ! Start with a bracket, and loop over all the electrons
         write(nunit,'("(")',advance='no')

@@ -116,7 +116,7 @@ def main(file_list):
     output_dependencies('files_use_utilities',files_dependencies.utilities)
 
 if __name__=='__main__':
-    if len(sys.argv)==1 or sys.argv[0]=='-h' or sys.argv[0]=='--h' or sys.argv[0]=='-help' or sys.argv[0]=='--help':
+    if len(sys.argv)==1 or sys.argv[1]=='-h' or sys.argv[1]=='--h' or sys.argv[1]=='-help' or sys.argv[1]=='--help':
         print __doc__ # Wow.  Magic...
         sys.exit()
     else:

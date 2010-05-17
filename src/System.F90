@@ -1511,6 +1511,7 @@ SUBROUTINE ORDERBASIS(NBASIS,ARR,BRR,ORBORDER,NBASISMAX,G1)
 !               G(3,BRR(I))=J
         ENDIF
      ENDDO
+! i is now nBasis+2
      call sort (brr(i-itot:i-2), arr(i-itot:i-2,1), nskip=2)
   ENDDO
 END subroutine ORDERBASIS

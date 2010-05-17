@@ -18,6 +18,7 @@ real(dp), parameter ::  THIRD = 0.3333333333333333333333333333333333333333333333
 
 integer, parameter :: sizeof_int = 4
 integer, parameter :: sizeof_dp = 8
+integer, parameter :: sizeof_complexdp = 16
 integer, parameter :: sizeof_sp = 4
 #ifdef __CMPLX
 integer, parameter :: sizeof_helement = 16
