@@ -224,6 +224,7 @@ KcOBJ := $(addprefix $(KDEST)/, $(cOBJ_bare))
 # Objects for standalone NECI.
 # We don't need libstub.
 OBJECTS_NECI := $(filter-out %%libstub.o,$(OBJECTS))
+OBJECTS_KNECI := $(addprefix $(KDEST)/,$(notdir $(OBJECTS_NECI)))
 
 # Objects for CPMD library.
 # We don't need necimain.o, cpmdstub.o, init_coul.o, init_coul2D.o.  We keep libstub though.
@@ -264,7 +265,7 @@ CDEPEND = $(cppDEPEND_FILES) $(cDEPEND_FILES) $(KcppDEPEND_FILES) $(KcDEPEND_FIL
 #-----
 # Goals
 
-.PHONY: clean cleanall depend rmdeps help neci.x utils $(UTILS)
+.PHONY: clean cleanall depend rmdeps help utils $(UTILS)
 
 # First, some helpful macros.
 
@@ -278,27 +279,24 @@ ARCHIVE = $(AR) $(ARFLAGS) $@ $^
 # Link target to prerequisite.
 LINK = cd $(dir $<) && ln -s -f $(<F) $(@F)
 
-# Compiling neci.x
-$(EXE)/neci.x: $(EXE)/neci.$(CONFIG).$(OPT).x
+# We compile all binaries and libraries to platform-specific filenames and link
+# the most recently compiled one to (e.g.) neci.x or gneci-cpmd.a. 
+$(EXE)/%%.x: $(EXE)/%%.$(CONFIG).$(OPT).x
 \t$(LINK)
 
+$(LIB)/%%.a: $(LIB)/%%.$(CONFIG).$(OPT).a
+\t$(LINK)
+
+# Compiling *.x
 $(EXE)/neci.$(CONFIG).$(OPT).x: $(OBJECTS_NECI)
 \t$(GBLD_ENV)
 \t$(LD) $(LDFLAGS) -o $@ $(OBJECTS_NECI) $(LIBS)
 
+$(EXE)/kneci.$(CONFIG).$(OPT).x: $(OBJECTS_KNECI)
+\t$(KBLD_ENV)
+\t$(LD) $(LDFLAGS) -o $@ $(OBJECTS_KNECI) $(LIBS)
+
 # Compiling libraries.
-$(LIB)/gneci-cpmd.a: $(LIB)/gneci-cpmd.$(CONFIG).$(OPT).a
-\t$(LINK)
-
-$(LIB)/kneci-cpmd.a: $(LIB)/kneci-cpmd.$(CONFIG).$(OPT).a
-\t$(LINK)
-
-$(LIB)/gneci-vasp.a: $(LIB)/gneci-vasp.$(CONFIG).$(OPT).a
-\t$(LINK)
-
-$(LIB)/kneci-vasp.a: $(LIB)/kneci-vasp.$(CONFIG).$(OPT).a
-\t$(LINK)
-
 $(LIB)/gneci-cpmd.$(CONFIG).$(OPT).a: $(OBJECTS_RCPMD)
 \t$(GBLD_ENV)
 \t$(ARCHIVE)
@@ -354,7 +352,14 @@ null_goal: ;
 #-----
 # Shortcut goals
 
-neci.x: $(EXE)/neci.x
+# Target to point *.x to bin/*.x.
+# Because we use an implicit rule, make attempts to find an implicit command
+# associated with .x files (and one does not exist).  The semi-colon defines an
+# empty command and hence prevents make seeking the non-existant command to
+# execute when we attempt to build .x files...
+# (Helpfully documented for the future as figured out that aspect of make was "fun".)
+%%.x: $(EXE)/%%.x ;
+
 new: clean neci.x
 
 gneci-cpmd: $(LIB)/gneci-cpmd.a
@@ -367,6 +372,8 @@ vasplibs: gneci-vasp kneci-vasp
 
 libs: cpmdlibs vasplibs
 
+all: neci.x kneci.x libs
+
 #-----
 # Help message.
 
@@ -375,6 +382,7 @@ help:
 \t@echo
 \t@echo "Targets:"
 \t@echo "neci.x        compile neci.x."
+\t@echo "kneci.x        compile kneci.x."
 \t@echo "new           run clean and then compile neci.x."
 \t@echo "gneci-cpmd    compile neci library for integration with gamma-point version of cpmd."
 \t@echo "kneci-cpmd    compile neci library for integration with k-point version of cpmd."
@@ -518,17 +526,8 @@ UTILS = TransLz.x BlockFCIMC.x ModelFCIQMC.x ConvertMolpFCID.x ConvertPOPSFILE.x
 # Target to compile all utility programs.
 utils: $(UTILS)
 
-# Target to point *.x to bin/*.x for utility programs.
-$(UTILS): %%: $(EXE)/%%
-
-# Utilities are compiled as bin/*.config.opt.x.
-# The static pattern (before the first :) results in matching only
-# bin/$(UTILS).
-# bin/*.x links to bin/*.config.opt.x.
-$(addprefix $(EXE)/,$(UTILS)): $(EXE)/%%.x: $(EXE)/%%.$(CONFIG).$(OPT).x
-\t$(LINK)
-
 # Compile bin/*.config.opt.x from utils/*.f90
+# Previously defined targets point bin/*.x to bin/*.config.opt.x and from *.x to bin/*.x.
 # The static pattern results in applying this to only targets of the form $(EXE)/*.$(CONFIG).$(OPT).x
 # where *.x is one of the programs defined in $(UTILS).
 $(addprefix $(EXE)/,$(addsuffix .$(CONFIG).$(OPT).x,$(basename $(UTILS)))): $(EXE)/%%.$(CONFIG).$(OPT).x: utils/%%.f90
