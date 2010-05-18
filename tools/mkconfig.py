@@ -442,10 +442,10 @@ $(KDEST)/%%.f: %%.F
 
 # c) With an option to generate from template files.
 $(GDEST)/%%.f90: $(TDEST)/%%.F90
-\t$(CPP) $(CPP_BODY) $(GCPPFLAG) $(INCLUDE_PATH)
+\t$(CPP) $(CPP_BODY) $(GCPPFLAG)
 
 $(KDEST)/%%.f90: $(TDEST)/%%.F90
-\t$(CPP) -D__CMPLX $(CPP_BODY) $(KCPPFLAG) $(INCLUDE_PATH)
+\t$(CPP) -D__CMPLX $(CPP_BODY) $(KCPPFLAG)
 
 $(TDEST)/%%.F90: %%.F90.template
 \t$(TOOLS)/f90_template.py $< $@
