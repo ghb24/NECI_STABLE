@@ -15,8 +15,8 @@
 ! matrix elements for the elements it is merging into the main list.
 ! The list1 will be binary searched to find insertion points. Generally, if list2 > list1/2,
 ! a linear search would be quicker.
-    SUBROUTINE MergeListswH(nlist1,nlist1max,nlist2,list2,SignList2)
-        USE FciMCParMOD , only : Hii,CurrentDets,CurrentSign,CurrentH
+    SUBROUTINE MergeListswH(nlist1,nlist1max,nlist2,list2)
+        USE FciMCParMOD , only : Hii,CurrentDets,CurrentH
         use SystemData, only: nel, tHPHF
         use bit_reps, only: NIfTot, NIfDBO, decode_bit_det
         USE Determinants , only : get_helement
@@ -28,7 +28,7 @@
 !        INTEGER :: list1(0:NIfTot,nlist1max),list2(0:NIfTot,1:nlist2)
         INTEGER(KIND=n_int) :: list2(0:NIfTot,1:nlist2),DetCurr(0:NIfTot) 
         INTEGER :: nlisto,nlist1,nlist2,nlo,i
-        INTEGER :: ips,ips1,SignList2(nlist2)!,SignList1(nlist1max),
+        INTEGER :: ips,ips1
 !        REAL*8 :: HList(nlist1max)
         HElement_t :: HDiagTemp
         REAL*8 :: HDiag
@@ -53,7 +53,7 @@
               if(j.le.nlo) then 
 !                 write(6,*) j,'->',j+i
                  CurrentDets(:,j+i)=CurrentDets(:,j)
-                 CurrentSign(j+i)=CurrentSign(j)
+!                 CurrentSign(j+i)=CurrentSign(j)
                  CurrentH(j+i)=CurrentH(j)
               endif
            enddo
@@ -68,7 +68,6 @@
 !           enddo
 !           write(6,'(20i15)') (list1(:,j),j=1,nlist1+nlist2)
            CurrentDets(:,ips+i-1)=list2(:,i)
-           CurrentSign(ips+i-1)=SignList2(i)
            
            ! We want to calculate the diagonal hamiltonian matrix element for
            ! the new particle to be merged.
@@ -100,8 +99,8 @@
                               
 
 !This routine is the same as MergeListswH, but will not generate the diagonal hamiltonian matrix elements to go with the inserted determinants
-    SUBROUTINE MergeLists(nlist1,nlist1max,nlist2,list2,SignList2)
-        USE FciMCParMOD , only : Hii,CurrentDets,CurrentSign
+    SUBROUTINE MergeLists(nlist1,nlist1max,nlist2,list2)
+        USE FciMCParMOD , only : Hii,CurrentDets
         use SystemData, only: nel
         use bit_reps, only: NIfTot
         USE HElem
@@ -109,7 +108,7 @@
         IMPLICIT NONE
         INTEGER(KIND=n_int) :: list2(0:NIfTot,1:nlist2),DetCurr(0:NIfTot) 
         INTEGER :: nlisto,nlist1,nlist2,nlo,i
-        INTEGER :: ips,ips1,SignList2(nlist2)!,SignList1(nlist1max)
+        INTEGER :: ips,ips1
         REAL*8 :: HDiag
         INTEGER :: nJ(NEl),j,nlist1max
 !        LOGICAL :: tbin
@@ -132,7 +131,6 @@
               if(j.le.nlo) then 
 !                 write(6,*) j,'->',j+i
                  CurrentDets(0:NIfTot,j+i)=CurrentDets(0:NIfTot,j)
-                 CurrentSign(j+i)=CurrentSign(j)
               endif
            enddo
 !.elements of list1 which were copied over started
@@ -146,7 +144,6 @@
 !           enddo
 !           write(6,'(20i15)') (list1(:,j),j=1,nlist1+nlist2)
            CurrentDets(0:NIfTot,ips+i-1)=list2(0:NIfTot,i)
-           CurrentSign(ips+i-1)=SignList2(i)
                
 !           write(6,*) ' newly inserted member on position:'                             &
 !     & ,ips+i-1,' of value:',list2(:,i)
