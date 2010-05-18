@@ -263,9 +263,24 @@ KcDEPEND_FILES = $(addprefix $(KDEP_DEST)/,$(notdir $(KcOBJ:.o=.d)))
 CDEPEND = $(cppDEPEND_FILES) $(cDEPEND_FILES) $(KcppDEPEND_FILES) $(KcDEPEND_FILES)
 
 #-----
-# Goals
+# make's special rules
 
-.PHONY: clean cleanall depend rmdeps help utils $(UTILS)
+# Rules which don't actually produce any files...
+.PHONY: clean cleanall depend rmdeps help utils $(UTILS) neci.x kneci.x
+
+# Compile neci.x by default.
+.DEFAULT_GOAL := neci.x
+
+# Don't delete any intermediate files (e.g. bin/*.x when the goal doesn't
+# include the full path; .F90 files produced from template files).
+.SECONDARY: 
+
+# Extensions of files to compile.
+.SUFFIXES:
+.SUFFIXES: $(EXTS) .f .f90
+
+#-----
+# Goals
 
 # First, some helpful macros.
 
@@ -406,11 +421,6 @@ help:
 
 #-----
 # Compilation macros (explicit rules)
-
-.SUFFIXES:
-.SUFFIXES: $(EXTS) .f .f90
-# Don't delete the intermediate .F90 files produced from template files.
-.SECONDARY: $(addprefix $(TDEST)/,$(notdir $(basename $(F90TMPSRCFILES))))
 
 # Some more helpful macros.
 CPP_BODY = $(CPPFLAGS) $< $@
