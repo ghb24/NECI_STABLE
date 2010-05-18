@@ -6,15 +6,17 @@ contains
          use SystemData , only : tNoSymGenRandExcits,lNoSymmetry,tROHF
          use SystemData , only : tStoreSpinOrbs
          use Parallel
+         use util_mod, only: get_free_unit
          IMPLICIT NONE
          INTEGER NEL,nBasisMax(5,*),LEN,LMS,SYMLZ(1000)
-         INTEGER NORB,NELEC,MS2,ORBSYM(1000),ISYM,i,SYML(1000)
+         INTEGER NORB,NELEC,MS2,ORBSYM(1000),ISYM,i,SYML(1000), iunit
          LOGICAL TBIN,exists,UHF
          CHARACTER*3 :: fmat
          NAMELIST /FCI/ NORB,NELEC,MS2,ORBSYM,ISYM,UHF,SYML,SYMLZ
          UHF=.FALSE.
          fmat='NO'
          IF(iProcIndex.eq.0) THEN
+             iunit = get_free_unit()
              IF(TBIN) THEN
                 INQUIRE(FILE='FCISYM',EXIST=exists)
                 IF(.not.exists) THEN
@@ -27,8 +29,8 @@ contains
 !                IF(fmat=='YES') THEN
 !                    STOP 'FCIDUMP is not unformatted, but TBIN true'
 !                ENDIF
-                OPEN(8,FILE='FCISYM',STATUS='OLD',FORM='FORMATTED')
-                READ(8,FCI)
+                OPEN(iunit,FILE='FCISYM',STATUS='OLD',FORM='FORMATTED')
+                READ(iunit,FCI)
              ELSE
                 INQUIRE(FILE='FCIDUMP',EXIST=exists,UNFORMATTED=fmat)
                 IF(.not.exists) THEN
@@ -37,10 +39,10 @@ contains
 !                IF(fmat=='YES') THEN
 !                    STOP 'FCIDUMP is not formatted, but TBIN false'
 !                ENDIF
-                OPEN(8,FILE='FCIDUMP',STATUS='OLD',FORM='FORMATTED')
-                READ(8,FCI)
+                OPEN(iunit,FILE='FCIDUMP',STATUS='OLD',FORM='FORMATTED')
+                READ(iunit,FCI)
              ENDIF
-             CLOSE(8)
+             CLOSE(iunit)
          ENDIF
 
 !Now broadcast these values to the other processors
@@ -116,13 +118,14 @@ contains
          use UMatCache, only: GetCacheIndexStates,GTID
          use Parallel
          use constants, only: dp
+         use util_mod, only: get_free_unit
          IMPLICIT NONE
          INTEGER nBasisMax(5,*),BRR(LEN),LEN
          TYPE(BasisFN) G1(LEN)
          REAL*8 ARR(LEN,2)
          HElement_t Z
          INTEGER*8 IND,MASK
-         INTEGER I,J,K,L,I1
+         INTEGER I,J,K,L,I1, iunit
          INTEGER ISYMNUM,ISNMAX,SYMMAX,SYMLZ(1000)
          INTEGER NORB,NELEC,MS2,ORBSYM(1000),ISYM,ISPINS,ISPN,SYML(1000)
          INTEGER Counter(1:8),nPairs,iErr,MaxnSlot,MaxIndex
@@ -131,14 +134,15 @@ contains
          NAMELIST /FCI/ NORB,NELEC,MS2,ORBSYM,ISYM,UHF,SYML,SYMLZ
          UHF=.FALSE.
          IF(iProcIndex.eq.0) THEN
+             iunit = get_free_unit()
              IF(TBIN) THEN
-                OPEN(8,FILE='FCISYM',STATUS='OLD',FORM='FORMATTED')
-                READ(8,FCI)
-                CLOSE(8)
-                OPEN(8,FILE='FCIDUMP',STATUS='OLD',FORM='UNFORMATTED')
+                OPEN(iunit,FILE='FCISYM',STATUS='OLD',FORM='FORMATTED')
+                READ(iunit,FCI)
+                CLOSE(iunit)
+                OPEN(iunit,FILE='FCIDUMP',STATUS='OLD',FORM='UNFORMATTED')
              ELSE
-                OPEN(8,FILE='FCIDUMP',STATUS='OLD',FORM='FORMATTED')
-                READ(8,FCI)
+                OPEN(iunit,FILE='FCIDUMP',STATUS='OLD',FORM='FORMATTED')
+                READ(iunit,FCI)
              ENDIF
          ENDIF
 
@@ -247,7 +251,7 @@ contains
                 MASK=(2**16)-1
                 
                 !IND contains all the indices in an integer*8 - use mask of 16bit to extract them
-2               READ(8,END=99) Z,IND
+2               READ(iunit,END=99) Z,IND
                 L=iand(IND,MASK)
                 IND=Ishft(IND,-16)
                 K=iand(IND,MASK)
@@ -282,7 +286,7 @@ contains
 
              ELSE   !Reading in formatted FCIDUMP file
 
-1               READ(8,*,END=99) Z,I,J,K,L
+1               READ(iunit,*,END=99) Z,I,J,K,L
 
                 IF(tROHF) THEN
 !The FCIDUMP file is in spin-orbitals - we need to transfer them to spatial orbitals.
@@ -360,7 +364,7 @@ contains
                 IF(I1.NE.0) GOTO 1
              ENDIF
 99           CONTINUE
-             CLOSE(8)
+             CLOSE(iunit)
 
          ENDIF
 
@@ -445,6 +449,7 @@ contains
          use OneEInts, only: TMatind,TMat2D,TMATSYM,TSTARSTORE
          use OneEInts, only: CalcTMatSize
          use Parallel
+         use util_mod, only: get_free_unit
          IMPLICIT NONE
          INTEGER NBASIS,ZeroedInt,NonZeroInt
          REAL*8 ECORE,ARR(NBASIS,2)
@@ -452,7 +457,7 @@ contains
          HElement_t Z
          HElement_t UMatEl
          TYPE(BasisFN) G1(*)
-         INTEGER I,J,K,L,BRR(NBASIS),X,Y,A,B,iCache,iCacheI,iType
+         INTEGER I,J,K,L,BRR(NBASIS),X,Y,A,B,iCache,iCacheI,iType, iunit
          INTEGER NORB,NELEC,MS2,ORBSYM(1000),ISYM,SYMMAX,SYML(1000)
          LOGICAL LWRITE,UHF,tAddtoCache,GetCachedUMatEl,tReadFreezeInts
          INTEGER ISPINS,ISPN,ISPN2,ierr,SYMLZ(1000)!,IDI,IDJ,IDK,IDL
@@ -465,8 +470,9 @@ contains
          NonZeroInt=0
          
          IF(iProcIndex.eq.0) THEN
-             OPEN(8,FILE='FCIDUMP',STATUS='OLD')
-             READ(8,FCI)
+             iunit = get_free_unit()
+             OPEN(iunit,FILE='FCIDUMP',STATUS='OLD')
+             READ(iunit,FCI)
          ENDIF
 !Now broadcast these values to the other processors (the values are only read in on root)
          CALL MPIIBCast_Scal(NORB,0)
@@ -530,7 +536,7 @@ contains
              IF(.not.TSTARSTORE) THEN
                  TMAT2D(:,:)=(0.D0)
              ENDIF
-101          READ(8,*,END=199) Z,I,J,K,L
+101          READ(iunit,*,END=199) Z,I,J,K,L
              IF(tROHF) THEN
 !The FCIDUMP file is in spin-orbitals - we need to transfer them to spatial orbitals.
                 IF(I.ne.0) THEN
@@ -642,7 +648,7 @@ contains
              ENDIF
              IF(I.NE.0) GOTO 101
 199          CONTINUE
-             CLOSE(8)
+             CLOSE(iunit)
          ENDIF
 
 !Now broadcast the data read in
@@ -686,7 +692,7 @@ contains
              DEALLOCATE(CacheInd)
 !             CALL DumpUMatCache(nBasis,G1)
 !             do i=1,norb
-!                 WRITE(8,*) UMAT2D(:,i)
+!                 WRITE(iunit,*) UMAT2D(:,i)
 !             enddo
          ENDIF
 !.. If we've changed the eigenvalues, we write out the basis again
@@ -705,6 +711,7 @@ contains
          use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
          USE UMatCache , only : UMatInd,UMAT2D,TUMAT2D
          use OneEInts, only: TMatind,TMat2D,TMATSYM,TSTARSTORE
+         use util_mod, only: get_free_unit
          IMPLICIT NONE
          INTEGER NBASIS
          TYPE(BasisFN) G1(*)
@@ -712,17 +719,18 @@ contains
          HElement_t UMAT(*)
          HElement_t Z
          INTEGER*8 MASK,IND
-         INTEGER I,J,K,L,BRR(NBASIS),X,Y
+         INTEGER I,J,K,L,BRR(NBASIS),X,Y, iunit
          INTEGER NORB,NELEC,MS2,ORBSYM(1000),ISYM,SYMMAX
          INTEGER Counter(1:8),Index(1000)
          LOGICAL LWRITE,UHF
          NAMELIST /FCI/ NORB,NELEC,MS2,ORBSYM,ISYM,UHF
          LWRITE=.FALSE.
          UHF=.FALSE.
-         OPEN(8,FILE='FCISYM',STATUS='OLD',FORM='FORMATTED')
-         READ(8,FCI)
-         CLOSE(8)
-         OPEN(8,FILE='FCIDUMP',STATUS='OLD',FORM='UNFORMATTED')
+         iunit = get_free_unit()
+         OPEN(iunit,FILE='FCISYM',STATUS='OLD',FORM='FORMATTED')
+         READ(iunit,FCI)
+         CLOSE(iunit)
+         OPEN(iunit,FILE='FCIDUMP',STATUS='OLD',FORM='UNFORMATTED')
 
 
 !!Calculate a key, which will reorder the orbitals in symmetry order.
@@ -759,7 +767,7 @@ contains
 
          MASK=(2**16)-1
          !IND contains all the indices in an integer*8 - use mask of 16bit to extract them
-101      READ(8,END=199) Z,IND
+101      READ(iunit,END=199) Z,IND
          L=iand(IND,MASK)
          IND=Ishft(IND,-16)
          K=iand(IND,MASK)
@@ -838,7 +846,7 @@ contains
 !         WRITE(14,'(1X,F20.12,4I3)') Z,I,J,K,L
          IF(I.NE.0) GOTO 101
 199      CONTINUE
-         CLOSE(8)
+         CLOSE(iunit)
 ! If we've changed the eigenvalues, we write out the basis again
 !         IF(LWRITE) THEN
 !            WRITE(6,*) "1-electron energies have been read in."
