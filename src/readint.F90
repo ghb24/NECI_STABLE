@@ -1,5 +1,8 @@
+module read_fci
 
-      SUBROUTINE INITFROMFCID(NEL,NBASISMAX,LEN,LMS,TBIN)
+contains
+
+    SUBROUTINE INITFROMFCID(NEL,NBASISMAX,LEN,LMS,TBIN)
          use SystemData , only : tNoSymGenRandExcits,lNoSymmetry,tROHF
          use SystemData , only : tStoreSpinOrbs
          use Parallel
@@ -15,13 +18,11 @@
              IF(TBIN) THEN
                 INQUIRE(FILE='FCISYM',EXIST=exists)
                 IF(.not.exists) THEN
-                    CALL Stop_All('InitFromFCID',                       &
-     &                   'FCISYM file does not exist')
+                    CALL Stop_All('InitFromFCID','FCISYM file does not exist')
                 ENDIF
                 INQUIRE(FILE='FCIDUMP',EXIST=exists,FORMATTED=fmat)
                 IF(.not.exists) THEN
-                    CALL Stop_All('INITFROMFCID',                       &
-     &                    'FCIDUMP file does not exist')
+                    CALL Stop_All('INITFROMFCID','FCIDUMP file does not exist')
                 ENDIF
 !                IF(fmat=='YES') THEN
 !                    STOP 'FCIDUMP is not unformatted, but TBIN true'
@@ -31,8 +32,7 @@
              ELSE
                 INQUIRE(FILE='FCIDUMP',EXIST=exists,UNFORMATTED=fmat)
                 IF(.not.exists) THEN
-                    CALL Stop_All('InitFromFCID',                       &
-     &                  'FCIDUMP file does not exist')
+                    CALL Stop_All('InitFromFCID','FCIDUMP file does not exist')
                 ENDIF
 !                IF(fmat=='YES') THEN
 !                    STOP 'FCIDUMP is not formatted, but TBIN false'
@@ -54,8 +54,7 @@
          CALL MPILBCast_Scal(UHF,0)
 
          IF(tROHF.and.(.not.UHF)) THEN
-             CALL Stop_All("INITFROMFCID","ROHF specified, but FCIDUMP "&
-     &         //"is not in a high-spin format.")
+             CALL Stop_All("INITFROMFCID","ROHF specified, but FCIDUMP is not in a high-spin format.")
          ENDIF
 
 
@@ -74,7 +73,7 @@
      &      '*** WARNING: NEL in FCIDUMP differs from input file ***'   
             WRITE(6,*) ' NUMBER OF ELECTRONS : ' , NEL
          ENDIF
-C         NEL=NELEC
+!         NEL=NELEC
          IF(LMS.NE.MS2) THEN   
             WRITE(6,*)                                                  &
      &      '*** WARNING: LMS in FCIDUMP differs from input file ***'   
@@ -87,8 +86,8 @@ C         NEL=NELEC
             LEN=2*NORB
          ENDIF
          NBASISMAX(1:5,1:3)=0
-C         NBASISMAX(1,1)=1
-C         NBASISMAX(1,2)=NORB
+!         NBASISMAX(1,1)=1
+!         NBASISMAX(1,2)=NORB
          NBASISMAX(1,1)=0
          NBASISMAX(1,2)=0
          NBASISMAX(1,3)=2
@@ -104,10 +103,10 @@ C         NBASISMAX(1,2)=NORB
             tStoreSpinOrbs=.false.   !indicate that we are storing the orbitals in umat as spatial-orbitals
          endif
 
-C.. SHow that there's no momentum conservation
+! Show that there's no momentum conservation
          NBASISMAX(3,3)=1
          RETURN
-      END
+      END SUBROUTINE INITFROMFCID
 
 
       SUBROUTINE GETFCIBASIS(NBASISMAX,ARR,BRR,G1,LEN,TBIN)
@@ -158,15 +157,13 @@ C.. SHow that there's no momentum conservation
          IF(UHF.and.(.not.tROHF)) ISPINS=1
 
          IF(tROHF) THEN
-             WRITE(6,*) "Reading in Spin-orbital FCIDUMP but storing as"&
-     &          //" spatial orbitals."
+             WRITE(6,*) "Reading in Spin-orbital FCIDUMP but storing as spatial orbitals."
 !             WRITE(6,*) "*** Warning - Fock energy of orbitals will be "&
 !     &                //"incorrect ***"
 !We are reading in the symmetry of the orbitals in spin-orbitals - we need to change this to spatial orbitals
              DO i=1,NORB-1,2
                  IF(ORBSYM(i).ne.ORBSYM(i+1)) THEN
-                     CALL Stop_All("GetFCIBASIS","Spin-orbitals are not"&
-     &                  //" ordered in symmetry pairs")
+                     CALL Stop_All("GetFCIBASIS","Spin-orbitals are not ordered in symmetry pairs")
                  ENDIF
                  ORBSYM((i+1)/2)=ORBSYM(i)
                  SYML((i+1)/2)=SYML(i)
@@ -263,7 +260,7 @@ C.. SHow that there's no momentum conservation
 !                K=Index(K)
 !                L=Index(L)
             
-C.. Each orbital in the file corresponds to alpha and beta spinorbitals
+!.. Each orbital in the file corresponds to alpha and beta spinorbitals
              !Fill ARR with the energy levels
                 IF(I.NE.0.AND.K.EQ.0.AND.I.EQ.J) THEN
                     IF(I.GT.1) THEN
@@ -279,7 +276,7 @@ C.. Each orbital in the file corresponds to alpha and beta spinorbitals
                     ARR(2*I-1,1)=Z
                     ARR(2*I,1)=Z
                 ENDIF
-C.. At the moment we're ignoring the core energy
+!.. At the moment we're ignoring the core energy
                 IF(I.NE.0) GOTO 2
 
              ELSE   !Reading in formatted FCIDUMP file
@@ -315,7 +312,7 @@ C.. At the moment we're ignoring the core energy
 !                J=Index(J)
 !                K=Index(K)
 !                L=Index(L)
-C.. Each orbital in the file corresponds to alpha and beta spinorbitals
+!.. Each orbital in the file corresponds to alpha and beta spinorbitals
              !Fill ARR with the energy levels
                 IF(I1.NE.0.AND.K.EQ.0.AND.I1.EQ.J) THEN
                     IF(I1.GT.1) THEN
@@ -357,7 +354,7 @@ C.. Each orbital in the file corresponds to alpha and beta spinorbitals
 !                    ENDDO
 
                 ENDIF
-C.. At the moment we're ignoring the core energy
+!.. At the moment we're ignoring the core energy
                 IF(I1.NE.0) GOTO 1
              ENDIF
 99           CONTINUE
@@ -384,7 +381,7 @@ C.. At the moment we're ignoring the core energy
                 ELSE
                     G1(ISPINS*I-ISPN+1)%Ml=0
                 ENDIF
-C.. set momentum to 0
+!.. set momentum to 0
                 G1(ISPINS*I-ISPN+1)%k(1)=0
                 G1(ISPINS*I-ISPN+1)%k(2)=0
                 G1(ISPINS*I-ISPN+1)%k(3)=0
@@ -421,24 +418,20 @@ C.. set momentum to 0
 
              DEALLOCATE(MaxSlots)
              nSlotsInit=MaxnSlot+1
-             WRITE(6,*) "Maximum number of slots needed in cache is: ", &
-     &           nSlotsInit
-             WRITE(6,*) "Index corresponding to this maximum number:",  &
-     &           MaxIndex
+             WRITE(6,*) "Maximum number of slots needed in cache is: ",nSlotsInit
+             WRITE(6,*) "Index corresponding to this maximum number:",MaxIndex
              CALL GetCacheIndexStates(MaxIndex,i,k)
-             WRITE(6,"(A,2I6)") "This corresponds to an (i,k) pair of ",&
-     &           i,k
+             WRITE(6,"(A,2I6)") "This corresponds to an (i,k) pair of ",i,k
          ENDIF
 !         WRITE(6,*) Arr(:,1)
          RETURN
-      END
+      END SUBROUTINE GETFCIBASIS
 
 !tReadFreezeInts only matters when we are cacheing the FCIDUMP file.
 !It is set if we want to cache the integrals to enable the freezing routine to take place, i.e. the <ij|kj> integrals.
 !The UMAT2D integrals will also be read in in this case.
 !If tReadFreezeInts is false, then if we are cacheing the FCIDUMP file, then we will read and cache all the integrals.
-      SUBROUTINE READFCIINT(UMAT,NBASIS,ECORE,ARR,BRR,G1,               &
-     &   tReadFreezeInts)
+      SUBROUTINE READFCIINT(UMAT,NBASIS,ECORE,ARR,BRR,G1,tReadFreezeInts)
          use constants, only: dp
          use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB,NEl
          use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
@@ -555,9 +548,9 @@ C.. set momentum to 0
 !             J=Index(J)
 !             K=Index(K)
 !             L=Index(L)
-C.. Each orbital in the file corresponds to alpha and beta spinorbitalsa
+!.. Each orbital in the file corresponds to alpha and beta spinorbitalsa
              IF(I.EQ.0) THEN
-C.. Core energy
+!.. Core energy
                 ECORE=Z
              ELSEIF(J.EQ.0) THEN
 !C.. HF Eigenvalues
@@ -567,20 +560,18 @@ C.. Core energy
 !                ARR(BRR(I*2),1)=Z
 !                LWRITE=.TRUE.
              ELSEIF(K.EQ.0) THEN
-C.. 1-e integrals
+!.. 1-e integrals
                 IF(TSTARSTORE) THEN
 ! If TSTARSTORE, the one-el integrals are stored in symmetry classes, as spatial orbitals
                     TMATSYM(TMatInd(2*J,2*I))=Z
                 ELSE
-C.. These are stored as spinorbitals (with elements between different spins being 0
+!.. These are stored as spinorbitals (with elements between different spins being 0
                     DO ISPN=1,ISPINS
 
-                       IF((TMAT2D(ISPINS*I-ISPN+1,ISPINS*J-ISPN+1)      &
-     &                      .ne.0.D0).and.abs(TMAT2D(ISPINS*I-ISPN+1,   &
-     &                      ISPINS*J-ISPN+1)-Z).gt.1.D-7) THEN
-                WRITE(6,*) i,j,Z,TMAT2D(ISPINS*I-ISPN+1,ISPINS*J-ISPN+1)
-                           CALL Stop_All("ReadFCIInt","Error filling "  &
-     &                    //"TMAT - different values for same orbitals")
+                       IF(TMAT2D(ISPINS*I-ISPN+1,ISPINS*J-ISPN+1).ne.0.0d0 &
+                         .and.abs(TMAT2D(ISPINS*I-ISPN+1,ISPINS*J-ISPN+1)-Z).gt.1.D-7) THEN
+                            WRITE(6,*) i,j,Z,TMAT2D(ISPINS*I-ISPN+1,ISPINS*J-ISPN+1)
+                            CALL Stop_All("ReadFCIInt","Error filling TMAT - different values for same orbitals")
                        ENDIF
 
                        TMAT2D(ISPINS*I-ISPN+1,ISPINS*J-ISPN+1)=Z
@@ -588,10 +579,10 @@ C.. These are stored as spinorbitals (with elements between different spins bein
                     enddo
                 ENDIF
              ELSE
-C.. 2-e integrals
-C.. UMAT is stored as just spatial orbitals (not spinorbitals)
-C..  we're reading in (IJ|KL), but we store <..|..> which is <IK|JL>
-C.. AJWT removed the restriction to TSTARSTORE
+!.. 2-e integrals
+!.. UMAT is stored as just spatial orbitals (not spinorbitals)
+!..  we're reading in (IJ|KL), but we store <..|..> which is <IK|JL>
+!.. AJWT removed the restriction to TSTARSTORE
                 IF(TUMAT2D) THEN
                     IF(I.eq.J.and.I.eq.K.and.I.eq.L) THEN
                         !<ii|ii>
@@ -619,11 +610,9 @@ C.. AJWT removed the restriction to TSTARSTORE
 !Read in the FCIDUMP integrals to a cache.
                         IF(tReadFreezeInts) THEN
 !Here, we only want to cache the <ij|kj> integrals, since they are the only integrals which are needed for the freezing process.
-                          CALL Stop_All("READFCIINTS","Freezing is not "&
-     &                 //"yet compatible with caching the FCIDUMP file")
+                          CALL Stop_All("READFCIINTS","Freezing is not yet compatible with caching the FCIDUMP file")
                         ELSE
-                         CALL CacheFCIDUMP(I,K,J,L,Z,CacheInd,ZeroedInt,&
-     &                          NonZeroInt)
+                         CALL CacheFCIDUMP(I,K,J,L,Z,CacheInd,ZeroedInt,NonZeroInt)
 
                         ENDIF
                     ELSE
@@ -687,7 +676,7 @@ C.. AJWT removed the restriction to TSTARSTORE
              WRITE(6,*) ZeroedInt+NonZeroInt," 2E integrals read in..."
              WRITE(6,*) ZeroedInt," integrals zeroed..."
              WRITE(6,*) REAL(100*ZeroedInt)/REAL(NonZeroInt+ZeroedInt), &
-     %          " percent of 2E integrals zeroed."
+     &          " percent of 2E integrals zeroed."
          ENDIF
          IF(tCacheFCIDUMPInts) THEN
              WRITE(6,*) "Ordering cache..."
@@ -698,13 +687,13 @@ C.. AJWT removed the restriction to TSTARSTORE
 !                 WRITE(8,*) UMAT2D(:,i)
 !             enddo
          ENDIF
-C.. If we've changed the eigenvalues, we write out the basis again
+!.. If we've changed the eigenvalues, we write out the basis again
 !         IF(LWRITE) THEN
 !            WRITE(6,*) "1-electron energies have been read in."
 !            CALL WRITEBASIS(6,G1,NBASIS,ARR,BRR)
 !         ENDIF
          RETURN
-      END
+      END SUBROUTINE READFCIINT
 
 
       !This is a copy of the routine above, but now for reading in binary files of integrals
@@ -716,11 +705,12 @@ C.. If we've changed the eigenvalues, we write out the basis again
          use OneEInts, only: TMatind,TMat2D,TMATSYM,TSTARSTORE
          IMPLICIT NONE
          INTEGER NBASIS
+         TYPE(BasisFN) G1(*)
          REAL*8 ECORE,ARR(NBASIS,2)
          REAL*8 UMAT(*)
          REAL*8 Z
          INTEGER*8 MASK,IND
-         INTEGER I,J,K,L,BRR(NBASIS),G1(*),X,Y
+         INTEGER I,J,K,L,BRR(NBASIS),X,Y
          INTEGER NORB,NELEC,MS2,ORBSYM(1000),ISYM,SYMMAX
          INTEGER Counter(1:8),Index(1000)
          LOGICAL LWRITE,UHF
@@ -780,9 +770,9 @@ C.. If we've changed the eigenvalues, we write out the basis again
 !         K=Index(K)
 !         L=Index(L)
          
-C.. Each orbital in the file corresponds to alpha and beta spinorbitalsa
+!.. Each orbital in the file corresponds to alpha and beta spinorbitalsa
          IF(I.EQ.0) THEN
-C.. Core energy
+!.. Core energy
             ECORE=Z
          ELSEIF(J.EQ.0) THEN
 !C.. HF Eigenvalues
@@ -792,21 +782,21 @@ C.. Core energy
 !            ARR(BRR(I*2),1)=Z
 !            LWRITE=.TRUE.
          ELSEIF(K.EQ.0) THEN
-C.. 1-e integrals
+!.. 1-e integrals
             IF(TSTARSTORE) THEN
 ! If TSTARSTORE, the one-el integrals are stored in symmetry classes, as spatial orbitals
                 TMATSYM(TMatInd(2*J,2*I))=Z
             ELSE
-C.. These are stored as spinorbitals (with elements between different spins being 0
+!.. These are stored as spinorbitals (with elements between different spins being 0
                 TMAT2D(2*I-1,2*J-1)=Z
                 TMAT2D(2*I,2*J)=Z
                 TMAT2D(2*J-1,2*I-1)=Z
                 TMAT2D(2*J,2*I)=Z
             ENDIF
          ELSE
-C.. 2-e integrals
-C.. UMAT is stored as just spatial orbitals (not spinorbitals)
-C..  we're reading in (IJ|KL), but we store <..|..> which is <IK|JL>
+!.. 2-e integrals
+!.. UMAT is stored as just spatial orbitals (not spinorbitals)
+!..  we're reading in (IJ|KL), but we store <..|..> which is <IK|JL>
             IF(TSTARSTORE.and.TUMAT2D) THEN
                 IF(I.eq.J.and.I.eq.K.and.I.eq.L) THEN
                     !<ii|ii>
@@ -847,10 +837,12 @@ C..  we're reading in (IJ|KL), but we store <..|..> which is <IK|JL>
          IF(I.NE.0) GOTO 101
 199      CONTINUE
          CLOSE(8)
-C.. If we've changed the eigenvalues, we write out the basis again
+! If we've changed the eigenvalues, we write out the basis again
 !         IF(LWRITE) THEN
 !            WRITE(6,*) "1-electron energies have been read in."
 !            CALL WRITEBASIS(6,G1,NBASIS,ARR,BRR)
 !         ENDIF
          RETURN
-      END
+      END SUBROUTINE READFCIINTBIN
+
+end module read_fci

@@ -782,6 +782,7 @@ MODULE System
       use SymData, only: tAbelian,TwoCycleSymGens
       use constants, only: Pi, Pi2, THIRD
       use legacy_data, only: CSF_NBSTART
+      use read_fci
       implicit none
       character(*), parameter :: this_routine='SysInit'
       integer ierr

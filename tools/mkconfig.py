@@ -333,9 +333,9 @@ $(FRDEPEND):
 $(FCDEPEND):
 \t$(MKDEPEND) --objdir \$$\(KDEST\) --moddir \$$\(KDEST\) | $(RMTEMPLATE) > $@
 $(FRDEPENDUP):
-\t$(MKDEPEND) --case=upper --objdir \$$\(GDEST\) --moddir \$$\(GDEST\) > $(FRDEPENDUP)
+\t$(MKDEPEND) --case=upper --objdir \$$\(GDEST\) --moddir \$$\(GDEST\) | $(RMTEMPLATE) > $@
 $(FCDEPENDUP):
-\t$(MKDEPEND) --case=upper --objdir \$$\(KDEST\) --moddir \$$\(KDEST\) > $(FCDEPENDUP)
+\t$(MKDEPEND) --case=upper --objdir \$$\(KDEST\) --moddir \$$\(KDEST\) | $(RMTEMPLATE) > $@
 
 # Generate all dependency files.
 depend: 
@@ -426,19 +426,21 @@ endif
 # Compiling fortran source files...
 
 # 1. Pre-processing.
+# Provide INCLUDE_PATH as not all source files are in the same directory as
+# (e.g.) macros.h.
 # a) gamma-point.
 $(GDEST)/%%.f90: %%.F90
-\t$(CPP) $(CPP_BODY) $(GCPPFLAG)
+\t$(CPP) $(CPP_BODY) $(GCPPFLAG) $(INCLUDE_PATH)
 
 $(GDEST)/%%.f: %%.F
-\t$(CPP) $(CPP_BODY) $(GCPPFLAG)
+\t$(CPP) $(CPP_BODY) $(GCPPFLAG) $(INCLUDE_PATH)
 
 # b) k-point.
 $(KDEST)/%%.f90: %%.F90
-\t$(CPP) -D__CMPLX $(CPP_BODY) $(KCPPFLAG)
+\t$(CPP) -D__CMPLX $(CPP_BODY) $(KCPPFLAG) $(INCLUDE_PATH)
 
 $(KDEST)/%%.f: %%.F
-\t$(CPP) -D__CMPLX $(CPP_BODY) $(KCPPFLAG)
+\t$(CPP) -D__CMPLX $(CPP_BODY) $(KCPPFLAG) $(INCLUDE_PATH)
 
 # c) With an option to generate from template files.
 $(GDEST)/%%.f90: $(TDEST)/%%.F90

@@ -429,6 +429,7 @@ contains
       use SystemData, only: Omega,tAlpha,TBIN,tCPMD,tDFread,THFORDER,tRIIntegrals
       use SystemData, only: thub,tpbc,treadint,ttilt,TUEG,tVASP,tStarStore
       use SystemData, only: uhub, arr,alat,treal,tCacheFCIDUMPInts
+      use read_fci
       use constants, only: Pi, Pi2, THIRD
       INTEGER iCacheFlag
       COMPLEX*16,ALLOCATABLE :: ZIA(:)
