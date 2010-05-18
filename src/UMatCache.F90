@@ -981,7 +981,7 @@ MODULE UMatCache
           IF(UMATLABELS(CacheInd(A),A).ne.0) THEN
               IF((abs(REAL(UMatCacheData(nTypes-1,CacheInd(A),A),8)-Z)).gt.1.D-7) THEN
                   WRITE(6,*) i,j,k,l,z,UMatCacheData(nTypes-1,CacheInd(A),A)
-                  CALL Stop_All("READFCIINT","Same integral cached in same place with different value")
+                  CALL Stop_All("CacheFCIDUMP","Same integral cached in same place with different value")
               ENDIF
 
               CALL Stop_All("CacheFCIDUMP","Overwriting UMATLABELS")
