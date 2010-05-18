@@ -477,7 +477,7 @@ MODULE UMatCache
       SUBROUTINE SETUPUMAT2D_DF()
          ! Set up UMat2D for storing the <ij|u|ij> and <ij|u|ji> integrals for 
          ! density fitting calculations.
-         use System, only: tRIIntegrals,tCacheFCIDUMPInts
+         use SystemData, only: tRIIntegrals,tCacheFCIDUMPInts
          use global_utilities
          use HElem, only: HElement_t_size
          IMPLICIT NONE
