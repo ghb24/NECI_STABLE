@@ -333,9 +333,9 @@ $(FRDEPEND):
 $(FCDEPEND):
 \t$(MKDEPEND) --objdir \$$\(KDEST\) --moddir \$$\(KDEST\) | $(RMTEMPLATE) > $@
 $(FRDEPENDUP):
-\t$(MKDEPEND) --case=upper --objdir \$$\(GDEST\) --moddir \$$\(GDEST\) > $(FRDEPENDUP)
+\t$(MKDEPEND) --case=upper --objdir \$$\(GDEST\) --moddir \$$\(GDEST\) | $(RMTEMPLATE) > $@
 $(FCDEPENDUP):
-\t$(MKDEPEND) --case=upper --objdir \$$\(KDEST\) --moddir \$$\(KDEST\) > $(FCDEPENDUP)
+\t$(MKDEPEND) --case=upper --objdir \$$\(KDEST\) --moddir \$$\(KDEST\) | $(RMTEMPLATE) > $@
 
 # Generate all dependency files.
 depend: 
