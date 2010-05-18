@@ -115,11 +115,12 @@ contains
          use UMatCache, only: nSlotsInit,CalcNSlotsInit
          use UMatCache, only: GetCacheIndexStates,GTID
          use Parallel
+         use constants, only: dp
          IMPLICIT NONE
          INTEGER nBasisMax(5,*),BRR(LEN),LEN
          TYPE(BasisFN) G1(LEN)
          REAL*8 ARR(LEN,2)
-         REAL*8 Z
+         HElement_t Z
          INTEGER*8 IND,MASK
          INTEGER I,J,K,L,I1
          INTEGER ISYMNUM,ISNMAX,SYMMAX,SYMLZ(1000)
@@ -270,18 +271,18 @@ contains
                         ENDIF
                     ENDIF
                     ISYMNUM=ISYMNUM+1
-                    ARR(2*I-1,1)=Z
-                    ARR(2*I,1)=Z
+                    ARR(2*I-1,1)=real(Z,dp)
+                    ARR(2*I,1)=real(Z,dp)
                 ELSEIF(I.NE.0.AND.K.EQ.0.AND.J.EQ.0) THEN
-                    ARR(2*I-1,1)=Z
-                    ARR(2*I,1)=Z
+                    ARR(2*I-1,1)=real(Z,dp)
+                    ARR(2*I,1)=real(Z,dp)
                 ENDIF
 !.. At the moment we're ignoring the core energy
                 IF(I.NE.0) GOTO 2
 
              ELSE   !Reading in formatted FCIDUMP file
 
-1               READ(8,'(1X,G20.12,4I3)',END=99) Z,I,J,K,L
+1               READ(8,*,END=99) Z,I,J,K,L
 
                 IF(tROHF) THEN
 !The FCIDUMP file is in spin-orbitals - we need to transfer them to spatial orbitals.
@@ -326,31 +327,32 @@ contains
 !This fills the single particle energy array (ARR) with the diagonal one-electron integrals, so that if
 !there are no fock energies printed out in the FCIDUMP, then we can still order the orbitals in some way.
 !If the fock energies are printed out before the one-electron integrals, this will cause problems.
+!These integrals must be real.
                     IF(ISPINS.eq.1) THEN
-                        ARR(I1,1)=Z
+                        ARR(I1,1)=real(Z,dp)
                     ELSEIF(tROHF) THEN
-                        ARR(I,1)=Z
+                        ARR(I,1)=real(Z,dp)
                     ELSE
-                        ARR(2*I1,1)=Z
-                        ARR(2*I1-1,1)=Z
+                        ARR(2*I1,1)=real(Z,dp)
+                        ARR(2*I1-1,1)=real(Z,dp)
                     ENDIF
 !                    DO ISPN=1,ISPINS
-!                        ARR(ISPINS*I1-ISPN+1,1)=Z
+!                        ARR(ISPINS*I1-ISPN+1,1)=real(Z,dp)
 !                    ENDDO
 
                 ELSEIF(I1.NE.0.AND.K.EQ.0.AND.J.EQ.0) THEN
 !                    WRITE(6,*) I
                     IF(ISPINS.eq.1) THEN
-                        ARR(I1,1)=Z
+                        ARR(I1,1)=real(Z,dp)
                     ELSEIF(tROHF) THEN
-                        ARR(I,1)=Z
+                        ARR(I,1)=real(Z,dp)
                     ELSE
-                        ARR(2*I1,1)=Z
-                        ARR(2*I1-1,1)=Z
+                        ARR(2*I1,1)=real(Z,dp)
+                        ARR(2*I1-1,1)=real(Z,dp)
                     ENDIF
 
 !                    DO ISPN=1,ISPINS
-!                        ARR(ISPINS*I-ISPN+1,1)=Z
+!                        ARR(ISPINS*I-ISPN+1,1)=real(Z,dp)
 !                    ENDDO
 
                 ENDIF
@@ -446,8 +448,8 @@ contains
          IMPLICIT NONE
          INTEGER NBASIS,ZeroedInt,NonZeroInt
          REAL*8 ECORE,ARR(NBASIS,2)
-         REAL*8 UMAT(*)
-         REAL*8 Z
+         HElement_t UMAT(*)
+         HElement_t Z
          HElement_t UMatEl
          TYPE(BasisFN) G1(*)
          INTEGER I,J,K,L,BRR(NBASIS),X,Y,A,B,iCache,iCacheI,iType
@@ -528,7 +530,7 @@ contains
              IF(.not.TSTARSTORE) THEN
                  TMAT2D(:,:)=(0.D0)
              ENDIF
-101          READ(8,'(1X,G20.12,4I3)',END=199) Z,I,J,K,L
+101          READ(8,*,END=199) Z,I,J,K,L
              IF(tROHF) THEN
 !The FCIDUMP file is in spin-orbitals - we need to transfer them to spatial orbitals.
                 IF(I.ne.0) THEN
@@ -551,19 +553,19 @@ contains
 !.. Each orbital in the file corresponds to alpha and beta spinorbitalsa
              IF(I.EQ.0) THEN
 !.. Core energy
-                ECORE=Z
+                ECORE=real(Z,dp)
              ELSEIF(J.EQ.0) THEN
 !C.. HF Eigenvalues
-!                ARR(I*2-1,2)=Z
-!                ARR(I*2,2)=Z
-!                ARR(BRR(I*2-1),1)=Z
-!                ARR(BRR(I*2),1)=Z
+!                ARR(I*2-1,2)=real(Z,dp)
+!                ARR(I*2,2)=real(Z,dp)
+!                ARR(BRR(I*2-1),1)=real(Z,dp)
+!                ARR(BRR(I*2),1)=real(Z,dp)
 !                LWRITE=.TRUE.
              ELSEIF(K.EQ.0) THEN
 !.. 1-e integrals
                 IF(TSTARSTORE) THEN
 ! If TSTARSTORE, the one-el integrals are stored in symmetry classes, as spatial orbitals
-                    TMATSYM(TMatInd(2*J,2*I))=Z
+                    TMATSYM(TMatInd(2*J,2*I))=real(Z,dp)
                 ELSE
 !.. These are stored as spinorbitals (with elements between different spins being 0
                     DO ISPN=1,ISPINS
@@ -660,7 +662,7 @@ contains
          ENDIF
          IF((.not.tRIIntegrals).and.(.not.tCacheFCIDUMPInts)) THEN
              CALL GetUMATSize(nBasis,NEl,iSpins,UMatSize)
-             CALL MPIDBCastArr(UMAT,UMatSize,0)    !This is not an , as it is actually passed in as a real*8, even though it is HElem in IntegralsData
+             CALL MPIHElemBCast(UMAT,UMatSize,0)    !This is not an , as it is actually passed in as a real*8, even though it is HElem in IntegralsData
          ENDIF
          IF(tCacheFCIDUMPInts) THEN
 !Need to broadcast the cache...
@@ -707,8 +709,8 @@ contains
          INTEGER NBASIS
          TYPE(BasisFN) G1(*)
          REAL*8 ECORE,ARR(NBASIS,2)
-         REAL*8 UMAT(*)
-         REAL*8 Z
+         HElement_t UMAT(*)
+         HElement_t Z
          INTEGER*8 MASK,IND
          INTEGER I,J,K,L,BRR(NBASIS),X,Y
          INTEGER NORB,NELEC,MS2,ORBSYM(1000),ISYM,SYMMAX
@@ -773,13 +775,13 @@ contains
 !.. Each orbital in the file corresponds to alpha and beta spinorbitalsa
          IF(I.EQ.0) THEN
 !.. Core energy
-            ECORE=Z
+            ECORE=real(Z,dp)
          ELSEIF(J.EQ.0) THEN
 !C.. HF Eigenvalues
-!            ARR(I*2-1,2)=Z
-!            ARR(I*2,2)=Z
-!            ARR(BRR(I*2-1),1)=Z
-!            ARR(BRR(I*2),1)=Z
+!            ARR(I*2-1,2)=real(Z,dp)
+!            ARR(I*2,2)=real(Z,dp)
+!            ARR(BRR(I*2-1),1)=real(Z,dp)
+!            ARR(BRR(I*2),1)=real(Z,dp)
 !            LWRITE=.TRUE.
          ELSEIF(K.EQ.0) THEN
 !.. 1-e integrals

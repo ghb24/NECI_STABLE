@@ -940,9 +940,10 @@ MODULE UMatCache
 
       SUBROUTINE CacheFCIDUMP(I,J,K,L,Z,CacheInd,ZeroedInt,NonZeroInt)
           use SystemData, only : UMatEps
+          use constants, only: dp
           IMPLICIT NONE
           INTEGER :: I,J,K,L,CacheInd(nPairs),ZeroedInt,NonZeroInt,A,B
-          REAL*8 :: Z
+          HElement_t :: Z
           
           IF(abs(Z).lt.UMatEps) THEN
 !We have an epsilon cutoff for the size of the two-electron integrals - UMatEps
@@ -1007,9 +1008,10 @@ MODULE UMatCache
 !symmetry is taken into account when determining islotsmax.
       SUBROUTINE CalcNSlotsInit(I,J,K,L,Z,nPairs2,MaxSlots)
           use SystemData, only : UMatEps,tROHF
+          use constants, only: dp
           IMPLICIT NONE
           INTEGER :: I,J,K,L,MaxSlots(1:nPairs2),A,B,C,D,X,Y,nPairs2
-          REAL*8 :: Z
+          HElement_t :: Z
           
 !The (ii|jj) and (ij|ij) integrals are not stored in the cache (they are stored in UMAT2D, so 
 !we do not want to include them in the consideration of the size of the cache.
