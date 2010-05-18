@@ -108,7 +108,7 @@ MODULE AnnihilationMod
 
 !This routine will send all the newly-spawned particles to their correct processor. MaxIndex is returned as the new number of newly-spawned particles on the processor. May have duplicates.
 !The particles are now stored in SpawnedParts2/SpawnedSign2.
-        CALL SendProcNewParts(MaxIndex)
+        CALL SendProcNewParts(MaxIndex)         !MODIFIED
 
 !        WRITE(6,*) "Sent particles"
 !        WRITE(6,*) 'MaxIndex',MaxIndex
@@ -123,7 +123,7 @@ MODULE AnnihilationMod
 !MaxIndex will change to reflect the final number of unique determinants in the newly-spawned list, and the particles will end up in the spawnedSign/SpawnedParts lists.
 !        WRITE(6,*) "Transferred",MaxIndex
 
-        CALL CompressSpawnedList(MaxIndex)
+        CALL CompressSpawnedList(MaxIndex)      !MODIFIED
 
 !        WRITE(6,*) "List compressed",MaxIndex,TotWalkersNew
 
@@ -244,7 +244,8 @@ MODULE AnnihilationMod
 !This sorts and compresses the spawned list to make it easier for the rest of the annihilation process.
 !This is not essential, but should proove worthwhile
     SUBROUTINE CompressSpawnedList(ValidSpawned)
-        INTEGER :: VecInd,ValidSpawned,DetsMerged,ToRemove,i,SignProd,PartIndex,ExcitLevel
+        INTEGER :: VecInd,ValidSpawned,DetsMerged,ToRemove,i,PartIndex,ExcitLevel,PassedFlag
+        INTEGER, DIMENSION(lenof_sign) :: SignProd,SpawnedSign,SpawnedSign2
         LOGICAL :: tSuc
 
 !We want to sort the list of newly spawned particles, in order for quicker binary searching later on. (this is not essential, but should proove faster)
@@ -256,30 +257,35 @@ MODULE AnnihilationMod
 !During this, we transfer the particles over to SpawnedParts2
         IF(ValidSpawned.gt.0) THEN
             SpawnedParts2(0:NIfTot,1)=SpawnedParts(0:NIfTot,1)
-            SpawnedSign2(1)=SpawnedSign(1)
+!            SpawnedSign2(1)=SpawnedSign(1)
         ENDIF
         VecInd=1
         DetsMerged=0
         ToRemove=0
         do i=2,ValidSpawned
             IF(.not.DetBitEQ(SpawnedParts(0:NIfTot,i),SpawnedParts2(0:NIfTot,VecInd),NIfDBO)) THEN
-                IF(SpawnedSign2(VecInd).eq.0) ToRemove=ToRemove+1
+                IF(extract_sign(SpawnedParts(0:NIfTot,VecInd))(1).eq.0) ToRemove=ToRemove+1
                 VecInd=VecInd+1
                 SpawnedParts2(:,VecInd)=SpawnedParts(:,i)
-                SpawnedSign2(VecInd)=SpawnedSign(i)
+!                SpawnedSign2(VecInd)=SpawnedSign(i)
             ELSE
 !The next determinant is equal to the current - want to look at the relative signs.                
-                SignProd=SpawnedSign(i)*SpawnedSign2(VecInd)
-                IF(SignProd.lt.0) THEN
+                SpawnedSign = extract_sign(SpawnedParts(0:NIfTot,i))
+                SpawnedSign2 = extract_sign(SpawnedParts2(0:NIfTot,VecInd))
+                SignProd(1)=SpawnedSign(1)*SpawnedSign2(1)
+                IF(SignProd(1).lt.0) THEN
 !We are actually unwittingly annihilating, but just in serial... we therefore need to count it anyway.
-                    Annihilated=Annihilated+2*(MIN(abs(SpawnedSign2(VecInd)),abs(SpawnedSign(i))))
+                    Annihilated=Annihilated+2*(MIN(abs(SpawnedSign2(1)),abs(SpawnedSign(1))))
 
                     IF(tTruncInitiator) THEN
 !If we are doing a CAS star calculation, we also want to keep track of which parent the remaining walkers came from - those inside the active space or out.                
 !This is only an issue if the two determinants we are merging have different Parent flags - otherwise they just keep whichever.
 !As it is, the SpawnedParts2 determinant will have the parent flag that remains - just need to change this over if the number of walkers on SpawnedParts ends up dominating.
-                        IF(SpawnedParts(NIfTot,i).ne.SpawnedParts2(NIfTot,VecInd)) THEN     ! Parent flags are not equal
-                            IF(ABS(SpawnedSign(i)).gt.ABS(SpawnedSign2(VecInd))) SpawnedParts2(NIfTot,VecInd)=SpawnedParts(NIfTot,i)
+                        IF(extract_flags(SpawnedParts(NIfTot,i)).ne.extract_flags(SpawnedParts2(NIfTot,VecInd))) THEN     ! Parent flags are not equal
+                            IF(ABS(SpawnedSign(1)).gt.ABS(SpawnedSign2(1))) THEN
+                                PassedFlag=extract_flags(SpawnedParts(0:NIfTot,i))
+                                call encode_flags(SpawnedParts2(0:NIfTot,VecInd),PassedFlag)
+                            ENDIF
                         ENDIF
                     ENDIF
 
@@ -297,8 +303,8 @@ MODULE AnnihilationMod
                         ENDIF
                         HistMinInd2(ExcitLevel)=PartIndex
                         IF(tSuc) THEN
-                            AvAnnihil(PartIndex)=AvAnnihil(PartIndex)+REAL(2*(MIN(abs(SpawnedSign2(VecInd)),abs(SpawnedSign(i)))),dp)
-                            InstAnnihil(PartIndex)=InstAnnihil(PartIndex)+REAL(2*(MIN(abs(SpawnedSign2(VecInd)),abs(SpawnedSign(i)))),dp)
+                            AvAnnihil(PartIndex)=AvAnnihil(PartIndex)+REAL(2*(MIN(abs(SpawnedSign2(1)),abs(SpawnedSign(1)))),dp)
+                            InstAnnihil(PartIndex)=InstAnnihil(PartIndex)+REAL(2*(MIN(abs(SpawnedSign2(1)),abs(SpawnedSign(1)))),dp)
                         ELSE
 !                            WRITE(6,*) "Searching between: ",HistMinInd2(ExcitLevel), " and ",FCIDetIndex(ExcitLevel+1)-1
 !                            WRITE(6,*) "***",SpawnedParts(0:NIfTot,i)
@@ -318,20 +324,24 @@ MODULE AnnihilationMod
 !the parents are different.
 !In this case we assume the determinants inside the CAS have spawned a second earlier - so the ones from outside the active space are spawning onto an occupied determinant
 !and will therefore live - we can just make these equiv by treating them as they've all come from inside the active space.
-                    IF(SpawnedParts(NIfTot,i).ne.SpawnedParts2(NIfTot,VecInd)) THEN     ! Parent flags are not equal
-                        SpawnedParts2(NIfTot,VecInd)=0      ! Take all the walkers to have come from inside the CAS space.
-                        IF(SpawnedSign2(VecInd).eq.0) SpawnedParts2(NIfTot,VecInd)=SpawnedParts(NIfTot,i) 
+                    PassedFlag=extract_flags(SpawnedParts(0:NIfTot,i))
+                    FlagParts2=extract_flags(SpawnedParts2(0:NIfTot,VecInd))
+                    IF(PassedFlag.ne.FlagParts2) THEN   !Parent flags are not equal
+                        call encode_flags(SpawnedParts2(0:NIfTot,VecInd),0)     !Take all the walkers to have come from inside the CAS space.
+                        IF(SpawnedSign2(1).eq.0) THEN
+                            call encode_flags(SpawnedParts2(0:NIfTot,VecInd),PassedFlag)
+                        ENDIF
                         ! Think there might still be a case where SpawnedSign2 can be 0 - this means that the parent will be determined by SpawnedParts.
                         ! If its SpawnedParts that is 0 that's fine because the SpawnedParts2 flag is already carried across.
-                    ELSEIF(tKeepDoubleSpawns.and.(SpawnedParts2(NIfTot,VecInd).eq.1)) THEN
+                    ELSEIF(tKeepDoubleSpawns.and.(FlagParts2.eq.1)) THEN
 !This is the option where if two determinants spawn onto another at the same time with the same sign, they are kept whether they've come from 
 !inside or outside the active space.  This is different from before where two children spawned on the same determinant with the same sign, but both from outside the active
 !space will be killed.
-                        SpawnedParts2(NIfTot,VecInd)=0
+                        call encode_flags(SpawnedParts2(:,VecInd),0)
                         NoDoubSpawns=NoDoubSpawns+1.D0
                     ENDIF
                 ENDIF
-                SpawnedSign2(VecInd)=SpawnedSign2(VecInd)+SpawnedSign(i)
+                call encode_sign(SpawnedParts2(:,VecInd),SpawnedSign2 + SpawnedSign)    !Combine the signs
                 DetsMerged=DetsMerged+1
             ENDIF
         enddo
@@ -341,18 +351,20 @@ MODULE AnnihilationMod
             WRITE(6,*) ValidSpawned,VecInd
             CALL Stop_All("CompressSpawnedList","Error in compression of spawned particle list")
         ENDIF
-        IF(SpawnedSign2(ValidSpawned).eq.0.and.(ValidSpawned.gt.0)) ToRemove=ToRemove+1
+        IF((extract_sign(SpawnedParts2(:,ValidSpawned))(1).eq.0).and.(ValidSpawned.gt.0)) ToRemove=ToRemove+1
+!        IF(SpawnedSign2(ValidSpawned).eq.0.and.(ValidSpawned.gt.0)) ToRemove=ToRemove+1
 
 !Now remove zeros. Not actually necessary, but will be useful I suppose? Shouldn't be too much hassle.
 !We can also use it to copy the particles back to SpawnedParts array
         DetsMerged=0
         do i=1,ValidSpawned
-            IF(SpawnedSign2(i).eq.0) THEN
+            IF(extract_sign(SpawnedParts2(:,i))(1).eq.0) THEN
+!            IF(SpawnedSign2(i).eq.0) THEN
                 DetsMerged=DetsMerged+1
             ELSE
 !We want to move all the elements above this point down to 'fill in' the annihilated determinant.
                 SpawnedParts(0:NIfTot,i-DetsMerged)=SpawnedParts2(0:NIfTot,i)
-                SpawnedSign(i-DetsMerged)=SpawnedSign2(i)
+!                SpawnedSign(i-DetsMerged)=SpawnedSign2(i)
             ENDIF
         enddo
         IF(DetsMerged.ne.ToRemove) THEN

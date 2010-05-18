@@ -113,6 +113,25 @@ contains
 
     end subroutine extract_bit_rep
 
+    function extract_sign (ilut)
+        integer(n_int), intent(in) :: ilut(0:nIfTot)
+        integer, dimension(lenof_sign), intent(out) :: extract_sign
+
+        extract_sign = iLut(NOffSgn:NOffSgn+lenof_sign-1)
+    end subroutine extract_sign
+
+    function extract_flags (iLut)
+        integer(n_int), intent(in) :: ilut(0:nIfTot)
+        integer, intent(out) :: flags
+
+        IF(NOffFlag.eq.1) THEN
+            flags = iLut(NOffFlag)
+        ELSE
+            flags = 0
+        ENDIF
+
+    end function extract_flags
+
     subroutine encode_flags (ilut, flag)
 
         ! Add new flag information to a packaged walker.
