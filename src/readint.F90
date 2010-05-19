@@ -8,9 +8,11 @@ contains
          use Parallel
          use util_mod, only: get_free_unit
          IMPLICIT NONE
-         INTEGER NEL,nBasisMax(5,*),LEN,LMS,SYMLZ(1000)
+         logical, intent(in) :: tbin
+         integer, intent(out) :: NEL,nBasisMax(5,*),LEN,LMS
+         integer SYMLZ(1000)
          INTEGER NORB,NELEC,MS2,ORBSYM(1000),ISYM,i,SYML(1000), iunit
-         LOGICAL TBIN,exists,UHF
+         LOGICAL exists,UHF
          CHARACTER*3 :: fmat
          NAMELIST /FCI/ NORB,NELEC,MS2,ORBSYM,ISYM,UHF,SYML,SYMLZ
          UHF=.FALSE.
@@ -120,9 +122,11 @@ contains
          use constants, only: dp
          use util_mod, only: get_free_unit
          IMPLICIT NONE
-         INTEGER nBasisMax(5,*),BRR(LEN),LEN
-         TYPE(BasisFN) G1(LEN)
-         REAL*8 ARR(LEN,2)
+         integer, intent(in) :: LEN
+         integer, intent(inout) :: nBasisMax(5,*)
+         integer, intent(out) :: BRR(LEN)
+         REAL*8, intent(out) :: ARR(LEN,2)
+         type(BasisFN), intent(out) :: G1(LEN)
          HElement_t Z
          INTEGER*8 IND,MASK
          INTEGER I,J,K,L,I1, iunit
@@ -451,15 +455,18 @@ contains
          use Parallel
          use util_mod, only: get_free_unit
          IMPLICIT NONE
-         INTEGER NBASIS,ZeroedInt,NonZeroInt
-         REAL*8 ECORE,ARR(NBASIS,2)
-         HElement_t UMAT(*)
+         integer, intent(in) :: NBASIS
+         logical, intent(in) :: tReadFreezeInts
+         REAL*8, intent(out) :: ECORE,ARR(NBASIS,2)
+         integer, intent(out) :: BRR(NBASIS)
+         HElement_t, intent(out) :: UMAT(*)
+         TYPE(BasisFN), intent(out) :: G1(*)
          HElement_t Z
          HElement_t UMatEl
-         TYPE(BasisFN) G1(*)
-         INTEGER I,J,K,L,BRR(NBASIS),X,Y,A,B,iCache,iCacheI,iType, iunit
+         INTEGER ZeroedInt,NonZeroInt
+         INTEGER I,J,K,L,X,Y,A,B,iCache,iCacheI,iType, iunit
          INTEGER NORB,NELEC,MS2,ORBSYM(1000),ISYM,SYMMAX,SYML(1000)
-         LOGICAL LWRITE,UHF,tAddtoCache,GetCachedUMatEl,tReadFreezeInts
+         LOGICAL LWRITE,UHF,tAddtoCache,GetCachedUMatEl
          INTEGER ISPINS,ISPN,ISPN2,ierr,SYMLZ(1000)!,IDI,IDJ,IDK,IDL
          INTEGER Counter(1:8),UMatSize,TMatSize
          INTEGER , ALLOCATABLE :: CacheInd(:)
@@ -713,13 +720,14 @@ contains
          use OneEInts, only: TMatind,TMat2D,TMATSYM,TSTARSTORE
          use util_mod, only: get_free_unit
          IMPLICIT NONE
-         INTEGER NBASIS
-         TYPE(BasisFN) G1(*)
-         REAL*8 ECORE,ARR(NBASIS,2)
-         HElement_t UMAT(*)
+         INTEGER, intent(in) ::  NBASIS
+         TYPE(BasisFN), intent(out) :: G1(*)
+         REAL*8, intent(out) :: ECORE,ARR(NBASIS,2)
+         integer, intent(out) :: BRR(NBASIS)
+         HElement_t, intent(out) :: UMAT(*)
          HElement_t Z
          INTEGER*8 MASK,IND
-         INTEGER I,J,K,L,BRR(NBASIS),X,Y, iunit
+         INTEGER I,J,K,L,X,Y, iunit
          INTEGER NORB,NELEC,MS2,ORBSYM(1000),ISYM,SYMMAX
          INTEGER Counter(1:8),Index(1000)
          LOGICAL LWRITE,UHF
