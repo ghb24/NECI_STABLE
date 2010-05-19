@@ -5,6 +5,7 @@ contains
     SUBROUTINE INITFROMFCID(NEL,NBASISMAX,LEN,LMS,TBIN)
          use SystemData , only : tNoSymGenRandExcits,lNoSymmetry,tROHF
          use SystemData , only : tStoreSpinOrbs
+         use SymData, only: nProp, PropBitLen, TwoCycleSymGens
          use Parallel
          use util_mod, only: get_free_unit
          IMPLICIT NONE
@@ -14,9 +15,11 @@ contains
          INTEGER NORB,NELEC,MS2,ORBSYM(1000),ISYM,i,SYML(1000), iunit
          LOGICAL exists,UHF
          CHARACTER*3 :: fmat
-         NAMELIST /FCI/ NORB,NELEC,MS2,ORBSYM,ISYM,UHF,SYML,SYMLZ
+         NAMELIST /FCI/ NORB,NELEC,MS2,ORBSYM,ISYM,UHF,SYML,SYMLZ,PROPBITLEN,NPROP
          UHF=.FALSE.
          fmat='NO'
+         PROPBITLEN = 0
+         NPROP = 0
          IF(iProcIndex.eq.0) THEN
              iunit = get_free_unit()
              IF(TBIN) THEN
@@ -50,6 +53,12 @@ contains
          CALL MPIIBCast(SYMLZ,1000,0)
          CALL MPIIBCast_Scal(ISYM,0)
          CALL MPILBCast_Scal(UHF,0)
+         CALL MPIIBCast_Scal(PROPBITLEN,0)
+         CALL MPIIBCast(NPROP,3,0)
+         ! If PropBitLen has been set then assume we're not using an Abelian
+         ! symmetry group which has two cycle generators (ie the group has
+         ! complex representations).
+         TwoCycleSymGens = PropBitLen == 0
 
          IF(tROHF.and.(.not.UHF)) THEN
              CALL Stop_All("INITFROMFCID","ROHF specified, but FCIDUMP is not in a high-spin format.")
@@ -112,6 +121,7 @@ contains
          use SystemData, only: tCacheFCIDUMPInts,tROHF,tFixLz,iMaxLz
          use UMatCache, only: nSlotsInit,CalcNSlotsInit
          use UMatCache, only: GetCacheIndexStates,GTID
+         use SymData, only: nProp, PropBitLen, TwoCycleSymGens
          use Parallel
          use constants, only: dp
          use util_mod, only: get_free_unit
@@ -129,7 +139,7 @@ contains
          INTEGER Counter(1:8),nPairs,iErr,MaxnSlot,MaxIndex
          INTEGER , ALLOCATABLE :: MaxSlots(:)
          LOGICAL TBIN,UHF
-         NAMELIST /FCI/ NORB,NELEC,MS2,ORBSYM,ISYM,UHF,SYML,SYMLZ
+         NAMELIST /FCI/ NORB,NELEC,MS2,ORBSYM,ISYM,UHF,SYML,SYMLZ,PROPBITLEN,NPROP
          UHF=.FALSE.
          IF(iProcIndex.eq.0) THEN
              iunit = get_free_unit()
@@ -153,6 +163,12 @@ contains
          CALL MPIIBCast(SYMLZ,1000,0)
          CALL MPIIBCast_Scal(ISYM,0)
          CALL MPILBCast_Scal(UHF,0)
+         CALL MPIIBCast_Scal(PROPBITLEN,0)
+         CALL MPIIBCast(NPROP,3,0)
+         ! If PropBitLen has been set then assume we're not using an Abelian
+         ! symmetry group which has two cycle generators (ie the group has
+         ! complex representations).
+         TwoCycleSymGens = PropBitLen == 0
 
          ISYMNUM=0
          ISNMAX=0
@@ -402,6 +418,7 @@ contains
          use OneEInts, only: TMatind,TMat2D,TMATSYM,TSTARSTORE
          use OneEInts, only: CalcTMatSize
          use Parallel
+         use SymData, only: nProp, PropBitLen, TwoCycleSymGens
          use util_mod, only: get_free_unit
          IMPLICIT NONE
          integer, intent(in) :: NBASIS
@@ -419,7 +436,7 @@ contains
          INTEGER ISPINS,ISPN,ISPN2,ierr,SYMLZ(1000)!,IDI,IDJ,IDK,IDL
          INTEGER Counter(1:8),UMatSize,TMatSize
          INTEGER , ALLOCATABLE :: CacheInd(:)
-         NAMELIST /FCI/ NORB,NELEC,MS2,ORBSYM,ISYM,UHF,SYML,SYMLZ
+         NAMELIST /FCI/ NORB,NELEC,MS2,ORBSYM,ISYM,UHF,SYML,SYMLZ,PROPBITLEN,NPROP
          LWRITE=.FALSE.
          UHF=.FALSE.
          ZeroedInt=0
@@ -439,6 +456,12 @@ contains
          CALL MPIIBCast(SYMLZ,1000,0)
          CALL MPIIBCast_Scal(ISYM,0)
          CALL MPILBCast_Scal(UHF,0)
+         CALL MPIIBCast_Scal(PROPBITLEN,0)
+         CALL MPIIBCast(NPROP,3,0)
+         ! If PropBitLen has been set then assume we're not using an Abelian
+         ! symmetry group which has two cycle generators (ie the group has
+         ! complex representations).
+         TwoCycleSymGens = PropBitLen == 0
 
          ISPINS=2
          IF(UHF.and.(.not.tROHF)) ISPINS=1
