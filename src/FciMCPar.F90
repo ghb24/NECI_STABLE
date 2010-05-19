@@ -2740,7 +2740,7 @@ MODULE FciMCParMod
 
     subroutine walker_death (DetCurr, iLutCurr, Kii, wSign, VecSlot)
 
-        integer, intent(in) :: DetCurr(nel), 
+        integer, intent(in) :: DetCurr(nel) 
         integer, dimension(lenof_sign), intent(in) :: wSign
         integer(kind=n_int), intent(in) :: iLutCurr(0:niftot)
         integer, intent(inout) :: VecSlot

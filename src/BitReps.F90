@@ -113,21 +113,21 @@ contains
 
     end subroutine extract_bit_rep
 
-    function extract_sign (ilut)
+    subroutine extract_sign (ilut,sgn)
         integer(n_int), intent(in) :: ilut(0:nIfTot)
-        integer, dimension(lenof_sign), intent(out) :: extract_sign
+        integer, dimension(lenof_sign), intent(out) :: sgn
 
-        extract_sign = iLut(NOffSgn:NOffSgn+lenof_sign-1)
+        sgn = iLut(NOffSgn:NOffSgn+lenof_sign-1)
     end subroutine extract_sign
 
     function extract_flags (iLut)
         integer(n_int), intent(in) :: ilut(0:nIfTot)
-        integer, intent(out) :: flags
+        integer :: extract_flags
 
         IF(NOffFlag.eq.1) THEN
-            flags = iLut(NOffFlag)
+            extract_flags = iLut(NOffFlag)
         ELSE
-            flags = 0
+            extract_flags = 0
         ENDIF
 
     end function extract_flags
