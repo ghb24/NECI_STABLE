@@ -353,13 +353,10 @@ contains
             ENDDO
          ENDDO
          IF(.not.tFixLz) iMaxLz=0
-         IF(SYMMAX.EQ.1) THEN
-         ELSEIF(SYMMAX.LE.2) THEN
-         ELSEIF(SYMMAX.LE.4) THEN
-            SYMMAX=4
-         ELSEIF(SYMMAX.LE.8) THEN
-            SYMMAX=8
-         ENDIF
+         ! We use bit strings to store symmetry information.
+         ! SYMMAX needs to be the smallest power of 2 greater or equal to
+         ! the actual number of symmetry representations spanned by the basis.
+         SYMMAX = 2**ceiling(log(real(SYMMAX))/log(2.0))
          IF(tFixLz) WRITE(6,"(A,I3)") "Maximum Lz orbital: ",iMaxLz
          WRITE(6,"(A,I3)") "  Maximum number of symmetries: ",SYMMAX
          NBASISMAX(1,1)=0
