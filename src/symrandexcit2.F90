@@ -2238,7 +2238,7 @@ MODULE GenRandSymExcitNUMod
             pGen=2.0/(NEl*(NEl-1))*2.0*pAIJ
         else ! i.e. if hubbard model, use modified probabilities
             ! hubbard model can't spawn alpha/alpha and beta/beta type excitations
-            pGen=2.0/(NEl*(NEl/2))*2.0*pAIJ
+            pGen=1.0/(nOccAlpha*nOccBeta)*2.0*pAIJ
         endif
 
     END SUBROUTINE CreateDoubExcitLattice
@@ -2282,7 +2282,7 @@ MODULE GenRandSymExcitNUMod
                     iSpn=2
                 ENDIF
             ENDIF
-            IF((tHub.and.iSpn.ne.2).or.(tUEG)) EXIT ! alpha/beta pairs are the only pairs generated for the hubbard model
+            IF((tHub.and.iSpn.eq.2).or.(tUEG)) EXIT ! alpha/beta pairs are the only pairs generated for the hubbard model
         ENDDO
 
         IF(tNoFailAb)THEN ! pGen is calculated first because there might be no excitations available for this ij pair
