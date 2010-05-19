@@ -266,7 +266,7 @@ CDEPEND = $(cppDEPEND_FILES) $(cDEPEND_FILES) $(KcppDEPEND_FILES) $(KcDEPEND_FIL
 # make's special rules
 
 # Rules which don't actually produce any files...
-.PHONY: clean cleanall depend rmdeps help utils $(UTILS) neci.x kneci.x
+.PHONY: clean cleanall depend rmdeps help utils $(UTILS)
 
 # Compile neci.x by default.
 .DEFAULT_GOAL := neci.x
