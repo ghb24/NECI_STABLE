@@ -277,7 +277,7 @@ MODULE AnnihilationMod
                     Annihilated=Annihilated+2*(MIN(abs(SpawnedSign2(1)),abs(SpawnedSign(1))))
 
                     IF(tTruncInitiator) THEN
-!If we are doing a CAS star calculation, we also want to keep track of which parent the remaining walkers came from - those inside the active space or out.                
+!If we are doing an initiator calculation, we also want to keep track of which parent the remaining walkers came from - those inside the active space or out.                
 !This is only an issue if the two determinants we are merging have different Parent flags - otherwise they just keep whichever.
 !As it is, the SpawnedParts2 determinant will have the parent flag that remains - just need to change this over if the number of walkers on SpawnedParts ends up dominating.
                         IF(extract_flags(SpawnedParts(:,i)).ne.extract_flags(SpawnedParts2(:,VecInd))) THEN     ! Parent flags are not equal
@@ -319,12 +319,13 @@ MODULE AnnihilationMod
                         ENDIF
                     ENDIF
                 ELSEIF(tTruncInitiator) THEN
-!This is the case where the determinants are the same but also have the same sign - so this usually doesn't matter except when we are doing CASStar calculations and 
+!This is the case where the determinants are the same but also have the same sign - so this usually doesn't matter except when we are doing initiator calculations and 
 !the parents are different.
-!In this case we assume the determinants inside the CAS have spawned a second earlier - so the ones from outside the active space are spawning onto an occupied determinant
+!In this case we assume the initiator determinants have spawned a second earlier - so the ones from outside the active space are spawning onto an occupied determinant
 !and will therefore live - we can just make these equiv by treating them as they've all come from inside the active space.
                     PassedFlag=extract_flags(SpawnedParts(0:NIfTot,i))
                     FlagParts2=extract_flags(SpawnedParts2(0:NIfTot,VecInd))
+!We assume that the walkers spawned from an initiator are sign coherent - so others of the same sign are too.
                     IF(PassedFlag.ne.FlagParts2) THEN   !Parent flags are not equal
                         call encode_flags(SpawnedParts2(0:NIfTot,VecInd),0)     !Take all the walkers to have come from inside the CAS space.
                         IF(SpawnedSign2(1).eq.null_part(1)) THEN
@@ -475,7 +476,7 @@ MODULE AnnihilationMod
                             ToRemove=ToRemove+1
  
                         ELSEIF(tTruncInitiator) THEN
-!If we are doing a CAS star calculation - then if the walkers that are left after annihilation have been spawned from determinants outside the active space,
+!If we are doing an initiator calculation - then if the walkers that are left after annihilation have been spawned from determinants outside the active space,
 !then it is like these have been spawned on an unoccupied determinant and they are killed.
                             IF(extract_flags(SpawnedParts(:,i)).eq.1) THEN
                                 NoAborted=NoAborted+ABS(REAL(SpawnedSign(1)))
@@ -532,7 +533,7 @@ MODULE AnnihilationMod
                     IF(SpawnedSign(1).eq.null_part(1)) THEN
                         ToRemove=ToRemove+1
                     ELSEIF(tTruncInitiator) THEN
-!If doing a CAS star calculation - then if the signs on the current list is 0, and the walkers in the spawned list came from outside the cas space, these need to be killed.                        
+!If doing an initiator calculation - then if the signs on the current list is 0, and the walkers in the spawned list came from outside the cas space, these need to be killed.                        
                         IF(extract_flags(SpawnedParts(:,i)).eq.1) THEN
                             NoAborted=NoAborted+ABS(REAL(SpawnedSign(1)))
 !                            WRITE(6,'(I20,A,3I20)') SpawnedSign(i),'walkers aborted from determinant:',SpawnedParts(:,i)
@@ -623,6 +624,9 @@ MODULE AnnihilationMod
                 call extract_sign(CurrentDets(:,i),CurrentSign)
                 IF(CurrentSign(1).eq.null_part(1)) THEN
                     DetsMerged=DetsMerged+1
+                    IF(tTruncInitiator.and.CurrentDets(NIfTot,i).ne.1) THEN
+                        NoAddedInitiators=NoAddedInitiators-1.D0
+                    ENDIF
                 ELSE
 !We want to move all the elements above this point down to 'fill in' the annihilated determinant.
                     IF(DetsMerged.ne.0) THEN
@@ -698,6 +702,7 @@ MODULE AnnihilationMod
                 TotWalkersNew=ValidSpawned
                 do i=1,ValidSpawned
                     CurrentDets(:,i)=SpawnedParts(:,i)
+                    IF(tTruncInitiator) CALL FlagifDetisInitiator(CurrentDets(0:NIfTot,i))
                 enddo
             ELSE
                 CALL MergeLists(TotWalkersNew,MaxWalkersPart,ValidSpawned,SpawnedParts(0:NIfTot,1:ValidSpawned))
@@ -708,6 +713,7 @@ MODULE AnnihilationMod
                 TotWalkersNew=ValidSpawned
                 do i=1,ValidSpawned
                     CurrentDets(:,i)=SpawnedParts(:,i)
+                    IF(tTruncInitiator) CALL FlagifDetisInitiator(CurrentDets(0:NIfTot,i))
 !We want to calculate the diagonal hamiltonian matrix element for the new particle to be merged.
                     if (DetBitEQ(CurrentDets(:,i), iLutHF, NIfDBO)) then
 !We know we are at HF - HDiag=0

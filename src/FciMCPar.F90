@@ -22,7 +22,8 @@ MODULE FciMCParMod
                         ScaleWalkers, HFPopThresh, tTruncCAS, NoMCExcits, &
                         tTruncInitiator, tDelayTruncInit, IterTruncInit, &
                         NShiftEquilSteps, tWalkContGrow, tMCExcits, &
-                        tAddToInitiator, InitiatorWalkNo, tInitIncDoubs
+                        tAddToInitiator, InitiatorWalkNo, tInitIncDoubs, &
+                        tRetestAddtoInit
     use HPHFRandExcitMod, only: FindExcitBitDetSym, GenRandHPHFExcit, &
                                 gen_hphf_excit
     use Determinants, only: FDet, get_helement, write_det, &
@@ -128,7 +129,7 @@ MODULE FciMCParMod
 !This will communicate between all nodes, find the new shift (and other parameters) and broadcast them to the other nodes.
                 CALL CalcNewShift()
 
-                IF((tTruncCAS.or.tTruncSpace.or.tHFInitiator).and.(Iter.gt.iFullSpaceIter).and.(iFullSpaceIter.ne.0)) THEN
+                IF((tTruncCAS.or.tTruncSpace.or.tTruncInitiator).and.(Iter.gt.iFullSpaceIter).and.(iFullSpaceIter.ne.0)) THEN
 !Test if we want to expand to the full space if an EXPANDSPACE variable has been set
                     IF(tHistSpawn.or.tCalcFCIMCPsi) THEN
                         IF(iProcIndex.eq.0) WRITE(6,*) "Unable to expand space since histgramming the wavefunction..."
@@ -136,7 +137,6 @@ MODULE FciMCParMod
                         ICILevel=0
                         tTruncSpace=.false.
                         tTruncCAS=.false.
-                        tHFInitiator=.false.
                         IF(tTruncInitiator) tTruncInitiator=.false.
                         IF(iProcIndex.eq.0) THEN
                             WRITE(6,*) "Expanding to the full space on iteration ",Iter
@@ -547,13 +547,10 @@ MODULE FciMCParMod
         iPartBloom = 0 ! Max number spawned from an excitation
         ! Next free position in newly spawned list.
         ValidSpawnedList = InitialSpawnedSlots
-        tHFFound = .false.
-        tHFFoundTemp = .false.
         
         ! The processor with the HF determinant on it will have to check 
         ! through each determinant until it's found. Once found, tHFFound is
         ! true, and it no longer needs to be checked.
-        if (iProcIndex /= iHFProc) tHFFound = .true.
 
         ! Initialise histograms if necessary
         call InitHistMin()
@@ -613,9 +610,7 @@ MODULE FciMCParMod
             call SumEContrib (DetCurr, WalkExcitLevel, SignCurr, &
                               CurrentDets(:,j), HDiagCurr, 1.d0)
 
-!This needs to be sorted once updated by dmc52                              
-            IF(tTruncInitiator) &
-                call CalcParentFlag(j, tHFFound, tHFFoundTemp, VecSlot, Iter)
+            IF(tTruncInitiator) CALL CalcParentFlag(j,VecSlot,Iter)
 
             ! Indicate that the scratch storage used for excitation generation
             ! from the same walker has not been filled (it is filled when we
@@ -655,8 +650,6 @@ MODULE FciMCParMod
                 endif   ! (child /= 0). Child created
             enddo ! Cycling over mulitple particles on same determinant.
 
-            IF(tHFFoundTemp) tHFFound=.true.
-            tHFFoundTemp=.false.
 
             ! DEBUG
             ! if (VecSlot > j) call stop_all (this_routine, 'vecslot > j')
@@ -776,91 +769,148 @@ MODULE FciMCParMod
         endif
     end subroutine
 
-    SUBROUTINE CalcParentFlag(j,tHFFound,tHFFoundTemp,VecSlot,Iter)
-        USE FciMCLoggingMOD, only : InitBinMin,InitBinIter
+
+    SUBROUTINE CalcParentFlag(j,VecSlot,Iter)
+!In the CurrentDets array, the flag at NIfTot refers to whether that determinant *itself* is an initiator or not.    
+!We need to decide if this willchange due to the determinant acquiring a certain population, or its population dropping
+!below the threshold.
+!The CurrentDets(:,j) is the determinant we are currently spawning from, so this determines the ParentInitiator flag
+!which is passed to the SpawnedDets array and refers to whether or not the walkers *parent* is an initiator or not.
+!A flag of 0 means the determinant is an initiator, and 1 it is a non-initiator.
         INTEGER , INTENT(IN) :: j,VecSlot,Iter
-        INTEGER :: WalkExcitLevel,InitBinNo
-        LOGICAL :: tParentInCAS,tHFFound,tHFFoundTemp
+        LOGICAL :: tDetinCAS
 
-!This it the case where the fixed initiator space is defined using the CAS notation, or where it is limited to only the HF determinant.                           
-!I.e. when tTruncCAS or tHFInitiator are true.
-!If neither of these are true, the expandspace option must have been used and so the parent will always be in the initiator space. 
-!                            tParentInCAS=TestIfDetInCAS(DetCurr)
-        IF(tTruncCAS) THEN
-            tParentInCAS=TestIfDetInCASBit(CurrentDets(0:NIfD,j))
-        ELSEIF(tHFFound) THEN
-!The HF determinant has been found, the rest will therefore all be out of the active space.                            
-            tParentInCAS=.false.
-        ELSEIF(tHFFoundTemp) THEN
-!The HF determinant has been found and we are still running over the particles on the same determinant.                              
-            tParentInCAS=.true.
-        ELSEIF(tHFInitiator) THEN
-            tParentInCAS=DetBitEQ(CurrentDets(:,j),iLutHF,NIfDBO)
-            IF(tParentInCAS) tHFFoundTemp=.true.
-!The temp parameter means we have found the HF determinant but we are still in the loop of running over the walkers on this determinant.
-!At the end of this loop, tHFFound becomes true becuase the HF has been and gone and the rest of the determinants need not be checked.
-        ENDIF
-        IF(tParentInCAS) THEN
-            ParentInitiator=0
-            NoInitDets=NoInitDets+1.D0
-            NoInitWalk=NoInitWalk+(ABS(REAL(CurrentSign(j))))
-!The parent walker from which we are attempting to spawn is in the active space - all children will carry this flag, and these spawn like usual.
-        ELSEIF(tInitIncDoubs.and.(WalkExcitLevel.eq.2)) THEN
-            ParentInitiator=0
-            NoInitDets=NoInitDets+1.D0
-            NoInitWalk=NoInitWalk+(ABS(REAL(CurrentSign(j))))
-            NoExtraInitDoubs=NoExtraInitDoubs+1.D0
-        ELSEIF(tAddtoInitiator.and.(ABS(CurrentSign(j)).gt.InitiatorWalkNo)) THEN
-            ParentInitiator=0
-            IF(mod(Iter,StepsSft).eq.0) NoAddedInitiators=NoAddedInitiators+1.D0
-            NoInitDets=NoInitDets+1.D0
-            NoInitWalk=NoInitWalk+(ABS(REAL(CurrentSign(j))))
+        IF(.not.tAddtoInitiator) THEN
+!If tAddtoInitiator is not on, then it is not possible to dynamically add initiators into the intiator space 
+!based on their population - the initiators remain as those in the specified CAS space and this is determined
+!when a new determinant is merged into the main array.
+            ParentInitiator=CurrentDets(NIfTot,j)
+            IF(ParentInitiator.eq.0) THEN
+                NoInitDets=NoInitDets+1.D0
+                NoInitWalk=NoInitWalk+(ABS(REAL(CurrentSign(j))))
+            ELSE
+                NoNonInitDets=NoNonInitDets+1.D0
+                NoNonInitWalk=NoNonInitWalk+(ABS(REAL(CurrentSign(j))))
+            ENDIF
+        ELSEIF(CurrentDets(NIfTot,j).eq.1) THEN
+            ! Determinant wasn't previously initiator 
+            ! - want to test if it has now got a large enough population 
+            ! to become an initiator.
+            IF(ABS(CurrentSign(j)).gt.InitiatorWalkNo) THEN
+                CurrentDets(NIfTot,j)=0
+                ParentInitiator=0
+                NoAddedInitiators=NoAddedInitiators+1.D0
+                NoInitDets=NoInitDets+1.D0
+                NoInitWalk=NoInitWalk+(ABS(REAL(CurrentSign(j))))
+            ELSE
+                ParentInitiator=1
+                NoNonInitDets=NoNonInitDets+1.D0
+                NoNonInitWalk=NoNonInitWalk+(ABS(REAL(CurrentSign(j))))
+            ENDIF
+        ELSEIF(tRetestAddtoInit) THEN
+!This is the case where determinants are initiators.            
+
+!If tRetestAddtoInit is on, the determinants become non-initiators again if their population falls below  
+!n_add (this is on by default).
+!Otherwise if they are initiators they stay that way.
+            
+            tDetinCAS=.false.
+            IF(tTruncCAS) tDetinCAS=TestIfDetInCASBit(CurrentDets(0:NIfD,j))
+           
+            IF(tDetinCAS) THEN
+                ! If the determinant is in the fixed initiator space, it stays initiator 
+                ! even if its populations drops.
+                ParentInitiator=0
+                CurrentDets(NIfTot,j)=0
+                NoInitDets=NoInitDets+1.D0
+                NoInitWalk=NoInitWalk+(ABS(REAL(CurrentSign(j))))
+            ELSEIF(DetBitEQ(CurrentDets(:,j),iLutHF,NIfDBO)) THEN
+                ! HF stays initiator.
+                ParentInitiator=0
+                CurrentDets(NIfTot,j)=0
+                NoInitDets=NoInitDets+1.D0
+                NoInitWalk=NoInitWalk+(ABS(REAL(CurrentSign(j))))
+            ELSEIF(ABS(CurrentSign(j)).le.InitiatorWalkNo) THEN
+                ! Population has fallen too low to remain an 
+                ! initiator - initiator status removed.
+                CurrentDets(NIfTot,j)=1
+                ParentInitiator=1
+                NoAddedInitiators=NoAddedInitiators-1.D0
+                NoNonInitDets=NoNonInitDets+1.D0
+                NoNonInitWalk=NoNonInitWalk+(ABS(REAL(CurrentSign(j))))
+            ELSE
+                ! Population still high enough - remains initiator.
+                ParentInitiator=0
+                CurrentDets(NIfTot,j)=0
+                NoInitDets=NoInitDets+1.D0
+                NoInitWalk=NoInitWalk+(ABS(REAL(CurrentSign(j))))
+            ENDIF
+
+            IF((tHistInitPops.and.(MOD(Iter,HistInitPopsIter).eq.0))    &
+                 .or.tPrintHighPop)                                     & 
+                 CALL HistInitPopulations(CurrentSign(j),VecSlot,Iter)
+ 
         ELSE
-            ParentInitiator=1
-            NoNonInitDets=NoNonInitDets+1.D0
-            NoNonInitWalk=NoNonInitWalk+(ABS(REAL(CurrentSign(j))))
-!The parent from which we are attempting to spawn is outside the active space - children spawned on unoccupied determinants with this flag will be killed.
+            !If we are not retesting the initiators, they stay as initiators.
+            ParentInitiator=0
+            CurrentDets(NIfTot,j)=0
+            NoInitDets=NoInitDets+1.D0
+            NoInitWalk=NoInitWalk+(ABS(REAL(CurrentSign(j))))
+
+            IF((tHistInitPops.and.(MOD(Iter,HistInitPopsIter).eq.0))    &
+                 .or.tPrintHighPop)                                     & 
+                 CALL HistInitPopulations(CurrentSign(j),VecSlot,Iter)
+ 
         ENDIF
 
-        IF(tHistInitPops.and.(MOD(Iter,HistInitPopsIter).eq.0)) THEN
-            IF((ParentInitiator.eq.0).and.((ABS(CurrentSign(j)).gt.InitiatorWalkNo))) THEN
+!        WRITE(6,*) 'ParentFlag',ParentInitiator
+
+    END SUBROUTINE CalcParentFlag
+
+
+    SUBROUTINE HistInitPopulations(SignCurr,VecSlot,Iter)
+        USE FciMCLoggingMOD, only : InitBinMin,InitBinIter
+        INTEGER , INTENT(IN) :: VecSlot,Iter,SignCurr
+        INTEGER :: InitBinNo
+
+
+        IF(tHistInitPops.and.((ABS(SignCurr).gt.InitiatorWalkNo))) THEN
 !Just summing in those determinants which are initiators. 
 
 !Need to figure out which bin to put them in though.
-                IF(CurrentSign(j).lt.0) THEN
-                    InitBinNo=(FLOOR(((log(REAL(ABS(CurrentSign(j)))))-InitBinMin)/InitBinIter))+1
-                    IF((InitBinNo.ge.1).and.(InitBinNo.le.25000)) THEN
-                        HistInitPops(1,InitBinNo)=HistInitPops(1,InitBinNo)+1
-                    ELSE
-                        CALL Stop_All('CalcParentFlag','Trying to histogram outside the range of the bins.')
-                    ENDIF
-
+            IF(SignCurr.lt.0) THEN
+                InitBinNo=(FLOOR(((log(REAL(ABS(SignCurr))))-InitBinMin)/InitBinIter))+1
+                IF((InitBinNo.ge.1).and.(InitBinNo.le.25000)) THEN
+                    HistInitPops(1,InitBinNo)=HistInitPops(1,InitBinNo)+1
                 ELSE
-                    InitBinNo=(FLOOR(((log(REAL(CurrentSign(j))))-InitBinMin)/InitBinIter))+1
- 
-                    IF((InitBinNo.ge.1).and.(InitBinNo.le.25000)) THEN
-                        HistInitPops(2,InitBinNo)=HistInitPops(2,InitBinNo)+1
-                    ELSE
-                        CALL Stop_All('CalcParentFlag','Trying to histogram outside the range of the bins.')
-                    ENDIF
+                    CALL Stop_All('HistInitPopulations','Trying to histogram outside the range of the bins.')
+                ENDIF
+
+            ELSE
+                InitBinNo=(FLOOR(((log(REAL(SignCurr)))-InitBinMin)/InitBinIter))+1
+
+                IF((InitBinNo.ge.1).and.(InitBinNo.le.25000)) THEN
+                    HistInitPops(2,InitBinNo)=HistInitPops(2,InitBinNo)+1
+                ELSE
+                    CALL Stop_All('HistInitPopulations','Trying to histogram outside the range of the bins.')
                 ENDIF
             ENDIF
         ENDIF
 
-        IF(tPrintHighPop.and.(ParentInitiator.eq.0)) THEN
-            IF(CurrentSign(j).lt.MaxInitPopNeg) THEN
-                MaxInitPopNeg=CurrentSign(j)
+        IF(tPrintHighPop) THEN
+            IF(SignCurr.lt.MaxInitPopNeg) THEN
+                MaxInitPopNeg=SignCurr
                 HighPopNeg=VecSlot
             ENDIF
-            IF(CurrentSign(j).gt.MaxInitPopPos) THEN
-                MaxInitPopPos=CurrentSign(j)
+            IF(SignCurr.gt.MaxInitPopPos) THEN
+                MaxInitPopPos=SignCurr
                 HighPopPos=VecSlot
             ENDIF
         ENDIF
 
 
-    END SUBROUTINE CalcParentFlag                    
-    
+    END SUBROUTINE HistInitPopulations
+
 
     SUBROUTINE FindHighPopDet(Iter)
 !Found the highest population on each processor, need to find out which of these has the highest of all.
@@ -1365,13 +1415,11 @@ MODULE FciMCParMod
 !        ProjEIter=0.D0     Do not want to rezero, since otherwise, if there are no particles at HF in the next update cycle, it will print out zero.
         HFCyc=0
         NoAborted=0.D0
-        NoAddedInitiators=0.D0
         NoInitDets=0.D0
         NoNonInitDets=0.D0
         NoInitWalk=0.D0
         NoNonInitWalk=0.D0
         NoDoubSpawns=0.D0
-        NoExtraInitDoubs=0.D0
         InitRemoved=0.D0
 
 !Reset TotWalkersOld so that it is the number of walkers now
@@ -1488,9 +1536,12 @@ MODULE FciMCParMod
 
 !Setup initial walker local variables
             IF(iProcIndex.eq.iHFProc) THEN
+
                 call encode_det(CurrentDets(:,1), iLutHF)
                 InitialSign = 0
+                IF(tTruncInitiator) call encode_flags(CurrentDets(:,1),0)
                 IF(.not.tRegenDiagHEls) CurrentH(1)=0.D0
+
                 IF(TStartSinglePart) THEN
                     InitialSign(1) = InitialPart
                     CALL encode_sign(CurrentDets(:,1), InitialSign)
@@ -2721,6 +2772,8 @@ MODULE FciMCParMod
                 SpawnedSign(ValidSpawnedList(iProcIndex)) = CopySign
                 ValidSpawnedList(iProcIndex) = ValidSpawnedList(iProcIndex)+1
             endif
+        elseif(tTruncInitiator.and.(iLutCurr(NIfTot).ne.1)) then
+            NoAddedInitiators=NoAddedInitiators-1.D0
         endif
 
     end subroutine
@@ -3868,13 +3921,11 @@ MODULE FciMCParMod
 !        ProjEIter=0.D0     Do not want to rezero, since otherwise, if there are no particles at HF in the next update cycle, it will print out zero.
         HFCyc=0
         NoAborted=0.D0
-        NoAddedInitiators=0.D0
         NoInitDets=0.D0
         NoNonInitDets=0.D0
         NoInitWalk=0.D0
         NoNonInitWalk=0.D0
         NoDoubSpawns=0.D0
-        NoExtraInitDoubs=0.D0
 
 !Reset TotWalkersOld so that it is the number of walkers now
         TotWalkersOld=TotWalkers
@@ -4012,9 +4063,8 @@ MODULE FciMCParMod
 !Print out initial starting configurations
             WRITE(6,*) ""
             IF(tTruncInitiator.or.tDelayTruncInit) THEN
-                WRITE(initiatorstats_unit,"(A2,A10,2A15,2A16,2A20,5A18)") "# ","Step","No Aborted","NoAddedtoInit","FracDetsInit","FracWalksInit","NoDoubSpawns","NoExtraDoubs","InstAbortShift","AvAbortShift",&
-&               "NoInitDets","NoNonInitDets","InitRemoved"
-
+                WRITE(initiatorstats_unit,"(A2,A10,2A16,2A16,1A20,6A18)") "# ","1.Step","2.No Aborted","3.NoAddedtoInit","4.FracDetsInit","5.FracWalksInit","6.NoDoubSpawns","7.InstAbortShift",&
+&               "8.NoInit","9.NoNonInit"
             ENDIF
             WRITE(6,"(A)") "       Step     Shift      WalkerCng    GrowRate       TotWalkers    Annihil    NoDied    NoBorn    Proj.E          Av.Shift     Proj.E.ThisCyc   NoatHF NoatDoubs      AccRat     UniqueDets     IterTime"
             WRITE(fcimcstats_unit,"(A)") "#     1.Step   2.Shift    3.WalkerCng  4.GrowRate     5.TotWalkers  6.Annihil  7.NoDied  8.NoBorn  9.Proj.E       10.Av.Shift"&
@@ -4036,8 +4086,9 @@ MODULE FciMCParMod
   &                INT(AllTotParts,int64),AllAnnihilated,AllNoDied,AllNoBorn,ProjectionE,AvDiagSft,AllENumCyc/AllHFCyc,AllNoatHF,AllNoatDoubs,AccRat,INT(AllTotWalkers,int64),IterTime
 
             IF(tTruncInitiator.or.tDelayTruncInit) THEN
-                WRITE(initiatorstats_unit,"(I12,4G16.7,2F20.1,2F18.7,3F18.1)") Iter+PreviousCycles,AllNoAborted,AllNoAddedInitiators,(REAL(AllNoInitDets)/REAL(AllNoNonInitDets)),&
- &              (REAL(AllNoInitWalk)/REAL(AllNoNonInitWalk)),AllNoDoubSpawns,AllNoExtraInitDoubs,DiagSftAbort,AvDiagSftAbort,AllNoInitDets,AllNoNonInitDets,AllInitRemoved
+                WRITE(initiatorstats_unit,"(I12,4G16.7,1F20.1,1F18.7,5F18.1)") Iter+PreviousCycles,AllNoAborted,AllNoAddedInitiators,(REAL(AllNoInitDets)/REAL(AllNoNonInitDets)),&
+ &              (REAL(AllNoInitWalk)/REAL(AllNoNonInitWalk)),AllNoDoubSpawns,DiagSftAbort,(AllNoInitDets/REAL(StepsSft)),&
+ &              (AllNoNonInitDets/REAL(StepsSft))
             ENDIF
 
             
@@ -4235,12 +4286,6 @@ MODULE FciMCParMod
 ! These are stored using spin orbitals.
 !Assume that if we want to use the non-uniform random excitation generator, we also want to use the NoSpinSym full excitation generators if they are needed. 
 
-        IF(tTruncInitiator.and.(.not.tTruncCAS)) THEN
-!Have not defined an initiatial initiator space using TRUNCATECAS.  The initial initiator space then defaults to only the HF determinant.                
-            tHFInitiator=.true.
-        ELSE
-            tHFInitiator=.false.
-        ENDIF
 
 !If using a CAS space truncation, write out this CAS space
         IF(tTruncCAS) THEN
@@ -4264,7 +4309,7 @@ MODULE FciMCParMod
                 WRITE(6,'(I4)',advance='no') G1(BRR(I))%Ml
                 WRITE(6,'(2F19.9)')  ARR(I,1),ARR(BRR(I),2)
             ENDDO
-        ELSEIF(tTruncInitiator.and.tHFInitiator) THEN
+        ELSEIF(tTruncInitiator) THEN
             WRITE(6,'(A)') " *********** INITIATOR METHOD IN USE ***********"
             WRITE(6,'(A /)') " Starting with only the HF determinant in the fixed initiator space."
         ENDIF

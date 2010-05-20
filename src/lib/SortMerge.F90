@@ -22,6 +22,7 @@
         USE Determinants , only : get_helement
         use DetBitOps, only: DetBitEQ
         use hphf_integrals, only: hphf_diag_helement, hphf_off_diag_helement
+        USE CalcData , only : tTruncInitiator
         USE HElem
         use constants, only: dp,n_int
         IMPLICIT NONE
@@ -67,6 +68,7 @@
 !               write(6,'(20i15)') j,list1(:,j)
 !           enddo
 !           write(6,'(20i15)') (list1(:,j),j=1,nlist1+nlist2)
+           IF(tTruncInitiator) CALL FlagifDetisInitiator(list2(:,i))
            CurrentDets(:,ips+i-1)=list2(:,i)
            
            ! We want to calculate the diagonal hamiltonian matrix element for
@@ -103,6 +105,7 @@
         USE FciMCParMOD , only : Hii,CurrentDets
         use SystemData, only: nel
         use bit_reps, only: NIfTot
+        USE CalcData , only : tTruncInitiator
         USE HElem
         use constants, only : n_int
         IMPLICIT NONE
@@ -143,6 +146,9 @@
 !               write(6,'(20i15)') j,list1(:,j)
 !           enddo
 !           write(6,'(20i15)') (list1(:,j),j=1,nlist1+nlist2)
+
+           IF(tTruncInitiator) CALL FlagifDetisInitiator(list2(:,i))
+ 
            CurrentDets(0:NIfTot,ips+i-1)=list2(0:NIfTot,i)
                
 !           write(6,*) ' newly inserted member on position:'                             &
@@ -366,3 +372,56 @@
 
         list1(1:i) = list2(1:i)
     end subroutine
+
+
+!This routine takes each determinant as it is about to be merged into the CurrentDets array, and determines whether or not it is an initiator.
+    SUBROUTINE FlagifDetisInitiator(DetCurr)
+        USE SystemData , only : NIfTot,NIfDBO
+        USE FciMCData , only : NoExtraInitDoubs,iLutRef,NoAddedInitiators,iLutHF,Iter
+        USE FciMCParMOD , only : TestIfDetInCASBit
+        USE CalcData , only : tTruncCAS,tInitIncDoubs,tAddtoInitiator,InitiatorWalkNo
+        USE DetBitOps , only : FindBitExcitLevel,DetBitEQ
+        use bit_reps , only : extract_sign, encode_flags 
+        use constants, only: n_int,lenof_sign
+        INTEGER(KIND=n_int), INTENT(INOUT) :: DetCurr(0:NIfTot)
+        INTEGER, DIMENSION(lenof_sign), :: SignCurr
+        INTEGER :: CurrExcitLevel
+        LOGICAL :: tDetInCAS
+
+!DetCurr has come from the spawning array.
+!The current flags at NIfTot therefore refer to the parent of the spawned walkers.
+!As we add these into the CurrentDets array we therefore want to convert these flag so that they refer to the present determinant.
+
+        call extract_sign(DetCurr(:),SignCurr)
+        tDetInCAS=.false.
+        IF(tTruncCAS) THEN
+            tDetInCAS=TestIfDetInCASBit(DetCurr(0:NIfDBO))
+        ENDIF
+        IF(tDetInCAS) THEN
+!The determinant being merged is in the fixed CAS initiator space.            
+            call encode_flags(DetCurr,0)
+        ELSEIF(DetBitEQ(DetCurr(:),iLutHF,NIfDBO)) THEN
+!The determinant being merged is the HF.
+            call encode_flags(DetCurr,0)
+        ELSEIF(tAddtoInitiator.and.(ABS(SignCurr(1)).gt.InitiatorWalkNo)) THEN
+!The determinant being merged already has a high enough pop to become an initiator.        
+!This is not expected to happen much - otherwise we'd be getting blooms.
+            call encode_flags(DetCurr,0)
+            NoAddedInitiators=NoAddedInitiators+1.D0
+        ELSEIF(tInitIncDoubs) THEN
+!The determinant being merged is a double excitation - initiator straight away.        
+            CurrExcitLevel = FindBitExcitLevel(iLutRef,DetCurr(0:NIfTot),2)
+            IF(CurrExcitLevel.eq.2) THEN
+                call encode_flags(DetCurr,0)
+                NoExtraInitDoubs=NoExtraInitDoubs+1.D0
+            ELSE
+                call encode_flags(DetCurr,1)
+            ENDIF
+        ELSE
+            call encode_flags(DetCurr,1)
+!The parent from which we are attempting to spawn is outside the active space - children spawned on unoccupied determinants with this flag will be killed.
+        ENDIF
+
+    END SUBROUTINE FlagifDetisInitiator 
+
+
