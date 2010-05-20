@@ -436,6 +436,7 @@ contains
          INTEGER ISPINS,ISPN,ISPN2,ierr,SYMLZ(1000)!,IDI,IDJ,IDK,IDL
          INTEGER Counter(1:8),UMatSize,TMatSize
          INTEGER , ALLOCATABLE :: CacheInd(:)
+         real(dp) :: diff
          NAMELIST /FCI/ NORB,NELEC,MS2,ORBSYM,ISYM,UHF,SYML,SYMLZ,PROPBITLEN,NPROP
          LWRITE=.FALSE.
          UHF=.FALSE.
@@ -514,19 +515,25 @@ contains
 !.. 1-e integrals
                 IF(TSTARSTORE) THEN
 ! If TSTARSTORE, the one-el integrals are stored in symmetry classes, as spatial orbitals
-                    TMATSYM(TMatInd(2*J,2*I))=real(Z,dp)
+                    TMATSYM(TMatInd(2*J,2*I))=Z
                 ELSE
 !.. These are stored as spinorbitals (with elements between different spins being 0
                     DO ISPN=1,ISPINS
 
-                       IF(TMAT2D(ISPINS*I-ISPN+1,ISPINS*J-ISPN+1).ne.0.0d0 &
-                         .and.abs(TMAT2D(ISPINS*I-ISPN+1,ISPINS*J-ISPN+1)-Z).gt.1.D-7) THEN
+                        ! Have read in T_ij.  Check it's consistent with T_ji
+                        ! (if T_ji has been read in).
+                       diff = abs(TMAT2D(ISPINS*I-ISPN+1,ISPINS*J-ISPN+1)-Z)
+                       IF(TMAT2D(ISPINS*I-ISPN+1,ISPINS*J-ISPN+1) /= 0.0d0 .and. diff > 1.d-7) then
                             WRITE(6,*) i,j,Z,TMAT2D(ISPINS*I-ISPN+1,ISPINS*J-ISPN+1)
                             CALL Stop_All("ReadFCIInt","Error filling TMAT - different values for same orbitals")
                        ENDIF
 
                        TMAT2D(ISPINS*I-ISPN+1,ISPINS*J-ISPN+1)=Z
+#ifdef __CMPLX
+                       TMAT2D(ISPINS*J-ISPN+1,ISPINS*I-ISPN+1)=conjg(Z)
+#else
                        TMAT2D(ISPINS*J-ISPN+1,ISPINS*I-ISPN+1)=Z
+#endif
                     enddo
                 ENDIF
              ELSE
