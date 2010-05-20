@@ -4,6 +4,7 @@ MODULE CCMC
     use constants, only: dp, int64, n_int, end_n_int
     use CCMCData, only: ExcitToDetSign,AddBitExcitor
     use ClusterList
+    use bit_rep_data, only: NIfDBO
    IMPLICIT NONE
    CONTAINS
 
@@ -82,18 +83,18 @@ MODULE CCMC
         IMPLICIT NONE
         INTEGER :: VecSlot,i,j,k,l,CopySign
         INTEGER :: nJ(NEl),ierr,IC,Child,DetCurr(NEl)
-        INTEGER(KIND=n_int) :: iLutnJ(0:NIfTot)
+        INTEGER(KIND=n_int) :: iLutnJ(0:NIfDBO)
         REAL*8 :: Prob,rat,HDiagCurr,r
         INTEGER :: iDie,WalkExcitLevel,Proc
         INTEGER :: ExcitLevel,TotWalkersNew,iGetExcitLevel_2,Ex(2,2),WSign,p,Scratch1(ScratchSize),Scratch2(ScratchSize)
         LOGICAL :: tParity,tFilled
         
 ! We select up to nEl excitors at a time and store them here
-        INTEGER(KIND=n_int) :: SelectedExcitors(0:NIfTot,nEl)     
+        INTEGER(KIND=n_int) :: SelectedExcitors(0:NIfDBO,nEl)     
         INTEGER :: SelectedExcitorIndices(nEl)     
 
 ! Temporary Storage
-        INTEGER(KIND=n_int) :: iLutnI(0:nIfTot)
+        INTEGER(KIND=n_int) :: iLutnI(0:nIfDBO)
 
         ! Unused
         integer :: scratch3(scratchsize)
@@ -1018,7 +1019,7 @@ LOGICAL FUNCTION GetNextSpawner(S,iDebug)
    use CCMCData
    use FciMCData, only: pDoubles,tTruncSpace
    use FciMCParMod, only: CheckAllowedTruncSpawn
-   use SystemData, only : NIfTot,nEl,NIfD
+   use SystemData, only : nEl
    use GenRandSymExcitNUMod , only : gen_rand_excit, scratchsize
    use SymExcit3, only: GenExcitations3
    use DetBitOps, only: FindExcitBitDet
@@ -1031,7 +1032,7 @@ LOGICAL FUNCTION GetNextSpawner(S,iDebug)
    LOGICAL tDone
 
     ! unused
-    integer(kind=n_int) :: iLutnJ(0:niftot)
+    integer(kind=n_int) :: iLutnJ(0:nifDBO)
     integer :: scratch3(scratchsize)
 
    tDone=.false.
@@ -1104,12 +1105,11 @@ END FUNCTION GetNextSpawner
 SUBROUTINE InitCluster(C)
    use CCMCData
    use SystemData, only: nEl
-   use bit_reps, only: NIfTot
    IMPLICIT NONE
    TYPE(Cluster) C
-   allocate(C%SelectedExcitors(0:NIfTot,nEl))
+   allocate(C%SelectedExcitors(0:NIfDBO,nEl))
    allocate(C%SelectedExcitorIndices(nEl))
-   allocate(C%iLutDetCurr(0:NIfTot))
+   allocate(C%iLutDetCurr(0:NIfDBO))
    allocate(C%DetCurr(nEl))
 END SUBROUTINE InitCluster
 
@@ -1202,7 +1202,6 @@ SUBROUTINE ResetSpawner(S,C,nSpawn)
    use SymExcit3, only: CountExcitations3
    use CCMCData
    use SystemData, only: nel
-   use bit_reps, only: NIfTot
    use FciMCData, only: exFlag
    IMPLICIT NONE
    TYPE(Spawner) S
@@ -1226,7 +1225,6 @@ SUBROUTINE InitSpawner(S,tFull,iMaxExcitLevel)
    use CCMCData, only: Spawner
    use GenRandSymExcitNUMod , only : ScratchSize
    use SystemData, only: nel
-   use bit_reps, only: NIfTot
    IMPLICIT NONE
    TYPE(Spawner) S
    LOGICAL tFull
@@ -1238,7 +1236,7 @@ SUBROUTINE InitSpawner(S,tFull,iMaxExcitLevel)
       allocate(S%Scratch2(ScratchSize))
    endif
    allocate(S%nJ(nEl))
-   allocate(S%iLutnJ(0:nIfTot))
+   allocate(S%iLutnJ(0:nIfDBO))
 END SUBROUTINE InitSpawner
 
 
@@ -1254,7 +1252,6 @@ END SUBROUTINE InitSpawner
 SUBROUTINE InitMP1Amplitude(tFCI,Amplitude,nExcit,ExcitList,ExcitLevelIndex,dInitAmp,dTotAbsAmpl)
    use CCMCData
    use SystemData, only: nel
-   use bit_reps, only: NIfTot
    use FciMCData, only: HFDet
    use FciMCParMod, only: iLutHF,SumEContrib,BinSearchParts3
    use Determinants, only: GetH0Element3
@@ -1264,7 +1261,7 @@ SUBROUTINE InitMP1Amplitude(tFCI,Amplitude,nExcit,ExcitList,ExcitLevelIndex,dIni
    LOGICAL tFCI
    REAL*8 Amplitude(nExcit)
    INTEGER nExcit
-   INTEGER(KIND=n_int) ExcitList(0:nIfTot,nExcit)
+   INTEGER(KIND=n_int) ExcitList(0:nIfDBO,nExcit)
    INTEGER ExcitLevelIndex(0:nEl+1)
    REAL*8 dInitAmp,dTotAbsAmpl
 
@@ -1272,7 +1269,7 @@ SUBROUTINE InitMP1Amplitude(tFCI,Amplitude,nExcit,ExcitList,ExcitLevelIndex,dIni
    REAL*8 dT1Sq,dAmp,dTmp
    INTEGER DetCurr(nEl)
    HElement_t HTmp,H0Tmp,H0HF
-   INTEGER(KIND=n_int) iLutnI(0:nIfTot)
+   INTEGER(KIND=n_int) iLutnI(0:nIfDBO)
    INTEGER PartIndex
    LOGICAL tSuc
    iC=0
@@ -1322,7 +1319,7 @@ subroutine AttemptSpawn(S,C,Amplitude,dTol,TL,iDebug)
    use FciMCParMod, only: BinSearchParts3
    Use CalcData, only: Tau
    use DetBitOps, only: FindBitExcitLevel
-   use DetCalcData, only: FCIDets   ! (0:NIfTot, Det).  Lists all allowed excitors in compressed form
+   use DetCalcData, only: FCIDets   ! (0:NIfDBO, Det).  Lists all allowed excitors in compressed form
    use DetCalcData, only:FCIDetIndex! (0:nEl+1).  The index of the different excitation levels
    use DetCalcData, only: Det       ! The number of Dets/Excitors in FCIDets
    Use Logging, only: tCCMCLogTransitions
@@ -1394,7 +1391,7 @@ subroutine AttemptDie(C,CurAmpl,OldAmpl,TL,iDebug)
    use CCMCData, only: Cluster,CCTransitionLog
    use FciMCData, only: Hii
    Use CalcData, only: Tau,DiagSft
-   use DetCalcData, only: FCIDets   ! (0:NIfTot, Det).  Lists all allowed excitors in compressed form
+   use DetCalcData, only: FCIDets   ! (0:NIfDBO, Det).  Lists all allowed excitors in compressed form
    use DetCalcData, only:FCIDetIndex! (0:nEl+1).  The index of the different excitation levels
    use DetCalcData, only: Det       ! The number of Dets/Excitors in FCIDets
    use constants, only: dp
@@ -1521,7 +1518,7 @@ subroutine AttemptDie(C,CurAmpl,OldAmpl,TL,iDebug)
 end subroutine AttemptDie
 
 subroutine AttemptSpawnParticle(S,C,iDebug,SpawnList,SpawnAmps,nSpawned,nMaxSpawn)
-   use SystemData, only: nEl, nIfTot
+   use SystemData, only: nEl
    use FciMCParMod, only: iLutHF
    use CCMCData, only: Spawner, Cluster
    Use CalcData, only: Tau
@@ -1530,7 +1527,7 @@ subroutine AttemptSpawnParticle(S,C,iDebug,SpawnList,SpawnAmps,nSpawned,nMaxSpaw
    implicit none
    type(Spawner) S
    type(Cluster) C
-   INTEGER(KIND=n_int) :: SpawnList(0:nIfTot,*)
+   INTEGER(KIND=n_int) :: SpawnList(0:nIfDBO,*)
    INTEGER SpawnAmps(:)
    integer nSpawned
    integer nMaxSpawn
@@ -1594,11 +1591,11 @@ subroutine AttemptDieParticle(C,iDebug,SpawnList,SpawnAmps,nSpawned)
    use constants, only: dp
    use FciMCParMod, only: iLutHF
    use dSFMT_interface , only : genrand_real2_dSFMT
-   use SystemData, only : nEl,nIfD, NIfTot
+   use SystemData, only : nEl
    
    implicit none
    Type(Cluster) C
-   INTEGER(KIND=n_int) :: SpawnList(0:nIfTot,*)
+   INTEGER(KIND=n_int) :: SpawnList(0:nIfDBO,*)
    INTEGER SpawnAmps(:)
    INTEGER nSpawned
    integer iDebug
@@ -1726,13 +1723,13 @@ end subroutine AttemptDieParticle
 
 SUBROUTINE CCMCStandalone(Weight,Energyxw)
    Use global_utilities
-   use SystemData, only: nEl,nIfD,nIfTot
+   use SystemData, only: nEl
    use Parallel, only: iProcIndex
    use FciMCData, only: root
    use CCMCData, only: tCCMCFCI,dInitAmplitude,dProbSelNewExcitor,tExactCluster,tExactSpawn,nSpawnings,tCCBuffer
    use CCMCData, only: ClustSelector,Spawner,CCTransitionLog,nClustSelections,tExactEnergy
    use DetCalcData, only: Det       ! The number of Dets/Excitors in FCIDets
-   use DetCalcData, only: FCIDets   ! (0:NIfTot, Det).  Lists all allowed excitors in compressed form
+   use DetCalcData, only: FCIDets   ! (0:NIfDBO, Det).  Lists all allowed excitors in compressed form
    use DetCalcData, only:FCIDetIndex! (0:nEl+1).  The index of the different excitation levels
    use CalcData, only: NMCyc    ! The number of MC Cycles
    use CalcData, only: StepsSft ! The number of steps between shift updates
@@ -2066,7 +2063,7 @@ END SUBROUTINE CCMCStandalone
 
 SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
    Use global_utilities
-   use SystemData, only: nEl,nIfD,nIfTot
+   use SystemData, only: nEl
    use Parallel, only: iProcIndex
    use FciMCData, only: root
    use CCMCData, only: tCCMCFCI,dInitAmplitude,dProbSelNewExcitor,tExactCluster,tExactSpawn,nSpawnings,tCCBuffer
@@ -2159,11 +2156,11 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
 ! Setup Memory
    write(6,*) "Max Amplitude List size: ", nMaxAmpl
    call AllocateAmplitudeList(AL,nMaxAmpl,1)
-   Allocate(DetList(0:nIfTot,nMaxAmpl))
-   LogAlloc(ierr,'DetList',(nIfTot+1)*nMaxAmpl,4,tagDetList)
+   Allocate(DetList(0:nIfDBO,nMaxAmpl))
+   LogAlloc(ierr,'DetList',(nIfDBO+1)*nMaxAmpl,4,tagDetList)
    nMaxSpawn=MemoryFacSpawn*nMaxAmpl
-   Allocate(SpawnList(0:nIfTot,nMaxSpawn))
-   LogAlloc(ierr,'SpawnList',(nIfTot+1)*nMaxAmpl,4,tagSpawnList)
+   Allocate(SpawnList(0:nIfDBO,nMaxSpawn))
+   LogAlloc(ierr,'SpawnList',(nIfDBO+1)*nMaxAmpl,4,tagSpawnList)
    Allocate(SpawnAmps(nMaxSpawn))
    LogAlloc(ierr,'SpawnAmps',nMaxAmpl,4,tagSpawnAmps)
 

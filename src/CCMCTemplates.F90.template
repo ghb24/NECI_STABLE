@@ -16,6 +16,7 @@ module ClusterList
    use memorymanager, only: LogMemAlloc, LogMemDealloc
    use Determinants, only: get_helement, write_det, write_det_len
    use constants, only: dp, int32, n_int
+   use bit_rep_data, only: NIfDBO,NIfD
    use CCMCData, only: ExcitToDetSign,AddBitExcitor
    implicit none
 
@@ -49,12 +50,11 @@ contains
    
 ! Find the largest nMax amplitudes (out of Amps(nDet)) for each excitation level and print them
    subroutine  WriteMaxExcitorList (iUnit,Amps,Dets,LevIndex,nLev,nMax)
-      use SystemData, only: nIfTot
       use FciMCParMod, only: iLutHF
       implicit none
       integer iUnit, nLev,nMax
       %(type1)s Amps(*)
-      INTEGER(KIND=n_int) Dets(0:nIfTot,*)
+      INTEGER(KIND=n_int) Dets(0:nIfDBO,*)
       INTEGER LevIndex(0:nLev+1) 
       
       integer BestIndex(nMax+1)
@@ -141,11 +141,10 @@ SUBROUTINE GetNextNonZeroExcitor (Pos,List,iMin,iMax)
 END SUBROUTINE !GetNextNonZeroExcitor 
 !Writes out an excitor list of reals whose values are >=dTol
 subroutine WriteExcitorList (iUnit,Amplitude,Dets,offset,nDet,dTol,Title)
-   use SystemData, only: nIfTot
    use FciMCParMod, only: iLutHF
    IMPLICIT NONE
    INTEGER iUnit,nDet
-   INTEGER(KIND=n_int) Dets(0:nIfTot,nDet)
+   INTEGER(KIND=n_int) Dets(0:nIfDBO,nDet)
    %(type1)s Amplitude(nDet),dTol
    CHARACTER(len=*) Title
    INTEGER j,offset
@@ -164,7 +163,7 @@ end subroutine !WriteExcitorList
 ! tFCI                         If set, then use (1+T)|D_0> rather than (1+T+T^2 /2)|D0> as the wavefunction
 ! Amplitude(nExcit)            is the amplitude of each excitor
 ! nExcit                       is the number of excitors
-! ExcitList(0:nIfTot,nExcit)   contains the bit-compressed list of excitors
+! ExcitList(0:nIfDBO,nExcit)   contains the bit-compressed list of excitors
 ! ExcitLevelIndex(0:nEl+1)     is the index of the first det of each excitation level in ExcitList
 ! ProjE                        The projected energy for this cycle is returned here.
 
@@ -172,44 +171,48 @@ SUBROUTINE CalcClusterEnergy (tFCI,Amplitude,nExcit,ExcitList,ExcitLevelIndex,iR
    use Parallel, only: iProcIndex
    use FciMCData, only: root
    use CCMCData
-   use SystemData, only: nEl,nIfTot
+   use SystemData, only: nEl
    use FciMCData, only: HFDet
    use FciMCParMod, only: iLutHF,SumEContrib
    use FciMCData, only: ENumCyc,HFCyc 
-   use DetBitOps, only: DecodeBitDet
-   use constants, only: dp
+   use bit_reps, only: Decode_Bit_Det
+   use constants, only: dp,lenof_sign
    use CCMCData, only: WriteCluster
    IMPLICIT NONE
    LOGICAL tFCI
    %(type1)s Amplitude(nExcit)
    INTEGER nExcit
-   INTEGER(kind=n_int) ExcitList(0:nIfTot,nExcit)
+   INTEGER(kind=n_int) ExcitList(0:nIfDBO,nExcit)
    INTEGER ExcitLevelIndex(0:nEl+1)
    REAL*8 ProjE
    INTEGER iDebug
    integer iRefPos
+   integer, dimension(lenof_sign) :: temp_sign
 
    INTEGER iC,i,j,l,iSgn
    REAL*8 dT1Sq,dAmp,dTmp
    INTEGER DetCurr(nEl)
    HElement_t HTmp
-   INTEGER(kind=n_int) iLutnI(0:nIfTot)
+   INTEGER(kind=n_int) iLutnI(0:nIfDBO)
    Type(Cluster) C
 
-   allocate(C%%SelectedExcitors(0:nIfTot,2))
+   allocate(C%%SelectedExcitors(0:nIfDBO,2))
    iC=0
    dT1Sq=0
    do j=1,nExcit
       do while(j.ge.ExcitLevelIndex(iC+1).or.ExcitLevelIndex(iC).eq.ExcitLevelIndex(iC+1))  !Need to take into account if (e.g.) singles are empty (FCIDI(0:3) = 1 2 2 3, we want j=2 to get to iC=2 not iC=1
          iC=iC+1
       enddo
-      CALL DecodeBitDet(DetCurr,ExcitList(:,j))
+      CALL Decode_Bit_Det(DetCurr,ExcitList(:,j))
       i=1
       if(Amplitude(j).lt.0) i=-1
       dAmp=abs(Amplitude(j))/Amplitude(iRefPos)
       if(dAmp.ne.0.d0) then
          i=i*ExcitToDetSign(iLutHF,ExcitList(:,j),iC)
-         if (iProcIndex.eq.root) call SumEContrib(DetCurr,iC,i,ExcitList(:,j),dTmp,1/dAmp)
+         if (iProcIndex.eq.root) then
+             temp_sign(1)=i
+             call SumEContrib(DetCurr,iC,temp_sign,ExcitList(:,j),dTmp,1/dAmp)
+         endif
 ! Deal with T_1^2
          if(iDebug>3) then
             C%%SelectedExcitors(:,1)=ExcitList(:,j)
@@ -226,7 +229,7 @@ SUBROUTINE CalcClusterEnergy (tFCI,Amplitude,nExcit,ExcitList,ExcitLevelIndex,iR
                call AddBitExcitor(iLutnI,ExcitList(:,l),iLutHF,iSgn)
                if(iSgn.ne.0.and.dAmp.ne.0.d0) then
                   iSgn=iSgn*ExcitToDetSign(iLutHF,iLutnI,2)
-                  CALL DecodeBitDet(DetCurr,iLutnI)
+                  CALL Decode_Bit_Det(DetCurr,iLutnI)
                   Htmp = get_helement (HFDet, DetCurr, iLutHF, iLutnI)
                   dAmp=dAmp/(Amplitude(iRefPos)**2)
                   dT1Sq=dT1Sq+(Real(Htmp,dp)*iSgn)*dAmp
@@ -236,7 +239,10 @@ SUBROUTINE CalcClusterEnergy (tFCI,Amplitude,nExcit,ExcitList,ExcitLevelIndex,iR
                      call WriteCluster(79,C,.false.)
                      write(79,*)  dAmp,iSgn
                   endif
-                  if (iProcIndex.eq.root) call SumEContrib(DetCurr,2,iSgn,iLutnI(:),dTmp,1/dAmp)
+                  if (iProcIndex.eq.root) then
+                      temp_sign(1)=iSgn
+                      call SumEContrib(DetCurr,2,temp_sign,iLutnI(:),dTmp,1/dAmp)
+                  endif
                endif
             enddo
          endif
@@ -251,43 +257,48 @@ END SUBROUTINE !CalcClusterEnergy
 ! tFCI                         If set, then use (1+T)|D_0> rather than (1+T+T^2 /2)|D0> as the wavefunction
 ! Amplitude(nExcit)            is the amplitude of each excitor
 ! nExcit                       is the number of excitors
-! ExcitList(0:nIfTot,nExcit)   contains the bit-compressed list of excitors
+! ExcitList(0:nIfDBO,nExcit)   contains the bit-compressed list of excitors
 ! ProjE                        The projected energy for this cycle is returned here.
 
 SUBROUTINE CalcClusterEnergyUnsrt (tFCI,Amplitude,nExcit,ExcitList,iRefPos,ProjE)
    use Parallel, only: iProcIndex
    use FciMCData, only: root
    use CCMCData
-   use SystemData, only: nEl,nIfTot
+   use SystemData, only: nEl
    use FciMCData, only: HFDet
    use FciMCParMod, only: iLutHF,SumEContrib
    use FciMCData, only: ENumCyc,HFCyc 
-   use DetBitOps, only: DecodeBitDet,FindBitExcitLevel
-   use constants, only: dp
+   use DetBitOps, only: FindBitExcitLevel
+   use bit_reps, only: decode_bit_det
+   use constants, only: dp,lenof_sign
    IMPLICIT NONE
    LOGICAL tFCI
    %(type1)s Amplitude(nExcit)
    INTEGER nExcit
-   INTEGER(kind=n_int) ExcitList(0:nIfTot,nExcit)
+   INTEGER(kind=n_int) ExcitList(0:nIfDBO,nExcit)
    REAL*8 ProjE
    INTEGER iRefPos
+   INTEGER, DIMENSION(lenof_sign) :: temp_sign
 
    INTEGER iC,i,j,l,iSgn,iC2
    REAL*8 dT1Sq,dAmp,dTmp
    INTEGER DetCurr(nEl)
    HElement_t HTmp
-   INTEGER(kind=n_int) iLutnI(0:nIfTot)
+   INTEGER(kind=n_int) iLutnI(0:nIfDBO)
    iC=0
    dT1Sq=0
    do j=1,nExcit
       iC=FindBitExcitLevel(iLutHF,ExcitList(:,j),2)
       if(iC>2) cycle
-      CALL DecodeBitDet(DetCurr,ExcitList(:,j))
+      CALL Decode_Bit_Det(DetCurr,ExcitList(:,j))
       i=1
       if(Amplitude(j).lt.0) i=-1
       dAmp=abs(Amplitude(j))/Amplitude(iRefPos)
       if(dAmp.ne.0.d0) then
-         if (iProcIndex.eq.root) call SumEContrib(DetCurr,iC,i,ExcitList(:,j),dTmp,1/dAmp)
+         if (iProcIndex.eq.root) then
+             temp_sign(1)=i
+             call SumEContrib(DetCurr,iC,temp_sign,ExcitList(:,j),dTmp,1/dAmp)
+         endif
 ! Deal with T_1^2
          if(iC.eq.1.and..not.tFCI) then
             do l=j+1,nExcit
@@ -298,12 +309,15 @@ SUBROUTINE CalcClusterEnergyUnsrt (tFCI,Amplitude,nExcit,ExcitList,iRefPos,ProjE
                iLutnI(:)=ExcitList(:,j)
                call AddBitExcitor(iLutnI,ExcitList(:,l),iLutHF,iSgn)
                if(iSgn.ne.0.and.dAmp.ne.0.d0) then
-                  CALL DecodeBitDet(DetCurr,iLutnI)
+                  CALL Decode_Bit_Det(DetCurr,iLutnI)
                   Htmp = get_helement (HFDet, DetCurr, iLutHF, iLutnI)
                   dAmp=dAmp/(Amplitude(iRefPos)**2)
                   dT1Sq=dT1Sq+(Real(Htmp,dp)*iSgn)*dAmp
 !                  dAmp=dAmp*2  !DEBUG
-                  if (iProcIndex.eq.root) call SumEContrib(DetCurr,2,iSgn,iLutnI(:),dTmp,1/dAmp)
+                  if (iProcIndex.eq.root) then
+                      temp_sign(1)=iSgn
+                      call SumEContrib(DetCurr,2,temp_sign,iLutnI(:),dTmp,1/dAmp)
+                  endif
                endif
             enddo
          endif
@@ -318,7 +332,7 @@ END SUBROUTINE !CalcClusterEnergyUnsrt
 !
 !  CS is a ClusterSelector which determines how the cluster is selected
 !
-!  Dets(0:nIfTot,1:nDet) is a list of excitors
+!  Dets(0:nIfDBO,1:nDet) is a list of excitors
 !  Amplitude(1:nDet)     is a list of excitor amplitudes, T
 !  dTotAbsAmplitude      is |T|
 !  iNumExcitors          is the number of non-zero elements of Amplitude
@@ -363,13 +377,12 @@ END SUBROUTINE !CalcClusterEnergyUnsrt
 
 FUNCTION GetNextCluster (CS,Dets,nDet,Amplitude,dTotAbsAmpl,iNumExcitors,iMaxSizeIn,iDebug) result (GetNextCluster)
    use CCMCData, only: ClustSelector
-   use SystemData, only: nIfTot
    use dSFMT_interface , only : genrand_real2_dSFMT
    IMPLICIT NONE
    TYPE(ClustSelector) CS
    INTEGER nDet
    %(type1)s Amplitude(nDet)
-   INTEGER(KIND=n_int) Dets(0:nIfTot,nDet)
+   INTEGER(KIND=n_int) Dets(0:nIfDBO,nDet)
    REAL*8 dTotAbsAmpl
    INTEGER iDebug,iMaxSizeIn
 
@@ -522,11 +535,12 @@ END FUNCTION !GetNextCluster
 ! sign exchanges needed as well as the signs of the excitors from Amplitude
 SUBROUTINE CollapseCluster (C,iLutHF,Amplitude,nDet,iDebug,tExToDet)
    use CCMCData
-   use SystemData, only : NIfTot,nEl
-   use DetBitOps, only: DecodeBitDet, FindBitExcitLevel
+   use SystemData, only : nEl
+   use DetBitOps, only: FindBitExcitLevel
+   use bit_reps, only: decode_bit_det
    IMPLICIT NONE
    TYPE(Cluster) C
-   INTEGER(KIND=n_int) :: iLutHF(0:nIfTot)
+   INTEGER(KIND=n_int) :: iLutHF(0:nIfDBO)
    %(type1)s Amplitude(1:nDet)
    INTEGER nDet
    INTEGER iDebug
@@ -551,7 +565,7 @@ SUBROUTINE CollapseCluster (C,iLutHF,Amplitude,nDet,iDebug,tExToDet)
 
 
 !First, decode the bit-string representation of the determinant the walker is on, into a string of naturally-ordered integers
-   CALL DecodeBitDet(C%%DetCurr,C%%iLutDetCurr)
+   CALL Decode_Bit_Det(C%%DetCurr,C%%iLutDetCurr)
    C%%iExcitLevel = FindBitExcitLevel(iLutHF, C%%iLutDetCurr, nel)
 ! We need to calculate the sign change from excitor to det:
    if(tExToDet) C%%iSgn=C%%iSgn*ExcitToDetSign(iLutHF,C%%iLutDetCurr,C%%iExcitLevel)

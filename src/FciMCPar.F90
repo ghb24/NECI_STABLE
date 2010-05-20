@@ -778,7 +778,10 @@ MODULE FciMCParMod
 !which is passed to the SpawnedDets array and refers to whether or not the walkers *parent* is an initiator or not.
 !A flag of 0 means the determinant is an initiator, and 1 it is a non-initiator.
         INTEGER , INTENT(IN) :: j,VecSlot,Iter
+        INTEGER , DIMENSION(lenof_sign) :: CurrentSign
         LOGICAL :: tDetinCAS
+
+        CALL extract_sign(CurrentDets(:,j),CurrentSign)
 
         IF(.not.tAddtoInitiator) THEN
 !If tAddtoInitiator is not on, then it is not possible to dynamically add initiators into the intiator space 
@@ -787,25 +790,25 @@ MODULE FciMCParMod
             ParentInitiator=CurrentDets(NIfTot,j)
             IF(ParentInitiator.eq.0) THEN
                 NoInitDets=NoInitDets+1.D0
-                NoInitWalk=NoInitWalk+(ABS(REAL(CurrentSign(j))))
+                NoInitWalk=NoInitWalk+(ABS(REAL(CurrentSign(1))))
             ELSE
                 NoNonInitDets=NoNonInitDets+1.D0
-                NoNonInitWalk=NoNonInitWalk+(ABS(REAL(CurrentSign(j))))
+                NoNonInitWalk=NoNonInitWalk+(ABS(REAL(CurrentSign(1))))
             ENDIF
         ELSEIF(CurrentDets(NIfTot,j).eq.1) THEN
             ! Determinant wasn't previously initiator 
             ! - want to test if it has now got a large enough population 
             ! to become an initiator.
-            IF(ABS(CurrentSign(j)).gt.InitiatorWalkNo) THEN
+            IF(ABS(CurrentSign(1)).gt.InitiatorWalkNo) THEN
                 CurrentDets(NIfTot,j)=0
                 ParentInitiator=0
                 NoAddedInitiators=NoAddedInitiators+1.D0
                 NoInitDets=NoInitDets+1.D0
-                NoInitWalk=NoInitWalk+(ABS(REAL(CurrentSign(j))))
+                NoInitWalk=NoInitWalk+(ABS(REAL(CurrentSign(1))))
             ELSE
                 ParentInitiator=1
                 NoNonInitDets=NoNonInitDets+1.D0
-                NoNonInitWalk=NoNonInitWalk+(ABS(REAL(CurrentSign(j))))
+                NoNonInitWalk=NoNonInitWalk+(ABS(REAL(CurrentSign(1))))
             ENDIF
         ELSEIF(tRetestAddtoInit) THEN
 !This is the case where determinants are initiators.            
@@ -823,43 +826,43 @@ MODULE FciMCParMod
                 ParentInitiator=0
                 CurrentDets(NIfTot,j)=0
                 NoInitDets=NoInitDets+1.D0
-                NoInitWalk=NoInitWalk+(ABS(REAL(CurrentSign(j))))
+                NoInitWalk=NoInitWalk+(ABS(REAL(CurrentSign(1))))
             ELSEIF(DetBitEQ(CurrentDets(:,j),iLutHF,NIfDBO)) THEN
                 ! HF stays initiator.
                 ParentInitiator=0
                 CurrentDets(NIfTot,j)=0
                 NoInitDets=NoInitDets+1.D0
-                NoInitWalk=NoInitWalk+(ABS(REAL(CurrentSign(j))))
-            ELSEIF(ABS(CurrentSign(j)).le.InitiatorWalkNo) THEN
+                NoInitWalk=NoInitWalk+(ABS(REAL(CurrentSign(1))))
+            ELSEIF(ABS(CurrentSign(1)).le.InitiatorWalkNo) THEN
                 ! Population has fallen too low to remain an 
                 ! initiator - initiator status removed.
                 CurrentDets(NIfTot,j)=1
                 ParentInitiator=1
                 NoAddedInitiators=NoAddedInitiators-1.D0
                 NoNonInitDets=NoNonInitDets+1.D0
-                NoNonInitWalk=NoNonInitWalk+(ABS(REAL(CurrentSign(j))))
+                NoNonInitWalk=NoNonInitWalk+(ABS(REAL(CurrentSign(1))))
             ELSE
                 ! Population still high enough - remains initiator.
                 ParentInitiator=0
                 CurrentDets(NIfTot,j)=0
                 NoInitDets=NoInitDets+1.D0
-                NoInitWalk=NoInitWalk+(ABS(REAL(CurrentSign(j))))
+                NoInitWalk=NoInitWalk+(ABS(REAL(CurrentSign(1))))
             ENDIF
 
             IF((tHistInitPops.and.(MOD(Iter,HistInitPopsIter).eq.0))    &
                  .or.tPrintHighPop)                                     & 
-                 CALL HistInitPopulations(CurrentSign(j),VecSlot,Iter)
+                 CALL HistInitPopulations(CurrentSign(1),VecSlot,Iter)
  
         ELSE
             !If we are not retesting the initiators, they stay as initiators.
             ParentInitiator=0
             CurrentDets(NIfTot,j)=0
             NoInitDets=NoInitDets+1.D0
-            NoInitWalk=NoInitWalk+(ABS(REAL(CurrentSign(j))))
+            NoInitWalk=NoInitWalk+(ABS(REAL(CurrentSign(1))))
 
             IF((tHistInitPops.and.(MOD(Iter,HistInitPopsIter).eq.0))    &
                  .or.tPrintHighPop)                                     & 
-                 CALL HistInitPopulations(CurrentSign(j),VecSlot,Iter)
+                 CALL HistInitPopulations(CurrentSign(1),VecSlot,Iter)
  
         ENDIF
 
@@ -913,20 +916,24 @@ MODULE FciMCParMod
 
 
     SUBROUTINE FindHighPopDet(Iter)
+        USE constants, only : MpiDetInt
 !Found the highest population on each processor, need to find out which of these has the highest of all.
         INTEGER :: MaxPopsNeg(nProcessors),MaxPopsPos(nProcessors),error,i,MaxPopPos,MaxPopNeg,MaxPopNegProc
         INTEGER :: MaxPopPosProc,InitDetCurr(NEl),Iter
         INTEGER(KIND=n_int) :: DetPos(0:NIfTot),DetNeg(0:NIfTot)
         INTEGER :: HighPopInNeg(2),HighPopInPos(2),HighPopoutNeg(2),HighPopoutPos(2)
+        INTEGER, DIMENSION(lenof_sign) :: TempSign
 
 !        WRITE(6,*) 'HighPopPos',HighPopPos
 !        WRITE(6,*) 'CurrentSign(HighPopPos)',CurrentSign(HighPopPos)
 
-        HighPopInNeg(1)=CurrentSign(HighPopNeg)
+        call extract_sign(CurrentDets(:,HighPopNeg),TempSign)
+        HighPopInNeg(1)=TempSign(1)
         HighPopInNeg(2)=iProcIndex
         CALL MPI_AllReduce(HighPopinNeg,HighPopoutNeg,1,MPI_2INTEGER,MPI_MINLOC,MPI_COMM_WORLD,error)
 
-        HighPopInPos(1)=CurrentSign(HighPopPos)
+        call extract_sign(CurrentDets(:,HighPopPos),TempSign)
+        HighPopInPos(1)=TempSign(1)
         HighPopInPos(2)=iProcIndex
         CALL MPI_AllReduce(HighPopinPos,HighPopoutPos,1,MPI_2INTEGER,MPI_MAXLOC,MPI_COMM_WORLD,error)
 
@@ -935,8 +942,8 @@ MODULE FciMCParMod
 
         DetNeg(:)=CurrentDets(:,HighPopNeg)
         DetPos(:)=CurrentDets(:,HighPopPos)
-        CALL MPI_Bcast(DetNeg,1,MPI_INTEGER,HighPopoutNeg(2),MPI_COMM_WORLD,error)
-        CALL MPI_Bcast(DetPos,1,MPI_INTEGER,HighPopoutPos(2),MPI_COMM_WORLD,error)
+        CALL MPI_Bcast(DetNeg,NIfTot+1,MpiDetInt,HighPopoutNeg(2),MPI_COMM_WORLD,error)
+        CALL MPI_Bcast(DetPos,NIfTot+1,MpiDetInt,HighPopoutPos(2),MPI_COMM_WORLD,error)
 
         if (iProcIndex == 0) then
             write (6, '(a, i10, a)') 'The most highly populated determinant &
@@ -1778,12 +1785,12 @@ MODULE FciMCParMod
         REAL*8 :: TempSumNoatHF
         INTEGER :: error,WalkersonNodes(0:nProcessors-1)
         INTEGER :: Stat(MPI_STATUS_SIZE),Tag,Total,i,j,k
-        INTEGER , ALLOCATABLE :: OrigSign(:)
         INTEGER(KIND=n_int), ALLOCATABLE :: OrigParts(:,:)
-        INTEGER :: OrigSignTag=0,OrigPartsTag=0
+        INTEGER :: OrigPartsTag=0
         integer :: iunit
         CHARACTER(len=*) , PARAMETER :: this_routine='WriteToPopsfileParOneArr'
         character(255) :: popsfile
+        INTEGER, DIMENSION(lenof_sign) :: TempSign
 
         CALL MPI_Barrier(MPI_COMM_WORLD,error)  !sync
 
@@ -1870,17 +1877,19 @@ MODULE FciMCParMod
                 do j=1,TotWalkers
 !First write out walkers on head node
                     IF(mod(j,iPopsPartEvery).eq.0) THEN
-                        WRITE(iunit) CurrentDets(0:NIfD,j),CurrentSign(j)
+                        call extract_sign(CurrentDets(:,j),TempSign)
+                        WRITE(iunit) CurrentDets(0:NIfDBO,j),TempSign(:)
                     ENDIF
                 enddo
             ELSE
                 do j=1,TotWalkers
 !First write out walkers on head node
                     IF(mod(j,iPopsPartEvery).eq.0) THEN
-                        do k=0,NIfD
+                        do k=0,NIfDBO
                             WRITE(iunit,"(I24)",advance='no') CurrentDets(k,j)
                         enddo
-                        WRITE(iunit,*) CurrentSign(j)
+                        call extract_sign(CurrentDets(:,j),TempSign)
+                        WRITE(iunit,*) TempSign(:)
                     ENDIF
                 enddo
             ENDIF
@@ -1888,12 +1897,9 @@ MODULE FciMCParMod
 !            CALL FLUSH(6)
 
 !Now, we copy the head nodes data to a new array...
-            ALLOCATE(OrigSign(TotWalkers),stat=error)
-            CALL LogMemAlloc('OrigSign',TotWalkers,4,this_routine,OrigSignTag,error)
             ALLOCATE(OrigParts(0:NIfTot,TotWalkers),stat=error)
             CALL LogMemAlloc('OrigParts',TotWalkers*(NIfTot+1),size_n_int,this_routine,OrigPartsTag,error)
             do i=1,TotWalkers
-                OrigSign(i)=CurrentSign(i)
                 OrigParts(:,i)=CurrentDets(:,i)
             enddo
 
@@ -1902,7 +1908,6 @@ MODULE FciMCParMod
             do i=1,nProcessors-1
 !Run through all other processors...receive the data...
                 CALL MPI_Recv(CurrentDets(0:NIfTot,1:WalkersonNodes(i)),WalkersonNodes(i)*(NIfTot+1),MpiDetInt,i,Tag,MPI_COMM_WORLD,Stat,error)
-                CALL MPI_Recv(CurrentSign(1:WalkersonNodes(i)),WalkersonNodes(i),MPI_INTEGER,i,Tag,MPI_COMM_WORLD,Stat,error)
 !                WRITE(6,*) "Recieved walkers for processor ",i
 !                CALL FLUSH(6)
                 
@@ -1910,7 +1915,8 @@ MODULE FciMCParMod
                 IF(tBinPops) THEN
                     do j=1,WalkersonNodes(i)
                         IF(mod(j,iPopsPartEvery).eq.0) THEN
-                            WRITE(iunit) CurrentDets(0:NIfD,j),CurrentSign(j)
+                            call extract_sign(CurrentDets(:,j),TempSign)
+                            WRITE(iunit) CurrentDets(0:NIfDBO,j),TempSign(:)
                         ENDIF
                     enddo
                 ELSE
@@ -1919,7 +1925,8 @@ MODULE FciMCParMod
                             do k=0,NIfD
                                 WRITE(iunit,"(I24)",advance='no') CurrentDets(k,j)
                             enddo
-                            WRITE(iunit,*) CurrentSign(j)
+                            call extract_sign(CurrentDets(:,j),TempSign)
+                            WRITE(iunit,*) TempSign(:)
                         ENDIF
                     enddo
                 ENDIF
@@ -1932,19 +1939,15 @@ MODULE FciMCParMod
 
 !Now we need to copy the head processors original information back to itself again.
             do i=1,TotWalkers
-                CurrentSign(i)=OrigSign(i)
                 CurrentDets(:,i)=OrigParts(:,i)
             enddo
 !Deallocate memory for temporary storage of information.
-            DEALLOCATE(OrigSign)
             DEALLOCATE(OrigParts)
-            CALL LogMemDealloc(this_routine,OrigSignTag)
             CALL LogMemDealloc(this_routine,OrigPartsTag)
 
         ELSE
 !All other processors need to send their data to root...
             CALL MPI_Send(CurrentDets(0:NIfTot,1:TotWalkers),TotWalkers*(NIfTot+1),MpiDetInt,root,Tag,MPI_COMM_WORLD,error)
-            CALL MPI_Send(CurrentSign(1:TotWalkers),TotWalkers,MPI_INTEGER,root,Tag,MPI_COMM_WORLD,error)
 !            WRITE(6,*) "Have sent info to head node..."
 !            CALL FLUSH(6)
         ENDIF
@@ -1970,7 +1973,8 @@ MODULE FciMCParMod
         INTEGER :: AvWalkers,WalkerstoReceive(nProcessors)
         INTEGER*8 :: NodeSumNoatHF(nProcessors),TempAllSumNoatHF
         REAL*8 :: TempTotParts,TempCurrWalkers
-        INTEGER :: TempInitWalkers,error,i,j,k,l,total,ierr,MemoryAlloc,Tag,TempSign,Proc,CurrWalkers,ii
+        INTEGER :: TempInitWalkers,error,i,j,k,l,total,ierr,MemoryAlloc,Tag,Proc,CurrWalkers,ii
+        INTEGER , DIMENSION(lenof_sign) :: TempSign
         INTEGER*8 :: iLutTemp64(0:nBasis/64+1)
         INTEGER :: iLutTemp32(0:nBasis/32+1)
         INTEGER(KIND=n_int) :: iLutTemp(0:NIfTot)
@@ -2293,7 +2297,7 @@ MODULE FciMCParMod
 #endif
             call decode_bit_det (TempnI, iLutTemp)
             Proc=DetermineDetProc(iLutTemp)   !This wants to return a value between 0 -> nProcessors-1
-            IF((Proc.eq.iProcIndex).and.(abs(TempSign).ge.iWeightPopRead)) THEN
+            IF((Proc.eq.iProcIndex).and.(abs(TempSign(1)).ge.iWeightPopRead)) THEN
                 CurrWalkers=CurrWalkers+1
                 call encode_bit_rep(CurrentDets(:,CurrWalkers),iLutTemp(0:NIfDBO),TempSign,0)   !Do not need to send a flag here...
                                                                                                 !TODO: Add flag for complex walkers to read in both
@@ -2741,8 +2745,8 @@ MODULE FciMCParMod
         integer(kind=n_int), intent(in) :: iLutCurr(0:niftot)
         integer, intent(inout) :: VecSlot
         real(dp), intent(in) :: Kii
-        
-        integer :: iDie, CopySign
+        integer :: iDie
+        integer, dimension(lenof_sign) :: CopySign
 
         ! Do particles on determinant die? iDie can be both +ve (deaths), or
         ! -ve (births, if shift > 0)
@@ -2751,29 +2755,29 @@ MODULE FciMCParMod
         ! Update death counter
         NoDied = NoDied + iDie
 
-        ! Calculate new number of particles on.
-        CopySign = wSign(1) - (iDie * sign(1, wSign(1)))
+        ! Calculate new number of signed particles on the det.
+        CopySign(1) = wSign(1) - (iDie * sign(1, wSign(1)))
 
         ! Normall slot particles back into main array at position vecslot.
         ! This will normally increment with j, except when a particle dies
         ! completely (so VecSlot <= j, and we can't overwrite a walker we
         ! haven't got to yet).
-        ! If we change the sign of a particle, we need to spawn an
-        ! anti-particle --> it goes in the spawning array to give it a chance
-        ! to annihilate. (Not into main array, or we loose sign-coherence)
-        if (CopySign /= 0) then
-            if (sign(1, CopySign) == sign(1, wSign(1))) then
-                CurrentDets(:,VecSlot) = iLutCurr
-                CurrentSign(VecSlot) = CopySign
+        if (CopySign(1) /= 0) then
+            if (sign(1, CopySign(1)) == sign(1, wSign(1))) then
+                call encode_bit_rep(CurrentDets(:,VecSlot),iLutCurr,CopySign,extract_flags(iLutCurr))
                 if (.not.tRegenDiagHEls) CurrentH(VecSlot) = Kii
                 VecSlot = VecSlot + 1
             else
-                SpawnedParts(:,ValidSpawnedList(iProcIndex)) = iLutCurr
-                SpawnedSign(ValidSpawnedList(iProcIndex)) = CopySign
+        ! If we change the sign of a particle, we need to spawn an
+        ! anti-particle --> it goes in the spawning array to give it a chance
+        ! to annihilate. (Not into main array, or we lose sign-coherence)
+                call encode_bit_rep(SpawnedParts(:,ValidSpawnedList(iProcIndex)),iLutCurr,CopySign,extract_flags(iLutCurr))
                 ValidSpawnedList(iProcIndex) = ValidSpawnedList(iProcIndex)+1
             endif
-        elseif(tTruncInitiator.and.(iLutCurr(NIfTot).ne.1)) then
-            NoAddedInitiators=NoAddedInitiators-1.D0
+        elseif(tTruncInitiator) then
+            if(extract_flags(iLutCurr).ne.1) then
+                NoAddedInitiators=NoAddedInitiators-1.D0
+            endif
         endif
 
     end subroutine
@@ -2991,8 +2995,6 @@ MODULE FciMCParMod
         ENDIF
         DEALLOCATE(WalkVecDets)
         CALL LogMemDealloc(this_routine,WalkVecDetsTag)
-        DEALLOCATE(WalkVecSign)
-        CALL LogMemDealloc(this_routine,WalkVecSignTag)
         IF(.not.tRegenDiagHEls) THEN
             DEALLOCATE(WalkVecH)
             CALL LogMemDealloc(this_routine,WalkVecHTag)
@@ -3001,10 +3003,6 @@ MODULE FciMCParMod
         CALL LogMemDealloc(this_routine,SpawnVecTag)
         DEALLOCATE(SpawnVec2)
         CALL LogMemDealloc(this_routine,SpawnVec2Tag)
-        DEALLOCATE(SpawnSignVec)
-        CALL LogMemDealloc(this_routine,SpawnSignVecTag)
-        DEALLOCATE(SpawnSignVec2)
-        CALL LogMemDealloc(this_routine,SpawnSignVec2Tag)
         
         DEALLOCATE(HFDet)
         CALL LogMemDealloc(this_routine,HFDetTag)
@@ -3979,9 +3977,12 @@ MODULE FciMCParMod
 !This routine flips the sign of all particles on the node
     SUBROUTINE FlipSign()
         INTEGER :: i
+        INTEGER, DIMENSION(lenof_sign) :: TempSign
 
         do i=1,TotWalkers
-            CurrentSign(i)=-CurrentSign(i)
+            call extract_sign(CurrentDets(:,i),TempSign)
+            TempSign(1)=-TempSign(1)
+            call encode_sign(CurrentDets(:,i),TempSign)
         enddo
         
 !Reverse the flag for whether the sign of the particles has been flipped so the ACF can be correctly calculated

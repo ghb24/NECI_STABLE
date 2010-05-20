@@ -99,11 +99,12 @@ contains
 !  Applying the excitor to the reference det may lead to a change in sign.  That is calculated here.
 
 FUNCTION ExcitToDetSign(iLutRef,iLutDet,iLevel)
-   use SystemData, only: nIfTot,nEl,nIfD
+   use SystemData, only: nEl
+   use bit_rep_data, only: NIfDBO, NIfD
    IMPLICIT NONE
    INTEGER ExcitToDetSign
    INTEGER iLevel
-   INTEGER(KIND=n_int) iLutRef(0:nIfTot),iLutDet(0:nIfTot)
+   INTEGER(KIND=n_int) iLutRef(0:nIfDBO),iLutDet(0:nIfDBO)
    INTEGER iSgn,i,j
    INTEGER(KIND=n_int) mask
    INTEGER iAnnihil, iCreation
@@ -113,7 +114,7 @@ FUNCTION ExcitToDetSign(iLutRef,iLutDet,iLevel)
 !   write(6,*) "Excitation level ",iLevel
 !   write(6,*) "Ref",iLutRef
 !   write(6,*) "Det",iLutDet
-   DO i=0,nIfTot
+   DO i=0,nIfD
       mask=ieor(iLutRef(i),iLutDet(i))
       Do j=0,end_n_int
          if(btest(iLutRef(i),j)) then
@@ -153,11 +154,12 @@ end function ExcitToDetSign
 !updated with the relevant permutation or set to zero if the excitation is
 !disallowed.
 SUBROUTINE AddBitExcitor(iLutnI,iLutnJ,iLutRef,iSgn)
-   use SystemData, only : nEl,nIfD, NIfTot
+   use SystemData, only : nEl
    use DetBitOps, only: FindBitExcitLevel
+   use bit_rep_data, only: NIfDBO,NIfD
    IMPLICIT NONE
-   INTEGER(KIND=n_int) iLutnI(0:nIfTot), iLutnJ(0:nIfTot),iLutRef(0:nIfTot)
-   INTEGER(KIND=n_int) iLutTmp(0:nIfTot)
+   INTEGER(KIND=n_int) iLutnI(0:nIfDBO), iLutnJ(0:nIfDBO),iLutRef(0:nIfDBO)
+   INTEGER(KIND=n_int) iLutTmp(0:nIfDBO)
    INTEGER(KIND=n_int) T1,T2,T3
    INTEGER iSgn
 ! We need to run through the bits of J and I concurrently, setting bits of I
