@@ -18,6 +18,7 @@ real(dp), parameter ::  THIRD = 0.3333333333333333333333333333333333333333333333
 
 integer, parameter :: sizeof_int = 4
 integer, parameter :: sizeof_dp = 8
+integer, parameter :: sizeof_complexdp = 16
 integer, parameter :: sizeof_sp = 4
 #ifdef __CMPLX
 integer, parameter :: sizeof_helement = 16
@@ -48,7 +49,9 @@ integer, parameter :: MpiDetInt=MPI_INTEGER
 #endif
 
 ! Number of bits in an n_int integer.
-integer, parameter :: bits_n_int = bit_size(int(0,n_int))
+! Note that PGI (at least in 10.3) has a bug which causes
+! bit_size(int(0,n_int)) to return an incorrect value.
+integer, parameter :: bits_n_int = bit_size(0_n_int)
 ! Number of bytes in an n_int integer.
 integer, parameter :: size_n_int = bits_n_int/8
 ! Index of last bit in an n_int integer (bits are indexed 0,1,...,bits_n_int-1).

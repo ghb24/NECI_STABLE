@@ -782,6 +782,7 @@ MODULE System
       use SymData, only: tAbelian,TwoCycleSymGens
       use constants, only: Pi, Pi2, THIRD
       use legacy_data, only: CSF_NBSTART
+      use read_fci
       implicit none
       character(*), parameter :: this_routine='SysInit'
       integer ierr
@@ -1006,14 +1007,14 @@ MODULE System
                  tStoreSpinOrbs = .true.
              end if
              IF(FUEGRS.NE.0.D0) THEN
-                WRITE(6,'(A,I10)') '  Electron Gas Rs set to ',FUEGRS
+                WRITE(6,'(A,F20.16)') '  Electron Gas Rs set to ',FUEGRS
                 OMEGA=BOX*BOX*BOX*BOA*COA
 !C.. required density is (3/(4 pi rs^3))
 !C.. need omega to be (NEL* 4 pi rs^3 / 3)
 !C.. need box to be (NEL*4 pi/(3 BOA COA))^(1/3) rs
                 BOX=(NEL*4.D0*PI/(3.D0*BOA*COA))**(1.D0/3.D0)
                 BOX=BOX*FUEGRS
-                WRITE(6,'(A)') "  Resetting box size to ", BOX
+                WRITE(6,'(A, F20.16)') "  Resetting box size to ", BOX
              ENDIF
           ENDIF
           IF(THUB) WRITE(6,'(A)') '  *** HUBBARD MODEL ***  ' 
