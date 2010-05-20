@@ -282,7 +282,7 @@ contains
         ! Optionally sort arr2 in parallel (in the routines it is enabled)
 
         ! sort needs auxiliary storage of length 2*log_2(n).
-        integer, parameter :: nStackMax = 50
+        integer, parameter :: nStackMax = 100
         integer, parameter :: nInsertionSort = 7
 		integer, intent(in), optional :: nskip
 
@@ -511,8 +511,11 @@ contains
                 ! of sections to look at later.
                 ! --> need fewest stack elements. 
                 nstack = nstack + 2
-                if (nstack > nStackMax) call stop_all (this_routine, &
+                if (nstack > nStackMax) then
+                        write(6,*) nstack,nStackMax,n
+                        call stop_all (this_routine, &
                                         "parameter nStackMax too small")
+                endif
                 if (hi - i + 1 >= j - 1) then
                     stack(nstack) = hi
                     stack(nstack-1) = i
@@ -524,6 +527,7 @@ contains
                 endif
             endif
         enddo
+!        write(6,*) nstack,nStackMax,n
     end subroutine
 
     ! A private comparison. This should not be available outside of the
