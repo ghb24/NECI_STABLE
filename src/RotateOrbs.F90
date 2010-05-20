@@ -1114,6 +1114,7 @@ MODULE RotateOrbsMod
     SUBROUTINE CopyAcrossUMAT()
         INTEGER :: a,b,g,d,i,j,k,l
         REAL*8 :: s,t
+        logical :: tConjg
 
         IF(((.not.tERLocalization).and.(.not.tReadInCoeff).and.(.not.tUseMP2VarDenMat).and.(.not.tFindCINatOrbs))&
         &.or.(tERLocalization.and.tStoreSpinOrbs)) TMAT2DTemp(:,:)=0.D0
@@ -1142,7 +1143,7 @@ MODULE RotateOrbsMod
                     k=SymLabelList2(b)
                     do d=1,b
                         l=SymLabelList2(d)
-                        t=REAL(UMAT(UMatInd(i,k,j,l,0,0)),8)
+                        t=REAL(UMAT(UMatInd(i,k,j,l,0,0,tConjg)),8)
                         UMATTemp01(a,g,b,d)=t                   !a,g,d,b chosen to make 'transform2elint' steps more efficient
                         UMATTemp01(g,a,b,d)=t
                         UMATTemp01(a,g,d,b)=t
@@ -1932,7 +1933,7 @@ MODULE RotateOrbsMod
 ! **************
 ! Calculating the two-transformed, four index integrals.
 
-! The untransformed <alpha beta | gamma delta> integrals are found from UMAT(UMatInd(i,j,k,l,0,0)
+! The untransformed <alpha beta | gamma delta> integrals are found from UMAT(UMatInd(i,j,k,l,0,0,tConjg)
 
 !        do b=LowBound02,HighBound02
 !            do d=1,b
@@ -2110,6 +2111,7 @@ MODULE RotateOrbsMod
     SUBROUTINE Transform2ElIntsMemSave()
         INTEGER :: i,j,k,l,a,b,g,d,ierr,Temp4indintsTag,a2,b2,g2,d2
         REAL*8 , ALLOCATABLE :: Temp4indints(:,:)
+        logical :: tConjg
         
         Transform2ElInts_Time%timer_name='Transform2ElIntsTime'
         CALL set_timer(Transform2ElInts_time,30)
@@ -2126,7 +2128,7 @@ MODULE RotateOrbsMod
 ! **************
 ! Calculating the two-transformed, four index integrals.
 
-! The untransformed <alpha beta | gamma delta> integrals are found from UMAT(UMatInd(i,j,k,l,0,0)
+! The untransformed <alpha beta | gamma delta> integrals are found from UMAT(UMatInd(i,j,k,l,0,0,tConjg)
 
         do b=1,NoOrbs
             b2=SymLabelList2(b)
@@ -2136,10 +2138,10 @@ MODULE RotateOrbsMod
                     a2=SymLabelList2(a)
                     do g=1,a
                         g2=SymLabelList2(g)
-                        FourIndInts(a,g,b,d)=REAL(UMAT(UMatInd(a2,b2,g2,d2,0,0)),8)
-                        FourIndInts(g,a,b,d)=REAL(UMAT(UMatInd(a2,b2,g2,d2,0,0)),8)
-                        FourIndInts(a,g,d,b)=REAL(UMAT(UMatInd(a2,b2,g2,d2,0,0)),8)
-                        FourIndInts(g,a,d,b)=REAL(UMAT(UMatInd(a2,b2,g2,d2,0,0)),8)
+                        FourIndInts(a,g,b,d)=REAL(UMAT(UMatInd(a2,b2,g2,d2,0,0,tConjg)),8)
+                        FourIndInts(g,a,b,d)=REAL(UMAT(UMatInd(a2,b2,g2,d2,0,0,tConjg)),8)
+                        FourIndInts(a,g,d,b)=REAL(UMAT(UMatInd(a2,b2,g2,d2,0,0,tConjg)),8)
+                        FourIndInts(g,a,d,b)=REAL(UMAT(UMatInd(a2,b2,g2,d2,0,0,tConjg)),8)
                     enddo
                 enddo
                 Temp4indints(:,:)=0.D0
@@ -2213,7 +2215,7 @@ MODULE RotateOrbsMod
 ! **************
 ! Calculating the two-transformed, four index integrals.
 
-! The untransformed <alpha beta | gamma delta> integrals are found from UMAT(UMatInd(i,j,k,l,0,0)
+! The untransformed <alpha beta | gamma delta> integrals are found from UMAT(UMatInd(i,j,k,l,0,0,tConjg)
 
 
 !        LowBound=iProcIndex*(NoOrbs/nProcessors)+1
@@ -4955,6 +4957,7 @@ MODULE RotateOrbsMod
         INTEGER :: l,k,j,i,a,b,g,d,c,BinNo,l2,k2,j2,i2,nBasis2,TMAT2DPartTag,ierr
         REAL*8 :: NewTMAT,NewTMAT02
         REAL*8 , ALLOCATABLE :: TMAT2DPart(:,:)
+        logical :: tConjg
 
         IF(tStoreSpinOrbs) THEN
             ALLOCATE(TMAT2DPart((nBasis-NoFrozenVirt),nBasis),stat=ierr)
@@ -4992,9 +4995,9 @@ MODULE RotateOrbsMod
                         do i=1,(NoOrbs-(NoFrozenVirt))
                             a=SymLabelList3(i)
                             IF(tUseMP2VarDenMat.or.tFindCINatOrbs.or.tReadInCoeff) THEN
-                                UMAT(UMatInd(a,b,g,d,0,0))=(FourIndInts(i,k,j,l))
+                                UMAT(UMatInd(a,b,g,d,0,0,tConjg))=(FourIndInts(i,k,j,l))
                             ELSE
-                                UMAT(UMatInd(a,b,g,d,0,0))=(FourIndInts(i,j,k,l))
+                                UMAT(UMatInd(a,b,g,d,0,0,tConjg))=(FourIndInts(i,j,k,l))
                             ENDIF
                         enddo
                     enddo
@@ -5149,7 +5152,7 @@ MODULE RotateOrbsMod
         INTEGER :: i,j,k,l,Sym,Syml,LabelSymk,iunit
         CHARACTER(len=5) :: Label
         CHARACTER(len=20) :: LabelFull
-
+        logical :: tConjg
 
         PrintROFCIDUMP_Time%timer_name='PrintROFCIDUMP'
         CALL set_timer(PrintROFCIDUMP_Time,30)
@@ -5191,9 +5194,9 @@ MODULE RotateOrbsMod
                     ! it is kind of unnecessary - although it may be used to speed things up.
                     do l=1,j
 !                        Syml=INT(G1(l*2)%sym%S,4)
-!                        IF((Syml.eq.Sym).and.((REAL(UMat(UMatInd(i,j,k,l,0,0)),8)).ne.0.D0)) &
-                        IF((ABS(REAL(UMat(UMatInd(i,j,k,l,0,0)),8))).ne.0.D0) &
-                                        &WRITE(iunit,'(F21.12,4I3)') REAL(UMat(UMatInd(i,j,k,l,0,0)),8),i,k,j,l 
+!                        IF((Syml.eq.Sym).and.((REAL(UMat(UMatInd(i,j,k,l,0,0,tConjg)),8)).ne.0.D0)) &
+                        IF((ABS(REAL(UMat(UMatInd(i,j,k,l,0,0,tConjg)),8))).ne.0.D0) &
+                                        &WRITE(iunit,'(F21.12,4I3)') REAL(UMat(UMatInd(i,j,k,l,0,0,tConjg)),8),i,k,j,l 
                     enddo
                 enddo
            enddo
@@ -5208,7 +5211,7 @@ MODULE RotateOrbsMod
                    ! Potential to put symmetry in here.
 !                    do k=i,SpatOrbs
 !                        Symk=INT(G1(k*2)%sym%S,4)
-!                        IF(Symk.eq.Sym) WRITE(iunit,'(F21.12,4I3)') REAL(UMat(UMatInd(i,j,k,l,0,0)),8),i,k,j,l 
+!                        IF(Symk.eq.Sym) WRITE(iunit,'(F21.12,4I3)') REAL(UMat(UMatInd(i,j,k,l,0,0,tConjg)),8),i,k,j,l 
 !                    enddo
 !                enddo
 !            enddo
@@ -5312,7 +5315,7 @@ MODULE RotateOrbsMod
                     do l=1,j
                         d=SymLabelList3Inv(l)
 !                        Syml=INT(G1(l*2)%sym%S,4)
-!                        IF((Syml.eq.Sym).and.((REAL(UMat(UMatInd(i,j,k,l,0,0)),8)).ne.0.D0)) &
+!                        IF((Syml.eq.Sym).and.((REAL(UMat(UMatInd(i,j,k,l,0,0,tConjg)),8)).ne.0.D0)) &
 !                        WRITE(6,*) i,a,k,g,j,b,l,d,FourIndInts(a,b,g,d)
                         IF((ABS(FourIndInts(a,g,b,d))).ne.0.D0) &
                                         &WRITE(iunit,'(F21.12,4I3)') FourIndInts(a,g,b,d),i,k,j,l 

@@ -7,13 +7,14 @@ C ===================================================================
          REAL*8 UMAT(*)
          REAL*8 UHUB
          INTEGER I,J,K,IC
+         logical :: tConjg
          OPEN(10,FILE='UMAT',STATUS='UNKNOWN')
          IC=1
 !Only do this for each spatial orbital.
          DO I=1,NBASIS/2
-            UMAT(UMatInd(I,I,I,I,0,0))=UHUB
-!            UMAT(UMatInd(I,I+1,I,I+1,0,0))=UHUB
-!            UMAT(UMatInd(I+1,I,I+1,I,0,0))=UHUB
+            UMAT(UMatInd(I,I,I,I,0,0,tConjg))=UHUB
+!            UMAT(UMatInd(I,I+1,I,I+1,0,0,tConjg))=UHUB
+!            UMAT(UMatInd(I+1,I,I+1,I,0,0,tConjg))=UHUB
 !            UMAT(I,I+1,I,I+1)=UHUB
 !            UMAT(I+1,I,I+1,I)=UHUB
             WRITE(10,'(4I7,F19.9)') I,I,I,I,UHUB

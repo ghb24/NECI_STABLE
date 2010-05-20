@@ -8,6 +8,7 @@
       INTEGER nBasisMax(5,*),ISS
       type(timer), save :: proc_timer
       DIMENSION UMAT(*)
+      logical :: tConjg
 C..Cube arrays
       COMPLEX*16 FCK(NMSH,NMSH,NMSH)
       COMPLEX*16 ZIA(-NMSH/2:NMSH/2,NMAX,NMAX)
@@ -35,12 +36,13 @@ C     &        G1(1,K),G1(1,L),NMSH,FCK,NMAX,SUM)
               ID2 = GTID(J)
               ID3 = GTID(K)
               ID4 = GTID(L)
-              IF(UMAT(UMatInd(ID1,ID2,ID3,ID4,0,0)).NE.0.D0) GOTO 100
+              IF(UMAT(UMatInd(ID1,ID2,ID3,ID4,0,0,tConjg)).NE.0.D0) 
+     &                                                          GOTO 100
               CALL SLATCOULFOU(G1(I),G1(J),
      &        G1(K),G1(L),NMSH,FCK,NMAX,ZIA,SUM)
 c              SUM=SUM*COUPLE 
 C..Original call
-              UMAT(UMatInd(ID1,ID2,ID3,ID4,0,0))=SUM
+              UMAT(UMatInd(ID1,ID2,ID3,ID4,0,0,tConjg))=SUM
 !              UMAT(ID1,ID2,ID3,ID4)=SUM
 C..Symmetries
 !              UMAT(ID3,ID4,ID1,ID2)=SUM

@@ -36,6 +36,7 @@ contains
         integer :: a, b, c, m, ii, iSpinSkip
         real(dp) :: sums(3), sum
         integer :: i, j, k, l, id1, id2, id3, id4, ind
+        logical :: tconjg
         type(timer), save :: proc_timer
         character(*), parameter :: this_routine = 'gen_coul_hubnpbc'
 
@@ -81,7 +82,7 @@ contains
                         ! Get the index of physical order UMAT element <IJ|KL>
                         ! Indices are internally reordered such that:
                         ! i >= k, j >= l, (i,k) >= (j,l)
-                        UMAT(UMatInd(id1, id2, id3, id3, 0, 0)) = sum
+                        UMAT(UMatInd(id1, id2, id3, id3, 0, 0,tConjg)) = sum
                         if (abs(sum) > 1.D-10) &
                             write (10, '(4i7,f19.9)') id1, id2, id3, id4, sum
                     enddo
@@ -118,6 +119,7 @@ contains
         integer :: ii, i, j, k, l, id1, id2, id3, id4, ind
         real(dp) :: lx, ly, p, q, r, t2, sum
         complex(dp) :: s, ci
+        logical :: tconjg
         type(timer), save :: proc_timer
         character(*), parameter :: this_routine = 'gen_coul_ueg'
 
@@ -224,7 +226,7 @@ contains
                         ! Get the index of physical order UMAT element <IJ|KL>
                         ! Indices are internally ! reordered such that:
                         !i >= k, j >= l, (i,k) >= (j,l)
-                        UMAT(UMatInd(id1, id2, id3, id4, 0, 0)) = sum
+                        UMAT(UMatInd(id1, id2, id3, id4, 0, 0,tConjg)) = sum
                         if (abs(sum) > 1.d-10) &
                             write (10, '(4i7,f19.9)') id1, id2, id3, id4, sum
                     enddo
