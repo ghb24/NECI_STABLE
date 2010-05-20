@@ -1441,10 +1441,8 @@ MODULE FciMCParMod
 !initialise the particle positions - start at HF with positive sign
 !Set the maximum number of walkers allowed
             MaxWalkersPart=NINT(MemoryFacPart*InitWalkers)
-!            WRITE(6,"(A,F14.5)") "Memory Factor for walkers is: ",MemoryFacPart
             WRITE(6,"(A,I14)") " Memory allocated for a maximum particle number per node of: ",MaxWalkersPart
             MaxSpawned=NINT(MemoryFacSpawn*InitWalkers)
-!            WRITE(6,"(A,F14.5)") "Memory Factor for arrays used for spawning is: ",MemoryFacSpawn
 !            WRITE(6,"(A,I14)") "Memory allocated for a maximum particle number per node for spawning of: ",MaxSpawned
 
 !Put a barrier here so all processes synchronise
@@ -1453,26 +1451,17 @@ MODULE FciMCParMod
             ALLOCATE(WalkVecDets(0:NIfTot,MaxWalkersPart),stat=ierr)
             CALL LogMemAlloc('WalkVecDets',MaxWalkersPart*(NIfTot+1),size_n_int,this_routine,WalkVecDetsTag,ierr)
             WalkVecDets(0:NIfTot,1:MaxWalkersPart)=0
+            MemoryAlloc=(NIfTot+1)*MaxWalkersPart*size_n_int    !Memory Allocated in bytes
 
             IF(.not.tRegenDiagHEls) THEN
                 ALLOCATE(WalkVecH(MaxWalkersPart),stat=ierr)
                 CALL LogMemAlloc('WalkVecH',MaxWalkersPart,8,this_routine,WalkVecHTag,ierr)
                 WalkVecH(:)=0.d0
+                MemoryAlloc=MemoryAlloc+8*MaxWalkersPart
             ELSE
                 WRITE(6,"(A,F14.6,A)") " Diagonal H-Elements will not be stored. This will *save* ",REAL(MaxWalkersPart*8,dp)/1048576.D0," Mb/Processor"
             ENDIF
             
-            ALLOCATE(WalkVecSign(MaxWalkersPart),stat=ierr)
-            CALL LogMemAlloc('WalkVecSign',MaxWalkersPart,4,this_routine,WalkVecSignTag,ierr)
-!            ALLOCATE(WalkVec2Sign(MaxWalkersPart),stat=ierr)
-!            CALL LogMemAlloc('WalkVec2Sign',MaxWalkersPart,4,this_routine,WalkVec2SignTag,ierr)
-            MemoryAlloc=(NIfTot+1+3)*MaxWalkersPart*size_n_int    !Memory Allocated in bytes
-
-            IF(tRegenDiagHEls) THEN
-                MemoryAlloc=MemoryAlloc-(MaxWalkersPart*8)
-            ENDIF
-            
-            WalkVecSign(:)=0
 
             WRITE(6,"(A,I12,A)") " Spawning vectors allowing for a total of ",MaxSpawned," particles to be spawned in any one iteration."
             ALLOCATE(SpawnVec(0:NIftot,MaxSpawned),stat=ierr)
@@ -1926,7 +1915,7 @@ MODULE FciMCParMod
         use CalcData , only : MemoryFacPart,MemoryFacAnnihil,MemoryFacSpawn,iWeightPopRead
         use Logging, only: tIncrementPops,tZeroProjE
         use constants, only: size_n_int,bits_n_int
-        LOGICAL :: exists,First,tBinRead
+        LOGICAL :: exists,tBinRead
         INTEGER :: AvWalkers,WalkerstoReceive(nProcessors)
         INTEGER*8 :: NodeSumNoatHF(nProcessors),TempAllSumNoatHF
         REAL*8 :: TempTotParts,TempCurrWalkers
@@ -1934,7 +1923,7 @@ MODULE FciMCParMod
         INTEGER*8 :: iLutTemp64(0:nBasis/64+1)
         INTEGER :: iLutTemp32(0:nBasis/32+1)
         INTEGER(KIND=n_int) :: iLutTemp(0:NIfTot)
-        INTEGER :: Stat(MPI_STATUS_SIZE),AvSumNoatHF,VecSlot,IntegerPart,HFPointer,TempnI(NEl),ExcitLevel
+        INTEGER :: Stat(MPI_STATUS_SIZE),AvSumNoatHF,VecSlot,IntegerPart,TempnI(NEl),ExcitLevel
         INTEGER :: VecInd,DetsMerged,NIfWriteOut,pos,orb,PopsVersion, iunit
         REAL*8 :: r,FracPart,TempTotWalkers,Gap,DiagSftTemp
         HElement_t :: HElemTemp
@@ -2125,15 +2114,10 @@ MODULE FciMCParMod
         ALLOCATE(WalkVecDets(0:NIfTot,MaxWalkersPart),stat=ierr)
         IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating WalkVecDets array.')
         CALL LogMemAlloc('WalkVecDets',MaxWalkersPart*(NIfTot+1),size_n_int,this_routine,WalkVecDetsTag,ierr)
-!        WalkVecDets(0:NIfTot,1:MaxWalkersPart)=0
         WalkVecDets(:,:)=0
-        ALLOCATE(WalkVecSign(MaxWalkersPart),stat=ierr)
-        IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating WalkVecSign array.')
-        CALL LogMemAlloc('WalkVecSign',MaxWalkersPart,4,this_routine,WalkVecSignTag,ierr)
-        WalkVecSign(:)=0
+        MemoryAlloc=(NIfTot+1)*MaxWalkersPart*size_n_int    !Memory Allocated in bytes
 
 !Just allocating this here, so that the SpawnParts arrays can be used for sorting the determinants when using direct annihilation.
-
         WRITE(6,"(A,I12,A)") " Spawning vectors allowing for a total of ",MaxSpawned," particles to be spawned in any one iteration."
         ALLOCATE(SpawnVec(0:NIfTot,MaxSpawned),stat=ierr)
         CALL LogMemAlloc('SpawnVec',MaxSpawned*(NIfTot+1),size_n_int,this_routine,SpawnVecTag,ierr)
@@ -2141,44 +2125,30 @@ MODULE FciMCParMod
         ALLOCATE(SpawnVec2(0:NIfTot,MaxSpawned),stat=ierr)
         CALL LogMemAlloc('SpawnVec2',MaxSpawned*(NIfTot+1),size_n_int,this_routine,SpawnVec2Tag,ierr)
         SpawnVec2(:,:)=0
-        ALLOCATE(SpawnSignVec(0:MaxSpawned),stat=ierr)
-        CALL LogMemAlloc('SpawnSignVec',MaxSpawned+1,4,this_routine,SpawnSignVecTag,ierr)
-        SpawnSignVec(:)=0
-        ALLOCATE(SpawnSignVec2(0:MaxSpawned),stat=ierr)
-        CALL LogMemAlloc('SpawnSignVec2',MaxSpawned+1,4,this_routine,SpawnSignVec2Tag,ierr)
-        SpawnSignVec2(:)=0
+        MemoryAlloc=MemoryAlloc+MaxSpawned*(1+NIfTot)*2*size_n_int
 
 !Point at correct spawning arrays
         SpawnedParts=>SpawnVec
         SpawnedParts2=>SpawnVec2
-        SpawnedSign=>SpawnSignVec
-        SpawnedSign2=>SpawnSignVec2
-
-        MemoryAlloc=MemoryAlloc+(((MaxSpawned+1)*2)+(2*MaxSpawned*(1+NIfTot)))*size_n_int
-
-!Allocate pointers to the correct walker arrays...
+!Allocate pointer to the correct walker array...
         CurrentDets=>WalkVecDets
-        CurrentSign=>WalkVecSign
 
 !Need to now allocate other arrays
         IF(.not.tRegenDiagHEls) THEN
             ALLOCATE(WalkVecH(MaxWalkersPart),stat=ierr)
             CALL LogMemAlloc('WalkVecH',MaxWalkersPart,8,this_routine,WalkVecHTag,ierr)
             WalkVecH(:)=0.d0
+            MemoryAlloc=MemoryAlloc+8*MaxWalkersPart
         ELSE
-            WRITE(6,"(A,F14.6,A)") "Diagonal H-Elements will not be stored. This will *save* ",REAL(MaxWalkersPart*4*2,dp)/1048576.D0," Mb/Processor"
+            WRITE(6,"(A,F14.6,A)") "Diagonal H-Elements will not be stored. This will *save* ",REAL(MaxWalkersPart*8,dp)/1048576.D0," Mb/Processor"
         ENDIF
 
         IF(.not.tRegenDiagHEls) THEN
             CurrentH=>WalkVecH
-            NewH=>WalkVec2H
         ENDIF
-        NewDets=>WalkVec2Dets
-        NewSign=>WalkVec2Sign
 
 ! The hashing will be different in the new calculation from the one where the POPSFILE was produced, this means we must recalculate the processor each determinant wants to go to.                
 ! This is done by reading in all walkers to the root and then distributing them in the same way as the spawning steps are done - by finding the determinant and sending it there.
-
         IF((PopsVersion.ne.1).and.tHPHF.and.(.not.tPopHPHF)) THEN
             CALL Stop_All(this_routine,"HPHF on, but HPHF was not used in creation of the POPSFILE")
         ENDIF
@@ -2271,13 +2241,11 @@ MODULE FciMCParMod
         
 #endif
             call decode_bit_det (TempnI, iLutTemp)
-!	     WRITE(6,*) TempnI
-!	     CALL FLUSH(6)
             Proc=DetermineDetProc(iLutTemp)   !This wants to return a value between 0 -> nProcessors-1
             IF((Proc.eq.iProcIndex).and.(abs(TempSign).ge.iWeightPopRead)) THEN
                 CurrWalkers=CurrWalkers+1
-                CurrentDets(0:NIfD,CurrWalkers)=iLutTemp(0:NIfD)
-                CurrentSign(CurrWalkers)=TempSign
+                call encode_bit_rep(CurrentDets(:,CurrWalkers),iLutTemp(0:NIfDBO),TempSign,0)   !Do not need to send a flag here...
+                                                                                                !TODO: Add flag for complex walkers to read in both
             ENDIF
         enddo
         CLOSE(iunit)
@@ -2297,16 +2265,18 @@ MODULE FciMCParMod
             FracPart=ScaleWalkers-REAL(IntegerPart)
 
             do l=1,CurrWalkers
-                CurrentSign(l)=CurrentSign(l)*IntegerPart
+                call extract_sign(CurrentDets(:,l),TempSign)
+                TempSign=TempSign*IntegerPart
                 r = genrand_real2_dSFMT() 
                 IF(r.lt.FracPart) THEN
 !Stochastically create another particle
-                    IF(CurrentSign(l).lt.0) THEN
-                        CurrentSign(l)=CurrentSign(l)-1
+                    IF(TempSign(1).lt.0) THEN
+                        TempSign(1)=TempSign(1)-1
                     ELSE
-                        CurrentSign(l)=CurrentSign(l)+1
+                        TempSign(1)=TempSign(1)+1
                     ENDIF
                 ENDIF
+                call encode_sign(CurrentDets(:,l),TempSign)
             enddo
 
             InitWalkers=NINT(InitWalkers*ScaleWalkers)  !New (average) number of initial particles for culling criteria
@@ -2333,33 +2303,18 @@ MODULE FciMCParMod
         ENDIF
             
         WRITE(6,*) "Initial Diagonal Shift (ECorr guess) is now: ",DiagSft
-
-        MemoryAlloc=((NIfTot+1+3)*MaxWalkersPart*size_n_int)
-        IF(tRegenDiagHEls) THEN
-            MemoryAlloc=MemoryAlloc-(MaxWalkersPart*4*2)
-        ENDIF
-
         WRITE(6,"(A,F14.6,A)") " Initial memory (without excitgens) consists of : ",REAL(MemoryAlloc,dp)/1048576.D0," Mb"
         WRITE(6,*) "Initial memory allocation successful..."
-        CALL FLUSH(6)
-
         WRITE(6,*) "Excitgens will be regenerated when they are needed..."
         CALL FLUSH(6)
 
 !Now find out the data needed for the particles which have been read in...
-        First=.true.
         TotParts=0
         do j=1,TotWalkers
             call decode_bit_det (TempnI, currentDets(:,j))
             Excitlevel = FindBitExcitLevel(iLutHF, CurrentDets(:,j), 2)
             IF(Excitlevel.eq.0) THEN
                 IF(.not.tRegenDiagHEls) CurrentH(j)=0.D0
-                IF(First) THEN
-!First run - create the excitation.
-                    HFPointer=j
-                    First=.false.
-                ENDIF
-
             ELSE
                 IF(.not.tRegenDiagHEls) THEN
                     if (tHPHF) then
@@ -2372,7 +2327,8 @@ MODULE FciMCParMod
                 ENDIF
 
             ENDIF
-            TotParts=TotParts+abs(CurrentSign(j))
+            call extract_sign(CurrentDets(:,j),TempSign)
+            TotParts=TotParts+abs(TempSign(1))
 
         enddo
 
@@ -2382,13 +2338,7 @@ MODULE FciMCParMod
         CALL MPI_Reduce(TempTotParts,AllTotParts,1,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
 
         IF(iProcIndex.eq.root) AllTotPartsOld=AllTotParts
-
         WRITE(6,'(A,F20.1)') ' The total number of particles read from the POPSFILE is: ',AllTotParts
-
-!        WRITE(6,*) 'InitWalkers*nProcessors', InitWalkers*nProcessors
-!        WRITE(6,*) "REAL('')",REAL(InitWalkers,dp)*REAL(nProcessors,dp)
-
-        RETURN
 
     END SUBROUTINE ReadFromPopsfilePar
 
@@ -4119,7 +4069,7 @@ MODULE FciMCParMod
         use util_mod, only: get_free_unit
         use HElem
         INTEGER :: ierr,i,j,k,l,DetCurr(NEl),ReadWalkers,TotWalkersDet,HFDetTest(NEl),Seed,alpha,beta,symalpha,symbeta,endsymstate
-        INTEGER :: DetLT,VecSlot,error,HFConn,MemoryAlloc,iMaxExcit,nStore(6),nJ(Nel),BRR2(nBasis),LargestOrb,nBits,HighEDet(NEl)
+        INTEGER :: DetLT,VecSlot,error,HFConn,iMaxExcit,nStore(6),nJ(Nel),BRR2(nBasis),LargestOrb,nBits,HighEDet(NEl)
         INTEGER(KIND=n_int) :: iLutTemp(0:NIfDBO)
         HElement_t :: rh,TempHii
         TYPE(BasisFn) HFSym

@@ -186,7 +186,6 @@ MODULE FciMCData
       INTEGER :: WalkVe2HTag=0,WalkVec2DetsTag=0,WalkVec2SignTag=0
       INTEGER , POINTER :: NewDets(:,:)
       INTEGER , POINTER :: NewSign(:)
-      REAL*8 , POINTER :: NewH(:)
 
       ! Only used in FciMC, but put here to allow access to a data module for
       ! the sorting routines etc.
