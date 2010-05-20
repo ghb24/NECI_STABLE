@@ -591,6 +591,9 @@ MODULE NatOrbsMod
         CHARACTER(len=*), PARAMETER :: this_routine='FillMP2VDM'
         HElement_t :: HEl01,HEl02
 
+#ifdef __CMPLX
+         call stop_all('FillMP2VDM', 'Natural Orbitals not implemented for complex orbitals.')
+#endif
 ! Calculating the MP2VDM (D2_ab) matrix whose eigenvectors become the transformation matrix.        
 ! This goes in the natural orbital matrix of this module.
 ! The eigenvalues are the occupation numbers of the new orbitals.  These should decrease exponentially so that when we remove the 

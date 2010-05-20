@@ -85,6 +85,10 @@ C..Symmetries not needed by UMatInd
          INTEGER BRR(NBASIS),ORBORDER(8)
          INTEGER I
          Type(Symmetry) TotSymRep
+#ifdef __CMPLX
+         call stop_all('SETUPHFBASIS', 
+     &                 'HF not implemented for complex orbitals.')
+#endif
  
 C.. We now need to modify G1.  Pretend that all basis functions have
 C.. a different X quantum number, and all have the same spin.
@@ -134,6 +138,10 @@ C.. Generic spatial symmetry
          call set_timer(proc_timer)
          WRITE(6,*) 'CALCULATING HF UMAT'
        STOP "HF UMAT calc broken through U/TMAT reindexing. Please fix"
+#ifdef __CMPLX
+         call stop_all('CALCHFUMAT', 
+     &                 'HF not implemented for complex orbitals.')
+#endif
 C ==--------------------------------------------------------------------==
          OPEN(10,FILE='UMAT2',STATUS='UNKNOWN')
 C.. A, B, C, D denote basis fns in the HF basis.  These basis fns
@@ -1308,6 +1316,10 @@ C.. TOT now contains dE/dcij, so we store this
          INTEGER IDA,IDB,IDC,IDF
          REAL*8 TOT,TOT1,TOT2,ECUR,TOT1B
          logical :: tConjg
+#ifdef __CMPLX
+         call stop_all('CALCDEDCIJ2', 
+     &                 'HF not implemented for complex orbitals.')
+#endif
 C.. We calculate dE/dcij as
 C.. dE/dc_kf = 2(Sum_a c_ka <a|h|f> 
 C.. +Sum_j Sum_abc c_ja c_kb c_jc (<af|U|cb>-<af|U|bc>+<ab|U|cf>-<ab|U|fc>)) 
