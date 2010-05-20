@@ -718,14 +718,9 @@ MODULE FciMCParMod
 
         proc = DetermineDetProc(iLutJ)    ! 0 -> nProcessors-1
 
-        SpawnedParts(:,ValidSpawnedList(proc)) = iLutJ
-        SpawnedSign(ValidSpawnedList(Proc)) = child(1)
-
-        ! TODO: have this already stored in iLut, but ignored for hashing?
-        ! Set the last integer of the determinant to be either 0 or 1
+        ! This will also set the flag of the walker(parentInitiator) to be either 0 or 1
         ! according to if its parent is inside or outside the active space.
-        if (tTruncInitiator) &
-            SpawnedParts(niftot, ValidSpawnedList(proc)) = parentInitiator
+        call encode_det(SpawnedParts(:,ValidSpawnedList(proc)),iLutJ,child,parentInitiator)
 
         ValidSpawnedList(proc) = ValidSpawnedList(proc) + 1
 

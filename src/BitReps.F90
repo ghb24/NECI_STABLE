@@ -105,7 +105,7 @@ contains
         call decode_bit_det (nI, ilut)
 
         sgn = iLut(NOffSgn:NOffSgn+lenof_sign-1)
-        IF(NOffFlag.eq.1) THEN
+        IF(NifFlag.eq.1) THEN
             flags = iLut(NOffFlag)
         ELSE
             flags = 0
@@ -124,13 +124,27 @@ contains
         integer(n_int), intent(in) :: ilut(0:nIfTot)
         integer :: extract_flags
 
-        IF(NOffFlag.eq.1) THEN
+        IF(NIfFlag.eq.1) THEN
             extract_flags = iLut(NOffFlag)
         ELSE
             extract_flags = 0
         ENDIF
 
     end function extract_flags
+
+    subroutine encode_bit_rep (ilut, Det, sgn, flag)
+        integer(n_int), intent(inout) :: ilut(0:nIfTot)
+        integer, dimension(lenof_sign), intent(in) :: sgn
+        integer(n_int), intent(in) :: Det(0:NIfDBO)
+        integer, intent(in) :: flag
+        
+        iLut(0:NIfDBO) = Det
+        iLut(NOffSgn:NOffSgn+NIfSgn-1) = sgn
+        IF(NIfFlag.eq.1) THEN
+            iLut(NOffFlag) = flag
+        ENDIF
+
+    end subroutine encode_bit_rep
 
     subroutine encode_flags (ilut, flag)
 
