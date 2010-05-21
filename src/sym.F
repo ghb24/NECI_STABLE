@@ -180,7 +180,6 @@ C.. A1 corresponds to bit 0 (i.e. irrep 1)
          character(*), parameter :: this_routine='GenMolPSymTable'
         
          TAbelian=.true.
-         PropBitLen=1
          nSymGen=INT(DLOG(NSYMMAX+0.D0)/DLOG(2.D0)+.4)
          WRITE(6,"(A,I3,A)") "  Generating abelian symmetry table with",&
      &      nSymGen, " generators" 

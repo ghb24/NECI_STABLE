@@ -2110,6 +2110,9 @@ MODULE RotateOrbsMod
     SUBROUTINE Transform2ElIntsMemSave()
         INTEGER :: i,j,k,l,a,b,g,d,ierr,Temp4indintsTag,a2,b2,g2,d2
         REAL*8 , ALLOCATABLE :: Temp4indints(:,:)
+#ifdef __CMPLX
+        call stop_all('Transform2ElIntsMemSave', 'Rotating orbitals not implemented for complex orbitals.')
+#endif
         
         Transform2ElInts_Time%timer_name='Transform2ElIntsTime'
         CALL set_timer(Transform2ElInts_time,30)
@@ -4955,6 +4958,9 @@ MODULE RotateOrbsMod
         INTEGER :: l,k,j,i,a,b,g,d,c,BinNo,l2,k2,j2,i2,nBasis2,TMAT2DPartTag,ierr
         REAL*8 :: NewTMAT,NewTMAT02
         REAL*8 , ALLOCATABLE :: TMAT2DPart(:,:)
+#ifdef __CMPLX
+        call stop_all('RefillUMATandTMAT2D', 'Rotating orbitals not implemented for complex orbitals.')
+#endif
 
         IF(tStoreSpinOrbs) THEN
             ALLOCATE(TMAT2DPart((nBasis-NoFrozenVirt),nBasis),stat=ierr)
