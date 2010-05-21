@@ -148,7 +148,8 @@ MODULE AnnihilationMod
         use constants, only: MpiDetInt
         REAL :: Gap
         INTEGER :: i,sendcounts(nProcessors),disps(nProcessors),recvcounts(nProcessors),recvdisps(nProcessors),error
-        INTEGER :: MaxIndex,MaxSendIndex
+        INTEGER :: MaxSendIndex
+        INTEGER, INTENT(OUT) :: MaxIndex
 
 !        WRITE(6,*) "ValidSpawnedList ",ValidSpawnedList(:)
 
@@ -175,17 +176,17 @@ MODULE AnnihilationMod
 
 !We can now get recvdisps from recvcounts, since we want the data to be contiguous after the move.
         recvdisps(1)=0
-        recvcounts(1)=recvcounts(1)*(NIfTot+1)
-        disps(1)=disps(1)*(NIfTot+1)
-        sendcounts(1)=sendcounts(1)*(NIfTot+1)
         do i=2,nProcessors
-            recvdisps(i)=(recvdisps(i-1)+recvcounts(i-1))*(NIfTot+1)
+            recvdisps(i)=recvdisps(i-1)+recvcounts(i-1)
+        enddo
+        MaxIndex=recvdisps(nProcessors)+recvcounts(nProcessors)
+        do i=1,nProcessors
+            recvdisps(i)=recvdisps(i)*(NIfTot+1)
             recvcounts(i)=recvcounts(i)*(NIfTot+1)
             sendcounts(i)=sendcounts(i)*(NIfTot+1)
             disps(i)=disps(i)*(NIfTot+1)
         enddo
 
-        MaxIndex=(recvdisps(nProcessors)+recvcounts(nProcessors))/(NIfTot+1)
 !Max index is the largest occupied index in the array of hashes to be ordered in each processor 
         IF(MaxIndex.gt.(0.9*MaxSpawned)) THEN
             CALL Warning("SendProcNewParts","Maximum index of newly-spawned array is close to maximum length after annihilation send. Increase MemoryFacSpawn")
@@ -228,11 +229,8 @@ MODULE AnnihilationMod
 #endif
 
 !        WRITE(6,*) MaxIndex, "Recieved particles: "
-!        do i=1,MaxSpawned
-!            IF(SpawnedParts2(1,i).ne.0) THEN
-!            write(6,*) i, '***', CountBits(spawnedparts(:,i), nifd)
-!                WRITE(6,*) SpawnedParts2(:,i)
-!            ENDIF
+!        do i=1,MaxIndex
+!            WRITE(6,*) SpawnedParts2(0:NIfDBO,i)
 !        enddo
         
         CALL halt_timer(Comms_Time)

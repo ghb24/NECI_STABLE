@@ -565,6 +565,7 @@ MODULE FciMCParMod
             !      of walkers.
 
             ! Decode determinant from (stored) bit-representation.
+!            WRITE(6,*) j,CurrentDets(:,j)
             call extract_bit_rep (CurrentDets(:,j), DetCurr, SignCurr, &
                                   FlagsCurr)
 
@@ -641,6 +642,7 @@ MODULE FciMCParMod
                     ! We know we want to create a particle, so encode the bit
                     ! representation if it isn't already.
                     call encode_child (CurrentDets(:,j), iLutnJ, ic, ex)
+!                    WRITE(6,*) "Adding child:",iLutnJ(0:NIfDBO),child(1)
 
                     call new_child_stats (CurrentDets(:,j), iLutnJ, ic, &
                                           walkExcitLevel, child)
@@ -2751,6 +2753,8 @@ MODULE FciMCParMod
         ! Do particles on determinant die? iDie can be both +ve (deaths), or
         ! -ve (births, if shift > 0)
         iDie = attempt_die_par (DetCurr, Kii, wSign)
+
+!        IF(iDie.ne.0) WRITE(6,*) "Death: ",iDie
 
         ! Update death counter
         NoDied = NoDied + iDie
