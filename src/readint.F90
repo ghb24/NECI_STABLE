@@ -412,7 +412,7 @@ contains
          use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
          use SystemData, only: UMatEps,tUMatEps,tCacheFCIDUMPInts
          use SystemData, only: tRIIntegrals,nBasisMax,tROHF
-         USE UMatCache, only: UMatInd,UMAT2D,TUMAT2D,nPairs,CacheFCIDUMP
+         USE UMatCache, only: UMatInd,UMatConj,UMAT2D,TUMAT2D,nPairs,CacheFCIDUMP
          USE UMatCache, only: FillUpCache,GTID,nStates,nSlots,nTypes
          USE UMatCache, only: UMatCacheData,UMatLabels,GetUMatSize
          use OneEInts, only: TMatind,TMat2D,TMATSYM,TSTARSTORE
@@ -540,6 +540,9 @@ contains
 !.. 2-e integrals
 !.. UMAT is stored as just spatial orbitals (not spinorbitals)
 !..  we're reading in (IJ|KL), but we store <..|..> which is <IK|JL>
+#ifdef __CMPLX
+                Z = UMatConj(I,K,J,L,Z)
+#endif
 !.. AJWT removed the restriction to TSTARSTORE
                 IF(TUMAT2D) THEN
                     IF(I.eq.J.and.I.eq.K.and.I.eq.L) THEN
