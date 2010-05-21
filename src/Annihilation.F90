@@ -260,7 +260,7 @@ MODULE AnnihilationMod
         ToRemove=0
         do i=2,ValidSpawned
             IF(.not.DetBitEQ(SpawnedParts(0:NIfTot,i),SpawnedParts2(0:NIfTot,VecInd),NIfDBO)) THEN
-                call extract_sign(SpawnedParts(:,VecInd),SpawnedSign)
+                call extract_sign(SpawnedParts2(:,VecInd),SpawnedSign)
                 IF(SpawnedSign(1).eq.null_part(1)) ToRemove=ToRemove+1
                 VecInd=VecInd+1
                 SpawnedParts2(:,VecInd)=SpawnedParts(:,i)
