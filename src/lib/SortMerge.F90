@@ -376,15 +376,15 @@
 
 !This routine takes each determinant as it is about to be merged into the CurrentDets array, and determines whether or not it is an initiator.
     SUBROUTINE FlagifDetisInitiator(DetCurr)
-        USE SystemData , only : NIfTot,NIfDBO
         USE FciMCData , only : NoExtraInitDoubs,iLutRef,NoAddedInitiators,iLutHF,Iter
         USE FciMCParMOD , only : TestIfDetInCASBit
         USE CalcData , only : tTruncCAS,tInitIncDoubs,tAddtoInitiator,InitiatorWalkNo
         USE DetBitOps , only : FindBitExcitLevel,DetBitEQ
         use bit_reps , only : extract_sign, encode_flags 
+        use bit_rep_data , only: NIfTot,NIfDBO
         use constants, only: n_int,lenof_sign
         INTEGER(KIND=n_int), INTENT(INOUT) :: DetCurr(0:NIfTot)
-        INTEGER, DIMENSION(lenof_sign), :: SignCurr
+        INTEGER, DIMENSION(lenof_sign) :: SignCurr
         INTEGER :: CurrExcitLevel
         LOGICAL :: tDetInCAS
 

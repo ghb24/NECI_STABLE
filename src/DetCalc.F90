@@ -295,13 +295,14 @@ CONTAINS
       use util_mod, only: get_free_unit
       use Determinants , only : get_helement,FDet
       use SystemData, only : Alat, arr, brr, boa, box, coa, ecore, g1,Beta
-      use SystemData, only : nBasis, nBasisMax,nEl,nMsh,LzTot,NIfTot
-      use SystemData, only : nBasis, nBasisMax,nEl,nMsh,NIfTot
+      use SystemData, only : nBasis, nBasisMax,nEl,nMsh,LzTot
+      use SystemData, only : nBasis, nBasisMax,nEl,nMsh
       use IntegralsData, only: FCK,NMAX, UMat
       Use Logging, only: iLogging,tHistSpawn,tHistHamil
       use SystemData, only  : tCSFOLD
       use Parallel, only : iProcIndex
-      use DetBitops, only: EncodeBitDet, DetBitEQ
+      use DetBitops, only: DetBitEQ,EncodeBitDet
+      use bit_rep_data, only: NIfDBO
       use legacy_data, only: irat
      use HElem
 
@@ -321,7 +322,7 @@ CONTAINS
         INTEGER iDeg,III,IN,IND,INDZ
         INTEGER NBLOCK!,OpenOrbs,OpenOrbsSym,Ex(2,NEl)
         INTEGER nKry1,nK(NEl)!,nJ(NEl)
-        INTEGER(KIND=n_int) :: ilut(0:NIfTot)
+        INTEGER(KIND=n_int) :: ilut(0:NIfDBO)
         
         INTEGER J,JR,iGetExcitLevel_2,ExcitLevel, iunit
         INTEGER LSCR,LISCR,MaxIndex
@@ -596,7 +597,7 @@ CONTAINS
             WRITE(6,*) "Normalization of eigenvector 1 is: ", norm
             CALL FLUSH(6)
 
-            ALLOCATE(FCIDets(0:NIfTot,Det),stat=ierr)
+            ALLOCATE(FCIDets(0:NIfDBO,Det),stat=ierr)
             IF(ierr.ne.0) CALL Stop_All("DetCalc","Cannot allocate memory to hold vector")
             ALLOCATE(FCIDetIndex(0:NEl+1),stat=ierr) !+1 so we can store the end of the array too
             ALLOCATE(Temp(Det),stat=ierr)
@@ -621,7 +622,7 @@ CONTAINS
 ! FCIDetIndex is off by one, for later cumulative indexing
                     FCIDetIndex(ExcitLevel+1)=FCIDetIndex(ExcitLevel+1)+1
                     Temp(Det)=ExcitLevel    !Temp will now temporarily hold the excitation level of the determinant.
-                    CALL EncodeBitDet(NMRKS(:,i),FCIDets(0:NIfTot,Det))
+                    CALL EncodeBitDet(NMRKS(:,i),FCIDets(0:NIfDBO,Det))
                     IF(tEnergy) THEN
                         FCIGS(Det)=REAL(CK(i,1),8)/norm
                     ENDIF
@@ -647,8 +648,8 @@ CONTAINS
             ENDIF
 
 !Test that HF determinant is the first determinant
-            CALL EncodeBitDet(FDet,iLut(0:NIfTot))
-            do i=0,NIfTot
+            CALL EncodeBitDet(FDet,iLut(0:NIfDBO))
+            do i=0,NIfDBO
                 IF(iLut(i).ne.FCIDets(i,1)) THEN
                     CALL Stop_All("DetCalc","Problem with ordering the determinants by excitation level")
                 ENDIF
@@ -695,13 +696,13 @@ CONTAINS
 !                CALL FindExcitBitDetSym(FCIDets(0:NIfD,i),iLutSym(0:NIfD))
 !                Found=.false.
 !                do j=1,Det
-!                    IF(DetBitEQ(iLutSym,FCIDets(0:NIfTot,j))) THEN
+!                    IF(DetBitEQ(iLutSym,FCIDets(0:NIfDBO,j))) THEN
 !                        Found=.true.
 !                        EXIT
 !                    ENDIF
 !                enddo
 !                IF(.not.Found) THEN
-!                    WRITE(6,*) i,FCIDets(0:NIfTot,i),iLutSym(0:NIfTot)
+!                    WRITE(6,*) i,FCIDets(0:NIfDBO,i),iLutSym(0:NIfDBO)
 !                    CALL Stop_All("DetCalc","Cannot find spin-coupled determinant")
 !                ELSE
 !                    CALL CalcOpenOrbs(FCIDets(:,i),OpenOrbs)
@@ -712,9 +713,9 @@ CONTAINS
 !
 !                    IF(TestClosedShellDet(FCIDets(:,i))) THEN
 !                            WRITE(6,*) "Get Here"
-!                            CALL DecodeBitDet(nK,FCIDets(0:NIfTot,i))
-!!                            CALL DecodeBitDet(nJ,FCIDets(0:NIfTot,j))
-!                            IF(.not.DetBitEQ(FCIDets(0:NIfTot,1),FCIDets(0:NIfTot,i),NIfTot)) THEN
+!                            CALL DecodeBitDet(nK,FCIDets(0:NIfDBO,i))
+!!                            CALL DecodeBitDet(nJ,FCIDets(0:NIfDBO,j))
+!                            IF(.not.DetBitEQ(FCIDets(0:NIfDBO,1),FCIDets(0:NIfDBO,i),NIfDBO)) THEN
 !                                CALL HPHFGetOffDiagHElement(NMRKS(1:NEl,1),nK,MatEl)
 !                            ENDIF
 !                            CALL HPHFGetDiagHElement(nK,MatEl2)
@@ -723,8 +724,8 @@ CONTAINS
 !                    ELSE
 !                        IF(abs(FCIGS(i)).gt.1.D-5) THEN 
 !!Find Hi0 element
-!                            CALL DecodeBitDet(nK,FCIDets(0:NIfTot,i))
-!!                            CALL DecodeBitDet(nJ,FCIDets(0:NIfTot,j))
+!                            CALL DecodeBitDet(nK,FCIDets(0:NIfDBO,i))
+!!                            CALL DecodeBitDet(nJ,FCIDets(0:NIfDBO,j))
 !                            CALL HPHFGetOffDiagHElement(NMRKS(1:NEl,1),nK,MatEl)
 !                            CALL HPHFGetDiagHElement(nK,MatEl2)
 !!                            Ex(1,1)=NEl
@@ -743,7 +744,7 @@ CONTAINS
 
                     do i=1,Det
                         WRITE(iunit,"(2I13)",advance='no') i,temp(i)
-                        do j=0,NIfTot
+                        do j=0,NIfDBO
                            WRITE(iunit,"(I13)",advance='no') FCIDets(j,i)
                         enddo
                         WRITE(iunit,"(A,G25.16,A)",advance='no') " ",FCIGS(i),"  "
@@ -760,7 +761,7 @@ CONTAINS
                     WRITE(iunit,*) "***"
                     do i=1,Det
                         WRITE(iunit,"(2I13)",advance='no') i,temp(i)
-                        do j=0,NIfTot
+                        do j=0,NIfDBO
                            WRITE(iunit,"(I13)",advance='no') FCIDets(j,i)
                         enddo
                         WRITE(iunit,"(A)",advance='no') " "
