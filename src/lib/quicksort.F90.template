@@ -516,7 +516,7 @@ contains
                         call stop_all (this_routine, &
                                         "parameter nStackMax too small")
                 endif
-                if (hi - i + 1 >= j - lo + 1) then
+                if (hi - i + 1 >= j - lo) then
                     stack(nstack) = hi
                     stack(nstack-1) = i
                     hi = j - 1
