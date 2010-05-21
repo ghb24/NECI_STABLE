@@ -377,6 +377,7 @@ MODULE NatOrbsMod
     SUBROUTINE FillOneRDM()
         USE DetCalcData , only : Det,FCIDets,FCIDetIndex,ICILevel
         use DetBitOps, only: FindBitExcitLevel
+        use bit_reps, only: decode_bit_det
 ! Det is the number of determinants in FCIDets.
 ! FCIDets contains the list of all determinants in the system in bit string representation, FCIDets(0:NIfTot,1:Det) 
 ! ICILevel is the max excitation level of the calculation - as in EXCITE ICILevel.
@@ -539,7 +540,7 @@ MODULE NatOrbsMod
                         ENDIF
 
                     ELSEIF(ExcitLevel.eq.0) THEN
-                        CALL DecodeBitDet(nJ,FCIDets(0:NIfTot,j))
+                        CALL Decode_Bit_Det(nJ,FCIDets(0:NIfTot,j))
                         do k=1,NEl
 !                            WRITE(6,*) 'k',k
                             IF(tStoreSpinOrbs) THEN

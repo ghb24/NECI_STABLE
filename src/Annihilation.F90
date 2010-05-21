@@ -818,6 +818,119 @@ MODULE AnnihilationMod
 
     END FUNCTION CreateHash
 
+    SUBROUTINE LinSearchParts(DetArray,iLut,MinInd,MaxInd,PartInd,tSuccess)
+        INTEGER(KIND=n_int) :: iLut(0:NIfTot),DetArray(0:NIfTot,1:MaxInd)
+        INTEGER :: MinInd,MaxInd,PartInd
+        INTEGER :: i,j,N,Comp
+        LOGICAL :: tSuccess
+
+        N=MinInd
+        do while(N.le.MaxInd)
+            Comp=DetBitLT(DetArray(:,N),iLut(:),NIfDBO)
+            IF(Comp.eq.1) THEN
+                N=N+1
+            ELSEIF(Comp.eq.-1) THEN
+                PartInd=N-1
+                tSuccess=.false.
+                RETURN
+            ELSE
+                tSuccess=.true.
+                PartInd=N
+                RETURN
+            ENDIF
+        enddo
+        tSuccess=.false.
+        PartInd=MaxInd-1
+
+    END SUBROUTINE LinSearchParts
+
+!Do a binary search in CurrentDets, between the indices of MinInd and MaxInd. If successful, tSuccess will be true and 
+!PartInd will be a coincident determinant. If there are multiple values, the chosen one may be any of them...
+!If failure, then the index will be one less than the index that the particle would be in if it was present in the list.
+!(or close enough!)
+    SUBROUTINE BinSearchParts(iLut,MinInd,MaxInd,PartInd,tSuccess)
+        INTEGER(KIND=n_int) :: iLut(0:NIfTot)
+        INTEGER :: MinInd,MaxInd,PartInd
+        INTEGER :: i,j,N,Comp
+        LOGICAL :: tSuccess
+
+        i=MinInd
+        j=MaxInd
+        IF(i-j.eq.0) THEN
+            Comp=DetBitLT(CurrentDets(:,MaxInd),iLut(:),NIfDBO)
+            IF(Comp.eq.0) THEN
+                tSuccess=.true.
+                PartInd=MaxInd
+                RETURN
+            ELSE
+                tSuccess=.false.
+                PartInd=MinInd
+            ENDIF
+        ENDIF
+
+        do while(j-i.gt.0)  !End when the upper and lower bound are the same.
+            N=(i+j)/2       !Find the midpoint of the two indices
+!            WRITE(6,*) i,j,n
+
+!Comp is 1 if CyrrebtDets(N) is "less" than iLut, and -1 if it is more or 0 if they are the same
+            Comp=DetBitLT(CurrentDets(:,N),iLut(:),NIfDBO)
+
+            IF(Comp.eq.0) THEN
+!Praise the lord, we've found it!
+                tSuccess=.true.
+                PartInd=N
+                RETURN
+            ELSEIF((Comp.eq.1).and.(i.ne.N)) THEN
+!The value of the determinant at N is LESS than the determinant we're looking for. Therefore, move the lower bound of the search up to N.
+!However, if the lower bound is already equal to N then the two bounds are consecutive and we have failed...
+                i=N
+            ELSEIF(i.eq.N) THEN
+
+
+                IF(i.eq.MaxInd-1) THEN
+!This deals with the case where we are interested in the final/first entry in the list. Check the final entry of the list and leave
+!We need to check the last index.
+                    Comp=DetBitLT(CurrentDets(:,i+1),iLut(:),NIfDBO)
+                    IF(Comp.eq.0) THEN
+                        tSuccess=.true.
+                        PartInd=i+1
+                        RETURN
+                    ELSEIF(Comp.eq.1) THEN
+!final entry is less than the one we want.
+                        tSuccess=.false.
+                        PartInd=i+1
+                        RETURN
+                    ELSE
+                        tSuccess=.false.
+                        PartInd=i
+                        RETURN
+                    ENDIF
+
+                ELSEIF(i.eq.MinInd) THEN
+                    tSuccess=.false.
+                    PartInd=i
+                    RETURN
+
+                ELSE
+                    i=j
+                ENDIF
+
+
+            ELSEIF(Comp.eq.-1) THEN
+!The value of the determinant at N is MORE than the determinant we're looking for. Move the upper bound of the search down to N.
+                j=N
+            ELSE
+!We have failed - exit loop
+                i=j
+            ENDIF
+
+        enddo
+
+!If we have failed, then we want to find the index that is one less than where the particle would have been.
+        tSuccess=.false.
+        PartInd=MAX(MinInd,i-1)
+
+    END SUBROUTINE BinSearchParts
     
 !!This is a new routine to totally annihilate all particles on the same determinant. This is not done using an all-to-all, but rather
 !!by rotating the newly spawned particles around all determinants and annihilating with the particles on their processor.
@@ -1488,119 +1601,6 @@ MODULE AnnihilationMod
 !
 !    END SUBROUTINE AnnihilateBetweenSpawned
 !
-!    SUBROUTINE LinSearchParts(DetArray,iLut,MinInd,MaxInd,PartInd,tSuccess)
-!        INTEGER(KIND=n_int) :: iLut(0:NIfTot),DetArray(0:NIfTot,1:MaxInd)
-!        INTEGER :: MinInd,MaxInd,PartInd
-!        INTEGER :: i,j,N,Comp
-!        LOGICAL :: tSuccess
-!
-!        N=MinInd
-!        do while(N.le.MaxInd)
-!            Comp=DetBitLT(DetArray(:,N),iLut(:),NIfDBO)
-!            IF(Comp.eq.1) THEN
-!                N=N+1
-!            ELSEIF(Comp.eq.-1) THEN
-!                PartInd=N-1
-!                tSuccess=.false.
-!                RETURN
-!            ELSE
-!                tSuccess=.true.
-!                PartInd=N
-!                RETURN
-!            ENDIF
-!        enddo
-!        tSuccess=.false.
-!        PartInd=MaxInd-1
-!
-!    END SUBROUTINE LinSearchParts
-!
-!!Do a binary search in CurrentDets, between the indices of MinInd and MaxInd. If successful, tSuccess will be true and 
-!!PartInd will be a coincident determinant. If there are multiple values, the chosen one may be any of them...
-!!If failure, then the index will be one less than the index that the particle would be in if it was present in the list.
-!!(or close enough!)
-!    SUBROUTINE BinSearchParts(iLut,MinInd,MaxInd,PartInd,tSuccess)
-!        INTEGER(KIND=n_int) :: iLut(0:NIfTot)
-!        INTEGER :: MinInd,MaxInd,PartInd
-!        INTEGER :: i,j,N,Comp
-!        LOGICAL :: tSuccess
-!
-!        i=MinInd
-!        j=MaxInd
-!        IF(i-j.eq.0) THEN
-!            Comp=DetBitLT(CurrentDets(:,MaxInd),iLut(:),NIfDBO)
-!            IF(Comp.eq.0) THEN
-!                tSuccess=.true.
-!                PartInd=MaxInd
-!                RETURN
-!            ELSE
-!                tSuccess=.false.
-!                PartInd=MinInd
-!            ENDIF
-!        ENDIF
-!
-!        do while(j-i.gt.0)  !End when the upper and lower bound are the same.
-!            N=(i+j)/2       !Find the midpoint of the two indices
-!!            WRITE(6,*) i,j,n
-!
-!!Comp is 1 if CyrrebtDets(N) is "less" than iLut, and -1 if it is more or 0 if they are the same
-!            Comp=DetBitLT(CurrentDets(:,N),iLut(:),NIfDBO)
-!
-!            IF(Comp.eq.0) THEN
-!!Praise the lord, we've found it!
-!                tSuccess=.true.
-!                PartInd=N
-!                RETURN
-!            ELSEIF((Comp.eq.1).and.(i.ne.N)) THEN
-!!The value of the determinant at N is LESS than the determinant we're looking for. Therefore, move the lower bound of the search up to N.
-!!However, if the lower bound is already equal to N then the two bounds are consecutive and we have failed...
-!                i=N
-!            ELSEIF(i.eq.N) THEN
-!
-!
-!                IF(i.eq.MaxInd-1) THEN
-!!This deals with the case where we are interested in the final/first entry in the list. Check the final entry of the list and leave
-!!We need to check the last index.
-!                    Comp=DetBitLT(CurrentDets(:,i+1),iLut(:),NIfDBO)
-!                    IF(Comp.eq.0) THEN
-!                        tSuccess=.true.
-!                        PartInd=i+1
-!                        RETURN
-!                    ELSEIF(Comp.eq.1) THEN
-!!final entry is less than the one we want.
-!                        tSuccess=.false.
-!                        PartInd=i+1
-!                        RETURN
-!                    ELSE
-!                        tSuccess=.false.
-!                        PartInd=i
-!                        RETURN
-!                    ENDIF
-!
-!                ELSEIF(i.eq.MinInd) THEN
-!                    tSuccess=.false.
-!                    PartInd=i
-!                    RETURN
-!
-!                ELSE
-!                    i=j
-!                ENDIF
-!
-!
-!            ELSEIF(Comp.eq.-1) THEN
-!!The value of the determinant at N is MORE than the determinant we're looking for. Move the upper bound of the search down to N.
-!                j=N
-!            ELSE
-!!We have failed - exit loop
-!                i=j
-!            ENDIF
-!
-!        enddo
-!
-!!If we have failed, then we want to find the index that is one less than where the particle would have been.
-!        tSuccess=.false.
-!        PartInd=MAX(MinInd,i-1)
-!
-!    END SUBROUTINE BinSearchParts
 !
 !
 !        

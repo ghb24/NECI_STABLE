@@ -50,6 +50,7 @@ module soft_exit
                                PrintShiftBlocking, RestartShiftBlocking
     use AnnihilationMod, only: DetermineDetProc
     use constants, only: lenof_sign
+    use bit_reps, only: extract_sign,encode_sign
     implicit none
 
 contains

@@ -5,6 +5,7 @@ MODULE CCMC
     use CCMCData, only: ExcitToDetSign,AddBitExcitor
     use ClusterList
     use bit_rep_data, only: NIfDBO,NIfTot
+    use bit_reps, only: encode_det
    IMPLICIT NONE
    CONTAINS
 

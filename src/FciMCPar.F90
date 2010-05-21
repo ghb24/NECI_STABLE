@@ -57,7 +57,7 @@ MODULE FciMCParMod
                                SumInErrorContrib, WriteInitPops
     use RotateOrbsMod, only: RotateOrbs
     use NatOrbsMod, only: PrintOrbOccs
-    use bit_reps, only: decode_bit_det
+    use bit_reps, only: decode_bit_det,encode_bit_rep,encode_det,extract_bit_rep
     implicit none
 
     contains
@@ -713,7 +713,7 @@ MODULE FciMCParMod
 
         ! This will also set the flag of the walker(parentInitiator) to be either 0 or 1
         ! according to if its parent is inside or outside the active space.
-        call encode_det(SpawnedParts(:,ValidSpawnedList(proc)),iLutJ,child,parentInitiator)
+        call encode_bit_rep(SpawnedParts(:,ValidSpawnedList(proc)),iLutJ,child,parentInitiator)
 
         ValidSpawnedList(proc) = ValidSpawnedList(proc) + 1
 
