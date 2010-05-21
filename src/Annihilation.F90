@@ -246,7 +246,7 @@ MODULE AnnihilationMod
 
 !We want to sort the list of newly spawned particles, in order for quicker binary searching later on. (this is not essential, but should proove faster)
 !They should remain sorted after annihilation between spawned
-        call sort(SpawnedParts(:,1:ValidSpawned), SpawnedSign(1:ValidSpawned))
+        call sort(SpawnedParts(:,1:ValidSpawned))
         IF(tHistSpawn) HistMinInd2(1:NEl)=FCIDetIndex(1:NEl)
 
 !First, we compress the list of spawned particles, so that they are only specified at most once in each processors list.
