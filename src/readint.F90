@@ -432,7 +432,7 @@ contains
          INTEGER ZeroedInt,NonZeroInt
          INTEGER I,J,K,L,X,Y,A,B,iCache,iCacheI,iType, iunit
          INTEGER NORB,NELEC,MS2,ORBSYM(1000),ISYM,SYMMAX,SYML(1000)
-         LOGICAL LWRITE,UHF,tAddtoCache,GetCachedUMatEl, tconjg
+         LOGICAL LWRITE,UHF,tAddtoCache,GetCachedUMatEl
          INTEGER ISPINS,ISPN,ISPN2,ierr,SYMLZ(1000)!,IDI,IDJ,IDK,IDL
          INTEGER Counter(1:8),UMatSize,TMatSize
          INTEGER , ALLOCATABLE :: CacheInd(:)
@@ -578,7 +578,7 @@ contains
                         ENDIF
                     ELSE
 !Read in all integrals as normal.
-                        UMAT(UMatInd(I,K,J,L,0,0,tConjg))=Z
+                        UMAT(UMatInd(I,K,J,L,0,0))=Z
                     ENDIF
                 ELSEIF(TSTARSTORE.and.(.not.TUMAT2D)) THEN
                     STOP 'Need UMAT2D with TSTARSTORE'
@@ -588,14 +588,14 @@ contains
                     IF(tUMatEps) THEN
 !We have an epsilon cutoff for the size of the two-electron integrals - UMatEps
                         IF(abs(Z).lt.UMatEps) THEN
-                            UMAT(UMatInd(I,K,J,L,0,0,tConjg))=0.D0
+                            UMAT(UMatInd(I,K,J,L,0,0))=0.D0
                             ZeroedInt=ZeroedInt+1
                         ELSE
-                            UMAT(UMatInd(I,K,J,L,0,0,tConjg))=Z
+                            UMAT(UMatInd(I,K,J,L,0,0))=Z
                             NonZeroInt=NonZeroInt+1
                         ENDIF
                     ELSE
-                        UMAT(UMatInd(I,K,J,L,0,0,tConjg))=Z
+                        UMAT(UMatInd(I,K,J,L,0,0))=Z
                     ENDIF
                 ENDIF
              ENDIF
@@ -676,7 +676,7 @@ contains
          INTEGER I,J,K,L,X,Y, iunit
          INTEGER NORB,NELEC,MS2,ORBSYM(1000),ISYM,SYMMAX
          INTEGER Counter(1:8),Index(1000)
-         LOGICAL LWRITE,UHF, tConjg
+         LOGICAL LWRITE,UHF
          NAMELIST /FCI/ NORB,NELEC,MS2,ORBSYM,ISYM,UHF
          LWRITE=.FALSE.
          UHF=.FALSE.
@@ -749,12 +749,12 @@ contains
                     Y=MAX(I,J)
                     UMAT2D(Y,X)=Z
                 ELSE
-                    UMAT(UMatInd(I,K,J,L,0,0,tConjg))=Z
+                    UMAT(UMatInd(I,K,J,L,0,0))=Z
                 ENDIF
             ELSEIF(TSTARSTORE.and.(.not.TUMAT2D)) THEN
                 STOP 'Need UMAT2D with TSTARSTORE'
             ELSE
-                UMAT(UMatInd(I,K,J,L,0,0,tConjg))=Z
+                UMAT(UMatInd(I,K,J,L,0,0))=Z
             ENDIF
          ENDIF
 !         WRITE(14,'(1X,F20.12,4I3)') Z,I,J,K,L

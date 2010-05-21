@@ -193,7 +193,7 @@ MODULE UMatCache
 
       
 
-      INTEGER FUNCTION UMatInd(I,J,K,L,NBASIS,NOCCUPIED,tConjg)
+      INTEGER FUNCTION UMatInd(I,J,K,L,NBASIS,NOCCUPIED)
          ! Get the index of physical order UMAT element <IJ|KL>.  
          ! Indices are internally reordered such that I>K, J>L,(I,K)>(J,L) 
          ! Note: (i,k)>(j,l) := (k>l) || ((k==l)&&(i>j))
@@ -203,9 +203,8 @@ MODULE UMatCache
          !    nOccupied: # of occupied orbitals.  If =0, then nOcc is used.
          !    Should only be passed as non-zero during the freezing process.
          IMPLICIT NONE
-         INTEGER, INTENT(IN) :: I,J,K,L,NBASIS,NOCCUPIED
-         LOGICAL, INTENT(OUT) :: tConjg
-         INTEGER :: AA,BB, R,S,T,U,A,B,C,D
+         INTEGER I,J,K,L,AA,BB,NBASIS
+         INTEGER R,S,T,U,A,B,C,D,NOCCUPIED
          IF(TSTARSTORE) THEN
             !Rearrange, so that orbitals ordered over energy, and first two indices are occupied
             !Could be a problem in the future r.e. partially filled degenerate fermi levels - is BRR then the best way to determine if an orbital is occupied or not??

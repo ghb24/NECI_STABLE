@@ -422,7 +422,7 @@ contains
       use constants, only: dp
       Use OneEInts, only: SetupTMat!,GetTMatEl
       USE UMatCache, only : FreezeTransfer, CreateInvBRR, GetUMatSize, SetupUMat2D_df
-      Use UMatCache, only: InitStarStoreUMat,SetupUMatCache!,GTID
+      Use UMatCache, only: InitStarStoreUMat,SetupUMatCache!,GTID,UMatInd
       use SystemData, only : nBasisMax, Alpha,BHub, BRR,nmsh,nEl
       use SystemData, only : Ecore,G1,iSpinSkip,nBasis,nMax,nMaxZ
       use SystemData, only: Omega,tAlpha,TBIN,tCPMD,tDFread,THFORDER,tRIIntegrals
@@ -696,7 +696,7 @@ contains
 !                     IDj = GTID(j)
 !                     IDk = GTID(k)
 !                     IDl = GTID(l)
-!                     Index1=UMatInd(idi,idj,idk,idl,0,0,tConjg)
+!                     Index1=UMatInd(idi,idj,idk,idl,0,0)
 !                     WRITE(37,"(9I5,G25.10)") i,j,k,l,idi,idj,idk,idl,Index1,GetUMatEl(NBasisMax,UMAT,ALAT,nBasis,ISpinSkip,G1,idi,idj,idk,idl)
 !                 enddo
 !             enddo
@@ -880,7 +880,7 @@ contains
        use constants, only: dp
        use SystemData, only: Symmetry,BasisFN,BasisFNSize,arr,tagarr,tHub
        use OneEInts
-       USE UMatCache, only: FreezeTransfer,UMatCacheData,TUMat2D
+       USE UMatCache, only: FreezeTransfer,UMatCacheData,UMatInd,TUMat2D
        Use UMatCache, only: FreezeUMatCache, CreateInvBrr2,FreezeUMat2D, SetupUMatTransTable
        use UMatCache, only: GTID
        use global_utilities
@@ -907,7 +907,6 @@ contains
        INTEGER FDET(NEL),NEL
 !       TYPE(Symmetry) KSYM
        REAL*8 ALAT(3)
-       logical :: tConjg
        character(*), parameter :: this_routine='IntFreezeBasis'
 
        IF(tHub) THEN
@@ -1302,13 +1301,13 @@ contains
                                                           IF(((I+FROZENBELOWZ).gt.NEL).or.((J+FROZENBELOWZ).gt.NEL)) THEN
                                                              CONTINUE
                                                           ELSE
-                                                             UMAT2(UMatInd(IDIP,IDJP,IDKP,IDLP,0,(NEL-NFROZEN-NFROZENIN)/2,tConjg))=  &
-                   &                                                          UMAT(UMatInd(IDI,IDJ,IDK,IDL,NHG/2,0,tConjg))
+                                                             UMAT2(UMatInd(IDIP,IDJP,IDKP,IDLP,0,(NEL-NFROZEN-NFROZENIN)/2))=  &
+                   &                                                          UMAT(UMatInd(IDI,IDJ,IDK,IDL,NHG/2,0))
                                                           ENDIF
                                                        ENDIF
                                                     ELSE
-                                                       UMAT2(UMatInd(IDIP,IDJP,IDKP,IDLP,0,0,tConjg))=             &
-                   &                                                 UMAT(UMatInd(IDI,IDJ,IDK,IDL,NHG/2,0,tConjg))
+                                                       UMAT2(UMatInd(IDIP,IDJP,IDKP,IDLP,0,0))=             &
+                   &                                                 UMAT(UMatInd(IDI,IDJ,IDK,IDL,NHG/2,0))
                                                     ENDIF
                                                  ENDIF
                                               ENDIF
@@ -1691,10 +1690,9 @@ contains
         ! The normal, cached case for getumatel
 
         integer, intent(in) :: idi, idj, idk, idl
-        logical :: tConjg
         HElement_t :: hel
 
-        hel = UMAT (UMatInd(idi, idj, idk, idl, 0, 0,tConjg))
+        hel = UMAT (UMatInd(idi, idj, idk, idl, 0, 0))
 #ifdef __CMPLX
         hel = UMatConj(idi, idj, idk, idl, hel)
 #endif
@@ -1708,7 +1706,6 @@ contains
         integer, intent(in) :: idi, idj, idk, idl
         integer :: i, j
         HElement_t :: hel
-        logical :: tConjg
 
         if ( (idi == idj) .and. (idi == idk) .and. (idi == idl) ) then
             hel = umat2d (idi, idi)
@@ -1725,7 +1722,7 @@ contains
             j = min (idi, idk)
             hel = umat2d (i, j)
         else
-            i = UMatInd (idi, idj, idk, idl, nBasis/2, 0, tConjg)
+            i = UMatInd (idi, idj, idk, idl, nBasis/2, 0)
             if (i == -1) then
                 hel = get_nan ()
             else

@@ -58,7 +58,7 @@ C.. HFBASIS(HFBASISFN,PRIMBASISFN) has PRIMBASISFN varying slowest
          REAL*8 HFBASIS(NBASIS,NBASIS),SUM1,OS,HFE(NBASIS)
          INTEGER I,J,K,L,A,B,C,D
          INTEGER ID1,ID2,ID3,ID4,NHG,ISSM,BRR(NBASIS)
-         LOGICAL LSPN, tConjg
+         LOGICAL LSPN
          NHG=NBASIS
          WRITE(6,*) 'READING HF UMAT'
 C ==--------------------------------------------------------------------=
@@ -66,7 +66,7 @@ C ==--------------------------------------------------------------------=
          DO WHILE (.TRUE.)
             
             READ(10,*,END=12) A,B,C,D,SUM1
-              UMAT2(UMatInd(A,B,C,D,0,0,tConjg))=SUM1
+              UMAT2(UMatInd(A,B,C,D,0,0))=SUM1
 C..Symmetries not needed by UMatInd
 !              UMAT2(C,D,A,B)=SUM1
 !              UMAT2(B,A,D,C)=SUM1
@@ -132,7 +132,7 @@ C.. Generic spatial symmetry
          INTEGER I,J,K,L,A,B,C,D
          type(timer), save :: proc_timer
          INTEGER ID1,ID2,ID3,ID4,NHG,ISSM,BRR(NBASIS),NORBUSED
-         LOGICAL LSPN, tConjg
+         LOGICAL LSPN
          NHG=NBASIS
          proc_timer%timer_name='CALCHFUMAT'
          call set_timer(proc_timer)
@@ -159,9 +159,9 @@ C.. Thus the sum1 A+C must be even, as must B+D
              DO I=1,NHG
               ID1 = GTID(I)
               SUM1=SUM1+HFBASIS(A,I)
-     &               *UMAT(UMatInd(ID1,J,K,L,0,0,tConjg))
+     &               *UMAT(UMatInd(ID1,J,K,L,0,0))
              ENDDO
-             UMATT(UMatInd(J,K,L,A,0,0,tConjg))=SUM1
+             UMATT(UMatInd(J,K,L,A,0,0))=SUM1
 !             IF(ABS(SUM1).GT.1.D-9) WRITE(6,*) J,K,L,A,SUM1
             ENDDO
            ENDDO
@@ -176,9 +176,9 @@ C.. Thus the sum1 A+C must be even, as must B+D
              DO J=1,NHG
               ID2 = GTID(J)
               SUM1=SUM1+HFBASIS(B,J)
-     &               *UMATT(UMatInd(ID2,K,L,A,0,0,tConjg))
+     &               *UMATT(UMatInd(ID2,K,L,A,0,0))
              ENDDO
-             UMAT2(UMatInd(K,L,A,B,0,0,tConjg))=SUM1
+             UMAT2(UMatInd(K,L,A,B,0,0))=SUM1
 !             IF(ABS(SUM1).GT.1.D-9) WRITE(6,*) K,L,A,B,SUM1
             ENDDO
            ENDDO
@@ -193,9 +193,9 @@ C.. Thus the sum1 A+C must be even, as must B+D
              DO K=1,NHG
               ID3 = GTID(K)
               SUM1=SUM1+HFBASIS(C,K)
-     &               *UMAT2(UMatInd(ID3,L,A,B,0,0,tConjg))
+     &               *UMAT2(UMatInd(ID3,L,A,B,0,0))
              ENDDO
-             UMATT(UMatInd(L,A,B,C,0,0,tConjg))=SUM1
+             UMATT(UMatInd(L,A,B,C,0,0))=SUM1
 !             IF(ABS(SUM1).GT.1.D-9) WRITE(6,*) L,A,B,C,SUM1
             ENDDO
            ENDDO
@@ -208,14 +208,14 @@ C.. Thus the sum1 A+C must be even, as must B+D
            DO C=1,NORBUSED
             DO D=1,NORBUSED
              LSPN=(MOD(A+C,2).EQ.0).AND.(MOD(B+D,2).EQ.0)
-             IF(LSPN.AND.UMAT2(UMatInd(A,B,C,D,0,0,tConjg)).EQ.0.D0)THEN
+             IF(LSPN.AND.UMAT2(UMatInd(A,B,C,D,0,0)).EQ.0.D0) THEN
               SUM1=0.D0
               DO L=1,NHG
                ID4 = GTID(L)
                SUM1=SUM1+HFBASIS(D,L)
-     &                *UMATT(UMatInd(ID4,A,B,C,0,0,tConjg))
+     &                *UMATT(UMatInd(ID4,A,B,C,0,0))
               ENDDO
-              UMAT2(UMatInd(A,B,C,D,0,0,tConjg))=SUM1
+              UMAT2(UMatInd(A,B,C,D,0,0))=SUM1
 C..Symmetries not needed by UMatInd
 !              UMAT2(C,D,A,B)=SUM1
 !              UMAT2(B,A,D,C)=SUM1
@@ -1315,7 +1315,6 @@ C.. TOT now contains dE/dcij, so we store this
          INTEGER ISPN,I,J,K,A,B,C,F,JSPN,KSPN,JJ
          INTEGER IDA,IDB,IDC,IDF
          REAL*8 TOT,TOT1,TOT2,ECUR,TOT1B
-         logical :: tConjg
 #ifdef __CMPLX
          call stop_all('CALCDEDCIJ2', 
      &                 'HF not implemented for complex orbitals.')
@@ -1354,14 +1353,14 @@ C.. Here A and C correspond to J and B corresponds to K
                               TOT2=0.D0
                               IDC = GTID((C-1)*NSPINS+1+JSPN-1)
                               TOT2=TOT2+UMAT(UMatInd(IDA,IDF,IDC,IDB
-     &                                       ,0,0,tConjg))
+     &                                       ,0,0))
                               TOT2=TOT2+UMAT(UMatInd(IDA,IDB,IDC,IDF
-     &                                       ,0,0,tConjg))
+     &                                       ,0,0))
                               IF(KSPN.EQ.JSPN) THEN                  
                               TOT2=TOT2-UMAT(UmatInd(IDA,IDF,IDB,IDC
-     &                                       ,0,0,tConjg))
+     &                                       ,0,0))
                               TOT2=TOT2-UMAT(UMatInd(IDA,IDB,IDF,IDC
-     &                                       ,0,0,tConjg))
+     &                                       ,0,0))
                               ENDIF
                               TOT1B=TOT1B+TOT2*CMAT(J,C,JSPN)
                            ENDDO
