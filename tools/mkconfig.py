@@ -169,6 +169,24 @@ DIRS = $(GDEST) $(KDEST) $(TDEST) $(GDEP_DEST) $(KDEP_DEST) $(EXE) $(LIB)
 make_dirs := $(foreach outdir, $(DIRS), $(shell test -e $(outdir) || mkdir -p $(outdir)))
 
 #-----
+# Executables and libraries.
+
+# Main programs
+PROGS = $(addprefix $(EXE)/,neci.x kneci.x)
+
+# Library versions of neci.
+CPMDLIBS = $(addprefix $(LIB)/,gneci-cpmd.a kneci-cpmd.a)
+VASPLIBS = $(addprefix $(LIB)/,gneci-vasp.a kneci-vasp.a)
+NECILIBS = $(CPMDLIBS) $(VASPLIBS)
+
+# Utility programs.
+# We assume that the utility program is written in fortran, resides in the
+# utils subdirectory with the source filename (e.g.) utils/a.f90, that the
+# program name is (e.g.) bin/a.x and that the utility program requires (at
+# most) the same libraries as neci.
+UTILS = $(addprefix $(EXE)/, TransLz.x BlockFCIMC.x ModelFCIQMC.x ConvertMolpFCID.x ConvertPOPSFILE.x RoVibSpectrum/CalcVibSpectrum.x)
+
+#-----
 # VCS info.
 
 # Get the version control id.  Git only.  Outputs a string.
@@ -263,17 +281,17 @@ KcDEPEND_FILES = $(addprefix $(KDEP_DEST)/,$(notdir $(KcOBJ:.o=.d)))
 CDEPEND = $(cppDEPEND_FILES) $(cDEPEND_FILES) $(KcppDEPEND_FILES) $(KcDEPEND_FILES)
 
 #-----
-# make's special rules
+# Set make's special rules
 
 # Rules which don't actually produce any files...
-.PHONY: clean cleanall depend rmdeps help utils $(UTILS)
+.PHONY: clean cleanall depend rmdeps help utils
 
 # Compile neci.x by default.
 .DEFAULT_GOAL := neci.x
 
 # Don't delete any intermediate files (e.g. bin/*.x when the goal doesn't
 # include the full path; .F90 files produced from template files).
-.SECONDARY: 
+.SECONDARY: $(addprefix $(TDEST)/,$(notdir $(basename $(F90TMPSRCFILES)))) $(PROGS) $(NECILIBS) $(UTILS)
 
 # Extensions of files to compile.
 .SUFFIXES:
@@ -377,17 +395,15 @@ null_goal: ;
 
 new: clean neci.x
 
-gneci-cpmd: $(LIB)/gneci-cpmd.a
-kneci-cpmd: $(LIB)/kneci-cpmd.a
-cpmdlibs: gneci-cpmd kneci-cpmd
+cpmdlibs: $(CPMDLIBS)
 
-gneci-vasp: $(LIB)/gneci-vasp.a
-kneci-vasp: $(LIB)/kneci-vasp.a
-vasplibs: gneci-vasp kneci-vasp
+vasplibs: $(VASPLIBS)
 
-libs: cpmdlibs vasplibs
+libs: $(NECILIBS)
 
-all: neci.x kneci.x libs
+utils: $(UTILS)
+
+all: $(PROGS) libs utils
 
 #-----
 # Help message.
@@ -530,11 +546,6 @@ $(KcppDEPEND_FILES): $(KDEP_DEST)/%%.d: %%.cpp
 # upon the source filename and that the utility program requires (at most) the
 # same libraries as neci.
 MKUTIL = $(FC) $(FFLAGS) $(F90FLAGS) $< -o $@ $(LIBS)
-
-UTILS = TransLz.x BlockFCIMC.x ModelFCIQMC.x ConvertMolpFCID.x ConvertPOPSFILE.x RoVibSpectrum/CalcVibSpectrum.x  
-
-# Target to compile all utility programs.
-utils: $(UTILS)
 
 # Compile bin/*.config.opt.x from utils/*.f90
 # Previously defined targets point bin/*.x to bin/*.config.opt.x and from *.x to bin/*.x.
