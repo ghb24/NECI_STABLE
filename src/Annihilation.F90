@@ -740,6 +740,7 @@ MODULE AnnihilationMod
         use systemdata , only: NIfDBO
         use CalcData , only: tRandomiseHashOrbs
         use FciMCData, only: RandomHash 
+        use constants, only: bits_n_int
         INTEGER(KIND=n_int) :: iLut(0:NIfTot)
         INTEGER :: i,j,Elecs!,TempDet(NEl),MurmurHash2Wrapper
         INTEGER(KIND=int64) :: Summ!,RangeofBins,NextBin
@@ -751,11 +752,7 @@ MODULE AnnihilationMod
             Summ=0
             Elecs=0
             lp1: do i=0,NIfDBO
-#ifdef __INT64
-                do j=0,63
-#else
-                do j=0,31
-#endif
+                do j=0,bits_n_int-1
                     IF(BTEST(iLut(i),j)) THEN
                         Elecs=Elecs+1
 #ifdef __INT64
@@ -773,11 +770,7 @@ MODULE AnnihilationMod
             Summ=0
             Elecs=0
             lp2: do i=0,NIfDBO
-#ifdef __INT64
-                do j=0,63
-#else
-                do j=0,31
-#endif
+                do j=0,bits_n_int-1
                     IF(BTEST(iLut(i),j)) THEN
                         Elecs=Elecs+1
 #ifdef __INT64
