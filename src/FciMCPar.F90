@@ -2798,6 +2798,7 @@ MODULE FciMCParMod
                 VecSlot = VecSlot + 1
             else
                 SpawnedParts(:,ValidSpawnedList(iProcIndex)) = iLutCurr
+                SpawnedParts(NIfTot,ValidSpawnedList(iProcIndex))=0
                 SpawnedSign(ValidSpawnedList(iProcIndex)) = CopySign
                 ValidSpawnedList(iProcIndex) = ValidSpawnedList(iProcIndex)+1
             endif
