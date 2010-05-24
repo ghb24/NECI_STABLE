@@ -5,16 +5,23 @@ contains
     SUBROUTINE INITFROMFCID(NEL,NBASISMAX,LEN,LMS,TBIN)
          use SystemData , only : tNoSymGenRandExcits,lNoSymmetry,tROHF
          use SystemData , only : tStoreSpinOrbs
+         use SymData, only: nProp, PropBitLen, TwoCycleSymGens
          use Parallel
+         use util_mod, only: get_free_unit
          IMPLICIT NONE
-         INTEGER NEL,nBasisMax(5,*),LEN,LMS,SYMLZ(1000)
-         INTEGER NORB,NELEC,MS2,ORBSYM(1000),ISYM,i,SYML(1000)
-         LOGICAL TBIN,exists,UHF
+         logical, intent(in) :: tbin
+         integer, intent(out) :: NEL,nBasisMax(5,*),LEN,LMS
+         integer SYMLZ(1000)
+         INTEGER NORB,NELEC,MS2,ORBSYM(1000),ISYM,i,SYML(1000), iunit
+         LOGICAL exists,UHF
          CHARACTER*3 :: fmat
-         NAMELIST /FCI/ NORB,NELEC,MS2,ORBSYM,ISYM,UHF,SYML,SYMLZ
+         NAMELIST /FCI/ NORB,NELEC,MS2,ORBSYM,ISYM,UHF,SYML,SYMLZ,PROPBITLEN,NPROP
          UHF=.FALSE.
          fmat='NO'
+         PROPBITLEN = 0
+         NPROP = 0
          IF(iProcIndex.eq.0) THEN
+             iunit = get_free_unit()
              IF(TBIN) THEN
                 INQUIRE(FILE='FCISYM',EXIST=exists)
                 IF(.not.exists) THEN
@@ -24,23 +31,17 @@ contains
                 IF(.not.exists) THEN
                     CALL Stop_All('INITFROMFCID','FCIDUMP file does not exist')
                 ENDIF
-!                IF(fmat=='YES') THEN
-!                    STOP 'FCIDUMP is not unformatted, but TBIN true'
-!                ENDIF
-                OPEN(8,FILE='FCISYM',STATUS='OLD',FORM='FORMATTED')
-                READ(8,FCI)
+                OPEN(iunit,FILE='FCISYM',STATUS='OLD',FORM='FORMATTED')
+                READ(iunit,FCI)
              ELSE
                 INQUIRE(FILE='FCIDUMP',EXIST=exists,UNFORMATTED=fmat)
                 IF(.not.exists) THEN
                     CALL Stop_All('InitFromFCID','FCIDUMP file does not exist')
                 ENDIF
-!                IF(fmat=='YES') THEN
-!                    STOP 'FCIDUMP is not formatted, but TBIN false'
-!                ENDIF
-                OPEN(8,FILE='FCIDUMP',STATUS='OLD',FORM='FORMATTED')
-                READ(8,FCI)
+                OPEN(iunit,FILE='FCIDUMP',STATUS='OLD',FORM='FORMATTED')
+                READ(iunit,FCI)
              ENDIF
-             CLOSE(8)
+             CLOSE(iunit)
          ENDIF
 
 !Now broadcast these values to the other processors
@@ -52,6 +53,12 @@ contains
          CALL MPIIBCast(SYMLZ,1000,0)
          CALL MPIIBCast_Scal(ISYM,0)
          CALL MPILBCast_Scal(UHF,0)
+         CALL MPIIBCast_Scal(PROPBITLEN,0)
+         CALL MPIIBCast(NPROP,3,0)
+         ! If PropBitLen has been set then assume we're not using an Abelian
+         ! symmetry group which has two cycle generators (ie the group has
+         ! complex representations).
+         TwoCycleSymGens = PropBitLen == 0
 
          IF(tROHF.and.(.not.UHF)) THEN
              CALL Stop_All("INITFROMFCID","ROHF specified, but FCIDUMP is not in a high-spin format.")
@@ -114,30 +121,36 @@ contains
          use SystemData, only: tCacheFCIDUMPInts,tROHF,tFixLz,iMaxLz
          use UMatCache, only: nSlotsInit,CalcNSlotsInit
          use UMatCache, only: GetCacheIndexStates,GTID
+         use SymData, only: nProp, PropBitLen, TwoCycleSymGens
          use Parallel
+         use constants, only: dp
+         use util_mod, only: get_free_unit
          IMPLICIT NONE
-         INTEGER nBasisMax(5,*),BRR(LEN),LEN
-         TYPE(BasisFN) G1(LEN)
-         REAL*8 ARR(LEN,2)
-         REAL*8 Z
+         integer, intent(in) :: LEN
+         integer, intent(inout) :: nBasisMax(5,*)
+         integer, intent(out) :: BRR(LEN)
+         REAL*8, intent(out) :: ARR(LEN,2)
+         type(BasisFN), intent(out) :: G1(LEN)
+         HElement_t Z
          INTEGER*8 IND,MASK
-         INTEGER I,J,K,L,I1
+         INTEGER I,J,K,L,I1, iunit
          INTEGER ISYMNUM,ISNMAX,SYMMAX,SYMLZ(1000)
          INTEGER NORB,NELEC,MS2,ORBSYM(1000),ISYM,ISPINS,ISPN,SYML(1000)
          INTEGER Counter(1:8),nPairs,iErr,MaxnSlot,MaxIndex
          INTEGER , ALLOCATABLE :: MaxSlots(:)
          LOGICAL TBIN,UHF
-         NAMELIST /FCI/ NORB,NELEC,MS2,ORBSYM,ISYM,UHF,SYML,SYMLZ
+         NAMELIST /FCI/ NORB,NELEC,MS2,ORBSYM,ISYM,UHF,SYML,SYMLZ,PROPBITLEN,NPROP
          UHF=.FALSE.
          IF(iProcIndex.eq.0) THEN
+             iunit = get_free_unit()
              IF(TBIN) THEN
-                OPEN(8,FILE='FCISYM',STATUS='OLD',FORM='FORMATTED')
-                READ(8,FCI)
-                CLOSE(8)
-                OPEN(8,FILE='FCIDUMP',STATUS='OLD',FORM='UNFORMATTED')
+                OPEN(iunit,FILE='FCISYM',STATUS='OLD',FORM='FORMATTED')
+                READ(iunit,FCI)
+                CLOSE(iunit)
+                OPEN(iunit,FILE='FCIDUMP',STATUS='OLD',FORM='UNFORMATTED')
              ELSE
-                OPEN(8,FILE='FCIDUMP',STATUS='OLD',FORM='FORMATTED')
-                READ(8,FCI)
+                OPEN(iunit,FILE='FCIDUMP',STATUS='OLD',FORM='FORMATTED')
+                READ(iunit,FCI)
              ENDIF
          ENDIF
 
@@ -150,6 +163,12 @@ contains
          CALL MPIIBCast(SYMLZ,1000,0)
          CALL MPIIBCast_Scal(ISYM,0)
          CALL MPILBCast_Scal(UHF,0)
+         CALL MPIIBCast_Scal(PROPBITLEN,0)
+         CALL MPIIBCast(NPROP,3,0)
+         ! If PropBitLen has been set then assume we're not using an Abelian
+         ! symmetry group which has two cycle generators (ie the group has
+         ! complex representations).
+         TwoCycleSymGens = PropBitLen == 0
 
          ISYMNUM=0
          ISNMAX=0
@@ -182,41 +201,6 @@ contains
          G1(1:LEN)=NullBasisFn
          ARR=0.d0
 
-!!Calculate a key, which will reorder the orbitals in symmetry order.
-!!Counter is the cumulative number of symmetries, just to indicate the allowed current index of an orbital
-!         Counter(:)=0
-!         SymMax=1
-!         do i=1,norb
-!             IF(ORBSYM(i).gt.SymMax) SymMax=ORBSYM(i)
-!             Counter(ORBSYM(i))=Counter(ORBSYM(i))+1
-!         enddo
-!!         WRITE(6,*) Counter(:)
-!         do i=SymMax,2,-1
-!             Counter(i)=1
-!             do j=1,i-1
-!                 Counter(i)=Counter(i)+Counter(j)
-!             enddo
-!         enddo
-!         Counter(1)=1
-!!Check that all orbitals are accounted for.
-!         j=0
-!         do i=1,norb
-!             IF(ORBSYM(i).eq.SymMax) j=j+1
-!         enddo
-!         IF((Counter(SymMax)+j-1).ne.norb) THEN
-!             WRITE(6,*) "***",SymMax,norb,j
-!             WRITE(6,*) Counter(1:SymMax)
-!             CALL Stop_All("GETFCIBASIS","Counter incorrectly set up")
-!         ENDIF
-!!Now work out what the new indices are to be called
-!         Index(1:norb)=0
-!         do i=1,norb
-!             Index(i)=Counter(OrbSym(i))
-!             Counter(OrbSym(i))=Counter(OrbSym(i))+1
-!         enddo
-!!Now need to sort OrbSym so that the symmetries correspond to the correct orbitals.
-!         CALL NECI_SORTI(norb,OrbSym(1:norb))
-
 !If we are reading in and cacheing the FCIDUMP integrals, we need to know the maximum number j,l pairs of
 !integrals for a given i,k pair. (Or in chemical notation, the maximum number of k,l pairs for a given i,j pair.)
          IF(tCacheFCIDUMPInts) THEN
@@ -246,7 +230,7 @@ contains
                 MASK=(2**16)-1
                 
                 !IND contains all the indices in an integer*8 - use mask of 16bit to extract them
-2               READ(8,END=99) Z,IND
+2               READ(iunit,END=99) Z,IND
                 L=iand(IND,MASK)
                 IND=Ishft(IND,-16)
                 K=iand(IND,MASK)
@@ -270,18 +254,18 @@ contains
                         ENDIF
                     ENDIF
                     ISYMNUM=ISYMNUM+1
-                    ARR(2*I-1,1)=Z
-                    ARR(2*I,1)=Z
+                    ARR(2*I-1,1)=real(Z,dp)
+                    ARR(2*I,1)=real(Z,dp)
                 ELSEIF(I.NE.0.AND.K.EQ.0.AND.J.EQ.0) THEN
-                    ARR(2*I-1,1)=Z
-                    ARR(2*I,1)=Z
+                    ARR(2*I-1,1)=real(Z,dp)
+                    ARR(2*I,1)=real(Z,dp)
                 ENDIF
 !.. At the moment we're ignoring the core energy
                 IF(I.NE.0) GOTO 2
 
              ELSE   !Reading in formatted FCIDUMP file
 
-1               READ(8,'(1X,G20.12,4I3)',END=99) Z,I,J,K,L
+1               READ(iunit,*,END=99) Z,I,J,K,L
 
                 IF(tROHF) THEN
 !The FCIDUMP file is in spin-orbitals - we need to transfer them to spatial orbitals.
@@ -308,10 +292,6 @@ contains
                     CALL CalcNSlotsInit(I1,J,K,L,Z,nPairs,MaxSlots)
                 ENDIF
 
-!                I=Index(I)
-!                J=Index(J)
-!                K=Index(K)
-!                L=Index(L)
 !.. Each orbital in the file corresponds to alpha and beta spinorbitals
              !Fill ARR with the energy levels
                 IF(I1.NE.0.AND.K.EQ.0.AND.I1.EQ.J) THEN
@@ -326,31 +306,29 @@ contains
 !This fills the single particle energy array (ARR) with the diagonal one-electron integrals, so that if
 !there are no fock energies printed out in the FCIDUMP, then we can still order the orbitals in some way.
 !If the fock energies are printed out before the one-electron integrals, this will cause problems.
+!These integrals must be real.
                     IF(ISPINS.eq.1) THEN
-                        ARR(I1,1)=Z
+                        ARR(I1,1)=real(Z,dp)
                     ELSEIF(tROHF) THEN
-                        ARR(I,1)=Z
+                        ARR(I,1)=real(Z,dp)
                     ELSE
-                        ARR(2*I1,1)=Z
-                        ARR(2*I1-1,1)=Z
+                        ARR(2*I1,1)=real(Z,dp)
+                        ARR(2*I1-1,1)=real(Z,dp)
                     ENDIF
-!                    DO ISPN=1,ISPINS
-!                        ARR(ISPINS*I1-ISPN+1,1)=Z
-!                    ENDDO
 
                 ELSEIF(I1.NE.0.AND.K.EQ.0.AND.J.EQ.0) THEN
 !                    WRITE(6,*) I
                     IF(ISPINS.eq.1) THEN
-                        ARR(I1,1)=Z
+                        ARR(I1,1)=real(Z,dp)
                     ELSEIF(tROHF) THEN
-                        ARR(I,1)=Z
+                        ARR(I,1)=real(Z,dp)
                     ELSE
-                        ARR(2*I1,1)=Z
-                        ARR(2*I1-1,1)=Z
+                        ARR(2*I1,1)=real(Z,dp)
+                        ARR(2*I1-1,1)=real(Z,dp)
                     ENDIF
 
 !                    DO ISPN=1,ISPINS
-!                        ARR(ISPINS*I-ISPN+1,1)=Z
+!                        ARR(ISPINS*I-ISPN+1,1)=real(Z,dp)
 !                    ENDDO
 
                 ENDIF
@@ -358,7 +336,7 @@ contains
                 IF(I1.NE.0) GOTO 1
              ENDIF
 99           CONTINUE
-             CLOSE(8)
+             CLOSE(iunit)
 
          ENDIF
 
@@ -391,13 +369,10 @@ contains
             ENDDO
          ENDDO
          IF(.not.tFixLz) iMaxLz=0
-         IF(SYMMAX.EQ.1) THEN
-         ELSEIF(SYMMAX.LE.2) THEN
-         ELSEIF(SYMMAX.LE.4) THEN
-            SYMMAX=4
-         ELSEIF(SYMMAX.LE.8) THEN
-            SYMMAX=8
-         ENDIF
+         ! We use bit strings to store symmetry information.
+         ! SYMMAX needs to be the smallest power of 2 greater or equal to
+         ! the actual number of symmetry representations spanned by the basis.
+         SYMMAX = 2**ceiling(log(real(SYMMAX))/log(2.0))
          IF(tFixLz) WRITE(6,"(A,I3)") "Maximum Lz orbital: ",iMaxLz
          WRITE(6,"(A,I3)") "  Maximum number of symmetries: ",SYMMAX
          NBASISMAX(1,1)=0
@@ -437,34 +412,41 @@ contains
          use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
          use SystemData, only: UMatEps,tUMatEps,tCacheFCIDUMPInts
          use SystemData, only: tRIIntegrals,nBasisMax,tROHF
-         USE UMatCache, only: UMatInd,UMAT2D,TUMAT2D,nPairs,CacheFCIDUMP
+         USE UMatCache, only: UMatInd,UMatConj,UMAT2D,TUMAT2D,nPairs,CacheFCIDUMP
          USE UMatCache, only: FillUpCache,GTID,nStates,nSlots,nTypes
          USE UMatCache, only: UMatCacheData,UMatLabels,GetUMatSize
          use OneEInts, only: TMatind,TMat2D,TMATSYM,TSTARSTORE
          use OneEInts, only: CalcTMatSize
          use Parallel
+         use SymData, only: nProp, PropBitLen, TwoCycleSymGens
+         use util_mod, only: get_free_unit
          IMPLICIT NONE
-         INTEGER NBASIS,ZeroedInt,NonZeroInt
-         REAL*8 ECORE,ARR(NBASIS,2)
-         REAL*8 UMAT(*)
-         REAL*8 Z
+         integer, intent(in) :: NBASIS
+         logical, intent(in) :: tReadFreezeInts
+         REAL*8, intent(out) :: ECORE,ARR(NBASIS,2)
+         integer, intent(out) :: BRR(NBASIS)
+         HElement_t, intent(out) :: UMAT(*)
+         TYPE(BasisFN), intent(out) :: G1(*)
+         HElement_t Z
          HElement_t UMatEl
-         TYPE(BasisFN) G1(*)
-         INTEGER I,J,K,L,BRR(NBASIS),X,Y,A,B,iCache,iCacheI,iType
+         INTEGER ZeroedInt,NonZeroInt
+         INTEGER I,J,K,L,X,Y,A,B,iCache,iCacheI,iType, iunit
          INTEGER NORB,NELEC,MS2,ORBSYM(1000),ISYM,SYMMAX,SYML(1000)
-         LOGICAL LWRITE,UHF,tAddtoCache,GetCachedUMatEl,tReadFreezeInts
+         LOGICAL LWRITE,UHF,tAddtoCache,GetCachedUMatEl
          INTEGER ISPINS,ISPN,ISPN2,ierr,SYMLZ(1000)!,IDI,IDJ,IDK,IDL
          INTEGER Counter(1:8),UMatSize,TMatSize
          INTEGER , ALLOCATABLE :: CacheInd(:)
-         NAMELIST /FCI/ NORB,NELEC,MS2,ORBSYM,ISYM,UHF,SYML,SYMLZ
+         real(dp) :: diff
+         NAMELIST /FCI/ NORB,NELEC,MS2,ORBSYM,ISYM,UHF,SYML,SYMLZ,PROPBITLEN,NPROP
          LWRITE=.FALSE.
          UHF=.FALSE.
          ZeroedInt=0
          NonZeroInt=0
          
          IF(iProcIndex.eq.0) THEN
-             OPEN(8,FILE='FCIDUMP',STATUS='OLD')
-             READ(8,FCI)
+             iunit = get_free_unit()
+             OPEN(iunit,FILE='FCIDUMP',STATUS='OLD')
+             READ(iunit,FCI)
          ENDIF
 !Now broadcast these values to the other processors (the values are only read in on root)
          CALL MPIIBCast_Scal(NORB,0)
@@ -475,6 +457,12 @@ contains
          CALL MPIIBCast(SYMLZ,1000,0)
          CALL MPIIBCast_Scal(ISYM,0)
          CALL MPILBCast_Scal(UHF,0)
+         CALL MPIIBCast_Scal(PROPBITLEN,0)
+         CALL MPIIBCast(NPROP,3,0)
+         ! If PropBitLen has been set then assume we're not using an Abelian
+         ! symmetry group which has two cycle generators (ie the group has
+         ! complex representations).
+         TwoCycleSymGens = PropBitLen == 0
 
          ISPINS=2
          IF(UHF.and.(.not.tROHF)) ISPINS=1
@@ -485,38 +473,6 @@ contains
              NORB=NORB/2
          ENDIF
 
-!!Calculate a key, which will reorder the orbitals in symmetry order.
-!!Counter is the cumulative number of symmetries, just to indicate the allowed current index of an orbital
-!         Counter(:)=0
-!         SymMax=1
-!         do i=1,NORB
-!             IF(ORBSYM(i).gt.SymMax) SymMax=ORBSYM(i)
-!             Counter(ORBSYM(i))=Counter(ORBSYM(i))+1
-!         enddo
-!         do i=SymMax,2,-1
-!             Counter(i)=1
-!             do j=1,i-1
-!                 Counter(i)=Counter(i)+Counter(j)
-!             enddo
-!         enddo
-!         Counter(1)=1
-!!Check that all orbitals are accounted for.
-!         j=0
-!         do i=1,NORB
-!             IF(ORBSYM(i).eq.SymMax) j=j+1
-!         enddo
-!         IF((Counter(SymMax)+j-1).ne.NORB) THEN
-!             CALL Stop_All("GETFCIBASIS","Counter incorrectly set up")
-!         ENDIF
-!!Now work out what the new indices are to be called
-!         Index(1:NORB)=0
-!         do i=1,NORB
-!             Index(i)=Counter(OrbSym(i))
-!             Counter(OrbSym(i))=Counter(OrbSym(i))+1
-!         enddo
-!!Now need to sort OrbSym so that the symmetries correspond to the correct orbitals.
-!         CALL NECI_SORTI(NORB,OrbSym(1:NORB))
-                
          IF(tCacheFCIDUMPInts) THEN
 !We need to fill the cache. We do this by filling it contiguously, then ordering.
              ALLOCATE(CacheInd(nPairs),stat=ierr)
@@ -528,7 +484,7 @@ contains
              IF(.not.TSTARSTORE) THEN
                  TMAT2D(:,:)=(0.D0)
              ENDIF
-101          READ(8,'(1X,G20.12,4I3)',END=199) Z,I,J,K,L
+101          READ(iunit,*,END=199) Z,I,J,K,L
              IF(tROHF) THEN
 !The FCIDUMP file is in spin-orbitals - we need to transfer them to spatial orbitals.
                 IF(I.ne.0) THEN
@@ -544,20 +500,16 @@ contains
                     L = GTID(L)
                 ENDIF
              ENDIF
-!             I=Index(I)
-!             J=Index(J)
-!             K=Index(K)
-!             L=Index(L)
 !.. Each orbital in the file corresponds to alpha and beta spinorbitalsa
              IF(I.EQ.0) THEN
 !.. Core energy
-                ECORE=Z
+                ECORE=real(Z,dp)
              ELSEIF(J.EQ.0) THEN
 !C.. HF Eigenvalues
-!                ARR(I*2-1,2)=Z
-!                ARR(I*2,2)=Z
-!                ARR(BRR(I*2-1),1)=Z
-!                ARR(BRR(I*2),1)=Z
+!                ARR(I*2-1,2)=real(Z,dp)
+!                ARR(I*2,2)=real(Z,dp)
+!                ARR(BRR(I*2-1),1)=real(Z,dp)
+!                ARR(BRR(I*2),1)=real(Z,dp)
 !                LWRITE=.TRUE.
              ELSEIF(K.EQ.0) THEN
 !.. 1-e integrals
@@ -568,20 +520,29 @@ contains
 !.. These are stored as spinorbitals (with elements between different spins being 0
                     DO ISPN=1,ISPINS
 
-                       IF(TMAT2D(ISPINS*I-ISPN+1,ISPINS*J-ISPN+1).ne.0.0d0 &
-                         .and.abs(TMAT2D(ISPINS*I-ISPN+1,ISPINS*J-ISPN+1)-Z).gt.1.D-7) THEN
+                        ! Have read in T_ij.  Check it's consistent with T_ji
+                        ! (if T_ji has been read in).
+                       diff = abs(TMAT2D(ISPINS*I-ISPN+1,ISPINS*J-ISPN+1)-Z)
+                       IF(TMAT2D(ISPINS*I-ISPN+1,ISPINS*J-ISPN+1) /= 0.0d0 .and. diff > 1.d-7) then
                             WRITE(6,*) i,j,Z,TMAT2D(ISPINS*I-ISPN+1,ISPINS*J-ISPN+1)
                             CALL Stop_All("ReadFCIInt","Error filling TMAT - different values for same orbitals")
                        ENDIF
 
                        TMAT2D(ISPINS*I-ISPN+1,ISPINS*J-ISPN+1)=Z
+#ifdef __CMPLX
+                       TMAT2D(ISPINS*J-ISPN+1,ISPINS*I-ISPN+1)=conjg(Z)
+#else
                        TMAT2D(ISPINS*J-ISPN+1,ISPINS*I-ISPN+1)=Z
+#endif
                     enddo
                 ENDIF
              ELSE
 !.. 2-e integrals
 !.. UMAT is stored as just spatial orbitals (not spinorbitals)
 !..  we're reading in (IJ|KL), but we store <..|..> which is <IK|JL>
+#ifdef __CMPLX
+                Z = UMatConj(I,K,J,L,Z)
+#endif
 !.. AJWT removed the restriction to TSTARSTORE
                 IF(TUMAT2D) THEN
                     IF(I.eq.J.and.I.eq.K.and.I.eq.L) THEN
@@ -640,7 +601,7 @@ contains
              ENDIF
              IF(I.NE.0) GOTO 101
 199          CONTINUE
-             CLOSE(8)
+             CLOSE(iunit)
          ENDIF
 
 !Now broadcast the data read in
@@ -660,7 +621,7 @@ contains
          ENDIF
          IF((.not.tRIIntegrals).and.(.not.tCacheFCIDUMPInts)) THEN
              CALL GetUMATSize(nBasis,NEl,iSpins,UMatSize)
-             CALL MPIDBCastArr(UMAT,UMatSize,0)    !This is not an , as it is actually passed in as a real*8, even though it is HElem in IntegralsData
+             CALL MPIHElemBCast(UMAT,UMatSize,0)    !This is not an , as it is actually passed in as a real*8, even though it is HElem in IntegralsData
          ENDIF
          IF(tCacheFCIDUMPInts) THEN
 !Need to broadcast the cache...
@@ -684,7 +645,7 @@ contains
              DEALLOCATE(CacheInd)
 !             CALL DumpUMatCache(nBasis,G1)
 !             do i=1,norb
-!                 WRITE(8,*) UMAT2D(:,i)
+!                 WRITE(iunit,*) UMAT2D(:,i)
 !             enddo
          ENDIF
 !.. If we've changed the eigenvalues, we write out the basis again
@@ -703,61 +664,32 @@ contains
          use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
          USE UMatCache , only : UMatInd,UMAT2D,TUMAT2D
          use OneEInts, only: TMatind,TMat2D,TMATSYM,TSTARSTORE
+         use util_mod, only: get_free_unit
          IMPLICIT NONE
-         INTEGER NBASIS
-         TYPE(BasisFN) G1(*)
-         REAL*8 ECORE,ARR(NBASIS,2)
-         REAL*8 UMAT(*)
-         REAL*8 Z
+         INTEGER, intent(in) ::  NBASIS
+         TYPE(BasisFN), intent(out) :: G1(*)
+         REAL*8, intent(out) :: ECORE,ARR(NBASIS,2)
+         integer, intent(out) :: BRR(NBASIS)
+         HElement_t, intent(out) :: UMAT(*)
+         HElement_t Z
          INTEGER*8 MASK,IND
-         INTEGER I,J,K,L,BRR(NBASIS),X,Y
+         INTEGER I,J,K,L,X,Y, iunit
          INTEGER NORB,NELEC,MS2,ORBSYM(1000),ISYM,SYMMAX
          INTEGER Counter(1:8),Index(1000)
          LOGICAL LWRITE,UHF
          NAMELIST /FCI/ NORB,NELEC,MS2,ORBSYM,ISYM,UHF
          LWRITE=.FALSE.
          UHF=.FALSE.
-         OPEN(8,FILE='FCISYM',STATUS='OLD',FORM='FORMATTED')
-         READ(8,FCI)
-         CLOSE(8)
-         OPEN(8,FILE='FCIDUMP',STATUS='OLD',FORM='UNFORMATTED')
+         iunit = get_free_unit()
+         OPEN(iunit,FILE='FCISYM',STATUS='OLD',FORM='FORMATTED')
+         READ(iunit,FCI)
+         CLOSE(iunit)
+         OPEN(iunit,FILE='FCIDUMP',STATUS='OLD',FORM='UNFORMATTED')
 
-
-!!Calculate a key, which will reorder the orbitals in symmetry order.
-!!Counter is the cumulative number of symmetries, just to indicate the allowed current index of an orbital
-!         Counter(:)=0
-!         SymMax=1
-!         do i=1,NORB
-!             IF(ORBSYM(i).gt.SymMax) SymMax=ORBSYM(i)
-!             Counter(ORBSYM(i))=Counter(ORBSYM(i))+1
-!         enddo
-!         do i=SymMax,2,-1
-!             Counter(i)=1
-!             do j=1,i-1
-!                 Counter(i)=Counter(i)+Counter(j)
-!             enddo
-!         enddo
-!         Counter(1)=1
-!!Check that all orbitals are accounted for.
-!         j=0
-!         do i=1,NORB
-!             IF(ORBSYM(i).eq.SymMax) j=j+1
-!         enddo
-!         IF((Counter(SymMax)+j-1).ne.NORB) THEN
-!             CALL Stop_All("GETFCIBASIS","Counter incorrectly set up")
-!         ENDIF
-!!Now work out what the new indices are to be called
-!         Index(1:NORB)=0
-!         do i=1,norb
-!             Index(i)=Counter(OrbSym(i))
-!             Counter(OrbSym(i))=Counter(OrbSym(i))+1
-!         enddo
-!!Now need to sort OrbSym so that the symmetries correspond to the correct orbitals.
-!         CALL NECI_SORTI(norb,OrbSym(1:norb))
 
          MASK=(2**16)-1
          !IND contains all the indices in an integer*8 - use mask of 16bit to extract them
-101      READ(8,END=199) Z,IND
+101      READ(iunit,END=199) Z,IND
          L=iand(IND,MASK)
          IND=Ishft(IND,-16)
          K=iand(IND,MASK)
@@ -773,13 +705,13 @@ contains
 !.. Each orbital in the file corresponds to alpha and beta spinorbitalsa
          IF(I.EQ.0) THEN
 !.. Core energy
-            ECORE=Z
+            ECORE=real(Z,dp)
          ELSEIF(J.EQ.0) THEN
 !C.. HF Eigenvalues
-!            ARR(I*2-1,2)=Z
-!            ARR(I*2,2)=Z
-!            ARR(BRR(I*2-1),1)=Z
-!            ARR(BRR(I*2),1)=Z
+!            ARR(I*2-1,2)=real(Z,dp)
+!            ARR(I*2,2)=real(Z,dp)
+!            ARR(BRR(I*2-1),1)=real(Z,dp)
+!            ARR(BRR(I*2),1)=real(Z,dp)
 !            LWRITE=.TRUE.
          ELSEIF(K.EQ.0) THEN
 !.. 1-e integrals
@@ -824,19 +756,11 @@ contains
             ELSE
                 UMAT(UMatInd(I,K,J,L,0,0))=Z
             ENDIF
-!            UMAT(I,K,J,L)=Z
-!            UMAT(J,L,I,K)=Z
-!            UMAT(K,I,L,J)=Z
-!            UMAT(L,J,K,I)=Z
-!            UMAT(J,K,I,L)=Z
-!            UMAT(I,L,J,K)=Z
-!            UMAT(L,I,K,J)=Z
-!            UMAT(K,J,L,I)=Z
          ENDIF
 !         WRITE(14,'(1X,F20.12,4I3)') Z,I,J,K,L
          IF(I.NE.0) GOTO 101
 199      CONTINUE
-         CLOSE(8)
+         CLOSE(iunit)
 ! If we've changed the eigenvalues, we write out the basis again
 !         IF(LWRITE) THEN
 !            WRITE(6,*) "1-electron energies have been read in."

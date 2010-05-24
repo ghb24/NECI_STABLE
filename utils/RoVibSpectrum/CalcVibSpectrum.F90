@@ -4,7 +4,7 @@ PROGRAM CalcVibSpectrum
     REAL*8 :: Atom1Mass,Atom2Mass,Rin,Rout,RedMass,Rspacing,Requilib,Rcentre,SumTemp
     INTEGER :: Rpoints,JRotValue,JRotValueMax,ierr,i,j,k,kmax,WorkSize,WorkCheck,v,Maxi,x,y,MaxVibPlot,MaxvForFit
     REAL*8 , ALLOCATABLE :: Hamil(:,:),akvalues(:),EvectorsInit(:),Evectors(:),Work(:),VeqPlusGv(:)
-    REAL*8 :: alpha,beta,Const,VibPlotMinR,VibPlotMaxR,Veq
+    REAL*8 :: alpha,beta,Const,VibPlotMinR,VibPlotMaxR,Veq,TwiceAtomEnergy,DissV
     LOGICAL :: exists
 
 ! First open the 'inputVib' file which has some input parameters.    
@@ -39,6 +39,7 @@ PROGRAM CalcVibSpectrum
         READ(17,*) Requilib
         READ(17,*) alpha
         READ(17,*) beta
+        READ(17,*) TwiceAtomEnergy
         ALLOCATE(akvalues(0:kmax),stat=ierr)
         do i=0,kmax
             READ(17,*) akvalues(i)
@@ -155,6 +156,20 @@ PROGRAM CalcVibSpectrum
             do k=0,kmax
                 Veq=Veq+(akvalues(k)*(EXP((-1.D0)*alpha*(beta**k)*(Requilib**2.D0))))
             enddo
+
+            DissV=0.D0
+            do k=0,kmax
+                DissV=DissV+(akvalues(k)*(EXP((-1.D0)*alpha*(beta**k)*((5.D0*Requilib)**2.D0))))
+            enddo
+
+            OPEN(18,FILE="SPEC_CONSTS",status='unknown')
+            WRITE(18,'(A)') "SPECTROSCOPIC PROPERTIES"
+            WRITE(18,'(A)') "Note: These are formatted for comparison to papers such as D.Feller and J.A.Sordo,J.Chem.Phys.V113.2000"
+            WRITE(18,*) ''
+            WRITE(18,'(A,F15.6,A)') 'E_total (in E_h) : ',Veq+TwiceAtomEnergy,'     The energy of the diatomic at the eqm bond length.'
+            WRITE(18,'(A,F10.2,A)') 'D_e (in kcal/mol) : ',(Veq-DissV)*(-1.D0)*627.509,'     The dissociation energy.'
+            WRITE(18,'(A,F10.5,A)') 'r_e (in Angstroms) : ',Requilib*0.529177249,'     The equilibrium bond length.'
+            CLOSE(18)
 
 
 ! Now we just basically print the stats we want.            

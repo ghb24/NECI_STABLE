@@ -29,6 +29,12 @@ type(c_ptr) :: ptr_getumatel_2
 
 
 !  From NECI.F
+! UMAT stores 4-index, 2-electron integrals.  Lookup is via the UMATIND function
+! (in the UMatCache module).
+! Warning! It is best (ie only safe) to access 4-index integrals via the
+! get_umat_el function.  This enables the appropriate transformations, complex
+! conjugations and storage implementations (eg with UMAT2D/UMatCache/etc) to be
+! used as appropriate.
 HElement_t, pointer :: UMAT(:)      
 INTEGER :: tagUMat=0
 COMPLEX*16,pointer :: FCK(:) => null()

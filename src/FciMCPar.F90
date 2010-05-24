@@ -2775,7 +2775,7 @@ MODULE FciMCParMod
         ! If we change the sign of a particle, we need to spawn an
         ! anti-particle --> it goes in the spawning array to give it a chance
         ! to annihilate. (Not into main array, or we lose sign-coherence)
-                call encode_bit_rep(SpawnedParts(:,ValidSpawnedList(iProcIndex)),iLutCurr,CopySign,extract_flags(iLutCurr))
+                call encode_bit_rep(SpawnedParts(:,ValidSpawnedList(iProcIndex)),iLutCurr,CopySign,0)
                 ValidSpawnedList(iProcIndex) = ValidSpawnedList(iProcIndex)+1
             endif
         elseif(tTruncInitiator) then
