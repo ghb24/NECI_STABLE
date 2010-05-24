@@ -4740,7 +4740,6 @@ MODULE FciMCParMod
         ELSE
             WRITE(6,*) "Initial number of walkers per processor chosen to be: ", InitWalkers
         ENDIF
- 
 
     END SUBROUTINE SetupParameters
 

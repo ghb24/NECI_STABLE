@@ -253,7 +253,6 @@ MODULE AnnihilationMod
 !During this, we transfer the particles over to SpawnedParts2
         IF(ValidSpawned.gt.0) THEN
             SpawnedParts2(0:NIfTot,1)=SpawnedParts(0:NIfTot,1)
-!            SpawnedSign2(1)=SpawnedSign(1)
         ENDIF
         VecInd=1
         DetsMerged=0
@@ -264,7 +263,6 @@ MODULE AnnihilationMod
                 IF(SpawnedSign(1).eq.null_part(1)) ToRemove=ToRemove+1
                 VecInd=VecInd+1
                 SpawnedParts2(:,VecInd)=SpawnedParts(:,i)
-!                SpawnedSign2(VecInd)=SpawnedSign(i)
             ELSE
 !The next determinant is equal to the current - want to look at the relative signs.                
                 call extract_sign(SpawnedParts(0:NIfTot,i),SpawnedSign)
@@ -374,6 +372,11 @@ MODULE AnnihilationMod
             CALL Stop_All("CompressSpawnedList","Wrong number of entries removed from spawned list")
         ENDIF
         ValidSpawned=ValidSpawned-DetsMerged
+
+!        WRITE(6,*) "Compressed List: "
+!        do i=1,ValidSpawned
+!            WRITE(6,*) SpawnedParts(:,i)
+!        enddo
         
     END SUBROUTINE CompressSpawnedList
 
@@ -404,9 +407,8 @@ MODULE AnnihilationMod
 !        enddo
 !        WRITE(6,*) "Original Parts: "
 !        do i=1,TotWalkersNew
-!            WRITE(6,*) CurrentDets(:,i),CurrentSign(i)
+!            WRITE(6,*) CurrentDets(:,i)
 !        enddo
-!        CALL FLUSH(6)
         
         CALL set_timer(BinSearch_time,45)
 
@@ -416,8 +418,7 @@ MODULE AnnihilationMod
 !It will also return the index of the position one below where the particle would be found if was in the list.
 !            CALL LinSearchParts(CurrentDets(:,1:TotWalkersNew),SpawnedParts(0:NIfD,i),MinInd,TotWalkersNew,PartInd,tSuccess)
             CALL BinSearchParts(SpawnedParts(:,i),MinInd,TotWalkersNew,PartInd,tSuccess)
-!            WRITE(6,*) "Binary search complete: ",i,PartInd,tSuccess
-!            CALL FLUSH(6)
+!            WRITE(6,*) "Binary search complete: ",i,PartInd,tSuccess,SpawnedParts(1,i),CurrentDets(:,PartInd)
 
             IF(tSuccess) THEN
 !A particle on the same list has been found. We now want to search backwards, to find the first particle in this block.
@@ -427,11 +428,11 @@ MODULE AnnihilationMod
 !                SearchInd=PartInd   !This can actually be min(1,PartInd-1) once we know that the binary search is working, as we know that PartInd is the same particle.
 !                MinInd=PartInd      !Make sure we only have a smaller list to search next time since the next particle will not be at an index smaller than PartInd
 !                AnnihilateInd=0     !AnnihilateInd indicates the index in CurrentDets of the particle we want to annihilate. It will remain 0 if we find not complimentary particle.
-!                tSkipSearch=.false. !This indicates whether we want to continue searching forwards through the list once we exit the loop going backwards.
 !                WRITE(6,'(3I20,A,3I20)') SpawnedParts(:,i),' equals ',CurrentDets(:,PartInd)
                 call extract_sign(CurrentDets(:,PartInd),CurrentSign)
                 call extract_sign(SpawnedParts(:,i),SpawnedSign)
                 SignProd=CurrentSign*SpawnedSign
+
                 IF(SignProd(1).lt.null_part(1)) THEN
 !This indicates that the particle has found the same particle of opposite sign to annihilate with
 !Mark these particles for annihilation in both arrays
@@ -487,9 +488,10 @@ MODULE AnnihilationMod
 
                     ELSE
 !There are more particles in the main list, than the spawned list. We want to annihilate all particles from the spawned list, but only some from main list.
-                        CurrentSign=CurrentSign+SpawnedSign
+
+                        call encode_sign(CurrentDets(:,PartInd),CurrentSign+SpawnedSign)
                         Annihilated=Annihilated+2*(abs(SpawnedSign(1)))
-                        
+
                         IF(tHistSpawn) THEN
 !We want to histogram where the particle annihilations are taking place.
                             ExcitLevel = FindBitExcitLevel(SpawnedParts(:,i),&
@@ -561,6 +563,11 @@ MODULE AnnihilationMod
         
         CALL halt_timer(BinSearch_time)
 
+!        WRITE(6,*) "Leftover Parts..."
+!        do i=1,ValidSpawned
+!            WRITE(6,*) SpawnedParts(:,i)
+!        enddo
+
 !Now we have to remove the annihilated particles from the spawned list. They will be removed from the main list at the end of the annihilation process.
 !It may actually be easier to just move the annihilated particles to the end of the list and resort the list?
 !Or, the removed indices could be found on the fly? This may have little benefit though if the memory isn't needed.
@@ -588,6 +595,11 @@ MODULE AnnihilationMod
             SpawnedParts => PointTemp
 
         ENDIF
+
+!        WRITE(6,*) "After removal of zeros: "
+!        do i=1,ValidSpawned
+!            WRITE(6,*) SpawnedParts(:,i)
+!        enddo
 
         CALL halt_timer(AnnMain_time)
 
