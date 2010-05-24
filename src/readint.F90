@@ -265,7 +265,16 @@ contains
 
              ELSE   !Reading in formatted FCIDUMP file
 
-1               READ(iunit,*,END=99) Z,I,J,K,L
+                 ! Can't use * as need to be backward compatible with existing 
+                 ! FCIDUMP files, some of which have more than 100 basis
+                 ! functions and so the integer labels run into each other.
+                 ! This means it won't work with more than 999 basis
+                 ! functions...
+#ifdef __CMPLX
+1               READ(iunit,'(1X,2G20.12,4I3)',END=99) Z,I,J,K,L
+#else
+1               READ(iunit,'(1X,G20.12,4I3)',END=99) Z,I,J,K,L
+#endif
 
                 IF(tROHF) THEN
 !The FCIDUMP file is in spin-orbitals - we need to transfer them to spatial orbitals.
@@ -484,7 +493,16 @@ contains
              IF(.not.TSTARSTORE) THEN
                  TMAT2D(:,:)=(0.D0)
              ENDIF
-101          READ(iunit,*,END=199) Z,I,J,K,L
+             ! Can't use * as need to be backward compatible with existing 
+             ! FCIDUMP files, some of which have more than 100 basis
+             ! functions and so the integer labels run into each other.
+             ! This means it won't work with more than 999 basis
+             ! functions...
+#ifdef __CMPLX
+101          READ(iunit,'(1X,2G20.12,4I3)',END=199) Z,I,J,K,L
+#else
+101          READ(iunit,'(1X,G20.12,4I3)',END=199) Z,I,J,K,L
+#endif
              IF(tROHF) THEN
 !The FCIDUMP file is in spin-orbitals - we need to transfer them to spatial orbitals.
                 IF(I.ne.0) THEN
