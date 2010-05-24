@@ -21,6 +21,7 @@
         USE Determinants , only : get_helement
         use DetBitOps, only: DecodeBitDet, DetBitEQ
         use hphf_integrals, only: hphf_diag_helement, hphf_off_diag_helement
+        USE CalcData , only : tTruncInitiator
         USE HElem
         use constants, only: dp,n_int
         IMPLICIT NONE
@@ -66,6 +67,7 @@
 !               write(6,'(20i15)') j,list1(:,j)
 !           enddo
 !           write(6,'(20i15)') (list1(:,j),j=1,nlist1+nlist2)
+           IF(tTruncInitiator) CALL FlagifDetisInitiator(list2(:,i),SignList2(i))
            CurrentDets(:,ips+i-1)=list2(:,i)
            CurrentSign(ips+i-1)=SignList2(i)
 !We want to calculate the diagonal hamiltonian matrix element for the new particle to be merged.
@@ -87,7 +89,7 @@
 !           write(6,'(20i15)') (list1(:,j),j=1,nlist1+nlist2)
 !..new end of list position is the next insertion point
 !           nlisto=min(nlisto,ips+i-2)
-           nlisto=min(nlisto,ips-1)
+           nlisto=max(min(nlisto,ips-1),1)
 !           write(6,*) ' new end of list position:',nlisto
         enddo
         nlist1=nlist1+nlist2
@@ -100,6 +102,7 @@
     SUBROUTINE MergeLists(nlist1,nlist1max,nlist2,list2,SignList2)
         USE FciMCParMOD , only : Hii,CurrentDets,CurrentSign
         USE SystemData , only : NEl, NIfTot
+        USE CalcData , only : tTruncInitiator
         USE HElem
         use constants, only : n_int
         IMPLICIT NONE
@@ -141,6 +144,9 @@
 !               write(6,'(20i15)') j,list1(:,j)
 !           enddo
 !           write(6,'(20i15)') (list1(:,j),j=1,nlist1+nlist2)
+
+           IF(tTruncInitiator) CALL FlagifDetisInitiator(list2(:,i),SignList2(i))
+ 
            CurrentDets(0:NIfTot,ips+i-1)=list2(0:NIfTot,i)
            CurrentSign(ips+i-1)=SignList2(i)
                
@@ -365,3 +371,54 @@
 
         list1(1:i) = list2(1:i)
     end subroutine
+
+
+!This routine takes each determinant as it is about to be merged into the CurrentDets array, and determines whether or not it is an initiator.
+    SUBROUTINE FlagifDetisInitiator(DetCurr,SignCurr)
+        USE SystemData , only : NIfTot,NIfDBO
+        USE FciMCData , only : NoExtraInitDoubs,iLutRef,NoAddedInitiators,iLutHF,Iter
+        USE FciMCParMOD , only : TestIfDetInCASBit
+        USE CalcData , only : tTruncCAS,tInitIncDoubs,tAddtoInitiator,InitiatorWalkNo
+        USE DetBitOps , only : FindBitExcitLevel,DetBitEQ
+        use constants, only: n_int
+        INTEGER(KIND=n_int), INTENT(INOUT) :: DetCurr(0:NIfTot)
+        INTEGER , INTENT(IN) :: SignCurr
+        INTEGER :: CurrExcitLevel
+        LOGICAL :: tDetInCAS
+
+!DetCurr has come from the spawning array.
+!The current flags at NIfTot therefore refer to the parent of the spawned walkers.
+!As we add these into the CurrentDets array we therefore want to convert these flag so that they refer to the present determinant.
+
+        tDetInCAS=.false.
+        IF(tTruncCAS) THEN
+            tDetInCAS=TestIfDetInCASBit(DetCurr(0:NIfD))
+        ENDIF
+        IF(tDetInCAS) THEN
+!The determinant being merged is in the fixed CAS initiator space.            
+            DetCurr(NIfTot)=0
+        ELSEIF(DetBitEQ(DetCurr(:),iLutHF,NIfDBO)) THEN
+!The determinant being merged is the HF.
+            DetCurr(NIfTot)=0
+        ELSEIF(tAddtoInitiator.and.(ABS(SignCurr).gt.InitiatorWalkNo)) THEN
+!The determinant being merged already has a high enough pop to become an initiator.        
+!This is not expected to happen much - otherwise we'd be getting blooms.
+            DetCurr(NIfTot)=0
+            NoAddedInitiators=NoAddedInitiators+1.D0
+        ELSEIF(tInitIncDoubs) THEN
+!The determinant being merged is a double excitation - initiator straight away.        
+            CurrExcitLevel = FindBitExcitLevel(iLutRef,DetCurr(0:NIfTot),2)
+            IF(CurrExcitLevel.eq.2) THEN
+                DetCurr(NIfTot)=0
+                NoExtraInitDoubs=NoExtraInitDoubs+1.D0
+            ELSE
+                DetCurr(NIfTot)=1
+            ENDIF
+        ELSE
+            DetCurr(NIfTot)=1
+!The parent from which we are attempting to spawn is outside the active space - children spawned on unoccupied determinants with this flag will be killed.
+        ENDIF
+
+    END SUBROUTINE FlagifDetisInitiator 
+
+

@@ -21,6 +21,7 @@ MODULE ReadInput
         Use Logging,    only : LogReadInput,SetLogDefaults
         use Parallel,   only : iProcIndex
         use default_sets
+        use util_mod, only: get_free_unit
 #ifdef NAGF95
     !  USe doesn't get picked up by the make scripts
         USe f90_unix_env, ONLY: getarg,iargc
@@ -44,7 +45,7 @@ MODULE ReadInput
         
         cTitle=""
         idDef=idDefault                 !use the Default defaults (pre feb08)
-        ir=1                            !default to file descriptor 1 which we'll open below
+        ir=get_free_unit()              !default to a free unit which we'll open below
         If(cFilename.ne.'') Then
             Write(6,*) "Reading from file: ", Trim(cFilename)
             inquire(file=cFilename,exist=tExists)
@@ -56,7 +57,7 @@ MODULE ReadInput
             Write(6,*) "Reading from file: ", Trim(cInp)
             inquire(file=cInp,exist=tExists)
             if (.not.tExists) call stop_all('ReadInputMain','File '//Trim(cInp)//' does not exist.')
-            Open(1,File=cInp,Status='OLD',FORM="FORMATTED",err=99,iostat=ios)
+            Open(ir,File=cInp,Status='OLD',FORM="FORMATTED",err=99,iostat=ios)
         Else
             ir=5                    !file descriptor 5 is stdin
             Write(6,*) "Reading from STDIN"
