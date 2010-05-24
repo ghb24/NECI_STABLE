@@ -4,7 +4,7 @@
 module GenRandSymExcitCSF
     use Systemdata, only: nel, NIftot, tNoSymGenRandExcits, G1, nbasis, STOT,&
                           nbasismax, lztot, tFixLz, iMaxLz, tTruncateCSF, &
-                          tTruncateCSF, csf_trunc_level, LMS
+                          tTruncateCSF, csf_trunc_level, LMS, NIfD
     use SymExcitDataMod
     use FciMCData, only: pSingles, pDoubles
     use SymData, only: TwoCycleSymGens, nSymLabels
@@ -89,7 +89,11 @@ contains
             nopen = count_open_orbs(iLutnJ)
             if (nopen <= csf_trunc_level) then
                 ncsf = det_to_random_csf (nJ)
-                call get_csf_bit_yama(nJ, iLutnJ(NIfD+1))
+
+                ! This is probably not the most efficient way to do this in
+                ! light of the above, but it does get the correct Yama symbol,
+                ! and the singles having been shifted to betas.
+                call EncodeBitdet(nJ, iLutnJ)
                 
                 ! All of the cases where nopen will FALL below csf_trunc_level
                 ! require nopen to decrease. All of the possibilities for this
@@ -533,12 +537,12 @@ contains
                 ! Singly occupied must give beta elec
                 ! Only pick alpha elec from double, except that we can pick
                 ! the beta electron from an already chosen double.
-                orb2 = ieor((orb-1),1)
-                if (btest(iLut(orb2/bits_n_int), mod(orb2,bits_n_int))) then
+                orb2 = ab_pair(orb)
+                if (IsOcc(ilut, orb2)) then
                     if (G1(orb)%Ms == 1) then
                         nopen = nopen + 1
                         exit
-                    else if ((found == 1) .and. (orb2+1 == orbs(1))) then
+                    else if ((found == 1) .and. (orb2 == orbs(1))) then
                         nopen = nopen - 1
                         exit
                     endif
