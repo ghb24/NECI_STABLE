@@ -89,7 +89,7 @@
 !           write(6,'(20i15)') (list1(:,j),j=1,nlist1+nlist2)
 !..new end of list position is the next insertion point
 !           nlisto=min(nlisto,ips+i-2)
-           nlisto=min(nlisto,ips-1)
+           nlisto=max(min(nlisto,ips-1),1)
 !           write(6,*) ' new end of list position:',nlisto
         enddo
         nlist1=nlist1+nlist2
