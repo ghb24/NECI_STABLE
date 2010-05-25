@@ -12,7 +12,7 @@ SUBROUTINE AddMPEnergy(Hij,iV,iMaxOrder,Arr,nBasis,iPath,nEl,tLog,ECore,MPEs)
    INTEGER i,j
    HElement_t Fi(1:iV),E1
    INTEGER iOrder
-   real(dp) MPEs(2:iV),E,ECore
+   real(dp) MPEs(2:iMaxOrder),E,ECore
    HElement_t MPE
 !E1 is the HF Energy.  Ei are Fock energy differences.
    MPE=ECore
@@ -143,12 +143,22 @@ END
          DENOM=0.D0
          DO WHILE (I.LE.NEL.OR.J.LE.NEL)
 !            WRITE(13,*) I,J,NI(I),NJ(J)
-            IF(J.GT.NEL.OR.(I.LE.NEL.AND.NI(I).LT.NJ(J))) THEN
+            IF(J.GT.NEL) THEN
 !.. 0 has a lower orb than 1, so 0's must have been removed to get 1
 !               WRITE(13,*) NI(I),-ARR(NI(I),2)
                DENOM=DENOM-ARR(NI(I),2)
                I=I+1
-            ELSEIF(I.GT.NEL.OR.(J.LE.NEL.AND.NI(I).GT.NJ(J))) THEN
+            ELSEIF(I.GT.NEL) THEN
+!.. 1 has a lower orb than 0, so 1's must have been added to get 1
+!               WRITE(13,*) NJ(J),ARR(NJ(J),2)
+               DENOM=DENOM+ARR(NJ(J),2)
+               J=J+1
+            ELSEIF(I.LE.NEL.AND.NI(I).LT.NJ(J)) THEN
+!.. 0 has a lower orb than 1, so 0's must have been removed to get 1
+!               WRITE(13,*) NI(I),-ARR(NI(I),2)
+               DENOM=DENOM-ARR(NI(I),2)
+               I=I+1
+            ELSEIF(J.LE.NEL.AND.NI(I).GT.NJ(J)) THEN
 !.. 1 has a lower orb than 0, so 1's must have been added to get 1
 !               WRITE(13,*) NJ(J),ARR(NJ(J),2)
                DENOM=DENOM+ARR(NJ(J),2)

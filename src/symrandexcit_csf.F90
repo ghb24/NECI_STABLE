@@ -4,14 +4,14 @@
 module GenRandSymExcitCSF
     use Systemdata, only: nel, tNoSymGenRandExcits, G1, nbasis, STOT, LMS, &
                           nbasismax, lztot, tFixLz, iMaxLz, tTruncateCSF, &
-                          tTruncateCSF, csf_trunc_level
+                          csf_trunc_level, LMS
     use SymExcitDataMod
     use FciMCData, only: pSingles, pDoubles
     use SymData, only: TwoCycleSymGens, nSymLabels
     use csf, only: csf_orbital_mask, csf_test_bit, csf_apply_random_yama, &
                    get_num_csfs, csf_apply_yama, csf_get_yamas, write_yama, &
                    get_csf_yama, num_csf_dets, csf_get_random_det, iscsf, &
-                   det_to_random_csf
+                   det_to_random_csf, get_csf_bit_yama
     use dSFMT_interface, only: genrand_real2_dSFMT
     use GenRandSymExcitNUMod, only: ClassCountInd, gen_rand_excit
     use DetBitOps, only: EncodeBitDet, is_canonical_ms_order, &
@@ -19,7 +19,7 @@ module GenRandSymExcitCSF
     use Determinants, only: write_det
     use Parallel
     use constants, only: n_int, bits_n_int
-    use bit_reps, only: NIfTot
+    use bit_reps, only: NIfTot,NIfD
     implicit none
 
 contains
@@ -86,10 +86,15 @@ contains
 
             ! If we have fallen back below the truncation level, then
             ! regenerate a CSF (pick Yamanouchi symbol at random).
-            call EncodeBitDet(nJ, iLutTmp)
-            nopen = count_open_orbs(iLutTmp)
+            call EncodeBitDet(nJ, iLutnJ)
+            nopen = count_open_orbs(iLutnJ)
             if (nopen <= csf_trunc_level) then
                 ncsf = det_to_random_csf (nJ)
+
+                ! This is probably not the most efficient way to do this in
+                ! light of the above, but it does get the correct Yama symbol,
+                ! and the singles having been shifted to betas.
+                call EncodeBitdet(nJ, iLutnJ)
                 
                 ! All of the cases where nopen will FALL below csf_trunc_level
                 ! require nopen to decrease. All of the possibilities for this
@@ -443,6 +448,7 @@ contains
             call write_det (6, nI, .true.)
             write(6,*) 'src', orbs(1), orbs(2)
             write(6,*) 'tgt', orbA
+            write(6,*) 'num orbs', nbasis
             call flush(6)
             call stop_all(this_routine, "Cannot find an unoccupied orbital &
                          &for a double excitation after 250 attempts.")
@@ -532,12 +538,12 @@ contains
                 ! Singly occupied must give beta elec
                 ! Only pick alpha elec from double, except that we can pick
                 ! the beta electron from an already chosen double.
-                orb2 = ieor((orb-1),1)
-                if (btest(iLut(orb2/bits_n_int), mod(orb2,bits_n_int))) then
+                orb2 = ab_pair(orb)
+                if (IsOcc(ilut, orb2)) then
                     if (G1(orb)%Ms == 1) then
                         nopen = nopen + 1
                         exit
-                    else if ((found == 1) .and. (orb2+1 == orbs(1))) then
+                    else if ((found == 1) .and. (orb2 == orbs(1))) then
                         nopen = nopen - 1
                         exit
                     endif
@@ -903,9 +909,13 @@ contains
                         ! TODO: If we assume that all is correct, we can just
                         !       test if excitmat --> alpha or beta!!!
                         if (IsOcc(ilut, exB(epos))) then
-                            if (ExcitMat(2,epos) /= exA(epos)) &
+                            if (ExcitMat(2,epos) /= exA(epos)) then
+                                write(6,*) 'Excitation failed not alpha'
+                                call write_det (6, nI, .true.)
+                                write(6,*) 'excitmat: ', excitmat
                                 call stop_all(this_routine, &
                                               "Excit. out of order")
+                            endif
 
                             nJ(1,i) = exB(epos)
                             nJ(1,i+1) = exA(epos)
@@ -914,9 +924,13 @@ contains
                             lnopen = lnopen - 1
                             bRetry = .false.
                         else
-                            if (ExcitMat(2,epos) /= exB(epos)) &
+                            if (ExcitMat(2,epos) /= exB(epos)) then
+                                write(6,*) 'Excitation failed not beta'
+                                call write_det (6, nI, .true.)
+                                write(6,*) 'excitmat: ', excitmat
                                 call stop_all(this_routine, &
                                               "Excit. out of order")
+                            endif
 
                             newS = newS + 1
                             singNew(newS) = ExcitMat(2,epos)
@@ -941,8 +955,10 @@ contains
                             if (.not. bExcitFromDoub) then
                                 newS = newS + 1
                                 singNew(newS) = nI(dpos)
+                                srcpos = srcpos + 1
+                            else
+                                srcpos = srcpos + 2
                             endif
-                            srcpos = srcpos + 1
                         endif
                     endif
                     
