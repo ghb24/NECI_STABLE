@@ -271,7 +271,7 @@ contains
                  ! This means it won't work with more than 999 basis
                  ! functions...
 #ifdef __CMPLX
-1               READ(iunit,'(1X,2G20.12,4I3)',END=99) Z,I,J,K,L
+1               READ(iunit,*,END=99) Z,I,J,K,L
 #else
 1               READ(iunit,'(1X,G20.12,4I3)',END=99) Z,I,J,K,L
 #endif
@@ -499,7 +499,7 @@ contains
              ! This means it won't work with more than 999 basis
              ! functions...
 #ifdef __CMPLX
-101          READ(iunit,'(1X,2G20.12,4I3)',END=199) Z,I,J,K,L
+101          READ(iunit,*,END=199) Z,I,J,K,L
 #else
 101          READ(iunit,'(1X,G20.12,4I3)',END=199) Z,I,J,K,L
 #endif
