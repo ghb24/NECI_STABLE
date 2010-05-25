@@ -208,6 +208,8 @@
 !..
 !.. list(ncurr).eq.num
         if(CompPart.eq.0) then 
+
+           call stop_all("Search","When merging lists, no entries should exist on both lists")
 !..check to see if the previous member is less than num.
 !.. if so, return ipose=ncurr
            if(DetBitLT(CurrentDets(0:NIfTot,ncurr-1),DetCurr(:),NIfDBO).eq.1) then
