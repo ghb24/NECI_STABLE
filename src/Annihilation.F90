@@ -56,6 +56,7 @@ MODULE AnnihilationMod
         INTEGER, INTENT(INOUT) :: SpawnDets
         INTEGER :: ierr
         CHARACTER(len=*) , PARAMETER :: this_routine='AnnihilationInterface'
+        INTEGER, DIMENSION(lenof_sign) :: TempSign
 
         IF(.not.(ALLOCATED(ValidSpawnedList))) THEN
 !This needs to be filled correctly before annihilation can take place.
@@ -76,6 +77,16 @@ MODULE AnnihilationMod
         ELSE
             CALL Stop_All(this_routine,"Ordering the SpawnedParts for parallel annihilation not yet implemented")
         ENDIF
+
+        do i=1,TotDets
+            TempSign(1)=MainSign(i)
+            call encode_sign(MainParts(:,i),TempSign)
+        enddo
+        do i=1,SpawnDets
+            TempSign(1)=SpawnSign(i)
+            call encode_sign(SpawnParts(:,i),TempSign)
+        enddo
+
 
         MaxWalkersPart=MaxMainInd
 !Point at correct arrays... will need to sort out how these are swapped in the main routine.
