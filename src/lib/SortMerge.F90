@@ -38,36 +38,30 @@
 !..starting from the end of the list, expand list1 to accomodate
 !.. elements of list2
        nlisto=nlist1
-       nlo=nlist1
        do i=nlist2,1,-1
 !.. find the positions in list1 which the list2 would be inserted
            DetCurr(:)=list2(:,i)
-           call search(nlisto,DetCurr,ips1)
-!          write(6,*) 'position in list1 to be inserted:',ips1
 !..ips1 is the position in list1 which num is to be inserted
-           ips=ips1      
-!           write(6,*) ' Going to insert into position:',ips
-!           write(6,*) ' Copy elements from:',ips,' to',nlisto
-!..if ips is less than nlisto, then no elements will be copied.
+! nlisto is the last element in list1 which might have to be moved to
+! accommodate an element from list2.
+           if (nlisto == 0) then
+! No more elements in list1 to be moved.  All remaining elements in list2 need
+! to be inserted with the same positions into list1.
+               ips = 1
+           else
+               call search(nlisto,DetCurr,ips)
+           end if
+! Move all elements that between DetCurr and nlisto to their position in the
+! completely merged list.  We know that there must be i elements still to be
+! inserted...
            do j=nlisto,ips,-1
-              if(j.le.nlo) then 
-!                 write(6,*) j,'->',j+i
-                 CurrentDets(:,j+i)=CurrentDets(:,j)
-                 CurrentSign(j+i)=CurrentSign(j)
-                 CurrentH(j+i)=CurrentH(j)
-              endif
+              CurrentDets(:,j+i)=CurrentDets(:,j)
+              CurrentSign(j+i)=CurrentSign(j)
+              CurrentH(j+i)=CurrentH(j)
            enddo
-!.elements of list1 which were copied over started
-!.. from nlisto and went up to ips
-           nlo=ips
-!           write(6,*) ' position labels of newly enlarged list:'
-!           write(6,'(20i15)') (j,j=1,nlist1+nlist2)
-!           write(6,*) 'new enlarged list on step:',i
-!           do j=1,nlist1+nlist2
-!               write(6,'(20i15)') j,list1(:,j)
-!           enddo
-!           write(6,'(20i15)') (list1(:,j),j=1,nlist1+nlist2)
            IF(tTruncInitiator) CALL FlagifDetisInitiator(list2(:,i),SignList2(i))
+! Insert DetCurr into its position in the completely merged list (i-1 elements
+! below it still to be inserted).
            CurrentDets(:,ips+i-1)=list2(:,i)
            CurrentSign(ips+i-1)=SignList2(i)
 !We want to calculate the diagonal hamiltonian matrix element for the new particle to be merged.
@@ -79,18 +73,11 @@
            endif
            HDiag=(REAL(HDiagTemp,8))-Hii
            CurrentH(ips+i-1)=HDiag
-               
-!           write(6,*) ' newly inserted member on position:'                             &
-!     & ,ips+i-1,' of value:',list2(:,i)
-!           write(6,*) 'new list with insertion in it:'
-!           do j=1,nlist1+nlist2
-!               write(6,'(20i15)') j,list1(:,j)
-!           enddo
-!           write(6,'(20i15)') (list1(:,j),j=1,nlist1+nlist2)
-!..new end of list position is the next insertion point
-!           nlisto=min(nlisto,ips+i-2)
-           nlisto=max(min(nlisto,ips-1),1)
-!           write(6,*) ' new end of list position:',nlisto
+! Next element to be inserted must be smaller than DetCurr, so must be inserted
+! at (at most) at ips-1.
+! If nlisto=0 then all remaining elements in list2 must be inserted directly
+! into list1---there are no more elements in list1 to be moved.
+           nlisto=ips-1
         enddo
         nlist1=nlist1+nlist2
         return
@@ -116,27 +103,28 @@
 !..starting from the end of the list, expand list1 to accomodate
 !.. elements of list2
        nlisto=nlist1
-       nlo=nlist1
        do i=nlist2,1,-1
 !.. find the positions in list1 which the list2 would be inserted
            DetCurr(0:NIfTot)=list2(0:NIfTot,i)
-           call search(nlisto,DetCurr,ips1)
+           if(nlisto.eq.0) then
+               ips=1
+           else
+               call search(nlisto,DetCurr,ips)
+           endif
 !          write(6,*) 'position in list1 to be inserted:',ips1
 !..ips1 is the position in list1 which num is to be inserted
-           ips=ips1      
 !           write(6,*) ' Going to insert into position:',ips
 !           write(6,*) ' Copy elements from:',ips,' to',nlisto
 !..if ips is less than nlisto, then no elements will be copied.
            do j=nlisto,ips,-1
-              if(j.le.nlo) then 
+!              if(j.le.nlo) then 
 !                 write(6,*) j,'->',j+i
-                 CurrentDets(0:NIfTot,j+i)=CurrentDets(0:NIfTot,j)
-                 CurrentSign(j+i)=CurrentSign(j)
-              endif
+             CurrentDets(0:NIfTot,j+i)=CurrentDets(0:NIfTot,j)
+             CurrentSign(j+i)=CurrentSign(j)
+!              endif
            enddo
 !.elements of list1 which were copied over started
 !.. from nlisto and went up to ips
-           nlo=ips
 !           write(6,*) ' position labels of newly enlarged list:'
 !           write(6,'(20i15)') (j,j=1,nlist1+nlist2)
 !           write(6,*) 'new enlarged list on step:',i
@@ -159,7 +147,7 @@
 !           write(6,'(20i15)') (list1(:,j),j=1,nlist1+nlist2)
 !..new end of list position is the next insertion point
 !           nlisto=min(nlisto,ips+i-2)
-           nlisto=min(nlisto,ips-1)
+           nlisto=ips-1
 !           write(6,*) ' new end of list position:',nlisto
         enddo
         nlist1=nlist1+nlist2
