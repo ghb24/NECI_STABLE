@@ -54,7 +54,7 @@ MODULE AnnihilationMod
         INTEGER(KIND=n_int), INTENT(INOUT) , TARGET :: MainParts(0:NIfTot,MaxMainInd),SpawnParts(0:NIfTot,MaxSpawnInd)
         INTEGER, INTENT(INOUT) , TARGET :: MainSign(MaxMainInd),SpawnSign(MaxSpawnInd)
         INTEGER, INTENT(INOUT) :: SpawnDets
-        INTEGER :: ierr
+        INTEGER :: ierr,i
         CHARACTER(len=*) , PARAMETER :: this_routine='AnnihilationInterface'
         INTEGER, DIMENSION(lenof_sign) :: TempSign
 

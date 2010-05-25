@@ -1299,7 +1299,6 @@ SUBROUTINE InitMP1Amplitude(tFCI,Amplitude,nExcit,ExcitList,ExcitLevelIndex,dIni
    INTEGER(KIND=n_int) ExcitList(0:nIfTot,nExcit)
    INTEGER ExcitLevelIndex(0:nEl+1)
    REAL*8 dInitAmp,dTotAbsAmpl
-
    INTEGER iC,i,j,l,iSgn
    REAL*8 dT1Sq,dAmp,dTmp
    INTEGER DetCurr(nEl)
@@ -1307,6 +1306,7 @@ SUBROUTINE InitMP1Amplitude(tFCI,Amplitude,nExcit,ExcitList,ExcitLevelIndex,dIni
    INTEGER(KIND=n_int) iLutnI(0:nIfTot)
    INTEGER PartIndex
    LOGICAL tSuc
+
    iC=0
    H0HF=GetH0Element3(HFDet)
    Amplitude(:)=0

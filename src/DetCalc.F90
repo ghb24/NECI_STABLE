@@ -302,7 +302,7 @@ CONTAINS
       use SystemData, only  : tCSFOLD
       use Parallel, only : iProcIndex
       use DetBitops, only: DetBitEQ,EncodeBitDet
-      use bit_rep_data, only: NIfDBO
+      use bit_rep_data, only: NIfDBO,NIfTot
       use legacy_data, only: irat
      use HElem
 
@@ -322,7 +322,7 @@ CONTAINS
         INTEGER iDeg,III,IN,IND,INDZ
         INTEGER NBLOCK!,OpenOrbs,OpenOrbsSym,Ex(2,NEl)
         INTEGER nKry1,nK(NEl)!,nJ(NEl)
-        INTEGER(KIND=n_int) :: ilut(0:NIfDBO)
+        INTEGER(KIND=n_int) :: ilut(0:NIfTot)
         
         INTEGER J,JR,iGetExcitLevel_2,ExcitLevel, iunit
         INTEGER LSCR,LISCR,MaxIndex
@@ -597,7 +597,7 @@ CONTAINS
             WRITE(6,*) "Normalization of eigenvector 1 is: ", norm
             CALL FLUSH(6)
 
-            ALLOCATE(FCIDets(0:NIfDBO,Det),stat=ierr)
+            ALLOCATE(FCIDets(0:NIfTot,Det),stat=ierr)
             IF(ierr.ne.0) CALL Stop_All("DetCalc","Cannot allocate memory to hold vector")
             ALLOCATE(FCIDetIndex(0:NEl+1),stat=ierr) !+1 so we can store the end of the array too
             ALLOCATE(Temp(Det),stat=ierr)
@@ -622,7 +622,7 @@ CONTAINS
 ! FCIDetIndex is off by one, for later cumulative indexing
                     FCIDetIndex(ExcitLevel+1)=FCIDetIndex(ExcitLevel+1)+1
                     Temp(Det)=ExcitLevel    !Temp will now temporarily hold the excitation level of the determinant.
-                    CALL EncodeBitDet(NMRKS(:,i),FCIDets(0:NIfDBO,Det))
+                    CALL EncodeBitDet(NMRKS(:,i),FCIDets(0:NIfTot,Det))
                     IF(tEnergy) THEN
                         FCIGS(Det)=REAL(CK(i,1),8)/norm
                     ENDIF
