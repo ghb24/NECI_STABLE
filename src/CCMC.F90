@@ -247,7 +247,7 @@ MODULE CCMC
                   call extract_sign(CurrentDets(:,l),TempSign2)
                   iSgn(1)=iSgn(1)*TempSign2(1)
                   iLutnI(:)=CurrentDets(:,j)
-                  call AddBitExcitor(iLutnI,CurrentDets(0:NIfDBO,l),iLutHF,iSgn(1))
+                  call AddBitExcitor(iLutnI,CurrentDets(:,l),iLutHF,iSgn(1))
                   if(iSgn(1).ne.0) then
                      call decode_bit_det (DetCurr, iLutnI)
                      Htmp = get_helement (HFDet, DetCurr, iLutHF, iLutnI)

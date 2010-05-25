@@ -16,7 +16,7 @@ module ClusterList
    use memorymanager, only: LogMemAlloc, LogMemDealloc
    use Determinants, only: get_helement, write_det, write_det_len
    use constants, only: dp, int32, n_int
-   use bit_rep_data, only: NIfDBO,NIfD
+   use bit_rep_data, only: NIfDBO,NIfD,NIfTot
    use CCMCData, only: ExcitToDetSign,AddBitExcitor
    implicit none
 
@@ -54,7 +54,7 @@ contains
       implicit none
       integer iUnit, nLev,nMax
       %(type1)s Amps(*)
-      INTEGER(KIND=n_int) Dets(0:nIfDBO,*)
+      INTEGER(KIND=n_int) Dets(0:nIfTot,*)
       INTEGER LevIndex(0:nLev+1) 
       
       integer BestIndex(nMax+1)
@@ -144,7 +144,7 @@ subroutine WriteExcitorList (iUnit,Amplitude,Dets,offset,nDet,dTol,Title)
    use FciMCParMod, only: iLutHF
    IMPLICIT NONE
    INTEGER iUnit,nDet
-   INTEGER(KIND=n_int) Dets(0:nIfDBO,nDet)
+   INTEGER(KIND=n_int) Dets(0:nIfTot,nDet)
    %(type1)s Amplitude(nDet),dTol
    CHARACTER(len=*) Title
    INTEGER j,offset
@@ -163,7 +163,7 @@ end subroutine !WriteExcitorList
 ! tFCI                         If set, then use (1+T)|D_0> rather than (1+T+T^2 /2)|D0> as the wavefunction
 ! Amplitude(nExcit)            is the amplitude of each excitor
 ! nExcit                       is the number of excitors
-! ExcitList(0:nIfDBO,nExcit)   contains the bit-compressed list of excitors
+! ExcitList(0:nIfTot,nExcit)   contains the bit-compressed list of excitors
 ! ExcitLevelIndex(0:nEl+1)     is the index of the first det of each excitation level in ExcitList
 ! ProjE                        The projected energy for this cycle is returned here.
 
@@ -182,7 +182,7 @@ SUBROUTINE CalcClusterEnergy (tFCI,Amplitude,nExcit,ExcitList,ExcitLevelIndex,iR
    LOGICAL tFCI
    %(type1)s Amplitude(nExcit)
    INTEGER nExcit
-   INTEGER(kind=n_int) ExcitList(0:nIfDBO,nExcit)
+   INTEGER(kind=n_int) ExcitList(0:nIfTot,nExcit)
    INTEGER ExcitLevelIndex(0:nEl+1)
    REAL*8 ProjE
    INTEGER iDebug
@@ -193,10 +193,10 @@ SUBROUTINE CalcClusterEnergy (tFCI,Amplitude,nExcit,ExcitList,ExcitLevelIndex,iR
    REAL*8 dT1Sq,dAmp,dTmp
    INTEGER DetCurr(nEl)
    HElement_t HTmp
-   INTEGER(kind=n_int) iLutnI(0:nIfDBO)
+   INTEGER(kind=n_int) iLutnI(0:nIfTot)
    Type(Cluster) C
 
-   allocate(C%%SelectedExcitors(0:nIfDBO,2))
+   allocate(C%%SelectedExcitors(0:nIfTot,2))
    iC=0
    dT1Sq=0
    do j=1,nExcit
@@ -257,7 +257,7 @@ END SUBROUTINE !CalcClusterEnergy
 ! tFCI                         If set, then use (1+T)|D_0> rather than (1+T+T^2 /2)|D0> as the wavefunction
 ! Amplitude(nExcit)            is the amplitude of each excitor
 ! nExcit                       is the number of excitors
-! ExcitList(0:nIfDBO,nExcit)   contains the bit-compressed list of excitors
+! ExcitList(0:nIfTot,nExcit)   contains the bit-compressed list of excitors
 ! ProjE                        The projected energy for this cycle is returned here.
 
 SUBROUTINE CalcClusterEnergyUnsrt (tFCI,Amplitude,nExcit,ExcitList,iRefPos,ProjE)
@@ -275,7 +275,7 @@ SUBROUTINE CalcClusterEnergyUnsrt (tFCI,Amplitude,nExcit,ExcitList,iRefPos,ProjE
    LOGICAL tFCI
    %(type1)s Amplitude(nExcit)
    INTEGER nExcit
-   INTEGER(kind=n_int) ExcitList(0:nIfDBO,nExcit)
+   INTEGER(kind=n_int) ExcitList(0:nIfTot,nExcit)
    REAL*8 ProjE
    INTEGER iRefPos
    INTEGER, DIMENSION(lenof_sign) :: temp_sign
@@ -284,7 +284,7 @@ SUBROUTINE CalcClusterEnergyUnsrt (tFCI,Amplitude,nExcit,ExcitList,iRefPos,ProjE
    REAL*8 dT1Sq,dAmp,dTmp
    INTEGER DetCurr(nEl)
    HElement_t HTmp
-   INTEGER(kind=n_int) iLutnI(0:nIfDBO)
+   INTEGER(kind=n_int) iLutnI(0:nIfTot)
    iC=0
    dT1Sq=0
    do j=1,nExcit
@@ -332,7 +332,7 @@ END SUBROUTINE !CalcClusterEnergyUnsrt
 !
 !  CS is a ClusterSelector which determines how the cluster is selected
 !
-!  Dets(0:nIfDBO,1:nDet) is a list of excitors
+!  Dets(0:nIfTot,1:nDet) is a list of excitors
 !  Amplitude(1:nDet)     is a list of excitor amplitudes, T
 !  dTotAbsAmplitude      is |T|
 !  iNumExcitors          is the number of non-zero elements of Amplitude
@@ -382,7 +382,7 @@ FUNCTION GetNextCluster (CS,Dets,nDet,Amplitude,dTotAbsAmpl,iNumExcitors,iMaxSiz
    TYPE(ClustSelector) CS
    INTEGER nDet
    %(type1)s Amplitude(nDet)
-   INTEGER(KIND=n_int) Dets(0:nIfDBO,nDet)
+   INTEGER(KIND=n_int) Dets(0:nIfTot,nDet)
    REAL*8 dTotAbsAmpl
    INTEGER iDebug,iMaxSizeIn
 
@@ -540,7 +540,7 @@ SUBROUTINE CollapseCluster (C,iLutHF,Amplitude,nDet,iDebug,tExToDet)
    use bit_reps, only: decode_bit_det
    IMPLICIT NONE
    TYPE(Cluster) C
-   INTEGER(KIND=n_int) :: iLutHF(0:nIfDBO)
+   INTEGER(KIND=n_int) :: iLutHF(0:nIfTot)
    %(type1)s Amplitude(1:nDet)
    INTEGER nDet
    INTEGER iDebug
