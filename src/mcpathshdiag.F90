@@ -67,7 +67,7 @@ module mcpathshdiag
          INTEGER, pointer :: OGEN(:)
          INTEGER, pointer :: CURGEN(:)
          TYPE(EGP) LOCTAB(:)
-         TYPE(EGP) LOCTAB2(I_VIND+1)
+         TYPE(EGP) LOCTAB2(I_V)
          LOGICAL TFAIL,TNEXT,T
          INTEGER L,LT,IVLEVEL,IEXFROM,IVLMAX,IVLMIN
          INTEGER ICMPDETS

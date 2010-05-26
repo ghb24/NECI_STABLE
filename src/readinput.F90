@@ -50,7 +50,7 @@ MODULE ReadInput
             Write(6,*) "Reading from file: ", Trim(cFilename)
             inquire(file=cFilename,exist=tExists)
             if (.not.tExists) call stop_all('ReadInputMain','File '//Trim(cFilename)//' does not exist.')
-            Open(1,File=cFilename,Status='OLD',err=99,iostat=ios)
+            Open(ir,File=cFilename,Status='OLD',err=99,iostat=ios)
         ElseIf(iArgC().gt.0) then
     ! We have some arguments we can process instead
             Call GetArg(1,cInp)      !Read argument 1 into inp
