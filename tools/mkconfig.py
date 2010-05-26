@@ -169,6 +169,24 @@ DIRS = $(GDEST) $(KDEST) $(TDEST) $(GDEP_DEST) $(KDEP_DEST) $(EXE) $(LIB)
 make_dirs := $(foreach outdir, $(DIRS), $(shell test -e $(outdir) || mkdir -p $(outdir)))
 
 #-----
+# Executables and libraries.
+
+# Main programs
+PROGS = $(addprefix $(EXE)/,neci.x kneci.x)
+
+# Library versions of neci.
+CPMDLIBS = $(addprefix $(LIB)/,gneci-cpmd.a kneci-cpmd.a)
+VASPLIBS = $(addprefix $(LIB)/,gneci-vasp.a kneci-vasp.a)
+NECILIBS = $(CPMDLIBS) $(VASPLIBS)
+
+# Utility programs.
+# We assume that the utility program is written in fortran, resides in the
+# utils subdirectory with the source filename (e.g.) utils/a.f90, that the
+# program name is (e.g.) bin/a.x and that the utility program requires (at
+# most) the same libraries as neci.
+UTILS = $(addprefix $(EXE)/, TransLz.x BlockFCIMC.x ModelFCIQMC.x ConvertMolpFCID.x ConvertPOPSFILE.x RoVibSpectrum/CalcVibSpectrum.x)
+
+#-----
 # VCS info.
 
 # Get the version control id.  Git only.  Outputs a string.
@@ -224,6 +242,7 @@ KcOBJ := $(addprefix $(KDEST)/, $(cOBJ_bare))
 # Objects for standalone NECI.
 # We don't need libstub.
 OBJECTS_NECI := $(filter-out %%libstub.o,$(OBJECTS))
+OBJECTS_KNECI := $(addprefix $(KDEST)/,$(notdir $(OBJECTS_NECI)))
 
 # Objects for CPMD library.
 # We don't need necimain.o, cpmdstub.o, init_coul.o, init_coul2D.o.  We keep libstub though.
@@ -262,9 +281,24 @@ KcDEPEND_FILES = $(addprefix $(KDEP_DEST)/,$(notdir $(KcOBJ:.o=.d)))
 CDEPEND = $(cppDEPEND_FILES) $(cDEPEND_FILES) $(KcppDEPEND_FILES) $(KcDEPEND_FILES)
 
 #-----
-# Goals
+# Set make's special rules
 
-.PHONY: clean cleanall depend rmdeps help neci.x utils $(UTILS)
+# Rules which don't actually produce any files...
+.PHONY: clean cleanall depend rmdeps help utils
+
+# Compile neci.x by default.
+.DEFAULT_GOAL := neci.x
+
+# Don't delete any intermediate files (e.g. bin/*.x when the goal doesn't
+# include the full path; .F90 files produced from template files).
+.SECONDARY: $(addprefix $(TDEST)/,$(notdir $(basename $(F90TMPSRCFILES)))) $(PROGS) $(NECILIBS) $(UTILS)
+
+# Extensions of files to compile.
+.SUFFIXES:
+.SUFFIXES: $(EXTS) .f .f90
+
+#-----
+# Goals
 
 # First, some helpful macros.
 
@@ -278,27 +312,24 @@ ARCHIVE = $(AR) $(ARFLAGS) $@ $^
 # Link target to prerequisite.
 LINK = cd $(dir $<) && ln -s -f $(<F) $(@F)
 
-# Compiling neci.x
-$(EXE)/neci.x: $(EXE)/neci.$(CONFIG).$(OPT).x
+# We compile all binaries and libraries to platform-specific filenames and link
+# the most recently compiled one to (e.g.) neci.x or gneci-cpmd.a. 
+$(EXE)/%%.x: $(EXE)/%%.$(CONFIG).$(OPT).x
 \t$(LINK)
 
+$(LIB)/%%.a: $(LIB)/%%.$(CONFIG).$(OPT).a
+\t$(LINK)
+
+# Compiling *.x
 $(EXE)/neci.$(CONFIG).$(OPT).x: $(OBJECTS_NECI)
 \t$(GBLD_ENV)
 \t$(LD) $(LDFLAGS) -o $@ $(OBJECTS_NECI) $(LIBS)
 
+$(EXE)/kneci.$(CONFIG).$(OPT).x: $(OBJECTS_KNECI)
+\t$(KBLD_ENV)
+\t$(LD) $(LDFLAGS) -o $@ $(OBJECTS_KNECI) $(LIBS)
+
 # Compiling libraries.
-$(LIB)/gneci-cpmd.a: $(LIB)/gneci-cpmd.$(CONFIG).$(OPT).a
-\t$(LINK)
-
-$(LIB)/kneci-cpmd.a: $(LIB)/kneci-cpmd.$(CONFIG).$(OPT).a
-\t$(LINK)
-
-$(LIB)/gneci-vasp.a: $(LIB)/gneci-vasp.$(CONFIG).$(OPT).a
-\t$(LINK)
-
-$(LIB)/kneci-vasp.a: $(LIB)/kneci-vasp.$(CONFIG).$(OPT).a
-\t$(LINK)
-
 $(LIB)/gneci-cpmd.$(CONFIG).$(OPT).a: $(OBJECTS_RCPMD)
 \t$(GBLD_ENV)
 \t$(ARCHIVE)
@@ -328,13 +359,14 @@ cleanall:
 MKDEPEND = $(TOOLS)/sfmakedepend --file - --cpp --fext=f90 --depend=mod --silent $(FSRCFILES) $(F90SRCFILES) $(F90TMPSRCFILES) 
 RMTEMPLATE = sed -e 's/\.F90\.template//g'
 $(FRDEPEND):
-\t$(MKDEPEND) --objdir \$$\(GDEST\) --moddir \$$\(GDEST\) | $(RMTEMPLATE) > $(FRDEPEND)
+\t$(MKDEPEND) --objdir \$$\(GDEST\) --moddir \$$\(GDEST\) | $(RMTEMPLATE) > $@
+
 $(FCDEPEND):
-\t$(MKDEPEND) --objdir \$$\(KDEST\) --moddir \$$\(KDEST\) | $(RMTEMPLATE) > $(FCDEPEND)
+\t$(MKDEPEND) --objdir \$$\(KDEST\) --moddir \$$\(KDEST\) | $(RMTEMPLATE) > $@
 $(FRDEPENDUP):
-\t$(MKDEPEND) --case=upper --objdir \$$\(GDEST\) --moddir \$$\(GDEST\) | $(RMTEMPLATE) > $(FRDEPENDUP)
+\t$(MKDEPEND) --case=upper --objdir \$$\(GDEST\) --moddir \$$\(GDEST\) | $(RMTEMPLATE) > $@
 $(FCDEPENDUP):
-\t$(MKDEPEND) --case=upper --objdir \$$\(KDEST\) --moddir \$$\(KDEST\) | $(RMTEMPLATE) > $(FCDEPENDUP)
+\t$(MKDEPEND) --case=upper --objdir \$$\(KDEST\) --moddir \$$\(KDEST\) | $(RMTEMPLATE) > $@
 
 # Generate all dependency files.
 depend: 
@@ -345,7 +377,7 @@ rmdeps:
 \trm -f $(FDEPEND) $(FDEPENDUP) $(CDEPEND)
 
 tags: null_goal
-\tctags $(SRCFILES)
+\tctags --langmap=fortran:.F90.template $(SRCFILES)
 
 # Empty goal.  Depending on this will force a rule to be run.
 null_goal: ;
@@ -353,18 +385,25 @@ null_goal: ;
 #-----
 # Shortcut goals
 
-neci.x: $(EXE)/neci.x
+# Target to point *.x to bin/*.x.
+# Because we use an implicit rule, make attempts to find an implicit command
+# associated with .x files (and one does not exist).  The semi-colon defines an
+# empty command and hence prevents make seeking the non-existant command to
+# execute when we attempt to build .x files...
+# (Helpfully documented for the future as figured out that aspect of make was "fun".)
+%%.x: $(EXE)/%%.x ;
+
 new: clean neci.x
 
-gneci-cpmd: $(LIB)/gneci-cpmd.a
-kneci-cpmd: $(LIB)/kneci-cpmd.a
-cpmdlibs: gneci-cpmd kneci-cpmd
+cpmdlibs: $(CPMDLIBS)
 
-gneci-vasp: $(LIB)/gneci-vasp.a
-kneci-vasp: $(LIB)/kneci-vasp.a
-vasplibs: gneci-vasp kneci-vasp
+vasplibs: $(VASPLIBS)
 
-libs: cpmdlibs vasplibs
+libs: $(NECILIBS)
+
+utils: $(UTILS)
+
+all: $(PROGS) libs utils
 
 #-----
 # Help message.
@@ -374,6 +413,7 @@ help:
 \t@echo
 \t@echo "Targets:"
 \t@echo "neci.x        compile neci.x."
+\t@echo "kneci.x        compile kneci.x."
 \t@echo "new           run clean and then compile neci.x."
 \t@echo "gneci-cpmd    compile neci library for integration with gamma-point version of cpmd."
 \t@echo "kneci-cpmd    compile neci library for integration with k-point version of cpmd."
@@ -398,11 +438,6 @@ help:
 #-----
 # Compilation macros (explicit rules)
 
-.SUFFIXES:
-.SUFFIXES: $(EXTS) .f .f90
-# Don't delete the intermediate .F90 files produced from template files.
-.SECONDARY: $(addprefix $(TDEST)/,$(notdir $(basename $(F90TMPSRCFILES))))
-
 # Some more helpful macros.
 CPP_BODY = $(CPPFLAGS) $< $@
 C_BODY = $(CFLAGS) $(CPPFLAGS) -c $< -o $@ 
@@ -425,26 +460,28 @@ endif
 # Compiling fortran source files...
 
 # 1. Pre-processing.
+# Provide INCLUDE_PATH as not all source files are in the same directory as
+# (e.g.) macros.h.
 # a) gamma-point.
 $(GDEST)/%%.f90: %%.F90
-\t$(CPP) $(CPP_BODY) $(GCPPFLAG)
+\t$(CPP) $(CPP_BODY) $(GCPPFLAG) $(INCLUDE_PATH)
 
 $(GDEST)/%%.f: %%.F
-\t$(CPP) $(CPP_BODY) $(GCPPFLAG)
+\t$(CPP) $(CPP_BODY) $(GCPPFLAG) $(INCLUDE_PATH)
 
 # b) k-point.
 $(KDEST)/%%.f90: %%.F90
-\t$(CPP) -D__CMPLX $(CPP_BODY) $(KCPPFLAG)
+\t$(CPP) -D__CMPLX $(CPP_BODY) $(KCPPFLAG) $(INCLUDE_PATH)
 
 $(KDEST)/%%.f: %%.F
-\t$(CPP) -D__CMPLX $(CPP_BODY) $(KCPPFLAG)
+\t$(CPP) -D__CMPLX $(CPP_BODY) $(KCPPFLAG) $(INCLUDE_PATH)
 
 # c) With an option to generate from template files.
 $(GDEST)/%%.f90: $(TDEST)/%%.F90
-\t$(CPP) $(CPP_BODY)
+\t$(CPP) $(CPP_BODY) $(GCPPFLAG) $(INCLUDE_PATH)
 
 $(KDEST)/%%.f90: $(TDEST)/%%.F90
-\t$(CPP) -D__CMPLX $(CPP_BODY)
+\t$(CPP) -D__CMPLX $(CPP_BODY) $(KCPPFLAG) $(INCLUDE_PATH)
 
 $(TDEST)/%%.F90: %%.F90.template
 \t$(TOOLS)/f90_template.py $< $@
@@ -510,22 +547,8 @@ $(KcppDEPEND_FILES): $(KDEP_DEST)/%%.d: %%.cpp
 # same libraries as neci.
 MKUTIL = $(FC) $(FFLAGS) $(F90FLAGS) $< -o $@ $(LIBS)
 
-UTILS = TransLz.x BlockFCIMC.x ModelFCIQMC.x ConvertMolpFCID.x ConvertPOPSFILE.x RoVibSpectrum/CalcVibSpectrum.x  
-
-# Target to compile all utility programs.
-utils: $(UTILS)
-
-# Target to point *.x to bin/*.x for utility programs.
-$(UTILS): %%: $(EXE)/%%
-
-# Utilities are compiled as bin/*.config.opt.x.
-# The static pattern (before the first :) results in matching only
-# bin/$(UTILS).
-# bin/*.x links to bin/*.config.opt.x.
-$(addprefix $(EXE)/,$(UTILS)): $(EXE)/%%.x: $(EXE)/%%.$(CONFIG).$(OPT).x
-\t$(LINK)
-
 # Compile bin/*.config.opt.x from utils/*.f90
+# Previously defined targets point bin/*.x to bin/*.config.opt.x and from *.x to bin/*.x.
 # The static pattern results in applying this to only targets of the form $(EXE)/*.$(CONFIG).$(OPT).x
 # where *.x is one of the programs defined in $(UTILS).
 $(addprefix $(EXE)/,$(addsuffix .$(CONFIG).$(OPT).x,$(basename $(UTILS)))): $(EXE)/%%.$(CONFIG).$(OPT).x: utils/%%.f90

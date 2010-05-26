@@ -18,7 +18,8 @@ MODULE Calc
           Use DetCalcData, only: B2L,nKry,nEval,nBlk
           use IntegralsData, only: tNeedsVirts
           use SystemData, only : Beta,nEl
-          use CCMCData, only: dInitAmplitude,dProbSelNewExcitor,nSpawnings,tSpawnProp
+          use CCMCData, only: dInitAmplitude,dProbSelNewExcitor,nSpawnings,tSpawnProp,nClustSelections
+          use CCMCData, only: tExactEnergy
           use default_sets
           implicit none
 
@@ -94,6 +95,8 @@ MODULE Calc
           dInitAmplitude=1.d0
           dProbSelNewExcitor=0.7d0
           nSpawnings=1
+          nClustSelections=1
+          tExactEnergy=.false.
           tSpawnProp=.false.
           NMCyc=2000
           DiagSft=0.D0
@@ -187,6 +190,7 @@ MODULE Calc
           tDelayTruncInit=.false.
           tKeepDoubleSpawns=.false.
           tAddtoInitiator=.false.
+          tRetestAddtoInit=.true.
           InitiatorWalkNo=10
           IterTruncInit=0
           tInitIncDoubs=.false.
@@ -217,7 +221,8 @@ MODULE Calc
           Use DetCalc, only: tEnergy, tRead,tFindDets
           use IntegralsData, only: tNeedsVirts,NFROZEN
           use UMatCache, only: gen2CPMDInts
-          use CCMCData, only: dInitAmplitude,dProbSelNewExcitor,nSpawnings,tSpawnProp
+          use CCMCData, only: dInitAmplitude,dProbSelNewExcitor,nSpawnings,tSpawnProp,nClustSelections
+          use CCMCData, only: tExactEnergy
           use global_utilities
           use Parallel, only : nProcessors
           IMPLICIT NONE
@@ -741,6 +746,11 @@ MODULE Calc
             case("NSPAWNINGS")
 !For Amplitude CCMC the number of spawnings for each cluster.
                 call geti(nSpawnings)
+            case("NCLUSTSELECTIONS")
+!For Particle CCMC the number of  cluster.
+                call geti(nClustSelections)
+            case("CCMCEXACTENERGY")
+               tExactEnergy=.true.
             case("SPAWNPROP")
 !For Amplitude CCMC use NSPAWNINGS as a total number of spawnings, and distribute them according to the Amplitudes of clusters.
                tSpawnProp=.true.
@@ -973,6 +983,22 @@ MODULE Calc
                 tAddtoInitiator=.true.
                 call Geti(InitiatorWalkNo)
 
+            case("RETESTINITPOP")                
+!This keyword is on by default.  It corresponds to the original initiator algorithm whereby a determinant may be added to the initiator space if its population becomes higher 
+!than InitiatorWalkNo (above), but if the pop then drops below this, the determinant is removed again from the initiator space.
+!Having this on means the population is tested at every iteration, turning it off means that once a determinant becomes an initiator by virtue of its population, it remains an initiator 
+!for the rest of the simulation.
+                if(item.lt.nitems) then
+                    call readu(w)
+                    select case(w)
+                    case("OFF")
+                        tRetestAddtoInit=.false.
+                    end select
+                else
+                    tRetestAddtoInit=.true.
+                end if
+
+ 
             case("INCLDOUBSINITIATOR")
 !This keyword includes any doubly excited determinant in the 'initiator' space so that it may spawn as usual
 !without any restrictions.
@@ -1574,6 +1600,9 @@ MODULE Calc
                   do while(item.lt.nitems)
                     call readu(w)
                     select case(w)
+                    case("PARTICLE")
+                       tFCIMC=.false.  !We don't use the FCIMC code, but use a standalone.
+                       tAmplitudes=.false.
                     case("AMPLITUDE")
                        tAmplitudes=.true.
                        tFCIMC=.false.  !We don't use the FCIMC code, but use a standalone.

@@ -4,7 +4,7 @@ module Integrals
     use SystemData, only: tStoreSpinOrbs, tStarStore, nBasisMax, iSpinSkip, &
                           tFixLz, nBasis, G1, Symmetry, tCacheFCIDUMPInts, &
                           tRIIntegrals, tVASP
-    use UmatCache, only: tUmat2D, UMatInd, umat2d, tTransFIndx, nHits, &
+    use UmatCache, only: tUmat2D, UMatInd, UMatConj, umat2d, tTransFIndx, nHits, &
                          nMisses, GetCachedUMatEl, HasKPoints, TransTable, &
                          nTypes, gen2CPMDInts, tDFInts
     use util_mod, only: get_nan
@@ -428,6 +428,7 @@ contains
       use SystemData, only: Omega,tAlpha,TBIN,tCPMD,tDFread,THFORDER,tRIIntegrals
       use SystemData, only: thub,tpbc,treadint,ttilt,TUEG,tVASP,tStarStore
       use SystemData, only: uhub, arr,alat,treal,tCacheFCIDUMPInts
+      use read_fci
       use constants, only: Pi, Pi2, THIRD
       INTEGER iCacheFlag
       COMPLEX*16,ALLOCATABLE :: ZIA(:)
@@ -1692,6 +1693,10 @@ contains
         HElement_t :: hel
 
         hel = UMAT (UMatInd(idi, idj, idk, idl, 0, 0))
+#ifdef __CMPLX
+        hel = UMatConj(idi, idj, idk, idl, hel)
+#endif
+
     end function
 
     function get_umat_el_starstore (idi, idj, idk, idl) result(hel)
@@ -1722,6 +1727,9 @@ contains
                 hel = get_nan ()
             else
                 hel = UMAT (i)
+#ifdef __CMPLX
+                hel = UMatConj(idi, idj, idk, idl, hel)
+#endif
             endif
         endif
     end function

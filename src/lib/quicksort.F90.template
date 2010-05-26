@@ -511,9 +511,12 @@ contains
                 ! of sections to look at later.
                 ! --> need fewest stack elements. 
                 nstack = nstack + 2
-                if (nstack > nStackMax) call stop_all (this_routine, &
+                if (nstack > nStackMax) then
+                        write(6,*) nstack,nStackMax,n
+                        call stop_all (this_routine, &
                                         "parameter nStackMax too small")
-                if (hi - i + 1 >= j - 1) then
+                endif
+                if (hi - i + 1 >= j - lo) then
                     stack(nstack) = hi
                     stack(nstack-1) = i
                     hi = j - 1

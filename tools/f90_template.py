@@ -257,7 +257,7 @@ def interface_procs (template):
 		# Find all of the functions or subroutines. Note that it requires functions to
 		# be new style functions, with results declared in result(ret) format.
 		#re_proc = re.compile ('\n\s*(subroutine|function)[\s^\n]+\(\w+\)[\s^\n]+\(')
-		re_proc = re.compile ('(\n\s*((elemental|pure)[\s^\n]+)*(subroutine|function)[\s^\n]+)(\w+)([\s^\n]*\()')
+		re_proc = re.compile ('(\n\s*((elemental|pure)[\s^\n]+)*(subroutine|function)[\s^\n]+)(\w+)([\s^\n]*\()',re.I)
 
 		offset = m.start()
 		proc = re_proc.search(template[offset:])

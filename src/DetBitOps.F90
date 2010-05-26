@@ -295,7 +295,7 @@ module DetBitOps
         integer(kind=n_int), intent(in) :: iLutI(0:NIfD), iLutJ(0:NIfD)
         integer, intent(in) :: IC
         integer, intent(out) :: op_ind(2*IC, 2), nop(2)
-        integer, intent(out) :: tsign_id (IC,2), nsign(2)
+        integer, intent(out) :: tsign_id (2*IC,2), nsign(2)
         character(*), parameter :: this_routine = 'get_bit_open_unique_ind'
 
         integer :: i, j, det, det2, sing_ind(2) 
@@ -322,7 +322,7 @@ module DetBitOps
         sing_ind = 0
         nsign = 0
         do i=0,NIfD
-            do j=0,bits_n_int
+            do j=0,end_n_int
                 ! TODO: If CSF, increment in steps of 2.
                 do det=1,2
                     if (nop(det) < 2*IC) then
