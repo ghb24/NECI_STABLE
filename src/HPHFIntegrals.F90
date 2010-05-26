@@ -1,12 +1,13 @@
 module hphf_integrals
     use constants, only: dp,n_int
-    use SystemData, only: NEl, nBasisMax, G1, nBasis, Brr, NIftot, NIfDBO, &
-                          tHub, ECore, ALat, NMSH, NIftot
+    use SystemData, only: NEl, nBasisMax, G1, nBasis, Brr, tHub, ECore, &
+                          ALat, NMSH
     use IntegralsData, only: UMat,FCK,NMAX
     use HPHFRandExcitMod, only: FindDetSpinSym, FindExcitBitDetSym
     use DetBitOps, only: DetBitEQ, FindExcitBitDet, FindBitExcitLevel
     use sltcnd_mod, only: sltcnd, sltcnd_excit
     use IntegralsData, only: UMat,FCK,NMAX
+    use bit_reps, only: NIfD, NIfTot, NIfDBO
     implicit none
 
     interface hphf_off_diag_helement

@@ -7,8 +7,7 @@ MODULE HPHFRandExcitMod
 ![ P(i->a) + P(i->b) + P(j->a) + P(j->b) ]/2
 !We therefore need to find the excitation matrix between the determinant which wasn't excited and the determinant which was created.
 
-    use SystemData, only: nel, niftot, tCSF, nifd, nifdbo, Alat, G1, nbasis,&
-                          nbasismax, nmsh, arr
+    use SystemData, only: nel, tCSF, Alat, G1, nbasis, nbasismax, nmsh, arr
     use IntegralsData, only: UMat, fck, nMax
     use SymData, only: nSymLabels
     use dSFMT_interface, only : genrand_real2_dSFMT
@@ -20,6 +19,7 @@ MODULE HPHFRandExcitMod
     use constants, only: dp,n_int
     use HElem
     use sltcnd_mod, only: sltcnd_excit
+    use bit_reps, only: NIfD, NIfDBO, NIfTot
     use sort_mod
     IMPLICIT NONE
 !    SAVE
@@ -548,7 +548,8 @@ MODULE HPHFRandExcitMod
 !number of excitations generated using the full enumeration excitation generation.
     SUBROUTINE TestGenRandHPHFExcit(nI,Iterations,pDoub)
         Use SystemData , only : NEl,nBasis,G1,nBasisMax
-        use DetBitOps, only: EncodeBitDet, DecodeBitDet
+        use DetBitOps, only: EncodeBitDet
+        use bit_reps, only: decode_bit_det
         use GenRandSymExcitNuMod, only: scratchsize
         use FciMCData, only: tGenMatHEl
         use util_mod, only: get_free_unit
@@ -795,7 +796,7 @@ MODULE HPHFRandExcitMod
                 Die=.true.
             ENDIF
             WRITE(6,*) i,UniqueHPHFList(0:NIfTot,i),Weights(i)
-            CALL DecodeBitDet(nIX,UniqueHPHFList(0:NIfTot,i))
+            call decode_bit_det (nIX, UniqueHPHFList(0:NIfTot,i))
             WRITE(6,*) nIX(:)
             WRITE(iunit,*) i,UniqueHPHFList(0:NIfTot,i),Weights(i)
         enddo

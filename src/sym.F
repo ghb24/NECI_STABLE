@@ -2082,7 +2082,7 @@ C.. Set to be totally symmetric
       SUBROUTINE FindSymMCSizeofSpace(IUNIT)
          use SymData, only : TwoCycleSymGens
          use SystemData, only: nEl,G1,nBasis,nOccAlpha,nOccBeta,G1
-         use SystemData, only: tUEG, NIfTot,tHPHF
+         use SystemData, only: tUEG, tHPHF
          use Determinants, only : FDet
          use DetCalc, only : ICILevel
          use SystemData, only : CalcDetCycles, CalcDetPrint,tFixLz
@@ -2092,9 +2092,10 @@ C.. Set to be totally symmetric
          use constants, only : n_int,bits_n_int
          use DetBitops, only: EncodeBitDet
          use util_mod, only: choose
+         use bit_rep_data, only: NIfDBO
          IMPLICIT NONE
          INTEGER :: IUNIT,OverallSym,j,SpatOrbs,FDetMom,ExcitLev
-         INTEGER(KIND=n_int) :: FDetiLut(0:NIfTot),iLut(0:NIfTot)
+         INTEGER(KIND=n_int) :: FDetiLut(0:NIfDBO),iLut(0:NIfDBO)
          INTEGER :: FDetSym,TotalSym,TotalMom,alpha,beta,ierr,Momx,Momy
          INTEGER :: Momz
          INTEGER*8 :: Accept,AcceptAll,i
@@ -2422,10 +2423,10 @@ C.. Set to be totally symmetric
       END SUBROUTINE FindSymMCSizeofSpace
 
       FUNCTION IsAllowedHPHF(NEl,iLutnI)
-          USE SystemData , only : nIfTot
           USE HPHFRandExcitMod , only : ReturnAlphaOpenDet
-          USE DetBitOps , only : DecodeBitDet
+          USE Bit_reps , only : Decode_Bit_Det
           use constants , only : n_int
+          use bit_rep_data, only: NIfTot
           IMPLICIT NONE
           INTEGER :: nI(NEl),NEl
           INTEGER(KIND=n_int) :: iLutnI(0:NIfTot),iLutSym(0:NIfTot)
@@ -2433,7 +2434,7 @@ C.. Set to be totally symmetric
           LOGICAL :: IsAllowedHPHF,tClosedShell,tSwapped
           LOGICAL :: TestClosedShellDet
 
-          CALL DecodeBitDet(nI,iLutnI)
+          CALL Decode_Bit_Det(nI,iLutnI)
 
           tClosedShell=TestClosedShellDet(iLutnI)
           IF(tClosedShell) THEN

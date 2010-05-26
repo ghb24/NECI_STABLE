@@ -4,7 +4,8 @@ MODULE SymExcit3
 ! have different symmetries.  This is particularly relevant when dealing with certain unrestricted cases, or when we
 ! are truncating (or freezing) orbitals in such a way as to remove different alpha symm irreps from the beta.
 
-    USE SystemData, only: NEl,G1,nBasis,tNoSymGenRandExcits, NIfTot
+    use SystemData, only: NEl, G1, nBasis, tNoSymGenRandExcits
+    use bit_reps, only: NIfTot
     use constants, only: n_int
     USE GenRandSymExcitNUMod, only: SymLabelList2,SymLabelCounts2,ClassCountInd,ScratchSize
     IMPLICIT NONE
