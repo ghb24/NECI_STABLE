@@ -1868,14 +1868,14 @@ MODULE FciMCParMod
                 do j=1,TotWalkers
 !First write out walkers on head node
                     IF(mod(j,iPopsPartEvery).eq.0) THEN
-                        WRITE(iunit) CurrentDets(0:NIfD,j),CurrentSign(j)
+                        WRITE(iunit) CurrentDets(0:NIfDBO,j),CurrentSign(j)
                     ENDIF
                 enddo
             ELSE
                 do j=1,TotWalkers
 !First write out walkers on head node
                     IF(mod(j,iPopsPartEvery).eq.0) THEN
-                        do k=0,NIfD
+                        do k=0,NIfDBO
                             WRITE(iunit,"(I24)",advance='no') CurrentDets(k,j)
                         enddo
                         WRITE(iunit,*) CurrentSign(j)
@@ -1908,13 +1908,13 @@ MODULE FciMCParMod
                 IF(tBinPops) THEN
                     do j=1,WalkersonNodes(i)
                         IF(mod(j,iPopsPartEvery).eq.0) THEN
-                            WRITE(iunit) CurrentDets(0:NIfD,j),CurrentSign(j)
+                            WRITE(iunit) CurrentDets(0:NIfDBO,j),CurrentSign(j)
                         ENDIF
                     enddo
                 ELSE
                     do j=1,WalkersonNodes(i)
                         IF(mod(j,iPopsPartEvery).eq.0) THEN
-                            do k=0,NIfD
+                            do k=0,NIfDBO
                                 WRITE(iunit,"(I24)",advance='no') CurrentDets(k,j)
                             enddo
                             WRITE(iunit,*) CurrentSign(j)
