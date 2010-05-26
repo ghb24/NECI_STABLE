@@ -100,6 +100,12 @@ MODULE AnnihilationMod
 !        WRITE(6,*) "UpperBound of SpawnVec2 = ",ubound(SpawnVec2,2)
 
         CALL DirectAnnihilation(TotDets)
+        
+!Signs put back again into seperate array
+        do i=1,TotDets
+            call extract_sign(CurrentDets(:,i),TempSign)
+            MainSign(i)=TempSign(1)
+        enddo
 
     END SUBROUTINE AnnihilationInterface
 
