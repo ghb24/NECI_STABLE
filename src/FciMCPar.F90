@@ -618,40 +618,52 @@ MODULE FciMCParMod
             ! excite from the first particle on a determinant).
             tfilled = .false.
 
-            ! Loop over all the particles on the determinant. CurrentSign has
-            ! number of walkers. Multiply up by noMCExcits if attempting 
-            ! multiple excitations from each walker (default 1)
-            do p = 1, abs(SignCurr(1)) * noMCExcits
-                ! Generate a (random) excitation
-                call generate_excitation (DetCurr, CurrentDets(:,j), nJ, &
-                               ilutnJ, exFlag, IC, ex, tParity, prob, &
-                               tFilled, scratch1, scratch2, scratch3)
+            !Loop over the 'type' of particle. Generally, lenof_sign=1, and so
+            !this simply loops over real particles. If lenof_sign=2, then we are
+            !dealing with complex walkers and part_type=1 denotes real walkers and
+            !part_type=1 denotes imaginary walkers.
+            do part_type=1,lenof_sign
 
-                ! If a valid excitation, see if we should spawn children.
-                if (.not. IsNullDet(nJ)) then
-                    child = attempt_create (get_spawn_helement, DetCurr, &
-                                        CurrentDets(:,j), SignCurr, &
-                                        nJ,iLutnJ, Prob, IC, ex, tParity, &
-                                        walkExcitLevel)
-                else
-                    child = 0
-                endif
+                ! Loop over all the particles of a given type on the determinant. CurrentSign has
+                ! number of walkers. Multiply up by noMCExcits if attempting 
+                ! multiple excitations from each walker (default 1)
+                do p = 1, abs(SignCurr(m)) * noMCExcits
+                    ! Generate a (random) excitation
+                    call generate_excitation (DetCurr, CurrentDets(:,j), nJ, &
+                                   ilutnJ, exFlag, IC, ex, tParity, prob, &
+                                   tFilled, scratch1, scratch2, scratch3)
 
-                if (child(1) /= 0) then
-                    ! This eventually wants to test for both real and complex children
-                    ! We know we want to create a particle, so encode the bit
-                    ! representation if it isn't already.
-                    call encode_child (CurrentDets(:,j), iLutnJ, ic, ex)
-!                    WRITE(6,*) "Adding child:",iLutnJ(0:NIfDBO),child(1)
+                    ! If a valid excitation, see if we should spawn children.
+                    if (.not. IsNullDet(nJ)) then
+                        child = attempt_create (get_spawn_helement, DetCurr, &
+                                            CurrentDets(:,j), SignCurr, &
+                                            nJ,iLutnJ, Prob, IC, ex, tParity, &
+                                            walkExcitLevel,part_type)
+                    else
+                        child = 0
+                    endif
 
-                    call new_child_stats (CurrentDets(:,j), iLutnJ, ic, &
-                                          walkExcitLevel, child)
+                    !Loop over the 'type' of child that may have been created.
+                    do child_type=1,lenof_sign
 
-                    call create_particle (iLutnJ, child)
-                
-                endif   ! (child /= 0). Child created
-            enddo ! Cycling over mulitple particles on same determinant.
+                        if (child(child_type) /= 0) then
+                            ! We know we want to create a particle of this type, so encode the bit
+                            ! representation if it isn't already.
+                            call encode_child (CurrentDets(:,j), iLutnJ, ic, ex)
+!                            WRITE(6,*) "Adding child:",iLutnJ(0:NIfDBO),child(1)
 
+                            call new_child_stats (CurrentDets(:,j), iLutnJ, ic, &
+                                                  walkExcitLevel, child)
+
+                            call create_particle (iLutnJ, child)
+                        
+                        endif   ! (child /= 0). Child created
+
+                    enddo   ! Cycling over 'type' of child created
+
+                enddo ! Cycling over mulitple particles on same determinant.
+
+            enddo   !Cycling over 'type' of particle on a given determinant.
 
             ! DEBUG
             ! if (VecSlot > j) call stop_all (this_routine, 'vecslot > j')
