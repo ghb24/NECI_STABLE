@@ -167,7 +167,7 @@ C.. A1 corresponds to bit 0 (i.e. irrep 1)
          use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
          use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
          use SymData, only: nProp,PropBitLen,SymClasses,nSymLabels
-         use SymData, only: tAbelian,SymLabels
+         use SymData, only: tAbelian,SymLabels, TwoCycleSymGens
          use SymData, only: tagSymLabels,tagSymClasses
          use util_mod, only: int_fmt
          use global_utilities
@@ -178,6 +178,7 @@ C.. A1 corresponds to bit 0 (i.e. irrep 1)
          INTEGER NBASIS,BRR(NBASIS)
          REAL*8 ARR(NBASIS)
          character(*), parameter :: this_routine='GenMolPSymTable'
+
         
          TAbelian=.true.
          nSymGen=INT(DLOG(NSYMMAX+0.D0)/DLOG(2.D0)+.4)
@@ -186,8 +187,14 @@ C.. A1 corresponds to bit 0 (i.e. irrep 1)
          WRITE(6,'(A,'//int_fmt(nSymMax)//')')                          &
      &                        "  Number of symmetry classes: ",nSymMax
 
-         nprop=1
-         nprop(1:nSymGen)=2
+         if (TwoCycleSymGens) then
+             ! Set propogation information.
+             ! If not TwoCycleSymGens we assume the user has already
+             ! done so...
+             nprop=1
+             nprop(1:nSymGen)=2
+         end if
+
 C.. Now generate a list of sym labels.
          NSYMLABELS=NSYMMAX
          allocate(SymLabels(nSymLabels))
@@ -1808,7 +1815,7 @@ C.. Initialize symmetry to take into account the core electrons
       SUBROUTINE WRITESYM(IUNIT,SYM,LTERM)
          use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB,tCPMD
          use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
-         use SymData, only: nSym,tAbelian
+         use SymData, only: nSym,tAbelian, TwoCycleSymGens
          IMPLICIT NONE
          INTEGER IUNIT
          TYPE(SYMMETRY) SYM
@@ -1817,12 +1824,12 @@ C.. Initialize symmetry to take into account the core electrons
          INTEGER J
          IF(TAbelian) THEN
             CALL DecomposeAbelianSym(SYM,Abel)
-            if (tCPMD) then
-              WRITE(IUNIT,'(" (",I2,",",I2,",",I2,")",I2)',advance='no')
-     &                                                  Abel(1:3)
-            else
+            if (TwoCycleSymGens) then
               WRITE(IUNIT,'(" (",I2,",",I2,",",I2,")",I2)',advance='no')
      &                                                  Abel(1:3),SYM%s
+            else
+              WRITE(IUNIT,'(" (",I2,",",I2,",",I2,")",I2)',advance='no')
+     &                                                  Abel(1:3)
             end if
          ELSEIF(NSYM.LE.16) THEN
             WRITE(IUNIT,"(Z5)",advance='no') SYM
