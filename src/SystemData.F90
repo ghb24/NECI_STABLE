@@ -78,14 +78,8 @@ integer :: LzTot    ! Total Ml quantum number of state to converge on.
 integer :: iMaxLz   ! abs(maximum Ml basis function))
 
 
-! Size parameters for bit representation of determinants
-! N.B. bit representations are _zero_indexed_!
-integer :: nIfTot   ! Upper bound of determinants in bit form (0:NIfTot)
-integer :: nIfD     ! Final byte representing spatial/spin orbitals (0:NIfD)
-integer :: nIfY     ! Number of bytes used to represent a Yamanouchi symbol
 integer :: nIfP     ! Size appended to nIfD in CASSTAR calculations. Keeps
                     ! track of the parent determinant of spawned walkers.
-integer :: nIfDBO   ! Size for use in bit operations.
 
 ! From NECICB
 integer :: lmsBasis
