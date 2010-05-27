@@ -28,12 +28,13 @@
 
 module soft_exit
 
-    use SystemData, only: nel, nBasis, NIfTot
+    use SystemData, only: nel, nBasis
+    use bit_reps, only: NIfTot
     use util_mod, only: binary_search
     use FciMCData, only: iter, CASMin, CASMax, tTruncSpace, tSinglePartPhase,&
                          SumENum, SumNoatHF, HFPopCyc, ProjEIterSum, &
                          Histogram, AvAnnihil, VaryShiftCycles, SumDiagSft, &
-                         VaryShiftIter, CurrentDets, CurrentSign, iLutHF, &
+                         VaryShiftIter, CurrentDets, iLutHF, &
                          TotWalkers,tPrintHighPop
     use CalcData, only: Tau, DiagSft, SftDamp, StepsSft, SinglesBias, &
                         OccCASOrbs, VirtCASOrbs, NMCyc, tTruncCAS, &
@@ -48,6 +49,8 @@ module soft_exit
     use FCIMCLoggingMOD, only: PrintBlocking, RestartBlocking, &
                                PrintShiftBlocking, RestartShiftBlocking
     use AnnihilationMod, only: DetermineDetProc
+    use constants, only: lenof_sign
+    use bit_reps, only: extract_sign,encode_sign
     implicit none
 
 contains
@@ -95,6 +98,7 @@ contains
         !   PRINTHIGHPOPDET  Will print the determinant with the highest population of different sign to the HF.
 
        integer :: error,i,ios,NewNMCyc, pos
+       integer, dimension(lenof_sign) :: HFSign
        logical :: tSoftExitFound,tWritePopsFound,exists,AnyExist,deleted_file
        logical :: tEof,any_deleted_file,tChangeParams(27),tSingBiasChange
        real*8 :: hfScaleFactor
@@ -498,7 +502,12 @@ contains
                if (iProcIndex == DetermineDetProc(iLutHF)) then
                    pos = binary_search (CurrentDets, iLutHF, NIfTot+1, &
                                         TotWalkers)
-                   CurrentSign(pos) = CurrentSign(pos) * hfScaleFactor
+                   call extract_sign(CurrentDets(:,pos),HFSign)
+                   do i=1,lenof_sign
+                       !Multiply real, and if applicable, imaginary parts of the determinant.
+                       HFSign(i)=HFSign(i) * hfScaleFactor
+                   enddo
+                   call encode_sign(CurrentDets(:,pos),HFSign)
                endif
            endif
            IF(tChangeParams(27)) THEN

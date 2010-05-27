@@ -1,7 +1,7 @@
 #include "macros.h"
 
 module sltcnd_mod
-    use SystemData, only: nel, nBasisMax, tExch, FCOUL, NIfTot, G1, ALAT
+    use SystemData, only: nel, nBasisMax, tExch, FCOUL, G1, ALAT
     use SystemData, only: nBasis!, iSpinSkip
     ! HACK - We use nBasisMax(2,3) here rather than iSpinSkip, as it appears
     !        to be more reliably set (see for example test H2O_RI)
@@ -17,6 +17,7 @@ module sltcnd_mod
     use DetBitOps, only: count_open_orbs, FindBitExcitLevel
     use csf_data, only: csf_sort_det_block
     use timing
+    use bit_reps, only: NIfTot
     implicit none
 
 contains
