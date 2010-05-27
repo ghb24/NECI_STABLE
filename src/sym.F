@@ -165,7 +165,7 @@ C.. We set each of the MOLPRO irreps to a bit in our symmetry specifier.
 C.. A1 corresponds to bit 0 (i.e. irrep 1)
       SUBROUTINE GENMOLPSYMTABLE(NSYMMAX,G1,NBASIS,ARR,BRR)
          use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
-         use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
+         use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB, tUEG
          use SymData, only: nProp,PropBitLen,SymClasses,nSymLabels
          use SymData, only: tAbelian,SymLabels, TwoCycleSymGens
          use SymData, only: tagSymLabels,tagSymClasses
@@ -187,7 +187,9 @@ C.. A1 corresponds to bit 0 (i.e. irrep 1)
          WRITE(6,'(A,'//int_fmt(nSymMax)//')')                          &
      &                        "  Number of symmetry classes: ",nSymMax
 
-         if (TwoCycleSymGens) then
+         ! We actually use momentum conservation directly for the UEG so
+         ! just fake the symmetry information here.
+         if (TwoCycleSymGens .or. tUEG) then
              ! Set propogation information.
              ! If not TwoCycleSymGens we assume the user has already
              ! done so...
@@ -203,7 +205,7 @@ C.. Now generate a list of sym labels.
          allocate(SymClasses(nBasis))
          call LogMemAlloc('SymClasses',nBasis,4,this_routine,
      &                                                    tagSymClasses)
-         if (TwoCycleSymGens) then
+         if (TwoCycleSymGens .or. tUEG) then
              DO I=1,NBASIS,2
 C.. place the sym label of each state in SymClasses(ISTATE).  For molp sym, this is 
 C.. the log_2 of the symmetry bit string
