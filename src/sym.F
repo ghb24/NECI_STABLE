@@ -173,7 +173,7 @@ C.. A1 corresponds to bit 0 (i.e. irrep 1)
          use global_utilities
          IMPLICIT NONE
          INTEGER NSYMMAX,nSymGen
-         INTEGER I,J
+         INTEGER I,ILABEL
          TYPE(BasisFN) G1(*)
          INTEGER NBASIS,BRR(NBASIS)
          REAL*8 ARR(NBASIS)
@@ -203,22 +203,38 @@ C.. Now generate a list of sym labels.
          allocate(SymClasses(nBasis))
          call LogMemAlloc('SymClasses',nBasis,4,this_routine,
      &                                                    tagSymClasses)
-         DO I=1,NBASIS,2
+         if (TwoCycleSymGens) then
+             DO I=1,NBASIS,2
 C.. place the sym label of each state in SymClasses(ISTATE).  For molp sym, this is 
 C.. the log_2 of the symmetry bit string
-            IF(G1(I)%Sym%s.EQ.0) THEN
+                IF(G1(I)%Sym%s.EQ.0) THEN
 C.. we don't have symmetry, so fake it.
-               SymClasses((I+1)/2)=1
-            ELSE
-!          SymClasses((I+1)/2)=INT(DLOG(G1(I)%Sym%s+0.D0)/DLOG(2.D0)+1.4)
-          SymClasses((I+1)/2)=G1(I)%Sym%s+1
-            ENDIF
-         ENDDO
+                   SymClasses((I+1)/2)=1
+                ELSE
+              SymClasses((I+1)/2)=G1(I)%Sym%s+1
+                ENDIF
+             ENDDO
 C.. list the symmetry string of each sym label
-         DO I=1,NSYMLABELS
-!            SYMLABELS(I)%s=2**(I-1)
-            SYMLABELS(I)%s=I-1
-         ENDDO
+             DO I=1,NSYMLABELS
+                SYMLABELS(I)%s=I-1
+             ENDDO
+         else
+             symlabels(:)%s = -1
+             do i = 1, nbasis, 2
+                 do ilabel = 1, nsymlabels
+                     if (symlabels(ilabel)%s == g1(i)%sym%s) then
+                         ! Already found this symmetry label.
+                         symclasses((i+1)/2) = ilabel
+                         exit
+                     else if (symlabels(ilabel)%s == -1) then
+                         ! Have not found this label...
+                         symclasses((i+1)/2) = ilabel
+                         symlabels(ilabel)%s = g1(i)%sym%s
+                         exit
+                     end if
+                 end do
+             end do
+         end if
       END
 
 C.. Freeze the SYM LABELS and reps
