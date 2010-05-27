@@ -380,6 +380,9 @@ FUNCTION GetNextCluster (CS,Dets,nDet,Amplitude,dTotAbsAmpl,iNumExcitors,iMaxSiz
    INTEGER iNumExcitors
    LOGICAL GetNextCluster
 
+   if(CS%%tDynamic.and.CS%%iIndex.eq.0) then
+      CS%%nSelects=dTotAbsAmpl+abs(Amplitude(CS%%iRefPos))
+   endif
    GetNextCluster=.true.
    iMaxSize=min(iMaxSizeIn,CS%%iMaxSize)
    tNew=.true.  !Used for printing
@@ -618,7 +621,7 @@ subroutine CalcTotals (iNumExcitors,dTotAbsAmpl,Amplitude,nAmpl,dTol,WalkerScale
    else
       TotWalkers=0
    endif
-   if(iDebug.gt.3) WRITE(6,*) "Total walkers", TotWalkers
+   if(iDebug.gt.1) WRITE(6,*) "Total walkers", TotWalkers
 end subroutine !CalcTotals
 
 

@@ -1125,6 +1125,7 @@ SUBROUTINE InitClustSelectorFull(CS,iMaxSize)
    INTEGER iMaxSize
    CS%tFull=.true.
    CS%iMaxSize=iMaxSize
+   CS%tDynamic=.false.
    Call InitCluster(CS%C)
 END SUBROUTINE InitClustSelectorFull
 
@@ -1134,6 +1135,11 @@ SUBROUTINE InitClustSelectorRandom(CS,iMaxSize,nSelects,dProbSelNewEx)
    TYPE(ClustSelector) CS
    INTEGER iMaxSize,nSelects
    REAL*8 dProbSelNewEx
+   if(nSelects<0) then
+      CS%tDynamic=.true.
+   else
+      CS%tDynamic=.false.
+   endif
    CS%tFull=.false.
    CS%iMaxSize=iMaxSize
    CS%nSelects=nSelects
@@ -1815,6 +1821,7 @@ SUBROUTINE CCMCStandalone(Weight,Energyxw)
 
    TYPE(CCTransitionLog) TL               ! Store data on transitions
    INTEGER iRefPos
+   
 
    WRITE(6,*) "Entering CCMC Standalone..."
 
@@ -2112,6 +2119,7 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
    use CalcData, only: MemoryFacSpawn
    use AnnihilationMod, only: AnnihilationInterface
    use CalcData, only: DiagSft
+   use CalcData, only: TStartSinglePart
    IMPLICIT NONE
    real(dp) Weight,EnergyxW
    CHARACTER(len=*), PARAMETER :: this_routine='CCMCStandaloneParticle'
@@ -2153,7 +2161,10 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
    INTEGER, allocatable ::  SpawnAmps(:)
    INTEGER tagSpawnList,tagSpawnAmps
    INTEGER nSpawned,nMaxSpawn
+
    LOGICAL tS
+
+   LOGICAL tShifting                      ! Are we in variable shift mode
 
    integer nMaxAmpl
 
@@ -2206,7 +2217,13 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
 !      write(6,*) "Initializing with MP1 amplitudes."
 !      CALL InitMP1Amplitude(tCCMCFCI,Amplitude(:,iCurAmpList),nAmpl,FciDets,FCIDetIndex,dInitAmplitude,dTotAbsAmpl)
 !   else
-   AL%Amplitude(iRefPos,iCurAmpList)=dInitAmplitude
+   if(TStartSinglePart) then
+      AL%Amplitude(iRefPos,iCurAmpList)=dInitAmplitude
+      tShifting=.false.
+   else
+      AL%Amplitude(iRefPos,iCurAmpList)=dInitAmplitude
+      tShifting=.true.
+   endif
    DetList(:,1)=iLutHF 
       nAmpl=1
       iNumExcitors=0
@@ -2258,6 +2275,13 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
 
 
       call CalcTotals(iNumExcitors,dTotAbsAmpl,AL%Amplitude(:,iCurAmpList),nAmpl,dTolerance*dInitAmplitude,WalkerScale,iRefPos,iDebug)
+!      if(.not.tShifting) then
+!         if(iNumExcitors>dInitAmplitude) then
+!            tShifting=.true.
+!         else
+!            iShiftLeft=2
+!         endif
+!      endif
 
       
       IF(iDebug.gt.1) THEN

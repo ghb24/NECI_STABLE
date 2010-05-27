@@ -53,6 +53,7 @@ TYPE ClustSelector
    INTEGER nSelects  !If we're stochastically sampling the cluster space, this is the number of samples we take
    REAL*8 dProbSelNewExcitor  !The probability that we quit at every stage of selecting a new excitor for a cluster  
    INTEGER iRefPos   !The Location in teh amplitude list of the reference det
+   LOGICAL tDynamic  !If set, we choose as many clusters as there are excitors.
    TYPE(Cluster) C
 
 END TYPE ClustSelector
@@ -113,7 +114,7 @@ FUNCTION ExcitToDetSign(iLutRef,iLutDet,iLevel)
 !   write(6,*) "Excitation level ",iLevel
 !   write(6,*) "Ref",iLutRef
 !   write(6,*) "Det",iLutDet
-   DO i=0,nIfTot
+   DO i=0,nIfD
       mask=ieor(iLutRef(i),iLutDet(i))
       Do j=0,end_n_int
          if(btest(iLutRef(i),j)) then
