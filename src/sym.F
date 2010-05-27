@@ -2082,7 +2082,7 @@ C.. Set to be totally symmetric
       SUBROUTINE FindSymMCSizeofSpace(IUNIT)
          use SymData, only : TwoCycleSymGens
          use SystemData, only: nEl,G1,nBasis,nOccAlpha,nOccBeta,G1
-         use SystemData, only: tUEG, NIfTot,tHPHF
+         use SystemData, only: tUEG, NIfTot,tHPHF,tHub
          use Determinants, only : FDet
          use DetCalc, only : ICILevel
          use SystemData, only : CalcDetCycles, CalcDetPrint,tFixLz
@@ -2104,7 +2104,7 @@ C.. Set to be totally symmetric
          LOGICAL :: tTruncSpace,tDummy,tDummy2,tSoftExitFound
          LOGICAL :: tNotAllowed,tAcc,IsAllowedHPHF
 
-         IF((.not.TwoCycleSymGens).and.(.not.tUEG)) THEN
+         IF((.not.TwoCycleSymGens).and.(.not.tUEG).and.(.not.tHub)) THEN
              WRITE(IUNIT,*) "Only for molecular abelian symmetry "      &
      &      //" calculations can the exact size of the determinant "    &
      &      //" space be calculated currently..."
@@ -2198,7 +2198,7 @@ C.. Set to be totally symmetric
                  IF(tFixLz) THEN
                      TotalMom=TotalMom+G1(alpha)%Ml
                  ENDIF
-                 IF(tUEG) THEN
+                 IF(tUEG.or.tHub) THEN
                      Momx=Momx+G1(alpha)%k(1)
                      Momy=Momy+G1(alpha)%k(2)
                      Momz=Momz+G1(alpha)%k(3)
@@ -2238,7 +2238,7 @@ C.. Set to be totally symmetric
                  IF(tFixLz) THEN
                      TotalMom=TotalMom+G1(beta)%Ml
                  ENDIF
-                 IF(tUEG) THEN
+                 IF(tUEG.or.tHub) THEN
                      Momx=Momx+G1(beta)%k(1)
                      Momy=Momy+G1(beta)%k(2)
                      Momz=Momz+G1(beta)%k(3)
@@ -2277,7 +2277,7 @@ C.. Set to be totally symmetric
                          ELSE
                              IF(tTruncSpace) THEN
                                  IF(ExcitLev.le.ICILevel) THEN
-                                     IF(tUEG) THEN
+                                     IF(tUEG.or.tHub) THEN
                                          IF((Momx.eq.0).and.(Momy.eq.0) &
      &                                         .and.(Momz.eq.0)) THEN
                                             Accept=Accept+1
@@ -2289,7 +2289,7 @@ C.. Set to be totally symmetric
                                      ENDIF
                                  ENDIF
                              ELSE
-                                 IF(tUEG) THEN
+                                 IF(tUEG.or.tHub) THEN
                                      IF((Momx.eq.0).and.(Momy.eq.0).and.&
      &                                       (Momz.eq.0)) THEN
                                         Accept=Accept+1
@@ -2318,7 +2318,7 @@ C.. Set to be totally symmetric
                      ELSE
                          IF(tTruncSpace) THEN
                              IF(ExcitLev.le.ICILevel) THEN
-                                 IF(tUEG) THEN
+                                 IF(tUEG.or.tHub) THEN
                                      IF((Momx.eq.0).and.(Momy.eq.0)     &
      &                                     .and.(Momz.eq.0)) THEN
                                         Accept=Accept+1
@@ -2330,7 +2330,7 @@ C.. Set to be totally symmetric
                                  ENDIF
                              ENDIF
                          ELSE
-                             IF(tUEG) THEN
+                             IF(tUEG.or.tHub) THEN
                                  IF((Momx.eq.0).and.(Momy.eq.0).and.    &
      &                                   (Momz.eq.0)) THEN
                                     Accept=Accept+1
