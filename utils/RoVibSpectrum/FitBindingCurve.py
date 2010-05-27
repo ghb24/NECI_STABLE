@@ -23,7 +23,7 @@ dirname = "PlotsofFittings"
 if not os.path.isdir("./" + dirname + "/"):
     os.mkdir("./" + dirname + "/")
 
-print "** FITTING THE BINDING CURVE TO A GAUSSIAN EXPANSION POTENTIAL **"
+print "\n** FITTING THE BINDING CURVE TO A GAUSSIAN EXPANSION POTENTIAL **"
 print "These have the form g(R) = sum_k a_k exp (-alpha beta^k R^2)"
 print "Data is read in from the RESULTS file with the R in bohr, and g(R) = E_tot(dimer) - 2E_tot(atom) in hartrees."
 
@@ -46,8 +46,10 @@ def peval(x, a, alpha, beta):
 filename='RESULTS'
 data = scipy.io.array_import.read_array(filename)
 
-y = data[:,1]   #these are the energies
+y = data[:,2]   #these are the energies
 x = data[:,0]   #these are the bond lengths
+Etots = data[:,1]
+n=len(Etots)
 
 #print x, y
 
@@ -149,6 +151,7 @@ f.write (" %i      %s " % (k,'kmax\n'))
 f.write (" %.10f      %s " % (Requil,'R_equilibrium (bohr)\n'))
 f.write (" %.10f      %s " % (alpha,'alpha\n'))
 f.write (" %.10f      %s " % (beta,'beta\n'))
+f.write (" %.10f      %s " % (Etots[n-1],'Dissociated Energy\n'))
 for i in range(len(aname)):
     f.write ("%.10f      %s \n" % (fit[i], aname[i]))
 f.close()
@@ -164,7 +167,7 @@ os.system("./CalcVibSpectrum.x")
 #Out of the above program, we get data so that we can fit various things to find the rotational parameters etc.
 
 print "\n** CALCULATING SPECTRAL INFORMATION **\n"
-print "Step 1/4: Values for Bv and Dv are first found using the following equation:"
+print "Step 1/2: Values for Bv and Dv are first found using the following equation:"
 print "Fv(J)/J(J+1) = Bv - Dv[J(J+1)]"
 print "(the required values have been printed to ROTDATA in the above program)"
 dirname = "BvDvPlots"
@@ -257,7 +260,7 @@ print "Plots of these Fv vs J fits for each value of v are saved in the folder n
 print "Bv and Dv values for each v are printed in the file BvDvValues\n"
 
 
-print "Step 2/4: Using G_v to find the Dunham coefficients of the form Y_k0, and omega_e (w_e)."
+print "Step 2/2: Using G_v to find the Dunham coefficients of the form Y_k0, and omega_e (w_e)."
 print "The equation is of the form G_v = Sum_k Y_k0 ( v + 1/2)^k = Y_00 + omega_e(v + 1/2) - ..."
 
 filename='PUREVIB'
@@ -336,172 +339,181 @@ YkmFile.write ("%s     %s             %s                     %s                 
 YkmFile.write (" %i      %.15f      %.15f      %.10f         %.10f\n" % (0,(fit4[0]*219474.63),(fit4[1]*219474.63),(fit4[2]*219474.63),(fit4[3]*219474.63)))
 
 print "This fit gives an omega_e value of: ",(fit4[1]*219474.63)
+print "This fit gives an omega_e.x_e value of: ",(fit4[2]*(-1.0)*219474.63)
 print "The fit is saved to Gv_vs_v.eps in the PlotsofFittings folder, and the coefficients and calculated constants printed in YkmDunhamCoeffs"
 
-print "\nStep 3/4: Using B_v values calculated in step 1 to find the Dunham coefficients of the form Y_k1, B_e and alpha_e."
-print "The equation is of the form B_v = Sum_k Y_k1 ( v + 1/2)^k = B_e - alpha_e(v + 1/2) + ..."
+print "The final, main spectroscopic constants are printed in the SPEC_CONSTS file."
 
-filename='BvDvValues'
-data = scipy.io.array_import.read_array(filename)
+FinalFile = open('SPEC_CONSTS','a')
+FinalFile.write ("%s        %.1f      %s     \n" % ('omega_e (in cm-1)',(fit4[1]*219474.63),'The harmonic frequency.'))
+FinalFile.write ("%s     %.2f      %s     \n" % ('omega_e.x_e (in cm-1)',(fit4[2]*(-1.0)*219474.63),'The anharmonicity.'))
+FinalFile.close()
 
-def residuals(Yk_1,Bv, v):
-    err = Bv-peval(v,Yk_1)
-    return err
 
-# p is the fitting function parameters from 0 -> K
-def peval(v, Yk_1):
-    fit=0
-    for i in range(0, len(Yk_1)):
-        fit=fit+Yk_1[i]*((v+0.5)**i)
-    return fit
+#print "\nStep 3/4: Using B_v values calculated in step 1 to find the Dunham coefficients of the form Y_k1, B_e and alpha_e."
+#print "The equation is of the form B_v = Sum_k Y_k1 ( v + 1/2)^k = B_e - alpha_e(v + 1/2) + ..."
 
-# This range of v from 0:8 is chosen because the paper finds this to be appropriate.
-# May need to be adjusted!!!
-Bv = data[0:8,1]            #these are the Bv (y values)
-v = data[0:8,0]             #these are the v values
+#filename='BvDvValues'
+#data = scipy.io.array_import.read_array(filename)
 
-#All parameters are given some initial guesses. 
-Y0_1=-9.5136280671711353e-07
-Y1_1=0.0041695115285078736
-Y2_1=-5.0311054175145435e-05
-Y3_1=-4.5198845989625311e-07
-Y4_1=0.0000
-Y5_1=0.0000
-Y6_1=0.0000
+#def residuals(Yk_1,Bv, v):
+#    err = Bv-peval(v,Yk_1)
+#    return err
 
-Yk1name = (['Y_01','Y_11','Y_21','Y_31','Y_41','Y_51','Y_61'])
-Yk_1 = array([Y0_1 , Y1_1, Y2_1, Y3_1, Y4_1, Y5_1, Y6_1])
-Yk_1init = array([Y0_1 , Y1_1, Y2_1, Y3_1, Y4_1, Y5_1, Y6_1])
+## p is the fitting function parameters from 0 -> K
+#def peval(v, Yk_1):
+#    fit=0
+#    for i in range(0, len(Yk_1)):
+#        fit=fit+Yk_1[i]*((v+0.5)**i)
+#    return fit
 
-print "Fitting Bv vs v curve for k up to: ",len(Yk_1)-1
-print "The range of v's considered is 0 to ",len(v)
+## This range of v from 0:8 is chosen because the paper finds this to be appropriate.
+## May need to be adjusted!!!
+#Bv = data[0:8,1]            #these are the Bv (y values)
+#v = data[0:8,0]             #these are the v values
 
-print "Initial parameters"
-for i in range(len(Yk1name)):
-    print "%s = %.10f " % (Yk1name[i], Yk_1[i])
+##All parameters are given some initial guesses. 
+#Y0_1=-9.5136280671711353e-07
+#Y1_1=0.0041695115285078736
+#Y2_1=-5.0311054175145435e-05
+#Y3_1=-4.5198845989625311e-07
+#Y4_1=0.0000
+#Y5_1=0.0000
+#Y6_1=0.0000
 
-(fit5, ierr) = leastsq(residuals, Yk_1, args=(Bv, v), maxfev=2000)
+#Yk1name = (['Y_01','Y_11','Y_21','Y_31','Y_41','Y_51','Y_61'])
+#Yk_1 = array([Y0_1 , Y1_1, Y2_1, Y3_1, Y4_1, Y5_1, Y6_1])
+#Yk_1init = array([Y0_1 , Y1_1, Y2_1, Y3_1, Y4_1, Y5_1, Y6_1])
 
-print "Success Yk_1: "
-print ierr
+#print "Fitting Bv vs v curve for k up to: ",len(Yk_1)-1
+#print "The range of v's considered is 0 to ",len(v)
 
-for i in range(len(Yk1name)):
-    Yk_1[i]=fit5[i]
+#print "Initial parameters"
+#for i in range(len(Yk1name)):
+#    print "%s = %.10f " % (Yk1name[i], Yk_1[i])
 
-print "Final parameters"
-for i in range(len(Yk1name)):
-    print "%s = %.10f " % (Yk1name[i], Yk_1[i])
+#(fit5, ierr) = leastsq(residuals, Yk_1, args=(Bv, v), maxfev=2000)
+#
+#print "Success Yk_1: "
+#print ierr
 
-errors = residuals(fit5, Bv, v)
-initerrors = residuals(Yk_1init, Bv, v)
-#av = mean(errors)
-#RMS = sqrt(mean((errors-av)**2))
+#for i in range(len(Yk1name)):
+#    Yk_1[i]=fit5[i]
+#
+#print "Final parameters"
+#for i in range(len(Yk1name)):
+#    print "%s = %.10f " % (Yk1name[i], Yk_1[i])
 
-print 'Initial RMS (mEh)',std(initerrors)*1000
-print 'Final RMS (mEh)', std(errors)*1000
-#print errors,av,RMS,std(errors),errors-av
+#errors = residuals(fit5, Bv, v)
+#initerrors = residuals(Yk_1init, Bv, v)
+##av = mean(errors)
+##RMS = sqrt(mean((errors-av)**2))
 
-figure()
-clf()
-ax=gca()
-plot(v,Bv,linewidth=0,marker='o',label='orig points')
-plot(arange(0,9,0.0001),peval(arange(0,9,0.0001),fit5),label='fit')
-plot(arange(0,9,0.0001),peval(arange(0,9,0.0001),Yk_1init),label='orig_guess')
-ax.legend(loc=1, markerscale=0.1)
-savefig('PlotsofFittings/Bv_vs_v.eps')
-#show()
+#print 'Initial RMS (mEh)',std(initerrors)*1000
+#print 'Final RMS (mEh)', std(errors)*1000
+##print errors,av,RMS,std(errors),errors-av
 
-YkmFile.write (" %i      %.15f       %.15f       %.10f          %.10f\n" % (1,(fit5[0]*219474.63),(fit5[1]*219474.63),(fit5[2]*219474.63),(fit5[3]*219474.63)))
+#figure()
+#clf()
+#ax=gca()
+#plot(v,Bv,linewidth=0,marker='o',label='orig points')
+#plot(arange(0,9,0.0001),peval(arange(0,9,0.0001),fit5),label='fit')
+#plot(arange(0,9,0.0001),peval(arange(0,9,0.0001),Yk_1init),label='orig_guess')
+#ax.legend(loc=1, markerscale=0.1)
+#savefig('PlotsofFittings/Bv_vs_v.eps')
+##show()
 
-print "This fit gives a B_e value of: ",(fit5[0]*219474.63)
-print "and an alpha_e value of: ",(fit5[1]*219474.63*(-1.0))
-print "The fit is saved to Bv_vs_v.eps in the PlotsofFittings folder, and the coefficients and calculated constants printed in YkmDunhamCoeffs"
+#YkmFile.write (" %i      %.15f       %.15f       %.10f          %.10f\n" % (1,(fit5[0]*219474.63),(fit5[1]*219474.63),(fit5[2]*219474.63),(fit5[3]*219474.63)))
+#
+#print "This fit gives a B_e value of: ",(fit5[0]*219474.63)
+#print "and an alpha_e value of: ",(fit5[1]*219474.63*(-1.0))
+#print "The fit is saved to Bv_vs_v.eps in the PlotsofFittings folder, and the coefficients and calculated constants printed in YkmDunhamCoeffs"
+#
+#print "\nStep 4/4: Using D_v values calculated in step 1 to find the Dunham coefficients of the form Y_k2, D_e and beta_e."
+#print "The equation is of the form D_v = Sum_k Y_k2 ( v + 1/2)^k = D_e + beta_e(v + 1/2) + ..."
+#
+#filename='BvDvValues'
+#data = scipy.io.array_import.read_array(filename)
+#
+#def residuals(Yk_2,Dv, v):
+#    err = Dv-peval(v,Yk_2)
+#    return err
+#
+## p is the fitting function parameters from 0 -> K
+#def peval(v, Yk_2):
+#    fit=0
+#    for i in range(0, len(Yk_2)):
+#        fit=fit+Yk_2[i]*((v+0.5)**i)
+#    return fit
 
-print "\nStep 4/4: Using D_v values calculated in step 1 to find the Dunham coefficients of the form Y_k2, D_e and beta_e."
-print "The equation is of the form D_v = Sum_k Y_k2 ( v + 1/2)^k = D_e + beta_e(v + 1/2) + ..."
+## This range of v from 0:8 is chosen because the paper finds this to be appropriate.
+## May need to be adjusted!!!
+#Dv = data[0:8,2]            #these are the Dv (y values)
+#v = data[0:8,0]             #these are the v values
+#
+##All parameters are given some initial guesses. 
+#Y0_2=-9.5136280671711353e-07
+#Y1_2=0.0041695115285078736
+#Y2_2=-5.0311054175145435e-05
+#Y3_2=-4.5198845989625311e-07
+#Y4_2=0.0000
+#Y5_2=0.0000
+#Y6_2=0.0000
+#
+#Yk2name = (['Y_02','Y_12','Y_22','Y_32','Y_42','Y_52','Y_62'])
+#Yk_2 = array([Y0_2 , Y1_2, Y2_2, Y3_2, Y4_2, Y5_2, Y6_2])
+#Yk_2init = array([Y0_2 , Y1_2, Y2_2, Y3_2, Y4_2, Y5_2, Y6_2])
+#
+#print "Fitting Dv vs v curve for k up to: ",len(Yk_2)-1
+#print "The range of v's considered is 0 to ",len(v)
+#
+#print "Initial parameters"
+#for i in range(len(Yk2name)):
+#    print "%s = %.10f " % (Yk2name[i], Yk_2[i])
+#
+#(fit6, ierr) = leastsq(residuals, Yk_2, args=(Dv, v), maxfev=2000)
+#
+#print "Success Yk_2: "
+#print ierr
 
-filename='BvDvValues'
-data = scipy.io.array_import.read_array(filename)
-
-def residuals(Yk_2,Dv, v):
-    err = Dv-peval(v,Yk_2)
-    return err
-
-# p is the fitting function parameters from 0 -> K
-def peval(v, Yk_2):
-    fit=0
-    for i in range(0, len(Yk_2)):
-        fit=fit+Yk_2[i]*((v+0.5)**i)
-    return fit
-
-# This range of v from 0:8 is chosen because the paper finds this to be appropriate.
-# May need to be adjusted!!!
-Dv = data[0:8,2]            #these are the Dv (y values)
-v = data[0:8,0]             #these are the v values
-
-#All parameters are given some initial guesses. 
-Y0_2=-9.5136280671711353e-07
-Y1_2=0.0041695115285078736
-Y2_2=-5.0311054175145435e-05
-Y3_2=-4.5198845989625311e-07
-Y4_2=0.0000
-Y5_2=0.0000
-Y6_2=0.0000
-
-Yk2name = (['Y_02','Y_12','Y_22','Y_32','Y_42','Y_52','Y_62'])
-Yk_2 = array([Y0_2 , Y1_2, Y2_2, Y3_2, Y4_2, Y5_2, Y6_2])
-Yk_2init = array([Y0_2 , Y1_2, Y2_2, Y3_2, Y4_2, Y5_2, Y6_2])
-
-print "Fitting Dv vs v curve for k up to: ",len(Yk_2)-1
-print "The range of v's considered is 0 to ",len(v)
-
-print "Initial parameters"
-for i in range(len(Yk2name)):
-    print "%s = %.10f " % (Yk2name[i], Yk_2[i])
-
-(fit6, ierr) = leastsq(residuals, Yk_2, args=(Dv, v), maxfev=2000)
-
-print "Success Yk_2: "
-print ierr
-
-for i in range(len(Yk2name)):
-    Yk_2[i]=fit6[i]
-
-print "Final parameters"
-for i in range(len(Yk2name)):
-    print "%s = %.10f " % (Yk2name[i], Yk_2[i])
-
-errors = residuals(fit6, Dv, v)
-initerrors = residuals(Yk_2init, Dv, v)
-#av = mean(errors)
-#RMS = sqrt(mean((errors-av)**2))
-
-print 'Initial RMS (mEh)',std(initerrors)*1000
-print 'Final RMS (mEh)', std(errors)*1000
-#print errors,av,RMS,std(errors),errors-av
-
-figure()
-clf()
-ax=gca()
-plot(v,Dv,linewidth=0,marker='o',label='orig points')
-plot(arange(0,9,0.0001),peval(arange(0,9,0.0001),fit6),label='fit')
-plot(arange(0,9,0.0001),peval(arange(0,9,0.0001),Yk_2init),label='orig_guess')
-ax.legend(loc=1, markerscale=0.1)
-savefig('PlotsofFittings/Dv_vs_v.eps')
-#show()
-
-YkmFile.write (" %i      %.15f       %.15f        %.10f           %.10f\n" % (2,(fit6[0]*219474.63),(fit6[1]*219474.63),(fit6[2]*219474.63),(fit6[3]*219474.63)))
-
-print "This fit gives a D_e value of: ",(fit6[0]*219474.63)
-print "and a beta_e value of: ",(fit6[1]*219474.63)
-print "The fit is saved to Dv_vs_v.eps in the PlotsofFittings folder, and the coefficients and calculated constants printed in YkmDunhamCoeffs"
-print "Note: The very small values of D_v make the it difficult to get an accurate fit, therefore the D_e values from the minimum of the"
-print "potential curve (printed at the bottom of PUREVIB) are the values usually used."
-
-YkmFile.write (" %s                 %.15f                    %.10f\n" % ('omega_e (E_h : cm-1)',(fit4[1]),(fit4[1]*219474.63)))
-YkmFile.write (" %s                 %.15f                    %.10f\n" % ('B_e (E_h : cm-1)',(fit5[0]),(fit5[0]*219474.63)))
-YkmFile.write (" %s                 %.15f                    %.10f\n" % ('alpha_e (E_h : cm-1)',(fit5[1]*(-1.0)),(fit5[1]*219474.63*(-1.0))))
-YkmFile.write (" %s                 %.15f                    %.10f\n" % ('D_e (E_h : cm-1)',(fit6[0]),(fit6[0]*219474.63)))
-YkmFile.write (" %s                 %.15f                    %.10f\n" % ('beta_e (E_h : cm-1)',(fit6[1]),(fit6[1]*219474.63)))
-
+#for i in range(len(Yk2name)):
+#    Yk_2[i]=fit6[i]
+#
+#print "Final parameters"
+#for i in range(len(Yk2name)):
+#    print "%s = %.10f " % (Yk2name[i], Yk_2[i])
+#
+#errors = residuals(fit6, Dv, v)
+#initerrors = residuals(Yk_2init, Dv, v)
+##av = mean(errors)
+##RMS = sqrt(mean((errors-av)**2))
+#
+#print 'Initial RMS (mEh)',std(initerrors)*1000
+#print 'Final RMS (mEh)', std(errors)*1000
+##print errors,av,RMS,std(errors),errors-av
+#
+#figure()
+#clf()
+#ax=gca()
+#plot(v,Dv,linewidth=0,marker='o',label='orig points')
+#plot(arange(0,9,0.0001),peval(arange(0,9,0.0001),fit6),label='fit')
+#plot(arange(0,9,0.0001),peval(arange(0,9,0.0001),Yk_2init),label='orig_guess')
+#ax.legend(loc=1, markerscale=0.1)
+#savefig('PlotsofFittings/Dv_vs_v.eps')
+##show()
+#
+#YkmFile.write (" %i      %.15f       %.15f        %.10f           %.10f\n" % (2,(fit6[0]*219474.63),(fit6[1]*219474.63),(fit6[2]*219474.63),(fit6[3]*219474.63)))
+#
+#print "This fit gives a D_e value of: ",(fit6[0]*219474.63)
+#print "and a beta_e value of: ",(fit6[1]*219474.63)
+#print "The fit is saved to Dv_vs_v.eps in the PlotsofFittings folder, and the coefficients and calculated constants printed in YkmDunhamCoeffs"
+#print "Note: The very small values of D_v make the it difficult to get an accurate fit, therefore the D_e values from the minimum of the"
+#print "potential curve (printed at the bottom of PUREVIB) are the values usually used."
+#
+#YkmFile.write (" %s                 %.15f                    %.10f\n" % ('omega_e (E_h : cm-1)',(fit4[1]),(fit4[1]*219474.63)))
+#YkmFile.write (" %s                 %.15f                    %.10f\n" % ('B_e (E_h : cm-1)',(fit5[0]),(fit5[0]*219474.63)))
+#YkmFile.write (" %s                 %.15f                    %.10f\n" % ('alpha_e (E_h : cm-1)',(fit5[1]*(-1.0)),(fit5[1]*219474.63*(-1.0))))
+#YkmFile.write (" %s                 %.15f                    %.10f\n" % ('D_e (E_h : cm-1)',(fit6[0]),(fit6[0]*219474.63)))
+#YkmFile.write (" %s                 %.15f                    %.10f\n" % ('beta_e (E_h : cm-1)',(fit6[1]),(fit6[1]*219474.63)))
+#
 YkmFile.close()    

@@ -40,8 +40,8 @@ contains
         open_pos = nclosed + 1
         ! Closed e- listed in pairs --> can jump pairs
         do i=1,nclosed-1,2
-            do while ( (open_pos .le. nel) .and. &
-                       (tmp_dets(open_pos, 1) .lt. tmp_dets(i, 1)) )
+            do while (open_pos .le. nel)
+                if (tmp_dets(Open_pos, 1) >= tmp_dets(i, 1)) exit
                 dets(npos,:) = tmp_dets(open_pos,:)
                 open_pos = open_pos + 1
                 npos = npos + 1

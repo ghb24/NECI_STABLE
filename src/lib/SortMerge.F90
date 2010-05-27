@@ -15,61 +15,55 @@
 ! matrix elements for the elements it is merging into the main list.
 ! The list1 will be binary searched to find insertion points. Generally, if list2 > list1/2,
 ! a linear search would be quicker.
-    SUBROUTINE MergeListswH(nlist1,nlist1max,nlist2,list2,SignList2)
-        USE FciMCParMOD , only : Hii,CurrentDets,CurrentSign,CurrentH
-        USE SystemData , only : NEl,tHPHF,NIfTot,NIfDBO
+    SUBROUTINE MergeListswH(nlist1,nlist1max,nlist2,list2)
+        USE FciMCParMOD , only : Hii,CurrentDets,CurrentH
+        use SystemData, only: nel, tHPHF
+        use bit_reps, only: NIfTot, NIfDBO, decode_bit_det
         USE Determinants , only : get_helement
-        use DetBitOps, only: DecodeBitDet, DetBitEQ
+        use DetBitOps, only: DetBitEQ
         use hphf_integrals, only: hphf_diag_helement, hphf_off_diag_helement
+        USE CalcData , only : tTruncInitiator
         USE HElem
         use constants, only: dp,n_int
         IMPLICIT NONE
-!        INTEGER :: list1(0:NIfTot,nlist1max),list2(0:NIfTot,1:nlist2)
         INTEGER(KIND=n_int) :: list2(0:NIfTot,1:nlist2),DetCurr(0:NIfTot) 
-        INTEGER :: nlisto,nlist1,nlist2,nlo,i
-        INTEGER :: ips,ips1,SignList2(nlist2)!,SignList1(nlist1max),
-!        REAL*8 :: HList(nlist1max)
+        INTEGER :: nlisto,nlist1,nlist2,i
+        INTEGER :: ips,ips1
         HElement_t :: HDiagTemp
         REAL*8 :: HDiag
         INTEGER :: nJ(NEl),j,nlist1max
-!        LOGICAL :: tbin
 !.................................................................
 !..starting from the end of the list, expand list1 to accomodate
 !.. elements of list2
        nlisto=nlist1
-       nlo=nlist1
        do i=nlist2,1,-1
 !.. find the positions in list1 which the list2 would be inserted
            DetCurr(:)=list2(:,i)
-           call search(nlisto,DetCurr,ips1)
-!          write(6,*) 'position in list1 to be inserted:',ips1
 !..ips1 is the position in list1 which num is to be inserted
-           ips=ips1      
-!           write(6,*) ' Going to insert into position:',ips
-!           write(6,*) ' Copy elements from:',ips,' to',nlisto
-!..if ips is less than nlisto, then no elements will be copied.
+! nlisto is the last element in list1 which might have to be moved to
+! accommodate an element from list2.
+           if (nlisto == 0) then
+! No more elements in list1 to be moved.  All remaining elements in list2 need
+! to be inserted with the same positions into list1.
+               ips = 1
+           else
+               call search(nlisto,DetCurr,ips)
+           end if
+! Move all elements that between DetCurr and nlisto to their position in the
+! completely merged list.  We know that there must be i elements still to be
+! inserted...
            do j=nlisto,ips,-1
-              if(j.le.nlo) then 
-!                 write(6,*) j,'->',j+i
-                 CurrentDets(:,j+i)=CurrentDets(:,j)
-                 CurrentSign(j+i)=CurrentSign(j)
-                 CurrentH(j+i)=CurrentH(j)
-              endif
+              CurrentDets(:,j+i)=CurrentDets(:,j)
+              CurrentH(j+i)=CurrentH(j)
            enddo
-!.elements of list1 which were copied over started
-!.. from nlisto and went up to ips
-           nlo=ips
-!           write(6,*) ' position labels of newly enlarged list:'
-!           write(6,'(20i15)') (j,j=1,nlist1+nlist2)
-!           write(6,*) 'new enlarged list on step:',i
-!           do j=1,nlist1+nlist2
-!               write(6,'(20i15)') j,list1(:,j)
-!           enddo
-!           write(6,'(20i15)') (list1(:,j),j=1,nlist1+nlist2)
+           IF(tTruncInitiator) CALL FlagifDetisInitiator(list2(:,i))
+! Insert DetCurr into its position in the completely merged list (i-1 elements
+! below it still to be inserted).
            CurrentDets(:,ips+i-1)=list2(:,i)
-           CurrentSign(ips+i-1)=SignList2(i)
-!We want to calculate the diagonal hamiltonian matrix element for the new particle to be merged.
-           CALL DecodeBitDet(nJ,list2(:,i))
+           
+           ! We want to calculate the diagonal hamiltonian matrix element for
+           ! the new particle to be merged.
+           call decode_bit_det (nJ, list2(:,i))
            if (tHPHF) then
                HDiagTemp = hphf_diag_helement (nJ, list2(:,i))
            else
@@ -77,18 +71,11 @@
            endif
            HDiag=(REAL(HDiagTemp,8))-Hii
            CurrentH(ips+i-1)=HDiag
-               
-!           write(6,*) ' newly inserted member on position:'                             &
-!     & ,ips+i-1,' of value:',list2(:,i)
-!           write(6,*) 'new list with insertion in it:'
-!           do j=1,nlist1+nlist2
-!               write(6,'(20i15)') j,list1(:,j)
-!           enddo
-!           write(6,'(20i15)') (list1(:,j),j=1,nlist1+nlist2)
-!..new end of list position is the next insertion point
-!           nlisto=min(nlisto,ips+i-2)
-           nlisto=min(nlisto,ips-1)
-!           write(6,*) ' new end of list position:',nlisto
+! Next element to be inserted must be smaller than DetCurr, so must be inserted
+! at (at most) at ips-1.
+! If nlisto=0 then all remaining elements in list2 must be inserted directly
+! into list1---there are no more elements in list1 to be moved.
+           nlisto=ips-1
         enddo
         nlist1=nlist1+nlist2
         return
@@ -97,15 +84,17 @@
                               
 
 !This routine is the same as MergeListswH, but will not generate the diagonal hamiltonian matrix elements to go with the inserted determinants
-    SUBROUTINE MergeLists(nlist1,nlist1max,nlist2,list2,SignList2)
-        USE FciMCParMOD , only : Hii,CurrentDets,CurrentSign
-        USE SystemData , only : NEl, NIfTot
+    SUBROUTINE MergeLists(nlist1,nlist1max,nlist2,list2)
+        USE FciMCParMOD , only : Hii,CurrentDets
+        use SystemData, only: nel
+        use bit_reps, only: NIfTot
+        USE CalcData , only : tTruncInitiator
         USE HElem
         use constants, only : n_int
         IMPLICIT NONE
         INTEGER(KIND=n_int) :: list2(0:NIfTot,1:nlist2),DetCurr(0:NIfTot) 
-        INTEGER :: nlisto,nlist1,nlist2,nlo,i
-        INTEGER :: ips,ips1,SignList2(nlist2)!,SignList1(nlist1max)
+        INTEGER :: nlisto,nlist1,nlist2,i
+        INTEGER :: ips,ips1
         REAL*8 :: HDiag
         INTEGER :: nJ(NEl),j,nlist1max
 !        LOGICAL :: tbin
@@ -113,27 +102,24 @@
 !..starting from the end of the list, expand list1 to accomodate
 !.. elements of list2
        nlisto=nlist1
-       nlo=nlist1
        do i=nlist2,1,-1
 !.. find the positions in list1 which the list2 would be inserted
            DetCurr(0:NIfTot)=list2(0:NIfTot,i)
-           call search(nlisto,DetCurr,ips1)
+           if(nlisto.eq.0) then
+               ips=1
+           else
+               call search(nlisto,DetCurr,ips)
+           endif
 !          write(6,*) 'position in list1 to be inserted:',ips1
 !..ips1 is the position in list1 which num is to be inserted
-           ips=ips1      
 !           write(6,*) ' Going to insert into position:',ips
 !           write(6,*) ' Copy elements from:',ips,' to',nlisto
 !..if ips is less than nlisto, then no elements will be copied.
            do j=nlisto,ips,-1
-              if(j.le.nlo) then 
-!                 write(6,*) j,'->',j+i
-                 CurrentDets(0:NIfTot,j+i)=CurrentDets(0:NIfTot,j)
-                 CurrentSign(j+i)=CurrentSign(j)
-              endif
+             CurrentDets(0:NIfTot,j+i)=CurrentDets(0:NIfTot,j)
            enddo
 !.elements of list1 which were copied over started
 !.. from nlisto and went up to ips
-           nlo=ips
 !           write(6,*) ' position labels of newly enlarged list:'
 !           write(6,'(20i15)') (j,j=1,nlist1+nlist2)
 !           write(6,*) 'new enlarged list on step:',i
@@ -141,8 +127,10 @@
 !               write(6,'(20i15)') j,list1(:,j)
 !           enddo
 !           write(6,'(20i15)') (list1(:,j),j=1,nlist1+nlist2)
+
+           IF(tTruncInitiator) CALL FlagifDetisInitiator(list2(:,i))
+ 
            CurrentDets(0:NIfTot,ips+i-1)=list2(0:NIfTot,i)
-           CurrentSign(ips+i-1)=SignList2(i)
                
 !           write(6,*) ' newly inserted member on position:'                             &
 !     & ,ips+i-1,' of value:',list2(:,i)
@@ -153,7 +141,7 @@
 !           write(6,'(20i15)') (list1(:,j),j=1,nlist1+nlist2)
 !..new end of list position is the next insertion point
 !           nlisto=min(nlisto,ips+i-2)
-           nlisto=min(nlisto,ips-1)
+           nlisto=ips-1
 !           write(6,*) ' new end of list position:',nlisto
         enddo
         nlist1=nlist1+nlist2
@@ -165,7 +153,7 @@
 !.. list(0:NIfTot,ipos) ge DetCurr(0:NIfTot)
 !..list is assumed to be in increasing order
     SUBROUTINE search(n,DetCurr,ipos)
-        use SystemData, only: NIfTot,NIfDBO
+        use bit_reps, only: NIfTot, NIfDBO
         use DetBitOps, only: DetBitLT
         USE FciMCParMOD , only : CurrentDets
         use constants, only: n_int
@@ -220,6 +208,7 @@
 !..
 !.. list(ncurr).eq.num
         if(CompPart.eq.0) then 
+           call stop_all("Search","When merging lists, no entries should exist on both lists")
 !..check to see if the previous member is less than num.
 !.. if so, return ipose=ncurr
            if(DetBitLT(CurrentDets(0:NIfTot,ncurr-1),DetCurr(:),NIfDBO).eq.1) then
@@ -253,7 +242,7 @@
 !.. list(0:NIfTot,ipos) ge DetCurr(0:NIfTot)
 !..list is assumed to be in increasing order
     SUBROUTINE searchgen(n,list,DetCurr,ipos)
-        use SystemData, only: NIfTot,NIfDBO
+        use bit_reps, only: NIfTot, NIfDBO
         use DetBitOps, only: DetBitLT
         use constants, only: n_int
         IMPLICIT NONE
@@ -365,3 +354,56 @@
 
         list1(1:i) = list2(1:i)
     end subroutine
+
+
+!This routine takes each determinant as it is about to be merged into the CurrentDets array, and determines whether or not it is an initiator.
+    SUBROUTINE FlagifDetisInitiator(DetCurr)
+        USE FciMCData , only : NoExtraInitDoubs,iLutRef,NoAddedInitiators,iLutHF,Iter
+        USE FciMCParMOD , only : TestIfDetInCASBit
+        USE CalcData , only : tTruncCAS,tInitIncDoubs,tAddtoInitiator,InitiatorWalkNo
+        USE DetBitOps , only : FindBitExcitLevel,DetBitEQ
+        use bit_reps , only : extract_sign, encode_flags 
+        use bit_rep_data , only: NIfTot,NIfDBO
+        use constants, only: n_int,lenof_sign
+        INTEGER(KIND=n_int), INTENT(INOUT) :: DetCurr(0:NIfTot)
+        INTEGER, DIMENSION(lenof_sign) :: SignCurr
+        INTEGER :: CurrExcitLevel
+        LOGICAL :: tDetInCAS
+
+!DetCurr has come from the spawning array.
+!The current flags at NIfTot therefore refer to the parent of the spawned walkers.
+!As we add these into the CurrentDets array we therefore want to convert these flag so that they refer to the present determinant.
+
+        call extract_sign(DetCurr(:),SignCurr)
+        tDetInCAS=.false.
+        IF(tTruncCAS) THEN
+            tDetInCAS=TestIfDetInCASBit(DetCurr(0:NIfDBO))
+        ENDIF
+        IF(tDetInCAS) THEN
+!The determinant being merged is in the fixed CAS initiator space.            
+            call encode_flags(DetCurr,0)
+        ELSEIF(DetBitEQ(DetCurr(:),iLutHF,NIfDBO)) THEN
+!The determinant being merged is the HF.
+            call encode_flags(DetCurr,0)
+        ELSEIF(tAddtoInitiator.and.(ABS(SignCurr(1)).gt.InitiatorWalkNo)) THEN
+!The determinant being merged already has a high enough pop to become an initiator.        
+!This is not expected to happen much - otherwise we'd be getting blooms.
+            call encode_flags(DetCurr,0)
+            NoAddedInitiators=NoAddedInitiators+1.D0
+        ELSEIF(tInitIncDoubs) THEN
+!The determinant being merged is a double excitation - initiator straight away.        
+            CurrExcitLevel = FindBitExcitLevel(iLutRef,DetCurr(0:NIfTot),2)
+            IF(CurrExcitLevel.eq.2) THEN
+                call encode_flags(DetCurr,0)
+                NoExtraInitDoubs=NoExtraInitDoubs+1.D0
+            ELSE
+                call encode_flags(DetCurr,1)
+            ENDIF
+        ELSE
+            call encode_flags(DetCurr,1)
+!The parent from which we are attempting to spawn is outside the active space - children spawned on unoccupied determinants with this flag will be killed.
+        ENDIF
+
+    END SUBROUTINE FlagifDetisInitiator 
+
+

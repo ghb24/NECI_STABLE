@@ -3,7 +3,7 @@
 ! A new implementation file for csfs
 module csf
     use systemdata, only: nel, brr, ecore, alat, nmsh, nbasismax, G1, nbasis,&
-                          NIfY, LMS, NIfTot, NIfD, iSpinSkip, STOT, ECore
+                          LMS, iSpinSkip, STOT, ECore
     use memorymanager, only: LogMemAlloc, LogMemDealloc
     use integralsdata, only: umat, fck, nmax
     use constants, only: dp,n_int
@@ -17,17 +17,10 @@ module csf
     use csf_data
     use timing
     use util_mod, only: swap, choose
+    use bit_reps, only: NIfD, NIfTot, NIfY
 
     implicit none
 
-    ! Non-modularised functions (sigh)
-    interface
-        subroutine writedet(nunit,ni,nel,lterm)
-            integer nunit,nel,ni(nel)
-            logical lterm
-        end subroutine
-    end interface
-    
 contains
 
     integer function num_csf_dets (ncsf)
@@ -91,8 +84,12 @@ contains
         bCSF(2) = iscsf(nJ)
         bBothCSF = bCSF(1) .and. bCSF(2)
 
-        if ( (.not. bCSF(1)) .and. (.not. bCSF(2)) ) &
-            call stop_all (this_routine, "Only for use with at least one CSF")
+        if ( (.not. bCSF(1)) .and. (.not. bCSF(2)) ) then
+            ! Once again, pass things through better
+            hel_ret = sltcnd (nI, nJ, iLutI, iLutJ, IC)
+            if (IC == 0) hel_ret = hel_ret + ECore
+            return
+        endif
 
         ! If the CSFs differ by more than 2 spin orbitals, the =0
         if (.not. bBothCSF) then
@@ -529,7 +526,7 @@ contains
 
         integer :: nop_uniq(2), det, i, j, k, l, m, ex(2,2), &
                    uniq_id(4,2), ms1(ndets(1)), ms2(ndets(2)), &
-                   nsign(2), tsign_id(2,2), id(2,2), &
+                   nsign(2), tsign_id(4,2), id(2,2), &
                    ex_ms_ind(2,2), ex_ms(2,2)
 
         logical :: dets_change1(ndets(1)), dets_change2(ndets(2)), tSign, &
@@ -1200,7 +1197,7 @@ contains
 
         use constants, only: bits_n_int
         integer, intent(in) :: nI(nel)
-        integer, intent(out) :: yama(NIfY)
+        integer(n_int), intent(out) :: yama(NIfY)
         integer :: i, pos, bit, nopen
 
         nopen = 0

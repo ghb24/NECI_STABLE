@@ -12,10 +12,11 @@ MODULE NatOrbsMod
         USE UMatCache , only : UMatInd
         USE SystemData , only : NEl,nBasis,G1,ARR,BRR,lNoSymmetry,LMS,tStoreSpinOrbs,nOccAlpha,nOccBeta,tSeparateOccVirt
         USE SystemData , only : tRotateOccOnly,tRotateVirtOnly,tFindCINatOrbs,tUseMP2VarDenMat,nBasisMax,ALAT,iSpinSkip
-        use SystemData, only: NIfY, NIfTot
+        use bit_reps, only: NIfY, NIfTot
         USE RotateOrbsData , only : SymLabelList2,SymLabelCounts2,SymLabelCounts2Tag,SymLabelListInv,NoOrbs,SpatOrbs,FillOneRDM_time
         USE RotateOrbsData , only : FillMP2VDM_Time,DiagNatOrbMat_Time,OrderCoeff_Time,FillCoeff_Time,NoFrozenVirt
         use sort_mod
+        use bit_reps, only: decode_bit_det
         IMPLICIT NONE
         INTEGER :: NoSpinCyc,SymOrbsTempTag
         REAL*8 , ALLOCATABLE :: NatOrbMat(:,:),Evalues(:)
@@ -375,7 +376,8 @@ MODULE NatOrbsMod
 
     SUBROUTINE FillOneRDM()
         USE DetCalcData , only : Det,FCIDets,FCIDetIndex,ICILevel
-        use DetBitOps, only: DecodeBitDet, FindBitExcitLevel
+        use DetBitOps, only: FindBitExcitLevel
+        use bit_reps, only: decode_bit_det
 ! Det is the number of determinants in FCIDets.
 ! FCIDets contains the list of all determinants in the system in bit string representation, FCIDets(0:NIfTot,1:Det) 
 ! ICILevel is the max excitation level of the calculation - as in EXCITE ICILevel.
@@ -527,9 +529,9 @@ MODULE NatOrbsMod
                             WRITE(6,*) CEILING(REAL(Ex(1,1)/2.D0)),CEILING(REAL(Ex(2,1)/2.D0))
                             WRITE(6,*) 'Orbi,',Orbi,'Orbj,',Orbj
                             WRITE(6,*) 'Sym(Orbi)',INT(G1(SymLabelList2(Orbi)*Spins)%sym%S,4),'Sym(Orbj)',INT(G1(SymLabelList2(Orbj)*Spins)%sym%S,4)
-                            CALL DecodeBitDet(nI,FCIDets(0:NIfTot,i))
+                            call decode_bit_det (nI, FCIDets(0:NIfTot,i))
                             WRITE(6,*) 'i',nI
-                            CALL DecodeBitDet(nJ,FCIDets(0:NIfTot,j))
+                            call decode_bit_det (nJ, FCIDets(0:NIfTot,j))
                             WRITE(6,*) 'j',nJ
                             WRITE(6,*) 'AllHistogram(i)',AllHistogram(i)
                             WRITE(6,*) 'AllHistogram(j)',AllHistogram(j)
@@ -538,7 +540,7 @@ MODULE NatOrbsMod
                         ENDIF
 
                     ELSEIF(ExcitLevel.eq.0) THEN
-                        CALL DecodeBitDet(nJ,FCIDets(0:NIfTot,j))
+                        CALL Decode_Bit_Det(nJ,FCIDets(0:NIfTot,j))
                         do k=1,NEl
 !                            WRITE(6,*) 'k',k
                             IF(tStoreSpinOrbs) THEN
@@ -590,6 +592,9 @@ MODULE NatOrbsMod
         CHARACTER(len=*), PARAMETER :: this_routine='FillMP2VDM'
         HElement_t :: HEl01,HEl02
 
+#ifdef __CMPLX
+         call stop_all('FillMP2VDM', 'Natural Orbitals not implemented for complex orbitals.')
+#endif
 ! Calculating the MP2VDM (D2_ab) matrix whose eigenvectors become the transformation matrix.        
 ! This goes in the natural orbital matrix of this module.
 ! The eigenvalues are the occupation numbers of the new orbitals.  These should decrease exponentially so that when we remove the 

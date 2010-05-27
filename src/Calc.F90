@@ -190,6 +190,7 @@ MODULE Calc
           tDelayTruncInit=.false.
           tKeepDoubleSpawns=.false.
           tAddtoInitiator=.false.
+          tRetestAddtoInit=.true.
           InitiatorWalkNo=10
           IterTruncInit=0
           tInitIncDoubs=.false.
@@ -984,6 +985,22 @@ MODULE Calc
                 tAddtoInitiator=.true.
                 call Geti(InitiatorWalkNo)
 
+            case("RETESTINITPOP")                
+!This keyword is on by default.  It corresponds to the original initiator algorithm whereby a determinant may be added to the initiator space if its population becomes higher 
+!than InitiatorWalkNo (above), but if the pop then drops below this, the determinant is removed again from the initiator space.
+!Having this on means the population is tested at every iteration, turning it off means that once a determinant becomes an initiator by virtue of its population, it remains an initiator 
+!for the rest of the simulation.
+                if(item.lt.nitems) then
+                    call readu(w)
+                    select case(w)
+                    case("OFF")
+                        tRetestAddtoInit=.false.
+                    end select
+                else
+                    tRetestAddtoInit=.true.
+                end if
+
+ 
             case("INCLDOUBSINITIATOR")
 !This keyword includes any doubly excited determinant in the 'initiator' space so that it may spawn as usual
 !without any restrictions.
