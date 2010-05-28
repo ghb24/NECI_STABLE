@@ -384,13 +384,13 @@ MODULE FciMCParMod
         implicit none
         interface
             subroutine new_child_stats (iLutI, iLutJ, ic, walkExLevel, &
-                                        child)
+                                        child, child_type)
                 use SystemData, only: nel
                 use bit_reps, only: niftot
                 use constants, only: n_int, lenof_sign
                 implicit none
                 integer(kind=n_int), intent(in) :: ilutI(0:niftot), iLutJ(0:niftot)
-                integer, intent(in) :: ic, walkExLevel 
+                integer, intent(in) :: ic, walkExLevel, child_type 
                 integer, dimension(lenof_sign) , intent(in) :: child
             end subroutine
         end interface
@@ -495,13 +495,13 @@ MODULE FciMCParMod
                 integer, intent(in) :: ic, ex(2,2)
                 integer(kind=n_int), intent(out) :: iLutJ(0:nIfTot)
             end subroutine
-            subroutine new_child_stats (iLutI, iLutJ, ic, walkExLevel, child)
+            subroutine new_child_stats (iLutI, iLutJ, ic, walkExLevel, child, child_type)
                 use SystemData, only: nel
                 use bit_reps, only: niftot
                 use constants, only: n_int, lenof_sign
                 implicit none
                 integer(kind=n_int), intent(in) :: ilutI(0:niftot), iLutJ(0:niftot)
-                integer, intent(in) :: ic, walkExLevel
+                integer, intent(in) :: ic, walkExLevel, child_type
                 integer, dimension(lenof_sign), intent(in) :: child
             end subroutine
         end interface
@@ -511,7 +511,7 @@ MODULE FciMCParMod
         integer :: DetCurr(nel), nJ(nel), FlagsCurr
         integer, dimension(lenof_sign) :: SignCurr, child
         integer(kind=n_int) :: iLutnJ(0:niftot)
-        integer :: IC, walkExcitLevel, ex(2,2), TotWalkersNew
+        integer :: IC, walkExcitLevel, ex(2,2), TotWalkersNew, part_type, child_type
         integer, dimension(ScratchSize) :: scratch1, scratch2, scratch3
         integer(int64) :: HashTemp
         logical :: tFilled, tParity, tHFFound, tHFFoundTemp
@@ -627,7 +627,7 @@ MODULE FciMCParMod
                 ! Loop over all the particles of a given type on the determinant. CurrentSign has
                 ! number of walkers. Multiply up by noMCExcits if attempting 
                 ! multiple excitations from each walker (default 1)
-                do p = 1, abs(SignCurr(m)) * noMCExcits
+                do p = 1, abs(SignCurr(part_type)) * noMCExcits
                     ! Generate a (random) excitation
                     call generate_excitation (DetCurr, CurrentDets(:,j), nJ, &
                                    ilutnJ, exFlag, IC, ex, tParity, prob, &
@@ -653,9 +653,9 @@ MODULE FciMCParMod
 !                            WRITE(6,*) "Adding child:",iLutnJ(0:NIfDBO),child(1)
 
                             call new_child_stats (CurrentDets(:,j), iLutnJ, ic, &
-                                                  walkExcitLevel, child)
+                                                  walkExcitLevel, child, child_type)
 
-                            call create_particle (iLutnJ, child)
+                            call create_particle (iLutnJ, child, child_type)
                         
                         endif   ! (child /= 0). Child created
 
@@ -672,7 +672,7 @@ MODULE FciMCParMod
 
         enddo ! Loop over determinants.
 
-        IF(tPrintHighPop) CALL FindHighPopDet(Iter+PreviousCycles)
+        IF(tPrintHighPop) CALL FindHighPopDet()
 
         ! SumWalkersCyc calculates the total number of walkers over an update
         ! cycle on each process.
@@ -695,23 +695,23 @@ MODULE FciMCParMod
         
     end subroutine
 
-    subroutine new_child_stats_normal (iLutI, iLutJ, ic, walkExLevel, child)
+    subroutine new_child_stats_normal (iLutI, iLutJ, ic, walkExLevel, child, child_type)
 
         integer(kind=n_int), intent(in) :: iLutI(0:niftot), iLutJ(0:niftot)
-        integer, intent(in) :: ic, walkExLevel
+        integer, intent(in) :: ic, walkExLevel, child_type
         integer, dimension(lenof_sign), intent(in) :: child
         
-        noBorn = noBorn + abs(child(1))
+        noBorn = noBorn + abs(child(child_type))
 
-        if (ic == 1) SpawnFromSing = SpawnFromSing + abs(child(1))
+        if (ic == 1) SpawnFromSing = SpawnFromSing + abs(child(child_type))
 
-        if (abs(child(1)) > abs(iPartBloom)) then
-            iPartBloom = sign(child(1), 2*ic - 3)
+        if (abs(child(child_type)) > abs(iPartBloom)) then
+            iPartBloom = sign(child(child_type), 2*ic - 3)
         endif
 
     end subroutine
                         
-    subroutine create_particle (iLutJ, child)
+    subroutine create_particle (iLutJ, child, child_type)
 
         ! Create a child in the spawned particles arrays. We spawn particles
         ! into a separate array, but non-contiguously. The processor that the
@@ -721,6 +721,7 @@ MODULE FciMCParMod
 
         integer(kind=n_int), intent(in) :: iLutJ(0:niftot)
         integer, dimension(lenof_sign), intent(in) :: child
+        integer, intent(in) :: child_type
         integer :: proc
 
         proc = DetermineDetProc(iLutJ)    ! 0 -> nProcessors-1
@@ -732,7 +733,7 @@ MODULE FciMCParMod
         ValidSpawnedList(proc) = ValidSpawnedList(proc) + 1
 
         ! Sum the number of created children to use in acceptance ratio.
-        acceptances = acceptances + abs(child(1))
+        acceptances = acceptances + abs(child(child_type))
     end subroutine
 
     subroutine end_iteration_print_warn (totWalkersNew)
@@ -929,11 +930,11 @@ MODULE FciMCParMod
     END SUBROUTINE HistInitPopulations
 
 
-    SUBROUTINE FindHighPopDet(Iter)
+    SUBROUTINE FindHighPopDet()
         USE constants, only : MpiDetInt
 !Found the highest population on each processor, need to find out which of these has the highest of all.
         INTEGER :: MaxPopsNeg(nProcessors),MaxPopsPos(nProcessors),error,i,MaxPopPos,MaxPopNeg,MaxPopNegProc
-        INTEGER :: MaxPopPosProc,InitDetCurr(NEl),Iter
+        INTEGER :: MaxPopPosProc,InitDetCurr(NEl)
         INTEGER(KIND=n_int) :: DetPos(0:NIfTot),DetNeg(0:NIfTot)
         INTEGER :: HighPopInNeg(2),HighPopInPos(2),HighPopoutNeg(2),HighPopoutPos(2)
         INTEGER, DIMENSION(lenof_sign) :: TempSign
@@ -2520,7 +2521,7 @@ MODULE FciMCParMod
         end interface
         
         real(dp) :: rat, r, MatEl
-        integer :: extracreate
+        integer :: extracreate,i
         HElement_t :: rh
 
         ! If we are generating multiple excitotions, then the probability of
@@ -2532,28 +2533,7 @@ MODULE FciMCParMod
         rh = get_spawn_helement (DetCurr, nJ, iLutCurr, iLutnJ, ic, ex, &
                                  tParity, prob)
 
-        IF(lenof_sign.eq.1) THEN
-            !We are dealing with real particles always here.
-
-            rat = tau * abs(rh / prob)
-
-            ! If probability > 1, then we just create multiple children at the
-            ! chosen determinant.
-            extraCreate = int(rat)
-            rat = rat - real(extraCreate, dp)
-
-            ! Stochastically choose whether to create or not.
-            r = genrand_real2_dSFMT ()
-            if (rat > r) then
-                !Create child
-                child(1) = -nint(sign(1.0_dp, wsign(1)*real(rh,dp)))
-                child(1) = child(1) + sign(extraCreate, child(1))
-            else
-                !Just return if any extra particles created
-                child(1) = -extraCreate*nint(sign(1.0_dp, wsign(1)*real(rh,dp)))
-            endif
-
-        ELSE
+#ifdef __CMPLX
             !We are dealing with spawning from real and imaginary elements, and assume
             !that rh is complex
             IF(part_type.eq.1) THEN
@@ -2640,7 +2620,28 @@ MODULE FciMCParMod
 
             ENDIF   ! Type of parent
 
-        ENDIF
+#else
+            !We are dealing with real particles always here.
+
+            rat = tau * abs(rh / prob)
+
+            ! If probability > 1, then we just create multiple children at the
+            ! chosen determinant.
+            extraCreate = int(rat)
+            rat = rat - real(extraCreate, dp)
+
+            ! Stochastically choose whether to create or not.
+            r = genrand_real2_dSFMT ()
+            if (rat > r) then
+                !Create child
+                child(1) = -nint(sign(1.0_dp, wsign(1)*real(rh,dp)))
+                child(1) = child(1) + sign(extraCreate, child(1))
+            else
+                !Just return if any extra particles created
+                child(1) = -extraCreate*nint(sign(1.0_dp, wsign(1)*real(rh,dp)))
+            endif
+
+#endif
 
     end function
 
@@ -2854,8 +2855,9 @@ MODULE FciMCParMod
         integer(kind=n_int), intent(in) :: iLutCurr(0:niftot)
         integer, intent(inout) :: VecSlot
         real(dp), intent(in) :: Kii
-        integer :: iDie
+        integer, dimension(lenof_sign) :: iDie
         integer, dimension(lenof_sign) :: CopySign
+        integer :: i
 
         ! Do particles on determinant die? iDie can be both +ve (deaths), or
         ! -ve (births, if shift > 0)
@@ -2864,12 +2866,22 @@ MODULE FciMCParMod
 !        IF(iDie.ne.0) WRITE(6,*) "Death: ",iDie
 
         ! Update death counter
-        NoDied = NoDied + iDie
+        do i=1,lenof_sign
+            NoDied = NoDied + iDie(i)
 
-        ! Calculate new number of signed particles on the det.
-        CopySign(1) = wSign(1) - (iDie * sign(1, wSign(1)))
+            ! Calculate new number of signed particles on the det.
+            CopySign(i) = wSign(i) - (iDie(i) * sign(1, wSign(i)))
 
-        ! Normall slot particles back into main array at position vecslot.
+        enddo
+
+#ifdef __CMPLX
+        ! Possibly need to transfer both real and complex particles back into the array
+        IF((CopySign(1).ne.0).or.(CopySign(2).ne.0)) THEN
+            !Particles will want to be transferred.
+
+#else
+        ! Real particles only
+        ! Normally slot particles back into main array at position vecslot.
         ! This will normally increment with j, except when a particle dies
         ! completely (so VecSlot <= j, and we can't overwrite a walker we
         ! haven't got to yet).
@@ -2879,13 +2891,14 @@ MODULE FciMCParMod
                 if (.not.tRegenDiagHEls) CurrentH(VecSlot) = Kii
                 VecSlot = VecSlot + 1
             else
-        ! If we change the sign of a particle, we need to spawn an
-        ! anti-particle --> it goes in the spawning array to give it a chance
-        ! to annihilate. (Not into main array, or we lose sign-coherence)
+                ! If we change the sign of a particle, we need to spawn an
+                ! anti-particle --> it goes in the spawning array to give it a chance
+                ! to annihilate. (Not into main array, or we lose sign-coherence)
                 call encode_bit_rep(SpawnedParts(:,ValidSpawnedList(iProcIndex)),iLutCurr,CopySign,1)
                 ValidSpawnedList(iProcIndex) = ValidSpawnedList(iProcIndex)+1
             endif
         elseif(tTruncInitiator) then
+            ! All particles on this determinant have gone. If the determinant was an initiator, update the stats
             if(extract_flags(iLutCurr).ne.1) then
                 NoAddedInitiators=NoAddedInitiators-1.D0
             endif
@@ -2896,9 +2909,7 @@ MODULE FciMCParMod
 
     function attempt_die_par (DetCurr, Kii, wSign) result(ndie)
         
-        ! Should we kill the particle at determinant DetCurr. If also 
-        ! diffusing, then we need to know the probability with which we have
-        ! spawned. This will reduce the death probability.
+        ! Should we kill the particle at determinant DetCurr. 
         ! The function allows multiple births (if +ve shift), or deaths from
         ! the same particle. The returned number is the number of deaths if
         ! positive, and the
@@ -2913,21 +2924,25 @@ MODULE FciMCParMod
         integer, intent(in) :: DetCurr(nel)
         integer, dimension(lenof_sign), intent(in) :: wSign
         real(dp), intent(in) :: Kii
-        integer :: ndie
+        integer, dimension(lenof_sign) :: ndie
 
-        real(dp) :: r, rat
+        real(dp) :: r, rat, fac
         logical :: tDetInCAS
 
-        ! Subtract the current value of the shift, and multiply by tau.
-        ! If there are multiple particles, scale the probability.
-        rat = tau * (Kii - DiagSft) * abs(wSign(1))
+        fac = tau * (Kii-DiagSft)
 
-        ndie = int(rat)
-        rat = rat - real(ndie, dp)
+        do i=1,lenof_sign
+            ! Subtract the current value of the shift, and multiply by tau.
+            ! If there are multiple particles, scale the probability.
+            rat = fac * abs(wSign(i))
 
-        ! Choose to die or not stochastically
-        r = genrand_real2_dSFMT() 
-        if (abs(rat) > r) ndie = ndie + nint(sign(1.0_dp, rat))
+            ndie(i) = int(rat)
+            rat = rat - real(ndie(i), dp)
+
+            ! Choose to die or not stochastically
+            r = genrand_real2_dSFMT() 
+            if (abs(rat) > r) ndie(i) = ndie(i) + nint(sign(1.0_dp, rat))
+        enddo
 
     end function
 
@@ -3623,12 +3638,12 @@ MODULE FciMCParMod
     END SUBROUTINE WriteHamilHistogram
 
     subroutine new_child_stats_hist_hamil (iLutI, iLutJ, ic, walkExLevel, &
-                                           child)
+                                           child, child_type)
         ! Based on old AddHistHamilEl. Histograms the hamiltonian matrix, and 
         ! then calls the normal statistics routine.
 
         integer(kind=n_int), intent(in) :: iLutI(0:niftot), iLutJ(0:niftot)
-        integer, intent(in) :: ic, walkExLevel
+        integer, intent(in) :: ic, walkExLevel, child_type
         integer, dimension(lenof_sign) , intent(in) :: child
         character(*), parameter :: this_routine = 'new_child_stats_hist_hamil'
         integer :: partInd, partIndChild, childExLevel
@@ -3669,7 +3684,7 @@ MODULE FciMCParMod
                 avHistHamil (partInd, partIndChild) + (1.0_dp * child(1))
 
         ! Call the normal stats routine
-        call new_child_stats_normal (iLutI, iLutJ, ic, walkExLevel, child)
+        call new_child_stats_normal (iLutI, iLutJ, ic, walkExLevel, child, child_type)
 
     end subroutine
 

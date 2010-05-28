@@ -543,270 +543,270 @@ MODULE HPHFRandExcitMod
     END SUBROUTINE FindExcitBitDetSym
 
     
-!This routine will take a HPHF nI, and find Iterations number of excitations of it. It will then histogram these, summing in 1/pGen for every occurance of
-!the excitation. This means that all excitations should be 0 or 1 after enough iterations. It will then count the excitations and compare the number to the
-!number of excitations generated using the full enumeration excitation generation.
-    SUBROUTINE TestGenRandHPHFExcit(nI,Iterations,pDoub)
-        Use SystemData , only : NEl,nBasis,G1,nBasisMax
-        use DetBitOps, only: EncodeBitDet
-        use bit_reps, only: decode_bit_det
-        use GenRandSymExcitNuMod, only: scratchsize
-        use FciMCData, only: tGenMatHEl
-        use util_mod, only: get_free_unit
-        IMPLICIT NONE
-        INTEGER :: ClassCount2(ScratchSize),nIX(NEl)
-        INTEGER :: ClassCountUnocc2(ScratchSize)
-        INTEGER :: i,Iterations,nI(NEl),nJ(NEl),DetConn,nI2(NEl),nJ2(NEl),DetConn2,iUniqueHPHF,iUniqueBeta,PartInd,ierr,iExcit
-        REAL*8 :: pDoub,pGen
-        LOGICAL :: Unique,TestClosedShellDet,Die,tGenClassCountnI,tSwapped
-        INTEGER(KIND=n_int) :: iLutnI(0:NIfTot),iLutnJ(0:NIfTot),iLutnI2(0:NIfTot),iLutSym(0:NIfTot)
-        INTEGER(KIND=n_int), ALLOCATABLE :: ConnsAlpha(:,:),ConnsBeta(:,:),UniqueHPHFList(:,:)
-        INTEGER , ALLOCATABLE :: ExcitGen(:)
-        REAL*8 , ALLOCATABLE :: Weights(:)
-        INTEGER :: iMaxExcit,nStore(6),nExcitMemLen,j,k,l, iunit
-        integer :: icunused, exunused(2,2), scratch3(scratchsize)
-        logical :: tParityunused, tTmp
-
-        CALL EncodeBitDet(nI,iLutnI)
-        CALL FindDetSpinSym(nI,nI2,NEl)
-        CALL EncodeBitDet(nI2,iLutnI2)
-        IF(TestClosedShellDet(iLutnI)) THEN
-            IF(.not.DetBitEQ(iLutnI,iLutnI2,NIfDBO)) THEN
-                CALL Stop_All("TestGenRandHPHFExcit","Closed shell determinant entered, but alpha and betas different...")
-            ENDIF
-        ENDIF
-        WRITE(6,*) "nI: ",nI(:)
-        WRITE(6,*) ""
-        WRITE(6,*) "nISym: ",nI2(:)
-        WRITE(6,*) ""
-        WRITE(6,*) "iLutnI: ",iLutnI(:)
-        WRITE(6,*) "iLutnISymL ",iLutnI2(:)
-        WRITE(6,*) "***"
-        WRITE(6,*) Iterations,pDoub
-!        WRITE(6,*) "nSymLabels: ",nSymLabels
-        CALL FLUSH(6)
-
-!First, we need to enumerate all possible HPHF wavefunctions from each spin-pair of determinants.
-!These need to be stored in an array
-!Find the number of symmetry allowed excitations there should be by looking at the full excitation generator.
-!Setup excit generators for this determinant
-        iMaxExcit=0
-        nStore(1:6)=0
-        CALL GenSymExcitIt2(nI,NEl,G1,nBasis,nBasisMax,.TRUE.,nExcitMemLen,nJ,iMaxExcit,0,nStore,3)
-        ALLOCATE(EXCITGEN(nExcitMemLen),stat=ierr)
-        IF(ierr.ne.0) CALL Stop_All("SetupExcitGen","Problem allocating excitation generator")
-        EXCITGEN(:)=0
-        CALL GenSymExcitIt2(nI,NEl,G1,nBasis,nBasisMax,.TRUE.,EXCITGEN,nJ,iMaxExcit,0,nStore,3)
-        CALL GetSymExcitCount(EXCITGEN,DetConn)
-        WRITE(6,*) "Alpha determinant has ",DetConn," total excitations:"
-        ALLOCATE(ConnsAlpha(0:NIfTot,DetConn))
-        i=1
-        lp2: do while(.true.)
-            CALL GenSymExcitIt2(nI,NEl,G1,nBasis,nBasisMax,.false.,EXCITGEN,nJ,iExcit,0,nStore,3)
-            IF(IsNullDet(nJ)) exit lp2
-            CALL EncodeBitDet(nJ,iLutnJ)
-            IF(.not.TestClosedShellDet(iLutnJ)) THEN
-                CALL ReturnAlphaOpenDet(nJ,nJ2,iLutnJ,iLutSym,.true.,.true.,tSwapped)
-            ENDIF
-!            WRITE(6,"(4I4,A,I4,A,I13)") nJ(:), " *** ", iExcit, " *** ", iLutnJ(:)
-            ConnsAlpha(0:NIfD,i)=iLutnJ(:)
-            i=i+1
-        enddo lp2
-
-!Now we also need to store the excitations from the other spin-coupled determinant.
-        iMaxExcit=0
-        nStore(1:6)=0
-        DEALLOCATE(EXCITGEN)
-        
-        CALL GenSymExcitIt2(nI2,NEl,G1,nBasis,nBasisMax,.TRUE.,nExcitMemLen,nJ,iMaxExcit,0,nStore,3)
-        ALLOCATE(EXCITGEN(nExcitMemLen),stat=ierr)
-        IF(ierr.ne.0) CALL Stop_All("SetupExcitGen","Problem allocating excitation generator")
-        EXCITGEN(:)=0
-        CALL GenSymExcitIt2(nI2,NEl,G1,nBasis,nBasisMax,.TRUE.,EXCITGEN,nJ,iMaxExcit,0,nStore,3)
-        CALL GetSymExcitCount(EXCITGEN,DetConn2)
-        WRITE(6,*) "Beta determinant has ",DetConn2," total excitations"
-        ALLOCATE(ConnsBeta(0:NIfTot,DetConn2))
-        i=1
-        lp: do while(.true.)
-            CALL GenSymExcitIt2(nI2,NEl,G1,nBasis,nBasisMax,.false.,EXCITGEN,nJ,iExcit,0,nStore,3)
-            IF(IsNullDet(nJ)) exit lp
-            CALL EncodeBitDet(nJ,iLutnJ)
-            IF(.not.TestClosedShellDet(iLutnJ)) THEN
-                CALL ReturnAlphaOpenDet(nJ,nJ2,iLutnJ,iLutSym,.true.,.true.,tSwapped)
-            ENDIF
-!            WRITE(6,"(4I4,A,I4,A,I13)") nJ(:), " *** ",iExcit," *** ",iLutnJ(:)
-            ConnsBeta(:,i)=iLutnJ(:)
-            i=i+1
-        enddo lp
-        DEALLOCATE(EXCITGEN)
-
-!Now we need to find how many HPHF functions there are.
-        iUniqueHPHF=0
-        do j=1,DetConn
-!Run though all HPHF in the first array
-            Unique=.true.
-            do k=j-1,1,-1
-!Run backwards through the array to see if this HPHF has come before
-                IF(DetBitEQ(ConnsAlpha(0:NIfTot,k),ConnsAlpha(0:NIfTot,j),NIfDBO)) THEN
-!This HPHF has already been counted before...
-                    Unique=.false.
-                    EXIT
-                ENDIF
-            enddo
-            IF(Unique) THEN
-!Unique HPHF found, count it
-                iUniqueHPHF=iUniqueHPHF+1
-            ENDIF
-        enddo
-
-        iUniqueBeta=0
-
-!Now look through all the excitations for the spin-coupled determinant from the original HPHF...
-        do j=1,DetConn2
-!Run though all excitations in the first array, *and* up to where we are in the second array
-            Unique=.true.
-            do k=1,DetConn
-                IF(DetBitEQ(ConnsAlpha(:,k),ConnsBeta(:,j),NIfDBO)) THEN
-                    Unique=.false.
-                    EXIT
-                ENDIF
-            enddo
-            IF(Unique) THEN
-!Need to search backwards through the entries we've already looked at in this array...
-                do k=j-1,1,-1
-                    IF(DetBitEQ(ConnsBeta(0:NIfTot,k),ConnsBeta(0:NIfTot,j),NIfDBO)) THEN
-                        Unique=.false.
-                        EXIT
-                    ENDIF
-                enddo
-            ENDIF
-            IF(Unique) THEN
-                iUniqueHPHF=iUniqueHPHF+1
-                iUniqueBeta=iUniqueBeta+1
-            ENDIF
-        enddo
-
-        WRITE(6,*) "There are ",iUniqueHPHF," unique HPHF wavefunctions from the HPHF given."
-        
-        WRITE(6,*) "There are ",iUniqueBeta," unique HPHF wavefunctions from the spin-coupled determinant, which are not in a alpha version."
-        IF(iUniqueBeta.ne.0) THEN
-            WRITE(6,*) "HPHF from beta, but not from alpha!"
-            CALL FLUSH(6)
-            STOP
-        ENDIF
-
-        ALLOCATE(UniqueHPHFList(0:NIfTot,iUniqueHPHF))
-        UniqueHPHFList(:,:)=0
-!Now fill the list of HPHF Excitations.
-        iUniqueHPHF=0
-        do j=1,DetConn
-!Run though all HPHF in the first array
-            Unique=.true.
-            do k=j-1,1,-1
-!Run backwards through the array to see if this HPHF has come before
-                IF(DetBitEQ(ConnsAlpha(0:NIfTot,k),ConnsAlpha(0:NIfTot,j),NIfDBO)) THEN
-!This HPHF has already been counted before...
-                    Unique=.false.
-                    EXIT
-                ENDIF
-            enddo
-            IF(Unique) THEN
-!Unique HPHF found, count it
-                iUniqueHPHF=iUniqueHPHF+1
-                UniqueHPHFList(:,iUniqueHPHF)=ConnsAlpha(:,j)
-            ENDIF
-        enddo
-
-!Now look through all the excitations for the spin-coupled determinant from the original HPHF...
-        do j=1,DetConn2
-!Run though all excitations in the first array, *and* up to where we are in the second array
-            Unique=.true.
-            do k=1,DetConn
-                IF(DetBitEQ(ConnsAlpha(:,k),ConnsBeta(:,j),NIfDBO)) THEN
-                    Unique=.false.
-                    EXIT
-                ENDIF
-            enddo
-            IF(Unique) THEN
-!Need to search backwards through the entries we've already looked at in this array...
-                do k=j-1,1,-1
-                    IF(DetBitEQ(ConnsBeta(:,k),ConnsBeta(:,j),NIfDBO)) THEN
-                        Unique=.false.
-                        EXIT
-                    ENDIF
-                enddo
-            ENDIF
-            IF(Unique) THEN
-                iUniqueHPHF=iUniqueHPHF+1
-                UniqueHPHFList(:,iUniqueHPHF)=ConnsBeta(0:NIfD,j)
-            ENDIF
-        enddo
-
-!Now sort the list, so that it can be easily binary searched.
-        ALLOCATE(ExcitGen(iUniqueHPHF))
-        call sort (UniqueHPHFList(:,1:iUniqueHPHF), ExcitGen)
-        DEALLOCATE(ExcitGen)
-
-        WRITE(6,*) "Unique HPHF wavefunctions are: "
-        do i=1,iUniqueHPHF
-            WRITE(6,*) UniqueHPHFList(0:NIfTot,i)
-        enddo
-
-        ALLOCATE(Weights(iUniqueHPHF))
-        Weights(:)=0.D0
-        tGenClassCountnI=.false.
-
-        do i=1,Iterations
-
-            IF(mod(i,10000).eq.0) WRITE(6,"(A,I10)") "Iteration: ",i
-
-            CALL GenRandHPHFExcit(nI,iLutnI,nJ,iLutnJ,pDoub,3,pGen)
-            tTmp = tGenMatHEl
-            tGenMatHel = .false.
-            call gen_hphf_excit (nI, iLutnI, nJ, iLutnJ, 3, icunused, &
-                                 exunused, tparityunused, pGen, &
-                                 tGenClassCountnI, ClassCount2, &
-                                 ClassCountUnocc2, scratch3)
-            tGenMatHel = tTmp
-!            CALL GenRandSymExcitNU(nI,iLut,nJ,pDoub,IC,ExcitMat,TParity,exFlag,pGen)
-
-!Search through the list of HPHF wavefunctions to find slot.
-            CALL BinSearchListHPHF(iLutnJ,UniqueHPHFList(:,1:iUniqueHPHF),iUniqueHPHF,1,iUniqueHPHF,PartInd,Unique)
-
-            IF(.not.Unique) THEN
-                CALL Stop_All("TestGenRandHPHFExcit","Cannot find excitation in list of allowed excitations")
-            ENDIF
-
-            Weights(PartInd)=Weights(PartInd)+(1.D0/pGen)
-             
-!Check excitation
-!            CALL IsSymAllowedExcit(nI,nJ,IC,ExcitMat,SymAllowed)
-
-        enddo
-        
-        iunit = get_free_unit()
-        OPEN(iunit,FILE="PGenHist",STATUS="UNKNOWN")
-
-!normalise excitation probabilities
-        Die=.false.
-        do i=1,iUniqueHPHF
-            Weights(i)=Weights(i)/real(Iterations,8)
-            IF(abs(Weights(i)-1.D0).gt.0.1) THEN
-                WRITE(6,*) "Error here!"
-                Die=.true.
-            ENDIF
-            WRITE(6,*) i,UniqueHPHFList(0:NIfTot,i),Weights(i)
-            call decode_bit_det (nIX, UniqueHPHFList(0:NIfTot,i))
-            WRITE(6,*) nIX(:)
-            WRITE(iunit,*) i,UniqueHPHFList(0:NIfTot,i),Weights(i)
-        enddo
-
-        CLOSE(iunit)
-        IF(Die) THEN
-            CALL Stop_All("IUB","TestFail")
-        ENDIF
-
-    END SUBROUTINE TestGenRandHPHFExcit
+!!This routine will take a HPHF nI, and find Iterations number of excitations of it. It will then histogram these, summing in 1/pGen for every occurance of
+!!the excitation. This means that all excitations should be 0 or 1 after enough iterations. It will then count the excitations and compare the number to the
+!!number of excitations generated using the full enumeration excitation generation.
+!    SUBROUTINE TestGenRandHPHFExcit(nI,Iterations,pDoub)
+!        Use SystemData , only : NEl,nBasis,G1,nBasisMax
+!        use DetBitOps, only: EncodeBitDet
+!        use bit_reps, only: decode_bit_det
+!        use GenRandSymExcitNuMod, only: scratchsize
+!        use FciMCData, only: tGenMatHEl
+!        use util_mod, only: get_free_unit
+!        IMPLICIT NONE
+!        INTEGER :: ClassCount2(ScratchSize),nIX(NEl)
+!        INTEGER :: ClassCountUnocc2(ScratchSize)
+!        INTEGER :: i,Iterations,nI(NEl),nJ(NEl),DetConn,nI2(NEl),nJ2(NEl),DetConn2,iUniqueHPHF,iUniqueBeta,PartInd,ierr,iExcit
+!        REAL*8 :: pDoub,pGen
+!        LOGICAL :: Unique,TestClosedShellDet,Die,tGenClassCountnI,tSwapped
+!        INTEGER(KIND=n_int) :: iLutnI(0:NIfTot),iLutnJ(0:NIfTot),iLutnI2(0:NIfTot),iLutSym(0:NIfTot)
+!        INTEGER(KIND=n_int), ALLOCATABLE :: ConnsAlpha(:,:),ConnsBeta(:,:),UniqueHPHFList(:,:)
+!        INTEGER , ALLOCATABLE :: ExcitGen(:)
+!        REAL*8 , ALLOCATABLE :: Weights(:)
+!        INTEGER :: iMaxExcit,nStore(6),nExcitMemLen,j,k,l, iunit
+!        integer :: icunused, exunused(2,2), scratch3(scratchsize)
+!        logical :: tParityunused, tTmp
+!
+!        CALL EncodeBitDet(nI,iLutnI)
+!        CALL FindDetSpinSym(nI,nI2,NEl)
+!        CALL EncodeBitDet(nI2,iLutnI2)
+!        IF(TestClosedShellDet(iLutnI)) THEN
+!            IF(.not.DetBitEQ(iLutnI,iLutnI2,NIfDBO)) THEN
+!                CALL Stop_All("TestGenRandHPHFExcit","Closed shell determinant entered, but alpha and betas different...")
+!            ENDIF
+!        ENDIF
+!        WRITE(6,*) "nI: ",nI(:)
+!        WRITE(6,*) ""
+!        WRITE(6,*) "nISym: ",nI2(:)
+!        WRITE(6,*) ""
+!        WRITE(6,*) "iLutnI: ",iLutnI(:)
+!        WRITE(6,*) "iLutnISymL ",iLutnI2(:)
+!        WRITE(6,*) "***"
+!        WRITE(6,*) Iterations,pDoub
+!!        WRITE(6,*) "nSymLabels: ",nSymLabels
+!        CALL FLUSH(6)
+!
+!!First, we need to enumerate all possible HPHF wavefunctions from each spin-pair of determinants.
+!!These need to be stored in an array
+!!Find the number of symmetry allowed excitations there should be by looking at the full excitation generator.
+!!Setup excit generators for this determinant
+!        iMaxExcit=0
+!        nStore(1:6)=0
+!        CALL GenSymExcitIt2(nI,NEl,G1,nBasis,nBasisMax,.TRUE.,nExcitMemLen,nJ,iMaxExcit,0,nStore,3)
+!        ALLOCATE(EXCITGEN(nExcitMemLen),stat=ierr)
+!        IF(ierr.ne.0) CALL Stop_All("SetupExcitGen","Problem allocating excitation generator")
+!        EXCITGEN(:)=0
+!        CALL GenSymExcitIt2(nI,NEl,G1,nBasis,nBasisMax,.TRUE.,EXCITGEN,nJ,iMaxExcit,0,nStore,3)
+!        CALL GetSymExcitCount(EXCITGEN,DetConn)
+!        WRITE(6,*) "Alpha determinant has ",DetConn," total excitations:"
+!        ALLOCATE(ConnsAlpha(0:NIfTot,DetConn))
+!        i=1
+!        lp2: do while(.true.)
+!            CALL GenSymExcitIt2(nI,NEl,G1,nBasis,nBasisMax,.false.,EXCITGEN,nJ,iExcit,0,nStore,3)
+!            IF(IsNullDet(nJ)) exit lp2
+!            CALL EncodeBitDet(nJ,iLutnJ)
+!            IF(.not.TestClosedShellDet(iLutnJ)) THEN
+!                CALL ReturnAlphaOpenDet(nJ,nJ2,iLutnJ,iLutSym,.true.,.true.,tSwapped)
+!            ENDIF
+!!            WRITE(6,"(4I4,A,I4,A,I13)") nJ(:), " *** ", iExcit, " *** ", iLutnJ(:)
+!            ConnsAlpha(0:NIfD,i)=iLutnJ(:)
+!            i=i+1
+!        enddo lp2
+!
+!!Now we also need to store the excitations from the other spin-coupled determinant.
+!        iMaxExcit=0
+!        nStore(1:6)=0
+!        DEALLOCATE(EXCITGEN)
+!        
+!        CALL GenSymExcitIt2(nI2,NEl,G1,nBasis,nBasisMax,.TRUE.,nExcitMemLen,nJ,iMaxExcit,0,nStore,3)
+!        ALLOCATE(EXCITGEN(nExcitMemLen),stat=ierr)
+!        IF(ierr.ne.0) CALL Stop_All("SetupExcitGen","Problem allocating excitation generator")
+!        EXCITGEN(:)=0
+!        CALL GenSymExcitIt2(nI2,NEl,G1,nBasis,nBasisMax,.TRUE.,EXCITGEN,nJ,iMaxExcit,0,nStore,3)
+!        CALL GetSymExcitCount(EXCITGEN,DetConn2)
+!        WRITE(6,*) "Beta determinant has ",DetConn2," total excitations"
+!        ALLOCATE(ConnsBeta(0:NIfTot,DetConn2))
+!        i=1
+!        lp: do while(.true.)
+!            CALL GenSymExcitIt2(nI2,NEl,G1,nBasis,nBasisMax,.false.,EXCITGEN,nJ,iExcit,0,nStore,3)
+!            IF(IsNullDet(nJ)) exit lp
+!            CALL EncodeBitDet(nJ,iLutnJ)
+!            IF(.not.TestClosedShellDet(iLutnJ)) THEN
+!                CALL ReturnAlphaOpenDet(nJ,nJ2,iLutnJ,iLutSym,.true.,.true.,tSwapped)
+!            ENDIF
+!!            WRITE(6,"(4I4,A,I4,A,I13)") nJ(:), " *** ",iExcit," *** ",iLutnJ(:)
+!            ConnsBeta(:,i)=iLutnJ(:)
+!            i=i+1
+!        enddo lp
+!        DEALLOCATE(EXCITGEN)
+!
+!!Now we need to find how many HPHF functions there are.
+!        iUniqueHPHF=0
+!        do j=1,DetConn
+!!Run though all HPHF in the first array
+!            Unique=.true.
+!            do k=j-1,1,-1
+!!Run backwards through the array to see if this HPHF has come before
+!                IF(DetBitEQ(ConnsAlpha(0:NIfTot,k),ConnsAlpha(0:NIfTot,j),NIfDBO)) THEN
+!!This HPHF has already been counted before...
+!                    Unique=.false.
+!                    EXIT
+!                ENDIF
+!            enddo
+!            IF(Unique) THEN
+!!Unique HPHF found, count it
+!                iUniqueHPHF=iUniqueHPHF+1
+!            ENDIF
+!        enddo
+!
+!        iUniqueBeta=0
+!
+!!Now look through all the excitations for the spin-coupled determinant from the original HPHF...
+!        do j=1,DetConn2
+!!Run though all excitations in the first array, *and* up to where we are in the second array
+!            Unique=.true.
+!            do k=1,DetConn
+!                IF(DetBitEQ(ConnsAlpha(:,k),ConnsBeta(:,j),NIfDBO)) THEN
+!                    Unique=.false.
+!                    EXIT
+!                ENDIF
+!            enddo
+!            IF(Unique) THEN
+!!Need to search backwards through the entries we've already looked at in this array...
+!                do k=j-1,1,-1
+!                    IF(DetBitEQ(ConnsBeta(0:NIfTot,k),ConnsBeta(0:NIfTot,j),NIfDBO)) THEN
+!                        Unique=.false.
+!                        EXIT
+!                    ENDIF
+!                enddo
+!            ENDIF
+!            IF(Unique) THEN
+!                iUniqueHPHF=iUniqueHPHF+1
+!                iUniqueBeta=iUniqueBeta+1
+!            ENDIF
+!        enddo
+!
+!        WRITE(6,*) "There are ",iUniqueHPHF," unique HPHF wavefunctions from the HPHF given."
+!        
+!        WRITE(6,*) "There are ",iUniqueBeta," unique HPHF wavefunctions from the spin-coupled determinant, which are not in a alpha version."
+!        IF(iUniqueBeta.ne.0) THEN
+!            WRITE(6,*) "HPHF from beta, but not from alpha!"
+!            CALL FLUSH(6)
+!            STOP
+!        ENDIF
+!
+!        ALLOCATE(UniqueHPHFList(0:NIfTot,iUniqueHPHF))
+!        UniqueHPHFList(:,:)=0
+!!Now fill the list of HPHF Excitations.
+!        iUniqueHPHF=0
+!        do j=1,DetConn
+!!Run though all HPHF in the first array
+!            Unique=.true.
+!            do k=j-1,1,-1
+!!Run backwards through the array to see if this HPHF has come before
+!                IF(DetBitEQ(ConnsAlpha(0:NIfTot,k),ConnsAlpha(0:NIfTot,j),NIfDBO)) THEN
+!!This HPHF has already been counted before...
+!                    Unique=.false.
+!                    EXIT
+!                ENDIF
+!            enddo
+!            IF(Unique) THEN
+!!Unique HPHF found, count it
+!                iUniqueHPHF=iUniqueHPHF+1
+!                UniqueHPHFList(:,iUniqueHPHF)=ConnsAlpha(:,j)
+!            ENDIF
+!        enddo
+!
+!!Now look through all the excitations for the spin-coupled determinant from the original HPHF...
+!        do j=1,DetConn2
+!!Run though all excitations in the first array, *and* up to where we are in the second array
+!            Unique=.true.
+!            do k=1,DetConn
+!                IF(DetBitEQ(ConnsAlpha(:,k),ConnsBeta(:,j),NIfDBO)) THEN
+!                    Unique=.false.
+!                    EXIT
+!                ENDIF
+!            enddo
+!            IF(Unique) THEN
+!!Need to search backwards through the entries we've already looked at in this array...
+!                do k=j-1,1,-1
+!                    IF(DetBitEQ(ConnsBeta(:,k),ConnsBeta(:,j),NIfDBO)) THEN
+!                        Unique=.false.
+!                        EXIT
+!                    ENDIF
+!                enddo
+!            ENDIF
+!            IF(Unique) THEN
+!                iUniqueHPHF=iUniqueHPHF+1
+!                UniqueHPHFList(:,iUniqueHPHF)=ConnsBeta(0:NIfD,j)
+!            ENDIF
+!        enddo
+!
+!!Now sort the list, so that it can be easily binary searched.
+!        ALLOCATE(ExcitGen(iUniqueHPHF))
+!        call sort (UniqueHPHFList(:,1:iUniqueHPHF), ExcitGen)
+!        DEALLOCATE(ExcitGen)
+!
+!        WRITE(6,*) "Unique HPHF wavefunctions are: "
+!        do i=1,iUniqueHPHF
+!            WRITE(6,*) UniqueHPHFList(0:NIfTot,i)
+!        enddo
+!
+!        ALLOCATE(Weights(iUniqueHPHF))
+!        Weights(:)=0.D0
+!        tGenClassCountnI=.false.
+!
+!        do i=1,Iterations
+!
+!            IF(mod(i,10000).eq.0) WRITE(6,"(A,I10)") "Iteration: ",i
+!
+!            CALL GenRandHPHFExcit(nI,iLutnI,nJ,iLutnJ,pDoub,3,pGen)
+!            tTmp = tGenMatHEl
+!            tGenMatHel = .false.
+!            call gen_hphf_excit (nI, iLutnI, nJ, iLutnJ, 3, icunused, &
+!                                 exunused, tparityunused, pGen, &
+!                                 tGenClassCountnI, ClassCount2, &
+!                                 ClassCountUnocc2, scratch3)
+!            tGenMatHel = tTmp
+!!            CALL GenRandSymExcitNU(nI,iLut,nJ,pDoub,IC,ExcitMat,TParity,exFlag,pGen)
+!
+!!Search through the list of HPHF wavefunctions to find slot.
+!            CALL BinSearchListHPHF(iLutnJ,UniqueHPHFList(:,1:iUniqueHPHF),iUniqueHPHF,1,iUniqueHPHF,PartInd,Unique)
+!
+!            IF(.not.Unique) THEN
+!                CALL Stop_All("TestGenRandHPHFExcit","Cannot find excitation in list of allowed excitations")
+!            ENDIF
+!
+!            Weights(PartInd)=Weights(PartInd)+(1.D0/pGen)
+!             
+!!Check excitation
+!!            CALL IsSymAllowedExcit(nI,nJ,IC,ExcitMat,SymAllowed)
+!
+!        enddo
+!        
+!        iunit = get_free_unit()
+!        OPEN(iunit,FILE="PGenHist",STATUS="UNKNOWN")
+!
+!!normalise excitation probabilities
+!        Die=.false.
+!        do i=1,iUniqueHPHF
+!            Weights(i)=Weights(i)/real(Iterations,8)
+!            IF(abs(Weights(i)-1.D0).gt.0.1) THEN
+!                WRITE(6,*) "Error here!"
+!                Die=.true.
+!            ENDIF
+!            WRITE(6,*) i,UniqueHPHFList(0:NIfTot,i),Weights(i)
+!            call decode_bit_det (nIX, UniqueHPHFList(0:NIfTot,i))
+!            WRITE(6,*) nIX(:)
+!            WRITE(iunit,*) i,UniqueHPHFList(0:NIfTot,i),Weights(i)
+!        enddo
+!
+!        CLOSE(iunit)
+!        IF(Die) THEN
+!            CALL Stop_All("IUB","TestFail")
+!        ENDIF
+!
+!    END SUBROUTINE TestGenRandHPHFExcit
 
     SUBROUTINE BinSearchListHPHF(iLut,List,Length,MinInd,MaxInd,PartInd,tSuccess)
         INTEGER(KIND=n_int) :: iLut(0:NIfTot),List(0:NIfTot,Length)
