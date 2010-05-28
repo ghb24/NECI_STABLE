@@ -444,6 +444,9 @@ contains
       LOGICAL :: tReadFreezeInts
 
       FREEZETRANSFER=.false.
+
+      ! Setup the umatel pointers as well
+      call init_getumatel_fn_pointers ()
             
       IF(THFBASIS) THEN
          WRITE(6,*) "Using Hartree-Fock Basis"
@@ -703,10 +706,6 @@ contains
 !             enddo
 !         enddo
 !     enddo
-
-    ! Setup the umatel pointers as well
-    call init_getumatel_fn_pointers ()
-
 
     End Subroutine IntInit
         
