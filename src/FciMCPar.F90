@@ -2765,9 +2765,20 @@ MODULE FciMCParMod
         ! completely (so VecSlot <= j, and we can't overwrite a walker we
         ! haven't got to yet).
         if (CopySign(1) /= 0) then
-            call encode_bit_rep(CurrentDets(:,VecSlot),iLutCurr,CopySign,extract_flags(iLutCurr))
-            if (.not.tRegenDiagHEls) CurrentH(VecSlot) = Kii
-            VecSlot = VecSlot + 1
+
+            IF(tTruncInitiator.and.(sign(1,CopySign(1)).ne.sign(1,wSign(1)))) THEN
+                !Abort creation of antiparticles if using initiator
+!                WRITE(6,*) "Creating Antiparticles"
+                NoAborted=NoAborted+abs(CopySign(1)) 
+                if(extract_flags(iLutCurr).ne.1) then
+                    NoAddedInitiators=NoAddedInitiators-1.D0
+                endif
+
+            ELSE
+                call encode_bit_rep(CurrentDets(:,VecSlot),iLutCurr,CopySign,extract_flags(iLutCurr))
+                if (.not.tRegenDiagHEls) CurrentH(VecSlot) = Kii
+                VecSlot = VecSlot + 1
+            ENDIF
         elseif(tTruncInitiator) then
             if(extract_flags(iLutCurr).ne.1) then
                 NoAddedInitiators=NoAddedInitiators-1.D0

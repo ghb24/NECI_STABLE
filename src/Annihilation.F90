@@ -426,7 +426,7 @@ MODULE AnnihilationMod
 !        WRITE(6,*) "Annihilating between ",ValidSpawned, " spawned particles and ",TotWalkersNew," original particles..."
 !        WRITE(6,*) "SpawnedParts: "
 !        do i=1,ValidSpawned
-!            WRITE(6,*) SpawnedParts(:,i),SpawnedSign(i)
+!            WRITE(6,*) SpawnedParts(:,i)
 !        enddo
 !        WRITE(6,*) "Original Parts: "
 !        do i=1,TotWalkersNew
