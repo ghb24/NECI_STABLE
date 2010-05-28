@@ -1020,6 +1020,9 @@ MODULE System
           IF(THUB) WRITE(6,'(A)') '  *** HUBBARD MODEL ***  ' 
 !C..
           IF(.NOT.THUB.AND..NOT.TUEG) THEN
+             ! Just have even/odd symmetry so it's a two cycle symmetry
+             ! generation issue.
+             TwoCycleSymGens = .true.
              WRITE(6,'(A)') "  Electron in cubic box.  "
              IF(TPARITY) THEN
                 WRITE(6,'(A)') '  *******************************  '
