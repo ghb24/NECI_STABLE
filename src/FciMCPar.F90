@@ -2765,17 +2765,9 @@ MODULE FciMCParMod
         ! completely (so VecSlot <= j, and we can't overwrite a walker we
         ! haven't got to yet).
         if (CopySign(1) /= 0) then
-            if (sign(1, CopySign(1)) == sign(1, wSign(1))) then
-                call encode_bit_rep(CurrentDets(:,VecSlot),iLutCurr,CopySign,extract_flags(iLutCurr))
-                if (.not.tRegenDiagHEls) CurrentH(VecSlot) = Kii
-                VecSlot = VecSlot + 1
-            else
-        ! If we change the sign of a particle, we need to spawn an
-        ! anti-particle --> it goes in the spawning array to give it a chance
-        ! to annihilate. (Not into main array, or we lose sign-coherence)
-                call encode_bit_rep(SpawnedParts(:,ValidSpawnedList(iProcIndex)),iLutCurr,CopySign,1)
-                ValidSpawnedList(iProcIndex) = ValidSpawnedList(iProcIndex)+1
-            endif
+            call encode_bit_rep(CurrentDets(:,VecSlot),iLutCurr,CopySign,extract_flags(iLutCurr))
+            if (.not.tRegenDiagHEls) CurrentH(VecSlot) = Kii
+            VecSlot = VecSlot + 1
         elseif(tTruncInitiator) then
             if(extract_flags(iLutCurr).ne.1) then
                 NoAddedInitiators=NoAddedInitiators-1.D0
