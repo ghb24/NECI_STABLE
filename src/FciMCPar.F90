@@ -2872,35 +2872,28 @@ MODULE FciMCParMod
 
         enddo
 
-#ifdef __CMPLX
-        ! Possibly need to transfer both real and complex particles back into the array
-        IF((CopySign(1).ne.0).or.(CopySign(2).ne.0)) THEN
-            !Particles will want to be transferred.
-
-#else
-        ! Real particles only
         ! Normally slot particles back into main array at position vecslot.
         ! This will normally increment with j, except when a particle dies
         ! completely (so VecSlot <= j, and we can't overwrite a walker we
         ! haven't got to yet).
-        if (CopySign(1) /= 0) then
-            if (sign(1, CopySign(1)) == sign(1, wSign(1))) then
+        IF(lenof_sign.eq.1) THEN
+            if (CopySign(1).ne.0) then
                 call encode_bit_rep(CurrentDets(:,VecSlot),iLutCurr,CopySign,extract_flags(iLutCurr))
                 if (.not.tRegenDiagHEls) CurrentH(VecSlot) = Kii
                 VecSlot = VecSlot + 1
-            else
-                ! If we change the sign of a particle, we need to spawn an
-                ! anti-particle --> it goes in the spawning array to give it a chance
-                ! to annihilate. (Not into main array, or we lose sign-coherence)
-                call encode_bit_rep(SpawnedParts(:,ValidSpawnedList(iProcIndex)),iLutCurr,CopySign,1)
-                ValidSpawnedList(iProcIndex) = ValidSpawnedList(iProcIndex)+1
+            elseif(tTruncInitiator) then
+                ! All particles on this determinant have gone. If the determinant was an initiator, update the stats
+                if(extract_flags(iLutCurr).ne.1) then
+                    NoAddedInitiators=NoAddedInitiators-1.D0
+                endif
             endif
-        elseif(tTruncInitiator) then
-            ! All particles on this determinant have gone. If the determinant was an initiator, update the stats
-            if(extract_flags(iLutCurr).ne.1) then
-                NoAddedInitiators=NoAddedInitiators-1.D0
-            endif
-        endif
+        ELSE
+            IF((CopySign(1).ne.0).or.(CopySign(2).ne.0)) THEN
+                call encode_bit_rep(CurrentDets(:,VecSlot),iLutCurr,CopySign,extract_flags(iLutCurr))
+                if (.not.tRegenDiagHEls) CurrentH(VecSlot) = Kii
+                VecSlot=VecSlot+1
+            ENDIF
+        ENDIF
 
     end subroutine
 
