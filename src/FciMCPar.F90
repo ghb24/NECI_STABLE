@@ -4278,8 +4278,8 @@ MODULE FciMCParMod
             OPEN(11,FILE=abstr,STATUS='UNKNOWN')
         ENDIF
 
-        IF(HElement_t_size.gt.1) THEN
-            CALL Stop_All("FCIMCPar","FciMCPar cannot function with complex orbitals.")
+        IF(tTruncInitiator.and.lenof_sign.ne.1) THEN
+            CALL Stop_All("FCIMCPar","i-FCIMC cannot function with complex orbitals ... yet.")
         ENDIF
         
         IF(iProcIndex.eq.Root) THEN
