@@ -12,7 +12,8 @@ contains
          logical, intent(in) :: tbin
          integer, intent(out) :: NEL,nBasisMax(5,*),LEN,LMS
          integer SYMLZ(1000)
-         INTEGER NORB,NELEC,MS2,ORBSYM(1000),ISYM,i,SYML(1000), iunit
+         INTEGER*8 :: ORBSYM(1000)
+         INTEGER NORB,NELEC,MS2,ISYM,i,SYML(1000), iunit
          LOGICAL exists,UHF
          CHARACTER*3 :: fmat
          NAMELIST /FCI/ NORB,NELEC,MS2,ORBSYM,ISYM,UHF,SYML,SYMLZ,PROPBITLEN,NPROP
@@ -48,7 +49,7 @@ contains
          CALL MPIIBCast_Scal(NORB,0)
          CALL MPIIBCast_Scal(NELEC,0)
          CALL MPIIBCast_Scal(MS2,0)
-         CALL MPIIBCast(ORBSYM,1000,0)
+         CALL MPII8BCast(ORBSYM,1000,0)
          CALL MPIIBCast(SYML,1000,0)
          CALL MPIIBCast(SYMLZ,1000,0)
          CALL MPIIBCast_Scal(ISYM,0)
@@ -66,7 +67,7 @@ contains
 
 
          DO i=1,NORB
-             IF(ORBSYM(i).eq.0) THEN
+             IF(ORBSYM(i).eq.0.and.TwoCycleSymGens) THEN
                  WRITE(6,*) "** WARNING **"
                  WRITE(6,*) "** Unconverged symmetry of orbitals **"
                  WRITE(6,*) "** Turning symmetry off for rest of run **"
@@ -135,7 +136,8 @@ contains
          INTEGER*8 IND,MASK
          INTEGER I,J,K,L,I1, iunit
          INTEGER ISYMNUM,ISNMAX,SYMMAX,SYMLZ(1000)
-         INTEGER NORB,NELEC,MS2,ORBSYM(1000),ISYM,ISPINS,ISPN,SYML(1000)
+         INTEGER NORB,NELEC,MS2,ISYM,ISPINS,ISPN,SYML(1000)
+         INTEGER*8 ORBSYM(1000)
          INTEGER Counter(1:8),nPairs,iErr,MaxnSlot,MaxIndex
          INTEGER , ALLOCATABLE :: MaxSlots(:)
          LOGICAL TBIN,UHF
@@ -158,7 +160,7 @@ contains
          CALL MPIIBCast_Scal(NORB,0)
          CALL MPIIBCast_Scal(NELEC,0)
          CALL MPIIBCast_Scal(MS2,0)
-         CALL MPIIBCast(ORBSYM,1000,0)
+         CALL MPII8BCast(ORBSYM,1000,0)
          CALL MPIIBCast(SYML,1000,0)
          CALL MPIIBCast(SYMLZ,1000,0)
          CALL MPIIBCast_Scal(ISYM,0)
@@ -362,7 +364,11 @@ contains
          DO I=1,NORB
             DO ISPN=1,ISPINS
                 BRR(ISPINS*I-ISPN+1)=ISPINS*I-ISPN+1
-                G1(ISPINS*I-ISPN+1)%Sym%s=ORBSYM(I)-1
+                if (TwoCycleSymGens) then
+                    G1(ISPINS*I-ISPN+1)%Sym%s=ORBSYM(I)-1
+                else
+                    G1(ISPINS*I-ISPN+1)%Sym%s=ORBSYM(I)
+                end if
                 IF(tFixLz) THEN
                     G1(ISPINS*I-ISPN+1)%Ml=SYMLZ(I)
                 ELSE
@@ -378,6 +384,7 @@ contains
             ENDDO
          ENDDO
          IF(.not.tFixLz) iMaxLz=0
+         if (.not.TwoCycleSymGens) SYMMAX = ISYM
          ! We use bit strings to store symmetry information.
          ! SYMMAX needs to be the smallest power of 2 greater or equal to
          ! the actual number of symmetry representations spanned by the basis.
@@ -440,7 +447,8 @@ contains
          HElement_t UMatEl
          INTEGER ZeroedInt,NonZeroInt
          INTEGER I,J,K,L,X,Y,A,B,iCache,iCacheI,iType, iunit
-         INTEGER NORB,NELEC,MS2,ORBSYM(1000),ISYM,SYMMAX,SYML(1000)
+         INTEGER NORB,NELEC,MS2,ISYM,SYMMAX,SYML(1000)
+         INTEGER*8 ORBSYM(1000)
          LOGICAL LWRITE,UHF,tAddtoCache,GetCachedUMatEl
          INTEGER ISPINS,ISPN,ISPN2,ierr,SYMLZ(1000)!,IDI,IDJ,IDK,IDL
          INTEGER Counter(1:8),UMatSize,TMatSize
@@ -461,7 +469,7 @@ contains
          CALL MPIIBCast_Scal(NORB,0)
          CALL MPIIBCast_Scal(NELEC,0)
          CALL MPIIBCast_Scal(MS2,0)
-         CALL MPIIBCast(ORBSYM,1000,0)
+         CALL MPII8BCast(ORBSYM,1000,0)
          CALL MPIIBCast(SYML,1000,0)
          CALL MPIIBCast(SYMLZ,1000,0)
          CALL MPIIBCast_Scal(ISYM,0)
@@ -487,7 +495,6 @@ contains
              ALLOCATE(CacheInd(nPairs),stat=ierr)
              CacheInd(:)=1
          ENDIF
-
 
          IF(iProcIndex.eq.0) THEN
              IF(.not.TSTARSTORE) THEN

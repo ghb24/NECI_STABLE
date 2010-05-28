@@ -431,6 +431,21 @@ Subroutine MPIIBCast(dValues,iLen,Root)
     RETURN
 End Subroutine MPIIBCast
 
+!A wrapper for the mpi_bcast integer routine, so it can be used in serial
+Subroutine MPII8BCast(dValues,iLen,Root)
+    INTEGER*8 :: dValues(*)
+    INTEGER :: iLen,Root,error,rc
+#ifdef PARALLEL
+    CALL MPI_Bcast(dValues,iLen,MPI_INTEGER8,Root,MPI_COMM_WORLD,error)
+    if(error.ne.MPI_SUCCESS) then
+        print *,'Error broadcasting values in MPII8BCast. Terminating.'
+        call MPI_ABORT(MPI_COMM_WORLD,rc,error)
+    endif
+#else
+#endif
+    RETURN
+End Subroutine MPII8BCast
+
 !A wrapper for the mpi_bcast logical routine, so it can be used in serial
 Subroutine MPILBCast(dValues,iLen,Root)
     LOGICAL :: dValues
@@ -490,6 +505,21 @@ Subroutine MPIIBCast_Scal(dValues,Root)
 #endif
     RETURN
 End Subroutine MPIIBCast_Scal
+
+!A wrapper for the mpi_bcast integer routine, so it can be used in serial (Scalar values only)
+Subroutine MPII8BCast_Scal(dValues,Root)
+    INTEGER*8 :: dValues
+    INTEGER :: Root,error,rc
+#ifdef PARALLEL
+    CALL MPI_Bcast(dValues,1,MPI_INTEGER8,Root,MPI_COMM_WORLD,error)
+    if(error.ne.MPI_SUCCESS) then
+        print *,'Error broadcasting values in MPII8BCast. Terminating.'
+        call MPI_ABORT(MPI_COMM_WORLD,rc,error)
+    endif
+#else
+#endif
+    RETURN
+End Subroutine MPII8BCast_Scal
 
 !A wrapper for the mpi_bcast logical routine, so it can be used in serial (Scalar values only)
 Subroutine MPILBCast_Scal(dValues,Root)
