@@ -1937,7 +1937,7 @@ MODULE FciMCParMod
                 ELSE
                     do j=1,WalkersonNodes(i)
                         IF(mod(j,iPopsPartEvery).eq.0) THEN
-                            do k=0,NIfD
+                            do k=0,NIfDBO
                                 WRITE(iunit,"(I24)",advance='no') CurrentDets(k,j)
                             enddo
                             call extract_sign(CurrentDets(:,j),TempSign)
@@ -2272,42 +2272,40 @@ MODULE FciMCParMod
             ENDIF
 
 #ifdef __INT64
-            IF(.not.tPop64BitDets) THEN
-        !If we are using 64 bit integers, but have read in 32 bit integers, then we need to convert them.
+            if (.not.tPop64BitDets) then
+                ! If we are using 64 bit integers, but have read in 32 bit 
+                ! integers, then we need to convert them.
                 do ii=0,nBasis/32
                     do j=0,31
                         if(btest(iLutTemp32(ii),j)) then
-                           orb=(ii*32)+j+1
-!			   IF(orb.lt.1.or.orb.gt.56) THEN
-!				WRITE(6,*) orb
-!				CALL FLUSH(6)
-!			   ENDIF
-                           pos=(orb-1)/bits_n_int
-                           iLutTemp(pos)=ibset(iLutTemp(pos),mod(orb-1,bits_n_int))
-                       endif
-                   enddo
-               enddo
-
-            ELSE
-                iLutTemp(0:NIfD)=iLutTemp64(0:NIfD)
-            ENDIF
+                            orb=(ii*32)+j+1
+                            pos=(orb-1)/bits_n_int
+                            iLutTemp(pos)=ibset(iLutTemp(pos),mod(orb-1,bits_n_int))
+                        endif
+                    enddo
+                enddo
+                iLutTemp(NIfD+1:NIfDBO) = iLutTemp64(ii:NIfWriteOut)
+            else
+                iLutTemp(0:NIfDBO)=iLutTemp64(0:NIfDBO)
+            endif
 
 #else
-!If we are using 32 bit integers, but have read in 64 bit integers, then we need to convert them.
-            IF(tPop64BitDets) THEN
+            ! If we are using 32 bit integers, but have read in 64 bit 
+            ! integers, then we need to convert them.
+            if (tPop64BitDets) then
                 do ii=0,nBasis/64
                     do j=0,63
                         if(btest(iLutTemp64(ii),j)) then
-                           orb=(ii*64)+j+1
-                           pos=(orb-1)/bits_n_int
-                           iLutTemp(pos)=ibset(iLutTemp(pos),mod(orb-1,bits_n_int))
-                       endif
-                   enddo
-               enddo
-
-            ELSE
-                iLutTemp(0:NIfD)=iLutTemp32(0:NIfD)
-            ENDIF
+                            orb=(ii*64)+j+1
+                            pos=(orb-1)/bits_n_int
+                            iLutTemp(pos)=ibset(iLutTemp(pos),mod(orb-1,bits_n_int))
+                        endif
+                    enddo
+                enddo
+                iLutTemp(NIfD+1:NIfDBO) = iLutTemp32(ii:NIfWriteOut)
+            else
+                iLutTemp(0:NIfDBO)=iLutTemp32(0:NIfDBO)
+            endif
         
 #endif
             call decode_bit_det (TempnI, iLutTemp)
