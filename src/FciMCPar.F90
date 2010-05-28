@@ -2930,6 +2930,7 @@ MODULE FciMCParMod
 
         real(dp) :: r, rat, fac
         logical :: tDetInCAS
+        integer :: i
 
         fac = tau * (Kii-DiagSft)
 

@@ -257,7 +257,7 @@ MODULE AnnihilationMod
 !This sorts and compresses the spawned list to make it easier for the rest of the annihilation process.
 !This is not essential, but should proove worthwhile
     SUBROUTINE CompressSpawnedList(ValidSpawned)
-        INTEGER :: VecInd,ValidSpawned,DetsMerged,ToRemove,i,PartIndex,ExcitLevel,PassedFlag,FlagParts2
+        INTEGER :: VecInd,ValidSpawned,DetsMerged,ToRemove,i,PartIndex,ExcitLevel,PassedFlag,FlagParts2,j
         INTEGER, DIMENSION(lenof_sign) :: SignProd,SpawnedSign,SpawnedSign2,MergedSign
         LOGICAL :: tSuc
 
@@ -284,9 +284,9 @@ MODULE AnnihilationMod
                 !Determinant (i) is not the same as the last one which was copied across (VecInd)
                 call extract_sign(SpawnedParts2(:,VecInd),SpawnedSign)
                 IF(lenof_sign.eq.1) THEN
-                    IF(SpawnedSign(1).eq.null_part(1)) ToRemove=ToRemove+1
+                    IF(SpawnedSign(1).eq.0) ToRemove=ToRemove+1
                 ELSE
-                    IF((SpawnedSign(1).eq.null_part(1)).and.(SpawnedSign(2).eq.null_part(2))) ToRemove=ToRemove+1
+                    IF((SpawnedSign(1).eq.0).and.(SpawnedSign(2).eq.0)) ToRemove=ToRemove+1
                 ENDIF
                 VecInd=VecInd+1
                 SpawnedParts2(:,VecInd)=SpawnedParts(:,i)
@@ -569,7 +569,7 @@ MODULE AnnihilationMod
                     ENDIF
                 ELSE
                     !Complex case
-                    IF((SignTemp(1).eq.null_part(1)).and.(SignTemp(2).eq.null_part)) THEN
+                    IF((SignTemp(1).eq.0).and.(SignTemp(2).eq.0)) THEN
                         DetsMerged=DetsMerged+1
                     ELSE
                         SpawnedParts2(0:NIfTot,i-DetsMerged)=SpawnedParts(0:NIfTot,i)
@@ -659,7 +659,7 @@ MODULE AnnihilationMod
                     ENDIF
                 ELSE
                     !complex case
-                    IF((CurrentSign(1).eq.0).and.(CurrentSign(2).eq.0) THEN
+                    IF((CurrentSign(1).eq.0).and.(CurrentSign(2).eq.0)) THEN
                         DetsMerged=DetsMerged+1
                         IF(tTruncInitiator.and.CurrentDets(NIfTot,i).ne.1) THEN
                             NoAddedInitiators=NoAddedInitiators-1.D0
