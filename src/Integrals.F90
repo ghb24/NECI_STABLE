@@ -22,6 +22,12 @@ module Integrals
 
     interface
         function get_umat_el (fn, i, j, k, l) result(hel)
+            ! Obtains the Coulomb integral <ij|kl> from the UMat array.
+            ! In:
+            !    fn: pointer to the system-specific get_umat_el_* function.
+            !    i,j,k,l: orbital indices. These refer to spin orbitals in
+            !      unrestricted calculations and spatial orbitals in restricted
+            !      calculations.
             use, intrinsic :: iso_c_binding
             use constants, only: dp
             implicit none
@@ -1360,7 +1366,8 @@ contains
     function GetUMatEl2(I,J,A,B)
        ! A wrapper for GetUMatEl, now everything is available via modules.
        ! In:
-       !    I,J,A,B: indices of integral
+       !    I,J,A,B: indices of integral.  These are in spin indices in
+       !    unrestricted calculations and spatial indices in restricted.
        ! Returns <ij|ab>
        use SystemData, only: ALAT,G1,iSpinSkip,nBasis,nBasisMax
        implicit none
@@ -1440,6 +1447,19 @@ contains
 
     function get_umat_el_tumat2d (idi, idj, idk, idl) result (hel)
 
+        ! Obtains the Coulomb integral <ij|kl>.
+
+        ! This version is when we store the <ij|ij> and <ij|ji> integrals in
+        ! a 2D array and the rest in a cache.
+
+        ! It is safest to use the get_umat_el wrapper function to access
+        ! get_umat_el_* functions.
+
+        ! In:
+        !    i,j,k,l: orbital indices. These refer to spin orbitals in
+        !      unrestricted calculations and spatial orbitals in restricted
+        !      calculations.
+
         integer, intent(in) :: idi, idj, idk, idl
         integer :: i, j
         HElement_t :: hel
@@ -1472,6 +1492,19 @@ contains
     end function get_umat_el_tumat2d
 
     function get_umat_el_cache (idi, idj, idk, idl) result (hel)
+
+        ! Obtains the Coulomb integral <ij|kl>.
+
+        ! This version is when we store the <ij|ij> and <ij|ji> integrals in
+        ! a 2D array and the rest in a cache.
+
+        ! It is safest to use the get_umat_el wrapper function to access
+        ! get_umat_el_* functions.
+
+        ! In:
+        !    i,j,k,l: orbital indices. These refer to spin orbitals in
+        !      unrestricted calculations and spatial orbitals in restricted
+        !      calculations.
 
         integer, intent(in) :: idi, idj, idk, idl
         integer :: i, j, k, l, a, b
@@ -1606,8 +1639,16 @@ contains
 
     function get_umat_el_fixlz_storespinorbs (i, j, k, l, fn2) result(hel)
 
-        ! Consider the case where we are fixing Lz symmetry, and are storing
-        ! spin orbitals
+        ! Obtains the Coulomb integral <ij|kl>.
+
+        ! This version considers the case where we are fixing Lz symmetry, and
+        ! are storing spin orbitals.
+
+        ! It is safest to use the get_umat_el wrapper function to access
+        ! get_umat_el_* functions.
+
+        ! In:
+        !    i,j,k,l: spin-orbital indices.
         
         interface
             function fn2 (i, j, k, l) result (hel)
@@ -1634,8 +1675,16 @@ contains
 
     function get_umat_el_fixlz_notspinorbs (i, j, k, l, fn2) result(hel)
 
-        ! Consider the case where we are fixing Lz symmetry, and are not
-        ! storing spin orbitals
+        ! Obtains the Coulomb integral <ij|kl>.
+
+        ! This version considers the case where we are fixing Lz symmetry, and
+        ! are not storing spin orbitals.
+
+        ! It is safest to use the get_umat_el wrapper function to access
+        ! get_umat_el_* functions.
+
+        ! In:
+        !    i,j,k,l: spatial orbital indices.
         
         interface
             function fn2 (i, j, k, l) result (hel)
@@ -1661,8 +1710,19 @@ contains
     end function
 
     function get_umat_el_normal (idi, idj, idk, idl) result(hel)
-        
-        ! The normal, cached case for getumatel
+
+        ! Obtains the Coulomb integral <ij|kl>.
+
+        ! This version is for the normal, cached case for getumatel, where all
+        ! integrals are stored in the UMat array.
+
+        ! It is safest to use the get_umat_el wrapper function to access
+        ! get_umat_el_* functions.
+
+        ! In:
+        !    idi,idj,idk,idl: orbital indices. These refer to spin orbitals in
+        !      unrestricted calculations and spatial orbitals in restricted
+        !      calculations.
 
         integer, intent(in) :: idi, idj, idk, idl
         HElement_t :: hel
@@ -1676,7 +1736,20 @@ contains
 
     function get_umat_el_starstore (idi, idj, idk, idl) result(hel)
 
-        ! The case when tStarStore and tUMat2D are set
+        ! Obtains the Coulomb integral <ij|kl>.
+
+        ! This version is for the case when tStarStore (so <ij|ab> is only
+        ! stored when i,j are occupied orbitals of the HF determinant and a,b
+        ! are virtual orbitals) and tUMat2D (so <ij|ij> and <ij|ji> integrals
+        ! are stored seperately) are set.
+
+        ! It is safest to use the get_umat_el wrapper function to access
+        ! get_umat_el_* functions.
+
+        ! In:
+        !    idi,idj,idk,idl: orbital indices. These refer to spin orbitals in
+        !      unrestricted calculations and spatial orbitals in restricted
+        !      calculations.
 
         integer, intent(in) :: idi, idj, idk, idl
         integer :: i, j
@@ -1826,6 +1899,13 @@ END SUBROUTINE CALCTMATUEG
 
 ! See Integrals.F90 for an interface for this function.
 function get_umat_el (fn, i, j, k, l) result(hel)
+    ! Obtains the Coulomb integral <ij|kl> from the UMat array.
+    ! In:
+    !    fn: pointer to the system-specific get_umat_el_* function.
+    !      fn should always be the variable ptr_getumatel.
+    !    i,j,k,l: orbital indices. These refer to spin orbitals in
+    !      unrestricted calculations and spatial orbitals in restricted
+    !      calculations.
     use, intrinsic :: iso_c_binding
     use constants, only: dp
     use IntegralsData, only: ptr_getumatel_2
