@@ -769,9 +769,9 @@ contains
          !TMAT2=(0.d0)
          IF(NBASISMAX(1,3).GE.0.AND.ISPINSKIP.NE.0) THEN
             CALL GetUMatSize(nBasis,(nEl-NFROZEN-NFROZENIN),iSpinSkip,UMATINT)
-                call shared_allocate ("umat2", umat2, (/UMatInt/))
-                !Allocate(UMat2(UMatInt), stat=ierr)
-                LogAlloc(ierr, 'UMat2', UMatInt,HElement_t_SizeB, tagUMat2)
+            call shared_allocate ("umat2", umat2, (/UMatInt/))
+            !Allocate(UMat2(UMatInt), stat=ierr)
+            LogAlloc(ierr, 'UMat2', UMatInt,HElement_t_SizeB, tagUMat2)
             UMAT2 = 0.d0
          ELSE
 !!C.. we don't precompute 4-e integrals, so don't allocate a large UMAT
