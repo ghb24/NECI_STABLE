@@ -198,13 +198,15 @@ MODULE UMatCache
          ! Indices are internally reordered such that I>K, J>L,(I,K)>(J,L) 
          ! Note: (i,k)>(j,l) := (k>l) || ((k==l)&&(i>j))
          ! In:
-         !    I,J,K,L: spatial orbitals (unless unrestricted).
+         !    I,J,K,L: orbital indices. These refer to spin orbitals in
+         !      unrestricted calculations and spatial orbitals in restricted
+         !      calculations.
          !    nBasis: size of basis. If =0, use nStates instead.
          !    nOccupied: # of occupied orbitals.  If =0, then nOcc is used.
          !    Should only be passed as non-zero during the freezing process.
          IMPLICIT NONE
-         INTEGER I,J,K,L,AA,BB,NBASIS
-         INTEGER R,S,T,U,A,B,C,D,NOCCUPIED
+         INTEGER, intent(in) :: I,J,K,L,NBASIS,NOCCUPIED
+         INTEGER R,S,T,U,A,B,C,D,AA,BB
          IF(TSTARSTORE) THEN
             !Rearrange, so that orbitals ordered over energy, and first two indices are occupied
             !Could be a problem in the future r.e. partially filled degenerate fermi levels - is BRR then the best way to determine if an orbital is occupied or not??
