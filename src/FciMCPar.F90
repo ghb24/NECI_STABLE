@@ -13,7 +13,8 @@
 MODULE FciMCParMod
     use SystemData, only: nel, Brr, nBasis, nBasisMax, LMS, tHPHF, tHub, &
                           tReal, tRotatedOrbs, tFindCINatOrbs, tFixLz, &
-                          LzTot, tUEG, tLatticeGens, tCSF, G1, Arr
+                          LzTot, tUEG, tLatticeGens, tCSF, G1, Arr, &
+                          tNoBrillouin
     use bit_reps, only: NIfD, NIfTot, NIfDBO, NIfY
     use CalcData, only: InitWalkers, NMCyc, DiagSft, Tau, SftDamp, StepsSft, &
                         OccCASorbs, VirtCASorbs, tFindGroundDet, NEquilSteps,&
@@ -23,7 +24,7 @@ MODULE FciMCParMod
                         tTruncInitiator, tDelayTruncInit, IterTruncInit, &
                         NShiftEquilSteps, tWalkContGrow, tMCExcits, &
                         tAddToInitiator, InitiatorWalkNo, tInitIncDoubs, &
-                        tRetestAddtoInit
+                        tRetestAddtoInit, tReadPopsChangeRef, tReadPopsRestart
     use HPHFRandExcitMod, only: FindExcitBitDetSym, GenRandHPHFExcit, &
                                 gen_hphf_excit
     use Determinants, only: FDet, get_helement, write_det, &
@@ -1988,6 +1989,8 @@ MODULE FciMCParMod
         character(255) :: popsfile,FirstLine
         character(len=24) :: junk,junk2,junk3,junk4,junk5
         LOGICAL :: tPop64BitDets,tPopHPHF,tPopLz,tPopInitiator
+        integer(n_int) :: ilut_largest(0:NIfTot)
+        integer :: sign_largest
         
         PreviousCycles=0    !Zero previous cycles
         SumENum=0.D0
@@ -2218,6 +2221,7 @@ MODULE FciMCParMod
         IF((PopsVersion.ne.1).and.(.not.tFixLz).and.tPopLz) THEN
             CALL Stop_All(this_routine,"Lz off, but Lz was used for creation of the POPSFILE")
         ENDIF
+        ! TODO: Add tests for CSFs here.
         IF(PopsVersion.eq.1) THEN
             tPop64BitDets=.false.
             NIfWriteOut=nBasis/32
@@ -2233,6 +2237,8 @@ MODULE FciMCParMod
         ENDIF
 
         CurrWalkers=0
+        sign_largest = 0
+        ilut_largest = 0
         do i=1,AllTotWalkers
             iLutTemp(:)=0
             IF(PopsVersion.ne.1) THEN
@@ -2302,6 +2308,12 @@ MODULE FciMCParMod
                 call encode_bit_rep(CurrentDets(:,CurrWalkers),iLutTemp(0:NIfDBO),TempSign,0)   !Do not need to send a flag here...
                                                                                                 !TODO: Add flag for complex walkers to read in both
             ENDIF
+
+            ! Keep track of what the most highly weighted determinant is
+            if (abs(TempSign(1)) > sign_largest) then
+                sign_largest = abs(TempSign(1))
+                ilut_largest = iLutTemp
+            endif
         enddo
         CLOSE(iunit)
         TempCurrWalkers=REAL(CurrWalkers,dp)
@@ -2362,6 +2374,37 @@ MODULE FciMCParMod
         WRITE(6,*) "Initial memory allocation successful..."
         WRITE(6,*) "Excitgens will be regenerated when they are needed..."
         CALL FLUSH(6)
+
+        ! If we are changing the reference determinant to the largest
+        ! weighted one in the file, do it here
+        if (tReadPopsChangeRef) then
+            if (.not. DetBitEq(ilut_largest, iLutRef, NIfDBO)) then
+                
+                ! Set new reference
+                iLutRef = ilut_largest
+                call decode_bit_det (ProjEDet, iLutRef)
+                tNoBrillouin = .true.
+
+                ! Recalculate the reference E
+                if (tHPHF) then
+                    HElemTemp = hphf_diag_helement (ProjEDet, iLutRef)
+                else
+                    HElemTemp = get_helement (ProjEDet, ProjEDet, 0)
+                endif
+                Hii = real(HElemTemp, dp)
+
+                ! Output info on root node.
+                if (iProcIndex == root) then
+                    write(6, '(a)', advance='no') &
+                        "Changing projected energy reference determinant to: "
+                    call write_det (6, ProjEDet, .true.)
+                    write (6, '(a)') &
+                        "Ensuring that Brillouin's theorem is no longer used."
+                    write (6, '(a,g25.15)') &
+                        "Reference energy now set to: ", Hii
+                endif
+            endif
+        endif
 
 !Now find out the data needed for the particles which have been read in...
         TotParts=0
@@ -2765,17 +2808,20 @@ MODULE FciMCParMod
         ! completely (so VecSlot <= j, and we can't overwrite a walker we
         ! haven't got to yet).
         if (CopySign(1) /= 0) then
-            if (sign(1, CopySign(1)) == sign(1, wSign(1))) then
+
+            IF(tTruncInitiator.and.(sign(1,CopySign(1)).ne.sign(1,wSign(1)))) THEN
+                !Abort creation of antiparticles if using initiator
+!                WRITE(6,*) "Creating Antiparticles"
+                NoAborted=NoAborted+abs(CopySign(1)) 
+                if(extract_flags(iLutCurr).ne.1) then
+                    NoAddedInitiators=NoAddedInitiators-1.D0
+                endif
+
+            ELSE
                 call encode_bit_rep(CurrentDets(:,VecSlot),iLutCurr,CopySign,extract_flags(iLutCurr))
                 if (.not.tRegenDiagHEls) CurrentH(VecSlot) = Kii
                 VecSlot = VecSlot + 1
-            else
-        ! If we change the sign of a particle, we need to spawn an
-        ! anti-particle --> it goes in the spawning array to give it a chance
-        ! to annihilate. (Not into main array, or we lose sign-coherence)
-                call encode_bit_rep(SpawnedParts(:,ValidSpawnedList(iProcIndex)),iLutCurr,CopySign,1)
-                ValidSpawnedList(iProcIndex) = ValidSpawnedList(iProcIndex)+1
-            endif
+            ENDIF
         elseif(tTruncInitiator) then
             if(extract_flags(iLutCurr).ne.1) then
                 NoAddedInitiators=NoAddedInitiators-1.D0
