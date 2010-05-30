@@ -2112,10 +2112,10 @@ C.. Set to be totally symmetric
          use constants, only : n_int,bits_n_int
          use DetBitops, only: EncodeBitDet
          use util_mod, only: choose
-         use bit_rep_data, only: NIfDBO
+         use bit_rep_data, only: NIfTot
          IMPLICIT NONE
          INTEGER :: IUNIT,OverallSym,j,SpatOrbs,FDetMom,ExcitLev
-         INTEGER(KIND=n_int) :: FDetiLut(0:NIfDBO),iLut(0:NIfDBO)
+         INTEGER(KIND=n_int) :: FDetiLut(0:NIfTot),iLut(0:NIfTot)
          INTEGER :: FDetSym,TotalSym,TotalMom,alpha,beta,ierr,Momx,Momy
          INTEGER :: Momz
          INTEGER*8 :: Accept,AcceptAll,i
