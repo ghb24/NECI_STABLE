@@ -404,7 +404,7 @@ contains
         ! Large objects might be residing in the MemLog, but not deallocated
         ! (and so haven't been moved to the large object store).
         AllMemEl(1:MaxLen)=MemLog
-        AllMemEl(MaxLen+1:MaxLen+nLargeObjects)=MemLog
+        AllMemEl(MaxLen+1:MaxLen+nLargeObjects)=LargeObjLog
     else
         ! Everything really ought to be held in just the MemLog: if not, then
         ! this is a "feature".
