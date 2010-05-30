@@ -2545,7 +2545,7 @@ MODULE FciMCParMod
                         MatEl=REAL(rh,dp)
                     ELSE
                         !We want to use the imaginary part of the matrix element to create imaginary walkers
-                        MatEl=AIMAG(rh,dp)
+                        MatEl=AIMAG(rh)
                     ENDIF
 
                     !Attempt spawning
@@ -2577,7 +2577,7 @@ MODULE FciMCParMod
 
                     IF(i.eq.1) THEN
                         !We want to use the imaginary part of the matrix element to create real walkers
-                        MatEl=AIMAG(rh,dp)
+                        MatEl=AIMAG(rh)
                     ELSE
                         !We want to use the real part of the matrix element to create imaginary walkers
                         MatEl=REAL(rh,dp)
