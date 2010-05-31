@@ -340,13 +340,15 @@ C.. determinants within double excitations, which will end up fairly inefficient
      &            G1,TSYM,NBASISMAX,TCOUNT)
          use CalcData , only : TNEWEXCITATIONS
          use SystemData, only: BasisFN
+         use sym_mod, only: getsym
          IMPLICIT NONE
          INTEGER NEL,NI(NEL),NORDER,NBASIS,LIST(NEL,*),ICLIST(*)
          INTEGER NEXCIT(NEL),NLIST,nBasisMax(5,*)
          TYPE(BASISFN) ISYM
          INTEGER NO,IFDET
          LOGICAL TSYM,TCOUNT
-         INTEGER G1(*),NMIN
+         INTEGER NMIN
+         type(BasisFN) G1(*)
 
          INTEGER*8 STORE(6)
          INTEGER ICOUNT,ILEVEL
@@ -409,11 +411,12 @@ C.. NSTARTFN is the basis fn to start with for this electron
      &         ICLIST,NLISTPOS,NEXCIT,NLEFT,NSTARTFN,NMIN,G1,ISYM,TSYM,
      &         NBASISMAX,TCOUNT)
          use SystemData, only: BasisFN,tFixLz
+         use sym_mod, only: lChkSym, GetLz, getsym
          IMPLICIT NONE
          INTEGER NEL,NELEC,NORDER,NLISTPOS,NLEFT,NBASIS,NSTARTFN,NNLEFT
          INTEGER NI(NEL),NEXCIT(NEL),LIST(NEL,*),ICLIST(*)
          INTEGER I,J,I1,I2,NMIN,NMAXEX,K,NExcitMl
-         LOGICAL LISINOLD,LSYM,TSYM,LCHKSYM,TCOUNT,LZSYM
+         LOGICAL LISINOLD,LSYM,TSYM,TCOUNT,LZSYM
          TYPE(BASISFN) G1(NBASIS),ISYM,ISYM2
          INTEGER nBasisMax(5,*)
 C.. NMAXEX is the maximum number of excitations we're allowed to  have

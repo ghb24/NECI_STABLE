@@ -20,6 +20,7 @@ C.. NMAX has ARR hidden in it.
      &          g_MultiWeight,TMPTHEORY,TVVDISALLOW,TMCDIRECTSUM
          USE Logging , only : G_VMC_LOGCOUNT
          use SystemData, only: BasisFN
+         use sym_mod, only: getsym
          use global_utilities
          IMPLICIT NONE
          TYPE(MCStats) MCSt
@@ -1616,14 +1617,15 @@ C.. Invert the matrix, and pass the multiplicative factor on.
      &            NBASISMAX,KSYM,NJ)
          use SystemData, only: BasisFN
          use sort_mod
+         use sym_mod, only: lChkSym
          IMPLICIT NONE
          INTEGER NEL,NI(NEL),NBASIS,IEXLEVEL,ISEED,NJ(NEL)
          INTEGER I,J,K,IEX,IEXL2
          LOGICAL BR,BR2
          INTEGER IGETEXCITLEVEL
          TYPE(BasisFN) KSYM
-         INTEGER G1(*),nBasisMax(5,*)
-         LOGICAL LCHKSYM
+         type(BasisFN) G1(*)
+         INTEGER nBasisMax(5,*)
          REAL*8 RAN2
          IF(IEXLEVEL.GT.2)
      &    STOP "Cannot handle more than double excitations."
@@ -1653,7 +1655,9 @@ C.. If the new basis fn's in our original det or our new one, we loop again
                NJ(I)=J
             ENDDO
             call sort (nJ)
-            BR=LCHKSYM(NI,NJ,NEL,G1,NBASISMAX)
+            call stop_all('GENRANDOMEXCITSYM', 
+     &                            'BROKEN CODE! Fix LCKSYM call.')
+            !BR=LCHKSYM(NI,NJ,NEL,G1,NBASISMAX)
             BR2=.NOT.BR
          ENDDO
          RETURN
@@ -1677,13 +1681,15 @@ C.. If the new basis fn's in our original det or our new one, we loop again
      &      ISEED,NJ)
          use SystemData, only: BasisFN
          use sort_mod
+         use sym_mod, only: getsym
          IMPLICIT NONE
          INTEGER NEL,NI(NEL),NBASIS,NEXCITS,ISEED,NJ(NEL)
          INTEGER I,J,K,IEXL2,NB2,NA,NB,NEX1,NEX2
          INTEGER IEX1,IEX2,IIEX1,IIEX2
          LOGICAL BR
          INTEGER nBasisMax(5,*)
-         INTEGER NEX1A,NEX1B,NEX2A,NEX2B,G1(*)
+         INTEGER NEX1A,NEX1B,NEX2A,NEX2B
+         type(BasisFN) G1(*)
          INTEGER NEXAB
          REAL*8 R,IEX
          LOGICAL ISUHFDET

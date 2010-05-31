@@ -235,6 +235,7 @@ C.. CK now contains the eigenvectors, and W the eigenvalues
          use SystemData, only: BasisFN
          use global_utilities
          use Determinants, only: get_helement
+         use sym_mod
          use constants, only: dp
          IMPLICIT NONE
          INTEGER NDET,NEL,NBLOCKS,NBLOCKSTARTS(NBLOCKS),NMRKS(NEL,NDET)

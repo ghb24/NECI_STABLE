@@ -1107,15 +1107,14 @@ MODULE UMatCache
       ! states may change with the next calculation.
       use SystemData, only: Symmetry,BasisFN
       use util_mod, only: get_free_unit
+      use sym_mod
       implicit none
       integer  NHG
       type(BasisFN) G1(NHG)
       ! Variables
       integer iPair,iSlot,i,j,k,l,iCache1,iCache2,A,B,iType
-      logical LSymSym
-      type(Symmetry) TotSymRep
       HElement_t UMatEl
-      type(Symmetry) Sym,Symprod,SymConj
+      type(Symmetry) Sym
       integer iunit
       iunit = get_free_unit()
       open (iunit,file="CacheDump",status="unknown")

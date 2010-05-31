@@ -35,34 +35,6 @@ module Integrals
             integer, intent(in) :: i, j, k, l
             HElement_t :: hel
         end function
-
-        ! TODO: From sym.F. Should modularise at some point
-        function TotSymRep ()
-            use SystemData, only: Symmetry
-            implicit none
-            type(Symmetry) :: TotSymRep
-        end function
-
-        ! TODO: Same again
-        function symProd (iSym1, iSym2)
-            use SystemData, only: Symmetry
-            implicit none
-            type(Symmetry) :: iSym1, iSym2, symProd
-        end function
-
-        ! TODO: Same again
-        logical function lSymSym (sym)
-            use SystemData, only: Symmetry
-            implicit none
-            type(Symmetry) :: sym
-        end function
-
-        ! TODO: Same again
-        function SymConj (s2)
-            use Systemdata, only: Symmetry
-            implicit none
-            type(Symmetry) :: SymConj, s2
-        end function
     end interface
 
 contains
@@ -435,6 +407,7 @@ contains
       use SystemData, only: Omega,tAlpha,TBIN,tCPMD,tDFread,THFORDER,tRIIntegrals
       use SystemData, only: thub,tpbc,treadint,ttilt,TUEG,tVASP,tStarStore
       use SystemData, only: uhub, arr,alat,treal,tCacheFCIDUMPInts
+      use sym_mod, only: GenSymStatePairs
       use read_fci
       use constants, only: Pi, Pi2, THIRD
       INTEGER iCacheFlag
@@ -865,6 +838,7 @@ contains
        Use UMatCache, only: FreezeUMatCache, CreateInvBrr2,FreezeUMat2D, SetupUMatTransTable
        use UMatCache, only: GTID
        use global_utilities
+       use sym_mod
 
        IMPLICIT NONE
        INTEGER NHG,NBASIS,nBasisMax(5,*),ISS
@@ -1506,10 +1480,17 @@ contains
         !      unrestricted calculations and spatial orbitals in restricted
         !      calculations.
 
+        ! For some reason gfortran (4.4 on OSX) really needs to have Symmetry
+        ! used locally (even though it's in the module-level use statement) in
+        ! order to avoid an internal gfortran segfault when compiling the
+        ! TotSymRep call.  Weird!
+        use SymData, only: Symmetry
+        use sym_mod, only: symProd, symConj, lSymSym, TotSymRep
+
         integer, intent(in) :: idi, idj, idk, idl
         integer :: i, j, k, l, a, b
         integer :: iType, iCache, iCacheI
-        type(Symmetry) :: sym
+        type(Symmetry) :: isym
         HElement_t :: hel, UElems(0:nTypes-1)
         logical :: calc2ints
         complex(dp) :: vasp_int(1, 0:1)
@@ -1518,26 +1499,26 @@ contains
         j = idj
         k = idk
         l = idl
-        sym = TotSymRep ()
+        isym=totSymRep()
 
         ! UHF/ROHF (but not explicit ROHF in input) calculation. Integrals
         ! stored as spin-orbitals already...
         ! Also assume real orbitals, since this can only be done by
         ! tCacheFCIDumpInts
         if (tStoreSpinOrbs) then
-            sym = symProd (sym, G1(i)%Sym)
-            sym = symProd (sym, G1(j)%Sym)
-            sym = symProd (sym, G1(k)%Sym)
-            sym = symProd (sym, G1(l)%Sym)
+            isym = symProd (isym, G1(i)%Sym)
+            isym = symProd (isym, G1(j)%Sym)
+            isym = symProd (isym, G1(k)%Sym)
+            isym = symProd (isym, G1(l)%Sym)
         else
-            sym = symProd (sym, symConj(G1(2*i-1)%Sym))
-            sym = symProd (sym, symConj(G1(2*j-1)%Sym))
-            sym = symProd (sym, G1(2*k-1)%Sym)
-            sym = symProd (sym, G1(2*l-1)%Sym)
+            isym = symProd (isym, symConj(G1(2*i-1)%Sym))
+            isym = symProd (isym, symConj(G1(2*j-1)%Sym))
+            isym = symProd (isym, G1(2*k-1)%Sym)
+            isym = symProd (isym, G1(2*l-1)%Sym)
         endif
 
         ! Check the symmetry of the 4-index integrals
-        if ( .not. lSymSym(sym)) then
+        if ( .not. lSymSym(isym)) then
             hel = 0
             return
         endif

@@ -3,11 +3,14 @@
      &      RHOEPS,ILOGGING,TSYM,ECORE,WLRI,WLSI)
          use global_utilities
          use legacy_data, only: irat
+         use sym_mod, only: lchksymd
+         use SystemData, only: BasisFn
          IMPLICIT NONE
          REAL*8 BETA,FCK(*),ALAT(3),UMAT(*),RHOEPS,ECORE
          INTEGER I_P,BRR(NBASIS),NTAY,NMSH,NMAX,ILOGGING
 
-         INTEGER NEL,NBASIS,nBasisMax(5,*),G1(*)
+         INTEGER NEL,NBASIS,nBasisMax(5,*)
+         type(BasisFn) G1(*)
          INTEGER NI(NEL),K
          LOGICAL TSYM,LACC
          INTEGER NLIST,NLMAX
@@ -19,7 +22,6 @@
          INTEGER ILMAX,err
          INTEGER WORKL,INFO
          REAL*8 WLRI,WLSI,SI
-         LOGICAL LCHKSYMD
          INTEGER,SAVE :: tagRIJMAT=0,tagWLIST=0,tagRJJLIST=0,tagWORK=0 
          INTEGER,SAVE :: tagLSTE=0
          type(timer), save :: proc_timer

@@ -278,6 +278,7 @@ C     &         *((NBASISMAX(4,2)-NBASISMAX(4,1))/2+1)
          use SymData, only: nSymLabels,tAbelian,SymTable
          use SymData, only: tagSymConjTab,tagSymClasses,tagSymLabels
          use SymData, only: tagSymTable
+         use sym_mod, only: RoundSym, AddElecSym
          IMPLICIT NONE
          INTEGER nBasis,nBasisMax(*)
          TYPE(BasisFN) G1(nBasis)

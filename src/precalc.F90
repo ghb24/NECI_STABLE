@@ -294,6 +294,7 @@ FUNCTION MCPATHSPRE(point,NI,BETA,I_P,IPATH,K,G1,NMSH,         &
     use mcpathsdata, only: EGP
     use mcpaths, only: fmcpr3b
     use mcpathshdiag, only: fmcpr3b2
+    use sym_mod, only: getsym
     IMPLICIT NONE
     TYPE(BasisFN) G1(*),KSYM
     INTEGER I_P,METH,CYCLES,NMSH,NTAY(2),L,LT,K

@@ -47,6 +47,7 @@ contains
          use global_utilities
          use mcpathsdata, only: EGP
          use mcpathshdiag, only: fmcpr3b2
+         use sym_mod, only: getsym
          use util_mod, only: isnan
          IMPLICIT NONE
          TYPE(BasisFN) :: G1(*),KSYM
@@ -1096,6 +1097,7 @@ contains
          USE Logging , only : G_VMC_LOGCOUNT
          USE PrecalcData , only : TPREVAR,PREWEIGHTEPS
          use mcpathsdata, only: EGP
+         use sym_mod, only: getsym
          use legacy_data, only: irat
          IMPLICIT NONE
          TYPE(BasisFN) G1(*),ISYM

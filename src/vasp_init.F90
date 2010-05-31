@@ -93,6 +93,7 @@ subroutine VASPBasisInit(ARR,BRR,G1,LEN)
    use vasp_interface, only: nStates,nKP,KPntInd,eigv
    use SymData, only: KPntSym,nSym
    use constants, only: dp
+   use sym_mod
    implicit none
    real(dp) :: ARR(LEN,2)
    integer :: BRR(LEN),LEN

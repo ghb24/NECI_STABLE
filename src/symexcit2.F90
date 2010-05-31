@@ -339,6 +339,7 @@ MODULE SymExcit2
          use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
          use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
          use SymData, only: nSymPairProds,SymPairProds
+         use sym_mod
          use global_utilities
          IMPLICIT NONE
          INTEGER iExcit(2,2)
