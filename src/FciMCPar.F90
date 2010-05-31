@@ -82,6 +82,10 @@ MODULE FciMCParMod
 !        CALL MPI_Comm_set_errhandler(MPI_COMM_WORLD,MPI_ERRORS_RETURN,error)
 !        CALL MPI_Comm_set_errhandler(MPI_COMM_WORLD,MPI_ERRORS_ARE_FATAL,error)
         
+        ! This is set here not in SetupParameters, as otherwise it would be
+        ! wiped just when we need it!
+        tPopsAlreadyRead = .false.
+
         call SetupParameters()
         call InitFCIMCCalcPar()
         call init_fcimc_fn_pointers () 
@@ -1490,7 +1494,7 @@ MODULE FciMCParMod
         REAL*8 :: TotDets
         CHARACTER(len=*), PARAMETER :: this_routine='InitFCIMCPar'
             
-        IF(TReadPops) THEN
+        if (tReadPops .and. .not. tPopsAlreadyRead) then
 !Read in particles from multiple POPSFILES for each processor
             WRITE(6,*) "Reading in initial particle configuration from POPSFILES..."
             CALL ReadFromPopsFilePar()
@@ -2376,7 +2380,7 @@ MODULE FciMCParMod
 
         ! If we are changing the reference determinant to the largest
         ! weighted one in the file, do it here
-        if (tReadPopsChangeRef) then
+        if (tReadPopsChangeRef .or. tReadPopsRestart) then
             if (.not. DetBitEq(ilut_largest, iLutRef, NIfDBO)) then
                 
                 ! Set new reference
@@ -2436,6 +2440,12 @@ MODULE FciMCParMod
 
         IF(iProcIndex.eq.root) AllTotPartsOld=AllTotParts
         WRITE(6,'(A,F20.1)') ' The total number of particles read from the POPSFILE is: ',AllTotParts
+
+        if (tReadPopsRestart) then
+            tPopsAlreadyRead = .true.
+            call ChangeRefDet (Hii, ProjEDet, iLutRef)
+            tPopsAlreadyRead = .false.
+        endif
 
     END SUBROUTINE ReadFromPopsfilePar
 
@@ -4699,9 +4709,11 @@ MODULE FciMCParMod
 !ValidSpawndList now holds the next free position in the newly-spawned list, but for each processor.
         ValidSpawnedList(:)=InitialSpawnedSlots(:)
 
-        IF(TReadPops) THEN
-            IF(TStartSinglePart) CALL Stop_All("SetupParameters","ReadPOPS cannot work with StartSinglePart")
-        ENDIF
+        if (TReadPops) then
+            if (tStartSinglePart .and. .not. tReadPopsRestart) &
+                call stop_all (this_routine, &
+                               "ReadPOPS cannot work with StartSinglePart")
+        endif
 
         IF(.not.TReadPops) THEN
             WRITE(6,*) "Initial Diagonal Shift (Ecorr guess) is: ", DiagSft
@@ -4710,9 +4722,6 @@ MODULE FciMCParMod
         WRITE(6,*) "Maximum connectivity of HF determinant is: ",HFConn
         IF(TStartSinglePart) THEN
             TSinglePartPhase=.true.
-            IF(TReadPops) THEN
-                CALL Stop_All("SetupParameters","Cannot read in POPSFILE as well as starting with a single particle")
-            ENDIF
         ELSE
             TSinglePartPhase=.false.
         ENDIF

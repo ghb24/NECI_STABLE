@@ -206,6 +206,11 @@ MODULE FciMCData
 !Only 10 culls/growth increases are allowed in a given shift cycle
       INTEGER :: CullInfo(10,3)
 
+      ! Used for modifying the ReadPops procedures, so that we can call 
+      ! InitFCIMCCalcPar again without reading the popsfile.
+      logical :: tPopsAlreadyRead
+
+
       interface assignment(=)
           module procedure excitgenerator_assign
       end interface

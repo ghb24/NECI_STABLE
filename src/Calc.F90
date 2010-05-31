@@ -801,7 +801,7 @@ MODULE Calc
                 ! the projected energy.
                 ! Equivalent to PROJE-CHANGEREF at this point.
                 tReadPopsChangeRef = .true.
-            case("READPOPSRESTARTNEWREFDET")
+            case("READPOPS-RESTARTNEWREFDET")
                 ! When reading in a popsfile, restart the calculation
                 ! according to the other parameters in the input file, but
                 ! using the most highly weighted determinant as the reference
