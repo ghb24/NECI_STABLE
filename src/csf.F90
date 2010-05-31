@@ -40,44 +40,43 @@ contains
         endif
     end function
 
-    ! TODO: This can be massively improved. Note that we have iLutI, iLutJ.
-    !       CSFGetHelement (nI, nJ) not needed? or does it call this?
-    function get_csf_helement (nI, nJ, iLutI, iLutJ, ic, ex, tParity, prob) &
-             result (hel)
-        integer, intent(in) :: nI(nel), nJ(nel), ic, ex(2,2)
-        integer(kind=n_int), intent(in) :: iLutI(0:NIfTot), iLutJ(0:NIfTot)
-        logical, intent(in) :: tParity
-        real(dp), intent(in) :: prob
-        HElement_t :: hel
-
-        hel = CSFGetHelement (nI, nJ)
-
-    end function
-
     function CSFGetHelement (nI, nJ) result(hel_ret)
         
         ! Calculate the H-matrix element between two CSFs (nI, nJ)
         ! This is a wrapper function to allow working arrays to be on the
         ! stack.
+        ! This is a wrapper for where we don't know ilutI,J; or for old code.
         !
         ! In:  nI, nJ   - The determinants to consider
         ! Ret: hel_ret  - The H-matrix element
 
         integer, intent(in) :: NI(nel), NJ(nel)
+        integer(n_int) :: iLutI(0:NIfTot), iLutJ(0:NIfTot)
+        HElement_t :: hel_ret
+
+        ! These are needed just for the interface with get_csf_helement
+        integer :: ic, ex(2,2)
+        logical :: tParity
+        real(dp) :: prob
+
+        call EncodeBitDet (nI, iLutI)
+        call EncodeBitDet (nJ, iLutJ)
+        hel_ret = get_csf_helement(nI, nJ, iLutI, iLutJ)
+    end function CSFGetHelement
+
+    function get_csf_helement (nI, nJ, iLutI, iLutJ, notic, notex, &
+                               nottParity, notprob) result (hel_ret)
+        integer, intent(in) :: nI(nel), nJ(nel)
+        integer, intent(in), optional :: notic, notex(2,2)
+        integer(kind=n_int), intent(in) :: iLutI(0:NIfTot), iLutJ(0:NIfTot)
+        logical, intent(in), optional :: nottParity
+        real(dp), intent(in), optional :: notprob
         HElement_t :: hel_ret
 
         integer :: nopen(2), nclosed(2), nup(2), ndets(2), IC, i
-        integer(kind=n_int) :: iLutI(0:NIfTot), iLutJ(0:NIfTot)
         integer :: S(2), Ms(2)
         logical :: bCSF(2), bBothCSF
-
-        character(*), parameter :: this_routine = 'CSFGetHelement'
-
-        ! TODO: We should be able to pass these through
-        ! If the determinants differ by more than 2 spacial orbitals, then 
-        ! they cannot contribute.
-        call EncodeBitDet (nI, iLutI)
-        call EncodeBitDet (nJ, iLutJ)
+        character(*), parameter :: this_routine = 'get_csf_helement'
 
         ! Are these both CSFs?
         bCSF(1) = iscsf(nI)
