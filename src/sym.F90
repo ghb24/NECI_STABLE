@@ -754,7 +754,8 @@ contains
 !   NREPS(J) is the rep, and NELECS(J) is the number of electrons in that rep
 
             J=1
-            DO WHILE(J.LT.NEL.AND.NREPS(J).NE.0)
+            DO WHILE(J.LT.NEL)
+               IF(NREPS(J).EQ.0) exit
                IF(NREPS(J).EQ.SYMREPS(1,NI(I))) THEN
 !   We've found the slot for the rep.  increment it and leave.
                   NELECS(J)=NELECS(J)+1
