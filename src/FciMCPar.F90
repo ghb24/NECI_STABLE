@@ -13,7 +13,8 @@
 MODULE FciMCParMod
     use SystemData, only: nel, Brr, nBasis, nBasisMax, LMS, tHPHF, tHub, &
                           tReal, tRotatedOrbs, tFindCINatOrbs, tFixLz, &
-                          LzTot, tUEG, tLatticeGens, tCSF, G1, Arr
+                          LzTot, tUEG, tLatticeGens, tCSF, G1, Arr, &
+                          tNoBrillouin
     use bit_reps, only: NIfD, NIfTot, NIfDBO, NIfY
     use CalcData, only: InitWalkers, NMCyc, DiagSft, Tau, SftDamp, StepsSft, &
                         OccCASorbs, VirtCASorbs, tFindGroundDet, NEquilSteps,&
@@ -23,7 +24,7 @@ MODULE FciMCParMod
                         tTruncInitiator, tDelayTruncInit, IterTruncInit, &
                         NShiftEquilSteps, tWalkContGrow, tMCExcits, &
                         tAddToInitiator, InitiatorWalkNo, tInitIncDoubs, &
-                        tRetestAddtoInit
+                        tRetestAddtoInit, tReadPopsChangeRef, tReadPopsRestart
     use HPHFRandExcitMod, only: FindExcitBitDetSym, GenRandHPHFExcit, &
                                 gen_hphf_excit
     use Determinants, only: FDet, get_helement, write_det, &
@@ -33,7 +34,6 @@ MODULE FciMCParMod
                                     ScratchSize
     use GenRandSymExcitCSF, only: gen_csf_excit
     use IntegralsData , only : fck,NMax,UMat,tPartFreezeCore,NPartFrozen,NHolesFrozen,tPartFreezeVirt,NVirtPartFrozen,NElVirtFrozen
-    use UMatCache, only: GTID, UMatInd
     USE Logging , only : iWritePopsEvery,TPopsFile,iPopsPartEvery,tBinPops,tHistSpawn,iWriteHistEvery,tHistEnergies,IterShiftBlock,AllHistInitPops
     USE Logging , only : BinRange,iNoBins,OffDiagBinRange,OffDiagMax,AllHistInitPopsTag
     USE Logging , only : tPrintFCIMCPsi,tCalcFCIMCPsi,NHistEquilSteps,tPrintOrbOcc,StartPrintOrbOcc
@@ -82,6 +82,10 @@ MODULE FciMCParMod
 !        CALL MPI_Comm_set_errhandler(MPI_COMM_WORLD,MPI_ERRORS_RETURN,error)
 !        CALL MPI_Comm_set_errhandler(MPI_COMM_WORLD,MPI_ERRORS_ARE_FATAL,error)
         
+        ! This is set here not in SetupParameters, as otherwise it would be
+        ! wiped just when we need it!
+        tPopsAlreadyRead = .false.
+
         call SetupParameters()
         call InitFCIMCCalcPar()
         call init_fcimc_fn_pointers () 
@@ -1503,7 +1507,7 @@ MODULE FciMCParMod
         REAL*8 :: TotDets
         CHARACTER(len=*), PARAMETER :: this_routine='InitFCIMCPar'
             
-        IF(TReadPops) THEN
+        if (tReadPops .and. .not. tPopsAlreadyRead) then
 !Read in particles from multiple POPSFILES for each processor
             WRITE(6,*) "Reading in initial particle configuration from POPSFILES..."
             CALL ReadFromPopsFilePar()
@@ -2001,6 +2005,8 @@ MODULE FciMCParMod
         character(255) :: popsfile,FirstLine
         character(len=24) :: junk,junk2,junk3,junk4,junk5
         LOGICAL :: tPop64BitDets,tPopHPHF,tPopLz,tPopInitiator
+        integer(n_int) :: ilut_largest(0:NIfTot)
+        integer :: sign_largest
         
         PreviousCycles=0    !Zero previous cycles
         SumENum=0.D0
@@ -2231,6 +2237,7 @@ MODULE FciMCParMod
         IF((PopsVersion.ne.1).and.(.not.tFixLz).and.tPopLz) THEN
             CALL Stop_All(this_routine,"Lz off, but Lz was used for creation of the POPSFILE")
         ENDIF
+        ! TODO: Add tests for CSFs here.
         IF(PopsVersion.eq.1) THEN
             tPop64BitDets=.false.
             NIfWriteOut=nBasis/32
@@ -2246,6 +2253,8 @@ MODULE FciMCParMod
         ENDIF
 
         CurrWalkers=0
+        sign_largest = 0
+        ilut_largest = 0
         do i=1,AllTotWalkers
             iLutTemp(:)=0
             IF(PopsVersion.ne.1) THEN
@@ -2315,6 +2324,12 @@ MODULE FciMCParMod
                 call encode_bit_rep(CurrentDets(:,CurrWalkers),iLutTemp(0:NIfDBO),TempSign,0)   !Do not need to send a flag here...
                                                                                                 !TODO: Add flag for complex walkers to read in both
             ENDIF
+
+            ! Keep track of what the most highly weighted determinant is
+            if (abs(TempSign(1)) > sign_largest) then
+                sign_largest = abs(TempSign(1))
+                ilut_largest = iLutTemp
+            endif
         enddo
         CLOSE(iunit)
         TempCurrWalkers=REAL(CurrWalkers,dp)
@@ -2376,6 +2391,37 @@ MODULE FciMCParMod
         WRITE(6,*) "Excitgens will be regenerated when they are needed..."
         CALL FLUSH(6)
 
+        ! If we are changing the reference determinant to the largest
+        ! weighted one in the file, do it here
+        if (tReadPopsChangeRef .or. tReadPopsRestart) then
+            if (.not. DetBitEq(ilut_largest, iLutRef, NIfDBO)) then
+                
+                ! Set new reference
+                iLutRef = ilut_largest
+                call decode_bit_det (ProjEDet, iLutRef)
+                tNoBrillouin = .true.
+
+                ! Recalculate the reference E
+                if (tHPHF) then
+                    HElemTemp = hphf_diag_helement (ProjEDet, iLutRef)
+                else
+                    HElemTemp = get_helement (ProjEDet, ProjEDet, 0)
+                endif
+                Hii = real(HElemTemp, dp)
+
+                ! Output info on root node.
+                if (iProcIndex == root) then
+                    write(6, '(a)', advance='no') &
+                        "Changing projected energy reference determinant to: "
+                    call write_det (6, ProjEDet, .true.)
+                    write (6, '(a)') &
+                        "Ensuring that Brillouin's theorem is no longer used."
+                    write (6, '(a,g25.15)') &
+                        "Reference energy now set to: ", Hii
+                endif
+            endif
+        endif
+
 !Now find out the data needed for the particles which have been read in...
         TotParts=0
         do j=1,TotWalkers
@@ -2407,6 +2453,12 @@ MODULE FciMCParMod
 
         IF(iProcIndex.eq.root) AllTotPartsOld=AllTotParts
         WRITE(6,'(A,F20.1)') ' The total number of particles read from the POPSFILE is: ',AllTotParts
+
+        if (tReadPopsRestart) then
+            tPopsAlreadyRead = .true.
+            call ChangeRefDet (Hii, ProjEDet, iLutRef)
+            tPopsAlreadyRead = .false.
+        endif
 
     END SUBROUTINE ReadFromPopsfilePar
 
@@ -4781,9 +4833,11 @@ MODULE FciMCParMod
 !ValidSpawndList now holds the next free position in the newly-spawned list, but for each processor.
         ValidSpawnedList(:)=InitialSpawnedSlots(:)
 
-        IF(TReadPops) THEN
-            IF(TStartSinglePart) CALL Stop_All("SetupParameters","ReadPOPS cannot work with StartSinglePart")
-        ENDIF
+        if (TReadPops) then
+            if (tStartSinglePart .and. .not. tReadPopsRestart) &
+                call stop_all (this_routine, &
+                               "ReadPOPS cannot work with StartSinglePart")
+        endif
 
         IF(.not.TReadPops) THEN
             WRITE(6,*) "Initial Diagonal Shift (Ecorr guess) is: ", DiagSft
@@ -4792,9 +4846,6 @@ MODULE FciMCParMod
         WRITE(6,*) "Maximum connectivity of HF determinant is: ",HFConn
         IF(TStartSinglePart) THEN
             TSinglePartPhase=.true.
-            IF(TReadPops) THEN
-                CALL Stop_All("SetupParameters","Cannot read in POPSFILE as well as starting with a single particle")
-            ENDIF
         ELSE
             TSinglePartPhase=.false.
         ENDIF
