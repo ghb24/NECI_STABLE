@@ -59,18 +59,23 @@ contains
         logical :: tParity
         real(dp) :: prob
 
+        ! Dummy variables.
+        integer :: notic, notex(2,2)
+        logical :: nottParity
+        real(dp) :: notprob
+
         call EncodeBitDet (nI, iLutI)
         call EncodeBitDet (nJ, iLutJ)
-        hel_ret = get_csf_helement(nI, nJ, iLutI, iLutJ)
+        hel_ret = get_csf_helement(nI, nJ, iLutI, iLutJ, notic, notex, nottParity, notprob)
     end function CSFGetHelement
 
     function get_csf_helement (nI, nJ, iLutI, iLutJ, notic, notex, &
                                nottParity, notprob) result (hel_ret)
         integer, intent(in) :: nI(nel), nJ(nel)
-        integer, intent(in), optional :: notic, notex(2,2)
+        integer, intent(in) :: notic, notex(2,2)
         integer(kind=n_int), intent(in) :: iLutI(0:NIfTot), iLutJ(0:NIfTot)
-        logical, intent(in), optional :: nottParity
-        real(dp), intent(in), optional :: notprob
+        logical, intent(in) :: nottParity
+        real(dp), intent(in) :: notprob
         HElement_t :: hel_ret
 
         integer :: nopen(2), nclosed(2), nup(2), ndets(2), IC, i
