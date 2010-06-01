@@ -59,14 +59,10 @@ contains
         logical :: tParity
         real(dp) :: prob
 
-        ! Dummy variables.
-        integer :: notic, notex(2,2)
-        logical :: nottParity
-        real(dp) :: notprob
-
         call EncodeBitDet (nI, iLutI)
         call EncodeBitDet (nJ, iLutJ)
-        hel_ret = get_csf_helement(nI, nJ, iLutI, iLutJ, notic, notex, nottParity, notprob)
+        hel_ret = get_csf_helement(nI, nJ, iLutI, iLutJ, ic, ex, tParity, &
+                                   prob)
     end function CSFGetHelement
 
     function get_csf_helement (nI, nJ, iLutI, iLutJ, notic, notex, &
