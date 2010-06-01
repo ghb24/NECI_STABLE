@@ -4457,8 +4457,8 @@ MODULE FciMCParMod
             ELSE
                 TempHii = get_helement (HighEDet, HighEDet, 0)
             ENDIF
-            WRITE(6,"(A,G25.15)") "Highest energy determinant is (approximately): ",TempHii
-            WRITE(6,"(A,F25.15)") "This means tau should be no more than about ",-2.D0/TempHii
+            WRITE(6,"(A,G25.15)") "Highest energy determinant is (approximately): ",REAL(TempHii,dp)
+            WRITE(6,"(A,F25.15)") "This means tau should be no more than about ",-2.D0/REAL(TempHii,dp)
 !            WRITE(6,*) "Highest energy determinant is: ", HighEDet(:)
         ENDIF
 
