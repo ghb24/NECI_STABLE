@@ -2321,6 +2321,21 @@ MODULE FciMCParMod
         CLOSE(iunit)
         TempCurrWalkers=REAL(CurrWalkers,dp)
 
+        ! Sort the lists so that they are in order if we change the number
+        ! of processors.
+        call sort (currentdets(:,1:CurrWalkers))
+
+        ! Check that the bit-det comparisons agree that it is in order.
+        do i=2,currwalkers
+            if (DetBitLT(CurrentDets(:,i-1), CurrentDets(:,i), NIfDBO) then
+                print*, 'Walkers: ', i-1, i
+                print*, 'bit reps: '
+                print*, currentdets(:, i-1)
+                print*, currentdets(:, i)
+                call stop_all (this_routine, 'Main list out of order')
+            endif
+        enddo
+
         CALL MPI_Barrier(MPI_COMM_WORLD,error)  !Sync
         CALL MPI_AllReduce(TempCurrWalkers,AllTotWalkers,1,MPI_DOUBLE_PRECISION,MPI_SUM,MPI_COMM_WORLD,error)
 
