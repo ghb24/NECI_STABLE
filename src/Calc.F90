@@ -201,6 +201,8 @@ MODULE Calc
 
           lNoTriples=.false.
           tFCIMCSerial=.false.  !If set we force the parallel version to run the serial code.
+          tReadPopsChangeRef = .false.
+          tReadPopsRestart = .false.
 
 !Feb 08 default set.
           IF(Feb08) THEN
@@ -795,6 +797,18 @@ MODULE Calc
                     iPopsFileNoWrite = iPopsFileNoRead
                     iPopsFileNoRead = -iPopsFileNoRead-1
                 end if
+            case("READPOPS-CHANGEREF")
+                ! When reading in a pops file, use the most highly weighted
+                ! determinant as the reference determinant for calculating
+                ! the projected energy.
+                ! Equivalent to PROJE-CHANGEREF at this point.
+                tReadPopsChangeRef = .true.
+            case("READPOPS-RESTARTNEWREFDET")
+                ! When reading in a popsfile, restart the calculation
+                ! according to the other parameters in the input file, but
+                ! using the most highly weighted determinant as the reference
+                ! determinant.
+                tReadPopsRestart = .true.
             case("WALKCONTGROW")
 !This option goes with the above READPOPS option.  If this is present - the INITWALKERS value is not overwritten, and the walkers are continued to be allowed to grow before reaching                
 !this value.  Without this keyword, when a popsfile is read in, the number of walkers is kept at the number in the POPSFILE regardless of whether the shift had been allowed to change in the previous calc.

@@ -170,14 +170,13 @@ end subroutine !WriteExcitorList
 SUBROUTINE CalcClusterEnergy (tFCI,Amplitude,nExcit,ExcitList,ExcitLevelIndex,iRefPos,iDebug,ProjE)
    use Parallel, only: iProcIndex
    use FciMCData, only: root
-   use CCMCData
    use SystemData, only: nEl
    use FciMCData, only: HFDet
    use FciMCParMod, only: iLutHF,SumEContrib
    use FciMCData, only: ENumCyc,HFCyc 
    use bit_reps, only: Decode_Bit_Det
    use constants, only: dp,lenof_sign
-   use CCMCData, only: WriteCluster
+   use CCMCData, only: WriteCluster, Cluster
    IMPLICIT NONE
    LOGICAL tFCI
    %(type1)s Amplitude(nExcit)
