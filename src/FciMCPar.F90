@@ -2327,7 +2327,7 @@ MODULE FciMCParMod
 
         ! Check that the bit-det comparisons agree that it is in order.
         do i=2,currwalkers
-            if (DetBitLT(CurrentDets(:,i-1), CurrentDets(:,i), NIfDBO) then
+            if(DetBitLT(CurrentDets(:,i),CurrentDets(:,i-1),NIfDBO) == 1) then
                 print*, 'Walkers: ', i-1, i
                 print*, 'bit reps: '
                 print*, currentdets(:, i-1)
