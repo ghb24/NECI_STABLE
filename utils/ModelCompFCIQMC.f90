@@ -2,14 +2,14 @@ Program ModelFCIQMC
 
     IMPLICIT NONE
 
-    INTEGER :: NDet=25
+    INTEGER :: NDet=20 
     INTEGER, PARAMETER :: lenof_sign=2   !Number of integers needed to store a walker
     REAL*8, PARAMETER :: Tau=0.05
     REAL*8, PARAMETER :: SftDamp=0.05
     INTEGER, PARAMETER :: StepsSft=25
     INTEGER, PARAMETER :: NMCyc=100000
     INTEGER, PARAMETER :: InitialWalk=1 
-    INTEGER, PARAMETER :: TargetWalk=5000
+    INTEGER, PARAMETER :: TargetWalk=1000
     REAL*8, PARAMETER :: InitialShift=0.D0
     INTEGER, PARAMETER :: dp=8
 
@@ -35,7 +35,7 @@ CONTAINS
         COMPLEX*16, allocatable :: Scr(:) 
         LOGICAL :: tFixedShift, taverage = .false.
         integer :: nVaryShiftCycles
-        real*8 :: AverageShift, SumShift,fac
+        real*8 :: AverageShift, SumShift,fac,ProjE
         integer :: iargc,part_type
         character(255) :: input_file
         logical :: tinput_file = .false.
@@ -116,8 +116,8 @@ CONTAINS
         AverageShift = 0.0d0
         SumWalkListGround(:,:)=0
         OPEN(12,FILE='ModelFCIMCStats',STATUS='unknown')
-        WRITE(12,*) "#1.Iter  2.GroundShift  3.RealShift  4.ImagShift  5.AverageShift  6.RealParts  7.ImParts  8.ReRoot  9.ImRoot"
-        WRITE(6,*) "1.Iter  2.GroundShift  3.RealShift  4.ImagShift  5.AverageShift  6.RealParts  7.ImParts  8.ReRoot  9.ImRoot"
+        WRITE(12,*) "#1.Iter  2.GroundShift  3.RealShift  4.ImagShift  5.AverageShift  6.RealParts  7.ImParts  8.ReRoot  9.ImRoot  10.ProjE"
+        WRITE(6,*) "1.Iter  2.GroundShift  3.RealShift  4.ImagShift  5.AverageShift  6.RealParts  7.ImParts  8.ReRoot  9.ImRoot  10. ProjE"
 
         !Start with just real walkers
         WalkListGround(1,1)=InitialWalk
@@ -129,6 +129,8 @@ CONTAINS
 
 !Every so often, update the shift
             IF((mod(Iter,StepsSft).eq.0).and.(Iter.ne.1)) THEN
+                
+                CALL CalcProjE(KMat,ProjE,WalkListGround)
 
                 RealGrowRate=REAL(GroundTotParts(1),8)/REAL(OldGroundTotParts(1),8)
                 ImagGrowRate=REAL(GroundTotParts(2),8)/REAL(OldGroundTotParts(2),8)
@@ -157,8 +159,8 @@ CONTAINS
                 OldBothTotParts=BothTotParts
 
                 !Write out stats
-                WRITE(6,"(I8,4F25.12,2I15,2I7)") Iter,GroundShift,RealShift,ImagShift,AverageShift,GroundTotParts(1),GroundTotParts(2),WalkListGround(1,1),WalkListGround(2,1)
-                WRITE(12,"(I8,4F25.12,2I15,2I7)") Iter,GroundShift,RealShift,ImagShift,AverageShift,GroundTotParts(1),GroundTotParts(2),WalkListGround(1,1),WalkListGround(2,1)
+                WRITE(6,"(I8,4F25.12,2I15,2I7,F25.12)") Iter,GroundShift,RealShift,ImagShift,AverageShift,GroundTotParts(1),GroundTotParts(2),WalkListGround(1,1),WalkListGround(2,1),ProjE
+                WRITE(12,"(I8,4F25.12,2I15,2I7,F25.12)") Iter,GroundShift,RealShift,ImagShift,AverageShift,GroundTotParts(1),GroundTotParts(2),WalkListGround(1,1),WalkListGround(2,1),ProjE
                 CALL FLUSH(12)
                 CALL FLUSH(6)
 
@@ -251,6 +253,24 @@ CONTAINS
 
     End SUBROUTINE RunModelFCIQMC
 
+
+    SUBROUTINE CalcProjE(KMat,ProjE,WalkListGround)
+        IMPLICIT NONE
+        COMPLEX*16, INTENT(IN) :: KMat(NDet,NDet)
+        INTEGER, INTENT(IN) :: WalkListGround(lenof_sign,NDet)
+        REAL*8 :: ProjE,NumReal,NumImag
+        INTEGER :: i
+
+        do i=2,NDet
+
+            NumReal=NumReal+(WalkListGround(1,i)*REAL(KMat(1,i),dp))-(WalkListGround(2,i)*AIMAG(KMat(1,i)))
+            NumImag=NumImag+(WalkListGround(1,i)*AIMAG(KMat(1,i)))+(WalkListGround(2,i)*REAL(KMat(1,i),dp))
+
+        enddo
+
+        ProjE=NumReal/REAL(WalkListGround(1,1)) + NumImag/REAL(WalkListGround(2,1))
+
+    END SUBROUTINE CalcProjE
 
     FUNCTION Attempt_die(fac,wSign) result(nDie)
         IMPLICIT NONE
