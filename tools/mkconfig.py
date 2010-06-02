@@ -395,6 +395,8 @@ null_goal: ;
 
 new: clean neci.x
 
+both: neci.x kneci.x
+
 cpmdlibs: $(CPMDLIBS)
 
 vasplibs: $(VASPLIBS)
@@ -413,7 +415,8 @@ help:
 \t@echo
 \t@echo "Targets:"
 \t@echo "neci.x        compile neci.x."
-\t@echo "kneci.x        compile kneci.x."
+\t@echo "kneci.x       compile kneci.x."
+\t@echo "both          compile neci.x AND kneci.x."
 \t@echo "new           run clean and then compile neci.x."
 \t@echo "gneci-cpmd    compile neci library for integration with gamma-point version of cpmd."
 \t@echo "kneci-cpmd    compile neci library for integration with k-point version of cpmd."

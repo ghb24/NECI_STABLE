@@ -2321,6 +2321,21 @@ MODULE FciMCParMod
         CLOSE(iunit)
         TempCurrWalkers=REAL(CurrWalkers,dp)
 
+        ! Sort the lists so that they are in order if we change the number
+        ! of processors.
+        call sort (currentdets(:,1:CurrWalkers))
+
+        ! Check that the bit-det comparisons agree that it is in order.
+        do i=2,currwalkers
+            if(DetBitLT(CurrentDets(:,i),CurrentDets(:,i-1),NIfDBO) == 1) then
+                print*, 'Walkers: ', i-1, i
+                print*, 'bit reps: '
+                print*, currentdets(:, i-1)
+                print*, currentdets(:, i)
+                call stop_all (this_routine, 'Main list out of order')
+            endif
+        enddo
+
         CALL MPI_Barrier(MPI_COMM_WORLD,error)  !Sync
         CALL MPI_AllReduce(TempCurrWalkers,AllTotWalkers,1,MPI_DOUBLE_PRECISION,MPI_SUM,MPI_COMM_WORLD,error)
 
@@ -4457,8 +4472,8 @@ MODULE FciMCParMod
             ELSE
                 TempHii = get_helement (HighEDet, HighEDet, 0)
             ENDIF
-            WRITE(6,"(A,G25.15)") "Highest energy determinant is (approximately): ",TempHii
-            WRITE(6,"(A,F25.15)") "This means tau should be no more than about ",-2.D0/TempHii
+            WRITE(6,"(A,G25.15)") "Highest energy determinant is (approximately): ",REAL(TempHii,dp)
+            WRITE(6,"(A,F25.15)") "This means tau should be no more than about ",-2.D0/REAL(TempHii,dp)
 !            WRITE(6,*) "Highest energy determinant is: ", HighEDet(:)
         ENDIF
 
