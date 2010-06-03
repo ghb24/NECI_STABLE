@@ -184,7 +184,7 @@ NECILIBS = $(CPMDLIBS) $(VASPLIBS)
 # utils subdirectory with the source filename (e.g.) utils/a.f90, that the
 # program name is (e.g.) bin/a.x and that the utility program requires (at
 # most) the same libraries as neci.
-UTILS = $(addprefix $(EXE)/, TransLz.x BlockFCIMC.x ModelFCIQMC.x ConvertMolpFCID.x ConvertPOPSFILE.x RoVibSpectrum/CalcVibSpectrum.x)
+UTILS = $(addprefix $(EXE)/, TransLz.x BlockFCIMC.x ModelCompFCIQMC.x ModelFCIQMC.x ConvertMolpFCID.x ConvertPOPSFILE.x)
 
 #-----
 # VCS info.
@@ -430,6 +430,7 @@ help:
 \t@echo "ConvertMolpFCID.x   compile the program to create Fock energies in the MOLPRO FCIDUMP."
 \t@echo "BlockFCIMC.x  compile the BlockFCIMC utility program."
 \t@echo "ModelFCIQMC.x compile the ModelFCIQMC example program."
+\t@echo "ModelCompFCIQMC.x compile the ModelCompFCIQMC complex example program."
 \t@echo "ConvertPOPSFILE.x compile the ConvertPOPSFILE program."
 \t@echo "clean         remove all compiled objects for the current platform and optimisation level." 
 \t@echo "cleanall      remove all compiled objects for all platforms and optimisation levels and the dependency files." 
@@ -554,7 +555,9 @@ MKUTIL = $(FC) $(FFLAGS) $(F90FLAGS) $< -o $@ $(LIBS)
 # Previously defined targets point bin/*.x to bin/*.config.opt.x and from *.x to bin/*.x.
 # The static pattern results in applying this to only targets of the form $(EXE)/*.$(CONFIG).$(OPT).x
 # where *.x is one of the programs defined in $(UTILS).
-$(addprefix $(EXE)/,$(addsuffix .$(CONFIG).$(OPT).x,$(basename $(UTILS)))): $(EXE)/%%.$(CONFIG).$(OPT).x: utils/%%.f90
+UTILSTEM = $(notdir $(basename $(UTILS)))
+UTILNAMES = $(addsuffix .$(CONFIG).$(OPT).x,$(UTILSTEM))
+$(addprefix $(EXE)/,$(UTILNAMES)): $(EXE)/%%.$(CONFIG).$(OPT).x: utils/%%.f90
 \t$(MKUTIL)
 
 #-----
