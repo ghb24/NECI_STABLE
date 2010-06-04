@@ -2,20 +2,25 @@ Program ModelFCIQMC
 
     IMPLICIT NONE
 
-    INTEGER :: NDet=50 
+    INTEGER :: NDet=15 
     INTEGER, PARAMETER :: lenof_sign=2   !Number of integers needed to store a walker
-    REAL*8, PARAMETER :: Tau=0.05
+    REAL*8, PARAMETER :: Tau=0.01 
     REAL*8, PARAMETER :: SftDamp=0.05
-    INTEGER, PARAMETER :: StepsSft=25
+    INTEGER, PARAMETER :: StepsSft=75 
     INTEGER, PARAMETER :: NMCyc=100000
     INTEGER, PARAMETER :: InitialWalk=1 
     INTEGER, PARAMETER :: TargetWalk=5000
     REAL*8, PARAMETER :: InitialShift=0.D0
     INTEGER, PARAMETER :: dp=8
-    LOGICAL, PARAMETER :: tRotateWavefunction=.true.
+    LOGICAL, PARAMETER :: tRotateWavefunction=.false.
+    LOGICAL, PARAMETER :: tSeperateShift=.false. 
+    LOGICAL, PARAMETER :: tKeepWalkerFiles=.true.
     REAL*8, PARAMETER :: pi=3.14159265358979323846264338327950288419716939937510D0
     REAL*8 :: piby2=pi/2.D0
     REAL*8 :: pi2=pi*2.D0
+
+    !Run-time variables
+    REAL*8 :: GroundShift,ImagShift,RealShift
 
     CALL RunModelFCIQMC()
 
@@ -24,7 +29,7 @@ CONTAINS
     SUBROUTINE RunModelFCIQMC()
         IMPLICIT NONE
         INTEGER :: LScr,LWork2
-        REAL*8 :: Norm,RealGrowRate,ImagGrowRate,RealShift,ImagShift,GrowRate,GroundShift,rat,r,Norm1
+        REAL*8 :: Norm,RealGrowRate,ImagGrowRate,GrowRate,rat,r,Norm1
         INTEGER :: Iter,OldBothTotParts,BothTotParts
         INTEGER, DIMENSION(lenof_sign) :: GroundTotParts,OldGroundTotParts
         REAL*8 :: Check
@@ -41,12 +46,26 @@ CONTAINS
         integer :: nVaryShiftCycles
         real*8 :: AverageShift, SumShift,fac,ProjE
         integer :: iargc,part_type
+        integer, allocatable :: Seed(:)
         character(255) :: input_file
         logical :: tinput_file = .false.
         COMPLEX*16 :: rh
+        character(len=26) :: abstr
 
     !Initialise rand
-        call random_seed()
+        call random_seed
+        call random_seed(SIZE = K)
+        WRITE(*,*) ' Number of integers for starting value = ', K
+        ALLOCATE(Seed(1:K))
+        Seed(1)=73
+        CALL random_seed(PUT=Seed(1:K))
+        call random_number(r)
+        WRITE(6,*) "Random number seed is: ",Seed(1:K)
+        WRITE(6,*) "First random number is: ",r
+        call random_number(r)
+        WRITE(6,*) "Second random number is: ",r
+
+        IF(tRotateWavefunction.and.tSeperateShift) STOP 'Should not have rotatewavefunction AND seperateshift both on'
 
         if (iargc() == 1) then
             call getarg(1,input_file)
@@ -95,13 +114,12 @@ CONTAINS
         OPEN(9,FILE="Eigenvectors",STATUS='UNKNOWN')
         do i=1,NDet
             WRITE(9,"(I5)",advance='no') i
-            do j=1,9
-                WRITE(9,"(F20.12)",advance='no') EigenVec(i,j)
-            enddo
-            WRITE(9,"(F20.12)") EigenVec(i,10)
+            WRITE(9,"(2F20.12,A)",advance='no') REAL(EigenVec(i,1),dp), AIMAG(EigenVec(i,1)), "  *  "
+            WRITE(9,"(F20.12)",advance='no') REAL(EigenVec(i,2),dp)
+            WRITE(9,"(F20.12)") AIMAG(EigenVec(i,2))
         enddo
         CLOSE(9)
-
+        
         WRITE(6,*) "Lowest eigenvalues: "
         OPEN(9,FILE="Eigenvalues",STATUS='UNKNOWN')
         do i=1,min(10,NDet)
@@ -120,12 +138,12 @@ CONTAINS
         AverageShift = 0.0d0
         SumWalkListGround(:,:)=0
         OPEN(12,FILE='ModelFCIMCStats',STATUS='unknown')
-        WRITE(12,*) "#1.Iter  2.GroundShift  3.RealShift  4.ImagShift  5.AverageShift  6.RealParts  7.ImParts  8.ReRoot  9.ImRoot  10.ProjE"
+        WRITE(12,'(A)') "#1.Iter  2.GroundShift  3.RealShift  4.ImagShift  5.AverageShift  6.RealParts  7.ImParts  8.ReRoot  9.ImRoot  10.ProjE"
         WRITE(6,*) "1.Iter  2.GroundShift  3.RealShift  4.ImagShift  5.AverageShift  6.RealParts  7.ImParts  8.ReRoot  9.ImRoot  10. ProjE"
 
         IF(tRotateWavefunction) THEN
             OPEN(14,FILE='RotateKilledParts',STATUS='unknown')
-            WRITE(14,*) "#Real killed Parts     Imag killed parts"
+            WRITE(14,"(A)") "#Real killed Parts     Imag killed parts"
         ENDIF
 
         !Start with just real walkers
@@ -181,13 +199,17 @@ CONTAINS
                 enddo
                 Norm=SQRT(Norm)
                 Norm1=SQRT(Norm1)
-                OPEN(13,FILE='GroundWavevec',STATUS='unknown')
-    !            Check=0.D0
+
+                abstr=''
+                write(abstr,'(I12)') Iter
+                abstr='GroundWavevec-'//adjustl(abstr)
+                OPEN(13,FILE=abstr,STATUS='UNKNOWN')
+!                Check=0.D0
                 do i=1,NDet
-    !                Check=Check+(REAL(SumWalkListGround(i),8)/Norm1)**2
-                    WRITE(13,*) i,REAL(WalkListGround(1,i),8)/Norm,REAL(WalkListGround(2,i),8)/Norm,REAL(SumWalkListGround(1,i),8)/Norm1,REAL(SumWalkListGround(2,i),8)/Norm1
+!                    Check=Check+(REAL(SumWalkListGround(1,i),8)/Norm1)**2+(REAL(SumWalkListGround(2,i),8)/Norm1)**2
+                    WRITE(13,"(I8,3F25.12,A,3F25.12)") i,REAL(WalkListGround(1,i),8)/Norm,REAL(WalkListGround(2,i),8)/Norm,SQRT((REAL(WalkListGround(1,i),8)/Norm)**2+(REAL(WalkListGround(2,i),8)/Norm)**2),"   *   ",REAL(SumWalkListGround(1,i),8)/Norm1,REAL(SumWalkListGround(2,i),8)/Norm1,SQRT((REAL(SumWalkListGround(1,i),8)/Norm1)**2+(REAL(SumWalkListGround(2,i),8)/Norm1)**2)
                 enddo
-    !            WRITE(6,*) "Check = ",Check
+!                WRITE(6,*) "Check = ",Check
                 CLOSE(13)
 
             ENDIF
@@ -206,12 +228,12 @@ CONTAINS
 !Simulate full spawning by running through all connections.
                         do k=1,NDet
 
-                            IF(KMat(i,k).eq.0.D0) CYCLE
+                            IF((REAL(KMat(i,k),dp).eq.0.D0).and.(AIMAG(KMat(i,k)).eq.0.D0)) CYCLE
                             IF(i.eq.k) CYCLE
 
-                            rh=KMat(i,k)
+                            rh=KMat(k,i)
                             !All spawning attempts here
-                            child=Attempt_create(rh,i,k,WalkListGround(:,i),part_type)
+                            child=Attempt_create(rh,WalkListGround(:,i),part_type)
             
                             !`Child` returns the number of real & im walkers to create at k
                             !create particles.
@@ -224,8 +246,7 @@ CONTAINS
                 enddo   !end looping over real & Im
 
 !Attempt to die simultaneously to all particles
-                fac=Tau*(REAL(KMat(i,i),dp)-GroundShift)
-                ndie = Attempt_die(fac,WalkListGround(:,i))
+                ndie = Attempt_die(KMat,i,WalkListGround(:,i))
 
                 do part_type=1,lenof_sign
                     !Update lists with the number that have died
@@ -430,6 +451,9 @@ CONTAINS
         REAL*8 :: ProjE,NumReal,NumImag
         INTEGER :: i
 
+        NumReal=0.D0
+        NumImag=0.D0
+
         do i=2,NDet
 
             NumReal=NumReal+(WalkListGround(1,i)*REAL(KMat(1,i),dp))-(WalkListGround(2,i)*AIMAG(KMat(1,i)))
@@ -441,15 +465,30 @@ CONTAINS
 
     END SUBROUTINE CalcProjE
 
-    FUNCTION Attempt_die(fac,wSign) result(nDie)
+    FUNCTION Attempt_die(KMat,i,wSign) result(nDie)
         IMPLICIT NONE
-        REAL*8, INTENT(IN) :: fac
+        INTEGER, INTENT(IN) :: i
+        COMPLEX*16, INTENT(IN) :: KMat(NDet,NDet)
         INTEGER, DIMENSION(lenof_sign), INTENT(IN) :: wSign
         INTEGER, DIMENSION(lenof_sign) :: nDie
-        REAL*8 :: rat,r
+        REAL*8 :: rat,r,fac
         INTEGER :: part_type
+                
+        IF(.not.tSeperateShift) THEN
+            fac=Tau*(REAL(KMat(i,i),dp)-GroundShift)
+        ENDIF
 
         do part_type=1,lenof_sign
+
+            IF(tSeperateShift) THEN
+                IF(part_type.eq.1) THEN
+                    !Use real shift
+                    fac=Tau*(REAL(KMat(i,i),dp)-RealShift)
+                ELSE
+                    fac=Tau*(REAL(KMat(i,i),dp)-ImagShift)
+                ENDIF
+            ENDIF
+
 
             rat=fac*abs(wSign(part_type))
             nDie(part_type) = int(rat)
@@ -462,11 +501,11 @@ CONTAINS
 
     END FUNCTION Attempt_die
 
-    FUNCTION Attempt_create(rh,parent_ind,child_ind,parent_sign,part_type) result(child)
+    FUNCTION Attempt_create(rh,parent_sign,part_type) result(child)
         IMPLICIT NONE
         COMPLEX*16, INTENT(IN) :: rh
         REAL*8 :: MatEl,rat,r 
-        INTEGER, INTENT(IN) :: parent_ind,child_ind,part_type
+        INTEGER, INTENT(IN) :: part_type
         INTEGER, DIMENSION(lenof_sign), INTENT(IN) :: parent_sign
         INTEGER, DIMENSION(lenof_sign) :: child
         INTEGER :: ExtraCreate,i
@@ -570,8 +609,8 @@ CONTAINS
 
         KMat(:,:)=CMPLX(0.D0,0.D0)
 
-        StartEl=0.5     !Initial diagonal matrix element - these must all be real obv.
-        EndEl=10.D0
+        StartEl=0.2     !Initial diagonal matrix element - these must all be real obv.
+        EndEl=5.D0
         Step=(EndEl-StartEl)/REAL(NDet-1,8) !Rate of increase of diagonal matrix elements
         KMat(2,2)=CMPLX(StartEl,0.D0)
         do i=3,NDet
@@ -582,7 +621,7 @@ CONTAINS
         WRITE(6,*) "MaxDet = ", KMat(NDet,NDet)
 
         ProbNonZero=0.4     !This is probability that off-diagonal matrix elements are non-zero
-        OffDiagEl=5.D-2     !This is the magnitude of the off-diagonal matrix elements.
+        OffDiagEl=1.D-1     !This is the magnitude of the off-diagonal matrix elements.
         do l=1,2            !loop over real and imaginary parts to allow a chance for both the real and imaginary parts to become non-zero
             do i=1,NDet
                 do j=1,i-1
@@ -608,7 +647,7 @@ CONTAINS
                                 KMat(j,i)=CMPLX(OffDiagEl,0.D0)
                             ELSE
                                 KMat(i,j)=CMPLX(REAL(KMat(i,j),8),OffDiagEl)
-                                KMat(j,i)=CMPLX(REAL(KMat(i,j),8),OffDiagEl)
+                                KMat(j,i)=CMPLX(REAL(KMat(i,j),8),-OffDiagEl)
                             ENDIF
                         ENDIF
                     ENDIF
