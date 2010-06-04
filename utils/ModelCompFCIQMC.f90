@@ -2,16 +2,20 @@ Program ModelFCIQMC
 
     IMPLICIT NONE
 
-    INTEGER :: NDet=20 
+    INTEGER :: NDet=50 
     INTEGER, PARAMETER :: lenof_sign=2   !Number of integers needed to store a walker
     REAL*8, PARAMETER :: Tau=0.05
     REAL*8, PARAMETER :: SftDamp=0.05
     INTEGER, PARAMETER :: StepsSft=25
     INTEGER, PARAMETER :: NMCyc=100000
     INTEGER, PARAMETER :: InitialWalk=1 
-    INTEGER, PARAMETER :: TargetWalk=1000
+    INTEGER, PARAMETER :: TargetWalk=5000
     REAL*8, PARAMETER :: InitialShift=0.D0
     INTEGER, PARAMETER :: dp=8
+    LOGICAL, PARAMETER :: tRotateWavefunction=.true.
+    REAL*8, PARAMETER :: pi=3.14159265358979323846264338327950288419716939937510D0
+    REAL*8 :: piby2=pi/2.D0
+    REAL*8 :: pi2=pi*2.D0
 
     CALL RunModelFCIQMC()
 
@@ -118,6 +122,11 @@ CONTAINS
         OPEN(12,FILE='ModelFCIMCStats',STATUS='unknown')
         WRITE(12,*) "#1.Iter  2.GroundShift  3.RealShift  4.ImagShift  5.AverageShift  6.RealParts  7.ImParts  8.ReRoot  9.ImRoot  10.ProjE"
         WRITE(6,*) "1.Iter  2.GroundShift  3.RealShift  4.ImagShift  5.AverageShift  6.RealParts  7.ImParts  8.ReRoot  9.ImRoot  10. ProjE"
+
+        IF(tRotateWavefunction) THEN
+            OPEN(14,FILE='RotateKilledParts',STATUS='unknown')
+            WRITE(14,*) "#Real killed Parts     Imag killed parts"
+        ENDIF
 
         !Start with just real walkers
         WalkListGround(1,1)=InitialWalk
@@ -237,6 +246,14 @@ CONTAINS
                 GroundTotParts(:)=GroundTotParts(:)+abs(WalkListGround(:,i))
             enddo
 
+            !GroundTotParts is now calculated in the RotateWavefunction routine, since this can change the number of 
+            !particles in the system
+!Rotate the phase of each occupied determinant in the entire wavefunction, to ensure that the root determinant has
+!only real walkers on it.
+            IF(tRotateWavefunction) THEN
+                CALL RotateWavefunction(WalkListGround,GroundTotParts)
+            ENDIF
+
             BothTotParts=GroundTotParts(1)+GroundTotParts(2)
 
             IF(BothTotParts.eq.0) THEN
@@ -252,6 +269,158 @@ CONTAINS
         CLOSE(12)
 
     End SUBROUTINE RunModelFCIQMC
+
+    SUBROUTINE RotateWavefunction(WalkListGround,GroundTotParts)
+        IMPLICIT NONE
+        INTEGER, INTENT(INOUT) :: WalkListGround(lenof_sign,NDet)
+        INTEGER, DIMENSION(lenof_sign), INTENT(INOUT) :: GroundTotParts
+        INTEGER, DIMENSION(lenof_sign) :: PreRotGroundTotParts
+        REAL*8 :: HFAngle,HFMag,rat,r,OrigAngle,Mag,RealPart,ImagPart,NewAngle
+        INTEGER :: i
+
+        PreRotGroundTotParts=GroundTotParts
+        GroundTotParts=0
+
+        HFMag=SQRT((REAL(WalkListGround(1,1))**2)+(REAL(WalkListGround(2,1))**2))
+        HFAngle=ATAN(REAL(WalkListGround(2,1),dp)/REAL(WalkListGround(1,1)))
+
+        IF(WalkListGround(1,1).eq.0) THEN
+            !No real particles - kill Im ones and return
+            WalkListGround(2,1)=0
+            !No phase rotation possible - no real particles at root determinant
+            !Still need to count total particles
+            do i=1,NDet
+                GroundTotParts(:)=GroundTotParts(:)+abs(WalkListGround(:,i))
+            enddo
+
+            RETURN
+        ELSEIF(WalkListGround(2,1).eq.0) THEN
+            !No Im particles - wavefunction phase coherent?
+            !Still need to count total particles
+            do i=1,NDet
+                GroundTotParts(:)=GroundTotParts(:)+abs(WalkListGround(:,i))
+            enddo
+            RETURN
+        ENDIF
+        
+        !Work out angle information
+        !ATAN should return angles -piby2 -> piby2
+        !My convention is 0 -> pi angles for positive imaginary amplitudes
+        !and 0 -> -pi angles for negative imaginary amplitudes
+        IF((WalkListGround(1,1).gt.0).and.(WalkListGround(2,1).gt.0)) THEN
+            !First quadrant - phase 0 -> pi/2
+            !Should be correct - check this
+            IF(HFAngle.gt.piby2.or.HFAngle.lt.0.D0) STOP 'ATAN Error'
+        ELSEIF((WalkListGround(1,1).lt.0).and.(WalkListGround(2,1).gt.0)) THEN
+            !Second quadrant - phase pi/2 -> pi
+            !ATAN should return negative angle
+            IF(HFAngle.gt.0.D0) STOP 'ATAN Error 2'
+            HFAngle=ABS(HFAngle)+piby2
+        ELSEIF((WalkListGround(1,1).lt.0).and.(WalkListGround(2,1).lt.0)) THEN
+            !Third quadrant - phase -pi -> -piby2
+            !ATAN should return positive angle
+            IF(HFAngle.lt.0.D0) STOP 'ATAN Error 3'
+            HFAngle=-HFAngle-piby2
+        ELSEIF((WalkListGround(1,1).gt.0.D0).and.(WalkListGround(2,1).lt.0)) THEN
+            !Fourth quadrant - phase 0 -> -piby2
+            !Should be correct - check this
+            IF(HFAngle.lt.-piby2.or.HFAngle.gt.0.D0) STOP 'ATAN Error 4'
+        ELSE
+            STOP 'Error - should not get here'
+        ENDIF
+
+        !Rotate the root determinant to the correct phase (0)
+        WalkListGround(2,1)=0   !Kill all imaginary particles
+        WalkListGround(1,1)=INT(HFMag)   !Ensure magnitude of wavefunction stays as close as possible to the same
+        rat=HFMag-WalkListGround(1,1)
+        !Stochastically try to create the final particle.
+        call random_number(r)
+        IF(abs(rat).gt.r) THEN
+            WalkListGround(1,1)=WalkListGround(1,1)+nint(sign(1.D0,rat))
+        ENDIF
+
+        GroundTotParts(:)=GroundTotParts(:)+abs(WalkListGround(:,1))
+
+        do i=2,NDet
+
+            IF(WalkListGround(1,i).eq.0.and.WalkListGround(2,i).eq.0) CYCLE
+
+            !Now we need to rotate the wavefunction on all other determinants by the same amount.
+            !Extreme care needs to be undertaken re. phases.
+            OrigAngle=ATAN(REAL(WalkListGround(2,i))/REAL(WalkListGround(1,i)))
+            !Work out angle information
+            !ATAN should return angles -piby2 -> piby2
+            !My convention is 0 -> pi angles for positive imaginary amplitudes
+            !and 0 -> -pi angles for negative imaginary amplitudes
+            IF((WalkListGround(1,i).gt.0).and.(WalkListGround(2,i).gt.0)) THEN
+                !First quadrant - phase 0 -> pi/2
+                !Should be correct - check this
+                IF(OrigAngle.gt.piby2.or.OrigAngle.lt.0.D0) STOP 'ATAN Error'
+            ELSEIF((WalkListGround(1,i).lt.0).and.(WalkListGround(2,i).gt.0)) THEN
+                !Second quadrant - phase pi/2 -> pi
+                !ATAN should return negative angle
+                IF(OrigAngle.gt.0.D0) STOP 'ATAN Error 2'
+                OrigAngle=ABS(OrigAngle)+piby2
+            ELSEIF((WalkListGround(1,i).lt.0).and.(WalkListGround(2,i).lt.0)) THEN
+                !Third quadrant - phase -pi -> -piby2
+                !ATAN should return positive angle
+                IF(OrigAngle.lt.0.D0) STOP 'ATAN Error 3'
+                OrigAngle=-OrigAngle-piby2
+            ELSEIF((WalkListGround(1,i).gt.0.D0).and.(WalkListGround(2,i).lt.0)) THEN
+                !Fourth quadrant - phase 0 -> -piby2
+                !Should be correct - check this
+                IF(OrigAngle.lt.-piby2.or.OrigAngle.gt.0.D0) STOP 'ATAN Error 4'
+            ELSEIF(WalkListGround(1,i).eq.0) THEN
+                !No real particles
+                IF(WalkListGround(2,i).gt.0) THEN
+                    OrigAngle=piby2
+                ELSE
+                    OrigAngle=-piby2
+                ENDIF
+            ELSEIF(WalkListGround(2,i).eq.0) THEN
+                !No Imag particles
+                IF(WalkListGround(1,i).gt.0) THEN
+                    OrigAngle=0.D0
+                ELSE
+                    OrigAngle=pi
+                ENDIF
+            ENDIF
+
+            !Original angle is now the correct convention.
+            NewAngle=OrigAngle+HFAngle
+            IF(NewAngle.gt.pi) then
+                NewAngle=NewAngle-pi2
+            ELSEIF(NewAngle.lt.-pi) THEN
+                NewAngle=NewAngle+pi2
+            ENDIF
+            
+            Mag=SQRT((REAL(WalkListGround(1,i))**2)+(REAL(WalkListGround(2,i))**2))
+
+            !Stochastically realise this magnitude and angle
+            RealPart=Mag*COS(NewAngle)
+            ImagPart=Mag*SIN(NewAngle)
+            WalkListGround(1,i)=INT(RealPart)
+            rat=RealPart-INT(RealPart)
+            call random_number(r)
+            IF(abs(rat).gt.r) THEN
+                WalkListGround(1,i)=WalkListGround(1,i)+nint(sign(1.D0,rat))
+            ENDIF
+
+            WalkListGround(2,i)=INT(ImagPart)
+            rat=ImagPart-INT(ImagPart)
+            call random_number(r)
+            IF(abs(rat).gt.r) THEN
+                WalkListGround(2,i)=WalkListGround(2,i)+nint(sign(1.D0,rat))
+            ENDIF
+
+            GroundTotParts(:)=GroundTotParts(:)+abs(WalkListGround(:,i))
+
+        enddo
+
+        WRITE(14,*) GroundTotParts(1)-PreRotGroundTotParts(1),GroundTotParts(2)-PreRotGroundTotParts(2)
+            
+    END SUBROUTINE RotateWavefunction
+
 
 
     SUBROUTINE CalcProjE(KMat,ProjE,WalkListGround)
