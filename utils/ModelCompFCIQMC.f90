@@ -2,19 +2,19 @@ Program ModelFCIQMC
 
     IMPLICIT NONE
 
-    INTEGER :: NDet=15 
+    INTEGER :: NDet=500 
     INTEGER, PARAMETER :: lenof_sign=2   !Number of integers needed to store a walker
     REAL*8, PARAMETER :: Tau=0.01 
-    REAL*8, PARAMETER :: SftDamp=0.05
-    INTEGER, PARAMETER :: StepsSft=75 
+    REAL*8, PARAMETER :: SftDamp=0.3 
+    INTEGER, PARAMETER :: StepsSft=5 
     INTEGER, PARAMETER :: NMCyc=100000
     INTEGER, PARAMETER :: InitialWalk=1 
     INTEGER, PARAMETER :: TargetWalk=5000
-    REAL*8, PARAMETER :: InitialShift=0.D0
+    REAL*8, PARAMETER :: InitialShift=-13.D0
     INTEGER, PARAMETER :: dp=8
-    LOGICAL, PARAMETER :: tRotateWavefunction=.false.
+    LOGICAL, PARAMETER :: tRotateWavefunction=.false. 
     LOGICAL, PARAMETER :: tSeperateShift=.false. 
-    LOGICAL, PARAMETER :: tKeepWalkerFiles=.true.
+    LOGICAL, PARAMETER :: tKeepWalkerFiles=.false.
     REAL*8, PARAMETER :: pi=3.14159265358979323846264338327950288419716939937510D0
     REAL*8 :: piby2=pi/2.D0
     REAL*8 :: pi2=pi*2.D0
@@ -191,26 +191,30 @@ CONTAINS
                 CALL FLUSH(12)
                 CALL FLUSH(6)
 
-                Norm=0.D0
-                Norm1=0.D0
-                do i=1,NDet
-                    Norm=Norm+(REAL(WalkListGround(1,i),8)**2)+(REAL(WalkListGround(2,i),8)**2)
-                    Norm1=Norm1+(REAL(SumWalkListGround(1,i),8)**2)+(REAL(SumWalkListGround(2,i),8)**2)
-                enddo
-                Norm=SQRT(Norm)
-                Norm1=SQRT(Norm1)
+                IF(tKeepWalkerFiles) THEN
 
-                abstr=''
-                write(abstr,'(I12)') Iter
-                abstr='GroundWavevec-'//adjustl(abstr)
-                OPEN(13,FILE=abstr,STATUS='UNKNOWN')
+                    Norm=0.D0
+                    Norm1=0.D0
+                    do i=1,NDet
+                        Norm=Norm+(REAL(WalkListGround(1,i),8)**2)+(REAL(WalkListGround(2,i),8)**2)
+                        Norm1=Norm1+(REAL(SumWalkListGround(1,i),8)**2)+(REAL(SumWalkListGround(2,i),8)**2)
+                    enddo
+                    Norm=SQRT(Norm)
+                    Norm1=SQRT(Norm1)
+
+                    abstr=''
+                    write(abstr,'(I12)') Iter
+                    abstr='GroundWavevec-'//adjustl(abstr)
+                    OPEN(13,FILE=abstr,STATUS='UNKNOWN')
 !                Check=0.D0
-                do i=1,NDet
+                    do i=1,NDet
 !                    Check=Check+(REAL(SumWalkListGround(1,i),8)/Norm1)**2+(REAL(SumWalkListGround(2,i),8)/Norm1)**2
-                    WRITE(13,"(I8,3F25.12,A,3F25.12)") i,REAL(WalkListGround(1,i),8)/Norm,REAL(WalkListGround(2,i),8)/Norm,SQRT((REAL(WalkListGround(1,i),8)/Norm)**2+(REAL(WalkListGround(2,i),8)/Norm)**2),"   *   ",REAL(SumWalkListGround(1,i),8)/Norm1,REAL(SumWalkListGround(2,i),8)/Norm1,SQRT((REAL(SumWalkListGround(1,i),8)/Norm1)**2+(REAL(SumWalkListGround(2,i),8)/Norm1)**2)
-                enddo
+                        WRITE(13,"(I8,3F25.12,A,3F25.12)") i,REAL(WalkListGround(1,i),8)/Norm,REAL(WalkListGround(2,i),8)/Norm,SQRT((REAL(WalkListGround(1,i),8)/Norm)**2+(REAL(WalkListGround(2,i),8)/Norm)**2),"   *   ",REAL(SumWalkListGround(1,i),8)/Norm1,REAL(SumWalkListGround(2,i),8)/Norm1,SQRT((REAL(SumWalkListGround(1,i),8)/Norm1)**2+(REAL(SumWalkListGround(2,i),8)/Norm1)**2)
+                    enddo
 !                WRITE(6,*) "Check = ",Check
-                CLOSE(13)
+                    CLOSE(13)
+
+                ENDIF
 
             ENDIF
 
