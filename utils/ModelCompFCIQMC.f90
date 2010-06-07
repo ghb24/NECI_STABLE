@@ -2,7 +2,15 @@ Program ModelFCIQMC
 
     IMPLICIT NONE
 
+    !Parameters to control hamiltonian setup
+    REAL*8, PARAMETER :: StartEl=0.2     !Initial diagonal matrix element - these must all be real obv.
+    REAL*8, PARAMETER :: EndEl=7.D0
+    !Off diagonal matrix elements
+    REAL*8, PARAMETER :: ProbNonZero=0.3     !This is probability that off-diagonal matrix elements are non-zero
+    REAL*8, PARAMETER :: OffDiagEl=8.D-2     !This is the magnitude of the off-diagonal matrix elements.
+
     INTEGER :: NDet=15 
+
     INTEGER, PARAMETER :: lenof_sign=2   !Number of integers needed to store a walker
     REAL*8, PARAMETER :: Tau=0.01 
     REAL*8, PARAMETER :: SftDamp=0.2 
@@ -618,8 +626,6 @@ CONTAINS
 
         KMat(:,:)=CMPLX(0.D0,0.D0)
 
-        StartEl=0.2     !Initial diagonal matrix element - these must all be real obv.
-        EndEl=7.D0
         Step=(EndEl-StartEl)/REAL(NDet-1,8) !Rate of increase of diagonal matrix elements
         KMat(2,2)=CMPLX(StartEl,0.D0)
         do i=3,NDet
@@ -629,8 +635,6 @@ CONTAINS
         WRITE(6,*) "RefDet = ", KMat(1,1)
         WRITE(6,*) "MaxDet = ", KMat(NDet,NDet)
 
-        ProbNonZero=0.3     !This is probability that off-diagonal matrix elements are non-zero
-        OffDiagEl=8.D-2     !This is the magnitude of the off-diagonal matrix elements.
         do l=1,2            !loop over real and imaginary parts to allow a chance for both the real and imaginary parts to become non-zero
             do i=1,NDet
                 do j=1,i-1
