@@ -621,7 +621,7 @@ CONTAINS
         IMPLICIT NONE
         COMPLEX*16, INTENT(OUT) :: KMat(NDet,NDet)
         INTEGER :: i,j,l
-        REAL*8 :: StartEl,EndEl,Step,ProbNonZero,OffDiagEl
+        REAL*8 :: Step
         REAL*8 :: r
 
         KMat(:,:)=CMPLX(0.D0,0.D0)
@@ -724,7 +724,7 @@ CONTAINS
 
         do i=1,NDet
             do j=1,NDet
-                WRITE(19,"(2I6,2G25.15)") i,j,REAL(KMat(i,j),dp),AIMAG(KMat(i,j))
+                WRITE(19,"(2G25.15)") REAL(KMat(i,j),dp),AIMAG(KMat(i,j))
             enddo
         enddo
 
