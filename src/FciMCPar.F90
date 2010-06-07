@@ -2599,6 +2599,10 @@ MODULE FciMCParMod
                                  tParity, prob)
 
 #ifdef __CMPLX
+
+!We actually want to calculate Hji - take the complex conjugate, rather than swap around DetCurr and nJ.
+            rh = CONJG(rh)
+
             !We are dealing with spawning from real and imaginary elements, and assume
             !that rh is complex
             IF(part_type.eq.1) THEN

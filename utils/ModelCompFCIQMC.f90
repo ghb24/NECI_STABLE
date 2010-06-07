@@ -2,19 +2,20 @@ Program ModelFCIQMC
 
     IMPLICIT NONE
 
-    INTEGER :: NDet=500 
+    INTEGER :: NDet=15 
     INTEGER, PARAMETER :: lenof_sign=2   !Number of integers needed to store a walker
     REAL*8, PARAMETER :: Tau=0.01 
-    REAL*8, PARAMETER :: SftDamp=0.3 
-    INTEGER, PARAMETER :: StepsSft=5 
-    INTEGER, PARAMETER :: NMCyc=100000
+    REAL*8, PARAMETER :: SftDamp=0.2 
+    INTEGER, PARAMETER :: StepsSft=50 
+    INTEGER, PARAMETER :: NMCyc=100
     INTEGER, PARAMETER :: InitialWalk=1 
     INTEGER, PARAMETER :: TargetWalk=5000
-    REAL*8, PARAMETER :: InitialShift=-13.D0
+    REAL*8, PARAMETER :: InitialShift=0.D0
     INTEGER, PARAMETER :: dp=8
     LOGICAL, PARAMETER :: tRotateWavefunction=.false. 
     LOGICAL, PARAMETER :: tSeperateShift=.false. 
-    LOGICAL, PARAMETER :: tKeepWalkerFiles=.false.
+    LOGICAL, PARAMETER :: tKeepWalkerFiles=.false. 
+    LOGICAL, PARAMETER :: tDumpKMat=.false.
     REAL*8, PARAMETER :: pi=3.14159265358979323846264338327950288419716939937510D0
     REAL*8 :: piby2=pi/2.D0
     REAL*8 :: pi2=pi*2.D0
@@ -127,6 +128,10 @@ CONTAINS
             WRITE(6,*) i,EValues(i)
         enddo
         CLOSE(9)
+
+        if(tdumpkmat) THEN
+            call dumpkmat(KMat)
+        endif
 
         WRITE(6,*) "Performing Spawning..."
 
@@ -614,7 +619,7 @@ CONTAINS
         KMat(:,:)=CMPLX(0.D0,0.D0)
 
         StartEl=0.2     !Initial diagonal matrix element - these must all be real obv.
-        EndEl=5.D0
+        EndEl=7.D0
         Step=(EndEl-StartEl)/REAL(NDet-1,8) !Rate of increase of diagonal matrix elements
         KMat(2,2)=CMPLX(StartEl,0.D0)
         do i=3,NDet
@@ -624,8 +629,8 @@ CONTAINS
         WRITE(6,*) "RefDet = ", KMat(1,1)
         WRITE(6,*) "MaxDet = ", KMat(NDet,NDet)
 
-        ProbNonZero=0.4     !This is probability that off-diagonal matrix elements are non-zero
-        OffDiagEl=1.D-1     !This is the magnitude of the off-diagonal matrix elements.
+        ProbNonZero=0.3     !This is probability that off-diagonal matrix elements are non-zero
+        OffDiagEl=8.D-2     !This is the magnitude of the off-diagonal matrix elements.
         do l=1,2            !loop over real and imaginary parts to allow a chance for both the real and imaginary parts to become non-zero
             do i=1,NDet
                 do j=1,i-1
@@ -705,5 +710,22 @@ CONTAINS
         forall (i=1:NDet) KMat(i,i) = KMat(i,i) - H00
 
     end subroutine ReadInKMat
+
+    subroutine dumpkmat(KMat)
+        IMPLICIT NONE
+        COMPLEX*16 KMat(NDet,NDet)
+        INTEGER :: i,j
+
+        OPEN(19,FILE='DumpedKMat',status='unknown')
+
+        do i=1,NDet
+            do j=1,NDet
+                WRITE(19,"(2I6,2G25.15)") i,j,REAL(KMat(i,j),dp),AIMAG(KMat(i,j))
+            enddo
+        enddo
+
+        CLOSE(19)
+
+    end subroutine dumpkmat
 
 END Program ModelFCIQMC
