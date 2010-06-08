@@ -185,6 +185,7 @@ NECILIBS = $(CPMDLIBS) $(VASPLIBS)
 # program name is (e.g.) bin/a.x and that the utility program requires (at
 # most) the same libraries as neci.
 UTILS = $(addprefix $(EXE)/, TransLz.x BlockFCIMC.x ModelCompFCIQMC.x ModelFCIQMC.x ConvertMolpFCID.x ConvertPOPSFILE.x)
+UTILS_C = $(addprefix $(EXE)/, clean_shared_mem.x)
 
 #-----
 # VCS info.
@@ -403,7 +404,7 @@ vasplibs: $(VASPLIBS)
 
 libs: $(NECILIBS)
 
-utils: $(UTILS)
+utils: $(UTILS) $(UTILS_C)
 
 all: $(PROGS) libs utils
 
@@ -550,6 +551,7 @@ $(KcppDEPEND_FILES): $(KDEP_DEST)/%%.d: %%.cpp
 # upon the source filename and that the utility program requires (at most) the
 # same libraries as neci.
 MKUTIL = $(FC) $(FFLAGS) $(F90FLAGS) $< -o $@ $(LIBS)
+MKUTIL_C = $(CC) $< -o $@ $(LIBS)
 
 # Compile bin/*.config.opt.x from utils/*.f90
 # Previously defined targets point bin/*.x to bin/*.config.opt.x and from *.x to bin/*.x.
@@ -559,6 +561,12 @@ UTILSTEM = $(notdir $(basename $(UTILS)))
 UTILNAMES = $(addsuffix .$(CONFIG).$(OPT).x,$(UTILSTEM))
 $(addprefix $(EXE)/,$(UTILNAMES)): $(EXE)/%%.$(CONFIG).$(OPT).x: utils/%%.f90
 \t$(MKUTIL)
+
+# Also for c++ files
+UTILSTEM_C = $(notdir $(basename $(UTILS_C)))
+UTILNAMES_C = $(addsuffix .$(CONFIG).$(OPT).x,$(UTILSTEM_C))
+$(addprefix $(EXE)/,$(UTILNAMES_C)): $(EXE)/%%.$(CONFIG).$(OPT).x: utils/%%.cpp
+\t$(MKUTIL_C)
 
 #-----
 # Include dependency files
