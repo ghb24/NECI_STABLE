@@ -26,29 +26,6 @@
          RETURN
       END SUBROUTINE NECI_ICOPY
 
-!   A fudge of the unportrable routine DGEMA to add two matrices
-      SUBROUTINE DGEMA(TRANSA,TRANSB,M,N,ALPHA,A,LDA,BETA,B,LDB,C,LDC)
-         IMPLICIT NONE
-         CHARACTER*1 TRANSA,TRANSB
-         INTEGER*4 M,N,LDA,LDB,LDC
-         REAL*8 ALPHA,A(M,N),B(M,N),BETA,C(M,N)
-         INTEGER I,J
-         IF(LDA.NE.M) STOP 'LDA NE M not supported'
-         IF(LDB.NE.M) STOP 'LDB NE M not supported'
-         IF(LDC.NE.M) STOP 'LDC NE M not supported'
-         IF(TRANSA.NE.'N'.AND.TRANSA.NE.'n')
-     &      STOP 'TRANSA not "N" not supported'
-         IF(TRANSB.NE.'N'.AND.TRANSB.NE.'n')
-     &      STOP 'TRANSB not "N" not supported'
-         DO I=1,M
-            DO J=1,N
-               C(I,J)=ALPHA*A(I,J)+BETA*B(I,J)
-            ENDDO
-         ENDDO
-         RETURN
-      END
-
-
 !  Following the same interface as Numerical Recipes' RAN2, but using the RANLUX generator (lux level 3).
 !  If ISEED.NE.0, it is used as a seed, and reset to 0.
 !  Generates a 32-bit float (REAL*4), and stores this in a real*8

@@ -1057,11 +1057,9 @@ C              WRITE(6,*) ((CMAT(I,J,ISPN),I=1,NSBASIS),J=1,NSBASIS)
 C              WRITE(6,*)
 C              WRITE(6,*) ((DEDCIJ(I,J,ISPN),I=1,NSBASIS),J=1,NSBASIS)
 C.. modify the velocity.
-C              CALL DGEMA('N','N',NSBASIS,NSBASIS,1.D0,VMAT(1,1,ISPN),
-C     &         NSBASIS,MIX,DEDCIJ(1,1,ISPN),NSBASIS,R1,NSBASIS)
+C              R1 = VMAT(:,:,ISPN) + MIX*DEDCIJ(:,:,ISPN)
 C              CALL DCOPY(NSBASIS*NSBASIS,R1,1,VMAT(1,1,ISPN),1)
-C              CALL DGEMA('N','N',NSBASIS,NSBASIS,1.D0,CMAT(1,1,ISPN),
-C     &         NSBASIS,01.D0,VMAT(1,1,ISPN),NSBASIS,R1,NSBASIS)
+C              R1 = CMAT(:,:,ISPN) + 0.1D0*VMAT(:,:,ISPN)
 
 C.. Remove the projection of the "force" already in the direction of
 C.. the coefficients
@@ -1086,8 +1084,7 @@ C                  R1(I,J)=R1(I,J)/TOT2
 C/ABS(ECUR)
 C              IF(ABS(ECUR).LT.1.D-4) MIX=HFMIX
               IF(IHFIT.GT.NHFIT) BR=.FALSE.
-              CALL DGEMA('N','N',NSBASIS,NSBASIS,1.D0,CMAT(1,1,ISPN),
-     &         NSBASIS,MIX,R1,NSBASIS,R2,NSBASIS)
+              R2 = CMAT(:,:,ISPN) + R1
               CALL DCOPY(NSBASIS*NSBASIS,R2,1,CMAT(1,1,ISPN),1)
 C              WRITE(6,*)
 C              WRITE(6,*) ((CMAT(I,J,ISPN),I=1,NSBASIS),J=1,NSBASIS)
