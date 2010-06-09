@@ -35,6 +35,7 @@ int main ()
 	// Iterate through the devices, and see if there are any we are
 	// interested in
 	struct dirent * dirp;
+	bool found_shm = false;
 	cout << "Searching for residual shared memory devices... " << endl;
 	while ((dirp = readdir(dp)) != NULL) {
 		string nm (dirp->d_name);
@@ -48,7 +49,12 @@ int main ()
 
 			cout << "Removing: " << nm << endl;
 			shm_unlink (nm.c_str());
+			found_shm = true;
 		}
+	}
+
+	if (! found_shm) {
+		cout << "No residual shared memory devices found." << endl;
 	}
 
 	closedir (dp);
