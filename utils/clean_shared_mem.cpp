@@ -12,6 +12,10 @@ using std::cerr;
 using std::cout;
 using std::endl;
 
+// Remove any lingering shared memory devices (e.g. a careless programmer has
+// not deallocated memory correctly or caused NECI to crash).
+// Note that this *must* be run from the same working directory as the
+// instantiation of NECI which created the shared memory devices.
 int main ()
 {
 	// Get the current working directory and substitute as appropriate
@@ -43,6 +47,8 @@ int main ()
 		// instantiation of NECI in the current directory, and if so that
 		// it is not one from a subdirectory (which may still be legitimately
 		// running)
+		// NECI creates shared memory devices with the desired name (e.g.
+		// "umat") prepended by the working directory with / replaced by _.
 		if (nm.length() > cwd.length() &&
 			nm.substr(0, cwd.length()).compare(cwd) == 0 &&
 			nm[cwd.length()] != '_') {
