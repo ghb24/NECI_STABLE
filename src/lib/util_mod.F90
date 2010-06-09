@@ -16,6 +16,29 @@ module util_mod
     
 contains
 
+!--- Numerical utilities ---
+
+    ! If all of the compilers supported ieee_arithmetic
+    ! --> could use ieee_value(1.0_dp, ieee_quiet_nan)
+    real(dp) function get_nan ()
+        real(dp) :: a, b
+        a = 1
+        b = 1
+        get_nan = log (a-2*b)
+    end function
+
+    ! If all of the compilers supported ieee_arithmetic
+    ! --> could use ieee_is_nan (r)
+    elemental logical function isnan (r)
+        real(dp), intent(in) :: r
+
+        if ( (r == 0) .and. (r * 1 == 1) ) then
+            isnan = .true.
+        else
+            isnan = .false.
+        endif
+    end function
+
     elemental real*8 function factrl (n)
 
         ! Return the factorial on n, i.e. n!
@@ -56,6 +79,8 @@ contains
             enddo
         endif
     end function choose
+
+!--- Comparison of subarrays ---
     
     logical pure function det_int_arr_gt (a, b, len)
         use constants, only: n_int
@@ -143,6 +168,8 @@ contains
         det_int_arr_eq = .true.
     end function det_int_arr_eq
 
+!--- Output utilties ---
+
     elemental function int_fmt(i, padding) result(fmt1)
 
         ! In:
@@ -184,6 +211,8 @@ contains
         end if
 
     end function int_fmt
+
+!--- Searching ---
 
     ! NOTE: This can only be used for binary searching determinant bit 
     !       strings now. We can template it if it wants to be more general 
@@ -240,6 +269,8 @@ contains
         endif
 
     end function
+
+!--- File utilities ---
 
     subroutine append_ext(stem, n, s)
 
@@ -336,26 +367,5 @@ contains
         if (i == max_unit+1) call stop_all('get_free_unit','Cannot find a free unit below max_unit.')
 
     end function get_free_unit
-
-    ! If all of the compilers supported ieee_arithmetic
-    ! --> could use ieee_value(1.0_dp, ieee_quiet_nan)
-    real(dp) function get_nan ()
-        real(dp) :: a, b
-        a = 1
-        b = 1
-        get_nan = log (a-2*b)
-    end function
-
-    ! If all of the compilers supported ieee_arithmetic
-    ! --> could use ieee_is_nan (r)
-    elemental logical function isnan (r)
-        real(dp), intent(in) :: r
-
-        if ( (r == 0) .and. (r * 1 == 1) ) then
-            isnan = .true.
-        else
-            isnan = .false.
-        endif
-    end function
 
 end module
