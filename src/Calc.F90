@@ -1322,7 +1322,7 @@ MODULE Calc
           use IntegralsData, only: HFEDelta, HFMix,nTay
           Use Logging, only: iLogging
           use Parallel_Calc
-          use util_mod, only: get_free_unit
+          use util_mod, only: get_free_unit, NECI_ICOPY
 
 !Calls
 !          REAL*8 DMonteCarlo2
@@ -1804,7 +1804,7 @@ MODULE Calc
      &            TSPECDET,SPECDET,nActiveBasis)
          use constants, only: dp
          use global_utilities
-         use util_mod, only: get_free_unit 
+         use util_mod, only: get_free_unit, NECI_ICOPY
          use SystemData, only: BasisFN,BasisFNSize
          use legacy_data, only: irat
          use CalcData, only: tFCIMC

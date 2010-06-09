@@ -16,6 +16,40 @@ module util_mod
     
 contains
 
+!--- Array utilities ---
+
+      SUBROUTINE NECI_ICOPY(N,A,IA,B,IB)
+         ! Copy elements from integer array A to B.
+         ! Simple version of BLAS routine ICOPY, which isn't always implemented
+         ! in BLAS.
+         ! Fortran 90 array features allow this to be done in one line of
+         ! standard fortran, so this is just for legacy purposes.
+         ! In:
+         !    N: number of elements in A.
+         !    A: vector to be copied.
+         !    IA: increment between elements to be copied in A.  
+         !        IA=1 for continuous data blocks.
+         !    IB: increment between elements to be copied to in B.  
+         !        IB=1 for continuous data blocks.
+         ! Out:
+         !    B: result vector.
+         IMPLICIT NONE
+!        Arguments
+         INTEGER, INTENT(IN) :: N,IA,IB
+         INTEGER, INTENT(IN) :: A(IA*N)
+         INTEGER, INTENT(OUT) :: B(IB*N)
+!        Variables
+         INTEGER I,IAX,IBX
+     
+         DO I=1,N
+           IAX=(I-1)*IA + 1
+           IBX=(I-1)*IB + 1
+           B(IBX) = A(IAX)
+         ENDDO
+     
+         RETURN
+      END SUBROUTINE NECI_ICOPY
+
 !--- Numerical utilities ---
 
     ! If all of the compilers supported ieee_arithmetic
@@ -271,6 +305,24 @@ contains
     end function
 
 !--- File utilities ---
+
+    integer function record_length(bytes)
+       ! Some compilers use record lengths in units of bytes.
+       ! Some compilers use record lengths in units of words.
+       ! This is an utter *pain* for reading unformatted files,
+       ! where you must specify the record length.
+       !
+       ! In:
+       !    bytes: number of bytes in record type of interest (should
+       !    be a multiple of 4).
+       !
+       ! Returns:
+       !    record_length: size of record in units of the compiler's
+       !    choice.
+       integer, intent(in) :: bytes
+       inquire(iolength=record_length) bytes
+       record_length = (bytes/4)*record_length 
+    end function record_length
 
     subroutine append_ext(stem, n, s)
 
