@@ -3099,11 +3099,15 @@ MODULE FciMCParMod
         ENDIF
 
         IF(tHistInitPops) THEN
-            DEALLOCATE(HistInitPops)
-            CALL LogMemDeAlloc(this_routine,HistInitPopsTag)
+            if (allocated(HistInitPops)) then
+                deallocate (HistInitPops)
+                call LogMemDeAlloc (this_routine, HistInitPopsTag)
+            endif
             IF(iProcIndex.eq.0) THEN
-                DEALLOCATE(AllHistInitPops)
-                CALL LogMemDeAlloc(this_routine,AllHistInitPopsTag)
+                if (allocated(AllHistInitPops)) then
+                    deallocate (AllHistInitPops)
+                    call LogMemDeAlloc(this_routine,AllHistInitPopsTag)
+                endif
             ENDIF
         ENDIF
 

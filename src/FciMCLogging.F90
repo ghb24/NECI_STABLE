@@ -132,9 +132,9 @@ MODULE FciMCLoggingMod
             TotNoBlockSizes=FLOOR( (LOG10((REAL(NMCyc-StartBlockIter))/(REAL(StepsSft)))) / (LOG10(2.D0)) )
         ENDIF
 
-        CurrBlockSum(:)=0.D0
-        BlockSum(:)=0.D0
-        BlockSqrdSum(:)=0.D0
+        if (allocated(CurrBlockSum)) CurrBlockSum(:)=0.D0
+        if (allocated(BlockSum)) BlockSum(:)=0.D0
+        if (allocated(BlockSqrdSum)) BlockSqrdSum(:)=0.D0
 
     END SUBROUTINE RestartBlocking
  
@@ -150,9 +150,9 @@ MODULE FciMCLoggingMod
         TotNoShiftBlockSizes=0
         TotNoShiftBlockSizes=FLOOR( (LOG10((REAL(NMCyc-StartShiftBlockIter))/(REAL(StepsSft)))) / (LOG10(2.D0)) )
 
-        CurrShiftBlockSum(:)=0.D0
-        ShiftBlockSum(:)=0.D0
-        ShiftBlockSqrdSum(:)=0.D0
+        if (allocated(CurrShiftBlockSum)) CurrShiftBlockSum(:)=0.D0
+        if (allocated(ShiftBlockSum)) ShiftBlockSum(:)=0.D0
+        if (allocated(ShiftBlockSqrdSum)) ShiftBlockSqrdSum(:)=0.D0
 
     END SUBROUTINE RestartShiftBlocking
 
@@ -384,17 +384,30 @@ MODULE FciMCLoggingMod
     SUBROUTINE InitHistInitPops()
         USE CalcData , only : InitiatorWalkNo
         INTEGER :: ierr
+        character(*), parameter :: this_routine = 'InitHistInitPops'
     
 
-        ALLOCATE(HistInitPops(2,25000),stat=ierr)
-        CALL LogMemAlloc('HistInitPops',50000,4,'InitHistInitPops',HistInitPopsTag,ierr)
-        HistInitPops(:,:)=0
+        if (allocated(HistInitPops)) then
+            deallocate (HistInitPops, stat=ierr)
+            call LogMemDealloc (this_routine, HistInitPopsTag, ierr)
+        endif
 
-        IF(iProcIndex.eq.0) THEN
-            ALLOCATE(AllHistInitPops(2,25000),stat=ierr)
-            CALL LogMemAlloc('HistInitPops',50000,4,'InitHistInitPops',AllHistInitPopsTag,ierr)
-            AllHistInitPops(:,:)=0
-        ENDIF
+        allocate (HistInitPops(2,25000), stat=ierr)
+        call LogMemAlloc('HistInitPops', 50000, 4, this_routine, &
+                         HistInitPopsTag, ierr)
+        HistInitPops = 0
+
+        if (iProcIndex.eq.0) then
+            if (allocated(AllHistInitPops)) then
+                deallocate (AllHistInitPops, stat=ierr)
+                call LogMemDealloc (this_routine, AllHistInitPopsTag, ierr)
+            endif
+
+            allocate (AllHistInitPops(2,25000), stat=ierr)
+            CALL LogMemAlloc('AllHistInitPops', 50000, 4, this_routine, &
+                             AllHistInitPopsTag, ierr)
+            AllHistInitPops = 0
+        endif
 
         InitBinMin=log(REAL(InitiatorWalkNo+1))
         InitBinMax=log(1000000.D0)
