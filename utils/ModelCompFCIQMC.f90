@@ -12,12 +12,12 @@ Program ModelFCIQMC
     INTEGER :: NDet=15 
 
     INTEGER, PARAMETER :: lenof_sign=2   !Number of integers needed to store a walker
-    REAL*8, PARAMETER :: Tau=0.01 
+    REAL*8, PARAMETER :: Tau=0.02 
     REAL*8, PARAMETER :: SftDamp=0.2 
     INTEGER, PARAMETER :: StepsSft=50 
-    INTEGER, PARAMETER :: NMCyc=100
+    INTEGER, PARAMETER :: NMCyc=100000
     INTEGER, PARAMETER :: InitialWalk=1 
-    INTEGER, PARAMETER :: TargetWalk=5000
+    INTEGER, PARAMETER :: TargetWalk=3000
     REAL*8, PARAMETER :: InitialShift=0.D0
     INTEGER, PARAMETER :: dp=8
     LOGICAL, PARAMETER :: tRotateWavefunction=.false. 
@@ -465,20 +465,23 @@ CONTAINS
         IMPLICIT NONE
         COMPLEX*16, INTENT(IN) :: KMat(NDet,NDet)
         INTEGER, INTENT(IN) :: WalkListGround(lenof_sign,NDet)
-        REAL*8 :: ProjE,NumReal,NumImag
+        REAL*8 :: ProjE
+        complex*16 :: calc_proje
         INTEGER :: i
 
-        NumReal=0.D0
-        NumImag=0.D0
+        calc_proje=cmplx(0.D0,0.D0)
 
         do i=2,NDet
 
-            NumReal=NumReal+(WalkListGround(1,i)*REAL(KMat(1,i),dp))-(WalkListGround(2,i)*AIMAG(KMat(1,i)))
-            NumImag=NumImag+(WalkListGround(1,i)*AIMAG(KMat(1,i)))+(WalkListGround(2,i)*REAL(KMat(1,i),dp))
+            calc_proje=calc_proje + KMat(1,i)*cmplx(WalkListGround(1,i),WalkListGround(2,i))
 
         enddo
 
-        ProjE=NumReal/REAL(WalkListGround(1,1)) + NumImag/REAL(WalkListGround(2,1))
+        calc_proje=calc_proje/cmplx(WalkListGround(1,1),WalkListGround(2,1))
+
+        if (abs(aimag(calc_proje)) > 1.e-6) write (6,*) 'warning: proje not real!', calc_proje
+
+        proje = real(calc_proje)
 
     END SUBROUTINE CalcProjE
 
@@ -695,7 +698,8 @@ CONTAINS
         IMPLICIT NONE
         character(255), intent(in) :: input_file
         COMPLEX*16, INTENT(OUT) :: KMat(NDet,NDet)
-        integer :: i,j
+        complex*16 :: matel
+        integer :: i,j,ios
         real*8 :: H00
 
         ! The first line just contains the size of the Hamiltonian matrix.
@@ -703,8 +707,17 @@ CONTAINS
         open(13,file=input_file,status='old',form='formatted')
         read(13,*) i
 
-        do i = 1,NDet
-            read (13,*) (KMat(i,j),j=1,NDet)
+        do
+            read (13,*,iostat=ios) i,j,matel
+            if (ios > 0) then
+                stop 'error encounted in reading input file'
+            else if (ios < 0) then
+                ! end of file
+                exit
+            else
+                KMat(i,j) = matel
+                KMat(j,i) = conjg(matel)
+            end if
         end do
 
         close(13,status='keep')
