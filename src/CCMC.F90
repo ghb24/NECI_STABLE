@@ -1863,8 +1863,13 @@ SUBROUTINE CCMCStandalone(Weight,Energyxw)
    TYPE(CCTransitionLog) TL               ! Store data on transitions
    INTEGER iRefPos
    INTEGER, DIMENSION(lenof_sign) :: TempSign   !ghb24: For compatibility with new walker arrays & routines
+   TYPE(timer) :: CCMC_time
+
+
 
    WRITE(6,*) "Entering CCMC Standalone..."
+   CCMC_time%timer_name='CCMC Standalone'
+   call set_timer(CCMC_time,20)
 
    iRefPos=1  !Always first element
    iDebug=CCMCDebug
@@ -2131,6 +2136,7 @@ SUBROUTINE CCMCStandalone(Weight,Energyxw)
    endif
    Weight=0.D0
    Energyxw=ProjectionE
+   call halt_timer(CCMC_time)
 END SUBROUTINE CCMCStandalone
 
 SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
@@ -2162,6 +2168,7 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
    use AnnihilationMod, only: AnnihilationInterface
    use CalcData, only: DiagSft
    use CalcData, only: TStartSinglePart
+   use timing, only: print_timing_report
    IMPLICIT NONE
    real(dp) Weight,EnergyxW
    CHARACTER(len=*), PARAMETER :: this_routine='CCMCStandaloneParticle'
@@ -2214,9 +2221,12 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
 
    !ghb24: Changes to allow compatibility with the new packaged walkers.
    INTEGER, DIMENSION(lenof_sign) :: TempSign
+   TYPE(timer) :: CCMC_time
 
 
    WRITE(6,*) "Entering CCMC Standalone Particle..."
+   CCMC_time%timer_name='CCMC Standalone Particle'
+   call set_timer(CCMC_time,20)
 
    iRefPos=1
    iDebug=CCMCDebug
@@ -2432,6 +2442,7 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
    Deallocate(DetList)
    Weight=0.D0
    Energyxw=ProjectionE
+   call halt_timer(CCMC_time)
 END SUBROUTINE CCMCStandaloneParticle
 
 
