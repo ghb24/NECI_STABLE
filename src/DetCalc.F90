@@ -48,7 +48,7 @@ CONTAINS
         use Logging,    only : tLogDets
         use legacy_data, only: irat
         use HElem
-        use util_mod, only: get_free_unit
+        use util_mod, only: get_free_unit, NECI_ICOPY
         Type(BasisFn) ISym
 
         integer i,ii,j,iunit

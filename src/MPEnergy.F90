@@ -108,6 +108,7 @@ END
       SUBROUTINE ADDMP2E(HIJS,ARR,NBASIS,IPATH,NEL,TLOG,MP2E)
          use constants, only: dp
          use CalcData , only : TLADDER
+         use util_mod, only: NECI_ICOPY
          IMPLICIT NONE
          HElement_t HIJS(0:2)
          REAL*8 ARR(NBASIS,2)

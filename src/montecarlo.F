@@ -23,6 +23,7 @@
       SUBROUTINE GENNEWDET2(NI,NJ,NEL,NBASIS,NBASISMAX,G1,ISEED,NCH,BRR)
          use SystemData, only: BasisFN
          use sort_mod
+         use util_mod, only: NECI_ICOPY
          IMPLICIT NONE
          INTEGER nBasisMax(5,*),NI(NEL),NJ(NEL),NQN(5)
          TYPE(BasisFN) G1(NBASIS)
@@ -44,7 +45,9 @@ C.. Copy NI to NJ
 C.. we need to keep on doing this until we make a valid choice
          DO WHILE(L)
             IEL=INT(RAN2(ISEED)*NEL)+1
-            CALL NECI_ICOPY(4,G1(NJ(IEL)),1,NQN,1)
+            !CALL NECI_ICOPY(4,G1(NJ(IEL)),1,NQN,1)
+            call stop_all('GENNEWDET2',
+     &                  'NQN variable needs to be made into a BasisFN.')
             IQN=3+(NBASISMAX(4,2)-NBASISMAX(4,1))/2
 C.. Sometimes no spin freedom
             IQN=INT(RAN2(ISEED)*IQN)+1
@@ -147,6 +150,7 @@ C.. We do this by exciting an electron into a spinorbital of close energy.
 C.. This does not take into account any symmetries.
       SUBROUTINE GENNEWDET3(NI,NJ,NEL,NBASIS,NBASISMAX,G1,ISEED,NCH,BRR)
         use sort_mod
+         use util_mod, only: NECI_ICOPY
          IMPLICIT NONE
          INTEGER nBasisMax(5,*),NI(NEL),NJ(NEL),NQN(5),G1(*)
          INTEGER NCH,ND,BRR(NBASIS),NBASIS,NEL,ISEED
