@@ -301,7 +301,10 @@ MODULE UMatCache
             ENDIF
 #ifdef __CMPLX            
             UMatInd = (UmatInd-1)*2 + 1 
-            if ((((I.gt.J).and.(K.lt.L)) .or. ((I.lt.J).and.(K.gt.L))) .and. &
+            !PHYSICAL NOTATION!
+            !We need to test whether we have swapped i and k or j and l independantly of each other
+            !If we have done this, it is one of the 'other' integrals - add one.
+            if ((((I.gt.K).and.(J.lt.L)) .or. ((I.lt.K).and.(J.gt.L))) .and. &
                 (I.ne.K) .and. (J.ne.L)) then
                UMatInd = UMatInd + 1
             endif
