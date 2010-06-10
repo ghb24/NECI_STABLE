@@ -514,6 +514,7 @@ MODULE UMatCache
          ! one-particle energies (option is rarely used).
          ! Copy to UMatCache's translation table.
          use global_utilities
+         use util_mod, only: NECI_ICOPY
          IMPLICIT NONE
          INTEGER TRANS(NSTATES),ierr
          character(*), parameter :: thisroutine='SetupUMatTrans'

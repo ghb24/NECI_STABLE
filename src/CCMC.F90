@@ -1167,6 +1167,7 @@ SUBROUTINE InitClustSelectorFull(CS,iMaxSize)
    INTEGER iMaxSize
    CS%tFull=.true.
    CS%iMaxSize=iMaxSize
+   CS%tDynamic=.false.
    Call InitCluster(CS%C)
 END SUBROUTINE InitClustSelectorFull
 
@@ -1176,6 +1177,11 @@ SUBROUTINE InitClustSelectorRandom(CS,iMaxSize,nSelects,dProbSelNewEx)
    TYPE(ClustSelector) CS
    INTEGER iMaxSize,nSelects
    REAL*8 dProbSelNewEx
+   if(nSelects<0) then
+      CS%tDynamic=.true.
+   else
+      CS%tDynamic=.false.
+   endif
    CS%tFull=.false.
    CS%iMaxSize=iMaxSize
    CS%nSelects=nSelects
@@ -1346,6 +1352,31 @@ SUBROUTINE InitMP1Amplitude(tFCI,Amplitude,nExcit,ExcitList,ExcitLevelIndex,dIni
    enddo
 END SUBROUTINE
 
+!This runs over all amplitudes and initializsed them with small random values
+! Amplitude(nExcit)            is the amplitude of each excitor
+! nExcit                       is the number of excitors
+SUBROUTINE InitRandAmplitude(Amplitude,nExcit,dInitAmp,dTotAbsAmpl)
+   use CCMCData
+   use SystemData, only: nEl
+   use FciMCData, only: HFDet
+   use FciMCParMod, only: iLutHF,SumEContrib,BinSearchParts3
+   use Determinants, only: GetH0Element3
+   use constants, only: dp
+   use dSFMT_interface , only : genrand_real2_dSFMT
+   IMPLICIT NONE
+   REAL*8 Amplitude(nExcit)
+   INTEGER nExcit
+   REAL*8 dInitAmp,dTotAbsAmpl
+
+   INTEGER j
+   Amplitude(:)=0
+   Amplitude(1)=dInitAmp
+   dTotAbsAmpl=dInitAmp
+   do j=2,nExcit
+      Amplitude(j)=dInitAmp*(genrand_real2_dSFMT()-0.5)/1000
+      dTotAbsAmpl=dTotAbsAmpl+abs(Amplitude(j))
+   enddo
+END SUBROUTINE
 
 subroutine AttemptSpawn(S,C,Amplitude,dTol,TL,iDebug)
    use SystemData, only: nEl
@@ -1832,8 +1863,13 @@ SUBROUTINE CCMCStandalone(Weight,Energyxw)
    TYPE(CCTransitionLog) TL               ! Store data on transitions
    INTEGER iRefPos
    INTEGER, DIMENSION(lenof_sign) :: TempSign   !ghb24: For compatibility with new walker arrays & routines
+   TYPE(timer) :: CCMC_time
+
+
 
    WRITE(6,*) "Entering CCMC Standalone..."
+   CCMC_time%timer_name='CCMC Standalone'
+   call set_timer(CCMC_time,20)
 
    iRefPos=1  !Always first element
    iDebug=CCMCDebug
@@ -1851,6 +1887,7 @@ SUBROUTINE CCMCStandalone(Weight,Energyxw)
       nAmpl=Det
       iMaxAmpLevel=nEl
    endif
+   write(6,*) "Number of stored amplitudes: ",nAmpl
 ! Setup Memory
    call AllocateAmplitudeList(AL,nAmpl,2)
 
@@ -1882,6 +1919,9 @@ SUBROUTINE CCMCStandalone(Weight,Energyxw)
    if(tStartMP1) then
       write(6,*) "Initializing with MP1 amplitudes."
       CALL InitMP1Amplitude(tCCMCFCI,AL%Amplitude(:,iCurAmpList),nAmpl,FciDets,FCIDetIndex,dInitAmplitude,dTotAbsAmpl)
+   elseif(ICILevel==1) then
+      write(6,*) "Initializing with random amplitudes."
+      CALL InitRandAmplitude(AL%Amplitude(:,iCurAmpList),nAmpl,dInitAmplitude,dTotAbsAmpl)
    else
       AL%Amplitude(1,iCurAmpList)=dInitAmplitude
       iNumExcitors=0
@@ -2096,6 +2136,7 @@ SUBROUTINE CCMCStandalone(Weight,Energyxw)
    endif
    Weight=0.D0
    Energyxw=ProjectionE
+   call halt_timer(CCMC_time)
 END SUBROUTINE CCMCStandalone
 
 SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
@@ -2126,6 +2167,8 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
    use CalcData, only: MemoryFacSpawn
    use AnnihilationMod, only: AnnihilationInterface
    use CalcData, only: DiagSft
+   use CalcData, only: TStartSinglePart
+   use timing, only: print_timing_report
    IMPLICIT NONE
    real(dp) Weight,EnergyxW
    CHARACTER(len=*), PARAMETER :: this_routine='CCMCStandaloneParticle'
@@ -2167,7 +2210,10 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
    INTEGER, allocatable ::  SpawnAmps(:)
    INTEGER tagSpawnList,tagSpawnAmps
    INTEGER nSpawned,nMaxSpawn
+
    LOGICAL tS
+
+   LOGICAL tShifting                      ! Are we in variable shift mode
 
    integer nMaxAmpl
 
@@ -2175,9 +2221,12 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
 
    !ghb24: Changes to allow compatibility with the new packaged walkers.
    INTEGER, DIMENSION(lenof_sign) :: TempSign
+   TYPE(timer) :: CCMC_time
 
 
    WRITE(6,*) "Entering CCMC Standalone Particle..."
+   CCMC_time%timer_name='CCMC Standalone Particle'
+   call set_timer(CCMC_time,20)
 
    iRefPos=1
    iDebug=CCMCDebug
@@ -2223,7 +2272,13 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
 !      write(6,*) "Initializing with MP1 amplitudes."
 !      CALL InitMP1Amplitude(tCCMCFCI,Amplitude(:,iCurAmpList),nAmpl,FciDets,FCIDetIndex,dInitAmplitude,dTotAbsAmpl)
 !   else
-   AL%Amplitude(iRefPos,iCurAmpList)=dInitAmplitude
+   if(TStartSinglePart) then
+      AL%Amplitude(iRefPos,iCurAmpList)=dInitAmplitude
+      tShifting=.false.
+   else
+      AL%Amplitude(iRefPos,iCurAmpList)=dInitAmplitude
+      tShifting=.true.
+   endif
    DetList(:,1)=iLutHF 
       nAmpl=1
       iNumExcitors=0
@@ -2275,6 +2330,13 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
 
 
       call CalcTotals(iNumExcitors,dTotAbsAmpl,AL%Amplitude(:,iCurAmpList),nAmpl,dTolerance*dInitAmplitude,WalkerScale,iRefPos,iDebug)
+!      if(.not.tShifting) then
+!         if(iNumExcitors>dInitAmplitude) then
+!            tShifting=.true.
+!         else
+!            iShiftLeft=2
+!         endif
+!      endif
 
       
       IF(iDebug.gt.1) THEN
@@ -2380,6 +2442,7 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
    Deallocate(DetList)
    Weight=0.D0
    Energyxw=ProjectionE
+   call halt_timer(CCMC_time)
 END SUBROUTINE CCMCStandaloneParticle
 
 

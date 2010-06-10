@@ -44,6 +44,7 @@
          use SystemData , only : TSTOREASEXCITATIONS,BasisFN
          use IntegralsData , only : TCalcRhoProd,TSumProd,TCalcRealProd,TCalcExcitStar,TDiagStarStars,TLinRootChange
          use global_utilities
+         use util_mod, only: NECI_ICOPY
          use HElem
          IMPLICIT NONE
          Type(BasisFN) G1(*)
@@ -2019,6 +2020,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
          use global_utilities
          use legacy_data, only: irat
          use HElem
+         use util_mod, only: NECI_ICOPY
          IMPLICIT NONE
          INTEGER I_V,NEL,I_P,NBASISMAX(*),G1(*),NBASIS,BRR(*),NMSH,NMAX
          INTEGER NTAY,NWHTAY,ILOGGING,LT
@@ -2106,6 +2108,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
          use constants, only: dp     
          use SystemData, only: BasisFN
          use Determinants, only: get_helement
+         use util_mod, only: NECI_ICOPY
          IMPLICIT NONE
          real(dp) FMCPR3Star2
          TYPE(BasisFN) G1(*)
@@ -3569,6 +3572,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
          use SystemData, only: BasisFN
          use sort_mod
          use helem, only: helement_t_size
+         use util_mod, only: NECI_ICOPY
          IMPLICIT NONE
          Type(BasisFN) G1(*)
          INTEGER nI(nEl),nEl,i_P,nBasisMax(5,*),Brr(nBasis),nBasis,nMsh

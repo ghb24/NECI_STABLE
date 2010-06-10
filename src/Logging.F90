@@ -22,8 +22,7 @@ MODULE Logging
     INTEGER , ALLOCATABLE :: NoTruncOrbs(:),HistInitPops(:,:),AllHistInitPops(:,:)
     REAL*8 , ALLOCATABLE :: TruncEvalues(:),OrbOccs(:)
     LOGICAL :: tBlockEveryIteration
-
-
+    LOGICAL tLogDets       ! Write out the DETS and SymDETS files.
 
     contains
 
@@ -95,7 +94,7 @@ MODULE Logging
       tCCMCLogUniq=.true.
       tHistInitPops=.false.
       HistInitPopsIter=100000
-
+      tLogDets=.false.
 
 ! Feb08 defaults
       IF(Feb08) THEN
@@ -564,6 +563,10 @@ MODULE Logging
         case("SAVEPREVARLOGGING")
              PreVarLogging=iLogging
              iLogging=iLoggingDef
+        case("DETS")
+            tLogDets=.true.
+        case("DETERMINANTS")
+            tLogDets=.true.
         case("ENDLOG")
             exit logging
         case default
