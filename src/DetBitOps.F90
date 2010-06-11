@@ -240,6 +240,7 @@ module DetBitOps
         endif
     end function FindSpatialBitExcitLevel
 
+    !WARNING - I think this *may* be buggy - use with caution - ghb24 8/6/10
     pure subroutine get_bit_excitmat (ilutI, iLutJ, ex, IC)
         
         ! Obatin the excitation matrix between two determinants from their bit

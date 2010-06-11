@@ -82,11 +82,9 @@ contains
 
       implicit none
       integer :: i
-      real(4) :: etime,s,t(2)
 
-      s=etime(t)
-      global_time_cpu=t(1)
-      global_time_system=t(2)
+      call cpu_time(global_time_cpu)
+      global_time_system=0
       global_timing_on=.true.
 
       if (.not.allocated(timers)) allocate(timers(ntimer))
@@ -109,10 +107,12 @@ contains
       != Stop global timer for timing the total calculation time.
 
       implicit none
-      real(4) :: etime,s,t(2)
+      real(4) :: t(2)
 
       if (global_timing_on) then
-          s=etime(t)
+          call cpu_time(t(1))
+          t(2)=0
+          
           global_time_cpu=t(1)-global_time_cpu
           global_time_system=t(2)-global_time_system
           global_timing_on=.false.
@@ -143,7 +143,7 @@ contains
       implicit none
       type(timer) :: proc_timer
       integer, optional, intent(in) :: obj_level
-      real(4) :: etime,s,t(2)
+      real(4) :: t(2)
       integer :: timer_level
       integer :: i
 
@@ -183,7 +183,8 @@ contains
               ! start time for the timer of the recursive procedure, then the
               ! correct timings are obtained.
               ! Start the clock.
-              s=etime(t)
+              call cpu_time(t(1))
+              t(2)=0
               proc_timer%store%time_cpu=t(1)
               proc_timer%store%time_system=t(2)
               proc_timer%store%timing_on=.true.
@@ -205,7 +206,7 @@ contains
       implicit none
       type(timer), intent(inout) :: proc_timer
       integer :: i
-      real(4) :: etime,s,t(2)
+      real(4) :: t(2)
       real(4) :: time_cpu,time_system
 
       if (.not.proc_timer%time) then
@@ -215,7 +216,8 @@ contains
           call warning('halt_timer','proc_timer not intialised: '//proc_timer%timer_name)
           timer_error=.true.
       else
-          s=etime(t)
+          call cpu_time(t(1))
+          t(2)=0
           time_cpu=t(1)-proc_timer%store%time_cpu
           time_system=t(2)-proc_timer%store%time_system
           proc_timer%store%sum_time_cpu=proc_timer%store%sum_time_cpu+time_cpu
@@ -252,7 +254,7 @@ contains
       implicit none
       type(timer) :: proc_timer
       logical,optional :: t_elapsed
-      real(4) :: etime,s,t(2)
+      real(4) :: t(2)
 
       if (.not.associated(proc_timer%store)) then
           call warning('get_total_time.','proc_timer not intialised: '//adjustl(proc_timer%timer_name))
@@ -261,7 +263,8 @@ contains
           get_total_time=proc_timer%store%sum_time_cpu+proc_timer%store%sum_time_system
           if (present(t_elapsed)) then
               if (t_elapsed) then
-                  s=etime(t)
+                  call cpu_time(t(1))
+                  t(2)=0
                   get_total_time=get_total_time+t(1)+t(2)-proc_timer%store%time_cpu-proc_timer%store%time_system
               end if
           end if
@@ -290,7 +293,7 @@ contains
       integer :: io=6
       integer :: nobjs
       integer :: i,it,id(1)
-      real(4) :: etime,s,t(2)
+      real(4) :: t(2)
       real(4) :: sum_times(ntimer),total_cpu,total_system
 
       ! Add on a small perturbation for the cases where the total time is 
@@ -335,7 +338,8 @@ contains
           write (io,'(a20,f10.2)')  'Global system time ',global_time_system
           write (io,'(a20,f10.2)')  'Global total time  ',global_time_cpu+global_time_system
       else
-          s=etime(t)
+          call cpu_time(t(1))
+          t(2)=0
           write (io,'(/a20,f10.2)') 'Global CPU time    ',t(1)-global_time_cpu
           write (io,'(a20,f10.2)') 'Global system time',t(2)-global_time_system
       end if
