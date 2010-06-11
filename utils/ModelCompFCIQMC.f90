@@ -9,13 +9,13 @@ Program ModelFCIQMC
     REAL*8, PARAMETER :: ProbNonZero=0.3     !This is probability that off-diagonal matrix elements are non-zero
     REAL*8, PARAMETER :: OffDiagEl=8.D-2     !This is the magnitude of the off-diagonal matrix elements.
 
-    INTEGER :: NDet=15 
+    INTEGER :: NDet=28 
 
     INTEGER, PARAMETER :: lenof_sign=2   !Number of integers needed to store a walker
-    REAL*8, PARAMETER :: Tau=0.01 
+    REAL*8, PARAMETER :: Tau=0.05 
     REAL*8, PARAMETER :: SftDamp=0.2 
-    INTEGER, PARAMETER :: StepsSft=50 
-    INTEGER, PARAMETER :: NMCyc=100
+    INTEGER, PARAMETER :: StepsSft=100
+    INTEGER, PARAMETER :: NMCyc=100000
     INTEGER, PARAMETER :: InitialWalk=1 
     INTEGER, PARAMETER :: TargetWalk=5000
     REAL*8, PARAMETER :: InitialShift=0.D0
@@ -102,10 +102,13 @@ CONTAINS
         allocate(SumWalkListGround(lenof_sign,NDet))
         allocate(Scr(LScr))
         allocate(Work2(LWork2))
+        
+        WRITE(6,*) "NDet = ",NDet
 
     !Set up KMat
         if (tinput_file) then
             call ReadInKMat(input_file,KMat)
+            CALL WriteOutKMat(KMat)
         else
             WRITE(6,*) "Setting up random K-Matrix..."
             CALL SetUpKMat(KMat)
@@ -695,23 +698,41 @@ CONTAINS
         IMPLICIT NONE
         character(255), intent(in) :: input_file
         COMPLEX*16, INTENT(OUT) :: KMat(NDet,NDet)
-        integer :: i,j
+        integer :: i,j,indi,indj
         real*8 :: H00
 
         ! The first line just contains the size of the Hamiltonian matrix.
         ! This has already been read...
         open(13,file=input_file,status='old',form='formatted')
-        read(13,*) i
+        READ(13,*) i
+        IF(i.ne.NDet) STOP 'NDet not correct'
 
-        do i = 1,NDet
-            read (13,*) (KMat(i,j),j=1,NDet)
+        do j = 1,NDet
+            do i = 1,NDet
+                read (13,*) indi,indj,KMat(i,j)
+                IF(indi.ne.i.or.indj.ne.j) THEN
+                    WRITE(6,*) indi,indj,i,j
+                    STOP 'Error reading in hamiltonian'
+                ENDIF
+            enddo
         end do
 
         close(13,status='keep')
 
+        do i=1,NDet
+            IF(abs(AIMAG(KMat(i,i))).gt.1.D-8) THEN
+                STOP 'Diagonal HElements not real'
+            ENDIF
+            do j=1,NDet
+                IF(ABS(AIMAG(KMat(i,j))+AIMAG(KMat(j,i))).gt.1.D-8) THEN
+                    STOP 'Matrix not hermitian'
+                ENDIF
+            enddo
+        enddo
+
         ! K_ij = H_ij - H00 d_ij
-        H00 = KMat(1,1)
-        forall (i=1:NDet) KMat(i,i) = KMat(i,i) - H00
+        H00 = REAL(KMat(1,1),dp)
+        forall (i=1:NDet) KMat(i,i) = CMPLX(REAL(KMat(i,i),dp) - H00,0.D0)
 
     end subroutine ReadInKMat
 
