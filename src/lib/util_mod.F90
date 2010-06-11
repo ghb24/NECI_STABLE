@@ -16,6 +16,63 @@ module util_mod
     
 contains
 
+!--- Array utilities ---
+
+      SUBROUTINE NECI_ICOPY(N,A,IA,B,IB)
+         ! Copy elements from integer array A to B.
+         ! Simple version of BLAS routine ICOPY, which isn't always implemented
+         ! in BLAS.
+         ! Fortran 90 array features allow this to be done in one line of
+         ! standard fortran, so this is just for legacy purposes.
+         ! In:
+         !    N: number of elements in A.
+         !    A: vector to be copied.
+         !    IA: increment between elements to be copied in A.  
+         !        IA=1 for continuous data blocks.
+         !    IB: increment between elements to be copied to in B.  
+         !        IB=1 for continuous data blocks.
+         ! Out:
+         !    B: result vector.
+         IMPLICIT NONE
+!        Arguments
+         INTEGER, INTENT(IN) :: N,IA,IB
+         INTEGER, INTENT(IN) :: A(IA*N)
+         INTEGER, INTENT(OUT) :: B(IB*N)
+!        Variables
+         INTEGER I,IAX,IBX
+     
+         DO I=1,N
+           IAX=(I-1)*IA + 1
+           IBX=(I-1)*IB + 1
+           B(IBX) = A(IAX)
+         ENDDO
+     
+         RETURN
+      END SUBROUTINE NECI_ICOPY
+
+!--- Numerical utilities ---
+
+    ! If all of the compilers supported ieee_arithmetic
+    ! --> could use ieee_value(1.0_dp, ieee_quiet_nan)
+    real(dp) function get_nan ()
+        real(dp) :: a, b
+        a = 1
+        b = 1
+        get_nan = log (a-2*b)
+    end function
+
+    ! If all of the compilers supported ieee_arithmetic
+    ! --> could use ieee_is_nan (r)
+    elemental logical function isnan (r)
+        real(dp), intent(in) :: r
+
+        if ( (r == 0) .and. (r * 1 == 1) ) then
+            isnan = .true.
+        else
+            isnan = .false.
+        endif
+    end function
+
     elemental real*8 function factrl (n)
 
         ! Return the factorial on n, i.e. n!
@@ -56,6 +113,8 @@ contains
             enddo
         endif
     end function choose
+
+!--- Comparison of subarrays ---
     
     logical pure function det_int_arr_gt (a, b, len)
         use constants, only: n_int
@@ -143,6 +202,8 @@ contains
         det_int_arr_eq = .true.
     end function det_int_arr_eq
 
+!--- Output utilties ---
+
     elemental function int_fmt(i, padding) result(fmt1)
 
         ! In:
@@ -184,6 +245,8 @@ contains
         end if
 
     end function int_fmt
+
+!--- Searching ---
 
     ! NOTE: This can only be used for binary searching determinant bit 
     !       strings now. We can template it if it wants to be more general 
@@ -240,6 +303,26 @@ contains
         endif
 
     end function
+
+!--- File utilities ---
+
+    integer function record_length(bytes)
+       ! Some compilers use record lengths in units of bytes.
+       ! Some compilers use record lengths in units of words.
+       ! This is an utter *pain* for reading unformatted files,
+       ! where you must specify the record length.
+       !
+       ! In:
+       !    bytes: number of bytes in record type of interest (should
+       !    be a multiple of 4).
+       !
+       ! Returns:
+       !    record_length: size of record in units of the compiler's
+       !    choice.
+       integer, intent(in) :: bytes
+       inquire(iolength=record_length) bytes
+       record_length = (bytes/4)*record_length 
+    end function record_length
 
     subroutine append_ext(stem, n, s)
 
@@ -336,26 +419,5 @@ contains
         if (i == max_unit+1) call stop_all('get_free_unit','Cannot find a free unit below max_unit.')
 
     end function get_free_unit
-
-    ! If all of the compilers supported ieee_arithmetic
-    ! --> could use ieee_value(1.0_dp, ieee_quiet_nan)
-    real(dp) function get_nan ()
-        real(dp) :: a, b
-        a = 1
-        b = 1
-        get_nan = log (a-2*b)
-    end function
-
-    ! If all of the compilers supported ieee_arithmetic
-    ! --> could use ieee_is_nan (r)
-    elemental logical function isnan (r)
-        real(dp), intent(in) :: r
-
-        if ( (r == 0) .and. (r * 1 == 1) ) then
-            isnan = .true.
-        else
-            isnan = .false.
-        endif
-    end function
 
 end module

@@ -409,6 +409,7 @@ C.. NSTARTFN is the basis fn to start with for this electron
      &         ICLIST,NLISTPOS,NEXCIT,NLEFT,NSTARTFN,NMIN,G1,ISYM,TSYM,
      &         NBASISMAX,TCOUNT)
          use SystemData, only: BasisFN,tFixLz
+         use util_mod, only: NECI_ICOPY
          IMPLICIT NONE
          INTEGER NEL,NELEC,NORDER,NLISTPOS,NLEFT,NBASIS,NSTARTFN,NNLEFT
          INTEGER NI(NEL),NEXCIT(NEL),LIST(NEL,*),ICLIST(*)

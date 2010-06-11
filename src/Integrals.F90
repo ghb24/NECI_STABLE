@@ -859,6 +859,7 @@ contains
        Use UMatCache, only: FreezeUMatCache, CreateInvBrr2,FreezeUMat2D, SetupUMatTransTable
        use UMatCache, only: GTID
        use global_utilities
+       use util_mod, only: NECI_ICOPY
 
        IMPLICIT NONE
        INTEGER NHG,NBASIS,nBasisMax(5,*),ISS
@@ -966,7 +967,6 @@ contains
              GG(I)=K
 !C.. copy the eigenvalue table to the new location
              G2(K)=G1(I)
-!             CALL NECI_ICOPY(BasisFNSize,G1(I),1,G2(K),1)
           ENDIF
        ENDDO
 
@@ -1018,7 +1018,6 @@ contains
           do i=1,nbasis
               G1(i)=G2(i)
           enddo
-!          CALL NECI_ICOPY(BasisFNSize*NBASIS,G2,1,G1,1)
           !Redo SYMLABELCOUNTS
           CALL GENSymStatePairs(NBASIS/2,.true.)
        ENDIF
@@ -1334,7 +1333,6 @@ contains
           do i=1,NBASIS
               G1(i)=G2(i)
           enddo
-!          CALL NECI_ICOPY(BasisFNSize*NBASIS,G2,1,G1,1)
        ENDIF 
 
        FREEZETRANSFER=.false.

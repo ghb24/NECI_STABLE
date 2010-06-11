@@ -16,6 +16,7 @@ C.. the best vertex at each level.
      &               WLRI,WLSI)
          use global_utilities
          use util_mod, only: isnan
+         use util_mod, only: NECI_ICOPY
          IMPLICIT REAL*8 (A-H,O-Z)
          DIMENSION IPATH(NEL,0:I_VMAX)
          INTEGER NI(NEL)
@@ -119,6 +120,7 @@ C.. save all log files
      &   NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,
      &   RHOEPS,RHOII,RHOIJ,NWHTAY,I_HMAX,ILOGGING,TSYM,
      &   ECORE,ICOUNT)
+         use util_mod, only: NECI_ICOPY
          IMPLICIT NONE
          INTEGER NEL,NI(NEL),I_P,IPATH(NEL,0:I_V),I_V
          INTEGER nBasisMax(5,*),G1,NBASIS,BRR(NBASIS),NMAX
@@ -126,7 +128,7 @@ C.. save all log files
          LOGICAL TSYM
          REAL*8 BETA,FCK(*),ALAT(*),UMAT(*),ECORE
          REAL*8 RHOEPS,RHOII(0:I_V),RHOIJ(0:I_V,0:I_V)
-         INTEGER I,J,K,NELEC,NADJ,ICE,NBEST
+         INTEGER I,J,K,NELEC,NADJ,ICE,NBEST(NEL)
          REAL*8 RH,CALCPATHS,VALUE,NVALUE,RAT
          LOGICAL LCANMOVE,LISINPATH
          LOGICAL TLOG,TLOG2,LDONE

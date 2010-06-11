@@ -64,39 +64,4 @@ contains
 
     end function genrand_real2_dSFMT
 
-    subroutine test_mt()
-
-        use mt95
-        real(4) :: t1(2), t2(2), s, etime
-        real(dp) :: r
-        integer :: i
-
-        call genrand_init(7)
-        s = etime(t1)
-        do i = 1, 10**9
-            call genrand_real2(r)
-        end do
-        s = etime(t2)
-        write (6,*) 'mt95',r,t2-t1
-
-        call init_gen_rand(7)
-        s = etime(t1)
-        do i = 1, 10**9
-            r = genrand_close_open()
-        end do
-        s = etime(t2)
-        write (6,*) 'dSFMT',r,t2-t1
-
-        call dSFMT_init(7)
-        s = etime(t1)
-        do i = 1, 10**9
-            r = genrand_real2_dSFMT()
-        end do
-        s = etime(t2)
-        write (6,*) 'dSFMT2',r,t2-t1
-
-        stop
-
-    end subroutine test_mt
-
 end module dSFMT_interface
