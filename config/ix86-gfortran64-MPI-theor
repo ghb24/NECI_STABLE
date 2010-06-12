@@ -11,7 +11,7 @@ module_flag = -M
 
 [dbg]
 fflags = -fcray-pointer -ffree-line-length-none -g -m64 -I/usr/local/shared/suse-11.1/x86_64/openmpi-1.3.1-gnu/lib
-cflags = -g -errtags -m64
+cflags = -g -m64
 f90flags = -fbounds-check
 
 [opt]

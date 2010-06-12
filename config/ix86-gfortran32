@@ -11,7 +11,7 @@ module_flag = -M
 
 [dbg]
 fflags = -fcray-pointer -ffree-line-length-none -g -m32
-cflags = -g -errtags -m32
+cflags = -g -m32
 f90flags = -fbound-check
 
 [opt]
