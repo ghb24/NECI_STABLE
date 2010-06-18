@@ -93,6 +93,10 @@ MODULE FciMCParMod
 
         ! Initial output
         call WriteFciMCStatsHeader()
+        ! Prepend a # to the initial status line so analysis doesn't pick up
+        ! repetitions in the FCIMCSTATS file from restarts.
+        write (6,'("#")', advance='no')
+        write (fcimcstats_unit,'("#")', advance='no')
         call WriteFCIMCStats()
 
         ! Put a barrier here so all processes synchronise before we begin.
