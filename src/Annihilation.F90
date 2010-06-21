@@ -283,11 +283,11 @@ MODULE AnnihilationMod
             IF(.not.DetBitEQ(SpawnedParts(0:NIfTot,i),SpawnedParts2(0:NIfTot,VecInd),NIfDBO)) THEN
                 !Determinant (i) is not the same as the last one which was copied across (VecInd)
                 call extract_sign(SpawnedParts2(:,VecInd),SpawnedSign)
-                IF(lenof_sign.eq.1) THEN
-                    IF(SpawnedSign(1).eq.0) ToRemove=ToRemove+1
-                ELSE
-                    IF((SpawnedSign(1).eq.0).and.(SpawnedSign(2).eq.0)) ToRemove=ToRemove+1
-                ENDIF
+#ifndef __CMPLX
+                IF(SpawnedSign(1).eq.0) ToRemove=ToRemove+1
+#else
+                IF((SpawnedSign(1).eq.0).and.(SpawnedSign(2).eq.0)) ToRemove=ToRemove+1
+#endif
                 VecInd=VecInd+1
                 SpawnedParts2(:,VecInd)=SpawnedParts(:,i)
             ELSE
@@ -382,32 +382,32 @@ MODULE AnnihilationMod
             CALL Stop_All("CompressSpawnedList","Error in compression of spawned particle list")
         ENDIF
         call extract_sign(SpawnedParts2(:,ValidSpawned),SpawnedSign)
-        IF(lenof_sign.eq.1) THEN
-            IF((SpawnedSign(1).eq.0).and.(ValidSpawned.gt.0)) ToRemove=ToRemove+1
-        ELSE
-            IF((SpawnedSign(1).eq.0).and.(SpawnedSign(2).eq.0).and.(ValidSpawned.gt.0)) ToRemove=ToRemove+1
-        ENDIF
+#ifndef __CMPLX            
+        IF((SpawnedSign(1).eq.0).and.(ValidSpawned.gt.0)) ToRemove=ToRemove+1
+#else            
+        IF((SpawnedSign(1).eq.0).and.(SpawnedSign(2).eq.0).and.(ValidSpawned.gt.0)) ToRemove=ToRemove+1
+#endif            
 
 !Now remove zeros. Not actually necessary, but will be useful I suppose? Shouldn't be too much hassle.
 !We can also use it to copy the particles back to SpawnedParts array
         DetsMerged=0
         do i=1,ValidSpawned
             call extract_sign(SpawnedParts2(:,i),SpawnedSign)
-            IF(lenof_sign.eq.1) THEN
-                IF(SpawnedSign(1).eq.null_part(1)) THEN
-                    DetsMerged=DetsMerged+1
-                ELSE
-!We want to move all the elements above this point down to 'fill in' the annihilated determinant.
-                    SpawnedParts(0:NIfTot,i-DetsMerged)=SpawnedParts2(0:NIfTot,i)
-                ENDIF
+#ifndef __CMPLX            
+            IF(SpawnedSign(1).eq.null_part(1)) THEN
+                DetsMerged=DetsMerged+1
             ELSE
-                IF((SpawnedSign(1).eq.0).and.(SpawnedSign(2).eq.0)) THEN
-                    DetsMerged=DetsMerged+1
-                ELSE
 !We want to move all the elements above this point down to 'fill in' the annihilated determinant.
-                    SpawnedParts(0:NIfTot,i-DetsMerged)=SpawnedParts2(0:NIfTot,i)
-                ENDIF
+                SpawnedParts(0:NIfTot,i-DetsMerged)=SpawnedParts2(0:NIfTot,i)
             ENDIF
+#else                
+            IF((SpawnedSign(1).eq.0).and.(SpawnedSign(2).eq.0)) THEN
+                DetsMerged=DetsMerged+1
+            ELSE
+!We want to move all the elements above this point down to 'fill in' the annihilated determinant.
+                SpawnedParts(0:NIfTot,i-DetsMerged)=SpawnedParts2(0:NIfTot,i)
+            ENDIF
+#endif                
         enddo
         IF(DetsMerged.ne.ToRemove) THEN
             WRITE(6,*) 'DetsMerged = ',DetsMerged
@@ -561,20 +561,20 @@ MODULE AnnihilationMod
             do i=1,ValidSpawned
 !We want to move all the elements above this point down to 'fill in' the annihilated determinant.
                 call extract_sign(SpawnedParts(:,i),SignTemp)
-                IF(lenof_sign.eq.1) THEN
-                    IF(SignTemp(1).eq.null_part(1)) THEN
-                        DetsMerged=DetsMerged+1
-                    ELSE
-                        SpawnedParts2(0:NIfTot,i-DetsMerged)=SpawnedParts(0:NIfTot,i)
-                    ENDIF
+#ifndef __CMPLX                
+                IF(SignTemp(1).eq.null_part(1)) THEN
+                    DetsMerged=DetsMerged+1
                 ELSE
-                    !Complex case
-                    IF((SignTemp(1).eq.0).and.(SignTemp(2).eq.0)) THEN
-                        DetsMerged=DetsMerged+1
-                    ELSE
-                        SpawnedParts2(0:NIfTot,i-DetsMerged)=SpawnedParts(0:NIfTot,i)
-                    ENDIF
+                    SpawnedParts2(0:NIfTot,i-DetsMerged)=SpawnedParts(0:NIfTot,i)
                 ENDIF
+#else                    
+                !Complex case
+                IF((SignTemp(1).eq.0).and.(SignTemp(2).eq.0)) THEN
+                    DetsMerged=DetsMerged+1
+                ELSE
+                    SpawnedParts2(0:NIfTot,i-DetsMerged)=SpawnedParts(0:NIfTot,i)
+                ENDIF
+#endif                    
             enddo
             ValidSpawned=ValidSpawned-DetsMerged
             IF(DetsMerged.ne.ToRemove) THEN
@@ -623,75 +623,75 @@ MODULE AnnihilationMod
         IF(TotWalkersNew.gt.0) THEN
             do i=1,TotWalkersNew
                 call extract_sign(CurrentDets(:,i),CurrentSign)
-                IF(lenof_sign.eq.1) THEN
-                    !real case
-                    IF(CurrentSign(1).eq.null_part(1)) THEN
-                        DetsMerged=DetsMerged+1
-                        IF(tTruncInitiator.and.CurrentDets(NIfTot,i).ne.1) THEN
-                            NoAddedInitiators=NoAddedInitiators-1.D0
-                        ENDIF
-                    ELSE
-!We want to move all the elements above this point down to 'fill in' the annihilated determinant.
-                        IF(DetsMerged.ne.0) THEN
-                            CurrentDets(0:NIfTot,i-DetsMerged)=CurrentDets(0:NIfTot,i)
-                            IF(.not.tRegenDiagHEls) THEN
-                                CurrentH(i-DetsMerged)=CurrentH(i)
-                            ENDIF
-                        ENDIF
-                        TotParts=TotParts+abs(CurrentSign(1))
-                        IF(tCheckHighestPop) THEN
-!If this option is on, then we want to compare the weight on each determinant to the weight at the HF determinant.
-!Record the highest weighted determinant on each processor.
-                            IF((abs(CurrentSign(1))).gt.iHighestPop) THEN
-                                IF(tHPHF) THEN
-                                    !For HPHF functions, we restrict ourselves to closed shell determinants for simplicity.
-                                    IF(TestClosedShellDet(CurrentDets(0:NIfDBO,i))) THEN
-                                        !HPHF func is closed shell - we can move to this without problems.
-                                        iHighestPop=abs(CurrentSign(1))
-                                        HighestPopDet(:)=CurrentDets(:,i)
-                                    ENDIF
-                                ELSE
-                                    iHighestPop=abs(CurrentSign(1))
-                                    HighestPopDet(:)=CurrentDets(:,i)
-                                ENDIF
-                            ENDIF
-                        ENDIF
+#ifndef __CMPLX
+                !real case
+                IF(CurrentSign(1).eq.null_part(1)) THEN
+                    DetsMerged=DetsMerged+1
+                    IF(tTruncInitiator.and.CurrentDets(NIfTot,i).ne.1) THEN
+                        NoAddedInitiators=NoAddedInitiators-1.D0
                     ENDIF
                 ELSE
-                    !complex case
-                    IF((CurrentSign(1).eq.0).and.(CurrentSign(2).eq.0)) THEN
-                        DetsMerged=DetsMerged+1
-                        IF(tTruncInitiator.and.CurrentDets(NIfTot,i).ne.1) THEN
-                            NoAddedInitiators=NoAddedInitiators-1.D0
-                        ENDIF
-                    ELSE
 !We want to move all the elements above this point down to 'fill in' the annihilated determinant.
-                        IF(DetsMerged.ne.0) THEN
-                            CurrentDets(0:NIfTot,i-DetsMerged)=CurrentDets(0:NIfTot,i)
-                            IF(.not.tRegenDiagHEls) THEN
-                                CurrentH(i-DetsMerged)=CurrentH(i)
-                            ENDIF
+                    IF(DetsMerged.ne.0) THEN
+                        CurrentDets(0:NIfTot,i-DetsMerged)=CurrentDets(0:NIfTot,i)
+                        IF(.not.tRegenDiagHEls) THEN
+                            CurrentH(i-DetsMerged)=CurrentH(i)
                         ENDIF
-                        TotParts=TotParts+abs(CurrentSign(1))+abs(CurrentSign(2))
-                        IF(tCheckHighestPop) THEN
+                    ENDIF
+                    TotParts=TotParts+abs(CurrentSign(1))
+                    IF(tCheckHighestPop) THEN
 !If this option is on, then we want to compare the weight on each determinant to the weight at the HF determinant.
 !Record the highest weighted determinant on each processor.
-                            IF((abs(CurrentSign(1))).gt.iHighestPop) THEN
-                                IF(tHPHF) THEN
-                                    !For HPHF functions, we restrict ourselves to closed shell determinants for simplicity.
-                                    IF(TestClosedShellDet(CurrentDets(0:NIfDBO,i))) THEN
-                                        !HPHF func is closed shell - we can move to this without problems.
-                                        iHighestPop=abs(CurrentSign(1))
-                                        HighestPopDet(:)=CurrentDets(:,i)
-                                    ENDIF
-                                ELSE
+                        IF((abs(CurrentSign(1))).gt.iHighestPop) THEN
+                            IF(tHPHF) THEN
+                                !For HPHF functions, we restrict ourselves to closed shell determinants for simplicity.
+                                IF(TestClosedShellDet(CurrentDets(0:NIfDBO,i))) THEN
+                                    !HPHF func is closed shell - we can move to this without problems.
                                     iHighestPop=abs(CurrentSign(1))
                                     HighestPopDet(:)=CurrentDets(:,i)
                                 ENDIF
+                            ELSE
+                                iHighestPop=abs(CurrentSign(1))
+                                HighestPopDet(:)=CurrentDets(:,i)
                             ENDIF
                         ENDIF
                     ENDIF
-                ENDIF   !endif real/complex
+                ENDIF
+#else
+                !complex case
+                IF((CurrentSign(1).eq.0).and.(CurrentSign(2).eq.0)) THEN
+                    DetsMerged=DetsMerged+1
+                    IF(tTruncInitiator.and.CurrentDets(NIfTot,i).ne.1) THEN
+                        NoAddedInitiators=NoAddedInitiators-1.D0
+                    ENDIF
+                ELSE
+!We want to move all the elements above this point down to 'fill in' the annihilated determinant.
+                    IF(DetsMerged.ne.0) THEN
+                        CurrentDets(0:NIfTot,i-DetsMerged)=CurrentDets(0:NIfTot,i)
+                        IF(.not.tRegenDiagHEls) THEN
+                            CurrentH(i-DetsMerged)=CurrentH(i)
+                        ENDIF
+                    ENDIF
+                    TotParts=TotParts+abs(CurrentSign(1))+abs(CurrentSign(2))
+                    IF(tCheckHighestPop) THEN
+!If this option is on, then we want to compare the weight on each determinant to the weight at the HF determinant.
+!Record the highest weighted determinant on each processor.
+                        IF((abs(CurrentSign(1))).gt.iHighestPop) THEN
+                            IF(tHPHF) THEN
+                                !For HPHF functions, we restrict ourselves to closed shell determinants for simplicity.
+                                IF(TestClosedShellDet(CurrentDets(0:NIfDBO,i))) THEN
+                                    !HPHF func is closed shell - we can move to this without problems.
+                                    iHighestPop=abs(CurrentSign(1))
+                                    HighestPopDet(:)=CurrentDets(:,i)
+                                ENDIF
+                            ELSE
+                                iHighestPop=abs(CurrentSign(1))
+                                HighestPopDet(:)=CurrentDets(:,i)
+                            ENDIF
+                        ENDIF
+                    ENDIF
+                ENDIF
+#endif
             enddo
             TotWalkersNew=TotWalkersNew-DetsMerged
         ENDIF
@@ -707,19 +707,19 @@ MODULE AnnihilationMod
 !The list has previously been compressed.
         IF(ValidSpawned.gt.0) THEN
             call extract_sign(SpawnedParts(:,1),SpawnedSign)
-            IF(lenof_sign.eq.1) THEN
-                TotParts=TotParts+abs(SpawnedSign(1))
-            ELSE
-                TotParts=TotParts+abs(SpawnedSign(1))+abs(SpawnedSign(2))
-            ENDIF
+#ifndef __CMPLX
+            TotParts=TotParts+abs(SpawnedSign(1))
+#else
+            TotParts=TotParts+abs(SpawnedSign(1))+abs(SpawnedSign(2))
+#endif
         ENDIF
         do i=2,ValidSpawned
             call extract_sign(SpawnedParts(:,i),SpawnedSign)
-            IF(lenof_sign.eq.1) THEN
-                TotParts=TotParts+abs(SpawnedSign(1))
-            ELSE
-                TotParts=TotParts+abs(SpawnedSign(1))+abs(SpawnedSign(2))
-            ENDIF
+#ifndef __CMPLX
+            TotParts=TotParts+abs(SpawnedSign(1))
+#else                
+            TotParts=TotParts+abs(SpawnedSign(1))+abs(SpawnedSign(2))
+#endif            
         enddo
 
 !        CALL CheckOrdering(SpawnedParts,SpawnedSign(1:ValidSpawned),ValidSpawned,.true.)

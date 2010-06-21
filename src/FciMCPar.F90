@@ -2968,35 +2968,36 @@ MODULE FciMCParMod
         ! This will normally increment with j, except when a particle dies
         ! completely (so VecSlot <= j, and we can't overwrite a walker we
         ! haven't got to yet).
-        IF(lenof_sign.eq.1) THEN
-            if (CopySign(1).ne.0) then
-                IF(tTruncInitiator.and.(sign(1,CopySign(1)).ne.sign(1,wSign(1)))) THEN
-                    !Abort creation of antiparticles if using initiator
+#ifndef __CMPLX            
+        if (CopySign(1).ne.0) then
+            IF(tTruncInitiator.and.(sign(1,CopySign(1)).ne.sign(1,wSign(1)))) THEN
+                !Abort creation of antiparticles if using initiator
 !                    WRITE(6,*) "Creating Antiparticles"
-                    NoAborted=NoAborted+abs(CopySign(1)) 
-                    if(extract_flags(iLutCurr).ne.1) then
-                        NoAddedInitiators=NoAddedInitiators-1.D0
-                    endif
-
-                ELSE
-                    !Normally we will go in this block
-                    call encode_bit_rep(CurrentDets(:,VecSlot),iLutCurr,CopySign,extract_flags(iLutCurr))
-                    if (.not.tRegenDiagHEls) CurrentH(VecSlot) = Kii
-                    VecSlot = VecSlot + 1
-                ENDIF
-            elseif(tTruncInitiator) then
-                ! All particles on this determinant have gone. If the determinant was an initiator, update the stats
+                NoAborted=NoAborted+abs(CopySign(1)) 
                 if(extract_flags(iLutCurr).ne.1) then
                     NoAddedInitiators=NoAddedInitiators-1.D0
                 endif
-            endif
-        ELSE
-            IF((CopySign(1).ne.0).or.(CopySign(2).ne.0)) THEN
+
+            ELSE
+                !Normally we will go in this block
                 call encode_bit_rep(CurrentDets(:,VecSlot),iLutCurr,CopySign,extract_flags(iLutCurr))
                 if (.not.tRegenDiagHEls) CurrentH(VecSlot) = Kii
-                VecSlot=VecSlot+1
+                VecSlot = VecSlot + 1
             ENDIF
+        elseif(tTruncInitiator) then
+            ! All particles on this determinant have gone. If the determinant was an initiator, update the stats
+            if(extract_flags(iLutCurr).ne.1) then
+                NoAddedInitiators=NoAddedInitiators-1.D0
+            endif
+        endif
+#else
+        !In complex case, fill slot if either real or imaginary particle still there.
+        IF((CopySign(1).ne.0).or.(CopySign(2).ne.0)) THEN
+            call encode_bit_rep(CurrentDets(:,VecSlot),iLutCurr,CopySign,extract_flags(iLutCurr))
+            if (.not.tRegenDiagHEls) CurrentH(VecSlot) = Kii
+            VecSlot=VecSlot+1
         ENDIF
+#endif            
 
     end subroutine
 
