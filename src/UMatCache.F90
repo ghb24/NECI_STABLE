@@ -282,18 +282,24 @@ MODULE UMatCache
                 
             UMatInd=((BB*(BB-1))/2)+AA
             RETURN
-         ELSE
+
+         ELSE   ! Normal Indexing scheme
+
+            !Combine indices I and K, ensuring I>K
             IF(I.GT.K) THEN
                 A=(I*(I-1))/2+K
             ELSE
                 A=(K*(K-1))/2+I
             ENDIF
          
+            !Combine indices J and L, ensuring J>K
             IF(J.GT.L) THEN
                 B=(J*(J-1))/2+L 
             ELSE
                 B=(L*(L-1))/2+J
             ENDIF
+
+            !Combine (IK) and (JL) in a unique way  (k > l or if k = l then i > j)
             IF(A.GT.B) THEN
                 UMatInd=(A*(A-1))/2+B
             ELSE
@@ -301,7 +307,6 @@ MODULE UMatCache
             ENDIF
 #ifdef __CMPLX            
             UMatInd = (UmatInd-1)*2 + 1 
-            !PHYSICAL NOTATION!
             !We need to test whether we have swapped i and k or j and l independantly of each other
             !If we have done this, it is one of the 'other' integrals - add one.
             if (((I.gt.K).and.(J.lt.L)) .or. ((I.lt.K).and.(J.gt.L))) then
@@ -315,122 +320,63 @@ MODULE UMatCache
          integer, intent(in) :: I,J,K,L
          HElement_t, intent(in) :: val
 #ifdef __CMPLX
-         INTEGER :: IDI,IDJ,IDK,IDL,ITYPE,ISWAP,ISTAR,A,B
-!         logical tConj
-!         tConj = .false.
-!         if (((I.ne.K).and.((I+K)>(J+L))) .or. (J.eq.L)) then
-!            if (I < K) then
-!                tConj = .true.
-!            endif
-!         else
-!            if (J < L) then
-!                tConj = .true.
-!            endif
-!         endif
-!
-!         if (tConj) then
-!            UMatConj = dconjg(val)
-!         else
-!            UMatConj = val
-!         end if
+         INTEGER :: IDI,IDJ,IDK,IDL,NewA,A
 
-!ported from getcachedumatind
-            IDI=I
-            IDJ=J
-            IDK=K
-            IDL=L
-
-            ITYPE=0
-            ISTAR=0
-            ISWAP=0
-            IF(IDK.LT.IDI) THEN
-               CALL SWAP(IDI,IDK)
-               ISTAR=IOR(ISTAR,1)
-            ENDIF
-            IF(IDL.LT.IDJ) THEN
-               CALL SWAP(IDJ,IDL)
-               ISTAR=IOR(ISTAR,2)
-            ENDIF
-            A=IDK*(IDK-1)/2+IDI
-            B=IDL*(IDL-1)/2+IDJ
-            IF(A.GT.B) THEN
-               CALL SWAP(A,B)
-               CALL SWAP(IDI,IDJ)
-               CALL SWAP(IDK,IDL)
-               ISWAP=1
-            ENDIF
-!  Complex orbitals and integrals, so we need to consider different types
-!  Using notation abcd rather than ijkl.  6/2/07 and 19/2/06
-!
-!  <> mean swap pairs <ab|cd> -> <ba|dc>
-!  *.  means complex conjugate of first codensity i.e. <ab|cd> -> <ca|bd>
-!  .* for second and ** for both.
-!
-!  abcd   -> badc <>
-!  |  |
-!  | \|/       |-> cdab ** -> dcba **<>
-!  | cbad *.  -|
-!  |           |-> bcda *.<>
-! \|/
-!  adcb .* -> dabc .*<>
-
-!Now consider what must occur to the other integral in the slot to recover pair (abcd,cbad).  0 indicates 1st in slot, 1 means 2nd.  * indicated conjg.
-!
-!  ..    abcd  cbad  0  1
-!  *.    cbad  abcd  1  0
-!  .*    adcb  cbad  1* 0*
-!  **    cdab  adcb  0* 1*
-!    <>  badc  dabc  0  1*
-!  *.<>  bcda  dcba  1* 0
-!  .*<>  dabc  badc  1  0*
-!  **<>  dcba  bcda  0* 1
-
-
-! Of the type, bit zero indicates which of the two integrals in a slot to use.  Bit 1 is set if the integral should be complex conjugated.
-!   Bit 2 is set if the other integral in the slot should be complex conjugated if we are to have the structure (<ij|kl>,<kj|il>) in the slot.
-!      This is only used by CacheUMatEl when adding a slot to the cache.
-!
-!  <ij|u|kl> and <kj|u|il> (which are distinct when complex orbitals are used).
-!  TYPE 0          TYPE 1
-!
-!
-        IF(ISTAR.EQ.0) THEN
-           IF(ISWAP.EQ.0) THEN
-              ITYPE=0  !0  1
-           ELSE
-              ITYPE=4  !0  1*
-           ENDIF
-        ELSEIF(ISTAR.EQ.1) THEN
-!  If we star the first pair, that corresponds to the plain TYPE 1.  If we swap too, then we complex conj.
-           IF(ISWAP.EQ.0) THEN
-              ITYPE=1  !1  0
-           ELSE
-              ITYPE=3  !1* 0
-           ENDIF
-        ELSEIF(ISTAR.EQ.2) THEN
-!  If we star the second pair, that corresponds to TYPE 1.
-!  If there's no swap, it's complex conjugated, otherwise it's not.
-           IF(ISWAP.EQ.0) THEN
-              ITYPE=7  !1* 0*
-           ELSE
-              ITYPE=1  !1  0*
-           ENDIF
-        ELSEIF(ISTAR.EQ.3) THEN
-! We've starred both pairs
-!  We complex conjg setting bit 1 but using type 0
-           IF(ISWAP.EQ.0) THEN
-              ITYPE=6  !0* 1*
-           ELSE
-              ITYPE=2  !0* 1
-           ENDIF
-        ENDIF
-        if (BTEST(ITYPE,1)) then    ! Bit 1 tells us whether we need to complex conjg the integral
-           UMatConj = dconjg(val)
-        else
-           UMatConj = val
-        end if
-        
-
+         !Changing index ordering for the real ordering.
+         IDI=I
+         IDJ=J
+         IDK=K
+         IDL=L
+ 
+         !First find rearranged indices.
+         IF(idi.lt.idk) then
+             !swap idi and idk
+             call swap(idi,idk)
+         ENDIF
+ 
+         IF(idj.lt.idl) then
+             !swap idj and idl
+             call swap(idj,idl)
+         ENDIF
+ 
+         IF((idl.lt.idk).or.((idl.eq.idk).and.(idi.lt.idj))) THEN
+             !We would want to swap the (ik) and (jl) pair.
+             call swap(idi,idj)
+             call swap(idk,idl)
+         ENDIF
+ 
+         !Indices now permuted to the real case ordering. Is this now the same integral?
+         if (((I.gt.K).and.(J.lt.L)) .or. ((I.lt.K).and.(J.gt.L))) then
+             !Type II integral - reducing to lowest ordering will give 'other'
+             !integral, where one of (ik) and (jl) pairs have been swapped independantly.
+             !If i = k, or j = l, we do not go through here.
+             call swap(idi,idk)  !Revert back to the correct integral by swapping just i and k.
+         endif
+ 
+         !Want to see if the pairs of indices have swapped sides.
+         !Make unique index from the ij and kl pairs
+         IF(IDI.gt.IDJ) THEN
+             A=IDI*(IDI-1)/2+IDJ
+         ELSE
+             A=IDJ*(IDJ-1)/2+IDI
+         ENDIF
+ 
+         !Create uniques indices from the original pairs of indices.
+         !We only need to consider whether the (ij) pair has swapped sides, since
+         !the <ij|ij> and <ij|ji> integrals are real by construction, and so we do not
+         !need to consider what happens if the (ij) pair = (kl) pair.
+         IF(I.gt.J) THEN
+             NewA=I*(I-1)/2+J
+         ELSE
+             NewA=J*(J-1)/2+I
+         ENDIF
+ 
+         !Check whether pairs of indices have swapped sides.
+         IF(NewA.ne.A) THEN
+             UMatConj=CONJG(val) !Index pair i and j have swapped sides - take CC.
+         ELSE
+             UMatConj=val
+         ENDIF
 
 #else
          UMatConj = val
