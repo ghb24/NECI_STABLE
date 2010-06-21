@@ -90,7 +90,7 @@ my_make := $(MAKE) -f $(my_makefile)
 
 # pre-processing.
 CPP = %(cpp)s
-CPPFLAGS = -DMAXMEM='$(MAXMEM)' -D_VCS_VER='$(VCS_VERSION)' $(WORKING_DIR_CHANGES) -D_CONFIG='"$(CONFIG).($(OPT))"' -DDSFMT_MEXP=19937 -D__SHARED_MEM %(cppflags)s
+CPPFLAGS = -DMAXMEM='$(MAXMEM)' -D_VCS_VER='$(VCS_VERSION)' $(WORKING_DIR_CHANGES) -D_CONFIG='"$(CONFIG).($(OPT))"' -DDSFMT_MEXP=19937 %(cppflags)s
 GCPPFLAG = -DHElement_t="real(dp)"
 KCPPFLAG = -DHElement_t="complex(dp)"
 
