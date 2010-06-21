@@ -11,7 +11,7 @@ libs = -L /Library/Frameworks/Intel_MKL.framework/Versions/9.1.026/lib/em64t/ -l
 
 [dbg]
 fflags = -g
-cflags = -g -sb -C -errtags
+cflags = -g -C
 f90flags = -check bounds
 
 [opt]

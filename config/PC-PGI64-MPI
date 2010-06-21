@@ -11,7 +11,7 @@ module_flag = -module
 
 [dbg]
 fflags = -g -r8 pc=64 -Msignextend -Minform=warn
-cflags = -g -sb -C -errtags
+cflags = -g -C
 f90flags = -Mfree -Mbounds
 
 [opt]
