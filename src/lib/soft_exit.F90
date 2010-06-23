@@ -38,7 +38,9 @@ module soft_exit
                          TotWalkers,tPrintHighPop
     use CalcData, only: Tau, DiagSft, SftDamp, StepsSft, SinglesBias, &
                         OccCASOrbs, VirtCASOrbs, NMCyc, tTruncCAS, &
-                        NEquilSteps, tTruncInitiator, InitiatorWalkNo
+                        NEquilSteps, tTruncInitiator, InitiatorWalkNo, &
+                        tCheckHighestPop, tRestartHighPop, tChangeProjEDet, &
+                        tCheckHighestPopOnce, FracLargerDet
     use DetCalcData, only: ICILevel
     use IntegralsData, only: tPartFreezeCore, NPartFrozen, NHolesFrozen, &
                              NVirtPartFrozen, NelVirtFrozen, tPartFreezeVirt
@@ -96,11 +98,15 @@ contains
         !   ADDTOINIT XXX    Will change the cutt-off population for which walkers are added to the initiator space.  Pop must be *above* specified value.
         !   SCALEHF XXX      Will scale the number of walkers at HF by the specified factor
         !   PRINTHIGHPOPDET  Will print the determinant with the highest population of different sign to the HF.
+        !   CHANGEREFDET     Will change the reference determinant to the
+        !                    det with the highest population
+        !   RESTARTHIGHPOP   Restart the calculation with same parameters but
+        !                    a new reference determinant
 
        integer :: error,i,ios,NewNMCyc, pos
        integer, dimension(lenof_sign) :: HFSign
        logical :: tSoftExitFound,tWritePopsFound,exists,AnyExist,deleted_file
-       logical :: tEof,any_deleted_file,tChangeParams(27),tSingBiasChange
+       logical :: tEof,any_deleted_file,tChangeParams(29),tSingBiasChange
        real*8 :: hfScaleFactor
        Character(len=100) :: w
 
@@ -207,6 +213,10 @@ contains
                            call readf(hfScaleFactor)
                        case("PRINTHIGHPOPDET")
                            tChangeParams(27) = .true.
+                       case("CHANGEREFDET")
+                           tChangeParams(28) = .true.
+                       case("RESTARTHIGHPOP")
+                           tChangeParams(29) = .true.
                        END SELECT
                    End Do
                    close(13,status='delete')
@@ -218,7 +228,7 @@ contains
                if (any_deleted_file) exit
            end do
 #ifdef PARALLEL
-           CALL MPI_BCast(tChangeParams,27,MPI_LOGICAL,i,MPI_COMM_WORLD,error)
+           CALL MPI_BCast(tChangeParams,29,MPI_LOGICAL,i,MPI_COMM_WORLD,error)
 #endif
 
            IF(tChangeParams(1)) THEN
@@ -517,6 +527,46 @@ contains
 #endif
                IF(iProcIndex.eq.0) WRITE(6,'(A)') 'Request to print the determinant with the highest population of different sign to the HF.'
            ENDIF   
+
+           if (tChangeParams(28)) then
+               tCheckHighestPopOnce = .true.
+               tCheckHighestPop = .true.
+               tChangeProjEDet = .true.
+               FracLargerDet = 1.0
+#ifdef PARALLEL
+                call MPI_BCast(tCheckHighestPopOnce, 1, MPI_LOGICAL, i, &
+                               MPI_COMM_WORLD, error)
+                call MPI_BCast(tCheckHighestPop, 1, MPI_LOGICAL, i, &
+                               MPI_COMM_WORLD, error)
+                call MPI_BCast(tChangeProjEDet, 1, MPI_LOGICAL, i, &
+                               MPI_COMM_WORLD, error)
+                call MPI_BCast(FracLargerDet, 1, MPI_DOUBLE_PRECISION, i, &
+                               MPI_COMM_WORLD, error)
+#endif
+                if (iProcIndex == 0) then
+                    write (6, '(a)') "Request to change reference det."
+                endif
+           endif
+
+           if (tChangeParams(29)) then
+               tCheckHighestPopOnce = .true.
+               tCheckHighestPop = .true.
+               tRestartHighPop = .true.
+               FracLargerDet = 1.0
+#ifdef PARALLEL
+                call MPI_BCast(tCheckHighestPopOnce, 1, MPI_LOGICAL, i, &
+                               MPI_COMM_WORLD, error)
+                call MPI_BCast(tCheckHighestPop, 1, MPI_LOGICAL, i, &
+                               MPI_COMM_WORLD, error)
+                call MPI_BCast(tRestartHighPop, 1, MPI_LOGICAL, i, &
+                               MPI_COMM_WORLD, error)
+                call MPI_BCast(FracLargerDet, 1, MPI_DOUBLE_PRECISION, i, &
+                               MPI_COMM_WORLD, error)
+#endif
+                if (iProcIndex == 0) then
+                    write (6, '(a)') "Request to restart with new reference det."
+                endif
+           endif
  
        endif
 

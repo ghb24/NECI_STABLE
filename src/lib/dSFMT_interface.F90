@@ -22,7 +22,7 @@ real(dp), save :: random_store(random_store_size)
 
 ! The next unused element in the store of random numbers.
 ! WARNING: random_store should be accessed via genrand_real2_dSFMT!
-integer, save :: current_element=1
+integer, save :: current_element
 
 real(dp), external :: genrand_close_open ! Given in dSFTM_wrapper.cpp.
 
@@ -42,6 +42,8 @@ contains
         call init_gen_rand(seed)
 
         call fill_array_close_open(random_store, random_store_size)
+
+        current_element = 1
 
     end subroutine dSFMT_init
 

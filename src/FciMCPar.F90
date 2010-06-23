@@ -24,7 +24,8 @@ MODULE FciMCParMod
                         tTruncInitiator, tDelayTruncInit, IterTruncInit, &
                         NShiftEquilSteps, tWalkContGrow, tMCExcits, &
                         tAddToInitiator, InitiatorWalkNo, tInitIncDoubs, &
-                        tRetestAddtoInit, tReadPopsChangeRef, tReadPopsRestart
+                        tRetestAddtoInit, tReadPopsChangeRef, &
+                        tReadPopsRestart, tCheckHighestPopOnce
     use HPHFRandExcitMod, only: FindExcitBitDetSym, GenRandHPHFExcit, &
                                 gen_hphf_excit
     use Determinants, only: FDet, get_helement, write_det, &
@@ -92,6 +93,10 @@ MODULE FciMCParMod
 
         ! Initial output
         call WriteFciMCStatsHeader()
+        ! Prepend a # to the initial status line so analysis doesn't pick up
+        ! repetitions in the FCIMCSTATS file from restarts.
+        write (6,'("#")', advance='no')
+        write (fcimcstats_unit,'("#")', advance='no')
         call WriteFCIMCStats()
 
         ! Put a barrier here so all processes synchronise before we begin.
@@ -1190,6 +1195,14 @@ MODULE FciMCParMod
                         endif
                         CurrentH(i)=(REAL(HDiagTemp,dp))-Hii
                     enddo
+
+                    ! Reset values introduced in soft_exit (CHANGEVARS)
+                    if (tCheckHighestPopOnce) then
+                        tChangeProjEDet = .false.
+                        tCheckHighestPop = .false.
+                        tCheckHighestPopOnce = .false.
+                    endif
+
                 ELSEIF(tRestartHighPop.and.(iRestartWalkNum.le.AllTotParts)) THEN
                     CALL MPI_BCast(HighestPopDet,NIfTot+1,MpiDetInt,HighPopout(2),MPI_COMM_WORLD,error)
                     iLutRef(:)=HighestPopDet(:)
@@ -1205,6 +1218,14 @@ MODULE FciMCParMod
                     ENDIF
                     Hii=REAL(TempHii,dp)
                     WRITE(6,"(A,G25.15)") "Reference energy now set to: ",Hii
+
+                    ! Reset values introduced in soft_exit (CHANGEVARS)
+                    if (tCheckHighestPopOnce) then
+                        tChangeProjEDet = .false.
+                        tRestartHighPop = .false.
+                        tCheckHighestPopOnce = .false.
+                    endif
+
                     CALL ChangeRefDet(Hii,ProjEDet,iLutRef)
                     RETURN
                 ENDIF
