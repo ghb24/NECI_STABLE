@@ -3818,7 +3818,7 @@ MODULE FciMCParMod
         USE FciMCLoggingMOD , only : InitShiftErrorBlocking,SumInShiftErrorContrib
         INTEGER :: error,rc,MaxAllowedWalkers,MaxWalkersProc,MinWalkersProc
         INTEGER :: inpair(6),outpair(6)
-        REAL*8 :: TempTotWalkers,TempTotParts()
+        REAL*8 :: TempTotWalkers,TempTotParts(lenof_sign)
         REAL*8 :: TempSumNoatHF,MeanWalkers,TempSumWalkersCyc,TempAllSumWalkersCyc
         REAL*8 :: inpairreal(3),outpairreal(3),inpairInit(8),outpairInit(8)
 
