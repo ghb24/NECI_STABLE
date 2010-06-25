@@ -393,13 +393,13 @@ MODULE FciMCParMod
         implicit none
         interface
             subroutine new_child_stats (iLutI, iLutJ, ic, walkExLevel, &
-                                        child, child_type)
+                                        child)
                 use SystemData, only: nel
                 use bit_reps, only: niftot
                 use constants, only: n_int, lenof_sign
                 implicit none
                 integer(kind=n_int), intent(in) :: ilutI(0:niftot), iLutJ(0:niftot)
-                integer, intent(in) :: ic, walkExLevel, child_type 
+                integer, intent(in) :: ic, walkExLevel
                 integer, dimension(lenof_sign) , intent(in) :: child
             end subroutine
         end interface
@@ -504,13 +504,13 @@ MODULE FciMCParMod
                 integer, intent(in) :: ic, ex(2,2)
                 integer(kind=n_int), intent(out) :: iLutJ(0:nIfTot)
             end subroutine
-            subroutine new_child_stats (iLutI, iLutJ, ic, walkExLevel, child, child_type)
+            subroutine new_child_stats (iLutI, iLutJ, ic, walkExLevel, child)
                 use SystemData, only: nel
                 use bit_reps, only: niftot
                 use constants, only: n_int, lenof_sign
                 implicit none
                 integer(kind=n_int), intent(in) :: ilutI(0:niftot), iLutJ(0:niftot)
-                integer, intent(in) :: ic, walkExLevel, child_type
+                integer, intent(in) :: ic, walkExLevel
                 integer, dimension(lenof_sign), intent(in) :: child
             end subroutine
         end interface
@@ -520,7 +520,7 @@ MODULE FciMCParMod
         integer :: DetCurr(nel), nJ(nel), FlagsCurr
         integer, dimension(lenof_sign) :: SignCurr, child
         integer(kind=n_int) :: iLutnJ(0:niftot)
-        integer :: IC, walkExcitLevel, ex(2,2), TotWalkersNew, part_type, child_type
+        integer :: IC, walkExcitLevel, ex(2,2), TotWalkersNew, part_type
         integer, dimension(ScratchSize) :: scratch1, scratch2, scratch3
         integer(int64) :: HashTemp
         logical :: tFilled, tParity, tHFFound, tHFFoundTemp
@@ -652,23 +652,22 @@ MODULE FciMCParMod
                         child = 0
                     endif
 
-                    !Loop over the 'type' of child that may have been created.
-                    do child_type=1,lenof_sign
-
-                        if (child(child_type) /= 0) then
-                            ! We know we want to create a particle of this type, so encode the bit
-                            ! representation if it isn't already.
-                            call encode_child (CurrentDets(:,j), iLutnJ, ic, ex)
+#ifdef __CMPLX
+                    if ((child(1).ne.0).or.(child(2).ne.0)) then
+#else
+                    if (child(1).ne.0) then
+#endif                        
+                        ! We know we want to create a particle of this type, so encode the bit
+                        ! representation if it isn't already.
+                        call encode_child (CurrentDets(:,j), iLutnJ, ic, ex)
 !                            WRITE(6,*) "Adding child:",iLutnJ(0:NIfDBO),child(1)
 
-                            call new_child_stats (CurrentDets(:,j), iLutnJ, ic, &
-                                                  walkExcitLevel, child, child_type)
+                        call new_child_stats (CurrentDets(:,j), iLutnJ, ic, &
+                                              walkExcitLevel, child)
 
-                            call create_particle (iLutnJ, child, child_type)
-                        
-                        endif   ! (child /= 0). Child created
-
-                    enddo   ! Cycling over 'type' of child created
+                        call create_particle (iLutnJ, child)
+                    
+                    endif   ! (child /= 0). Child created
 
                 enddo ! Cycling over mulitple particles on same determinant.
 
@@ -704,23 +703,23 @@ MODULE FciMCParMod
         
     end subroutine
 
-    subroutine new_child_stats_normal (iLutI, iLutJ, ic, walkExLevel, child, child_type)
+    subroutine new_child_stats_normal (iLutI, iLutJ, ic, walkExLevel, child)
 
         integer(kind=n_int), intent(in) :: iLutI(0:niftot), iLutJ(0:niftot)
-        integer, intent(in) :: ic, walkExLevel, child_type
+        integer, intent(in) :: ic, walkExLevel
         integer, dimension(lenof_sign), intent(in) :: child
         
-        noBorn = noBorn + abs(child(child_type))
+        noBorn = noBorn + sum(abs(child))
 
-        if (ic == 1) SpawnFromSing = SpawnFromSing + abs(child(child_type))
+        if (ic == 1) SpawnFromSing = SpawnFromSing + sum(abs(child))
 
-        if (abs(child(child_type)) > abs(iPartBloom)) then
-            iPartBloom = sign(child(child_type), 2*ic - 3)
+        if (sum(abs(child)) > abs(iPartBloom)) then
+            iPartBloom = sign(sum(abs(child)), 2*ic - 3)
         endif
 
     end subroutine
                         
-    subroutine create_particle (iLutJ, child, child_type)
+    subroutine create_particle (iLutJ, child)
 
         ! Create a child in the spawned particles arrays. We spawn particles
         ! into a separate array, but non-contiguously. The processor that the
@@ -730,7 +729,6 @@ MODULE FciMCParMod
 
         integer(kind=n_int), intent(in) :: iLutJ(0:niftot)
         integer, dimension(lenof_sign), intent(in) :: child
-        integer, intent(in) :: child_type
         integer :: proc
 
         proc = DetermineDetProc(iLutJ)    ! 0 -> nProcessors-1
@@ -742,7 +740,7 @@ MODULE FciMCParMod
         ValidSpawnedList(proc) = ValidSpawnedList(proc) + 1
 
         ! Sum the number of created children to use in acceptance ratio.
-        acceptances = acceptances + abs(child(child_type))
+        acceptances = acceptances + sum(abs(child))
     end subroutine
 
     subroutine end_iteration_print_warn (totWalkersNew)
@@ -3738,12 +3736,12 @@ MODULE FciMCParMod
     END SUBROUTINE WriteHamilHistogram
 
     subroutine new_child_stats_hist_hamil (iLutI, iLutJ, ic, walkExLevel, &
-                                           child, child_type)
+                                           child)
         ! Based on old AddHistHamilEl. Histograms the hamiltonian matrix, and 
         ! then calls the normal statistics routine.
 
         integer(kind=n_int), intent(in) :: iLutI(0:niftot), iLutJ(0:niftot)
-        integer, intent(in) :: ic, walkExLevel, child_type
+        integer, intent(in) :: ic, walkExLevel
         integer, dimension(lenof_sign) , intent(in) :: child
         character(*), parameter :: this_routine = 'new_child_stats_hist_hamil'
         integer :: partInd, partIndChild, childExLevel
@@ -3784,7 +3782,7 @@ MODULE FciMCParMod
                 avHistHamil (partInd, partIndChild) + (1.0_dp * child(1))
 
         ! Call the normal stats routine
-        call new_child_stats_normal (iLutI, iLutJ, ic, walkExLevel, child, child_type)
+        call new_child_stats_normal (iLutI, iLutJ, ic, walkExLevel, child)
 
     end subroutine
 
