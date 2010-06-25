@@ -36,7 +36,7 @@ MODULE FciMCParMod
     use GenRandSymExcitCSF, only: gen_csf_excit
     use IntegralsData , only : fck,NMax,UMat,tPartFreezeCore,NPartFrozen,NHolesFrozen,tPartFreezeVirt,NVirtPartFrozen,NElVirtFrozen
     USE Logging , only : iWritePopsEvery,TPopsFile,iPopsPartEvery,tBinPops,tHistSpawn,iWriteHistEvery,tHistEnergies,IterShiftBlock,AllHistInitPops
-    USE Logging , only : BinRange,iNoBins,OffDiagBinRange,OffDiagMax,AllHistInitPopsTag
+    USE Logging , only : BinRange,iNoBins,OffDiagBinRange,OffDiagMax,AllHistInitPopsTag,tLogComplexPops
     USE Logging , only : tPrintFCIMCPsi,tCalcFCIMCPsi,NHistEquilSteps,tPrintOrbOcc,StartPrintOrbOcc
     USE Logging , only : tHFPopStartBlock,tIterStartBlock,IterStartBlocking,HFPopStartBlocking,tInitShiftBlocking,tHistHamil,iWriteHamilEvery,HistInitPopsTag
     USE Logging , only : OrbOccs,OrbOccsTag,tPrintPopsDefault,iWriteBlockingEvery,tBlockEveryIteration,tHistInitPops,HistInitPopsIter,HistInitPops
@@ -247,6 +247,7 @@ MODULE FciMCParMod
         IF(iProcIndex.eq.Root) THEN
             CLOSE(fcimcstats_unit)
             IF(tTruncInitiator.or.tDelayTruncInit) CLOSE(initiatorstats_unit)
+            IF(tLogComplexPops) CLOSE(complexstats_unit)
         ENDIF
         IF(TDebug) CLOSE(11)
 
@@ -996,7 +997,7 @@ MODULE FciMCParMod
         USE constants, only : MpiDetInt
         INTEGER :: error,rc,MaxAllowedWalkers,MaxWalkersProc,MinWalkersProc
         INTEGER :: inpair(6),outpair(6),HighPopin(2),HighPopout(2),DetCurr(NEl),i
-        REAL*8 :: TempTotWalkers,TempTotParts(lenof_sign)
+        REAL*8 :: TempTotWalkers,TempTotParts(lenof_sign),AllGrowRateRe,AllGrowRateIm
         REAL*8 :: TempSumNoatHF,MeanWalkers,TempSumWalkersCyc,TempAllSumWalkersCyc
         REAL*8 :: inpairreal(3),outpairreal(3),inpairInit(9),outpairInit(9)
         LOGICAL :: tReZeroShift
@@ -1248,6 +1249,10 @@ MODULE FciMCParMod
 !tGlobalSftCng is on, and we want to calculate the change in the shift as a global parameter, rather than as a weighted average.
 !This will only be a sensible value on the root.
             AllGrowRate=SUM(AllTotParts)/SUM(AllTotPartsOld)
+            IF(lenof_sign.eq.2) THEN
+                AllGrowRateRe=AllTotParts(1)/AllTotPartsOld(1)
+                AllGrowRateIm=AllTotParts(lenof_sign)/AllTotPartsOld(lenof_sign)
+            ENDIF
             IF(tTruncInitiator) AllGrowRateAbort=(SUM(AllTotParts)+AllNoAborted)/(SUM(AllTotPartsOld)+AllNoAbortedOld)
         ELSE
 !We want to calculate the mean growth rate over the update cycle, weighted by the total number of walkers
@@ -1342,6 +1347,10 @@ MODULE FciMCParMod
         IF(iProcIndex.eq.Root) THEN
             IF(.not.TSinglePartPhase) THEN
                 DiagSft=DiagSft-(log(AllGrowRate)*SftDamp)/(Tau*(StepsSft+0.D0))
+                IF(lenof_sign.eq.2) THEN
+                    DiagSftRe=DiagSftRe-(log(AllGrowRateRe)*SftDamp)/(Tau*(StepsSft+0.D0))
+                    DiagSftIm=DiagSftIm-(log(AllGrowRateIm)*SftDamp)/(Tau*(StepsSft+0.D0))
+                ENDIF
                 IF((Iter-VaryShiftIter).ge.NShiftEquilSteps) THEN
 !                    WRITE(6,*) Iter-VaryShiftIter, NEquilSteps*StepsSft
                     IF((Iter-VaryShiftIter).eq.NShiftEquilSteps) WRITE(6,*) 'Beginning to average shift value.'
@@ -3068,6 +3077,7 @@ MODULE FciMCParMod
         IF(iProcIndex.eq.Root) THEN
             CLOSE(fcimcstats_unit)
             IF(tTruncInitiator.or.tDelayTruncInit) CLOSE(initiatorstats_unit)
+            IF(tLogComplexPops) CLOSE(complexstats_unit)
 !            IF(TAutoCorr) CLOSE(44)
         ENDIF
         IF(TDebug) CLOSE(11)
@@ -4289,6 +4299,9 @@ MODULE FciMCParMod
                 WRITE(initiatorstats_unit,"(A2,A10,2A16,2A16,1A20,6A18)") "# ","1.Step","2.No Aborted","3.NoAddedtoInit","4.FracDetsInit","5.FracWalksInit","6.NoDoubSpawns","7.InstAbortShift",&
 &               "8.NoInit","9.NoNonInit"
             ENDIF
+            IF(tLogComplexPops) THEN
+                WRITE(complexstats_unit,"(A)") '#   1.Step  2.Shift     3.RealShift     4.ImShift   5.TotParts      6.RealTotParts      7.ImTotParts'
+            ENDIF
             WRITE(6,"(A)") "       Step     Shift      WalkerCng    GrowRate       TotWalkers    Annihil    NoDied    NoBorn    Proj.E          Av.Shift     Proj.E.ThisCyc   NoatHF NoatDoubs      AccRat     UniqueDets     IterTime"
             WRITE(fcimcstats_unit,"(A)") "#     1.Step   2.Shift    3.WalkerCng  4.GrowRate     5.TotWalkers  6.Annihil  7.NoDied  8.NoBorn  9.Proj.E       10.Av.Shift"&
 &           // " 11.Proj.E.ThisCyc  12.NoatHF 13.NoatDoubs  14.AccRat  15.UniqueDets  16.IterTime 17.FracSpawnFromSing  18.WalkersDiffProc  19.TotImagTime  20.ProjE.ThisIter "&
@@ -4302,16 +4315,20 @@ MODULE FciMCParMod
 
         IF(iProcIndex.eq.root) THEN
 
-            WRITE(fcimcstats_unit,"(I12,G16.7,I10,G16.7,I12,3I13,3G17.9,2I10,G13.5,I12,G13.5,G17.5,I13,G13.5,4G17.9)") Iter+PreviousCycles,DiagSft,INT(SUM(AllTotParts)-SUM(AllTotPartsOld),int64),AllGrowRate,   &
-  &                INT(SUM(AllTotParts),int64),AllAnnihilated,AllNoDied,AllNoBorn,ProjectionE,AvDiagSft,AllENumCyc/AllHFCyc,AllNoatHF,AllNoatDoubs,AccRat,INT(AllTotWalkers,int64),IterTime,   &
+            WRITE(fcimcstats_unit,"(I12,G16.7,I10,G16.7,I12,3I13,3G17.9,2I10,G13.5,I12,G13.5,G17.5,I13,G13.5,4G17.9)") Iter+PreviousCycles,DiagSft,NINT(SUM(AllTotParts)-SUM(AllTotPartsOld),int64),AllGrowRate,   &
+  &                NINT(SUM(AllTotParts),int64),AllAnnihilated,AllNoDied,AllNoBorn,ProjectionE,AvDiagSft,AllENumCyc/AllHFCyc,AllNoatHF,AllNoatDoubs,AccRat,NINT(AllTotWalkers,int64),IterTime,   &
   &                REAL(AllSpawnFromSing)/REAL(AllNoBorn),WalkersDiffProc,TotImagTime,IterEnergy,HFShift,InstShift,AllENumCyc/AllHFCyc+Hii
-            WRITE(6,"(I12,G16.7,I10,G16.7,I12,3I11,3G17.9,2I10,G13.5,I12,G13.5)") Iter+PreviousCycles,DiagSft,INT(SUM(AllTotParts)-SUM(AllTotPartsOld),int64),AllGrowRate,    &
-  &                INT(SUM(AllTotParts),int64),AllAnnihilated,AllNoDied,AllNoBorn,ProjectionE,AvDiagSft,AllENumCyc/AllHFCyc,AllNoatHF,AllNoatDoubs,AccRat,INT(AllTotWalkers,int64),IterTime
+            WRITE(6,"(I12,G16.7,I10,G16.7,I12,3I11,3G17.9,2I10,G13.5,I12,G13.5)") Iter+PreviousCycles,DiagSft,NINT(SUM(AllTotParts)-SUM(AllTotPartsOld),int64),AllGrowRate,    &
+  &                NINT(SUM(AllTotParts),int64),AllAnnihilated,AllNoDied,AllNoBorn,ProjectionE,AvDiagSft,AllENumCyc/AllHFCyc,AllNoatHF,AllNoatDoubs,AccRat,NINT(AllTotWalkers,int64),IterTime
 
             IF(tTruncInitiator.or.tDelayTruncInit) THEN
                 WRITE(initiatorstats_unit,"(I12,4G16.7,1F20.1,1F18.7,5F18.1)") Iter+PreviousCycles,AllNoAborted,AllNoAddedInitiators,(REAL(AllNoInitDets)/REAL(AllNoNonInitDets)),&
  &              (REAL(AllNoInitWalk)/REAL(AllNoNonInitWalk)),AllNoDoubSpawns,DiagSftAbort,(AllNoInitDets/REAL(StepsSft)),&
  &              (AllNoNonInitDets/REAL(StepsSft))
+            ENDIF
+
+            IF(tLogComplexPops) THEN
+                WRITE(complexstats_unit,"(I12,3G16.7,3I12)") Iter+PreviousCycles,DiagSft,DiagSftRe,DiagSftIm,NINT(SUM(AllTotParts)),NINT(AllTotParts(1)),NINT(AllTotParts(lenof_sign))
             ENDIF
 
             
@@ -4389,7 +4406,14 @@ MODULE FciMCParMod
             else
                 OPEN(fcimcstats_unit,file='FCIMCStats',status='unknown')
             end if
-            IF(tTruncInitiator.or.tDelayTruncInit) OPEN(initiatorstats_unit,file='INITIATORStats',status='unknown')
+            IF(tTruncInitiator.or.tDelayTruncInit) THEN
+                initiatorstats_unit = get_free_unit()
+                OPEN(initiatorstats_unit,file='INITIATORStats',status='unknown')
+            ENDIF
+            IF(tLogComplexPops) THEN
+                ComplexStats_unit = get_free_unit()
+                OPEN(ComplexStats_unit,file='COMPLEXStats',status='unknown')
+            ENDIF
         ENDIF
 
 !Store information specifically for the HF determinant
@@ -4697,6 +4721,8 @@ MODULE FciMCParMod
         HFIter=0
         ENumIter=0.D0
         IterEnergy=0.D0
+        DiagSftRe=0.D0
+        DiagSftIm=0.D0
 
 !Also reinitialise the global variables - should not necessarily need to do this...
         AllSumENum=0.D0

@@ -12,6 +12,7 @@ MODULE FciMCData
       ! Units used to write to files
       integer :: fcimcstats_unit ! FCIMCStats
       integer :: initiatorstats_unit ! INITIATORStats
+      integer :: ComplexStats_unit ! COMPLEXStats
 
       INTEGER(KIND=n_int) , ALLOCATABLE , TARGET :: WalkVecDets(:,:)                !Contains determinant list
       REAL(KIND=dp) , ALLOCATABLE , TARGET :: WalkVecH(:)                    !Diagonal hamiltonian element
@@ -37,6 +38,8 @@ MODULE FciMCData
  
       REAL*8 :: AvDiagSftAbort,SumDiagSftAbort,DiagSftAbort     !This is the average diagonal shift value since it started varying, and the sum of the shifts since it started varying, and
                                                                 !the instantaneous shift, including the number of aborted as though they had lived.
+
+      REAL*8 :: DiagSftRe,DiagSftIm     !For complex walkers - this is just for info - not used for population control.
     
       INTEGER , ALLOCATABLE :: HFDet(:)       !This will store the HF determinant
       INTEGER :: HFDetTag=0

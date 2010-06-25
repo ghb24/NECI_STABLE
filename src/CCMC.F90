@@ -180,7 +180,7 @@ MODULE CCMC
 
 
         IF(TDebug.and.(mod(Iter,10).eq.0)) THEN
-            WRITE(11,*) Iter,TotWalkers,NoatHF,NoatDoubs,MaxIndex,TotParts
+            WRITE(11,*) Iter,TotWalkers,NoatHF,NoatDoubs,MaxIndex,TotParts(1)
             CALL FLUSH(11)
         ENDIF
 
@@ -189,7 +189,7 @@ MODULE CCMC
          !This info is destroyed by SumEContrib and needs to be reset each cycle
         
         CALL set_timer(Walker_Time,30)
-        IF(iDebug.gt.0) WRITE(6,*) "Number of particles, excitors:",TotParts, TotWalkers
+        IF(iDebug.gt.0) WRITE(6,*) "Number of particles, excitors:",TotParts(1), TotWalkers
         
 !Reset number at HF and doubles
         NoatHF=0
@@ -214,7 +214,7 @@ MODULE CCMC
             HFcount=abs(TempSign(1))
         endif
 
-        allocate(iKillDetIndices(2,TotParts*2))
+        allocate(iKillDetIndices(2,TotParts(1)*2))
 
         IF(iDebug.gt.1) THEN
          write(6,*) "HF det"
@@ -280,7 +280,7 @@ MODULE CCMC
                   ENDIF
                   iMaxExTemp=1
                   iMaxEx=0
-                  k=TotParts-iCumlExcits  !iCumlExcits includes this det.
+                  k=TotParts(1)-iCumlExcits  !iCumlExcits includes this det.
                   if(j.lt.iHFDet) k=k-HFcount
 !Count the number of allowed composites - this allows for all numbers of composites
                   if(iDebug.gt.5) WRITE(6,*) "Counting Excitations:  Level,#, Cuml"
@@ -484,15 +484,15 @@ MODULE CCMC
                         IF(iDebug.gt.5) Write(6,*) "Selected excitor",k
                         SelectedExcitorIndices(i)=k
                         SelectedExcitors(:,i)=CurrentDets(:,k)
-                        dClusterProb=(dClusterProb*abs(TempSign3(1)))/((TotParts-HFcount))
+                        dClusterProb=(dClusterProb*abs(TempSign3(1)))/((TotParts(1)-HFcount))
 
 !Account for intermediate Normalization
                         dProbNorm=dProbNorm*HFCount
 
 !Account for possible orderings of selection
                         dProbNorm=dProbNorm*i
-                        IF(iDebug.gt.5) WRITE(6,*) "TotParts,HFCount:",TotParts,HFcount
-                        IF(iDebug.gt.5) write(6,*) "Prob ",i,": ",(abs(TempSign3(1))+0.d0)/(TotParts-HFcount)," Cuml:", dClusterProb
+                        IF(iDebug.gt.5) WRITE(6,*) "TotParts,HFCount:",TotParts(1),HFcount
+                        IF(iDebug.gt.5) write(6,*) "Prob ",i,": ",(abs(TempSign3(1))+0.d0)/(TotParts(1)-HFcount)," Cuml:", dClusterProb
                      enddo
                      IF(iDebug.gt.5) WRITE(6,*) 'prob out of sel routine.',dProbNumExcit
                      if(i.gt.nMaxSelExcitors) THEN !We've been limited by the max number of excitations
@@ -814,7 +814,7 @@ MODULE CCMC
 !***Birth/death processes finished. Tidy up and then annihilate.
 
 !SumWalkersCyc calculates the total number of walkers over an update cycle on each process
-        SumWalkersCyc=SumWalkersCyc+(INT(TotParts,int64))
+        SumWalkersCyc=SumWalkersCyc+(INT(TotParts(1),int64))
 !        WRITE(6,*) "Born, Die: ",NoBorn, NoDied
 
 
@@ -1937,11 +1937,11 @@ SUBROUTINE CCMCStandalone(Weight,Energyxw)
       WalkerScale=0
    endif
    TotWalkers=WalkerScale*dTotAbsAmpl
-   TotParts=WalkerScale*dTotAbsAmpl
+   TotParts(1)=WalkerScale*dTotAbsAmpl
    TotWalkersOld=WalkerScale*dTotAbsAmpl
-   TotPartsOld=WalkerScale*dTotAbsAmpl
+   TotPartsOld(1)=WalkerScale*dTotAbsAmpl
    AllTotWalkersOld=WalkerScale*dTotAbsAmpl
-   AllTotPartsOld=WalkerScale*dTotAbsAmpl
+   AllTotPartsOld(1)=WalkerScale*dTotAbsAmpl
    dAveTotAbsAmp=0
    dAveNorm=0
    Iter=1
@@ -2289,11 +2289,11 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
 
    iShiftLeft=StepsSft-1  !So the first one comes at StepsSft
    TotWalkers=WalkerScale*dTotAbsAmpl
-   TotParts=WalkerScale*dTotAbsAmpl
+   TotParts(1)=WalkerScale*dTotAbsAmpl
    TotWalkersOld=WalkerScale*dTotAbsAmpl
-   TotPartsOld=WalkerScale*dTotAbsAmpl
+   TotPartsOld(1)=WalkerScale*dTotAbsAmpl
    AllTotWalkersOld=WalkerScale*dTotAbsAmpl
-   AllTotPartsOld=WalkerScale*dTotAbsAmpl
+   AllTotPartsOld(1)=WalkerScale*dTotAbsAmpl
    dAveTotAbsAmp=0
    dAveNorm=0
    Iter=1
