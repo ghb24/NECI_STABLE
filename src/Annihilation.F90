@@ -672,7 +672,7 @@ MODULE AnnihilationMod
                             CurrentH(i-DetsMerged)=CurrentH(i)
                         ENDIF
                     ENDIF
-                    TotParts=TotParts+abs(CurrentSign(1))+abs(CurrentSign(2))
+                    TotParts=TotParts+abs(CurrentSign)
                     IF(tCheckHighestPop) THEN
 !If this option is on, then we want to compare the weight on each determinant to the weight at the HF determinant.
 !Record the highest weighted determinant on each processor.
@@ -707,19 +707,11 @@ MODULE AnnihilationMod
 !The list has previously been compressed.
         IF(ValidSpawned.gt.0) THEN
             call extract_sign(SpawnedParts(:,1),SpawnedSign)
-#ifndef __CMPLX
-            TotParts=TotParts+abs(SpawnedSign(1))
-#else
-            TotParts=TotParts+abs(SpawnedSign(1))+abs(SpawnedSign(2))
-#endif
+            TotParts=TotParts+abs(SpawnedSign)
         ENDIF
         do i=2,ValidSpawned
             call extract_sign(SpawnedParts(:,i),SpawnedSign)
-#ifndef __CMPLX
-            TotParts=TotParts+abs(SpawnedSign(1))
-#else                
-            TotParts=TotParts+abs(SpawnedSign(1))+abs(SpawnedSign(2))
-#endif            
+            TotParts=TotParts+abs(SpawnedSign)
         enddo
 
 !        CALL CheckOrdering(SpawnedParts,SpawnedSign(1:ValidSpawned),ValidSpawned,.true.)

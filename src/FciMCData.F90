@@ -42,7 +42,7 @@ MODULE FciMCData
       INTEGER :: HFDetTag=0
 
       INTEGER :: MaxWalkersPart,TotWalkers,TotWalkersOld,PreviousNMCyc,Iter,NoComps,MaxWalkersAnnihil
-      INTEGER :: TotParts,TotPartsOld
+      INTEGER , ALLOCATABLE :: TotParts(:),TotPartsOld(:)
       INTEGER :: exFlag=3
 
 !The following variables are calculated as per processor, but at the end of each update cycle, are combined to the root processor
@@ -71,7 +71,8 @@ MODULE FciMCData
 
 !These are the global variables, calculated on the root processor, from the values above
       REAL*8 :: AllGrowRate
-      REAL(KIND=dp) :: AllTotWalkers,AllTotWalkersOld,AllTotParts,AllTotPartsOld
+      REAL(KIND=dp) :: AllTotWalkers,AllTotWalkersOld
+      REAL(KIND=dp) , ALLOCATABLE :: AllTotParts(:),AllTotPartsOld(:)
       INTEGER(KIND=int64) :: AllSumWalkersCyc
       INTEGER :: AllAnnihilated,AllNoatHF,AllNoatDoubs
       REAL*8 :: AllSumNoatHF,AllSumENum,AllAvSign,AllAvSignHFD
