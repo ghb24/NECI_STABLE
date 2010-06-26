@@ -23,6 +23,7 @@ MODULE Logging
     REAL*8 , ALLOCATABLE :: TruncEvalues(:),OrbOccs(:)
     LOGICAL :: tBlockEveryIteration
     LOGICAL tLogDets       ! Write out the DETS and SymDETS files.
+    LOGICAL tLogComplexPops     ! Write out complex walker information 
 
     contains
 
@@ -32,6 +33,7 @@ MODULE Logging
       use default_sets
       implicit none
 
+      tLogComplexPops=.false.
       iWriteBlockingEvery=1000
       tSaveBlocking=.false.
       OffDiagBinRange=0.001
@@ -124,6 +126,10 @@ MODULE Logging
         end if
         call readu(w)
         select case(w)
+
+        case("LOGCOMPLEXWALKERS")
+            !This means that the complex walker populations are now logged.
+            tLogComplexPops=.true.
 
         case("PRINTNEWBLOCKING")
 !This is the iteration interval period to write out the blocking files.

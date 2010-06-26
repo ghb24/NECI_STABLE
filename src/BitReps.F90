@@ -68,6 +68,7 @@ contains
         NOffSgn = NOffY + NIfY
         NIfSgn = 1
 #ifdef __CMPLX
+        WRITE(6,*) "Complex walkers in use."
         NIfSgn = NIfSgn + 1     !TODO: If __INT64, adjust packing into one integer
 #endif
 
@@ -89,8 +90,7 @@ contains
         NIfTot = NIfD + NIfY + NIfSgn + NIfFlag
 
         WRITE(6,*) "Setting integer length of determinants as bit-strings to: ", NIfTot + 1
-      WRITE(6,*) "Setting integer bit-length of determinants as bit-strings to: ", bits_n_int
-
+        WRITE(6,*) "Setting integer bit-length of determinants as bit-strings to: ", bits_n_int
          
     end subroutine
 
