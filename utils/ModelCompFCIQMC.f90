@@ -2,19 +2,28 @@ Program ModelFCIQMC
 
     IMPLICIT NONE
 
-    INTEGER :: NDet=500 
+    !Parameters to control hamiltonian setup
+    REAL*8, PARAMETER :: StartEl=0.2     !Initial diagonal matrix element - these must all be real obv.
+    REAL*8, PARAMETER :: EndEl=7.D0
+    !Off diagonal matrix elements
+    REAL*8, PARAMETER :: ProbNonZero=0.3     !This is probability that off-diagonal matrix elements are non-zero
+    REAL*8, PARAMETER :: OffDiagEl=8.D-2     !This is the magnitude of the off-diagonal matrix elements.
+
+    INTEGER :: NDet=28 
+
     INTEGER, PARAMETER :: lenof_sign=2   !Number of integers needed to store a walker
-    REAL*8, PARAMETER :: Tau=0.01 
-    REAL*8, PARAMETER :: SftDamp=0.3 
-    INTEGER, PARAMETER :: StepsSft=5 
+    REAL*8, PARAMETER :: Tau=0.02 
+    REAL*8, PARAMETER :: SftDamp=0.2 
+    INTEGER, PARAMETER :: StepsSft=50 
     INTEGER, PARAMETER :: NMCyc=100000
     INTEGER, PARAMETER :: InitialWalk=1 
-    INTEGER, PARAMETER :: TargetWalk=5000
-    REAL*8, PARAMETER :: InitialShift=-13.D0
+    INTEGER, PARAMETER :: TargetWalk=3000
+    REAL*8, PARAMETER :: InitialShift=0.D0
     INTEGER, PARAMETER :: dp=8
     LOGICAL, PARAMETER :: tRotateWavefunction=.false. 
     LOGICAL, PARAMETER :: tSeperateShift=.false. 
-    LOGICAL, PARAMETER :: tKeepWalkerFiles=.false.
+    LOGICAL, PARAMETER :: tKeepWalkerFiles=.false. 
+    LOGICAL, PARAMETER :: tDumpKMat=.false.
     REAL*8, PARAMETER :: pi=3.14159265358979323846264338327950288419716939937510D0
     REAL*8 :: piby2=pi/2.D0
     REAL*8 :: pi2=pi*2.D0
@@ -93,10 +102,13 @@ CONTAINS
         allocate(SumWalkListGround(lenof_sign,NDet))
         allocate(Scr(LScr))
         allocate(Work2(LWork2))
+        
+        WRITE(6,*) "NDet = ",NDet
 
     !Set up KMat
         if (tinput_file) then
             call ReadInKMat(input_file,KMat)
+            CALL WriteOutKMat(KMat)
         else
             WRITE(6,*) "Setting up random K-Matrix..."
             CALL SetUpKMat(KMat)
@@ -127,6 +139,10 @@ CONTAINS
             WRITE(6,*) i,EValues(i)
         enddo
         CLOSE(9)
+
+        if(tdumpkmat) THEN
+            call dumpkmat(KMat)
+        endif
 
         WRITE(6,*) "Performing Spawning..."
 
@@ -452,20 +468,23 @@ CONTAINS
         IMPLICIT NONE
         COMPLEX*16, INTENT(IN) :: KMat(NDet,NDet)
         INTEGER, INTENT(IN) :: WalkListGround(lenof_sign,NDet)
-        REAL*8 :: ProjE,NumReal,NumImag
+        REAL*8 :: ProjE
+        complex*16 :: calc_proje
         INTEGER :: i
 
-        NumReal=0.D0
-        NumImag=0.D0
+        calc_proje=cmplx(0.D0,0.D0)
 
         do i=2,NDet
 
-            NumReal=NumReal+(WalkListGround(1,i)*REAL(KMat(1,i),dp))-(WalkListGround(2,i)*AIMAG(KMat(1,i)))
-            NumImag=NumImag+(WalkListGround(1,i)*AIMAG(KMat(1,i)))+(WalkListGround(2,i)*REAL(KMat(1,i),dp))
+            calc_proje=calc_proje + KMat(1,i)*cmplx(WalkListGround(1,i),WalkListGround(2,i))
 
         enddo
 
-        ProjE=NumReal/REAL(WalkListGround(1,1)) + NumImag/REAL(WalkListGround(2,1))
+        calc_proje=calc_proje/cmplx(WalkListGround(1,1),WalkListGround(2,1))
+
+        if (abs(aimag(calc_proje)) > 1.e-6) write (6,*) 'warning: proje not real!', calc_proje
+
+        proje = real(calc_proje)
 
     END SUBROUTINE CalcProjE
 
@@ -608,13 +627,11 @@ CONTAINS
         IMPLICIT NONE
         COMPLEX*16, INTENT(OUT) :: KMat(NDet,NDet)
         INTEGER :: i,j,l
-        REAL*8 :: StartEl,EndEl,Step,ProbNonZero,OffDiagEl
+        REAL*8 :: Step
         REAL*8 :: r
 
         KMat(:,:)=CMPLX(0.D0,0.D0)
 
-        StartEl=0.2     !Initial diagonal matrix element - these must all be real obv.
-        EndEl=5.D0
         Step=(EndEl-StartEl)/REAL(NDet-1,8) !Rate of increase of diagonal matrix elements
         KMat(2,2)=CMPLX(StartEl,0.D0)
         do i=3,NDet
@@ -624,8 +641,6 @@ CONTAINS
         WRITE(6,*) "RefDet = ", KMat(1,1)
         WRITE(6,*) "MaxDet = ", KMat(NDet,NDet)
 
-        ProbNonZero=0.4     !This is probability that off-diagonal matrix elements are non-zero
-        OffDiagEl=1.D-1     !This is the magnitude of the off-diagonal matrix elements.
         do l=1,2            !loop over real and imaginary parts to allow a chance for both the real and imaginary parts to become non-zero
             do i=1,NDet
                 do j=1,i-1
@@ -686,24 +701,59 @@ CONTAINS
         IMPLICIT NONE
         character(255), intent(in) :: input_file
         COMPLEX*16, INTENT(OUT) :: KMat(NDet,NDet)
-        integer :: i,j
+        integer :: i,j,indi,indj
         real*8 :: H00
 
         ! The first line just contains the size of the Hamiltonian matrix.
         ! This has already been read...
         open(13,file=input_file,status='old',form='formatted')
-        read(13,*) i
+        READ(13,*) i
+        IF(i.ne.NDet) STOP 'NDet not correct'
 
-        do i = 1,NDet
-            read (13,*) (KMat(i,j),j=1,NDet)
+        do j = 1,NDet
+            do i = 1,NDet
+                read (13,*) indi,indj,KMat(i,j)
+                IF(indi.ne.i.or.indj.ne.j) THEN
+                    WRITE(6,*) indi,indj,i,j
+                    STOP 'Error reading in hamiltonian'
+                ENDIF
+            enddo
         end do
 
         close(13,status='keep')
 
+        do i=1,NDet
+            IF(abs(AIMAG(KMat(i,i))).gt.1.D-8) THEN
+                STOP 'Diagonal HElements not real'
+            ENDIF
+            do j=1,NDet
+                IF(ABS(AIMAG(KMat(i,j))+AIMAG(KMat(j,i))).gt.1.D-8) THEN
+                    STOP 'Matrix not hermitian'
+                ENDIF
+            enddo
+        enddo
+
         ! K_ij = H_ij - H00 d_ij
-        H00 = KMat(1,1)
-        forall (i=1:NDet) KMat(i,i) = KMat(i,i) - H00
+        H00 = REAL(KMat(1,1),dp)
+        forall (i=1:NDet) KMat(i,i) = CMPLX(REAL(KMat(i,i),dp) - H00,0.D0)
 
     end subroutine ReadInKMat
+
+    subroutine dumpkmat(KMat)
+        IMPLICIT NONE
+        COMPLEX*16 KMat(NDet,NDet)
+        INTEGER :: i,j
+
+        OPEN(19,FILE='DumpedKMat',status='unknown')
+
+        do i=1,NDet
+            do j=1,NDet
+                WRITE(19,"(2G25.15)") REAL(KMat(i,j),dp),AIMAG(KMat(i,j))
+            enddo
+        enddo
+
+        CLOSE(19)
+
+    end subroutine dumpkmat
 
 END Program ModelFCIQMC
