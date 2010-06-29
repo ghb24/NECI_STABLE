@@ -580,7 +580,7 @@ subroutine CalcTotals (iNumExcitors,dTotAbsAmpl,Amplitude,nAmpl,dTol,WalkerScale
    use Parallel, only: iProcIndex
    use FciMCData, only: root
    use CCMCData, only: tCCMCFCI
-   use FciMCData, only: TotParts,TotWalkers
+   use FciMCData, only: TotParts,TotWalkers,NoatHF,NoatDoubs
    implicit none
    integer iNumExcitors,nAmpl
    real*8 dTotAbsAmpl,dTol
@@ -629,6 +629,9 @@ subroutine CalcTotals (iNumExcitors,dTotAbsAmpl,Amplitude,nAmpl,dTol,WalkerScale
    if(iDebug.gt.2) WRITE(6,"(A,I5,A,I5)") "Finished calculating total cluster amplitude at level ",i-1,"/",iNumExcitors
    if(iDebug.gt.1) WRITE(6,*) "Total cluster amplitude: ",dPsiTotAbsAmpl
    TotParts=dTotExcitors*WalkerScale
+!Reset number at HF and doubles
+        NoatHF=0
+        NoatDoubs=0
    if(iProcIndex.eq.root) then 
       TotWalkers=TotParts 
    else

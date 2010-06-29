@@ -191,9 +191,6 @@ MODULE CCMC
         CALL set_timer(Walker_Time,30)
         IF(iDebug.gt.0) WRITE(6,*) "Number of particles, excitors:",TotParts, TotWalkers
         
-!Reset number at HF and doubles
-        NoatHF=0
-        NoatDoubs=0
         iPartBloom=0
 !ValidSpawndList now holds the next free position in the newly-spawned list, but for each processor.
         ValidSpawnedList(:)=InitialSpawnedSlots(:)
