@@ -969,684 +969,7 @@ MODULE FciMCParMod
     END SUBROUTINE FindHighPopDet
 
 
-    
-!Every StepsSft steps, update the diagonal shift value (the running value for the correlation energy)
-!We don't want to do this too often, since we want the population levels to acclimatise between changing the shifts
-    SUBROUTINE CalcNewShift()
-        USE SystemData , only: tNoBrillouin
-        USE FciMCLoggingMOD , only : PrintSpawnAttemptStats,InitErrorBlocking,SumInErrorContrib
-        USE FciMCLoggingMOD , only : InitShiftErrorBlocking,SumInShiftErrorContrib
-        USE CalcData , only : tCheckHighestPop,tChangeProjEDet,tRestartHighPop,FracLargerDet,iRestartWalkNum
-        USE constants, only : MpiDetInt
-        INTEGER :: error,rc,MaxAllowedWalkers,MaxWalkersProc,MinWalkersProc
-        INTEGER :: inpair(6),outpair(6),HighPopin(2),HighPopout(2),DetCurr(NEl),i
-        REAL*8 :: TempTotWalkers,TempTotParts
-        REAL*8 :: TempSumNoatHF,MeanWalkers,TempSumWalkersCyc,TempAllSumWalkersCyc
-        REAL*8 :: inpairreal(3),outpairreal(3),inpairInit(9),outpairInit(9)
-        LOGICAL :: tReZeroShift
-        HElement_t :: TempHii,HDiagTemp
 
-        TotImagTime=TotImagTime+StepsSft*Tau
-
-!Find the total number of particles at HF (x sign) across all nodes. If this is negative, flip the sign of all particles.
-        AllNoatHF=0
-        tReZeroShift=.false.
-
-!Find sum of noathf, and then use an AllReduce to broadcast it to all nodes
-        CALL MPIISum(NoatHF,1,AllNoatHF)
-
-        IF(AllNoatHF.lt.0) THEN
-!Flip the sign if we're beginning to get a negative population on the HF
-            WRITE(6,*) "No. at HF < 0 - flipping sign of entire ensemble of particles..."
-            WRITE(6,*) AllNoatHF
-            CALL FlipSign()
-            AllNoatHF=-AllNoatHF
-            NoatHF=-NoatHF
-        ENDIF
-        
-
-!This first call will calculate the GrowRate for each processor, taking culling into account
-!        WRITE(6,*) "Get Here"
-!        CALL FLUSH(6)
-        CALL UpdateDiagSftPar()
-
-!Put a barrier here so all processes synchronise
-        CALL MPIBarrier(error)
-
-!We need to collate the information from the different processors
-!Inpair and outpair are used to package variables to save on latency time
-!        inpair(1)=TotWalkers
-        inpair(1)=Annihilated
-        inpair(2)=NoatDoubs
-        inpair(3)=NoBorn
-        inpair(4)=NoDied
-        inpair(5)=HFCyc         !SumWalkersCyc is now an integer*8
-        inpair(6)=SpawnFromSing
-!        inpair(7)=TotParts
-!        inpair(9)=iUniqueDets
-        outpair(:)=0
-!        CALL MPI_Reduce(TotWalkers,AllTotWalkers,1,MPI_INTEGER,MPI_SUM,Root,MPI_COMM_WORLD,error)
-!Find total Annihilated,Total at HF and Total at doubles
-!        CALL MPI_Reduce(Annihilated,AllAnnihilated,1,MPI_INTEGER,MPI_SUM,Root,MPI_COMM_WORLD,error)
-!!        CALL MPI_Reduce(NoatHF,AllNoatHF,1,MPI_INTEGER,MPI_SUM,Root,MPI_COMM_WORLD,error)  !This is done every iteration now
-!        CALL MPI_Reduce(NoatDoubs,AllNoatDoubs,1,MPI_INTEGER,MPI_SUM,Root,MPI_COMM_WORLD,error)
-!        CALL MPI_Reduce(NoBorn,AllNoBorn,1,MPI_INTEGER,MPI_SUM,Root,MPI_COMM_WORLD,error)
-!        CALL MPI_Reduce(NoDied,AllNoDied,1,MPI_INTEGER,MPI_SUM,Root,MPI_COMM_WORLD,error)
-!        CALL MPI_Reduce(SumWalkersCyc,AllSumWalkersCyc,1,MPI_INTEGER,MPI_SUM,Root,MPI_COMM_WORLD,error)
-!        WRITE(6,*) "Get Here 1"
-!        CALL FLUSH(6)
-        CALL MPI_Reduce(inpair,outpair,6,MPI_INTEGER,MPI_SUM,Root,MPI_COMM_WORLD,error)
-!        WRITE(6,*) "Get Here 2"
-!        CALL FLUSH(6)
-!        AllTotWalkers=outpair(1)
-        AllAnnihilated=outpair(1)
-        AllNoatDoubs=outpair(2)
-        AllNoBorn=outpair(3)
-        AllNoDied=outpair(4)
-        AllHFCyc=REAL(outpair(5),dp)
-        AllSpawnFromSing=outpair(6)
-!        AllTotParts=outpair(7)
-!        AlliUniqueDets=REAL(outpair(9),dp)
-        TempTotWalkers=REAL(TotWalkers,dp)
-        TempTotParts=REAL(TotParts,dp)
-
-        IF(tTruncInitiator) THEN
-            inpairInit(1)=NoAborted
-            inpairInit(2)=NoAddedInitiators
-            inpairInit(3)=NoInitDets
-            inpairInit(4)=NoNonInitDets
-            inpairInit(5)=NoInitWalk
-            inpairInit(6)=NoNonInitWalk
-            inpairInit(7)=NoDoubSpawns
-            inpairInit(8)=NoExtraInitDoubs
-            inpairInit(9)=InitRemoved
- 
-!!            CALL MPI_Reduce(inpairInit,outpairInit,8,MPI_INTEGER,MPI_SUM,Root,MPI_COMM_WORLD,error)
-            Call MPIDSumArr(inpairInit,9,outpairInit)
-!            CALL MPI_Reduce(inpairinit,outpairinit,8,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
-
-            AllNoAborted=outpairInit(1)
-            AllNoAddedInitiators=outpairInit(2)
-            AllNoInitDets=outpairInit(3)
-            AllNoNonInitDets=outpairInit(4)
-            AllNoInitWalk=outpairInit(5)
-            AllNoNonInitWalk=outpairInit(6)
-            AllNoDoubSpawns=outpairInit(7)
-            AllNoExtraInitDoubs=outpairInit(8)
-            AllInitRemoved=outpairInit(9)
-        ENDIF
-
-        CALL MPI_Reduce(TempTotWalkers,AllTotWalkers,1,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
-        CALL MPI_AllReduce(TempTotParts,AllTotParts,1,MPI_DOUBLE_PRECISION,MPI_SUM,MPI_COMM_WORLD,error)
-
-        IF(iProcIndex.eq.0) THEN
-            IF(AllTotWalkers.le.0.2) THEN
-                WRITE(6,*) AllTotWalkers,TotWalkers
-                CALL Stop_All("CalcNewShift","All particles have died. Consider choosing new seed, or raising shift value.")
-            ENDIF
-        ENDIF
-
-!SumWalkersCyc is now an int*8, therefore is needs to be reduced as a real*8
-        TempSumWalkersCyc=REAL(SumWalkersCyc,dp)
-        TempAllSumWalkersCyc=0.D0
-        CALL MPI_Reduce(TempSumWalkersCyc,TempAllSumWalkersCyc,1,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
-
-!        WRITE(6,*) "Get Here 3"
-!        CALL FLUSH(6)
-        
-
-
-        IF(TSinglePartPhase) THEN
-!Exit the single particle phase if the number of walkers exceeds the value in the input file.
-!            CALL MPI_Barrier(MPI_COMM_WORLD,error)
-            IF((AllTotParts.gt.(INT(InitWalkers,int64)*INT(nProcessors,int64))).or.(AllNoatHF.gt.MaxNoatHF)) THEN
-                WRITE(6,*) "Exiting the single particle growth phase - shift can now change"
-                VaryShiftIter=Iter
-                TSinglePartPhase=.false.
-            ENDIF
-!!Broadcast the fact that TSinglePartPhase may have changed to all processors - unfortunatly, have to do this broadcast every iteration.
-!            CALL MPILBcast(TSinglePartPhase,1,root)
-        ELSE
-!Exit the single particle phase if the number of walkers exceeds the value in the input file.
-!            CALL MPI_Barrier(MPI_COMM_WORLD,error)
-!            IF(iProcIndex.eq.root) THEN     !Only exit phase if particle number is sufficient on head node.
-                IF(AllNoatHF.lt.(MaxNoatHF-HFPopThresh)) THEN
-                    WRITE(6,'(A)') "No at HF has fallen too low - reentering the single particle growth phase - particle number may grow again."
-!                    VaryShiftIter=Iter
-                    TSinglePartPhase=.true.
-                    tReZeroShift=.true.
-                ENDIF
-!            ENDIF
-!!Broadcast the fact that TSinglePartPhase may have changed to all processors - unfortunatly, have to do this broadcast every iteration.
-!            CALL MPILBcast(TSinglePartPhase,1,root)
-        ENDIF
-
-
-!Cannot load-balance with direct annihilation, but still want max & min
-        CALL MPI_Reduce(TotWalkers,MaxWalkersProc,1,MPI_INTEGER,MPI_MAX,root,MPI_COMM_WORLD,error)
-        CALL MPI_Reduce(TotWalkers,MinWalkersProc,1,MPI_INTEGER,MPI_MIN,root,MPI_COMM_WORLD,error)
-        IF(iProcIndex.eq.Root) THEN
-            WalkersDiffProc=MaxWalkersProc-MinWalkersProc
-
-            MeanWalkers=AllTotWalkers/REAL(nProcessors,dp)
-            IF((WalkersDiffProc.gt.NINT(MeanWalkers/10.D0).and.(AllTotParts.gt.(REAL(nProcessors*500,dp))))) THEN
-                WRITE(6,"(A62,F20.10,2i12)") "Number of determinants assigned to each processor unbalanced. ", (WalkersDiffProc*10.D0)/REAL(MeanWalkers),MinWalkersProc,MaxWalkersProc
-            ENDIF
-        ENDIF
-        IF(tCheckHighestPop) THEN
-            HighPopin(1)=iHighestPop
-            HighPopin(2)=iProcIndex
-            CALL MPI_AllReduce(HighPopin,HighPopout,1,MPI_2INTEGER,MPI_MAXLOC,MPI_COMM_WORLD,error)
-                    
-!Now, the root processor contains information about the highest populated determinant, and the processor which is it held on.
-            IF(((INT(FracLargerDet*REAL(AllNoatHF,dp))).lt.HighPopout(1)).and.(AllTotParts.gt.10000)) THEN
-                IF(iProcIndex.eq.Root) THEN
-                    IF(tHPHF) THEN
-                        WRITE(6,"(A,2I10)") "Highest weighted CLOSED-SHELL determinant not reference det: ",HighPopout(1),AllNoatHF
-                    ELSE
-                        WRITE(6,"(A,2I10)") "Highest weighted determinant not reference det: ",HighPopout(1),AllNoatHF
-                    ENDIF
-                ENDIF
-!                WRITE(6,"(A,4I12)") "Highest weighted determinant not reference det: ",iter,HighPopout(2),HighPopout(1),AllNoatHF
-!                CALL WriteBitDet(6,HighestPopDet,.true.)
-!                WRITE(6,*) iHighestPop
-                IF(tChangeProjEDet) THEN
-!Meed to communicate to all processors that iLutRef has changed.
-
-                    ! TODO: Can we do this without using a decode_bit_det
-                    !       call?
-                    CALL MPI_BCast(HighestPopDet(0:NIfTot),NIfTot+1,MpiDetInt,HighPopout(2),MPI_COMM_WORLD,error)
-                    iLutRef(:)=HighestPopDet(:)
-                    call decode_bit_det (ProjEDet, iLutRef)
-                    WRITE(6,"(A)",advance='no') "Changing projected energy reference determinant to:"
-                    CALL Write_det(6,ProjEDet,.true.)
-                    tNoBrillouin=.true.
-                    WRITE(6,*) "Ensuring that Brillouin's theorem no longer used..."
-                    IF(tHPHF) THEN
-                        TempHii = hphf_diag_helement (ProjEDet, iLutRef)
-                    ELSE
-                        TempHii = get_helement (ProjEDet, ProjEDet, 0)
-                    ENDIF
-                    Hii=REAL(TempHii,dp)
-                    WRITE(6,"(A,G25.15)") "Reference energy now set to: ",Hii
-
-
-                    SumENum=0.D0
-                    SumNoatHF=0
-                    HFPopCyc=0
-                    ProjEIterSum=0.D0
-                    VaryShiftCycles=0
-                    SumDiagSft=0.D0
-                    IF(iProcIndex.eq.0) THEN
-                        WRITE(6,*) "Zeroing all average energy estimators..."
-                    ENDIF
-                    WRITE(6,*) "Regenerating the stored diagonal HElements for all walkers..."
-                    do i=1,TotWalkers
-                        call decode_bit_det (DetCurr, CurrentDets(:,i))
-                        if (tHPHF) then
-                            HDiagtemp = hphf_diag_helement (DetCurr,CurrentDets(:,i))
-                        else
-                            HDiagTemp = get_helement (DetCurr, DetCurr, 0)
-                        endif
-                        CurrentH(i)=(REAL(HDiagTemp,dp))-Hii
-                    enddo
-                ELSEIF(tRestartHighPop.and.(iRestartWalkNum.le.AllTotParts)) THEN
-                    CALL MPI_BCast(HighestPopDet,NIfTot+1,MpiDetInt,HighPopout(2),MPI_COMM_WORLD,error)
-                    iLutRef(:)=HighestPopDet(:)
-                    call decode_bit_det (ProjEDet, iLutRef)
-                    WRITE(6,"(A)",advance='no') "Changing projected energy reference determinant to:"
-                    CALL Write_det(6,ProjEDet,.true.)
-                    tNoBrillouin=.true.
-                    WRITE(6,*) "Ensuring that Brillouin's theorem no longer used..."
-                    IF(tHPHF) THEN
-                        TempHii = hphf_diag_helement (ProjEDet, iLutRef)
-                    ELSE
-                        TempHii = get_helement (ProjEDet, ProjEDet, 0)
-                    ENDIF
-                    Hii=REAL(TempHii,dp)
-                    WRITE(6,"(A,G25.15)") "Reference energy now set to: ",Hii
-                    CALL ChangeRefDet(Hii,ProjEDet,iLutRef)
-                    RETURN
-                ENDIF
-            ENDIF
-        ENDIF
-
-!AlliUniqueDets corresponds to the total number of unique determinants, summed over all iterations in the last update cycle, and over all processors.
-!Divide by StepsSft to get the average number of unique determinants visited over a single iteration.
-!        AlliUniqueDets=AlliUniqueDets/(REAL(StepsSft,dp))
-        
-        IF(GrowRate.eq.-1.D0) THEN
-!tGlobalSftCng is on, and we want to calculate the change in the shift as a global parameter, rather than as a weighted average.
-!This will only be a sensible value on the root.
-            AllGrowRate=AllTotParts/AllTotPartsOld
-            IF(tTruncInitiator) AllGrowRateAbort=(AllTotParts+AllNoAborted)/(AllTotPartsOld+AllNoAbortedOld)
-        ELSE
-!We want to calculate the mean growth rate over the update cycle, weighted by the total number of walkers
-            GrowRate=GrowRate*TempSumWalkersCyc                    
-            CALL MPIDSumRoot(GrowRate,1,AllGrowRate,Root)   
-
-            IF(iProcIndex.eq.Root) THEN
-                AllGrowRate=AllGrowRate/TempAllSumWalkersCyc
-            ENDIF
-        ENDIF
-!        WRITE(6,*) "Get Here 6"
-!        CALL FLUSH(6)
-
-        IterTime=IterTime/REAL(StepsSft)    !This is the average time per iteration in the previous update cycle.
-
-!For the unweighted by iterations energy estimator (ProjEIter), we need the sum of the Hij*Sign from all processors over the last update cycle
-!        CALL MPIDSumRoot(ENumCyc,1,AllENumCyc,Root)
-!        WRITE(6,*) "Get Here 7"
-!        CALL FLUSH(6)
-
-!Do the same for the mean excitation level of all walkers, and the total positive particles
-!MeanExcitLevel here is just the sum of all the excitation levels - it needs to be divided by the total walkers in the update cycle first.
-!        WRITE(6,"(2I10,2G25.16)",advance='no') Iter,TotWalkers,MeanExcitLevel,TempSumWalkersCyc
-!        MeanExcitLevel=MeanExcitLevel/TempSumWalkersCyc
-!        CALL MPI_Reduce(MeanExcitLevel,AllMeanExcitLevel,1,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
-!        WRITE(6,*) "Get Here 8"
-!        CALL FLUSH(6)
-!        CALL MPIDSumRoot(MeanExcitLevel,1,AllMeanExcitLevel,Root)
-!        IF(iProcIndex.eq.Root) THEN
-!            AllMeanExcitLevel=AllMeanExcitLevel/real(nProcessors,dp)
-!        ENDIF
-
-!AvSign no longer calculated (but would be easy to put back in) - ACF much better bet...
-!        AvSign=AvSign/real(SumWalkersCyc,dp)
-!        AvSignHFD=AvSignHFD/real(SumWalkersCyc,dp)
-!        CALL MPI_Reduce(AvSign,AllAvSign,1,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
-!        CALL MPI_Reduce(AvSignHFD,AllAvSignHFD,1,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
-!        IF(iProcIndex.eq.Root) THEN
-!            AllAvSign=AllAvSign/real(nProcessors,dp)
-!            AllAvSignHFD=AllAvSignHFD/real(nProcessors,dp)
-!        ENDIF
-
-!Calculate the energy by summing all on HF and doubles - convert number at HF to a real since no int*8 MPI data type
-        TempSumNoatHF=real(SumNoatHF,dp)
-!        CALL MPIDSumRoot(TempSumNoatHF,1,AllSumNoatHF,Root)
-!        WRITE(6,*) "Get Here 9"
-!        CALL FLUSH(6)
-!        CALL MPIDSumRoot(SumENum,1,AllSumENum,Root)
-!        WRITE(6,*) "Get Here 10"
-!        CALL FLUSH(6)
-        inpairreal(1)=ENumCyc
-        inpairreal(2)=TempSumNoatHF
-        inpairreal(3)=SumENum
-!        inpairreal(4)=DetsNorm
-        CALL MPI_Reduce(inpairreal,outpairreal,3,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
-        AllENumCyc=outpairreal(1)
-        AllSumNoatHF=outpairreal(2)
-        AllSumENum=outpairreal(3)
-!        AllDetsNorm=outpairreal(4)
-
-
-!To find minimum and maximum excitation levels, search for them using MPI_Reduce
-!        inpair(1)=MaxExcitLevel
-!        inpair(2)=iProcIndex
-
-!        CALL MPI_Reduce(MaxExcitLevel,AllMaxExcitLevel,1,MPI_INTEGER,MPI_MAX,Root,MPI_COMM_WORLD,error)
-!        WRITE(6,*) "Get Here 11"
-!        CALL FLUSH(6)
-!        IF(error.ne.MPI_SUCCESS) THEN
-!            WRITE(6,*) "Error in finding max excitation level"
-!            CALL MPI_ABORT(MPI_COMM_WORLD,rc,error)
-!        ENDIF
-!Max Excit Level is found on processor outpair(2) and is outpair(1)
-!        IF(iProcIndex.eq.Root) THEN
-!            AllMaxExcitLevel=outpair(1)
-!        ENDIF
-
-!        inpair(1)=MinExcitLevel
-!        inpair(2)=iProcIndex
-!        CALL MPI_Reduce(MinExcitLevel,AllMinExcitLevel,1,MPI_INTEGER,MPI_MIN,Root,MPI_COMM_WORLD,error)
-!        WRITE(6,*) "Get Here 12"
-!        CALL FLUSH(6)
-!        IF(error.ne.MPI_SUCCESS) THEN
-!            WRITE(6,*) "Error in finding min excitation level"
-!            CALL MPI_ABORT(MPI_COMM_WORLD,rc,error)
-!        ENDIF
-!        IF(iProcIndex.eq.Root) THEN
-!            AllMinExcitLevel=outpair(1)
-!        ENDIF
-
-!We now want to find how the shift should change for the entire ensemble of processors
-        IF(iProcIndex.eq.Root) THEN
-            IF(.not.TSinglePartPhase) THEN
-                DiagSft=DiagSft-(log(AllGrowRate)*SftDamp)/(Tau*(StepsSft+0.D0))
-                IF((Iter-VaryShiftIter).ge.NShiftEquilSteps) THEN
-!                    WRITE(6,*) Iter-VaryShiftIter, NEquilSteps*StepsSft
-                    IF((Iter-VaryShiftIter).eq.NShiftEquilSteps) WRITE(6,*) 'Beginning to average shift value.'
-                    VaryShiftCycles=VaryShiftCycles+1
-                    SumDiagSft=SumDiagSft+DiagSft
-                    AvDiagSft=SumDiagSft/REAL(VaryShiftCycles,dp)
-                ENDIF
-
-                IF(tTruncInitiator) THEN
-                    DiagSftAbort=DiagSftAbort-(log(AllGrowRateAbort)*SftDamp)/(Tau*(StepsSft+0.D0))
-                    IF((Iter-VaryShiftIter).ge.NShiftEquilSteps) THEN
-                        SumDiagSftAbort=SumDiagSftAbort+DiagSftAbort
-                        AvDiagSftAbort=SumDiagSftAbort/REAL(VaryShiftCycles,dp)
-                    ENDIF
-                ENDIF
-            ENDIF
-
-!Calculate the instantaneous value of the 'shift' from the HF population
-            HFShift=-1.D0/REAL(AllNoatHF,dp)*(REAL(AllNoatHF-OldAllNoatHF,dp)/(Tau*REAL(StepsSft,dp)))
-            InstShift=-1.D0/AllTotParts*((AllTotParts-AllTotPartsOld)/(Tau*REAL(StepsSft,dp)))
-
-            IF(AllSumNoatHF.ne.0.D0) THEN
-!AllSumNoatHF can actually be 0 if we have equilsteps on.
-                ProjectionE=AllSumENum/AllSumNoatHF
-            ENDIF
-
-!Calculate the projected energy where each update cycle contributes the same weight to the average for its estimator for the energy
-            IF(AllHFCyc.ne.0.D0) THEN
-                ProjEIterSum=ProjEIterSum+(AllENumCyc/AllHFCyc)
-                HFPopCyc=HFPopCyc+1   !This is the number of iterations where we have a non-zero contribution from HF particles
-                ProjEIter=ProjEIterSum/REAL(HFPopCyc,dp)
-            ENDIF
-        ENDIF
-!        IF(tHub.and.tReal) THEN
-!!Since for the real-space hubbard model the reference is not the HF, it has to be added on to the energy since it is not subtracted from the
-!!diagonal hamiltonian elements.
-!            ProjectionE=ProjectionE+HubRefEnergy
-!            ProjEIter=ProjEIter+HubRefEnergy
-!        ENDIF
-        
-        IF(tReZeroShift) THEN
-            DiagSft=0.D0
-            VaryShiftCycles=0
-            SumDiagSft=0.D0
-            AvDiagSft=0.D0
-        ENDIF
-
-!We wan to now broadcast this new shift to all processors
-        CALL MPI_Bcast(DiagSft,1,MPI_DOUBLE_PRECISION,Root,MPI_COMM_WORLD,error)
-!        WRITE(6,*) "Get Here 13"
-!        CALL FLUSH(6)
-!        IF(error.ne.MPI_SUCCESS) THEN
-!            WRITE(6,*) "Error in broadcasting new shift"
-!            CALL MPI_ABORT(MPI_COMM_WORLD,rc,error)
-!        ENDIF
-
-        AccRat=(REAL(Acceptances,dp))/TempSumWalkersCyc      !The acceptance ratio which is printed is only for the current node - not summed over all nodes
-
-        CALL WriteFCIMCStats()
-
-
-!This first bit checks if it is time to set up the blocking analysis.  This is obviously only done once, so these logicals become false once it is done. 
-        IF(iProcIndex.eq.Root) THEN
-            IF(tIterStartBlock) THEN
-!If IterStartBlocking is positive, then start blocking when we are at that iteration. Otherwise, wait until out of fixed shift.
-                IF(IterStartBlocking.gt.0) THEN
-                    IF(Iter.ge.IterStartBlocking) THEN 
-                        CALL InitErrorBlocking(Iter)
-                        tIterStartBlock=.false.
-                        tErrorBlocking=.true.
-                    ENDIF
-                ELSE
-                    IF(.not.TSinglePartPhase) THEN
-                        CALL InitErrorBlocking(Iter)
-                        tIterStartBlock=.false.
-                        tErrorBlocking=.true.
-                    ENDIF
-                ENDIF
-            ELSEIF(tHFPopStartBlock) THEN
-                IF((AllHFCyc/StepsSft).ge.HFPopStartBlocking) THEN
-                    CALL InitErrorBlocking(Iter)
-                    tHFPopStartBlock=.false.
-                    tErrorBlocking=.true.
-                ENDIF
-            ENDIF
-
-            IF((.not.TSinglePartPhase).and.tInitShiftBlocking.and.(Iter.eq.(VaryShiftIter+IterShiftBlock))) THEN
-                CALL InitShiftErrorBlocking(Iter)
-                tInitShiftBlocking=.false.
-                tShiftBlocking=.true.
-            ENDIF
-
-!Then we perform the blocking at the end of each update cycle.         
-            IF(tErrorBlocking.and.(.not.tBlockEveryIteration)) CALL SumInErrorContrib(Iter,AllENumCyc,AllHFCyc)
-            IF(tShiftBlocking.and.(Iter.ge.(VaryShiftIter+IterShiftBlock))) CALL SumInShiftErrorContrib(Iter,DiagSft)
-        ENDIF
-
-!Now need to reinitialise all variables on all processers
-        IterTime=0.0
-!        MinExcitLevel=NEl+10
-!        MaxExcitLevel=0
-!        MeanExcitLevel=0.D0
-        SumWalkersCyc=0
-!        AvSign=0.D0        !Rezero this quantity - <s> is now a average over the update cycle
-!        AvSignHFD=0.D0     !This is the average sign over the HF and doubles
-!        DetsNorm=0.D0
-        Annihilated=0
-        Acceptances=0
-        NoBorn=0
-        SpawnFromSing=0
-        NoDied=0
-        ENumCyc=0.D0
-!        ProjEIter=0.D0     Do not want to rezero, since otherwise, if there are no particles at HF in the next update cycle, it will print out zero.
-        HFCyc=0
-        NoAborted=0.D0
-        NoInitDets=0.D0
-        NoNonInitDets=0.D0
-        NoInitWalk=0.D0
-        NoNonInitWalk=0.D0
-        NoDoubSpawns=0.D0
-        InitRemoved=0.D0
-
-!Reset TotWalkersOld so that it is the number of walkers now
-        TotWalkersOld=TotWalkers
-        TotPartsOld=TotParts
-!Save the number at HF to use in the HFShift
-        OldAllNoatHF=AllNoatHF
-
-!Also reinitialise the global variables - should not necessarily need to do this...
-!        AllHFCyc=0.D0
-!        AllENumCyc=0.D0
-!        AllDetsNorm=0.D0
-        AllSumENum=0.D0
-        AllSumNoatHF=0.D0
-        AllTotWalkersOld=AllTotWalkers
-        AllTotPartsOld=AllTotParts
-        AllNoAbortedOld=AllNoAborted
-        AllTotWalkers=0.D0
-        AllTotParts=0.D0
-        AllGrowRate=0.D0
-!        AllMeanExcitLevel=0.D0
-!        AllAvSign=0.D0
-!        AllAvSignHFD=0.D0
-        AllSumWalkersCyc=0
-        AllAnnihilated=0
-        AllNoatHF=0
-        AllNoatDoubs=0
-        AllNoBorn=0
-        AllSpawnFromSing=0
-        AllNoDied=0
-        AllNoAborted=0.D0
-        AllNoAddedInitiators=0.D0
-        AllNoInitDets=0.D0
-        AllNoNonInitDets=0.D0
-        AllNoInitWalk=0.D0
-        AllNoNonInitWalk=0.D0
-        AllNoDoubSpawns=0.D0
-        AllNoExtraInitDoubs=0.D0
-        AllInitRemoved=0.D0
-
-
-
-        RETURN
-    END SUBROUTINE CalcNewShift
-
-    
-!This initialises the calculation, by allocating memory, setting up the initial walkers, and reading from a file if needed
-    SUBROUTINE InitFCIMCCalcPar()
-        use FciMCLoggingMOD , only : InitHistInitPops
-        use SystemData , only : tRotateOrbs
-        use CalcData , only : InitialPart
-        use CalcData , only : MemoryFacPart,MemoryFacAnnihil,MemoryFacSpawn
-        use constants , only : size_n_int
-        INTEGER :: ierr,i,j,k,l,DetCurr(NEl),ReadWalkers,TotWalkersDet
-        INTEGER :: DetLT,VecSlot,error,MemoryAlloc,Proc
-        INTEGER, DIMENSION(lenof_sign) :: InitialSign
-        HElement_t :: rh,TempHii
-        LOGICAL :: exists
-        REAL*8 :: TotDets
-        CHARACTER(len=*), PARAMETER :: this_routine='InitFCIMCPar'
-            
-        if (tReadPops .and. .not. tPopsAlreadyRead) then
-!Read in particles from multiple POPSFILES for each processor
-            WRITE(6,*) "Reading in initial particle configuration from POPSFILES..."
-            CALL ReadFromPopsFilePar()
-        ELSE
-!initialise the particle positions - start at HF with positive sign
-!Set the maximum number of walkers allowed
-            MaxWalkersPart=NINT(MemoryFacPart*InitWalkers)
-            WRITE(6,"(A,I14)") " Memory allocated for a maximum particle number per node of: ",MaxWalkersPart
-            MaxSpawned=NINT(MemoryFacSpawn*InitWalkers)
-!            WRITE(6,"(A,I14)") "Memory allocated for a maximum particle number per node for spawning of: ",MaxSpawned
-
-!Put a barrier here so all processes synchronise
-            CALL MPI_Barrier(MPI_COMM_WORLD,error)
-!Allocate memory to hold walkers
-            ALLOCATE(WalkVecDets(0:NIfTot,MaxWalkersPart),stat=ierr)
-            CALL LogMemAlloc('WalkVecDets',MaxWalkersPart*(NIfTot+1),size_n_int,this_routine,WalkVecDetsTag,ierr)
-            WalkVecDets(0:NIfTot,1:MaxWalkersPart)=0
-            MemoryAlloc=(NIfTot+1)*MaxWalkersPart*size_n_int    !Memory Allocated in bytes
-
-            IF(.not.tRegenDiagHEls) THEN
-                ALLOCATE(WalkVecH(MaxWalkersPart),stat=ierr)
-                CALL LogMemAlloc('WalkVecH',MaxWalkersPart,8,this_routine,WalkVecHTag,ierr)
-                WalkVecH(:)=0.d0
-                MemoryAlloc=MemoryAlloc+8*MaxWalkersPart
-            ELSE
-                WRITE(6,"(A,F14.6,A)") " Diagonal H-Elements will not be stored. This will *save* ",REAL(MaxWalkersPart*8,dp)/1048576.D0," Mb/Processor"
-            ENDIF
-            
-
-            WRITE(6,"(A,I12,A)") " Spawning vectors allowing for a total of ",MaxSpawned," particles to be spawned in any one iteration."
-            ALLOCATE(SpawnVec(0:NIftot,MaxSpawned),stat=ierr)
-            CALL LogMemAlloc('SpawnVec',MaxSpawned*(NIfTot+1),size_n_int,this_routine,SpawnVecTag,ierr)
-            SpawnVec(:,:)=0
-            ALLOCATE(SpawnVec2(0:NIfTot,MaxSpawned),stat=ierr)
-            CALL LogMemAlloc('SpawnVec2',MaxSpawned*(NIfTot+1),size_n_int,this_routine,SpawnVec2Tag,ierr)
-            SpawnVec2(:,:)=0
-
-!Point at correct spawning arrays
-            SpawnedParts=>SpawnVec
-            SpawnedParts2=>SpawnVec2
-
-            MemoryAlloc=MemoryAlloc+(NIfTot+1)*MaxSpawned*2*size_n_int
-
-!Allocate pointers to the correct walker arrays
-            CurrentDets=>WalkVecDets
-            IF(.not.tRegenDiagHEls) THEN
-                CurrentH=>WalkVecH
-            ENDIF
-        
-            iHFProc=DetermineDetProc(iLutHF)   !This wants to return a value between 0 -> nProcessors-1
-            WRITE(6,*) "HF processor is: ",iHFProc
-
-!Setup initial walker local variables
-            IF(iProcIndex.eq.iHFProc) THEN
-
-                call encode_det(CurrentDets(:,1), iLutHF)
-                InitialSign = 0
-                IF(tTruncInitiator) call encode_flags(CurrentDets(:,1),0)
-                IF(.not.tRegenDiagHEls) CurrentH(1)=0.D0
-
-                IF(TStartSinglePart) THEN
-                    InitialSign(1) = InitialPart
-                    CALL encode_sign(CurrentDets(:,1), InitialSign)
-                    TotWalkers=1
-                    TotWalkersOld=1
-                    TotParts=InitialPart
-                    TotPartsOld=InitialPart
-                    NoatHF=InitialPart
-                ELSE
-                    InitialSign(1) = InitWalkers 
-                    CALL encode_sign(CurrentDets(:,1), InitialSign)
-                    TotWalkers=1
-                    TotWalkersOld=1
-                    TotParts=InitWalkers
-                    TotPartsOld=InitWalkers
-                ENDIF
-
-            ELSE
-                IF(tStartSinglePart) THEN
-                    NoatHF=0
-                    TotWalkers=0
-                    TotWalkersOld=0
-                    TotParts=0
-                    TotPartsOld=0
-                ELSE
-                    TotWalkers=0
-                    TotWalkersOld=0
-                    TotParts=0
-                    TotPartsOld=0
-                ENDIF
-            ENDIF
-
-        
-            IF(TStartSinglePart) THEN
-!Initialise global variables for calculation on the root node
-                IF(iProcIndex.eq.root) THEN
-                    OldAllNoatHF=InitialPart
-                    AllNoatHF=InitialPart
-                    AllTotWalkers=1.D0
-                    AllTotWalkersOld=1.D0
-                    AllTotParts=REAL(InitialPart,dp)
-                    AllTotPartsOld=REAL(InitialPart,dp)
-                    AllNoAbortedOld=0.D0
-                ENDIF
-            ELSE
-!In this, only one processor has initial particles.
-                IF(iProcIndex.eq.Root) THEN
-                    AllTotWalkers=1.D0
-                    AllTotWalkersOld=1.D0
-                    AllTotParts=REAL(InitWalkers,dp)
-                    AllTotPartsOld=REAL(InitWalkers,dp)
-                    AllNoAbortedOld=0.D0
-                ENDIF
-            ENDIF
-        
-            WRITE(6,"(A,F14.6,A)") " Initial memory (without excitgens + temp arrays) consists of : ",REAL(MemoryAlloc,dp)/1048576.D0," Mb/Processor"
-            WRITE(6,*) "Only one array of memory to store main particle list allocated..."
-            WRITE(6,*) "Initial memory allocation sucessful..."
-            CALL FLUSH(6)
-
-        ENDIF   !End if initial walkers method
-            
-!Put a barrier here so all processes synchronise
-        CALL MPI_Barrier(MPI_COMM_WORLD,error)
-
-        IF(tTruncInitiator.or.tDelayTruncInit) THEN
-            IF(tDelayTruncInit) tTruncInitiator=.false.
-        ENDIF
-
-
-        IF(tPrintOrbOcc) THEN
-            ALLOCATE(OrbOccs(nBasis),stat=ierr)
-            CALL LogMemAlloc('OrbOccs',nBasis,8,this_routine,OrbOccsTag,ierr)
-            OrbOccs(:)=0.D0
-        ENDIF
-
-        IF(tHistInitPops) THEN
-            CALL InitHistInitPops()
-        ENDIF
-        tPrintHighPop=.false.
-        MaxInitPopPos=0
-        MaxInitPopNeg=0
-
-        IF(MaxNoatHF.eq.0) THEN
-            MaxNoatHF=InitWalkers*nProcessors
-            HFPopThresh=MaxNoatHF
-        ENDIF
-
-        IF((NMCyc.ne.0).and.(tRotateOrbs.and.(.not.tFindCINatOrbs))) CALL Stop_All(this_routine,"Currently not set up to rotate and then go straight into a spawning &
-                                                                                    & calculation.  Ordering of orbitals is incorrect.  This may be fixed if needed.")
-
-    end subroutine InitFCIMCCalcPar
 
     subroutine init_fcimc_fn_pointers ()
 
@@ -2892,48 +2215,6 @@ MODULE FciMCParMod
 
     end function
 
-!This routine will change the reference determinant to DetCurr. It will also re-zero all the energy estimators, since they now correspond to
-!projection onto a different determinant.
-    SUBROUTINE ChangeRefDet(HDiagCurr,DetCurr,iLutCurr)
-        use Determinants , only : GetH0Element3
-        use FciMCLoggingMod , only : RestartBlocking, RestartShiftBlocking
-        INTEGER :: DetCurr(NEl),i,nStore(6),ierr,iMaxExcit
-        INTEGER(KIND=n_int) :: iLutTemp(0:NIfTot), iLutCurr(0:NIfTot)
-        INTEGER :: nJ(NEl)
-        HElement_t :: TempHii
-        REAL*8 :: HDiagCurr
-
-!        CALL Stop_All("ChangeRefDet","This option does not currently work. Bug ghb24 if its needed")
-!Problem is that we need to rerun the simulation from scratch, and particles currently in the simulation will keep on
-!changing the reference since their diagonal K element will remain negative.
-
-        do i=1,NEl
-            FDet(i)=DetCurr(i)
-        enddo
-
-        WRITE(6,"(A)") "*** Changing the reference determinant ***"
-        WRITE(6,"(A)") "Switching reference and zeroing energy counters - restarting simulation"
-!        
-!Initialise variables for calculation on each node
-        Iter=1
-        
-        CALL DeallocFCIMCMemPar()
-        IF(iProcIndex.eq.Root) THEN
-            CLOSE(fcimcstats_unit)
-            IF(tTruncInitiator.or.tDelayTruncInit) CLOSE(initiatorstats_unit)
-!            IF(TAutoCorr) CLOSE(44)
-        ENDIF
-        IF(TDebug) CLOSE(11)
-        CALL SetupParameters()
-        CALL InitFCIMCCalcPar()
-        IF(iProcIndex.eq.0) THEN
-            CALL RestartBlocking(Iter)
-            CALL RestartShiftBlocking(Iter)
-        ENDIF
-
-
-
-    END SUBROUTINE ChangeRefDet
     
 
 !This routine will find the largest weighted MP1 determinants, from which we can construct energy level splitting dependant on the sign.
@@ -3009,126 +2290,6 @@ MODULE FciMCParMod
 !        CALL CheckOrdering(PartList(:,1:Length),CurrentSign(1:Length),Length,.true.)
 
     END SUBROUTINE SortCompressListswH
-
-
-    SUBROUTINE DeallocFCIMCMemPar()
-        INTEGER :: i,error,length,temp
-        CHARACTER(len=*), PARAMETER :: this_routine='DeallocFciMCMemPar'
-        CHARACTER(LEN=MPI_MAX_ERROR_STRING) :: message
-
-
-        IF(tHistSpawn.or.tCalcFCIMCPsi) THEN
-            DEALLOCATE(Histogram)
-            DEALLOCATE(AllHistogram)
-            IF(tHistSpawn) THEN
-                DEALLOCATE(InstHist)
-                DEALLOCATE(InstAnnihil)
-                DEALLOCATE(AvAnnihil)
-            ENDIF
-            IF(iProcIndex.eq.0) THEN
-                IF(tHistSpawn) THEN
-                    DEALLOCATE(AllInstHist)
-                    DEALLOCATE(AllAvAnnihil)
-                    DEALLOCATE(AllInstAnnihil)
-                ENDIF
-            ENDIF
-        ELSEIF(tHistEnergies) THEN
-            DEALLOCATE(Histogram)
-            DEALLOCATE(AttemptHist)
-            DEALLOCATE(SpawnHist)
-            DEALLOCATE(SinglesHist)
-            DEALLOCATE(DoublesHist)
-            DEALLOCATE(DoublesAttemptHist)
-            DEALLOCATE(SinglesAttemptHist)
-            DEALLOCATE(SinglesHistOccOcc)
-            DEALLOCATE(SinglesHistVirtOcc)
-            DEALLOCATE(SinglesHistOccVirt)
-            DEALLOCATE(SinglesHistVirtVirt)
-            IF(iProcIndex.eq.Root) THEN
-                DEALLOCATE(AllHistogram)
-                DEALLOCATE(AllAttemptHist)
-                DEALLOCATE(AllSpawnHist)
-                DEALLOCATE(AllSinglesAttemptHist)
-                DEALLOCATE(AllSinglesHist)
-                DEALLOCATE(AllDoublesAttemptHist)
-                DEALLOCATE(AllDoublesHist)
-                DEALLOCATE(AllSinglesHistOccOcc)
-                DEALLOCATE(AllSinglesHistVirtOcc)
-                DEALLOCATE(AllSinglesHistOccVirt)
-                DEALLOCATE(AllSinglesHistVirtVirt)
-            ENDIF
-        ENDIF
-        IF(tHistHamil) THEN
-            DEALLOCATE(HistHamil)
-            DEALLOCATE(AvHistHamil)
-            IF(iProcIndex.eq.0) THEN
-                DEALLOCATE(AllHistHamil)
-                DEALLOCATE(AllAvHistHamil)
-            ENDIF
-        ENDIF
-        DEALLOCATE(WalkVecDets)
-        CALL LogMemDealloc(this_routine,WalkVecDetsTag)
-        IF(.not.tRegenDiagHEls) THEN
-            DEALLOCATE(WalkVecH)
-            CALL LogMemDealloc(this_routine,WalkVecHTag)
-        ENDIF
-        DEALLOCATE(SpawnVec)
-        CALL LogMemDealloc(this_routine,SpawnVecTag)
-        DEALLOCATE(SpawnVec2)
-        CALL LogMemDealloc(this_routine,SpawnVec2Tag)
-        
-        DEALLOCATE(HFDet)
-        CALL LogMemDealloc(this_routine,HFDetTag)
-        DEALLOCATE(iLutHF)
-        DEALLOCATE(iLutRef)
-        DEALLOCATE(ProjEDet)
-        IF(ALLOCATED(HighestPopDet)) DEALLOCATE(HighestPopDet)
-        IF(ALLOCATED(RandomHash)) DEALLOCATE(RandomHash)
-
-        IF(ALLOCATED(SpinInvBrr)) THEN
-            CALL LogMemDealloc(this_routine,SpinInvBRRTag)
-            DEALLOCATE(SpinInvBRR)
-        ENDIF
-        IF(ALLOCATED(CoreMask)) THEN
-            DEALLOCATE(CoreMask)
-            DEALLOCATE(CASMask)
-        ENDIF
-        IF(tPrintOrbOcc) THEN
-            DEALLOCATE(OrbOccs)
-            CALL LogMemDeAlloc(this_routine,OrbOccsTag)
-        ENDIF
-
-        IF(tHistInitPops) THEN
-            if (allocated(HistInitPops)) then
-                deallocate (HistInitPops)
-                call LogMemDeAlloc (this_routine, HistInitPopsTag)
-            endif
-            IF(iProcIndex.eq.0) THEN
-                if (allocated(AllHistInitPops)) then
-                    deallocate (AllHistInitPops)
-                    call LogMemDeAlloc(this_routine,AllHistInitPopsTag)
-                endif
-            ENDIF
-        ENDIF
-
-
-!There seems to be some problems freeing the derived mpi type.
-!        IF((.not.TNoAnnihil).and.(.not.TAnnihilonproc)) THEN
-!Free the mpi derived type that we have created for the hashes.
-!            CALL MPI_Type_free(mpilongintegertype,error)
-!            IF(error.ne.MPI_SUCCESS) THEN
-!                CALL MPI_Error_string(error,message,length,temp)
-!                IF(temp.ne.MPI_SUCCESS) THEN
-!                    WRITE(6,*) "REALLY SERIOUS PROBLEMS HERE!",temp
-!                    CALL FLUSH(6)
-!                ENDIF
-!                WRITE(6,*) message(1:length)
-!                WRITE(6,*) "ERROR FOUND"
-!                CALL FLUSH(6)
-!            ENDIF
-!        ENDIF
-
-    END SUBROUTINE DeallocFCIMCMemPar
 
 
     SUBROUTINE WriteHistogramEnergies()
@@ -3638,11 +2799,11 @@ MODULE FciMCParMod
 
     end subroutine
 
-#else
+#else //from ifdef PARALLEL
 ! AJWT
 ! Bringing you a better FciMCPar.  A vision for the future...
 !
-!  This section contains parts of FciMCPar which are not dependent on MPI commands.
+!  This section contains parts of FciMCPar which are not dependent on MPI commands, and are only included in the non-PARALLEL calc.
 !  It's not yet complete, but at least compiles and runs
 
     SUBROUTINE FciMCPar(Weight,Energyxw)
@@ -3654,32 +2815,54 @@ MODULE FciMCParMod
 !Very crudely hacked from the parallel version.  MPI calls commented out with !!
 
 
+    SUBROUTINE WriteHistogram()
+        CALL Stop_All("WriteHistogram","WriteHistogram not currently coded for serial.")
+    END SUBROUTINE WriteHistogram
+!This routine reads in particle configurations from a POPSFILE.
+    SUBROUTINE ReadFromPopsfilePar()
+        CALL Stop_All("ReadFromPopsfilePar","ReadFromPopsfilePar not currently coded for serial.")
+    END SUBROUTINE ReadFromPopsfilePar
+#endif //def PARALLEL
+! AJWT
+! Bringing you a better FciMCPar.  A vision for the future...
+!
+!  This section contains parts of FciMCPar which are not dependent on MPI commands and included in both serial and PARALLEL compiles
+!  It's not yet complete, but at least compiles and runs
+
+    
 !Every StepsSft steps, update the diagonal shift value (the running value for the correlation energy)
 !We don't want to do this too often, since we want the population levels to acclimatise between changing the shifts
     SUBROUTINE CalcNewShift()
+        USE SystemData , only: tNoBrillouin
         USE FciMCLoggingMOD , only : PrintSpawnAttemptStats,InitErrorBlocking,SumInErrorContrib
         USE FciMCLoggingMOD , only : InitShiftErrorBlocking,SumInShiftErrorContrib
+        USE CalcData , only : tCheckHighestPop,tChangeProjEDet,tRestartHighPop,FracLargerDet,iRestartWalkNum
+        USE constants, only : MpiDetInt
         INTEGER :: error,rc,MaxAllowedWalkers,MaxWalkersProc,MinWalkersProc
-        INTEGER :: inpair(6),outpair(6)
+        INTEGER :: inpair(6),outpair(6),HighPopin(2),HighPopout(2),DetCurr(NEl),i
         REAL*8 :: TempTotWalkers,TempTotParts
         REAL*8 :: TempSumNoatHF,MeanWalkers,TempSumWalkersCyc,TempAllSumWalkersCyc
-        REAL*8 :: inpairreal(3),outpairreal(3),inpairInit(8),outpairInit(8)
+        REAL*8 :: inpairreal(3),outpairreal(3),inpairInit(9),outpairInit(9)
+        LOGICAL :: tReZeroShift
+        HElement_t :: TempHii,HDiagTemp
 
         TotImagTime=TotImagTime+StepsSft*Tau
-        
-        IF(TSinglePartPhase) THEN
-!Exit the single particle phase if the number of walkers exceeds the value in the input file.
-!            CALL MPI_Barrier(MPI_COMM_WORLD,error)
-            IF(iProcIndex.eq.root) THEN     !Only exit phase if particle number is sufficient on head node.
-                IF(TotParts.gt.InitWalkers) THEN
-                    WRITE(6,*) "Exiting the single particle growth phase - shift can now change"
-                    VaryShiftIter=Iter
-                    TSinglePartPhase=.false.
-                ENDIF
-            ENDIF
-!Broadcast the fact that TSinglePartPhase may have changed to all processors - unfortunatly, have to do this broadcast every iteration.
-            CALL MPILBcast(TSinglePartPhase,1,root)
+
+!Find the total number of particles at HF (x sign) across all nodes. If this is negative, flip the sign of all particles.
+        AllNoatHF=0
+        tReZeroShift=.false.
+
+!Find sum of noathf, and then use an AllReduce to broadcast it to all nodes
+        CALL MPIISum(NoatHF,1,AllNoatHF)
+        IF(AllNoatHF.lt.0) THEN
+!Flip the sign if we're beginning to get a negative population on the HF
+            WRITE(6,*) "No. at HF < 0 - flipping sign of entire ensemble of particles..."
+            WRITE(6,*) AllNoatHF
+            CALL FlipSign()
+            AllNoatHF=-AllNoatHF
+            NoatHF=-NoatHF
         ENDIF
+        
 
 !This first call will calculate the GrowRate for each processor, taking culling into account
 !        WRITE(6,*) "Get Here"
@@ -3687,24 +2870,8 @@ MODULE FciMCParMod
         CALL UpdateDiagSftPar()
 
 !Put a barrier here so all processes synchronise
-!!        CALL MPI_Barrier(MPI_COMM_WORLD,error)
         CALL MPIBarrier(error)
 
-!Find the total number of particles at HF (x sign) across all nodes. If this is negative, flip the sign of all particles.
-        AllNoatHF=0
-
-!Find sum of noathf, and then use an AllReduce to broadcast it to all nodes
-!!        CALL MPI_AllReduce(NoatHF,AllNoatHF,1,MPI_INTEGER,MPI_SUM,MPI_COMM_WORLD,error)
-        CALL MPIISum(NoatHF,1,AllNoatHF)
-      
-
-        IF(AllNoatHF.lt.0) THEN
-!Flip the sign if we're beginning to get a negative population on the HF
-            WRITE(6,*) "No. at HF < 0 - flipping sign of entire ensemble of particles..."
-            WRITE(6,*) AllNoatHF
-            CALL FlipSign()
-        ENDIF
-                
 !We need to collate the information from the different processors
 !Inpair and outpair are used to package variables to save on latency time
 !        inpair(1)=TotWalkers
@@ -3720,15 +2887,15 @@ MODULE FciMCParMod
 !        CALL MPI_Reduce(TotWalkers,AllTotWalkers,1,MPI_INTEGER,MPI_SUM,Root,MPI_COMM_WORLD,error)
 !Find total Annihilated,Total at HF and Total at doubles
 !        CALL MPI_Reduce(Annihilated,AllAnnihilated,1,MPI_INTEGER,MPI_SUM,Root,MPI_COMM_WORLD,error)
-!        CALL MPI_Reduce(NoatHF,AllNoatHF,1,MPI_INTEGER,MPI_SUM,Root,MPI_COMM_WORLD,error)  !This is done every iteration now
+!!        CALL MPI_Reduce(NoatHF,AllNoatHF,1,MPI_INTEGER,MPI_SUM,Root,MPI_COMM_WORLD,error)  !This is done every iteration now
 !        CALL MPI_Reduce(NoatDoubs,AllNoatDoubs,1,MPI_INTEGER,MPI_SUM,Root,MPI_COMM_WORLD,error)
 !        CALL MPI_Reduce(NoBorn,AllNoBorn,1,MPI_INTEGER,MPI_SUM,Root,MPI_COMM_WORLD,error)
 !        CALL MPI_Reduce(NoDied,AllNoDied,1,MPI_INTEGER,MPI_SUM,Root,MPI_COMM_WORLD,error)
 !        CALL MPI_Reduce(SumWalkersCyc,AllSumWalkersCyc,1,MPI_INTEGER,MPI_SUM,Root,MPI_COMM_WORLD,error)
 !        WRITE(6,*) "Get Here 1"
 !        CALL FLUSH(6)
-!!        CALL MPI_Reduce(inpair,outpair,9,MPI_INTEGER,MPI_SUM,Root,MPI_COMM_WORLD,error)
-         call MPIISumArr(inpair,6,outpair)
+!!        CALL MPI_Reduce(inpair,outpair,6,MPI_INTEGER,MPI_SUM,Root,MPI_COMM_WORLD,error)
+        CALL MPIIReduceArr(inpair,6,MPI_SUM,outpair)
 !        WRITE(6,*) "Get Here 2"
 !        CALL FLUSH(6)
 !        AllTotWalkers=outpair(1)
@@ -3752,9 +2919,10 @@ MODULE FciMCParMod
             inpairInit(6)=NoNonInitWalk
             inpairInit(7)=NoDoubSpawns
             inpairInit(8)=NoExtraInitDoubs
+            inpairInit(9)=InitRemoved
  
 !!            CALL MPI_Reduce(inpairInit,outpairInit,8,MPI_INTEGER,MPI_SUM,Root,MPI_COMM_WORLD,error)
-            Call MPIDSumArr(inpairInit,8,outpairInit)
+            Call MPIDSumArr(inpairInit,9,outpairInit)
 !            CALL MPI_Reduce(inpairinit,outpairinit,8,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
 
             AllNoAborted=outpairInit(1)
@@ -3765,13 +2933,13 @@ MODULE FciMCParMod
             AllNoNonInitWalk=outpairInit(6)
             AllNoDoubSpawns=outpairInit(7)
             AllNoExtraInitDoubs=outpairInit(8)
+            AllInitRemoved=outpairInit(9)
         ENDIF
 
 !!        CALL MPI_Reduce(TempTotWalkers,AllTotWalkers,1,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
-!!        CALL MPI_Reduce(TempTotParts,AllTotParts,1,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
-        Call MPIDSum(TempTotWalkers,1,AllTotWalkers)
-        Call MPIDSum(TempTotParts,1,AllTotParts)
-      
+        CALL MPIDReduce(TempTotWalkers,1,MPI_SUM,AllTotWalkers)
+!!        CALL MPI_AllReduce(TempTotParts,AllTotParts,1,MPI_DOUBLE_PRECISION,MPI_SUM,MPI_COMM_WORLD,error)
+        CALL MPIDAllReduce(TempTotParts,1,MPI_SUM,AllTotParts)
 
         IF(iProcIndex.eq.0) THEN
             IF(AllTotWalkers.le.0.2) THEN
@@ -3784,18 +2952,131 @@ MODULE FciMCParMod
         TempSumWalkersCyc=REAL(SumWalkersCyc,dp)
         TempAllSumWalkersCyc=0.D0
 !!        CALL MPI_Reduce(TempSumWalkersCyc,TempAllSumWalkersCyc,1,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
-        Call MPIDSum(TempSumWalkersCyc,1,TempAllSumWalkersCyc)
+        CALL MPIDReduce(TempSumWalkersCyc,1,MPI_SUM,TempAllSumWalkersCyc)
+
 !        WRITE(6,*) "Get Here 3"
 !        CALL FLUSH(6)
+        
+
+
+        IF(TSinglePartPhase) THEN
+!Exit the single particle phase if the number of walkers exceeds the value in the input file.
+!            CALL MPI_Barrier(MPI_COMM_WORLD,error)
+            IF((AllTotParts.gt.(INT(InitWalkers,int64)*INT(nProcessors,int64))).or.(AllNoatHF.gt.MaxNoatHF)) THEN
+                WRITE(6,*) "Exiting the single particle growth phase - shift can now change"
+                VaryShiftIter=Iter
+                TSinglePartPhase=.false.
+            ENDIF
+!!Broadcast the fact that TSinglePartPhase may have changed to all processors - unfortunatly, have to do this broadcast every iteration.
+!            CALL MPILBcast(TSinglePartPhase,1,root)
+        ELSE
+!Exit the single particle phase if the number of walkers exceeds the value in the input file.
+!            CALL MPI_Barrier(MPI_COMM_WORLD,error)
+!            IF(iProcIndex.eq.root) THEN     !Only exit phase if particle number is sufficient on head node.
+                IF(AllNoatHF.lt.(MaxNoatHF-HFPopThresh)) THEN
+                    WRITE(6,'(A)') "No at HF has fallen too low - reentering the single particle growth phase - particle number may grow again."
+!                    VaryShiftIter=Iter
+                    TSinglePartPhase=.true.
+                    tReZeroShift=.true.
+                ENDIF
+!            ENDIF
+!!Broadcast the fact that TSinglePartPhase may have changed to all processors - unfortunatly, have to do this broadcast every iteration.
+!            CALL MPILBcast(TSinglePartPhase,1,root)
+        ENDIF
+
 
 !Cannot load-balance with direct annihilation, but still want max & min
-!!            CALL MPI_Reduce(TotWalkers,MaxWalkersProc,1,MPI_INTEGER,MPI_MAX,root,MPI_COMM_WORLD,error)
-!!            CALL MPI_Reduce(TotWalkers,MinWalkersProc,1,MPI_INTEGER,MPI_MIN,root,MPI_COMM_WORLD,error)
+!!        CALL MPI_Reduce(TotWalkers,MaxWalkersProc,1,MPI_INTEGER,MPI_MAX,root,MPI_COMM_WORLD,error)
         CALL MPIIReduce(TotWalkers,1,MPI_MAX,MaxWalkersProc)
+!!        CALL MPI_Reduce(TotWalkers,MinWalkersProc,1,MPI_INTEGER,MPI_MIN,root,MPI_COMM_WORLD,error)
         CALL MPIIReduce(TotWalkers,1,MPI_MIN,MinWalkersProc)
-        
         IF(iProcIndex.eq.Root) THEN
             WalkersDiffProc=MaxWalkersProc-MinWalkersProc
+
+            MeanWalkers=AllTotWalkers/REAL(nProcessors,dp)
+            IF((WalkersDiffProc.gt.NINT(MeanWalkers/10.D0).and.(AllTotParts.gt.(REAL(nProcessors*500,dp))))) THEN
+                WRITE(6,"(A62,F20.10,2i12)") "Number of determinants assigned to each processor unbalanced. ", (WalkersDiffProc*10.D0)/REAL(MeanWalkers),MinWalkersProc,MaxWalkersProc
+            ENDIF
+        ENDIF
+        IF(tCheckHighestPop) THEN
+            HighPopin(1)=iHighestPop
+            HighPopin(2)=iProcIndex
+!!            CALL MPI_AllReduce(HighPopin,HighPopout,1,MPI_2INTEGER,MPI_MAXLOC,MPI_COMM_WORLD,error)
+            CALL MPIIAllReduceArr(HighPopin,2,MPI_MAXLOC,HighPopout)
+                    
+!Now, the root processor contains information about the highest populated determinant, and the processor which is it held on.
+            IF(((INT(FracLargerDet*REAL(AllNoatHF,dp))).lt.HighPopout(1)).and.(AllTotParts.gt.10000)) THEN
+                IF(iProcIndex.eq.Root) THEN
+                    IF(tHPHF) THEN
+                        WRITE(6,"(A,2I10)") "Highest weighted CLOSED-SHELL determinant not reference det: ",HighPopout(1),AllNoatHF
+                    ELSE
+                        WRITE(6,"(A,2I10)") "Highest weighted determinant not reference det: ",HighPopout(1),AllNoatHF
+                    ENDIF
+                ENDIF
+!                WRITE(6,"(A,4I12)") "Highest weighted determinant not reference det: ",iter,HighPopout(2),HighPopout(1),AllNoatHF
+!                CALL WriteBitDet(6,HighestPopDet,.true.)
+!                WRITE(6,*) iHighestPop
+                IF(tChangeProjEDet) THEN
+!Meed to communicate to all processors that iLutRef has changed.
+
+                    ! TODO: Can we do this without using a decode_bit_det
+                    !       call?
+!!                    CALL MPI_BCast(HighestPopDet(0:NIfTot),NIfTot+1,MpiDetInt,HighPopout(2),MPI_COMM_WORLD,error)
+                    CALL MPIDetIntBCastArr(HighestPopDet(0:NIfTot),NIfTot+1,HighPopout(2))
+                    iLutRef(:)=HighestPopDet(:)
+                    call decode_bit_det (ProjEDet, iLutRef)
+                    WRITE(6,"(A)",advance='no') "Changing projected energy reference determinant to:"
+                    CALL Write_det(6,ProjEDet,.true.)
+                    tNoBrillouin=.true.
+                    WRITE(6,*) "Ensuring that Brillouin's theorem no longer used..."
+                    IF(tHPHF) THEN
+                        TempHii = hphf_diag_helement (ProjEDet, iLutRef)
+                    ELSE
+                        TempHii = get_helement (ProjEDet, ProjEDet, 0)
+                    ENDIF
+                    Hii=REAL(TempHii,dp)
+                    WRITE(6,"(A,G25.15)") "Reference energy now set to: ",Hii
+
+
+                    SumENum=0.D0
+                    SumNoatHF=0
+                    HFPopCyc=0
+                    ProjEIterSum=0.D0
+                    VaryShiftCycles=0
+                    SumDiagSft=0.D0
+                    IF(iProcIndex.eq.0) THEN
+                        WRITE(6,*) "Zeroing all average energy estimators..."
+                    ENDIF
+                    WRITE(6,*) "Regenerating the stored diagonal HElements for all walkers..."
+                    do i=1,TotWalkers
+                        call decode_bit_det (DetCurr, CurrentDets(:,i))
+                        if (tHPHF) then
+                            HDiagtemp = hphf_diag_helement (DetCurr,CurrentDets(:,i))
+                        else
+                            HDiagTemp = get_helement (DetCurr, DetCurr, 0)
+                        endif
+                        CurrentH(i)=(REAL(HDiagTemp,dp))-Hii
+                    enddo
+                ELSEIF(tRestartHighPop.and.(iRestartWalkNum.le.AllTotParts)) THEN
+!!                    CALL MPI_BCast(HighestPopDet,NIfTot+1,MpiDetInt,HighPopout(2),MPI_COMM_WORLD,error)
+                    CALL MPIDetIntBCastArr(HighestPopDet,NIfTot+1,HighPopout(2))
+                    iLutRef(:)=HighestPopDet(:)
+                    call decode_bit_det (ProjEDet, iLutRef)
+                    WRITE(6,"(A)",advance='no') "Changing projected energy reference determinant to:"
+                    CALL Write_det(6,ProjEDet,.true.)
+                    tNoBrillouin=.true.
+                    WRITE(6,*) "Ensuring that Brillouin's theorem no longer used..."
+                    IF(tHPHF) THEN
+                        TempHii = hphf_diag_helement (ProjEDet, iLutRef)
+                    ELSE
+                        TempHii = get_helement (ProjEDet, ProjEDet, 0)
+                    ENDIF
+                    Hii=REAL(TempHii,dp)
+                    WRITE(6,"(A,G25.15)") "Reference energy now set to: ",Hii
+                    CALL ChangeRefDet(Hii,ProjEDet,iLutRef)
+                    RETURN
+                ENDIF
+            ENDIF
         ENDIF
 
 !AlliUniqueDets corresponds to the total number of unique determinants, summed over all iterations in the last update cycle, and over all processors.
@@ -3860,7 +3141,8 @@ MODULE FciMCParMod
         inpairreal(2)=TempSumNoatHF
         inpairreal(3)=SumENum
 !        inpairreal(4)=DetsNorm
-        CALL MPIDSumArr(inpairreal,3,outpairreal)
+!!        CALL MPI_Reduce(inpairreal,outpairreal,3,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
+        CALL MPIDReduceArr(inpairreal,3,MPI_SUM,outpairreal)
         AllENumCyc=outpairreal(1)
         AllSumNoatHF=outpairreal(2)
         AllSumENum=outpairreal(3)
@@ -3917,6 +3199,10 @@ MODULE FciMCParMod
                 ENDIF
             ENDIF
 
+!Calculate the instantaneous value of the 'shift' from the HF population
+            HFShift=-1.D0/REAL(AllNoatHF,dp)*(REAL(AllNoatHF-OldAllNoatHF,dp)/(Tau*REAL(StepsSft,dp)))
+            InstShift=-1.D0/AllTotParts*((AllTotParts-AllTotPartsOld)/(Tau*REAL(StepsSft,dp)))
+
             IF(AllSumNoatHF.ne.0.D0) THEN
 !AllSumNoatHF can actually be 0 if we have equilsteps on.
                 ProjectionE=AllSumENum/AllSumNoatHF
@@ -3935,7 +3221,16 @@ MODULE FciMCParMod
 !            ProjectionE=ProjectionE+HubRefEnergy
 !            ProjEIter=ProjEIter+HubRefEnergy
 !        ENDIF
+        
+        IF(tReZeroShift) THEN
+            DiagSft=0.D0
+            VaryShiftCycles=0
+            SumDiagSft=0.D0
+            AvDiagSft=0.D0
+        ENDIF
+
 !We wan to now broadcast this new shift to all processors
+!        CALL MPI_Bcast(DiagSft,1,MPI_DOUBLE_PRECISION,Root,MPI_COMM_WORLD,error)
         CALL MPIDBcast(DiagSft,1,Root)
 !        WRITE(6,*) "Get Here 13"
 !        CALL FLUSH(6)
@@ -3952,10 +3247,19 @@ MODULE FciMCParMod
 !This first bit checks if it is time to set up the blocking analysis.  This is obviously only done once, so these logicals become false once it is done. 
         IF(iProcIndex.eq.Root) THEN
             IF(tIterStartBlock) THEN
-                IF(Iter.ge.IterStartBlocking) THEN 
-                    CALL InitErrorBlocking(Iter)
-                    tIterStartBlock=.false.
-                    tErrorBlocking=.true.
+!If IterStartBlocking is positive, then start blocking when we are at that iteration. Otherwise, wait until out of fixed shift.
+                IF(IterStartBlocking.gt.0) THEN
+                    IF(Iter.ge.IterStartBlocking) THEN 
+                        CALL InitErrorBlocking(Iter)
+                        tIterStartBlock=.false.
+                        tErrorBlocking=.true.
+                    ENDIF
+                ELSE
+                    IF(.not.TSinglePartPhase) THEN
+                        CALL InitErrorBlocking(Iter)
+                        tIterStartBlock=.false.
+                        tErrorBlocking=.true.
+                    ENDIF
                 ENDIF
             ELSEIF(tHFPopStartBlock) THEN
                 IF((AllHFCyc/StepsSft).ge.HFPopStartBlocking) THEN
@@ -3972,7 +3276,7 @@ MODULE FciMCParMod
             ENDIF
 
 !Then we perform the blocking at the end of each update cycle.         
-            IF(tErrorBlocking) CALL SumInErrorContrib(Iter,AllENumCyc,AllHFCyc)
+            IF(tErrorBlocking.and.(.not.tBlockEveryIteration)) CALL SumInErrorContrib(Iter,AllENumCyc,AllHFCyc)
             IF(tShiftBlocking.and.(Iter.ge.(VaryShiftIter+IterShiftBlock))) CALL SumInShiftErrorContrib(Iter,DiagSft)
         ENDIF
 
@@ -3999,10 +3303,13 @@ MODULE FciMCParMod
         NoInitWalk=0.D0
         NoNonInitWalk=0.D0
         NoDoubSpawns=0.D0
+        InitRemoved=0.D0
 
 !Reset TotWalkersOld so that it is the number of walkers now
         TotWalkersOld=TotWalkers
         TotPartsOld=TotParts
+!Save the number at HF to use in the HFShift
+        OldAllNoatHF=AllNoatHF
 
 !Also reinitialise the global variables - should not necessarily need to do this...
 !        AllHFCyc=0.D0
@@ -4034,21 +3341,12 @@ MODULE FciMCParMod
         AllNoNonInitWalk=0.D0
         AllNoDoubSpawns=0.D0
         AllNoExtraInitDoubs=0.D0
+        AllInitRemoved=0.D0
 
 
 
         RETURN
     END SUBROUTINE CalcNewShift
-    SUBROUTINE WriteHistogram()
-        CALL Stop_All("WriteHistogram","WriteHistogram not currently coded for serial.")
-    END SUBROUTINE WriteHistogram
-#endif
-! AJWT
-! Bringing you a better FciMCPar.  A vision for the future...
-!
-!  This section contains parts of FciMCPar which are not dependent on MPI commands.
-!  It's not yet complete, but at least compiles and runs
-
 !This routine flips the sign of all particles on the node
     SUBROUTINE FlipSign()
         INTEGER :: i
@@ -5534,6 +4832,337 @@ MODULE FciMCParMod
         RETURN
 
     END SUBROUTINE SumEContrib
+!This routine will change the reference determinant to DetCurr. It will also re-zero all the energy estimators, since they now correspond to
+!projection onto a different determinant.
+    SUBROUTINE ChangeRefDet(HDiagCurr,DetCurr,iLutCurr)
+        use Determinants , only : GetH0Element3
+        use FciMCLoggingMod , only : RestartBlocking, RestartShiftBlocking
+        INTEGER :: DetCurr(NEl),i,nStore(6),ierr,iMaxExcit
+        INTEGER(KIND=n_int) :: iLutTemp(0:NIfTot), iLutCurr(0:NIfTot)
+        INTEGER :: nJ(NEl)
+        HElement_t :: TempHii
+        REAL*8 :: HDiagCurr
+
+!        CALL Stop_All("ChangeRefDet","This option does not currently work. Bug ghb24 if its needed")
+!Problem is that we need to rerun the simulation from scratch, and particles currently in the simulation will keep on
+!changing the reference since their diagonal K element will remain negative.
+
+        do i=1,NEl
+            FDet(i)=DetCurr(i)
+        enddo
+
+        WRITE(6,"(A)") "*** Changing the reference determinant ***"
+        WRITE(6,"(A)") "Switching reference and zeroing energy counters - restarting simulation"
+!        
+!Initialise variables for calculation on each node
+        Iter=1
+        
+        CALL DeallocFCIMCMemPar()
+        IF(iProcIndex.eq.Root) THEN
+            CLOSE(fcimcstats_unit)
+            IF(tTruncInitiator.or.tDelayTruncInit) CLOSE(initiatorstats_unit)
+!            IF(TAutoCorr) CLOSE(44)
+        ENDIF
+        IF(TDebug) CLOSE(11)
+        CALL SetupParameters()
+        CALL InitFCIMCCalcPar()
+        IF(iProcIndex.eq.0) THEN
+            CALL RestartBlocking(Iter)
+            CALL RestartShiftBlocking(Iter)
+        ENDIF
+
+
+
+    END SUBROUTINE ChangeRefDet
+    
+!This initialises the calculation, by allocating memory, setting up the initial walkers, and reading from a file if needed
+    SUBROUTINE InitFCIMCCalcPar()
+        use FciMCLoggingMOD , only : InitHistInitPops
+        use SystemData , only : tRotateOrbs
+        use CalcData , only : InitialPart
+        use CalcData , only : MemoryFacPart,MemoryFacAnnihil,MemoryFacSpawn
+        use constants , only : size_n_int
+        INTEGER :: ierr,i,j,k,l,DetCurr(NEl),ReadWalkers,TotWalkersDet
+        INTEGER :: DetLT,VecSlot,error,MemoryAlloc,Proc
+        INTEGER, DIMENSION(lenof_sign) :: InitialSign
+        HElement_t :: rh,TempHii
+        LOGICAL :: exists
+        REAL*8 :: TotDets
+        CHARACTER(len=*), PARAMETER :: this_routine='InitFCIMCPar'
+            
+        if (tReadPops .and. .not. tPopsAlreadyRead) then
+!Read in particles from multiple POPSFILES for each processor
+            WRITE(6,*) "Reading in initial particle configuration from POPSFILES..."
+            CALL ReadFromPopsFilePar()
+        ELSE
+!initialise the particle positions - start at HF with positive sign
+!Set the maximum number of walkers allowed
+            MaxWalkersPart=NINT(MemoryFacPart*InitWalkers)
+            WRITE(6,"(A,I14)") " Memory allocated for a maximum particle number per node of: ",MaxWalkersPart
+            MaxSpawned=NINT(MemoryFacSpawn*InitWalkers)
+!            WRITE(6,"(A,I14)") "Memory allocated for a maximum particle number per node for spawning of: ",MaxSpawned
+
+!Put a barrier here so all processes synchronise
+            CALL MPIBarrier(error)
+!Allocate memory to hold walkers
+            ALLOCATE(WalkVecDets(0:NIfTot,MaxWalkersPart),stat=ierr)
+            CALL LogMemAlloc('WalkVecDets',MaxWalkersPart*(NIfTot+1),size_n_int,this_routine,WalkVecDetsTag,ierr)
+            WalkVecDets(0:NIfTot,1:MaxWalkersPart)=0
+            MemoryAlloc=(NIfTot+1)*MaxWalkersPart*size_n_int    !Memory Allocated in bytes
+
+            IF(.not.tRegenDiagHEls) THEN
+                ALLOCATE(WalkVecH(MaxWalkersPart),stat=ierr)
+                CALL LogMemAlloc('WalkVecH',MaxWalkersPart,8,this_routine,WalkVecHTag,ierr)
+                WalkVecH(:)=0.d0
+                MemoryAlloc=MemoryAlloc+8*MaxWalkersPart
+            ELSE
+                WRITE(6,"(A,F14.6,A)") " Diagonal H-Elements will not be stored. This will *save* ",REAL(MaxWalkersPart*8,dp)/1048576.D0," Mb/Processor"
+            ENDIF
+            
+
+            WRITE(6,"(A,I12,A)") " Spawning vectors allowing for a total of ",MaxSpawned," particles to be spawned in any one iteration."
+            ALLOCATE(SpawnVec(0:NIftot,MaxSpawned),stat=ierr)
+            CALL LogMemAlloc('SpawnVec',MaxSpawned*(NIfTot+1),size_n_int,this_routine,SpawnVecTag,ierr)
+            SpawnVec(:,:)=0
+            ALLOCATE(SpawnVec2(0:NIfTot,MaxSpawned),stat=ierr)
+            CALL LogMemAlloc('SpawnVec2',MaxSpawned*(NIfTot+1),size_n_int,this_routine,SpawnVec2Tag,ierr)
+            SpawnVec2(:,:)=0
+
+!Point at correct spawning arrays
+            SpawnedParts=>SpawnVec
+            SpawnedParts2=>SpawnVec2
+
+            MemoryAlloc=MemoryAlloc+(NIfTot+1)*MaxSpawned*2*size_n_int
+
+!Allocate pointers to the correct walker arrays
+            CurrentDets=>WalkVecDets
+            IF(.not.tRegenDiagHEls) THEN
+                CurrentH=>WalkVecH
+            ENDIF
+        
+            iHFProc=DetermineDetProc(iLutHF)   !This wants to return a value between 0 -> nProcessors-1
+            WRITE(6,*) "HF processor is: ",iHFProc
+
+!Setup initial walker local variables
+            IF(iProcIndex.eq.iHFProc) THEN
+
+                call encode_det(CurrentDets(:,1), iLutHF)
+                InitialSign = 0
+                IF(tTruncInitiator) call encode_flags(CurrentDets(:,1),0)
+                IF(.not.tRegenDiagHEls) CurrentH(1)=0.D0
+
+                IF(TStartSinglePart) THEN
+                    InitialSign(1) = InitialPart
+                    CALL encode_sign(CurrentDets(:,1), InitialSign)
+                    TotWalkers=1
+                    TotWalkersOld=1
+                    TotParts=InitialPart
+                    TotPartsOld=InitialPart
+                    NoatHF=InitialPart
+                ELSE
+                    InitialSign(1) = InitWalkers 
+                    CALL encode_sign(CurrentDets(:,1), InitialSign)
+                    TotWalkers=1
+                    TotWalkersOld=1
+                    TotParts=InitWalkers
+                    TotPartsOld=InitWalkers
+                ENDIF
+
+            ELSE
+                IF(tStartSinglePart) THEN
+                    NoatHF=0
+                    TotWalkers=0
+                    TotWalkersOld=0
+                    TotParts=0
+                    TotPartsOld=0
+                ELSE
+                    TotWalkers=0
+                    TotWalkersOld=0
+                    TotParts=0
+                    TotPartsOld=0
+                ENDIF
+            ENDIF
+
+        
+            IF(TStartSinglePart) THEN
+!Initialise global variables for calculation on the root node
+                IF(iProcIndex.eq.root) THEN
+                    OldAllNoatHF=InitialPart
+                    AllNoatHF=InitialPart
+                    AllTotWalkers=1.D0
+                    AllTotWalkersOld=1.D0
+                    AllTotParts=REAL(InitialPart,dp)
+                    AllTotPartsOld=REAL(InitialPart,dp)
+                    AllNoAbortedOld=0.D0
+                ENDIF
+            ELSE
+!In this, only one processor has initial particles.
+                IF(iProcIndex.eq.Root) THEN
+                    AllTotWalkers=1.D0
+                    AllTotWalkersOld=1.D0
+                    AllTotParts=REAL(InitWalkers,dp)
+                    AllTotPartsOld=REAL(InitWalkers,dp)
+                    AllNoAbortedOld=0.D0
+                ENDIF
+            ENDIF
+        
+            WRITE(6,"(A,F14.6,A)") " Initial memory (without excitgens + temp arrays) consists of : ",REAL(MemoryAlloc,dp)/1048576.D0," Mb/Processor"
+            WRITE(6,*) "Only one array of memory to store main particle list allocated..."
+            WRITE(6,*) "Initial memory allocation sucessful..."
+            CALL FLUSH(6)
+
+        ENDIF   !End if initial walkers method
+            
+!Put a barrier here so all processes synchronise
+        CALL MPIBarrier(error)
+
+        IF(tTruncInitiator.or.tDelayTruncInit) THEN
+            IF(tDelayTruncInit) tTruncInitiator=.false.
+        ENDIF
+
+
+        IF(tPrintOrbOcc) THEN
+            ALLOCATE(OrbOccs(nBasis),stat=ierr)
+            CALL LogMemAlloc('OrbOccs',nBasis,8,this_routine,OrbOccsTag,ierr)
+            OrbOccs(:)=0.D0
+        ENDIF
+
+        IF(tHistInitPops) THEN
+            CALL InitHistInitPops()
+        ENDIF
+        tPrintHighPop=.false.
+        MaxInitPopPos=0
+        MaxInitPopNeg=0
+
+        IF(MaxNoatHF.eq.0) THEN
+            MaxNoatHF=InitWalkers*nProcessors
+            HFPopThresh=MaxNoatHF
+        ENDIF
+
+        IF((NMCyc.ne.0).and.(tRotateOrbs.and.(.not.tFindCINatOrbs))) CALL Stop_All(this_routine,"Currently not set up to rotate and then go straight into a spawning &
+                                                                                    & calculation.  Ordering of orbitals is incorrect.  This may be fixed if needed.")
+
+    end subroutine InitFCIMCCalcPar
+
+    SUBROUTINE DeallocFCIMCMemPar()
+        INTEGER :: i,error,length,temp
+        CHARACTER(len=*), PARAMETER :: this_routine='DeallocFciMCMemPar'
+        CHARACTER(LEN=MPI_MAX_ERROR_STRING) :: message
+
+
+        IF(tHistSpawn.or.tCalcFCIMCPsi) THEN
+            DEALLOCATE(Histogram)
+            DEALLOCATE(AllHistogram)
+            IF(tHistSpawn) THEN
+                DEALLOCATE(InstHist)
+                DEALLOCATE(InstAnnihil)
+                DEALLOCATE(AvAnnihil)
+            ENDIF
+            IF(iProcIndex.eq.0) THEN
+                IF(tHistSpawn) THEN
+                    DEALLOCATE(AllInstHist)
+                    DEALLOCATE(AllAvAnnihil)
+                    DEALLOCATE(AllInstAnnihil)
+                ENDIF
+            ENDIF
+        ELSEIF(tHistEnergies) THEN
+            DEALLOCATE(Histogram)
+            DEALLOCATE(AttemptHist)
+            DEALLOCATE(SpawnHist)
+            DEALLOCATE(SinglesHist)
+            DEALLOCATE(DoublesHist)
+            DEALLOCATE(DoublesAttemptHist)
+            DEALLOCATE(SinglesAttemptHist)
+            DEALLOCATE(SinglesHistOccOcc)
+            DEALLOCATE(SinglesHistVirtOcc)
+            DEALLOCATE(SinglesHistOccVirt)
+            DEALLOCATE(SinglesHistVirtVirt)
+            IF(iProcIndex.eq.Root) THEN
+                DEALLOCATE(AllHistogram)
+                DEALLOCATE(AllAttemptHist)
+                DEALLOCATE(AllSpawnHist)
+                DEALLOCATE(AllSinglesAttemptHist)
+                DEALLOCATE(AllSinglesHist)
+                DEALLOCATE(AllDoublesAttemptHist)
+                DEALLOCATE(AllDoublesHist)
+                DEALLOCATE(AllSinglesHistOccOcc)
+                DEALLOCATE(AllSinglesHistVirtOcc)
+                DEALLOCATE(AllSinglesHistOccVirt)
+                DEALLOCATE(AllSinglesHistVirtVirt)
+            ENDIF
+        ENDIF
+        IF(tHistHamil) THEN
+            DEALLOCATE(HistHamil)
+            DEALLOCATE(AvHistHamil)
+            IF(iProcIndex.eq.0) THEN
+                DEALLOCATE(AllHistHamil)
+                DEALLOCATE(AllAvHistHamil)
+            ENDIF
+        ENDIF
+        DEALLOCATE(WalkVecDets)
+        CALL LogMemDealloc(this_routine,WalkVecDetsTag)
+        IF(.not.tRegenDiagHEls) THEN
+            DEALLOCATE(WalkVecH)
+            CALL LogMemDealloc(this_routine,WalkVecHTag)
+        ENDIF
+        DEALLOCATE(SpawnVec)
+        CALL LogMemDealloc(this_routine,SpawnVecTag)
+        DEALLOCATE(SpawnVec2)
+        CALL LogMemDealloc(this_routine,SpawnVec2Tag)
+        
+        DEALLOCATE(HFDet)
+        CALL LogMemDealloc(this_routine,HFDetTag)
+        DEALLOCATE(iLutHF)
+        DEALLOCATE(iLutRef)
+        DEALLOCATE(ProjEDet)
+        IF(ALLOCATED(HighestPopDet)) DEALLOCATE(HighestPopDet)
+        IF(ALLOCATED(RandomHash)) DEALLOCATE(RandomHash)
+
+        IF(ALLOCATED(SpinInvBrr)) THEN
+            CALL LogMemDealloc(this_routine,SpinInvBRRTag)
+            DEALLOCATE(SpinInvBRR)
+        ENDIF
+        IF(ALLOCATED(CoreMask)) THEN
+            DEALLOCATE(CoreMask)
+            DEALLOCATE(CASMask)
+        ENDIF
+        IF(tPrintOrbOcc) THEN
+            DEALLOCATE(OrbOccs)
+            CALL LogMemDeAlloc(this_routine,OrbOccsTag)
+        ENDIF
+
+        IF(tHistInitPops) THEN
+            if (allocated(HistInitPops)) then
+                deallocate (HistInitPops)
+                call LogMemDeAlloc (this_routine, HistInitPopsTag)
+            endif
+            IF(iProcIndex.eq.0) THEN
+                if (allocated(AllHistInitPops)) then
+                    deallocate (AllHistInitPops)
+                    call LogMemDeAlloc(this_routine,AllHistInitPopsTag)
+                endif
+            ENDIF
+        ENDIF
+
+
+!There seems to be some problems freeing the derived mpi type.
+!        IF((.not.TNoAnnihil).and.(.not.TAnnihilonproc)) THEN
+!Free the mpi derived type that we have created for the hashes.
+!            CALL MPI_Type_free(mpilongintegertype,error)
+!            IF(error.ne.MPI_SUCCESS) THEN
+!                CALL MPI_Error_string(error,message,length,temp)
+!                IF(temp.ne.MPI_SUCCESS) THEN
+!                    WRITE(6,*) "REALLY SERIOUS PROBLEMS HERE!",temp
+!                    CALL FLUSH(6)
+!                ENDIF
+!                WRITE(6,*) message(1:length)
+!                WRITE(6,*) "ERROR FOUND"
+!                CALL FLUSH(6)
+!            ENDIF
+!        ENDIF
+
+    END SUBROUTINE DeallocFCIMCMemPar
+
 
 END MODULE FciMCParMod
 
