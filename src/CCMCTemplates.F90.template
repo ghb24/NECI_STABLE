@@ -629,9 +629,6 @@ subroutine CalcTotals (iNumExcitors,dTotAbsAmpl,Amplitude,nAmpl,dTol,WalkerScale
    if(iDebug.gt.2) WRITE(6,"(A,I5,A,I5)") "Finished calculating total cluster amplitude at level ",i-1,"/",iNumExcitors
    if(iDebug.gt.1) WRITE(6,*) "Total cluster amplitude: ",dPsiTotAbsAmpl
    TotParts=dTotExcitors*WalkerScale
-!Reset number at HF and doubles
-        NoatHF=0
-        NoatDoubs=0
    if(iProcIndex.eq.root) then 
       TotWalkers=TotParts 
    else
