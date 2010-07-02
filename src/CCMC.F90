@@ -191,9 +191,6 @@ MODULE CCMC
         CALL set_timer(Walker_Time,30)
         IF(iDebug.gt.0) WRITE(6,*) "Number of particles, excitors:",TotParts(1), TotWalkers
         
-!Reset number at HF and doubles
-        NoatHF=0
-        NoatDoubs=0
         iPartBloom=0
 !ValidSpawndList now holds the next free position in the newly-spawned list, but for each processor.
         ValidSpawnedList(:)=InitialSpawnedSlots(:)
@@ -1807,6 +1804,7 @@ SUBROUTINE CCMCStandalone(Weight,Energyxw)
    use FciMCParMod, only: iLutHF
    use FciMCParMod, only: CheckAllowedTruncSpawn, SetupParameters,BinSearchParts3
    use FciMCParMod, only: CalcNewShift,InitHistMin
+   use FciMCData, only: NoatHF,NoatDoubs
    use FciMCParMod, only: WriteHistogram,SumEContrib
    Use Logging, only: CCMCDebug,tCCMCLogTransitions,tCCMCLogUniq
    USE Logging , only : tHistSpawn,iWriteHistEvery
@@ -2114,9 +2112,13 @@ SUBROUTINE CCMCStandalone(Weight,Energyxw)
       iShiftLeft=iShiftLeft-1
 
 !TotWalkers is used for this and is WalkerScale* total of all amplitudes
+      NoAtHF=AL%Amplitude(iRefPos,iCurAmpList)
       if(iShiftLeft.le.0)  Call CalcNewShift()
       if(iShiftLeft.le.0)  iShiftLeft=StepsSft
       Iter=Iter+1
+!Reset number at HF and doubles
+      NoatHF=0
+      NoatDoubs=0
    enddo !MC Cycles
 
       if(iDebug.gt.1) call WriteExcitorList(6,AL%Amplitude(:,iCurAmpList),FciDets,0,nAmpl,dAmpPrintTol,"Final Excitor list")
@@ -2152,6 +2154,7 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
    use CalcData, only: TStartMP1
    use FciMCData, only: Iter
    use FciMCData, only: TotParts,TotWalkers,TotWalkersOld,TotPartsOld,AllTotPartsOld,AllTotWalkersOld
+   use FciMCData, only: NoatHF,NoatDoubs
    use FciMCData, only: tTruncSpace
    use FciMCData, only: ProjectionE
    use FciMCParMod, only: iLutHF
@@ -2348,9 +2351,13 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
 ! Calc Shift
       iShiftLeft=iShiftLeft-1
 
+      NoAtHF=AL%Amplitude(iRefPos,iCurAmpList)
 !TotWalkers is used for this and is WalkerScale* total of all amplitudes
       if(iShiftLeft.le.0)  Call CalcNewShift()
       if(iShiftLeft.le.0)  iShiftLeft=StepsSft
+!Reset number at HF and doubles
+      NoatHF=0
+      NoatDoubs=0
 
 !  Loop over cluster selections
 !  Point to the main cluster selector, not the buffer

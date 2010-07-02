@@ -28,8 +28,10 @@ module Parallel
 !=     MPIInit     Setup MPI and init Nodefiles if we're standalone
 !=     MPIEnd      Shutdown MPI
 !=     MPIStopAll  Abort all processors
-!=     MPIISum     Sum an array of integers among all processors, and distribute the results array to each.
+!=     MPIISum     Sum an array of integers among all processors, and give the results to the root
+!=     MPIISumA    Sum an array of integers among all processors, and distribute the results array to each.
 !=     MPIDSum     As MPIISum but for real*8
+!=     MPIDSumA    As MPIISumA but for real*8
 !=     MPIHelSum   As MPIDSum but for HElement_t
 
    ! mpi USE is in mixed case to avoid it being picked up by the the Configure
@@ -45,6 +47,9 @@ module Parallel
 #ifndef PARALLEL
    integer, parameter :: MPI_MIN=0
    integer, parameter :: MPI_MAX=0
+   integer, parameter :: MPI_SUM=0
+   integer, parameter :: MPI_MAXLOC=0
+   integer, parameter :: MPI_MAX_ERROR_STRING=255
 #endif
 
 Contains
@@ -179,6 +184,120 @@ Subroutine MPIStopAll(error_str)
 #endif
 end subroutine MPIStopAll
 
+Subroutine MPIDReduce(dValues, iLen, iType, dReturn)
+   !=  In:
+   !=     dValues                 real*8.  The corresponding elements for each
+   !=                    processor are summed over the processors and returned in 
+   !=                    dReturn       
+   !=     iLen           Length of the arrays. Must be 1
+   !=     iType          an MPI call (e.g. MPI_MAX)
+   !=  Out:
+   !=     dReturn                 real*8 to get the results.
+   real*8 dValues, dReturn
+   integer iLen
+   integer g, ierr,rc,itype
+#if PARALLEL
+   g=MPI_COMM_WORLD
+   call MPI_REDUCE(dValues,dReturn,iLen,MPI_DOUBLE_PRECISION,iType,g,ierr)
+   if (ierr .ne. MPI_SUCCESS) then
+      print *,'Error starting MPI program. Terminating.'
+      call MPI_ABORT(MPI_COMM_WORLD, rc, ierr)
+   end if
+#else
+   dReturn=dValues
+#endif
+end Subroutine MPIDReduce
+Subroutine MPIDAllReduce(dValues, iLen, iType, dReturn)
+   !=  In:
+   !=     dValues                 real*8.  The corresponding elements for each
+   !=                    processor are summed over the processors and returned in 
+   !=                    dReturn       
+   !=     iLen           Length of the arrays. Must be 1
+   !=     iType          an MPI call (e.g. MPI_MAX)
+   !=  Out:
+   !=     dReturn                 real*8 to get the results.
+   real*8 dValues      , dReturn      
+   integer iLen
+   integer g, ierr,rc,itype
+#if PARALLEL
+   g=MPI_COMM_WORLD
+   call MPI_ALLREDUCE(dValues,dReturn,iLen,MPI_DOUBLE_PRECISION,iType,g,ierr)
+   if (ierr .ne. MPI_SUCCESS) then
+      print *,'Error starting MPI program. Terminating.'
+      call MPI_ABORT(MPI_COMM_WORLD, rc, ierr)
+   end if
+#else
+   dReturn=dValues
+#endif
+end Subroutine MPIDAllReduce
+Subroutine MPIDReduceArr(dValues, iLen, iType, dReturn)
+   !=  In:
+   !=     dValues(iLen)  Array of real*8.  The corresponding elements for each
+   !=                    processor are summed over the processors and returned in 
+   !=                    dReturn(iLen).
+   !=     iLen           Length of the arrays.
+   !=     iType          an MPI call (e.g. MPI_MAX)
+   !=  Out:
+   !=     dReturn(iLen)  Array of real*8 to get the results.
+   real*8 dValues(iLen), dReturn(iLen)
+   integer iLen
+   integer g, ierr,rc,itype
+#if PARALLEL
+   g=MPI_COMM_WORLD
+   call MPI_REDUCE(dValues,dReturn,iLen,MPI_DOUBLE_PRECISION,iType,g,ierr)
+   if (ierr .ne. MPI_SUCCESS) then
+      print *,'Error starting MPI program. Terminating.'
+      call MPI_ABORT(MPI_COMM_WORLD, rc, ierr)
+   end if
+#else
+   dReturn=dValues
+#endif
+end Subroutine MPIDReduceArr
+Subroutine MPIDAllReduceArr(dValues, iLen, iType, dReturn)
+   !=  In:
+   !=     dValues(iLen)  Array of real*8.  The corresponding elements for each
+   !=                    processor are summed over the processors and returned in 
+   !=                    dReturn(iLen).
+   !=     iLen           Length of the arrays.
+   !=     iType          an MPI call (e.g. MPI_MAX)
+   !=  Out:
+   !=     dReturn(iLen)  Array of real*8 to get the results.
+   real*8 dValues(iLen), dReturn(iLen)
+   integer iLen
+   integer g, ierr,rc,itype
+#if PARALLEL
+   g=MPI_COMM_WORLD
+   call MPI_ALLREDUCE(dValues,dReturn,iLen,MPI_DOUBLE_PRECISION,iType,g,ierr)
+   if (ierr .ne. MPI_SUCCESS) then
+      print *,'Error starting MPI program. Terminating.'
+      call MPI_ABORT(MPI_COMM_WORLD, rc, ierr)
+   end if
+#else
+   dReturn=dValues
+#endif
+end Subroutine MPIDAllReduceArr
+Subroutine MPIIAllReduceArr(iValues, iLen, iType, iReturn)
+   !=  In:
+   !=     iValues(iLen)  Array of integers.  The corresponding elements for each
+   !=                    processor are summed over the processors and returned in 
+   !=                    iReturn(iLen).
+   !=     iLen           Length of the arrays.
+   !=     iType          an MPI call (e.g. MPI_MAX)
+   !=  Out:
+   !=     iReturn(iLen)  Array of integers to get the results.
+   integer iValues(iLen), iReturn(iLen), iLen
+   integer g, ierr,rc,itype
+#if PARALLEL
+   g=MPI_COMM_WORLD
+   call MPI_ALLREDUCE(iValues,iReturn,iLen,MPI_INTEGER,iType,g,ierr)
+   if (ierr .ne. MPI_SUCCESS) then
+      print *,'Error starting MPI program. Terminating.'
+      call MPI_ABORT(MPI_COMM_WORLD, rc, ierr)
+   end if
+#else
+   iReturn=iValues
+#endif
+end Subroutine MPIIAllReduceArr
 Subroutine MPIIReduceArr(iValues, iLen, iType, iReturn)
    !=  In:
    !=     iValues(iLen)  Array of integers.  The corresponding elements for each
@@ -196,7 +315,7 @@ Subroutine MPIIReduceArr(iValues, iLen, iType, iReturn)
    integer g, ierr,rc,itype
 #if PARALLEL
    g=MPI_COMM_WORLD
-   call MPI_ALLREDUCE(iValues,iReturn,iLen,MPI_INTEGER,iType,g,ierr)
+   call MPI_REDUCE(iValues,iReturn,iLen,MPI_INTEGER,iType,g,ierr)
    if (ierr .ne. MPI_SUCCESS) then
       print *,'Error starting MPI program. Terminating.'
       call MPI_ABORT(MPI_COMM_WORLD, rc, ierr)
@@ -205,7 +324,7 @@ Subroutine MPIIReduceArr(iValues, iLen, iType, iReturn)
    iReturn=iValues
 #endif
 end Subroutine MPIIReduceArr
-Subroutine MPIIReduce(iValues, iLen, iType, iReturn)
+Subroutine MPIIAllReduce(iValues, iLen, iType, iReturn)
    !=  In:
    !=     iValues        An integer.  The corresponding elements for each
    !=                    processor are summed over the processors and returned in 
@@ -219,6 +338,28 @@ Subroutine MPIIReduce(iValues, iLen, iType, iReturn)
 #if PARALLEL
    g=MPI_COMM_WORLD
    call MPI_ALLREDUCE(iValues,iReturn,iLen,MPI_INTEGER,iType,g,ierr)
+   if (ierr .ne. MPI_SUCCESS) then
+      print *,'Error starting MPI program. Terminating.'
+      call MPI_ABORT(MPI_COMM_WORLD, rc, ierr)
+   end if
+#else
+   iReturn=iValues
+#endif
+end Subroutine MPIIAllReduce
+Subroutine MPIIReduce(iValues, iLen, iType, iReturn)
+   !=  In:
+   !=     iValues        An integer.  The corresponding elements for each
+   !=                    processor are summed over the processors and returned in 
+   !=                    iReturn.
+   !=     iLen           Length of the arrays.
+   !=     iType          an MPI call (e.g. MPI_MAX)
+   !=  Out:
+   !=     iReturn        Integer to get the results.
+   integer iValues, iReturn, iLen
+   integer g, ierr,rc,itype
+#if PARALLEL
+   g=MPI_COMM_WORLD
+   call MPI_REDUCE(iValues,iReturn,iLen,MPI_INTEGER,iType,g,ierr)
    if (ierr .ne. MPI_SUCCESS) then
       print *,'Error starting MPI program. Terminating.'
       call MPI_ABORT(MPI_COMM_WORLD, rc, ierr)
@@ -398,6 +539,22 @@ Subroutine MPIDBCastArr(dValues,iLen,Root)
 #endif
     RETURN
 End Subroutine MPIDBCastArr
+
+!A wrapper for the mpi_bcast double precision routine, so it can be used in serial
+Subroutine MPIDetIntBCastArr(dValues,iLen,Root)
+    use constants, only: MpiDetInt,n_int
+    INTEGER(kind=n_int) :: dValues(*)
+    INTEGER :: iLen,Root,error,rc
+#ifdef PARALLEL
+    CALL MPI_Bcast(dValues,iLen,MpiDetInt,Root,MPI_COMM_WORLD,error)
+    if(error.ne.MPI_SUCCESS) then
+        print *,'Error broadcasting values in MPIDBCast. Terminating.'
+        call MPI_ABORT(MPI_COMM_WORLD,rc,error)
+    endif
+#else
+#endif
+    RETURN
+End Subroutine MPIDetIntBCastArr
 
 !A wrapper for the mpi_bcast double precision routine, but for HElements, so it can be used in serial
 Subroutine MPIHElemBCast(dValues,iLen,Root)
