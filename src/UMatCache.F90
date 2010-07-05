@@ -282,18 +282,24 @@ MODULE UMatCache
                 
             UMatInd=((BB*(BB-1))/2)+AA
             RETURN
-         ELSE
+
+         ELSE   ! Normal Indexing scheme
+
+            !Combine indices I and K, ensuring I>K
             IF(I.GT.K) THEN
                 A=(I*(I-1))/2+K
             ELSE
                 A=(K*(K-1))/2+I
             ENDIF
          
+            !Combine indices J and L, ensuring J>K
             IF(J.GT.L) THEN
                 B=(J*(J-1))/2+L 
             ELSE
                 B=(L*(L-1))/2+J
             ENDIF
+
+            !Combine (IK) and (JL) in a unique way  (k > l or if k = l then i > j)
             IF(A.GT.B) THEN
                 UMatInd=(A*(A-1))/2+B
             ELSE
@@ -301,8 +307,9 @@ MODULE UMatCache
             ENDIF
 #ifdef __CMPLX            
             UMatInd = (UmatInd-1)*2 + 1 
-            if ((((I.gt.J).and.(K.lt.L)) .or. ((I.lt.J).and.(K.gt.L))) .and. &
-                (I.ne.K) .and. (J.ne.L)) then
+            !We need to test whether we have swapped i and k or j and l independantly of each other
+            !If we have done this, it is one of the 'other' integrals - add one.
+            if (((I.gt.K).and.(J.lt.L)) .or. ((I.lt.K).and.(J.gt.L))) then
                UMatInd = UMatInd + 1
             endif
 #endif
@@ -313,23 +320,64 @@ MODULE UMatCache
          integer, intent(in) :: I,J,K,L
          HElement_t, intent(in) :: val
 #ifdef __CMPLX
-         logical tConj
-         tConj = .false.
-         if (((I.ne.K).and.((I+K)>(J+L))) .or. (J.eq.L)) then
-            if (I < K) then
-                tConj = .true.
-            endif
-         else
-            if (J < L) then
-                tConj = .true.
-            endif
-         endif
+         INTEGER :: IDI,IDJ,IDK,IDL,NewA,A
 
-         if (tConj) then
-            UMatConj = dconjg(val)
-         else
-            UMatConj = val
-         end if
+         !Changing index ordering for the real ordering.
+         IDI=I
+         IDJ=J
+         IDK=K
+         IDL=L
+ 
+         !First find rearranged indices.
+         IF(idi.lt.idk) then
+             !swap idi and idk
+             call swap(idi,idk)
+         ENDIF
+ 
+         IF(idj.lt.idl) then
+             !swap idj and idl
+             call swap(idj,idl)
+         ENDIF
+ 
+         IF((idl.lt.idk).or.((idl.eq.idk).and.(idi.lt.idj))) THEN
+             !We would want to swap the (ik) and (jl) pair.
+             call swap(idi,idj)
+             call swap(idk,idl)
+         ENDIF
+ 
+         !Indices now permuted to the real case ordering. Is this now the same integral?
+         if (((I.gt.K).and.(J.lt.L)) .or. ((I.lt.K).and.(J.gt.L))) then
+             !Type II integral - reducing to lowest ordering will give 'other'
+             !integral, where one of (ik) and (jl) pairs have been swapped independantly.
+             !If i = k, or j = l, we do not go through here.
+             call swap(idi,idk)  !Revert back to the correct integral by swapping just i and k.
+         endif
+ 
+         !Want to see if the pairs of indices have swapped sides.
+         !Make unique index from the ij and kl pairs
+         IF(IDI.gt.IDJ) THEN
+             A=IDI*(IDI-1)/2+IDJ
+         ELSE
+             A=IDJ*(IDJ-1)/2+IDI
+         ENDIF
+ 
+         !Create uniques indices from the original pairs of indices.
+         !We only need to consider whether the (ij) pair has swapped sides, since
+         !the <ij|ij> and <ij|ji> integrals are real by construction, and so we do not
+         !need to consider what happens if the (ij) pair = (kl) pair.
+         IF(I.gt.J) THEN
+             NewA=I*(I-1)/2+J
+         ELSE
+             NewA=J*(J-1)/2+I
+         ENDIF
+ 
+         !Check whether pairs of indices have swapped sides.
+         IF(NewA.ne.A) THEN
+             UMatConj=CONJG(val) !Index pair i and j have swapped sides - take CC.
+         ELSE
+             UMatConj=val
+         ENDIF
+
 #else
          UMatConj = val
 #endif

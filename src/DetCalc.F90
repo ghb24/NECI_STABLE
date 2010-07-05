@@ -948,7 +948,7 @@ END MODULE DetCalc
          use SystemData, only: BasisFN
          use CalcData, only: tFCIMC
          use global_utilities
-         use DetCalc, only: NMRKS
+         use DetCalcData, only: NMRKS
          use legacy_data, only: irat
          use Determinants, only: write_det
          use mcpaths, only: mcpathsr3

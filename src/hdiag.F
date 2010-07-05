@@ -34,6 +34,15 @@ C.. Now we fill the RIJ array
                IND=IND+1
             ENDDO
          ENDDO
+         IF(HElement_t_size.ne.1) THEN
+             !ensure hermitian
+             do i=1,ndet
+                 do j=1,i-1
+                     CK(i,j)=CONJG(CMPLX(CK(j,i)))
+                 enddo
+             enddo
+         ENDIF
+
 !****************************
 !Needs to be uncommented for ExcitChangeTest to work
 !         DO I=1,NDET

@@ -257,8 +257,8 @@ MODULE AnnihilationMod
 !This sorts and compresses the spawned list to make it easier for the rest of the annihilation process.
 !This is not essential, but should proove worthwhile
     SUBROUTINE CompressSpawnedList(ValidSpawned)
-        INTEGER :: VecInd,ValidSpawned,DetsMerged,ToRemove,i,PartIndex,ExcitLevel,PassedFlag,FlagParts2
-        INTEGER, DIMENSION(lenof_sign) :: SignProd,SpawnedSign,SpawnedSign2
+        INTEGER :: VecInd,ValidSpawned,DetsMerged,ToRemove,i,PartIndex,ExcitLevel,PassedFlag,FlagParts2,j
+        INTEGER, DIMENSION(lenof_sign) :: SignProd,SpawnedSign,SpawnedSign2,MergedSign
         LOGICAL :: tSuc
 
 !We want to sort the list of newly spawned particles, in order for quicker binary searching later on. (this is not essential, but should proove faster)
@@ -281,86 +281,98 @@ MODULE AnnihilationMod
         ToRemove=0
         do i=2,ValidSpawned
             IF(.not.DetBitEQ(SpawnedParts(0:NIfTot,i),SpawnedParts2(0:NIfTot,VecInd),NIfDBO)) THEN
+                !Determinant (i) is not the same as the last one which was copied across (VecInd)
                 call extract_sign(SpawnedParts2(:,VecInd),SpawnedSign)
-                IF(SpawnedSign(1).eq.null_part(1)) ToRemove=ToRemove+1
+#ifndef __CMPLX
+                IF(SpawnedSign(1).eq.0) ToRemove=ToRemove+1
+#else
+                IF((SpawnedSign(1).eq.0).and.(SpawnedSign(2).eq.0)) ToRemove=ToRemove+1
+#endif
                 VecInd=VecInd+1
                 SpawnedParts2(:,VecInd)=SpawnedParts(:,i)
             ELSE
 !The next determinant is equal to the current - want to look at the relative signs.                
                 call extract_sign(SpawnedParts(0:NIfTot,i),SpawnedSign)
                 call extract_sign(SpawnedParts2(0:NIfTot,VecInd),SpawnedSign2)
-                SignProd(1)=SpawnedSign(1)*SpawnedSign2(1)
-                IF(SignProd(1).lt.null_part(1)) THEN
-!We are actually unwittingly annihilating, but just in serial... we therefore need to count it anyway.
-                    Annihilated=Annihilated+2*(MIN(abs(SpawnedSign2(1)),abs(SpawnedSign(1))))
 
-                    IF(tTruncInitiator) THEN
+                do j=1,lenof_sign
+                    SignProd(j)=SpawnedSign(j)*SpawnedSign2(j)
+
+                    IF(SignProd(j).lt.null_part(j)) THEN
+!We are actually unwittingly annihilating, but just in serial... we therefore need to count it anyway.
+                        Annihilated=Annihilated+2*(MIN(abs(SpawnedSign2(j)),abs(SpawnedSign(j))))
+
+                        IF(tTruncInitiator) THEN
 !If we are doing an initiator calculation, we also want to keep track of which parent the remaining walkers came from - those inside the active space or out.                
 !This is only an issue if the two determinants we are merging have different Parent flags - otherwise they just keep whichever.
 !As it is, the SpawnedParts2 determinant will have the parent flag that remains - just need to change this over if the number of walkers on SpawnedParts ends up dominating.
-                        IF(extract_flags(SpawnedParts(:,i)).ne.extract_flags(SpawnedParts2(:,VecInd))) THEN     ! Parent flags are not equal
-                            IF(ABS(SpawnedSign(1)).gt.ABS(SpawnedSign2(1))) THEN
-                                PassedFlag=extract_flags(SpawnedParts(0:NIfTot,i))
-                                call encode_flags(SpawnedParts2(0:NIfTot,VecInd),PassedFlag)
+                            IF(extract_flags(SpawnedParts(:,i)).ne.extract_flags(SpawnedParts2(:,VecInd))) THEN     ! Parent flags are not equal
+                                IF(ABS(SpawnedSign(1)).gt.ABS(SpawnedSign2(1))) THEN
+                                    PassedFlag=extract_flags(SpawnedParts(0:NIfTot,i))
+                                    call encode_flags(SpawnedParts2(0:NIfTot,VecInd),PassedFlag)
+                                ENDIF
                             ENDIF
                         ENDIF
-                    ENDIF
 
-                    IF(tHistSpawn) THEN
+                        IF(tHistSpawn) THEN
 !We want to histogram where the particle annihilations are taking place.
-                        ExcitLevel = FindBitExcitLevel(SpawnedParts(:,i), &
-                                                       iLutHF, nel)
-                        IF(ExcitLevel.eq.NEl) THEN
-                            CALL BinSearchParts2(SpawnedParts(:,i),HistMinInd2(ExcitLevel),Det,PartIndex,tSuc)
-                        ELSEIF(ExcitLevel.eq.0) THEN
-                            PartIndex=1
-                            tSuc=.true.
-                        ELSE
-                            CALL BinSearchParts2(SpawnedParts(:,i),HistMinInd2(ExcitLevel),FCIDetIndex(ExcitLevel+1)-1,PartIndex,tSuc)
+                            ExcitLevel = FindBitExcitLevel(SpawnedParts(:,i), &
+                                                           iLutHF, nel)
+                            IF(ExcitLevel.eq.NEl) THEN
+                                CALL BinSearchParts2(SpawnedParts(:,i),HistMinInd2(ExcitLevel),Det,PartIndex,tSuc)
+                            ELSEIF(ExcitLevel.eq.0) THEN
+                                PartIndex=1
+                                tSuc=.true.
+                            ELSE
+                                CALL BinSearchParts2(SpawnedParts(:,i),HistMinInd2(ExcitLevel),FCIDetIndex(ExcitLevel+1)-1,PartIndex,tSuc)
+                            ENDIF
+                            HistMinInd2(ExcitLevel)=PartIndex
+                            IF(tSuc) THEN
+                                AvAnnihil(PartIndex)=AvAnnihil(PartIndex)+REAL(2*(MIN(abs(SpawnedSign2(j)),abs(SpawnedSign(j)))),dp)
+                                InstAnnihil(PartIndex)=InstAnnihil(PartIndex)+REAL(2*(MIN(abs(SpawnedSign2(j)),abs(SpawnedSign(j)))),dp)
+                            ELSE
+!                                WRITE(6,*) "Searching between: ",HistMinInd2(ExcitLevel), " and ",FCIDetIndex(ExcitLevel+1)-1
+!                                WRITE(6,*) "***",SpawnedParts(0:NIfTot,i)
+!                                CALL DecodeBitDet(TempDet,SpawnedParts(0:NIfTot,i))
+!                                WRITE(6,*) "Full Det is: ",TempDet(:)
+!                                IF(tHPHF) THEN
+!                                    CALL FindExcitBitDetSym(SpawnedParts(0:NIfD,i),iLutSym(:))
+!                                    WRITE(6,*) "*** Sym: ",iLutSym(:)
+!                                    CALL DecodeBitDet(TempDet,iLutSym(0:NIfTot))
+!                                    WRITE(6,*) "Full Sym Det is: ",TempDet(:)
+!                                ENDIF
+                                CALL Stop_All("CompressSpawnedList","Cannot find corresponding FCI determinant when histogramming")
+                            ENDIF
                         ENDIF
-                        HistMinInd2(ExcitLevel)=PartIndex
-                        IF(tSuc) THEN
-                            AvAnnihil(PartIndex)=AvAnnihil(PartIndex)+REAL(2*(MIN(abs(SpawnedSign2(1)),abs(SpawnedSign(1)))),dp)
-                            InstAnnihil(PartIndex)=InstAnnihil(PartIndex)+REAL(2*(MIN(abs(SpawnedSign2(1)),abs(SpawnedSign(1)))),dp)
-                        ELSE
-!                            WRITE(6,*) "Searching between: ",HistMinInd2(ExcitLevel), " and ",FCIDetIndex(ExcitLevel+1)-1
-!                            WRITE(6,*) "***",SpawnedParts(0:NIfTot,i)
-!                            CALL DecodeBitDet(TempDet,SpawnedParts(0:NIfTot,i))
-!                            WRITE(6,*) "Full Det is: ",TempDet(:)
-!                            IF(tHPHF) THEN
-!                                CALL FindExcitBitDetSym(SpawnedParts(0:NIfD,i),iLutSym(:))
-!                                WRITE(6,*) "*** Sym: ",iLutSym(:)
-!                                CALL DecodeBitDet(TempDet,iLutSym(0:NIfTot))
-!                                WRITE(6,*) "Full Sym Det is: ",TempDet(:)
-!                            ENDIF
-                            CALL Stop_All("CompressSpawnedList","Cannot find corresponding FCI determinant when histogramming")
-                        ENDIF
-                    ENDIF
-                ELSEIF(tTruncInitiator) THEN
+                    ELSEIF(tTruncInitiator) THEN
 !This is the case where the determinants are the same but also have the same sign - so this usually doesn't matter except when we are doing initiator calculations and 
 !the parents are different.
 !In this case we assume the initiator determinants have spawned a second earlier - so the ones from outside the active space are spawning onto an occupied determinant
 !and will therefore live - we can just make these equiv by treating them as they've all come from inside the active space.
-                    PassedFlag=extract_flags(SpawnedParts(0:NIfTot,i))
-                    FlagParts2=extract_flags(SpawnedParts2(0:NIfTot,VecInd))
+                        PassedFlag=extract_flags(SpawnedParts(0:NIfTot,i))
+                        FlagParts2=extract_flags(SpawnedParts2(0:NIfTot,VecInd))
 !We assume that the walkers spawned from an initiator are sign coherent - so others of the same sign are too.
-                    IF(PassedFlag.ne.FlagParts2) THEN   !Parent flags are not equal
-                        call encode_flags(SpawnedParts2(0:NIfTot,VecInd),0)     !Take all the walkers to have come from inside the CAS space.
-                        IF(SpawnedSign2(1).eq.null_part(1)) THEN
-                            call encode_flags(SpawnedParts2(0:NIfTot,VecInd),PassedFlag)
-                        ENDIF
-                        ! Think there might still be a case where SpawnedSign2 can be 0 - this means that the parent will be determined by SpawnedParts.
-                        ! If its SpawnedParts that is 0 that's fine because the SpawnedParts2 flag is already carried across.
-                    ELSEIF(tKeepDoubleSpawns.and.(FlagParts2.eq.1)) THEN
+                        IF(PassedFlag.ne.FlagParts2) THEN   !Parent flags are not equal
+                            call encode_flags(SpawnedParts2(0:NIfTot,VecInd),0)     !Take all the walkers to have come from inside the CAS space.
+                            IF(SpawnedSign2(1).eq.null_part(1)) THEN
+                                call encode_flags(SpawnedParts2(0:NIfTot,VecInd),PassedFlag)
+                            ENDIF
+                            ! Think there might still be a case where SpawnedSign2 can be 0 - this means that the parent will be determined by SpawnedParts.
+                            ! If its SpawnedParts that is 0 that's fine because the SpawnedParts2 flag is already carried across.
+                        ELSEIF(tKeepDoubleSpawns.and.(FlagParts2.eq.1)) THEN
 !This is the option where if two determinants spawn onto another at the same time with the same sign, they are kept whether they've come from 
 !inside or outside the active space.  This is different from before where two children spawned on the same determinant with the same sign, but both from outside the active
 !space will be killed.
-                        call encode_flags(SpawnedParts2(:,VecInd),0)
-                        NoDoubSpawns=NoDoubSpawns+1.D0
+                            call encode_flags(SpawnedParts2(:,VecInd),0)
+                            NoDoubSpawns=NoDoubSpawns+1.D0
+                        ENDIF
                     ENDIF
-                ENDIF
+
+                enddo
+
                 call encode_sign(SpawnedParts2(:,VecInd),SpawnedSign2 + SpawnedSign)    !Combine the signs
                 DetsMerged=DetsMerged+1
+
             ENDIF
         enddo
 
@@ -370,22 +382,32 @@ MODULE AnnihilationMod
             CALL Stop_All("CompressSpawnedList","Error in compression of spawned particle list")
         ENDIF
         call extract_sign(SpawnedParts2(:,ValidSpawned),SpawnedSign)
-        IF((SpawnedSign(1).eq.null_part(1)).and.(ValidSpawned.gt.0)) ToRemove=ToRemove+1
-!        IF(SpawnedSign2(ValidSpawned).eq.0.and.(ValidSpawned.gt.0)) ToRemove=ToRemove+1
+#ifndef __CMPLX            
+        IF((SpawnedSign(1).eq.0).and.(ValidSpawned.gt.0)) ToRemove=ToRemove+1
+#else            
+        IF((SpawnedSign(1).eq.0).and.(SpawnedSign(2).eq.0).and.(ValidSpawned.gt.0)) ToRemove=ToRemove+1
+#endif            
 
 !Now remove zeros. Not actually necessary, but will be useful I suppose? Shouldn't be too much hassle.
 !We can also use it to copy the particles back to SpawnedParts array
         DetsMerged=0
         do i=1,ValidSpawned
             call extract_sign(SpawnedParts2(:,i),SpawnedSign)
+#ifndef __CMPLX            
             IF(SpawnedSign(1).eq.null_part(1)) THEN
-!            IF(SpawnedSign2(i).eq.0) THEN
                 DetsMerged=DetsMerged+1
             ELSE
 !We want to move all the elements above this point down to 'fill in' the annihilated determinant.
                 SpawnedParts(0:NIfTot,i-DetsMerged)=SpawnedParts2(0:NIfTot,i)
-!                SpawnedSign(i-DetsMerged)=SpawnedSign2(i)
             ENDIF
+#else                
+            IF((SpawnedSign(1).eq.0).and.(SpawnedSign(2).eq.0)) THEN
+                DetsMerged=DetsMerged+1
+            ELSE
+!We want to move all the elements above this point down to 'fill in' the annihilated determinant.
+                SpawnedParts(0:NIfTot,i-DetsMerged)=SpawnedParts2(0:NIfTot,i)
+            ENDIF
+#endif                
         enddo
         IF(DetsMerged.ne.ToRemove) THEN
             WRITE(6,*) 'DetsMerged = ',DetsMerged
@@ -414,7 +436,7 @@ MODULE AnnihilationMod
         INTEGER :: ExcitLevel
         INTEGER(KIND=n_int) , POINTER :: PointTemp(:,:)
         INTEGER , POINTER :: PointTempSign(:)
-        LOGICAL :: tSuccess,tSuc!,tSkipSearch
+        LOGICAL :: tSuccess,tSuc
 
         CALL set_timer(AnnMain_time,30)
 
@@ -457,48 +479,52 @@ MODULE AnnihilationMod
                 call encode_sign(SpawnedParts(:,i),null_part)
                 ToRemove=ToRemove+1
 
-                IF(SignProd(1).lt.0) THEN
-!This indicates that the particle has found the same particle of opposite sign to annihilate with
-                    Annihilated=Annihilated+2*(min(abs(CurrentSign(1)),abs(SpawnedSign(1))))
+                do j=1,lenof_sign   !Run over real (& imag ) components
 
-                    IF(tTruncInitiator) THEN
+                    IF(SignProd(j).lt.0) THEN
+!This indicates that the particle has found the same particle of opposite sign to annihilate with
+                        Annihilated=Annihilated+2*(min(abs(CurrentSign(j)),abs(SpawnedSign(j))))
+
+                        IF(tTruncInitiator) THEN
 !If we are doing an initiator calculation - then if the walkers that are left after annihilation came from the SpawnedParts array, and had 
 !spawned from determinants outside the active space, then it is like these have been spawned on an unoccupied determinant and they are killed.
-                        IF(abs(SpawnedSign(1)).gt.abs(CurrentSign(1))) THEN
-                            !The residual particles were spawned here
-                            IF(extract_flags(SpawnedParts(:,i)).eq.1) THEN
-                                !And they were spawned from non-initiator particles. Abort all particles which were initially copied accross
-                                NoAborted=NoAborted+ABS(REAL(SpawnedSign(1)))
-!                                WRITE(6,'(I20,A,3I20)') SpawnedSign(i),'walkers aborted from determinant:',SpawnedParts(:,i)
-                                call encode_sign(CurrentDets(:,PartInd),null_part)
+                            IF(abs(SpawnedSign(1)).gt.abs(CurrentSign(1))) THEN
+                                !The residual particles were spawned here
+                                IF(extract_flags(SpawnedParts(:,i)).eq.1) THEN
+                                    !And they were spawned from non-initiator particles. Abort all particles which were initially copied accross
+                                    NoAborted=NoAborted+ABS(REAL(SpawnedSign(1)))
+!                                    WRITE(6,'(I20,A,3I20)') SpawnedSign(i),'walkers aborted from determinant:',SpawnedParts(:,i)
+                                    call encode_sign(CurrentDets(:,PartInd),null_part)
+                                ENDIF
                             ENDIF
                         ENDIF
-                    ENDIF
                         
-                    IF(tHistSpawn) THEN
+                        IF(tHistSpawn) THEN
 !We want to histogram where the particle annihilations are taking place.
-                        ExcitLevel = FindBitExcitLevel(SpawnedParts(:,i),&
-                                                       iLutHF, nel)
-                        IF(ExcitLevel.eq.NEl) THEN
-                            CALL BinSearchParts2(SpawnedParts(:,i),HistMinInd2(ExcitLevel),Det,PartIndex,tSuc)
-                        ELSEIF(ExcitLevel.eq.0) THEN
-                            PartIndex=1
-                            tSuc=.true.
-                        ELSE
-                            CALL BinSearchParts2(SpawnedParts(:,i),HistMinInd2(ExcitLevel),FCIDetIndex(ExcitLevel+1)-1,PartIndex,tSuc)
+                            ExcitLevel = FindBitExcitLevel(SpawnedParts(:,i),&
+                                                           iLutHF, nel)
+                            IF(ExcitLevel.eq.NEl) THEN
+                                CALL BinSearchParts2(SpawnedParts(:,i),HistMinInd2(ExcitLevel),Det,PartIndex,tSuc)
+                            ELSEIF(ExcitLevel.eq.0) THEN
+                                PartIndex=1
+                                tSuc=.true.
+                            ELSE
+                                CALL BinSearchParts2(SpawnedParts(:,i),HistMinInd2(ExcitLevel),FCIDetIndex(ExcitLevel+1)-1,PartIndex,tSuc)
+                            ENDIF
+                            HistMinInd2(ExcitLevel)=PartIndex
+                            IF(tSuc) THEN
+                                AvAnnihil(PartIndex)=AvAnnihil(PartIndex)+REAL(2*(min(abs(CurrentSign(j)),abs(SpawnedSign(j)))))
+                                InstAnnihil(PartIndex)=InstAnnihil(PartIndex)+REAL(2*(min(abs(CurrentSign(j)),abs(SpawnedSign(j)))))
+                            ELSE
+                                WRITE(6,*) "***",SpawnedParts(0:NIftot,i)
+                                Call WriteBitDet(6,SpawnedParts(0:NIfTot,i),.true.)
+                                CALL Stop_All("AnnihilateSpawnedParts","Cannot find corresponding FCI determinant when histogramming")
+                            ENDIF
                         ENDIF
-                        HistMinInd2(ExcitLevel)=PartIndex
-                        IF(tSuc) THEN
-                            AvAnnihil(PartIndex)=AvAnnihil(PartIndex)+REAL(2*(min(abs(CurrentSign(1)),abs(SpawnedSign(1)))))
-                            InstAnnihil(PartIndex)=InstAnnihil(PartIndex)+REAL(2*(min(abs(CurrentSign(1)),abs(SpawnedSign(1)))))
-                        ELSE
-                            WRITE(6,*) "***",SpawnedParts(0:NIftot,i)
-                            Call WriteBitDet(6,SpawnedParts(0:NIfTot,i),.true.)
-                            CALL Stop_All("AnnihilateSpawnedParts","Cannot find corresponding FCI determinant when histogramming")
-                        ENDIF
+
                     ENDIF
 
-                ENDIF
+                enddo   !Finish running over components of signs
             
             ELSEIF(tTruncInitiator) THEN
 !Determinant in newly spawned list is not found in currentdets - usually this would mean the walkers just stay in this list and get merged later - but in this case we            
@@ -535,11 +561,20 @@ MODULE AnnihilationMod
             do i=1,ValidSpawned
 !We want to move all the elements above this point down to 'fill in' the annihilated determinant.
                 call extract_sign(SpawnedParts(:,i),SignTemp)
+#ifndef __CMPLX                
                 IF(SignTemp(1).eq.null_part(1)) THEN
                     DetsMerged=DetsMerged+1
                 ELSE
                     SpawnedParts2(0:NIfTot,i-DetsMerged)=SpawnedParts(0:NIfTot,i)
                 ENDIF
+#else                    
+                !Complex case
+                IF((SignTemp(1).eq.0).and.(SignTemp(2).eq.0)) THEN
+                    DetsMerged=DetsMerged+1
+                ELSE
+                    SpawnedParts2(0:NIfTot,i-DetsMerged)=SpawnedParts(0:NIfTot,i)
+                ENDIF
+#endif                    
             enddo
             ValidSpawned=ValidSpawned-DetsMerged
             IF(DetsMerged.ne.ToRemove) THEN
@@ -562,6 +597,7 @@ MODULE AnnihilationMod
 
     END SUBROUTINE AnnihilateSpawnedParts
 
+    
 !This routine will run through the total list of particles (TotWalkersNew in CurrentDets with sign CurrentSign) and the list of newly-spawned but
 !non annihilated particles (ValidSpawned in SpawnedParts and SpawnedSign) and move the new particles into the correct place in the new list,
 !while removing the particles with sign = 0 from CurrentDets. 
@@ -579,16 +615,16 @@ MODULE AnnihilationMod
         LOGICAL :: TestClosedShellDet
         HElement_t :: HDiagTemp
 
-!If we want to do this while only keeping the data in one array, the first thing which is needed, is for the annihilated
-!determinants to be removed from the main array. These are denoted by zeros in the sign array for it.
+!Annihilated determinants first are removed from the main array (zero sign). 
 !Surely we only need to perform this loop if the number of annihilated particles > 0?
-
         TotParts=0
         DetsMerged=0
         iHighestPop=0
         IF(TotWalkersNew.gt.0) THEN
             do i=1,TotWalkersNew
                 call extract_sign(CurrentDets(:,i),CurrentSign)
+#ifndef __CMPLX
+                !real case
                 IF(CurrentSign(1).eq.null_part(1)) THEN
                     DetsMerged=DetsMerged+1
                     IF(tTruncInitiator.and.CurrentDets(NIfTot,i).ne.1) THEN
@@ -621,6 +657,41 @@ MODULE AnnihilationMod
                         ENDIF
                     ENDIF
                 ENDIF
+#else
+                !complex case
+                IF((CurrentSign(1).eq.0).and.(CurrentSign(2).eq.0)) THEN
+                    DetsMerged=DetsMerged+1
+                    IF(tTruncInitiator.and.CurrentDets(NIfTot,i).ne.1) THEN
+                        NoAddedInitiators=NoAddedInitiators-1.D0
+                    ENDIF
+                ELSE
+!We want to move all the elements above this point down to 'fill in' the annihilated determinant.
+                    IF(DetsMerged.ne.0) THEN
+                        CurrentDets(0:NIfTot,i-DetsMerged)=CurrentDets(0:NIfTot,i)
+                        IF(.not.tRegenDiagHEls) THEN
+                            CurrentH(i-DetsMerged)=CurrentH(i)
+                        ENDIF
+                    ENDIF
+                    TotParts=TotParts+abs(CurrentSign)
+                    IF(tCheckHighestPop) THEN
+!If this option is on, then we want to compare the weight on each determinant to the weight at the HF determinant.
+!Record the highest weighted determinant on each processor.
+                        IF((abs(CurrentSign(1))).gt.iHighestPop) THEN
+                            IF(tHPHF) THEN
+                                !For HPHF functions, we restrict ourselves to closed shell determinants for simplicity.
+                                IF(TestClosedShellDet(CurrentDets(0:NIfDBO,i))) THEN
+                                    !HPHF func is closed shell - we can move to this without problems.
+                                    iHighestPop=abs(CurrentSign(1))
+                                    HighestPopDet(:)=CurrentDets(:,i)
+                                ENDIF
+                            ELSE
+                                iHighestPop=abs(CurrentSign(1))
+                                HighestPopDet(:)=CurrentDets(:,i)
+                            ENDIF
+                        ENDIF
+                    ENDIF
+                ENDIF
+#endif
             enddo
             TotWalkersNew=TotWalkersNew-DetsMerged
         ENDIF
@@ -632,17 +703,15 @@ MODULE AnnihilationMod
 !        enddo
 !        CALL CheckOrdering(CurrentDets,CurrentSign(1:TotWalkersNew),TotWalkersNew,.true.)
 
-!We now need to compress the spawned list, so that no particles are specified more than once.
-!We also want to find the number of particles we are adding to the list from the spawned list.
 !We now calculate the contribution to the total number of particles from the spawned lists.
-!The list has previously been compressed before the annihilation began.
+!The list has previously been compressed.
         IF(ValidSpawned.gt.0) THEN
             call extract_sign(SpawnedParts(:,1),SpawnedSign)
-            TotParts=TotParts+abs(SpawnedSign(1))
+            TotParts=TotParts+abs(SpawnedSign)
         ENDIF
         do i=2,ValidSpawned
             call extract_sign(SpawnedParts(:,i),SpawnedSign)
-            TotParts=TotParts+abs(SpawnedSign(1))
+            TotParts=TotParts+abs(SpawnedSign)
         enddo
 
 !        CALL CheckOrdering(SpawnedParts,SpawnedSign(1:ValidSpawned),ValidSpawned,.true.)
@@ -658,11 +727,9 @@ MODULE AnnihilationMod
 !        WRITE(6,*) "***"
 !        CALL FLUSH(6)
 
-!TotWalkersNew is now the number of non-annihilated determinants in the main list left.
+!TotWalkersNew is now the number of determinants in the main list left.
 !We now want to merge the main list with the spawned list of non-annihilated spawned particles.
 !The final list will be of length TotWalkersNew+ValidSpawned. This will be returned in the first element of MergeLists updated.
-
-       
         IF(tRegenDiagHEls) THEN
             IF(TotWalkersNew.eq.0) THEN
 !Merging algorithm will not work with no determinants in the main list.
