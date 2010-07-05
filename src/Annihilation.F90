@@ -189,7 +189,7 @@ MODULE AnnihilationMod
         
         CALL set_timer(Comms_Time,30)
         
-        CALL MPIAlltoAllI(sendcounts,1,recvcounts,1,error)
+        CALL MPIAlltoAll(sendcounts,1,recvcounts,1,error)
 
 !We can now get recvdisps from recvcounts, since we want the data to be contiguous after the move.
         recvdisps(1)=0

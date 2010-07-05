@@ -127,7 +127,7 @@ MODULE FciMCParMod
             IF(tBlockEveryIteration) THEN
                 Inpair(1)=REAL(HFIter,dp)
                 Inpair(2)=ENumIter
-                CALL MPIDSumRootArr(Inpair,2,Outpair,Root)
+                CALL MPISumRoot(Inpair,2,Outpair,Root)
                 IterEnergy=Outpair(2)/Outpair(1)
                 IF(tErrorBlocking.and.(iProcIndex.eq.Root)) CALL SumInErrorContrib(Iter,Outpair(2),Outpair(1))
                 ENumIter=0.D0
@@ -1145,8 +1145,8 @@ MODULE FciMCParMod
 !        CALL MPI_Reduce(TotWalkers,AllTotWalkers,1,MPI_INTEGER,MPI_Sum,root,MPI_COMM_WORLD,error)    
 !Calculate the energy by summing all on HF and doubles - convert number at HF to a real since no int*8 MPI data type
         TempSumNoatHF=real(SumNoatHF,dp)
-        CALL MPIDSumRoot(TempSumNoatHF,1,AllSumNoatHF,Root)
-        CALL MPIDSumRoot(SumENum,1,AllSumENum,Root)
+        CALL MPISumRoot(TempSumNoatHF,1,AllSumNoatHF,Root)
+        CALL MPISumRoot(SumENum,1,AllSumENum,Root)
 
 !We also need to tell the root processor how many particles to expect from each node - these are gathered into WalkersonNodes
         CALL MPI_AllGather(TotWalkers,1,MPI_INTEGER,WalkersonNodes,1,MPI_INTEGER,MPI_COMM_WORLD,error)
@@ -2995,7 +2995,7 @@ MODULE FciMCParMod
         tReZeroShift=.false.
 
 !Find sum of noathf, and then use an AllReduce to broadcast it to all nodes
-        CALL MPIISum(NoatHF,1,AllNoatHF)
+        CALL MPISum(NoatHF,1,AllNoatHF)
 
         IF(AllNoatHF.lt.0) THEN
 !Flip the sign if we're beginning to get a negative population on the HF
@@ -3036,7 +3036,7 @@ MODULE FciMCParMod
 !        WRITE(6,*) "Get Here 1"
 !        CALL FLUSH(6)
 !!        CALL MPI_Reduce(inpair,outpair,6,MPI_INTEGER,MPI_SUM,Root,MPI_COMM_WORLD,error)
-        CALL MPIIReduceArr(inpair,6,MPI_SUM,outpair)
+        CALL MPIReduce(inpair,6,MPI_SUM,outpair)
 !        WRITE(6,*) "Get Here 2"
 !        CALL FLUSH(6)
 !        AllTotWalkers=outpair(1)
@@ -3062,7 +3062,7 @@ MODULE FciMCParMod
             inpairInit(9)=InitRemoved
  
 !!            CALL MPI_Reduce(inpairInit,outpairInit,8,MPI_INTEGER,MPI_SUM,Root,MPI_COMM_WORLD,error)
-            Call MPIDSumArr(inpairInit,9,outpairInit)
+            Call MPISum(inpairInit,9,outpairInit)
 !            CALL MPI_Reduce(inpairinit,outpairinit,8,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
 
             AllNoAborted=outpairInit(1)
@@ -3077,9 +3077,9 @@ MODULE FciMCParMod
         ENDIF
 
 !!        CALL MPI_Reduce(TempTotWalkers,AllTotWalkers,1,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
-        CALL MPIDReduce(TempTotWalkers,1,MPI_SUM,AllTotWalkers)
+        CALL MPIReduce(TempTotWalkers,1,MPI_SUM,AllTotWalkers)
 !!        CALL MPI_AllReduce(TempTotParts,AllTotParts,lenof_sign,MPI_DOUBLE_PRECISION,MPI_SUM,MPI_COMM_WORLD,error)
-        CALL MPIDAllReduceArr(TempTotParts,lenof_sign,MPI_SUM,AllTotParts)
+        CALL MPIAllReduce(TempTotParts,lenof_sign,MPI_SUM,AllTotParts)
 
         IF(iProcIndex.eq.0) THEN
             IF(AllTotWalkers.le.0.2) THEN
@@ -3092,7 +3092,7 @@ MODULE FciMCParMod
         TempSumWalkersCyc=REAL(SumWalkersCyc,dp)
         TempAllSumWalkersCyc=0.D0
 !!        CALL MPI_Reduce(TempSumWalkersCyc,TempAllSumWalkersCyc,1,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
-        CALL MPIDReduce(TempSumWalkersCyc,1,MPI_SUM,TempAllSumWalkersCyc)
+        CALL MPIReduce(TempSumWalkersCyc,1,MPI_SUM,TempAllSumWalkersCyc)
 
 !        WRITE(6,*) "Get Here 3"
 !        CALL FLUSH(6)
@@ -3127,9 +3127,9 @@ MODULE FciMCParMod
 
 !Cannot load-balance with direct annihilation, but still want max & min
 !!        CALL MPI_Reduce(TotWalkers,MaxWalkersProc,1,MPI_INTEGER,MPI_MAX,root,MPI_COMM_WORLD,error)
-        CALL MPIIReduce(TotWalkers,1,MPI_MAX,MaxWalkersProc)
+        CALL MPIReduce(TotWalkers,1,MPI_MAX,MaxWalkersProc)
 !!        CALL MPI_Reduce(TotWalkers,MinWalkersProc,1,MPI_INTEGER,MPI_MIN,root,MPI_COMM_WORLD,error)
-        CALL MPIIReduce(TotWalkers,1,MPI_MIN,MinWalkersProc)
+        CALL MPIReduce(TotWalkers,1,MPI_MIN,MinWalkersProc)
         IF(iProcIndex.eq.Root) THEN
             WalkersDiffProc=MaxWalkersProc-MinWalkersProc
 
@@ -3142,7 +3142,7 @@ MODULE FciMCParMod
             HighPopin(1)=iHighestPop
             HighPopin(2)=iProcIndex
 !!            CALL MPI_AllReduce(HighPopin,HighPopout,1,MPI_2INTEGER,MPI_MAXLOC,MPI_COMM_WORLD,error)
-            CALL MPIIAllReduceArr(HighPopin,2,MPI_MAXLOC,HighPopout)
+            CALL MPIAllReduce(HighPopin,2,MPI_MAXLOC,HighPopout)
                     
 !Now, the root processor contains information about the highest populated determinant, and the processor which is it held on.
             IF(((INT(FracLargerDet*REAL(AllNoatHF,dp))).lt.HighPopout(1)).and.(SUM(AllTotParts).gt.10000)) THEN
@@ -3162,7 +3162,7 @@ MODULE FciMCParMod
                     ! TODO: Can we do this without using a decode_bit_det
                     !       call?
 !!                    CALL MPI_BCast(HighestPopDet(0:NIfTot),NIfTot+1,MpiDetInt,HighPopout(2),MPI_COMM_WORLD,error)
-                    CALL MPIDetIntBCastArr(HighestPopDet(0:NIfTot),NIfTot+1,HighPopout(2))
+                    CALL MPIBCast(HighestPopDet(0:NIfTot),NIfTot+1,HighPopout(2))
                     iLutRef(:)=HighestPopDet(:)
                     call decode_bit_det (ProjEDet, iLutRef)
                     WRITE(6,"(A)",advance='no') "Changing projected energy reference determinant to:"
@@ -3207,7 +3207,7 @@ MODULE FciMCParMod
 
                 ELSEIF(tRestartHighPop.and.(iRestartWalkNum.le.SUM(AllTotParts))) THEN
 !!                    CALL MPI_BCast(HighestPopDet,NIfTot+1,MpiDetInt,HighPopout(2),MPI_COMM_WORLD,error)
-                    CALL MPIDetIntBCastArr(HighestPopDet,NIfTot+1,HighPopout(2))
+                    CALL MPIBCast(HighestPopDet,NIfTot+1,HighPopout(2))
                     iLutRef(:)=HighestPopDet(:)
                     call decode_bit_det (ProjEDet, iLutRef)
                     WRITE(6,"(A)",advance='no') "Changing projected energy reference determinant to:"
@@ -3251,7 +3251,7 @@ MODULE FciMCParMod
         ELSE
 !We want to calculate the mean growth rate over the update cycle, weighted by the total number of walkers
             GrowRate=GrowRate*TempSumWalkersCyc                    
-            CALL MPIDSumRoot(GrowRate,1,AllGrowRate,Root)   
+            CALL MPISumRoot(GrowRate,1,AllGrowRate,Root)   
 
             IF(iProcIndex.eq.Root) THEN
                 AllGrowRate=AllGrowRate/TempAllSumWalkersCyc
@@ -3263,7 +3263,7 @@ MODULE FciMCParMod
         IterTime=IterTime/REAL(StepsSft)    !This is the average time per iteration in the previous update cycle.
 
 !For the unweighted by iterations energy estimator (ProjEIter), we need the sum of the Hij*Sign from all processors over the last update cycle
-!        CALL MPIDSumRoot(ENumCyc,1,AllENumCyc,Root)
+!        CALL MPISumRoot(ENumCyc,1,AllENumCyc,Root)
 !        WRITE(6,*) "Get Here 7"
 !        CALL FLUSH(6)
 
@@ -3274,7 +3274,7 @@ MODULE FciMCParMod
 !        CALL MPI_Reduce(MeanExcitLevel,AllMeanExcitLevel,1,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
 !        WRITE(6,*) "Get Here 8"
 !        CALL FLUSH(6)
-!        CALL MPIDSumRoot(MeanExcitLevel,1,AllMeanExcitLevel,Root)
+!        CALL MPISumRoot(MeanExcitLevel,1,AllMeanExcitLevel,Root)
 !        IF(iProcIndex.eq.Root) THEN
 !            AllMeanExcitLevel=AllMeanExcitLevel/real(nProcessors,dp)
 !        ENDIF
@@ -3291,10 +3291,10 @@ MODULE FciMCParMod
 
 !Calculate the energy by summing all on HF and doubles - convert number at HF to a real since no int*8 MPI data type
         TempSumNoatHF=real(SumNoatHF,dp)
-!        CALL MPIDSumRoot(TempSumNoatHF,1,AllSumNoatHF,Root)
+!        CALL MPISumRoot(TempSumNoatHF,1,AllSumNoatHF,Root)
 !        WRITE(6,*) "Get Here 9"
 !        CALL FLUSH(6)
-!        CALL MPIDSumRoot(SumENum,1,AllSumENum,Root)
+!        CALL MPISumRoot(SumENum,1,AllSumENum,Root)
 !        WRITE(6,*) "Get Here 10"
 !        CALL FLUSH(6)
         inpairreal(1)=ENumCyc
@@ -3302,7 +3302,7 @@ MODULE FciMCParMod
         inpairreal(3)=SumENum
 !        inpairreal(4)=DetsNorm
 !!        CALL MPI_Reduce(inpairreal,outpairreal,3,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
-        CALL MPIDReduceArr(inpairreal,3,MPI_SUM,outpairreal)
+        CALL MPIReduce(inpairreal,3,MPI_SUM,outpairreal)
         AllENumCyc=outpairreal(1)
         AllSumNoatHF=outpairreal(2)
         AllSumENum=outpairreal(3)
@@ -3395,7 +3395,7 @@ MODULE FciMCParMod
 
 !We wan to now broadcast this new shift to all processors
 !        CALL MPI_Bcast(DiagSft,1,MPI_DOUBLE_PRECISION,Root,MPI_COMM_WORLD,error)
-        CALL MPIDBcast(DiagSft,1,Root)
+        CALL MPIBcast(DiagSft,1,Root)
 !        WRITE(6,*) "Get Here 13"
 !        CALL FLUSH(6)
 !        IF(error.ne.MPI_SUCCESS) THEN
@@ -3538,7 +3538,7 @@ MODULE FciMCParMod
         Changed=.false.
         IF(tGlobalSftCng) THEN
 !!            CALL MPI_AllReduce(NoCulls,MaxCulls,1,MPI_INTEGER,MPI_MAX,MPI_COMM_WORLD,error)
-            CALL MPIIReduce(NoCulls,1,MPI_MAX,MaxCulls)
+            CALL MPIReduce(NoCulls,1,MPI_MAX,MaxCulls)
             IF(MaxCulls.gt.0) THEN
                 IF(iProcIndex.eq.0) WRITE(6,*) "Culling has occurred in this update cycle..."
 !At least one of the nodes is culling at least once, therefore every processor has to perform the original grow rate calculation.
@@ -3921,7 +3921,7 @@ MODULE FciMCParMod
                 enddo
             ENDIF
             !Now broadcast to all processors
-            CALL MPIIBCast(RandomHash,nBasis,Root)
+            CALL MPIBCast(RandomHash,nBasis,Root)
         ENDIF
 
         IF(tHPHF) THEN

@@ -199,23 +199,29 @@ def adj_arrays (template, config):
 	#              same line, then it wont work.
 	#     --> TODO: restrict the scope of each search and replace to one fn.
 	
-	# Vars contains tuples of (typename, dimensionality) for each variable of
-	# operable types beginning with 'type'
+	# Vars contains tuples of (typename, dimensionality, dimstring) for each variable of
+	# operable types beginning with 'type'.  dimstring is the string that was used for declaring the variable's dimensions
 	vars = dict()
 
 	# Extract all of the variables of the managed types, so we can adjust
 	# any required array sizes.
+
+        # types is a dict with keys being the type line from config (e.g. type1 = integer, dimension(:))
+        #  and the values being the number of dimensions
 	for type in types:
 		#re_var = re.compile ('\n\s*%%\(%s\)s.*::\s*([^()]*)([\s^\n]*\(([:,]*)\))*\n' % type)
 		re_var = re.compile ('\n\s*%%\(%s\)s.*::\s*([^()]*)([\s^\n]*\(([:,]*)\))*.*\n' % type)
-
+# Search for lines of the form
+# TYPE :: VARIABLE
+# TYPE :: VARIABLE(:)
+# TYPE :: VARIABLE(:,:) etc.
 		v = re_var.search(template)
 		offset = 0
 		while v:
 			if v.group(2) == None:
-				vars[v.group(1)] = (type, types[type])
+				vars[v.group(1)] = (type, types[type],"")
 			else:
-				vars[v.group(1)] = (type, types[type] + v.group(3).count(":"))
+				vars[v.group(1)] = (type, types[type] + v.group(3).count(":"),v.group(3))
 
 			# If we are sizing an array based on the size of another, remove
 			# this condition if the type is actually a scalar in this case.
@@ -227,6 +233,9 @@ def adj_arrays (template, config):
 				            re_fix.sub("\\1", template[v.start()+offset:], 1))
 			offset = offset + v.start() + 1
 			v = re_var.search(template[offset:])
+#vars is a dict with keys being the name of the variable and values being (TYPE,TOTALDIMS,DIMSTRING)
+# TOTALDIMS is the sum of dims in the TYPE and of the VARIABLE
+# DIMSTRING is the string (e.g. :,: ) which was used to declare the variable's dimensions
 
 	# Replace the relevant occurrances
 	for var in vars:
@@ -234,15 +243,21 @@ def adj_arrays (template, config):
 		# Only consider types with a dimenison() term to be adjustable
 		# based on the num of dimensions in type. Need to get this far
 		# to set dim-%s.
-		if types[vars[var][0]] != 0:
+		if types[vars[var][0]] != 0:  # If the type is not a scalar
 			# If we are considering dimensionality of 2 or larger
-			if vars[var][1] > 1:
-				dimstr = ":,"*(vars[var][1]-1)
-				redim = '%s\s*\(' % var
-				substr = ('%s(' % var) + dimstr
-				re_redim = re.compile (redim)
-
-				template = re_redim.sub (substr, template)
+			dimstr = ":,"*(vars[var][1]-1)
+			redim = '%s\s*\(' % (var)
+			substr = ('%s(' % var) + dimstr
+			if vars[var][2]=="":  # If our original dimension string was empty (i.e. didn't contain anything special we had to leave)
+			   # Then we need to include the full number of dimensions, not one fewer - we do this by changing VARIABLE() to VARIABLE(:)
+			   re_redim = re.compile (redim+"\)")
+			   template = re_redim.sub (('%s(' % var)+":)", template)
+			re_redim = re.compile (redim)
+			template = re_redim.sub (substr, template)
+		elif vars[var][1]==0: # if we've ended up with a scalar just remove the (:)
+                   redim = '%s\s*\(%s\)' % (var,vars[var][2])
+                   re_redim = re.compile(redim)
+                   template = re_redim.sub(var,template)
 
 	return (template, config)
 
@@ -304,7 +319,6 @@ if __name__ == '__main__':
 		for s in config:
 			# Adjust arrays to have the right number of dimensions
 			(tmpl, cfg) = adj_arrays(template, config[s])
-
 			fout.write(tmpl % cfg)
 			fout.write("\n\n")
 		fout.write(super_mod)
