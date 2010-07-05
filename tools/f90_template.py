@@ -99,7 +99,7 @@ def read_config(fin):
 	re_section = re.compile('^\[(.*)\]$')
 	while True:
 		line = fin.readline()
-		if line[0] == '=':
+		if line and line[0] == '=':
 			break
 		config_lines.append(line)
 
@@ -145,6 +145,9 @@ def super_module(template, config):
 	re_mod = re.compile ('(\n\s*module[\s^\n]*([^\s]*))\n')
 
 	m = re_mod.search(template)
+	if not m:
+	   print("Did not find module string. Exiting")
+	   exit() 
 	print 'Generating super module: %s' % m.group(2)
 
 	# Change module in template to be a sub-module with associated name
