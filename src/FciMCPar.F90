@@ -2996,7 +2996,6 @@ MODULE FciMCParMod
 
 !Find sum of noathf, and then use an AllReduce to broadcast it to all nodes
         CALL MPISum(NoatHF,1,AllNoatHF)
-
         IF(AllNoatHF.lt.0) THEN
 !Flip the sign if we're beginning to get a negative population on the HF
             WRITE(6,*) "No. at HF < 0 - flipping sign of entire ensemble of particles..."
@@ -3142,7 +3141,7 @@ MODULE FciMCParMod
             HighPopin(1)=iHighestPop
             HighPopin(2)=iProcIndex
 !!            CALL MPI_AllReduce(HighPopin,HighPopout,1,MPI_2INTEGER,MPI_MAXLOC,MPI_COMM_WORLD,error)
-            CALL MPIAllReduce(HighPopin,2,MPI_MAXLOC,HighPopout)
+            CALL MPIAllReduceDatatype(HighPopin,1,MPI_MAXLOC,MPI_2INTEGER,HighPopout)
                     
 !Now, the root processor contains information about the highest populated determinant, and the processor which is it held on.
             IF(((INT(FracLargerDet*REAL(AllNoatHF,dp))).lt.HighPopout(1)).and.(SUM(AllTotParts).gt.10000)) THEN
@@ -3538,7 +3537,7 @@ MODULE FciMCParMod
         Changed=.false.
         IF(tGlobalSftCng) THEN
 !!            CALL MPI_AllReduce(NoCulls,MaxCulls,1,MPI_INTEGER,MPI_MAX,MPI_COMM_WORLD,error)
-            CALL MPIReduce(NoCulls,1,MPI_MAX,MaxCulls)
+            CALL MPIAllReduce(NoCulls,1,MPI_MAX,MaxCulls)
             IF(MaxCulls.gt.0) THEN
                 IF(iProcIndex.eq.0) WRITE(6,*) "Culling has occurred in this update cycle..."
 !At least one of the nodes is culling at least once, therefore every processor has to perform the original grow rate calculation.

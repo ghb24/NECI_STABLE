@@ -39,6 +39,10 @@ type1=real*8, dimension(:)
 mpitype=MPI_DOUBLE_PRECISION
 ===================
 
+
+!For a full header, see the supermodule at the end of the file.
+
+
    ! mpi USE is in mixed case to avoid it being picked up by the the Configure
    ! script, as it doesn't require a module file.
 module Parallel
@@ -48,6 +52,7 @@ module Parallel
    use constants
    implicit none
 #ifndef PARALLEL
+! These don't exist in serial, so fudge them
    integer, private, parameter :: MPI_MIN=0
    integer, private, parameter :: MPI_MAX=0
    integer, private, parameter :: MPI_SUM=0
@@ -59,21 +64,29 @@ contains
 
 Subroutine MPIReduce(Values, iLen, iType, Ret)
    !=  In:
-   !=     Values                 real*8.  The corresponding elements for each
-   !=                    processor are summed over the processors and returned in 
-   !=                    dReturn       
-   !=     iLen           Length of the arrays. Must be 1
+   !=     Values         The corresponding elements for each
+   !=                    processor are reduced over the processors and returned in 
+   !=                    Ret on the root only
+   !=     iLen           Length of the data (in elements of its type)
    !=     iType          an MPI call (e.g. MPI_MAX)
    !=  Out:
-   !=     Ret                 real*8 to get the results.
+   !=     Ret            data store to get the results.
    %(type1)s :: Values()
    %(type1)s :: Ret()
-   integer iLen
+   integer iLen,i,i2
    integer ierr,rc,itype
+!   CHARACTER(LEN=MPI_MAX_ERROR_STRING) :: message 
 #if PARALLEL
+!   write(6,*) "Reduce %(type1)s",iLen,iType
+!   write(6,*) Values
+!   call flush(6)
    call MPI_REDUCE(Values,Ret,iLen,%(mpitype)s,iType,0,MPI_COMM_WORLD,ierr)
+!   write(6,*) Ret
+!   call flush(6)
    if (ierr .ne. MPI_SUCCESS) then
-      call Stop_All("MPIReduce",'Error in MPIReduce. Terminating.')
+!     call MPI_ERROR_STRING(ierr,message,i,i2)
+!     write(6,*) "Error ",ierr,message
+     call Stop_All("MPIReduce",'Error in MPIReduce. Terminating.')
    end if
 #else
    Ret=Values
@@ -81,18 +94,19 @@ Subroutine MPIReduce(Values, iLen, iType, Ret)
 end subroutine
 Subroutine MPIAllReduce(Values, iLen, iType, Ret)
    !=  In:
-   !=     Values                 real*8.  The corresponding elements for each
-   !=                    processor are summed over the processors and returned in 
-   !=                    dReturn       
-   !=     iLen           Length of the arrays. Must be 1
+   !=     Values         The corresponding elements for each
+   !=                    processor are reduced over the processors and returned in 
+   !=                    Ret on all processors
+   !=     iLen           Length of the data (in elements of its type)
    !=     iType          an MPI call (e.g. MPI_MAX)
    !=  Out:
-   !=     Ret                 real*8 to get the results.
+   !=     Ret            data store to get the results.
    %(type1)s :: Values()
    %(type1)s :: Ret()
    integer iLen
    integer g, ierr,rc,itype
 #if PARALLEL
+!   write(6,*) "AllReduce %(type1)s",iLen,iType
    g=MPI_COMM_WORLD
    call MPI_ALLREDUCE(Values,Ret,iLen,%(mpitype)s,iType,g,ierr)
    if (ierr .ne. MPI_SUCCESS) then
@@ -103,30 +117,61 @@ Subroutine MPIAllReduce(Values, iLen, iType, Ret)
 #endif
 end subroutine
 
+Subroutine MPIAllReduceDatatype(Values, iLen, iType, iDatatype, Ret)
+   !=  In:
+   !=     Values         The corresponding elements for each
+   !=                    processor are reduced over the processors and returned in 
+   !=                    Ret on all processors
+   !=     iLen           Length of the data (in elements of its type)
+   !=     iType          an MPI call (e.g. MPI_MAX)
+   !=     iDatatype      a custom data type to pass to MPI (e.g. MPI_2INTEGER)
+   !=  Out:
+   !=     Ret            data store to get the results.
+   %(type1)s :: Values()
+   %(type1)s :: Ret()
+   integer iLen,iDatatype
+   integer g, ierr,rc,itype
+#if PARALLEL
+!   write(6,*) "AllReduceDatatype %(type1)s",iLen,iType
+   g=MPI_COMM_WORLD
+   call MPI_ALLREDUCE(Values,Ret,iLen,iDatatype,iType,g,ierr)
+   if (ierr .ne. MPI_SUCCESS) then
+      call Stop_All("MPIAllReduce",'Error in MPIAllReduce. Terminating.')
+   end if
+#else
+   Ret=Values
+#endif
+end subroutine
+
 Subroutine MPISum(Values, iLen, Ret)
+   !=  Sum data among all processors, and give the results to the all
+   !=  In:
+   !=     Values(iLen)   Data (array possibly)  The corresponding elements for each
+   !=                    processor are summed and returnd into Ret on all processors
+   !=     iLen           Length of the data (in elements of its type)
+   !=  Out:
+   !=     Return(iLen)   Variable (array possibly) to get the results.
    %(type1)s :: Values()
    %(type1)s :: Ret()
    integer iLen
-   call MPIReduce(Values,iLen,MPI_SUM,Ret)
+   call MPIAllReduce(Values,iLen,MPI_SUM,Ret)
 end subroutine
 
 Subroutine MPISumRoot(Values, iLen, Ret, root)
+   !=  Sum data among all processors, and give the results to the root 
    !=  In:
-   !=     Values(iLen)   Array.  The corresponding elements for each
+   !=     Values(iLen)   Data (array possibly)  The corresponding elements for each
    !=                    processor are summed and returnd into Ret
-   !=     iLen           Length of the arrays.
+   !=     iLen           Length of the data (in elements of its type)
    !=     root           Processor which to sum the result to.
    !=  Out:
-   !=     Return(iLen)   Array  to get the results.
-   != The arrays however are declared as scalar values. This is so that we can pass scalar
-   != quantities without it getting annoyed with associating a scalar with a vector when we
-   != just want to sum single numbers. Since we are parsing by reference, it should mean that
-   != arrays are ok too.
+   !=     Return(iLen)   Variable (array possibly) to get the results.
    %(type1)s :: Values()
    %(type1)s :: Ret()
    integer iLen,i,root
    integer ierr,rc
 #ifdef PARALLEL
+!   write(6,*) "SumRoot %(type1)s",iLen,Root
    call MPI_REDUCE(Values,Ret,iLen,%(mpitype)s,MPI_SUM,root,MPI_COMM_WORLD,ierr)
    if (ierr .ne. MPI_SUCCESS) then
       call Stop_All("MPIDSumRootArr",'Error in MPIDSumRootArr. Terminating.')
@@ -136,11 +181,19 @@ Subroutine MPISumRoot(Values, iLen, Ret, root)
 #endif
 end subroutine
 
-!A wrapper for the mpi_bcast double precision routine, so it can be used in serial
+!Send from processor Root to all other processors
+! Values contains the data, and iLen the length of the data (in number of elements of its data type)
 Subroutine MPIBCast(Values,iLen,Root)
+   !=  In:
+   !=     iLen           Length of the data (in elements of its type)
+   !=     root           Processor which to sum the result to.
+   !=  In/Out:
+   !=     Values(iLen)   Data (array possibly)  The corresponding elements for each
+   !=                    processor are taken from here on root and given to all other processors
    %(type1)s :: Values()
     INTEGER :: iLen,Root,error,rc
 #ifdef PARALLEL
+!   write(6,*) "BCast %(type1)s",iLen,Root
     CALL MPI_Bcast(Values,iLen,%(mpitype)s,Root,MPI_COMM_WORLD,error)
     if(error.ne.MPI_SUCCESS) then
       call Stop_All("MPIBCast",'Error in MPIBCast. Terminating.')
@@ -155,6 +208,7 @@ Subroutine MPIAlltoAll(SendBuf,SendSize,RecvBuf,RecvSize,ierr)
     %(type1)s :: SendBuf(:)
     %(type1)s :: RecvBuf(:)
 #ifdef PARALLEL
+!    write(6,*) "AllToAll %(type1)s",SendSize,RecvSize
     CALL MPI_AlltoAll(SendBuf,SendSize,%(mpitype)s,RecvBuf,RecvSize,%(mpitype)s,MPI_COMM_WORLD,ierr)
 #else
     RecvBuf=SendBuf
@@ -177,6 +231,7 @@ supermodule Parallel
 !=  NECI will run as a standalone parallel app or in conjunction with CPMD.
 !=  Only standalone is currently implemented.
 
+!=  For some jobs,
 !=  Parallelization is done over occupied electrons.  These are split among each
 !=  processor such that there are an approximately equal number of pairs of
 !=  electrons on each processor.
@@ -190,16 +245,30 @@ supermodule Parallel
 !=  interfaced through GenSymExcitIt3Par There is no clean way to automatically
 !=  parallelize high-vertex graph code, so each parallel routine must be
 !=  specifically written.
+
+!=  FCIMC is parallelized over determinants, using a hashing routine.  This is not dealt with here
+
+!=  It is highly advised that the following routines are used in parallel work, as they exist both in
+!=  serial and parallel compiles and aid interoperability.  The extra overhead is likely minimal compared
+!=  to the communication time.
+
 !=
-!=  ROUTINES
+!=  MPI ROUTINES
 !=     MPIInit     Setup MPI and init Nodefiles if we're standalone
 !=     MPIEnd      Shutdown MPI
 !=     MPIStopAll  Abort all processors
-!=     MPIISum     Sum an array of integers among all processors, and give the results to the root
-!=     MPIISumA    Sum an array of integers among all processors, and distribute the results array to each.
-!=     MPIDSum     As MPIISum but for real*8
-!=     MPIDSumA    As MPIISumA but for real*8
-!=     MPIHelSum   As MPIDSum but for HElement_t
+!=     MPIBarrier  Wait until all processors have synched.
+
+!   These routines exist for all types specified in the header. (Ah the beauty of templates!)
+!=     MPISum      Sum data among all processors, and give the results to all
+!=     MPISumRoot  Sum data among all processors, and give the results to the root
+!=     MPIBCast    Send from processor Root to all other processors
+!=     MPIAllReduceDatatype Like MPIAllReduce, but allows a custom datatype (like MPI_2INTEGER) to be specified
+!=
+
+!=  OTHER ROUTINES
+!=     GetProcElectrons
+
 
    ! mpi USE is in mixed case to avoid it being picked up by the the Configure
    ! script, as it doesn't require a module file.
