@@ -58,7 +58,12 @@ MODULE FciMCParMod
                                SumInErrorContrib, WriteInitPops
     use RotateOrbsMod, only: RotateOrbs
     use NatOrbsMod, only: PrintOrbOccs
-    use bit_reps, only: decode_bit_det,encode_bit_rep,encode_det,extract_bit_rep
+    use bit_reps, only: decode_bit_det, encode_bit_rep, encode_det, &
+                        extract_bit_rep
+    use spin_project, only: tSpinProject, spin_proj_interval, &
+                            spin_proj_gamma, get_spawn_helement_spin_proj, &
+                            generate_excit_spin_proj
+
     implicit none
 
     contains
@@ -121,6 +126,17 @@ MODULE FciMCParMod
                                        ptr_encode_child, &
                                        ptr_new_child_stats)
             ENDIF
+
+            ! Are we projecting the spin out between iterations?
+            if (tSpinProject .and. mod(Iter, spin_proj_interval) == 0) then
+                call sub_dispatcher_5 (PerformFciMCycPar, &
+                                       generate_excit_spin_proj, &
+                                       attempt_create_normal, &
+                                       get_spawn_helement_spin_proj, &
+                                       null_encode_child, &
+                                       ptr_new_child_stats)
+            endif
+
             s=etime(tend)
             IterTime=IterTime+(tend(1)-tstart(1))
 

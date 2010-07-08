@@ -1,30 +1,31 @@
 MODULE Calc
         
-        use CalcData
-        use Determinants, only: write_det
+    use CalcData
+    use SystemData, only: beta, nel
+    use Determinants, only: write_det
+    use spin_project, only: spin_proj_interval, tSpinProject, spin_proj_gamma
+    use default_sets
+    use Determinants, only: iActiveBasis, SpecDet, tSpecDet, nActiveSpace, &
+                            tDefineDet
+    use DetCalc, only: iObs, jObs, kObs, tCorr, tRhoOfR, tFodM, DETINV, &
+                       icilevel, nCycle, tBlock, tCalcHMat, tEnergy, tRead, &
+                       tFindDets
+    use DetCalcData, only: B2L, nKry, nEval, nBlk
+    use IntegralsData, only: tNeedsVirts
+    use CCMCData, only: dInitAmplitude, dProbSelNewExcitor, nSpawnings, &
+                        tSpawnProp, nClustSelections, tExactEnergy
 
-        IMPLICIT NONE
+    implicit none
 
-        contains
+contains
 
-        subroutine SetCalcDefaults()
-          != Set defaults for Calc data items.
+    subroutine SetCalcDefaults()
+        
+        ! Set defaults for Calc data items.
 
-          Use Determinants, only: iActiveBasis, SpecDet, tSpecDet, nActiveSpace
-          Use Determinants, only : tDefineDet
-          Use DetCalc, only: iObs, jObs, kObs, tCorr, tRhoOfR, tFodM, DETINV
-          Use DetCalc, only: icilevel, nCycle, tBlock, tCalcHMat
-          Use DetCalc, only: tEnergy, tRead,tFindDets
-          Use DetCalcData, only: B2L,nKry,nEval,nBlk
-          use IntegralsData, only: tNeedsVirts
-          use SystemData, only : Beta,nEl
-          use CCMCData, only: dInitAmplitude,dProbSelNewExcitor,nSpawnings,tSpawnProp,nClustSelections
-          use CCMCData, only: tExactEnergy
-          use default_sets
-          implicit none
-
-!       Values for old parameters.
-!       These have no input options to change the defaults, but are used in the code.
+        ! Values for old parameters.
+        ! These have no input options to change the defaults, but are used in
+        ! the code.
           InitialPart=1
           TRHOOFR = .false.
           TCORR = .false.
@@ -208,6 +209,11 @@ MODULE Calc
           IF(Feb08) THEN
               RhoEpsilon=1.D-08
           ENDIF
+
+          ! Spin Projection defaults
+          spin_proj_gamma = 0.1
+          tSpinProject  = .false.
+          spin_proj_interval = 5
       
         end subroutine SetCalcDefaults
 
@@ -228,6 +234,7 @@ MODULE Calc
           use global_utilities
           use Parallel, only : nProcessors
           use Logging, only: tLogDets
+          use spin_project, only: spin_proj_gamma
           IMPLICIT NONE
           LOGICAL eof
           CHARACTER (LEN=100) w
@@ -1154,6 +1161,19 @@ MODULE Calc
                 CALL Stop_All(t_r,"MULTIPLEDETSSPAWN option depreciated")
 !                tMultipleDetsSpawn=.true.
 !                call Geti(iDetGroup)
+
+            case("SPIN-PROJECT")
+                ! Enable spin projection (spin_project.F90).
+                ! Optional argument specifies no. of iterations between
+                ! each application of stochastic spin projection.
+                tSpinProject = .true.
+                if (item < nitems) call geti (spin_proj_interval)
+
+            case("SPIN-PROJECT-GAMMA")
+                ! Change the value of delta-gamma used by the spin projection
+                ! routines. Similar to modifying tau for normal FCIQMC.
+                call getf (spin_proj_gamma)
+
             case default
                 call report("Keyword "                                &
      &            //trim(w)//" not recognized in CALC block",.true.)

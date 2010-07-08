@@ -1,6 +1,7 @@
 #include "macros.h"
 module spin_project
-	use SystemData, only: LMS, STOT, nel, nbasis
+	use SystemData, only: LMS, STOT, nel, nbasiS
+    use CalcData, only: tau
     use SymExcitDataMod, only: scratchsize
     use bit_reps, only: NIfD, NIfTot
 	use csf, only: csf_get_yamas, get_num_csfs, csf_coeff, csf_get_random_det
@@ -8,6 +9,10 @@ module spin_project
     use FciMCData, only: TotWalkers, CurrentDets
 
 	implicit none
+
+    logical :: tSpinProject
+    integer :: spin_proj_interval
+    real(dp) :: spin_proj_gamma
 
 contains
 
@@ -39,6 +44,61 @@ contains
             ret = ret + (csf_coeff (yamas(i, :), dorder_i, nopen) * &
                          csf_coeff (yamas(i, :), dorder_j, nopen))
         enddo
+    end function
+    
+    function get_spawn_helement_spin_proj (nI, nJ, ilutI, ilutJ, ic, ex, &
+                                         tParity, prob) result (hel)
+
+        ! Calculate ( \delta_\gamma \sum_Y <J|Y><Y|I> ) / \delta_\tau
+
+        integer, intent(in) :: nI(nel), nJ(nel)
+        integer(kind=n_int), intent(in) :: iLutI(0:niftot), iLutJ(0:niftot)
+        integer, intent(in) :: ic, ex(2,2)
+        logical, intent(in) :: tParity
+        real(dp), intent(in) :: prob
+        HElement_t :: hel
+        
+        integer :: dorder_i(nel), dorder_j(nel), nopen, nopen2, i
+
+        ! nJ contains a reversed list of the unpaired electrons in ilutJ
+        do i = 1, nel
+            if (nJ(nel-i+1) == -1) exit
+            if (is_alpha(nJ(nel-i+1))) then
+                dorder_j(i) = 1
+            else
+                dorder_j(i) = 0
+            endif
+        enddo
+        nopen = i - 1
+
+        ! We need the dorder for nI, which we don't have as easily...
+        ! This is duplacated from generate_excit_spin_proj. Do we need to
+        ! preserve nI? If not, we can just pass it in.
+        ! TODO: make this be passed  from generate...not recalculated.
+        !       or even, can we pointerise the extraction?
+        nopen2 = 0
+        do while (i <= nel)
+            if (nopen2 >= nopen) exit
+            if (is_beta(nI(i)) .and. i < nel) then
+                if (is_in_pair(nI(i), nI(i+1))) then
+                    i = i + 2
+                    cycle
+                endif
+            endif
+
+            nopen2 = nopen2 + 1
+            if (is_alpha(nI(i))) then
+                dorder_i(nopen2) = 1
+            else
+                dorder_i(nopen2) = 0
+            endif
+
+            i = i + 1
+        enddo
+
+        hel = csf_spin_project_elem (dorder_i, dorder_j, nopen)
+        hel = hel * spin_proj_gamma / tau
+
     end function
 
     subroutine generate_excit_spin_proj (nI, iLutI, nJ, iLutJ, exFlag, IC, &
@@ -78,17 +138,32 @@ contains
         ! Loop over the bit representation to find the unpaired electrons
         ! Can we store the results of this bit?
         nopen = 0
-        do i = 1, nbasis-1, 2
+        i = 1
+        do while (i <= nel)
             ! Is this an unpaired electron?
-            if (IsOcc(ilutI, i) .neqv. IsOcc(ilutI, i+1)) then
-                if (IsOcc(ilutI, i)) then
-                    nJ(nel-nopen) = i
-                else
-                    nJ(nel-nopen) = i + 1
+            if (is_beta(nI(i)) .and. i < nel) then
+                if (is_in_pair(nI(i), nI(i+1))) then
+                    i = i + 2
+                    cycle
                 endif
-                nopen = nopen + 1
             endif
+
+            nJ(nel - nopen) = nI(i)
+            nopen = nopen + 1
+            i = i + 1
         enddo
+        !nopen = 0
+        !do i = 1, nbasis-1, 2
+        !    ! Is this an unpaired electron?
+        !    if (IsOcc(ilutI, i) .neqv. IsOcc(ilutI, i+1)) then
+        !        if (IsOcc(ilutI, i)) then
+        !            nJ(nel-nopen) = i
+        !        else
+        !            nJ(nel-nopen) = i + 1
+        !        endif
+        !        nopen = nopen + 1
+        !    endif
+        !enddo
 
         ! If we know that there are no possible excitations to be made
         if (nopen == STOT) then
@@ -122,54 +197,4 @@ contains
         pGen = 1_dp / real(nchoose - 1, dp)
     end subroutine
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-    !subroutine stochastic_spin_project ()
-    !    
-    !    integer :: det(nel), flags
-    !    integer, dimension(lenof_sign) :: sgn
-    !    integer :: j, p
-    !    character(*), parameter :: this_routine = 'stochastic_spin_project'
-
-    !    if (lenof_sign /= 1) call stop_all (this_routine, &
-    !               "Spin projection does not work with complex walkers yet.")
-
-    !    ! Loop over all the determinants in the system.
-    !    ! n.b. TotWalkers /= number of walkers in the system.
-    !    do j = 1, TotWalkers
-
-    !        ! Decode determinant from (stored) bit-representation
-    !        ! call extract_sign (CurrentDets(:,j), sgn)
-    !        call extract_bit_rep (CurrentDets(:,j), det, sgn, flags)
-
-    !        ! Loop over all the particles
-    !        do p = 1, abs(sgn(1))
-
-    !            ! Generate excitation
-
-    !            ! Test overlap and spawn
-
-    !        enddo
-    !        
-
-    !    enddo
-
-    !    ! Annihilate
-
-    !end subroutine
 end module
