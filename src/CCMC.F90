@@ -2172,6 +2172,7 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
    use CalcData, only: DiagSft
    use CalcData, only: TStartSinglePart
    use timing, only: print_timing_report
+   use Parallel
    IMPLICIT NONE
    real(dp) Weight,EnergyxW
    CHARACTER(len=*), PARAMETER :: this_routine='CCMCStandaloneParticle'
@@ -2226,6 +2227,9 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
    INTEGER, DIMENSION(lenof_sign) :: TempSign
    TYPE(timer) :: CCMC_time,SpawnTime,DieTime
    TYPE(timer) :: Etime
+   INTEGER :: iOffsets(nProcessors)  !Used to store spawning data for annihilation
+   INTEGER :: iLengths(nProcessors)  !Used to store spawning data for annihilation
+   INTEGER :: iOffset(1)
 
 
    WRITE(6,*) "Entering CCMC Standalone Particle..."
@@ -2255,6 +2259,7 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
    Allocate(DetList(0:nIfTot,nMaxAmpl))
    LogAlloc(ierr,'DetList',(nIfTot+1)*nMaxAmpl,4,tagDetList)
    nMaxSpawn=MemoryFacSpawn*nMaxAmpl
+   if(iProcIndex.ne.Root) nMaxSpawn=nMaxSpawn/nProcessors
    Allocate(SpawnList(0:nIfTot,nMaxSpawn))
    LogAlloc(ierr,'SpawnList',(nIfTot+1)*nMaxAmpl,4,tagSpawnList)
    Allocate(SpawnAmps(nMaxSpawn))
@@ -2274,6 +2279,10 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
 
 ! Now setup the amplitude list.  Let's start with nothing initially, and
    AL%Amplitude(:,:)=0
+
+!Make sure we've all finished setting it to zero.
+   call MPIBarrier()  
+
 !  !  place ampl 1 in the HF det
 !   if(tStartMP1) then
 !      write(6,*) "Initializing with MP1 amplitudes."
@@ -2425,15 +2434,36 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
          call halt_timer(Dietime)
       enddo ! Cluster choices
 
-! At this point SpawnList contains a set of newly spawned particles and SpawnAmps the amount spawned
-      if(nSpawned>0) then
-         if(iDebug>2) write(6,*) "Calling Annihilation with ", nSpawned, " spawned."
-         if(iDebug>2) call WriteExcitorList(6,SpawnAmps,SpawnList,0,nSpawned,dAmpPrintTol,"Spawned list")
-         call AnnihilationInterface(nAmpl,DetList,AL%Amplitude(:,iCurAmpList),nMaxAmpl,nSpawned,SpawnList,SpawnAmps,nMaxSpawn)
+      call MPIBarrier()
+      iOffset(1)=nSpawned
+      call MPIGather(iOffset,1,iLengths,1,Root,ierr)
+!iOffsets is now the list of data lengths from each processor
+      iOffsets(1)=0
+!Make a list of offsets from the lengths.
+      do i=1,nProcessors-1
+         iOffsets(i+1)=iOffsets(i)+iLengths(1)
+      enddo
+!Get the Amplitudes
+      call MPIGatherV(SpawnAmps,nSpawned,SpawnAmps,iLengths,iOffsets,Root,ierr)
+      do i=1,nProcessors
+         iOffsets(i)=iOffsets(i)*(nIfTot+1)
+         iLengths(i)=iLengths(i)*(nIfTot+1)
+      enddo
+!And the dets themselves
+      call MPIGatherV(SpawnList,nSpawned,SpawnList,iLengths,iOffsets,Root,ierr)
+      if(iProcIndex.eq.Root) then
+         nSpawned=sum(iLengths)/(nIfTot+1)
       else
-         if(iDebug>2) write(6,*) "No spawnings in toto."
-      endif 
-      
+         nSpawned=0
+      endif
+! At this point SpawnList contains a set of newly spawned particles and SpawnAmps the amount spawned
+!      if(nSpawned>0) then
+      if(iDebug>2) write(6,*) "Calling Annihilation with ", nSpawned, " spawned."
+      if(iDebug>2) call WriteExcitorList(6,SpawnAmps,SpawnList,0,nSpawned,dAmpPrintTol,"Spawned list")
+      call AnnihilationInterface(nAmpl,DetList,AL%Amplitude(:,iCurAmpList),nMaxAmpl,nSpawned,SpawnList,SpawnAmps,nMaxSpawn)
+!      else
+!         if(iDebug>2) write(6,*) "No spawnings in toto."
+!      endif
 
 
       IF(tHistSpawn.and.(mod(Iter,iWriteHistEvery).eq.0)) THEN

@@ -21,31 +21,36 @@ module ClusterList
    implicit none
 
    type AmplitudeList_%(name)s
-      %(type1)s, allocatable ::   Amplitude(:,:)
-      %(type1)s, allocatable         ::   CumlAmplitude(:)
+      %(type1)s, pointer ::   Amplitude(:,:)
+!      %(type1)s, pointer         ::   CumlAmplitude(:)
       integer tagAmplitude
-      integer tagCumlAmplitude
+!      integer tagCumlAmplitude
    end type
 
 
 contains
    subroutine AllocateAmplitudeList (AL,nAmpl,nLists)
+      use shared_alloc
       CHARACTER(len=*), PARAMETER :: this_routine='AllocateAmplitudeList_%(name)s'
       Type(AmplitudeList_%(name)s) AL
       integer nAmpl,nLists
-      Allocate(AL%%Amplitude(nAmpl,nLists))
+      integer arrdim(2)
+      arrdim(1)=nAmpl
+      arrdim(2)=nLists
+      call shared_allocate("CCMCAmps",AL%%Amplitude,arrdim)
       LogAlloc(ierr,'AL%%Amplitude',nAmpl*nLists,%(size)s,AL%%tagAmplitude)
-      Allocate(AL%%CumlAmplitude(nAmpl))
-      LogAlloc(ierr,'AL%%CumlAmplitude',nAmpl,4,AL%%tagCumlAmplitude)
+!      Allocate(AL%%CumlAmplitude(nAmpl))
+!      LogAlloc(ierr,'AL%%CumlAmplitude',nAmpl,4,AL%%tagCumlAmplitude)
    end subroutine ! AllocateAmplitudeList 
 
    subroutine DeallocateAmplitudeList (AL)
+      use shared_alloc
       CHARACTER(len=*), PARAMETER :: this_routine='DeallocateAmplitudeList_%(name)s'
       Type(AmplitudeList_%(name)s) AL
       LogDealloc(AL%%tagAmplitude)
-      Deallocate(AL%%Amplitude)
-      LogDealloc(AL%%tagCumlAmplitude)
-      Deallocate(AL%%CumlAmplitude)
+      call shared_deallocate(AL%%Amplitude)
+!      LogDealloc(AL%%tagCumlAmplitude)
+!      Deallocate(AL%%CumlAmplitude)
    end subroutine !DeallocateAmplitudeList 
    
 ! Find the largest nMax amplitudes (out of Amps(nDet)) for each excitation level and print them
@@ -378,6 +383,7 @@ FUNCTION GetNextCluster (CS,Dets,nDet,Amplitude,dTotAbsAmpl,iNumExcitors,iMaxSiz
    use CCMCData, only: ClustSelector
    use dSFMT_interface , only : genrand_real2_dSFMT
    use timing
+   use Parallel, only : nProcessors
    IMPLICIT NONE
    TYPE(ClustSelector) CS
    INTEGER nDet
@@ -398,7 +404,7 @@ FUNCTION GetNextCluster (CS,Dets,nDet,Amplitude,dTotAbsAmpl,iNumExcitors,iMaxSiz
    call set_timer(CCMC_time,20)
 
    if(CS%%tDynamic.and.CS%%iIndex.eq.0) then
-      CS%%nSelects=dTotAbsAmpl+abs(Amplitude(CS%%iRefPos))
+      CS%%nSelects=(dTotAbsAmpl+abs(Amplitude(CS%%iRefPos)))/nProcessors+1
    endif
    GetNextCluster=.true.
    iMaxSize=min(iMaxSizeIn,CS%%iMaxSize)

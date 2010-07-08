@@ -215,6 +215,56 @@ Subroutine MPIAlltoAll(SendBuf,SendSize,RecvBuf,RecvSize,ierr)
 #endif
 end subroutine
 
+Subroutine MPIGather(SendBuf,SendSize,RecvBuf,RecvSize,Root,ierr)
+! Collect data from all processors onto Root
+!
+! in:
+!       SendBuf   Data to send
+!       SendSize  Length (in number of elements) of data to send
+!       RecvSize  (on root) number of elements per processor to receive
+!                           i.e. RecvBuf should be nProcessors*RecvSize
+!       Root      rank of the receiveing process
+! out:
+!       RecvBuf   (on root) buffer to receive data
+!       ierr      error
+
+    INTEGER :: SendSize,ierr,RecvSize
+    INTEGER :: Root
+    %(type1)s :: SendBuf(:)
+    %(type1)s :: RecvBuf(:)
+#ifdef PARALLEL
+!    write(6,*) "AllToAll %(type1)s",SendSize,RecvSize
+    CALL MPI_Gather(SendBuf,SendSize,%(mpitype)s,RecvBuf,RecvSize,%(mpitype)s,Root,MPI_COMM_WORLD,ierr)
+#else
+    RecvBuf=SendBuf
+#endif
+end subroutine
+
+Subroutine MPIGatherV(SendBuf,SendSize,RecvBuf,RecvSize,Offsets,Root,ierr)
+! Collect data of different lengths from all processors onto Root
+!
+! in:
+!       SendBuf   Data to send
+!       SendSize  Length (in number of elements) of data to send
+!       RecvSize  (on root) integer array containing the number of elements to receive from each processor
+!       Offsets   (on root) integer array containing the Offsets in RecvBuf into which to place the data from each processor
+!       Root      rank of the receiveing process
+! out:
+!       RecvBuf   (on root) buffer to receive data
+!       ierr      error
+
+    INTEGER :: SendSize,ierr
+    INTEGER :: RecvSize(:),Offsets(:)
+    INTEGER :: Root
+    %(type1)s :: SendBuf(:)
+    %(type1)s :: RecvBuf(:)
+#ifdef PARALLEL
+!    write(6,*) "AllToAll %(type1)s",SendSize,RecvSize
+    CALL MPI_GatherV(SendBuf,SendSize,%(mpitype)s,RecvBuf,RecvSize,Offsets,%(mpitype)s,Root,MPI_COMM_WORLD,ierr)
+#else
+    RecvBuf=SendBuf
+#endif
+end subroutine
 
 
 end module
@@ -264,6 +314,8 @@ supermodule Parallel
 !=     MPISumRoot  Sum data among all processors, and give the results to the root
 !=     MPIBCast    Send from processor Root to all other processors
 !=     MPIAllReduceDatatype Like MPIAllReduce, but allows a custom datatype (like MPI_2INTEGER) to be specified
+!=     MPIGather   Collect data from all processors onto Root
+!=     MPIGatherV  Collect data of different lengths from all processors onto Root
 !=
 
 !=  OTHER ROUTINES
@@ -287,6 +339,10 @@ supermodule Parallel
    integer, parameter :: MPI_MAXLOC=0
    integer, parameter :: MPI_MAX_ERROR_STRING=255
 #endif
+
+interface MPIBarrier
+   module procedure MPIBarrierNoE, MPIBarrierE
+end interface
 
 Contains
 
@@ -453,7 +509,21 @@ Subroutine GetProcElectrons(iProcIndex,iMinElec,iMaxElec)
 #endif
 end subroutine
 
-Subroutine MPIBarrier(error)
+
+Subroutine MPIBarrierNoE()
+    INTEGER :: error
+#ifdef PARALLEL
+    CALL MPI_Barrier(MPI_COMM_WORLD,error)
+    if (error .ne. MPI_SUCCESS) then
+!     call MPI_ERROR_STRING(ierr,message,i,i2)
+!     write(6,*) "Error ",ierr,message
+     call Stop_All("MPIBarrierNoE",'Error in MPIBarrier. Terminating.')
+    end if
+#endif
+
+end subroutine
+
+Subroutine MPIBarrierE(error)
     INTEGER :: error
 #ifdef PARALLEL
     CALL MPI_Barrier(MPI_COMM_WORLD,error)
