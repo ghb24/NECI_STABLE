@@ -575,7 +575,7 @@ MODULE FciMCParMod
             !      of walkers.
 
             ! Decode determinant from (stored) bit-representation.
-!            WRITE(6,*) j,CurrentDets(:,j)
+            ! write(6,*) j, CurrentDets(:,j)
             call extract_bit_rep (CurrentDets(:,j), DetCurr, SignCurr, &
                                   FlagsCurr)
 
@@ -628,15 +628,16 @@ MODULE FciMCParMod
             ! excite from the first particle on a determinant).
             tfilled = .false.
 
-            !Loop over the 'type' of particle. Generally, lenof_sign=1, and so
-            !this simply loops over real particles. If lenof_sign=2, then we are
-            !dealing with complex walkers and part_type=1 denotes real walkers and
-            !part_type=1 denotes imaginary walkers.
+            ! Loop over the 'type' of particle. 
+            ! lenof_sign == 1 --> Only real particles
+            ! lenof_sign == 2 --> complex walkers
+            !                 --> part_type == 1, 2; real and complex walkers
             do part_type=1,lenof_sign
 
-                ! Loop over all the particles of a given type on the determinant. CurrentSign has
-                ! number of walkers. Multiply up by noMCExcits if attempting 
-                ! multiple excitations from each walker (default 1)
+                ! Loop over all the particles of a given type on the 
+                ! determinant. CurrentSign gives number of walkers. Multiply 
+                ! up by noMCExcits if attempting multiple excitations from 
+                ! each walker (default 1)
                 do p = 1, abs(SignCurr(part_type)) * noMCExcits
                     ! Generate a (random) excitation
                     call generate_excitation (DetCurr, CurrentDets(:,j), nJ, &
@@ -658,21 +659,20 @@ MODULE FciMCParMod
 #else
                     if (child(1).ne.0) then
 #endif                        
-                        ! We know we want to create a particle of this type, so encode the bit
-                        ! representation if it isn't already.
+                        ! We know we want to create a particle of this type.
+                        ! Encode the bit representation if it isn't already.
                         call encode_child (CurrentDets(:,j), iLutnJ, ic, ex)
-!                            WRITE(6,*) "Adding child:",iLutnJ(0:NIfDBO),child(1)
 
                         call new_child_stats (CurrentDets(:,j), iLutnJ, ic, &
                                               walkExcitLevel, child)
 
                         call create_particle (iLutnJ, child)
                     
-                    endif   ! (child /= 0). Child created
+                    endif ! (child /= 0). Child created
 
                 enddo ! Cycling over mulitple particles on same determinant.
 
-            enddo   !Cycling over 'type' of particle on a given determinant.
+            enddo   ! Cycling over 'type' of particle on a given determinant.
 
             ! DEBUG
             ! if (VecSlot > j) call stop_all (this_routine, 'vecslot > j')
