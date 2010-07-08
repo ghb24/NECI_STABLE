@@ -377,6 +377,7 @@ END SUBROUTINE !CalcClusterEnergyUnsrt
 FUNCTION GetNextCluster (CS,Dets,nDet,Amplitude,dTotAbsAmpl,iNumExcitors,iMaxSizeIn,iDebug) result (GetNextCluster)
    use CCMCData, only: ClustSelector
    use dSFMT_interface , only : genrand_real2_dSFMT
+   use timing
    IMPLICIT NONE
    TYPE(ClustSelector) CS
    INTEGER nDet
@@ -391,6 +392,10 @@ FUNCTION GetNextCluster (CS,Dets,nDet,Amplitude,dTotAbsAmpl,iNumExcitors,iMaxSiz
    LOGICAL tDone,tNew
    INTEGER iNumExcitors
    LOGICAL GetNextCluster
+   TYPE(timer),save :: CCMC_time
+
+   CCMC_time%%timer_name="GetNextCluster"
+   call set_timer(CCMC_time,20)
 
    if(CS%%tDynamic.and.CS%%iIndex.eq.0) then
       CS%%nSelects=dTotAbsAmpl+abs(Amplitude(CS%%iRefPos))
@@ -418,7 +423,7 @@ FUNCTION GetNextCluster (CS,Dets,nDet,Amplitude,dTotAbsAmpl,iNumExcitors,iMaxSiz
             if(iDebug.gt.3) &
                 call write_det_len (6, CS%%C%%SelectedExcitorIndices, &
                                     CS%%C%%iSize, .true.)
-            return
+            exit !do
          endif 
 
 !         call IncrementOrderedTuple(CS%%C%%SelectedExcitorIndices,CS%%C%%iSize,2,nDet,tDone)
@@ -431,7 +436,7 @@ FUNCTION GetNextCluster (CS,Dets,nDet,Amplitude,dTotAbsAmpl,iNumExcitors,iMaxSiz
             if(CS%%C%%iSize.gt.CS%%iMaxSize) then !We've reached the end
                if(iDebug.gt.3) WRITE(6,*) "Reached End"
                GetNextCluster=.false.
-               return
+               exit !do
             endif            
          else
             if(iDebug.gt.3) WRITE(6,"(A,L3)",advance='no') "Next Tuple:",tDone
@@ -452,84 +457,85 @@ FUNCTION GetNextCluster (CS,Dets,nDet,Amplitude,dTotAbsAmpl,iNumExcitors,iMaxSiz
       CS%%iIndex=CS%%iIndex+1
       if(CS%%iIndex.gt.CS%%nSelects) THEN
          GetNextCluster=.false.
-         return
       endif
+      if(GetNextCluster) then
+         dProbNumExcit=CS%%dProbSelNewExcitor
+         CS%%C%%dProbNorm=CS%%nSelects
+         CS%%C%%dClusterProb=1
+         CS%%C%%dAbsAmplitude=abs(Amplitude(CS%%iRefPos))
+         CS%%C%%dClusterNorm=1
+         IF(iDebug.gt.5) Write(6,*) "Generating New Cluster.  Max size ",iMaxSize
+         do i=1,iMaxSize
+   ! Calculate the probability that we've reached this far in the loop
+                     !We must have at least one excitor, so we cannot exit here.
+            r = genrand_real2_dSFMT()  !On GHB's advice
 
-      dProbNumExcit=CS%%dProbSelNewExcitor
-      CS%%C%%dProbNorm=CS%%nSelects
-      CS%%C%%dClusterProb=1
-      CS%%C%%dAbsAmplitude=abs(Amplitude(CS%%iRefPos))
-      CS%%C%%dClusterNorm=1
-      IF(iDebug.gt.5) Write(6,*) "Generating New Cluster.  Max size ",iMaxSize
-      do i=1,iMaxSize
-! Calculate the probability that we've reached this far in the loop
-                  !We must have at least one excitor, so we cannot exit here.
-         r = genrand_real2_dSFMT()  !On GHB's advice
+            if(r.lt.CS%%dProbSelNewExcitor) exit
 
-         if(r.lt.CS%%dProbSelNewExcitor) exit
+   ! decide not to choose another walker with this prob.
+            dProbNumExcit=dProbNumExcit*(1-CS%%dProbSelNewExcitor)
+   ! Select a new random walker
+            r = genrand_real2_dSFMT()  !On GHB's advice
+            r=r*dTotAbsAmpl
+            dCurTot=0
+            do k=1,nDet
+               if(k==CS%%iRefPos) cycle
+               dCurTot=dCurTot+abs(Amplitude(k))
+               if(dCurTot.ge.r) exit
+            enddo
+            if(k.gt.nDet) THEN
+               write(6,*) "Position in weight list: ", r
+               write(6,*) "Current Total: ",dCurTot
+               write(6,*) "Max Total: ", dTotAbsAmpl
+               write(6,*) Amplitude
+               CALL Stop_All("GetNextCluster","Invalid Excitor selected")
+            endif
+            IF(iDebug.gt.5) Write(6,*) "Selected excitor",k
+            CS%%C%%SelectedExcitorIndices(i)=k
+            CS%%C%%SelectedExcitors(:,i)=Dets(:,k)
+            CS%%C%%dAbsAmplitude=CS%%C%%dAbsAmplitude*abs(Amplitude(k))/abs(Amplitude(CS%%iRefPos))  !For each new excit added to the composite, we multiply up to count the number of ways we could've generated it.
+            CS%%C%%dClusterProb=CS%%C%%dClusterProb*i*abs(Amplitude(k))/dTotAbsAmpl  !For each new excit added to the composite, we multiply up to count the number of ways we could've generated it.
+   !ClusterProb is used for DEATH
 
-! decide not to choose another walker with this prob.
-         dProbNumExcit=dProbNumExcit*(1-CS%%dProbSelNewExcitor)
-! Select a new random walker
-         r = genrand_real2_dSFMT()  !On GHB's advice
-         r=r*dTotAbsAmpl
-         dCurTot=0
-         do k=1,nDet
-            if(k==CS%%iRefPos) cycle
-            dCurTot=dCurTot+abs(Amplitude(k))
-            if(dCurTot.ge.r) exit
+   ! This is the probability that this cluster was chosen (in any order), given (i.e. irrespective of)
+   !  the number of selections and the level choice
+   !ClusterNorm is used for BIRTH
+            CS%%C%%dClusterNorm=CS%%C%%dClusterNorm*i*abs(Amplitude(k))/dTotAbsAmpl
          enddo
-         if(k.gt.nDet) THEN
-            write(6,*) "Position in weight list: ", r
-            write(6,*) "Current Total: ",dCurTot
-            write(6,*) "Max Total: ", dTotAbsAmpl
-            write(6,*) Amplitude
-            CALL Stop_All("GetNextCluster","Invalid Excitor selected")
-         endif
-         IF(iDebug.gt.5) Write(6,*) "Selected excitor",k
-         CS%%C%%SelectedExcitorIndices(i)=k
-         CS%%C%%SelectedExcitors(:,i)=Dets(:,k)
-         CS%%C%%dAbsAmplitude=CS%%C%%dAbsAmplitude*abs(Amplitude(k))/abs(Amplitude(CS%%iRefPos))  !For each new excit added to the composite, we multiply up to count the number of ways we could've generated it.
-         CS%%C%%dClusterProb=CS%%C%%dClusterProb*i*abs(Amplitude(k))/dTotAbsAmpl  !For each new excit added to the composite, we multiply up to count the number of ways we could've generated it.
-!ClusterProb is used for DEATH
+         IF(iDebug.gt.5) WRITE(6,*) 'prob out of sel routine.',dProbNumExcit
+         if(i.gt.iMaxSize) THEN !We've been limited by the max number of excitations
+            ! Let s be CS%%dProbSelNewExcitor, and X be nMaxSelExcitors
+            !  The sum of all levels from 0 up to X-1 is
+            !  s ( 1 - (1-s)^X)/(1-(1-s)) = 1 - (1-s)^X
+            !  We take 1-this to be the prob of choosing this level, i.e. (1-s)^X
+            !  dProbNumExcit is currently s*(1-s)^X
+            dProbNumExcit= dProbNumExcit / CS%%dProbSelNewExcitor
+         ENDIF
+   !dProbNumExcit is the prob of having chosen this level
+         CS%%C%%iSize=i-1  !Save the number of excitors we've selected   
+   !            WRITE(115,"(30I5)") SelectedExcitorIndices(1:iCompositeSize)
 
-! This is the probability that this cluster was chosen (in any order), given (i.e. irrespective of)
-!  the number of selections and the level choice
-!ClusterNorm is used for BIRTH
-         CS%%C%%dClusterNorm=CS%%C%%dClusterNorm*i*abs(Amplitude(k))/dTotAbsAmpl
-      enddo
-      IF(iDebug.gt.5) WRITE(6,*) 'prob out of sel routine.',dProbNumExcit
-      if(i.gt.iMaxSize) THEN !We've been limited by the max number of excitations
-         ! Let s be CS%%dProbSelNewExcitor, and X be nMaxSelExcitors
-         !  The sum of all levels from 0 up to X-1 is
-         !  s ( 1 - (1-s)^X)/(1-(1-s)) = 1 - (1-s)^X
-         !  We take 1-this to be the prob of choosing this level, i.e. (1-s)^X
-         !  dProbNumExcit is currently s*(1-s)^X
-         dProbNumExcit= dProbNumExcit / CS%%dProbSelNewExcitor
-      ENDIF
-!dProbNumExcit is the prob of having chosen this level
-      CS%%C%%iSize=i-1  !Save the number of excitors we've selected   
-!            WRITE(115,"(30I5)") SelectedExcitorIndices(1:iCompositeSize)
+   !Up to here dProbNorm merely accounts for the number of selections made
+         CS%%C%%dProbNorm=CS%%C%%dProbNorm*dProbNumExcit
+   !At This point dProbNorm is the number to divide any contribution from this cluster by to account for its selection.
+   !  It does not take into account the amplitude weighting of each cluster, so the
+   !  sum of all  1/dProbNorm = # levels
+   !  dClusterNorm is the probability that this cluster was chosen, given the level had already been selected.
+   !  This includes multiple selections of the same excitor as well as combinations of excitors which produce a 0 sign.
+         GetNextCluster=.true.
+         CS%%C%%dSelectionProb=CS%%C%%dProbNorm*CS%%C%%dClusterProb
 
-!Up to here dProbNorm merely accounts for the number of selections made
-      CS%%C%%dProbNorm=CS%%C%%dProbNorm*dProbNumExcit
-!At This point dProbNorm is the number to divide any contribution from this cluster by to account for its selection.
-!  It does not take into account the amplitude weighting of each cluster, so the
-!  sum of all  1/dProbNorm = # levels
-!  dClusterNorm is the probability that this cluster was chosen, given the level had already been selected.
-!  This includes multiple selections of the same excitor as well as combinations of excitors which produce a 0 sign.
-      GetNextCluster=.true.
-      CS%%C%%dSelectionProb=CS%%C%%dProbNorm*CS%%C%%dClusterProb
-
-! We normalize such that the normalization factor for the zero-excitor cluster is 1
-!  dSelectionNorm = ( Amplitude of this cluster / Amplitude of zero-excitor cluster) * ( probability of generating zero-excitor / probability of generating us)
-!
-!                 = (dAbsAmplitude / N0) * ( P_norm(0) / (n! P_norm(n) (dAbsAmplitude/N0))
-      r=CS%%dProbSelNewExcitor
-      if(iMaxSize==0) r=1  !Cope with the case when there are no clusters
-      CS%%C%%dSelectionNorm=(CS%%C%%dAbsAmplitude/abs(Amplitude(CS%%iRefPos)))*(r*CS%%nSelects)/CS%%C%%dSelectionProb
+   ! We normalize such that the normalization factor for the zero-excitor cluster is 1
+   !  dSelectionNorm = ( Amplitude of this cluster / Amplitude of zero-excitor cluster) * ( probability of generating zero-excitor / probability of generating us)
+   !
+   !                 = (dAbsAmplitude / N0) * ( P_norm(0) / (n! P_norm(n) (dAbsAmplitude/N0))
+         r=CS%%dProbSelNewExcitor
+         if(iMaxSize==0) r=1  !Cope with the case when there are no clusters
+         CS%%C%%dSelectionNorm=(CS%%C%%dAbsAmplitude/abs(Amplitude(CS%%iRefPos)))*(r*CS%%nSelects)/CS%%C%%dSelectionProb
 !/CS%%C%%dSelectionNorm
+      endif
    endif
+   call halt_timer(CCMC_time)
 END FUNCTION !GetNextCluster
 
 
@@ -540,6 +546,7 @@ SUBROUTINE CollapseCluster (C,iLutHF,Amplitude,nDet,iDebug,tExToDet)
    use SystemData, only : nEl
    use DetBitOps, only: FindBitExcitLevel
    use bit_reps, only: decode_bit_det
+   use timing
    IMPLICIT NONE
    TYPE(Cluster) C
    INTEGER(KIND=n_int) :: iLutHF(0:nIfTot)
@@ -549,6 +556,11 @@ SUBROUTINE CollapseCluster (C,iLutHF,Amplitude,nDet,iDebug,tExToDet)
    LOGICAL tExToDet
 
    INTEGER i
+   TYPE(timer),save :: CCMC_time
+
+   CCMC_time%%timer_name="CollapseCluster"
+   call set_timer(CCMC_time,20)
+
    C%%iLutDetCurr(:)=iLutHF(:)
    C%%iSgn=1 !The sign of the first excitor
    do i=1,C%%iSize 
@@ -563,16 +575,17 @@ SUBROUTINE CollapseCluster (C,iLutHF,Amplitude,nDet,iDebug,tExToDet)
    enddo
    IF(iDebug.gt.3) Write(6,*) " Final sign including amplitudes ",C%%iSgn
    iF(iDebug.gt.0) CALL FLUSH(6)
-   if(C%%iSgn.eq.0) return
+   if(C%%iSgn.ne.0) then
 
 
 !First, decode the bit-string representation of the determinant the walker is on, into a string of naturally-ordered integers
-   CALL Decode_Bit_Det(C%%DetCurr,C%%iLutDetCurr)
-   C%%iExcitLevel = FindBitExcitLevel(iLutHF, C%%iLutDetCurr, nel)
-! We need to calculate the sign change from excitor to det:
-   if(tExToDet) C%%iSgn=C%%iSgn*ExcitToDetSign(iLutHF,C%%iLutDetCurr,C%%iExcitLevel)
-   if(iDebug.gt.4) WRITE(6,*) " Excitation Level ", C%%iExcitLevel
-
+      CALL Decode_Bit_Det(C%%DetCurr,C%%iLutDetCurr)
+      C%%iExcitLevel = FindBitExcitLevel(iLutHF, C%%iLutDetCurr, nel)
+   ! We need to calculate the sign change from excitor to det:
+      if(tExToDet) C%%iSgn=C%%iSgn*ExcitToDetSign(iLutHF,C%%iLutDetCurr,C%%iExcitLevel)
+      if(iDebug.gt.4) WRITE(6,*) " Excitation Level ", C%%iExcitLevel
+   endif
+   call halt_timer(CCMC_time)
 END SUBROUTINE !CollapseCluster
 
 !Calculate the total cluster amplitude as well as the magnitude of the e^T.
@@ -581,6 +594,7 @@ subroutine CalcTotals (iNumExcitors,dTotAbsAmpl,Amplitude,nAmpl,dTol,WalkerScale
    use FciMCData, only: root
    use CCMCData, only: tCCMCFCI
    use FciMCData, only: TotParts,TotWalkers,NoatHF,NoatDoubs
+   use timing
    implicit none
    integer iNumExcitors,nAmpl
    real*8 dTotAbsAmpl,dTol
@@ -592,6 +606,10 @@ subroutine CalcTotals (iNumExcitors,dTotAbsAmpl,Amplitude,nAmpl,dTol,WalkerScale
    integer i,j
    real*8 dPsiTotAbsAmpl,dTmp
    real*8 dTotExcitors
+   TYPE(timer),save :: CCMC_time
+
+   CCMC_time%%timer_name="CalcTotalsr"
+   call set_timer(CCMC_time,20)
 
    iNumExcitors=0
    dTotAbsAmpl=0
@@ -635,6 +653,7 @@ subroutine CalcTotals (iNumExcitors,dTotAbsAmpl,Amplitude,nAmpl,dTol,WalkerScale
       TotWalkers=0
    endif
    if(iDebug.gt.1) WRITE(6,*) "Total walkers", TotWalkers
+   call halt_timer(CCMC_time)
 end subroutine !CalcTotals
 
 

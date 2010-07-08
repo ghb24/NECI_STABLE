@@ -2185,7 +2185,7 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
    REAL*8 dTotAbsAmpl            ! The total of the absolute amplitudes
 
    INTEGER iDebug
-   INTEGER i,j,k,l
+   INTEGER i,j,k,l,iMin
 ! Temporary Storage
    INTEGER PartIndex,IC          ! Used in buffering
    LOGICAL tSuc                  ! Also used in buffering
@@ -2224,13 +2224,17 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
 
    !ghb24: Changes to allow compatibility with the new packaged walkers.
    INTEGER, DIMENSION(lenof_sign) :: TempSign
-   TYPE(timer) :: CCMC_time
+   TYPE(timer) :: CCMC_time,SpawnTime,DieTime
+   TYPE(timer) :: Etime
 
 
    WRITE(6,*) "Entering CCMC Standalone Particle..."
    CCMC_time%timer_name='CCMC Standalone Particle'
    call set_timer(CCMC_time,20)
 
+   Spawntime%timer_name='SpawnTime'
+   Dietime%timer_name='DieTime'
+   Etime%timer_name='ETime'
    iRefPos=1
    iDebug=CCMCDebug
 
@@ -2363,9 +2367,9 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
 !  Point to the main cluster selector, not the buffer
       call ResetClustSelector(CS,iRefPos)
       tMoreClusters=.true.
+      iMin=min(iNumExcitors,nEl)
       do while (tMoreClusters)
-         i=min(iNumExcitors,nEl)
-         tMoreClusters=GetNextCluster(CS,DetList,nAmpl,AL%Amplitude(:,iCurAmpList),dTotAbsAmpl,iNumExcitors,i,iDebug)
+         tMoreClusters=GetNextCluster(CS,DetList,nAmpl,AL%Amplitude(:,iCurAmpList),dTotAbsAmpl,iNumExcitors,iMin,iDebug)
          if(.not.tMoreClusters) exit
 !Now form the cluster
          IF(iDebug.gt.3) then
@@ -2401,7 +2405,10 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
          if(iDebug.gt.3) WRITE(6,*) " Cluster Amplitude: ",CS%C%iSgn*CS%C%dAbsAmplitude 
 !         if(iDebug.gt.3) WRITE(6,*) " Cluster Prob: ",CS%C%dSelectionProb
          TempSign(1)=CS%C%iSgn
+         call set_timer(Etime,20)
          CALL SumEContrib(CS%C%DetCurr,CS%C%iExcitLevel,TempSign,CS%C%iLutDetCurr,0.d0,1/CS%C%dSelectionNorm)
+         call halt_timer(Etime)
+         call set_timer(Spawntime,20)
 !Now consider a number of possible spawning events
          CALL ResetSpawner(S,CS%C,nSpawnings)
 
@@ -2411,8 +2418,11 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
             call AttemptSpawnParticle(S,CS%C,iDebug,SpawnList(:,:),SpawnAmps(:),nSpawned,nMaxSpawn)
          enddo !GetNextSpawner
 ! Now deal with birth/death.
+         call halt_timer(Spawntime)
+         call set_timer(Dietime,20)
          if((.not.tTruncSpace).or.CS%C%iExcitLevel<=iMaxAmpLevel)          &
   &         call AttemptDieParticle(CS%C,iDebug,SpawnList,SpawnAmps,nSpawned)
+         call halt_timer(Dietime)
       enddo ! Cluster choices
 
 ! At this point SpawnList contains a set of newly spawned particles and SpawnAmps the amount spawned
