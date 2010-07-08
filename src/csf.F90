@@ -1103,7 +1103,7 @@ contains
         enddo
     end subroutine
 
-    subroutine csf_get_yamas (nopen, sfinal, yama, ncsf_max)
+    pure subroutine csf_get_yamas (nopen, sfinal, yama, ncsf_max)
         
         ! Obtain all possible Yamanouchi symbols for for the system
         !
@@ -1326,6 +1326,9 @@ contains
         endif
     end function
 
+    ! TODO: We can make this more efficient. Each random number should
+    !       contain enough information to make more than 1 choice (split it
+    !       up into a variety of bits).
     integer function csf_get_random_det (nI, nopen, Ms)
 
         ! Convert the CSF or CSF ordered determinant nI into a normal

@@ -3,6 +3,7 @@
 #define IsNullDet(nI) (nI(1).eq.0)
 
 ! Is the specified orbital occupied or not?
+! TODO: Use ilut_int/ilut_off here?
 #define IsOcc(ilut,orb) btest(ilut((orb-1)/bits_n_int), mod(orb-1,bits_n_int))
 #define IsNotOcc(ilut,orb) (.not.IsOcc(ilut,orb))
 
@@ -20,3 +21,10 @@
 ! Are the two orbitals specified (may be the same orbital) from the same
 ! spatial orbital?
 #define is_in_pair(orb1,orb2) (ibclr(orb1-1,0) == ibclr(orb2-1,0))
+
+! Set or clear orbitals in a bit representation
+#define ilut_int(orb) ((orb - 1) / bits_n_int)
+#define ilut_off(orb) mod(orb-1, bits_n_int)
+#define set_orb(ilut, orb) ilut(ilut_int(orb)) = ibset(ilut(ilut_int(orb)), ilut_off(orb))
+#define clr_orb(ilut, orb) ilut(ilut_int(orb)) = ibclr(ilut(ilut_int(orb)), ilut_off(orb))
+
