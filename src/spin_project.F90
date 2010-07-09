@@ -1,14 +1,15 @@
 #include "macros.h"
 module spin_project
-	use SystemData, only: LMS, STOT, nel, nbasiS
+    use SystemData, only: LMS, STOT, nel, nbasiS
     use CalcData, only: tau
     use SymExcitDataMod, only: scratchsize
     use bit_reps, only: NIfD, NIfTot
-	use csf, only: csf_get_yamas, get_num_csfs, csf_coeff, csf_get_random_det
+    use csf, only: csf_get_yamas, get_num_csfs, csf_coeff, random_spin_permute
     use constants, only: dp, bits_n_int, lenof_sign, n_int, end_n_int
     use FciMCData, only: TotWalkers, CurrentDets
+    use DeterminantData, only: write_det
 
-	implicit none
+    implicit none
 
     logical :: tSpinProject
     integer :: spin_proj_interval
@@ -16,7 +17,7 @@ module spin_project
 
 contains
 
-    pure function csf_spin_project_elem (dorder_i, dorder_j, nopen) &
+    function csf_spin_project_elem (dorder_i, dorder_j, nopen) &
                                         result (ret)
 
         ! Obtain the projection: \sum_Y <J|Y><Y|I>
@@ -59,11 +60,11 @@ contains
         HElement_t :: hel
         
         integer :: dorder_i(nel), dorder_j(nel), nopen, nopen2, i
-
-        ! nJ contains a reversed list of the unpaired electrons in ilutJ
+        character(*), parameter :: this_routine = 'get_spawn_helement_spin_proj'
+        ! nJ contains a list of the unpaired electrons in ilutJ
         do i = 1, nel
-            if (nJ(nel-i+1) == -1) exit
-            if (is_alpha(nJ(nel-i+1))) then
+            if (nJ(i) == -1) exit
+            if (is_alpha(nJ(i))) then
                 dorder_j(i) = 1
             else
                 dorder_j(i) = 0
@@ -77,6 +78,7 @@ contains
         ! TODO: make this be passed  from generate...not recalculated.
         !       or even, can we pointerise the extraction?
         nopen2 = 0
+        i = 1
         do while (i <= nel)
             if (nopen2 >= nopen) exit
             if (is_beta(nI(i)) .and. i < nel) then
@@ -95,6 +97,7 @@ contains
 
             i = i + 1
         enddo
+        ASSERT(nopen == nopen2)
 
         hel = csf_spin_project_elem (dorder_i, dorder_j, nopen)
         hel = hel * spin_proj_gamma / tau
@@ -128,7 +131,6 @@ contains
 
         integer :: nopen, nchoose, i, j
         integer :: nTmp(nel)
-        logical :: found
         character(*), parameter :: this_routine = 'generate_excit_spin_proj'
 
         ! TODO: this test should end up somewhere else...
@@ -137,6 +139,7 @@ contains
 
         ! Loop over the bit representation to find the unpaired electrons
         ! Can we store the results of this bit?
+        ! TODO: we can store the stuff at the starte of nJ now...
         nopen = 0
         i = 1
         do while (i <= nel)
@@ -148,22 +151,10 @@ contains
                 endif
             endif
 
-            nJ(nel - nopen) = nI(i)
             nopen = nopen + 1
+            nJ(nopen) = nI(i)
             i = i + 1
         enddo
-        !nopen = 0
-        !do i = 1, nbasis-1, 2
-        !    ! Is this an unpaired electron?
-        !    if (IsOcc(ilutI, i) .neqv. IsOcc(ilutI, i+1)) then
-        !        if (IsOcc(ilutI, i)) then
-        !            nJ(nel-nopen) = i
-        !        else
-        !            nJ(nel-nopen) = i + 1
-        !        endif
-        !        nopen = nopen + 1
-        !    endif
-        !enddo
 
         ! If we know that there are no possible excitations to be made
         if (nopen == STOT) then
@@ -171,27 +162,28 @@ contains
             return
         endif
 
-        nTmp(nel-nopen+1:nel) = nJ(nel-nopen+1:nel)
-        do while (.not. found)
-            nchoose = csf_get_random_det (nJ, nopen, LMS)
+        nTmp(1:nopen) = nJ(1:nopen)
+        do while (.true.)
+            nchoose = random_spin_permute (nJ(1:nopen), LMS)
 
             ! Removable for speed?
             if (nchoose == -1) &
                 call stop_all (this_routine, "All possible cases here should &
                                              &have been excluded above")
 
-            if (.not.all(nJ(nel-nopen+1:nel) == nTmp(nel-nopen+1:nel))) exit
+            ! If we have found our target, exit the loop
+            if (.not.all(nJ(1:nopen) == nTmp(1:nopen))) exit
         enddo
 
         ! Change the spin structure of nI (only the unpaired elecs)
         ilutJ = ilutI
-        do i = nel-nopen+1, nel
+        do i = 1, nopen
             set_orb(ilutJ, nJ(i))
             clr_orb(ilutJ, ab_pair(nJ(i)))
         enddo
 
         ! Mark the end of the unpaired electrons section.
-        if (nopen < nel) nJ(nel-nopen) = -1
+        if (nopen < nel) nJ(nopen + 1) = -1
 
         ! Generation probability, -1 as we exclude the starting det above.
         pGen = 1_dp / real(nchoose - 1, dp)

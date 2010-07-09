@@ -28,3 +28,13 @@
 #define set_orb(ilut, orb) ilut(ilut_int(orb)) = ibset(ilut(ilut_int(orb)), ilut_off(orb))
 #define clr_orb(ilut, orb) ilut(ilut_int(orb)) = ibclr(ilut(ilut_int(orb)), ilut_off(orb))
 
+! Useful for fixing things. Requires this_routine to be defined
+#ifdef __DEBUG
+#define ASSERT(x) \
+if (.not. (x)) then; \
+	call stop_all (this_routine, "Assertation failed: "//"x"); \
+endif
+#else
+#define ASSERT(x)
+#endif
+

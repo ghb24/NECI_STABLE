@@ -1329,33 +1329,34 @@ contains
     ! TODO: We can make this more efficient. Each random number should
     !       contain enough information to make more than 1 choice (split it
     !       up into a variety of bits).
-    integer function csf_get_random_det (nI, nopen, Ms)
+    integer function random_spin_permute (spins, Ms) result (no_dets)
 
-        ! Convert the CSF or CSF ordered determinant nI into a normal
-        ! determinant with spin orbitals which are any of the determinants
-        ! which would be a component of the CSF.
+        ! Take the selection of spins (in whatever order they are given) and
+        ! apply a random Ms value to them.
         !
-        ! In:    nopen - The number of open shell electrons
-        !        Ms    - 2 * The required Ms value for the determinant
-        ! InOut: nI    - The CSF to consider, and the determinant to return
-        ! Ret:         - The number of determinants chosen from
-        
-        integer, intent(inout) :: nI(nel)
-        integer, intent(in) :: nopen
-        integer, intent(in) :: Ms
+        ! In:    Ms      - 2 * the required Ms value
+        ! InOut: spins   - Array of (unpaired) spin orbitals
+        ! Ret:   no_dets - The number of dets chosen from
 
-        integer :: nup, nchoose, tmp, pos, i
-        integer :: choice(nopen), perm(nopen)
+        integer, intent(inout) :: spins(:)
+        integer, intent(in) :: Ms
+        integer :: no_dets 
+
+        integer :: nopen, nup, nchoose, tmp, pos, i
+        integer :: choice(ubound(spins,1)), perm(ubound(spins,1))
         real*8 :: r
 
         ! How many alpha elecs do we have. If fewer than half, permute betas.
+        nopen = ubound(spins, 1)
         nup = (nopen - Ms) / 2
-        nchoose = min(nup, nopen-nup)
+
+        ! We want to make the fewest (random) selections possible.
+        nchoose = min(nup, nopen - nup)
 
         forall (i=1:nopen) choice(i) = i
 
         ! Select nchoose positions at random, and place them at the end.
-        do i=1,nchoose
+        do i = 1, nchoose
             r = genrand_real2_dSFMT()
             pos = int(real(nopen-i+1,8)*r) + 1
 
@@ -1375,12 +1376,38 @@ contains
 
         ! Generate the determinant, correctly sorted, with the specified
         ! alpha/beta structure.
-        nI = iand(nI, csf_orbital_mask)
-        nI(nel-nopen+1:nel) = csf_alpha_beta(nI(nel-nopen+1:nel), perm)
-        call csf_sort_det_block (nI, 1, nopen)
+        spins = iand(spins, csf_orbital_mask)
+        spins = csf_alpha_beta(spins, perm)
 
         ! How many dets were there to choose from?
-        csf_get_random_det = choose(nopen, nchoose)
+        no_dets = choose(nopen, nchoose)
+
+    end function
+
+    ! TODO: We can make this more efficient. Each random number should
+    !       contain enough information to make more than 1 choice (split it
+    !       up into a variety of bits).
+    integer function csf_get_random_det (nI, nopen, Ms)
+
+        ! Convert the CSF or CSF ordered determinant nI into a normal
+        ! determinant with spin orbitals which are any of the determinants
+        ! which would be a component of the CSF.
+        !
+        ! In:    nopen - The number of open shell electrons
+        !        Ms    - 2 * The required Ms value for the determinant
+        ! InOut: nI    - The CSF to consider, and the determinant to return
+        ! Ret:         - The number of determinants chosen from
+        
+        integer, intent(inout) :: nI(nel)
+        integer, intent(in) :: nopen
+        integer, intent(in) :: Ms
+
+        integer :: nup, nchoose, tmp, pos, i
+        integer :: choice(nopen), perm(nopen)
+        real*8 :: r
+
+        csf_get_random_det =  random_spin_permute (nI(nel-nopen+1:nel), Ms)
+        call csf_sort_det_block (nI, 1, nopen)
 
     end function
 

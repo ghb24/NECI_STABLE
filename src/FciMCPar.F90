@@ -129,12 +129,11 @@ MODULE FciMCParMod
 
             ! Are we projecting the spin out between iterations?
             if (tSpinProject .and. mod(Iter, spin_proj_interval) == 0) then
-                call sub_dispatcher_5 (PerformFciMCycPar, &
-                                       generate_excit_spin_proj, &
+                call PerformFciMCycPar (generate_excit_spin_proj, &
                                        attempt_create_normal, &
                                        get_spawn_helement_spin_proj, &
                                        null_encode_child, &
-                                       ptr_new_child_stats)
+                                       new_child_stats_normal)
             endif
 
             s=etime(tend)
@@ -594,6 +593,8 @@ MODULE FciMCParMod
             ! write(6,*) j, CurrentDets(:,j)
             call extract_bit_rep (CurrentDets(:,j), DetCurr, SignCurr, &
                                   FlagsCurr)
+            !write(6, '(3i4)', advance='no') Iter, j, signcurr
+            !call writebitdet(6, currentdets(:,j), .true.)
 
             ! TODO: The next couple of bits could be done automatically
 
@@ -666,6 +667,7 @@ MODULE FciMCParMod
                                             CurrentDets(:,j), SignCurr, &
                                             nJ,iLutnJ, Prob, IC, ex, tParity, &
                                             walkExcitLevel,part_type)
+                        !print*, child
                     else
                         child = 0
                     endif
@@ -1944,6 +1946,7 @@ MODULE FciMCParMod
         rh = get_spawn_helement (DetCurr, nJ, iLutCurr, iLutnJ, ic, ex, &
                                  tParity, prob)
 
+        !print*, 'p,rh', prob, rh
 #ifdef __CMPLX
 
 !We actually want to calculate Hji - take the complex conjugate, rather than swap around DetCurr and nJ.
