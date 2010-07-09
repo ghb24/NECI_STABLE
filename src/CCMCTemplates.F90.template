@@ -47,6 +47,19 @@ contains
       LogDealloc(AL%%tagCumlAmplitude)
       Deallocate(AL%%CumlAmplitude)
    end subroutine !DeallocateAmplitudeList 
+
+   subroutine AccumulateAmplitudeList(AL,nAmpl,iCurAmpl,iRefPos)
+      Type(AmplitudeList_%(name)s) AL
+      integer iCurAmpl,iRefPos
+      %(type1)s :: accum
+      integer i,nAmpl
+      accum=0
+      do i=1,nAmpl
+         AL%%CumlAmplitude(i)=accum
+         if(i==iRefPos) cycle
+         accum=accum+abs(AL%%Amplitude(i,iCurAmpl))
+      enddo
+   end subroutine
    
 ! Find the largest nMax amplitudes (out of Amps(nDet)) for each excitation level and print them
    subroutine  WriteMaxExcitorList (iUnit,Amps,Dets,LevIndex,nLev,nMax)
@@ -374,22 +387,24 @@ END SUBROUTINE !CalcClusterEnergyUnsrt
 !     P_total = P_norm * P_cluster_given_size
 !  and is placed in CS%%C%%dSelectionProb
 
-FUNCTION GetNextCluster (CS,Dets,nDet,Amplitude,dTotAbsAmpl,iNumExcitors,iMaxSizeIn,iDebug) result (GetNextCluster)
+FUNCTION GetNextCluster (CS,Dets,nDet,AL,iCurAmpList,dTotAbsAmpl,iNumExcitors,iMaxSizeIn,iDebug) result (GetNextCluster)
    use CCMCData, only: ClustSelector
+   use BinSearch, only: BinarySearch
    use dSFMT_interface , only : genrand_real2_dSFMT
    use timing
    IMPLICIT NONE
    TYPE(ClustSelector) CS
    INTEGER nDet
-   %(type1)s Amplitude(nDet)
+   TYPE(AmplitudeList_%(name)s) AL
+   %(type1)s rt
    INTEGER(KIND=n_int) Dets(0:nIfTot,nDet)
    REAL*8 dTotAbsAmpl
-   INTEGER iDebug,iMaxSizeIn
+   INTEGER iDebug,iMaxSizeIn,iCurAmpList
 
    INTEGER iMaxSize
    REAL*8 dProbNumExcit,dCurTot,r
    INTEGER i,j,k,l
-   LOGICAL tDone,tNew
+   LOGICAL tDone,tNew,tSuccess
    INTEGER iNumExcitors
    LOGICAL GetNextCluster
    TYPE(timer),save :: CCMC_time
@@ -398,7 +413,7 @@ FUNCTION GetNextCluster (CS,Dets,nDet,Amplitude,dTotAbsAmpl,iNumExcitors,iMaxSiz
    call set_timer(CCMC_time,20)
 
    if(CS%%tDynamic.and.CS%%iIndex.eq.0) then
-      CS%%nSelects=dTotAbsAmpl+abs(Amplitude(CS%%iRefPos))
+      CS%%nSelects=dTotAbsAmpl+abs(AL%%Amplitude(CS%%iRefPos,iCurAmpList))
    endif
    GetNextCluster=.true.
    iMaxSize=min(iMaxSizeIn,CS%%iMaxSize)
@@ -418,7 +433,7 @@ FUNCTION GetNextCluster (CS,Dets,nDet,Amplitude,dTotAbsAmpl,iNumExcitors,iMaxSiz
          tNew=.false.
          if(CS%%iIndex.eq.1) then
 !deal with the HF det separately.  iSize is already 0.
-            CS%%C%%dAbsAmplitude=abs(Amplitude(CS%%iRefPos))
+            CS%%C%%dAbsAmplitude=abs(AL%%Amplitude(CS%%iRefPos,iCurAmpList))
             if(iDebug.gt.3) WRITE(6,"(A,L3)",advance='no') "Next Tuple:",tDone
             if(iDebug.gt.3) &
                 call write_det_len (6, CS%%C%%SelectedExcitorIndices, &
@@ -427,7 +442,7 @@ FUNCTION GetNextCluster (CS,Dets,nDet,Amplitude,dTotAbsAmpl,iNumExcitors,iMaxSiz
          endif 
 
 !         call IncrementOrderedTuple(CS%%C%%SelectedExcitorIndices,CS%%C%%iSize,2,nDet,tDone)
-         call IncrementOrderedTupleCheck(CS%%C%%SelectedExcitorIndices,CS%%C%%iSize,2,nDet,tDone,Amplitude)
+         call IncrementOrderedTupleCheck(CS%%C%%SelectedExcitorIndices,CS%%C%%iSize,2,nDet,tDone,AL%%Amplitude(:,iCurAmpList))
          if(tDone) then !We've reached the end of our ordered tuple, so we increase its size if we can
             CS%%C%%dAbsAmplitude=0
             CS%%C%%SelectedExcitorIndices(1)=1  !Indicate we need to reset.
@@ -443,11 +458,11 @@ FUNCTION GetNextCluster (CS,Dets,nDet,Amplitude,dTotAbsAmpl,iNumExcitors,iMaxSiz
             if(iDebug.gt.3) &
                 call write_det_len (6, CS%%C%%SelectedExcitorIndices, CS%%C%%iSize, .true.)
             tNew=.true.  !Used for debug printing
-            CS%%C%%dAbsAmplitude=abs(Amplitude(CS%%iRefPos))
+            CS%%C%%dAbsAmplitude=abs(AL%%Amplitude(CS%%iRefPos,iCurAmpList))
 !            WRITE(6,*) 0,CS%%C%%dAbsAmplitude
             do i=1,CS%%C%%iSize 
                CS%%C%%SelectedExcitors(:,i)=Dets(:,CS%%C%%SelectedExcitorIndices(i))
-               CS%%C%%dAbsAmplitude=CS%%C%%dAbsAmplitude*abs(Amplitude(CS%%C%%SelectedExcitorIndices(i)))/abs(Amplitude(CS%%iRefPos))
+               CS%%C%%dAbsAmplitude=CS%%C%%dAbsAmplitude*abs(AL%%Amplitude(CS%%C%%SelectedExcitorIndices(i),iCurAmpList))/abs(AL%%Amplitude(CS%%iRefPos,iCurAmpList))
 !               WRITE(6,*) i,CS%%C%%dAbsAmplitude
             enddo
          endif
@@ -462,7 +477,7 @@ FUNCTION GetNextCluster (CS,Dets,nDet,Amplitude,dTotAbsAmpl,iNumExcitors,iMaxSiz
          dProbNumExcit=CS%%dProbSelNewExcitor
          CS%%C%%dProbNorm=CS%%nSelects
          CS%%C%%dClusterProb=1
-         CS%%C%%dAbsAmplitude=abs(Amplitude(CS%%iRefPos))
+         CS%%C%%dAbsAmplitude=abs(AL%%Amplitude(CS%%iRefPos,iCurAmpList))
          CS%%C%%dClusterNorm=1
          IF(iDebug.gt.5) Write(6,*) "Generating New Cluster.  Max size ",iMaxSize
          do i=1,iMaxSize
@@ -476,31 +491,29 @@ FUNCTION GetNextCluster (CS,Dets,nDet,Amplitude,dTotAbsAmpl,iNumExcitors,iMaxSiz
             dProbNumExcit=dProbNumExcit*(1-CS%%dProbSelNewExcitor)
    ! Select a new random walker
             r = genrand_real2_dSFMT()  !On GHB's advice
-            r=r*dTotAbsAmpl
+            rt=r*dTotAbsAmpl
             dCurTot=0
-            do k=1,nDet
-               if(k==CS%%iRefPos) cycle
-               dCurTot=dCurTot+abs(Amplitude(k))
-               if(dCurTot.ge.r) exit
-            enddo
+            call BinarySearch(rt,AL%%CumlAmplitude,nDet,1,nDet,k,tSuccess)
+            if(.not.tSuccess) k=k+1  ! We want to be >=rt.
+            if(k.eq.CS%%iRefPos) k=k+1
             if(k.gt.nDet) THEN
                write(6,*) "Position in weight list: ", r
                write(6,*) "Current Total: ",dCurTot
                write(6,*) "Max Total: ", dTotAbsAmpl
-               write(6,*) Amplitude
+               write(6,*) AL%%Amplitude(:,iCurAmpList)
                CALL Stop_All("GetNextCluster","Invalid Excitor selected")
             endif
             IF(iDebug.gt.5) Write(6,*) "Selected excitor",k
             CS%%C%%SelectedExcitorIndices(i)=k
             CS%%C%%SelectedExcitors(:,i)=Dets(:,k)
-            CS%%C%%dAbsAmplitude=CS%%C%%dAbsAmplitude*abs(Amplitude(k))/abs(Amplitude(CS%%iRefPos))  !For each new excit added to the composite, we multiply up to count the number of ways we could've generated it.
-            CS%%C%%dClusterProb=CS%%C%%dClusterProb*i*abs(Amplitude(k))/dTotAbsAmpl  !For each new excit added to the composite, we multiply up to count the number of ways we could've generated it.
+            CS%%C%%dAbsAmplitude=CS%%C%%dAbsAmplitude*abs(AL%%Amplitude(k,iCurAmpList))/abs(AL%%Amplitude(CS%%iRefPos,iCurAmpList))  !For each new excit added to the composite, we multiply up to count the number of ways we could've generated it.
+            CS%%C%%dClusterProb=CS%%C%%dClusterProb*i*abs(AL%%Amplitude(k,iCurAmpList))/dTotAbsAmpl  !For each new excit added to the composite, we multiply up to count the number of ways we could've generated it.
    !ClusterProb is used for DEATH
 
    ! This is the probability that this cluster was chosen (in any order), given (i.e. irrespective of)
    !  the number of selections and the level choice
    !ClusterNorm is used for BIRTH
-            CS%%C%%dClusterNorm=CS%%C%%dClusterNorm*i*abs(Amplitude(k))/dTotAbsAmpl
+            CS%%C%%dClusterNorm=CS%%C%%dClusterNorm*i*abs(AL%%Amplitude(k,iCurAmpList))/dTotAbsAmpl
          enddo
          IF(iDebug.gt.5) WRITE(6,*) 'prob out of sel routine.',dProbNumExcit
          if(i.gt.iMaxSize) THEN !We've been limited by the max number of excitations
@@ -531,7 +544,7 @@ FUNCTION GetNextCluster (CS,Dets,nDet,Amplitude,dTotAbsAmpl,iNumExcitors,iMaxSiz
    !                 = (dAbsAmplitude / N0) * ( P_norm(0) / (n! P_norm(n) (dAbsAmplitude/N0))
          r=CS%%dProbSelNewExcitor
          if(iMaxSize==0) r=1  !Cope with the case when there are no clusters
-         CS%%C%%dSelectionNorm=(CS%%C%%dAbsAmplitude/abs(Amplitude(CS%%iRefPos)))*(r*CS%%nSelects)/CS%%C%%dSelectionProb
+         CS%%C%%dSelectionNorm=(CS%%C%%dAbsAmplitude/abs(AL%%Amplitude(CS%%iRefPos,iCurAmpList)))*(r*CS%%nSelects)/CS%%C%%dSelectionProb
 !/CS%%C%%dSelectionNorm
       endif
    endif
