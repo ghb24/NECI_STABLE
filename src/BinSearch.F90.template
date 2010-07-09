@@ -76,6 +76,10 @@ contains
                j=N
             ENDIF
          enddo
+
+!Here i=j=N, but .not.CompLT.  We signal failure and set FoundIndex to 1 before Min.
+         FoundIndex=i-1
+         RETURN
     END SUBROUTINE 
 
 end module

@@ -1845,7 +1845,7 @@ SUBROUTINE CCMCStandalone(Weight,Energyxw)
    TYPE(ClustSelector),target :: CSBuff   ! This is used when we're doing buffered CC
    TYPE(ClustSelector),pointer :: CS      ! This will point to the appropriate selector
    LOGICAL tPostBuffering                 ! Set after prebuffering
-   TYPE(AmplitudeList_double), ALLOCATABLE,target :: ALBuffer !(Det)  used for buffered CC, storing intermediate amplitudes from cluster generation
+   TYPE(AmplitudeList_double), target :: ALBuffer !(Det)  used for buffered CC, storing intermediate amplitudes from cluster generation
    INTEGER tagALBuffer             
    LOGICAL tMoreClusters                  ! Indicates we've not finished selecting clusters 
    TYPE(AmplitudeList_double), pointer :: OldAL          ! The previous cycle's amplitudes
@@ -2235,9 +2235,9 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
    CCMC_time%timer_name='CCMC Standalone Particle'
    call set_timer(CCMC_time,20)
 
-   Spawntime%timer_name='SpawnTime'
-   Dietime%timer_name='DieTime'
-   Etime%timer_name='ETime'
+!   Spawntime%timer_name='SpawnTime'
+!   Dietime%timer_name='DieTime'
+!   Etime%timer_name='ETime'
    iRefPos=1
    iDebug=CCMCDebug
 
@@ -2409,10 +2409,10 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
          if(iDebug.gt.3) WRITE(6,*) " Cluster Amplitude: ",CS%C%iSgn*CS%C%dAbsAmplitude 
 !         if(iDebug.gt.3) WRITE(6,*) " Cluster Prob: ",CS%C%dSelectionProb
          TempSign(1)=CS%C%iSgn
-         call set_timer(Etime,20)
+!         call set_timer(Etime,20)
          CALL SumEContrib(CS%C%DetCurr,CS%C%iExcitLevel,TempSign,CS%C%iLutDetCurr,0.d0,1/CS%C%dSelectionNorm)
-         call halt_timer(Etime)
-         call set_timer(Spawntime,20)
+!         call halt_timer(Etime)
+!         call set_timer(Spawntime,20)
 !Now consider a number of possible spawning events
          CALL ResetSpawner(S,CS%C,nSpawnings)
 
@@ -2422,11 +2422,11 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
             call AttemptSpawnParticle(S,CS%C,iDebug,SpawnList(:,:),SpawnAmps(:),nSpawned,nMaxSpawn)
          enddo !GetNextSpawner
 ! Now deal with birth/death.
-         call halt_timer(Spawntime)
-         call set_timer(Dietime,20)
+!         call halt_timer(Spawntime)
+!         call set_timer(Dietime,20)
          if((.not.tTruncSpace).or.CS%C%iExcitLevel<=iMaxAmpLevel)          &
   &         call AttemptDieParticle(CS%C,iDebug,SpawnList,SpawnAmps,nSpawned)
-         call halt_timer(Dietime)
+!         call halt_timer(Dietime)
       enddo ! Cluster choices
 
 ! At this point SpawnList contains a set of newly spawned particles and SpawnAmps the amount spawned
