@@ -1386,18 +1386,12 @@ MODULE GenRandSymExcitNUMod
 
 !This routine returns two arrays of length ScratchSize, which have information about the number of orbitals, occupied and unoccupied respectively, of each symmetry.
     SUBROUTINE ConstructClassCounts(nI,ClassCount2,ClassCountUnocc2)
-        INTEGER :: i,nI(NEl)
-        INTEGER :: ClassCount2(ScratchSize)
-        INTEGER :: ClassCountUnocc2(ScratchSize)
-!        INTEGER :: Alph,Bet
+        INTEGER :: i,Ind
+        INTEGER, INTENT(IN) :: nI(NEl)
+        INTEGER, INTENT(OUT) :: ClassCount2(ScratchSize),ClassCountUnocc2(ScratchSize)
 
-!        Alph=0
-!        Bet=0
         ClassCount2(:)=0
         ClassCountUnocc2(:)=OrbClassCount(:)
-!nOccAlpha and nOccBeta now set in the system block. Since we conserve Sz, these will not change.
-!        NOccAlpha=0
-!        NOccBeta=0
 
         IF(tNoSymGenRandExcits) THEN
 
@@ -1419,33 +1413,15 @@ MODULE GenRandSymExcitNUMod
 !                ILUT((nI(I)-1)/bits_n_int)=IBSET(ILUT((NI(I)-1)/bits_n_int),MOD(NI(I)-1,bits_n_int))
 
                 IF(G1(nI(i))%Ms.eq.1) THEN
-!orbital is an alpha orbital and symmetry of the orbital can be found in G1
-!                    WRITE(6,*) G1(nI(i))%Ms,G1(nI(i))%Sym%S
-                    ClassCount2(ClassCountInd(1,INT(G1(nI(i))%Sym%S,4),G1(nI(i))%Ml))=ClassCount2(ClassCountInd(1,INT(G1(nI(i))%Sym%S,4),G1(nI(i))%Ml))+1
-                    ClassCountUnocc2(ClassCountInd(1,INT(G1(nI(i))%Sym%S,4),G1(nI(i))%Ml))=ClassCountUnocc2(ClassCountInd(1,INT(G1(nI(i))%Sym%S,4),G1(nI(i))%Ml))-1
-!                    Alph=Alph+1
-!                    NOccAlpha=NOccAlpha+1
-
+                    Ind=ClassCountInd(1,INT(G1(nI(i))%Sym%S,4),G1(nI(i))%Ml)
                 ELSE
-!orbital is a beta orbital
-!                    WRITE(6,*) G1(nI(i))%Ms,G1(nI(i))%Sym%S
-                    ClassCount2(ClassCountInd(2,INT(G1(nI(i))%Sym%S,4),G1(nI(i))%Ml))=ClassCount2(ClassCountInd(2,INT(G1(nI(i))%Sym%S,4),G1(nI(i))%Ml))+1
-                    ClassCountUnocc2(ClassCountInd(2,INT(G1(nI(i))%Sym%S,4),G1(nI(i))%Ml))=ClassCountUnocc2(ClassCountInd(2,INT(G1(nI(i))%Sym%S,4),G1(nI(i))%Ml))-1
-!                    Bet=Bet+1
-!                    NOccBeta=NOccBeta+1
+                    Ind=ClassCountInd(2,INT(G1(nI(i))%Sym%S,4),G1(nI(i))%Ml)
                 ENDIF
+
+                ClassCount2(Ind)=ClassCount2(Ind)+1
+                ClassCountUnocc2(Ind)=ClassCountUnocc2(Ind)-1
+
             enddo
-
-!We now want to find ClassCountUnocc2 - the unoccupied version of the array
-!SymLabelCounts(2,Sym) gives the number of *spin-orbitals* in each symmetry class.
-
-!We don't need to do this any more, since we store the whole space classcounts in OrbClassCount initially.
-!            do i=1,nSymLabels
-!                ClassCountUnocc2(ClassCountInd(1,i-1,0))=SymLabelCounts2(1,2,i)-ClassCount2(ClassCountInd(1,i-1,0))
-!                ClassCountUnocc2(ClassCountInd(2,i-1,0))=SymLabelCounts2(2,2,i)-ClassCount2(ClassCountInd(2,i-1,0))
-!            enddo
-
-!            WRITE(6,*) "Alph=",alph,"Bet=",Bet
 
         ENDIF
 
