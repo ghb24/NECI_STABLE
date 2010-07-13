@@ -53,6 +53,8 @@ module soft_exit
     use AnnihilationMod, only: DetermineDetProc
     use constants, only: lenof_sign
     use bit_reps, only: extract_sign,encode_sign
+    use spin_project, only: tSpinProject, spin_proj_gamma, &
+                            spin_proj_interval, spin_proj_shift
     implicit none
 
 contains
@@ -102,11 +104,18 @@ contains
         !                    det with the highest population
         !   RESTARTHIGHPOP   Restart the calculation with same parameters but
         !                    a new reference determinant
+        !   SPIN-PROJECT     Change the interval between applications of
+        !                    stochastic spin projection. If 0, disable it.
+        !   SPIN-PROJECT-GAMMA
+        !                    Change the delta-gamma value used for stochastic
+        !                    spin projection
+        !   SPIN-PROJECT-SHIFT
+        !                    Change the spin projection shift value.
 
        integer :: error,i,ios,NewNMCyc, pos
        integer, dimension(lenof_sign) :: HFSign
        logical :: tSoftExitFound,tWritePopsFound,exists,AnyExist,deleted_file
-       logical :: tEof,any_deleted_file,tChangeParams(29),tSingBiasChange
+       logical :: tEof,any_deleted_file,tChangeParams(32),tSingBiasChange
        real*8 :: hfScaleFactor
        Character(len=100) :: w
 
@@ -217,6 +226,17 @@ contains
                            tChangeParams(28) = .true.
                        case("RESTARTHIGHPOP")
                            tChangeParams(29) = .true.
+                       case("SPIN-PROJECT")
+                           tChangeParams(30) = .true.
+                           call readi(spin_proj_interval)
+                           if (spin_proj_interval == 0) &
+                               tSpinProject = .false.
+                       case("SPIN-PROJECT-GAMMA")
+                           tChangeParams(31) = .true.
+                           call readf (spin_proj_gamma)
+                       case("SPIN-PROJECT-SHIFT")
+                           tChangeParams(32) = .true.
+                           call readf (spin_proj_shift)
                        END SELECT
                    End Do
                    close(13,status='delete')
@@ -228,7 +248,7 @@ contains
                if (any_deleted_file) exit
            end do
 #ifdef PARALLEL
-           CALL MPI_BCast(tChangeParams,29,MPI_LOGICAL,i,MPI_COMM_WORLD,error)
+           CALL MPI_BCast(tChangeParams,32,MPI_LOGICAL,i,MPI_COMM_WORLD,error)
 #endif
 
            IF(tChangeParams(1)) THEN
@@ -566,6 +586,34 @@ contains
                 if (iProcIndex == 0) then
                     write (6, '(a)') "Request to restart with new reference det."
                 endif
+           endif
+
+           if (tChangeParams(30)) then
+               if (spin_proj_interval == 0) then
+                   tSpinProject = .false.
+               else
+                   tSpinProject = .true.
+               endif
+#ifdef PARALLEL
+               call MPI_BCast (spin_proj_interval, 1, MPI_INTEGER, i, &
+                               MPI_COMM_WORLD, error)
+               call MPI_BCast (tSPinProject, 1, MPI_LOGICAL, i, &
+                               MPI_COMM_WORLD, error)
+#endif
+           endif
+
+           if (tChangeParams(31)) then
+#ifdef PARALLEL
+               call MPI_BCast (spin_proj_gamma, 1, MPI_DOUBLE_PRECISION, &
+                               i, MPI_COMM_WORLD, error)
+#endif
+           endif
+
+           if (tChangeParams(32)) then
+#ifdef PARALLEL
+               call MPI_BCast (spin_proj_shift, 1, MPI_DOUBLE_PRECISION, &
+                               i, MPI_COMM_WORLD, error)
+#endif
            endif
  
        endif
