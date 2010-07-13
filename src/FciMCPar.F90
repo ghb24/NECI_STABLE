@@ -62,7 +62,7 @@ MODULE FciMCParMod
                         extract_bit_rep
     use spin_project, only: tSpinProject, spin_proj_interval, &
                             spin_proj_gamma, get_spawn_helement_spin_proj, &
-                            generate_excit_spin_proj
+                            generate_excit_spin_proj, attempt_die_spin_proj
 
     implicit none
 
@@ -119,12 +119,13 @@ MODULE FciMCParMod
             IF(tCCMC) THEN
                 CALL PerformCCMCCycPar()
             ELSE
-                call sub_dispatcher_5 (PerformFciMCycPar, &
+                call sub_dispatcher_6 (PerformFciMCycPar, &
                                        ptr_excit_generator, &
                                        ptr_attempt_create, &
                                        ptr_get_spawn_helement, &
                                        ptr_encode_child, &
-                                       ptr_new_child_stats)
+                                       ptr_new_child_stats, &
+                                       ptr_attempt_die)
             ENDIF
 
             ! Are we projecting the spin out between iterations?
@@ -133,7 +134,8 @@ MODULE FciMCParMod
                                        attempt_create_normal, &
                                        get_spawn_helement_spin_proj, &
                                        null_encode_child, &
-                                       new_child_stats_normal)
+                                       new_child_stats_normal, &
+                                       attempt_die_spin_proj)
             endif
 
             s=etime(tend)
@@ -423,13 +425,30 @@ MODULE FciMCParMod
         call assign_proc (ptr_new_child_stats, new_child_stats)
     end subroutine
 
+    subroutine set_attempt_die (attempt_die)
+        use, intrinsic :: iso_c_binding
+        implicit none
+        interface
+            function attempt_die (nI, Kii, wSign) result(ndie)
+                use SystemData, only: nel
+                use constants, only: lenof_sign, dp
+                implicit none
+                integer, intent(in) :: nI(nel)
+                integer, dimension(lenof_sign), intent(in) :: wSign
+                real(dp), intent(in) :: Kii
+                integer, dimension(lenof_sign) :: ndie
+            end function
+        end interface
+
+        call assign_proc (ptr_attempt_die, attempt_die)
+    end subroutine
     ! This is the heart of FCIMC, where the MC Cycles are performed.
     !
     ! Note: This should only be called indirectly:
     !       call fn_dispatcher_5 (PerformFCIMCycPar, ptr_...)
     subroutine PerformFCIMCycPar(generate_excitation, attempt_create, &
                                  get_spawn_helement, encode_child, &
-                                 new_child_stats)
+                                 new_child_stats, attempt_die)
 
         USE FciMCLoggingMOD , only : TrackSpawnAttempts
         use detbitops, only : countbits
@@ -529,6 +548,15 @@ MODULE FciMCParMod
                 integer, intent(in) :: ic, walkExLevel
                 integer, dimension(lenof_sign), intent(in) :: child
             end subroutine
+            function attempt_die (nI, Kii, wSign) result(ndie)
+                use SystemData, only: nel
+                use constants, only: lenof_sign, dp
+                implicit none
+                integer, intent(in) :: nI(nel)
+                integer, dimension(lenof_sign), intent(in) :: wSign
+                real(dp), intent(in) :: Kii
+                integer, dimension(lenof_sign) :: ndie
+            end function
         end interface
 
         ! Now the local, iteration specific, variables
@@ -694,8 +722,8 @@ MODULE FciMCParMod
 
             ! DEBUG
             ! if (VecSlot > j) call stop_all (this_routine, 'vecslot > j')
-            call walker_death (DetCurr, CurrentDets(:,j), HDiagCurr, &
-                               SignCurr, VecSlot)
+            call walker_death (attempt_die, DetCurr, CurrentDets(:,j), &
+                               HDiagCurr, SignCurr, VecSlot)
 
         enddo ! Loop over determinants.
 
@@ -1088,6 +1116,8 @@ MODULE FciMCParMod
         else
             call set_new_child_stats (new_child_stats_normal)
         endif
+
+        call set_attempt_die (attempt_die_normal)
 
     end subroutine
 
@@ -2266,7 +2296,19 @@ MODULE FciMCParMod
 
     END FUNCTION AttemptCreatePar
 
-    subroutine walker_death (DetCurr, iLutCurr, Kii, wSign, VecSlot)
+    subroutine walker_death (attempt_die, DetCurr, iLutCurr, Kii, wSign, &
+                             VecSlot)
+        interface
+            function attempt_die (nI, Kii, wSign) result(ndie)
+                use SystemData, only: nel
+                use constants, only: lenof_sign, dp
+                implicit none
+                integer, intent(in) :: nI(nel)
+                integer, dimension(lenof_sign), intent(in) :: wSign
+                real(dp), intent(in) :: Kii
+                integer, dimension(lenof_sign) :: ndie
+            end function
+        end interface
 
         integer, intent(in) :: DetCurr(nel) 
         integer, dimension(lenof_sign), intent(in) :: wSign
@@ -2279,7 +2321,7 @@ MODULE FciMCParMod
 
         ! Do particles on determinant die? iDie can be both +ve (deaths), or
         ! -ve (births, if shift > 0)
-        iDie = attempt_die_par (DetCurr, Kii, wSign)
+        iDie = attempt_die (DetCurr, Kii, wSign)
 
 !        IF(iDie.ne.0) WRITE(6,*) "Death: ",iDie
 
@@ -2330,7 +2372,7 @@ MODULE FciMCParMod
     end subroutine
 
 
-    function attempt_die_par (DetCurr, Kii, wSign) result(ndie)
+    function attempt_die_normal (DetCurr, Kii, wSign) result(ndie)
         
         ! Should we kill the particle at determinant DetCurr. 
         ! The function allows multiple births (if +ve shift), or deaths from

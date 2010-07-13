@@ -3,7 +3,8 @@ MODULE Calc
     use CalcData
     use SystemData, only: beta, nel
     use Determinants, only: write_det
-    use spin_project, only: spin_proj_interval, tSpinProject, spin_proj_gamma
+    use spin_project, only: spin_proj_interval, tSpinProject, &
+                            spin_proj_gamma, spin_proj_shift
     use default_sets
     use Determinants, only: iActiveBasis, SpecDet, tSpecDet, nActiveSpace, &
                             tDefineDet
@@ -214,6 +215,7 @@ contains
           spin_proj_gamma = 0.1
           tSpinProject  = .false.
           spin_proj_interval = 5
+          spin_proj_shift = 0
       
         end subroutine SetCalcDefaults
 
@@ -234,7 +236,6 @@ contains
           use global_utilities
           use Parallel, only : nProcessors
           use Logging, only: tLogDets
-          use spin_project, only: spin_proj_gamma
           IMPLICIT NONE
           LOGICAL eof
           CHARACTER (LEN=100) w
@@ -1173,6 +1174,11 @@ contains
                 ! Change the value of delta-gamma used by the spin projection
                 ! routines. Similar to modifying tau for normal FCIQMC.
                 call getf (spin_proj_gamma)
+
+            case("SPIN-PROJECT-SHIFT")
+                ! Change the value of delta-gamma used by the spin projection
+                ! routines. Similar to modifying tau for normal FCIQMC.
+                call getf (spin_proj_shift)
 
             case default
                 call report("Keyword "                                &

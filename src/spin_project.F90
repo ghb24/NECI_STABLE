@@ -8,12 +8,13 @@ module spin_project
     use constants, only: dp, bits_n_int, lenof_sign, n_int, end_n_int
     use FciMCData, only: TotWalkers, CurrentDets
     use DeterminantData, only: write_det
+    use dSFMT_interface, only: genrand_real2_dSFMT
 
     implicit none
 
     logical :: tSpinProject
     integer :: spin_proj_interval
-    real(dp) :: spin_proj_gamma
+    real(dp) :: spin_proj_gamma, spin_proj_shift
 
 contains
 
@@ -44,6 +45,30 @@ contains
         do i = 1, ncsf
             ret = ret + (csf_coeff (yamas(i, :), dorder_i, nopen) * &
                          csf_coeff (yamas(i, :), dorder_j, nopen))
+        enddo
+    end function
+
+    function csf_spin_project_elem_self (dorder, nopen) result (ret)
+
+        ! Obtain the projection: \sum_Y <I|Y><Y|I>
+        ! Used for spin projection.
+        !
+        ! This is essentially the same as the above routine, but for the
+        ! self element, so the sum is simplied.
+
+        integer, intent(in) :: nopen, dorder(nopen)
+        integer :: yamas (get_num_csfs(nopen, STOT), nopen)
+        integer :: i, ncsf
+        real(dp) :: ret, tmp
+
+        ! Generate the list of CSFs
+        ncsf = ubound(yamas, 1)
+        call csf_get_yamas (nopen, STOT, yamas, ncsf)
+
+        ret = 0
+        do i = 1, ncsf
+            tmp = csf_coeff (yamas(i, :), dorder, nopen)
+            ret = ret + (tmp * tmp)
         enddo
     end function
     
@@ -102,7 +127,7 @@ contains
         hel = csf_spin_project_elem (dorder_i, dorder_j, nopen)
         hel = hel * spin_proj_gamma / tau
 
-    end function
+    end function get_spawn_helement_spin_proj
 
     subroutine generate_excit_spin_proj (nI, iLutI, nJ, iLutJ, exFlag, IC, &
                                          ex, tParity, pGen, tFilled, &
@@ -187,6 +212,58 @@ contains
 
         ! Generation probability, -1 as we exclude the starting det above.
         pGen = 1_dp / real(nchoose - 1, dp)
-    end subroutine
+    end subroutine generate_excit_spin_proj
+
+    function attempt_die_spin_proj (nI, Kii, wSign) result (ndie)
+
+        integer, intent(in) :: nI(nel)
+        integer, dimension(lenof_sign), intent(in) :: wSign
+        real(dp), intent(in) :: Kii
+        integer, dimension(lenof_sign) :: ndie
+
+        real(dp) :: elem, r, rat
+        integer :: dorder(nel), i, nopen
+
+        ! Extract the dorder for determinant nI
+        nopen = 0
+        i = 1
+        do while (i <= nel)
+            if (is_beta(nI(i)) .and. i < nel) then
+                if (is_in_pair(nI(i), nI(i+1))) then
+                    i = i + 2
+                    cycle
+                endif
+            endif
+
+            nopen = nopen + 1
+            if (is_alpha(nI(i))) then
+                dorder(nopen) = 1
+            else
+                dorder(nopen) = 0
+            endif
+
+            i = i + 1
+        enddo
+
+        ! Subtract the crurrent value of the shift and multiply by
+        ! delta_gamma. If there are multiple particles, scale the
+        ! probability.
+        elem = csf_spin_project_elem_self (dorder, nopen)
+        elem = elem - 1 + spin_proj_shift
+        elem = - elem * spin_proj_gamma
+
+        do i = 1, lenof_sign
+            rat = elem * abs(wSign(i))
+            
+            ndie(i) = int(rat)
+            rat = rat - real(ndie(i), dp)
+
+            ! Choose to die or not stochastically
+            r = genrand_real2_dSFMT()
+            if (abs(rat) > r) ndie(i) = ndie(i) + nint(sign(1.0_dp, rat))
+        enddo
+
+    end function attempt_die_spin_proj
+
 
 end module
