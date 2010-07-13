@@ -1,4 +1,5 @@
 ! JSS, based almost entirely on work by GHB.
+! Somewhat tidied by SDS, due to expansion of options.
 
 ! During the calculation, test for the existence of the file CHANGEVARS.  
 
@@ -111,6 +112,323 @@ contains
         !                    spin projection
         !   SPIN-PROJECT-SHIFT
         !                    Change the spin projection shift value.
+        
+        integer, parameter :: excite = 1, truncatecas = 2, softexit = 3, &
+                              writepops = 4, varyshift = 5, nmcyc = 6, &
+                              tau = 7, diagshift = 8, shiftdamp = 9, &
+                              stepsshift = 10, singlesbias = 11, &
+                              zeroproje = 12, zerohist = 13, &
+                              partiallyfreeze = 14, partiallyfreezevirt = 15,&
+                              printerrorblocking = 16, &
+                              starterrorblocking = 17, &
+                              restarterrorblocking = 18, &
+                              printshiftblocking = 19, &
+                              restartshiftblocking = 20, &
+                              equilsteps = 21, starthist = 22, &
+                              histequilsteps = 23, truncinitiator = 24, &
+                              addtoinit = 25, scalehf = 26, &
+                              printhighpopdet = 27, changerefdet = 28, &
+                              restarthighpop = 29, spin_project = 30, &
+                              spin_project_gamma = 31, spin_project_shift = 32
+
+        integer, parameter :: last_item = spin_project_shift
+        integer, parameter :: max_item_len = 25
+        character(*), parameter :: option_list(last_item) &
+                                = (/character(max_item_len) ::&
+                                   "excite", &
+                                   "truncatecas", &
+                                   "softexit", &
+                                   "writepops", &
+                                   "varyshift", &
+                                   "nmcyc", &
+                                   "tau", &
+                                   "diagshift", &
+                                   "shiftdamp", &
+                                   "stepsshift", &
+                                   "singlesbias", &
+                                   "zeroproje", &
+                                   "zerohist", &
+                                   "partiallyfreeze", &
+                                   "partiallyfreezevirt", &
+                                   "printerrorblocking", &
+                                   "starterrorblocking", &
+                                   "restarterrorblocking", &
+                                   "printshiftblocking", &
+                                   "restartshiftblocking", &
+                                   "equilsteps", &
+                                   "starthist", &
+                                   "histequilsteps", &
+                                   "truncinitiator", &
+                                   "addtoinit", &
+                                   "scalehf", &
+                                   "printhighpopdet", &
+                                   "changerefdet", &
+                                   "restarthighpop", &
+                                   "spin-project", &
+                                   "spin-project-gamma", &
+                                   "spin-project-shift"/)
+
+
+        logical :: exists, any_exist, eof, deleted, any_deleted
+        logical :: opts_selected(last_item)
+        character(len=100) :: w
+        integer :: i, proc
+
+        ! Test if the changevars file exists, and broadcast to all nodes.
+        inquire (file='CHANGEVARS', exist=exists)
+        call MPIAllReduce (exists, 1, MPI_LOR, any_exists)
+
+        opts_selected = .false.
+        deleted = .false.
+        if (any_exist) then
+            if (iProcIndex == 0) &
+                write (6, *) "CHANGEVARS file detected on iteration ", iter
+
+            ! Each processor attemtps to delete changevars in turn. Wait for
+            ! all processors to reach AllReduce on each cycle, to avoid race
+            ! condition between processors sharing the same disk.
+            do proc = 0, nProcessors - 1
+                if (proc == iProcIndex .and. exists) then
+                    ! Set unit for read_line routine
+                    ir = get_free_unit
+                    open (ir, file='CHANGEVARS', status='old', err=99, &
+                          iostat=ios)
+                    call input_options (echo_lines=.true., &
+                                        skip_blank_lines=.true.)
+
+                    ! Loop over all options specified in the file.
+                    do
+                        call read_line (eof)
+                        if (eof) exit
+                        call readl (w)
+
+                        ! Mark any selected options.
+                        do i = 1, last_item
+                            if (trim(w) == trim(options_list(i))) then
+                                opts_selected(i) = .true.
+                                exit
+                            endif
+                        enddo
+                    enddo
+
+                    ! Close and delete the file
+                    close (ir, status='delete')
+                    deleted = .true.
+                endif
+
+                ! Once one node has found and deleted the file, it is gone.
+                call MPIAllReduce (deleted, 1, MPI_LOR, any_deleted)
+                if (any_deleted) exit
+            enddo ! Loop to read CHANGEVARS
+
+            ! Broadcast the selected options list to all processors
+            call MPIBCast (opts_selected, last_item, proc)
+
+            ! ***********************
+            ! Now we need to deal with the specific options.
+            ! ***********************
+            ! TODO: Need to implement the readi/readf etc.
+
+            ! Change excit level
+            if (opts_selected(excite)) then
+                if (.not. tTruncSpace) then
+                    root_write 'The space is not truncated, so EXCITE &
+                               &keyowrd in CHANGEVARS has no effect.'
+                else
+                    if (tHistSpawn .or. tCalcFCIMCPsi) then
+                        root_write 'Cannot increase truncation level, since &
+                                   &histogramming wavefunction.'
+                    else
+                        call MPIBcast (ICILevel, 1, proc)
+
+                        if ((ICILevel < 0) .or. (ICILevel > nel)) then
+                            tTruncSpace = .false.
+                            root_write 'Expanding to the full space.'
+                        else
+                            root_write 'Increasing truncation level of space &
+                                       &to ', ICILevel
+                        endif
+                    endif
+                endif
+            endif
+
+            ! Change the CAS space
+            if (opts_selected(truncatecas)) then
+                if (.not. tTruncCAS) then
+                    root_write 'The space is not truncated by CAS, so &
+                               &TRUNCATECAS keyword in CHANGEVARS has no &
+                               &effect'
+                else
+
+                    call MPIBCast (OccCASORbs, 1, proc)
+                    call MPIBCast (VirtCASOrbs, 1, proc)
+
+                    if ( ((occCASOrbs>nel) .and. (VirtCASOrbs>nBasis - nel)) &
+                        .or. (occCASORbs < 0) .or. (VirtCASORbs < 0) ) then
+                        ! CAS space is equal to or greater than the full 
+                        ! space, or one of the arguments is less than zero.
+                        tTruncCAS = .false.
+                        root_write 'Expanding CAS to the full space.'
+                    else
+                        CASMax = nel + VirtCASOrbs
+                        CASMin = nel - OccCASOrbs
+                        root_write 'Increasing CAS space accessible to ', &
+                                   OccCASORbs, ", ", VirtCASORbs
+                    endif
+                endif
+            endif
+
+            ! softexit
+            if (opts_selected(softexit)) then
+                tSoftExitFound = .true.
+                root_write 'SOFTEXIT triggered. Exiting run.'
+            endif
+
+            ! Write POPS file
+            if (opts_selected(writepops)) then
+                tWritePopsFound = .true.
+                root_write 'Asked to write out a popsfile'
+            endif
+
+            ! Enter variable shift mode
+            if (opts_selected(varyshift)) then
+                if (.not. tSinglePartPhase) then
+                    root_write 'Request to vary shift denied. Already in &
+                               &variable shift mode.'
+                else
+                    tSinglePartPhase = .false.
+                    VaryShiftIter = iter
+                    root_write 'Request to vary the shift detected on a node.'
+                endif
+            endif
+
+            ! Change number of MC steps
+            if (opts_selected(nmcyc)) then
+                call MPIBCast (nmcyc_new, 1, proc)
+
+                if (nmcyc_new < iter) then
+                    root_write 'New value of NMCyc is LESS than the current &
+                               & iteration number.'
+                    root_write 'Therefore, the number of iterations has been &
+                               & left at ', nmcyc_value
+                else
+                    nmcyc_value = nmcyc_new
+                    root_write 'Total number of MC cycles set to ', &
+                               nmcyc_value
+                endif
+            endif
+
+            ! Change Tau
+            if (opts_selected(tau)) then
+                call MPIBCast (tau_value, 1, proc)
+                root_write 'Tau changed to: ', tau_value
+            endif
+
+            ! Change the shift value
+            if (opts_selected(diagshift)) then
+                call MPIBCast (DiagSft, 1, proc)
+                root_write 'DIAGSHIFT change to: ', DiagSft
+            endif
+
+            ! Change the shift damping parameter
+            if (opts_selected(shiftdamp)) then
+                call MPIBCast (SftDamp, 1, proc)
+                root_write 'SHIFTDAMP changed to: ', SftDamp
+            endif
+
+            ! Change the shift update (and output) interval
+            if (opts_selected(stepsshift)) then
+                call MPIBCast (StepsSft, 1, proc)
+                root_write 'STEPSSHIFT changed to: ', StepsSft
+            endif
+
+            ! Change the singles bias
+            if (opts_selected(singlesbias)) then
+                call MPIBcast (SinglesBias_value, 1, proc)
+                tSingBiasChange = .true.
+                root_write 'SINGLESBIAS changed to: ', SinglesBias
+            endif
+
+            ! Zero the average energy estimators
+            if (opts_selected(zeroproje)) then
+                SumENum = 0
+                SumNoatHF = 0
+                HFPopCyc = 0
+                ProjEIterSum = 0
+                VaryShiftCycles = 0
+                SumDiagSft = 0
+                root_write 'Zeroing all average energy estimators.'
+            endif
+
+            ! Zero average histograms
+            if (opts_selected(zerohist)) then
+                histogram = 0
+                if (tHistSpawn) avAnnihil = 0
+                root_write 'Zeroing all average histograms'
+            endif
+
+            ! Change the number of holes/electrons in the core valence region
+            if (opts_selected(partiallyfreeze)) then
+                call MPIBCast (NPartFrozen, 1, proc)
+                call MPIBcast (NHolesFrozen, 1, proc)
+
+                root_write 'Allowing ', nHolesFrozen, ' holes in ', &
+                           nPartFrozen, ' partially frozen orbitals.'
+
+                if (nHolesFrozen == nPartFrozen) then
+                    ! Allowing as many holes as there are orbitals
+                    !  --> equivalent to not freezing at all.
+                    tPartFreezeCore = .false.
+                    root_write 'Unfreezing any partially frozen core'
+                else
+                    tPartFreeze = .true.
+                endif
+            endif
+
+            if (opts_selected(partiallyfreezevirt)) then
+                call MPIBcast (nVirtPartFrozen, 1, proc)
+                call MPIBcast (nelVirtFrozen, 1, proc)
+
+                root_write 'Allowing ', nelVirtFrozen, ' electrons in ', &
+                           nVirtPartFrozen, ' partially frozen virtual &
+                          &orbitals.'
+                if (nelVirtFrozen == nel) then
+                    ! Allowing as many holes as there are orbitals
+                    ! --> Equivalent ton not freezing at all
+                    tPartFreezeVirt = .false.
+                    root_write 'Unfreezing any partially frozen virtual &
+                               &orbitals'
+                else
+                    tPartFreezeVirt = .true.
+                endif
+            endif
+            
+            ! Print blocking analysis here.
+            if (opts_selected(printerrorblocking)) then
+                root_write 'Printing blocking analysis at this point.'
+                if (iprocindex == 0) call PrintBlocking (iter)
+            endif
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        endif
+
+
+
 
        integer :: error,i,ios,NewNMCyc, pos
        integer, dimension(lenof_sign) :: HFSign

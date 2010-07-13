@@ -38,3 +38,6 @@ endif
 #define ASSERT(x)
 #endif
 
+! Write out from the root node (concisely)
+#define root_write if (iProcIndex == 0) write (6, *) 
+
