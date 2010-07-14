@@ -1329,7 +1329,7 @@ contains
     ! TODO: We can make this more efficient. Each random number should
     !       contain enough information to make more than 1 choice (split it
     !       up into a variety of bits).
-    integer function random_spin_permute (spins, Ms) result (no_dets)
+    function random_spin_permute (spins, Ms) result (no_dets)
 
         ! Take the selection of spins (in whatever order they are given) and
         ! apply a random Ms value to them.
