@@ -2,7 +2,7 @@ MODULE CCMC
     use Determinants, only: get_helement, write_det, write_det_len
     use sort_mod
     use constants, only: dp, int64, n_int, end_n_int,lenof_sign
-    use CCMCData, only: ExcitToDetSign,AddBitExcitor
+    use CCMCData, only: ExcitToDetSign,AddBitExcitor, iter_data_ccmc
     use ClusterList
     use bit_rep_data, only: NIfDBO,NIfTot
     use bit_reps, only: encode_det
@@ -860,7 +860,7 @@ MODULE CCMC
 
 !This is the direct annihilation algorithm. The newly spawned walkers should be in a seperate array (SpawnedParts) and the other list should be ordered.
         IF(iDebug.gt.0) WRITE(6,*) "Beginning Annihilation:",TotWalkersNew
-        CALL DirectAnnihilation(TotWalkersNew)
+        CALL DirectAnnihilation(TotWalkersNew, iter_data_ccmc)
 
         CALL halt_timer(Annihil_Time)
         IF(iDebug.gt.0) WRITE(6,*) "Leaving CCMC Cycle"
@@ -2419,7 +2419,7 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
       if(nSpawned>0) then
          if(iDebug>2) write(6,*) "Calling Annihilation with ", nSpawned, " spawned."
          if(iDebug>2) call WriteExcitorList(6,SpawnAmps,SpawnList,0,nSpawned,dAmpPrintTol,"Spawned list")
-         call AnnihilationInterface(nAmpl,DetList,AL%Amplitude(:,iCurAmpList),nMaxAmpl,nSpawned,SpawnList,SpawnAmps,nMaxSpawn)
+         call AnnihilationInterface(nAmpl,DetList,AL%Amplitude(:,iCurAmpList),nMaxAmpl,nSpawned,SpawnList,SpawnAmps,nMaxSpawn,iter_data_ccmc)
       else
          if(iDebug>2) write(6,*) "No spawnings in toto."
       endif 

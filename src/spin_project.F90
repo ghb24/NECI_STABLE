@@ -1,14 +1,15 @@
 #include "macros.h"
 module spin_project
-    use SystemData, only: LMS, STOT, nel, nbasiS
-    use CalcData, only: tau
+    use SystemData, only: LMS, STOT, nel, nbasis
+    use CalcData, only: tau, InitiatorWalkNo
     use SymExcitDataMod, only: scratchsize
-    use bit_reps, only: NIfD, NIfTot
+    use bit_reps, only: NIfD, NIfTot, extract_sign
     use csf, only: csf_get_yamas, get_num_csfs, csf_coeff, random_spin_permute
     use constants, only: dp, bits_n_int, lenof_sign, n_int, end_n_int
-    use FciMCData, only: TotWalkers, CurrentDets
+    use FciMCData, only: TotWalkers, CurrentDets, fcimc_iter_data, TotWalkers
     use DeterminantData, only: write_det
     use dSFMT_interface, only: genrand_real2_dSFMT
+    use util_mod, only: choose, binary_search
 
     implicit none
 
@@ -16,7 +17,100 @@ module spin_project
     integer :: spin_proj_interval
     real(dp) :: spin_proj_gamma, spin_proj_shift
 
+    ! Store the data from iterations
+    type(fcimc_iter_data), target :: iter_data_spin_proj
+
 contains
+
+    subroutine test_spin_proj (nI, ilutI)
+
+        integer, intent(in) :: nI(nel)
+        integer(n_int), intent(in) :: ilutI(0:nIfTot)
+
+        integer :: dorder_i(nel), dorder_j(nel), open_el(nel)
+        integer :: nopen, i, nup, orb, count_dets, ndet, pos
+        integer(n_int) :: iluttmp(0:niftot)
+        integer, dimension(lenof_sign) :: sgnI, sgnJ
+        real*8 :: tot_cpt, elem
+
+        ! Extract the dorder for det nI
+        nopen = 0
+        i = 1
+        nup = 0
+        do while (i <= nel)
+            if (is_beta(nI(i)) .and. i < nel) then
+                if (is_in_pair(nI(i), nI(i+1))) then
+                    i = i + 2
+                    cycle
+                endif
+            endif
+
+            nopen = nopen + 1
+            open_el(nopen) = nI(i)
+            if (is_alpha(nI(i))) then
+                dorder_i(nopen) = 1
+                nup = nup + 1
+            else
+                dorder_i(nopen) = 0
+            endif
+
+            i = i + 1
+        enddo
+
+        if (nopen /= 0) then
+            ! How many dets are there to choose from
+            ndet = choose (nopen, nup)
+
+            ! initialise iluttmp
+            iluttmp = ilutI
+            tot_cpt = 0
+
+            ! Get the sign for det I
+            call extract_sign (iLutI, sgnI)
+
+            ! Generate the list of all possible determinants, one by one.
+            count_dets = 0
+            dorder_j(1) = -1
+            call get_lexicographic (dorder_j, nopen, nup)
+            do while (dorder_j(1) /= -1)
+
+                count_dets = count_dets + 1
+
+                ! Obtain the bit representation of determinant J
+                do i = 1, nopen
+                    if (dorder_j(i) == 1) then
+                        orb = get_alpha(open_el(i))
+                    else
+                        orb = get_beta(open_el(i))
+                    endif
+                    set_orb(iluttmp, orb)
+                    clr_orb(iluttmp, ab_pair(orb))
+                enddo
+
+                pos = binary_search (CurrentDets, iLutTmp, nIfTot+1, &
+                                     TotWalkers, nIfD+1)
+
+                call extract_sign (CurrentDets(:,pos), sgnJ)
+
+                elem =  csf_spin_project_elem (dorder_i, dorder_j, nopen)
+                tot_cpt = tot_cpt + (sgnJ(1) * elem)
+
+                !print*, '   -- cpt', sgnj(1), pos, elem, tot_cpt
+
+                call get_lexicographic (dorder_j, nopen, nup)
+            enddo
+
+            if (count_dets /= ndet) then
+                !print*, ndet, count_dets
+                call stop_all ("Det count failure", "Here")
+            endif
+
+            !print*, 'test cpt', tot_cpt, '(', sgnI(1), ')'
+        endif
+
+        !print*, 'test cpt', 'this is closed shell...'
+
+    end subroutine
 
     function csf_spin_project_elem (dorder_i, dorder_j, nopen) &
                                         result (ret)
@@ -125,6 +219,7 @@ contains
         ASSERT(nopen == nopen2)
 
         hel = csf_spin_project_elem (dorder_i, dorder_j, nopen)
+        !print*, 'spawn element: ', hel
         hel = hel * spin_proj_gamma / tau
 
     end function get_spawn_helement_spin_proj
@@ -156,7 +251,14 @@ contains
 
         integer :: nopen, nchoose, i, j
         integer :: nTmp(nel)
+        integer, dimension(lenof_sign) :: sgn_tmp
         character(*), parameter :: this_routine = 'generate_excit_spin_proj'
+
+        call extract_sign (iLutI, sgn_tmp)
+        if (sum(abs(sgn_tmp(1:lenof_sign))) < InitiatorWalkNo) then
+            nJ(1) = 0
+            return
+        endif
 
         ! TODO: this test should end up somewhere else...
         if (LMS /= STOT) &
@@ -212,6 +314,7 @@ contains
 
         ! Generation probability, -1 as we exclude the starting det above.
         pGen = 1_dp / real(nchoose - 1, dp)
+        !print*, 'Generation prob', pGen, nchoose-1
     end subroutine generate_excit_spin_proj
 
     function attempt_die_spin_proj (nI, Kii, wSign) result (ndie)
@@ -223,6 +326,11 @@ contains
 
         real(dp) :: elem, r, rat
         integer :: dorder(nel), i, nopen
+
+        if (sum(abs(wSign(1:lenof_sign))) < InitiatorWalkNo) then
+            ndie = 0
+            return
+        endif
 
         ! Extract the dorder for determinant nI
         nopen = 0
@@ -245,11 +353,17 @@ contains
             i = i + 1
         enddo
 
+        if (nopen == STOT) then
+            ndie = 0
+            return
+        endif
+
         ! Subtract the crurrent value of the shift and multiply by
         ! delta_gamma. If there are multiple particles, scale the
         ! probability.
         elem = csf_spin_project_elem_self (dorder, nopen)
         elem = elem - 1 + spin_proj_shift
+        !print*, 'die element', elem, wSign(1)
         elem = - elem * spin_proj_gamma
 
         do i = 1, lenof_sign
@@ -257,6 +371,7 @@ contains
             
             ndie(i) = int(rat)
             rat = rat - real(ndie(i), dp)
+            !print*, 'RAT die', rat
 
             ! Choose to die or not stochastically
             r = genrand_real2_dSFMT()
@@ -264,6 +379,59 @@ contains
         enddo
 
     end function attempt_die_spin_proj
+
+    subroutine get_lexicographic (dorder, nopen, nup)
+
+        ! Unlike the csf version, this uses 1 == alpha, 0 = beta.
+
+        integer, intent(in) :: nopen, nup
+        integer, intent(inout) :: dorder(nopen)
+        integer :: comb(nup)
+        integer :: i, j
+        logical :: bInc
+
+        ! Initialise
+        if (dorder(1) == -1) then
+            dorder(1:nup) = 1
+            dorder(nup+1:nopen) = 0
+        else
+            ! Get the list of positions of the beta electrons
+            j = 0
+            do i = 1, nopen
+                if (dorder(i) == 1) then
+                    j = j + 1
+                    comb(j) = i
+                    
+                    ! Have we reached the last possibility?
+                    if (j == 1 .and. i == nopen - nup + 1) then
+                        dorder(1) = -1
+                        return
+                    endif
+
+                    if (j == nup) exit
+                endif
+            enddo
+
+            do i = 1, nup
+                bInc = .false.
+                if (i == nup) then
+                    bInc = .true.
+                else if (i < nup) then
+                    if (comb(i+1) /= comb(i) + 1) bInc = .true.
+                endif
+
+                if (bInc) then
+                    comb(i) = comb(i) + 1
+                    exit
+                else
+                    comb(i) = i
+                endif
+            enddo
+
+            dorder = 0
+            dorder(comb) = 1
+        endif
+    end subroutine
 
 
 end module

@@ -163,10 +163,20 @@ MODULE FciMCData
 
 
       ! ********************** FCIMCPar control variables *****************
+      ! Store data from one fcimc iteration
+      !  --> We can deal with different types of iteration separately
+      type fcimc_iter_data
+          integer :: nborn
+          integer :: ndied
+          integer :: nannihil
+      end type
+      
       ! These are variables used to control the behaviour of PerformFciMCycPar
       ! without passing them directly to it.
       character(150) :: bloom_warn_string
       integer :: max_calc_ex_level
+      type(fcimc_iter_data), target :: iter_data_fciqmc
+
 
       ! Here are the FUNCTION POINTERS for use with PerformFciMCycPar
       ! Use with extreme care, and keep your interfaces up to date or bad
@@ -178,6 +188,7 @@ MODULE FciMCData
       type(c_ptr) :: ptr_new_child_stats
       type(c_ptr) :: ptr_encode_child
       type(c_ptr) :: ptr_attempt_die
+      type(c_ptr) :: ptr_iter_data
       
       !*****************  Redundant variables ************************
     

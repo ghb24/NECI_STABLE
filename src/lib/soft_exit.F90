@@ -81,6 +81,7 @@
 !                        new reference determinant
 !   SPIN-PROJECT         Change the interval between applications of 
 !                        stochastic spin projection. If 0, disable it.
+!                        If -1, disable FCIQMC propagation.
 !   SPIN-PROJECT-GAMMA   Change the delta-gamma value used for stochastic
 !                        spin projection
 !   SPIN-PROJECT-SHIFT   Change the spin projection shift value.

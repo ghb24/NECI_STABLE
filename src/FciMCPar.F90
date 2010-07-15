@@ -62,7 +62,8 @@ MODULE FciMCParMod
                         extract_bit_rep
     use spin_project, only: tSpinProject, spin_proj_interval, &
                             spin_proj_gamma, get_spawn_helement_spin_proj, &
-                            generate_excit_spin_proj, attempt_die_spin_proj
+                            generate_excit_spin_proj, attempt_die_spin_proj, &
+                            iter_data_spin_proj, test_spin_proj
 
     implicit none
 
@@ -116,26 +117,35 @@ MODULE FciMCParMod
 !            WRITE(6,*) 'Iter',Iter
 
             s=etime(tstart)
-            IF(tCCMC) THEN
+            if (tCCMC) then
                 CALL PerformCCMCCycPar()
-            ELSE
-                call sub_dispatcher_6 (PerformFciMCycPar, &
-                                       ptr_excit_generator, &
-                                       ptr_attempt_create, &
-                                       ptr_get_spawn_helement, &
-                                       ptr_encode_child, &
-                                       ptr_new_child_stats, &
-                                       ptr_attempt_die)
-            ENDIF
+            else
+                if (.not. (tSpinProject .and. spin_proj_interval == -1)) then
+                    call sub_dispatcher_7 (PerformFciMCycPar, &
+                                           ptr_excit_generator, &
+                                           ptr_attempt_create, &
+                                           ptr_get_spawn_helement, &
+                                           ptr_encode_child, &
+                                           ptr_new_child_stats, &
+                                           ptr_attempt_die, &
+                                           ptr_iter_data)
+                endif
+                print*, 'FCIQMC', iter, iter_data_fciqmc%nborn, &
+                                        iter_data_fciqmc%ndied
+            endif
 
             ! Are we projecting the spin out between iterations?
-            if (tSpinProject .and. mod(Iter, spin_proj_interval) == 0) then
+            if (tSpinProject .and. (mod(Iter, spin_proj_interval) == 0 .or. &
+                                    spin_proj_interval == -1)) then
                 call PerformFciMCycPar (generate_excit_spin_proj, &
                                        attempt_create_normal, &
                                        get_spawn_helement_spin_proj, &
                                        null_encode_child, &
                                        new_child_stats_normal, &
-                                       attempt_die_spin_proj)
+                                       attempt_die_spin_proj, &
+                                       iter_data_spin_proj)
+                print*, 'SPIN', iter, iter_data_spin_proj%nborn, &
+                                      iter_data_spin_proj%ndied
             endif
 
             s=etime(tend)
@@ -410,15 +420,17 @@ MODULE FciMCParMod
         use, intrinsic :: iso_c_binding
         implicit none
         interface
-            subroutine new_child_stats (iLutI, iLutJ, ic, walkExLevel, &
-                                        child)
+            subroutine new_child_stats (iter_data, iLutI, iLutJ, ic, &
+                                        walkExLevel, child)
                 use SystemData, only: nel
                 use bit_reps, only: niftot
                 use constants, only: n_int, lenof_sign
+                use FciMCData, only: fcimc_iter_data
                 implicit none
                 integer(kind=n_int), intent(in) :: ilutI(0:niftot), iLutJ(0:niftot)
                 integer, intent(in) :: ic, walkExLevel
                 integer, dimension(lenof_sign) , intent(in) :: child
+                type(fcimc_iter_data), intent(inout) :: iter_data
             end subroutine
         end interface
 
@@ -442,13 +454,22 @@ MODULE FciMCParMod
 
         call assign_proc (ptr_attempt_die, attempt_die)
     end subroutine
+
+    subroutine set_fcimc_iter_data (data_struct)
+        use, intrinsic :: iso_c_binding
+        implicit none
+        type(fcimc_iter_data), target :: data_struct
+
+        call assign_proc (ptr_iter_data, data_struct)
+    end subroutine
     ! This is the heart of FCIMC, where the MC Cycles are performed.
     !
     ! Note: This should only be called indirectly:
     !       call fn_dispatcher_5 (PerformFCIMCycPar, ptr_...)
     subroutine PerformFCIMCycPar(generate_excitation, attempt_create, &
                                  get_spawn_helement, encode_child, &
-                                 new_child_stats, attempt_die)
+                                 new_child_stats, attempt_die, &
+                                 iter_data)
 
         USE FciMCLoggingMOD , only : TrackSpawnAttempts
         use detbitops, only : countbits
@@ -539,14 +560,17 @@ MODULE FciMCParMod
                 integer, intent(in) :: ic, ex(2,2)
                 integer(kind=n_int), intent(out) :: iLutJ(0:nIfTot)
             end subroutine
-            subroutine new_child_stats (iLutI, iLutJ, ic, walkExLevel, child)
+            subroutine new_child_stats (iter_data, iLutI, iLutJ, ic, &
+                                        walkExLevel, child)
                 use SystemData, only: nel
                 use bit_reps, only: niftot
                 use constants, only: n_int, lenof_sign
+                use FciMCData, only: fcimc_iter_data
                 implicit none
                 integer(kind=n_int), intent(in) :: ilutI(0:niftot), iLutJ(0:niftot)
                 integer, intent(in) :: ic, walkExLevel
                 integer, dimension(lenof_sign), intent(in) :: child
+                type(fcimc_iter_data), intent(inout) :: iter_data
             end subroutine
             function attempt_die (nI, Kii, wSign) result(ndie)
                 use SystemData, only: nel
@@ -558,6 +582,9 @@ MODULE FciMCParMod
                 integer, dimension(lenof_sign) :: ndie
             end function
         end interface
+
+        ! Iteration specific data
+        type(fcimc_iter_data), intent(inout) :: iter_data
 
         ! Now the local, iteration specific, variables
         integer :: VecSlot, j, p, error
@@ -601,6 +628,12 @@ MODULE FciMCParMod
         ! Next free position in newly spawned list.
         ValidSpawnedList = InitialSpawnedSlots
         
+        ! Reset iteration specific counts
+        ! n.b. this can be extracted to a separate function. This could even
+        !      be function-pointerised!
+        iter_data%nborn = 0
+        iter_data%ndied = 0
+
         ! The processor with the HF determinant on it will have to check 
         ! through each determinant until it's found. Once found, tHFFound is
         ! true, and it no longer needs to be checked.
@@ -621,6 +654,7 @@ MODULE FciMCParMod
             ! write(6,*) j, CurrentDets(:,j)
             call extract_bit_rep (CurrentDets(:,j), DetCurr, SignCurr, &
                                   FlagsCurr)
+
             !write(6, '(3i4)', advance='no') Iter, j, signcurr
             !call writebitdet(6, currentdets(:,j), .true.)
 
@@ -673,6 +707,9 @@ MODULE FciMCParMod
             ! excite from the first particle on a determinant).
             tfilled = .false.
 
+            !print*, '*******************'
+            !call test_spin_proj (DetCurr, CurrentDets(:,j))
+
             ! Loop over the 'type' of particle. 
             ! lenof_sign == 1 --> Only real particles
             ! lenof_sign == 2 --> complex walkers
@@ -695,7 +732,6 @@ MODULE FciMCParMod
                                             CurrentDets(:,j), SignCurr, &
                                             nJ,iLutnJ, Prob, IC, ex, tParity, &
                                             walkExcitLevel,part_type)
-                        !print*, child
                     else
                         child = 0
                     endif
@@ -709,8 +745,9 @@ MODULE FciMCParMod
                         ! Encode the bit representation if it isn't already.
                         call encode_child (CurrentDets(:,j), iLutnJ, ic, ex)
 
-                        call new_child_stats (CurrentDets(:,j), iLutnJ, ic, &
-                                              walkExcitLevel, child)
+                        call new_child_stats (iter_data, CurrentDets(:,j), &
+                                              iLutnJ, ic, walkExcitLevel, &
+                                              child)
 
                         call create_particle (iLutnJ, child)
                     
@@ -722,8 +759,8 @@ MODULE FciMCParMod
 
             ! DEBUG
             ! if (VecSlot > j) call stop_all (this_routine, 'vecslot > j')
-            call walker_death (attempt_die, DetCurr, CurrentDets(:,j), &
-                               HDiagCurr, SignCurr, VecSlot)
+            call walker_death (attempt_die, iter_data, DetCurr, &
+                               CurrentDets(:,j), HDiagCurr, SignCurr, VecSlot)
 
         enddo ! Loop over determinants.
 
@@ -745,18 +782,22 @@ MODULE FciMCParMod
         ! walkers should be in a seperate array (SpawnedParts) and the other 
         ! list should be ordered.
         call set_timer (annihil_time, 30)
-        call DirectAnnihilation (totWalkersNew)
+        call DirectAnnihilation (totWalkersNew, iter_data)
         CALL halt_timer(Annihil_Time)
         
     end subroutine
 
-    subroutine new_child_stats_normal (iLutI, iLutJ, ic, walkExLevel, child)
+    subroutine new_child_stats_normal (iter_data, iLutI, iLutJ, ic, &
+                                       walkExLevel, child)
 
         integer(kind=n_int), intent(in) :: iLutI(0:niftot), iLutJ(0:niftot)
         integer, intent(in) :: ic, walkExLevel
         integer, dimension(lenof_sign), intent(in) :: child
-        
-        noBorn = noBorn + sum(abs(child))
+        type(fcimc_iter_data), intent(inout) :: iter_data
+       
+        ! Count the number of children born
+        NoBorn = NoBorn + sum(abs(child))
+        iter_data%nborn = iter_data%nborn + sum(abs(child))
 
         if (ic == 1) SpawnFromSing = SpawnFromSing + sum(abs(child))
 
@@ -1118,6 +1159,8 @@ MODULE FciMCParMod
         endif
 
         call set_attempt_die (attempt_die_normal)
+
+        call set_fcimc_iter_data (iter_data_fciqmc)
 
     end subroutine
 
@@ -2072,6 +2115,7 @@ MODULE FciMCParMod
             !We are dealing with real particles always here.
 
             rat = tau * abs(rh / prob)
+            !print*, 'RAT spawn', rat
 
             ! If probability > 1, then we just create multiple children at the
             ! chosen determinant.
@@ -2296,8 +2340,8 @@ MODULE FciMCParMod
 
     END FUNCTION AttemptCreatePar
 
-    subroutine walker_death (attempt_die, DetCurr, iLutCurr, Kii, wSign, &
-                             VecSlot)
+    subroutine walker_death (attempt_die, iter_data, DetCurr, iLutCurr, Kii, &
+                             wSign, VecSlot)
         interface
             function attempt_die (nI, Kii, wSign) result(ndie)
                 use SystemData, only: nel
@@ -2315,6 +2359,7 @@ MODULE FciMCParMod
         integer(kind=n_int), intent(in) :: iLutCurr(0:niftot)
         integer, intent(inout) :: VecSlot
         real(dp), intent(in) :: Kii
+        type(fcimc_iter_data), intent(inout) :: iter_data
         integer, dimension(lenof_sign) :: iDie
         integer, dimension(lenof_sign) :: CopySign
         integer :: i
@@ -2328,6 +2373,7 @@ MODULE FciMCParMod
         ! Update death counter
         do i=1,lenof_sign
             NoDied = NoDied + iDie(i)
+            iter_data%ndied = iter_data%ndied + iDie(i)
 
             ! Calculate new number of signed particles on the det.
             CopySign(i) = wSign(i) - (iDie(i) * sign(1, wSign(i)))
@@ -2947,14 +2993,15 @@ MODULE FciMCParMod
 
     END SUBROUTINE WriteHamilHistogram
 
-    subroutine new_child_stats_hist_hamil (iLutI, iLutJ, ic, walkExLevel, &
-                                           child)
+    subroutine new_child_stats_hist_hamil (iter_data, iLutI, iLutJ, ic, &
+                                           walkExLevel, child)
         ! Based on old AddHistHamilEl. Histograms the hamiltonian matrix, and 
         ! then calls the normal statistics routine.
 
         integer(kind=n_int), intent(in) :: iLutI(0:niftot), iLutJ(0:niftot)
         integer, intent(in) :: ic, walkExLevel
         integer, dimension(lenof_sign) , intent(in) :: child
+        type(fcimc_iter_data), intent(inout) :: iter_data
         character(*), parameter :: this_routine = 'new_child_stats_hist_hamil'
         integer :: partInd, partIndChild, childExLevel
         logical :: tSuccess
@@ -2994,7 +3041,8 @@ MODULE FciMCParMod
                 avHistHamil (partInd, partIndChild) + (1.0_dp * child(1))
 
         ! Call the normal stats routine
-        call new_child_stats_normal (iLutI, iLutJ, ic, walkExLevel, child)
+        call new_child_stats_normal (iter_data, iLutI, iLutJ, ic, &
+                                     walkExLevel, child)
 
     end subroutine
 
