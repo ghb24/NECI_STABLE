@@ -169,6 +169,8 @@ MODULE FciMCData
           integer :: nborn
           integer :: ndied
           integer :: nannihil
+          integer :: update_growth, update_growth_tot
+          integer :: update_iters
       end type
       
       ! These are variables used to control the behaviour of PerformFciMCycPar

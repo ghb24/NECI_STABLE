@@ -162,8 +162,9 @@ MODULE FciMCParMod
             ENDIF
 
             IF(mod(Iter,StepsSft).eq.0) THEN
-!This will communicate between all nodes, find the new shift (and other parameters) and broadcast them to the other nodes.
-                CALL CalcNewShift()
+                ! This will communicate between all nodes, find the new shift
+                ! (and other parameters) and broadcast them to the other nodes.
+                call CalcNewShift()
 
                 IF((tTruncCAS.or.tTruncSpace.or.tTruncInitiator).and.(Iter.gt.iFullSpaceIter).and.(iFullSpaceIter.ne.0)) THEN
 !Test if we want to expand to the full space if an EXPANDSPACE variable has been set
@@ -765,6 +766,11 @@ MODULE FciMCParMod
         enddo ! Loop over determinants.
 
         IF(tPrintHighPop) CALL FindHighPopDet()
+
+        ! Update iteration data
+        iter_data%update_growth = iter_data%update_growth + iter_data%nborn &
+                                - iter_data%ndied - iter_data%nannihil
+        iter_data%update_iters = iter_data%update_iters + 1
 
         ! SumWalkersCyc calculates the total number of walkers over an update
         ! cycle on each process.
@@ -3370,6 +3376,7 @@ MODULE FciMCParMod
 
         IterTime=IterTime/REAL(StepsSft)    !This is the average time per iteration in the previous update cycle.
 
+
 !For the unweighted by iterations energy estimator (ProjEIter), we need the sum of the Hij*Sign from all processors over the last update cycle
 !        CALL MPISumRoot(ENumCyc,1,AllENumCyc,Root)
 !        WRITE(6,*) "Get Here 7"
@@ -3614,6 +3621,10 @@ MODULE FciMCParMod
         AllNoDoubSpawns=0.D0
         AllNoExtraInitDoubs=0.D0
         AllInitRemoved=0.D0
+
+        ! Reset the fciqmc specific counter
+        iter_data_fciqmc%update_growth = 0
+        iter_data_fciqmc%update_iters = 0
 
 
 
@@ -4166,6 +4177,10 @@ MODULE FciMCParMod
         AllNoDoubSpawns=0.D0
         AllNoExtraInitDoubs=0.D0
         AllInitRemoved=0.D0
+
+        ! Initialise the fciqmc counters
+        iter_data_fciqmc%update_growth = 0
+        iter_data_fciqmc%update_iters = 0
  
 
         IF(tHistSpawn.or.(tCalcFCIMCPsi.and.tFCIMC).or.tHistHamil) THEN
