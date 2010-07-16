@@ -20,12 +20,19 @@ Subroutine NECICore(iCacheFlag,tCPMD,tVASP)
     ! Utility modules.
     use global_utilities
 
+    use spin_project
+
     Implicit none
     integer,intent(in) :: iCacheFlag
     logical,intent(in) :: tCPMD,tVASP
     type(timer), save :: proc_timer
     integer :: ios
     character(255) :: Filename
+
+
+    integer :: yama(10)
+    integer :: NI(10)
+
     ! Do the program initialisation.
     call NECICodeInit(tCPMD,tVASP)
 
@@ -47,6 +54,38 @@ Subroutine NECICore(iCacheFlag,tCPMD,tVASP)
     call NECICalcInit(iCacheFlag)
 
 !    call test_mt()
+
+! ******** DEBUG TEST **************
+
+    nI(1) = 1
+    nI(2) = 2
+    nI(3) = 3
+    nI(4) = 5
+    nI(5) = 6
+    nI(6) = 8
+    nI(7) = 9
+    nI(8) = 10
+    nI(9) = 11
+    nI(10) = 12
+    !nI(1) = 1
+    !nI(2) = 2
+    !nI(3) = 3
+    !nI(4) = 6
+    !nI(5) = 7
+    !nI(6) = 8
+    !nI(7) = 9
+    !nI(8) = 11
+    !nI(9) = 12
+    !nI(10) = 14
+    yama(1) = 1
+    yama(2) = 2
+    yama(3) = 1
+    yama(4) = 2
+
+    call csf_spin_project_one_yama (nI, yama)
+
+    call stop_all ("END OF", "TEST")
+
 
 !   Actually do the calculations we're meant to.  :-)
     call CalcDoCalc()

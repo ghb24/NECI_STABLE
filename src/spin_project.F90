@@ -48,10 +48,10 @@ contains
             nopen = nopen + 1
             open_el(nopen) = nI(i)
             if (is_alpha(nI(i))) then
-                dorder_i(nopen) = 1
+                dorder_i(nopen) = 0
                 nup = nup + 1
             else
-                dorder_i(nopen) = 0
+                dorder_i(nopen) = 1
             endif
 
             i = i + 1
@@ -78,7 +78,7 @@ contains
 
                 ! Obtain the bit representation of determinant J
                 do i = 1, nopen
-                    if (dorder_j(i) == 1) then
+                    if (dorder_j(i) == 0) then
                         orb = get_alpha(open_el(i))
                     else
                         orb = get_beta(open_el(i))
@@ -109,6 +109,82 @@ contains
         endif
 
         !print*, 'test cpt', 'this is closed shell...'
+
+    end subroutine
+
+    subroutine csf_spin_project_one_yama (nI, yama)
+
+        ! Apply the operator Os to the determinant nI (ilutI) using only the
+        ! csf Yama, and print out the resultant coefficients.
+        !
+        ! In: nI    - The determinant to apply Os to
+        !     yama  - The Yamanouchi symbol to use
+
+        integer, intent(in) :: nI(nel), yama(:)
+
+        integer :: nopen, nup, count_dets, ndet, i
+        integer :: dorder_i(nel), dorder_j(nel)
+        real(dp) :: elem, elem_i, elem_j, tot_wgt
+        character(20) :: fmt_str, fmt_num
+
+        ! Get the dorder for nI
+        nopen = 0
+        nup = 0
+        i = 1
+        do while (i <= nel)
+            if (is_beta(nI(i)) .and. i < nel) then
+                if (is_in_pair(nI(i), nI(i+1))) then
+                    i = i + 2
+                    cycle
+                endif
+            endif
+
+            nopen = nopen + 1
+            if (is_alpha(nI(i))) then
+                nup = nup + 1
+                dorder_i(nopen) = 0
+            else
+                dorder_i(nopen) = 1
+            endif
+
+            i = i + 1
+        enddo
+
+        ! <Y|I>
+        elem_i = csf_coeff (yama, dorder_i, nopen)
+
+        ! How many dets are there to choose from
+        ndet = choose (nopen, nup)
+
+        ! Construct the format string
+        write(fmt_num, '(i6)') nopen
+        fmt_str = '(a,'//trim(adjustl(fmt_num))//'i1," - ")'
+
+        print*, 'ELEM I', elem_i
+
+        ! Obtain a list of possible determinants
+        count_dets = 0
+        dorder_j(1) = - 1
+        tot_wgt = 0
+        call get_lexicographic (dorder_j, nopen, nup)
+        do while (dorder_j(1) /= -1)
+
+            count_dets = count_dets + 1
+
+            ! <J|Y>
+            elem_j = csf_coeff (yama, dorder_j, nopen)
+            elem = elem_i * elem_j
+            tot_wgt = tot_wgt + abs(elem)
+
+            write (6, fmt_str, advance='no') 'det: ', dorder_j(1:nopen)
+            write (6,*) elem, '(', elem_j, ')'
+
+            call get_lexicographic (dorder_j, nopen, nup)
+        enddo
+
+        print*, 'total amplitude: ', tot_wgt
+
+        ASSERT(count_dets /= ndet)
 
     end subroutine
 
@@ -184,9 +260,9 @@ contains
         do i = 1, nel
             if (nJ(i) == -1) exit
             if (is_alpha(nJ(i))) then
-                dorder_j(i) = 1
-            else
                 dorder_j(i) = 0
+            else
+                dorder_j(i) = 1
             endif
         enddo
         nopen = i - 1
@@ -211,7 +287,7 @@ contains
             if (is_alpha(nI(i))) then
                 dorder_i(nopen2) = 1
             else
-                dorder_i(nopen2) = 0
+                dorder_i(nopen2) = 1
             endif
 
             i = i + 1
@@ -345,9 +421,9 @@ contains
 
             nopen = nopen + 1
             if (is_alpha(nI(i))) then
-                dorder(nopen) = 1
-            else
                 dorder(nopen) = 0
+            else
+                dorder(nopen) = 1
             endif
 
             i = i + 1
@@ -392,13 +468,13 @@ contains
 
         ! Initialise
         if (dorder(1) == -1) then
-            dorder(1:nup) = 1
-            dorder(nup+1:nopen) = 0
+            dorder(1:nup) = 0
+            dorder(nup+1:nopen) = 1
         else
             ! Get the list of positions of the beta electrons
             j = 0
             do i = 1, nopen
-                if (dorder(i) == 1) then
+                if (dorder(i) == 0) then
                     j = j + 1
                     comb(j) = i
                     
@@ -428,8 +504,8 @@ contains
                 endif
             enddo
 
-            dorder = 0
-            dorder(comb) = 1
+            dorder = 1
+            dorder(comb) = 0
         endif
     end subroutine
 
