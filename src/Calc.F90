@@ -4,7 +4,8 @@ MODULE Calc
     use SystemData, only: beta, nel
     use Determinants, only: write_det
     use spin_project, only: spin_proj_interval, tSpinProject, &
-                            spin_proj_gamma, spin_proj_shift
+                            spin_proj_gamma, spin_proj_shift, &
+                            spin_proj_cutoff
     use default_sets
     use Determinants, only: iActiveBasis, SpecDet, tSpecDet, nActiveSpace, &
                             tDefineDet
@@ -216,6 +217,7 @@ contains
           tSpinProject  = .false.
           spin_proj_interval = 5
           spin_proj_shift = 0
+          spin_proj_cutoff = 0
       
         end subroutine SetCalcDefaults
 
@@ -1179,6 +1181,11 @@ contains
                 ! Change the value of delta-gamma used by the spin projection
                 ! routines. Similar to modifying tau for normal FCIQMC.
                 call getf (spin_proj_shift)
+
+            case("SPIN-PROJECT-CUTOFF")
+                ! Change the minimum number of walkers required for spin
+                ! projection to be applied to a determinant
+                call geti (spin_proj_cutoff)
 
             case default
                 call report("Keyword "                                &

@@ -1,12 +1,12 @@
 #include "macros.h"
 module spin_project
     use SystemData, only: LMS, STOT, nel, nbasis
-    use CalcData, only: tau, InitiatorWalkNo
+    use CalcData, only: tau
     use SymExcitDataMod, only: scratchsize
     use bit_reps, only: NIfD, NIfTot, extract_sign
     use csf, only: csf_get_yamas, get_num_csfs, csf_coeff, random_spin_permute
     use constants, only: dp, bits_n_int, lenof_sign, n_int, end_n_int
-    use FciMCData, only: TotWalkers, CurrentDets, fcimc_iter_data, TotWalkers
+    use FciMCData, only: TotWalkers, CurrentDets, fcimc_iter_data, yama_global
     use DeterminantData, only: write_det
     use dSFMT_interface, only: genrand_real2_dSFMT
     use util_mod, only: choose, binary_search
@@ -14,7 +14,7 @@ module spin_project
     implicit none
 
     logical :: tSpinProject
-    integer :: spin_proj_interval
+    integer :: spin_proj_interval, spin_proj_cutoff
     real(dp) :: spin_proj_gamma, spin_proj_shift
 
     ! Store the data from iterations
@@ -124,7 +124,8 @@ contains
 
         integer :: nopen, nup, count_dets, ndet, i
         integer :: dorder_i(nel), dorder_j(nel)
-        real(dp) :: elem, elem_i, elem_j, tot_wgt
+        real(dp) :: elem, elem_i, elem_j, tot_wgt, elem_sum, tot_sum
+        real(dp) :: tot_wgt_2, tot_sum_2
         character(20) :: fmt_str, fmt_num
 
         ! Get the dorder for nI
@@ -166,7 +167,12 @@ contains
         count_dets = 0
         dorder_j(1) = - 1
         tot_wgt = 0
+        tot_sum = 0
+        tot_wgt_2 = 0
+        tot_sum_2 = 0
         call get_lexicographic (dorder_j, nopen, nup)
+        print*, '     |J>            <J|Y><Y|I>             <J|Y>        &
+                &     sum_Y <J|Y><Y|I>'
         do while (dorder_j(1) /= -1)
 
             count_dets = count_dets + 1
@@ -175,14 +181,20 @@ contains
             elem_j = csf_coeff (yama, dorder_j, nopen)
             elem = elem_i * elem_j
             tot_wgt = tot_wgt + abs(elem)
+            tot_wgt_2 = tot_wgt_2 + (elem*elem)
+
+            elem_sum = csf_spin_project_elem (dorder_i, dorder_j, nopen)
+            tot_sum = tot_sum + abs(elem_sum)
+            tot_sum_2 = tot_sum_2 + elem_sum*elem_sum
 
             write (6, fmt_str, advance='no') 'det: ', dorder_j(1:nopen)
-            write (6,*) elem, '(', elem_j, ')'
+            write (6,*) elem, '(', elem_j, ')', elem_sum
 
             call get_lexicographic (dorder_j, nopen, nup)
         enddo
 
-        print*, 'total amplitude: ', tot_wgt
+        print*, 'total amplitude: ', tot_wgt, tot_sum
+        print*, 'total amplitude squared: ', tot_wgt_2, tot_sum_2
 
         ASSERT(count_dets /= ndet)
 
@@ -215,6 +227,8 @@ contains
         do i = 1, ncsf
             ret = ret + (csf_coeff (yamas(i, :), dorder_i, nopen) * &
                          csf_coeff (yamas(i, :), dorder_j, nopen))
+!            ret = ret + (csf_coeff (yama_global, dorder_i, nopen) * &
+!                         csf_coeff (yama_global, dorder_j, nopen))
         enddo
     end function
 
@@ -238,14 +252,20 @@ contains
         ret = 0
         do i = 1, ncsf
             tmp = csf_coeff (yamas(i, :), dorder, nopen)
+            tmp = csf_coeff (yama_global, dorder, nopen)
             ret = ret + (tmp * tmp)
         enddo
+        
     end function
     
     function get_spawn_helement_spin_proj (nI, nJ, ilutI, ilutJ, ic, ex, &
                                          tParity, prob) result (hel)
 
-        ! Calculate ( \delta_\gamma \sum_Y <J|Y><Y|I> ) / \delta_\tau
+        ! Calculate ( - \delta_\gamma \sum_Y <J|Y><Y|I> ) / \delta_\tau
+        !
+        ! n.b. the negative sign. We need to spawn walkers of the same sign
+        !      as the initial det. if element is positive. attempt_create
+        !      does the opposite, so we invert the sign of the element.
 
         integer, intent(in) :: nI(nel), nJ(nel)
         integer(kind=n_int), intent(in) :: iLutI(0:niftot), iLutJ(0:niftot)
@@ -285,7 +305,7 @@ contains
 
             nopen2 = nopen2 + 1
             if (is_alpha(nI(i))) then
-                dorder_i(nopen2) = 1
+                dorder_i(nopen2) = 0
             else
                 dorder_i(nopen2) = 1
             endif
@@ -294,9 +314,10 @@ contains
         enddo
         ASSERT(nopen == nopen2)
 
+        ! We invert the sign of the returned element, so that the
+        ! the attempt_create routine creates walkers of the correct sign.
         hel = csf_spin_project_elem (dorder_i, dorder_j, nopen)
-        !print*, 'spawn element: ', hel
-        hel = hel * spin_proj_gamma / tau
+        hel = - hel * spin_proj_gamma / tau
 
     end function get_spawn_helement_spin_proj
 
@@ -331,7 +352,7 @@ contains
         character(*), parameter :: this_routine = 'generate_excit_spin_proj'
 
         call extract_sign (iLutI, sgn_tmp)
-        if (sum(abs(sgn_tmp(1:lenof_sign))) < InitiatorWalkNo) then
+        if (sum(abs(sgn_tmp(1:lenof_sign))) < spin_proj_cutoff) then
             nJ(1) = 0
             return
         endif
@@ -389,6 +410,8 @@ contains
         if (nopen < nel) nJ(nopen + 1) = -1
 
         ! Generation probability, -1 as we exclude the starting det above.
+        ! Invert sign so that a positive overlap element spawns walkers with
+        ! the same sign
         pGen = 1_dp / real(nchoose - 1, dp)
         !print*, 'Generation prob', pGen, nchoose-1
     end subroutine generate_excit_spin_proj
@@ -403,7 +426,7 @@ contains
         real(dp) :: elem, r, rat
         integer :: dorder(nel), i, nopen
 
-        if (sum(abs(wSign(1:lenof_sign))) < InitiatorWalkNo) then
+        if (sum(abs(wSign(1:lenof_sign))) < spin_proj_cutoff) then
             ndie = 0
             return
         endif
@@ -439,7 +462,6 @@ contains
         ! probability.
         elem = csf_spin_project_elem_self (dorder, nopen)
         elem = elem - 1 + spin_proj_shift
-        !print*, 'die element', elem, wSign(1)
         elem = - elem * spin_proj_gamma
 
         do i = 1, lenof_sign

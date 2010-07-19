@@ -117,7 +117,8 @@ module soft_exit
     use constants, only: lenof_sign
     use bit_reps, only: extract_sign,encode_sign
     use spin_project, only: tSpinProject, spin_proj_gamma, &
-                            spin_proj_interval, spin_proj_shift
+                            spin_proj_interval, spin_proj_shift, &
+                            spin_proj_cutoff
     use Parallel, only: MPIAllReduce, MPIBCast
     implicit none
 
@@ -149,9 +150,11 @@ contains
                               addtoinit = 25, scalehf = 26, &
                               printhighpopdet = 27, changerefdet = 28, &
                               restarthighpop = 29, spin_project = 30, &
-                              spin_project_gamma = 31, spin_project_shift = 32
+                              spin_project_gamma = 31, &
+                              spin_project_shift = 32, &
+                              spin_project_cutoff = 33
 
-        integer, parameter :: last_item = spin_project_shift
+        integer, parameter :: last_item = spin_project_cutoff
         integer, parameter :: max_item_len = 25
         character(max_item_len), parameter :: option_list(last_item) &
                                = (/"excite", &
@@ -185,7 +188,8 @@ contains
                                    "restarthighpop", &
                                    "spin-project", &
                                    "spin-project-gamma", &
-                                   "spin-project-shift"/)
+                                   "spin-project-shift", &
+                                   "spin-project-cutoff"/)
 
 
         logical :: exists, any_exist, eof, deleted, any_deleted
@@ -280,6 +284,8 @@ contains
                             call readf (spin_proj_gamma)
                         elseif (i == spin_project_shift) then
                             call readf (spin_proj_shift)
+                        elseif (i == spin_project_cutoff) then
+                            call readi (spin_proj_cutoff)
                         endif
                     enddo
 
@@ -623,13 +629,19 @@ contains
                            spin_proj_gamma
             endif
 
-            ! Chang shift value for spin projection
+            ! Change shift value for spin projection
             if (opts_selected(spin_project_shift)) then
                 call MPIBcast (spin_proj_shift, 1, proc)
                 root_write 'Changed shift value for spin projection to ', &
                            spin_proj_shift
             endif
 
+            ! Change walker number cutoff value for spin projection
+            if (opts_selected(spin_project_shift)) then
+                call MPIBcast (spin_proj_cutoff, 1, proc)
+                root_write 'Changed walker number cutoff value for spin &
+                           &projection to ', spin_proj_shift
+            endif
         endif
 
     end subroutine ChangeVars
