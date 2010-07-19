@@ -1,6 +1,7 @@
 [int]
 type1=integer(kind=int32)
 mpitype=MPI_INTEGER
+mpilen=1
 
 [int64]
 type1=integer(kind=int64)
@@ -17,14 +18,17 @@ mpitype=MPI_LOGICAL
 [arr_int]
 type1=integer(kind=int32), dimension(:)
 mpitype=MPI_INTEGER
+mpilen=ubound(Values,1)
 
 [arr2_int]
 type1=integer(kind=int32), dimension(:,:)
 mpitype=MPI_INTEGER
+mpilen=(ubound(Values,1)*ubound(Values,2))
 
 [arr_int64]
 type1=integer(kind=int64), dimension(:)
 mpitype=MPI_INTEGER8
+mpilen=ubound(Values,1)
 
 [arr_logical]
 type1=logical, dimension(:)
@@ -33,14 +37,17 @@ mpitype=MPI_LOGICAL
 [arr3_double]
 type1=real*8, dimension(:,:,:)
 mpitype=MPI_DOUBLE_PRECISION
+mpilen=(ubound(Values,1)*ubound(Values,2)*ubound(Values,3))
 
 [arr2_double]
 type1=real*8, dimension(:,:)
 mpitype=MPI_DOUBLE_PRECISION
+mpilen=(ubound(Values,1)*ubound(Values,2))
 
 [arr_double]
 type1=real*8, dimension(:)
 mpitype=MPI_DOUBLE_PRECISION
+mpilen=ubound(Values,1)
 ===================
 
 
@@ -64,38 +71,57 @@ module Parallel
    integer, private, parameter :: MPI_MAX_ERROR_STRING=255
 #endif
 
+    interface MPIReduce
+        module procedure MPIReduce_len_%(name)s
+        module procedure MPIReduce_auto_%(name)s
+    end interface
+
 contains
 
-Subroutine MPIReduce(Values, iLen, iType, Ret)
-   !=  In:
-   !=     Values         The corresponding elements for each
-   !=                    processor are reduced over the processors and returned in 
-   !=                    Ret on the root only
-   !=     iLen           Length of the data (in elements of its type)
-   !=     iType          an MPI call (e.g. MPI_MAX)
-   !=  Out:
-   !=     Ret            data store to get the results.
-   %(type1)s :: Values()
-   %(type1)s :: Ret()
-   integer iLen,i,i2
-   integer ierr,rc,itype
-!   CHARACTER(LEN=MPI_MAX_ERROR_STRING) :: message 
+subroutine MPIReduce_len (Values, iLen, iType, Ret)
+
+    ! Call MPI_REDUCE of type iType on the elements values --> ret. The
+    ! number of elements to transmit is specified by iLen.
+    !
+    ! In:  Values - The elements to be reduced over the processors.
+    !      iLen   - The length of the data (in elements of its type)
+    !      iType  - MPI specification (e.g. MPI_MAX)
+    ! Out: Ret    - The reduced elements are returned in this array
+    !               *** ON ROOT ONLY ***
+    %(type1)s :: Values()
+    %(type1)s :: Ret()
+    integer iLen
+    integer ierr, itype
 #if PARALLEL
-!   write(6,*) "Reduce %(type1)s",iLen,iType
-!   write(6,*) Values
-!   call flush(6)
-   call MPI_REDUCE(Values,Ret,iLen,%(mpitype)s,iType,0,MPI_COMM_WORLD,ierr)
-!   write(6,*) Ret
-!   call flush(6)
-   if (ierr .ne. MPI_SUCCESS) then
-!     call MPI_ERROR_STRING(ierr,message,i,i2)
-!     write(6,*) "Error ",ierr,message
-     call Stop_All("MPIReduce",'Error in MPIReduce. Terminating.')
-   end if
+    call MPI_REDUCE (Values, Ret, iLen, %(mpitype)s, iType, 0, &
+                     MPI_COMM_WORLD, ierr)
+    if (ierr .ne. MPI_SUCCESS) then
+        call Stop_All("MPIReduce", 'Error in MPI_REDUCE. Terminating.')
+    end if
 #else
-   Ret=Values
+    Ret=Values
 #endif
 end subroutine
+
+subroutine MPIReduce_auto (Values, iType, Ret)
+
+    ! The same as MPIReduce_len, without the iLen specification. The number
+    ! of elements is determined automatically.
+
+    %(type1)s :: Values()
+    %(type1)s :: Ret()
+    integer ierr, itype
+#if PARALLEL
+    call MPI_REDUCE (Values, Ret, %(mpilen)s, %(mpitype)s, iType, 0, &
+                     MPI_COMM_WORLD, ierr)
+    if (ierr .ne. MPI_SUCCESS) then
+        call Stop_All("MPIReduce", 'Error in MPI_REDUCE. Terminating.')
+    end if
+#else
+    Ret=Values
+#endif
+end subroutine
+
 Subroutine MPIAllReduce(Values, iLen, iType, Ret)
    !=  In:
    !=     Values         The corresponding elements for each
