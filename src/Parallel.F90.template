@@ -76,6 +76,11 @@ module Parallel
         module procedure MPIReduce_auto_%(name)s
     end interface
 
+    interface MPIBcast
+        module procedure MPIBcast_len_%(name)s
+        module procedure MPIBcast_auto_%(name)s
+    end interface
+
 contains
 
 subroutine MPIReduce_len (Values, iLen, iType, Ret)
@@ -211,26 +216,45 @@ Subroutine MPISumRoot(Values, iLen, Ret, root)
 #endif
 end subroutine
 
-!Send from processor Root to all other processors
-! Values contains the data, and iLen the length of the data (in number of elements of its data type)
-Subroutine MPIBCast(Values,iLen,Root)
-   !=  In:
-   !=     iLen           Length of the data (in elements of its type)
-   !=     root           Processor which to sum the result to.
-   !=  In/Out:
-   !=     Values(iLen)   Data (array possibly)  The corresponding elements for each
-   !=                    processor are taken from here on root and given to all other processors
-   %(type1)s :: Values()
-    INTEGER :: iLen,Root,error,rc
+subroutine MPIBCast_len (Values, iLen, Root)
+
+    ! Call MPI_BCAST to broadcast the value(s) in array Values on processor
+    ! Root to all processors, where the number of elements in array Values is
+    ! specified by iLen.
+    !
+    ! In:    iLen   - The number of elements in Values
+    !        Root   - The processor to broadcast from
+    ! InOut: Values - The data to broadcast, and the returned values
+
+    %(type1)s, intent(inout) :: Values()
+    integer, intent(in) :: iLen, Root
+    integer :: error
 #ifdef PARALLEL
-!   write(6,*) "BCast %(type1)s",iLen,Root
-    CALL MPI_Bcast(Values,iLen,%(mpitype)s,Root,MPI_COMM_WORLD,error)
-    if(error.ne.MPI_SUCCESS) then
-      call Stop_All("MPIBCast",'Error in MPIBCast. Terminating.')
+    call MPI_BCAST (Values, iLen, %(mpitype)s, Root, MPI_COMM_WORLD, error)
+    if (error /= MPI_SUCCESS) then
+        call stop_all("MPIBCast", 'Error in MPI_BCAST. Terminating.')
     endif
-#else
 #endif
-    RETURN
+end subroutine
+
+subroutine MPIBCast_auto (Values, Root)
+
+    ! The same as MPIBcast_len, but the number of elements in values is 
+    ! determined automagically
+    !
+    ! In:    Root   - The processor to broadcast from
+    ! InOut: Values - The data to broadcast, and the returned values
+
+    %(type1)s, intent(inout) :: Values()
+    integer, intent(in) :: Root
+    integer :: error
+#ifdef PARALLEL
+    call MPI_BCAST (Values, %(mpilen)s, %(mpitype)s, Root, MPI_COMM_WORLD, &
+                    error)
+    if (error /= MPI_SUCCESS) then
+        call stop_all("MPIBCast", 'Error in MPI_BCAST. Terminating.')
+    endif
+#endif
 end subroutine
 
 Subroutine MPIAlltoAll(SendBuf,SendSize,RecvBuf,RecvSize,ierr)
