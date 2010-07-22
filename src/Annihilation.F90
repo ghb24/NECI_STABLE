@@ -189,7 +189,7 @@ MODULE AnnihilationMod
         
         CALL set_timer(Comms_Time,30)
         
-        CALL MPIAlltoAllI(sendcounts,1,recvcounts,1,error)
+        CALL MPIAlltoAll(sendcounts,1,recvcounts,1,error)
 
 !We can now get recvdisps from recvcounts, since we want the data to be contiguous after the move.
         recvdisps(1)=0
@@ -381,12 +381,14 @@ MODULE AnnihilationMod
             WRITE(6,*) ValidSpawned,VecInd
             CALL Stop_All("CompressSpawnedList","Error in compression of spawned particle list")
         ENDIF
-        call extract_sign(SpawnedParts2(:,ValidSpawned),SpawnedSign)
+        if (ValidSpawned > 0) then
+            call extract_sign(SpawnedParts2(:,ValidSpawned),SpawnedSign)
 #ifndef __CMPLX            
-        IF((SpawnedSign(1).eq.0).and.(ValidSpawned.gt.0)) ToRemove=ToRemove+1
+            IF((SpawnedSign(1).eq.0)) ToRemove=ToRemove+1
 #else            
-        IF((SpawnedSign(1).eq.0).and.(SpawnedSign(2).eq.0).and.(ValidSpawned.gt.0)) ToRemove=ToRemove+1
+            IF((SpawnedSign(1).eq.0).and.(SpawnedSign(2).eq.0)) ToRemove=ToRemove+1
 #endif            
+        endif
 
 !Now remove zeros. Not actually necessary, but will be useful I suppose? Shouldn't be too much hassle.
 !We can also use it to copy the particles back to SpawnedParts array
@@ -488,11 +490,11 @@ MODULE AnnihilationMod
                         IF(tTruncInitiator) THEN
 !If we are doing an initiator calculation - then if the walkers that are left after annihilation came from the SpawnedParts array, and had 
 !spawned from determinants outside the active space, then it is like these have been spawned on an unoccupied determinant and they are killed.
-                            IF(abs(SpawnedSign(1)).gt.abs(CurrentSign(1))) THEN
+                            IF(abs(SpawnedSign(j)).gt.abs(CurrentSign(j))) THEN
                                 !The residual particles were spawned here
                                 IF(extract_flags(SpawnedParts(:,i)).eq.1) THEN
                                     !And they were spawned from non-initiator particles. Abort all particles which were initially copied accross
-                                    NoAborted=NoAborted+ABS(REAL(SpawnedSign(1)))
+                                    NoAborted=NoAborted+ABS(REAL(SpawnedSign(j)))
 !                                    WRITE(6,'(I20,A,3I20)') SpawnedSign(i),'walkers aborted from determinant:',SpawnedParts(:,i)
                                     call encode_sign(CurrentDets(:,PartInd),null_part)
                                 ENDIF

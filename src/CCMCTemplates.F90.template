@@ -580,7 +580,7 @@ subroutine CalcTotals (iNumExcitors,dTotAbsAmpl,Amplitude,nAmpl,dTol,WalkerScale
    use Parallel, only: iProcIndex
    use FciMCData, only: root
    use CCMCData, only: tCCMCFCI
-   use FciMCData, only: TotParts,TotWalkers
+   use FciMCData, only: TotParts,TotWalkers,NoatHF,NoatDoubs
    implicit none
    integer iNumExcitors,nAmpl
    real*8 dTotAbsAmpl,dTol
