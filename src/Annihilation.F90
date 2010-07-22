@@ -488,11 +488,11 @@ MODULE AnnihilationMod
                         IF(tTruncInitiator) THEN
 !If we are doing an initiator calculation - then if the walkers that are left after annihilation came from the SpawnedParts array, and had 
 !spawned from determinants outside the active space, then it is like these have been spawned on an unoccupied determinant and they are killed.
-                            IF(abs(SpawnedSign(1)).gt.abs(CurrentSign(1))) THEN
+                            IF(abs(SpawnedSign(j)).gt.abs(CurrentSign(j))) THEN
                                 !The residual particles were spawned here
                                 IF(extract_flags(SpawnedParts(:,i)).eq.1) THEN
                                     !And they were spawned from non-initiator particles. Abort all particles which were initially copied accross
-                                    NoAborted=NoAborted+ABS(REAL(SpawnedSign(1)))
+                                    NoAborted=NoAborted+ABS(REAL(SpawnedSign(j)))
 !                                    WRITE(6,'(I20,A,3I20)') SpawnedSign(i),'walkers aborted from determinant:',SpawnedParts(:,i)
                                     call encode_sign(CurrentDets(:,PartInd),null_part)
                                 ENDIF
