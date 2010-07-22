@@ -2,41 +2,49 @@
 type1=integer(kind=int32)
 mpitype=MPI_INTEGER
 
+[arr_int]
+type1=integer(kind=int32), dimension(:)
+
+[arr2_int]
+type1=integer(kind=int32), dimension(:,:)
+
 [int64]
 type1=integer(kind=int64)
 mpitype=MPI_INTEGER8
+
+[arr_int64]
+type1=integer(kind=int64), dimension(:)
 
 [double]
 type1=real*8
 mpitype=MPI_DOUBLE_PRECISION
 
+[arr_double]
+type1=real*8, dimension(:)
+
+[arr2_double]
+type1=real*8, dimension(:,:)
+
+[arr3_double]
+type1=real*8, dimension(:,:,:)
+
 [logical]
 type1=LOGICAL
 mpitype=MPI_LOGICAL
 
-[arr_int]
-type1=integer(kind=int32), dimension(:)
-mpitype=MPI_INTEGER
+[complex]
+type1=complex*16
+mpitype=MPI_DOUBLE_COMPLEX
 
-[arr2_int]
-type1=integer(kind=int32), dimension(:,:)
-mpitype=MPI_INTEGER
+[arr_complex]
+type1=complex*16, dimension(:)
 
-[arr_int64]
-type1=integer(kind=int64), dimension(:)
-mpitype=MPI_INTEGER8
+[arr2_complex]
+type1=complex*16, dimension(:,:)
 
-[arr3_double]
-type1=real*8, dimension(:,:,:)
-mpitype=MPI_DOUBLE_PRECISION
+[arr3_complex]
+type1=complex*16, dimension(:,:,:)
 
-[arr2_double]
-type1=real*8, dimension(:,:)
-mpitype=MPI_DOUBLE_PRECISION
-
-[arr_double]
-type1=real*8, dimension(:)
-mpitype=MPI_DOUBLE_PRECISION
 ===================
 
 
