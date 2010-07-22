@@ -95,7 +95,7 @@ MODULE FciMCParMod
         call WriteFciMCStatsHeader()
         ! Prepend a # to the initial status line so analysis doesn't pick up
         ! repetitions in the FCIMCSTATS file from restarts.
-        write (6,'("#")', advance='no')
+!        write (6,'("#")', advance='no')
         write (fcimcstats_unit,'("#")', advance='no')
         call WriteFCIMCStats()
 
@@ -3510,6 +3510,9 @@ MODULE FciMCParMod
 
         RETURN
     END SUBROUTINE CalcNewShift
+
+
+
 !This routine flips the sign of all particles on the node
     SUBROUTINE FlipSign()
         INTEGER :: i
@@ -3609,7 +3612,7 @@ MODULE FciMCParMod
             WRITE(6,"(A)") "       Step     Shift      WalkerCng    GrowRate       TotWalkers    Annihil    NoDied    NoBorn    Proj.E          Av.Shift     Proj.E.ThisCyc   NoatHF NoatDoubs      AccRat     UniqueDets     IterTime"
             WRITE(fcimcstats_unit,"(A)") "#     1.Step   2.Shift    3.WalkerCng  4.GrowRate     5.TotWalkers  6.Annihil  7.NoDied  8.NoBorn  9.Proj.E       10.Av.Shift"&
 &           // " 11.Proj.E.ThisCyc  12.NoatHF 13.NoatDoubs  14.AccRat  15.UniqueDets  16.IterTime 17.FracSpawnFromSing  18.WalkersDiffProc  19.TotImagTime  20.ProjE.ThisIter "&
-&           // " 21.HFInstShift  22.TotInstShift  23.Tot-Proj.E.ThisCyc"
+&           // " 21.HFInstShift  22.TotInstShift  23.Tot-Proj.E.ThisCyc   24.HFContribtoE  25.NumContribtoE"
             
         ENDIF
 
@@ -3619,9 +3622,9 @@ MODULE FciMCParMod
 
         IF(iProcIndex.eq.root) THEN
 
-            WRITE(fcimcstats_unit,"(I12,G16.7,I10,G16.7,I12,3I13,3G17.9,2I10,G13.5,I12,G13.5,G17.5,I13,G13.5,4G17.9)") Iter+PreviousCycles,DiagSft,NINT(SUM(AllTotParts)-SUM(AllTotPartsOld),int64),AllGrowRate,   &
+            WRITE(fcimcstats_unit,"(I12,G16.7,I10,G16.7,I12,3I13,3G17.9,2I10,G13.5,I12,G13.5,G17.5,I13,G13.5,6G17.9)") Iter+PreviousCycles,DiagSft,NINT(SUM(AllTotParts)-SUM(AllTotPartsOld),int64),AllGrowRate,   &
   &                NINT(SUM(AllTotParts),int64),AllAnnihilated,AllNoDied,AllNoBorn,ProjectionE,AvDiagSft,AllENumCyc/AllHFCyc,AllNoatHF,AllNoatDoubs,AccRat,NINT(AllTotWalkers,int64),IterTime,   &
-  &                REAL(AllSpawnFromSing)/REAL(AllNoBorn),WalkersDiffProc,TotImagTime,IterEnergy,HFShift,InstShift,AllENumCyc/AllHFCyc+Hii
+  &                REAL(AllSpawnFromSing)/REAL(AllNoBorn),WalkersDiffProc,TotImagTime,IterEnergy,HFShift,InstShift,AllENumCyc/AllHFCyc+Hii,AllHFCyc/StepsSft,AllENumCyc/StepsSft
             WRITE(6,"(I12,G16.7,I10,G16.7,I12,3I11,3G17.9,2I10,G13.5,I12,G13.5)") Iter+PreviousCycles,DiagSft,NINT(SUM(AllTotParts)-SUM(AllTotPartsOld),int64),AllGrowRate,    &
   &                NINT(SUM(AllTotParts),int64),AllAnnihilated,AllNoDied,AllNoBorn,ProjectionE,AvDiagSft,AllENumCyc/AllHFCyc,AllNoatHF,AllNoatDoubs,AccRat,NINT(AllTotWalkers,int64),IterTime
 
@@ -4856,19 +4859,12 @@ MODULE FciMCParMod
         LOGICAL :: CompiPath,tSuccess
         REAL*8 , intent(in) :: HDiagCurr,dProbFin
         HElement_t :: HOffDiag
-!        write(81,*) DetCurr,ExcitLevel,WSign,iLutCurr,HDiagCurr,dProb
 
-!        MeanExcitLevel=MeanExcitLevel+real(ExcitLevel,dp)
-!        IF(MinExcitLevel.gt.ExcitLevel) MinExcitLevel=ExcitLevel
-!        IF(MaxExcitLevel.lt.ExcitLevel) MaxExcitLevel=ExcitLevel
-!        DetsNorm=DetsNorm+REAL((WSign**2),dp)
         IF(ExcitLevel.eq.0) THEN
             IF(Iter.gt.NEquilSteps) SumNoatHF=SumNoatHF+WSign(1)
             NoatHF=NoatHF+WSign(1)
             HFCyc=HFCyc+WSign(1)      !This is simply the number at HF*sign over the course of the update cycle 
             HFIter=HFIter+WSign(1)
-!            AvSign=AvSign+REAL(WSign,dp)
-!            AvSignHFD=AvSignHFD+REAL(WSign,dp)
             
         ELSEIF(ExcitLevel.eq.2) THEN
             NoatDoubs=NoatDoubs+abs(WSign(1))
@@ -4881,16 +4877,8 @@ MODULE FciMCParMod
                                          iLutCurr)
             ENDIF
             IF(Iter.gt.NEquilSteps) SumENum=SumENum+(REAL(HOffDiag,dp)*WSign(1)/dProbFin)
-!            AvSign=AvSign+REAL(WSign,dp)
-!            AvSignHFD=AvSignHFD+REAL(WSign,dp)
             ENumCyc=ENumCyc+(REAL(HOffDiag,dp)*WSign(1)/dProbFin)     !This is simply the Hij*sign summed over the course of the update cycle
             ENumIter=ENumIter+(REAL(HOffDiag,dp)*WSign(1)/dProbFin)
-!            WRITE(6,*) 2,SumENum,(REAL(HOffDiag,dp)*WSign/dProbFin)     !This is simply the Hij*sign summed over the course of the update cycle
-
-            
-            
-!        ELSE
-!            AvSign=AvSign+REAL(WSign,dp)
 
         ELSEIF(ExcitLevel.eq.1) THEN
           if(tNoBrillouin) then
@@ -4905,10 +4893,7 @@ MODULE FciMCParMod
                                          iLutCurr)
             ENDIF
             IF(Iter.gt.NEquilSteps) SumENum=SumENum+(REAL(HOffDiag,dp)*WSign(1)/dProbFin)
-!            AvSign=AvSign+REAL(WSign,dp)
-!            AvSignHFD=AvSignHFD+REAL(WSign,dp)
             ENumCyc=ENumCyc+(REAL(HOffDiag,dp)*WSign(1)/dProbFin)     !This is simply the Hij*sign summed over the course of the update cycle
-!            WRITE(6,*) 1,SumENum,(REAL(HOffDiag,dp)*WSign/dProbFin)     !This is simply the Hij*sign summed over the course of the update cycle
           endif 
 
         ENDIF
