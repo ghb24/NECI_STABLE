@@ -381,12 +381,14 @@ MODULE AnnihilationMod
             WRITE(6,*) ValidSpawned,VecInd
             CALL Stop_All("CompressSpawnedList","Error in compression of spawned particle list")
         ENDIF
-        call extract_sign(SpawnedParts2(:,ValidSpawned),SpawnedSign)
+        if (ValidSpawned > 0) then
+            call extract_sign(SpawnedParts2(:,ValidSpawned),SpawnedSign)
 #ifndef __CMPLX            
-        IF((SpawnedSign(1).eq.0).and.(ValidSpawned.gt.0)) ToRemove=ToRemove+1
+            IF((SpawnedSign(1).eq.0)) ToRemove=ToRemove+1
 #else            
-        IF((SpawnedSign(1).eq.0).and.(SpawnedSign(2).eq.0).and.(ValidSpawned.gt.0)) ToRemove=ToRemove+1
+            IF((SpawnedSign(1).eq.0).and.(SpawnedSign(2).eq.0)) ToRemove=ToRemove+1
 #endif            
+        endif
 
 !Now remove zeros. Not actually necessary, but will be useful I suppose? Shouldn't be too much hassle.
 !We can also use it to copy the particles back to SpawnedParts array
