@@ -407,6 +407,7 @@ C.. Z1=Z2=1, so we use the residue as pole is order 2
       REAL*8 FUNCTION CP2(RII,RJJ,RIJ,P)
          INTEGER P
          REAL*8 RII,RJJ,RIJ,RTII(0:2),RTIJ(0:2,0:2)
+         REAL*8 CALCPATHS_2
          RTII(0)=RII
          RTII(2)=RII
          RTII(1)=RJJ
@@ -717,7 +718,7 @@ C               WRITE(10,*) AA,BB,Z1,ZZ2,ZZ3
          REAL*8 RHOII(0:3),RHOIJ(0:3,0:3)
          REAL*8 CP3_SOLVE,CP3CI
          REAL*8 RIJ,RIK,RIJK,RJK,A,B,C,T,TT
-         REAL*8 RII,RJJ,RKK
+         REAL*8 RII,RJJ,RKK,CP2
          EXTERNAL CP3F,DCP3F
          EXTERNAL CP3FC
          LOGICAL LSAME2
@@ -788,7 +789,7 @@ C         ENDIF
          INTEGER P
          REAL*8 RHOII(0:3),RHOIJ(0:3,0:3)
          REAL*8 Z1,Z2,Z3,Q,R,THETAB3,A,B,C,QRRAT,TRQ
-         REAL*8 TPB3,AA,BB,RT
+         REAL*8 TPB3,AA,BB,RT,CALCPATHS_3,CP3F,DCP3F,CALCPATHS_2
          REAL*8 RIJ,RIK,RIJK,RTII(0:2),RTIJ(0:2,0:2)
          COMPLEX*16 ZZ2,ZZ3,ZZ,CP3FC
          LOGICAL LSAME2

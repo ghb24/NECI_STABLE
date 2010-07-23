@@ -591,7 +591,7 @@ MODULE CCMC
    !We've not printed this out before
                      write(6,"(A)",advance="no") "    "
                      call WriteBitEx(6,iLutHF,iLutnI,.false.)
-                     write(6,'(A)',advance='no') ,' ==> '
+                     write(6,'(A)',advance='no') ' ==> '
                      call WriteBitEx(6,iLutHF,iLutnJ,.false.)
                      WRITE(6,'(A,I7)',advance='no') "Children:",Child(1)             
                      if(iDebug.eq.3.and.iCompositeSize.gt.1) THEN
@@ -983,7 +983,7 @@ MODULE CCMC
       endif
       ind=ind0
       WRITE(iUnit,'(A)',advance='no') '['
-      write(iUnit,'(I4)',advance='no'), ind0
+      write(iUnit,'(I4)',advance='no') ind0
       do while(ind.ne.0)
          i=mod(ind,Det)+1
          call WriteBitEx(iUnit,iLutHF,FCIDets(:,i),.false.)
@@ -1412,7 +1412,7 @@ subroutine AttemptSpawn(S,C,Amplitude,dTol,TL,iDebug)
 !We've not printed this out before
       write(6,"(A)",advance="no") "    "
       call WriteBitEx(6,iLutHF,C%iLutDetCurr,.false.)
-      write(6,'(A)',advance='no') ,' ==> '
+      write(6,'(A)',advance='no') ' ==> '
       call WriteBitEx(6,iLutHF,S%iLutnJ,.false.)
       WRITE(6,'(A,G25.16)',advance='no') "Children:",rat
       if(iDebug.eq.3.and.C%iSize.gt.1) THEN
@@ -1611,7 +1611,7 @@ subroutine AttemptSpawnParticle(S,C,iDebug,SpawnList,SpawnAmps,nSpawned,nMaxSpaw
 !We've not printed this out before
       write(6,"(A)",advance="no") "    "
       call WriteBitEx(6,iLutHF,C%iLutDetCurr,.false.)
-      write(6,'(A)',advance='no') ,' ==> '
+      write(6,'(A)',advance='no') ' ==> '
       call WriteBitEx(6,iLutHF,S%iLutnJ,.false.)
       WRITE(6,'(A,G25.16)',advance='no') " Children ratio:",rat
       if(iDebug.eq.3.and.C%iSize.gt.1) THEN
