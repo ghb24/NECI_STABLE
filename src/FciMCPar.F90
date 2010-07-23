@@ -676,6 +676,10 @@ MODULE FciMCParMod
                                   FlagsCurr)
             !write (6, '(a, i8)', advance='no') 'j: ', j
             !call write_det (6, DetCurr, .true.)
+            !if (iter == 898) then
+            !    write(6,*), j, ':',  CurrentDets(:,j), ';', SignCurr
+            !    write(6,*), 'BDAA', NoBorn, NoDied, Annihilated, NoAborted
+            !endif
 
             !write(6, '(3i4)', advance='no') Iter, j, signcurr
             !call writebitdet(6, currentdets(:,j), .true.)
@@ -3122,19 +3126,19 @@ MODULE FciMCParMod
         ! Calculate the acceptance ratio
         AccRat = real(Acceptances, dp) / SumWalkersCyc
 
+
+        ! Flip sign of entire ensemble if negative pop on HF
+        IF(AllNoatHF.lt.0) THEN
+            root_print "No. at HF < 0 - flipping sign of entire ensemble &
+                       &of particles..."
+            root_print AllNoatHF
+
+            call FlipSign ()
+            AllNoatHF = -AllNoatHF
+            NoatHF = -NoatHF
+        endif
+
         if (iProcIndex == Root) then
-
-            ! Flip sign of entire ensemble if negative pop on HF
-            IF(AllNoatHF.lt.0) THEN
-                write(6,*) "No. at HF < 0 - flipping sign of entire ensemble &
-                           &of particles..."
-                write(6,*) AllNoatHF
-
-                call FlipSign ()
-                AllNoatHF = -AllNoatHF
-                NoatHF = -NoatHF
-            endif
-
             ! Have all of the particles died?
             if (AllTotwalkers == 0) then
                 write(6,*) AllTotWalkers, TotWalkers
