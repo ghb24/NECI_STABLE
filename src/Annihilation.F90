@@ -118,7 +118,7 @@ MODULE AnnihilationMod
     SUBROUTINE DirectAnnihilation(TotWalkersNew, iter_data)
         integer, intent(in) :: TotWalkersNew
         type(fcimc_iter_data), intent(inout) :: iter_data
-        integer :: i
+!>>>!        integer :: i, tmp, sgn(lenof_sign)
         INTEGER :: MaxIndex
         INTEGER(Kind=n_int) , POINTER :: PointTemp(:,:)
 
@@ -128,6 +128,13 @@ MODULE AnnihilationMod
 !This routine will send all the newly-spawned particles to their correct processor. MaxIndex is returned as the new number of newly-spawned particles on the processor. May have duplicates.
 !The particles are now stored in SpawnedParts2/SpawnedSign2.
         CALL SendProcNewParts(MaxIndex)   
+
+!>>>!        tmp = 0
+!>>>!        do i = 1, maxindex
+!>>>!            call extract_sign(SpawnedParts2(:,i), sgn)
+!>>>!            tmp = tmp + abs(sgn(1))
+!>>>!        enddo
+!>>>!        print*, iprocindex, 'Annihil no, parts: ', maxindex, tmp
 
 !        WRITE(6,*) "Sent particles"
 !        WRITE(6,*) 'MaxIndex',MaxIndex
@@ -142,7 +149,15 @@ MODULE AnnihilationMod
 !MaxIndex will change to reflect the final number of unique determinants in the newly-spawned list, and the particles will end up in the spawnedSign/SpawnedParts lists.
 !        WRITE(6,*) "Transferred",MaxIndex
 
+!>>>!        print*, iprocindex, 'pre compress', iter_data%nannihil, iter_data%naborted
         CALL CompressSpawnedList(MaxIndex, iter_data)  
+!>>>!        print*, iprocindex, 'post compress annihil, abort: ', iter_data%nannihil, iter_data%naborted
+!>>>!        tmp = 0
+!>>>!        do i = 1, maxindex
+!>>>!            call extract_sign(SpawnedParts(:,i), sgn)
+!>>>!            tmp = tmp + abs(sgn(1))
+!>>>!        enddo
+!>>>!        print*, iprocindex, 'post compress no, parts: ', maxindex, tmp
 
 !        WRITE(6,*) "List compressed",MaxIndex,TotWalkersNew
 
@@ -150,6 +165,13 @@ MODULE AnnihilationMod
 !This will also remove the found determinants from the spawnedparts lists.
 
         CALL AnnihilateSpawnedParts(MaxIndex,TotWalkersNew, iter_data)  
+!>>>!        print*, iprocindex, 'post annihilation annihil, abort: ', iter_data%nannihil, iter_data%naborted
+!>>>!        tmp = 0
+!>>>!        do i = 1, maxindex
+!>>>!            call extract_sign(SpawnedParts(:,i), sgn)
+!>>>!            tmp = tmp + abs(sgn(1))
+!>>>!        enddo
+!>>>!        print*, iprocindex, 'post annihilation no, parts: ', maxindex, tmp
 
 !        WRITE(6,*) "Annihilation finished",MaxIndex,TotWalkersNew
 
@@ -306,8 +328,9 @@ MODULE AnnihilationMod
                     IF(SignProd(j).lt.null_part(j)) THEN
 !We are actually unwittingly annihilating, but just in serial... we therefore need to count it anyway.
                         Annihilated=Annihilated+2*(MIN(abs(SpawnedSign2(j)),abs(SpawnedSign(j))))
-                        iter_data%nannihil = iter_data%nannihil + &
+                        iter_data%nannihil(j) = iter_data%nannihil(j) + &
                                            2*(min(abs(SpawnedSign2(j)), abs(SpawnedSign(j))))
+!>>>!                        print*, iprocindex, 'annihil compress; j=', j
 
                         IF(tTruncInitiator) THEN
 !If we are doing an initiator calculation, we also want to keep track of which parent the remaining walkers came from - those inside the active space or out.                
@@ -492,18 +515,19 @@ MODULE AnnihilationMod
                     IF(SignProd(j).lt.0) THEN
 !This indicates that the particle has found the same particle of opposite sign to annihilate with
                         Annihilated=Annihilated+2*(min(abs(CurrentSign(j)),abs(SpawnedSign(j))))
-                        iter_data%nannihil = iter_data%nannihil + &
+                        iter_data%nannihil(j) = iter_data%nannihil(j) + &
                                            2*(min(abs(CurrentSign(j)), abs(SpawnedSign(j))))
 
                         IF(tTruncInitiator) THEN
 !If we are doing an initiator calculation - then if the walkers that are left after annihilation came from the SpawnedParts array, and had 
 !spawned from determinants outside the active space, then it is like these have been spawned on an unoccupied determinant and they are killed.
-                            IF(abs(SpawnedSign(1)).gt.abs(CurrentSign(1))) THEN
+                            IF(abs(SpawnedSign(j)).gt.abs(CurrentSign(j))) THEN
                                 !The residual particles were spawned here
                                 IF(extract_flags(SpawnedParts(:,i)).eq.1) THEN
                                     !And they were spawned from non-initiator particles. Abort all particles which were initially copied accross
-                                    NoAborted=NoAborted+ABS(REAL(SpawnedSign(1)))
-!                                    WRITE(6,'(I20,A,3I20)') SpawnedSign(i),'walkers aborted from determinant:',SpawnedParts(:,i)
+                                    NoAborted = NoAborted + abs(SpawnedSign(j)) - abs(CurrentSign(j))
+                                    iter_data%naborted(j) = iter_data%naborted(j) + abs(SpawnedSign(j)) - abs(CurrentSign(j))
+!                                    WRITE(6,'(I20,A,3I20)') abs(SpawnedSign(i))-abs(CurrentSign(i)),'walkers aborted from determinant:',SpawnedParts(:,i)
                                     call encode_sign(CurrentDets(:,PartInd),null_part)
                                 ENDIF
                             ENDIF
@@ -542,7 +566,8 @@ MODULE AnnihilationMod
 !spawned on an unoccupied determinant.
                 IF(extract_flags(SpawnedParts(:,i)).eq.1) THEN      !Walkers came from outside cas space.
                     call extract_sign(SpawnedParts(:,i),SignTemp)
-                    NoAborted=NoAborted+ABS(REAL(SignTemp(1)))
+                    NoAborted = NoAborted + sum(abs(SignTemp))
+                    iter_data%naborted = iter_data%naborted + abs(SignTemp)
 !                    WRITE(6,'(I20,A,3I20)') SpawnedSign(i),'walkers aborted from determinant:',SpawnedParts(:,i)
                     call encode_sign(SpawnedParts(:,i),null_part)
                     ToRemove=ToRemove+1

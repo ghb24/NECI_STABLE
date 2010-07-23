@@ -5,7 +5,7 @@ module spin_project
     use SymExcitDataMod, only: scratchsize
     use bit_reps, only: NIfD, NIfTot, extract_sign
     use csf, only: csf_get_yamas, get_num_csfs, csf_coeff, random_spin_permute
-    use constants, only: dp, bits_n_int, lenof_sign, n_int, end_n_int
+    use constants, only: dp, bits_n_int, lenof_sign, n_int, end_n_int, int32
     use FciMCData, only: TotWalkers, CurrentDets, fcimc_iter_data, yama_global
     use DeterminantData, only: write_det
     use dSFMT_interface, only: genrand_real2_dSFMT
@@ -88,7 +88,7 @@ contains
                 enddo
 
                 pos = binary_search (CurrentDets, iLutTmp, nIfTot+1, &
-                                     TotWalkers, nIfD+1)
+                                     int(TotWalkers,int32), nIfD+1)
 
                 call extract_sign (CurrentDets(:,pos), sgnJ)
 
@@ -127,6 +127,7 @@ contains
         real(dp) :: elem, elem_i, elem_j, tot_wgt, elem_sum, tot_sum
         real(dp) :: tot_wgt_2, tot_sum_2
         character(20) :: fmt_str, fmt_num
+        character(*), parameter :: this_routine = 'csf_spin_project_one_yama'
 
         ! Get the dorder for nI
         nopen = 0

@@ -21,6 +21,8 @@ Subroutine NECICore(iCacheFlag,tCPMD,tVASP)
     use global_utilities
 
     use spin_project
+    use FciMCData, only: yama_global
+    use DeterminantData, only: fdet
 
     Implicit none
     integer,intent(in) :: iCacheFlag
@@ -57,34 +59,53 @@ Subroutine NECICore(iCacheFlag,tCPMD,tVASP)
 
 ! ******** DEBUG TEST **************
 
-    nI(1) = 1
-    nI(2) = 2
-    nI(3) = 3
-    nI(4) = 5
-    nI(5) = 6
-    nI(6) = 8
-    nI(7) = 9
-    nI(8) = 10
-    nI(9) = 11
-    nI(10) = 12
-    !nI(1) = 1
-    !nI(2) = 2
-    !nI(3) = 3
-    !nI(4) = 6
-    !nI(5) = 7
-    !nI(6) = 8
-    !nI(7) = 9
-    !nI(8) = 11
-    !nI(9) = 12
-    !nI(10) = 14
-    yama(1) = 1
-    yama(2) = 2
-    yama(3) = 1
-    yama(4) = 2
+!    !nI(1) = 1
+!    !nI(2) = 2
+!    !nI(3) = 3
+!    !nI(4) = 5
+!    !nI(5) = 6
+!    !nI(6) = 8
+!    !nI(7) = 9
+!    !nI(8) = 10
+!    !nI(9) = 11
+!    !nI(10) = 12
+!
+!    fdet(1) = 1
+!    fdet(2) = 2
+!    fdet(3) = 3
+!    fdet(4) = 6
+!    fdet(5) = 7
+!    fdet(6) = 8
+!    fdet(7) = 9
+!    fdet(8) = 11
+!    fdet(9) = 12
+!    fdet(10) = 14
+!
+!    !nI(1) = 1
+!    !nI(2) = 2
+!    !nI(3) = 3
+!    !nI(4) = 6
+!    !nI(5) = 7
+!    !nI(6) = 8
+!    !nI(7) = 9
+!    !nI(8) = 11
+!    !nI(9) = 14
+!    !nI(10) = 16
+!
+!    yama_global(1) = 1
+!    yama_global(2) = 2
+!    yama_global(3) = 1
+!    yama_global(4) = 2
+!    !yama(1) = 1
+!    !yama(2) = 1
+!    !yama(3) = 1
+!    !yama(4) = 2
+!    !yama(5) = 2
+!    !yama(6) = 2
+!
+!    call csf_spin_project_one_yama (fdet, yama_global)
 
-    call csf_spin_project_one_yama (nI, yama)
-
-    call stop_all ("END OF", "TEST")
+    !call stop_all ("END OF", "TEST")
 
 
 !   Actually do the calculations we're meant to.  :-)

@@ -25,7 +25,9 @@ MODULE FciMCParMod
                         NShiftEquilSteps, tWalkContGrow, tMCExcits, &
                         tAddToInitiator, InitiatorWalkNo, tInitIncDoubs, &
                         tRetestAddtoInit, tReadPopsChangeRef, &
-                        tReadPopsRestart, tCheckHighestPopOnce
+                        tReadPopsRestart, tCheckHighestPopOnce, &
+                        iRestartWalkNum, tRestartHighPop, FracLargerDet, &
+                        tChangeProjEDet, tCheckHighestPop
     use HPHFRandExcitMod, only: FindExcitBitDetSym, GenRandHPHFExcit, &
                                 gen_hphf_excit
     use Determinants, only: FDet, get_helement, write_det, &
@@ -55,7 +57,9 @@ MODULE FciMCParMod
     use soft_exit, only: ChangeVars 
     use FciMCLoggingMod, only: FinaliseBlocking, FinaliseShiftBlocking, &
                                PrintShiftBlocking, PrintBlocking, &
-                               SumInErrorContrib, WriteInitPops
+                               SumInErrorContrib, WriteInitPops, &
+                               InitErrorBlocking, InitShiftErrorBlocking, &
+                               SumInShiftErrorContrib
     use RotateOrbsMod, only: RotateOrbs
     use NatOrbsMod, only: PrintOrbOccs
     use bit_reps, only: decode_bit_det, encode_bit_rep, encode_det, &
@@ -81,6 +85,7 @@ MODULE FciMCParMod
         REAL(4) :: s,etime,tstart(2),tend(2)
         INTEGER :: MaxWalkers,MinWalkers
         real*8 :: AllTotWalkers,MeanWalkers,Inpair(2),Outpair(2)
+        integer, dimension(lenof_sign) :: tmp_sgn
 
         TDebug=.false.  !Set debugging flag
 
@@ -129,9 +134,9 @@ MODULE FciMCParMod
                                            ptr_new_child_stats, &
                                            ptr_attempt_die, &
                                            ptr_iter_data)
+!                    print*, 'FCIQMC', iter, iter_data_fciqmc%nborn, &
+!                                            iter_data_fciqmc%ndied
                 endif
-                print*, 'FCIQMC', iter, iter_data_fciqmc%nborn, &
-                                        iter_data_fciqmc%ndied
             endif
 
             ! Are we projecting the spin out between iterations?
@@ -144,8 +149,14 @@ MODULE FciMCParMod
                                        new_child_stats_normal, &
                                        attempt_die_spin_proj, &
                                        iter_data_spin_proj)
-                print*, 'SPIN', iter, iter_data_spin_proj%nborn, &
-                                      iter_data_spin_proj%ndied
+!                print*, 'SPIN', iter, iter_data_spin_proj%nborn, &
+!                                      iter_data_spin_proj%ndied
+!                print*, 'TOTWALKRS', totwalkers
+!                do i = 1, TotWalkers
+!                    call extract_sign (CurrentDets(:,i), tmp_sgn)
+!                    print*, 'det: ', i, tmp_sgn, &
+!                            real(tmp_sgn(1)) / real(totparts(1))
+!                enddo
             endif
 
             s=etime(tend)
@@ -161,10 +172,16 @@ MODULE FciMCParMod
                 HFIter=0
             ENDIF
 
-            IF(mod(Iter,StepsSft).eq.0) THEN
-                ! This will communicate between all nodes, find the new shift
-                ! (and other parameters) and broadcast them to the other nodes.
-                call CalcNewShift()
+            if (mod(Iter, StepsSft) == 0) then
+
+                ! Calculate the a new value for the shift (amongst other
+                ! things). Generally, collate information from all processors,
+                ! update statistics and output them to the user.
+                if (tCCMC) then
+                    call calculate_new_shift_wrapper (iter_data_ccmc)
+                else
+                    call calculate_new_shift_wrapper (iter_data_fciqmc)
+                endif
 
                 IF((tTruncCAS.or.tTruncSpace.or.tTruncInitiator).and.(Iter.gt.iFullSpaceIter).and.(iFullSpaceIter.ne.0)) THEN
 !Test if we want to expand to the full space if an EXPANDSPACE variable has been set
@@ -634,6 +651,8 @@ MODULE FciMCParMod
         !      be function-pointerised!
         iter_data%nborn = 0
         iter_data%ndied = 0
+        iter_data%nannihil = 0
+        iter_data%naborted = 0
 
         ! The processor with the HF determinant on it will have to check 
         ! through each determinant until it's found. Once found, tHFFound is
@@ -646,7 +665,7 @@ MODULE FciMCParMod
         ! different by exFlag for CSFs than in normal determinential code.
         ! It would be nice to fix this properly
         if (tCSF) exFlag = 7
-        
+
         do j=1,TotWalkers
             ! N.B. j indicates the number of determinants, not the number
             !      of walkers.
@@ -655,6 +674,8 @@ MODULE FciMCParMod
             ! write(6,*) j, CurrentDets(:,j)
             call extract_bit_rep (CurrentDets(:,j), DetCurr, SignCurr, &
                                   FlagsCurr)
+            !write (6, '(a, i8)', advance='no') 'j: ', j
+            !call write_det (6, DetCurr, .true.)
 
             !write(6, '(3i4)', advance='no') Iter, j, signcurr
             !call writebitdet(6, currentdets(:,j), .true.)
@@ -767,11 +788,6 @@ MODULE FciMCParMod
 
         IF(tPrintHighPop) CALL FindHighPopDet()
 
-        ! Update iteration data
-        iter_data%update_growth = iter_data%update_growth + iter_data%nborn &
-                                - iter_data%ndied - iter_data%nannihil
-        iter_data%update_iters = iter_data%update_iters + 1
-
         ! SumWalkersCyc calculates the total number of walkers over an update
         ! cycle on each process.
         SumWalkersCyc = SumWalkersCyc + int(sum(TotParts), int64)
@@ -788,9 +804,17 @@ MODULE FciMCParMod
         ! walkers should be in a seperate array (SpawnedParts) and the other 
         ! list should be ordered.
         call set_timer (annihil_time, 30)
+!>>>!        print*, iprocindex, 'pre-annihilate', iter_data%nannihil, iter_data%naborted
         call DirectAnnihilation (totWalkersNew, iter_data)
         CALL halt_timer(Annihil_Time)
         
+        ! Update iteration data
+        iter_data%update_growth = iter_data%update_growth + iter_data%nborn &
+                                - iter_data%ndied - iter_data%nannihil &
+                                - iter_data%naborted
+        iter_data%update_iters = iter_data%update_iters + 1
+
+
     end subroutine
 
     subroutine new_child_stats_normal (iter_data, iLutI, iLutJ, ic, &
@@ -803,7 +827,7 @@ MODULE FciMCParMod
        
         ! Count the number of children born
         NoBorn = NoBorn + sum(abs(child))
-        iter_data%nborn = iter_data%nborn + sum(abs(child))
+        iter_data%nborn = iter_data%nborn + abs(child)
 
         if (ic == 1) SpawnFromSing = SpawnFromSing + sum(abs(child))
 
@@ -1241,8 +1265,7 @@ MODULE FciMCParMod
 !First, make sure we have up-to-date information - again collect AllTotWalkers,AllSumNoatHF and AllSumENum...
 !        CALL MPI_Reduce(TotWalkers,AllTotWalkers,1,MPI_INTEGER,MPI_Sum,root,MPI_COMM_WORLD,error)    
 !Calculate the energy by summing all on HF and doubles - convert number at HF to a real since no int*8 MPI data type
-        TempSumNoatHF=real(SumNoatHF,dp)
-        CALL MPISumRoot(TempSumNoatHF,1,AllSumNoatHF,Root)
+        CALL MPISumRoot(SumNoatHF,1,AllSumNoatHF,Root)
         CALL MPISumRoot(SumENum,1,AllSumENum,Root)
 
 !We also need to tell the root processor how many particles to expect from each node - these are gathered into WalkersonNodes
@@ -1308,7 +1331,7 @@ MODULE FciMCParMod
 #endif
             WRITE(iunit,*) AllTotWalkers,"   TOTWALKERS (all nodes)"
             WRITE(iunit,*) DiagSft,"   DIAG SHIFT"
-            WRITE(iunit,*) NINT(AllSumNoatHF,int64),"   SUMNOATHF (all nodes)"
+            WRITE(iunit,*) AllSumNoatHF,"   SUMNOATHF (all nodes)"
             WRITE(iunit,*) AllSumENum,"   SUMENUM ( \sum<D0|H|Psi> - all nodes)"
             WRITE(iunit,*) Iter+PreviousCycles,"   PREVIOUS CYCLES"
             IF(tBinPops) THEN
@@ -1342,7 +1365,7 @@ MODULE FciMCParMod
 
 !Now, we copy the head nodes data to a new array...
             ALLOCATE(OrigParts(0:NIfTot,TotWalkers),stat=error)
-            CALL LogMemAlloc('OrigParts',TotWalkers*(NIfTot+1),size_n_int,this_routine,OrigPartsTag,error)
+            CALL LogMemAlloc('OrigParts',int(TotWalkers,int32)*(NIfTot+1),size_n_int,this_routine,OrigPartsTag,error)
             do i=1,TotWalkers
                 OrigParts(:,i)=CurrentDets(:,i)
             enddo
@@ -1397,7 +1420,7 @@ MODULE FciMCParMod
         ENDIF
 
 !Reset the values of the global variables
-        AllSumNoatHF=0.D0
+        AllSumNoatHF = 0
         AllSumENum=0.D0
         AllTotWalkers=0.D0
 
@@ -1415,7 +1438,7 @@ MODULE FciMCParMod
         use constants, only: size_n_int,bits_n_int
         LOGICAL :: exists,tBinRead
         INTEGER :: AvWalkers,WalkerstoReceive(nProcessors)
-        INTEGER*8 :: NodeSumNoatHF(nProcessors),TempAllSumNoatHF
+        INTEGER*8 :: NodeSumNoatHF(nProcessors)
         REAL*8 :: TempTotParts(lenof_sign),TempCurrWalkers
         INTEGER :: TempInitWalkers,error,i,j,k,l,total,ierr,MemoryAlloc,Tag,Proc,CurrWalkers,ii
         INTEGER , DIMENSION(lenof_sign) :: TempSign
@@ -1495,13 +1518,13 @@ MODULE FciMCParMod
         ENDIF
         READ(iunit,*) AllTotWalkers
         READ(iunit,*) DiagSftTemp
-        READ(iunit,*) TempAllSumNoatHF     !AllSumNoatHF stored as integer for compatability with serial POPSFILEs
+        READ(iunit,*) AllSumNoatHF
         READ(iunit,*) AllSumENum
         READ(iunit,*) PreviousCycles
 
         IF(iProcIndex.eq.Root) THEN
             IF(iWeightPopRead.ne.0) THEN
-                WRITE(6,"(A,I15,A,I4,A)") "Although ",NINT(AllTotWalkers,int64)," configurations will be read in, only determinants with a weight of over ",iWeightPopRead," will be stored."
+                WRITE(6,"(A,I15,A,I4,A)") "Although ",AllTotWalkers," configurations will be read in, only determinants with a weight of over ",iWeightPopRead," will be stored."
             ENDIF
         ENDIF
 
@@ -1526,7 +1549,6 @@ MODULE FciMCParMod
 
         IF(iProcIndex.eq.Root) THEN
 
-            AllSumNoatHF=REAL(TempAllSumNoatHF,dp)
             WRITE(6,*) "Number of cycles in previous simulation: ",PreviousCycles
             IF(NEquilSteps.gt.0) THEN
                 WRITE(6,*) "Removing equilibration steps since reading in from POPSFILE."
@@ -1536,7 +1558,7 @@ MODULE FciMCParMod
 !Reset energy estimator
                 WRITE(6,*) "Resetting projected energy counters to zero..."
                 AllSumENum=0.D0
-                AllSumNoatHF=0.D0
+                AllSumNoatHF = 0
             ENDIF
 
 !Need to calculate the number of walkers each node will receive...
@@ -1547,16 +1569,16 @@ MODULE FciMCParMod
                 WalkerstoReceive(i)=AvWalkers
             enddo
 !The last processor takes the 'remainder'
-            WalkerstoReceive(nProcessors)=NINT(AllTotWalkers)-(AvWalkers*(nProcessors-1))
+            WalkerstoReceive(nProcessors)=AllTotWalkers-(AvWalkers*(nProcessors-1))
 
 !Quick check to ensure we have all walkers accounted for
             total=0
             do i=1,nProcessors
                 total=total+WalkerstoReceive(i)
             enddo
-            IF(total.ne.NINT(AllTotWalkers)) THEN
+            if (total /= AllTotWalkers) then
                 CALL Stop_All("ReadFromPopsfilePar","All Walkers not accounted for when reading in from POPSFILE")
-            ENDIF
+            endif
             
 !InitWalkers needs to be reset for the culling criteria
             IF(.not.tWalkContGrow) THEN
@@ -1566,17 +1588,17 @@ MODULE FciMCParMod
                 TSinglePartPhase=.true.
             ENDIF
             SumENum=AllSumENum/REAL(nProcessors,dp)     !Divide up the SumENum over all processors
-            AvSumNoatHF=NINT(AllSumNoatHF/real(nProcessors,dp)) !This is the average Sumnoathf
+            AvSumNoatHF = AllSumNoatHF/nProcessors !This is the average Sumnoathf
             do i=1,nProcessors-1
                 NodeSumNoatHF(i)=INT(AvSumNoatHF,int64)
             enddo
-            NodeSumNoatHF(nProcessors)=NINT(AllSumNoatHF,int64)-INT((AvSumNoatHF*(nProcessors-1)),int64)
+            NodeSumNoatHF(nProcessors)=AllSumNoatHF-INT((AvSumNoatHF*(nProcessors-1)),int64)
 
-            ProjectionE=AllSumENum/AllSumNoatHF
+            ProjectionE=AllSumENum/real(AllSumNoatHF,dp)
                 
 !Reset the global variables
             AllSumENum=0.D0
-            AllSumNoatHF=0.D0
+            AllSumNoatHF = 0
 
         ENDIF
 
@@ -2121,7 +2143,6 @@ MODULE FciMCParMod
             !We are dealing with real particles always here.
 
             rat = tau * abs(rh / prob)
-            !print*, 'RAT spawn', rat
 
             ! If probability > 1, then we just create multiple children at the
             ! chosen determinant.
@@ -2377,14 +2398,15 @@ MODULE FciMCParMod
 !        IF(iDie.ne.0) WRITE(6,*) "Death: ",iDie
 
         ! Update death counter
-        do i=1,lenof_sign
-            NoDied = NoDied + iDie(i)
-            iter_data%ndied = iter_data%ndied + iDie(i)
+        iter_data%ndied = iter_data%ndied + min(iDie, abs(wSign))
+        NoDied = NoDied + sum(min(iDie, abs(wSign)))
 
-            ! Calculate new number of signed particles on the det.
-            CopySign(i) = wSign(i) - (iDie(i) * sign(1, wSign(i)))
+        ! Count any antiparticles
+        iter_data%nborn = iter_data%nborn + max(iDie - abs(wSign), 0)
+        NoBorn = NoBorn + sum(max(iDie - abs(wSign), 0))
 
-        enddo
+        ! Calculate new number of signed particles on the det.
+        CopySign = wSign - (iDie * sign(1, wSign))
 
         ! Normally slot particles back into main array at position vecslot.
         ! This will normally increment with j, except when a particle dies
@@ -2396,6 +2418,7 @@ MODULE FciMCParMod
                 !Abort creation of antiparticles if using initiator
 !                    WRITE(6,*) "Creating Antiparticles"
                 NoAborted=NoAborted+abs(CopySign(1)) 
+                iter_data%naborted(1) = iter_data%naborted(1) + abs(CopySign(1))
                 if(extract_flags(iLutCurr).ne.1) then
                     NoAddedInitiators=NoAddedInitiators-1.D0
                 endif
@@ -3080,556 +3103,524 @@ MODULE FciMCParMod
 #endif
 ! //def PARALLEL
 
-! AJWT
-! Bringing you a better FciMCPar.  A vision for the future...
-!
-!  This section contains parts of FciMCPar which are not dependent on MPI commands and included in both serial and PARALLEL compiles
-!  It's not yet complete, but at least compiles and runs
+    ! TODO: COMMENTING
 
-    
-!Every StepsSft steps, update the diagonal shift value (the running value for the correlation energy)
-!We don't want to do this too often, since we want the population levels to acclimatise between changing the shifts
-    SUBROUTINE CalcNewShift()
-        USE SystemData , only: tNoBrillouin
-        USE FciMCLoggingMOD , only : PrintSpawnAttemptStats,InitErrorBlocking,SumInErrorContrib
-        USE FciMCLoggingMOD , only : InitShiftErrorBlocking,SumInShiftErrorContrib
-        USE CalcData , only : tCheckHighestPop,tChangeProjEDet,tRestartHighPop,FracLargerDet,iRestartWalkNum
-        USE constants, only : MpiDetInt
-        INTEGER :: error,rc,MaxAllowedWalkers,MaxWalkersProc,MinWalkersProc
-        INTEGER :: inpair(6),outpair(6),HighPopin(2),HighPopout(2),DetCurr(NEl),i
-        REAL*8 :: TempTotWalkers,TempTotParts(lenof_sign),AllGrowRateRe,AllGrowRateIm
-        REAL*8 :: TempSumNoatHF,MeanWalkers,TempSumWalkersCyc,TempAllSumWalkersCyc
-        REAL*8 :: inpairreal(3),outpairreal(3),inpairInit(9),outpairInit(9)
-        LOGICAL :: tReZeroShift
-        HElement_t :: TempHii,HDiagTemp
 
-        TotImagTime=TotImagTime+StepsSft*Tau
+    subroutine iter_diagnostics ()
 
-!Find the total number of particles at HF (x sign) across all nodes. If this is negative, flip the sign of all particles.
-        AllNoatHF=0
-        tReZeroShift=.false.
+        character(*), parameter :: this_routine = 'iter_diagnostics'
+        integer(int64) :: walkers_diff
+        real(dp) :: mean_walkers
 
-!Find sum of noathf, and then use an AllReduce to broadcast it to all nodes
-        CALL MPISum(NoatHF,1,AllNoatHF)
-        IF(AllNoatHF.lt.0) THEN
-!Flip the sign if we're beginning to get a negative population on the HF
-            WRITE(6,*) "No. at HF < 0 - flipping sign of entire ensemble of particles..."
-            WRITE(6,*) AllNoatHF
-            CALL FlipSign()
-            AllNoatHF=-AllNoatHF
-            NoatHF=-NoatHF
-        ENDIF
+        ! Update the total imaginary time passed
+        TotImagTime = TotImagTime + StepsSft * Tau
+
+        ! Set Iter time to equal the average time per iteration in the
+        ! previous update cycle.
+        IterTime = IterTime / real(StepsSft)
+
+        ! Calculate the acceptance ratio
+        AccRat = real(Acceptances, dp) / SumWalkersCyc
+
+        if (iProcIndex == Root) then
+
+            ! Flip sign of entire ensemble if negative pop on HF
+            IF(AllNoatHF.lt.0) THEN
+                write(6,*) "No. at HF < 0 - flipping sign of entire ensemble &
+                           &of particles..."
+                write(6,*) AllNoatHF
+
+                call FlipSign ()
+                AllNoatHF = -AllNoatHF
+                NoatHF = -NoatHF
+            endif
+
+            ! Have all of the particles died?
+            if (AllTotwalkers == 0) then
+                write(6,*) AllTotWalkers, TotWalkers
+                call stop_all (this_routine, 'All particles have died. &
+                              &Consider choosing new seed, or raising shift &
+                              &value.')
+            endif
+
+            ! Check how balanced the load on each processor is (even though
+            ! we cannot load balance with direct annihilation).
+            walkers_diff = MaxWalkersProc - MinWalkersProc
+            mean_walkers = AllTotWalkers / real(nProcessors,dp)
+            if (walkers_diff > nint(mean_walkers / 10.d0) .and. &
+                sum(AllTotParts) > real(nProcessors * 500, dp)) then
+                root_write (6, '(a, f20.10, 2i12)') &
+                    'Number of determinants assigned to each processor &
+                    &unbalanced: ', (walkers_diff * 10.d0) / &
+                    real(mean_walkers), MinWalkersProc, MaxWalkersProc
+            endif
+
+
+            ! Deal with blocking analysis
+            !
+            ! If we are waiting to start error blocking, check if we should 
+            ! enable it. The conditional causes this test to be skipped once
+            ! blocking has been enabled.            
+            if (tIterStartBlock) then
+                ! If IterStartBlocking is positive, then start blocking when
+                ! we are at that iteration. Otherwise, wait until out of
+                ! fixed shift.
+                if ( (IterStartBlocking > 0 .and. iter > IterStartBlocking) &
+                     .or. (IterStartBlocking <= 0 .and. &
+                           .not. tSinglePartPhase)) then
+                    call InitErrorBlocking (iter)
+                    tIterStartBlock = .false.
+                    tErrorBlocking = .true.
+                endif
+            elseif (tHFPopStartBlock) then
+                if (AllHFCyc / StepsSft >= HFPopStartBlocking) then
+                    call InitErrorBlocking (iter)
+                    tHFPopStartBlock = .false.
+                    tErrorBlocking = .true.
+                endif
+            endif
+
+            ! If we are waiting to start shift blocking, check if we should
+            ! enable it. The test is skipped once blocknig is enabled.
+            if ((.not. tSinglePartPhase) .and. tInitShiftBlocking .and. &
+                (iter == VaryShiftIter + IterShiftBlock)) then
+                call InitShiftErrorBlocking (iter)
+                tInitShiftBlocking = .false.
+                tShiftBlocking = .true.
+            endif
+
+            ! Perform the blocking at the end of each update
+            if (tErrorBlocking .and. .not. tBlockEveryIteration) &
+                call SumInErrorContrib (iter, AllENumCyc, AllHFCyc)
+            if (tShiftBlocking .and. iter >= VaryShiftIter + IterShiftBlock) &
+                call SumInShiftErrorContrib (iter, DiagSft)
+        endif
+
+    end subroutine
+
+    subroutine population_check ()
         
+        integer :: int_tmp(2), pop_highest, proc_highest, pop_change
+        integer :: det(nel), i
+        HElement_t :: h_tmp
+        character(*), parameter :: this_routine = 'population_check'
 
-!This first call will calculate the GrowRate for each processor, taking culling into account
-!        WRITE(6,*) "Get Here"
-!        CALL FLUSH(6)
-        CALL UpdateDiagSftPar()
+        if (tCheckHighestPop) then
 
-!Put a barrier here so all processes synchronise
-        CALL MPIBarrier(error)
+            ! Obtain the determinant (and its processor) with the highest
+            ! population.
+            call MPIAllReduceDatatype ((/iHighestPop, iProcIndex/), 1, &
+                                       MPI_MAXLOC, MPI_2INTEGER, int_tmp)
+            pop_highest = int_tmp(1)
+            proc_highest = int_tmp(2)
 
-!We need to collate the information from the different processors
-!Inpair and outpair are used to package variables to save on latency time
-!        inpair(1)=TotWalkers
-        inpair(1)=Annihilated
-        inpair(2)=NoatDoubs
-        inpair(3)=NoBorn
-        inpair(4)=NoDied
-        inpair(5)=HFCyc         !SumWalkersCyc is now an integer*8
-        inpair(6)=SpawnFromSing
-        outpair(:)=0
-!        CALL MPI_Reduce(TotWalkers,AllTotWalkers,1,MPI_INTEGER,MPI_SUM,Root,MPI_COMM_WORLD,error)
-!Find total Annihilated,Total at HF and Total at doubles
-!        CALL MPI_Reduce(Annihilated,AllAnnihilated,1,MPI_INTEGER,MPI_SUM,Root,MPI_COMM_WORLD,error)
-!!        CALL MPI_Reduce(NoatHF,AllNoatHF,1,MPI_INTEGER,MPI_SUM,Root,MPI_COMM_WORLD,error)  !This is done every iteration now
-!        CALL MPI_Reduce(NoatDoubs,AllNoatDoubs,1,MPI_INTEGER,MPI_SUM,Root,MPI_COMM_WORLD,error)
-!        CALL MPI_Reduce(NoBorn,AllNoBorn,1,MPI_INTEGER,MPI_SUM,Root,MPI_COMM_WORLD,error)
-!        CALL MPI_Reduce(NoDied,AllNoDied,1,MPI_INTEGER,MPI_SUM,Root,MPI_COMM_WORLD,error)
-!        CALL MPI_Reduce(SumWalkersCyc,AllSumWalkersCyc,1,MPI_INTEGER,MPI_SUM,Root,MPI_COMM_WORLD,error)
-!        WRITE(6,*) "Get Here 1"
-!        CALL FLUSH(6)
-!!        CALL MPI_Reduce(inpair,outpair,6,MPI_INTEGER,MPI_SUM,Root,MPI_COMM_WORLD,error)
-        CALL MPIReduce(inpair,6,MPI_SUM,outpair)
-!        WRITE(6,*) "Get Here 2"
-!        CALL FLUSH(6)
-!        AllTotWalkers=outpair(1)
-        AllAnnihilated=outpair(1)
-        AllNoatDoubs=outpair(2)
-        AllNoBorn=outpair(3)
-        AllNoDied=outpair(4)
-        AllHFCyc=REAL(outpair(5),dp)
-        AllSpawnFromSing=outpair(6)
+            ! How many walkers do we need to switch dets?
+            pop_change = int(FracLargerDet * real(AllNoAtHF, dp))
+            if (pop_change < pop_highest .and. sum(AllTotParts) > 10000) then
 
-        TempTotWalkers=REAL(TotWalkers,dp)
-        TempTotParts=REAL(TotParts,dp)
+                ! Write out info!
+                if (tHPHF) then
+                    root_print 'Highest weighted CLOSED-SHELL determinant not&
+                               & reference det: ', pop_highest, AllNoAtHF
+                else
+                    root_print 'Highest weighted determinant not reference &
+                               &det: ', pop_highest, AllNoAtHF
+                endif
 
-        IF(tTruncInitiator) THEN
-            inpairInit(1)=NoAborted
-            inpairInit(2)=NoAddedInitiators
-            inpairInit(3)=NoInitDets
-            inpairInit(4)=NoNonInitDets
-            inpairInit(5)=NoInitWalk
-            inpairInit(6)=NoNonInitWalk
-            inpairInit(7)=NoDoubSpawns
-            inpairInit(8)=NoExtraInitDoubs
-            inpairInit(9)=InitRemoved
- 
-!!            CALL MPI_Reduce(inpairInit,outpairInit,8,MPI_INTEGER,MPI_SUM,Root,MPI_COMM_WORLD,error)
-            Call MPISum(inpairInit,9,outpairInit)
-!            CALL MPI_Reduce(inpairinit,outpairinit,8,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
-
-            AllNoAborted=outpairInit(1)
-            AllNoAddedInitiators=outpairInit(2)
-            AllNoInitDets=outpairInit(3)
-            AllNoNonInitDets=outpairInit(4)
-            AllNoInitWalk=outpairInit(5)
-            AllNoNonInitWalk=outpairInit(6)
-            AllNoDoubSpawns=outpairInit(7)
-            AllNoExtraInitDoubs=outpairInit(8)
-            AllInitRemoved=outpairInit(9)
-        ENDIF
-
-!!        CALL MPI_Reduce(TempTotWalkers,AllTotWalkers,1,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
-        CALL MPIReduce(TempTotWalkers,1,MPI_SUM,AllTotWalkers)
-!!        CALL MPI_AllReduce(TempTotParts,AllTotParts,lenof_sign,MPI_DOUBLE_PRECISION,MPI_SUM,MPI_COMM_WORLD,error)
-        CALL MPIAllReduce(TempTotParts,lenof_sign,MPI_SUM,AllTotParts)
-
-        IF(iProcIndex.eq.0) THEN
-            IF(AllTotWalkers.le.0.2) THEN
-                WRITE(6,*) AllTotWalkers,TotWalkers
-                CALL Stop_All("CalcNewShift","All particles have died. Consider choosing new seed, or raising shift value.")
-            ENDIF
-        ENDIF
-
-!SumWalkersCyc is now an int*8, therefore is needs to be reduced as a real*8
-        TempSumWalkersCyc=REAL(SumWalkersCyc,dp)
-        TempAllSumWalkersCyc=0.D0
-!!        CALL MPI_Reduce(TempSumWalkersCyc,TempAllSumWalkersCyc,1,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
-        CALL MPIReduce(TempSumWalkersCyc,1,MPI_SUM,TempAllSumWalkersCyc)
-
-!        WRITE(6,*) "Get Here 3"
-!        CALL FLUSH(6)
-        
-
-
-        IF(TSinglePartPhase) THEN
-!Exit the single particle phase if the number of walkers exceeds the value in the input file.
-!            CALL MPI_Barrier(MPI_COMM_WORLD,error)
-            IF((SUM(AllTotParts).gt.(INT(InitWalkers,int64)*INT(nProcessors,int64))).or.(AllNoatHF.gt.MaxNoatHF)) THEN
-                WRITE(6,*) "Exiting the single particle growth phase - shift can now change"
-                VaryShiftIter=Iter
-                TSinglePartPhase=.false.
-            ENDIF
-!!Broadcast the fact that TSinglePartPhase may have changed to all processors - unfortunatly, have to do this broadcast every iteration.
-!            CALL MPILBcast(TSinglePartPhase,1,root)
-        ELSE
-!Exit the single particle phase if the number of walkers exceeds the value in the input file.
-!            CALL MPI_Barrier(MPI_COMM_WORLD,error)
-!            IF(iProcIndex.eq.root) THEN     !Only exit phase if particle number is sufficient on head node.
-                IF(AllNoatHF.lt.(MaxNoatHF-HFPopThresh)) THEN
-                    WRITE(6,'(A)') "No at HF has fallen too low - reentering the single particle growth phase - particle number may grow again."
-!                    VaryShiftIter=Iter
-                    TSinglePartPhase=.true.
-                    tReZeroShift=.true.
-                ENDIF
-!            ENDIF
-!!Broadcast the fact that TSinglePartPhase may have changed to all processors - unfortunatly, have to do this broadcast every iteration.
-!            CALL MPILBcast(TSinglePartPhase,1,root)
-        ENDIF
-
-
-!Cannot load-balance with direct annihilation, but still want max & min
-!!        CALL MPI_Reduce(TotWalkers,MaxWalkersProc,1,MPI_INTEGER,MPI_MAX,root,MPI_COMM_WORLD,error)
-        CALL MPIReduce(TotWalkers,1,MPI_MAX,MaxWalkersProc)
-!!        CALL MPI_Reduce(TotWalkers,MinWalkersProc,1,MPI_INTEGER,MPI_MIN,root,MPI_COMM_WORLD,error)
-        CALL MPIReduce(TotWalkers,1,MPI_MIN,MinWalkersProc)
-        IF(iProcIndex.eq.Root) THEN
-            WalkersDiffProc=MaxWalkersProc-MinWalkersProc
-
-            MeanWalkers=AllTotWalkers/REAL(nProcessors,dp)
-            IF((WalkersDiffProc.gt.NINT(MeanWalkers/10.D0).and.(SUM(AllTotParts).gt.(REAL(nProcessors*500,dp))))) THEN
-                WRITE(6,"(A62,F20.10,2i12)") "Number of determinants assigned to each processor unbalanced. ", (WalkersDiffProc*10.D0)/REAL(MeanWalkers),MinWalkersProc,MaxWalkersProc
-            ENDIF
-        ENDIF
-        IF(tCheckHighestPop) THEN
-            HighPopin(1)=iHighestPop
-            HighPopin(2)=iProcIndex
-!!            CALL MPI_AllReduce(HighPopin,HighPopout,1,MPI_2INTEGER,MPI_MAXLOC,MPI_COMM_WORLD,error)
-            CALL MPIAllReduceDatatype(HighPopin,1,MPI_MAXLOC,MPI_2INTEGER,HighPopout)
-                    
-!Now, the root processor contains information about the highest populated determinant, and the processor which is it held on.
-            IF(((INT(FracLargerDet*REAL(AllNoatHF,dp))).lt.HighPopout(1)).and.(SUM(AllTotParts).gt.10000)) THEN
-                IF(iProcIndex.eq.Root) THEN
-                    IF(tHPHF) THEN
-                        WRITE(6,"(A,2I10)") "Highest weighted CLOSED-SHELL determinant not reference det: ",HighPopout(1),AllNoatHF
-                    ELSE
-                        WRITE(6,"(A,2I10)") "Highest weighted determinant not reference det: ",HighPopout(1),AllNoatHF
-                    ENDIF
-                ENDIF
-!                WRITE(6,"(A,4I12)") "Highest weighted determinant not reference det: ",iter,HighPopout(2),HighPopout(1),AllNoatHF
-!                CALL WriteBitDet(6,HighestPopDet,.true.)
-!                WRITE(6,*) iHighestPop
-                IF(tChangeProjEDet) THEN
-!Meed to communicate to all processors that iLutRef has changed.
-
-                    ! TODO: Can we do this without using a decode_bit_det
-                    !       call?
-!!                    CALL MPI_BCast(HighestPopDet(0:NIfTot),NIfTot+1,MpiDetInt,HighPopout(2),MPI_COMM_WORLD,error)
-                    CALL MPIBCast(HighestPopDet(0:NIfTot),NIfTot+1,HighPopout(2))
-                    iLutRef(:)=HighestPopDet(:)
+                ! Are we changing the reference determinant?
+                if (tChangeProjEDet) then
+                    ! Communicate the change to all dets and print out.
+                    call MPIBcast (HighestPopDet(0:NIfTot), proc_highest)
+                    iLutRef = HighestPopDet
                     call decode_bit_det (ProjEDet, iLutRef)
-                    WRITE(6,"(A)",advance='no') "Changing projected energy reference determinant to:"
-                    CALL Write_det(6,ProjEDet,.true.)
-                    tNoBrillouin=.true.
-                    WRITE(6,*) "Ensuring that Brillouin's theorem no longer used..."
-                    IF(tHPHF) THEN
-                        TempHii = hphf_diag_helement (ProjEDet, iLutRef)
-                    ELSE
-                        TempHii = get_helement (ProjEDet, ProjEDet, 0)
-                    ENDIF
-                    Hii=REAL(TempHii,dp)
-                    WRITE(6,"(A,G25.15)") "Reference energy now set to: ",Hii
+                    write (6, '(a)', advance='no') 'Changing projected &
+                                  &energy reference & &determinant to: '
+                    call write_det (6, ProjEDet, .true.)
 
+                    ! We can't use Brillouin's theorem if not a converged,
+                    ! closed shell, ground state HF det.
+                    tNoBrillouin = .true.
+                    root_print "Ensuring that Brillouin's theorem is no &
+                               &longer used."
 
-                    SumENum=0.D0
-                    SumNoatHF=0
-                    HFPopCyc=0
-                    ProjEIterSum=0.D0
-                    VaryShiftCycles=0
-                    SumDiagSft=0.D0
-                    IF(iProcIndex.eq.0) THEN
-                        WRITE(6,*) "Zeroing all average energy estimators..."
-                    ENDIF
-                    WRITE(6,*) "Regenerating the stored diagonal HElements for all walkers..."
-                    do i=1,TotWalkers
-                        call decode_bit_det (DetCurr, CurrentDets(:,i))
+                    ! Update the reference energy
+                    if (tHPHF) then
+                        h_tmp = hphf_diag_helement (ProjEDet, iLutRef)
+                    else
+                        h_tmp = get_helement (ProjEDet, ProjEDet, 0)
+                    endif
+                    Hii = real(h_tmp, dp)
+                    write (6, '(a, g25.15)') 'Reference energy now set to: ',&
+                                             Hii
+
+                    ! Reset averages
+                    SumENum = 0
+                    SumNoatHF = 0
+                    HFPopCyc = 0
+                    ProjEIterSum = 0
+                    VaryShiftCycles = 0
+                    SumDiagSft = 0
+                    root_print 'Zeroing all energy estimators.'
+
+                    ! Regenerate all the diagonal elements relative to the
+                    ! new reference det.
+                    write (6,*) 'Regenerating the stored diagonal HElements &
+                                &for all walkers.'
+                    do i = 1, Totwalkers
+                        call decode_bit_det (det, CurrentDets(:,i))
                         if (tHPHF) then
-                            HDiagtemp = hphf_diag_helement (DetCurr,CurrentDets(:,i))
+                            h_tmp = hphf_diag_helement (det, CurrentDets(:,i))
                         else
-                            HDiagTemp = get_helement (DetCurr, DetCurr, 0)
+                            h_tmp = get_helement (det, det, 0)
                         endif
-                        CurrentH(i)=(REAL(HDiagTemp,dp))-Hii
+                        CurrentH(i) = real(h_tmp, dp) - Hii
                     enddo
 
                     ! Reset values introduced in soft_exit (CHANGEVARS)
-                    if (tCheckHighestPopOnce) then
+                    if (tCHeckHighestPopOnce) then
                         tChangeProjEDet = .false.
                         tCheckHighestPop = .false.
                         tCheckHighestPopOnce = .false.
                     endif
 
-                ELSEIF(tRestartHighPop.and.(iRestartWalkNum.le.SUM(AllTotParts))) THEN
-!!                    CALL MPI_BCast(HighestPopDet,NIfTot+1,MpiDetInt,HighPopout(2),MPI_COMM_WORLD,error)
-                    CALL MPIBCast(HighestPopDet,NIfTot+1,HighPopout(2))
-                    iLutRef(:)=HighestPopDet(:)
+                ! Or are we restarting the calculation with the reference 
+                ! det switched?
+                elseif (tRestartHighPop .and. &
+                        iRestartWalkNum < sum(AllTotParts)) then
+                    
+                    ! Broadcast the changed det to all processors
+                    call MPIBcast (HighestPopDet, proc_highest)
+                    iLutRef = HighestPopDet
                     call decode_bit_det (ProjEDet, iLutRef)
-                    WRITE(6,"(A)",advance='no') "Changing projected energy reference determinant to:"
-                    CALL Write_det(6,ProjEDet,.true.)
-                    tNoBrillouin=.true.
-                    WRITE(6,*) "Ensuring that Brillouin's theorem no longer used..."
-                    IF(tHPHF) THEN
-                        TempHii = hphf_diag_helement (ProjEDet, iLutRef)
-                    ELSE
-                        TempHii = get_helement (ProjEDet, ProjEDet, 0)
-                    ENDIF
-                    Hii=REAL(TempHii,dp)
-                    WRITE(6,"(A,G25.15)") "Reference energy now set to: ",Hii
+                    write (6, '(a)', advance='no') 'Changing projected &
+                             &energy reference determinant to: '
+                    call write_det (6, ProjEDet, .true.)
+
+                    ! We can't use Brillouin's theorem if not a converged,
+                    ! closed shell, ground state HF det.
+                    tNoBrillouin = .true.
+                    root_print "Ensuring that Brillouin's theorem is no &
+                               &longer used."
+                    
+                    ! Update the reference energy
+                    if (tHPHF) then
+                        h_tmp = hphf_diag_helement (ProjEDet, iLutRef)
+                    else
+                        h_tmp = get_helement (ProjEDet, ProjEDet, 0)
+                    endif
+                    Hii = real(h_tmp, dp)
+                    write (6, '(a, g25.15)') 'Reference energy now set to: ',&
+                                             Hii
 
                     ! Reset values introduced in soft_exit (CHANGEVARS)
-                    if (tCheckHighestPopOnce) then
+                    if (tCHeckHighestPopOnce) then
                         tChangeProjEDet = .false.
-                        tRestartHighPop = .false.
+                        tCheckHighestPop = .false.
                         tCheckHighestPopOnce = .false.
                     endif
 
-                    CALL ChangeRefDet(Hii,ProjEDet,iLutRef)
-                    RETURN
-                ENDIF
-            ENDIF
-        ENDIF
+                    call ChangeRefDet (Hii, ProjEDet, iLutRef)
+                endif
 
-!AlliUniqueDets corresponds to the total number of unique determinants, summed over all iterations in the last update cycle, and over all processors.
-!Divide by StepsSft to get the average number of unique determinants visited over a single iteration.
-!        AlliUniqueDets=AlliUniqueDets/(REAL(StepsSft,dp))
+            endif
+        endif
+                    
+    end subroutine
+
+    subroutine collate_iter_data (iter_data)
+
+        integer :: int_tmp(6+lenof_sign)
+        real(dp) :: real_tmp(2)
+        integer(int64) :: int64_tmp(9)
+        type(fcimc_iter_data) :: iter_data
+    
+        ! Communicate the integers needing summation
+        call MPIReduce ((/Annihilated, NoAtDoubs, NoBorn, NoDied, HFCyc, &
+                          SpawnFromSing, iter_data%update_growth/), &
+                          MPI_SUM, int_tmp)
+        AllAnnihilated = int_tmp(1)
+        AllNoAtDoubs = int_tmp(2)
+        AllNoBorn = int_tmp(3)
+        AllNoDied = int_tmp(4)
+        AllHFCyc = real(int_tmp(5), dp)
+        AllSpawnFromSing = int_tmp(6)
+        iter_data%update_growth_tot = int_tmp(7:6+lenof_sign)
+
+        ! Integer summations required for the initiator method
+        if (tTruncInitiator) then
+            call MPIReduce ((/NoAborted, NoAddedInitiators, NoInitDets, &
+                              NoNonInitDets, NoInitWalk, NoNonInitWalk, &
+                              NodoubSpawns, NoExtraInitdoubs, InitRemoved/), &
+                            MPI_SUM, int64_tmp)
+            AllNoAborted = int64_tmp(1)
+            AllNoAddedInitiators = int64_tmp(2)
+            AllNoInitDets = int64_tmp(3)
+            AllNoNonInitDets = int64_tmp(4)
+            AllNoInitWalk = int64_tmp(5)
+            AllNoNonInitWalk = int64_tmp(6)
+            AllNoDoubSpawns = int64_tmp(7)
+            AllNoExtraInitDoubs = int64_tmp(8)
+            AllInitRemoved = int64_tmp(9)
+        endif
+
+        ! 64bit integers
+        call MPIReduce ((/TotWalkers, TotParts, SumNoatHF/), &
+                        MPI_SUM, int64_tmp)
+        AllTotWalkers = int64_tmp(1)
+        AllTotParts = int64_tmp(2)
+        AllSumNoatHF = int64_tmp(3)
+
+        ! real(dp) values (Calculates the energy by summing all on HF and 
+        ! doubles)
+        call MPIReduce ((/ENumCyc, SumENum/), MPI_SUM, real_tmp)
+        AllENumCyc = real_tmp(1)
+        AllSumENum = real_tmp(2)
+
+        ! Max/Min values (check load balancing)
+        call MPIReduce (TotWalkers, MPI_MAX, MaxWalkersProc)
+        call MPIReduce (TotWalkers, MPI_MIN, MinWalkersProc)
+
+        ! We need the total number on the HF and SumWalkersCyc to be valid on
+        ! ALL processors (n.b. one of these is 32bit, the other 64)
+        call MPISum (NoatHF, AllNoatHF)
+        call MPISum (SumWalkersCyc, AllSumWalkersCyc)
         
-        IF(GrowRate.eq.-1.D0) THEN
-!tGlobalSftCng is on, and we want to calculate the change in the shift as a global parameter, rather than as a weighted average.
-!This will only be a sensible value on the root.
-            AllGrowRate=SUM(AllTotParts)/SUM(AllTotPartsOld)
-            IF(lenof_sign.eq.2) THEN
-                AllGrowRateRe=AllTotParts(1)/AllTotPartsOld(1)
-                AllGrowRateIm=AllTotParts(lenof_sign)/AllTotPartsOld(lenof_sign)
-            ENDIF
-            IF(tTruncInitiator) AllGrowRateAbort=(SUM(AllTotParts)+AllNoAborted)/(SUM(AllTotPartsOld)+AllNoAbortedOld)
-        ELSE
-!We want to calculate the mean growth rate over the update cycle, weighted by the total number of walkers
-            GrowRate=GrowRate*TempSumWalkersCyc                    
-            CALL MPISumRoot(GrowRate,1,AllGrowRate,Root)   
+    end subroutine
 
-            IF(iProcIndex.eq.Root) THEN
-                AllGrowRate=AllGrowRate/TempAllSumWalkersCyc
-            ENDIF
-        ENDIF
-!        WRITE(6,*) "Get Here 6"
-!        CALL FLUSH(6)
+    subroutine update_shift (iter_data)
 
-        IterTime=IterTime/REAL(StepsSft)    !This is the average time per iteration in the previous update cycle.
+        type(fcimc_iter_data), intent(in) :: iter_data
+        integer(int64) :: tot_walkers
+        logical :: tReZeroShift
+        real(dp) :: AllGrowRateRe, AllGrowRateIm
 
+        integer :: error
 
-!For the unweighted by iterations energy estimator (ProjEIter), we need the sum of the Hij*Sign from all processors over the last update cycle
-!        CALL MPISumRoot(ENumCyc,1,AllENumCyc,Root)
-!        WRITE(6,*) "Get Here 7"
-!        CALL FLUSH(6)
+        call flush(6)
+        CALL MPIBarrier(error)
+        ! collate_iter_data --> The values used are only valid on Root
+        if (iProcIndex == Root) then
+!>>>!            print*, 'BDAA', AllNoborn, AllNoDied, AllAnnihilated, AllNoAborted
+            ! Calculate the growth rate
+            AllGrowRate = (sum(iter_data%update_growth_tot + AllTotPartsOld))&
+                          / real(sum(AllTotPartsOld), dp)
 
-!Do the same for the mean excitation level of all walkers, and the total positive particles
-!MeanExcitLevel here is just the sum of all the excitation levels - it needs to be divided by the total walkers in the update cycle first.
-!        WRITE(6,"(2I10,2G25.16)",advance='no') Iter,TotWalkers,MeanExcitLevel,TempSumWalkersCyc
-!        MeanExcitLevel=MeanExcitLevel/TempSumWalkersCyc
-!        CALL MPI_Reduce(MeanExcitLevel,AllMeanExcitLevel,1,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
-!        WRITE(6,*) "Get Here 8"
-!        CALL FLUSH(6)
-!        CALL MPISumRoot(MeanExcitLevel,1,AllMeanExcitLevel,Root)
-!        IF(iProcIndex.eq.Root) THEN
-!            AllMeanExcitLevel=AllMeanExcitLevel/real(nProcessors,dp)
-!        ENDIF
+            ! For complex case, obtain both Re and Im parts
+            if (lenof_sign == 2) then
+                AllGrowRateRe = (iter_data%update_growth_tot(1) + &
+                                AllTotPartsOld(1)) / AllTotPartsOld(1)
+                AllGrowRateIm = (iter_data%update_growth_tot(lenof_sign) + &
+                                     AllTotPartsOld(lenof_sign)) / &
+                                     AllTotPartsOld(lenof_sign)
+            endif
 
-!AvSign no longer calculated (but would be easy to put back in) - ACF much better bet...
-!        AvSign=AvSign/real(SumWalkersCyc,dp)
-!        AvSignHFD=AvSignHFD/real(SumWalkersCyc,dp)
-!        CALL MPI_Reduce(AvSign,AllAvSign,1,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
-!        CALL MPI_Reduce(AvSignHFD,AllAvSignHFD,1,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
-!        IF(iProcIndex.eq.Root) THEN
-!            AllAvSign=AllAvSign/real(nProcessors,dp)
-!            AllAvSignHFD=AllAvSignHFD/real(nProcessors,dp)
-!        ENDIF
+            ! Initiator abort growth rate
+            if (tTruncInitiator) then
+                AllGrowRateAbort = (sum(iter_data%update_growth_tot + &
+                                    AllTotPartsOld) + AllNoAborted) / &
+                                    (sum(AllTotPartsOld) + AllNoAbortedOld)
+            endif
 
-!Calculate the energy by summing all on HF and doubles - convert number at HF to a real since no int*8 MPI data type
-        TempSumNoatHF=real(SumNoatHF,dp)
-!        CALL MPISumRoot(TempSumNoatHF,1,AllSumNoatHF,Root)
-!        WRITE(6,*) "Get Here 9"
-!        CALL FLUSH(6)
-!        CALL MPISumRoot(SumENum,1,AllSumENum,Root)
-!        WRITE(6,*) "Get Here 10"
-!        CALL FLUSH(6)
-        inpairreal(1)=ENumCyc
-        inpairreal(2)=TempSumNoatHF
-        inpairreal(3)=SumENum
-!        inpairreal(4)=DetsNorm
-!!        CALL MPI_Reduce(inpairreal,outpairreal,3,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
-        CALL MPIReduce(inpairreal,3,MPI_SUM,outpairreal)
-        AllENumCyc=outpairreal(1)
-        AllSumNoatHF=outpairreal(2)
-        AllSumENum=outpairreal(3)
-!        AllDetsNorm=outpairreal(4)
+            ! Exit the single particle phase if the number of walkers exceeds
+            ! the value in the input file. If particle no has fallen, re-enter
+            ! it.
+            tReZeroShift = .false.
+            if (TSinglePartPhase) then
+                tot_walkers = int(InitWalkers, int64) * int(nProcessors,int64)
+                if ( (sum(AllTotParts) > tot_walkers) .or. &
+                     (AllNoatHF > MaxNoatHF)) then
+                    write (6, *) 'Exiting the single particle growth phase - &
+                                 &shift can now change'
+                    VaryShiftIter = Iter
+                    tSinglePartPhase = .false.
+                endif
+            elseif (AllNoatHF < (MaxNoatHF - HFPopThresh)) then
+                write (6, *) 'No at HF has fallen too low - reentering the &
+                             &single particle growth phase - particle number &
+                             &may grow again.'
+                tSinglePartPhase = .true.
+                tReZeroShift = .true.
+            endif
 
+            ! How should the shift change for the entire ensemble of walkers 
+            ! over all processors.
+            if (.not. tSinglePartPhase) then
+                
+                ! New shift value
+                DiagSft = DiagSft - (log(AllGrowRate) * SftDamp) / &
+                                    (Tau * StepsSft)
 
-!To find minimum and maximum excitation levels, search for them using MPI_Reduce
-!        inpair(1)=MaxExcitLevel
-!        inpair(2)=iProcIndex
+                if (lenof_sign == 2) then
+                    DiagSftRe = DiagSftRe - (log(AllGrowRateRe) * SftDamp) / &
+                                            (Tau * StepsSft)
+                    DiagSftIm = DiagSftIm - (log(AllGrowRateIm) * SftDamp) / &
+                                            (Tau * StepsSft)
+                endif
 
-!        CALL MPI_Reduce(MaxExcitLevel,AllMaxExcitLevel,1,MPI_INTEGER,MPI_MAX,Root,MPI_COMM_WORLD,error)
-!        WRITE(6,*) "Get Here 11"
-!        CALL FLUSH(6)
-!        IF(error.ne.MPI_SUCCESS) THEN
-!            WRITE(6,*) "Error in finding max excitation level"
-!            CALL MPI_ABORT(MPI_COMM_WORLD,rc,error)
-!        ENDIF
-!Max Excit Level is found on processor outpair(2) and is outpair(1)
-!        IF(iProcIndex.eq.Root) THEN
-!            AllMaxExcitLevel=outpair(1)
-!        ENDIF
+                ! Update the shift averages
+                if ((iter - VaryShiftIter) >= nShiftEquilSteps) then
+                    if ((iter-VaryShiftIter-nShiftEquilSteps) < StepsSft) &
+                        write (6, *) 'Beginning to average shift value.'
+                    VaryShiftCycles = VaryShiftCycles + 1
+                    SumDiagSft = SumDiagSft + DiagSft
+                    AvDiagSft = SumDiagSft / real(VaryShiftCycles, dp)
+                endif
 
-!        inpair(1)=MinExcitLevel
-!        inpair(2)=iProcIndex
-!        CALL MPI_Reduce(MinExcitLevel,AllMinExcitLevel,1,MPI_INTEGER,MPI_MIN,Root,MPI_COMM_WORLD,error)
-!        WRITE(6,*) "Get Here 12"
-!        CALL FLUSH(6)
-!        IF(error.ne.MPI_SUCCESS) THEN
-!            WRITE(6,*) "Error in finding min excitation level"
-!            CALL MPI_ABORT(MPI_COMM_WORLD,rc,error)
-!        ENDIF
-!        IF(iProcIndex.eq.Root) THEN
-!            AllMinExcitLevel=outpair(1)
-!        ENDIF
+                ! Update DiagSftAbort for initiator algorithm
+                if (tTruncInitiator) then
+                    DiagSftAbort = DiagSftAbort - &
+                              (log(real(AllGrowRateAbort, dp)) * SftDamp) / &
+                              (Tau * StepsSft)
 
-!We now want to find how the shift should change for the entire ensemble of processors
-        IF(iProcIndex.eq.Root) THEN
-            IF(.not.TSinglePartPhase) THEN
-                DiagSft=DiagSft-(log(AllGrowRate)*SftDamp)/(Tau*(StepsSft+0.D0))
-                IF(lenof_sign.eq.2) THEN
-                    DiagSftRe=DiagSftRe-(log(AllGrowRateRe)*SftDamp)/(Tau*(StepsSft+0.D0))
-                    DiagSftIm=DiagSftIm-(log(AllGrowRateIm)*SftDamp)/(Tau*(StepsSft+0.D0))
-                ENDIF
-                IF((Iter-VaryShiftIter).ge.NShiftEquilSteps) THEN
-!                    WRITE(6,*) Iter-VaryShiftIter, NEquilSteps*StepsSft
-                    IF((Iter-VaryShiftIter).eq.NShiftEquilSteps) WRITE(6,*) 'Beginning to average shift value.'
-                    VaryShiftCycles=VaryShiftCycles+1
-                    SumDiagSft=SumDiagSft+DiagSft
-                    AvDiagSft=SumDiagSft/REAL(VaryShiftCycles,dp)
-                ENDIF
+                    if (iter - VaryShiftIter >= nShiftEquilSteps) then
+                        SumDiagSftAbort = SumDiagSftAbort + DiagSftAbort
+                        AvDiagSftAbort = SumDiagSftAbort / &
+                                         real(VaryShiftCycles, dp)
+                    endif
+                endif
+            endif
 
-                IF(tTruncInitiator) THEN
-                    DiagSftAbort=DiagSftAbort-(log(AllGrowRateAbort)*SftDamp)/(Tau*(StepsSft+0.D0))
-                    IF((Iter-VaryShiftIter).ge.NShiftEquilSteps) THEN
-                        SumDiagSftAbort=SumDiagSftAbort+DiagSftAbort
-                        AvDiagSftAbort=SumDiagSftAbort/REAL(VaryShiftCycles,dp)
-                    ENDIF
-                ENDIF
-            ENDIF
+            ! Calculate the instantaneous 'shift' from the HF population
+            HFShift = -1.d0 / real(AllNoatHF, dp) * &
+                              (real(AllNoatHF - OldAllNoatHF, dp) / &
+                              (Tau * real(StepsSft, dp)))
+            InstShift = -1.d0 / sum(AllTotParts) * &
+                        ((sum(AllTotParts) - sum(AllTotPartsOld)) / &
+                         (Tau * real(StepsSft, dp)))
 
-!Calculate the instantaneous value of the 'shift' from the HF population
-            HFShift=-1.D0/REAL(AllNoatHF,dp)*(REAL(AllNoatHF-OldAllNoatHF,dp)/(Tau*REAL(StepsSft,dp)))
-            InstShift=-1.D0/SUM(AllTotParts)*((SUM(AllTotParts)-SUM(AllTotPartsOld))/(Tau*REAL(StepsSft,dp)))
+            ! AllSumNoatHF can be 0 if equilsteps is on.
+            if (AllSumNoatHF /= 0) ProjectionE = AllSumENum / AllSumNoatHF
 
-            IF(AllSumNoatHF.ne.0.D0) THEN
-!AllSumNoatHF can actually be 0 if we have equilsteps on.
-                ProjectionE=AllSumENum/AllSumNoatHF
-            ENDIF
-
-!Calculate the projected energy where each update cycle contributes the same weight to the average for its estimator for the energy
-            IF(AllHFCyc.ne.0.D0) THEN
-                ProjEIterSum=ProjEIterSum+(AllENumCyc/AllHFCyc)
-                HFPopCyc=HFPopCyc+1   !This is the number of iterations where we have a non-zero contribution from HF particles
-                ProjEIter=ProjEIterSum/REAL(HFPopCyc,dp)
-            ENDIF
-        ENDIF
-!        IF(tHub.and.tReal) THEN
-!!Since for the real-space hubbard model the reference is not the HF, it has to be added on to the energy since it is not subtracted from the
-!!diagonal hamiltonian elements.
-!            ProjectionE=ProjectionE+HubRefEnergy
-!            ProjEIter=ProjEIter+HubRefEnergy
-!        ENDIF
+            ! Calculate the projected energy where each update cycle 
+            ! contributes the same weight to the average for its estimator 
+            ! for the energy.
+            if (AllHFCyc /= 0) then
+                ProjEItersum = ProjEIterSum + (AllENumCyc / AllHFCyc)
+                ! Count the number of interactions where we have a non-zero
+                ! contribution from HF particles
+                HFPopCyc = HFPopCyc + 1
+                ProjEIter = ProjEIterSum / real(HFPopCyc, dp)
+            endif
         
-        IF(tReZeroShift) THEN
-            DiagSft=0.D0
-            VaryShiftCycles=0
-            SumDiagSft=0.D0
-            AvDiagSft=0.D0
-        ENDIF
+            ! If we are re-zeroing the shift
+            if (tReZeroShift) then
+                DiagSft = 0
+                VaryShiftCycles = 0
+                SumDiagSft = 0
+                AvDiagSft = 0
+            endif
 
-!We wan to now broadcast this new shift to all processors
-!        CALL MPI_Bcast(DiagSft,1,MPI_DOUBLE_PRECISION,Root,MPI_COMM_WORLD,error)
-        CALL MPIBcast(DiagSft,1,Root)
-!        WRITE(6,*) "Get Here 13"
-!        CALL FLUSH(6)
-!        IF(error.ne.MPI_SUCCESS) THEN
-!            WRITE(6,*) "Error in broadcasting new shift"
-!            CALL MPI_ABORT(MPI_COMM_WORLD,rc,error)
-!        ENDIF
+        endif ! iProcIndex == root
 
-        AccRat=(REAL(Acceptances,dp))/TempSumWalkersCyc      !The acceptance ratio which is printed is only for the current node - not summed over all nodes
+        ! Broadcast the shift from root to all the other processors
+        call MPIBcast (DiagSft, Root)
 
-        CALL WriteFCIMCStats()
+    end subroutine
 
 
-!This first bit checks if it is time to set up the blocking analysis.  This is obviously only done once, so these logicals become false once it is done. 
-        IF(iProcIndex.eq.Root) THEN
-            IF(tIterStartBlock) THEN
-!If IterStartBlocking is positive, then start blocking when we are at that iteration. Otherwise, wait until out of fixed shift.
-                IF(IterStartBlocking.gt.0) THEN
-                    IF(Iter.ge.IterStartBlocking) THEN 
-                        CALL InitErrorBlocking(Iter)
-                        tIterStartBlock=.false.
-                        tErrorBlocking=.true.
-                    ENDIF
-                ELSE
-                    IF(.not.TSinglePartPhase) THEN
-                        CALL InitErrorBlocking(Iter)
-                        tIterStartBlock=.false.
-                        tErrorBlocking=.true.
-                    ENDIF
-                ENDIF
-            ELSEIF(tHFPopStartBlock) THEN
-                IF((AllHFCyc/StepsSft).ge.HFPopStartBlocking) THEN
-                    CALL InitErrorBlocking(Iter)
-                    tHFPopStartBlock=.false.
-                    tErrorBlocking=.true.
-                ENDIF
-            ENDIF
+    subroutine rezero_iter_stats (iter_data)
+        
+        type(fcimc_iter_data) :: iter_data
+        
+        ! Zero all of the variables which accumulate for each iteration.
 
-            IF((.not.TSinglePartPhase).and.tInitShiftBlocking.and.(Iter.eq.(VaryShiftIter+IterShiftBlock))) THEN
-                CALL InitShiftErrorBlocking(Iter)
-                tInitShiftBlocking=.false.
-                tShiftBlocking=.true.
-            ENDIF
+        IterTime = 0
+        SumWalkersCyc = 0
+        Annihilated = 0
+        Acceptances = 0
+        NoBorn = 0
+        SpawnFromSing = 0
+        NoDied = 0
+        ENumCyc = 0
 
-!Then we perform the blocking at the end of each update cycle.         
-            IF(tErrorBlocking.and.(.not.tBlockEveryIteration)) CALL SumInErrorContrib(Iter,AllENumCyc,AllHFCyc)
-            IF(tShiftBlocking.and.(Iter.ge.(VaryShiftIter+IterShiftBlock))) CALL SumInShiftErrorContrib(Iter,DiagSft)
-        ENDIF
+        ! We don't want to rezero projEIter, as PrintFCIMCStats will print
+        ! out zero on next iteration if NoAtHF = 0.
+        ! ProjEIter = 0
 
-!Now need to reinitialise all variables on all processers
-        IterTime=0.0
-!        MinExcitLevel=NEl+10
-!        MaxExcitLevel=0
-!        MeanExcitLevel=0.D0
-        SumWalkersCyc=0
-!        AvSign=0.D0        !Rezero this quantity - <s> is now a average over the update cycle
-!        AvSignHFD=0.D0     !This is the average sign over the HF and doubles
-!        DetsNorm=0.D0
-        Annihilated=0
-        Acceptances=0
-        NoBorn=0
-        SpawnFromSing=0
-        NoDied=0
-        ENumCyc=0.D0
-!        ProjEIter=0.D0     Do not want to rezero, since otherwise, if there are no particles at HF in the next update cycle, it will print out zero.
-        HFCyc=0
-        NoAborted=0.D0
-        NoInitDets=0.D0
-        NoNonInitDets=0.D0
-        NoInitWalk=0.D0
-        NoNonInitWalk=0.D0
-        NoDoubSpawns=0.D0
-        InitRemoved=0.D0
+        HFCyc = 0
+        NoAborted = 0
+        NoInitDets = 0
+        NoNonInitDets = 0
+        NoInitWalk = 0
+        NoNonInitWalk = 0
+        NoDoubSpawns = 0
+        InitRemoved = 0
 
-!Reset TotWalkersOld so that it is the number of walkers now
-        TotWalkersOld=TotWalkers
-        TotPartsOld=TotParts
-!Save the number at HF to use in the HFShift
-        OldAllNoatHF=AllNoatHF
+        ! Reset TotWalkersOld so that it is the number of walkers now
+        TotWalkersOld = TotWalkers
+        TotPartsOld = TotParts
 
-!Also reinitialise the global variables - should not necessarily need to do this...
-!        AllHFCyc=0.D0
-!        AllENumCyc=0.D0
-!        AllDetsNorm=0.D0
-        AllSumENum=0.D0
-        AllSumNoatHF=0.D0
-        AllTotWalkersOld=AllTotWalkers
-        AllTotPartsOld=AllTotParts
-        AllNoAbortedOld=AllNoAborted
-        AllTotWalkers=0.D0
-        AllTotParts=0.D0
-        AllGrowRate=0.D0
-!        AllMeanExcitLevel=0.D0
-!        AllAvSign=0.D0
-!        AllAvSignHFD=0.D0
-        AllSumWalkersCyc=0
-        AllAnnihilated=0
-        AllNoatHF=0
-        AllNoatDoubs=0
-        AllNoBorn=0
-        AllSpawnFromSing=0
-        AllNoDied=0
-        AllNoAborted=0.D0
-        AllNoAddedInitiators=0.D0
-        AllNoInitDets=0.D0
-        AllNoNonInitDets=0.D0
-        AllNoInitWalk=0.D0
-        AllNoNonInitWalk=0.D0
-        AllNoDoubSpawns=0.D0
-        AllNoExtraInitDoubs=0.D0
-        AllInitRemoved=0.D0
+        ! Save the number at HF to use in the HFShift
+        OldAllNoatHF = AllNoatHF
 
-        ! Reset the fciqmc specific counter
-        iter_data_fciqmc%update_growth = 0
-        iter_data_fciqmc%update_iters = 0
+        ! Also reinitialise the global variables
+        !  --> should not necessarily need to do this...
+        ! TODO: Remove these zeroes?
+        AllSumENum = 0
+        AllSumNoatHF = 0
+        AllTotWalkersOld = AllTotWalkers
+        AllTotPartsOld = AllTotParts
+        AllNoAbortedOld = AllNoAborted
+        AllTotWalkers = 0
+        AllTotParts = 0
+        AllGrowRate = 0
+        AllSumWalkersCyc = 0
+        AllAnnihilated = 0
+        AllNoatHF = 0
+        AllNoatDoubs = 0
+        AllNoBorn = 0
+        AllSpawnFromSing = 0
+        AllNoDied = 0
+        AllNoAborted = 0
+        AllNoAddedInitiators = 0
+        AllNoInitDets = 0
+        AllNoNonInitDets = 0
+        AllNoInitWalk = 0
+        AllNoNonInitWalk = 0
+        AllNoDoubSpawns = 0
+        AllNoExtraInitDoubs = 0
+        AllInitRemoved = 0
+
+        ! Reset the counters
+        iter_data%update_growth = 0
+        iter_data%update_iters = 0
+
+    end subroutine
+
+!
+!
+! D --> TotImagTime
+! D --> tReZeroShift / flip sign.
+! X --> calculate grow rate for each processor
+!   --> barrier
+! D --> Collate lots of information (including for tTruncInitiator)
+! D --> Test if all particles have died.
+! D --> TempSumWalkersCyc
+!   --> Do we want to exit the single particle phase?
+! D --> Max/min walkers
+! D --> tCheckHighestPop
+! D --> Calculate new shift from grow rate
+! D --> IterTime = IterTime / real(StepsSft)
+! D --> Broadcast Shift
+! D --> WriteFCIMCStats
+! D --> BlockingAnalysis initialisation?
+! D --> ReZero varaibles
+!  
 
 
+    subroutine calculate_new_shift_wrapper (iter_data)
 
-        RETURN
-    END SUBROUTINE CalcNewShift
+        type(fcimc_iter_data) :: iter_data
+
+        call collate_iter_data (iter_data)
+        call iter_diagnostics ()
+        call population_check ()
+        call update_shift (iter_data)
+        call WriteFCIMCStats ()
+        call rezero_iter_stats (iter_data)
+
+    end subroutine calculate_new_shift_wrapper
+    
 !This routine flips the sign of all particles on the node
     SUBROUTINE FlipSign()
         INTEGER :: i
@@ -3646,73 +3637,6 @@ MODULE FciMCParMod
         RETURN
     
     END SUBROUTINE FlipSign
-
-!This routine looks at the change in residual particle number over a number of cycles, and adjusts the 
-!value of the diagonal shift in the hamiltonian in order to compensate for this
-    SUBROUTINE UpdateDiagSftPar()
-        USE CalcData , only : tGlobalSftCng
-        INTEGER :: j,k,GrowthSteps,MaxCulls,error
-        LOGICAL :: Changed
-
-        Changed=.false.
-        IF(tGlobalSftCng) THEN
-!!            CALL MPI_AllReduce(NoCulls,MaxCulls,1,MPI_INTEGER,MPI_MAX,MPI_COMM_WORLD,error)
-            CALL MPIAllReduce(NoCulls,1,MPI_MAX,MaxCulls)
-            IF(MaxCulls.gt.0) THEN
-                IF(iProcIndex.eq.0) WRITE(6,*) "Culling has occurred in this update cycle..."
-!At least one of the nodes is culling at least once, therefore every processor has to perform the original grow rate calculation.
-                tGlobalSftCng=.false.
-                Changed=.true.
-            ENDIF
-        ENDIF
-
-        IF(NoCulls.eq.0) THEN
-            IF(.not.tGlobalSftCng) THEN
-                IF(TotWalkersOld.eq.0) THEN
-                    GrowRate=0.D0
-                ELSE
-                    GrowRate=(TotWalkers+0.D0)/(TotWalkersOld+0.D0)
-                ENDIF
-            ELSE
-                GrowRate=-1.D0
-            ENDIF
-        ELSEIF(NoCulls.eq.1) THEN
-!GrowRate is the sum of the individual grow rates for each uninterrupted growth sequence, multiplied by the fraction of the cycle which was spent on it
-            GrowRate=((CullInfo(1,3)+0.D0)/(StepsSft+0.D0))*((CullInfo(1,1)+0.D0)/(TotWalkersOld+0.D0))
-            GrowRate=GrowRate+(((StepsSft-CullInfo(1,3))+0.D0)/(StepsSft+0.D0))*((TotWalkers+0.D0)/(CullInfo(1,2)+0.D0))
-
-            NoCulls=0
-            CullInfo(1:10,1:3)=0
-        ELSE
-            GrowRate=((CullInfo(1,3)+0.D0)/(StepsSft+0.D0))*((CullInfo(1,1)+0.D0)/(TotWalkersOld+0.D0))
-            do j=2,NoCulls
-    
-!This is needed since the steps between culling is stored cumulatively
-                GrowthSteps=CullInfo(j,3)-CullInfo(j-1,3)
-                GrowRate=GrowRate+((GrowthSteps+0.D0)/(StepsSft+0.D0))*((CullInfo(j,1)+0.D0)/(CullInfo(j-1,2)+0.D0))
-
-            enddo
-
-            GrowthSteps=StepsSft-CullInfo(NoCulls,3)
-            GrowRate=GrowRate+((GrowthSteps+0.D0)/(StepsSft+0.D0))*((TotWalkers+0.D0)/(CullInfo(NoCulls,2)+0.D0))
-
-            NoCulls=0
-            CullInfo(1:10,1:3)=0
-
-        ENDIF
-
-        IF(Changed) THEN
-!Return the flag for global shift change back to true.
-            tGlobalSftCng=.true.
-        ENDIF
-        
-!        DiagSft=DiagSft-(log(GrowRate)*SftDamp)/(Tau*(StepsSft+0.D0))
-!        IF((DiagSft).gt.0.D0) THEN
-!            WRITE(6,*) "***WARNING*** - DiagSft trying to become positive..."
-!            STOP
-!        ENDIF
-
-    END SUBROUTINE UpdateDiagSftPar
 
     SUBROUTINE WriteFciMCStatsHeader()
 
@@ -3735,35 +3659,49 @@ MODULE FciMCParMod
 
     END SUBROUTINE WriteFciMCStatsHeader
 
-    SUBROUTINE WriteFCIMCStats()
+    subroutine WriteFCIMCStats()
 
-        IF(iProcIndex.eq.root) THEN
+        if (iProcIndex == root) then
 
-            WRITE(fcimcstats_unit,"(I12,G16.7,I10,G16.7,I12,3I13,3G17.9,2I10,G13.5,I12,G13.5,G17.5,I13,G13.5,4G17.9)") Iter+PreviousCycles,DiagSft,NINT(SUM(AllTotParts)-SUM(AllTotPartsOld),int64),AllGrowRate,   &
-  &                NINT(SUM(AllTotParts),int64),AllAnnihilated,AllNoDied,AllNoBorn,ProjectionE,AvDiagSft,AllENumCyc/AllHFCyc,AllNoatHF,AllNoatDoubs,AccRat,NINT(AllTotWalkers,int64),IterTime,   &
-  &                REAL(AllSpawnFromSing)/REAL(AllNoBorn),WalkersDiffProc,TotImagTime,IterEnergy,HFShift,InstShift,AllENumCyc/AllHFCyc+Hii
-            WRITE(6,"(I12,G16.7,I10,G16.7,I12,3I11,3G17.9,2I10,G13.5,I12,G13.5)") Iter+PreviousCycles,DiagSft,NINT(SUM(AllTotParts)-SUM(AllTotPartsOld),int64),AllGrowRate,    &
-  &                NINT(SUM(AllTotParts),int64),AllAnnihilated,AllNoDied,AllNoBorn,ProjectionE,AvDiagSft,AllENumCyc/AllHFCyc,AllNoatHF,AllNoatDoubs,AccRat,NINT(AllTotWalkers,int64),IterTime
+            write(fcimcstats_unit,"(I12,G16.7,I10,G16.7,I12,3I13,3G17.9,2I10,&
+                                  &G13.5,I12,G13.5,G17.5,I13,G13.5,4G17.9)") &
+                Iter + PreviousCycles, DiagSft, &
+                sum(AllTotParts) - sum(AllTotPartsOld), AllGrowRate, &
+                sum(AllTotParts), AllAnnihilated, AllNoDied, AllNoBorn, &
+                ProjectionE, AvDiagSft, AllENumCyc / AllHFCyc, AllNoatHF, &
+                AllNoatDoubs, AccRat, AllTotWalkers, IterTime, &
+                real(AllSpawnFromSing) / real(AllNoBorn), WalkersDiffProc, &
+                TotImagTime, IterEnergy, HFShift, InstShift, &
+                AllENumCyc / AllHFCyc + Hii
+            write (6, "(I12,G16.7,I10,G16.7,I12,3I11,3G17.9,2I10,G13.5,I12,&
+                      &G13.5)") Iter + PreviousCycles, DiagSft, &
+                sum(AllTotParts) - sum(AllTotPartsOld), AllGrowRate, &
+                sum(AllTotParts), AllAnnihilated, AllNoDied, AllNoBorn, &
+                ProjectionE, AvDiagSft, AllENumCyc / AllHFCyc, AllNoatHF, &
+                AllNoatDoubs, AccRat, AllTotWalkers, IterTime
 
-            IF(tTruncInitiator.or.tDelayTruncInit) THEN
-                WRITE(initiatorstats_unit,"(I12,4G16.7,1F20.1,1F18.7,5F18.1)") Iter+PreviousCycles,AllNoAborted,AllNoAddedInitiators,(REAL(AllNoInitDets)/REAL(AllNoNonInitDets)),&
- &              (REAL(AllNoInitWalk)/REAL(AllNoNonInitWalk)),AllNoDoubSpawns,DiagSftAbort,(AllNoInitDets/REAL(StepsSft)),&
- &              (AllNoNonInitDets/REAL(StepsSft))
-            ENDIF
+            if (tTruncInitiator .or. tDelayTruncInit) then
+               write(initiatorstats_unit,"(I12,4G16.7,i12.1,1F18.7,5F18.1)")&
+                   Iter + PreviousCycles, AllNoAborted, AllNoAddedInitiators,&
+                   real(AllNoInitDets) / real(AllNoNonInitDets), &
+                   real(AllNoInitWalk) / real(AllNoNonInitWalk), &
+                   AllNoDoubSpawns, DiagSftAbort, &
+                   AllNoInitDets / real(StepsSft), &
+                   AllNoNonInitDets / real(StepsSft)
+            endif
 
-            IF(tLogComplexPops) THEN
-                WRITE(complexstats_unit,"(I12,3G16.7,3I12)") Iter+PreviousCycles,DiagSft,DiagSftRe,DiagSftIm,NINT(SUM(AllTotParts)),NINT(AllTotParts(1)),NINT(AllTotParts(lenof_sign))
-            ENDIF
+            if (tLogComplexPops) then
+                write (complexstats_unit,"(I12,3G16.7,3I12)") &
+                    Iter + PreviousCycles, DiagSft, DiagSftRe, DiagSftIm, &
+                    sum(AllTotParts), AllTotParts(1), AllTotParts(lenof_sign)
+            endif
 
+            call flush(6)
+            call flush(fcimcstats_unit)
             
-            CALL FLUSH(6)
-            CALL FLUSH(fcimcstats_unit)
-            
-        ENDIF
+        endif
 
-        RETURN
-
-    END SUBROUTINE WriteFCIMCStats
+    end subroutine WriteFCIMCStats
 
 
     SUBROUTINE SetupParameters()
@@ -4101,12 +4039,6 @@ MODULE FciMCParMod
 !            CALL Stop_All(this_routine,"Ms not equal to zero, but tSpn is false. Error here")
         ENDIF
 
-!Allocate memory for the totparts. This has to be allocated since will be a different size since it stores real and Im particles seperately
-        Allocate(TotParts(lenof_sign))
-        ALLOCATE(TotPartsOld(lenof_sign))
-        ALLOCATE(AllTotParts(lenof_sign))
-        ALLOCATE(AllTotPartsOld(lenof_sign))
-
 !Initialise variables for calculation on each node
         IterTime=0.0
         ProjectionE=0.D0
@@ -4152,7 +4084,7 @@ MODULE FciMCParMod
         AllSumENum=0.D0
         AllNoatHF=0
         AllNoatDoubs=0
-        AllSumNoatHF=0.D0
+        AllSumNoatHF = 0
         AllGrowRate=0.D0
         AllGrowRateAbort=0.D0
 !        AllMeanExcitLevel=0.D0

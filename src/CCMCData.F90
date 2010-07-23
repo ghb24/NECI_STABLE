@@ -1,6 +1,5 @@
 module CCMCData
    use constants, only: dp,n_int,end_n_int
-   use FciMCData, only: fcimc_iter_data
    implicit none
    save
    real*8   dT1SqCuml
@@ -88,8 +87,6 @@ TYPE CCTransitionLog
    INTEGER MaxIndex     !Last possible index of a cluster (nClust)
    LOGICAL tNonUniq     !Set if we're doing non-uniq logging
 END TYPE CCTransitionLog
-
-type(fcimc_iter_data), target :: iter_data_ccmc
 
 contains
 

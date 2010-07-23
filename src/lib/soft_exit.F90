@@ -106,7 +106,6 @@ module soft_exit
     use DetCalcData, only: ICILevel
     use IntegralsData, only: tPartFreezeCore, NPartFrozen, NHolesFrozen, &
                              NVirtPartFrozen, NelVirtFrozen, tPartFreezeVirt
-    use Parallel
     use Input
     use Logging, only: tHistSpawn, tCalcFCIMCPsi, tIterStartBlock, &
                        IterStartBlocking, tHFPopStartBlock, NHistEquilSteps
@@ -114,12 +113,12 @@ module soft_exit
                                PrintShiftBlocking_proc => PrintShiftBlocking,&
                                RestartShiftBlocking_proc=>RestartShiftBlocking
     use AnnihilationMod, only: DetermineDetProc
-    use constants, only: lenof_sign
+    use constants, only: lenof_sign, int32, dp
     use bit_reps, only: extract_sign,encode_sign
     use spin_project, only: tSpinProject, spin_proj_gamma, &
                             spin_proj_interval, spin_proj_shift, &
                             spin_proj_cutoff
-    use Parallel, only: MPIAllReduce, MPIBCast
+    use Parallel
     implicit none
 
 contains
@@ -309,20 +308,20 @@ contains
             ! Change excit level
             if (opts_selected(excite)) then
                 if (.not. tTruncSpace) then
-                    root_write 'The space is not truncated, so EXCITE &
+                    root_print 'The space is not truncated, so EXCITE &
                                &keyword in CHANGEVARS has no effect.'
                 else
                     if (tHistSpawn .or. tCalcFCIMCPsi) then
-                        root_write 'Cannot increase truncation level, since &
+                        root_print 'Cannot increase truncation level, since &
                                    &histogramming wavefunction.'
                     else
                         call MPIBcast (ICILevel, 1, proc)
 
                         if ((ICILevel < 0) .or. (ICILevel > nel)) then
                             tTruncSpace = .false.
-                            root_write 'Expanding to the full space.'
+                            root_print 'Expanding to the full space.'
                         else
-                            root_write 'Increasing truncation level of space &
+                            root_print 'Increasing truncation level of space &
                                        &to ', ICILevel
                         endif
                     endif
@@ -332,7 +331,7 @@ contains
             ! Change the CAS space
             if (opts_selected(truncatecas)) then
                 if (.not. tTruncCAS) then
-                    root_write 'The space is not truncated by CAS, so &
+                    root_print 'The space is not truncated by CAS, so &
                                &TRUNCATECAS keyword in CHANGEVARS has no &
                                &effect'
                 else
@@ -345,11 +344,11 @@ contains
                         ! CAS space is equal to or greater than the full 
                         ! space, or one of the arguments is less than zero.
                         tTruncCAS = .false.
-                        root_write 'Expanding CAS to the full space.'
+                        root_print 'Expanding CAS to the full space.'
                     else
                         CASMax = nel + VirtCASOrbs
                         CASMin = nel - OccCASOrbs
-                        root_write 'Increasing CAS space accessible to ', &
+                        root_print 'Increasing CAS space accessible to ', &
                                    OccCASORbs, ", ", VirtCASORbs
                     endif
                 endif
@@ -358,24 +357,24 @@ contains
             ! softexit
             if (opts_selected(softexit)) then
                 tSoftExitFound = .true.
-                root_write 'SOFTEXIT triggered. Exiting run.'
+                root_print 'SOFTEXIT triggered. Exiting run.'
             endif
 
             ! Write POPS file
             if (opts_selected(writepops)) then
                 tWritePopsFound = .true.
-                root_write 'Asked to write out a popsfile'
+                root_print 'Asked to write out a popsfile'
             endif
 
             ! Enter variable shift mode
             if (opts_selected(varyshift)) then
                 if (.not. tSinglePartPhase) then
-                    root_write 'Request to vary shift denied. Already in &
+                    root_print 'Request to vary shift denied. Already in &
                                &variable shift mode.'
                 else
                     tSinglePartPhase = .false.
                     VaryShiftIter = iter
-                    root_write 'Request to vary the shift detected on a node.'
+                    root_print 'Request to vary the shift detected on a node.'
                 endif
             endif
 
@@ -384,13 +383,13 @@ contains
                 call MPIBCast (nmcyc_new, 1, proc)
 
                 if (nmcyc_new < iter) then
-                    root_write 'New value of NMCyc is LESS than the current &
+                    root_print 'New value of NMCyc is LESS than the current &
                                & iteration number.'
-                    root_write 'Therefore, the number of iterations has been &
+                    root_print 'Therefore, the number of iterations has been &
                                & left at ', nmcyc_value
                 else
                     nmcyc_value = nmcyc_new
-                    root_write 'Total number of MC cycles set to ', &
+                    root_print 'Total number of MC cycles set to ', &
                                nmcyc_value
                 endif
             endif
@@ -398,32 +397,32 @@ contains
             ! Change Tau
             if (opts_selected(tau)) then
                 call MPIBCast (tau_value, 1, proc)
-                root_write 'Tau changed to: ', tau_value
+                root_print 'Tau changed to: ', tau_value
             endif
 
             ! Change the shift value
             if (opts_selected(diagshift)) then
                 call MPIBCast (DiagSft, 1, proc)
-                root_write 'DIAGSHIFT change to: ', DiagSft
+                root_print 'DIAGSHIFT change to: ', DiagSft
             endif
 
             ! Change the shift damping parameter
             if (opts_selected(shiftdamp)) then
                 call MPIBCast (SftDamp, 1, proc)
-                root_write 'SHIFTDAMP changed to: ', SftDamp
+                root_print 'SHIFTDAMP changed to: ', SftDamp
             endif
 
             ! Change the shift update (and output) interval
             if (opts_selected(stepsshift)) then
                 call MPIBCast (StepsSft, 1, proc)
-                root_write 'STEPSSHIFT changed to: ', StepsSft
+                root_print 'STEPSSHIFT changed to: ', StepsSft
             endif
 
             ! Change the singles bias
             if (opts_selected(singlesbias)) then
                 call MPIBcast (SinglesBias_value, 1, proc)
                 tSingBiasChange = .true.
-                root_write 'SINGLESBIAS changed to: ', SinglesBias
+                root_print 'SINGLESBIAS changed to: ', SinglesBias
             endif
 
             ! Zero the average energy estimators
@@ -434,14 +433,14 @@ contains
                 ProjEIterSum = 0
                 VaryShiftCycles = 0
                 SumDiagSft = 0
-                root_write 'Zeroing all average energy estimators.'
+                root_print 'Zeroing all average energy estimators.'
             endif
 
             ! Zero average histograms
             if (opts_selected(zerohist)) then
                 histogram = 0
                 if (tHistSpawn) avAnnihil = 0
-                root_write 'Zeroing all average histograms'
+                root_print 'Zeroing all average histograms'
             endif
 
             ! Change the number of holes/electrons in the core valence region
@@ -449,14 +448,14 @@ contains
                 call MPIBCast (NPartFrozen, 1, proc)
                 call MPIBcast (NHolesFrozen, 1, proc)
 
-                root_write 'Allowing ', nHolesFrozen, ' holes in ', &
+                root_print 'Allowing ', nHolesFrozen, ' holes in ', &
                            nPartFrozen, ' partially frozen orbitals.'
 
                 if (nHolesFrozen == nPartFrozen) then
                     ! Allowing as many holes as there are orbitals
                     !  --> equivalent to not freezing at all.
                     tPartFreezeCore = .false.
-                    root_write 'Unfreezing any partially frozen core'
+                    root_print 'Unfreezing any partially frozen core'
                 else
                     tPartFreezeCore = .true.
                 endif
@@ -466,14 +465,14 @@ contains
                 call MPIBcast (nVirtPartFrozen, 1, proc)
                 call MPIBcast (nelVirtFrozen, 1, proc)
 
-                root_write 'Allowing ', nelVirtFrozen, ' electrons in ', &
+                root_print 'Allowing ', nelVirtFrozen, ' electrons in ', &
                            nVirtPartFrozen, ' partially frozen virtual &
                           &orbitals.'
                 if (nelVirtFrozen == nel) then
                     ! Allowing as many holes as there are orbitals
                     ! --> Equivalent ton not freezing at all
                     tPartFreezeVirt = .false.
-                    root_write 'Unfreezing any partially frozen virtual &
+                    root_print 'Unfreezing any partially frozen virtual &
                                &orbitals'
                 else
                     tPartFreezeVirt = .true.
@@ -482,14 +481,14 @@ contains
             
             ! Print blocking analysis here.
             if (opts_selected(printerrorblocking)) then
-                root_write 'Printing blocking analysis at this point.'
+                root_print 'Printing blocking analysis at this point.'
                 if (iprocindex == 0) call PrintBlocking (iter)
             endif
 
             ! Start blocking analysis
             if (opts_selected(starterrorblocking)) then
                 if ((.not.tHFPopStartBlock) .and. (.not.tIterStartBlock)) then
-                    root_write 'Error blocking already started'
+                    root_print 'Error blocking already started'
                 else
                     tIterStartBlock = .true.
                     IterStartBlocking = iter
@@ -498,20 +497,20 @@ contains
 
             ! Restart error blocking
             if (opts_selected(restarterrorblocking)) then
-                root_write 'Restarting the error calculations. All blocking &
+                root_print 'Restarting the error calculations. All blocking &
                            &arrays are re-set to zero.'
                 if (iProcIndex == 0) call RestartBlocking (iter)
             endif
 
             ! Print shift blocking analysis here
             if (opts_selected(printshiftblocking)) then
-                root_write 'Printing shift error blocking.'
+                root_print 'Printing shift error blocking.'
                 if (iProcIndex == 0) call PrintShiftBlocking_proc (iter)
             endif
 
             ! Restart shift blocking analysis
             if (opts_selected(restartshiftblocking)) then
-                root_write 'Restarting the shift error calculations. All &
+                root_print 'Restarting the shift error calculations. All &
                            &shift blocking arrays set to zero.'
                 if (iProcIndex == 0) call RestartShiftBlocking_proc (iter)
             endif
@@ -519,16 +518,16 @@ contains
             ! Change the number of equilibration steps
             if (opts_selected(equilsteps)) then
                 call MPIBcast (nEquilSteps, 1, proc)
-                root_write 'Changing the number of equilibration steps to ', &
+                root_print 'Changing the number of equilibration steps to ', &
                            nEquilSteps
             endif
 
             ! Start histogramming
             if (opts_selected(starthist)) then
-                root_write 'Beginning to histogram at the next update'
+                root_print 'Beginning to histogram at the next update'
                 if (iProcIndex == 0) nHistEquilSteps = iter + StepsSft
                 if (.not. tCalcFCIMCPsi) then
-                    root_write 'This has no effect, as the histograms have &
+                    root_print 'This has no effect, as the histograms have &
                                &not been set up at the beginning of the &
                                &calculation.'
                 endif
@@ -537,10 +536,10 @@ contains
             ! Change the starting iteration for histogramming
             if (opts_selected(histequilsteps)) then
                 if (nHistEquilSteps < iter) nHistEquilSteps = iter + StepsSft
-                root_write 'Changing the starting iteration for &
+                root_print 'Changing the starting iteration for &
                            &histogramming to ', nHistEquilSteps
                 if (.not. tCalcFCIMCPsi) then
-                    root_write 'This has no effec, as the histograms have &
+                    root_print 'This has no effec, as the histograms have &
                                &not been set up at the beginning of the &
                                &calculation.'
                 endif
@@ -550,16 +549,16 @@ contains
             if (opts_selected(truncinitiator)) then
                 tTruncInitiator = .true.
                 tau_value = tau_value / 10 ! Done by all. No need to BCast...
-                root_write 'Beginning to allow spawning into inactive space &
+                root_print 'Beginning to allow spawning into inactive space &
                            &for a truncated initiator calculation.'
-                root_write 'Reducing tau by an order of magnitude. The new &
+                root_print 'Reducing tau by an order of magnitude. The new &
                            &tau is ', tau_value
             endif
 
             ! Change the initiator cutoff parameter
             if (opts_selected(addtoinit)) then
                 call MPIBCast (InitiatorWalkNo, 1, proc)
-                root_write 'Cutoff propulation for determinants to be added &
+                root_print 'Cutoff propulation for determinants to be added &
                            &to the initiator space changed to ', &
                            InitiatorWalkNo
             endif
@@ -567,13 +566,13 @@ contains
             ! Scale the number of walkers on the HF det
             if (opts_selected(scalehf)) then
                 call MPIBcast (HFScaleFactor, 1, proc)
-                root_write 'Number at Hartree-Fock scaled by factor: ', &
+                root_print 'Number at Hartree-Fock scaled by factor: ', &
                            hfScaleFactor
 
                 SumNoatHF = SumNoatHF * hfScaleFactor
                 if (iProcIndex == DetermineDetProc(ilutHF)) then
                     pos = binary_search (CurrentDets, iLutHF, NIfTot+1, &
-                                         TotWalkers)
+                                         int(TotWalkers,int32))
                     call extract_sign (CurrentDets(:,pos), hfsign)
                     do i = 1, lenof_sign
                         hfsign(i) = hfsign(i) * hfScaleFactor
@@ -585,7 +584,7 @@ contains
             ! Print the determinants with the largest +- populations
             if (opts_selected(printhighpopdet)) then
                 tPrintHighPop = .true.
-                root_write 'Request to print the determinants with the &
+                root_print 'Request to print the determinants with the &
                            &largest populations detected.'
             endif
 
@@ -595,7 +594,7 @@ contains
                 tCheckHighestPop = .true.
                 tChangeProjEDet = .true.
                 FracLargerDet = 1.0
-                root_write 'Changing the reference determinant to the most &
+                root_print 'Changing the reference determinant to the most &
                            &highly weighted determinants.'
             endif
 
@@ -605,7 +604,7 @@ contains
                 tCheckHighestPop = .true.
                 tRestartHighPop = .true.
                 FracLargerDet = 1.0
-                root_write 'Restarting the calculation with the most highly &
+                root_print 'Restarting the calculation with the most highly &
                            &weighted determinant as the reference determiant.'
             endif
 
@@ -614,10 +613,10 @@ contains
                 call MPIBcast (spin_proj_interval, 1, proc)
                 if (spin_proj_interval == 0) then
                     tSpinProject = .false.
-                    root_write 'Stochastic spin projection disabled'
+                    root_print 'Stochastic spin projection disabled'
                 else
                     tSpinProject = .true.
-                    root_write 'Stochastic spin projection applied every ', &
+                    root_print 'Stochastic spin projection applied every ', &
                                spin_proj_interval, ' iterations.'
                 endif
             endif
@@ -625,21 +624,21 @@ contains
             ! Change delta-gamma for spin projection
             if (opts_selected(spin_project_gamma)) then
                 call MPIBcast (spin_proj_gamma, 1, proc)
-                root_write 'Changed gamma value for spin projection to ', &
+                root_print 'Changed gamma value for spin projection to ', &
                            spin_proj_gamma
             endif
 
             ! Change shift value for spin projection
             if (opts_selected(spin_project_shift)) then
                 call MPIBcast (spin_proj_shift, 1, proc)
-                root_write 'Changed shift value for spin projection to ', &
+                root_print 'Changed shift value for spin projection to ', &
                            spin_proj_shift
             endif
 
             ! Change walker number cutoff value for spin projection
             if (opts_selected(spin_project_shift)) then
                 call MPIBcast (spin_proj_cutoff, 1, proc)
-                root_write 'Changed walker number cutoff value for spin &
+                root_print 'Changed walker number cutoff value for spin &
                            &projection to ', spin_proj_shift
             endif
         endif

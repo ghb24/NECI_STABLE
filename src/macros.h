@@ -39,5 +39,6 @@ endif
 #endif
 
 ! Write out from the root node (concisely)
-#define root_write if (iProcIndex == 0) write (6, *) 
+#define root_write if (iProcIndex == 0) write
+#define root_print root_write (6, *) 
 

@@ -1,11 +1,12 @@
 MODULE CCMC
     use Determinants, only: get_helement, write_det, write_det_len
     use sort_mod
-    use constants, only: dp, int64, n_int, end_n_int,lenof_sign
-    use CCMCData, only: ExcitToDetSign,AddBitExcitor, iter_data_ccmc
+    use constants, only: dp, int64, n_int, end_n_int,lenof_sign, int32
+    use CCMCData, only: ExcitToDetSign,AddBitExcitor
     use ClusterList
     use bit_rep_data, only: NIfDBO,NIfTot
     use bit_reps, only: encode_det
+    use FciMCParMod, only: calculate_new_shift_wrapper, iter_data_ccmc
    IMPLICIT NONE
    CONTAINS
 
@@ -156,6 +157,11 @@ MODULE CCMC
         nClusters=0
         dClusterProbs=0
 
+        ! Reset counters
+        iter_data_ccmc%nborn = 0
+        iter_data_ccmc%ndied = 0
+        iter_data_ccmc%nannihil = 0
+
         IF(mod(Iter,StepsSft).eq.0) THEN
     
            nClusterBirths=0 
@@ -201,7 +207,7 @@ MODULE CCMC
 ! As the number of walkers in the HF reference det is the normalization, we loop
 ! over each walker there and use it a number of times
 ! We take the number of walkers as the number of samples to begin with.
-        CALL BinSearchParts(iLutHF,1,TotWalkers,iHFDet,tSuccess)
+        CALL BinSearchParts(iLutHF, 1, int(TotWalkers,int32), iHFDet,tSuccess)
         if(.not.tSuccess) then
             WRITE(6,*) "WARNING: Cannot find HF det in particle list"
             HFcount=1
@@ -611,6 +617,7 @@ MODULE CCMC
    !                    ExcitLevel=iGetExcitLevel_2(HFDet,nJ,NEl,NEl)
    !                    WRITE(6,*) "Excitlevel:", ExcitLevel
                        NoBorn=NoBorn+abs(Child(1))     !Update counter about particle birth
+                       iter_data_ccmc%nborn(1) = iter_data_ccmc%nborn(1) + abs(Child(1))
                        IF(IC.eq.1) THEN
                            SpawnFromSing=SpawnFromSing+abs(Child(1))
                        ENDIF
@@ -716,6 +723,7 @@ MODULE CCMC
                   if(iDebug.eq.4) Write(6,'(A,G25.16)') "Prob: ",dProb*dProbNorm
                endif
                NoDied=NoDied+iDie          !Update death counter
+               iter_data_ccmc%ndied(1) = iter_data_ccmc%ndied(1) + iDie
                if(iCompositeSize.gt.1.and.iDie.gt.0) nClusterDeaths=nClusterDeaths+1 
                if(iCompositeSize.gt.1.and.iDie.lt.0) nClusterBirths=nClusterBirths+1 
                
@@ -850,7 +858,7 @@ MODULE CCMC
                 CALL FLUSH(6)
             ENDIF
         ENDIF
-        
+
         CALL halt_timer(Walker_Time)
         CALL set_timer(Annihil_Time,30)
 !        CALL MPI_Barrier(MPI_COMM_WORLD,error)
@@ -864,6 +872,10 @@ MODULE CCMC
 
         CALL halt_timer(Annihil_Time)
         IF(iDebug.gt.0) WRITE(6,*) "Leaving CCMC Cycle"
+        
+        ! Update counters
+        iter_data_ccmc%update_growth = iter_data_ccmc%update_growth + iter_data_ccmc%nborn - iter_data_ccmc%ndied - iter_data_ccmc%nannihil
+        iter_data_ccmc%update_iters = iter_data_ccmc%update_iters + 1
         
     END SUBROUTINE PerformCCMCCycParInt
 #else 
@@ -1803,7 +1815,7 @@ SUBROUTINE CCMCStandalone(Weight,Energyxw)
    use FciMCData, only: ProjectionE
    use FciMCParMod, only: iLutHF
    use FciMCParMod, only: CheckAllowedTruncSpawn, SetupParameters,BinSearchParts3
-   use FciMCParMod, only: CalcNewShift,InitHistMin
+   use FciMCParMod, only: InitHistMin, calculate_new_shift_wrapper
    use FciMCData, only: NoatHF,NoatDoubs
    use FciMCParMod, only: WriteHistogram,SumEContrib
    Use Logging, only: CCMCDebug,tCCMCLogTransitions,tCCMCLogUniq
@@ -2113,7 +2125,7 @@ SUBROUTINE CCMCStandalone(Weight,Energyxw)
 
 !TotWalkers is used for this and is WalkerScale* total of all amplitudes
       NoAtHF=AL%Amplitude(iRefPos,iCurAmpList)
-      if(iShiftLeft.le.0)  Call CalcNewShift()
+      if(iShiftLeft.le.0)  Call calculate_new_shift_wrapper(iter_data_ccmc)
       if(iShiftLeft.le.0)  iShiftLeft=StepsSft
       Iter=Iter+1
 !Reset number at HF and doubles
@@ -2159,7 +2171,7 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
    use FciMCData, only: ProjectionE
    use FciMCParMod, only: iLutHF
    use FciMCParMod, only: CheckAllowedTruncSpawn, SetupParameters,BinSearchParts3
-   use FciMCParMod, only: CalcNewShift,InitHistMin
+   use FciMCParMod, only: InitHistMin, calculate_new_shift_wrapper
    use FciMCParMod, only: WriteHistogram,SumEContrib
    Use Logging, only: CCMCDebug,tCCMCLogTransitions,tCCMCLogUniq
    USE Logging , only : tHistSpawn,iWriteHistEvery
@@ -2353,7 +2365,7 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
 
       NoAtHF=AL%Amplitude(iRefPos,iCurAmpList)
 !TotWalkers is used for this and is WalkerScale* total of all amplitudes
-      if(iShiftLeft.le.0)  Call CalcNewShift()
+      if(iShiftLeft.le.0)  Call calculate_new_shift_wrapper(iter_data_ccmc)
       if(iShiftLeft.le.0)  iShiftLeft=StepsSft
 !Reset number at HF and doubles
       NoatHF=0
