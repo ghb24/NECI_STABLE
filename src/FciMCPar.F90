@@ -674,15 +674,6 @@ MODULE FciMCParMod
             ! write(6,*) j, CurrentDets(:,j)
             call extract_bit_rep (CurrentDets(:,j), DetCurr, SignCurr, &
                                   FlagsCurr)
-            !write (6, '(a, i8)', advance='no') 'j: ', j
-            !call write_det (6, DetCurr, .true.)
-            !if (iter == 898) then
-            !    write(6,*), j, ':',  CurrentDets(:,j), ';', SignCurr
-            !    write(6,*), 'BDAA', NoBorn, NoDied, Annihilated, NoAborted
-            !endif
-
-            !write(6, '(3i4)', advance='no') Iter, j, signcurr
-            !call writebitdet(6, currentdets(:,j), .true.)
 
             ! TODO: The next couple of bits could be done automatically
 
@@ -808,7 +799,6 @@ MODULE FciMCParMod
         ! walkers should be in a seperate array (SpawnedParts) and the other 
         ! list should be ordered.
         call set_timer (annihil_time, 30)
-!>>>!        print*, iprocindex, 'pre-annihilate', iter_data%nannihil, iter_data%naborted
         call DirectAnnihilation (totWalkersNew, iter_data)
         CALL halt_timer(Annihil_Time)
         
@@ -3404,7 +3394,6 @@ MODULE FciMCParMod
         CALL MPIBarrier(error)
         ! collate_iter_data --> The values used are only valid on Root
         if (iProcIndex == Root) then
-!>>>!            print*, 'BDAA', AllNoborn, AllNoDied, AllAnnihilated, AllNoAborted
             ! Calculate the growth rate
             AllGrowRate = (sum(iter_data%update_growth_tot + AllTotPartsOld))&
                           / real(sum(AllTotPartsOld), dp)
@@ -3590,27 +3579,6 @@ MODULE FciMCParMod
         iter_data%update_iters = 0
 
     end subroutine
-
-!
-!
-! D --> TotImagTime
-! D --> tReZeroShift / flip sign.
-! X --> calculate grow rate for each processor
-!   --> barrier
-! D --> Collate lots of information (including for tTruncInitiator)
-! D --> Test if all particles have died.
-! D --> TempSumWalkersCyc
-!   --> Do we want to exit the single particle phase?
-! D --> Max/min walkers
-! D --> tCheckHighestPop
-! D --> Calculate new shift from grow rate
-! D --> IterTime = IterTime / real(StepsSft)
-! D --> Broadcast Shift
-! D --> WriteFCIMCStats
-! D --> BlockingAnalysis initialisation?
-! D --> ReZero varaibles
-!  
-
 
     subroutine calculate_new_shift_wrapper (iter_data)
 

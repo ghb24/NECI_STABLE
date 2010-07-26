@@ -118,7 +118,6 @@ MODULE AnnihilationMod
     SUBROUTINE DirectAnnihilation(TotWalkersNew, iter_data)
         integer, intent(in) :: TotWalkersNew
         type(fcimc_iter_data), intent(inout) :: iter_data
-!>>>!        integer :: i, tmp, sgn(lenof_sign)
         INTEGER :: MaxIndex
         INTEGER(Kind=n_int) , POINTER :: PointTemp(:,:)
 
@@ -128,13 +127,6 @@ MODULE AnnihilationMod
 !This routine will send all the newly-spawned particles to their correct processor. MaxIndex is returned as the new number of newly-spawned particles on the processor. May have duplicates.
 !The particles are now stored in SpawnedParts2/SpawnedSign2.
         CALL SendProcNewParts(MaxIndex)   
-
-!>>>!        tmp = 0
-!>>>!        do i = 1, maxindex
-!>>>!            call extract_sign(SpawnedParts2(:,i), sgn)
-!>>>!            tmp = tmp + abs(sgn(1))
-!>>>!        enddo
-!>>>!        print*, iprocindex, 'Annihil no, parts: ', maxindex, tmp
 
 !        WRITE(6,*) "Sent particles"
 !        WRITE(6,*) 'MaxIndex',MaxIndex
@@ -149,15 +141,7 @@ MODULE AnnihilationMod
 !MaxIndex will change to reflect the final number of unique determinants in the newly-spawned list, and the particles will end up in the spawnedSign/SpawnedParts lists.
 !        WRITE(6,*) "Transferred",MaxIndex
 
-!>>>!        print*, iprocindex, 'pre compress', iter_data%nannihil, iter_data%naborted
         CALL CompressSpawnedList(MaxIndex, iter_data)  
-!>>>!        print*, iprocindex, 'post compress annihil, abort: ', iter_data%nannihil, iter_data%naborted
-!>>>!        tmp = 0
-!>>>!        do i = 1, maxindex
-!>>>!            call extract_sign(SpawnedParts(:,i), sgn)
-!>>>!            tmp = tmp + abs(sgn(1))
-!>>>!        enddo
-!>>>!        print*, iprocindex, 'post compress no, parts: ', maxindex, tmp
 
 !        WRITE(6,*) "List compressed",MaxIndex,TotWalkersNew
 
@@ -165,13 +149,6 @@ MODULE AnnihilationMod
 !This will also remove the found determinants from the spawnedparts lists.
 
         CALL AnnihilateSpawnedParts(MaxIndex,TotWalkersNew, iter_data)  
-!>>>!        print*, iprocindex, 'post annihilation annihil, abort: ', iter_data%nannihil, iter_data%naborted
-!>>>!        tmp = 0
-!>>>!        do i = 1, maxindex
-!>>>!            call extract_sign(SpawnedParts(:,i), sgn)
-!>>>!            tmp = tmp + abs(sgn(1))
-!>>>!        enddo
-!>>>!        print*, iprocindex, 'post annihilation no, parts: ', maxindex, tmp
 
 !        WRITE(6,*) "Annihilation finished",MaxIndex,TotWalkersNew
 
@@ -330,7 +307,6 @@ MODULE AnnihilationMod
                         Annihilated=Annihilated+2*(MIN(abs(SpawnedSign2(j)),abs(SpawnedSign(j))))
                         iter_data%nannihil(j) = iter_data%nannihil(j) + &
                                            2*(min(abs(SpawnedSign2(j)), abs(SpawnedSign(j))))
-!>>>!                        print*, iprocindex, 'annihil compress; j=', j
 
                         IF(tTruncInitiator) THEN
 !If we are doing an initiator calculation, we also want to keep track of which parent the remaining walkers came from - those inside the active space or out.                
