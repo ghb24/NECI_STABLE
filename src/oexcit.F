@@ -802,6 +802,7 @@ C.. in NFULL and NFREE
          use SystemData, only: BasisFn
          use sort_mod
          use sym_mod
+         use util_mod, only: NECI_ICOPY
          IMPLICIT NONE
          INTEGER SPNS(2,2)
          INTEGER NFULL(2,2,-3:0)
@@ -967,6 +968,7 @@ C..                     as LL KK JJ II in binary (beta=1, alpha=2)
 C.. TYPE(5,*)=number of excitations of this type (calculated later)
       SUBROUTINE GETSYMEXTYPES(NBASISMAX,TYPES,NTYPES,NI,NEL,G1,NBASIS,
      &      IFRZ)
+         use util_mod, only: NECI_ICOPY
          IMPLICIT NONE
          INTEGER nBasisMax(5,*),NBASIS
          INTEGER NTYPES,TYPES(5,NTYPES) 
@@ -1102,6 +1104,7 @@ C.. alpha beta -> beta, alpha 10010110
 C.. If we have space in TYPES, and we calculate that there is a non-zero
 C.. number of excitations here, we add the type to TYPES
       SUBROUTINE GSET_ADDTYP(TYP,TYPES,NTY2,NTYPES,SYMES)
+         use util_mod, only: NECI_ICOPY
          IMPLICIT NONE
          INTEGER TYP(5),TYPES(5,NTYPES),NTY2,NTYPES,SYMES(2,2,0:8)
          INTEGER SPN1,SPN2,NSYM(2),NSYME(2),N,SPNE1,SPNE2

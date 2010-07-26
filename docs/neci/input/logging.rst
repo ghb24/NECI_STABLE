@@ -122,6 +122,10 @@ General options
 **XIJ**
    Synonym for **FMCPR XIJ**.
 
+**DETS**
+**DETERMINANTS**
+   Log the list of determinants to DETS and SymDETS if they're calculated.
+
 FCIMC options
 -------------
 

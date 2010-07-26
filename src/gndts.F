@@ -48,6 +48,7 @@ C.. The recursive routine in GNDTS.  IELEC is the current electron
       use SystemData, only: BasisFN,tFixLz
       use sort_mod
       use sym_mod
+      use util_mod, only: NECI_ICOPY
       IMPLICIT NONE
       INTEGER NEL,NHG,LMS,II
       INTEGER NMRKS(NEL,*)

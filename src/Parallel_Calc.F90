@@ -348,7 +348,7 @@ subroutine ParMP2(nI)
    if (.not.tCPMD) then
        write (6,'(a28,i3,a1,2f15.8)') 'Contribution from processor',iProcIndex+1,':',dEtot
        dEarr=dETot
-       call MPIHElSum(dEArr,2,dETot)
+       call MPISum(dEArr,2,dETot)
    end if
    if (iand(ExLevel,1).eq.1) write(6,*) 'MP2 SINGLES=',dETot(1)+dE0
    if (iand(ExLevel,2).eq.2) write(6,*) 'MP2 DOUBLES=',dETot(2)+dE0
@@ -434,7 +434,7 @@ Subroutine Par2vSum(nI)
    write(6,*) dEwTot,dwTot,dEwTot/dwTot
    dTots(1)=dwTot
    dTots(2)=dEwTot
-   Call MPIHelSum(dTots,2,dTots2)
+   Call MPISum(dTots,2,dTots2)
    write(6,*) dTots2(2),dTots2(1),dTots2(2)/dTots2(1)
    deallocate(Ex)
 End Subroutine Par2vSum

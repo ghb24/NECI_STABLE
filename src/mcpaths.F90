@@ -48,7 +48,7 @@ contains
          use mcpathsdata, only: EGP
          use mcpathshdiag, only: fmcpr3b2
          use sym_mod, only: getsym
-         use util_mod, only: isnan
+         use util_mod, only: isnan, NECI_ICOPY
          IMPLICIT NONE
          TYPE(BasisFN) :: G1(*),KSYM
          INTEGER I_VMAX,NEL,NBASIS
@@ -478,6 +478,7 @@ contains
          use global_utilities
          use mcpathsdata, only: EGP
          use mcpathshdiag, only: fmcpr3b2
+         use util_mod, only: NECI_ICOPY
          IMPLICIT NONE
          TYPE(BasisFN) G1(*)
          INTEGER I_VMAX,NEL,NBASIS
@@ -773,6 +774,7 @@ contains
          Use Determinants, only: get_helement
          USE Logging , only : G_VMC_LOGCOUNT
          use CalcData , only : TMPTHEORY
+         use util_mod, only: NECI_ICOPY
          IMPLICIT NONE
          TYPE(BasisFN) G1(*),ISYM
          real(dp) FMCPR3RES
@@ -1099,6 +1101,7 @@ contains
          use mcpathsdata, only: EGP
          use sym_mod, only: getsym
          use legacy_data, only: irat
+         use util_mod, only: NECI_ICOPY
          IMPLICIT NONE
          TYPE(BasisFN) G1(*),ISYM
          INTEGER I_V,NEL,I_P,nBasisMax(5,*),NBASIS,BRR(*),NMSH,NMAX
@@ -1748,6 +1751,7 @@ end module mcpaths
          use SystemData, only: BasisFN
          use Determinants, only: get_helement
          use constants, only: dp
+         use util_mod, only: NECI_ICOPY
          IMPLICIT NONE
          type(BasisFN) ISYM
          INTEGER I_V,NEL,I_P,NBASISMAX(*),G1(*),NBASIS,BRR(*),NMSH,NMAX

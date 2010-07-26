@@ -227,6 +227,7 @@ MODULE Calc
           use CCMCData, only: tExactEnergy
           use global_utilities
           use Parallel, only : nProcessors
+          use Logging, only: tLogDets
           IMPLICIT NONE
           LOGICAL eof
           CHARACTER (LEN=100) w
@@ -257,6 +258,7 @@ MODULE Calc
             case("ENERGY")
                 TENERGY = .true.
                 TCALCHMAT = .true.
+                tLogDets=.true.
             case("LANCZOS")
 !Sets the diagonaliser for the GraphMorph algorithm to be Lanczos
                 TLanczos=.true.
@@ -801,7 +803,7 @@ MODULE Calc
                 ! the projected energy.
                 ! Equivalent to PROJE-CHANGEREF at this point.
                 tReadPopsChangeRef = .true.
-            case("READPOPSRESTARTNEWREFDET")
+            case("READPOPS-RESTARTNEWREFDET")
                 ! When reading in a popsfile, restart the calculation
                 ! according to the other parameters in the input file, but
                 ! using the most highly weighted determinant as the reference
@@ -1323,7 +1325,7 @@ MODULE Calc
           use IntegralsData, only: HFEDelta, HFMix,nTay
           Use Logging, only: iLogging
           use Parallel_Calc
-          use util_mod, only: get_free_unit
+          use util_mod, only: get_free_unit, NECI_ICOPY
           use sym_mod
 
 !Calls
@@ -1807,7 +1809,7 @@ MODULE Calc
      &            TSPECDET,SPECDET,nActiveBasis)
          use constants, only: dp
          use global_utilities
-         use util_mod, only: get_free_unit 
+         use util_mod, only: get_free_unit, NECI_ICOPY
          use SystemData, only: BasisFN,BasisFNSize
          use legacy_data, only: irat
          use CalcData, only: tFCIMC

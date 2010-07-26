@@ -22,6 +22,7 @@ C.. NMAX has ARR hidden in it.
          use SystemData, only: BasisFN
          use sym_mod, only: getsym
          use global_utilities
+         use util_mod, only: NECI_ICOPY
          IMPLICIT NONE
          TYPE(MCStats) MCSt
          INTEGER IPATH(NEL,0:I_VMAX)
@@ -709,6 +710,7 @@ C.. form a loop of length I_V.  If not it will probably hang.
      &   NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,
      &   RHOEPS,RHOII,RHOIJ,NWHTAY,I_HMAX,ILOGGING,TSYM,
      &   ECORE,ISEED)
+         use util_mod, only: NECI_ICOPY
          IMPLICIT NONE
          INTEGER NEL,NI(NEL),I_P,IPATH(NEL,0:I_V),I_V
          INTEGER nBasisMax(5,*),G1,NBASIS,BRR(NBASIS),NMAX
@@ -818,6 +820,7 @@ C.. add that node to the path, and recurse
 
       SUBROUTINE GENRANDOMEXCIT(NI,NEL,NBASIS,IEXLEVEL,ISEED,NJ)
          use sort_mod
+         use util_mod, only: NECI_ICOPY
          IMPLICIT NONE
          INTEGER NEL,NI(NEL),NBASIS,IEXLEVEL,ISEED,NJ(NEL)
          INTEGER I,J,K,IEX,IEXL2
@@ -879,6 +882,7 @@ C.. not very efficient.
          use SystemData , only : BasisFN
          use Determinants, only: get_helement
          use constants, only: dp
+         use util_mod, only: NECI_ICOPY
          IMPLICIT NONE
          TYPE(BasisFN) :: KSYM
          INTEGER NEL,NI(NEL),I_P,IPATH(NEL,0:I_V),I_V
@@ -1040,6 +1044,7 @@ C.. XIJ is proportional to RHO_JJ**ABS(RP).
          use SystemData , only : BasisFN
          use constants, only: dp
          use Determinants, only: get_helement
+         use util_mod, only: NECI_ICOPY
          IMPLICIT NONE
          TYPE(BasisFN) :: KSYM
          INTEGER NEL,NI(NEL),I_P,IPATH(NEL,0:I_V),I_V
@@ -1200,6 +1205,7 @@ C..
          use CalcData , only : G_VMC_PI
          use Determinants, only: get_helement
          use constants, only: dp
+         use util_mod, only: NECI_ICOPY
          IMPLICIT NONE
          TYPE(BasisFN) :: KSYM
          INTEGER NEL,NI(NEL),I_P,IPATH(NEL,0:I_V),I_V
@@ -1618,6 +1624,7 @@ C.. Invert the matrix, and pass the multiplicative factor on.
          use SystemData, only: BasisFN
          use sort_mod
          use sym_mod, only: lChkSym
+         use util_mod, only: NECI_ICOPY
          IMPLICIT NONE
          INTEGER NEL,NI(NEL),NBASIS,IEXLEVEL,ISEED,NJ(NEL)
          INTEGER I,J,K,IEX,IEXL2
@@ -1682,6 +1689,7 @@ C.. If the new basis fn's in our original det or our new one, we loop again
          use SystemData, only: BasisFN
          use sort_mod
          use sym_mod, only: getsym
+         use util_mod, only: NECI_ICOPY
          IMPLICIT NONE
          INTEGER NEL,NI(NEL),NBASIS,NEXCITS,ISEED,NJ(NEL)
          INTEGER I,J,K,IEXL2,NB2,NA,NB,NEX1,NEX2
@@ -1820,6 +1828,7 @@ C.. weight.
          use CalcData, only: tMPTheory, tMCDirectSum, pGenEpsilon
          use util_mod, only: isnan
          use CalcData , only : TMPTHEORY,TMCDIRECTSUM,PGenEpsilon
+         use util_mod, only: NECI_ICOPY
          IMPLICIT NONE
          TYPE(BasisFN) KSYM
          real(dp) FMCPR4D2
@@ -2045,6 +2054,7 @@ C.. Unbias the sum
          use constants, only: dp
          use Determinants, only: get_helement, write_det
          use SystemData, only: BasisFN
+         use util_mod, only: NECI_ICOPY
          IMPLICIT NONE
          INTEGER NEL,I_V,IPATH(NEL,0:I_V),NI(NEL)
          REAL*8 BETA,ALAT(*),ECORE
@@ -2332,7 +2342,7 @@ C.. a wrongly biased MC
          use CalcData , only : G_VMC_PI
          use Determinants, only: get_helement, write_det
          use constants, only: dp
-         use util_mod, only: isnan
+         use util_mod, only: isnan, NECI_ICOPY
          IMPLICIT NONE
          TYPE(BasisFN) :: KSYM
          INTEGER NEL,NI(NEL),I_P,IPATH(NEL,0:I_V),I_V
@@ -2721,6 +2731,7 @@ C.. NB TMAT has sometimes been hidden in ZIA
          use SystemData , only : BasisFN
          use Determinants, only: get_helement, write_det
          use constants, only: dp
+         use util_mod, only: NECI_ICOPY
          IMPLICIT NONE
          TYPE(BasisFN) :: KSym
          INTEGER NEL,NI(NEL),I_P
@@ -2981,6 +2992,7 @@ C..  (|w'(ijk)| Sum_(j' in G&j'-l) w1(j')/N(j'))/Sum_(j''in G) w1(j'')
      &                        NMAX,ALAT,UMAT,ECORE,PFAC,WMIN)
          use Determinants, only: get_helement, write_det
          use constants, only: dp
+         use util_mod, only: NECI_ICOPY
          IMPLICIT NONE
          INTEGER I_V,NEL,IPATH(NEL,0:I_V)
          REAL*8 RHOIJ(0:I_V,0:I_V)
@@ -3207,6 +3219,7 @@ C.  We choose the vertex to remove with prob rho_ii^-P (w2)
      &                        NBASISMAX,OWEIGHT,ILOGGING,DBETA,
      &                        OETILDE,ETILDERET,WEIGHTRET,IOCLS,
      &                        ITREE,IACC,ISEED,PFAC,WMIN)
+         use util_mod, only: NECI_ICOPY
          IMPLICIT NONE
          INTEGER I_V,NEL,IPATH(NEL,0:I_V)
          REAL*8 RHOIJ(0:I_V,0:I_V)

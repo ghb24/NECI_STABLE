@@ -54,6 +54,7 @@ contains
         Use global_utilities
         use SystemData, only : nEl, ECore, Arr, Brr, G1, nBasis, LMS, nBasisMax,tFixLz, tUEGSpecifyMomentum
         use sym_mod
+        use util_mod, only: NECI_ICOPY
         integer ierr
         integer i,Lz
         type(BasisFn) s

@@ -295,6 +295,7 @@ FUNCTION MCPATHSPRE(point,NI,BETA,I_P,IPATH,K,G1,NMSH,         &
     use mcpaths, only: fmcpr3b
     use mcpathshdiag, only: fmcpr3b2
     use sym_mod, only: getsym
+    use util_mod, only: NECI_ICOPY
     IMPLICIT NONE
     TYPE(BasisFN) G1(*),KSYM
     INTEGER I_P,METH,CYCLES,NMSH,NTAY(2),L,LT,K

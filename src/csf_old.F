@@ -260,6 +260,7 @@ C.. test if NCI is a CSF
          use SystemData, only: BasisFN,BasisFNSize
          use legacy_data, only: CSF_NBSTART
          use sym_mod
+         use util_mod, only: NECI_ICOPY
          IMPLICIT NONE
          INTEGER NEL,NBASIS,BRR(NBASIS),NBASISMAX(*)
          INTEGER NMRKS(NEL,1),NDET
@@ -281,7 +282,7 @@ C.. test if NCI is a CSF
          INTEGER SFORCE,SZFORCE
          INTEGER IEXCITS
          CALL SYMGETSSZ(LMS,SFORCE,SZFORCE)
-         CALL NECI_ICOPY(BASISFNSIZE,IPARITY,1,ISYM,1)
+         ISYM = IPARITY
 C.. make sure Sz=0 as this is dealt with in the csfgen part
          ISYM%MS=0
          IFDET=1
@@ -432,6 +433,7 @@ C..    Otherwise all will.
          use legacy_data, only: CSF_NBSTART
          use sort_mod
          use sym_mod
+         use util_mod, only: NECI_ICOPY
          IMPLICIT NONE
          INTEGER NEL,NBASIS,BRR(NBASIS),NBASISMAX(*)
          INTEGER NMRKS(NEL,*),NDET
@@ -477,7 +479,7 @@ C..    Otherwise all will.
             ENDIF
          ENDDO
          CALL SYMGETSSZ(LMS,SFORCE,SZFORCE)
-         CALL NECI_ICOPY(BASISFNSIZE,IPARITY,1,ISYM,1)
+         ISYM = IPARITY
 C.. ensure Ms=0 as this is dealt with later
          ISYM%MS=0
          IFDET=1
@@ -664,6 +666,7 @@ C.. CSFs in order
 C.. maxNDET is the maximum number of CSFs that can be stored in NMRKS
       SUBROUTINE CSFGENCSFS(NI,NEL,NOPEN,NCLOSED,NMRKS,NDET,TCOUNT,
      &            TSPN,SFORCE,SZFORCE,TCHKEX,ICLIST,IC,NDCH,maxNDET)
+         use util_mod, only: NECI_ICOPY
          IMPLICIT NONE
          INTEGER NI(NEL),NEL,NOPEN,NCLOSED
          INTEGER NMRKS(NEL,*),NDET
@@ -1027,6 +1030,7 @@ C.. if SORDER2(1) is non-zero, we store SORDER in there on return
       SUBROUTINE CSFGENOPENDETS(NCI,NEL,DETLIST,DORDERLIST,SORDER2,
      &   ISTART,IEND)
          use sort_mod
+         use util_mod, only: NECI_ICOPY
          IMPLICIT NONE
          INTEGER NEL,ISTART,IEND
          INTEGER NCI(NEL),DETLIST(NEL,*)

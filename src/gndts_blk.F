@@ -4,6 +4,7 @@
      &         )
          use SystemData, only: BasisFN,BasisFNSize
          use sym_mod
+         use util_mod, only: NECI_ICOPY
          IMPLICIT NONE
          INTEGER NEL,NBASIS,BRR(NBASIS),nBasisMax(5,*),NDET
          INTEGER NMRKS(NEL,NDET)
@@ -53,7 +54,7 @@ C.. we've found an occupied block
      &               (II-OII)*IDEG
                ELSE
                   NBLOCKSTARTS(I)=OII+1
-                  CALL NECI_ICOPY(BASISFNSIZE,ISYM,1,BLOCKSYM(I),1)
+                  BLOCKSYM(I) = ISYM
                   IF(TGENFDET) THEN
                      TDETSC=CALCT(NMRKS(1:NEL,OII+1),NEL,
      &                 G1,NBASIS)
@@ -82,6 +83,7 @@ C.. we've found an occupied block
          use SystemData, only: BasisFN,BasisFNSize
          use sort_mod
          use sym_mod
+         use util_mod, only: NECI_ICOPY
          IMPLICIT NONE
          INTEGER NEL,NI(NEL), NBASIS, NLMAX,NLIST
          TYPE(BASISFN) G1(NBASIS),KI,KJ,KJ2
@@ -166,6 +168,7 @@ C.. number of determinants available (even if LSTE doesn't hold them all).
          use SystemData, only: BasisFN,BasisFNSize
          use sort_mod
          use sym_mod
+         use util_mod, only: NECI_ICOPY
          IMPLICIT NONE
          INTEGER NEL,NI(NEL), NBASIS, NLMAX,NLIST
          INTEGER LSTE(NEL,NLMAX),NJ(NEL),NELEC,NBF
@@ -232,6 +235,7 @@ C.. Generate determinants with a given symmetry, given by KI, as GENSYMDETS
          use SystemData, only: BasisFN,BasisFNSize
          use sym_mod
          use sort_mod
+         use util_mod, only: NECI_ICOPY
          IMPLICIT NONE
          INTEGER NEL,NI(NEL), NBASIS, NLMAX,NLIST
          INTEGER LSTE(NEL,NLMAX),NJ(NEL),NELEC,NBF
@@ -346,6 +350,7 @@ C.. KI is the sym, NJ contains the working
          use SystemData, only: BasisFN
          use sort_mod
          use sym_mod
+         use util_mod, only: NECI_ICOPY
          IMPLICIT NONE
          TYPE(BasisFN) G1(nBasis),kI,kJ,kJ2
          INTEGER NEL,NI(NEL), NBASIS
@@ -421,7 +426,7 @@ C..  NEL+21 - 2*NEL+20  NINDJ
      &      TPARITY,SymRestrict,NI,TSETUP,TDONE,Work,nActiveBasis)
 CWORK(5),
 C     &      WORK(15),WORK(20),WORK(21),WORK(NEL+21))
-         CALL NECI_ICOPY(BasisFNSize,Work%ISym,1,ISym,1)
+         ISYM = Work%ISym
          RETURN
       END
 

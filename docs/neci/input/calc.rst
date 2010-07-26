@@ -1123,6 +1123,7 @@ The following option are only available in **MCSTAR** calculations:
       For **AMPLITUDE** this is each cycle.  
       For **PARTICLE** this is for each excitor.
    Default 1
+   If this is set to -1 for particle, then we use the same number of cluster selections as particles.
 
 **CCMCEXACTENERGY**
    

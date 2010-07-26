@@ -5,6 +5,7 @@
          use legacy_data, only: irat
          use sym_mod, only: lchksymd
          use SystemData, only: BasisFn
+         use util_mod, only: NECI_ICOPY
          IMPLICIT NONE
          REAL*8 BETA,FCK(*),ALAT(3),UMAT(*),RHOEPS,ECORE
          INTEGER I_P,BRR(NBASIS),NTAY,NMSH,NMAX,ILOGGING
@@ -145,6 +146,7 @@ C         ENDDO
      &      RHOEPS,ILOGGING,TSYM,ECORE)
          use global_utilities
          use legacy_data, only: irat
+         use util_mod, only: NECI_ICOPY
          IMPLICIT NONE
          REAL*8 BETA,FCK(*),ALAT(3),UMAT(*),RHOEPS,ECORE
          INTEGER I_P,BRR(NBASIS),NTAY,NMSH,NMAX,ILOGGING

@@ -12,6 +12,7 @@ MODULE FciMCData
       ! Units used to write to files
       integer :: fcimcstats_unit ! FCIMCStats
       integer :: initiatorstats_unit ! INITIATORStats
+      integer :: ComplexStats_unit ! COMPLEXStats
 
       INTEGER(KIND=n_int) , ALLOCATABLE , TARGET :: WalkVecDets(:,:)                !Contains determinant list
       REAL(KIND=dp) , ALLOCATABLE , TARGET :: WalkVecH(:)                    !Diagonal hamiltonian element
@@ -37,12 +38,14 @@ MODULE FciMCData
  
       REAL*8 :: AvDiagSftAbort,SumDiagSftAbort,DiagSftAbort     !This is the average diagonal shift value since it started varying, and the sum of the shifts since it started varying, and
                                                                 !the instantaneous shift, including the number of aborted as though they had lived.
+
+      REAL*8 :: DiagSftRe,DiagSftIm     !For complex walkers - this is just for info - not used for population control.
     
       INTEGER , ALLOCATABLE :: HFDet(:)       !This will store the HF determinant
       INTEGER :: HFDetTag=0
 
       INTEGER :: MaxWalkersPart,TotWalkers,TotWalkersOld,PreviousNMCyc,Iter,NoComps,MaxWalkersAnnihil
-      INTEGER :: TotParts,TotPartsOld
+      INTEGER , ALLOCATABLE :: TotParts(:),TotPartsOld(:)
       INTEGER :: exFlag=3
 
 !The following variables are calculated as per processor, but at the end of each update cycle, are combined to the root processor
@@ -71,7 +74,8 @@ MODULE FciMCData
 
 !These are the global variables, calculated on the root processor, from the values above
       REAL*8 :: AllGrowRate
-      REAL(KIND=dp) :: AllTotWalkers,AllTotWalkersOld,AllTotParts,AllTotPartsOld
+      REAL(KIND=dp) :: AllTotWalkers,AllTotWalkersOld
+      REAL(KIND=dp) , ALLOCATABLE :: AllTotParts(:),AllTotPartsOld(:)
       INTEGER(KIND=int64) :: AllSumWalkersCyc
       INTEGER :: AllAnnihilated,AllNoatHF,AllNoatDoubs
       REAL*8 :: AllSumNoatHF,AllSumENum,AllAvSign,AllAvSignHFD
@@ -129,7 +133,7 @@ MODULE FciMCData
 
       INTEGER :: WalkersDiffProc
 
-      LOGICAL :: tGenMatHEl=.true.      !This is whether to generate matrix elements as generating excitations for the HPHF option
+      LOGICAL , PARAMETER :: tGenMatHEl=.true.      !This is whether to generate matrix elements as generating excitations for the HPHF option
 
       INTEGER :: VaryShiftCycles                    !This is the number of update cycles that the shift has allowed to vary for.
       INTEGER :: VaryShiftIter                     !This is the iteration that the shift can vary.
@@ -205,6 +209,11 @@ MODULE FciMCData
 !CullInfo is the number of walkers before and after the cull (elements 1&2), and the third element is the previous number of steps before this cull...
 !Only 10 culls/growth increases are allowed in a given shift cycle
       INTEGER :: CullInfo(10,3)
+
+      ! Used for modifying the ReadPops procedures, so that we can call 
+      ! InitFCIMCCalcPar again without reading the popsfile.
+      logical :: tPopsAlreadyRead
+
 
       interface assignment(=)
           module procedure excitgenerator_assign
