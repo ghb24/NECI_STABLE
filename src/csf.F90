@@ -1407,6 +1407,7 @@ contains
         real*8 :: r
 
         csf_get_random_det =  random_spin_permute (nI(nel-nopen+1:nel), Ms)
+        nI(1:nel-nopen) = iand(nI(1:nel-nopen), csf_orbital_mask)
         call csf_sort_det_block (nI, 1, nopen)
 
     end function
