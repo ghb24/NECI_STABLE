@@ -83,7 +83,7 @@ MODULE GenRandSymExcitNUMod
         ENDIF       
 
         !TODO: Not quite sure what conditions we need to check for now...
-!        IF(.not.tFilled) THEN
+        IF(.not.tFilled) THEN
 !            IF(.not.TwoCycleSymGens) THEN
 !!Currently only available for molecular systems, or without using symmetry.
 !                IF(.not.tNoSymGenRandExcits) THEN
