@@ -166,6 +166,7 @@ contains
          use SymData, only: nProp,PropBitLen,SymClasses,nSymLabels
          use SymData, only: tAbelian,SymLabels, TwoCycleSymGens
          use SymData, only: tagSymLabels,tagSymClasses
+         use SymData, only: SymConjTab, tagSymConjTab
          use util_mod, only: int_fmt
          use global_utilities
          IMPLICIT NONE
@@ -200,6 +201,8 @@ contains
          call LogMemAlloc('SymLabels',nSymLabels,SymmetrySize,this_routine,tagSymLabels)
          allocate(SymClasses(nBasis))
          call LogMemAlloc('SymClasses',nBasis,4,this_routine,tagSymClasses)
+         allocate(SymConjTab(nSymlabels))
+         call LogMemAlloc('SymConjTab',nSymlabels,4,this_routine,tagSymConjTab)
          if (TwoCycleSymGens .or. tUEG) then
              DO I=1,NBASIS,2
 !   place the sym label of each state in SymClasses(ISTATE).  For molp sym, this is 
@@ -214,6 +217,9 @@ contains
 !   list the symmetry string of each sym label
              DO I=1,NSYMLABELS
                 SYMLABELS(I)%s=I-1
+                ! Abelian representations are self-inverses if the group is
+                ! real.
+                SymConjTab(I) = I
              ENDDO
          else
              symlabels(:)%s = -1
@@ -227,6 +233,15 @@ contains
                          ! Have not found this label...
                          symclasses((i+1)/2) = ilabel
                          symlabels(ilabel)%s = g1(i)%sym%s
+                         exit
+                     end if
+                 end do
+             end do
+             ! Find inverses.
+             do ilabel = 1, nsymlabels
+                 do i = 1, nsymlabels
+                     if (SymEq(symlabels(i), SymConj(symlabels(ilabel)))) then
+                         SymConjTab(ilabel) = i
                          exit
                      end if
                  end do
