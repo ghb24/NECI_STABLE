@@ -2082,17 +2082,17 @@ MODULE GenRandSymExcitNUMod
 ! For a given ij pair in the UEG or Hubbard model, this generates ab as a double excitation efficiently.
 ! This takes into account the momentum conservation rule, i.e. that kb=ki+ki-ka(+G).
     SUBROUTINE CreateDoubExcitLattice(nI,iLutnI,nJ,tParity,ExcitMat,pGen,Elec1Ind,Elec2Ind,iSpn)
-        Use SystemData , only : NMAXX,NMAXY,NMAXZ
+        Use SystemData , only : NMAXX,NMAXY,NMAXZ,tOrbECutoff,OrbECutoff
 
         INTEGER :: i,nI(NEl),nJ(NEl),Elec1Ind,Elec2Ind,iSpn,kx,ky,kz,ktest(2),kb_ms,ms_sum
         INTEGER(KIND=n_int) :: iLutnI(0:NIfTot)
-        INTEGER :: ChosenUnocc,Hole1BasisNum,Hole2BasisNum,ki(3),kj(3),ka(3),kb(3),ExcitMat(2,2),iSpinIndex
+        INTEGER :: ChosenUnocc,Hole1BasisNum,Hole2BasisNum,ki(3),kj(3),ka(3),kb(3),ExcitMat(2,2),iSpinIndex,TestEnergyB
         LOGICAL :: tAllowedExcit,tParity
         REAL*8 :: r,pGen,pAIJ
-            
+       
         ! This chooses an a of the correct spin, excluding occupied orbitals
         ! This currently allows b orbitals to be created that are disallowed
-        DO
+        DO 
             r = genrand_real2_dSFMT()
             ! Choose a 
             IF (iSpn.eq.2) THEN ! alpha/beta combination
@@ -2168,6 +2168,8 @@ MODULE GenRandSymExcitNUMod
             IF(ABS(kb(1)).gt.NMAXX) tAllowedExcit=.false.
             IF(ABS(kb(2)).gt.NMAXY) tAllowedExcit=.false.
             IF(ABS(kb(3)).gt.NMAXZ) tAllowedExcit=.false.
+            TestEnergyB=kb(1)**2+kb(2)**2+kb(3)**2
+            IF(tOrbECutoff.and.(TestEnergyB.gt.OrbECutoff)) tAllowedExcit=.false.
             IF(.not.tAllowedExcit) THEN
                 nJ(1)=0
                 RETURN

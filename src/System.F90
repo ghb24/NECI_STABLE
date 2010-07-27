@@ -85,6 +85,7 @@ MODULE System
       TALPHA = .false.
       ISTATE = 1
       OrbECutoff=1e20
+      tOrbECutoff=.false.
       tStoreAsExcitations=.false.
       TBIN=.false.
       tAbelianFastExcitGen=.true.
@@ -359,6 +360,7 @@ MODULE System
 !               call getf(FCOULDAMPBETA)
 !            end select
         case("ENERGY-CUTOFF")
+          tOrbECutoff=.true.
           call getf(OrbECutoff)
         case("STORE-AS-EXCITATIONS")
            tStoreAsExcitations=.true.  
