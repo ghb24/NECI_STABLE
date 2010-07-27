@@ -251,6 +251,7 @@ C            WRITE(32,*) I_V,ICLASS,RHOC
       RECURSIVE REAL*8 FUNCTION CALCPATHS_R(IPATH,RHOII,RHOIJ,I_V,
      &      I_HMAX,I_P,NWHTAY,I_HIND,NEL,IPATH2,IP2,RHOCUML,RHOII2,
      &      I_VMAX,ILOGGING) RESULT (CALCPATHS_RRES)
+         use util_mod, only: NECI_ICOPY
          IMPLICIT REAL*8 (A-H,O-Z)
          INTEGER NEL,I_V,I_P,NWHTAY,I_HMAX,I_VMAX
 C.. IPATH contains the vertices we can choose from

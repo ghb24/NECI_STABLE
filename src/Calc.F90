@@ -201,6 +201,8 @@ MODULE Calc
 
           lNoTriples=.false.
           tFCIMCSerial=.false.  !If set we force the parallel version to run the serial code.
+          tReadPopsChangeRef = .false.
+          tReadPopsRestart = .false.
 
 !Feb 08 default set.
           IF(Feb08) THEN
@@ -225,6 +227,7 @@ MODULE Calc
           use CCMCData, only: tExactEnergy
           use global_utilities
           use Parallel, only : nProcessors
+          use Logging, only: tLogDets
           IMPLICIT NONE
           LOGICAL eof
           CHARACTER (LEN=100) w
@@ -255,6 +258,7 @@ MODULE Calc
             case("ENERGY")
                 TENERGY = .true.
                 TCALCHMAT = .true.
+                tLogDets=.true.
             case("LANCZOS")
 !Sets the diagonaliser for the GraphMorph algorithm to be Lanczos
                 TLanczos=.true.
@@ -793,6 +797,18 @@ MODULE Calc
                     iPopsFileNoWrite = iPopsFileNoRead
                     iPopsFileNoRead = -iPopsFileNoRead-1
                 end if
+            case("READPOPS-CHANGEREF")
+                ! When reading in a pops file, use the most highly weighted
+                ! determinant as the reference determinant for calculating
+                ! the projected energy.
+                ! Equivalent to PROJE-CHANGEREF at this point.
+                tReadPopsChangeRef = .true.
+            case("READPOPS-RESTARTNEWREFDET")
+                ! When reading in a popsfile, restart the calculation
+                ! according to the other parameters in the input file, but
+                ! using the most highly weighted determinant as the reference
+                ! determinant.
+                tReadPopsRestart = .true.
             case("WALKCONTGROW")
 !This option goes with the above READPOPS option.  If this is present - the INITWALKERS value is not overwritten, and the walkers are continued to be allowed to grow before reaching                
 !this value.  Without this keyword, when a popsfile is read in, the number of walkers is kept at the number in the POPSFILE regardless of whether the shift had been allowed to change in the previous calc.
@@ -1308,7 +1324,7 @@ MODULE Calc
           use IntegralsData, only: HFEDelta, HFMix,nTay
           Use Logging, only: iLogging
           use Parallel_Calc
-          use util_mod, only: get_free_unit
+          use util_mod, only: get_free_unit, NECI_ICOPY
 
 !Calls
 !          REAL*8 DMonteCarlo2
@@ -1790,7 +1806,7 @@ MODULE Calc
      &            TSPECDET,SPECDET,nActiveBasis)
          use constants, only: dp
          use global_utilities
-         use util_mod, only: get_free_unit 
+         use util_mod, only: get_free_unit, NECI_ICOPY
          use SystemData, only: BasisFN,BasisFNSize
          use legacy_data, only: irat
          use CalcData, only: tFCIMC

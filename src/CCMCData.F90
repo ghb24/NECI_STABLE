@@ -53,6 +53,7 @@ TYPE ClustSelector
    INTEGER nSelects  !If we're stochastically sampling the cluster space, this is the number of samples we take
    REAL*8 dProbSelNewExcitor  !The probability that we quit at every stage of selecting a new excitor for a cluster  
    INTEGER iRefPos   !The Location in teh amplitude list of the reference det
+   LOGICAL tDynamic  !If set, we choose as many clusters as there are excitors.
    TYPE(Cluster) C
 
 END TYPE ClustSelector
@@ -99,7 +100,8 @@ contains
 !  Applying the excitor to the reference det may lead to a change in sign.  That is calculated here.
 
 FUNCTION ExcitToDetSign(iLutRef,iLutDet,iLevel)
-   use SystemData, only: nIfTot,nEl,nIfD
+   use SystemData, only: nEl
+   use bit_rep_data, only: NIfDBO, NIfD, NIfTot
    IMPLICIT NONE
    INTEGER ExcitToDetSign
    INTEGER iLevel
@@ -113,7 +115,7 @@ FUNCTION ExcitToDetSign(iLutRef,iLutDet,iLevel)
 !   write(6,*) "Excitation level ",iLevel
 !   write(6,*) "Ref",iLutRef
 !   write(6,*) "Det",iLutDet
-   DO i=0,nIfTot
+   DO i=0,nIfD
       mask=ieor(iLutRef(i),iLutDet(i))
       Do j=0,end_n_int
          if(btest(iLutRef(i),j)) then
@@ -153,8 +155,9 @@ end function ExcitToDetSign
 !updated with the relevant permutation or set to zero if the excitation is
 !disallowed.
 SUBROUTINE AddBitExcitor(iLutnI,iLutnJ,iLutRef,iSgn)
-   use SystemData, only : nEl,nIfD, NIfTot
+   use SystemData, only : nEl
    use DetBitOps, only: FindBitExcitLevel
+   use bit_rep_data, only: NIfDBO,NIfD,NIfTot
    IMPLICIT NONE
    INTEGER(KIND=n_int) iLutnI(0:nIfTot), iLutnJ(0:nIfTot),iLutRef(0:nIfTot)
    INTEGER(KIND=n_int) iLutTmp(0:nIfTot)

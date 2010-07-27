@@ -14,6 +14,7 @@ C.. This is an approach based on Markov Chains
      &               WLRI,WLSI)
          use global_utilities
          use util_mod, only: isnan
+         use util_mod, only: NECI_ICOPY
          IMPLICIT REAL*8 (A-H,O-Z)
          DIMENSION IPATH(NEL,0:I_VMAX)
          INTEGER NI(NEL)
@@ -194,6 +195,7 @@ C.. form a loop of length I_V.  If not it will probably hang.
      &   RHOEPS,RHOII,RHOIJ,NWHTAY,I_HMAX,ILOGGING,TSYM,
      &   ECORE,ISEED,I_VMOVE,VALUE,WEIGHT,IADJ,ADJ,LCANMOVE,
      &   WFUNC,VFUNC)
+         use util_mod, only: NECI_ICOPY
          IMPLICIT NONE
          INTEGER NEL,NI(NEL),I_P,IPATH(NEL,0:I_V),I_V
          INTEGER nBasisMax(5,*),G1,NBASIS,BRR(NBASIS),NMAX
@@ -280,6 +282,7 @@ C.. Now calculate a new value if required
       END
       SUBROUTINE MODIFYPATH(IPATH,I_VMOVE,RHOII,RHOIJ,IADJ,INODE,
      &               NRHOII,NRHOIJ,NIADJ,I_NVMOVE,NEL,INPATH,I_V)
+         use util_mod, only: NECI_ICOPY
          IMPLICIT NONE
          INTEGER NEL,I_V,IPATH(NEL,0:I_V),IADJ(0:I_V-1,0:I_V-1)
          INTEGER INPATH(NEL,0:I_V),NIADJ(0:I_V-1,0:I_V-1)
@@ -580,6 +583,7 @@ C.. add that node to the path, and recurse
      &         RHOEPS,RHOII,RHOIJ,NWHTAY,I_HMAX,ILOGGING,TSYM,
      &         ECORE,ISEED,I_VMOVE,OVALUE,IADJ,ADJ,LCANMOVE,
      &         WFUNC,VFUNC,WEIGHT)
+         use util_mod, only: NECI_ICOPY
          IMPLICIT NONE
          INTEGER NEL,NI(NEL),I_P,IPATH(NEL,0:I_V),I_V
          INTEGER nBasisMax(5,*),G1,NBASIS,BRR(NBASIS),NMAX

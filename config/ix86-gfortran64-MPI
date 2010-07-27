@@ -7,11 +7,11 @@ compiler = GCC-f95-on-LINUX
 cpp = cpp -C -traditional
 cppflags = -D__Linux -DPOINTER8 -DPARALLEL -D__INT64
 libs = -L ~/lib/fftw-3.1.2/lib -lfftw3 -llapack -lblas -lstdc++ -lrt
-module_flag = -M
+module_flag = -J
 
 [dbg]
 fflags = -fcray-pointer -ffree-line-length-none -g -m64
-cflags = -g -errtags -m64
+cflags = -g -m64
 f90flags = -fbounds-check
 
 [opt]

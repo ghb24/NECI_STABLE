@@ -12,7 +12,8 @@ contains
          logical, intent(in) :: tbin
          integer, intent(out) :: NEL,nBasisMax(5,*),LEN,LMS
          integer SYMLZ(1000)
-         INTEGER NORB,NELEC,MS2,ORBSYM(1000),ISYM,i,SYML(1000), iunit
+         INTEGER*8 :: ORBSYM(1000)
+         INTEGER NORB,NELEC,MS2,ISYM,i,SYML(1000), iunit
          LOGICAL exists,UHF
          CHARACTER*3 :: fmat
          NAMELIST /FCI/ NORB,NELEC,MS2,ORBSYM,ISYM,UHF,SYML,SYMLZ,PROPBITLEN,NPROP
@@ -45,16 +46,16 @@ contains
          ENDIF
 
 !Now broadcast these values to the other processors
-         CALL MPIIBCast_Scal(NORB,0)
-         CALL MPIIBCast_Scal(NELEC,0)
-         CALL MPIIBCast_Scal(MS2,0)
-         CALL MPIIBCast(ORBSYM,1000,0)
-         CALL MPIIBCast(SYML,1000,0)
-         CALL MPIIBCast(SYMLZ,1000,0)
-         CALL MPIIBCast_Scal(ISYM,0)
-         CALL MPILBCast_Scal(UHF,0)
-         CALL MPIIBCast_Scal(PROPBITLEN,0)
-         CALL MPIIBCast(NPROP,3,0)
+         CALL MPIBCast(NORB,1,0)
+         CALL MPIBCast(NELEC,1,0)
+         CALL MPIBCast(MS2,1,0)
+         CALL MPIBCast(ORBSYM,1000,0)
+         CALL MPIBCast(SYML,1000,0)
+         CALL MPIBCast(SYMLZ,1000,0)
+         CALL MPIBCast(ISYM,1,0)
+         CALL MPIBCast(UHF,1,0)
+         CALL MPIBCast(PROPBITLEN,1,0)
+         CALL MPIBCast(NPROP,3,0)
          ! If PropBitLen has been set then assume we're not using an Abelian
          ! symmetry group which has two cycle generators (ie the group has
          ! complex representations).
@@ -66,7 +67,7 @@ contains
 
 
          DO i=1,NORB
-             IF(ORBSYM(i).eq.0) THEN
+             IF(ORBSYM(i).eq.0.and.TwoCycleSymGens) THEN
                  WRITE(6,*) "** WARNING **"
                  WRITE(6,*) "** Unconverged symmetry of orbitals **"
                  WRITE(6,*) "** Turning symmetry off for rest of run **"
@@ -135,7 +136,8 @@ contains
          INTEGER*8 IND,MASK
          INTEGER I,J,K,L,I1, iunit
          INTEGER ISYMNUM,ISNMAX,SYMMAX,SYMLZ(1000)
-         INTEGER NORB,NELEC,MS2,ORBSYM(1000),ISYM,ISPINS,ISPN,SYML(1000)
+         INTEGER NORB,NELEC,MS2,ISYM,ISPINS,ISPN,SYML(1000)
+         INTEGER*8 ORBSYM(1000)
          INTEGER Counter(1:8),nPairs,iErr,MaxnSlot,MaxIndex
          INTEGER , ALLOCATABLE :: MaxSlots(:)
          LOGICAL TBIN,UHF
@@ -155,16 +157,16 @@ contains
          ENDIF
 
 !Now broadcast these values to the other processors (the values are only read in on root)
-         CALL MPIIBCast_Scal(NORB,0)
-         CALL MPIIBCast_Scal(NELEC,0)
-         CALL MPIIBCast_Scal(MS2,0)
-         CALL MPIIBCast(ORBSYM,1000,0)
-         CALL MPIIBCast(SYML,1000,0)
-         CALL MPIIBCast(SYMLZ,1000,0)
-         CALL MPIIBCast_Scal(ISYM,0)
-         CALL MPILBCast_Scal(UHF,0)
-         CALL MPIIBCast_Scal(PROPBITLEN,0)
-         CALL MPIIBCast(NPROP,3,0)
+         CALL MPIBCast(NORB,1,0)
+         CALL MPIBCast(NELEC,1,0)
+         CALL MPIBCast(MS2,1,0)
+         CALL MPIBCast(ORBSYM,1000,0)
+         CALL MPIBCast(SYML,1000,0)
+         CALL MPIBCast(SYMLZ,1000,0)
+         CALL MPIBCast(ISYM,1,0)
+         CALL MPIBCast(UHF,1,0)
+         CALL MPIBCast(PROPBITLEN,1,0)
+         CALL MPIBCast(NPROP,3,0)
          ! If PropBitLen has been set then assume we're not using an Abelian
          ! symmetry group which has two cycle generators (ie the group has
          ! complex representations).
@@ -271,7 +273,7 @@ contains
                  ! This means it won't work with more than 999 basis
                  ! functions...
 #ifdef __CMPLX
-1               READ(iunit,'(1X,2G20.12,4I3)',END=99) Z,I,J,K,L
+1               READ(iunit,*,END=99) Z,I,J,K,L
 #else
 1               READ(iunit,'(1X,G20.12,4I3)',END=99) Z,I,J,K,L
 #endif
@@ -351,18 +353,22 @@ contains
 
 !We now need to broadcast all the information we've just read in...
          IF(tCacheFCIDUMPInts) THEN
-             CALL MPIIBCast(MaxSlots,nPairs,0)
+             CALL MPIBCast(MaxSlots,nPairs,0)
          ENDIF
-         CALL MPIIBCast_Scal(ISNMAX,0)
-         CALL MPIIBCast_Scal(ISYMNUM,0)
-         CALL MPIDBCastArr(Arr,LEN*2,0)
+         CALL MPIBCast(ISNMAX,1,0)
+         CALL MPIBCast(ISYMNUM,1,0)
+         CALL MPIBCast(Arr,LEN*2,0)
          
          SYMMAX=1
          iMaxLz=0
          DO I=1,NORB
             DO ISPN=1,ISPINS
                 BRR(ISPINS*I-ISPN+1)=ISPINS*I-ISPN+1
-                G1(ISPINS*I-ISPN+1)%Sym%s=ORBSYM(I)-1
+                if (TwoCycleSymGens) then
+                    G1(ISPINS*I-ISPN+1)%Sym%s=ORBSYM(I)-1
+                else
+                    G1(ISPINS*I-ISPN+1)%Sym%s=ORBSYM(I)
+                end if
                 IF(tFixLz) THEN
                     G1(ISPINS*I-ISPN+1)%Ml=SYMLZ(I)
                 ELSE
@@ -378,6 +384,7 @@ contains
             ENDDO
          ENDDO
          IF(.not.tFixLz) iMaxLz=0
+         if (.not.TwoCycleSymGens) SYMMAX = ISYM
          ! We use bit strings to store symmetry information.
          ! SYMMAX needs to be the smallest power of 2 greater or equal to
          ! the actual number of symmetry representations spanned by the basis.
@@ -434,13 +441,14 @@ contains
          logical, intent(in) :: tReadFreezeInts
          REAL*8, intent(out) :: ECORE,ARR(NBASIS,2)
          integer, intent(out) :: BRR(NBASIS)
-         HElement_t, intent(out) :: UMAT(*)
-         TYPE(BasisFN), intent(out) :: G1(*)
+         HElement_t, intent(out) :: UMAT(:)
+         TYPE(BasisFN), intent(out) :: G1(:)
          HElement_t Z
          HElement_t UMatEl
          INTEGER ZeroedInt,NonZeroInt
          INTEGER I,J,K,L,X,Y,A,B,iCache,iCacheI,iType, iunit
-         INTEGER NORB,NELEC,MS2,ORBSYM(1000),ISYM,SYMMAX,SYML(1000)
+         INTEGER NORB,NELEC,MS2,ISYM,SYMMAX,SYML(1000)
+         INTEGER*8 ORBSYM(1000)
          LOGICAL LWRITE,UHF,tAddtoCache,GetCachedUMatEl
          INTEGER ISPINS,ISPN,ISPN2,ierr,SYMLZ(1000)!,IDI,IDJ,IDK,IDL
          INTEGER Counter(1:8),UMatSize,TMatSize
@@ -458,16 +466,16 @@ contains
              READ(iunit,FCI)
          ENDIF
 !Now broadcast these values to the other processors (the values are only read in on root)
-         CALL MPIIBCast_Scal(NORB,0)
-         CALL MPIIBCast_Scal(NELEC,0)
-         CALL MPIIBCast_Scal(MS2,0)
-         CALL MPIIBCast(ORBSYM,1000,0)
-         CALL MPIIBCast(SYML,1000,0)
-         CALL MPIIBCast(SYMLZ,1000,0)
-         CALL MPIIBCast_Scal(ISYM,0)
-         CALL MPILBCast_Scal(UHF,0)
-         CALL MPIIBCast_Scal(PROPBITLEN,0)
-         CALL MPIIBCast(NPROP,3,0)
+         CALL MPIBCast(NORB,1,0)
+         CALL MPIBCast(NELEC,1,0)
+         CALL MPIBCast(MS2,1,0)
+         CALL MPIBCast(ORBSYM,1000,0)
+         CALL MPIBCast(SYML,1000,0)
+         CALL MPIBCast(SYMLZ,1000,0)
+         CALL MPIBCast(ISYM,1,0)
+         CALL MPIBCast(UHF,1,0)
+         CALL MPIBCast(PROPBITLEN,1,0)
+         CALL MPIBCast(NPROP,3,0)
          ! If PropBitLen has been set then assume we're not using an Abelian
          ! symmetry group which has two cycle generators (ie the group has
          ! complex representations).
@@ -488,7 +496,6 @@ contains
              CacheInd(:)=1
          ENDIF
 
-
          IF(iProcIndex.eq.0) THEN
              IF(.not.TSTARSTORE) THEN
                  TMAT2D(:,:)=(0.D0)
@@ -499,7 +506,7 @@ contains
              ! This means it won't work with more than 999 basis
              ! functions...
 #ifdef __CMPLX
-101          READ(iunit,'(1X,2G20.12,4I3)',END=199) Z,I,J,K,L
+101          READ(iunit,*,END=199) Z,I,J,K,L
 #else
 101          READ(iunit,'(1X,G20.12,4I3)',END=199) Z,I,J,K,L
 #endif
@@ -623,28 +630,28 @@ contains
          ENDIF
 
 !Now broadcast the data read in
-         CALL MPIIBCast_Scal(ZeroedInt,0)
-         CALL MPIIBCast_Scal(NonZeroInt,0)
-         CALL MPIDBCast_Scal(ECore,0)
+         CALL MPIBCast(ZeroedInt,1,0)
+         CALL MPIBCast(NonZeroInt,1,0)
+         CALL MPIBCast(ECore,1,0)
 !Need to find out size of TMAT before we can BCast
          CALL CalcTMATSize(nBasis,TMATSize)
          IF(tStarStore) THEN
-             CALL MPIHElemBCast(TMATSYM,TMATSize,0)
+             CALL MPIBCast(TMATSYM,TMATSize,0)
          ELSE
-             CALL MPIHElemBCast(TMAT2D,TMATSize,0)
+             CALL MPIBCast(TMAT2D,TMATSize,0)
          ENDIF
          IF(TUMAT2D) THEN
 !Broadcast TUMAT2D...
-             CALL MPIHElemBCast(UMAT2D,nStates**2,0)
+             CALL MPIBCast(UMAT2D,nStates**2,0)
          ENDIF
          IF((.not.tRIIntegrals).and.(.not.tCacheFCIDUMPInts)) THEN
              CALL GetUMATSize(nBasis,NEl,iSpins,UMatSize)
-             CALL MPIHElemBCast(UMAT,UMatSize,0)    !This is not an , as it is actually passed in as a real*8, even though it is HElem in IntegralsData
+             CALL MPIBCast(UMAT,UMatSize,0)    !This is not an , as it is actually passed in as a real*8, even though it is HElem in IntegralsData
          ENDIF
          IF(tCacheFCIDUMPInts) THEN
 !Need to broadcast the cache...
-             CALL MPIIBCast(UMATLABELS,nSlots*nPairs,0)
-             CALL MPIHElemBCast(UMatCacheData,nTypes*nSlots*nPairs,0)
+             CALL MPIBCast(UMATLABELS,nSlots*nPairs,0)
+             CALL MPIBCast(UMatCacheData,nTypes*nSlots*nPairs,0)
          ENDIF
              
 

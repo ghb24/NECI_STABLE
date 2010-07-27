@@ -1022,6 +1022,9 @@ MODULE System
           IF(THUB) WRITE(6,'(A)') '  *** HUBBARD MODEL ***  ' 
 !C..
           IF(.NOT.THUB.AND..NOT.TUEG) THEN
+             ! Just have even/odd symmetry so it's a two cycle symmetry
+             ! generation issue.
+             TwoCycleSymGens = .true.
              WRITE(6,'(A)') "  Electron in cubic box.  "
              IF(TPARITY) THEN
                 WRITE(6,'(A)') '  *******************************  '
@@ -1432,6 +1435,7 @@ END SUBROUTINE WRITEBASIS
 SUBROUTINE ORDERBASIS(NBASIS,ARR,BRR,ORBORDER,NBASISMAX,G1)
   use SystemData, only: BasisFN
   use sort_mod
+  use util_mod, only: NECI_ICOPY
   implicit none
   INTEGER NBASIS,BRR(NBASIS),ORBORDER(8,2),nBasisMax(5,*)
   INTEGER BRR2(NBASIS)

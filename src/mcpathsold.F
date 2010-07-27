@@ -6,6 +6,7 @@ C.. which do not necessarily have distinct nodes
      &               LSTE,ICE,NWHTAY,ILOGGING,ECORE,ILMAX,WLRI,WLSI,
      &               TSYM)
          use global_utilities
+         use util_mod, only: NECI_ICOPY
          IMPLICIT REAL*8 (A-H,O-Z)
          DIMENSION IPATH(NEL,0:I_HMAX)
          INTEGER NI(NEL)
@@ -75,6 +76,7 @@ C.. This does not use a stored RHO or H matrix
      &   RHOEPS,I_HIND,RHOCUML,RHOII,LSTE,ICE,NWHTAY,L,LT,ILOGGING,
      &   TSYM,ECORE,ILMAX) RESULT (FMCPR2RES)
          
+         use util_mod, only: NECI_ICOPY
          IMPLICIT REAL*8 (A-H,O-Z)
          REAL*8 RHOCUML
          INTEGER IPATH(NEL,0:I_H)

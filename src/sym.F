@@ -165,19 +165,20 @@ C.. We set each of the MOLPRO irreps to a bit in our symmetry specifier.
 C.. A1 corresponds to bit 0 (i.e. irrep 1)
       SUBROUTINE GENMOLPSYMTABLE(NSYMMAX,G1,NBASIS,ARR,BRR)
          use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
-         use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
+         use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB, tUEG
          use SymData, only: nProp,PropBitLen,SymClasses,nSymLabels
-         use SymData, only: tAbelian,SymLabels
+         use SymData, only: tAbelian,SymLabels, TwoCycleSymGens
          use SymData, only: tagSymLabels,tagSymClasses
          use util_mod, only: int_fmt
          use global_utilities
          IMPLICIT NONE
          INTEGER NSYMMAX,nSymGen
-         INTEGER I,J
+         INTEGER I,ILABEL
          TYPE(BasisFN) G1(*)
          INTEGER NBASIS,BRR(NBASIS)
          REAL*8 ARR(NBASIS)
          character(*), parameter :: this_routine='GenMolPSymTable'
+
         
          TAbelian=.true.
          nSymGen=INT(DLOG(NSYMMAX+0.D0)/DLOG(2.D0)+.4)
@@ -186,8 +187,16 @@ C.. A1 corresponds to bit 0 (i.e. irrep 1)
          WRITE(6,'(A,'//int_fmt(nSymMax)//')')                          &
      &                        "  Number of symmetry classes: ",nSymMax
 
-         nprop=1
-         nprop(1:nSymGen)=2
+         ! We actually use momentum conservation directly for the UEG so
+         ! just fake the symmetry information here.
+         if (TwoCycleSymGens .or. tUEG) then
+             ! Set propogation information.
+             ! If not TwoCycleSymGens we assume the user has already
+             ! done so...
+             nprop=1
+             nprop(1:nSymGen)=2
+         end if
+
 C.. Now generate a list of sym labels.
          NSYMLABELS=NSYMMAX
          allocate(SymLabels(nSymLabels))
@@ -196,22 +205,38 @@ C.. Now generate a list of sym labels.
          allocate(SymClasses(nBasis))
          call LogMemAlloc('SymClasses',nBasis,4,this_routine,
      &                                                    tagSymClasses)
-         DO I=1,NBASIS,2
+         if (TwoCycleSymGens .or. tUEG) then
+             DO I=1,NBASIS,2
 C.. place the sym label of each state in SymClasses(ISTATE).  For molp sym, this is 
 C.. the log_2 of the symmetry bit string
-            IF(G1(I)%Sym%s.EQ.0) THEN
+                IF(G1(I)%Sym%s.EQ.0) THEN
 C.. we don't have symmetry, so fake it.
-               SymClasses((I+1)/2)=1
-            ELSE
-!          SymClasses((I+1)/2)=INT(DLOG(G1(I)%Sym%s+0.D0)/DLOG(2.D0)+1.4)
-          SymClasses((I+1)/2)=G1(I)%Sym%s+1
-            ENDIF
-         ENDDO
+                   SymClasses((I+1)/2)=1
+                ELSE
+              SymClasses((I+1)/2)=G1(I)%Sym%s+1
+                ENDIF
+             ENDDO
 C.. list the symmetry string of each sym label
-         DO I=1,NSYMLABELS
-!            SYMLABELS(I)%s=2**(I-1)
-            SYMLABELS(I)%s=I-1
-         ENDDO
+             DO I=1,NSYMLABELS
+                SYMLABELS(I)%s=I-1
+             ENDDO
+         else
+             symlabels(:)%s = -1
+             do i = 1, nbasis, 2
+                 do ilabel = 1, nsymlabels
+                     if (symlabels(ilabel)%s == g1(i)%sym%s) then
+                         ! Already found this symmetry label.
+                         symclasses((i+1)/2) = ilabel
+                         exit
+                     else if (symlabels(ilabel)%s == -1) then
+                         ! Have not found this label...
+                         symclasses((i+1)/2) = ilabel
+                         symlabels(ilabel)%s = g1(i)%sym%s
+                         exit
+                     end if
+                 end do
+             end do
+         end if
       END
 
 C.. Freeze the SYM LABELS and reps
@@ -1808,7 +1833,7 @@ C.. Initialize symmetry to take into account the core electrons
       SUBROUTINE WRITESYM(IUNIT,SYM,LTERM)
          use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB,tCPMD
          use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
-         use SymData, only: nSym,tAbelian
+         use SymData, only: nSym,tAbelian, TwoCycleSymGens
          IMPLICIT NONE
          INTEGER IUNIT
          TYPE(SYMMETRY) SYM
@@ -1817,12 +1842,12 @@ C.. Initialize symmetry to take into account the core electrons
          INTEGER J
          IF(TAbelian) THEN
             CALL DecomposeAbelianSym(SYM,Abel)
-            if (tCPMD) then
-              WRITE(IUNIT,'(" (",I2,",",I2,",",I2,")",I2)',advance='no')
-     &                                                  Abel(1:3)
-            else
+            if (TwoCycleSymGens) then
               WRITE(IUNIT,'(" (",I2,",",I2,",",I2,")",I2)',advance='no')
      &                                                  Abel(1:3),SYM%s
+            else
+              WRITE(IUNIT,'(" (",I2,",",I2,",",I2,")",I2)',advance='no')
+     &                                                  Abel(1:3)
             end if
          ELSEIF(NSYM.LE.16) THEN
             WRITE(IUNIT,"(Z5)",advance='no') SYM
@@ -2082,7 +2107,7 @@ C.. Set to be totally symmetric
       SUBROUTINE FindSymMCSizeofSpace(IUNIT)
          use SymData, only : TwoCycleSymGens
          use SystemData, only: nEl,G1,nBasis,nOccAlpha,nOccBeta,G1
-         use SystemData, only: tUEG, NIfTot,tHPHF
+         use SystemData, only: tUEG,tHPHF,tHub
          use Determinants, only : FDet
          use DetCalc, only : ICILevel
          use SystemData, only : CalcDetCycles, CalcDetPrint,tFixLz
@@ -2092,6 +2117,7 @@ C.. Set to be totally symmetric
          use constants, only : n_int,bits_n_int
          use DetBitops, only: EncodeBitDet
          use util_mod, only: choose
+         use bit_rep_data, only: NIfTot
          IMPLICIT NONE
          INTEGER :: IUNIT,OverallSym,j,SpatOrbs,FDetMom,ExcitLev
          INTEGER(KIND=n_int) :: FDetiLut(0:NIfTot),iLut(0:NIfTot)
@@ -2104,7 +2130,7 @@ C.. Set to be totally symmetric
          LOGICAL :: tTruncSpace,tDummy,tDummy2,tSoftExitFound
          LOGICAL :: tNotAllowed,tAcc,IsAllowedHPHF
 
-         IF((.not.TwoCycleSymGens).and.(.not.tUEG)) THEN
+         IF((.not.TwoCycleSymGens).and.(.not.tUEG).and.(.not.tHub)) THEN
              WRITE(IUNIT,*) "Only for molecular abelian symmetry "      &
      &      //" calculations can the exact size of the determinant "    &
      &      //" space be calculated currently..."
@@ -2198,7 +2224,7 @@ C.. Set to be totally symmetric
                  IF(tFixLz) THEN
                      TotalMom=TotalMom+G1(alpha)%Ml
                  ENDIF
-                 IF(tUEG) THEN
+                 IF(tUEG.or.tHub) THEN
                      Momx=Momx+G1(alpha)%k(1)
                      Momy=Momy+G1(alpha)%k(2)
                      Momz=Momz+G1(alpha)%k(3)
@@ -2238,7 +2264,7 @@ C.. Set to be totally symmetric
                  IF(tFixLz) THEN
                      TotalMom=TotalMom+G1(beta)%Ml
                  ENDIF
-                 IF(tUEG) THEN
+                 IF(tUEG.or.tHub) THEN
                      Momx=Momx+G1(beta)%k(1)
                      Momy=Momy+G1(beta)%k(2)
                      Momz=Momz+G1(beta)%k(3)
@@ -2277,7 +2303,7 @@ C.. Set to be totally symmetric
                          ELSE
                              IF(tTruncSpace) THEN
                                  IF(ExcitLev.le.ICILevel) THEN
-                                     IF(tUEG) THEN
+                                     IF(tUEG.or.tHub) THEN
                                          IF((Momx.eq.0).and.(Momy.eq.0) &
      &                                         .and.(Momz.eq.0)) THEN
                                             Accept=Accept+1
@@ -2289,7 +2315,7 @@ C.. Set to be totally symmetric
                                      ENDIF
                                  ENDIF
                              ELSE
-                                 IF(tUEG) THEN
+                                 IF(tUEG.or.tHub) THEN
                                      IF((Momx.eq.0).and.(Momy.eq.0).and.&
      &                                       (Momz.eq.0)) THEN
                                         Accept=Accept+1
@@ -2318,7 +2344,7 @@ C.. Set to be totally symmetric
                      ELSE
                          IF(tTruncSpace) THEN
                              IF(ExcitLev.le.ICILevel) THEN
-                                 IF(tUEG) THEN
+                                 IF(tUEG.or.tHub) THEN
                                      IF((Momx.eq.0).and.(Momy.eq.0)     &
      &                                     .and.(Momz.eq.0)) THEN
                                         Accept=Accept+1
@@ -2330,7 +2356,7 @@ C.. Set to be totally symmetric
                                  ENDIF
                              ENDIF
                          ELSE
-                             IF(tUEG) THEN
+                             IF(tUEG.or.tHub) THEN
                                  IF((Momx.eq.0).and.(Momy.eq.0).and.    &
      &                                   (Momz.eq.0)) THEN
                                     Accept=Accept+1
@@ -2422,10 +2448,10 @@ C.. Set to be totally symmetric
       END SUBROUTINE FindSymMCSizeofSpace
 
       FUNCTION IsAllowedHPHF(NEl,iLutnI)
-          USE SystemData , only : nIfTot
           USE HPHFRandExcitMod , only : ReturnAlphaOpenDet
-          USE DetBitOps , only : DecodeBitDet
+          USE Bit_reps , only : Decode_Bit_Det
           use constants , only : n_int
+          use bit_rep_data, only: NIfTot
           IMPLICIT NONE
           INTEGER :: nI(NEl),NEl
           INTEGER(KIND=n_int) :: iLutnI(0:NIfTot),iLutSym(0:NIfTot)
@@ -2433,7 +2459,7 @@ C.. Set to be totally symmetric
           LOGICAL :: IsAllowedHPHF,tClosedShell,tSwapped
           LOGICAL :: TestClosedShellDet
 
-          CALL DecodeBitDet(nI,iLutnI)
+          CALL Decode_Bit_Det(nI,iLutnI)
 
           tClosedShell=TestClosedShellDet(iLutnI)
           IF(tClosedShell) THEN

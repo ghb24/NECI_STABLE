@@ -1,8 +1,8 @@
 !This file contains a load of useful operations to perform on determinants represented as bit-strings.
 ! Start the process of modularising this bit!!
 module DetBitOps
-    use Systemdata, only: nel, NIfD, NIfY, NIfTot, tCSF, tTruncateCSF, &
-                          csf_trunc_level
+    use Systemdata, only: nel, tCSF, tTruncateCSF, csf_trunc_level
+    use bit_rep_data, only: NIfY, NIfTot, NIfD
     use csf_data, only: iscsf, csf_yama_bit, csf_orbital_mask, csf_test_bit
     ! TODO: remove
     use systemdata, only: g1
@@ -240,6 +240,7 @@ module DetBitOps
         endif
     end function FindSpatialBitExcitLevel
 
+    !WARNING - I think this *may* be buggy - use with caution - ghb24 8/6/10
     pure subroutine get_bit_excitmat (ilutI, iLutJ, ex, IC)
         
         ! Obatin the excitation matrix between two determinants from their bit
@@ -574,90 +575,6 @@ module DetBitOps
         endif
     end subroutine EncodeBitDet
 
-    ! This is a routine to take a determinant in bit form and construct 
-    ! the natural ordered NEl integer for of the det.
-    ! If CSFs are enabled, transefer the yamanouchi symbol as well.
-    subroutine DecodeBitDet(nI,iLut)
-        integer(kind=n_int), intent(in) :: iLut(0:NIfTot)
-        integer, intent(out) :: nI(nel)
-        integer :: i, j, elec, pos, nopen
-        logical :: bIsCsf
-
-        ! We need to use the CSF decoding routine if CSFs are enable, and we
-        ! are below a truncation limit if set.
-        bIsCsf = .false.
-        if (tCSF) then
-            if (tTruncateCSF) then
-                nopen = count_open_orbs(iLut)
-                if (nopen <= csf_trunc_level) then
-                    bIsCsf = .true.
-                endif
-            else
-                bIsCsf = .true.
-            endif
-        endif
-
-        elec=0
-        if (bIsCsf) then
-            ! Consider the closed shell electrons first
-            do i=0,NIfD
-                do j=0,bits_n_int-2,2
-                    if (btest(iLut(i),j)) then
-                        if (btest(iLut(i),j+1)) then
-                            ! An electron pair is in this spatial orbital
-                            ! (2 matched spin orbitals)
-                            elec = elec + 2
-                            nI(elec-1) = (bits_n_int*i) + (j+1)
-                            nI(elec) = (bits_n_int*i) + (j+2)
-                            if (elec == nel) return
-                        endif
-                    endif
-                enddo
-            enddo
-
-            ! Now consider the open shell electrons
-            ! TODO: can we move in steps of two, to catch unmatched pairs?
-            nopen = 0
-            do i=0,NIfD
-                do j=0,end_n_int
-                    if (btest(iLut(i),j)) then
-                        if (.not.btest(iLut(i),xor(j,1))) then
-                            elec = elec + 1
-                            nI(elec) = (bits_n_int*i) + (j+1)
-                            pos = NIfD + 1 + (nopen/bits_n_int)
-                            if (btest(iLut(Pos),mod(nopen,bits_n_int))) then
-                                nI(elec) = ibset(nI(elec),csf_yama_bit)
-                            endif
-                            nopen = nopen + 1
-                        endif
-                    endif
-                    if (elec==nel) exit
-                enddo
-                if (elec==nel) exit
-            enddo
-            ! If there are any open shell e-, set the csf bit
-            nI = ibset(nI, csf_test_bit)
-        else
-            do i=0,NIfD
-                do j=0,end_n_int
-                    if(btest(iLut(i),j)) then
-                        !An electron is at this orbital
-                        elec=elec+1
-                        nI(elec)=(i*bits_n_int)+(j+1)
-                        if (elec == nel) exit
-                    endif
-                enddo
-                if (elec == nel) exit
-            enddo
-        endif
-        !if (CountBits(ilut, NIfD) > nel) then
-        !    call write_det(6, nI, nel, .true.)
-        !    write(6,'(2b32)'), ilut(0), ilut(1)
-        !    print*, 'bad bit det'
-        !    call flush(6)
-        !    call stop_all ('dec', 'bad')
-        !endif
-    end subroutine DecodeBitDet
 
     subroutine FindExcitBitDet(iLutnI, iLutnJ, IC, ExcitMat)
 
@@ -777,7 +694,8 @@ end module
         !        True if an odd number of permutations is required to line up
         !        the determinants.
 
-        use SystemData, only: NIfD, nel
+        use SystemData, only: nel
+        use bit_rep_data, only: NIfD
         use DetBitOps, only: CountBits_nifty
         use constants, only: n_int,bits_n_int,end_n_int
         implicit none
@@ -871,7 +789,7 @@ end module
 
 !This function will return true if the determinant is closed shell, or false if not.
     LOGICAL FUNCTION TestClosedShellDet(iLut)
-        use systemdata, only: NIfD
+        use bit_rep_data, only: NIfD
         use constants, only: n_int
         use DetBitOps, only: MaskAlpha,MaskBeta
         IMPLICIT NONE
@@ -905,7 +823,8 @@ end module
 !       --> Returns nopen/2 <==> Ms=0
 ! ************************
     SUBROUTINE CalcOpenOrbs(iLut,OpenOrbs)
-        use systemdata, only: NIfD, nel
+        use bit_rep_data, only: NIfD
+        use systemdata, only: nel
         use constants, only: n_int
         use DetBitOps, only: CountBits,MaskAlpha,MaskBeta
         IMPLICIT NONE

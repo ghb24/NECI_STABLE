@@ -24,9 +24,10 @@ MODULE GenRandSymExcitNUMod
       !  These are forbidden since they have no possible b orbital which will give rise to a symmetry and
       !  spin allowed unoccupied a,b pair. The number of these orbitals, Q, is needed to calculate the
       !  normalised probability of generating the excitation.
-    use SystemData, only: ALAT,iSpinSkip,tFixLz,iMaxLz,NIfTot,tUEG,tNoFailAb,tLatticeGens, tHub
-    use SystemData, only: nEl,G1, nBasis,nBasisMax,tNoSymGenRandExcits
-    use SystemData, only: Arr,nMax,tCycleOrbs,nOccAlpha,nOccBeta,ElecPairs,MaxABPairs
+    use SystemData, only: ALAT, iSpinSkip, tFixLz, iMaxLz, tUEG, tNoFailAb, &
+                          tLatticeGens, tHub, nEl,G1, nBasis, nBasisMax, &
+                          tNoSymGenRandExcits, Arr, nMax, tCycleOrbs, &
+                          nOccAlpha, nOccBeta, ElecPairs, MaxABPairs
     use FciMCData, only: pDoubles
     use IntegralsData, only: UMat
     use Determinants, only: get_helement, write_det
@@ -37,6 +38,7 @@ MODULE GenRandSymExcitNUMod
     use DetBitOps, only: FindExcitBitDet
     use sltcnd_mod, only: sltcnd_1
     use constants, only: dp,n_int,bits_n_int
+    use bit_reps, only: NIfTot
     IMPLICIT NONE
 
     contains
@@ -1384,18 +1386,12 @@ MODULE GenRandSymExcitNUMod
 
 !This routine returns two arrays of length ScratchSize, which have information about the number of orbitals, occupied and unoccupied respectively, of each symmetry.
     SUBROUTINE ConstructClassCounts(nI,ClassCount2,ClassCountUnocc2)
-        INTEGER :: i,nI(NEl)
-        INTEGER :: ClassCount2(ScratchSize)
-        INTEGER :: ClassCountUnocc2(ScratchSize)
-!        INTEGER :: Alph,Bet
+        INTEGER :: i,Ind
+        INTEGER, INTENT(IN) :: nI(NEl)
+        INTEGER, INTENT(OUT) :: ClassCount2(ScratchSize),ClassCountUnocc2(ScratchSize)
 
-!        Alph=0
-!        Bet=0
         ClassCount2(:)=0
         ClassCountUnocc2(:)=OrbClassCount(:)
-!nOccAlpha and nOccBeta now set in the system block. Since we conserve Sz, these will not change.
-!        NOccAlpha=0
-!        NOccBeta=0
 
         IF(tNoSymGenRandExcits) THEN
 
@@ -1417,33 +1413,15 @@ MODULE GenRandSymExcitNUMod
 !                ILUT((nI(I)-1)/bits_n_int)=IBSET(ILUT((NI(I)-1)/bits_n_int),MOD(NI(I)-1,bits_n_int))
 
                 IF(G1(nI(i))%Ms.eq.1) THEN
-!orbital is an alpha orbital and symmetry of the orbital can be found in G1
-!                    WRITE(6,*) G1(nI(i))%Ms,G1(nI(i))%Sym%S
-                    ClassCount2(ClassCountInd(1,INT(G1(nI(i))%Sym%S,4),G1(nI(i))%Ml))=ClassCount2(ClassCountInd(1,INT(G1(nI(i))%Sym%S,4),G1(nI(i))%Ml))+1
-                    ClassCountUnocc2(ClassCountInd(1,INT(G1(nI(i))%Sym%S,4),G1(nI(i))%Ml))=ClassCountUnocc2(ClassCountInd(1,INT(G1(nI(i))%Sym%S,4),G1(nI(i))%Ml))-1
-!                    Alph=Alph+1
-!                    NOccAlpha=NOccAlpha+1
-
+                    Ind=ClassCountInd(1,INT(G1(nI(i))%Sym%S,4),G1(nI(i))%Ml)
                 ELSE
-!orbital is a beta orbital
-!                    WRITE(6,*) G1(nI(i))%Ms,G1(nI(i))%Sym%S
-                    ClassCount2(ClassCountInd(2,INT(G1(nI(i))%Sym%S,4),G1(nI(i))%Ml))=ClassCount2(ClassCountInd(2,INT(G1(nI(i))%Sym%S,4),G1(nI(i))%Ml))+1
-                    ClassCountUnocc2(ClassCountInd(2,INT(G1(nI(i))%Sym%S,4),G1(nI(i))%Ml))=ClassCountUnocc2(ClassCountInd(2,INT(G1(nI(i))%Sym%S,4),G1(nI(i))%Ml))-1
-!                    Bet=Bet+1
-!                    NOccBeta=NOccBeta+1
+                    Ind=ClassCountInd(2,INT(G1(nI(i))%Sym%S,4),G1(nI(i))%Ml)
                 ENDIF
+
+                ClassCount2(Ind)=ClassCount2(Ind)+1
+                ClassCountUnocc2(Ind)=ClassCountUnocc2(Ind)-1
+
             enddo
-
-!We now want to find ClassCountUnocc2 - the unoccupied version of the array
-!SymLabelCounts(2,Sym) gives the number of *spin-orbitals* in each symmetry class.
-
-!We don't need to do this any more, since we store the whole space classcounts in OrbClassCount initially.
-!            do i=1,nSymLabels
-!                ClassCountUnocc2(ClassCountInd(1,i-1,0))=SymLabelCounts2(1,2,i)-ClassCount2(ClassCountInd(1,i-1,0))
-!                ClassCountUnocc2(ClassCountInd(2,i-1,0))=SymLabelCounts2(2,2,i)-ClassCount2(ClassCountInd(2,i-1,0))
-!            enddo
-
-!            WRITE(6,*) "Alph=",alph,"Bet=",Bet
 
         ENDIF
 
@@ -2823,7 +2801,8 @@ END SUBROUTINE SpinOrbSymSetup
 !the excitation. This means that all excitations should be 0 or 1 after enough iterations. It will then count the excitations and compare the number to the
 !number of excitations generated using the full enumeration excitation generation. This can be done for both doubles and singles, or one of them.
 SUBROUTINE TestGenRandSymExcitNU(nI,Iterations,pDoub,exFlag,iWriteEvery)
-    Use SystemData , only : NEl,nBasis,G1,nBasisMax,LzTot,NIfTot,tUEG,tLatticeGens,tHub
+    use SystemData, only: NEl, nBasis, G1, nBasisMax, LzTot, tUEG, &
+                          tLatticeGens, tHub
     use GenRandSymExcitNUMod, only: gen_rand_excit, ConstructClassCounts,ScratchSize
     Use SymData , only : nSymLabels
     use Parallel
@@ -2831,6 +2810,7 @@ SUBROUTINE TestGenRandSymExcitNU(nI,Iterations,pDoub,exFlag,iWriteEvery)
     use DetBitOps , only : EncodeBitDet, FindExcitBitDet
     use GenRandSymExcitNUMod, only: IsMomentumAllowed
     use constants, only: n_int
+    use bit_reps, only: NIfTot
     IMPLICIT NONE
     INTEGER :: i,Iterations,exFlag,nI(NEl),nJ(NEl),IC,ExcitMat(2,2),kx,ky,kz,ktrial(2)
     REAL*8 :: pDoub,pGen,AverageContrib,AllAverageContrib

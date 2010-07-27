@@ -1,3 +1,18 @@
+      REAL*8 FUNCTION RAN2(ISEED)
+         !  Following the same interface as Numerical Recipes' RAN2, but using the RANLUX generator (lux level 3).
+         !  If ISEED.NE.0, it is used as a seed, and reset to 0.
+         !  Generates a 32-bit float (REAL*4), and stores this in a real*8
+         IMPLICIT NONE
+         INTEGER ISEED
+         IF(ISEED.NE.0) THEN
+            !  Init RANLUX
+            IF(ISEED.LT.0) ISEED=-ISEED
+            CALL RLUXGO(3,ISEED,0,0)
+            ISEED=0
+         ENDIF
+         CALL RANLUX(RAN2,1)
+      END FUNCTION RAN2
+
       SUBROUTINE RANLUX(RVEC,LENV)
 C         Subtract-and-borrow random number generator proposed by
 C         Marsaglia and Zaman, implemented by F. James with the name

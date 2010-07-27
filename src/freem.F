@@ -116,6 +116,7 @@ C     ==================================================================
       SUBROUTINE N_PRINT_MEMORY
 C     ==--------------------------------------------------------------==
       use legacy_memory_data
+      use util_mod, only: NECI_ICOPY
 #ifdef PARALLEL
          use Parallel, only: me => iProcIndex, nProc => nProcessors
 #endif
