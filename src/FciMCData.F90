@@ -180,6 +180,7 @@ MODULE FciMCData
           integer, dimension(lenof_sign) :: nannihil
           integer, dimension(lenof_sign) :: naborted
           integer, dimension(lenof_sign) :: update_growth, update_growth_tot
+          integer(int64), dimension(lenof_sign) :: tot_parts_old
           integer :: update_iters
       end type
       

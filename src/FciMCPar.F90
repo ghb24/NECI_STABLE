@@ -1826,7 +1826,8 @@ MODULE FciMCParMod
             TotWalkersOld=CurrWalkers
             IF(iProcIndex.eq.root) THEN
 !                AllTotWalkers=TotWalkers
-                AllTotWalkersOld=AllTotWalkers
+                aLlTotWalkersOld=AllTotWalkers
+                iter_data_fciqmc%tot_parts_old = AllTotWalkers
                 WRITE(6,'(A,I10)') " Number of initial walkers on this processor is now: ",INT(TotWalkers,int64)
             ENDIF
 
@@ -1838,6 +1839,7 @@ MODULE FciMCParMod
             IF(iProcIndex.eq.root) THEN
 !                AllTotWalkers=TotWalkers
                 AllTotWalkersOld=AllTotWalkers
+                iter_data_fciqmc%tot_parts_old = AllTotWalkers
                 WRITE(6,'(A,I10)') " Number of initial walkers on this processor is now: ",INT(TotWalkers,int64)
             ENDIF
 
@@ -3395,23 +3397,26 @@ MODULE FciMCParMod
         ! collate_iter_data --> The values used are only valid on Root
         if (iProcIndex == Root) then
             ! Calculate the growth rate
-            AllGrowRate = (sum(iter_data%update_growth_tot + AllTotPartsOld))&
-                          / real(sum(AllTotPartsOld), dp)
+            AllGrowRate = (sum(iter_data%update_growth_tot &
+                           + iter_data%tot_parts_old)) &
+                          / real(sum(iter_data%tot_parts_old), dp)
 
             ! For complex case, obtain both Re and Im parts
             if (lenof_sign == 2) then
                 AllGrowRateRe = (iter_data%update_growth_tot(1) + &
-                                AllTotPartsOld(1)) / AllTotPartsOld(1)
+                                 iter_data%tot_parts_old(1)) / &
+                                 iter_data%tot_parts_old(1)
                 AllGrowRateIm = (iter_data%update_growth_tot(lenof_sign) + &
-                                     AllTotPartsOld(lenof_sign)) / &
-                                     AllTotPartsOld(lenof_sign)
+                                     iter_data%tot_parts_old(lenof_sign)) / &
+                                     iter_data%tot_parts_old(lenof_sign)
             endif
 
             ! Initiator abort growth rate
             if (tTruncInitiator) then
                 AllGrowRateAbort = (sum(iter_data%update_growth_tot + &
-                                    AllTotPartsOld) + AllNoAborted) / &
-                                    (sum(AllTotPartsOld) + AllNoAbortedOld)
+                                    iter_data%tot_parts_old) + AllNoAborted) &
+                                    / (sum(iter_data%tot_parts_old) &
+                                       + AllNoAbortedOld)
             endif
 
             ! Exit the single particle phase if the number of walkers exceeds
@@ -3577,6 +3582,7 @@ MODULE FciMCParMod
         ! Reset the counters
         iter_data%update_growth = 0
         iter_data%update_iters = 0
+        iter_data%tot_parts_old = AllTotParts
 
     end subroutine
 
@@ -5186,8 +5192,9 @@ MODULE FciMCParMod
                 IF(iProcIndex.eq.root) THEN
                     OldAllNoatHF=InitialPart
                     AllNoatHF=InitialPart
-                    AllTotWalkers=1.D0
-                    AllTotWalkersOld=1.D0
+                    AllTotWalkers = 1
+                    AllTotWalkersOld = 1
+                    iter_data_fciqmc%tot_parts_old = 1
                     AllTotParts(1)=REAL(InitialPart,dp)
                     AllTotPartsOld(1)=REAL(InitialPart,dp)
                     AllNoAbortedOld=0.D0
@@ -5196,7 +5203,8 @@ MODULE FciMCParMod
 !In this, only one processor has initial particles.
                 IF(iProcIndex.eq.Root) THEN
                     AllTotWalkers=1.D0
-                    AllTotWalkersOld=1.D0
+                    AllTotWalkersOld = 1
+                    iter_data_fciqmc%tot_parts_old = AllTotWalkers
                     AllTotParts(1)=REAL(InitWalkers,dp)
                     AllTotPartsOld(1)=REAL(InitWalkers,dp)
                     AllNoAbortedOld=0.D0
