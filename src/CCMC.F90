@@ -1970,6 +1970,7 @@ SUBROUTINE CCMCStandalone(Weight,Energyxw)
    AllTotParts(1)=WalkerScale*dTotAbsAmpl
    AllTotPartsOld(1)=WalkerScale*dTotAbsAmpl
    iOldTotWalkers=WalkerScale*dTotAbsAmpl
+   iter_data_ccmc%tot_parts_old = WalkerScale * dTotAbsAmpl
    dAveTotAbsAmp=0
    dAveNorm=0
    Iter=1
@@ -2348,6 +2349,7 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
    AllTotParts(1)=WalkerScale*dTotAbsAmpl
    AllTotPartsOld(1)=WalkerScale*dTotAbsAmpl
    iOldTotWalkers=WalkerScale*dTotAbsAmpl
+   iter_data_ccmc%tot_parts_old = WalkerScale * dTotAbsAmpl
    dAveTotAbsAmp=0
    dAveNorm=0
    Iter=1
