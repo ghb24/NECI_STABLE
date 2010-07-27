@@ -178,9 +178,11 @@ MODULE FciMCParMod
                 ! things). Generally, collate information from all processors,
                 ! update statistics and output them to the user.
                 if (tCCMC) then
-                    call calculate_new_shift_wrapper (iter_data_ccmc)
+                    call calculate_new_shift_wrapper (iter_data_ccmc, &
+                                                      TotParts)
                 else
-                    call calculate_new_shift_wrapper (iter_data_fciqmc)
+                    call calculate_new_shift_wrapper (iter_data_fciqmc, &
+                                                      TotParts)
                 endif
 
                 IF((tTruncCAS.or.tTruncSpace.or.tTruncInitiator).and.(Iter.gt.iFullSpaceIter).and.(iFullSpaceIter.ne.0)) THEN
@@ -3323,12 +3325,14 @@ MODULE FciMCParMod
                     
     end subroutine
 
-    subroutine collate_iter_data (iter_data)
+    subroutine collate_iter_data (iter_data, tot_parts_new, tot_parts_new_all)
 
         integer :: int_tmp(6+lenof_sign)
         real(dp) :: real_tmp(2)
         integer(int64) :: int64_tmp(9)
         type(fcimc_iter_data) :: iter_data
+        integer(int64), dimension(lenof_sign), intent(in) :: tot_parts_new
+        integer(int64), dimension(lenof_sign), intent(out) :: tot_parts_new_all
     
         ! Communicate the integers needing summation
         call MPIReduce ((/Annihilated, NoAtDoubs, NoBorn, NoDied, HFCyc, &
@@ -3360,11 +3364,12 @@ MODULE FciMCParMod
         endif
 
         ! 64bit integers
-        call MPIReduce ((/TotWalkers, TotParts, SumNoatHF/), &
+        call MPIReduce ((/TotWalkers, TotParts, SumNoatHF, tot_parts_new/), &
                         MPI_SUM, int64_tmp)
         AllTotWalkers = int64_tmp(1)
-        AllTotParts = int64_tmp(2)
-        AllSumNoatHF = int64_tmp(3)
+        AllTotParts = int64_tmp(2:1+lenof_sign)
+        AllSumNoatHF = int64_tmp(2+lenof_sign)
+        tot_parts_new_all = int64_tmp(3+lenof_sign:2+2*lenof_sign)
 
         ! real(dp) values (Calculates the energy by summing all on HF and 
         ! doubles)
@@ -3516,9 +3521,10 @@ MODULE FciMCParMod
     end subroutine
 
 
-    subroutine rezero_iter_stats (iter_data)
+    subroutine rezero_iter_stats (iter_data, tot_parts_new_all)
         
         type(fcimc_iter_data) :: iter_data
+        integer(int64), dimension(lenof_sign), intent(in) :: tot_parts_new_all
         
         ! Zero all of the variables which accumulate for each iteration.
 
@@ -3582,20 +3588,22 @@ MODULE FciMCParMod
         ! Reset the counters
         iter_data%update_growth = 0
         iter_data%update_iters = 0
-        iter_data%tot_parts_old = AllTotParts
+        iter_data%tot_parts_old = tot_parts_new_all
 
     end subroutine
 
-    subroutine calculate_new_shift_wrapper (iter_data)
+    subroutine calculate_new_shift_wrapper (iter_data, tot_parts_new)
 
         type(fcimc_iter_data) :: iter_data
+        integer(int64), dimension(lenof_sign), intent(in) :: tot_parts_new
+        integer(int64), dimension(lenof_sign) :: tot_parts_new_all
 
-        call collate_iter_data (iter_data)
+        call collate_iter_data (iter_data, tot_parts_new, tot_parts_new_all)
         call iter_diagnostics ()
         call population_check ()
         call update_shift (iter_data)
         call WriteFCIMCStats ()
-        call rezero_iter_stats (iter_data)
+        call rezero_iter_stats (iter_data, tot_parts_new_all)
 
     end subroutine calculate_new_shift_wrapper
 

@@ -2147,7 +2147,8 @@ SUBROUTINE CCMCStandalone(Weight,Energyxw)
 
 !TotWalkers is used for this and is WalkerScale* total of all amplitudes
       NoAtHF=AL%Amplitude(iRefPos,iCurAmpList)
-      if(iShiftLeft.le.0)  Call calculate_new_shift_wrapper(iter_data_ccmc)
+      if(iShiftLeft.le.0)  Call calculate_new_shift_wrapper(iter_data_ccmc, &
+                                                            TotParts)
       if(iShiftLeft.le.0)  iShiftLeft=StepsSft
       Iter=Iter+1
 !Reset number at HF and doubles
@@ -2403,7 +2404,8 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
 
       NoAtHF=AL%Amplitude(iRefPos,iCurAmpList)
 !TotWalkers is used for this and is WalkerScale* total of all amplitudes
-      if(iShiftLeft.le.0)  Call calculate_new_shift_wrapper(iter_data_ccmc)
+      if(iShiftLeft.le.0)  Call calculate_new_shift_wrapper(iter_data_ccmc, &
+                                                            TotParts)
       if(iShiftLeft.le.0)  iShiftLeft=StepsSft
 !Reset number at HF and doubles
       NoatHF=0
