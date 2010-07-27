@@ -61,7 +61,6 @@ contains
           tRotoAnnihil=.false.
           OccCASorbs=0
           VirtCASorbs=0
-          tGlobalSftCng=.true. 
           TUnbiasPGeninProjE=.false.
           TRegenExcitgens=.false.
           MemoryFacPart=10.D0
@@ -1076,17 +1075,8 @@ contains
 !In FCIMC, this will result in annihilation only every iAnnInterval iterations
                 call Geti(iAnnInterval)
             case("GLOBALSHIFT")
-!A parallel FCIMC option. It is generally recommended to have this option on. This will calculate the growth rate of the system as a simple ratio of the total walkers on all processors
-!before and after update cycle. This however is incompatable with culling, and so is removed for update cycles with this in. 
-                if(item.lt.nitems) then
-                    call readu(w)
-                    select case(w)
-                    case("OFF")
-                        tGlobalSftCng=.false.
-                    end select
-                else
-                    tGlobalSftCng=.true.
-                end if
+                ! Parallel FCIMC option which has been removed.
+                call stop_all (t_r, "GLOBALSHIFT - option removed")
 
             case("RANDOMISEHASHORBS")
 !This will create a random 1-to-1 mapping between the orbitals, which should hopefully improve load balancing.
