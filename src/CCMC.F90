@@ -1387,7 +1387,7 @@ SUBROUTINE InitRandAmplitude(Amplitude,nExcit,dInitAmp,dTotAbsAmpl)
    enddo
 END SUBROUTINE
 
-subroutine AttemptSpawn(S,C,Amplitude,dTol,TL,iDebug)
+subroutine AttemptSpawn(S,C,Amplitude,dTol,TL,WalkerScale,iDebug)
    use SystemData, only: nEl
    use FciMCParMod, only: iLutHF
    use CCMCData, only: Spawner, Cluster,CCTransitionLog
@@ -1406,6 +1406,7 @@ subroutine AttemptSpawn(S,C,Amplitude,dTol,TL,iDebug)
    real*8 Amplitude(:)
    real*8 dTol
    TYPE(CCTransitionLog) TL               ! Store data on transitions
+   real*8 WalkerScale 
    integer iDebug
 
    real*8 rat
@@ -1454,6 +1455,7 @@ subroutine AttemptSpawn(S,C,Amplitude,dTol,TL,iDebug)
 !   Here we convert from a det back to an excitor.
       rat=rat*ExcitToDetSign(iLutHF,S%iLutnJ,IC)
       Amplitude(PartIndex)=Amplitude(PartIndex)+rat
+      iter_data_ccmc%nborn=iter_data_ccmc%nborn+abs(rat*WalkerScale)
       if(tCCMCLogTransitions.and.Iter.gt.NEquilSteps) then
          call LogTransition(TL,C%SelectedExcitorIndices(:),C%iSize,PartIndex,rat,C%dProbNorm)
       endif
@@ -1462,7 +1464,7 @@ end subroutine AttemptSpawn
 
 
 !Take cluster C and make an anti-excitor corresponding to its collapsed version to take into account its death.
-subroutine AttemptDie(C,CurAmpl,OldAmpl,TL,iDebug)
+subroutine AttemptDie(C,CurAmpl,OldAmpl,TL,WalkerScale,iDebug)
    use CCMCData, only: Cluster,CCTransitionLog
    use FciMCData, only: Hii
    Use CalcData, only: Tau,DiagSft
@@ -1482,6 +1484,7 @@ subroutine AttemptDie(C,CurAmpl,OldAmpl,TL,iDebug)
    real*8 CurAmpl(:),OldAmpl(:)
    integer iDebug
    TYPE(CCTransitionLog) TL               ! Store data on transitions
+   real*8 WalkerScale 
 
    INTEGER iC,iPartDie,k
    LOGICAL tSuc
@@ -1573,6 +1576,7 @@ subroutine AttemptDie(C,CurAmpl,OldAmpl,TL,iDebug)
    endif
 
    CurAmpl(iPartDie)=CurAmpl(iPartDie)-r
+   iter_data_ccmc%ndied=iter_data_ccmc%ndied+abs(r*WalkerScale)
    if(lLogTransitions.and.Iter.gt.NEquilSteps) then
       call LogTransition(TL,C%SelectedExcitorIndices(:),C%iSize,iPartDie,-r,C%dProbNorm)
    endif
@@ -1643,6 +1647,7 @@ subroutine AttemptSpawnParticle(S,C,iDebug,SpawnList,SpawnAmps,nSpawned,nMaxSpaw
    if(iSpawnAmp>0) then
 
       nSpawned=nSpawned+1 !The index into the spawning list
+      iter_data_ccmc%nborn=iter_data_ccmc%nborn+1
       if(nSpawned>nMaxSpawn) call Stop_All("AttemptSpawnParticle","Not enough space in spawning list.")
       if(rat>0) then
          SpawnAmps(nSpawned)=iSpawnAmp
@@ -1771,6 +1776,7 @@ subroutine AttemptDieParticle(C,iDebug,SpawnList,SpawnAmps,nSpawned)
    if ((r-iSpawnAmp)>genrand_real2_dSFMT()) iSpawnAmp=iSpawnAmp+1
    if(iSpawnAmp>0) then
       nSpawned=nSpawned+1 !The index into the spawning list
+      iter_data_ccmc%ndied=iter_data_ccmc%ndied+1
       IF(iDebug.gt.3.) then
          Write(6,'(A,I7)',advance='no') " Killing at excitor: ",iPartDie
          Write(6,'(A)',advance='no') " chosen "
@@ -1810,7 +1816,7 @@ SUBROUTINE CCMCStandalone(Weight,Energyxw)
    use CalcData, only: StepsSft ! The number of steps between shift updates
    use CalcData, only: TStartMP1
    use FciMCData, only: Iter
-   use FciMCData, only: TotParts,TotWalkers,TotWalkersOld,TotPartsOld,AllTotPartsOld,AllTotWalkersOld
+   use FciMCData, only: TotParts,TotWalkers,TotWalkersOld,TotPartsOld,AllTotPartsOld,AllTotWalkersOld,AllTotParts
    use FciMCData, only: tTruncSpace
    use FciMCData, only: ProjectionE
    use FciMCParMod, only: iLutHF
@@ -1844,6 +1850,7 @@ SUBROUTINE CCMCStandalone(Weight,Energyxw)
    INTEGER PartIndex,IC          ! Used in buffering
    LOGICAL tSuc                  ! Also used in buffering
 
+   INTEGER iOldTotWalkers        ! Info user for update to calculate shift
    INTEGER iShiftLeft            ! Number of steps left until we recalculate shift
    REAL*8 WalkerScale            ! Scale factor for turning floating point amplitudes into integer walkers.
    REAL*8 dProjE                 ! Stores the Projected Energy
@@ -1886,6 +1893,11 @@ SUBROUTINE CCMCStandalone(Weight,Energyxw)
    iDebug=CCMCDebug
 
    Call SetupParameters()
+
+   ! Reset counters
+   iter_data_ccmc%nborn = 0
+   iter_data_ccmc%ndied = 0
+   iter_data_ccmc%nannihil = 0
 
    lLogTransitions=tCCMCLogTransitions
    dTolerance=0 !1e-16
@@ -1946,12 +1958,18 @@ SUBROUTINE CCMCStandalone(Weight,Energyxw)
    else
       WalkerScale=0
    endif
-   TotWalkers=WalkerScale*dTotAbsAmpl
-   TotParts(1)=WalkerScale*dTotAbsAmpl
-   TotWalkersOld=WalkerScale*dTotAbsAmpl
-   TotPartsOld(1)=WalkerScale*dTotAbsAmpl
-   AllTotWalkersOld=WalkerScale*dTotAbsAmpl
+   TotWalkers=0
+!WalkerScale*dTotAbsAmpl
+   TotParts(1)=0
+!WalkerScale*dTotAbsAmpl
+   TotWalkersOld=0
+!WalkerScale*dTotAbsAmpl
+   TotPartsOld(1)=0
+!WalkerScale*dTotAbsAmpl
+   AllTotWalkersOld=1
+   AllTotParts(1)=WalkerScale*dTotAbsAmpl
    AllTotPartsOld(1)=WalkerScale*dTotAbsAmpl
+   iOldTotWalkers=WalkerScale*dTotAbsAmpl
    dAveTotAbsAmp=0
    dAveNorm=0
    Iter=1
@@ -1995,7 +2013,7 @@ SUBROUTINE CCMCStandalone(Weight,Energyxw)
          write(6,*) "Cycle ",Iter
          call WriteExcitorList(6,AL%Amplitude(:,iCurAmpList),FciDets,0,nAmpl,dAmpPrintTol,"Excitor list")
       endif
-      call CalcTotals(iNumExcitors,dTotAbsAmpl,AL%Amplitude(:,iCurAmpList),nAmpl,dTolerance*dInitAmplitude,WalkerScale,iRefPos,iDebug)
+      call CalcTotals(iNumExcitors,dTotAbsAmpl,AL%Amplitude(:,iCurAmpList),nAmpl,dTolerance*dInitAmplitude,WalkerScale,iRefPos,iOldTotWalkers,iDebug)
       if(tExactEnergy) then
          CALL CalcClusterEnergy(tCCMCFCI,AL%Amplitude(:,iCurAmpList),nAmpl,FciDets,FCIDetIndex,iRefPos,iDebug,dProjE)
       else
@@ -2109,11 +2127,11 @@ SUBROUTINE CCMCStandalone(Weight,Energyxw)
 !GetNextSpawner will generate either all possible spawners sequentially, or a single randomly chosen one (or none at all, if the randomly chosen one is disallowed)
          do while (GetNextSpawner(S,iDebug))
             if(.not.S%bValid) cycle
-            call AttemptSpawn(S,CS%C,AL%Amplitude(:,iCurAmpList),dTolerance*dInitAmplitude,TL,iDebug)
+            call AttemptSpawn(S,CS%C,AL%Amplitude(:,iCurAmpList),dTolerance*dInitAmplitude,TL,WalkerScale,iDebug)
          enddo !GetNextSpawner
 ! Now deal with birth/death.
          if((.not.tTruncSpace).or.CS%C%iExcitLevel<=iMaxAmpLevel)          &
-  &            call AttemptDie(CS%C,AL%Amplitude(:,iCurAmpList),AL%Amplitude(:,iOldAmpList),TL,iDebug)
+  &            call AttemptDie(CS%C,AL%Amplitude(:,iCurAmpList),AL%Amplitude(:,iOldAmpList),TL,WalkerScale,iDebug)
       enddo ! Cluster choices
 
 
@@ -2168,7 +2186,7 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
    use CalcData, only: StepsSft ! The number of steps between shift updates
    use CalcData, only: TStartMP1
    use FciMCData, only: Iter
-   use FciMCData, only: TotParts,TotWalkers,TotWalkersOld,TotPartsOld,AllTotPartsOld,AllTotWalkersOld
+   use FciMCData, only: TotParts,TotWalkers,TotWalkersOld,TotPartsOld,AllTotPartsOld,AllTotWalkersOld,AllTotParts
    use FciMCData, only: NoatHF,NoatDoubs
    use FciMCData, only: tTruncSpace
    use FciMCData, only: ProjectionE
@@ -2205,6 +2223,7 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
    INTEGER PartIndex,IC          ! Used in buffering
    LOGICAL tSuc                  ! Also used in buffering
 
+   INTEGER iOldTotWalkers        ! Info user for update to calculate shift
    INTEGER iShiftLeft            ! Number of steps left until we recalculate shift
    REAL*8 WalkerScale            ! Scale factor for turning floating point amplitudes into integer walkers.
    REAL*8 dTolerance             ! The tolerance for when to regard a value as zero
@@ -2254,6 +2273,11 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
    iDebug=CCMCDebug
 
    Call SetupParameters()
+
+   ! Reset counters
+   iter_data_ccmc%nborn = 0
+   iter_data_ccmc%ndied = 0
+   iter_data_ccmc%nannihil = 0
 
    dTolerance=0 !1e-16
 
@@ -2310,12 +2334,19 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
    if(iDebug.ge.4) dAmpPrintTol=0
 
    iShiftLeft=StepsSft-1  !So the first one comes at StepsSft
-   TotWalkers=WalkerScale*dTotAbsAmpl
-   TotParts(1)=WalkerScale*dTotAbsAmpl
-   TotWalkersOld=WalkerScale*dTotAbsAmpl
-   TotPartsOld(1)=WalkerScale*dTotAbsAmpl
-   AllTotWalkersOld=WalkerScale*dTotAbsAmpl
+   TotWalkers=0
+!WalkerScale*dTotAbsAmpl
+   TotParts(1)=0
+!WalkerScale*dTotAbsAmpl
+   TotWalkersOld=0
+!WalkerScale*dTotAbsAmpl
+   TotPartsOld(1)=0
+!WalkerScale*dTotAbsAmpl
+   AllTotWalkersOld=1
+!WalkerScale*dTotAbsAmpl
+   AllTotParts(1)=WalkerScale*dTotAbsAmpl
    AllTotPartsOld(1)=WalkerScale*dTotAbsAmpl
+   iOldTotWalkers=WalkerScale*dTotAbsAmpl
    dAveTotAbsAmp=0
    dAveNorm=0
    Iter=1
@@ -2351,7 +2382,7 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
       endif
 
 
-      call CalcTotals(iNumExcitors,dTotAbsAmpl,AL%Amplitude(:,iCurAmpList),nAmpl,dTolerance*dInitAmplitude,WalkerScale,iRefPos,iDebug)
+      call CalcTotals(iNumExcitors,dTotAbsAmpl,AL%Amplitude(:,iCurAmpList),nAmpl,dTolerance*dInitAmplitude,WalkerScale,iRefPos,iOldTotWalkers,iDebug)
 !      if(.not.tShifting) then
 !         if(iNumExcitors>dInitAmplitude) then
 !            tShifting=.true.
