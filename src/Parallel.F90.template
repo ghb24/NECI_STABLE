@@ -432,6 +432,7 @@ supermodule Parallel
    integer, parameter :: MPI_MIN=0
    integer, parameter :: MPI_MAX=0
    integer, parameter :: MPI_SUM=0
+   integer, parameter :: MPI_LOR=0
    integer, parameter :: MPI_MAXLOC=0
    integer, parameter :: MPI_MAX_ERROR_STRING=255
 #endif
