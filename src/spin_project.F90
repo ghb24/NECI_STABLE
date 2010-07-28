@@ -13,7 +13,7 @@ module spin_project
 
     implicit none
 
-    logical :: tSpinProject
+    logical :: tSpinProject, spin_proj_stochastic_yama
     integer :: spin_proj_interval, spin_proj_cutoff
     real(dp) :: spin_proj_gamma, spin_proj_shift
 
@@ -217,20 +217,27 @@ contains
 
         integer, intent(in) :: nopen, dorder_i(nopen), dorder_j(nopen)
         integer :: yamas (get_num_csfs(nopen, STOT), nopen)
-        integer :: i, ncsf
-        real(dp) :: ret
+        integer :: i, ncsf, ind
+        real(dp) :: ret, r
 
         ! Generate the list of CSFs
         ncsf = ubound(yamas, 1)
         call csf_get_yamas (nopen, STOT, yamas, ncsf)
 
-        ret = 0
-        do i = 1, ncsf
-            ret = ret + (csf_coeff (yamas(i, :), dorder_i, nopen) * &
-                         csf_coeff (yamas(i, :), dorder_j, nopen))
-!            ret = ret + (csf_coeff (yama_global, dorder_i, nopen) * &
-!                         csf_coeff (yama_global, dorder_j, nopen))
-        enddo
+        if (spin_proj_stochastic_yama) then
+            r = genrand_real2_dSFMT()
+            ind = int(ncsf * r) + 1
+
+            ret = ncsf * (csf_coeff (yamas(ind, :), dorder_i, nopen) * &
+                          csf_coeff (yamas(ind, :), dorder_j, nopen))
+        else
+            ret = 0
+            do i = 1, ncsf
+                ret = ret + (csf_coeff (yamas(i, :), dorder_i, nopen) * &
+                             csf_coeff (yamas(i, :), dorder_j, nopen))
+            enddo
+        endif
+
     end function
 
     function csf_spin_project_elem_self (dorder, nopen) result (ret)
@@ -243,19 +250,26 @@ contains
 
         integer, intent(in) :: nopen, dorder(nopen)
         integer :: yamas (get_num_csfs(nopen, STOT), nopen)
-        integer :: i, ncsf
-        real(dp) :: ret, tmp
+        integer :: i, ncsf, ind
+        real(dp) :: ret, tmp, r
 
         ! Generate the list of CSFs
         ncsf = ubound(yamas, 1)
         call csf_get_yamas (nopen, STOT, yamas, ncsf)
 
-        ret = 0
-        do i = 1, ncsf
-            tmp = csf_coeff (yamas(i, :), dorder, nopen)
-            tmp = csf_coeff (yama_global, dorder, nopen)
-            ret = ret + (tmp * tmp)
-        enddo
+        if (spin_proj_stochastic_yama) then
+            r = genrand_real2_dSFMT()
+            ind = int(ncsf * r) + 1
+            tmp = csf_coeff (yamas(ind, :), dorder, nopen)
+
+            ret = ncsf * (tmp * tmp)
+        else
+            ret = 0
+            do i = 1, ncsf
+                tmp = csf_coeff (yamas(i, :), dorder, nopen)
+                ret = ret + (tmp * tmp)
+            enddo
+        endif
         
     end function
     
