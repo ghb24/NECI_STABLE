@@ -9,8 +9,9 @@ PROGRAM BlkFCIMC
       REAL*8 :: AvBlockEn,SumBlockEn,MeanEn,MeanSqEn,SDEn,ErrorEn,ErrorinErrorEn
       REAL*8 :: AvBlockHF,SumBlockHF,MeanHF,MeanSqHF,SDHF,ErrorHF,ErrorinErrorHF
       REAL*8 :: AvBlockNum,SumBlockNum,MeanNum,MeanSqNum,SDNum,ErrorNum,ErrorinErrorNum
-      REAL*8 :: MaxDeviation,MaxDeviationEn
-      REAL*8 :: MaxDeviationNum,MaxDeviationHF
+      REAL*8 :: MaxDeviation,MaxDeviationEn,CorrCoeff
+      REAL*8 :: MaxDeviationNum,MaxDeviationHF,FinalVal,TrueMean,TrueMeanEn,TrueMeanHF,TrueMeanNum
+      REAL*8 :: CrossCorr,Covar,FinalErr,LargestErr,LargestErrHF,LargestErrNum,LargestErrEn
       REAL*8 , ALLOCATABLE :: Shifts(:),Energies(:),BlkAv(:),BlkAvEn(:),Num(:),HF(:),BlkAvNum(:),BlkAvHF(:)
       LOGICAL :: tSeperateBlock
 
@@ -19,7 +20,7 @@ PROGRAM BlkFCIMC
       INTEGER*8 :: AllTotWalkers
 
       OPEN(UNIT=11,FILE='FCIMCStats',STATUS='OLD',ACTION='READ',    &
-        POSITION='REWIND')
+        POSITION='REWIND',FORM='FORMATTED')
       OPEN(UNIT=12,FILE='BlockingInfo',STATUS='UNKNOWN')
       OPEN(UNIT=13,FILE='BlockingInfoEnergies',STATUS='UNKNOWN')
       WRITE(12,"(A)") '#  Blocklength   Log_2 BL     MeanBlocks              &
@@ -114,7 +115,7 @@ PROGRAM BlkFCIMC
           IF(tSeperateBlock) THEN
               READ(11,"(I12,G16.7,I10,G16.7,I12,3I13,3G17.9,2I10,G13.5,I12,G13.5,G17.5,I13,G13.5,6G17.9)",END=98) Iter,Sft,WalkCng,GrowRate,   &
                    TotWalkers,Annihil,Died,Born,ProjE,AvShift,ProjEInst,AllNoatHF,AllNoatDoubs,AccRat,AllTotWalkers,IterTime,   &
-                   FracSing,WalkersDiffProc,TotImagTime,IterEnergy,HFShift,InstShift,TotEnergy,EnergyNum,EnergyHF
+                   FracSing,WalkersDiffProc,TotImagTime,IterEnergy,HFShift,InstShift,TotEnergy,EnergyHF,EnergyNum
           ELSE
               READ(11,'(I12,G16.7,I10,G16.7,I12,3I13,3G17.9)',END=98) Iter,Sft,WalkCng,GrowRate,TotWalkers,&
               Annihil,Died,Born,ProjE,AvShift,ProjEInst
@@ -177,6 +178,11 @@ PROGRAM BlkFCIMC
       BlkAvEn(:)=0.D0
       BlkAvNum(:)=0.D0
       BlkAvHF(:)=0.D0
+
+      LargestErr=0.D0
+      LargestErrEn=0.D0
+      LargestErrNum=0.D0
+      LargestErrHF=0.D0
 
 !      do i=1,TotPoints
 !          WRITE(7,'(I12,G16.7)') 500,Shifts(i)
@@ -293,16 +299,29 @@ PROGRAM BlkFCIMC
           ErrorinErrorNum=ErrorNum/SQRT(2.D0*(REAL(NoBlocks-1)))
           ErrorinErrorHF=ErrorHF/SQRT(2.D0*(REAL(NoBlocks-1)))
 
+          !Find the largest errors, neglecting the three largest block sizes
+          IF(i.lt.TotBlkSize-2) THEN
+              IF(Error.gt.LargestErr) LargestErr=Error
+              IF(ErrorEn.gt.LargestErrEn) LargestErrEn=ErrorEn
+              IF(ErrorNum.gt.LargestErrNum) LargestErrNum=ErrorNum
+              IF(ErrorHF.gt.LargestErrHF) LargestErrHF=ErrorHF
+          ENDIF
+
+          !Save the true mean
+          IF(i.eq.0) THEN
+              TrueMean=Mean
+              TrueMeanEn=MeanEn
+              TrueMeanNum=MeanNum
+              TrueMeanHF=MeanHF
+          ENDIF
+              
 !Write out info
           WRITE(12,'(2I12,4G25.16)') BlockSize,i,Mean,SD,Error,ErrorinError
-          
           WRITE(13,'(2I12,4G25.16)') BlockSize,i,MeanEn,SDEn,ErrorEn,ErrorinErrorEn
-
           IF(tSeperateBlock) THEN
               WRITE(14,'(2I12,4G25.16)') BlockSize,i,MeanNum,SDNum,ErrorNum,ErrorinErrorNum
               WRITE(15,'(2I12,4G25.16)') BlockSize,i,MeanHF,SDHF,ErrorHF,ErrorinErrorHF
           ENDIF
-
 
       enddo
       CLOSE(12)
@@ -310,6 +329,40 @@ PROGRAM BlkFCIMC
       IF(tSeperateBlock) THEN
           CLOSE(14)
           CLOSE(15)
+
+          Covar=0.D0
+          MeanSqHF=0.D0
+          MeanSqNum=0.D0
+          do i=1,TotPoints
+              Covar=Covar+((Num(i)-TrueMeanNum)*(HF(i)-TrueMeanHF))
+              MeanSqHF=MeanSqHF+(HF(i)**2)
+              MeanSqNum=MeanSqNum+(Num(i)**2)
+          enddo
+          Covar=Covar/REAL(TotPoints,8)
+          MeanSqHF=MeanSqHF/REAL(TotPoints,8)
+          MeanSqNum=MeanSqNum/REAL(TotPoints,8)
+
+          SDHF=SQRT(MeanSqHF-(TrueMeanHF**2))
+          SDNum=SQRT(MeanSqNum-(TrueMeanNum**2))
+
+          CorrCoeff=Covar/(SDHF*SDNum)
+
+          WRITE(6,*) "Correlation Coefficient is: ",CorrCoeff
+          
+          FinalVal=TrueMeanNum/TrueMeanHF
+          CrossCorr=(2.D0*CorrCoeff*LargestErrNum*LargestErrHF)/(TrueMeanHF*TrueMeanNum)
+          FinalErr=ABS(FinalVal)*SQRT(((LargestErrHF/TrueMeanHF)**2)+((LargestErrNum/TrueMeanNum)**2)-CrossCorr)
+
+!          WRITE(6,*) "Relative err num: ",((LargestErrNum/TrueMeanNum)**2)
+!          WRITE(6,*) "Relative err HF: ",((LargestErrHF/TrueMeanHF)**2)
+!          WRITE(6,*) "Cross Corr: ",CrossCorr
+
+          WRITE(6,"(A,G20.10,A,G20.10,A,G20.10,A)") "Assuming that error in the HF values is: ",LargestErrHF, " and in the energy numerator: ",LargestErrNum, " and in shift: ",LargestErr," we can estimate the error to be:"
+
+          WRITE(6,"(A,G25.15,A,G25.15)") "***ENERGY-PROJ*** ",FinalVal, " +/- ", FinalErr
+          WRITE(6,"(A,G25.15,A,G25.15)") "***ENERGY-SHIFT***",TrueMean, " +/- ",LargestErr
+          CALL FLUSH(6)
+
       ENDIF
 
 
