@@ -613,7 +613,7 @@ MODULE FciMCParMod
         integer(kind=n_int) :: iLutnJ(0:niftot)
         integer :: IC, walkExcitLevel, ex(2,2), TotWalkersNew, part_type
         integer, dimension(ScratchSize) :: scratch1, scratch2, scratch3
-        integer(int64) :: HashTemp
+        integer(int64) :: HashTemp, tot_parts_tmp(lenof_sign)
         logical :: tFilled, tParity, tHFFound, tHFFoundTemp
         real(dp) :: prob, HDiagCurr
         HElement_t :: HDiagTemp
@@ -655,6 +655,7 @@ MODULE FciMCParMod
         iter_data%ndied = 0
         iter_data%nannihil = 0
         iter_data%naborted = 0
+        tot_parts_tmp = TotParts
 
         ! The processor with the HF determinant on it will have to check 
         ! through each determinant until it's found. Once found, tHFFound is
@@ -809,7 +810,7 @@ MODULE FciMCParMod
                                 - iter_data%ndied - iter_data%nannihil &
                                 - iter_data%naborted
         iter_data%update_iters = iter_data%update_iters + 1
-
+        ASSERT(all(iter_data%update_growth == TotParts - tot_parts_tmp))
 
     end subroutine
 
