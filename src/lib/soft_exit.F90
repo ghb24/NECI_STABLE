@@ -156,39 +156,39 @@ contains
         integer, parameter :: last_item = spin_project_cutoff
         integer, parameter :: max_item_len = 25
         character(max_item_len), parameter :: option_list(last_item) &
-                               = (/"excite", &
-                                   "truncatecas", &
-                                   "softexit", &
-                                   "writepops", &
-                                   "varyshift", &
-                                   "nmcyc", &
-                                   "tau", &
-                                   "diagshift", &
-                                   "shiftdamp", &
-                                   "stepsshift", &
-                                   "singlesbias", &
-                                   "zeroproje", &
-                                   "zerohist", &
-                                   "partiallyfreeze", &
-                                   "partiallyfreezevirt", &
-                                   "printerrorblocking", &
-                                   "starterrorblocking", &
-                                   "restarterrorblocking", &
-                                   "printshiftblocking", &
-                                   "restartshiftblocking", &
-                                   "equilsteps", &
-                                   "starthist", &
-                                   "histequilsteps", &
-                                   "truncinitiator", &
-                                   "addtoinit", &
-                                   "scalehf", &
-                                   "printhighpopdet", &
-                                   "changerefdet", &
-                                   "restarthighpop", &
-                                   "spin-project", &
-                                   "spin-project-gamma", &
-                                   "spin-project-shift", &
-                                   "spin-project-cutoff"/)
+                               = (/"excite                   ", &
+                                   "truncatecas              ", &
+                                   "softexit                 ", &
+                                   "writepops                ", &
+                                   "varyshift                ", &
+                                   "nmcyc                    ", &
+                                   "tau                      ", &
+                                   "diagshift                ", &
+                                   "shiftdamp                ", &
+                                   "stepsshift               ", &
+                                   "singlesbias              ", &
+                                   "zeroproje                ", &
+                                   "zerohist                 ", &
+                                   "partiallyfreeze          ", &
+                                   "partiallyfreezevirt      ", &
+                                   "printerrorblocking       ", &
+                                   "starterrorblocking       ", &
+                                   "restarterrorblocking     ", &
+                                   "printshiftblocking       ", &
+                                   "restartshiftblocking     ", &
+                                   "equilsteps               ", &
+                                   "starthist                ", &
+                                   "histequilsteps           ", &
+                                   "truncinitiator           ", &
+                                   "addtoinit                ", &
+                                   "scalehf                  ", &
+                                   "printhighpopdet          ", &
+                                   "changerefdet             ", &
+                                   "restarthighpop           ", &
+                                   "spin-project             ", &
+                                   "spin-project-gamma       ", &
+                                   "spin-project-shift       ", &
+                                   "spin-project-cutoff      "/)
 
 
         logical :: exists, any_exist, eof, deleted, any_deleted
