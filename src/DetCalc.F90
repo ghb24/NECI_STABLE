@@ -1286,14 +1286,17 @@ END MODULE DetCalc
          INTEGER I
          LOGICAL TWARN
          
-         DO I=1,NDET
-            CALL CALCRHOPII(I,NDET,NEVAL,CK,W,BETA,I_P,ILOGGING,ECORE,WLRIS(I),WLSIS(I),TWARN)
-            DLWDBS(I)=CALCDLWDB(I,NDET,NEVAL,CK,W,BETA,ECORE)
-         ENDDO
-         STOP "DMONTECARLOEXWI is no longer functional."
+         ! Cray compiler barfs if DOEXMC isn't defined.  Weird...
+         DOEXMC = 0.0
+!         DO I=1,NDET
+!            CALL CALCRHOPII(I,NDET,NEVAL,CK,W,BETA,I_P,ILOGGING,ECORE,WLRIS(I),WLSIS(I),TWARN)
+!            DLWDBS(I)=CALCDLWDB(I,NDET,NEVAL,CK,W,BETA,ECORE)
+!         ENDDO
+!         STOP "DMONTECARLOEXWI is no longer functional."
+         call stop_all('DMONTECARLOEXWI','No longer functional')
 !         EN=DMONTECARLOEXWI(NDET,WLRIS,WLSIS,DLWDBS,I_P,IMCSTEPS,G1,NMRKS,NEL,NBASISMAX,NBASIS,BRR,IEQSTEPS,ILOGGING)
-         WRITE(6,*) "EXACT MC RESULT=",EN
-         DOEXMC=EN
-         RETURN
+!         WRITE(6,*) "EXACT MC RESULT=",EN
+!         DOEXMC=EN
+!         RETURN
       END
 

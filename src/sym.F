@@ -1001,7 +1001,7 @@ C.. Display irrep table
             ENDDO
          ENDDO
          DO I=1,NSYM
-            WRITE(STR,"(A,I3)"), "SYM", I
+            WRITE(STR,"(A,I3)") "SYM", I
             CALL WRITECHARSF(IUNIT,CHARS(1,I),NROT,STR,LCOMP,LREAL)
          ENDDO
          WRITE(IUNIT,*)
@@ -1034,7 +1034,7 @@ C.. First do a check for the format
          INTEGER I,J
          CHARACTER*6 STR
          LOGICAL LCOMP,LREAL
-            WRITE(IUNIT,"(A6,A)",advance='no'), STR,":   "
+            WRITE(IUNIT,"(A6,A)",advance='no') STR,":   "
             DO J=1,NROT
                IF(LCOMP) THEN
                   IF(LREAL) THEN
