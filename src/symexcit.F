@@ -1348,7 +1348,6 @@ C     &                     ,L1B,L1A,L2B,L2A
          Type(SymClass) Classes(nCl)
          INTEGER nAllowPPS(1:3,nSymPairProds)
 
-         Integer FindSymLabel
 C.. SYMPRODIND(1,ISPN,I)+1 contains the index of the first element of spin ISPN of sym
 C.. SYMPRODS(I) in ORBPAIRS
 C.. SYMPRODIND(2,ISPN,I) contains the number of such elements

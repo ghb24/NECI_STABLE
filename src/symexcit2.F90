@@ -348,9 +348,7 @@ MODULE SymExcit2
          INTEGER iFrom,iFromIndex,iTo,iToIndex
          TYPE(BasisFn) G1(nBasis)
          TYPE(Symmetry) Sym,Prod
-         TYPE(Symmetry) SYMPROD
          TYPE(Symmetry) SymProds(0:*)
-         LOGICAL SYMEQ
          INTEGER nBasisMax(5,*)
          HElement_t UMat(*)
          TYPE(ExcitWeight), allocatable :: ews(:)
@@ -472,7 +470,6 @@ MODULE SymExcit2
          TYPE(Symmetry) Sym,Prod
          TYPE(Symmetry) SYMPROD
          TYPE(Symmetry) SymProds(0:*)
-         LOGICAL SYMEQ
          INTEGER nBasisMax(5,*)
          TYPE(ExcitWeight), allocatable :: ews(:)
          integer, save :: tagews=0
