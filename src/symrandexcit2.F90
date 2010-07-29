@@ -82,17 +82,18 @@ MODULE GenRandSymExcitNUMod
             RETURN
         ENDIF       
 
+        !TODO: Not quite sure what conditions we need to check for now...
         IF(.not.tFilled) THEN
-            IF(.not.TwoCycleSymGens) THEN
-!Currently only available for molecular systems, or without using symmetry.
-                IF(.not.tNoSymGenRandExcits) THEN
-                    WRITE(6,*) "GenRandSymExcitNU can only be used for molecular systems"
-                    WRITE(6,*) "This is because of difficulties with other symmetries setup."
-                    WRITE(6,*) "If you want to use these excitation generators, then add NOSYMGEN to the input to ignore symmetry while generating excitations."
-                    CALL FLUSH(6)
-                    CALL Stop_All(this_routine,"GenRandSymExcitNU can only be used for molecular systems using symmetry")
-                ENDIF
-            ENDIF
+!            IF(.not.TwoCycleSymGens) THEN
+!!Currently only available for molecular systems, or without using symmetry.
+!                IF(.not.tNoSymGenRandExcits) THEN
+!                    WRITE(6,*) "GenRandSymExcitNU can only be used for molecular systems"
+!                    WRITE(6,*) "This is because of difficulties with other symmetries setup."
+!                    WRITE(6,*) "If you want to use these excitation generators, then add NOSYMGEN to the input to ignore symmetry while generating excitations."
+!                    CALL FLUSH(6)
+!                    CALL Stop_All(this_routine,"GenRandSymExcitNU can only be used for molecular systems using symmetry")
+!                ENDIF
+!            ENDIF
 
 !First, we need to do an O[N] operation to find the number of occupied alpha electrons, number of occupied beta electrons
 !and number of occupied electrons of each symmetry class and spin. This is similar to the ClassCount array.
@@ -1075,6 +1076,7 @@ MODULE GenRandSymExcitNUMod
 !These electrons have symmetry product SymProduct and spin pairing iSpn, where iSpn = 1=beta/beta; 2=alpha/beta; 3=alpha/alpha.
 !If IndInp = -1, the pair is picked randomly with prob = 1/ElecPairs. Otherwise, it will choose electron pair given by index IndInp.
     SUBROUTINE PickElecPair(nI,Elec1Ind,Elec2Ind,SymProduct,iSpn,SumMl,IndInp)
+        use SymData, only: SymConjTab
         INTEGER :: Ind,X,K,Elec1Ind,Elec2Ind,SymProduct,IndInp
         INTEGER :: nI(NEl),iSpn,SumMl
         REAL*8 :: r
@@ -1121,7 +1123,11 @@ MODULE GenRandSymExcitNUMod
             SymProduct=0
             SumMl=0
         ELSE
+#ifdef __CMPLX
+            SymProduct=SymConjTab(INT(IEOR(G1(nI(Elec1Ind))%Sym%S,G1(nI(Elec2Ind))%Sym%S),4))
+#else
             SymProduct=INT(IEOR(G1(nI(Elec1Ind))%Sym%S,G1(nI(Elec2Ind))%Sym%S),4)
+#endif
             IF(tFixLz) THEN
                 SumMl=G1(nI(Elec1Ind))%Ml+G1(nI(Elec2Ind))%Ml
             ENDIF
@@ -1199,6 +1205,7 @@ MODULE GenRandSymExcitNUMod
         
 
     SUBROUTINE CreateSingleExcit(nI,nJ,ClassCount2,ClassCountUnocc2,ILUT,ExcitMat,tParity,pGen)
+        use SymData, only: SymConjTab
         INTEGER :: ElecsWNoExcits,i,Attempts,nOrbs,z,Orb
         INTEGER :: Eleci,ElecSym,nI(NEl),nJ(NEl),NExcit,iSpn,ChosenUnocc
         INTEGER :: ExcitMat(2,2),ExcitLevel,iGetExcitLevel
@@ -1226,7 +1233,11 @@ MODULE GenRandSymExcitNUMod
             IF(tNoSymGenRandExcits) THEN
                 ElecSym=0
             ELSE
+#ifdef __CMPLX
+                ElecSym=SymConjTab(INT((G1(nI(Eleci))%Sym%S),4))
+#else
                 ElecSym=INT((G1(nI(Eleci))%Sym%S),4)
+#endif
                 ElecK=G1(nI(Eleci))%Ml
             ENDIF
 
