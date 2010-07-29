@@ -197,7 +197,7 @@ This destroys the data stored in self.data.data'''
                 # Bonus: also calculate the covariance.
                 for i in range(len(self.data)):
                     for j in range(i+1, len(self.data)):
-                        key = '%s,%s' % (self.data[i].data_col, self.data[j].data_col)
+                        key = '%s,%s' % tuple(sorted((self.data[i].data_col, self.data[j].data_col)))
                         if key not in self.covariance:
                             self.covariance[key] = []
                         self.covariance[key].append(self.calculate_covariance(i, j))
