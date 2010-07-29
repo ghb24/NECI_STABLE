@@ -150,8 +150,10 @@ block_all: assume all lines contain data apart from comment lines.  The regular 
         # two different data sets at each given block size.
         # The key i,j is used to distinguish different combinations, where
         # i and j correspond to values in data_cols.
-        # These are symmetric and thus we choose to work using i<j.
+        # The covariance is symmetric and thus we choose to work using i<j.
         self.covariance = {}
+        # Combinations are not symmetric and we perform the operation in the
+        # order the data columns were specified.
         self.combination_stats = {}
 
     def get_data(self):
@@ -202,6 +204,8 @@ This destroys the data stored in self.data.data'''
                             self.covariance[key] = []
                         self.covariance[key].append(self.calculate_covariance(i, j))
                         # Added bonus: calculate combination if desired.
+                        # The combinations are not necessarily symmetric...
+                        key = '%s,%s' % (self.data[i].data_col, self.data[j].data_col)
                         if self.combination == '/':
                             if key not in self.combination_stats:
                                 self.combination_stats[key] = []
