@@ -868,7 +868,7 @@ MODULE FciMCParMod
 
         ! Has there been a particle bloom this iteration?
         if ( abs(iPartBloom) > InitiatorWalkNo) then
-            write (6, bloom_warn_string, advance='no'), iter, abs(iPartBloom)
+            write (6, bloom_warn_string, advance='no') iter, abs(iPartBloom)
             if (iPartBloom > 0) then
                 write (6, '("double excit.")')
             else
@@ -3752,7 +3752,7 @@ MODULE FciMCParMod
             fcimcstats_unit = get_free_unit()
             if (tReadPops) then
                 ! Restart calculation.  Append to stats file (if it exists).
-                OPEN(fcimcstats_unit,file='FCIMCStats',status='unknown',access='append')
+                OPEN(fcimcstats_unit,file='FCIMCStats',status='unknown',position='append')
             else
                 OPEN(fcimcstats_unit,file='FCIMCStats',status='unknown')
             end if

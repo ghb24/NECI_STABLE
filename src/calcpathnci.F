@@ -4,9 +4,9 @@ C..    + (P-h h+1)Sum_i=1,h(e_i) + (P-h h+2) Sum_(i=1,h;j=1,h)(e_i e_j) + ...
 C.. = (P h) (1+((P-h)/(h+1))Sum_(i=1,h)(e_i (1+ ((P-h-1)/(h+2))Sum_(j=i,h) e_j (1+ ...)
 C.. return (RH_II^-I_H)*RH_IJ*RH_JK*...*RH_LI*W_h(RH_JJ/RH_II,...RH_LL/RH_II,P)
 C.. This is recursive and will generate up to order NWHTAY
-      REAL*8 RECURSIVE FUNCTION CALCPATH6_2(IPATH,RHOII,RHOCUML,I_H,I_P,
+      RECURSIVE FUNCTION CALCPATH6_2(IPATH,RHOII,RHOCUML,I_H,I_P,
      &      NWHTAY,ISTART,NORDER) RESULT (CALCPATHS6_2RES)
-         REAL*8 RHOII(0:I_H),DFACT
+         REAL*8 RHOII(0:I_H),DFACT,CALCPATHS6_2RES,FNCR
          INTEGER NWHTAY
          F1=0.D0
          DFACT=(I_P-I_H-NORDER)/(I_H+NORDER+1.D0)
@@ -21,11 +21,11 @@ C.. This is recursive and will generate up to order NWHTAY
          ENDDO
          F1=1.D0+F1*DFACT
          IF(NORDER.EQ.0) THEN
-            CALCPATH6_2RES=FNCR(I_P,I_H)*F1
+            CALCPATHS6_2RES=FNCR(I_P,I_H)*F1
 C.CALCPATHS6_2 now contains the weight
-            CALCPATH6_2RES=CALCPATH6_2RES*(RHOII(0)**(-I_H))*RHOCUML
+            CALCPATHS6_2RES=CALCPATHS6_2RES*(RHOII(0)**(-I_H))*RHOCUML
          ELSE
-            CALCPATH6_2RES=F1
+            CALCPATHS6_2RES=F1
          ENDIF
          RETURN
       END
