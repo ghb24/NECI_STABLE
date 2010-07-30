@@ -100,7 +100,6 @@ subroutine VASPBasisInit(ARR,BRR,G1,LEN)
    type(BasisFN) :: G1(LEN)
    integer :: i
    type(Symmetry) :: iDecomp
-   integer(8) :: ComposeAbelianSym
 
    NBASISMAX(1:3,1:2)=0
    NBASISMAX(1,3)=2
