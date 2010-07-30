@@ -84,24 +84,12 @@ MODULE GenRandSymExcitNUMod
 
         !TODO: Not quite sure what conditions we need to check for now...
         IF(.not.tFilled) THEN
-!            IF(.not.TwoCycleSymGens) THEN
-!!Currently only available for molecular systems, or without using symmetry.
-!                IF(.not.tNoSymGenRandExcits) THEN
-!                    WRITE(6,*) "GenRandSymExcitNU can only be used for molecular systems"
-!                    WRITE(6,*) "This is because of difficulties with other symmetries setup."
-!                    WRITE(6,*) "If you want to use these excitation generators, then add NOSYMGEN to the input to ignore symmetry while generating excitations."
-!                    CALL FLUSH(6)
-!                    CALL Stop_All(this_routine,"GenRandSymExcitNU can only be used for molecular systems using symmetry")
-!                ENDIF
-!            ENDIF
-
 !First, we need to do an O[N] operation to find the number of occupied alpha electrons, number of occupied beta electrons
 !and number of occupied electrons of each symmetry class and spin. This is similar to the ClassCount array.
 !This has the format (Spn,sym), where Spin=1,2 corresponding to alpha and beta.
-!For molecular systems, sym runs from 0 to 7. This is NOT general and should be made so using SymLabels.
-!This could be stored to save doing this multiple times, but shouldn't be too costly an operation.
+!For molecular systems, sym runs from 0 to 7. 
+!This is stored to save doing this multiple times, but shouldn't be too costly an operation.
             CALL ConstructClassCounts(nI,ClassCount2,ClassCountUnocc2)
-
             tFilled=.true.
         ENDIF
 !        WRITE(6,*) ClassCount2(:)
@@ -148,13 +136,6 @@ MODULE GenRandSymExcitNUMod
 !            ENDIF
 
         ENDIF
-!        DetSym=0
-!        do i=1,NEl
-!            DetSym=IEOR(DetSym,INT(G1(nJ(i))%Sym%S,4))
-!        enddo
-!        IF(DetSym.ne.6) THEN
-!            CALL Stop_All("GenRand","WrongSym")
-!        ENDIF
 
     end subroutine
 
@@ -1118,26 +1099,17 @@ MODULE GenRandSymExcitNUMod
         Elec1Ind=NEl-1-K
         Elec2Ind=NEl-X+((K*(K+1))/2)
 
-!We now want to find the symmetry product of the two electrons, and the spin product of the two electrons.
-        IF(tNoSymGenRandExcits) THEN
-            SymProduct=0
-            SumMl=0
-        ELSE
-#ifdef __CMPLX
-            SymProduct=SymConjTab(INT(IEOR(G1(nI(Elec1Ind))%Sym%S,G1(nI(Elec2Ind))%Sym%S),4))
-#else
-            SymProduct=INT(IEOR(G1(nI(Elec1Ind))%Sym%S,G1(nI(Elec2Ind))%Sym%S),4)
-#endif
-            IF(tFixLz) THEN
-                SumMl=G1(nI(Elec1Ind))%Ml+G1(nI(Elec2Ind))%Ml
-            ENDIF
-        ENDIF
+		Orb1=nI(Elec1Ind)
+		Orb2=nI(Elec2Ind)
 
-        IF((G1(nI(Elec1Ind))%Ms)*(G1(nI(Elec2Ind))%Ms).eq.-1) THEN
+!We now want to find the symmetry product label of the two electrons, and the spin product of the two electrons.
+		SymProduct=RandExcitSymLabelProd(SpinOrbSymLabel(Orb1),SpinOrbSymLabel(Orb2))
+
+        IF((G1(Orb1)%Ms)*(G1(Orb2)%Ms).eq.-1) THEN
 !We have an alpha beta pair of electrons.
             iSpn=2
         ELSE
-            IF(G1(nI(Elec1Ind))%Ms.eq.1) THEN
+            IF(G1(Orb1)%Ms.eq.1) THEN
 !We have an alpha alpha pair of electrons.
                 iSpn=3
             ELSE
@@ -1145,30 +1117,33 @@ MODULE GenRandSymExcitNUMod
                 iSpn=1
             ENDIF
         ENDIF
+		
+		IF(tFixLz) THEN
+			SumMl=G1(Orb1)%Ml+G1(Orb2)%Ml
+		ENDIF
 
     END SUBROUTINE PickElecPair
 
     SUBROUTINE CheckIfSingleExcits(ElecsWNoExcits,ClassCount2,ClassCountUnocc2,nI)
         INTEGER :: ElecsWNoExcits,ClassCount2(ScratchSize),ClassCountUnocc2(ScratchSize),i,k
         INTEGER :: Ind1,Ind2,nI(NEl)
-
-
-!First, we need to find out if there are any electrons which have no possible excitations. This is because these will need to be redrawn and so 
-!will affect the probabilities.
+!First, we need to find out if there are any electrons which have no possible excitations. 
+!This is because these will need to be redrawn and so will affect the probabilities.
         ElecsWNoExcits=0
 
-        IF(tFixLz) THEN
+        IF(tFixLz.or.tKPntSym) THEN
 !Here, we also have to check that the electron is momentum allowed.
 !Since there are many more irreps, it will be quicker here to check all electrons, rather than all the symmetries.
+!We check the inverse symmetry array, which will be the same unless we are using kPointSym.
             
             do i=1,NEl
 
                 IF(G1(nI(i))%Ms.eq.1) THEN
-                    IF(ClassCountUnocc2(ClassCountInd(1,INT(G1(nI(i))%Sym%S,4),G1(nI(i))%Ml)).eq.0) THEN
+                    IF(ClassCountUnocc2(ClassCountInd(1,SpinOrbSymInvLabel(nI(i)),G1(nI(i))%Ml)).eq.0) THEN
                         ElecsWNoExcits=ElecsWNoExcits+1
                     ENDIF
                 ELSE
-                    IF(ClassCountUnocc2(ClassCountInd(2,INT(G1(nI(i))%Sym%S,4),G1(nI(i))%Ml)).eq.0) THEN
+                    IF(ClassCountUnocc2(ClassCountInd(2,SpinOrbSymInvLabel(nI(i)),G1(nI(i))%Ml)).eq.0) THEN
                         ElecsWNoExcits=ElecsWNoExcits+1
                     ENDIF
                 ENDIF
@@ -1233,11 +1208,9 @@ MODULE GenRandSymExcitNUMod
             IF(tNoSymGenRandExcits) THEN
                 ElecSym=0
             ELSE
-#ifdef __CMPLX
-                ElecSym=SymConjTab(INT((G1(nI(Eleci))%Sym%S),4))
-#else
-                ElecSym=INT((G1(nI(Eleci))%Sym%S),4)
-#endif
+!For real abelian symmetry, the irrep of i and a must be the same. However, for
+!kpoint symmetry, it must be the inverse (which is now not itself).
+                ElecSym=SpinOrbSymInvLabel(nI(Eleci))
                 ElecK=G1(nI(Eleci))%Ml
             ENDIF
 
@@ -1248,6 +1221,7 @@ MODULE GenRandSymExcitNUMod
 !Beta orbital
                 iSpn=2
             ENDIF
+
             SymIndex=ClassCountInd(iSpn,ElecSym,ElecK)
             NExcit=ClassCountUnocc2(SymIndex)
 
@@ -1267,8 +1241,6 @@ MODULE GenRandSymExcitNUMod
 
         enddo
 
-
-
 !Now we need to choose the unoccupied orbital for the chosen electron.
 !There are two ways to do this. We can either choose the orbital we want out of the NExcit possible unoccupied orbitals.
 !It would then be necessary to cycle through all orbitals of that symmetry and spin, only counting the unoccupied ones to find the correct determinant.
@@ -1278,52 +1250,52 @@ MODULE GenRandSymExcitNUMod
 ! ==========================
 
 !Choose the unoccupied orbital to exite to
-        r = genrand_real2_dSFMT()
-        ChosenUnocc=INT(NExcit*r)+1
+			r = genrand_real2_dSFMT()
+			ChosenUnocc=INT(NExcit*r)+1
 
 !Now run through all allowed orbitals until we find this one.
-        IF(tNoSymGenRandExcits) THEN
-            nOrbs=nBasis/2
-        ELSE
+			IF(tNoSymGenRandExcits) THEN
+				nOrbs=nBasis/2
+			ELSE
 !                nOrbs=SymLabelCounts(2,ElecSym+1)
 !                nOrbs=SymLabelCounts2(iSpn,2,ElecSym+1)
-            nOrbs=OrbClassCount(SymIndex)
+				nOrbs=OrbClassCount(SymIndex)
 
 !                !!REMOVE THIS TEST ONCE WORKING!!
 !                IF(nOrbs.ne.SymLabelCounts2(2,SymIndex)) THEN
 !                    CALL Stop_All("GetSingleExcit","Error in symmetry arrays")
 !                ENDIF
-        ENDIF
+			ENDIF
 
-        z=0     !z is the counter for the number of allowed unoccupied orbitals we have gone through
-        do i=0,nOrbs-1
+			z=0     !z is the counter for the number of allowed unoccupied orbitals we have gone through
+			do i=0,nOrbs-1
 !Find the spin orbital index. SymLabelCounts has the index of the state for the given symmetry.
-            IF(tNoSymGenRandExcits) THEN
-                Orb=(2*(i+1))-(iSpn-1)
-            ELSE
+				IF(tNoSymGenRandExcits) THEN
+					Orb=(2*(i+1))-(iSpn-1)
+				ELSE
 !                    Orb=(2*SymLabelList(SymLabelCounts(1,ElecSym+1)+i))-(iSpn-1)
 !                    Orb=SymLabelList2(iSpn,SymLabelCounts2(iSpn,1,ElecSym+1)+i)
-                Orb=SymLabelList2(SymLabelCounts2(1,SymIndex)+i)
-            ENDIF
+					Orb=SymLabelList2(SymLabelCounts2(1,SymIndex)+i)
+				ENDIF
 
 !Find out if the orbital is in the determinant.
-            IF(.not.(BTEST(ILUT((Orb-1)/bits_n_int),MOD(Orb-1,bits_n_int)))) THEN
+				IF(.not.(BTEST(ILUT((Orb-1)/bits_n_int),MOD(Orb-1,bits_n_int)))) THEN
 !The orbital is not found in the original determinant - increment z
-                z=z+1
-                IF(z.eq.ChosenUnocc) THEN
+					z=z+1
+					IF(z.eq.ChosenUnocc) THEN
 !We have got to the determinant that we want to pick.
-                    EXIT
-                ENDIF
-            ENDIF
+						EXIT
+					ENDIF
+				ENDIF
 
-        enddo
+			enddo
 
 !We now have our final orbitals. i=nI(Eleci). a=Orb.
-        IF(z.ne.ChosenUnocc) THEN
-            CALL Stop_All("CreateSingleExcit","Could not find allowed unoccupied orbital to excite to.")
-        ENDIF
+			IF(z.ne.ChosenUnocc) THEN
+				CALL Stop_All("CreateSingleExcit","Could not find allowed unoccupied orbital to excite to.")
+			ENDIF
 
-    ELSE
+		ELSE
 ! METHOD 2 (Keep drawing orbitals from the desired symmetry and spin until we find one unoccupied)
 ! =========================
 
@@ -1424,9 +1396,9 @@ MODULE GenRandSymExcitNUMod
 !                ILUT((nI(I)-1)/bits_n_int)=IBSET(ILUT((NI(I)-1)/bits_n_int),MOD(NI(I)-1,bits_n_int))
 
                 IF(G1(nI(i))%Ms.eq.1) THEN
-                    Ind=ClassCountInd(1,INT(G1(nI(i))%Sym%S,4),G1(nI(i))%Ml)
+                    Ind=ClassCountInd(1,SpinOrbSymLabel(nI(i)),G1(nI(i))%Ml)
                 ELSE
-                    Ind=ClassCountInd(2,INT(G1(nI(i))%Sym%S,4),G1(nI(i))%Ml)
+                    Ind=ClassCountInd(2,SpinOrbSymLabel(nI(i)),G1(nI(i))%Ml)
                 ENDIF
 
                 ClassCount2(Ind)=ClassCount2(Ind)+1
@@ -1594,6 +1566,8 @@ MODULE GenRandSymExcitNUMod
 !ClassCount arrays are not going to be 1D arrays, so that new symmetries can be added more easily.
 !This means that an indexing system is needed for the array.
 !For spin, alpha=1, beta=2. Sym goes from 0:nSymLabels-1 and Mom goes from -Lmax to Lmax.
+!For molecular systems, the sym is actually the symmetry of the irrep.
+!However, for k-points, the sym is the k-point label from SymClasses(state)
     pure integer function ClassCountInd(Spin,Sym,Mom)
         integer, intent(in) :: Spin,Sym,Mom
 
@@ -1612,13 +1586,25 @@ MODULE GenRandSymExcitNUMod
         endif
     end function ClassCountInd
 
+!This function returns the label (0 -> nSymlabels) of the symmetry product of two symmetry labels.
+	PURE INTEGER FUNCTION RandExcitSymLabelProd(SymLabel1,SymLabel2)
+		IMPLICIT NONE
+		INTEGER , INTENT(IN) :: SymLabel1,SymLabel2
+
+		IF(tNoSymGenRandExcits) THEN
+			RandExcitSymLabelProd=0
+		ELSEIF(tKPntSym) THEN
+			!Look up the symmetry in the product table for labels (returning labels, not syms)
+			RandExcitSymLabelProd=SymTableLabels(SymLabel1,SymLabel2)
+		ELSE
+			RandExcitSymLabelProd=IEOR(SymLabel1,SymLabel2)
+		ENDIF
+
+	END FUNCTION RandExcitSymLabelProd
 
 
-
-    !*********  BIASED EXCITATION GENERATION ROUTINES **************!
+    !***********************  BIASED EXCITATION GENERATION ROUTINES *************************!
     
-
-
     
 !This routine is an importance sampled excitation generator. However, it is currently set up to work with the
 !spawning algorithm, since a stochastic choice as to whether the particle is accepted or not is also done within the routine.
@@ -2562,12 +2548,65 @@ SUBROUTINE SpinOrbSymSetup(tRedoSym)
 !Calculate the upper array bound for the ClassCount2 arrays. This will be dependant on the number of symmetries needed.
         ScratchSize=2*nSymLabels*(2*iMaxLz+1)
     ELSE
-        ScratchSize=2*nSymLabels
+        ScratchSize=2*nSymLabels	!For k-point sym, this can be large
     ENDIF
 
-    IF(tNoSymGenRandExcits.or.tUEG.or.(.not.TwoCycleSymGens)) THEN
+    IF(tNoSymGenRandExcits.or.tUEG) THEN
         ScratchSize=2
     ENDIF
+
+	!Create SpinOrbSymLabel array.
+	!This array will return a number between 0 and nSymLabels-1.
+	!For molecular systems, this IS the character of the irrep
+	!For k-point systems, this is an arbitrary label, and is equal to the standard label - 1.
+	!This is chosen so that the indexing works with the rest of the excitation generators.
+	Allocate(SpinOrbSymLabel(nBasis))
+	do i=1,nBasis
+		if(tNoSymGenRandExcits.or.tUEG) then
+			SpinOrbSymLabel(i)=0
+		elseif(tKPntSym) then
+			SpinOrbSymLabel(i)=SymClasses(((i+1)/2))-1		!This ensures that the symmetry labels go from 0 -> nSymLabels-1
+		else
+			SpinOrbSymLabel(i)=INT(G1(j)%Sym%S,4)
+		endif
+	enddo
+
+	!SpinOrbSymInvLabel takes the label (0 -> nSymLabels) of a spin orbital, and returns the inverse symmetry label, suitable for
+	!use in ClassCountInd.
+	Allocate(SpinOrbSymInvLabel(nBasis))
+	do i=1,nBasis
+		if(tKPntSym) then
+			SpinOrbSymInvLabel(i)=SymConjTab(SpinOrbSymLabel(i)+1)-1	!Change the sym label back to the representation used by the
+																		!rest of the code, use SymConjTab, then change back to other 
+																	    !representation of the labels.
+		else
+			SpinOrbSymInvLabel(i)=SpinOrbSymLabel(i)	!They are self-inverses
+		endif
+	enddo
+
+	if(tKPntSym) then
+		Allocate(SymTableLabels(nSymLabels-1,nSymLabels-1))
+		SymTableLabels(:,:)=-9000	!To make it easier to track bugs
+		do i=0,nSymLabels-1
+			do j=0,i
+				SymI=SymLabels(i+1)		!Convert to the other symlabel convention to use SymLabels - 
+										!TODO: I will fix this to make them consistent when working (ghb24)!
+				SymJ=SymLabels(j+1)
+				SymProduct=SymProd(SymI,SymJ)
+				!Now, we need to find the label according to this symmetry!
+				!Run through all symmetries to make working (this could be far more efficient, but its only once, so sod it...
+				do Lab=1,nSymLabels
+					if(SymLabels(Lab)%S.eq.SymProduct%S) then
+						EXIT
+					endif
+				enddo
+				if(Lab.eq.nSymLabels+1) then
+					call stop_all("SpinOrbSymSetup","Cannot find symmetry label")
+				endif
+				SymTableLabels(i,j)=Lab-1
+			enddo
+		enddo
+	endif
 
 !SymLabelList2 and SymLabelCounts2 are now organised differently, so that it is more efficient, and easier to add new symmetries.
 !SymLabelCounts is of size (2,ScratchSize), where 1,x gives the index in SymlabelList2 where the orbitals of symmetry x start.
@@ -2587,12 +2626,8 @@ SUBROUTINE SpinOrbSymSetup(tRedoSym)
         ELSE
             Spin=2
         ENDIF
-!        WRITE(6,*) "BASIS FN ",j,G1(j)%Sym,SymClasses(j)
-        IF(tUEG.or.tNoSymGenRandExcits.or.(.not.TwoCycleSymGens)) THEN
-            SymInd=ClassCountInd(Spin,0,G1(j)%Ml)
-        ELSE
-            SymInd=ClassCountInd(Spin,INT(G1(j)%Sym%S,4),G1(j)%Ml)
-        ENDIF
+!        WRITE(6,*) "BASIS FN ",j,G1(j)%Sym,SymClasses((j+1)/2)
+		SymInd=ClassCountInd(Spin,SpinOrbSymLabel(j),G1(j)%Ml)
         SymLabelCounts2(2,SymInd)=SymLabelCounts2(2,SymInd)+1
     enddo
     SymLabelCounts2(1,1)=1
@@ -2606,11 +2641,7 @@ SUBROUTINE SpinOrbSymSetup(tRedoSym)
         ELSE
             Spin=2
         ENDIF
-        IF(tUEG.or.tNoSymGenRandExcits.or.(.not.TwoCycleSymGens)) THEN
-            SymInd=ClassCountInd(Spin,0,G1(j)%Ml)
-        ELSE
-            SymInd=ClassCountInd(Spin,INT(G1(j)%Sym%S,4),G1(j)%Ml)
-        ENDIF
+		SymInd=ClassCountInd(Spin,SpinOrbSymLabel(j),G1(j)%Ml)
         SymLabelList2(Temp(SymInd))=j
         Temp(SymInd)=Temp(SymInd)+1
     enddo
@@ -2620,17 +2651,17 @@ SUBROUTINE SpinOrbSymSetup(tRedoSym)
     ALLOCATE(OrbClassCount(ScratchSize))
     OrbClassCount(:)=0
     
-    
-    IF(tNoSymGenRandExcits.or.tUEG.or.(.not.TwoCycleSymGens)) THEN
+    IF(tNoSymGenRandExcits.or.tUEG) THEN
 !All orbitals are in irrep 0
         OrbClassCount(ClassCountInd(1,0,0))=(nBasis/2)
         OrbClassCount(ClassCountInd(2,0,0))=(nBasis/2)
     ELSE
         do i=1,nBasis
             IF(G1(i)%Ms.eq.1) THEN
-                OrbClassCount(ClassCountInd(1,INT(G1(i)%Sym%S,4),G1(i)%Ml))=OrbClassCount(ClassCountInd(1,INT(G1(i)%Sym%S,4),G1(i)%Ml))+1
+				OrbClassCount(ClassCountInd(1,SpinOrbSymLabel(i),G1(i)%Ml))=OrbClassCount(ClassCountInd(1,SpinOrbSymLabel(i),G1(i)%Ml))+1
             ELSE
-                OrbClassCount(ClassCountInd(2,INT(G1(i)%Sym%S,4),G1(i)%Ml))=OrbClassCount(ClassCountInd(2,INT(G1(i)%Sym%S,4),G1(i)%Ml))+1
+				IF(tKPntSym) THEN
+                OrbClassCount(ClassCountInd(2,SpinOrbSymLabel(i),G1(i)%Ml))=OrbClassCount(ClassCountInd(2,SpinOrbSymLabel,G1(i)%Ml))+1
             ENDIF
         enddo
     ENDIF
@@ -2709,6 +2740,7 @@ SUBROUTINE SpinOrbSymSetup(tRedoSym)
     write(6,*) "Total momentum is", kTotal
 
 END SUBROUTINE SpinOrbSymSetup
+
 
 !This routine will take a determinant nI, and find Iterations number of excitations of it. It will then histogram these, summing in 1/pGen for every occurance of
 !the excitation. This means that all excitations should be 0 or 1 after enough iterations. It will then count the excitations and compare the number to the

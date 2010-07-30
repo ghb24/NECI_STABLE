@@ -246,10 +246,10 @@ contains
                      end if
                  end do
              end do
-!             WRITE(6,*) "Label, Sym, SymConjLabel, SymConj, SymProd"
-!             do i=1,nsymlabels
-!                 WRITE(6,"(5I12)") i,symlabels(i),SymConjTab(i),symlabels(SymConjTab(i)),SYMPROD(symlabels(i),symlabels(SymConjTab(i)))
-!             enddo
+             WRITE(6,*) "Label, Sym, SymConjLabel, SymConj, SymProd"
+             do i=1,nsymlabels
+                 WRITE(6,"(5I12)") i,symlabels(i),SymConjTab(i),symlabels(SymConjTab(i)),SYMPROD(symlabels(i),symlabels(SymConjTab(i)))
+             enddo
          end if
       END SUBROUTINE GENMOLPSYMTABLE
 
