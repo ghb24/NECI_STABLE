@@ -605,115 +605,27 @@ MODULE GenRandSymExcitNUMod
                 ForbiddenOrbs=(nBasis/2)-nOccBeta-AllowedOrbs
             ENDIF
 
-
-
-!            Ind=0
-!!Run over all possible b symmetries, and count the a orbitals which would be disallow due to the unavailability of a corresponding b orbital.
-!!            WRITE(6,*) "iSpn: ",iSpn,SymProduct,SumMl
-!            do k=-iMaxLz,iMaxLz
-!                OrbAMl=SumMl-k
-!!                WRITE(6,*) "OrbAMl: ",OrbAMl
-!                IF(abs(OrbAMl).le.iMaxLz) THEN
-!                    !If the OrbAMl which would be needed to require this B-symmetry is out of range, then there is no need to consider it - we cannot pick an A orb which would require this symmetry from the B orbital.
-!                    do i=0,nSymLabels-1
-!                        ConjSym=IEOR(SymProduct,i)
-!!                        WRITE(6,*) "ConjSym: ",ConjSym,i
-!                        do j=1,2
-!                            Ind=Ind+1
-!!                            WRITE(6,*) "Alpha/Beta: ",j
-!!                            WRITE(6,*) "***i***"
-!                            IF(ClassCountUnocc2(Ind).eq.0) THEN
-!!There is no point going in here if SymProduct=0
-!                                !Ignore if already spin-forbidden
-!                                IF(iSpn.eq.1) THEN
-!                                    IF(j.eq.1) THEN
-!                                        CYCLE  !We are only interested in beta orbitals
-!                                    ELSE
-!                                        ForbiddenOrbs2=ForbiddenOrbs2+ClassCountUnocc2(ClassCountInd(2,ConjSym,OrbAMl))
-!                                    ENDIF
-!                                ELSEIF(iSpn.eq.3) THEN
-!                                    IF(j.eq.2) THEN
-!                                        CYCLE   !We are only interested in alpha orbitals
-!                                    ELSE
-!                                        ForbiddenOrbs2=ForbiddenOrbs2+ClassCountUnocc2(ClassCountInd(1,ConjSym,OrbAMl))
-!!                                        IF(Iter.eq.13) WRITE(6,*) "Adding forbidden orb for sym ",i,ConjSym,ForbiddenOrbs
-!                                    ENDIF
-!                                ELSEIF(iSpn.eq.2) THEN  !alpha/beta pair - can forbid orbitals both ways.
-!                                    IF(j.eq.1) THEN
-!                                        ForbiddenOrbs2=ForbiddenOrbs2+ClassCountUnocc2(ClassCountInd(2,ConjSym,OrbAMl))
-!!                                        WRITE(6,*) "***",ForbiddenOrbs
-!                                    ELSE
-!                                        ForbiddenOrbs2=ForbiddenOrbs2+ClassCountUnocc2(ClassCountInd(1,ConjSym,OrbAMl))
-!!                                        WRITE(6,*) "***",ForbiddenOrbs
-!                                    ENDIF
-!                                ENDIF
-!                            ELSEIF((ClassCountUnocc2(Ind).eq.1).and.(iSpn.ne.2).and.(SymProduct.eq.0).and.(OrbAMl.eq.k)) THEN
-!                                !This is the situation where you actually need two orbitals of the given symmetry to allow this a orbital to be chosen.
-!                                IF(iSpn.eq.1.and.j.eq.1) CYCLE
-!                                IF(iSpn.eq.3.and.j.eq.2) CYCLE
-!                                ForbiddenOrbs2=ForbiddenOrbs2+1
-!!                                IF(Iter.eq.13) WRITE(6,*) "Extra forbidden orb for symmetry ",i,ForbiddenOrbs
-!                            ENDIF
-!                        enddo
-!                    enddo
-!                ELSE
-!                    !All unoccupied orbitals in this Ml block are forbbidden
-!                    IF(iSpn.eq.2) THEN
-!                        do l=Ind+1,Ind+nSymLabels*2
-!!                            WRITE(6,*) l
-!                            IF(ClassCountUnocc2(l).ne.0) THEN
-!                                ForbiddenOrbs2=ForbiddenOrbs2+ClassCountUnocc2(l)
-!                            ENDIF
-!                        enddo
-!                    ELSEIF(iSpn.eq.1) THEN
-!                    !Forbid all beta unoccupied orbitals (these are the second of the pair
-!                        do l=Ind+2,Ind+nSymLabels*2,2
-!                            IF(ClassCountUnocc2(l).ne.0) THEN
-!                                ForbiddenOrbs2=ForbiddenOrbs2+ClassCountUnocc2(l)
-!                            ENDIF
-!                        enddo
-!                    ELSE
-!                        do l=Ind+1,Ind+nSymLabels*2-1,2
-!                            IF(ClassCountUnocc2(l).ne.0) THEN
-!                                ForbiddenOrbs2=ForbiddenOrbs2+ClassCountUnocc2(l)
-!                            ENDIF
-!                        enddo
-!                    ENDIF
-!
-!                    !Move onto the next k-block of B orbitals.
-!                    Ind=Ind+nSymLabels*2
-!                ENDIF
-!            enddo
-!
-!            IF(ForbiddenOrbs.ne.ForbiddenOrbs2) THEN
-!                WRITE(6,*) "***",ForbiddenOrbs,ForbiddenOrbs2,iSpn,SymProduct,SumMl
-!                do i=1,ScratchSize
-!                    WRITE(6,*) "***",ClassCountUnocc2(i)
-!                enddo
-!                CALL FLUSH(6)
-!                STOP
-!            ENDIF
-
         ELSE
+		!Not Lz symmetry...
             IF(iSpn.eq.2) THEN
 !i,j are an alpha/beta pair. The number of forbidden orbitals includes all alphas and betas.
 
                 Ind=1
 
                 do i=0,nSymLabels-1
-!Run though all symmetries
+!Run though all symmetries of possible "a" orbitals. If there aren't any, then we know the corresponding "b" orbitals are excluded.
                     IF(ClassCountUnocc2(Ind).eq.0) THEN
 !This symmetry has no unoccupied alpha orbitals - does its symmetry conjugate have any unoccupied beta orbitals which are now forbidden?
 !If there are no unoccupied orbitals in this conjugate symmetry, then it won't increase the forbidden orbital number, since it can never be chosen.
 !                        ConjSym=IEOR(SymProduct,i)
-                        ForbiddenOrbs=ForbiddenOrbs+ClassCountUnocc2(ClassCountInd(2,IEOR(SymProduct,i),0)) !No unocc alphas in i, therefore all betas in ConjSym are forbidden
+                        ForbiddenOrbs=ForbiddenOrbs+ClassCountUnocc2(ClassCountInd(2,RandExcitSymLabelProd(SymProduct,SpinOrbSymInvLabel(i)),0)) !No unocc alphas in i, therefore all betas in ConjSym are forbidden
 !                        WRITE(6,*) ClassCountUnocc2(2,ConjSym),i,ConjSym
                     ENDIF
                     IF(ClassCountUnocc2(Ind+1).eq.0) THEN
 !This symmetry has no unoccupied beta orbitals - does its symmetry conjugate have any unoccupied alpha orbitals which are now forbidden?
 !If there are no unoccupied orbitals in this conjugate symmetry, then it won't increase the forbidden orbital number, since it can never be chosen.
 !                        ConjSym=IEOR(SymProduct,i)
-                        ForbiddenOrbs=ForbiddenOrbs+ClassCountUnocc2(ClassCountInd(1,IEOR(SymProduct,i),0))
+                        ForbiddenOrbs=ForbiddenOrbs+ClassCountUnocc2(ClassCountInd(1,RandExcitSymLabelProd(SymProduct,SpinOrbSymInvLabel(i)),0))
 !                        WRITE(6,*) ClassCountUnocc2(2,ConjSym),i,ConjSym
                     ENDIF
                     Ind=Ind+2
@@ -726,11 +638,16 @@ MODULE GenRandSymExcitNUMod
                     do i=0,nSymLabels-1
                         IF(ClassCountUnocc2(Ind).eq.0) THEN
 !                            ConjSym=IEOR(SymProduct,i)
-                            ForbiddenOrbs=ForbiddenOrbs+ClassCountUnocc2(ClassCountInd(2,IEOR(SymProduct,i),0))
+                            ForbiddenOrbs=ForbiddenOrbs+ClassCountUnocc2(ClassCountInd(2,RandExcitSymLabelProd(SymProduct,SpinOrbSymInvLabel(i)),0))
                         ENDIF
                         Ind=Ind+2
                     enddo
                 ELSE
+
+					!THIS IS GOING TO BE EVEN MORE DIFFICULT WITH KPOINTSYM, SINCE THEY ARE NOW NO LONGER THEIR OWN INVERSES!!
+					!NEED TO CHECK TO SEE IF THEY ARE!	!GHB24 - DONE UP TO HERE FOR WIP
+
+
 !There is a subtle point here, which could change the probabilities.
 !If the symmetry product of the occupied orbitals is 0, then the a,b pair want to be taken from the same class.
 !This means that if there is only one spin-allowed orbital in that class, it has no symmetry-allowed pairs, and so is forbidden.
