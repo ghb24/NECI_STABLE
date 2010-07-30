@@ -1,11 +1,10 @@
 MODULE FciMCData
       use, intrinsic :: iso_c_binding
-      use constants, only: dp,int64,n_int
-      USE global_utilities
-      use constants, only: dp
+      use constants, only: dp, int64, n_int, lenof_sign
       use global_utilities
-      IMPLICIT NONE
-      SAVE
+
+      implicit none
+      save
 
       INTEGER , PARAMETER :: Root=0   !This is the rank of the root processor
 
@@ -29,11 +28,16 @@ MODULE FciMCData
 
       INTEGER :: ParentInitiator                                !This is a variable for the CASSTAR approximation - keeps track of where spawned walkers have come from.
       INTEGER :: NoAbortedInCAS,NoAbortedOutCAS,NoInCAS,NoOutCAS,HighPopNeg,HighPopPos,MaxInitPopNeg,MaxInitPopPos
-      REAL*8 :: AllGrowRateAbort,NoAborted,AllNoAborted,NoAddedInitiators,AllNoAddedInitiators,NoInitDets,AllNoInitDets
-      REAL(KIND=dp) :: AllNoAbortedOld 
-      REAL*8 :: NoNonInitDets,NoInitWalk,NoNonInitWalk,NoDoubSpawns,InitRemoved,AllInitRemoved
-      REAL*8 :: AllNoNonInitDets,AllNoInitWalk,AllNoNonInitWalk,AllNoDoubSpawns
-      REAL*8 :: NoExtraInitDoubs,AllNoExtraInitDoubs
+
+    integer(int64) :: NoAborted, NoAddedInitiators, NoInitDets, NoNonInitDets
+    integer(int64) :: NoInitWalk, NoNonInitWalk, NoDoubspawns
+    integer(int64) :: NoExtraInitDoubs, InitRemoved
+
+    integer(int64) :: AllNoAborted, AllNoAddedInitiators, AllNoInitDets
+    integer(int64) :: AllNoNonInitDets, AllNoInitWalk, AllNoNonInitWalk
+    integer(int64) :: AllNodoubSpawns, AllNoExtraInitDoubs, AllInitRemoved
+    integer(int64) :: AllNoAbortedOld, AllGrowRateAbort
+
       LOGICAL :: tHFInitiator,tPrintHighPop
  
       REAL*8 :: AvDiagSftAbort,SumDiagSftAbort,DiagSftAbort     !This is the average diagonal shift value since it started varying, and the sum of the shifts since it started varying, and
@@ -44,13 +48,14 @@ MODULE FciMCData
       INTEGER , ALLOCATABLE :: HFDet(:)       !This will store the HF determinant
       INTEGER :: HFDetTag=0
 
-      INTEGER :: MaxWalkersPart,TotWalkers,TotWalkersOld,PreviousNMCyc,Iter,NoComps,MaxWalkersAnnihil
-      INTEGER , ALLOCATABLE :: TotParts(:),TotPartsOld(:)
+      INTEGER :: MaxWalkersPart,PreviousNMCyc,Iter,NoComps,MaxWalkersAnnihil
+      integer(int64) :: TotWalkers, TotWalkersOld
+      integer(int64), dimension(lenof_sign) :: TotParts, TotPartsOld
       INTEGER :: exFlag=3
 
 !The following variables are calculated as per processor, but at the end of each update cycle, are combined to the root processor
       REAL*8 :: GrowRate,DieRat,ProjectionE,SumENum
-      INTEGER(KIND=int64) :: SumNoatHF      !This is the sum over all previous cycles of the number of particles at the HF determinant
+      integer(int64) :: SumNoatHF      !This is the sum over all previous cycles of the number of particles at the HF determinant
       REAL*8 :: AvSign           !This is the average sign of the particles on each node
       REAL*8 :: AvSignHFD        !This is the average sign of the particles at HF or Double excitations on each node
       INTEGER(KIND=int64) :: SumWalkersCyc    !This is the sum of all walkers over an update cycle on each processor
@@ -74,11 +79,12 @@ MODULE FciMCData
 
 !These are the global variables, calculated on the root processor, from the values above
       REAL*8 :: AllGrowRate
-      REAL(KIND=dp) :: AllTotWalkers,AllTotWalkersOld
-      REAL(KIND=dp) , ALLOCATABLE :: AllTotParts(:),AllTotPartsOld(:)
+      integer(int64) :: AllTotWalkers, AllTotWalkersOld
+      integer(int64), dimension(lenof_sign) :: AllTotParts, AllTotPartsOld
+      integer(int64) :: AllSumNoatHF
       INTEGER(KIND=int64) :: AllSumWalkersCyc
       INTEGER :: AllAnnihilated,AllNoatHF,AllNoatDoubs
-      REAL*8 :: AllSumNoatHF,AllSumENum,AllAvSign,AllAvSignHFD
+      REAL*8 :: AllSumENum,AllAvSign,AllAvSignHFD
       INTEGER :: AllNoBorn,AllNoDied,MaxSpawned
   
       HElement_t :: rhii
@@ -161,12 +167,31 @@ MODULE FciMCData
       INTEGER , ALLOCATABLE :: ProjEDet(:)
       INTEGER(KIND=n_int) , ALLOCATABLE :: HighestPopDet(:),iLutRef(:)
 
+      ! Store data about all processors for calculating load balancing
+      integer(int64) :: MaxWalkersProc, MinWalkersProc
+
 
       ! ********************** FCIMCPar control variables *****************
+      ! Store data from one fcimc iteration
+      !  --> We can deal with different types of iteration separately
+      type fcimc_iter_data
+          integer, dimension(lenof_sign) :: nborn
+          integer, dimension(lenof_sign) :: ndied
+          integer, dimension(lenof_sign) :: nannihil
+          integer, dimension(lenof_sign) :: naborted
+          integer, dimension(lenof_sign) :: update_growth, update_growth_tot
+          integer(int64), dimension(lenof_sign) :: tot_parts_old
+          integer :: update_iters
+      end type
+      
       ! These are variables used to control the behaviour of PerformFciMCycPar
       ! without passing them directly to it.
       character(150) :: bloom_warn_string
       integer :: max_calc_ex_level
+      type(fcimc_iter_data), target :: iter_data_fciqmc
+      type(fcimc_iter_data), target :: iter_data_ccmc
+
+
 
       ! Here are the FUNCTION POINTERS for use with PerformFciMCycPar
       ! Use with extreme care, and keep your interfaces up to date or bad
@@ -177,6 +202,10 @@ MODULE FciMCData
       type(c_ptr) :: ptr_get_spawn_helement
       type(c_ptr) :: ptr_new_child_stats
       type(c_ptr) :: ptr_encode_child
+      type(c_ptr) :: ptr_attempt_die
+      type(c_ptr) :: ptr_iter_data
+
+      integer :: yama_global (4)
       
       !*****************  Redundant variables ************************
     

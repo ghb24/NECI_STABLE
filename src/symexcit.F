@@ -3734,58 +3734,60 @@ C.. Count the excitations (and generate a random one which we throw)
          INTEGER LOC
 #endif
          INTEGER,PARAMETER :: LINELEN=16
-         ILEN=INLEN*4
-         LEN=ILEN
-         ADDR=16*(LOC(MEM)/LINELEN)
-         ILEAD=LOC(MEM)-ADDR
-         IPOST=MOD(LEAD+LEN,LINELEN)
-         IF(IPOST.NE.0) IPOST=16-IPOST
-         LINES=(ILEAD+ILEN+IPOST)/LINELEN
-         DO I=0,LINES-1
-            POST=IPOST
-            LEN=ILEN
-            LEAD=ILEAD
-            WRITE(IUNIT,"(Z8.8)",advance='no') ADDR
-            DO J=0,LINELEN-1
-               IF(J.EQ.LINELEN/2) WRITE(IUNIT,'(A2)',advance='no') "  "
-               IF(LEAD.EQ.0) THEN
-                  IF(LEN.EQ.0) THEN
-                     WRITE(IUNIT,"(A3)",advance='no') "   "
-                  ELSE
-                     WRITE(IUNIT,"(Z3.2)",advance='no')
-     &                                              ,MEM(I*LINELEN+J+1)
-                     LEN=LEN-1
-                  ENDIF
-               ELSE
-                  WRITE(IUNIT,"(A3)",advance='no') "   "
-                  LEAD=LEAD-1
-               ENDIF 
-            ENDDO
-            WRITE(IUNIT,"(A3)",advance='no'),"   "
-            DO J=0,LINELEN-1
-               IF(J.EQ.LINELEN/2) WRITE(IUNIT,'(A1)',advance='no') " "
-               IF(ILEAD.EQ.0) THEN
-                  IF(ILEN.NE.0) THEN
-                     CH=MEM(I*LINELEN+J+1)
-                     IF(CH.GE.32) THEN
-                        WRITE(IUNIT,"(A1)",advance='no'),CHAR(CH)
-                     ELSE
-                        WRITE(IUNIT,"(A1)",advance='no'),"."
-                     ENDIF
-                     ILEN=ILEN-1
-                  ELSE
-                     WRITE(IUNIT,"(A1)",advance='no')," "
-                  ENDIF
-               ELSE
-                  WRITE(IUNIT,"(A1)",advance='no')," "
-                  ILEAD=ILEAD-1
-               ENDIF
-            ENDDO
-            ILEAD=LEAD
-            IPOST=POST
-            ILEN=LEN
-            WRITE(IUNIT,*)
-            ADDR=ADDR+LINELEN
-         ENDDO
+         call stop_all('DUMPIMEMORY',
+     &   'Not functional with CRAY compilers.  Fix if you want to use!')
+!         ILEN=INLEN*4
+!         LEN=ILEN
+!!         ADDR=16*(LOC(MEM)/LINELEN)
+!         ILEAD=LOC(MEM)-ADDR
+!         IPOST=MOD(LEAD+LEN,LINELEN)
+!         IF(IPOST.NE.0) IPOST=16-IPOST
+!         LINES=(ILEAD+ILEN+IPOST)/LINELEN
+!         DO I=0,LINES-1
+!            POST=IPOST
+!            LEN=ILEN
+!            LEAD=ILEAD
+!            WRITE(IUNIT,"(Z8.8)",advance='no') ADDR
+!            DO J=0,LINELEN-1
+!               IF(J.EQ.LINELEN/2) WRITE(IUNIT,'(A2)',advance='no') "  "
+!               IF(LEAD.EQ.0) THEN
+!                  IF(LEN.EQ.0) THEN
+!                     WRITE(IUNIT,"(A3)",advance='no') "   "
+!                  ELSE
+!                     WRITE(IUNIT,"(Z3.2)",advance='no')
+!     &                                              ,MEM(I*LINELEN+J+1)
+!                     LEN=LEN-1
+!                  ENDIF
+!               ELSE
+!                  WRITE(IUNIT,"(A3)",advance='no') "   "
+!                  LEAD=LEAD-1
+!               ENDIF 
+!            ENDDO
+!            WRITE(IUNIT,"(A3)",advance='no'),"   "
+!            DO J=0,LINELEN-1
+!               IF(J.EQ.LINELEN/2) WRITE(IUNIT,'(A1)',advance='no') " "
+!               IF(ILEAD.EQ.0) THEN
+!                  IF(ILEN.NE.0) THEN
+!                     CH=MEM(I*LINELEN+J+1)
+!                     IF(CH.GE.32) THEN
+!                        WRITE(IUNIT,"(A1)",advance='no'),CHAR(CH)
+!                     ELSE
+!                        WRITE(IUNIT,"(A1)",advance='no'),"."
+!                     ENDIF
+!                     ILEN=ILEN-1
+!                  ELSE
+!                     WRITE(IUNIT,"(A1)",advance='no')," "
+!                  ENDIF
+!               ELSE
+!                  WRITE(IUNIT,"(A1)",advance='no')," "
+!                  ILEAD=ILEAD-1
+!               ENDIF
+!            ENDDO
+!            ILEAD=LEAD
+!            IPOST=POST
+!            ILEN=LEN
+!            WRITE(IUNIT,*)
+!            ADDR=ADDR+LINELEN
+!         ENDDO
       END
 

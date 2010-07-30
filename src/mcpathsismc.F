@@ -67,7 +67,12 @@ C0:NBASIS*NBASIS*NEL*NEL,0:I_VMAX-1)
          INTEGER I_VCUR,I_VM1,I_VM2,I_OVCUR,IOCLS,NTR
          INTEGER ICHANGED
          REAL*8 VWEIGHTS(2,0:I_VMAX)
-         INTEGER VEXCITS(0:I_VMAX),TST
+         INTEGER TST
+#ifdef POINTER8
+         INTEGER*8 VEXCITS(0:I_VMAX)
+#else
+         INTEGER VEXCITS(0:I_VMAX)
+#endif
          REAL*8 PFAC
          real(dp) WMIN,SUMDLWDB
          REAL*8 RAN2
@@ -88,7 +93,7 @@ C.. do some blocking analysis
          TLOG=BTEST(ILOGGING,1)
          TBLOCKING=BTEST(ILOGGING,13)
          IF(TLOG.AND.I_VMIN.EQ.0) THEN
-            OPEN(11,FILE="MCPATHS",STATUS="OLD",ACCESS='APPEND')
+            OPEN(11,FILE="MCPATHS",STATUS="OLD",POSITION='APPEND')
 C.. go to end of file
 !            I=FSEEK(11,0,2)
             call write_det (11, NI, .true.)
@@ -2755,7 +2760,11 @@ C.. NB TMAT has sometimes been hidden in ZIA
          REAL*8 WTENTS(NTENT),WTTOT,WT1,WT2
          POINTER (IP_CUREX,CUREX)
          INTEGER CUREX(*),ICE,CUREXLEN
+#ifdef POINTER8
+         INTEGER*8 VEXCITS(0:I_V)
+#else
          INTEGER VEXCITS(0:I_V)
+#endif
          REAL*8 NRHOIJ(0:I_V,0:I_V)
          REAL*8 NHIJS(0:I_V)
          INTEGER NIPATH(NEL,0:I_V)
@@ -2997,7 +3006,11 @@ C..  (|w'(ijk)| Sum_(j' in G&j'-l) w1(j')/N(j'))/Sum_(j''in G) w1(j'')
          INTEGER I_V,NEL,IPATH(NEL,0:I_V)
          REAL*8 RHOIJ(0:I_V,0:I_V)
          REAL*8 HIJS(0:I_V),VWEIGHTS(2,0:I_V)
-         INTEGER VEXCITS(0:I_V+1)
+#ifdef POINTER8
+         INTEGER*8 VEXCITS(0:I_V)
+#else
+         INTEGER VEXCITS(0:I_V)
+#endif
          REAL*8 RHOIJ2(0:I_V+1,0:I_V+1)
          REAL*8 HIJS2(0:I_V+1)
          INTEGER IPATH2(NEL,0:I_V+1)
@@ -3224,7 +3237,11 @@ C.  We choose the vertex to remove with prob rho_ii^-P (w2)
          INTEGER I_V,NEL,IPATH(NEL,0:I_V)
          REAL*8 RHOIJ(0:I_V,0:I_V)
          REAL*8 HIJS(0:I_V),VWEIGHTS(2,0:I_V)
+#ifdef POINTER8
+         INTEGER*8 VEXCITS(0:I_V)
+#else
          INTEGER VEXCITS(0:I_V)
+#endif
          REAL*8  RHOIJ2(0:I_V-1,0:I_V-1)
          REAL*8  HIJS2(0:I_V-1)
          INTEGER IPATH2(NEL,0:I_V-1)

@@ -784,7 +784,7 @@ C.. vector unless transposed
                   FMAT(NELR,I,ISPN)=(1.D0)
                ENDIF
                IF(I.LE.NELS(IS)) THEN
-                  WRITE(6,"(I4,A)",advance='no'),BRR(IREAL),","
+                  WRITE(6,"(I4,A)",advance='no') BRR(IREAL),","
                   NEL=NEL+1
                   HFDET(NEL)=BRR(IREAL)
                ENDIF

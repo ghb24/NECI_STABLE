@@ -227,7 +227,7 @@ C     ==--------------------------------------------------------------==
 C     ==================================================================
       proc_timer%timer_name='NECI_MGS'
       call set_timer(proc_timer)
-      CALL NECI_RGS(M,N,A,M,R,N,I,1)
+      CALL NECI_RGS(M,N,A,M,R,N,I)
       CALL DTRTRI('U','N',N,R,N,INFO)
       call halt_timer(proc_timer)
       RETURN 
