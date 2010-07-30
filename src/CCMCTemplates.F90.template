@@ -622,11 +622,12 @@ SUBROUTINE CollapseCluster (C,iLutHF,Amplitude,nDet,iDebug,tExToDet)
 END SUBROUTINE !CollapseCluster
 
 !Calculate the total cluster amplitude as well as the magnitude of the e^T.
-subroutine CalcTotals (iNumExcitors,dTotAbsAmpl,Amplitude,nAmpl,dTol,WalkerScale,iRefPos,iDebug)
+subroutine CalcTotals (iNumExcitors,dTotAbsAmpl,Amplitude,nAmpl,dTol,WalkerScale,iRefPos,iOldTotWalkers,iDebug)
    use Parallel, only: iProcIndex
    use FciMCData, only: root
    use CCMCData, only: tCCMCFCI
    use FciMCData, only: TotParts,TotWalkers,NoatHF,NoatDoubs
+   use FciMCParMod, only: iter_data_ccmc
    use timing
    implicit none
    integer iNumExcitors,nAmpl
@@ -635,6 +636,7 @@ subroutine CalcTotals (iNumExcitors,dTotAbsAmpl,Amplitude,nAmpl,dTol,WalkerScale
    integer iDebug
    real*8 WalkerScale
    integer iRefPos
+   integer iOldTotWalkers
 
    integer i,j
    real*8 dPsiTotAbsAmpl,dTmp
@@ -680,11 +682,16 @@ subroutine CalcTotals (iNumExcitors,dTotAbsAmpl,Amplitude,nAmpl,dTol,WalkerScale
    if(iDebug.gt.2) WRITE(6,"(A,I5,A,I5)") "Finished calculating total cluster amplitude at level ",i-1,"/",iNumExcitors
    if(iDebug.gt.1) WRITE(6,*) "Total cluster amplitude: ",dPsiTotAbsAmpl
    TotParts=dTotExcitors*WalkerScale
+   
    if(iProcIndex.eq.root) then 
-      TotWalkers=TotParts(1) 
+      TotWalkers=dTotExcitors*WalkerScale 
    else
       TotWalkers=0
    endif
+   iter_data_ccmc%%update_growth=iter_data_ccmc%%update_growth+TotWalkers-iOldTotWalkers
+   iOldTotWalkers=TotWalkers
+!   write(6,*) "update growth",iter_data_ccmc%%update_growth
+   iter_data_ccmc%%update_iters=iter_data_ccmc%%update_iters+1
    if(iDebug.gt.1) WRITE(6,*) "Total walkers", TotWalkers
 !   call halt_timer(CCMC_time)
 end subroutine !CalcTotals

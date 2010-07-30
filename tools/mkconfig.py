@@ -695,6 +695,12 @@ def create_makefile(config_file, use_debug=False):
     if use_debug:
         config = parse_config(config_file)['dbg']
         config.update(opt_level='debug')
+        if 'cppflags' in config.keys():
+            cppflags = config["cppflags"]
+        else:
+            cppflags = ""
+        cppflags += " -D__DEBUG"
+        config["cppflags"] = cppflags
     else:
         config = parse_config(config_file)['opt']
         config.update(opt_level='optimised')

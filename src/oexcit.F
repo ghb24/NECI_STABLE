@@ -882,18 +882,18 @@ C         CALL GSETE_INIT(NI,NEL,G1,NBASIS,NFULL,NFREE,TYP,IFRZ)
          CALL GSETE_INIT(NI,NEL,G1,NBASIS,NFULL,NFREE,TYP,1
      &               ,NBASISMAX,.FALSE.,IFRZ)
 C.. Setup the full lists
-         CALL GSETE_SETUPFLFR(TYP,SPN1,SPN2,NFULL,TFULL,.TRUE.)
+         CALL GSETE_SETUPFLFR(TYP,(/SPN1,SPN2/),NFULL,TFULL,.TRUE.)
 
 C.. Now work through both lists of full and free, generating all
 C.. excitations
          IC=0
          DO WHILE(TFULL)
 C.. Setup the free lists
-            CALL GSETE_SETUPFLFR(TYP,SPN1,SPN2,NFREE,TFREE,.FALSE.)
+            CALL GSETE_SETUPFLFR(TYP,(/SPN1,SPN2/),NFREE,TFREE,.FALSE.)
             DO WHILE(TFREE)
                IC=IC+1
                IF(IC.LE.NLIST) THEN
-                  CALL GSETE_NEXTDET(SPN1,SPN2,NFREE,NFULL,TSYM,ISYM,
+                 CALL GSETE_NEXTDET((/SPN1,SPN2/),NFREE,NFULL,TSYM,ISYM,
      &               NI,LIST(1,IC),NEL,ICLIST(IC),G1,NBASISMAX)
 C.. if the symmetry's wrong, we remove the excitation
                   IF(LIST(1,IC).EQ.0) IC=IC-1

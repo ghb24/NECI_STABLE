@@ -1,30 +1,33 @@
 MODULE Calc
         
-        use CalcData
-        use Determinants, only: write_det
+    use CalcData
+    use SystemData, only: beta, nel
+    use Determinants, only: write_det
+    use spin_project, only: spin_proj_interval, tSpinProject, &
+                            spin_proj_gamma, spin_proj_shift, &
+                            spin_proj_cutoff, spin_proj_stochastic_yama
+    use default_sets
+    use Determinants, only: iActiveBasis, SpecDet, tSpecDet, nActiveSpace, &
+                            tDefineDet
+    use DetCalc, only: iObs, jObs, kObs, tCorr, tRhoOfR, tFodM, DETINV, &
+                       icilevel, nCycle, tBlock, tCalcHMat, tEnergy, tRead, &
+                       tFindDets
+    use DetCalcData, only: B2L, nKry, nEval, nBlk
+    use IntegralsData, only: tNeedsVirts
+    use CCMCData, only: dInitAmplitude, dProbSelNewExcitor, nSpawnings, &
+                        tSpawnProp, nClustSelections, tExactEnergy
 
-        IMPLICIT NONE
+    implicit none
 
-        contains
+contains
 
-        subroutine SetCalcDefaults()
-          != Set defaults for Calc data items.
+    subroutine SetCalcDefaults()
+        
+        ! Set defaults for Calc data items.
 
-          Use Determinants, only: iActiveBasis, SpecDet, tSpecDet, nActiveSpace
-          Use Determinants, only : tDefineDet
-          Use DetCalc, only: iObs, jObs, kObs, tCorr, tRhoOfR, tFodM, DETINV
-          Use DetCalc, only: icilevel, nCycle, tBlock, tCalcHMat
-          Use DetCalc, only: tEnergy, tRead,tFindDets
-          Use DetCalcData, only: B2L,nKry,nEval,nBlk
-          use IntegralsData, only: tNeedsVirts
-          use SystemData, only : Beta,nEl
-          use CCMCData, only: dInitAmplitude,dProbSelNewExcitor,nSpawnings,tSpawnProp,nClustSelections
-          use CCMCData, only: tExactEnergy
-          use default_sets
-          implicit none
-
-!       Values for old parameters.
-!       These have no input options to change the defaults, but are used in the code.
+        ! Values for old parameters.
+        ! These have no input options to change the defaults, but are used in
+        ! the code.
           InitialPart=1
           TRHOOFR = .false.
           TCORR = .false.
@@ -58,7 +61,6 @@ MODULE Calc
           tRotoAnnihil=.false.
           OccCASorbs=0
           VirtCASorbs=0
-          tGlobalSftCng=.true. 
           TUnbiasPGeninProjE=.false.
           TRegenExcitgens=.false.
           MemoryFacPart=10.D0
@@ -208,6 +210,14 @@ MODULE Calc
           IF(Feb08) THEN
               RhoEpsilon=1.D-08
           ENDIF
+
+          ! Spin Projection defaults
+          spin_proj_gamma = 0.1
+          tSpinProject  = .false.
+          spin_proj_stochastic_yama = .false.
+          spin_proj_interval = 5
+          spin_proj_shift = 0
+          spin_proj_cutoff = 0
       
         end subroutine SetCalcDefaults
 
@@ -1066,17 +1076,8 @@ MODULE Calc
 !In FCIMC, this will result in annihilation only every iAnnInterval iterations
                 call Geti(iAnnInterval)
             case("GLOBALSHIFT")
-!A parallel FCIMC option. It is generally recommended to have this option on. This will calculate the growth rate of the system as a simple ratio of the total walkers on all processors
-!before and after update cycle. This however is incompatable with culling, and so is removed for update cycles with this in. 
-                if(item.lt.nitems) then
-                    call readu(w)
-                    select case(w)
-                    case("OFF")
-                        tGlobalSftCng=.false.
-                    end select
-                else
-                    tGlobalSftCng=.true.
-                end if
+                ! Parallel FCIMC option which has been removed.
+                call stop_all (t_r, "GLOBALSHIFT - option removed")
 
             case("RANDOMISEHASHORBS")
 !This will create a random 1-to-1 mapping between the orbitals, which should hopefully improve load balancing.
@@ -1154,6 +1155,34 @@ MODULE Calc
                 CALL Stop_All(t_r,"MULTIPLEDETSSPAWN option depreciated")
 !                tMultipleDetsSpawn=.true.
 !                call Geti(iDetGroup)
+
+            case("SPIN-PROJECT")
+                ! Enable spin projection (spin_project.F90).
+                ! Optional argument specifies no. of iterations between
+                ! each application of stochastic spin projection.
+                tSpinProject = .true.
+                if (item < nitems) call geti (spin_proj_interval)
+
+            case("SPIN-PROJECT-GAMMA")
+                ! Change the value of delta-gamma used by the spin projection
+                ! routines. Similar to modifying tau for normal FCIQMC.
+                call getf (spin_proj_gamma)
+
+            case("SPIN-PROJECT-SHIFT")
+                ! Change the value of delta-gamma used by the spin projection
+                ! routines. Similar to modifying tau for normal FCIQMC.
+                call getf (spin_proj_shift)
+
+            case("SPIN-PROJECT-CUTOFF")
+                ! Change the minimum number of walkers required for spin
+                ! projection to be applied to a determinant
+                call geti (spin_proj_cutoff)
+
+            case("SPIN-PROJECT-STOCHASTIC-YAMA")
+                ! Only project via one Yamanouchi symbol on each iteration, 
+                ! selecting that symbol stochastically.
+                spin_proj_stochastic_yama = .true.
+
             case default
                 call report("Keyword "                                &
      &            //trim(w)//" not recognized in CALC block",.true.)

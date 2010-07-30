@@ -1797,7 +1797,7 @@ SUBROUTINE PerformFCIMCyc()
         fcimcstats_unit = get_free_unit()
         if (tReadPops) then
             ! Restarting: append to FCIMCStats (if it exists)
-            OPEN(fcimcstats_unit,file='FCIMCStats',status='unknown', access='append')
+            OPEN(fcimcstats_unit,file='FCIMCStats',status='unknown', position='append')
         else
             OPEN(fcimcstats_unit,file='FCIMCStats',status='unknown')
         end if

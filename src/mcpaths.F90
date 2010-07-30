@@ -112,7 +112,7 @@ contains
             TSYM=.TRUE.
          ENDIF
          IF(TLOG) THEN
-            OPEN(11,FILE="MCSUMMARY",STATUS="OLD",ACCESS='APPEND')
+            OPEN(11,FILE="MCSUMMARY",STATUS="OLD",POSITION='APPEND')
 !C.. go to end of file
 !            I=FSEEK(11,0,2)
             call write_det (11, NI, .true.)
@@ -592,7 +592,7 @@ contains
          OTIME=etime(tarr)
          TLOG=BTEST(ILOGGING,1)
          IF(TLOG) THEN
-            OPEN(11,FILE="MCPATHS",STATUS="OLD",ACCESS='APPEND')
+            OPEN(11,FILE="MCPATHS",STATUS="OLD",POSITION='APPEND')
 !C.. go to end of file
 !            I=FSEEK(11,0,2)
             call write_det (11, NI, .true.)
@@ -1645,7 +1645,7 @@ end module mcpaths
                IF(EX(1,1).GE.0) EXIT
             ENDDO
             IF(EX(1,2).EQ.0) THEN
-               WRITE(NUNIT,"(Z1,A,I5,A,I5,A)",advance='no'),K,"(",EX(1,1),")->(",EX(2,1),"),"
+               WRITE(NUNIT,"(Z1,A,I5,A,I5,A)",advance='no') K,"(",EX(1,1),")->(",EX(2,1),"),"
             ELSE
                WRITE(NUNIT,"(Z1,A,I5,A,I5,A,I5,A,I5,A)",advance='no') K, &
      &         "(",EX(1,1),",",EX(1,2),")->(",EX(2,1),",",EX(2,2),"),"
