@@ -799,17 +799,19 @@ C.. in NFULL and NFREE
       SUBROUTINE GSETE_NEXTDET(SPNS,NFREE,NFULL,TSYM,ISYM,
      &            NI,NJ,NEL,IC,G1,NBASISMAX)
          use Determinants, only: write_det
+         use SystemData, only: BasisFn
          use sort_mod
+         use sym_mod
          use util_mod, only: NECI_ICOPY
          IMPLICIT NONE
          INTEGER SPNS(2,2)
          INTEGER NFULL(2,2,-3:0)
          INTEGER NFREE(2,2,-3:0)
          LOGICAL TSYM
-         INTEGER ISYM(5),ISYM2(5)
+         type(BasisFN) ISYM,ISYM2
          INTEGER NJ(NEL),NI(NEL),NEL
-         LOGICAL LCHKSYM
-         INTEGER IC,G1(*),NBASISMAX(*),I
+         INTEGER IC,NBASISMAX(*),I
+         type(BasisFN) G1(*)
          LOGICAL ISVALIDDET
          CALL NECI_ICOPY(NEL,NI,1,NJ,1)
 C         WRITE(56,"(I4,A,I4)",advance='no') 
@@ -851,7 +853,8 @@ C.. For a given Excitation symmetry type, generate all excitatiosn
       SUBROUTINE GETSYMEXTYPEEXCITS(NI,NEL,G1,NBASIS,NBASISMAX,
      &         TSYM,ISYM,
      &         TYP,LIST,ICLIST,NLIST,IFRZ)
-        use Determinants, only: write_det
+         use Determinants, only: write_det
+         use sym_mod
          IMPLICIT NONE
          INTEGER NEL,NI(NEL),NBASIS,LIST(NEL,NLIST),ICLIST(NLIST)
          INTEGER NLIST,nBasisMax(5,*)
@@ -863,7 +866,6 @@ C.. For a given Excitation symmetry type, generate all excitatiosn
          INTEGER IEL,I
          INTEGER ISYM(5),ISYM2(5)
          LOGICAL TSYM
-         LOGICAL LCHKSYM
          INTEGER IFRZ(0:NBASIS)
 C.. -2 corresponds to the first electrom to be excited, and -1 to the
 C.. second. also for NFREE
@@ -882,18 +884,18 @@ C         CALL GSETE_INIT(NI,NEL,G1,NBASIS,NFULL,NFREE,TYP,IFRZ)
          CALL GSETE_INIT(NI,NEL,G1,NBASIS,NFULL,NFREE,TYP,1
      &               ,NBASISMAX,.FALSE.,IFRZ)
 C.. Setup the full lists
-         CALL GSETE_SETUPFLFR(TYP,SPN1,SPN2,NFULL,TFULL,.TRUE.)
+         CALL GSETE_SETUPFLFR(TYP,(/SPN1,SPN2/),NFULL,TFULL,.TRUE.)
 
 C.. Now work through both lists of full and free, generating all
 C.. excitations
          IC=0
          DO WHILE(TFULL)
 C.. Setup the free lists
-            CALL GSETE_SETUPFLFR(TYP,SPN1,SPN2,NFREE,TFREE,.FALSE.)
+            CALL GSETE_SETUPFLFR(TYP,(/SPN1,SPN2/),NFREE,TFREE,.FALSE.)
             DO WHILE(TFREE)
                IC=IC+1
                IF(IC.LE.NLIST) THEN
-                  CALL GSETE_NEXTDET(SPN1,SPN2,NFREE,NFULL,TSYM,ISYM,
+                 CALL GSETE_NEXTDET((/SPN1,SPN2/),NFREE,NFULL,TSYM,ISYM,
      &               NI,LIST(1,IC),NEL,ICLIST(IC),G1,NBASISMAX)
 C.. if the symmetry's wrong, we remove the excitation
                   IF(LIST(1,IC).EQ.0) IC=IC-1

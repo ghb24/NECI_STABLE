@@ -77,6 +77,7 @@ C..Symmetries not needed by UMatInd
 
       SUBROUTINE SETUPHFBASIS(NBASISMAX,G1,NBASIS,HFE,ARR,BRR)
          use SystemData, only: Symmetry,BasisFN
+         use sym_mod
          IMPLICIT NONE
          INTEGER NBASIS,nBasisMax(5,*)
          TYPE(BasisFN) G1(nBasis)
@@ -84,7 +85,6 @@ C..Symmetries not needed by UMatInd
          REAL*8 HFE(NBASIS)
          INTEGER BRR(NBASIS),ORBORDER(8)
          INTEGER I
-         Type(Symmetry) TotSymRep
 #ifdef __CMPLX
          call stop_all('SETUPHFBASIS', 
      &                 'HF not implemented for complex orbitals.')
@@ -784,7 +784,7 @@ C.. vector unless transposed
                   FMAT(NELR,I,ISPN)=(1.D0)
                ENDIF
                IF(I.LE.NELS(IS)) THEN
-                  WRITE(6,"(I4,A)",advance='no'),BRR(IREAL),","
+                  WRITE(6,"(I4,A)",advance='no') BRR(IREAL),","
                   NEL=NEL+1
                   HFDET(NEL)=BRR(IREAL)
                ENDIF

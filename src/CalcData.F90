@@ -19,7 +19,7 @@ LOGICAL :: TRhoElems,TReturnPathMC,TSignShift
 LOGICAL :: THFRetBias,TProjEMP2,TFixParticleSign
 LOGICAL :: TStartSinglePart,TRegenExcitgens
 LOGICAL :: TUnbiasPGeninProjE, tCheckHighestPopOnce
-LOGICAL :: tGlobalSftCng,tCheckHighestPop,tRestartHighPop,tChangeProjEDet
+LOGICAL :: tCheckHighestPop,tRestartHighPop,tChangeProjEDet
 LOGICAL :: tRotoAnnihil,tRegenDiagHEls,tSpawnAsDet,tFindGroundDet
 LOGICAL :: tTruncCAS,tTruncInitiator,tDelayTruncInit,tKeepDoubleSpawns,tAddtoInitiator    !Truncation the FCIMC excitation space by CAS
 LOGICAL :: tInitIncDoubs,tWalkContGrow,tRandomiseHashOrbs,tAnnihilatebyRange,tRetestAddtoInit

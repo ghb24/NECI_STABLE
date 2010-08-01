@@ -660,7 +660,7 @@ MODULE MCStat
             real(dp) OW,OE,iC
             REAL*8 Time,fAveSeqLen
             iC=(M%nGraphs(0))
-            WRITE(iUnit,"(I12,2G25.16,F19.7,2I12,G25.12)") ,M%iVMax,M%wWeighting(0)/iC-OW,M%wWeighting(0)/iC,Time,M%nGraphs(0),M%nGraphs(0)-M%nGraphs(1),M%wDelta(0)/iC-OE
+            WRITE(iUnit,"(I12,2G25.16,F19.7,2I12,G25.12)") M%iVMax,M%wWeighting(0)/iC-OW,M%wWeighting(0)/iC,Time,M%nGraphs(0),M%nGraphs(0)-M%nGraphs(1),M%wDelta(0)/iC-OE
             WRITE(STR2,"(A,I5,A)") "(A,",M%iVMax+1,"I)"
             WRITE(iUnit,STR2) "GRAPHS(V)",(M%nGraphs(I),I=0,M%iVMax)
             WRITE(iUnit,STR2) "TREES(V)",(M%nTrees(I),I=0,M%iVMax)
@@ -692,7 +692,7 @@ MODULE MCStat
             REAL*8 Time,fAveSeqLen
             iC=(M%nGraphs(0))
             Call GetStats(M,0,wAvgWeighting,wAvgWeightedValue,wAvgDelta)
-            WRITE(iUnit,"(I12,2G25.16,F19.7,2I12,G25.12)") ,M%iVMax,wAvgWeighting,wAvgWeighting+OW,Time,M%nGraphs(0),M%nGraphs(0)-M%nGraphs(1),wAvgWeightedValue
+            WRITE(iUnit,"(I12,2G25.16,F19.7,2I12,G25.12)") M%iVMax,wAvgWeighting,wAvgWeighting+OW,Time,M%nGraphs(0),M%nGraphs(0)-M%nGraphs(1),wAvgWeightedValue
             WRITE(STR2,"(A,I5,A)") "(A,",M%iVMax+1,"I10)"
             WRITE(iUnit,STR2) "GRAPHS(V)",(M%nGraphs(I),I=0,M%iVMax)
             WRITE(iUnit,STR2) "TREES(V)",(M%nTrees(I),I=0,M%iVMax)

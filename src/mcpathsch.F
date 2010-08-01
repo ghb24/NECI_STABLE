@@ -47,7 +47,7 @@ C0:NBASIS*NBASIS*NEL*NEL,0:I_VMAX-1)
          call set_timer(proc_timer)
          TLOG=BTEST(ILOGGING,1)
          IF(TLOG) THEN
-            OPEN(11,FILE="MCPATHS",STATUS="OLD",ACCESS='APPEND')
+            OPEN(11,FILE="MCPATHS",STATUS="OLD",POSITION='APPEND')
 C.. go to end of file
 !            I=FSEEK(11,0,2)
             WRITE(11,"(A)",advance='no') "("
@@ -120,10 +120,13 @@ C.. save all log files
      &   NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,
      &   RHOEPS,RHOII,RHOIJ,NWHTAY,I_HMAX,ILOGGING,TSYM,
      &   ECORE,ICOUNT)
+         use sym_mod, only: getsym
+         use SystemData, only: BasisFN, NulLBasisFn
          use util_mod, only: NECI_ICOPY
          IMPLICIT NONE
+         type(BasisFN) G1(*)
          INTEGER NEL,NI(NEL),I_P,IPATH(NEL,0:I_V),I_V
-         INTEGER nBasisMax(5,*),G1,NBASIS,BRR(NBASIS),NMAX
+         INTEGER nBasisMax(5,*),NBASIS,BRR(NBASIS),NMAX
          INTEGER NTAY,NWHTAY,I_HMAX,ILOGGING,ISEED,NMSH
          LOGICAL TSYM
          REAL*8 BETA,FCK(*),ALAT(*),UMAT(*),ECORE
@@ -132,7 +135,8 @@ C.. save all log files
          REAL*8 RH,CALCPATHS,VALUE,NVALUE,RAT
          LOGICAL LCANMOVE,LISINPATH
          LOGICAL TLOG,TLOG2,LDONE
-         INTEGER INDJ(NEL),NJ(NEL),KI(5),KJ(5)
+         INTEGER INDJ(NEL),NJ(NEL)
+         type(BasisFN) KI,KJ
          INTEGER IGETEXCITLEVEL,ICOUNT
          TLOG=BTEST(ILOGGING,2)
          TLOG2=BTEST(ILOGGING,3)
@@ -145,9 +149,7 @@ C.. enumerate all excitations of this graph working out which is best
          CALL NECI_ICOPY(NEL,IPATH(1,0),1,IPATH(1,I_V),1)
          CALL GETSYM(NI,NEL,G1,NBASISMAX,KI)
          ICOUNT=0
-         DO I=1,4
-            KJ(I)=0
-         ENDDO
+         KJ=NullBasisFn
          DO WHILE (.NOT.LDONE)
             CALL GENNEXTSYMDET(KI,NEL,G1,BRR,NBASIS,
      &               LDONE,NJ,IPATH(1,I_V-1),INDJ,KJ,NELEC,NBASISMAX)
