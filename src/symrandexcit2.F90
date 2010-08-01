@@ -633,55 +633,102 @@ MODULE GenRandSymExcitNUMod
 
             ELSEIF(iSpn.eq.1) THEN
                 Ind=2
-                IF(SymProduct.ne.0) THEN
+				IF(.not.tKPntSym) THEN
+					!With molecular systems, the irreps are their own inverses, so it is a little simpler to do the
+					!two cases seperately.
+					IF(SymProduct.ne.0) THEN
 !i,j are a beta/beta pair. The number of forbidden orbitals is just betas
-                    do i=0,nSymLabels-1
-                        IF(ClassCountUnocc2(Ind).eq.0) THEN
-!                            ConjSym=IEOR(SymProduct,i)
-                            ForbiddenOrbs=ForbiddenOrbs+ClassCountUnocc2(ClassCountInd(2,RandExcitSymLabelProd(SymProduct,SpinOrbSymInvLabel(i)),0))
-                        ENDIF
-                        Ind=Ind+2
-                    enddo
-                ELSE
-
-					!THIS IS GOING TO BE EVEN MORE DIFFICULT WITH KPOINTSYM, SINCE THEY ARE NOW NO LONGER THEIR OWN INVERSES!!
-					!NEED TO CHECK TO SEE IF THEY ARE!	!GHB24 - DONE UP TO HERE FOR WIP
-
-
+						do i=0,nSymLabels-1
+							IF(ClassCountUnocc2(Ind).eq.0) THEN
+	!                            ConjSym=IEOR(SymProduct,i)
+								ForbiddenOrbs=ForbiddenOrbs+ClassCountUnocc2(ClassCountInd(2,RandExcitSymLabelProd(SymProduct,i),0))
+							ENDIF
+							Ind=Ind+2
+						enddo
+					ELSE
 !There is a subtle point here, which could change the probabilities.
 !If the symmetry product of the occupied orbitals is 0, then the a,b pair want to be taken from the same class.
 !This means that if there is only one spin-allowed orbital in that class, it has no symmetry-allowed pairs, and so is forbidden.
-                    do i=0,nSymLabels-1
-                        IF(ClassCountUnocc2(Ind).eq.1) THEN
+						do i=0,nSymLabels-1
+							IF(ClassCountUnocc2(Ind).eq.1) THEN
 !The one beta orbital in this class is forbidden, since it cannot form a pair.
-                            ForbiddenOrbs=ForbiddenOrbs+1
-                        ENDIF
-                        Ind=Ind+2
-                    enddo
-                ENDIF
+								ForbiddenOrbs=ForbiddenOrbs+1
+							ENDIF
+							Ind=Ind+2
+						enddo
+					ENDIF
+				ELSE
+				!With KPntSym, we have to work out if we are in the case that sym_a^* = sym_b
+				!Unfortunately, I don't think you can tell from SymProduct when this case is going to be satisfied.
+					do i=0,nSymLabels-1		!Run over symmetries of the orbitals
+						IF(ClassCountUnocc2(Ind).le.1) THEN
+							ConjSym=RandExcitSymLabelProd(SymProduct,SpinOrbSymInvLabel(i))
+							IF(ConjSym.eq.i) THEN
+								!A and B come from the same symmetry, so we must have more than one
+								!orbitals available from there..
+								IF(ClassCountUnocc2(Ind).eq.1) THEN
+!The one beta orbital in this class is forbidden, since it cannot form a pair.
+									ForbiddenOrbs=ForbiddenOrbs+1
+								ENDIF
+							ELSE
+								IF(ClassCountUnocc2(Ind).eq.0) THEN
+		!                            ConjSym=IEOR(SymProduct,i)
+									ForbiddenOrbs=ForbiddenOrbs+ClassCountUnocc2(ClassCountInd(2,ConjSym,0))
+								ENDIF
+							ENDIF
+						ENDIF
+
+						Ind=Ind+2
+					enddo
+				ENDIF
+
             ELSEIF(iSpn.eq.3) THEN
                 Ind=1
-                IF(SymProduct.ne.0) THEN
+				IF(.not.tKPntSym) THEN
+					IF(SymProduct.ne.0) THEN
 !i,j are a alpha/alpha pair. The number of forbidden orbitals is just alphas
-                    do i=0,nSymLabels-1
-                        IF(ClassCountUnocc2(Ind).eq.0) THEN
-!                            ConjSym=IEOR(SymProduct,i)
-                            ForbiddenOrbs=ForbiddenOrbs+ClassCountUnocc2(ClassCountInd(1,IEOR(SymProduct,i),0))
-                        ENDIF
-                        Ind=Ind+2
-                    enddo
-                ELSE
+						do i=0,nSymLabels-1
+							IF(ClassCountUnocc2(Ind).eq.0) THEN
+	!                            ConjSym=IEOR(SymProduct,i)
+								ForbiddenOrbs=ForbiddenOrbs+ClassCountUnocc2(ClassCountInd(1,IEOR(SymProduct,i),0))
+							ENDIF
+							Ind=Ind+2
+						enddo
+					ELSE
 !There is a subtle point here, which could change the probabilities.
 !If the symmetry product of the occupied orbitals is 0, then the a,b pair want to be taken from the same class.
 !This means that if there is only one spin-allowed orbital in that class, it has no symmetry-allowed pairs, and so is forbidden.
-                    do i=0,nSymLabels-1
-                        IF(ClassCountUnocc2(Ind).eq.1) THEN
+						do i=0,nSymLabels-1
+							IF(ClassCountUnocc2(Ind).eq.1) THEN
 !The one alpha orbital in this class is forbidden, since it cannot form a pair.
-                            ForbiddenOrbs=ForbiddenOrbs+1
-                        ENDIF
-                        Ind=Ind+2
-                    enddo
-                ENDIF
+								ForbiddenOrbs=ForbiddenOrbs+1
+							ENDIF
+							Ind=Ind+2
+						enddo
+					ENDIF
+				ELSE
+				!With KPntSym, we have to work out if we are in the case that sym_a^* = sym_b
+				!Unfortunately, I don't think you can tell from SymProduct when this case is going to be satisfied.
+					do i=0,nSymLabels-1		!Run over symmetries of the orbitals
+						IF(ClassCountUnocc2(Ind).le.1) THEN
+							ConjSym=RandExcitSymLabelProd(SymProduct,SpinOrbSymInvLabel(i))
+							IF(ConjSym.eq.i) THEN
+								!A and B come from the same symmetry, so we must have more than one
+								!orbitals available from there..
+								IF(ClassCountUnocc2(Ind).eq.1) THEN
+!The one beta orbital in this class is forbidden, since it cannot form a pair.
+									ForbiddenOrbs=ForbiddenOrbs+1
+								ENDIF
+							ELSE
+								IF(ClassCountUnocc2(Ind).eq.0) THEN
+		!                            ConjSym=IEOR(SymProduct,i)
+									ForbiddenOrbs=ForbiddenOrbs+ClassCountUnocc2(ClassCountInd(2,ConjSym,0))
+								ENDIF
+							ENDIF
+						ENDIF
+						Ind=Ind+2
+					enddo
+				ENDIF
             ENDIF
         ENDIF
 
@@ -699,11 +746,11 @@ MODULE GenRandSymExcitNUMod
 !               MlA = Ml of the a orbital chosen
 !               MlB = Required Ml of the b orbital still to be chosen
     SUBROUTINE PickAOrb(nI,iSpn,ILUT,ClassCountUnocc2,NExcit,Elec1Ind,Elec2Ind,SpinOrbA,OrbA,SymA,SymB,SymProduct,SumMl,MlA,MlB,ForbiddenOrbs,tAOrbFail)
-        INTEGER :: nI(NEl),iSpn,Elec1Ind,Elec2Ind,SpinOrbA,AttemptsOverall,SymA,ForbiddenOrbs
-        INTEGER :: NExcit,ChosenUnocc,z,i,OrbA,Attempts,SymB,SymProduct,SumMl,MlA,MlB
-        INTEGER(KIND=n_int) :: ILUT(0:NIfTot)
-        INTEGER :: ClassCountUnocc2(ScratchSize)
-        LOGICAL :: tAOrbFail
+        INTEGER, INTENT(IN) :: nI(NEl),iSpn,Elec1Ind,Elec2Ind,ForbiddenOrbs,SymProduct,SumMl,ClassCountUnocc2(ScratchSize)
+		INTEGER, INTENT(OUT) :: SpinOrbA,SymA,MlA,MlB,NExcit,SymB,OrbA
+        INTEGER(KIND=n_int), INTENT(IN) :: ILUT(0:NIfTot)
+        LOGICAL, INTENT(OUT) :: tAOrbFail
+		INTEGER :: AttemptsOverall,ChosenUnocc,z,i,Attempts
         REAL*8 :: r
 
         IF(iSpn.eq.2) THEN
