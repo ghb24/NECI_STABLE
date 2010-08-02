@@ -302,11 +302,11 @@ MODULE GenRandSymExcitNUMod
         nJ(:)=nI(:)
         CALL FindExcitDet(ExcitMat,nJ,2,tParity)
 
-!#ifdef __DEBUG
+#ifdef __DEBUG
 !These are useful (but O[N]) operations to test the determinant generated. If there are any problems with then
 !excitations, I recommend uncommenting these tests to check the results.
         CALL IsSymAllowedExcit(nI,nJ,2,ExcitMat)
-!#endif
+#endif
 
     END SUBROUTINE FindNewDet
 
@@ -1338,11 +1338,11 @@ MODULE GenRandSymExcitNUMod
         ExcitMat(2,1)=Orb
         CALL FindExcitDet(ExcitMat,nJ,1,TParity)
 
-!#ifdef __DEBUG
+#ifdef __DEBUG
 !These are useful (but O[N]) operations to test the determinant generated. If there are any problems with then
 !excitations, I recommend uncommenting these tests to check the results.
         CALL IsSymAllowedExcit(nI,nJ,1,ExcitMat)
-!#endif
+#endif
 
 !Now we need to find the probability of creating this excitation.
 !This is: P_single x P(i) x P(a|i) x N/(N-ElecsWNoExcits)
