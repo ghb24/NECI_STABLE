@@ -388,8 +388,8 @@ MODULE NatOrbsMod
 ! The elements of AllHistogram correspond to the rows of FCIDets - i.e to each determinant in the system.
 ! AllHistogram contains the final (normalised) amplitude of the determinant - with sign.
         IMPLICIT NONE
-        INTEGER :: x,excit,i,j,NoOcc,Starti,Endi,Startj,Endj,ExcitLevel,Ex(2,1),Ex2(2,1),Orbi,Orbj,nJ(NEl),Orbk,k,nI(NEl),MaxExcit
-        INTEGER :: FCIDetIndex2(0:(NEl+1)),Spins
+        INTEGER :: excit,i,j,Starti,Endi,Startj,Endj,ExcitLevel,Ex(2,1),Orbi,Orbj,nJ(NEl),Orbk,k,nI(NEl),MaxExcit
+        INTEGER :: Spins
         LOGICAL :: tSign
         REAL*8 :: SignDet
 
@@ -709,13 +709,13 @@ MODULE NatOrbsMod
                                             j=SymLabelList2(j2)
 
                                             IF(tUEG) THEN
-                                                HEl01=GETUMATEL(nBasisMax,UMAT,ALAT,nBasis,iSpinSkip,G1,a,c,i,j)
-                                                HEl02=GETUMATEL(nBasisMax,UMAT,ALAT,nBasis,iSpinSkip,G1,b,c,i,j)
+                                                HEl01=GETUMATEL(a,c,i,j)
+                                                HEl02=GETUMATEL(b,c,i,j)
                                                 MP2VDMSum=MP2VDMSum+&
                                                             &(( (REAL(HEl01,8)) * (2.D0*(REAL(HEl02,8))) )/&
                                                             &( (ARR(2*i,2)+ARR(2*j,2)-ARR(2*a,2)-ARR(2*c,2)) * (ARR(2*i,2)+ARR(2*j,2)-ARR(2*b,2)-ARR(2*c,2)) ) )
 
-                                                HEl02=GETUMATEL(nBasisMax,UMAT,ALAT,nBasis,iSpinSkip,G1,c,b,i,j)
+                                                HEl02=GETUMATEL(c,b,i,j)
                                                 MP2VDMSum=MP2VDMSum-&                                            
                                                             &(( (REAL(HEl01,8)) * (REAL(HEl02,8)) )/&
                                                             &( (ARR(2*i,2)+ARR(2*j,2)-ARR(2*a,2)-ARR(2*c,2)) * (ARR(2*i,2)+ARR(2*j,2)-ARR(2*c,2)-ARR(2*b,2)) ) )
@@ -782,7 +782,7 @@ MODULE NatOrbsMod
 ! This gives us flexibility w.r.t rotating only the occupied or only virtual and looking at high spin states.
         IMPLICIT NONE
         REAL*8 :: SumTrace,SumDiagTrace
-        REAL*8 , ALLOCATABLE :: Work(:),WORK2(:),EvaluesSym(:),NOMSym(:,:)
+        REAL*8 , ALLOCATABLE :: WORK2(:),EvaluesSym(:),NOMSym(:,:)
         INTEGER :: ierr,i,j,x,z,Sym,LWORK2,WORK2Tag,SymStartInd,NoSymBlock,PrevSym,StartOccVirt,EndOccVirt,Prev,NoOcc
         INTEGER :: EvaluesSymTag,NOMSymTag
         CHARACTER(len=*), PARAMETER :: this_routine='DiagNatOrbMat'
@@ -1025,7 +1025,7 @@ MODULE NatOrbsMod
         USE RotateOrbsData , only : SymLabelList3
         USE Logging , only : tTruncRODump
         IMPLICIT NONE
-        INTEGER :: x,i,ier,ierr,StartSort,EndSort,NoOcc
+        INTEGER :: x,i,ierr,StartSort,EndSort,NoOcc
         CHARACTER(len=*), PARAMETER :: this_routine='OrderCoeffT1'
         
 
@@ -1147,11 +1147,10 @@ MODULE NatOrbsMod
         USE Logging , only : tTruncRODump,tTruncDumpbyVal
         use util_mod, only: get_free_unit
         IMPLICIT NONE
-        INTEGER :: l,k,i,j,NoRotAlphBet,SymFirst, io1, io2
+        INTEGER :: l,k,i,j,NoRotAlphBet, io1, io2
         CHARACTER(len=*), PARAMETER :: this_routine='FillCoeffT1'
         CHARACTER(len=5) :: Label
         CHARACTER(len=20) :: LabelFull
-        LOGICAL :: tSymFound
         REAL*8 :: OccEnergies(1:NoRotOrbs)
   
         FillCoeff_Time%timer_name='FillCoeff'
@@ -1435,8 +1434,8 @@ MODULE NatOrbsMod
         USE RotateOrbsData , only : CoeffT1,EvaluesTrunc
         use util_mod, only: get_free_unit
         IMPLICIT NONE
-        INTEGER :: i,k,x,NoEvalues,a,b,NoOcc,io1, io2
-        REAL*8 :: EvaluesCount(NoOrbs,2),EvalueEnergies(1:NoOrbs),OrbEnergies(1:NoOrbs)
+        INTEGER :: i,k,a,b,NoOcc,io1, io2
+        REAL*8 :: EvalueEnergies(1:NoOrbs),OrbEnergies(1:NoOrbs)
         REAL*8 :: SumEvalues
         
         io1 = get_free_unit()

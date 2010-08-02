@@ -204,12 +204,15 @@ MODULE HPHFRandExcitMod
         logical, intent(inout) :: tFilled
         real*8, intent(out) :: pGen
 
-        integer(kind=n_int) :: iLutnJ2(0:niftot), iLutnI2(0:niftot)
-        integer :: openOrbsI, openOrbsJ, nI2(nel), nJ2(nel), ex2(2,2), excitLevel 
+        integer(kind=n_int) :: iLutnJ2(0:niftot)
+        integer :: openOrbsI, openOrbsJ, nJ2(nel), ex2(2,2), excitLevel 
         real*8 :: pGen2
         HElement_t :: MatEl, MatEl2
-        logical :: tGenClassCountnI, TestClosedShellDet, tSign, tSignOrig
+        logical :: TestClosedShellDet, tSign, tSignOrig
         logical :: tSwapped
+
+        ! Avoid warnings
+        tParity = .false.
 
         call gen_rand_excit (nI, iLutnI, nJ, iLutnJ, exFlag, IC, ExcitMat, &
                              tSignOrig, pGen, tFilled, Classcount2, &
@@ -441,7 +444,7 @@ MODULE HPHFRandExcitMod
 
 !This create the spin-coupled determinant of nI in nJ in natural ordered form.
     SUBROUTINE FindDetSpinSym(nI,nJ,NEl)
-        INTEGER :: nTemp(NEl),nI(NEl),nJ(NEl),NEl,i
+        INTEGER :: nI(NEl),nJ(NEl),NEl,i
 
         do i=1,NEl
             IF(mod(nI(i),2).eq.0) THEN

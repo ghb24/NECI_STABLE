@@ -23,9 +23,15 @@ module hphf_integrals
         integer(kind=n_int), intent(in) :: iLutI(0:NIfTot), iLutJ(0:NIfTot)
         logical, intent(in) :: tParity
         real(dp), intent(in) :: prob
+        integer :: iUnused
+        logical :: lUnused
         HElement_t :: hel
 
         hel = sign(1.0_dp, prob)
+
+        ! Avoid warnings
+        iUnused = IC; iUnused = ex(1,1); iUnused = nI(1); iUnused = nJ(1)
+        iUnused = iLutI(0); iUnused = iLutJ(0); lUnused = tParity
 
     end function
 
@@ -36,9 +42,16 @@ module hphf_integrals
         integer(kind=n_int), intent(in) :: iLutI(0:NIfTot), iLutJ(0:NIfTot)
         logical, intent(in) :: tParity
         real(dp), intent(in) :: prob
+        integer :: iUnused
+        real(dp) :: rUnused
+        logical :: lUnused
         HElement_t :: hel
 
         hel = hphf_off_diag_helement_norm (nI, nJ, iLutI, iLutJ)
+
+        ! Avoid warnings
+        iUnused = IC; iUnused = ex(1,1); rUnused = prob; lUnused = tParity
+
     end function
 
     function hphf_off_diag_helement_norm (nI, nJ, iLutnI, iLutnJ) result(hel)
@@ -55,11 +68,14 @@ module hphf_integrals
         integer(kind=n_int), intent(in) :: iLutnI(0:NIfTot), iLutnJ(0:NIfTot)
         HElement_t :: hel
 
-        integer :: nI2(nel) 
+        integer :: nI2(nel), iUnused
         integer(kind=n_int) :: iLutnI2(0:NIfTot)
         integer :: ExcitLevel, OpenOrbsI, OpenOrbsJ, Ex(2,2)
         HElement_t :: MatEl2
-        logical :: TestClosedShellDet, tSymmetricInts, tSign
+        logical :: TestClosedShellDet, tSign
+
+        ! Avoid warnings
+        iUnused = nJ(1)
 
         if (DetBitEQ(iLutnI, iLutnJ, NIfDBO)) then
             ! Do not allow an 'off-diagonal' matrix element. The problem is 

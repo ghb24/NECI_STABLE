@@ -218,11 +218,11 @@ contains
             WRITE(6,*) "Will attempt to set up the symmetry again, but now in terms of spin orbitals"
             WRITE(6,*) "Old excitation generators will not work"
             WRITE(6,*) "I strongly suggest you check that the reference energy is correct."
-            CALL SpinOrbSymSetup(.true.) 
+            CALL SpinOrbSymSetup() !.true.) 
         ELSE
             WRITE(6,*) "Symmetry and spin of orbitals correctly set up for excitation generators."
             WRITE(6,*) "Simply transferring this into a spin orbital representation."
-            CALL SpinOrbSymSetup(.false.) 
+            CALL SpinOrbSymSetup() !.false.) 
         ENDIF
 ! From now on, the orbitals are also contained in symlabellist2 and symlabelcounts2.
 ! These are stored using spin orbitals.

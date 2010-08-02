@@ -48,7 +48,7 @@ MODULE FciMCParMod
     USE FciMCData
     USE AnnihilationMod
     use DetBitops, only: EncodeBitDet, DetBitEQ, DetBitLT, FindExcitBitDet, &
-                         FindBitExcitLevel
+                         FindBitExcitLevel, countbits
     use csf, only: get_csf_bit_yama, iscsf, csf_orbital_mask, get_csf_helement
     use hphf_integrals, only: hphf_diag_helement, hphf_off_diag_helement, &
                               hphf_spawn_sign, hphf_off_diag_helement_spawn
@@ -490,9 +490,6 @@ MODULE FciMCParMod
                                  get_spawn_helement, encode_child, &
                                  new_child_stats, attempt_die, &
                                  iter_data)
-
-        USE FciMCLoggingMOD , only : TrackSpawnAttempts
-        use detbitops, only : countbits
 
         ! **********************************************************
         ! ************************* NOTE ***************************
