@@ -27,7 +27,7 @@ C.. Setup for symmetry routine below.
      &      +SymmetrySize*(NEL*NEL+1),
      &      'DSTORE')
          STORE(1)=IP_DSTORE
-         CALL SYMSETUPEXCITS3(NI,NEL,G1,NBASIS,NBASISMAX,STORE,TCOUNT,
+         CALL SYMSETUPEXCITS3(NI,NEL,NBASIS,STORE,TCOUNT,
      &      ICOUNT,DSTORE(1),
      &      DSTORE(SymClassSize*NEL+1),
      &      DSTORE(SymClassSize*NEL+1+(nBasis/32)+1),ILEVEL,iMinElec1,

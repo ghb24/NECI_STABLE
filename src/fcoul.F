@@ -7,7 +7,6 @@ C.. determinants of Sin function basis, using the Fourier
 C.. method. 
 C=========================================================
       IMPLICIT REAL*8(A-H,O-Z)
-      INTEGER P,Q
       INTEGER G1(4),G2(4),G1P(4),G2P(4)
       COMPLEX*16 ZIA(-N/2:N/2,NMAX,NMAX) 
       COMPLEX*16 CK(-N/2:N/2-1,-N/2:N/2-1,-N/2:N/2-1)
@@ -24,7 +23,7 @@ C Returns the Coulomb integral between states (g1g2) & (g1pg2p)
 C using the Fourier method 
 C =============================================================
       IMPLICIT REAL*8(A-H,O-Z)
-      INTEGER N,M,P,Q
+      INTEGER N
       COMPLEX*16 ZIA(-N/2:N/2,NMAX,NMAX) 
       INTEGER G1(4),G2(4),G1P(4),G2P(4)
       COMPLEX*16 CK(-N/2:N/2-1,-N/2:N/2-1,-N/2:N/2-1)

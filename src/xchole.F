@@ -137,15 +137,15 @@ C..
       IF(IC.EQ.(NEL-2)) THEN
 C..Determinants differ by two spin orbitals
         CALL RLSXC2_SC(NEL,NMSH,NMAX,SITAB,I,J,K,
-     &        NDET,NDET1,NDET2,G1,NHG,AUXC)
+     &        NDET1,NDET2,G1,NHG,AUXC)
       ELSEIF(IC.EQ.(NEL-1)) THEN
 C..Determinants differ by three spin orbitals
         CALL RLSXC1_SC(NEL,NMSH,NMAX,SITAB,I,J,K,
-     &        NDET,NDET1,NDET2,G1,NHG,AUXC)
+     &        NDET1,NDET2,G1,NHG,AUXC)
       ELSEIF(IC.EQ.NEL) THEN
 C..Determinants are the same
         CALL RLSXC_SC(NEL,NMSH,NMAX,SITAB,I,J,K,
-     &        NDET,NDET1,G1,NHG,AUXC)
+     &        NDET1,G1,NHG,AUXC)
       ELSE
         RETURN
       ENDIF

@@ -11,13 +11,12 @@
          TYPE(BASISFN) G1(NBASIS),ISYM,KJ,BLOCKSYM(NBLOCKS),IMAX(2)
          TYPE(BasisFN) SymRestrict
          LOGICAL TCOUNT
-         INTEGER I,J,NFAC,NI(NEL),NJ(NEL)
-         INTEGER KI1,KI2,KI3,KI4
+         INTEGER I,NI(NEL),NJ(NEL)
          INTEGER NBLOCKS,NBLOCKSTARTS(NBLOCKS+1),OII
          LOGICAL TSPN,TPARITY,TDONE
-         INTEGER LMS,LMIN,LMAX
+         INTEGER LMS
          LOGICAL TGENFDET
-         INTEGER IFDET,IC,NDETTOT,IDEG
+         INTEGER IFDET,NDETTOT,IDEG
          REAL*8 DETSC,TDETSC
          REAL*8 CALCT
          DETSC=1D200
@@ -86,8 +85,8 @@ C.. we've found an occupied block
          INTEGER NEL,NI(NEL), NBASIS, NLMAX,NLIST
          TYPE(BASISFN) G1(NBASIS),KI,KJ,KJ2
          INTEGER LSTE(NEL,NLMAX),NJ(NEL),NELEC,NBF
-         INTEGER I,J,BRR(NBASIS),NN(NEL),nBasisMax(5,*)
-         LOGICAL LCMP,LCHKSYM,TTILT
+         INTEGER I,BRR(NBASIS),NN(NEL),nBasisMax(5,*)
+         LOGICAL LCHKSYM
          INTEGER IGETEXCITLEVEL,ICE
          DO I=NBF,NBASIS
             NJ(NELEC)=BRR(I)
@@ -128,7 +127,7 @@ C.. singles and doubles of NI
          INTEGER NLIST,LSTE(NEL,NLIST)
          TYPE(BASISFN) G1(NBASIS),KI,KJ
          INTEGER NJ(NEL),nBasisMax(5,*)
-         INTEGER I,J,NLMAX
+         INTEGER NLMAX
          KJ=NullBasisFn
          NJ(1:NEL)=0
          NLMAX=NLIST
@@ -150,7 +149,7 @@ C.. number of determinants available (even if LSTE doesn't hold them all).
          INTEGER NLIST,LSTE(NEL,NLIST),nBasisMax(5,*)
          TYPE(BASISFN) G1(NBASIS),KI,KJ
          INTEGER NJ(NEL)
-         INTEGER I,J,NLMAX
+         INTEGER NLMAX
          KJ=NullBasisFn
          CALL GETSYM(NI,NEL,G1,NBASISMAX,KI)
          NLMAX=NLIST
@@ -169,7 +168,7 @@ C.. number of determinants available (even if LSTE doesn't hold them all).
          INTEGER NEL,NI(NEL), NBASIS, NLMAX,NLIST
          INTEGER LSTE(NEL,NLMAX),NJ(NEL),NELEC,NBF
          INTEGER I,J,BRR(NBASIS),NN(NEL),nBasisMax(5,*)
-         LOGICAL LCMP,LCHKSYM,TTILT
+         LOGICAL LCMP,LCHKSYM
          TYPE(BASISFN) G1(NBASIS),KI,KJ,KJ2
          DO I=NBF,NBASIS
             NJ(NELEC)=BRR(I)
@@ -214,7 +213,7 @@ C.. Generate determinants with a given symmetry, given by KI, as GENSYMDETS
          INTEGER NLIST,LSTE(NEL,NLIST)
          TYPE(BASISFN) G1(NBASIS),KI,KJ
          INTEGER NJ(NEL),nBasisMax(5,*)
-         INTEGER I,J,NLMAX
+         INTEGER NLMAX
          KJ=NullBasisFn
          NI(1:NEL)=0
          NLMAX=NLIST
@@ -234,8 +233,8 @@ C.. Generate determinants with a given symmetry, given by KI, as GENSYMDETS
          IMPLICIT NONE
          INTEGER NEL,NI(NEL), NBASIS, NLMAX,NLIST
          INTEGER LSTE(NEL,NLMAX),NJ(NEL),NELEC,NBF
-         INTEGER I,J,BRR(NBASIS),NN(NEL),nBasisMax(5,*)
-         LOGICAL LCMP,LCHKSYM,TTILT
+         INTEGER I,BRR(NBASIS),NN(NEL),nBasisMax(5,*)
+         LOGICAL LCHKSYM
          INTEGER IGETEXCITLEVEL,ICE
          REAL*8 RN,RP,RH,PP,RH2,RHOEPS
          REAL*8 BETA,FCK(*),ALAT(*),UMAT(*),ECORE
@@ -321,7 +320,7 @@ C.. the first NLIST are stored.
          INTEGER NEL,NI(NEL),NBASIS,BRR(NBASIS)
          INTEGER NLIST,LSTE(NEL,NLIST)
          INTEGER NJ(NEL),nBasisMax(5,*)
-         INTEGER I,J,NLMAX
+         INTEGER NLMAX
          REAL*8 RN,RP,PP,RHOEPS
          REAL*8 BETA,FCK(*),ALAT(*),UMAT(*),ECORE
          INTEGER I_P,NMSH,NMAX,NTAY
@@ -346,10 +345,10 @@ C.. KI is the sym, NJ contains the working
          use sort_mod
          use util_mod, only: NECI_ICOPY
          IMPLICIT NONE
-         TYPE(BasisFN) G1(nBasis),kI,kJ,kJ2
-         INTEGER NEL,NI(NEL), NBASIS
+         TYPE(BasisFN) G1(nBasis),kI,kJ2
+         INTEGER NEL, NBASIS
          INTEGER NJ(NEL),NELEC,INDJ(NEL),NLAST
-         INTEGER I,J,BRR(NBASIS),NN(NEL),nBasisMax(5,*)
+         INTEGER I,BRR(NBASIS),NN(NEL),nBasisMax(5,*)
          LOGICAL LCHKSYM,LCONT,TDONE
          INTEGER nActiveBasis(2)
          TDONE=.FALSE.
@@ -402,9 +401,9 @@ C.. WORK(2*NEL+18)
          use gnd_work_type
          IMPLICIT NONE
          INTEGER NEL,NBASIS,BRR(NBASIS),nBasisMax(5,*)
-         INTEGER LMS,NIWORK(NEL),NI(NEL)
+         INTEGER LMS,NI(NEL)
 C         INTEGER WORK(5*NEL+18)
-         LOGICAL TSPN,TPARITY,TSETUP,TMORE,TDONE
+         LOGICAL TSPN,TPARITY,TSETUP,TDONE
          TYPE(GNDWork) Work
          TYPE(BasisFN) G1(nBasis),ISym,SymRestrict
          INTEGER nActiveBasis(2)
@@ -433,9 +432,8 @@ C     &      NIWORK,NINDJ)
          TYPE(GNDWork) Work 
          INTEGER NEL,NBASIS,BRR(NBASIS),nBasisMax(5,*)
          TYPE (BasisFN) G1(NBASIS),SymRestrict
-         INTEGER LMS,NIWORK(NEL),NI(NEL)
-         LOGICAL TSPN,TPARITY,TSETUP,TMORE,TDONE,KALLOWED,TMORE2
-         INTEGER ILEV
+         INTEGER LMS,NI(NEL)
+         LOGICAL TSPN,TPARITY,TSETUP,TMORE,TDONE
          INTEGER nActiveBasis(2)
 C..  1-4                NSWORK
 C..  5-12               IMAX
@@ -443,7 +441,7 @@ C..  13-17              ISYM
 C..  18                 NELEC
 C..  19-NEL+18          NIWORK
 C..  NEL+19 - 2*NEL+18  NINDJ
-         INTEGER NELEC,NINDJ(NEL)
+         INTEGER NINDJ(NEL)
          IF(TSETUP) THEN
             CALL GENNEXTSYM(NEL,NBASISMAX,TSPN,LMS,
      &         TPARITY,SymRestrict,TSETUP,TDONE,Work%IMax,Work%ISym)

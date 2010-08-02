@@ -1,12 +1,11 @@
 C ===================================================================
-      SUBROUTINE CALCUMATHUBREAL(NEL,NBASIS,NBASISMAX,G1,UHUB,
-     &            UMAT)
+      SUBROUTINE CALCUMATHUBREAL(NBASIS,UHUB, UMAT)
          use UMatCache , only : UMatInd
          IMPLICIT NONE
-         INTEGER NEL,NBASIS,nBasisMax(5,*),G1(*)
+         INTEGER NBASIS
          REAL*8 UMAT(*)
          REAL*8 UHUB
-         INTEGER I,J,K,IC
+         INTEGER I,IC
          OPEN(10,FILE='UMAT',STATUS='UNKNOWN')
          IC=1
 !Only do this for each spatial orbital.
@@ -31,7 +30,7 @@ C..Returned in sum
       use constants, only: Pi, Pi2, THIRD
       IMPLICIT REAL*8 (A-H,O-Z)
       INTEGER nBasisMax(5,*),AX,AY
-      INTEGER LX,LY,LZ,DX,DY,DZ
+      INTEGER LX,LY,LZ
       LOGICAL TTILT,TREAL
       LX=NBASISMAX(1,2)-NBASISMAX(1,1)+1
       LY=NBASISMAX(2,2)-NBASISMAX(2,1)+1
@@ -104,7 +103,7 @@ C         IF(LZ.GT.1) TOTSUM=TOTSUM+COS(PI*K/(LZ+1))
          INTEGER I,J
          INTEGER DX,DY,DZ,LX,LY,LZ
          LOGICAL TTILT,TREAL,TPBC
-         REAL*8 TOTSUM,S1
+         REAL*8 TOTSUM
          IF(iProcIndex.eq.0) OPEN(10,FILE='TMAT',STATUS='UNKNOWN')
          IF(TSTARSTORE) STOP 'Using TSTARSTORE with HUB??!'
          CALL SetupTMAT(NBASIS,2,iSize)
@@ -363,15 +362,13 @@ C.. Setup the symmetry product table
 !Hubbard Sym Reps are different from normal ones.  In hubbard, we have split degenerate sets into 1D subcomponents,
 !  but a complete degenerate set will count as a sym rep (i.e. if it is filled, its sym can be discounted),
 !  not just one of the subcomponents
-      SUBROUTINE GENHUBSYMREPS(NSYMMAX,G1,NBASIS,ARR,BRR)
+      SUBROUTINE GENHUBSYMREPS(NBASIS,ARR,BRR)
          use global_utilities
          use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
          use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
          use SymData, only: SymReps,tagSymReps
          IMPLICIT NONE
-         INTEGER NSYMMAX
          INTEGER I,J
-         TYPE(BasisFN) G1(NBASIS)
          INTEGER NBASIS,BRR(NBASIS)
          REAL*8 ARR(NBASIS)
          character(*), parameter :: this_routine='GenHubSymReps'

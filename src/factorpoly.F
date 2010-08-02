@@ -4,7 +4,7 @@ C.. Use Newton-Raphson to find roots and then divide them out one by one
 C         IMPLICIT NONE
          INTEGER ORDER,IROOTS,WORDER,I
          REAL*8 COEFFS(0:ORDER)
-         REAL*8 C(0:ORDER),POLY(0:2),REM(0:2),XROOT
+         REAL*8 C(0:ORDER),POLY(0:2),REM(0:2)
          COMPLEX*16 ZROOTS(ORDER),ZROOT
          LOGICAL LCOMPLEX
          LCOMPLEX=.FALSE.
@@ -91,7 +91,7 @@ C.. if we need to go to the complex plane, we set LCOMPLEX
          INTEGER WORDER
          REAL*8 WCOEFFS(0:WORDER),MAG,MAG2,REPS
          COMPLEX*16 ZROOT,ZEPS,Z1,Z2,Z3,ZOR,Z4
-         INTEGER ICOUNT,I,N
+         INTEGER ICOUNT,I
          LOGICAL LCOMPLEX,TBIS
          IF(LCOMPLEX) THEN
             ZROOT=(1.D0,0.1D0)
@@ -206,7 +206,7 @@ C.. return the derivative of the polynomial at Z
 C.. return the derivative of the polynomial at Z
       SUBROUTINE POLYNDERIV(WCOEFFS,WORDER,Z,ZRET,N)
          IMPLICIT NONE
-         INTEGER WORDER,I,N,J,K
+         INTEGER WORDER,I,N,K
          REAL*8 WCOEFFS(0:WORDER),D
          COMPLEX*16 Z,ZRET
          ZRET=(0.D0,0.D0)
@@ -224,7 +224,7 @@ C.. if we need to go to the complex plane, we set LCOMPLEX
       SUBROUTINE FINDROOTFD(WCOEFFS,WORDER,XROOT)
          IMPLICIT NONE
          INTEGER WORDER
-         REAL*8 WCOEFFS(0:WORDER),MAG,MAG2
+         REAL*8 WCOEFFS(0:WORDER),MAG
          REAL*8 XROOT,XEPS,X1,X2,X3,X4,X5,A,B
          INTEGER ICOUNT,I
 C.. Choose the bracket to be big
@@ -271,18 +271,6 @@ C.. if X4 and X1 have the same sign
          ENDDO
 C.. Check to see if just the real version is better than the complex
          XROOT=X3
-         RETURN
-      END
-
-C.. Use Newton Raphson to find a root
-C.. if LCOMPLEX we start in the complex plane.
-C.. if we need to go to the complex plane, we set LCOMPLEX
-      SUBROUTINE FINDROOTNR(WCOEFFS,WORDER,ZROOT,LCOMPLEX)
-         IMPLICIT NONE
-         INTEGER WORDER
-         REAL*8 WCOEFFS(0:WORDER)
-         COMPLEX*16 ZROOT
-         LOGICAL LCOMPLEX
          RETURN
       END
 

@@ -364,7 +364,7 @@ CONTAINS
          ICMAX=1
 !Falsify tMC
          TMC=.FALSE.
-         CALL DETHAM(NDET,NEL,NMRKS,NBASISMAX,nBasis,HAMIL,G1,LAB,NROW,.TRUE.,NMSH,FCK,NMAX,ALAT,UMAT,ICMAX,GC,TMC,ECORE,BRR)
+         CALL DETHAM(NDET,NEL,NMRKS,HAMIL,LAB,NROW,.TRUE.,ICMAX,GC,TMC)
          WRITE(6,*) ' FINISHED COUNTING '
          WRITE(6,*) "Allocating memory for hamiltonian: ",GC*2
          CALL FLUSH(6)
@@ -446,7 +446,7 @@ CONTAINS
             CLOSE(iunit)
          ENDIF
         WRITE(6,*) '<D0|H|D0>=',GETHELEMENT(IFDET,IFDET,HAMIL,LAB,NROW,NDET)
-        WRITE(6,*) '<D0|T|D0>=',CALCT(NMRKS(1,IFDET),NEL,G1,NBASIS) 
+        WRITE(6,*) '<D0|T|D0>=',CALCT(NMRKS(1,IFDET),NEL)
         CALL FLUSH(6)
 !CC         CALL HAMHIST(HMIN,HMAX,LENHAMIL,NHISTBOXES)
       ENDIF
@@ -517,7 +517,7 @@ CONTAINS
             V2=0.d0
 !C..Lanczos iterative diagonalising routine
             CALL NECI_FRSBLKH(NDET,ICMAX,NEVAL,HAMIL,LAB,CK,CKN,NKRY,NKRY1,NBLOCK,NROW,LSCR,LISCR,A,W,V,AM,BM,T,WT, &
-     &  SCR,ISCR,INDEX,WH,WORK2,V2,NCYCLE,B2L,.true.,.false.,.false.)
+     &  SCR,ISCR,INDEX,NCYCLE,B2L,.true.,.false.,.false.)
 
 !Multiply all eigenvalues by -1.
             CALL DSCAL(NEVAL,-1.D0,W,1)
@@ -533,11 +533,11 @@ CONTAINS
                CALL LogMemAlloc('WORK',4*NDET,8*HElement_t_size,this_routine,WorkTag,ierr)
                ALLOCATE(WORK2(3*NDET),stat=ierr)
                CALL LogMemAlloc('WORK2',3*NDET,8,this_routine,WORK2Tag,ierr)
-               CALL HDIAG(NDET,HAMIL,LAB,NROW,CK,W,WORK2,WORK,LENHAMIL,NBLOCKSTARTS,NBLOCKS,BLOCKSYM)
+               CALL HDIAG(NDET,HAMIL,LAB,NROW,CK,W,WORK2,WORK,NBLOCKSTARTS,NBLOCKS)
             ELSE
 !I_P we've replaced by 0
-               CALL HDIAG_NH(NDET,NBLOCKSTARTS,NBLOCKS,NEL,NMRKS,NBASISMAX,NBASIS,G1,NMSH,BRR, &
-     &            FCK,NMAX,ALAT,UMAT,ICMAX,GC,TMC,ECORE,BETA,0,ILOGGING,IFDET,ARR,BLOCKSYM)
+               CALL HDIAG_NH(NDET,NBLOCKSTARTS,NBLOCKS,NEL,NMRKS,NBASISMAX,NBASIS,G1,BRR, &
+     &            ECORE,BETA,0,ILOGGING,IFDET,ARR,BLOCKSYM)
 !C.. We're not storing the energies, so we pretend we weren't asked for
 !C.. them
                TENERGY=.FALSE.
@@ -1095,8 +1095,7 @@ END MODULE DetCalc
                CALL FLUSH(iunit)
                WRITE(6,*) "Investigating det ",DETINV
                CALL FLUSH(6)
-               CALL WIRD_SUBSET(NMRKS(:,DETINV),BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY, &
-     &       RHOEPS,ILOGGING,TSYM,ECORE)
+               CALL WIRD_SUBSET(NMRKS(:,DETINV),BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,ECORE)
             ENDIF
           ENDDO
          CLOSE(iunit)

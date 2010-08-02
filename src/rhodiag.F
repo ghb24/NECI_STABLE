@@ -1,23 +1,23 @@
       SUBROUTINE WIRHODIAG(NI,BETA,I_P,NEL,
      &      NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,
-     &      RHOEPS,ILOGGING,TSYM,ECORE,WLRI,WLSI)
+     &      ECORE,WLRI,WLSI)
          use global_utilities
          use legacy_data, only: irat
          use util_mod, only: NECI_ICOPY
          IMPLICIT NONE
-         REAL*8 BETA,FCK(*),ALAT(3),UMAT(*),RHOEPS,ECORE
-         INTEGER I_P,BRR(NBASIS),NTAY,NMSH,NMAX,ILOGGING
+         REAL*8 BETA,FCK(*),ALAT(3),UMAT(*),ECORE
+         INTEGER I_P,BRR(NBASIS),NTAY,NMSH,NMAX
 
          INTEGER NEL,NBASIS,nBasisMax(5,*),G1(*)
          INTEGER NI(NEL),K
-         LOGICAL TSYM,LACC
+         LOGICAL LACC
          INTEGER NLIST,NLMAX
          REAL*8 RH,RHII
          REAL*8 HDMAX,RHRATMAX
          INTEGER ILFREE,I,J
          REAL*8, ALLOCATABLE :: RIJMAT(:),WLIST(:),RJJLIST(:),WORK(:)
          INTEGER, ALLOCATABLE :: LSTE(:,:)
-         INTEGER ILMAX,err
+         INTEGER err
          INTEGER WORKL,INFO
          REAL*8 WLRI,WLSI,SI
          LOGICAL LCHKSYMD
@@ -141,18 +141,18 @@ C         ENDDO
  
          SUBROUTINE WIRD_SUBSET(NI,BETA,I_P,NEL,
      &      NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,
-     &      RHOEPS,ILOGGING,TSYM,ECORE)
+     &      ECORE)
          use global_utilities
          use legacy_data, only: irat
          use util_mod, only: NECI_ICOPY
          IMPLICIT NONE
-         REAL*8 BETA,FCK(*),ALAT(3),UMAT(*),RHOEPS,ECORE
-         INTEGER I_P,BRR(NBASIS),NTAY,NMSH,NMAX,ILOGGING
+         REAL*8 BETA,FCK(*),ALAT(3),UMAT(*),ECORE
+         INTEGER I_P,BRR(NBASIS),NTAY,NMSH,NMAX
 
          INTEGER K,ID,IDI,IDJ
          INTEGER NEL,NBASIS,nBasisMax(5,*),G1(*)
          INTEGER NI(NEL)
-         LOGICAL TSYM,LACC
+         LOGICAL LACC
          INTEGER NLIST,NLMAX
          REAL*8 RH,RHII
          REAL*8 HDMAX,RHRATMAX
@@ -164,7 +164,7 @@ C         ENDDO
          INTEGER, SAVE :: tagVARRAY
          INTEGER, SAVE :: tagLSTE,tagLSTP,tagWORK
          type(timer), save :: proc_timer
-         INTEGER ILMAX,err
+         INTEGER err
          INTEGER WORKL,INFO
          REAL*8 WLRI,WLSI,SI,SN,SNO,SNC,SNN
          INTEGER IPLEN,NCOUNT
@@ -791,7 +791,7 @@ C.. calculate <D|H exp(-b H)|D>/RHO_ii^P
       END
 !  As rhodiag_cpp, but only deal with this vertex level, and subtract out the two-vertex star contribtion from this vertex level.
       FUNCTION RHODIAG_CPPS2VS(RHOIJ,
-     &            I_P,I_V,IMISS,TSUB,DBETA,DLWDB,HIJS)
+     &            I_P,I_V,DBETA,DLWDB,HIJS)
          use constants, only: dp
          use global_utilities
          use HElem
@@ -802,11 +802,10 @@ C.. calculate <D|H exp(-b H)|D>/RHO_ii^P
          HElement_t RIJMAT(I_V,I_V),NWORK(4*I_V),S,DLWT,S2
          REAL*8 WORK(3*I_V),R
          REAL*8 WLIST(I_V)         
-         INTEGER INFO,I,J,IMISS,II,IJ
+         INTEGER INFO,I,J
          real(dp) SI,SI2,SS,SS2
 C.. do we subtract out lower vertices here or later?
-         LOGICAL TSUB
-         real(dp) DLWDB,RII,DD2
+         real(dp) DLWDB,RII
          real(dp) RhoDiag_CPPS2VS
          REAL*8 DBETA
 ! Optimise the 1V case
@@ -902,24 +901,23 @@ C.. calculate <D|H exp(-b H)|D>/RHO_ii^P
       END
 ! As HDIAG_CPP, but return the subtraction out of the 2-vertex star part.
       FUNCTION HDIAG_CPPS2VS(HIJ,
-     &            I_P,I_V,IMISS,TSUB,BETA,DLWDB,HIJS)
+     &            I_V,BETA,DLWDB,HIJS)
          use constants, only: dp
          use global_utilities
          use HElem
          IMPLICIT NONE
-         INTEGER I_P,I_V
+         INTEGER I_V
          type(timer), save :: proc_timer
          HElement_t HIJ(I_V+1,I_V+1),RIJMAT(I_V,I_V)
          REAL*8 WLIST(I_V),WORK(3*I_V)         
          HElement_t NWORK(4*I_V)
-         INTEGER INFO,I,J,IMISS,II,IJ
+         INTEGER INFO,I,J,II
          real(dp) SI,SI2
 C.. do we subtract out lower vertices here or later?
-         LOGICAL TSUB
          REAL*8 BETA
          HElement_t HIJS(I_V+1),HIJS2(I_V),DLWT,T,U
          real(dp) HDiag_CPPS2VS
-         real(dp) R,S,DLWDB,DD2
+         real(dp) R,S,DLWDB
          real(dp) RII
 ! Optimise the 1V case
          IF(I_V.EQ.1) THEN

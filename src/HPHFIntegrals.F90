@@ -69,7 +69,7 @@ module hphf_integrals
             return
         endif
 
-        hel = sltcnd (nI, nJ, iLutnI, iLutnJ)
+        hel = sltcnd (nI, iLutnI, iLutnJ)
         if (TestClosedShellDet(iLutnI)) then
             if (.not. TestClosedShellDet(iLutnJ)) then
                 ! Closed shell --> Open shell, <X|H|Y> = 1/sqrt(2) [Hia + Hib]
@@ -103,7 +103,7 @@ module hphf_integrals
                     Ex(1,1)=ExcitLevel
                     call GetBitExcitation(iLutnI2,iLutnJ,Ex,tSign)
 
-                    MatEl2 = sltcnd_excit (nI2, nJ, ExcitLevel, Ex, tSign)
+                    MatEl2 = sltcnd_excit (nI2, ExcitLevel, Ex, tSign)
 
                     if (((mod(OpenOrbsI,2) == 0).and.(mod(OpenOrbsJ,2) == 0))&
                         .or. ((mod(OpenOrbsI,2) == 0) .and. &
@@ -138,7 +138,7 @@ module hphf_integrals
         HElement_t :: MatEl2
         logical :: TestClosedShellDet
 
-        hel = sltcnd_excit (nI, nI, 0)
+        hel = sltcnd_excit (nI, 0)
         if (.not. TestClosedShellDet(iLutnI)) then
             ! <i|H|i> = <j|H|j>, so no need to calculate both.
             ! <X|H|X> = 1/2 [ <i|H|i> + <j|H|j> ] + <i|H|j> where i and j are
@@ -151,7 +151,7 @@ module hphf_integrals
             if (ExcitLevel.le.2) then
                 call CalcOpenOrbs (iLutnI, OpenOrbs)
                 call FindDetSpinSym (nI, nI2, nel)
-                MatEl2 = sltcnd (nI, nI2, iLutnI, iLutnI2)
+                MatEl2 = sltcnd (nI,  iLutnI, iLutnI2)
 
                 if (mod(OpenOrbs,2).eq.1) then
                     ! Subtract cross terms if determinant is antisymmetric.

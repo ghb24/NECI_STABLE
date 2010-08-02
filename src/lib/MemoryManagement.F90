@@ -141,7 +141,6 @@ contains
     logical, intent(in), optional :: print_err
     integer(li) :: MaxMemBytes
     integer(li), parameter :: MaxMemLimit=MAXMEM ! Obtained via CPP in the makefile. MAXMEM in MB.
-    character(len=*), parameter :: ThisRoutine = 'InitMemoryManager'
 
 
     if (present(MemSize)) then

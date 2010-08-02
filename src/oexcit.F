@@ -1,37 +1,30 @@
 ! Old, deprecated code.  No longer used.
-      SUBROUTINE EXCIT_DUMP(UNT,NI,NEL,G1,NBASIS,NBASISMAX,
-     &         NMEM,IFRZ)
+      SUBROUTINE EXCIT_DUMP(UNT,NI,NEL,NBASIS,
+     &         NMEM)
         use Determinants, only: write_det
          IMPLICIT NONE
          INTEGER NEL,NI(NEL),NBASIS
-         INTEGER NLIST,nBasisMax(5,*)
-         INTEGER G1(*)
-         INTEGER I,IC
          INTEGER NMEM(*),UNT
-         INTEGER IFRZ(0:NBASIS)
 C.. now call a routine to reset the current type's lists
-         CALL GSETE_DUMP(UNT,NI,NEL,G1,NBASIS,NBASISMAX,
-     &        NMEM(1),NMEM(2),NMEM(3),NMEM(4),NMEM(5),
+         CALL GSETE_DUMP(UNT,NI,NEL,NBASIS,
+     &        NMEM(1),NMEM(2),
      &         NMEM(7),NMEM(11),
      &         NMEM(11+(NEL+4)*4),
-     &         NMEM(11+(NEL+NBASIS+8)*4),IFRZ)
+     &         NMEM(11+(NEL+NBASIS+8)*4))
          RETURN
       END
-      SUBROUTINE GSETE_DUMP(UNT,NI,NEL,G1,NBASIS,NBASISMAX,
-     &         NTYPES,NTYPE,TFULL,TFREE,TTYPE,SPNS,
+      SUBROUTINE GSETE_DUMP(UNT,NI,NEL,NBASIS,
+     &         NTYPES,NTYPE,SPNS,
      &         NFULL,NFREE,
-     &         TYPES,IFRZ)
+     &         TYPES)
         use Determinants, only: write_det
          IMPLICIT NONE
          INTEGER NEL,NI(NEL),NBASIS
-         INTEGER nBasisMax(5,*)
-         INTEGER G1(5,NBASIS)
          INTEGER TYPES(5,NTYPES),NTYPES,NTYPE
          INTEGER NFULL(2,2,-3:NEL),NFREE(2,2,-3:NBASIS)
-         INTEGER SPNS(2,2),IC
-         LOGICAL TFULL,TFREE,TTYPE
+         INTEGER SPNS(2,2)
          INTEGER I,J
-         INTEGER IFRZ(0:NBASIS),UNT
+         INTEGER UNT
          
          IF(NTYPE.EQ.0) RETURN
 C..Debugging junk
@@ -61,37 +54,29 @@ C..Debugging junk
          ENDDO
          RETURN
       END
-      SUBROUTINE RESETEXIT(NI,NEL,G1,NBASIS,NBASISMAX,
+      SUBROUTINE RESETEXIT(NI,NEL,NBASIS,
      &         NMEM,IFRZ)
          IMPLICIT NONE
          INTEGER NEL,NI(NEL),NBASIS
-         INTEGER NLIST,nBasisMax(5,*),NJ(NEL)
-         INTEGER G1(*)
-         INTEGER I,IC
          INTEGER NMEM(*)
          INTEGER IFRZ(0:NBASIS)
 C.. now call a routine to reset the current type's lists
-         CALL GSETE_RSTTYP(NI,NEL,G1,NBASIS,NBASISMAX,
-     &        NMEM(1),NMEM(2),NMEM(3),NMEM(4),NMEM(5),
-     &         NMEM(7),NMEM(11),
+         CALL GSETE_RSTTYP(NI,NEL,NBASIS,
+     &         NMEM(3),NMEM(4),NMEM(5),
+     &         NMEM(11),
      &         NMEM(11+(NEL+4)*4),
-     &         NMEM(11+(NEL+NBASIS+8)*4),IFRZ)
+     &         IFRZ)
          RETURN
       END
-      SUBROUTINE GSETE_RSTTYP(NI,NEL,G1,NBASIS,NBASISMAX,
-     &         NTYPES,NTYPE,TFULL,TFREE,TTYPE,SPNS,
+      SUBROUTINE GSETE_RSTTYP(NI,NEL,NBASIS,
+     &         TFULL,TFREE,TTYPE,
      &         NFULL,NFREE,
-     &         TYPES,IFRZ)
+     &         IFRZ)
          IMPLICIT NONE
-         INTEGER NEL,NI(NEL),NJ(NEL),NBASIS
-         INTEGER NLIST,nBasisMax(5,*)
-         INTEGER G1(5,NBASIS)
-         INTEGER TYPES(5,NTYPES),NTYPES,NTYPE
+         INTEGER NEL,NI(NEL),NBASIS
          INTEGER NFULL(2,2,-3:NEL),NFREE(2,2,-3:NBASIS)
-         INTEGER SPNS(2,2),IC
          LOGICAL TFULL,TFREE,TTYPE
          INTEGER IEL,ISPN,I,J
-         LOGICAL TDONE
          INTEGER IFRZ(0:NBASIS)
 C.. NXXXX(a,b,-3) is  is the spin (either 1 or 2) for the first electron to be 
 C.. excited (so NFREE(NFREE(1,-3),-2) is the 1st electron to be excited)
@@ -166,7 +151,7 @@ C.. ISYM, and discarded if it has the wrong symmetry
      &         TSETUP,NMEM,NJ,ISEED,IC,IFRZ)
          IMPLICIT NONE
          INTEGER NEL,NI(NEL),NBASIS
-         INTEGER NLIST,nBasisMax(5,*),NJ(NEL)
+         INTEGER nBasisMax(5,*),NJ(NEL)
          INTEGER G1(5,NBASIS)
          INTEGER TYPES(5,*),NTYPES
          POINTER (IP_TYPES, TYPES)
@@ -223,7 +208,7 @@ C.. Decide upon which type of excitation to choose
      &       NMEM(11+(NEL+NBASIS+8)*4),NMEM(1),ISEED)
 C.. now call a routine to generate a random excitation
          CALL GSETE_GENRAND(NI,NJ,IC,NEL,G1,NBASIS,NBASISMAX,
-     &        TSYM,ISYM,NMEM(1),NMEM(2),NMEM(3),NMEM(4),NMEM(5),
+     &        TSYM,ISYM,NMEM(1),NMEM(2),NMEM(3),NMEM(4),
      &         NMEM(7),NMEM(11),
      &         NMEM(11+(NEL+4)*4),
      &         NMEM(11+(NEL+NBASIS+8)*4),ISEED,IFRZ)
@@ -251,7 +236,7 @@ C.. available within the same symmetry and Sz.  This does not enumerate them all
      &      IFRZ)
          IC=0
          DO I=1,NTYPES
-           CALL GETSYMEXTYPECOUNT(NI,NEL,G1,NBASIS,NBASISMAX,TYPES,I,
+           CALL GETSYMEXTYPECOUNT(NI,NEL,G1,NBASIS,TYPES,I,
      &         NFULL,NFREE,IFRZ)
            IC=IC+TYPES(5,I)
          ENDDO
@@ -269,11 +254,11 @@ C.. ISYM, and discarded if it has the wrong symmetry
      &         TSETUP,NMEM,NJ,IC,IFRZ)
          IMPLICIT NONE
          INTEGER NEL,NI(NEL),NBASIS
-         INTEGER NLIST,nBasisMax(5,*),NJ(NEL)
+         INTEGER nBasisMax(5,*),NJ(NEL)
          INTEGER G1(5,NBASIS)
          INTEGER TYPES(5,*),NTYPES
          POINTER (IP_TYPES, TYPES)
-         INTEGER I,IC
+         INTEGER IC
          INTEGER ISYM(5)
          LOGICAL TSYM
          LOGICAL TSETUP
@@ -434,7 +419,7 @@ C.. each individual type's count in the TYPES(5,*)
      &      IFRZ)
          IC=0
          DO I=1,NTYPES
-           CALL GETSYMEXTYPECOUNT(NI,NEL,G1,NBASIS,NBASISMAX,TYPES,I,
+           CALL GETSYMEXTYPECOUNT(NI,NEL,G1,NBASIS,TYPES,I,
      &         NFULL,NFREE,IFRZ)
            IC=IC+TYPES(5,I)
 C            WRITE(6,*) I,IC
@@ -444,18 +429,18 @@ C            WRITE(6,*) I,IC
       END
 C.. Generate a random excitation of TYPE TYPES(1:5,NTYPE)
       SUBROUTINE GSETE_GENRAND(NI,NJ,IC,NEL,G1,NBASIS,NBASISMAX,
-     &         TSYM,ISYM,NTYPES,NTYPE,TFULL,TFREE,TTYPE,SPNS,
+     &         TSYM,ISYM,NTYPES,NTYPE,TFULL,TFREE,SPNS,
      &         NFULL,NFREE,
      &         TYPES,ISEED,IFRZ)
          IMPLICIT NONE
          INTEGER NEL,NI(NEL),NJ(NEL),NBASIS
-         INTEGER NLIST,nBasisMax(5,*)
+         INTEGER nBasisMax(5,*)
          INTEGER G1(5,NBASIS)
          INTEGER TYPES(5,NTYPES),NTYPES,NTYPE
          INTEGER NFULL(2,2,-3:NEL),NFREE(2,2,-3:NBASIS)
          INTEGER SPNS(2,2),IC
-         LOGICAL TFULL,TFREE,TTYPE
-         INTEGER ISYM(5),I,J
+         LOGICAL TFULL,TFREE
+         INTEGER ISYM(5)
          LOGICAL TSYM
          LOGICAL TDONE
          INTEGER ISEED
@@ -464,7 +449,7 @@ C.. Generate a random excitation of TYPE TYPES(1:5,NTYPE)
          NJ(1)=0
 C.. Initialize this type
          CALL GSETE_INIT(NI,NEL,G1,NBASIS,NFULL,NFREE,
-     &               TYPES,NTYPE,NBASISMAX,.FALSE.,IFRZ)
+     &               TYPES,NTYPE,.FALSE.,IFRZ)
 C.. Find a random full set to excite
          CALL GSETE_RANDFLFR(TYPES(1,NTYPE),SPNS(1,1),NFULL,
      &               TFULL,ISEED,IC,.TRUE.)
@@ -493,13 +478,13 @@ C.. Best not to call directly, but let  GENSYMEXCITIT() do the work
         use Determinants, only: write_det
          IMPLICIT NONE
          INTEGER NEL,NI(NEL),NJ(NEL),NBASIS
-         INTEGER NLIST,nBasisMax(5,*)
+         INTEGER nBasisMax(5,*)
          INTEGER G1(5,NBASIS)
          INTEGER TYPES(5,NTYPES),NTYPES,NTYPE
          INTEGER NFULL(2,2,-3:NEL),NFREE(2,2,-3:NBASIS)
          INTEGER SPNS(2,2),IC
          LOGICAL TFULL,TFREE,TTYPE
-         INTEGER ISYM(5),I,J
+         INTEGER ISYM(5)
          LOGICAL TSYM
          LOGICAL TDONE
          INTEGER IFRZ(0:NBASIS)
@@ -513,7 +498,7 @@ C.. type
                IF(NTYPE.LT.NTYPES) THEN
                   NTYPE=NTYPE+1
                   CALL GSETE_INIT(NI,NEL,G1,NBASIS,NFULL,NFREE,
-     &               TYPES,NTYPE,NBASISMAX,.TRUE.,IFRZ)
+     &               TYPES,NTYPE,.TRUE.,IFRZ)
                   TTYPE=.TRUE.
    
                ELSE
@@ -593,11 +578,11 @@ C.. considering a different set of spins - workd out by looking at
 C.. TYPES(NTYPE-1), and if TOPT is true, we don't need to do anything,
 C.. so just return.      
       SUBROUTINE GSETE_INIT(NI,NEL,G1,NBASIS,NFULL,NFREE,TYPES,NTYPE,
-     &      NBASISMAX,TOPT,IFRZ)
+     &      TOPT,IFRZ)
          IMPLICIT NONE
          INTEGER NI(NEL),NEL,G1(5,*),NBASIS,TYPES(5,*),NTYPE,TYP
          INTEGER NFULL(2,2,-3:NEL),NFREE(2,2,-3:NBASIS)
-         INTEGER NSYM(2),NSYME(2),IEL,I,NSPN,nBasisMax(5,*),NS,NSE
+         INTEGER NSYM(2),NSYME(2),IEL,I,NSPN
          LOGICAL TNS,TOPT
          INTEGER ISYM
          INTEGER IFRZ(0:NBASIS)
@@ -809,7 +794,7 @@ C.. in NFULL and NFREE
          INTEGER ISYM(5),ISYM2(5)
          INTEGER NJ(NEL),NI(NEL),NEL
          LOGICAL LCHKSYM
-         INTEGER IC,G1(*),NBASISMAX(*),I
+         INTEGER IC,G1(*),NBASISMAX(*)
          LOGICAL ISVALIDDET
          CALL NECI_ICOPY(NEL,NI,1,NJ,1)
 C         WRITE(56,"(I4,A,I4)",advance='no') 
@@ -856,14 +841,12 @@ C.. For a given Excitation symmetry type, generate all excitatiosn
          INTEGER NEL,NI(NEL),NBASIS,LIST(NEL,NLIST),ICLIST(NLIST)
          INTEGER NLIST,nBasisMax(5,*)
          INTEGER G1(5,NBASIS)
-         INTEGER TYP(5),NSPN,NJ(NEL)
-         INTEGER NFULL(2,-3:NEL),NFREE(2,-3:NBASIS),NSYM,NSYME
-         INTEGER SPN1,SPN2,IC,ICARRY
+         INTEGER TYP(5)
+         INTEGER NFULL(2,-3:NEL),NFREE(2,-3:NBASIS)
+         INTEGER SPN1,SPN2,IC
          LOGICAL TFULL,TFREE
-         INTEGER IEL,I
-         INTEGER ISYM(5),ISYM2(5)
+         INTEGER ISYM(5)
          LOGICAL TSYM
-         LOGICAL LCHKSYM
          INTEGER IFRZ(0:NBASIS)
 C.. -2 corresponds to the first electrom to be excited, and -1 to the
 C.. second. also for NFREE
@@ -880,7 +863,7 @@ C.. in NFULL and NFREE
 
 C         CALL GSETE_INIT(NI,NEL,G1,NBASIS,NFULL,NFREE,TYP,IFRZ)
          CALL GSETE_INIT(NI,NEL,G1,NBASIS,NFULL,NFREE,TYP,1
-     &               ,NBASISMAX,.FALSE.,IFRZ)
+     &               ,.FALSE.,IFRZ)
 C.. Setup the full lists
          CALL GSETE_SETUPFLFR(TYP,(/SPN1,SPN2/),NFULL,TFULL,.TRUE.)
 
@@ -975,8 +958,7 @@ C.. TYPE(5,*)=number of excitations of this type (calculated later)
          INTEGER I,J,K,L,ITYPE
          INTEGER TYP(5)
          INTEGER JMIN,JMAX
-         INTEGER IEXC
-         INTEGER SYMES(2,2,0:8),NSPN,IEL
+         INTEGER SYMES(2,2,0:8),IEL
          INTEGER NI(NEL),NEL,G1(5,*)
          LOGICAL TALL
          LOGICAL ISUHFDET,NOSING
@@ -1132,17 +1114,14 @@ C            WRITE(6,*) "YES"
 C.. Work out the number of excitations in TYPES(1:5,NTYPE) and store in
 C.. TYPES(5,NTYPE).
 C.. This does not take into account TSYM exclusions.
-      SUBROUTINE GETSYMEXTYPECOUNT(NI,NEL,G1,NBASIS,NBASISMAX,TYPES,
+      SUBROUTINE GETSYMEXTYPECOUNT(NI,NEL,G1,NBASIS,TYPES,
      &   NTYPE,NFULL,NFREE,IFRZ)
          IMPLICIT NONE
          INTEGER NEL,NI(NEL),NJ(NEL),NBASIS
-         INTEGER NLIST,nBasisMax(5,*)
          INTEGER G1(5,NBASIS)
          INTEGER NFULL(2,2,-3:NEL),NFREE(2,2,-3:NBASIS)
-         INTEGER SPNS(2,2),IC
-         LOGICAL TFULL,TFREE,TTYPE
-         INTEGER ISYM(5),I,J
-         LOGICAL TSYM
+         INTEGER SPNS(2,2)
+         LOGICAL TFULL,TFREE
          LOGICAL TDONE
          INTEGER ISEED,IC1,IC2,TYPES(5,*),NTYPE
          INTEGER IFRZ(0:NBASIS)
@@ -1151,7 +1130,7 @@ C.. This does not take into account TSYM exclusions.
 C.. We have no more full orbitals to excite, so we need another sym
 C.. type
          CALL GSETE_INIT(NI,NEL,G1,NBASIS,NFULL,NFREE,
-     &               TYPES,NTYPE,NBASISMAX,.TRUE.,IFRZ)
+     &               TYPES,NTYPE,.TRUE.,IFRZ)
 C         CALL GSETE_DUMP(6,NI,NEL,G1,NBASIS,NBASISMAX,
 C     &         0,NTYPE,TFULL,TFREE,TTYPE,SPNS,
 C     &         NFULL,NFREE,

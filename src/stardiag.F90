@@ -3162,7 +3162,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
 
          TSeeded=.false.
 
-         CALL NECI_FRSBLKH(NList,ICMax,NEval,Mat,Lab,CK,CKN,NKry,NKry1,NBlock,NRow,LScr,LIScr,A,W,V,AM,BM,T,WT,SCR,ISCR,Index,WH,Work2,V2,NCycle,B2L,.false.,.true.,TSeeded)
+         CALL NECI_FRSBLKH(NList,ICMax,NEval,Mat,Lab,CK,CKN,NKry,NKry1,NBlock,NRow,LScr,LIScr,A,W,V,AM,BM,T,WT,SCR,ISCR,Index,NCycle,B2L,.false.,.true.,TSeeded)
          
 !Deallocate memory required by diagonaliser (including original matrix)
          DEALLOCATE(Mat)
@@ -3424,7 +3424,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
 
 !.. Find the eigenvalues
 !  NLIST is the number of elements in the list, but we need to give the index of the last element, NLIST-1
-!         CALL PLOTROOTSTAR(NLIST-1,LIST(0,0),LIST(0,1),ROOTS,NROOTS) 
+!         CALL PLOTROOTSTAR(NLIST-1,LIST(0,0),LIST(0,1)) 
          CALL FINDROOTSTAR(NLIST-1,LIST(0,0),LIST(0,1),ROOTS,NROOTS)
          SI=0.D0
 !         WRITE(6,*) "ROOTS ARE: " 

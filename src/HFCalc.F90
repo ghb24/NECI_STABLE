@@ -48,10 +48,10 @@ MODULE HFCalc
 !C.. We generate the HF energies (this has no mixing or randomisation, so should jsut
 !C.. re-order the orbitals and give us some energy)
 !C.. HF basis is NOT using the LMS value set in the input
-              CALL CALCHFBASIS(NBASIS,ISPINSKIP,NBASISMAX,G1,ARR,BRR,ECORE,UMAT,HFE,HFBASIS,1,NEL,LMSBASIS,1.D0,HFEDELTA,HFCDELTA,.TRUE.,0,TREADHF,0.D0,FDET,ILOGGING)
-               CALL ORDERBASISHF(ARR,BRR,HFE,HFBASIS,G1,NBASIS,FDET,NEL)
+              CALL CALCHFBASIS(NBASIS,NBASISMAX,G1,BRR,ECORE,UMAT,HFE,HFBASIS,1,NEL,LMSBASIS,1.D0,HFEDELTA,HFCDELTA,.TRUE.,0,TREADHF,0.D0,FDET,ILOGGING)
+               CALL ORDERBASISHF(ARR,BRR,HFE,HFBASIS,NBASIS,FDET,NEL)
             ELSEIF(THFCALC) THEN
-              CALL CALCHFBASIS(NBASIS,ISPINSKIP,NBASISMAX,G1,ARR,BRR,ECORE,UMAT,HFE,HFBASIS,NHFIT,NEL,LMS,HFMIX,HFEDELTA,HFCDELTA,TRHF,IHFMETHOD,TREADHF,HFRAND,FDET,ILOGGING)
+              CALL CALCHFBASIS(NBASIS,NBASISMAX,G1,BRR,ECORE,UMAT,HFE,HFBASIS,NHFIT,NEL,LMS,HFMIX,HFEDELTA,HFCDELTA,TRHF,IHFMETHOD,TREADHF,HFRAND,FDET,ILOGGING)
                CALL SETUPHFBASIS(NBASISMAX,G1,NBASIS,HFE,ARR,BRR)
             ELSEIF(THFBASIS) THEN
                CALL READHFBASIS(HFBASIS,HFE,G1,NBASIS)
@@ -78,7 +78,7 @@ MODULE HFCalc
                CALL SetupTMAT2(nBasis,2,TMATINT)
                NORBUSED=NBASIS-NTFROZEN
                IF(TREADTUMAT) THEN
-                  CALL READHFTMAT(NBASIS,HFBASIS)
+                  CALL READHFTMAT(NBASIS)
                ELSE
                   CALL CALCHFTMAT(NBASIS,HFBASIS,NORBUSED)
                ENDIF
@@ -86,7 +86,7 @@ MODULE HFCalc
                 TMAT2D => TMAT2D2
                 NULLIFY(TMAT2D2)
 !C.. Allocate the new matrix
-               CALL GetUMatSize(nBasis,nEl,1,UMATINT)
+               CALL GetUMatSize(nBasis,nEl,UMATINT)
                call shared_allocate ("umat2", umat2, (/UMatInt/))
                !Allocate(UMat2(UMatInt), stat=ierr)
                LogAlloc(ierr,'UMAT2', UMatInt, HElement_t_SizeB, tagUMat2)
@@ -94,9 +94,9 @@ MODULE HFCalc
 !C.. We need to pass the TMAT to CALCHFUMAT as TMAT is no longer diagona
 !C.. This also modified G1, ARR, BRR
                IF(TREADTUMAT) THEN
-                 CALL READHFUMAT(UMAT,UMAT2,NBASIS,NBASISMAX,G1,HFBASIS,ISPINSKIP,HFE,ARR,BRR)
+                 CALL READHFUMAT(UMAT2,NBASIS)
                ELSE
-                 CALL CALCHFUMAT(UMAT,UMAT2,NBASIS,NBASISMAX,G1,HFBASIS,ISPINSKIP,HFE,ARR,BRR,NORBUSED)
+                 CALL CALCHFUMAT(UMAT,UMAT2,NBASIS,HFBASIS,ISPINSKIP,NORBUSED)
                ENDIF
 !C.. Now we can remove the old UMATRIX, and set the pointer UMAT to point
 !C.. to UMAT2

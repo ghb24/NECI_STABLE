@@ -374,7 +374,7 @@ C.. Actually generate a det
      &      SYMPRODIND(2,ISPN,IFROM),'ExcitWeigh')
          CALL EnumExcitFromWeights(EXCITTYPES(1,IEXCIT),ews,OrbPairs,
      &      SymProdInd,
-     &      RCOUNT,ICOUNT,G1,NBASISMAX,UMAT,ARR,NBASIS)
+     &      RCOUNT,ICOUNT,ARR,NBASIS)
 !  We choose a symprod of this symmetry to excite FROM with probs in ews
          pGen=pGen/rCount  ! The norm factor for the FROMs
          rCount=rCount*RAN2(ISEED)

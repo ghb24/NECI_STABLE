@@ -1274,7 +1274,7 @@ contains
              IC=0
              HDiagTemp = get_helement(fDet, fDet, 0)
              WRITE(6,*) '<D0|H|D0>=',HDiagTemp
-             WRITE(6,*) '<D0|T|D0>=',CALCT(FDET,NEL,G1,NBASIS)
+             WRITE(6,*) '<D0|T|D0>=',CALCT(FDET,NEL)
              IF(TUEG) THEN
 !  The actual KE rather than the one-electron part of the Hamiltonian
                 WRITE(6,*) 'Kinetic=',CALCT2(FDET,NEL,G1,ALAT,NBASIS,CST)
@@ -1978,8 +1978,7 @@ contains
                IF(TLOG) CALL FLUSH(iunit)
                WRITE(6,*) "Investigating det ",DETINV
                CALL FLUSH(6)
-               CALL WIRD_SUBSET(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY, &
-     &            RHOEPS,ILOGGING,TSYM,ECORE)
+               CALL WIRD_SUBSET(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,ECORE)
             ENDIF
            ELSE
 ! Correct for overcounting

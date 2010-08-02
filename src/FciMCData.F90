@@ -253,8 +253,6 @@ contains
     elemental subroutine excitgenerator_assign (lhs, rhs)
         type(excitGenerator), intent(inout) :: lhs
         type(excitGenerator), intent(in) :: rhs
-        character(*), parameter :: this_routine = 'excitgenerator_assign'
-        integer :: ierr
 
         if (allocated(lhs%excitData)) deallocate(lhs%excitData)
 

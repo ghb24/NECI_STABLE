@@ -10,8 +10,7 @@ C.. NWHTAY contains the number of samples to take for each level
 C.. This is an approach based on Markov Chains
       SUBROUTINE  MCPATHSR5(NI,BETA,I_P,I_HMAX,I_VMAX,NEL,NBASISMAX,G1,
      &               NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,RHOEPS,
-     &               LSTE,ICE,RIJLIST,NWHTAY,ILOGGING,ECORE,ILMAX,
-     &               WLRI,WLSI)
+     &               NWHTAY,ILOGGING,ECORE, WLRI,WLSI)
          use global_utilities
          use util_mod, only: isnan
          use util_mod, only: NECI_ICOPY
@@ -22,19 +21,14 @@ C.. This is an approach based on Markov Chains
          CHARACTER*20 STR
          REAL*8 TOTAL
          REAL*8 RHOII(0:I_VMAX),RHOIJ(0:I_VMAX,0:I_VMAX)
-         REAL*8 FLNSUM,FLNRII
          REAL*8 ALAT(3),RHOEPS
          INTEGER  G1(*),nBasisMax(5,*)
-         INTEGER LSTE(*),ILMAX
 CNEL,0:NBASIS*NBASIS*NEL*NEL,0:I_VMAX-1)
-         INTEGER ICE(*)
-         REAL*8 RIJLIST(*)
 C0:NBASIS*NBASIS*NEL*NEL,0:I_VMAX-1)
-         INTEGER NLIST(0:I_VMAX-1),LSTP(0:I_VMAX-1),BTABLE(0:I_VMAX)
-         LOGICAL TLOG,TSYM
+         INTEGER BTABLE(0:I_VMAX)
+         LOGICAL TLOG
          INTEGER ICOUNT,ISEED,I_VMOVE
          INTEGER IADJ(0:I_VMAX-1,0:I_VMAX-1),ADJ
-         REAL*8 FNCR
          REAL*8 OVALUE,WEIGHT,NVALUE
          LOGICAL LCANMOVE
          EXTERNAL FMCPR4WFUNC,FMCPR4VFUNC,FMCPR4UFUNC
@@ -81,9 +75,9 @@ C.. I_V is the number of vertices in the path
             FSQ(I_V)=0.D0
             ISEED=7
 C.. I_VMOVE=0 indicates we need to generate a valid path.
-            CALL GENVALIDPATH(NI,BETA,I_P,IPATH,I_V,NEL,
+            CALL GENVALIDPATH(BETA,I_P,IPATH,I_V,NEL,
      &         NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,
-     &         RHOEPS,RHOII,RHOIJ,NWHTAY,I_HMAX,ILOGGING,TSYM,
+     &         RHOEPS,RHOII,RHOIJ,NWHTAY,I_HMAX,ILOGGING,
      &         ECORE,ISEED,I_VMOVE,NVALUE,IADJ,ADJ,LCANMOVE,
      &         FMCPR4WFUNC,FMCPR4VFUNC,WEIGHT)
             IF(WEIGHT.GT.0.D0) THEN
@@ -92,7 +86,7 @@ C.. I_VMOVE=0 indicates we need to generate a valid path.
                NVALUE=
      &            FMCPR5(NI,BETA,I_P,IPATH,I_V,NEL,NBASISMAX,
      &              G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,
-     &              RHOEPS,RHOII,RHOIJ,NWHTAY,I_HMAX,ILOGGING,TSYM,
+     &              RHOEPS,RHOII,RHOIJ,NWHTAY,I_HMAX,ILOGGING,
      &             ECORE,ISEED,I_VMOVE,OVALUE,WEIGHT,IADJ,ADJ,LCANMOVE,
      &               FMCPR4WFUNC,FMCPR4VFUNC)
                F(I_V)=F(I_V)+NVALUE
@@ -101,9 +95,9 @@ C.. I_VMOVE=0 indicates we need to generate a valid path.
             F(I_V)=F(I_V)/NWHTAY
             FSQ(I_V)=FSQ(I_V)/NWHTAY
             ISEED=7
-            CALL GENVALIDPATH(NI,BETA,I_P,IPATH,I_V,NEL,
+            CALL GENVALIDPATH(BETA,I_P,IPATH,I_V,NEL,
      &         NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,
-     &         RHOEPS,RHOII,RHOIJ,NWHTAY,I_HMAX,ILOGGING,TSYM,
+     &         RHOEPS,RHOII,RHOIJ,NWHTAY,I_HMAX,ILOGGING,
      &         ECORE,ISEED,I_VMOVE,NVALUE,IADJ,ADJ,LCANMOVE,
      &         FMCPR4UFUNC,FMCPR4WFUNC,WEIGHT)
             RNORM=0.D0
@@ -112,7 +106,7 @@ C.. I_VMOVE=0 indicates we need to generate a valid path.
                NVALUE=
      &            FMCPR5(NI,BETA,I_P,IPATH,I_V,NEL,NBASISMAX,
      &              G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,
-     &              RHOEPS,RHOII,RHOIJ,NWHTAY,I_HMAX,ILOGGING,TSYM,
+     &              RHOEPS,RHOII,RHOIJ,NWHTAY,I_HMAX,ILOGGING,
      &             ECORE,ISEED,I_VMOVE,OVALUE,WEIGHT,IADJ,ADJ,LCANMOVE,
      &               FMCPR4UFUNC,FMCPR4WFUNC)
                RNORM=RNORM+NVALUE
@@ -192,7 +186,7 @@ C.. This function assumes that there are enough available excitations to
 C.. form a loop of length I_V.  If not it will probably hang.
       REAL*8 FUNCTION FMCPR5(NI,BETA,I_P,IPATH,I_V,NEL,
      &   NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,
-     &   RHOEPS,RHOII,RHOIJ,NWHTAY,I_HMAX,ILOGGING,TSYM,
+     &   RHOEPS,RHOII,RHOIJ,NWHTAY,I_HMAX,ILOGGING,
      &   ECORE,ISEED,I_VMOVE,VALUE,WEIGHT,IADJ,ADJ,LCANMOVE,
      &   WFUNC,VFUNC)
          use util_mod, only: NECI_ICOPY
@@ -200,17 +194,15 @@ C.. form a loop of length I_V.  If not it will probably hang.
          INTEGER NEL,NI(NEL),I_P,IPATH(NEL,0:I_V),I_V
          INTEGER nBasisMax(5,*),G1,NBASIS,BRR(NBASIS),NMAX
          INTEGER NTAY,NWHTAY,I_HMAX,ILOGGING,ISEED,NMSH
-         LOGICAL TSYM
          REAL*8 BETA,FCK(*),ALAT(*),UMAT(*),ECORE
          REAL*8 RHOEPS,RHOII(0:I_V),RHOIJ(0:I_V,0:I_V)
          REAL*8 NRHOII(0:I_V),NRHOIJ(0:I_V,0:I_V)
          INTEGER I_NVMOVE,INPATH(NEL,0:I_V)
-         INTEGER I,J,K,INODE(NEL),I_VMOVE
+         INTEGER INODE(NEL),I_VMOVE
          INTEGER IADJ(0:I_V-1,0:I_V-1),ADJ
          INTEGER NIADJ(0:I_V-1,0:I_V-1),NADJ
-         INTEGER ICE,IPATH2(0:I_V-1)
-         REAL*8 RH,CALCPATHS,VALUE,NVALUE,RAT
-         INTEGER ICOUNT,IMCPR4N,IGETEXCITLEVEL,ICMPDETS
+         REAL*8 VALUE,RAT
+         INTEGER ICOUNT
          LOGICAL LCANMOVE
          LOGICAL LACC
          LOGICAL TLOG,TLOG2
@@ -306,9 +298,7 @@ C.. copy
          INTEGER I_V,I_VMOVE,IADJ(0:I_V-1,0:I_V-1),ISEED,ADJ
          LOGICAL LCANMOVE
          INTEGER I,J,K,L
-         INTEGER IPTEMP(0:I_V)
          REAL*8 ADJ2(I_V-1,I_V-1),ADJ3(I_V-1,I_V-1)
-         INTEGER IMCPR4NC
          REAL*8 RAN2
          I_VMOVE=INT(RAN2(ISEED)*(I_V-1))+1
          ADJ=0
@@ -384,7 +374,7 @@ C.. calculates B=A**N where B and A are LxL matrices
          IMPLICIT NONE
          INTEGER IPATH(NEL,0:I_V),NEL,I_VMOVE,NBASIS,NTAY,ISEED
          INTEGER IADJ(0:I_V-1,0:I_V-1),I_V,INODE(NEL)
-         INTEGER IEXCITS(0:I_V-1),I,J,K,IEX,IEXNODE,E
+         INTEGER IEXCITS(0:I_V-1),I,J,IEX,IEXNODE,E
          LOGICAL BR,LISINPATH
          REAL*8 RAN2
 C.. We first calculate the number of allowed excitations for each vertex
@@ -473,6 +463,10 @@ C.. Now generate all the RHOIJ elements for this new node
             ENDDO
             IF(.NOT.L) FMCPR4WFUNC=0.D0
          ENDDO
+
+         ! Avoid warnings
+         ipath=ipath; rhoii(0)=rhoii(0); i_p=i_p; nwhtay=nwhtay
+         ilogging=ilogging; i_vmove=i_vmove; i_hmax=i_hmax
       END
       
       REAL*8 FUNCTION FMCPR4VFUNC(IPATH,RHOII,RHOIJ,I_V,I_HMAX,
@@ -483,7 +477,9 @@ C.. Now generate all the RHOIJ elements for this new node
          REAL*8 CALCPATHS
          FMCPR4VFUNC=CALCPATHS(IPATH,RHOII,RHOIJ,I_V,I_HMAX,
      &         I_P,NWHTAY,NEL,I_V,ILOGGING)
-         RETURN
+
+         ! Avoid warnings
+         i_vmove=i_vmove
       END
       
       REAL*8 FUNCTION FMCPR4UFUNC(IPATH,RHOII,RHOIJ,I_V,I_HMAX,
@@ -492,7 +488,11 @@ C.. Now generate all the RHOIJ elements for this new node
          INTEGER NWHTAY
          REAL*8 RHOII(0:I_V),RHOIJ(0:I_V,0:I_V)
          FMCPR4UFUNC=1.D0
-         RETURN
+
+         ! Avoid warnings
+         ipath=ipath; rhoii(0)=rhoii(0); i_v=i_v; i_hmax=i_hmax
+         i_p=i_p; nwhtay=nwhtay;nel=nel; ilogging=ilogging
+         i_vmove=i_vmove; rhoij=rhoij
       END
       RECURSIVE INTEGER FUNCTION IMCPR4NC(IADJ,I_V,IPATH,IND)
      &    RESULT (IMCPR4NCRES)
@@ -556,7 +556,7 @@ C.. add that node to the path, and recurse
       LOGICAL FUNCTION LISINPATH(NI,IPATH,NEL,I_V,I_NV)
          IMPLICIT NONE
          INTEGER NI(NEL),IPATH(NEL,0:I_V-1),NEL,I_V
-         INTEGER I,J,I_NV
+         INTEGER I,I_NV
          INTEGER ICMPDETS
          LISINPATH=.FALSE.
          DO I=0,I_V-1
@@ -569,7 +569,7 @@ C.. add that node to the path, and recurse
       INTEGER FUNCTION IISINPATH(NI,IPATH,NEL,I_V,I_NV)
          IMPLICIT NONE
          INTEGER NI(NEL),IPATH(NEL,0:I_V-1),NEL,I_V
-         INTEGER I,J,I_NV
+         INTEGER I,I_NV
          INTEGER ICMPDETS
          IISINPATH=-1
          DO I=0,I_V-1
@@ -578,23 +578,22 @@ C.. add that node to the path, and recurse
          ENDDO
          RETURN
       END
-      SUBROUTINE GENVALIDPATH(NI,BETA,I_P,IPATH,I_V,NEL,
+      SUBROUTINE GENVALIDPATH(BETA,I_P,IPATH,I_V,NEL,
      &         NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,
-     &         RHOEPS,RHOII,RHOIJ,NWHTAY,I_HMAX,ILOGGING,TSYM,
+     &         RHOEPS,RHOII,RHOIJ,NWHTAY,I_HMAX,ILOGGING,
      &         ECORE,ISEED,I_VMOVE,OVALUE,IADJ,ADJ,LCANMOVE,
      &         WFUNC,VFUNC,WEIGHT)
          use util_mod, only: NECI_ICOPY
          IMPLICIT NONE
-         INTEGER NEL,NI(NEL),I_P,IPATH(NEL,0:I_V),I_V
+         INTEGER NEL,I_P,IPATH(NEL,0:I_V),I_V
          INTEGER nBasisMax(5,*),G1,NBASIS,BRR(NBASIS),NMAX
          INTEGER NTAY,NWHTAY,I_HMAX,ILOGGING,ISEED,NMSH
-         LOGICAL TSYM
          REAL*8 BETA,FCK(*),ALAT(*),UMAT(*),ECORE
          REAL*8 RHOEPS,RHOII(0:I_V),RHOIJ(0:I_V,0:I_V)
-         INTEGER I,J,K,INODE(NEL),I_VMOVE,ADJ
-         INTEGER IADJ(0:I_V-1,0:I_V-1),ICE,IPATH2(0:I_V-1)
-         REAL*8 RH,CALCPATHS,OVALUE,WEIGHT
-         INTEGER ICOUNT,IMCPR4N,IGETEXCITLEVEL,ICMPDETS
+         INTEGER I,K,INODE(NEL),I_VMOVE,ADJ
+         INTEGER IADJ(0:I_V-1,0:I_V-1)
+         REAL*8 RH,OVALUE,WEIGHT
+         INTEGER ICOUNT
          LOGICAL BR
          LOGICAL LCANMOVE
          REAL*8 VFUNC,WFUNC

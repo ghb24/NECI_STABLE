@@ -11,8 +11,7 @@ C.. This is a simple importance sampling method
 C.. NMAX has ARR hidden in it.
       SUBROUTINE  MCPATHSR4(NI,BETA,I_P,I_HMAX,I_VMAX,NEL,NBASISMAX,G1,
      &              NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,RHOEPS,
-     &               LSTE,ICE,RIJLIST,NWHTAY,ILOGGING,ECORE,ILMAX,
-     &               WLRI,WLSI,DBETA,DLWDB,I_VMIN)
+     &               NWHTAY,ILOGGING,ECORE,WLRI,WLSI,DBETA,DLWDB,I_VMIN)
          use constants, only: dp
          Use Determinants, only: get_helement, write_det
          USE MCStat
@@ -26,13 +25,12 @@ C.. NMAX has ARR hidden in it.
          TYPE(MCStats) MCSt
          INTEGER IPATH(NEL,0:I_VMAX)
          INTEGER NI(NEL),I_P,I_HMAX,NMSH,NMAX,NTAY,NWHTAY
-         INTEGER ILOGGING,I,J,K,I_VMIN
+         INTEGER ILOGGING,I,I_VMIN
          type(timer), save :: proc_timer
          type(timer), save :: proc_timer2
-         CHARACTER*20 STR,STR2
+         CHARACTER*20 STR
          real(dp) TOTAL,RHOII(0:I_VMAX)
          HElement_t RHOIJ(0:I_VMAX,0:I_VMAX),RH
-         real(dp) FLNSUM,FLNRII
          REAL*8 ALAT(3),RHOEPS,BETA
          HElement_t UMAT(*)
          COMPLEX*16 FCK(*)
@@ -41,17 +39,14 @@ C.. NMAX has ARR hidden in it.
          real(dp) WLRI,WLSI
          TYPE(BasisFN) G1(*),KSYM
          INTEGER nBasisMax(5,*),BRR(*)
-         INTEGER LSTE(*),ILMAX,I_VMAX,NEL,NBASIS
+         INTEGER I_VMAX,NEL,NBASIS
 CNEL,0:NBASIS*NBASIS*NEL*NEL,0:I_VMAX-1)
-         INTEGER ICE(*)
-         HElement_t RIJLIST(*)
 C0:NBASIS*NBASIS*NEL*NEL,0:I_VMAX-1)
-         INTEGER NLIST(0:I_VMAX-1),LSTP(0:I_VMAX-1),BTABLE(0:I_VMAX)
-         LOGICAL TLOG,TSYM
+         INTEGER BTABLE(0:I_VMAX)
+         LOGICAL TLOG
          INTEGER ICOUNT,ISEED,I_V,L,LT
-         REAL*8 FNCR,GETNLOOPS,DBETA
-         INTEGER IEXCITS,ITIME
-         real(dp) FMCPR4
+         REAL*8 DBETA
+         INTEGER IEXCITS
          INTEGER EXCITGEN(0:I_VMAX) 
          real(dp) FMCPR4B,FMCPR4C,FMCPR4D2
          real(dp) FMCPR4D3
@@ -76,7 +71,6 @@ C0:NBASIS*NBASIS*NEL*NEL,0:I_VMAX-1)
          real(dp) WMIN,SUMDLWDB
          REAL*8 RAN2
 C.. do some blocking analysis
-         INTEGER NN,BMAX,OBMAX
          INTEGER STORE(6)
          real(dp) DLWDBCORE,WCORE
          INTEGER IOV,IGV,IACC
@@ -254,12 +248,12 @@ C                  DLWDB2=0.D0
                   IF(I_HMAX.EQ.-3) THEN
                      FF=FMCPR4B(NI,BETA,I_P,IPATH,I_V,NEL,NBASISMAX,
      &                  G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,
-     &                  RHOEPS,RHOII,RHOIJ,NWHTAY,I_HMAX,ILOGGING,TSYM,
-     &                  ECORE,ISEED,KSYM,DBETA,DLWDB2,HIJS)
+     &                  RHOEPS,RHOII,RHOIJ,NWHTAY,I_HMAX,ILOGGING,
+     &                  ECORE,ISEED,DBETA,DLWDB2,HIJS)
                   ELSEIF(I_HMAX.EQ.-4) THEN
                      FF=FMCPR4C(NI,BETA,I_P,IPATH,I_V,NEL,NBASISMAX,
      &                  G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,
-     &                  RHOEPS,RHOII,RHOIJ,NWHTAY,I_HMAX,ILOGGING,TSYM,
+     &                  RHOEPS,RHOII,RHOIJ,NWHTAY,I_HMAX,ILOGGING,
      &                  ECORE,ISEED,KSYM,DBETA,DLWDB2,HIJS)
                   ElseIf(tMCDirectSum) Then
                     oWeight=0.D0 !Ensure generated graph is "accepted"
@@ -282,8 +276,8 @@ C                  DLWDB2=0.D0
                             
                     FF=FMCPR4D2(NI,BETA,I_P,IPATH,I_VCUR,NEL,NBASISMAX,
      &                  G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,
-     &                   RHOEPS,RHOII,RHOIJ,NWHTAY,I_HMAX,ILOGGING,TSYM,
-     &                   ECORE,ISEED,KSYM,DBETA,DLWDB2,HIJS,NMEM,
+     &                   RHOEPS,RHOII,RHOIJ,I_HMAX,ILOGGING,
+     &                   ECORE,ISEED,DBETA,DLWDB2,HIJS,NMEM,
      &                   ODLWDB,OPROB,I_OVCUR,IOCLS,ITREE,OWEIGHT,PFAC,
      &                   IACC,0.D0,I_VMAX,EXCITGEN)
                     
@@ -312,7 +306,7 @@ C.. see if we want to increase the number of vertices
      &                        I_P,HIJS,VWEIGHTS,VEXCITS,G1,NBASIS,
      &                        NBASISMAX,OWEIGHT,ILOGGING,DBETA,
      &                        ODLWDB,DLWDB2,FF,IOCLS,
-     &                        ITREE,IACC,ISEED,PFAC,WMIN)
+     &                        ITREE,IACC,ISEED,WMIN)
                            ICHANGED=1
 !                   ! 
                         ELSE
@@ -362,8 +356,8 @@ C.. Markov chain with random generation.
                          FF=FMCPR4D2(NI,BETA,I_P,IPATH,I_VCUR,NEL,
      &                     NBASISMAX,G1,
      &                     NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,
-     &                   RHOEPS,RHOII,RHOIJ,NWHTAY,I_HMAX,ILOGGING,TSYM,
-     &                     ECORE,ISEED,KSYM,DBETA,DLWDB2,HIJS,NMEM,
+     &                   RHOEPS,RHOII,RHOIJ,I_HMAX,ILOGGING,
+     &                     ECORE,ISEED,DBETA,DLWDB2,HIJS,NMEM,
      &                    ODLWDB,OPROB,I_OVCUR,IOCLS,ITREE,OWEIGHT,PFAC,
      &                     IACC,0.D0,I_VMAX,EXCITGEN)
 !                   !   .
@@ -383,8 +377,8 @@ C.. Markov chain with random generation.
                               FF=FMCPR4D2(NI,BETA,I_P,IPATH,I_VCUR,NEL,
      &                        NBASISMAX,G1,
      &                     NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,
-     &                   RHOEPS,RHOII,RHOIJ,NWHTAY,I_HMAX,ILOGGING,TSYM,
-     &                     ECORE,ISEED,KSYM,DBETA,DLWDBCORE,HIJS,NMEM,
+     &                   RHOEPS,RHOII,RHOIJ,I_HMAX,ILOGGING,
+     &                     ECORE,ISEED,DBETA,DLWDBCORE,HIJS,NMEM,
      &                    ODLWDB,OPROB,I_OVCUR,IOCLS,ITREE,OWEIGHT,PFAC,
      &                        IACC,WCORE,I_VMAX,EXCITGEN)
                            ELSE
@@ -401,8 +395,8 @@ C.. Markov chain with random generation.
                               FF=FMCPR4D2(NI,BETA,I_P,IPATH,I_VCUR,NEL,
      &                           NBASISMAX,G1,
      &                     NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,
-     &                   RHOEPS,RHOII,RHOIJ,NWHTAY,I_HMAX,ILOGGING,TSYM,
-     &                     ECORE,ISEED,KSYM,DBETA,DLWDB2,HIJS,NMEM,
+     &                   RHOEPS,RHOII,RHOIJ,I_HMAX,ILOGGING,
+     &                     ECORE,ISEED,DBETA,DLWDB2,HIJS,NMEM,
      &                    ODLWDB,OPROB,I_OVCUR,IOCLS,ITREE,OWEIGHT,PFAC,
      &                           IACC,0.D0,I_VMAX,EXCITGEN)
                            ENDIF
@@ -511,8 +505,8 @@ C                           WRITE(6,*) IOV,I_VCUR,I_OVCUR
                               FF=FMCPR4D2(NI,BETA,I_P,IPATH,I_VCUR,NEL,
      &                         NBASISMAX,G1,NBASIS,BRR,
      &                         NMSH,FCK,NMAX,ALAT,UMAT,NTAY,RHOEPS,
-     &                         RHOII,RHOIJ,NWHTAY,I_HMAX,ILOGGING,TSYM,
-     &                         ECORE,ISEED,KSYM,DBETA,DLWDB2,HIJS,NMEM,
+     &                         RHOII,RHOIJ,I_HMAX,ILOGGING,
+     &                         ECORE,ISEED,DBETA,DLWDB2,HIJS,NMEM,
      &                         ODLWDB,OPROB,I_OVCUR,IOCLS,ITREE,OWEIGHT,
      &                         PFAC,IACC,0.D0,I_VMAX,EXCITGEN)
 !                              WRITE(39,*) IOV,IGV,1,IACC
@@ -526,8 +520,8 @@ C.. Markov chain with special generation - does not work
                         FF=FMCPR4D3(NI,BETA,I_P,IPATH,I_VCUR,NEL,
      &                  NBASISMAX,
      &                  G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,
-     &                  RHOEPS,RHOII,RHOIJ,NWHTAY,I_HMAX,ILOGGING,TSYM,
-     &                  ECORE,ISEED,KSYM,DBETA,DLWDB2,HIJS,NMEM,
+     &                  RHOEPS,RHOII,RHOIJ,I_HMAX,ILOGGING,
+     &                  ECORE,ISEED,DBETA,DLWDB2,HIJS,NMEM,
      &                  ODLWDB,OPROB,I_OVCUR,IOCLS,ITREE,OWEIGHT,
      &                  IACC)
 !                   !
@@ -536,10 +530,10 @@ C.. Real Markov Chain MC with memory - i.e. move one node from the last
 C.. graph to generate the new one.
                         CALL MCPR4D4MOVE(NI,BETA,I_P,I_VCUR,NEL,
      &                     NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,
-     &                     ALAT,UMAT,NTAY,RHOEPS,NWHTAY,I_HMAX,ILOGGING,
-     &                     ECORE,ISEED,KSYM,DBETA,DLWDB2,IPATH,RHOIJ,
+     &                     ALAT,UMAT,NTAY,RHOEPS,I_HMAX,ILOGGING,
+     &                     ECORE,ISEED,DBETA,DLWDB2,IPATH,RHOIJ,
      &                     HIJS,FF,ODLWDB,IOCLS,ITREE,OWEIGHT,IACC,
-     &                     VWEIGHTS,VEXCITS,PFAC,TST,WMIN)
+     &                     VWEIGHTS,VEXCITS,PFAC,WMIN)
 C.. FF for ETILDE, ODLWDB for OETILDE, 
 !                   !
                     ENDIF
@@ -594,8 +588,7 @@ C ,F(I_V),FSQ(I_V)
             IF(TLOG.AND.(I_HMAX.EQ.-7.OR.I_HMAX.LE.-12)) THEN
               IF(I_VM1.EQ.I_VM2) THEN
 !.. just give the additional components for this vertex level
-                CALL WriteLongStats2(MCSt,11,WCORE,DLWDBCORE,
-     &                                            dble(NTIME-OTIME))
+                CALL WriteLongStats2(MCSt,11,WCORE, dble(NTIME-OTIME))
               ELSE
 !.. rejig the sums so the result is Sum w Delta / Sum w
                 CALL WriteLongStats(MCSt,11,WCORE,DLWDBCORE,
@@ -712,14 +705,13 @@ C.. This function assumes that there are enough available excitations to
 C.. form a loop of length I_V.  If not it will probably hang.
       REAL*8 FUNCTION FMCPR4(NI,BETA,I_P,IPATH,I_V,NEL,
      &   NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,
-     &   RHOEPS,RHOII,RHOIJ,NWHTAY,I_HMAX,ILOGGING,TSYM,
+     &   RHOEPS,RHOII,RHOIJ,NWHTAY,I_HMAX,ILOGGING,
      &   ECORE,ISEED)
          use util_mod, only: NECI_ICOPY
          IMPLICIT NONE
          INTEGER NEL,NI(NEL),I_P,IPATH(NEL,0:I_V),I_V
          INTEGER nBasisMax(5,*),G1,NBASIS,BRR(NBASIS),NMAX
          INTEGER NTAY,NWHTAY,I_HMAX,ILOGGING,ISEED,NMSH
-         LOGICAL TSYM
          REAL*8 BETA,FCK(*),ALAT(*),UMAT(*),ECORE
          REAL*8 RHOEPS,RHOII(0:I_V),RHOIJ(0:I_V,0:I_V)
          INTEGER I,J,K,INODE(NEL)
@@ -829,7 +821,6 @@ C.. add that node to the path, and recurse
          INTEGER NEL,NI(NEL),NBASIS,IEXLEVEL,ISEED,NJ(NEL)
          INTEGER I,J,K,IEX,IEXL2
          LOGICAL BR
-         INTEGER IGETEXCITLEVEL
          REAL*8 RAN2
          IF(IEXLEVEL.GT.2)
      &    STOP "Cannot handle more than double excitations."
@@ -881,29 +872,27 @@ C.. All singles and doubles are allowed (even if RHO_IJ=0) so this is
 C.. not very efficient.
       REAL*8 FUNCTION FMCPR4B(NI,BETA,I_P,IPATH,I_V,NEL,
      &   NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,
-     &   RHOEPS,RHOII,RHOIJ,NWHTAY,I_HMAX,ILOGGING,TSYM,
-     &   ECORE,ISEED,KSYM,DBETA,DLWDB,HIJS)
+     &   RHOEPS,RHOII,RHOIJ,NWHTAY,I_HMAX,ILOGGING,
+     &   ECORE,ISEED,DBETA,DLWDB,HIJS)
          use SystemData , only : BasisFN
          use Determinants, only: get_helement
          use constants, only: dp
          use util_mod, only: NECI_ICOPY
          IMPLICIT NONE
-         TYPE(BasisFN) :: KSYM
          INTEGER NEL,NI(NEL),I_P,IPATH(NEL,0:I_V),I_V
          INTEGER nBasisMax(5,*),G1,NBASIS,BRR(NBASIS),NMAX
          INTEGER NTAY,NWHTAY,I_HMAX,ILOGGING,ISEED,NMSH
-         LOGICAL TSYM
          REAL*8 BETA,FCK(*),ALAT(*),UMAT(*),ECORE
          REAL*8 RHOEPS,RHOII(0:I_V),RHOIJ(0:I_V,0:I_V)
-         INTEGER LSTE(NEL),NLIST
+         INTEGER NLIST
          INTEGER INODE(NEL),I_VNEXT,INODE2(NEL),ICOUNT
-         INTEGER I,J,K,ICE,IC
+         INTEGER I,ICE,IC
          REAL*8 XIJ(0:I_V-1,0:I_V-1)         
-         REAL*8 RH,CALCPATHS_N,X,GETPATHPROB
+         REAL*8 RH,CALCPATHS_N,GETPATHPROB
          LOGICAL LISINPATH
          INTEGER IGETEXCITLEVEL
          LOGICAL TLOG,TLOG2,TLOG3
-         REAL*8 RP,DBETA,DLWDB,DLWDB2
+         REAL*8 RP,DBETA,DLWDB
          REAL*8 HIJS(0:I_V)
          LOGICAL ISUHFDET
          INTEGER ICLS
@@ -935,7 +924,7 @@ C            WRITE(57,"(A1)",advance='no') "N"
 C            CALL WRITEDET(35,INODE2,NEL,.FALSE.)
             CALL NECI_ICOPY(NEL,INODE2,1,INODE,1)
 C            CALL GENRANDOMEXCITSYM(INODE,NEL,NBASIS,G1,2,ISEED,
-C     &         NBASISMAX,KSYM,INODE2)
+C     &         NBASISMAX,INODE2)
 C.. If the new node is not in the path, add it.
             IF(.NOT.LISINPATH(INODE2,IPATH,NEL,I_VNEXT,-1)) THEN
                CALL NECI_ICOPY(NEL,INODE2,1,IPATH(1,I_VNEXT),1)
@@ -1013,8 +1002,8 @@ C.. GETPATHPROB gives us the probability of generating the path
          RH=GETPATHPROB(XIJ,I_V)
 C.. CALCPATHS gives us the contribution of the path
          ICLS=0
-         FMCPR4B=CALCPATHS_N(IPATH,RHOII,RHOIJ,I_V,I_HMAX,
-     &         I_P,RH*NWHTAY,NEL,I_V,ILOGGING,DBETA,DLWDB,HIJS,ICLS)
+         FMCPR4B=CALCPATHS_N(RHOII,RHOIJ,I_V,I_HMAX,
+     &         I_P,RH*NWHTAY,DBETA,DLWDB,HIJS,ICLS)
          IF(TLOG) WRITE(10,"(3E25.16, I7)") FMCPR4B,RH,DLWDB,ICLS
          IF(RH.GT.0.D0) THEN
 C.. Unbias the sum 
@@ -1043,7 +1032,7 @@ C.. If a RHOIJ is non-zero, then its weight XIJ will be non-zero.
 C.. XIJ is proportional to RHO_JJ**ABS(RP). 
       REAL*8 FUNCTION FMCPR4C(NI,BETA,I_P,IPATH,I_V,NEL,
      &   NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,
-     &   RHOEPS,RHOII,RHOIJ,NWHTAY,I_HMAX,ILOGGING,TSYM,
+     &   RHOEPS,RHOII,RHOIJ,NWHTAY,I_HMAX,ILOGGING,
      &   ECORE,ISEED,KSYM,DBETA,DLWDB,HIJS)
          use SystemData , only : BasisFN
          use constants, only: dp
@@ -1054,15 +1043,13 @@ C.. XIJ is proportional to RHO_JJ**ABS(RP).
          INTEGER NEL,NI(NEL),I_P,IPATH(NEL,0:I_V),I_V
          INTEGER nBasisMax(5,*),G1,NBASIS,BRR(NBASIS),NMAX
          INTEGER NTAY,NWHTAY,I_HMAX,ILOGGING,ISEED,NMSH
-         LOGICAL TSYM
          REAL*8 BETA,FCK(*),ALAT(*),UMAT(*),ECORE
          REAL*8 RHOEPS,RHOII(0:I_V),RHOIJ(0:I_V,0:I_V)
          INTEGER LSTE(NEL),NLIST
          INTEGER INODE(NEL),I_VNEXT,INODE2(NEL),ICOUNT,ICURNODE
-         INTEGER I,J,K,ICE,IC,IONODE
+         INTEGER I,ICE,IC,IONODE
          REAL*8 XIJ(0:I_V-1,0:I_V-1)         
          REAL*8 RH,CALCPATHS_N,X,GETPATHPROB
-         LOGICAL LISINPATH
          INTEGER IGETEXCITLEVEL,IISINPATH
          LOGICAL TLOG,TLOG2,TLOG3
          REAL*8 RP,PP
@@ -1103,7 +1090,7 @@ C.. XIJ(ICURNODE,ICURNDOE) is the norm const for the current node
      &         UMAT,NTAY,ECORE,X,RP,PP,RHOEPS)
             CALL NECI_ICOPY(NEL,INODE2,1,INODE,1)
 C            CALL GENRANDOMEXCITSYM(INODE,NEL,NBASIS,G1,2,ISEED,
-C     &         NBASISMAX,KSYM,INODE2)
+C     &         NBASISMAX,INODE2)
 C.. If the new node is not in the path, add it.
             IONODE=ICURNODE
             ICURNODE=IISINPATH(INODE2,IPATH,NEL,I_VNEXT,-1) 
@@ -1184,8 +1171,8 @@ C.. GETPATHPROB gives us the probability of generating the path
          RH=GETPATHPROB(XIJ,I_V)
 C.. CALCPATHS gives us the contribution of the path
          ICLS=0
-         FMCPR4C=CALCPATHS_N(IPATH,RHOII,RHOIJ,I_V,I_HMAX,
-     &         I_P,RH*NWHTAY,NEL,I_V,ILOGGING,DBETA,DLWDB,HIJS,ICLS)
+         FMCPR4C=CALCPATHS_N(RHOII,RHOIJ,I_V,I_HMAX,
+     &         I_P,RH*NWHTAY,DBETA,DLWDB,HIJS,ICLS)
          IF(TLOG) WRITE(10,"(3E25.16, I7)") FMCPR4C,RH,DLWDB,ICLS
          IF(RH.GT.0.D0) THEN
 C.. Unbias the sum 
@@ -1203,32 +1190,29 @@ Cvertex to excite from randomly however.
 C.. 
       REAL*8 FUNCTION FMCPR4D(NI,BETA,I_P,IPATH,I_V,NEL,
      &   NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,
-     &   RHOEPS,RHOII,RHOIJ,NWHTAY,I_HMAX,ILOGGING,TSYM,
-     &   ECORE,ISEED,KSYM,DBETA,DLWDB,HIJS,NMEM)
+     &   RHOEPS,RHOII,RHOIJ,NWHTAY,I_HMAX,ILOGGING,
+     &   ECORE,ISEED,DBETA,DLWDB,HIJS,NMEM)
          use SystemData , only : BasisFN
          use CalcData , only : G_VMC_PI
          use Determinants, only: get_helement
          use constants, only: dp
          use util_mod, only: NECI_ICOPY
          IMPLICIT NONE
-         TYPE(BasisFN) :: KSYM
          INTEGER NEL,NI(NEL),I_P,IPATH(NEL,0:I_V),I_V
          INTEGER nBasisMax(5,*),G1,NBASIS,BRR(NBASIS),NMAX
          INTEGER NTAY,NWHTAY,I_HMAX,ILOGGING,ISEED,NMSH
-         LOGICAL TSYM
          REAL*8 BETA,FCK(*),ALAT(*),UMAT(*),ECORE
          REAL*8 RHOEPS,RHOII(0:I_V),RHOIJ(0:I_V,0:I_V)
-         INTEGER LSTE(NEL),NLIST
+         INTEGER NLIST
          INTEGER INODE(NEL),I_VNEXT,INODE2(NEL),ICOUNT
-         INTEGER I,J,K,ICE,IC
+         INTEGER I,ICE,IC
          REAL*8 XIJ(0:I_V-1,0:I_V-1)         
-         REAL*8 RH,CALCPATHS_N,X,GETPATHPROB2
+         REAL*8 RH,CALCPATHS_N,GETPATHPROB2
          LOGICAL LISINPATH
          INTEGER IGETEXCITLEVEL
          LOGICAL TLOG,TLOG2,TLOG3
-         REAL*8 RP,DBETA,DLWDB,DLWDB2
+         REAL*8 RP,DBETA,DLWDB
          REAL*8 HIJS(0:I_V)
-         LOGICAL ISUHFDET
          REAL*8 PEXCIT(I_V),R
          INTEGER NEXNODE
          INTEGER NMEM(*)
@@ -1425,8 +1409,8 @@ C.. GETPATHPROB gives us the probability of generating the path
          RH=GETPATHPROB2(XIJ,I_V)
 C.. CALCPATHS gives us the contribution of the path
          ICLS=0
-         FMCPR4D=CALCPATHS_N(IPATH,RHOII,RHOIJ,I_V,I_HMAX,
-     &         I_P,RH*NWHTAY,NEL,I_V,ILOGGING,DBETA,DLWDB,HIJS,ICLS)
+         FMCPR4D=CALCPATHS_N(RHOII,RHOIJ,I_V,I_HMAX,
+     &         I_P,RH*NWHTAY,DBETA,DLWDB,HIJS,ICLS)
          IF(TLOG) WRITE(10,"(3E25.16, I7)") FMCPR4D,RH,DLWDB,ICLS
          IF(RH.GT.0.D0) THEN
 C.. Unbias the sum 
@@ -1624,7 +1608,7 @@ C.. Invert the matrix, and pass the multiplicative factor on.
       END
 
       SUBROUTINE GENRANDOMEXCITSYM(NI,NEL,NBASIS,G1,IEXLEVEL,ISEED,
-     &            NBASISMAX,KSYM,NJ)
+     &            NBASISMAX,NJ)
          use SystemData, only: BasisFN
          use sort_mod
          use util_mod, only: NECI_ICOPY
@@ -1632,8 +1616,6 @@ C.. Invert the matrix, and pass the multiplicative factor on.
          INTEGER NEL,NI(NEL),NBASIS,IEXLEVEL,ISEED,NJ(NEL)
          INTEGER I,J,K,IEX,IEXL2
          LOGICAL BR,BR2
-         INTEGER IGETEXCITLEVEL
-         TYPE(BasisFN) KSYM
          INTEGER G1(*),nBasisMax(5,*)
          LOGICAL LCHKSYM
          REAL*8 RAN2
@@ -1692,9 +1674,8 @@ C.. If the new basis fn's in our original det or our new one, we loop again
          use util_mod, only: NECI_ICOPY
          IMPLICIT NONE
          INTEGER NEL,NI(NEL),NBASIS,NEXCITS,ISEED,NJ(NEL)
-         INTEGER I,J,K,IEXL2,NB2,NA,NB,NEX1,NEX2
+         INTEGER NB2,NA,NB,NEX1,NEX2
          INTEGER IEX1,IEX2,IIEX1,IIEX2
-         LOGICAL BR
          INTEGER nBasisMax(5,*)
          INTEGER NEX1A,NEX1B,NEX2A,NEX2B,G1(*)
          INTEGER NEXAB
@@ -1747,10 +1728,10 @@ C            WRITE(57,"(A2)",advance='no') "AB"
             NEX2=-1
          ENDIF
          IEX1=0
-         CALL FINDELECSPIN(NI,NEL,NEX1,G1,ISEED,NBASIS,IEX1)
+         CALL FINDELECSPIN(NI,NEL,NEX1,G1,ISEED,IEX1)
          IF(NEX2.NE.0) THEN
             IEX2=IEX1
-            CALL FINDELECSPIN(NI,NEL,NEX2,G1,ISEED,NBASIS,IEX2)
+            CALL FINDELECSPIN(NI,NEL,NEX2,G1,ISEED,IEX2)
          ELSE
             IEX2=0
          ENDIF
@@ -1769,12 +1750,11 @@ C         CALL FLUSH(57)
          RETURN
       END
       
-      SUBROUTINE FINDELECSPIN(NI,NEL,NSPIN,G1,ISEED,NBASIS,IEX)
+      SUBROUTINE FINDELECSPIN(NI,NEL,NSPIN,G1,ISEED,IEX)
          use SystemData, only: BasisFN
          IMPLICIT NONE
          INTEGER NI(NEL),NEL,NSPIN,IEX,ISEED,IEL
          TYPE(BasisFN) G1(*)
-         INTEGER NBASIS
          LOGICAL BR
          REAL*8 RAN2
          BR=.TRUE.
@@ -1818,8 +1798,8 @@ C.. weight.
 !.. NMAX has ARR hidden in it
       FUNCTION FMCPR4D2(NI,BETA,I_P,IPATH,I_V,NEL,
      &   NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,
-     &   RHOEPS,RHOII,RHOIJ,NWHTAY,I_HMAX,ILOGGING,TSYM,
-     &   ECORE,ISEED,KSYM,DBETA,DLWDB,HIJS,NMEM,OETILDE,OPROB,
+     &   RHOEPS,RHOII,RHOIJ,I_HMAX,ILOGGING,
+     &   ECORE,ISEED,DBETA,DLWDB,HIJS,NMEM,OETILDE,OPROB,
      &   I_OVCUR,IOCLS,ITREE,OWEIGHT,PFAC,IACC,INWI,I_VMAX,EXCITGEN)
          use constants, only: dp
          USE SystemData , only : BasisFN
@@ -1829,39 +1809,28 @@ C.. weight.
          use CalcData , only : TMPTHEORY,TMCDIRECTSUM,PGenEpsilon
          use util_mod, only: NECI_ICOPY
          IMPLICIT NONE
-         TYPE(BasisFN) KSYM
          real(dp) FMCPR4D2
          INTEGER NEL,NI(NEL),I_P,IPATH(NEL,0:I_V),I_V,I_VMAX
          INTEGER nBasisMax(5,*),G1,NBASIS,BRR(NBASIS),NMAX
-         INTEGER NTAY,NWHTAY,I_HMAX,ILOGGING,ISEED,NMSH
-         LOGICAL TSYM
+         INTEGER NTAY,I_HMAX,ILOGGING,ISEED,NMSH
          REAL*8 BETA,ALAT(*),ECORE
          COMPLEX*16 FCK
          HElement_t UMat(*) 
          REAL*8 RHOEPS
          real(dp) RHOII(0:I_V),INWI
          HElement_t RHOIJ(0:I_V,0:I_V)
-         INTEGER LSTE(NEL),NLIST
-         INTEGER INODE(NEL),I_VNEXT,INODE2(NEL),ICOUNT
-         INTEGER I,J,K,ICE,IC
+         INTEGER I,IC
          REAL*8 XIJ(0:I_V-1,0:I_V-1)         
          real(dp) CALCPATHS_N
-         REAL*8 X,GETPATHPROB2,RHX
-         LOGICAL LISINPATH
-         INTEGER IGETEXCITLEVEL
+         REAL*8 GETPATHPROB2,RHX
          LOGICAL TLOG,TLOG2,TLOG3
-         REAL*8 RP,DBETA
-         real(dp) DLWDB,DLWDB2
+         REAL*8 DBETA
+         real(dp) DLWDB
          HElement_t HIJS(0:I_V)
-         LOGICAL ISUHFDET
-         REAL*8 PEXCIT(I_V),R
-         INTEGER NEXNODE
          INTEGER NMEM(*)
 #if defined(POINTER8)
-         INTEGER*8 PVERTMEMS(0:I_V)
          INTEGER*8 EXCITGEN(0:I_V)
 #else
-         INTEGER PVERTMEMS(0:I_V)
          INTEGER EXCITGEN(0:I_V)
 #endif
          INTEGER ICLS
@@ -1872,11 +1841,9 @@ C.. weight.
          REAL*8 OXIJ(0:I_OVCUR-1,0:I_OVCUR-1),OPROB,PR,R2
          real(dp) OETILDE,WEIGHT,OWEIGHT,ETILDE
          INTEGER I_OVCUR,IOCLS,ITREE
-         LOGICAL ISVALIDDET
          INTEGER IACC
          REAL*8 PFAC
          REAL*8 RAN2
-         INTEGER STORE(6)
          real(dp) MPEs(2:i_VMax)
          
 C.. Take a copy of the old path and rho matrix etc.
@@ -1923,8 +1890,8 @@ C.. GETPATHPROB gives us the probability of generating the path
                WEIGHT=1.D0
             ELSE
 C.. CALCPATHS gives us the contribution of the path
-               WEIGHT=CALCPATHS_N(IPATH,RHOII,RHOIJ,I_V,I_HMAX,
-     &            I_P,0.D0,NEL,I_V,ILOGGING,DBETA,ETILDE,HIJS,ICLS)
+               WEIGHT=CALCPATHS_N(RHOII,RHOIJ,I_V,I_HMAX,
+     &            I_P,0.D0,DBETA,ETILDE,HIJS,ICLS)
             ENDIF
          ELSE
 C.. we use the gestalt
@@ -2094,7 +2061,7 @@ C.. Unbias the sum
          INTEGER ICE,I,ICOUNT,IC
 
          INTEGER IGETEXCITLEVEL
-         LOGICAL ISUHFDET,LISINPATH
+         LOGICAL LISINPATH
          LOGICAL ISVALIDDET
          REAL*8 RAN2
          REAL*8 pGen,pGen2
@@ -2334,8 +2301,8 @@ C.. generation probability using this set of tentacles, which will give
 C.. a wrongly biased MC
       REAL*8 FUNCTION FMCPR4D3(NI,BETA,I_P,IPATH,I_V,NEL,
      &   NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,
-     &   RHOEPS,RHOII,RHOIJ,NWHTAY,I_HMAX,ILOGGING,TSYM,
-     &   ECORE,ISEED,KSYM,DBETA,DLWDB,HIJS,NMEM,OETILDE,OPROB,
+     &   RHOEPS,RHOII,RHOIJ,I_HMAX,ILOGGING,
+     &   ECORE,ISEED,DBETA,DLWDB,HIJS,NMEM,OETILDE,OPROB,
      &   I_OVCUR,IOCLS,ITREE,OWEIGHT,IACC)
          use SystemData , only : BasisFN
          use CalcData , only : G_VMC_PI
@@ -2343,22 +2310,20 @@ C.. a wrongly biased MC
          use constants, only: dp
          use util_mod, only: isnan, NECI_ICOPY
          IMPLICIT NONE
-         TYPE(BasisFN) :: KSYM
          INTEGER NEL,NI(NEL),I_P,IPATH(NEL,0:I_V),I_V
          INTEGER nBasisMax(5,*),G1,NBASIS,BRR(NBASIS),NMAX
-         INTEGER NTAY,NWHTAY,I_HMAX,ILOGGING,ISEED,NMSH
-         LOGICAL TSYM
+         INTEGER NTAY,I_HMAX,ILOGGING,ISEED,NMSH
          REAL*8 BETA,FCK(*),ALAT(*),UMAT(*),ECORE
          REAL*8 RHOEPS,RHOII(0:I_V),RHOIJ(0:I_V,0:I_V)
-         INTEGER LSTE(NEL),NLIST
+         INTEGER NLIST
          INTEGER INODE(NEL),I_VNEXT,INODE2(NEL),ICOUNT
-         INTEGER I,J,K,ICE,IC
+         INTEGER I,ICE,IC
          REAL*8 XIJ(0:I_V-1,0:I_V-1)         
-         REAL*8 RH,CALCPATHS_N,X,GETPATHPROB2
+         REAL*8 RH,CALCPATHS_N
          LOGICAL LISINPATH
          INTEGER IGETEXCITLEVEL
          LOGICAL TLOG,TLOG2,TLOG3
-         REAL*8 RP,DBETA,DLWDB,DLWDB2
+         REAL*8 RP,DBETA,DLWDB
          REAL*8 HIJS(0:I_V)
          LOGICAL ISUHFDET
          REAL*8 PEXCIT(I_V),R,ETILDE
@@ -2380,13 +2345,16 @@ C.. a wrongly biased MC
          LOGICAL ISVALIDDET
          INTEGER IACC
          REAL*8 NRHOII(0:I_V),NRHOIJ(0:I_V,0:I_V)
-         INTEGER NIPATH(NEL,0:I_V),IACCNODE
+         INTEGER NIPATH(NEL,0:I_V)
          REAL*8 NHIJS(0:I_V),NXIJ(0:I_V-1,0:I_V-1)
          REAL*8 CURWEIGHT,WEIGHTTOT,PGEN,CURDLWDB,CURICLS
          INTEGER IEXNUM,NTENT
          REAL*8 RAN2
          INTEGER STORE(6)
          HElement_t :: hel
+
+         curdlwdb = 0
+
 C         WRITE(6,*) "START:",LOC(NMEM)
 
 C.. number of tentacles
@@ -2547,8 +2515,8 @@ C.. we will later.  Just put a dummy value in for now
                   ENDDO
 C.. by giving CALCPATHS_N 0.D0 as the weighting, it doesn't call
 C.. classpaths, or make use of ICLS - we do this later
-                  WEIGHT=CALCPATHS_N(NIPATH,NRHOII,NRHOIJ,I_V,I_HMAX,
-     &               I_P,0.D0,NEL,I_V,ILOGGING,DBETA,ETILDE,NHIJS,ICLS)
+                  WEIGHT=CALCPATHS_N(NRHOII,NRHOIJ,I_V,I_HMAX,
+     &               I_P,0.D0,DBETA,ETILDE,NHIJS,ICLS)
                   IF(CURWEIGHT.EQ.0.D0.OR.
      &               ABS(WEIGHT/CURWEIGHT).GT.RAN2(ISEED)) THEN
 C.. Accept the new node
@@ -2723,28 +2691,27 @@ C.. and VWEIGHTS(2,I_V) holds sum(rhoii^-P) etc.
 C.. NB TMAT has sometimes been hidden in ZIA
       SUBROUTINE MCPR4D4MOVE(NI,BETA,I_P,I_V,NEL,
      &   NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,
-     &   RHOEPS,NWHTAY,I_HMAX,ILOGGING,
-     &   ECORE,ISEED,KSYM,DBETA,ETILDERET,IPATH,RHOIJ,HIJS,WEIGHTRET,
-     &   OETILDE,IOCLS,ITREE,OWEIGHT,IACC,VWEIGHTS,VEXCITS,PFAC,TST,
+     &   RHOEPS,I_HMAX,ILOGGING,
+     &   ECORE,ISEED,DBETA,ETILDERET,IPATH,RHOIJ,HIJS,WEIGHTRET,
+     &   OETILDE,IOCLS,ITREE,OWEIGHT,IACC,VWEIGHTS,VEXCITS,PFAC,
      &   WMIN)
          use SystemData , only : BasisFN
          use Determinants, only: get_helement, write_det
          use constants, only: dp
          use util_mod, only: NECI_ICOPY
          IMPLICIT NONE
-         TYPE(BasisFN) :: KSym
          INTEGER NEL,NI(NEL),I_P
          REAL*8 BETA,DBETA
          INTEGER NBASISMAX(*),G1(*),NBASIS,BRR(*),NMSH,NMAX
          REAL*8 FCK(*),ALAT(*),UMAT(*),ECORE
-         INTEGER NWHTAY,NTAY,I_HMAX,ILOGGING
+         INTEGER NTAY,I_HMAX,ILOGGING
          REAL*8 RHOEPS
          INTEGER ISEED,I_V
          INTEGER IPATH(NEL,0:I_V)
          REAL*8 RHOIJ(0:I_V,0:I_V)
          REAL*8 HIJS(0:I_V)
          REAL*8 ETILDE,WEIGHT
-         REAL*8 OETILDE,OPROB
+         REAL*8 OETILDE
          INTEGER IOCLS,ITREE,IACC
          REAL*8 VWEIGHTS(2,0:I_V)
          REAL*8 R,RH,PR
@@ -2767,12 +2734,14 @@ C.. NB TMAT has sometimes been hidden in ZIA
          REAL*8 ETILDERET,WEIGHTRET,PFAC,WMIN
          HElement_t :: hel
 
-         LOGICAL ISVALIDDET,ISUHFDET,LISINPATH,AREDETSEXCITS
-         INTEGER IGETEXCITLEVEL
+         LOGICAL ISVALIDDET,LISINPATH,AREDETSEXCITS
          REAL*8 CALCPATHS_N
 
-         INTEGER TST
          REAL*8 RAN2
+
+         wttot = 0
+         wt2 = 0
+
          IF(I_V.EQ.1) THEN
 C.. Single vertex graph always rejected
             WEIGHT=OWEIGHT
@@ -2867,7 +2836,7 @@ C.. Fill out the parts which have changed
                NRHOIJ(IVERTMOVE,I)=RH
             ELSE
                IF(AREDETSEXCITS(NIPATH(1,IVERTMOVE),
-     &                       NIPATH(1,I),NEL,NBASISMAX,ICE)) THEN
+     &                       NIPATH(1,I),NEL,ICE)) THEN
                   ICONN=ICONN+1
                   CALL CALCRHO2(NIPATH(1,IVERTMOVE),NIPATH(1,I),BETA,
      &                  I_P,NEL,
@@ -2902,8 +2871,8 @@ C.. Now we have all the information we need to work out the weight of
 C.. the new graph
          WEIGHT=0.D0
          IF(IACC.NE.0)
-     &       WEIGHT=CALCPATHS_N(NIPATH,0.D0,NRHOIJ,I_V,I_HMAX,
-     &               I_P,0.D0,NEL,I_V,ILOGGING,DBETA,ETILDE,NHIJS,ICLS)
+     &       WEIGHT=CALCPATHS_N(0.D0,NRHOIJ,I_V,I_HMAX,
+     &               I_P,0.D0,NEL,DBETA,ETILDE,NHIJS,ICLS)
 C.. we now accept or reject with the correct prob
 C.. Pacc(G'|G)=min(1,|w'(G')| Psel(k'|G') w(k)/ (|w(G)| Psel(k|G) w(k')))
          IF(ABS(WEIGHT).LT.WMIN) WEIGHT=0.D0
@@ -3009,8 +2978,8 @@ C..  (|w'(ijk)| Sum_(j' in G&j'-l) w1(j')/N(j'))/Sum_(j''in G) w1(j'')
          REAL*8 HIJS2(0:I_V+1)
          INTEGER IPATH2(NEL,0:I_V+1)
          INTEGER ISEED,IC
-         REAL*8 R,WTL,WTJ,PR,WT1,WT2
-         INTEGER IVERT,IVERTMOVE,I,J,I2,J2
+         REAL*8 R,WTJ,PR,WT1,WT2
+         INTEGER IVERT,IVERTMOVE,I,J
          REAL*8 WEIGHT,OWEIGHT,ETILDE,OETILDE
          POINTER (IP_CUREX,CUREX)
          INTEGER CUREX(*),ICE,NL(NEL),CUREXLEN
@@ -3031,6 +3000,10 @@ C..  (|w'(ijk)| Sum_(j' in G&j'-l) w1(j')/N(j'))/Sum_(j''in G) w1(j'')
          INTEGER ICOUNT
          REAL*8 RAN2
          HElement_t :: hel
+
+         wt1 = 0
+         wt2 = 0
+
 C.. First pick a vertex to excite from 
          R=RAN2(ISEED)*VWEIGHTS(1,I_V)
          IVERT=0
@@ -3077,7 +3050,7 @@ C.. fill up the new rho matrix
             RHOIJ2(I_V+1,I)=RHOIJ(0,I)
             RHOIJ2(I,I_V+1)=RHOIJ(0,I)
             IF(AREDETSEXCITS(NL,
-     &                       IPATH(1,I),NEL,NBASISMAX,ICE)) THEN
+     &                       IPATH(1,I),NEL,ICE)) THEN
 C.. we're joined.  Calculate the total number of dets connected to this det
                IP_CUREX=VEXCITS(I)
                CALL GETSYMEXCITCOUNT(IPATH(1,I),NEL,G1,NBASIS,NBASISMAX,
@@ -3135,8 +3108,8 @@ C.. Now work out the weight of the new det
          WT1=(RH/RHOIJ(0,0))**(I_P*PFAC)
          WT2=1.D0/WT1
 C.. and the weight of the new graph
-         WEIGHT=CALCPATHS_N(IPATH2,0.D0,RHOIJ2,I_V+1,I_HMAX,
-     &              I_P,0.D0,NEL,I_V+1,ILOGGING,DBETA,ETILDE,HIJS2,ICLS)
+         WEIGHT=CALCPATHS_N(0.D0,RHOIJ2,I_V+1,I_HMAX,
+     &              I_P,0.D0,DBETA,ETILDE,HIJS2,ICLS)
          IF(ABS(WEIGHT).LT.WMIN) WEIGHT=0.D0
          PR=ABS((WEIGHT*WT2/(VWEIGHTS(2,I_V)+WT2-VWEIGHTS(2,0)))
      &         /(OWEIGHT*WTJ))
@@ -3225,7 +3198,7 @@ C.  We choose the vertex to remove with prob rho_ii^-P (w2)
      &                        HIJS,VWEIGHTS,VEXCITS,G1,NBASIS,
      &                        NBASISMAX,OWEIGHT,ILOGGING,DBETA,
      &                        OETILDE,ETILDERET,WEIGHTRET,IOCLS,
-     &                        ITREE,IACC,ISEED,PFAC,WMIN)
+     &                        ITREE,IACC,ISEED,WMIN)
          use util_mod, only: NECI_ICOPY
          IMPLICIT NONE
          INTEGER I_V,NEL,IPATH(NEL,0:I_V)
@@ -3250,11 +3223,11 @@ C.  We choose the vertex to remove with prob rho_ii^-P (w2)
          INTEGER G1(*),NBASIS,NBASISMAX(*),ILOGGING
          INTEGER I_P,I_HMAX
 
-         REAL*8 ETILDERET,WEIGHTRET,DBETA,BETA
+         REAL*8 ETILDERET,WEIGHTRET,DBETA
          INTEGER ITREE,IACC,ICLS,IOCLS
-         REAL*8 RH,PFAC,WMIN
+         REAL*8 WMIN
  
-         LOGICAL AREDETSEXCITS,ISVALIDDET
+         LOGICAL AREDETSEXCITS
          REAL*8 CALCPATHS_N
          REAL*8 RAN2
 C.. Choose the vertex to remove
@@ -3279,7 +3252,7 @@ C.. are actually connected, or merely could be connected.  The latter
 C.. seems more sensible.
             IF(I.NE.IVERTMOVE.AND.
      &         AREDETSEXCITS(IPATH(1,IVERTMOVE),
-     &                       IPATH(1,I),NEL,NBASISMAX,ICE)) THEN
+     &                       IPATH(1,I),NEL,ICE)) THEN
 C.. we're joined.  Calculate the total number of dets connected to this det
                IP_CUREX=VEXCITS(I)
                CALL GETSYMEXCITCOUNT(IPATH(1,I),NEL,G1,NBASIS,NBASISMAX,
@@ -3314,8 +3287,8 @@ C.. a new matrix without the removed det, and generate its weight.
                I2=I2+1
             ENDIF
          ENDDO      
-         WEIGHT=CALCPATHS_N(IPATH2,0.D0,RHOIJ2,I_V-1,I_HMAX,
-     &              I_P,0.D0,NEL,I_V-1,ILOGGING,DBETA,ETILDE,HIJS2,ICLS)
+         WEIGHT=CALCPATHS_N(0.D0,RHOIJ2,I_V-1,I_HMAX,
+     &              I_P,0.D0,DBETA,ETILDE,HIJS2,ICLS)
          IF(ABS(WEIGHT).LT.WMIN) WEIGHT=0.D0
          PR=ABS(WEIGHT*WTJ/(OWEIGHT*WTL))
          R=RAN2(ISEED)

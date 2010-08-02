@@ -1345,7 +1345,7 @@ MODULE System
          CALL GENSYMREPS(G1,NBASIS,ARR,BRR,1.d-6)
       ELSEIF(THUB.AND..NOT.TREAL) THEN
          CALL GenHubMomIrrepsSymTable(G1,nBasis,nBasisMax)
-         CALL GENHUBSYMREPS(nBasis/2,G1,NBASIS,ARR,BRR)
+         CALL GENHUBSYMREPS(NBASIS,ARR,BRR)
          CALL WRITEBASIS(6,G1,nBasis,ARR,BRR)
       ELSE
 !C.. no symmetry, so a simple sym table

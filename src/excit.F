@@ -25,7 +25,7 @@
          IMPLICIT NONE
          INTEGER :: ExcitMat(2,2),i,j,k,EX2(2,2)!,EX(2,2)
          INTEGER :: nI(NEl),IC,iPos,TempInd!,NJ(NEL)
-         LOGICAL :: TParity,TSIGN
+         LOGICAL :: TParity
          
 !         WRITE(19,*) ExcitMat(:,:),nI
 !         IF((IC.gt.2).or.(IC.lt.0)) THEN
@@ -201,9 +201,9 @@
       END SUBROUTINE FindExcitDet
 
 
-      LOGICAL FUNCTION AREDETSEXCITS(D1,D2,NEL,NBASISMAX,ICE)
+      LOGICAL FUNCTION AREDETSEXCITS(D1,D2,NEL,ICE)
          IMPLICIT NONE
-         INTEGER ICE,NEL,D1(NEL),D2(NEL),NBASISMAX(*)
+         INTEGER ICE,NEL,D1(NEL),D2(NEL)
          LOGICAL ISUHFDET
          INTEGER IGETEXCITLEVEL_
          ICE=IGETEXCITLEVEL_(D1,D2,NEL)
@@ -413,7 +413,7 @@ C.. NSTARTFN is the basis fn to start with for this electron
          IMPLICIT NONE
          INTEGER NEL,NELEC,NORDER,NLISTPOS,NLEFT,NBASIS,NSTARTFN,NNLEFT
          INTEGER NI(NEL),NEXCIT(NEL),LIST(NEL,*),ICLIST(*)
-         INTEGER I,J,I1,I2,NMIN,NMAXEX,K,NExcitMl
+         INTEGER I,J,NMIN,NMAXEX,NExcitMl
          LOGICAL LISINOLD,LSYM,TSYM,LCHKSYM,TCOUNT,LZSYM
          TYPE(BASISFN) G1(NBASIS),ISYM,ISYM2
          INTEGER nBasisMax(5,*)

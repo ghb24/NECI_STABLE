@@ -65,7 +65,7 @@ module DetBitOps
         integer, intent(in), optional :: nBitsMax
         integer, intent(in) :: nLast
         integer(kind=n_int), intent(in) :: iLut(0:nLast)
-        integer ::tmp, i, lnBitsMax
+        integer :: i, lnBitsMax
 
         ! By default, allow all the bits to be set
         if (present(nBitsMax)) then
@@ -297,9 +297,8 @@ module DetBitOps
         integer, intent(in) :: IC
         integer, intent(out) :: op_ind(2*IC, 2), nop(2)
         integer, intent(out) :: tsign_id (2*IC,2), nsign(2)
-        character(*), parameter :: this_routine = 'get_bit_open_unique_ind'
 
-        integer :: i, j, det, det2, sing_ind(2) 
+        integer :: i, j, det, sing_ind(2) 
         integer(kind=n_int) :: ilut(0:NIfD,2), sing(0:NIfD,2)
         integer(kind=n_int) :: alpha(0:NIfD), beta(0:NIfD)
 
@@ -590,7 +589,6 @@ module DetBitOps
         integer(kind=n_int), intent(in) :: iLutnI (0:NIfTot)
         integer(kind=n_int), intent(out) :: iLutnJ (0:NIfTot)
         integer :: pos(2,2), bit(2,2), i
-        integer(kind=n_int) :: ilut(0:NIfTot)
 
         iLutnJ = iLutnI
         if (IC == 0) then

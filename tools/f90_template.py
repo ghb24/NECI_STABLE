@@ -164,7 +164,7 @@ def super_module(template, config):
 	# Construct super module
 	super_mod = m.group(1) + "\n"
 	for s in config:
-		super_mod += "\tuse " + m.group(2) + "_" + s + "\n"
+		super_mod += "    use " + m.group(2) + "_" + s + "\n"
 
 	if m_super: super_mod += m_super.group(3)
 	super_mod += "end module\n"
@@ -283,9 +283,9 @@ def interface_procs (template):
 			# For each procedure, append _%(name)s to all of the names.
 			template = (template[0:offset + proc.start()] +
 					   re_proc.sub("\\1\\5_%(name)s\\6", template[proc.start()+offset:], 1))
-			interface += ('\tinterface %s\n'
-			              '\t\tmodule procedure %s_%%(name)s\n'
-						  '\tend interface\n' % (proc.group(5), proc.group(5)))
+			interface += ('    interface %s\n'
+			              '        module procedure %s_%%(name)s\n'
+						  '    end interface\n' % (proc.group(5), proc.group(5)))
 			offset = offset + proc.end() + 10
 			proc = re_proc.search(template[offset:])
 

@@ -329,8 +329,7 @@ contains
               WLSI=TOTAL
               CALL MCPATHSR4(NI,BETA,I_P,I_CHMAX,I_V2,NEL,NBASISMAX,G1,       &
      &              NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,RHOEPS,           &
-     &               LSTE,ICE,RIJLIST,CNWHTAY,ILOGGING,ECORE,ILMAX,           &
-     &               WLRI,WLSI,DBETA,DLWDB,I_V1)
+     &               CNWHTAY,ILOGGING,ECORE, WLRI,WLSI,DBETA,DLWDB,I_V1)
                F(I_V)=WLSI
                IF(TMPTHEORY) THEN
 !C  Add the cumulative change
@@ -351,12 +350,12 @@ contains
                   IF(I_CHMAX.EQ.-3) THEN
                      FF=FMCPR4B(NI,BETA,I_P,IPATH,I_V,NEL,NBASISMAX,          &
      &                  G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,           &
-     &                 RHOEPS,RHOII,RHOIJ,CNWHTAY,I_CHMAX,ILOGGING,TSYM,      &
-     &                  ECORE,ISEED,KSYM,DBETA,DLWDB2,HIJS)
+     &                 RHOEPS,RHOII,RHOIJ,CNWHTAY,I_CHMAX,ILOGGING,      &
+     &                  ECORE,ISEED,DBETA,DLWDB2,HIJS)
                   ELSEIF(I_CHMAX.EQ.-4) THEN
                      FF=FMCPR4C(NI,BETA,I_P,IPATH,I_V,NEL,NBASISMAX,          &
      &                  G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,           &
-     &                 RHOEPS,RHOII,RHOIJ,CNWHTAY,I_CHMAX,ILOGGING,TSYM,      &
+     &                 RHOEPS,RHOII,RHOIJ,CNWHTAY,I_CHMAX,ILOGGING,      &
      &                  ECORE,ISEED,KSYM,DBETA,DLWDB2,HIJS)
                   ENDIF
                   F(I_V)=F(I_V)+FF
@@ -537,7 +536,7 @@ contains
          IF(I_VMAX.EQ.0.AND.I_HMAX.EQ.0) THEN
             CALL WIRHODIAG(NI,BETA,I_P,NEL,                             &
      &        NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,     &
-     &         RHOEPS,ILOGGING,TSYM,ECORE,WLRI,WLSI)                    
+     &         ECORE,WLRI,WLSI)                    
             RETURN
          ENDIF
 !C         IF(I_HMAX.EQ.-2) THEN
@@ -551,15 +550,14 @@ contains
 !C.. H=-3 is unbiased, and H=-4 is biased
             CALL MCPATHSR4(NI,BETA,I_P,I_HMAX,I_VMAX,NEL,NBASISMAX,G1,  &
      &              NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,RHOEPS,     &
-     &               LSTE,ICE,RIJLIST,NWHTAY(1,1),ILOGGING,ECORE,ILMAX,      &
-     &               WLRI,WLSI,DBETA,DLWDB,0)
+     &               NWHTAY(1,1),ILOGGING,ECORE, WLRI,WLSI,DBETA,DLWDB,0)
             CALL WRITECLASSPATHS()
             RETURN
          ELSEIF(I_HMAX.EQ.-5) THEN
 !C.. Markov Chain Monte Carlo
             CALL MCPATHSR5(NI,BETA,I_P,I_HMAX,I_VMAX,NEL,NBASISMAX,G1,  &
      &              NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,RHOEPS,     &
-     &               LSTE,ICE,RIJLIST,NWHTAY(1,1),ILOGGING,ECORE,ILMAX,      &
+     &               NWHTAY(1,1),ILOGGING,ECORE,      &
      &               WLRI,WLSI)
             CALL WRITECLASSPATHS()
             RETURN
@@ -567,8 +565,7 @@ contains
 !C.. Pick the largest cluster
             CALL MCPATHSR6(NI,BETA,I_P,I_HMAX,I_VMAX,NEL,NBASISMAX,G1,  &
      &              NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,RHOEPS,     &
-     &               LSTE,ICE,RIJLIST,NWHTAY(1,1),ILOGGING,ECORE,ILMAX,      &
-     &               WLRI,WLSI,DBETA,DLWDB)
+     &               NWHTAY(1,1),ILOGGING,ECORE, WLRI,WLSI,DBETA,DLWDB)
             RETURN
          ELSEIF(I_HMAX.EQ.-10) THEN
 !C.. Use a different method at each vertex level
@@ -852,8 +849,8 @@ contains
             IF(TLOG2) CALL WRITERHOMAT(10,RHOIJ,I_V,NEL,.TRUE.)
 !C..
             ICLS=0 
-            TOTAL=TOTAL+CALCPATHS_N(IPATH,RHOII,RHOIJ,I_V,I_HMAX,             &
-     &         I_P,1.D0,NEL,I_VMAX,ILOGGING,DBETA,DLWDB2,HIJS,ICLS)  
+            TOTAL=TOTAL+CALCPATHS_N(RHOII,RHOIJ,I_V,I_HMAX,             &
+     &         I_P,1.D0,DBETA,DLWDB2,HIJS,ICLS)  
             NTOTAL=NTOTAL+TOTAL
 !C.. Sum up the components of <D|H exp(-b H)|D>
             DLWDB=DLWDB+DLWDB2
@@ -1225,8 +1222,8 @@ contains
             IF(TLOG2) CALL WRITERHOMAT(10,RHOIJ,I_V,NEL,.TRUE.)
 !C.. 
             ICLS=0
-            TOTAL=TOTAL+ CALCPATHS_N(IPATH,RHOII,RHOIJ,I_V,I_HMAX,                      &
-     &         I_P,FSCALE,NEL,I_V,ILOGGING,DBETA,DLWDB2,HIJS,ICLS)      
+            TOTAL=TOTAL+ CALCPATHS_N(RHOII,RHOIJ,I_V,I_HMAX,                      &
+     &         I_P,FSCALE,DBETA,DLWDB2,HIJS,ICLS)      
 !C.. Sum up the components of <D|H exp(-b H)|D>
             DLWDB=DLWDB+DLWDB2
             NTOTAL=NTOTAL+TOTAL

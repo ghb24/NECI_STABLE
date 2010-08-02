@@ -379,7 +379,11 @@ MODULE UMatCache
          ENDIF
 
 #else
+        integer :: tmp
          UMatConj = val
+
+         ! Eliminate warnings
+         tmp=i; tmp=j; tmp=k; tmp=l
 #endif
       end function UMatConj
 
@@ -387,7 +391,7 @@ MODULE UMatCache
 
 ! Get the prospective size of a UMat (not a UMatCache) for completely storing FCIDUMP 2-e integrals
 ! The UMat is currently passed as a parameter, but in future be absorbed into UMatCache.
-      SUBROUTINE GetUMatSize(nBasis,nEl,iSSOld,iSize)
+      SUBROUTINE GetUMatSize(nBasis,nEl,iSize)
         use SystemData, only: tStoreSpinOrbs
       ! In:
       !    nBasis: as above.
@@ -400,7 +404,7 @@ MODULE UMatCache
       ! Out:
       !    iSize: size of UMAT.
          IMPLICIT NONE
-         INTEGER nBasis,iSSOld,iSS
+         INTEGER nBasis,iSS
          INTEGER iPairs,nBi,nEl,noccup
          INTEGER :: iSize
          IF(tStoreSpinOrbs) THEN
@@ -658,7 +662,7 @@ MODULE UMatCache
          !  flag=0: Distribute integrals throughout the cache in the scheme
          !  described at the top.
          IMPLICIT NONE
-         INTEGER NEWFLAG,NF
+         INTEGER NEWFLAG
          SELECT CASE(UMATCACHEFLAG)
          CASE(1)
 !  We were in direct cache mode where values were distributed correctly throughout the cache.
@@ -846,7 +850,6 @@ MODULE UMatCache
          IMPLICIT NONE
          INTEGER nOld,nNew,OrbTrans(nOld)
          INTEGER onSlots,onPairs
-         INTEGER I,J
          if(nNew/2.NE.nStates.OR.tSmallUMat) THEN
             WRITE(6,*) "Reordering UMatCache for freezing"
             onSlots=nSlots
@@ -970,7 +973,7 @@ MODULE UMatCache
                    ! GetCachedUMatEl called for cache indices: El(O) is 
                    ! a dummy argument.
                    Tlog=GetCachedUmatEl(ni,nj,nk,nl,El(0),nm,nn,A,B,iType)
-                   CALL CacheUMatEl(A,B,OUMatCacheData(0,n,m),nm,nn,iType)
+                   CALL CacheUMatEl(B,OUMatCacheData(0,n,m),nm,nn,iType)
                 ENDIF
                ENDIF
               ENDIF
@@ -1110,7 +1113,6 @@ MODULE UMatCache
       use util_mod, only: get_free_unit
       implicit none
       integer  i,j,k,l,iCache1,iCache2,A,B,readerr,iType, iunit
-      integer  iSlot,iPair
       HElement_t UMatEl(0:nTypes-1),DummyUMatEl(0:nTypes-1)
       logical  tDummy,testfile
       inquire(file="CacheDump",exist=testfile)
@@ -1140,7 +1142,7 @@ MODULE UMatCache
             ! a dummy call to GetCachedUMatEl returns the needed indices and
             ! integral type information.
             tDummy=GetCachedUMatEl(i,j,k,l,DummyUmatEl(0),iCache1,iCache2,A,B,iType)
-            call CacheUMatEl(A,B,UMatEl,iCache1,iCache2,iType)
+            call CacheUMatEl(B,UMatEl,iCache1,iCache2,iType)
         end if
       end do
       close(iunit)
@@ -1149,21 +1151,19 @@ MODULE UMatCache
 
 
 
-      subroutine DumpUMatCache(NHG,G1)
+      subroutine DumpUMatCache()
       ! Print out the cache contents so they can be read back in for a future
       ! calculation.  Need to print out the full set of indices, as the number of
       ! states may change with the next calculation.
       use SystemData, only: Symmetry,BasisFN
       use util_mod, only: get_free_unit
       implicit none
-      integer  NHG
-      type(BasisFN) G1(NHG)
       ! Variables
       integer iPair,iSlot,i,j,k,l,iCache1,iCache2,A,B,iType
       logical LSymSym
       type(Symmetry) TotSymRep
       HElement_t UMatEl
-      type(Symmetry) Sym,Symprod,SymConj
+      type(Symmetry) Sym
       integer iunit
       iunit = get_free_unit()
       open (iunit,file="CacheDump",status="unknown")
@@ -1265,7 +1265,7 @@ MODULE UMatCache
          INTEGER IDI,IDJ,IDK,IDL,ICACHE,ICACHEI
          INTEGER ICACHEI1,ICACHEI2
          HElement_t UMATEL
-         INTEGER I,A,B,ITYPE,ISTAR,ISWAP
+         INTEGER A,B,ITYPE,ISTAR,ISWAP
 !         LOGICAL tDebug
 !         IF(IDI.eq.14.and.IDJ.eq.17.and.IDK.eq.23.and.IDL.eq.6) THEN
 !             WRITE(6,*) "Setting tDebug!"
@@ -1422,7 +1422,7 @@ MODULE UMatCache
 !                  WRITE(6,*) ICACHEI
             ELSE
 !                IF(tDebug) THEN
-!                     CALL DumpUMatCache(nBasis,G1)
+!                     CALL DumpUMatCache(nBasis)
 !                     WRITE(8,*) B,NSLOTS
 !                     WRITE(8,*) UMATLABELS(1:NSLOTS,A)
 !                 ENDIF
@@ -1458,7 +1458,7 @@ END MODULE UMatCache
 ! to swap/conjugate the nTypes integrals within the slot We still need to fill
 ! out the space before or after  us if we've been put in the middle of a block
 ! of duplicates.
-      SUBROUTINE CACHEUMATEL(A,B,UMATEL,ICACHE,ICACHEI,iType)
+      SUBROUTINE CACHEUMATEL(B,UMATEL,ICACHE,ICACHEI,iType)
          ! In:
          !    A,B: cache indices of the element.
          !    UMatEl: element being stored.  For calculations involving real
@@ -1474,9 +1474,9 @@ END MODULE UMatCache
          use constants, only: dp
          use UMatCache
          IMPLICIT NONE
-         INTEGER A,B,ICACHE,ICACHEI
+         INTEGER B,ICACHE,ICACHEI
          HElement_t UMATEL(0:NTYPES-1),TMP(0:NTYPES-1)
-         INTEGER OLAB,IC1,I,J,ITOTAL
+         INTEGER OLAB,IC1,ITOTAL
          INTEGER iType
          INTEGER iIntPos
          SAVE ITOTAL

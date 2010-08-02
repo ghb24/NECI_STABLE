@@ -254,17 +254,17 @@ extra_arrs = arr2, arr3, arr4, arr5, arr6,
 
 module sort_mod
     use util_mod, only: operator(.arrlt.), operator(.arrgt.)
-	use constants
-	use SystemData, only: Symmetry, operator(.eq.), operator(.ne.), &
-	                      operator(.gt.), operator(.lt.), assignment(=)
-	use symdata, only: SymPairProd, operator(.eq.), operator(.ne.), &
-	                   operator(.gt.), operator(.lt.), assignment(=)
+    use constants
+    use SystemData, only: Symmetry, operator(.eq.), operator(.ne.), &
+                          operator(.gt.), operator(.lt.), assignment(=)
+    use symdata, only: SymPairProd, operator(.eq.), operator(.ne.), &
+                       operator(.gt.), operator(.lt.), assignment(=)
     use FciMCData, only: ExcitGenerator, assignment(=)
     use StarDiagData
-	implicit none
-	
-	private
-	public :: sort
+    implicit none
+    
+    private
+    public :: sort
 
     ! Private operator for sorting complex numbers by their real values
     interface operator(.gt.)
@@ -284,14 +284,14 @@ contains
         ! sort needs auxiliary storage of length 2*log_2(n).
         integer, parameter :: nStackMax = 50
         integer, parameter :: nInsertionSort = 7
-		integer, intent(in), optional :: nskip
+        integer, intent(in), optional :: nskip
 
         %(type1)s, intent(inout) :: arr(:)
         %(type2)s, intent(inout) :: arr2(:)
-		%(type3)s, intent(inout) :: arr3(:)
-		%(type4)s, intent(inout) :: arr4(:)
-		%(type5)s, intent(inout) :: arr5(:)
-		%(type6)s, intent(inout) :: arr6(:)
+        %(type3)s, intent(inout) :: arr3(:)
+        %(type4)s, intent(inout) :: arr4(:)
+        %(type5)s, intent(inout) :: arr5(:)
+        %(type6)s, intent(inout) :: arr6(:)
 
         ! Oh, how lovely it would be to be able to use push/pop and not need
         ! to guess a size of the stack to start with
@@ -314,19 +314,19 @@ contains
         %(type6)s :: tmp6(size(arr6(1)))
         character(*), parameter :: this_routine = 'sort'
 
-		if (present(nskip)) then
-			nskip_ = nskip
-		else
-			nskip_ = 1
-		endif
+        if (present(nskip)) then
+            nskip_ = nskip
+        else
+            nskip_ = 1
+        endif
 
         ! The size of the array to sort. 
-		! N.B. Use zero based indices. To obtain ! the entry into the actual 
-		! array, multiply indices by nskip and add ! 1 (hence zero based)
-		! **** See local macro srt_ind() ******
-		lo = lbound(arr, %(dim-arr)s) - 1
-		n = ((ubound(arr, %(dim-arr)s) - lo -1)/nskip_) + 1
-		hi = lo + n - 1
+        ! N.B. Use zero based indices. To obtain ! the entry into the actual 
+        ! array, multiply indices by nskip and add ! 1 (hence zero based)
+        ! **** See local macro srt_ind() ******
+        lo = lbound(arr, %(dim-arr)s) - 1
+        n = ((ubound(arr, %(dim-arr)s) - lo -1)/nskip_) + 1
+        hi = lo + n - 1
 
         nstack = 0
         do while (.true.)

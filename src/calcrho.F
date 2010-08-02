@@ -122,7 +122,7 @@ C               IC=IC+1
       INTEGER FUNCTION iGetExcitLevelwrtHF(nI,NEl)
         USE IntegralsData , only : ChemPot
         USE SystemData , only : Arr
-        INTEGER i,j,NEl,nI(NEl)
+        INTEGER i,NEl,nI(NEl)
         
         IC=NEl
         do i=1,NEl
@@ -207,7 +207,7 @@ C.. RH = output RH_IJ
       REAL*8 HAMIL(*),RHO2ORDER, RHO3ORDER,GETHELEMENT
       INTEGER LAB(*)
       INTEGER NROW(NDET)
-      INTEGER IRI,IRJ,INI,INJ,P
+      INTEGER P
       type(timer), save :: proc_timer
       proc_timer%timer_name='CALCRHO   '
       call set_timer(proc_timer)
@@ -238,8 +238,8 @@ C.. Calculate the 2nd order term in rho
       INTEGER IRI,IRJ,INI,INJ
 
 C.. Now the second order term
-      IRI=IGETHROW(I,HAMIL,LAB,NROW,NDET)
-      IRJ=IGETHROW(J,HAMIL,LAB,NROW,NDET)
+      IRI=IGETHROW(I,NROW,NDET)
+      IRJ=IGETHROW(J,NROW,NDET)
       INI=NROW(I)
       INJ=NROW(J)
 C.. If there are more elements in I than J, we choose J to iterate over, by 
@@ -280,8 +280,8 @@ C.. Calculate the 3rd order term in rho
       INTEGER IRI,IRJ,INI,INJ
 
 C.. Now the second order term
-      IRI=IGETHROW(I,HAMIL,LAB,NROW,NDET)
-      IRJ=IGETHROW(J,HAMIL,LAB,NROW,NDET)
+      IRI=IGETHROW(I,NROW,NDET)
+      IRJ=IGETHROW(J,NROW,NDET)
       INI=NROW(I)
       INJ=NROW(J)
       JNEW=J
@@ -336,9 +336,7 @@ C.. Find the Ith row
 
 C.. GETHROW
 C.. Get the index within HAMIL of a row II of the H matrix
-      INTEGER FUNCTION IGETHROW(II,HAMIL,LAB,NROW,NDET)
-      REAL*8 HAMIL(*)
-      INTEGER LAB(*)
+      INTEGER FUNCTION IGETHROW(II,NROW,NDET)
       INTEGER NROW(NDET)
       IGETHROW=1
 C.. Find the Ith row
@@ -383,8 +381,8 @@ C.. calculate approx RHOIJ, and store
 
 C.. For the given (I,J) pairs extracted from  RHOIJLAB,RHOIJROWS
 C.. calculate exact RHOIJ, and store
-      SUBROUTINE CALCSTOREEXRHOIJ(NDET,BETA,I_P,NEVAL,CK,W,ECORE
-     &      RHOIJROWS,RHOIJ,RHOIJLAB)
+      SUBROUTINE CALCSTOREEXRHOIJ(NDET,BETA,I_P,NEVAL,CK,W
+     &      ,RHOIJ,RHOIJLAB)
       use global_utilities
       IMPLICIT REAL*8 (A-H,O-Z)
       REAL*8 RH
@@ -417,7 +415,7 @@ C.. Calculate all RHOIJ using diag energies, coeffs
 C.. RHOEPSILON is now calculated here (21/11/03) - previously it was 
 C.. just specified.  Now RHOEPSILON=RHOEPS*RHIIMAX
       SUBROUTINE CALCRHOIJ(NDET,NEVAL,CK,W,BETA,I_P,RHOMIN,RHOMAX,
-     &            NRHOS,RHOEPS,ECORE)
+     &            NRHOS,RHOEPS)
          use global_utilities
          IMPLICIT REAL*8 (A-H,O-Z)
          DIMENSION CK(NDET,NEVAL)
@@ -503,7 +501,7 @@ C.. First work out RHOEPSILON:
       SUBROUTINE STORERHOIJ(NDET,NRHOS,RHOIJROWS,RHOIJ,
      &                  RHOIJLAB,NRHOMAXWIDTH)
          IMPLICIT REAL*8 (A-H,O-Z)
-         INTEGER NDET,NRHO
+         INTEGER NDET
          INTEGER RHOIJLAB(NRHOS),RHOIJROWS(NDET+1)
          REAL*8 RHOIJ(NRHOS)
                                                                         
@@ -542,7 +540,7 @@ C.. see if we need to move to a new row.
       REAL*8 HAMIL(*),RHO2ORDERND,RHO3ORDERND,GETHELEMENT
       INTEGER LAB(*)
       INTEGER NROW(NDET)
-      INTEGER IRI,IRJ,INI,INJ,P
+      INTEGER P
       type(timer), save :: proc_timer
       proc_timer%timer_name='CALCRHOTRO'
       call set_timer(proc_timer)
@@ -582,8 +580,8 @@ C.. Calculate the 2nd order term in rho for non diag elements
       INTEGER IRI,IRJ,INI,INJ
 
 C.. Now the second order term
-      IRI=IGETHROW(I,HAMIL,LAB,NROW,NDET)
-      IRJ=IGETHROW(J,HAMIL,LAB,NROW,NDET)
+      IRI=IGETHROW(I,NROW,NDET)
+      IRJ=IGETHROW(J,NROW,NDET)
       INI=NROW(I)
       INJ=NROW(J)
 C.. If there are more elements in I than J, we choose J to iterate over, by 
@@ -626,8 +624,8 @@ C.. Calculate the 3rd order term in rho for non-dial elements
       INTEGER IRI,IRJ,INI,INJ
 
 C.. Now the second order term
-      IRI=IGETHROW(I,HAMIL,LAB,NROW,NDET)
-      IRJ=IGETHROW(J,HAMIL,LAB,NROW,NDET)
+      IRI=IGETHROW(I,NROW,NDET)
+      IRJ=IGETHROW(J,NROW,NDET)
       INI=NROW(I)
       INJ=NROW(J)
       JNEW=J
@@ -693,9 +691,9 @@ C..   BETA->NHG
          RETURN
       END
       SUBROUTINE CALCRHOEXND(NI,NJ,NEL,BETA,NEVAL,W,CK,NDET,NMRKS,
-     &            NHG,I_P,ECORE,RH)
-         INTEGER II,IJ,NI(NEL),NJ(NEL),IK,NEVAL,NDET,I_P,NBASIS
-         REAL*8 RH,W(NEVAL),CK(NDET,NEVAL),BETA,ECORE
+     &            I_P,RH)
+         INTEGER II,IJ,NI(NEL),NJ(NEL),IK,NEVAL,NDET,I_P
+         REAL*8 RH,W(NEVAL),CK(NDET,NEVAL),BETA
          CALL FINDDET(NI,NEL,NDET,NMRKS,II)
          CALL FINDDET(NJ,NEL,NDET,NMRKS,IJ)
          IF(II.EQ.0.OR.IJ.EQ.0) THEN

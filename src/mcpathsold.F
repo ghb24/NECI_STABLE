@@ -13,11 +13,10 @@ C.. which do not necessarily have distinct nodes
          REAL*8 F(2:I_HMAX)
          CHARACTER*20 STR
          REAL*8 TOTAL,RHOII(0:I_HMAX)
-         REAL*8 FLNSUM,FLNRII
          REAL*8 ALAT(3),RHOEPS
          INTEGER  G1(5,NBASIS),nBasisMax(5,*),ILMAX
          INTEGER LSTE(NEL,ILMAX,0:I_HMAX-1)
-         INTEGER ICE(ILMAX,0:I_HMAX-1),NLIST
+         INTEGER ICE(ILMAX,0:I_HMAX-1)
          LOGICAL TLOG
          type(timer), save :: proc_timer,proc_timer2
          proc_timer%timer_name='MCPATHSR2 '
@@ -212,7 +211,7 @@ C..  FLNSUM =ln(1+RHOII^-2 Sum_J (RHOIJ^2 w2(RHOJJ,RHOII,P)) + ...)
      &                   NWHTAY,ILOGGING,FLNRII,FLNSUM)
          use global_utilities
          IMPLICIT REAL*8 (A-H,O-Z)
-         INTEGER NDET,NRHO
+         INTEGER NDET
          INTEGER RHOIJLAB(*),RHOIJROWS(NDET+1)
          REAL*8 RHOIJ(*)
          DIMENSION IPATH(0:I_HMAX)
@@ -273,14 +272,13 @@ C..  It then weights using CALCPATHn (n=5 for rec/taylor2 hybrid) (18/11/03)
      &      I_HIND,RHOCUML,RHOII,L,LT,ILOGGING) RESULT (FMCPRRES)
          
          IMPLICIT REAL*8 (A-H,O-Z)
-         INTEGER NDET,NRHO,I_H
+         INTEGER NDET,I_H
          INTEGER RHOIJLAB(*),RHOIJROWS(NDET+1)
          REAL*8 RHOIJ(*)
          REAL*8 RHOCUML
          INTEGER IPATH(0:I_H)
          REAL*8 RHOII(0:I_H)
          INTEGER ISEED
-         INTEGER INTERSECT(NRHOMAXWIDTH)
          LOGICAL TLOG1, TLOG2
          TLOG1=BTEST(ILOGGING,2)
          TLOG2=BTEST(ILOGGING,3)
@@ -363,7 +361,7 @@ C.. (Requires whole rho matrix)
      &               NRHOMAXWIDTH)
          use global_utilities
          IMPLICIT REAL*8 (A-H,O-Z)
-         INTEGER NDET,NRHO
+         INTEGER NDET
          INTEGER RHOIJLAB(*),RHOIJROWS(NDET+1)
          REAL*8 RHOIJ(*)
          INTEGER IPATH(I_P+1)
@@ -371,7 +369,6 @@ C.. (Requires whole rho matrix)
          INTEGER INTERSECT(NRHOMAXWIDTH)
          REAL*8 PROB(NRHOMAXWIDTH)
          REAL*8 RAN2
-         REAL(KIND=4) :: SecondSeed=0.0
          type(timer), save :: proc_timer
          proc_timer%timer_name='MCPATHS0  '
          call set_timer(proc_timer)

@@ -242,7 +242,7 @@ Subroutine MPIAllReduceDatatype(Values, iLen, iType, iDatatype, Ret)
    %(type1)s :: Values()
    %(type1)s :: Ret()
    integer iLen,iDatatype
-   integer g, ierr,rc,itype
+   integer g, ierr,itype
 #if PARALLEL
 !   write(6,*) "AllReduceDatatype %(type1)s",iLen,iType
    g=MPI_COMM_WORLD
@@ -296,8 +296,8 @@ Subroutine MPISumRoot(Values, iLen, Ret, root)
    !=     Return(iLen)   Variable (array possibly) to get the results.
    %(type1)s :: Values()
    %(type1)s :: Ret()
-   integer iLen,i,root
-   integer ierr,rc
+   integer iLen,root
+   integer ierr
 #ifdef PARALLEL
 !   write(6,*) "SumRoot %(type1)s",iLen,Root
    call MPI_REDUCE(Values,Ret,iLen,%(mpitype)s,MPI_SUM,root,MPI_COMM_WORLD,ierr)
@@ -448,13 +448,11 @@ Subroutine MPIInit(tExternal)
    !=   tExternal True if using VASP/CPMD's MPI interface, so we don't have to initialise our own.
    implicit none
    logical, intent(in) :: tExternal
-   integer numtasks, rank, ierr, rc
-   integer a,b,g
+   integer ierr
+   integer a,g
    character*20 NodeFile
-   logical :: Local_IO,flag
    logical, save :: initialised=.false.
 #if PARALLEL
-   integer(Kind=MPI_ADDRESS_KIND) :: res
 
    if (.not.initialised) then
 

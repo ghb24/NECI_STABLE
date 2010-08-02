@@ -150,20 +150,20 @@ alloc_str = dims(1), dims(2), dims(3), dims(4), dims(5), dims(6), dims(7)
 
 
 module shared_alloc
-	use, intrinsic :: iso_c_binding
-	use constants
-	use HElem
-	implicit none
+    use, intrinsic :: iso_c_binding
+    use constants
+    use HElem
+    implicit none
 
-	private
-	public :: shared_allocate, shared_deallocate
+    private
+    public :: shared_allocate, shared_deallocate
 
     interface
-		subroutine alloc_shared_worker (nm, pt, sz) bind(c)
+        subroutine alloc_shared_worker (nm, pt, sz) bind(c)
             use, intrinsic :: iso_c_binding
             implicit none
-            character(1), intent(in) :: nm
-			type(c_ptr), intent(inout) :: pt
+            character(c_char), intent(in) :: nm
+            type(c_ptr), intent(inout) :: pt
             integer(c_size_t), value :: sz
         end subroutine
         subroutine dealloc_shared_worker (ptr) bind(c)
@@ -184,39 +184,47 @@ module shared_alloc
 
 contains
 
-	subroutine shared_allocate (nm, ptr, dims)
+    subroutine shared_allocate (nm, ptr, dims)
 
-		character(*), intent(in) :: nm
-		%(type)s, dimension(%(dim)s), intent(inout), pointer :: ptr
-		integer, intent(in) :: dims((len_trim('%(dim)s') + 1) / 2) ! compile time const.
-
-		integer :: sz
-		%(type)s :: tester
-		character(len=len_trim(nm)+1) :: name_tmp
-		type(c_ptr) :: tmp
+        character(*), intent(in) :: nm
+        %(type)s, dimension(%(dim)s), intent(inout), pointer :: ptr
+        integer, intent(in) :: dims((len_trim('%(dim)s') + 1) / 2) ! compile time const.
+        character(len=len_trim(nm)+1) :: name_tmp
 
 #ifdef __SHARED_MEM
-		sz = %(sizeof)s * product(dims)
+        integer :: sz
+        type(c_ptr) :: tmp
+#endif
 
-		! Allocate the shared memory
-		name_tmp = trim(nm)//c_null_char
-		call alloc_shared_worker (trim(nm)//c_null_char, tmp, &
-		                          int(sz, kind=c_size_t))
+        ! Prepare name of shared memory object to pass to C.
+        name_tmp = trim(nm)//c_null_char
 
-		! Assign to a fortran pointer.
-		call c_f_pointer (tmp, ptr, dims)
+#ifdef __SHARED_MEM
+        sz = %(sizeof)s * product(dims)
 
-		write (6, '("Allocated ", i10, " bytes of shared memory named: ", a)')&
-		       sz, nm
+        ! Allocate the shared memory
+        call alloc_shared_worker (name_tmp, tmp, &
+                                  int(sz, kind=c_size_t))
+
+        ! Assign to a fortran pointer.
+        call c_f_pointer (tmp, ptr, dims)
+
+        write (6, '("Allocated ", i10, " bytes of shared memory named: ", a)')&
+               sz, nm
 #else
         ! Sigh
         allocate(ptr(%(alloc_str)s))
 #endif
-	end subroutine
+    end subroutine
 
-	subroutine shared_deallocate (ptr)
-		%(type)s, dimension(%(dim)s), intent(inout), pointer :: ptr
-		%(type)s, pointer :: pt1
+    subroutine shared_deallocate (ptr)
+        %(type)s, dimension(%(dim)s), intent(inout), pointer :: ptr
+
+#ifdef __SHARED_MEM
+
+        %(type)s, pointer :: pt1
+
+        ! Sigh, a hack to get pathscale to work
 #ifdef __PATHSCALE__
 #ifdef POINTER8
         integer(int64) :: tmp
@@ -224,30 +232,29 @@ contains
         integer(int32) :: tmp
 #endif
 #else
-		type(c_ptr) :: tmp
+        type(c_ptr) :: tmp
 #endif
 
-#ifdef __SHARED_MEM
-		! Get a pointer to the first element. c_loc requries its argument to
-		! be a scalar variable.
-		pt1 => ptr(%(elem1)s)
+        ! Get a pointer to the first element. c_loc requries its argument to
+        ! be a scalar variable.
+        pt1 => ptr(%(elem1)s)
 
 #ifdef __PATHSCALE__
-		tmp = loc(ptr(%(elem1)s))
+        tmp = loc(ptr(%(elem1)s))
 #else
         tmp = c_loc(pt1)
 #endif
-		call dealloc_shared_worker (tmp)
+        call dealloc_shared_worker (tmp)
 #else
         deallocate(ptr)
 #endif
-		nullify(ptr)
-	end subroutine
+        nullify(ptr)
+    end subroutine
 end module
 
 supermodule shared_alloc
-	interface
-		subroutine cleanup_shared_alloc () bind(c)
-		end subroutine
-	end interface
+    interface
+        subroutine cleanup_shared_alloc () bind(c)
+        end subroutine
+    end interface
 end supermodule

@@ -15,8 +15,8 @@ C.. 12/7/05 - this should now just be the number 0.D0 - it is not used
 
 
 C.. RHOII2 is constructed to contain the RHOII for each point in the path
-         HElement_t RHOIJ(0:I_V,0:I_V),RH
-         real(dp) TOTAL,RHOCUML,RHOII(0:I_V),RHOII2(0:I_HMAX)
+         HElement_t RHOIJ(0:I_V,0:I_V)
+         real(dp) RHOII(0:I_V),RHOII2(0:I_HMAX)
          real(dp) DLWDB
          INTEGER ILOGGING
          type(timer), save :: proc_timer
@@ -60,19 +60,18 @@ C            IF(I_V.EQ.3) CALCPATHS=CP3CI2(RHOII,RHOIJ,I_P)
          RETURN
       END 
 
-      FUNCTION CALCPATHS_N(IPATH,RHOII,RHOIJ,I_V,
-     &      I_HMAX,I_P,WEIGHT,NEL,I_VMAX,ILOGGING,DBETA,DLWDB,HIJS,ICLS)
+      FUNCTION CALCPATHS_N(RHOII,RHOIJ,I_V,
+     &      I_HMAX,I_P,WEIGHT,DBETA,DLWDB,HIJS,ICLS)
          use constants, only: dp
          use CalcData , only : CALCP_SUB2VSTAR,CALCP_LOGWEIGHT
          use CalcData, only: GraphEpsilon
          use global_utilities
          IMPLICIT NONE
          real(dp) CalcPaths_N
-         INTEGER NEL,I_V,I_P,NWHTAY,I_HMAX,I_VMAX,ICLS
+         INTEGER I_V,I_P,I_HMAX,ICLS
 C.. IPATH contains the vertices we can choose from
 C.. IPATH2 contains the path we are constructing (listing the dets)
 C.. IP2 contains the path we are constructing as an index into IPATH
-         INTEGER IPATH(1:NEL,0:I_V)
 !Removed as no longer used
 !  ,IPATH2(1:NEL,0:i_hmax),IP2(0:i_hmax)
 C.. RHOII contains the RHO_II for each vertex.
@@ -80,21 +79,18 @@ C.. 12/7/05 - this should now just be the number 0.D0 - it is not used
 
 
 C.. RHOII2 is constructed to contain the RHOII for each point in the path
-         real(dp) RHOII(0:I_V),TOTAL,RHOCUML
+         real(dp) RHOII(0:I_V)
 ! removed as no longer used
 !         real(dp) RHOII2(0:i_hmax)
          real(dp) CALCPATHS
-         HElement_t HIJS(1:I_V),RHOIJ(0:I_V,0:I_V),RH
-         INTEGER ICLASS,ILG,ISGN
+         HElement_t HIJS(1:I_V),RHOIJ(0:I_V,0:I_V)
          REAL*8 WEIGHT
          REAL*8 DBETA
          real(dp) DLWDB
-         INTEGER ILOGGING
          type(timer), save :: proc_timer
          real(dp) RhoDiag_CPP, CalcPaths_2, CalcPaths_3,
-     &      CalcPaths_4, CalcPaths_R,HDiag_CPP
+     &      CalcPaths_4, HDiag_CPP
          real(dp) RhoDiag_CPPS2VS,HDiag_CPPS2VS
-         INTEGER I_HIND
          proc_timer%timer_name='CALCPATHS '
          call set_timer(proc_timer,50)
 C.. If we're using the contour integral trick to sum all possible graphs with the given vertices
@@ -110,8 +106,8 @@ C.. RHOIJ elements.  We send beta in from RHOII(1)
                if(calcp_sub2vstar) then
                   CALCPATHS=HDIAG_CPP(RHOIJ,I_P,I_V,I_V+1,.FALSE.,
      &                RHOII(1),DLWDB,HIJS)
-                 CALCPATHS=CALCPATHS+HDIAG_CPPS2VS(RHOIJ,I_P,I_V,I_V+1,
-     &               .TRUE.,RHOII(1),DLWDB,HIJS)
+                 CALCPATHS=CALCPATHS+HDIAG_CPPS2VS(RHOIJ,I_V,
+     &               RHOII(1),DLWDB,HIJS)
                else
                   CALCPATHS=HDIAG_CPP(RHOIJ,I_P,I_V,I_V+1,.TRUE.,
      &            RHOII(1),DLWDB,HIJS)
@@ -120,8 +116,8 @@ C.. RHOIJ elements.  We send beta in from RHOII(1)
                if(calcp_sub2vstar) then
                   CALCPATHS=RHODIAG_CPP(RHOIJ,I_P,I_V,I_V+1,
      &            .FALSE.,DBETA,DLWDB,HIJS)
-               CALCPATHS=CALCPATHS+RHODIAG_CPPS2VS(RHOIJ,I_P,I_V,I_V+1,
-     &            .TRUE.,DBETA,DLWDB,HIJS)
+               CALCPATHS=CALCPATHS+RHODIAG_CPPS2VS(RHOIJ,I_P,I_V,
+     &            DBETA,DLWDB,HIJS)
                else
                   CALCPATHS=RHODIAG_CPP(RHOIJ,I_P,I_V,I_V+1,
      &            .TRUE.,DBETA,DLWDB,HIJS,calcp_logweight)
@@ -263,7 +259,7 @@ C.. RHOII contains the RHO_II for each vertex.
 C.. RHOII2 is constructed to contain the RHOII for each point in the path
          REAL*8 RHOII(0:I_V),RHOIJ(0:I_V,0:I_V),TOTAL,RHOCUML,RH
          REAL*8 RHOII2(0:I_HMAX),T2
-         INTEGER I_H,I_HIND,I,J,TOT
+         INTEGER I_HIND,I,J,TOT
          TOTAL=0.D0
 c           WRITE(10,"A$") "{{"
 c           DO J=0,I_HIND-1
@@ -365,7 +361,7 @@ C..              = (Rij/(z1-z2))((z1^P-rii^P)/(z1-rii)-(z2^P-rii^P)/(z2-rii))
       REAL*8 FUNCTION CALCPATHS_2(RHOII,RHOIJ,P)
          INTEGER P
          REAL*8 RHOII(0:2),RHOIJ(0:2,0:2)
-         REAL*8 Z1,Z2,ZD,RIIP
+         REAL*8 Z1,Z2,RIIP
          LOGICAL LSAME2
          IF(RHOIJ(0,1).EQ.0.D0) THEN
             CALCPATHS_2=0.D0
@@ -418,8 +414,8 @@ C.. Z1=Z2=1, so we use the residue as pole is order 2
       END
 
 C.. For f[z]=(z^P-rii^P)(2Rijk+Rij(z-rkk)+Rik(z-rjj)/(z-rii)
-      REAL*8 FUNCTION CP3F(Z,P,RII,RJJ,RKK,RIJK,RIJ,RIK)
-         REAL*8 Z,RII,RJJ,RKK,RIJK,RIJ,RIK
+      REAL*8 FUNCTION CP3F(Z,P,RJJ,RKK,RIJK,RIJ,RIK)
+         REAL*8 Z,RJJ,RKK,RIJK,RIJ,RIK
          INTEGER P
          LOGICAL LSAME2
          IF(LSAME2(Z,1.D0)) THEN
@@ -434,10 +430,9 @@ C         WRITE(10,*) "CP3F=",CP3F
 C            CP3F=((Z/RII)**P-1)*(2*RIJK+RIJ*(Z-RKK)+RIK*(Z-RJJ))/(Z-RII)
  
 
-      REAL*8 FUNCTION DCP3F(Z1,Z2,P,RII,RJJ,RKK,RIJK,RIJ,RIK)
-         REAL*8 Z1,Z2,RII,RJJ,RKK,RIJK,RIJ,RIK
+      REAL*8 FUNCTION DCP3F(Z1,Z2,P,RJJ,RKK,RIJK,RIJ,RIK)
+         REAL*8 Z1,Z2,RJJ,RKK,RIJK,RIJ,RIK
          INTEGER P
-         LOGICAL LSAME2
          REAL*8 A,B,C,AP,BP,CP
 C.. d(AB/C)/dz = (A'BC+AB'C-ABC')/CC
          A=(Z1**P-1)/(Z1-1)
@@ -453,8 +448,8 @@ C.. d(AB/C)/dz = (A'BC+AB'C-ABC')/CC
 
 
 C.. For f[z]=(z^P-rii^P)(2Rijk+Rij(z-rkk)+Rik(z-rjj)/(z-rii)
-      COMPLEX*16 FUNCTION CP3FC(Z,P,RII,RJJ,RKK,RIJK,RIJ,RIK)
-         REAL*8 RII,RJJ,RKK,RIJK,RIJ,RIK
+      COMPLEX*16 FUNCTION CP3FC(Z,P,RJJ,RKK,RIJK,RIJ,RIK)
+         REAL*8 RJJ,RKK,RIJK,RIJ,RIK
          COMPLEX*16 Z
          INTEGER P
          CP3FC=(Z**P-1)*(2*RIJK+RIJ*(Z-RKK)+RIK*(Z-RJJ))/(Z-1)
@@ -486,7 +481,6 @@ C.. Although we want the answer /rii^P, so we divide that out
          LOGICAL LSAME2
 
          REAL*8 POLY(0:3)
-         COMPLEX*16 ZR(3)
          REAL*8 CP2
 C.. Deal with a special case
          IF(RJK.EQ.0.D0.AND.ABS((RIJ-RIK)/RIJ).LE.1.D-10) THEN
@@ -577,7 +571,7 @@ C.. If the ZZ2 and ZZ3 are complex, LCOMPLEX is set
          COMPLEX*16 ZZ1,ZZ2,ZZ3
          REAL*8 A,B,C
          LOGICAL LCOMPLEX         
-         REAL*8 Q,R,RT,QRRAT,THETAB3,TRQ,AA,BB,Z1,Z2,Z3,TPB3
+         REAL*8 Q,R,RT,QRRAT,THETAB3,TRQ,AA,BB,Z2,Z3,TPB3
          TPB3=3.14159265358979323846464D0*2.D0/3.D0
          IF(C.EQ.0.D0) THEN
 C.. We've actually got a quadratic as some of our vertices have no self
@@ -629,7 +623,7 @@ CC.. This is the old version of CP3_SOLVE to be removed at some point
          INTEGER P
          COMPLEX*16 CP3TFC
          COMPLEX*16 ZZ2,ZZ3,ZZ
-         REAL*8 RII,RJJ,RKK,RIJ,RIK,RJK,RIJK
+         REAL*8 RII,RJJ,RKK,RIJ,RIK,RIJK
          REAL*8 Q,Z1,Z2,Z3,R,RT,QRRAT,THETAB3,TPB3,TRQ
          LOGICAL LSAME2
          TPB3=3.14159265358979323846464D0*2.D0/3.D0
@@ -716,12 +710,11 @@ C               WRITE(10,*) AA,BB,Z1,ZZ2,ZZ3
       REAL*8 FUNCTION CALCPATHS_3(RHOII,RHOIJ,P)
          INTEGER P
          REAL*8 RHOII(0:3),RHOIJ(0:3,0:3)
-         REAL*8 CP3_SOLVE,CP3CI
-         REAL*8 RIJ,RIK,RIJK,RJK,A,B,C,T,TT
+         REAL*8 CP3_SOLVE
+         REAL*8 RIJ,RIK,RIJK,RJK,A,B,C,T
          REAL*8 RII,RJJ,RKK,CP2
          EXTERNAL CP3F,DCP3F
          EXTERNAL CP3FC
-         LOGICAL LSAME2
          RII=RHOII(0)/RHOII(0)
          RJJ=RHOII(1)/RHOII(0)
          RKK=RHOII(2)/RHOII(0)
@@ -789,7 +782,7 @@ C         ENDIF
          INTEGER P
          REAL*8 RHOII(0:3),RHOIJ(0:3,0:3)
          REAL*8 Z1,Z2,Z3,Q,R,THETAB3,A,B,C,QRRAT,TRQ
-         REAL*8 TPB3,AA,BB,RT,CALCPATHS_3,CP3F,DCP3F,CALCPATHS_2
+         REAL*8 TPB3,AA,BB,RT,CP3F,DCP3F,CALCPATHS_2
          REAL*8 RIJ,RIK,RIJK,RTII(0:2),RTIJ(0:2,0:2)
          COMPLEX*16 ZZ2,ZZ3,ZZ,CP3FC
          LOGICAL LSAME2
@@ -869,7 +862,7 @@ C.. Im(ZZ2)
                ZZ2=DCMPLX(Z2,Z3)
                ZZ3=DCMPLX(Z2,-Z3)
 C.. Now just calculate the answer
-               ZZ=CP3FC(ZZ2,P,RHOII(0),RHOII(1),RHOII(2),RIJK,RIJ,RIK)
+               ZZ=CP3FC(ZZ2,P,RHOII(1),RHOII(2),RIJK,RIJ,RIK)
      &               /((ZZ2-Z1)*(ZZ2-ZZ3))
      &           +CP3FC(ZZ3,P,RHOII(0),RHOII(1),RHOII(2),RIJK,RIJ,RIK)
      &               /((ZZ3-Z1)*(ZZ3-ZZ2))
@@ -1077,7 +1070,7 @@ C          WRITE(30,"((G25.16e3, G25.16e3))") ZRET
          IMPLICIT NONE
          REAL*8 POLYNUM(0:*)
          COMPLEX*16 POLYDEN(0:*)
-         COMPLEX*16 Z,ZRET,ZT,ZS,ZZT,ZMZ0
+         COMPLEX*16 Z,ZRET,ZT,ZMZ0
          REAL*8 R,THETA,P
 C        WRITE(30,"((G25.16e3, G25.16e3),2G25.16e3)",advance='no') Z,R,THETA
 
@@ -1097,7 +1090,7 @@ C          WRITE(30,"((G25.16e3, G25.16e3))") ZRET
          IMPLICIT NONE
          INTEGER I_P,I
          REAL*8 RHOII(0:4),RHOIJ(0:4,0:4)
-         REAL*8 RHOII2(0:2),RHOIJ2(0:2,0:2),A,B,C
+         REAL*8 A,B,C
          EXTERNAL CP3CIZSFUN2,DCP3F,CP3FC,CP3F
          REAL*8 SUMR,SUMI
          REAL*8 RII,RJJ,RKK,RLL,RIJ,RIK,RIL,RJK,RJL,RKL

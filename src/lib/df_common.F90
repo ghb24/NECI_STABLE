@@ -103,7 +103,6 @@ integer, intent(out) :: fileunit
 integer, intent(out) :: info
 logical, optional, intent(in) :: overwrite
 !------------
-character(len=*), parameter :: this_routine = 'get_available_file'
 character(80) :: myfilename
 character(3) :: string_i
 integer :: i, myinfo, iunit
@@ -171,7 +170,6 @@ character(80), intent(in) :: mol_name
 character(80), intent(out) :: filename
 integer, intent(out) :: info
 !------------
-character(len=*), parameter :: this_routine = 'name_mol_file'
 character(4), parameter :: file_suffix = '.mol'
 character(80) :: myfilename
 character(3) :: string_i
@@ -448,6 +446,7 @@ contains
     print *,'WARNING: Temporary file to be removed does not exist in the list'
     print *,'File name is ',trim(filename)
   endif
+  info = -1
   !
   return
   end subroutine remove_file_from_list
@@ -486,7 +485,6 @@ character(len=*), intent(in) :: object
 integer, intent(in), optional :: line_no
 logical, intent(in), optional :: do_i_stop
 !------------
-character(len=*), parameter :: this_routine='check_allocate'
 logical :: istop
 !------------
 if (present(do_i_stop)) then
@@ -516,7 +514,6 @@ character(len=*), intent(in) :: object
 integer, intent(in), optional :: line_no
 logical, intent(in), optional :: do_i_stop
 !------------
-character(len=*), parameter :: this_routine='check_deallocate'
 logical :: istop
 !------------
 if (present(do_i_stop)) then
@@ -623,7 +620,7 @@ end subroutine getunit
 
 !----------------------------------------------------------------------
 
-  subroutine my_timer(operation,title,debug)
+  subroutine my_timer(operation,title) !,debug)
   !Based on Wojtek's timing routine.
   !operation : One of 
   !           'enter' : entering routine/function
@@ -640,7 +637,7 @@ end subroutine getunit
   save
   character(len=*), intent(in) :: operation
   character(len=*), intent(in) :: title
-  logical, intent(in), optional :: debug
+!  logical, intent(in), optional :: debug
   !------------
   character(20) :: my_operation, my_title
   logical :: iam_init = .FALSE.  !Initial value. Lost after updating
@@ -759,20 +756,20 @@ end subroutine getunit
     function my_cpu_time()
     implicit none
     real(dp) :: my_cpu_time
-    real(4), dimension(2) :: tarray
-    real(4) :: etime
-    real(dp) :: cputime
     !------------
 #if defined(G77)
     my_cpu_time = second()
 #endif
 #if defined(DECALPHA) || defined(SUN) || defined(SUNF90)
+    real(4), dimension(2) :: tarray
+    real(4) :: etime
     my_cpu_time = etime(tarray)
 #endif
 #if (SGI) || (RS6K) || (IBM32) || (IBM64)
     my_cpu_time = float(mclock())*1.0E-2
 #endif
 #if (IFC) || (IFORT) || (LAHEY) || (PGF90) || (G95) || (GFORTRAN)
+    real(dp) :: cputime
     call cpu_time(cputime)
     my_cpu_time = cputime
 #endif

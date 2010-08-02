@@ -156,8 +156,8 @@ module mcpathshdiag
             RHOII(0)=0
             RHOII(1)=BETA
             TOTAL=TOTAL+                                                &
-     &         CALCPATHS_N(IPATH,RHOII,HIJ,I_V,I_HMAX,               &
-     &         I_P,FSCALE,NEL,I_VMAX,ILOGGING,DBETA,DLWDB2,HIJS,ICLS)
+     &         CALCPATHS_N(RHOII,HIJ,I_V,I_HMAX,               &
+     &         I_P,FSCALE,DBETA,DLWDB2,HIJS,ICLS)
             NTOTAL=NTOTAL+TOTAL
 !C.. Sum up the components of <D|H exp(-b H)|D>
             DLWDB=DLWDB+DLWDB2
@@ -692,7 +692,7 @@ end module
             ENDIF
             IF((MOD(c,75).eq.0).or.(MOD(c,75).eq.25).or.(MOD(c,75).eq.50)) THEN
                 
-                CONNECT23=AREDETSEXCITS(IPATH(1:NEL,1),IPATH(1:NEL,2),NEL,NBASISMAX,EXCITLEV)
+                CONNECT23=AREDETSEXCITS(IPATH(1:NEL,1),IPATH(1:NEL,2),NEL,EXCITLEV)
                 EX(1,1)=2
                 
                 IF(CONNECT23) THEN  !Nodes 2&3 connected

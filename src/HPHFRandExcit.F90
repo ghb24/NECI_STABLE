@@ -237,11 +237,11 @@ MODULE HPHFRandExcitMod
 !Generate matrix element -> HPHF to closed shell det.
                 IF(TestClosedShellDet(iLutnI)) THEN
                     !Closed shell -> Closed Shell
-                    MatEl = sltcnd_excit (nI, nJ, IC, ExcitMat, tSignOrig)
+                    MatEl = sltcnd_excit (nI, IC, ExcitMat, tSignOrig)
                     pGen=pGen/REAL(MatEl,8)
                 ELSE
                     !Open shell -> Closed Shell
-                    MatEl = sltcnd_excit (nI, nJ, IC, ExcitMat, tSignOrig)
+                    MatEl = sltcnd_excit (nI, IC, ExcitMat, tSignOrig)
                     pGen=pGen/(REAL(MatEl,8)*SQRT(2.D0))
                 ENDIF
             ENDIF
@@ -280,9 +280,9 @@ MODULE HPHFRandExcitMod
                     IF(TestClosedShellDet(iLutnI)) THEN    !Closed shell -> Open shell : Want to sum in SQRT(2)* Hij
                         
                         IF(tSwapped) THEN
-                            MatEl = sltcnd_excit (nI, nJ, IC, Ex2, tSign)
+                            MatEl = sltcnd_excit (nI, IC, Ex2, tSign)
                         ELSE
-                            MatEl = sltcnd_excit (nI, nJ, IC, ExcitMat, &
+                            MatEl = sltcnd_excit (nI, IC, ExcitMat, &
                                                   tSignOrig)
                         ENDIF
                         pGen=pGen/(REAL(MatEl,8)*SQRT(2.D0))
@@ -291,10 +291,10 @@ MODULE HPHFRandExcitMod
                         
 !First find nI -> nJ. If nJ has swapped, then this will be different.
                         IF(tSwapped) THEN
-                            MatEl = sltcnd_excit (nI, nJ, ExcitLevel, Ex2, &
+                            MatEl = sltcnd_excit (nI, ExcitLevel, Ex2, &
                                                   tSign)
                         ELSE
-                            MatEl = sltcnd_excit (nI, nJ, IC, ExcitMat, &
+                            MatEl = sltcnd_excit (nI, IC, ExcitMat, &
                                                   tSignOrig)
                         ENDIF
 
@@ -312,12 +312,12 @@ MODULE HPHFRandExcitMod
                             IF(tSwapped) THEN
                                 IF((OpenOrbsJ+OpenOrbsI).eq.3) tSignOrig=.not.tSignOrig  !I.e. J odd and I even or vice versa, but since these can only be at max quads, then they can only have 1/2 open orbs
 
-                                MatEl2 = sltcnd_excit (nI, nJ, IC, ExcitMat, &
+                                MatEl2 = sltcnd_excit (nI, IC, ExcitMat, &
                                                        tSignOrig)
                             ELSE
                                 IF((OpenOrbsJ+OpenOrbsI).eq.3) tSign=.not.tSign     !I.e. J odd and I even or vice versa, but since these can only be at max quads, then they can only have 1/2 open orbs
 
-                                MatEl2 = sltcnd_excit (nI, nJ2, ExcitLevel, &
+                                MatEl2 = sltcnd_excit (nI,  ExcitLevel, &
                                                        Ex2, tSign)
                             ENDIF
 
@@ -372,9 +372,9 @@ MODULE HPHFRandExcitMod
                     ENDIF
 
                     IF(tSwapped) THEN
-                        MatEl = sltcnd_excit(nI, nJ2, IC, ExcitMat, tSignOrig)
+                        MatEl = sltcnd_excit(nI,  IC, ExcitMat, tSignOrig)
                     ELSE
-                        MatEl = sltcnd_excit (nI, nJ, IC, ExcitMat, tSignOrig)
+                        MatEl = sltcnd_excit (nI, IC, ExcitMat, tSignOrig)
                     ENDIF
 
                     pGen=pGen/(REAL(MatEl,8))
