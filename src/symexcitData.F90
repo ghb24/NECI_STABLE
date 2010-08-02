@@ -9,7 +9,7 @@ MODULE SymExcitDataMod
     INTEGER :: kTotal(3) !This is the total momentum of the reference configuration
 
 	INTEGER , ALLOCATABLE :: SpinOrbSymLabel(:)		!Find symmetry label (for symexcit routines: 0 -> nSymLabels-1) from BasisFn
-	INTEGER , ALLOCATABLE :: SpinOrbSymInvLabel(:)  !Find inverse symmetry label from BasisFn
+	INTEGER , ALLOCATABLE :: SymInvLabel(:)  !Find inverse symmetry label (0 -> nSymLabels-1)
 	INTEGER , ALLOCATABLE :: SymTableLabels(:,:)	!Symmetry table for symexcit labels (not syms themselves)
 
 END MODULE SymExcitDataMod

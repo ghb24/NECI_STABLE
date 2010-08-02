@@ -40,6 +40,7 @@ MODULE GenRandSymExcitNUMod
     use constants, only: dp,n_int,bits_n_int
     use bit_reps, only: NIfTot
     IMPLICIT NONE
+!	INTEGER , SAVE :: Counter=0
 
     contains
 
@@ -75,6 +76,8 @@ MODULE GenRandSymExcitNUMod
 
         ! Just in case
         ilutnJ(0) = -1
+
+!		Counter=Counter+1
 
         IF((tUEG.and.tLatticeGens) .or. (tHub.and.tLatticeGens)) THEN
             call CreateExcitLattice(nI,iLut,nJ,tParity,ExcitMat,pGen)
@@ -229,13 +232,15 @@ MODULE GenRandSymExcitNUMod
     END SUBROUTINE GenRandSymExcitNU
 
     SUBROUTINE CreateDoubExcit(nI,nJ,ClassCount2,ClassCountUnocc2,ILUT,ExcitMat,tParity,pGen)
-        INTEGER :: nI(NEl),nJ(NEl),ExcitMat(2,2),NExcitOtherWay,OrbB
-        INTEGER :: ClassCount2(ScratchSize),NExcitB,SpinOrbA,OrbA,SymB,NExcitA
-        INTEGER :: ClassCountUnocc2(ScratchSize),SumMl,MlA,MlB
-        INTEGER(KIND=n_int) :: ILUT(0:NIfTot)
-        INTEGER :: Elec1Ind,Elec2Ind,SymProduct,iSpn,ForbiddenOrbs,SymA
-        REAL*8 :: pGen
-        LOGICAL :: tParity,tAOrbFail
+        INTEGER , INTENT(IN) :: nI(NEl)
+		INTEGER , INTENT(OUT) :: nJ(NEl),ExcitMat(2,2)
+        INTEGER , INTENT(IN) :: ClassCountUnocc2(ScratchSize),ClassCount2(ScratchSize)
+        INTEGER(KIND=n_int) , INTENT(IN) :: ILUT(0:NIfTot)
+		INTEGER :: NExcitOtherWay,OrbB,NExcitB,SpinOrbA,OrbA,SymB,NExcitA
+        INTEGER :: Elec1Ind,Elec2Ind,SymProduct,iSpn,ForbiddenOrbs,SymA,SumMl,MlA,MlB
+        REAL*8 , INTENT(OUT) :: pGen
+        LOGICAL , INTENT(OUT) :: tParity
+		LOGICAL :: tAOrbFail
 
 !First, we need to pick an unbiased distinct electron pair.
 !These have symmetry product SymProduct, and spin pair iSpn = 1=beta/beta; 2=alpha/beta; 3=alpha/alpha
@@ -287,7 +292,7 @@ MODULE GenRandSymExcitNUMod
 		INTEGER , INTENT(OUT) :: ExcitMat(2,2),nJ(NEl)
         INTEGER :: iGetExcitLevel_2,ExcitLevel
         LOGICAL , INTENT(OUT) :: tParity
-		LOGICAL :: IsValidDet,SymAllowed
+		LOGICAL :: IsValidDet
 
 !First construct ExcitMat
         ExcitMat(1,1)=Elec1Ind
@@ -296,9 +301,12 @@ MODULE GenRandSymExcitNUMod
         ExcitMat(2,2)=OrbB
         nJ(:)=nI(:)
         CALL FindExcitDet(ExcitMat,nJ,2,tParity)
+
+!#ifdef __DEBUG
 !These are useful (but O[N]) operations to test the determinant generated. If there are any problems with then
 !excitations, I recommend uncommenting these tests to check the results.
-        CALL IsSymAllowedExcit(nI,nJ,2,ExcitMat,SymAllowed)
+        CALL IsSymAllowedExcit(nI,nJ,2,ExcitMat)
+!#endif
 
     END SUBROUTINE FindNewDet
 
@@ -495,8 +503,9 @@ MODULE GenRandSymExcitNUMod
 !For Lz symmetry, it is generally quicker to count the allowed orbitals, and subtract from all possible ones, rather than directly counting
 !the forbidden ones. 
     SUBROUTINE FindNumForbiddenOrbs(ForbiddenOrbs,ClassCountUnocc2,SymProduct,iSpn,SumMl)
-        INTEGER :: ClassCountUnocc2(ScratchSize),OrbAMl,SumMl,j,k,SymOrbs
-        INTEGER :: ForbiddenOrbs,SymProduct,iSpn,i,ConjSym,Ind,l,AllowedOrbs,SymInd!,ForbiddenOrbs2
+        INTEGER , INTENT(IN) :: ClassCountUnocc2(ScratchSize),SumMl,iSpn,SymProduct
+		INTEGER , INTENT(OUT) :: ForbiddenOrbs
+        INTEGER :: i,ConjSym,Ind,l,AllowedOrbs,SymInd,j,k,SymOrbs,OrbAMl
 
         ForbiddenOrbs=0
 !        ForbiddenOrbs2=0
@@ -608,6 +617,7 @@ MODULE GenRandSymExcitNUMod
         ELSE
 		!Not Lz symmetry...
             IF(iSpn.eq.2) THEN
+!				WRITE(6,*) "Alpha/Beta"
 !i,j are an alpha/beta pair. The number of forbidden orbitals includes all alphas and betas.
 
                 Ind=1
@@ -618,20 +628,21 @@ MODULE GenRandSymExcitNUMod
 !This symmetry has no unoccupied alpha orbitals - does its symmetry conjugate have any unoccupied beta orbitals which are now forbidden?
 !If there are no unoccupied orbitals in this conjugate symmetry, then it won't increase the forbidden orbital number, since it can never be chosen.
 !                        ConjSym=IEOR(SymProduct,i)
-                        ForbiddenOrbs=ForbiddenOrbs+ClassCountUnocc2(ClassCountInd(2,RandExcitSymLabelProd(SymProduct,SpinOrbSymInvLabel(i)),0)) !No unocc alphas in i, therefore all betas in ConjSym are forbidden
+                        ForbiddenOrbs=ForbiddenOrbs+ClassCountUnocc2(ClassCountInd(2,RandExcitSymLabelProd(SymProduct,SymInvLabel(i)),0)) !No unocc alphas in i, therefore all betas in ConjSym are forbidden
 !                        WRITE(6,*) ClassCountUnocc2(2,ConjSym),i,ConjSym
                     ENDIF
                     IF(ClassCountUnocc2(Ind+1).eq.0) THEN
 !This symmetry has no unoccupied beta orbitals - does its symmetry conjugate have any unoccupied alpha orbitals which are now forbidden?
 !If there are no unoccupied orbitals in this conjugate symmetry, then it won't increase the forbidden orbital number, since it can never be chosen.
 !                        ConjSym=IEOR(SymProduct,i)
-                        ForbiddenOrbs=ForbiddenOrbs+ClassCountUnocc2(ClassCountInd(1,RandExcitSymLabelProd(SymProduct,SpinOrbSymInvLabel(i)),0))
+                        ForbiddenOrbs=ForbiddenOrbs+ClassCountUnocc2(ClassCountInd(1,RandExcitSymLabelProd(SymProduct,SymInvLabel(i)),0))
 !                        WRITE(6,*) ClassCountUnocc2(2,ConjSym),i,ConjSym
                     ENDIF
                     Ind=Ind+2
                 enddo
 
             ELSEIF(iSpn.eq.1) THEN
+!				WRITE(6,*) "Same Spin"
                 Ind=2
 				IF(.not.tKPntSym) THEN
 					!With molecular systems, the irreps are their own inverses, so it is a little simpler to do the
@@ -662,7 +673,7 @@ MODULE GenRandSymExcitNUMod
 				!Unfortunately, I don't think you can tell from SymProduct when this case is going to be satisfied.
 					do i=0,nSymLabels-1		!Run over symmetries of the orbitals
 						IF(ClassCountUnocc2(Ind).le.1) THEN
-							ConjSym=RandExcitSymLabelProd(SymProduct,SpinOrbSymInvLabel(i))
+							ConjSym=RandExcitSymLabelProd(SymProduct,SymInvLabel(i))
 							IF(ConjSym.eq.i) THEN
 								!A and B come from the same symmetry, so we must have more than one
 								!orbitals available from there..
@@ -683,6 +694,7 @@ MODULE GenRandSymExcitNUMod
 				ENDIF
 
             ELSEIF(iSpn.eq.3) THEN
+!				WRITE(6,*) "Same Spin"
                 Ind=1
 				IF(.not.tKPntSym) THEN
 					IF(SymProduct.ne.0) THEN
@@ -711,7 +723,7 @@ MODULE GenRandSymExcitNUMod
 				!Unfortunately, I don't think you can tell from SymProduct when this case is going to be satisfied.
 					do i=0,nSymLabels-1		!Run over symmetries of the orbitals
 						IF(ClassCountUnocc2(Ind).le.1) THEN
-							ConjSym=RandExcitSymLabelProd(SymProduct,SpinOrbSymInvLabel(i))
+							ConjSym=RandExcitSymLabelProd(SymProduct,SymInvLabel(i))
 							IF(ConjSym.eq.i) THEN
 								!A and B come from the same symmetry, so we must have more than one
 								!orbitals available from there..
@@ -752,6 +764,8 @@ MODULE GenRandSymExcitNUMod
         LOGICAL, INTENT(OUT) :: tAOrbFail
 		INTEGER :: AttemptsOverall,ChosenUnocc,z,i,Attempts
         REAL*8 :: r
+
+!		WRITE(6,*) "FORBIDDEN ORBS: ",ForbiddenOrbs,Counter
 
         IF(iSpn.eq.2) THEN
 !There is no restriction on whether we choose an alpha or beta spin, so there are nBasis-NEl possible spinorbitals to choose from.
@@ -958,7 +972,7 @@ MODULE GenRandSymExcitNUMod
 			RETURN
 		ELSEIF(tKPntSym) THEN
 			SymA=SpinOrbSymLabel(OrbA)
-			SymB=RandExcitSymLabelProd(SpinOrbSymInvLabel(OrbA),SymProduct)
+			SymB=RandExcitSymLabelProd(SymInvLabel(SymA),SymProduct)
 			MlB=0
 			MlA=0
         ELSE
@@ -1110,11 +1124,11 @@ MODULE GenRandSymExcitNUMod
             do i=1,NEl
 
                 IF(G1(nI(i))%Ms.eq.1) THEN
-                    IF(ClassCountUnocc2(ClassCountInd(1,SpinOrbSymInvLabel(nI(i)),G1(nI(i))%Ml)).eq.0) THEN
+                    IF(ClassCountUnocc2(ClassCountInd(1,SymInvLabel(SpinOrbSymLabel(nI(i))),G1(nI(i))%Ml)).eq.0) THEN
                         ElecsWNoExcits=ElecsWNoExcits+1
                     ENDIF
                 ELSE
-                    IF(ClassCountUnocc2(ClassCountInd(2,SpinOrbSymInvLabel(nI(i)),G1(nI(i))%Ml)).eq.0) THEN
+                    IF(ClassCountUnocc2(ClassCountInd(2,SymInvLabel(SpinOrbSymLabel(nI(i))),G1(nI(i))%Ml)).eq.0) THEN
                         ElecsWNoExcits=ElecsWNoExcits+1
                     ENDIF
                 ENDIF
@@ -1158,7 +1172,7 @@ MODULE GenRandSymExcitNUMod
         INTEGER :: ClassCountUnocc2(ScratchSize),k,ElecK,Ind,SymIndex,Ind1,Ind2
         INTEGER(KIND=n_int) :: ILUT(0:NIfTot)
         REAL*8 :: r,pGen
-        LOGICAL :: tParity,IsValidDet,SymAllowed
+        LOGICAL :: tParity,IsValidDet
 
         CALL CheckIfSingleExcits(ElecsWNoExcits,ClassCount2,ClassCountUnocc2,nI)
         IF(ElecsWNoExcits.eq.NEl) THEN
@@ -1180,7 +1194,7 @@ MODULE GenRandSymExcitNUMod
             ELSE
 !For real abelian symmetry, the irrep of i and a must be the same. However, for
 !kpoint symmetry, it must be the inverse (which is now not itself).
-                ElecSym=SpinOrbSymInvLabel(nI(Eleci))
+                ElecSym=SymInvLabel(SpinOrbSymLabel(nI(Eleci)))
                 ElecK=G1(nI(Eleci))%Ml
             ENDIF
 
@@ -1324,9 +1338,11 @@ MODULE GenRandSymExcitNUMod
         ExcitMat(2,1)=Orb
         CALL FindExcitDet(ExcitMat,nJ,1,TParity)
 
+!#ifdef __DEBUG
 !These are useful (but O[N]) operations to test the determinant generated. If there are any problems with then
 !excitations, I recommend uncommenting these tests to check the results.
-        CALL IsSymAllowedExcit(nI,nJ,1,ExcitMat,SymAllowed)
+        CALL IsSymAllowedExcit(nI,nJ,1,ExcitMat)
+!#endif
 
 !Now we need to find the probability of creating this excitation.
 !This is: P_single x P(i) x P(a|i) x N/(N-ElecsWNoExcits)
@@ -1568,6 +1584,7 @@ MODULE GenRandSymExcitNUMod
 			RandExcitSymLabelProd=SymTableLabels(SymLabel1,SymLabel2)
 		ELSE
 			RandExcitSymLabelProd=IEOR(SymLabel1,SymLabel2)
+!			WRITE(6,*) "***",SymLabel1,SymLabel2,RandExcitSymLabelProd
 		ENDIF
 
 	END FUNCTION RandExcitSymLabelProd
@@ -2500,7 +2517,7 @@ END MODULE GenRandSymExcitNUMod
 !to be cast in terms of spin orbitals, and the symrandexcit2 routines will use these arrays.
 SUBROUTINE SpinOrbSymSetup(tRedoSym)
     use SymExcitDataMod , only : ScratchSize,SymLabelList2,SymLabelCounts2,OrbClassCount,kPointToBasisFn,kTotal
-	use SymExcitDataMod , only : SpinOrbSymLabel,SpinOrbSymInvLabel,SymTableLabels
+	use SymExcitDataMod , only : SpinOrbSymLabel,SymInvLabel,SymTableLabels
     use GenRandSymExcitNUMod , only : ClassCountInd
     use SymData, only: nSymLabels,TwoCycleSymGens,SymClasses
     use SymData, only: SymLabelList,SymLabelCounts,SymConjTab,SymLabels
@@ -2539,20 +2556,20 @@ SUBROUTINE SpinOrbSymSetup(tRedoSym)
 		elseif(tKPntSym) then
 			SpinOrbSymLabel(i)=SymClasses(((i+1)/2))-1		!This ensures that the symmetry labels go from 0 -> nSymLabels-1
 		else
-			SpinOrbSymLabel(i)=INT(G1(j)%Sym%S,4)
+			SpinOrbSymLabel(i)=INT(G1(i)%Sym%S,4)
 		endif
 	enddo
 
-	!SpinOrbSymInvLabel takes the label (0 -> nSymLabels) of a spin orbital, and returns the inverse symmetry label, suitable for
-	!use in ClassCountInd.
-	Allocate(SpinOrbSymInvLabel(nBasis))
-	do i=1,nBasis
+!SymInvLabel takes the label (0 -> nSymLabels-1) of a spin orbital, and returns the inverse symmetry label, suitable for
+!use in ClassCountInd.
+	Allocate(SymInvLabel(0:nSymLabels-1))
+	do i=0,nSymLabels-1
 		if(tKPntSym) then
-			SpinOrbSymInvLabel(i)=SymConjTab(SpinOrbSymLabel(i)+1)-1	!Change the sym label back to the representation used by the
+			SymInvLabel(i)=SymConjTab(i+1)-1	!Change the sym label back to the representation used by the
 																		!rest of the code, use SymConjTab, then change back to other 
 																	    !representation of the labels.
 		else
-			SpinOrbSymInvLabel(i)=SpinOrbSymLabel(i)	!They are self-inverses
+			SymInvLabel(i)=i	!They are self-inverses
 		endif
 	enddo
 
@@ -2630,12 +2647,18 @@ SUBROUTINE SpinOrbSymSetup(tRedoSym)
     ELSE
         do i=1,nBasis
             IF(G1(i)%Ms.eq.1) THEN
+				WRITE(6,*) "Index: ",ClassCountInd(1,SpinOrbSymLabel(i),G1(i)%Ml)
+				WRITE(6,*) i,"SpinOrbSymLabel: ",SpinOrbSymLabel(i)
 				OrbClassCount(ClassCountInd(1,SpinOrbSymLabel(i),G1(i)%Ml))=OrbClassCount(ClassCountInd(1,SpinOrbSymLabel(i),G1(i)%Ml))+1
             ELSE
+				WRITE(6,*) "Index: ",ClassCountInd(1,SpinOrbSymLabel(i),G1(i)%Ml)
+				WRITE(6,*) i,"SpinOrbSymLabel: ",SpinOrbSymLabel(i)
                 OrbClassCount(ClassCountInd(2,SpinOrbSymLabel(i),G1(i)%Ml))=OrbClassCount(ClassCountInd(2,SpinOrbSymLabel(i),G1(i)%Ml))+1
             ENDIF
         enddo
     ENDIF
+
+	WRITE(6,*) "*******",OrbClassCount(:)
 
 
 !        ELSE
@@ -2734,7 +2757,7 @@ SUBROUTINE TestGenRandSymExcitNU(nI,Iterations,pDoub,exFlag,iWriteEvery)
     INTEGER :: ClassCount2(ScratchSize),Scratch1(ScratchSize),Scratch2(ScratchSize),scratch3(scratchsize)
     INTEGER(KIND=n_int) :: iLutnJ(0:NIfTot),iLut(0:NIfTot)
     INTEGER :: ClassCountUnocc2(ScratchSize),iExcit,iWriteEvery
-    LOGICAL :: tParity,tFilled,SymAllowed
+    LOGICAL :: tParity,tFilled
     REAL*8 , ALLOCATABLE :: DoublesHist(:,:,:,:),SinglesHist(:,:),AllDoublesHist(:,:,:,:),AllSinglesHist(:,:)
     INTEGER , ALLOCATABLE :: EXCITGEN(:)
     INTEGER :: ierr,Ind1,Ind2,Ind3,Ind4,iMaxExcit,nStore(6),nExcitMemLen,j,k,l,DetNum,DetNumS,Lz,excitcount,ForbiddenIter,error
@@ -2899,8 +2922,7 @@ lp2: do while(.true.)
         ENDIF
 
 !Check excitation
-        CALL IsSymAllowedExcit(nI,nJ,IC,ExcitMat,SymAllowed)
-		IF(.not.SymAllowed) CALL Stop_All("TestGenRandSymExcitNU","Sym forbidden excit created")
+        CALL IsSymAllowedExcit(nI,nJ,IC,ExcitMat)
 
     enddo
 
@@ -2971,18 +2993,17 @@ lp2: do while(.true.)
 
 END SUBROUTINE TestGenRandSymExcitNU
 
-SUBROUTINE IsSymAllowedExcit(nI,nJ,IC,ExcitMat,SymAllowed)
+SUBROUTINE IsSymAllowedExcit(nI,nJ,IC,ExcitMat)
     Use SystemData , only : G1,NEl,tFixLz
     Use SystemData , only : Symmetry,tNoSymGenRandExcits
     use Determinants, only: write_det
     use sym_mod
     IMPLICIT NONE
     Type(Symmetry) :: SymProduct,SymProduct2
-    LOGICAL :: ISVALIDDET,SymAllowed
+    LOGICAL :: ISVALIDDET
     INTEGER :: IC,ExcitMat(2,2),nI(NEl),nJ(NEl),ExcitLevel,iGetExcitLevel
     INTEGER :: KOcc,KUnocc
 
-     SymAllowed=.true.
      Excitlevel=iGetExcitLevel(nI,nJ,NEl)
      IF(Excitlevel.ne.IC) THEN
          WRITE(6,*) "Have not created a correct excitation"
@@ -3002,16 +3023,15 @@ SUBROUTINE IsSymAllowedExcit(nI,nJ,IC,ExcitMat,SymAllowed)
             SymProduct=SYMPROD(G1(ExcitMat(1,1))%Sym,G1(ExcitMat(1,2))%Sym)
             SymProduct2=SYMPROD(G1(ExcitMat(2,1))%Sym,G1(ExcitMat(2,2))%Sym)
             IF(.not.SYMEQ(SymProduct,SymProduct2)) THEN
-                SymAllowed=.false.
+				WRITE(6,*) "Orbs: ",ExcitMat(1,1), ExcitMat(1,2), " -> ",ExcitMat(2,1),ExcitMat(2,2)
+				WRITE(6,*) "Syms: ",G1(ExcitMat(1,1))%Sym,G1(ExcitMat(1,2))%Sym, " -> ",G1(ExcitMat(2,1))%Sym,G1(ExcitMat(2,2))%Sym
                 CALL Stop_All("IsSymAllowedExcit","Excitation not a valid symmetry allowed double excitation")
             ENDIF
         ELSE
             IF(.not.SYMEQ(G1(ExcitMat(1,1))%Sym,G1(ExcitMat(2,1))%Sym)) THEN
-                SymAllowed=.false.
                 CALL Stop_All("IsSymAllowedExcit","Excitation not a valid symmetry allowed single excitation")
             ENDIF
             IF(G1(ExcitMat(1,1))%Ms.ne.G1(ExcitMat(2,1))%Ms) THEN
-                SymAllowed=.false.
                 CALL Stop_All("IsSymAllowedExcit","Excitation not a valid spin-symmetry allowed single excitation")
             ENDIF
         ENDIF
