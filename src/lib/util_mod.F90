@@ -252,13 +252,15 @@ contains
     ! NOTE: This can only be used for binary searching determinant bit 
     !       strings now. We can template it if it wants to be more general 
     !       in the future if needed.
-    pure function binary_search (arr, val, data_size, num_items) result(pos)
+    pure function binary_search (arr, val, data_size, num_items, cf_len) &
+                                 result(pos)
         use constants, only: n_int
 
         integer, intent(in) :: data_size, num_items
         integer(kind=n_int), intent(in) :: arr(data_size, num_items)
         integer(kind=n_int), intent(in) :: val(data_size)
-        integer :: pos
+        integer, intent(in), optional :: cf_len
+        integer :: pos, len
 
         integer :: hi, lo
 
@@ -266,14 +268,21 @@ contains
         lo = 1
         hi = num_items
 
+        ! Have we specified how much to look at?
+        if (present(cf_len)) then
+            len = cf_len
+        else
+            len = data_size
+        endif
+
         ! Narrow the search range down in steps.
         do while (hi /= lo)
             pos = int(real(hi + lo) / 2)
 
-            if (all(arr(:,pos) == val)) then
+            if (all(arr(:len,pos) == val)) then
                 exit
-            else if (arr_gt(val, arr(:,pos))) then
-                ! val is "greater" than arr(:,pos).
+            else if (arr_gt(val(:len), arr(:len,pos))) then
+                ! val is "greater" than arr(:len,pos).
                 ! The lowest position val can take is hence pos + 1 (i.e. if
                 ! val is greater than pos by smaller than pos + 1).
                 lo = pos + 1
@@ -294,9 +303,9 @@ contains
         ! then return -pos to indicate that the item is not present, but that
         ! this is the location it should be in.
         if (hi == lo) then
-            if (all(arr(:,hi) == val)) then
+            if (all(arr(:len,hi) == val(:len))) then
                 pos = hi
-            else if (arr_gt(val, arr(:,hi))) then
+            else if (arr_gt(val(:len), arr(:len,hi))) then
                 pos = -hi - 1
             else
                 pos = -hi

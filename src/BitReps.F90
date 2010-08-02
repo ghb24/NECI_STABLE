@@ -228,7 +228,7 @@ contains
             do i=0,NIfD
                 do j=0,end_n_int
                     if (btest(iLut(i),j)) then
-                        if (.not.btest(iLut(i),xor(j,1))) then
+                        if (.not.btest(iLut(i),ieor(j,1))) then
                             elec = elec + 1
                             nI(elec) = (bits_n_int*i) + (j+1)
                             pos = NIfD + 1 + (nopen/bits_n_int)

@@ -1841,7 +1841,7 @@ contains
 
                 ! Output a list of all generated CSFs
                 open (9, file='genCSF', status='unknown', position='append')
-                write(9,'(i5, "Excitations from ")', advance='no'), nexcit
+                write(9,'(i5, "Excitations from ")', advance='no') nexcit
                 call write_det (9, nI, .true.)
                 do i=1,nexcit
                     call write_det (9, nK(i,:), .true.)
@@ -1857,7 +1857,7 @@ contains
         ! If there are no possible excitations, don't mess around.
         ! (nothing will be allocated if nexcit == 0)
         if (nexcit == 0) then
-            write (6,*), 'No excitations from this CSF'
+            write (6,*) 'No excitations from this CSF'
             return
         endif
 
