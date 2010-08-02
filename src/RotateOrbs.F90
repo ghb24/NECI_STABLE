@@ -1226,6 +1226,7 @@ MODULE RotateOrbsMod
 ! SymLabelCounts2(2:Sym) is the number of orbitals in symmetry block S.
 ! E.g. if symmetry S starts at index 2 and has 3 orbitals.
 ! SymLabelList2(2)->SymLabelList2(4) will give the indexes of these orbitals.
+        use sym_mod, only: GenSymStatePairs
         INTEGER :: j,i,ierr,SymSum
         CHARACTER(len=*) , PARAMETER :: this_routine='InitSymmArrays'
 
@@ -3526,6 +3527,7 @@ MODULE RotateOrbsMod
 ! At the end of the orbital rotation, have a set of coefficients CoeffT1 which transform the HF orbitals into a set of linear
 ! combinations ui which minimise |<ij|kl>|^2.  This is the final subroutine after all iterations (but before the memory deallocation)
 ! that calculates the final 4 index integrals to be used in the NECI calculation.
+        use sym_mod, only: GenSymStatePairs
         use util_mod, only: get_free_unit
         INTEGER :: w,x,y,i,a,j,b
         REAL*8 :: TotGSConstraints,GSConstraint(TotNoConstraints),CoeffTemp(SpatOrbs,SpatOrbs)

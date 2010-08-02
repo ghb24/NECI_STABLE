@@ -22,40 +22,18 @@ module Integrals
 
     interface
         function get_umat_el (fn, i, j, k, l) result(hel)
+            ! Obtains the Coulomb integral <ij|kl> from the UMat array.
+            ! In:
+            !    fn: pointer to the system-specific get_umat_el_* function.
+            !    i,j,k,l: orbital indices. These refer to spin orbitals in
+            !      unrestricted calculations and spatial orbitals in restricted
+            !      calculations.
             use, intrinsic :: iso_c_binding
             use constants, only: dp
             implicit none
             type(c_ptr), intent(in), value :: fn
             integer, intent(in) :: i, j, k, l
             HElement_t :: hel
-        end function
-
-        ! TODO: From sym.F. Should modularise at some point
-        function TotSymRep ()
-            use SystemData, only: Symmetry
-            implicit none
-            type(Symmetry) :: TotSymRep
-        end function
-
-        ! TODO: Same again
-        function symProd (iSym1, iSym2)
-            use SystemData, only: Symmetry
-            implicit none
-            type(Symmetry) :: iSym1, iSym2, symProd
-        end function
-
-        ! TODO: Same again
-        logical function lSymSym (sym)
-            use SystemData, only: Symmetry
-            implicit none
-            type(Symmetry) :: sym
-        end function
-
-        ! TODO: Same again
-        function SymConj (s2)
-            use Systemdata, only: Symmetry
-            implicit none
-            type(Symmetry) :: SymConj, s2
         end function
     end interface
 
@@ -429,6 +407,7 @@ contains
       use SystemData, only: Omega,tAlpha,TBIN,tCPMD,tDFread,THFORDER,tRIIntegrals
       use SystemData, only: thub,tpbc,treadint,ttilt,TUEG,tVASP,tStarStore
       use SystemData, only: uhub, arr,alat,treal,tCacheFCIDUMPInts
+      use sym_mod, only: GenSymStatePairs
       use read_fci
       use constants, only: Pi, Pi2, THIRD
       INTEGER iCacheFlag
@@ -763,9 +742,9 @@ contains
          !TMAT2=(0.d0)
          IF(NBASISMAX(1,3).GE.0.AND.ISPINSKIP.NE.0) THEN
             CALL GetUMatSize(nBasis,(nEl-NFROZEN-NFROZENIN),iSpinSkip,UMATINT)
-                call shared_allocate ("umat2", umat2, (/UMatInt/))
-                !Allocate(UMat2(UMatInt), stat=ierr)
-                LogAlloc(ierr, 'UMat2', UMatInt,HElement_t_SizeB, tagUMat2)
+            call shared_allocate ("umat2", umat2, (/UMatInt/))
+            !Allocate(UMat2(UMatInt), stat=ierr)
+            LogAlloc(ierr, 'UMat2', UMatInt,HElement_t_SizeB, tagUMat2)
             UMAT2 = 0.d0
          ELSE
 !!C.. we don't precompute 4-e integrals, so don't allocate a large UMAT
@@ -859,6 +838,7 @@ contains
        Use UMatCache, only: FreezeUMatCache, CreateInvBrr2,FreezeUMat2D, SetupUMatTransTable
        use UMatCache, only: GTID
        use global_utilities
+       use sym_mod
        use util_mod, only: NECI_ICOPY
 
        IMPLICIT NONE
@@ -1358,7 +1338,8 @@ contains
     function GetUMatEl2(I,J,A,B)
        ! A wrapper for GetUMatEl, now everything is available via modules.
        ! In:
-       !    I,J,A,B: indices of integral
+       !    I,J,A,B: indices of integral.  These are in spin indices in
+       !    unrestricted calculations and spatial indices in restricted.
        ! Returns <ij|ab>
        use SystemData, only: ALAT,G1,iSpinSkip,nBasis,nBasisMax
        implicit none
@@ -1438,6 +1419,19 @@ contains
 
     function get_umat_el_tumat2d (idi, idj, idk, idl) result (hel)
 
+        ! Obtains the Coulomb integral <ij|kl>.
+
+        ! This version is when we store the <ij|ij> and <ij|ji> integrals in
+        ! a 2D array and the rest in a cache.
+
+        ! It is safest to use the get_umat_el wrapper function to access
+        ! get_umat_el_* functions.
+
+        ! In:
+        !    i,j,k,l: orbital indices. These refer to spin orbitals in
+        !      unrestricted calculations and spatial orbitals in restricted
+        !      calculations.
+
         integer, intent(in) :: idi, idj, idk, idl
         integer :: i, j
         HElement_t :: hel
@@ -1471,10 +1465,30 @@ contains
 
     function get_umat_el_cache (idi, idj, idk, idl) result (hel)
 
+        ! Obtains the Coulomb integral <ij|kl>.
+
+        ! This version is when we store the <ij|ij> and <ij|ji> integrals in
+        ! a 2D array and the rest in a cache.
+
+        ! It is safest to use the get_umat_el wrapper function to access
+        ! get_umat_el_* functions.
+
+        ! In:
+        !    i,j,k,l: orbital indices. These refer to spin orbitals in
+        !      unrestricted calculations and spatial orbitals in restricted
+        !      calculations.
+
+        ! For some reason gfortran (4.4 on OSX) really needs to have Symmetry
+        ! used locally (even though it's in the module-level use statement) in
+        ! order to avoid an internal gfortran segfault when compiling the
+        ! TotSymRep call.  Weird!
+        use SymData, only: Symmetry
+        use sym_mod, only: symProd, symConj, lSymSym, TotSymRep
+
         integer, intent(in) :: idi, idj, idk, idl
         integer :: i, j, k, l, a, b
         integer :: iType, iCache, iCacheI
-        type(Symmetry) :: sym
+        type(Symmetry) :: isym
         HElement_t :: hel, UElems(0:nTypes-1)
         logical :: calc2ints
         complex(dp) :: vasp_int(1, 0:1)
@@ -1483,26 +1497,26 @@ contains
         j = idj
         k = idk
         l = idl
-        sym = TotSymRep ()
+        isym=totSymRep()
 
         ! UHF/ROHF (but not explicit ROHF in input) calculation. Integrals
         ! stored as spin-orbitals already...
         ! Also assume real orbitals, since this can only be done by
         ! tCacheFCIDumpInts
         if (tStoreSpinOrbs) then
-            sym = symProd (sym, G1(i)%Sym)
-            sym = symProd (sym, G1(j)%Sym)
-            sym = symProd (sym, G1(k)%Sym)
-            sym = symProd (sym, G1(l)%Sym)
+            isym = symProd (isym, G1(i)%Sym)
+            isym = symProd (isym, G1(j)%Sym)
+            isym = symProd (isym, G1(k)%Sym)
+            isym = symProd (isym, G1(l)%Sym)
         else
-            sym = symProd (sym, symConj(G1(2*i-1)%Sym))
-            sym = symProd (sym, symConj(G1(2*j-1)%Sym))
-            sym = symProd (sym, G1(2*k-1)%Sym)
-            sym = symProd (sym, G1(2*l-1)%Sym)
+            isym = symProd (isym, symConj(G1(2*i-1)%Sym))
+            isym = symProd (isym, symConj(G1(2*j-1)%Sym))
+            isym = symProd (isym, G1(2*k-1)%Sym)
+            isym = symProd (isym, G1(2*l-1)%Sym)
         endif
 
         ! Check the symmetry of the 4-index integrals
-        if ( .not. lSymSym(sym)) then
+        if ( .not. lSymSym(isym)) then
             hel = 0
             return
         endif
@@ -1604,8 +1618,16 @@ contains
 
     function get_umat_el_fixlz_storespinorbs (i, j, k, l, fn2) result(hel)
 
-        ! Consider the case where we are fixing Lz symmetry, and are storing
-        ! spin orbitals
+        ! Obtains the Coulomb integral <ij|kl>.
+
+        ! This version considers the case where we are fixing Lz symmetry, and
+        ! are storing spin orbitals.
+
+        ! It is safest to use the get_umat_el wrapper function to access
+        ! get_umat_el_* functions.
+
+        ! In:
+        !    i,j,k,l: spin-orbital indices.
         
         interface
             function fn2 (i, j, k, l) result (hel)
@@ -1632,8 +1654,16 @@ contains
 
     function get_umat_el_fixlz_notspinorbs (i, j, k, l, fn2) result(hel)
 
-        ! Consider the case where we are fixing Lz symmetry, and are not
-        ! storing spin orbitals
+        ! Obtains the Coulomb integral <ij|kl>.
+
+        ! This version considers the case where we are fixing Lz symmetry, and
+        ! are not storing spin orbitals.
+
+        ! It is safest to use the get_umat_el wrapper function to access
+        ! get_umat_el_* functions.
+
+        ! In:
+        !    i,j,k,l: spatial orbital indices.
         
         interface
             function fn2 (i, j, k, l) result (hel)
@@ -1659,8 +1689,19 @@ contains
     end function
 
     function get_umat_el_normal (idi, idj, idk, idl) result(hel)
-        
-        ! The normal, cached case for getumatel
+
+        ! Obtains the Coulomb integral <ij|kl>.
+
+        ! This version is for the normal, cached case for getumatel, where all
+        ! integrals are stored in the UMat array.
+
+        ! It is safest to use the get_umat_el wrapper function to access
+        ! get_umat_el_* functions.
+
+        ! In:
+        !    idi,idj,idk,idl: orbital indices. These refer to spin orbitals in
+        !      unrestricted calculations and spatial orbitals in restricted
+        !      calculations.
 
         integer, intent(in) :: idi, idj, idk, idl
         HElement_t :: hel
@@ -1674,7 +1715,20 @@ contains
 
     function get_umat_el_starstore (idi, idj, idk, idl) result(hel)
 
-        ! The case when tStarStore and tUMat2D are set
+        ! Obtains the Coulomb integral <ij|kl>.
+
+        ! This version is for the case when tStarStore (so <ij|ab> is only
+        ! stored when i,j are occupied orbitals of the HF determinant and a,b
+        ! are virtual orbitals) and tUMat2D (so <ij|ij> and <ij|ji> integrals
+        ! are stored seperately) are set.
+
+        ! It is safest to use the get_umat_el wrapper function to access
+        ! get_umat_el_* functions.
+
+        ! In:
+        !    idi,idj,idk,idl: orbital indices. These refer to spin orbitals in
+        !      unrestricted calculations and spatial orbitals in restricted
+        !      calculations.
 
         integer, intent(in) :: idi, idj, idk, idl
         integer :: i, j
@@ -1824,6 +1878,13 @@ END SUBROUTINE CALCTMATUEG
 
 ! See Integrals.F90 for an interface for this function.
 function get_umat_el (fn, i, j, k, l) result(hel)
+    ! Obtains the Coulomb integral <ij|kl> from the UMat array.
+    ! In:
+    !    fn: pointer to the system-specific get_umat_el_* function.
+    !      fn should always be the variable ptr_getumatel.
+    !    i,j,k,l: orbital indices. These refer to spin orbitals in
+    !      unrestricted calculations and spatial orbitals in restricted
+    !      calculations.
     use, intrinsic :: iso_c_binding
     use constants, only: dp
     use IntegralsData, only: ptr_getumatel_2

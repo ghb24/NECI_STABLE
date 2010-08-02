@@ -53,6 +53,7 @@ contains
     Subroutine DetPreFreezeInit()
         Use global_utilities
         use SystemData, only : nEl, ECore, Arr, Brr, G1, nBasis, LMS, nBasisMax,tFixLz, tUEGSpecifyMomentum
+        use sym_mod
         use util_mod, only: NECI_ICOPY
         integer ierr
         integer i,Lz
@@ -99,6 +100,7 @@ contains
         use SystemData, only: G1, LMS, nBasis, STot, tCSFOLD, Arr,tHub,tUEG
         use SymData , only : nSymLabels,SymLabelList,SymLabelCounts,TwoCycleSymGens
         use IntegralsData, only: nfrozen
+        use sym_mod
       
       real*8 DNDET
       integer i,ii,j
@@ -474,6 +476,7 @@ END MODULE Determinants
         use SystemData, only : nEl, nBasis, nBasisMax,BasisFN,G1,tFixLz
         use IntegralsData, only : nFrozen,nFrozenIn
         use sort_mod
+        use sym_mod
         implicit none
         integer i,j
         INTEGER GG(*),Lz
