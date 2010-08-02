@@ -198,7 +198,7 @@ module mcpathshdiag
               IF(tMPTheory) THEN
 ! When we do MC on MP, we sum MPEn/pgen in the numerator and 1 in the denominator
                  
-                Call CalcWriteGraphPGen(J,IPATH,I_V,nEl,LOCTAB,G1,         &
+                Call CalcWriteGraphPGen(J,IPATH,I_V,nEl,G1,         &
      &                   nBasisMax,UMat,NMAX,nBasis,Prob,DUMMY)
                  SumX  =SumX   + (MPEn)
                  SumY  =SumY   + (Prob)
@@ -211,7 +211,7 @@ module mcpathshdiag
                IF ((abs(TOTAL).ge.GraphEpsilon).and.                           &
      &                (TOTAL.ge.PREWEIGHTEPS)) THEN!.and.(RHOEPS.le.1.D-08)) THEN
                      
-                   CALL  CalcWriteGraphPGen(J,IPATH,I_V,nEl,LOCTAB,G1,     &
+                   CALL  CalcWriteGraphPGen(J,IPATH,I_V,nEl,G1,     &
      &                       nBasisMax,UMat,NMAX,nBasis,Prob,DUMMY)
                   
                    SumX  =SumX   + DLWDB2-(EREF*TOTAL)
@@ -265,7 +265,7 @@ module mcpathshdiag
             ELSEIF(TLOG5) THEN
 !  Log XIJS (usually for debugging), and the pgen
 !  NMAX has Arr hidden in it
-              CALL CalcWriteGraphPGen(10,IPATH,I_V,nEl,LOCTAB,G1,       &
+              CALL CalcWriteGraphPGen(10,IPATH,I_V,nEl,G1,       &
      &            nBasisMax,UMat,NMAX,nBasis,Prob,DUMMY)
                   WRITE(10,"(3E25.16, I7)") TOTAL,Prob,DLWDB2,ICLS
             ELSE
@@ -317,12 +317,12 @@ module mcpathshdiag
 !C.. Initialiaze the excitation generators
          CALL GETSYM(INODE,NEL,G1,NBASISMAX,ISYM)
          STORE(1)=0
-         CALL GENSYMEXCITIT2(INODE,NEL,G1,NBASIS,NBASISMAX,             &
-     &         .TRUE.,NMEMLEN,NJ,IC,IFRZ(0,I_VIND+1),STORE,EXFLAG)
+         CALL GENSYMEXCITIT2(INODE,NEL,G1,NBASIS,             &
+     &         .TRUE.,NMEMLEN,NJ,IC,STORE,EXFLAG)
          allocate(NMEM(NMEMLEN))
          NMEM(1)=0
-         CALL GENSYMEXCITIT2(INODE,NEL,G1,NBASIS,NBASISMAX,             &
-     &         .TRUE.,NMEM,NJ,IC,IFRZ(0,I_VIND+1),STORE,EXFLAG)
+         CALL GENSYMEXCITIT2(INODE,NEL,G1,NBASIS,             &
+     &         .TRUE.,NMEM,NJ,IC,STORE,EXFLAG)
 !C.. I_VIND is the node that has just been chosen (so LOCTAB(I_VIND) is a
 !C.. generator for that node.  We need to generate from that node, so we
 !C.. store at I_VIND+1
@@ -379,8 +379,7 @@ module mcpathshdiag
 !C.. We need to reset the generator if we're only generating stars.
 !C.. Because we now have some frozen orbitals, the original excitation
 !C.. will not be re-generated.
-                  CALL RESETEXIT2(IPATH(1,LOCTAB(IVLEVEL)%v),NEL,G1,       &
-     &               NBASIS,NBASISMAX,CURGEN,IFRZ2)
+                  CALL RESETEXIT2(CURGEN)
                ENDIF
                LOCTAB2(I_VIND+1)%l=LOCTAB(IVLEVEL)%l
                LOCTAB2(I_VIND+1)%v=LOCTAB(IVLEVEL)%v
@@ -393,8 +392,8 @@ module mcpathshdiag
             LOCTAB2(I_VIND+1)%p=>CURGEN
             DO WHILE(.NOT.TNEXT)
 !C.. Now use the generator to make the next node,NJ
-               CALL GENSYMEXCITIT2(IPATH(1,IEXFROM),NEL,G1,NBASIS,NBASISMAX,  &
-     &         .FALSE.,CURGEN,NJ,IC,IFRZ2,STORE,EXFLAG)
+               CALL GENSYMEXCITIT2(IPATH(1,IEXFROM),NEL,G1,NBASIS,  &
+     &         .FALSE.,CURGEN,NJ,IC,STORE,EXFLAG)
 !C.. Check to see it's actually been generated
                IF(NJ(1).EQ.0) THEN
                   TFAIL=.TRUE.
@@ -447,8 +446,7 @@ module mcpathshdiag
 #endif
                      HIJ(II,I_VIND+1)=RH
                      IF(II<I_VIND) then
-                   IF(IsConnectedDet(IPATH(1,II),NJ,nEl,LOCTAB(II+1)%p,       &
-     &                  G1,nBasisMax,nBasis)) THEN
+                   IF(IsConnectedDet(IPATH(1,II),NJ)) THEN
 !if rhoeps is zero then always set TFAIL.  if rhoeps isn't zero, then set TFAIL if Rh isn't zero (i.e. we've included it before)
                      IF(RH.NE.0.D0.OR.RHOEPS.EQ.0.D0) THEN
 !C.. If the node to which this node (NJ) is attached was known about at

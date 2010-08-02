@@ -175,12 +175,12 @@ C            CALL GENRANDSYMEXCITIT(NI,NEL,G1,NBASIS,NBASISMAX,
 C     &               .FALSE.,NMEM,INODE2,ISEED,IEXCITS,0)
 C.. Setup the spin excit generator
             STORE(1)=0
-            CALL GENSYMEXCITIT2(NI,NEL,G1,NBASIS,NBASISMAX,
-     &         .TRUE.,NMEMLEN,INODE2,I,0,STORE,3)
+            CALL GENSYMEXCITIT2(NI,NEL,G1,NBASIS,
+     &         .TRUE.,NMEMLEN,INODE2,I,STORE,3)
             CALL N_MEMORY(IP_NMEM,NMEMLEN,'NMEM')
             NMEM(1)=0
-            CALL GENSYMEXCITIT2(NI,NEL,G1,NBASIS,NBASISMAX,
-     &         .TRUE.,NMEM,INODE2,I,0,STORE,3)
+            CALL GENSYMEXCITIT2(NI,NEL,G1,NBASIS,
+     &         .TRUE.,NMEM,INODE2,I,STORE,3)
 C.. Count the excitations (and generate a random one which we throw)
             CALL GENRANDSYMEXCITIT2(NI,NEL,G1,NBASIS,NBASISMAX,
      &         NMEM,INODE2,ISEED,IEXCITS,0,UMAT,NMAX,PGR)
@@ -1298,13 +1298,13 @@ C.. If the new node is not in the path, add it.
 
 C.. Setup the spin excit generator
                STORE(1)=0
-               CALL GENSYMEXCITIT2(INODE,NEL,G1,NBASIS,NBASISMAX,
-     &            .TRUE.,NEWEXLEN,INODE2,IC,0,STORE,3)
+               CALL GENSYMEXCITIT2(INODE,NEL,G1,NBASIS,
+     &            .TRUE.,NEWEXLEN,INODE2,IC,STORE,3)
                CALL N_MEMORY(IP_NEWEX,NEWEXLEN,'NEWEX')
                NEWEX(1)=0
                PVERTMEMS(I_VNEXT)=IP_NEWEX
-               CALL GENSYMEXCITIT2(INODE,NEL,G1,NBASIS,NBASISMAX,
-     &            .TRUE.,NEWEX,INODE2,IC,0,STORE,3)
+               CALL GENSYMEXCITIT2(INODE,NEL,G1,NBASIS,
+     &            .TRUE.,NEWEX,INODE2,IC,STORE,3)
 C.. Count the excitations (and generate a random one which we throw)
                CALL GENRANDSYMEXCITIT2(INODE,NEL,G1,NBASIS,NBASISMAX,
      &            NEWEX,INODE2,ISEED,IC,0,UMAT,NMAX,pGen2)
@@ -1342,13 +1342,13 @@ C.. Update the rho and X (probability) matrices with this new node
                         IP_CUREX=PVERTMEMS(I)
 !  NMAX is really Arr
                         CALL GenExcitProb(IPATH(1,I),INODE,nEl,
-     &                   CUREX,G1,nBasisMax,UMat,NMAX,nBasis,pGen2)
+     &                   CUREX,G1,nBasisMax,NMAX,nBasis,pGen2)
                      ENDIF
                      XIJ(I,I_VNEXT)=pGen2
 !  Now work out the reverse prob of generation.
 !  NMAX is really Arr
                      CALL GenExcitProb(INODE,IPATH(1,I),nEl,
-     &                NEWEX,G1,nBasisMax,UMat,NMAX,nBasis,pGen2)
+     &                NEWEX,G1,nBasisMax,NMAX,nBasis,pGen2)
                      XIJ(I_VNEXT,I)=pGen2
       
 ! We supercede the unbiased generation probability with a weighted one.
@@ -2151,15 +2151,15 @@ C.. If the new node is not in the path, add it.
 C.. Setup the spin excit generator
                STORE(1)=0
                !determine how much memory needed
-               CALL GENSYMEXCITIT2(INODE,NEL,G1,NBASIS,NBASISMAX,
-     &            .TRUE.,NEWEXLEN,INODE2,IC,0,STORE,3)
+               CALL GENSYMEXCITIT2(INODE,NEL,G1,NBASIS,
+     &            .TRUE.,NEWEXLEN,INODE2,IC,STORE,3)
                !allocate memory
                CALL N_MEMORY(IP_NEWEX,NEWEXLEN,'NEWEX')
                NEWEX(1)=0
                PVERTMEMS(I_VNEXT)=IP_NEWEX
                !Generate Excitation generator
-               CALL GENSYMEXCITIT2(INODE,NEL,G1,NBASIS,NBASISMAX,
-     &            .TRUE.,NEWEX,INODE2,IC,0,STORE,3)
+               CALL GENSYMEXCITIT2(INODE,NEL,G1,NBASIS,
+     &            .TRUE.,NEWEX,INODE2,IC,STORE,3)
 C.. Count the excitations (and generate a random one which we throw)
  
 !24/04/07 - ghb24 - Removing (hopefully) redundant routine calls - now
@@ -2191,13 +2191,13 @@ C.. Update the rho and X (probability) matrices with this new node
                         IP_CUREX=PVERTMEMS(I)
 !  NMAX is really Arr
                         CALL GenExcitProb(IPATH(1,I),INODE,nEl,
-     &                   CUREX,G1,nBasisMax,UMat,NMAX,nBasis,pGen2)
+     &                   CUREX,G1,nBasisMax,NMAX,nBasis,pGen2)
                      ENDIF
                      XIJ(I,I_VNEXT)=pGen2
 !  Now work out the reverse prob of generation.
 !  NMAX is really Arr
                      CALL GenExcitProb(INODE,IPATH(1,I),nEl,
-     &                NEWEX,G1,nBasisMax,UMat,NMAX,nBasis,pGen2)
+     &                NEWEX,G1,nBasisMax,NMAX,nBasis,pGen2)
                      XIJ(I_VNEXT,I)=pGen2
       
 ! We supercede the old unbiased random choice with a new one.
@@ -2546,13 +2546,13 @@ C.. give up trying to find something to attach, and go home
 C.. Create an excitation generator for this node
 C.. Setup the spin excit generator
                STORE(1)=0
-               CALL GENSYMEXCITIT2(INODE,NEL,G1,NBASIS,NBASISMAX,
-     &            .TRUE.,NEWEXLEN,INODE2,IC,0,STORE,3)
+               CALL GENSYMEXCITIT2(INODE,NEL,G1,NBASIS,
+     &            .TRUE.,NEWEXLEN,INODE2,IC,STORE,3)
                CALL N_MEMORY(IP_NEWEX,NEWEXLEN,'NEWEX')
                NEWEX(1)=0
                PVERTMEMS(I_VNEXT)=IP_NEWEX
-               CALL GENSYMEXCITIT2(INODE,NEL,G1,NBASIS,NBASISMAX,
-     &            .TRUE.,NEWEX,INODE2,IC,0,STORE,3)
+               CALL GENSYMEXCITIT2(INODE,NEL,G1,NBASIS,
+     &            .TRUE.,NEWEX,INODE2,IC,STORE,3)
 C.. Count the excitations (and generate a random one which we throw)
                CALL GENRANDSYMEXCITIT2(INODE,NEL,G1,NBASIS,NBASISMAX,
      &            NEWEX,INODE2,ISEED,IC,0,UMAT,NMAX,PGEN)

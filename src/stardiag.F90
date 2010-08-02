@@ -110,11 +110,11 @@
 !.. Count the excitations. - First call of GenSymExcitIt2 calculates memory needed for internal use in excitation generators
 
          nStore(1)=0
-         CALL GenSymExcitIt2(nI,nEl,G1,nBasis,nBasisMax,.TRUE.,nExcitMemLen,nJ,iMaxExcit,0,nStore,exFlag)
+         CALL GenSymExcitIt2(nI,nEl,G1,nBasis,.TRUE.,nExcitMemLen,nJ,iMaxExcit,nStore,exFlag)
          Allocate(nExcit(nExcitMemLen))
 !Second call calculates size of arrays needed to store all symmetry allowed excitations - further calls will generate excitation on-the-fly(shown by the false in arg(6)
          nExcit(1)=0
-         CALL GenSymExcitIt2(nI,nEl,G1,nBasis,nBasisMax,.TRUE.,nExcit,nJ,iMaxExcit,0,nStore,exFlag)
+         CALL GenSymExcitIt2(nI,nEl,G1,nBasis,.TRUE.,nExcit,nJ,iMaxExcit,nStore,exFlag)
 
 !.. iMaxExcit now contains the number of excitations.
          !TCountExcits will run through all excitations possible, determine if they are connected, and then only store these.
@@ -124,7 +124,7 @@
             excitcount=0
             CALL CalcRho2(nI,nI,Beta,i_P,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,nMax,ALat,UMat,rhii,nTay,0,ECore)
        lp2: do while(.true.)
-                CALL GenSymExcitIt2(nI,nEl,G1,nBasis,nBasisMax,.false.,nExcit,nJ,iExcit,0,nStore,exFlag)
+                CALL GenSymExcitIt2(nI,nEl,G1,nBasis,.false.,nExcit,nJ,iExcit,nStore,exFlag)
                 IF(nJ(1).eq.0) exit lp2
                 CALL CalcRho2(nIExcitFormat,nJ,Beta,i_P,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,nMax,ALat,UMat,rh,nTay,iExcit,ECore)
                 IF(abs(rh).gt.RhoEps) excitcount=excitcount+1
@@ -135,10 +135,10 @@
 !            CALL ResetExit2(nI,nEl,G1,nBasis,nBasisMax,nExcit,0)
             Deallocate(nExcit)
             nStore(1)=0
-            CALL GenSymExcitIt2(nI,nEl,G1,nBasis,nBasisMax,.TRUE.,nExcitMemLen,nJ,iMaxExcit,0,nStore,exFlag)
+            CALL GenSymExcitIt2(nI,nEl,G1,nBasis,.TRUE.,nExcitMemLen,nJ,iMaxExcit,nStore,exFlag)
             Allocate(nExcit(nExcitMemLen))
             nExcit(1)=0
-            CALL GenSymExcitIt2(nI,nEl,G1,nBasis,nBasisMax,.TRUE.,nExcit,nJ,iMaxExcit,0,nStore,exFlag)
+            CALL GenSymExcitIt2(nI,nEl,G1,nBasis,nBasisMax,.TRUE.,nExcit,nJ,iMaxExcit,nStore,exFlag)
 
             !set number of excitations to exact number there are
             iMaxExcit=excitcount
@@ -198,7 +198,7 @@
          HIJS(2)=ExcitInfo(0,2)
 
     lp:  do while(.true.)
-            CALL GenSymExcitIt2(nI,nEl,G1,nBasis,nBasisMax,.false.,nExcit,nJ,iExcit,0,nStore,exFlag)
+            CALL GenSymExcitIt2(nI,nEl,G1,nBasis,.false.,nExcit,nJ,iExcit,nStore,exFlag)
             IF(nJ(1).eq.0) exit lp
 
 !           Calculate rhoij element
@@ -443,13 +443,13 @@
                 CALL GetFullPath(nI,nEl,2,ExcitStore(:,i),DoublePath(:))
                 nExcitMemLen2=0
                 nStore2(1:6)=0
-                CALL GenSymExcitIt2(DoublePath,nEl,g1,nBasis,nBasisMax,.TRUE.,nExcitMemLen2,nJ,iMaxExcit2,0,nStore2,exFlag2)
+                CALL GenSymExcitIt2(DoublePath,nEl,g1,nBasis,.TRUE.,nExcitMemLen2,nJ,iMaxExcit2,nStore2,exFlag2)
                 ALLOCATE(nExcit2(nExcitMemLen2))
                 nExcit2(1:nExcitMemLen2)=0
-                CALL GenSymExcitIt2(DoublePath,nEl,G1,nBasis,nBasisMax,.TRUE.,nExcit2,nJ,iMaxExcit2,0,nStore2,exFlag2)
+                CALL GenSymExcitIt2(DoublePath,nEl,G1,nBasis,.TRUE.,nExcit2,nJ,iMaxExcit2,nStore2,exFlag2)
 
                 lpcount: do while(.true.)
-                    CALL GenSymExcitIt2(DoublePath,nEl,G1,nBasis,nBasisMax,.false.,nExcit2,nJ,iExcit2,0,nStore2,exFlag2)
+                    CALL GenSymExcitIt2(DoublePath,nEl,G1,nBasis,.false.,nExcit2,nJ,iExcit2,nStore2,exFlag2)
                     IF(nJ(1).eq.0) exit lpcount
 
 !If TNoDoubs is set, we disallow all double excitations of double excitations, which are themselves double excitations of the HF.
@@ -531,10 +531,10 @@
                 HFFound=.false.
                 nExcitMemLen2=0
                 nStore2(1:6)=0
-                CALL GenSymExcitIt2(DoublePath,nEl,G1,nBasis,nBasisMax,.TRUE.,nExcitMemLen2,nJ,iMaxExcit2,0,nStore2,exFlag2)
+                CALL GenSymExcitIt2(DoublePath,nEl,G1,nBasis,.TRUE.,nExcitMemLen2,nJ,iMaxExcit2,nStore2,exFlag2)
                 ALLOCATE(nExcit2(nExcitMemLen2))
                 nExcit2(1:nExcitMemLen2)=0
-                CALL GenSymExcitIt2(DoublePath,nEl,G1,nBasis,nBasisMax,.TRUE.,nExcit2,nJ,iMaxExcit2,0,nStore2,exFlag2)
+                CALL GenSymExcitIt2(DoublePath,nEl,G1,nBasis,.TRUE.,nExcit2,nJ,iMaxExcit2,nStore2,exFlag2)
                 CALL CalcRho2(DoublePath,DoublePath,Beta,i_P,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,nMax,ALat,UMat,rh,nTay,0,ECore)
                 
 !Allocate Memory for excited star.
@@ -547,7 +547,7 @@
                 j=0
                 
                 lp: do while(.true.)
-                    CALL GenSymExcitIt2(DoublePath,nEl,G1,nBasis,nBasisMax,.false.,nExcit2,nJ,iExcit2,0,nStore2,exFlag2)
+                    CALL GenSymExcitIt2(DoublePath,nEl,G1,nBasis,.false.,nExcit2,nJ,iExcit2,nStore2,exFlag2)
                     IF(nJ(1).eq.0) exit lp
 
 !If TNoDoubs is set, we disallow all double excitations of double excitations, which are themselves double excitations of the HF.

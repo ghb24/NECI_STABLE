@@ -1230,7 +1230,7 @@ contains
             IF(TLOG5) THEN
 !  Log XIJS (usually for debugging), and the pgen
 !  NMAX has Arr hidden in it
-              CALL CalcWriteGraphPGen(10,IPATH,I_V,nEl,LOCTAB,G1,             &
+              CALL CalcWriteGraphPGen(10,IPATH,I_V,nEl,G1,             &
      &            nBasisMax,UMat,NMAX,nBasis,PR,DUMMY)
                   WRITE(10,"(3E25.16, I7)") TOTAL,PR,DLWDB2,ICLS
             ELSE
@@ -1259,7 +1259,7 @@ contains
                 J=0
                 IF(TOTAL.ge.PREWEIGHTEPS) THEN
 
-                   CALL  CalcWriteGraphPGen(J,IPATH,I_V,nEl,LOCTAB,G1,           &
+                   CALL  CalcWriteGraphPGen(J,IPATH,I_V,nEl,G1,           &
      &                       nBasisMax,UMat,NMAX,nBasis,Prob,DUMMY)
                    SumX  =SumX   + DLWDB2-(EREF*TOTAL)
                    SumY  =SumY   + TOTAL
@@ -1301,16 +1301,16 @@ contains
 !C.. Initialiaze the excitation generators
          CALL GETSYM(INODE,NEL,G1,NBASISMAX,ISYM)
          STORE(1)=0
-         CALL GENSYMEXCITIT2(INODE,NEL,G1,NBASIS,NBASISMAX,                      &
-     &         .TRUE.,NMEMLEN,NJ,IC,IFRZ(0,I_VIND+1),STORE,EXFLAG)
+         CALL GENSYMEXCITIT2(INODE,NEL,G1,NBASIS,                      &
+     &         .TRUE.,NMEMLEN,NJ,IC,STORE,EXFLAG)
 !C         CALL GENSYMEXCITIT(INODE,NEL,G1,NBASIS,NBASISMAX,.TRUE.,ISYM,
 !C     &         .TRUE.,NMEMLEN,NJ,IC,IFRZ(0,I_VIND+1))
          allocate(NMEM(NMEMLEN))
 !C         WRITE(6,"(A,I)") "NMEM",NMEMLEN
 !         write(6,*) "alloc NMEM", loc(NMEM)
          NMEM(1)=0
-         CALL GENSYMEXCITIT2(INODE,NEL,G1,NBASIS,NBASISMAX,                      &
-     &         .TRUE.,NMEM,NJ,IC,IFRZ(0,I_VIND+1),STORE,EXFLAG)
+         CALL GENSYMEXCITIT2(INODE,NEL,G1,NBASIS,                      &
+     &         .TRUE.,NMEM,NJ,IC,STORE,EXFLAG)
 !C.. I_VIND is the node that has just been chosen (so LOCTAB(I_VIND) is a
 !C.. generator for that node.  We need to generate from that node, so we
 !C.. store at I_VIND+1
@@ -1381,8 +1381,7 @@ contains
 !C.. We need to reset the generator if we're only generating stars.
 !C.. Because we now have some frozen orbitals, the original excitation
 !C.. will not be re-generated.
-                  CALL RESETEXIT2(IPATH(1,LOCTAB(IVLEVEL)%v),NEL,G1,          &
-     &               NBASIS,NBASISMAX,CURGEN,IFRZ2)
+                  CALL RESETEXIT2(CURGEN)
                ENDIF
                LOCTAB2(I_VIND+1)%l=LOCTAB(IVLEVEL)%l
                LOCTAB2(I_VIND+1)%v=LOCTAB(IVLEVEL)%v
@@ -1398,7 +1397,7 @@ contains
 !C               CALL EXCIT_DUMP(10,IPATH(1,IEXFROM),NEL,G1,NBASIS,
 !C     &         NBASISMAX,CURGEN,IFRZ2)
 !C.. Now use the generator to make the next node,NJ
-               CALL GENSYMEXCITIT2(IPATH(1,IEXFROM),NEL,G1,NBASIS,NBASISMAX,     &
+               CALL GENSYMEXCITIT2(IPATH(1,IEXFROM),NEL,G1,NBASIS,     &
      &         .FALSE.,CURGEN,NJ,IC,IFRZ2,STORE,EXFLAG)
 !C               CALL GENSYMEXCITIT(IPATH(1,IEXFROM),NEL,G1,
 !C     &            NBASIS,NBASISMAX,.TRUE.,
@@ -1465,8 +1464,7 @@ contains
                      IF(II<I_VIND) then
 !                      WRITE(6,*) "ICD", II
 !                      call flush(6)
-                      IF(IsConnectedDet(IPATH(1,II),NJ,nEl,LOCTAB(II+1)%p,             &
-     &                  G1,nBasisMax,nBasis)) THEN
+                      IF(IsConnectedDet(IPATH(1,II),NJ)) THEN
 !if rhoeps is zero then always set TFAIL.  if rhoeps isn't zero, then set TFAIL if Rh isn't zero (i.e. we've included it before)
                        IF(RH.NE.0.D0.OR.RHOEPS.EQ.0.D0) THEN
 !C.. If the node to which this node (NJ) is attached was known about at

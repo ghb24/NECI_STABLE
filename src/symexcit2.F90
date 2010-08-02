@@ -55,7 +55,7 @@ MODULE SymExcit2
          ENDDO
       END subroutine
 !  Enumerate the excitations and weights of excitations of a given ExcitType.  
-      SUBROUTINE EnumExcitWeights(ExcitType,iFromIndex,iLUT,ews,OrbPairs,SymProdInd,Norm,iCount,G1,NBASISMAX,UMAT,Arr,NBASIS)
+      SUBROUTINE EnumExcitWeights(ExcitType,iFromIndex,iLUT,ews,OrbPairs,SymProdInd,Norm,iCount,NBASISMAX,Arr,NBASIS)
          use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
          use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
          use constants, only: dp
@@ -71,8 +71,6 @@ MODULE SymExcit2
          INTEGER iFromIndex
          LOGICAL L1B,L1A,L2B,L2A
          INTEGER nBasisMax(5,*)
-         TYPE(BasisFN) G1(*)
-         HElement_t UMAT(*)
          REAL*8 Norm
          TYPE(ExcitWeight) ews(*)
          INTEGER K
@@ -109,7 +107,7 @@ MODULE SymExcit2
      &                  ORBPAIRS(2,SYMPRODIND(1,ISPN,IFROM)+iFromIndex),&
      &                  ICC1,                                           &
      &                  ICC3,                                           &
-     &                  ews,Norm,ICOUNT,G1,NBASISMAX,UMAT,Arr,NBASIS)
+     &                  ews,Norm,ICOUNT,NBASISMAX,Arr,NBASIS)
                ENDIF
             ELSEIF(ISPN.EQ.2) THEN
 !.. If neither virtuals are in NI, then allow
@@ -119,7 +117,7 @@ MODULE SymExcit2
      &                  ORBPAIRS(2,SYMPRODIND(1,ISPN,IFROM)+iFromIndex),&
      &                  ICC1,                                           &
      &                  ICC4,                                           &
-     &                  ews,Norm,ICOUNT,G1,NBASISMAX,UMAT,Arr,NBASIS)
+     &                  ews,Norm,ICOUNT,NBASISMAX,Arr,NBASIS)
                ENDIF
 !.. If neither virtuals are in NI, and they're not the same(which would give
 !.. us the same excitation as previously), then allow
@@ -129,7 +127,7 @@ MODULE SymExcit2
      &                  ORBPAIRS(2,SYMPRODIND(1,ISPN,IFROM)+iFromIndex),&
      &                  ICC2,                                           &
      &                  ICC3,                                           &
-     &                  ews,Norm,ICOUNT,G1,NBASISMAX,UMAT,Arr,NBASIS)
+     &                  ews,Norm,ICOUNT,NBASISMAX,Arr,NBASIS)
                ENDIF
             ELSEIF(ISPN.EQ.3) THEN
 !.. If both virtuals aren't the samem and neither are in NI, then allow
@@ -139,7 +137,7 @@ MODULE SymExcit2
      &                  ORBPAIRS(2,SYMPRODIND(1,ISPN,IFROM)+iFromIndex),&
      &                  ICC2,                                           &
      &                  ICC4,                                           &
-     &                  ews,Norm,ICOUNT,G1,NBASISMAX,UMAT,Arr,NBASIS)
+     &                  ews,Norm,ICOUNT,NBASISMAX,Arr,NBASIS)
                ENDIF
             ENDIF
          Call SymGenExcitIt_GetNextPair(K,iTo,iLooped,iTo1,iTo2,  &
@@ -148,18 +146,16 @@ MODULE SymExcit2
       END subroutine
 ! Add the weight of the excitation to the list in ExWeights
 ! I,J are from, K,L are to
-      SUBROUTINE AddExcitWeight(I,J,A,B,ExWeights,Norm,iCount,G1,NBASISMAX,UMAT,Arr,NBASIS)
+      SUBROUTINE AddExcitWeight(I,J,A,B,ExWeights,Norm,iCount,NBASISMAX,Arr,NBASIS)
          use constants, only: dp
          use SystemData, only: BasisFN
          INTEGER I,J,A,B
          REAL*8 R,Norm
          INTEGER nBasisMax(5,*),NBASIS
-         TYPE(BasisFN) G1(*)
-         HElement_t UMAT(*)
          TYPE(ExcitWeight) ExWeights(iCount+1)
          INTEGER iCount
          REAL*8 Arr(nBasis,2)
-         CALL ExcitWeighting(I,J,A,B,R,G1,NBASISMAX,UMAT,Arr,NBASIS)
+         CALL ExcitWeighting(I,J,A,B,R,NBASISMAX,Arr,NBASIS)
          iCount=iCount+1
          ExWeights(iCount)%I=I
          ExWeights(iCount)%J=J
@@ -245,7 +241,7 @@ MODULE SymExcit2
       END subroutine
 !        A sub called to generate an unnormalised weight for a given ij->kl excitation
 !          We return a function of the U matrix element (|<ij|u|kl>|^2)^G_VMC_EXCITWEIGHT
-      SUBROUTINE EXCITWEIGHTING(I,J,K,L,WEIGHT,G1,NBASISMAX,UMAT,Arr,NBASIS)
+      SUBROUTINE EXCITWEIGHTING(I,J,K,L,WEIGHT,NBASISMAX,Arr,NBASIS)
          use constants, only: dp
          USE UMatCache , only : GTID
          use Integrals, only : GetUMatEl
@@ -253,14 +249,13 @@ MODULE SymExcit2
          use global_utilities
          IMPLICIT NONE
          INTEGER nBasisMax(5,*),NBASIS
-         TYPE(BasisFN) G1(NBASIS)
 !  We fake ISS
          INTEGER ISS
          INTEGER IDI,IDJ,IDK,IDL
          INTEGER I,J,K,L
          !type(timer), save :: proc_timer
          REAL*8 WEIGHT,W2
-         HElement_t UMAT(*),W
+         HElement_t W
          REAL*8 Arr(nBasis,2)
          IF(G_VMC_EXCITWEIGHT(CUR_VERT).EQ.0.D0) THEN
             WEIGHT=1.D0
@@ -328,7 +323,7 @@ MODULE SymExcit2
 ! After that, we generate the probability that nJ would be an excitation from nI.
 
 !  WARNING - this currently only works for abelian symmetry groups
-      SUBROUTINE GenExcitProbInternal(nI,nJ,nEl,G1,nBasisMax,UMat,Arr,nBasis,OrbPairs,SymProdInd,iLUT,SymProds,ExcitTypes,iTotal,pGen)
+      SUBROUTINE GenExcitProbInternal(nI,nJ,nEl,G1,nBasisMax,Arr,nBasis,OrbPairs,SymProdInd,iLUT,SymProds,ExcitTypes,iTotal,pGen)
          use constants, only: dp
          use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
          use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
@@ -345,7 +340,6 @@ MODULE SymExcit2
          TYPE(Symmetry) SymProds(0:*)
          LOGICAL SYMEQ
          INTEGER nBasisMax(5,*)
-         HElement_t UMat(*)
          TYPE(ExcitWeight), allocatable :: ews(:)
          integer, save :: tagews=0
          INTEGER iLUT(*)
@@ -433,7 +427,7 @@ MODULE SymExcit2
          call LogMemAlloc('ExcitWGEPI',nToPairs,8*ExcitWeightSize,thisroutine,tagEWS)
          iCount=0
          Norm=0.D0
-         CALL EnumExcitWeights(ExcitTypes(1,iExcitType),iFromIndex,iLUT,ews,OrbPairs,SymProdInd,Norm,iCount,G1,nBasisMax,UMat,Arr,nBasis)
+         CALL EnumExcitWeights(ExcitTypes(1,iExcitType),iFromIndex,iLUT,ews,OrbPairs,SymProdInd,Norm,iCount,nBasisMax,Arr,nBasis)
 !.. Find the (a,b) pair
 !.. The prob of all possible excitations in this iTo 
          DO I=1,nToPairs
@@ -452,22 +446,14 @@ MODULE SymExcit2
 
 !We wish to calculate whether NJ is an excitation of NI.
 !WARNING - this currently only works for abelian symmetry groups
-      SUBROUTINE IsConnectedDetInternal(nI,nJ,nEl,G1,nBasisMax,nBasis,OrbPairs,SymProdInd,iLUT,SymProds,ExcitTypes,iTotal,tIsConnectedDet)
+      SUBROUTINE IsConnectedDetInternal(nI,nJ,tIsConnectedDet)
          use constants, only: dp
-         use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
+         use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB, nel
          use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
          IMPLICIT NONE
          INTEGER iExcit(2,2)
          LOGICAL L
-         INTEGER nI(nEl),nJ(nEl),nEl,nBasis
-         TYPE(BasisFn) G1(nBasis)
-         TYPE(Symmetry) SymProds(0:*)
-         INTEGER nBasisMax(5,*)
-         INTEGER iLUT(*)
-         INTEGER OrbPairs(2,*)
-         INTEGER SymProdInd(2,3,0:*)
-         INTEGER ExcitTypes(5,*)
-         INTEGER iTotal
+         INTEGER nI(nEl),nJ(nEl)
          LOGICAL tIsConnectedDet
          LOGICAL IsUHFDet
          iExcit(1,1)=2

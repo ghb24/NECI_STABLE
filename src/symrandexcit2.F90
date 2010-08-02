@@ -2831,16 +2831,16 @@ SUBROUTINE TestGenRandSymExcitNU(nI,Iterations,pDoub,exFlag,iWriteEvery)
 !Setup excit generators for this determinant
     iMaxExcit=0
     nStore(1:6)=0
-    CALL GenSymExcitIt2(nI,NEl,G1,nBasis,nBasisMax,.TRUE.,nExcitMemLen,nJ,iMaxExcit,0,nStore,exFlag)
+    CALL GenSymExcitIt2(nI,NEl,G1,nBasis,.TRUE.,nExcitMemLen,nJ,iMaxExcit,0,nStore,exFlag)
     ALLOCATE(EXCITGEN(nExcitMemLen),stat=ierr)
     IF(ierr.ne.0) CALL Stop_All("SetupExcitGen","Problem allocating excitation generator")
     EXCITGEN(:)=0
-    CALL GenSymExcitIt2(nI,NEl,G1,nBasis,nBasisMax,.TRUE.,EXCITGEN,nJ,iMaxExcit,0,nStore,exFlag)
+    CALL GenSymExcitIt2(nI,NEl,G1,nBasis,.TRUE.,EXCITGEN,nJ,iMaxExcit,0,nStore,exFlag)
 !    CALL GetSymExcitCount(EXCITGEN,DetConn)
     excitcount=0
 
 lp2: do while(.true.)
-        CALL GenSymExcitIt2(nI,nEl,G1,nBasis,nBasisMax,.false.,EXCITGEN,nJ,iExcit,0,nStore,exFlag)
+        CALL GenSymExcitIt2(nI,nEl,G1,nBasis,.false.,EXCITGEN,nJ,iExcit,0,nStore,exFlag)
         IF(nJ(1).eq.0) exit lp2
         IF(tUEG.or.tHub) THEN
             IF (IsMomentumAllowed(nJ)) THEN

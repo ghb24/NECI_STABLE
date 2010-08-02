@@ -372,7 +372,7 @@ C.. If we're actually using CSFs
                   ENDIF
                ENDIF
 C.. use a new excitation routine - THIS DOES NOT PRODUCE AN ORDERED LIST
-               CALL SYMSETUPEXCITS(NI,NEL,G1,NBASIS,NBASISMAX,STORE,
+               CALL SYMSETUPEXCITS(NI,NEL,NBASIS,STORE,
      &            TCOUNT,ICOUNT,ILEVEL,1,nEl)
                IF(.NOT.TCOUNT) THEN
                   IF(ICOUNT.GT.NLIST) THEN
@@ -380,7 +380,7 @@ C.. use a new excitation routine - THIS DOES NOT PRODUCE AN ORDERED LIST
                      WRITE(6,*) "Requires size",ICOUNT
                      STOP "EXCITATIONS LIST NOT LARGE ENOUGH"
                   ENDIF
-                  CALL SYMGENEXCITS(NI,NEL,G1,NBASIS,NBASISMAX,STORE,
+                  CALL SYMGENEXCITS(NI,NEL,STORE,
      &               LIST,ICLIST,ICOUNT)
                ENDIF
                NLIST=ICOUNT

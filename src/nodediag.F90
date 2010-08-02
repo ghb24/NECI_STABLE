@@ -101,18 +101,18 @@
 !First call finds memory needed for excitation generator (nExcitMemLen)
 !      nExcitMemLen=0
       nStore(1)=0
-      CALL GenSymExcitIt2(nI,nEl,G1,nBasis,nBasisMax,.TRUE.,nExcitMemLen,nJ,iMaxExcit,0,nStore,exFlag)
+      CALL GenSymExcitIt2(nI,nEl,G1,nBasis,.TRUE.,nExcitMemLen,nJ,iMaxExcit,nStore,exFlag)
       Allocate(nExcit(nExcitMemLen))
 
 !Second call to calculate theoretical max number of excitations (iMaxExcit)
       nExcit(1)=0
-      CALL GenSymExcitIt2(nI,nEl,G1,nBasis,nBasisMax,.TRUE.,nExcit,nJ,iMaxExcit,0,nStore,exFlag)
+      CALL GenSymExcitIt2(nI,nEl,G1,nBasis,.TRUE.,nExcit,nJ,iMaxExcit,nStore,exFlag)
       IF(iMaxExcit.gt.(noij*noab)) STOP 'Incorrect calculation of number of excits'
       
 !Go through all excitations and store them, even if have no direct connection to root.
       noexcits=0
       lp: do while(.true.)
-          CALL GenSymExcitIt2(nI,nEl,G1,nBasis,nBasisMax,.false.,nExcit,nJ,iExcit,0,nStore,exFlag)
+          CALL GenSymExcitIt2(nI,nEl,G1,nBasis,.false.,nExcit,nJ,iExcit,nStore,exFlag)
           
 !Shows that all double excitations have been accounted for
           IF(nJ(1).eq.0) exit lp

@@ -138,7 +138,7 @@ contains
 !C     &         "Cannot block diagonalize in HF Basis."
 !C         STOP
 !C      ENDIF
-!C      CALL SYMGENEXCITS(FDET,NEL,G1,NBASIS,NBASISMAX)
+!C      CALL SYMGENEXCITS(FDET,NEL,NBASIS)
 !C      CALL LeaveMemoryManager
 !C      STOP
 

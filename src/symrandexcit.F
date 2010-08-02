@@ -410,7 +410,7 @@ C.. Actually generate a det
 !  a point in the sum of weights which is found by subtracting weights until we reach 0.
 !  This is only done for the excitations TO because we need to know the excitations FROM to generate the weight
          CALL EnumExcitWeights(EXCITTYPES(1,IEXCIT),I,ILUT,ews,OrbPairs,
-     &      SymProdInd,RCOUNT,ICOUNT,G1,NBASISMAX,UMAT,ARR,NBASIS)
+     &      SymProdInd,RCOUNT,ICOUNT,NBASISMAX,ARR,NBASIS)
 
          pGen=pGen/rCount           ! Normalize for the sum of TOs
          
@@ -1157,7 +1157,7 @@ C.. Actually generate a det
 !  a point in the sum of weights which is found by subtracting weights until we reach 0.
 !  This is only done for the excitations TO because we need to know the excitations FROM to generate the weight
          CALL EnumExcitWeights(EXCITTYPES(1,IEXCIT),I,ILUT,ews,OrbPairs,
-     &      SymProdInd,RCOUNT,ICOUNT,G1,NBASISMAX,UMAT,ARR,NBASIS)
+     &      SymProdInd,RCOUNT,ICOUNT,NBASISMAX,ARR,NBASIS)
 
 !         Write(6,*) "Doub To", iCount,rCount
          pGen=pGen/rCount           ! Normalize for the sum of TOs

@@ -2203,11 +2203,11 @@ SUBROUTINE PerformFCIMCyc()
         VecSlot=2           !This is the next free slot in the MP1 arrays
         MP2Energy=0.D0      !Calculate the MP2 energy as we go, since the shift will be set to this
 
-        CALL ResetExIt2(HFDet,NEl,G1,nBasis,nBasisMax,HFExcit%ExcitData,0)
+        CALL ResetExIt2(HFExcit%ExcitData)
 
         do while(.true.)
 !Generate double excitations
-            CALL GenSymExcitIt2(HFDet,NEl,G1,nBasis,nBasisMax,.false.,HFExcit%Excitdata,nJ,iExcit,0,nStore,2)
+            CALL GenSymExcitIt2(HFDet,NEl,G1,nBasis,.false.,HFExcit%Excitdata,nJ,iExcit,nStore,2)
             IF(nJ(1).eq.0) EXIT
             IF(iExcit.ne.2) THEN
                 CALL Stop_All("InitWalkersMP1","Error - excitations other than doubles being generated in MP1 wavevector code")
@@ -2235,7 +2235,7 @@ SUBROUTINE PerformFCIMCyc()
             VecSlot=VecSlot+1
 
         enddo
-        CALL ResetExIt2(HFDet,NEl,G1,nBasis,nBasisMax,HFExcit%ExcitData,0)
+        CALL ResetExIt2(HFExcit%ExcitData)
 
         WRITE(6,"(A,F15.7,A)") "Sum of absolute components of MP1 wavefunction is ",SumMP1Compts," with the HF being 1."
 
@@ -2377,11 +2377,11 @@ SUBROUTINE PerformFCIMCyc()
         Compts=0
 
 !Reset the HF Excitation generator
-        CALL ResetExIt2(HFDet,NEl,G1,nBasis,nBasisMax,HFExcit%ExcitData,0)
+        CALL ResetExIt2(HFExcit%ExcitData)
 
         do while(.true.)
 !Generate double excitations
-            CALL GenSymExcitIt2(HFDet,NEl,G1,nBasis,nBasisMax,.false.,HFExcit%Excitdata,nJ,iExcit,0,nStore,2)
+            CALL GenSymExcitIt2(HFDet,NEl,G1,nBasis,.false.,HFExcit%Excitdata,nJ,iExcit,nStore,2)
             IF(nJ(1).eq.0) EXIT
             Compts=Compts+1     !Calculate total number of MP1 excitations
 !            ExcitForm(1,1)=2    !signify that we are only dealing with double excitations
@@ -2433,7 +2433,7 @@ SUBROUTINE PerformFCIMCyc()
         enddo
 
 !Reset the HF Excitation generator
-        CALL ResetExIt2(HFDet,NEl,G1,nBasis,nBasisMax,HFExcit%ExcitData,0)
+        CALL ResetExIt2(HFExcit%ExcitData)
 
         WRITE(6,"(I7,A)") Compts," MP2 components calculated. Maximum MP2 wavevector component is determinant: "
         call write_det (6, MaxComptDet, .true.)
@@ -2753,11 +2753,11 @@ SUBROUTINE PerformFCIMCyc()
 !Setup excit generators for this determinant (This can be reduced to an order N routine later for abelian symmetry.
             iMaxExcit=0
             nStore(1:6)=0
-            CALL GenSymExcitIt2(nI,NEl,G1,nBasis,nBasisMax,.TRUE.,ExcitGen%nExcitMemLen,nJ,iMaxExcit,0,nStore,3)
+            CALL GenSymExcitIt2(nI,NEl,G1,nBasis,.TRUE.,ExcitGen%nExcitMemLen,nJ,iMaxExcit,nStore,3)
             ALLOCATE(ExcitGen%ExcitData(ExcitGen%nExcitMemLen),stat=ierr)
             IF(ierr.ne.0) CALL Stop_All("SetupExcitGen","Problem allocating excitation generator")
             ExcitGen%ExcitData(1)=0
-            CALL GenSymExcitIt2(nI,NEl,G1,nBasis,nBasisMax,.TRUE.,ExcitGen%ExcitData,nJ,iMaxExcit,0,nStore,3)
+            CALL GenSymExcitIt2(nI,NEl,G1,nBasis,.TRUE.,ExcitGen%ExcitData,nJ,iMaxExcit,nStore,3)
 
 !Check generation probabilities
 !            CALL GenRandSymExcitIt3(nI,ExcitGen%ExcitData,nJ,Seed,IC,Frz,Prob,iCount)
@@ -2787,11 +2787,11 @@ SUBROUTINE PerformFCIMCyc()
 !Setup excit generators for this determinant 
         iMaxExcit=0
         nStore(1:6)=0
-        CALL GenSymExcitIt2(DetCurr,NEl,G1,nBasis,nBasisMax,.TRUE.,MemLength,nJ,iMaxExcit,0,nStore,3)
+        CALL GenSymExcitIt2(DetCurr,NEl,G1,nBasis,.TRUE.,MemLength,nJ,iMaxExcit,nStore,3)
         ALLOCATE(ExcitGenTemp(MemLength),stat=ierr)
         IF(ierr.ne.0) CALL Stop_All("SetupExcitGen","Problem allocating excitation generator")
         ExcitGenTemp(1)=0
-        CALL GenSymExcitIt2(DetCurr,NEl,G1,nBasis,nBasisMax,.TRUE.,ExcitGenTemp,nJ,iMaxExcit,0,nStore,3)
+        CALL GenSymExcitIt2(DetCurr,NEl,G1,nBasis,.TRUE.,ExcitGenTemp,nJ,iMaxExcit,nStore,3)
 
 !Now generate random excitation
         CALL GenRandSymExcitIt3(DetCurr,ExcitGenTemp,nJ,Seed,IC,Frz,Prob,iCount)

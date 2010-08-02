@@ -495,11 +495,11 @@ FUNCTION MCPATHSPRE(point,NI,BETA,I_P,IPATH,K,G1,NMSH,         &
                 CALL GETSYM(NI,NEL,G1,NBASISMAX,KSYM)
 !Setup the spin excit generator
                 STORE(1)=0
-                CALL GENSYMEXCITIT2(NI,NEL,G1,NBASIS,NBASISMAX,.TRUE.,NMEMLEN,INODE2,I,0,STORE,3)
+                CALL GENSYMEXCITIT2(NI,NEL,G1,NBASIS,.TRUE.,NMEMLEN,INODE2,I,STORE,3)
                 ALLOCATE(NMEM(NMEMLEN),STAT=ierr3)
                 CALL LogMemAlloc('PRECALC_NMEM',NMEMLEN,8,t_r,tagNMEM,ierr3)
                 NMEM(1)=0
-                CALL GENSYMEXCITIT2(NI,NEL,G1,NBASIS,NBASISMAX,.TRUE.,NMEM,INODE2,I,0,STORE,3)
+                CALL GENSYMEXCITIT2(NI,NEL,G1,NBASIS,.TRUE.,NMEM,INODE2,I,STORE,3)
 !    Count the excitations (and generate a random one which we throw)
                 ISEED=G_VMC_SEED
                 CALL GENRANDSYMEXCITIT2(NI,NEL,G1,NBASIS,NBASISMAX,NMEM,INODE2,ISEED,IEXCITS,0,UMAT,Arr,PGR)
@@ -583,7 +583,7 @@ FUNCTION MCPATHSPRE(point,NI,BETA,I_P,IPATH,K,G1,NMSH,         &
                         ELSE
                             g_VMC_ExcitWeights(:,K)=ORIGEXCITWEIGHTS(:)
                         ENDIF
-                        CALL CalcWriteGraphPGen(J,IPATH,K,NEl,LOCTAB,G1,               &
+                        CALL CalcWriteGraphPGen(J,IPATH,K,NEl,G1,               &
                                   NBASISMAX,UMat,Arr,NBASIS,PROB,EXCITGEN(0:K))
                    
                         SumX=SumX+((OWEIGHT*DLWDB2)/OPROB)
@@ -634,7 +634,7 @@ FUNCTION MCPATHSPRE(point,NI,BETA,I_P,IPATH,K,G1,NMSH,         &
                     PROB=0.D0
                     IPATH(:,0:K)=GRAPHS(:,0:K,bb)
                     EXCITGEN(0:K)=PVERTMEMS(:,bb)
-                    CALL  CalcWriteGraphPGen(J,IPATH,K,NEl,LOCTAB,G1,               &
+                    CALL  CalcWriteGraphPGen(J,IPATH,K,NEl,G1,               &
                                NBASISMAX,UMat,Arr,NBASIS,PROB,EXCITGEN(0:K))
                     
                     PGENLIST(bb)=PROB
