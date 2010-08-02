@@ -29,9 +29,7 @@ contains
          USE STARDIAGMOD , only: fMCPR3StarNewExcit
          USE GraphMorph , only : MorphGraph
          USE StarDiagTripMod , only : StarDiagTrips
-#ifdef PARALLEL
          USE FciMCParMod , only : FciMCPar
-#endif
          USE FciMCMod , only : FciMC
          USE ReturnPathMCMod , only : ReturnPathMC
          USE NODEDIAG , only : fMCPR3StarNodes
@@ -247,7 +245,6 @@ contains
                     CALL StarDiagTrips(DLWDB2,F(I_V))
                ELSEIF(TFCIMC) THEN
 !A MC simulation involving replicating particles is run
-#ifdef PARALLEL
 !                    WRITE(6,*) "Get Here!: ",I_V,F(I_V),DLWDB2
                   IF(tFCIMCSerial) THEN
                     CALL FciMC(F(I_V),DLWDB2)
@@ -255,9 +252,6 @@ contains
                     CALL FciMCPar(F(I_V),DLWDB2)
                   ENDIF
 !                    WRITE(6,*) "Get Here!: ",I_V,F(I_V),DLWDB2
-#else
-                    CALL FciMC(F(I_V),DLWDB2)
-#endif
                ELSEIF(tCCMC) THEN
                   if(tAmplitudes) THEN
                      CALL CCMCStandAlone(F(I_V),DLWDB2)
