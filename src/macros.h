@@ -34,8 +34,14 @@
 if (.not. (x)) then; \
 	call stop_all (this_routine, "Assertation failed: "//"x"); \
 endif
+! Do some debugging if X>=Y
+#define IFDEBUG(PrintLevel,ThisLevel) if (PrintLevel>=ThisLevel)
+#define IFDEBUGTHEN(PrintLevel,ThisLevel) if (PrintLevel>=ThisLevel) then
+#define ENDIFDEBUG endif
 #else
 #define ASSERT(x)
+#define IFDEBUG(PrintLevel,ThisLevel) if(.false.)
+#define ENDIFDEBUG endif
 #endif
 
 ! Write out from the root node (concisely)

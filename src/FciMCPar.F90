@@ -42,6 +42,7 @@ MODULE FciMCParMod
     USE Logging , only : tPrintFCIMCPsi,tCalcFCIMCPsi,NHistEquilSteps,tPrintOrbOcc,StartPrintOrbOcc
     USE Logging , only : tHFPopStartBlock,tIterStartBlock,IterStartBlocking,HFPopStartBlocking,tInitShiftBlocking,tHistHamil,iWriteHamilEvery,HistInitPopsTag
     USE Logging , only : OrbOccs,OrbOccsTag,tPrintPopsDefault,iWriteBlockingEvery,tBlockEveryIteration,tHistInitPops,HistInitPopsIter,HistInitPops
+    USE Logging , only : FCIMCDebug
     USE SymData , only : nSymLabels
     USE dSFMT_interface , only : genrand_real2_dSFMT
     USE Parallel
@@ -432,7 +433,6 @@ MODULE FciMCParMod
         integer(kind=n_int), intent(in) :: ilutI(0:niftot)
         integer, intent(in) :: ic, ex(2,2)
         integer(kind=n_int), intent(out) :: ilutj(0:niftot)
-        ilutj=0
     end subroutine
 
     subroutine set_new_child_stats (new_child_stats)
@@ -616,6 +616,7 @@ MODULE FciMCParMod
         logical :: tFilled, tParity, tHFFound, tHFFoundTemp
         real(dp) :: prob, HDiagCurr
         HElement_t :: HDiagTemp
+        character(*), parameter :: this_routine = 'PerformFCIMCycPar' 
 
         call set_timer(Walker_Time,30)
 
@@ -668,12 +669,15 @@ MODULE FciMCParMod
         ! It would be nice to fix this properly
         if (tCSF) exFlag = 7
 
+        IFDEBUG(FCIMCDebug,3) write(6,"(A)") "TW: Walker  Det"
         do j=1,TotWalkers
             ! N.B. j indicates the number of determinants, not the number
             !      of walkers.
 
             ! Decode determinant from (stored) bit-representation.
-            ! write(6,*) j, CurrentDets(:,j)
+            IFDEBUG(FCIMCDebug,3) write(6,"(A,I10)",advance='no') "TW:", j
+            IFDEBUG(FCIMCDebug,3) call WriteBitDet(6,CurrentDets(:,j),.true.)
+
             call extract_bit_rep (CurrentDets(:,j), DetCurr, SignCurr, &
                                   FlagsCurr)
 
@@ -768,6 +772,9 @@ MODULE FciMCParMod
                                               iLutnJ, ic, walkExcitLevel, &
                                               child)
 
+                        IFDEBUG(FCIMCDebug,3) WRITE(6,"(A)",advance='no') "Creating child"
+                        IFDEBUG(FCIMCDebug,3) call write_det(6,nJ,.false.)
+                        IFDEBUG(FCIMCDebug,3) WRITE(6,"(10Z17.17)") iLutnJ(:)
                         call create_particle (iLutnJ, child)
                     
                     endif ! (child /= 0). Child created
@@ -782,6 +789,8 @@ MODULE FciMCParMod
                                CurrentDets(:,j), HDiagCurr, SignCurr, VecSlot)
 
         enddo ! Loop over determinants.
+
+        IFDEBUG(FCIMCDebug,2) WRITE(6,*) "Finished loop over determinants"
 
         IF(tPrintHighPop) CALL FindHighPopDet()
 
@@ -809,6 +818,8 @@ MODULE FciMCParMod
                                 - iter_data%ndied - iter_data%nannihil &
                                 - iter_data%naborted
         iter_data%update_iters = iter_data%update_iters + 1
+!        write(6,*) "BSST",iter_data%nborn,",", iter_data%ndied, ",",iter_data%nannihil,",",iter_data%naborted
+!        write(6,*) "ASST",iter_data%update_growth,",", TotParts, ",",tot_parts_tmp 
         ASSERT(all(iter_data%update_growth == TotParts - tot_parts_tmp))
 
     end subroutine
