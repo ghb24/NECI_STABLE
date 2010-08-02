@@ -76,7 +76,6 @@ MODULE CCMC
 
 !Then we go through the list of excitors which should die, and reduce their weight on the list, and remove if necessary.
 !Next we annihilate.
-#ifdef PARALLEL
     SUBROUTINE PerformCCMCCycParInt()
       USe FCIMCParMod
       use CCMCData
@@ -878,10 +877,6 @@ MODULE CCMC
         iter_data_ccmc%update_iters = iter_data_ccmc%update_iters + 1
         
     END SUBROUTINE PerformCCMCCycParInt
-#else 
-    SUBROUTINE PerformCCMCCycParInt()
-    END SUBROUTINE PerformCCMCCycParInt
-#endif
 
 
 
@@ -2759,10 +2754,8 @@ END SUBROUTINE CCMCStandaloneParticle
 
 END MODULE CCMC
 
-#ifdef PARALLEL
 SUBROUTINE PerformCCMCCycPar
    use CCMC
    Call PerformCCMCCycParInt()
 end subroutine PerformCCMCCycPar
-#endif
 
