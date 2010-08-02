@@ -617,6 +617,7 @@ MODULE FciMCParMod
         logical :: tFilled, tParity, tHFFound, tHFFoundTemp
         real(dp) :: prob, HDiagCurr
         HElement_t :: HDiagTemp
+		character(len=*) , parameter :: this_routine='PerformFCIMCycPar'
 
         call set_timer(Walker_Time,30)
 
