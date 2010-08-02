@@ -452,25 +452,24 @@ Subroutine MPIScatter_auto(Values,Values2,root,ierr)
 #endif
 end subroutine
 
-Subroutine MPIRecv(Buffer,BuffSize,Source,Tag,ierr)
+subroutine MPIRecv(Buffer,BuffSize,Source,Tag,ierr)
     INTEGER, intent(in)  :: BuffSize,Source,Tag
     INTEGER, intent(out) :: ierr
-    %(type1)s, intent(inout) :: Buffer(:)
+    %(type1)s, intent(out) :: Buffer(:)
 #ifdef PARALLEL
     INTEGER :: Stat(MPI_STATUS_SIZE)
-    CALL MPI_Recv(Buffer,BuffSize,%(mpitype)s,Source,Tag,ierr)
+    CALL MPI_Recv(Buffer,BuffSize,%(mpitype)s,Source,Tag,MPI_COMM_WORLD,Stat,ierr)
 #else
     ierr=0
 #endif
 end subroutine
 
-Subroutine MPISend(Buffer,BuffSize,Dest,Tag,ierr)
+subroutine MPISend(Buffer,BuffSize,Dest,Tag,ierr)
     INTEGER, intent(in)  :: BuffSize,Dest,Tag
     INTEGER, intent(out) :: ierr
-    %(type1)s, intent(inout) :: Buffer(:)
+    %(type1)s, intent(in) :: Buffer(:)
 #ifdef PARALLEL
-    INTEGER :: Stat(MPI_STATUS_SIZE)
-    CALL MPI_Recv(Buffer,BuffSize,%(mpitype)s,Dest,Tag,ierr)
+    CALL MPI_Send(Buffer,BuffSize,%(mpitype)s,Dest,Tag,MPI_COMM_WORLD,ierr)
 #else
     ierr=0
 #endif

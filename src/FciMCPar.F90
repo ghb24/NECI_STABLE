@@ -432,6 +432,7 @@ MODULE FciMCParMod
         integer(kind=n_int), intent(in) :: ilutI(0:niftot)
         integer, intent(in) :: ic, ex(2,2)
         integer(kind=n_int), intent(out) :: ilutj(0:niftot)
+        ilutj=0
     end subroutine
 
     subroutine set_new_child_stats (new_child_stats)
@@ -2584,11 +2585,17 @@ MODULE FciMCParMod
             AllSinglesHistVirtOcc(:)=0.D0
             AllSinglesHistVirtVirt(:)=0.D0
         ENDIF
-        CALL MPIReduce((/Histogram,AttemptHist,SpawnHist,SinglesHist,SinglesAttemptHist,DoublesHist, &
-               DoublesAttemptHist,SinglesHistOccOcc,SinglesHistOccVirt,SinglesHistVirtOcc,SinglesHistVirtVirt/), &
-                  MPI_SUM, &
-               (/AllHistogram,AllAttemptHist,AllSpawnHist,AllSinglesHist,AllSinglesAttemptHist,AllDoublesHist, &
-               AllDoublesAttemptHist,AllSinglesHistOccOcc,AllSinglesHistOccVirt,AllSinglesHistVirtOcc,AllSinglesHistVirtVirt/))
+        CALL MPIReduce(Histogram,MPI_SUM,AllHistogram)
+        CALL MPIReduce(AttemptHist,MPI_SUM,AllAttemptHist)
+        CALL MPIReduce(SpawnHist,MPI_SUM,AllSpawnHist)
+        CALL MPIReduce(SinglesHist,MPI_SUM,AllSinglesHist)
+        CALL MPIReduce(SinglesAttemptHist,MPI_SUM,AllSinglesAttemptHist)
+        CALL MPIReduce(DoublesHist,MPI_SUM,AllDoublesHist)
+        CALL MPIReduce(DoublesAttemptHist,MPI_SUM,AllDoublesAttemptHist)
+        CALL MPIReduce(SinglesHistOccOcc,MPI_SUM,AllSinglesHistOccOcc)
+        CALL MPIReduce(SinglesHistOccVirt,MPI_SUM,AllSinglesHistOccVirt)
+        CALL MPIReduce(SinglesHistVirtOcc,MPI_SUM,AllSinglesHistVirtOcc)
+        CALL MPIReduce(SinglesHistVirtVirt,MPI_SUM,AllSinglesHistVirtVirt)
 
         IF(iProcIndex.eq.Root) THEN
             AllHistogram=AllHistogram/sum(AllHistogram)
@@ -2822,8 +2829,11 @@ MODULE FciMCParMod
             AllInstAnnihil(:)=0.D0
         ENDIF
 
-        CALL MPIReduce((/Histogram,InstHist,InstAnnihil,AvAnnihil/),MPI_SUM,(/AllHistogram,AllInstHist,AllInstAnnihil,AllAvAnnihil/))
-       
+        CALL MPIReduce(Histogram,MPI_SUM,AllHistogram)
+        CALL MPIReduce(InstHist,MPI_SUM,AllInstHist)
+        CALL MPIReduce(InstAnnihil,MPI_SUM,AllInstAnnihil)
+        CALL MPIReduce(AvAnnihil,MPI_SUM,AllAvAnnihil)
+        
         IF(iProcIndex.eq.0) THEN
 
 !            IF(.not.associated(NMRKS)) THEN
@@ -2956,7 +2966,8 @@ MODULE FciMCParMod
             AllAvHistHamil(:,:)=0.D0
         ENDIF
 
-        CALL MPIReduce((/HistHamil,AvHistHamil/),MPI_SUM,(/AllHistHamil,AllAvHistHamil/))
+        CALL MPIReduce(HistHamil,MPI_SUM,AllHistHamil)
+        CALL MPIReduce(AvHistHamil,MPI_SUM,AllAvHistHamil)
         
         IF(iProcIndex.eq.0) THEN
 !How do we normalise this!
