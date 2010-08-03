@@ -670,6 +670,10 @@ MODULE FciMCParMod
         ! It would be nice to fix this properly
         if (tCSF) exFlag = 7
 
+		CALL TestGenRandSymExcitNU(HFDet,NMCyc,pDoubles,3,1000)
+		CALL STOP_All('erwg','Finished Test')
+
+
         do j=1,TotWalkers
             ! N.B. j indicates the number of determinants, not the number
             !      of walkers.
@@ -678,10 +682,6 @@ MODULE FciMCParMod
             ! write(6,*) j, CurrentDets(:,j)
             call extract_bit_rep (CurrentDets(:,j), DetCurr, SignCurr, &
                                   FlagsCurr)
-
-
-			CALL TestGenRandSymExcitNU(DetCurr,NMCyc,pDoubles,3,1000)
-			CALL STOP_All('erwg','Finished Test')
 
             ! TODO: The next couple of bits could be done automatically
 

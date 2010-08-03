@@ -3019,6 +3019,8 @@ LOGICAL FUNCTION IsMomAllowedDet(nJ)
 
 	IF(SYM1%S.ne.0) THEN
 		CALL Stop_All("IsMomAllowedDet","Momentum forbidden excitation created.")
+	ELSE
+		IsMomAllowedDet=.true.
 	ENDIF
 END FUNCTION IsMomAllowedDet
 
