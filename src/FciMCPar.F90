@@ -679,6 +679,10 @@ MODULE FciMCParMod
             call extract_bit_rep (CurrentDets(:,j), DetCurr, SignCurr, &
                                   FlagsCurr)
 
+
+			CALL TestGenRandSymExcitNU(DetCurr,NMCyc,pDoubles,3,1000)
+			CALL STOP_All('erwg','Finished Test')
+
             ! TODO: The next couple of bits could be done automatically
 
             ! We only need to find out if determinant is connected to the

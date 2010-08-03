@@ -2743,7 +2743,7 @@ END SUBROUTINE SpinOrbSymSetup
 !number of excitations generated using the full enumeration excitation generation. This can be done for both doubles and singles, or one of them.
 SUBROUTINE TestGenRandSymExcitNU(nI,Iterations,pDoub,exFlag,iWriteEvery)
     use SystemData, only: NEl, nBasis, G1, nBasisMax, LzTot, tUEG, &
-                          tLatticeGens, tHub,tKPntSym
+                          tLatticeGens, tHub,tKPntSym, tFixLz
     use GenRandSymExcitNUMod, only: gen_rand_excit, ConstructClassCounts,ScratchSize
     Use SymData , only : nSymLabels
     use Parallel
@@ -2759,7 +2759,7 @@ SUBROUTINE TestGenRandSymExcitNU(nI,Iterations,pDoub,exFlag,iWriteEvery)
     INTEGER :: ClassCount2(ScratchSize),Scratch1(ScratchSize),Scratch2(ScratchSize),scratch3(scratchsize)
     INTEGER(KIND=n_int) :: iLutnJ(0:NIfTot),iLut(0:NIfTot)
     INTEGER :: ClassCountUnocc2(ScratchSize),iExcit,iWriteEvery
-    LOGICAL :: tParity,tFilled
+    LOGICAL :: tParity,tFilled,IsMomAllowedDet,test
     REAL*8 , ALLOCATABLE :: DoublesHist(:,:,:,:),SinglesHist(:,:),AllDoublesHist(:,:,:,:),AllSinglesHist(:,:)
     INTEGER , ALLOCATABLE :: EXCITGEN(:)
     INTEGER :: ierr,Ind1,Ind2,Ind3,Ind4,iMaxExcit,nStore(6),nExcitMemLen,j,k,l,DetNum,DetNumS,Lz,excitcount,ForbiddenIter,error
@@ -2790,7 +2790,7 @@ lp2: do while(.true.)
                 CALL EncodeBitDet(nJ,iLutnJ)
                 WRITE(25,*) excitcount,iExcit,iLutnJ(0)
             ENDIF
-        ELSE
+        ELSEIF(tFixLz) THEN
 
             CALL GetLz(nJ,NEl,Lz)
             IF(Lz.eq.LzTot) THEN
@@ -2798,6 +2798,16 @@ lp2: do while(.true.)
                 CALL EncodeBitDet(nJ,iLutnJ)
                 WRITE(25,*) excitcount,iExcit,iLutnJ(0)
             ENDIF
+		ELSEIF(tKPntSym) THEN
+			IF(IsMomAllowedDet(nJ)) THEN
+				excitcount=excitcount+1
+				CALL EncodeBitDet(nJ,iLutnJ)
+				WRITE(25,*) excitcount,iExcit,iLutnJ(0)
+			ENDIF
+		ELSE
+			excitcount=excitcount+1
+			CALL EncodeBitDet(nJ,iLutnJ)
+			WRITE(25,*) excitcount,iExcit,iLutnJ(0)
         ENDIF
     enddo lp2
 
@@ -2820,10 +2830,6 @@ lp2: do while(.true.)
     AllDoublesHist(:,:,:,:)=0.D0
     AllSinglesHist(:,:)=0.D0
 
-!    do i=1,NEl
-!!Create ILUT for O[1] comparison of orbitals in root determinant - This is now read in
-!        ILUT((nI(i)-1)/bits_n_int)=IBSET(ILUT((NI(i)-1)/bits_n_int),MOD(NI(i)-1,bits_n_int))
-!    enddo
     CALL EncodeBitDet(nI,iLut)
 
     tFilled=.false.
@@ -2849,6 +2855,9 @@ lp2: do while(.true.)
 !            ForbiddenIter=ForbiddenIter+1
             CYCLE
         ENDIF
+		IF(tKPntSym) THEN
+			test=IsMomAllowedDet(nJ)
+		ENDIF
         ! This is implemented for the old excitation generators, that could only handle momentum conservation under
         ! zero momentum conditions
         IF(tUEG.and.(.not.tLatticeGens)) THEN
@@ -2994,6 +3003,24 @@ lp2: do while(.true.)
     ENDIF
 
 END SUBROUTINE TestGenRandSymExcitNU
+
+LOGICAL FUNCTION IsMomAllowedDet(nJ)
+	use sym_mod
+	use SystemData , only : G1,NEl,Symmetry
+	IMPLICIT NONE
+	Type(Symmetry) :: SYM1
+	INTEGER :: i,nJ(NEl)
+
+	SYM1%S=0
+	do i=1,NEl
+		SYM1=SYMPROD(SYM1,G1(nJ(i))%Sym)
+	enddo
+
+	IF(SYM1%S.ne.0) THEN
+		CALL Stop_All("IsMomAllowedDet","Momentum forbidden excitation created.")
+	ENDIF
+END FUNCTION IsMomAllowedDet
+
 
 SUBROUTINE IsSymAllowedExcit(nI,nJ,IC,ExcitMat)
     Use SystemData , only : G1,NEl,tFixLz
