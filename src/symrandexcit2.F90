@@ -95,9 +95,9 @@ MODULE GenRandSymExcitNUMod
             CALL ConstructClassCounts(nI,ClassCount2,ClassCountUnocc2)
             tFilled=.true.
         ENDIF
-!        WRITE(6,*) ClassCount2(:)
+!        WRITE(6,*) "ClassCount2: ",ClassCount2(:)
 !        WRITE(6,*) "***" 
-!        WRITE(6,*) ClassCountUnocc2(:)
+!        WRITE(6,*) "ClassCountUnocc2: ",ClassCountUnocc2(:)
 !        WRITE(6,*) "***" 
 
 !ExFlag is 1 for singles, 2 for just doubles, and 3 for both.
@@ -765,7 +765,7 @@ MODULE GenRandSymExcitNUMod
 		INTEGER :: AttemptsOverall,ChosenUnocc,z,i,Attempts
         REAL*8 :: r
 
-!		WRITE(6,*) "FORBIDDEN ORBS: ",ForbiddenOrbs,Counter
+!		WRITE(6,*) "FORBIDDEN ORBS: ",ForbiddenOrbs!,Counter
 
         IF(iSpn.eq.2) THEN
 !There is no restriction on whether we choose an alpha or beta spin, so there are nBasis-NEl possible spinorbitals to choose from.
@@ -786,6 +786,7 @@ MODULE GenRandSymExcitNUMod
         ELSE
             tAOrbFail=.false.
         ENDIF
+!		WRITE(6,*) "NExcit: ",NExcit
 
         AttemptsOverall=0
         do while(.true.)
@@ -969,7 +970,6 @@ MODULE GenRandSymExcitNUMod
             SymB=0
             MlA=0
             MlB=0
-			RETURN
 		ELSEIF(tKPntSym) THEN
 			SymA=SpinOrbSymLabel(OrbA)
 			SymB=RandExcitSymLabelProd(SymInvLabel(SymA),SymProduct)
@@ -2576,7 +2576,7 @@ SUBROUTINE SpinOrbSymSetup(tRedoSym)
 	enddo
 
 	if(tKPntSym) then
-		Allocate(SymTableLabels(nSymLabels-1,nSymLabels-1))
+		Allocate(SymTableLabels(0:nSymLabels-1,0:nSymLabels-1))
 		SymTableLabels(:,:)=-9000	!To make it easier to track bugs
 		do i=0,nSymLabels-1
 			do j=0,i
@@ -2595,6 +2595,7 @@ SUBROUTINE SpinOrbSymSetup(tRedoSym)
 					call stop_all("SpinOrbSymSetup","Cannot find symmetry label")
 				endif
 				SymTableLabels(i,j)=Lab-1
+				SymTableLabels(j,i)=Lab-1
 			enddo
 		enddo
 	endif
