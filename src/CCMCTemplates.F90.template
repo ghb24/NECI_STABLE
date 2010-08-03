@@ -110,7 +110,7 @@ SUBROUTINE IncrementOrderedTupleCheck (Tuple,iSize,iMin,iMax,tDone,Param)
    IMPLICIT NONE
    INTEGER Tuple(iSize),iSize,iMax,iMin
    LOGICAL tDone
-   INTEGER i,j
+   INTEGER i
    %(type1)s Param(:)
    if(iSize.eq.0) then
       tDone=.true.
@@ -123,7 +123,7 @@ SUBROUTINE IncrementOrderedTupleCheck (Tuple,iSize,iMin,iMax,tDone,Param)
    endif
 ! i is the index in the tuple we're currently trying to increment.
    do while (i.le.iSize)
-      call GetNextNonZeroExcitor(Tuple(i),Param,iMin,iMax)
+      call GetNextNonZeroExcitor(Tuple(i),Param,iMax)
       if(Tuple(i).gt.(iMax-(iSize-i))) then
 !If we've gone beyond what is the max possible value for this slot, then we move back, otherwise we move forward
          i=i-1
@@ -140,11 +140,11 @@ SUBROUTINE IncrementOrderedTupleCheck (Tuple,iSize,iMin,iMax,tDone,Param)
    return
 END SUBROUTINE !IncrementOrderedTupleCheck 
 
-SUBROUTINE GetNextNonZeroExcitor (Pos,List,iMin,iMax)
+SUBROUTINE GetNextNonZeroExcitor (Pos,List,iMax)
    IMPLICIT NONE
    INTEGER Pos
    %(type1)s List(:)
-   INTEGER iMin,iMax
+   INTEGER iMax
    Pos=Pos+1
    DO WHILE(Pos.le.iMax)
       if(List(Pos).ne.0) exit
@@ -386,7 +386,7 @@ END SUBROUTINE !CalcClusterEnergyUnsrt
 !     P_total = P_norm * P_cluster_given_size
 !  and is placed in CS%%C%%dSelectionProb
 
-FUNCTION GetNextCluster (CS,Dets,nDet,AL,iCurAmpList,dTotAbsAmpl,iNumExcitors,iMaxSizeIn,iDebug) result (GetNextCluster)
+FUNCTION GetNextCluster (CS,Dets,nDet,AL,iCurAmpList,dTotAbsAmpl,iMaxSizeIn,iDebug) result (GetNextCluster)
    use CCMCData, only: ClustSelector
    use BinSearch, only: BinarySearch
    use dSFMT_interface , only : genrand_real2_dSFMT
@@ -402,9 +402,8 @@ FUNCTION GetNextCluster (CS,Dets,nDet,AL,iCurAmpList,dTotAbsAmpl,iNumExcitors,iM
 
    INTEGER iMaxSize
    REAL*8 dProbNumExcit,dCurTot,r
-   INTEGER i,j,k,l,nk
+   INTEGER i,k,nk
    LOGICAL tDone,tNew,tSuccess
-   INTEGER iNumExcitors
    LOGICAL GetNextCluster
 !   TYPE(timer),save :: CCMC_time
 
@@ -493,7 +492,7 @@ FUNCTION GetNextCluster (CS,Dets,nDet,AL,iCurAmpList,dTotAbsAmpl,iNumExcitors,iM
             rt=r*dTotAbsAmpl
             dCurTot=0
             IF(iDebug.gt.6) Write(6,*) "Probability Threshold",rt
-            call BinarySearch(rt,AL%%CumlAmplitude,nDet,1,nDet,k,tSuccess)
+            call BinarySearch(rt,AL%%CumlAmplitude,1,nDet,k,tSuccess)
             if(.not.tSuccess) k=k+1  ! We want to be >=rt.
             if(k.eq.CS%%iRefPos) then  !Adjust for accidentally finding refpos
                nk=k

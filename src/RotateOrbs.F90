@@ -4,7 +4,7 @@ MODULE RotateOrbsMod
     USE Parallel 
     USE IntegralsData , only : UMAT,nFrozen,ChemPot
     USE UMatCache , only : UMatInd
-    use constants, only: dp
+    use constants, only: dp, PI
     USE SystemData , only : ConvergedForce,TimeStep,tLagrange,tShake,tShakeApprox,ShakeConverged,tROIteration,ROIterMax,tShakeIter,ShakeIterMax,OrbEnMaxAlpha
     USE SystemData , only : G1,ARR,NEl,nBasis,LMS,ECore,tSeparateOccVirt,Brr,nBasisMax,OrbOrder,lNoSymmetry,tRotatedOrbs,tERLocalization,tRotateOccOnly
     USE SystemData, only : tOffDiagMin,DiagWeight,OffDiagWeight,tRotateVirtOnly,tOffDiagSqrdMax,tOffDiagSqrdMin,tOffDiagMax,tDoubExcMin,tOneElIntMax,tOnePartOrbEnMax
@@ -58,7 +58,6 @@ MODULE RotateOrbsMod
     contains
 
     SUBROUTINE RotateOrbs()
-        INTEGER :: i,j   
 
 
         IF(iProcIndex.eq.Root) THEN
@@ -140,7 +139,7 @@ MODULE RotateOrbsMod
 ! Ref : J. Chem. Phys. 131, 034113 (2009) - note: in Eqn 1, the cb indices are the wrong way round (should be bc).
         USE NatOrbsMod , only : SetUpNatOrbLabels,FindNatOrbs,FillCoeffT1,DeallocateNatOrbs,PrintOccTable
         use util_mod, only: get_free_unit
-        INTEGER :: i,j,k,l,a,ierr,MinReadIn,MaxReadIn, iunit
+        INTEGER :: i,a,ierr,MinReadIn,MaxReadIn, iunit
         CHARACTER(len=*) , PARAMETER :: this_routine='FindNatOrbitals'
 
 
@@ -541,7 +540,7 @@ MODULE RotateOrbsMod
 
     SUBROUTINE WriteTransformMat()
         use util_mod, only: get_free_unit
-        INTEGER :: w,x,i,j,a,b,iunit
+        INTEGER :: w,x,i,a,b,iunit
 
 ! This file is printed to be used to produce cube files from QChem.
 ! Line 1 is the coefficients of HF spatial orbitals 1 2 3 ... which form transformed orbital 1 etc.
@@ -550,6 +549,7 @@ MODULE RotateOrbsMod
         OPEN(iunit,FILE='MOTRANSFORM',FORM='UNFORMATTED',access='direct', recl=8)
 ! Need to put this back into the original order. 
 
+        x = 0
         IF(tStoreSpinOrbs) THEN
             do i=1,NoOrbs-1,2
 !                j=SymLabelListInv(i)
@@ -929,9 +929,8 @@ MODULE RotateOrbsMod
     SUBROUTINE InitRotCalc()
 ! Sets up the initial arrays to be used in the orbital rotation.    
         CHARACTER(len=*) , PARAMETER :: this_routine='InitRotCalc'
-        REAL*8 :: t,RAN2,s,EpsilonHOMO,EpsilonLUMO,EpsilonMidVirt
-        INTEGER :: x,y,i,j,k,l,ierr,Const,iseed=-8,a,b,g,d,MinRot,MaxRot,MinA
-        INTEGER :: SumNoOrbs,NoOrbsPerProc,NoOrbsRem,m,w,z,SymM,SymMin
+        REAL*8 :: RAN2
+        INTEGER :: i,j,Const,iseed=-8,MinRot,MaxRot
 
 
         CALL InitSymmArrays()
@@ -1226,7 +1225,7 @@ MODULE RotateOrbsMod
 ! SymLabelCounts2(2:Sym) is the number of orbitals in symmetry block S.
 ! E.g. if symmetry S starts at index 2 and has 3 orbitals.
 ! SymLabelList2(2)->SymLabelList2(4) will give the indexes of these orbitals.
-        INTEGER :: j,i,ierr,SymSum
+        INTEGER :: j,i,ierr
         CHARACTER(len=*) , PARAMETER :: this_routine='InitSymmArrays'
 
         IF(.not.tSeparateOccVirt) THEN
@@ -1312,9 +1311,8 @@ MODULE RotateOrbsMod
 
 
     SUBROUTINE EquateDiagFock()
-        INTEGER :: irr,NumInSym,Orbi,Orbj,w,i,j,Prod,ConjOrb,k,ConjInd,OrbjConj
+        INTEGER :: irr,NumInSym,Orbi,Orbj,w,i,j,k,ConjInd,OrbjConj
         REAL*8 :: Angle,AngleConj,Check,Norm
-        REAL*8 , PARAMETER :: PI=3.14159265358979323846264338327950288419716939937510D0
 
         CoeffT1(:,:)=0.D0
 !        MaxOccVirt=1
@@ -1484,7 +1482,7 @@ MODULE RotateOrbsMod
 ! groups. 
 ! This means that two iterations of the rotate orbs routine will be performed, the first treats the occupied orbitals and the second
 ! the virtual.
-        INTEGER :: i,j,ierr,t,SymCurr,Symi,SymVirtOrbsTag,SymOccOrbsTag,Temp
+        INTEGER :: i,j,ierr,SymCurr,Symi,SymVirtOrbsTag,SymOccOrbsTag
         integer :: lo, hi
         INTEGER , ALLOCATABLE :: SymVirtOrbs(:),SymOccOrbs(:)
         CHARACTER(len=*) , PARAMETER :: this_routine='InitOrbitalSeparation'
@@ -2197,7 +2195,7 @@ MODULE RotateOrbsMod
 ! This is a transformation of the four index integrals for the ERlocalisation, in this only the <ii|ii> integrals are needed 
 ! therefore the process may be much simpler.
     SUBROUTINE Transform2ElIntsERlocal()
-        INTEGER :: i,j,k,l,a,b,g,d,m
+        INTEGER :: i,j,a,b,g,d,m
         REAL*8 :: t,Temp4indints(NoOrbs,NoOrbs)
         REAL*8 :: Temp4indints02(NoOrbs)  
  
@@ -2350,7 +2348,7 @@ MODULE RotateOrbsMod
         INTEGER :: i,j,k,l,Starti,Finishi
         REAL*8 :: MaxTerm
 
-
+        l = 0
         IF(tERLocalization.and.(.not.tStoreSpinOrbs)) THEN
             ERPotEnergy=0.D0
             IF(tRotateVirtOnly) THEN 
@@ -2541,11 +2539,10 @@ MODULE RotateOrbsMod
 
 
     SUBROUTINE FindTheForce()
-        INTEGER :: m,z,i,j,k,l,a,b,g,d,Symm,Symb,Symb2,Symi,Symd,w,x,y,SymMin,n,o,p,q
-        REAL*8 :: OffDiagForcemz,DiagForcemz,OneElForcemz,t1,t2,t3,t4,LambdaTerm1,LambdaTerm2,t1Temp,ForceTemp
+        INTEGER :: m,z,i,j,k,l,a,Symm,w,x,y,SymMin
+        REAL*8 :: OffDiagForcemz,DiagForcemz,OneElForcemz,LambdaTerm1,LambdaTerm2
         REAL*8 :: NonDerivTerm,DerivPot
-        CHARACTER(len=*) , PARAMETER :: this_routine='FindtheForce'
-        LOGICAL :: leqm,jeqm,keqm,ieqm
+        LOGICAL :: leqm,jeqm,keqm
       
 ! Running over m and z, covers all matrix elements of the force matrix (derivative 
 ! of equation we are minimising, with respect to each translation coefficient) filling 
@@ -2557,6 +2554,9 @@ MODULE RotateOrbsMod
 !        ForceTemp=0.D0
         ForceInts=0.D0
         OrthoForce=0.D0
+        OffDiagForceMZ = 0
+        SymMin = 0
+        i = 0
 
         ! If the orbitals are being separated, do this whole loop twice, once for occupied and once for virtual
         ! i.e w = 1,2. Otherwise do them all at once.
@@ -2867,7 +2867,7 @@ MODULE RotateOrbsMod
     SUBROUTINE UseTheForce()
 ! This routine takes the old translation coefficients and Lambdas and moves them by a timestep in the direction 
 ! of the calculated force.
-        INTEGER :: m,w,x,y,z,i,j,Symm,SymMin
+        INTEGER :: m,w,z,i,j,Symm,SymMin
         REAL*8 :: NewCoeff,NewLambda
 
         DistCs=0.D0 
@@ -2943,7 +2943,7 @@ MODULE RotateOrbsMod
 
    
     SUBROUTINE TestOrthonormality()
-        INTEGER :: i,j,a
+        INTEGER :: i,j
         REAL*8 :: OrthoNormDP
 
         OrthoNorm=0.D0
@@ -2988,12 +2988,11 @@ MODULE RotateOrbsMod
     SUBROUTINE ShakeConstraints()
 ! DerivCoeff(k,a) is the unconstrained force on the original coefficients (CoeffT1(a,k)). 
         use util_mod, only: get_free_unit
-        INTEGER :: w,x,y,i,j,l,a,m,ShakeIteration,ConvergeCount,ierr,Const,SymM,SymMin
+        INTEGER :: w,l,a,m,ShakeIteration,ConvergeCount,SymM,SymMin
         REAL*8 :: TotCorConstraints,TotConstraints,TotLambdas
         REAL*8 :: TotUncorForce,TotDiffUncorCoeffs,TotDiffCorCoeffs
         LOGICAL :: tShakeNotConverged
         integer, save :: shake_io
-        CHARACTER(len=*), PARAMETER :: this_routine='ShakeConstraints'
 
 
 !        WRITE(6,*) "Beginning shakeconstraints calculation"
@@ -3166,7 +3165,7 @@ MODULE RotateOrbsMod
 ! This calculates the derivative of each of the orthonormalisation constraints, l, with respect
 ! to each set of coefficients cm.
 
-        INTEGER :: l,m,i,j,a,Symm
+        INTEGER :: l,i,j,a
         REAL*8 :: CurrCoeff(NoOrbs,NoOrbs)
         REAL*8 :: DerivConstr(NoOrbs,NoOrbs,TotNoConstraints)
 
@@ -3215,7 +3214,7 @@ MODULE RotateOrbsMod
 ! This takes the current lambdas with the derivatives of the constraints and calculates a force
 ! for each cm, with an orthonormalisation correction.
 ! This is then used to rotate the coefficients by a defined timestep.
-        INTEGER :: a,l,m,Symm,x,y,w,SymMin,TempMaxOccVirt
+        INTEGER :: a,m,Symm,w,SymMin,TempMaxOccVirt
         REAL*8 :: TotForce,TotDiffCoeffs,CoeffT2(NoOrbs,NoOrbs)
 
 !        WRITE(6,*) 'DerivCoeff'
@@ -3319,7 +3318,7 @@ MODULE RotateOrbsMod
     SUBROUTINE CalcConstraints(CurrCoeff,Constraint,TotConstraints)  
 ! This calculates the value of each orthonomalisation constraint, using the shifted coefficients.
 ! Each of these should tend to 0 when the coefficients become orthonomal.
-        INTEGER :: l,i,j,m
+        INTEGER :: l,i,j
         REAL*8 :: CurrCoeff(NoOrbs,NoOrbs),TotConstraints,Constraint(TotNoConstraints) 
 
 
@@ -3354,7 +3353,7 @@ MODULE RotateOrbsMod
 
     SUBROUTINE FullShake()
 ! This method calculates the lambdas by solving the full matrix equation.
-        INTEGER :: l,n,m,info,ipiv(TotNoConstraints),work,ierr
+        INTEGER :: l,n,m,info,ipiv(TotNoConstraints)
         CHARACTER(len=*), PARAMETER :: this_routine='FullShake'
 
 
@@ -3421,8 +3420,7 @@ MODULE RotateOrbsMod
     SUBROUTINE ShakeApproximation()
 ! This is an approximation in which only the diagonal elements are considered in the 
 ! matrix of the derivative of the constraints DerivConstrT1T2.
-        INTEGER :: m,l,ierr
-        CHARACTER(len=*), PARAMETER :: this_routine='ShakeApproximation'
+        INTEGER :: m,l
 
 
 ! Use 'shake' algorithm in which the iterative scheme is applied to each constraint in succession.
@@ -3527,9 +3525,8 @@ MODULE RotateOrbsMod
 ! combinations ui which minimise |<ij|kl>|^2.  This is the final subroutine after all iterations (but before the memory deallocation)
 ! that calculates the final 4 index integrals to be used in the NECI calculation.
         use util_mod, only: get_free_unit
-        INTEGER :: w,x,y,i,a,j,b
+        INTEGER :: i,a,j
         REAL*8 :: TotGSConstraints,GSConstraint(TotNoConstraints),CoeffTemp(SpatOrbs,SpatOrbs)
-        REAL*8 , ALLOCATABLE :: Ident(:,:)
         
 !        WRITE(6,*) 'The final transformation coefficients before gram schmidt orthonormalisation'
 !        do i=1,SpatOrbs
@@ -4065,7 +4062,7 @@ MODULE RotateOrbsMod
     SUBROUTINE WriteDoubHisttofile()
         use util_mod, only: get_free_unit
         INTEGER :: i,j,k,l,BinNo, iunit
-        REAL*8 :: MaxFII,MinFII,BinIter,OnePartOrbEnValue,MinHFTMAT,BinVal
+        REAL*8 :: MaxFII,MinFII,BinIter,OnePartOrbEnValue,BinVal
 
 
 !        OPEN(34,FILE='FourIndInts',STATUS='unknown')
@@ -4624,6 +4621,8 @@ MODULE RotateOrbsMod
         REAL*8 :: DiagOneElPot,ERPot,ijVirtOneElPot,ijVirtCoulPot,ijVirtExchPot
         REAL*8 :: singCoulijVirt,singExchijVirt,singCoulconHF,singExchconHF,ijklPot,ijklantisymPot,ijOccVirtOneElPot,ijOccVirtCoulPot,ijOccVirtExchPot
 
+        io1 = 0
+        io2 = 0
         IF(tInitIntValues) THEN
             io1 = get_free_unit()
             OPEN(io1,FILE='DiagIntegrals',STATUS='unknown')
@@ -4955,8 +4954,8 @@ MODULE RotateOrbsMod
 
 
     SUBROUTINE RefillUMATandTMAT2D()
-        INTEGER :: l,k,j,i,a,b,g,d,c,BinNo,l2,k2,j2,i2,nBasis2,TMAT2DPartTag,ierr
-        REAL*8 :: NewTMAT,NewTMAT02
+        INTEGER :: l,k,j,i,a,b,g,d,c,nBasis2,TMAT2DPartTag,ierr
+        REAL*8 :: NewTMAT
         REAL*8 , ALLOCATABLE :: TMAT2DPart(:,:)
 #ifdef __CMPLX
         call stop_all('RefillUMATandTMAT2D', 'Rotating orbitals not implemented for complex orbitals.')
@@ -5152,7 +5151,7 @@ MODULE RotateOrbsMod
     SUBROUTINE PrintROFCIDUMP()
 !This prints out a new FCIDUMP file in the same format as the old one.
         use util_mod, only: get_free_unit
-        INTEGER :: i,j,k,l,Sym,Syml,LabelSymk,iunit
+        INTEGER :: i,j,k,l,iunit
         CHARACTER(len=5) :: Label
         CHARACTER(len=20) :: LabelFull
 
@@ -5259,7 +5258,7 @@ MODULE RotateOrbsMod
     SUBROUTINE PrintRepeatROFCIDUMP()
 !This prints out a new FCIDUMP file in the same format as the old one.
         use util_mod, only: get_free_unit
-        INTEGER :: i,j,k,l,Sym,Syml,LabelSymk,ierr,a,b,g,d, iunit
+        INTEGER :: i,j,k,l,ierr,a,b,g,d, iunit
         CHARACTER(len=5) :: Label
         CHARACTER(len=20) :: LabelFull
         CHARACTER(len=*) , PARAMETER :: this_routine='PrintRepeatROFCIDUMP'
@@ -5505,7 +5504,7 @@ MODULE RotateOrbsMod
 
     SUBROUTINE WriteShakeOUTstats01()
 ! Debbugging option
-        INTEGER :: i,j,x,y,l,m,a
+        INTEGER :: i,j,l,m,a
 
         WRITE(6,*) 'Original coefficients'
         do m=1,NoOrbs

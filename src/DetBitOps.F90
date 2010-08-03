@@ -587,7 +587,7 @@ module DetBitOps
 
         integer, intent(in) :: IC, ExcitMat(2,2)
         integer(kind=n_int), intent(in) :: iLutnI (0:NIfTot)
-        integer(kind=n_int), intent(out) :: iLutnJ (0:NIfTot)
+        integer(kind=n_int), intent(inout) :: iLutnJ (0:NIfTot)
         integer :: pos(2,2), bit(2,2), i
 
         iLutnJ = iLutnI
