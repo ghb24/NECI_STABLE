@@ -638,6 +638,7 @@ def parse_config(config_file):
 
     minimal_options = ['fc', 'module_flag', 'cc', 'cpp', 'ld', 'libs']
 
+    if config_file[0:7]=='config/': config_file=config_file[7:]
     if not os.path.exists(config_file):
         raise IOError,'Config file does not exist: %s' % (config_file)
 

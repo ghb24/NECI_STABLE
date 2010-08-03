@@ -417,7 +417,9 @@ Subroutine MPIAllGather_auto(Values,Values2,ierr)
     %(type1)s,intent(in) :: Values()
     %(type1)s,intent(inout) :: Values2(:)
 #ifdef PARALLEL
-    CALL MPI_AllGather(Values,%(mpilen)s,%(mpitype)s,Values2,%(mpilen2)s,%(mpitype)s,MPI_COMM_WORLD,ierr)
+    CALL MPI_AllGather(Values,%(mpilen)s,&
+      %(mpitype)s,Values2,%(mpilen2)s,&
+      %(mpitype)s,MPI_COMM_WORLD,ierr)
 #else
     Values2(1)=Values
     ierr=0
@@ -445,7 +447,9 @@ Subroutine MPIScatter_auto(Values,Values2,root,ierr)
     %(type1)s, intent(in) :: Values(:)
     %(type1)s, intent(inout) :: Values2()
 #ifdef PARALLEL
-    CALL MPI_Scatter(Values,%(mpilen2)s,%(mpitype)s,Values2,%(mpilen2)s,%(mpitype)s,root,MPI_COMM_WORLD,ierr)
+    CALL MPI_Scatter(Values,%(mpilen2)s,&
+      %(mpitype)s,Values2,%(mpilen2)s,&
+      %(mpitype)s,root,MPI_COMM_WORLD,ierr)
 #else
     Values2=Values(1)
     ierr=0
