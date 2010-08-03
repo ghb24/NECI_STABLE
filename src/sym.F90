@@ -162,7 +162,7 @@ contains
 !   A1 corresponds to bit 0 (i.e. irrep 1)
       SUBROUTINE GENMOLPSYMTABLE(NSYMMAX,G1,NBASIS,ARR,BRR)
          use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
-         use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB, tUEG
+         use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB, tUEG, tHUB
          use SymData, only: nProp,PropBitLen,SymClasses,nSymLabels
          use SymData, only: tAbelian,SymLabels, TwoCycleSymGens
          use SymData, only: tagSymLabels,tagSymClasses
@@ -177,7 +177,6 @@ contains
          REAL*8 ARR(NBASIS)
          character(*), parameter :: this_routine='GenMolPSymTable'
 
-        
          TAbelian=.true.
          nSymGen=INT(DLOG(NSYMMAX+0.D0)/DLOG(2.D0)+.4)
          WRITE(6,"(A,I3,A)") "  Generating abelian symmetry table with",&
@@ -185,9 +184,12 @@ contains
          WRITE(6,'(A,'//int_fmt(nSymMax)//')')                          &
                               "  Number of symmetry classes: ",nSymMax
 
-         ! We actually use momentum conservation directly for the UEG so
-         ! just fake the symmetry information here.
-         if (TwoCycleSymGens .or. tUEG) then
+         ! We actually use momentum conservation directly for the UEG and
+         ! Hubbard mode so just fake the symmetry information here.
+         ! WARNING: do *not* use SymConj etc for these systems without fixing
+         ! this---functions which rely upon the wavevectors being encoded into
+         ! a symmetry integer will not work.
+         if (TwoCycleSymGens .or. tUEG .or. tHUB) then
              ! Set propogation information.
              ! If not TwoCycleSymGens we assume the user has already
              ! done so...
@@ -221,7 +223,8 @@ contains
                 ! real.
                 SymConjTab(I) = I
              ENDDO
-         else
+         else if (.not.tHUB) then
+             ! Hubbard symmetry info set up in GenHubMomIrrepsSymTable.
              symlabels(:)%s = -1
              do i = 1, nbasis, 2
                  do ilabel = 1, nsymlabels

@@ -2555,7 +2555,7 @@ SUBROUTINE SpinOrbSymSetup(tRedoSym)
 	do i=1,nBasis
 		if(tNoSymGenRandExcits.or.tUEG) then
 			SpinOrbSymLabel(i)=0
-		elseif(tKPntSym) then
+		elseif(tKPntSym.or.tHUB) then
 			SpinOrbSymLabel(i)=SymClasses(((i+1)/2))-1		!This ensures that the symmetry labels go from 0 -> nSymLabels-1
 		else
 			SpinOrbSymLabel(i)=INT(G1(i)%Sym%S,4)
