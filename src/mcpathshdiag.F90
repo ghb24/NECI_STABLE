@@ -42,10 +42,10 @@ module mcpathshdiag
          IMPLICIT NONE
          TYPE(BasisFN) G1(*),ISYM
          INTEGER I_V,NEL,I_P,nBasisMax(5,*),NBASIS,BRR(*),NMSH,NMAX
-         INTEGER NTAY(2),I_VIND,NWHTAY,ILOGGING,J,K,I_VMAX,II
+         INTEGER NTAY(2),I_VIND,NWHTAY,ILOGGING,J,I_VMAX,II
          INTEGER I
          COMPLEX*16 FCK(*)
-         HElement_t UMAT(*),R
+         HElement_t UMAT(*)
          REAL*8 ALAT(*),ECORE
          real(dp) TOTAL,FMCPR3B2RES,Prob
          real(dp) CALCPATHS_N
@@ -150,7 +150,7 @@ module mcpathshdiag
                   CALL WRITEPATHEX(10,IPATH,I_V,NEL,.FALSE.)
                ENDIF
             ENDIF
-            IF(TLOG2) CALL WRITERHOMAT(10,HIJ,I_V,NEL,.TRUE.)
+            IF(TLOG2) CALL WRITERHOMAT(10,HIJ,I_V,.TRUE.)
 !C.. 
             ICLS=0
             RHOII(0)=0
@@ -277,7 +277,7 @@ module mcpathshdiag
 !            ENDIF
 !            IF((.not.TPREVAR).and.(I_V.eq.3)) THEN
 !                CALL GetGraphstats(IPATH,I_V,NEL,NBASIS,NMAX,TOTAL,
-!     &              NBASISMAX,UMAT,G1,DLWDB2)
+!     &              NBASISMAX,DLWDB2)
 !            ENDIF
             L=L+1
             FMCPR3B2RES=TOTAL
@@ -588,8 +588,8 @@ end module
       Subroutine WriteGraphEnergies(IPATH, I_V, nEl,nBasis,Arr,Weight)
          use constants, only: dp
          Integer I_V, nEl, nBasis, IPATH(nEl,0:I_V), EX(2,2), T
-         Real*8 Arr(nBasis, 2),Energytonew,Energyfromnew
-         REAL*8 Energyfromold,Energytoold
+         Real*8 Arr(nBasis, 2),Energyfromnew
+         REAL*8 Energyfromold
          REAL*8 totWeight,avWeight
          real(dp) Weight
          INTEGER g
@@ -626,28 +626,26 @@ end module
 !             Write(56, "3G25.16") Weight,Energyfrom,Energyto 
          
          End
-         Subroutine GetGraphstats(IPATH, I_V, nEl,nBasis,Arr,Weight,NBASISMAX,UMAT,G1,DLWDB2)
+         Subroutine GetGraphstats(IPATH, I_V, nEl,nBasis,Arr,Weight,NBASISMAX,DLWDB2)
          use constants, only: dp
          USE UMatCache , only : GTID
          use Integrals, only : GetUMatEl
          use SystemData, only: BasisFN
          IMPLICIT NONE
-         Integer I_V,nEl,nBasis,IPATH(nEl,0:I_V),EX(2,2),T,p
-         REAL*8 ARR(nBasis,2),EnergyTo,EnergyFrom,Percendoub
+         Integer I_V,nEl,nBasis,IPATH(nEl,0:I_V),EX(2,2),T
+         REAL*8 ARR(nBasis,2),EnergyTo,EnergyFrom
          INTEGER I,J,K,L,ISS,IDI,IDJ,IDL,IDK,nBasisMax(5,*)
-         INTEGER EXCITLEV,IGETEXCITLEVEL_,hist
+         INTEGER EXCITLEV
          real(dp) Weight,DLWDB2
-         HElement_t UMAT(*),ME
-         TYPE(BasisFN) G1(NBASIS)
+         HElement_t ME
          LOGICAL AREDETSEXCITS,CONNECT23
          integer c
          INTEGER*8 SINGLE,DOUBLE,histogram(-20:3)
-         SAVE c,SINGLE,DOUBLE,Percendoub,histogram
+         SAVE c,SINGLE,DOUBLE,histogram
          DATA histogram/24*0/
          DATA c/0/
          DATA SINGLE/0/
          DATA DOUBLE/0/
-         REAL*8 ALAT(3)
          
          write (6,*) 'Warning: c has been changed from integer*8 to *4'
          IF(I_V.eq.2) THEN
@@ -669,7 +667,7 @@ end module
                 IDJ = GTID(J)
                 IDK = GTID(K)
                 IDL = GTID(L)
-                ME=GetUMatEl(NBASISMAX,UMAT,ALAT,NBASIS,ISS,G1,IDI,IDJ,IDK,IDL)
+                ME=GetUMatEl(IDI,IDJ,IDK,IDL)
                 EnergyFrom=Arr(EX(1,1),2)+Arr(EX(1,2),2)
                 EnergyTo=Arr(EX(2,1),2)+Arr(EX(2,2),2)
             ENDIF
@@ -706,7 +704,7 @@ end module
                         IDJ = GTID(J)
                         IDK = GTID(K)
                         IDL = GTID(L)
-                     ME=GetUMatEl(NBASISMAX,UMAT,ALAT,NBASIS,ISS,G1,IDI,IDJ,IDK,IDL)
+                     ME=GetUMatEl(IDI,IDJ,IDK,IDL)
                         EnergyFrom=Arr(EX(1,1),2)+Arr(EX(1,2),2)
                         EnergyTo=Arr(EX(2,1),2)+Arr(EX(2,2),2)
                         IF(MOD(c,75).eq.0) THEN
@@ -755,7 +753,7 @@ end module
                         IDJ = GTID(J)
                         IDK = GTID(K)
                         IDL = GTID(L)
-                     ME=GetUMatEl(NBASISMAX,UMAT,ALAT,NBASIS,ISS,G1,IDI,IDJ,IDK,IDL)
+                     ME=GetUMatEl(IDI,IDJ,IDK,IDL)
                         EnergyFrom=Arr(EX(1,1),2)+Arr(EX(1,2),2)
                         EnergyTo=Arr(EX(2,1),2)+Arr(EX(2,2),2)
                         IF(MOD(c,75).eq.0) THEN

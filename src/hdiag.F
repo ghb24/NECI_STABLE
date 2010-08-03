@@ -238,7 +238,7 @@ C.. CK now contains the eigenvectors, and W the eigenvalues
       SUBROUTINE HDIAG_NH(NDET,NBLOCKSTARTS,NBLOCKS,
      &            NEL,NMRKS,NBASISMAX,NBASIS,G1,BRR,
      &            ECORE,
-     &            BETA,I_P,ILOGGING,IFDET,ARR,BLOCKSYM)
+     &            BETA,I_P,IFDET,ARR,BLOCKSYM)
          use SystemData, only: BasisFN
          use global_utilities
          use Determinants, only: get_helement
@@ -247,7 +247,7 @@ C.. CK now contains the eigenvectors, and W the eigenvalues
          INTEGER NDET,NEL,NBLOCKS,NBLOCKSTARTS(NBLOCKS),NMRKS(NEL,NDET)
          INTEGER nBasisMax(5,*),NBASIS
          TYPE(BasisFN) G1(*)
-         INTEGER I_P,ILOGGING,BRR(*),INFO
+         INTEGER I_P,BRR(*),INFO
          REAL*8  BETA
          LOGICAL TWARN
          REAL*8  ECORE,DNORM
@@ -327,8 +327,8 @@ C
 C               DO J=1,NBLK
 C                  WRITE(15,*) CK((III-1)*NBLK+J)
 C               ENDDO
-               CALL CALCRHOPII(III,NBLK,NBLK,CK,W,BETA,I_P,ILOGGING,
-     &               ECORE,FLRI,FLSI,TWARN)
+               CALL CALCRHOPII(III,NBLK,NBLK,CK,W,BETA,I_P,
+     &               FLRI,FLSI,TWARN)
                WRITE(14,"(I12,A)",advance='no') NBS+III-1,"("
                DO L=1,NEL
                   WRITE(14,"(I3,A)",advance='no')

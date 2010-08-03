@@ -40,11 +40,11 @@
       
       contains
 
-      FUNCTION fMCPR3StarNodes(nI,Beta,i_P,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,nMax,ALat,UMat,nTay,RhoEps,L,LT,nWHTay,iLogging,tSym,ECore,dBeta,dLWdb)
+      FUNCTION fMCPR3StarNodes(nI,Beta,i_P,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,nMax,ALat,UMat,nTay,RhoEps,ECore,dBeta,dLWdb)
       use HElem
       TYPE(BasisFN) G1(*)
       INTEGER nI(nEl),nEl,i_P,nBasisMax(5,*),Brr(nBasis),nBasis,nMsh
-      INTEGER nMax,nTay(2),L,LT,nWHTay,iLogging,iMaxExcit,nExcitMemLen
+      INTEGER nMax,nTay(2),iMaxExcit,nExcitMemLen
       INTEGER noij,noab,ierr,totexcits,nJ(nEl),Orbchange(4),noexcits
       INTEGER Height,TRIIND,INDX,i,ExcitInfoElems,j,exFlag
       INTEGER nStore(6),iExcit,invsbrr(nBasis),orbone,orbtwo,t
@@ -54,8 +54,7 @@
       REAL*8 Beta,ALat(3),RhoEps,ECore,dBeta
       real(dp) dLWdB
       real(dp) fMCPR3StarNodes
-      HElement_t HIJS(0:2)
-      LOGICAL tSym,COMPIPATH
+      LOGICAL COMPIPATH
       character(*), parameter :: t_r='fMCPR3StarNodes'
 
       IF(HElement_t_size.GT.1) STOP "NODEDIAG cannot function with complex orbitals currently"
@@ -168,7 +167,7 @@
       WRITE(6,*) "Average rhoelement of links between excitations = ", totlinks/crosslinks
       
 !Explicitly diagonalise resultant matrix - large scaling.
-      CALL StarDiag(0,nEl,ExcitInfoElems+1,EXCITINFO,Totexcits+1,i_P,fmcpr3starnodes,dBeta,dLWdB)
+      CALL StarDiag(ExcitInfoElems+1,EXCITINFO,Totexcits+1,i_P,fmcpr3starnodes,dBeta,dLWdB)
 
       CALL LogMemDealloc(t_r,tagExcitInfo)
       DEALLOCATE(EXCITINFO)

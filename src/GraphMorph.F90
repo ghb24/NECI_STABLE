@@ -102,9 +102,13 @@ MODULE GraphMorph
         USE Determinants , only : get_helement
         IMPLICIT NONE
         real(dp) :: Weight,Energyxw
-        REAL*8 :: LowestE,BestSI
-        INTEGER :: ierr,i
-        CHARACTER(len=*), PARAMETER :: this_routine='MorphGraph'
+
+        ! Avoid warnings
+        weight = weight
+        energyxw = energyxw 
+!        REAL*8 :: LowestE,BestSI
+!        INTEGER :: ierr,i
+!        CHARACTER(len=*), PARAMETER :: this_routine='MorphGraph'
 
 !        OPEN(63,file='MorphStats',Status='unknown')
 !        IF(TDistrib) THEN

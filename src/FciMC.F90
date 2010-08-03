@@ -86,8 +86,6 @@ contains
 SUBROUTINE FciMC(Weight,Energyxw)
 use soft_exit, only: test_SOFTEXIT
 real(dp) :: Weight,Energyxw
-CHARACTER(len=*), PARAMETER :: this_routine='FCIMC'
-HElement_t :: Hamii
 LOGICAL :: TIncrement
 
 Walker_time%timer_name='Walker_time'
@@ -161,12 +159,12 @@ END SUBROUTINE FciMC
 !This is the heart of FCIMC, where the MC Cycles are performed
 SUBROUTINE PerformFCIMCyc()
         !use GenRandSymExcitCSF, only: TestCSF123
-        INTEGER :: VecSlot,i,j,k,l
-        INTEGER :: nJ(NEl),ierr,IC,Child,iCount,TotWalkersNew
-        REAL*8 :: Prob,rat,HDiag,Ran2,TotProb,UniformPGen
+        INTEGER :: VecSlot,j,l
+        INTEGER :: nJ(NEl),IC,Child,iCount,TotWalkersNew
+        REAL*8 :: Prob,rat,HDiag,UniformPGen
         INTEGER :: iDie             !Indicated whether a particle should self-destruct on DetCurr
-        INTEGER :: ExcitLevel,iGetExcitLevel_2,MaxExcits
-        LOGICAL :: WSign,SpawnBias,SameDet,TGenGuideDet
+        INTEGER :: ExcitLevel,iGetExcitLevel_2
+        LOGICAL :: WSign
         HElement_t :: HDiagTemp,HOffDiag
 
 !Set the timer for the walker loop - this should not be done always, as it will be time-consuming
@@ -178,6 +176,7 @@ SUBROUTINE PerformFCIMCyc()
 !Reset the number at HF & doubs per iteration
         NoatHF=0
         NoatDoubs=0
+        HOffDiag = 0
 
         do j=1,TotWalkers
             ! This is where you can call the CSF testing routine
@@ -186,7 +185,7 @@ SUBROUTINE PerformFCIMCyc()
 !j runs through all current walkers
 
 !Sum in any energy contribution from the determinant, including other parameters, such as excitlevel info
-            CALL SumEContrib(CurrentDets(:,j),CurrentIC(j),CurrentH(2,j),CurrentSign(j),j)
+            CALL SumEContrib(CurrentIC(j),CurrentH(2,j),CurrentSign(j),j)
 
 !Setup excit generators for this determinant (This can be reduced to an order N routine later for abelian symmetry.
             IF(.not.TRegenExcitgens) THEN
@@ -293,7 +292,7 @@ SUBROUTINE PerformFCIMCyc()
             ENDIF   !End if child created
 
 !We now have to decide whether the parent particle (j) wants to self-destruct or not...
-            iDie=AttemptDie(CurrentDets(:,j),CurrentH(1,j),CurrentIC(j))
+            iDie=AttemptDie(CurrentH(1,j))
 !iDie can be positive to indicate the number of deaths, or negative to indicate the number of births
                 
             NoDied=NoDied+iDie      !Increase the counter to indicated  number of particles that have died
@@ -1025,7 +1024,7 @@ SUBROUTINE PerformFCIMCyc()
 !value of the diagonal shift in the hamiltonian in order to compensate for this
     SUBROUTINE UpdateDiagSft()
         IMPLICIT NONE
-        INTEGER :: j,k,GrowthSteps
+        INTEGER :: j,GrowthSteps
         REAL*8 :: AvConnection
 
         IF(NoCulls.eq.0) THEN
@@ -1141,8 +1140,8 @@ SUBROUTINE PerformFCIMCyc()
 
 
 !This routine sums in the energy contribution from a given walker and updates stats such as mean excit level
-    SUBROUTINE SumEContrib(DetCurr,ExcitLevel,Hij0,WSign,j)
-        INTEGER :: DetCurr(NEl),ExcitLevel,j,Bin
+    SUBROUTINE SumEContrib(ExcitLevel,Hij0,WSign,j)
+        INTEGER :: ExcitLevel,j,Bin
         LOGICAL :: WSign
         REAL*8 :: Hij0      !This is the hamiltonian matrix element between DetCurr and HF
         REAL*8 :: DetE
@@ -1405,7 +1404,7 @@ SUBROUTINE PerformFCIMCyc()
     SUBROUTINE ThermostatParticles(HighLow)
         IMPLICIT NONE
         LOGICAL :: HighLow
-        INTEGER :: VecSlot,i,j,ToCull,Culled,OrigWalkers,Chosen
+        INTEGER :: VecSlot,i,ToCull,Culled,OrigWalkers,Chosen
         REAL*8 :: Ran2
 
         IF(HighLow) THEN
@@ -1676,10 +1675,11 @@ SUBROUTINE PerformFCIMCyc()
         TYPE(ExcitGenerator) :: TempExcit
         REAL*8 :: TempH(2),TempPGen
         INTEGER :: TempIC
-        INTEGER :: TotWalkersNew,j,k,l,DetCurr(NEl),VecSlot,TotWalkersDet
+        INTEGER :: TotWalkersNew,j,l,DetCurr(NEl),VecSlot,TotWalkersDet
         INTEGER :: DetLT
 
 !First, it is necessary to sort the list of determinants
+        temppgen = 0
         if (tUnbiasPGenInProjE) then
             if (tRegenExcitgens) then
                 call sort (NewDets(:,1:TotWalkersNew), &
@@ -1782,11 +1782,11 @@ SUBROUTINE PerformFCIMCyc()
         use CalcData, only : EXCITFUNCS
         use HElem
         use util_mod, only: get_free_unit
-        INTEGER :: ierr,i,j,k,l,DetCurr(NEl),ReadWalkers,TotWalkersDet
-        INTEGER :: DetLT,VecSlot,error,HFConn
+        INTEGER :: ierr,i,j
+        INTEGER :: HFConn
         INTEGER*8 :: MemoryAlloc
         REAL*8 :: Ran2
-        HElement_t :: rh,TempHii
+        HElement_t :: TempHii
         CHARACTER(len=*), PARAMETER :: this_routine='InitFCIMC'
 
         IF(HElement_t_size.gt.1) THEN
@@ -2087,7 +2087,6 @@ SUBROUTINE PerformFCIMCyc()
     SUBROUTINE WriteEnergyHist()
         use util_mod, only: get_free_unit
         INTEGER :: i,j, iunit
-        CHARACTER(Len=12) :: Filename
         REAL*8 :: LowEnergyofbin,HighEnergyofbin,MeanEnergyofbin
 !        CHARACTER(len=16) :: FormatSpec
 
@@ -2342,12 +2341,10 @@ SUBROUTINE PerformFCIMCyc()
 
 
     SUBROUTINE InitMP2Calc()
-        INTEGER :: ierr,i,j,nJ(NEl),IC,nStore(6),ExcitForm(2,2),iExcit
-        INTEGER :: A,B,t,MaxComptDet(NEl),Compts
+        INTEGER :: nJ(NEl),nStore(6),ExcitForm(2,2),iExcit
+        INTEGER :: MaxComptDet(NEl),Compts
         REAL*8 :: Denom,MaxCompt,MP2Energy,MP1Comp
-        LOGICAL :: tSign
         HElement_t :: Hij
-        CHARACTER(Len=*) , PARAMETER :: this_routine='InitMP2Calc'
         
 !The MP1 wavefunction components are no longer precalculated, but rather calculated on the fly now.
 !Need to calculate all the components of the MP2 wavefunction, and store them in MP2ExcitComps
@@ -2375,6 +2372,7 @@ SUBROUTINE PerformFCIMCyc()
         MaxCompt=1.D0
         MaxComptDet(:)=HFDet(:)
         Compts=0
+        excitform = 0
 
 !Reset the HF Excitation generator
         CALL ResetExIt2(HFExcit%ExcitData)
@@ -2734,8 +2732,8 @@ SUBROUTINE PerformFCIMCyc()
 
     SUBROUTINE SetupExitgen(nI,ExcitGen)
         TYPE(ExcitGenerator) :: ExcitGen
-        INTEGER :: ierr,iMaxExcit,nExcitMemLen,nJ(NEl)
-        INTEGER :: nI(NEl),nStore(6),iCount,IC!,Exitlevel,iGetExcitLevel
+        INTEGER :: ierr,iMaxExcit,nJ(NEl)
+        INTEGER :: nI(NEl),nStore(6)
 !        REAL*8 :: Prob
 
         IF(ExcitGen%ExcitGenForDet) THEN
@@ -2808,7 +2806,7 @@ SUBROUTINE PerformFCIMCyc()
 !You can optionally specify the connection between the determinants if it is already known.
     INTEGER FUNCTION AttemptCreate(DetCurr,WSign,nJ,Prob,IC,Hij)
         IMPLICIT NONE
-        INTEGER :: DetCurr(NEl),nJ(NEl),IC,StoreNumTo,StoreNumFrom,DetLT,i,ExtraCreate
+        INTEGER :: DetCurr(NEl),nJ(NEl),IC,ExtraCreate
         LOGICAL :: WSign
         REAL*8 :: Prob,Ran2,rat
         REAL*8 , OPTIONAL :: Hij
@@ -2892,9 +2890,9 @@ SUBROUTINE PerformFCIMCyc()
 !If also diffusing, then we need to know the probability with which we have spawned. This will reduce the death probability.
 !The function allows multiple births(if +ve shift) or deaths from the same particle.
 !The returned number is the number of deaths if positive, and the number of births if negative.
-    INTEGER FUNCTION AttemptDie(DetCurr,Kii,IC)
+    INTEGER FUNCTION AttemptDie(Kii)
         IMPLICIT NONE
-        INTEGER :: DetCurr(NEl),iKill,IC
+        INTEGER :: iKill
 !        HElement_t :: rh,rhij
         REAL*8 :: Ran2,rat,Kii
 

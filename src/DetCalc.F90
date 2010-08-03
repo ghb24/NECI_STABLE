@@ -51,7 +51,7 @@ CONTAINS
         use util_mod, only: get_free_unit, NECI_ICOPY
         Type(BasisFn) ISym
 
-        integer i,ii,j,iunit
+        integer i,ii,iunit
         integer ierr
         integer nDetTot
         logical isvaliddet
@@ -311,20 +311,19 @@ CONTAINS
 
       REAL*8 , ALLOCATABLE :: TKE(:),A(:,:),V(:),AM(:),BM(:),T(:),WT(:),SCR(:),WH(:),WORK2(:),V2(:,:),FCIGS(:)
       HElement_t, ALLOCATABLE :: WORK(:)
-      HElement_t :: HEl!,MatEl,MatEl2
       INTEGER , ALLOCATABLE :: LAB(:),NROW(:),INDEX(:),ISCR(:),Temp(:)
 
       integer :: LabTag=0,NRowTag=0,TKETag=0,ATag=0,VTag=0,AMTag=0,BMTag=0,TTag=0
       INTEGER :: WTTag=0,SCRTag=0,ISCRTag=0,INDEXTag=0,WHTag=0,Work2Tag=0,V2Tag=0,WorkTag=0
       integer :: ierr,Lz
       character(25), parameter :: this_routine = 'DoDetCalc'
-      REAL*8 EXEN,GSEN,FLRI,FLSI
+      REAL*8 EXEN,GSEN
         Type(BasisFn) ISym,IHFSYM
 
-        INTEGER GC,I,ICMAX,MaxDet,Bits
-        INTEGER iDeg,III,IN,IND,INDZ
+        INTEGER GC,I,ICMAX
+        INTEGER IN,IND,INDZ
         INTEGER NBLOCK!,OpenOrbs,OpenOrbsSym,Ex(2,NEl)
-        INTEGER nKry1,nK(NEl)!,nJ(NEl)
+        INTEGER nKry1
         INTEGER(KIND=n_int) :: ilut(0:NIfTot)
         
         INTEGER J,JR,iGetExcitLevel_2,ExcitLevel, iunit
@@ -537,7 +536,7 @@ CONTAINS
             ELSE
 !I_P we've replaced by 0
                CALL HDIAG_NH(NDET,NBLOCKSTARTS,NBLOCKS,NEL,NMRKS,NBASISMAX,NBASIS,G1,BRR, &
-     &            ECORE,BETA,0,ILOGGING,IFDET,ARR,BLOCKSYM)
+     &            ECORE,BETA,0,IFDET,ARR,BLOCKSYM)
 !C.. We're not storing the energies, so we pretend we weren't asked for
 !C.. them
                TENERGY=.FALSE.
@@ -552,7 +551,7 @@ CONTAINS
          ALLOCATE(TKE(NEVAL),stat=ierr)
          CALL LogMemAlloc('TKE',NEVAL,8,this_routine,TKETag,ierr)
 
-         EXEN=CALCMCEN(NDET,NEVAL,CK,W,BETA,0.D0)
+         EXEN=CALCMCEN(NEVAL,W,BETA)
          WRITE(6,"(A,F19.9)") "EXACT E(BETA)=",EXEN
          GSEN=CALCDLWDB(IFDET,NDET,NEVAL,CK,W,BETA,0.D0)
          WRITE(6,"(A,F19.9)") "EXACT DLWDB(D0)=",GSEN
@@ -852,7 +851,7 @@ CONTAINS
       ENDIF
 
 !C.. Jump to here if just read Psi in
-100   CONTINUE
+      CONTINUE
 
       IF(TRHOOFR) THEN
         Call CalcRhoOfR()
@@ -961,7 +960,6 @@ END MODULE DetCalc
          real(dp) DLWDB, DLWDB2, DLWDB3, DLWDB4
          TYPE(BasisFN) g1(*)
          REAL*8 ALAT(3)
-         LOGICAL TSYM
          REAL*8 BETA,RHOEPS
          COMPLEX*16 FCK(*)
 
@@ -970,9 +968,9 @@ END MODULE DetCalc
          HElement_t , ALLOCATABLE :: RIJLIST(:,:)
          INTEGER,SAVE :: RIJLISTTag=0,LSTEtag=0,ICEtag=0
          INTEGER NPATHS,ierr
-         INTEGER III,NWHTAY(3,I_VMAX),I,IMAX,ILMAX
+         INTEGER III,NWHTAY(3,I_VMAX),IMAX,ILMAX
          real(dp) WLRI,WLSI
-         REAL*8 ECORE,DBETA,WLRI1,WLRI2,WLSI1,WLSI2,WI
+         REAL*8 ECORE,DBETA,WLRI1,WLRI2,WLSI1,WLSI2
          REAL*8 TOT, NORM,WLRI0,WLSI0,WINORM
          LOGICAL TNPDERIV
          INTEGER DETINV
@@ -1113,15 +1111,15 @@ END MODULE DetCalc
 !.. Note if TWARN becomes set, the RHII sum did not converge.
 !.. FLSI will remain usable, but will be equal to log RHII(P), so the 
 !.. sum I_P*FLRI+FLSI will still retain the correct value.
-      SUBROUTINE CALCRHOPII(I,NDET,NEVAL,CK,W,BETA,I_P,ILOGGING,ETRIAL,FLRI,FLSI,TWARN)
+      SUBROUTINE CALCRHOPII(I,NDET,NEVAL,CK,W,BETA,I_P,FLRI,FLSI,TWARN)
          use constants, only: dp
          use util_mod, only: isnan
          IMPLICIT NONE
          INTEGER NDET,NEVAL
          HElement_t CK(NDET,NEVAL)
          REAL*8 W(NEVAL)
-         REAL*8 RHII,FLRI,FLSI,ETRIAL,BETA,RH,R
-         INTEGER I_P,I,IK,ILOGGING
+         REAL*8 RHII,FLRI,FLSI,BETA,RH,R
+         INTEGER I_P,I,IK
          LOGICAL TWARN
          RH=0.D0
          RHII=0.D0
@@ -1166,12 +1164,11 @@ END MODULE DetCalc
       END
 
 !  Given an exact calculation of eigen-vectors and -values, calculate the expectation value of E(Beta)
-      REAL*8 FUNCTION CALCMCEN(NDET,NEVAL,CK,W,BETA,ETRIAL)
+      REAL*8 FUNCTION CALCMCEN(NEVAL,W,BETA)
          use constants, only: dp
          IMPLICIT NONE
-         INTEGER NDET,NEVAL,IK
-         HElement_t CK(NDET,NEVAL)
-         REAL*8  W(NEVAL),BETA,DNORM,EN,ETRIAL
+         INTEGER NEVAL,IK
+         REAL*8  W(NEVAL),BETA,DNORM,EN
          EN=0.D0
          DNORM=0.D0
          DO IK=1,NEVAL
@@ -1288,7 +1285,7 @@ END MODULE DetCalc
          ! Cray compiler barfs if DOEXMC isn't defined.  Weird...
          DOEXMC = 0.0
 !         DO I=1,NDET
-!            CALL CALCRHOPII(I,NDET,NEVAL,CK,W,BETA,I_P,ILOGGING,ECORE,WLRIS(I),WLSIS(I),TWARN)
+!            CALL CALCRHOPII(I,NDET,NEVAL,CK,W,BETA,I_P,WLRIS(I),WLSIS(I),TWARN)
 !            DLWDBS(I)=CALCDLWDB(I,NDET,NEVAL,CK,W,BETA,ECORE)
 !         ENDDO
 !         STOP "DMONTECARLOEXWI is no longer functional."

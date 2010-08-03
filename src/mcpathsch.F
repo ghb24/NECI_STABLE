@@ -179,7 +179,7 @@ C.. Now calculate a new value if required
                   RHOII(I_V)=RHOII(0)
                   IF(TLOG) THEN
                      CALL WRITEPATH(10,IPATH,I_V,NEL,.FALSE.)   
-                     IF(TLOG2) CALL WRITERHOMAT(10,RHOIJ,I_V,NEL,.TRUE.)
+                     IF(TLOG2) CALL WRITERHOMAT(10,RHOIJ,I_V,.TRUE.)
                   ENDIF   
                   VALUE=CALCPATHS(IPATH,RHOII,RHOIJ,I_V,I_HMAX,
      &               I_P,NWHTAY,NEL,I_V,ILOGGING)

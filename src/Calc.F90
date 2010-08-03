@@ -1498,7 +1498,7 @@ contains
              RHOEPS=RHOEPSILON*EXP(-BETA*(W(1))/I_P)
             WRITE(6,*) "RHOEPS:",RHOEPS
              IF(TREAD) THEN
-                EXEN=CALCMCEN(NDET,NEVAL,CK,W,BETA,0.D0)
+                EXEN=CALCMCEN(NEVAL,W,BETA)
                 WRITE(6,"(A,F19.5)") "EXACT E(BETA)=",EXEN
                 GSEN=CALCDLWDB(1,NDET,NEVAL,CK,W,BETA,0.D0)
                 WRITE(6,"(A,F19.5)") "EXACT DLWDB(D0)=",GSEN
@@ -1508,7 +1508,7 @@ contains
              IF(NDETWORK.EQ.0.OR.NDETWORK.GT.NDET) NDETWORK=NDET
              DO III=1,NDETWORK
              
-                CALL CALCRHOPII(III,NDET,NEVAL,CK,W,BETA,I_P,ILOGGING,0.D0,FLRI,FLSI,TWARN)
+                CALL CALCRHOPII(III,NDET,NEVAL,CK,W,BETA,I_P,D0,FLRI,FLSI,TWARN)
                 IF(TWARN) THEN
                    IF(III.EQ.1) THEN
                       WRITE(6,*) "Warning received from CALCRHOPII."

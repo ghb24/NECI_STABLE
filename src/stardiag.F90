@@ -39,7 +39,7 @@
 !    The rho_jj, rho_ij and H_ij values are stored for each connected determinant.
 !   Based on a combined FMCPR3STAR and FMCPR3STAR2, this instead generates excitations on the fly.
    FUNCTION fMCPR3StarNewExcit(nI,Beta,i_P,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,nMax,ALat,UMat,nTay, &
-               RhoEps, L, LT,nWHTay, iLogging, tSym, ECore,dBeta,dLWdB,MP2E)
+               RhoEps, L, LT,nWHTay, iLogging, ECore,dBeta,dLWdB,MP2E)
          use CalcData , only : TMPTHEORY,StarProd,TStarStars,TLanczos,TMCStar
          use SystemData , only : TSTOREASEXCITATIONS,BasisFN
          use IntegralsData , only : TCalcRhoProd,TSumProd,TCalcRealProd,TCalcExcitStar,TDiagStarStars,TLinRootChange
@@ -58,7 +58,6 @@
          HElement_t HIJS(0:2)
 !         REAL*8 LARGERHOJJ(10000)
          INTEGER iPath(nEl,0:2),UniqProd
-         LOGICAL tSym
          character(*), parameter :: this_routine='fMCPR3StarNewExcit'
 !.. New lists are generated here
 !.. This will contain all the info needed to work out the value of the
@@ -68,12 +67,12 @@
 !.. LIST(J,1) = RHOIJ
 !.. LIST(J,2) = HIJ
 
-         INTEGER exFlag,totvert
+         INTEGER exFlag
          INTEGER, allocatable :: nExcit(:)
          INTEGER nExcitMemLen,nStore(6)
          INTEGER nJ(nEl),iExcit,iMaxExcit,excitcount,Prodnum
-         INTEGER iErr,nK(nEl),nL(nEl)
-         INTEGER nRoots,i,j
+         INTEGER iErr
+         INTEGER nRoots,i
          HElement_t rh,rhii,EHFDiff,Hii
          real(dp) MP2E(2:2)        
          LOGICAL tStarSingles,tCountExcits
@@ -84,6 +83,7 @@
 !This needs to be removed, as it'll eventually be an input parameter
 
 !         LARGERHOJJ(:)=0.D0
+         hii = 0
          fMCPR3StarNewExcit=(0.D0)
          IF(tStoreAsExcitations) THEN
             nIExcitFormat(1)=-1
@@ -178,6 +178,7 @@
              ExcitInfo(i,0)=0.D0
              MaxDiag=0.D0
          ENDIF
+         ehfdiff = 0
          if(BTEST(nWhTay,5)) then
 ! We use the Zeroth order N-particle Hartree-Fock hamiltonian (as MP theory), but shifted by E_HF-E0.
 
@@ -276,7 +277,7 @@
          WRITE(6,*) iExcit," excited determinants in star"
 
 !Routine for debugging/dev research to graph various eigenvalues and eigenvectors of varying star matrices - should generally be commented out.
-!         CALL GraphRootChange(iMaxExcit,iExcit,RhoEps)
+!         CALL GraphRootChange(iMaxExcit,iExcit)
 
          
 !If starprod is set, it means that one of a number of methods is used to attempt to indroduce quadruple excitations into the star in an approximate way to achieve size consistency for dissociation into two fragments.
@@ -308,7 +309,7 @@
 !eigenvalue of the original star. Once this gradient is found, the change in the diagonal 
 !elements of the original matrix can be calculated and shifted. Offdiagonal elements, and 
 !Hamiltonian elements are unchanged, since the eigenvectors are equal to unity.
-                 CALL GetLinRootChangeStars(iMaxExcit,iExcit,RhoEps,nWHTay)
+                 CALL GetLinRootChangeStars(iMaxExcit,iExcit,nWHTay)
              ELSE
 
 !GetLinStarStars assumes a linear variation of the star eigenvalues and vectors, and so uses this to approximate the diagonalised form for excited star matrices, given by multiplying the original star matrix by the rho_jj values.
@@ -323,28 +324,28 @@
                 IF(TCalcRealProd) THEN
                     IF(TSumProd) THEN
                         WRITE(6,*) "Product Sum Star Diagonalisation"
-                        CALL StarDiag(0,nEl,iExcit+1,ExcitInfo,iMaxExcit+1,i_p,fMCPR3StarNewExcit,dBeta,dLWdB)
+                        CALL StarDiag(iExcit+1,ExcitInfo,iMaxExcit+1,i_p,fMCPR3StarNewExcit,dBeta,dLWdB)
                     ELSE
                         WRITE(6,*) "Real Product Star Diagonalisation"
-                        CALL StarDiagRealProd(nEl,iExcit+1,ExcitInfo,iMaxExcit+1,i_P,fMCPR3StarNewExcit,dBeta,dLWdB,ProdNum,EXCITSTORE,ProdPositions,OnDiagProdRho,OffDiagProdRho)
+                        CALL StarDiagRealProd(iExcit+1,ExcitInfo,iMaxExcit+1,i_P,fMCPR3StarNewExcit,dBeta,dLWdB,ProdNum,ProdPositions,OnDiagProdRho,OffDiagProdRho)
                     ENDIF
                 ELSE
                     WRITE(6,*) "Complete Product Star Diagonalisation -  beware - large scaling!"
-                    CALL StarDiagSC(0,nEl,iExcit+1,ExcitInfo,iMaxExcit+1,i_P,fMCPR3StarNewExcit,dBeta,dLWdB)
+                    CALL StarDiagSC(iExcit+1,ExcitInfo,iMaxExcit+1,i_P,fMCPR3StarNewExcit,dBeta,dLWdB)
                 ENDIF
             ELSEIF(TLanczos) THEN
 !Lanczos diagonalisation
 
                 WRITE(6,*) "Performing Lanczos diagonalisation of the star graph"
-                CALL StarDiagLanc(nEl,iExcit+1,ExcitInfo,iMaxExcit+1,i_P,fMCPR3StarNewExcit,dBeta,dLWdB)
+                CALL StarDiagLanc(iExcit+1,ExcitInfo,iMaxExcit+1,i_P,fMCPR3StarNewExcit,dBeta,dLWdB)
             ELSE
-                CALL StarDiag(0,nEl,iExcit+1,ExcitInfo,iMaxExcit+1,i_P,fMCPR3StarNewExcit,dBeta,dLWdB)
+                CALL StarDiag(iExcit+1,ExcitInfo,iMaxExcit+1,i_P,fMCPR3StarNewExcit,dBeta,dLWdB)
             ENDIF
 
         ELSEIF(TMCStar) THEN
 
             WRITE(6,*) "Performing Monte Carlo diagonalization of the star graph"
-            CALL StarDiagMC(nEl,iExcit+1,ExcitInfo,iMaxExcit+1,fMCPR3StarNewExcit,dLWdB,Hii,MaxDiag)
+            CALL StarDiagMC(iExcit+1,ExcitInfo,iMaxExcit+1,fMCPR3StarNewExcit,dLWdB,MaxDiag)
          
         ELSE
 
@@ -362,7 +363,7 @@
             ELSE
                WRITE(6,*) "Searching for all roots"
             ENDIF
-            CALL StarDiag2(0,nEl,iExcit+1,ExcitInfo,iMaxExcit+1,Beta,i_P,fMCPR3StarNewExcit,dBeta,dLWdB,nRoots,iLogging)
+            CALL StarDiag2(iExcit+1,ExcitInfo,iMaxExcit+1,i_P,fMCPR3StarNewExcit,dBeta,dLWdB,nRoots)
         ENDIF
          
          IF(ASSOCIATED(ExcitInfo)) THEN
@@ -414,8 +415,8 @@
             INTEGER, ALLOCATABLE :: nExcit2(:)
             REAL*8, ALLOCATABLE :: ExcitStarInfo(:,:),ExcitStarMat(:,:),WORK(:)
             REAL*8, ALLOCATABLE :: ExcitStarVals(:),ExcitStarVecs(:)
-            integer,save :: tagWORK=0,tagExcitStarVals=0,tagExcitStarVecs=0,tagExcitStarMat=0
-            integer,save :: tagnExcit2=0,tagExcitStarInfo=0
+            integer,save :: tagWORK=0,tagExcitStarVals=0,tagExcitStarMat=0
+            integer,save :: tagExcitStarInfo=0
             LOGICAL :: HFFound
             character(*), parameter :: this_routine='CalcExcitStar'
             
@@ -661,18 +662,17 @@
         END SUBROUTINE CalcExcitStar
        
 !A testing routine which writes out eigenvectors and values from various modified star matrices
-        SUBROUTINE GraphRootChange(iMaxExcit,iExcit,RhoEps)
+        SUBROUTINE GraphRootChange(iMaxExcit,iExcit)
             use global_utilities
             use HElem
             IMPLICIT NONE
-            INTEGER :: iMaxExcit,iExcit,HalfiExcit,i,j,calcs,lowtoprint,toprint,k
-            INTEGER :: NoDegens,iErr
+            INTEGER :: iMaxExcit,iExcit,HalfiExcit,i,j,calcs,toprint
+            INTEGER :: NoDegens,iErr,r
             INTEGER, ALLOCATABLE :: DegenPos(:)
             LOGICAL :: degen
-            REAL*8 :: r,gap,minimum,RhoEps
-            REAL*8, ALLOCATABLE :: Vals(:),Vecs(:),DiagRhos(:),Diffs(:,:)
+            REAL*8 :: gap,minimum
+            REAL*8, ALLOCATABLE :: Vals(:),Vecs(:),DiagRhos(:)
             HElement_t :: tmp(3)
-            HElement_t, ALLOCATABLE :: TESTER(:)
             integer, save :: tagDegenPos=0
             character(*), parameter :: this_routine='GraphRootChange'
 
@@ -783,7 +783,7 @@
 !            enddo
             
             j=0
-            do r=1,minimum,-gap
+            do r=1,int(minimum),int(-gap)
                 j=j+1
 !Fill matrix as normal, but change root element from 1 -> little lower than rho_jj
                 do i=2,iExcit+1
@@ -1030,14 +1030,14 @@
 
         END SUBROUTINE GetStarStars
 
-        SUBROUTINE GetLinRootChangeStars(iMaxExcit,iExcit,RhoEps,nWHTay)
+        SUBROUTINE GetLinRootChangeStars(iMaxExcit,iExcit,nWHTay)
             use CalcData , only : LinePoints
             use global_utilities
             use HElem
             IMPLICIT NONE
-            INTEGER :: i,j,iMaxExcit,iExcit,nWHTay,HalfiExcit,ierr,lowerrhojj
+            INTEGER :: i,j,iMaxExcit,iExcit,nWHTay,HalfiExcit,ierr
             type(timer), save :: proc_timer
-            REAL*8 :: RhoEps,LineRhoValues(LinePoints),RhoValue,Vals(LinePoints),meanx,RhoGap,EigenMax
+            REAL*8 :: LineRhoValues(LinePoints),RhoValue,Vals(LinePoints),meanx,RhoGap,EigenMax
             REAL*8 :: MeanVal,Sxx,Sxy,Syy,GradVal,IncptVal,ExpctVal,Rsq,Vector,PreVec,lowrhojj
             LOGICAL :: ReachMax
             REAL*8, ALLOCATABLE :: AllVals(:),AllVecs(:),DiagRhos(:)
@@ -1097,6 +1097,7 @@
             CALL GetValsnVecs(iExcit+1,DiagRhos,ExcitInfo(1:iExcit,1),AllVals,AllVecs)
             Vector=AllVecs(iExcit+1)
             i=0
+            reachmax = .false.
             do while((Vector.gt.0.1).or..not.Reachmax)
                 i=i+1
                 PreVec=Vector
@@ -1321,7 +1322,6 @@
 !These arrays hold various data for calculating the gradient, and R^2 value for the linear approximation for each eigenvalue & vector.
             REAL*8, ALLOCATABLE :: RsqVals(:),RsqVecs(:),ExpctVals(:),ExpctVecs(:),IncptVals(:),IncptVecs(:),SxyVals(:),SxyVecs(:)
             REAL*8, ALLOCATABLE :: SyyVals(:),SyyVecs(:),MeanVals(:),MeanVecs(:),GradVals(:),GradVecs(:)
-            integer, save :: tagLineRhoValues=0
             integer, save :: tagVecsDODMS=0
             integer, save :: tagValsDODMS=0
             integer, save :: tagRsqVals=0,tagRsqVecs=0,tagExpctVals=0,tagExpctVecs=0,tagIncptVals=0,tagIncptVecs=0,tagSxyVals=0,tagSxyVecs=0
@@ -1648,6 +1648,7 @@
 !            NextVertex=iExcit+1
             NextVertex=1
 
+            hmax = 0
             do i=1,iExcit
                 ValMax=0.D0
                 VecMax=0.D0
@@ -1731,11 +1732,11 @@
         SUBROUTINE GetValsnVecs(Dimen,DiagRhos,OffDiagRhos,Vals,Vecs)
             use global_utilities
             IMPLICIT NONE
-            INTEGER :: Dimen,i,INFO,iErr,j
+            INTEGER :: Dimen,i,INFO,iErr
             REAL*8 :: DiagRhos(1:Dimen),Vals(Dimen),Vecs(Dimen)
             HElement_t :: OffDiagRhos(2:Dimen)
-            REAL*8, ALLOCATABLE :: StarMat(:,:),WLIST(:),WORK(:)
-            integer, save :: tagStarMat=0,tagWLIST=0,tagWORK=0
+            REAL*8, ALLOCATABLE :: StarMat(:,:),WORK(:)
+            integer, save :: tagStarMat=0,tagWORK=0
             character(*), parameter :: this_routine='GetValsnVecs'
 
 !Construct matrix - remember that the first element of OffDiagRhos now is the first offdiagonal element for the excitation, not root.
@@ -2015,15 +2016,15 @@
 !.. This version creates a star of all 2-vertex terms.
 !.. This sets up the excitation generators and the memory - using the old excitation generators
 FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY, &
-                     RHOEPS,LSTE,ICE,LIST,L,LT,NWHTAY,ILOGGING,TSYM,ECORE,ILMAX,DBETA,DLWDB)
+                     RHOEPS,LSTE,ICE,L,LT,NWHTAY,TSYM,ECORE,ILMAX,DBETA,DLWDB)
          use constants, only: dp      
          use global_utilities
          use legacy_data, only: irat
          use HElem
          use util_mod, only: NECI_ICOPY
          IMPLICIT NONE
-         INTEGER I_V,NEL,I_P,NBASISMAX(*),G1(*),NBASIS,BRR(*),NMSH,NMAX
-         INTEGER NTAY,NWHTAY,ILOGGING,LT
+         INTEGER NEL,I_P,NBASISMAX(*),G1(*),NBASIS,BRR(*),NMSH,NMAX
+         INTEGER NTAY,NWHTAY,LT
          REAL*8 FCK(*), ALAT(*),UMAT(*),ECORE
          INTEGER NI(NEL),ILMAX
 !.. These are old and no longer used
@@ -2031,7 +2032,6 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
 !.. ICE is the IC of each excitation (i.e. how much it differs from us (INODE)
          INTEGER LSTE(NEL,0:ILMAX)
          INTEGER ICE(0:ILMAX)
-         REAL*8 LIST(0:ILMAX,0:2)
          real(dp) FMCPR3Star
 !.. New lists are generated here
          INTEGER,ALLOCATABLE :: NLSTE(:,:)
@@ -2050,9 +2050,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
          REAL*8 BETA,RHOEPS
          LOGICAL TSYM
          REAL*8 DBETA,DLWDB
-         INTEGER NLENLIST,NLCUR,I,J,L
-
-         REAL*8 RH,RHII
+         INTEGER NLENLIST,L
 
          INTEGER NORDER,NMIN
          real(dp) FMCPR3STAR2
@@ -2091,7 +2089,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
          CALL GENEXCIT(NI,NORDER,NBASIS,NEL,NLSTE(1,1),NICE(1),NLENLIST,NMIN,G1,TSYM,NBASISMAX,.FALSE.)
 
          FMCPR3STAR=FMCPR3STAR2(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY, &
-           RHOEPS,NLSTE,NICE,NLIST,L,LT,NWHTAY,ILOGGING,TSYM,ECORE,NLENLIST,DBETA,DLWDB)
+           RHOEPS,NLSTE,NICE,NLIST,L,LT,NWHTAY,ECORE,NLENLIST,DBETA,DLWDB)
 
          deallocate(NLIST,NICE,NLSTE)
          call LogMemDealloc(this_routine,tagNLIST)
@@ -2104,7 +2102,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
 !.. This version creates a star of all 2-vertex terms.
 !..   This is the heart of the function, called once the excitations are found.
       FUNCTION FMCPR3STAR2(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY, &
-           RHOEPS,LSTE,ICE,LIST,L,LT,NWHTAY,ILOGGING,TSYM,ECORE,ILMAX,DBETA,DLWDB)
+           RHOEPS,LSTE,ICE,L,LT,NWHTAY,ECORE,ILMAX,DBETA,DLWDB)
          use constants, only: dp     
          use SystemData, only: BasisFN
          use Determinants, only: get_helement
@@ -2112,8 +2110,8 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
          IMPLICIT NONE
          real(dp) FMCPR3Star2
          TYPE(BasisFN) G1(*)
-         INTEGER I_V,NEL,I_P,nBasisMax(5,*),NBASIS,BRR(*),NMSH,NMAX
-         INTEGER NTAY,NWHTAY,ILOGGING,LT
+         INTEGER NEL,I_P,nBasisMax(5,*),NBASIS,BRR(*),NMSH,NMAX
+         INTEGER NTAY,NWHTAY,LT
          REAL*8 ALAT(*),ECORE
          HElement_t UMat(*)
          COMPLEX*16 FCK(*)
@@ -2132,14 +2130,14 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
 
          HElement_t LIST(0:ILMAX,0:2)
          REAL*8 BETA,RHOEPS
-         LOGICAL TSYM
          REAL*8 DBETA,DLWDB
-         INTEGER NLIST,NLCUR,I,J,L
+         INTEGER NLIST,NLCUR,I,L
 
          HElement_t RHII,RH
          NLIST=ILMAX
 
          NLCUR=0
+         rhii = 0
          DO I=0,NLIST
             IF(ICE(I).EQ.0.AND.I.GT.0) LSTE(1,I)=0
             IF(LSTE(1,I).NE.0) THEN
@@ -2168,31 +2166,30 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
          WRITE(6,*) NLCUR," determinants in star"
          IF(.NOT.BTEST(NWHTAY,0)) THEN
             WRITE(6,*) "Beginning Complete Star Diagonalization"
-            CALL STARDIAG(LSTE,NEL,NLCUR,LIST,ILMAX+1,I_P,FMCPR3STAR2,DBETA,DLWDB)
+            CALL STARDIAG(NLCUR,LIST,ILMAX+1,I_P,FMCPR3STAR2,DBETA,DLWDB)
          ELSE
             WRITE(6,*) "Beginning Polynomial Star Diagonalization"
             NROOTS=NLCUR
             IF(BTEST(NWHTAY,1)) NROOTS=1
-            CALL STARDIAG2(LSTE,NEL,NLCUR,LIST,ILMAX+1,BETA,I_P,FMCPR3STAR2,DBETA,DLWDB,NROOTS,iLogging)
+            CALL STARDIAG2(NLCUR,LIST,ILMAX+1,I_P,FMCPR3STAR2,DBETA,DLWDB,NROOTS)
          ENDIF
       END
 
-      SUBROUTINE STARDIAGREALPROD(NEL,NLIST,LIST,ILMAX,I_P,SI,DBETA,DLWDB,ProdNum,EXCITSTORE,ProdPositions,OnDiagProdRho,OffDiagProdRho)
+      SUBROUTINE STARDIAGREALPROD(NLIST,LIST,ILMAX,I_P,SI,DBETA,DLWDB,ProdNum,ProdPositions,OnDiagProdRho,OffDiagProdRho)
          !NLIST is now no. original excitations (+ root) - ILMAX is max possible excitations +1
          use constants, only: dp
          use HElem
          use global_utilities
          IMPLICIT NONE
-         INTEGER NEL,I_P
+         INTEGER I_P
          INTEGER NLIST,ILMAX,ProdNum,TOTVERT
          REAL*8 OnDiagProdRho(ProdNum),OffDiagProdRho(2,ProdNum)
          REAL*8 LIST(ILMAX,0:2)
          REAL*8,ALLOCATABLE ::  RIJMAT(:),WLIST(:),WORK(:)
-         INTEGER, SAVE :: tagLIST=0,tagRIJMAT=0,tagWLIST=0,tagWORK=0
+         INTEGER, SAVE :: tagRIJMAT=0,tagWLIST=0,tagWORK=0
 
-         INTEGER EXCITSTORE(4,ILMAX-1)!contains all excitations (occ,occ,vir,vir)
          type(timer), save :: proc_timer
-         INTEGER WORKL,INFO,ierr,ProdPositions(2,ProdNum)
+         INTEGER WORKL,INFO,ProdPositions(2,ProdNum)
          REAL*8 SI,DLWDB,DBETA
          INTEGER I,J,err
          character(*),parameter :: this_routine='STARDIAGREALPROD'
@@ -2280,14 +2277,14 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
 
          
          
-      SUBROUTINE STARDIAGSC(LSTE,NEL,NLIST,LIST,ILMAX,I_P,SI,DBETA,DLWDB)
+      SUBROUTINE STARDIAGSC(NLIST,LIST,ILMAX,I_P,SI,DBETA,DLWDB)
          use constants, only: dp
          use global_utilities
          use sort_mod
          use helem, only: helement_t_size
          IMPLICIT NONE
-         INTEGER NEL,I_P
-         INTEGER LSTE(NEL,NLIST),NLIST,ILMAX
+         INTEGER I_P
+         INTEGER NLIST,ILMAX
          REAL*8 LIST(ILMAX,0:2)
          REAL*8,ALLOCATABLE ::  RIJMAT(:),WLIST(:),WORK(:)
          INTEGER, SAVE :: tagRIJMAT=0,tagWLIST=0,tagWORK=0
@@ -2299,7 +2296,6 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
          INTEGER WORKL,INFO,PRODVERT,ierr
          REAL*8 SI,DLWDB,DBETA
          INTEGER I,J,err
-         HElement_t RR
          character(*),parameter :: this_routine='STARDIAGSC'
 
          IF(HElement_t_size.GT.1) STOP "STARDIAGSC cannot function with complex orbitals."
@@ -2419,7 +2415,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
 
 !Use a MC sampling technique to find the eigenvector correesponding to the smallest eigenvalue.
 !List now contains diagonal hamiltonian matrix elements-Hii in the ExcitInfo(i,0), rather than rho elements.
-      SUBROUTINE StarDiagMC(nEl,NList,List,ILMax,SI,DLWDB,Hii,MaxDiag)
+      SUBROUTINE StarDiagMC(NList,List,ILMax,SI,DLWDB,MaxDiag)
          use constants, only: dp
          use CalcData , only : InitWalkers,NMCyc,G_VMC_Seed,DiagSft,Tau,SftDamp,StepsSft
          use CalcData , only : TReadPops,ScaleWalkers,TBinCancel, iPopsFileNoRead, iPopsFileNoWrite
@@ -2431,14 +2427,14 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
          use helem, only: helement_t_size
          IMPLICIT NONE
          CHARACTER(len=*), PARAMETER :: this_routine='StarDiagMC'
-         INTEGER :: i,j,nEl,NList,ILMax,Info,ierr,WorkL,toprint,PreviousNMCyc
+         INTEGER :: i,j,NList,ILMax,Info,ierr,WorkL,toprint,PreviousNMCyc
          type(timer), save :: proc_timer
          INTEGER :: TotWalkers,Seed,VecSlot,TotWalkersNew,DetCurr,ReadWalkers
-         INTEGER :: MaxWalkers,TotWalkersOld,NWalk,k,WalkOnExcit,l,TotWalkersDet
+         INTEGER :: MaxWalkers,TotWalkersOld,NWalk,k,l,TotWalkersDet
          INTEGER :: HMatTag=0,WListTag=0,WorkTag=0,WalkVecTag=0,WalkVec2Tag=0
          INTEGER :: SumNoatHF
-         REAL*8 :: List(ILMax,0:2),SI,DLWDB,Hii,MaxDiag,Ran2,Norm,GrowRate
-         REAL*8 :: rat,r,SumENum,ProjectionE
+         REAL*8 :: List(ILMax,0:2),SI,DLWDB,MaxDiag,Ran2,Norm,GrowRate
+         REAL*8 :: rat,SumENum,ProjectionE
          LOGICAL :: DetSign
          REAL*8 , ALLOCATABLE :: HMat(:,:),WList(:),Work(:)
          TYPE(star_walker) , POINTER :: WalkVec(:),WalkVec2(:)
@@ -3033,14 +3029,14 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
       END SUBROUTINE StarDiagMC
 
 !Use a Lanczos routine to find the first NEval eigenvectors of the rho matrix, and from this the energy of the star graph.
-      SUBROUTINE StarDiagLanc(nEl,NList,List,ILMax,i_P,SI,DBeta,DLWDB)
+      SUBROUTINE StarDiagLanc(NList,List,ILMax,i_P,SI,DBeta,DLWDB)
          use constants, only: dp
          USE DetCalcData , only : B2L,nBlk,nKry,NEval
          USE global_utilities
          use HElem
          IMPLICIT NONE
          CHARACTER(len=*), PARAMETER :: this_routine='StarDiagLanc'
-         INTEGER :: nEl,i_P,NList,ILMax,i,j,LenMat,ICMax
+         INTEGER :: i_P,NList,ILMax,i,j,LenMat,ICMax
          type(timer), save :: proc_timer
          REAL*8 :: List(ILMax,0:2)
          REAL*8 :: SI,DLWDB,DBeta
@@ -3226,23 +3222,22 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
       END SUBROUTINE StarDiagLanc
         
       
-      SUBROUTINE STARDIAG(LSTE,NEL,NLIST,LIST,ILMAX,I_P,SI,DBETA,DLWDB)
+      SUBROUTINE STARDIAG(NLIST,LIST,ILMAX,I_P,SI,DBETA,DLWDB)
          use constants, only: dp
          use IntegralsData , only : TCalcRealProd
          use global_utilities
          use sort_mod
          use helem, only: helement_t_size
          IMPLICIT NONE
-         INTEGER NEL,I_P
-         INTEGER LSTE(NEL,NLIST),NLIST,ILMAX
+         INTEGER I_P
+         INTEGER NLIST,ILMAX
          REAL*8 LIST(ILMAX,0:2)
          REAL*8,ALLOCATABLE ::  RIJMAT(:),WLIST(:),WORK(:)
-         INTEGER, SAVE :: tagLIST=0,tagRIJMAT=0,tagWLIST=0,tagWORK=0
+         INTEGER, SAVE :: tagRIJMAT=0,tagWLIST=0,tagWORK=0
          type(timer), save :: proc_timer
          INTEGER WORKL,INFO
          REAL*8 SI,DLWDB,DBETA,OD
          INTEGER I,J,err
-         HElement_t RR
          character(*),parameter :: this_routine='STARDIAG'
          
          IF(HElement_t_size.GT.1) THEN
@@ -3365,22 +3360,21 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
 !.. LIST(J,0) = RHOJJ
 !.. LIST(J,1) = RHOIJ
 !.. LIST(J,2) = HIJ
-      SUBROUTINE STARDIAG2(LSTE,NEL,NLIST,LIST,ILMAX,BETA,I_P,SI,DBETA,DLWDB,NROOTS,iLogging)
+      SUBROUTINE STARDIAG2(NLIST,LIST,ILMAX,I_P,SI,DBETA,DLWDB,NROOTS)
          use CalcData , only : STARCONV
          use IntegralsData , only : TQUADRHO,TEXPRHO
          use constants, only: dp
          use global_utilities
          use sort_mod
          IMPLICIT NONE
-         INTEGER NEL,I_P
-         INTEGER LSTE(NEL,NLIST),NLIST,ILMAX
+         INTEGER I_P
+         INTEGER NLIST,ILMAX
          HElement_t LIST(0:ILMAX-1,0:2)
          type(timer), save :: proc_timer
-         REAL*8 SI,DLWDB,DBETA,NORM,E0,BETA,osi
+         REAL*8 SI,DLWDB,DBETA,NORM,E0
          HElement_t DLWDB2,RR
          INTEGER I,J,NROOTS
-         REAL*8 ROOTS(0:NROOTS),RPN,R
-         INTEGER iLogging
+         REAL*8 ROOTS(0:NROOTS),RPN
          INTEGER iEigv,iDegen
          LOGICAL lWarned
          REAL*8 NORMCHECK,NORMROOTS
@@ -3576,10 +3570,10 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
          IMPLICIT NONE
          Type(BasisFN) G1(*)
          INTEGER nI(nEl),nEl,i_P,nBasisMax(5,*),Brr(nBasis),nBasis,nMsh
-         INTEGER nMax,nTay(2),L,LT,nWHTay,iLogging
+         INTEGER nMax,nTay(2)
          COMPLEX*16 fck(*)
          HElement_t UMat(*)
-         REAL*8 Beta, ALat(3),RhoEps,ECore,dBeta
+         REAL*8 Beta, ALat(3),RhoEps,ECore
          HElement_t  ExcitInfo(0:iMaxExcit,0:2)
 !.. New lists are generated here
 !.. This will contain all the info needed to work out the value of the

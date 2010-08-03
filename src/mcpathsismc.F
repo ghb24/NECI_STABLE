@@ -764,7 +764,7 @@ C.. matrix elements.  We now call CALCPATHS to get the path weight
          IF(TLOG) THEN
             CALL WRITEPATH(10,IPATH,I_V,NEL,.FALSE.)
             IF(BTEST(ILOGGING,3))
-     &         CALL WRITERHOMAT(10,RHOIJ,I_V,NEL,.TRUE.)
+     &         CALL WRITERHOMAT(10,RHOIJ,I_V,.TRUE.)
          ENDIF   
          FMCPR4=CALCPATHS(IPATH,RHOII,RHOIJ,I_V,I_HMAX,
      &         I_P,NWHTAY,NEL,I_V,ILOGGING)
@@ -995,7 +995,7 @@ C.. matrix elements.
          IF(TLOG) THEN
             CALL WRITEPATH(10,IPATH,I_V,NEL,.FALSE.)
             IF(BTEST(ILOGGING,3))
-     &         CALL WRITERHOMAT(10,RHOIJ,I_V,NEL,.TRUE.)
+     &         CALL WRITERHOMAT(10,RHOIJ,I_V,.TRUE.)
             IF(TLOG3) CALL WRITE_XMATRIX(10,XIJ,I_V)
          ENDIF   
 C.. GETPATHPROB gives us the probability of generating the path
@@ -1164,7 +1164,7 @@ C.. matrix elements.
          IF(TLOG) THEN
             CALL WRITEPATH(10,IPATH,I_V,NEL,.FALSE.)
             IF(BTEST(ILOGGING,3))
-     &         CALL WRITERHOMAT(10,RHOIJ,I_V,NEL,.TRUE.)
+     &         CALL WRITERHOMAT(10,RHOIJ,I_V,.TRUE.)
             IF(TLOG3) CALL WRITE_XMATRIX(10,XIJ,I_V)
          ENDIF   
 C.. GETPATHPROB gives us the probability of generating the path
@@ -1402,7 +1402,7 @@ C.. matrix elements.
          IF(TLOG) THEN
             CALL WRITEPATH(10,IPATH,I_V,NEL,.FALSE.)
             IF(BTEST(ILOGGING,3))
-     &         CALL WRITERHOMAT(10,RHOIJ,I_V,NEL,.TRUE.)
+     &         CALL WRITERHOMAT(10,RHOIJ,I_V,.TRUE.)
             IF(TLOG3) CALL WRITE_XMATRIX(10,XIJ,I_V)
          ENDIF   
 C.. GETPATHPROB gives us the probability of generating the path
@@ -1925,7 +1925,7 @@ C..                     = p(B) gen(A) / (p(A) gen(B))
                 IF(isnan(WEIGHT)) THEN
                     WRITE(60,*) WEIGHT,ETILDE,RHX
                     CALL WRITEPATH(60,IPATH,I_V,NEL,.FALSE.)
-                    CALL WRITERHOMAT(60,RHOIJ,I_V,NEL,.TRUE.)
+                    CALL WRITERHOMAT(60,RHOIJ,I_V,.TRUE.)
                     CALL WRITE_XMATRIX(60,XIJ,I_V)
                 ENDIF
                 R2=RAN2(ISEED)
@@ -1954,7 +1954,7 @@ C..                     = p(B) gen(A) / (p(A) gen(B))
                CALL WRITEPATH(10,IPATH,I_V,NEL,.FALSE.)
             ENDIF
             IF(BTEST(ILOGGING,3))
-     &            CALL WRITERHOMAT(10,RHOIJ,I_V,NEL,.TRUE.)
+     &            CALL WRITERHOMAT(10,RHOIJ,I_V,.TRUE.)
             IF(BTEST(ILOGGING,6)) CALL WRITE_XMATRIX(10,XIJ,I_V)
             WRITE(10,"(3E25.16, 2I7)") WEIGHT,RHX,ETILDE,ICLS,IACC
          ENDIF
@@ -2622,7 +2622,7 @@ C..                     = p(B) gen(A) / (p(A) gen(B))
             IF(isnan(WEIGHT)) THEN
                WRITE(60,*) WEIGHT,ETILDE,RH
                CALL WRITEPATH(60,IPATH,I_V,NEL,.FALSE.)
-               CALL WRITERHOMAT(60,RHOIJ,I_V,NEL,.TRUE.)
+               CALL WRITERHOMAT(60,RHOIJ,I_V,.TRUE.)
                CALL WRITE_XMATRIX(60,XIJ,I_V)
             ENDIF
             IF(PR.LT.R2) THEN
@@ -2659,7 +2659,7 @@ C.. otherwise, we just reuse the old version
           IF(TLOG) THEN
             CALL WRITEPATH(10,IPATH,I_V,NEL,.FALSE.)
             IF(BTEST(ILOGGING,3))
-     &         CALL WRITERHOMAT(10,RHOIJ,I_V,NEL,.TRUE.)
+     &         CALL WRITERHOMAT(10,RHOIJ,I_V,.TRUE.)
             IF(TLOG3) CALL WRITE_XMATRIX(10,XIJ,I_V)
          ENDIF   
          IF(TLOG) WRITE(10,"(3E25.16, 2I7)") WEIGHT,RH,ETILDE,ICLS,IACC
@@ -2942,7 +2942,7 @@ C         ENDIF
          IF(BTEST(ILOGGING,2)) THEN
             CALL WRITEPATH(10,IPATH,I_V,NEL,.FALSE.)
             IF(BTEST(ILOGGING,3))
-     &         CALL WRITERHOMAT(10,RHOIJ,I_V,NEL,.TRUE.)
+     &         CALL WRITERHOMAT(10,RHOIJ,I_V,.TRUE.)
             WRITE(10,"(3E25.16, 3I5,A2)") WEIGHT,PR,ETILDE,IOCLS,IACC,
      &         ITREE,"M"
             WRITE(10,"(3E25.16)") (HIJS(I),I=0,2)
@@ -3175,7 +3175,7 @@ C.. otherwise, we just reuse the old version
          IF(BTEST(ILOGGING,2)) THEN
             CALL WRITEPATH(10,IPATH,I_V,NEL,.FALSE.)
             IF(BTEST(ILOGGING,3))
-     &         CALL WRITERHOMAT(10,RHOIJ,I_V,NEL,.TRUE.)
+     &         CALL WRITERHOMAT(10,RHOIJ,I_V,.TRUE.)
             WRITE(10,"(3E25.16, 3I5,A2)") WEIGHT,PR,ETILDE,IOCLS,IACC,
      &         ITREE,"A"
             WRITE(10,"(3E25.16)") (HIJS(I),I=0,2)
@@ -3341,7 +3341,7 @@ C.. otherwise, we just reuse the old version
          IF(BTEST(ILOGGING,2)) THEN
             CALL WRITEPATH(10,IPATH,I_V,NEL,.FALSE.)
             IF(BTEST(ILOGGING,3))
-     &         CALL WRITERHOMAT(10,RHOIJ,I_V,NEL,.TRUE.)
+     &         CALL WRITERHOMAT(10,RHOIJ,I_V,.TRUE.)
             WRITE(10,"(3E25.16, 3I5,A2)") WEIGHT,PR,ETILDE,IOCLS,IACC,
      &         ITREE,"D"
             WRITE(10,"(3E25.16)") (HIJS(I),I=0,2)

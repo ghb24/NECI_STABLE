@@ -56,7 +56,7 @@ contains
          COMPLEX*16 FCK(*)
          INTEGER I_P,I_HMAX,BRR(*),NMSH,NMAX
          INTEGER NTAY(2),NWHTAY(3,I_VMAX),ILOGGING,I,I_V
-         INTEGER L,LT,K,J
+         INTEGER L,LT,J
          real*4 otime,itime,etime,tarr(2)
          REAL*8 BETA,ECORE
          real(dp) WLRI,WLSI
@@ -67,7 +67,6 @@ contains
          CHARACTER*40 STR
          real(dp) TOTAL,RHOII(0:I_VMAX)
          HElement_t RHOIJ(0:I_VMAX,0:I_VMAX)
-         real(dp) FLNSUM,FLNRII
          REAL*8 ALAT(3),RHOEPS
          INTEGER  nBasisMax(5,*)
          INTEGER LSTE(*),ILMAX
@@ -78,19 +77,18 @@ contains
          INTEGER NLIST(0:I_VMAX-1),LSTP(0:I_VMAX-1),BTABLE(0:I_VMAX)
          LOGICAL TLOG,TSYM
          REAL*8 DBETA
-         real(dp) DLWDB,DLWDB2,EREF,ODLWDB2
+         real(dp) DLWDB,DLWDB2,EREF
          HElement_t  HIJS(0:I_VMAX)
          TYPE(EGP) LOCTAB(I_VMAX)
-         real(dp) FMCPR4B,FMCPR4C,FMCPR4D,FMCPR4D2
+         real(dp) FMCPR4B,FMCPR4C
          real(dp) FMCPR3STAR,FMCPR3NVSTAR
          INTEGER I_CHMAX,CNWHTAY
          INTEGER ISEED,ICOUNT
          real(dp) FF,DLWDB3,TEMPTOT
          REAL*8 FSQ(2:I_VMAX),STD
-         INTEGER NMEMLEN,INODE2(NEL)
          REAL*8 NTIME,VARSUM
          INTEGER IFRZ(0:NBASIS,I_VMAX),I_V1,I_V2,T
-         REAL*8 OSI,ODLWDB,OPROB
+         REAL*8 OSI
          real(dp) MP2E(2:I_VMAX)
          LOGICAL TLOGP
          type(timer), save :: proc_timer
@@ -168,7 +166,7 @@ contains
 !c            WRITE(6,"I2") I_V
             CUR_VERT=I_V
             WRITE(STR,"(A,I5)") "FMCPR",I_V
-            proc_timer2%timer_name=STR
+            proc_timer2%timer_name=trim(STR(1:25))
             call set_timer(proc_timer2)
             OTIME=etime(tarr)
             L=0
@@ -229,14 +227,14 @@ contains
 !C.. forcing them to be disconnected.
                F(I_V)=FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,      &
      &            BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,RHOEPS,                 &
-     &            LSTE,ICE,RIJLIST,L,LT,                                   &
-     &            CNWHTAY,ILOGGING,TSYM,ECORE,ILMAX,DBETA,DLWDB2)
+     &            LSTE,ICE,L,LT,                                   &
+     &            CNWHTAY,TSYM,ECORE,ILMAX,DBETA,DLWDB2)
             ELSEIF(I_CHMAX.EQ.-21) THEN
                IF(TDIAGNODES) THEN
 ! This code prediagonalises connected nodes of virtual orbitals, before solving as a star.
                 F(I_V)=fMCPR3StarNodes(NI,BETA,I_P,NEL,NBASISMAX,G1,       &
      &              NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,RHOEPS,        &
-     &              L,LT,CNWHTAY,ILOGGING,TSYM,ECORE,DBETA,DLWDB2)         
+     &              ECORE,DBETA,DLWDB2)         
                ELSEIF(TGraphMorph) THEN
 !This involves iterativly improving a graph in order to maximise the connections between determinants.
                     IF(I_VMAX.ne.2) STOP 'Error in vertex number'
@@ -271,7 +269,7 @@ contains
 !C.. forcing them to be disconnected. - this uses new excitation generators
                F(I_V)=FMCPR3STARNewExcit(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS, &
      &            BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,RHOEPS,L,LT,               &
-     &            CNWHTAY,ILOGGING,TSYM,ECORE,DBETA,DLWDB2,MP2E)
+     &            CNWHTAY,ILOGGING,ECORE,DBETA,DLWDB2,MP2E)
                ENDIF
             ELSEIF(I_CHMAX.EQ.-11) THEN
                IF(I_V.EQ.I_VMAX) THEN
@@ -487,14 +485,14 @@ contains
          INTEGER I_P,I_HMAX,BRR(*),NMSH,NMAX
          INTEGER NTAY(2),NWHTAY(3,I_VMAX),ILOGGING,I,I_V
          type(timer), save :: proc_timer,proc_timer2
-         INTEGER L,LT,ITIME,K
+         INTEGER L,LT,ITIME
          REAL*8 BETA,ECORE
          real*4 etime,tarr(2)
          real(dp) WLRI,WLSI
          real(dp) F(2:I_VMAX)
          CHARACTER*40 STR
          HElement_t RHOIJ(0:I_VMAX,0:I_VMAX)
-         real(dp) RHOII(0:I_VMAX),TOTAL,FLNSUM,FLNRII
+         real(dp) RHOII(0:I_VMAX),TOTAL
          REAL*8 ALAT(3),RHOEPS
          INTEGER nBasisMax(5,*)
          INTEGER, allocatable :: LSTE(:,:,:)
@@ -508,7 +506,6 @@ contains
          REAL*8 DBETA
          HElement_t HIJS(0:I_VMAX)
          type(EGP), target ::  LOCTAB(I_VMAX)
-         real(dp) FMCPR4B,FMCPR4C,FMCPR4D,FMCPR4D2
          real(dp) DLWDB,DLWDB2,EREF
          REAL*8 NTIME,OTIME,VARSUM
          INTEGER IFRZ(0:NBASIS,I_VMAX)
@@ -617,7 +614,7 @@ contains
 !CI_P
 !c            WRITE(6,"I2") I_V
             WRITE(STR,"(A,I5)") "FMCPR",I_V
-            proc_timer2%timer_name=STR
+            proc_timer2%timer_name=trim(STR(1:25))
             call set_timer(proc_timer2)
             L=0
             LT=0
@@ -660,14 +657,14 @@ contains
 !C.. forcing them to be disconnected.
                F(I_V)=FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,      &
      &            BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,RHOEPS,                 &
-     &            LSTE,ICE,RIJLIST,L,LT,                                   &
-     &            NWHTAY(1,1),ILOGGING,TSYM,ECORE,ILMAX,DBETA,DLWDB2)
+     &            LSTE,ICE,L,LT,                                   &
+     &            NWHTAY(1,1),TSYM,ECORE,ILMAX,DBETA,DLWDB2)
             ELSEIF(I_HMAX.EQ.-21) THEN
                IF(TDIAGNODES) THEN
 ! This code prediagonalises connected nodes of virtual orbitals, before solving as a star.
                 F(I_V)=fMCPR3StarNodes(NI,BETA,I_P,NEL,NBASISMAX,G1,       &
      &              NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,RHOEPS,        &
-     &              L,LT,NWHTAY(1,1),ILOGGING,TSYM,ECORE,DBETA,DLWDB2)       
+     &              ECORE,DBETA,DLWDB2)       
                ELSEIF(TGraphMorph) THEN
 !This involves iterativly improving a graph in order to maximise the connections between determinants.
                     IF(I_VMAX.ne.2) STOP 'Error in vertex number'
@@ -692,7 +689,7 @@ contains
 !C.. forcing them to be disconnected. - this uses new excitation generators
                F(I_V)=FMCPR3STARNewExcit(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS, &
      &            BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,RHOEPS,L,LT,               &
-     &            NWHTAY(1,1),ILOGGING,TSYM,ECORE,DBETA,DLWDB2,MP2E)               
+     &            NWHTAY(1,1),ILOGGING,ECORE,DBETA,DLWDB2,MP2E)               
                ENDIF
             ENDIF
             call halt_timer(proc_timer2)
@@ -772,17 +769,17 @@ contains
          use CalcData , only : TMPTHEORY
          use util_mod, only: NECI_ICOPY
          IMPLICIT NONE
-         TYPE(BasisFN) G1(*),ISYM
+         TYPE(BasisFN) G1(*)
          real(dp) FMCPR3RES
          INTEGER I_V,NEL,I_P,nBasisMax(5,*),NBASIS,BRR(*),NMSH,NMAX
-         INTEGER NTAY(2),I_VIND,NWHTAY,L,LT,ILOGGING,J,K,I_VMAX
+         INTEGER NTAY(2),I_VIND,NWHTAY,L,LT,ILOGGING
          INTEGER I,IVLMAX,II
          REAL*8 ALAT(*),ECORE
          COMPLEX*16 FCK(*)
          real(dp) CALCPATHS_N
          HElement_t UMat(*),R
          INTEGER IPATH(NEL,0:I_V)
-         real(dp) RHOCUML,TOTAL,RHOII(0:I_V)
+         real(dp) TOTAL,RHOII(0:I_V)
          HElement_t RHOIJ(0:I_V,0:I_V)
          INTEGER INODE(NEL),ILMAX
 !C.. LSTE is a list of excitations (which we will generate)
@@ -794,9 +791,9 @@ contains
          INTEGER LSTP(0:I_V),LSTP2(0:I_V),NLIST(0:I_V)
          INTEGER ICE(0:ILMAX,0:I_V-1)
          HElement_t RIJLIST(0:ILMAX,0:I_V-1)
-         INTEGER IVLEVEL,I_HMAX,IC,BTABLE(0:I_V)
+         INTEGER IVLEVEL,I_HMAX,BTABLE(0:I_V)
          REAL*8 BETA,RHOEPS,DBETA
-         LOGICAL LSAME,TSYM
+         LOGICAL TSYM
          LOGICAL TLOG,TLOG2,TLOG3,TLOG4,TLOG5
          real(dp) DLWDB,DLWDB2
          HElement_t HIJS(0:I_V),RH
@@ -846,7 +843,7 @@ contains
                ENDIF
             ENDIF
             
-            IF(TLOG2) CALL WRITERHOMAT(10,RHOIJ,I_V,NEL,.TRUE.)
+            IF(TLOG2) CALL WRITERHOMAT(10,RHOIJ,I_V,.TRUE.)
 !C..
             ICLS=0 
             TOTAL=TOTAL+CALCPATHS_N(RHOII,RHOIJ,I_V,I_HMAX,             &
@@ -902,7 +899,7 @@ contains
 !C.. remove it from our list.
 !C.. This procedure need not be done here, but can be done as we recurse
 !C.. through the excitations.
-         CALL ELIMDUPS(LSTE,LSTP,I_VIND,NEL,NLIST,ILMAX,NI)
+         CALL ELIMDUPS(LSTE,I_VIND,NEL,NLIST,ILMAX,NI)
 
 !C.. We now find all the nodes which actually have a connection to us
 !C.. eliminating any others in the list.  As this requires that we calc
@@ -1100,10 +1097,9 @@ contains
          IMPLICIT NONE
          TYPE(BasisFN) G1(*),ISYM
          INTEGER I_V,NEL,I_P,nBasisMax(5,*),NBASIS,BRR(*),NMSH,NMAX
-         INTEGER NTAY(2),I_VIND,NWHTAY,ILOGGING,J,K,II
-         INTEGER I
+         INTEGER NTAY(2),I_VIND,NWHTAY,ILOGGING,J,II
          COMPLEX*16 FCK(*)
-         HElement_t UMAT(*),R
+         HElement_t UMAT(*)
          REAL*8 ALAT(*),ECORE,PR
          real(dp) TOTAL,FMCPR3BRES,WREF,EREF,PROB
          real(dp) CALCPATHS_N
@@ -1219,7 +1215,7 @@ contains
                   CALL WRITEPATHEX(10,IPATH,I_V,NEL,.FALSE.)
                ENDIF
             ENDIF
-            IF(TLOG2) CALL WRITERHOMAT(10,RHOIJ,I_V,NEL,.TRUE.)
+            IF(TLOG2) CALL WRITERHOMAT(10,RHOIJ,I_V,.TRUE.)
 !C.. 
             ICLS=0
             TOTAL=TOTAL+ CALCPATHS_N(RHOII,RHOIJ,I_V,I_HMAX,                      &
@@ -1612,7 +1608,7 @@ end module mcpaths
          IMPLICIT NONE
          INTEGER NUNIT,IPATH(NEL,0:I_V),I_V,NEL
          LOGICAL LTERM
-         INTEGER J,K
+         INTEGER J
          
          WRITE(NUNIT,"(A)",advance='no') "["
          DO J=0,I_V-1
@@ -1652,10 +1648,10 @@ end module mcpaths
          RETURN
       END
 
-      SUBROUTINE WRITERHOMAT(NUNIT,RHOIJ,I_V,NEL,LTERM)
+      SUBROUTINE WRITERHOMAT(NUNIT,RHOIJ,I_V,LTERM)
          use constants, only: dp
          IMPLICIT NONE
-         INTEGER NUNIT,I_V,NEL
+         INTEGER NUNIT,I_V
          LOGICAL LTERM
          HElement_t RHOIJ(0:I_V,0:I_V)
          INTEGER J,K
@@ -1674,10 +1670,10 @@ end module mcpaths
          IF(LTERM) WRITE(NUNIT,*)
          RETURN
       END
-      SUBROUTINE ELIMDUPS(LSTE,LSTP,I_V,NEL,NLIST,NLISTMAX,NI)
+      SUBROUTINE ELIMDUPS(LSTE,I_V,NEL,NLIST,NLISTMAX,NI)
          INTEGER NEL,NLISTMAX
          INTEGER LSTE(1:NEL,0:NLISTMAX,0:I_V)
-         INTEGER LSTP(0:I_V),NLIST(0:I_V),NI(1:NEL)
+         INTEGER NLIST(0:I_V),NI(1:NEL)
          INTEGER I_V,I,J,IND,NMAX,IC,NMAX2,K
 !C.. First we check none of our list are NI
          NMAX=NLIST(I_V)
@@ -1746,13 +1742,10 @@ end module mcpaths
          use constants, only: dp
          use util_mod, only: NECI_ICOPY
          IMPLICIT NONE
-         type(BasisFN) ISYM
          INTEGER I_V,NEL,I_P,NBASISMAX(*),G1(*),NBASIS,BRR(*),NMSH,NMAX
-         INTEGER NTAY(2),I_VIND,NWHTAY,L,LT,ILOGGING,J,K,I_VMAX
+         INTEGER NTAY(2),I_VIND,NWHTAY,L,LT,ILOGGING
          INTEGER I,IVLMAX,II
          REAL*8 FCK(*), ALAT(*),UMAT(*),ECORE,TOTAL,R
-         REAL*8 CALCPATHS_N
-         REAL*8 RHOCUML
          INTEGER IPATH(NEL,0:I_V)
          REAL*8 RHOII(0:I_V)
          REAL*8 RHOIJ(0:I_V,0:I_V)
@@ -1766,13 +1759,12 @@ end module mcpaths
          INTEGER LSTP(0:I_V),LSTP2(0:I_V),NLIST(0:I_V)
          INTEGER ICE(0:ILMAX,0:I_V-1)
          HElement_t RIJLIST(0:ILMAX,0:I_V-1)
-         INTEGER IVLEVEL,I_HMAX,IC,BTABLE(0:I_V)
+         INTEGER IVLEVEL,I_HMAX,BTABLE(0:I_V)
          REAL*8 RH,BETA,RHOEPS
-         LOGICAL LSAME,TSYM
+         LOGICAL TSYM
          LOGICAL TLOG,TLOG2
-         REAL*8 DBETA,DLWDB,DLWDB2
+         REAL*8 DBETA,DLWDB
          REAL*8 HIJS(0:I_V)
-         INTEGER ICLS
          HElement_t :: hel
          IF(I_VIND.EQ.0) THEN
 !C.. setup
@@ -1810,8 +1802,8 @@ end module mcpaths
             CALL NECI_ICOPY(NEL,NI,1,IPATH(1:NEL,I_VIND+1),1) 
             RHOII(I_V)=RHOII(0)
             IF(TLOG)  CALL WRITEPATH(10,IPATH,I_V,NEL,.FALSE.)
-            IF(TLOG2) CALL WRITERHOMAT(10,RHOIJ,I_V,NEL,.TRUE.)
-            CALL ADDDIAGSTAR(IPATH,NEL,RHOIJ,I_VIND+1,I_V,ILOGGING,HIJS,1,L)
+            IF(TLOG2) CALL WRITERHOMAT(10,RHOIJ,I_V,.TRUE.)
+            CALL ADDDIAGSTAR(NEL,RHOIJ,I_VIND+1,I_V,ILOGGING,HIJS,1,L)
          ENDIF
          IF(I_VIND.EQ.(I_V-1)) THEN
 !C.. If we've made a graph of the right size, we return
@@ -1848,7 +1840,7 @@ end module mcpaths
 !C.. remove it from our list.
 !C.. This procedure need not be done here, but can be done as we recurse
 !C.. through the excitations.
-         CALL ELIMDUPS(LSTE,LSTP,I_VIND,NEL,NLIST,ILMAX,NI)
+         CALL ELIMDUPS(LSTE,I_VIND,NEL,NLIST,ILMAX,NI)
 
 
 
@@ -1994,18 +1986,17 @@ end module mcpaths
          IF(I_VIND.EQ.0) THEN
 !C.. if we're right at the end, we call the star diag
             CLOSE(19)
-            CALL READSTARDIAG(L,I_P,RHOII(0),HIJS(0),FMCPR3NVSTAR,DLWDB)
+            CALL READSTARDIAG(L,I_P,RHOII(0),HIJS(0),FMCPR3NVSTAR)
          ELSE
             FMCPR3NVSTARRES=TOTAL
          ENDIF
          RETURN
       END
 
-      RECURSIVE SUBROUTINE ADDDIAGSTAR(IPATH,NEL,RHOIJ,I_V,I_VMAX,ILOGGING,HIJS,N,L)
+      RECURSIVE SUBROUTINE ADDDIAGSTAR(NEL,RHOIJ,I_V,I_VMAX,ILOGGING,HIJS,N,L)
          IMPLICIT NONE
-         INTEGER NEL,I_V,IPATH(NEL,0:I_V),I_VMAX
+         INTEGER NEL,I_V,I_VMAX
          INTEGER ILOGGING
-         REAL*8 RHOII(0:I_V)
          REAL*8 RHOIJ(0:I_VMAX,0:I_VMAX)
          REAL*8 HIJS(0:I_VMAX)
          
@@ -2018,9 +2009,8 @@ end module mcpaths
          INTEGER ILEN
          INTEGER I,J,K,II,JJ,N,L
          REAL*8 HIA,RIA
-         INTEGER IPATH2(NEL,0:I_V-1)
 !C         CALL WRITEPATH(19,IPATH,I_V,NEL,.FALSE.)
-!C         CALL WRITERHOMAT(19,RHOIJ,I_V,NEL,.FALSE.)
+!C         CALL WRITERHOMAT(19,RHOIJ,I_V,.FALSE.)
 !C         WRITE(19,*) N
 
          ILEN=I_V-1
@@ -2076,25 +2066,25 @@ end module mcpaths
                ENDIF
             ENDDO
 !C            CALL NECI_ICOPY(NEL,IPATH(1,0),1,IPATH2(1,I_V-1),1)
-            CALL ADDDIAGSTAR(IPATH2,NEL,MAT,I_V-1,I_V-1,ILOGGING,HIJS2,-N,L)
+            CALL ADDDIAGSTAR(NEL,MAT,I_V-1,I_V-1,ILOGGING,HIJS2,-N,L)
          ENDDO
          RETURN
       END
 !C.. Use an iterative Order(N) root-finding method to diagonalize the
 !C.. star matrix read in from STARDATA
-      SUBROUTINE READSTARDIAG(NROOTS1,I_P,RII,HII,SI,DLWDB)
+      SUBROUTINE READSTARDIAG(NROOTS1,I_P,RII,HII,SI)
          use global_utilities
          use sort_mod
          IMPLICIT NONE
          INTEGER NROOTS,I_P,NROOTS1
-         REAL*8 SI,DLWDB,RII,HII
+         REAL*8 SI,RII,HII
          REAL*8 ROOTS(0:*),HIJS(0:*),RIJS(0:*),RIIS(0:*)
          POINTER (IP_ROOTS,ROOTS),(IP_HIJS,HIJS),(IP_RIJS,RIJS)
          POINTER (IP_RIIS,RIIS),(IP_NR,NR)
          INTEGER NR(0:*)
          type(timer), save :: proc_timer
-         INTEGER I,J,N,II,OII
-         REAL*8 NORM,A,B
+         INTEGER I,J,II,OII
+         REAL*8 NORM,A
          NROOTS=NROOTS1
          proc_timer%timer_name='RDSTARDIAG'
          call set_timer(proc_timer)

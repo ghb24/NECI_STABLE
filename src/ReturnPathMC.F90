@@ -82,6 +82,9 @@ MODULE ReturnPathMCMod
 
     SUBROUTINE ReturnPathMC(Weight,Energyxw)
         real(dp) :: Weight,Energyxw
+
+        ! Avoid warnings
+        weight = weight; energyxw = energyxw
 !        INTEGER :: j
 !        CHARACTER , PARAMETER :: this_routine='ReturnPathMC'
 !        HElement_t :: HiiHEl,rhiiHEl
