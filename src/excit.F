@@ -268,7 +268,8 @@ C         CALL WRITEDET(6,NJ,NEL,.TRUE.)
          DO WHILE(I.LE.NEL.AND.J.LE.NEL)
 C.. Differences from I to J
 C            WRITE(6,*) "GE",I,J
-            DO WHILE(I.LE.NEL.AND.NI(I).LT.NJ(J))
+            DO WHILE(I.LE.NEL)
+               if (NI(I) >= NJ(J)) exit
                IC1=IC1+1
                IF(IC1.LE.iMaxExcit) THEN
                   EX(1,IC1)=NI(I)
@@ -277,7 +278,8 @@ C            WRITE(6,*) "GE",I,J
                I=I+1
             ENDDO
 C.. Differences from J to I
-            DO WHILE(I.LE.NEL.AND.J.LE.NEL.AND.NI(I).GT.NJ(J))
+            DO WHILE(I.LE.NEL.AND.J.LE.NEL)
+               if (NI(I) <= NJ(J)) exit
                IC2=IC2+1
                IF(IC2.LE.iMaxExcit) THEN
                   EX(2,IC2)=NJ(J)
@@ -285,9 +287,11 @@ C.. Differences from J to I
                ENDIF
                J=J+1
             ENDDO
-            IF(I.LE.NEL.AND.J.LE.NEL.AND.NI(I).EQ.NJ(J)) THEN
-               I=I+1
-               J=J+1
+            IF(I.LE.NEL.AND.J.LE.NEL) then
+               if (NI(I) == NJ(J)) then
+                   I=I+1
+                   J=J+1
+               endif
             ENDIF
          ENDDO
 C.. Deal with remaining I

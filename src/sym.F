@@ -783,7 +783,8 @@ C.. NREPS(J) is the rep, and NELECS(J) is the number of electrons in that rep
                IF(NREPS(J).EQ.SYMREPS(1,NI(I))) THEN
 C.. We've found the slot for the rep.  increment it and leave.
                   NELECS(J)=NELECS(J)+1
-                  J=NEL
+                  J = NEL
+                  exit
                ENDIF
                J=J+1
             ENDDO

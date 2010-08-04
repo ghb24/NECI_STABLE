@@ -1395,7 +1395,9 @@ C.. HFBASIS(HFBASISFN,PRIMBASISFN) has PRIMBASISFN varying slowest
          REAL*8 MX,OEN
          ICUR=1
          DO I=1,NBASIS
-            IF(ICUR.LT.NEL.AND.FDET(ICUR+1).EQ.I) ICUR=ICUR+1
+             if (ICUR < NEL) then
+                if (FDET(ICUR+1) == I) ICUR = ICUR+1
+            endif
             MX=0.D0
             IBF=0
             DO J=1,NBASIS
