@@ -1,6 +1,6 @@
 !This wrapper also passes back the excitation matrix and parity of excitation permutation, so that matrix elements can be worked out simply between the original determinant
 !and the excitation.
-      SUBROUTINE GenRandSymExcitIt4(NI,NMEM,NJ,ISEED,IC,IFRZ,PGEN,
+      SUBROUTINE GenRandSymExcitIt4(NI,NMEM,NJ,ISEED,IC,PGEN,
      &        ICOUNT,EXCITMAT,TPARITY)
          use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
          use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
@@ -13,9 +13,9 @@
          INTEGER NI(NEL)
          POINTER (IP_DSTORE,DSTORE)
          INTEGER DSTORE(*)
-         INTEGER STORE(6),EXCITMAT(2,2)
+         INTEGER EXCITMAT(2,2)
          LOGICAL TPARITY
-         INTEGER NMEM(*),NJ(NEL),IC,ICOUNT,IFRZ,I
+         INTEGER NMEM(*),NJ(NEL),IC,ICOUNT
          INTEGER ISEED,Pos1,Pos2,Pos3
          REAL*8 PGEN
 #ifdef POINTER8
@@ -83,7 +83,7 @@ C.. Generate a random symmetry allowed excitation.  GENSYMEXCITIT2 must be calle
 C.. before this.
 C.. This version is based on GenRandSymExcitIt2, but does not need values it extracts from modules
 !  IC is the excitation level, and iCount the total number of allowed excitations
-      SUBROUTINE GenRandSymExcitIt3(NI,NMEM,NJ,ISEED,IC,IFRZ,PGEN,
+      SUBROUTINE GenRandSymExcitIt3(NI,NMEM,NJ,ISEED,IC,PGEN,
      &      ICOUNT)
          use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
          use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
@@ -96,9 +96,9 @@ C.. This version is based on GenRandSymExcitIt2, but does not need values it ext
          INTEGER NI(NEL)
          POINTER (IP_DSTORE,DSTORE)
          INTEGER DSTORE(*)
-         INTEGER STORE(6),EXCITMAT(2,2)
+         INTEGER EXCITMAT(2,2)
          LOGICAL TPARITY
-         INTEGER NMEM(*),NJ(NEL),IC,ICOUNT,IFRZ,I
+         INTEGER NMEM(*),NJ(NEL),IC,ICOUNT
          INTEGER ISEED,Pos1,Pos2,Pos3
          REAL*8 PGEN
 #ifdef POINTER8
@@ -165,28 +165,26 @@ C.. Generate a random symmetry allowed excitation.  GENSYMEXCITIT2 must be calle
 C.. before this.
 C.. ICOUNT returned is the total number of possible excitations.  To get the excitation level,
 C..   use GenRandSymExcitIt3
-      SUBROUTINE GENRANDSYMEXCITIT2(NI,NEL,G1,NBASIS,NBASISMAX,
-     &         NMEM,NJ,ISEED,ICOUNT,IFRZ,UMAT,ARR,PGEN)
+      SUBROUTINE GENRANDSYMEXCITIT2(NI,NEL,
+     &         NMEM,NJ,ISEED,ICOUNT,PGEN)
          use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
          use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
          use SymData, only: SymClassSize
          use legacy_data, only: irat
          IMPLICIT NONE
-         INTEGER NEL,NI(NEL),NBASIS
-         INTEGER G1(nBasis),NBASISMAX(*)
+         INTEGER NEL,NI(NEL)
          POINTER (IP_DSTORE,DSTORE)
          INTEGER DSTORE(*)
-         INTEGER STORE(6),EXCITMAT(2,2)
-         INTEGER NMEM(*),NJ(NEL),ICOUNT,IFRZ,I,IC
-         LOGICAL TSETUP,TPARITY
+         INTEGER EXCITMAT(2,2)
+         INTEGER NMEM(*),NJ(NEL),ICOUNT,IC
+         LOGICAL TPARITY
 #ifdef POINTER8
          INTEGER*8 LOC
 #else
          INTEGER LOC
 #endif
          INTEGER ISEED
-         REAL*8 UMAT(*),PGEN
-         REAL*8 ARR(NBASIS,2)
+         REAL*8 PGEN
 C.. The second setup.  Now NMEM is allocated, we store all the info
 C.. NMEM is as follows:
 C..   1           -  5           STORE(1:5)
@@ -217,8 +215,8 @@ C.. Actually generate a det
       SUBROUTINE SYMGENRANDEXCITIT(NI,NEL,EXCITTYPES,NEXCITTYPES,       &
      &               CLASSES,                                           &
      &               SYMPRODIND,ILUT,ORBPAIRS,IEXCIT,ISPN,IFROM,ITO,    &
-     &               I,J,K,L,ICC,LS,ITOTAL,ISEED,                       &
-     &               NK,IC,G1,NBASISMAX,UMAT,ARR,NBASIS,PGEN)      
+     &               I,J,K,L,ITOTAL,ISEED,                              &
+     &               NK,IC,NBASISMAX,ARR,NBASIS,PGEN)      
       use constants, only: dp
       USE symexcit2
       use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
@@ -235,24 +233,17 @@ C.. Actually generate a det
       INTEGER IEXCIT
       INTEGER IFROM,ITO,ISPN
       INTEGER IFROMSL,ITOSL,ExcitMat(2,2)
-      TYPE(Symmetry) SPP
       LOGICAL L1,L2,TParity
-      INTEGER ICC(4)
 !.. 1,1= 1B, 1,2=1A; 2,1=2B, 2,2=2A.
-      LOGICAL LS(2,2)
 
       INTEGER ORBPAIRS(2,*)
       INTEGER ILUT(0:*),ITOTAL,ISEED
       INTEGER SYMPRODIND(2,3,0:*)
       INTEGER IC,ICOUNT
       REAL*8 RAN2
-         INTEGER ICC1,ICC2,ICC3,ICC4
-         LOGICAL L1B,L1A,L2B,L2A
       LOGICAL ISVALIDDET
-      TYPE(BasisFN) G1(nBasis)
       INTEGER nBasisMax(5,*)
-      HElement_t UMAT(*)
-      REAL*8 RCOUNT,R
+      REAL*8 RCOUNT
       REAL*8 PGEN
       TYPE(ExcitWeight) ews(*)
       POINTER (IP_ExcitWeight,ews)
@@ -516,7 +507,7 @@ C.. Actually generate a det
             IF(tNoRenormRandExcits) THEN
 !There is no excitation weighting - we do not need to enumerate all excitations
                 Call SymGenRandExcitIt2_Single_GetFrom_NoWeight(iSeed,
-     &                  ILUT,nEl,iSpn,iFrom,I,nI)
+     &                  nEl,iSpn,iFrom,I,nI)
                 Call SymGenRandExcitIt2_Single_GetTo_NoWeight(iSeed,nI,
      &                  nEl,I,iSpn,iTo,nK,ExcitMat,TParity)
             ELSE
@@ -566,17 +557,17 @@ C.. Actually generate a det
 !iSpn is -1 for alpha and 0 for beta.
 !iFrom is the symmetry label of the electron to pick.
 !I is the returned orbital to excite
-      Subroutine SymGenRandExcitIt2_Single_GetFrom_NoWeight(iSeed,ILUT,
+      Subroutine SymGenRandExcitIt2_Single_GetFrom_NoWeight(iSeed,
      &       nEl,iSpn,iFrom,I,nI)
          use SymData, only: SymClass,SymLabelCounts,SymLabelList
          IMPLICIT NONE
          INTEGER iSeed
          INTEGER nEl,nI(nEl)
          INTEGER iSpn, iFrom
-         INTEGER I,ILUT(0:*)
+         INTEGER I
          INTEGER State
          INTEGER SpinOrb
-         INTEGER J,K,OrbChosen,nOrbs
+         INTEGER J,OrbChosen,nOrbs
          LOGICAL InvalidOrb
          REAL*8 RAN2   
 
@@ -686,8 +677,8 @@ C.. Actually generate a det
          INTEGER iSpn,iTo
          INTEGER OrbChosen,norbs,spinorb
          INTEGER J,State
-         INTEGER NK(nEl),iGetExcitLevel,ExcitLevel
-         LOGICAL InDi,ISVALIDDET,TParity
+         INTEGER NK(nEl)
+         LOGICAL InDi,TParity
          REAL*8 RAN2   
 
 !Number of states with allowed symmetry is given by SymLabelCounts(2,Sym)
@@ -755,7 +746,6 @@ C.. Actually generate a det
          INTEGER nEl,nI(nEl)
          INTEGER I,ExcitMat(2,2)
          INTEGER iSpn,iTo
-         INTEGER iC
          LOGICAL TParity
          INTEGER iCount
          INTEGER iToSL
@@ -916,7 +906,7 @@ C.. Actually generate a det
      &      SYMPRODIND(2,ISPN,IFROM),'ExcitWeigh')
          CALL EnumExcitFromWeights(EXCITTYPES(1,IEXCIT),ews,OrbPairs,
      &      SymProdInd,
-     &      RCOUNT,ICOUNT,G1,NBASISMAX,UMAT,ARR,NBASIS)
+     &      RCOUNT,ICOUNT,ARR,NBASIS)
 !  We choose a symprod of this symmetry to excite FROM with probs in ews
          pGen=pGen/rCount  ! The norm factor for the FROMs
          rCount=rCount*RAN2(ISEED)
@@ -957,8 +947,8 @@ C.. Actually generate a det
          INTEGER iLUT(0:*)
          INTEGER I,StatePair,Index1,Orb1,Orb2,Orb1Alpha,Orb1Beta
          INTEGER NK(nEl),Orb2Alpha,Orb2Beta,OrbAlpha,OrbBeta
-         LOGICAL :: NotSelectedPair,Check1,Check2,ISVALIDDET,TParity
-         INTEGER K,J,iGetExcitLevel,ExcitLevel
+         LOGICAL :: NotSelectedPair,Check1,Check2,TParity
+         INTEGER J
          REAL*8 RAN2
 
          iTo=ExcitTypes(4,iExcit)   !This is the symmetry of the virtual pair type

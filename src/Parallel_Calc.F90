@@ -42,11 +42,10 @@ subroutine ParMP2(nI)
    IMPLICIT NONE
    integer :: nI(nEl)
    integer :: iMinElec, iMaxElec
-   real*8 :: nCur
    integer :: i,j
    integer :: IA,JA,AA,BA,JJ
    integer :: store(6),Excit(2,2)
-   integer :: ic,exlen,iC0,ExcitOrbs(2,2),ExLevel
+   integer :: ic,exlen,iC0,ExLevel
    integer, pointer :: Ex(:)
    integer :: nJ(nEl),weight
    HElement_t dU(2)
@@ -380,7 +379,6 @@ Subroutine Par2vSum(nI)
    IMPLICIT NONE
    Integer nI(nEl)
    integer iMinElec, iMaxElec
-   real*8 nCur
    integer i
    integer store(6)
    integer ic,exlen,iC0

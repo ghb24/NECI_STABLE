@@ -1038,6 +1038,9 @@ C         CLOSE(30)
          REAL*8 XIS(3,4), RIS(4)
          COMPLEX*16 Z,ZRET,ZT,ZS,ZZT,ZMZ0
          REAL*8 R,THETA,P
+
+         ! Avoid compiler warnings
+         R = R; THETA = THETA
 C         WRITE(30,"((G25.16e3, G25.16e3),2G25.16e3)",advance='no') Z,R,THETA
 C.. AIJK
          CALL ZPRIM1(XIS(1,1),3,Z,ZS)
@@ -1061,7 +1064,7 @@ C.. AJK
          ZT=ZT+ZZT
 C         WRITE(30,"((G25.16e3, G25.16e3))",advance='no') ZZT
          ZRET=ZRET/(1-ZT)
-         CALL ZPRIM2(P,Z,R,THETA,ZMZ0,ZRET)
+         CALL ZPRIM2(P,Z,ZMZ0,ZRET)
 C         ZRET=Z*(R*EXP((0.D0,1.D0)*THETA))*(0.D0,1.D0)/(Z-0.5D0)
 C          WRITE(30,"((G25.16e3, G25.16e3))") ZRET
       END
@@ -1072,6 +1075,10 @@ C          WRITE(30,"((G25.16e3, G25.16e3))") ZRET
          COMPLEX*16 POLYDEN(0:*)
          COMPLEX*16 Z,ZRET,ZT,ZMZ0
          REAL*8 R,THETA,P
+
+
+         ! Avoid compiler warnings
+         R = R; THETA = THETA
 C        WRITE(30,"((G25.16e3, G25.16e3),2G25.16e3)",advance='no') Z,R,THETA
 
          CALL POLYVALUE(POLYNUM(1),NINT(POLYNUM(0)),Z,ZRET)
@@ -1081,7 +1088,7 @@ C         WRITE(30,"((G25.16e3, G25.16e3))",advance='no') ZRET
 C         WRITE(30,"((G25.16e3, G25.16e3))",advance='no') ZT
          ZRET=ZRET/ZT
 C         WRITE(30,"((G25.16e3, G25.16e3))",advance='no') ZRET
-         CALL ZPRIM2(P,Z,R,THETA,ZMZ0,ZRET)
+         CALL ZPRIM2(P,Z,ZMZ0,ZRET)
 C         ZRET=Z*(R*EXP((0.D0,1.D0)*THETA))*(0.D0,1.D0)/(Z-0.5D0)
 C          WRITE(30,"((G25.16e3, G25.16e3))") ZRET
       END

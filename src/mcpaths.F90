@@ -122,7 +122,7 @@ contains
          IF(BTEST(ILOGGING,9)) OPEN(12,FILE="VERTEXMC",STATUS="UNKNOWN")
 !C.. Set the first node to I_I
          CALL NECI_ICOPY(NEL,NI,1,IPATH(1:NEL,0),1)
-         CALL CALCRHO2(NI,NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,RH,NTAY,0,ECORE)
+         CALL CALCRHO2(NI,NI,BETA,I_P,NEL,G1,NBASIS,NMSH,FCK,NMAX,ALAT,UMAT,RH,NTAY,0,ECORE)
          HIJS(0) = get_helement (nI, nI, 0)
          RHOII(0)=RH
          RHOIJ(0,0)=RH
@@ -226,13 +226,13 @@ contains
 !C.. This code generates a star consisting of all the two-vertex terms,
 !C.. forcing them to be disconnected.
                F(I_V)=FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,      &
-     &            BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,RHOEPS,                 &
+     &            NMSH,FCK,NMAX,ALAT,UMAT,NTAY,RHOEPS,                 &
      &            LSTE,ICE,L,LT,                                   &
      &            CNWHTAY,TSYM,ECORE,ILMAX,DBETA,DLWDB2)
             ELSEIF(I_CHMAX.EQ.-21) THEN
                IF(TDIAGNODES) THEN
 ! This code prediagonalises connected nodes of virtual orbitals, before solving as a star.
-                F(I_V)=fMCPR3StarNodes(NI,BETA,I_P,NEL,NBASISMAX,G1,       &
+                F(I_V)=fMCPR3StarNodes(NI,BETA,I_P,NEL,G1,       &
      &              NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,RHOEPS,        &
      &              ECORE,DBETA,DLWDB2)         
                ELSEIF(TGraphMorph) THEN
@@ -268,7 +268,7 @@ contains
 !C.. This code generates a star consisting of all the two-vertex terms,
 !C.. forcing them to be disconnected. - this uses new excitation generators
                F(I_V)=FMCPR3STARNewExcit(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS, &
-     &            BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,RHOEPS,L,LT,               &
+     &            NMSH,FCK,NMAX,ALAT,UMAT,NTAY,RHOEPS,L,LT,               &
      &            CNWHTAY,ILOGGING,ECORE,DBETA,DLWDB2,MP2E)
                ENDIF
             ELSEIF(I_CHMAX.EQ.-11) THEN
@@ -347,7 +347,7 @@ contains
                   DLWDB2=0.D0
                   IF(I_CHMAX.EQ.-3) THEN
                      FF=FMCPR4B(NI,BETA,I_P,IPATH,I_V,NEL,NBASISMAX,          &
-     &                  G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,           &
+     &                  G1,NBASIS,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,           &
      &                 RHOEPS,RHOII,RHOIJ,CNWHTAY,I_CHMAX,ILOGGING,      &
      &                  ECORE,ISEED,DBETA,DLWDB2,HIJS)
                   ELSEIF(I_CHMAX.EQ.-4) THEN
@@ -597,7 +597,7 @@ contains
          ENDIF
 !C.. Set the first node to I_I
          CALL NECI_ICOPY(NEL,NI,1,IPATH(1:NEL,0),1)
-         CALL CALCRHO2(NI,NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,RH,NTAY,0,ECORE)
+         CALL CALCRHO2(NI,NI,BETA,I_P,NEL,G1,NBASIS,NMSH,FCK,NMAX,ALAT,UMAT,RH,NTAY,0,ECORE)
          HIJS(0) = get_helement (nI, nI, 0)
 !C     &            HIJS(0))
          RHOII(0)=RH
@@ -656,13 +656,13 @@ contains
 !C.. This code generates a star consisting of all the two-vertex terms,
 !C.. forcing them to be disconnected.
                F(I_V)=FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,      &
-     &            BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,RHOEPS,                 &
+     &            NMSH,FCK,NMAX,ALAT,UMAT,NTAY,RHOEPS,                 &
      &            LSTE,ICE,L,LT,                                   &
      &            NWHTAY(1,1),TSYM,ECORE,ILMAX,DBETA,DLWDB2)
             ELSEIF(I_HMAX.EQ.-21) THEN
                IF(TDIAGNODES) THEN
 ! This code prediagonalises connected nodes of virtual orbitals, before solving as a star.
-                F(I_V)=fMCPR3StarNodes(NI,BETA,I_P,NEL,NBASISMAX,G1,       &
+                F(I_V)=fMCPR3StarNodes(NI,BETA,I_P,NEL,G1,       &
      &              NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,RHOEPS,        &
      &              ECORE,DBETA,DLWDB2)       
                ELSEIF(TGraphMorph) THEN
@@ -688,7 +688,7 @@ contains
 !C.. This code generates a star consisting of all the two-vertex terms,
 !C.. forcing them to be disconnected. - this uses new excitation generators
                F(I_V)=FMCPR3STARNewExcit(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS, &
-     &            BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,RHOEPS,L,LT,               &
+     &            NMSH,FCK,NMAX,ALAT,UMAT,NTAY,RHOEPS,L,LT,               &
      &            NWHTAY(1,1),ILOGGING,ECORE,DBETA,DLWDB2,MP2E)               
                ENDIF
             ENDIF
@@ -822,7 +822,7 @@ contains
          IF(INODE(1).EQ.0) THEN
             R=1.D0
          ENDIF
-         CALL CALCRHO2(INODE,INODE,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,RH,NTAY,0,ECORE)
+         CALL CALCRHO2(INODE,INODE,BETA,I_P,NEL,G1,NBASIS,NMSH,FCK,NMAX,ALAT,UMAT,RH,NTAY,0,ECORE)
          RHOII(I_VIND)=RH
          RHOIJ(I_VIND,I_VIND)=RH
 !C.. we note that if this node has rho=0 (i.e. RH=0) then we just return
@@ -911,7 +911,7 @@ contains
          DO I=1,NLIST(I_VIND)
             IF(LSTE(1,I,I_VIND).NE.0) THEN
                CALL CALCRHO2(INODE,LSTE(1:NEL,I,I_VIND),BETA,I_P,NEL,      &
-     &            NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,         &
+     &            G1,NBASIS,NMSH,FCK,NMAX,ALAT,UMAT,         &
      &            RH,NTAY,ICE(I,I_VIND),ECORE)  
                IF(abs(RH).GE.RHOEPS) THEN
                   IF(II.NE.I) CALL NECI_ICOPY(NEL,LSTE(1:NEL,I,I_VIND),1,  &
@@ -1010,7 +1010,7 @@ contains
                   DO II=0,I_VIND           
 !C.. we've already calculated the RHO to the node to which we are connected.
                         CALL CALCRHO2(IPATH(1:NEL,II), LSTE(1:NEL,I,IVLEVEL),BETA,I_P, &
-     &                   NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,                    &
+     &                   NEL,G1,NBASIS,NMSH,FCK,NMAX,                    &
      &                   ALAT,UMAT,RH,NTAY,-1,ECORE)
                         IF(.NOT.(abs(RH).GE.RHOEPS)) THEN
 !C.. These two vertices are not connected, which is as we want
@@ -1187,8 +1187,8 @@ contains
          LT=LT+1
 !C.. This is the current node (set by our parent)         
          CALL NECI_ICOPY(NEL,IPATH(1:NEL,I_VIND),1,INODE,1)
-         CALL CALCRHO2(INODE,INODE,BETA,I_P,NEL,NBASISMAX,                       &
-     &   G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,RH,NTAY,0,ECORE)
+         CALL CALCRHO2(INODE,INODE,BETA,I_P,NEL,&
+     &   G1,NBASIS,NMSH,FCK,NMAX,ALAT,UMAT,RH,NTAY,0,ECORE)
          RHOII(I_VIND)=RH
          RHOIJ(I_VIND,I_VIND)=RH
 !C.. we note that if this node has rho_II=0 (i.e. RH=0) then we just return
@@ -1227,7 +1227,7 @@ contains
 !  Log XIJS (usually for debugging), and the pgen
 !  NMAX has Arr hidden in it
               CALL CalcWriteGraphPGen(10,IPATH,I_V,nEl,G1,             &
-     &            nBasisMax,UMat,NMAX,nBasis,PR,DUMMY)
+     &            nBasisMax,NMAX,nBasis,PR,DUMMY)
                   WRITE(10,"(3E25.16, I7)") TOTAL,PR,DLWDB2,ICLS
             ELSE
                IF(TLOG) WRITE(10,"(2E25.16, I7)") TOTAL,DLWDB2,ICLS
@@ -1256,7 +1256,7 @@ contains
                 IF(TOTAL.ge.PREWEIGHTEPS) THEN
 
                    CALL  CalcWriteGraphPGen(J,IPATH,I_V,nEl,G1,           &
-     &                       nBasisMax,UMat,NMAX,nBasis,Prob,DUMMY)
+     &                       nBasisMax,NMAX,nBasis,Prob,DUMMY)
                    SumX  =SumX   + DLWDB2-(EREF*TOTAL)
                    SumY  =SumY   + TOTAL
                    SumXsq=SumXsq + (DLWDB2-(EREF*TOTAL))**2/Prob
@@ -1420,7 +1420,7 @@ contains
                IF(.NOT.TFAIL) THEN
 !C.. see if we're connected to what we were excited from
                   CALL CALCRHO2(IPATH(1,IEXFROM),NJ,BETA,I_P,                    &
-     &                   NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,              &
+     &                   NEL,G1,NBASIS,NMSH,FCK,NMAX,              &
      &                   ALAT,UMAT,RH,NTAY,IC,ECORE)
                   IF(.NOT.(abs(RH).GE.RHOEPS)) THEN
 !C.. if we're not connected to this node, we fail now
@@ -1441,7 +1441,7 @@ contains
 !C.. because we've just done that
                   IF(.NOT.TFAIL.AND.II.NE.IEXFROM) THEN
                      CALL CALCRHO2(IPATH(1,II),NJ,BETA,I_P,                      &
-     &                   NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,              &
+     &                   NEL,G1,NBASIS,NMSH,FCK,NMAX,              &
      &                   ALAT,UMAT,RH,NTAY,-1,ECORE)
                      IF(.NOT.(abs(RH).GE.RHOEPS)) RH=0.D0
 #ifdef __CMPLX
@@ -1787,8 +1787,8 @@ end module mcpaths
          IF(INODE(1).EQ.0) THEN
             R=1.D0
          ENDIF
-         CALL CALCRHO2(INODE,INODE,BETA,I_P,NEL,NBASISMAX,           &
-     &   G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,RH,NTAY,0,ECORE)
+         CALL CALCRHO2(INODE,INODE,BETA,I_P,NEL,&
+     &   G1,NBASIS,NMSH,FCK,NMAX,ALAT,UMAT,RH,NTAY,0,ECORE)
          RHOII(I_VIND)=RH
          RHOIJ(I_VIND,I_VIND)=RH
 !C.. we note that if this node has rho=0 (i.e. RH=0) then we just return
@@ -1854,7 +1854,7 @@ end module mcpaths
          DO I=1,NLIST(I_VIND)
             IF(LSTE(1,I,I_VIND).NE.0) THEN
                CALL CALCRHO2(INODE,LSTE(1:NEL,I,I_VIND),BETA,I_P,NEL,         &
-     &            NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,            &
+     &            G1,NBASIS,NMSH,FCK,NMAX,ALAT,UMAT,            &
      &            RH,NTAY,ICE(I,I_VIND),ECORE)
                IF(ABS(RH).GT.RHOEPS) THEN
                   IF(II.NE.I)  CALL NECI_ICOPY(NEL,LSTE(1:NEL,I,I_VIND),1,               &
@@ -1942,7 +1942,7 @@ end module mcpaths
                   DO II=0,I_VIND           
 !C.. we've already calculated the RHO to the node to which we are connected.
                         CALL CALCRHO2(IPATH(1:NEL,II), LSTE(1:NEL,I,IVLEVEL),BETA,I_P, &
-     &                   NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,                    &
+     &                   NEL,G1,NBASIS,NMSH,FCK,NMAX,                    &
      &                   ALAT,UMAT,RH,NTAY,-1,ECORE)
                         IF(ABS(RH).LE.RHOEPS) THEN
 !C.. These two vertices are not connected, which is as we want

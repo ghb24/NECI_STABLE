@@ -171,8 +171,7 @@ module mcpathshdiag
                IF(tModMPTheory) then
 !NBasisMax(2,3) is ISpinSkip
                   CALL ModMPDiagElement(Hij(i_V-1,i_V-1),iPath(1,0),       &
-     &             iPath(1,i_V-1),NEL,NBASISMAX,UMat,ALat,nBasis,          &
-     &               NBASISMAX(2,3),G1)
+     &             iPath(1,i_V-1),NEL)
                Endif
                MPEs=(0.d0)
                CALL AddMPEnergy(Hij,i_V,i_vmax,NMAX,nBasis,iPath,nEl,tLog,ECORE,MPEs)
@@ -199,7 +198,7 @@ module mcpathshdiag
 ! When we do MC on MP, we sum MPEn/pgen in the numerator and 1 in the denominator
                  
                 Call CalcWriteGraphPGen(J,IPATH,I_V,nEl,G1,         &
-     &                   nBasisMax,UMat,NMAX,nBasis,Prob,DUMMY)
+     &                   nBasisMax,NMAX,nBasis,Prob,DUMMY)
                  SumX  =SumX   + (MPEn)
                  SumY  =SumY   + (Prob)
                  SumXsq=SumXsq + (MPEn*MPEn/Prob)
@@ -212,7 +211,7 @@ module mcpathshdiag
      &                (TOTAL.ge.PREWEIGHTEPS)) THEN!.and.(RHOEPS.le.1.D-08)) THEN
                      
                    CALL  CalcWriteGraphPGen(J,IPATH,I_V,nEl,G1,     &
-     &                       nBasisMax,UMat,NMAX,nBasis,Prob,DUMMY)
+     &                       nBasisMax,NMAX,nBasis,Prob,DUMMY)
                   
                    SumX  =SumX   + DLWDB2-(EREF*TOTAL)
                    SumY  =SumY   + TOTAL
@@ -266,7 +265,7 @@ module mcpathshdiag
 !  Log XIJS (usually for debugging), and the pgen
 !  NMAX has Arr hidden in it
               CALL CalcWriteGraphPGen(10,IPATH,I_V,nEl,G1,       &
-     &            nBasisMax,UMat,NMAX,nBasis,Prob,DUMMY)
+     &            nBasisMax,NMAX,nBasis,Prob,DUMMY)
                   WRITE(10,"(3E25.16, I7)") TOTAL,Prob,DLWDB2,ICLS
             ELSE
                IF(TLOG) WRITE(10,"(2E25.16, I7)") TOTAL,DLWDB2,ICLS

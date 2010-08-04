@@ -237,7 +237,6 @@ C.. CK now contains the eigenvectors, and W the eigenvalues
  
       SUBROUTINE HDIAG_NH(NDET,NBLOCKSTARTS,NBLOCKS,
      &            NEL,NMRKS,NBASISMAX,NBASIS,G1,BRR,
-     &            ECORE,
      &            BETA,I_P,IFDET,ARR,BLOCKSYM)
          use SystemData, only: BasisFN
          use global_utilities
@@ -250,7 +249,7 @@ C.. CK now contains the eigenvectors, and W the eigenvalues
          INTEGER I_P,BRR(*),INFO
          REAL*8  BETA
          LOGICAL TWARN
-         REAL*8  ECORE,DNORM
+         REAL*8  DNORM
          REAL*8  CALCDLWDB,ARR(NBASIS)
          
          INTEGER I,NBLKMAX,NBLK,J,K,NBS,III,IFDET,L
@@ -334,7 +333,7 @@ C               ENDDO
                   WRITE(14,"(I3,A)",advance='no')
      &                                           NMRKS(L,NBS+III-1),","
                ENDDO
-               GSEN=CALCDLWDB(III,NBLK,NBLK,CK,W,BETA,ECORE)
+               GSEN=CALCDLWDB(III,NBLK,NBLK,CK,W,BETA)
                WRITE(14,"(A,4G25.16,I5)") ") ",
      &            EXP(FLSI+I_P*FLRI),FLRI*I_P,FLSI,GSEN,IDEG
                EXEN=EXEN+(W(III)*IDEG)*EXP(-(W(III)-EBIAS)*BETA)
@@ -357,7 +356,7 @@ C                        ENDIF
 C               ENDIF
             ENDDO
             IF(IFDET.GE.NBS.AND.IFDET.LT.NBLOCKSTARTS(I+2)) THEN
-               GSEN2=CALCDLWDB(IFDET-NBS+1,NBLK,NBLK,CK,W,BETA,ECORE)
+               GSEN2=CALCDLWDB(IFDET-NBS+1,NBLK,NBLK,CK,W,BETA)
             ENDIF
          ENDDO
          CLOSE(14)

@@ -40,10 +40,10 @@
       
       contains
 
-      FUNCTION fMCPR3StarNodes(nI,Beta,i_P,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,nMax,ALat,UMat,nTay,RhoEps,ECore,dBeta,dLWdb)
+      FUNCTION fMCPR3StarNodes(nI,Beta,i_P,nEl,G1,nBasis,Brr,nMsh,fck,nMax,ALat,UMat,nTay,RhoEps,ECore,dBeta,dLWdb)
       use HElem
       TYPE(BasisFN) G1(*)
-      INTEGER nI(nEl),nEl,i_P,nBasisMax(5,*),Brr(nBasis),nBasis,nMsh
+      INTEGER nI(nEl),nEl,i_P,Brr(nBasis),nBasis,nMsh
       INTEGER nMax,nTay(2),iMaxExcit,nExcitMemLen
       INTEGER noij,noab,ierr,totexcits,nJ(nEl),Orbchange(4),noexcits
       INTEGER Height,TRIIND,INDX,i,ExcitInfoElems,j,exFlag
@@ -143,7 +143,7 @@
       EXCITINFO=(0.d0)
       
 !Calculate rho_ii and H_ii, and put into ExcitInfo. Again, we divide all rho elements through by rho_ii (Therefore rho_ii element=1)
-      CALL CalcRho2(nI,nI,Beta,i_P,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,nMax,ALat,UMat,rhii,nTay,0,ECore)
+      CALL CalcRho2(nI,nI,Beta,i_P,nEl,G1,nBasis,nMsh,fck,nMax,ALat,UMat,rhii,nTay,0,ECore)
       ExcitInfo(0,2) = get_helement (nI, nI, 0)
       EXCITINFO(0,0)=1.D0
       EXCITINFO(0,1)=1.D0
@@ -155,7 +155,7 @@
       do i=1,noij
           IF(ABCOUNTER(i).eq.0) CYCLE
 
-          CALL CONSTRUCTNODE(ABCOUNTER(i),nEl,i,nI,Beta,i_P,nBasisMax,G1,nBasis,Brr,nMsh,fck,nMax,ALat,UMat,nTay,ECore,RhoEps,ExcitInfoElems)
+          CALL CONSTRUCTNODE(ABCOUNTER(i),nEl,i,nI,Beta,i_P,G1,nBasis,nMsh,fck,nMax,ALat,UMat,nTay,ECore,RhoEps,ExcitInfoElems)
 
       enddo
 
@@ -187,13 +187,13 @@
       
 !From a given {i,j}, and a list of all {a,b}'s which result in possible double excitations from the HF, find all the connections between them, and diagonalise the resulting matrix from this 'node'. 
 !Finally, attach the resultant structures back to the HF in EXCITINFO star matrix.      
-      SUBROUTINE CONSTRUCTNODE(novirt,nEl,node,nI,Beta,i_P,nBasisMax,G1,nBasis,Brr,nMsh,fck,nMax,ALat,UMat,nTay,ECore,RhoEps,ExcitInfoElems)
+      SUBROUTINE CONSTRUCTNODE(novirt,nEl,node,nI,Beta,i_P,G1,nBasis,nMsh,fck,nMax,ALat,UMat,nTay,ECore,RhoEps,ExcitInfoElems)
         IMPLICIT NONE
         Type(BasisFN) G1(*)
         COMPLEX*16 fck(*)
         HElement_t UMat(*),rh,Hel
         INTEGER novirt,ierr,i,j,ijpair(2),node,nI(nEl),nJ(nEl),nK(nEl),i_P
-        INTEGER nBasisMax(5,*),nBasis,Brr(nBasis),nMsh,nMax,nTay(2),WORKMEM,INFO
+        INTEGER nBasis,nMsh,nMax,nTay(2),WORKMEM,INFO
         INTEGER ExcitInfoElems,nEl,Orbchange(4),iExcit
         REAL*8 Beta,ALat(3),RhoEps,ECore
         REAL*8, ALLOCATABLE :: NODERHOMAT(:),WLIST(:)
@@ -226,7 +226,7 @@
             FULLPATHS(:,i)=nJ(:)
 !            WRITE(68,*) nJ(:)
 !Calculate diagonal rho elements and store them in the matrix            
-            CALL CalcRho2(nJ,nJ,Beta,i_P,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,nMax,ALat,UMat,rh,nTay,0,ECore)
+            CALL CalcRho2(nJ,nJ,Beta,i_P,nEl,G1,nBasis,nMsh,fck,nMax,ALat,UMat,rh,nTay,0,ECore)
             NODERHOMAT((i-1)*novirt+i)=(rh/rhii)
         enddo
 
@@ -238,7 +238,7 @@
                 IF(TDISCONODES) THEN
                     rh=(0.D0)
                 ELSE
-                    CALL CalcRho2(nJ,nK,Beta,i_P,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,nMax,ALat,UMat,rh,nTay,2,ECore)
+                    CALL CalcRho2(nJ,nK,Beta,i_P,nEl,G1,nBasis,nMsh,fck,nMax,ALat,UMat,rh,nTay,2,ECore)
                 ENDIF
 !Fill matrix of determinants in node to diagonalise
                 IF(abs(rh).gt.RhoEps) THEN
@@ -325,7 +325,7 @@
 
                 DO j=1,novirt
                     nJ(:)=FULLPATHS(:,j)
-                    CALL CalcRho2(nI,nJ,Beta,i_P,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,nMax,ALat,UMat,rh,nTay,2,ECore)
+                    CALL CalcRho2(nI,nJ,Beta,i_P,nEl,G1,nBasis,nMsh,fck,nMax,ALat,UMat,rh,nTay,2,ECore)
 !Eigenvectors are COLUMNS
                     EXCITINFO(ExcitInfoElems,1)=EXCITINFO(ExcitInfoElems,1)+(rh/rhii)*(NODERHOMAT((novirt*(j-1))+i))
 

@@ -817,7 +817,7 @@ MODULE ReturnPathMCMod
 !        IF(TRhoElems.and.(IC.eq.0)) THEN
 !!We want to calculate rho transition matrix elements
 !
-!!            CALL CalcRho2(nI,nJ,Beta,i_P,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,Arr,ALat,UMat,rhiiHEl,nTay,IC,ECore)
+!!            CALL CalcRho2(nI,nJ,Beta,i_P,NEl,G1,nBasis,nMsh,fck,Arr,ALat,UMat,rhiiHEl,nTay,IC,ECore)
 !!            GetConnection=REAL(rhiiHEl,dp)
 !
 !!            IF(IC.eq.0) THEN
@@ -900,7 +900,7 @@ MODULE ReturnPathMCMod
 !!Calculate Hii and rhii
 !        HiiHEl=GetHElement2(HFDet,HFDet,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,NMax,ALat,UMat,0,ECore)
 !        Hii=REAL(HiiHEl,dp)
-!        CALL CalcRho2(HFDet,HFDet,Beta,i_P,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,Arr,ALat,UMat,rhiiHEl,nTay,0,ECore)
+!        CALL CalcRho2(HFDet,HFDet,Beta,i_P,NEl,G1,nBasis,nMsh,fck,Arr,ALat,UMat,rhiiHEl,nTay,0,ECore)
 !        rhii=REAL(rhiiHEl,dp)
 !        call GetH0Element(HFDet,NEl,Arr,nBasis,ECore,HFDiag)
 !

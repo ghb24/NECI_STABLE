@@ -1277,7 +1277,7 @@ contains
              WRITE(6,*) '<D0|T|D0>=',CALCT(FDET,NEL)
              IF(TUEG) THEN
 !  The actual KE rather than the one-electron part of the Hamiltonian
-                WRITE(6,*) 'Kinetic=',CALCT2(FDET,NEL,G1,ALAT,NBASIS,CST)
+                WRITE(6,*) 'Kinetic=',CALCT2(FDET,NEL,G1,ALAT,CST)
              ENDIF
           ENDIF
 
@@ -1330,7 +1330,7 @@ contains
 !C.. we have put TMAT instead of ZIA
           IF(I_HMAX.NE.-20) THEN
 !C.. If we're using rhos,
-             RHOEPS=GETRHOEPS(RHOEPSILON,BETA,NEL,NBASISMAX,G1,nBasis,BRR, NMSH,FCK,NMAX,ALAT,UMAT,I_P,ECORE)
+             RHOEPS=GETRHOEPS(RHOEPSILON,BETA,NEL,BRR,I_P)
 
              WRITE(6,*) "RHOEPS:",RHOEPS
           ELSE
@@ -1358,10 +1358,7 @@ contains
 !Calls
 !          REAL*8 DMonteCarlo2
 !Local Vars
-          REAL*8 EN, ExEn, GsEN
-          REAL*8 FLRI, FLSI
-          REAL*8 RH
-          LOGICAL tWarn
+          REAL*8 EN
           integer iSeed,iunit
           iSeed=7 
 
@@ -1500,7 +1497,7 @@ contains
              IF(TREAD) THEN
                 EXEN=CALCMCEN(NEVAL,W,BETA)
                 WRITE(6,"(A,F19.5)") "EXACT E(BETA)=",EXEN
-                GSEN=CALCDLWDB(1,NDET,NEVAL,CK,W,BETA,0.D0)
+                GSEN=CALCDLWDB(1,NDET,NEVAL,CK,W,BETA)
                 WRITE(6,"(A,F19.5)") "EXACT DLWDB(D0)=",GSEN
              ENDIF
              iunit = get_free_unit()
@@ -1508,7 +1505,7 @@ contains
              IF(NDETWORK.EQ.0.OR.NDETWORK.GT.NDET) NDETWORK=NDET
              DO III=1,NDETWORK
              
-                CALL CALCRHOPII(III,NDET,NEVAL,CK,W,BETA,I_P,D0,FLRI,FLSI,TWARN)
+                CALL CALCRHOPII(III,NDET,NEVAL,CK,W,BETA,I_P,FLRI,FLSI,TWARN)
                 IF(TWARN) THEN
                    IF(III.EQ.1) THEN
                       WRITE(6,*) "Warning received from CALCRHOPII."
@@ -1526,7 +1523,7 @@ contains
                    ENDIF
                 ENDIF
                 call write_det (iunit, NMRKS(:,III), .false.)
-                GSEN=CALCDLWDB(III,NDET,NEVAL,CK,W,BETA,0.D0)
+                GSEN=CALCDLWDB(III,NDET,NEVAL,CK,W,BETA)
                 CALL GETSYM(NMRKS(1,III),NEL,G1,NBASISMAX,ISYM)
                 CALL GETSYMDEGEN(ISYM,NBASISMAX,IDEG)
                 WRITE(iunit,"(4G25.16,I5)") EXP(FLSI+I_P*FLRI),FLRI*I_P,FLSI,GSEN,IDEG
@@ -1855,11 +1852,11 @@ contains
          INTEGER Work(GNDWorkSize+2*NEL)
          TYPE(BASISFN) G1(*)
          INTEGER BRR(*),NMSH,NMAX,NTAY(2),ILOGGING
-         INTEGER III,NWHTAY(3,I_VMAX),I,IMAX,ILMAX,LMS
+         INTEGER III,NWHTAY(3,I_VMAX),IMAX,ILMAX,LMS
          TYPE(BasisFN) ISYM,SymRestrict
          LOGICAL TSPN,TPARITY,TSYM
          REAL*8 DBETA,ECORE
-         real(dp) WLRI,WLSI,WLRI1,WLRI2,WLSI1,WLSI2,WI,DLWDB
+         real(dp) WLRI,WLSI,WLRI1,WLRI2,WLSI1,WLSI2,DLWDB
          real(dp) TOT,WLRI0,WLSI0,WINORM,HElP,NORM
          LOGICAL TNPDERIV,TDONE,TFIRST
          INTEGER DETINV
@@ -2003,18 +2000,16 @@ contains
 
 
 ! Given an input RHOEPSILON, create Fermi det D out of lowest orbitals and get RHOEPS (which is rhoepsilon * exp(-(beta/P)<D|H|D>
-      REAL*8 FUNCTION GETRHOEPS(RHOEPSILON,BETA,NEL,NBASISMAX,G1,NHG, BRR,NMSH,FCK,NMAX,ALAT,UMAT,I_P,ECORE)
+      REAL*8 FUNCTION GETRHOEPS(RHOEPSILON,BETA,NEL,BRR,I_P)
          Use Determinants, only: get_helement, write_det
          use constants, only: dp
          use SystemData, only: BasisFN
          use sort_mod
          IMPLICIT NONE
-         INTEGER NEL,NI(NEL),I,nBasisMax(5,*),I_P
-         INTEGER BRR(*),NMSH,NMAX,NHG
-         COMPLEX*16 FCK(*)
-         REAL*8 RHOEPSILON,BETA,ECORE,ALAT(*)
-         HElement_t BP, UMat(*), tmp
-         TYPE(BasisFN) G1(*)
+         INTEGER NEL,NI(NEL),I,I_P
+         INTEGER BRR(*)
+         REAL*8 RHOEPSILON,BETA
+         HElement_t BP, tmp
          DO I=1,NEL
             NI(I)=BRR(I)
          ENDDO
@@ -2028,11 +2023,11 @@ contains
 
 
 ! Calculate the kinetic energy of the UEG (this differs from CALCT by including the constant CST
-      REAL*8 FUNCTION CALCT2(NI,NEL,G1,ALAT,NBASIS,CST)
+      REAL*8 FUNCTION CALCT2(NI,NEL,G1,ALAT,CST)
          use constants, only: dp
          use SystemData, only: BasisFN
          IMPLICIT NONE
-         INTEGER NEL,NI(NEL),NBASIS,I,J
+         INTEGER NEL,NI(NEL),I,J
          TYPE(BasisFN) G1(*)
          REAL*8 ALAT(4),CST,TMAT
          LOGICAL ISCSF

@@ -787,7 +787,7 @@ MODULE GraphMorph
 !        CALL LogMemAlloc('nExcit',nExcitMemLen,4,this_routine,nExcitTag,ierr)
 !        nExcit(1:nExcitMemLen)=0
 !        CALL GenSymExcitIt2(FDet,NEl,G1,nBasis,nBasisMax,.TRUE.,nExcit,nJ,iMaxExcit,0,nStore,3)
-!        CALL GenRandSymExcitIt2(FDet,NEl,G1,nBasis,nBasisMax,nExcit,nJ,Seed,iExcit,0,UMat,nMax,PGen)
+!        CALL GenRandSymExcitIt2(FDet,NEl,nExcit,nJ,Seed,iExcit,PGen)
 !
 !!Allocate memory for graph
 !        ALLOCATE(iPath(NEl,0:NDets),stat=ierr)
@@ -854,7 +854,7 @@ MODULE GraphMorph
 !                    CALL LogMemAlloc('nExcit',nExcitMemLen,4,this_routine,nExcitTag,ierr)
 !                    nExcit(1:nExcitMemLen)=0
 !                    CALL GenSymExcitIt2(FDet,NEl,G1,nBasis,nBasisMax,.TRUE.,nExcit,nJ,iMaxExcit,0,nStore,3)
-!                    CALL GenRandSymExcitIt2(FDet,NEl,G1,nBasis,nBasisMax,nExcit,nJ,Seed,iExcit,0,UMat,nMax,PGen)
+!                    CALL GenRandSymExcitIt2(FDet,NEl,nExcit,nJ,Seed,iExcit,PGen)
 !                    iPath(1:NEl,0:NDets)=0
 !                    Xij=0.d0
 !                    Rhoii=(0.d0)
@@ -1978,7 +1978,7 @@ MODULE GraphMorph
 !                        STOP "Unable to find enough determinants attached to graph determinant "
 !                    ENDIF
 !
-!                    CALL GenRandSymExcitIt2(DetCurr,NEl,G1,nBasis,nBasisMax,nExcit,nJ,Seed,Noatt,0,UMat,Arr,Prob)
+!                    CALL GenRandSymExcitIt2(DetCurr,NEl,nExcit,nJ,Seed,Noatt,Prob)
 !                    Attempts=Attempts+1
 !!Divide the coupling to a determinant by the probability of generating it, to account for possibility of bias in generation
 !

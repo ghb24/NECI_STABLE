@@ -36,7 +36,7 @@ C.. set the comparison det to an invalid one, so all dets are counted
          CALL GENNEXTSYM(NEL,NBASISMAX,TSPN,LMS,
      &      TPARITY,SymRestrict,.TRUE.,TDONE,IMAX,ISYM)
          DO WHILE(.NOT.TDONE)
-            CALL SETUPSYM(NBASISMAX,KJ)
+            CALL SETUPSYM(KJ)
             CALL  GENSYMDETS_R(NI,ISYM,NEL,G1,BRR,NBASIS,NMRKS,
      &            II,NLMAX,NJ,KJ,1,1,NBASISMAX)
             IF(II.NE.OII) THEN

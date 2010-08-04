@@ -190,9 +190,9 @@ SUBROUTINE PerformFCIMCyc()
 !Setup excit generators for this determinant (This can be reduced to an order N routine later for abelian symmetry.
             IF(.not.TRegenExcitgens) THEN
                 CALL SetupExitgen(CurrentDets(:,j),CurrentExcits(j))
-                CALL GenRandSymExcitIt3(CurrentDets(:,j),CurrentExcits(j)%ExcitData,nJ,Seed,IC,0,Prob,iCount)
+                CALL GenRandSymExcitIt3(CurrentDets(:,j),CurrentExcits(j)%ExcitData,nJ,Seed,IC,Prob,iCount)
             ELSE
-                CALL GetPartRandExcit(CurrentDets(:,j),nJ,Seed,IC,0,Prob,iCount,CurrentIC(j))
+                CALL GetPartRandExcit(CurrentDets(:,j),nJ,Seed,IC,Prob,iCount,CurrentIC(j))
             ENDIF
     
 !                CALL TestGenRandSymExcitNU(nJ,1000000,0.97,Seed,3)
@@ -538,9 +538,9 @@ SUBROUTINE PerformFCIMCyc()
 !!Setup excit generators for this determinant (This can be reduced to an order N routine later for abelian symmetry).
 !            IF(.not.TRegenExcitgens) THEN
 !                CALL SetupExitgen(CurrentDets(:,j),CurrentExcits(j))
-!                CALL GenRandSymExcitIt3(CurrentDets(:,j),CurrentExcits(j)%ExcitData,nJ,Seed,IC,0,Prob,iCount)
+!                CALL GenRandSymExcitIt3(CurrentDets(:,j),CurrentExcits(j)%ExcitData,nJ,Seed,IC,Prob,iCount)
 !            ELSE
-!                CALL GetPartRandExcit(CurrentDets(:,j),nJ,Seed,IC,0,Prob,iCount,CurrentIC(j))
+!                CALL GetPartRandExcit(CurrentDets(:,j),nJ,Seed,IC,Prob,iCount,CurrentIC(j))
 !            ENDIF
 !
 !            !TESTS
@@ -568,9 +568,9 @@ SUBROUTINE PerformFCIMCyc()
 !!Generate another randomly connected determinant in order to not generate a guiding determinant
 !
 !                        IF(.not.TRegenExcitgens) THEN
-!                            CALL GenRandSymExcitIt3(CurrentDets(:,j),CurrentExcits(j)%ExcitData,nJ,Seed,IC,0,Prob,iCount)
+!                            CALL GenRandSymExcitIt3(CurrentDets(:,j),CurrentExcits(j)%ExcitData,nJ,Seed,IC,Prob,iCount)
 !                        ELSE
-!                            CALL GetPartRandExcit(CurrentDets(:,j),nJ,Seed,IC,0,Prob,iCount,CurrentIC(j))
+!                            CALL GetPartRandExcit(CurrentDets(:,j),nJ,Seed,IC,Prob,iCount,CurrentIC(j))
 !                        ENDIF
 !                        IF(.not.(SameDet(HFDet,nJ,NEl))) TGenGuideDet=.false.
 !                            
@@ -924,9 +924,9 @@ SUBROUTINE PerformFCIMCyc()
 !        do while(i.lt.NDets)    !Loop until all determinants found
 !
 !            IF(TRegenExcitgens) THEN
-!                CALL GetPartRandExcit(nI,nJ,Seed,IC,0,Prob,iCount,CurrentIC(VecInd))
+!                CALL GetPartRandExcit(nI,nJ,Seed,IC,Prob,iCount,CurrentIC(VecInd))
 !            ELSE
-!                CALL GenRandSymExcitIt3(nI,nIExcitGen%ExcitData,nJ,Seed,IC,0,Prob,iCount)
+!                CALL GenRandSymExcitIt3(nI,nIExcitGen%ExcitData,nJ,Seed,IC,Prob,iCount)
 !            ENDIF
 !
 !            SameDet=.false.
@@ -2758,7 +2758,7 @@ SUBROUTINE PerformFCIMCyc()
             CALL GenSymExcitIt2(nI,NEl,G1,nBasis,.TRUE.,ExcitGen%ExcitData,nJ,iMaxExcit,nStore,3)
 
 !Check generation probabilities
-!            CALL GenRandSymExcitIt3(nI,ExcitGen%ExcitData,nJ,Seed,IC,Frz,Prob,iCount)
+!            CALL GenRandSymExcitIt3(nI,ExcitGen%ExcitData,nJ,Seed,IC,Prob,iCount)
 !            Exitlevel=iGetExcitLevel(nI,HFDet,NEl)
 !            IF(ABS((1.D0/iMaxExcit)-Prob).gt.1.D-07) WRITE(6,"I5,I5,I9,2G20.10") ExitLevel,IC,iMaxExcit,1.D0/iMaxExcit,Prob
             
@@ -2771,28 +2771,28 @@ SUBROUTINE PerformFCIMCyc()
 
     
 !This routine gets a random excitation for when we want to generate the excitation generator on the fly, then chuck it.
-    SUBROUTINE GetPartRandExcit(DetCurr,nJ,Seed,IC,Frz,Prob,iCount,Excitlevel)
-        INTEGER :: DetCurr(NEl),nJ(NEl),Seed,IC,Frz,iCount,iMaxExcit,nStore(6),MemLength,ierr
-        INTEGER :: Excitlevel
-        REAL*8 :: Prob
-        INTEGER , ALLOCATABLE :: ExcitGenTemp(:)
+SUBROUTINE GetPartRandExcit(DetCurr,nJ,Seed,IC,Prob,iCount,Excitlevel)
+    INTEGER :: DetCurr(NEl),nJ(NEl),Seed,IC,iCount,iMaxExcit,nStore(6),MemLength,ierr
+    INTEGER :: Excitlevel
+    REAL*8 :: Prob
+    INTEGER , ALLOCATABLE :: ExcitGenTemp(:)
 
-        IF(Excitlevel.eq.0) THEN
-            CALL GenRandSymExcitIt3(DetCurr,HFExcit%ExcitData,nJ,Seed,IC,Frz,Prob,iCount)
-            RETURN
-        ENDIF
+    IF(Excitlevel.eq.0) THEN
+        CALL GenRandSymExcitIt3(DetCurr,HFExcit%ExcitData,nJ,Seed,IC,Prob,iCount)
+        RETURN
+    ENDIF
 !Need to generate excitation generator to find excitation.
 !Setup excit generators for this determinant 
-        iMaxExcit=0
-        nStore(1:6)=0
-        CALL GenSymExcitIt2(DetCurr,NEl,G1,nBasis,.TRUE.,MemLength,nJ,iMaxExcit,nStore,3)
-        ALLOCATE(ExcitGenTemp(MemLength),stat=ierr)
-        IF(ierr.ne.0) CALL Stop_All("SetupExcitGen","Problem allocating excitation generator")
-        ExcitGenTemp(1)=0
-        CALL GenSymExcitIt2(DetCurr,NEl,G1,nBasis,.TRUE.,ExcitGenTemp,nJ,iMaxExcit,nStore,3)
+    iMaxExcit=0
+    nStore(1:6)=0
+    CALL GenSymExcitIt2(DetCurr,NEl,G1,nBasis,.TRUE.,MemLength,nJ,iMaxExcit,nStore,3)
+    ALLOCATE(ExcitGenTemp(MemLength),stat=ierr)
+    IF(ierr.ne.0) CALL Stop_All("SetupExcitGen","Problem allocating excitation generator")
+    ExcitGenTemp(1)=0
+    CALL GenSymExcitIt2(DetCurr,NEl,G1,nBasis,.TRUE.,ExcitGenTemp,nJ,iMaxExcit,nStore,3)
 
 !Now generate random excitation
-        CALL GenRandSymExcitIt3(DetCurr,ExcitGenTemp,nJ,Seed,IC,Frz,Prob,iCount)
+    CALL GenRandSymExcitIt3(DetCurr,ExcitGenTemp,nJ,Seed,IC,Prob,iCount)
 
 !Deallocate when finished
         DEALLOCATE(ExcitGenTemp)
@@ -3237,7 +3237,7 @@ END FUNCTION Fact
 !            i=2
 !            do while(i.le.NDets)    !loop until all connections found
 !
-!                CALL GenRandSymExcitIt3(nI,ExcitGen%ExcitData,nJ,Seed,IC,0,Prob,iCount)
+!                CALL GenRandSymExcitIt3(nI,ExcitGen%ExcitData,nJ,Seed,IC,Prob,iCount)
 !
 !                SameDet=.false.
 !                do j=2,(i-1)
@@ -3334,7 +3334,7 @@ END FUNCTION Fact
 !
 !                do i=1,NoMCExcits
 !
-!                    CALL GenRandSymExcitIt3(DetCurr,nExcit,nJ,Seed,IC,0,Prob,iCount)
+!                    CALL GenRandSymExcitIt3(DetCurr,nExcit,nJ,Seed,IC,Prob,iCount)
 !
 !                    Child=AttemptCreate(DetCurr,CurrentSign(j),nJ,Prob,IC,Kik)
 !!Kik is the off-diagonal hamiltonian matrix element for the walker. This is used for the augmentation of the death term if TDiffuse is on.
@@ -3388,7 +3388,7 @@ END FUNCTION Fact
 !            KeepOrig=.true.
 !            IF(TDiffuse) THEN
 !!Next look at possibility of diffusion to another determinant
-!                CALL GenRandSymExcitIt3(DetCurr,nExcit,nJ,Seed,IC,0,Prob,iCount)
+!                CALL GenRandSymExcitIt3(DetCurr,nExcit,nJ,Seed,IC,Prob,iCount)
 !                CALL AttemptDiffuse(DetCurr,nJ,Prob,IC,CurrentSign(j),KeepOrig,CreateAtI,CreateAtJ)
 !                !If we want to keep the original walker, then KeepOrig is true, However, we do not want to copy it accross yet, because we want to see if it is killed first in the birth/death process
 !!                IF(KeepOrig) THEN
@@ -3948,7 +3948,7 @@ END FUNCTION Fact
 !            ELSEIF(WaveType.eq.2) THEN
 !!Star energy not yet proparly coded & tested
 !                STOP 'Star initial wavefunction not yet working'
-!!                StarWeight=fMCPR3StarNewExcit(FDet,Beta,i_P,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,Arr,ALat,UMat,nTay,RhoEps,iExcit,iMaxExcit,nWHTay,iLogging,TSym,ECore,DBeta,DLWDB,MP2E)
+!!                StarWeight=fMCPR3StarNewExcit(FDet,Beta,i_P,NEl,nBasisMax,G1,nBasis,nMsh,fck,Arr,ALat,UMat,nTay,RhoEps,iExcit,iMaxExcit,nWHTay,iLogging,TSym,ECore,DBeta,DLWDB,MP2E)
 !!                TypeChange=DLWDB
 !            ENDIF
 !        
@@ -4867,8 +4867,8 @@ END FUNCTION Fact
 !                ELSE
 !!We do not have to self-hop. Attempt to diffuse away from determinant.
 !                
-!                    CALL GenRandSymExcitIt3(CurrentDets(:,j),ExcitGens(j)%ExcitData,nJ,Seed,ICJ,0,ProbJ,iCountJ)  !First random excitation is to attempt to move to
-!                    CALL GenRandSymExcitIt3(CurrentDets(:,j),ExcitGens(j)%ExcitData,nK,Seed,ICK,0,ProbK,iCountK)  !Second is to unbias the diffusion in the birth/death prob
+!                    CALL GenRandSymExcitIt3(CurrentDets(:,j),ExcitGens(j)%ExcitData,nJ,Seed,ICJ,ProbJ,iCountJ)  !First random excitation is to attempt to move to
+!                    CALL GenRandSymExcitIt3(CurrentDets(:,j),ExcitGens(j)%ExcitData,nK,Seed,ICK,ProbK,iCountK)  !Second is to unbias the diffusion in the birth/death prob
 !                    Hij=GetHElement2(CurrentDets(:,j),nJ,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,NMax,ALat,UMat,ICJ,ECore)
 !                    Hik=GetHElement2(CurrentDets(:,j),nK,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,NMax,ALat,UMat,ICK,ECore)
 !

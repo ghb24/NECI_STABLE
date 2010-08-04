@@ -450,7 +450,7 @@
 !      
 !      do iSubPart=1,P%d%iWeight     !Run through the integer weight on each particle
 !! generate a random excitation of iParticle
-!         call GenRandSymExcitIt3(P%nI,P%d%ExGen%exData,nJ,iSeed,iC,0,pGen,iCount)
+!         call GenRandSymExcitIt3(P%nI,P%d%ExGen%exData,nJ,iSeed,iC,pGen,iCount)
 !! The excitation is in nJ, and its gen prob in pGen.
 !!            write(6,*)  pGen
 !         hHij=GetHElement3(P%nI,nJ,iC)  !This is the connection strength to nJ from P

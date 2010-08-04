@@ -23,10 +23,10 @@ MODULE HFCalc
       HElement_t,ALLOCATABLE :: HFBASIS(:),HFE(:)
       HElement_t,pointer :: UMat2(:)
       HElement_t,pointer :: TMat2D2(:,:)
-      integer i, ierr
+      integer i
       integer nOrbUsed
       integer UMatInt, TMatInt
-      integer,save :: tagUMat2=0, tagTMat2=0,tagHFE=0,tagHFBasis=0
+      integer,save :: tagUMat2=0,tagHFE=0,tagHFBasis=0
          
 !C.. If we are using an HF basis instead of our primitive basis, we need
 !C.. to load in the coeffs of the HF eigenfunctions in terms of the

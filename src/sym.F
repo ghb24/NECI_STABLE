@@ -163,7 +163,7 @@ C.. MOLPRO classifies irreps with bits 0-3 corresponding to those generators.
 C.. symmetry products are merely exclusive ors of the molpro irrep numbers
 C.. We set each of the MOLPRO irreps to a bit in our symmetry specifier.
 C.. A1 corresponds to bit 0 (i.e. irrep 1)
-      SUBROUTINE GENMOLPSYMTABLE(NSYMMAX,G1,NBASIS,ARR,BRR)
+      SUBROUTINE GENMOLPSYMTABLE(NSYMMAX,G1,NBASIS)
          use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
          use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB, tUEG
          use SymData, only: nProp,PropBitLen,SymClasses,nSymLabels
@@ -175,8 +175,7 @@ C.. A1 corresponds to bit 0 (i.e. irrep 1)
          INTEGER NSYMMAX,nSymGen
          INTEGER I,ILABEL
          TYPE(BasisFN) G1(*)
-         INTEGER NBASIS,BRR(NBASIS)
-         REAL*8 ARR(NBASIS)
+         INTEGER NBASIS
          character(*), parameter :: this_routine='GenMolPSymTable'
 
         
@@ -308,14 +307,13 @@ C               WRITE(6,*) "SL",I,SymClasses(I)
          
       END
 
-      SUBROUTINE GENMOLPSYMREPS(NSYMMAX)
+      SUBROUTINE GENMOLPSYMREPS()
          use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB,Arr
          use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB,Brr
          use SystemData, only: tSymIgnoreEnergies,nBasis,G1
          use SymData, only: SymReps,tagSymReps
          use global_utilities
          IMPLICIT NONE
-         INTEGER NSYMMAX
          INTEGER I,J
 !         TYPE(BasisFN) G1(NBASIS)
 !         INTEGER NBASIS,BRR(NBASIS)
@@ -450,7 +448,7 @@ C.. Precompute a list of the symmetry product of all pairs of symmetry labels
          use global_utilities
          use sort_mod
          IMPLICIT NONE
-         INTEGER I,IDECOMP,TOT,NPRODS,NSTATES
+         INTEGER I,TOT,NSTATES
          INTEGER TEMPLIST(NSTATES), lo, hi
          LOGICAL FRZ
          character(*), parameter :: this_routine='GenSymStatePairs'
@@ -765,7 +763,7 @@ C..   Use SYMPROD and ADDELECSYM to generate the resultant symmetry of these
          LOGICAL ISCSF,ISC
          I=1
          NREPS(1:NEL)=0
-         CALL SETUPSYM(NBASISMAX,ISYM)
+         CALL SETUPSYM(ISYM)
          ISC=ISCSF(NI2,NEL)
          IF(tFixLz) CALL GetLz(NI2,NEL,ISYM%Ml)
          IF(ISC) THEN
@@ -1011,7 +1009,7 @@ C.. Display a line of characters
          IMPLICIT NONE
          INTEGER IUNIT,NROT
          COMPLEX*16 CHARS(NROT)
-         INTEGER I,J
+         INTEGER J
          CHARACTER*6 STR
          LOGICAL LCOMP,LREAL
 C.. First do a check for the format
@@ -1031,7 +1029,7 @@ C.. First do a check for the format
          IMPLICIT NONE
          INTEGER IUNIT,NROT
          COMPLEX*16 CHARS(NROT)
-         INTEGER I,J
+         INTEGER J
          CHARACTER*6 STR
          LOGICAL LCOMP,LREAL
             WRITE(IUNIT,"(A6,A)",advance='no') STR,":   "
@@ -1276,7 +1274,7 @@ C               WRITE(6,"(2I3,B12)") I,J,IDECOMP
          ENDDO
       END
 
-      SUBROUTINE GENSYMREPS(G1,NBASIS,ARR,BRR,DEGENTOL)
+      SUBROUTINE GENSYMREPS(G1,NBASIS,ARR,DEGENTOL)
          use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
          use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
          use SymData, only: SymReps,tAbelian,tagSymReps
@@ -1284,7 +1282,7 @@ C               WRITE(6,"(2I3,B12)") I,J,IDECOMP
          IMPLICIT NONE
          INTEGER I,J
          TYPE(BasisFN) G1(nBasis)
-         INTEGER NBASIS,BRR(NBASIS)
+         INTEGER NBASIS
          REAL*8 ARR(NBASIS,2)
          REAL*8 DEGENTOL
          LOGICAL SYMEQ
@@ -1321,7 +1319,7 @@ C.. e.g. if irreps are a1,a2,b1,b2
          use SystemData, only: BasisFN,Symmetry
          IMPLICIT NONE
          TYPE(BASISFN) ISYM,JSYM
-         INTEGER I,IS,JS
+         INTEGER I
          TYPE(SYMMETRY) SYMPROD,SymConj
          LOGICAL LSYMSYM
          LCHKSYM=.TRUE.
@@ -1664,7 +1662,7 @@ C.. Failure
          TYPE(BasisFN) IPARITY,ISYM,IMax(2)
          LOGICAL TSPN,TPARITY,TSETUP,TMORE,TDONE,KALLOWED,TMORE2
          INTEGER ILEV
-         integer*8 TotSymRep,MinSymRep,MaxSymRep
+         integer*8 MinSymRep,MaxSymRep
          IF(TSETUP) THEN
             DO ILEV=1,3
                IF(TPARITY) THEN
@@ -1695,8 +1693,8 @@ C.. that into IMAX
                   IMAX(1)%Sym%s=IPARITY%Sym%s
                   IMAX(2)%Sym%s=IMAX(1)%Sym%s
                ELSE
-                  IMAX(1)%Sym%s=MinSymRep(nBasisMax)
-                  IMAX(2)%Sym%s=MaxSymRep(nBasisMax)
+                  IMAX(1)%Sym%s=MinSymRep()
+                  IMAX(2)%Sym%s=MaxSymRep()
                ENDIF
             ELSE
 C.. we've got a sym system with polydimensional irreps, which leads to
@@ -1808,12 +1806,11 @@ C.. Spin
       END
 
 C.. Initialize symmetry to take into account the core electrons
-      SUBROUTINE SETUPSYM(NBASISMAX,ISYM)
+      SUBROUTINE SETUPSYM(ISYM)
          use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
          use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
          use SymData, only: FrozenSym
          IMPLICIT NONE
-         INTEGER nBasisMax(5,*)
          TYPE(BasisFN) ISym
          ISym=FrozenSym
          RETURN
@@ -1825,7 +1822,6 @@ C.. Initialize symmetry to take into account the core electrons
          INTEGER IUNIT
          TYPE(BASISFN) SYM
          LOGICAL LTERM
-         INTEGER J
          WRITE(IUNIT,"(4I5)",advance='no')
      &                                SYM%K(1),SYM%K(2),SYM%K(3),SYM%MS
          CALL WRITESYM(IUNIT,SYM%SYM,LTERM)
@@ -1839,7 +1835,6 @@ C.. Initialize symmetry to take into account the core electrons
          TYPE(SYMMETRY) SYM
          LOGICAL LTERM
          INTEGER Abel(3)
-         INTEGER J
          IF(TAbelian) THEN
             CALL DecomposeAbelianSym(SYM,Abel)
             if (TwoCycleSymGens) then
@@ -1898,9 +1893,9 @@ C.. Set to be totally symmetric
       use global_utilities
       IMPLICIT NONE
       INTEGER nTranslat,nKps,KpntInd(nStates)
-      INTEGER I,J,nStates
+      INTEGER I,nStates
       integer*8  ComposeAbelianSym
-      type(Symmetry) SymConj,SymProd
+      type(Symmetry) SymConj
       character(*), parameter :: this_routine='GenKPtIrreps'
       nSymLabels=nKps
       nRot=nTranslat
@@ -2010,24 +2005,22 @@ C.. Set to be totally symmetric
       end function TotSymRep
 
       ! nBasisMax might well be needed in the future in these functions.
-      integer*8 function MinSymRep(nBasisMax)
+      integer*8 function MinSymRep()
          use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
          use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
          use SymData, only: tAbelian
          implicit none
-         integer nBasisMax(5,*)
          if(TAbelian) then
             MinSymRep=0
          else
             MinSymRep=0
          endif
       end function MinSymRep
-      integer*8 function MaxSymRep(nBasisMax)
+      integer*8 function MaxSymRep()
          use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
          use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
          use SymData, only: tAbelian,nProp
          implicit none
-         integer nBasisMax(5,*)
          integer abel(3)
          integer*8 ComposeAbelianSym
          abel(:)=nprop(:)-1
@@ -2071,7 +2064,7 @@ C.. Set to be totally symmetric
         implicit none
         integer Nirrep,nBasis,iSS,nBi,i,basirrep,t
         integer*8 iSize
-        character, parameter :: this_routine='GetSymTMatSize'
+        character(*), parameter :: this_routine='GetSymTMATSize'
         nBi=nBasis/iSS
         iSize=0
         allocate(SymLabelIntsCum(nIrrep))
@@ -2119,7 +2112,7 @@ C.. Set to be totally symmetric
          use util_mod, only: choose
          use bit_rep_data, only: NIfTot
          IMPLICIT NONE
-         INTEGER :: IUNIT,OverallSym,j,SpatOrbs,FDetMom,ExcitLev
+         INTEGER :: IUNIT,j,SpatOrbs,FDetMom,ExcitLev
          INTEGER(KIND=n_int) :: FDetiLut(0:NIfTot),iLut(0:NIfTot)
          INTEGER :: FDetSym,TotalSym,TotalMom,alpha,beta,ierr,Momx,Momy
          INTEGER :: Momz
@@ -2486,10 +2479,10 @@ C.. Set to be totally symmetric
          use Determinants , only : FDet
          use util_mod, only: choose
          IMPLICIT NONE
-         INTEGER :: ClassCounts(2,0:7),Lim0a,Lim0b,Lim1a,Lim1b,Lim2a
+         INTEGER :: ClassCounts(2,0:7)
          INTEGER :: Lima(0:7),Limb(0:7),a0,a1,a2,a3,a4,a5,a6,a7,NAlph
          INTEGER :: b0,b1,b2,b3,b4,b5,b6,b7,NBet,i,IUNIT,OverallSym
-         INTEGER :: FDetSym,Lim2b
+         INTEGER :: FDetSym
          REAL*8 :: Space,SpaceGrow
          LOGICAL :: Sym(0:7)
 
@@ -2677,8 +2670,8 @@ C.. Set to be totally symmetric
          use DetCalc , only : ICILevel
          use util_mod, only: choose
          IMPLICIT NONE
-         INTEGER :: ClassCountsOcc(0:7),Lim0a,Lim0b,Lim1a,Lim1b,Lim2a
-         INTEGER :: ClassCountsVirt(0:7),Lim2b,NAlphOcc,NAlphVirt
+         INTEGER :: ClassCountsOcc(0:7)
+         INTEGER :: ClassCountsVirt(0:7),NAlphOcc,NAlphVirt
          INTEGER :: ClassCountsOccMax(0:7),ClassCountsVirtMax(0:7)
          INTEGER :: LimaOcc(0:7),LimbOcc(0:7),LimaVirt(0:7)
          INTEGER :: LimbVirt(0:7)
@@ -2687,7 +2680,7 @@ C.. Set to be totally symmetric
          INTEGER :: b0o,b1o,b2o,b3o,b4o,b5o,b6o,b7o,OverallSym
          INTEGER :: b0v,b1v,b2v,b3v,b4v,b5v,b6v,b7v,NBetOcc,i,IUNIT
          INTEGER :: FDetSym,NBetVirt
-         REAL*8 :: Space,SpaceGrow,SpaceGrow2
+         REAL*8 :: Space,SpaceGrow
          LOGICAL :: Sym(0:7)
 
          IF(.not.TwoCycleSymGens) THEN

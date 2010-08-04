@@ -53,8 +53,8 @@ C.. go to end of file
      &      OPEN(10,FILE="PATHS",STATUS="UNKNOWN")
 C.. Set the first node to I_I
          CALL NECI_ICOPY(NEL,NI,1,IPATH(1:NEL,0),1)
-         CALL CALCRHO2(NI,NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,
-     &            BRR,NMSH,FCK,NMAX,ALAT,UMAT,RH,NTAY,0,ECORE)
+         CALL CALCRHO2(NI,NI,BETA,I_P,NEL,G1,NBASIS,
+     &            NMSH,FCK,NMAX,ALAT,UMAT,RH,NTAY,0,ECORE)
          RHOII(0)=RH
          RHOIJ(0,0)=RH
          IADJ(0,0)=1
@@ -153,7 +153,7 @@ C.. The relevant elements of IADJ and RHOIJ are copied to the new path's
                DO J=0,I_V-1
                   ICE=IGETEXCITLEVEL(IPATH(1,I_V-1),IPATH(1,J),NEL)
                   CALL CALCRHO2(IPATH(1,I_V-1),IPATH(1,J),BETA,I_P,NEL,
-     &             NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,
+     &             G1,NBASIS,NMSH,FCK,NMAX,ALAT,UMAT,
      &             RH,NTAY,ICE,ECORE)
                   IF(ICE.LE.2) THEN
                      ICE=1
@@ -197,7 +197,7 @@ C.. Restore the best one
             DO J=0,I_V-1
                ICE=IGETEXCITLEVEL(IPATH(1,I_V-1),IPATH(1,J),NEL)
                CALL CALCRHO2(IPATH(1,I_V-1),IPATH(1,J),BETA,I_P,NEL,
-     &           NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,
+     &           G1,NBASIS,NMSH,FCK,NMAX,ALAT,UMAT,
      &           RH,NTAY,ICE,ECORE)
                IF(ICE.LE.2) THEN
                   ICE=1

@@ -1,15 +1,14 @@
 ! lenrec is the number of auxiliary basis functions
-SUBROUTINE InitDFBasis(nEl,nBasisMax,Len,lMs)
+SUBROUTINE InitDFBasis(nBasisMax,Len)
          use SystemData , only : tStoreSpinOrbs
          use record_handler
          use constants, only: dp
          use UMatCache
          implicit none
-         integer nEl,nBasisMax(5,*),Len,lMs
+         integer nBasisMax(5,*),Len
          character(*), parameter :: C_file='SAV_D____a'
-         character(*), parameter :: nolabel='        '
          character(3) file_status
-         integer info,lenrec,nrec,i
+         integer info,lenrec,nrec
          integer nBasis
 
          file_status= 'ADD'
@@ -51,7 +50,6 @@ SUBROUTINE InitDFBasis(nEl,nBasisMax,Len,lMs)
          integer info,i,j,k
          real*8 r
          integer nBasis,nOrbUsed,ierr
-         real*8 :: array(1000)
 
          WRITE(6,*) "Opening Density fitting matrix files"
          file_status= 'ADD'
@@ -247,13 +245,13 @@ SUBROUTINE InitDFBasis(nEl,nBasisMax,Len,lMs)
             close(78)
          endif
       END
-      SUBROUTINE ReadDalton1EIntegrals(G1,nBasis,Arr,Brr,ECore)
+      SUBROUTINE ReadDalton1EIntegrals(G1,nBasis,ECore)
          use constants, only: dp
          use SystemData, only: BasisFN,BasisFNSize,Symmetry,NullBasisFn
          USE OneEInts, only : TMATind,TMAT2D,TMATSYM,TSTARSTORE
          implicit none
-         integer nBasis,Brr(nBasis),i,j
-         real*8 Arr(nBasis,2),val,ECore
+         integer nBasis,i,j
+         real*8 val,ECore
          type(BasisFN) G1(nBasis)
          Type(Symmetry) TotSymRep
          open(11,file='HONEEL',status='unknown')
@@ -289,12 +287,12 @@ SUBROUTINE InitDFBasis(nEl,nBasisMax,Len,lMs)
 !            Brr(i)=i
          enddo
       END
-      SUBROUTINE InitDaltonBasis(nBasisMax,Arr,Brr,G1,nBasis)
+      SUBROUTINE InitDaltonBasis(Arr,Brr,G1,nBasis)
          use SystemData, only: Symmetry,BasisFN,BasisFNSize,NullBasisFn
          use SymData , only : tAbelian
          implicit none
-         integer nBasis,Brr(nBasis),i,j,nBasisMax(5,*)
-         real*8 Arr(nBasis,2),val,ECore
+         integer nBasis,Brr(nBasis),i,j
+         real*8 Arr(nBasis,2),val
          type(BasisFN) G1(nBasis)
          Type(Symmetry) TotSymRep
          tAbelian=.true.

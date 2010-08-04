@@ -3486,6 +3486,7 @@ C                     CALL WRITEDET(6,NK,NEL,.TRUE.)
 !  We are required to enshroud GenExcitProbInternal as F90 doesn't seem to want to allow any casting.
       SUBROUTINE IsConnectedDet2(nI,nJ,tIsConnected)
          use SystemData, only: nel
+         use symexcit2
          IMPLICIT NONE
          INTEGER nI(nEl),nJ(nEl)
          LOGICAL tIsConnected
@@ -3562,7 +3563,7 @@ C                     CALL WRITEDET(6,NK,NEL,.TRUE.)
 !  Calculate the generation probability of a given graph for debugging purposes.
 !  if iUnit<>0, write this to this unit
       SUBROUTINE CalcWriteGraphPGen(iUnit,iGraph,iV,nEl,G1,
-     &            nBasisMax,UMat,Arr,nBasis,pGenGraph,EXCITGEN)
+     &            nBasisMax,Arr,nBasis,pGenGraph,EXCITGEN)
          USE symexcit2
          use constants, only: dp
          USE PrecalcData , only : PRE_TAY,TPREVAR
@@ -3583,7 +3584,6 @@ C                     CALL WRITEDET(6,NK,NEL,.TRUE.)
 
          TYPE(BasisFN) G1(nBasis)
          INTEGER nBasisMax(*)
-         HElement_t UMat(*)
          REAL*8 Arr(nBasis,2)
          INTEGER nBasis,IC,INODE2(NEL)
          REAL*8 pGen, pGenGraph
@@ -3633,8 +3633,8 @@ C.. Setup the excit generator for the last vertex
 C.. Count the excitations (and generate a random one which we throw)
                 CALL GENSYMEXCITIT2(iGraph(1,i),NEL,G1,NBASIS,
      &              .TRUE.,NEWEX,INODE2,IC,0,STORE,3)
-                CALL GENRANDSYMEXCITIT2(iGraph(1,i),NEL,G1,NBASIS,
-     &               NBASISMAX,NEWEX,INODE2,ISEED,IC,0,UMAT,Arr,PGEN)
+                CALL GENRANDSYMEXCITIT2(iGraph(1,i),NEL,
+     &               NEWEX,INODE2,ISEED,IC,PGEN)
 !
                 DO j=0,iV-1
                     IF(i.EQ.j) THEN

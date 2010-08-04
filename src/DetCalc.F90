@@ -536,7 +536,7 @@ CONTAINS
             ELSE
 !I_P we've replaced by 0
                CALL HDIAG_NH(NDET,NBLOCKSTARTS,NBLOCKS,NEL,NMRKS,NBASISMAX,NBASIS,G1,BRR, &
-     &            ECORE,BETA,0,IFDET,ARR,BLOCKSYM)
+     &            BETA,0,IFDET,ARR,BLOCKSYM)
 !C.. We're not storing the energies, so we pretend we weren't asked for
 !C.. them
                TENERGY=.FALSE.
@@ -553,7 +553,7 @@ CONTAINS
 
          EXEN=CALCMCEN(NEVAL,W,BETA)
          WRITE(6,"(A,F19.9)") "EXACT E(BETA)=",EXEN
-         GSEN=CALCDLWDB(IFDET,NDET,NEVAL,CK,W,BETA,0.D0)
+         GSEN=CALCDLWDB(IFDET,NDET,NEVAL,CK,W,BETA)
          WRITE(6,"(A,F19.9)") "EXACT DLWDB(D0)=",GSEN
          WRITE(6,"(A,F19.9)") "GROUND E=",W(1)
 !C.. END ENERGY CALC
@@ -827,7 +827,7 @@ CONTAINS
 !C..
       IF(TEnergy) THEN
           IF(.NOT.TCSFOLD) THEN
-             CALL CFF_CHCK(NDET,NEVAL,NMRKS,NBASISMAX,NEL,G1,CK,ALAT,TKE,nBasis,ILOGGING)
+             CALL CFF_CHCK(NDET,NEVAL,NMRKS,NEL,G1,CK,TKE)
           ELSE
              DO I=1,NEVAL
                 TKE(I)=0.D0
@@ -918,7 +918,7 @@ CONTAINS
           CALL GEN_XCHOLE(CK,PSIR,IOBS,JOBS,KOBS,G1,SITAB,NMAX,NMSH,nBasis,IXD,IYD,IZD,RHO,.TRUE.,XCHOLE,SPAC,ALAT,OMEGA,NMRKS,NDET,NEVAL,NEL)
           CALL WRITE_RHO(10,'COMPXCHOLE',XCHOLE,NMSH,NMSH,NMSH,ALAT,.FALSE.,.TRUE.,RS)
 !C..
-          CALL XCHOLES(CK,PSIR,IOBS,JOBS,KOBS,G1,SITAB,NMAX,NMSH,nBasis,RHO,XCHOLE,SPAC,RS,ALAT,DLINE,OMEGA,NMRKS,NDET,NEL,NEVAL)
+          CALL XCHOLES(CK,PSIR,IOBS,JOBS,KOBS,G1,SITAB,NMAX,NMSH,nBasis,RHO,XCHOLE,SPAC,RS,ALAT,OMEGA,NMRKS,NDET,NEL,NEVAL)
         ENDIF
     End Subroutine CalcRhoOfR
     Subroutine CalcFoDM()
@@ -1180,12 +1180,12 @@ END MODULE DetCalc
       END
 
 !  Given an exact calculation of eigen-vectors and -values, calculate the expectation value of E~(Beta)_I for det I
-      REAL*8 FUNCTION CALCDLWDB(I,NDET,NEVAL,CK,W,BETA,ETRIAL)
+      REAL*8 FUNCTION CALCDLWDB(I,NDET,NEVAL,CK,W,BETA)
          use constants, only: dp
          IMPLICIT NONE
          INTEGER NDET,NEVAL,IK,I
          HElement_t CK(NDET,NEVAL)
-         REAL*8  W(NEVAL),BETA,DNORM,EN,ETRIAL
+         REAL*8  W(NEVAL),BETA,DNORM,EN
          EN=0.D0
          DNORM=0.D0
          DO IK=1,NEVAL
@@ -1196,7 +1196,7 @@ END MODULE DetCalc
          RETURN
       END
 
-      SUBROUTINE CFF_CHCK(NDET,NEVAL,NM,NBASISMAX,NEL,G1,CG,ALAT,TKE,NHG,ILOGGING)
+      SUBROUTINE CFF_CHCK(NDET,NEVAL,NM,NEL,G1,CG,TKE)
       use constants, only: dp
       use util_mod, only: get_free_unit
       USE OneEInts, only : GetTMATEl
@@ -1205,10 +1205,8 @@ END MODULE DetCalc
       IMPLICIT NONE
       HElement_t CG(NDET,NEVAL)
       INTEGER NM(NEL,*),NDET,NEL,NEVAL, iunit
-      REAL*8 ALAT(3),TKE(NEVAL)
-      INTEGER NBASISMAX(3,2),NHG,ILOGGING
+      REAL*8 TKE(NEVAL)
       TYPE(BASISFN) G1(*)
-      CHARACTER*255 STR
       REAL*8 PI,S,SUM1
       real(dp) AUX
       INTEGER I,J,IN,IEL,L
@@ -1277,16 +1275,18 @@ END MODULE DetCalc
          HElement_t CK(NEVAL)
          type(BasisFn) G1(nBasis)
          REAL*8 W(NEVAL),BETA,ECORE
-         REAL*8 DLWDBS(NDET),WLRIS(NDET),WLSIS(NDET),EN
-         real*8 CALCDLWDB, DMONTECARLOEXWI
-         INTEGER I
-         LOGICAL TWARN
+
+         ! Avoid compiler warnings
+         ndet = ndet; neval = neval; ck(1) = ck(1); W(1) = W(1); beta = beta
+         i_p = i_p; iLogging = iLogging; ecore = ecore; imcsteps = imcsteps
+         g1(1) = g1(1); nmrks(1,1) = nmrks(1,1); nel = nel; nbasis = nbasis
+         nbasismax(1,1) = nbasismax(1,1); brr(1) = brr(1); ieqsteps = ieqsteps
          
          ! Cray compiler barfs if DOEXMC isn't defined.  Weird...
          DOEXMC = 0.0
 !         DO I=1,NDET
 !            CALL CALCRHOPII(I,NDET,NEVAL,CK,W,BETA,I_P,WLRIS(I),WLSIS(I),TWARN)
-!            DLWDBS(I)=CALCDLWDB(I,NDET,NEVAL,CK,W,BETA,ECORE)
+!            DLWDBS(I)=CALCDLWDB(I,NDET,NEVAL,CK,W,BETA)
 !         ENDDO
 !         STOP "DMONTECARLOEXWI is no longer functional."
          call stop_all('DMONTECARLOEXWI','No longer functional')

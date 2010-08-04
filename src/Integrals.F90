@@ -493,7 +493,7 @@ contains
          !Allocate(UMat(1), stat=ierr)
          LogAlloc(ierr, 'UMat', 1,HElement_t_SizeB, tagUMat)
          CALL SetupTMAT(nBasis,2,TMATINT)
-         Call ReadDalton1EIntegrals(G1,nBasis,Arr,Brr,ECore)
+         Call ReadDalton1EIntegrals(G1,nBasis,ECore)
          Call ReadDF2EIntegrals(nBasis,I)
       ELSEIF(TREADINT.AND.tRIIntegrals) THEN
          call shared_allocate ("umat", umat, (/1/))

@@ -139,8 +139,8 @@ contains
                         id3 = GTID(k)
                         id4 = GTID(l)
                         if (tHub) then
-                            call SetupSym (nBasisMax, ka)
-                            call SetupSym (nBasisMax, kb)
+                            call SetupSym (ka)
+                            call SetupSym (kb)
                             call AddElecSym (k, G1, nBasisMax, ka)
                             call AddElecSym (l, G1, nBasisMax, ka)
                             call AddElecSym (i, G1, nBasisMax, kb)
@@ -337,8 +337,8 @@ contains
         HElement_t :: hel
         type(BasisFn) :: ka, kb
 
-        call SetupSym (nBasisMax, ka)
-        call SetupSym (nBasisMax, kb)
+        call SetupSym (ka)
+        call SetupSym (kb)
         call AddElecSym (k*2, G1, nBasisMax, ka)
         call AddElecSym (l*2, G1, nBasisMax, ka)
         call AddElecSym (i*2, G1, nBasisMax, kb)

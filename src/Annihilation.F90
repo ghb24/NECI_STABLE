@@ -751,7 +751,7 @@ MODULE AnnihilationMod
                     IF(tTruncInitiator) CALL FlagifDetisInitiator(CurrentDets(0:NIfTot,i))
                 enddo
             ELSE
-                CALL MergeLists(TotWalkersNew,MaxWalkersPart,ValidSpawned,SpawnedParts(0:NIfTot,1:ValidSpawned))
+                CALL MergeLists(TotWalkersNew,ValidSpawned,SpawnedParts(0:NIfTot,1:ValidSpawned))
             ENDIF
         ELSE
             IF(TotWalkersNew.eq.0) THEN
@@ -777,7 +777,7 @@ MODULE AnnihilationMod
                     CurrentH(i)=HDiag
                 enddo
             ELSE
-                CALL MergeListswH(TotWalkersNew,MaxWalkersPart,ValidSpawned,SpawnedParts(0:NIfTot,1:ValidSpawned))
+                CALL MergeListswH(TotWalkersNew,ValidSpawned,SpawnedParts(0:NIfTot,1:ValidSpawned))
             ENDIF
 
         ENDIF

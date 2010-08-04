@@ -6,7 +6,7 @@
 !.. NTAY is the order of the Taylor expansion for U'
 !.. IC is the number of basis fns by which NI and NJ differ (or -1 if not known)
 !.. 
-SUBROUTINE CALCRHO2(NI,NJ,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,&
+SUBROUTINE CALCRHO2(NI,NJ,BETA,I_P,NEL,G1,NBASIS,NMSH,FCK,&
                      NMAX,ALAT,UMAT,RH,NTAY,IC2,ECORE)
       Use Determinants, only: get_helement, nUHFDet, &
                               E0HFDet
@@ -15,16 +15,16 @@ SUBROUTINE CALCRHO2(NI,NJ,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,&
       use global_utilities
       IMPLICIT NONE
       HElement_t UMat(*),RH
-      INTEGER I_P,I_HMAX,NTAY(2),NTRUNC,NEL,NBASIS,nBasisMax(5,*)
+      INTEGER I_P,NTAY(2),NEL,NBASIS
       INTEGER NI(NEL),NJ(NEL),NMAX,IC,IC2
       REAL*8 BETA,ECORE
       LOGICAL LSAME      
-      INTEGER NMSH,I,BRR(NBASIS),J,IGETEXCITLEVEL
+      INTEGER NMSH,IGETEXCITLEVEL
       type(timer), save :: proc_timer
       TYPE(BasisFN) G1(*)
       COMPLEX*16 FCK(*)
       REAL*8 ALAT(3)  
-      HElement_t hE,hE2,UExp,B,EDIAG
+      HElement_t hE,UExp,B,EDIAG
       IF(NTAY(1).LT.0) THEN
 !.. We've actually hidden a matrix of rhos in the coeffs for calcing RHO
          CALL GETRHOEXND(NI,NJ,NEL,BETA,NMSH,FCK,UMAT,RH)
@@ -133,11 +133,11 @@ SUBROUTINE CALCRHO2(NI,NJ,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,&
 !Partition with Trotter with H(0) having just the Fock Operators.  Taylor diagonal to zeroeth order, and off-diag to 1st.
 ! Instead of 
          IF(LSAME) THEN
-            call GetH0ElementDCCorr(nUHFDet,nI,nEl,nBasisMax,G1,nBasis,Brr,NMSH,FCK,NMAX,ALAT,UMat,ECore,EDiag)
+            call GetH0ElementDCCorr(nUHFDet,nI,nEl,G1,nBasis,NMAX,ECore,EDiag)
             RH=EXP(-B*EDiag)
          ELSE
-            call GetH0ElementDCCorr(nUHFDet,nI,nEl,nBasisMax,G1,nBasis,Brr,NMSH,FCK,NMAX,ALAT,UMat,ECore,UExp)
-            call GetH0ElementDCCorr(nUHFDet,nJ,nEl,nBasisMax,G1,nBasis,Brr,NMSH,FCK,NMAX,ALAT,UMat,ECore,EDiag)
+            call GetH0ElementDCCorr(nUHFDet,nI,nEl,G1,nBasis,NMAX,ECore,UExp)
+            call GetH0ElementDCCorr(nUHFDet,nJ,nEl,G1,nBasis,NMAX,ECore,EDiag)
             EDiag=(UExp+EDiag)/(2.D0)
             UExp=get_helement(nI, nJ, IC)
             UExp=-B*UExp
@@ -157,7 +157,7 @@ SUBROUTINE CALCRHO2(NI,NJ,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,&
 !.. Calculate the 2nd order term in rho for non diag elements
 !.. IC2 is the number of basis fns that differ in NI and NJ (or -1 if not known)
 
-     FUNCTION Rho2OrderND2(NI,NJ,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMat,IC2,ECORE)
+     FUNCTION Rho2OrderND2(NI,NJ,NEL,NBASISMAX,G1,NBASIS,IC2)
 !.. We use a crude method and generate all possible 0th, 1st, and 2nd
 !.. excitations of I and of J.  The intersection of these lists is the
 !.. selection of dets we want.
@@ -167,14 +167,11 @@ SUBROUTINE CALCRHO2(NI,NJ,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,&
          IMPLICIT NONE
          TYPE(BasisFN) G1(*)
          HElement_t Rho2OrderND2
-         COMPLEX*16 FCK(*)
-         REAL*8 ALAT(*),ECORE
-         HElement_t UMat(*)
-         INTEGER NEL,NBASIS,nBasisMax(5,*),BRR(*)
-         INTEGER NI(NEL),NJ(NEL),IC2,NMSH,NMAX
+         INTEGER NEL,NBASIS,nBasisMax(5,*)
+         INTEGER NI(NEL),NJ(NEL),IC2
          INTEGER LSTI(NEL,NBASIS*NBASIS*NEL*NEL)
          INTEGER LSTJ(NEL,NBASIS*NBASIS*NEL*NEL)
-         INTEGER NLISTI, NLISTJ, IC,I,J,ICC
+         INTEGER NLISTI, NLISTJ, IC,I,J
          INTEGER ICI(NBASIS*NBASIS*NEL*NEL)
          INTEGER ICJ(NBASIS*NBASIS*NEL*NEL),NLISTMAX
          INTEGER CMP,IGETEXCITLEVEL,ICMPDETS
@@ -214,7 +211,7 @@ SUBROUTINE CALCRHO2(NI,NJ,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,&
 !  Get a matrix element of the double-counting corrected unperturbed Hamiltonian.
 !  This is just the sum of the Hartree-Fock eigenvalues 
 !   with the double counting subtracted, Sum_i eps_i - 1/2 Sum_i,j <ij|ij>-<ij|ji>.  (i in HF det, j in excited det)
-      subroutine GetH0ElementDCCorr(nHFDet,nJ,nEl,nBasisMax,G1,nBasis,Brr,NMSH,FCK,Arr,ALAT,UMat,ECore,hEl)
+      subroutine GetH0ElementDCCorr(nHFDet,nJ,nEl,G1,nBasis,Arr,ECore,hEl)
          use constants, only: dp
          use Integrals, only: GetUMatEl
          use UMatCache
@@ -222,14 +219,9 @@ SUBROUTINE CALCRHO2(NI,NJ,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,&
          implicit none
          integer nHFDet(nEl),nJ(nEl),nEl,nBasis
          type(BasisFN) G1(*)
-         integer Brr(nBasis),nBasisMax(5,*)
-         HElement_t UMat(*)  
          HElement_t hEl
          real*8 Arr(nBasis,2),ECore
          integer i,j
-         INTEGER NMSH
-         COMPLEX*16 FCK(*)
-         REAL*8 ALAT(3)
          integer IDHF(nEl),IDJ(nEl)
          hEl=(ECore)
          do i=1,nEl
@@ -240,10 +232,10 @@ SUBROUTINE CALCRHO2(NI,NJ,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,&
          do i=1,nEl
             do j=1,nEl
 !Coulomb term
-               hEl=hEl-(0.5d0)*GetUMatEl(nBasisMax,UMat,ALat,nBasis,nBasisMax(2,3),G1,IDHF(i),IDJ(j),IDHF(i),IDJ(j))
+               hEl=hEl-(0.5d0)*GetUMatEl(IDHF(i),IDJ(j),IDHF(i),IDJ(j))
                if(G1(nHFDet(i))%Ms.eq.G1(nJ(j))%Ms) then
 !Exchange term
-                  hEl=hEl+(0.5d0)*GetUMatEl(nBasisMax,UMat,ALat,nBasis,nBasisMax(2,3),G1,IDHF(i),IDJ(j),IDJ(j),IDHF(i))
+                  hEl=hEl+(0.5d0)*GetUMatEl(IDHF(i),IDJ(j),IDJ(j),IDHF(i))
                endif
             enddo
          enddo

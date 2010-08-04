@@ -31,8 +31,8 @@ C.. We'll start with I_H=2
 C.. Set the first node to I_I
 c         OPEN(10,FILE="HPATHS",STATUS="UNKNOWN")
          CALL NECI_ICOPY(NEL,NI,1,IPATH(1:NEL,0),1)
-         CALL CALCRHO2(NI,NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,
-     &            BRR,NMSH,FCK,NMAX,ALAT,UMAT,RH,NTAY,0,ECORE)
+         CALL CALCRHO2(NI,NI,BETA,I_P,NEL,G1,NBASIS,
+     &            NMSH,FCK,NMAX,ALAT,UMAT,RH,NTAY,0,ECORE)
          RHOII(0)=RH
          WLRI=LOG(RHOII(0))
          TOTAL=1.D0
@@ -123,14 +123,14 @@ C.. 1 at end means we need at least 1 excitation
 
          ENDIF
 C.. Find RHO_II for this node
-         CALL CALCRHO2(INODE,INODE,BETA,I_P,NEL,NBASISMAX,
-     &   G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,RH,NTAY,0,ECORE)
+         CALL CALCRHO2(INODE,INODE,BETA,I_P,NEL,
+     &   G1,NBASIS,NMSH,FCK,NMAX,ALAT,UMAT,RH,NTAY,0,ECORE)
          RHOII(I_HIND)=RH
          I=1
 C.. We must recurse over all the nodes connected to this node
          DO WHILE (I.LE.NLIST)
           CALL CALCRHO2(INODE,LSTE(1:NEL,I,I_HIND),BETA,I_P,NEL,
-     &      NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,RH,NTAY,
+     &      G1,NBASIS,NMSH,FCK,NMAX,ALAT,UMAT,RH,NTAY,
      &            ICE(I,I_HIND),ECORE)
 C.. see if it's worth going further
           IF(ABS(RH).GT.RHOEPS) THEN
