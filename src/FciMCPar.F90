@@ -14,7 +14,7 @@ MODULE FciMCParMod
     use SystemData, only: nel, Brr, nBasis, nBasisMax, LMS, tHPHF, tHub, &
                           tReal, tRotatedOrbs, tFindCINatOrbs, tFixLz, &
                           LzTot, tUEG, tLatticeGens, tCSF, G1, Arr, &
-                          tNoBrillouin
+                          tNoBrillouin,tKPntSym
     use bit_reps, only: NIfD, NIfTot, NIfDBO, NIfY
     use CalcData, only: InitWalkers, NMCyc, DiagSft, Tau, SftDamp, StepsSft, &
                         OccCASorbs, VirtCASorbs, tFindGroundDet, NEquilSteps,&
@@ -86,6 +86,11 @@ MODULE FciMCParMod
         INTEGER :: MaxWalkers,MinWalkers
         real*8 :: AllTotWalkers,MeanWalkers,Inpair(2),Outpair(2)
         integer, dimension(lenof_sign) :: tmp_sgn
+
+		FDET(1)=1
+		FDet(2)=2
+		FDet(3)=3
+		FDet(4)=5
 
         TDebug=.false.  !Set debugging flag
 
@@ -670,7 +675,7 @@ MODULE FciMCParMod
         ! It would be nice to fix this properly
         if (tCSF) exFlag = 7
 
-		CALL TestGenRandSymExcitNU(HFDet,NMCyc,pDoubles,3,1000)
+		CALL TestGenRandSymExcitNU(HFDet,NMCyc,pDoubles,3,10000)
 		CALL STOP_All('erwg','Finished Test')
 
 
@@ -3719,13 +3724,12 @@ MODULE FciMCParMod
         INTEGER :: DetLT,VecSlot,error,HFConn,iMaxExcit,nStore(6),nJ(Nel),BRR2(nBasis),LargestOrb,nBits,HighEDet(NEl)
         INTEGER(KIND=n_int) :: iLutTemp(0:NIfDBO)
         HElement_t :: rh,TempHii
-        TYPE(BasisFn) HFSym
         REAL*8 :: TotDets,SymFactor,r
         CHARACTER(len=*), PARAMETER :: this_routine='SetupParameters'
         CHARACTER(len=12) :: abstr
         LOGICAL :: tSuccess,tFoundOrbs(nBasis),tTurnBackBrillouin,FoundPair
         REAL :: Gap
-        INTEGER :: nSingles,nDoubles,HFLz,ChosenOrb
+        INTEGER :: nSingles,nDoubles,HFLz,ChosenOrb,KPnt(3)
 
 !        CALL MPIInit(.false.)       !Initialises MPI - now have variables iProcIndex and nProcessors
         WRITE(6,*) ""
@@ -3780,7 +3784,11 @@ MODULE FciMCParMod
         enddo
         HFHash=CreateHash(HFDet)
         CALL GetSym(HFDet,NEl,G1,NBasisMax,HFSym)
-        IF(tDebug) WRITE(6,"(A,I5)") "Symmetry of reference determinant is: ",INT(HFSym%Sym%S,4)
+        WRITE(6,"(A,I10)") "Symmetry of reference determinant is: ",INT(HFSym%Sym%S,4)
+		IF(tKPntSym) THEN
+			CALL DecomposeAbelianSym(HFSym%Sym%S,KPnt)
+			WRITE(6,"(A,3I5)") "Crystal momentum of reference determinant is: ",KPnt(1),KPnt(2),KPnt(3)
+		ENDIF
         IF(tFixLz) THEN
             CALL GetLz(HFDet,NEl,HFLz)
             WRITE(6,"(A,I5)") "Ml value of reference determinant is: ",HFLz

@@ -1,5 +1,6 @@
 MODULE FciMCData
       use, intrinsic :: iso_c_binding
+	  use SystemData, only: BasisFN
       use constants, only: dp, int64, n_int, lenof_sign
       use global_utilities
 
@@ -169,6 +170,8 @@ MODULE FciMCData
 
       ! Store data about all processors for calculating load balancing
       integer(int64) :: MaxWalkersProc, MinWalkersProc
+
+	  TYPE(BasisFN) :: HFSym
 
 
       ! ********************** FCIMCPar control variables *****************

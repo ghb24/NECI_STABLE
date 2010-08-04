@@ -265,6 +265,7 @@ MODULE GenRandSymExcitNUMod
 !               MlA = Ml of the a orbital chosen
 !               MlB = Required Ml of the b orbital still to be chosen
         CALL PickAOrb(nI,iSpn,ILUT,ClassCountUnocc2,NExcitA,Elec1Ind,Elec2Ind,SpinOrbA,OrbA,SymA,SymB,SymProduct,SumMl,MlA,MlB,ForbiddenOrbs,tAOrbFail)
+!		IF(Counter.eq.3) WRITE(6,*) "AORB: ",OrbA,ForbiddenOrbs,SymB
         IF(tAOrbFail) THEN
 !            WRITE(6,*) "A ORB FAIL"
             nJ(1)=0
@@ -332,6 +333,7 @@ MODULE GenRandSymExcitNUMod
 !We want to calculate the number of possible B's given the symmetry and spin it has to be since we have already picked A.
 !We have calculated in NExcit the number of orbitals available for B given A, but we also need to know the number of orbitals to choose from for A IF
 !we had picked B first.
+!		IF(Counter.eq.3) WRITE(6,*) "iSpn, SpinOrbA, OrbA, SymA, SymB: ",iSpn, SpinOrbA, OrbA, SymA, SymB
         IF(iSpn.eq.2) THEN
 !If iSpn=2, then we want to find a spinorbital of the opposite spin of SpinOrbA
             IF(SpinOrbA.eq.-1) THEN
@@ -366,6 +368,8 @@ MODULE GenRandSymExcitNUMod
             NExcit=NExcit-1     !Subtract 1 from the number of possible orbitals since we cannot choose orbital A.
             NExcitOtherWay=NExcitOtherWay-1     !The same goes for the probabilities the other way round.
         ENDIF
+
+!		IF(Counter.eq.3) WRITE(6,*) "NExcit, NExcitOtherWay: ",NExcit, NExcitOtherWay
 
 !All orbitals with the specified symmetry and spin should be allowed unless it is OrbA. There will be NExcit of these. Pick one at random.
 !Check that orbital is not in ILUT and is not = OrbA (Although this can only happen in the circumstance indicated earlier).
@@ -623,7 +627,7 @@ MODULE GenRandSymExcitNUMod
                 Ind=1
 
                 do i=0,nSymLabels-1
-!Run though all symmetries of possible "a" orbitals. If there aren't any, then we know the corresponding "b" orbitals are excluded.
+!Run though all symmetries of possible "a" orbital syms. If there aren't any, then we know the corresponding "b" orbitals are excluded.
                     IF(ClassCountUnocc2(Ind).eq.0) THEN
 !This symmetry has no unoccupied alpha orbitals - does its symmetry conjugate have any unoccupied beta orbitals which are now forbidden?
 !If there are no unoccupied orbitals in this conjugate symmetry, then it won't increase the forbidden orbital number, since it can never be chosen.
@@ -2545,6 +2549,7 @@ SUBROUTINE SpinOrbSymSetup(tRedoSym)
     IF(tNoSymGenRandExcits.or.tUEG) THEN
         ScratchSize=2
     ENDIF
+!	WRITE(6,*) "SCRATCHSIZE: ",ScratchSize,tNoSymGenRandExcits,tUEG
 
 	!Create SpinOrbSymLabel array.
 	!This array will return a number between 0 and nSymLabels-1.
@@ -2650,18 +2655,18 @@ SUBROUTINE SpinOrbSymSetup(tRedoSym)
     ELSE
         do i=1,nBasis
             IF(G1(i)%Ms.eq.1) THEN
-				WRITE(6,*) "Index: ",ClassCountInd(1,SpinOrbSymLabel(i),G1(i)%Ml)
-				WRITE(6,*) i,"SpinOrbSymLabel: ",SpinOrbSymLabel(i)
+!				WRITE(6,*) "Index: ",ClassCountInd(1,SpinOrbSymLabel(i),G1(i)%Ml)
+!				WRITE(6,*) i,"SpinOrbSymLabel: ",SpinOrbSymLabel(i)
 				OrbClassCount(ClassCountInd(1,SpinOrbSymLabel(i),G1(i)%Ml))=OrbClassCount(ClassCountInd(1,SpinOrbSymLabel(i),G1(i)%Ml))+1
             ELSE
-				WRITE(6,*) "Index: ",ClassCountInd(1,SpinOrbSymLabel(i),G1(i)%Ml)
-				WRITE(6,*) i,"SpinOrbSymLabel: ",SpinOrbSymLabel(i)
+!				WRITE(6,*) "Index: ",ClassCountInd(1,SpinOrbSymLabel(i),G1(i)%Ml)
+!				WRITE(6,*) i,"SpinOrbSymLabel: ",SpinOrbSymLabel(i)
                 OrbClassCount(ClassCountInd(2,SpinOrbSymLabel(i),G1(i)%Ml))=OrbClassCount(ClassCountInd(2,SpinOrbSymLabel(i),G1(i)%Ml))+1
             ENDIF
         enddo
     ENDIF
 
-	WRITE(6,*) "*******",OrbClassCount(:)
+!	WRITE(6,*) "*******",OrbClassCount(:)
 
 
 !        ELSE
@@ -2803,7 +2808,7 @@ lp2: do while(.true.)
 			IF(IsMomAllowedDet(nJ)) THEN
 				excitcount=excitcount+1
 				CALL EncodeBitDet(nJ,iLutnJ)
-				WRITE(25,*) excitcount,iExcit,iLutnJ(0)
+				WRITE(25,*) excitcount,iExcit,nJ(:)
 			ENDIF
 		ELSE
 			excitcount=excitcount+1
@@ -2859,6 +2864,9 @@ lp2: do while(.true.)
 		IF(tKPntSym) THEN
 			test=IsMomAllowedDet(nJ)
 		ENDIF
+		IF(iProcIndex.eq.1) THEN
+			WRITE(6,*) "nJ: ",nJ(:)
+		ENDIF
         ! This is implemented for the old excitation generators, that could only handle momentum conservation under
         ! zero momentum conditions
         IF(tUEG.and.(.not.tLatticeGens)) THEN
@@ -2899,7 +2907,8 @@ lp2: do while(.true.)
 !        ENDIF
 
         IF(IC.eq.1) THEN
-            SinglesHist(ExcitMat(1,1),ExcitMat(2,1))=SinglesHist(ExcitMat(1,1),ExcitMat(2,1))+(1.D0/pGen)
+			IF(ExcitMat(1,1).eq.1.and.ExcitMat(2,1).eq.1) CALL STop_All("LUVYLUY","1->1 transition")
+			SinglesHist(ExcitMat(1,1),ExcitMat(2,1))=SinglesHist(ExcitMat(1,1),ExcitMat(2,1))+(1.D0/pGen)
 !            SinglesNum(ExcitMat(1,1),ExcitMat(2,1))=SinglesNum(ExcitMat(1,1),ExcitMat(2,1))+1
         ELSE
 !Have to make sure that orbitals are in the same order...
@@ -2938,90 +2947,128 @@ lp2: do while(.true.)
 
     enddo
 
+	WRITE(6,*) "SinglesHist: ",SinglesHist(:,:)
+
     CLOSE(9)
 
 #ifdef PARALLEL
+	CALL MPI_BARRIER(MPI_COMM_WORLD,error)
     CALL MPI_Reduce(DoublesHist,AllDoublesHist,nBasis**4,MPI_DOUBLE_PRECISION,MPI_SUM,0,MPI_COMM_WORLD,error)
-    CALL MPI_Reduce(SinglesHist,AllSinglesHist,nBasis**2,MPI_DOUBLE_PRECISION,MPI_SUM,0,MPI_COMM_WORLD,error)
+	WRITE(6,*) "ERROR: ",error
+	CALL MPI_BARRIER(MPI_COMM_WORLD,error)
+	CALL MPIReduce(SinglesHist,MPI_SUM,AllSinglesHist)
+!    CALL MPI_Reduce(SinglesHist,AllSinglesHist,nBasis**2,MPI_DOUBLE_PRECISION,MPI_SUM,0,MPI_COMM_WORLD,error)
+	WRITE(6,*) "ERROR: ",error
+	CALL MPI_BARRIER(MPI_COMM_WORLD,error)
 #else
     AllDoublesHist=DoublesHist
     AllSinglesHist=SinglesHist
 #endif
 
+	WRITE(6,*) "AllSinglesHist: ",AllSinglesHist(:,:)
+	CALL FLUSH(6)
+	CALL MPI_BARRIER(MPI_COMM_WORLD,error)
+
 !Now run through arrays normalising them so that numbers are more managable.
-    OPEN(8,FILE="DoublesHist",STATUS="UNKNOWN")
-    DetNum=0
-    do i=1,nBasis-1
-        do j=i+1,nBasis
-            do k=1,nBasis-1
-                do l=k+1,nBasis
-                    IF(AllDoublesHist(i,j,k,l).gt.0.D0) THEN
-!                        DoublesHist(i,j,k,l)=DoublesHist(i,j,k,l)/real(Iterations,8)
-                        DetNum=DetNum+1
-                        ExcitMat(1,1)=i
-                        ExcitMat(1,2)=j
-                        ExcitMat(2,1)=k
-                        ExcitMat(2,2)=l
-                        CALL FindExcitBitDet(iLut,iLutnJ,2,ExcitMat)
-                        WRITE(8,"(I12,F20.12,4I5,I15)") DetNum,AllDoublesHist(i,j,k,l)/(real(Iterations,8)*nProcessors),i,j,k,l,iLutnJ(0)
-                        IF(tHub.or.tUEG) THEN
-                            write(8,*) "#",G1(i)%k(1),G1(i)%k(2)
-                            write(8,*) "#",G1(j)%k(1),G1(j)%k(2)
-                            write(8,*) "#",G1(k)%k(1),G1(k)%k(2)
-                            write(8,*) "#",G1(l)%k(1),G1(l)%k(2)
-                        ENDIF
-                    ENDIF
-                enddo
-            enddo
-        enddo
-    enddo
-    CLOSE(8)
-    WRITE(6,*) DetNum," Double excitations found from nI"
-    OPEN(9,FILE="SinglesHist",STATUS="UNKNOWN")
-    DetNumS=0
-    do i=1,nBasis
-        do j=1,nBasis
-            IF(AllSinglesHist(i,j).gt.0.D0) THEN
-                DetNumS=DetNumS+1
-                ExcitMat(1,1)=i
-                ExcitMat(2,1)=j
-                CALL FindExcitBitDet(iLut,iLutnJ,1,ExcitMat)
-                WRITE(9,*) DetNumS,AllSinglesHist(i,j)/(real(Iterations,8)*nProcessors),iLutnJ(0)
-            ENDIF
-        enddo
-    enddo
-    CLOSE(9)
-    WRITE(6,*) DetNumS," Single excitations found from nI"
-    IF((DetNum+DetNumS).ne.ExcitCount) THEN
-        CALL ConstructClassCounts(nI,ClassCount2,ClassCountUnocc2)
-        WRITE(6,*) "Total determinants = ", ExcitCount
-!        WRITE(6,*) "ClassCount2(1,:)= ",ClassCount2(1,:)
-!        WRITE(6,*) "ClassCount2(2,:)= ",ClassCount2(2,:)
-        WRITE(6,*) "***"
-!        WRITE(6,*) "ClassCountUnocc2(1,:)= ",ClassCountUnocc2(1,:)
-!        WRITE(6,*) "ClassCountUnocc2(2,:)= ",ClassCountUnocc2(2,:)
-        CALL Stop_All("TestGenRandSymExcitNU","Not all excitations accounted for...")
-    ENDIF
+	IF(iProcIndex.eq.0) THEN
+		OPEN(8,FILE="DoublesHist",STATUS="UNKNOWN")
+		DetNum=0
+		do i=1,nBasis-1
+			do j=i+1,nBasis
+				do k=1,nBasis-1
+					do l=k+1,nBasis
+						IF(AllDoublesHist(i,j,k,l).gt.0.D0) THEN
+	!                        DoublesHist(i,j,k,l)=DoublesHist(i,j,k,l)/real(Iterations,8)
+							DetNum=DetNum+1
+							ExcitMat(1,1)=i
+							ExcitMat(1,2)=j
+							ExcitMat(2,1)=k
+							ExcitMat(2,2)=l
+							CALL FindExcitBitDet(iLut,iLutnJ,2,ExcitMat)
+							WRITE(8,"(I12,F20.12,2I5,A,2I5,I15)") DetNum,AllDoublesHist(i,j,k,l)/(real(Iterations,8)*nProcessors),i,j,"->",k,l,iLutnJ(0)
+							WRITE(6,*) DetNum,DoublesHist(i,j,k,l),i,j,"->",k,l
+							IF(tHub.or.tUEG) THEN
+								write(8,*) "#",G1(i)%k(1),G1(i)%k(2)
+								write(8,*) "#",G1(j)%k(1),G1(j)%k(2)
+								write(8,*) "#",G1(k)%k(1),G1(k)%k(2)
+								write(8,*) "#",G1(l)%k(1),G1(l)%k(2)
+							ENDIF
+						ENDIF
+					enddo
+				enddo
+			enddo
+		enddo
+		CLOSE(8)
+		WRITE(6,*) DetNum," Double excitations found from nI"
+		OPEN(9,FILE="SinglesHist",STATUS="UNKNOWN")
+		DetNumS=0
+		WRITE(6,*) "*****,SinglesHist(1,1):",SinglesHist(1,1)
+		WRITE(6,*) "*****,AllSinglesHist(1,1):",AllSinglesHist(1,1)
+		do i=1,nBasis
+			do j=1,nBasis
+				IF(AllSinglesHist(i,j).gt.0.D0) THEN
+					DetNumS=DetNumS+1
+					ExcitMat(1,1)=i
+					ExcitMat(2,1)=j
+					CALL FindExcitBitDet(iLut,iLutnJ,1,ExcitMat)
+					WRITE(9,*) DetNumS,AllSinglesHist(i,j)/(real(Iterations,8)*nProcessors),i,"->",j
+					WRITE(6,*) DetNumS,AllSinglesHist(i,j),i,"->",j
+				ENDIF
+			enddo
+		enddo
+		CLOSE(9)
+		WRITE(6,*) DetNumS," Single excitations found from nI"
+		IF((DetNum+DetNumS).ne.ExcitCount) THEN
+			CALL ConstructClassCounts(nI,ClassCount2,ClassCountUnocc2)
+			WRITE(6,*) "Total determinants = ", ExcitCount
+			WRITE(6,*) "ClassCount2(:)= ",ClassCount2(:)
+			WRITE(6,*) "***"
+			WRITE(6,*) "ClassCountUnocc2(:)= ",ClassCountUnocc2(:)
+			CALL Stop_All("TestGenRandSymExcitNU","Not all excitations accounted for...")
+		ENDIF
+	ENDIF
 
 END SUBROUTINE TestGenRandSymExcitNU
 
 LOGICAL FUNCTION IsMomAllowedDet(nJ)
 	use sym_mod
-	use SystemData , only : G1,NEl,Symmetry
+	use SystemData , only : G1,NEl,Symmetry,nBasisMax,BasisFN
+	use FciMCData , only : HFSym
+!	use GenRandSymExcitNUMod , only : Counter
 	IMPLICIT NONE
 	Type(Symmetry) :: SYM1
-	INTEGER :: i,nJ(NEl)
+	Type(BasisFN) :: iSym
+	INTEGER :: i,nJ(NEl),KPnt(3)
 
 	SYM1%S=0
 	do i=1,NEl
 		SYM1=SYMPROD(SYM1,G1(nJ(i))%Sym)
 	enddo
 
-	IF(SYM1%S.ne.0) THEN
-		CALL Stop_All("IsMomAllowedDet","Momentum forbidden excitation created.")
+	IF(SYM1%S.ne.HFSym%Sym%S) THEN
+		WRITE(6,*) "nJ: ",nJ(:)
+		WRITE(6,*) "HFSym,SYM1: ",HFSym%Sym%S,SYM1%S
+!		WRITE(6,*) "Counter: ",Counter
+		CALL DecomposeAbelianSym(SYM1%S,KPnt)
+		WRITE(6,"(A,3I5)") "KPnt for nJ: ",KPnt(1),KPnt(2),KPnt(3)
+		CALL Stop_All("IsMomAllowedDet","Momentum forbidden excitation created1.")
 	ELSE
 		IsMomAllowedDet=.true.
 	ENDIF
+
+	CALL GETSYM(nJ,NEl,G1,nBasisMax,iSym)
+
+	IF(iSym%Sym%S.ne.HFSym%Sym%S) THEN
+		WRITE(6,*) "nJ: ",nJ(:)
+		WRITE(6,*) "HFSym,SYM1: ",HFSym%Sym%S,iSym%Sym%S
+!		WRITE(6,*) "Counter: ",Counter
+		CALL DecomposeAbelianSym(iSym%Sym%S,KPnt)
+		WRITE(6,"(A,3I5)") "KPnt for nJ: ",KPnt(1),KPnt(2),KPnt(3)
+		CALL Stop_All("IsMomAllowedDet","Momentum forbidden excitation created2.")
+	ELSE
+		IsMomAllowedDet=.true.
+	ENDIF
+
 END FUNCTION IsMomAllowedDet
 
 
