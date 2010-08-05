@@ -42,6 +42,7 @@ MODULE FciMCParMod
     USE Logging , only : tPrintFCIMCPsi,tCalcFCIMCPsi,NHistEquilSteps,tPrintOrbOcc,StartPrintOrbOcc
     USE Logging , only : tHFPopStartBlock,tIterStartBlock,IterStartBlocking,HFPopStartBlocking,tInitShiftBlocking,tHistHamil,iWriteHamilEvery,HistInitPopsTag
     USE Logging , only : OrbOccs,OrbOccsTag,tPrintPopsDefault,iWriteBlockingEvery,tBlockEveryIteration,tHistInitPops,HistInitPopsIter,HistInitPops
+    USE Logging , only : FCIMCDebug
     USE SymData , only : nSymLabels
     USE dSFMT_interface , only : genrand_real2_dSFMT
     USE Parallel
@@ -73,8 +74,6 @@ MODULE FciMCParMod
 
     contains
 
-#ifdef PARALLEL
-
     SUBROUTINE FciMCPar(Weight,Energyxw)
 
         real(dp) :: Weight, Energyxw
@@ -83,7 +82,7 @@ MODULE FciMCParMod
         HElement_t :: Hamii
         LOGICAL :: TIncrement,tWritePopsFound,tSoftExitFound,tSingBiasChange
         REAL(4) :: s,etime,tstart(2),tend(2)
-        INTEGER :: MaxWalkers,MinWalkers
+        INTEGER(int64) :: MaxWalkers,MinWalkers
         real*8 :: AllTotWalkers,MeanWalkers,Inpair(2),Outpair(2)
         integer, dimension(lenof_sign) :: tmp_sgn
 
@@ -116,7 +115,7 @@ MODULE FciMCParMod
         call WriteFCIMCStats()
 
         ! Put a barrier here so all processes synchronise before we begin.
-        call MPI_Barrier(MPI_COMM_WORLD,error)
+        call MPIBarrier(error)
 
 
 !Start MC simulation...
@@ -261,7 +260,7 @@ MODULE FciMCParMod
             IF(tFindCINatOrbs) THEN
 !This routine takes the wavefunction Psi, calculates the one electron density matrix, and rotates the HF orbitals to produce a new ROFCIDUMP file.
                 CALL RotateOrbs() 
-                CALL MPI_Barrier(MPI_COMM_WORLD,error)
+                CALL MPIBarrier(error)
             ENDIF
         ENDIF
 
@@ -282,9 +281,9 @@ MODULE FciMCParMod
         ENDIF
 
 ! Print out some load balancing stats nicely to end.
-        CALL MPI_Reduce(TotWalkers,MaxWalkers,1,MPI_INTEGER,MPI_MAX,root,MPI_COMM_WORLD,error)
-        CALL MPI_Reduce(TotWalkers,MinWalkers,1,MPI_INTEGER,MPI_MIN,root,MPI_COMM_WORLD,error)
-        CALL MPI_AllReduce(Real(TotWalkers,dp),AllTotWalkers,1,MPI_DOUBLE_PRECISION,MPI_SUM,MPI_COMM_WORLD,error)
+        CALL MPIReduce(TotWalkers,MPI_MAX,MaxWalkers)
+        CALL MPIReduce(TotWalkers,MPI_MIN,MinWalkers)
+        CALL MPIAllReduce(Real(TotWalkers,dp),MPI_SUM,AllTotWalkers)
         if (iProcIndex.eq.Root) then
             MeanWalkers=AllTotWalkers/nProcessors
             write (6,'(/,1X,a55)') 'Load balancing information based on the last iteration:'
@@ -622,7 +621,7 @@ MODULE FciMCParMod
         logical :: tFilled, tParity, tHFFound, tHFFoundTemp
         real(dp) :: prob, HDiagCurr
         HElement_t :: HDiagTemp
-		character(len=*) , PARAMETER :: this_routine='PerformFCIMCycPar'
+        character(*), parameter :: this_routine = 'PerformFCIMCycPar' 
 
         call set_timer(Walker_Time,30)
 
@@ -633,7 +632,7 @@ MODULE FciMCParMod
                     Tau=Tau/10.D0
                     WRITE(6,'(A,F10.5)') 'Beginning truncated initiator calculation and reducing tau by a factor of 10. New tau is : ',Tau
                 ENDIF
-                CALL MPI_BCast(Tau,1,MPI_DOUBLE_PRECISION,root,MPI_COMM_WORLD,error)
+                CALL MPIBCast(Tau,root)
             ENDIF
             tTruncInitiator=.true.
         ENDIF
@@ -644,7 +643,7 @@ MODULE FciMCParMod
         HighPopPos=1
 
         ! Synchronise processors
-        CALL MPI_Barrier(MPI_COMM_WORLD,error)
+        CALL MPIBarrier(error)
 
         ! Reset iteration variables
         VecSlot = 1    ! Next position to write into CurrentDets
@@ -678,13 +677,15 @@ MODULE FciMCParMod
 		CALL TestGenRandSymExcitNU(HFDet,NMCyc,pDoubles,3,10000)
 		CALL STOP_All('erwg','Finished Test')
 
-
+        IFDEBUG(FCIMCDebug,3) write(6,"(A)") "TW: Walker  Det"
         do j=1,TotWalkers
             ! N.B. j indicates the number of determinants, not the number
             !      of walkers.
 
             ! Decode determinant from (stored) bit-representation.
-            ! write(6,*) j, CurrentDets(:,j)
+            IFDEBUG(FCIMCDebug,3) write(6,"(A,I10)",advance='no') "TW:", j
+            IFDEBUG(FCIMCDebug,3) call WriteBitDet(6,CurrentDets(:,j),.true.)
+
             call extract_bit_rep (CurrentDets(:,j), DetCurr, SignCurr, &
                                   FlagsCurr)
 
@@ -779,6 +780,9 @@ MODULE FciMCParMod
                                               iLutnJ, ic, walkExcitLevel, &
                                               child)
 
+                        IFDEBUG(FCIMCDebug,3) WRITE(6,"(A)",advance='no') "Creating child"
+                        IFDEBUG(FCIMCDebug,3) call write_det(6,nJ,.false.)
+                        IFDEBUG(FCIMCDebug,3) WRITE(6,"(10Z17.17)") iLutnJ(:)
                         call create_particle (iLutnJ, child)
                     
                     endif ! (child /= 0). Child created
@@ -793,6 +797,8 @@ MODULE FciMCParMod
                                CurrentDets(:,j), HDiagCurr, SignCurr, VecSlot)
 
         enddo ! Loop over determinants.
+
+        IFDEBUG(FCIMCDebug,2) WRITE(6,*) "Finished loop over determinants"
 
         IF(tPrintHighPop) CALL FindHighPopDet()
 
@@ -820,6 +826,8 @@ MODULE FciMCParMod
                                 - iter_data%ndied - iter_data%nannihil &
                                 - iter_data%naborted
         iter_data%update_iters = iter_data%update_iters + 1
+!        write(6,*) "BSST",iter_data%nborn,",", iter_data%ndied, ",",iter_data%nannihil,",",iter_data%naborted
+!        write(6,*) "ASST",iter_data%update_growth,",", TotParts, ",",tot_parts_tmp 
         ASSERT(all(iter_data%update_growth == TotParts - tot_parts_tmp))
 
     end subroutine
@@ -1077,20 +1085,20 @@ MODULE FciMCParMod
         call extract_sign(CurrentDets(:,HighPopNeg),TempSign)
         HighPopInNeg(1)=TempSign(1)
         HighPopInNeg(2)=iProcIndex
-        CALL MPI_AllReduce(HighPopinNeg,HighPopoutNeg,1,MPI_2INTEGER,MPI_MINLOC,MPI_COMM_WORLD,error)
+        CALL MPIAllReduceDatatype(HighPopinNeg,1,MPI_MINLOC,MPI_2INTEGER,HighPopoutNeg)
 
         call extract_sign(CurrentDets(:,HighPopPos),TempSign)
         HighPopInPos(1)=TempSign(1)
         HighPopInPos(2)=iProcIndex
-        CALL MPI_AllReduce(HighPopinPos,HighPopoutPos,1,MPI_2INTEGER,MPI_MAXLOC,MPI_COMM_WORLD,error)
+        CALL MPIAllReduceDatatype(HighPopinPos,1,MPI_MINLOC,MPI_2INTEGER,HighPopoutPos)
 
 !Now, on all processors, HighPopoutPos(1) is the highest positive population, and HighPopoutNeg(1) is the highest negative population.
 !HighPopoutPos(2) is the processor the highest population came from.
 
         DetNeg(:)=CurrentDets(:,HighPopNeg)
         DetPos(:)=CurrentDets(:,HighPopPos)
-        CALL MPI_Bcast(DetNeg,NIfTot+1,MpiDetInt,HighPopoutNeg(2),MPI_COMM_WORLD,error)
-        CALL MPI_Bcast(DetPos,NIfTot+1,MpiDetInt,HighPopoutPos(2),MPI_COMM_WORLD,error)
+        CALL MPIBcast(DetNeg,HighPopoutNeg(2))
+        CALL MPIBcast(DetPos,HighPopoutPos(2))
 
         if (iProcIndex == 0) then
             write (6, '(a, i10, a)') 'The most highly populated determinant &
@@ -1258,8 +1266,9 @@ MODULE FciMCParMod
         use Logging, only: tIncrementPops
         use constants, only: size_n_int,MpiDetInt,n_int
         REAL*8 :: TempSumNoatHF
-        INTEGER :: error,WalkersonNodes(0:nProcessors-1)
-        INTEGER :: Stat(MPI_STATUS_SIZE),Tag,Total,i,j,k
+        INTEGER :: error
+        INTEGER(int64) :: WalkersonNodes(0:nProcessors-1)
+        INTEGER :: Tag,Total,i,j,k
         INTEGER(KIND=n_int), ALLOCATABLE :: OrigParts(:,:)
         INTEGER :: OrigPartsTag=0
         integer :: iunit
@@ -1267,7 +1276,7 @@ MODULE FciMCParMod
         character(255) :: popsfile
         INTEGER, DIMENSION(lenof_sign) :: TempSign
 
-        CALL MPI_Barrier(MPI_COMM_WORLD,error)  !sync
+        CALL MPIBarrier(error)  !sync
 
 !First, make sure we have up-to-date information - again collect AllTotWalkers,AllSumNoatHF and AllSumENum...
 !        CALL MPI_Reduce(TotWalkers,AllTotWalkers,1,MPI_INTEGER,MPI_Sum,root,MPI_COMM_WORLD,error)    
@@ -1276,7 +1285,7 @@ MODULE FciMCParMod
         CALL MPISumRoot(SumENum,1,AllSumENum,Root)
 
 !We also need to tell the root processor how many particles to expect from each node - these are gathered into WalkersonNodes
-        CALL MPI_AllGather(TotWalkers,1,MPI_INTEGER,WalkersonNodes,1,MPI_INTEGER,MPI_COMM_WORLD,error)
+        CALL MPIAllGather(TotWalkers,WalkersonNodes,error)
 
         Tag=125
 !        WRITE(6,*) "Get Here"
@@ -1381,7 +1390,8 @@ MODULE FciMCParMod
 !We can overwrite the head nodes information, since we have now stored it elsewhere.
             do i=1,nProcessors-1
 !Run through all other processors...receive the data...
-                CALL MPI_Recv(CurrentDets(0:NIfTot,1:WalkersonNodes(i)),WalkersonNodes(i)*(NIfTot+1),MpiDetInt,i,Tag,MPI_COMM_WORLD,Stat,error)
+                j=WalkersonNodes(i)*(NIfTot+1)
+                CALL MPIRecv(CurrentDets(0:NIfTot,1:WalkersonNodes(i)),j,i,Tag,error)
 !                WRITE(6,*) "Recieved walkers for processor ",i
 !                CALL FLUSH(6)
                 
@@ -1421,7 +1431,8 @@ MODULE FciMCParMod
 
         ELSE
 !All other processors need to send their data to root...
-            CALL MPI_Send(CurrentDets(0:NIfTot,1:TotWalkers),TotWalkers*(NIfTot+1),MpiDetInt,root,Tag,MPI_COMM_WORLD,error)
+            j=TotWalkers*(NIfTot+1)
+            CALL MPISend(CurrentDets(0:NIfTot,1:TotWalkers),j,root,Tag,error)
 !            WRITE(6,*) "Have sent info to head node..."
 !            CALL FLUSH(6)
         ENDIF
@@ -1446,13 +1457,13 @@ MODULE FciMCParMod
         LOGICAL :: exists,tBinRead
         INTEGER :: AvWalkers,WalkerstoReceive(nProcessors)
         INTEGER*8 :: NodeSumNoatHF(nProcessors)
-        REAL*8 :: TempTotParts(lenof_sign),TempCurrWalkers
+        INTEGER(kind=int64) :: TempTotParts(lenof_sign),TempCurrWalkers
         INTEGER :: TempInitWalkers,error,i,j,k,l,total,ierr,MemoryAlloc,Tag,Proc,CurrWalkers,ii
         INTEGER , DIMENSION(lenof_sign) :: TempSign
         INTEGER*8 :: iLutTemp64(0:nBasis/64+1)
         INTEGER :: iLutTemp32(0:nBasis/32+1)
         INTEGER(KIND=n_int) :: iLutTemp(0:NIfTot)
-        INTEGER :: Stat(MPI_STATUS_SIZE),AvSumNoatHF,VecSlot,IntegerPart,TempnI(NEl),ExcitLevel
+        INTEGER AvSumNoatHF,VecSlot,IntegerPart,TempnI(NEl),ExcitLevel
         INTEGER :: VecInd,DetsMerged,NIfWriteOut,pos,orb,PopsVersion, iunit
         REAL*8 :: r,FracPart,TempTotWalkers,Gap,DiagSftTemp
         HElement_t :: HElemTemp
@@ -1609,20 +1620,20 @@ MODULE FciMCParMod
 
         ENDIF
 
-        CALL MPI_Barrier(MPI_COMM_WORLD,error)  !Sync
+        CALL MPIBarrier(error)  !Sync
 
 !Now we need to scatter the WalkerstoReceive to each node, and allocate the desired memory to each node...
 !Broadcast info which needs to go to all processors
-        CALL MPI_BCast(DiagSft,1,MPI_DOUBLE_PRECISION,root,MPI_COMM_WORLD,error)
-        CALL MPI_BCast(InitWalkers,1,MPI_INTEGER,root,MPI_COMM_WORLD,error)
-        CALL MPI_BCast(NEquilSteps,1,MPI_INTEGER,root,MPI_COMM_WORLD,error)
-        CALL MPI_BCast(NShiftEquilSteps,1,MPI_INTEGER,root,MPI_COMM_WORLD,error)
-        CALL MPI_BCast(SumENum,1,MPI_DOUBLE_PRECISION,root,MPI_COMM_WORLD,error)
-        CALL MPI_BCast(TSinglePartPhase,1,MPI_LOGICAL,root,MPI_COMM_WORLD,error)
+        CALL MPIBCast(DiagSft,root)
+        CALL MPIBCast(SumENum,root)
+        CALL MPIBCast(InitWalkers,root)
+        CALL MPIBCast(NEquilSteps,root)
+        CALL MPIBCast(NShiftEquilSteps,root)
+        CALL MPIBCast(TSinglePartPhase,root)
 !        CALL MPI_BCast(tChangenProcessors,1,MPI_LOGICAL,root,MPI_COMM_WORLD,error)
 !Scatter the number of walkers each node will receive to TempInitWalkers, and the SumNoatHF for each node which is distributed approximatly equally
-        CALL MPI_Scatter(WalkerstoReceive,1,MPI_INTEGER,TempInitWalkers,1,MPI_INTEGER,root,MPI_COMM_WORLD,error)
-        CALL MPI_Scatter(NodeSumNoatHF,1,MPI_DOUBLE_PRECISION,SumNoatHF,1,MPI_DOUBLE_PRECISION,root,MPI_COMM_WORLD,error)
+        CALL MPIScatter(WalkerstoReceive,TempInitWalkers,root,error)
+        CALL MPIScatter(NodeSumNoatHF,SumNoatHF,root,error)
 
         IF(MemoryFacPart.le.1.D0) THEN
             WRITE(6,*) 'MemoryFacPart must be larger than 1.0 when reading in a POPSFILE - increasing it to 1.50.'
@@ -1640,7 +1651,7 @@ MODULE FciMCParMod
 !ValidSpawndList now holds the next free position in the newly-spawned list, but for each processor.
         ValidSpawnedList(:)=InitialSpawnedSlots(:)
 
-        CALL MPI_Barrier(MPI_COMM_WORLD,error)  !Sync
+        CALL MPIBarrier(error)  !Sync
 
 !Allocate memory to hold walkers at least temporarily
         ALLOCATE(WalkVecDets(0:NIfTot,MaxWalkersPart),stat=ierr)
@@ -1805,8 +1816,8 @@ MODULE FciMCParMod
             endif
         enddo
 
-        CALL MPI_Barrier(MPI_COMM_WORLD,error)  !Sync
-        CALL MPI_AllReduce(TempCurrWalkers,AllTotWalkers,1,MPI_DOUBLE_PRECISION,MPI_SUM,MPI_COMM_WORLD,error)
+        CALL MPIBarrier(error)  !Sync
+        CALL MPIAllReduce(TempCurrWalkers,MPI_SUM,AllTotWalkers)
 
         IF(iProcIndex.eq.root) WRITE(6,'(I10,A)') INT(AllTotWalkers,int64)," configurations read in from POPSFILE and distributed."
 
@@ -1921,8 +1932,8 @@ MODULE FciMCParMod
 
         TempTotParts=REAL(TotParts,dp)
 
-        CALL MPI_Barrier(MPI_COMM_WORLD,error)  !Sync
-        CALL MPI_Reduce(TempTotParts,AllTotParts,lenof_sign,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
+        CALL MPIBarrier(error)  !Sync
+        CALL MPIReduce(TempTotParts,MPI_SUM,AllTotParts)
 
         IF(iProcIndex.eq.root) AllTotPartsOld=AllTotParts
         WRITE(6,'(A,I20)') ' The total number of particles read from the POPSFILE is: ',AllTotParts(1)
@@ -2593,64 +2604,26 @@ MODULE FciMCParMod
             AllSinglesHistVirtOcc(:)=0.D0
             AllSinglesHistVirtVirt(:)=0.D0
         ENDIF
-        CALL MPI_Reduce(Histogram,AllHistogram,iNoBins,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
-        CALL MPI_Reduce(AttemptHist,AllAttemptHist,iNoBins,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
-        CALL MPI_Reduce(SpawnHist,AllSpawnHist,iNoBins,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
-        CALL MPI_Reduce(SinglesHist,AllSinglesHist,iOffDiagNoBins,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
-        CALL MPI_Reduce(SinglesAttemptHist,AllSinglesAttemptHist,iOffDiagNoBins,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
-        CALL MPI_Reduce(DoublesHist,AllDoublesHist,iOffDiagNoBins,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
-        CALL MPI_Reduce(DoublesAttemptHist,AllDoublesAttemptHist,iOffDiagNoBins,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
-        CALL MPI_Reduce(SinglesHistOccOcc,AllSinglesHistOccOcc,iOffDiagNoBins,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
-        CALL MPI_Reduce(SinglesHistOccVirt,AllSinglesHistOccVirt,iOffDiagNoBins,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
-        CALL MPI_Reduce(SinglesHistVirtOcc,AllSinglesHistVirtOcc,iOffDiagNoBins,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
-        CALL MPI_Reduce(SinglesHistVirtVirt,AllSinglesHistVirtVirt,iOffDiagNoBins,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
-  
+        CALL MPIReduce(Histogram,MPI_SUM,AllHistogram)
+        CALL MPIReduce(AttemptHist,MPI_SUM,AllAttemptHist)
+        CALL MPIReduce(SpawnHist,MPI_SUM,AllSpawnHist)
+        CALL MPIReduce(SinglesHist,MPI_SUM,AllSinglesHist)
+        CALL MPIReduce(SinglesAttemptHist,MPI_SUM,AllSinglesAttemptHist)
+        CALL MPIReduce(DoublesHist,MPI_SUM,AllDoublesHist)
+        CALL MPIReduce(DoublesAttemptHist,MPI_SUM,AllDoublesAttemptHist)
+        CALL MPIReduce(SinglesHistOccOcc,MPI_SUM,AllSinglesHistOccOcc)
+        CALL MPIReduce(SinglesHistOccVirt,MPI_SUM,AllSinglesHistOccVirt)
+        CALL MPIReduce(SinglesHistVirtOcc,MPI_SUM,AllSinglesHistVirtOcc)
+        CALL MPIReduce(SinglesHistVirtVirt,MPI_SUM,AllSinglesHistVirtVirt)
 
         IF(iProcIndex.eq.Root) THEN
-            Norm=0.D0
-            do i=1,iNoBins
-                Norm=Norm+AllHistogram(i)
-            enddo
-            do i=1,iNoBins
-                AllHistogram(i)=AllHistogram(i)/Norm
-            enddo
-            Norm=0.D0
-            do i=1,iNoBins
-                Norm=Norm+AllAttemptHist(i)
-            enddo
-!            WRITE(6,*) "AllAttemptHistNorm = ",Norm
-            do i=1,iNoBins
-                AllAttemptHist(i)=AllAttemptHist(i)/Norm
-            enddo
-            Norm=0.D0
-            do i=1,iNoBins
-                Norm=Norm+AllSpawnHist(i)
-            enddo
-!            WRITE(6,*) "AllSpawnHistNorm = ",Norm
-            do i=1,iNoBins
-                AllSpawnHist(i)=AllSpawnHist(i)/Norm
-            enddo
-            Norm=0.D0
-            do i=1,iOffDiagNoBins
-                Norm=Norm+AllSinglesAttemptHist(i)
-            enddo
-!            WRITE(6,*) "AllSinglesAttemptHistNorm = ",Norm
-            do i=1,iOffDiagNoBins
-                AllSinglesAttemptHist(i)=AllSinglesAttemptHist(i)/Norm
-            enddo
-            Norm=0.D0
-            do i=1,iOffDiagNoBins
-                Norm=Norm+AllDoublesHist(i)
-            enddo
-!            WRITE(6,*) "AllDoublesHistNorm = ",Norm
-            do i=1,iOffDiagNoBins
-                AllDoublesHist(i)=AllDoublesHist(i)/Norm
-            enddo
-            Norm=0.D0
-            do i=1,iOffDiagNoBins
-                Norm=Norm+AllDoublesAttemptHist(i)
-            enddo
-!            WRITE(6,*) "AllDoublesAttemptHist = ",Norm
+            AllHistogram=AllHistogram/sum(AllHistogram)
+            AllAttemptHist=AllAttemptHist/sum(AllAttemptHist)
+            AllSpawnHist=AllSpawnHist/sum(AllSpawnHist)
+            AllSinglesAttemptHist=AllSinglesAttemptHist/sum(AllSinglesAttemptHist)
+            AllDoublesHist=AllDoublesHist/sum(AllDoublesHist)
+            Norm=sum(AllDoublesAttemptHist)
+            AllDoublesAttemptHist=AllDoublesAttemptHist/Norm
             do i=1,iOffDiagNoBins
                 AllDoublesAttemptHist(i)=AllDoublesAttemptHist(i)/Norm
             enddo
@@ -2798,7 +2771,7 @@ MODULE FciMCParMod
         INTEGER :: error,i,nI(NEl),ExcitLevel,j, iunit
         REAL*8 :: norm,norm1
 
-        CALL MPI_AllReduce(Histogram,AllHistogram,Det,MPI_DOUBLE_PRECISION,MPI_SUM,MPI_COMM_WORLD,error)
+        CALL MPISum(Histogram,AllHistogram)
         norm1=0.D0
         do i=1,Det
             norm1=norm1+AllHistogram(i)**2
@@ -2875,10 +2848,10 @@ MODULE FciMCParMod
             AllInstAnnihil(:)=0.D0
         ENDIF
 
-        CALL MPI_Reduce(Histogram,AllHistogram,Det,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
-        CALL MPI_Reduce(InstHist,AllInstHist,Det,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
-        CALL MPI_Reduce(InstAnnihil,AllInstAnnihil,Det,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
-        CALL MPI_Reduce(AvAnnihil,AllAvAnnihil,Det,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
+        CALL MPIReduce(Histogram,MPI_SUM,AllHistogram)
+        CALL MPIReduce(InstHist,MPI_SUM,AllInstHist)
+        CALL MPIReduce(InstAnnihil,MPI_SUM,AllInstAnnihil)
+        CALL MPIReduce(AvAnnihil,MPI_SUM,AllAvAnnihil)
         
         IF(iProcIndex.eq.0) THEN
 
@@ -3012,8 +2985,8 @@ MODULE FciMCParMod
             AllAvHistHamil(:,:)=0.D0
         ENDIF
 
-        CALL MPI_Reduce(HistHamil,AllHistHamil,Det**2,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
-        CALL MPI_Reduce(AvHistHamil,AllAvHistHamil,Det**2,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
+        CALL MPIReduce(HistHamil,MPI_SUM,AllHistHamil)
+        CALL MPIReduce(AvHistHamil,MPI_SUM,AllAvHistHamil)
         
         IF(iProcIndex.eq.0) THEN
 !How do we normalise this!
@@ -3084,33 +3057,6 @@ MODULE FciMCParMod
 
     end subroutine
 
-#else
-! //from ifdef PARALLEL
-
-! AJWT
-! Bringing you a better FciMCPar.  A vision for the future...
-!
-!  This section contains parts of FciMCPar which are not dependent on MPI commands, and are only included in the non-PARALLEL calc.
-!  It's not yet complete, but at least compiles and runs
-
-    SUBROUTINE FciMCPar(Weight,Energyxw)
-    real(dp) :: Weight,Energyxw
-
-        CALL Stop_All("FciMCPar","Entering the wrong FCIMCPar parallel routine")
-
-    END SUBROUTINE FciMCPar
-!Very crudely hacked from the parallel version.  MPI calls commented out with !!
-
-
-    SUBROUTINE WriteHistogram()
-        CALL Stop_All("WriteHistogram","WriteHistogram not currently coded for serial.")
-    END SUBROUTINE WriteHistogram
-!This routine reads in particle configurations from a POPSFILE.
-    SUBROUTINE ReadFromPopsfilePar()
-        CALL Stop_All("ReadFromPopsfilePar","ReadFromPopsfilePar not currently coded for serial.")
-    END SUBROUTINE ReadFromPopsfilePar
-#endif
-! //def PARALLEL
 
     ! TODO: COMMENTING
 
