@@ -451,7 +451,6 @@ MODULE SymExcit2
          use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
          IMPLICIT NONE
          INTEGER iExcit(2,2)
-         LOGICAL L
          INTEGER nI(nEl),nJ(nEl)
          LOGICAL tIsConnectedDet
          LOGICAL IsUHFDet

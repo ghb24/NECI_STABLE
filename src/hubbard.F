@@ -290,15 +290,23 @@ C     &         *((NBASISMAX(4,2)-NBASISMAX(4,1))/2+1)
      &    nBasis/2 , " generators for Hubbard momentum" 
 
 C.. Now generate a list of sym labels.
+         write (6,*) 'SIZES',nSymLabels, nBasis, allocated(symlabels),
+     &     associated(symclasses), allocated(symconjtab), 
+     &     allocated(symtable)
          if (allocated(SymLabels)) then
-             write (6,'(a/a)') 'Warning: SymLabels already allocated.',
-     &                         'Deallocating and reallocating.'
+             write (6,'(a/a)') 
+     &                'Warning: symmetry info already allocated.',
+     &                'Deallocating and reallocating.'
              deallocate(SymLabels)
              call LogMemDealloc(this_routine,tagSymLabels)
          end if
          allocate(SymLabels(nSym))
          call LogMemAlloc('SymLabels',nSym,SymmetrySize,this_routine,
      &                                                     tagSymLabels)
+         if (associated(SymClasses)) then
+             deallocate(SymClasses)
+             call LogMemDealloc(this_routine,tagSymClasses)
+         end if
          allocate(SymClasses(nBasis))
          call LogMemAlloc('SymClasses',nBasis,4,this_routine,
      &                                                    tagSymClasses)
@@ -318,9 +326,17 @@ C.. list the symmetry string of each sym label
             SymLabels(I)%s=2**(I-1)
          ENDDO
 C.. Setup the symmetry product table
+         if (allocated(SymTable)) then
+             deallocate(SymTable)
+             call LogMemDealloc(this_routine,tagSymTable)
+         end if
          allocate(SymTable(nSym,nSym))
          call LogMemAlloc('SymTable',nSym**2,SymmetrySize,this_routine,
      &                                                      tagSymTable)
+         if (allocated(SymConjTab)) then
+             deallocate(SymConjTab)
+             call LogMemDealloc(this_routine,tagSymConjTab)
+         end if
          allocate(SymConjTab(nSym))
          call LogMemAlloc('SymConjTable',nSym,4,this_routine,
      &                                                    tagSymConjTab)

@@ -4,7 +4,7 @@ contains
 
     SUBROUTINE INITFROMFCID(NEL,NBASISMAX,LEN,LMS,TBIN)
          use SystemData , only : tNoSymGenRandExcits,lNoSymmetry,tROHF
-         use SystemData , only : tStoreSpinOrbs
+         use SystemData , only : tStoreSpinOrbs,tKPntSym
          use SymData, only: nProp, PropBitLen, TwoCycleSymGens
          use Parallel
          use util_mod, only: get_free_unit
@@ -60,6 +60,14 @@ contains
          ! symmetry group which has two cycle generators (ie the group has
          ! complex representations).
          TwoCycleSymGens = PropBitLen == 0
+
+		 IF(.not.TwoCycleSymGens.and.((NPROP(1)+NPROP(2)+NPROP(3)).gt.3)) THEN
+			 !We are using abelian k-point symmetry. Turn it on.
+			 tKPntSym=.true.
+			 WRITE(6,*) "Using abelian k-point symmetry"
+		 ELSE
+			 tKPntSym=.false.
+		 ENDIF
 
          IF(tROHF.and.(.not.UHF)) THEN
              CALL Stop_All("INITFROMFCID","ROHF specified, but FCIDUMP is not in a high-spin format.")
