@@ -198,13 +198,15 @@ MODULE UMatCache
          ! Indices are internally reordered such that I>K, J>L,(I,K)>(J,L) 
          ! Note: (i,k)>(j,l) := (k>l) || ((k==l)&&(i>j))
          ! In:
-         !    I,J,K,L: spatial orbitals (unless unrestricted).
+         !    I,J,K,L: orbital indices. These refer to spin orbitals in
+         !      unrestricted calculations and spatial orbitals in restricted
+         !      calculations.
          !    nBasis: size of basis. If =0, use nStates instead.
          !    nOccupied: # of occupied orbitals.  If =0, then nOcc is used.
          !    Should only be passed as non-zero during the freezing process.
          IMPLICIT NONE
-         INTEGER I,J,K,L,AA,BB,NBASIS
-         INTEGER R,S,T,U,A,B,C,D,NOCCUPIED
+         INTEGER, intent(in) :: I,J,K,L,NBASIS,NOCCUPIED
+         INTEGER R,S,T,U,A,B,C,D,AA,BB
          IF(TSTARSTORE) THEN
             !Rearrange, so that orbitals ordered over energy, and first two indices are occupied
             !Could be a problem in the future r.e. partially filled degenerate fermi levels - is BRR then the best way to determine if an orbital is occupied or not??
@@ -389,10 +391,10 @@ MODULE UMatCache
 
 
 
-! Get the prospective size of a UMat (not a UMatCache) for completely storing FCIDUMP 2-e integrals
-! The UMat is currently passed as a parameter, but in future be absorbed into UMatCache.
       SUBROUTINE GetUMatSize(nBasis,nEl,iSize)
         use SystemData, only: tStoreSpinOrbs
+      ! Get the prospective size of a UMat (not a UMatCache) for completely 
+      ! storing FCIDUMP 2-e integrals
       ! In:
       !    nBasis: as above.
       !    nEl: # electrons.
@@ -1157,11 +1159,10 @@ MODULE UMatCache
       ! states may change with the next calculation.
       use SystemData, only: Symmetry,BasisFN
       use util_mod, only: get_free_unit
+      use sym_mod
       implicit none
       ! Variables
       integer iPair,iSlot,i,j,k,l,iCache1,iCache2,A,B,iType
-      logical LSymSym
-      type(Symmetry) TotSymRep
       HElement_t UMatEl
       type(Symmetry) Sym
       integer iunit

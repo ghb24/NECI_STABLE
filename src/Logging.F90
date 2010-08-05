@@ -13,7 +13,9 @@ MODULE Logging
     LOGICAL tPrintFCIMCPsi,tCalcFCIMCPsi,tPrintSpinCoupHEl,tIterStartBlock,tHFPopStartBlock,tInitShiftBlocking,tTruncDumpbyVal
     LOGICAL tWriteTransMat,tHistHamil,tPrintOrbOcc,tHistInitPops
     INTEGER NoACDets(2:4),iPopsPartEvery,iWriteHistEvery,iNoBins,NHistEquilSteps,IterShiftBlock
-    INTEGER CCMCDebug !CCMC Debugging Level 0-6.  Default 0
+    INTEGER CCMCDebug  !CCMC Debugging Level 0-6.  Default 0
+    INTEGER FCIMCDebug !FciMC Debugging Level 0-6.  Default 0
+
     LOGICAL tCCMCLogTransitions !Do we log transitions?  Only possible for very small systems
     LOGICAL tCCMCLogUniq !Do we log only unique clusters
     LOGICAL tSaveBlocking !Do not overwrite blocking files
@@ -84,6 +86,7 @@ MODULE Logging
       tPrintOrbOcc=.false.
       StartPrintOrbOcc=0
       CCMCDebug=0
+      FCIMCDebug=0
       tHFPopStartBlock=.false.
       tIterStartBlock=.false.
       IterStartBlocking=0
@@ -453,6 +456,9 @@ MODULE Logging
         case("CCMCDEBUG")
 !CCMC debugging level. Takes an integer 0-6
             call readi(CCMCDebug)
+        case("FCIMCDEBUG")
+!CCMC debugging level. Takes an integer 0-6
+            call readi(FCIMCDebug)
         case("CCMCLOGTRANSITIONS")
             tCCMCLogTransitions=.true.
             do while(item.lt.nitems)

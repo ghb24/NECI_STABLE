@@ -15,7 +15,8 @@ MODULE Calc
     use DetCalcData, only: B2L, nKry, nEval, nBlk
     use IntegralsData, only: tNeedsVirts
     use CCMCData, only: dInitAmplitude, dProbSelNewExcitor, nSpawnings, &
-                        tSpawnProp, nClustSelections, tExactEnergy
+                        tSpawnProp, nClustSelections, tExactEnergy,     &
+                        dClustSelectionRatio
 
     implicit none
 
@@ -98,6 +99,7 @@ contains
           dProbSelNewExcitor=0.7d0
           nSpawnings=1
           nClustSelections=1
+          dClustSelectionRatio=1
           tExactEnergy=.false.
           tSpawnProp=.false.
           NMCyc=2000
@@ -763,6 +765,9 @@ contains
             case("NCLUSTSELECTIONS")
 !For Particle CCMC the number of  cluster.
                 call geti(nClustSelections)
+            case("CLUSTSELECTIONRATIO")
+!For Particle CCMC the number of  cluster.
+                call getf(dClustSelectionRatio)
             case("CCMCEXACTENERGY")
                tExactEnergy=.true.
             case("SPAWNPROP")
@@ -1214,6 +1219,7 @@ contains
           Use Determinants, only: FDet, tSpecDet, SpecDet, get_helement
           Use DetCalc, only: DetInv, nDet, tRead
           Use DetCalcData, only:  ICILevel
+          use hilbert_space_size, only: FindSymSizeofSpace, FindSymSizeofTruncSpace, FindSymMCSizeofSpace
           use global_utilities
           
           REAL*8 CalcT, CalcT2, GetRhoEps
@@ -1354,6 +1360,7 @@ contains
           Use Logging, only: iLogging
           use Parallel_Calc
           use util_mod, only: get_free_unit, NECI_ICOPY
+          use sym_mod
 
 !Calls
 !          REAL*8 DMonteCarlo2
@@ -1482,6 +1489,7 @@ contains
           Use Logging, only: iLogging
           Use util_mod, only: get_free_unit
           Use DetCalc, only: tFindDets
+          use sym_mod
           real*8 flri, flsi
           REAL*8 En, ExEn, GSEn
           REAL*8 RH
@@ -1524,7 +1532,7 @@ contains
                 ENDIF
                 call write_det (iunit, NMRKS(:,III), .false.)
                 GSEN=CALCDLWDB(III,NDET,NEVAL,CK,W,BETA)
-                CALL GETSYM(NMRKS(1,III),NEL,G1,NBASISMAX,ISYM)
+                CALL GETSYM(NMRKS(:,III),NEL,G1,NBASISMAX,ISYM)
                 CALL GETSYMDEGEN(ISYM,NBASISMAX,IDEG)
                 WRITE(iunit,"(4G25.16,I5)") EXP(FLSI+I_P*FLRI),FLRI*I_P,FLSI,GSEN,IDEG
              ENDDO
@@ -1839,6 +1847,7 @@ contains
          use gnd_work_type
          use Determinants, only: write_det
          use mcpaths, only: mcpathsr3
+         use sym_mod
          IMPLICIT NONE
          INTEGER I_HMAX,NEL,NBASIS,I_VMAX
          INTEGER,ALLOCATABLE :: LSTE(:,:,:) !(NEL,NBASIS*NBASIS*NEL*NEL,0:I_VMAX-1)??!!

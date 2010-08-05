@@ -38,6 +38,7 @@ module mcpathshdiag
          use CalcData , only : lNoTriples,GraphEpsilon
          use SystemData, only: BasisFN
          use mcpathsdata, only: EGP
+         use sym_mod, only: getsym
          use util_mod, only: NECI_ICOPY
          IMPLICIT NONE
          TYPE(BasisFN) G1(*),ISYM

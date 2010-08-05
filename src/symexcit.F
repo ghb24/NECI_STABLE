@@ -88,6 +88,7 @@ C.. If we're just counting, we don't need to keep DSTORE
          use SymData, only: nSymPairProds,nSymLabels
          use global_utilities
          use legacy_data, only: irat
+         use sym_mod
          use sort_mod
          IMPLICIT NONE
          INTEGER NEL,NI(NEL),NBASIS
@@ -123,12 +124,9 @@ C.. If we're just counting, we don't need to keep DSTORE
          POINTER (IP_EXCITTYPES,EXCITTYPES)
 
          INTEGER ICOUNT
-         TYPE(Symmetry) SYMPROD,SymConj
-         LOGICAL LSYMSYM,SYMEQ
          INTEGER ISPN
          INTEGER ILUT(0:nBasis/32)
          INTEGER ILEVEL
-         Type(Symmetry) TotSymRep
 
          LOGICAL ISUHFDET
 
@@ -959,6 +957,7 @@ C.. CLASSES(iCl)%SymLab is the symmetry label (i.e. entry in SymClasses) of this
          use SystemData, only: Symmetry
          use SymData, only: SymClass,SymClasses,SymLabels
          use SymData, only: tAbelianFastExcitgen
+         use sym_mod
          IMPLICIT NONE
          INTEGER nEl, nI(nEl)
          Type(BasisFN) G1(*)
@@ -975,9 +974,6 @@ C.. CLASSES(iCl)%SymLab is the symmetry label (i.e. entry in SymClasses) of this
          INTEGER I,J,K,L
          INTEGER iSpn
          Type(Symmetry) Pr
-         
-         Type(Symmetry) TotSymRep
-         TYPE(Symmetry) SYMPROD,SymConj
          
          NCL=0  !This is our running count of how many symmetry classes we have
          DO I=1,NEL
@@ -1060,6 +1056,7 @@ C.. We list them and then sort them
          use SystemData, only: Symmetry,SymmetrySize, nel
          use SymData, only: SymClass,SymClasses,SymLabels
          use sort_mod
+         use sym_mod
          IMPLICIT NONE
          INTEGER nPr,nPairs,nCl
          TYPE(Symmetry) SymProds(0:*)
@@ -1075,9 +1072,6 @@ C.. We list them and then sort them
          LOGICAL tNew
          INTEGER ICC1,ICC2,ICC3
           
-         TYPE(Symmetry) SYMPROD
-         LOGICAL SYMEQ
-
          Type(Symmetry) Pr
          NPR=0
          NPAIRS=0
@@ -1177,6 +1171,7 @@ C.. The first free space is at SYMPRODIND(1,ISPN,I)+SYMPRODIND(2,ISPN,I)+1.
       Subroutine SymSetupExcits_StoreOccPairs(OrbPairs, nPairs, nPr,
      &    iMinElec1, iMaxElec1,G1,SymProdInd,SymProds,nI,nEl)
          use SystemData, only: Symmetry,BasisFN,SymmetrySize
+         use sym_mod
          IMPLICIT NONE
          INTEGER ORBPAIRS(2,nPairs)
          INTEGER nPairs
@@ -1190,8 +1185,6 @@ C.. The first free space is at SYMPRODIND(1,ISPN,I)+SYMPRODIND(2,ISPN,I)+1.
          INTEGER iCC
          TYPE(BasisFN) G1(*)
          INTEGER SYMPRODIND(2,3,0:*)
-
-         Type(Symmetry) SymProd
 
          ORBPAIRS(1:2,1:NPAIRS)=0
          L=0
@@ -1238,6 +1231,7 @@ C.. global symprods table multiplied by [] give the sym rep.
      &   SymProdInd, SymProds, nAllowPPS,iLUT)
          use SystemData, only: Symmetry,BasisFN
          use SymData, only: SymPairProds,SymStatePairs,nSymPairProds
+         use sym_mod
          IMPLICIT NONE
          INTEGER nDoub
          INTEGER nExcitTypes
@@ -1253,9 +1247,6 @@ C.. global symprods table multiplied by [] give the sym rep.
          LOGICAL L1B,L1A,L2B,L2A
          INTEGER ICC,iSpn
    
-         Type(Symmetry) SymConj,SymProd
-         LOGICAL LSYMSYM
-
 C.. SYMPRODIND(1,ISPN,I)+1 contains the index of the first element of spin ISPN of sym
 C.. SYMPRODS(I) in ORBPAIRS
 C.. SYMPRODIND(2,ISPN,I) contains the number of such elements
@@ -1345,6 +1336,7 @@ C     &                     ,L1B,L1A,L2B,L2A
      &            nAllowPPS) ! Calculated not enumerated
          use SymData, only: SymPairProds,nSymPairProds,SymmetrySize
          use SymData, only: Symmetry,SymLabelCounts,SymLabels,SymClass
+         use sym_mod
          IMPLICIT NONE
          Type(Symmetry) SymProds(0:*)
          INTEGER nPr,nCl
@@ -1352,8 +1344,6 @@ C     &                     ,L1B,L1A,L2B,L2A
          Type(SymClass) Classes(nCl)
          INTEGER nAllowPPS(1:3,nSymPairProds)
 
-         Integer FindSymLabel
-         Type(Symmetry) SymConj,SymProd
 C.. SYMPRODIND(1,ISPN,I)+1 contains the index of the first element of spin ISPN of sym
 C.. SYMPRODS(I) in ORBPAIRS
 C.. SYMPRODIND(2,ISPN,I) contains the number of such elements
@@ -1482,6 +1472,7 @@ C.. SYMPRODIND(2,ISPN,I) contains the number of such elements
      &   ThisClassCount, ClassCount,Classes)
          use SystemData, only: Symmetry
          use SymData, only: SymClass,SymLabelCounts,nSymLabels,SymLabels
+         use sym_mod
          IMPLICIT NONE
          INTEGER nSing
          INTEGER nCl
@@ -1489,8 +1480,6 @@ C.. SYMPRODIND(2,ISPN,I) contains the number of such elements
          INTEGER ThisClassCount(2,*)
          INTEGER ClassCount(2,*)
          Type(SymClass) Classes(nCl)
-         Type(Symmetry) SymProd,SymConj
-         LOGICAL LSymSym
          INTEGER I,J,K
          INTEGER iSpn
          INTEGER iCC
@@ -1649,6 +1638,7 @@ C     &                  (SYMLABELCOUNTS(2,J)-CLASSCOUNT(ISPN,I))
          Use SystemData, only: Symmetry
          use SymData, only: SymClass,SymPairProds,nSymLabels,SymLabels
          use SymData, only: SymLabelCounts
+         use sym_mod
          IMPLICIT NONE
          INTEGER nExcitTypes
          INTEGER nCl
@@ -1660,9 +1650,6 @@ C     &                  (SYMLABELCOUNTS(2,J)-CLASSCOUNT(ISPN,I))
          Type(Symmetry) Pr,Pr2
          INTEGER iSpn
          INTEGER iCC
-
-         Type(Symmetry) SymConj,SymProd
-         LOGICAL LSYMSYM
 
 C.. Now store the singles:
          NEXCITTYPES=0
@@ -1711,6 +1698,7 @@ C     &                        ")->",SymLabels(2,J)
      &   nAllowPPS,ExcitTypes,nExcitTypes,SymProds,SymProdInd)
          Use SystemData, only: Symmetry
          Use SymData, only: SymPairProds
+         use sym_mod
          IMPLICIT NONE
          INTEGER nPr
          INTEGER nSymPairProds
@@ -1720,9 +1708,6 @@ C     &                        ")->",SymLabels(2,J)
          TYPE(Symmetry) SYMPRODS(0:*)
          INTEGER SYMPRODIND(2,3,0:*)
          
-         Type(Symmetry) SymConj,SymProd
-         LOGICAL LSYMSYM
-
          INTEGER I,J,K,L
          INTEGER ICC
          INTEGER iSpn

@@ -39,6 +39,7 @@ subroutine ParMP2(nI)
    use global_utilities
    use SymData, only: SymLabels
    use CPMDData, only: KPntInd
+   use sym_mod
    IMPLICIT NONE
    integer :: nI(nEl)
    integer :: iMinElec, iMaxElec
@@ -55,7 +56,6 @@ subroutine ParMP2(nI)
    HElement_t :: dEarr(2)
    type(Symmetry) :: iSym1,iSym2
    type(Symmetry) :: iSym1Conj,iSym2Conj
-   type(Symmetry) :: SymConj
    logical :: tSign
    integer :: ierr,tag_Ex
    type(timer), save :: proc_timer

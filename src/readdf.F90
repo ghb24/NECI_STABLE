@@ -249,11 +249,11 @@ SUBROUTINE InitDFBasis(nBasisMax,Len)
          use constants, only: dp
          use SystemData, only: BasisFN,BasisFNSize,Symmetry,NullBasisFn
          USE OneEInts, only : TMATind,TMAT2D,TMATSYM,TSTARSTORE
+         use sym_mod
          implicit none
          integer nBasis,i,j
          real*8 val,ECore
          type(BasisFN) G1(nBasis)
-         Type(Symmetry) TotSymRep
          open(11,file='HONEEL',status='unknown')
          i=1
          !TMat=0.d0
@@ -290,11 +290,11 @@ SUBROUTINE InitDFBasis(nBasisMax,Len)
       SUBROUTINE InitDaltonBasis(Arr,Brr,G1,nBasis)
          use SystemData, only: Symmetry,BasisFN,BasisFNSize,NullBasisFn
          use SymData , only : tAbelian
+         use sym_mod
          implicit none
          integer nBasis,Brr(nBasis),i,j
          real*8 Arr(nBasis,2),val
          type(BasisFN) G1(nBasis)
-         Type(Symmetry) TotSymRep
          tAbelian=.true.
          open(11,file='HONEEL',status='unknown')
          i=1

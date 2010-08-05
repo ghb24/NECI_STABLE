@@ -784,17 +784,20 @@ C.. in NFULL and NFREE
       SUBROUTINE GSETE_NEXTDET(SPNS,NFREE,NFULL,TSYM,ISYM,
      &            NI,NJ,NEL,IC,G1,NBASISMAX)
          use Determinants, only: write_det
+         use SystemData, only: BasisFn
          use sort_mod
+         use sym_mod
          use util_mod, only: NECI_ICOPY
          IMPLICIT NONE
          INTEGER SPNS(2,2)
          INTEGER NFULL(2,2,-3:0)
          INTEGER NFREE(2,2,-3:0)
          LOGICAL TSYM
-         INTEGER ISYM(5),ISYM2(5)
+         type(BasisFN) ISYM,ISYM2
          INTEGER NJ(NEL),NI(NEL),NEL
          LOGICAL LCHKSYM
-         INTEGER IC,G1(*),NBASISMAX(*)
+         INTEGER IC,NBASISMAX(*)
+         type(BasisFN) G1(*)
          LOGICAL ISVALIDDET
          CALL NECI_ICOPY(NEL,NI,1,NJ,1)
 C         WRITE(56,"(I4,A,I4)",advance='no') 
@@ -836,7 +839,8 @@ C.. For a given Excitation symmetry type, generate all excitatiosn
       SUBROUTINE GETSYMEXTYPEEXCITS(NI,NEL,G1,NBASIS,NBASISMAX,
      &         TSYM,ISYM,
      &         TYP,LIST,ICLIST,NLIST,IFRZ)
-        use Determinants, only: write_det
+         use Determinants, only: write_det
+         use sym_mod
          IMPLICIT NONE
          INTEGER NEL,NI(NEL),NBASIS,LIST(NEL,NLIST),ICLIST(NLIST)
          INTEGER NLIST,nBasisMax(5,*)

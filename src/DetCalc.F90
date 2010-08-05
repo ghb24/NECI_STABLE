@@ -44,6 +44,7 @@ CONTAINS
         use SystemData, only : tCSFOLD,lms, lms2, nBasis, nBasisMax, nEl, SymRestrict
         use SystemData, only : Alat, arr, brr, boa, box, coa, ecore, g1,Beta
         use SystemData, only : tParity, tSpn,Symmetry,STot, NullBasisFn
+        use sym_mod
         use CCMCData,   only : tCCBuffer !This is messy, but I don't see anywhere else to put it. AJWT
         use Logging,    only : tLogDets
         use legacy_data, only: irat
@@ -221,7 +222,7 @@ CONTAINS
             OPEN(iunit,FILE='DETS',STATUS='UNKNOWN')
             DO I=1,NDET
                call write_det (iunit, NMRKS(:,I), .false.)
-               CALL GETSYM(NMRKS(1,I),NEL,G1,NBASISMAX,ISYM)
+               CALL GETSYM(NMRKS(:,I),NEL,G1,NBASISMAX,ISYM)
                CALL WRITESYM(iunit,ISym%Sym,.TRUE.)
             ENDDO
             CLOSE(iunit)
@@ -307,6 +308,7 @@ CONTAINS
       use DetBitops, only: DetBitEQ,EncodeBitDet
       use bit_rep_data, only: NIfDBO,NIfTot
       use legacy_data, only: irat
+      use sym_mod
      use HElem
 
       REAL*8 , ALLOCATABLE :: TKE(:),A(:,:),V(:),AM(:),BM(:),T(:),WT(:),SCR(:),WH(:),WORK2(:),V2(:,:),FCIGS(:)
@@ -589,7 +591,7 @@ CONTAINS
             Det=0
             norm=0.D0
             do i=1,NDET
-                CALL GETSYM(NMRKS(1,i),NEL,G1,NBASISMAX,ISYM)
+                CALL GETSYM(NMRKS(:,i),NEL,G1,NBASISMAX,ISYM)
                 IF(ISym%Sym%S.eq.IHFSYM%Sym%S) THEN
                     Det=Det+1
                     IF(tEnergy) norm=norm+(REAL(CK(i,1),8))**2
@@ -612,8 +614,8 @@ CONTAINS
             Det=0
             FCIDetIndex(:)=0
             do i=1,NDet
-                CALL GETSYM(NMRKS(1,i),NEL,G1,NBASISMAX,ISYM)
-                CALL GetLz(NMRKS(1,i),NEL,Lz)
+                CALL GETSYM(NMRKS(:,i),NEL,G1,NBASISMAX,ISYM)
+                CALL GetLz(NMRKS(:,i),NEL,Lz)
 !                IF((NMRKS(1,i).eq.28).and.(NMRKS(2,i).eq.29).and.(NMRKS(3,i).eq.30).and.(NMRKS(4,i).eq.31)) THEN
 !                    WRITE(6,*) "Found Det: ",NMRKS(:,i)
 !                    WRITE(6,*) i,iSym%Sym%S,REAL(CK(i),8)

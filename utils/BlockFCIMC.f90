@@ -143,8 +143,10 @@ PROGRAM BlkFCIMC
       do i=1,TotPoints
           Mean=Mean+Shifts(i)
           MeanEn=MeanEn+Energies(i)
-          MeanNum=MeanNum+Num(i)
-          MeanHF=MeanHF+HF(i)
+		  IF(tSeperateBlock) THEN
+			  MeanNum=MeanNum+Num(i)
+			  MeanHF=MeanHF+HF(i)
+		  ENDIF
       enddo
       Mean=Mean/REAL(TotPoints,8)
       MeanEn=MeanEn/REAL(TotPoints,8)
@@ -158,8 +160,10 @@ PROGRAM BlkFCIMC
       do i=1,TotPoints
           IF(ABS(Shifts(i)-Mean).gt.MaxDeviation) MaxDeviation=ABS(Shifts(i)-Mean)
           IF(ABS(Energies(i)-MeanEn).gt.MaxDeviationEn) MaxDeviationEn=ABS(Energies(i)-MeanEn)
-          IF(ABS(Num(i)-MeanNum).gt.MaxDeviationNum) MaxDeviationNum=ABS(Num(i)-MeanNum)
-          IF(ABS(HF(i)-MeanHF).gt.MaxDeviationHF) MaxDeviationHF=ABS(HF(i)-MeanHF)
+		  IF(tSeperateBlock) THEN
+			  IF(ABS(Num(i)-MeanNum).gt.MaxDeviationNum) MaxDeviationNum=ABS(Num(i)-MeanNum)
+			  IF(ABS(HF(i)-MeanHF).gt.MaxDeviationHF) MaxDeviationHF=ABS(HF(i)-MeanHF)
+		  ENDIF
       enddo
 
       WRITE(6,"(A,4G25.16)") "Mean values for the shift, projected energy, numerator for projected E and HF are: ",Mean,MeanEn,MeanNum,MeanHF
@@ -218,8 +222,10 @@ PROGRAM BlkFCIMC
               do while(Blk.lt.BlockSize)
                   SumBlock=SumBlock+Shifts(VecInd)
                   SumBlockEn=SumBlockEn+Energies(VecInd)
-                  SumBlockNum=SumBlockNum+Num(VecInd)
-                  SumBlockHF=SumBlockHF+HF(VecInd)
+				  IF(tSeperateBlock) THEN
+					  SumBlockNum=SumBlockNum+Num(VecInd)
+					  SumBlockHF=SumBlockHF+HF(VecInd)
+				  ENDIF
                   Blk=Blk+1
                   VecInd=VecInd+1
                   IF(VecInd.gt.TotPoints) EXIT      !Break out of the loop when we reach the end of the list

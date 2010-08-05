@@ -2065,6 +2065,7 @@ MODULE GenRandSymExcitNUMod
 ! This takes into account the momentum conservation rule, i.e. that kb=ki+ki-ka(+G).
     SUBROUTINE CreateDoubExcitLattice(nI,iLutnI,nJ,tParity,ExcitMat,pGen,Elec1Ind,Elec2Ind,iSpn)
         Use SystemData , only : NMAXX,NMAXY,NMAXZ,tOrbECutoff,OrbECutoff
+        use sym_mod, only: mompbcsym
 
         INTEGER :: i,nI(NEl),nJ(NEl),Elec1Ind,Elec2Ind,iSpn,kb_ms
         INTEGER(KIND=n_int) :: iLutnI(0:NIfTot)
@@ -2485,11 +2486,13 @@ MODULE GenRandSymExcitNUMod
     END SUBROUTINE CalcPGenLattice
 
     FUNCTION IsMomentumAllowed(nJ)
+
+        use sym_mod, only: mompbcsym
         
         LOGICAL :: IsMomentumAllowed ! Returns whether the determinant is momentum allowed for  
                                     ! UEG and Hubbard models
                                     ! Compares the total k from a determinant nI with kTotal
-        INTEGER :: nJ(NEl),kx,ky,kz,ktrial(2),i
+        INTEGER :: nJ(NEl),kx,ky,kz,ktrial(3),i
 
         IsMomentumAllowed=.false.
 
@@ -2520,7 +2523,7 @@ MODULE GenRandSymExcitNUMod
                 ky=ky+G1(nJ(i))%k(2)
                 kz=kz+G1(nJ(i))%k(3)
             enddo
-            ktrial=(/kx,ky/)
+            ktrial=(/kx,ky,0/)
             CALL MomPbcSym(ktrial,nBasisMax) ! This re-maps the total momentum under PBCs: equivalent to this being equal to 
                                             ! a value to within a reciproval lattice vector.
             IF(ktrial(1).eq.kTotal(1).and.ktrial(2).eq.kTotal(2)) THEN
@@ -2542,12 +2545,13 @@ SUBROUTINE SpinOrbSymSetup()
     use SymData, only: SymLabelList,SymLabelCounts
     use SystemData , only : G1,tFixLz,tNoSymGenRandExcits,nBasis,iMaxLz,tUEG,tHub,NMAXZ,NEl,nBasisMax
     use Determinants, only : FDet
+    use sym_mod, only: mompbcsym
     IMPLICIT NONE
     INTEGER :: i,j,SymInd
     INTEGER :: Spin
     INTEGER , ALLOCATABLE :: Temp(:)
     ! These are for the hubbard and UEG model look-up table
-    INTEGER :: kmaxX,kmaxY,kminX,kminY,kminZ,kmaxz,iSpinIndex,ktrial(2)
+    INTEGER :: kmaxX,kmaxY,kminX,kminY,kminZ,kmaxz,iSpinIndex,ktrial(3)
     
     IF(tFixLz) THEN
 !Calculate the upper array bound for the ClassCount2 arrays. This will be dependant on the number of symmetries needed.
@@ -2790,7 +2794,7 @@ SUBROUTINE SpinOrbSymSetup()
             kTotal(3)=kTotal(3)+G1(FDet(j))%k(3)
         enddo
         if (tHub) then
-            ktrial=(/kTotal(1),kTotal(2)/)
+            ktrial=(/kTotal(1),kTotal(2),0/)
             CALL MomPbcSym(ktrial,nBasisMax)
             kTotal(1)=ktrial(1)
             kTotal(2)=ktrial(2)
@@ -2815,8 +2819,9 @@ SUBROUTINE TestGenRandSymExcitNU(nI,Iterations,pDoub,exFlag,iWriteEvery)
     use GenRandSymExcitNUMod, only: IsMomentumAllowed
     use constants, only: n_int
     use bit_reps, only: NIfTot
+    use sym_mod, only: mompbcsym, GetLz
     IMPLICIT NONE
-    INTEGER :: i,Iterations,exFlag,nI(NEl),nJ(NEl),IC,ExcitMat(2,2),kx,ky,kz,ktrial(2)
+    INTEGER :: i,Iterations,exFlag,nI(NEl),nJ(NEl),IC,ExcitMat(2,2),kx,ky,kz,ktrial(3)
     REAL*8 :: pDoub,pGen,AverageContrib,AllAverageContrib
     INTEGER :: ClassCount2(ScratchSize),Scratch1(ScratchSize),Scratch2(ScratchSize),scratch3(scratchsize)
     INTEGER(KIND=n_int) :: iLutnJ(0:NIfTot),iLut(0:NIfTot)
@@ -2934,7 +2939,7 @@ lp2: do while(.true.)
                 ky=ky+G1(nJ(j))%k(2)
                 kz=kz+G1(nJ(j))%k(3)
             enddo
-            ktrial=(/kx,ky/)
+            ktrial=(/kx,ky,0/)
             CALL MomPbcSym(ktrial,nBasisMax)
             IF(.not.(ktrial(1).eq.0.and.ktrial(2).eq.0.and.kz.eq.0)) THEN
                 CYCLE
@@ -3060,10 +3065,11 @@ END SUBROUTINE TestGenRandSymExcitNU
 SUBROUTINE IsSymAllowedExcit(nI,nJ,IC,ExcitMat,SymAllowed)
     Use SystemData , only : G1,NEl,tFixLz
     Use SystemData , only : Symmetry,tNoSymGenRandExcits
-     use Determinants, only: write_det
+    use Determinants, only: write_det
+    use sym_mod
     IMPLICIT NONE
-    Type(Symmetry) :: SymProduct,SymProduct2,SYMPROD
-    LOGICAL :: SYMEQ,ISVALIDDET,SymAllowed
+    Type(Symmetry) :: SymProduct,SymProduct2
+    LOGICAL :: ISVALIDDET,SymAllowed
     INTEGER :: IC,ExcitMat(2,2),nI(NEl),nJ(NEl),ExcitLevel,iGetExcitLevel
     INTEGER :: KOcc,KUnocc
 

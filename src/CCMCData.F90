@@ -6,7 +6,8 @@ module CCMCData
    logical  tExactCluster  ! Go through all combinations of excitors to make all clusters
    logical  tExactSpawn    ! For each cluster, go through all connected dets, and spawn there
    integer  nSpawnings     ! The number of spawning events per cluster if not tExactSpawn
-   integer  nClustSelections !The number of cluster selections per excitor
+   integer  nClustSelections !The number of cluster selections per cycle
+   real*8   dClustSelectionRatio !The number of cluster selections per excitor (if nClustSelections==-1)
    logical  tCCMCFCI       ! Run CCMC code without excitation clusters, recovering the FCIMC result
    logical  tAmplitudes    ! Use real numbers to indicate the amplitudes rather than stochastically sampling
    real*8   dInitAmplitude ! Specify the initial amplitude for use in CCMC amplitude calculations.
@@ -51,6 +52,7 @@ TYPE ClustSelector
    LOGICAL tFull     !Set if we are to generate all possible clusters
    INTEGER iMaxSize  !The maximum size of a cluster
    INTEGER nSelects  !If we're stochastically sampling the cluster space, this is the number of samples we take
+   REAL*8 dRatio     !If tDynamic then dRatio is the ratio of selections to excitors
    REAL*8 dProbSelNewExcitor  !The probability that we quit at every stage of selecting a new excitor for a cluster  
    INTEGER iRefPos   !The Location in teh amplitude list of the reference det
    LOGICAL tDynamic  !If set, we choose as many clusters as there are excitors.

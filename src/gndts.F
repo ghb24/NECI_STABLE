@@ -46,6 +46,7 @@ C.. The recursive routine in GNDTS.  IELEC is the current electron
      &  SymRestrict,II,IELECS,ISPINS,IELEC,KJ)
       use SystemData, only: BasisFN,tFixLz
       use sort_mod
+      use sym_mod
       use util_mod, only: NECI_ICOPY
       IMPLICIT NONE
       INTEGER NEL,NHG,LMS,II
@@ -61,7 +62,6 @@ C.. The recursive routine in GNDTS.  IELEC is the current electron
       INTEGER NI(NEL)
       INTEGER IELEC,IST,IEL,I
 C.. This will hold the parity of the basis fn
-      LOGICAL LCHKSYM
 C.. Iterate of the the spin basis functions available for this electron
 C.. I_(N+1) = I_N +1 .. NHG
       IST=1

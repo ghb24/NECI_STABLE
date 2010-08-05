@@ -3,6 +3,7 @@
      &         TPARITY,SymRestrict,IFDET,TGENFDET,NDETTOT,BLOCKSYM
      &         )
          use SystemData, only: BasisFN,BasisFNSize
+         use sym_mod
          use util_mod, only: NECI_ICOPY
          IMPLICIT NONE
          INTEGER NEL,NBASIS,BRR(NBASIS),nBasisMax(5,*),NDET
@@ -80,6 +81,7 @@ C.. we've found an occupied block
      &                     NLIST,NLMAX,NJ,KJ,NELEC,NBF,NBASISMAX)
          use SystemData, only: BasisFN,BasisFNSize
          use sort_mod
+         use sym_mod
          use util_mod, only: NECI_ICOPY
          IMPLICIT NONE
          INTEGER NEL,NI(NEL), NBASIS, NLMAX,NLIST
@@ -144,6 +146,7 @@ C.. NLIST, up until LSTE is full.  NLIST at the end contains the total
 C.. number of determinants available (even if LSTE doesn't hold them all).
       SUBROUTINE GENSYMDETS(NI,NEL,G1,BRR,NBASIS,LSTE,NLIST,NBASISMAX)
          use SystemData, only: BasisFN,BasisFNSize,Symmetry,NullBasisFn
+         use sym_mod, only: getsym
          IMPLICIT NONE
          INTEGER NEL,NI(NEL),NBASIS,BRR(NBASIS)
          INTEGER NLIST,LSTE(NEL,NLIST),nBasisMax(5,*)
@@ -163,6 +166,7 @@ C.. number of determinants available (even if LSTE doesn't hold them all).
      &                     NLIST,NLMAX,NJ,KJ,NELEC,NBF,NBASISMAX)
          use SystemData, only: BasisFN,BasisFNSize
          use sort_mod
+         use sym_mod
          use util_mod, only: NECI_ICOPY
          IMPLICIT NONE
          INTEGER NEL,NI(NEL), NBASIS, NLMAX,NLIST
@@ -228,6 +232,7 @@ C.. Generate determinants with a given symmetry, given by KI, as GENSYMDETS
      &                NLIST,NLMAX,NJ,KJ,NELEC,NBF,NBASISMAX,BETA,I_P,
      &       NMSH,FCK,NMAX,ALAT,UMAT,NTAY,ECORE,RN,RP,PP,RHOEPS)
          use SystemData, only: BasisFN,BasisFNSize
+         use sym_mod
          use sort_mod
          use util_mod, only: NECI_ICOPY
          IMPLICIT NONE
@@ -343,13 +348,14 @@ C.. KI is the sym, NJ contains the working
      &            TDONE,NJ,NN,INDJ,NELEC,NBASISMAX,nActiveBasis)
          use SystemData, only: BasisFN
          use sort_mod
+         use sym_mod
          use util_mod, only: NECI_ICOPY
          IMPLICIT NONE
          TYPE(BasisFN) G1(nBasis),kI,kJ2
          INTEGER NEL, NBASIS
          INTEGER NJ(NEL),NELEC,INDJ(NEL),NLAST
          INTEGER I,BRR(NBASIS),NN(NEL),nBasisMax(5,*)
-         LOGICAL LCHKSYM,LCONT,TDONE
+         LOGICAL LCONT,TDONE
          INTEGER nActiveBasis(2)
          TDONE=.FALSE.
          LCONT=.TRUE.
@@ -399,6 +405,7 @@ C.. WORK(2*NEL+18)
      &      TPARITY,SymRestrict,ISYM,NI,TSETUP,TDONE,Work,nActiveBasis)
          use SystemData, only: BasisFN,BasisFNSize
          use gnd_work_type
+         use sym_mod
          IMPLICIT NONE
          INTEGER NEL,NBASIS,BRR(NBASIS),nBasisMax(5,*)
          INTEGER LMS,NI(NEL)
@@ -428,6 +435,7 @@ C,IMAX,ISYM,NELEC,
 C     &      NIWORK,NINDJ)
          use SystemData, only: BasisFN,BasisFNSize
          use gnd_work_type
+         use sym_mod
          IMPLICIT NONE
          TYPE(GNDWork) Work 
          INTEGER NEL,NBASIS,BRR(NBASIS),nBasisMax(5,*)

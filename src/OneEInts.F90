@@ -616,6 +616,7 @@ contains
         use SymData, only: SymLabelCountsCum2,SymLabelIntsCum2
         use SymData, only: tagSymLabelCountsCum,tagSymLabelIntsCum
         use SymData, only: SymClasses2,tagSymClasses2
+        use sym_mod
         use global_utilities
         IMPLICIT NONE
         integer NBASIS,NHG,GG(NHG)

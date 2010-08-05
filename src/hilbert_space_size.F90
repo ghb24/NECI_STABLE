@@ -1,0 +1,864 @@
+module hilbert_space_size
+
+implicit none
+
+contains
+
+!This routine *stochastically* finds the size of the determinant space. For certain symmetries, its hard to find the
+!allowed size of the determinant space. However, it can be simply found using a MC technique.
+      SUBROUTINE FindSymMCSizeofSpace(IUNIT)
+         use SymData, only : TwoCycleSymGens
+         use SystemData, only: nEl,G1,nBasis,nOccAlpha,nOccBeta,G1
+         use SystemData, only: tUEG,tHPHF,tHub
+         use SystemData, only : CalcDetCycles, CalcDetPrint,tFixLz
+         use DeterminantData, only : FDet
+         use DetCalcData, only : ICILevel
+         use dSFMT_interface
+         use soft_exit, only : ChangeVars
+         use Parallel
+         use constants, only : n_int,bits_n_int
+         use DetBitops, only: EncodeBitDet
+         use util_mod, only: choose
+         use bit_rep_data, only: NIfTot
+         IMPLICIT NONE
+         INTEGER :: IUNIT,OverallSym,j,SpatOrbs,FDetMom,ExcitLev
+         INTEGER(KIND=n_int) :: FDetiLut(0:NIfTot),iLut(0:NIfTot)
+         INTEGER :: FDetSym,TotalSym,TotalMom,alpha,beta,ierr,Momx,Momy
+         INTEGER :: Momz
+         INTEGER*8 :: Accept,AcceptAll,i
+         INTEGER*8 :: ExcitBin(0:NEl),ExcitBinAll(0:NEl)
+         REAL*8 :: FullSpace,r,Frac
+         REAL*8 :: SizeLevel(0:NEl) 
+         LOGICAL :: tTruncSpace,tDummy,tDummy2,tSoftExitFound
+         LOGICAL :: tNotAllowed,tAcc
+
+         IF((.not.TwoCycleSymGens).and.(.not.tUEG).and.(.not.tHub)) THEN
+             WRITE(IUNIT,*) "Only for molecular abelian symmetry "      &
+            //" calculations can the exact size of the determinant "    &
+            //" space be calculated currently..."
+             WRITE(IUNIT,*) "Skipping size of space calculation..."
+             RETURN
+         ENDIF
+
+         WRITE(IUNIT,*) "Calculating exact size of symmetry-allowed "   &
+             //"determinant space using MC..."
+         WRITE(IUNIT,*) CalcDetCycles, " MC cycles will be used, and "  &
+             //"statistics printed out every ",CalcDetPrint," cycles."
+         FDetSym=0
+         FDetMom=0
+         ExcitBin(:)=0
+         ExcitBinAll(:)=0
+
+         do i=1,NEl
+            FDetSym=IEOR(FDetSym,INT(G1(FDet(i))%Sym%S,4))
+            IF(tFixLz) FDetMom=FDetMom+G1(FDet(i))%Ml
+         enddo
+
+         IF(ICILevel.gt.0) THEN
+             tTruncSpace=.true.
+         ELSE
+             tTruncSpace=.false.
+         ENDIF
+
+         CALL EncodeBitDet(FDet,FDetiLut)
+
+         WRITE(IUNIT,*) "Symmetry of HF determinant is: ",FDetSym
+         IF(tFixLz) THEN
+             WRITE(IUNIT,*) "Imposing momentum sym on size calculation"
+             WRITE(IUNIT,*) "Momentum of HF determinant is: ",FDetMom
+         ENDIF
+         IF(tHPHF) THEN
+            WRITE(6,*) "Imposing time-reversal symmetry (HPHF) on "     &
+                 //"size of space calculation"
+         ENDIF
+
+         SpatOrbs=nBasis/2
+
+         Accept=0
+         
+         FullSpace=Choose(SpatOrbs,nOccAlpha)
+         FullSpace=FullSpace*Choose(SpatOrbs,nOccBeta)
+
+         WRITE(IUNIT,*) "Size of space neglecting all but Sz symmetry: "&
+            ,FullSpace
+
+         CALL FLUSH(IUNIT)
+
+         IF(iProcIndex.eq.0) THEN
+             OPEN(14,file="SpaceMCStats",status='unknown',              &
+                 form='formatted')
+         ENDIF
+
+         ! With MerTwistRan the default seed was being used.
+         ! dSFMT does not initialise itself if not already initialised.
+         call dSFMT_init(5489)
+
+         do i=1,CalcDetCycles
+
+             TotalSym=0
+             TotalMom=0
+             ExcitLev=0
+             Momx=0
+             Momy=0
+             Momz=0
+             iLut(:)=0
+
+             !Create random determinant (Correct Sz symmetry)
+             !Loop over alpha electrons
+             do j=1,nOccAlpha
+
+                 tNotAllowed=.true.
+                 do while(tNotAllowed)
+
+                     r = genrand_real2_dSFMT()
+                     alpha=2*(INT(SpatOrbs*r)+1)
+                     IF(.not.BTEST(iLut((alpha-1)/bits_n_int),mod((alpha-1),bits_n_int))) THEN
+                         !Has *not* been picked before
+                         iLut((alpha-1)/bits_n_int)= &
+                            IBSET(iLut((alpha-1)/bits_n_int),mod(alpha-1,bits_n_int))
+                         tNotAllowed=.false.
+                     ENDIF
+                 enddo
+
+                 TotalSym=IEOR(TotalSym,INT((G1(alpha)%Sym%S),4))
+                 IF(tFixLz) THEN
+                     TotalMom=TotalMom+G1(alpha)%Ml
+                 ENDIF
+                 IF(tUEG.or.tHub) THEN
+                     Momx=Momx+G1(alpha)%k(1)
+                     Momy=Momy+G1(alpha)%k(2)
+                     Momz=Momz+G1(alpha)%k(3)
+                 ENDIF
+                 IF(.not.BTEST(FDetiLut((alpha-1)/bits_n_int),mod((alpha-1),bits_n_int))) THEN
+                     !orbital chosen is *not* in the reference determinant
+                     ExcitLev=ExcitLev+1
+                 ENDIF
+
+                 !Test
+!                 IF((alpha.lt.2).or.(alpha.gt.nBasis)) THEN
+!                     CALL Stop_All("FindSymMCSizeofSpace","Error "      &
+!     &                   //"calculating whether determinant is allowed")
+!                 ENDIF
+
+             enddo
+
+             !Loop over beta electrons
+             do j=1,nOccBeta
+
+                 tNotAllowed=.true.
+                 do while(tNotAllowed)
+                     r = genrand_real2_dSFMT()
+                     beta=2*(INT(SpatOrbs*r)+1)-1
+                     IF(.not.BTEST(iLut((beta-1)/bits_n_int),mod((beta-1),bits_n_int))) THEN
+                         !Has *not* been picked before
+                         iLut((beta-1)/bits_n_int)= &
+                             IBSET(iLut((beta-1)/bits_n_int),mod(beta-1,bits_n_int))
+                         tNotAllowed=.false.
+                     ENDIF
+                 enddo
+
+                 TotalSym=IEOR(TotalSym,INT((G1(beta)%Sym%S),4))
+                 IF(tFixLz) THEN
+                     TotalMom=TotalMom+G1(beta)%Ml
+                 ENDIF
+                 IF(tUEG.or.tHub) THEN
+                     Momx=Momx+G1(beta)%k(1)
+                     Momy=Momy+G1(beta)%k(2)
+                     Momz=Momz+G1(beta)%k(3)
+                 ENDIF
+            IF(.not.BTEST(FDetiLut((beta-1)/bits_n_int),mod((beta-1),bits_n_int))) THEN
+                     !orbital chosen is *not* in the reference determinant
+                     ExcitLev=ExcitLev+1
+                 ENDIF
+                 
+                 !Test
+!                 IF((beta.lt.1).or.(beta.gt.(nBasis-1))) THEN
+!                     CALL Stop_All("FindSymMCSizeofSpace","Error "      &
+!     &                   //"calculating whether determinant is allowed")
+!                 ENDIF
+
+             enddo
+
+             tAcc=.false.
+             IF(TotalSym.eq.FDetSym) THEN
+             !Allow/disallow the determinant
+                 IF(tHPHF) THEN
+                     IF(IsAllowedHPHF(NEl,iLut)) THEN
+                         IF(tFixLz) THEN
+                             IF(TotalMom.eq.FDetMom) THEN
+                                 IF(tTruncSpace) THEN
+                                     IF(ExcitLev.le.ICILevel) THEN
+                                         Accept=Accept+1
+                                         tAcc=.true.
+                                     ENDIF
+                                 ELSE
+                                     Accept=Accept+1
+                                     tAcc=.true.
+                                 ENDIF
+                             ENDIF
+                         ELSE
+                             IF(tTruncSpace) THEN
+                                 IF(ExcitLev.le.ICILevel) THEN
+                                     IF(tUEG.or.tHub) THEN
+                                         IF((Momx.eq.0).and.(Momy.eq.0).and.(Momz.eq.0)) THEN 
+                                            Accept=Accept+1
+                                            tAcc=.true.
+                                         ENDIF
+                                     ELSE
+                                         Accept=Accept+1
+                                         tAcc=.true.
+                                     ENDIF
+                                 ENDIF
+                             ELSE
+                                 IF(tUEG.or.tHub) THEN
+                                     IF((Momx.eq.0).and.(Momy.eq.0).and.(Momz.eq.0)) THEN
+                                        Accept=Accept+1
+                                        tAcc=.true.
+                                     ENDIF
+                                 ELSE
+                                     Accept=Accept+1
+                                     tAcc=.true.
+                                 ENDIF
+                             ENDIF
+                         ENDIF
+                     ENDIF
+                 ELSE
+                     IF(tFixLz) THEN
+                         IF(TotalMom.eq.FDetMom) THEN
+                             IF(tTruncSpace) THEN
+                                 IF(ExcitLev.le.ICILevel) THEN
+                                     Accept=Accept+1
+                                     tAcc=.true.
+                                 ENDIF
+                             ELSE
+                                 Accept=Accept+1
+                                 tAcc=.true.
+                             ENDIF
+                         ENDIF
+                     ELSE
+                         IF(tTruncSpace) THEN
+                             IF(ExcitLev.le.ICILevel) THEN
+                                 IF(tUEG.or.tHub) THEN
+                                     IF((Momx.eq.0).and.(Momy.eq.0).and.(Momz.eq.0)) THEN
+                                        Accept=Accept+1
+                                        tAcc=.true.
+                                     ENDIF
+                                 ELSE
+                                     Accept=Accept+1
+                                     tAcc=.true.
+                                 ENDIF
+                             ENDIF
+                         ELSE
+                             IF(tUEG.or.tHub) THEN
+                                 IF((Momx.eq.0).and.(Momy.eq.0).and.(Momz.eq.0)) THEN
+                                    Accept=Accept+1
+                                    tAcc=.true.
+                                 ENDIF
+                             ELSE
+                                 Accept=Accept+1
+                                 tAcc=.true.
+                             ENDIF
+                         ENDIF
+                     ENDIF
+                 ENDIF
+             ENDIF
+
+             IF(tAcc) THEN
+!Add to correct bin for the excitation level
+                 ExcitBin(ExcitLev)=ExcitBin(ExcitLev)+1
+             ENDIF
+
+             
+             IF(mod(i,CalcDetPrint).eq.0) THEN
+                 !Write out statistics
+#ifdef PARALLEL
+!                 WRITE(6,*) Accept,AcceptAll
+                 CALL MPI_Reduce(Accept,AcceptAll,1,                    &
+                  MPI_INTEGER8,MPI_SUM,0,MPI_COMM_WORLD,ierr)
+                 CALL MPI_Reduce(ExcitBin(0:NEl),ExcitBinAll(0:NEl),    &
+                  NEl+1,MPI_INTEGER8,MPI_SUM,0,MPI_COMM_WORLD,ierr)
+#else
+                 AcceptAll=Accept
+                 ExcitBinAll(0:NEl)=ExcitBin(0:NEl)
+#endif
+                 Frac=REAL(AcceptAll,8)/REAL(i*nProcessors,8)
+                 do j=0,NEl
+                     SizeLevel(j)=(REAL(ExcitBinAll(j),8)/REAL(AcceptAll,8))*Frac*FullSpace
+                 enddo
+                 IF(iProcIndex.eq.0) THEN
+                     WRITE(14,"(2I16,2G35.15)",advance='no') i,AcceptAll,Frac,Frac*FullSpace
+                     do j=0,NEl
+                         WRITE(14,"(F30.5)",advance='no') SizeLevel(j)
+                     enddo
+                     WRITE(14,"(A)") ""
+                 ENDIF
+
+                 AcceptAll=0
+                 ExcitBinAll(0:NEl)=0
+
+                 CALL ChangeVars(tDummy,tSoftExitFound,tDummy2)
+                 IF(tSoftExitFound) EXIT
+
+             ENDIF
+
+         enddo
+
+#ifdef PARALLEL
+         CALL MPI_Reduce(Accept,AcceptAll,1,                            &
+           MPI_INTEGER8,MPI_SUM,0,MPI_COMM_WORLD,ierr)
+         CALL MPI_Reduce(ExcitBin(0:NEl),ExcitBinAll(0:NEl),            &
+           NEl+1,MPI_INTEGER8,MPI_SUM,0,MPI_COMM_WORLD,ierr)
+#else
+         AcceptAll=Accept
+         ExcitBinAll(0:NEl)=ExcitBin(0:NEl)
+#endif
+         Frac=REAL(AcceptAll,8)/REAL(i*nProcessors,8)
+         do j=0,NEl
+             SizeLevel(j)=(REAL(ExcitBinAll(j),8)/REAL(AcceptAll,8))*Frac*FullSpace
+         enddo
+
+         IF(iProcIndex.eq.0) THEN
+             WRITE(14,"(2I16,2G35.15)",advance='no') i,AcceptAll,Frac,Frac*FullSpace
+                 do j=0,NEl
+                     WRITE(14,"(F30.5)",advance='no') SizeLevel(j)
+                 enddo
+                 WRITE(14,"(A)") ""
+             CLOSE(14)
+         ENDIF
+
+         WRITE(IUNIT,*) "MC size of space: ",Frac*FullSpace
+         WRITE(IUNIT,*) "Individual excitation level contributions: "
+         do j=0,NEl
+             WRITE(IUNIT,"(I5,F30.5)") j,SizeLevel(j)
+         enddo
+         CALL FLUSH(IUNIT)
+
+      END SUBROUTINE FindSymMCSizeofSpace
+
+      FUNCTION IsAllowedHPHF(NEl,iLutnI)
+          USE HPHFRandExcitMod , only : ReturnAlphaOpenDet
+          USE Bit_reps , only : Decode_Bit_Det
+          use constants , only : n_int
+          use bit_rep_data, only: NIfTot
+          IMPLICIT NONE
+          INTEGER :: nI(NEl),NEl
+          INTEGER(KIND=n_int) :: iLutnI(0:NIfTot),iLutSym(0:NIfTot)
+          INTEGER :: nJ(NEl)
+          LOGICAL :: IsAllowedHPHF,tClosedShell,tSwapped
+          LOGICAL :: TestClosedShellDet
+
+          CALL Decode_Bit_Det(nI,iLutnI)
+
+          tClosedShell=TestClosedShellDet(iLutnI)
+          IF(tClosedShell) THEN
+              IsAllowedHPHF=.true.
+              RETURN
+          ENDIF
+
+          CALL ReturnAlphaOpenDet(nI,nJ,iLutnI,iLutSym,.true.,.true.,tSwapped)
+
+          IF(tSwapped) THEN
+              IsAllowedHPHF=.false.
+          ELSE
+              IsAllowedHPHF=.true.
+          ENDIF
+      END FUNCTION IsAllowedHPHF
+
+!!This routine finds the size of the determinant space in terms, including all symmetry allowed determinants.
+!!This is written to IUNIT. This is only available for molecular (i.e. abelian) systems with a maximum of eigth irreps.
+!!This is done in a very crude way. Feel free to optimise it!
+      SUBROUTINE FindSymSizeofSpace(IUNIT)
+         use SymData , only : TwoCycleSymGens
+         use SystemData , only : nEl,G1,nBasis,nOccAlpha,nOccBeta
+         use DeterminantData, only : FDet
+         use util_mod, only: choose
+         IMPLICIT NONE
+         INTEGER :: ClassCounts(2,0:7),Lim0a,Lim0b,Lim1a,Lim1b,Lim2a
+         INTEGER :: Lima(0:7),Limb(0:7),a0,a1,a2,a3,a4,a5,a6,a7,NAlph
+         INTEGER :: b0,b1,b2,b3,b4,b5,b6,b7,NBet,i,IUNIT,OverallSym
+         INTEGER :: FDetSym,Lim2b
+         REAL*8 :: Space,SpaceGrow
+         LOGICAL :: Sym(0:7)
+
+         IF(.not.TwoCycleSymGens) THEN
+             WRITE(IUNIT,*) "Only for molecular abelian symmetry "      &
+            //" calculations can the exact size of the determinant "    &
+            //" space be calculated currently..."
+             WRITE(IUNIT,*) "Skipping size of space calculation..."
+             RETURN
+         ENDIF
+
+         WRITE(IUNIT,*) "Calculating exact size of symmetry-allowed determinant space..."
+         FDetSym=0
+         do i=1,NEl
+            FDetSym=IEOR(FDetSym,INT(G1(FDet(i))%Sym%S,4))
+         enddo
+         WRITE(6,*) "Symmetry of HF determinant is: ",FDetSym
+         CALL FLUSH(IUNIT)
+         ClassCounts(:,:)=0
+!First, we need to find the number of spatial orbitals in each symmetry irrep.
+         do i=1,nBasis,1
+             IF(G1(i)%Ms.eq.1) THEN
+                 ClassCounts(1,INT(G1(i)%Sym%S,4))=                     &
+                    ClassCounts(1,INT(G1(i)%Sym%S,4))+1
+             ELSE
+
+                 ClassCounts(2,INT(G1(i)%Sym%S,4))=                     &
+                    ClassCounts(2,INT(G1(i)%Sym%S,4))+1
+             ENDIF
+         enddo
+         do i=0,7
+             IF(mod((ClassCounts(1,i)+ClassCounts(2,i)),2).ne.0) THEN
+!                 STOP 'Error counting determinants'
+                 WRITE(6,*) 'WARNING: Different number of symmetries between the alpha and beta orbitals.'
+             ENDIF
+!             ClassCounts(i)=ClassCounts(i)/2
+         enddo
+
+         Lima(0)=min(nOccAlpha,ClassCounts(1,0))
+         Limb(0)=min(nOccBeta,ClassCounts(2,0))
+         Lima(1)=min(nOccAlpha,ClassCounts(1,1))
+         Limb(1)=min(nOccBeta,ClassCounts(2,1))
+         Lima(2)=min(nOccAlpha,ClassCounts(1,2))
+         Limb(2)=min(nOccBeta,ClassCounts(2,2))
+         Lima(3)=min(nOccAlpha,ClassCounts(1,3))
+         Limb(3)=min(nOccBeta,ClassCounts(2,3))
+         Lima(4)=min(nOccAlpha,ClassCounts(1,4))
+         Limb(4)=min(nOccBeta,ClassCounts(2,4))
+         Lima(5)=min(nOccAlpha,ClassCounts(1,5))
+         Limb(5)=min(nOccBeta,ClassCounts(2,5))
+         Lima(6)=min(nOccAlpha,ClassCounts(1,6))
+         Limb(6)=min(nOccBeta,ClassCounts(2,6))
+         Lima(7)=min(nOccAlpha,ClassCounts(1,7))
+         Limb(7)=min(nOccBeta,ClassCounts(2,7))
+         Space=0.D0
+
+!         WRITE(6,*) ClassCounts(:)
+!         WRITE(6,*) "***"
+!         WRITE(6,*) Lima(:),Limb(:)
+
+!Loop over each irrep twice, once for alpha electrons and once for beta.
+         do a0=0,Lima(0)
+         do b0=0,Limb(0)
+             IF(mod(a0+b0,2).eq.1) THEN
+                 Sym(0)=.true.
+             ELSE
+                 Sym(0)=.false.
+             ENDIF
+         do a1=0,Lima(1)
+         do b1=0,Limb(1)
+             IF(mod(a1+b1,2).eq.1) THEN
+                 Sym(1)=.true.
+             ELSE
+                 Sym(1)=.false.
+             ENDIF
+         do a2=0,Lima(2)
+         do b2=0,Limb(2)
+             IF(mod(a2+b2,2).eq.1) THEN
+                 Sym(2)=.true.
+             ELSE
+                 Sym(2)=.false.
+             ENDIF
+         do a3=0,Lima(3)
+         do b3=0,Limb(3)
+             IF(mod(a3+b3,2).eq.1) THEN
+                 Sym(3)=.true.
+             ELSE
+                 Sym(3)=.false.
+             ENDIF
+         do a4=0,Lima(4)
+         do b4=0,Limb(4)
+             IF(mod(a4+b4,2).eq.1) THEN
+                 Sym(4)=.true.
+             ELSE
+                 Sym(4)=.false.
+             ENDIF
+         do a5=0,Lima(5)
+         do b5=0,Limb(5)
+             IF(mod(a5+b5,2).eq.1) THEN
+                 Sym(5)=.true.
+             ELSE
+                 Sym(5)=.false.
+             ENDIF
+         do a6=0,Lima(6)
+         do b6=0,Limb(6)
+             IF(mod(a6+b6,2).eq.1) THEN
+                 Sym(6)=.true.
+             ELSE
+                 Sym(6)=.false.
+             ENDIF
+         do a7=0,Lima(7)
+         do b7=0,Limb(7)
+             IF(mod(a7+b7,2).eq.1) THEN
+                 Sym(7)=.true.
+             ELSE
+                 Sym(7)=.false.
+             ENDIF
+
+             OverallSym=0
+             do i=0,7
+                IF(Sym(i)) THEN
+                    OverallSym=IEOR(OverallSym,i)
+                ENDIF
+            enddo
+            IF(OverallSym.eq.FDetSym) THEN
+                NAlph=a0+a1+a2+a3+a4+a5+a6+a7
+                NBet=b0+b1+b2+b3+b4+b5+b6+b7
+
+                IF((NAlph.eq.NOccAlpha).and.(NBet.eq.NOccBeta)) THEN
+
+                    SpaceGrow=1.D0
+                    SpaceGrow=SpaceGrow*Choose(ClassCounts(1,0),a0)
+                    SpaceGrow=SpaceGrow*Choose(ClassCounts(2,0),b0)
+                    SpaceGrow=SpaceGrow*Choose(ClassCounts(1,1),a1)
+                    SpaceGrow=SpaceGrow*Choose(ClassCounts(2,1),b1)
+                    SpaceGrow=SpaceGrow*Choose(ClassCounts(1,2),a2)
+                    SpaceGrow=SpaceGrow*Choose(ClassCounts(2,2),b2)
+                    SpaceGrow=SpaceGrow*Choose(ClassCounts(1,3),a3)
+                    SpaceGrow=SpaceGrow*Choose(ClassCounts(2,3),b3)
+                    SpaceGrow=SpaceGrow*Choose(ClassCounts(1,4),a4)
+                    SpaceGrow=SpaceGrow*Choose(ClassCounts(2,4),b4)
+                    SpaceGrow=SpaceGrow*Choose(ClassCounts(1,5),a5)
+                    SpaceGrow=SpaceGrow*Choose(ClassCounts(2,5),b5)
+                    SpaceGrow=SpaceGrow*Choose(ClassCounts(1,6),a6)
+                    SpaceGrow=SpaceGrow*Choose(ClassCounts(2,6),b6)
+                    SpaceGrow=SpaceGrow*Choose(ClassCounts(1,7),a7)
+                    SpaceGrow=SpaceGrow*Choose(ClassCounts(2,7),b7)
+                    Space=Space+SpaceGrow
+                ENDIF
+            ENDIF
+
+         enddo
+         enddo
+         enddo
+         enddo
+         enddo
+         enddo
+         enddo
+         enddo
+         enddo
+         enddo
+         enddo
+         enddo
+         enddo
+         enddo
+         enddo
+         enddo
+
+         WRITE(IUNIT,"(A,G25.16)") " *EXACT* size of symmetry allowed space of determinants is: ",Space
+         CALL FLUSH(IUNIT)
+
+      END SUBROUTINE FindSymSizeofSpace
+
+
+!This routine finds the size of the determinant space in terms, including all symmetry allowed determinants.
+!This is written to IUNIT. This is only available for molecular (i.e. abelian) systems with a maximum of eigth irreps.
+!This is done in a very crude way. Feel free to optimise it!
+      SUBROUTINE FindSymSizeofTruncSpace(IUNIT)
+         use SymData , only : TwoCycleSymGens
+         use SystemData , only : nEl,G1,nBasis,nOccAlpha,nOccBeta,Brr
+         use DeterminantData, only : FDet
+         use DetCalcData, only : ICILevel
+         use util_mod, only: choose
+         IMPLICIT NONE
+         INTEGER :: ClassCountsOcc(0:7),Lim0a,Lim0b,Lim1a,Lim1b,Lim2a
+         INTEGER :: ClassCountsVirt(0:7),Lim2b,NAlphOcc,NAlphVirt
+         INTEGER :: ClassCountsOccMax(0:7),ClassCountsVirtMax(0:7)
+         INTEGER :: LimaOcc(0:7),LimbOcc(0:7),LimaVirt(0:7)
+         INTEGER :: LimbVirt(0:7)
+         INTEGER :: a0o,a1o,a2o,a3o,a4o,a5o,a6o,a7o
+         INTEGER :: a0v,a1v,a2v,a3v,a4v,a5v,a6v,a7v
+         INTEGER :: b0o,b1o,b2o,b3o,b4o,b5o,b6o,b7o,OverallSym
+         INTEGER :: b0v,b1v,b2v,b3v,b4v,b5v,b6v,b7v,NBetOcc,i,IUNIT
+         INTEGER :: FDetSym,NBetVirt
+         REAL*8 :: Space,SpaceGrow,SpaceGrow2
+         LOGICAL :: Sym(0:7)
+
+         IF(.not.TwoCycleSymGens) THEN
+             WRITE(IUNIT,*) "Only for molecular abelian symmetry "      &
+            //" calculations can the exact size of the determinant "    &
+            //" space be calculated currently..."
+             WRITE(IUNIT,*) "Skipping size of space calculation..."
+             RETURN
+         ENDIF
+
+         WRITE(IUNIT,*) "Calculating exact size of symmetry-allowed "   &
+             //"determinant space..."
+         FDetSym=0
+         do i=1,NEl
+            FDetSym=IEOR(FDetSym,INT(G1(FDet(i))%Sym%S,4))
+         enddo
+         WRITE(6,*) "Symmetry of HF determinant is: ",FDetSym
+         CALL FLUSH(IUNIT)
+         ClassCountsOcc(:)=0
+         ClassCountsVirt(:)=0
+!First, we need to find the number of spatial orbitals in each symmetry irrep.
+!We need to separate this into occupied and virtual. 
+         do i=1,NEl,1
+             ClassCountsOcc(INT(G1(BRR(i))%Sym%S,4))=                   &
+                 ClassCountsOcc(INT(G1(BRR(i))%Sym%S,4))+1
+         enddo
+ 
+         do i=NEL+1,nBasis,1
+             ClassCountsVirt(INT(G1(BRR(i))%Sym%S,4))=                  &
+                 ClassCountsVirt(INT(G1(BRR(i))%Sym%S,4))+1
+         enddo
+
+!These are still in spin orbitals, so check there are multiple of 2 values in 
+!each symmetry irrep and then divide by two because we deal with alpha and beta separately.         
+         do i=0,7
+         IF(mod((ClassCountsOcc(i)+ClassCountsVirt(i)),2).ne.0) THEN
+             STOP 'Error counting determinants'
+         ENDIF
+         ClassCountsOccMax(i)=CEILING(REAL(ClassCountsOcc(i))/2.D0)
+         ClassCountsVirtMax(i)=CEILING(REAL(ClassCountsVirt(i))/2.D0)
+         ClassCountsOcc(i)=FLOOR(REAL(ClassCountsOcc(i))/2.D0)
+         ClassCountsVirt(i)=FLOOR(REAL(ClassCountsVirt(i))/2.D0)
+         
+!         ClassCounts(i)=ClassCounts(i)/2
+         enddo
+
+         IF(nOccAlpha.gt.nOccBeta) THEN
+             do i=0,7
+                 LimaOcc(i)=min(nOccAlpha,ClassCountsOccMax(i))
+                 LimbOcc(i)=min(nOccBeta,ClassCountsOcc(i))
+                 LimaVirt(i)=min(ICILevel,ClassCountsVirtMax(i))
+                 LimbVirt(i)=min(ICILevel,ClassCountsVirt(i))
+             enddo
+         ELSE
+             do i=0,7
+                 LimaOcc(i)=min(nOccAlpha,ClassCountsOcc(i))
+                 LimbOcc(i)=min(nOccBeta,ClassCountsOccMax(i))
+                 LimaVirt(i)=min(ICILevel,ClassCountsVirt(i))
+                 LimbVirt(i)=min(ICILevel,ClassCountsVirtMax(i))
+             enddo
+         ENDIF
+ 
+         Space=0.D0
+
+!Loop over each irrep twice, once for alpha electrons and once for beta.
+!a0 is the number of alpha electrons in symmetry 0.
+!b0 is the number of beta electrons in symmetry 0.         
+         do a0o=0,LimaOcc(0)
+         do b0o=0,LimbOcc(0)
+         do a0v=0,LimaVirt(0)
+         do b0v=0,LimbVirt(0)
+             IF(mod(a0o+b0o+a0v+b0v,2).eq.1) THEN
+                 Sym(0)=.true.
+             ELSE
+                 Sym(0)=.false.
+             ENDIF
+         do a1o=0,LimaOcc(1)
+         do b1o=0,LimbOcc(1)
+         do a1v=0,LimaVirt(1)
+         do b1v=0,LimbVirt(1)
+             IF(mod(a1o+b1o+a1v+b1v,2).eq.1) THEN
+                 Sym(1)=.true.
+             ELSE
+                 Sym(1)=.false.
+             ENDIF
+         do a2o=0,LimaOcc(2)
+         do b2o=0,LimbOcc(2)
+         do a2v=0,LimaVirt(2)
+         do b2v=0,LimbVirt(2)
+             IF(mod(a2o+b2o+a2v+b2v,2).eq.1) THEN
+                 Sym(2)=.true.
+             ELSE
+                 Sym(2)=.false.
+             ENDIF
+
+         do a3o=0,LimaOcc(3)
+         do b3o=0,LimbOcc(3)
+         do a3v=0,LimaVirt(3)
+         do b3v=0,LimbVirt(3)
+             IF(mod(a3o+b3o+a3v+b3v,2).eq.1) THEN
+                 Sym(3)=.true.
+             ELSE
+                 Sym(3)=.false.
+             ENDIF
+         do a4o=0,LimaOcc(4)
+         do b4o=0,LimbOcc(4)
+         do a4v=0,LimaVirt(4)
+         do b4v=0,LimbVirt(4)
+             IF(mod(a4o+b4o+a4v+b4v,2).eq.1) THEN
+                 Sym(4)=.true.
+             ELSE
+                 Sym(4)=.false.
+             ENDIF
+         do a5o=0,LimaOcc(5)
+         do b5o=0,LimbOcc(5)
+         do a5v=0,LimaVirt(5)
+         do b5v=0,LimbVirt(5)
+             IF(mod(a5o+b5o+a5v+b5v,2).eq.1) THEN
+                 Sym(5)=.true.
+             ELSE
+                 Sym(5)=.false.
+             ENDIF
+         do a6o=0,LimaOcc(6)
+         do b6o=0,LimbOcc(6)
+         do a6v=0,LimaVirt(6)
+         do b6v=0,LimbVirt(6)
+             IF(mod(a6o+b6o+a6v+b6v,2).eq.1) THEN
+                 Sym(6)=.true.
+             ELSE
+                 Sym(6)=.false.
+             ENDIF
+         do a7o=0,LimaOcc(7)
+         do b7o=0,LimbOcc(7)
+         do a7v=0,LimaVirt(7)
+         do b7v=0,LimbVirt(7)
+             IF(mod(a7o+b7o+a7v+b7v,2).eq.1) THEN
+                 Sym(7)=.true.
+             ELSE
+                 Sym(7)=.false.
+             ENDIF
+
+             OverallSym=0
+             do i=0,7
+                IF(Sym(i)) THEN
+                    OverallSym=IEOR(OverallSym,i)
+                ENDIF
+             enddo
+             IF(OverallSym.eq.FDetSym) THEN
+                NAlphOcc=a0o+a1o+a2o+a3o+a4o+a5o+a6o+a7o
+                NBetOcc=b0o+b1o+b2o+b3o+b4o+b5o+b6o+b7o
+                NAlphVirt=a0v+a1v+a2v+a3v+a4v+a5v+a6v+a7v
+                NBetVirt=b0v+b1v+b2v+b3v+b4v+b5v+b6v+b7v
+
+
+                IF(((NAlphOcc+NAlphVirt).eq.NOccAlpha).and.((NBetOcc+NBetVirt).eq.NOccBeta)) THEN
+                IF((NAlphVirt+NBetVirt).le.ICILevel) THEN
+
+                IF(nOccAlpha.gt.nOccBeta) THEN
+
+                SpaceGrow=SpaceGrow*Choose(ClassCountsOccMax(0),a0o)
+                SpaceGrow=SpaceGrow*Choose(ClassCountsOcc(0),b0o)
+                SpaceGrow=SpaceGrow*Choose(ClassCountsVirtMax(0),a0v)
+                SpaceGrow=SpaceGrow*Choose(ClassCountsVirt(0),b0v)
+
+                SpaceGrow=SpaceGrow*Choose(ClassCountsOccMax(1),a1o)
+                SpaceGrow=SpaceGrow*Choose(ClassCountsOcc(1),b1o)
+                SpaceGrow=SpaceGrow*Choose(ClassCountsVirtMax(1),a1v)
+                SpaceGrow=SpaceGrow*Choose(ClassCountsVirt(1),b1v)
+
+                SpaceGrow=SpaceGrow*Choose(ClassCountsOccMax(2),a2o)
+                SpaceGrow=SpaceGrow*Choose(ClassCountsOcc(2),b2o)
+                SpaceGrow=SpaceGrow*Choose(ClassCountsVirtMax(2),a2v)
+                SpaceGrow=SpaceGrow*Choose(ClassCountsVirt(2),b2v)
+
+                SpaceGrow=SpaceGrow*Choose(ClassCountsOccMax(3),a3o)
+                SpaceGrow=SpaceGrow*Choose(ClassCountsOcc(3),b3o)
+                SpaceGrow=SpaceGrow*Choose(ClassCountsVirtMax(3),a3v)
+                SpaceGrow=SpaceGrow*Choose(ClassCountsVirt(3),b3v)
+
+                SpaceGrow=SpaceGrow*Choose(ClassCountsOccMax(4),a4o)
+                SpaceGrow=SpaceGrow*Choose(ClassCountsOcc(4),b4o)
+                SpaceGrow=SpaceGrow*Choose(ClassCountsVirtMax(4),a4v)
+                SpaceGrow=SpaceGrow*Choose(ClassCountsVirt(4),b4v)
+
+                SpaceGrow=SpaceGrow*Choose(ClassCountsOccMax(5),a5o)
+                SpaceGrow=SpaceGrow*Choose(ClassCountsOcc(5),b5o)
+                SpaceGrow=SpaceGrow*Choose(ClassCountsVirtMax(5),a5v)
+                SpaceGrow=SpaceGrow*Choose(ClassCountsVirt(5),b5v)
+
+                SpaceGrow=SpaceGrow*Choose(ClassCountsOccMax(6),a6o)
+                SpaceGrow=SpaceGrow*Choose(ClassCountsOcc(6),b6o)
+                SpaceGrow=SpaceGrow*Choose(ClassCountsVirtMax(6),a6v)
+                SpaceGrow=SpaceGrow*Choose(ClassCountsVirt(6),b6v)
+
+                SpaceGrow=SpaceGrow*Choose(ClassCountsOccMax(7),a7o)
+                SpaceGrow=SpaceGrow*Choose(ClassCountsOcc(7),b7o)
+                SpaceGrow=SpaceGrow*Choose(ClassCountsVirtMax(7),a7v)
+                SpaceGrow=SpaceGrow*Choose(ClassCountsVirt(7),b7v)
+
+                Space=Space+SpaceGrow
+
+                ELSE
+
+                SpaceGrow=1.D0
+                SpaceGrow=SpaceGrow*Choose(ClassCountsOcc(0),a0o)
+                SpaceGrow=SpaceGrow*Choose(ClassCountsOccMax(0),b0o)
+                SpaceGrow=SpaceGrow*Choose(ClassCountsVirt(0),a0v)
+                SpaceGrow=SpaceGrow*Choose(ClassCountsVirtMax(0),b0v)
+
+                SpaceGrow=SpaceGrow*Choose(ClassCountsOcc(1),a1o)
+                SpaceGrow=SpaceGrow*Choose(ClassCountsOccMax(1),b1o)
+                SpaceGrow=SpaceGrow*Choose(ClassCountsVirt(1),a1v)
+                SpaceGrow=SpaceGrow*Choose(ClassCountsVirtMax(1),b1v)
+
+                SpaceGrow=SpaceGrow*Choose(ClassCountsOcc(2),a2o)
+                SpaceGrow=SpaceGrow*Choose(ClassCountsOccMax(2),b2o)
+                SpaceGrow=SpaceGrow*Choose(ClassCountsVirt(2),a2v)
+                SpaceGrow=SpaceGrow*Choose(ClassCountsVirtMax(2),b2v)
+
+                SpaceGrow=SpaceGrow*Choose(ClassCountsOcc(3),a3o)
+                SpaceGrow=SpaceGrow*Choose(ClassCountsOccMax(3),b3o)
+                SpaceGrow=SpaceGrow*Choose(ClassCountsVirt(3),a3v)
+                SpaceGrow=SpaceGrow*Choose(ClassCountsVirtMax(3),b3v)
+
+                SpaceGrow=SpaceGrow*Choose(ClassCountsOcc(4),a4o)
+                SpaceGrow=SpaceGrow*Choose(ClassCountsOccMax(4),b4o)
+                SpaceGrow=SpaceGrow*Choose(ClassCountsVirt(4),a4v)
+                SpaceGrow=SpaceGrow*Choose(ClassCountsVirtMax(4),b4v)
+
+                SpaceGrow=SpaceGrow*Choose(ClassCountsOcc(5),a5o)
+                SpaceGrow=SpaceGrow*Choose(ClassCountsOccMax(5),b5o)
+                SpaceGrow=SpaceGrow*Choose(ClassCountsVirt(5),a5v)
+                SpaceGrow=SpaceGrow*Choose(ClassCountsVirtMax(5),b5v)
+
+                SpaceGrow=SpaceGrow*Choose(ClassCountsOcc(6),a6o)
+                SpaceGrow=SpaceGrow*Choose(ClassCountsOccMax(6),b6o)
+                SpaceGrow=SpaceGrow*Choose(ClassCountsVirt(6),a6v)
+                SpaceGrow=SpaceGrow*Choose(ClassCountsVirtMax(6),b6v)
+
+                SpaceGrow=SpaceGrow*Choose(ClassCountsOcc(7),a7o)
+                SpaceGrow=SpaceGrow*Choose(ClassCountsOccMax(7),b7o)
+                SpaceGrow=SpaceGrow*Choose(ClassCountsVirt(7),a7v)
+                SpaceGrow=SpaceGrow*Choose(ClassCountsVirtMax(7),b7v)
+
+                Space=Space+SpaceGrow
+                ENDIF
+                ENDIF
+                ENDIF
+            ENDIF
+
+         enddo
+         enddo
+         enddo
+         enddo
+         enddo
+         enddo
+         enddo
+         enddo
+         enddo
+         enddo
+         enddo
+         enddo
+         enddo
+         enddo
+         enddo
+         enddo
+         enddo
+         enddo
+         enddo
+         enddo
+         enddo
+         enddo
+         enddo
+         enddo
+         enddo
+         enddo
+         enddo
+         enddo
+         enddo
+         enddo
+         enddo
+         enddo
+
+         WRITE(IUNIT,"(A,G25.16)") " *EXACT* size of symmetry allowed " &
+             //"space of determinants is: ",Space
+         CALL FLUSH(IUNIT)
+
+      END SUBROUTINE FindSymSizeofTruncSpace
+
+end module hilbert_space_size

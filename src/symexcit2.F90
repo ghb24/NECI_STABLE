@@ -328,6 +328,7 @@ MODULE SymExcit2
          use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
          use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
          use SymData, only: nSymPairProds,SymPairProds
+         use sym_mod
          use global_utilities
          IMPLICIT NONE
          INTEGER iExcit(2,2)
@@ -336,9 +337,7 @@ MODULE SymExcit2
          INTEGER iFrom,iFromIndex,iTo
          TYPE(BasisFn) G1(nBasis)
          TYPE(Symmetry) Sym
-         TYPE(Symmetry) SYMPROD
          TYPE(Symmetry) SymProds(0:*)
-         LOGICAL SYMEQ
          INTEGER nBasisMax(5,*)
          TYPE(ExcitWeight), allocatable :: ews(:)
          integer, save :: tagews=0
