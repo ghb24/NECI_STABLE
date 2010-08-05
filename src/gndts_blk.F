@@ -88,7 +88,6 @@ C.. we've found an occupied block
          TYPE(BASISFN) G1(NBASIS),KI,KJ,KJ2
          INTEGER LSTE(NEL,NLMAX),NJ(NEL),NELEC,NBF
          INTEGER I,BRR(NBASIS),NN(NEL),nBasisMax(5,*)
-         LOGICAL LCHKSYM
          INTEGER IGETEXCITLEVEL,ICE
          DO I=NBF,NBASIS
             NJ(NELEC)=BRR(I)
@@ -172,7 +171,7 @@ C.. number of determinants available (even if LSTE doesn't hold them all).
          INTEGER NEL,NI(NEL), NBASIS, NLMAX,NLIST
          INTEGER LSTE(NEL,NLMAX),NJ(NEL),NELEC,NBF
          INTEGER I,J,BRR(NBASIS),NN(NEL),nBasisMax(5,*)
-         LOGICAL LCMP,LCHKSYM
+         LOGICAL LCMP
          TYPE(BASISFN) G1(NBASIS),KI,KJ,KJ2
          DO I=NBF,NBASIS
             NJ(NELEC)=BRR(I)
@@ -239,7 +238,6 @@ C.. Generate determinants with a given symmetry, given by KI, as GENSYMDETS
          INTEGER NEL,NI(NEL), NBASIS, NLMAX,NLIST
          INTEGER LSTE(NEL,NLMAX),NJ(NEL),NELEC,NBF
          INTEGER I,BRR(NBASIS),NN(NEL),nBasisMax(5,*)
-         LOGICAL LCHKSYM
          INTEGER IGETEXCITLEVEL,ICE
          REAL*8 RN,RP,RH,PP,RH2,RHOEPS
          REAL*8 BETA,FCK(*),ALAT(*),UMAT(*),ECORE

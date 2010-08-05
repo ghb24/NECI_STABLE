@@ -795,7 +795,6 @@ C.. in NFULL and NFREE
          LOGICAL TSYM
          type(BasisFN) ISYM,ISYM2
          INTEGER NJ(NEL),NI(NEL),NEL
-         LOGICAL LCHKSYM
          INTEGER IC,NBASISMAX(*)
          type(BasisFN) G1(*)
          LOGICAL ISVALIDDET
