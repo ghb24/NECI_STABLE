@@ -20,7 +20,7 @@ MODULE System
 !     SYSTEM defaults - leave these as the default defaults
 !     Any further addition of defaults should change these after via
 !     specifying a new set of DEFAULTS.
-	  tKPntSym=.false.		!This is for k-point symmetry with the symrandexcit2 excitation generators.
+      tKPntSym=.false.        !This is for k-point symmetry with the symrandexcit2 excitation generators.
       tMCSizeSpace=.false.
       CalcDetPrint=1000
       CalcDetCycles=10000
@@ -755,8 +755,8 @@ MODULE System
         case("LZTOT")
             tFixLz=.true.
             call readi(LzTot)
-		case("KPOINTS")
-			tKPntSym=.true.
+        case("KPOINTS")
+            tKPntSym=.true.
         case("ENDSYS") 
             exit system
         case default

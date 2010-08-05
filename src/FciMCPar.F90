@@ -671,9 +671,6 @@ MODULE FciMCParMod
         ! It would be nice to fix this properly
         if (tCSF) exFlag = 7
 
-		CALL TestGenRandSymExcitNU(HFDet,NMCyc,pDoubles,3,10000)
-		CALL STOP_All('erwg','Finished Test')
-
         IFDEBUG(FCIMCDebug,3) write(6,"(A)") "TW: Walker  Det"
         do j=1,TotWalkers
             ! N.B. j indicates the number of determinants, not the number
@@ -3732,10 +3729,10 @@ MODULE FciMCParMod
         HFHash=CreateHash(HFDet)
         CALL GetSym(HFDet,NEl,G1,NBasisMax,HFSym)
         WRITE(6,"(A,I10)") "Symmetry of reference determinant is: ",INT(HFSym%Sym%S,4)
-		IF(tKPntSym) THEN
-			CALL DecomposeAbelianSym(HFSym%Sym%S,KPnt)
-			WRITE(6,"(A,3I5)") "Crystal momentum of reference determinant is: ",KPnt(1),KPnt(2),KPnt(3)
-		ENDIF
+        IF(tKPntSym) THEN
+            CALL DecomposeAbelianSym(HFSym%Sym%S,KPnt)
+            WRITE(6,"(A,3I5)") "Crystal momentum of reference determinant is: ",KPnt(1),KPnt(2),KPnt(3)
+        ENDIF
         IF(tFixLz) THEN
             CALL GetLz(HFDet,NEl,HFLz)
             WRITE(6,"(A,I5)") "Ml value of reference determinant is: ",HFLz
@@ -3875,12 +3872,12 @@ MODULE FciMCParMod
         ELSE
             exflag=3
         ENDIF
-		IF(.not.tKPntSym) THEN
+        IF(.not.tKPntSym) THEN
 !Count all possible excitations - put into HFConn
 !TODO: Get CountExcitations3 working with tKPntSym
-			CALL CountExcitations3(HFDet,exflag,nSingles,nDoubles)
-			HFConn=nSingles+nDoubles
-		ENDIF
+            CALL CountExcitations3(HFDet,exflag,nSingles,nDoubles)
+            HFConn=nSingles+nDoubles
+        ENDIF
 
 !Initialise random number seed - since the seeds need to be different on different processors, subract processor rank from random number
         Seed=abs(G_VMC_Seed-iProcIndex)
@@ -4661,6 +4658,9 @@ MODULE FciMCParMod
         use SymExcit3 , only : CountExcitations3
         INTEGER :: iTotal
         integer :: nSing, nDoub, ncsf, excitcount, ierr, iExcit
+        integer :: nStore(6), iMaxExcit, nExcitMemLen, nJ(nel)
+        integer, allocatable :: EXCITGEN(:)
+        character(*), parameter :: this_routine = 'CalcApproxpDoubles'
 
         ! TODO: A better approximation for ncsf.
         if (tCSF) then
@@ -4668,8 +4668,8 @@ MODULE FciMCParMod
         else
             ncsf = 0
         endif
-		nSing=0
-		nDoub=0
+        nSing=0
+        nDoub=0
 
         IF(tHub.or.tUEG) THEN
             IF(tReal) THEN
@@ -4689,33 +4689,33 @@ MODULE FciMCParMod
 
         WRITE(6,"(A)") " Calculating approximate pDoubles for use with excitation generator by looking a excitations from HF."
         exflag=3
-		IF(tKPntSym) THEN
-			!use Alex's old excitation generators.
-			iMaxExcit=0
-			nStore(1:6)=0
-			CALL GenSymExcitIt2(HFDet,NEl,G1,nBasis,nBasisMax,.TRUE.,nExcitMemLen,nJ,iMaxExcit,0,nStore,exFlag)
-			ALLOCATE(EXCITGEN(nExcitMemLen),stat=ierr)
-			IF(ierr.ne.0) CALL Stop_All(this_routine,"Problem allocating excitation generator")
-			EXCITGEN(:)=0
-			CALL GenSymExcitIt2(HFDet,NEl,G1,nBasis,nBasisMax,.TRUE.,EXCITGEN,nJ,iMaxExcit,0,nStore,exFlag)
-		!    CALL GetSymExcitCount(EXCITGEN,DetConn)
-			excitcount=0
+        IF(tKPntSym) THEN
+            !use Alex's old excitation generators.
+            iMaxExcit=0
+            nStore(1:6)=0
+            CALL GenSymExcitIt2(HFDet,NEl,G1,nBasis,.TRUE.,nExcitMemLen,nJ,iMaxExcit,nStore,exFlag)
+            ALLOCATE(EXCITGEN(nExcitMemLen),stat=ierr)
+            IF(ierr.ne.0) CALL Stop_All(this_routine,"Problem allocating excitation generator")
+            EXCITGEN(:)=0
+            CALL GenSymExcitIt2(HFDet,NEl,G1,nBasis,.TRUE.,EXCITGEN,nJ,iMaxExcit,nStore,exFlag)
+        !    CALL GetSymExcitCount(EXCITGEN,DetConn)
+            excitcount=0
 
-		lp2: do while(.true.)
-				CALL GenSymExcitIt2(HFDet,nEl,G1,nBasis,nBasisMax,.false.,EXCITGEN,nJ,iExcit,0,nStore,exFlag)
-				IF(nJ(1).eq.0) exit lp2
-				IF(iExcit.eq.1) THEN
-					nSing=nSing+1
-				ELSEIF(iExcit.eq.2) THEN
-					nDoub=nDoub+1
-				ELSE
-					CALL Stop_All(this_routine,"Trying to generate more than doubles!")
-				ENDIF
-			enddo lp2
-		ELSE
-			CALL CountExcitations3(HFDet,exflag,nSing,nDoub)
-		ENDIF
-		iTotal=nSing + nDoub + ncsf
+        lp2: do while(.true.)
+                CALL GenSymExcitIt2(HFDet,nEl,G1,nBasis,.false.,EXCITGEN,nJ,iExcit,nStore,exFlag)
+                IF(nJ(1).eq.0) exit lp2
+                IF(iExcit.eq.1) THEN
+                    nSing=nSing+1
+                ELSEIF(iExcit.eq.2) THEN
+                    nDoub=nDoub+1
+                ELSE
+                    CALL Stop_All(this_routine,"Trying to generate more than doubles!")
+                ENDIF
+            enddo lp2
+        ELSE
+            CALL CountExcitations3(HFDet,exflag,nSing,nDoub)
+        ENDIF
+        iTotal=nSing + nDoub + ncsf
 
         WRITE(6,"(I7,A,I7,A)") NDoub, " double excitations, and ",NSing," single excitations found from HF. This will be used to calculate pDoubles."
 
