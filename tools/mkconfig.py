@@ -592,7 +592,7 @@ Returns the options object and a space separated list of configuration files.'''
 If no configuration file is given then the .default file in the specified directory is used.
 A configuration file does not need to be specified with the --ls and --print options.
 Multiple configuration files can only be given in conjunction with the --print option.''')
-    parser.add_option('-d', '--dir', default='config/', help='Set directory containing the configuration files. Default: %default.')
+    parser.add_option('-d', '--dir', default='config/', help='Set directory containing the configuration files. Prepended to the configuration filenames if a directory is not specified in the filename.  Default: %default.')
     parser.add_option('-g', '--debug', action='store_true', default=False, help='Use the debug settings.  Default: use optimised settings.')
     parser.add_option('-l', '--ls', action='store_true', default=False, help='Print list of available configurations.')
     parser.add_option('-o', '--out', default='Makefile', help='Set the output filename to which the makefile is written.  Use -o - to write to stdout.  Default: %default.')
@@ -601,7 +601,12 @@ Multiple configuration files can only be given in conjunction with the --print o
     (options, args) = parser.parse_args(my_args)
 
     if len(args) >= 1:
-        config_file = ' '.join(os.path.join(options.dir, c) for c in args)
+        config_file = ''
+        for c in args:
+            if not os.path.dirname(c):
+                c = os.path.join(options.dir, c)
+            config_file = '%s %s' % (config_file, c)
+        config_file = config_file.strip()
     elif len(args) == 0 and os.path.exists(os.path.join(options.dir, '.default')):
         config_file = os.path.join(options.dir, '.default')
     else:
@@ -695,6 +700,12 @@ def create_makefile(config_file, use_debug=False):
     if use_debug:
         config = parse_config(config_file)['dbg']
         config.update(opt_level='debug')
+        if 'cppflags' in config.keys():
+            cppflags = config["cppflags"]
+        else:
+            cppflags = ""
+        cppflags += " -D__DEBUG"
+        config["cppflags"] = cppflags
     else:
         config = parse_config(config_file)['opt']
         config.update(opt_level='optimised')

@@ -1,11 +1,12 @@
 MODULE CCMC
     use Determinants, only: get_helement, write_det, write_det_len
     use sort_mod
-    use constants, only: dp, int64, n_int, end_n_int,lenof_sign
+    use constants, only: dp, int64, n_int, end_n_int,lenof_sign, int32
     use CCMCData, only: ExcitToDetSign,AddBitExcitor
     use ClusterList
     use bit_rep_data, only: NIfDBO,NIfTot
     use bit_reps, only: encode_det
+    use FciMCParMod, only: calculate_new_shift_wrapper, iter_data_ccmc
    IMPLICIT NONE
    CONTAINS
 
@@ -75,7 +76,6 @@ MODULE CCMC
 
 !Then we go through the list of excitors which should die, and reduce their weight on the list, and remove if necessary.
 !Next we annihilate.
-#ifdef PARALLEL
     SUBROUTINE PerformCCMCCycParInt()
       USe FCIMCParMod
       use CCMCData
@@ -156,6 +156,11 @@ MODULE CCMC
         nClusters=0
         dClusterProbs=0
 
+        ! Reset counters
+        iter_data_ccmc%nborn = 0
+        iter_data_ccmc%ndied = 0
+        iter_data_ccmc%nannihil = 0
+
         IF(mod(Iter,StepsSft).eq.0) THEN
     
            nClusterBirths=0 
@@ -201,7 +206,7 @@ MODULE CCMC
 ! As the number of walkers in the HF reference det is the normalization, we loop
 ! over each walker there and use it a number of times
 ! We take the number of walkers as the number of samples to begin with.
-        CALL BinSearchParts(iLutHF,1,TotWalkers,iHFDet,tSuccess)
+        CALL BinSearchParts(iLutHF, 1, int(TotWalkers,int32), iHFDet,tSuccess)
         if(.not.tSuccess) then
             WRITE(6,*) "WARNING: Cannot find HF det in particle list"
             HFcount=1
@@ -405,7 +410,7 @@ MODULE CCMC
                               !if we've reached the end, then we need to increase increase the composite size.
                               ! we do this by exiting the k loop, which will loop us round again, incrementing the composite size if i=1
                               if (SelectedExcitorIndices(k).gt.TotWalkers) then
-                                 if(iDebug.gt.5) WRITE(6,*) "Out of excitors.  Increasing loop size."
+                                 IFDEBUG(iDebug,6) WRITE(6,*) "Out of excitors.  Increasing loop size."
                                  i=1
                                  exit
                               endif
@@ -419,22 +424,22 @@ MODULE CCMC
                      enddo !for having successfully filled out the excitor list
    
                      if (iCurrentCompositeSize.gt.nMaxSelExcitors) then
-                        if(iDebug.gt.5) WRITE(6,*) "Not allowed >",nMaxSelExcitors," so exiting this excitor." 
+                        IFDEBUG(iDebug,6) WRITE(6,*) "Not allowed >",nMaxSelExcitors," so exiting this excitor." 
                         exit  !we've reached the end prematurely.  This is allowed
                      endif
                      dClusterProb=1
 !Account for intermediate Normalization
 
                      iCompositeSize=iCurrentCompositeSize
-                     if(iDebug.gt.5) WRITE(6,*) "EXACT CLUSTER OUT"
+                     IFDEBUG(iDebug,6) WRITE(6,*) "EXACT CLUSTER OUT"
                      do k=2,iCompositeSize 
-                        if(iDebug.gt.5) WRITE(6,'(A1,I5,A1,I5,A1)',advance='no') '[',SelectedExcitorIndices(k),',',iLeftHere(k),'] '
+                        IFDEBUG(iDebug,6) WRITE(6,'(A1,I5,A1,I5,A1)',advance='no') '[',SelectedExcitorIndices(k),',',iLeftHere(k),'] '
                         dProbNorm=dProbNorm*HFCount
                         call extract_sign(CurrentDets(:,SelectedExcitorIndices(k)),TempSign3)
                         dNGenComposite=dNGenComposite*abs(TempSign3(1))  !For each new excit added to the composite, we multiply up to count the number of ways we could've generated it.
 !                        dNGenComposite=dNGenComposite*abs(CurrentSign(SelectedExcitorIndices(k)))  !For each new excit added to the composite, we multiply up to count the number of ways we could've generated it.
                      enddo
-                     if(iDebug.gt.5) WRITE(6,*)
+                     IFDEBUG(iDebug,6) WRITE(6,*)
                   else
 ! We wish to sum:
 ! sum_A [ (1/2) sum_{B\ne A} [ (1/3) sum_{C\ne A,B} ... ]]
@@ -478,7 +483,7 @@ MODULE CCMC
                         call extract_sign(CurrentDets(:,k),TempSign3)
                         dNGenComposite=dNGenComposite*abs(TempSign3(1))  !For each new excit added to the composite, we multiply up to count the number of ways we could've generated it.
                         ! dNGenComposite=dNGenComposite*abs(CurrentSign(k))  !For each new excit added to the composite, we multiply up to count the number of ways we could've generated it.
-                        IF(iDebug.gt.5) Write(6,*) "Selected excitor",k
+                        IFDEBUG(iDebug,6) Write(6,*) "Selected excitor",k
                         SelectedExcitorIndices(i)=k
                         SelectedExcitors(:,i)=CurrentDets(:,k)
                         dClusterProb=(dClusterProb*abs(TempSign3(1)))/((TotParts(1)-HFcount))
@@ -488,10 +493,10 @@ MODULE CCMC
 
 !Account for possible orderings of selection
                         dProbNorm=dProbNorm*i
-                        IF(iDebug.gt.5) WRITE(6,*) "TotParts,HFCount:",TotParts(1),HFcount
-                        IF(iDebug.gt.5) write(6,*) "Prob ",i,": ",(abs(TempSign3(1))+0.d0)/(TotParts(1)-HFcount)," Cuml:", dClusterProb
+                        IFDEBUG(iDebug,6) WRITE(6,*) "TotParts,HFCount:",TotParts(1),HFcount
+                        IFDEBUG(iDebug,6) write(6,*) "Prob ",i,": ",(abs(TempSign3(1))+0.d0)/(TotParts(1)-HFcount)," Cuml:", dClusterProb
                      enddo
-                     IF(iDebug.gt.5) WRITE(6,*) 'prob out of sel routine.',dProbNumExcit
+                     IFDEBUG(iDebug,6) WRITE(6,*) 'prob out of sel routine.',dProbNumExcit
                      if(i.gt.nMaxSelExcitors) THEN !We've been limited by the max number of excitations
                         ! Let s be dProbSelNewExcitor, and X be nMaxSelExcitors
                         !  The sum of all levels up to X-1 is
@@ -502,7 +507,7 @@ MODULE CCMC
                      iCompositeSize=i-1  !Save the number of excitors we've selected   
                      dClusterProb=dClusterProb*(iMaxEx-1)
                   endif
-                  IF(iDebug.gt.3) then
+                  IFDEBUGTHEN(iDebug,4)
                      WRITE(6,*) " Excitors in composite:", iCompositeSize
                      do i=1,iCompositeSize
                         call extract_sign(CurrentDets(:,SelectedExcitorIndices(i)),TempSign3)
@@ -512,7 +517,7 @@ MODULE CCMC
                      Write(6,"(A,G25.17)") "   Level chosen Prob      : ",dProbNumExcit
                      Write(6,"(A,G25.17)") "   Select Prob given level: ",dClusterProb
                      Write(6,"(A,G25.17)") "   Prob norm              : ",dProbNorm
-                  endif
+                  ENDIFDEBUG
                   dClusterProb=dProbNumExcit*dClusterProb
 ! Lets check the probs
                   nClusters=nClusters+1
@@ -526,11 +531,11 @@ MODULE CCMC
                      iSgn(1)=iSgn(1)*sign(1,TempSign3(1))
                      ! iSgn(1)=iSgn(1)*sign(1,CurrentSign(SelectedExcitorIndices(i)))
                      call AddBitExcitor(iLutnI,SelectedExcitors(:,i),iLutHF,iSgn(1))
-                     IF(iDebug.gt.3) Write(6,*) "Results of addition ",i, "Sign ",iSgn(1),':'
+                     IFDEBUG(iDebug,4) Write(6,*) "Results of addition ",i, "Sign ",iSgn(1),':'
                      if(iSgn(1).eq.0) exit
-                     IF(iDebug.gt.3) call WriteBitEx(6,iLutHF,iLutnI,.true.)
+                     IFDEBUG(iDebug,4) call WriteBitEx(6,iLutHF,iLutnI,.true.)
                   enddo
-                  IF(iDebug.gt.0) CALL FLUSH(6)
+                  IFDEBUG(iDebug,1) CALL FLUSH(6)
                   if(iSgn(1).eq.0) cycle
                endif
 
@@ -546,7 +551,7 @@ MODULE CCMC
                ! naturally-ordered integers
                call decode_bit_det (DetCurr, iLutnI)
                WalkExcitLevel = FindBitExcitLevel(iLutHF, iLutnI, nel)
-               if(iDebug.gt.4) WRITE(6,*) "Excitation Level ", WalkExcitLevel
+               IFDEBUG(iDebug,5) WRITE(6,*) "Excitation Level ", WalkExcitLevel
 
 
 
@@ -562,17 +567,17 @@ MODULE CCMC
                if(.not.IsNullDet(nJ)) then  !Check it hasn't given us a null determinant as it couldn't find one in a sensible time.
 !We need to calculate the bit-representation of this new child. This can be done easily since the ExcitMat is known.
                   IF(.not.tHPHF) CALL FindExcitBitDet(iLutnI,iLutnJ,IC,Ex)
-                  IF(iDebug.gt.4) then
+                  IFDEBUGTHEN(iDebug,5)
                       WRITE(6,*) "  Random excited det level ",iC
                       WRITE(6,"(A)",advance="no") "   "
                       call write_det (6, nJ, .true.)
                       Write(6,*) "  Prob ex|from",Prob
-                  endif
+                  ENDIFDEBUG
 !Prob is the Prob of choosing nJ from nI
 !dClusterProb is the Probability of having chosen this cluster excitor (normalized such that <1/dClusterProb> = 1)
 !dProbNorm is the renormalization factor for this level of excitors - decreasing by HFcount for each extra level of excitors
                   Prob=Prob*dClusterProb*dProbNorm  !Now include the prob of choosing the det we spawned from
-                  if(iDebug.gt.4) Write(6,*) "  Prob ex tot",Prob
+                  IFDEBUG(iDebug,5) Write(6,*) "  Prob ex tot",Prob
                   if(iCompositeSize.gt.1) dProb=dProb
 !Calculate number of children to spawn
                   IF(TTruncSpace) THEN
@@ -587,21 +592,25 @@ MODULE CCMC
                       Child=AttemptCreatePar(DetCurr,iLutnI,iSgn,nJ,iLutnJ,Prob,IC,Ex,tParity)
                   ENDIF
 
-                  IF(iDebug.gt.4.or.((iDebug.eq.3.or.iDebug.eq.4).and.Child(1).ne.0)) THEN
-   !We've not printed this out before
-                     write(6,"(A)",advance="no") "    "
-                     call WriteBitEx(6,iLutHF,iLutnI,.false.)
-                     write(6,'(A)',advance='no') ,' ==> '
-                     call WriteBitEx(6,iLutHF,iLutnJ,.false.)
-                     WRITE(6,'(A,I7)',advance='no') "Children:",Child(1)             
-                     if(iDebug.eq.3.and.iCompositeSize.gt.1) THEN
-                        write(6,'(A)',advance='no') ' from '
-                        do i=1,iCompositeSize
-                           call WriteBitEx(6,iLutHF,SelectedExcitors(:,i),.false.)
-                        enddo
+                  IFDEBUGTHEN(iDebug,3)
+                     IF(iDebug.gt.4.or.((iDebug.eq.3.or.iDebug.eq.4).and.Child(1).ne.0)) THEN
+      !We've not printed this out before
+                        write(6,"(A)",advance="no") "    "
+                        call WriteBitEx(6,iLutHF,iLutnI,.false.)
+                        write(6,'(A)',advance='no') ' ==> '
+                        call WriteBitEx(6,iLutHF,iLutnJ,.false.)
+                        WRITE(6,'(A,I7)',advance='no') "Children:",Child(1)             
+                        IFDEBUGEQTHEN(iDebug,3)
+                           if (iCompositeSize.gt.1) THEN
+                              write(6,'(A)',advance='no') ' from '
+                              do i=1,iCompositeSize
+                                 call WriteBitEx(6,iLutHF,SelectedExcitors(:,i),.false.)
+                              enddo
+                           endif
+                        ENDIFDEBUG
+                        write(6,*)
                      endif
-                     write(6,*)
-                  endif
+                  ENDIFDEBUG
 
                   IF(Child(1).ne.0) THEN
                      if(iCompositeSize.gt.1) nClusterChildren=nClusterChildren+1 
@@ -611,6 +620,7 @@ MODULE CCMC
    !                    ExcitLevel=iGetExcitLevel_2(HFDet,nJ,NEl,NEl)
    !                    WRITE(6,*) "Excitlevel:", ExcitLevel
                        NoBorn=NoBorn+abs(Child(1))     !Update counter about particle birth
+                       iter_data_ccmc%nborn(1) = iter_data_ccmc%nborn(1) + abs(Child(1))
                        IF(IC.eq.1) THEN
                            SpawnFromSing=SpawnFromSing+abs(Child(1))
                        ENDIF
@@ -691,17 +701,17 @@ MODULE CCMC
 !               endif
 
 
-               IF(iDebug.gt.4) then
+               IFDEBUGTHEN(iDebug,5)
                   Write(6,'(A,I7)',advance='no') "Killing at excitor: ",iPartDie
                   call WriteBitEx(6,iLutHF,CurrentDets(:,iPartDie),.false.)
                   Write(6,'(A,G25.16)') "Prob: ",dProb*dProbNorm
-               endif
+               ENDIFDEBUG
 
    !Die with a probability as normal, but biased because we only selected this set
    !of excitors with dProb.
                if(iCompositeSize.gt.1) dProb=dProb
                iDie=AttemptDieProbPar(DetCurr,HDiagCurr,WalkExcitLevel,iSgn,1/(dProb*dProbNorm))
-               IF(iDebug.gt.4.or.(iDebug.eq.4.and.iDie.ne.0)) then
+               IFDEBUGTHEN(iDebug,4)
                   Write(6,'(A,I7)',advance='no') " Killing at excitor: ",iPartDie
                   Write(6,'(A)',advance='no') " chosen "
                   call WriteBitEx(6,iLutHF,CurrentDets(:,iPartDie),.false.)
@@ -713,9 +723,10 @@ MODULE CCMC
                      enddo
                   endif
                   WRITE(6,*)
-                  if(iDebug.eq.4) Write(6,'(A,G25.16)') "Prob: ",dProb*dProbNorm
-               endif
+                  IFDEBUGEQ(iDebug,4) Write(6,'(A,G25.16)') "Prob: ",dProb*dProbNorm
+               ENDIFDEBUG
                NoDied=NoDied+iDie          !Update death counter
+               iter_data_ccmc%ndied(1) = iter_data_ccmc%ndied(1) + iDie
                if(iCompositeSize.gt.1.and.iDie.gt.0) nClusterDeaths=nClusterDeaths+1 
                if(iCompositeSize.gt.1.and.iDie.lt.0) nClusterBirths=nClusterBirths+1 
                
@@ -736,10 +747,10 @@ MODULE CCMC
 !Finish cycling over determinants
         enddo
 !#if 0
-        if(iDebug.gt.2) then
+        IFDEBUGTHEN(iDebug,3)
            write(6,*) "nClusters:",nClusters
            write(6,*) "<1/dClusterProb>",dClusterProbs/nClusters
-        endif
+        ENDIFDEBUG
         dT1Sq=(dT1Sq/HFCount)/HFCount
         if(.not.tCCMCFCI) ENumCyc=ENumCyc+dT1Sq
         dT1SqCuml=dT1SqCuml+dT1Sq
@@ -752,7 +763,7 @@ MODULE CCMC
 
 !Now we know what needs to die, we kill it.
         do j=1,iDeaths
-            IF(iDebug.gt.4) Write(6,*) "Killing ",iPartDie,iPartDie
+            IFDEBUG(iDebug,5) Write(6,*) "Killing ",iPartDie,iPartDie
             iDie=iKillDetIndices(1,j)
             iPartDie=iKillDetIndices(2,j)
 ! Actually do this earlier
@@ -765,9 +776,9 @@ MODULE CCMC
 !End the loop over killing dets.
 !Deallocate saved loop.
        deallocate(iKillDetIndices)
-      IF(iDebug.gt.0) write(6,*) "Total Born: ",NoBorn
-      IF(iDebug.gt.0) write(6,*) "Total Died: ",NoDied
-      IF(iDebug.gt.0) write(6,*) "Compressing walkers."
+       IFDEBUG(iDebug,1) write(6,*) "Total Born: ",NoBorn
+       IFDEBUG(iDebug,1) write(6,*) "Total Died: ",NoDied
+       IFDEBUG(iDebug,1) write(6,*) "Compressing walkers."
 !Now traverse the list of walkers, removing walkers which have nothing remaining on them
 !VecSlot indicates the next free position in NewDets
        VecSlot=1
@@ -806,7 +817,7 @@ MODULE CCMC
         enddo
 !Since VecSlot holds the next vacant slot in the main determinant array, TotWalkers will be one less than this.
         TotWalkersNew=VecSlot-1
-        IF(iDebug.gt.0) write(6,*) "TotNewWalkers ",TotWalkersNew
+        IFDEBUG(iDebug,1) write(6,*) "TotNewWalkers ",TotWalkersNew
 
 !***Birth/death processes finished. Tidy up and then annihilate.
 
@@ -814,8 +825,6 @@ MODULE CCMC
         SumWalkersCyc=SumWalkersCyc+(INT(TotParts(1),int64))
 !        WRITE(6,*) "Born, Die: ",NoBorn, NoDied
 
-
-        write(79,'(5I7)') NoBorn,NoDied,nClusterChildren,nClusterDeaths,nClusterBirths
 
 !Output if there has been a particle bloom this iteration. A negative number indicates that particles were created from a single excitation.
         IF(iPartBloom.ne.0) THEN
@@ -850,7 +859,7 @@ MODULE CCMC
                 CALL FLUSH(6)
             ENDIF
         ENDIF
-        
+
         CALL halt_timer(Walker_Time)
         CALL set_timer(Annihil_Time,30)
 !        CALL MPI_Barrier(MPI_COMM_WORLD,error)
@@ -860,16 +869,16 @@ MODULE CCMC
 
 !This is the direct annihilation algorithm. The newly spawned walkers should be in a seperate array (SpawnedParts) and the other list should be ordered.
         IF(iDebug.gt.0) WRITE(6,*) "Beginning Annihilation:",TotWalkersNew
-        CALL DirectAnnihilation(TotWalkersNew)
+        CALL DirectAnnihilation(TotWalkersNew, iter_data_ccmc)
 
         CALL halt_timer(Annihil_Time)
         IF(iDebug.gt.0) WRITE(6,*) "Leaving CCMC Cycle"
         
+        ! Update counters
+        iter_data_ccmc%update_growth = iter_data_ccmc%update_growth + iter_data_ccmc%nborn - iter_data_ccmc%ndied - iter_data_ccmc%nannihil
+        iter_data_ccmc%update_iters = iter_data_ccmc%update_iters + 1
+        
     END SUBROUTINE PerformCCMCCycParInt
-#else 
-    SUBROUTINE PerformCCMCCycParInt()
-    END SUBROUTINE PerformCCMCCycParInt
-#endif
 
 
 
@@ -983,7 +992,7 @@ MODULE CCMC
       endif
       ind=ind0
       WRITE(iUnit,'(A)',advance='no') '['
-      write(iUnit,'(I4)',advance='no'), ind0
+      write(iUnit,'(I4)',advance='no') ind0
       do while(ind.ne.0)
          i=mod(ind,Det)+1
          call WriteBitEx(iUnit,iLutHF,FCIDets(:,i),.false.)
@@ -1375,7 +1384,7 @@ SUBROUTINE InitRandAmplitude(Amplitude,nExcit,dInitAmp,dTotAbsAmpl)
    enddo
 END SUBROUTINE
 
-subroutine AttemptSpawn(S,C,Amplitude,dTol,TL,iDebug)
+subroutine AttemptSpawn(S,C,Amplitude,dTol,TL,WalkerScale,iDebug)
    use SystemData, only: nEl
    use FciMCParMod, only: iLutHF
    use CCMCData, only: Spawner, Cluster,CCTransitionLog
@@ -1394,6 +1403,7 @@ subroutine AttemptSpawn(S,C,Amplitude,dTol,TL,iDebug)
    real*8 Amplitude(:)
    real*8 dTol
    TYPE(CCTransitionLog) TL               ! Store data on transitions
+   real*8 WalkerScale 
    integer iDebug
 
    real*8 rat
@@ -1412,7 +1422,7 @@ subroutine AttemptSpawn(S,C,Amplitude,dTol,TL,iDebug)
 !We've not printed this out before
       write(6,"(A)",advance="no") "    "
       call WriteBitEx(6,iLutHF,C%iLutDetCurr,.false.)
-      write(6,'(A)',advance='no') ,' ==> '
+      write(6,'(A)',advance='no') ' ==> '
       call WriteBitEx(6,iLutHF,S%iLutnJ,.false.)
       WRITE(6,'(A,G25.16)',advance='no') "Children:",rat
       if(iDebug.eq.3.and.C%iSize.gt.1) THEN
@@ -1442,6 +1452,7 @@ subroutine AttemptSpawn(S,C,Amplitude,dTol,TL,iDebug)
 !   Here we convert from a det back to an excitor.
       rat=rat*ExcitToDetSign(iLutHF,S%iLutnJ,IC)
       Amplitude(PartIndex)=Amplitude(PartIndex)+rat
+      iter_data_ccmc%nborn=iter_data_ccmc%nborn+abs(rat*WalkerScale)
       if(tCCMCLogTransitions.and.Iter.gt.NEquilSteps) then
          call LogTransition(TL,C%SelectedExcitorIndices(:),C%iSize,PartIndex,rat,C%dProbNorm)
       endif
@@ -1450,7 +1461,7 @@ end subroutine AttemptSpawn
 
 
 !Take cluster C and make an anti-excitor corresponding to its collapsed version to take into account its death.
-subroutine AttemptDie(C,CurAmpl,OldAmpl,TL,iDebug)
+subroutine AttemptDie(C,CurAmpl,OldAmpl,TL,WalkerScale,iDebug)
    use CCMCData, only: Cluster,CCTransitionLog
    use FciMCData, only: Hii
    Use CalcData, only: Tau,DiagSft
@@ -1470,6 +1481,7 @@ subroutine AttemptDie(C,CurAmpl,OldAmpl,TL,iDebug)
    real*8 CurAmpl(:),OldAmpl(:)
    integer iDebug
    TYPE(CCTransitionLog) TL               ! Store data on transitions
+   real*8 WalkerScale 
 
    INTEGER iC,iPartDie,k
    LOGICAL tSuc
@@ -1561,6 +1573,7 @@ subroutine AttemptDie(C,CurAmpl,OldAmpl,TL,iDebug)
    endif
 
    CurAmpl(iPartDie)=CurAmpl(iPartDie)-r
+   iter_data_ccmc%ndied=iter_data_ccmc%ndied+abs(r*WalkerScale)
    if(lLogTransitions.and.Iter.gt.NEquilSteps) then
       call LogTransition(TL,C%SelectedExcitorIndices(:),C%iSize,iPartDie,-r,C%dProbNorm)
    endif
@@ -1611,7 +1624,7 @@ subroutine AttemptSpawnParticle(S,C,iDebug,SpawnList,SpawnAmps,nSpawned,nMaxSpaw
 !We've not printed this out before
       write(6,"(A)",advance="no") "    "
       call WriteBitEx(6,iLutHF,C%iLutDetCurr,.false.)
-      write(6,'(A)',advance='no') ,' ==> '
+      write(6,'(A)',advance='no') ' ==> '
       call WriteBitEx(6,iLutHF,S%iLutnJ,.false.)
       WRITE(6,'(A,G25.16)',advance='no') " Children ratio:",rat
       if(iDebug.eq.3.and.C%iSize.gt.1) THEN
@@ -1631,6 +1644,7 @@ subroutine AttemptSpawnParticle(S,C,iDebug,SpawnList,SpawnAmps,nSpawned,nMaxSpaw
    if(iSpawnAmp>0) then
 
       nSpawned=nSpawned+1 !The index into the spawning list
+      iter_data_ccmc%nborn=iter_data_ccmc%nborn+1
       if(nSpawned>nMaxSpawn) call Stop_All("AttemptSpawnParticle","Not enough space in spawning list.")
       if(rat>0) then
          SpawnAmps(nSpawned)=iSpawnAmp
@@ -1759,6 +1773,7 @@ subroutine AttemptDieParticle(C,iDebug,SpawnList,SpawnAmps,nSpawned)
    if ((r-iSpawnAmp)>genrand_real2_dSFMT()) iSpawnAmp=iSpawnAmp+1
    if(iSpawnAmp>0) then
       nSpawned=nSpawned+1 !The index into the spawning list
+      iter_data_ccmc%ndied=iter_data_ccmc%ndied+1
       IF(iDebug.gt.3.) then
          Write(6,'(A,I7)',advance='no') " Killing at excitor: ",iPartDie
          Write(6,'(A)',advance='no') " chosen "
@@ -1798,12 +1813,12 @@ SUBROUTINE CCMCStandalone(Weight,Energyxw)
    use CalcData, only: StepsSft ! The number of steps between shift updates
    use CalcData, only: TStartMP1
    use FciMCData, only: Iter
-   use FciMCData, only: TotParts,TotWalkers,TotWalkersOld,TotPartsOld,AllTotPartsOld,AllTotWalkersOld
+   use FciMCData, only: TotParts,TotWalkers,TotWalkersOld,TotPartsOld,AllTotPartsOld,AllTotWalkersOld,AllTotParts
    use FciMCData, only: tTruncSpace
    use FciMCData, only: ProjectionE
    use FciMCParMod, only: iLutHF
    use FciMCParMod, only: CheckAllowedTruncSpawn, SetupParameters,BinSearchParts3
-   use FciMCParMod, only: CalcNewShift,InitHistMin
+   use FciMCParMod, only: InitHistMin, calculate_new_shift_wrapper
    use FciMCData, only: NoatHF,NoatDoubs
    use FciMCParMod, only: WriteHistogram,SumEContrib
    Use Logging, only: CCMCDebug,tCCMCLogTransitions,tCCMCLogUniq
@@ -1832,6 +1847,7 @@ SUBROUTINE CCMCStandalone(Weight,Energyxw)
    INTEGER PartIndex,IC          ! Used in buffering
    LOGICAL tSuc                  ! Also used in buffering
 
+   INTEGER iOldTotWalkers        ! Info user for update to calculate shift
    INTEGER iShiftLeft            ! Number of steps left until we recalculate shift
    REAL*8 WalkerScale            ! Scale factor for turning floating point amplitudes into integer walkers.
    REAL*8 dProjE                 ! Stores the Projected Energy
@@ -1845,16 +1861,17 @@ SUBROUTINE CCMCStandalone(Weight,Energyxw)
    TYPE(ClustSelector),target :: CSBuff   ! This is used when we're doing buffered CC
    TYPE(ClustSelector),pointer :: CS      ! This will point to the appropriate selector
    LOGICAL tPostBuffering                 ! Set after prebuffering
-   REAL*8, ALLOCATABLE,target :: AmplitudeBuffer(:) !(Det)  used for buffered CC, storing intermediate amplitudes from cluster generation
-   INTEGER tagAmplitudeBuffer             
+   TYPE(AmplitudeList_double), target :: ALBuffer !(Det)  used for buffered CC, storing intermediate amplitudes from cluster generation
+   INTEGER tagALBuffer             
    LOGICAL tMoreClusters                  ! Indicates we've not finished selecting clusters 
-   REAL*8, pointer :: OldAmpl(:)          ! The previous cycle's amplitudes
+   TYPE(AmplitudeList_double), pointer :: OldAL          ! The previous cycle's amplitudes
+   INTEGER oldALIndex                     !The index in OldAL of the list to use
 
    TYPE(Spawner) S                        ! A spawner used to generate spanees from a cluster
 
    INTEGER nAmpl                          ! Number of excitors on the Amplitude array
    INTEGER nBuffAmpl                      ! Number of determinants in the buffered Amplitude array
-   INTEGER nCurAmpl                       ! Set to nAmpl or nBuffAmpl depending where OldAmpl points
+   INTEGER nCurAmpl                       ! Set to nAmpl or nBuffAmpl depending where OldAL points
    INTEGER iExcitLevelCluster             ! The maximum excitation level a cluster can be at
    INTEGER iMaxAmpLevel                   ! The maximum excitation level of a stored amplitude
 
@@ -1873,6 +1890,11 @@ SUBROUTINE CCMCStandalone(Weight,Energyxw)
    iDebug=CCMCDebug
 
    Call SetupParameters()
+
+   ! Reset counters
+   iter_data_ccmc%nborn = 0
+   iter_data_ccmc%ndied = 0
+   iter_data_ccmc%nannihil = 0
 
    lLogTransitions=tCCMCLogTransitions
    dTolerance=0 !1e-16
@@ -1907,8 +1929,7 @@ SUBROUTINE CCMCStandalone(Weight,Energyxw)
          nBuffAmpl=Det
       endif
       WRITE(6,*) "Buffered Amplitudes:",nBuffAmpl
-      Allocate(AmplitudeBuffer(nBuffAmpl),stat=ierr)
-      LogAlloc(ierr,'AmplitudeBuffer',nBuffAmpl,8,tagAmplitudeBuffer)
+      call AllocateAmplitudeList(ALBuffer,nBuffAmpl,1)
    endif
 
 ! Now setup the amplitude list.  Let's start with nothing initially, and
@@ -1934,12 +1955,19 @@ SUBROUTINE CCMCStandalone(Weight,Energyxw)
    else
       WalkerScale=0
    endif
-   TotWalkers=WalkerScale*dTotAbsAmpl
-   TotParts(1)=WalkerScale*dTotAbsAmpl
-   TotWalkersOld=WalkerScale*dTotAbsAmpl
-   TotPartsOld(1)=WalkerScale*dTotAbsAmpl
-   AllTotWalkersOld=WalkerScale*dTotAbsAmpl
+   TotWalkers=0
+!WalkerScale*dTotAbsAmpl
+   TotParts(1)=0
+!WalkerScale*dTotAbsAmpl
+   TotWalkersOld=0
+!WalkerScale*dTotAbsAmpl
+   TotPartsOld(1)=0
+!WalkerScale*dTotAbsAmpl
+   AllTotWalkersOld=1
+   AllTotParts(1)=WalkerScale*dTotAbsAmpl
    AllTotPartsOld(1)=WalkerScale*dTotAbsAmpl
+   iOldTotWalkers=WalkerScale*dTotAbsAmpl
+   iter_data_ccmc%tot_parts_old = WalkerScale * dTotAbsAmpl
    dAveTotAbsAmp=0
    dAveNorm=0
    Iter=1
@@ -1973,8 +2001,6 @@ SUBROUTINE CCMCStandalone(Weight,Energyxw)
 
 ! Each cycle we select combinations of excitors randomly, and spawn and birth/die from them
    do while (Iter.le.NMCyc)
-      if(iDebug>3)  write(79,*) "Cycle", Iter
-      if(iDebug>3)  write(89,*) "Cycle", Iter
 ! Copy the old Amp list to the new
       iOldAmpList=iCurAmpList
       iCurAmpList=3-iCurAmpList
@@ -1983,7 +2009,7 @@ SUBROUTINE CCMCStandalone(Weight,Energyxw)
          write(6,*) "Cycle ",Iter
          call WriteExcitorList(6,AL%Amplitude(:,iCurAmpList),FciDets,0,nAmpl,dAmpPrintTol,"Excitor list")
       endif
-      call CalcTotals(iNumExcitors,dTotAbsAmpl,AL%Amplitude(:,iCurAmpList),nAmpl,dTolerance*dInitAmplitude,WalkerScale,iRefPos,iDebug)
+      call CalcTotals(iNumExcitors,dTotAbsAmpl,AL%Amplitude(:,iCurAmpList),nAmpl,dTolerance*dInitAmplitude,WalkerScale,iRefPos,iOldTotWalkers,iDebug)
       if(tExactEnergy) then
          CALL CalcClusterEnergy(tCCMCFCI,AL%Amplitude(:,iCurAmpList),nAmpl,FciDets,FCIDetIndex,iRefPos,iDebug,dProjE)
       else
@@ -2006,32 +2032,36 @@ SUBROUTINE CCMCStandalone(Weight,Energyxw)
       call ResetClustSelector(CS,iRefPos)
       if(tCCBuffer) then
          call ResetClustSelector(CSBuff,iRefPos)
-         AmplitudeBuffer(:)=0
+         ALBuffer%Amplitude(:,1)=0
       endif
       tMoreClusters=.true.
       tPostBuffering=.false.
       nCurAmpl=nAmpl
-      OldAmpl=>AL%Amplitude(:,iOldAmpList)
+      OldAL=>AL
+      OldALIndex=iOldAmpList
 !A standard run has PostBuffering .false. and selects purely from the main cluster selector.
-!A buffered run first has PostBuffering .false., selecting from the main CS, and storing the cumulative amplitudes in AmplitudeBuffer
+!A buffered run first has PostBuffering .false., selecting from the main CS, and storing the cumulative amplitudes in ALBuffer
 !        second, it has   PostBuffering .true.,  selecting from the CSBuff and spawning and dying from there.
+      call AccumulateAmplitudeList(OldAL,nCurAmpl,OldALIndex,iRefPos)
 
       do while (tMoreClusters)
          if(.not.tPostBuffering) then
             i=min(iNumExcitors,nEl)
-            tMoreClusters=GetNextCluster(CS,FciDets,nAmpl,AL%Amplitude(:,iOldAmpList),dTotAbsAmpl,iNumExcitors,i,iDebug)
+            tMoreClusters=GetNextCluster(CS,FciDets,nAmpl,AL,iOldAmpList,dTotAbsAmpl,iNumExcitors,i,iDebug)
             if(tCCBuffer.and..not.tMoreClusters) then
-               if(iDebug.gt.2) WRITE(6,*) "Buffering Complete.  Now Spawning."
+               IFDEBUG(iDebug,3) WRITE(6,*) "Buffering Complete.  Now Spawning."
                tPostBuffering=.true.
                nCurAmpl=nBuffAmpl
                CS=>CSBuff
-               OldAmpl=>AmplitudeBuffer
-               if(iDebug.gt.2) call WriteExcitorList(6,AmplitudeBuffer,FciDets,0,nBuffAmpl,dAmpPrintTol,"Cluster expanded wavefunction")
+               OldAL=>ALBuffer
+               OldALIndex=1
+               IFDEBUG(iDebug,3) call WriteExcitorList(6,ALBuffer%Amplitude(:,OldALIndex),FciDets,0,nBuffAmpl,dAmpPrintTol,"Cluster expanded wavefunction")
+               call AccumulateAmplitudeList(OldAL,nCurAmpl,OldALIndex,iRefPos)
             endif
          endif
-         if(tPostBuffering) then  !If we've finished buffering, we read from the buffer
+         if(tPostBuffering) then  !If we've finished buffering, we read from the buffer (which is now pointed to by OldAL
             i=min(iNumExcitors,nEl)
-            tMoreClusters=GetNextCluster(CSBuff,FciDets,nBuffAmpl,AmplitudeBuffer(:),dTotAbsAmpl,1,i,iDebug)
+            tMoreClusters=GetNextCluster(CSBuff,FciDets,nBuffAmpl,OldAL,OldALIndex,dTotAbsAmpl,1,i,iDebug)
          endif
          if(.not.tMoreClusters) exit
 !Now form the cluster
@@ -2047,7 +2077,7 @@ SUBROUTINE CCMCStandalone(Weight,Energyxw)
          endif
 
 !The final logic tells it whether to convert from an excitor to a det.
-         CALL CollapseCluster(CS%C,iLutHF,OldAmpl(:),nCurAmpl,iDebug,.not.(tCCBuffer.and.tPostBuffering))
+         CALL CollapseCluster(CS%C,iLutHF,OldAL%Amplitude(:,OldALIndex),nCurAmpl,iDebug,.not.(tCCBuffer.and.tPostBuffering))
          IF(CS%C%iSgn/=0.and.iDebug.gt.4) then
             WRITE(6,*) "Chosen det/excitor is:"
             WRITE(6,"(A)",advance="no") "  "
@@ -2057,9 +2087,9 @@ SUBROUTINE CCMCStandalone(Weight,Energyxw)
          if(tTruncSpace.and.CS%C%iExcitLevel>iExcitLevelCluster) cycle !Don't try to die if we're truncated
 
          if(lLogTransitions.and.Iter.gt.NEquilSteps) call LogCluster(TL,CS%C)
-         if(iDebug.gt.5) call WriteCluster(6,CS%C,.true.)
+         IFDEBUG(iDebug,6) call WriteCluster(6,CS%C,.true.)
          if(CS%C%iSgn.eq.0) then
-            if(iDebug.gt.3) write(6,*) "Sign Zero so moving to next cluster"
+            IFDEBUG(iDebug,4) write(6,*) "Sign Zero so moving to next cluster"
             cycle  !No point in doing anything
          endif
 
@@ -2071,19 +2101,13 @@ SUBROUTINE CCMCStandalone(Weight,Energyxw)
                call write_det (6, CS%C%DetCurr, .true.)
                Call Stop_All("CCMCStandalone","Failed to find det.")
             endif
-            AmplitudeBuffer(PartIndex)=AmplitudeBuffer(PartIndex)+CS%C%dAbsAmplitude*CS%C%iSgn
+            ALBuffer%Amplitude(PartIndex,1)=ALBuffer%Amplitude(PartIndex,1)+CS%C%dAbsAmplitude*CS%C%iSgn
             cycle
          endif
 
-         if(iDebug.gt.3) WRITE(6,*) "Cluster Amplitude: ",CS%C%iSgn*CS%C%dAbsAmplitude 
+         IFDEBUG(iDebug,4) WRITE(6,*) "Cluster Amplitude: ",CS%C%iSgn*CS%C%dAbsAmplitude 
 !         if(iDebug.gt.3) WRITE(6,*) " Cluster Prob: ",CS%C%dSelectionProb
          if(.not.tExactEnergy.and.CS%C%iExcitLevel.le.2) then
-            if(iDebug>3) then
-               call WriteCluster(79,CS%C,.false.)
-               call WriteCluster(89,CS%C,.false.)
-               write(79,*)  (CS%C%dAbsAmplitude/AL%Amplitude(1,iOldAmpList))/CS%C%dSelectionProb,CS%C%iSgn !,CS%C%dSelectionProb,CS%C%dAbsAmplitude
-               write(89,*)  CS%C%iSgn ,CS%C%dSelectionProb,CS%C%dProbNorm,CS%C%dAbsAmplitude,CS%C%dSelectionNorm
-            endif
             TempSign(1)=CS%C%iSgn
             CALL SumEContrib(CS%C%DetCurr,CS%C%iExcitLevel,TempSign,CS%C%iLutDetCurr,0.d0,1/CS%C%dSelectionNorm)
          endif
@@ -2093,11 +2117,11 @@ SUBROUTINE CCMCStandalone(Weight,Energyxw)
 !GetNextSpawner will generate either all possible spawners sequentially, or a single randomly chosen one (or none at all, if the randomly chosen one is disallowed)
          do while (GetNextSpawner(S,iDebug))
             if(.not.S%bValid) cycle
-            call AttemptSpawn(S,CS%C,AL%Amplitude(:,iCurAmpList),dTolerance*dInitAmplitude,TL,iDebug)
+            call AttemptSpawn(S,CS%C,AL%Amplitude(:,iCurAmpList),dTolerance*dInitAmplitude,TL,WalkerScale,iDebug)
          enddo !GetNextSpawner
 ! Now deal with birth/death.
          if((.not.tTruncSpace).or.CS%C%iExcitLevel<=iMaxAmpLevel)          &
-  &            call AttemptDie(CS%C,AL%Amplitude(:,iCurAmpList),AL%Amplitude(:,iOldAmpList),TL,iDebug)
+  &            call AttemptDie(CS%C,AL%Amplitude(:,iCurAmpList),AL%Amplitude(:,iOldAmpList),TL,WalkerScale,iDebug)
       enddo ! Cluster choices
 
 
@@ -2113,7 +2137,8 @@ SUBROUTINE CCMCStandalone(Weight,Energyxw)
 
 !TotWalkers is used for this and is WalkerScale* total of all amplitudes
       NoAtHF=AL%Amplitude(iRefPos,iCurAmpList)
-      if(iShiftLeft.le.0)  Call CalcNewShift()
+      if(iShiftLeft.le.0)  Call calculate_new_shift_wrapper(iter_data_ccmc, &
+                                                            TotParts)
       if(iShiftLeft.le.0)  iShiftLeft=StepsSft
       Iter=Iter+1
 !Reset number at HF and doubles
@@ -2121,11 +2146,11 @@ SUBROUTINE CCMCStandalone(Weight,Energyxw)
       NoatDoubs=0
    enddo !MC Cycles
 
-      if(iDebug.gt.1) call WriteExcitorList(6,AL%Amplitude(:,iCurAmpList),FciDets,0,nAmpl,dAmpPrintTol,"Final Excitor list")
+      IFDEBUG(iDebug,2) call WriteExcitorList(6,AL%Amplitude(:,iCurAmpList),FciDets,0,nAmpl,dAmpPrintTol,"Final Excitor list")
 
 ! Find the largest 10 amplitudes in each level
       call WriteMaxExcitorList(6,AL%Amplitude(:,iCurAmpList),FciDets,FCIDetIndex,iMaxAmpLevel,10)
-      nullify(OldAmpl)
+      nullify(OldAL)
       nullify(CS)
       if(lLogTransitions) then
          call WriteTransitionLog(6,TL,AL%Amplitude(:,iCurAmpList),NMCyc-NEquilSteps,dAveTotAbsAmp,dAveNorm)
@@ -2133,8 +2158,7 @@ SUBROUTINE CCMCStandalone(Weight,Energyxw)
    endif
    call DeallocateAmplitudeList(AL)
    if(tCCBuffer) then
-      LogDealloc(tagAmplitudeBuffer)
-      DeAllocate(AmplitudeBuffer)
+      call DeAllocateAmplitudeList(ALBuffer)
    endif
    Weight=0.D0
    Energyxw=ProjectionE
@@ -2153,13 +2177,13 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
    use CalcData, only: StepsSft ! The number of steps between shift updates
    use CalcData, only: TStartMP1
    use FciMCData, only: Iter
-   use FciMCData, only: TotParts,TotWalkers,TotWalkersOld,TotPartsOld,AllTotPartsOld,AllTotWalkersOld
+   use FciMCData, only: TotParts,TotWalkers,TotWalkersOld,TotPartsOld,AllTotPartsOld,AllTotWalkersOld,AllTotParts
    use FciMCData, only: NoatHF,NoatDoubs
    use FciMCData, only: tTruncSpace
    use FciMCData, only: ProjectionE
    use FciMCParMod, only: iLutHF
    use FciMCParMod, only: CheckAllowedTruncSpawn, SetupParameters,BinSearchParts3
-   use FciMCParMod, only: CalcNewShift,InitHistMin
+   use FciMCParMod, only: InitHistMin, calculate_new_shift_wrapper
    use FciMCParMod, only: WriteHistogram,SumEContrib
    Use Logging, only: CCMCDebug,tCCMCLogTransitions,tCCMCLogUniq
    USE Logging , only : tHistSpawn,iWriteHistEvery
@@ -2191,6 +2215,7 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
    INTEGER PartIndex,IC          ! Used in buffering
    LOGICAL tSuc                  ! Also used in buffering
 
+   INTEGER iOldTotWalkers        ! Info user for update to calculate shift
    INTEGER iShiftLeft            ! Number of steps left until we recalculate shift
    REAL*8 WalkerScale            ! Scale factor for turning floating point amplitudes into integer walkers.
    REAL*8 dTolerance             ! The tolerance for when to regard a value as zero
@@ -2236,13 +2261,18 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
    CCMC_time%timer_name='CCMC Standalone Particle'
    call set_timer(CCMC_time,20)
 
-   Spawntime%timer_name='SpawnTime'
-   Dietime%timer_name='DieTime'
-   Etime%timer_name='ETime'
+!   Spawntime%timer_name='SpawnTime'
+!   Dietime%timer_name='DieTime'
+!   Etime%timer_name='ETime'
    iRefPos=1
    iDebug=CCMCDebug
 
    Call SetupParameters()
+
+   ! Reset counters
+   iter_data_ccmc%nborn = 0
+   iter_data_ccmc%ndied = 0
+   iter_data_ccmc%nannihil = 0
 
    dTolerance=0 !1e-16
 
@@ -2281,7 +2311,7 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
    AL%Amplitude(:,:)=0
 
 !Make sure we've all finished setting it to zero.
-   call MPIBarrier()  
+   call MPIBarrier(ierr)  
 
 !  !  place ampl 1 in the HF det
 !   if(tStartMP1) then
@@ -2301,15 +2331,23 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
    dTotAbsAmpl=AL%Amplitude(iRefPos,iCurAmpList)
 !   endif
    dAmpPrintTol=(dTolerance*dInitAmplitude)
-   if(iDebug.ge.4) dAmpPrintTol=0
+   IFDEBUG(iDebug,4) dAmpPrintTol=0
 
    iShiftLeft=StepsSft-1  !So the first one comes at StepsSft
-   TotWalkers=WalkerScale*dTotAbsAmpl
-   TotParts(1)=WalkerScale*dTotAbsAmpl
-   TotWalkersOld=WalkerScale*dTotAbsAmpl
-   TotPartsOld(1)=WalkerScale*dTotAbsAmpl
-   AllTotWalkersOld=WalkerScale*dTotAbsAmpl
+   TotWalkers=0
+!WalkerScale*dTotAbsAmpl
+   TotParts(1)=0
+!WalkerScale*dTotAbsAmpl
+   TotWalkersOld=0
+!WalkerScale*dTotAbsAmpl
+   TotPartsOld(1)=0
+!WalkerScale*dTotAbsAmpl
+   AllTotWalkersOld=1
+!WalkerScale*dTotAbsAmpl
+   AllTotParts(1)=WalkerScale*dTotAbsAmpl
    AllTotPartsOld(1)=WalkerScale*dTotAbsAmpl
+   iOldTotWalkers=WalkerScale*dTotAbsAmpl
+   iter_data_ccmc%tot_parts_old = WalkerScale * dTotAbsAmpl
    dAveTotAbsAmp=0
    dAveNorm=0
    Iter=1
@@ -2345,7 +2383,7 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
       endif
 
 
-      call CalcTotals(iNumExcitors,dTotAbsAmpl,AL%Amplitude(:,iCurAmpList),nAmpl,dTolerance*dInitAmplitude,WalkerScale,iRefPos,iDebug)
+      call CalcTotals(iNumExcitors,dTotAbsAmpl,AL%Amplitude(:,iCurAmpList),nAmpl,dTolerance*dInitAmplitude,WalkerScale,iRefPos,iOldTotWalkers,iDebug)
 !      if(.not.tShifting) then
 !         if(iNumExcitors>dInitAmplitude) then
 !            tShifting=.true.
@@ -2366,7 +2404,8 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
 
       NoAtHF=AL%Amplitude(iRefPos,iCurAmpList)
 !TotWalkers is used for this and is WalkerScale* total of all amplitudes
-      if(iShiftLeft.le.0)  Call CalcNewShift()
+      if(iShiftLeft.le.0)  Call calculate_new_shift_wrapper(iter_data_ccmc, &
+                                                            TotParts)
       if(iShiftLeft.le.0)  iShiftLeft=StepsSft
 !Reset number at HF and doubles
       NoatHF=0
@@ -2377,8 +2416,9 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
       call ResetClustSelector(CS,iRefPos)
       tMoreClusters=.true.
       iMin=min(iNumExcitors,nEl)
+      call AccumulateAmplitudeList(AL,nAmpl,iCurAmpList,iRefPos)
       do while (tMoreClusters)
-         tMoreClusters=GetNextCluster(CS,DetList,nAmpl,AL%Amplitude(:,iCurAmpList),dTotAbsAmpl,iNumExcitors,iMin,iDebug)
+         tMoreClusters=GetNextCluster(CS,DetList,nAmpl,AL,iCurAmpList,dTotAbsAmpl,iNumExcitors,iMin,iDebug)
          if(.not.tMoreClusters) exit
 !Now form the cluster
          IF(iDebug.gt.3) then
@@ -2402,22 +2442,22 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
          endif
          if(tTruncSpace.and.CS%C%iExcitLevel>iExcitLevelCluster) cycle !Don't try to die if we're truncated
 
-         if(iDebug.gt.5) then
+         IFDEBUGTHEN(iDebug,6) 
             write(6, "(A)", advance='no') "  "
             call WriteCluster(6,CS%C,.true.)
-         endif
+         ENDIFDEBUG
          if(CS%C%iSgn.eq.0) then
-            if(iDebug.gt.3) write(6,*) "Sign Zero so moving to next cluster"
+            IFDEBUG(iDebug,4) write(6,*) "Sign Zero so moving to next cluster"
             cycle  !No point in doing anything
          endif
 
-         if(iDebug.gt.3) WRITE(6,*) " Cluster Amplitude: ",CS%C%iSgn*CS%C%dAbsAmplitude 
+         IFDEBUG(iDebug,4) WRITE(6,*) " Cluster Amplitude: ",CS%C%iSgn*CS%C%dAbsAmplitude 
 !         if(iDebug.gt.3) WRITE(6,*) " Cluster Prob: ",CS%C%dSelectionProb
          TempSign(1)=CS%C%iSgn
-         call set_timer(Etime,20)
+!         call set_timer(Etime,20)
          CALL SumEContrib(CS%C%DetCurr,CS%C%iExcitLevel,TempSign,CS%C%iLutDetCurr,0.d0,1/CS%C%dSelectionNorm)
-         call halt_timer(Etime)
-         call set_timer(Spawntime,20)
+!         call halt_timer(Etime)
+!         call set_timer(Spawntime,20)
 !Now consider a number of possible spawning events
          CALL ResetSpawner(S,CS%C,nSpawnings)
 
@@ -2427,22 +2467,23 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
             call AttemptSpawnParticle(S,CS%C,iDebug,SpawnList(:,:),SpawnAmps(:),nSpawned,nMaxSpawn)
          enddo !GetNextSpawner
 ! Now deal with birth/death.
-         call halt_timer(Spawntime)
-         call set_timer(Dietime,20)
+!         call halt_timer(Spawntime)
+!         call set_timer(Dietime,20)
          if((.not.tTruncSpace).or.CS%C%iExcitLevel<=iMaxAmpLevel)          &
   &         call AttemptDieParticle(CS%C,iDebug,SpawnList,SpawnAmps,nSpawned)
-         call halt_timer(Dietime)
+!         call halt_timer(Dietime)
       enddo ! Cluster choices
 
-      call MPIBarrier()
-      iOffset(1)=nSpawned
-      call MPIGather(iOffset,1,iLengths,1,Root,ierr)
+      call MPIBarrier(ierr)
+      call MPIGather(nSpawned,1,iLengths,1,Root,ierr)
 !iOffsets is now the list of data lengths from each processor
       iOffsets(1)=0
 !Make a list of offsets from the lengths.
       do i=1,nProcessors-1
          iOffsets(i+1)=iOffsets(i)+iLengths(1)
       enddo
+      IFDEBUG(iDebug,3) write(6,*) "Offsets",iOffsets
+      IFDEBUG(iDebug,3) write(6,*) "Lengths",iLengths
 !Get the Amplitudes
       call MPIGatherV(SpawnAmps,nSpawned,SpawnAmps,iLengths,iOffsets,Root,ierr)
       do i=1,nProcessors
@@ -2458,9 +2499,9 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
       endif
 ! At this point SpawnList contains a set of newly spawned particles and SpawnAmps the amount spawned
 !      if(nSpawned>0) then
-      if(iDebug>2) write(6,*) "Calling Annihilation with ", nSpawned, " spawned."
-      if(iDebug>2) call WriteExcitorList(6,SpawnAmps,SpawnList,0,nSpawned,dAmpPrintTol,"Spawned list")
-      call AnnihilationInterface(nAmpl,DetList,AL%Amplitude(:,iCurAmpList),nMaxAmpl,nSpawned,SpawnList,SpawnAmps,nMaxSpawn)
+      IFDEBUG(iDebug,3) write(6,*) "Calling Annihilation with ", nSpawned, " spawned."
+      IFDEBUG(iDebug,3) call WriteExcitorList(6,SpawnAmps,SpawnList,0,nSpawned,dAmpPrintTol,"Spawned list")
+      call AnnihilationInterface(nAmpl,DetList,AL%Amplitude(:,iCurAmpList),nMaxAmpl,nSpawned,SpawnList,SpawnAmps,nMaxSpawn,iter_data_ccmc)
 !      else
 !         if(iDebug>2) write(6,*) "No spawnings in toto."
 !      endif
@@ -2476,7 +2517,7 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
       Iter=Iter+1
    enddo !MC Cycles
 
-   if(iDebug.gt.1) call WriteExcitorList(6,AL%Amplitude(:,iCurAmpList),DetList,0,nAmpl,dAmpPrintTol,"Final Excitor list")
+   IFDEBUG(iDebug,2) call WriteExcitorList(6,AL%Amplitude(:,iCurAmpList),DetList,0,nAmpl,dAmpPrintTol,"Final Excitor list")
 
 ! Find the largest 10 amplitudes in each level
 !   call WriteMaxExcitorList(6,AL%Amplitude(:,iCurAmpList),DetList,FCIDetIndex,iMaxAmpLevel,10)
@@ -2738,10 +2779,8 @@ END SUBROUTINE CCMCStandaloneParticle
 
 END MODULE CCMC
 
-#ifdef PARALLEL
 SUBROUTINE PerformCCMCCycPar
    use CCMC
    Call PerformCCMCCycParInt()
 end subroutine PerformCCMCCycPar
-#endif
 

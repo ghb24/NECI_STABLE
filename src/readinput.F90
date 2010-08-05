@@ -165,10 +165,11 @@ MODULE ReadInput
       Use Determinants, only : SpecDet,tagSpecDet
       use IntegralsData , only : NFROZEN,TDISCONODES,TQuadValMax,TQuadVecMax,TCalcExcitStar,TJustQuads,TNoDoubs,TDiagStarStars,TExcitStarsRootChange,TRmRootExcitStarsRootChange,TLinRootChange
       USE Logging , only : ILOGGING,tCalcFCIMCPsi,tHistSpawn,tHistHamil
-      use SystemData, only : TNoRenormRandExcits
+      use SystemData, only: TNoRenormRandExcits, LMS, STOT, tCSF, tSpn
       use DetCalc, only : tEnergy,tCalcHMat,tFindDets,tCompressDets
       USE input
       use global_utilities
+      use spin_project, only: tSpinProject
       IMPLICIT NONE
       INTEGER :: vv,kk,cc,ierr
       LOGICAL :: CHECK
@@ -366,6 +367,20 @@ MODULE ReadInput
           call report("Error - can only use STARSTOREREAD with "        &
      &    //"double excitations of HF",.true.)
       ENDIF
+
+      ! Check details for spin projection
+      if (tSpinProject) then
+          if (tCSF) &
+              call stop_all (t_r, "Spin projection must not be used with &
+                                  &CSFs")
+      
+          if (.not. tSpn) &
+              call stop_all (t_r, "SPIN-RESTRICT must be used with SPIN-&
+                                  &PROJECT to set the value of S, Ms")
+          
+          ! Set the value of STOT as required
+          STOT = LMS
+      endif
 
       end subroutine checkinput
 End Module ReadInput

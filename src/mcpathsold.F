@@ -376,7 +376,7 @@ C.. (Requires whole rho matrix)
          proc_timer%timer_name='MCPATHS0  '
          call set_timer(proc_timer)
 C.. Randomize the seed:
-         ISEED=INT(SECNDS(SecondSeed))
+         call system_clock(iseed)
          IF(MOD(ISEED,2).EQ.0) ISEED=ISEED-1
 C.. THe seed must be odd
          

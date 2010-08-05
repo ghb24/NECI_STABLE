@@ -135,6 +135,12 @@ module SymData
     INTEGER, POINTER ::  SYMLABELCOUNTSCUM2(:)
     INTEGER, POINTER ::  SYMLABELINTSCUM2(:)
 
+    ! The index of the orbital within the its symmetry block.
+    ! SymIndex(i) = 2 indicates that the i-th orbital is the 2nd one of it's
+    ! symmetry.
+    INTEGER, POINTER :: SymIndex(:)   ! nbasis (UHF) or nbasis/2 (RHF)
+    INTEGER, POINTER :: SymIndex2(:)  ! nbasis (UHF) or nbasis/2 (RHF)
+
     ! NROT is the number of symmetry operations
     INTEGER :: NROT
     ! All symmetries are decomposable into component irreps.
@@ -183,6 +189,7 @@ module SymData
     INTEGER :: tagIRREPCHARS
     INTEGER :: tagSymStatePairs
     INTEGER :: tagSymPairProds
+    integer :: tagSymIndex=0, tagSymIndex2=0
 
 contains
     elemental subroutine SymPairAssign (lhs, rhs)

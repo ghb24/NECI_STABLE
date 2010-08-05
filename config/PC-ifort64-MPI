@@ -6,13 +6,13 @@ ldflags = -i-dynamic -L $(LD_LIBRARY_PATH)
 compiler = INTEL-ifort9-on-LINUX
 cpp = cpp -C -traditional
 cppflags = -D__Linux -DPOINTER8 -DPARALLEL -DHAVE_SSE2 -D__INT64
-libs = -L ~/src/lib/fftw-3.1.2/lib -L ~/lib/fftw-3.1.2/lib -lfftw3  -lacml -cxxlib -lrt
+libs = -L ~/src/lib/fftw-3.1.2/lib -L ~/lib/fftw-3.1.2/lib -lfftw3  -llapack -lblas -cxxlib -lrt
 module_flag = -module
 
 [dbg]
-fflags = -r8 -g
-cflags = -g -C
-f90flags = -check bounds
+fflags = -r8 -g -traceback
+cflags = -g -C -traceback
+f90flags = -check bounds -traceback
 
 [opt]
 fflags = -r8 -O3 

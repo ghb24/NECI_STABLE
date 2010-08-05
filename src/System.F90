@@ -85,6 +85,7 @@ MODULE System
       TALPHA = .false.
       ISTATE = 1
       OrbECutoff=1e20
+      tOrbECutoff=.false.
       tStoreAsExcitations=.false.
       TBIN=.false.
       tAbelianFastExcitGen=.true.
@@ -359,6 +360,7 @@ MODULE System
 !               call getf(FCOULDAMPBETA)
 !            end select
         case("ENERGY-CUTOFF")
+          tOrbECutoff=.true.
           call getf(OrbECutoff)
         case("STORE-AS-EXCITATIONS")
            tStoreAsExcitations=.true.  
@@ -783,6 +785,7 @@ MODULE System
       use constants, only: Pi, Pi2, THIRD
       use legacy_data, only: CSF_NBSTART
       use read_fci
+      use sym_mod
       implicit none
       character(*), parameter :: this_routine='SysInit'
       integer ierr
@@ -800,7 +803,6 @@ MODULE System
       type(timer), save :: proc_timer
       REAL*8 SUM
 ! Called functions
-      type(Symmetry) TotSymRep
       TYPE(BasisFN) FrzSym
       logical kallowed
       integer dUnscaledE
@@ -925,7 +927,7 @@ MODULE System
          CALL CPMDSYSTEMINIT(LEN)   
          IF(TPARITY) THEN
             WRITE(6,"(A)",advance='no') '  SYMMETRIES : '
-            CALL WRITEALLSYM(5,SymRestrict)
+            CALL WRITEALLSYM(5,SymRestrict,.true.)
          ENDIF
          IF(THFORDER) WRITE(6,'(A)')      "  Ordering according to 1-electron energies.  "
       ELSEIF(tVASP) THEN
@@ -1366,6 +1368,8 @@ MODULE System
 
     Subroutine SysCleanup()
 
+      use sym_mod, only: EndSym
+
       CALL ENDSYM()
 
     End Subroutine SysCleanup
@@ -1400,6 +1404,7 @@ SUBROUTINE WRITEBASIS(NUNIT,G1,NHG,ARR,BRR)
   use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
   use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB, nel
   use DeterminantData, only: fdet
+  use sym_mod, only: writesym
   IMPLICIT NONE
   INTEGER NUNIT,NHG,BRR(NHG),I
   integer :: pos

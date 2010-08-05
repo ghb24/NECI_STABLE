@@ -29,9 +29,7 @@ contains
          USE STARDIAGMOD , only: fMCPR3StarNewExcit
          USE GraphMorph , only : MorphGraph
          USE StarDiagTripMod , only : StarDiagTrips
-#ifdef PARALLEL
          USE FciMCParMod , only : FciMCPar
-#endif
          USE FciMCMod , only : FciMC
          USE ReturnPathMCMod , only : ReturnPathMC
          USE NODEDIAG , only : fMCPR3StarNodes
@@ -47,6 +45,7 @@ contains
          use global_utilities
          use mcpathsdata, only: EGP
          use mcpathshdiag, only: fmcpr3b2
+         use sym_mod, only: getsym
          use util_mod, only: isnan, NECI_ICOPY
          IMPLICIT NONE
          TYPE(BasisFN) :: G1(*),KSYM
@@ -112,7 +111,7 @@ contains
             TSYM=.TRUE.
          ENDIF
          IF(TLOG) THEN
-            OPEN(11,FILE="MCSUMMARY",STATUS="OLD",ACCESS='APPEND')
+            OPEN(11,FILE="MCSUMMARY",STATUS="OLD",POSITION='APPEND')
 !C.. go to end of file
 !            I=FSEEK(11,0,2)
             call write_det (11, NI, .true.)
@@ -246,7 +245,6 @@ contains
                     CALL StarDiagTrips(DLWDB2,F(I_V))
                ELSEIF(TFCIMC) THEN
 !A MC simulation involving replicating particles is run
-#ifdef PARALLEL
 !                    WRITE(6,*) "Get Here!: ",I_V,F(I_V),DLWDB2
                   IF(tFCIMCSerial) THEN
                     CALL FciMC(F(I_V),DLWDB2)
@@ -254,9 +252,6 @@ contains
                     CALL FciMCPar(F(I_V),DLWDB2)
                   ENDIF
 !                    WRITE(6,*) "Get Here!: ",I_V,F(I_V),DLWDB2
-#else
-                    CALL FciMC(F(I_V),DLWDB2)
-#endif
                ELSEIF(tCCMC) THEN
                   if(tAmplitudes) THEN
                      CALL CCMCStandAlone(F(I_V),DLWDB2)
@@ -592,7 +587,7 @@ contains
          OTIME=etime(tarr)
          TLOG=BTEST(ILOGGING,1)
          IF(TLOG) THEN
-            OPEN(11,FILE="MCPATHS",STATUS="OLD",ACCESS='APPEND')
+            OPEN(11,FILE="MCPATHS",STATUS="OLD",POSITION='APPEND')
 !C.. go to end of file
 !            I=FSEEK(11,0,2)
             call write_det (11, NI, .true.)
@@ -1098,6 +1093,7 @@ contains
          USE Logging , only : G_VMC_LOGCOUNT
          USE PrecalcData , only : TPREVAR,PREWEIGHTEPS
          use mcpathsdata, only: EGP
+         use sym_mod, only: getsym
          use legacy_data, only: irat
          use util_mod, only: NECI_ICOPY
          IMPLICIT NONE
@@ -1645,7 +1641,7 @@ end module mcpaths
                IF(EX(1,1).GE.0) EXIT
             ENDDO
             IF(EX(1,2).EQ.0) THEN
-               WRITE(NUNIT,"(Z1,A,I5,A,I5,A)",advance='no'),K,"(",EX(1,1),")->(",EX(2,1),"),"
+               WRITE(NUNIT,"(Z1,A,I5,A,I5,A)",advance='no') K,"(",EX(1,1),")->(",EX(2,1),"),"
             ELSE
                WRITE(NUNIT,"(Z1,A,I5,A,I5,A,I5,A,I5,A)",advance='no') K, &
      &         "(",EX(1,1),",",EX(1,2),")->(",EX(2,1),",",EX(2,2),"),"

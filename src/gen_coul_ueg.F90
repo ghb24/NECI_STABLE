@@ -8,17 +8,6 @@ module gen_coul_ueg_mod
     use constants, only: dp, pi, pi2, THIRD
     implicit none
 
-    interface
-        ! TODO: Remove interfaces for sym.F (i.e. modularise)
-        ! n.b. This is a hack. Really should be type(BasisFn), but the
-        !      routines below don't use that yet. FIXME
-        logical function lChkSym (iSym, jSym)
-            use SystemData, only: BasisFN
-            implicit none
-            type(BasisFN) :: iSym, jSym
-        end function
-    end interface
-
 contains
 
     ! This is based on the gen_coul for electrons in a cubic box, but with
@@ -112,6 +101,8 @@ contains
         !
         ! This first call calculates the inner integral
         ! The call to SCOUL calculates the outer integral
+
+        use sym_mod, only: roundsym, addelecsym, setupsym, lchksym
 
         type(BasisFn) :: ka, kb
         integer :: a, b, c, d, tx, ty
@@ -334,6 +325,7 @@ contains
     end function ChkMomEq
  
     function get_hub_umat_el (i, j, k, l) result(hel)
+        use sym_mod, only: roundsym, addelecsym, setupsym, lchksym
         integer, intent(in) :: i, j, k, l
         HElement_t :: hel
         type(BasisFn) :: ka, kb

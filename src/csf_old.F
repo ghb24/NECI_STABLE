@@ -259,10 +259,12 @@ C.. test if NCI is a CSF
      &  G1,ISYM,NI)
          use SystemData, only: BasisFN,BasisFNSize
          use legacy_data, only: CSF_NBSTART
+         use sym_mod
          use util_mod, only: NECI_ICOPY
          IMPLICIT NONE
          INTEGER NEL,NBASIS,BRR(NBASIS),NBASISMAX(*)
-         INTEGER NMRKS(NEL,1),NDET,G1(*)
+         INTEGER NMRKS(NEL,1),NDET
+         type(BasisFN) G1(*)
          LOGICAL TCOUNT,TSPN,TPARITY
          INTEGER LMS,IFDET
          TYPE(BASISFN) IPARITY
@@ -279,7 +281,6 @@ C.. test if NCI is a CSF
          TYPE(BASISFN) ISYM,KSYM
          INTEGER SFORCE,SZFORCE
          INTEGER IEXCITS
-         LOGICAL LCHKSYM
          CALL SYMGETSSZ(LMS,SFORCE,SZFORCE)
          ISYM = IPARITY
 C.. make sure Sz=0 as this is dealt with in the csfgen part
@@ -431,10 +432,12 @@ C..    Otherwise all will.
          use SystemData, only: BasisFN,BasisFNSize
          use legacy_data, only: CSF_NBSTART
          use sort_mod
+         use sym_mod
          use util_mod, only: NECI_ICOPY
          IMPLICIT NONE
          INTEGER NEL,NBASIS,BRR(NBASIS),NBASISMAX(*)
-         INTEGER NMRKS(NEL,*),NDET,G1(*)
+         INTEGER NMRKS(NEL,*),NDET
+         type(BasisFN) G1(*)
          LOGICAL TCOUNT,TSPN,TPARITY
          INTEGER LMS,IFDET
          TYPE(BASISFN) IPARITY        
@@ -459,7 +462,6 @@ C..    Otherwise all will.
          INTEGER ICLOSEDD(NEL),NCLOSEDD,IOPEND(NEL),NOPEND
          INTEGER SZD,SD,SORDERD(NEL)
 
-         LOGICAL LCHKSYM
          INTEGER IGETEXCITLEVEL,IFIND
          INTEGER IEXLEV
          INTEGER maxNDET

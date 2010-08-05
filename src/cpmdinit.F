@@ -7,6 +7,7 @@
          use CPMDData, only: EigenValues,Project,BigCell,Trans_Label
          use CPMDData, only: K_Vectors,KPntInd,CellSizes,TKP,Improper_OP
          use CPMDData, only: nStates,NKPTrans,nKPS,nRotOp
+         use sym_mod
          IMPLICIT NONE
          INTEGER nBasisMax(5,*), BRR(LEN),LEN
          TYPE(BASISFN) G1(LEN)
@@ -15,7 +16,6 @@
          TYPE(Symmetry) iDecomp
          LOGICAL IMPROP(NKPS)
          LOGICAL ALL1D
-         integer*8  ComposeAbelianSym
          NBASISMAX(1,1)=0
          NBASISMAX(2,1)=0
          NBASISMAX(3,1)=0
@@ -118,8 +118,11 @@ C.. group
       
       SUBROUTINE GENCPMDSYMREPS(G1,NBASIS,ARR,BRR)
          use CPMDData, only: DegenTol
+         use SystemData, only: BasisFN
+         use sym_mod
          IMPLICIT NONE
-         INTEGER BRR(NBASIS),NBASIS,G1(*)
+         INTEGER BRR(NBASIS),NBASIS
+         type(BasisFn) G1(*)
          REAL*8 ARR(NBASIS,2)
          CALL GENSYMREPS(G1,NBASIS,ARR,BRR,DEGENTOL)
       END
@@ -135,6 +138,7 @@ C.. group
          use SymData, only: tagIRREPCHARS
          use CPMDData, only: nStates,Rot_Label,tSpaceGp,Group_Char
          use CPMDData, only: Rot_Char
+         use sym_mod, only: WriteIrrepTab
          IMPLICIT NONE
          INTEGER I,J,K
          INTEGER LABELS(2,NSTATES)
@@ -212,6 +216,7 @@ C.. h_ij=(E_i+xi) delta_ij - Sum_k f_k (ik|jk)
          use OneEInts, only: TMatInd
          use global_utilities
          use sort_mod
+         use sym_mod
          IMPLICIT NONE
          INTEGER NHG,NTFROZEN
          HElement_t CPMD1EINT(NSTATES,NSTATES)
@@ -225,7 +230,6 @@ C.. h_ij=(E_i+xi) delta_ij - Sum_k f_k (ik|jk)
          TYPE(BASISFN) G1(NHG)
          REAL*8 ECORE
          INTEGER NEL
-         LOGICAL LCHKSYM
          REAL*8 DIAGTMAT(NSTATES)
          INTEGER STATEORDER(NSTATES)
          LOGICAL TORDER
