@@ -60,6 +60,9 @@ MODULE AnnihilationMod
         INTEGER :: ierr,i
         CHARACTER(len=*) , PARAMETER :: this_routine='AnnihilationInterface'
         INTEGER, DIMENSION(lenof_sign) :: TempSign
+        TYPE(timer) :: Annihil_time
+        Annihil_time%timer_name='Annihilation interface'
+        call set_timer(Annihil_time,20)
 
         IF(.not.(ALLOCATED(ValidSpawnedList))) THEN
 !This needs to be filled correctly before annihilation can take place.
@@ -110,6 +113,7 @@ MODULE AnnihilationMod
             MainSign(i)=TempSign(1)
         enddo
 
+        call halt_timer(Annihil_time)
     END SUBROUTINE AnnihilationInterface
 
 
