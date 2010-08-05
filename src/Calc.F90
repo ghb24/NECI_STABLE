@@ -15,7 +15,8 @@ MODULE Calc
     use DetCalcData, only: B2L, nKry, nEval, nBlk
     use IntegralsData, only: tNeedsVirts
     use CCMCData, only: dInitAmplitude, dProbSelNewExcitor, nSpawnings, &
-                        tSpawnProp, nClustSelections, tExactEnergy
+                        tSpawnProp, nClustSelections, tExactEnergy,     &
+                        dClustSelectionRatio
 
     implicit none
 
@@ -98,6 +99,7 @@ contains
           dProbSelNewExcitor=0.7d0
           nSpawnings=1
           nClustSelections=1
+          dClustSelectionRatio=1
           tExactEnergy=.false.
           tSpawnProp=.false.
           NMCyc=2000
@@ -763,6 +765,9 @@ contains
             case("NCLUSTSELECTIONS")
 !For Particle CCMC the number of  cluster.
                 call geti(nClustSelections)
+            case("CLUSTSELECTIONRATIO")
+!For Particle CCMC the number of  cluster.
+                call getf(dClustSelectionRatio)
             case("CCMCEXACTENERGY")
                tExactEnergy=.true.
             case("SPAWNPROP")
