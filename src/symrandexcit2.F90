@@ -95,10 +95,12 @@ MODULE GenRandSymExcitNUMod
             CALL ConstructClassCounts(nI,ClassCount2,ClassCountUnocc2)
             tFilled=.true.
         ENDIF
-!        WRITE(6,*) "ClassCount2: ",ClassCount2(:)
-!        WRITE(6,*) "***" 
-!        WRITE(6,*) "ClassCountUnocc2: ",ClassCountUnocc2(:)
-!        WRITE(6,*) "***" 
+!		IF(Counter.eq.6) THEN
+!      	  	WRITE(6,*) "ClassCount2: ",ClassCount2(:)
+!      	  	WRITE(6,*) "***" 
+!      	  	WRITE(6,*) "ClassCountUnocc2: ",ClassCountUnocc2(:)
+!   	    WRITE(6,*) "***" 
+!		ENDIF
 
 !ExFlag is 1 for singles, 2 for just doubles, and 3 for both.
         IF(ExFlag.eq.3) THEN
@@ -245,6 +247,8 @@ MODULE GenRandSymExcitNUMod
 !First, we need to pick an unbiased distinct electron pair.
 !These have symmetry product SymProduct, and spin pair iSpn = 1=beta/beta; 2=alpha/beta; 3=alpha/alpha
         CALL PickElecPair(nI,Elec1Ind,Elec2Ind,SymProduct,iSpn,SumMl,-1)
+
+!		IF(Counter.eq.6) WRITE(6,*) "Elec1Ind,Elec2Ind,SymProduct,iSpn",Elec1Ind,Elec2Ind,SymProduct,iSpn
 
 !This routine finds the number of orbitals which are allowed by spin, but not part of any spatial symmetry allowed unoccupied pairs.
 !This number is needed for the correct normalisation of the probability of drawing any given A orbital since these can be chucked and redrawn.
@@ -698,7 +702,7 @@ MODULE GenRandSymExcitNUMod
 				ENDIF
 
             ELSEIF(iSpn.eq.3) THEN
-!				WRITE(6,*) "Same Spin"
+!				WRITE(6,*) "alpha/alpha"
                 Ind=1
 				IF(.not.tKPntSym) THEN
 					IF(SymProduct.ne.0) THEN
@@ -727,7 +731,9 @@ MODULE GenRandSymExcitNUMod
 				!Unfortunately, I don't think you can tell from SymProduct when this case is going to be satisfied.
 					do i=0,nSymLabels-1		!Run over symmetries of the orbitals
 						IF(ClassCountUnocc2(Ind).le.1) THEN
+!							WRITE(6,*) "Checking 'a' Sym: ",i
 							ConjSym=RandExcitSymLabelProd(SymProduct,SymInvLabel(i))
+!							WRITE(6,*) "Required 'b' Sym: ",ConjSym
 							IF(ConjSym.eq.i) THEN
 								!A and B come from the same symmetry, so we must have more than one
 								!orbitals available from there..
@@ -737,8 +743,10 @@ MODULE GenRandSymExcitNUMod
 								ENDIF
 							ELSE
 								IF(ClassCountUnocc2(Ind).eq.0) THEN
+									!There aren't any a's in this pair of syms, so the b's are forbidden
 		!                            ConjSym=IEOR(SymProduct,i)
-									ForbiddenOrbs=ForbiddenOrbs+ClassCountUnocc2(ClassCountInd(2,ConjSym,0))
+!									WRITE(6,*) "No a's of this sym found. # of b's = ",ClassCountUnocc2(ClassCountInd(1,ConjSym,0)),
+									ForbiddenOrbs=ForbiddenOrbs+ClassCountUnocc2(ClassCountInd(1,ConjSym,0))
 								ENDIF
 							ENDIF
 						ENDIF
@@ -769,7 +777,7 @@ MODULE GenRandSymExcitNUMod
 		INTEGER :: AttemptsOverall,ChosenUnocc,z,i,Attempts
         REAL*8 :: r
 
-!		WRITE(6,*) "FORBIDDEN ORBS: ",ForbiddenOrbs!,Counter
+!		WRITE(6,*) "FORBIDDEN ORBS: ",ForbiddenOrbs,Counter
 
         IF(iSpn.eq.2) THEN
 !There is no restriction on whether we choose an alpha or beta spin, so there are nBasis-NEl possible spinorbitals to choose from.
@@ -2566,6 +2574,10 @@ SUBROUTINE SpinOrbSymSetup(tRedoSym)
 			SpinOrbSymLabel(i)=INT(G1(i)%Sym%S,4)
 		endif
 	enddo
+!	WRITE(6,*) "SpinOrbSymLabel: "
+!	do i=1,nBasis
+!		WRITE(6,*) i,SpinOrbSymLabel(i)
+!	enddo
 
 !SymInvLabel takes the label (0 -> nSymLabels-1) of a spin orbital, and returns the inverse symmetry label, suitable for
 !use in ClassCountInd.
@@ -2603,6 +2615,14 @@ SUBROUTINE SpinOrbSymSetup(tRedoSym)
 				SymTableLabels(j,i)=Lab-1
 			enddo
 		enddo
+!		WRITE(6,*) "SymTable:"
+!		do i=0,nSymLabels-1
+!			do j=0,nSymLabels-1
+!				WRITE(6,"(I6)",advance='no') SymTableLabels(i,j)
+!			enddo
+!			WRITE(6,*) ""
+!		enddo
+
 	endif
 
 !SymLabelList2 and SymLabelCounts2 are now organised differently, so that it is more efficient, and easier to add new symmetries.
