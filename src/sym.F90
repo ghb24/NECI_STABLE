@@ -1553,11 +1553,11 @@ contains
          return
       end Function FindSymLabel
 !   A binary search to find VAL in TAB.  TAB is sorted
-      SUBROUTINE BINARYSEARCHSYM(VAL,TAB,ROWLEN,LEN,LOC)
+      SUBROUTINE BINARYSEARCHSYM(VAL,TAB,LEN,LOC)
          use SystemData, only: Symmetry
          IMPLICIT NONE
          TYPE(Symmetry) VAL
-         INTEGER LOC,LEN,ROWLEN
+         INTEGER LOC,LEN
          type(Symmetry) TAB(LEN)
          INTEGER I,J,IFIRST,N,ILAST
          I=1

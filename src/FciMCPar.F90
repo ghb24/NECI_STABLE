@@ -616,7 +616,9 @@ MODULE FciMCParMod
         logical :: tFilled, tParity
         real(dp) :: prob, HDiagCurr
         HElement_t :: HDiagTemp
+#ifdef __DEBUG
         character(*), parameter :: this_routine = 'PerformFCIMCycPar' 
+#endif
 
         call set_timer(Walker_Time,30)
 
@@ -1069,7 +1071,6 @@ MODULE FciMCParMod
     SUBROUTINE FindHighPopDet()
         USE constants, only : MpiDetInt
 !Found the highest population on each processor, need to find out which of these has the highest of all.
-        INTEGER :: error
         INTEGER(KIND=n_int) :: DetPos(0:NIfTot),DetNeg(0:NIfTot)
         INTEGER :: HighPopInNeg(2),HighPopInPos(2),HighPopoutNeg(2),HighPopoutPos(2)
         INTEGER, DIMENSION(lenof_sign) :: TempSign
@@ -2587,7 +2588,7 @@ MODULE FciMCParMod
 
     SUBROUTINE WriteHistogramEnergies()
         use util_mod, only: get_free_unit
-        INTEGER :: error,i, io(8)
+        INTEGER :: i, io(8)
         REAL*8 :: Norm,EnergyBin
 
         IF(iProcIndex.eq.Root) THEN
@@ -2767,7 +2768,7 @@ MODULE FciMCParMod
     SUBROUTINE PrintFCIMCPsi()
         use DetCalcData , only : FCIDets
         use util_mod, only: get_free_unit
-        INTEGER :: error,i,nI(NEl),ExcitLevel,j, iunit
+        INTEGER :: i,nI(NEl),ExcitLevel,j, iunit
         REAL*8 :: norm,norm1
 
         CALL MPISum(Histogram,AllHistogram)
@@ -2820,7 +2821,7 @@ MODULE FciMCParMod
     SUBROUTINE WriteHistogram()
         use SystemData , only : BasisFN
         use util_mod, only: get_free_unit
-        INTEGER :: i,error,IterRead, io1, io2, io3
+        INTEGER :: i,IterRead, io1, io2, io3
         REAL*8 :: norm,norm1,norm2,norm3,ShiftRead,AllERead,NumParts
         CHARACTER(len=22) :: abstr,abstr2
         LOGICAL :: exists
@@ -2964,7 +2965,7 @@ MODULE FciMCParMod
 !This routine will write out the average hamiltonian from the spawning run up until now.
     SUBROUTINE WriteHamilHistogram()
         use util_mod, only: get_free_unit
-        INTEGER :: i,j,error
+        INTEGER :: i,j
         integer :: iunit
         CHARACTER(len=22) :: abstr
 

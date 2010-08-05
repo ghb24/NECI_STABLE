@@ -2736,7 +2736,7 @@ SUBROUTINE PerformFCIMCyc()
         TYPE(ExcitGenerator) :: OrigExit,NewExit
         INTEGER :: ierr
 
-        IF(Allocated(NewExit%ExcitData)) THEN
+        IF(Associated(NewExit%ExcitData)) THEN
             DEALLOCATE(NewExit%ExcitData)
         ENDIF
         IF(.not.OrigExit%ExcitGenForDet) THEN
@@ -2769,13 +2769,13 @@ SUBROUTINE PerformFCIMCyc()
 
         IF(ExcitGen%ExcitGenForDet) THEN
 !The excitation generator is already allocated for the determinant in question - no need to recreate it
-            IF(.not.Allocated(ExcitGen%ExcitData)) THEN
+            IF(.not.associated(ExcitGen%ExcitData)) THEN
                 CALL Stop_All("SetupExitgen","Excitation generator meant to already be set up")
             ENDIF
 
         ELSE
 
-            IF(Allocated(ExcitGen%ExcitData)) THEN
+            IF(Associated(ExcitGen%ExcitData)) THEN
                 DEALLOCATE(ExcitGen%ExcitData)
             ENDIF
 

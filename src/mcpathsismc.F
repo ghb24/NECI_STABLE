@@ -923,8 +923,8 @@ C            WRITE(57,"(A1)",advance='no') "N"
      &      ISEED,INODE2)
 C            CALL WRITEDET(35,INODE2,NEL,.FALSE.)
             CALL NECI_ICOPY(NEL,INODE2,1,INODE,1)
-C            CALL GENRANDOMEXCITSYM(INODE,NEL,NBASIS,G1,2,ISEED,
-C     &         NBASISMAX,INODE2)
+C            CALL GENRANDOMEXCITSYM(INODE,NEL,NBASIS,2,ISEED,
+C     &         INODE2)
 C.. If the new node is not in the path, add it.
             IF(.NOT.LISINPATH(INODE2,IPATH,NEL,I_VNEXT,-1)) THEN
                CALL NECI_ICOPY(NEL,INODE2,1,IPATH(1,I_VNEXT),1)
@@ -1089,8 +1089,8 @@ C.. XIJ(ICURNODE,ICURNDOE) is the norm const for the current node
      &         INODE2,IC,NBASISMAX,BETA,I_P,NMSH,FCK,NMAX,ALAT,
      &         UMAT,NTAY,ECORE,X,RP,PP,RHOEPS)
             CALL NECI_ICOPY(NEL,INODE2,1,INODE,1)
-C            CALL GENRANDOMEXCITSYM(INODE,NEL,NBASIS,G1,2,ISEED,
-C     &         NBASISMAX,INODE2)
+C            CALL GENRANDOMEXCITSYM(INODE,NEL,NBASIS,2,ISEED,
+C     &         INODE2)
 C.. If the new node is not in the path, add it.
             IONODE=ICURNODE
             ICURNODE=IISINPATH(INODE2,IPATH,NEL,I_VNEXT,-1) 
@@ -1607,8 +1607,8 @@ C.. Invert the matrix, and pass the multiplicative factor on.
          RETURN
       END
 
-      SUBROUTINE GENRANDOMEXCITSYM(NI,NEL,NBASIS,G1,IEXLEVEL,ISEED,
-     &            NBASISMAX,NJ)
+      SUBROUTINE GENRANDOMEXCITSYM(NI,NEL,NBASIS,IEXLEVEL,ISEED,
+     &            NJ)
          use SystemData, only: BasisFN
          use sort_mod
          use sym_mod, only: lChkSym
@@ -1617,8 +1617,6 @@ C.. Invert the matrix, and pass the multiplicative factor on.
          INTEGER NEL,NI(NEL),NBASIS,IEXLEVEL,ISEED,NJ(NEL)
          INTEGER I,J,K,IEX,IEXL2
          LOGICAL BR,BR2
-         INTEGER nBasisMax(5,*)
-         type(BasisFN) G1(*)
          REAL*8 RAN2
          IF(IEXLEVEL.GT.2)
      &    STOP "Cannot handle more than double excitations."

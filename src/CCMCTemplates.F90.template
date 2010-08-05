@@ -207,6 +207,9 @@ SUBROUTINE CalcClusterEnergy (tFCI,Amplitude,nExcit,ExcitList,ExcitLevelIndex,iR
    INTEGER(kind=n_int) iLutnI(0:nIfTot)
    Type(Cluster) C
 
+    ! Avoid compile warnings when not in debug mode
+    iDebug = iDebug
+
    allocate(C%%SelectedExcitors(0:nIfTot,2))
    iC=0
    dT1Sq=0
@@ -226,7 +229,7 @@ SUBROUTINE CalcClusterEnergy (tFCI,Amplitude,nExcit,ExcitList,ExcitLevelIndex,iR
          endif
 ! Deal with T_1^2
          IFDEBUGTHEN(iDebug,4)
-            C%%SelectedExcitors(:,1)=ExcitList(:,j)
+            c%%sELECTedExcitors(:,1)=ExcitList(:,j)
             C%%iSize=1
             if(j==1) C%%iSize=0
             call WriteCluster(79,C,.false.)
@@ -591,6 +594,10 @@ SUBROUTINE CollapseCluster (C,iLutHF,Amplitude,nDet,iDebug,tExToDet)
    LOGICAL tExToDet
 
    INTEGER i
+
+   ! Avoid compile warnings outside debug mode
+   iDebug = iDebug
+
 !   TYPE(timer),save :: CCMC_time
 
 !   CCMC_time%%timer_name="CollapseCluster"
@@ -643,6 +650,10 @@ subroutine CalcTotals (iNumExcitors,dTotAbsAmpl,Amplitude,nAmpl,dTol,WalkerScale
    integer i,j
    real*8 dPsiTotAbsAmpl,dTmp
    real*8 dTotExcitors
+
+   ! Avoid compile warnings outside debug mode
+   iDebug = iDebug
+
 !   TYPE(timer),save :: CCMC_time
 
 !   CCMC_time%%timer_name="CalcTotalsr"

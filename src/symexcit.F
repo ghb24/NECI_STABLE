@@ -355,7 +355,7 @@ C.. The first free space is at SYMPRODIND(1,ISPN,I)+SYMPRODIND(2,ISPN,I)+1.
                L=L+1
                PR=SYMPROD(G1(NI(I))%Sym,G1(NI(J))%Sym)
 C.. Find the product in the sorted symprod list
-               CALL BINARYSEARCHSYM(PR,SYMPRODS(1),SymmetrySize,NPR,K)
+               CALL BINARYSEARCHSYM(PR,SYMPRODS(1),NPR,K)
                IF(K.EQ.0) THEN
                   WRITE(6,*) "Occupied Symmetry Products"
                   DO L=0,NPR
@@ -1194,7 +1194,7 @@ C.. The first free space is at SYMPRODIND(1,ISPN,I)+SYMPRODIND(2,ISPN,I)+1.
                L=L+1
                PR=SYMPROD(G1(NI(I))%Sym,G1(NI(J))%Sym)
 C.. Find the product in the sorted symprod list
-               CALL BINARYSEARCHSYM(PR,SYMPRODS(1),SymmetrySize,NPR,K)
+               CALL BINARYSEARCHSYM(PR,SYMPRODS(1),NPR,K)
                IF(K.EQ.0) THEN
                   WRITE(6,*) "Occupied Symmetry Products"
                   DO L=0,NPR
@@ -1362,7 +1362,7 @@ C.. SYMPRODIND(2,ISPN,I) contains the number of such elements
          DO I=1,nSymPairProds
 ! Now search for that symmetry within our occupied pair counts
            CALL BINARYSEARCHSYM(SymPairProds(I)%Sym,SYMPRODS(1),
-     &         SymmetrySize,NPR,K)
+     &         NPR,K)
 !K now has the index of that sym in the occ sym prod list.
 
             IF(tDebugPrint)
