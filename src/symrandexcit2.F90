@@ -2794,7 +2794,7 @@ lp2: do while(.true.)
             IF (IsMomentumAllowed(nJ)) THEN
                 excitcount=excitcount+1
                 CALL EncodeBitDet(nJ,iLutnJ)
-                WRITE(25,*) excitcount,iExcit,iLutnJ(0)
+				IF(iProcIndex.eq.0) WRITE(25,*) excitcount,iExcit,iLutnJ(0)
             ENDIF
         ELSEIF(tFixLz) THEN
 
@@ -2802,18 +2802,18 @@ lp2: do while(.true.)
             IF(Lz.eq.LzTot) THEN
                 excitcount=excitcount+1
                 CALL EncodeBitDet(nJ,iLutnJ)
-                WRITE(25,*) excitcount,iExcit,iLutnJ(0)
+				IF(iProcIndex.eq.0) WRITE(25,*) excitcount,iExcit,iLutnJ(0)
             ENDIF
 		ELSEIF(tKPntSym) THEN
 			IF(IsMomAllowedDet(nJ)) THEN
 				excitcount=excitcount+1
 				CALL EncodeBitDet(nJ,iLutnJ)
-				WRITE(25,*) excitcount,iExcit,nJ(:)
+				IF(iProcIndex.eq.0) WRITE(25,*) excitcount,iExcit,nJ(:)
 			ENDIF
 		ELSE
 			excitcount=excitcount+1
 			CALL EncodeBitDet(nJ,iLutnJ)
-			WRITE(25,*) excitcount,iExcit,iLutnJ(0)
+			IF(iProcIndex.eq.0) WRITE(25,*) excitcount,iExcit,iLutnJ(0)
         ENDIF
     enddo lp2
 
@@ -2846,12 +2846,13 @@ lp2: do while(.true.)
     AllAverageContrib=0.D0
     ForbiddenIter=0
 !    pDoub=1.D0
-    OPEN(9,FILE="AvContrib",STATUS="UNKNOWN")
+!	IF(iProcIndex.eq.0) OPEN(9,FILE="AvContrib",STATUS="UNKNOWN")
 
     do i=1,Iterations
-
-        IF((mod(i,10000).eq.0).and.(iProcIndex.eq.0)) THEN
+	
+        IF(mod(i,40000).eq.0) THEN
             WRITE(6,"(A,I10)") "Iteration: ",i
+			CALL FLUSH(6)
         ENDIF
 
         call gen_rand_excit (nI, iLut, nJ, iLutnJ, exFlag, IC, ExcitMat, &
@@ -2863,9 +2864,6 @@ lp2: do while(.true.)
         ENDIF
 		IF(tKPntSym) THEN
 			test=IsMomAllowedDet(nJ)
-		ENDIF
-		IF(iProcIndex.eq.1) THEN
-			WRITE(6,*) "nJ: ",nJ(:)
 		ENDIF
         ! This is implemented for the old excitation generators, that could only handle momentum conservation under
         ! zero momentum conditions
@@ -2907,7 +2905,6 @@ lp2: do while(.true.)
 !        ENDIF
 
         IF(IC.eq.1) THEN
-			IF(ExcitMat(1,1).eq.1.and.ExcitMat(2,1).eq.1) CALL STop_All("LUVYLUY","1->1 transition")
 			SinglesHist(ExcitMat(1,1),ExcitMat(2,1))=SinglesHist(ExcitMat(1,1),ExcitMat(2,1))+(1.D0/pGen)
 !            SinglesNum(ExcitMat(1,1),ExcitMat(2,1))=SinglesNum(ExcitMat(1,1),ExcitMat(2,1))+1
         ELSE
@@ -2928,46 +2925,35 @@ lp2: do while(.true.)
             ENDIF
             DoublesHist(Ind1,Ind2,Ind3,Ind4)=DoublesHist(Ind1,Ind2,Ind3,Ind4)+(1.D0/pGen)
         ENDIF
-        IF(mod(i,iWriteEvery).eq.0) THEN
-            AllAverageContrib=0.D0
-#ifdef PARALLEL
-            CALL MPI_Reduce(AverageContrib,AllAverageContrib,1,MPI_DOUBLE_PRECISION,MPI_SUM,0,MPI_COMM_WORLD,error)
-#else            
-            AllAverageContrib=AverageContrib
-#endif
-            IF(iProcIndex.eq.0) THEN
-                WRITE(9,*) i,AllAverageContrib/(REAL(i,8)*excitcount*nProcessors)
-            ENDIF
-!            CALL ChangeVars(tDummy,tSoftExitFound,tDummy2)
-!            IF(tSoftExitFound) EXIT
-        ENDIF
+!        IF(mod(i,iWriteEvery).eq.0) THEN
+!            AllAverageContrib=0.D0
+!#ifdef PARALLEL
+!            CALL MPI_AllReduce(AverageContrib,AllAverageContrib,1,MPI_DOUBLE_PRECISION,MPI_SUM,MPI_COMM_WORLD,error)
+!#else            
+!            AllAverageContrib=AverageContrib
+!#endif
+!            IF(iProcIndex.eq.0) THEN
+!                WRITE(9,*) i,AllAverageContrib/(REAL(i,8)*excitcount*nProcessors)
+!            ENDIF
+!!            CALL ChangeVars(tDummy,tSoftExitFound,tDummy2)
+!!            IF(tSoftExitFound) EXIT
+!        ENDIF
 
 !Check excitation
         CALL IsSymAllowedExcit(nI,nJ,IC,ExcitMat)
 
     enddo
 
-	WRITE(6,*) "SinglesHist: ",SinglesHist(:,:)
-
-    CLOSE(9)
+!	IF(iProcIndex.eq.0) CLOSE(9)
 
 #ifdef PARALLEL
 	CALL MPI_BARRIER(MPI_COMM_WORLD,error)
-    CALL MPI_Reduce(DoublesHist,AllDoublesHist,nBasis**4,MPI_DOUBLE_PRECISION,MPI_SUM,0,MPI_COMM_WORLD,error)
-	WRITE(6,*) "ERROR: ",error
-	CALL MPI_BARRIER(MPI_COMM_WORLD,error)
-	CALL MPIReduce(SinglesHist,MPI_SUM,AllSinglesHist)
-!    CALL MPI_Reduce(SinglesHist,AllSinglesHist,nBasis**2,MPI_DOUBLE_PRECISION,MPI_SUM,0,MPI_COMM_WORLD,error)
-	WRITE(6,*) "ERROR: ",error
-	CALL MPI_BARRIER(MPI_COMM_WORLD,error)
+    CALL MPI_AllReduce(DoublesHist,AllDoublesHist,nBasis**4,MPI_DOUBLE_PRECISION,MPI_SUM,MPI_COMM_WORLD,error)
+    CALL MPI_AllReduce(SinglesHist,AllSinglesHist,nBasis**2,MPI_DOUBLE_PRECISION,MPI_SUM,MPI_COMM_WORLD,error)
 #else
     AllDoublesHist=DoublesHist
     AllSinglesHist=SinglesHist
 #endif
-
-	WRITE(6,*) "AllSinglesHist: ",AllSinglesHist(:,:)
-	CALL FLUSH(6)
-	CALL MPI_BARRIER(MPI_COMM_WORLD,error)
 
 !Now run through arrays normalising them so that numbers are more managable.
 	IF(iProcIndex.eq.0) THEN
@@ -2986,7 +2972,7 @@ lp2: do while(.true.)
 							ExcitMat(2,2)=l
 							CALL FindExcitBitDet(iLut,iLutnJ,2,ExcitMat)
 							WRITE(8,"(I12,F20.12,2I5,A,2I5,I15)") DetNum,AllDoublesHist(i,j,k,l)/(real(Iterations,8)*nProcessors),i,j,"->",k,l,iLutnJ(0)
-							WRITE(6,*) DetNum,DoublesHist(i,j,k,l),i,j,"->",k,l
+!							WRITE(6,*) DetNum,DoublesHist(i,j,k,l),i,j,"->",k,l
 							IF(tHub.or.tUEG) THEN
 								write(8,*) "#",G1(i)%k(1),G1(i)%k(2)
 								write(8,*) "#",G1(j)%k(1),G1(j)%k(2)
@@ -3002,8 +2988,6 @@ lp2: do while(.true.)
 		WRITE(6,*) DetNum," Double excitations found from nI"
 		OPEN(9,FILE="SinglesHist",STATUS="UNKNOWN")
 		DetNumS=0
-		WRITE(6,*) "*****,SinglesHist(1,1):",SinglesHist(1,1)
-		WRITE(6,*) "*****,AllSinglesHist(1,1):",AllSinglesHist(1,1)
 		do i=1,nBasis
 			do j=1,nBasis
 				IF(AllSinglesHist(i,j).gt.0.D0) THEN
@@ -3012,7 +2996,7 @@ lp2: do while(.true.)
 					ExcitMat(2,1)=j
 					CALL FindExcitBitDet(iLut,iLutnJ,1,ExcitMat)
 					WRITE(9,*) DetNumS,AllSinglesHist(i,j)/(real(Iterations,8)*nProcessors),i,"->",j
-					WRITE(6,*) DetNumS,AllSinglesHist(i,j),i,"->",j
+!					WRITE(6,*) DetNumS,AllSinglesHist(i,j),i,"->",j
 				ENDIF
 			enddo
 		enddo
@@ -3027,6 +3011,7 @@ lp2: do while(.true.)
 			CALL Stop_All("TestGenRandSymExcitNU","Not all excitations accounted for...")
 		ENDIF
 	ENDIF
+	CALL MPI_BARRIER(MPI_COMM_WORLD,error)
 
 END SUBROUTINE TestGenRandSymExcitNU
 

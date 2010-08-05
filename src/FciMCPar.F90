@@ -86,11 +86,6 @@ MODULE FciMCParMod
         real*8 :: AllTotWalkers,MeanWalkers,Inpair(2),Outpair(2)
         integer, dimension(lenof_sign) :: tmp_sgn
 
-		FDET(1)=1
-		FDet(2)=2
-		FDet(3)=3
-		FDet(4)=5
-
         TDebug=.false.  !Set debugging flag
 
 !OpenMPI does not currently support MPI_Comm_set_errhandler - a bug in its F90 interface code.
@@ -3657,7 +3652,7 @@ MODULE FciMCParMod
         use CalcData, only : VirtCASorbs,OccCASorbs,G_VMC_Seed
         use CalcData , only : MemoryFacPart,MemoryFacAnnihil,MemoryFacSpawn,TauFactor,StepsSftImag,tCheckHighestPop
         use Determinants , only : GetH0Element3
-        use SymData , only : nSymLabels,SymLabelList,SymLabelCounts
+        use SymData , only : nSymLabels,SymLabelList,SymLabelCounts,TwoCycleSymGens
         use Logging , only : tTruncRODump
         use DetCalcData, only : NMRKS,tagNMRKS,FCIDets
         use SymExcit3, only : CountExcitations3 
@@ -3746,7 +3741,6 @@ MODULE FciMCParMod
 !Do a whole lot of tests to see if we can use Brillouins theorem or not.
         IF(tBrillouinsDefault) CALL CheckforBrillouins() 
         
-
 !test the encoding of the HFdet to bit representation.
         ALLOCATE(iLutHF(0:NIfTot),stat=ierr)
         IF(ierr.ne.0) CALL Stop_All(this_routine,"Cannot allocate memory for iLutHF")
@@ -3789,7 +3783,7 @@ MODULE FciMCParMod
         tSuccess=.true.
         tFoundOrbs(:)=.false.
 
-        IF((.not.tHub).and.(.not.tUEG)) THEN
+        IF((.not.tHub).and.(.not.tUEG).and.TwoCycleSymGens) THEN
             do i=1,nSymLabels
 !                WRITE(6,*) "NSymLabels: ",NSymLabels,i-1
                 EndSymState=SymLabelCounts(1,i)+SymLabelCounts(2,i)-1
@@ -3836,8 +3830,6 @@ MODULE FciMCParMod
             WRITE(6,*) "Symmetry information of orbitals not the same in alpha and beta pairs."
             WRITE(6,*) "Symmetry now set up in terms of spin orbitals"
             WRITE(6,*) "I strongly suggest you check that the reference energy is correct."
-        ELSE
-            IF(tDebug) WRITE(6,*) "Simply transferring this into a spin orbital representation."
         ENDIF
 ! From now on, the orbitals are contained in symlabellist2 and symlabelcounts2 rather than the original arrays.
 ! These are stored using spin orbitals.
@@ -3877,10 +3869,12 @@ MODULE FciMCParMod
         ELSE
             exflag=3
         ENDIF
+		IF(.not.tKPntSym) THEN
 !Count all possible excitations - put into HFConn
-        CALL CountExcitations3(HFDet,exflag,nSingles,nDoubles)
-        HFConn=nSingles+nDoubles
-
+!TODO: Get CountExcitations3 working with tKPntSym
+			CALL CountExcitations3(HFDet,exflag,nSingles,nDoubles)
+			HFConn=nSingles+nDoubles
+		ENDIF
 
 !Initialise random number seed - since the seeds need to be different on different processors, subract processor rank from random number
         Seed=abs(G_VMC_Seed-iProcIndex)
@@ -4659,7 +4653,10 @@ MODULE FciMCParMod
         use SymData , only : SymClassSize
         use SymExcit3 , only : CountExcitations3
         INTEGER :: HFConn,PosExcittypes,iTotal,i
-        integer :: nSing, nDoub, ncsf, ExcitInd
+		INTEGER , ALLOCATABLE :: EXCITGEN(:)
+		INTEGER :: iMaxExcit,nJ(NEl),nStore(6),nExcitMemLen
+        integer :: nSing, nDoub, ncsf, ExcitInd, excitcount, ierr, iExcit
+        CHARACTER(len=*), PARAMETER :: this_routine='CalcApproxpDoubles'
 
         ! TODO: A better approximation for ncsf.
         if (tCSF) then
@@ -4667,6 +4664,8 @@ MODULE FciMCParMod
         else
             ncsf = 0
         endif
+		nSing=0
+		nDoub=0
 
         IF(tHub.or.tUEG) THEN
             IF(tReal) THEN
@@ -4686,8 +4685,33 @@ MODULE FciMCParMod
 
         WRITE(6,"(A)") " Calculating approximate pDoubles for use with excitation generator by looking a excitations from HF."
         exflag=3
-        CALL CountExcitations3(HFDet,exflag,nSing,nDoub)
-        iTotal=nSing + nDoub + ncsf
+		IF(tKPntSym) THEN
+			!use Alex's old excitation generators.
+			iMaxExcit=0
+			nStore(1:6)=0
+			CALL GenSymExcitIt2(HFDet,NEl,G1,nBasis,nBasisMax,.TRUE.,nExcitMemLen,nJ,iMaxExcit,0,nStore,exFlag)
+			ALLOCATE(EXCITGEN(nExcitMemLen),stat=ierr)
+			IF(ierr.ne.0) CALL Stop_All(this_routine,"Problem allocating excitation generator")
+			EXCITGEN(:)=0
+			CALL GenSymExcitIt2(HFDet,NEl,G1,nBasis,nBasisMax,.TRUE.,EXCITGEN,nJ,iMaxExcit,0,nStore,exFlag)
+		!    CALL GetSymExcitCount(EXCITGEN,DetConn)
+			excitcount=0
+
+		lp2: do while(.true.)
+				CALL GenSymExcitIt2(HFDet,nEl,G1,nBasis,nBasisMax,.false.,EXCITGEN,nJ,iExcit,0,nStore,exFlag)
+				IF(nJ(1).eq.0) exit lp2
+				IF(iExcit.eq.1) THEN
+					nSing=nSing+1
+				ELSEIF(iExcit.eq.2) THEN
+					nDoub=nDoub+1
+				ELSE
+					CALL Stop_All(this_routine,"Trying to generate more than doubles!")
+				ENDIF
+			enddo lp2
+		ELSE
+			CALL CountExcitations3(HFDet,exflag,nSing,nDoub)
+		ENDIF
+		iTotal=nSing + nDoub + ncsf
 
         WRITE(6,"(I7,A,I7,A)") NDoub, " double excitations, and ",NSing," single excitations found from HF. This will be used to calculate pDoubles."
 
