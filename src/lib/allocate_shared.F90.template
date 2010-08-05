@@ -1,5 +1,5 @@
 [int1]
-type = integer
+type = integer(int32)
 sizeof = sizeof_int
 dim = :
 elem1 = 1
@@ -35,8 +35,45 @@ dim = :,:,:,:,:,:,:
 elem1 = 1,1,1,1,1,1,1
 alloc_str = dims(1), dims(2), dims(3), dims(4), dims(5), dims(6), dims(7)
 
+[int64_1]
+type = integer(int64)
+sizeof = sizeof_int64
+dim = :
+elem1 = 1
+alloc_str = dims(1)
+
+[int64_2]
+dim = :,:
+elem1 = 1,1
+alloc_str = dims(1), dims(2)
+
+[int64_3]
+dim = :,:,:
+elem1 = 1,1,1
+alloc_str = dims(1), dims(2), dims(3)
+
+[int64_4]
+dim = :,:,:,:
+elem1 = 1,1,1,1
+alloc_str = dims(1), dims(2), dims(3), dims(4)
+
+[int64_5]
+dim = :,:,:,:,:
+elem1 = 1,1,1,1,1
+alloc_str = dims(1), dims(2), dims(3), dims(4), dims(5)
+
+[int64_6]
+dim = :,:,:,:,:,:
+elem1 = 1,1,1,1,1,1
+alloc_str = dims(1), dims(2), dims(3), dims(4), dims(5), dims(6)
+
+[int64_7]
+dim = :,:,:,:,:,:,:
+elem1 = 1,1,1,1,1,1,1
+alloc_str = dims(1), dims(2), dims(3), dims(4), dims(5), dims(6), dims(7)
+
 [doub1]
-type = real*8
+type = real(dp)
 sizeof = sizeof_dp
 dim = :
 elem1 = 1
@@ -73,7 +110,7 @@ elem1 = 1,1,1,1,1,1,1
 alloc_str = dims(1), dims(2), dims(3), dims(4), dims(5), dims(6), dims(7)
 
 [real1]
-type = real*4
+type = real(sp)
 sizeof = sizeof_sp
 dim = :
 elem1 = 1
@@ -110,7 +147,7 @@ elem1 = 1,1,1,1,1,1,1
 alloc_str = dims(1), dims(2), dims(3), dims(4), dims(5), dims(6), dims(7)
 
 [complex1]
-type = complex*16
+type = complex(dp)
 sizeof = sizeof_complexdp
 dim = :
 elem1 = 1
@@ -156,7 +193,7 @@ module shared_alloc
     implicit none
 
     private
-    public :: shared_allocate, shared_deallocate
+    public :: shared_allocate, shared_deallocate, shared_allocate_iluts
 
     interface
         subroutine alloc_shared_worker (nm, pt, sz) bind(c)
@@ -181,6 +218,7 @@ module shared_alloc
 #endif
         end subroutine
         subroutine iluts_pointer_jiggle_%(name)s (ptr, arr, dims)
+            use constants
             integer, intent(in) :: dims((len_trim('%(dim)s') + 1) / 2)
             %(type)s, dimension(%(dim)s), intent(inout), pointer :: ptr
             %(type)s, dimension(1:1+%(alloc_str)s), intent(inout), target :: arr
@@ -314,6 +352,7 @@ end module
 ! n.b. this is outside of the module and doesn't _quite_ match up with the
 !      interface...
 subroutine iluts_pointer_jiggle (ptr, arr, dims)
+    use constants
     integer, intent(in) :: dims((len_trim('%(dim)s') + 1) / 2)
     %(type)s, dimension(%(dim)s), intent(inout), pointer :: ptr
     %(type)s, dimension(0:%(alloc_str)s), intent(inout), target :: arr
