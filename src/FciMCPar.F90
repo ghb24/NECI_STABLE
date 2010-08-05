@@ -669,8 +669,8 @@ MODULE FciMCParMod
         ! It would be nice to fix this properly
         if (tCSF) exFlag = 7
 
-		CALL TestGenRandSymExcitNU(HFDet,NMCyc,pDoubles,3,10000)
-		CALL STOP_All('erwg','Finished Test')
+!		CALL TestGenRandSymExcitNU(HFDet,NMCyc,pDoubles,3,10000)
+!		CALL STOP_All('erwg','Finished Test')
 
         IFDEBUG(FCIMCDebug,3) write(6,"(A)") "TW: Walker  Det"
         do j=1,TotWalkers
