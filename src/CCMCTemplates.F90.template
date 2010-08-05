@@ -486,7 +486,7 @@ FUNCTION GetNextCluster (CS,Dets,nDet,AL,iCurAmpList,dTotAbsAmpl,iMaxSizeIn,iDeb
       endif
       if(GetNextCluster) then
          dProbNumExcit=CS%%dProbSelNewExcitor
-         CS%%C%%dProbNorm=CS%%nSelects
+         CS%%C%%dProbNorm=CS%%nSelects*nProcessors
          CS%%C%%dClusterProb=1
          CS%%C%%dAbsAmplitude=abs(AL%%Amplitude(CS%%iRefPos,iCurAmpList))
          CS%%C%%dClusterNorm=1

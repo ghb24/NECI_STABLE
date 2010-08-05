@@ -27,7 +27,7 @@ MODULE AnnihilationMod
     !   Going to have to sort this out for the new packaged walkers - will have to package them up in this interface.
     SUBROUTINE AnnihilationInterface(TotDets,MainParts,MainSign,MaxMainInd,SpawnDets,SpawnParts,SpawnSign,MaxSpawnInd,iter_data)
         use constants, only: size_n_int
-        use shared_alloc
+        use shared_alloc, only: shared_allocate_iluts, shared_deallocate
 !This is an interface routine to the Direct Annihilation routines.
 !It is not quite as fast as the main annihilation routines since there is a small degree of initialisation required
 !which can be achieved on-the-fly if increased performance is required.
@@ -69,7 +69,8 @@ MODULE AnnihilationMod
         ENDIF
         IF(.not.(ASSOCIATED(SpawnVecLocal))) THEN
 !This is required scratch space of the size of the spawned arrays
-            call shared_allocate("SpawnVecLocal",SpawnVecLocal,(/NIfTot+1,MaxSpawnInd/))
+            call shared_allocate_iluts("SpawnVecLocal",SpawnVecLocal,(/NIfTot,MaxSpawnInd/))
+            ierr=0
             CALL LogMemAlloc('SpawnVecLocal',MaxSpawnInd*(NIfTot+1),size_n_int,this_routine,SpawnVec2Tag,ierr)
             SpawnVecLocal(:,:)=0
 !            ALLOCATE(SpawnSignVec2(0:MaxSpawnInd),stat=ierr)
@@ -118,7 +119,6 @@ MODULE AnnihilationMod
 !        WRITE(6,*) "UpperBound of SpawnVec2 = ",ubound(SpawnVec2,2)
 
         CALL DirectAnnihilation(TotDets, iter_data,.true.) !.true. for single processor annihilation
-
         if(iProcIndex==root) then        
 !Signs put back again into seperate array
            do i=1,TotDets
@@ -134,7 +134,7 @@ MODULE AnnihilationMod
 !This is a new annihilation algorithm. In this, determinants are kept on predefined processors, and newlyspawned particles are sent here so that all the annihilations are
 !done on a predetermined processor, and not rotated around all of them.
     SUBROUTINE DirectAnnihilation(TotWalkersNew, iter_data, tSingleProc)
-        integer, intent(in) :: TotWalkersNew
+        integer, intent(inout) :: TotWalkersNew
         type(fcimc_iter_data), intent(inout) :: iter_data
         INTEGER :: MaxIndex
         INTEGER(Kind=n_int) , POINTER :: PointTemp(:,:)
@@ -815,8 +815,6 @@ MODULE AnnihilationMod
             ENDIF
 
         ENDIF
-        TotWalkers=TotWalkersNew
-
 !        CALL CheckOrdering(CurrentDets,CurrentSign(1:TotWalkers),TotWalkers,.true.)
 
     END SUBROUTINE InsertRemoveParts

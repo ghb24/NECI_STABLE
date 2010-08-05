@@ -2189,7 +2189,7 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
    use CalcData, only: TStartSinglePart
    use timing, only: print_timing_report
    use Parallel
-   use shared_alloc
+   use shared_alloc, only: shared_allocate_iluts, shared_deallocate
    IMPLICIT NONE
    real(dp) Weight,EnergyxW
    CHARACTER(len=*), PARAMETER :: this_routine='CCMCStandaloneParticle'
@@ -2243,7 +2243,8 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
    INTEGER :: iOffsets(nProcessors)  !Used to store spawning data for annihilation
    INTEGER :: iLengths(nProcessors)  !Used to store spawning data for annihilation
    INTEGER :: iOffset(1)
-   TYPE(timer) :: CCMC_time
+
+   INTEGER ierr
 
 
    WRITE(6,*) "Entering CCMC Standalone Particle..."
@@ -2275,7 +2276,8 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
 ! Setup Memory
    write(6,*) "Max Amplitude List size: ", nMaxAmpl
    call AllocateAmplitudeList(AL,nMaxAmpl,1)
-   call shared_allocate("DetList",DetList,(/nIfTot+1,nMaxAmpl/))
+   call shared_allocate_iluts("DetList",DetList,(/nIfTot,nMaxAmpl/))
+   ierr=0
    LogAlloc(ierr,'DetList',(nIfTot+1)*nMaxAmpl,4,tagDetList)
    nMaxSpawn=MemoryFacSpawn*nMaxAmpl
    if(iProcIndex.ne.Root) nMaxSpawn=nMaxSpawn/nProcessors
@@ -2485,13 +2487,13 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
          call WriteExcitorList(6,SpawnAmps,SpawnList,0,nSpawned,dAmpPrintTol,"Spawned list")
       endif
 !Get the Amplitudes
-      call MPIGatherV(SpawnAmps,SpawnAmps,iLengths,iOffsets,Root,ierr)
+      call MPIGatherV(SpawnAmps,nSpawned,SpawnAmps,iLengths,iOffsets,Root,ierr)
       do i=1,nProcessors
          iOffsets(i)=iOffsets(i)*(nIfTot+1)
          iLengths(i)=iLengths(i)*(nIfTot+1)
       enddo
 !And the dets themselves
-      call MPIGatherV(SpawnList,nSpawned,SpawnList,iLengths,iOffsets,Root,ierr)
+      call MPIGatherV(SpawnList,nSpawned*(nIfTot+1),SpawnList,iLengths,iOffsets,Root,ierr)
       if(iProcIndex.eq.Root) then
          nSpawned=sum(iLengths)/(nIfTot+1)
       else
@@ -2502,6 +2504,7 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
       IFDEBUG(iDebug,3) write(6,*) "Calling Annihilation with ", nSpawned, " spawned."
       IFDEBUG(iDebug,3) call WriteExcitorList(6,SpawnAmps,SpawnList,0,nSpawned,dAmpPrintTol,"Spawned list")
       call AnnihilationInterface(nAmpl,DetList,AL%Amplitude(:,iCurAmpList),nMaxAmpl,nSpawned,SpawnList,SpawnAmps,nMaxSpawn,iter_data_ccmc)
+      call MPIBCast(nAmpl,root)
 !      else
 !         if(iDebug>2) write(6,*) "No spawnings in toto."
 !      endif
@@ -2527,7 +2530,7 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
    Deallocate(SpawnAmps)
    call DeallocateAmplitudeList(AL)
    LogDealloc(tagDetList)
-   call shared_deallocate(DetList)
+!   call shared_deallocate(DetList)
    Weight=0.D0
    Energyxw=ProjectionE
    call halt_timer(CCMC_time)
