@@ -1449,13 +1449,10 @@ MODULE GenRandSymExcitNUMod
             IF(tNoSymGenRandExcits) THEN
 !Find symmetry of chosen electron
                 ElecSym=0
-                Elec1Ml=0
             ELSE
-                ElecSym=INT((G1(Ex(1,1))%Sym%S),4)
+                ElecSym=SymInvLabel(SpinOrbSymLabel((Ex(1,1))))
                 IF(tFixLz) THEN
                     Elec1Ml=G1(Ex(1,1))%Ml
-                ELSE
-                    Elec1Ml=0
                 ENDIF
             ENDIF
 
@@ -1517,12 +1514,15 @@ MODULE GenRandSymExcitNUMod
                 SymB=0
             ELSE
 !Calculate the symmetry product of the occupied orbital pair
-                ElecSym=INT(IEOR(G1(OrbI)%Sym%S,G1(OrbJ)%Sym%S),4)
+				ElecSym=RandExcitSymLabelProd(SpinOrbSymLabel(OrbI),SpinOrbSymLabel(OrbJ))
+!                ElecSym=INT(IEOR(G1(OrbI)%Sym%S,G1(OrbJ)%Sym%S),4)
 !This will calculate the A orbitals which will have no B pair
                 CALL FindNumForbiddenOrbs(ForbiddenOrbs,ClassCountUnocc2,ElecSym,iSpn,SumMl)
 !Need to find the symmetries of the unoccupied A and B orbitals.
-                SymA=INT(G1(OrbA)%Sym%S,4)
-                SymB=IEOR(SymA,ElecSym)
+				SymA=SpinOrbSymLabel(OrbA)
+				SymB=RandExcitSymLabelProd(SymInvLabel(SymA),ElecSym)
+!                SymA=INT(G1(OrbA)%Sym%S,4)
+!                SymB=IEOR(SymA,ElecSym)
             ENDIF
 !            WRITE(6,*) "Check: ",ForbiddenOrbs,ElecSym,iSpn,SymA,SymB,OrbA,OrbB
 
@@ -1551,7 +1551,7 @@ MODULE GenRandSymExcitNUMod
                 NExcitOtherWay=ClassCountUnocc2(ClassCountInd(1,SymA,MlA))
             ENDIF
 
-            IF((iSpn.ne.2).and.(ElecSym.eq.0).and.(MlB.eq.MlA)) THEN
+            IF((iSpn.ne.2).and.(SymA.eq.SymB).and.(MlB.eq.MlA)) THEN
 !In this case, we need to check that we do not pick the same orbital as OrbA. If we do this, then we need to redraw.
 !Only when ElecSym=0 will the classes of a and b be the same, and the spins will be different if iSpn=2, so this is the only possibility of a clash.
                 NExcitB=NExcitB-1     !Subtract 1 from the number of possible orbitals since we cannot choose orbital A.
