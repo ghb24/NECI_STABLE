@@ -458,9 +458,8 @@ MODULE FciMCLoggingMod
     END SUBROUTINE WriteInitPops
 
 
-    SUBROUTINE TrackSpawnAttempts(Child,DetCurr,j,nJ,iLutnJ,IC,Ex,tParity)
-        INTEGER :: Child,DetCurr(NEl),j,nJ(NEl),IC,Ex(2,2)
-        INTEGER(KIND=n_int) :: iLutnJ(0:NIfTot)
+    SUBROUTINE TrackSpawnAttempts(Child,DetCurr,nJ,IC,Ex,tParity)
+        INTEGER :: Child,DetCurr(NEl),nJ(NEl),IC,Ex(2,2)
         LOGICAL :: tParity
         HElement_t :: HEl
 

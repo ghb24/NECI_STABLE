@@ -29,13 +29,12 @@
          TYPE(BasisFN) G1(NBASIS)
          INTEGER NCH,ND,NEL,BRR(NBASIS),NBASIS,ISEED
          LOGICAL L
-         CHARACTER*20 STR
          INTEGER IEL,IQN,ISGN,I,IT
          INTEGER IFINDBASISFN
          REAL*8 RAN2
          IF(NBASISMAX(3,3).EQ.1) THEN
 C.. Generic spatial basis
-            CALL GENNEWDET3(NI,NJ,NEL,NBASIS,NBASISMAX,G1,ISEED,NCH,BRR)
+            CALL GENNEWDET3(NI,NJ,NEL,NBASIS,G1,ISEED,NCH,BRR)
             RETURN
          ENDIF
 C.. Copy NI to NJ
@@ -83,7 +82,7 @@ C.. if we've more electrons to change, we go round again
 
       SUBROUTINE HUB_PBC(NQN, NBASISMAX)
          INTEGER NQN(5), nBasisMax(5,*)
-         INTEGER MPN,MMN,L,IQN,NMAXX
+         INTEGER MPN,MMN,IQN,NMAXX
          LOGICAL TALLOW
          IF(NBASISMAX(1,3).EQ.0) THEN
 C.. PBC non-tilted
@@ -148,14 +147,13 @@ C.. non-PBC non-tilted - leave things as they are
 C.. gen a new det from this one in a generic spatial basis.
 C.. We do this by exciting an electron into a spinorbital of close energy.
 C.. This does not take into account any symmetries.
-      SUBROUTINE GENNEWDET3(NI,NJ,NEL,NBASIS,NBASISMAX,G1,ISEED,NCH,BRR)
+      SUBROUTINE GENNEWDET3(NI,NJ,NEL,NBASIS,G1,ISEED,NCH,BRR)
         use sort_mod
          use util_mod, only: NECI_ICOPY
          IMPLICIT NONE
-         INTEGER nBasisMax(5,*),NI(NEL),NJ(NEL),NQN(5),G1(*)
+         INTEGER NI(NEL),NJ(NEL),G1(*)
          INTEGER NCH,ND,BRR(NBASIS),NBASIS,NEL,ISEED
          LOGICAL L
-         CHARACTER*20 STR
          REAL*8 RN
          INTEGER IGETENEIGHBOUR,IGETSNEIGHBOUR
          INTEGER IEL,ISGN,IT,I,IDIST
@@ -215,7 +213,8 @@ C.. Clear the first node, and end the chain
          IMPLICIT NONE
          INTEGER IEL,NBASIS,BRR(NBASIS),ISGN
          TYPE(BasisFN) G1(NBASIS)
-         INTEGER I,J,NQN4
+         INTEGER I,J
+         J=0
          DO I=1,NBASIS
             IF(BRR(I).EQ.IEL) J=I
          ENDDO
@@ -236,7 +235,8 @@ C.. See if there's an orbital with the same energy
          IMPLICIT NONE
          INTEGER IEL,NBASIS,BRR(NBASIS),ISGN
          TYPE(BasisFN) G1(NBASIS)
-         INTEGER I,J,NQN4,IDIST,IDIST2
+         INTEGER I,J,IDIST,IDIST2
+         J=0
          DO I=1,NBASIS
             IF(BRR(I).EQ.IEL) J=I
          ENDDO

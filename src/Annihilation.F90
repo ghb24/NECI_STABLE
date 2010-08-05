@@ -296,7 +296,7 @@ MODULE AnnihilationMod
     SUBROUTINE CompressSpawnedList(ValidSpawned, iter_data)
         type(fcimc_iter_data), intent(inout) :: iter_data
         INTEGER :: VecInd,ValidSpawned,DetsMerged,ToRemove,i,PartIndex,ExcitLevel,PassedFlag,FlagParts2,j
-        INTEGER, DIMENSION(lenof_sign) :: SignProd,SpawnedSign,SpawnedSign2,MergedSign
+        INTEGER, DIMENSION(lenof_sign) :: SignProd,SpawnedSign,SpawnedSign2
         LOGICAL :: tSuc
 
 !We want to sort the list of newly spawned particles, in order for quicker binary searching later on. (this is not essential, but should proove faster)
@@ -474,11 +474,10 @@ MODULE AnnihilationMod
 !In the main list, we change the 'sign' element of the array to zero. These will be deleted at the end of the total annihilation step.
     SUBROUTINE AnnihilateSpawnedParts(ValidSpawned,TotWalkersNew, iter_data)
         type(fcimc_iter_data), intent(inout) :: iter_data
-        INTEGER :: ValidSpawned,MinInd,TotWalkersNew,PartInd,i,j,k,ToRemove,VecInd,DetsMerged,PartIndex
+        INTEGER :: ValidSpawned,MinInd,TotWalkersNew,PartInd,i,j,ToRemove,DetsMerged,PartIndex
         INTEGER, DIMENSION(lenof_sign) :: SignProd,CurrentSign,SpawnedSign,SignTemp
         INTEGER :: ExcitLevel
         INTEGER(KIND=n_int) , POINTER :: PointTemp(:,:)
-        INTEGER , POINTER :: PointTempSign(:)
         LOGICAL :: tSuccess,tSuc
 
         CALL set_timer(AnnMain_time,30)
@@ -656,7 +655,7 @@ MODULE AnnihilationMod
         use bit_reps, only: NIfD
         use CalcData , only : tCheckHighestPop
         INTEGER :: TotWalkersNew,ValidSpawned
-        INTEGER :: i,DetsMerged,nJ(NEl),ierr
+        INTEGER :: i,DetsMerged,nJ(NEl)
         INTEGER, DIMENSION(lenof_sign) :: CurrentSign,SpawnedSign
         REAL*8 :: HDiag
         LOGICAL :: TestClosedShellDet
@@ -786,7 +785,7 @@ MODULE AnnihilationMod
                     IF(tTruncInitiator) CALL FlagifDetisInitiator(CurrentDets(0:NIfTot,i))
                 enddo
             ELSE
-                CALL MergeLists(TotWalkersNew,MaxWalkersPart,ValidSpawned,SpawnedParts(0:NIfTot,1:ValidSpawned))
+                CALL MergeLists(TotWalkersNew,ValidSpawned,SpawnedParts(0:NIfTot,1:ValidSpawned))
             ENDIF
         ELSE
             IF(TotWalkersNew.eq.0) THEN
@@ -812,7 +811,7 @@ MODULE AnnihilationMod
                     CurrentH(i)=HDiag
                 enddo
             ELSE
-                CALL MergeListswH(TotWalkersNew,MaxWalkersPart,ValidSpawned,SpawnedParts(0:NIfTot,1:ValidSpawned))
+                CALL MergeListswH(TotWalkersNew,ValidSpawned,SpawnedParts(0:NIfTot,1:ValidSpawned))
             ENDIF
 
         ENDIF
@@ -895,7 +894,7 @@ MODULE AnnihilationMod
     SUBROUTINE LinSearchParts(DetArray,iLut,MinInd,MaxInd,PartInd,tSuccess)
         INTEGER(KIND=n_int) :: iLut(0:NIfTot),DetArray(0:NIfTot,1:MaxInd)
         INTEGER :: MinInd,MaxInd,PartInd
-        INTEGER :: i,j,N,Comp
+        INTEGER :: N,Comp
         LOGICAL :: tSuccess
 
         N=MinInd

@@ -24,7 +24,7 @@ MODULE CCMC
 !The returned number is the number of deaths if positive, and the number of births if negative.
 !Multiple particles can be attempted to die at the same time - here, |WSign| > 1 and the probability of a death will be multiplied by |WSign|
 !dProb is an extra probability factor the death probability is multiplied by 
-    INTEGER FUNCTION AttemptDieProbPar(DetCurr,Kii,IC,WSign,dProb)
+    INTEGER FUNCTION AttemptDieProbPar(Kii,WSign,dProb)
         use SystemData, only: nEl
         use CalcData , only : DiagSft,Tau
         use FciMCData
@@ -32,11 +32,10 @@ MODULE CCMC
         use DetBitOps, only: FindExcitBitDet, FindBitExcitLevel
         use dSFMT_interface
         IMPLICIT NONE
-        INTEGER :: DetCurr(NEl),iKill,IC
+        INTEGER :: iKill
 !        HElement_t :: rh,rhij
         REAL*8 :: r,rat,Kii
         REAL*8 dProb
-        LOGICAL :: tDETinCAS
         integer, dimension(lenof_sign), intent(in) :: wSign
 
 !If there are multiple particles, decide how many to kill in total...
@@ -83,12 +82,12 @@ MODULE CCMC
       use bit_reps, only: decode_bit_det
         IMPLICIT NONE
         INTEGER :: VecSlot,i,j,k,l,CopySign
-        INTEGER :: nJ(NEl),ierr,IC,DetCurr(NEl)
+        INTEGER :: nJ(NEl),IC,DetCurr(NEl)
         INTEGER, DIMENSION(lenof_sign) :: Child
         INTEGER(KIND=n_int) :: iLutnJ(0:NIfTot)
         REAL*8 :: Prob,rat,HDiagCurr,r
         INTEGER :: iDie,WalkExcitLevel,Proc
-        INTEGER :: ExcitLevel,TotWalkersNew,iGetExcitLevel_2,Ex(2,2),WSign,p,Scratch1(ScratchSize),Scratch2(ScratchSize)
+        INTEGER :: TotWalkersNew,Ex(2,2),Scratch1(ScratchSize),Scratch2(ScratchSize)
         LOGICAL :: tParity,tFilled
         
 ! We select up to nEl excitors at a time and store them here
@@ -133,7 +132,7 @@ MODULE CCMC
         INTEGER TotRealWalkers
         REAL*8 dProbNorm,dClusterProb,dProb
         INTEGER iExcitor
-        INTEGER iMinEx,iMaxEx,iMaxExTemp
+        INTEGER iMaxEx,iMaxExTemp
 !iMaxExcitorSelections is the number of times we decide to loop for each particle.
 !  it includes the first (exact) loop where we consider the particle by itself.
         INTEGER iMaxExcitorSelections
@@ -710,7 +709,7 @@ MODULE CCMC
    !Die with a probability as normal, but biased because we only selected this set
    !of excitors with dProb.
                if(iCompositeSize.gt.1) dProb=dProb
-               iDie=AttemptDieProbPar(DetCurr,HDiagCurr,WalkExcitLevel,iSgn,1/(dProb*dProbNorm))
+               iDie=AttemptDieProbPar(HDiagCurr,iSgn,1/(dProb*dProbNorm))
                IFDEBUGTHEN(iDebug,4)
                   Write(6,'(A,I7)',advance='no') " Killing at excitor: ",iPartDie
                   Write(6,'(A)',advance='no') " chosen "
@@ -926,7 +925,6 @@ MODULE CCMC
       INTEGER iSize,Clust(iSize)
       INTEGER i
       INTEGER ind
-      INTEGER base
       TYPE(CCTransitionLog) TL
 
       INTEGER Binomial
@@ -1177,15 +1175,16 @@ SUBROUTINE InitClustSelectorFull(CS,iMaxSize)
    Call InitCluster(CS%C)
 END SUBROUTINE InitClustSelectorFull
 
-SUBROUTINE InitClustSelectorRandom(CS,iMaxSize,nSelects,dProbSelNewEx)
+SUBROUTINE InitClustSelectorRandom(CS,iMaxSize,nSelects,dRatio,dProbSelNewEx)
    use CCMCData
    use Parallel, only: nProcessors
    IMPLICIT NONE
    TYPE(ClustSelector) CS
    INTEGER iMaxSize,nSelects
-   REAL*8 dProbSelNewEx
+   REAL*8 dProbSelNewEx,dRatio
    if(nSelects<0) then
       CS%tDynamic=.true.
+      CS%dRatio=dRatio
    else
       CS%tDynamic=.false.
    endif
@@ -1255,7 +1254,6 @@ SUBROUTINE ResetSpawner(S,C,nSpawn)
    TYPE(Spawner) S
    INTEGER nSpawn
    Type(Cluster),target :: C
-   INTEGER nS,nD
    S%C=>C
    S%iIndex=0
    S%ExcitMat(:,:)=0
@@ -1312,8 +1310,8 @@ SUBROUTINE InitMP1Amplitude(tFCI,Amplitude,nExcit,ExcitList,ExcitLevelIndex,dIni
    INTEGER(KIND=n_int) ExcitList(0:nIfTot,nExcit)
    INTEGER ExcitLevelIndex(0:nEl+1)
    REAL*8 dInitAmp,dTotAbsAmpl
-   INTEGER iC,i,j,l,iSgn
-   REAL*8 dT1Sq,dAmp,dTmp
+   INTEGER iC,j,l,iSgn
+   REAL*8 dAmp
    INTEGER DetCurr(nEl)
    HElement_t HTmp,H0Tmp,H0HF
    INTEGER(KIND=n_int) iLutnI(0:nIfTot)
@@ -1484,12 +1482,11 @@ subroutine AttemptDie(C,CurAmpl,OldAmpl,TL,WalkerScale,iDebug)
    TYPE(CCTransitionLog) TL               ! Store data on transitions
    real*8 WalkerScale 
 
-   INTEGER iC,iPartDie,k
+   INTEGER iC,iPartDie
    LOGICAL tSuc
    real*8 r,rat,HDiagCurr
    HElement_t Htmp
    integer i
-   real*8 dProbDecompose
 
 ! We have to decompose our composite excitor into one of its parts.  
    IF(C%iSize.GT.1) THEN
@@ -1612,7 +1609,7 @@ subroutine AttemptSpawnParticle(S,C,iDebug,SpawnList,SpawnAmps,nSpawned,nMaxSpaw
    integer iDebug
 
    real*8 rat,r
-   integer i,j
+   integer i
    integer IC
    IF(iDebug.gt.4) THEN
       WRITE(6,*) "  HIJ: ",S%HIJ
@@ -1678,13 +1675,11 @@ subroutine AttemptDieParticle(C,iDebug,SpawnList,SpawnAmps,nSpawned)
    INTEGER nSpawned
    integer iDebug
 
-   INTEGER iC,iPartDie,k
-   LOGICAL tSuc
+   INTEGER iC,iPartDie
    real*8 r,rat,HDiagCurr
    HElement_t Htmp
    integer i
    integer iSpawnAmp
-   real*8 dProbDecompose
 
 ! We have to decompose our composite excitor into one of its parts.  
    IF(C%iSize.GT.1) THEN
@@ -1806,7 +1801,7 @@ SUBROUTINE CCMCStandalone(Weight,Energyxw)
    use Parallel, only: iProcIndex
    use FciMCData, only: root
    use CCMCData, only: tCCMCFCI,dInitAmplitude,dProbSelNewExcitor,tExactCluster,tExactSpawn,nSpawnings,tCCBuffer
-   use CCMCData, only: ClustSelector,Spawner,CCTransitionLog,nClustSelections,tExactEnergy
+   use CCMCData, only: ClustSelector,Spawner,CCTransitionLog,nClustSelections,dClustSelectionRatio,tExactEnergy
    use DetCalcData, only: Det       ! The number of Dets/Excitors in FCIDets
    use DetCalcData, only: FCIDets   ! (0:NIfDBO, Det).  Lists all allowed excitors in compressed form
    use DetCalcData, only:FCIDetIndex! (0:nEl+1).  The index of the different excitation levels
@@ -1833,17 +1828,14 @@ SUBROUTINE CCMCStandalone(Weight,Energyxw)
    use CalcData, only: DiagSft
    IMPLICIT NONE
    real(dp) Weight,EnergyxW
-   CHARACTER(len=*), PARAMETER :: this_routine='CCMCStandalone'
-   INTEGER ierr
    TYPE(AmplitudeList_double),target :: AL
 
-   INTEGER nSelects              ! The number of selections of clusters to make
    INTEGER iNumExcitors          ! The number of non-zero excitors (excluding the ref det)
    REAL*8 dTotAbsAmpl            ! The total of the absolute amplitudes
 
    INTEGER iCurAmpList,iOldAmpList  !the index of current and previous amplitude lists
    INTEGER iDebug
-   INTEGER i,j,k,l
+   INTEGER i
 ! Temporary Storage
    INTEGER PartIndex,IC          ! Used in buffering
    LOGICAL tSuc                  ! Also used in buffering
@@ -1863,7 +1855,6 @@ SUBROUTINE CCMCStandalone(Weight,Energyxw)
    TYPE(ClustSelector),pointer :: CS      ! This will point to the appropriate selector
    LOGICAL tPostBuffering                 ! Set after prebuffering
    TYPE(AmplitudeList_double), target :: ALBuffer !(Det)  used for buffered CC, storing intermediate amplitudes from cluster generation
-   INTEGER tagALBuffer             
    LOGICAL tMoreClusters                  ! Indicates we've not finished selecting clusters 
    TYPE(AmplitudeList_double), pointer :: OldAL          ! The previous cycle's amplitudes
    INTEGER oldALIndex                     !The index in OldAL of the list to use
@@ -1992,7 +1983,7 @@ SUBROUTINE CCMCStandalone(Weight,Energyxw)
    if(tExactCluster) then
       CALL InitClustSelectorFull(CSMain,iNumExcitors)
    else
-      CALL InitClustSelectorRandom(CSMain,iNumExcitors,nClustSelections,dProbSelNewExcitor)
+      CALL InitClustSelectorRandom(CSMain,iNumExcitors,nClustSelections,dClustSelectionRatio,dProbSelNewExcitor)
    endif
    if(tCCBuffer) then
       CALL InitClustSelectorFull(CSBuff,1)
@@ -2048,7 +2039,7 @@ SUBROUTINE CCMCStandalone(Weight,Energyxw)
       do while (tMoreClusters)
          if(.not.tPostBuffering) then
             i=min(iNumExcitors,nEl)
-            tMoreClusters=GetNextCluster(CS,FciDets,nAmpl,AL,iOldAmpList,dTotAbsAmpl,iNumExcitors,i,iDebug)
+            tMoreClusters=GetNextCluster(CS,FciDets,nAmpl,AL,iOldAmpList,dTotAbsAmpl,i,iDebug)
             if(tCCBuffer.and..not.tMoreClusters) then
                IFDEBUG(iDebug,3) WRITE(6,*) "Buffering Complete.  Now Spawning."
                tPostBuffering=.true.
@@ -2062,7 +2053,7 @@ SUBROUTINE CCMCStandalone(Weight,Energyxw)
          endif
          if(tPostBuffering) then  !If we've finished buffering, we read from the buffer (which is now pointed to by OldAL
             i=min(iNumExcitors,nEl)
-            tMoreClusters=GetNextCluster(CSBuff,FciDets,nBuffAmpl,OldAL,OldALIndex,dTotAbsAmpl,1,i,iDebug)
+            tMoreClusters=GetNextCluster(CSBuff,FciDets,nBuffAmpl,OldAL,OldALIndex,dTotAbsAmpl,i,iDebug)
          endif
          if(.not.tMoreClusters) exit
 !Now form the cluster
@@ -2173,7 +2164,7 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
    use FciMCData, only: root
    use CCMCData, only: tCCMCFCI,dInitAmplitude,dProbSelNewExcitor,tExactCluster,tExactSpawn,nSpawnings,tCCBuffer
    use CCMCData, only: WriteCluster
-   use CCMCData, only: ClustSelector,Spawner,nClustSelections
+   use CCMCData, only: ClustSelector,Spawner,dClustSelectionRatio,nClustSelections
    use CalcData, only: NMCyc    ! The number of MC Cycles
    use CalcData, only: StepsSft ! The number of steps between shift updates
    use CalcData, only: TStartMP1
@@ -2202,20 +2193,16 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
    IMPLICIT NONE
    real(dp) Weight,EnergyxW
    CHARACTER(len=*), PARAMETER :: this_routine='CCMCStandaloneParticle'
-   INTEGER ierr
    TYPE(AmplitudeList_int),target :: AL
    INTEGER(kind=n_int), pointer :: DetList(:,:)
    INTEGER  tagDetList
 
-   INTEGER nSelects              ! The number of selections of clusters to make
    INTEGER iNumExcitors          ! The number of non-zero excitors (excluding the ref det)
    REAL*8 dTotAbsAmpl            ! The total of the absolute amplitudes
 
    INTEGER iDebug
-   INTEGER i,j,k,l,iMin
+   INTEGER i,iMin
 ! Temporary Storage
-   INTEGER PartIndex,IC          ! Used in buffering
-   LOGICAL tSuc                  ! Also used in buffering
 
    INTEGER iOldTotWalkers        ! Info user for update to calculate shift
    INTEGER iShiftLeft            ! Number of steps left until we recalculate shift
@@ -2224,7 +2211,6 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
    REAL*8 dAveTotAbsAmp          ! Average of Total absolute amplitude over all post-equil cycles
    REAL*8 dAveNorm               ! Average of Normalization (ampl of Ref) over all post-equil cycles
    INTEGER dAmpPrintTol           ! What size amplitudes do we bother printing 
-   LOGICAL lLogTransitions       ! Do we log transitions
 
    TYPE(ClustSelector) :: CS   ! A normal ClustSelector based on the current amplitudes
    LOGICAL tMoreClusters                  ! Indicates we've not finished selecting clusters 
@@ -2257,6 +2243,7 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
    INTEGER :: iOffsets(nProcessors)  !Used to store spawning data for annihilation
    INTEGER :: iLengths(nProcessors)  !Used to store spawning data for annihilation
    INTEGER :: iOffset(1)
+   TYPE(timer) :: CCMC_time
 
 
    WRITE(6,*) "Entering CCMC Standalone Particle..."
@@ -2373,7 +2360,7 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
       ENDIF
    ENDIF
 
-   CALL InitClustSelectorRandom(CS,iNumExcitors,nClustSelections,dProbSelNewExcitor)
+   CALL InitClustSelectorRandom(CS,iNumExcitors,nClustSelections,dClustSelectionRatio,dProbSelNewExcitor)
 
    CALL InitSpawner(S,tExactSpawn,ICILevel)
 
@@ -2425,7 +2412,7 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
       iMin=min(iNumExcitors,nEl)
       call AccumulateAmplitudeList(AL,nAmpl,iCurAmpList,iRefPos)
       do while (tMoreClusters)
-         tMoreClusters=GetNextCluster(CS,DetList,nAmpl,AL,iCurAmpList,dTotAbsAmpl,iNumExcitors,iMin,iDebug)
+         tMoreClusters=GetNextCluster(CS,DetList,nAmpl,AL,iCurAmpList,dTotAbsAmpl,iMin,iDebug)
          if(.not.tMoreClusters) exit
 !Now form the cluster
          IFDEBUG(iDebug,4) then
@@ -2712,7 +2699,7 @@ END SUBROUTINE CCMCStandaloneParticle
       use CCMCData, only: CCTransitionLog
       IMPLICIT NONE
       TYPE(CCTransitionLog) TL
-      INTEGER C1size,C2size
+      INTEGER C1size
       INTEGER C1(C1size),C2
       INTEGER i1,i2
       REAL*8 value,dProbNorm 
@@ -2761,7 +2748,7 @@ END SUBROUTINE CCMCStandaloneParticle
       implicit None
       TYPE(CCTransitionLog) TL
       Type(Cluster) C
-      INTEGER I,iS,J
+      INTEGER I,iS
       INTEGER Inds(C%iSize)
       if(TL%tNonUniq) then
          i=GetClusterIndex(C%SelectedExcitorIndices(:),C%iSize,TL)

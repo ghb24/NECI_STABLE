@@ -44,7 +44,7 @@ C..
           ENDDO
 C..If determinants differ by more than 1 spin orbital IC < (NEL-1) 
           IF(IC.LT.(NEL-1)) GOTO 500
-          CALL RLS(NEL,NMSH,NHG,NDET,NMRKS(1:NEL,KI),
+          CALL RLS(NEL,NMSH,NHG,NMRKS(1:NEL,KI),
      &             NMRKS(1:NEL,KJ),G1,SITAB,NMAX,IC,AUX)
           CF=CFS(KI)*CFS(KJ)*DFLOAT(ICC)
           DO K=1,NMSH-1
@@ -76,7 +76,7 @@ C..Calculate integral of RHO
       RETURN
       END
 C ==---------------------------------------------------------==
-      SUBROUTINE RLS(NEL,NMSH,NHG,NDET,NDET1,NDET2,G1,
+      SUBROUTINE RLS(NEL,NMSH,NHG,NDET1,NDET2,G1,
      &     SITAB,NMAX,IC,AUX)
       use SystemData, only: BasisFN
       IMPLICIT REAL*8 (A-H,O-Z)

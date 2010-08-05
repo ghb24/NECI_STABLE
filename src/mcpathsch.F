@@ -12,34 +12,27 @@ C.. This approach creates a cluster of increasing size by adding to it
 C.. the best vertex at each level.
       SUBROUTINE  MCPATHSR6(NI,BETA,I_P,I_HMAX,I_VMAX,NEL,NBASISMAX,G1,
      &               NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,RHOEPS,
-     &               LSTE,ICE,RIJLIST,NWHTAY,ILOGGING,ECORE,ILMAX,
-     &               WLRI,WLSI)
+     &               NWHTAY,ILOGGING,ECORE, WLRI,WLSI)
          use global_utilities
          use util_mod, only: isnan
          use util_mod, only: NECI_ICOPY
          IMPLICIT REAL*8 (A-H,O-Z)
          DIMENSION IPATH(NEL,0:I_VMAX)
          INTEGER NI(NEL)
-         REAL*8 F(2:I_VMAX),FSQ(2:I_VMAX)
+         REAL*8 F(2:I_VMAX)
          CHARACTER*20 STR
          REAL*8 TOTAL
          REAL*8 RHOII(0:I_VMAX),RHOIJ(0:I_VMAX,0:I_VMAX)
-         REAL*8 FLNSUM,FLNRII
          REAL*8 ALAT(3),RHOEPS
          INTEGER  G1(*),nBasisMax(5,*)
-         INTEGER LSTE(*),ILMAX
 CNEL,0:NBASIS*NBASIS*NEL*NEL,0:I_VMAX-1)
-         INTEGER ICE(*)
-         REAL*8 RIJLIST(*)
 C0:NBASIS*NBASIS*NEL*NEL,0:I_VMAX-1)
-         INTEGER NLIST(0:I_VMAX-1),LSTP(0:I_VMAX-1),BTABLE(0:I_VMAX)
-         LOGICAL TLOG,TSYM
-         INTEGER ICOUNT,ISEED,I_VMOVE
-         INTEGER IADJ(0:I_VMAX-1,0:I_VMAX-1),ADJ
-         REAL*8 FNCR
-         REAL*8 OVALUE,WEIGHT,NVALUE
-         LOGICAL LCANMOVE,BR
-         REAL*8 RNORM,ND,STD
+         INTEGER BTABLE(0:I_VMAX)
+         LOGICAL TLOG
+         INTEGER ICOUNT,ISEED
+         INTEGER IADJ(0:I_VMAX-1,0:I_VMAX-1)
+         REAL*8 NVALUE
+         LOGICAL BR
          real*4 itime,etime,t(2)
          type(timer), save :: proc_timer
          type(timer), save :: proc_timer2
@@ -60,8 +53,8 @@ C.. go to end of file
      &      OPEN(10,FILE="PATHS",STATUS="UNKNOWN")
 C.. Set the first node to I_I
          CALL NECI_ICOPY(NEL,NI,1,IPATH(1:NEL,0),1)
-         CALL CALCRHO2(NI,NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,
-     &            BRR,NMSH,FCK,NMAX,ALAT,UMAT,RH,NTAY,0,ECORE)
+         CALL CALCRHO2(NI,NI,BETA,I_P,NEL,G1,NBASIS,
+     &            NMSH,FCK,NMAX,ALAT,UMAT,RH,NTAY,0,ECORE)
          RHOII(0)=RH
          RHOIJ(0,0)=RH
          IADJ(0,0)=1
@@ -86,7 +79,7 @@ C.. I_VMOVE=0 indicates we need to generate a valid path.
             NVALUE=
      &            FMCPR6(NI,BETA,I_P,IPATH,I_V,NEL,NBASISMAX,
      &              G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,
-     &              RHOEPS,RHOII,RHOIJ,NWHTAY,I_HMAX,ILOGGING,TSYM,
+     &              RHOEPS,RHOII,RHOIJ,NWHTAY,I_HMAX,ILOGGING,
      &             ECORE,ICOUNT)
             F(I_V)=NVALUE
             call halt_timer(proc_timer2)
@@ -118,7 +111,7 @@ C.. save all log files
 
       REAL*8 FUNCTION FMCPR6(NI,BETA,I_P,IPATH,I_V,NEL,
      &   NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,
-     &   RHOEPS,RHOII,RHOIJ,NWHTAY,I_HMAX,ILOGGING,TSYM,
+     &   RHOEPS,RHOII,RHOIJ,NWHTAY,I_HMAX,ILOGGING,
      &   ECORE,ICOUNT)
          use sym_mod, only: getsym
          use SystemData, only: BasisFN, NulLBasisFn
@@ -127,13 +120,12 @@ C.. save all log files
          type(BasisFN) G1(*)
          INTEGER NEL,NI(NEL),I_P,IPATH(NEL,0:I_V),I_V
          INTEGER nBasisMax(5,*),NBASIS,BRR(NBASIS),NMAX
-         INTEGER NTAY,NWHTAY,I_HMAX,ILOGGING,ISEED,NMSH
-         LOGICAL TSYM
+         INTEGER NTAY,NWHTAY,I_HMAX,ILOGGING,NMSH
          REAL*8 BETA,FCK(*),ALAT(*),UMAT(*),ECORE
          REAL*8 RHOEPS,RHOII(0:I_V),RHOIJ(0:I_V,0:I_V)
-         INTEGER I,J,K,NELEC,NADJ,ICE,NBEST(NEL)
-         REAL*8 RH,CALCPATHS,VALUE,NVALUE,RAT
-         LOGICAL LCANMOVE,LISINPATH
+         INTEGER J,NELEC,NADJ,ICE,NBEST(NEL)
+         REAL*8 RH,CALCPATHS,VALUE
+         LOGICAL LISINPATH
          LOGICAL TLOG,TLOG2,LDONE
          INTEGER INDJ(NEL),NJ(NEL)
          type(BasisFN) KI,KJ
@@ -163,7 +155,7 @@ C.. The relevant elements of IADJ and RHOIJ are copied to the new path's
                DO J=0,I_V-1
                   ICE=IGETEXCITLEVEL(IPATH(1,I_V-1),IPATH(1,J),NEL)
                   CALL CALCRHO2(IPATH(1,I_V-1),IPATH(1,J),BETA,I_P,NEL,
-     &             NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,
+     &             G1,NBASIS,NMSH,FCK,NMAX,ALAT,UMAT,
      &             RH,NTAY,ICE,ECORE)
                   IF(ICE.LE.2) THEN
                      ICE=1
@@ -189,7 +181,7 @@ C.. Now calculate a new value if required
                   RHOII(I_V)=RHOII(0)
                   IF(TLOG) THEN
                      CALL WRITEPATH(10,IPATH,I_V,NEL,.FALSE.)   
-                     IF(TLOG2) CALL WRITERHOMAT(10,RHOIJ,I_V,NEL,.TRUE.)
+                     IF(TLOG2) CALL WRITERHOMAT(10,RHOIJ,I_V,.TRUE.)
                   ENDIF   
                   VALUE=CALCPATHS(IPATH,RHOII,RHOIJ,I_V,I_HMAX,
      &               I_P,NWHTAY,NEL,I_V,ILOGGING)
@@ -207,7 +199,7 @@ C.. Restore the best one
             DO J=0,I_V-1
                ICE=IGETEXCITLEVEL(IPATH(1,I_V-1),IPATH(1,J),NEL)
                CALL CALCRHO2(IPATH(1,I_V-1),IPATH(1,J),BETA,I_P,NEL,
-     &           NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,
+     &           G1,NBASIS,NMSH,FCK,NMAX,ALAT,UMAT,
      &           RH,NTAY,ICE,ECORE)
                IF(ICE.LE.2) THEN
                   ICE=1

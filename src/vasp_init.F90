@@ -41,9 +41,8 @@ subroutine VASPInitIntegrals(nOrbUsed,ECore,tOrder)
    real(dp) ::  ECore
    logical :: tOrder
    type(timer), save :: proc_timer
-   integer :: I,J,II,A,B,nStatesUsed,ierr
+   integer :: I,J,II,A,B,nStatesUsed
    HElement_t :: HarXC,HarXCSum
-   character(*), parameter :: thisroutine='VASPInitIntegrals'
    
    proc_timer%timer_name='VASPInitInts'
    call set_timer(proc_timer)
