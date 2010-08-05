@@ -378,7 +378,7 @@ CONTAINS
 
          LAB(1:LENHAMIL)=0
 !C..Now we store HAMIL and LAB 
-         CALL DETHAM(NDET,NEL,NMRKS,NBASISMAX,nBasis,HAMIL,G1,LAB,NROW,.FALSE.,NMSH,FCK,NMAX,ALAT,UMAT,ICMAX,GC,TMC,ECORE,BRR)
+         CALL DETHAM(NDET,NEL,NMRKS,HAMIL,LAB,NROW,.FALSE.,ICMAX,GC,TMC)
       
          IF(tHistHamil) THEN
 !We are storing the entire hamiltonain in expanded form, to histogram against in the spawning routines.

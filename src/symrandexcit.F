@@ -751,7 +751,7 @@ C.. Actually generate a det
          INTEGER iToSL
          INTEGER J,K,L
          INTEGER NK(nEl)
-         LOGICAL L2
+         LOGICAL L2, lTmp
       
          LOGICAL IsValidDet
          REAL*8 RAN2   
@@ -764,12 +764,23 @@ C.. Actually generate a det
             L=0
             DO WHILE(K.LT.SYMLABELCOUNTS(2,ITO))
                ITOSL=2*SYMLABELLIST(SYMLABELCOUNTS(1,ITO)+K)+ISPN
-               L2=L.EQ.0.OR.NI(L).LT.ITOSL
+               L2 = .true.
+               if (L /= 0) then
+                   if (nI(L) >= iToSL) L2 = .false.
+               endif
                DO WHILE (L2)
                   L=L+1
-                  L2=L.LE.NEL.AND.NI(L).LT.ITOSL
+                  !L2=L.LE.NEL.AND.NI(L).LT.ITOSL
+                  L2 = .false.
+                  if (L <= NEL) then
+                      if (nI(L) < itoSL) L2 = .true.
+                  endif
                ENDDO
-               IF(L.GT.NEL.OR.NI(L).NE.ITOSL) THEN
+               lTmp = .true.
+               if (L <= nel) then
+                   if (nI(L) == iToSL) lTmp = .false.
+               endif
+               IF(lTmp) THEN
                   IF(J.EQ.0) THEN
                      ICOUNT=ICOUNT+1
                   ELSEIF(ICOUNT.EQ.0) THEN

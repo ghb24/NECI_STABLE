@@ -1,3 +1,5 @@
+#include "macros.h"
+
 MODULE FciMCMod
 use SystemData , only : NEl,Alat,Brr,ECore,G1,nBasis,nBasisMax,nMsh,Arr
 use CalcData , only : InitWalkers,NMCyc,G_VMC_Seed,DiagSft,Tau,SftDamp,StepsSft
@@ -15,7 +17,8 @@ USE Logging , only : iWritePopsEvery,TPopsFile,TZeroProjE,TWriteDetE,MaxHistE,No
 use constants, only: dp
 use DetBitOps, only: EncodeBitDet
 use constants, only: dp
-use FciMCData, only: ExcitGenerator, HFExcit, fcimcstats_unit
+use FciMCData, only: ExcitGenerator, HFExcit, fcimcstats_unit, &
+                     excitgenerator_init, excitgenerator_destroy
 use sort_mod
 IMPLICIT NONE
 SAVE
@@ -1678,6 +1681,8 @@ SUBROUTINE PerformFCIMCyc()
         INTEGER :: TotWalkersNew,j,l,DetCurr(NEl),VecSlot,TotWalkersDet
         INTEGER :: DetLT
 
+        call excitgenerator_init(tempexcit)
+
 !First, it is necessary to sort the list of determinants
         temppgen = 0
         if (tUnbiasPGenInProjE) then
@@ -1772,7 +1777,7 @@ SUBROUTINE PerformFCIMCyc()
 !The new number of residual cancelled walkers is given by one less that VecSlot again.
         TotWalkers=VecSlot-1
 
-        RETURN
+        call excitgenerator_destroy(tempexcit)
 
     END SUBROUTINE AnnihilatePairs
 
@@ -1998,10 +2003,19 @@ SUBROUTINE PerformFCIMCyc()
             CALL FLUSH(6)
 
             IF(.not.TRegenExcitgens) THEN
+                ASSERT(.not. allocated(WalkVecExcits))
+                ASSERT(.not. allocated(WalkVec2Excits))
+
                 ALLOCATE(WalkVecExcits(MaxWalkers),stat=ierr)
                 IF(ierr.ne.0) CALL Stop_All("InitFCIMCCalc","Error in allocating walker excitation generators")
                 ALLOCATE(WalkVec2Excits(MaxWalkers),stat=ierr)
                 IF(ierr.ne.0) CALL Stop_All("InitFCIMCCalc","Error in allocating walker excitation generators")
+
+                do i = 1, MaxWalkers
+                    call excitgenerator_init(WalkVecExcits(i))
+                    call excitgenerator_init(WalkVec2Excits(i))
+                enddo
+
 !Allocate pointers to the correct excitation arrays
                 CurrentExcits=>WalkVecExcits
                 NewExcits=>WalkVec2Excits
@@ -2306,11 +2320,20 @@ SUBROUTINE PerformFCIMCyc()
         CALL FLUSH(6)
 
         IF(.not.TRegenExcitgens) THEN
+            ASSERT(.not. allocated(WalkVecExcits))
+            ASSERT(.not. allocated(WalkVec2Excits))
+
             ALLOCATE(WalkVecExcits(MaxWalkers),stat=ierr)
             IF(ierr.ne.0) CALL Stop_All("InitFCIMCCalc","Error in allocating walker excitation generators")
             ALLOCATE(WalkVec2Excits(MaxWalkers),stat=ierr)
             IF(ierr.ne.0) CALL Stop_All("InitFCIMCCalc","Error in allocating walker excitation generators")
 !Allocate pointers to the correct excitation arrays
+
+            do i = 1, MaxWalkers
+                call excitgenerator_init(WalkVecExcits(i))
+                call excitgenerator_init(WalkVec2Excits(i))
+            enddo
+
             CurrentExcits=>WalkVecExcits
             NewExcits=>WalkVec2Excits
             MemoryAlloc=((INT(HFExcit%nExcitMemLen,8))+2)*4*INT(MaxWalkers,8)
@@ -2651,9 +2674,17 @@ SUBROUTINE PerformFCIMCyc()
         NewH=>WalkVec2H
             
         IF(.not.TRegenExcitgens) THEN
+            ASSERT(.not. allocated(WalkVecExcits))
+            ASSERT(.not. allocated(WalkVec2Excits))
+            
             ALLOCATE(WalkVecExcits(MaxWalkers),stat=ierr)
             ALLOCATE(WalkVec2Excits(MaxWalkers),stat=ierr)
             IF(ierr.ne.0) CALL Stop_All("InitFCIMCCalc","Error in allocating walker excitation generators")
+
+            do j = 1, MaxWalkers
+                call excitgenerator_init(WalkVecExcits(j))
+                call excitgenerator_init(WalkVec2Excits(j))
+            enddo
 
     !Allocate pointers to the correct excitation arrays
             CurrentExcits=>WalkVecExcits
@@ -2950,12 +2981,8 @@ SUBROUTINE GetPartRandExcit(DetCurr,nJ,Seed,IC,Prob,iCount,Excitlevel)
         DEALLOCATE(HFExcit%ExcitData)
         IF(.not.TRegenExcitgens) THEN
             do i=1,MaxWalkers
-                IF(Allocated(WalkVecExcits(i)%ExcitData)) THEN
-                    DEALLOCATE(WalkVecExcits(i)%ExcitData)
-                ENDIF
-                IF(Allocated(WalkVec2Excits(i)%ExcitData)) THEN
-                    DEALLOCATE(WalkVec2Excits(i)%ExcitData)
-                ENDIF
+                call excitgenerator_destroy(WalkVecExcits(i))
+                call excitgenerator_destroy(WalkVec2Excits(i))
             enddo
             DEALLOCATE(WalkVecExcits)
             DEALLOCATE(WalkVec2Excits)

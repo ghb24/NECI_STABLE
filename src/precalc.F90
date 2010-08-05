@@ -552,7 +552,7 @@ FUNCTION MCPATHSPRE(point,NI,BETA,I_P,IPATH,K,G1,NMSH,         &
                         INWI=0.D0
                         !DLWDB2 is just the energy, OETILDE is energy*weight
                         FF=FMCPR4D2(NI,BETA,I_P,IPATH,K,NEL,NBASISMAX,G1,NBASIS,NMSH,FCK,                            &
-                                              NMax,ALAT,UMAT,RHOEPS,RHOII,RHOIJ,CYCLES,METH,                   &
+                                              NMax,ALAT,UMAT,NTAY,RHOEPS,RHOII,RHOIJ,METH,                   &
                                              PreVarLOGGING,ECORE,ISEED,DBETA,DLWDB2,HIJS,NMEM,OETILDE,OPROB,I_OVCUR,&
                                               I_OCLS,ITREE,OWEIGHT,PFAC,IACC,INWI,K,EXCITGEN(0:K))
 !                        WRITE(60,*) IPATH(:,0),IPATH(:,1),IPATH(:,2),OPROB

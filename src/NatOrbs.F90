@@ -1683,15 +1683,11 @@ MODULE NatOrbsMod
 !        USE Logging , only : OrbOccs
         use util_mod, only: get_free_unit
         REAL*8 :: Norm,OrbOccs(nBasis)
-        INTEGER :: i,AllOrbOccsTag,ierr,error, iunit
-        REAL*8 , ALLOCATABLE :: AllOrbOccs(:)
+        INTEGER :: i,error, iunit
+        real(dp) :: AllOrbOccs(nBasis)
 
 
-        IF(iProcIndex.eq.0) THEN
-            ALLOCATE(AllOrbOccs(nBasis),stat=ierr)
-            CALL LogMemAlloc('AllOrbOccs',nBasis,8,'PrintOrbOccs',AllOrbOccsTag,ierr)
-            AllOrbOccs(:)=0.D0
-        ENDIF
+        AllOrbOccs = 0
 
 #ifdef PARALLEL
         CALL MPI_Reduce(OrbOccs(1:nBasis),AllOrbOccs(1:nBasis),nBasis,MPI_DOUBLE_PRECISION,MPI_SUM,0,MPI_COMM_WORLD,error)
@@ -1716,9 +1712,6 @@ MODULE NatOrbsMod
                 WRITE(iunit,'(I15,F30.10)') i,AllOrbOccs(i)
             enddo
             CLOSE(iunit)
-
-            DEALLOCATE(AllOrbOccs)
-            CALL LogMemDeAlloc('PrintOrbOccs',AllOrbOccsTag)
         ENDIF
 
     END SUBROUTINE PrintOrbOccs

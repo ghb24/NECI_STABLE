@@ -170,6 +170,7 @@ contains
         allocate(MemLog(MaxLen))
         allocate(PeakMemLog(MaxLen))
         allocate(LookupPointer(MaxLen))
+        lookuppointer = 0
         MaxMemory = MaxMemBytes
         MemoryUsed = 0
         MemoryLeft = MaxMemory

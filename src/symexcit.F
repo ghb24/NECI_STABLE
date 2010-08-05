@@ -3014,13 +3014,18 @@ C.. Check if it's in the det
 C            WRITE(6,*) SYMLABELCOUNTS(2,ITO),ITOSL            
          DO WHILE (L2)
             L=L+1
-            L2=L.LE.NEL.AND.NI(L).LT.ITOSL
+            L2 = .false.
+            if (L <= nel) then
+                if (nI(L) < iToSL) L2 = .true.
+            endif
          ENDDO
-         IF(L.LE.NEL.AND.NI(L).EQ.ITOSL) THEN
+         IF(L.LE.NEL) then
+             if (NI(L).EQ.ITOSL) THEN
 C.. We've found an L in the det which is the same as ITOSL. 
 C.. we go round again, getting another K
-            iRet=1
-            RETURN               
+                iRet=1
+                RETURN               
+            endif
          ENDIF
          L=L-1
 C.. hoorah!  We've got an I in the det, and a K not in the det.  Create an excitation
@@ -3627,12 +3632,12 @@ C            IF(j.EQ.iV-1) THEN
                 STORE(1)=0
 C.. Setup the excit generator for the last vertex
                 CALL GENSYMEXCITIT2(iGraph(1,i),NEL,G1,NBASIS,
-     &              .TRUE.,NEWEXLEN,INODE2,IC,0,STORE,3)
+     &              .TRUE.,NEWEXLEN,INODE2,IC,STORE,3)
                 CALL N_MEMORY(IP_NEWEX,NEWEXLEN,'NEWEX')
                 NEWEX(1)=0
 C.. Count the excitations (and generate a random one which we throw)
                 CALL GENSYMEXCITIT2(iGraph(1,i),NEL,G1,NBASIS,
-     &              .TRUE.,NEWEX,INODE2,IC,0,STORE,3)
+     &              .TRUE.,NEWEX,INODE2,IC,STORE,3)
                 CALL GENRANDSYMEXCITIT2(iGraph(1,i),NEL,
      &               NEWEX,INODE2,ISEED,IC,PGEN)
 !

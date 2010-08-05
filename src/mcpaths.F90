@@ -1394,7 +1394,7 @@ contains
 !C     &         NBASISMAX,CURGEN,IFRZ2)
 !C.. Now use the generator to make the next node,NJ
                CALL GENSYMEXCITIT2(IPATH(1,IEXFROM),NEL,G1,NBASIS,     &
-     &         .FALSE.,CURGEN,NJ,IC,IFRZ2,STORE,EXFLAG)
+     &         .FALSE.,CURGEN,NJ,IC,STORE,EXFLAG)
 !C               CALL GENSYMEXCITIT(IPATH(1,IEXFROM),NEL,G1,
 !C     &            NBASIS,NBASISMAX,.TRUE.,
 !C     &            ISYM,.FALSE.,CURGEN,NJ,IC,IFRZ2)
