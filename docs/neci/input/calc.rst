@@ -1125,6 +1125,13 @@ The following option are only available in **MCSTAR** calculations:
    Default 1
    If this is set to -1 for particle, then we use the same number of cluster selections as particles.
 
+**CLUSTSELECTIONRATIO** dClustSelectionRatio
+
+   For CCMC PARTICLE.
+      If nClustSelections==-1, then this dictates the number of cluster selections to be
+      dClustSelectionRatio*nParticles
+   Default 1
+
 **CCMCEXACTENERGY**
    
       For CCMC, if this is set, we calculate the projected energy exactly by considering all possible combinations of singles

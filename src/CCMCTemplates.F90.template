@@ -413,6 +413,7 @@ FUNCTION GetNextCluster (CS,Dets,nDet,AL,iCurAmpList,dTotAbsAmpl,iNumExcitors,iM
 
    if(CS%%tDynamic.and.CS%%iIndex.eq.0) then
       CS%%nSelects=dTotAbsAmpl+abs(AL%%Amplitude(CS%%iRefPos,iCurAmpList))
+      CS%%nSelects=nint(CS%%nSelects*CS%%dRatio)
    endif
    GetNextCluster=.true.
    iMaxSize=min(iMaxSizeIn,CS%%iMaxSize)
