@@ -35,6 +35,43 @@ dim = :,:,:,:,:,:,:
 elem1 = 1,1,1,1,1,1,1
 alloc_str = dims(1), dims(2), dims(3), dims(4), dims(5), dims(6), dims(7)
 
+[int64_1]
+type = integer*8
+sizeof = sizeof_int64
+dim = :
+elem1 = 1
+alloc_str = dims(1)
+
+[int64_2]
+dim = :,:
+elem1 = 1,1
+alloc_str = dims(1), dims(2)
+
+[int64_3]
+dim = :,:,:
+elem1 = 1,1,1
+alloc_str = dims(1), dims(2), dims(3)
+
+[int64_4]
+dim = :,:,:,:
+elem1 = 1,1,1,1
+alloc_str = dims(1), dims(2), dims(3), dims(4)
+
+[int64_5]
+dim = :,:,:,:,:
+elem1 = 1,1,1,1,1
+alloc_str = dims(1), dims(2), dims(3), dims(4), dims(5)
+
+[int64_6]
+dim = :,:,:,:,:,:
+elem1 = 1,1,1,1,1,1
+alloc_str = dims(1), dims(2), dims(3), dims(4), dims(5), dims(6)
+
+[int64_7]
+dim = :,:,:,:,:,:,:
+elem1 = 1,1,1,1,1,1,1
+alloc_str = dims(1), dims(2), dims(3), dims(4), dims(5), dims(6), dims(7)
+
 [doub1]
 type = real*8
 sizeof = sizeof_dp

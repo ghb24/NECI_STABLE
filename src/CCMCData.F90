@@ -140,7 +140,8 @@ FUNCTION ExcitToDetSign(iLutRef,iLutDet,iLevel)
    enddo
    if(iAnnihil+iCreation.ne.0) then
       call WriteBitEx(6,iLutRef,iLutDet,.false.)
-      write(6,"(A,2Z17)") "Ref, Det:", iLutRef, iLutDet
+      write(6,"(A)",advance='no') "Ref, Det:"
+      write(6,"(8Z17)") iLutRef, iLutDet
       write(6,*) "bits/byte", end_n_int+1
       write(6,*) "Level:", iLevel
       write(6,"(A,Z17,A,Z17)") " left over annihil: ", iAnnihil," left over creation: ", iCreation

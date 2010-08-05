@@ -869,7 +869,7 @@ MODULE CCMC
 
 !This is the direct annihilation algorithm. The newly spawned walkers should be in a seperate array (SpawnedParts) and the other list should be ordered.
         IF(iDebug.gt.0) WRITE(6,*) "Beginning Annihilation:",TotWalkersNew
-        CALL DirectAnnihilation(TotWalkersNew, iter_data_ccmc)
+        CALL DirectAnnihilation(TotWalkersNew, iter_data_ccmc,.true.) !.true. for single processor annihilation
 
         CALL halt_timer(Annihil_Time)
         IF(iDebug.gt.0) WRITE(6,*) "Leaving CCMC Cycle"
@@ -1179,6 +1179,7 @@ END SUBROUTINE InitClustSelectorFull
 
 SUBROUTINE InitClustSelectorRandom(CS,iMaxSize,nSelects,dProbSelNewEx)
    use CCMCData
+   use Parallel, only: nProcessors
    IMPLICIT NONE
    TYPE(ClustSelector) CS
    INTEGER iMaxSize,nSelects
@@ -1190,7 +1191,7 @@ SUBROUTINE InitClustSelectorRandom(CS,iMaxSize,nSelects,dProbSelNewEx)
    endif
    CS%tFull=.false.
    CS%iMaxSize=iMaxSize
-   CS%nSelects=nSelects
+   CS%nSelects=nSelects/nProcessors
    CS%dProbSelNewExcitor=dProbSelNewEx
    Call InitCluster(CS%C)
 END SUBROUTINE InitClustSelectorRandom
@@ -2197,12 +2198,13 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
    use CalcData, only: TStartSinglePart
    use timing, only: print_timing_report
    use Parallel
+   use shared_alloc
    IMPLICIT NONE
    real(dp) Weight,EnergyxW
    CHARACTER(len=*), PARAMETER :: this_routine='CCMCStandaloneParticle'
    INTEGER ierr
    TYPE(AmplitudeList_int),target :: AL
-   INTEGER(kind=n_int), allocatable :: DetList(:,:)
+   INTEGER(kind=n_int), pointer :: DetList(:,:)
    INTEGER  tagDetList
 
    INTEGER nSelects              ! The number of selections of clusters to make
@@ -2286,7 +2288,7 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
 ! Setup Memory
    write(6,*) "Max Amplitude List size: ", nMaxAmpl
    call AllocateAmplitudeList(AL,nMaxAmpl,1)
-   Allocate(DetList(0:nIfTot,nMaxAmpl))
+   call shared_allocate("DetList",DetList,(/nIfTot+1,nMaxAmpl/))
    LogAlloc(ierr,'DetList',(nIfTot+1)*nMaxAmpl,4,tagDetList)
    nMaxSpawn=MemoryFacSpawn*nMaxAmpl
    if(iProcIndex.ne.Root) nMaxSpawn=nMaxSpawn/nProcessors
@@ -2346,8 +2348,13 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
 !WalkerScale*dTotAbsAmpl
    AllTotParts(1)=WalkerScale*dTotAbsAmpl
    AllTotPartsOld(1)=WalkerScale*dTotAbsAmpl
-   iOldTotWalkers=WalkerScale*dTotAbsAmpl
-   iter_data_ccmc%tot_parts_old = WalkerScale * dTotAbsAmpl
+   if(iProcIndex==root) then
+      iOldTotWalkers=WalkerScale*dTotAbsAmpl
+      iter_data_ccmc%tot_parts_old = WalkerScale * dTotAbsAmpl
+   else
+      iOldTotWalkers=0
+      iter_data_ccmc%tot_parts_old = 0
+   endif
    dAveTotAbsAmp=0
    dAveNorm=0
    Iter=1
@@ -2377,7 +2384,7 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
       if(.not.tS) call Stop_All("CCMCStandaloneParticle","Failed to find HF det.")
 ! Collate stats
       nSpawned=0
-      IF(iDebug.gt.1) THEN
+      IFDEBUG(iDebug,2) THEN
          write(6,*) "Cycle ",Iter
          call WriteExcitorList(6,AL%Amplitude(:,iCurAmpList),DetList,0,nAmpl,dAmpPrintTol,"Excitor list")
       endif
@@ -2393,7 +2400,7 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
 !      endif
 
       
-      IF(iDebug.gt.1) THEN
+      IFDEBUG(iDebug,2) THEN
          WRITE(6,*) "Total non-zero excitors: ",iNumExcitors
          WRITE(6,"(A,G30.22)") "Total abs Amplitudes: ",dTotAbsAmpl
       endif 
@@ -2421,7 +2428,7 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
          tMoreClusters=GetNextCluster(CS,DetList,nAmpl,AL,iCurAmpList,dTotAbsAmpl,iNumExcitors,iMin,iDebug)
          if(.not.tMoreClusters) exit
 !Now form the cluster
-         IF(iDebug.gt.3) then
+         IFDEBUG(iDebug,4) then
             write(6,*) "Selection ",CS%iIndex
             WRITE(6,*) " Excitors in composite:", CS%C%iSize
             do i=1,CS%C%iSize
@@ -2434,11 +2441,13 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
 
 !The final logic tells it whether to convert from an excitor to a det.
          CALL CollapseCluster(CS%C,iLutHF,AL%Amplitude(:,iCurAmpList),nAmpl,iDebug,.true.)
-         IF(CS%C%iSgn/=0.and.iDebug.gt.4) then
-            WRITE(6,*) " Chosen det/excitor is:"
-            WRITE(6,"(A)",advance="no") "  "
-            call WriteBitDet(6,CS%C%iLutDetCurr,.true.)
-            CALL FLUSH(6)
+         IFDEBUG(iDebug,5) THEN
+            IF(CS%C%iSgn/=0.and.iDebug.gt.4) then
+               WRITE(6,*) " Chosen det/excitor is:"
+               WRITE(6,"(A)",advance="no") "  "
+               call WriteBitDet(6,CS%C%iLutDetCurr,.true.)
+               CALL FLUSH(6)
+            endif
          endif
          if(tTruncSpace.and.CS%C%iExcitLevel>iExcitLevelCluster) cycle !Don't try to die if we're truncated
 
@@ -2484,8 +2493,12 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
       enddo
       IFDEBUG(iDebug,3) write(6,*) "Offsets",iOffsets
       IFDEBUG(iDebug,3) write(6,*) "Lengths",iLengths
+      IFDEBUG(iDebug,4) then
+         write(6,*) "Processor ",iProcIndex," has ", nSpawned, " spawned."
+         call WriteExcitorList(6,SpawnAmps,SpawnList,0,nSpawned,dAmpPrintTol,"Spawned list")
+      endif
 !Get the Amplitudes
-      call MPIGatherV(SpawnAmps,nSpawned,SpawnAmps,iLengths,iOffsets,Root,ierr)
+      call MPIGatherV(SpawnAmps,SpawnAmps,iLengths,iOffsets,Root,ierr)
       do i=1,nProcessors
          iOffsets(i)=iOffsets(i)*(nIfTot+1)
          iLengths(i)=iLengths(i)*(nIfTot+1)
@@ -2527,7 +2540,7 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
    Deallocate(SpawnAmps)
    call DeallocateAmplitudeList(AL)
    LogDealloc(tagDetList)
-   Deallocate(DetList)
+   call shared_deallocate(DetList)
    Weight=0.D0
    Energyxw=ProjectionE
    call halt_timer(CCMC_time)

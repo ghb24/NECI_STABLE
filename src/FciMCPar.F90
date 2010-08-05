@@ -810,7 +810,7 @@ MODULE FciMCParMod
         ! walkers should be in a seperate array (SpawnedParts) and the other 
         ! list should be ordered.
         call set_timer (annihil_time, 30)
-        call DirectAnnihilation (totWalkersNew, iter_data)
+        call DirectAnnihilation (totWalkersNew, iter_data,.false.) !.false. for not single processor
         CALL halt_timer(Annihil_Time)
         
         ! Update iteration data
@@ -3284,9 +3284,12 @@ MODULE FciMCParMod
         integer(int64), dimension(lenof_sign), intent(out) :: tot_parts_new_all
     
         ! Communicate the integers needing summation
+        write(6,*) "PreSData: ",(/Annihilated, NoAtDoubs, NoBorn, NoDied, HFCyc, &
+                          SpawnFromSing, iter_data%update_growth/)
         call MPIReduce ((/Annihilated, NoAtDoubs, NoBorn, NoDied, HFCyc, &
                           SpawnFromSing, iter_data%update_growth/), &
                           MPI_SUM, int_tmp)
+        write(6,*) "SData: ",int_tmp
         AllAnnihilated = int_tmp(1)
         AllNoAtDoubs = int_tmp(2)
         AllNoBorn = int_tmp(3)
@@ -3313,8 +3316,10 @@ MODULE FciMCParMod
         endif
 
         ! 64bit integers
+        write(6,*) "PreSData: ",(/TotWalkers, TotParts, SumNoatHF, tot_parts_new/)
         call MPIReduce ((/TotWalkers, TotParts, SumNoatHF, tot_parts_new/), &
                         MPI_SUM, int64_tmp)
+        write(6,*) "SData: ",int64_tmp
         AllTotWalkers = int64_tmp(1)
         AllTotParts = int64_tmp(2:1+lenof_sign)
         AllSumNoatHF = int64_tmp(2+lenof_sign)
@@ -3332,8 +3337,10 @@ MODULE FciMCParMod
 
         ! We need the total number on the HF and SumWalkersCyc to be valid on
         ! ALL processors (n.b. one of these is 32bit, the other 64)
+        write(6,*) "PreSData", NoatHF,SumWalkersCyc  
         call MPISum (NoatHF, AllNoatHF)
         call MPISum (SumWalkersCyc, AllSumWalkersCyc)
+        write(6,*) "SData", AllNoatHF,AllSumWalkersCyc  
         
     end subroutine
 
@@ -3351,6 +3358,7 @@ MODULE FciMCParMod
         ! collate_iter_data --> The values used are only valid on Root
         if (iProcIndex == Root) then
             ! Calculate the growth rate
+            write(6,*) "AllGrowRateD" ,iter_data%update_growth_tot , iter_data%tot_parts_old
             AllGrowRate = (sum(iter_data%update_growth_tot &
                            + iter_data%tot_parts_old)) &
                           / real(sum(iter_data%tot_parts_old), dp)

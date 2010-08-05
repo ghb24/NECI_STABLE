@@ -421,6 +421,7 @@ FUNCTION GetNextCluster (CS,Dets,nDet,AL,iCurAmpList,dTotAbsAmpl,iNumExcitors,iM
 
    if(CS%%tDynamic.and.CS%%iIndex.eq.0) then
       CS%%nSelects=(dTotAbsAmpl+abs(AL%%Amplitude(CS%%iRefPos,iCurAmpList)))/nProcessors+1
+      IFDEBUG(iDebug,4) write(6,*) "Setting #Selectons: ",CS%%nSelects
    endif
    GetNextCluster=.true.
    iMaxSize=min(iMaxSizeIn,CS%%iMaxSize)
