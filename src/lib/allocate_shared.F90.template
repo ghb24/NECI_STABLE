@@ -180,6 +180,11 @@ module shared_alloc
             type(c_ptr), value :: ptr
 #endif
         end subroutine
+        subroutine iluts_pointer_jiggle_%(name)s (ptr, arr, dims)
+            integer, intent(in) :: dims((len_trim('%(dim)s') + 1) / 2)
+            %(type)s, dimension(%(dim)s), intent(inout), pointer :: ptr
+            %(type)s, dimension(1:1+%(alloc_str)s), intent(inout), target :: arr
+        end subroutine
     end interface
 
 contains
@@ -188,7 +193,7 @@ contains
 
         character(*), intent(in) :: nm
         %(type)s, dimension(%(dim)s), intent(inout), pointer :: ptr
-        integer, intent(in) :: dims((len_trim('%(dim)s') + 1) / 2) ! compile time const.
+        integer, intent(in) :: dims((len_trim('%(dim)s') + 1) / 2)
         character(len=len_trim(nm)+1) :: name_tmp
 
 #ifdef __SHARED_MEM
@@ -216,6 +221,59 @@ contains
         allocate(ptr(%(alloc_str)s))
 #endif
     end subroutine
+
+
+    subroutine shared_allocate_iluts (nm, ptr, dims)
+
+        ! This is a horrible hack for Alex.
+        ! The array will be allocated such that the first dimension goes is
+        ! such that (0:dim1, dim2, dim3 ...)
+        !
+        ! i.e. use call shared_allocate_iluts (nm, ptr, (/NifTot, num/))
+
+        character(*), intent(in) :: nm
+        %(type)s, dimension(%(dim)s), intent(inout), pointer :: ptr
+        %(type)s, dimension(%(dim)s), pointer :: ptr_tmp
+        integer, intent(in) :: dims((len_trim('%(dim)s') + 1) / 2) ! compile time const.
+        integer :: dims_tmp((len_trim('%(dim)s') + 1) / 2)
+        character(len=len_trim(nm)+1) :: name_tmp
+
+#ifdef __SHARED_MEM
+        integer :: sz
+        type(c_ptr) :: tmp
+#endif
+
+        ! Prepare name of shared memory object to pass to C.
+        name_tmp = trim(nm)//c_null_char
+
+#ifdef __SHARED_MEM
+        dims_tmp = dims
+        dims_tmp(1) = dims_tmp(1) + 1
+        sz = %(sizeof)s * product(dims_tmp)
+
+        ! Allocate the shared memory
+        call alloc_shared_worker (name_tmp, tmp, &
+                                  int(sz, kind=c_size_t))
+
+        ! Assign to a fortran pointer.
+        call c_f_pointer (tmp, ptr_tmp, dims_tmp)
+
+        ! Jiggle the pointers, so that the first dimension of the first one
+        ! goes from 0:dims(1), rather than 1:dims(1)+1
+        call iluts_pointer_jiggle (ptr, ptr_tmp, dims)
+        nullify(ptr_tmp)
+
+        write (6, '("Allocated ", i10, " bytes of shared memory named: ", a)')&
+               sz, nm
+#else
+        ! Sigh
+        allocate(ptr(0:%(alloc_str)s))
+#endif
+    end subroutine
+
+
+
+
 
     subroutine shared_deallocate (ptr)
         %(type)s, dimension(%(dim)s), intent(inout), pointer :: ptr
@@ -251,6 +309,17 @@ contains
         nullify(ptr)
     end subroutine
 end module
+
+
+! n.b. this is outside of the module and doesn't _quite_ match up with the
+!      interface...
+subroutine iluts_pointer_jiggle (ptr, arr, dims)
+    integer, intent(in) :: dims((len_trim('%(dim)s') + 1) / 2)
+    %(type)s, dimension(%(dim)s), intent(inout), pointer :: ptr
+    %(type)s, dimension(0:%(alloc_str)s), intent(inout), target :: arr
+
+    ptr => arr
+end subroutine
 
 supermodule shared_alloc
     interface
