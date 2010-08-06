@@ -1,5 +1,5 @@
 [int1]
-type = integer
+type = integer(int32)
 sizeof = sizeof_int
 dim = :
 elem1 = 1
@@ -35,8 +35,45 @@ dim = :,:,:,:,:,:,:
 elem1 = 1,1,1,1,1,1,1
 alloc_str = dims(1), dims(2), dims(3), dims(4), dims(5), dims(6), dims(7)
 
+[int64_1]
+type = integer(int64)
+sizeof = sizeof_int64
+dim = :
+elem1 = 1
+alloc_str = dims(1)
+
+[int64_2]
+dim = :,:
+elem1 = 1,1
+alloc_str = dims(1), dims(2)
+
+[int64_3]
+dim = :,:,:
+elem1 = 1,1,1
+alloc_str = dims(1), dims(2), dims(3)
+
+[int64_4]
+dim = :,:,:,:
+elem1 = 1,1,1,1
+alloc_str = dims(1), dims(2), dims(3), dims(4)
+
+[int64_5]
+dim = :,:,:,:,:
+elem1 = 1,1,1,1,1
+alloc_str = dims(1), dims(2), dims(3), dims(4), dims(5)
+
+[int64_6]
+dim = :,:,:,:,:,:
+elem1 = 1,1,1,1,1,1
+alloc_str = dims(1), dims(2), dims(3), dims(4), dims(5), dims(6)
+
+[int64_7]
+dim = :,:,:,:,:,:,:
+elem1 = 1,1,1,1,1,1,1
+alloc_str = dims(1), dims(2), dims(3), dims(4), dims(5), dims(6), dims(7)
+
 [doub1]
-type = real*8
+type = real(dp)
 sizeof = sizeof_dp
 dim = :
 elem1 = 1
@@ -73,7 +110,7 @@ elem1 = 1,1,1,1,1,1,1
 alloc_str = dims(1), dims(2), dims(3), dims(4), dims(5), dims(6), dims(7)
 
 [real1]
-type = real*4
+type = real(sp)
 sizeof = sizeof_sp
 dim = :
 elem1 = 1
@@ -110,7 +147,7 @@ elem1 = 1,1,1,1,1,1,1
 alloc_str = dims(1), dims(2), dims(3), dims(4), dims(5), dims(6), dims(7)
 
 [complex1]
-type = complex*16
+type = complex(dp)
 sizeof = sizeof_complexdp
 dim = :
 elem1 = 1
@@ -150,20 +187,20 @@ alloc_str = dims(1), dims(2), dims(3), dims(4), dims(5), dims(6), dims(7)
 
 
 module shared_alloc
-	use, intrinsic :: iso_c_binding
-	use constants
-	use HElem
-	implicit none
+    use, intrinsic :: iso_c_binding
+    use constants
+    use HElem
+    implicit none
 
-	private
-	public :: shared_allocate, shared_deallocate
+    private
+    public :: shared_allocate, shared_deallocate, shared_allocate_iluts
 
     interface
-		subroutine alloc_shared_worker (nm, pt, sz) bind(c)
+        subroutine alloc_shared_worker (nm, pt, sz) bind(c)
             use, intrinsic :: iso_c_binding
             implicit none
-            character(1), intent(in) :: nm
-			type(c_ptr), intent(inout) :: pt
+            character(c_char), intent(in) :: nm
+            type(c_ptr), intent(inout) :: pt
             integer(c_size_t), value :: sz
         end subroutine
         subroutine dealloc_shared_worker (ptr) bind(c)
@@ -184,39 +221,105 @@ module shared_alloc
 
 contains
 
-	subroutine shared_allocate (nm, ptr, dims)
+    subroutine shared_allocate (nm, ptr, dims)
 
-		character(*), intent(in) :: nm
-		%(type)s, dimension(%(dim)s), intent(inout), pointer :: ptr
-		integer, intent(in) :: dims((len_trim('%(dim)s') + 1) / 2) ! compile time const.
-
-		integer :: sz
-		%(type)s :: tester
-		character(len=len_trim(nm)+1) :: name_tmp
-		type(c_ptr) :: tmp
+        character(*), intent(in) :: nm
+        %(type)s, dimension(%(dim)s), intent(inout), pointer :: ptr
+        integer, intent(in) :: dims((len_trim('%(dim)s') + 1) / 2)
+        character(len=len_trim(nm)+1) :: name_tmp
 
 #ifdef __SHARED_MEM
-		sz = %(sizeof)s * product(dims)
+        integer :: sz
+        type(c_ptr) :: tmp
+#endif
 
-		! Allocate the shared memory
-		name_tmp = trim(nm)//c_null_char
-		call alloc_shared_worker (trim(nm)//c_null_char, tmp, &
-		                          int(sz, kind=c_size_t))
+        ! Prepare name of shared memory object to pass to C.
+        name_tmp = trim(nm)//c_null_char
 
-		! Assign to a fortran pointer.
-		call c_f_pointer (tmp, ptr, dims)
+#ifdef __SHARED_MEM
+        sz = %(sizeof)s * product(dims)
 
-		write (6, '("Allocated ", i10, " bytes of shared memory named: ", a)')&
-		       sz, nm
+        ! Allocate the shared memory
+        call alloc_shared_worker (name_tmp, tmp, &
+                                  int(sz, kind=c_size_t))
+
+        ! Assign to a fortran pointer.
+        call c_f_pointer (tmp, ptr, dims)
+
+        write (6, '("Allocated ", i10, " bytes of shared memory named: ", a)')&
+               sz, nm
 #else
         ! Sigh
         allocate(ptr(%(alloc_str)s))
 #endif
-	end subroutine
+    end subroutine
 
-	subroutine shared_deallocate (ptr)
-		%(type)s, dimension(%(dim)s), intent(inout), pointer :: ptr
-		%(type)s, pointer :: pt1
+
+    subroutine shared_allocate_iluts (nm, ptr, dims)
+
+        ! This is a horrible hack for Alex.
+        ! The array will be allocated such that the first dimension goes is
+        ! such that (0:dim1, dim2, dim3 ...)
+        !
+        ! i.e. use call shared_allocate_iluts (nm, ptr, (/NifTot, num/))
+
+        character(*), intent(in) :: nm
+        %(type)s, dimension(%(dim)s), intent(inout), pointer :: ptr
+        %(type)s, dimension(%(dim)s), pointer :: ptr_tmp
+        integer, intent(in) :: dims((len_trim('%(dim)s') + 1) / 2) ! compile time const.
+        integer :: dims_tmp((len_trim('%(dim)s') + 1) / 2)
+        character(len=len_trim(nm)+1) :: name_tmp
+
+#ifdef __SHARED_MEM
+        integer :: sz
+        type(c_ptr) :: tmp
+#endif
+
+        ! Prepare name of shared memory object to pass to C.
+        name_tmp = trim(nm)//c_null_char
+
+#ifdef __SHARED_MEM
+        dims_tmp = dims
+        dims_tmp(1) = dims_tmp(1) + 1
+        sz = %(sizeof)s * product(dims_tmp)
+
+        ! Allocate the shared memory
+        call alloc_shared_worker (name_tmp, tmp, &
+                                  int(sz, kind=c_size_t))
+
+        ! Assign to a fortran pointer.
+        call c_f_pointer (tmp, ptr_tmp, dims_tmp)
+
+        ! Jiggle the pointers, so that the first dimension of the first one
+        ! goes from 0:dims(1), rather than 1:dims(1)+1
+        call iluts_pointer_jiggle (ptr, ptr_tmp, dims)
+        nullify(ptr_tmp)
+
+        write (6, '("Allocated ", i10, " bytes of shared memory named: ", a)')&
+               sz, nm
+#else
+        ! Sigh
+        allocate(ptr(0:%(alloc_str)s))
+#endif
+    end subroutine
+
+    subroutine iluts_pointer_jiggle (ptr, arr, dims)
+        use constants
+        integer, intent(in) :: dims((len_trim('%(dim)s') + 1) / 2)
+        %(type)s, dimension(%(dim)s), intent(inout), pointer :: ptr
+        %(type)s, dimension(0:%(alloc_str)s), intent(inout), target :: arr
+
+        ptr => arr
+    end subroutine
+
+    subroutine shared_deallocate (ptr)
+        %(type)s, dimension(%(dim)s), intent(inout), pointer :: ptr
+
+#ifdef __SHARED_MEM
+
+        %(type)s, pointer :: pt1
+
+        ! Sigh, a hack to get pathscale to work
 #ifdef __PATHSCALE__
 #ifdef POINTER8
         integer(int64) :: tmp
@@ -224,30 +327,30 @@ contains
         integer(int32) :: tmp
 #endif
 #else
-		type(c_ptr) :: tmp
+        type(c_ptr) :: tmp
 #endif
 
-#ifdef __SHARED_MEM
-		! Get a pointer to the first element. c_loc requries its argument to
-		! be a scalar variable.
-		pt1 => ptr(%(elem1)s)
+        ! Get a pointer to the first element. c_loc requries its argument to
+        ! be a scalar variable.
+        pt1 => ptr(%(elem1)s)
 
 #ifdef __PATHSCALE__
-		tmp = loc(ptr(%(elem1)s))
+        tmp = loc(ptr(%(elem1)s))
 #else
         tmp = c_loc(pt1)
 #endif
-		call dealloc_shared_worker (tmp)
+        call dealloc_shared_worker (tmp)
 #else
         deallocate(ptr)
 #endif
-		nullify(ptr)
-	end subroutine
+        nullify(ptr)
+    end subroutine
 end module
 
+
 supermodule shared_alloc
-	interface
-		subroutine cleanup_shared_alloc () bind(c)
-		end subroutine
-	end interface
+    interface
+        subroutine cleanup_shared_alloc () bind(c)
+        end subroutine
+    end interface
 end supermodule

@@ -5,6 +5,9 @@ C.. A stub containing dummy functions in CPMD, which will appear on linking appr
          INTEGER I,J,K,L
          REAL*8 UMATEL
          logical gen2ints
+
+         ! Make warnings go away
+         i=i; j=j; k=k; l=l; gen2ints=gen2ints
          UMATEL=0.D0
       END
 
@@ -15,11 +18,12 @@ C.. A stub containing dummy functions in CPMD, which will appear on linking appr
       SUBROUTINE CPMDGETOCC(ISTATE,OCC)
          IMPLICIT NONE
 C         INCLUDE 'elct.inc'
-         REAL*8 F(1),OCC
+         REAL*8 OCC
          INTEGER ISTATE
 C         COMMON /ELCT/ F
 C         OCC=F(ISTATE)
          OCC=0.D0
+         istate=istate
       END
       
       SUBROUTINE CPMDGEN1EINTS(INTS,XIS)
@@ -28,19 +32,24 @@ C         OCC=F(ISTATE)
          REAL*8 INTS(NSTATES,NSTATES)
          REAL*8 XIS
          INTS=0.d0
+         xis=xis
       END
 
       subroutine GetKPInd(IndA,IndB,IndC,IndD)
          implicit none
          integer  IndA,IndB,IndC,IndD
-         return
+
+         ! Eliminate warnings
+         IndA=IndA; IndB=IndB; IndC=IndC; IndD=IndD
       end subroutine GetKPInd
 
       subroutine CalcHarPIInts(HarInt,nStates)
          implicit none
          integer  nStates
          complex*16 HarInt(nStates,nStates)
-         return
+
+         ! Eliminate Warnings
+         HarInt=HarInt; nStates=nStates
       end subroutine CalcHarPIInts
 
 
@@ -48,5 +57,6 @@ C         OCC=F(ISTATE)
       subroutine KPntSymInt(i,j,k,l,a,b,c,d)
           implicit none
           integer i,j,k,l,a,b,c,d
-          return
+          ! Make warnings go away
+          i=i; j=j; k=k; l=l; a=a; b=b; c=c; d=d
       end subroutine KPntSymInt

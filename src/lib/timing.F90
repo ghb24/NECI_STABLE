@@ -145,7 +145,6 @@ contains
       integer, optional, intent(in) :: obj_level
       real(4) :: t(2)
       integer :: timer_level
-      integer :: i
 
       if (.not.global_timing_on) then
           ! Initialise global timer.

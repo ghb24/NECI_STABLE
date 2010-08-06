@@ -1,12 +1,11 @@
-subroutine InitRIBasis(nEl,nBasisMax,Len,lMs)
+subroutine InitRIBasis(nBasisMax,Len)
    use constants, only: dp
    Use SymData , only : tAbelian
 ! lenrec is the number of auxiliary basis functions
    use UMatCache
    use util_mod, only: record_length
    implicit none
-   integer nEl,nBasisMax(5,*),Len,lMs
-   integer info,lenrec,nrec,i
+   integer nBasisMax(5,*),Len
    integer nBasis
    integer*8 nAb,nB
    tAbelian=.true.
@@ -37,7 +36,7 @@ SUBROUTINE GetRI2EInt(a,b,c,d,res)
    use UMatCache
    implicit none
    integer a,b,c,d
-   integer i,j,GetDFIndex
+   integer i,GetDFIndex
    integer x,y
    real*8 res
    res=0.D0
@@ -71,7 +70,7 @@ SUBROUTINE ReadRIIntegrals(nBasis,nOrbUsed)
    IMPLICIT NONE
    character(*), parameter :: t_r='ReadRIIntegrals'
    INTEGER nBasis,nOrbUsed
-   integer i,j,k,ilast,onints,nints,ierr,Q
+   integer i,j,onints,nints,ierr,Q
    real*8 val
    integer*8 nA,nB
    integer GetDFIndex

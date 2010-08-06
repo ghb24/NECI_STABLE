@@ -21,7 +21,7 @@ MODULE SymExcit3
         USE SymData, only: nSymLabels
         USE SystemData , only: ElecPairs
         USE GenRandSymExcitNUMod , only: PickElecPair,ConstructClassCounts,ClassCountInd,ScratchSize 
-        INTEGER :: nSingleExcits,nDoubleExcits,Symi,i,j,Spini,nI(NEl)
+        INTEGER :: nSingleExcits,nDoubleExcits,Symi,i,Spini,nI(NEl)
         INTEGER :: iSpn,Elec1Ind,Elec2Ind,SymProduct,exflag
         INTEGER :: Syma,Symb,Spina,Spinb,StartSpin,EndSpin
         INTEGER :: ClassCount2(ScratchSize),SumMl
@@ -127,8 +127,8 @@ MODULE SymExcit3
 ! negative sign must be included when finding the H element.
 ! When there are no more symmetry allowed excitations, tAllExcitFound becomes true.
         INTEGER(KIND=n_int) :: iLut(0:NIfTot)
-        INTEGER :: nJ(NEl),nSingles,nDoubles,ExcitMat3(2,2),exflag,nI(NEl)
-        LOGICAL :: tCountOnly,tAllExcitFound,tParity
+        INTEGER :: nJ(NEl),ExcitMat3(2,2),exflag,nI(NEl)
+        LOGICAL :: tAllExcitFound,tParity
 
         IF(exflag.eq.2) THEN
 ! Just generate doubles            
@@ -166,11 +166,11 @@ MODULE SymExcit3
 ! becomes true and no more excitations are generated.
         USE SymData, only: nSymLabels
         use constants, only: bits_n_int
-        INTEGER :: i,a,nI(NEl),Orbi,Orba,Symi,Finala,nJ(NEl)
+        INTEGER :: nI(NEl),Orbi,Orba,Symi,nJ(NEl)
         INTEGER(KIND=n_int) :: iLut(0:NIfTot)
-        INTEGER :: Orbj,Orbb,NoOcc,k,ExcitMat3(2,2),exflag,SymInd,Spina
+        INTEGER :: NoOcc,ExcitMat3(2,2),exflag,SymInd,Spina
         LOGICAL :: tInitOrbsFound,tParity,tAllExcitFound,tEndaOrbs
-        INTEGER , SAVE :: OrbiIndex,OrbaIndex,Spini,NewSym,OldSym
+        INTEGER , SAVE :: OrbiIndex,OrbaIndex,Spini,NewSym
 
 !        WRITE(6,*) 'Original Determinant',nI
 !        WRITE(6,*) "SymLabelList2(:)",SymLabelList2(:)
@@ -333,9 +333,9 @@ MODULE SymExcit3
         USE SystemData , only: ElecPairs
         USE GenRandSymExcitNUMod , only: PickElecPair,FindNewDet 
         use constants, only: bits_n_int
-        INTEGER :: nI(NEl),Orbj,Orbi,Orba,Orbb,OrbbSpin,Syma,Symb,NewSym,SymInd
+        INTEGER :: nI(NEl),Orbj,Orbi,Orba,Orbb,Syma,Symb,NewSym,SymInd
         INTEGER(KIND=n_int) :: iLut(0:NIfTot)
-        INTEGER :: Elec1Ind,Elec2Ind,SymProduct,iSpn,Spinb,nJ(NEl),i,k,ExcitMat3(2,2),SumMl
+        INTEGER :: Elec1Ind,Elec2Ind,SymProduct,iSpn,Spinb,nJ(NEl),ExcitMat3(2,2),SumMl
         INTEGER , SAVE :: ijInd,OrbaChosen,OrbbIndex,Spina
         LOGICAL :: tDoubleExcitFound,tFirsta,tFirstb,tNewij,tNewa,tAllExcitFound,tParity
 

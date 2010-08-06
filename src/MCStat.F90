@@ -110,7 +110,7 @@ MODULE MCStat
             TYPE(MCStats) MCS
             INTEGER iV
             INTEGER iMaxCycles
-            INTEGER i,j
+            INTEGER i
             INTEGER iBlocks
             real(dp) wRefValue, wRefWeight
             iBlocks=iMaxCycles
@@ -194,12 +194,9 @@ MODULE MCStat
             INTEGER*8 nTimes
             REAL*8 fProb
             INTEGER iV,iTree,iAcc,ioV,igV,iClass
-            real(dp) wWeighting,wValue,wWeightedValue,wGraphWeight,wVal,wDelta
-            INTEGER i,ioBMax,j
-            REAL*8 cc,ave1,ave2,std1,std2,hh,top,bot,calc
-            INTEGER*8 no,nc,nt,nn,nnn
+            real(dp) wWeighting,wValue,wWeightedValue,wGraphWeight,wDelta
+            REAL*8 cc,ave1,ave2,hh,top,bot,calc
             LOGICAL tLog,tNewSeq,tNewPower,TBLOCKING
-            SAVE nnn
             wWeightedValue=wWeighting*wValue
             IF(M%nGraphs(0).EQ.0.OR.iAcc.EQ.0.OR.(iV.EQ.ioV.AND.iV.EQ.1)) THEN
                M%iSeqLen=M%iSeqLen+nTimes
@@ -271,7 +268,7 @@ MODULE MCStat
             IF(TBLOCKING) THEN
             
 !               CALL AddToBlockStats(M%BlockDeltaSign,wDelta*wSign,nTimes,M%wSDelta(0),M%nGraphs(0),tNewPower)
-                CALL AddToBlockStatsII(M%BlockSignDeltaSign,M%BlockSign,M%BlockDeltaSign,M%BlockRatio,wDelta*wWeighting,wWeighting,nTimes,M%wWeightedDelta(0),M%wWeighting(0),M%nGraphs(0),tNewPower, M)
+                CALL AddToBlockStatsII(M%BlockSignDeltaSign,M%BlockSign,M%BlockDeltaSign,M%BlockRatio,wDelta*wWeighting,wWeighting,nTimes,M%wWeightedDelta(0),M%wWeighting(0),M%nGraphs(0),M)
                
                 IF(tNewPower.or.(iV.EQ.0)) THEN
 !.. Write out the blocking file every time we go past another power of 2
@@ -331,7 +328,7 @@ MODULE MCStat
 
       Subroutine EstimateError(MCStat, estimatedError, blockIndex)
          TYPE(MCStats) MCStat
-         TYPE(BlockStats) BlockWeightDelta, BlockWeight, BlockRatio
+         TYPE(BlockStats) BlockWeightDelta, BlockWeight
          TYPE(BlockStatscov) BlockProduct
          INTEGER blockIndex
          INTEGER*8 nBlocks
@@ -469,11 +466,10 @@ MODULE MCStat
 !0     1        0          0                       26
 
 
-    SUBROUTINE AddToBlockStatsII(BSDS,BS,BDS,BlockRatio,wDS,wS,nTimes,wValTotDS,wValTotS,nGraphs,tNewPower,M)
+    SUBROUTINE AddToBlockStatsII(BSDS,BS,BDS,BlockRatio,wDS,wS,nTimes,wValTotDS,wValTotS,nGraphs,M)
          TYPE(MCStats) M
          TYPE(BlockStats) BS, BDS, BlockRatio
          TYPE(BlockStatsCov) BSDS
-         LOGICAL tNewPower
          real(dp) wDS,wS,wValTotDS,wValTotS
          INTEGER*8 no,nc,nt,iBlockSize,nGraphs,nTimes
          real(dp) bbS,bbDS
@@ -579,7 +575,7 @@ MODULE MCStat
       SUBROUTINE WriteStats(M,iUnit)
          TYPE(MCStats) M
          INTEGER iUnit
-         REAL*8 Time,rStDev
+         REAL*8 rStDev
          real(dp) iC
          iC=M%nGraphs(0)+0.D0
          CALL CalcStDev(M,rStDev)
@@ -683,12 +679,12 @@ MODULE MCStat
          END subroutine
 
 !.. just give the additional components for this vertex level
-         SUBROUTINE WriteLongStats2(M,iUnit,OW,OE,Time)
+         SUBROUTINE WriteLongStats2(M,iUnit,OW,Time)
             INTEGER iUnit
             TYPE(MCStats) M
             CHARACTER*20 STR2
             INTEGER I,J
-            real(dp) OW,OE,iC,wAvgWeighting,wAvgWeightedValue,wAvgDelta
+            real(dp) OW,iC,wAvgWeighting,wAvgWeightedValue,wAvgDelta
             REAL*8 Time,fAveSeqLen
             iC=(M%nGraphs(0))
             Call GetStats(M,0,wAvgWeighting,wAvgWeightedValue,wAvgDelta)

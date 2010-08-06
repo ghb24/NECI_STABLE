@@ -1,5 +1,7 @@
 [int]
 type = integer(kind=int32)
+tmp_init = !
+tmp_destroy = !
 
 [int64]
 type = integer(kind=int64)
@@ -30,36 +32,41 @@ type = type(star_walker)
 
 [excitgenerator]
 type = type(ExcitGenerator)
+tmp_init = call excitgenerator_init
+tmp_destroy = call excitgenerator_destroy
 
 =========================
 
 module util_mod_cpts
-	use constants
-	use helem
-	use SystemData, only: Symmetry, assignment(=)
-	use symdata, only: SymPairProd, assignment(=)
+    use constants
+    use helem
+    use SystemData, only: Symmetry, assignment(=)
+    use symdata, only: SymPairProd, assignment(=)
     use StarDiagData
-    use FciMCData, only: ExcitGenerator, assignment(=)
-	implicit none
+    use FciMCData, only: ExcitGenerator, assignment(=), excitgenerator_init, &
+                         excitgenerator_destroy
+    implicit none
 
     private
     public :: swap
 
 contains
 
-	! Swap the  specified variables
-	elemental subroutine swap (a, b)
+    ! Swap the  specified variables
+    elemental subroutine swap (a, b)
 
-		! Sway the element a with the element b via a temporary variable.
-		!
-		! InOut: a, b - The elements to swap.
+        ! Sway the element a with the element b via a temporary variable.
+        !
+        ! InOut: a, b - The elements to swap.
 
-		%(type)s, intent(inout) :: a, b
-		%(type)s :: tmp
+        %(type)s, intent(inout) :: a, b
+        %(type)s :: tmp
 
-		tmp = a
-		a = b
-		b = tmp
-	end subroutine
+        %(tmp_init)s(tmp)
+        tmp = a
+        a = b
+        b = tmp
+        %(tmp_destroy)s(tmp)
+    end subroutine
 
 end module

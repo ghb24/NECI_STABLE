@@ -76,7 +76,6 @@ unsigned int murmurhash2wrapper_ ( int *key, int *len, unsigned int *seed ) {
     //    key: array to be hashed.
     //    len: length of array (in units of 4 bytes)
     //    seed: random seed used to generate the hash.
-    int i;
     // Need to dereference len and seed.
     return MurmurHash2(key,*len,*seed);
 }

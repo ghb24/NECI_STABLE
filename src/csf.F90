@@ -75,9 +75,12 @@ contains
         HElement_t :: hel_ret
 
         integer :: nopen(2), nclosed(2), nup(2), ndets(2), IC, i
-        integer :: S(2), Ms(2)
-        logical :: bCSF(2), bBothCSF
-        character(*), parameter :: this_routine = 'get_csf_helement'
+        integer :: S(2), Ms(2), iUnused
+        logical :: bCSF(2), bBothCSF, tUnused
+        real(dp) :: rUnused
+
+        ! Avoid compiler warnings
+        iUnused=notic; iUnused=notex(1,1); tUnused=nottParity; rUnused=notprob
 
         ! Are these both CSFs?
         bCSF(1) = iscsf(nI)
@@ -86,7 +89,7 @@ contains
 
         if ( (.not. bCSF(1)) .and. (.not. bCSF(2)) ) then
             ! Once again, pass things through better
-            hel_ret = sltcnd (nI, nJ, iLutI, iLutJ, IC)
+            hel_ret = sltcnd (nI, iLutI, iLutJ, IC)
             if (IC == 0) hel_ret = hel_ret + ECore
             return
         endif
@@ -104,6 +107,7 @@ contains
         endif
 
         ! Obtain statistics for each of the CSFs.
+        S = 0
         if (bCSF(1)) &
             call get_csf_data(NI, ilutI, nopen(1), nclosed(1), S(1), Ms(1))
         if (bCSF(2)) &
@@ -139,15 +143,15 @@ contains
             hel_ret = get_csf_helement_local (nI, nJ, iLutI, iLutJ, nopen, &
                                               nclosed, nup, ndets, IC)
         else if (bCSF(1)) then
-            hel_ret = get_csf_helement_det (nI, nJ, iLutI, iLutJ, nopen, &
-                                            nclosed, nup, ndets, IC)
+            hel_ret = get_csf_helement_det (nI, iLutJ, nopen, nclosed, nup, &
+                                            ndets)
         else
             call swap(nopen(1), nopen(2))
             call swap(nclosed(1), nclosed(2))
             call swap(nup(1), nup(2))
             call swap(ndets(1), ndets(2))
-            hel_ret = get_csf_helement_det (nJ, nI, iLutJ, iLutI, nopen, &
-                                            nclosed, nup, ndets, IC)
+            hel_ret = get_csf_helement_det (nJ, iLutI, nopen, nclosed, nup, &
+                                            ndets)
         endif
     end function
 
@@ -264,8 +268,7 @@ contains
                 sum1 = (0)
                 do j=1,ndets(2)
                     if (coeffs2(j) /= 0) then
-                        Hel = sltcnd (dets1(:,i), dets2(:,j), &
-                                          ilut1(:,i), ilut2(:,j))
+                        Hel = sltcnd (dets1(:,i), ilut1(:,i), ilut2(:,j))
                         sum1 = sum1 + Hel * (coeffs2(j))
                     endif
                 enddo
@@ -276,8 +279,8 @@ contains
         call halt_timer(hel_timer1)
     end function
 
-    function get_csf_helement_det (nI, nJ, iLutI, iLutJ, nopen, nclosed, &
-                                   nup, ndets, IC) &
+    function get_csf_helement_det (nI, iLutJ, nopen, nclosed, &
+                                   nup, ndets) &
                                    result(hel_ret)
 
         ! The worker function for the above wrapper for calculating the
@@ -290,9 +293,9 @@ contains
         !      We assume that Ms/S etc. are correct.
         ! TODO: make nopen(2) --> nopen etc.
 
-        integer, intent(in) :: nI(nel), nJ(nel), nopen(2), nclosed(2)
-        integer(kind=n_int), intent(in) :: iLutI(0:NIfTot), iLutJ(0:NIfTot)
-        integer, intent(in) :: nup(2), ndets(2), IC
+        integer, intent(in) :: nI(nel), nopen(2), nclosed(2)
+        integer(kind=n_int), intent(in) :: iLutJ(0:NIfTot)
+        integer, intent(in) :: nup(2), ndets(2)
         HElement_t :: hel_ret
 
         ! Working arrays. Sizes calculated in calling function.
@@ -331,7 +334,7 @@ contains
         hel_ret = (0)
         do i=1,ndets(1)
             if (coeffs(i) /= 0) then
-                hel = sltcnd (dets(:,i), nJ, ilut(:,i), ilutJ)
+                hel = sltcnd (dets(:,i), ilut(:,i), ilutJ)
                 hel_ret = hel_ret + hel*(coeffs(i))
             endif
         enddo
@@ -354,7 +357,7 @@ contains
         logical, intent(in) :: bEqual
         HElement_t :: hel_ret
 
-        integer :: nK(nel), id(nel), ex(2,2), elecs(2), sumdet
+        integer :: nK(nel), id(nel), ex(2,2), elecs(2)
         integer :: ndown, idX, idN, ids, det, indj, i, j
         real*8 :: diag_coeff
         HElement_t :: hel, hel2
@@ -380,21 +383,15 @@ contains
             hel = (0)
             do i=1,nclosed-1,2
                 ! Within an orbital pair
-                hel = hel + GetUmatEl(nBasisMax, UMAT, ALAT, nBasis, &
-                                      iSpinSkip, G1, id(i), id(i), &
-                                      id(i), id(i))
+                hel = hel + GetUmatEl(id(i), id(i), id(i), id(i))
 
                 ! Between closed electron pairs
                 if (i < nclosed-2) then
                     do j=i+2,nclosed-1,2
                         hel = hel + (4) * &
-                                GetUmatEl(nBasisMax, UMAT, ALAT, nBasis, &
-                                          iSpinSkip, G1, id(i), id(j), &
-                                          id(i), id(j))
+                                GetUmatEl(id(i), id(j), id(i), id(j))
                         hel = hel - (2) * &
-                                GetUMatEl(nBasisMax, UMAT, ALAT, nBasis, &
-                                          iSpinSkip, G1, id(i), id(j), &
-                                          id(j), id(i))
+                                GetUMatEl(id(i), id(j), id(j), id(i))
                     enddo
                 endif
 
@@ -403,10 +400,8 @@ contains
                     idX = max(id(i), id(j))
                     idN = min(id(i), id(j))
                     hel = hel + (2) * &
-                                getUMatEl(nBasisMax, UMAT, ALAT, nBasis, &
-                                          iSpinSkip, G1, idN, idX,idN,idX)
-                    hel = hel - GetUmatEl(nBasisMax, UMAT, ALAT, nBasis, &
-                                          iSpinSkip, G1, idN, idX,idX,idN)
+                                getUMatEl(idN, idX,idN,idX)
+                    hel = hel - GetUmatEl(idN, idX,idX,idN)
                 enddo
             enddo
             hel_ret = hel_ret + (diag_coeff)*hel
@@ -419,8 +414,7 @@ contains
                 idX = max(id(i), id(j))
                 idN = min(id(i), id(j))
 
-                hel2 = GetUMatEl(nBasisMax, UMAT, ALAT, nBasis, &
-                                 iSpinSkip, G1, idN, idX, idX, idN)
+                hel2 = GetUMatEl(idN, idX, idX, idN)
                 
                 do det=1,ndets
                     if (coeffs1(det) /= 0 .and. coeffs2(det) /= 0) then
@@ -435,9 +429,7 @@ contains
 
                 if (diag_coeff /= 0) then
                     hel = hel + (diag_coeff) * &
-                                GetUMatEl(nBasisMax, UMAT, ALAT, &
-                                          nBasis, iSpinSkip, G1, &
-                                          idN, idX, idN, idX)
+                                GetUMatEl(idN, idX, idN, idX)
                 endif
             enddo
         enddo
@@ -617,10 +609,8 @@ contains
 
         ! Obtain the two UMAT components which may get used in the sum
         id = gtID(ex)
-        umatel(1) = GetUMATEl (nBasisMax, UMAT, ALAT, nBasis, iSpinSkip, G1, &
-                               id(1,1), id(1,2), id(2,1), id(2,2))
-        umatel(2) = GetUMATEL (nBasisMax, UMAT, ALAT, nBasis, iSpinSkip, G1, &
-                               id(1,1), id(1,2), id(2,2), id(2,1))
+        umatel(1) = GetUMATEl (id(1,1), id(1,2), id(2,1), id(2,2))
+        umatel(2) = GetUMATEL (id(1,1), id(1,2), id(2,2), id(2,1))
 
         ! Loop through all of the terms where all but the fastest changing
         ! bits of each component determinant are the same. Slightly nasty
@@ -1231,6 +1221,8 @@ contains
             return
         endif
 
+        nup = 0
+        nopen = 0
         do i=1,nel
             orb = iand(nI(i), csf_orbital_mask)
 
@@ -1342,7 +1334,7 @@ contains
         integer, intent(in) :: Ms
         integer :: no_dets 
 
-        integer :: nopen, nup, nchoose, tmp, pos, i
+        integer :: nopen, nup, nchoose, pos, i
         integer :: choice(ubound(spins,1)), perm(ubound(spins,1))
         real*8 :: r
 
@@ -1401,10 +1393,6 @@ contains
         integer, intent(inout) :: nI(nel)
         integer, intent(in) :: nopen
         integer, intent(in) :: Ms
-
-        integer :: nup, nchoose, tmp, pos, i
-        integer :: choice(nopen), perm(nopen)
-        real*8 :: r
 
         csf_get_random_det =  random_spin_permute (nI(nel-nopen+1:nel), Ms)
         nI(1:nel-nopen) = iand(nI(1:nel-nopen), csf_orbital_mask)

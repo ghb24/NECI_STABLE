@@ -127,7 +127,9 @@ contains
         real(dp) :: elem, elem_i, elem_j, tot_wgt, elem_sum, tot_sum
         real(dp) :: tot_wgt_2, tot_sum_2
         character(20) :: fmt_str, fmt_num
+#ifdef __DEBUG
         character(*), parameter :: this_routine = 'csf_spin_project_one_yama'
+#endif
 
         ! Get the dorder for nI
         nopen = 0
@@ -289,8 +291,13 @@ contains
         real(dp), intent(in) :: prob
         HElement_t :: hel
         
-        integer :: dorder_i(nel), dorder_j(nel), nopen, nopen2, i
+        integer :: dorder_i(nel), dorder_j(nel), nopen, nopen2, i, iUnused
+        integer(n_int) :: iUnused2
+        real(dp) :: rUnused
+        logical :: lUnused
+#ifdef __DEBUG
         character(*), parameter :: this_routine = 'get_spawn_helement_spin_proj'
+#endif
         ! nJ contains a list of the unpaired electrons in ilutJ
         do i = 1, nel
             if (nJ(i) == -1) exit
@@ -334,6 +341,10 @@ contains
         hel = csf_spin_project_elem (dorder_i, dorder_j, nopen)
         hel = - hel * spin_proj_gamma / tau
 
+        ! Avoid warnings
+        rUnused = prob; lUnused = tParity; iUnused = IC; iUnused = ex(1,1)
+        iUnused2 = iLutI(0); iUnused2 = iLutJ(0)
+
     end function get_spawn_helement_spin_proj
 
     subroutine generate_excit_spin_proj (nI, iLutI, nJ, iLutJ, exFlag, IC, &
@@ -361,8 +372,8 @@ contains
         logical, intent(inout) :: tFilled
         logical, intent(out) :: tParity
 
-        integer :: nopen, nchoose, i, j
-        integer :: nTmp(nel)
+        integer :: nopen, nchoose, i
+        integer :: nTmp(nel), iUnused
         integer, dimension(lenof_sign) :: sgn_tmp
         character(*), parameter :: this_routine = 'generate_excit_spin_proj'
 
@@ -428,7 +439,12 @@ contains
         ! Invert sign so that a positive overlap element spawns walkers with
         ! the same sign
         pGen = 1_dp / real(nchoose - 1, dp)
-        !print*, 'Generation prob', pGen, nchoose-1
+
+        ! Protect against compiler warnings
+        scratch1(1) = scratch1(1); scratch2(1) = scratch2(1)
+        scratch3(1) = scratch3(1); ex(1,1) = ex(1,1); IC = IC
+        iUnused = exFlag; tFilled = tFilled; tParity = tParity
+
     end subroutine generate_excit_spin_proj
 
     function attempt_die_spin_proj (nI, Kii, wSign) result (ndie)
@@ -438,7 +454,7 @@ contains
         real(dp), intent(in) :: Kii
         integer, dimension(lenof_sign) :: ndie
 
-        real(dp) :: elem, r, rat
+        real(dp) :: elem, r, rat, rUnused
         integer :: dorder(nel), i, nopen
 
         if (sum(abs(wSign(1:lenof_sign))) < spin_proj_cutoff) then
@@ -490,6 +506,9 @@ contains
             r = genrand_real2_dSFMT()
             if (abs(rat) > r) ndie(i) = ndie(i) + nint(sign(1.0_dp, rat))
         enddo
+
+        ! Protect against compiler warnings
+        rUnused = Kii
 
     end function attempt_die_spin_proj
 
