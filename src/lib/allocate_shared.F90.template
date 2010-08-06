@@ -217,12 +217,6 @@ module shared_alloc
             type(c_ptr), value :: ptr
 #endif
         end subroutine
-        subroutine iluts_pointer_jiggle_%(name)s (ptr, arr, dims)
-            use constants
-            integer, intent(in) :: dims((len_trim('%(dim)s') + 1) / 2)
-            %(type)s, dimension(%(dim)s), intent(inout), pointer :: ptr
-            %(type)s, dimension(1:1+%(alloc_str)s), intent(inout), target :: arr
-        end subroutine
     end interface
 
 contains
@@ -309,9 +303,14 @@ contains
 #endif
     end subroutine
 
+    subroutine iluts_pointer_jiggle (ptr, arr, dims)
+        use constants
+        integer, intent(in) :: dims((len_trim('%(dim)s') + 1) / 2)
+        %(type)s, dimension(%(dim)s), intent(inout), pointer :: ptr
+        %(type)s, dimension(0:%(alloc_str)s), intent(inout), target :: arr
 
-
-
+        ptr => arr
+    end subroutine
 
     subroutine shared_deallocate (ptr)
         %(type)s, dimension(%(dim)s), intent(inout), pointer :: ptr
@@ -348,17 +347,6 @@ contains
     end subroutine
 end module
 
-
-! n.b. this is outside of the module and doesn't _quite_ match up with the
-!      interface...
-subroutine iluts_pointer_jiggle (ptr, arr, dims)
-    use constants
-    integer, intent(in) :: dims((len_trim('%(dim)s') + 1) / 2)
-    %(type)s, dimension(%(dim)s), intent(inout), pointer :: ptr
-    %(type)s, dimension(0:%(alloc_str)s), intent(inout), target :: arr
-
-    ptr => arr
-end subroutine
 
 supermodule shared_alloc
     interface
