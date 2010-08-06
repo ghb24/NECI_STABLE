@@ -1674,7 +1674,7 @@ subroutine AttemptDieParticle(C,iDebug,SpawnList,SpawnAmps,nSpawned)
    INTEGER nSpawned
    integer iDebug
 
-   INTEGER iC,iPartDie
+   INTEGER iC
    real*8 r,rat,HDiagCurr
    HElement_t Htmp
    integer i
@@ -1710,10 +1710,10 @@ subroutine AttemptDieParticle(C,iDebug,SpawnList,SpawnAmps,nSpawned)
    
 !dAbsAmplitude is | t_x1 t_x2 ... | / N_0 ^|X| 
    ELSEIF(C%iSize.EQ.1) THEN
-      iPartDie=C%SelectedExcitorIndices(1)
+!      iPartDie=C%SelectedExcitorIndices(1)
       IC=C%iExcitLevel
    ELSE
-      iPartDie=1
+!      iPartDie=1
       IC=0
    ENDIF 
 
@@ -1769,9 +1769,9 @@ subroutine AttemptDieParticle(C,iDebug,SpawnList,SpawnAmps,nSpawned)
    if(iSpawnAmp>0) then
       nSpawned=nSpawned+1 !The index into the spawning list
       iter_data_ccmc%ndied=iter_data_ccmc%ndied+1
+      SpawnList(:,nSpawned)=C%iLutDetCurr(:)
       IF(iDebug.gt.3.) then
-         Write(6,'(A,I7)',advance='no') " Killing at excitor: ",iPartDie
-         Write(6,'(A)',advance='no') " chosen "
+         Write(6,'(A)',advance='no') " Killing at excitor: "
          call WriteBitEx(6,iLutHF,SpawnList(:,nSpawned),.false.)
          WRITE(6,'(A,G25.16)',advance='no') "Number died ",r
          if(C%iSize.gt.1) then
@@ -1788,7 +1788,6 @@ subroutine AttemptDieParticle(C,iDebug,SpawnList,SpawnAmps,nSpawned)
       else
          SpawnAmps(nSpawned)=-iSpawnAmp
       endif
-      SpawnList(:,nSpawned)=C%iLutDetCurr(:)
    else if(iDebug>3) then
       write(6,*) "  No Death"
    endif
@@ -2450,6 +2449,10 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
 !         call halt_timer(Dietime)
       enddo ! Cluster choices
 
+      IFDEBUG(iDebug,4) then
+         write(6,*) "Processor ",iProcIndex," has ", nSpawned, " spawned."
+         call WriteExcitorList(6,SpawnAmps,SpawnList,0,nSpawned,dAmpPrintTol,"Spawned list")
+      endif
 ! At this point SpawnList contains a set of newly spawned particles and SpawnAmps the amount spawned
       if(nSpawned>0) then
          IFDEBUG(iDebug,3) write(6,*) "Calling Annihilation with ", nSpawned, " spawned."

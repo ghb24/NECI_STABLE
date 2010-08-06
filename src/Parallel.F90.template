@@ -396,6 +396,22 @@ Subroutine MPIAlltoAll(SendBuf,SendSize,RecvBuf,RecvSize,ierr)
 #endif
 end subroutine
 
+
+Subroutine MPIAlltoAllV(SendBuf,SendSizes,SendOffsets,RecvBuf,RecvSizes,RecvOffsets,ierr)
+    INTEGER,intent(in) :: SendSizes(:),SendOffsets(:),RecvSizes(:),RecvOffsets(:)
+    INTEGER, intent(out) :: ierr
+    %(type1)s, intent(in) :: SendBuf(:)
+    %(type1)s, intent(inout):: RecvBuf(:)
+!    write(6,*) "AllToAllV %(type1)s",SendSizes,SendOffSets,RecvSizes,RecvOffsets
+!    write(6,*) "AllToAllV %(type1)s",shape(SendBuf),shape(RecvBuf)
+#ifdef PARALLEL
+    CALL MPI_AlltoAllV(SendBuf,SendSizes,SendOffsets,%(mpitype)s,RecvBuf,RecvSizes,RecvOffsets,%(mpitype)s,MPI_COMM_WORLD,ierr)
+#else
+    RecvBuf=SendBuf
+    ierr=0
+#endif
+end subroutine
+
 Subroutine MPIAllGather_len(SendBuf,SendSize,RecvBuf,RecvSize,ierr)
     INTEGER,intent(in) :: SendSize,RecvSize
     INTEGER, intent(out) :: ierr
