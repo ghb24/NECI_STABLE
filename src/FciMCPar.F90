@@ -3320,7 +3320,7 @@ MODULE FciMCParMod
 
         ! 64bit integers
         call MPIReduce ((/TotWalkers, TotParts, SumNoatHF, tot_parts_new/), &
-                        MPI_SUM, int64_tmp)
+                        MPI_SUM, int64_tmp(1:2+2*lenof_sign))
         AllTotWalkers = int64_tmp(1)
         AllTotParts = int64_tmp(2:1+lenof_sign)
         AllSumNoatHF = int64_tmp(2+lenof_sign)

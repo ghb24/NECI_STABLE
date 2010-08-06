@@ -281,7 +281,7 @@ MODULE AnnihilationMod
 !            write(6,*) i, '***', CountBits(spawnedparts(:,i), nifd)
 !            WRITE(6,*) i,"***",SpawnedParts(:,i)
 !        enddo
-        CALL MPIAlltoAllv(SpawnedParts(:,1:MaxSendIndex),sendcounts,disps,SpawnedParts2(:,1:MaxIndex),recvcounts,recvdisps,error)
+        CALL MPIAlltoAllv(SpawnedParts,sendcounts,disps,SpawnedParts2,recvcounts,recvdisps,error)
 
 !        WRITE(6,*) MaxIndex, "Recieved particles: "
 !        do i=1,MaxIndex

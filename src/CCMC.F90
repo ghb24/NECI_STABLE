@@ -1771,7 +1771,7 @@ subroutine AttemptDieParticle(C,iDebug,SpawnList,SpawnAmps,nSpawned)
       nSpawned=nSpawned+1 !The index into the spawning list
       iter_data_ccmc%ndied=iter_data_ccmc%ndied+1
       SpawnList(:,nSpawned)=C%iLutDetCurr(:)
-      IFDEBUG(iDebug,4.) then
+      IFDEBUG(iDebug,4) then
          Write(6,'(A)',advance='no') " Killing at excitor: "
          call WriteBitEx(6,iLutHF,SpawnList(:,nSpawned),.false.)
          WRITE(6,'(A,G25.16)',advance='no') "Number died ",r
