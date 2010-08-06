@@ -3038,7 +3038,7 @@ lp2: do while(.true.)
             CALL Stop_All("TestGenRandSymExcitNU","Not all excitations accounted for...")
         ENDIF
     ENDIF
-    CALL MPI_BARRIER(MPI_COMM_WORLD,error)
+    CALL MPIBarrier(error)
 
 END SUBROUTINE TestGenRandSymExcitNU
 
