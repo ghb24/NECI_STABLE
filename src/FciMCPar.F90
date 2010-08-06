@@ -2052,6 +2052,11 @@ MODULE FciMCParMod
         real(dp) :: rat, r
         integer :: extracreate, iUnused
         HElement_t :: rh
+#ifdef __CMPLX
+        ! Avoid compiler warnings when compiling the real version.
+        integer :: i
+        real(dp) :: MatEl
+#endif
 
         ! If we are generating multiple excitotions, then the probability of
         ! spawning on them must be reduced by the number of excitations
