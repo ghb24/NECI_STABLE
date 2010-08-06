@@ -137,7 +137,7 @@ MODULE AnnihilationMod
     SUBROUTINE DirectAnnihilation(TotWalkersNew, iter_data, tSingleProc)
         integer, intent(inout) :: TotWalkersNew
         type(fcimc_iter_data), intent(inout) :: iter_data
-        INTEGER :: MaxIndex
+        INTEGER :: MaxIndex,ierr
         INTEGER(Kind=n_int) , POINTER :: PointTemp(:,:)
         logical, intent(in) :: tSingleProc
          
@@ -176,11 +176,12 @@ MODULE AnnihilationMod
 !Put the surviving particles in the main list, maintaining order of the main list.
 !Now we insert the remaining newly-spawned particles back into the original list (keeping it sorted), and remove the annihilated particles from the main list.
         CALL set_timer(Sort_Time,30)
-        CALL InsertRemoveParts(MaxIndex,TotWalkersNew)
+        CALL InsertRemoveParts(MaxIndex,TotWalkersNew,tSingleProc)
 
 !       WRITE(6,*) "Surviving particles merged"
 
         CALL halt_timer(Sort_Time)
+         call MPIBarrier(ierr)
 
     END SUBROUTINE DirectAnnihilation
 
@@ -498,6 +499,17 @@ MODULE AnnihilationMod
 !            WRITE(6,*) CurrentDets(:,i)
 !        enddo
         
+
+!          write(6,*) "CurrentDets",TotWalkersNew
+!          do i=1,TotWalkersNew
+!             write(6,"(I5)",advance='no') i
+!             call WriteBitDet(6,CurrentDets(:,i),.true.)
+!          enddo
+!             write(6,*) "ValidSpawned"
+!             do i=1,ValidSpawned
+!                write(6,"(I5)",advance='no') i
+!                call WriteBitDet(6,SpawnedParts(:,i),.true.)
+!             enddo
         CALL set_timer(BinSearch_time,45)
 
         do i=1,ValidSpawned
@@ -505,8 +517,15 @@ MODULE AnnihilationMod
 !This will binary search the CurrentDets array to find the desired particle. tSuccess will determine whether the particle has been found or not.
 !It will also return the index of the position one below where the particle would be found if was in the list.
 !            CALL LinSearchParts(CurrentDets(:,1:TotWalkersNew),SpawnedParts(0:NIfD,i),MinInd,TotWalkersNew,PartInd,tSuccess)
+!            WRITE(6,*) "MinInd",MinInd
+!            do j=MinInd,min(MinInd+10,TotWalkersNew)
+!               write(6,"(I5)",advance='no') j 
+!               call WriteBitDet(6,CurrentDets(:,j),.true.)
+!            enddo
             CALL BinSearchParts(SpawnedParts(:,i),MinInd,TotWalkersNew,PartInd,tSuccess)
-!            WRITE(6,*) "Binary search complete: ",i,PartInd,tSuccess,SpawnedParts(1,i),CurrentDets(:,PartInd)
+!            WRITE(6,"(A,2I6,L)",advance="no") "Binary search complete: ",i,PartInd,tSuccess
+!            call WriteBitDet(6,SpawnedParts(:,i),.true.)
+!            call WriteBitDet(6,CurrentDets(:,PartInd),.true.)
 
             IF(tSuccess) THEN
 !                SearchInd=PartInd   !This can actually be min(1,PartInd-1) once we know that the binary search is working, as we know that PartInd is the same particle.
@@ -651,7 +670,7 @@ MODULE AnnihilationMod
 !Binary searching can be used to speed up this transfer substantially.
 !The key feature which makes this work, is that it is impossible for the same determinant to be specified in both the spawned and main list at the end of
 !the annihilation process. Therefore we will not multiply specify determinants when we merge the lists.
-    SUBROUTINE InsertRemoveParts(ValidSpawned,TotWalkersNew)
+    SUBROUTINE InsertRemoveParts(ValidSpawned,TotWalkersNew,tSingleProc)
         use SystemData, only: tHPHF
         use bit_reps, only: NIfD
         use CalcData , only : tCheckHighestPop
@@ -660,8 +679,11 @@ MODULE AnnihilationMod
         INTEGER, DIMENSION(lenof_sign) :: CurrentSign,SpawnedSign
         REAL*8 :: HDiag
         LOGICAL :: TestClosedShellDet
+        LOGICAL, intent(in) ::tSingleProc
         HElement_t :: HDiagTemp
 
+!It appears that the rest of this routine isn't thread-safe if ValidSpawned is zero.
+        if(tSingleProc.and.iProcIndex/=root) return
 !Annihilated determinants first are removed from the main array (zero sign). 
 !Surely we only need to perform this loop if the number of annihilated particles > 0?
         TotParts=0

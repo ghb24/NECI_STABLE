@@ -578,7 +578,7 @@ FUNCTION GetNextCluster (CS,Dets,nDet,AL,iCurAmpList,dTotAbsAmpl,iMaxSizeIn,iDeb
    !                 = (dAbsAmplitude / N0) * ( P_norm(0) / (n! P_norm(n) (dAbsAmplitude/N0))
          r=CS%%dProbSelNewExcitor
          if(iMaxSize==0) r=1  !Cope with the case when there are no clusters
-         CS%%C%%dSelectionNorm=(CS%%C%%dAbsAmplitude/abs(AL%%Amplitude(CS%%iRefPos,iCurAmpList)))*(r*CS%%nSelects)/CS%%C%%dSelectionProb
+         CS%%C%%dSelectionNorm=(CS%%C%%dAbsAmplitude/abs(AL%%Amplitude(CS%%iRefPos,iCurAmpList)))*(r*CS%%nSelects*nProcessors)/CS%%C%%dSelectionProb
 !/CS%%C%%dSelectionNorm
       endif
    endif

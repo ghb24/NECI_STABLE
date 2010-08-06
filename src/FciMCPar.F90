@@ -3097,18 +3097,22 @@ MODULE FciMCParMod
                               &value.')
             endif
 
-            ! Check how balanced the load on each processor is (even though
-            ! we cannot load balance with direct annihilation).
-            walkers_diff = MaxWalkersProc - MinWalkersProc
-            mean_walkers = AllTotWalkers / real(nProcessors,dp)
-            if (walkers_diff > nint(mean_walkers / 10.d0) .and. &
-                sum(AllTotParts) > real(nProcessors * 500, dp)) then
-                root_write (6, '(a, f20.10, 2i12)') &
-                    'Number of determinants assigned to each processor &
-                    &unbalanced: ', (walkers_diff * 10.d0) / &
-                    real(mean_walkers), MinWalkersProc, MaxWalkersProc
-            endif
+! AJWT dislikes doing this type of if based on a (seeminly unrelated) input option, but can't see another easy way.
+!  TODO:  Something to make it better
 
+            if(.not.tCCMC) then
+               ! Check how balanced the load on each processor is (even though
+               ! we cannot load balance with direct annihilation).
+               walkers_diff = MaxWalkersProc - MinWalkersProc
+               mean_walkers = AllTotWalkers / real(nProcessors,dp)
+               if (walkers_diff > nint(mean_walkers / 10.d0) .and. &
+                   sum(AllTotParts) > real(nProcessors * 500, dp)) then
+                   root_write (6, '(a, f20.10, 2i12)') &
+                       'Number of determinants assigned to each processor &
+                       &unbalanced: ', (walkers_diff * 10.d0) / &
+                       real(mean_walkers), MinWalkersProc, MaxWalkersProc
+               endif
+            endif
 
             ! Deal with blocking analysis
             !
