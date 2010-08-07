@@ -3475,6 +3475,8 @@ MODULE FciMCParMod
         endif ! iProcIndex == root
 
         ! Broadcast the shift from root to all the other processors
+        call MPIBcast (tSinglePartPhase, Root)
+        call MPIBcast (VaryShiftIter, Root)
         call MPIBcast (DiagSft, Root)
 
     end subroutine
