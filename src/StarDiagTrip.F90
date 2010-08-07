@@ -62,6 +62,10 @@
 !        INTEGER :: iMaxExcit2,nExcitMemLen2,nK(NEl),ExcitCountDoubs,nExcitTag2
 !        INTEGER :: i,j,k,nRoots,Vert,IC,iGetExcitLevel,DoubIndex,TotElem,Info
 !        LOGICAL :: TCountExcits,iExcit2
+    
+        ! Disable warnings
+        weight = weight
+        energyxw = energyxw
 
         CALL Stop_All("StarDiagTrips","This code has now been commented out.")
 
@@ -383,7 +387,7 @@
 !!        IF(.NOT.BTEST(Meth,0)) THEN
 !!This will diagonalise each excited star fully - v. slow - order N^3
 !!            WRITE(6,*) "Beginning Complete Star Tridiagonalization"
-!            CALL StarDiag(0,NEl,ExcitCount+1,ExcitInfo,ExcitCount+1,i_P,Weight,dBeta,Energyxw)
+!            CALL StarDiag(ExcitCount+1,ExcitInfo,ExcitCount+1,i_P,Weight,dBeta,Energyxw)
 !
 !!        ELSE
 !!Use polynomial diagonalisation, order N
@@ -406,7 +410,7 @@
 !!            CALL SORT3RN(ExcitCount,ExcitInfo(1:ExcitCount,0),ExcitInfo(1:ExcitCount,1),ExcitInfo(1:ExcitCount,2),HElement_t_size)
 !
 !
-!!            CALL StarDiag2(0,NEl,ExcitCount+1,ExcitInfo,ExcitCount+1,Beta,i_P,Weight,dBeta,Energyxw,nRoots,iLogging)
+!!            CALL StarDiag2(ExcitCount+1,ExcitInfo,ExcitCount+1,i_P,Weight,dBeta,Energyxw,nRoots)
 !!
 !!        ENDIF
 !

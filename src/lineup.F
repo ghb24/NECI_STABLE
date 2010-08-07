@@ -42,7 +42,7 @@ C..find out which one in list one differ
               ENDIF
             ENDDO
           ENDIF
- 100      CONTINUE
+          CONTINUE
           IF(LD(I).EQ.-1) THEN
             DO J=1,N
               IF(LIST2(J).EQ.I) THEN
@@ -52,7 +52,7 @@ C..find out which one in list one differ
             ENDDO
           ENDIF
        ENDDO
- 200   CONTINUE
+       CONTINUE
        CALL ASCENDING_ORDER(N-1,LIST1,IP1)
        CALL ASCENDING_ORDER(N-1,LIST2,IP2)
        IPTOT=IPTOT*IP1*IP2

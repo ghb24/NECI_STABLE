@@ -31,10 +31,6 @@ Subroutine NECICore(iCacheFlag,tCPMD,tVASP)
     integer :: ios
     character(255) :: Filename
 
-
-    integer :: yama(10)
-    integer :: NI(10)
-
     ! Do the program initialisation.
     call NECICodeInit(tCPMD,tVASP)
 

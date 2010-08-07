@@ -15,7 +15,7 @@
 ! matrix elements for the elements it is merging into the main list.
 ! The list1 will be binary searched to find insertion points. Generally, if list2 > list1/2,
 ! a linear search would be quicker.
-    SUBROUTINE MergeListswH(nlist1,nlist1max,nlist2,list2)
+    SUBROUTINE MergeListswH(nlist1,nlist2,list2)
         USE FciMCParMOD , only : Hii,CurrentDets,CurrentH
         use SystemData, only: nel, tHPHF
         use bit_reps, only: NIfTot, NIfDBO, decode_bit_det
@@ -28,10 +28,10 @@
         IMPLICIT NONE
         INTEGER(KIND=n_int) :: list2(0:NIfTot,1:nlist2),DetCurr(0:NIfTot) 
         INTEGER :: nlisto,nlist1,nlist2,i
-        INTEGER :: ips,ips1
+        INTEGER :: ips
         HElement_t :: HDiagTemp
         REAL*8 :: HDiag
-        INTEGER :: nJ(NEl),j,nlist1max
+        INTEGER :: nJ(NEl),j
 !.................................................................
 !..starting from the end of the list, expand list1 to accomodate
 !.. elements of list2
@@ -84,7 +84,7 @@
                               
 
 !This routine is the same as MergeListswH, but will not generate the diagonal hamiltonian matrix elements to go with the inserted determinants
-    SUBROUTINE MergeLists(nlist1,nlist1max,nlist2,list2)
+    SUBROUTINE MergeLists(nlist1,nlist2,list2)
         USE FciMCParMOD , only : Hii,CurrentDets
         use SystemData, only: nel
         use bit_reps, only: NIfTot
@@ -94,9 +94,8 @@
         IMPLICIT NONE
         INTEGER(KIND=n_int) :: list2(0:NIfTot,1:nlist2),DetCurr(0:NIfTot) 
         INTEGER :: nlisto,nlist1,nlist2,i
-        INTEGER :: ips,ips1
-        REAL*8 :: HDiag
-        INTEGER :: nJ(NEl),j,nlist1max
+        INTEGER :: ips
+        INTEGER :: j
 !        LOGICAL :: tbin
 !.................................................................
 !..starting from the end of the list, expand list1 to accomodate
@@ -208,6 +207,8 @@
 !..
 !.. list(ncurr).eq.num
         if(CompPart.eq.0) then 
+           write(6,"(I8)",advance='no') ncurr 
+           call WriteBitDet(6,CurrentDets(:,ncurr),.true.)
            call stop_all("Search","When merging lists, no entries should exist on both lists")
 !..check to see if the previous member is less than num.
 !.. if so, return ipose=ncurr
@@ -226,7 +227,7 @@
         endif
         goto 100
 !...........................................................................
- 200    continue
+        continue
 !..simple linear search. At the moment, you cannot get here.
         do i=1,n
            if(DetBitLT(CurrentDets(0:NIfTot,i),DetCurr(:),NIfDBO).ne.1) then 
@@ -312,7 +313,7 @@
         endif
         goto 100
 !...........................................................................
- 200    continue
+        continue
 !..simple linear search. At the moment, you cannot get here.
         do i=1,n
            if(DetBitLT(list(:,i),DetCurr(:),NIfDBO).ne.1) then 

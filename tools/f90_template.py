@@ -164,7 +164,7 @@ def super_module(template, config):
 	# Construct super module
 	super_mod = m.group(1) + "\n"
 	for s in config:
-		super_mod += "\tuse " + m.group(2) + "_" + s + "\n"
+		super_mod += "    use " + m.group(2) + "_" + s + "\n"
 
 	if m_super: super_mod += m_super.group(3)
 	super_mod += "end module\n"
@@ -276,6 +276,7 @@ def interface_procs (template):
 
 	# Do we have procedures in this template file?
 	re_contains = re.compile ('\n\s*contains\s*\n')
+	re_end_mod = re.compile ('\n\s*end\s*module')
 	m = re_contains.search(template)
 	if m:
 		interface = "\n"
@@ -286,15 +287,18 @@ def interface_procs (template):
 		re_proc = re.compile ('(\n\s*((elemental|pure)[\s^\n]+)*(subroutine|function)[\s^\n]+)(\w+)([\s^\n]*\()',re.I)
 
 		offset = m.start()
+		m_end_mod = re_end_mod.search(template[offset:])
 		proc = re_proc.search(template[offset:])
 		while proc:
 			# For each procedure, append _%(name)s to all of the names.
 			template = (template[0:offset + proc.start()] +
 					   re_proc.sub("\\1\\5_%(name)s\\6", template[proc.start()+offset:], 1))
-			interface += ('\tinterface %s\n'
-			              '\t\tmodule procedure %s_%%(name)s\n'
-						  '\tend interface\n' % (proc.group(5), proc.group(5)))
+			if proc.start() < m_end_mod.end():
+				interface += ('    interface %s\n'
+							  '        module procedure %s_%%(name)s\n'
+							  '    end interface\n' % (proc.group(5), proc.group(5)))
 			offset = offset + proc.end() + 10
+			m_end_mod = re_end_mod.search(template[offset:])
 			proc = re_proc.search(template[offset:])
 
 		interface += "contains\n"

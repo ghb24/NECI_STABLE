@@ -807,10 +807,9 @@ C.. sum techniques. (7/11/03)
 C.. RHOCUML contains RHO_i0i1*RHO_i1i2...
 C.. This calls a recursive function which recurses over the nodes.
 C.. This works for I_H<=3 (exactly)
-      REAL*8 FUNCTION CALCPATH2(IPATH,RHOII,RHOCUML,I_H,
+      REAL*8 FUNCTION CALCPATH2(RHOII,RHOCUML,I_H,
      &               I_P)
          IMPLICIT REAL*8 (A-H,O-Z)
-         INTEGER IPATH(*)
          REAL*8 RHOII(0:*)
          CALCPATH2=(RHOII(0)**(I_P-I_H))*RHOCUML
      &         *R_R(1.D0,RHOII(I_H-1)/RHOII(0),I_H-1,RHOII,I_P-I_H)
@@ -821,10 +820,9 @@ C     &         *R_R2(0.D0,(RHOII(I_H-1)/RHOII(0))-1,I_H-1,RHOII,I_P-I_H)
 
 C.. Sum all paths up to order I_H=4, using 1st order
 C.. Taylor expansions (18/11/03)
-      REAL*8 FUNCTION CALCPATH3(IPATH,RHOII,RHOCUML,I_H,
+      REAL*8 FUNCTION CALCPATH3(RHOII,RHOCUML,I_H,
      &               I_P)
          IMPLICIT REAL*8 (A-H,O-Z)
-         INTEGER IPATH(*)
          REAL*8 RHOII(0:*)
          IF(I_H.EQ.4) THEN
             S1=RHOII(1)/RHOII(0)
@@ -857,10 +855,9 @@ C.. Taylor expansions (18/11/03)
       END
 C.. Sum all paths up to order I_H=4, using 2nd order
 C.. Taylor expansions (18/11/03)
-      REAL*8 FUNCTION CALCPATH4(IPATH,RHOII,RHOCUML,I_H,
+      REAL*8 FUNCTION CALCPATH4(RHOII,RHOCUML,I_H,
      &               I_P)
          IMPLICIT REAL*8 (A-H,O-Z)
-         INTEGER IPATH(*)
          REAL*8 RHOII(0:*)
          IF(I_H.EQ.4) THEN
             S1=RHOII(1)/RHOII(0)

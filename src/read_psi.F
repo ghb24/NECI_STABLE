@@ -67,7 +67,7 @@ C ==----------------------------------------------------------------==
 C..
       HElement_t CK(NDET,NEVAL)
       REAL*8 W(NEVAL),BOA,BOX,COA
-      INTEGER I,K,NEVAL,NDET,NEL,J
+      INTEGER I,NEVAL,NDET,NEL,J
 C..
       OPEN(10,FILE='PSI_LONG',STATUS='UNKNOWN')
       WRITE(10,*) NBASISMAX(1,2),NBASISMAX(2,2),NBASISMAX(3,2),
@@ -94,7 +94,7 @@ C..
 C..
       HElement_t CK(NDET,NEVAL)
       REAL*8 W(NEVAL),BOA,BOX,COA
-      INTEGER I,K,NEVAL,NDET,NEL,J
+      INTEGER I,NEVAL,NDET,NEL,J
 C..
       OPEN(10,FILE='PSI_COMP',STATUS='UNKNOWN')
       WRITE(10,*) NBASISMAX(1,2),NBASISMAX(2,2),NBASISMAX(3,2),

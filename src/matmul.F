@@ -1,4 +1,4 @@
-      SUBROUTINE MY_HPSI(NDET,ICMAX,NEVAL,NROW,LAB,HAMIL,CK,CKN,
+      SUBROUTINE MY_HPSI(NDET,NEVAL,NROW,LAB,HAMIL,CK,CKN,
      &                      TLargest)
       use global_utilities
       IMPLICIT REAL*8 (A-H,O-Z)
