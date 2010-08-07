@@ -1900,7 +1900,7 @@ SUBROUTINE CCMCStandalone(Weight,Energyxw)
    endif
    write(6,*) "Number of stored amplitudes: ",nAmpl
 ! Setup Memory
-   call AllocateAmplitudeList(AL,nAmpl,2)
+   call AllocateAmplitudeList(AL,nAmpl,2,.false.)
 
    if(tTruncSpace) then
       if(tCCMCFCI) then
@@ -1920,7 +1920,7 @@ SUBROUTINE CCMCStandalone(Weight,Energyxw)
          nBuffAmpl=Det
       endif
       WRITE(6,*) "Buffered Amplitudes:",nBuffAmpl
-      call AllocateAmplitudeList(ALBuffer,nBuffAmpl,1)
+      call AllocateAmplitudeList(ALBuffer,nBuffAmpl,1,.false.)
    endif
 
 ! Now setup the amplitude list.  Let's start with nothing initially, and
@@ -2274,7 +2274,7 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
    WalkerScale=1
 ! Setup Memory
    write(6,*) "Max Amplitude List size: ", nMaxAmpl
-   call AllocateAmplitudeList(AL,nMaxAmpl,1)
+   call AllocateAmplitudeList(AL,nMaxAmpl,1,.true.)
    call shared_allocate_iluts("DetList",DetList,(/nIfTot,nMaxAmpl/))
    ierr=0
    LogAlloc(ierr,'DetList',(nIfTot+1)*nMaxAmpl,4,tagDetList)

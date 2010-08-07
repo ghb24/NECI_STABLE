@@ -25,23 +25,33 @@ module ClusterList
       %(type1)s, pointer ::   CumlAmplitude(:)
       integer tagAmplitude
       integer tagCumlAmplitude
+      logical bShared
    end type
 
 
 contains
-   subroutine AllocateAmplitudeList (AL,nAmpl,nLists)
+   subroutine AllocateAmplitudeList (AL,nAmpl,nLists,tShared)
       use shared_alloc
       CHARACTER(len=*), PARAMETER :: this_routine='AllocateAmplitudeList_%(name)s'
       Type(AmplitudeList_%(name)s) AL
+      logical tShared
       integer nAmpl,nLists
       integer arrdim(2),arrdim1(1)
       arrdim1(1)=nAmpl
       arrdim(1)=nAmpl
       arrdim(2)=nLists
-      call shared_allocate("CCMCAmps",AL%%Amplitude,arrdim)
-      LogAlloc(ierr,'AL%%Amplitude',nAmpl*nLists,%(size)s,AL%%tagAmplitude)
-      call shared_allocate("CumlAmps",AL%%CumlAmplitude,arrdim1)
-      LogAlloc(ierr,'AL%%CumlAmplitude',nAmpl,%(size)s,AL%%tagCumlAmplitude)
+      AL%%bShared=tShared
+      if(tShared) then
+         call shared_allocate("CCMCAmps",AL%%Amplitude,arrdim)
+         LogAlloc(ierr,'AL%%Amplitude',nAmpl*nLists,%(size)s,AL%%tagAmplitude)
+         call shared_allocate("CumlAmps",AL%%CumlAmplitude,arrdim1)
+         LogAlloc(ierr,'AL%%CumlAmplitude',nAmpl,%(size)s,AL%%tagCumlAmplitude)
+      else
+         Allocate(AL%%Amplitude(nAmpl,nLists))
+         LogAlloc(ierr,'AL%%Amplitude',nAmpl*nLists,%(size)s,AL%%tagAmplitude)
+         Allocate(AL%%CumlAmplitude(nAmpl))
+         LogAlloc(ierr,'AL%%CumlAmplitude',nAmpl,%(size)s,AL%%tagCumlAmplitude)
+      endif
    end subroutine ! AllocateAmplitudeList 
 
    subroutine DeallocateAmplitudeList (AL)
@@ -49,10 +59,13 @@ contains
       CHARACTER(len=*), PARAMETER :: this_routine='DeallocateAmplitudeList_%(name)s'
       Type(AmplitudeList_%(name)s) AL
       LogDealloc(AL%%tagAmplitude)
-      call shared_deallocate(AL%%Amplitude)
-      call shared_deallocate(AL%%CumlAmplitude)
-!      LogDealloc(AL%%tagCumlAmplitude)
-!      Deallocate(AL%%CumlAmplitude)
+      if(AL%%bShared) then
+         call shared_deallocate(AL%%Amplitude)
+         call shared_deallocate(AL%%CumlAmplitude)
+      else
+         LogDealloc(AL%%tagCumlAmplitude)
+         Deallocate(AL%%CumlAmplitude)
+      endif
    end subroutine !DeallocateAmplitudeList 
 
    subroutine AccumulateAmplitudeList(AL,nAmpl,iCurAmpl,iRefPos)
