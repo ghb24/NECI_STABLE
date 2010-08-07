@@ -22,6 +22,16 @@ main, opt and dbg.  For instance::
 
 The 'opt' and 'dbg' sections inherit settings from the 'main' section unless
 that option is explicitly set, in which case the value in 'main' is overridden.
+If the option in [opt] or [dbg] is set using '+=', then the addtional options are appended to those given in [main], i.e. if
+
+    [main]
+    cflags = -m64
+
+    [opt]
+    cflags += -O3
+
+is given, then cflags is set to '-m64 -O3' in the 'opt' settings.
+
 The settings in 'opt' are used by default; the debug options can be selected by
 passing the -g option to mkconfig.py.
 
@@ -72,6 +82,7 @@ import optparse
 import os
 import pprint
 import sys
+import StringIO
 
 #======================================================================
 
@@ -633,7 +644,6 @@ def list_configs(config_dir):
 
 def parse_config(config_file):
     '''Parse the configuration file config_file located in the directory config_dir.'''
-    parser = ConfigParser.RawConfigParser()
 
     valid_sections = ['main', 'opt', 'dbg']
 
@@ -646,7 +656,33 @@ def parse_config(config_file):
     if not os.path.exists(config_file):
         raise IOError,'Config file does not exist: %s' % (config_file)
 
+    parser = ConfigParser.RawConfigParser()
     parser.read(config_file)
+
+    main = dict(parser.items('main'))
+    for opt in main.keys():
+        if opt not in valid_options:
+            raise IOError, 'Invalid option in [main] in configuration file: %s.' % (opt)
+
+    # Now expand (eg) cppflags += syntax in other sections.
+    f = open(config_file)
+    expanded_config = StringIO.StringIO()
+    for line in f.readlines():
+        if '+=' in line:
+            # make sure it's the second word and not part of an argument to be
+            # passed to the makefile.
+            if '+=' == line.split()[1].strip():
+                # expand option from that given in [main].
+                key = line.split('+=')[0].strip()
+                line = line.replace('+=','= %s ' % (main[key]))
+        expanded_config.write(line)
+    f.close()
+    expanded_config.seek(0)
+
+    # Re-read config file.
+    parser = ConfigParser.RawConfigParser()
+    parser.readfp(expanded_config)
+    expanded_config.close()
 
     for s in parser.sections():
         if s not in valid_sections and s not in valid_sections_upper:
