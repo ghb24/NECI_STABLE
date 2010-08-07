@@ -40,8 +40,8 @@ CHARACTER, PARAMETER :: space = " ", bra = "(", ket = ")",             &
     comma = ",", squote = "'", dquote = '"', tab=achar(9),             &
     plus="+", minus="-", dot="."
 
-CHARACTER(LEN=8), SAVE :: concat = "+++"
-CHARACTER(LEN=40) :: file(10)=""
+CHARACTER(LEN=255), SAVE :: concat = "+++"
+CHARACTER(LEN=255) :: file(10)=""
 
 INTEGER, SAVE :: lc=3
 

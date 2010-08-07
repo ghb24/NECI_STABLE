@@ -21,6 +21,6 @@ MODULE RotateOrbsData
     ! unit to write the TRANSFORM file to.
     integer :: transform_unit
 
-    TYPE(timer) , save :: FillOneRDM_Time,FillMP2VDM_Time,DiagNatOrbMat_Time,OrderCoeff_Time,FillCoeff_Time
+    TYPE(timer) :: FillOneRDM_Time,FillMP2VDM_Time,DiagNatOrbMat_Time,OrderCoeff_Time,FillCoeff_Time
 
 END MODULE RotateOrbsData

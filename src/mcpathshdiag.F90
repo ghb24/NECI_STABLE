@@ -43,10 +43,10 @@ module mcpathshdiag
          IMPLICIT NONE
          TYPE(BasisFN) G1(*),ISYM
          INTEGER I_V,NEL,I_P,nBasisMax(5,*),NBASIS,BRR(*),NMSH,NMAX
-         INTEGER NTAY(2),I_VIND,NWHTAY,ILOGGING,J,K,I_VMAX,II
+         INTEGER NTAY(2),I_VIND,NWHTAY,ILOGGING,J,I_VMAX,II
          INTEGER I
          COMPLEX*16 FCK(*)
-         HElement_t UMAT(*),R
+         HElement_t UMAT(*)
          REAL*8 ALAT(*),ECORE
          real(dp) TOTAL,FMCPR3B2RES,Prob
          real(dp) CALCPATHS_N
@@ -151,14 +151,14 @@ module mcpathshdiag
                   CALL WRITEPATHEX(10,IPATH,I_V,NEL,.FALSE.)
                ENDIF
             ENDIF
-            IF(TLOG2) CALL WRITERHOMAT(10,HIJ,I_V,NEL,.TRUE.)
+            IF(TLOG2) CALL WRITERHOMAT(10,HIJ,I_V,.TRUE.)
 !C.. 
             ICLS=0
             RHOII(0)=0
             RHOII(1)=BETA
             TOTAL=TOTAL+                                                &
-     &         CALCPATHS_N(IPATH,RHOII,HIJ,I_V,I_HMAX,               &
-     &         I_P,FSCALE,NEL,I_VMAX,ILOGGING,DBETA,DLWDB2,HIJS,ICLS)
+     &         CALCPATHS_N(RHOII,HIJ,I_V,I_HMAX,               &
+     &         I_P,FSCALE,DBETA,DLWDB2,HIJS,ICLS)
             NTOTAL=NTOTAL+TOTAL
 !C.. Sum up the components of <D|H exp(-b H)|D>
             DLWDB=DLWDB+DLWDB2
@@ -172,8 +172,7 @@ module mcpathshdiag
                IF(tModMPTheory) then
 !NBasisMax(2,3) is ISpinSkip
                   CALL ModMPDiagElement(Hij(i_V-1,i_V-1),iPath(1,0),       &
-     &             iPath(1,i_V-1),NEL,NBASISMAX,UMat,ALat,nBasis,          &
-     &               NBASISMAX(2,3),G1)
+     &             iPath(1,i_V-1),NEL)
                Endif
                MPEs=(0.d0)
                CALL AddMPEnergy(Hij,i_V,i_vmax,NMAX,nBasis,iPath,nEl,tLog,ECORE,MPEs)
@@ -199,8 +198,8 @@ module mcpathshdiag
               IF(tMPTheory) THEN
 ! When we do MC on MP, we sum MPEn/pgen in the numerator and 1 in the denominator
                  
-                Call CalcWriteGraphPGen(J,IPATH,I_V,nEl,LOCTAB,G1,         &
-     &                   nBasisMax,UMat,NMAX,nBasis,Prob,DUMMY)
+                Call CalcWriteGraphPGen(J,IPATH,I_V,nEl,G1,         &
+     &                   nBasisMax,NMAX,nBasis,Prob,DUMMY)
                  SumX  =SumX   + (MPEn)
                  SumY  =SumY   + (Prob)
                  SumXsq=SumXsq + (MPEn*MPEn/Prob)
@@ -212,8 +211,8 @@ module mcpathshdiag
                IF ((abs(TOTAL).ge.GraphEpsilon).and.                           &
      &                (TOTAL.ge.PREWEIGHTEPS)) THEN!.and.(RHOEPS.le.1.D-08)) THEN
                      
-                   CALL  CalcWriteGraphPGen(J,IPATH,I_V,nEl,LOCTAB,G1,     &
-     &                       nBasisMax,UMat,NMAX,nBasis,Prob,DUMMY)
+                   CALL  CalcWriteGraphPGen(J,IPATH,I_V,nEl,G1,     &
+     &                       nBasisMax,NMAX,nBasis,Prob,DUMMY)
                   
                    SumX  =SumX   + DLWDB2-(EREF*TOTAL)
                    SumY  =SumY   + TOTAL
@@ -266,8 +265,8 @@ module mcpathshdiag
             ELSEIF(TLOG5) THEN
 !  Log XIJS (usually for debugging), and the pgen
 !  NMAX has Arr hidden in it
-              CALL CalcWriteGraphPGen(10,IPATH,I_V,nEl,LOCTAB,G1,       &
-     &            nBasisMax,UMat,NMAX,nBasis,Prob,DUMMY)
+              CALL CalcWriteGraphPGen(10,IPATH,I_V,nEl,G1,       &
+     &            nBasisMax,NMAX,nBasis,Prob,DUMMY)
                   WRITE(10,"(3E25.16, I7)") TOTAL,Prob,DLWDB2,ICLS
             ELSE
                IF(TLOG) WRITE(10,"(2E25.16, I7)") TOTAL,DLWDB2,ICLS
@@ -278,7 +277,7 @@ module mcpathshdiag
 !            ENDIF
 !            IF((.not.TPREVAR).and.(I_V.eq.3)) THEN
 !                CALL GetGraphstats(IPATH,I_V,NEL,NBASIS,NMAX,TOTAL,
-!     &              NBASISMAX,UMAT,G1,DLWDB2)
+!     &              NBASISMAX,DLWDB2)
 !            ENDIF
             L=L+1
             FMCPR3B2RES=TOTAL
@@ -318,12 +317,12 @@ module mcpathshdiag
 !C.. Initialiaze the excitation generators
          CALL GETSYM(INODE,NEL,G1,NBASISMAX,ISYM)
          STORE(1)=0
-         CALL GENSYMEXCITIT2(INODE,NEL,G1,NBASIS,NBASISMAX,             &
-     &         .TRUE.,NMEMLEN,NJ,IC,IFRZ(0,I_VIND+1),STORE,EXFLAG)
+         CALL GENSYMEXCITIT2(INODE,NEL,G1,NBASIS,             &
+     &         .TRUE.,NMEMLEN,NJ,IC,STORE,EXFLAG)
          allocate(NMEM(NMEMLEN))
          NMEM(1)=0
-         CALL GENSYMEXCITIT2(INODE,NEL,G1,NBASIS,NBASISMAX,             &
-     &         .TRUE.,NMEM,NJ,IC,IFRZ(0,I_VIND+1),STORE,EXFLAG)
+         CALL GENSYMEXCITIT2(INODE,NEL,G1,NBASIS,             &
+     &         .TRUE.,NMEM,NJ,IC,STORE,EXFLAG)
 !C.. I_VIND is the node that has just been chosen (so LOCTAB(I_VIND) is a
 !C.. generator for that node.  We need to generate from that node, so we
 !C.. store at I_VIND+1
@@ -380,8 +379,7 @@ module mcpathshdiag
 !C.. We need to reset the generator if we're only generating stars.
 !C.. Because we now have some frozen orbitals, the original excitation
 !C.. will not be re-generated.
-                  CALL RESETEXIT2(IPATH(1,LOCTAB(IVLEVEL)%v),NEL,G1,       &
-     &               NBASIS,NBASISMAX,CURGEN,IFRZ2)
+                  CALL RESETEXIT2(CURGEN)
                ENDIF
                LOCTAB2(I_VIND+1)%l=LOCTAB(IVLEVEL)%l
                LOCTAB2(I_VIND+1)%v=LOCTAB(IVLEVEL)%v
@@ -394,8 +392,8 @@ module mcpathshdiag
             LOCTAB2(I_VIND+1)%p=>CURGEN
             DO WHILE(.NOT.TNEXT)
 !C.. Now use the generator to make the next node,NJ
-               CALL GENSYMEXCITIT2(IPATH(1,IEXFROM),NEL,G1,NBASIS,NBASISMAX,  &
-     &         .FALSE.,CURGEN,NJ,IC,IFRZ2,STORE,EXFLAG)
+               CALL GENSYMEXCITIT2(IPATH(1,IEXFROM),NEL,G1,NBASIS,  &
+     &         .FALSE.,CURGEN,NJ,IC,STORE,EXFLAG)
 !C.. Check to see it's actually been generated
                IF(NJ(1).EQ.0) THEN
                   TFAIL=.TRUE.
@@ -448,8 +446,7 @@ module mcpathshdiag
 #endif
                      HIJ(II,I_VIND+1)=RH
                      IF(II<I_VIND) then
-                   IF(IsConnectedDet(IPATH(1,II),NJ,nEl,LOCTAB(II+1)%p,       &
-     &                  G1,nBasisMax,nBasis)) THEN
+                   IF(IsConnectedDet(IPATH(1,II),NJ)) THEN
 !if rhoeps is zero then always set TFAIL.  if rhoeps isn't zero, then set TFAIL if Rh isn't zero (i.e. we've included it before)
                      IF(RH.NE.0.D0.OR.RHOEPS.EQ.0.D0) THEN
 !C.. If the node to which this node (NJ) is attached was known about at
@@ -591,8 +588,8 @@ end module
       Subroutine WriteGraphEnergies(IPATH, I_V, nEl,nBasis,Arr,Weight)
          use constants, only: dp
          Integer I_V, nEl, nBasis, IPATH(nEl,0:I_V), EX(2,2), T
-         Real*8 Arr(nBasis, 2),Energytonew,Energyfromnew
-         REAL*8 Energyfromold,Energytoold
+         Real*8 Arr(nBasis, 2),Energyfromnew
+         REAL*8 Energyfromold
          REAL*8 totWeight,avWeight
          real(dp) Weight
          INTEGER g
@@ -629,28 +626,26 @@ end module
 !             Write(56, "3G25.16") Weight,Energyfrom,Energyto 
          
          End
-         Subroutine GetGraphstats(IPATH, I_V, nEl,nBasis,Arr,Weight,NBASISMAX,UMAT,G1,DLWDB2)
+         Subroutine GetGraphstats(IPATH, I_V, nEl,nBasis,Arr,Weight,NBASISMAX,DLWDB2)
          use constants, only: dp
          USE UMatCache , only : GTID
          use Integrals, only : GetUMatEl
          use SystemData, only: BasisFN
          IMPLICIT NONE
-         Integer I_V,nEl,nBasis,IPATH(nEl,0:I_V),EX(2,2),T,p
-         REAL*8 ARR(nBasis,2),EnergyTo,EnergyFrom,Percendoub
+         Integer I_V,nEl,nBasis,IPATH(nEl,0:I_V),EX(2,2),T
+         REAL*8 ARR(nBasis,2),EnergyTo,EnergyFrom
          INTEGER I,J,K,L,ISS,IDI,IDJ,IDL,IDK,nBasisMax(5,*)
-         INTEGER EXCITLEV,IGETEXCITLEVEL_,hist
+         INTEGER EXCITLEV
          real(dp) Weight,DLWDB2
-         HElement_t UMAT(*),ME
-         TYPE(BasisFN) G1(NBASIS)
+         HElement_t ME
          LOGICAL AREDETSEXCITS,CONNECT23
          integer c
          INTEGER*8 SINGLE,DOUBLE,histogram(-20:3)
-         SAVE c,SINGLE,DOUBLE,Percendoub,histogram
+         SAVE c,SINGLE,DOUBLE,histogram
          DATA histogram/24*0/
          DATA c/0/
          DATA SINGLE/0/
          DATA DOUBLE/0/
-         REAL*8 ALAT(3)
          
          write (6,*) 'Warning: c has been changed from integer*8 to *4'
          IF(I_V.eq.2) THEN
@@ -672,7 +667,7 @@ end module
                 IDJ = GTID(J)
                 IDK = GTID(K)
                 IDL = GTID(L)
-                ME=GetUMatEl(NBASISMAX,UMAT,ALAT,NBASIS,ISS,G1,IDI,IDJ,IDK,IDL)
+                ME=GetUMatEl(IDI,IDJ,IDK,IDL)
                 EnergyFrom=Arr(EX(1,1),2)+Arr(EX(1,2),2)
                 EnergyTo=Arr(EX(2,1),2)+Arr(EX(2,2),2)
             ENDIF
@@ -693,7 +688,7 @@ end module
             ENDIF
             IF((MOD(c,75).eq.0).or.(MOD(c,75).eq.25).or.(MOD(c,75).eq.50)) THEN
                 
-                CONNECT23=AREDETSEXCITS(IPATH(1:NEL,1),IPATH(1:NEL,2),NEL,NBASISMAX,EXCITLEV)
+                CONNECT23=AREDETSEXCITS(IPATH(1:NEL,1),IPATH(1:NEL,2),NEL,EXCITLEV)
                 EX(1,1)=2
                 
                 IF(CONNECT23) THEN  !Nodes 2&3 connected
@@ -709,7 +704,7 @@ end module
                         IDJ = GTID(J)
                         IDK = GTID(K)
                         IDL = GTID(L)
-                     ME=GetUMatEl(NBASISMAX,UMAT,ALAT,NBASIS,ISS,G1,IDI,IDJ,IDK,IDL)
+                     ME=GetUMatEl(IDI,IDJ,IDK,IDL)
                         EnergyFrom=Arr(EX(1,1),2)+Arr(EX(1,2),2)
                         EnergyTo=Arr(EX(2,1),2)+Arr(EX(2,2),2)
                         IF(MOD(c,75).eq.0) THEN
@@ -758,7 +753,7 @@ end module
                         IDJ = GTID(J)
                         IDK = GTID(K)
                         IDL = GTID(L)
-                     ME=GetUMatEl(NBASISMAX,UMAT,ALAT,NBASIS,ISS,G1,IDI,IDJ,IDK,IDL)
+                     ME=GetUMatEl(IDI,IDJ,IDK,IDL)
                         EnergyFrom=Arr(EX(1,1),2)+Arr(EX(1,2),2)
                         EnergyTo=Arr(EX(2,1),2)+Arr(EX(2,2),2)
                         IF(MOD(c,75).eq.0) THEN

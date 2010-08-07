@@ -1,12 +1,11 @@
 C ===================================================================
-      SUBROUTINE CALCUMATHUBREAL(NEL,NBASIS,NBASISMAX,G1,UHUB,
-     &            UMAT)
+      SUBROUTINE CALCUMATHUBREAL(NBASIS,UHUB, UMAT)
          use UMatCache , only : UMatInd
          IMPLICIT NONE
-         INTEGER NEL,NBASIS,nBasisMax(5,*),G1(*)
+         INTEGER NBASIS
          REAL*8 UMAT(*)
          REAL*8 UHUB
-         INTEGER I,J,K,IC
+         INTEGER I,IC
          OPEN(10,FILE='UMAT',STATUS='UNKNOWN')
          IC=1
 !Only do this for each spatial orbital.
@@ -31,7 +30,7 @@ C..Returned in sum
       use constants, only: Pi, Pi2, THIRD
       IMPLICIT REAL*8 (A-H,O-Z)
       INTEGER nBasisMax(5,*),AX,AY
-      INTEGER LX,LY,LZ,DX,DY,DZ
+      INTEGER LX,LY,LZ
       LOGICAL TTILT,TREAL
       LX=NBASISMAX(1,2)-NBASISMAX(1,1)+1
       LY=NBASISMAX(2,2)-NBASISMAX(2,1)+1
@@ -104,7 +103,7 @@ C         IF(LZ.GT.1) TOTSUM=TOTSUM+COS(PI*K/(LZ+1))
          INTEGER I,J
          INTEGER DX,DY,DZ,LX,LY,LZ
          LOGICAL TTILT,TREAL,TPBC
-         REAL*8 TOTSUM,S1
+         REAL*8 TOTSUM
          IF(iProcIndex.eq.0) OPEN(10,FILE='TMAT',STATUS='UNKNOWN')
          IF(TSTARSTORE) STOP 'Using TSTARSTORE with HUB??!'
          CALL SetupTMAT(NBASIS,2,iSize)
@@ -291,15 +290,23 @@ C     &         *((NBASISMAX(4,2)-NBASISMAX(4,1))/2+1)
      &    nBasis/2 , " generators for Hubbard momentum" 
 
 C.. Now generate a list of sym labels.
+         write (6,*) 'SIZES',nSymLabels, nBasis, allocated(symlabels),
+     &     associated(symclasses), allocated(symconjtab), 
+     &     allocated(symtable)
          if (allocated(SymLabels)) then
-             write (6,'(a/a)') 'Warning: SymLabels already allocated.',
-     &                         'Deallocating and reallocating.'
+             write (6,'(a/a)') 
+     &                'Warning: symmetry info already allocated.',
+     &                'Deallocating and reallocating.'
              deallocate(SymLabels)
              call LogMemDealloc(this_routine,tagSymLabels)
          end if
          allocate(SymLabels(nSym))
          call LogMemAlloc('SymLabels',nSym,SymmetrySize,this_routine,
      &                                                     tagSymLabels)
+         if (associated(SymClasses)) then
+             deallocate(SymClasses)
+             call LogMemDealloc(this_routine,tagSymClasses)
+         end if
          allocate(SymClasses(nBasis))
          call LogMemAlloc('SymClasses',nBasis,4,this_routine,
      &                                                    tagSymClasses)
@@ -319,9 +326,17 @@ C.. list the symmetry string of each sym label
             SymLabels(I)%s=2**(I-1)
          ENDDO
 C.. Setup the symmetry product table
+         if (allocated(SymTable)) then
+             deallocate(SymTable)
+             call LogMemDealloc(this_routine,tagSymTable)
+         end if
          allocate(SymTable(nSym,nSym))
          call LogMemAlloc('SymTable',nSym**2,SymmetrySize,this_routine,
      &                                                      tagSymTable)
+         if (allocated(SymConjTab)) then
+             deallocate(SymConjTab)
+             call LogMemDealloc(this_routine,tagSymConjTab)
+         end if
          allocate(SymConjTab(nSym))
          call LogMemAlloc('SymConjTable',nSym,4,this_routine,
      &                                                    tagSymConjTab)
@@ -364,15 +379,13 @@ C.. Setup the symmetry product table
 !Hubbard Sym Reps are different from normal ones.  In hubbard, we have split degenerate sets into 1D subcomponents,
 !  but a complete degenerate set will count as a sym rep (i.e. if it is filled, its sym can be discounted),
 !  not just one of the subcomponents
-      SUBROUTINE GENHUBSYMREPS(NSYMMAX,G1,NBASIS,ARR,BRR)
+      SUBROUTINE GENHUBSYMREPS(NBASIS,ARR,BRR)
          use global_utilities
          use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
          use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
          use SymData, only: SymReps,tagSymReps
          IMPLICIT NONE
-         INTEGER NSYMMAX
          INTEGER I,J
-         TYPE(BasisFN) G1(NBASIS)
          INTEGER NBASIS,BRR(NBASIS)
          REAL*8 ARR(NBASIS)
          character(*), parameter :: this_routine='GenHubSymReps'

@@ -23,9 +23,15 @@ module hphf_integrals
         integer(kind=n_int), intent(in) :: iLutI(0:NIfTot), iLutJ(0:NIfTot)
         logical, intent(in) :: tParity
         real(dp), intent(in) :: prob
+        integer :: iUnused
+        logical :: lUnused
         HElement_t :: hel
 
         hel = sign(1.0_dp, prob)
+
+        ! Avoid warnings
+        iUnused = IC; iUnused = ex(1,1); iUnused = nI(1); iUnused = nJ(1)
+        iUnused = iLutI(0); iUnused = iLutJ(0); lUnused = tParity
 
     end function
 
@@ -36,9 +42,16 @@ module hphf_integrals
         integer(kind=n_int), intent(in) :: iLutI(0:NIfTot), iLutJ(0:NIfTot)
         logical, intent(in) :: tParity
         real(dp), intent(in) :: prob
+        integer :: iUnused
+        real(dp) :: rUnused
+        logical :: lUnused
         HElement_t :: hel
 
         hel = hphf_off_diag_helement_norm (nI, nJ, iLutI, iLutJ)
+
+        ! Avoid warnings
+        iUnused = IC; iUnused = ex(1,1); rUnused = prob; lUnused = tParity
+
     end function
 
     function hphf_off_diag_helement_norm (nI, nJ, iLutnI, iLutnJ) result(hel)
@@ -55,11 +68,14 @@ module hphf_integrals
         integer(kind=n_int), intent(in) :: iLutnI(0:NIfTot), iLutnJ(0:NIfTot)
         HElement_t :: hel
 
-        integer :: nI2(nel) 
+        integer :: nI2(nel), iUnused
         integer(kind=n_int) :: iLutnI2(0:NIfTot)
         integer :: ExcitLevel, OpenOrbsI, OpenOrbsJ, Ex(2,2)
         HElement_t :: MatEl2
-        logical :: TestClosedShellDet, tSymmetricInts, tSign
+        logical :: TestClosedShellDet, tSign
+
+        ! Avoid warnings
+        iUnused = nJ(1)
 
         if (DetBitEQ(iLutnI, iLutnJ, NIfDBO)) then
             ! Do not allow an 'off-diagonal' matrix element. The problem is 
@@ -69,7 +85,7 @@ module hphf_integrals
             return
         endif
 
-        hel = sltcnd (nI, nJ, iLutnI, iLutnJ)
+        hel = sltcnd (nI, iLutnI, iLutnJ)
         if (TestClosedShellDet(iLutnI)) then
             if (.not. TestClosedShellDet(iLutnJ)) then
                 ! Closed shell --> Open shell, <X|H|Y> = 1/sqrt(2) [Hia + Hib]
@@ -103,7 +119,7 @@ module hphf_integrals
                     Ex(1,1)=ExcitLevel
                     call GetBitExcitation(iLutnI2,iLutnJ,Ex,tSign)
 
-                    MatEl2 = sltcnd_excit (nI2, nJ, ExcitLevel, Ex, tSign)
+                    MatEl2 = sltcnd_excit (nI2, ExcitLevel, Ex, tSign)
 
                     if (((mod(OpenOrbsI,2) == 0).and.(mod(OpenOrbsJ,2) == 0))&
                         .or. ((mod(OpenOrbsI,2) == 0) .and. &
@@ -138,7 +154,7 @@ module hphf_integrals
         HElement_t :: MatEl2
         logical :: TestClosedShellDet
 
-        hel = sltcnd_excit (nI, nI, 0)
+        hel = sltcnd_excit (nI, 0)
         if (.not. TestClosedShellDet(iLutnI)) then
             ! <i|H|i> = <j|H|j>, so no need to calculate both.
             ! <X|H|X> = 1/2 [ <i|H|i> + <j|H|j> ] + <i|H|j> where i and j are
@@ -151,7 +167,7 @@ module hphf_integrals
             if (ExcitLevel.le.2) then
                 call CalcOpenOrbs (iLutnI, OpenOrbs)
                 call FindDetSpinSym (nI, nI2, nel)
-                MatEl2 = sltcnd (nI, nI2, iLutnI, iLutnI2)
+                MatEl2 = sltcnd (nI,  iLutnI, iLutnI2)
 
                 if (mod(OpenOrbs,2).eq.1) then
                     ! Subtract cross terms if determinant is antisymmetric.

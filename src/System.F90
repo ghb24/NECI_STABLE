@@ -20,6 +20,7 @@ MODULE System
 !     SYSTEM defaults - leave these as the default defaults
 !     Any further addition of defaults should change these after via
 !     specifying a new set of DEFAULTS.
+      tKPntSym=.false.        !This is for k-point symmetry with the symrandexcit2 excitation generators.
       tMCSizeSpace=.false.
       CalcDetPrint=1000
       CalcDetCycles=10000
@@ -754,6 +755,8 @@ MODULE System
         case("LZTOT")
             tFixLz=.true.
             call readi(LzTot)
+        case("KPOINTS")
+            tKPntSym=.true.
         case("ENDSYS") 
             exit system
         case default
@@ -945,13 +948,13 @@ MODULE System
          IF(TDFREAD) THEN
             WRITE(6,'(A)') "  Reading Density fitted integrals.  "
             LMSBASIS=LMS
-            CALL InitDFBasis(nEl,nBasisMax,Len,LMsBasis)
+            CALL InitDFBasis(nBasisMax,Len)
          ELSEIF(tRIIntegrals.or.tCacheFCIDUMPInts) THEN
 !tCacheFCIDUMPInts means that we read in all the integrals from the FCIDUMP integral file, but store them contiguously in the cache
             LMSBASIS=LMS
             IF(tRIIntegrals) THEN
                 WRITE(6,'(A)') "  Reading RI integrals.  "
-                CALL InitRIBasis(nEl,nBasisMax,Len,LMsBasis)
+                CALL InitRIBasis(nBasisMax,Len)
                 LMSBASIS=LMS
             ELSE
                 WRITE(6,'(A)') "  Reading in all integrals from FCIDUMP file, but storing them in a cache...  "
@@ -1206,9 +1209,9 @@ MODULE System
          iSpinSkip=NBasisMax(2,3)
       ELSEIF(TREADINT.AND.TDFREAD) THEN
          WRITE(6,'(A)') '*** Creating Basis Fns from Dalton output ***'
-         call InitDaltonBasis(nBasisMax,Arr,Brr,G1,Len)
+         call InitDaltonBasis(Arr,Brr,G1,Len)
          nBasis=Len
-         call GenMolpSymTable(1,G1,nBasis,Arr,Brr)
+         call GenMolpSymTable(1,G1,nBasis)
       ELSEIF(TREADINT) THEN
 !This is also called for tRiIntegrals and tCacheFCIDUMPInts
          WRITE(6,'(A)') '*** CREATING BASIS FNs FROM FCIDUMP ***'
@@ -1220,12 +1223,12 @@ MODULE System
             DO I=1,nBasis
                G1(I)%Sym%s=0
             ENDDO
-            CALL GENMOLPSYMTABLE(1,G1,NBASIS,ARR,BRR)
+            CALL GENMOLPSYMTABLE(1,G1,NBASIS)
             DO I=1,nBasis
                G1(I)%Sym%s=0
             ENDDO
          ELSE
-            CALL GENMOLPSYMTABLE(NBASISMAX(5,2)+1,G1,NBASIS,ARR,BRR)
+            CALL GENMOLPSYMTABLE(NBASISMAX(5,2)+1,G1,NBASIS)
          ENDIF
       ELSE
 !C.. Create plane wave basis functions
@@ -1293,7 +1296,7 @@ MODULE System
                STOP ' LEN NE IG ' 
             endif
          ENDIF
-         CALL GENMOLPSYMTABLE(1,G1,NBASIS,ARR,BRR)
+         CALL GENMOLPSYMTABLE(1,G1,NBASIS)
       ENDIF
 
       IF(tFixLz) THEN
@@ -1331,25 +1334,25 @@ MODULE System
 !C.. we're reading in integrals and have a molpro symmetry table
          IF(lNoSymmetry) THEN
             WRITE(6,*) "Turning Symmetry off"
-            CALL GENMOLPSYMREPS(1) 
+            CALL GENMOLPSYMREPS() 
          ELSE
-            CALL GENMOLPSYMREPS(NBASISMAX(5,2)+1) 
+            CALL GENMOLPSYMREPS() 
          ENDIF
       ELSEIF(TCPMD) THEN
 !C.. If TCPMD, then we've generated the symmetry table earlier,
 !C.. but we still need the sym reps table.
-         CALL GENCPMDSYMREPS(G1,NBASIS,ARR,BRR,1.d-5)
+         CALL GENCPMDSYMREPS(G1,NBASIS,ARR,1.d-5)
       ELSEIF(tVASP) THEN
 !C.. If VASP-based calculation, then we've generated the symmetry table earlier,
 !C.. but we still need the sym reps table. DEGENTOL=1.d-6. CHECK w/AJWT.
-         CALL GENSYMREPS(G1,NBASIS,ARR,BRR,1.d-6)
+         CALL GENSYMREPS(G1,NBASIS,ARR,1.d-6)
       ELSEIF(THUB.AND..NOT.TREAL) THEN
          CALL GenHubMomIrrepsSymTable(G1,nBasis,nBasisMax)
-         CALL GENHUBSYMREPS(nBasis/2,G1,NBASIS,ARR,BRR)
+         CALL GENHUBSYMREPS(NBASIS,ARR,BRR)
          CALL WRITEBASIS(6,G1,nBasis,ARR,BRR)
       ELSE
 !C.. no symmetry, so a simple sym table
-         CALL GENMOLPSYMREPS(1) 
+         CALL GENMOLPSYMREPS()
       ENDIF
 
 !C..
@@ -1444,7 +1447,7 @@ SUBROUTINE ORDERBASIS(NBASIS,ARR,BRR,ORBORDER,NBASISMAX,G1)
   INTEGER BRR2(NBASIS)
   TYPE(BASISFN) G1(NBASIS)
   REAL*8 ARR(NBASIS,2),ARR2(NBASIS,2)
-  INTEGER IDONE,I,J,IBFN,ITOT,ITYPE,K,ISPIN
+  INTEGER IDONE,I,J,IBFN,ITOT,ITYPE,ISPIN
   REAL*8 OEN
   IDONE=0
   ITOT=0

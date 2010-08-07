@@ -168,7 +168,9 @@ contains
 
         integer, intent(in) :: i, j
         HElement_t :: ret
+#ifdef __CMPLX
         HElement_t :: t
+#endif
 
         if (tStarStore) then
             ret = TMatSym(TMatInd(i, j))

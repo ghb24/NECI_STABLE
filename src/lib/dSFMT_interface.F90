@@ -37,7 +37,6 @@ contains
         !    seed: seed for the RNG.
 
         integer, intent(in) :: seed
-        integer :: ierr
 
         call init_gen_rand(seed)
 

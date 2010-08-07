@@ -1,5 +1,6 @@
 MODULE FciMCData
       use, intrinsic :: iso_c_binding
+      use SystemData, only: BasisFN
       use constants, only: dp, int64, n_int, lenof_sign
       use global_utilities
 
@@ -170,6 +171,8 @@ MODULE FciMCData
       ! Store data about all processors for calculating load balancing
       integer(int64) :: MaxWalkersProc, MinWalkersProc
 
+      TYPE(BasisFN) :: HFSym
+
 
       ! ********************** FCIMCPar control variables *****************
       ! Store data from one fcimc iteration
@@ -223,8 +226,8 @@ MODULE FciMCData
       ! Only used in FciMC, but put here to allow access to a data module for
       ! the sorting routines etc.
       type excitGenerator
-          integer, allocatable :: excitdata(:) ! The excitation generator
-          integer :: nExcitMemLen           ! Length of excitation gen.
+          integer, pointer :: excitdata(:) ! The excitation generator
+          integer :: nExcitMemLen = 0           ! Length of excitation gen.
           logical :: excitGenForDet = .false.   ! true if excitation generator
                                                ! stored corresponds to the
                                                ! determinant.
@@ -249,27 +252,38 @@ MODULE FciMCData
       end interface
 
 contains
+    
+    pure subroutine excitgenerator_init (egen)
+        type(excitGenerator), intent(inout) :: egen
+        nullify(egen%excitdata)
+        egen%nExcitMemLen = 0
+        egen%excitGenForDet = .false.
+    end subroutine
+
+    pure subroutine excitgenerator_destroy (egen)
+        type(excitGenerator), intent(inout) :: egen
+        if (associated(egen%excitdata)) deallocate(egen%excitdata)
+        nullify(egen%excitdata)
+        egen%nExcitMemLen = 0
+        egen%excitGenForDet = .false.
+    end subroutine
 
     elemental subroutine excitgenerator_assign (lhs, rhs)
         type(excitGenerator), intent(inout) :: lhs
         type(excitGenerator), intent(in) :: rhs
-        character(*), parameter :: this_routine = 'excitgenerator_assign'
-        integer :: ierr
 
-        if (allocated(lhs%excitData)) deallocate(lhs%excitData)
+        if (associated(lhs%excitData)) deallocate(lhs%excitData)
 
         ! Do we actually want the excitation generator? Is it for the correct
         ! determinant?
-        if (.not. rhs%excitGenForDet) then
-            lhs%excitGenForDet = .false.
-        else
+        if (rhs%excitGenForDet) then
             ! Now copy the excitation generator.
             allocate (lhs%excitData(rhs%nExcitMemLen))
 
             lhs%excitData = rhs%excitData
-            lhs%nExcitMemLen = rhs%nExcitMemLen
-            lhs%excitGenForDet = .true.
         endif
+        lhs%nExcitMemLen = rhs%nExcitMemLen
+        lhs%excitGenForDet = rhs%excitGenForDet
     end subroutine
 
 END MODULE FciMCData

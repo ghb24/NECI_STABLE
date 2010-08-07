@@ -25,7 +25,7 @@
          IMPLICIT NONE
          INTEGER :: ExcitMat(2,2),i,j,k,EX2(2,2)!,EX(2,2)
          INTEGER :: nI(NEl),IC,iPos,TempInd!,NJ(NEL)
-         LOGICAL :: TParity,TSIGN
+         LOGICAL :: TParity
          
 !         WRITE(19,*) ExcitMat(:,:),nI
 !         IF((IC.gt.2).or.(IC.lt.0)) THEN
@@ -201,9 +201,9 @@
       END SUBROUTINE FindExcitDet
 
 
-      LOGICAL FUNCTION AREDETSEXCITS(D1,D2,NEL,NBASISMAX,ICE)
+      LOGICAL FUNCTION AREDETSEXCITS(D1,D2,NEL,ICE)
          IMPLICIT NONE
-         INTEGER ICE,NEL,D1(NEL),D2(NEL),NBASISMAX(*)
+         INTEGER ICE,NEL,D1(NEL),D2(NEL)
          LOGICAL ISUHFDET
          INTEGER IGETEXCITLEVEL_
          ICE=IGETEXCITLEVEL_(D1,D2,NEL)
@@ -268,7 +268,8 @@ C         CALL WRITEDET(6,NJ,NEL,.TRUE.)
          DO WHILE(I.LE.NEL.AND.J.LE.NEL)
 C.. Differences from I to J
 C            WRITE(6,*) "GE",I,J
-            DO WHILE(I.LE.NEL.AND.NI(I).LT.NJ(J))
+            DO WHILE(I.LE.NEL)
+               if (NI(I) >= NJ(J)) exit
                IC1=IC1+1
                IF(IC1.LE.iMaxExcit) THEN
                   EX(1,IC1)=NI(I)
@@ -277,7 +278,8 @@ C            WRITE(6,*) "GE",I,J
                I=I+1
             ENDDO
 C.. Differences from J to I
-            DO WHILE(I.LE.NEL.AND.J.LE.NEL.AND.NI(I).GT.NJ(J))
+            DO WHILE(I.LE.NEL.AND.J.LE.NEL)
+               if (NI(I) <= NJ(J)) exit
                IC2=IC2+1
                IF(IC2.LE.iMaxExcit) THEN
                   EX(2,IC2)=NJ(J)
@@ -285,9 +287,11 @@ C.. Differences from J to I
                ENDIF
                J=J+1
             ENDDO
-            IF(I.LE.NEL.AND.J.LE.NEL.AND.NI(I).EQ.NJ(J)) THEN
-               I=I+1
-               J=J+1
+            IF(I.LE.NEL.AND.J.LE.NEL) then
+               if (NI(I) == NJ(J)) then
+                   I=I+1
+                   J=J+1
+               endif
             ENDIF
          ENDDO
 C.. Deal with remaining I
@@ -374,7 +378,7 @@ C.. If we're actually using CSFs
                   ENDIF
                ENDIF
 C.. use a new excitation routine - THIS DOES NOT PRODUCE AN ORDERED LIST
-               CALL SYMSETUPEXCITS(NI,NEL,G1,NBASIS,NBASISMAX,STORE,
+               CALL SYMSETUPEXCITS(NI,NEL,NBASIS,STORE,
      &            TCOUNT,ICOUNT,ILEVEL,1,nEl)
                IF(.NOT.TCOUNT) THEN
                   IF(ICOUNT.GT.NLIST) THEN
@@ -382,7 +386,7 @@ C.. use a new excitation routine - THIS DOES NOT PRODUCE AN ORDERED LIST
                      WRITE(6,*) "Requires size",ICOUNT
                      STOP "EXCITATIONS LIST NOT LARGE ENOUGH"
                   ENDIF
-                  CALL SYMGENEXCITS(NI,NEL,G1,NBASIS,NBASISMAX,STORE,
+                  CALL SYMGENEXCITS(NI,NEL,STORE,
      &               LIST,ICLIST,ICOUNT)
                ENDIF
                NLIST=ICOUNT
@@ -416,7 +420,7 @@ C.. NSTARTFN is the basis fn to start with for this electron
          IMPLICIT NONE
          INTEGER NEL,NELEC,NORDER,NLISTPOS,NLEFT,NBASIS,NSTARTFN,NNLEFT
          INTEGER NI(NEL),NEXCIT(NEL),LIST(NEL,*),ICLIST(*)
-         INTEGER I,J,I1,I2,NMIN,NMAXEX,K,NExcitMl
+         INTEGER I,J,NMIN,NMAXEX,NExcitMl
          LOGICAL LISINOLD,LSYM,TSYM,TCOUNT,LZSYM
          TYPE(BASISFN) G1(NBASIS),ISYM,ISYM2
          INTEGER nBasisMax(5,*)

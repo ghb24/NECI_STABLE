@@ -103,11 +103,9 @@ contains
         use sym_mod
       
       real*8 DNDET
-      integer i,ii,j
+      integer i,j
       integer*8 nDet
-      integer ierr
       integer :: alpha,beta,symalpha,symbeta,endsymstate
-      character(25), parameter :: this_routine='DetInit'
       LOGICAL :: tSuccess,tFoundOrbs(nBasis)
       integer :: ncsf
 
@@ -120,7 +118,7 @@ contains
 !iActiveBasis is a copy of nPaths
       IF(iActiveBasis.eq.-2) then
 !  PATHS ACTIVE SETS
-         Call GenActiveBasis(ARR,BRR,G1,nBasis,LMS,nEl,nActiveBasis,nActiveSpace(1),nActiveSpace(2))
+         Call GenActiveBasis(ARR,nBasis,nEl,nActiveBasis,nActiveSpace(1),nActiveSpace(2))
       elseif(iActiveBasis.eq.-3) then
 !  PATHS ACTIVE ORBITALS
          nActiveBasis(1)=nEl+1-nActiveSpace(1)
@@ -142,7 +140,7 @@ contains
 !C     &         "Cannot block diagonalize in HF Basis."
 !C         STOP
 !C      ENDIF
-!C      CALL SYMGENEXCITS(FDET,NEL,G1,NBASIS,NBASISMAX)
+!C      CALL SYMGENEXCITS(FDET,NEL,NBASIS)
 !C      CALL LeaveMemoryManager
 !C      STOP
 
@@ -222,11 +220,11 @@ contains
             WRITE(6,*) "Will attempt to set up the symmetry again, but now in terms of spin orbitals"
             WRITE(6,*) "Old excitation generators will not work"
             WRITE(6,*) "I strongly suggest you check that the reference energy is correct."
-            CALL SpinOrbSymSetup(.true.) 
+            CALL SpinOrbSymSetup() !.true.) 
         ELSE
             WRITE(6,*) "Symmetry and spin of orbitals correctly set up for excitation generators."
             WRITE(6,*) "Simply transferring this into a spin orbital representation."
-            CALL SpinOrbSymSetup(.false.) 
+            CALL SpinOrbSymSetup() !.false.) 
         ENDIF
 ! From now on, the orbitals are also contained in symlabellist2 and symlabelcounts2.
 ! These are stored using spin orbitals.
@@ -275,7 +273,7 @@ contains
             call stop_all(this_routine, "tStoreExcitations not supported")
 
         if (present(iLutJ)) then
-            hel = sltcnd_knowIC (nI, nJ, iLutI, iLutJ, IC)
+            hel = sltcnd_knowIC (nI, iLutI, iLutJ, IC)
         else
             hel = sltcnd_compat (nI, nJ, IC)
         endif
@@ -326,12 +324,12 @@ contains
         endif
 
         if (present(iLutJ)) then
-            hel = sltcnd (nI, nJ, iLutI, iLutJ, IC)
+            hel = sltcnd (nI, iLutI, iLutJ, IC)
         else
             call EncodeBitDet (nI, iLut(:,1))
             call EncodeBitdet (nJ, iLut(:,2))
             ! TODO: This is not an ideal place to end up...
-            hel = sltcnd (nI, nJ, iLut(:,1), ilut(:,2), IC)
+            hel = sltcnd (nI, iLut(:,1), ilut(:,2), IC)
         endif
 
         ! Add in ECore for a diagonal element
@@ -377,7 +375,7 @@ contains
                          &used if we know the number of excitations and the &
                          &excitation matrix")
 
-        hel = sltcnd_excit (nI, nJ, IC, ExcitMat, tParity)
+        hel = sltcnd_excit (nI, IC, ExcitMat, tParity)
 
         if (IC == 0)  hel = hel + (ECore)
     end function get_helement_excit
@@ -404,7 +402,11 @@ contains
         real(dp), intent(in) :: prob
         HElement_t :: hel
 
-        hel = sltcnd_excit (nI, nJ, IC, ex, tParity)
+        ! Eliminate compiler warnings
+        real(dp) :: rUnused; integer(n_int) :: iUnused; integer :: iUnused2
+        rUnused=prob; iUnused=iLutJ(1); iUnused=iLutI(1); iUnused2=nJ(1)
+
+        hel = sltcnd_excit (nI, IC, ex, tParity)
 
         if (IC == 0) hel = hel + ECore
     end function
@@ -561,13 +563,11 @@ END MODULE Determinants
 ! nDown is the number of orbital sets  below the Fermi level
 ! nUp is the number of orbital sets  above the Fermi level
 
-      SUBROUTINE GenActiveBasis(ARR,BRR,G1,nBasis,LMS,nEl,nActiveBasis, nDown,nUp)
+      SUBROUTINE GenActiveBasis(ARR,nBasis,nEl,nActiveBasis, nDown,nUp)
          use SystemData, only: BasisFN
          IMPLICIT NONE
          REAL*8 ARR(nBasis)
-         INTEGER BRR(nBasis)
-         TYPE(BasisFN) G1(nBasis)
-         INTEGER LMS,nEl,nActiveBasis(2),nBasis
+         INTEGER nEl,nActiveBasis(2),nBasis
          INTEGER I,nDown,nUp,nLeft
          I=nEl+1
          nLeft=1+nUp
@@ -720,13 +720,12 @@ END MODULE Determinants
 
 
 ! Calculate the one-electron part of the energy of a det
-      REAL*8 FUNCTION CALCT(NI,NEL,G1,NBASIS)
+      REAL*8 FUNCTION CALCT(NI,NEL)
          use constants, only: dp
          USE SystemData, only : BasisFN
          USE OneEInts, only : GetTMatEl
          IMPLICIT NONE
-         INTEGER NEL,NI(NEL),NBASIS,I
-         TYPE(BasisFN) :: G1(*)
+         INTEGER NEL,NI(NEL),I
          LOGICAL ISCSF
          CALCT=0.D0
          IF(ISCSF(NI,NEL)) RETURN
@@ -757,7 +756,7 @@ END MODULE Determinants
          use bit_reps, only: NIfTot
          use constants, only: n_int
          implicit none
-         integer nUnit,nExpI(nEl)
+         integer nUnit
          integer(kind=n_int) :: iLutRef(0:nIfTot),iLutnI(0:nIfTot)
          integer Ex(2,nEl)
          logical lTerm
@@ -802,7 +801,7 @@ END MODULE Determinants
         integer :: det_sorted(NEl), e_store ! Storage for the sorting routine
         logical :: sorted ! As above
         integer :: wrapped_index
-        integer :: k_old, k_new
+        integer :: k_new
 
         IF(.not.tUEG) call stop_all("ModifyMomentum", "Only works for UEG")
 

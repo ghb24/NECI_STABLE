@@ -34,9 +34,8 @@ contains
 !  If it is found, its location is placed in FoundIndex and tSuccess is set to .TRUE.
 !  If not, then the index of the largest item less than Value is placed in FoundIndex, and tSuccess is set to .FALSE.
 
-    SUBROUTINE BinarySearch(Value,List,Length,MinInd,MaxInd,FoundIndex,tSuccess)
+    SUBROUTINE BinarySearch(Value,List,MinInd,MaxInd,FoundIndex,tSuccess)
         INTEGER :: MinInd,MaxInd,FoundIndex
-        INTEGER :: Length
         %(type1)s :: Value()
         %(type1)s :: List(:)
         INTEGER :: i,j,N

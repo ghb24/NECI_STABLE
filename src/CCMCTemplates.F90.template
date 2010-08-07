@@ -21,31 +21,51 @@ module ClusterList
    implicit none
 
    type AmplitudeList_%(name)s
-      %(type1)s, allocatable ::   Amplitude(:,:)
-      %(type1)s, allocatable ::   CumlAmplitude(:)
+      %(type1)s, pointer ::   Amplitude(:,:)
+      %(type1)s, pointer ::   CumlAmplitude(:)
       integer tagAmplitude
       integer tagCumlAmplitude
+      logical bShared
    end type
 
 
 contains
-   subroutine AllocateAmplitudeList (AL,nAmpl,nLists)
+   subroutine AllocateAmplitudeList (AL,nAmpl,nLists,tShared)
+      use shared_alloc
       CHARACTER(len=*), PARAMETER :: this_routine='AllocateAmplitudeList_%(name)s'
       Type(AmplitudeList_%(name)s) AL
+      logical tShared
       integer nAmpl,nLists
-      Allocate(AL%%Amplitude(nAmpl,nLists))
-      LogAlloc(ierr,'AL%%Amplitude',nAmpl*nLists,%(size)s,AL%%tagAmplitude)
-      Allocate(AL%%CumlAmplitude(nAmpl))
-      LogAlloc(ierr,'AL%%CumlAmplitude',nAmpl,%(size)s,AL%%tagCumlAmplitude)
+      integer arrdim(2),arrdim1(1)
+      arrdim1(1)=nAmpl
+      arrdim(1)=nAmpl
+      arrdim(2)=nLists
+      AL%%bShared=tShared
+      if(tShared) then
+         call shared_allocate("CCMCAmps",AL%%Amplitude,arrdim)
+         LogAlloc(ierr,'AL%%Amplitude',nAmpl*nLists,%(size)s,AL%%tagAmplitude)
+         call shared_allocate("CumlAmps",AL%%CumlAmplitude,arrdim1)
+         LogAlloc(ierr,'AL%%CumlAmplitude',nAmpl,%(size)s,AL%%tagCumlAmplitude)
+      else
+         Allocate(AL%%Amplitude(nAmpl,nLists))
+         LogAlloc(ierr,'AL%%Amplitude',nAmpl*nLists,%(size)s,AL%%tagAmplitude)
+         Allocate(AL%%CumlAmplitude(nAmpl))
+         LogAlloc(ierr,'AL%%CumlAmplitude',nAmpl,%(size)s,AL%%tagCumlAmplitude)
+      endif
    end subroutine ! AllocateAmplitudeList 
 
    subroutine DeallocateAmplitudeList (AL)
+      use shared_alloc
       CHARACTER(len=*), PARAMETER :: this_routine='DeallocateAmplitudeList_%(name)s'
       Type(AmplitudeList_%(name)s) AL
       LogDealloc(AL%%tagAmplitude)
-      Deallocate(AL%%Amplitude)
-      LogDealloc(AL%%tagCumlAmplitude)
-      Deallocate(AL%%CumlAmplitude)
+      if(AL%%bShared) then
+         call shared_deallocate(AL%%Amplitude)
+         call shared_deallocate(AL%%CumlAmplitude)
+      else
+         LogDealloc(AL%%tagCumlAmplitude)
+         Deallocate(AL%%CumlAmplitude)
+      endif
    end subroutine !DeallocateAmplitudeList 
 
    subroutine AccumulateAmplitudeList(AL,nAmpl,iCurAmpl,iRefPos)
@@ -110,7 +130,7 @@ SUBROUTINE IncrementOrderedTupleCheck (Tuple,iSize,iMin,iMax,tDone,Param)
    IMPLICIT NONE
    INTEGER Tuple(iSize),iSize,iMax,iMin
    LOGICAL tDone
-   INTEGER i,j
+   INTEGER i
    %(type1)s Param(:)
    if(iSize.eq.0) then
       tDone=.true.
@@ -123,7 +143,7 @@ SUBROUTINE IncrementOrderedTupleCheck (Tuple,iSize,iMin,iMax,tDone,Param)
    endif
 ! i is the index in the tuple we're currently trying to increment.
    do while (i.le.iSize)
-      call GetNextNonZeroExcitor(Tuple(i),Param,iMin,iMax)
+      call GetNextNonZeroExcitor(Tuple(i),Param,iMax)
       if(Tuple(i).gt.(iMax-(iSize-i))) then
 !If we've gone beyond what is the max possible value for this slot, then we move back, otherwise we move forward
          i=i-1
@@ -140,11 +160,11 @@ SUBROUTINE IncrementOrderedTupleCheck (Tuple,iSize,iMin,iMax,tDone,Param)
    return
 END SUBROUTINE !IncrementOrderedTupleCheck 
 
-SUBROUTINE GetNextNonZeroExcitor (Pos,List,iMin,iMax)
+SUBROUTINE GetNextNonZeroExcitor (Pos,List,iMax)
    IMPLICIT NONE
    INTEGER Pos
    %(type1)s List(:)
-   INTEGER iMin,iMax
+   INTEGER iMax
    Pos=Pos+1
    DO WHILE(Pos.le.iMax)
       if(List(Pos).ne.0) exit
@@ -207,6 +227,9 @@ SUBROUTINE CalcClusterEnergy (tFCI,Amplitude,nExcit,ExcitList,ExcitLevelIndex,iR
    INTEGER(kind=n_int) iLutnI(0:nIfTot)
    Type(Cluster) C
 
+    ! Avoid compile warnings when not in debug mode
+    iDebug = iDebug
+
    allocate(C%%SelectedExcitors(0:nIfTot,2))
    iC=0
    dT1Sq=0
@@ -226,7 +249,7 @@ SUBROUTINE CalcClusterEnergy (tFCI,Amplitude,nExcit,ExcitList,ExcitLevelIndex,iR
          endif
 ! Deal with T_1^2
          IFDEBUGTHEN(iDebug,4)
-            C%%SelectedExcitors(:,1)=ExcitList(:,j)
+            c%%sELECTedExcitors(:,1)=ExcitList(:,j)
             C%%iSize=1
             if(j==1) C%%iSize=0
             call WriteCluster(79,C,.false.)
@@ -386,11 +409,12 @@ END SUBROUTINE !CalcClusterEnergyUnsrt
 !     P_total = P_norm * P_cluster_given_size
 !  and is placed in CS%%C%%dSelectionProb
 
-FUNCTION GetNextCluster (CS,Dets,nDet,AL,iCurAmpList,dTotAbsAmpl,iNumExcitors,iMaxSizeIn,iDebug) result (GetNextCluster)
+FUNCTION GetNextCluster (CS,Dets,nDet,AL,iCurAmpList,dTotAbsAmpl,iMaxSizeIn,iDebug) result (GetNextCluster)
    use CCMCData, only: ClustSelector
    use BinSearch, only: BinarySearch
    use dSFMT_interface , only : genrand_real2_dSFMT
    use timing
+   use Parallel, only : nProcessors
    IMPLICIT NONE
    TYPE(ClustSelector) CS
    INTEGER nDet
@@ -402,9 +426,8 @@ FUNCTION GetNextCluster (CS,Dets,nDet,AL,iCurAmpList,dTotAbsAmpl,iNumExcitors,iM
 
    INTEGER iMaxSize
    REAL*8 dProbNumExcit,dCurTot,r
-   INTEGER i,j,k,l,nk
+   INTEGER i,k,nk
    LOGICAL tDone,tNew,tSuccess
-   INTEGER iNumExcitors
    LOGICAL GetNextCluster
 !   TYPE(timer),save :: CCMC_time
 
@@ -412,8 +435,9 @@ FUNCTION GetNextCluster (CS,Dets,nDet,AL,iCurAmpList,dTotAbsAmpl,iNumExcitors,iM
 !   call set_timer(CCMC_time,20)
 
    if(CS%%tDynamic.and.CS%%iIndex.eq.0) then
-      CS%%nSelects=dTotAbsAmpl+abs(AL%%Amplitude(CS%%iRefPos,iCurAmpList))
+      CS%%nSelects=(dTotAbsAmpl+abs(AL%%Amplitude(CS%%iRefPos,iCurAmpList)))/nProcessors+1
       CS%%nSelects=nint(CS%%nSelects*CS%%dRatio)
+      IFDEBUG(iDebug,4) write(6,*) "Setting #Selectons: ",CS%%nSelects
    endif
    GetNextCluster=.true.
    iMaxSize=min(iMaxSizeIn,CS%%iMaxSize)
@@ -475,7 +499,7 @@ FUNCTION GetNextCluster (CS,Dets,nDet,AL,iCurAmpList,dTotAbsAmpl,iNumExcitors,iM
       endif
       if(GetNextCluster) then
          dProbNumExcit=CS%%dProbSelNewExcitor
-         CS%%C%%dProbNorm=CS%%nSelects
+         CS%%C%%dProbNorm=CS%%nSelects*nProcessors
          CS%%C%%dClusterProb=1
          CS%%C%%dAbsAmplitude=abs(AL%%Amplitude(CS%%iRefPos,iCurAmpList))
          CS%%C%%dClusterNorm=1
@@ -494,7 +518,7 @@ FUNCTION GetNextCluster (CS,Dets,nDet,AL,iCurAmpList,dTotAbsAmpl,iNumExcitors,iM
             rt=r*dTotAbsAmpl
             dCurTot=0
             IFDEBUG(iDebug,7) Write(6,*) "Probability Threshold",rt
-            call BinarySearch(rt,AL%%CumlAmplitude,nDet,1,nDet,k,tSuccess)
+            call BinarySearch(rt,AL%%CumlAmplitude,1,nDet,k,tSuccess)
             if(.not.tSuccess) k=k+1  ! We want to be >=rt.
             if(k.eq.CS%%iRefPos) then  !Adjust for accidentally finding refpos
                nk=k
@@ -567,7 +591,7 @@ FUNCTION GetNextCluster (CS,Dets,nDet,AL,iCurAmpList,dTotAbsAmpl,iNumExcitors,iM
    !                 = (dAbsAmplitude / N0) * ( P_norm(0) / (n! P_norm(n) (dAbsAmplitude/N0))
          r=CS%%dProbSelNewExcitor
          if(iMaxSize==0) r=1  !Cope with the case when there are no clusters
-         CS%%C%%dSelectionNorm=(CS%%C%%dAbsAmplitude/abs(AL%%Amplitude(CS%%iRefPos,iCurAmpList)))*(r*CS%%nSelects)/CS%%C%%dSelectionProb
+         CS%%C%%dSelectionNorm=(CS%%C%%dAbsAmplitude/abs(AL%%Amplitude(CS%%iRefPos,iCurAmpList)))*(r*CS%%nSelects*nProcessors)/CS%%C%%dSelectionProb
 !/CS%%C%%dSelectionNorm
       endif
    endif
@@ -592,6 +616,10 @@ SUBROUTINE CollapseCluster (C,iLutHF,Amplitude,nDet,iDebug,tExToDet)
    LOGICAL tExToDet
 
    INTEGER i
+
+   ! Avoid compile warnings outside debug mode
+   iDebug = iDebug
+
 !   TYPE(timer),save :: CCMC_time
 
 !   CCMC_time%%timer_name="CollapseCluster"
@@ -644,6 +672,10 @@ subroutine CalcTotals (iNumExcitors,dTotAbsAmpl,Amplitude,nAmpl,dTol,WalkerScale
    integer i,j
    real*8 dPsiTotAbsAmpl,dTmp
    real*8 dTotExcitors
+
+   ! Avoid compile warnings outside debug mode
+   iDebug = iDebug
+
 !   TYPE(timer),save :: CCMC_time
 
 !   CCMC_time%%timer_name="CalcTotalsr"
