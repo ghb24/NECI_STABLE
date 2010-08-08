@@ -67,7 +67,7 @@ contains
           MemoryFacPart=10.D0
           MemoryFacAnnihil=10.D0
           MemoryFacSpawn=0.5
-          TStartSinglePart=.false.
+          TStartSinglePart=.true.
           TFixParticleSign=.false.
           TProjEMP2=.false.
           THFRetBias=.false.
@@ -933,6 +933,11 @@ contains
                 IF(item.lt.nitems) THEN
                     !If an optional integer keyword is added, then InitialPart will indicate the number of particles to start at the HF determinant.
                     call readi(InitialPart)
+                    if (InitialPart < 0) then
+                        ! Turn StartSinglePart off.
+                        tStartSinglePart = .false.
+                        InitialPart = 1
+                    end if
                 ENDIF
             case("MEMORYFACPART")
 !An FCIMC option - MemoryFac is the factor by which space will be made available for extra walkers compared to InitWalkers

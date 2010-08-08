@@ -4225,9 +4225,11 @@ MODULE FciMCParMod
         ValidSpawnedList(:)=InitialSpawnedSlots(:)
 
         if (TReadPops) then
-            if (tStartSinglePart .and. .not. tReadPopsRestart) &
-                call stop_all (this_routine, &
-                               "ReadPOPS cannot work with StartSinglePart")
+            if (tStartSinglePart .and. .not. tReadPopsRestart) then
+                call warning(this_routine, &
+                               "ReadPOPS cannot work with StartSinglePart: ignoring StartSinglePart")
+                tStartSinglePart = .false.
+            end if
         endif
 
         IF(.not.TReadPops) THEN
