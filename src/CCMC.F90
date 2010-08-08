@@ -2397,7 +2397,14 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
 ! Calc Shift
       iShiftLeft=iShiftLeft-1
 
-      NoAtHF=AL%Amplitude(iRefPos,iCurAmpList)
+!Fix the statistics for multiple threads
+      if(iProcIndex==root) then
+         NoAtHF=AL%Amplitude(iRefPos,iCurAmpList)
+      else
+         TotParts=0
+         NoAtHF=0
+      endif
+      
 !TotWalkers is used for this and is WalkerScale* total of all amplitudes
       if(iShiftLeft.le.0)  Call calculate_new_shift_wrapper(iter_data_ccmc, &
                                                             TotParts)
