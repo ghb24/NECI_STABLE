@@ -174,7 +174,9 @@ module Parallel
 
     interface MPIGatherV
         module procedure MPIGatherV_len_%(name)s
+        module procedure MPIGatherV_len2_%(name)s
         module procedure MPIGatherV_auto_%(name)s
+        module procedure MPIGatherV_auto2_%(name)s
     end interface
 
 contains
@@ -485,13 +487,28 @@ end subroutine
 Subroutine MPIGatherV_len(SendBuf,SendSize,RecvBuf,Lengths,Disps,root,ierr)
     INTEGER,intent(in) :: SendSize,Lengths(:),root,Disps(:)
     INTEGER, intent(out) :: ierr
+    %(type1)s,intent(in) :: SendBuf()
+    %(type1)s,intent(inout) :: RecvBuf(:)
+#ifdef PARALLEL
+!    write(6,*) "AllToAll %(type1)s",SendSize,RecvSize
+    CALL MPI_GatherV(SendBuf,SendSize,%(mpitype)s,RecvBuf,Lengths,Disps,%(mpitype)s,root,MPI_COMM_WORLD,ierr)
+#else
+    RecvBuf(1)=SendBuf()
+    ierr=0
+#endif
+end subroutine
+
+! This gathers an array into another array with the same number of dims.
+Subroutine MPIGatherV_len2(SendBuf,SendSize,RecvBuf,Lengths,Disps,root,ierr)
+    INTEGER,intent(in) :: SendSize,Lengths(:),root,Disps(:)
+    INTEGER, intent(out) :: ierr
     %(type1)s,intent(in) :: SendBuf(:)
     %(type1)s,intent(inout) :: RecvBuf(:)
 #ifdef PARALLEL
 !    write(6,*) "AllToAll %(type1)s",SendSize,RecvSize
     CALL MPI_GatherV(SendBuf,SendSize,%(mpitype)s,RecvBuf,Lengths,Disps,%(mpitype)s,root,MPI_COMM_WORLD,ierr)
 #else
-    RecvBuf(1)=SendBuf
+    RecvBuf(Disps(1):Disps(1)+Lengths(1))=SendBuf(:)
     ierr=0
 #endif
 end subroutine
@@ -501,7 +518,7 @@ end subroutine
 Subroutine MPIGatherV_auto(Values,Values2,Lengths,Disps,root,ierr)
     INTEGER, intent(out) :: ierr
     INTEGER, intent(in) :: root,Disps(:),Lengths(:)
-    %(type1)s,intent(in) :: Values(:)
+    %(type1)s,intent(in) :: Values()
     %(type1)s,intent(inout) :: Values2(:)
 #ifdef PARALLEL
     CALL MPI_GatherV(Values,%(mpilen)s,&
@@ -509,6 +526,24 @@ Subroutine MPIGatherV_auto(Values,Values2,Lengths,Disps,root,ierr)
       Disps,%(mpitype)s,root,MPI_COMM_WORLD,ierr)
 #else
     Values2(1)=Values
+    ierr=0
+#endif
+end subroutine
+
+! This gathers an array into another array with the same number of dims.
+! Values is the Send Buffer
+! Values2 is the Receive Buffer
+Subroutine MPIGatherV_auto2(Values,Values2,Lengths,Disps,root,ierr)
+    INTEGER, intent(out) :: ierr
+    INTEGER, intent(in) :: root,Disps(:),Lengths(:)
+    %(type1)s,intent(in) :: Values(:)
+    %(type1)s,intent(inout) :: Values2(:)
+#ifdef PARALLEL
+    CALL MPI_GatherV(Values,%(mpilen)s,&
+      %(mpitype)s,Values2,Lengths,&
+      Disps,%(mpitype)s,root,MPI_COMM_WORLD,ierr)
+#else
+    Values2(Disps(1):Disps(1)+Lengths(1))=Values(:)
     ierr=0
 #endif
 end subroutine
