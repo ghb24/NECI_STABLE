@@ -3,7 +3,7 @@ MODULE Determinants
     use constants, only: dp
     use SystemData, only: BasisFN, tCSF, nel, G1, Brr, ECore, ALat, NMSH, &
                           nBasis, nBasisMax, tStoreAsExcitations, tHPHFInts, &
-                          tCSF
+                          tCSF, tCPMD
     use IntegralsData, only: UMat, FCK, NMAX
     use csf, only: det_to_random_csf, iscsf, csf_orbital_mask, &
                    csf_yama_bit, CSFGetHelement
@@ -212,19 +212,27 @@ contains
                 ENDIF
             enddo
         ENDIF
-        IF(.not.tSuccess) THEN
-            WRITE(6,*) "************************************************"
-            WRITE(6,*) "**                 WARNING!!!                 **"
-            WRITE(6,*) "************************************************"
-            WRITE(6,*) "Symmetry information not set up correctly in NECI initialisation"
-            WRITE(6,*) "Will attempt to set up the symmetry again, but now in terms of spin orbitals"
-            WRITE(6,*) "Old excitation generators will not work"
-            WRITE(6,*) "I strongly suggest you check that the reference energy is correct."
-            CALL SpinOrbSymSetup() !.true.) 
-        ELSE
-            WRITE(6,*) "Symmetry and spin of orbitals correctly set up for excitation generators."
-            WRITE(6,*) "Simply transferring this into a spin orbital representation."
-            CALL SpinOrbSymSetup() !.false.) 
+        ! SpinOrbSymSetup currently sets up the symmetry arrays for use with
+        ! symrandexcit2 excitation routines. These are not currently
+        ! compatible with non-abelian symmetry groups, which CPMD jobs
+        ! invariably used. To avoid this complication, this symmetry
+        ! setup will not be used with CPMD, and thus these excitation 
+        ! generators won't work.
+        IF(.not.tCPMD) THEN
+            IF(.not.tSuccess) THEN
+                WRITE(6,*) "************************************************"
+                WRITE(6,*) "**                 WARNING!!!                 **"
+                WRITE(6,*) "************************************************"
+                WRITE(6,*) "Symmetry information not set up correctly in NECI initialisation"
+                WRITE(6,*) "Will attempt to set up the symmetry again, but now in terms of spin orbitals"
+                WRITE(6,*) "Old excitation generators will not work"
+                WRITE(6,*) "I strongly suggest you check that the reference energy is correct."
+                CALL SpinOrbSymSetup() !.true.) 
+            ELSE
+                WRITE(6,*) "Symmetry and spin of orbitals correctly set up for excitation generators."
+                WRITE(6,*) "Simply transferring this into a spin orbital representation."
+                CALL SpinOrbSymSetup() !.false.) 
+            ENDIF
         ENDIF
 ! From now on, the orbitals are also contained in symlabellist2 and symlabelcounts2.
 ! These are stored using spin orbitals.

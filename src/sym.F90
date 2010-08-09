@@ -1262,14 +1262,17 @@ contains
          J=0
          DO I=1,NBASIS
 !            WRITE(6,*) "SR2",I
-            IF(I.GT.1.AND.ABS(ARR(I,2)-ARR(I-1,2)).LT.DEGENTOL.AND.(TAbelian.OR.SYMEQ(G1(I)%Sym,G1(I-1)%Sym))) THEN
-!   we have the same degenerate rep as the previous entry
-               SYMREPS(2,J)=SYMREPS(2,J)+1
-            ELSE
-!   we have a new rep
-               J=J+1
-               SYMREPS(2,J)=1
-            ENDIF
+            if (i > 1) then
+                if (abs(arr(i,2) - arr(i-1, 2)) < degentol .and. &
+                    (tAbelian .or. symeq(G1(i)%sym, G1(i-1)%sym))) then
+                    ! We have the same degenerate rep as the previous entry
+                    symreps(2, J) = symreps(2, J) + 1
+                endif
+            else
+                ! We have a new rep
+                J = J + 1
+                symreps(2, J) = 1
+            endif
             SYMREPS(1,I)=J
          ENDDO
 !         DO I=1,NBASIS
