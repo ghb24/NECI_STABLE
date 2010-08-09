@@ -3393,7 +3393,13 @@ MODULE FciMCParMod
             ! it.
             tReZeroShift = .false.
             if (TSinglePartPhase) then
-                tot_walkers = int(InitWalkers, int64) * int(nProcessors,int64)
+! AJWT dislikes doing this type of if based on a (seeminly unrelated) input option, but can't see another easy way.
+!  TODO:  Something to make it better
+                if(.not.tCCMC) then
+                    tot_walkers = int(InitWalkers, int64) * int(nProcessors,int64)
+                else
+                    tot_walkers = int(InitWalkers, int64)
+                endif
                 if ( (sum(AllTotParts) > tot_walkers) .or. &
                      (AllNoatHF > MaxNoatHF)) then
                     write (6, *) 'Exiting the single particle growth phase - &
