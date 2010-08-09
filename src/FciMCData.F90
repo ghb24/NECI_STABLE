@@ -185,6 +185,7 @@ MODULE FciMCData
           integer, dimension(lenof_sign) :: update_growth, update_growth_tot
           integer(int64), dimension(lenof_sign) :: tot_parts_old
           integer :: update_iters
+          real(dp), pointer :: shift
       end type
       
       ! These are variables used to control the behaviour of PerformFciMCycPar

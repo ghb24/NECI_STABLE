@@ -15,7 +15,8 @@ module spin_project
 
     logical :: tSpinProject, spin_proj_stochastic_yama
     integer :: spin_proj_interval, spin_proj_cutoff
-    real(dp) :: spin_proj_gamma, spin_proj_shift
+    real(dp) :: spin_proj_gamma
+    real(dp), target :: spin_proj_shift
 
     ! Store the data from iterations
     type(fcimc_iter_data), target :: iter_data_spin_proj
