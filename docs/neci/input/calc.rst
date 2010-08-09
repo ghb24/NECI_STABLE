@@ -568,8 +568,17 @@ The following options are applicable for both the **FCIMC** and **MCDETS** metho
 **INITWALKERS** [nWalkers]
     Default 3000.
 
-   Set the initial population of walkers.  
+   The shift is allowed to vary once the total number of walkers exceeds
+   nWalkers*nProcs.
+
+   If **STARTSINGLEPART** is negative, then the this is also the initial
+   population of walkers on the reference determinant.
+
    For CCMC Amplitude, this is the number of samples of the amplitude distribution taken each MC step
+
+**TOTALWALKERS** [nWalkers]
+    Equivalent to **INITWALKERS** but nWalkers is not multiplied by the number
+    of processors to set the varyshift target.
 
 **NMCYC** [NMCYC]
    Set the total number of timesteps to take.
@@ -683,8 +692,13 @@ The following options are only available in **FCIMC** calculations:
 **STARTSINGLEPART** [InitialPart]
     This will start the simulation with a single positive particle at the HF,
     and fix the shift at its initial value, until the number of particles gets
-    to the INITPARTICLES value. The optional integer argument can be used to 
+    to the **INITWALKERS** value. The optional integer argument can be used to 
     augment the number of walkers at the HF determinant.
+
+    If InitialPart is negative, then **INITWALKERS** is used to set the initial
+    number of particles on the reference determinant.
+
+    **STARTSINGLEPART** is ignored if **READPOPS** is specified.
 
 **RANDOMISEHASHORBS** [**OFF**]
     Default on
