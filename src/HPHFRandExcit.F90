@@ -780,7 +780,7 @@ MODULE HPHFRandExcitMod
 !            Weights(PartInd)=Weights(PartInd)+(1.D0/pGen)
 !             
 !!Check excitation
-!!            CALL IsSymAllowedExcit(nI,nJ,IC,ExcitMat,SymAllowed)
+!!            CALL IsSymAllowedExcit(nI,nJ,IC,ExcitMat)
 !
 !        enddo
 !        
@@ -798,7 +798,11 @@ MODULE HPHFRandExcitMod
 !            WRITE(6,*) i,UniqueHPHFList(0:NIfTot,i),Weights(i)
 !            call decode_bit_det (nIX, UniqueHPHFList(0:NIfTot,i))
 !            WRITE(6,*) nIX(:)
-!            WRITE(iunit,*) i,UniqueHPHFList(0:NIfTot,i),Weights(i)
+!            WRITE(iunit,"(I8,G25.10)",advance='no') i,Weights(i)
+!            do j=0,NIfTot-1
+!                WRITE(iunit,"(I16)",advance='no') UniqueHPHFList(j,i)
+!            enddo
+!            WRITE(iunit,"(I16)") UniqueHPHFList(NIfTot,i)
 !        enddo
 !
 !        CLOSE(iunit)
