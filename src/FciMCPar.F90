@@ -845,7 +845,8 @@ MODULE FciMCParMod
         ! walkers should be in a seperate array (SpawnedParts) and the other 
         ! list should be ordered.
         call set_timer (annihil_time, 30)
-        call DirectAnnihilation (totWalkersNew, iter_data)
+        call DirectAnnihilation (totWalkersNew, iter_data,.false.) !.false. for not single processor
+        TotWalkers=TotWalkersNew
         CALL halt_timer(Annihil_Time)
         
         ! Update iteration data
@@ -3134,18 +3135,22 @@ MODULE FciMCParMod
                               &value.')
             endif
 
-            ! Check how balanced the load on each processor is (even though
-            ! we cannot load balance with direct annihilation).
-            walkers_diff = MaxWalkersProc - MinWalkersProc
-            mean_walkers = AllTotWalkers / real(nProcessors,dp)
-            if (walkers_diff > nint(mean_walkers / 10.d0) .and. &
-                sum(AllTotParts) > real(nProcessors * 500, dp)) then
-                root_write (6, '(a, f20.10, 2i12)') &
-                    'Number of determinants assigned to each processor &
-                    &unbalanced: ', (walkers_diff * 10.d0) / &
-                    real(mean_walkers), MinWalkersProc, MaxWalkersProc
-            endif
+! AJWT dislikes doing this type of if based on a (seeminly unrelated) input option, but can't see another easy way.
+!  TODO:  Something to make it better
 
+            if(.not.tCCMC) then
+               ! Check how balanced the load on each processor is (even though
+               ! we cannot load balance with direct annihilation).
+               walkers_diff = MaxWalkersProc - MinWalkersProc
+               mean_walkers = AllTotWalkers / real(nProcessors,dp)
+               if (walkers_diff > nint(mean_walkers / 10.d0) .and. &
+                   sum(AllTotParts) > real(nProcessors * 500, dp)) then
+                   root_write (6, '(a, f20.10, 2i12)') &
+                       'Number of determinants assigned to each processor &
+                       &unbalanced: ', (walkers_diff * 10.d0) / &
+                       real(mean_walkers), MinWalkersProc, MaxWalkersProc
+               endif
+            endif
 
             ! Deal with blocking analysis
             !
@@ -3357,7 +3362,7 @@ MODULE FciMCParMod
 
         ! 64bit integers
         call MPIReduce ((/TotWalkers, TotParts, SumNoatHF, tot_parts_new/), &
-                        MPI_SUM, int64_tmp)
+                        MPI_SUM, int64_tmp(1:2+2*lenof_sign))
         AllTotWalkers = int64_tmp(1)
         AllTotParts = int64_tmp(2:1+lenof_sign)
         AllSumNoatHF = int64_tmp(2+lenof_sign)
@@ -3508,6 +3513,8 @@ MODULE FciMCParMod
         endif ! iProcIndex == root
 
         ! Broadcast the shift from root to all the other processors
+        call MPIBcast (tSinglePartPhase, Root)
+        call MPIBcast (VaryShiftIter, Root)
         call MPIBcast (DiagSft, Root)
 
     end subroutine
@@ -4251,9 +4258,11 @@ MODULE FciMCParMod
         ValidSpawnedList(:)=InitialSpawnedSlots(:)
 
         if (TReadPops) then
-            if (tStartSinglePart .and. .not. tReadPopsRestart) &
-                call stop_all (this_routine, &
-                               "ReadPOPS cannot work with StartSinglePart")
+            if (tStartSinglePart .and. .not. tReadPopsRestart) then
+                call warning(this_routine, &
+                               "ReadPOPS cannot work with StartSinglePart: ignoring StartSinglePart")
+                tStartSinglePart = .false.
+            end if
         endif
 
         IF(.not.TReadPops) THEN

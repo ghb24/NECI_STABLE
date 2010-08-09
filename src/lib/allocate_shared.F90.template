@@ -194,7 +194,7 @@ module shared_alloc
 
     private
     public :: shared_allocate, shared_deallocate, shared_allocate_iluts
-
+    
     interface
         subroutine alloc_shared_worker (nm, pt, sz) bind(c)
             use, intrinsic :: iso_c_binding
@@ -292,7 +292,7 @@ contains
 
         ! Jiggle the pointers, so that the first dimension of the first one
         ! goes from 0:dims(1), rather than 1:dims(1)+1
-        call iluts_pointer_jiggle (ptr, ptr_tmp, dims)
+        call iluts_pointer_jiggle_%(name)s (ptr, ptr_tmp, dims)
         nullify(ptr_tmp)
 
         write (6, '("Allocated ", i10, " bytes of shared memory named: ", a)')&
