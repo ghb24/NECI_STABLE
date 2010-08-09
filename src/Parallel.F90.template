@@ -1,3 +1,9 @@
+[comp]
+type1=complex*16
+mpitype=MPI_COMPLEX
+mpilen=1
+mpilen2=1
+
 [int]
 type1=integer(kind=int32)
 mpitype=MPI_INTEGER

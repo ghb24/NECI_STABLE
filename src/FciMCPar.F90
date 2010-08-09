@@ -158,15 +158,15 @@ MODULE FciMCParMod
             s=etime(tend)
             IterTime=IterTime+(tend(1)-tstart(1))
 
-            IF(tBlockEveryIteration) THEN
-                Inpair(1)=REAL(HFIter,dp)
-                Inpair(2)=ENumIter
-                CALL MPISumRoot(Inpair,2,Outpair,Root)
-                IterEnergy=Outpair(2)/Outpair(1)
-                IF(tErrorBlocking.and.(iProcIndex.eq.Root)) CALL SumInErrorContrib(Iter,Outpair(2),Outpair(1))
-                ENumIter=0.D0
-                HFIter=0
-            ENDIF
+!            IF(tBlockEveryIteration) THEN
+!                Inpair(1)=REAL(HFIter,dp)
+!                Inpair(2)=ENumIter
+!                CALL MPISumRoot(Inpair,2,Outpair,Root)
+!                IterEnergy=Outpair(2)/Outpair(1)
+!                IF(tErrorBlocking.and.(iProcIndex.eq.Root)) CALL SumInErrorContrib(Iter,Outpair(2),Outpair(1))
+!                ENumIter=0.D0
+!                HFIter=0
+!            ENDIF
 
             if (mod(Iter, StepsSft) == 0) then
 
@@ -1271,6 +1271,11 @@ MODULE FciMCParMod
         CHARACTER(len=*) , PARAMETER :: this_routine='WriteToPopsfileParOneArr'
         character(255) :: popsfile
         INTEGER, DIMENSION(lenof_sign) :: TempSign
+
+
+        IF(lenof_sign.ne.1) THEN
+            WRITE(6,*) "Cannot write complex walkers out to POPSFILE yet..."
+        ENDIF
 
         CALL MPIBarrier(error)  !sync
 
@@ -2832,6 +2837,11 @@ MODULE FciMCParMod
         CHARACTER(len=22) :: abstr,abstr2
         LOGICAL :: exists
 
+        IF(lenof_sign.ne.1) THEN
+            WRITE(6,*) "WriteHistogram routine cannot currently cope with complex walkers"
+            RETURN
+        ENDIF
+
 !This will open a file called SpawnHist-"Iter" on unit number 17.
         abstr=''
         write(abstr,'(I12)') Iter
@@ -2911,7 +2921,7 @@ MODULE FciMCParMod
                     WRITE(io2,"(I13,3G25.16)") IterRead,ShiftRead,AllERead,NumParts
                 enddo
 99              CONTINUE
-                IF(AllHFCyc.eq.0) THEN
+                IF(AllHFCyc.eq.0.D0) THEN
                     WRITE(io2,"(I13,3G25.16)") Iter,DiagSft,AllERead,SUM(AllTotPartsOld)
                 ELSE
                     WRITE(io2,"(I13,3G25.16)") Iter,DiagSft,AllENumCyc/AllHFCyc,SUM(AllTotPartsOld)
@@ -3082,16 +3092,18 @@ MODULE FciMCParMod
         AccRat = real(Acceptances, dp) / SumWalkersCyc
 
 
-        ! Flip sign of entire ensemble if negative pop on HF
-        IF(AllNoatHF.lt.0) THEN
-            root_print "No. at HF < 0 - flipping sign of entire ensemble &
-                       &of particles..."
-            root_print AllNoatHF
+        IF(lenof_sign.eq.1) THEN
+            ! Flip sign of entire ensemble if negative pop on HF
+            IF(AllNoatHF(1).lt.0) THEN
+                root_print "No. at HF < 0 - flipping sign of entire ensemble &
+                           &of particles..."
+                root_print AllNoatHF(1)
 
-            call FlipSign ()
-            AllNoatHF = -AllNoatHF
-            NoatHF = -NoatHF
-        endif
+                call FlipSign ()
+                AllNoatHF(1) = -AllNoatHF(1)
+                NoatHF(1) = -NoatHF(1)
+            endif
+        ENDIF
 
         if (iProcIndex == Root) then
             ! Have all of the particles died?
@@ -3136,7 +3148,7 @@ MODULE FciMCParMod
                     tErrorBlocking = .true.
                 endif
             elseif (tHFPopStartBlock) then
-                if (AllHFCyc / StepsSft >= HFPopStartBlocking) then
+                if (abs(AllHFCyc) / StepsSft >= HFPopStartBlocking) then
                     call InitErrorBlocking (iter)
                     tHFPopStartBlock = .false.
                     tErrorBlocking = .true.
@@ -3177,16 +3189,16 @@ MODULE FciMCParMod
             proc_highest = int_tmp(2)
 
             ! How many walkers do we need to switch dets?
-            pop_change = int(FracLargerDet * real(AllNoAtHF, dp))
+            pop_change = int(FracLargerDet * real(abs_int_sign(AllNoAtHF), dp))
             if (pop_change < pop_highest .and. sum(AllTotParts) > 10000) then
 
                 ! Write out info!
                 if (tHPHF) then
                     root_print 'Highest weighted CLOSED-SHELL determinant not&
-                               & reference det: ', pop_highest, AllNoAtHF
+                               & reference det: ', pop_highest, abs_int_sign(AllNoAtHF)
                 else
                     root_print 'Highest weighted determinant not reference &
-                               &det: ', pop_highest, AllNoAtHF
+                               &det: ', pop_highest, abs_int_sign(AllNoAtHF)
                 endif
 
                 ! Are we changing the reference determinant?
@@ -3289,10 +3301,32 @@ MODULE FciMCParMod
                     
     end subroutine
 
+!routine to calculation the absolute magnitude of a complex integer variable (to nearest integer)
+    pure integer function abs_int_sign(wsign)
+        integer, dimension(lenof_sign) :: wsign
+
+        if(lenof_sign.eq.1) then
+            abs_int_sign=wsign
+        else
+            abs_int_sign=nint(sqrt(real(wsign(1)**2+wsign(2)**2,dp)),int32)
+        endif
+    end function abs_int_sign
+
+!routine to calculation the absolute magnitude of a complex integer*8 variable (to nearest integer)
+    pure integer(kind=int64) function abs_int8_sign(wsign)
+        integer(kind=int64), dimension(lenof_sign) :: wsign
+
+        if(lenof_sign.eq.1) then
+            abs_int_sign=wsign
+        else
+            abs_int_sign=nint(sqrt(real(wsign(1)**2+wsign(2)**2,dp)),int64)
+        endif
+    end function abs_int8_sign
+
     subroutine collate_iter_data (iter_data, tot_parts_new, tot_parts_new_all)
 
-        integer :: int_tmp(6+lenof_sign)
-        real(dp) :: real_tmp(2)
+        integer :: int_tmp(7+lenof_sign)
+        HElement_t :: real_tmp(2)
         integer(int64) :: int64_tmp(9)
         type(fcimc_iter_data) :: iter_data
         integer(int64), dimension(lenof_sign), intent(in) :: tot_parts_new
@@ -3306,9 +3340,15 @@ MODULE FciMCParMod
         AllNoAtDoubs = int_tmp(2)
         AllNoBorn = int_tmp(3)
         AllNoDied = int_tmp(4)
-        AllHFCyc = real(int_tmp(5), dp)
-        AllSpawnFromSing = int_tmp(6)
-        iter_data%update_growth_tot = int_tmp(7:6+lenof_sign)
+        IF(lenof_sign.eq.1) THEN
+            AllHFCyc = real(int_tmp(5), dp)
+            AllSpawnFromSing = int_tmp(6)
+            iter_data%update_growth_tot = int_tmp(7:6+lenof_sign)
+        ELSE
+            AllHFCyc = cmplx(int_tmp(5),int_tmp(6), dp)
+            AllSpawnFromSing = int_tmp(7)
+            iter_data%update_growth_tot = int_tmp(8:7+lenof_sign)
+        ENDIF
 
         ! Integer summations required for the initiator method
         if (tTruncInitiator) then
@@ -3329,11 +3369,11 @@ MODULE FciMCParMod
 
         ! 64bit integers
         call MPIReduce ((/TotWalkers, TotParts, SumNoatHF, tot_parts_new/), &
-                        MPI_SUM, int64_tmp(1:2+2*lenof_sign))
+                        MPI_SUM, int64_tmp(1:1+3*lenof_sign))
         AllTotWalkers = int64_tmp(1)
         AllTotParts = int64_tmp(2:1+lenof_sign)
-        AllSumNoatHF = int64_tmp(2+lenof_sign)
-        tot_parts_new_all = int64_tmp(3+lenof_sign:2+2*lenof_sign)
+        AllSumNoatHF = int64_tmp(2+lenof_sign:1+2*lenof_sign)
+        tot_parts_new_all = int64_tmp(2+2*lenof_sign:1+3*lenof_sign)
 
         ! real(dp) values (Calculates the energy by summing all on HF and 
         ! doubles)
@@ -3395,13 +3435,13 @@ MODULE FciMCParMod
             if (TSinglePartPhase) then
                 tot_walkers = int(InitWalkers, int64) * int(nProcessors,int64)
                 if ( (sum(AllTotParts) > tot_walkers) .or. &
-                     (AllNoatHF > MaxNoatHF)) then
+                     (abs_int_sign(AllNoatHF) > MaxNoatHF)) then
                     write (6, *) 'Exiting the single particle growth phase - &
                                  &shift can now change'
                     VaryShiftIter = Iter
                     tSinglePartPhase = .false.
                 endif
-            elseif (AllNoatHF < (MaxNoatHF - HFPopThresh)) then
+            elseif (abs_int_sign(AllNoatHF) < (MaxNoatHF - HFPopThresh)) then
                 write (6, *) 'No at HF has fallen too low - reentering the &
                              &single particle growth phase - particle number &
                              &may grow again.'
@@ -3448,20 +3488,27 @@ MODULE FciMCParMod
             endif
 
             ! Calculate the instantaneous 'shift' from the HF population
-            HFShift = -1.d0 / real(AllNoatHF, dp) * &
-                              (real(AllNoatHF - OldAllNoatHF, dp) / &
+            HFShift = -1.d0 / real(abs_int_sign(AllNoatHF), dp) * &
+                              (real(abs_int_sign(AllNoatHF) - abs_int_sign(OldAllNoatHF), dp) / &
                               (Tau * real(StepsSft, dp)))
             InstShift = -1.d0 / sum(AllTotParts) * &
                         ((sum(AllTotParts) - sum(AllTotPartsOld)) / &
                          (Tau * real(StepsSft, dp)))
 
+
             ! AllSumNoatHF can be 0 if equilsteps is on.
-            if (AllSumNoatHF /= 0) ProjectionE = AllSumENum / AllSumNoatHF
+            if (lenof_sign.eq.1) then
+                if (AllSumNoatHF /= 0) ProjectionE = AllSumENum / AllSumNoatHF
+            else
+                if (AllSumNoatHF(1).ne.0.or.AllSumNoatHF(2).ne.0) then
+                    ProjectionE = AllSumENum / CMPLX(AllSumNoatHF(1), AllSumNoatHF(2), dp) 
+                endif
+            endif
 
             ! Calculate the projected energy where each update cycle 
             ! contributes the same weight to the average for its estimator 
             ! for the energy.
-            if (AllHFCyc /= 0) then
+            if (abs(AllHFCyc) /= 0.D0) then
                 ProjEItersum = ProjEIterSum + (AllENumCyc / AllHFCyc)
                 ! Count the number of interactions where we have a non-zero
                 ! contribution from HF particles
@@ -3604,8 +3651,8 @@ MODULE FciMCParMod
             ENDIF
             WRITE(6,"(A)") "       Step     Shift      WalkerCng    GrowRate       TotWalkers    Annihil    NoDied    NoBorn    Proj.E          Av.Shift     Proj.E.ThisCyc   NoatHF NoatDoubs      AccRat     UniqueDets     IterTime"
             WRITE(fcimcstats_unit,"(A)") "#     1.Step   2.Shift    3.WalkerCng  4.GrowRate     5.TotWalkers  6.Annihil  7.NoDied  8.NoBorn  9.Proj.E       10.Av.Shift"&
-&           // " 11.Proj.E.ThisCyc  12.NoatHF 13.NoatDoubs  14.AccRat  15.UniqueDets  16.IterTime 17.FracSpawnFromSing  18.WalkersDiffProc  19.TotImagTime  20.ProjE.ThisIter "&
-&           // " 21.HFInstShift  22.TotInstShift  23.Tot-Proj.E.ThisCyc   24.HFContribtoE  25.NumContribtoE"
+&           // " 11.Proj.E.ThisCyc  12.NoatHF 13.NoatDoubs  14.AccRat  15.UniqueDets  16.IterTime 17.FracSpawnFromSing  18.WalkersDiffProc  19.TotImagTime  "&
+&           // " 20.HFInstShift  21.TotInstShift  22.Tot-Proj.E.ThisCyc   23.HFContribtoE  24.NumContribtoE"
             
         ENDIF
 
@@ -3623,7 +3670,7 @@ MODULE FciMCParMod
                 ProjectionE, AvDiagSft, AllENumCyc / AllHFCyc, AllNoatHF, &
                 AllNoatDoubs, AccRat, AllTotWalkers, IterTime, &
                 real(AllSpawnFromSing) / real(AllNoBorn), WalkersDiffProc, &
-                TotImagTime, IterEnergy, HFShift, InstShift, &
+                TotImagTime, HFShift, InstShift, &
                 AllENumCyc / AllHFCyc + Hii, AllHFCyc / StepsSft, &
                 AllENumCyc / StepsSft
             write (6, "(I12,G16.7,I10,G16.7,I12,3I11,3G17.9,2I10,G13.5,I12,&
@@ -4031,9 +4078,6 @@ MODULE FciMCParMod
         NoExtraInitDoubs=0.D0
         InitRemoved=0.D0
         TotImagTime=0.D0
-        HFIter=0
-        ENumIter=0.D0
-        IterEnergy=0.D0
         DiagSftRe=0.D0
         DiagSftIm=0.D0
 
@@ -4904,13 +4948,12 @@ MODULE FciMCParMod
         HElement_t :: HOffDiag
 
         IF(ExcitLevel.eq.0) THEN
-            IF(Iter.gt.NEquilSteps) SumNoatHF=SumNoatHF+WSign(1)
-            NoatHF=NoatHF+WSign(1)
-            HFCyc=HFCyc+WSign(1)      !This is simply the number at HF*sign over the course of the update cycle 
-            HFIter=HFIter+WSign(1)
+            IF(Iter.gt.NEquilSteps) SumNoatHF=SumNoatHF+WSign
+            NoatHF=NoatHF+WSign
+            HFCyc=HFCyc+WSign      !This is simply the number at HF*sign over the course of the update cycle 
             
         ELSEIF(ExcitLevel.eq.2) THEN
-            NoatDoubs=NoatDoubs+abs(WSign(1))
+            NoatDoubs=NoatDoubs+abs(WSign)
 !At double excit - find and sum in energy
             IF(tHPHF) THEN
                 HOffDiag = hphf_off_diag_helement (ProjEDet, DetCurr, iLutRef, &
@@ -4919,9 +4962,13 @@ MODULE FciMCParMod
                 HOffDiag = get_helement (ProjEDet, DetCurr, ExcitLevel, iLutRef, &
                                          iLutCurr)
             ENDIF
-            IF(Iter.gt.NEquilSteps) SumENum=SumENum+(REAL(HOffDiag,dp)*WSign(1)/dProbFin)
-            ENumCyc=ENumCyc+(REAL(HOffDiag,dp)*WSign(1)/dProbFin)     !This is simply the Hij*sign summed over the course of the update cycle
-            ENumIter=ENumIter+(REAL(HOffDiag,dp)*WSign(1)/dProbFin)
+            IF(lenof_sign.eq.1) THEN
+                IF(Iter.gt.NEquilSteps) SumENum=SumENum+(REAL(HOffDiag,dp)*WSign(1)/dProbFin)
+                ENumCyc=ENumCyc+(REAL(HOffDiag,dp)*WSign(1)/dProbFin)     !This is simply the Hij*sign summed over the course of the update cycle
+            ELSE
+                IF(Iter.gt.NEquilSteps) SumENum=SumENum+(HOffDiag*CMPLX(WSign(1),WSign(2),dp))/dProbFin
+                ENumCyc=ENumCyc+(HOffDiag*CMPLX(WSign(1),WSign(2),dp))/dProbFin     !This is simply the Hij*sign summed over the course of the update cycle
+            ENDIF
 
         ELSEIF(ExcitLevel.eq.1) THEN
           if(tNoBrillouin) then
@@ -4935,8 +4982,13 @@ MODULE FciMCParMod
                 HOffDiag = get_helement (ProjEDet, DetCurr, ExcitLevel, ilutRef, &
                                          iLutCurr)
             ENDIF
-            IF(Iter.gt.NEquilSteps) SumENum=SumENum+(REAL(HOffDiag,dp)*WSign(1)/dProbFin)
-            ENumCyc=ENumCyc+(REAL(HOffDiag,dp)*WSign(1)/dProbFin)     !This is simply the Hij*sign summed over the course of the update cycle
+            IF(lenof_sign.eq.1) THEN
+                IF(Iter.gt.NEquilSteps) SumENum=SumENum+(REAL(HOffDiag,dp)*WSign(1)/dProbFin)
+                ENumCyc=ENumCyc+(REAL(HOffDiag,dp)*WSign(1)/dProbFin)     !This is simply the Hij*sign summed over the course of the update cycle
+            ELSE
+                IF(Iter.gt.NEquilSteps) SumENum=SumENum+(HOffDiag*CMPLX(WSign(1),WSign(2),dp))/dProbFin
+                ENumCyc=ENumCyc+(HOffDiag*CMPLX(WSign(1),WSign(2),dp))/dProbFin     !This is simply the Hij*sign summed over the course of the update cycle
+            ENDIF
           endif 
 
         ENDIF
@@ -5152,6 +5204,7 @@ MODULE FciMCParMod
 
             TotParts(:)=0
             TotPartsOld(:)=0
+            NoatHF=0
 !            AllTotPartsOld(:)=1     !So that the first update gives a meaningful number
 
 !Setup initial walker local variables
@@ -5169,7 +5222,7 @@ MODULE FciMCParMod
                     TotWalkersOld=1
                     TotParts(1)=InitialPart
                     TotPartsOld(1)=InitialPart
-                    NoatHF=InitialPart
+                    NoatHF(1)=InitialPart
                 ELSE
                     InitialSign(1) = InitWalkers 
                     CALL encode_sign(CurrentDets(:,1), InitialSign)
@@ -5191,11 +5244,13 @@ MODULE FciMCParMod
             ENDIF
 
         
+            OldAllNoatHF=0
+            AllNoatHF=0
             IF(TStartSinglePart) THEN
 !Initialise global variables for calculation on the root node
                 IF(iProcIndex.eq.root) THEN
-                    OldAllNoatHF=InitialPart
-                    AllNoatHF=InitialPart
+                    OldAllNoatHF(1)=InitialPart
+                    AllNoatHF(1)=InitialPart
                     AllTotWalkers = 1
                     AllTotWalkersOld = 1
                     iter_data_fciqmc%tot_parts_old = 1

@@ -55,13 +55,15 @@ MODULE FciMCData
       INTEGER :: exFlag=3
 
 !The following variables are calculated as per processor, but at the end of each update cycle, are combined to the root processor
-      REAL*8 :: GrowRate,DieRat,ProjectionE,SumENum
-      integer(int64) :: SumNoatHF      !This is the sum over all previous cycles of the number of particles at the HF determinant
+      REAL*8 :: GrowRate,DieRat
+      HElement_t :: SumENum
+      HElement_t :: ProjectionE
+      integer(int64), dimension(lenof_sign) :: SumNoatHF      !This is the sum over all previous cycles of the number of particles at the HF determinant
       REAL*8 :: AvSign           !This is the average sign of the particles on each node
       REAL*8 :: AvSignHFD        !This is the average sign of the particles at HF or Double excitations on each node
       INTEGER(KIND=int64) :: SumWalkersCyc    !This is the sum of all walkers over an update cycle on each processor
       INTEGER :: Annihilated      !This is the number annihilated on one processor
-      INTEGER :: NoatHF           !This is the instantaneous number of particles at the HF determinant
+      INTEGER, DIMENSION(lenof_sign) :: NoatHF           !This is the instantaneous number of particles at the HF determinant
       INTEGER :: NoatDoubs
       INTEGER :: Acceptances      !This is the number of accepted spawns - this is only calculated per node.
       REAL*8 :: AccRat            !Acceptance ratio for each node over the update cycle
@@ -70,11 +72,11 @@ MODULE FciMCData
       INTEGER :: SpawnFromSing  !These will output the number of particles in the last update cycle which have been spawned by a single excitation.
       INTEGER :: AllSpawnFromSing
       INTEGER :: HFPopCyc         !This is the number of update cycles which have a HF particle at some point
-      INTEGER :: HFCyc            !This is the number of HF*sign particles on a given processor over the course of the update cycle
-      REAL*8 :: AllHFCyc          !This is the sum of HF*sign particles over all processors over the course of the update cycle
-      REAL*8 :: ENumCyc           !This is the sum of doubles*sign*Hij on a given processor over the course of the update cycle
-      REAL*8 :: AllENumCyc        !This is the sum of double*sign*Hij over all processors over the course of the update cycle
-      REAL*8 :: ProjEIter,ProjEIterSum    !This is the energy estimator where each update cycle contributes an energy and each is given equal weighting.
+      INTEGER, DIMENSION(lenof_sign) :: HFCyc            !This is the number of HF*sign particles on a given processor over the course of the update cycle
+      HElement_t :: AllHFCyc          !This is the sum of HF*sign particles over all processors over the course of the update cycle
+      HElement_t :: ENumCyc           !This is the sum of doubles*sign*Hij on a given processor over the course of the update cycle
+      HElement_t :: AllENumCyc        !This is the sum of double*sign*Hij over all processors over the course of the update cycle
+      HElement_t :: ProjEIter,ProjEIterSum    !This is the energy estimator where each update cycle contributes an energy and each is given equal weighting.
       integer :: iPartBloom   ! The maximum number of children spawned from a
                               ! single excitation. Used to calculate blooms.
 
@@ -82,9 +84,10 @@ MODULE FciMCData
       REAL*8 :: AllGrowRate
       integer(int64) :: AllTotWalkers, AllTotWalkersOld
       integer(int64), dimension(lenof_sign) :: AllTotParts, AllTotPartsOld
-      integer(int64) :: AllSumNoatHF
+      integer(int64), dimension(lenof_sign) :: AllSumNoatHF
       INTEGER(KIND=int64) :: AllSumWalkersCyc
-      INTEGER :: AllAnnihilated,AllNoatHF,AllNoatDoubs
+      INTEGER :: AllAnnihilated,AllNoatDoubs
+      INTEGER, DIMENSION(lenof_sign) :: AllNoatHF
       REAL*8 :: AllSumENum,AllAvSign,AllAvSignHFD
       INTEGER :: AllNoBorn,AllNoDied,MaxSpawned
   
@@ -154,12 +157,9 @@ MODULE FciMCData
 
       INTEGER , ALLOCATABLE :: RandomHash(:)    !This is a random indexing scheme by which the orbital indices are randomised to attempt to provide a better hashing performance
 
-      INTEGER :: HFIter
-      REAL*8 :: ENumIter,IterEnergy
-
       REAL*8 :: HFShift     !A 'shift'-like value for the total energy which is taken from the growth of walkers on the HF determinant.
       REAL*8 :: InstShift   !An instantaneous value for the shift from the growth of walkers.
-      INTEGER :: OldAllNoatHF
+      INTEGER, DIMENSION(lenof_sign) :: OldAllNoatHF
 
       INTEGER :: iHFProc    !Processor index for HF determinant
 
