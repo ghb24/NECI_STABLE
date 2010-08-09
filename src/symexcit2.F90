@@ -17,20 +17,18 @@ MODULE SymExcit2
       CONTAINS 
 
 !  Enumerate the weights of all possible determinants to excite from in a given excittype.
-      SUBROUTINE EnumExcitFromWeights(ExcitType, ews,OrbPairs, SymProdInd,Norm,iCount,G1,nBasisMax,UMat,Arr,nBasis)
+      SUBROUTINE EnumExcitFromWeights(ExcitType, ews,OrbPairs, SymProdInd,Norm,iCount,Arr,nBasis)
          use constants, only: dp
          use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
          use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
          IMPLICIT NONE
          INTEGER ExcitType(5)
-         INTEGER nBasis,nBasisMax(5,*)
+         INTEGER nBasis
          INTEGER OrbPairs(2,*)
          REAL*8 Norm
          INTEGER iCount
-         HElement_t UMat(*)
          REAL*8 Arr(nBasis,2)
          TYPE(ExcitWeight) ews(*)
-         TYPE(BasisFN) G1(*)
          INTEGER SymProdInd(2,3,0:*)
          INTEGER iSpn,iFrom,iFromIndex
          INTEGER I
@@ -53,11 +51,11 @@ MODULE SymExcit2
             CALL AddExcitFromWeight(                                    &
      &                  OrbPairs(1,iFromIndex),                         &
      &                  OrbPairs(2,iFromIndex),                         &
-     &                  ews,Norm,iCount,G1,nBasisMax,UMat,Arr,nBasis)
+     &                  ews,Norm,iCount,Arr,nBasis)
          ENDDO
       END subroutine
 !  Enumerate the excitations and weights of excitations of a given ExcitType.  
-      SUBROUTINE EnumExcitWeights(ExcitType,iFromIndex,iLUT,ews,OrbPairs,SymProdInd,Norm,iCount,G1,NBASISMAX,UMAT,Arr,NBASIS)
+      SUBROUTINE EnumExcitWeights(ExcitType,iFromIndex,iLUT,ews,OrbPairs,SymProdInd,Norm,iCount,NBASISMAX,Arr,NBASIS)
          use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
          use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
          use constants, only: dp
@@ -73,8 +71,6 @@ MODULE SymExcit2
          INTEGER iFromIndex
          LOGICAL L1B,L1A,L2B,L2A
          INTEGER nBasisMax(5,*)
-         TYPE(BasisFN) G1(*)
-         HElement_t UMAT(*)
          REAL*8 Norm
          TYPE(ExcitWeight) ews(*)
          INTEGER K
@@ -111,7 +107,7 @@ MODULE SymExcit2
      &                  ORBPAIRS(2,SYMPRODIND(1,ISPN,IFROM)+iFromIndex),&
      &                  ICC1,                                           &
      &                  ICC3,                                           &
-     &                  ews,Norm,ICOUNT,G1,NBASISMAX,UMAT,Arr,NBASIS)
+     &                  ews,Norm,ICOUNT,NBASISMAX,Arr,NBASIS)
                ENDIF
             ELSEIF(ISPN.EQ.2) THEN
 !.. If neither virtuals are in NI, then allow
@@ -121,7 +117,7 @@ MODULE SymExcit2
      &                  ORBPAIRS(2,SYMPRODIND(1,ISPN,IFROM)+iFromIndex),&
      &                  ICC1,                                           &
      &                  ICC4,                                           &
-     &                  ews,Norm,ICOUNT,G1,NBASISMAX,UMAT,Arr,NBASIS)
+     &                  ews,Norm,ICOUNT,NBASISMAX,Arr,NBASIS)
                ENDIF
 !.. If neither virtuals are in NI, and they're not the same(which would give
 !.. us the same excitation as previously), then allow
@@ -131,7 +127,7 @@ MODULE SymExcit2
      &                  ORBPAIRS(2,SYMPRODIND(1,ISPN,IFROM)+iFromIndex),&
      &                  ICC2,                                           &
      &                  ICC3,                                           &
-     &                  ews,Norm,ICOUNT,G1,NBASISMAX,UMAT,Arr,NBASIS)
+     &                  ews,Norm,ICOUNT,NBASISMAX,Arr,NBASIS)
                ENDIF
             ELSEIF(ISPN.EQ.3) THEN
 !.. If both virtuals aren't the samem and neither are in NI, then allow
@@ -141,7 +137,7 @@ MODULE SymExcit2
      &                  ORBPAIRS(2,SYMPRODIND(1,ISPN,IFROM)+iFromIndex),&
      &                  ICC2,                                           &
      &                  ICC4,                                           &
-     &                  ews,Norm,ICOUNT,G1,NBASISMAX,UMAT,Arr,NBASIS)
+     &                  ews,Norm,ICOUNT,NBASISMAX,Arr,NBASIS)
                ENDIF
             ENDIF
          Call SymGenExcitIt_GetNextPair(K,iTo,iLooped,iTo1,iTo2,  &
@@ -150,18 +146,16 @@ MODULE SymExcit2
       END subroutine
 ! Add the weight of the excitation to the list in ExWeights
 ! I,J are from, K,L are to
-      SUBROUTINE AddExcitWeight(I,J,A,B,ExWeights,Norm,iCount,G1,NBASISMAX,UMAT,Arr,NBASIS)
+      SUBROUTINE AddExcitWeight(I,J,A,B,ExWeights,Norm,iCount,NBASISMAX,Arr,NBASIS)
          use constants, only: dp
          use SystemData, only: BasisFN
          INTEGER I,J,A,B
          REAL*8 R,Norm
          INTEGER nBasisMax(5,*),NBASIS
-         TYPE(BasisFN) G1(*)
-         HElement_t UMAT(*)
          TYPE(ExcitWeight) ExWeights(iCount+1)
          INTEGER iCount
          REAL*8 Arr(nBasis,2)
-         CALL ExcitWeighting(I,J,A,B,R,G1,NBASISMAX,UMAT,Arr,NBASIS)
+         CALL ExcitWeighting(I,J,A,B,R,NBASISMAX,Arr,NBASIS)
          iCount=iCount+1
          ExWeights(iCount)%I=I
          ExWeights(iCount)%J=J
@@ -173,18 +167,16 @@ MODULE SymExcit2
          
 ! Add the weight of the 'from' excitation to the list in ExWeights
 ! I,J are from
-      SUBROUTINE AddExcitFromWeight(I,J,ExWeights,Norm,iCount,G1,nBasisMax,UMat,Arr,nBasis)
+      SUBROUTINE AddExcitFromWeight(I,J,ExWeights,Norm,iCount,Arr,nBasis)
          use constants, only: dp
          use SystemData, only: BasisFN
-         INTEGER I,J,A,B
+         INTEGER I,J
          REAL*8 R,Norm
-         INTEGER nBasisMax(5,*),nBasis
-         TYPE(BasisFN) G1(*)
-         HElement_t UMat(*)
+         INTEGER nBasis
          TYPE(ExcitWeight) ExWeights(iCount+1)
          INTEGER iCount
          REAL*8 Arr(nBasis,2)
-         CALL ExcitFromWeighting(I,J,R,G1,nBasisMax,UMat,Arr,nBasis)
+         CALL ExcitFromWeighting(I,J,R,Arr,nBasis)
          iCount=iCount+1
          ExWeights(iCount)%I=I
          ExWeights(iCount)%J=J
@@ -194,16 +186,14 @@ MODULE SymExcit2
 
 !        A sub called to generate an unnormalised weight for an ij->?? excitation
 !          We return a function of the energies of the orbitals, exp(-(ei+ej)/a)
-      SUBROUTINE ExcitFromWeighting(I,J,Weight,G1,nBasisMax,UMat,Arr,nBasis)
+      SUBROUTINE ExcitFromWeighting(I,J,Weight,Arr,nBasis)
          use constants, only: dp
          use SystemData, only: BasisFN
          IMPLICIT NONE
-         INTEGER nBasisMax(5,*),nBasis
-         TYPE(BasisFN) G1(nBasis)
+         INTEGER nBasis
 !  We fake ISS
-         INTEGER I,J,K,L
+         INTEGER I,J
          REAL*8 WEIGHT
-         HElement_t UMAT(*),W
          REAL*8 Arr(nBasis,2)
          !No weighting
          IF(EXCITFUNCS(10)) THEN
@@ -251,7 +241,7 @@ MODULE SymExcit2
       END subroutine
 !        A sub called to generate an unnormalised weight for a given ij->kl excitation
 !          We return a function of the U matrix element (|<ij|u|kl>|^2)^G_VMC_EXCITWEIGHT
-      SUBROUTINE EXCITWEIGHTING(I,J,K,L,WEIGHT,G1,NBASISMAX,UMAT,Arr,NBASIS)
+      SUBROUTINE EXCITWEIGHTING(I,J,K,L,WEIGHT,NBASISMAX,Arr,NBASIS)
          use constants, only: dp
          USE UMatCache , only : GTID
          use Integrals, only : GetUMatEl
@@ -259,15 +249,14 @@ MODULE SymExcit2
          use global_utilities
          IMPLICIT NONE
          INTEGER nBasisMax(5,*),NBASIS
-         TYPE(BasisFN) G1(NBASIS)
 !  We fake ISS
          INTEGER ISS
          INTEGER IDI,IDJ,IDK,IDL
          INTEGER I,J,K,L
-         type(timer), save :: proc_timer
+         !type(timer), save :: proc_timer
          REAL*8 WEIGHT,W2
-         HElement_t UMAT(*),W
-         REAL*8 Arr(nBasis,2),Alat(3)
+         HElement_t W
+         REAL*8 Arr(nBasis,2)
          IF(G_VMC_EXCITWEIGHT(CUR_VERT).EQ.0.D0) THEN
             WEIGHT=1.D0
          ELSE
@@ -278,7 +267,7 @@ MODULE SymExcit2
             IDJ = GTID(J)
             IDK = GTID(K)
             IDL = GTID(L)
-            W=GetUMatEl(NBASISMAX,UMAT,Alat,NBASIS,ISS,G1,IDI,IDJ,IDK,IDL)
+            W=GetUMatEl(IDI,IDJ,IDK,IDL)
             IF(TUPOWER) THEN
                 WEIGHT=1.D0+(abs(W))**(G_VMC_EXCITWEIGHT(CUR_VERT))
             ELSE
@@ -334,7 +323,7 @@ MODULE SymExcit2
 ! After that, we generate the probability that nJ would be an excitation from nI.
 
 !  WARNING - this currently only works for abelian symmetry groups
-      SUBROUTINE GenExcitProbInternal(nI,nJ,nEl,G1,nBasisMax,UMat,Arr,nBasis,OrbPairs,SymProdInd,iLUT,SymProds,ExcitTypes,iTotal,pGen)
+      SUBROUTINE GenExcitProbInternal(nI,nJ,nEl,G1,nBasisMax,Arr,nBasis,OrbPairs,SymProdInd,iLUT,SymProds,ExcitTypes,iTotal,pGen)
          use constants, only: dp
          use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
          use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
@@ -345,12 +334,11 @@ MODULE SymExcit2
          INTEGER iExcit(2,2)
          LOGICAL L
          INTEGER nI(nEl),nJ(nEl),nEl,nBasis
-         INTEGER iFrom,iFromIndex,iTo,iToIndex
+         INTEGER iFrom,iFromIndex,iTo
          TYPE(BasisFn) G1(nBasis)
-         TYPE(Symmetry) Sym,Prod
+         TYPE(Symmetry) Sym
          TYPE(Symmetry) SymProds(0:*)
          INTEGER nBasisMax(5,*)
-         HElement_t UMat(*)
          TYPE(ExcitWeight), allocatable :: ews(:)
          integer, save :: tagews=0
          INTEGER iLUT(*)
@@ -358,12 +346,12 @@ MODULE SymExcit2
          INTEGER SymProdInd(2,3,0:*)
          INTEGER ExcitTypes(5,*)
          REAL*8 Norm
-         INTEGER K,NPR,I,iExcitType
+         INTEGER K,I,iExcitType
          INTEGER iSpn,iCount,nToPairs,iTotal,nFromPairs
          REAL*8 pGen
          REAL*8 Arr(nBasis,2)
          LOGICAL IsUHFDet
-         character, parameter :: thisroutine='GenExcitProbInternal'
+         character(*), parameter :: thisroutine='GenExcitProbInternal'
          iExcit(1,1)=2
          CALL GETEXCITATION(nI,nJ,nEl,iExcit,L)
 !EXCIT(1,*) are the ij... in NI, and EXCIT(2,*) the ab... in NJ
@@ -418,7 +406,7 @@ MODULE SymExcit2
          call LogMemAlloc('ExcitWGEPI',nFromPairs,8*ExcitWeightSize,thisroutine,tagEWS)
          iCount=0
          Norm=0.D0
-         CALL EnumExcitFromWeights(ExcitTypes(1,iExcitType),ews,OrbPairs,SymProdInd,Norm,iCount,G1,nBasisMax,UMat,Arr,nBasis)
+         CALL EnumExcitFromWeights(ExcitTypes(1,iExcitType),ews,OrbPairs,SymProdInd,Norm,iCount,Arr,nBasis)
          pGen=pGen/Norm    ! divide through by the Norm of the FROMs
          DO I=1,nFromPairs
             IF(ews(I)%I.EQ.iExcit(1,1).AND.ews(I)%J.EQ.iExcit(1,2)) THEN
@@ -438,7 +426,7 @@ MODULE SymExcit2
          call LogMemAlloc('ExcitWGEPI',nToPairs,8*ExcitWeightSize,thisroutine,tagEWS)
          iCount=0
          Norm=0.D0
-         CALL EnumExcitWeights(ExcitTypes(1,iExcitType),iFromIndex,iLUT,ews,OrbPairs,SymProdInd,Norm,iCount,G1,nBasisMax,UMat,Arr,nBasis)
+         CALL EnumExcitWeights(ExcitTypes(1,iExcitType),iFromIndex,iLUT,ews,OrbPairs,SymProdInd,Norm,iCount,nBasisMax,Arr,nBasis)
 !.. Find the (a,b) pair
 !.. The prob of all possible excitations in this iTo 
          DO I=1,nToPairs
@@ -457,29 +445,14 @@ MODULE SymExcit2
 
 !We wish to calculate whether NJ is an excitation of NI.
 !WARNING - this currently only works for abelian symmetry groups
-      SUBROUTINE IsConnectedDetInternal(nI,nJ,nEl,G1,nBasisMax,nBasis,OrbPairs,SymProdInd,iLUT,SymProds,ExcitTypes,iTotal,tIsConnectedDet)
+      SUBROUTINE IsConnectedDetInternal(nI,nJ,tIsConnectedDet)
          use constants, only: dp
-         use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
+         use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB, nel
          use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
          IMPLICIT NONE
          INTEGER iExcit(2,2)
-         LOGICAL L
-         INTEGER nI(nEl),nJ(nEl),nEl,nBasis
-         INTEGER iFrom,iFromIndex,iTo,iToIndex
-         TYPE(BasisFn) G1(nBasis)
-         TYPE(Symmetry) Sym,Prod
-         TYPE(Symmetry) SYMPROD
-         TYPE(Symmetry) SymProds(0:*)
-         INTEGER nBasisMax(5,*)
-         TYPE(ExcitWeight), allocatable :: ews(:)
-         integer, save :: tagews=0
-         INTEGER iLUT(*)
-         INTEGER OrbPairs(2,*)
-         INTEGER SymProdInd(2,3,0:*)
-         INTEGER ExcitTypes(5,*)
-         REAL*8 Norm
-         INTEGER K,NPR,I,iExcitType
-         INTEGER iSpn,iCount,nToPairs,iTotal,nFromPairs
+         INTEGER L
+         INTEGER nI(nEl),nJ(nEl)
          LOGICAL tIsConnectedDet
          LOGICAL IsUHFDet
          iExcit(1,1)=2

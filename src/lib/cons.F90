@@ -17,6 +17,7 @@ real(dp), parameter ::  PI2   = 9.8696044010893586188344909998761511353136994072
 real(dp), parameter ::  THIRD = 0.3333333333333333333333333333333333333333333333333_dp
 
 integer, parameter :: sizeof_int = 4
+integer, parameter :: sizeof_int64 = 8
 integer, parameter :: sizeof_dp = 8
 integer, parameter :: sizeof_complexdp = 16
 integer, parameter :: sizeof_sp = 4

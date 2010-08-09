@@ -61,7 +61,6 @@ contains
 
         character(*), parameter   :: this_routine = 'GenRandSymExcitCSF'
         integer :: nopen, ncsf, exTmp
-        integer(kind=n_int) :: iLutTmp(0:NIfTot)
         real*8 :: r
 
         ! Count the open shell electrons
@@ -185,7 +184,6 @@ contains
 
     subroutine CSFCreateDoubleExcit (nI, nJ, CCDblS, CCSglS, CCUnS, iLut, &
                                      ExcitMat, nopen, pDouble, pGen)
-        use GenRandSymExcitNUMod, only: CreateDoubExcit
         use csf, only: iscsf
         use SymExcitDataMod, only: pDoubNew
         integer, intent(in)  :: nI(nel), nopen 
@@ -325,6 +323,7 @@ contains
         integer :: orb, ind, i, locDelta, lnopen
 
         ! Draw orbitals randomly until we find one unoccupied
+        lnopen = 0
         do i=1,250
             r = genrand_real2_dSFMT()
             orb = 2 * int(r*nBasis/2) + 1 ! beta
@@ -407,6 +406,7 @@ contains
         sym_ind = CCIndS(sym(2), Ml(2))
         full_ind = ClassCountInd(2, sym(2), Ml(2))
         norbs = OrbClassCount(full_ind)
+        lnopen = 0
         do i=1,250
             r = genrand_real2_dSFMT()
             orb = int(r * norbs)
@@ -1316,7 +1316,6 @@ contains
         ! Indices, spin, Ml and symmetry values.
         integer :: ind, sym_ind, spn, MlB, sumMl
         integer :: syms(2), symA, symB, symProd
-        integer :: S
 
         ! Temporary values of nopen.
         integer :: delta_nopen, lnopen, lnopen2
@@ -1743,9 +1742,8 @@ contains
         integer(kind=n_int) :: iLut(0:NIfTot)
         integer :: CCDblS(ScratchSize/2), CCSglS(ScratchSize/2), nopen
         integer :: CCUnS(ScratchSize/2)
-        integer :: nexcit, i, nFreeze, ex(2,2)
+        integer :: nexcit, i, nFreeze
         integer, allocatable, dimension(:,:) :: nK
-        logical :: tParity
         !integer, dimension(10) :: nJ=(/-2147483631,-2147483630,-2147483615,-2147483614,-1073741823,-2147483645,-1073741805,-1073741803,-2147483625,-2147483623/)
         !integer, dimension(10) :: nJ=(/1,2,3,4,17,18,21,22,33,34/)
         !integer, dimension(10) :: nJ=(/3,4,17,18,23,24,31,32,33,34/)

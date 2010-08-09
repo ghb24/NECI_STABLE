@@ -1,26 +1,17 @@
-      SUBROUTINE DETHAM(NDET,NEL,NMRKS,NBASISMAX,
-     &	NHG,HAMIL,G1,LAB,NROW,TCOUNT,NMSH,FCK,
-     &	NMAX,ALAT,UMAT,ICMAX,GC,TMC,ECORE,BRR)
+      SUBROUTINE DETHAM(NDET,NEL,NMRKS, HAMIL,LAB,NROW,TCOUNT, 
+     &  ICMAX,GC,TMC)
       use global_utilities
       use constants, only: dp
       Use Determinants, only: get_helement
       use SystemData , only : BasisFN
       use CalcData , only : TStar
       IMPLICIT NONE
-C      IMPLICIT REAL*8 (A-H,O-Z)
       HElement_t HAMIL(*)
-      INTEGER NDET,NEL,NMSH,NMAX
+      INTEGER NDET,NEL
       INTEGER LAB(*)
-      TYPE(BasisFn) G1(*)
       INTEGER NMRKS(NEL,*)
       INTEGER NROW(NDET),GC
-C..Cube Arrays
-      COMPLEX*16 FCK(NMSH,NMSH,NMSH)
-      REAL*8 ALAT(3),ECORE
-      INTEGER nBasisMax(5,*),NHG,BRR(*)
-      HElement_t UMat(*)
-C..
-      INTEGER ICMAX,KI,IBEG,IBEGJ,KJ,IC,I,J,IMAX,IDAMAX
+      INTEGER ICMAX,KI,IBEG,IBEGJ,KJ,IC,IMAX,IDAMAX
       LOGICAL TCOUNT,TMC
       INTEGER IGETEXCITLEVEL_2,STEP,IMAXJ
       HElement_t totSUM
@@ -33,6 +24,7 @@ C ==-------------------------------------------------------------------==
 C..Global counter
       GC=0
       NROW(1:NDET)=0
+      IBEG=0
 C..   Now we need to match up any two determinants
       DO KI=1,NDET
          IF(mod(KI,1000).eq.0) WRITE(6,*) KI
@@ -45,7 +37,7 @@ C..   Now we need to match up any two determinants
            IBEGJ=1
            STEP=1
            IMAXJ=NDET
-	 ELSE
+         ELSE
            IF(TSTAR) THEN
                IF(KI.EQ.1) THEN
                   IBEGJ=1
@@ -61,7 +53,7 @@ C..   Now we need to match up any two determinants
                IMAXJ=NDET
                STEP=1
            ENDIF
-	 ENDIF
+         ENDIF
          IF(STEP.EQ.0) STEP=1
          DO KJ=IBEGJ,IMAXJ,STEP
 C..   IC is the number of pairs which are the *SAME* in both determinants
@@ -79,8 +71,8 @@ C..
 !            CALL WRITEDET(6,NMRKS(1,KJ),NEL,.TRUE.)
             totsum = get_helement(NMRKS(:,KI), NMRKS(:,KJ),nel-ic)
 C            CALL SLTCND(NEL,NBASISMAX,NHG,
-C     &		NMRKS(1:NEL,KI),NMRKS(1:NEL,KJ),G1,IC,NMSH,
-C     &		FCK,NMAX,ALAT,UMAT,TOTSUM)
+C     &     NMRKS(1:NEL,KI),NMRKS(1:NEL,KJ),G1,IC,NMSH,
+C     &     FCK,NMAX,ALAT,UMAT,TOTSUM)
             IF(ABS(TOTSUM).LT.1.D-10) TOTSUM=0.D0
             IF(TOTSUM.NE.0.D0.OR.KI.EQ.KJ) THEN
                GC=GC+1
@@ -117,12 +109,15 @@ C ==-------------------------------------------------------------------==
       RETURN
       END
 C ==---------------------------------------------------------------==
-      SUBROUTINE CHK_MS(ND1,ND2,NBASISMAX,NEL,IFLG,G1)
-      use SystemData, only: BasisFN
-      IMPLICIT REAL*8 (A-H,O-Z)
+      SUBROUTINE CHK_MS(ND1,ND2,IFLG,G1)
+      use SystemData, only: BasisFN, nel
+      use constants, only: dp
+      IMPLICIT NONE
 C..
-      DIMENSION ND1(NEL),ND2(NEL)
       TYPE(BASISFN) G1(*)
+      integer, intent(in) :: iFlg
+      integer, intent(in) :: ND1(NEL), ND2(NEL)
+      integer :: i, MS1, MS2
 C..
       MS1=0
       MS2=0

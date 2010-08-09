@@ -67,7 +67,7 @@ contains
           MemoryFacPart=10.D0
           MemoryFacAnnihil=10.D0
           MemoryFacSpawn=0.5
-          TStartSinglePart=.false.
+          TStartSinglePart=.true.
           TFixParticleSign=.false.
           TProjEMP2=.false.
           THFRetBias=.false.
@@ -933,6 +933,11 @@ contains
                 IF(item.lt.nitems) THEN
                     !If an optional integer keyword is added, then InitialPart will indicate the number of particles to start at the HF determinant.
                     call readi(InitialPart)
+                    if (InitialPart < 0) then
+                        ! Turn StartSinglePart off.
+                        tStartSinglePart = .false.
+                        InitialPart = 1
+                    end if
                 ENDIF
             case("MEMORYFACPART")
 !An FCIMC option - MemoryFac is the factor by which space will be made available for extra walkers compared to InitWalkers
@@ -1280,10 +1285,10 @@ contains
              IC=0
              HDiagTemp = get_helement(fDet, fDet, 0)
              WRITE(6,*) '<D0|H|D0>=',HDiagTemp
-             WRITE(6,*) '<D0|T|D0>=',CALCT(FDET,NEL,G1,NBASIS)
+             WRITE(6,*) '<D0|T|D0>=',CALCT(FDET,NEL)
              IF(TUEG) THEN
 !  The actual KE rather than the one-electron part of the Hamiltonian
-                WRITE(6,*) 'Kinetic=',CALCT2(FDET,NEL,G1,ALAT,NBASIS,CST)
+                WRITE(6,*) 'Kinetic=',CALCT2(FDET,NEL,G1,ALAT,CST)
              ENDIF
           ENDIF
 
@@ -1336,7 +1341,7 @@ contains
 !C.. we have put TMAT instead of ZIA
           IF(I_HMAX.NE.-20) THEN
 !C.. If we're using rhos,
-             RHOEPS=GETRHOEPS(RHOEPSILON,BETA,NEL,NBASISMAX,G1,nBasis,BRR, NMSH,FCK,NMAX,ALAT,UMAT,I_P,ECORE)
+             RHOEPS=GETRHOEPS(RHOEPSILON,BETA,NEL,BRR,I_P)
 
              WRITE(6,*) "RHOEPS:",RHOEPS
           ELSE
@@ -1365,10 +1370,7 @@ contains
 !Calls
 !          REAL*8 DMonteCarlo2
 !Local Vars
-          REAL*8 EN, ExEn, GsEN
-          REAL*8 FLRI, FLSI
-          REAL*8 RH
-          LOGICAL tWarn
+          REAL*8 EN
           integer iSeed,iunit
           iSeed=7 
 
@@ -1506,9 +1508,9 @@ contains
              RHOEPS=RHOEPSILON*EXP(-BETA*(W(1))/I_P)
             WRITE(6,*) "RHOEPS:",RHOEPS
              IF(TREAD) THEN
-                EXEN=CALCMCEN(NDET,NEVAL,CK,W,BETA,0.D0)
+                EXEN=CALCMCEN(NEVAL,W,BETA)
                 WRITE(6,"(A,F19.5)") "EXACT E(BETA)=",EXEN
-                GSEN=CALCDLWDB(1,NDET,NEVAL,CK,W,BETA,0.D0)
+                GSEN=CALCDLWDB(1,NDET,NEVAL,CK,W,BETA)
                 WRITE(6,"(A,F19.5)") "EXACT DLWDB(D0)=",GSEN
              ENDIF
              iunit = get_free_unit()
@@ -1516,7 +1518,7 @@ contains
              IF(NDETWORK.EQ.0.OR.NDETWORK.GT.NDET) NDETWORK=NDET
              DO III=1,NDETWORK
              
-                CALL CALCRHOPII(III,NDET,NEVAL,CK,W,BETA,I_P,ILOGGING,0.D0,FLRI,FLSI,TWARN)
+                CALL CALCRHOPII(III,NDET,NEVAL,CK,W,BETA,I_P,FLRI,FLSI,TWARN)
                 IF(TWARN) THEN
                    IF(III.EQ.1) THEN
                       WRITE(6,*) "Warning received from CALCRHOPII."
@@ -1534,7 +1536,7 @@ contains
                    ENDIF
                 ENDIF
                 call write_det (iunit, NMRKS(:,III), .false.)
-                GSEN=CALCDLWDB(III,NDET,NEVAL,CK,W,BETA,0.D0)
+                GSEN=CALCDLWDB(III,NDET,NEVAL,CK,W,BETA)
                 CALL GETSYM(NMRKS(:,III),NEL,G1,NBASISMAX,ISYM)
                 CALL GETSYMDEGEN(ISYM,NBASISMAX,IDEG)
                 WRITE(iunit,"(4G25.16,I5)") EXP(FLSI+I_P*FLRI),FLRI*I_P,FLSI,GSEN,IDEG
@@ -1864,11 +1866,11 @@ contains
          INTEGER Work(GNDWorkSize+2*NEL)
          TYPE(BASISFN) G1(*)
          INTEGER BRR(*),NMSH,NMAX,NTAY(2),ILOGGING
-         INTEGER III,NWHTAY(3,I_VMAX),I,IMAX,ILMAX,LMS
+         INTEGER III,NWHTAY(3,I_VMAX),IMAX,ILMAX,LMS
          TYPE(BasisFN) ISYM,SymRestrict
          LOGICAL TSPN,TPARITY,TSYM
          REAL*8 DBETA,ECORE
-         real(dp) WLRI,WLSI,WLRI1,WLRI2,WLSI1,WLSI2,WI,DLWDB
+         real(dp) WLRI,WLSI,WLRI1,WLRI2,WLSI1,WLSI2,DLWDB
          real(dp) TOT,WLRI0,WLSI0,WINORM,HElP,NORM
          LOGICAL TNPDERIV,TDONE,TFIRST
          INTEGER DETINV
@@ -1987,8 +1989,7 @@ contains
                IF(TLOG) CALL FLUSH(iunit)
                WRITE(6,*) "Investigating det ",DETINV
                CALL FLUSH(6)
-               CALL WIRD_SUBSET(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY, &
-     &            RHOEPS,ILOGGING,TSYM,ECORE)
+               CALL WIRD_SUBSET(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,ECORE)
             ENDIF
            ELSE
 ! Correct for overcounting
@@ -2013,18 +2014,16 @@ contains
 
 
 ! Given an input RHOEPSILON, create Fermi det D out of lowest orbitals and get RHOEPS (which is rhoepsilon * exp(-(beta/P)<D|H|D>
-      REAL*8 FUNCTION GETRHOEPS(RHOEPSILON,BETA,NEL,NBASISMAX,G1,NHG, BRR,NMSH,FCK,NMAX,ALAT,UMAT,I_P,ECORE)
+      REAL*8 FUNCTION GETRHOEPS(RHOEPSILON,BETA,NEL,BRR,I_P)
          Use Determinants, only: get_helement, write_det
          use constants, only: dp
          use SystemData, only: BasisFN
          use sort_mod
          IMPLICIT NONE
-         INTEGER NEL,NI(NEL),I,nBasisMax(5,*),I_P
-         INTEGER BRR(*),NMSH,NMAX,NHG
-         COMPLEX*16 FCK(*)
-         REAL*8 RHOEPSILON,BETA,ECORE,ALAT(*)
-         HElement_t BP, UMat(*), tmp
-         TYPE(BasisFN) G1(*)
+         INTEGER NEL,NI(NEL),I,I_P
+         INTEGER BRR(*)
+         REAL*8 RHOEPSILON,BETA
+         HElement_t BP, tmp
          DO I=1,NEL
             NI(I)=BRR(I)
          ENDDO
@@ -2038,11 +2037,11 @@ contains
 
 
 ! Calculate the kinetic energy of the UEG (this differs from CALCT by including the constant CST
-      REAL*8 FUNCTION CALCT2(NI,NEL,G1,ALAT,NBASIS,CST)
+      REAL*8 FUNCTION CALCT2(NI,NEL,G1,ALAT,CST)
          use constants, only: dp
          use SystemData, only: BasisFN
          IMPLICIT NONE
-         INTEGER NEL,NI(NEL),NBASIS,I,J
+         INTEGER NEL,NI(NEL),I,J
          TYPE(BasisFN) G1(*)
          REAL*8 ALAT(4),CST,TMAT
          LOGICAL ISCSF

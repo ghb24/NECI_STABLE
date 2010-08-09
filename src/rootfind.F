@@ -1,11 +1,11 @@
 
-      SUBROUTINE PLOTROOTSTAR(N,A,B,ROOTS,NROOTS)
+      SUBROUTINE PLOTROOTSTAR(N,A,B)
          use constants, only: dp
          use legacy_data, only: CALCP_N, CALCP_NT, CALCP_SUM, CALCP_HSUM
          IMPLICIT NONE
-         INTEGER N,I,J,NROOTS
+         INTEGER N,I,J
          HElement_t A(0:N),B(0:N)
-         real*8 ROOTS(0:NROOTS),HIGHZ,DELTA,Z
+         real*8 HIGHZ,DELTA,Z
          REAL*8 STAR,STARPROD,PROD,PROD2,STARPROD2
 
          !Calculate the poles of the new product formulation
@@ -71,7 +71,7 @@ C.. A and B are sorted in ascending order of A
          use constants, only: dp
          use IntegralsData , only : NRCONV,RFCONV,NRSTEPSMAX
          IMPLICIT NONE
-         INTEGER N,I,J,NROOTS,NMIN,K,JTOT
+         INTEGER N,I,J,NROOTS,NMIN,K
          HElement_t A(0:N),B(0:N)
          real*8 ROOTS(0:NROOTS),INITHIGH,INITLOW,DELTA
          REAL*8 XHIGH,XLOW,X,VAL,DERIV,OX,VALLOW,VALHIGH
@@ -570,7 +570,7 @@ C            IF(.NOT.TABOVE) VAL=-VAL
       END
       SUBROUTINE FINDSTARPOLYMIN(N,A,B,XH,XL,NR,ROOT)
          IMPLICIT NONE
-         INTEGER N,I,J
+         INTEGER N,J
          REAL*8 A(0:N),B(0:N)
          INTEGER NR(0:N)
          REAL*8 XHIGH,XLOW,X,VAL,DERIV,XVLOW,XVHIGH,ROOT,OX

@@ -1,20 +1,19 @@
 !Diagonalize a compressed hamiltonian (in HAMIL), returning eigenvalues in W and eigenvectors in CK.
-       SUBROUTINE HDIAG(NDET,HAMIL,LAB,NROW,CK,W,WORK2,WORK,LENHAMIL,
-     &                     NBLOCKSTARTS,NBLOCKS,BLOCKSYM)
+       SUBROUTINE HDIAG(NDET,HAMIL,LAB,NROW,CK,W,WORK2,WORK,
+     &                     NBLOCKSTARTS,NBLOCKS)
          use constants, only: dp
          use SystemData, only: BasisFN
          use global_utilities
          use HElem, only: HElement_t_size
          IMPLICIT NONE
-         INTEGER NDET,LENHAMIL
+         INTEGER NDET
          INTEGER NROW(NDET),LAB(*)
          HElement_t  HAMIL(*),CK(NDET,NDET),WORK2,WORK
 !         HElement_t CopyCK(NDET,NDET)
          REAL*8 W(NDET)
-         INTEGER I,J,IND,INDZ,INFO,LDA,NBS
+         INTEGER I,J,IND,INDZ,INFO,NBS
          INTEGER NBLOCKS,NBLOCKSTARTS(NBLOCKS+1)
          type(timer), save :: proc_timer
-         TYPE(BasisFN) BLOCKSYM(NBLOCKS)
          REAL*8 GSEN
          proc_timer%timer_name='HDIAG     '
          call set_timer(proc_timer)
@@ -91,10 +90,9 @@ C.. CK now contains the eigenvectors, and W the eigenvalues
       SUBROUTINE ExcitChangeTest(Vecs,Vals,HMAT,NDET)
          use constants, only: dp
          IMPLICIT NONE
-         INTEGER NDET,i,j,NExcit,INFO,bin,nbins
+         INTEGER NDET,i,j,NExcit,bin,nbins
          HElement_t Vecs(NDET,NDET),HMAT(NDET,NDET),KMAT(NDET,NDET)
-         HElement_t TrialEigenvec(NDET),Norm
-         REAL*8 Vals(NDET),KVals(NDET),Work(3*NDET),S(NDET,NDET+1),SSUM
+         REAL*8 Vals(NDET),S(NDET,NDET+1),SSUM
          REAL*8 MinS,MaxS,RangeBins
          INTEGER , ALLOCATABLE :: SHist(:,:)
          REAL*8 , ALLOCATABLE :: RangeHist(:)
@@ -238,9 +236,8 @@ C.. CK now contains the eigenvectors, and W the eigenvalues
 
  
       SUBROUTINE HDIAG_NH(NDET,NBLOCKSTARTS,NBLOCKS,
-     &            NEL,NMRKS,NBASISMAX,NBASIS,G1,NMSH,BRR,
-     &            FCK,NMAX,ALAT,UMAT,ICMAX,GC,TMC,ECORE,
-     &            BETA,I_P,ILOGGING,IFDET,ARR,BLOCKSYM)
+     &            NEL,NMRKS,NBASISMAX,NBASIS,G1,BRR,
+     &            BETA,I_P,IFDET,ARR,BLOCKSYM)
          use SystemData, only: BasisFN
          use global_utilities
          use Determinants, only: get_helement
@@ -250,11 +247,11 @@ C.. CK now contains the eigenvectors, and W the eigenvalues
          INTEGER NDET,NEL,NBLOCKS,NBLOCKSTARTS(NBLOCKS),NMRKS(NEL,NDET)
          INTEGER nBasisMax(5,*),NBASIS
          TYPE(BasisFN) G1(*)
-         INTEGER NMSH,NMAX,I_P,ILOGGING,BRR(*),INFO
-         REAL*8  ALAT(3),UMAT(*),ICMAX(*),GC(*),BETA
-         LOGICAL TMC,TWARN
-         REAL*8  FCK(*),ECORE,DNORM
-         REAL*8  CALCDLWDB,CALCMCEN,ARR(NBASIS)
+         INTEGER I_P,BRR(*),INFO
+         REAL*8  BETA
+         LOGICAL TWARN
+         REAL*8  DNORM
+         REAL*8  CALCDLWDB,ARR(NBASIS)
          
          INTEGER I,NBLKMAX,NBLK,J,K,NBS,III,IFDET,L
          REAL*8 EXEN,GSEN,FLRI,FLSI,GSEN2
@@ -330,14 +327,14 @@ C
 C               DO J=1,NBLK
 C                  WRITE(15,*) CK((III-1)*NBLK+J)
 C               ENDDO
-               CALL CALCRHOPII(III,NBLK,NBLK,CK,W,BETA,I_P,ILOGGING,
-     &               ECORE,FLRI,FLSI,TWARN)
+               CALL CALCRHOPII(III,NBLK,NBLK,CK,W,BETA,I_P,
+     &               FLRI,FLSI,TWARN)
                WRITE(14,"(I12,A)",advance='no') NBS+III-1,"("
                DO L=1,NEL
                   WRITE(14,"(I3,A)",advance='no')
      &                                           NMRKS(L,NBS+III-1),","
                ENDDO
-               GSEN=CALCDLWDB(III,NBLK,NBLK,CK,W,BETA,ECORE)
+               GSEN=CALCDLWDB(III,NBLK,NBLK,CK,W,BETA)
                WRITE(14,"(A,4G25.16,I5)") ") ",
      &            EXP(FLSI+I_P*FLRI),FLRI*I_P,FLSI,GSEN,IDEG
                EXEN=EXEN+(W(III)*IDEG)*EXP(-(W(III)-EBIAS)*BETA)
@@ -360,7 +357,7 @@ C                        ENDIF
 C               ENDIF
             ENDDO
             IF(IFDET.GE.NBS.AND.IFDET.LT.NBLOCKSTARTS(I+2)) THEN
-               GSEN2=CALCDLWDB(IFDET-NBS+1,NBLK,NBLK,CK,W,BETA,ECORE)
+               GSEN2=CALCDLWDB(IFDET-NBS+1,NBLK,NBLK,CK,W,BETA)
             ENDIF
          ENDDO
          CLOSE(14)

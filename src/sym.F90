@@ -160,7 +160,7 @@ contains
 !   symmetry products are merely exclusive ors of the molpro irrep numbers
 !   We set each of the MOLPRO irreps to a bit in our symmetry specifier.
 !   A1 corresponds to bit 0 (i.e. irrep 1)
-      SUBROUTINE GENMOLPSYMTABLE(NSYMMAX,G1,NBASIS,ARR,BRR)
+      SUBROUTINE GENMOLPSYMTABLE(NSYMMAX,G1,NBASIS)
          use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
          use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB, tUEG, tHUB
          use SymData, only: nProp,PropBitLen,SymClasses,nSymLabels
@@ -173,8 +173,7 @@ contains
          INTEGER NSYMMAX,nSymGen
          INTEGER I,ILABEL
          TYPE(BasisFN) G1(*)
-         INTEGER NBASIS,BRR(NBASIS)
-         REAL*8 ARR(NBASIS)
+         INTEGER NBASIS
          character(*), parameter :: this_routine='GenMolPSymTable'
 
          TAbelian=.true.
@@ -324,14 +323,13 @@ contains
          
       END SUBROUTINE FREEZESYMLABELS
 
-      SUBROUTINE GENMOLPSYMREPS(NSYMMAX)
+      SUBROUTINE GENMOLPSYMREPS()
          use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB,Arr
          use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB,Brr
          use SystemData, only: tSymIgnoreEnergies,nBasis,G1
          use SymData, only: SymReps,tagSymReps
          use global_utilities
          IMPLICIT NONE
-         INTEGER NSYMMAX
          INTEGER I,J
 !         TYPE(BasisFN) G1(NBASIS)
 !         INTEGER NBASIS,BRR(NBASIS)
@@ -466,7 +464,7 @@ contains
          use global_utilities
          use sort_mod
          IMPLICIT NONE
-         INTEGER I,IDECOMP,TOT,NPRODS,NSTATES
+         INTEGER I,TOT,NSTATES
          INTEGER TEMPLIST(NSTATES), lo, hi
          LOGICAL FRZ
          character(*), parameter :: this_routine='GenSymStatePairs'
@@ -760,7 +758,7 @@ contains
          LOGICAL ISCSF,ISC
          I=1
          NREPS(1:NEL)=0
-         CALL SETUPSYM(NBASISMAX,ISYM)
+         CALL SETUPSYM(ISYM)
          ISC=ISCSF(NI2,NEL)
          IF(tFixLz) CALL GetLz(NI2,NEL,ISYM%Ml)
          IF(ISC) THEN
@@ -781,7 +779,8 @@ contains
                IF(NREPS(J).EQ.SYMREPS(1,NI(I))) THEN
 !   We've found the slot for the rep.  increment it and leave.
                   NELECS(J)=NELECS(J)+1
-                  J=NEL
+                  J = NEL
+                  exit
                ENDIF
                J=J+1
             ENDDO
@@ -998,7 +997,7 @@ contains
          IMPLICIT NONE
          INTEGER IUNIT,NROT
          COMPLEX*16 CHARS(NROT)
-         INTEGER I,J
+         INTEGER J
          CHARACTER*6 STR
          LOGICAL LCOMP,LREAL
 !   First do a check for the format
@@ -1015,7 +1014,7 @@ contains
          IMPLICIT NONE
          INTEGER IUNIT,NROT
          COMPLEX*16 CHARS(NROT)
-         INTEGER I,J
+         INTEGER J
          CHARACTER*6 STR
          LOGICAL LCOMP,LREAL
             WRITE(IUNIT,"(A6,A)",advance='no') STR,":   "
@@ -1244,7 +1243,7 @@ contains
          ENDDO
       END SUBROUTINE GENSYMTABLE
 
-      SUBROUTINE GENSYMREPS(G1,NBASIS,ARR,BRR,DEGENTOL)
+      SUBROUTINE GENSYMREPS(G1,NBASIS,ARR,DEGENTOL)
          use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
          use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
          use SymData, only: SymReps,tAbelian,tagSymReps
@@ -1252,7 +1251,7 @@ contains
          IMPLICIT NONE
          INTEGER I,J
          TYPE(BasisFN) G1(nBasis)
-         INTEGER NBASIS,BRR(NBASIS)
+         INTEGER NBASIS
          REAL*8 ARR(NBASIS,2)
          REAL*8 DEGENTOL
          character(*), parameter :: this_routine='GenSymReps'
@@ -1287,7 +1286,7 @@ contains
          use SystemData, only: BasisFN,Symmetry
          IMPLICIT NONE
          TYPE(BASISFN) ISYM,JSYM
-         INTEGER I,IS,JS
+         INTEGER I
          LCHKSYM=.TRUE.
          DO I=1,3
             IF(ISYM%K(I).NE.JSYM%K(I)) LCHKSYM=.FALSE.
@@ -1576,11 +1575,11 @@ contains
          return
       end Function FindSymLabel
 !   A binary search to find VAL in TAB.  TAB is sorted
-      SUBROUTINE BINARYSEARCHSYM(VAL,TAB,ROWLEN,LEN,LOC)
+      SUBROUTINE BINARYSEARCHSYM(VAL,TAB,LEN,LOC)
          use SystemData, only: Symmetry
          IMPLICIT NONE
          TYPE(Symmetry) VAL
-         INTEGER LOC,LEN,ROWLEN
+         INTEGER LOC,LEN
          type(Symmetry) TAB(LEN)
          INTEGER I,J,IFIRST,N,ILAST
          I=1
@@ -1660,8 +1659,8 @@ contains
                   IMAX(1)%Sym%s=IPARITY%Sym%s
                   IMAX(2)%Sym%s=IMAX(1)%Sym%s
                ELSE
-                  IMAX(1)%Sym%s=MinSymRep(nBasisMax)
-                  IMAX(2)%Sym%s=MaxSymRep(nBasisMax)
+                  IMAX(1)%Sym%s=MinSymRep()
+                  IMAX(2)%Sym%s=MaxSymRep()
                ENDIF
             ELSE
 !   we've got a sym system with polydimensional irreps, which leads to
@@ -1773,12 +1772,11 @@ contains
       END SUBROUTINE GETSYMDEGEN
 
 !   Initialize symmetry to take into account the core electrons
-      SUBROUTINE SETUPSYM(NBASISMAX,ISYM)
+      SUBROUTINE SETUPSYM(ISYM)
          use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
          use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
          use SymData, only: FrozenSym
          IMPLICIT NONE
-         INTEGER nBasisMax(5,*)
          TYPE(BasisFN) ISym
          ISym=FrozenSym
          RETURN
@@ -1790,7 +1788,6 @@ contains
          INTEGER IUNIT
          TYPE(BASISFN) SYM
          LOGICAL LTERM
-         INTEGER J
          WRITE(IUNIT,"(4I5)",advance='no')SYM%K(1),SYM%K(2),SYM%K(3),SYM%MS
          CALL WRITESYM(IUNIT,SYM%SYM,LTERM)
       END SUBROUTINE WRITEALLSYM
@@ -1803,7 +1800,6 @@ contains
          TYPE(SYMMETRY) SYM
          LOGICAL LTERM
          INTEGER Abel(3)
-         INTEGER J
          IF(TAbelian) THEN
             CALL DecomposeAbelianSym(SYM%s,Abel)
             if (TwoCycleSymGens) then
@@ -1860,7 +1856,7 @@ contains
       use global_utilities
       IMPLICIT NONE
       INTEGER nTranslat,nKps,KpntInd(nStates)
-      INTEGER I,J,nStates
+      INTEGER I,nStates
       character(*), parameter :: this_routine='GenKPtIrreps'
       nSymLabels=nKps
       nRot=nTranslat
@@ -1965,24 +1961,22 @@ contains
       end function TotSymRep
 
       ! nBasisMax might well be needed in the future in these functions.
-      integer*8 function MinSymRep(nBasisMax)
+      integer*8 function MinSymRep()
          use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
          use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
          use SymData, only: tAbelian
          implicit none
-         integer nBasisMax(5,*)
          if(TAbelian) then
             MinSymRep=0
          else
             MinSymRep=0
          endif
       end function MinSymRep
-      integer*8 function MaxSymRep(nBasisMax)
+      integer*8 function MaxSymRep()
          use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
          use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
          use SymData, only: tAbelian,nProp
          implicit none
-         integer nBasisMax(5,*)
          integer abel(3)
          abel(:)=nprop(:)-1
          if(TAbelian) then
@@ -2024,7 +2018,7 @@ contains
         implicit none
         integer Nirrep,nBasis,iSS,nBi,i,basirrep,t
         integer*8 iSize
-        character, parameter :: this_routine='GetSymTMatSize'
+        character(*), parameter :: this_routine='GetSymTMATSize'
         nBi=nBasis/iSS
         iSize=0
         allocate(SymLabelIntsCum(nIrrep))

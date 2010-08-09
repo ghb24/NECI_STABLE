@@ -49,7 +49,7 @@
 !      by the reading and writing routines (where the filestatus is assumed to
 !      be 'NEW' in the write routine, and 'OLD' in the read routine).
 !
-!  (2) call write_record(filename,indexX,X,indicesX,labelX,info)
+!  (2) call write_record(filename,X,indicesX,labelX,info)
 !      where 
 !         filename = character(10) string
 !         indexX = integer: the index of the data set to be written. This index
@@ -857,7 +857,7 @@ contains
   return
   end subroutine read_record
 
-  subroutine write_record(filename,indexX,X,indicesX,labelX,info,printinfo)
+  subroutine write_record(filename,X,indicesX,labelX,info,printinfo)
   ! filename = character(10) name of file to write to
   ! indexX   = index of array X in the TOC
   ! X        = read(dp) array to be written
@@ -867,7 +867,6 @@ contains
   ! 
   implicit none
   character(10), intent(in) :: filename
-  integer, intent(in) :: indexX
   real(dp), dimension(:), intent(in) :: X
   integer(4), dimension(:), intent(in) :: indicesX
   character(8), intent(in) :: labelX

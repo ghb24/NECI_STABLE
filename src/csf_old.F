@@ -130,8 +130,6 @@ C.. Return true if two csfs have the same spin sym.
      &      SORDERI(NEL)
          INTEGER ICLOSEDJ(NEL),NCLOSEDJ,IOPENJ(NEL),NOPENJ,SZJ,SJ,
      &      SORDERJ(NEL)
-         INTEGER I,J,K
-         INTEGER ICMPDETS
          
 C         IEXLEVEL=1
 C         RETURN
@@ -255,14 +253,14 @@ C.. test if NCI is a CSF
          ISCSF=NCI(NEL).GE.CSF_NBSTART
       END
 
-      SUBROUTINE GETNEXTSYMCSF(NEL,NBASIS,BRR,NBASISMAX,
+      SUBROUTINE GETNEXTSYMCSF(NEL,NBASIS,NBASISMAX,
      &  G1,ISYM,NI)
          use SystemData, only: BasisFN,BasisFNSize
          use legacy_data, only: CSF_NBSTART
          use sym_mod
          use util_mod, only: NECI_ICOPY
          IMPLICIT NONE
-         INTEGER NEL,NBASIS,BRR(NBASIS),NBASISMAX(*)
+         INTEGER NEL,NBASIS,NBASISMAX(*)
          INTEGER NMRKS(NEL,1),NDET
          type(BasisFN) G1(*)
          LOGICAL TCOUNT,TSPN,TPARITY
@@ -272,9 +270,9 @@ C.. test if NCI is a CSF
          INTEGER ORBS(NBASIS/2,2)
          INTEGER NORBS
 
-         INTEGER I,J,IELEC,IORB,IORBTYPE,IORBTYPE2
+         INTEGER I,J,IELEC,IORB,IORBTYPE
          INTEGER NI(NEL)
-         LOGICAL TBR,BR2,TDO
+         LOGICAL TBR,BR2
          INTEGER IBACK
          INTEGER NCLOSED
          INTEGER NOPEN
@@ -450,9 +448,9 @@ C..    Otherwise all will.
          INTEGER ORBS(NBASIS/2,2)
          INTEGER NORBS
 
-         INTEGER I,J,IELEC,IORB,IORBTYPE,IORBTYPE2
+         INTEGER I,J,IELEC,IORB,IORBTYPE
          INTEGER NI(NEL),IND(NEL),NJ(NEL)
-         LOGICAL TBR,BR2,TDO,TBR2
+         LOGICAL TBR,BR2
          INTEGER IBACK
          INTEGER NCLOSED
          INTEGER NOPEN
@@ -842,39 +840,24 @@ C.. remove NDCH if necessary
          RETURN
       END
 
-      subroutine CSFGETHELEMENTOLD(NCI,NCJ,NEL,NBASISMAX,
-     &   G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMat,ECORE,TOTSUM)
+      subroutine CSFGETHELEMENTOLD(NCI,NCJ,NEL,TOTSUM)
          use constants, only: dp
          use SystemData, only: basisfn
-         type(basisfn) G1(*)
-         integer nbasis,brr(*),nmsh,nmax
-         real*8 alat(*)
-         HElement_t umat(*)
-         complex*16 fck(*)
-         integer nel,nci(nel),ncj(nel),nbasismax(5,*)
+         integer nel,nci(nel),ncj(nel)
          HElement_t TOTsum
-         real*8 ecore
 
-         call csfgethelement(nci,ncj,nel,nbasismax,g1,nbasis,
-     &                  brr,nmsh,fck,nmax,alat,umat,ecore,TOTsum)
+         call csfgethelement(nci,ncj,nel,TOTsum)
       end subroutine
 
 C.. Get the Hamiltonian Element between two CSFs
-      SUBROUTINE CSFGETHELEMENT(NCI,NCJ,NEL,NBASISMAX,
-     &   G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMat,ECORE,TOTSUM)
+      SUBROUTINE CSFGETHELEMENT(NCI,NCJ,NEL,TOTSUM)
          use constants, only: dp
          Use Determinants, only: get_helement
          use SystemData, only: BasisFN
          use global_utilities
          IMPLICIT NONE
-         TYPE(BasisFN) G1(*)
-         INTEGER NBASIS,BRR(*),NMSH,NMAX
-         REAL*8 ALAT(*)
-         HElement_t UMat(*)
-         COMPLEX*16 FCK(*)
-         INTEGER NEL,NCI(NEL),NCJ(NEL),nBasisMax(5,*)
+         INTEGER NEL,NCI(NEL),NCJ(NEL)
          HElement_t TOTSUM,SUM2,HEL
-         REAL*8 ECORE
          
          INTEGER,ALLOCATABLE :: LISTD1(:,:),LISTD2(:,:)
          INTEGER,ALLOCATABLE :: DOLISTD1(:),DOLISTD2(:)
@@ -1215,9 +1198,9 @@ C.. we loop over increasing N in the genealogical tree, only including
 C.. paths which go below or along the one we have (as paths above us 
 C.. will have a higher index than us)
 
-      SUBROUTINE CSFGETSINDEX(SORDER,NOPEN,SINDEX,S)
+      SUBROUTINE CSFGETSINDEX(NOPEN,SINDEX,S)
          IMPLICIT NONE
-         INTEGER NOPEN,SORDER(NOPEN),S
+         INTEGER NOPEN,S
          INTEGER SLEVEL(0:NOPEN,0:S)
          INTEGER SINDEX
 C.. SLEVEL contains the relevant part of the genealogical tree

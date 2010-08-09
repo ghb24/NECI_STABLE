@@ -43,11 +43,10 @@ subroutine ParMP2(nI)
    IMPLICIT NONE
    integer :: nI(nEl)
    integer :: iMinElec, iMaxElec
-   real*8 :: nCur
    integer :: i,j
    integer :: IA,JA,AA,BA,JJ
    integer :: store(6),Excit(2,2)
-   integer :: ic,exlen,iC0,ExcitOrbs(2,2),ExLevel
+   integer :: ic,exlen,iC0,ExLevel
    integer, pointer :: Ex(:)
    integer :: nJ(nEl),weight
    HElement_t dU(2)
@@ -109,14 +108,14 @@ subroutine ParMP2(nI)
 !  Setup the spin excit generator
    STORE(1)=0
 !  IC is the excitation level (relative to the reverence det).
-   CALL GENSYMEXCITIT3Par(NI,.TRUE.,EXLEN,nJ,IC,0,STORE,ExLevel,iMinElec,iMaxElec)
+   CALL GENSYMEXCITIT3Par(NI,.TRUE.,EXLEN,nJ,IC,STORE,ExLevel,iMinElec,iMaxElec)
    Allocate(Ex(exLen),stat=ierr)
    call LogMemAlloc('Ex',Exlen,4,this_routine,tag_Ex,ierr)
    EX(1)=0
-   CALL GENSYMEXCITIT3Par(NI, .TRUE.,EX,nJ,IC,0,STORE,ExLevel,iMinElec,iMaxElec)
+   CALL GENSYMEXCITIT3Par(NI, .TRUE.,EX,nJ,IC,STORE,ExLevel,iMinElec,iMaxElec)
 
 !  Generate the first excitation
-   CALL GENSYMEXCITIT3Par(NI, .False.,EX,nJ,IC,0,STORE,ExLevel,iMinElec,iMaxElec)
+   CALL GENSYMEXCITIT3Par(NI, .False.,EX,nJ,IC,STORE,ExLevel,iMinElec,iMaxElec)
    i=0
    j=0
    dETot=(0.d0)
@@ -339,7 +338,7 @@ subroutine ParMP2(nI)
       !write (6,'(2i3,a2,2i3,2f17.8)') Excit(1,:),'->',Excit(2,:),dE
 
       ! Get next excitation.
-      CALL GENSYMEXCITIT3Par(NI,.false.,EX,nJ,IC,0,STORE,ExLevel,iMinElec,iMaxElec)
+      CALL GENSYMEXCITIT3Par(NI,.false.,EX,nJ,IC,STORE,ExLevel,iMinElec,iMaxElec)
 
    end do 
 
@@ -380,7 +379,6 @@ Subroutine Par2vSum(nI)
    IMPLICIT NONE
    Integer nI(nEl)
    integer iMinElec, iMaxElec
-   real*8 nCur
    integer i
    integer store(6)
    integer ic,exlen,iC0
@@ -411,14 +409,14 @@ Subroutine Par2vSum(nI)
 !.. Setup the spin excit generator
    STORE(1)=0
 !  IC is the excitation level (relative to the reverence det).
-   CALL GENSYMEXCITIT3Par(NI,.TRUE.,EXLEN,nJ,IC,0,STORE,3,iMinElec,iMaxElec)
+   CALL GENSYMEXCITIT3Par(NI,.TRUE.,EXLEN,nJ,IC,STORE,3,iMinElec,iMaxElec)
    Allocate(Ex(exLen))
    EX(1)=0
-   CALL GENSYMEXCITIT3Par(NI, .TRUE.,EX,nJ,IC,0,STORE,3,iMinElec,iMaxElec)
+   CALL GENSYMEXCITIT3Par(NI, .TRUE.,EX,nJ,IC,STORE,3,iMinElec,iMaxElec)
 
 
 !  Generate the first excitation
-   CALL GENSYMEXCITIT3Par(NI, .False.,EX,nJ,IC,0,STORE,3,iMinElec,iMaxElec)
+   CALL GENSYMEXCITIT3Par(NI, .False.,EX,nJ,IC,STORE,3,iMinElec,iMaxElec)
    i=0
 !NJ(1) is zero when there are no more excitations.
    DO WHILE(NJ(1).NE.0)
@@ -428,7 +426,7 @@ Subroutine Par2vSum(nI)
       call Get2vWeightEnergy(dE1,dE2,dU,Beta,dw,dEw)
       dEwTot=dEwTot+dEw
       dwTot=dwTot+dw
-      CALL GENSYMEXCITIT3Par(NI, .False.,EX,nJ,IC,0,STORE,3,iMinElec,iMaxElec)
+      CALL GENSYMEXCITIT3Par(NI, .False.,EX,nJ,IC,STORE,3,iMinElec,iMaxElec)
    ENDDO 
    write(6,*) I
    write(6,*) dEwTot,dwTot,dEwTot/dwTot

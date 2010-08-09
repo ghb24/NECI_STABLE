@@ -3,11 +3,6 @@
       use SystemData, only: BasisFN
       use global_utilities
       IMPLICIT REAL*8 (A-H,O-Z)
-#ifdef POINTER8
-      INTEGER*8 LOC
-#else
-      INTEGER LOC
-#endif
       REAL*8, ALLOCATABLE :: FODM(:,:),Z(:,:),W(:)
 C..Diagonalisation vectors
       REAL*8, ALLOCATABLE :: WORK(:)
@@ -19,7 +14,6 @@ C..Diagonalisation vectors
       DIMENSION CK(NDET,NEVAL),NMRKS(NEL,*)
       DIMENSION N1E(NHG),N2E(NHG)
       DIMENSION SUMA(NMAXX,NMAXY,NMAXZ)
-      COMPLEX*16 CDET
       TYPE(BASISFN) G1(NHG)
       character(*),parameter :: this_routine='FODMAT'
 C..

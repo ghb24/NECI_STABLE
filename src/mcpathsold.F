@@ -13,11 +13,10 @@ C.. which do not necessarily have distinct nodes
          REAL*8 F(2:I_HMAX)
          CHARACTER*20 STR
          REAL*8 TOTAL,RHOII(0:I_HMAX)
-         REAL*8 FLNSUM,FLNRII
          REAL*8 ALAT(3),RHOEPS
          INTEGER  G1(5,NBASIS),nBasisMax(5,*),ILMAX
          INTEGER LSTE(NEL,ILMAX,0:I_HMAX-1)
-         INTEGER ICE(ILMAX,0:I_HMAX-1),NLIST
+         INTEGER ICE(ILMAX,0:I_HMAX-1)
          LOGICAL TLOG
          type(timer), save :: proc_timer,proc_timer2
          proc_timer%timer_name='MCPATHSR2 '
@@ -32,8 +31,8 @@ C.. We'll start with I_H=2
 C.. Set the first node to I_I
 c         OPEN(10,FILE="HPATHS",STATUS="UNKNOWN")
          CALL NECI_ICOPY(NEL,NI,1,IPATH(1:NEL,0),1)
-         CALL CALCRHO2(NI,NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,
-     &            BRR,NMSH,FCK,NMAX,ALAT,UMAT,RH,NTAY,0,ECORE)
+         CALL CALCRHO2(NI,NI,BETA,I_P,NEL,G1,NBASIS,
+     &            NMSH,FCK,NMAX,ALAT,UMAT,RH,NTAY,0,ECORE)
          RHOII(0)=RH
          WLRI=LOG(RHOII(0))
          TOTAL=1.D0
@@ -124,14 +123,14 @@ C.. 1 at end means we need at least 1 excitation
 
          ENDIF
 C.. Find RHO_II for this node
-         CALL CALCRHO2(INODE,INODE,BETA,I_P,NEL,NBASISMAX,
-     &   G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,RH,NTAY,0,ECORE)
+         CALL CALCRHO2(INODE,INODE,BETA,I_P,NEL,
+     &   G1,NBASIS,NMSH,FCK,NMAX,ALAT,UMAT,RH,NTAY,0,ECORE)
          RHOII(I_HIND)=RH
          I=1
 C.. We must recurse over all the nodes connected to this node
          DO WHILE (I.LE.NLIST)
           CALL CALCRHO2(INODE,LSTE(1:NEL,I,I_HIND),BETA,I_P,NEL,
-     &      NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,RH,NTAY,
+     &      G1,NBASIS,NMSH,FCK,NMAX,ALAT,UMAT,RH,NTAY,
      &            ICE(I,I_HIND),ECORE)
 C.. see if it's worth going further
           IF(ABS(RH).GT.RHOEPS) THEN
@@ -212,7 +211,7 @@ C..  FLNSUM =ln(1+RHOII^-2 Sum_J (RHOIJ^2 w2(RHOJJ,RHOII,P)) + ...)
      &                   NWHTAY,ILOGGING,FLNRII,FLNSUM)
          use global_utilities
          IMPLICIT REAL*8 (A-H,O-Z)
-         INTEGER NDET,NRHO
+         INTEGER NDET
          INTEGER RHOIJLAB(*),RHOIJROWS(NDET+1)
          REAL*8 RHOIJ(*)
          DIMENSION IPATH(0:I_HMAX)
@@ -273,14 +272,13 @@ C..  It then weights using CALCPATHn (n=5 for rec/taylor2 hybrid) (18/11/03)
      &      I_HIND,RHOCUML,RHOII,L,LT,ILOGGING) RESULT (FMCPRRES)
          
          IMPLICIT REAL*8 (A-H,O-Z)
-         INTEGER NDET,NRHO,I_H
+         INTEGER NDET,I_H
          INTEGER RHOIJLAB(*),RHOIJROWS(NDET+1)
          REAL*8 RHOIJ(*)
          REAL*8 RHOCUML
          INTEGER IPATH(0:I_H)
          REAL*8 RHOII(0:I_H)
          INTEGER ISEED
-         INTEGER INTERSECT(NRHOMAXWIDTH)
          LOGICAL TLOG1, TLOG2
          TLOG1=BTEST(ILOGGING,2)
          TLOG2=BTEST(ILOGGING,3)
@@ -363,7 +361,7 @@ C.. (Requires whole rho matrix)
      &               NRHOMAXWIDTH)
          use global_utilities
          IMPLICIT REAL*8 (A-H,O-Z)
-         INTEGER NDET,NRHO
+         INTEGER NDET
          INTEGER RHOIJLAB(*),RHOIJROWS(NDET+1)
          REAL*8 RHOIJ(*)
          INTEGER IPATH(I_P+1)
@@ -371,7 +369,6 @@ C.. (Requires whole rho matrix)
          INTEGER INTERSECT(NRHOMAXWIDTH)
          REAL*8 PROB(NRHOMAXWIDTH)
          REAL*8 RAN2
-         REAL(KIND=4) :: SecondSeed=0.0
          type(timer), save :: proc_timer
          proc_timer%timer_name='MCPATHS0  '
          call set_timer(proc_timer)

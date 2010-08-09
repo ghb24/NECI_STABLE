@@ -7,7 +7,7 @@ C..   =Sum_a(|c_ia|^2 <u_a|(p^2)/2|u_a>)
          INTEGER NBASIS
          REAL*8 HFBASIS(NBASIS,NBASIS)
          INTEGER I,J,A,B,NORBUSED
-         REAL*8 SUM1,S1
+         REAL*8 SUM1
 C.. HFBASIS(HFBASISFN,PRIMBASISFN) has PRIMBASISFN varying slowest
          OPEN(10,FILE='TMAT2',STATUS='UNKNOWN')
          DO I=1,NORBUSED
@@ -28,15 +28,13 @@ C.. HFBASIS(HFBASISFN,PRIMBASISFN) has PRIMBASISFN varying slowest
       END
 C.. Ti=Sum_a,b(c_ia* c_ib <u_a(1)|h(1)|u_b(1)>)
 C..   =Sum_a(|c_ia|^2 <u_a|(p^2)/2|u_a>)
-      SUBROUTINE READHFTMAT(NBASIS,HFBASIS)
+      SUBROUTINE READHFTMAT(NBASIS)
          use constants, only: dp
          USE OneEInts, only : TMAT2D2
          IMPLICIT NONE
          INTEGER NBASIS
-         REAL*8 HFBASIS(NBASIS,NBASIS)
          REAL*8 R
-         INTEGER I,J,A,B
-         REAL*8 SUM1,S1
+         INTEGER I,J
 C.. HFBASIS(HFBASISFN,PRIMBASISFN) has PRIMBASISFN varying slowest
          OPEN(10,FILE='TMAT2',STATUS='OLD')
          I=0
@@ -48,17 +46,14 @@ C.. HFBASIS(HFBASISFN,PRIMBASISFN) has PRIMBASISFN varying slowest
 11       CLOSE(10)
          RETURN
       END
-      SUBROUTINE READHFUMAT(UMAT,UMAT2,NBASIS,NBASISMAX,G1,HFBASIS,ISS,
-     &            HFE,ARR,BRR)
+      SUBROUTINE READHFUMAT(UMAT2,NBASIS)
          USE UMatCache , only : UMatInd
          IMPLICIT NONE
-         INTEGER NBASIS,ISS,nBasisMax(5,*),G1(*)
-         REAL*8 UMAT(*)
-         REAL*8 UMAT2(*),ARR(NBASIS)
-         REAL*8 HFBASIS(NBASIS,NBASIS),SUM1,OS,HFE(NBASIS)
-         INTEGER I,J,K,L,A,B,C,D
-         INTEGER ID1,ID2,ID3,ID4,NHG,ISSM,BRR(NBASIS)
-         LOGICAL LSPN
+         INTEGER NBASIS
+         REAL*8 UMAT2(*)
+         REAL*8 SUM1
+         INTEGER A,B,C,D
+         INTEGER NHG
          NHG=NBASIS
          WRITE(6,*) 'READING HF UMAT'
 C ==--------------------------------------------------------------------=
@@ -113,25 +108,24 @@ C         NBASISMAX(1,2)=NBASIS-1
 
 C.. Generic spatial symmetry
          NBASISMAX(3,3)=1
-         CALL GENMOLPSYMTABLE(1,G1,NBASIS,ARR,BRR)
+         CALL GENMOLPSYMTABLE(1,G1,NBASIS)
          CALL ORDERBASIS(NBASIS,ARR,BRR,ORBORDER,NBASISMAX,G1)
-         CALL GENMOLPSYMREPS(1)
+         CALL GENMOLPSYMREPS()
 
          RETURN
       END
-      SUBROUTINE CALCHFUMAT(UMAT,UMAT2,NBASIS,NBASISMAX,G1,HFBASIS,ISS,
-     &            HFE,ARR,BRR,NORBUSED)
+      SUBROUTINE CALCHFUMAT(UMAT,UMAT2,NBASIS,HFBASIS,ISS,NORBUSED)
          USE UMatCache , only : UMatInd,GTID
          use global_utilities
          IMPLICIT NONE
-         INTEGER NBASIS,G1(*),ISS,nBasisMax(5,*)
+         INTEGER NBASIS,ISS
          REAL*8 UMAT(*)
-         REAL*8 UMAT2(*),ARR(NBASIS)
+         REAL*8 UMAT2(*)
          REAL*8 UMATT((((NBASIS/ISS)*(NBASIS/ISS-1))/2)**2)
-         REAL*8 HFBASIS(NBASIS,NBASIS),SUM1,OS,HFE(NBASIS)
+         REAL*8 HFBASIS(NBASIS,NBASIS),SUM1
          INTEGER I,J,K,L,A,B,C,D
          type(timer), save :: proc_timer
-         INTEGER ID1,ID2,ID3,ID4,NHG,ISSM,BRR(NBASIS),NORBUSED
+         INTEGER ID1,ID2,ID3,ID4,NHG,NORBUSED
          LOGICAL LSPN
          NHG=NBASIS
          proc_timer%timer_name='CALCHFUMAT'
@@ -238,7 +232,7 @@ C..Symmetries not needed by UMatInd
          INTEGER NBASIS,NQNS(5),NN
          TYPE(BasisFN) G1(nBasis)
          REAL*8 HFBASIS(NBASIS,NBASIS),HFE(NBASIS)
-         INTEGER I,L,J,NB,NE,IG,N
+         INTEGER I,L,J,NB,NE,IG
          REAL*8 VAL
          INTEGER IFINDBASISFN
          WRITE(6,*) "Loading HF BASIS"
@@ -270,17 +264,16 @@ C.. HFBASIS(HFBASISFN,PRIMBASISFN) has PRIMBASISFN varying slowest
 
 
 
-      SUBROUTINE CALCHFBASIS(NBASIS,ISS,NBASISMAX,G1,ARR,BRR,ECORE,
+      SUBROUTINE CALCHFBASIS(NBASIS,NBASISMAX,G1,BRR,ECORE,
      &      UMAT,HFE,HFBASIS,NHFIT,NEL,MS,HFMIX,EDELTA,CDELTA,TRHF,
      &      IHFMETHOD,TREADHF,FRAND,HFDET,ILOGGING)
          use constants, only: dp
          use HElem, only: HElement_t_size
          use global_utilities
          IMPLICIT NONE
-         INTEGER NBASIS,G1(*),ISS,nBasisMax(5,*)
+         INTEGER NBASIS,G1(*),nBasisMax(5,*)
          REAL*8 UMAT(*)
          REAL*8 ECORE
-         REAL*8 ARR(NBASIS)
          INTEGER BRR(NBASIS)
          HElement_t HFBASIS(NBASIS,NBASIS)
          REAL*8 HFE(NBASIS)
@@ -291,10 +284,8 @@ C.. HFBASIS(HFBASISFN,PRIMBASISFN) has PRIMBASISFN varying slowest
          HElement_t,allocatable :: R1(:),R2(:)
          integer, save :: tagR1=0,tagR2=0,tagHFES=0,tagFMAT=0,tagOFMat=0
          integer, save :: tagWork=0,tagDMAT=0,tagODMat=0
-         INTEGER NHFIT,NEL,NSTART(NEL)
-         INTEGER I,J,K,L,ISPN,ISPS,IS1,IS2
-         REAL*8 TOT,HFMIX,EDELTA,CDELTA
-         INTEGER ID1,ID2,ID3,ID4,INFO,IHFIT
+         INTEGER NHFIT,NEL
+         REAL*8 HFMIX,EDELTA,CDELTA
          INTEGER MS,IHFMETHOD
          INTEGER NSPINS,NSBASIS
          LOGICAL TRHF,TREADHF
@@ -336,12 +327,12 @@ C.. particle basis fns, separated into up and down blocks
          FMAT=(0.d0)
          DMAT=(0.d0)
          IF(IHFMETHOD.EQ.0.OR.IHFMETHOD.EQ.-1) THEN
-            CALL UHFSCF(NBASIS,ISS,NBASISMAX,G1,ARR,BRR,ECORE,
-     &         UMAT,HFE,HFBASIS,NHFIT,NEL,MS,FMAT,DMAT,ODMAT,WORK,
+            CALL UHFSCF(NBASIS,G1,BRR,ECORE,
+     &         HFE,HFBASIS,NHFIT,NEL,MS,FMAT,DMAT,ODMAT,WORK,
      &         NSPINS,NSBASIS,HFES,OFMAT,HFMIX,EDELTA,CDELTA,TRHF,R1,R2,
      &         IHFMETHOD,TREADHF,FRAND,HFDET,ILOGGING)
          ELSE
-            CALL UHFGRADDESC(NBASIS,ISS,NBASISMAX,G1,ARR,BRR,ECORE,
+            CALL UHFGRADDESC(NBASIS,NBASISMAX,G1,BRR,ECORE,
      &         UMAT,HFE,HFBASIS,NHFIT,NEL,MS,NSPINS,NSBASIS,HFES,
      &      HFMIX,FMAT,OFMAT,DMAT,ODMAT,EDELTA,CDELTA,R1,R2,WORK,TRHF,
      &      IHFMETHOD,TREADHF,FRAND,HFDET,ILOGGING)
@@ -360,18 +351,16 @@ C.. particle basis fns, separated into up and down blocks
          RETURN
       END
 C.. Unrestricted HF SCF code
-      SUBROUTINE UHFSCF(NBASIS,ISS,NBASISMAX,G1,ARR,BRR,ECORE,
-     &      UMAT,HFE,HFBASIS,NHFIT,NEL,MS,FMAT,DMAT,ODMAT,WORK,
+      SUBROUTINE UHFSCF(NBASIS,G1,BRR,ECORE,
+     &      HFE,HFBASIS,NHFIT,NEL,MS,FMAT,DMAT,ODMAT,WORK,
      &      NSPINS,NSBASIS,HFES,OFMAT,HFMIX,EDELTA,CDELTA,TRHF,R1,R2,
      &      IHFMETHOD,TREADHF,FRAND,HFDET,ILOGGING)
          use constants, only: dp
          use HElem, only: HElement_t_size
          IMPLICIT NONE
          INTEGER NSPINS,NSBASIS
-         INTEGER NBASIS,G1(*),ISS,nBasisMax(5,*)
-         REAL*8 UMAT(NSBASIS,NSBASIS,NSBASIS,NSBASIS)
+         INTEGER NBASIS,G1(*)
          REAL*8 ECORE
-         REAL*8 ARR(NBASIS)
          INTEGER BRR(NBASIS)
          HElement_t HFBASIS(NBASIS,NBASIS)
          REAL*8 HFES(NSBASIS,NSPINS),HFE(NBASIS)
@@ -381,12 +370,11 @@ C.. Unrestricted HF SCF code
          HElement_t ODMAT(NSBASIS,NSBASIS,NSPINS)
          REAL*8 WORK(NBASIS*3),HFMIX
          REAL*8 R1(NSBASIS,NSBASIS),R2(NSBASIS,NSBASIS)
-         INTEGER NHFIT,NEL,NSTART(NEL)
-         INTEGER I,J,K,L,ISPN,ISPN2,NELS(NSPINS)
-         INTEGER INDS(NBASIS)
-         REAL*8 TOT,ELAST,EDELTA,ECUR,TOT2,CDELTA
-         INTEGER ID1,ID2,ID3,ID4,INFO,IHFIT
-         INTEGER MS,NELEX,IHFMETHOD,IRHFB
+         INTEGER NHFIT,NEL
+         INTEGER I,J,K,L,ISPN,NELS(NSPINS)
+         REAL*8 ELAST,EDELTA,ECUR,CDELTA
+         INTEGER IHFIT
+         INTEGER MS,IHFMETHOD,IRHFB
          REAL*8 F
          REAL*8 RMSD,FRAND
          LOGICAL BR
@@ -415,7 +403,7 @@ C         EDELTA=1.D-8
          IF(TREADHF) THEN
             CALL  READHFFMAT(NBASIS,FMAT,HFES,G1,NSPINS,NSBASIS,.FALSE.)
          ELSE
-          CALL GENHFGUESS(FMAT,NSPINS,NSBASIS,R1,R2,WORK,BRR,G1,.FALSE.,
+          CALL GENHFGUESS(FMAT,NSPINS,NSBASIS,BRR,G1,.FALSE.,
      &            MS,FRAND,NELS,HFDET)
          ENDIF
       WRITE(6,*) "Iteration   Energy     MSD"
@@ -439,7 +427,7 @@ C         EDELTA=1.D-8
        CALL DCOPY(NSBASIS*NSBASIS*NSPINS*HElement_t_size,DMAT,1,ODMAT,1)
        CALL DCOPY(NSBASIS*NSBASIS*NSPINS*HElement_t_size,FMAT,1,OFMAT,1)
 C.. Construct the Density Matrix
-         CALL GENDMAT(NSPINS,NSBASIS,NELS,FMAT,DMAT,.FALSE.,ISS,G1)
+         CALL GENDMAT(NSPINS,NSBASIS,NELS,FMAT,DMAT,.FALSE.)
 C.. See how much our density matrix has changed from last time
          RMSD=0.D0
          DO ISPN=1,NSPINS
@@ -454,8 +442,7 @@ C.. See how much our density matrix has changed from last time
 C.. replace our HF orbitals in FMAT with the Fock matrix
 C.. FMAT just stores the results and the HF orbitals (currently) in it
 C.. are not used in calculating the F matrix
-         CALL GENFMAT(FMAT,DMAT,UMAT,NSBASIS,NSPINS,NBASISMAX,TRHF,ISS,
-     &      G1)
+         CALL GENFMAT(FMAT,DMAT,NSBASIS,NSPINS)
          CALL DIAGFMAT(NSPINS,NSBASIS,NELS,FMAT,DMAT,HFES,WORK,
      &         ECORE,ECUR)
          IF(IRHFB.GT.0) THEN
@@ -508,7 +495,7 @@ C.. HFBASIS(HFBASISFN,PRIMBASISFN) has PRIMBASISFN varying slowest
          ENDDO
          RETURN
       END
-      SUBROUTINE GENDMAT(NSPINS,NSBASIS,NELS,FMAT,DMAT,LTRANS,ISS,G1)
+      SUBROUTINE GENDMAT(NSPINS,NSBASIS,NELS,FMAT,DMAT,LTRANS)
          use Integrals, only: GetUMatEl
          USE Logging, only: HFLogLevel
          use SystemData, only: BasisFN
@@ -518,8 +505,6 @@ C.. HFBASIS(HFBASISFN,PRIMBASISFN) has PRIMBASISFN varying slowest
          HElement_t FMAT(NSBASIS,NSBASIS,NSPINS)
          HElement_t DMAT(NSBASIS,NSBASIS,NSPINS)
          LOGICAL LTRANS
-         INTEGER ISS
-         Type(BasisFN) G1(*)
 
          INTEGER ISPN,I,J,K
          HElement_t TOT
@@ -555,8 +540,7 @@ C.. vector
          ENDDO
          RETURN
       END 
-      SUBROUTINE GENFMAT(FMAT,DMAT,UMAT,NSBASIS,NSPINS,NBASISMAX,
-     &                  TRHF,ISS,G1)
+      SUBROUTINE GENFMAT(FMAT,DMAT,NSBASIS,NSPINS)
          USE OneEInts, only: GetTMATEl
          USE UMatCache, only: GTID
          use Integrals, only: GetUMatEl
@@ -565,17 +549,13 @@ C.. vector
          use SystemData, only: BasisFN
          use IntegralsData, only: DMatEpsilon
          IMPLICIT NONE
-         INTEGER NSBASIS,NSPINS,nBasisMax(5,*)
+         INTEGER NSBASIS,NSPINS
          HElement_t FMAT(NSBASIS,NSBASIS,NSPINS)
          HElement_t DMAT(NSBASIS,NSBASIS,NSPINS)
 !         REAL*8 TMAT(NSBASIS*NSPINS,NSBASIS*NSPINS)
-         HElement_t UMAT(*),TOT
+         HElement_t TOT
          INTEGER I,J,K,L,ISPN,ISPN2,ID1,ID2,ID3,ID4
-         REAL*8 ALAT(3)
-         LOGICAL TRHF,TTRANS
          REAL*8 RHFMUL
-         INTEGER ISS
-         Type(BasisFN) G1(*)
 C         IF(TRHF) THEN
 C            RHFMUL=2.D0
 C         ELSE
@@ -600,8 +580,7 @@ C.. Now sum in the alpha and beta block of u matrix
                            ID4 = GTID((L-1)*NSPINS+ISPN2)
                            IF(abs(DMAT(K,L,ISPN2)).gt.DmatEpsilon)
      &                      TOT=TOT+(RHFMUL)*
-     &                  DMAT(K,L,ISPN2)*GetUMatEl(NBasisMax,UMat,ALAT,
-     &                     NSBASIS*NSPINS,ISS,G1,ID1,ID3,ID2,ID4)
+     &                  DMAT(K,L,ISPN2)*GetUMatEl(ID1,ID3,ID2,ID4)
 !                           WRITE(6,"(4I3)", advance='no') I,J,K,L
 !                           WRITE(6,*) (RHFMUL)*
 !     &                  DMAT(K,L,ISPN2)*GetUMatEl(NBasisMax,UMat,ALAT,
@@ -609,8 +588,7 @@ C.. Now sum in the alpha and beta block of u matrix
                            IF(ISPN2.EQ.ISPN
      &                       .AND.(abs(DMAT(K,L,ISPN2)).gt.DmatEpsilon))
      &                        TOT=TOT-
-     &                  DMAT(K,L,ISPN2)*GetUMatEl(NBasisMax,UMat,ALat,
-     &                     NSBASIS*NSPINS,ISS,G1,ID1,ID3,ID4,ID2)
+     &                  DMAT(K,L,ISPN2)*GetUMatEl(ID1,ID3,ID4,ID2)
 !                           IF(ISPN2.EQ.ISPN)
 !     &                        WRITE(6,*)
 !     &                  DMAT(K,L,ISPN2)*GetUMatEl(NBasisMax,UMat,ALat,
@@ -735,7 +713,7 @@ C.. vector unless transposed
          RETURN
       END
 C.. Generate initial density matrix, as well as a guess at the HF DET
-      SUBROUTINE GENHFGUESS(FMAT,NSPINS,NSBASIS,R1,R2,WORK,BRR,G1,TRANS,
+      SUBROUTINE GENHFGUESS(FMAT,NSPINS,NSBASIS,BRR,G1,TRANS,
      &            LMS,FRAND,NELS,HFDET)
          use SystemData, only: BasisFN
          use Determinants, only: write_det
@@ -751,7 +729,7 @@ C.. Generate initial density matrix, as well as a guess at the HF DET
          TYPE(BasisFN) G1(*)
          INTEGER LMS
 C.. Working space
-         REAL*8 R1(*),R2(*),WORK(*),FRAND
+         REAL*8 FRAND
          LOGICAL TRANS
          INTEGER NELS(NSPINS)
          INTEGER HFDET(*),NEL
@@ -877,7 +855,7 @@ C.. bit.
          INTEGER NSPINS,N
          REAL*8 FMIX,FMAT(N,N,NSPINS)
          REAL*8 OFMAT(N,N,NSPINS)
-         REAL*8 R1(N,N),R2(N,N),WORK(3*N),ALPH
+         REAL*8 R1(N,N),R2(N,N),WORK(3*N)
          INTEGER I,J,ISPN
 C.. OFMAT is the old HF orbitals
 C.. FMAT is the new HF orbitals
@@ -924,7 +902,7 @@ C.. Now reorthoganalise, as this is just an approximation
 
 
 C.. Unrestricted Hartree Fock with a gradient descent method.
-      SUBROUTINE UHFGRADDESC(NBASIS,ISS,NBASISMAX,G1,ARR,BRR,ECORE,
+      SUBROUTINE UHFGRADDESC(NBASIS,NBASISMAX,G1,BRR,ECORE,
      &      UMAT,HFE,HFBASIS,NHFIT,NEL,MS,NSPINS,NSBASIS,HFES,
      &      HFMIX,CMAT,OCMAT,DEDCIJ,DMAT,EDELTA,CDELTA,R1,R2,WORK,TRHF,
      &      IHFMETHOD,TREADHF,FRAND,HFDET,ILOGGING)
@@ -932,10 +910,9 @@ C.. Unrestricted Hartree Fock with a gradient descent method.
          use sort_mod
          IMPLICIT NONE
          INTEGER NSPINS,NSBASIS
-         INTEGER NBASIS,G1(*),ISS,nBasisMax(5,*)
+         INTEGER NBASIS,G1(*),nBasisMax(5,*)
          REAL*8 UMAT(*)
          REAL*8 ECORE
-         REAL*8 ARR(NBASIS)
          INTEGER BRR(NBASIS)
          REAL*8 HFBASIS(NBASIS,NBASIS),HFE(NBASIS)
          REAL*8 HFES(NSBASIS,NSPINS)
@@ -961,14 +938,14 @@ C         REAL*8 F
 C         REAL*8 RMSD
          LOGICAL BR
          LOGICAL TRHF,TREADHF
-         REAL*8 SCRRES,TOT,MIX,TOT2
-         INTEGER NDET1(0:NEL+1),NDET2(NEL),NSPN(NSPINS),NELEX
-         INTEGER NELNEW,M,ISGNCH
-         INTEGER IPOSO, IPOSN,IRHFB,JSPN
+         REAL*8 TOT,MIX,TOT2
+         INTEGER NDET1(0:NEL+1),NSPN(NSPINS),NELEX
+         INTEGER IRHFB,JSPN
          REAL*8 RMSD, EDELTA,CDELTA,EN,ECUR2
          INTEGER HFDET(*)
          
          REAL*8 GETHELEMENT2T
+         irhfb = 0
          IF(NSBASIS.GT.99) STOP 'ERROR - hardcoded NSBASIS limit of 100'
          ELAST=1.D20
          WRITE(6,*) "Performing Hartree-Fock Gradient Descent..."
@@ -992,7 +969,7 @@ C         VMAT=0.d0
          IF(TREADHF) THEN
            CALL  READHFFMAT(NBASIS,CMAT,HFES,G1,NSPINS,NSBASIS,.TRUE.)
          ELSE
-           CALL GENHFGUESS(CMAT,NSPINS,NSBASIS,R1,R2,WORK,BRR,G1,.TRUE.,
+           CALL GENHFGUESS(CMAT,NSPINS,NSBASIS,BRR,G1,.TRUE.,
      &           MS,FRAND,NELS,HFDET)
          ENDIF
 C         DO ISPN=1,NSPINS
@@ -1040,14 +1017,14 @@ C.. dE/dcij is automatically 0 if i>N as the HF det only depends on
 C.. phi_1 to phi_N.  All values of j must be iterated as each phi_i is
 C.. dependent on all u_j
             ECUR=GETHELEMENT2T(NDET1(1),NDET1(1),NEL,NBASISMAX,
-     &               G1,NBASIS,UMAT,ECORE,0,CMAT,NSBASIS,NSPINS)
+     &               NBASIS,ECORE,0,CMAT,NSBASIS,NSPINS)
 C.. Calculate the Gradient
             IF(IHFMETHOD.EQ.1) THEN
-             CALL CALCDEDCIJ(CMAT,DEDCIJ,NDET1,NSPINS,NSBASIS,UMAT,
-     &         ECORE, NBASIS,G1,NBASISMAX,NELS,NEL,ECUR)            
+             CALL CALCDEDCIJ(CMAT,DEDCIJ,NDET1,NSPINS,NSBASIS,
+     &         ECORE, NBASIS,NBASISMAX,NELS,NEL,ECUR)            
             ELSEIF(IHFMETHOD.EQ.2) THEN
               CALL CALCDEDCIJ2(CMAT,DEDCIJ,NDET1,NSPINS,NSBASIS,
-     &         UMAT,ECORE, NBASIS,G1,NBASISMAX,NELS,NEL,ECUR,ISS)
+     &         UMAT,NELS,NEL)
             ENDIF
 C.. DEDCIJ now comtains all elements of dE/dcij
 C.. To move down the slope, we subtract a small amount of this from cij,
@@ -1116,10 +1093,9 @@ C              WRITE(6,*)
             ELAST=ECUR
 
 C.. Construct the Density Matrix
-         CALL GENDMAT(NSPINS,NSBASIS,NELS,CMAT,DMAT,.TRUE.,ISS,G1)
+         CALL GENDMAT(NSPINS,NSBASIS,NELS,CMAT,DMAT,.TRUE.)
 C.. Use the Density Matrix to generate the Fock matrix (in DEDCIJ)
-         CALL GENFMAT(DEDCIJ,DMAT,UMAT,NSBASIS,NSPINS,NBASISMAX,
-     &      TRHF,ISS,G1)
+         CALL GENFMAT(DEDCIJ,DMAT,NSBASIS,NSPINS)
          CALL DIAGFMAT(NSPINS,NSBASIS,NELS,DEDCIJ,DMAT,HFES,WORK,
      &         ECORE,ECUR2)
 
@@ -1138,7 +1114,7 @@ C.. calculate the orbital energies every time
             DO I=1,NSBASIS
                NELEX=(I-1)*NSPINS+1+ISPN-1
                EN=0.D0
-               CALL GETTRTMATEL(NELEX,NELEX,NBASIS,CMAT,NSBASIS,
+               CALL GETTRTMATEL(NELEX,NELEX,CMAT,NSBASIS,
      &               NSPINS,EN)
                HFES(I,ISPN)=EN
                DO JSPN=1,NSPINS
@@ -1147,15 +1123,13 @@ C.. calculate the orbital energies every time
                      IF(NELEX.NE.NELEX2) THEN
 C.. we're not allowed to count the current electron again
                         CALL GETTRUMATEL(NELEX,NELEX2,NELEX,NELEX2,
-     &                     UMAT,NBASISMAX,NBASIS,
-     &                     CMAT,NSBASIS,NSPINS,ISS,EN)
+     &                     CMAT,NSBASIS,NSPINS,EN)
                         
 C                        HFES(I,ISPN)=HFES(I,ISPN)+EN
                         EN=0.D0
                         IF(ISPN.EQ.JSPN)
      &                     CALL GETTRUMATEL(NELEX,NELEX2,NELEX2,NELEX,
-     &                        UMAT,NBASISMAX,NBASIS,
-     &                        CMAT,NSBASIS,NSPINS,ISS,EN)
+     &                        CMAT,NSBASIS,NSPINS,EN)
 C                        HFES(I,ISPN)=HFES(I,ISPN)-EN
                      ENDIF
                   ENDDO
@@ -1232,20 +1206,22 @@ C.. HFBASIS(HFBASISFN,PRIMBASISFN) has PRIMBASISFN varying slowest
 
 
 
-      SUBROUTINE CALCDEDCIJ(CMAT,DEDCIJ,NDET1,NSPINS,NSBASIS,UMAT,
-     &         ECORE, NBASIS,G1,NBASISMAX,NELS,NEL,ECUR)            
+      SUBROUTINE CALCDEDCIJ(CMAT,DEDCIJ,NDET1,NSPINS,NSBASIS,
+     &         ECORE, NBASIS,NBASISMAX,NELS,NEL,ECUR)            
          IMPLICIT NONE
          REAL*8 CMAT(NSBASIS,NSBASIS,NSPINS)
          REAL*8 DEDCIJ(NSBASIS,NSBASIS,NSPINS)
          INTEGER NSBASIS,NSPINS,NBASIS
          INTEGER NDET1(0:NEL+1),NDET2(NEL),NELS(NSPINS),NEL
-         REAL*8 UMAT(*),ECORE
-         INTEGER NBASISMAX(*),G1(*)
+         REAL*8 ECORE
+         INTEGER NBASISMAX(*)
 
          INTEGER I,J,K,L,M,ISPN
          INTEGER NELEX,NELNEW,IPOSO,IPOSN,ISGNCH
          REAL*8 ECUR,SCRRES,GETHELEMENT2T,TOT
             DEDCIJ=0.d0
+            iposo = 0
+            iposn = 0
             DO ISPN=1,NSPINS
              DO I=1,NELS(ISPN)
 C.. First find out which new basis function index this is
@@ -1284,7 +1260,7 @@ C.. At this point, NDET2 contains a det which is Psi with  phi_i
 C.. replaced by phi_k and rerdered.  
 C.. Now calculate <NDET2 | H | PSI>
                      SCRRES=GETHELEMENT2T(NDET1(1),NDET2,NEL,NBASISMAX,
-     &                  G1,NBASIS,UMAT,ECORE,1,CMAT,NSBASIS,NSPINS)
+     &                  NBASIS,ECORE,1,CMAT,NSBASIS,NSPINS)
 C.. We multiply by the amount of phi_k in u_j, as well as the sign
                      TOT=TOT+ISGNCH*SCRRES*CMAT(K,J,ISPN)
                   ENDDO
@@ -1297,21 +1273,19 @@ C.. TOT now contains dE/dcij, so we store this
       END
 
       SUBROUTINE CALCDEDCIJ2(CMAT,DEDCIJ,NDET1,NSPINS,NSBASIS,UMAT,
-     &         ECORE, NBASIS,G1,NBASISMAX,NELS,NEL,ECUR,ISS)            
+     &         NELS,NEL)
          USE UMatCache, only : UMatInd,GTID
          use OneEInts, only: GetTMatEl
          use constants, only: dp
          IMPLICIT NONE
          REAL*8 CMAT(NSBASIS,NSBASIS,NSPINS)
          REAL*8 DEDCIJ(NSBASIS,NSBASIS,NSPINS)
-         INTEGER NSBASIS,NSPINS,NBASIS
+         INTEGER NSBASIS,NSPINS
          INTEGER NDET1(0:NEL+1),NELS(NSPINS),NEL
          REAL*8 UMAT(*)
-         REAL*8 ECORE
-         INTEGER NBASISMAX(*),G1(*),ISS
-         INTEGER ISPN,I,J,K,A,B,C,F,JSPN,KSPN,JJ
+         INTEGER I,J,K,A,B,C,F,JSPN,KSPN,JJ
          INTEGER IDA,IDB,IDC,IDF
-         REAL*8 TOT,TOT1,TOT2,ECUR,TOT1B
+         REAL*8 TOT,TOT1,TOT2,TOT1B
 #ifdef __CMPLX
          call stop_all('CALCDEDCIJ2', 
      &                 'HF not implemented for complex orbitals.')
@@ -1377,7 +1351,7 @@ C.. Here A and C correspond to J and B corresponds to K
          IMPLICIT NONE
          INTEGER NBASIS,G1(*),NQNS(5),NN,NSPINS,NSBASIS
          REAL*8 FMAT(NSBASIS,NSBASIS,NSPINS),HFES(NSBASIS,NSPINS)
-         INTEGER I,L,J,NB,NE,IG,N
+         INTEGER I,L,J,NB,NE,IG
          REAL*8 VAL
          INTEGER IFINDBASISFN
          LOGICAL TRANSP
@@ -1411,17 +1385,19 @@ C.. HFBASIS(HFBASISFN,PRIMBASISFN) has PRIMBASISFN varying slowest
          CLOSE(10)
          RETURN
       END
-      SUBROUTINE ORDERBASISHF(ARR,BRR,HFE,HFBASIS,G1,NBASIS,FDET,NEL)
+      SUBROUTINE ORDERBASISHF(ARR,BRR,HFE,HFBASIS,NBASIS,FDET,NEL)
          use sort_mod
          IMPLICIT NONE
          INTEGER NBASIS,BRR(NBASIS)
          REAL*8 ARR(NBASIS,2),HFE(NBASIS),HFBASIS(NBASIS,NBASIS)
 C.. HFBASIS(HFBASISFN,PRIMBASISFN) has PRIMBASISFN varying slowest
-         INTEGER I,J,IBF,G1(*),ITOT,NEL,FDET(NEL),ICUR
+         INTEGER I,J,IBF,ITOT,NEL,FDET(NEL),ICUR
          REAL*8 MX,OEN
          ICUR=1
          DO I=1,NBASIS
-            IF(ICUR.LT.NEL.AND.FDET(ICUR+1).EQ.I) ICUR=ICUR+1
+             if (ICUR < NEL) then
+                if (FDET(ICUR+1) == I) ICUR = ICUR+1
+            endif
             MX=0.D0
             IBF=0
             DO J=1,NBASIS
@@ -1485,6 +1461,6 @@ C               G1(3,BRR(I))=J
            WRITE(6,"(6('(',E15.6,',',E15.6,')'))") (A(I,J),J=1,N)
          ENDIF
       ENDDO
- 1000 FORMAT(12E15.6)
+c 1000 FORMAT(12E15.6)
       RETURN
       END

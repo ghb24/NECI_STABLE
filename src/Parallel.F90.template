@@ -167,6 +167,18 @@ module Parallel
         module procedure MPIAllGather_auto_%(name)s
     end interface
 
+    interface MPIGather
+        module procedure MPIGather_len_%(name)s
+        module procedure MPIGather_auto_%(name)s
+    end interface
+
+    interface MPIGatherV
+        module procedure MPIGatherV_len_%(name)s
+        module procedure MPIGatherV_len2_%(name)s
+        module procedure MPIGatherV_auto_%(name)s
+        module procedure MPIGatherV_auto2_%(name)s
+    end interface
+
 contains
 
 subroutine MPIReduce_len (Values, iLen, iType, Ret)
@@ -273,8 +285,8 @@ Subroutine MPIAllReduceDatatype(Values, iLen, iType, iDatatype, Ret)
    !=     Ret            data store to get the results.
    %(type1)s, intent(in)  :: Values()
    %(type1)s, intent(out) :: Ret()
-   integer, intent(in) :: iLen,iDatatype
-   integer g, ierr,rc,itype
+   integer, intent(in) :: iLen, iDatatype
+   integer g, ierr, itype
 #if PARALLEL
 !   write(6,*) "AllReduceDatatype %(type1)s",iLen,iType
    g=MPI_COMM_WORLD
@@ -328,8 +340,8 @@ Subroutine MPISumRoot(Values, iLen, Ret, root)
    !=     Return(iLen)   Variable (array possibly) to get the results.
    %(type1)s, intent(in)  :: Values()
    %(type1)s, intent(out) :: Ret()
-   integer, intent(in) :: iLen,root
-   integer ierr,rc,i
+   integer, intent(in) :: iLen, root
+   integer ierr
 #ifdef PARALLEL
 !   write(6,*) "SumRoot %(type1)s",iLen,Root
    call MPI_REDUCE(Values,Ret,iLen,%(mpitype)s,MPI_SUM,root,MPI_COMM_WORLD,ierr)
@@ -396,6 +408,21 @@ Subroutine MPIAlltoAll(SendBuf,SendSize,RecvBuf,RecvSize,ierr)
 #endif
 end subroutine
 
+Subroutine MPIAlltoAllV(SendBuf,SendSizes,SendOffsets,RecvBuf,RecvSizes,RecvOffsets,ierr)
+    INTEGER,intent(in) :: SendSizes(:),SendOffsets(:),RecvSizes(:),RecvOffsets(:)
+    INTEGER, intent(out) :: ierr
+    %(type1)s, intent(in) :: SendBuf(:)
+    %(type1)s, intent(inout):: RecvBuf(:)
+!    write(6,*) "AllToAllV %(type1)s",SendSizes,SendOffSets,RecvSizes,RecvOffsets
+!    write(6,*) "AllToAllV %(type1)s",shape(SendBuf),shape(RecvBuf)
+#ifdef PARALLEL
+    CALL MPI_AlltoAllV(SendBuf,SendSizes,SendOffsets,%(mpitype)s,RecvBuf,RecvSizes,RecvOffsets,%(mpitype)s,MPI_COMM_WORLD,ierr)
+#else
+    RecvBuf=SendBuf
+    ierr=0
+#endif
+end subroutine
+
 Subroutine MPIAllGather_len(SendBuf,SendSize,RecvBuf,RecvSize,ierr)
     INTEGER,intent(in) :: SendSize,RecvSize
     INTEGER, intent(out) :: ierr
@@ -422,6 +449,101 @@ Subroutine MPIAllGather_auto(Values,Values2,ierr)
       %(mpitype)s,MPI_COMM_WORLD,ierr)
 #else
     Values2(1)=Values
+    ierr=0
+#endif
+end subroutine
+
+Subroutine MPIGather_len(SendBuf,SendSize,RecvBuf,RecvSize,root,ierr)
+    INTEGER,intent(in) :: SendSize,RecvSize,root
+    INTEGER, intent(out) :: ierr
+    %(type1)s,intent(in) :: SendBuf()
+    %(type1)s,intent(inout) :: RecvBuf(:)
+#ifdef PARALLEL
+!    write(6,*) "AllToAll %(type1)s",SendSize,RecvSize
+    CALL MPI_Gather(SendBuf,SendSize,%(mpitype)s,RecvBuf,RecvSize,%(mpitype)s,root,MPI_COMM_WORLD,ierr)
+#else
+    RecvBuf(1)=SendBuf
+    ierr=0
+#endif
+end subroutine
+
+! Values is the Send Buffer
+! Values2 is the Receive Buffer
+Subroutine MPIGather_auto(Values,Values2,root,ierr)
+    INTEGER, intent(out) :: ierr
+    INTEGER, intent(in) :: root
+    %(type1)s,intent(in) :: Values()
+    %(type1)s,intent(inout) :: Values2(:)
+#ifdef PARALLEL
+    CALL MPI_Gather(Values,%(mpilen)s,&
+      %(mpitype)s,Values2,%(mpilen2)s,&
+      %(mpitype)s,root,MPI_COMM_WORLD,ierr)
+#else
+    Values2(1)=Values
+    ierr=0
+#endif
+end subroutine
+
+Subroutine MPIGatherV_len(SendBuf,SendSize,RecvBuf,Lengths,Disps,root,ierr)
+    INTEGER,intent(in) :: SendSize,Lengths(:),root,Disps(:)
+    INTEGER, intent(out) :: ierr
+    %(type1)s,intent(in) :: SendBuf()
+    %(type1)s,intent(inout) :: RecvBuf(:)
+#ifdef PARALLEL
+!    write(6,*) "AllToAll %(type1)s",SendSize,RecvSize
+    CALL MPI_GatherV(SendBuf,SendSize,%(mpitype)s,RecvBuf,Lengths,Disps,%(mpitype)s,root,MPI_COMM_WORLD,ierr)
+#else
+    RecvBuf(1)=SendBuf()
+    ierr=0
+#endif
+end subroutine
+
+! This gathers an array into another array with the same number of dims.
+Subroutine MPIGatherV_len2(SendBuf,SendSize,RecvBuf,Lengths,Disps,root,ierr)
+    INTEGER,intent(in) :: SendSize,Lengths(:),root,Disps(:)
+    INTEGER, intent(out) :: ierr
+    %(type1)s,intent(in) :: SendBuf(:)
+    %(type1)s,intent(inout) :: RecvBuf(:)
+#ifdef PARALLEL
+!    write(6,*) "AllToAll %(type1)s",SendSize,RecvSize
+    CALL MPI_GatherV(SendBuf,SendSize,%(mpitype)s,RecvBuf,Lengths,Disps,%(mpitype)s,root,MPI_COMM_WORLD,ierr)
+#else
+    RecvBuf(Disps(1):Disps(1)+Lengths(1))=SendBuf(:)
+    ierr=0
+#endif
+end subroutine
+
+! Values is the Send Buffer
+! Values2 is the Receive Buffer
+Subroutine MPIGatherV_auto(Values,Values2,Lengths,Disps,root,ierr)
+    INTEGER, intent(out) :: ierr
+    INTEGER, intent(in) :: root,Disps(:),Lengths(:)
+    %(type1)s,intent(in) :: Values()
+    %(type1)s,intent(inout) :: Values2(:)
+#ifdef PARALLEL
+    CALL MPI_GatherV(Values,%(mpilen)s,&
+      %(mpitype)s,Values2,Lengths,&
+      Disps,%(mpitype)s,root,MPI_COMM_WORLD,ierr)
+#else
+    Values2(1)=Values
+    ierr=0
+#endif
+end subroutine
+
+! This gathers an array into another array with the same number of dims.
+! Values is the Send Buffer
+! Values2 is the Receive Buffer
+Subroutine MPIGatherV_auto2(Values,Values2,Lengths,Disps,root,ierr)
+    INTEGER, intent(out) :: ierr
+    INTEGER, intent(in) :: root,Disps(:),Lengths(:)
+    %(type1)s,intent(in) :: Values(:)
+    %(type1)s,intent(inout) :: Values2(:)
+#ifdef PARALLEL
+    CALL MPI_GatherV(Values,%(mpilen)s,&
+      %(mpitype)s,Values2,Lengths,&
+      Disps,%(mpitype)s,root,MPI_COMM_WORLD,ierr)
+#else
+    Values2(Disps(1):Disps(1)+Lengths(1))=Values(:)
     ierr=0
 #endif
 end subroutine
@@ -568,13 +690,11 @@ Subroutine MPIInit(tExternal)
    !=   tExternal True if using VASP/CPMD's MPI interface, so we don't have to initialise our own.
    implicit none
    logical, intent(in) :: tExternal
-   integer numtasks, rank, ierr, rc
-   integer a,b,g
+   integer ierr
+   integer a,g
    character*20 NodeFile
-   logical :: Local_IO,flag
    logical, save :: initialised=.false.
 #if PARALLEL
-   integer(Kind=MPI_ADDRESS_KIND) :: res
 
    if (.not.initialised) then
 

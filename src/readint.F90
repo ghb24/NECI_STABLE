@@ -61,13 +61,13 @@ contains
          ! complex representations).
          TwoCycleSymGens = PropBitLen == 0
 
-		 IF(.not.TwoCycleSymGens.and.((NPROP(1)+NPROP(2)+NPROP(3)).gt.3)) THEN
-			 !We are using abelian k-point symmetry. Turn it on.
-			 tKPntSym=.true.
-			 WRITE(6,*) "Using abelian k-point symmetry"
-		 ELSE
-			 tKPntSym=.false.
-		 ENDIF
+         IF(.not.TwoCycleSymGens.and.((NPROP(1)+NPROP(2)+NPROP(3)).gt.3)) THEN
+             !We are using abelian k-point symmetry. Turn it on.
+             tKPntSym=.true.
+             WRITE(6,*) "Using abelian k-point symmetry"
+         ELSE
+             tKPntSym=.false.
+         ENDIF
 
          IF(tROHF.and.(.not.UHF)) THEN
              CALL Stop_All("INITFROMFCID","ROHF specified, but FCIDUMP is not in a high-spin format.")
@@ -146,7 +146,7 @@ contains
          INTEGER ISYMNUM,ISNMAX,SYMMAX,SYMLZ(1000)
          INTEGER NORB,NELEC,MS2,ISYM,ISPINS,ISPN,SYML(1000)
          INTEGER*8 ORBSYM(1000)
-         INTEGER Counter(1:8),nPairs,iErr,MaxnSlot,MaxIndex
+         INTEGER nPairs,iErr,MaxnSlot,MaxIndex
          INTEGER , ALLOCATABLE :: MaxSlots(:)
          LOGICAL TBIN,UHF
          NAMELIST /FCI/ NORB,NELEC,MS2,ORBSYM,ISYM,UHF,SYML,SYMLZ,PROPBITLEN,NPROP
@@ -430,7 +430,7 @@ contains
 !It is set if we want to cache the integrals to enable the freezing routine to take place, i.e. the <ij|kj> integrals.
 !The UMAT2D integrals will also be read in in this case.
 !If tReadFreezeInts is false, then if we are cacheing the FCIDUMP file, then we will read and cache all the integrals.
-      SUBROUTINE READFCIINT(UMAT,NBASIS,ECORE,ARR,BRR,G1,tReadFreezeInts)
+      SUBROUTINE READFCIINT(UMAT,NBASIS,ECORE,tReadFreezeInts)
          use constants, only: dp
          use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB,NEl
          use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
@@ -447,19 +447,16 @@ contains
          IMPLICIT NONE
          integer, intent(in) :: NBASIS
          logical, intent(in) :: tReadFreezeInts
-         REAL*8, intent(out) :: ECORE,ARR(NBASIS,2)
-         integer, intent(out) :: BRR(NBASIS)
+         REAL*8, intent(out) :: ECORE
          HElement_t, intent(out) :: UMAT(:)
-         TYPE(BasisFN), intent(out) :: G1(:)
          HElement_t Z
-         HElement_t UMatEl
          INTEGER ZeroedInt,NonZeroInt
-         INTEGER I,J,K,L,X,Y,A,B,iCache,iCacheI,iType, iunit
-         INTEGER NORB,NELEC,MS2,ISYM,SYMMAX,SYML(1000)
+         INTEGER I,J,K,L,X,Y,iunit
+         INTEGER NORB,NELEC,MS2,ISYM,SYML(1000)
          INTEGER*8 ORBSYM(1000)
-         LOGICAL LWRITE,UHF,tAddtoCache,GetCachedUMatEl
-         INTEGER ISPINS,ISPN,ISPN2,ierr,SYMLZ(1000)!,IDI,IDJ,IDK,IDL
-         INTEGER Counter(1:8),UMatSize,TMatSize
+         LOGICAL LWRITE,UHF
+         INTEGER ISPINS,ISPN,ierr,SYMLZ(1000)!,IDI,IDJ,IDK,IDL
+         INTEGER UMatSize,TMatSize
          INTEGER , ALLOCATABLE :: CacheInd(:)
          real(dp) :: diff
          NAMELIST /FCI/ NORB,NELEC,MS2,ORBSYM,ISYM,UHF,SYML,SYMLZ,PROPBITLEN,NPROP
@@ -653,7 +650,7 @@ contains
              CALL MPIBCast(UMAT2D,nStates**2,0)
          ENDIF
          IF((.not.tRIIntegrals).and.(.not.tCacheFCIDUMPInts)) THEN
-             CALL GetUMATSize(nBasis,NEl,iSpins,UMatSize)
+             CALL GetUMATSize(nBasis,NEl,UMatSize)
              CALL MPIBCast(UMAT,UMatSize,0)    !This is not an , as it is actually passed in as a real*8, even though it is HElem in IntegralsData
          ENDIF
          IF(tCacheFCIDUMPInts) THEN
@@ -676,7 +673,7 @@ contains
              WRITE(6,*) "Ordering cache..."
              CALL FillUpCache()
              DEALLOCATE(CacheInd)
-!             CALL DumpUMatCache(nBasis,G1)
+!             CALL DumpUMatCache()
 !             do i=1,norb
 !                 WRITE(iunit,*) UMAT2D(:,i)
 !             enddo
@@ -691,7 +688,7 @@ contains
 
 
       !This is a copy of the routine above, but now for reading in binary files of integrals
-      SUBROUTINE READFCIINTBIN(UMAT,NBASIS,ECORE,ARR,BRR,G1)
+      SUBROUTINE READFCIINTBIN(UMAT,ECORE)
          use constants, only: dp
          use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
          use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
@@ -699,24 +696,19 @@ contains
          use OneEInts, only: TMatind,TMat2D,TMATSYM,TSTARSTORE
          use util_mod, only: get_free_unit
          IMPLICIT NONE
-         INTEGER, intent(in) ::  NBASIS
-         TYPE(BasisFN), intent(out) :: G1(*)
-         REAL*8, intent(out) :: ECORE,ARR(NBASIS,2)
-         integer, intent(out) :: BRR(NBASIS)
+         REAL*8, intent(out) :: ECORE
          HElement_t, intent(out) :: UMAT(*)
          HElement_t Z
          INTEGER*8 MASK,IND
          INTEGER I,J,K,L,X,Y, iunit
-         INTEGER NORB,NELEC,MS2,ORBSYM(1000),ISYM,SYMMAX
-         INTEGER Counter(1:8),Index(1000)
-         LOGICAL LWRITE,UHF
-         NAMELIST /FCI/ NORB,NELEC,MS2,ORBSYM,ISYM,UHF
+         LOGICAL LWRITE
+         !NAMELIST /FCI/ NORB,NELEC,MS2,ORBSYM,ISYM,UHF
          LWRITE=.FALSE.
-         UHF=.FALSE.
+         !UHF=.FALSE.
          iunit = get_free_unit()
-         OPEN(iunit,FILE='FCISYM',STATUS='OLD',FORM='FORMATTED')
-         READ(iunit,FCI)
-         CLOSE(iunit)
+         !OPEN(iunit,FILE='FCISYM',STATUS='OLD',FORM='FORMATTED')
+         !READ(iunit,FCI)
+         !CLOSE(iunit)
          OPEN(iunit,FILE='FCIDUMP',STATUS='OLD',FORM='UNFORMATTED')
 
 

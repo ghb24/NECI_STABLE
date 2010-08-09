@@ -8,7 +8,7 @@ SUBROUTINE AddMPEnergy(Hij,iV,iMaxOrder,Arr,nBasis,iPath,nEl,tLog,ECore,MPEs)
    HElement_t V(1:iV,1:iV)
    REAL*8 Arr(nBasis,2)
    INTEGER iPath(nEl,0:iV)
-   LOGICAL tLog,tSign,tLogged
+   LOGICAL tLog,tLogged
    INTEGER i,j
    HElement_t Fi(1:iV),E1
    INTEGER iOrder
@@ -183,30 +183,27 @@ END
          RETURN
       END
 
-      Subroutine ModMPDiagElement(hEl,nI,nJ,nEl,nBasisMax,UMat,ALat,nBasis,iss,G1)
+      Subroutine ModMPDiagElement(hEl,nI,nJ,nEl)
          use Integrals, only : GetUMatEl
          use constants, only: dp
          use SystemData, only: BasisFN
          implicit none
-         HElement_t hEl,UMat(*)
-         integer nEl,nI(nEl),nJ(nEl),nBasis
-         integer nBasisMax(5,*)
-         type(BasisFn) G1(*)
-         integer Ex(2,2),ex2(2,2),iss
+         HElement_t hEl
+         integer nEl,nI(nEl),nJ(nEl)
+         integer Ex(2,2),ex2(2,2)
          logical tSign
-         real*8 ALat(3)
          Ex(1,1)=2
          Call GetExcitation(nI,nJ,nEl,EX,tSign)
          ex2=ex
          ex=ex+1
          ex=ex/2
          if(Ex(1,2).gt.0) then
-            hEl= GetUMatEl(NBASISMAX,UMAT,ALAT,nBasis,ISS,G1,ex(1,1),ex(1,2),ex(1,1),ex(1,2))
+            hEl= GetUMatEl(ex(1,1),ex(1,2),ex(1,1),ex(1,2))
             if(mod(ex2(1,1)+ex2(1,2),2).eq.0)                                                         & 
-     &         hEl=hEl-GetUMatEl(NBASISMAX,UMAT,ALAT,nBasis,ISS,G1,ex(1,1),ex(1,2),ex(1,2),ex(1,1))
-            hEl=hEl+GetUMatEl(NBASISMAX,UMAT,ALAT,nBasis,ISS,G1,ex(2,1),ex(2,2),ex(2,1),ex(2,2))
+     &         hEl=hEl-GetUMatEl(ex(1,1),ex(1,2),ex(1,2),ex(1,1))
+            hEl=hEl+GetUMatEl(ex(2,1),ex(2,2),ex(2,1),ex(2,2))
             if(mod(ex2(2,1)+ex2(2,2),2).eq.0)                                                         &
-     &         hEl=hEl-GetUMatEl(NBASISMAX,UMAT,ALAT,nBasis,ISS,G1,ex(2,1),ex(2,2),ex(2,2),ex(2,1))
+     &         hEl=hEl-GetUMatEl(ex(2,1),ex(2,2),ex(2,2),ex(2,1))
          else
             hEl=0.d0
          endif
