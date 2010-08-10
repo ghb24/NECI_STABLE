@@ -966,15 +966,18 @@ MODULE FciMCParMod
 !A flag of 0 means the determinant is an initiator, and 1 it is a non-initiator.
         INTEGER , INTENT(IN) :: j,VecSlot,Iter
         INTEGER , DIMENSION(lenof_sign) :: CurrentSign
+        INTEGER :: ParentInitiatorInit
         LOGICAL :: tDetinCAS
 
         CALL extract_sign(CurrentDets(:,j),CurrentSign)
+
+        ParentInitiatorInit = extract_flags(CurrentDets(:,j))
 
         IF(.not.tAddtoInitiator) THEN
 !If tAddtoInitiator is not on, then it is not possible to dynamically add initiators into the intiator space 
 !based on their population - the initiators remain as those in the specified CAS space and this is determined
 !when a new determinant is merged into the main array.
-            ParentInitiator=CurrentDets(NIfTot,j)
+            ParentInitiator=ParentInitiatorInit
             IF(ParentInitiator.eq.0) THEN
                 NoInitDets=NoInitDets+1.D0
                 NoInitWalk=NoInitWalk+(ABS(REAL(CurrentSign(1))))
@@ -982,12 +985,11 @@ MODULE FciMCParMod
                 NoNonInitDets=NoNonInitDets+1.D0
                 NoNonInitWalk=NoNonInitWalk+(ABS(REAL(CurrentSign(1))))
             ENDIF
-        ELSEIF(CurrentDets(NIfTot,j).eq.1) THEN
+        ELSEIF(ParentInitiatorInit.eq.1) THEN
             ! Determinant wasn't previously initiator 
             ! - want to test if it has now got a large enough population 
             ! to become an initiator.
             IF(ABS(CurrentSign(1)).gt.InitiatorWalkNo) THEN
-                CurrentDets(NIfTot,j)=0
                 ParentInitiator=0
                 NoAddedInitiators=NoAddedInitiators+1.D0
                 NoInitDets=NoInitDets+1.D0
@@ -1011,19 +1013,16 @@ MODULE FciMCParMod
                 ! If the determinant is in the fixed initiator space, it stays initiator 
                 ! even if its populations drops.
                 ParentInitiator=0
-                CurrentDets(NIfTot,j)=0
                 NoInitDets=NoInitDets+1.D0
                 NoInitWalk=NoInitWalk+(ABS(REAL(CurrentSign(1))))
             ELSEIF(DetBitEQ(CurrentDets(:,j),iLutHF,NIfDBO)) THEN
                 ! HF stays initiator.
                 ParentInitiator=0
-                CurrentDets(NIfTot,j)=0
                 NoInitDets=NoInitDets+1.D0
                 NoInitWalk=NoInitWalk+(ABS(REAL(CurrentSign(1))))
             ELSEIF(ABS(CurrentSign(1)).le.InitiatorWalkNo) THEN
                 ! Population has fallen too low to remain an 
                 ! initiator - initiator status removed.
-                CurrentDets(NIfTot,j)=1
                 ParentInitiator=1
                 NoAddedInitiators=NoAddedInitiators-1.D0
                 NoNonInitDets=NoNonInitDets+1.D0
@@ -1031,7 +1030,6 @@ MODULE FciMCParMod
             ELSE
                 ! Population still high enough - remains initiator.
                 ParentInitiator=0
-                CurrentDets(NIfTot,j)=0
                 NoInitDets=NoInitDets+1.D0
                 NoInitWalk=NoInitWalk+(ABS(REAL(CurrentSign(1))))
             ENDIF
@@ -1043,7 +1041,6 @@ MODULE FciMCParMod
         ELSE
             !If we are not retesting the initiators, they stay as initiators.
             ParentInitiator=0
-            CurrentDets(NIfTot,j)=0
             NoInitDets=NoInitDets+1.D0
             NoInitWalk=NoInitWalk+(ABS(REAL(CurrentSign(1))))
 
@@ -1052,6 +1049,8 @@ MODULE FciMCParMod
                  CALL HistInitPopulations(CurrentSign(1),VecSlot)
  
         ENDIF
+
+        CALL encode_flags(CurrentDets(:,j),ParentInitiator)
 
 !        WRITE(6,*) 'ParentFlag',ParentInitiator
 
@@ -3426,7 +3425,13 @@ MODULE FciMCParMod
             ! it.
             tReZeroShift = .false.
             if (TSinglePartPhase) then
-                tot_walkers = int(InitWalkers, int64) * int(nProcessors,int64)
+! AJWT dislikes doing this type of if based on a (seeminly unrelated) input option, but can't see another easy way.
+!  TODO:  Something to make it better
+                if(.not.tCCMC) then
+                    tot_walkers = int(InitWalkers, int64) * int(nProcessors,int64)
+                else
+                    tot_walkers = int(InitWalkers, int64)
+                endif
                 if ( (sum(AllTotParts) > tot_walkers) .or. &
                      (AllNoatHF > MaxNoatHF)) then
                     write (6, *) 'Exiting the single particle growth phase - &
