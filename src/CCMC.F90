@@ -2493,13 +2493,13 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
          call WriteExcitorList(6,SpawnAmps,SpawnList,0,nSpawned,dAmpPrintTol,"Spawned list")
       endif
 !Get the Amplitudes
-      call MPIGatherV(SpawnAmps,nSpawned,SpawnAmps,iLengths,iOffsets,Root,ierr)
+      call MPIGatherV(SpawnAmps(1:nSpawned),nSpawned,SpawnAmps,iLengths,iOffsets,Root,ierr)
       do i=1,nProcessors
          iOffsets(i)=iOffsets(i)*(nIfTot+1)
          iLengths(i)=iLengths(i)*(nIfTot+1)
       enddo
 !And the dets themselves
-      call MPIGatherV(SpawnList,nSpawned*(nIfTot+1),SpawnList,iLengths,iOffsets,Root,ierr)
+      call MPIGatherV(SpawnList(:,1:nSpawned),nSpawned*(nIfTot+1),SpawnList,iLengths,iOffsets,Root,ierr)
       if(iProcIndex.eq.Root) then
          nSpawned=sum(iLengths)/(nIfTot+1)
       else
