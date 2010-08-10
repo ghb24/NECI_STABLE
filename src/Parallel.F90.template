@@ -3,117 +3,138 @@ type1=integer(kind=int32)
 mpitype=MPI_INTEGER
 mpilen=1
 mpilen2=1
+ndim=0
 
 [arr_int]
 type1=integer(kind=int32), dimension(:)
 mpilen=(ubound(values,1)-lbound(values,1)+1)
 mpilen2=(ubound(values2,1)-lbound(values2,1)+1)
+ndim=1
 
 [arr2_int]
 type1=integer(kind=int32), dimension(:,:)
 mpilen=((ubound(values,1)-lbound(values,1)+1)*(ubound(values,2)-lbound(values,2)+1))
 mpilen2=((ubound(values2,1)-lbound(values2,1)+1)*(ubound(values2,2)-lbound(values2,2)+1))
+ndim=2
 
 [int64]
 type1=integer(kind=int64)
 mpitype=MPI_INTEGER8
 mpilen=1
 mpilen2=1
+ndim=0
 
 [arr_int64]
 type1=integer(kind=int64), dimension(:)
 mpilen=(ubound(values,1)-lbound(values,1)+1)
 mpilen2=(ubound(values2,1)-lbound(values2,1)+1)
+ndim=1
 
 [double]
 type1=real*8
 mpitype=MPI_DOUBLE_PRECISION
 mpilen=1
 mpilen2=1
+ndim=0
 
 [arr_double]
 type1=real*8, dimension(:)
 mpilen=(ubound(values,1)-lbound(values,1)+1)
 mpilen2=(ubound(values2,1)-lbound(values2,1)+1)
+ndim=1
 
 [arr2_double]
 type1=real*8, dimension(:,:)
 mpilen=((ubound(values,1)-lbound(values,1)+1)*(ubound(values,2)-lbound(values,2)+1))
 mpilen2=((ubound(values2,1)-lbound(values2,1)+1)*(ubound(values2,2)-lbound(values2,2)+1))
+ndim=2
 
 [arr3_double]
 type1=real*8, dimension(:,:,:)
 mpilen=((ubound(values,1)-lbound(values,1)+1)*(ubound(values,2)-lbound(values,2)+1)*(ubound(values,3)-lbound(values,3)+1))
 mpilen2=((ubound(values2,1)-lbound(values2,1)+1)*(ubound(values2,2)-lbound(values2,2)+1)*(ubound(values2,3)-lbound(values2,3)+1))
+ndim=3
 
 [logical]
 type1=LOGICAL
 mpitype=MPI_LOGICAL
 mpilen=1
 mpilen2=1
+ndim=0
 
 [arr_int]
 type1=integer(kind=int32), dimension(:)
 mpitype=MPI_INTEGER
 mpilen=(ubound(values,1)-lbound(values,1)+1)
 mpilen2=(ubound(values2,1)-lbound(values2,1)+1)
+ndim=1
 
 [arr2_int]
 type1=integer(kind=int32), dimension(:,:)
 mpitype=MPI_INTEGER
 mpilen=((ubound(values,1)-lbound(values,1)+1)*(ubound(values,2)-lbound(values,2)+1))
 mpilen2=((ubound(values2,1)-lbound(values2,1)+1)*(ubound(values2,2)-lbound(values2,2)+1))
+ndim=2
 
 [arr_int64]
 type1=integer(kind=int64), dimension(:)
 mpitype=MPI_INTEGER8
 mpilen=(ubound(values,1)-lbound(values,1)+1)
 mpilen2=(ubound(values2,1)-lbound(values2,1)+1)
+ndim=1
 
 [arr_logical]
 type1=logical, dimension(:)
 mpitype=MPI_LOGICAL
 mpilen=(ubound(values,1)-lbound(values,1)+1)
 mpilen2=(ubound(values2,1)-lbound(values2,1)+1)
+ndim=1
 
 [arr3_double]
 type1=real*8, dimension(:,:,:)
 mpitype=MPI_DOUBLE_PRECISION
 mpilen=((ubound(values,1)-lbound(values,1)+1)*(ubound(values,2)-lbound(values,2)+1)*(ubound(values,3)-lbound(values,3)+1))
 mpilen2=((ubound(values2,1)-lbound(values2,1)+1)*(ubound(values2,2)-lbound(values2,2)+1)*(ubound(values2,3)-lbound(values2,3)+1))
+ndim=3
 
 [arr2_double]
 type1=real*8, dimension(:,:)
 mpitype=MPI_DOUBLE_PRECISION
 mpilen=((ubound(values,1)-lbound(values,1)+1)*(ubound(values,2)-lbound(values,2)+1))
 mpilen2=((ubound(values2,1)-lbound(values2,1)+1)*(ubound(values2,2)-lbound(values2,2)+1))
+ndim=2
 
 [arr_double]
 type1=real*8, dimension(:)
 mpitype=MPI_DOUBLE_PRECISION
 mpilen=(ubound(values,1)-lbound(values,1)+1)
 mpilen2=(ubound(values2,1)-lbound(values2,1)+1)
+ndim=1
 
 [complex]
 type1=complex*16
 mpitype=MPI_DOUBLE_COMPLEX
 mpilen=1
 mpilen2=1
+ndim=0
 
 [arr_complex]
 type1=complex*16, dimension(:)
 mpilen=(ubound(values,1)-lbound(values,1)+1)
 mpilen2=(ubound(values2,1)-lbound(values2,1)+1)
+ndim=1
 
 [arr2_complex]
 type1=complex*16, dimension(:,:)
 mpilen=((ubound(values,1)-lbound(values,1)+1)*(ubound(values,2)-lbound(values,2)+1))
 mpilen2=((ubound(values2,1)-lbound(values2,1)+1)*(ubound(values2,2)-lbound(values2,2)+1))
+ndim=2
 
 [arr3_complex]
 type1=complex*16, dimension(:,:,:)
 mpilen=((ubound(values,1)-lbound(values,1)+1)*(ubound(values,2)-lbound(values,2)+1)*(ubound(values,3)-lbound(values,3)+1))
 mpilen2=((ubound(values2,1)-lbound(values2,1)+1)*(ubound(values2,2)-lbound(values2,2)+1)*(ubound(values2,3)-lbound(values2,3)+1))
+ndim=3
 
 =========================
 
@@ -508,7 +529,8 @@ Subroutine MPIGatherV_len2(SendBuf,SendSize,RecvBuf,Lengths,Disps,root,ierr)
 !    write(6,*) "AllToAll %(type1)s",SendSize,RecvSize
     CALL MPI_GatherV(SendBuf,SendSize,%(mpitype)s,RecvBuf,Lengths,Disps,%(mpitype)s,root,MPI_COMM_WORLD,ierr)
 #else
-    RecvBuf(Disps(1):Disps(1)+Lengths(1))=SendBuf(:)
+!    write(6,*) lbound(RecvBuf),ubound(RecvBuf),lbound(SendBuf),ubound(SendBuf)
+    RecvBuf(lbound(RecvBuf,%(ndim)s+1):(lbound(RecvBuf,%(ndim)s+1)+size(SendBuf,%(ndim)s+1)-1))=SendBuf(:)
     ierr=0
 #endif
 end subroutine
