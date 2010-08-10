@@ -1839,7 +1839,7 @@ SUBROUTINE CCMCStandalone(Weight,Energyxw)
    INTEGER PartIndex,IC          ! Used in buffering
    LOGICAL tSuc                  ! Also used in buffering
 
-   INTEGER iOldTotWalkers        ! Info user for update to calculate shift
+   INTEGER iOldTotParts        ! Info user for update to calculate shift
    INTEGER iShiftLeft            ! Number of steps left until we recalculate shift
    REAL*8 WalkerScale            ! Scale factor for turning floating point amplitudes into integer walkers.
    REAL*8 dProjE                 ! Stores the Projected Energy
@@ -1957,7 +1957,7 @@ SUBROUTINE CCMCStandalone(Weight,Energyxw)
    AllTotWalkersOld=1
    AllTotParts(1)=WalkerScale*dTotAbsAmpl
    AllTotPartsOld(1)=WalkerScale*dTotAbsAmpl
-   iOldTotWalkers=WalkerScale*dTotAbsAmpl
+   iOldTotParts=WalkerScale*dTotAbsAmpl
    iter_data_ccmc%tot_parts_old = WalkerScale * dTotAbsAmpl
    dAveTotAbsAmp=0
    dAveNorm=0
@@ -2000,7 +2000,7 @@ SUBROUTINE CCMCStandalone(Weight,Energyxw)
          write(6,*) "Cycle ",Iter
          call WriteExcitorList(6,AL%Amplitude(:,iCurAmpList),FciDets,0,nAmpl,dAmpPrintTol,"Excitor list")
       endif
-      call CalcTotals(iNumExcitors,dTotAbsAmpl,AL%Amplitude(:,iCurAmpList),nAmpl,dTolerance*dInitAmplitude,WalkerScale,iRefPos,iOldTotWalkers,iDebug)
+      call CalcTotals(iNumExcitors,dTotAbsAmpl,AL%Amplitude(:,iCurAmpList),nAmpl,dTolerance*dInitAmplitude,WalkerScale,iRefPos,iOldTotParts,iDebug)
       if(tExactEnergy) then
          CALL CalcClusterEnergy(tCCMCFCI,AL%Amplitude(:,iCurAmpList),nAmpl,FciDets,FCIDetIndex,iRefPos,iDebug,dProjE)
       else
@@ -2202,7 +2202,7 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
    INTEGER i,iMin
 ! Temporary Storage
 
-   INTEGER iOldTotWalkers        ! Info user for update to calculate shift
+   INTEGER iOldTotParts        ! Info user for update to calculate shift
    INTEGER iShiftLeft            ! Number of steps left until we recalculate shift
    REAL*8 WalkerScale            ! Scale factor for turning floating point amplitudes into integer walkers.
    REAL*8 dTolerance             ! The tolerance for when to regard a value as zero
@@ -2347,10 +2347,10 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
    AllTotParts(1)=WalkerScale*dTotAbsAmpl
    AllTotPartsOld(1)=WalkerScale*dTotAbsAmpl
    if(iProcIndex==root) then
-      iOldTotWalkers=WalkerScale*dTotAbsAmpl
+      iOldTotParts=WalkerScale*dTotAbsAmpl
       iter_data_ccmc%tot_parts_old = WalkerScale * dTotAbsAmpl
    else
-      iOldTotWalkers=0
+      iOldTotParts=0
       iter_data_ccmc%tot_parts_old = 0
    endif
    dAveTotAbsAmp=0
@@ -2397,7 +2397,7 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
       endif
 
 
-      call CalcTotals(iNumExcitors,dTotAbsAmpl,AL%Amplitude(:,iCurAmpList),nAmpl,dTolerance*dInitAmplitude,WalkerScale,iRefPos,iOldTotWalkers,iDebug)
+      call CalcTotals(iNumExcitors,dTotAbsAmpl,AL%Amplitude(:,iCurAmpList),nAmpl,dTolerance*dInitAmplitude,WalkerScale,iRefPos,iOldTotParts,iDebug)
 !      if(.not.tShifting) then
 !         if(iNumExcitors>dInitAmplitude) then
 !            tShifting=.true.
@@ -2424,7 +2424,7 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
          NoAtHF=0
       endif
       
-!TotWalkers is used for this and is WalkerScale* total of all amplitudes
+!TotParts is used for this and is WalkerScale* total of all amplitudes
       if(iShiftLeft.le.0)  Call calculate_new_shift_wrapper(iter_data_ccmc, &
                                                             TotParts)
       if(iShiftLeft.le.0)  iShiftLeft=StepsSft
