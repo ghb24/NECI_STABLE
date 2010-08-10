@@ -2162,7 +2162,7 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
    use Parallel, only: iProcIndex
    use CCMCData, only: tCCMCFCI,dInitAmplitude,dProbSelNewExcitor,tExactCluster,tExactSpawn,nSpawnings,tCCBuffer
    use CCMCData, only: WriteCluster
-   use CCMCData, only: ClustSelector,Spawner,dClustSelectionRatio,nClustSelections
+   use CCMCData, only: ClustSelector,Spawner,dClustSelectionRatio,nClustSelections,tSharedExcitors
    use CalcData, only: NMCyc    ! The number of MC Cycles
    use CalcData, only: StepsSft ! The number of steps between shift updates
    use CalcData, only: TStartMP1
@@ -2273,8 +2273,19 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
    WalkerScale=1
 ! Setup Memory
    write(6,*) "Max Amplitude List size: ", nMaxAmpl
-   call AllocateAmplitudeList(AL,nMaxAmpl,1,.true.)
-   call shared_allocate_iluts("DetList",DetList,(/nIfTot,nMaxAmpl/))
+   call AllocateAmplitudeList(AL,nMaxAmpl,1,tSharedExcitors)
+#ifndef __SHARED_MEM
+   if(tSharedExcitors)
+      write(6,*) "Shared excitor memory requested, but not available in this compilation."
+      write(6,*) "Each processor will use its own list."
+      tSharedExcitors=.false.
+   endif
+#endif   
+   if(tSharedExcitors) then
+      call shared_allocate_iluts("DetList",DetList,(/nIfTot,nMaxAmpl/))
+   else
+      Allocate(DetList(0:nIfTot,nMaxAmpl))
+   endif
    ierr=0
    LogAlloc(ierr,'DetList',(nIfTot+1)*nMaxAmpl,4,tagDetList)
    nMaxSpawn=MemoryFacSpawn*nMaxAmpl
@@ -2366,7 +2377,16 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
 
 ! Each cycle we select combinations of excitors randomly, and spawn and birth/die from them
    do while (Iter.le.NMCyc)
-!Find teh HF det
+
+! First we make sure we have the same lists
+      if((.not.tSharedExcitors).and.nProcessors>1) then
+         IFDEBUG(iDebug,2) write(6,*) "Synchronizing particle lists among processors"
+         call MPIBCast(nAmpl,root)
+         call MPIBCast(DetList,root)
+         call MPIBCast(AL%Amplitude,root)
+      endif
+
+!Find the HF det
       CALL BinSearchParts3(iLutHF,DetList,nAmpl,1,nAmpl,iRefPos,tS)
       if(.not.tS) call Stop_All("CCMCStandaloneParticle","Failed to find HF det.")
 ! Collate stats
@@ -2535,7 +2555,11 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
    Deallocate(SpawnAmps)
    call DeallocateAmplitudeList(AL)
    LogDealloc(tagDetList)
-!   call shared_deallocate(DetList)
+   if(tSharedExcitors) then
+      call shared_deallocate(DetList)
+   else
+      deallocate(DetList)
+   endif 
    Weight=0.D0
    Energyxw=ProjectionE
    call halt_timer(CCMC_time)
