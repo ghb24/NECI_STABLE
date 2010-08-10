@@ -30,6 +30,13 @@ mpilen=(ubound(values,1)-lbound(values,1)+1)
 mpilen2=(ubound(values2,1)-lbound(values2,1)+1)
 ndim=1
 
+[arr2_int64]
+type1=integer(kind=int64), dimension(:,:)
+mpilen=((ubound(values,1)-lbound(values,1)+1)*(ubound(values,2)-lbound(values,2)+1))
+mpilen2=((ubound(values2,1)-lbound(values2,1)+1)*(ubound(values2,2)-lbound(values2,2)+1))
+ndim=2
+
+
 [double]
 type1=real*8
 mpitype=MPI_DOUBLE_PRECISION

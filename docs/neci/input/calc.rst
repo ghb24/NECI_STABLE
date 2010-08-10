@@ -1152,6 +1152,11 @@ The following option are only available in **MCSTAR** calculations:
    amplitudes to form doubles.  This is an O((# singles)^2) per cycle and can become very slow for large systems.
       If this is not set, then we sample the projected energy from every cluster we generate.
 
+**CCMCSHAREDEXCITORS**
+
+      For CCMC if this is set then share the excitor list among all processors on a node.  This will only currently
+   work for jobs on a single node.
+
 **SPAWNPROP**
    For Amplitude CCMC use NSPAWNINGS as a total number of spawnings, and distribute them according to the Amplitudes of clusters.
    
