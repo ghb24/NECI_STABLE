@@ -2,185 +2,185 @@
 type = integer(int32)
 sizeof = sizeof_int
 dim = :
-elem1 = 1
+elem1 = 
 alloc_str = dims(1)
 
 [int2]
 dim = :,:
-elem1 = 1,1
+elem1 = ,1
 alloc_str = dims(1), dims(2)
 
 [int3]
 dim = :,:,:
-elem1 = 1,1,1
+elem1 = ,1,1
 alloc_str = dims(1), dims(2), dims(3)
 
 [int4]
 dim = :,:,:,:
-elem1 = 1,1,1,1
+elem1 = ,1,1,1
 alloc_str = dims(1), dims(2), dims(3), dims(4)
 
 [int5]
 dim = :,:,:,:,:
-elem1 = 1,1,1,1,1
+elem1 = ,1,1,1,1
 alloc_str = dims(1), dims(2), dims(3), dims(4), dims(5)
 
 [int6]
 dim = :,:,:,:,:,:
-elem1 = 1,1,1,1,1,1
+elem1 = ,1,1,1,1,1
 alloc_str = dims(1), dims(2), dims(3), dims(4), dims(5), dims(6)
 
 [int7]
 dim = :,:,:,:,:,:,:
-elem1 = 1,1,1,1,1,1,1
+elem1 = ,1,1,1,1,1,1
 alloc_str = dims(1), dims(2), dims(3), dims(4), dims(5), dims(6), dims(7)
 
 [int64_1]
 type = integer(int64)
 sizeof = sizeof_int64
 dim = :
-elem1 = 1
+elem1 = 
 alloc_str = dims(1)
 
 [int64_2]
 dim = :,:
-elem1 = 1,1
+elem1 = ,1
 alloc_str = dims(1), dims(2)
 
 [int64_3]
 dim = :,:,:
-elem1 = 1,1,1
+elem1 = ,1,1
 alloc_str = dims(1), dims(2), dims(3)
 
 [int64_4]
 dim = :,:,:,:
-elem1 = 1,1,1,1
+elem1 = ,1,1,1
 alloc_str = dims(1), dims(2), dims(3), dims(4)
 
 [int64_5]
 dim = :,:,:,:,:
-elem1 = 1,1,1,1,1
+elem1 = ,1,1,1,1
 alloc_str = dims(1), dims(2), dims(3), dims(4), dims(5)
 
 [int64_6]
 dim = :,:,:,:,:,:
-elem1 = 1,1,1,1,1,1
+elem1 = ,1,1,1,1,1
 alloc_str = dims(1), dims(2), dims(3), dims(4), dims(5), dims(6)
 
 [int64_7]
 dim = :,:,:,:,:,:,:
-elem1 = 1,1,1,1,1,1,1
+elem1 = ,1,1,1,1,1,1
 alloc_str = dims(1), dims(2), dims(3), dims(4), dims(5), dims(6), dims(7)
 
 [doub1]
 type = real(dp)
 sizeof = sizeof_dp
 dim = :
-elem1 = 1
+elem1 = 
 alloc_str = dims(1)
 
 [doub2]
 dim = :,:
-elem1 = 1,1
+elem1 = ,1
 alloc_str = dims(1), dims(2)
 
 [doub3]
 dim = :,:,:
-elem1 = 1,1,1
+elem1 = ,1,1
 alloc_str = dims(1), dims(2), dims(3)
 
 [doub4]
 dim = :,:,:,:
-elem1 = 1,1,1,1
+elem1 = ,1,1,1
 alloc_str = dims(1), dims(2), dims(3), dims(4)
 
 [doub5]
 dim = :,:,:,:,:
-elem1 = 1,1,1,1,1
+elem1 = ,1,1,1,1
 alloc_str = dims(1), dims(2), dims(3), dims(4), dims(5)
 
 [doub6]
 dim = :,:,:,:,:,:
-elem1 = 1,1,1,1,1,1
+elem1 = ,1,1,1,1,1
 alloc_str = dims(1), dims(2), dims(3), dims(4), dims(5), dims(6)
 
 [doub7]
 dim = :,:,:,:,:,:,:
-elem1 = 1,1,1,1,1,1,1
+elem1 = ,1,1,1,1,1,1
 alloc_str = dims(1), dims(2), dims(3), dims(4), dims(5), dims(6), dims(7)
 
 [real1]
 type = real(sp)
 sizeof = sizeof_sp
 dim = :
-elem1 = 1
+elem1 = 
 alloc_str = dims(1)
 
 [real2]
 dim = :,:
-elem1 = 1,1
+elem1 = ,1
 alloc_str = dims(1), dims(2)
 
 [real3]
 dim = :,:,:
-elem1 = 1,1,1
+elem1 = ,1,1
 alloc_str = dims(1), dims(2), dims(3)
 
 [real4]
 dim = :,:,:,:
-elem1 = 1,1,1,1
+elem1 = ,1,1,1
 alloc_str = dims(1), dims(2), dims(3), dims(4)
 
 [real5]
 dim = :,:,:,:,:
-elem1 = 1,1,1,1,1
+elem1 = ,1,1,1,1
 alloc_str = dims(1), dims(2), dims(3), dims(4), dims(5)
 
 [real6]
 dim = :,:,:,:,:,:
-elem1 = 1,1,1,1,1,1
+elem1 = ,1,1,1,1,1
 alloc_str = dims(1), dims(2), dims(3), dims(4), dims(5), dims(6)
 
 [real7]
 dim = :,:,:,:,:,:,:
-elem1 = 1,1,1,1,1,1,1
+elem1 = ,1,1,1,1,1,1
 alloc_str = dims(1), dims(2), dims(3), dims(4), dims(5), dims(6), dims(7)
 
 [complex1]
 type = complex(dp)
 sizeof = sizeof_complexdp
 dim = :
-elem1 = 1
+elem1 = 
 alloc_str = dims(1)
 
 [complex2]
 dim = :,:
-elem1 = 1,1
+elem1 = ,1
 alloc_str = dims(1), dims(2)
 
 [complex3]
 dim = :,:,:
-elem1 = 1,1,1
+elem1 = ,1,1
 alloc_str = dims(1), dims(2), dims(3)
 
 [complex4]
 dim = :,:,:,:
-elem1 = 1,1,1,1
+elem1 = ,1,1,1
 alloc_str = dims(1), dims(2), dims(3), dims(4)
 
 [complex5]
 dim = :,:,:,:,:
-elem1 = 1,1,1,1,1
+elem1 = ,1,1,1,1
 alloc_str = dims(1), dims(2), dims(3), dims(4), dims(5)
 
 [complex6]
 dim = :,:,:,:,:,:
-elem1 = 1,1,1,1,1,1
+elem1 = ,1,1,1,1,1
 alloc_str = dims(1), dims(2), dims(3), dims(4), dims(5), dims(6)
 
 [complex7]
 dim = :,:,:,:,:,:,:
-elem1 = 1,1,1,1,1,1,1
+elem1 = ,1,1,1,1,1,1
 alloc_str = dims(1), dims(2), dims(3), dims(4), dims(5), dims(6), dims(7)
 
 =========================
@@ -332,7 +332,7 @@ contains
 
         ! Get a pointer to the first element. c_loc requries its argument to
         ! be a scalar variable.
-        pt1 => ptr(%(elem1)s)
+        pt1 => ptr(lbound(ptr,1) %(elem1)s)
 
 #ifdef __PATHSCALE__
         tmp = loc(ptr(%(elem1)s))

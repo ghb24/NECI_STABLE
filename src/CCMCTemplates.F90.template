@@ -652,7 +652,7 @@ SUBROUTINE CollapseCluster (C,iLutHF,Amplitude,nDet,iDebug,tExToDet)
 END SUBROUTINE !CollapseCluster
 
 !Calculate the total cluster amplitude as well as the magnitude of the e^T.
-subroutine CalcTotals (iNumExcitors,dTotAbsAmpl,Amplitude,nAmpl,dTol,WalkerScale,iRefPos,iOldTotWalkers,iDebug)
+subroutine CalcTotals (iNumExcitors,dTotAbsAmpl,Amplitude,nAmpl,dTol,WalkerScale,iRefPos,iOldTotParts,iDebug)
    use Parallel, only: iProcIndex
    use CCMCData, only: tCCMCFCI
    use FciMCData, only: TotParts,TotWalkers,NoatHF,NoatDoubs
@@ -665,7 +665,7 @@ subroutine CalcTotals (iNumExcitors,dTotAbsAmpl,Amplitude,nAmpl,dTol,WalkerScale
    integer iDebug
    real*8 WalkerScale
    integer iRefPos
-   integer iOldTotWalkers
+   integer iOldTotParts
 
    integer i,j
    real*8 dPsiTotAbsAmpl,dTmp
@@ -714,18 +714,20 @@ subroutine CalcTotals (iNumExcitors,dTotAbsAmpl,Amplitude,nAmpl,dTol,WalkerScale
    endif
    IFDEBUG(iDebug,3) WRITE(6,"(A,I5,A,I5)") "Finished calculating total cluster amplitude at level ",i-1,"/",iNumExcitors
    IFDEBUG(iDebug,2) WRITE(6,*) "Total cluster amplitude: ",dPsiTotAbsAmpl
-   TotParts=dTotExcitors*WalkerScale
+   TotParts=0
+   TotParts(1)=dTotExcitors*WalkerScale !TotParts indicates the total number of excitors
    
    if(iProcIndex.eq.root) then 
-      TotWalkers=dTotExcitors*WalkerScale 
+      TotWalkers=iNumExcitors  !TotWalkers indicates the total number of unique excitors with a population
    else
       TotWalkers=0
    endif
-   iter_data_ccmc%%update_growth=iter_data_ccmc%%update_growth+TotWalkers-iOldTotWalkers
-   iOldTotWalkers=TotWalkers
+   iter_data_ccmc%%update_growth=iter_data_ccmc%%update_growth+TotParts-iOldTotParts
+   iOldTotParts=TotParts(1)
 !   write(6,*) "update growth",iter_data_ccmc%%update_growth
    iter_data_ccmc%%update_iters=iter_data_ccmc%%update_iters+1
-   IFDEBUG(iDebug,2) WRITE(6,*) "Total walkers", TotWalkers
+   IFDEBUG(iDebug,2) WRITE(6,*) "Total unique excitors", TotWalkers
+   IFDEBUG(iDebug,2) WRITE(6,*) "Total excitors", TotWalkers
 !   call halt_timer(CCMC_time)
 end subroutine !CalcTotals
 

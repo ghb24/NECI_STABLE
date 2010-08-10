@@ -854,9 +854,6 @@ MODULE FciMCParMod
                                 - iter_data%ndied - iter_data%nannihil &
                                 - iter_data%naborted
         iter_data%update_iters = iter_data%update_iters + 1
-!        write(6,*) "BSST",iter_data%nborn,",", iter_data%ndied, ",",iter_data%nannihil,",",iter_data%naborted
-!        write(6,*) "ASST",iter_data%update_growth,",", TotParts, ",",tot_parts_tmp 
-        ASSERT(all(iter_data%update_growth == TotParts - tot_parts_tmp))
 
     end subroutine
 
