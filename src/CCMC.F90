@@ -2275,7 +2275,7 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
    write(6,*) "Max Amplitude List size: ", nMaxAmpl
    call AllocateAmplitudeList(AL,nMaxAmpl,1,tSharedExcitors)
 #ifndef __SHARED_MEM
-   if(tSharedExcitors)
+   if(tSharedExcitors) then
       write(6,*) "Shared excitor memory requested, but not available in this compilation."
       write(6,*) "Each processor will use its own list."
       tSharedExcitors=.false.
