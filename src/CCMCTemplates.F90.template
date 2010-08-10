@@ -718,7 +718,7 @@ subroutine CalcTotals (iNumExcitors,dTotAbsAmpl,Amplitude,nAmpl,dTol,WalkerScale
    TotParts(1)=dTotExcitors*WalkerScale !TotParts indicates the total number of excitors
    
    if(iProcIndex.eq.root) then 
-      TotWalkers=iNumExcitors  !TotWalkers indicates the total number of unique excitors with a population
+      TotWalkers=iNumExcitors+1  !TotWalkers indicates the total number of unique excitors with a population
    else
       TotWalkers=0
    endif
