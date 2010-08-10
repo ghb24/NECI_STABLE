@@ -18,6 +18,7 @@ module ClusterList
    use constants, only: dp, int32, n_int
    use bit_rep_data, only: NIfDBO,NIfD,NIfTot
    use CCMCData, only: ExcitToDetSign,AddBitExcitor
+   use Parallel
    implicit none
 
    type AmplitudeList_%(name)s
@@ -201,7 +202,6 @@ end subroutine !WriteExcitorList
 
 SUBROUTINE CalcClusterEnergy (tFCI,Amplitude,nExcit,ExcitList,ExcitLevelIndex,iRefPos,iDebug,ProjE)
    use Parallel, only: iProcIndex
-   use FciMCData, only: root
    use SystemData, only: nEl
    use FciMCData, only: HFDet
    use FciMCParMod, only: iLutHF,SumEContrib
@@ -296,7 +296,6 @@ END SUBROUTINE !CalcClusterEnergy
 
 SUBROUTINE CalcClusterEnergyUnsrt (tFCI,Amplitude,nExcit,ExcitList,iRefPos,ProjE)
    use Parallel, only: iProcIndex
-   use FciMCData, only: root
    use CCMCData
    use SystemData, only: nEl
    use FciMCData, only: HFDet
@@ -655,7 +654,6 @@ END SUBROUTINE !CollapseCluster
 !Calculate the total cluster amplitude as well as the magnitude of the e^T.
 subroutine CalcTotals (iNumExcitors,dTotAbsAmpl,Amplitude,nAmpl,dTol,WalkerScale,iRefPos,iOldTotWalkers,iDebug)
    use Parallel, only: iProcIndex
-   use FciMCData, only: root
    use CCMCData, only: tCCMCFCI
    use FciMCData, only: TotParts,TotWalkers,NoatHF,NoatDoubs
    use FciMCParMod, only: iter_data_ccmc

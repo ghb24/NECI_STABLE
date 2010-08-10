@@ -68,7 +68,8 @@ MODULE FciMCParMod
     use spin_project, only: tSpinProject, spin_proj_interval, &
                             spin_proj_gamma, get_spawn_helement_spin_proj, &
                             generate_excit_spin_proj, attempt_die_spin_proj, &
-                            iter_data_spin_proj, test_spin_proj
+                            iter_data_spin_proj, test_spin_proj, &
+                            spin_proj_shift
 
     implicit none
 
@@ -82,6 +83,10 @@ MODULE FciMCParMod
         REAL(4) :: s,etime,tstart(2),tend(2)
         INTEGER(int64) :: MaxWalkers,MinWalkers
         real*8 :: AllTotWalkers,MeanWalkers,Inpair(2),Outpair(2)
+
+        integer, dimension(lenof_sign) :: tmp_sgn
+        integer :: tmp_int(lenof_sign)
+        real(dp) :: grow_rate
 
         TDebug=.false.  !Set debugging flag
 
@@ -173,6 +178,7 @@ MODULE FciMCParMod
                 ! Calculate the a new value for the shift (amongst other
                 ! things). Generally, collate information from all processors,
                 ! update statistics and output them to the user.
+!>>>!                iter_data_fciqmc%update_growth = iter_data_fciqmc%update_growth + iter_data_spin_proj%update_growth
                 if (tCCMC) then
                     call calculate_new_shift_wrapper (iter_data_ccmc, &
                                                       TotParts)
@@ -180,6 +186,33 @@ MODULE FciMCParMod
                     call calculate_new_shift_wrapper (iter_data_fciqmc, &
                                                       TotParts)
                 endif
+
+                !! Quick hack for spin projection
+                !if (tSpinProject .and. (mod(iter/stepssft, spin_proj_interval) == 0 .or. &
+                !    spin_proj_interval == 0)) then
+
+
+                !    call MPIReduce(iter_data_spin_proj%update_growth, &
+                !                   MPI_SUM, tmp_int)
+                !    if (iProcIndex == Root) then
+                !        grow_rate = (sum(tmp_int + &
+                !                     iter_data_spin_proj%tot_parts_old)) &
+                !                    / real(sum(iter_data_spin_proj%tot_parts_old), dp)
+                !        iter_data_spin_proj%tot_parts_old = AllTotPartsOld
+
+                !        if (.not. tSinglePartPhase) then
+                !            spin_proj_shift = spin_proj_shift - ((log(grow_rate) * SftDamp) / &
+                !                              (spin_proj_gamma * iter_data_spin_proj%update_iters))
+                !        endif
+
+                !    endif
+
+                !    call MPIBCast (spin_proj_shift, root)
+
+                !    iter_data_spin_proj%update_growth = 0
+                !    iter_data_spin_proj%update_iters = 0
+                !endif
+
 
                 IF((tTruncCAS.or.tTruncSpace.or.tTruncInitiator).and.(Iter.gt.iFullSpaceIter).and.(iFullSpaceIter.ne.0)) THEN
 !Test if we want to expand to the full space if an EXPANDSPACE variable has been set

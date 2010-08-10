@@ -909,7 +909,7 @@ MODULE UMatCache
          INTEGER,Pointer :: OUMatLabels(:,:) !(onSlots,onPairs)
          
          INTEGER onSlots,onPairs,ierr
-         LOGICAL toSmallUMat,tlog,toUMat2D
+         LOGICAL toSmallUMat,tlog,toUMat2D,tmpl
          character(len=*),parameter :: thisroutine='FreezeUMatCacheInt'
                   
          toUMat2D=tUMat2D
@@ -953,9 +953,14 @@ MODULE UMatCache
             IF(OrbTrans(k*2).NE.0) THEN
              CALL GetCacheIndex(i,k,m)
              DO n=1,onSlots
-              IF((onSlots.EQ.onPairs.OR.toSmallUMat)                    &
-     &            .OR.((onSlots.NE.onPairs).AND.((n.EQ.1).OR.           &
-     &            OUMatLabels(n,m).NE.OUMatLabels(n-1,m)))) THEN
+
+
+              tmpl = .true.
+              if (n /= 1) then
+                  if (OUMatLabels(n,m) /= OUMatLabels(n-1,m)) tmpl = .false.
+              endif
+              if ( (onSlots == onPairs .or. toSmallUMat) .or. &
+                   (onSlots /= onPairs .and. tmpl) ) then
                IF(OUMatLabels(n,m).NE.0) THEN
                 ni=OrbTrans(i*2)/2
                 nk=OrbTrans(k*2)/2

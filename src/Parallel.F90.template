@@ -696,6 +696,9 @@ supermodule Parallel
    save
    integer iProcIndex,iProcMinE,iProcMaxE
    integer nProcessors
+
+   ! Rank of the root processor
+   integer, parameter :: root = 0
 #ifndef PARALLEL
    integer, parameter :: MPI_2INTEGER=0
    integer, parameter :: MPI_MIN=0

@@ -7,6 +7,7 @@ MODULE CCMC
     use bit_rep_data, only: NIfDBO,NIfTot
     use bit_reps, only: encode_det
     use FciMCParMod, only: calculate_new_shift_wrapper, iter_data_ccmc
+    use Parallel
    IMPLICIT NONE
    CONTAINS
 
@@ -1798,7 +1799,6 @@ SUBROUTINE CCMCStandalone(Weight,Energyxw)
    Use global_utilities
    use SystemData, only: nEl
    use Parallel, only: iProcIndex
-   use FciMCData, only: root
    use CCMCData, only: tCCMCFCI,dInitAmplitude,dProbSelNewExcitor,tExactCluster,tExactSpawn,nSpawnings,tCCBuffer
    use CCMCData, only: ClustSelector,Spawner,CCTransitionLog,nClustSelections,dClustSelectionRatio,tExactEnergy
    use DetCalcData, only: Det       ! The number of Dets/Excitors in FCIDets
@@ -2160,7 +2160,6 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
    Use global_utilities
    use SystemData, only: nEl
    use Parallel, only: iProcIndex
-   use FciMCData, only: root
    use CCMCData, only: tCCMCFCI,dInitAmplitude,dProbSelNewExcitor,tExactCluster,tExactSpawn,nSpawnings,tCCBuffer
    use CCMCData, only: WriteCluster
    use CCMCData, only: ClustSelector,Spawner,dClustSelectionRatio,nClustSelections
