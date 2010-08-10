@@ -283,7 +283,7 @@ SUBROUTINE CalcClusterEnergy (tFCI,Amplitude,nExcit,ExcitList,ExcitLevelIndex,iR
       endif
    enddo
 !   write(6,*) "T1Sq:",dT1Sq
-   ProjE=ENumCyc/(HFCyc+0.d0)
+   ProjE=ENumCyc/(HFCyc(1)+0.d0)
 END SUBROUTINE !CalcClusterEnergy
 
 !This runs over all singles and doubles in the list of excitors and calls SumEContrib for them appropriately to give the projected energy.  The excitor list need not be sorted.
@@ -357,7 +357,7 @@ SUBROUTINE CalcClusterEnergyUnsrt (tFCI,Amplitude,nExcit,ExcitList,iRefPos,ProjE
       endif
    enddo
 !   write(6,*) "T1Sq:",dT1Sq
-   ProjE=ENumCyc/(HFCyc+0.d0)
+   ProjE=ENumCyc/(HFCyc(1)+0.d0)
 END SUBROUTINE !CalcClusterEnergyUnsrt
 
 

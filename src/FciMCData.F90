@@ -86,8 +86,10 @@ MODULE FciMCData
       INTEGER(KIND=int64) :: AllSumWalkersCyc
       INTEGER :: AllAnnihilated,AllNoatDoubs
       INTEGER, DIMENSION(lenof_sign) :: AllNoatHF
-      REAL*8 :: AllSumENum,AllAvSign,AllAvSignHFD
+      REAL*8 :: AllAvSign,AllAvSignHFD
       INTEGER :: AllNoBorn,AllNoDied,MaxSpawned
+
+      HElement_t :: AllSumENum
   
       HElement_t :: rhii
       REAL*8 :: Hii,Fii

@@ -53,7 +53,7 @@ MODULE FciMCParMod
     use csf, only: get_csf_bit_yama, iscsf, csf_orbital_mask, get_csf_helement
     use hphf_integrals, only: hphf_diag_helement, hphf_off_diag_helement, &
                               hphf_spawn_sign, hphf_off_diag_helement_spawn
-    use util_mod, only: choose
+    use util_mod, only: choose,abs_int_sign,abs_int8_sign
     use constants, only: dp, int64, n_int, lenof_sign
     use soft_exit, only: ChangeVars 
     use FciMCLoggingMod, only: FinaliseBlocking, FinaliseShiftBlocking, &
@@ -245,11 +245,11 @@ MODULE FciMCParMod
             
             ENDIF
 
-            IF(mod(Iter,iWriteBlockingEvery).eq.0) THEN
-                !Every 100 update cycles, write out a new blocking file.
-                IF(tErrorBlocking.and.(Iter.gt.IterStartBlocking)) CALL PrintBlocking(Iter) 
-                IF(tShiftBlocking.and.(Iter.gt.(VaryShiftIter+IterShiftBlock))) CALL PrintShiftBlocking(Iter)
-            ENDIF
+!            IF(mod(Iter,iWriteBlockingEvery).eq.0) THEN
+!                !Every 100 update cycles, write out a new blocking file.
+!                IF(tErrorBlocking.and.(Iter.gt.IterStartBlocking)) CALL PrintBlocking(Iter) 
+!                IF(tShiftBlocking.and.(Iter.gt.(VaryShiftIter+IterShiftBlock))) CALL PrintShiftBlocking(Iter)
+!            ENDIF
 
             IF(TPopsFile.and.(.not.tPrintPopsDefault).and.(mod(Iter,iWritePopsEvery).eq.0)) THEN
 !This will write out the POPSFILE if wanted
@@ -289,8 +289,8 @@ MODULE FciMCParMod
             ENDIF
         ENDIF
 
-        IF(tErrorBlocking) CALL FinaliseBlocking(Iter)
-        IF(tShiftBlocking) CALL FinaliseShiftBlocking(Iter)
+!        IF(tErrorBlocking) CALL FinaliseBlocking(Iter)
+!        IF(tShiftBlocking) CALL FinaliseShiftBlocking(Iter)
 
         IF(tHistSpawn) CALL WriteHistogram()
 
@@ -1639,13 +1639,13 @@ MODULE FciMCParMod
                 TSinglePartPhase=.true.
             ENDIF
             SumENum=AllSumENum/REAL(nProcessors,dp)     !Divide up the SumENum over all processors
-            AvSumNoatHF = AllSumNoatHF/nProcessors !This is the average Sumnoathf
+            AvSumNoatHF = AllSumNoatHF(1)/nProcessors !This is the average Sumnoathf
             do i=1,nProcessors-1
                 NodeSumNoatHF(i)=INT(AvSumNoatHF,int64)
             enddo
-            NodeSumNoatHF(nProcessors)=AllSumNoatHF-INT((AvSumNoatHF*(nProcessors-1)),int64)
+            NodeSumNoatHF(nProcessors)=AllSumNoatHF(1)-INT((AvSumNoatHF*(nProcessors-1)),int64)
 
-            ProjectionE=AllSumENum/real(AllSumNoatHF,dp)
+            ProjectionE=AllSumENum/real(AllSumNoatHF(1),dp)
                 
 !Reset the global variables
             AllSumENum=0.D0
@@ -1666,7 +1666,7 @@ MODULE FciMCParMod
 !        CALL MPI_BCast(tChangenProcessors,1,MPI_LOGICAL,root,MPI_COMM_WORLD,error)
 !Scatter the number of walkers each node will receive to TempInitWalkers, and the SumNoatHF for each node which is distributed approximatly equally
         CALL MPIScatter(WalkerstoReceive,TempInitWalkers,root,error)
-        CALL MPIScatter(NodeSumNoatHF,SumNoatHF,root,error)
+        CALL MPIScatter(NodeSumNoatHF,SumNoatHF(1),root,error)
 
         IF(MemoryFacPart.le.1.D0) THEN
             WRITE(6,*) 'MemoryFacPart must be larger than 1.0 when reading in a POPSFILE - increasing it to 1.50.'
@@ -3163,44 +3163,44 @@ MODULE FciMCParMod
                endif
             endif
 
-            ! Deal with blocking analysis
-            !
-            ! If we are waiting to start error blocking, check if we should 
-            ! enable it. The conditional causes this test to be skipped once
-            ! blocking has been enabled.            
-            if (tIterStartBlock) then
-                ! If IterStartBlocking is positive, then start blocking when
-                ! we are at that iteration. Otherwise, wait until out of
-                ! fixed shift.
-                if ( (IterStartBlocking > 0 .and. iter > IterStartBlocking) &
-                     .or. (IterStartBlocking <= 0 .and. &
-                           .not. tSinglePartPhase)) then
-                    call InitErrorBlocking (iter)
-                    tIterStartBlock = .false.
-                    tErrorBlocking = .true.
-                endif
-            elseif (tHFPopStartBlock) then
-                if (abs(AllHFCyc) / StepsSft >= HFPopStartBlocking) then
-                    call InitErrorBlocking (iter)
-                    tHFPopStartBlock = .false.
-                    tErrorBlocking = .true.
-                endif
-            endif
-
-            ! If we are waiting to start shift blocking, check if we should
-            ! enable it. The test is skipped once blocknig is enabled.
-            if ((.not. tSinglePartPhase) .and. tInitShiftBlocking .and. &
-                (iter == VaryShiftIter + IterShiftBlock)) then
-                call InitShiftErrorBlocking (iter)
-                tInitShiftBlocking = .false.
-                tShiftBlocking = .true.
-            endif
-
-            ! Perform the blocking at the end of each update
-            if (tErrorBlocking .and. .not. tBlockEveryIteration) &
-                call SumInErrorContrib (iter, AllENumCyc, AllHFCyc)
-            if (tShiftBlocking .and. iter >= VaryShiftIter + IterShiftBlock) &
-                call SumInShiftErrorContrib (iter, DiagSft)
+!            ! Deal with blocking analysis - this has been temporarily disabled
+!            !
+!            ! If we are waiting to start error blocking, check if we should 
+!            ! enable it. The conditional causes this test to be skipped once
+!            ! blocking has been enabled.            
+!            if (tIterStartBlock) then
+!                ! If IterStartBlocking is positive, then start blocking when
+!                ! we are at that iteration. Otherwise, wait until out of
+!                ! fixed shift.
+!                if ( (IterStartBlocking > 0 .and. iter > IterStartBlocking) &
+!                     .or. (IterStartBlocking <= 0 .and. &
+!                           .not. tSinglePartPhase)) then
+!                    call InitErrorBlocking (iter)
+!                    tIterStartBlock = .false.
+!                    tErrorBlocking = .true.
+!                endif
+!            elseif (tHFPopStartBlock) then
+!                if (abs(AllHFCyc) / StepsSft >= HFPopStartBlocking) then
+!                    call InitErrorBlocking (iter)
+!                    tHFPopStartBlock = .false.
+!                    tErrorBlocking = .true.
+!                endif
+!            endif
+!
+!            ! If we are waiting to start shift blocking, check if we should
+!            ! enable it. The test is skipped once blocknig is enabled.
+!            if ((.not. tSinglePartPhase) .and. tInitShiftBlocking .and. &
+!                (iter == VaryShiftIter + IterShiftBlock)) then
+!                call InitShiftErrorBlocking (iter)
+!                tInitShiftBlocking = .false.
+!                tShiftBlocking = .true.
+!            endif
+!
+!            ! Perform the blocking at the end of each update
+!            if (tErrorBlocking .and. .not. tBlockEveryIteration) &
+!                call SumInErrorContrib (iter, AllENumCyc, AllHFCyc)
+!            if (tShiftBlocking .and. iter >= VaryShiftIter + IterShiftBlock) &
+!                call SumInShiftErrorContrib (iter, DiagSft)
         endif
 
     end subroutine
@@ -3332,28 +3332,6 @@ MODULE FciMCParMod
         endif
                     
     end subroutine
-
-!routine to calculation the absolute magnitude of a complex integer variable (to nearest integer)
-    pure integer function abs_int_sign(wsign)
-        integer, dimension(lenof_sign) :: wsign
-
-        if(lenof_sign.eq.1) then
-            abs_int_sign=wsign
-        else
-            abs_int_sign=nint(sqrt(real(wsign(1)**2+wsign(2)**2,dp)),int32)
-        endif
-    end function abs_int_sign
-
-!routine to calculation the absolute magnitude of a complex integer*8 variable (to nearest integer)
-    pure integer(kind=int64) function abs_int8_sign(wsign)
-        integer(kind=int64), dimension(lenof_sign) :: wsign
-
-        if(lenof_sign.eq.1) then
-            abs_int_sign=wsign
-        else
-            abs_int_sign=nint(sqrt(real(wsign(1)**2+wsign(2)**2,dp)),int64)
-        endif
-    end function abs_int8_sign
 
     subroutine collate_iter_data (iter_data, tot_parts_new, tot_parts_new_all)
 
@@ -3535,13 +3513,13 @@ MODULE FciMCParMod
 
 
             ! AllSumNoatHF can be 0 if equilsteps is on.
-            if (lenof_sign.eq.1) then
-                if (AllSumNoatHF /= 0) ProjectionE = AllSumENum / AllSumNoatHF
-            else
-                if (AllSumNoatHF(1).ne.0.or.AllSumNoatHF(2).ne.0) then
-                    ProjectionE = AllSumENum / CMPLX(AllSumNoatHF(1), AllSumNoatHF(2), dp) 
-                endif
+#ifdef __CMPLX
+            if (AllSumNoatHF(1).ne.0.or.AllSumNoatHF(2).ne.0) then
+                ProjectionE = AllSumENum / CMPLX(AllSumNoatHF(1), AllSumNoatHF(2), dp) 
             endif
+#else
+            if (AllSumNoatHF(1) /= 0) ProjectionE = AllSumENum / AllSumNoatHF(1)
+#endif
 
             ! Calculate the projected energy where each update cycle 
             ! contributes the same weight to the average for its estimator 
@@ -3687,10 +3665,18 @@ MODULE FciMCParMod
             IF(tLogComplexPops) THEN
                 WRITE(complexstats_unit,"(A)") '#   1.Step  2.Shift     3.RealShift     4.ImShift   5.TotParts      6.RealTotParts      7.ImTotParts'
             ENDIF
+
+#ifdef __CMPLX
+            WRITE(6,"(A)") "       Step     Shift      WalkerCng(Re)  WalkerCng(Im)    TotWalkers(Re)   TotWalkers(Im)    Proj.E(Re)   ProjE(Im)     Proj.E.ThisCyc(Re)  Proj.E.ThisCyc(Im)   NoatHF(Re)   NoatHF(Im)   NoatDoubs      AccRat     UniqueDets     IterTime"
+            WRITE(fcimcstats_unit,"(A)") "#     1.Step   2.Shift    3.WalkerCng(Re)  4.WalkerCng(Im)   5.TotWalkers(Re)  6.TotWalkers(Im)  7.Proj.E(Re)   8.Proj.E(Im)  "&
+&           // " 9.Proj.E.ThisCyc(Re)  10.Proj.E.ThisCyc(Im)  11.NoatHF(Re)   12.NoatHF(Im)  13.NoatDoubs  14.AccRat  15.UniqueDets  16.IterTime 17.FracSpawnFromSing  18.WalkersDiffProc  19.TotImagTime  "&
+&           // " 20.HFInstShift  21.TotInstShift  22.Tot-Proj.E.ThisCyc(Re)  23.HFContribtoE(Re)  24.HFContribtoE(Im)   25.NumContribtoE(Re)  26.NumContribtoE(Im)"
+#else
             WRITE(6,"(A)") "       Step     Shift      WalkerCng    GrowRate       TotWalkers    Annihil    NoDied    NoBorn    Proj.E          Av.Shift     Proj.E.ThisCyc   NoatHF NoatDoubs      AccRat     UniqueDets     IterTime"
             WRITE(fcimcstats_unit,"(A)") "#     1.Step   2.Shift    3.WalkerCng  4.GrowRate     5.TotWalkers  6.Annihil  7.NoDied  8.NoBorn  9.Proj.E       10.Av.Shift"&
-&           // " 11.Proj.E.ThisCyc  12.NoatHF 13.NoatDoubs  14.AccRat  15.UniqueDets  16.IterTime 17.FracSpawnFromSing  18.WalkersDiffProc  19.TotImagTime  "&
-&           // " 20.HFInstShift  21.TotInstShift  22.Tot-Proj.E.ThisCyc   23.HFContribtoE  24.NumContribtoE"
+&           // " 11.Proj.E.ThisCyc  12.NoatHF 13.NoatDoubs  14.AccRat  15.UniqueDets  16.IterTime 17.FracSpawnFromSing  18.WalkersDiffProc  19.TotImagTime  20.ProjE.ThisIter "&
+&           // " 21.HFInstShift  22.TotInstShift  23.Tot-Proj.E.ThisCyc   24.HFContribtoE  25.NumContribtoE"
+#endif
             
         ENDIF
 
@@ -3699,7 +3685,27 @@ MODULE FciMCParMod
     subroutine WriteFCIMCStats()
 
         if (iProcIndex == root) then
-
+#ifdef __CMPLX
+            write(fcimcstats_unit,"(I12,G16.7,2I10,2I12,4G17.9,3I10,&
+                                  &G13.5,I12,G13.5,G17.5,I13,G13.5,7G17.9)") &
+                Iter + PreviousCycles, DiagSft, &
+                AllTotParts(1)-AllTotPartsOld(1), AllTotParts(2)-AllTotParts(2), &
+                AllTotParts(1),AllTotParts(2), &
+                REAL(ProjectionE,dp),AIMAG(ProjectionE), REAL(AllENumCyc / AllHFCyc,dp),AIMAG(AllENumCyc / AllHFCyc), &
+                AllNoatHF(1),AllNoatHF(2), &
+                AllNoatDoubs, AccRat, AllTotWalkers, IterTime, &
+                real(AllSpawnFromSing) / real(AllNoBorn), WalkersDiffProc, &
+                TotImagTime, HFShift, InstShift, &
+                REAL(AllENumCyc / AllHFCyc,dp) + Hii, REAL(AllHFCyc / StepsSft,dp), AIMAG(AllHFCyc / StepsSft), &
+                REAL(AllENumCyc / StepsSft,dp),AIMAG(AllENumCyc / StepsSft)
+            write (6, "(I12,G16.7,2I10,2I12,4G17.9,3I10,G13.5,I12,&
+                      &G13.5)") Iter + PreviousCycles, DiagSft, &
+                AllTotParts(1)-AllTotPartsOld(1),AllTotParts(2)-AllTotPartsOld(2), &
+                AllTotParts(1),AllTotParts(2), &
+                real(ProjectionE,dp),aimag(ProjectionE), real(AllENumCyc / AllHFCyc,dp),aimag(AllENumCyc / AllHFCyc), &
+                AllNoatHF(1),AllNoatHF(2), &
+                AllNoatDoubs, AccRat, AllTotWalkers, IterTime
+#else
             write(fcimcstats_unit,"(I12,G16.7,I10,G16.7,I12,3I13,3G17.9,2I10,&
                                   &G13.5,I12,G13.5,G17.5,I13,G13.5,6G17.9)") &
                 Iter + PreviousCycles, DiagSft, &
@@ -3708,7 +3714,7 @@ MODULE FciMCParMod
                 ProjectionE, AvDiagSft, AllENumCyc / AllHFCyc, AllNoatHF, &
                 AllNoatDoubs, AccRat, AllTotWalkers, IterTime, &
                 real(AllSpawnFromSing) / real(AllNoBorn), WalkersDiffProc, &
-                TotImagTime, HFShift, InstShift, &
+                TotImagTime, 0.D0, HFShift, InstShift, &
                 AllENumCyc / AllHFCyc + Hii, AllHFCyc / StepsSft, &
                 AllENumCyc / StepsSft
             write (6, "(I12,G16.7,I10,G16.7,I12,3I11,3G17.9,2I10,G13.5,I12,&
@@ -3717,6 +3723,7 @@ MODULE FciMCParMod
                 sum(AllTotParts), AllAnnihilated, AllNoDied, AllNoBorn, &
                 ProjectionE, AvDiagSft, AllENumCyc / AllHFCyc, AllNoatHF, &
                 AllNoatDoubs, AccRat, AllTotWalkers, IterTime
+#endif
 
             if (tTruncInitiator .or. tDelayTruncInit) then
                write(initiatorstats_unit,"(I12,4G16.7,i12.1,1F18.7,5F18.1)")&
@@ -4991,7 +4998,7 @@ MODULE FciMCParMod
             HFCyc=HFCyc+WSign      !This is simply the number at HF*sign over the course of the update cycle 
             
         ELSEIF(ExcitLevel.eq.2) THEN
-            NoatDoubs=NoatDoubs+abs(WSign)
+            NoatDoubs=NoatDoubs+sum(abs(WSign(:)))
 !At double excit - find and sum in energy
             IF(tHPHF) THEN
                 HOffDiag = hphf_off_diag_helement (ProjEDet, DetCurr, iLutRef, &
@@ -5139,7 +5146,7 @@ MODULE FciMCParMod
 !projection onto a different determinant.
     SUBROUTINE ChangeRefDet(DetCurr)
         use Determinants , only : GetH0Element3
-        use FciMCLoggingMod , only : RestartBlocking, RestartShiftBlocking
+!        use FciMCLoggingMod , only : RestartBlocking, RestartShiftBlocking
         INTEGER :: DetCurr(NEl),i
 
 !        CALL Stop_All("ChangeRefDet","This option does not currently work. Bug ghb24 if its needed")
@@ -5166,10 +5173,10 @@ MODULE FciMCParMod
         IF(TDebug) CLOSE(11)
         CALL SetupParameters()
         CALL InitFCIMCCalcPar()
-        IF(iProcIndex.eq.0) THEN
-            CALL RestartBlocking(Iter)
-            CALL RestartShiftBlocking(Iter)
-        ENDIF
+!        IF(iProcIndex.eq.0) THEN
+!            CALL RestartBlocking(Iter)
+!            CALL RestartShiftBlocking(Iter)
+!        ENDIF
 
 
 
