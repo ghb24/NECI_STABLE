@@ -39,6 +39,8 @@ MODULE HPHFRandExcitMod
         INTEGER :: ClassCountUnocc2(ScratchSize),ClassCountUnocc3(ScratchSize)
         LOGICAL :: tGenClassCountnI,tGenClassCountnI2,TestClosedShellDet,tParity,tSign,tSwapped
 
+        HElement_t :: HElGen    !Unused variable
+
 !        Count=Count+1
 !        WRITE(6,*) "COUNT: ",Count
 !        CALL FLUSH(6)
@@ -52,7 +54,7 @@ MODULE HPHFRandExcitMod
 !Just need to return the right spin.
 
             call gen_rand_excit (nI, iLutni, nJ, iLutnJ, exFlag, Ic, &
-                                 ExcitMat, tParity, pGen, tGenClassCountnI, &
+                                 ExcitMat, tParity, pGen, HElGen, tGenClassCountnI, &
                                  ClassCount2, ClassCountUnocc2, arrunused)
                                  
             IF(IsNullDet(nJ)) RETURN
@@ -86,7 +88,7 @@ MODULE HPHFRandExcitMod
         IF(r.lt.0.D5) THEN
             ! Excite to nJ from nI
             call gen_rand_excit (nI, iLutni, nJ, iLutnJ, exFlag, Ic, &
-                                 ExcitMat, tParity, pGen, tGenClassCountnI, &
+                                 ExcitMat, tParity, pGen, HElGen, tGenClassCountnI, &
                                  ClassCount2, ClassCountUnocc2, arrunused)
             IF(IsNullDet(nJ)) RETURN
 
@@ -115,7 +117,7 @@ MODULE HPHFRandExcitMod
 !            CALL DecodeBitDet(nI2,iLutnI2)
 !            CALL FindDetSpinSym(nI,nI2,NEl)
         call gen_rand_excit (nI2, iLutni2, nJ, iLutnJ, exFlag, Ic, ExcitMat, &
-                             tParity, pGen, tGenClassCountnI2, ClassCount3, &
+                             tParity, pGen, HElGen, tGenClassCountnI2, ClassCount3, &
                              ClassCountUnocc3, arrunused)
         IF(IsNullDet(nJ)) RETURN
 
@@ -187,7 +189,7 @@ MODULE HPHFRandExcitMod
 !If tGenMatEl is true, then the hamiltonian matrix element between the two determinants will be calculated, and pGen will actually return pGen/HEl.
 
     subroutine gen_hphf_excit (nI, iLutnI, nJ, iLutnJ, exFlag, IC, ExcitMat, &
-                               tParity, pGen, tFilled, ClassCount2, &
+                               tParity, pGen, HEl, tFilled, ClassCount2, &
                                ClassCountUnocc2, scratch)
         use FciMCData, only: tGenMatHEl
 
@@ -203,6 +205,7 @@ MODULE HPHFRandExcitMod
         logical, intent(out) :: tParity ! Not used
         logical, intent(inout) :: tFilled
         real*8, intent(out) :: pGen
+        HElement_t, intent(out) :: HEl
 
         integer(kind=n_int) :: iLutnJ2(0:niftot)
         integer :: openOrbsI, openOrbsJ, nJ2(nel), ex2(2,2), excitLevel 
@@ -215,7 +218,7 @@ MODULE HPHFRandExcitMod
         tParity = .false.
 
         call gen_rand_excit (nI, iLutnI, nJ, iLutnJ, exFlag, IC, ExcitMat, &
-                             tSignOrig, pGen, tFilled, Classcount2, &
+                             tSignOrig, pGen, HEl, tFilled, Classcount2, &
                              ClassCountUnocc2, scratch)
 
 !        Count=Count+1
@@ -240,12 +243,11 @@ MODULE HPHFRandExcitMod
 !Generate matrix element -> HPHF to closed shell det.
                 IF(TestClosedShellDet(iLutnI)) THEN
                     !Closed shell -> Closed Shell
-                    MatEl = sltcnd_excit (nI, IC, ExcitMat, tSignOrig)
-                    pGen=pGen/REAL(MatEl,8)
+                    HEl = sltcnd_excit (nI, IC, ExcitMat, tSignOrig)
                 ELSE
                     !Open shell -> Closed Shell
                     MatEl = sltcnd_excit (nI, IC, ExcitMat, tSignOrig)
-                    pGen=pGen/(REAL(MatEl,8)*SQRT(2.D0))
+                    HEl=MatEl*SQRT(2.D0)
                 ENDIF
             ENDIF
         ELSE
@@ -288,7 +290,7 @@ MODULE HPHFRandExcitMod
                             MatEl = sltcnd_excit (nI, IC, ExcitMat, &
                                                   tSignOrig)
                         ENDIF
-                        pGen=pGen/(REAL(MatEl,8)*SQRT(2.D0))
+                        HEl=MatEl*SQRT(2.D0)
 
                     ELSE     !Open shell -> Open shell
                         
@@ -343,7 +345,7 @@ MODULE HPHFRandExcitMod
                             ENDIF
 !                            WRITE(6,*) "MatEl2 NEW: ",MatEl2
                         ENDIF
-                        pGen=pGen/(REAL(MatEl,8))
+                        HEl=MatEl
                     
                     ENDIF   !Endif from open/closed shell det
 
@@ -354,8 +356,7 @@ MODULE HPHFRandExcitMod
             ELSEIF(ExcitLevel.eq.0) THEN
 !We have generated the same HPHF. MatEl wants to be zero.
                 IF(tGenMatHEl) THEN
-                    MatEl=0.D0
-                    pGen=1.D0/(REAL(MatEl,8))
+                    HEl=0.D0
                 ENDIF
 
             ELSE
@@ -380,7 +381,7 @@ MODULE HPHFRandExcitMod
                         MatEl = sltcnd_excit (nI, IC, ExcitMat, tSignOrig)
                     ENDIF
 
-                    pGen=pGen/(REAL(MatEl,8))
+                    HEl=MatEl
                         
                 ENDIF
 

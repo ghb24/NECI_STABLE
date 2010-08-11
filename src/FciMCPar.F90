@@ -349,12 +349,12 @@ MODULE FciMCParMod
         implicit none
         interface
             subroutine gen (nI, iLutI, nJ, iLutJ, exFlag, IC, ex, tParity, &
-                            pGen, tFilled, scratch1, scratch2, scratch3)
+                            pGen, HEl, tFilled, scratch1, scratch2, scratch3)
 
                 use SystemData, only: nel
                 use bit_reps, only: niftot
                 use GenRandSymExcitNUMod, only: scratchsize
-                use constants, only: n_int
+                use constants, only: n_int,dp
                 implicit none
 
                 integer, intent(in) :: nI(nel) 
@@ -369,6 +369,7 @@ MODULE FciMCParMod
                 real*8, intent(out) :: pGen
                 logical, intent(inout) :: tFilled
                 logical, intent(out) :: tParity
+                HElement_t, intent(out) :: HEl
             end subroutine
         end interface
 
@@ -380,7 +381,7 @@ MODULE FciMCParMod
         implicit none
         interface
             function attempt_create (get_spawn_helement, nI, iLutI, wSign, &
-                                     nJ, iLutJ, prob, ic, ex, tPar, exLevel, part_type)&
+                                     nJ, iLutJ, prob, HElGen, ic, ex, tPar, exLevel, part_type)&
                                      result(child)
                 use SystemData, only: nel
                 use bit_reps, only: niftot
@@ -393,11 +394,12 @@ MODULE FciMCParMod
                 integer, dimension(lenof_sign), intent(in) :: wSign
                 logical, intent(in) :: tPar
                 real(dp), intent(inout) :: prob
-                integer , dimension(lenof_sign) :: child        
+                integer , dimension(lenof_sign) :: child      
+                HElement_t , intent(in) :: HElGen
 
                 interface
                     function get_spawn_helement (nI, nJ, ilutI, ilutJ, ic, &
-                                                 ex, tParity, prob) &
+                                                 ex, tParity, HElGen) &
                                                  result (hel)
                         use SystemData, only: nel
                         use bit_reps, only: niftot
@@ -407,7 +409,7 @@ MODULE FciMCParMod
                         integer(kind=n_int), intent(in) :: iLutI(0:niftot),iLutJ(0:niftot)
                         integer, intent(in) :: ic, ex(2,2)
                         logical, intent(in) :: tParity
-                        real(dp), intent(in) :: prob
+                        HElement_t, intent(in) :: HElGen
                         HElement_t :: hel
                     end function
                 end interface
@@ -422,7 +424,7 @@ MODULE FciMCParMod
         implicit none
         interface
             function get_spawn_helement (nI, nJ, ilutI, ilutJ, ic, &
-                                         ex, tParity, prob) result (hel)
+                                         ex, tParity, HElGen) result (hel)
                 use SystemData, only: nel
                 use bit_reps, only: niftot
                 use constants, only: n_int,dp
@@ -431,7 +433,7 @@ MODULE FciMCParMod
                 integer(kind=n_int), intent(in) :: iLutI(0:niftot),iLutJ(0:niftot)
                 integer, intent(in) :: ic, ex(2,2)
                 logical, intent(in) :: tParity
-                real(dp), intent(in) :: prob
+                HElement_t, intent(in) :: HElGen
                 HElement_t :: hel
             end function
         end interface
@@ -538,7 +540,7 @@ MODULE FciMCParMod
         ! **********************************************************
         interface
             subroutine generate_excitation (nI, iLutI, nJ, iLutJ, &
-                             exFlag, IC, ex, tParity, pGen, tFilled, &
+                             exFlag, IC, ex, tParity, pGen, HEl, tFilled, &
                              scratch1, scratch2, scratch3)
                 use SystemData, only: nel
                 use bit_reps, only: niftot
@@ -557,9 +559,10 @@ MODULE FciMCParMod
                 real(dp), intent(out) :: pGen
                 logical, intent(inout) :: tFilled
                 logical, intent(out) :: tParity
+                HElement_t, intent(out) :: HEl
             end subroutine
             function attempt_create (get_spawn_helement, nI, iLutI, wSign, &
-                                     nJ, iLutJ, prob, ic, ex, tPar, exLevel, part_type)&
+                                     nJ, iLutJ, prob, HElGen, ic, ex, tPar, exLevel, part_type)&
                                      result(child)
                 use systemdata, only: nel
                 use bit_reps, only: niftot
@@ -573,10 +576,11 @@ MODULE FciMCParMod
                 logical, intent(in) :: tPar
                 real(dp), intent(inout) :: prob
                 integer, dimension(lenof_sign) :: child
+                HElement_t , intent(in) :: HElGen
 
                 interface
                     function get_spawn_helement (nI, nJ, ilutI, ilutJ, ic, &
-                                                 ex, tParity, prob) &
+                                                 ex, tParity, HElGen) &
                                                  result (hel)
                         use systemdata, only: nel
                         use bit_reps, only: niftot
@@ -586,13 +590,13 @@ MODULE FciMCParMod
                         integer(kind=n_int), intent(in) :: iLutI(0:niftot),iLutJ(0:niftot)
                         integer, intent(in) :: ic, ex(2,2)
                         logical, intent(in) :: tParity
-                        real(dp), intent(in) :: prob
+                        HElement_t, intent(in) :: HElGen
                         HElement_t :: hel
                     end function
                 end interface
             end function
             function get_spawn_helement (nI, nJ, ilutI, ilutJ, ic, &
-                                         ex, tParity, prob) &
+                                         ex, tParity, HElGen) &
                                          result (hel)
                 use systemdata, only: nel
                 use bit_reps, only: niftot
@@ -602,7 +606,7 @@ MODULE FciMCParMod
                 integer(kind=n_int), intent(in) :: iLutI(0:niftot),iLutJ(0:niftot)
                 integer, intent(in) :: ic, ex(2,2)
                 logical, intent(in) :: tParity
-                real(dp), intent(in) :: prob
+                HElement_t, intent(in) :: HElGen
                 HElement_t :: hel
             end function
             subroutine encode_child (ilutI, ilutJ, ic, ex)
@@ -650,7 +654,7 @@ MODULE FciMCParMod
         integer(int64) :: tot_parts_tmp(lenof_sign)
         logical :: tFilled, tParity
         real(dp) :: prob, HDiagCurr
-        HElement_t :: HDiagTemp
+        HElement_t :: HDiagTemp,HElGen
 #ifdef __DEBUG
         character(*), parameter :: this_routine = 'PerformFCIMCycPar' 
 #endif
@@ -785,14 +789,14 @@ MODULE FciMCParMod
                 do p = 1, abs(SignCurr(part_type)) * noMCExcits
                     ! Generate a (random) excitation
                     call generate_excitation (DetCurr, CurrentDets(:,j), nJ, &
-                                   ilutnJ, exFlag, IC, ex, tParity, prob, &
+                                   ilutnJ, exFlag, IC, ex, tParity, prob, HElGen,&
                                    tFilled, scratch1, scratch2, scratch3)
 
                     ! If a valid excitation, see if we should spawn children.
                     if (.not. IsNullDet(nJ)) then
                         child = attempt_create (get_spawn_helement, DetCurr, &
                                             CurrentDets(:,j), SignCurr, &
-                                            nJ,iLutnJ, Prob, IC, ex, tParity, &
+                                            nJ,iLutnJ, Prob, HElGen, IC, ex, tParity, &
                                             walkExcitLevel,part_type)
                     else
                         child = 0
@@ -1984,7 +1988,7 @@ MODULE FciMCParMod
     END SUBROUTINE ReadFromPopsfilePar
 
     function attempt_create_trunc_spawn (get_spawn_helement, DetCurr,&
-                                         iLutCurr, wSign, nJ, iLutnJ, prob, &
+                                         iLutCurr, wSign, nJ, iLutnJ, prob, HElGen, &
                                          ic, ex, tparity, walkExcitLevel, part_type) &
                                          result(child)
         integer, intent(in) :: DetCurr(nel), nJ(nel), part_type 
@@ -1995,10 +1999,11 @@ MODULE FciMCParMod
         logical, intent(in) :: tParity
         real(dp), intent(inout) :: prob
         integer, dimension(lenof_sign) :: child
+        HElement_t, intent(in) :: HElGen
 
         interface
             function get_spawn_helement (nI, nJ, ilutI, ilutJ, ic, ex, &
-                                         tParity, prob) result (hel)
+                                         tParity, HElGen) result (hel)
                 use SystemData, only: nel
                 use bit_reps, only: niftot
                 use constants, only: dp,n_int
@@ -2007,14 +2012,14 @@ MODULE FciMCParMod
                 integer(kind=n_int), intent(in) :: iLutI(0:niftot), iLutJ(0:niftot)
                 integer, intent(in) :: ic, ex(2,2)
                 logical, intent(in) :: tParity
-                real(dp), intent(in) :: prob
                 HElement_t :: hel
+                HElement_t , intent(in) :: HElGen 
             end function
         end interface
 
         if (CheckAllowedTruncSpawn (walkExcitLevel, nJ, iLutnJ, IC)) then
             child = attempt_create_normal (get_spawn_helement, DetCurr, &
-                               iLutCurr, wSign, nJ, iLutnJ, prob, ic, ex, &
+                               iLutCurr, wSign, nJ, iLutnJ, prob, HElGen, ic, ex, &
                                tParity, walkExcitLevel, part_type)
         else
             child = 0
@@ -2022,7 +2027,7 @@ MODULE FciMCParMod
     end function
 
     function attempt_create_trunc_spawn_encode (get_spawn_helement, DetCurr,&
-                                         iLutCurr, wSign, nJ, iLutnJ, prob, &
+                                         iLutCurr, wSign, nJ, iLutnJ, prob, HElGen, &
                                          ic, ex, tparity, walkExcitLevel, part_type) &
                                          result(child)
 
@@ -2034,10 +2039,11 @@ MODULE FciMCParMod
         logical, intent(in) :: tParity
         real(dp), intent(inout) :: prob
         integer, dimension(lenof_sign) :: child
+        HElement_t , intent(in) :: HElGen
 
         interface
             function get_spawn_helement (nI, nJ, ilutI, ilutJ, ic, ex, &
-                                         tParity, prob) result (hel)
+                                         tParity, HElGen) result (hel)
                 use SystemData, only: nel
                 use bit_reps, only: niftot
                 use constants, only: dp,n_int
@@ -2046,7 +2052,7 @@ MODULE FciMCParMod
                 integer(kind=n_int), intent(in) :: iLutI(0:niftot), iLutJ(0:niftot)
                 integer, intent(in) :: ic, ex(2,2)
                 logical, intent(in) :: tParity
-                real(dp), intent(in) :: prob
+                HElement_t, intent(in) :: HElGen
                 HElement_t :: hel
             end function
         end interface
@@ -2054,7 +2060,7 @@ MODULE FciMCParMod
         call EncodeBitDet (nJ, iLutnJ)
         if (CheckAllowedTruncSpawn (walkExcitLevel, nJ, iLutnJ, IC)) then
             child = attempt_create_normal (get_spawn_helement, DetCurr, &
-                               iLutCurr, wSign, nJ, iLutnJ, prob, ic, ex, &
+                               iLutCurr, wSign, nJ, iLutnJ, prob, HElGen, ic, ex, &
                                tParity, walkExcitLevel, part_type)
         else
             child = 0
@@ -2062,7 +2068,7 @@ MODULE FciMCParMod
     end function
 
     function attempt_create_normal (get_spawn_helement, DetCurr, iLutCurr, &
-                                    wSign, nJ, iLutnJ, prob, ic, ex, tparity,&
+                                    wSign, nJ, iLutnJ, prob, HElGen, ic, ex, tparity,&
                                     walkExcitLevel, part_type) result(child)
 
         integer, intent(in) :: DetCurr(nel), nJ(nel)
@@ -2074,10 +2080,11 @@ MODULE FciMCParMod
         logical, intent(in) :: tParity
         real(dp), intent(inout) :: prob
         integer, dimension(lenof_sign) :: child
+        HElement_t , intent(in) :: HElGen
 
         interface
             function get_spawn_helement (nI, nJ, ilutI, ilutJ, ic, ex, &
-                                         tParity, prob) result (hel)
+                                         tParity, HElGen) result (hel)
                 use SystemData, only: nel
                 use bit_reps, only: niftot
                 use constants, only: dp,n_int
@@ -2086,7 +2093,7 @@ MODULE FciMCParMod
                 integer(kind=n_int), intent(in) :: iLutI(0:niftot), iLutJ(0:niftot)
                 integer, intent(in) :: ic, ex(2,2)
                 logical, intent(in) :: tParity
-                real(dp), intent(in) :: prob
+                HElement_t, intent(in) :: HElGen
                 HElement_t :: hel
             end function
         end interface
@@ -2106,8 +2113,12 @@ MODULE FciMCParMod
         ! NoMCExcits more often)
         prob = prob * real(NoMCExcits, dp)
 
+        ! In the case of using HPHF, and when tGenMatHEl is on, the matrix
+        ! element is calculated at the time of the excitation generation, 
+        ! and returned in HElGen. In this case, get_spawn_helement simply
+        ! returns HElGen, rather than recomputing the matrix element.
         rh = get_spawn_helement (DetCurr, nJ, iLutCurr, iLutnJ, ic, ex, &
-                                 tParity, prob)
+                                 tParity, HElGen)
 
         !print*, 'p,rh', prob, rh
 #ifdef __CMPLX
@@ -3431,7 +3442,7 @@ MODULE FciMCParMod
                                      iter_data%tot_parts_old(1)) / &
                                      iter_data%tot_parts_old(1)
                 ENDIF
-                IF(iter_data%tot_parts_old(2).gt.0) THEN
+                IF(iter_data%tot_parts_old(lenof_sign).gt.0) THEN
                     AllGrowRateIm = (iter_data%update_growth_tot(lenof_sign) + &
                                          iter_data%tot_parts_old(lenof_sign)) / &
                                          iter_data%tot_parts_old(lenof_sign)

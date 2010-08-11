@@ -153,6 +153,8 @@ MODULE CCMC
 
         !Changes to allow compatibility with the new packaged walkers.
         INTEGER, DIMENSION(lenof_sign) :: TempSign,TempSign2,TempSign3
+        !Unused variable for interface
+        HElement_t :: HElGen
         nClusters=0
         dClusterProbs=0
 
@@ -562,7 +564,7 @@ MODULE CCMC
 !This will only be a help if most determinants are multiply occupied.
 
                call gen_rand_excit (DetCurr, iLutnI, nJ, iLutnJ, exFlag, IC, &
-                                    Ex, tParity, Prob, tFilled, Scratch1, &
+                                    Ex, tParity, Prob, HElGen, tFilled, Scratch1, &
                                     Scratch2, Scratch3)
                if(.not.IsNullDet(nJ)) then  !Check it hasn't given us a null determinant as it couldn't find one in a sensible time.
 !We need to calculate the bit-representation of this new child. This can be done easily since the ExcitMat is known.
@@ -1074,6 +1076,7 @@ LOGICAL FUNCTION GetNextSpawner(S,iDebug)
     ! unused
     integer(kind=n_int) :: iLutnJ(0:nifTot)
     integer :: scratch3(scratchsize)
+    HElement_t :: HElGen
 
    tDone=.false.
    S%iIndex=S%iIndex+1
@@ -1085,7 +1088,7 @@ LOGICAL FUNCTION GetNextSpawner(S,iDebug)
          tFilled=S%iIndex.gt.1     !This is for regenerating excitations from the same determinant multiple times. There will be a time saving if we can store the excitation generators temporarily.
          call gen_rand_excit (S%C%DetCurr, S%C%iLutDetCurr, S%nJ, iLutnJ, &
                               S%exFlag, S%iExcitLevel, S%ExcitMat, tParity, &
-                              S%dProbSpawn, tFilled, S%Scratch1, S%Scratch2, &
+                              S%dProbSpawn, HElGen, tFilled, S%Scratch1, S%Scratch2, &
                               scratch3)
          GetNextSpawner=.true.
          S%dProbSpawn=S%dProbSpawn*S%nSpawnings

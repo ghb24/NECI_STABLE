@@ -389,7 +389,7 @@ contains
     end function get_helement_excit
 
     function get_helement_det_only (nI, nJ, iLutI, iLutJ, ic, ex, tParity, &
-                                    prob) result (hel)
+                                    HElGen) result (hel)
         
         ! Calculate the Hamiltonian Matrix Element for a determinant as above.
         ! This function assumes that we have got it correct for determinants
@@ -407,12 +407,12 @@ contains
         integer, intent(in) :: nI(nel), nJ(nel), ic, ex(2,2)
         integer(kind=n_int), intent(in) :: iLutI(0:NIfTot), iLutJ(0:NIfTot)
         logical, intent(in) :: tParity
-        real(dp), intent(in) :: prob
         HElement_t :: hel
+        HElement_t , intent(in) :: HElGen    !Not used - here for compatibility with other interfaces.
 
         ! Eliminate compiler warnings
-        real(dp) :: rUnused; integer(n_int) :: iUnused; integer :: iUnused2
-        rUnused=prob; iUnused=iLutJ(1); iUnused=iLutI(1); iUnused2=nJ(1)
+        integer(n_int) :: iUnused; integer :: iUnused2
+        iUnused=iLutJ(1); iUnused=iLutI(1); iUnused2=nJ(1)
 
         hel = sltcnd_excit (nI, IC, ex, tParity)
 

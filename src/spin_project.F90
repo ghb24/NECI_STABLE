@@ -277,7 +277,7 @@ contains
     end function
     
     function get_spawn_helement_spin_proj (nI, nJ, ilutI, ilutJ, ic, ex, &
-                                         tParity, prob) result (hel)
+                                         tParity, HElGen) result (hel)
 
         ! Calculate ( - \delta_\gamma \sum_Y <J|Y><Y|I> ) / \delta_\tau
         !
@@ -289,12 +289,11 @@ contains
         integer(kind=n_int), intent(in) :: iLutI(0:niftot), iLutJ(0:niftot)
         integer, intent(in) :: ic, ex(2,2)
         logical, intent(in) :: tParity
-        real(dp), intent(in) :: prob
+        HElement_t, intent(in) :: HElGen
         HElement_t :: hel
         
         integer :: dorder_i(nel), dorder_j(nel), nopen, nopen2, i, iUnused
         integer(n_int) :: iUnused2
-        real(dp) :: rUnused
         logical :: lUnused
 #ifdef __DEBUG
         character(*), parameter :: this_routine = 'get_spawn_helement_spin_proj'
@@ -343,13 +342,13 @@ contains
         hel = - hel * spin_proj_gamma / tau
 
         ! Avoid warnings
-        rUnused = prob; lUnused = tParity; iUnused = IC; iUnused = ex(1,1)
+        lUnused = tParity; iUnused = IC; iUnused = ex(1,1)
         iUnused2 = iLutI(0); iUnused2 = iLutJ(0)
 
     end function get_spawn_helement_spin_proj
 
     subroutine generate_excit_spin_proj (nI, iLutI, nJ, iLutJ, exFlag, IC, &
-                                         ex, tParity, pGen, tFilled, &
+                                         ex, tParity, pGen, HElGen, tFilled, &
                                          scratch1, scratch2, scratch3)
 
         ! This returns an excitation of the source determiant (iLutI).
@@ -372,6 +371,7 @@ contains
         real(dp), intent(out) :: pGen
         logical, intent(inout) :: tFilled
         logical, intent(out) :: tParity
+        HElement_t, intent(out) :: HElGen
 
         integer :: nopen, nchoose, i
         integer :: nTmp(nel), iUnused
