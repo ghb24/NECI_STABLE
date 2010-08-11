@@ -25,7 +25,7 @@ MODULE AnnihilationMod
     !   H Elements - send through logical to decide whether to create or not.
     !   Parallel spawned parts - create the ValidSpawnedList itself.
     !   Going to have to sort this out for the new packaged walkers - will have to package them up in this interface.
-    SUBROUTINE AnnihilationInterface(TotDets,MainParts,MainSign,MaxMainInd,SpawnDets,SpawnParts,SpawnSign,MaxSpawnInd,iter_data)
+    SUBROUTINE AnnihilationInterface(TotDets,MainParts,MainSign,MaxMainInd,SpawnDets,SpawnParts,MaxSpawnInd,iter_data)
         use constants, only: size_n_int
         use shared_alloc, only: shared_allocate_iluts, shared_deallocate
 !This is an interface routine to the Direct Annihilation routines.
@@ -46,17 +46,16 @@ MODULE AnnihilationMod
 !       MainSign(:)         This is the signed number of particles on the determinants specified in the equivalent
 !                           entry in the MainParticles array.
 !       SpawnParts(:,:)     This is the list of particles to attempt to annihilate. Unlike the Main list, this list
-!                           does *not* need to be ordered or sign coherent, and can also contain 'zero' sign particles.
+!                           does *not* need to be ordered or sign coherent, and can also contain 'zero' sign particles.  Each particle contains its own sign
 !       MaxSpawnInd         This is the size of the SpawnParts array.
 !       SpawnDets           This is the number of spawned particles in SpawnParts.
-!       SpawnSign(:)        This is the signed number of particles on the determinants specified in the equivalent
 !                           entry in the SpawnParts array.
 
         INTEGER, INTENT(IN) :: MaxMainInd,MaxSpawnInd
         INTEGER, INTENT(INOUT) :: TotDets
         type(fcimc_iter_data), intent(inout) :: iter_data
         INTEGER(KIND=n_int), INTENT(INOUT) , TARGET :: MainParts(0:NIfTot,MaxMainInd),SpawnParts(0:NIfTot,MaxSpawnInd)
-        INTEGER, INTENT(INOUT) , TARGET :: MainSign(MaxMainInd),SpawnSign(MaxSpawnInd)
+        INTEGER, INTENT(INOUT) , TARGET :: MainSign(MaxMainInd)
         INTEGER, INTENT(INOUT) :: SpawnDets
         INTEGER :: ierr,i
         CHARACTER(len=*) , PARAMETER :: this_routine='AnnihilationInterface'
@@ -102,11 +101,7 @@ MODULE AnnihilationMod
             TempSign(1)=MainSign(i)
             call encode_sign(MainParts(:,i),TempSign)
         enddo
-        do i=1,SpawnDets
-            TempSign(1)=SpawnSign(i)
-            call encode_sign(SpawnParts(:,i),TempSign)
-        enddo
-
+! The SpawnParts already have their signs inside them
 
         MaxWalkersPart=MaxMainInd
 !Point at correct arrays... will need to sort out how these are swapped in the main routine.
@@ -114,10 +109,6 @@ MODULE AnnihilationMod
         SpawnedParts => SpawnParts
 !These point to the scratch space
         SpawnedParts2 => SpawnVecLocal
-
-!        WRITE(6,*) "Size of SpawnVec2 = ",size(SpawnVec2(0,:))
-!        WRITE(6,*) "LowerBound of SpawnVec2 = ",lbound(SpawnVec2,2)
-!        WRITE(6,*) "UpperBound of SpawnVec2 = ",ubound(SpawnVec2,2)
 
         CALL DirectAnnihilation(TotDets, iter_data,.true.) !.true. for single processor annihilation
         if(iProcIndex==root) then        

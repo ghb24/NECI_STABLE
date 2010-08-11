@@ -172,6 +172,28 @@ SUBROUTINE GetNextNonZeroExcitor (Pos,List,iMax)
       Pos=Pos+1
    enddo
 END SUBROUTINE !GetNextNonZeroExcitor 
+
+!Writes out a compressed excitor list where signs are contained within the Particles and whose values are >=dTol
+subroutine WriteExcitorListP(iUnit,Dets,offset,nDet,dTol,Title)
+   use FciMCParMod, only: iLutHF
+   use bit_reps, only: extract_sign
+   IMPLICIT NONE
+   INTEGER iUnit,nDet
+   INTEGER(KIND=n_int) Dets(0:nIfTot,nDet)
+   %(type1)s dTol
+   CHARACTER(len=*) Title
+   INTEGER j,offset
+   INTEGER, dimension(lenof_sign) :: Amp
+   write(6,*) Title
+   do j=1,nDet
+      call extract_sign(Dets(:,j),Amp)
+      if(abs(Amp(1)).ge.dTol) THEN
+         write(iUnit,'(I7,G17.9," ")',advance='no') j+offset,REAL(Amp(1),dp)
+         call WriteBitEx(6,iLutHF,Dets(:,j),.true.)
+      ENDIF
+   enddo
+end subroutine !WriteExcitorListP
+
 !Writes out an excitor list of reals whose values are >=dTol
 subroutine WriteExcitorList (iUnit,Amplitude,Dets,offset,nDet,dTol,Title)
    use FciMCParMod, only: iLutHF
@@ -433,6 +455,7 @@ FUNCTION GetNextCluster (CS,Dets,nDet,AL,iCurAmpList,dTotAbsAmpl,iMaxSizeIn,iDeb
 !   CCMC_time%%timer_name="GetNextCluster"
 !   call set_timer(CCMC_time,20)
 
+   CS%%C%%initFlag=1  !This indicates it's not going to be an initiator, but we can change that later by looking at the populations.  If initiating is off then this gets set to zero later
    if(CS%%tDynamic.and.CS%%iIndex.eq.0) then
       CS%%nSelects=(dTotAbsAmpl+abs(AL%%Amplitude(CS%%iRefPos,iCurAmpList)))/nProcessors+1
       CS%%nSelects=nint(CS%%nSelects*CS%%dRatio)
@@ -487,6 +510,7 @@ FUNCTION GetNextCluster (CS,Dets,nDet,AL,iCurAmpList,dTotAbsAmpl,iMaxSizeIn,iDeb
                CS%%C%%SelectedExcitors(:,i)=Dets(:,CS%%C%%SelectedExcitorIndices(i))
                CS%%C%%dAbsAmplitude=CS%%C%%dAbsAmplitude*abs(AL%%Amplitude(CS%%C%%SelectedExcitorIndices(i),iCurAmpList))/abs(AL%%Amplitude(CS%%iRefPos,iCurAmpList))
 !               WRITE(6,*) i,CS%%C%%dAbsAmplitude
+               if(abs(AL%%Amplitude(CS%%C%%SelectedExcitorIndices(i),iCurAmpList))>CS%%dInitiatorThresh) CS%%C%%initFlag=0
             enddo
          endif
          if(CS%%C%%dAbsAmplitude.ne.0) exit
@@ -553,6 +577,7 @@ FUNCTION GetNextCluster (CS,Dets,nDet,AL,iCurAmpList,dTotAbsAmpl,iMaxSizeIn,iDeb
             CS%%C%%SelectedExcitorIndices(i)=k
             CS%%C%%SelectedExcitors(:,i)=Dets(:,k)
             CS%%C%%dAbsAmplitude=CS%%C%%dAbsAmplitude*abs(AL%%Amplitude(k,iCurAmpList))/abs(AL%%Amplitude(CS%%iRefPos,iCurAmpList))  !For each new excit added to the composite, we multiply up to count the number of ways we could've generated it.
+            if(abs(AL%%Amplitude(CS%%C%%SelectedExcitorIndices(i),iCurAmpList))>CS%%dInitiatorThresh) CS%%C%%initFlag=0
             CS%%C%%dClusterProb=CS%%C%%dClusterProb*i*abs(AL%%Amplitude(k,iCurAmpList))/dTotAbsAmpl  !For each new excit added to the composite, we multiply up to count the number of ways we could've generated it.
    !ClusterProb is used for DEATH
 
