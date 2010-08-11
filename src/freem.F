@@ -126,7 +126,7 @@ C     ==--------------------------------------------------------------==
 #else
       INTEGER   I_SORT(MEM_LEN)
 #endif      
-      INTEGER   INDEX(MEM_LEN), I,II,IC1,IC2
+      INTEGER   I,II,IC1,IC2
       REAL*8    X1(*),X2(*)
       POINTER   (IP_X1,X1),(IP_X2,X2)
       CHARACTER TTT(2)*10

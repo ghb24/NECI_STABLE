@@ -1,6 +1,6 @@
       SUBROUTINE NECI_FRSBLKH(M,ICMAX,N,H,LAB,V0,VS,NKRY,NKRY1,
      &    NBLOCK,NROW,LSCR,LISCR,A,W,V,AM,BM,T,WT,SCR,ISCR,INDEX,
-     &    WH,WORK2,V2,NCYCLE,B2LIMIT,PRINTOUT,TLargest,TSeeded)
+     &    NCYCLE,B2LIMIT,PRINTOUT,TLargest,TSeeded)
       IMPLICIT REAL*8 (A-H,O-Z) 
 C ==----------------------------------------------------------------==
 C ==    M is NDET : the number of rows in Hamil                     ==
@@ -19,8 +19,7 @@ C ==----------------------------------------------------------------==
       DIMENSION SCR(LSCR),ISCR(LISCR)
       DIMENSION INDEX(N)
 C..temp
-      DIMENSION H(M,ICMAX),WH(M),WORK2(3*M)
-      DIMENSION V2(M,N)  
+      DIMENSION H(M,ICMAX)
 C..temp
       DIMENSION LAB(M,ICMAX),NROW(M)
 C ==----------------------------------------------------------------==
@@ -109,7 +108,7 @@ C ====================================================================
      &  6X,'B2MIN:',F10.5,5X,'NHPSI:',I3)
 C..VS=H.V0 
 C..My matrix multiplication routine implimented 8/11/02 DCT
-      CALL MY_HPSI(M,ICMAX,N,NROW,LAB,H,V0,VS,TLargest)
+      CALL MY_HPSI(M,N,NROW,LAB,H,V0,VS,TLargest)
 C      CALL NECI_HSPI(M,N,H,V0,VS)
       NHPSI=NHPSI+N 
 C..   Ovlap: V0^T VS. 
@@ -169,13 +168,13 @@ C ==------------------------------------------------------------------==
 C Preparation for refinement
 C ==------------------------------------------------------------------==
           CALL NECI_PRPKRV(M,NBLEFF,NKRY,NCONV,V0(1,1),V0(1,I),VS(1,I),
-     &         V,AM,BM,H,W(I),SCR,LSCR,NHPSI,ICMAX,LAB,NROW,TLargest)
+     &         V,AM,BM,H,W(I),SCR,LSCR,NHPSI,LAB,NROW,TLargest)
 
 C Refinement Loop
 C ==------------------------------------------------------------------==
           NBLK=NBLEFF*NKRY
-          CALL NECI_KRYREF(M,NBLEFF,NKRY,NCONV,V0,W,V,AM,BM,T,NBLK*NBLK,
-     &      WT,NBLK,H,SCR,LSCR,ISCR,LISCR,NHPSI,ICMAX,LAB,NROW,TLargest)
+          CALL NECI_KRYREF(M,NBLEFF,NKRY,NCONV,V0,V,AM,BM,T,NBLK*NBLK,
+     &      WT,NBLK,H,SCR,LSCR,ISCR,LISCR,NHPSI,LAB,NROW,TLargest)
 C ==------------------------------------------------------------------==
 C..V=[V_1 V_2.. V_L] Y' 
           CALL DGEMM('N','N',M,NBLEFF,NBLK,1.D0,V,M,T,NBLK,0.D0,
@@ -187,7 +186,7 @@ C==-------------------------------------------------------------------==
 C..GS orthogonalisation on refined states
         CALL NECI_MY_GSORTHO(M,V0,NCURR-1,V0(1,NCURR),NLEFT,A)
 C..HPSI: H V0. Enter only refined states 
-        CALL MY_HPSI(M,ICMAX,NLEFT,NROW,LAB,H,
+        CALL MY_HPSI(M,NLEFT,NROW,LAB,H,
      &        V0(1,NCURR),VS(1,NCURR),TLargest)
 C        CALL NECI_HSPI(M,NLEFT,H,V0(1,NCURR),VS(1,NCURR))
         NHPSI=NHPSI+NLEFT 
@@ -227,7 +226,7 @@ C     ==--------------------------------------------------------------==
 C     ==================================================================
       proc_timer%timer_name='NECI_MGS'
       call set_timer(proc_timer)
-      CALL NECI_RGS(M,N,A,M,R,N,I)
+      CALL NECI_RGS(M,N,A,M,R)
       CALL DTRTRI('U','N',N,R,N,INFO)
       call halt_timer(proc_timer)
       RETURN 
@@ -341,13 +340,13 @@ C ======================================================================
       RETURN 
       END
 C ======================================================================
-      SUBROUTINE NECI_KRYREF(M,N,NKRY,NCONV,V0,W,V,AM,BM,T,LDT,WT,
-     &       LDWT,H,SCR,LSCR,ISCR,LISCR,NHPSI,ICMAX,LAB,NROW,TLargest)
+      SUBROUTINE NECI_KRYREF(M,N,NKRY,NCONV,V0,V,AM,BM,T,LDT,WT,
+     &       LDWT,H,SCR,LSCR,ISCR,LISCR,NHPSI,LAB,NROW,TLargest)
 C     ==================================================================
       use global_utilities
       IMPLICIT REAL*8 (A-H,O-Z)
       DIMENSION V0(M,*),V(M,N,NKRY+1),AM(N,N,NKRY+1),BM(N,N,NKRY)
-      DIMENSION T(LDT),WT(LDWT),H(*),W(N),SCR(LSCR),ISCR(LISCR)
+      DIMENSION T(LDT),WT(LDWT),H(*),SCR(LSCR),ISCR(LISCR)
       DIMENSION LAB(M,*),NROW(M)
       LOGICAL :: TLargest
       type(timer), save :: proc_timer
@@ -360,11 +359,11 @@ C..V_I = V_I - V_(I-1) A_(I-1)
 C..V_I B_I = V_I
         CALL NECI_MGS(M,N,V(1,1,I),M,BM(1,1,I),N)
 C..HPSI:  H V_I
-        CALL MY_HPSI(M,ICMAX,N,NROW,LAB,H,V(1,1,I),V(1,1,I+1),TLargest)
+        CALL MY_HPSI(M,N,NROW,LAB,H,V(1,1,I),V(1,1,I+1),TLargest)
 C        CALL NECI_HSPI(M,N,H,V(1,1,I),V(1,1,I+1))
         NHPSI=NHPSI+N 
 C.. project out converged states
-        CALL NECI_PRJCNV(M,N,NCONV,V0,W,V(1,1,I+1),SCR)
+        CALL NECI_PRJCNV(M,N,NCONV,V0,V(1,1,I+1),SCR)
 C..V_(I+1) = H V_I - V_(I-1)B_I 
         CALL NECI_RSDBLK('T',M,N,V(1,1,I-1),BM(1,1,I),V(1,1,I+1))
 C..Ovlap:  A_I=V_I^T V_(I+1)
@@ -415,7 +414,7 @@ C ===================================================================
       END
 C ==================================================================
       SUBROUTINE NECI_PRPKRV(M,N,NKRY,NCONV,VCONV,V0,VS,V,AM,BM,H,W,
-     &     SCR,LSCR,NHPSI,ICMAX,LAB,NROW,TLargest)
+     &     SCR,LSCR,NHPSI,LAB,NROW,TLargest)
 C ==------------------------------------------------------------------==
 C == Returns A_1,A_2,B_2 and V in a form suitable for krylov          ==
 C == refinement                                                       ==
@@ -446,11 +445,11 @@ C..   Setup A_1=diag(w)
         AM(I,I,1)=W(I)
       ENDDO
 C..V_3=H.V2
-      CALL MY_HPSI(M,ICMAX,N,NROW,LAB,H,V(1,1,2),V(1,1,3),TLargest)
+      CALL MY_HPSI(M,N,NROW,LAB,H,V(1,1,2),V(1,1,3),TLargest)
 C      CALL NECI_HSPI(M,N,H,V(1,1,2),V(1,1,3))
       NHPSI=NHPSI+N 
 C.. project out converged states
-        CALL NECI_PRJCNV(M,N,NCONV,VCONV,W,V(1,1,3),SCR)
+        CALL NECI_PRJCNV(M,N,NCONV,VCONV,V(1,1,3),SCR)
 C..V_3=V_3-V_1 B_2^T
       CALL NECI_RSDBLK('T',M,N,V(1,1,1),BM(1,1,2),V(1,1,3))
 C..Ovlap 
@@ -632,10 +631,10 @@ C        CALL DSBEV('V','U',IN,N,T,IN,WT,T(1,2),IN,SCR,INFO)
       RETURN 
       END
 C =====================================================================
-      SUBROUTINE NECI_PRJCNV(M,NP,N0,V0,W,V,SMAT)
+      SUBROUTINE NECI_PRJCNV(M,NP,N0,V0,V,SMAT)
       use global_utilities
       IMPLICIT REAL*8(A-H,O-Z)
-      DIMENSION V(M,NP),V0(M,*),SMAT(N0,*),W(*) 
+      DIMENSION V(M,NP),V0(M,*),SMAT(N0,*)
       type(timer), save :: proc_timer
       IF(N0.EQ.0) RETURN
       proc_timer%timer_name='    PRJCNV'
@@ -651,14 +650,14 @@ C..   V -> V-V0*SMAT
       RETURN 
       END 
 C     =================================================================
-      SUBROUTINE NECI_RGS(M,N,CP,LDCP,SMAT,ISCR,LSCR)
+      SUBROUTINE NECI_RGS(M,N,CP,LDCP,SMAT)
 C     ==--------------------------------------------------------------==
 C     ==  GRAM-SCHMIDT ORTHOGONALIZATION                              ==
 C     ==--------------------------------------------------------------==
       use global_utilities
       IMPLICIT REAL*8 (A-H,O-Z)
 C     Arguments
-      INTEGER    N,ISCR,LSCR(ISCR)
+      INTEGER    N
       REAL*8     SMAT(N,N)
       REAL*8     CP(LDCP,N)
 C     VARIABLES
@@ -669,19 +668,19 @@ C     ==--------------------------------------------------------------==
       call set_timer(proc_timer)
       SMAT=0
       CALL DSYRK('U','T',N,M,1.D0,CP,M,0.D0,SMAT,N)
-      CALL NECI_UINV('U',SMAT,N,N,LSCR,1)
+      CALL NECI_UINV('U',SMAT,N,N)
       CALL DTRMM('R','U','N','N',M,N,1.D0,SMAT,N,CP,M)
       call halt_timer(proc_timer)
 C     ==--------------------------------------------------------------==
       RETURN
       END
 C     ==================================================================
-      SUBROUTINE NECI_UINV(UPLO,SMAT,LDA,N,ISCR,LSCR)
+      SUBROUTINE NECI_UINV(UPLO,SMAT,LDA,N)
 C     ==--------------------------------------------------------------==
       IMPLICIT NONE
 C     ARGUMENTS
       CHARACTER UPLO*1
-      INTEGER   LDA,N,LSCR,ISCR(LSCR)
+      INTEGER   LDA,N
       REAL*8    SMAT(LDA,N)
 C     VARIABLES
       INTEGER   INFO

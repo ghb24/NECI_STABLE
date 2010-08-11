@@ -12,7 +12,6 @@ subroutine stop_all_c (sub_name, error_msg) bind(c, name='stop_all')
     end interface
 
     character(c_char), target, intent(in) :: sub_name(*), error_msg(*)
-    type(c_ptr) :: tmp
     character(len=strlen(sub_name)), target :: sub_name_tmp
     character(len=strlen(error_msg)), target :: error_msg_tmp
 
@@ -43,7 +42,6 @@ character(*), intent(in) :: sub_name,error_msg
 
 ! It seems that giving STOP a string is far more portable.
 ! MPI_Abort requires an integer though.
-integer, parameter :: error_code=999
 character(3), parameter :: error_str='999'
 
 write (6,'(/a7)') 'ERROR.'

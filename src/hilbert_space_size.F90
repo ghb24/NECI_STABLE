@@ -21,7 +21,7 @@ contains
          use util_mod, only: choose
          use bit_rep_data, only: NIfTot
          IMPLICIT NONE
-         INTEGER :: IUNIT,OverallSym,j,SpatOrbs,FDetMom,ExcitLev
+         INTEGER :: IUNIT,j,SpatOrbs,FDetMom,ExcitLev
          INTEGER(KIND=n_int) :: FDetiLut(0:NIfTot),iLut(0:NIfTot)
          INTEGER :: FDetSym,TotalSym,TotalMom,alpha,beta,ierr,Momx,Momy
          INTEGER :: Momz
@@ -29,7 +29,7 @@ contains
          INTEGER*8 :: ExcitBin(0:NEl),ExcitBinAll(0:NEl)
          REAL*8 :: FullSpace,r,Frac
          REAL*8 :: SizeLevel(0:NEl) 
-         LOGICAL :: tTruncSpace,tDummy,tDummy2,tSoftExitFound
+         LOGICAL :: truncate_space,tDummy,tDummy2,tSoftExitFound
          LOGICAL :: tNotAllowed,tAcc
 
          IF((.not.TwoCycleSymGens).and.(.not.tUEG).and.(.not.tHub)) THEN
@@ -55,9 +55,9 @@ contains
          enddo
 
          IF(ICILevel.gt.0) THEN
-             tTruncSpace=.true.
+             truncate_space=.true.
          ELSE
-             tTruncSpace=.false.
+             truncate_space=.false.
          ENDIF
 
          CALL EncodeBitDet(FDet,FDetiLut)
@@ -186,7 +186,7 @@ contains
                      IF(IsAllowedHPHF(NEl,iLut)) THEN
                          IF(tFixLz) THEN
                              IF(TotalMom.eq.FDetMom) THEN
-                                 IF(tTruncSpace) THEN
+                                 IF(truncate_space) THEN
                                      IF(ExcitLev.le.ICILevel) THEN
                                          Accept=Accept+1
                                          tAcc=.true.
@@ -197,7 +197,7 @@ contains
                                  ENDIF
                              ENDIF
                          ELSE
-                             IF(tTruncSpace) THEN
+                             IF(truncate_space) THEN
                                  IF(ExcitLev.le.ICILevel) THEN
                                      IF(tUEG.or.tHub) THEN
                                          IF((Momx.eq.0).and.(Momy.eq.0).and.(Momz.eq.0)) THEN 
@@ -225,7 +225,7 @@ contains
                  ELSE
                      IF(tFixLz) THEN
                          IF(TotalMom.eq.FDetMom) THEN
-                             IF(tTruncSpace) THEN
+                             IF(truncate_space) THEN
                                  IF(ExcitLev.le.ICILevel) THEN
                                      Accept=Accept+1
                                      tAcc=.true.
@@ -236,7 +236,7 @@ contains
                              ENDIF
                          ENDIF
                      ELSE
-                         IF(tTruncSpace) THEN
+                         IF(truncate_space) THEN
                              IF(ExcitLev.le.ICILevel) THEN
                                  IF(tUEG.or.tHub) THEN
                                      IF((Momx.eq.0).and.(Momy.eq.0).and.(Momz.eq.0)) THEN
@@ -373,10 +373,10 @@ contains
          use DeterminantData, only : FDet
          use util_mod, only: choose
          IMPLICIT NONE
-         INTEGER :: ClassCounts(2,0:7),Lim0a,Lim0b,Lim1a,Lim1b,Lim2a
+         INTEGER :: ClassCounts(2,0:7)
          INTEGER :: Lima(0:7),Limb(0:7),a0,a1,a2,a3,a4,a5,a6,a7,NAlph
          INTEGER :: b0,b1,b2,b3,b4,b5,b6,b7,NBet,i,IUNIT,OverallSym
-         INTEGER :: FDetSym,Lim2b
+         INTEGER :: FDetSym
          REAL*8 :: Space,SpaceGrow
          LOGICAL :: Sym(0:7)
 
@@ -561,8 +561,8 @@ contains
          use DetCalcData, only : ICILevel
          use util_mod, only: choose
          IMPLICIT NONE
-         INTEGER :: ClassCountsOcc(0:7),Lim0a,Lim0b,Lim1a,Lim1b,Lim2a
-         INTEGER :: ClassCountsVirt(0:7),Lim2b,NAlphOcc,NAlphVirt
+         INTEGER :: ClassCountsOcc(0:7)
+         INTEGER :: ClassCountsVirt(0:7),NAlphOcc,NAlphVirt
          INTEGER :: ClassCountsOccMax(0:7),ClassCountsVirtMax(0:7)
          INTEGER :: LimaOcc(0:7),LimbOcc(0:7),LimaVirt(0:7)
          INTEGER :: LimbVirt(0:7)
@@ -571,7 +571,7 @@ contains
          INTEGER :: b0o,b1o,b2o,b3o,b4o,b5o,b6o,b7o,OverallSym
          INTEGER :: b0v,b1v,b2v,b3v,b4v,b5v,b6v,b7v,NBetOcc,i,IUNIT
          INTEGER :: FDetSym,NBetVirt
-         REAL*8 :: Space,SpaceGrow,SpaceGrow2
+         REAL*8 :: Space,SpaceGrow
          LOGICAL :: Sym(0:7)
 
          IF(.not.TwoCycleSymGens) THEN

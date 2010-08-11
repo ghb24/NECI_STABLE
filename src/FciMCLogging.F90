@@ -17,7 +17,6 @@ MODULE FciMCLoggingMod
     IMPLICIT NONE
     save
 
-    INTEGER , PARAMETER :: Root=0   !This is the rank of the root processor
     REAL*8 :: NoNotAccept,NoAccept,TotHElNotAccept,TotHElAccept,MaxHElNotAccept,MinHElAccept
     REAL*8 :: NoPosSpinCoup,NoNegSpinCoup,SumPosSpinCoup,SumNegSpinCoup,SumHFCon,SumSpinCon,InitBinMin,InitBinIter,InitBinMax
 
@@ -458,9 +457,8 @@ MODULE FciMCLoggingMod
     END SUBROUTINE WriteInitPops
 
 
-    SUBROUTINE TrackSpawnAttempts(Child,DetCurr,j,nJ,iLutnJ,IC,Ex,tParity)
-        INTEGER :: Child,DetCurr(NEl),j,nJ(NEl),IC,Ex(2,2)
-        INTEGER(KIND=n_int) :: iLutnJ(0:NIfTot)
+    SUBROUTINE TrackSpawnAttempts(Child,DetCurr,nJ,IC,Ex,tParity)
+        INTEGER :: Child,DetCurr(NEl),nJ(NEl),IC,Ex(2,2)
         LOGICAL :: tParity
         HElement_t :: HEl
 

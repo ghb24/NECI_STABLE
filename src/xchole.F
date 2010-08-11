@@ -7,11 +7,6 @@
 C..
       REAL*8,ALLOCATABLE,SAVE :: CFXCS(:)
       integer, save :: tagCFXCS=0
-#ifdef POINTER8
-      INTEGER*8 LOC
-#else
-      INTEGER LOC
-#endif
       DIMENSION CIJKL(NDET,NEVAL),NMRKS(NEL,*)
       DIMENSION RHO(NMSH,NMSH,NMSH),XCHOLE(NMSH,NMSH,NMSH)
       DIMENSION AUXC(NMSH,NMSH,NMSH)
@@ -50,7 +45,7 @@ C..IC is the number of pairs which are the *SAME* in both determinants
 C..If determinants differ by more than 2 spin orbitals IC < NEL-2 
           IF(IC.LT.(NEL-2)) GOTO 500
           AUXC=0.d0
-          CALL RLSXC(NEL,NMSH,NDET,SITAB,NMAX,IOBS,JOBS,KOBS,
+          CALL RLSXC(NEL,NMSH,SITAB,NMAX,IOBS,JOBS,KOBS,
      &      NMRKS(1:NEL,KI),NMRKS(1:NEL,KJ),G1,NHG,IC,AUXC)
 C..
           CF=CFXCS(KI)*CFXCS(KJ)*ICC
@@ -122,7 +117,7 @@ C..Integral of exchange-correlation hole
       RETURN
       END
 C ==-------------------------------------------------------------------==
-      SUBROUTINE RLSXC(NEL,NMSH,NDET,SITAB,NMAX,I,J,K,
+      SUBROUTINE RLSXC(NEL,NMSH,SITAB,NMAX,I,J,K,
      &    NDET1,NDET2,G1,NHG,IC,AUXC)
       IMPLICIT REAL*8 (A-H,O-Z)
       DIMENSION NDET1(NEL),NDET2(NEL),AUXC(NMSH,NMSH,NMSH)
@@ -137,15 +132,15 @@ C..
       IF(IC.EQ.(NEL-2)) THEN
 C..Determinants differ by two spin orbitals
         CALL RLSXC2_SC(NEL,NMSH,NMAX,SITAB,I,J,K,
-     &        NDET,NDET1,NDET2,G1,NHG,AUXC)
+     &        NDET1,NDET2,G1,NHG,AUXC)
       ELSEIF(IC.EQ.(NEL-1)) THEN
 C..Determinants differ by three spin orbitals
         CALL RLSXC1_SC(NEL,NMSH,NMAX,SITAB,I,J,K,
-     &        NDET,NDET1,NDET2,G1,NHG,AUXC)
+     &        NDET1,NDET2,G1,NHG,AUXC)
       ELSEIF(IC.EQ.NEL) THEN
 C..Determinants are the same
         CALL RLSXC_SC(NEL,NMSH,NMAX,SITAB,I,J,K,
-     &        NDET,NDET1,G1,NHG,AUXC)
+     &        NDET1,G1,NHG,AUXC)
       ELSE
         RETURN
       ENDIF

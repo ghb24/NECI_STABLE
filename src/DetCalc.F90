@@ -52,7 +52,7 @@ CONTAINS
         use util_mod, only: get_free_unit, NECI_ICOPY
         Type(BasisFn) ISym
 
-        integer i,ii,j,iunit
+        integer i,ii,iunit
         integer ierr
         integer nDetTot
         logical isvaliddet
@@ -313,20 +313,19 @@ CONTAINS
 
       REAL*8 , ALLOCATABLE :: TKE(:),A(:,:),V(:),AM(:),BM(:),T(:),WT(:),SCR(:),WH(:),WORK2(:),V2(:,:),FCIGS(:)
       HElement_t, ALLOCATABLE :: WORK(:)
-      HElement_t :: HEl!,MatEl,MatEl2
       INTEGER , ALLOCATABLE :: LAB(:),NROW(:),INDEX(:),ISCR(:),Temp(:)
 
       integer :: LabTag=0,NRowTag=0,TKETag=0,ATag=0,VTag=0,AMTag=0,BMTag=0,TTag=0
       INTEGER :: WTTag=0,SCRTag=0,ISCRTag=0,INDEXTag=0,WHTag=0,Work2Tag=0,V2Tag=0,WorkTag=0
       integer :: ierr,Lz
       character(25), parameter :: this_routine = 'DoDetCalc'
-      REAL*8 EXEN,GSEN,FLRI,FLSI
+      REAL*8 EXEN,GSEN
         Type(BasisFn) ISym,IHFSYM
 
-        INTEGER GC,I,ICMAX,MaxDet,Bits
-        INTEGER iDeg,III,IN,IND,INDZ
+        INTEGER GC,I,ICMAX
+        INTEGER IN,IND,INDZ
         INTEGER NBLOCK!,OpenOrbs,OpenOrbsSym,Ex(2,NEl)
-        INTEGER nKry1,nK(NEl)!,nJ(NEl)
+        INTEGER nKry1
         INTEGER(KIND=n_int) :: ilut(0:NIfTot)
         
         INTEGER J,JR,iGetExcitLevel_2,ExcitLevel, iunit
@@ -366,7 +365,7 @@ CONTAINS
          ICMAX=1
 !Falsify tMC
          TMC=.FALSE.
-         CALL DETHAM(NDET,NEL,NMRKS,NBASISMAX,nBasis,HAMIL,G1,LAB,NROW,.TRUE.,NMSH,FCK,NMAX,ALAT,UMAT,ICMAX,GC,TMC,ECORE,BRR)
+         CALL DETHAM(NDET,NEL,NMRKS,HAMIL,LAB,NROW,.TRUE.,ICMAX,GC,TMC)
          WRITE(6,*) ' FINISHED COUNTING '
          WRITE(6,*) "Allocating memory for hamiltonian: ",GC*2
          CALL FLUSH(6)
@@ -381,7 +380,7 @@ CONTAINS
 
          LAB(1:LENHAMIL)=0
 !C..Now we store HAMIL and LAB 
-         CALL DETHAM(NDET,NEL,NMRKS,NBASISMAX,nBasis,HAMIL,G1,LAB,NROW,.FALSE.,NMSH,FCK,NMAX,ALAT,UMAT,ICMAX,GC,TMC,ECORE,BRR)
+         CALL DETHAM(NDET,NEL,NMRKS,HAMIL,LAB,NROW,.FALSE.,ICMAX,GC,TMC)
       
          IF(tHistHamil) THEN
 !We are storing the entire hamiltonain in expanded form, to histogram against in the spawning routines.
@@ -448,7 +447,7 @@ CONTAINS
             CLOSE(iunit)
          ENDIF
         WRITE(6,*) '<D0|H|D0>=',GETHELEMENT(IFDET,IFDET,HAMIL,LAB,NROW,NDET)
-        WRITE(6,*) '<D0|T|D0>=',CALCT(NMRKS(1,IFDET),NEL,G1,NBASIS) 
+        WRITE(6,*) '<D0|T|D0>=',CALCT(NMRKS(1,IFDET),NEL)
         CALL FLUSH(6)
 !CC         CALL HAMHIST(HMIN,HMAX,LENHAMIL,NHISTBOXES)
       ENDIF
@@ -519,7 +518,7 @@ CONTAINS
             V2=0.d0
 !C..Lanczos iterative diagonalising routine
             CALL NECI_FRSBLKH(NDET,ICMAX,NEVAL,HAMIL,LAB,CK,CKN,NKRY,NKRY1,NBLOCK,NROW,LSCR,LISCR,A,W,V,AM,BM,T,WT, &
-     &  SCR,ISCR,INDEX,WH,WORK2,V2,NCYCLE,B2L,.true.,.false.,.false.)
+     &  SCR,ISCR,INDEX,NCYCLE,B2L,.true.,.false.,.false.)
 
 !Multiply all eigenvalues by -1.
             CALL DSCAL(NEVAL,-1.D0,W,1)
@@ -535,11 +534,11 @@ CONTAINS
                CALL LogMemAlloc('WORK',4*NDET,8*HElement_t_size,this_routine,WorkTag,ierr)
                ALLOCATE(WORK2(3*NDET),stat=ierr)
                CALL LogMemAlloc('WORK2',3*NDET,8,this_routine,WORK2Tag,ierr)
-               CALL HDIAG(NDET,HAMIL,LAB,NROW,CK,W,WORK2,WORK,LENHAMIL,NBLOCKSTARTS,NBLOCKS,BLOCKSYM)
+               CALL HDIAG(NDET,HAMIL,LAB,NROW,CK,W,WORK2,WORK,NBLOCKSTARTS,NBLOCKS)
             ELSE
 !I_P we've replaced by 0
-               CALL HDIAG_NH(NDET,NBLOCKSTARTS,NBLOCKS,NEL,NMRKS,NBASISMAX,NBASIS,G1,NMSH,BRR, &
-     &            FCK,NMAX,ALAT,UMAT,ICMAX,GC,TMC,ECORE,BETA,0,ILOGGING,IFDET,ARR,BLOCKSYM)
+               CALL HDIAG_NH(NDET,NBLOCKSTARTS,NBLOCKS,NEL,NMRKS,NBASISMAX,NBASIS,G1,BRR, &
+     &            BETA,0,IFDET,ARR,BLOCKSYM)
 !C.. We're not storing the energies, so we pretend we weren't asked for
 !C.. them
                TENERGY=.FALSE.
@@ -554,9 +553,9 @@ CONTAINS
          ALLOCATE(TKE(NEVAL),stat=ierr)
          CALL LogMemAlloc('TKE',NEVAL,8,this_routine,TKETag,ierr)
 
-         EXEN=CALCMCEN(NDET,NEVAL,CK,W,BETA,0.D0)
+         EXEN=CALCMCEN(NEVAL,W,BETA)
          WRITE(6,"(A,F19.9)") "EXACT E(BETA)=",EXEN
-         GSEN=CALCDLWDB(IFDET,NDET,NEVAL,CK,W,BETA,0.D0)
+         GSEN=CALCDLWDB(IFDET,NDET,NEVAL,CK,W,BETA)
          WRITE(6,"(A,F19.9)") "EXACT DLWDB(D0)=",GSEN
          WRITE(6,"(A,F19.9)") "GROUND E=",W(1)
 !C.. END ENERGY CALC
@@ -830,7 +829,7 @@ CONTAINS
 !C..
       IF(TEnergy) THEN
           IF(.NOT.TCSFOLD) THEN
-             CALL CFF_CHCK(NDET,NEVAL,NMRKS,NBASISMAX,NEL,G1,CK,ALAT,TKE,nBasis,ILOGGING)
+             CALL CFF_CHCK(NDET,NEVAL,NMRKS,NEL,G1,CK,TKE)
           ELSE
              DO I=1,NEVAL
                 TKE(I)=0.D0
@@ -854,7 +853,7 @@ CONTAINS
       ENDIF
 
 !C.. Jump to here if just read Psi in
-100   CONTINUE
+      CONTINUE
 
       IF(TRHOOFR) THEN
         Call CalcRhoOfR()
@@ -921,7 +920,7 @@ CONTAINS
           CALL GEN_XCHOLE(CK,PSIR,IOBS,JOBS,KOBS,G1,SITAB,NMAX,NMSH,nBasis,IXD,IYD,IZD,RHO,.TRUE.,XCHOLE,SPAC,ALAT,OMEGA,NMRKS,NDET,NEVAL,NEL)
           CALL WRITE_RHO(10,'COMPXCHOLE',XCHOLE,NMSH,NMSH,NMSH,ALAT,.FALSE.,.TRUE.,RS)
 !C..
-          CALL XCHOLES(CK,PSIR,IOBS,JOBS,KOBS,G1,SITAB,NMAX,NMSH,nBasis,RHO,XCHOLE,SPAC,RS,ALAT,DLINE,OMEGA,NMRKS,NDET,NEL,NEVAL)
+          CALL XCHOLES(CK,PSIR,IOBS,JOBS,KOBS,G1,SITAB,NMAX,NMSH,nBasis,RHO,XCHOLE,SPAC,RS,ALAT,OMEGA,NMRKS,NDET,NEL,NEVAL)
         ENDIF
     End Subroutine CalcRhoOfR
     Subroutine CalcFoDM()
@@ -963,7 +962,6 @@ END MODULE DetCalc
          real(dp) DLWDB, DLWDB2, DLWDB3, DLWDB4
          TYPE(BasisFN) g1(*)
          REAL*8 ALAT(3)
-         LOGICAL TSYM
          REAL*8 BETA,RHOEPS
          COMPLEX*16 FCK(*)
 
@@ -972,9 +970,9 @@ END MODULE DetCalc
          HElement_t , ALLOCATABLE :: RIJLIST(:,:)
          INTEGER,SAVE :: RIJLISTTag=0,LSTEtag=0,ICEtag=0
          INTEGER NPATHS,ierr
-         INTEGER III,NWHTAY(3,I_VMAX),I,IMAX,ILMAX
+         INTEGER III,NWHTAY(3,I_VMAX),IMAX,ILMAX
          real(dp) WLRI,WLSI
-         REAL*8 ECORE,DBETA,WLRI1,WLRI2,WLSI1,WLSI2,WI
+         REAL*8 ECORE,DBETA,WLRI1,WLRI2,WLSI1,WLSI2
          REAL*8 TOT, NORM,WLRI0,WLSI0,WINORM
          LOGICAL TNPDERIV
          INTEGER DETINV
@@ -1097,8 +1095,7 @@ END MODULE DetCalc
                CALL FLUSH(iunit)
                WRITE(6,*) "Investigating det ",DETINV
                CALL FLUSH(6)
-               CALL WIRD_SUBSET(NMRKS(:,DETINV),BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY, &
-     &       RHOEPS,ILOGGING,TSYM,ECORE)
+               CALL WIRD_SUBSET(NMRKS(:,DETINV),BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,ECORE)
             ENDIF
           ENDDO
          CLOSE(iunit)
@@ -1116,15 +1113,15 @@ END MODULE DetCalc
 !.. Note if TWARN becomes set, the RHII sum did not converge.
 !.. FLSI will remain usable, but will be equal to log RHII(P), so the 
 !.. sum I_P*FLRI+FLSI will still retain the correct value.
-      SUBROUTINE CALCRHOPII(I,NDET,NEVAL,CK,W,BETA,I_P,ILOGGING,ETRIAL,FLRI,FLSI,TWARN)
+      SUBROUTINE CALCRHOPII(I,NDET,NEVAL,CK,W,BETA,I_P,FLRI,FLSI,TWARN)
          use constants, only: dp
          use util_mod, only: isnan
          IMPLICIT NONE
          INTEGER NDET,NEVAL
          HElement_t CK(NDET,NEVAL)
          REAL*8 W(NEVAL)
-         REAL*8 RHII,FLRI,FLSI,ETRIAL,BETA,RH,R
-         INTEGER I_P,I,IK,ILOGGING
+         REAL*8 RHII,FLRI,FLSI,BETA,RH,R
+         INTEGER I_P,I,IK
          LOGICAL TWARN
          RH=0.D0
          RHII=0.D0
@@ -1169,12 +1166,11 @@ END MODULE DetCalc
       END
 
 !  Given an exact calculation of eigen-vectors and -values, calculate the expectation value of E(Beta)
-      REAL*8 FUNCTION CALCMCEN(NDET,NEVAL,CK,W,BETA,ETRIAL)
+      REAL*8 FUNCTION CALCMCEN(NEVAL,W,BETA)
          use constants, only: dp
          IMPLICIT NONE
-         INTEGER NDET,NEVAL,IK
-         HElement_t CK(NDET,NEVAL)
-         REAL*8  W(NEVAL),BETA,DNORM,EN,ETRIAL
+         INTEGER NEVAL,IK
+         REAL*8  W(NEVAL),BETA,DNORM,EN
          EN=0.D0
          DNORM=0.D0
          DO IK=1,NEVAL
@@ -1186,12 +1182,12 @@ END MODULE DetCalc
       END
 
 !  Given an exact calculation of eigen-vectors and -values, calculate the expectation value of E~(Beta)_I for det I
-      REAL*8 FUNCTION CALCDLWDB(I,NDET,NEVAL,CK,W,BETA,ETRIAL)
+      REAL*8 FUNCTION CALCDLWDB(I,NDET,NEVAL,CK,W,BETA)
          use constants, only: dp
          IMPLICIT NONE
          INTEGER NDET,NEVAL,IK,I
          HElement_t CK(NDET,NEVAL)
-         REAL*8  W(NEVAL),BETA,DNORM,EN,ETRIAL
+         REAL*8  W(NEVAL),BETA,DNORM,EN
          EN=0.D0
          DNORM=0.D0
          DO IK=1,NEVAL
@@ -1202,7 +1198,7 @@ END MODULE DetCalc
          RETURN
       END
 
-      SUBROUTINE CFF_CHCK(NDET,NEVAL,NM,NBASISMAX,NEL,G1,CG,ALAT,TKE,NHG,ILOGGING)
+      SUBROUTINE CFF_CHCK(NDET,NEVAL,NM,NEL,G1,CG,TKE)
       use constants, only: dp
       use util_mod, only: get_free_unit
       USE OneEInts, only : GetTMATEl
@@ -1211,10 +1207,8 @@ END MODULE DetCalc
       IMPLICIT NONE
       HElement_t CG(NDET,NEVAL)
       INTEGER NM(NEL,*),NDET,NEL,NEVAL, iunit
-      REAL*8 ALAT(3),TKE(NEVAL)
-      INTEGER NBASISMAX(3,2),NHG,ILOGGING
+      REAL*8 TKE(NEVAL)
       TYPE(BASISFN) G1(*)
-      CHARACTER*255 STR
       REAL*8 PI,S,SUM1
       real(dp) AUX
       INTEGER I,J,IN,IEL,L
@@ -1283,16 +1277,18 @@ END MODULE DetCalc
          HElement_t CK(NEVAL)
          type(BasisFn) G1(nBasis)
          REAL*8 W(NEVAL),BETA,ECORE
-         REAL*8 DLWDBS(NDET),WLRIS(NDET),WLSIS(NDET),EN
-         real*8 CALCDLWDB, DMONTECARLOEXWI
-         INTEGER I
-         LOGICAL TWARN
+
+         ! Avoid compiler warnings
+         ndet = ndet; neval = neval; ck(1) = ck(1); W(1) = W(1); beta = beta
+         i_p = i_p; iLogging = iLogging; ecore = ecore; imcsteps = imcsteps
+         g1(1) = g1(1); nmrks(1,1) = nmrks(1,1); nel = nel; nbasis = nbasis
+         nbasismax(1,1) = nbasismax(1,1); brr(1) = brr(1); ieqsteps = ieqsteps
          
          ! Cray compiler barfs if DOEXMC isn't defined.  Weird...
          DOEXMC = 0.0
 !         DO I=1,NDET
-!            CALL CALCRHOPII(I,NDET,NEVAL,CK,W,BETA,I_P,ILOGGING,ECORE,WLRIS(I),WLSIS(I),TWARN)
-!            DLWDBS(I)=CALCDLWDB(I,NDET,NEVAL,CK,W,BETA,ECORE)
+!            CALL CALCRHOPII(I,NDET,NEVAL,CK,W,BETA,I_P,WLRIS(I),WLSIS(I),TWARN)
+!            DLWDBS(I)=CALCDLWDB(I,NDET,NEVAL,CK,W,BETA)
 !         ENDDO
 !         STOP "DMONTECARLOEXWI is no longer functional."
          call stop_all('DMONTECARLOEXWI','No longer functional')

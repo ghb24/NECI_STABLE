@@ -1,11 +1,11 @@
-      SUBROUTINE GEN_COUL(NEL,NBASISMAX,
-     &   NHG,G1,NMSH,NMAX,FCK,UMAT,ISS,ZIA)
+      SUBROUTINE GEN_COUL(NBASISMAX,
+     &   NHG,G1,NMSH,NMAX,FCK,UMAT,ZIA)
       use SystemData, only: BasisFN
       use UMatCache, only: GTID, UMatInd
       use global_utilities
       IMPLICIT REAL*8 (A-H,O-Z)
       TYPE(BASISFN) G1(NHG)
-      INTEGER nBasisMax(5,*),ISS
+      INTEGER nBasisMax(5,*)
       type(timer), save :: proc_timer
       DIMENSION UMAT(*)
 C..Cube arrays

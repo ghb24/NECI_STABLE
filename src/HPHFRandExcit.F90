@@ -204,12 +204,15 @@ MODULE HPHFRandExcitMod
         logical, intent(inout) :: tFilled
         real*8, intent(out) :: pGen
 
-        integer(kind=n_int) :: iLutnJ2(0:niftot), iLutnI2(0:niftot)
-        integer :: openOrbsI, openOrbsJ, nI2(nel), nJ2(nel), ex2(2,2), excitLevel 
+        integer(kind=n_int) :: iLutnJ2(0:niftot)
+        integer :: openOrbsI, openOrbsJ, nJ2(nel), ex2(2,2), excitLevel 
         real*8 :: pGen2
         HElement_t :: MatEl, MatEl2
-        logical :: tGenClassCountnI, TestClosedShellDet, tSign, tSignOrig
+        logical :: TestClosedShellDet, tSign, tSignOrig
         logical :: tSwapped
+
+        ! Avoid warnings
+        tParity = .false.
 
         call gen_rand_excit (nI, iLutnI, nJ, iLutnJ, exFlag, IC, ExcitMat, &
                              tSignOrig, pGen, tFilled, Classcount2, &
@@ -237,11 +240,11 @@ MODULE HPHFRandExcitMod
 !Generate matrix element -> HPHF to closed shell det.
                 IF(TestClosedShellDet(iLutnI)) THEN
                     !Closed shell -> Closed Shell
-                    MatEl = sltcnd_excit (nI, nJ, IC, ExcitMat, tSignOrig)
+                    MatEl = sltcnd_excit (nI, IC, ExcitMat, tSignOrig)
                     pGen=pGen/REAL(MatEl,8)
                 ELSE
                     !Open shell -> Closed Shell
-                    MatEl = sltcnd_excit (nI, nJ, IC, ExcitMat, tSignOrig)
+                    MatEl = sltcnd_excit (nI, IC, ExcitMat, tSignOrig)
                     pGen=pGen/(REAL(MatEl,8)*SQRT(2.D0))
                 ENDIF
             ENDIF
@@ -280,9 +283,9 @@ MODULE HPHFRandExcitMod
                     IF(TestClosedShellDet(iLutnI)) THEN    !Closed shell -> Open shell : Want to sum in SQRT(2)* Hij
                         
                         IF(tSwapped) THEN
-                            MatEl = sltcnd_excit (nI, nJ, IC, Ex2, tSign)
+                            MatEl = sltcnd_excit (nI, IC, Ex2, tSign)
                         ELSE
-                            MatEl = sltcnd_excit (nI, nJ, IC, ExcitMat, &
+                            MatEl = sltcnd_excit (nI, IC, ExcitMat, &
                                                   tSignOrig)
                         ENDIF
                         pGen=pGen/(REAL(MatEl,8)*SQRT(2.D0))
@@ -291,10 +294,10 @@ MODULE HPHFRandExcitMod
                         
 !First find nI -> nJ. If nJ has swapped, then this will be different.
                         IF(tSwapped) THEN
-                            MatEl = sltcnd_excit (nI, nJ, ExcitLevel, Ex2, &
+                            MatEl = sltcnd_excit (nI, ExcitLevel, Ex2, &
                                                   tSign)
                         ELSE
-                            MatEl = sltcnd_excit (nI, nJ, IC, ExcitMat, &
+                            MatEl = sltcnd_excit (nI, IC, ExcitMat, &
                                                   tSignOrig)
                         ENDIF
 
@@ -312,12 +315,12 @@ MODULE HPHFRandExcitMod
                             IF(tSwapped) THEN
                                 IF((OpenOrbsJ+OpenOrbsI).eq.3) tSignOrig=.not.tSignOrig  !I.e. J odd and I even or vice versa, but since these can only be at max quads, then they can only have 1/2 open orbs
 
-                                MatEl2 = sltcnd_excit (nI, nJ, IC, ExcitMat, &
+                                MatEl2 = sltcnd_excit (nI, IC, ExcitMat, &
                                                        tSignOrig)
                             ELSE
                                 IF((OpenOrbsJ+OpenOrbsI).eq.3) tSign=.not.tSign     !I.e. J odd and I even or vice versa, but since these can only be at max quads, then they can only have 1/2 open orbs
 
-                                MatEl2 = sltcnd_excit (nI, nJ2, ExcitLevel, &
+                                MatEl2 = sltcnd_excit (nI,  ExcitLevel, &
                                                        Ex2, tSign)
                             ENDIF
 
@@ -372,9 +375,9 @@ MODULE HPHFRandExcitMod
                     ENDIF
 
                     IF(tSwapped) THEN
-                        MatEl = sltcnd_excit(nI, nJ2, IC, ExcitMat, tSignOrig)
+                        MatEl = sltcnd_excit(nI,  IC, ExcitMat, tSignOrig)
                     ELSE
-                        MatEl = sltcnd_excit (nI, nJ, IC, ExcitMat, tSignOrig)
+                        MatEl = sltcnd_excit (nI, IC, ExcitMat, tSignOrig)
                     ENDIF
 
                     pGen=pGen/(REAL(MatEl,8))
@@ -441,7 +444,7 @@ MODULE HPHFRandExcitMod
 
 !This create the spin-coupled determinant of nI in nJ in natural ordered form.
     SUBROUTINE FindDetSpinSym(nI,nJ,NEl)
-        INTEGER :: nTemp(NEl),nI(NEl),nJ(NEl),NEl,i
+        INTEGER :: nI(NEl),nJ(NEl),NEl,i
 
         do i=1,NEl
             IF(mod(nI(i),2).eq.0) THEN
@@ -780,7 +783,7 @@ MODULE HPHFRandExcitMod
 !            Weights(PartInd)=Weights(PartInd)+(1.D0/pGen)
 !             
 !!Check excitation
-!!            CALL IsSymAllowedExcit(nI,nJ,IC,ExcitMat,SymAllowed)
+!!            CALL IsSymAllowedExcit(nI,nJ,IC,ExcitMat)
 !
 !        enddo
 !        
@@ -798,7 +801,11 @@ MODULE HPHFRandExcitMod
 !            WRITE(6,*) i,UniqueHPHFList(0:NIfTot,i),Weights(i)
 !            call decode_bit_det (nIX, UniqueHPHFList(0:NIfTot,i))
 !            WRITE(6,*) nIX(:)
-!            WRITE(iunit,*) i,UniqueHPHFList(0:NIfTot,i),Weights(i)
+!            WRITE(iunit,"(I8,G25.10)",advance='no') i,Weights(i)
+!            do j=0,NIfTot-1
+!                WRITE(iunit,"(I16)",advance='no') UniqueHPHFList(j,i)
+!            enddo
+!            WRITE(iunit,"(I16)") UniqueHPHFList(NIfTot,i)
 !        enddo
 !
 !        CLOSE(iunit)

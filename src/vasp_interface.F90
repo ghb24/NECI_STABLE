@@ -28,7 +28,7 @@ contains
 #else
       real(dp) :: vasp_umat2d(vasp_nbands*vasp_nkpts,vasp_nbands*vasp_nkpts)
 #endif
-      integer :: i,j,ik,ierr
+      integer :: i,j,ierr
       character(*), parameter :: thisroutine='NECIReceiveVASPData'
 
       nKP=vasp_nkpts

@@ -20,9 +20,8 @@ contains
         ! This first call calculates the inner integral.
         ! The call to SCOUL calculates the outer integral.
 
-        integer :: ll(3), kk(3)
-        type(BasisFn) :: ka, kb
-        integer :: a, b, c, m, ii, iSpinSkip
+        integer :: ll(3)
+        integer :: a, b, ii, iSpinSkip
         real(dp) :: sums(3), sum
         integer :: i, j, k, l, id1, id2, id3, id4, ind
         type(timer), save :: proc_timer
@@ -107,7 +106,7 @@ contains
         type(BasisFn) :: ka, kb
         integer :: a, b, c, d, tx, ty
         integer :: ii, i, j, k, l, id1, id2, id3, id4, ind
-        real(dp) :: lx, ly, p, q, r, t2, sum
+        real(dp) :: lx, ly, p, q, t2, sum
         complex(dp) :: s, ci
         type(timer), save :: proc_timer
         character(*), parameter :: this_routine = 'gen_coul_ueg'
@@ -131,8 +130,8 @@ contains
                         id3 = GTID(k)
                         id4 = GTID(l)
                         if (tHub) then
-                            call SetupSym (nBasisMax, ka)
-                            call SetupSym (nBasisMax, kb)
+                            call SetupSym (ka)
+                            call SetupSym (kb)
                             call AddElecSym (k, G1, nBasisMax, ka)
                             call AddElecSym (l, G1, nBasisMax, ka)
                             call AddElecSym (i, G1, nBasisMax, kb)
@@ -237,16 +236,16 @@ contains
 
     end subroutine
 
-    subroutine SlatCoulFouCou (G1, G2, G1P, G2P, N, CK, NMAX, OUT)
+    subroutine SlatCoulFouCou (G1, G2, G1P, G2P, N, CK, OUT)
     
         ! Returns the coulomb integral between the Slater determinants of
         ! plane wave basis, using the Fourier method.
 
-        integer, intent(in) :: n, nMax
+        integer, intent(in) :: n
         integer, intent(in) :: G1(4), G2(4), G1P(4), G2P(4)
         complex(dp) :: CK(-N/2:N/2-1,-N/2:N/2-1,-N/2:N/2-1)
         real(dp), intent(out) :: OUT
-        integer :: GD1, GD2, i, GD(3), p, q
+        integer :: GD1, GD2, i, GD(3)
         real(dp) :: tot
         logical :: T, T2
 
@@ -330,8 +329,8 @@ contains
         HElement_t :: hel
         type(BasisFn) :: ka, kb
 
-        call SetupSym (nBasisMax, ka)
-        call SetupSym (nBasisMax, kb)
+        call SetupSym (ka)
+        call SetupSym (kb)
         call AddElecSym (k*2, G1, nBasisMax, ka)
         call AddElecSym (l*2, G1, nBasisMax, ka)
         call AddElecSym (i*2, G1, nBasisMax, kb)

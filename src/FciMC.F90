@@ -1,3 +1,5 @@
+#include "macros.h"
+
 MODULE FciMCMod
 use SystemData , only : NEl,Alat,Brr,ECore,G1,nBasis,nBasisMax,nMsh,Arr
 use CalcData , only : InitWalkers,NMCyc,G_VMC_Seed,DiagSft,Tau,SftDamp,StepsSft
@@ -15,7 +17,8 @@ USE Logging , only : iWritePopsEvery,TPopsFile,TZeroProjE,TWriteDetE,MaxHistE,No
 use constants, only: dp
 use DetBitOps, only: EncodeBitDet
 use constants, only: dp
-use FciMCData, only: ExcitGenerator, HFExcit, fcimcstats_unit
+use FciMCData, only: ExcitGenerator, HFExcit, fcimcstats_unit, &
+                     excitgenerator_init, excitgenerator_destroy
 use sort_mod
 IMPLICIT NONE
 SAVE
@@ -86,8 +89,6 @@ contains
 SUBROUTINE FciMC(Weight,Energyxw)
 use soft_exit, only: test_SOFTEXIT
 real(dp) :: Weight,Energyxw
-CHARACTER(len=*), PARAMETER :: this_routine='FCIMC'
-HElement_t :: Hamii
 LOGICAL :: TIncrement
 
 Walker_time%timer_name='Walker_time'
@@ -161,12 +162,12 @@ END SUBROUTINE FciMC
 !This is the heart of FCIMC, where the MC Cycles are performed
 SUBROUTINE PerformFCIMCyc()
         !use GenRandSymExcitCSF, only: TestCSF123
-        INTEGER :: VecSlot,i,j,k,l
-        INTEGER :: nJ(NEl),ierr,IC,Child,iCount,TotWalkersNew
-        REAL*8 :: Prob,rat,HDiag,Ran2,TotProb,UniformPGen
+        INTEGER :: VecSlot,j,l
+        INTEGER :: nJ(NEl),IC,Child,iCount,TotWalkersNew
+        REAL*8 :: Prob,rat,HDiag,UniformPGen
         INTEGER :: iDie             !Indicated whether a particle should self-destruct on DetCurr
-        INTEGER :: ExcitLevel,iGetExcitLevel_2,MaxExcits
-        LOGICAL :: WSign,SpawnBias,SameDet,TGenGuideDet
+        INTEGER :: ExcitLevel,iGetExcitLevel_2
+        LOGICAL :: WSign
         HElement_t :: HDiagTemp,HOffDiag
 
 !Set the timer for the walker loop - this should not be done always, as it will be time-consuming
@@ -178,6 +179,7 @@ SUBROUTINE PerformFCIMCyc()
 !Reset the number at HF & doubs per iteration
         NoatHF=0
         NoatDoubs=0
+        HOffDiag = 0
 
         do j=1,TotWalkers
             ! This is where you can call the CSF testing routine
@@ -186,14 +188,14 @@ SUBROUTINE PerformFCIMCyc()
 !j runs through all current walkers
 
 !Sum in any energy contribution from the determinant, including other parameters, such as excitlevel info
-            CALL SumEContrib(CurrentDets(:,j),CurrentIC(j),CurrentH(2,j),CurrentSign(j),j)
+            CALL SumEContrib(CurrentIC(j),CurrentH(2,j),CurrentSign(j),j)
 
 !Setup excit generators for this determinant (This can be reduced to an order N routine later for abelian symmetry.
             IF(.not.TRegenExcitgens) THEN
                 CALL SetupExitgen(CurrentDets(:,j),CurrentExcits(j))
-                CALL GenRandSymExcitIt3(CurrentDets(:,j),CurrentExcits(j)%ExcitData,nJ,Seed,IC,0,Prob,iCount)
+                CALL GenRandSymExcitIt3(CurrentDets(:,j),CurrentExcits(j)%ExcitData,nJ,Seed,IC,Prob,iCount)
             ELSE
-                CALL GetPartRandExcit(CurrentDets(:,j),nJ,Seed,IC,0,Prob,iCount,CurrentIC(j))
+                CALL GetPartRandExcit(CurrentDets(:,j),nJ,Seed,IC,Prob,iCount,CurrentIC(j))
             ENDIF
     
 !                CALL TestGenRandSymExcitNU(nJ,1000000,0.97,Seed,3)
@@ -293,7 +295,7 @@ SUBROUTINE PerformFCIMCyc()
             ENDIF   !End if child created
 
 !We now have to decide whether the parent particle (j) wants to self-destruct or not...
-            iDie=AttemptDie(CurrentDets(:,j),CurrentH(1,j),CurrentIC(j))
+            iDie=AttemptDie(CurrentH(1,j))
 !iDie can be positive to indicate the number of deaths, or negative to indicate the number of births
                 
             NoDied=NoDied+iDie      !Increase the counter to indicated  number of particles that have died
@@ -539,9 +541,9 @@ SUBROUTINE PerformFCIMCyc()
 !!Setup excit generators for this determinant (This can be reduced to an order N routine later for abelian symmetry).
 !            IF(.not.TRegenExcitgens) THEN
 !                CALL SetupExitgen(CurrentDets(:,j),CurrentExcits(j))
-!                CALL GenRandSymExcitIt3(CurrentDets(:,j),CurrentExcits(j)%ExcitData,nJ,Seed,IC,0,Prob,iCount)
+!                CALL GenRandSymExcitIt3(CurrentDets(:,j),CurrentExcits(j)%ExcitData,nJ,Seed,IC,Prob,iCount)
 !            ELSE
-!                CALL GetPartRandExcit(CurrentDets(:,j),nJ,Seed,IC,0,Prob,iCount,CurrentIC(j))
+!                CALL GetPartRandExcit(CurrentDets(:,j),nJ,Seed,IC,Prob,iCount,CurrentIC(j))
 !            ENDIF
 !
 !            !TESTS
@@ -569,9 +571,9 @@ SUBROUTINE PerformFCIMCyc()
 !!Generate another randomly connected determinant in order to not generate a guiding determinant
 !
 !                        IF(.not.TRegenExcitgens) THEN
-!                            CALL GenRandSymExcitIt3(CurrentDets(:,j),CurrentExcits(j)%ExcitData,nJ,Seed,IC,0,Prob,iCount)
+!                            CALL GenRandSymExcitIt3(CurrentDets(:,j),CurrentExcits(j)%ExcitData,nJ,Seed,IC,Prob,iCount)
 !                        ELSE
-!                            CALL GetPartRandExcit(CurrentDets(:,j),nJ,Seed,IC,0,Prob,iCount,CurrentIC(j))
+!                            CALL GetPartRandExcit(CurrentDets(:,j),nJ,Seed,IC,Prob,iCount,CurrentIC(j))
 !                        ENDIF
 !                        IF(.not.(SameDet(HFDet,nJ,NEl))) TGenGuideDet=.false.
 !                            
@@ -925,9 +927,9 @@ SUBROUTINE PerformFCIMCyc()
 !        do while(i.lt.NDets)    !Loop until all determinants found
 !
 !            IF(TRegenExcitgens) THEN
-!                CALL GetPartRandExcit(nI,nJ,Seed,IC,0,Prob,iCount,CurrentIC(VecInd))
+!                CALL GetPartRandExcit(nI,nJ,Seed,IC,Prob,iCount,CurrentIC(VecInd))
 !            ELSE
-!                CALL GenRandSymExcitIt3(nI,nIExcitGen%ExcitData,nJ,Seed,IC,0,Prob,iCount)
+!                CALL GenRandSymExcitIt3(nI,nIExcitGen%ExcitData,nJ,Seed,IC,Prob,iCount)
 !            ENDIF
 !
 !            SameDet=.false.
@@ -1025,7 +1027,7 @@ SUBROUTINE PerformFCIMCyc()
 !value of the diagonal shift in the hamiltonian in order to compensate for this
     SUBROUTINE UpdateDiagSft()
         IMPLICIT NONE
-        INTEGER :: j,k,GrowthSteps
+        INTEGER :: j,GrowthSteps
         REAL*8 :: AvConnection
 
         IF(NoCulls.eq.0) THEN
@@ -1141,8 +1143,8 @@ SUBROUTINE PerformFCIMCyc()
 
 
 !This routine sums in the energy contribution from a given walker and updates stats such as mean excit level
-    SUBROUTINE SumEContrib(DetCurr,ExcitLevel,Hij0,WSign,j)
-        INTEGER :: DetCurr(NEl),ExcitLevel,j,Bin
+    SUBROUTINE SumEContrib(ExcitLevel,Hij0,WSign,j)
+        INTEGER :: ExcitLevel,j,Bin
         LOGICAL :: WSign
         REAL*8 :: Hij0      !This is the hamiltonian matrix element between DetCurr and HF
         REAL*8 :: DetE
@@ -1405,7 +1407,7 @@ SUBROUTINE PerformFCIMCyc()
     SUBROUTINE ThermostatParticles(HighLow)
         IMPLICIT NONE
         LOGICAL :: HighLow
-        INTEGER :: VecSlot,i,j,ToCull,Culled,OrigWalkers,Chosen
+        INTEGER :: VecSlot,i,ToCull,Culled,OrigWalkers,Chosen
         REAL*8 :: Ran2
 
         IF(HighLow) THEN
@@ -1676,10 +1678,13 @@ SUBROUTINE PerformFCIMCyc()
         TYPE(ExcitGenerator) :: TempExcit
         REAL*8 :: TempH(2),TempPGen
         INTEGER :: TempIC
-        INTEGER :: TotWalkersNew,j,k,l,DetCurr(NEl),VecSlot,TotWalkersDet
+        INTEGER :: TotWalkersNew,j,l,DetCurr(NEl),VecSlot,TotWalkersDet
         INTEGER :: DetLT
 
+        call excitgenerator_init(tempexcit)
+
 !First, it is necessary to sort the list of determinants
+        temppgen = 0
         if (tUnbiasPGenInProjE) then
             if (tRegenExcitgens) then
                 call sort (NewDets(:,1:TotWalkersNew), &
@@ -1772,7 +1777,7 @@ SUBROUTINE PerformFCIMCyc()
 !The new number of residual cancelled walkers is given by one less that VecSlot again.
         TotWalkers=VecSlot-1
 
-        RETURN
+        call excitgenerator_destroy(tempexcit)
 
     END SUBROUTINE AnnihilatePairs
 
@@ -1782,11 +1787,11 @@ SUBROUTINE PerformFCIMCyc()
         use CalcData, only : EXCITFUNCS
         use HElem
         use util_mod, only: get_free_unit
-        INTEGER :: ierr,i,j,k,l,DetCurr(NEl),ReadWalkers,TotWalkersDet
-        INTEGER :: DetLT,VecSlot,error,HFConn
+        INTEGER :: ierr,i,j
+        INTEGER :: HFConn
         INTEGER*8 :: MemoryAlloc
         REAL*8 :: Ran2
-        HElement_t :: rh,TempHii
+        HElement_t :: TempHii
         CHARACTER(len=*), PARAMETER :: this_routine='InitFCIMC'
 
         IF(HElement_t_size.gt.1) THEN
@@ -1851,7 +1856,9 @@ SUBROUTINE PerformFCIMCyc()
         IF(TStartSinglePart) THEN
             TSinglePartPhase=.true.
             IF(TReadPops) THEN
-                CALL Stop_All("InitFciMCCalc","Cannot read in POPSFILE as well as starting with a single particle")
+                CALL WARNING("InitFciMCCalc","Cannot read in POPSFILE as well as starting with a single particle: ignoring StartSinglePart.")
+                tSinglePartPhase = .false.
+                tStartSinglePart = .false.
             ENDIF
             IF(TStartMP1) THEN
                 CALL Stop_All("InitFciMCCalc","Cannot start with a single particle and be at the MP1 wavefunction")
@@ -1998,10 +2005,19 @@ SUBROUTINE PerformFCIMCyc()
             CALL FLUSH(6)
 
             IF(.not.TRegenExcitgens) THEN
+                ASSERT(.not. allocated(WalkVecExcits))
+                ASSERT(.not. allocated(WalkVec2Excits))
+
                 ALLOCATE(WalkVecExcits(MaxWalkers),stat=ierr)
                 IF(ierr.ne.0) CALL Stop_All("InitFCIMCCalc","Error in allocating walker excitation generators")
                 ALLOCATE(WalkVec2Excits(MaxWalkers),stat=ierr)
                 IF(ierr.ne.0) CALL Stop_All("InitFCIMCCalc","Error in allocating walker excitation generators")
+
+                do i = 1, MaxWalkers
+                    call excitgenerator_init(WalkVecExcits(i))
+                    call excitgenerator_init(WalkVec2Excits(i))
+                enddo
+
 !Allocate pointers to the correct excitation arrays
                 CurrentExcits=>WalkVecExcits
                 NewExcits=>WalkVec2Excits
@@ -2087,7 +2103,6 @@ SUBROUTINE PerformFCIMCyc()
     SUBROUTINE WriteEnergyHist()
         use util_mod, only: get_free_unit
         INTEGER :: i,j, iunit
-        CHARACTER(Len=12) :: Filename
         REAL*8 :: LowEnergyofbin,HighEnergyofbin,MeanEnergyofbin
 !        CHARACTER(len=16) :: FormatSpec
 
@@ -2203,11 +2218,11 @@ SUBROUTINE PerformFCIMCyc()
         VecSlot=2           !This is the next free slot in the MP1 arrays
         MP2Energy=0.D0      !Calculate the MP2 energy as we go, since the shift will be set to this
 
-        CALL ResetExIt2(HFDet,NEl,G1,nBasis,nBasisMax,HFExcit%ExcitData,0)
+        CALL ResetExIt2(HFExcit%ExcitData)
 
         do while(.true.)
 !Generate double excitations
-            CALL GenSymExcitIt2(HFDet,NEl,G1,nBasis,nBasisMax,.false.,HFExcit%Excitdata,nJ,iExcit,0,nStore,2)
+            CALL GenSymExcitIt2(HFDet,NEl,G1,nBasis,.false.,HFExcit%Excitdata,nJ,iExcit,nStore,2)
             IF(nJ(1).eq.0) EXIT
             IF(iExcit.ne.2) THEN
                 CALL Stop_All("InitWalkersMP1","Error - excitations other than doubles being generated in MP1 wavevector code")
@@ -2235,7 +2250,7 @@ SUBROUTINE PerformFCIMCyc()
             VecSlot=VecSlot+1
 
         enddo
-        CALL ResetExIt2(HFDet,NEl,G1,nBasis,nBasisMax,HFExcit%ExcitData,0)
+        CALL ResetExIt2(HFExcit%ExcitData)
 
         WRITE(6,"(A,F15.7,A)") "Sum of absolute components of MP1 wavefunction is ",SumMP1Compts," with the HF being 1."
 
@@ -2307,11 +2322,20 @@ SUBROUTINE PerformFCIMCyc()
         CALL FLUSH(6)
 
         IF(.not.TRegenExcitgens) THEN
+            ASSERT(.not. allocated(WalkVecExcits))
+            ASSERT(.not. allocated(WalkVec2Excits))
+
             ALLOCATE(WalkVecExcits(MaxWalkers),stat=ierr)
             IF(ierr.ne.0) CALL Stop_All("InitFCIMCCalc","Error in allocating walker excitation generators")
             ALLOCATE(WalkVec2Excits(MaxWalkers),stat=ierr)
             IF(ierr.ne.0) CALL Stop_All("InitFCIMCCalc","Error in allocating walker excitation generators")
 !Allocate pointers to the correct excitation arrays
+
+            do i = 1, MaxWalkers
+                call excitgenerator_init(WalkVecExcits(i))
+                call excitgenerator_init(WalkVec2Excits(i))
+            enddo
+
             CurrentExcits=>WalkVecExcits
             NewExcits=>WalkVec2Excits
             MemoryAlloc=((INT(HFExcit%nExcitMemLen,8))+2)*4*INT(MaxWalkers,8)
@@ -2342,12 +2366,10 @@ SUBROUTINE PerformFCIMCyc()
 
 
     SUBROUTINE InitMP2Calc()
-        INTEGER :: ierr,i,j,nJ(NEl),IC,nStore(6),ExcitForm(2,2),iExcit
-        INTEGER :: A,B,t,MaxComptDet(NEl),Compts
+        INTEGER :: nJ(NEl),nStore(6),ExcitForm(2,2),iExcit
+        INTEGER :: MaxComptDet(NEl),Compts
         REAL*8 :: Denom,MaxCompt,MP2Energy,MP1Comp
-        LOGICAL :: tSign
         HElement_t :: Hij
-        CHARACTER(Len=*) , PARAMETER :: this_routine='InitMP2Calc'
         
 !The MP1 wavefunction components are no longer precalculated, but rather calculated on the fly now.
 !Need to calculate all the components of the MP2 wavefunction, and store them in MP2ExcitComps
@@ -2375,13 +2397,14 @@ SUBROUTINE PerformFCIMCyc()
         MaxCompt=1.D0
         MaxComptDet(:)=HFDet(:)
         Compts=0
+        excitform = 0
 
 !Reset the HF Excitation generator
-        CALL ResetExIt2(HFDet,NEl,G1,nBasis,nBasisMax,HFExcit%ExcitData,0)
+        CALL ResetExIt2(HFExcit%ExcitData)
 
         do while(.true.)
 !Generate double excitations
-            CALL GenSymExcitIt2(HFDet,NEl,G1,nBasis,nBasisMax,.false.,HFExcit%Excitdata,nJ,iExcit,0,nStore,2)
+            CALL GenSymExcitIt2(HFDet,NEl,G1,nBasis,.false.,HFExcit%Excitdata,nJ,iExcit,nStore,2)
             IF(nJ(1).eq.0) EXIT
             Compts=Compts+1     !Calculate total number of MP1 excitations
 !            ExcitForm(1,1)=2    !signify that we are only dealing with double excitations
@@ -2433,7 +2456,7 @@ SUBROUTINE PerformFCIMCyc()
         enddo
 
 !Reset the HF Excitation generator
-        CALL ResetExIt2(HFDet,NEl,G1,nBasis,nBasisMax,HFExcit%ExcitData,0)
+        CALL ResetExIt2(HFExcit%ExcitData)
 
         WRITE(6,"(I7,A)") Compts," MP2 components calculated. Maximum MP2 wavevector component is determinant: "
         call write_det (6, MaxComptDet, .true.)
@@ -2653,9 +2676,17 @@ SUBROUTINE PerformFCIMCyc()
         NewH=>WalkVec2H
             
         IF(.not.TRegenExcitgens) THEN
+            ASSERT(.not. allocated(WalkVecExcits))
+            ASSERT(.not. allocated(WalkVec2Excits))
+            
             ALLOCATE(WalkVecExcits(MaxWalkers),stat=ierr)
             ALLOCATE(WalkVec2Excits(MaxWalkers),stat=ierr)
             IF(ierr.ne.0) CALL Stop_All("InitFCIMCCalc","Error in allocating walker excitation generators")
+
+            do j = 1, MaxWalkers
+                call excitgenerator_init(WalkVecExcits(j))
+                call excitgenerator_init(WalkVec2Excits(j))
+            enddo
 
     !Allocate pointers to the correct excitation arrays
             CurrentExcits=>WalkVecExcits
@@ -2707,7 +2738,7 @@ SUBROUTINE PerformFCIMCyc()
         TYPE(ExcitGenerator) :: OrigExit,NewExit
         INTEGER :: ierr
 
-        IF(Allocated(NewExit%ExcitData)) THEN
+        IF(Associated(NewExit%ExcitData)) THEN
             DEALLOCATE(NewExit%ExcitData)
         ENDIF
         IF(.not.OrigExit%ExcitGenForDet) THEN
@@ -2734,33 +2765,33 @@ SUBROUTINE PerformFCIMCyc()
 
     SUBROUTINE SetupExitgen(nI,ExcitGen)
         TYPE(ExcitGenerator) :: ExcitGen
-        INTEGER :: ierr,iMaxExcit,nExcitMemLen,nJ(NEl)
-        INTEGER :: nI(NEl),nStore(6),iCount,IC!,Exitlevel,iGetExcitLevel
+        INTEGER :: ierr,iMaxExcit,nJ(NEl)
+        INTEGER :: nI(NEl),nStore(6)
 !        REAL*8 :: Prob
 
         IF(ExcitGen%ExcitGenForDet) THEN
 !The excitation generator is already allocated for the determinant in question - no need to recreate it
-            IF(.not.Allocated(ExcitGen%ExcitData)) THEN
+            IF(.not.associated(ExcitGen%ExcitData)) THEN
                 CALL Stop_All("SetupExitgen","Excitation generator meant to already be set up")
             ENDIF
 
         ELSE
 
-            IF(Allocated(ExcitGen%ExcitData)) THEN
+            IF(Associated(ExcitGen%ExcitData)) THEN
                 DEALLOCATE(ExcitGen%ExcitData)
             ENDIF
 
 !Setup excit generators for this determinant (This can be reduced to an order N routine later for abelian symmetry.
             iMaxExcit=0
             nStore(1:6)=0
-            CALL GenSymExcitIt2(nI,NEl,G1,nBasis,nBasisMax,.TRUE.,ExcitGen%nExcitMemLen,nJ,iMaxExcit,0,nStore,3)
+            CALL GenSymExcitIt2(nI,NEl,G1,nBasis,.TRUE.,ExcitGen%nExcitMemLen,nJ,iMaxExcit,nStore,3)
             ALLOCATE(ExcitGen%ExcitData(ExcitGen%nExcitMemLen),stat=ierr)
             IF(ierr.ne.0) CALL Stop_All("SetupExcitGen","Problem allocating excitation generator")
             ExcitGen%ExcitData(1)=0
-            CALL GenSymExcitIt2(nI,NEl,G1,nBasis,nBasisMax,.TRUE.,ExcitGen%ExcitData,nJ,iMaxExcit,0,nStore,3)
+            CALL GenSymExcitIt2(nI,NEl,G1,nBasis,.TRUE.,ExcitGen%ExcitData,nJ,iMaxExcit,nStore,3)
 
 !Check generation probabilities
-!            CALL GenRandSymExcitIt3(nI,ExcitGen%ExcitData,nJ,Seed,IC,Frz,Prob,iCount)
+!            CALL GenRandSymExcitIt3(nI,ExcitGen%ExcitData,nJ,Seed,IC,Prob,iCount)
 !            Exitlevel=iGetExcitLevel(nI,HFDet,NEl)
 !            IF(ABS((1.D0/iMaxExcit)-Prob).gt.1.D-07) WRITE(6,"I5,I5,I9,2G20.10") ExitLevel,IC,iMaxExcit,1.D0/iMaxExcit,Prob
             
@@ -2773,28 +2804,28 @@ SUBROUTINE PerformFCIMCyc()
 
     
 !This routine gets a random excitation for when we want to generate the excitation generator on the fly, then chuck it.
-    SUBROUTINE GetPartRandExcit(DetCurr,nJ,Seed,IC,Frz,Prob,iCount,Excitlevel)
-        INTEGER :: DetCurr(NEl),nJ(NEl),Seed,IC,Frz,iCount,iMaxExcit,nStore(6),MemLength,ierr
-        INTEGER :: Excitlevel
-        REAL*8 :: Prob
-        INTEGER , ALLOCATABLE :: ExcitGenTemp(:)
+SUBROUTINE GetPartRandExcit(DetCurr,nJ,Seed,IC,Prob,iCount,Excitlevel)
+    INTEGER :: DetCurr(NEl),nJ(NEl),Seed,IC,iCount,iMaxExcit,nStore(6),MemLength,ierr
+    INTEGER :: Excitlevel
+    REAL*8 :: Prob
+    INTEGER , ALLOCATABLE :: ExcitGenTemp(:)
 
-        IF(Excitlevel.eq.0) THEN
-            CALL GenRandSymExcitIt3(DetCurr,HFExcit%ExcitData,nJ,Seed,IC,Frz,Prob,iCount)
-            RETURN
-        ENDIF
+    IF(Excitlevel.eq.0) THEN
+        CALL GenRandSymExcitIt3(DetCurr,HFExcit%ExcitData,nJ,Seed,IC,Prob,iCount)
+        RETURN
+    ENDIF
 !Need to generate excitation generator to find excitation.
 !Setup excit generators for this determinant 
-        iMaxExcit=0
-        nStore(1:6)=0
-        CALL GenSymExcitIt2(DetCurr,NEl,G1,nBasis,nBasisMax,.TRUE.,MemLength,nJ,iMaxExcit,0,nStore,3)
-        ALLOCATE(ExcitGenTemp(MemLength),stat=ierr)
-        IF(ierr.ne.0) CALL Stop_All("SetupExcitGen","Problem allocating excitation generator")
-        ExcitGenTemp(1)=0
-        CALL GenSymExcitIt2(DetCurr,NEl,G1,nBasis,nBasisMax,.TRUE.,ExcitGenTemp,nJ,iMaxExcit,0,nStore,3)
+    iMaxExcit=0
+    nStore(1:6)=0
+    CALL GenSymExcitIt2(DetCurr,NEl,G1,nBasis,.TRUE.,MemLength,nJ,iMaxExcit,nStore,3)
+    ALLOCATE(ExcitGenTemp(MemLength),stat=ierr)
+    IF(ierr.ne.0) CALL Stop_All("SetupExcitGen","Problem allocating excitation generator")
+    ExcitGenTemp(1)=0
+    CALL GenSymExcitIt2(DetCurr,NEl,G1,nBasis,.TRUE.,ExcitGenTemp,nJ,iMaxExcit,nStore,3)
 
 !Now generate random excitation
-        CALL GenRandSymExcitIt3(DetCurr,ExcitGenTemp,nJ,Seed,IC,Frz,Prob,iCount)
+    CALL GenRandSymExcitIt3(DetCurr,ExcitGenTemp,nJ,Seed,IC,Prob,iCount)
 
 !Deallocate when finished
         DEALLOCATE(ExcitGenTemp)
@@ -2808,7 +2839,7 @@ SUBROUTINE PerformFCIMCyc()
 !You can optionally specify the connection between the determinants if it is already known.
     INTEGER FUNCTION AttemptCreate(DetCurr,WSign,nJ,Prob,IC,Hij)
         IMPLICIT NONE
-        INTEGER :: DetCurr(NEl),nJ(NEl),IC,StoreNumTo,StoreNumFrom,DetLT,i,ExtraCreate
+        INTEGER :: DetCurr(NEl),nJ(NEl),IC,ExtraCreate
         LOGICAL :: WSign
         REAL*8 :: Prob,Ran2,rat
         REAL*8 , OPTIONAL :: Hij
@@ -2892,9 +2923,9 @@ SUBROUTINE PerformFCIMCyc()
 !If also diffusing, then we need to know the probability with which we have spawned. This will reduce the death probability.
 !The function allows multiple births(if +ve shift) or deaths from the same particle.
 !The returned number is the number of deaths if positive, and the number of births if negative.
-    INTEGER FUNCTION AttemptDie(DetCurr,Kii,IC)
+    INTEGER FUNCTION AttemptDie(Kii)
         IMPLICIT NONE
-        INTEGER :: DetCurr(NEl),iKill,IC
+        INTEGER :: iKill
 !        HElement_t :: rh,rhij
         REAL*8 :: Ran2,rat,Kii
 
@@ -2952,12 +2983,8 @@ SUBROUTINE PerformFCIMCyc()
         DEALLOCATE(HFExcit%ExcitData)
         IF(.not.TRegenExcitgens) THEN
             do i=1,MaxWalkers
-                IF(Allocated(WalkVecExcits(i)%ExcitData)) THEN
-                    DEALLOCATE(WalkVecExcits(i)%ExcitData)
-                ENDIF
-                IF(Allocated(WalkVec2Excits(i)%ExcitData)) THEN
-                    DEALLOCATE(WalkVec2Excits(i)%ExcitData)
-                ENDIF
+                call excitgenerator_destroy(WalkVecExcits(i))
+                call excitgenerator_destroy(WalkVec2Excits(i))
             enddo
             DEALLOCATE(WalkVecExcits)
             DEALLOCATE(WalkVec2Excits)
@@ -3239,7 +3266,7 @@ END FUNCTION Fact
 !            i=2
 !            do while(i.le.NDets)    !loop until all connections found
 !
-!                CALL GenRandSymExcitIt3(nI,ExcitGen%ExcitData,nJ,Seed,IC,0,Prob,iCount)
+!                CALL GenRandSymExcitIt3(nI,ExcitGen%ExcitData,nJ,Seed,IC,Prob,iCount)
 !
 !                SameDet=.false.
 !                do j=2,(i-1)
@@ -3336,7 +3363,7 @@ END FUNCTION Fact
 !
 !                do i=1,NoMCExcits
 !
-!                    CALL GenRandSymExcitIt3(DetCurr,nExcit,nJ,Seed,IC,0,Prob,iCount)
+!                    CALL GenRandSymExcitIt3(DetCurr,nExcit,nJ,Seed,IC,Prob,iCount)
 !
 !                    Child=AttemptCreate(DetCurr,CurrentSign(j),nJ,Prob,IC,Kik)
 !!Kik is the off-diagonal hamiltonian matrix element for the walker. This is used for the augmentation of the death term if TDiffuse is on.
@@ -3390,7 +3417,7 @@ END FUNCTION Fact
 !            KeepOrig=.true.
 !            IF(TDiffuse) THEN
 !!Next look at possibility of diffusion to another determinant
-!                CALL GenRandSymExcitIt3(DetCurr,nExcit,nJ,Seed,IC,0,Prob,iCount)
+!                CALL GenRandSymExcitIt3(DetCurr,nExcit,nJ,Seed,IC,Prob,iCount)
 !                CALL AttemptDiffuse(DetCurr,nJ,Prob,IC,CurrentSign(j),KeepOrig,CreateAtI,CreateAtJ)
 !                !If we want to keep the original walker, then KeepOrig is true, However, we do not want to copy it accross yet, because we want to see if it is killed first in the birth/death process
 !!                IF(KeepOrig) THEN
@@ -3950,7 +3977,7 @@ END FUNCTION Fact
 !            ELSEIF(WaveType.eq.2) THEN
 !!Star energy not yet proparly coded & tested
 !                STOP 'Star initial wavefunction not yet working'
-!!                StarWeight=fMCPR3StarNewExcit(FDet,Beta,i_P,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,Arr,ALat,UMat,nTay,RhoEps,iExcit,iMaxExcit,nWHTay,iLogging,TSym,ECore,DBeta,DLWDB,MP2E)
+!!                StarWeight=fMCPR3StarNewExcit(FDet,Beta,i_P,NEl,nBasisMax,G1,nBasis,nMsh,fck,Arr,ALat,UMat,nTay,RhoEps,iExcit,iMaxExcit,nWHTay,iLogging,TSym,ECore,DBeta,DLWDB,MP2E)
 !!                TypeChange=DLWDB
 !            ENDIF
 !        
@@ -4869,8 +4896,8 @@ END FUNCTION Fact
 !                ELSE
 !!We do not have to self-hop. Attempt to diffuse away from determinant.
 !                
-!                    CALL GenRandSymExcitIt3(CurrentDets(:,j),ExcitGens(j)%ExcitData,nJ,Seed,ICJ,0,ProbJ,iCountJ)  !First random excitation is to attempt to move to
-!                    CALL GenRandSymExcitIt3(CurrentDets(:,j),ExcitGens(j)%ExcitData,nK,Seed,ICK,0,ProbK,iCountK)  !Second is to unbias the diffusion in the birth/death prob
+!                    CALL GenRandSymExcitIt3(CurrentDets(:,j),ExcitGens(j)%ExcitData,nJ,Seed,ICJ,ProbJ,iCountJ)  !First random excitation is to attempt to move to
+!                    CALL GenRandSymExcitIt3(CurrentDets(:,j),ExcitGens(j)%ExcitData,nK,Seed,ICK,ProbK,iCountK)  !Second is to unbias the diffusion in the birth/death prob
 !                    Hij=GetHElement2(CurrentDets(:,j),nJ,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,NMax,ALat,UMat,ICJ,ECore)
 !                    Hik=GetHElement2(CurrentDets(:,j),nK,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,NMax,ALat,UMat,ICK,ECore)
 !

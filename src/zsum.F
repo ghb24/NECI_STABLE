@@ -1,7 +1,7 @@
 C.. Perform the contour integration to calculate the Z-sum
       SUBROUTINE ZSUM(XIS,I_H,I_P,I_POINTS,R,SUM,SUMI)
          COMPLEX*16 Z,ZI,ZRET,ZS,DZ
-         INTEGER I_H,I_P,I_POINTS1
+         INTEGER I_H,I_P
          REAL*8 THETA,R,SUM,SUMI,DTHETA,PI,P
 C.. Simpson's Rule: Integral(f(x)) = (1/3)h(f0+4(f1+f3+...+f(2n-1))
 C..                                  +2(f2+f4+...+f(2n-2)+f2n
@@ -67,10 +67,8 @@ C.. NB P is no longer integer, but is REAL
       SUBROUTINE ZPRIM1(XIS,I_H,Z,ZRET)
          IMPLICIT NONE
          INTEGER I_H,I
-         REAL*8 P
-         COMPLEX*16 Z,ZI,ZREIT,ZRET
+         COMPLEX*16 Z,ZRET
          REAL*8 XIS(1:I_H)
-         REAL*8 R,THETA
          ZRET=(1,0)
          DO I=1,I_H
             ZRET=ZRET/(Z-XIS(I))
@@ -80,11 +78,10 @@ C.. NB P is no longer integer, but is REAL
 C.. Calculate a primitive element in the contour integration - handle
 C.. the Z^P section
 C.. NB P is no longer integer, but is REAL
-      SUBROUTINE ZPRIM2(P,Z,R,THETA,ZMZ0,ZRET)
+      SUBROUTINE ZPRIM2(P,Z,ZMZ0,ZRET)
          IMPLICIT NONE
          REAL*8 P
          COMPLEX*16 Z,ZI,ZMZ0,ZRET,ZR
-         REAL*8 R,THETA
          LOGICAL LSAME2
          ZI=(0,1)
          IF(LSAME2(Z,1.D0)) THEN
@@ -104,7 +101,7 @@ C.. Perform the contour integration to calculate the Z-sum
          IMPLICIT NONE
          REAL*8 ZSD1(*),ZSD2(*)
          COMPLEX*16 Z,ZI,ZRET,ZS,DZ,Z0,Z2
-         INTEGER I_H,I_P,I_POINTS,I
+         INTEGER I_P,I_POINTS,I
          REAL*8 THETA,R,SUM,SUMI,DTHETA,PI,P
 C.. Simpson's Rule: Integral(f(x)) = (1/3)h(f0+4(f1+f3+...+f(2n-1))
 C..                                  +2(f2+f4+...+f(2n-2)+f2n

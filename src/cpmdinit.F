@@ -14,7 +14,6 @@
          REAL*8 ARR(LEN,2)
          INTEGER I,J
          TYPE(Symmetry) iDecomp
-         LOGICAL IMPROP(NKPS)
          LOGICAL ALL1D
          NBASISMAX(1,1)=0
          NBASISMAX(2,1)=0
@@ -116,15 +115,15 @@ C.. group
          ENDIF
       END
       
-      SUBROUTINE GENCPMDSYMREPS(G1,NBASIS,ARR,BRR)
+      SUBROUTINE GENCPMDSYMREPS(G1,NBASIS,ARR)
          use CPMDData, only: DegenTol
          use SystemData, only: BasisFN
          use sym_mod
          IMPLICIT NONE
-         INTEGER BRR(NBASIS),NBASIS
+         INTEGER NBASIS
          type(BasisFn) G1(*)
          REAL*8 ARR(NBASIS,2)
-         CALL GENSYMREPS(G1,NBASIS,ARR,BRR,DEGENTOL)
+         CALL GENSYMREPS(G1,NBASIS,ARR,DEGENTOL)
       END
 
       SUBROUTINE EXTRACTSYMLABELS
@@ -140,8 +139,7 @@ C.. group
          use CPMDData, only: Rot_Char
          use sym_mod, only: WriteIrrepTab
          IMPLICIT NONE
-         INTEGER I,J,K
-         INTEGER LABELS(2,NSTATES)
+         INTEGER I,J
          character(*), parameter :: this_routine='ExtractSymLabels'
          NSYMLABELS=0
          DO I=1,NSTATES
@@ -203,7 +201,7 @@ C.. f_i is the occupation number for state i.
 C.. delta_ij is the Dirac delta.
 C.. (ab|cd) is the 4-index Coulomb integral between states, i,j,k,l
 C.. h_ij=(E_i+xi) delta_ij - Sum_k f_k (ik|jk)
-      SUBROUTINE CPMDINIT2INDINT(NHG,NORBUSED,NBASISMAX,ISS,G1,NEL,
+      SUBROUTINE CPMDINIT2INDINT(NHG,NORBUSED,G1,NEL,
      &      ECORE,TORDER,ARR,BRR,iCacheFlag)
          use constants, only: dp
          use CPMDData, only: nStates,PIInt,EIonIon,EigenValues,tagPIInt
@@ -218,14 +216,11 @@ C.. h_ij=(E_i+xi) delta_ij - Sum_k f_k (ik|jk)
          use sort_mod
          use sym_mod
          IMPLICIT NONE
-         INTEGER NHG,NTFROZEN
+         INTEGER NHG
          HElement_t CPMD1EINT(NSTATES,NSTATES)
-         INTEGER I,J,K,NSTATESUSED,NORBUSED,II,JJ
+         INTEGER I,J,NSTATESUSED,NORBUSED,II,JJ
          type(timer), save :: proc_timer
-         REAL*8 F,ALAT(3)  !ALAT just dummy for GetUMatEl.
-         HElement_t U,TOT,sum1
-         INTEGER ISS,NBASISMAX(*)
-         HElement_t UMAT(0)  ! UMAT dummy for GetUMatEl.
+         HElement_t TOT
 
          TYPE(BASISFN) G1(NHG)
          REAL*8 ECORE
@@ -235,12 +230,9 @@ C.. h_ij=(E_i+xi) delta_ij - Sum_k f_k (ik|jk)
          LOGICAL TORDER
          INTEGER BRR(NSTATES*2),NLOCK
          REAL*8 ARR(NSTATES*2,2)
-         complex*16,allocatable,save :: HarInt(:,:),FockMat(:,:)
+         complex*16,allocatable,save :: HarInt(:,:)
          INTEGER iCacheFlag
          ! For ZHEEV (eigenvalues of FockMatrix).
-         integer :: info
-         real*8,allocatable :: rwork(:),FockEigv(:)
-         complex*16,allocatable :: work(:)
          integer :: tagHarInt=0
          character(*), parameter :: this_routine='CPMDINIT2INDINT'
          proc_timer%timer_name='CPMDINIT2I'

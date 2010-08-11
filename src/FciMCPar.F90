@@ -14,7 +14,7 @@ MODULE FciMCParMod
     use SystemData, only: nel, Brr, nBasis, nBasisMax, LMS, tHPHF, tHub, &
                           tReal, tRotatedOrbs, tFindCINatOrbs, tFixLz, &
                           LzTot, tUEG, tLatticeGens, tCSF, G1, Arr, &
-                          tNoBrillouin
+                          tNoBrillouin,tKPntSym
     use bit_reps, only: NIfD, NIfTot, NIfDBO, NIfY
     use CalcData, only: InitWalkers, NMCyc, DiagSft, Tau, SftDamp, StepsSft, &
                         OccCASorbs, VirtCASorbs, tFindGroundDet, NEquilSteps,&
@@ -49,7 +49,7 @@ MODULE FciMCParMod
     USE FciMCData
     USE AnnihilationMod
     use DetBitops, only: EncodeBitDet, DetBitEQ, DetBitLT, FindExcitBitDet, &
-                         FindBitExcitLevel
+                         FindBitExcitLevel, countbits
     use csf, only: get_csf_bit_yama, iscsf, csf_orbital_mask, get_csf_helement
     use hphf_integrals, only: hphf_diag_helement, hphf_off_diag_helement, &
                               hphf_spawn_sign, hphf_off_diag_helement_spawn
@@ -68,7 +68,8 @@ MODULE FciMCParMod
     use spin_project, only: tSpinProject, spin_proj_interval, &
                             spin_proj_gamma, get_spawn_helement_spin_proj, &
                             generate_excit_spin_proj, attempt_die_spin_proj, &
-                            iter_data_spin_proj, test_spin_proj
+                            iter_data_spin_proj, test_spin_proj, &
+                            spin_proj_shift
 
     implicit none
 
@@ -77,14 +78,15 @@ MODULE FciMCParMod
     SUBROUTINE FciMCPar(Weight,Energyxw)
 
         real(dp) :: Weight, Energyxw
-        INTEGER :: i,j,error,HFConn
-        CHARACTER(len=*), PARAMETER :: this_routine='FciMCPar'
-        HElement_t :: Hamii
+        INTEGER :: error
         LOGICAL :: TIncrement,tWritePopsFound,tSoftExitFound,tSingBiasChange
         REAL(4) :: s,etime,tstart(2),tend(2)
         INTEGER(int64) :: MaxWalkers,MinWalkers
         real*8 :: AllTotWalkers,MeanWalkers,Inpair(2),Outpair(2)
+
         integer, dimension(lenof_sign) :: tmp_sgn
+        integer :: tmp_int(lenof_sign)
+        real(dp) :: grow_rate
 
         TDebug=.false.  !Set debugging flag
 
@@ -176,6 +178,7 @@ MODULE FciMCParMod
                 ! Calculate the a new value for the shift (amongst other
                 ! things). Generally, collate information from all processors,
                 ! update statistics and output them to the user.
+!>>>!                iter_data_fciqmc%update_growth = iter_data_fciqmc%update_growth + iter_data_spin_proj%update_growth
                 if (tCCMC) then
                     call calculate_new_shift_wrapper (iter_data_ccmc, &
                                                       TotParts)
@@ -183,6 +186,33 @@ MODULE FciMCParMod
                     call calculate_new_shift_wrapper (iter_data_fciqmc, &
                                                       TotParts)
                 endif
+
+                !! Quick hack for spin projection
+                !if (tSpinProject .and. (mod(iter/stepssft, spin_proj_interval) == 0 .or. &
+                !    spin_proj_interval == 0)) then
+
+
+                !    call MPIReduce(iter_data_spin_proj%update_growth, &
+                !                   MPI_SUM, tmp_int)
+                !    if (iProcIndex == Root) then
+                !        grow_rate = (sum(tmp_int + &
+                !                     iter_data_spin_proj%tot_parts_old)) &
+                !                    / real(sum(iter_data_spin_proj%tot_parts_old), dp)
+                !        iter_data_spin_proj%tot_parts_old = AllTotPartsOld
+
+                !        if (.not. tSinglePartPhase) then
+                !            spin_proj_shift = spin_proj_shift - ((log(grow_rate) * SftDamp) / &
+                !                              (spin_proj_gamma * iter_data_spin_proj%update_iters))
+                !        endif
+
+                !    endif
+
+                !    call MPIBCast (spin_proj_shift, root)
+
+                !    iter_data_spin_proj%update_growth = 0
+                !    iter_data_spin_proj%update_iters = 0
+                !endif
+
 
                 IF((tTruncCAS.or.tTruncSpace.or.tTruncInitiator).and.(Iter.gt.iFullSpaceIter).and.(iFullSpaceIter.ne.0)) THEN
 !Test if we want to expand to the full space if an EXPANDSPACE variable has been set
@@ -210,7 +240,7 @@ MODULE FciMCParMod
                     CALL WriteToPopsfileParOneArr()
                 ENDIF
                 IF(tSingBiasChange) THEN
-                    CALL CalcApproxpDoubles(HFConn)
+                    CALL CalcApproxpDoubles()
                 ENDIF
             
             ENDIF
@@ -418,7 +448,7 @@ MODULE FciMCParMod
                 implicit none
                 integer(kind=n_int), intent(in) :: iLutI(0:nifTot)
                 integer, intent(in) :: ic, ex(2,2)
-                integer(kind=n_int), intent(out) :: iLutJ(0:nIfTot)
+                integer(kind=n_int), intent(inout) :: iLutJ(0:nIfTot)
             end subroutine
         end interface
     
@@ -432,7 +462,13 @@ MODULE FciMCParMod
         implicit none
         integer(kind=n_int), intent(in) :: ilutI(0:niftot)
         integer, intent(in) :: ic, ex(2,2)
-        integer(kind=n_int), intent(out) :: ilutj(0:niftot)
+        integer(kind=n_int), intent(inout) :: ilutj(0:niftot)
+
+        ! Avoid compiler warnings
+        integer :: iUnused
+        integer(n_int) :: iUnused2
+        iLutJ(0) = iLutJ(0); iUnused = IC; iUnused = ex(2,2)
+        iUnused2 = iLutI(0)
     end subroutine
 
     subroutine set_new_child_stats (new_child_stats)
@@ -489,9 +525,6 @@ MODULE FciMCParMod
                                  get_spawn_helement, encode_child, &
                                  new_child_stats, attempt_die, &
                                  iter_data)
-
-        USE FciMCLoggingMOD , only : TrackSpawnAttempts
-        use detbitops, only : countbits
 
         ! **********************************************************
         ! ************************* NOTE ***************************
@@ -577,7 +610,7 @@ MODULE FciMCParMod
                 implicit none
                 integer(kind=n_int), intent(in) :: ilutI(0:niftot)
                 integer, intent(in) :: ic, ex(2,2)
-                integer(kind=n_int), intent(out) :: iLutJ(0:nIfTot)
+                integer(kind=n_int), intent(inout) :: iLutJ(0:nIfTot)
             end subroutine
             subroutine new_child_stats (iter_data, iLutI, iLutJ, ic, &
                                         walkExLevel, child)
@@ -612,11 +645,13 @@ MODULE FciMCParMod
         integer(kind=n_int) :: iLutnJ(0:niftot)
         integer :: IC, walkExcitLevel, ex(2,2), TotWalkersNew, part_type
         integer, dimension(ScratchSize) :: scratch1, scratch2, scratch3
-        integer(int64) :: HashTemp, tot_parts_tmp(lenof_sign)
-        logical :: tFilled, tParity, tHFFound, tHFFoundTemp
+        integer(int64) :: tot_parts_tmp(lenof_sign)
+        logical :: tFilled, tParity
         real(dp) :: prob, HDiagCurr
         HElement_t :: HDiagTemp
+#ifdef __DEBUG
         character(*), parameter :: this_routine = 'PerformFCIMCycPar' 
+#endif
 
         call set_timer(Walker_Time,30)
 
@@ -713,7 +748,7 @@ MODULE FciMCParMod
             ! the 'root' determinant. Should not happen in an (unrotated)
             ! HF basis.
             if (tFindGroundDet .and. HDiagCurr < 0) then
-                call ChangeRefDet (HDiagCurr, DetCurr, CurrentDets(:,j))
+                call ChangeRefDet (DetCurr)
                 exit
             endif
 
@@ -810,7 +845,8 @@ MODULE FciMCParMod
         ! walkers should be in a seperate array (SpawnedParts) and the other 
         ! list should be ordered.
         call set_timer (annihil_time, 30)
-        call DirectAnnihilation (totWalkersNew, iter_data)
+        call DirectAnnihilation (totWalkersNew, iter_data,.false.) !.false. for not single processor
+        TotWalkers=TotWalkersNew
         CALL halt_timer(Annihil_Time)
         
         ! Update iteration data
@@ -818,9 +854,6 @@ MODULE FciMCParMod
                                 - iter_data%ndied - iter_data%nannihil &
                                 - iter_data%naborted
         iter_data%update_iters = iter_data%update_iters + 1
-!        write(6,*) "BSST",iter_data%nborn,",", iter_data%ndied, ",",iter_data%nannihil,",",iter_data%naborted
-!        write(6,*) "ASST",iter_data%update_growth,",", TotParts, ",",tot_parts_tmp 
-        ASSERT(all(iter_data%update_growth == TotParts - tot_parts_tmp))
 
     end subroutine
 
@@ -831,6 +864,7 @@ MODULE FciMCParMod
         integer, intent(in) :: ic, walkExLevel
         integer, dimension(lenof_sign), intent(in) :: child
         type(fcimc_iter_data), intent(inout) :: iter_data
+        integer(n_int) :: iUnused
        
         ! Count the number of children born
         NoBorn = NoBorn + sum(abs(child))
@@ -841,6 +875,9 @@ MODULE FciMCParMod
         if (sum(abs(child)) > abs(iPartBloom)) then
             iPartBloom = sign(sum(abs(child)), 2*ic - 3)
         endif
+
+        ! Avoid compiler warnings
+        iUnused = iLutI(0); iUnused = iLutJ(0); iUnused = walkExLevel
 
     end subroutine
                         
@@ -926,15 +963,18 @@ MODULE FciMCParMod
 !A flag of 0 means the determinant is an initiator, and 1 it is a non-initiator.
         INTEGER , INTENT(IN) :: j,VecSlot,Iter
         INTEGER , DIMENSION(lenof_sign) :: CurrentSign
+        INTEGER :: ParentInitiatorInit
         LOGICAL :: tDetinCAS
 
         CALL extract_sign(CurrentDets(:,j),CurrentSign)
+
+        ParentInitiatorInit = extract_flags(CurrentDets(:,j))
 
         IF(.not.tAddtoInitiator) THEN
 !If tAddtoInitiator is not on, then it is not possible to dynamically add initiators into the intiator space 
 !based on their population - the initiators remain as those in the specified CAS space and this is determined
 !when a new determinant is merged into the main array.
-            ParentInitiator=CurrentDets(NIfTot,j)
+            ParentInitiator=ParentInitiatorInit
             IF(ParentInitiator.eq.0) THEN
                 NoInitDets=NoInitDets+1.D0
                 NoInitWalk=NoInitWalk+(ABS(REAL(CurrentSign(1))))
@@ -942,12 +982,11 @@ MODULE FciMCParMod
                 NoNonInitDets=NoNonInitDets+1.D0
                 NoNonInitWalk=NoNonInitWalk+(ABS(REAL(CurrentSign(1))))
             ENDIF
-        ELSEIF(CurrentDets(NIfTot,j).eq.1) THEN
+        ELSEIF(ParentInitiatorInit.eq.1) THEN
             ! Determinant wasn't previously initiator 
             ! - want to test if it has now got a large enough population 
             ! to become an initiator.
             IF(ABS(CurrentSign(1)).gt.InitiatorWalkNo) THEN
-                CurrentDets(NIfTot,j)=0
                 ParentInitiator=0
                 NoAddedInitiators=NoAddedInitiators+1.D0
                 NoInitDets=NoInitDets+1.D0
@@ -971,19 +1010,16 @@ MODULE FciMCParMod
                 ! If the determinant is in the fixed initiator space, it stays initiator 
                 ! even if its populations drops.
                 ParentInitiator=0
-                CurrentDets(NIfTot,j)=0
                 NoInitDets=NoInitDets+1.D0
                 NoInitWalk=NoInitWalk+(ABS(REAL(CurrentSign(1))))
             ELSEIF(DetBitEQ(CurrentDets(:,j),iLutHF,NIfDBO)) THEN
                 ! HF stays initiator.
                 ParentInitiator=0
-                CurrentDets(NIfTot,j)=0
                 NoInitDets=NoInitDets+1.D0
                 NoInitWalk=NoInitWalk+(ABS(REAL(CurrentSign(1))))
             ELSEIF(ABS(CurrentSign(1)).le.InitiatorWalkNo) THEN
                 ! Population has fallen too low to remain an 
                 ! initiator - initiator status removed.
-                CurrentDets(NIfTot,j)=1
                 ParentInitiator=1
                 NoAddedInitiators=NoAddedInitiators-1.D0
                 NoNonInitDets=NoNonInitDets+1.D0
@@ -991,36 +1027,36 @@ MODULE FciMCParMod
             ELSE
                 ! Population still high enough - remains initiator.
                 ParentInitiator=0
-                CurrentDets(NIfTot,j)=0
                 NoInitDets=NoInitDets+1.D0
                 NoInitWalk=NoInitWalk+(ABS(REAL(CurrentSign(1))))
             ENDIF
 
             IF((tHistInitPops.and.(MOD(Iter,HistInitPopsIter).eq.0))    &
                  .or.tPrintHighPop)                                     & 
-                 CALL HistInitPopulations(CurrentSign(1),VecSlot,Iter)
+                 CALL HistInitPopulations(CurrentSign(1),VecSlot)
  
         ELSE
             !If we are not retesting the initiators, they stay as initiators.
             ParentInitiator=0
-            CurrentDets(NIfTot,j)=0
             NoInitDets=NoInitDets+1.D0
             NoInitWalk=NoInitWalk+(ABS(REAL(CurrentSign(1))))
 
             IF((tHistInitPops.and.(MOD(Iter,HistInitPopsIter).eq.0))    &
                  .or.tPrintHighPop)                                     & 
-                 CALL HistInitPopulations(CurrentSign(1),VecSlot,Iter)
+                 CALL HistInitPopulations(CurrentSign(1),VecSlot)
  
         ENDIF
+
+        CALL encode_flags(CurrentDets(:,j),ParentInitiator)
 
 !        WRITE(6,*) 'ParentFlag',ParentInitiator
 
     END SUBROUTINE CalcParentFlag
 
 
-    SUBROUTINE HistInitPopulations(SignCurr,VecSlot,Iter)
+    SUBROUTINE HistInitPopulations(SignCurr,VecSlot)
         USE FciMCLoggingMOD, only : InitBinMin,InitBinIter
-        INTEGER , INTENT(IN) :: VecSlot,Iter,SignCurr
+        INTEGER , INTENT(IN) :: VecSlot,SignCurr
         INTEGER :: InitBinNo
 
 
@@ -1065,8 +1101,6 @@ MODULE FciMCParMod
     SUBROUTINE FindHighPopDet()
         USE constants, only : MpiDetInt
 !Found the highest population on each processor, need to find out which of these has the highest of all.
-        INTEGER :: MaxPopsNeg(nProcessors),MaxPopsPos(nProcessors),error,i,MaxPopPos,MaxPopNeg,MaxPopNegProc
-        INTEGER :: MaxPopPosProc,InitDetCurr(NEl)
         INTEGER(KIND=n_int) :: DetPos(0:NIfTot),DetNeg(0:NIfTot)
         INTEGER :: HighPopInNeg(2),HighPopInPos(2),HighPopoutNeg(2),HighPopoutPos(2)
         INTEGER, DIMENSION(lenof_sign) :: TempSign
@@ -1257,9 +1291,8 @@ MODULE FciMCParMod
         use CalcData, only: iPopsFileNoWrite
         use Logging, only: tIncrementPops
         use constants, only: size_n_int,MpiDetInt,n_int
-        REAL*8 :: TempSumNoatHF
         INTEGER :: error
-        INTEGER(int64) :: WalkersonNodes(0:nProcessors-1)
+        integer(int64) :: WalkersonNodes(0:nProcessors-1)
         INTEGER :: Tag,Total,i,j,k
         INTEGER(KIND=n_int), ALLOCATABLE :: OrigParts(:,:)
         INTEGER :: OrigPartsTag=0
@@ -1449,19 +1482,19 @@ MODULE FciMCParMod
         LOGICAL :: exists,tBinRead
         INTEGER :: AvWalkers,WalkerstoReceive(nProcessors)
         INTEGER*8 :: NodeSumNoatHF(nProcessors)
-        INTEGER(kind=int64) :: TempTotParts(lenof_sign),TempCurrWalkers
-        INTEGER :: TempInitWalkers,error,i,j,k,l,total,ierr,MemoryAlloc,Tag,Proc,CurrWalkers,ii
+        integer(int64) :: TempTotParts(lenof_sign),TempCurrWalkers
+        INTEGER :: TempInitWalkers,error,i,j,l,total,ierr,MemoryAlloc,Tag,Proc,CurrWalkers,ii
         INTEGER , DIMENSION(lenof_sign) :: TempSign
         INTEGER*8 :: iLutTemp64(0:nBasis/64+1)
         INTEGER :: iLutTemp32(0:nBasis/32+1)
         INTEGER(KIND=n_int) :: iLutTemp(0:NIfTot)
-        INTEGER AvSumNoatHF,VecSlot,IntegerPart,TempnI(NEl),ExcitLevel
-        INTEGER :: VecInd,DetsMerged,NIfWriteOut,pos,orb,PopsVersion, iunit
-        REAL*8 :: r,FracPart,TempTotWalkers,Gap,DiagSftTemp
+        INTEGER :: AvSumNoatHF,IntegerPart,TempnI(NEl),ExcitLevel
+        INTEGER :: NIfWriteOut,pos,orb,PopsVersion, iunit
+        REAL*8 :: r,FracPart,Gap,DiagSftTemp
         HElement_t :: HElemTemp
         CHARACTER(len=*), PARAMETER :: this_routine='ReadFromPopsfilePar'
         character(255) :: popsfile,FirstLine
-        character(len=24) :: junk,junk2,junk3,junk4,junk5
+        character(len=24) :: junk,junk2,junk3,junk4
         LOGICAL :: tPop64BitDets,tPopHPHF,tPopLz,tPopInitiator
         integer(n_int) :: ilut_largest(0:NIfTot)
         integer :: sign_largest
@@ -1928,11 +1961,11 @@ MODULE FciMCParMod
         CALL MPIReduce(TempTotParts,MPI_SUM,AllTotParts)
 
         IF(iProcIndex.eq.root) AllTotPartsOld=AllTotParts
-        WRITE(6,'(A,I20)') ' The total number of particles read from the POPSFILE is: ',AllTotParts(1)
+        write(6,'(A,i20)') ' The total number of particles read from the POPSFILE is: ',AllTotParts(1)
 
         if (tReadPopsRestart) then
             tPopsAlreadyRead = .true.
-            call ChangeRefDet (Hii, ProjEDet, iLutRef)
+            call ChangeRefDet (ProjEDet)
             tPopsAlreadyRead = .false.
         endif
 
@@ -2046,9 +2079,14 @@ MODULE FciMCParMod
             end function
         end interface
         
-        real(dp) :: rat, r, MatEl
-        integer :: extracreate,i
+        real(dp) :: rat, r
+        integer :: extracreate, iUnused
         HElement_t :: rh
+#ifdef __CMPLX
+        ! Avoid compiler warnings when compiling the real version.
+        integer :: i
+        real(dp) :: MatEl
+#endif
 
         ! If we are generating multiple excitotions, then the probability of
         ! spawning on them must be reduced by the number of excitations
@@ -2172,7 +2210,12 @@ MODULE FciMCParMod
                 child(1) = -extraCreate*nint(sign(1.0_dp, wsign(1)*real(rh,dp)))
             endif
 
+            ! Avoid compiler warnings
+            iUnused = part_type
+
 #endif
+        ! Avoid compiler warnings
+        iUnused = walkExcitLevel
 
     end function
 
@@ -2181,13 +2224,12 @@ MODULE FciMCParMod
     INTEGER FUNCTION AttemptCreatePar(DetCurr,iLutCurr,WSign,nJ,iLutnJ,Prob,IC,Ex,tParity)
         use GenRandSymExcitNUMod , only : GenRandSymExcitBiased
         use Logging, only : CCMCDebug
-        INTEGER :: DetCurr(NEl),nJ(NEl),IC,StoreNumTo,StoreNumFrom,DetLT,i,ExtraCreate,Ex(2,2),Bin,PartInd,ExcitLev
-        INTEGER(KIND=n_int) :: iLutCurr(0:NIfTot),iLutnJ(0:NIfTot),iLut(0:NIfTot),iLut2(0:NIfTot)
-        LOGICAL :: tParity,SymAllowed,tSuccess
-        integer(KIND=n_int) :: yama(NIfY)
+        INTEGER :: DetCurr(NEl),nJ(NEl),IC,ExtraCreate,Ex(2,2),Bin
+        INTEGER(KIND=n_int) :: iLutCurr(0:NIfTot),iLutnJ(0:NIfTot)
+        LOGICAL :: tParity
         REAL*8 :: Prob,r,rat
         integer, dimension(lenof_sign), intent(in) :: wSign
-        HElement_t :: rh,rhcheck
+        HElement_t :: rh
 
         IF(tMCExcits) THEN
 !If we are generating multiple excitations, then the probability of spawning on them must be reduced by the number of excitations generated.
@@ -2401,7 +2443,6 @@ MODULE FciMCParMod
         type(fcimc_iter_data), intent(inout) :: iter_data
         integer, dimension(lenof_sign) :: iDie
         integer, dimension(lenof_sign) :: CopySign
-        integer :: i
 
         ! Do particles on determinant die? iDie can be both +ve (deaths), or
         ! -ve (births, if shift > 0)
@@ -2479,8 +2520,7 @@ MODULE FciMCParMod
         integer, dimension(lenof_sign) :: ndie
 
         real(dp) :: r, rat, fac
-        logical :: tDetInCAS
-        integer :: i
+        integer :: i, iUnused
 
         fac = tau * (Kii-DiagSft)
 
@@ -2496,6 +2536,9 @@ MODULE FciMCParMod
             r = genrand_real2_dSFMT() 
             if (abs(rat) > r) ndie(i) = ndie(i) + nint(sign(1.0_dp, rat))
         enddo
+
+        ! Avoid compiler warnings
+        iUnused = DetCurr(1)
 
     end function
 
@@ -2540,7 +2583,7 @@ MODULE FciMCParMod
 !The 'length' will be returned as the length of the new list.
 !In this version, the hamiltonian matrix elements will be fed through with the rest of the list and taken with the particles.
     SUBROUTINE SortCompressListswH(Length,PartList,SignList,HList)
-        INTEGER :: Length,SignList(Length),j
+        INTEGER :: Length,SignList(Length)
         INTEGER(KIND=n_int) :: PartList(0:NIfTot,Length)
         REAL*8 :: HList(Length)
         INTEGER :: i,DetsMerged,VecInd
@@ -2580,7 +2623,7 @@ MODULE FciMCParMod
 
     SUBROUTINE WriteHistogramEnergies()
         use util_mod, only: get_free_unit
-        INTEGER :: error,i, io(8)
+        INTEGER :: i, io(8)
         REAL*8 :: Norm,EnergyBin
 
         IF(iProcIndex.eq.Root) THEN
@@ -2760,7 +2803,7 @@ MODULE FciMCParMod
     SUBROUTINE PrintFCIMCPsi()
         use DetCalcData , only : FCIDets
         use util_mod, only: get_free_unit
-        INTEGER :: error,i,nI(NEl),ExcitLevel,j, iunit
+        INTEGER :: i,nI(NEl),ExcitLevel,j, iunit
         REAL*8 :: norm,norm1
 
         CALL MPISum(Histogram,AllHistogram)
@@ -2774,6 +2817,7 @@ MODULE FciMCParMod
             AllHistogram(i)=AllHistogram(i)/norm1
         enddo
 
+        iunit = 0
         IF(tPrintFCIMCPsi) THEN
 !Order and print wavefunction
 
@@ -2812,11 +2856,8 @@ MODULE FciMCParMod
     SUBROUTINE WriteHistogram()
         use SystemData , only : BasisFN
         use util_mod, only: get_free_unit
-        INTEGER :: i,j,bits,error,IterRead, io1, io2, io3
-        INTEGER(Kind=n_int) :: iLut(0:NIfTot)
-        TYPE(BasisFN) :: ISym
+        INTEGER :: i,IterRead, io1, io2, io3
         REAL*8 :: norm,norm1,norm2,norm3,ShiftRead,AllERead,NumParts
-        HElement_t :: HEL
         CHARACTER(len=22) :: abstr,abstr2
         LOGICAL :: exists
 
@@ -2959,7 +3000,7 @@ MODULE FciMCParMod
 !This routine will write out the average hamiltonian from the spawning run up until now.
     SUBROUTINE WriteHamilHistogram()
         use util_mod, only: get_free_unit
-        INTEGER :: i,j,error
+        INTEGER :: i,j
         integer :: iunit
         CHARACTER(len=22) :: abstr
 
@@ -3090,18 +3131,22 @@ MODULE FciMCParMod
                               &value.')
             endif
 
-            ! Check how balanced the load on each processor is (even though
-            ! we cannot load balance with direct annihilation).
-            walkers_diff = MaxWalkersProc - MinWalkersProc
-            mean_walkers = AllTotWalkers / real(nProcessors,dp)
-            if (walkers_diff > nint(mean_walkers / 10.d0) .and. &
-                sum(AllTotParts) > real(nProcessors * 500, dp)) then
-                root_write (6, '(a, f20.10, 2i12)') &
-                    'Number of determinants assigned to each processor &
-                    &unbalanced: ', (walkers_diff * 10.d0) / &
-                    real(mean_walkers), MinWalkersProc, MaxWalkersProc
-            endif
+! AJWT dislikes doing this type of if based on a (seeminly unrelated) input option, but can't see another easy way.
+!  TODO:  Something to make it better
 
+            if(.not.tCCMC) then
+               ! Check how balanced the load on each processor is (even though
+               ! we cannot load balance with direct annihilation).
+               walkers_diff = MaxWalkersProc - MinWalkersProc
+               mean_walkers = AllTotWalkers / real(nProcessors,dp)
+               if (walkers_diff > nint(mean_walkers / 10.d0) .and. &
+                   sum(AllTotParts) > real(nProcessors * 500, dp)) then
+                   root_write (6, '(a, f20.10, 2i12)') &
+                       'Number of determinants assigned to each processor &
+                       &unbalanced: ', (walkers_diff * 10.d0) / &
+                       real(mean_walkers), MinWalkersProc, MaxWalkersProc
+               endif
+            endif
 
             ! Deal with blocking analysis
             !
@@ -3150,7 +3195,6 @@ MODULE FciMCParMod
         integer :: int_tmp(2), pop_highest, proc_highest, pop_change
         integer :: det(nel), i
         HElement_t :: h_tmp
-        character(*), parameter :: this_routine = 'population_check'
 
         if (tCheckHighestPop) then
 
@@ -3266,7 +3310,7 @@ MODULE FciMCParMod
                         tCheckHighestPopOnce = .false.
                     endif
 
-                    call ChangeRefDet (Hii, ProjEDet, iLutRef)
+                    call ChangeRefDet (ProjEDet)
                 endif
 
             endif
@@ -3314,7 +3358,7 @@ MODULE FciMCParMod
 
         ! 64bit integers
         call MPIReduce ((/TotWalkers, TotParts, SumNoatHF, tot_parts_new/), &
-                        MPI_SUM, int64_tmp)
+                        MPI_SUM, int64_tmp(1:2+2*lenof_sign))
         AllTotWalkers = int64_tmp(1)
         AllTotParts = int64_tmp(2:1+lenof_sign)
         AllSumNoatHF = int64_tmp(2+lenof_sign)
@@ -3378,7 +3422,13 @@ MODULE FciMCParMod
             ! it.
             tReZeroShift = .false.
             if (TSinglePartPhase) then
-                tot_walkers = int(InitWalkers, int64) * int(nProcessors,int64)
+! AJWT dislikes doing this type of if based on a (seeminly unrelated) input option, but can't see another easy way.
+!  TODO:  Something to make it better
+                if(.not.tCCMC) then
+                    tot_walkers = int(InitWalkers, int64) * int(nProcessors,int64)
+                else
+                    tot_walkers = int(InitWalkers, int64)
+                endif
                 if ( (sum(AllTotParts) > tot_walkers) .or. &
                      (AllNoatHF > MaxNoatHF)) then
                     write (6, *) 'Exiting the single particle growth phase - &
@@ -3465,6 +3515,8 @@ MODULE FciMCParMod
         endif ! iProcIndex == root
 
         ! Broadcast the shift from root to all the other processors
+        call MPIBcast (tSinglePartPhase, Root)
+        call MPIBcast (VaryShiftIter, Root)
         call MPIBcast (DiagSft, Root)
 
     end subroutine
@@ -3649,7 +3701,7 @@ MODULE FciMCParMod
         use CalcData, only : VirtCASorbs,OccCASorbs,G_VMC_Seed
         use CalcData , only : MemoryFacPart,MemoryFacAnnihil,MemoryFacSpawn,TauFactor,StepsSftImag,tCheckHighestPop
         use Determinants , only : GetH0Element3
-        use SymData , only : nSymLabels,SymLabelList,SymLabelCounts
+        use SymData , only : nSymLabels,SymLabelList,SymLabelCounts,TwoCycleSymGens
         use Logging , only : tTruncRODump
         use DetCalcData, only : NMRKS,tagNMRKS,FCIDets
         use SymExcit3, only : CountExcitations3 
@@ -3658,17 +3710,17 @@ MODULE FciMCParMod
         use util_mod, only: get_free_unit
         use sym_mod
         use HElem
-        INTEGER :: ierr,i,j,k,l,DetCurr(NEl),ReadWalkers,TotWalkersDet,HFDetTest(NEl),Seed,alpha,beta,symalpha,symbeta,endsymstate
-        INTEGER :: DetLT,VecSlot,error,HFConn,iMaxExcit,nStore(6),nJ(Nel),BRR2(nBasis),LargestOrb,nBits,HighEDet(NEl)
+        INTEGER :: ierr,i,j,HFDetTest(NEl),Seed,alpha,beta,symalpha,symbeta,endsymstate
+        INTEGER :: HFConn,LargestOrb,nBits,HighEDet(NEl)
         INTEGER(KIND=n_int) :: iLutTemp(0:NIfDBO)
-        HElement_t :: rh,TempHii
+        HElement_t :: TempHii
         TYPE(BasisFn) HFSym
         REAL*8 :: TotDets,SymFactor,r
         CHARACTER(len=*), PARAMETER :: this_routine='SetupParameters'
         CHARACTER(len=12) :: abstr
-        LOGICAL :: tSuccess,tFoundOrbs(nBasis),tTurnBackBrillouin,FoundPair
+        LOGICAL :: tSuccess,tFoundOrbs(nBasis),FoundPair
         REAL :: Gap
-        INTEGER :: nSingles,nDoubles,HFLz,ChosenOrb
+        INTEGER :: nSingles,nDoubles,HFLz,ChosenOrb,KPnt(3)
 
 !        CALL MPIInit(.false.)       !Initialises MPI - now have variables iProcIndex and nProcessors
         WRITE(6,*) ""
@@ -3723,7 +3775,11 @@ MODULE FciMCParMod
         enddo
         HFHash=CreateHash(HFDet)
         CALL GetSym(HFDet,NEl,G1,NBasisMax,HFSym)
-        IF(tDebug) WRITE(6,"(A,I5)") "Symmetry of reference determinant is: ",INT(HFSym%Sym%S,4)
+        WRITE(6,"(A,I10)") "Symmetry of reference determinant is: ",INT(HFSym%Sym%S,4)
+        IF(tKPntSym) THEN
+            CALL DecomposeAbelianSym(HFSym%Sym%S,KPnt)
+            WRITE(6,"(A,3I5)") "Crystal momentum of reference determinant is: ",KPnt(1),KPnt(2),KPnt(3)
+        ENDIF
         IF(tFixLz) THEN
             CALL GetLz(HFDet,NEl,HFLz)
             WRITE(6,"(A,I5)") "Ml value of reference determinant is: ",HFLz
@@ -3735,7 +3791,6 @@ MODULE FciMCParMod
 !Do a whole lot of tests to see if we can use Brillouins theorem or not.
         IF(tBrillouinsDefault) CALL CheckforBrillouins() 
         
-
 !test the encoding of the HFdet to bit representation.
         ALLOCATE(iLutHF(0:NIfTot),stat=ierr)
         IF(ierr.ne.0) CALL Stop_All(this_routine,"Cannot allocate memory for iLutHF")
@@ -3778,7 +3833,7 @@ MODULE FciMCParMod
         tSuccess=.true.
         tFoundOrbs(:)=.false.
 
-        IF((.not.tHub).and.(.not.tUEG)) THEN
+        IF((.not.tHub).and.(.not.tUEG).and.TwoCycleSymGens) THEN
             do i=1,nSymLabels
 !                WRITE(6,*) "NSymLabels: ",NSymLabels,i-1
                 EndSymState=SymLabelCounts(1,i)+SymLabelCounts(2,i)-1
@@ -3825,8 +3880,6 @@ MODULE FciMCParMod
             WRITE(6,*) "Symmetry information of orbitals not the same in alpha and beta pairs."
             WRITE(6,*) "Symmetry now set up in terms of spin orbitals"
             WRITE(6,*) "I strongly suggest you check that the reference energy is correct."
-        ELSE
-            IF(tDebug) WRITE(6,*) "Simply transferring this into a spin orbital representation."
         ENDIF
 ! From now on, the orbitals are contained in symlabellist2 and symlabelcounts2 rather than the original arrays.
 ! These are stored using spin orbitals.
@@ -3866,10 +3919,12 @@ MODULE FciMCParMod
         ELSE
             exflag=3
         ENDIF
+        IF(.not.tKPntSym) THEN
 !Count all possible excitations - put into HFConn
-        CALL CountExcitations3(HFDet,exflag,nSingles,nDoubles)
-        HFConn=nSingles+nDoubles
-
+!TODO: Get CountExcitations3 working with tKPntSym
+            CALL CountExcitations3(HFDet,exflag,nSingles,nDoubles)
+            HFConn=nSingles+nDoubles
+        ENDIF
 
 !Initialise random number seed - since the seeds need to be different on different processors, subract processor rank from random number
         Seed=abs(G_VMC_Seed-iProcIndex)
@@ -4167,7 +4222,7 @@ MODULE FciMCParMod
             WRITE(6,*) "Brillouin theorem specified, but this will not be in use with the non-uniform excitation generators."
         ENDIF
         WRITE(6,*) "Non-uniform excitation generators in use."
-        CALL CalcApproxpDoubles(HFConn)
+        CALL CalcApproxpDoubles()
         IF(TauFactor.ne.0.D0) THEN
             WRITE(6,*) "TauFactor detected. Resetting Tau."
             Tau=TauFactor/REAL(HFConn,dp)
@@ -4205,9 +4260,11 @@ MODULE FciMCParMod
         ValidSpawnedList(:)=InitialSpawnedSlots(:)
 
         if (TReadPops) then
-            if (tStartSinglePart .and. .not. tReadPopsRestart) &
-                call stop_all (this_routine, &
-                               "ReadPOPS cannot work with StartSinglePart")
+            if (tStartSinglePart .and. .not. tReadPopsRestart) then
+                call warning(this_routine, &
+                               "ReadPOPS cannot work with StartSinglePart: ignoring StartSinglePart")
+                tStartSinglePart = .false.
+            end if
         endif
 
         IF(.not.TReadPops) THEN
@@ -4312,6 +4369,7 @@ MODULE FciMCParMod
         ENDIF
 
 !Special case of defining a det with LMS=0, but which is open shell. No Brillouins if it's a restricted HF calc.
+        tSpinPair = .false.
         IF(tDefineDet.and.(LMS.eq.0).and.(.not.tUHF)) THEN
 !If we are defining our own reference determinant, we want to find out if it is open shell or closed to know whether or not brillouins theorem holds.            
 !If LMS/=0, then it is easy and must be open shell, otherwise we need to consider the occupied orbitals.
@@ -4426,7 +4484,7 @@ MODULE FciMCParMod
 !We pass in the excitation level of the original particle, the two representations of the excitation (we only need the bit-representation of the excitation
 !for HPHF) and the magnitude of the excitation (for determinant representation).
     LOGICAL FUNCTION CheckAllowedTruncSpawn(WalkExcitLevel,nJ,iLutnJ,IC)
-        INTEGER :: nJ(NEl),WalkExcitLevel,ExcitLevel,IC,iGetExcitLevel_2,i,NoInFrozenCore,TotalLz,MinVirt
+        INTEGER :: nJ(NEl),WalkExcitLevel,ExcitLevel,IC,iGetExcitLevel_2,i,NoInFrozenCore,MinVirt
         INTEGER(KIND=n_int) :: iLutnJ(0:NIfTot)
         INTEGER :: kx,ky,kz ! For UEG
 
@@ -4642,13 +4700,16 @@ MODULE FciMCParMod
 
     END SUBROUTINE BinSearchParts3
     
-    SUBROUTINE CalcApproxpDoubles(HFConn)
+    SUBROUTINE CalcApproxpDoubles()
         use SystemData , only : tAssumeSizeExcitgen
         use CalcData , only : SinglesBias
         use SymData , only : SymClassSize
         use SymExcit3 , only : CountExcitations3
-        INTEGER :: HFConn,PosExcittypes,iTotal,i
-        integer :: nSing, nDoub, ncsf, ExcitInd
+        INTEGER :: iTotal
+        integer :: nSing, nDoub, ncsf, excitcount, ierr, iExcit
+        integer :: nStore(6), iMaxExcit, nExcitMemLen, nJ(nel)
+        integer, allocatable :: EXCITGEN(:)
+        character(*), parameter :: this_routine = 'CalcApproxpDoubles'
 
         ! TODO: A better approximation for ncsf.
         if (tCSF) then
@@ -4656,6 +4717,8 @@ MODULE FciMCParMod
         else
             ncsf = 0
         endif
+        nSing=0
+        nDoub=0
 
         IF(tHub.or.tUEG) THEN
             IF(tReal) THEN
@@ -4675,7 +4738,32 @@ MODULE FciMCParMod
 
         WRITE(6,"(A)") " Calculating approximate pDoubles for use with excitation generator by looking a excitations from HF."
         exflag=3
-        CALL CountExcitations3(HFDet,exflag,nSing,nDoub)
+        IF(tKPntSym) THEN
+            !use Alex's old excitation generators.
+            iMaxExcit=0
+            nStore(1:6)=0
+            CALL GenSymExcitIt2(HFDet,NEl,G1,nBasis,.TRUE.,nExcitMemLen,nJ,iMaxExcit,nStore,exFlag)
+            ALLOCATE(EXCITGEN(nExcitMemLen),stat=ierr)
+            IF(ierr.ne.0) CALL Stop_All(this_routine,"Problem allocating excitation generator")
+            EXCITGEN(:)=0
+            CALL GenSymExcitIt2(HFDet,NEl,G1,nBasis,.TRUE.,EXCITGEN,nJ,iMaxExcit,nStore,exFlag)
+        !    CALL GetSymExcitCount(EXCITGEN,DetConn)
+            excitcount=0
+
+        lp2: do while(.true.)
+                CALL GenSymExcitIt2(HFDet,nEl,G1,nBasis,.false.,EXCITGEN,nJ,iExcit,nStore,exFlag)
+                IF(nJ(1).eq.0) exit lp2
+                IF(iExcit.eq.1) THEN
+                    nSing=nSing+1
+                ELSEIF(iExcit.eq.2) THEN
+                    nDoub=nDoub+1
+                ELSE
+                    CALL Stop_All(this_routine,"Trying to generate more than doubles!")
+                ENDIF
+            enddo lp2
+        ELSE
+            CALL CountExcitations3(HFDet,exflag,nSing,nDoub)
+        ENDIF
         iTotal=nSing + nDoub + ncsf
 
         WRITE(6,"(I7,A,I7,A)") NDoub, " double excitations, and ",NSing," single excitations found from HF. This will be used to calculate pDoubles."
@@ -4784,7 +4872,7 @@ MODULE FciMCParMod
     SUBROUTINE StoreDoubs()
         use SystemData , only : tUseBrillouin
         use SymExcit3 , only : CountExcitations3,GenExcitations3
-        INTEGER :: iMaxExcit,nStore(6),ExcitLength,nJ(NEl),ierr,iExcit,VecSlot,nSingles,ExcitMat3(2,2)
+        INTEGER :: nJ(NEl),ierr,VecSlot,nSingles,ExcitMat3(2,2)
         LOGICAL :: tAllExcitFound,tParity
 
         IF(tUseBrillouin) THEN
@@ -4843,10 +4931,10 @@ MODULE FciMCParMod
         INTEGER , intent(in) :: DetCurr(NEl),ExcitLevel
         INTEGER, DIMENSION(lenof_sign) , INTENT(IN) :: WSign
         INTEGER(KIND=n_int), intent(in) :: iLutCurr(0:NIfTot)
-        INTEGER :: i,HighIndex,LowIndex,Bin
+        INTEGER :: i,Bin
         INTEGER :: PartInd,OpenOrbs
         INTEGER(KIND=n_int) :: iLutSym(0:NIfTot)
-        LOGICAL :: CompiPath,tSuccess
+        LOGICAL :: tSuccess
         REAL*8 , intent(in) :: HDiagCurr,dProbFin
         HElement_t :: HOffDiag
 
@@ -4994,14 +5082,10 @@ MODULE FciMCParMod
     END SUBROUTINE SumEContrib
 !This routine will change the reference determinant to DetCurr. It will also re-zero all the energy estimators, since they now correspond to
 !projection onto a different determinant.
-    SUBROUTINE ChangeRefDet(HDiagCurr,DetCurr,iLutCurr)
+    SUBROUTINE ChangeRefDet(DetCurr)
         use Determinants , only : GetH0Element3
         use FciMCLoggingMod , only : RestartBlocking, RestartShiftBlocking
-        INTEGER :: DetCurr(NEl),i,nStore(6),ierr,iMaxExcit
-        INTEGER(KIND=n_int) :: iLutTemp(0:NIfTot), iLutCurr(0:NIfTot)
-        INTEGER :: nJ(NEl)
-        HElement_t :: TempHii
-        REAL*8 :: HDiagCurr
+        INTEGER :: DetCurr(NEl),i
 
 !        CALL Stop_All("ChangeRefDet","This option does not currently work. Bug ghb24 if its needed")
 !Problem is that we need to rerun the simulation from scratch, and particles currently in the simulation will keep on
@@ -5043,12 +5127,9 @@ MODULE FciMCParMod
         use CalcData , only : InitialPart
         use CalcData , only : MemoryFacPart,MemoryFacAnnihil,MemoryFacSpawn
         use constants , only : size_n_int
-        INTEGER :: ierr,i,j,k,l,DetCurr(NEl),ReadWalkers,TotWalkersDet
-        INTEGER :: DetLT,VecSlot,error,MemoryAlloc,Proc
+        INTEGER :: ierr
+        INTEGER :: error,MemoryAlloc
         INTEGER, DIMENSION(lenof_sign) :: InitialSign
-        HElement_t :: rh,TempHii
-        LOGICAL :: exists
-        REAL*8 :: TotDets
         CHARACTER(len=*), PARAMETER :: this_routine='InitFCIMCPar'
             
         if (tReadPops .and. .not. tPopsAlreadyRead) then
@@ -5208,9 +5289,7 @@ MODULE FciMCParMod
     end subroutine InitFCIMCCalcPar
 
     SUBROUTINE DeallocFCIMCMemPar()
-        INTEGER :: i,error,length,temp
         CHARACTER(len=*), PARAMETER :: this_routine='DeallocFciMCMemPar'
-        CHARACTER(LEN=MPI_MAX_ERROR_STRING) :: message
 
 
         IF(tHistSpawn.or.tCalcFCIMCPsi) THEN

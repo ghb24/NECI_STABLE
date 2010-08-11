@@ -16,6 +16,18 @@ arr3_prefix = !
 arr4_prefix = !
 arr5_prefix = !
 arr6_prefix = !
+tmp_init1 = !
+tmp_destroy1 = !
+tmp_init2 = !
+tmp_destroy2 = !
+tmp_init3 = !
+tmp_destroy3 = !
+tmp_init4 = !
+tmp_destroy4 = !
+tmp_init5 = !
+tmp_destroy5 = !
+tmp_init6 = !
+tmp_destroy6 = !
 
 [int64]
 type1 = integer(kind=int64)
@@ -238,14 +250,20 @@ type4 = logical
 type5 = type(excitGenerator)
 arr5_prefix =
 extra_arrs = arr2, arr3, arr4, arr5,
+tmp_init5 = call excitgenerator_init
+tmp_destroy5 = call excitgenerator_destroy
 
 [arr_int_arr_doub_int_logical_doub]
 type5 = real(kind=dp)
+tmp_init5 = !
+tmp_destroy5 = !
 
 [aint_adoub_int_log_egen_doub]
 type6 = type(excitGenerator)
 arr6_prefix =
 extra_arrs = arr2, arr3, arr4, arr5, arr6,
+tmp_init6 = call excitgenerator_init
+tmp_destroy6 = call excitgenerator_destroy
 
 
 ===================
@@ -254,17 +272,18 @@ extra_arrs = arr2, arr3, arr4, arr5, arr6,
 
 module sort_mod
     use util_mod, only: operator(.arrlt.), operator(.arrgt.)
-	use constants
-	use SystemData, only: Symmetry, operator(.eq.), operator(.ne.), &
-	                      operator(.gt.), operator(.lt.), assignment(=)
-	use symdata, only: SymPairProd, operator(.eq.), operator(.ne.), &
-	                   operator(.gt.), operator(.lt.), assignment(=)
-    use FciMCData, only: ExcitGenerator, assignment(=)
+    use constants
+    use SystemData, only: Symmetry, operator(.eq.), operator(.ne.), &
+                          operator(.gt.), operator(.lt.), assignment(=)
+    use symdata, only: SymPairProd, operator(.eq.), operator(.ne.), &
+                       operator(.gt.), operator(.lt.), assignment(=)
+    use FciMCData, only: ExcitGenerator, assignment(=), excitgenerator_init, &
+                         excitgenerator_destroy
     use StarDiagData
-	implicit none
-	
-	private
-	public :: sort
+    implicit none
+    
+    private
+    public :: sort
 
     ! Private operator for sorting complex numbers by their real values
     interface operator(.gt.)
@@ -284,14 +303,14 @@ contains
         ! sort needs auxiliary storage of length 2*log_2(n).
         integer, parameter :: nStackMax = 50
         integer, parameter :: nInsertionSort = 7
-		integer, intent(in), optional :: nskip
+        integer, intent(in), optional :: nskip
 
         %(type1)s, intent(inout) :: arr(:)
         %(type2)s, intent(inout) :: arr2(:)
-		%(type3)s, intent(inout) :: arr3(:)
-		%(type4)s, intent(inout) :: arr4(:)
-		%(type5)s, intent(inout) :: arr5(:)
-		%(type6)s, intent(inout) :: arr6(:)
+        %(type3)s, intent(inout) :: arr3(:)
+        %(type4)s, intent(inout) :: arr4(:)
+        %(type5)s, intent(inout) :: arr5(:)
+        %(type6)s, intent(inout) :: arr6(:)
 
         ! Oh, how lovely it would be to be able to use push/pop and not need
         ! to guess a size of the stack to start with
@@ -314,19 +333,33 @@ contains
         %(type6)s :: tmp6(size(arr6(1)))
         character(*), parameter :: this_routine = 'sort'
 
-		if (present(nskip)) then
-			nskip_ = nskip
-		else
-			nskip_ = 1
-		endif
+        ! Initialise temporary variables if required
+        %(tmp_init1)s(a)
+        %(tmp_init1)s(tmp1)
+        %(tmp_init2)s(a2)
+        %(tmp_init2)s(tmp2)
+        %(tmp_init3)s(a3)
+        %(tmp_init3)s(tmp3)
+        %(tmp_init4)s(a4)
+        %(tmp_init4)s(tmp4)
+        %(tmp_init5)s(a5)
+        %(tmp_init5)s(tmp5)
+        %(tmp_init6)s(a6)
+        %(tmp_init6)s(tmp6)
+
+        if (present(nskip)) then
+            nskip_ = nskip
+        else
+            nskip_ = 1
+        endif
 
         ! The size of the array to sort. 
-		! N.B. Use zero based indices. To obtain ! the entry into the actual 
-		! array, multiply indices by nskip and add ! 1 (hence zero based)
-		! **** See local macro srt_ind() ******
-		lo = lbound(arr, %(dim-arr)s) - 1
-		n = ((ubound(arr, %(dim-arr)s) - lo -1)/nskip_) + 1
-		hi = lo + n - 1
+        ! N.B. Use zero based indices. To obtain ! the entry into the actual 
+        ! array, multiply indices by nskip and add ! 1 (hence zero based)
+        ! **** See local macro srt_ind() ******
+        lo = lbound(arr, %(dim-arr)s) - 1
+        n = ((ubound(arr, %(dim-arr)s) - lo -1)/nskip_) + 1
+        hi = lo + n - 1
 
         nstack = 0
         do while (.true.)
@@ -527,6 +560,21 @@ contains
                 endif
             endif
         enddo
+
+        ! Destroy temporary variables if required
+        %(tmp_destroy1)s(a)
+        %(tmp_destroy1)s(tmp1)
+        %(tmp_destroy2)s(a2)
+        %(tmp_destroy2)s(tmp2)
+        %(tmp_destroy3)s(a3)
+        %(tmp_destroy3)s(tmp3)
+        %(tmp_destroy4)s(a4)
+        %(tmp_destroy4)s(tmp4)
+        %(tmp_destroy5)s(a5)
+        %(tmp_destroy5)s(tmp5)
+        %(tmp_destroy6)s(a6)
+        %(tmp_destroy6)s(tmp6)
+
     end subroutine
 
     ! A private comparison. This should not be available outside of the

@@ -16,6 +16,7 @@ module CCMCData
 
    LOGICAL  tCCBuffer      ! Buffer the CC Amplitudes - this is useful when there are many cluster selections which lead to the same collapsed det. It creates a combined amplitude of the det first and spawns from that.
    LOGICAL  tExactEnergy   ! Do we calculate projected energy exactly rather than through sampling?
+   LOGICAL  tSharedExcitors !Do we use shared memory for the excitor list?
    
 
 !This contains information as to a chosen Cluster
@@ -28,6 +29,7 @@ TYPE Cluster
    INTEGER  iSgn                                      !The sign of the determinant after collapsing the cluster
    INTEGER iExcitLevel                                !The excitation level of the resultant det
 
+   INTEGER initFlag                                   !Zero if this cluster is an initiator, or 1 if it isn't
    REAL*8   dAbsAmplitude
 ! dAbsAmplitude is the product of the coefficients of the excitors with the relevant normalizations.
 ! i.e. abs ( N0  (tI/N0) (tJ/N0) ... )
@@ -56,6 +58,7 @@ TYPE ClustSelector
    REAL*8 dProbSelNewExcitor  !The probability that we quit at every stage of selecting a new excitor for a cluster  
    INTEGER iRefPos   !The Location in teh amplitude list of the reference det
    LOGICAL tDynamic  !If set, we choose as many clusters as there are excitors.
+   REAL*8 dInitiatorThresh !Threshold for creating intiator cluster
    TYPE(Cluster) C
 
 END TYPE ClustSelector
@@ -142,7 +145,8 @@ FUNCTION ExcitToDetSign(iLutRef,iLutDet,iLevel)
    enddo
    if(iAnnihil+iCreation.ne.0) then
       call WriteBitEx(6,iLutRef,iLutDet,.false.)
-      write(6,"(A,2Z17)") "Ref, Det:", iLutRef, iLutDet
+      write(6,"(A)",advance='no') "Ref, Det:"
+      write(6,"(8Z17)") iLutRef, iLutDet
       write(6,*) "bits/byte", end_n_int+1
       write(6,*) "Level:", iLevel
       write(6,"(A,Z17,A,Z17)") " left over annihil: ", iAnnihil," left over creation: ", iCreation

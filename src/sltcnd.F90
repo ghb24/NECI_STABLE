@@ -60,7 +60,7 @@ contains
     end function sltcnd_compat
 
 
-    HElement_t function sltcnd_excit (nI, nJ, IC, ex, tParity)
+    HElement_t function sltcnd_excit (nI, IC, ex, tParity)
         
         ! Use the Slater-Condon Rules to evaluate the H-matrix element between
         ! two determinants, where the excitation matrix is already known.
@@ -71,7 +71,7 @@ contains
         !      tParity      - The parity of the excitation
         ! Ret: sltcnd_excit - The H matrix element
 
-        integer, intent(in) :: nI(nel), nJ(nel), IC
+        integer, intent(in) :: nI(nel), IC
         integer, intent(in), optional :: ex(2,2)
         logical, intent(in), optional :: tParity
         character(*), parameter :: this_routine = 'sltcnd_excit'
@@ -99,7 +99,7 @@ contains
         end select
     end function
 
-    function sltcnd_knowIC (nI, nJ, iLutI, iLutJ, IC) result(hel)
+    function sltcnd_knowIC (nI, iLutI, iLutJ, IC) result(hel)
 
         ! Use the Slater-Condon Rules to evaluate the H-matrix element between
         ! two determinants, where the value of IC and the bit representations
@@ -110,7 +110,7 @@ contains
         !      IC           - The number of orbitals I,J differ by
         ! Ret: hel          - The H matrix element
 
-        integer, intent(in) :: nI(nel), nJ(nel)
+        integer, intent(in) :: nI(nel)
         integer(kind=n_int), intent(in) :: iLutI(0:NIfTot), iLutJ(0:NIfTot)
         integer, intent(in) :: IC
         HElement_t :: hel
@@ -141,7 +141,7 @@ contains
 
     end function
     
-    HElement_t function sltcnd (nI, nJ, iLutI, iLutJ, ICret)
+    HElement_t function sltcnd (nI, iLutI, iLutJ, ICret)
         
         ! Use the Slater-Condon Rules to evaluate the H matrix element between
         ! two determinants. Make no assumptions about ordering of orbitals.
@@ -153,7 +153,7 @@ contains
         ! Out: ICret         - Optionally return the IC value
         ! Ret: sltcnd        - The H matrix element
 
-        integer, intent(in) :: nI(nel), nJ(nel)
+        integer, intent(in) :: nI(nel)
         integer(kind=n_int), intent(in) :: iLutI(0:NIfTot), iLutJ(0:NIfTot)
         integer, intent(out), optional :: ICret
         integer :: IC
@@ -161,7 +161,7 @@ contains
         ! Get the excitation level
         IC = FindBitExcitLevel (iLutI, iLutJ)
 
-        sltcnd = sltcnd_knowIC (nI, nJ, iLutI, iLutJ, IC)
+        sltcnd = sltcnd_knowIC (nI, iLutI, iLutJ, IC)
 
         if (present(ICRet)) ICret = IC
 
@@ -175,7 +175,7 @@ contains
 
         integer, intent(in) :: nI(nel)
         HElement_t :: hel, hel_sing, hel_doub, hel_tmp
-        integer :: id(nel), ids, i, j, idN, idX
+        integer :: id(nel), i, j, idN, idX
 
         ! Sum in the one electron integrals (KE --> TMAT)
         hel_sing = sum(GetTMATEl(nI, nI))
