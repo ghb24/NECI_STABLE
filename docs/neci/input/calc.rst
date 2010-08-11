@@ -1049,7 +1049,9 @@ INITIATOR OPTIONS
     determinant both from inside and outside the active space - in this case we treat the active space to have 
     spawned a second earlier, the determinant is then treated as occupied and the non-active space walkers are 
     allowed to live (providing they are the same sign of course).
-    NOTE: This is currently only possible using **DIRECTANNIHILATION**.
+    NOTE: This is currently only possible using **DIRECTANNIHILATION**.a
+    This also functions for **CCMC** **PARTICLE** using the **ADDTOINITIATOR** keyword, with the HF determinant
+    being the initial initiator space.
 
 **DELAYTRUNCINITIATOR** [IterTruncInit]
     This goes with the above.  This allows us to first start with an active space only calculation and then at some

@@ -1604,7 +1604,7 @@ subroutine AttemptSpawnParticle(S,C,iDebug,SpawnList,nSpawned,nMaxSpawn)
    Use CalcData, only: Tau
    use DetBitOps, only: FindBitExcitLevel
    USE dSFMT_interface , only : genrand_real2_dSFMT
-   use bit_reps, only: encode_bit_rep
+   use bit_reps, only: encode_bit_rep,extract_flags
    implicit none
    type(Spawner) S
    type(Cluster) C
@@ -1656,6 +1656,7 @@ subroutine AttemptSpawnParticle(S,C,iDebug,SpawnList,nSpawned,nMaxSpawn)
       IFDEBUG(iDebug,4) THEN
    !We've not printed this out before
          WRITE(6,*) "  Spawned ",iSpawnAmp
+         WRITE(6,*) "  initiator Flag ",C%initFlag,extract_flags(SpawnList(:,nSpawned))
       endif
    else IFDEBUG(iDebug,4) then
       WRITE(6,*) "  No Spawning"
@@ -1981,6 +1982,7 @@ SUBROUTINE CCMCStandalone(Weight,Energyxw)
 
    dInitThresh=0
    if(tAddToInitiator) dInitThresh=InitiatorWalkNo/WalkerScale
+   write(6,*) "Cluster Initiator Threshold: ", dInitThresh
    if(tExactCluster) then
       CALL InitClustSelectorFull(CSMain,iNumExcitors,dInitThresh)
    else
@@ -2057,17 +2059,6 @@ SUBROUTINE CCMCStandalone(Weight,Energyxw)
             tMoreClusters=GetNextCluster(CSBuff,FciDets,nBuffAmpl,OldAL,OldALIndex,dTotAbsAmpl,i,iDebug)
          endif
          if(.not.tMoreClusters) exit
-!Now form the cluster
-         IFDEBUG(iDebug,4) then
-            write(6,*) "Selection ",CS%iIndex
-            WRITE(6,*) " Excitors in composite:", CS%C%iSize
-            do i=1,CS%C%iSize
-               call WriteBitEx(6,iLutHF,CS%C%SelectedExcitors(:,i),.true.)
-            enddo
-            Write(6,"(A,G25.17)") "   Select Prob given level: ",CS%C%dClusterProb
-            Write(6,"(A,G25.17)") "   Prob norm              : ",CS%C%dProbNorm
-            Write(6,"(A,G25.17)") "   Cluster norm           : ",CS%C%dClusterNorm
-         endif
 
 !The final logic tells it whether to convert from an excitor to a det.
          CALL CollapseCluster(CS%C,iLutHF,OldAL%Amplitude(:,OldALIndex),nCurAmpl,iDebug,.not.(tCCBuffer.and.tPostBuffering))
@@ -2161,7 +2152,6 @@ END SUBROUTINE CCMCStandalone
 SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
    Use global_utilities
    use SystemData, only: nEl
-   use Parallel, only: iProcIndex
    use CCMCData, only: tCCMCFCI,dInitAmplitude,dProbSelNewExcitor,tExactCluster,tExactSpawn,nSpawnings,tCCBuffer
    use CCMCData, only: WriteCluster
    use CCMCData, only: ClustSelector,Spawner,dClustSelectionRatio,nClustSelections,tSharedExcitors
@@ -2375,6 +2365,7 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
 
    dInitThresh=0
    if(tAddToInitiator) dInitThresh=InitiatorWalkNo/WalkerScale
+   write(6,*) "Cluster Initiaaator Threshold: ", dInitThresh
 
    CALL InitClustSelectorRandom(CS,iNumExcitors,nClustSelections,dClustSelectionRatio,dProbSelNewExcitor,dInitThresh)
 
@@ -2447,17 +2438,6 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
          tMoreClusters=GetNextCluster(CS,DetList,nAmpl,AL,iCurAmpList,dTotAbsAmpl,iMin,iDebug)
          if(.not.tMoreClusters) exit
 !Now form the cluster
-         IFDEBUG(iDebug,4) then
-            write(6,*) "Selection ",CS%iIndex
-            WRITE(6,*) " Excitors in composite:", CS%C%iSize
-            do i=1,CS%C%iSize
-               call WriteBitEx(6,iLutHF,CS%C%SelectedExcitors(:,i),.true.)
-            enddo
-            Write(6,"(A,G25.17)") "   Select Prob given level: ",CS%C%dClusterProb
-            Write(6,"(A,G25.17)") "   Prob norm              : ",CS%C%dProbNorm
-            Write(6,"(A,G25.17)") "   Cluster norm           : ",CS%C%dClusterNorm
-         endif
-
 !The final logic tells it whether to convert from an excitor to a det.
          CALL CollapseCluster(CS%C,iLutHF,AL%Amplitude(:,iCurAmpList),nAmpl,iDebug,.true.)
          IFDEBUG(iDebug,5) THEN
