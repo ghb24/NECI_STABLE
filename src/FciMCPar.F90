@@ -70,6 +70,9 @@ MODULE FciMCParMod
                             generate_excit_spin_proj, attempt_die_spin_proj, &
                             iter_data_spin_proj, test_spin_proj, &
                             spin_proj_shift
+#ifdef __DEBUG                            
+    use DeterminantData, only: write_det
+#endif
 
     implicit none
 
@@ -83,7 +86,6 @@ MODULE FciMCParMod
         REAL(4) :: s,etime,tstart(2),tend(2)
         INTEGER(int64) :: MaxWalkers,MinWalkers
         real*8 :: AllTotWalkers,MeanWalkers,Inpair(2),Outpair(2)
-
         integer, dimension(lenof_sign) :: tmp_sgn
         integer :: tmp_int(lenof_sign)
         real(dp) :: grow_rate
@@ -709,10 +711,12 @@ MODULE FciMCParMod
             ! N.B. j indicates the number of determinants, not the number
             !      of walkers.
 
-            ! Decode determinant from (stored) bit-representation.
+            !Debug output.
             IFDEBUG(FCIMCDebug,3) write(6,"(A,I10)",advance='no') "TW:", j
             IFDEBUG(FCIMCDebug,3) call WriteBitDet(6,CurrentDets(:,j),.true.)
+            IFDEBUG(FCIMCDebug,3) call Flush(6) 
 
+            ! Decode determinant from (stored) bit-representation.
             call extract_bit_rep (CurrentDets(:,j), DetCurr, SignCurr, &
                                   FlagsCurr)
 
@@ -794,11 +798,16 @@ MODULE FciMCParMod
                         child = 0
                     endif
 
+                    !Children have been chosen to be spawned.
 #ifdef __CMPLX
                     if ((child(1).ne.0).or.(child(2).ne.0)) then
+                        IFDEBUG(FCIMCDebug,3) write(6,"(A,2I4,A)",advance='no') "Creating ",child(1),child(2)," particles: "
 #else
                     if (child(1).ne.0) then
+                        IFDEBUG(FCIMCDebug,3) write(6,"(A,I4,A)",advance='no') "Creating ",child(1)," particles: "
 #endif                        
+                        IFDEBUG(FCIMCDebug,3) CALL Write_Det(6,nJ,.true.)
+                        IFDEBUG(FCIMCDebug,3) CALL FLUSH(6) 
                         ! We know we want to create a particle of this type.
                         ! Encode the bit representation if it isn't already.
                         call encode_child (CurrentDets(:,j), iLutnJ, ic, ex)
@@ -807,9 +816,6 @@ MODULE FciMCParMod
                                               iLutnJ, ic, walkExcitLevel, &
                                               child)
 
-                        IFDEBUG(FCIMCDebug,3) WRITE(6,"(A)",advance='no') "Creating child"
-                        IFDEBUG(FCIMCDebug,3) call write_det(6,nJ,.false.)
-                        IFDEBUG(FCIMCDebug,3) WRITE(6,"(10Z17.17)") iLutnJ(:)
                         call create_particle (iLutnJ, child)
                     
                     endif ! (child /= 0). Child created
@@ -848,6 +854,7 @@ MODULE FciMCParMod
         call DirectAnnihilation (totWalkersNew, iter_data,.false.) !.false. for not single processor
         TotWalkers=TotWalkersNew
         CALL halt_timer(Annihil_Time)
+        IFDEBUG(FCIMCDebug,2) WRITE(6,*) "Finished Annihilation step"
         
         ! Update iteration data
         iter_data%update_growth = iter_data%update_growth + iter_data%nborn &
@@ -3419,12 +3426,16 @@ MODULE FciMCParMod
 
             ! For complex case, obtain both Re and Im parts
             if (lenof_sign == 2) then
-                AllGrowRateRe = (iter_data%update_growth_tot(1) + &
-                                 iter_data%tot_parts_old(1)) / &
-                                 iter_data%tot_parts_old(1)
-                AllGrowRateIm = (iter_data%update_growth_tot(lenof_sign) + &
-                                     iter_data%tot_parts_old(lenof_sign)) / &
-                                     iter_data%tot_parts_old(lenof_sign)
+                IF(iter_data%tot_parts_old(1).gt.0) THEN
+                    AllGrowRateRe = (iter_data%update_growth_tot(1) + &
+                                     iter_data%tot_parts_old(1)) / &
+                                     iter_data%tot_parts_old(1)
+                ENDIF
+                IF(iter_data%tot_parts_old(2).gt.0) THEN
+                    AllGrowRateIm = (iter_data%update_growth_tot(lenof_sign) + &
+                                         iter_data%tot_parts_old(lenof_sign)) / &
+                                         iter_data%tot_parts_old(lenof_sign)
+                ENDIF
             endif
 
             ! Initiator abort growth rate
@@ -4752,7 +4763,7 @@ MODULE FciMCParMod
     END SUBROUTINE BinSearchParts3
     
     SUBROUTINE CalcApproxpDoubles()
-        use SystemData , only : tAssumeSizeExcitgen
+        use SystemData , only : tAssumeSizeExcitgen,tUseBrillouin
         use CalcData , only : SinglesBias
         use SymData , only : SymClassSize
         use SymExcit3 , only : CountExcitations3
@@ -4761,6 +4772,7 @@ MODULE FciMCParMod
         integer :: nStore(6), iMaxExcit, nExcitMemLen, nJ(nel)
         integer, allocatable :: EXCITGEN(:)
         character(*), parameter :: this_routine = 'CalcApproxpDoubles'
+        logical :: TempUseBrill
 
         ! TODO: A better approximation for ncsf.
         if (tCSF) then
@@ -4791,6 +4803,14 @@ MODULE FciMCParMod
         exflag=3
         IF(tKPntSym) THEN
             !use Alex's old excitation generators.
+            !However, we have to ensure that brillouins theorem isn't on!
+            IF(tUseBrillouin) THEN
+                TempUseBrill=.true.
+                tUseBrillouin=.false.
+            ELSE
+                TempUseBrill=.false.
+            ENDIF
+
             iMaxExcit=0
             nStore(1:6)=0
             CALL GenSymExcitIt2(HFDet,NEl,G1,nBasis,.TRUE.,nExcitMemLen,nJ,iMaxExcit,nStore,exFlag)
@@ -4812,6 +4832,7 @@ MODULE FciMCParMod
                     CALL Stop_All(this_routine,"Trying to generate more than doubles!")
                 ENDIF
             enddo lp2
+            tUseBrillouin=TempUseBrill
         ELSE
             CALL CountExcitations3(HFDet,exflag,nSing,nDoub)
         ENDIF
