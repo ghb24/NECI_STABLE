@@ -29,6 +29,7 @@ TYPE Cluster
    INTEGER  iSgn                                      !The sign of the determinant after collapsing the cluster
    INTEGER iExcitLevel                                !The excitation level of the resultant det
 
+   INTEGER initFlag                                   !Zero if this cluster is an initiator, or 1 if it isn't
    REAL*8   dAbsAmplitude
 ! dAbsAmplitude is the product of the coefficients of the excitors with the relevant normalizations.
 ! i.e. abs ( N0  (tI/N0) (tJ/N0) ... )
@@ -57,6 +58,7 @@ TYPE ClustSelector
    REAL*8 dProbSelNewExcitor  !The probability that we quit at every stage of selecting a new excitor for a cluster  
    INTEGER iRefPos   !The Location in teh amplitude list of the reference det
    LOGICAL tDynamic  !If set, we choose as many clusters as there are excitors.
+   REAL*8 dInitiatorThresh !Threshold for creating intiator cluster
    TYPE(Cluster) C
 
 END TYPE ClustSelector

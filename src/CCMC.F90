@@ -1168,24 +1168,28 @@ SUBROUTINE DelCluster(C)
 end subroutine DelCluster
 
 !iMaxSize is the maximum number of excitors in a cluster.
-SUBROUTINE InitClustSelectorFull(CS,iMaxSize)
+!dInitThresh is the initiator threshold
+SUBROUTINE InitClustSelectorFull(CS,iMaxSize,dInitThresh)
    use CCMCData
    IMPLICIT NONE
    TYPE(ClustSelector) CS
    INTEGER iMaxSize
+   REAL*8 dInitThresh
    CS%tFull=.true.
    CS%iMaxSize=iMaxSize
    CS%tDynamic=.false.
+   CS%dInitiatorThresh=dInitThresh
    Call InitCluster(CS%C)
 END SUBROUTINE InitClustSelectorFull
 
-SUBROUTINE InitClustSelectorRandom(CS,iMaxSize,nSelects,dRatio,dProbSelNewEx)
+SUBROUTINE InitClustSelectorRandom(CS,iMaxSize,nSelects,dRatio,dProbSelNewEx,dInitThresh)
    use CCMCData
    use Parallel, only: nProcessors
    IMPLICIT NONE
    TYPE(ClustSelector) CS
    INTEGER iMaxSize,nSelects
    REAL*8 dProbSelNewEx,dRatio
+   REAL*8 dInitThresh
    if(nSelects<0) then
       CS%tDynamic=.true.
       CS%dRatio=dRatio
@@ -1196,6 +1200,7 @@ SUBROUTINE InitClustSelectorRandom(CS,iMaxSize,nSelects,dRatio,dProbSelNewEx)
    CS%iMaxSize=iMaxSize
    CS%nSelects=nSelects/nProcessors
    CS%dProbSelNewExcitor=dProbSelNewEx
+   CS%dInitiatorThresh=dInitThresh
    Call InitCluster(CS%C)
 END SUBROUTINE InitClustSelectorRandom
 
@@ -1595,21 +1600,21 @@ subroutine AttemptDie(C,CurAmpl,OldAmpl,TL,WalkerScale,iDebug)
    endif
 end subroutine AttemptDie
 
-subroutine AttemptSpawnParticle(S,C,iDebug,SpawnList,SpawnAmps,nSpawned,nMaxSpawn)
+subroutine AttemptSpawnParticle(S,C,iDebug,SpawnList,nSpawned,nMaxSpawn)
    use SystemData, only: nEl
    use FciMCParMod, only: iLutHF
    use CCMCData, only: Spawner, Cluster
    Use CalcData, only: Tau
    use DetBitOps, only: FindBitExcitLevel
    USE dSFMT_interface , only : genrand_real2_dSFMT
+   use bit_reps, only: encode_bit_rep,extract_flags
    implicit none
    type(Spawner) S
    type(Cluster) C
    INTEGER(KIND=n_int) :: SpawnList(0:nIfTot,*)
-   INTEGER SpawnAmps(:)
    integer nSpawned
    integer nMaxSpawn
-   integer iSpawnAmp
+   integer, dimension(lenof_sign) :: iSpawnAmp
    integer iDebug
 
    real*8 rat,r
@@ -1641,29 +1646,27 @@ subroutine AttemptSpawnParticle(S,C,iDebug,SpawnList,SpawnAmps,nSpawned,nMaxSpaw
    IC = FindBitExcitLevel(iLutHF, S%iLutnJ(:), nEl)
    rat=rat*ExcitToDetSign(iLutHF,S%iLutnJ,IC)
    r=abs(rat)
-   iSpawnAmp=floor(r)
-   if ((r-iSpawnAmp)>genrand_real2_dSFMT()) iSpawnAmp=iSpawnAmp+1
-   if(iSpawnAmp>0) then
+   iSpawnAmp=0
+   iSpawnAmp(1)=floor(r)
+   if ((r-iSpawnAmp(1))>genrand_real2_dSFMT()) iSpawnAmp(1)=iSpawnAmp(1)+1
+   if(iSpawnAmp(1)>0) then
 
       nSpawned=nSpawned+1 !The index into the spawning list
       iter_data_ccmc%nborn=iter_data_ccmc%nborn+1
       if(nSpawned>nMaxSpawn) call Stop_All("AttemptSpawnParticle","Not enough space in spawning list.")
-      if(rat>0) then
-         SpawnAmps(nSpawned)=iSpawnAmp
-      else
-         SpawnAmps(nSpawned)=-iSpawnAmp
-      endif
-      SpawnList(:,nSpawned)=S%iLutnJ(:)
+      if(rat<0) iSpawnAmp(1)=-iSpawnAmp(1)
+      call encode_bit_rep(SpawnList(:,nSpawned),S%iLutnJ(:),iSpawnAmp,C%initFlag)
       IFDEBUG(iDebug,4) THEN
    !We've not printed this out before
          WRITE(6,*) "  Spawned ",iSpawnAmp
+         WRITE(6,*) "  initiator Flag ",C%initFlag,extract_flags(SpawnList(:,nSpawned))
       endif
    else IFDEBUG(iDebug,4) then
       WRITE(6,*) "  No Spawning"
    endif
 end subroutine AttemptSpawnParticle
 !Take cluster C and make an anti-excitor corresponding to its collapsed version to take into account its death.
-subroutine AttemptDieParticle(C,iDebug,SpawnList,SpawnAmps,nSpawned)
+subroutine AttemptDieParticle(C,iDebug,SpawnList,nSpawned)
    use CCMCData, only: Cluster,CCTransitionLog
    use FciMCData, only: Hii
    Use CalcData, only: Tau,DiagSft
@@ -1671,11 +1674,11 @@ subroutine AttemptDieParticle(C,iDebug,SpawnList,SpawnAmps,nSpawned)
    use FciMCParMod, only: iLutHF
    use dSFMT_interface , only : genrand_real2_dSFMT
    use SystemData, only : nEl
+   use bit_reps, only: encode_bit_rep
    
    implicit none
    Type(Cluster) C
    INTEGER(KIND=n_int) :: SpawnList(0:nIfTot,*)
-   INTEGER SpawnAmps(:)
    INTEGER nSpawned
    integer iDebug
 
@@ -1683,7 +1686,8 @@ subroutine AttemptDieParticle(C,iDebug,SpawnList,SpawnAmps,nSpawned)
    real*8 r,rat,HDiagCurr
    HElement_t Htmp
    integer i
-   integer iSpawnAmp
+   integer, dimension(lenof_sign) :: iSpawnAmp
+   integer initFlag
 
 ! We have to decompose our composite excitor into one of its parts.  
    IF(C%iSize.GT.1) THEN
@@ -1769,12 +1773,16 @@ subroutine AttemptDieParticle(C,iDebug,SpawnList,SpawnAmps,nSpawned)
 !   endif
    rat=-rat  !The we're creating death   
    r=abs(rat)
-   iSpawnAmp=floor(r)
-   if ((r-iSpawnAmp)>genrand_real2_dSFMT()) iSpawnAmp=iSpawnAmp+1
-   if(iSpawnAmp>0) then
+   iSpawnAmp=0
+   iSpawnAmp(1)=floor(r)
+   if ((r-iSpawnAmp(1))>genrand_real2_dSFMT()) iSpawnAmp(1)=iSpawnAmp(1)+1
+   if(iSpawnAmp(1)>0) then
       nSpawned=nSpawned+1 !The index into the spawning list
       iter_data_ccmc%ndied=iter_data_ccmc%ndied+1
-      SpawnList(:,nSpawned)=C%iLutDetCurr(:)
+      if(rat<0) iSpawnAmp(1)=-iSpawnAmp(1)
+      initFlag=0
+      if(C%iSize>1) initFlag=C%initFlag  !Death is always a certainty despite parentage (except if you're composite)
+      call encode_bit_rep(SpawnList(:,nSpawned),C%iLutDetCurr(:),iSpawnAmp,initFlag)  
       IFDEBUG(iDebug,4) then
          Write(6,'(A)',advance='no') " Killing at excitor: "
          call WriteBitEx(6,iLutHF,SpawnList(:,nSpawned),.false.)
@@ -1787,11 +1795,6 @@ subroutine AttemptDieParticle(C,iDebug,SpawnList,SpawnAmps,nSpawned)
          endif
          WRITE(6,*)
          if(iDebug.eq.4) Write(6,'(A,G25.16)') "Prob: ",C%dProbNorm
-      endif
-      if(rat>0) then
-         SpawnAmps(nSpawned)=iSpawnAmp
-      else
-         SpawnAmps(nSpawned)=-iSpawnAmp
       endif
    else IFDEBUG(iDebug,4) then
       write(6,*) "  No Death"
@@ -1828,6 +1831,7 @@ SUBROUTINE CCMCStandalone(Weight,Energyxw)
    use CCMCData, only: WriteCluster
    use ClusterList
    use CalcData, only: DiagSft
+   use CalcData, only: tAddToInitiator,InitiatorWalkNo
    IMPLICIT NONE
    real(dp) Weight,EnergyxW
    TYPE(AmplitudeList_double),target :: AL
@@ -1874,7 +1878,7 @@ SUBROUTINE CCMCStandalone(Weight,Energyxw)
    INTEGER, DIMENSION(lenof_sign) :: TempSign   !ghb24: For compatibility with new walker arrays & routines
    TYPE(timer) :: CCMC_time
 
-
+   REAL*8 dInitThresh
 
    WRITE(6,*) "Entering CCMC Standalone..."
    CCMC_time%timer_name='CCMC Standalone'
@@ -1982,13 +1986,16 @@ SUBROUTINE CCMCStandalone(Weight,Energyxw)
 
    if(lLogTransitions) call InitTransitionLog(TL,nAmpl,iNumExcitors,.not.tCCMCLogUniq)
 
+   dInitThresh=0
+   if(tAddToInitiator) dInitThresh=InitiatorWalkNo/WalkerScale
+   write(6,*) "Cluster Initiator Threshold: ", dInitThresh
    if(tExactCluster) then
-      CALL InitClustSelectorFull(CSMain,iNumExcitors)
+      CALL InitClustSelectorFull(CSMain,iNumExcitors,dInitThresh)
    else
-      CALL InitClustSelectorRandom(CSMain,iNumExcitors,nClustSelections,dClustSelectionRatio,dProbSelNewExcitor)
+      CALL InitClustSelectorRandom(CSMain,iNumExcitors,nClustSelections,dClustSelectionRatio,dProbSelNewExcitor,dInitThresh)
    endif
    if(tCCBuffer) then
-      CALL InitClustSelectorFull(CSBuff,1)
+      CALL InitClustSelectorFull(CSBuff,1,dInitThresh)
    endif
 
    CALL InitSpawner(S,tExactSpawn,ICILevel)
@@ -2058,17 +2065,6 @@ SUBROUTINE CCMCStandalone(Weight,Energyxw)
             tMoreClusters=GetNextCluster(CSBuff,FciDets,nBuffAmpl,OldAL,OldALIndex,dTotAbsAmpl,i,iDebug)
          endif
          if(.not.tMoreClusters) exit
-!Now form the cluster
-         IFDEBUG(iDebug,4) then
-            write(6,*) "Selection ",CS%iIndex
-            WRITE(6,*) " Excitors in composite:", CS%C%iSize
-            do i=1,CS%C%iSize
-               call WriteBitEx(6,iLutHF,CS%C%SelectedExcitors(:,i),.true.)
-            enddo
-            Write(6,"(A,G25.17)") "   Select Prob given level: ",CS%C%dClusterProb
-            Write(6,"(A,G25.17)") "   Prob norm              : ",CS%C%dProbNorm
-            Write(6,"(A,G25.17)") "   Cluster norm           : ",CS%C%dClusterNorm
-         endif
 
 !The final logic tells it whether to convert from an excitor to a det.
          CALL CollapseCluster(CS%C,iLutHF,OldAL%Amplitude(:,OldALIndex),nCurAmpl,iDebug,.not.(tCCBuffer.and.tPostBuffering))
@@ -2162,7 +2158,6 @@ END SUBROUTINE CCMCStandalone
 SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
    Use global_utilities
    use SystemData, only: nEl
-   use Parallel, only: iProcIndex
    use CCMCData, only: tCCMCFCI,dInitAmplitude,dProbSelNewExcitor,tExactCluster,tExactSpawn,nSpawnings,tCCBuffer
    use CCMCData, only: WriteCluster
    use CCMCData, only: ClustSelector,Spawner,dClustSelectionRatio,nClustSelections,tSharedExcitors
@@ -2191,6 +2186,7 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
    use timing, only: print_timing_report
    use Parallel
    use shared_alloc, only: shared_allocate_iluts, shared_deallocate
+   use CalcData, only: tAddToInitiator,InitiatorWalkNo
    IMPLICIT NONE
    real(dp) Weight,EnergyxW
    CHARACTER(len=*), PARAMETER :: this_routine='CCMCStandaloneParticle'
@@ -2225,8 +2221,7 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
    INTEGER, parameter :: iCurAmpList=1     !Just for futureproofness at the moment - there is only one
    
    INTEGER(kind=n_int), allocatable :: SpawnList(:,:)
-   INTEGER, allocatable ::  SpawnAmps(:)
-   INTEGER tagSpawnList,tagSpawnAmps
+   INTEGER tagSpawnList
    INTEGER nSpawned,nMaxSpawn
 
    LOGICAL tS
@@ -2246,6 +2241,8 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
    INTEGER :: iOffset(1)
 
    INTEGER ierr
+
+   REAL*8 dInitThresh
 
 
    WRITE(6,*) "Entering CCMC Standalone Particle..."
@@ -2295,8 +2292,6 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
    if(iProcIndex.ne.Root) nMaxSpawn=nMaxSpawn/nProcessors
    Allocate(SpawnList(0:nIfTot,nMaxSpawn))
    LogAlloc(ierr,'SpawnList',(nIfTot+1)*nMaxAmpl,4,tagSpawnList)
-   Allocate(SpawnAmps(nMaxSpawn))
-   LogAlloc(ierr,'SpawnAmps',nMaxAmpl,4,tagSpawnAmps)
 
    if(tTruncSpace) then
       if(tCCMCFCI) then
@@ -2374,7 +2369,11 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
       ENDIF
    ENDIF
 
-   CALL InitClustSelectorRandom(CS,iNumExcitors,nClustSelections,dClustSelectionRatio,dProbSelNewExcitor)
+   dInitThresh=0
+   if(tAddToInitiator) dInitThresh=InitiatorWalkNo/WalkerScale
+   write(6,*) "Cluster Initiaaator Threshold: ", dInitThresh
+
+   CALL InitClustSelectorRandom(CS,iNumExcitors,nClustSelections,dClustSelectionRatio,dProbSelNewExcitor,dInitThresh)
 
    CALL InitSpawner(S,tExactSpawn,ICILevel)
 
@@ -2445,17 +2444,6 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
          tMoreClusters=GetNextCluster(CS,DetList,nAmpl,AL,iCurAmpList,dTotAbsAmpl,iMin,iDebug)
          if(.not.tMoreClusters) exit
 !Now form the cluster
-         IFDEBUG(iDebug,4) then
-            write(6,*) "Selection ",CS%iIndex
-            WRITE(6,*) " Excitors in composite:", CS%C%iSize
-            do i=1,CS%C%iSize
-               call WriteBitEx(6,iLutHF,CS%C%SelectedExcitors(:,i),.true.)
-            enddo
-            Write(6,"(A,G25.17)") "   Select Prob given level: ",CS%C%dClusterProb
-            Write(6,"(A,G25.17)") "   Prob norm              : ",CS%C%dProbNorm
-            Write(6,"(A,G25.17)") "   Cluster norm           : ",CS%C%dClusterNorm
-         endif
-
 !The final logic tells it whether to convert from an excitor to a det.
          CALL CollapseCluster(CS%C,iLutHF,AL%Amplitude(:,iCurAmpList),nAmpl,iDebug,.true.)
          IFDEBUG(iDebug,5) THEN
@@ -2490,13 +2478,13 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
 !GetNextSpawner will generate either all possible spawners sequentially, or a single randomly chosen one (or none at all, if the randomly chosen one is disallowed)
          do while (GetNextSpawner(S,iDebug))
             if(.not.S%bValid) cycle
-            call AttemptSpawnParticle(S,CS%C,iDebug,SpawnList(:,:),SpawnAmps(:),nSpawned,nMaxSpawn)
+            call AttemptSpawnParticle(S,CS%C,iDebug,SpawnList(:,:),nSpawned,nMaxSpawn)
          enddo !GetNextSpawner
 ! Now deal with birth/death.
 !         call halt_timer(Spawntime)
 !         call set_timer(Dietime,20)
          if((.not.tTruncSpace).or.CS%C%iExcitLevel<=iMaxAmpLevel)          &
-  &         call AttemptDieParticle(CS%C,iDebug,SpawnList,SpawnAmps,nSpawned)
+  &         call AttemptDieParticle(CS%C,iDebug,SpawnList,nSpawned)
 !         call halt_timer(Dietime)
       enddo ! Cluster choices
 
@@ -2512,26 +2500,24 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
       IFDEBUG(iDebug,3) write(6,*) "Lengths",iLengths
       IFDEBUG(iDebug,4) then
          write(6,*) "Processor ",iProcIndex," has ", nSpawned, " spawned."
-         call WriteExcitorList(6,SpawnAmps,SpawnList,0,nSpawned,dAmpPrintTol,"Spawned list")
+         call WriteExcitorListP(6,SpawnList,0,nSpawned,dAmpPrintTol,"Spawned list")
       endif
-!Get the Amplitudes
-      call MPIGatherV(SpawnAmps(1:nSpawned),nSpawned,SpawnAmps,iLengths,iOffsets,Root,ierr)
       do i=1,nProcessors
          iOffsets(i)=iOffsets(i)*(nIfTot+1)
          iLengths(i)=iLengths(i)*(nIfTot+1)
       enddo
-!And the dets themselves
+!Get the dets themselves (which contain the amplitudes)
       call MPIGatherV(SpawnList(:,1:nSpawned),nSpawned*(nIfTot+1),SpawnList,iLengths,iOffsets,Root,ierr)
       if(iProcIndex.eq.Root) then
          nSpawned=sum(iLengths)/(nIfTot+1)
       else
          nSpawned=0
       endif
-! At this point SpawnList contains a set of newly spawned particles and SpawnAmps the amount spawned
+! At this point SpawnList contains a set of newly spawned particles (each containing the amount spawned)
 !      if(nSpawned>0) then
       IFDEBUG(iDebug,3) write(6,*) "Calling Annihilation with ", nSpawned, " spawned."
-      IFDEBUG(iDebug,3) call WriteExcitorList(6,SpawnAmps,SpawnList,0,nSpawned,dAmpPrintTol,"Spawned list")
-      call AnnihilationInterface(nAmpl,DetList,AL%Amplitude(:,iCurAmpList),nMaxAmpl,nSpawned,SpawnList,SpawnAmps,nMaxSpawn,iter_data_ccmc)
+      IFDEBUG(iDebug,3) call WriteExcitorListP(6,SpawnList,0,nSpawned,dAmpPrintTol,"Spawned list")
+      call AnnihilationInterface(nAmpl,DetList,AL%Amplitude(:,iCurAmpList),nMaxAmpl,nSpawned,SpawnList,nMaxSpawn,iter_data_ccmc)
       call MPIBCast(nAmpl,root)
 !      else
 !         if(iDebug>2) write(6,*) "No spawnings in toto."
@@ -2554,8 +2540,6 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
 !   call WriteMaxExcitorList(6,AL%Amplitude(:,iCurAmpList),DetList,FCIDetIndex,iMaxAmpLevel,10)
    LogDealloc(tagSpawnList)
    Deallocate(SpawnList)
-   LogDealloc(tagSpawnAmps)
-   Deallocate(SpawnAmps)
    call DeallocateAmplitudeList(AL)
    LogDealloc(tagDetList)
    if(tSharedExcitors) then

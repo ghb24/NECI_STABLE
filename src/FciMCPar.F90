@@ -89,6 +89,7 @@ MODULE FciMCParMod
         integer, dimension(lenof_sign) :: tmp_sgn
         integer :: tmp_int(lenof_sign)
         real(dp) :: grow_rate
+        logical :: truncinit_tmp
 
         TDebug=.false.  !Set debugging flag
 
@@ -145,6 +146,8 @@ MODULE FciMCParMod
             ! Are we projecting the spin out between iterations?
             if (tSpinProject .and. (mod(Iter, spin_proj_interval) == 0 .or. &
                                     spin_proj_interval == -1)) then
+                truncinit_tmp = tTruncInitiator
+                tTruncInitiator = .false.
                 call PerformFciMCycPar (generate_excit_spin_proj, &
                                        attempt_create_normal, &
                                        get_spawn_helement_spin_proj, &
@@ -152,6 +155,7 @@ MODULE FciMCParMod
                                        new_child_stats_normal, &
                                        attempt_die_spin_proj, &
                                        iter_data_spin_proj)
+                tTruncInitiator = truncinit_tmp
 !                print*, 'SPIN', iter, iter_data_spin_proj%nborn, &
 !                                      iter_data_spin_proj%ndied
 !                print*, 'TOTWALKRS', totwalkers
