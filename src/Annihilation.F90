@@ -60,7 +60,7 @@ MODULE AnnihilationMod
         INTEGER :: ierr,i
         CHARACTER(len=*) , PARAMETER :: this_routine='AnnihilationInterface'
         INTEGER, DIMENSION(lenof_sign) :: TempSign
-        TYPE(timer) :: Annihil_time
+        TYPE(timer),save :: Annihil_time
         Annihil_time%timer_name='Annihilation interface'
         call set_timer(Annihil_time,20)
 
