@@ -616,7 +616,7 @@ subroutine MPIRecv(Buffer,BuffSize,Source,Tag,ierr)
     CALL MPI_Recv(Buffer,BuffSize,%(mpitype)s,Source,Tag,MPI_COMM_WORLD,Stat,ierr)
 #else
     ierr=0
-    Buffer=0
+    Buffer(1)=Buffer(1)
 #endif
 end subroutine
 
