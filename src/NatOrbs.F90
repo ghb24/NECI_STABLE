@@ -1701,7 +1701,7 @@ MODULE NatOrbsMod
             Norm=0.D0
             do i=1,nBasis
                 Norm=Norm+AllOrbOccs(i)
-                IF(AllOrbOccs(i).lt.0) THEN
+                IF((AllOrbOccs(i).lt.0).or.(Norm.lt.0)) THEN
                     WRITE(6,*) 'WARNING: Integer overflow when calculating the orbital occupations.'
                     tWarning=.true.
                 ENDIF
