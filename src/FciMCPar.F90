@@ -68,7 +68,8 @@ MODULE FciMCParMod
     use spin_project, only: tSpinProject, spin_proj_interval, &
                             spin_proj_gamma, get_spawn_helement_spin_proj, &
                             generate_excit_spin_proj, attempt_die_spin_proj, &
-                            iter_data_spin_proj, test_spin_proj
+                            iter_data_spin_proj, test_spin_proj, &
+                            spin_proj_shift
 
     implicit none
 
@@ -82,6 +83,11 @@ MODULE FciMCParMod
         REAL(4) :: s,etime,tstart(2),tend(2)
         INTEGER(int64) :: MaxWalkers,MinWalkers
         real*8 :: AllTotWalkers,MeanWalkers,Inpair(2),Outpair(2)
+
+        integer, dimension(lenof_sign) :: tmp_sgn
+        integer :: tmp_int(lenof_sign)
+        real(dp) :: grow_rate
+        logical :: truncinit_tmp
 
         TDebug=.false.  !Set debugging flag
 
@@ -138,6 +144,8 @@ MODULE FciMCParMod
             ! Are we projecting the spin out between iterations?
             if (tSpinProject .and. (mod(Iter, spin_proj_interval) == 0 .or. &
                                     spin_proj_interval == -1)) then
+                truncinit_tmp = tTruncInitiator
+                tTruncInitiator = .false.
                 call PerformFciMCycPar (generate_excit_spin_proj, &
                                        attempt_create_normal, &
                                        get_spawn_helement_spin_proj, &
@@ -145,6 +153,7 @@ MODULE FciMCParMod
                                        new_child_stats_normal, &
                                        attempt_die_spin_proj, &
                                        iter_data_spin_proj)
+                tTruncInitiator = truncinit_tmp
 !                print*, 'SPIN', iter, iter_data_spin_proj%nborn, &
 !                                      iter_data_spin_proj%ndied
 !                print*, 'TOTWALKRS', totwalkers
@@ -173,6 +182,7 @@ MODULE FciMCParMod
                 ! Calculate the a new value for the shift (amongst other
                 ! things). Generally, collate information from all processors,
                 ! update statistics and output them to the user.
+!>>>!                iter_data_fciqmc%update_growth = iter_data_fciqmc%update_growth + iter_data_spin_proj%update_growth
                 if (tCCMC) then
                     call calculate_new_shift_wrapper (iter_data_ccmc, &
                                                       TotParts)
@@ -180,6 +190,33 @@ MODULE FciMCParMod
                     call calculate_new_shift_wrapper (iter_data_fciqmc, &
                                                       TotParts)
                 endif
+
+                !! Quick hack for spin projection
+                !if (tSpinProject .and. (mod(iter/stepssft, spin_proj_interval) == 0 .or. &
+                !    spin_proj_interval == 0)) then
+
+
+                !    call MPIReduce(iter_data_spin_proj%update_growth, &
+                !                   MPI_SUM, tmp_int)
+                !    if (iProcIndex == Root) then
+                !        grow_rate = (sum(tmp_int + &
+                !                     iter_data_spin_proj%tot_parts_old)) &
+                !                    / real(sum(iter_data_spin_proj%tot_parts_old), dp)
+                !        iter_data_spin_proj%tot_parts_old = AllTotPartsOld
+
+                !        if (.not. tSinglePartPhase) then
+                !            spin_proj_shift = spin_proj_shift - ((log(grow_rate) * SftDamp) / &
+                !                              (spin_proj_gamma * iter_data_spin_proj%update_iters))
+                !        endif
+
+                !    endif
+
+                !    call MPIBCast (spin_proj_shift, root)
+
+                !    iter_data_spin_proj%update_growth = 0
+                !    iter_data_spin_proj%update_iters = 0
+                !endif
+
 
                 IF((tTruncCAS.or.tTruncSpace.or.tTruncInitiator).and.(Iter.gt.iFullSpaceIter).and.(iFullSpaceIter.ne.0)) THEN
 !Test if we want to expand to the full space if an EXPANDSPACE variable has been set
@@ -812,7 +849,8 @@ MODULE FciMCParMod
         ! walkers should be in a seperate array (SpawnedParts) and the other 
         ! list should be ordered.
         call set_timer (annihil_time, 30)
-        call DirectAnnihilation (totWalkersNew, iter_data)
+        call DirectAnnihilation (totWalkersNew, iter_data,.false.) !.false. for not single processor
+        TotWalkers=TotWalkersNew
         CALL halt_timer(Annihil_Time)
         
         ! Update iteration data
@@ -820,9 +858,6 @@ MODULE FciMCParMod
                                 - iter_data%ndied - iter_data%nannihil &
                                 - iter_data%naborted
         iter_data%update_iters = iter_data%update_iters + 1
-!        write(6,*) "BSST",iter_data%nborn,",", iter_data%ndied, ",",iter_data%nannihil,",",iter_data%naborted
-!        write(6,*) "ASST",iter_data%update_growth,",", TotParts, ",",tot_parts_tmp 
-        ASSERT(all(iter_data%update_growth == TotParts - tot_parts_tmp))
 
     end subroutine
 
@@ -932,15 +967,18 @@ MODULE FciMCParMod
 !A flag of 0 means the determinant is an initiator, and 1 it is a non-initiator.
         INTEGER , INTENT(IN) :: j,VecSlot,Iter
         INTEGER , DIMENSION(lenof_sign) :: CurrentSign
+        INTEGER :: ParentInitiatorInit
         LOGICAL :: tDetinCAS
 
         CALL extract_sign(CurrentDets(:,j),CurrentSign)
+
+        ParentInitiatorInit = extract_flags(CurrentDets(:,j))
 
         IF(.not.tAddtoInitiator) THEN
 !If tAddtoInitiator is not on, then it is not possible to dynamically add initiators into the intiator space 
 !based on their population - the initiators remain as those in the specified CAS space and this is determined
 !when a new determinant is merged into the main array.
-            ParentInitiator=CurrentDets(NIfTot,j)
+            ParentInitiator=ParentInitiatorInit
             IF(ParentInitiator.eq.0) THEN
                 NoInitDets=NoInitDets+1.D0
                 NoInitWalk=NoInitWalk+(ABS(REAL(CurrentSign(1))))
@@ -948,12 +986,11 @@ MODULE FciMCParMod
                 NoNonInitDets=NoNonInitDets+1.D0
                 NoNonInitWalk=NoNonInitWalk+(ABS(REAL(CurrentSign(1))))
             ENDIF
-        ELSEIF(CurrentDets(NIfTot,j).eq.1) THEN
+        ELSEIF(ParentInitiatorInit.eq.1) THEN
             ! Determinant wasn't previously initiator 
             ! - want to test if it has now got a large enough population 
             ! to become an initiator.
             IF(ABS(CurrentSign(1)).gt.InitiatorWalkNo) THEN
-                CurrentDets(NIfTot,j)=0
                 ParentInitiator=0
                 NoAddedInitiators=NoAddedInitiators+1.D0
                 NoInitDets=NoInitDets+1.D0
@@ -977,19 +1014,16 @@ MODULE FciMCParMod
                 ! If the determinant is in the fixed initiator space, it stays initiator 
                 ! even if its populations drops.
                 ParentInitiator=0
-                CurrentDets(NIfTot,j)=0
                 NoInitDets=NoInitDets+1.D0
                 NoInitWalk=NoInitWalk+(ABS(REAL(CurrentSign(1))))
             ELSEIF(DetBitEQ(CurrentDets(:,j),iLutHF,NIfDBO)) THEN
                 ! HF stays initiator.
                 ParentInitiator=0
-                CurrentDets(NIfTot,j)=0
                 NoInitDets=NoInitDets+1.D0
                 NoInitWalk=NoInitWalk+(ABS(REAL(CurrentSign(1))))
             ELSEIF(ABS(CurrentSign(1)).le.InitiatorWalkNo) THEN
                 ! Population has fallen too low to remain an 
                 ! initiator - initiator status removed.
-                CurrentDets(NIfTot,j)=1
                 ParentInitiator=1
                 NoAddedInitiators=NoAddedInitiators-1.D0
                 NoNonInitDets=NoNonInitDets+1.D0
@@ -997,7 +1031,6 @@ MODULE FciMCParMod
             ELSE
                 ! Population still high enough - remains initiator.
                 ParentInitiator=0
-                CurrentDets(NIfTot,j)=0
                 NoInitDets=NoInitDets+1.D0
                 NoInitWalk=NoInitWalk+(ABS(REAL(CurrentSign(1))))
             ENDIF
@@ -1009,7 +1042,6 @@ MODULE FciMCParMod
         ELSE
             !If we are not retesting the initiators, they stay as initiators.
             ParentInitiator=0
-            CurrentDets(NIfTot,j)=0
             NoInitDets=NoInitDets+1.D0
             NoInitWalk=NoInitWalk+(ABS(REAL(CurrentSign(1))))
 
@@ -1018,6 +1050,8 @@ MODULE FciMCParMod
                  CALL HistInitPopulations(CurrentSign(1),VecSlot)
  
         ENDIF
+
+        CALL encode_flags(CurrentDets(:,j),ParentInitiator)
 
 !        WRITE(6,*) 'ParentFlag',ParentInitiator
 
@@ -3101,18 +3135,22 @@ MODULE FciMCParMod
                               &value.')
             endif
 
-            ! Check how balanced the load on each processor is (even though
-            ! we cannot load balance with direct annihilation).
-            walkers_diff = MaxWalkersProc - MinWalkersProc
-            mean_walkers = AllTotWalkers / real(nProcessors,dp)
-            if (walkers_diff > nint(mean_walkers / 10.d0) .and. &
-                sum(AllTotParts) > real(nProcessors * 500, dp)) then
-                root_write (6, '(a, f20.10, 2i12)') &
-                    'Number of determinants assigned to each processor &
-                    &unbalanced: ', (walkers_diff * 10.d0) / &
-                    real(mean_walkers), MinWalkersProc, MaxWalkersProc
-            endif
+! AJWT dislikes doing this type of if based on a (seeminly unrelated) input option, but can't see another easy way.
+!  TODO:  Something to make it better
 
+            if(.not.tCCMC) then
+               ! Check how balanced the load on each processor is (even though
+               ! we cannot load balance with direct annihilation).
+               walkers_diff = MaxWalkersProc - MinWalkersProc
+               mean_walkers = AllTotWalkers / real(nProcessors,dp)
+               if (walkers_diff > nint(mean_walkers / 10.d0) .and. &
+                   sum(AllTotParts) > real(nProcessors * 500, dp)) then
+                   root_write (6, '(a, f20.10, 2i12)') &
+                       'Number of determinants assigned to each processor &
+                       &unbalanced: ', (walkers_diff * 10.d0) / &
+                       real(mean_walkers), MinWalkersProc, MaxWalkersProc
+               endif
+            endif
 
             ! Deal with blocking analysis
             !
@@ -3324,7 +3362,7 @@ MODULE FciMCParMod
 
         ! 64bit integers
         call MPIReduce ((/TotWalkers, TotParts, SumNoatHF, tot_parts_new/), &
-                        MPI_SUM, int64_tmp)
+                        MPI_SUM, int64_tmp(1:2+2*lenof_sign))
         AllTotWalkers = int64_tmp(1)
         AllTotParts = int64_tmp(2:1+lenof_sign)
         AllSumNoatHF = int64_tmp(2+lenof_sign)
@@ -3388,7 +3426,13 @@ MODULE FciMCParMod
             ! it.
             tReZeroShift = .false.
             if (TSinglePartPhase) then
-                tot_walkers = int(InitWalkers, int64) * int(nProcessors,int64)
+! AJWT dislikes doing this type of if based on a (seeminly unrelated) input option, but can't see another easy way.
+!  TODO:  Something to make it better
+                if(.not.tCCMC) then
+                    tot_walkers = int(InitWalkers, int64) * int(nProcessors,int64)
+                else
+                    tot_walkers = int(InitWalkers, int64)
+                endif
                 if ( (sum(AllTotParts) > tot_walkers) .or. &
                      (AllNoatHF > MaxNoatHF)) then
                     write (6, *) 'Exiting the single particle growth phase - &
@@ -4220,9 +4264,11 @@ MODULE FciMCParMod
         ValidSpawnedList(:)=InitialSpawnedSlots(:)
 
         if (TReadPops) then
-            if (tStartSinglePart .and. .not. tReadPopsRestart) &
-                call stop_all (this_routine, &
-                               "ReadPOPS cannot work with StartSinglePart")
+            if (tStartSinglePart .and. .not. tReadPopsRestart) then
+                call warning(this_routine, &
+                               "ReadPOPS cannot work with StartSinglePart: ignoring StartSinglePart")
+                tStartSinglePart = .false.
+            end if
         endif
 
         IF(.not.TReadPops) THEN

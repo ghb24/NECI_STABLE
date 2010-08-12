@@ -1856,7 +1856,9 @@ SUBROUTINE PerformFCIMCyc()
         IF(TStartSinglePart) THEN
             TSinglePartPhase=.true.
             IF(TReadPops) THEN
-                CALL Stop_All("InitFciMCCalc","Cannot read in POPSFILE as well as starting with a single particle")
+                CALL WARNING("InitFciMCCalc","Cannot read in POPSFILE as well as starting with a single particle: ignoring StartSinglePart.")
+                tSinglePartPhase = .false.
+                tStartSinglePart = .false.
             ENDIF
             IF(TStartMP1) THEN
                 CALL Stop_All("InitFciMCCalc","Cannot start with a single particle and be at the MP1 wavefunction")

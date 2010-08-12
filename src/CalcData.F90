@@ -1,8 +1,9 @@
 module CalcData
 
-implicit none
+    use constants, only: dp
+    implicit none
 
-save
+    save
 
 LOGICAL :: TSTAR,TTROT,TMCExcits,TGrowInitGraph
 LOGICAL :: TNEWEXCITATIONS,TVARCALC(0:10),TBIN,TVVDISALLOW
@@ -38,10 +39,12 @@ INTEGER *8 :: MaxNoatHF,HFPopThresh
 REAL*8 :: g_MultiWeight(0:10),G_VMC_PI,G_VMC_FAC,BETAEQ
 REAL*8 :: G_VMC_EXCITWEIGHT(10),G_VMC_EXCITWEIGHTS(6,10)
 REAL*8 :: BETAP,RHOEPSILON,DBETA,STARCONV,GraphBias
-REAL*8 :: GrowGraphsExpo,DiagSft,Tau,SftDamp,ScaleWalkers
+REAL*8 :: GrowGraphsExpo,Tau,SftDamp,ScaleWalkers
 REAL*8 :: GrowMaxFactor,CullFactor,PRet,FracLargerDet
 REAL*8 :: MemoryFacPart,MemoryFacAnnihil
 REAL*8 :: MemoryFacSpawn,SinglesBias,TauFactor,StepsSftImag
+
+real(dp), target :: DiagSft
 
 REAL*8 :: GraphEpsilon
 REAL*8 :: PGenEpsilon

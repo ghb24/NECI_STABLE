@@ -7,8 +7,6 @@ MODULE FciMCData
       implicit none
       save
 
-      INTEGER , PARAMETER :: Root=0   !This is the rank of the root processor
-
       ! Units used to write to files
       integer :: fcimcstats_unit ! FCIMCStats
       integer :: initiatorstats_unit ! INITIATORStats
@@ -185,6 +183,7 @@ MODULE FciMCData
           integer, dimension(lenof_sign) :: update_growth, update_growth_tot
           integer(int64), dimension(lenof_sign) :: tot_parts_old
           integer :: update_iters
+          real(dp), pointer :: shift
       end type
       
       ! These are variables used to control the behaviour of PerformFciMCycPar

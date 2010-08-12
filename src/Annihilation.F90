@@ -25,8 +25,9 @@ MODULE AnnihilationMod
     !   H Elements - send through logical to decide whether to create or not.
     !   Parallel spawned parts - create the ValidSpawnedList itself.
     !   Going to have to sort this out for the new packaged walkers - will have to package them up in this interface.
-    SUBROUTINE AnnihilationInterface(TotDets,MainParts,MainSign,MaxMainInd,SpawnDets,SpawnParts,SpawnSign,MaxSpawnInd,iter_data)
+    SUBROUTINE AnnihilationInterface(TotDets,MainParts,MainSign,MaxMainInd,SpawnDets,SpawnParts,MaxSpawnInd,iter_data)
         use constants, only: size_n_int
+        use shared_alloc, only: shared_allocate_iluts, shared_deallocate
 !This is an interface routine to the Direct Annihilation routines.
 !It is not quite as fast as the main annihilation routines since there is a small degree of initialisation required
 !which can be achieved on-the-fly if increased performance is required.
@@ -45,88 +46,103 @@ MODULE AnnihilationMod
 !       MainSign(:)         This is the signed number of particles on the determinants specified in the equivalent
 !                           entry in the MainParticles array.
 !       SpawnParts(:,:)     This is the list of particles to attempt to annihilate. Unlike the Main list, this list
-!                           does *not* need to be ordered or sign coherent, and can also contain 'zero' sign particles.
+!                           does *not* need to be ordered or sign coherent, and can also contain 'zero' sign particles.  Each particle contains its own sign
 !       MaxSpawnInd         This is the size of the SpawnParts array.
 !       SpawnDets           This is the number of spawned particles in SpawnParts.
-!       SpawnSign(:)        This is the signed number of particles on the determinants specified in the equivalent
 !                           entry in the SpawnParts array.
 
         INTEGER, INTENT(IN) :: MaxMainInd,MaxSpawnInd
         INTEGER, INTENT(INOUT) :: TotDets
         type(fcimc_iter_data), intent(inout) :: iter_data
         INTEGER(KIND=n_int), INTENT(INOUT) , TARGET :: MainParts(0:NIfTot,MaxMainInd),SpawnParts(0:NIfTot,MaxSpawnInd)
-        INTEGER, INTENT(INOUT) , TARGET :: MainSign(MaxMainInd),SpawnSign(MaxSpawnInd)
+        INTEGER, INTENT(INOUT) , TARGET :: MainSign(MaxMainInd)
         INTEGER, INTENT(INOUT) :: SpawnDets
         INTEGER :: ierr,i
         CHARACTER(len=*) , PARAMETER :: this_routine='AnnihilationInterface'
         INTEGER, DIMENSION(lenof_sign) :: TempSign
+        TYPE(timer),save :: Annihil_time
+        integer(kind=n_int), pointer,save :: SpawnVecLocal(:,:)
+        Annihil_time%timer_name='Annihilation interface'
+        call set_timer(Annihil_time,20)
 
         IF(.not.(ALLOCATED(ValidSpawnedList))) THEN
 !This needs to be filled correctly before annihilation can take place.
             ALLOCATE(ValidSpawnedList(0:nProcessors-1),stat=ierr)
         ENDIF
-        IF(.not.(ALLOCATED(SpawnVec2))) THEN
+        IF(.not.(ASSOCIATED(SpawnVecLocal))) THEN
 !This is required scratch space of the size of the spawned arrays
-            ALLOCATE(SpawnVec2(0:NIfTot,MaxSpawnInd),stat=ierr)
-            CALL LogMemAlloc('SpawnVec2',MaxSpawnInd*(NIfTot+1),size_n_int,this_routine,SpawnVec2Tag,ierr)
-            SpawnVec2(:,:)=0
+            call shared_allocate_iluts("SpawnVecLocal",SpawnVecLocal,(/NIfTot,MaxSpawnInd/))
+            ierr=0
+            CALL LogMemAlloc('SpawnVecLocal',MaxSpawnInd*(NIfTot+1),size_n_int,this_routine,SpawnVec2Tag,ierr)
+            SpawnVecLocal(:,:)=0
 !            ALLOCATE(SpawnSignVec2(0:MaxSpawnInd),stat=ierr)
 !            CALL LogMemAlloc('SpawnSignVec2',MaxSpawnInd+1,size_n_int,this_routine,SpawnSignVec2Tag,ierr)
 !            SpawnSignVec2(:)=0
         ENDIF
 
-        IF(nProcessors.eq.1) THEN
-            ValidSpawnedList(0)=SpawnDets+1   !Add one since it always indicates the next free slot.
-        ELSE
-            CALL Stop_All(this_routine,"Ordering the SpawnedParts for parallel annihilation not yet implemented")
-        ENDIF
+!ValidSpawnedList indicates the next free index for each processor.
+!For CCMC using shared memory, we will have a single processor on each node handling this.
+!Say there are 2 nodes with 4 processors on each.  ValidSpawnedList will contain
+! (#Det on Node 1)
+! (#End of Node 1's spawned list)
+! (#End of Node 1's spawned list)
+! (#End of Node 1's spawned list)
+! (#Det on Node 2)
+! (#End of Node 2's spawned list)
+! (#End of Node 2's spawned list)
+! (#End of Node 2's spawned list)
 
+! Since we've no way of knowing about nodes as yet, we just assume all processors are on the same node.  AJWT  TODO Multinodes.
+
+        ValidSpawnedList(0)=SpawnDets+1   !Add one since it always indicates the next free slot.
+        do i=1,nProcessors-1
+            ValidSpawnedList(i)=MaxSpawnInd
+        enddo 
+
+        TempSign=0
         do i=1,TotDets
             TempSign(1)=MainSign(i)
             call encode_sign(MainParts(:,i),TempSign)
         enddo
-        do i=1,SpawnDets
-            TempSign(1)=SpawnSign(i)
-            call encode_sign(SpawnParts(:,i),TempSign)
-        enddo
-
+! The SpawnParts already have their signs inside them
 
         MaxWalkersPart=MaxMainInd
 !Point at correct arrays... will need to sort out how these are swapped in the main routine.
         CurrentDets => MainParts
         SpawnedParts => SpawnParts
 !These point to the scratch space
-        SpawnedParts2 => SpawnVec2
+        SpawnedParts2 => SpawnVecLocal
 
-!        WRITE(6,*) "Size of SpawnVec2 = ",size(SpawnVec2(0,:))
-!        WRITE(6,*) "LowerBound of SpawnVec2 = ",lbound(SpawnVec2,2)
-!        WRITE(6,*) "UpperBound of SpawnVec2 = ",ubound(SpawnVec2,2)
-
-        CALL DirectAnnihilation(TotDets, iter_data)
-        
+        CALL DirectAnnihilation(TotDets, iter_data,.true.) !.true. for single processor annihilation
+        if(iProcIndex==root) then        
 !Signs put back again into seperate array
-        do i=1,TotDets
-            call extract_sign(CurrentDets(:,i),TempSign)
-            MainSign(i)=TempSign(1)
-        enddo
+           do i=1,TotDets
+               call extract_sign(CurrentDets(:,i),TempSign)
+               MainSign(i)=TempSign(1)
+           enddo
+         endif
+         call MPIBarrier(ierr)
 
+        call halt_timer(Annihil_time)
     END SUBROUTINE AnnihilationInterface
 
 
 !This is a new annihilation algorithm. In this, determinants are kept on predefined processors, and newlyspawned particles are sent here so that all the annihilations are
 !done on a predetermined processor, and not rotated around all of them.
-    SUBROUTINE DirectAnnihilation(TotWalkersNew, iter_data)
-        integer, intent(in) :: TotWalkersNew
+    SUBROUTINE DirectAnnihilation(TotWalkersNew, iter_data, tSingleProc)
+        integer, intent(inout) :: TotWalkersNew
         type(fcimc_iter_data), intent(inout) :: iter_data
-        INTEGER :: MaxIndex
+        INTEGER :: MaxIndex,ierr
         INTEGER(Kind=n_int) , POINTER :: PointTemp(:,:)
+        logical, intent(in) :: tSingleProc
+         
 
 !        WRITE(6,*) "Direct annihilation"
 !        CALL FLUSH(6)
 
 !This routine will send all the newly-spawned particles to their correct processor. MaxIndex is returned as the new number of newly-spawned particles on the processor. May have duplicates.
 !The particles are now stored in SpawnedParts2/SpawnedSign2.
-        CALL SendProcNewParts(MaxIndex)   
+        CALL SendProcNewParts(MaxIndex,tSingleProc)   
 
 !        WRITE(6,*) "Sent particles"
 !        WRITE(6,*) 'MaxIndex',MaxIndex
@@ -155,32 +171,51 @@ MODULE AnnihilationMod
 !Put the surviving particles in the main list, maintaining order of the main list.
 !Now we insert the remaining newly-spawned particles back into the original list (keeping it sorted), and remove the annihilated particles from the main list.
         CALL set_timer(Sort_Time,30)
-        CALL InsertRemoveParts(MaxIndex,TotWalkersNew)
+        CALL InsertRemoveParts(MaxIndex,TotWalkersNew,tSingleProc)
 
 !       WRITE(6,*) "Surviving particles merged"
 
         CALL halt_timer(Sort_Time)
+         call MPIBarrier(ierr)
 
     END SUBROUTINE DirectAnnihilation
 
 !This routine is used for sending the determinants to the correct processors. 
-    SUBROUTINE SendProcNewParts(MaxIndex)
+    SUBROUTINE SendProcNewParts(MaxIndex,tSingleProc)
         use constants, only: MpiDetInt
         REAL :: Gap
         INTEGER :: i,sendcounts(nProcessors),disps(nProcessors),recvcounts(nProcessors),recvdisps(nProcessors),error
         INTEGER :: MaxSendIndex
         INTEGER, INTENT(OUT) :: MaxIndex
+        LOGICAL, intent(in) :: tSingleProc
 
 !        WRITE(6,*) "ValidSpawnedList ",ValidSpawnedList(:)
+        if(tSingleProc) then
+!Put all particles and gap on one proc.
 
-        Gap=REAL(MaxSpawned)/REAL(nProcessors)
+!ValidSpawnedList(0:nProcessors-1) indicates the next free index for each processor (for spawnees from this processor)
+!  i.e. the list of spawned particles has already been arranged so that newly spawned particles are grouped according to the processor they go to.
 
-!        WRITE(6,*) "Gap: ",Gap
+! sendcounts(1:) indicates the number of spawnees to send to each processor (1-based)
+! disps(1:) is the index into the spawned list of the beginning of the list to send to each processor (1-based)
+           sendcounts(1)=ValidSpawnedList(0)-1
+           disps(1)=0
+           if(nProcessors>1) then
+              sendcounts(2:nProcessors)=0
+              disps(2:nProcessors)=ValidSpawnedList(1)
+           endif
+        else
+!Distribute the gaps on all procs
+!TODO:  This should use information from InitialSpawnedSlots for consistency.
+            Gap=REAL(MaxSpawned)/REAL(nProcessors)
+   !        WRITE(6,*) "Gap: ",Gap
 
-        do i=0,nProcessors-1
-            sendcounts(i+1)=ValidSpawnedList(i)-(NINT(Gap*i)+1)
-            disps(i+1)=NINT(Gap*i)
-        enddo
+           do i=0,nProcessors-1
+               sendcounts(i+1)=ValidSpawnedList(i)-(NINT(Gap*i)+1)
+               disps(i+1)=NINT(Gap*i)
+           enddo
+        endif
+
 
 !        WRITE(6,*) 'sendcounts',sendcounts
 !        WRITE(6,*) 'disps',disps
@@ -242,11 +277,7 @@ MODULE AnnihilationMod
 !            write(6,*) i, '***', CountBits(spawnedparts(:,i), nifd)
 !            WRITE(6,*) i,"***",SpawnedParts(:,i)
 !        enddo
-#ifdef PARALLEL
-        CALL MPI_AlltoAllv(SpawnedParts(:,1:MaxSendIndex),sendcounts,disps,MpiDetInt,SpawnedParts2(:,1:MaxIndex),recvcounts,recvdisps,MpiDetInt,MPI_COMM_WORLD,error)
-#else
-        SpawnedParts2(0:NIfTot,1:MaxIndex)=SpawnedParts(0:NIfTot,1:MaxSendIndex)
-#endif
+        CALL MPIAlltoAllv(SpawnedParts,sendcounts,disps,SpawnedParts2,recvcounts,recvdisps,error)
 
 !        WRITE(6,*) MaxIndex, "Recieved particles: "
 !        do i=1,MaxIndex
@@ -463,6 +494,17 @@ MODULE AnnihilationMod
 !            WRITE(6,*) CurrentDets(:,i)
 !        enddo
         
+
+!          write(6,*) "CurrentDets",TotWalkersNew
+!          do i=1,TotWalkersNew
+!             write(6,"(I5)",advance='no') i
+!             call WriteBitDet(6,CurrentDets(:,i),.true.)
+!          enddo
+!             write(6,*) "ValidSpawned"
+!             do i=1,ValidSpawned
+!                write(6,"(I5)",advance='no') i
+!                call WriteBitDet(6,SpawnedParts(:,i),.true.)
+!             enddo
         CALL set_timer(BinSearch_time,45)
 
         do i=1,ValidSpawned
@@ -470,8 +512,15 @@ MODULE AnnihilationMod
 !This will binary search the CurrentDets array to find the desired particle. tSuccess will determine whether the particle has been found or not.
 !It will also return the index of the position one below where the particle would be found if was in the list.
 !            CALL LinSearchParts(CurrentDets(:,1:TotWalkersNew),SpawnedParts(0:NIfD,i),MinInd,TotWalkersNew,PartInd,tSuccess)
+!            WRITE(6,*) "MinInd",MinInd
+!            do j=MinInd,min(MinInd+10,TotWalkersNew)
+!               write(6,"(I5)",advance='no') j 
+!               call WriteBitDet(6,CurrentDets(:,j),.true.)
+!            enddo
             CALL BinSearchParts(SpawnedParts(:,i),MinInd,TotWalkersNew,PartInd,tSuccess)
-!            WRITE(6,*) "Binary search complete: ",i,PartInd,tSuccess,SpawnedParts(1,i),CurrentDets(:,PartInd)
+!            WRITE(6,"(A,2I6,L)",advance="no") "Binary search complete: ",i,PartInd,tSuccess
+!            call WriteBitDet(6,SpawnedParts(:,i),.true.)
+!            call WriteBitDet(6,CurrentDets(:,PartInd),.true.)
 
             IF(tSuccess) THEN
 !                SearchInd=PartInd   !This can actually be min(1,PartInd-1) once we know that the binary search is working, as we know that PartInd is the same particle.
@@ -616,7 +665,7 @@ MODULE AnnihilationMod
 !Binary searching can be used to speed up this transfer substantially.
 !The key feature which makes this work, is that it is impossible for the same determinant to be specified in both the spawned and main list at the end of
 !the annihilation process. Therefore we will not multiply specify determinants when we merge the lists.
-    SUBROUTINE InsertRemoveParts(ValidSpawned,TotWalkersNew)
+    SUBROUTINE InsertRemoveParts(ValidSpawned,TotWalkersNew,tSingleProc)
         use SystemData, only: tHPHF
         use bit_reps, only: NIfD
         use CalcData , only : tCheckHighestPop
@@ -625,8 +674,11 @@ MODULE AnnihilationMod
         INTEGER, DIMENSION(lenof_sign) :: CurrentSign,SpawnedSign
         REAL*8 :: HDiag
         LOGICAL :: TestClosedShellDet
+        LOGICAL, intent(in) ::tSingleProc
         HElement_t :: HDiagTemp
 
+!It appears that the rest of this routine isn't thread-safe if ValidSpawned is zero.
+        if(tSingleProc.and.iProcIndex/=root) return
 !Annihilated determinants first are removed from the main array (zero sign). 
 !Surely we only need to perform this loop if the number of annihilated particles > 0?
         TotParts=0
@@ -781,8 +833,6 @@ MODULE AnnihilationMod
             ENDIF
 
         ENDIF
-        TotWalkers=TotWalkersNew
-
 !        CALL CheckOrdering(CurrentDets,CurrentSign(1:TotWalkers),TotWalkers,.true.)
 
     END SUBROUTINE InsertRemoveParts
