@@ -1046,12 +1046,6 @@ MODULE FciMCParMod
 
         IF((tHistInitPops.and.(MOD(Iter,HistInitPopsIter).eq.0))    &
              .or.tPrintHighPop) THEN
-!             IF(ParentInitiator.ne.1) WRITE(6,*) 'CurrentDet',CurrentDets(:,j)
-             WRITE(6,'(2I4)',advance='no') j,VecSlot
-             do i=1,NIfTot
-                 WRITE(6,'(I20)',advance='no') CurrentDets(i,j)
-             enddo
-             WRITE(6,*) ''
              CALL HistInitPopulations(CurrentSign(1),VecSlot)
          ENDIF
 
