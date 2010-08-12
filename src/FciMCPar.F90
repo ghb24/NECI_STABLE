@@ -268,12 +268,6 @@ MODULE FciMCParMod
                 CALL WriteHamilHistogram()
             ENDIF
 
-            IF(tHistInitPops.and.(MOD(Iter,HistInitPopsIter).eq.0)) THEN
-                IF(iProcIndex.eq.0) WRITE(6,'(A)') 'Writing out the spread of the initiator determinant populations.'
-                CALL WriteInitPops(Iter+PreviousCycles)
-                tPrintHighPop=.true.
-            ENDIF
-
             Iter=Iter+1
 !End of MC cycle
         enddo
@@ -831,8 +825,6 @@ MODULE FciMCParMod
 
         IFDEBUG(FCIMCDebug,2) WRITE(6,*) "Finished loop over determinants"
 
-        IF(tPrintHighPop) CALL FindHighPopDet()
-
         ! SumWalkersCyc calculates the total number of walkers over an update
         ! cycle on each process.
         SumWalkersCyc = SumWalkersCyc + int(sum(TotParts), int64)
@@ -840,6 +832,13 @@ MODULE FciMCParMod
         ! Since VecSlot holds the next vacant slot in the array, TotWalkers
         ! should be one less than this.
         TotWalkersNew = VecSlot - 1
+
+        IF((tHistInitPops.and.(MOD(Iter,HistInitPopsIter).eq.0))    &
+            .or.tPrintHighPop) THEN
+            CALL FindHighPopDet(TotWalkersNew)
+            IF(iProcIndex.eq.0) WRITE(6,'(A)') 'Writing out the spread of the initiator determinant populations.'
+            CALL WriteInitPops(Iter+PreviousCycles)
+        ENDIF
 
         ! Print bloom/memory warnings
         call end_iteration_print_warn (totWalkersNew)
@@ -967,7 +966,7 @@ MODULE FciMCParMod
 !A flag of 0 means the determinant is an initiator, and 1 it is a non-initiator.
         INTEGER , INTENT(IN) :: j,VecSlot,Iter
         INTEGER , DIMENSION(lenof_sign) :: CurrentSign
-        INTEGER :: ParentInitiatorInit
+        INTEGER :: ParentInitiatorInit,i
         LOGICAL :: tDetinCAS
 
         CALL extract_sign(CurrentDets(:,j),CurrentSign)
@@ -1035,25 +1034,29 @@ MODULE FciMCParMod
                 NoInitWalk=NoInitWalk+(ABS(REAL(CurrentSign(1))))
             ENDIF
 
-            IF((tHistInitPops.and.(MOD(Iter,HistInitPopsIter).eq.0))    &
-                 .or.tPrintHighPop)                                     & 
-                 CALL HistInitPopulations(CurrentSign(1),VecSlot)
- 
         ELSE
             !If we are not retesting the initiators, they stay as initiators.
             ParentInitiator=0
             NoInitDets=NoInitDets+1.D0
             NoInitWalk=NoInitWalk+(ABS(REAL(CurrentSign(1))))
 
-            IF((tHistInitPops.and.(MOD(Iter,HistInitPopsIter).eq.0))    &
-                 .or.tPrintHighPop)                                     & 
-                 CALL HistInitPopulations(CurrentSign(1),VecSlot)
- 
         ENDIF
 
         CALL encode_flags(CurrentDets(:,j),ParentInitiator)
 
+        IF((tHistInitPops.and.(MOD(Iter,HistInitPopsIter).eq.0))    &
+             .or.tPrintHighPop) THEN
+!             IF(ParentInitiator.ne.1) WRITE(6,*) 'CurrentDet',CurrentDets(:,j)
+             WRITE(6,'(2I4)',advance='no') j,VecSlot
+             do i=1,NIfTot
+                 WRITE(6,'(I20)',advance='no') CurrentDets(i,j)
+             enddo
+             WRITE(6,*) ''
+             CALL HistInitPopulations(CurrentSign(1),VecSlot)
+         ENDIF
+
 !        WRITE(6,*) 'ParentFlag',ParentInitiator
+        
 
     END SUBROUTINE CalcParentFlag
 
@@ -1063,8 +1066,7 @@ MODULE FciMCParMod
         INTEGER , INTENT(IN) :: VecSlot,SignCurr
         INTEGER :: InitBinNo
 
-
-        IF(tHistInitPops.and.((ABS(SignCurr).gt.InitiatorWalkNo))) THEN
+        IF(ABS(SignCurr).gt.InitiatorWalkNo) THEN
 !Just summing in those determinants which are initiators. 
 
 !Need to figure out which bin to put them in though.
@@ -1087,46 +1089,53 @@ MODULE FciMCParMod
             ENDIF
         ENDIF
 
-        IF(tPrintHighPop) THEN
-            IF(SignCurr.lt.MaxInitPopNeg) THEN
-                MaxInitPopNeg=SignCurr
-                HighPopNeg=VecSlot
-            ENDIF
-            IF(SignCurr.gt.MaxInitPopPos) THEN
-                MaxInitPopPos=SignCurr
-                HighPopPos=VecSlot
-            ENDIF
+        IF(SignCurr.lt.MaxInitPopNeg) THEN
+            MaxInitPopNeg=SignCurr
+            HighPopNeg=VecSlot
+        ENDIF
+        IF(SignCurr.gt.MaxInitPopPos) THEN
+            MaxInitPopPos=SignCurr
+            HighPopPos=VecSlot
         ENDIF
 
 
     END SUBROUTINE HistInitPopulations
 
 
-    SUBROUTINE FindHighPopDet()
+    SUBROUTINE FindHighPopDet(TotWalkersNew)
         USE constants, only : MpiDetInt
 !Found the highest population on each processor, need to find out which of these has the highest of all.
         INTEGER(KIND=n_int) :: DetPos(0:NIfTot),DetNeg(0:NIfTot)
-        INTEGER :: HighPopInNeg(2),HighPopInPos(2),HighPopoutNeg(2),HighPopoutPos(2)
+        INTEGER :: HighPopInNeg(2),HighPopInPos(2),HighPopoutNeg(2),HighPopoutPos(2),TotWalkersNew
         INTEGER, DIMENSION(lenof_sign) :: TempSign
 
 !        WRITE(6,*) 'HighPopPos',HighPopPos
 !        WRITE(6,*) 'CurrentSign(HighPopPos)',CurrentSign(HighPopPos)
 
-        call extract_sign(CurrentDets(:,HighPopNeg),TempSign)
+        IF(TotWalkersNew.gt.0) THEN
+            call extract_sign(CurrentDets(:,HighPopNeg),TempSign)
+        ELSE
+            TempSign(:)=0
+        ENDIF
         HighPopInNeg(1)=TempSign(1)
         HighPopInNeg(2)=iProcIndex
         CALL MPIAllReduceDatatype(HighPopinNeg,1,MPI_MINLOC,MPI_2INTEGER,HighPopoutNeg)
 
-        call extract_sign(CurrentDets(:,HighPopPos),TempSign)
+        IF(TotWalkersNew.gt.0) THEN
+            call extract_sign(CurrentDets(:,HighPopPos),TempSign)
+        ELSE
+            TempSign(:)=0
+        ENDIF
         HighPopInPos(1)=TempSign(1)
         HighPopInPos(2)=iProcIndex
-        CALL MPIAllReduceDatatype(HighPopinPos,1,MPI_MINLOC,MPI_2INTEGER,HighPopoutPos)
+        CALL MPIAllReduceDatatype(HighPopinPos,1,MPI_MAXLOC,MPI_2INTEGER,HighPopoutPos)
 
 !Now, on all processors, HighPopoutPos(1) is the highest positive population, and HighPopoutNeg(1) is the highest negative population.
 !HighPopoutPos(2) is the processor the highest population came from.
 
-        DetNeg(:)=CurrentDets(:,HighPopNeg)
-        DetPos(:)=CurrentDets(:,HighPopPos)
+
+        IF(iProcIndex.eq.HighPopOutNeg(2)) DetNeg(:)=CurrentDets(:,HighPopNeg)
+        IF(iProcIndex.eq.HighPopOutPos(2)) DetPos(:)=CurrentDets(:,HighPopPos)
         CALL MPIBcast(DetNeg,HighPopoutNeg(2))
         CALL MPIBcast(DetPos,HighPopoutPos(2))
 
@@ -1147,8 +1156,6 @@ MODULE FciMCParMod
 
     END SUBROUTINE FindHighPopDet
 
-
-    
     
 
     subroutine init_fcimc_fn_pointers ()
