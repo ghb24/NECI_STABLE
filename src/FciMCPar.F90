@@ -39,7 +39,7 @@ MODULE FciMCParMod
     use IntegralsData , only : fck,NMax,UMat,tPartFreezeCore,NPartFrozen,NHolesFrozen,tPartFreezeVirt,NVirtPartFrozen,NElVirtFrozen
     USE Logging , only : iWritePopsEvery,TPopsFile,iPopsPartEvery,tBinPops,tHistSpawn,iWriteHistEvery,tHistEnergies,IterShiftBlock,AllHistInitPops
     USE Logging , only : BinRange,iNoBins,OffDiagBinRange,OffDiagMax,AllHistInitPopsTag,tLogComplexPops
-    USE Logging , only : tPrintFCIMCPsi,tCalcFCIMCPsi,NHistEquilSteps,tPrintOrbOcc,StartPrintOrbOcc
+    USE Logging , only : tPrintFCIMCPsi,tCalcFCIMCPsi,NHistEquilSteps,tPrintOrbOcc,StartPrintOrbOcc,tPrintOrbOccInit
     USE Logging , only : tHFPopStartBlock,tIterStartBlock,IterStartBlocking,HFPopStartBlocking,tInitShiftBlocking,tHistHamil,iWriteHamilEvery,HistInitPopsTag
     USE Logging , only : OrbOccs,OrbOccsTag,tPrintPopsDefault,iWriteBlockingEvery,tBlockEveryIteration,tHistInitPops,HistInitPopsIter,HistInitPops
     USE Logging , only : FCIMCDebug
@@ -5076,9 +5076,11 @@ MODULE FciMCParMod
         ENDIF
 
         IF(tPrintOrbOcc.and.(Iter.ge.StartPrintOrbOcc)) THEN
-            do i=1,NEl
-                OrbOccs(DetCurr(i))=OrbOccs(DetCurr(i))+REAL(WSign(1)*WSign(1))
-            enddo
+            IF((tPrintOrbOccInit.and.(extract_flags(iLutCurr).ne.1)).or.(.not.tPrintOrbOccInit)) then
+                do i=1,NEl
+                    OrbOccs(DetCurr(i))=OrbOccs(DetCurr(i))+(REAL(WSign(1))*REAL(WSign(1)))
+                enddo
+            ENDIF
         ENDIF
 
         RETURN
@@ -5267,7 +5269,6 @@ MODULE FciMCParMod
         IF(tTruncInitiator.or.tDelayTruncInit) THEN
             IF(tDelayTruncInit) tTruncInitiator=.false.
         ENDIF
-
 
         IF(tPrintOrbOcc) THEN
             ALLOCATE(OrbOccs(nBasis),stat=ierr)

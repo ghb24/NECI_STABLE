@@ -1682,12 +1682,12 @@ MODULE NatOrbsMod
 ! This is essentially < Psi | a_p+ a_p | Psi > - the diagonal terms of the one electron reduced density matrix.
 !        USE Logging , only : OrbOccs
         use util_mod, only: get_free_unit
-        REAL*8 :: Norm,OrbOccs(nBasis)
+        IMPLICIT NONE
+        REAL*8 :: Norm,OrbOccs(nBasis),AllOrbOccs(nBasis)
         INTEGER :: i,error, iunit
-        real(dp) :: AllOrbOccs(nBasis)
+        LOGICAL :: tWarning
 
-
-        AllOrbOccs = 0
+        AllOrbOccs = 0.D0
 
 #ifdef PARALLEL
         CALL MPI_Reduce(OrbOccs(1:nBasis),AllOrbOccs(1:nBasis),nBasis,MPI_DOUBLE_PRECISION,MPI_SUM,0,MPI_COMM_WORLD,error)
@@ -1696,18 +1696,26 @@ MODULE NatOrbsMod
 #endif
 
 ! Want to normalise the orbital contributions for convenience.        
+        tWarning=.false.
         IF(iProcIndex.eq.0) THEN
             Norm=0.D0
             do i=1,nBasis
                 Norm=Norm+AllOrbOccs(i)
+                IF(AllOrbOccs(i).lt.0) THEN
+                    WRITE(6,*) 'WARNING: Integer overflow when calculating the orbital occupations.'
+                    tWarning=.true.
+                ENDIF
             enddo
-            do i=1,nBasis
-                AllOrbOccs(i)=AllOrbOccs(i)/Norm
-            enddo
+            IF(Norm.ne.0.D0) THEN
+                do i=1,nBasis
+                    AllOrbOccs(i)=AllOrbOccs(i)/Norm
+                enddo
+            ENDIF
 
             iunit = get_free_unit()
             OPEN(iunit,FILE='ORBOCCUPATIONS',STATUS='UNKNOWN')
             WRITE(iunit,'(A15,A30)') '# Orbital no.','Normalised occupation'
+            IF(tWarning) WRITE(iunit,*) 'WARNING: INTEGER OVERFLOW OCCURRED WHEN CALCULATING THESE OCCUPATIONS'
             do i=1,nBasis
                 WRITE(iunit,'(I15,F30.10)') i,AllOrbOccs(i)
             enddo
