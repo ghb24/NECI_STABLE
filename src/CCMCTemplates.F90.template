@@ -762,8 +762,13 @@ subroutine CalcTotals (iNumExcitors,dTotAbsAmpl,Amplitude,nAmpl,dTol,WalkerScale
    else
       TotWalkers=0
    endif
-   iter_data_ccmc%%update_growth=iter_data_ccmc%%update_growth+TotParts-iOldTotParts
-   iOldTotParts=TotParts(1)
+   if(iProcIndex==root) then
+      iter_data_ccmc%%update_growth=iter_data_ccmc%%update_growth+TotParts-iOldTotParts
+      iOldTotParts=TotParts(1)
+   else
+      iter_data_ccmc%%update_growth=0
+      iOldTotParts=0
+   endif
 !   write(6,*) "update growth",iter_data_ccmc%%update_growth
    iter_data_ccmc%%update_iters=iter_data_ccmc%%update_iters+1
    IFDEBUG(iDebug,2) WRITE(6,*) "Total unique excitors", TotWalkers
