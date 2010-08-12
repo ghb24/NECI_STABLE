@@ -780,7 +780,6 @@ contains
 !   We've found the slot for the rep.  increment it and leave.
                   NELECS(J)=NELECS(J)+1
                   J = NEL
-                  exit
                ENDIF
                J=J+1
             ENDDO
@@ -1254,6 +1253,7 @@ contains
          INTEGER NBASIS
          REAL*8 ARR(NBASIS,2)
          REAL*8 DEGENTOL
+         logical lTmp
          character(*), parameter :: this_routine='GenSymReps'
 
 !   now work out which reps are degenerate and label them
@@ -1262,13 +1262,16 @@ contains
          J=0
          DO I=1,NBASIS
 !            WRITE(6,*) "SR2",I
+            ltmp = .false.
             if (i > 1) then
                 if (abs(arr(i,2) - arr(i-1, 2)) < degentol .and. &
                     (tAbelian .or. symeq(G1(i)%sym, G1(i-1)%sym))) then
                     ! We have the same degenerate rep as the previous entry
                     symreps(2, J) = symreps(2, J) + 1
+                    lTmp = .true.
                 endif
-            else
+            endif
+            if (.not. lTmp) then
                 ! We have a new rep
                 J = J + 1
                 symreps(2, J) = 1
