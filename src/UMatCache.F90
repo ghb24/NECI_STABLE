@@ -1553,7 +1553,7 @@ END MODULE UMatCache
 !               STOP "b"
 !            ENDIF
             ICACHEI=ICACHEI-1
-            OLAB=UMATLABELS(ICACHEI,ICACHE)
+            if (icachei > 0) OLAB=UMATLABELS(ICACHEI,ICACHE)
          ENDDO
       END SUBROUTINE CacheUMatEl
 
