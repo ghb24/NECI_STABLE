@@ -64,7 +64,7 @@ contains
          IF(.not.TwoCycleSymGens.and.((NPROP(1)+NPROP(2)+NPROP(3)).gt.3)) THEN
              !We are using abelian k-point symmetry. Turn it on.
              tKPntSym=.true.
-             WRITE(6,*) "Using abelian k-point symmetry"
+             WRITE(6,"(A,I5,A)") "Using abelian k-point symmetry - ",NPROP(1)*NPROP(2)*NPROP(3)," kpoints found."
          ELSE
              tKPntSym=.false.
          ENDIF

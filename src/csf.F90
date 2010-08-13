@@ -57,30 +57,29 @@ contains
         ! These are needed just for the interface with get_csf_helement
         integer :: ic, ex(2,2)
         logical :: tParity
-        real(dp) :: prob
+        HElement_t :: HElGen
 
         call EncodeBitDet (nI, iLutI)
         call EncodeBitDet (nJ, iLutJ)
         hel_ret = get_csf_helement(nI, nJ, iLutI, iLutJ, ic, ex, tParity, &
-                                   prob)
+                                   HElGen)
     end function CSFGetHelement
 
     function get_csf_helement (nI, nJ, iLutI, iLutJ, notic, notex, &
-                               nottParity, notprob) result (hel_ret)
+                               nottParity, notHElGen) result (hel_ret)
         integer, intent(in) :: nI(nel), nJ(nel)
         integer, intent(in) :: notic, notex(2,2)
         integer(kind=n_int), intent(in) :: iLutI(0:NIfTot), iLutJ(0:NIfTot)
         logical, intent(in) :: nottParity
-        real(dp), intent(in) :: notprob
         HElement_t :: hel_ret
+        HElement_t , intent(in) :: notHElGen
 
         integer :: nopen(2), nclosed(2), nup(2), ndets(2), IC, i
         integer :: S(2), Ms(2), iUnused
         logical :: bCSF(2), bBothCSF, tUnused
-        real(dp) :: rUnused
 
         ! Avoid compiler warnings
-        iUnused=notic; iUnused=notex(1,1); tUnused=nottParity; rUnused=notprob
+        iUnused=notic; iUnused=notex(1,1); tUnused=nottParity
 
         ! Are these both CSFs?
         bCSF(1) = iscsf(nI)

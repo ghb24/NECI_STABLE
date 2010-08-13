@@ -18,16 +18,16 @@ module hphf_integrals
     contains
 
     function hphf_spawn_sign (nI, nJ, iLutI, iLutJ, ic, ex, &
-                                  tParity, prob) result (hel)
+                                  tParity, HElGen) result (hel)
         integer, intent(in) :: nI(nel), nJ(nel), ic, ex(2,2)
         integer(kind=n_int), intent(in) :: iLutI(0:NIfTot), iLutJ(0:NIfTot)
         logical, intent(in) :: tParity
-        real(dp), intent(in) :: prob
         integer :: iUnused
         logical :: lUnused
         HElement_t :: hel
+        HElement_t, intent(in) :: HElGen
 
-        hel = sign(1.0_dp, prob)
+        hel=HElGen
 
         ! Avoid warnings
         iUnused = IC; iUnused = ex(1,1); iUnused = nI(1); iUnused = nJ(1)
@@ -37,20 +37,19 @@ module hphf_integrals
 
     ! TODO: comment as to why!
     function hphf_off_diag_helement_spawn (nI, nJ, iLutI, iLutJ, ic, ex, &
-                                           tParity, prob) result (hel)
+                                           tParity, HElGen) result (hel)
         integer, intent(in) :: nI(nel), nJ(nel), ic, ex(2,2)
         integer(kind=n_int), intent(in) :: iLutI(0:NIfTot), iLutJ(0:NIfTot)
         logical, intent(in) :: tParity
-        real(dp), intent(in) :: prob
         integer :: iUnused
-        real(dp) :: rUnused
         logical :: lUnused
         HElement_t :: hel
+        HElement_t , intent(in) :: HElGen
 
         hel = hphf_off_diag_helement_norm (nI, nJ, iLutI, iLutJ)
 
         ! Avoid warnings
-        iUnused = IC; iUnused = ex(1,1); rUnused = prob; lUnused = tParity
+        iUnused = IC; iUnused = ex(1,1); lUnused = tParity
 
     end function
 
@@ -97,9 +96,9 @@ module hphf_integrals
             endif
         else
             if (TestClosedShellDet(iLutnJ)) then
-                ! Open shell -> Closed shell. I am pretty sure that if one of
+                ! Open shell -> Closed shell. If one of
                 ! the determinants is connected, then the other is connected 
-                ! with the same IC (+matrix element?). Test this later.
+                ! with the same IC & matrix element
                 hel = hel * (sqrt(2.d0))
             else
                 ! Open shell -> Open shell. Find the spin pair of nJ.
