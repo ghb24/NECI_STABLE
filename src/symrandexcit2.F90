@@ -45,7 +45,7 @@ MODULE GenRandSymExcitNUMod
     contains
 
     subroutine gen_rand_excit (nI, ilut, nJ, ilutnJ, exFlag, IC, ExcitMat, &
-                               tParity, pGen, tFilled, ClassCount2, &
+                               tParity, pGen, HElGen, tFilled, ClassCount2, &
                                ClassCountUnocc2, scratchUnused)
 
         ! This routine is the same as GenRandSymexcitNu, but you can pass in 
@@ -69,6 +69,7 @@ MODULE GenRandSymExcitNUMod
         ! Not used
         integer(kind=n_int), intent(out) :: ilutnJ(0:niftot)
         integer, intent(inout) :: scratchUnused(ScratchSize)
+        HElement_t, intent(out) :: HElGen
 
         real*8 :: r
         character(*), parameter :: this_routine = 'gen_rand_excit'
@@ -2796,6 +2797,7 @@ SUBROUTINE TestGenRandSymExcitNU(nI,Iterations,pDoub,exFlag)
     REAL*8 , ALLOCATABLE :: DoublesHist(:,:,:,:),SinglesHist(:,:),AllDoublesHist(:,:,:,:),AllSinglesHist(:,:)
     INTEGER , ALLOCATABLE :: EXCITGEN(:)
     INTEGER :: ierr,Ind1,Ind2,Ind3,Ind4,iMaxExcit,nStore(6),nExcitMemLen,j,k,l,DetNum,DetNumS,Lz,excitcount,ForbiddenIter,error
+    HElement_t :: HElGen
 
     WRITE(6,*) nI(:)
     WRITE(6,*) Iterations,pDoub,exFlag
@@ -2883,7 +2885,7 @@ lp2: do while(.true.)
         ENDIF
 
         call gen_rand_excit (nI, iLut, nJ, iLutnJ, exFlag, IC, ExcitMat, &
-                             tParity, pGen, tFilled, Scratch1, Scratch2, &
+                             tParity, pGen, HElGen, tFilled, Scratch1, Scratch2, &
                              Scratch3)
         IF(nJ(1).eq.0) THEN
 !            ForbiddenIter=ForbiddenIter+1

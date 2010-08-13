@@ -25,7 +25,7 @@ module GenRandSymExcitCSF
 contains
     
     subroutine gen_csf_excit (nI, iLut, nJ, ilutnJ, exFlag, IC, &
-                                   excitMat, tParity, pGen, tFilled, CCdblS, &
+                                   excitMat, tParity, pGen, HElGen, tFilled, CCdblS, &
                                    CCSglS, CCUnS)
 
         ! Generate an excitation from a CSF at random, as specified by exFlag,
@@ -52,6 +52,7 @@ contains
 
         ! Unused:
         integer(kind=n_int), intent(out) :: iLutnJ(0:niftot)
+        HElement_t, intent(out) :: HElGen
 
         ! We only need the spatial terms for the CSF stuff. However, keep the
         ! full 1-ScratchSize array, so we can pass it through to the normal
@@ -80,7 +81,7 @@ contains
                     exTmp = 3
             end select
             call gen_rand_excit (nI, iLut, nJ, iLutnJ, exTmp, IC, ExcitMat, &
-                                 tParity, pGen, tFilled, CCDblS, CCUnS, &
+                                 tParity, pGen, HElGen, tFilled, CCDblS, CCUnS, &
                                  CCSglS)
 
             ! If we have fallen back below the truncation level, then
@@ -1813,6 +1814,7 @@ contains
         real*8,  allocatable, dimension(:,:,:,:) :: DoublesHist,AllDoublesHist
         ! Unused
         integer(kind=n_int) :: iLutnJ(0:niftot)
+        HElement_t :: HElGen
 
         ! Generate bit representation, and count open shell electrons
         call EncodeBitDet (nI, iLut)
@@ -1879,7 +1881,7 @@ contains
         do i=1,iterations
             ! Generate a random excitation
             call gen_csf_excit (nI, iLut, nJ, iLutnJ, exFlag, IC, ExcitMat, &
-                                tParity, pGen, tFilled, CCDblS, CCSglS, &
+                                tParity, pGen, HElGen, tFilled, CCDblS, CCSglS, &
                                 CCUnS)
 
             ! Only average etc. for an allowed transition
