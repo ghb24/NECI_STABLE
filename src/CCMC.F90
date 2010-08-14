@@ -2174,7 +2174,7 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
    use FciMCParMod, only: InitHistMin, calculate_new_shift_wrapper
    use FciMCParMod, only: WriteHistogram,SumEContrib
    Use Logging, only: CCMCDebug,tCCMCLogTransitions,tCCMCLogUniq
-   USE Logging , only : tHistSpawn,iWriteHistEvery
+   USE Logging , only : tHistSpawn,iWriteHistEvery,tPopsFile
    USE DetCalcData , only : ICILevel
    use CalcData, only: InitWalkers,NEquilSteps
    use FciMCParMod, only: WriteFciMCStats, WriteFciMCStatsHeader
@@ -2187,6 +2187,8 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
    use Parallel
    use shared_alloc, only: shared_allocate_iluts, shared_deallocate
    use CalcData, only: tAddToInitiator,InitiatorWalkNo
+   use bit_reps, only: encode_sign
+   use FciMCParMod, only: ChangeVars,WriteToPopsFileParOneArr 
    IMPLICIT NONE
    real(dp) Weight,EnergyxW
    CHARACTER(len=*), PARAMETER :: this_routine='CCMCStandaloneParticle'
@@ -2198,7 +2200,7 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
    REAL*8 dTotAbsAmpl            ! The total of the absolute amplitudes
 
    INTEGER iDebug
-   INTEGER i,iMin
+   INTEGER i,j,iMin
 ! Temporary Storage
 
    INTEGER iOldTotParts        ! Info user for update to calculate shift
@@ -2243,6 +2245,8 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
    INTEGER ierr
 
    REAL*8 dInitThresh
+
+   LOGICAL tSingBiasChange, tSoftExitFound, tWritePopsFound !For ChangeVars
 
 
    WRITE(6,*) "Entering CCMC Standalone Particle..."
@@ -2531,8 +2535,24 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
          dAveTotAbsAmp=dAveTotAbsAmp+dTotAbsAmpl
          dAveNorm=dAveNorm+AL%Amplitude(iRefPos,iCurAmpList)
       endif
+      call ChangeVars(tSingBiasChange, tSoftExitFound, tWritePopsFound)
+      if(tSoftExitFound) exit
       Iter=Iter+1
    enddo !MC Cycles
+   IF(TPopsFile) THEN
+! encode the signs
+      TempSign=0
+      do j=1,nAmpl
+          TempSign(1)=AL%Amplitude(j,iCurAmpList)
+          call encode_sign(DetList(:,j),TempSign)
+      enddo
+!Another fudge for multiprocessors - all dets are currently on the root.  TODO: Fix
+      if(iProcIndex==Root) then
+         CALL WriteToPopsfileParOneArr(DetList,nAmpl)
+      else
+         CALL WriteToPopsfileParOneArr(DetList,0)
+      endif
+   ENDIF
 
    IFDEBUG(iDebug,2) call WriteExcitorList(6,AL%Amplitude(:,iCurAmpList),DetList,0,nAmpl,dAmpPrintTol,"Final Excitor list")
 
