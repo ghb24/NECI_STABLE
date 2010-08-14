@@ -3691,7 +3691,8 @@ MODULE FciMCParMod
             ENDIF
 
 #ifdef __CMPLX
-            WRITE(6,"(A)") "       Step     Shift      WalkerCng(Re)  WalkerCng(Im)    TotWalkers(Re)   TotWalkers(Im)    Proj.E(Re)   ProjE(Im)     Proj.E.ThisCyc(Re)  Proj.E.ThisCyc(Im)   NoatHF(Re)   NoatHF(Im)   NoatDoubs      AccRat     UniqueDets     IterTime"
+            WRITE(6,"(A)") "       Step     Shift      WalkerCng(Re)  WalkerCng(Im)    TotWalkers(Re)   TotWalkers(Im)    Proj.E(Re)   ProjE(Im)     Proj.E.ThisCyc(Re)  Proj.E.ThisCyc(Im)"&
+&             //"   NoatHF(Re)   NoatHF(Im)   NoatDoubs      AccRat     UniqueDets     IterTime"
             WRITE(fcimcstats_unit,"(A,I4,A,L,A,L,A,L)") "# FCIMCStats VERSION 2 - COMPLEX : NEl=",NEl," HPHF=",tHPHF,' Lz=',tFixLz,' Initiator=',tTruncInitiator
             WRITE(fcimcstats_unit,"(A)") "#     1.Step   2.Shift    3.WalkerCng(Re)  4.WalkerCng(Im)   5.TotWalkers(Re)  6.TotWalkers(Im)  7.Proj.E(Re)   8.Proj.E(Im)  "&
 &           // " 9.Proj.E.ThisCyc(Re)  10.Proj.E.ThisCyc(Im)  11.NoatHF(Re)   12.NoatHF(Im)  13.NoatDoubs  14.AccRat  15.UniqueDets  16.IterTime 17.FracSpawnFromSing  18.WalkersDiffProc  19.TotImagTime  "&
