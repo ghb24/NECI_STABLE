@@ -369,41 +369,38 @@
         INTEGER(KIND=n_int), INTENT(INOUT) :: DetCurr(0:NIfTot)
         INTEGER, DIMENSION(lenof_sign) :: SignCurr
         INTEGER :: CurrExcitLevel
-        LOGICAL :: tDetInCAS
+        LOGICAL :: tDetInCAS, is_init
 
 !DetCurr has come from the spawning array.
 !The current flags at NIfTot therefore refer to the parent of the spawned walkers.
 !As we add these into the CurrentDets array we therefore want to convert these flag so that they refer to the present determinant.
 
-        call extract_sign(DetCurr(:),SignCurr)
+        call extract_sign (DetCurr, SignCurr)
+
         tDetInCAS=.false.
-        IF(tTruncCAS) THEN
-            tDetInCAS=TestIfDetInCASBit(DetCurr(0:NIfDBO))
-        ENDIF
-        IF(tDetInCAS) THEN
-!The determinant being merged is in the fixed CAS initiator space.            
-            call encode_flags(DetCurr,0)
-        ELSEIF(DetBitEQ(DetCurr(:),iLutHF,NIfDBO)) THEN
-!The determinant being merged is the HF.
-            call encode_flags(DetCurr,0)
-        ELSEIF(tAddtoInitiator.and.(ABS(SignCurr(1)).gt.InitiatorWalkNo)) THEN
-!The determinant being merged already has a high enough pop to become an initiator.        
-!This is not expected to happen much - otherwise we'd be getting blooms.
-            call encode_flags(DetCurr,0)
-            NoAddedInitiators=NoAddedInitiators+1.D0
-        ELSEIF(tInitIncDoubs) THEN
-!The determinant being merged is a double excitation - initiator straight away.        
-            CurrExcitLevel = FindBitExcitLevel(iLutRef,DetCurr(0:NIfTot),2)
-            IF(CurrExcitLevel.eq.2) THEN
-                call encode_flags(DetCurr,0)
-                NoExtraInitDoubs=NoExtraInitDoubs+1.D0
-            ELSE
-                call encode_flags(DetCurr,1)
-            ENDIF
-        ELSE
-            call encode_flags(DetCurr,1)
-!The parent from which we are attempting to spawn is outside the active space - children spawned on unoccupied determinants with this flag will be killed.
-        ENDIF
+        if (tTruncCAS) &
+            tDetInCAS = TestIfDetInCASBit (DetCurr(0:NIfDBO))
+
+        ! Merged particle becomes an initiator if it is in the fixed CAS
+        ! space, it is the HF det or if its population > n_add.
+        is_init = .false.
+        if (tDetInCAS .or. &
+            DetBitEQ (DetCurr, iLutHF, NIfDBO)) then
+            is_init = .true.
+        else if (tAddtoInitiator .and. abs(SignCurr(1)) > InitiatorWalkNo)then
+            is_init = .true.
+            NoAddedInitiators = NoAddedInitiators + 1
+        else if (tInitIncDoubs) then
+            ! If the determinant is a double excitation of the reference det, it
+            ! will be an initiator automatically
+            CurrExcitLevel = FindBitExcitlevel (iLutRef, DetCurr, 2)
+            if (CurrExcitLevel == 2) then
+                is_init = .true.
+                NoExtraInitDoubs = NoExtraInitDoubs + 1
+            endif
+        endif
+
+        call set_flag (DetCurr, flag_is_initiator, is_init)
 
     END SUBROUTINE FlagifDetisInitiator 
 
