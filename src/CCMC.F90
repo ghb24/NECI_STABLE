@@ -2539,22 +2539,24 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
       if(tSoftExitFound) exit
       Iter=Iter+1
    enddo !MC Cycles
+   IFDEBUG(iDebug,2) call WriteExcitorList(6,AL%Amplitude(:,iCurAmpList),DetList,0,nAmpl,dAmpPrintTol,"Final Excitor list")
    IF(TPopsFile) THEN
 ! encode the signs
       TempSign=0
       do j=1,nAmpl
           TempSign(1)=AL%Amplitude(j,iCurAmpList)
           call encode_sign(DetList(:,j),TempSign)
+          call WriteBitEx(6,iLutHF,DetList(:,j),.false.)
+          write(6,*) TempSign
       enddo
 !Another fudge for multiprocessors - all dets are currently on the root.  TODO: Fix
       if(iProcIndex==Root) then
-         CALL WriteToPopsfileParOneArr(DetList,nAmpl)
+         CALL WriteToPopsfileParOneArr(DetList,int(nAmpl,int64))
       else
          CALL WriteToPopsfileParOneArr(DetList,0)
       endif
    ENDIF
 
-   IFDEBUG(iDebug,2) call WriteExcitorList(6,AL%Amplitude(:,iCurAmpList),DetList,0,nAmpl,dAmpPrintTol,"Final Excitor list")
 
 ! Find the largest 10 amplitudes in each level
 !   call WriteMaxExcitorList(6,AL%Amplitude(:,iCurAmpList),DetList,FCIDetIndex,iMaxAmpLevel,10)

@@ -1307,13 +1307,14 @@ MODULE FciMCParMod
         use CalcData, only: iPopsFileNoWrite
         use Logging, only: tIncrementPops
         use constants, only: size_n_int,MpiDetInt,n_int
-        integer(kind=n_int),intent(inout) :: Dets(:,:)
-        integer(int64) nDets !The number of occupied entries in Dets
+        integer(int64),intent(in) :: nDets !The number of occupied entries in Dets
+        integer(kind=n_int),intent(in) :: Dets(0:nIfTot,1:nDets)
         INTEGER :: error
         integer(int64) :: WalkersonNodes(0:nProcessors-1)
         INTEGER :: Tag,Total,i,j,k
-        INTEGER(KIND=n_int), ALLOCATABLE :: OrigParts(:,:)
-        INTEGER :: OrigPartsTag=0
+        INTEGER(KIND=n_int), ALLOCATABLE :: Parts(:,:)
+        INTEGER :: PartsTag=0
+        INTEGER :: nMaxDets
         integer :: iunit
         CHARACTER(len=*) , PARAMETER :: this_routine='WriteToPopsfileParOneArr'
         character(255) :: popsfile
@@ -1428,18 +1429,16 @@ MODULE FciMCParMod
 !            CALL FLUSH(6)
 
 !Now, we copy the head nodes data to a new array...
-            ALLOCATE(OrigParts(0:NIfTot,nDets),stat=error)
-            CALL LogMemAlloc('OrigParts',int(nDets,int32)*(NIfTot+1),size_n_int,this_routine,OrigPartsTag,error)
-            do i=1,nDets
-                OrigParts(:,i)=Dets(:,i)
-            enddo
+            nMaxDets=maxval(WalkersOnNodes)
+            ALLOCATE(Parts(0:NIfTot,nMaxDets),stat=error)
+            CALL LogMemAlloc('Parts',int(nDets,int32)*(NIfTot+1),size_n_int,this_routine,PartsTag,error)
 
 !Now we need to receive the data from each other processor sequentially
 !We can overwrite the head nodes information, since we have now stored it elsewhere.
             do i=1,nProcessors-1
 !Run through all other processors...receive the data...
                 j=WalkersonNodes(i)*(NIfTot+1)
-                CALL MPIRecv(Dets(0:NIfTot,1:WalkersonNodes(i)),j,i,Tag,error)
+                CALL MPIRecv(Parts(0:NIfTot,1:WalkersonNodes(i)),j,i,Tag,error)
 !                WRITE(6,*) "Recieved walkers for processor ",i
 !                CALL FLUSH(6)
                 
@@ -1455,9 +1454,9 @@ MODULE FciMCParMod
                     do j=1,WalkersonNodes(i)
                         IF(mod(j,iPopsPartEvery).eq.0) THEN
                             do k=0,NIfDBO
-                                WRITE(iunit,"(I24)",advance='no') Dets(k,j)
+                                WRITE(iunit,"(I24)",advance='no') Parts(k,j)
                             enddo
-                            call extract_sign(Dets(:,j),TempSign)
+                            call extract_sign(Parts(:,j),TempSign)
                             WRITE(iunit,*) TempSign(:)
                         ENDIF
                     enddo
@@ -1469,18 +1468,14 @@ MODULE FciMCParMod
 
             CLOSE(iunit)
 
-!Now we need to copy the head processors original information back to itself again.
-            do i=1,nDets
-                Dets(:,i)=OrigParts(:,i)
-            enddo
 !Deallocate memory for temporary storage of information.
-            DEALLOCATE(OrigParts)
-            CALL LogMemDealloc(this_routine,OrigPartsTag)
+            DEALLOCATE(Parts)
+            CALL LogMemDealloc(this_routine,PartsTag)
 
         ELSE
 !All other processors need to send their data to root...
-            j=TotWalkers*(NIfTot+1)
-            CALL MPISend(Dets(0:NIfTot,1:TotWalkers),j,root,Tag,error)
+            j=nDets*(NIfTot+1)
+            CALL MPISend(Dets(0:NIfTot,1:nDets),j,root,Tag,error)
 !            WRITE(6,*) "Have sent info to head node..."
 !            CALL FLUSH(6)
         ENDIF
