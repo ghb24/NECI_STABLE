@@ -247,6 +247,7 @@ contains
 
         integer(n_int), intent(inout) :: ilut(0:nIfTot)
         integer, intent(in) :: flg
+        logical :: bSet
         integer :: off, ind
 
         ind = flg / bits_n_int
@@ -254,7 +255,7 @@ contains
 
         bSet = btest(ilut(ind), off)
 
-    end subroutine test_flag
+    end function test_flag
 
 
     subroutine encode_det (ilut, Det)

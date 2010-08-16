@@ -64,7 +64,7 @@ MODULE FciMCParMod
     use RotateOrbsMod, only: RotateOrbs
     use NatOrbsMod, only: PrintOrbOccs
     use bit_reps, only: decode_bit_det, encode_bit_rep, encode_det, &
-                        extract_bit_rep
+                        extract_bit_rep, test_flag, set_flag, extract_flags
     use spin_project, only: tSpinProject, spin_proj_interval, &
                             spin_proj_gamma, get_spawn_helement_spin_proj, &
                             generate_excit_spin_proj, attempt_die_spin_proj, &
@@ -988,7 +988,7 @@ MODULE FciMCParMod
         call extract_sign (CurrentDets(:,j), CurrentSign)
 
         ! By default, the parent_flags are the flags of the parent...
-        parent_init = test_flags (CurrentDets(:,j), flag_parent_initiator)
+        parent_init = test_flag (CurrentDets(:,j), flag_parent_initiator)
 
         ! The default path through this section makes no changes, leaving the
         ! initiator status of each parent unchanged.
@@ -1038,7 +1038,7 @@ MODULE FciMCParMod
                        parent_init)
         
         ! Store this flag for use in the spawning routines...
-        call decode_flags (CurrentDets(:,j), parent_flags)
+        parent_flags = extract_flags (CurrentDets(:,j))
 
         if ((tHistInitPops .and. mod(iter, histInitPopsIter) == 0) &
             .or. tPrintHighPop) then

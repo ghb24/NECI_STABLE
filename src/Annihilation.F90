@@ -15,7 +15,8 @@ MODULE AnnihilationMod
     use constants, only: n_int,lenof_sign,null_part
     use bit_rep_data
     use bit_reps, only: decode_bit_det, extract_sign, extract_flags, &
-                        encode_sign, encode_flags
+                        encode_sign, encode_flags, test_flag, set_flag, &
+                        clr_flag, flag_parent_initiator
     use FciMCData, only: fcimc_iter_data
     IMPLICIT NONE
 
@@ -343,8 +344,8 @@ MODULE AnnihilationMod
 !If we are doing an initiator calculation, we also want to keep track of which parent the remaining walkers came from - those inside the active space or out.                
 !This is only an issue if the two determinants we are merging have different Parent flags - otherwise they just keep whichever.
 !As it is, the SpawnedParts2 determinant will have the parent flag that remains - just need to change this over if the number of walkers on SpawnedParts ends up dominating.
-                            if (test_flags(SpawnedParts(:,i), flags_parent_initiator) .neqv. &
-                                test_flags(SpawnedParts2(:,VecInd), flags_parent_initiator)) then
+                            if (test_flag(SpawnedParts(:,i), flag_parent_initiator) .neqv. &
+                                test_flag(SpawnedParts2(:,VecInd), flag_parent_initiator)) then
                                 if (abs(SpawnedSign(1)) > abs(SpawnedSign2(1))) then
                                     PassedFlag = extract_flags(SpawnedParts(:,i))
                                     call encode_flags(SpawnedParts2(:,VecInd), PassedFlag)
@@ -391,25 +392,25 @@ MODULE AnnihilationMod
                         !     should live.
                         ! --> Make equiv. by treating as though they'vee all come from
                         !     inside the space.
-                        init1 = test_flags (SpawnedParts(:,i), flags_parent_initiator)
-                        init2 = test_flags (SpawnedParts2(:,VecInd), flags_parent_initiator)
+                        init1 = test_flag (SpawnedParts(:,i), flag_parent_initiator)
+                        init2 = test_flag (SpawnedParts2(:,VecInd), flag_parent_initiator)
                         if (init1 /= init2) then
                             if (SpawnedSign2(1) == null_part(1)) then
                                 ! If SpawnedSign2 is zero, determine parent only
                                 ! from spawnedparts.
-                                call clr_flag (SpawnedParts2(:,VecInd, flags_parent_initiator)
+                                call clr_flag (SpawnedParts2(:,VecInd), flag_parent_initiator)
                             else
                                 ! We assume that the walkers spawned from an initiator
                                 ! are sign coherent -> others of the same sign are too.
                                 ! --> Set parent flag.
-                                call set_flag (SpawnedParts2(:,VecInd), flags_parent_initiator)
+                                call set_flag (SpawnedParts2(:,VecInd), flag_parent_initiator)
                             endif
                         elseif (tKeepDoubleSpawns .and. .not. init2) then
                             ! If two determinants spawn onto a determinant with
                             ! the same sign, they are kept whether they've come
                             ! from inside or outside the active space. This is
                             ! different from before, where both would be killed.
-                            call set_flag (SpawnedParts(:,VecInd), flags_parent_initiator)
+                            call set_flag (SpawnedParts(:,VecInd), flag_parent_initiator)
                             NoDoubSpawns = NoDoubSpawns + 1
                         endif
                     endif
@@ -558,7 +559,7 @@ MODULE AnnihilationMod
 !spawned from determinants outside the active space, then it is like these have been spawned on an unoccupied determinant and they are killed.
                             IF(abs(SpawnedSign(j)).gt.abs(CurrentSign(j))) THEN
                                 !The residual particles were spawned here
-                                if (.not. test_flags (SpawnedParts(:,i), flags_parent_initiator)) then
+                                if (.not. test_flag (SpawnedParts(:,i), flag_parent_initiator)) then
                                     !And they were spawned from non-initiator particles. Abort all particles which were initially copied accross
                                     NoAborted = NoAborted + abs(SpawnedSign(j)) - abs(CurrentSign(j))
                                     iter_data%naborted(j) = iter_data%naborted(j) + abs(SpawnedSign(j)) - abs(CurrentSign(j))

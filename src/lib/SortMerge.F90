@@ -363,9 +363,11 @@
         USE FciMCParMOD , only : TestIfDetInCASBit
         USE CalcData , only : tTruncCAS,tInitIncDoubs,tAddtoInitiator,InitiatorWalkNo
         USE DetBitOps , only : FindBitExcitLevel,DetBitEQ
-        use bit_reps , only : extract_sign, encode_flags 
+        use bit_reps, only: extract_sign, encode_flags, set_flag, &
+                              flag_is_initiator
         use bit_rep_data , only: NIfTot,NIfDBO
         use constants, only: n_int,lenof_sign
+        implicit none
         INTEGER(KIND=n_int), INTENT(INOUT) :: DetCurr(0:NIfTot)
         INTEGER, DIMENSION(lenof_sign) :: SignCurr
         INTEGER :: CurrExcitLevel
