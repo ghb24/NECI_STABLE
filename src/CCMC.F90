@@ -2236,7 +2236,7 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
 
    !ghb24: Changes to allow compatibility with the new packaged walkers.
    INTEGER, DIMENSION(lenof_sign) :: TempSign
-   TYPE(timer) :: CCMC_time,SpawnTime,DieTime
+   TYPE(timer) :: CCMC_time,SpawnTime,DieTime,CCMCComms_time
    TYPE(timer) :: Etime
    INTEGER :: iOffsets(nProcessors)  !Used to store spawning data for annihilation
    INTEGER :: iLengths(nProcessors)  !Used to store spawning data for annihilation
@@ -2252,6 +2252,7 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
    WRITE(6,*) "Entering CCMC Standalone Particle..."
    CCMC_time%timer_name='CCMC Standalone Particle'
    call set_timer(CCMC_time,20)
+   CCMCComms_time%timer_name='CCMC Comms'
 
 !   Spawntime%timer_name='SpawnTime'
 !   Dietime%timer_name='DieTime'
@@ -2387,9 +2388,11 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
 ! First we make sure we have the same lists
       if((.not.tSharedExcitors).and.nProcessors>1) then
          IFDEBUG(iDebug,2) write(6,*) "Synchronizing particle lists among processors"
+         call set_timer(CCMCComms_time,20)
          call MPIBCast(nAmpl,root)
          call MPIBCast(DetList,root)
          call MPIBCast(AL%Amplitude,root)
+         call halt_timer(CCMCComms_time)
       endif
 
 !Find the HF det
@@ -2546,8 +2549,6 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
       do j=1,nAmpl
           TempSign(1)=AL%Amplitude(j,iCurAmpList)
           call encode_sign(DetList(:,j),TempSign)
-          call WriteBitEx(6,iLutHF,DetList(:,j),.false.)
-          write(6,*) TempSign
       enddo
 !Another fudge for multiprocessors - all dets are currently on the root.  TODO: Fix
       if(iProcIndex==Root) then
