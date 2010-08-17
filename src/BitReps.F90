@@ -19,10 +19,6 @@ module bit_reps
     ! (1         * 32-bits if needed)   Signs (Im)
     ! (1         * 32-bits if needed)   Flags
 
-    ! Flags which we can store
-    integer, parameter :: flag_is_initiator = 0, &
-                          flag_parent_initiator = 0 ! n.b. the same
-
 
     interface set_flag
         module procedure set_flag_single
@@ -96,6 +92,10 @@ contains
         endif
         NOffFlag = NOffSgn + NIfSgn
 
+        ! N.B. Flags MUST be last!!!!!
+        !      If we change this bit, then we need to adjust ilut_lt and 
+        !      ilut_gt.
+
         ! The total number of bits_n_int-bit integers used - 1
         NIfTot = NIfD + NIfY + NIfSgn + NIfFlag
 
@@ -167,6 +167,17 @@ contains
 
     end subroutine encode_flags
 
+    subroutine clear_all_flags (ilut)
+
+        ! Clear all of the flags
+
+        integer(n_int), intent(inout) :: ilut(0:niftot)
+
+        if (NIfFlag > 0) &
+            iLut(NOffFlag:NOffFlag+NIfFlag-1) = 0
+
+    end subroutine clear_all_flags
+
     subroutine encode_sign (ilut, sgn)
 
         ! Add new sign information to a packaged walker.
@@ -209,7 +220,7 @@ contains
         integer, intent(in) :: flg
         integer :: off, ind
 
-        ind = flg / bits_n_int
+        ind = NOffFlag + flg / bits_n_int
         off = mod(flg, bits_n_int)
 
         ilut(ind) = ibset(ilut(ind), off)
@@ -228,35 +239,15 @@ contains
         integer, intent(in) :: flg
         integer :: off, ind
 
-        ind = flg / bits_n_int
+        ind = NOffFlag + flg / bits_n_int
         off = mod(flg, bits_n_int)
 
         ilut(ind) = ibclr(ilut(ind), off)
 
     end subroutine clr_flag
 
-
-    function test_flag (ilut, flg) result(bSet)
-
-        ! Test specified flag (0 indexed) in the bit representation.
-        !
-        ! In:  flg  - Integer index of flag to test
-        !      ilut - Bit representation of determinant
-        ! Ret: bSet - returns .true. if the flag is set, false otherwise
-
-
-        integer(n_int), intent(inout) :: ilut(0:nIfTot)
-        integer, intent(in) :: flg
-        logical :: bSet
-        integer :: off, ind
-
-        ind = flg / bits_n_int
-        off = mod(flg, bits_n_int)
-
-        bSet = btest(ilut(ind), off)
-
-    end function test_flag
-
+    ! function test_flag is in bit_rep_data
+    ! This avoids a circular dependence with DetBitOps.
 
     subroutine encode_det (ilut, Det)
 

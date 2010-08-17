@@ -15,7 +15,10 @@ MODULE FciMCParMod
                           tReal, tRotatedOrbs, tFindCINatOrbs, tFixLz, &
                           LzTot, tUEG, tLatticeGens, tCSF, G1, Arr, &
                           tNoBrillouin,tKPntSym
-    use bit_reps, only: NIfD, NIfTot, NIfDBO, NIfY
+    use bit_reps, only: NIfD, NIfTot, NIfDBO, NIfY, decode_bit_det, &
+                        encode_bit_rep, encode_det, extract_bit_rep, &
+                        test_flag, set_flag, extract_flags, &
+                        flag_is_initiator, clear_all_flags
     use CalcData, only: InitWalkers, NMCyc, DiagSft, Tau, SftDamp, StepsSft, &
                         OccCASorbs, VirtCASorbs, tFindGroundDet, NEquilSteps,&
                         tReadPops, tRegenDiagHEls, iFullSpaceIter, MaxNoAtHF,&
@@ -63,8 +66,6 @@ MODULE FciMCParMod
                                SumInShiftErrorContrib
     use RotateOrbsMod, only: RotateOrbs
     use NatOrbsMod, only: PrintOrbOccs
-    use bit_reps, only: decode_bit_det, encode_bit_rep, encode_det, &
-                        extract_bit_rep, test_flag, set_flag, extract_flags
     use spin_project, only: tSpinProject, spin_proj_interval, &
                             spin_proj_gamma, get_spawn_helement_spin_proj, &
                             generate_excit_spin_proj, attempt_die_spin_proj, &
@@ -1036,7 +1037,7 @@ MODULE FciMCParMod
         ! Update the parent flag as required.
         call set_flag (CurrentDets(:,j), flag_parent_initiator, &
                        parent_init)
-        
+
         ! Store this flag for use in the spawning routines...
         parent_flags = extract_flags (CurrentDets(:,j))
 
@@ -3882,8 +3883,12 @@ MODULE FciMCParMod
         ALLOCATE(iLutRef(0:NIfTot),stat=ierr)
         ALLOCATE(ProjEDet(NEl),stat=ierr)
         IF(ierr.ne.0) CALL Stop_All(this_routine,"Cannot allocate memory for iLutRef")
-        iLutRef(:)=iLutHF(:)
-        ProjEDet(:)=HFDet(:)
+        
+        ! The reference / projected energy determinants are the same as the
+        ! HF determinant.
+        ! TODO: Make these pointers rather than copies?
+        iLutRef = iLutHF
+        ProjEDet = HFDet
 
         IF(tCheckHighestPop) THEN
             ALLOCATE(HighestPopDet(0:NIfDBO),stat=ierr)
@@ -5272,37 +5277,40 @@ MODULE FciMCParMod
 !Setup initial walker local variables
             IF(iProcIndex.eq.iHFProc) THEN
 
+                ! Encode the reference determinant identification.
                 call encode_det(CurrentDets(:,1), iLutHF)
-                InitialSign = 0
-                IF(tTruncInitiator) call encode_flags(CurrentDets(:,1),0)
-                IF(.not.tRegenDiagHEls) CurrentH(1)=0.D0
 
-                IF(TStartSinglePart) THEN
+                ! Clear the flags
+                call clear_all_flags (CurrentDets(:,1))
+
+                ! Set reference determinant as an initiator if
+                ! tTruncInitiator is set
+                if (tTruncInitiator) &
+                    call set_flag (CurrentDets(:,1), flag_is_initiator)
+
+                ! HF energy is equal to 0 (by definition)
+                if (.not. tRegenDiagHEls) CurrentH(1) = 0
+
+                ! Obtain the initial sign
+                InitialSign = 0
+                if (tStartSinglePart) then
                     InitialSign(1) = InitialPart
-                    CALL encode_sign(CurrentDets(:,1), InitialSign)
-                    TotWalkers=1
-                    TotWalkersOld=1
-                    TotParts(1)=InitialPart
-                    TotPartsOld(1)=InitialPart
-                    NoatHF(1)=InitialPart
-                ELSE
-                    InitialSign(1) = InitWalkers 
-                    CALL encode_sign(CurrentDets(:,1), InitialSign)
-                    TotWalkers=1
-                    TotWalkersOld=1
-                    TotParts(1)=InitWalkers
-                    TotPartsOld(1)=InitWalkers
-                ENDIF
+                else
+                    InitialSign(1) = InitWalkers
+                endif
+                call encode_sign (CurrentDets(:,1), InitialSign)
+
+                ! set initial values for global control variables.
+                TotWalkers = 1
+                TotWalkersOld = 1
+                TotParts = InitialSign
+                TotPartsOld = InitialSign
+                NoatHF = InitialSign
 
             ELSE
-                IF(tStartSinglePart) THEN
-                    NoatHF=0
-                    TotWalkers=0
-                    TotWalkersOld=0
-                ELSE
-                    TotWalkers=0
-                    TotWalkersOld=0
-                ENDIF
+                NoatHF = 0
+                TotWalkers = 0
+                TotWalkersOld = 0
             ENDIF
 
         

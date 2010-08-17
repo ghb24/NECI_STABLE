@@ -1,8 +1,12 @@
+#include "macros.h"
+
 !This file contains a load of useful operations to perform on determinants represented as bit-strings.
 ! Start the process of modularising this bit!!
 module DetBitOps
     use Systemdata, only: nel, tCSF, tTruncateCSF, csf_trunc_level
-    use bit_rep_data, only: NIfY, NIfTot, NIfD
+    use CalcData, only: tTruncInitiator
+    use bit_rep_data, only: NIfY, NIfTot, NIfD, NOffFlag, NIfFlag, &
+                            test_flag, flag_is_initiator
     use csf_data, only: iscsf, csf_yama_bit, csf_orbital_mask, csf_test_bit
     ! TODO: remove
     use systemdata, only: g1
@@ -385,6 +389,72 @@ module DetBitOps
         endif
         DetBitEQ=.true.
     end function DetBitEQ
+
+    pure function ilut_lt (ilutI, ilutJ) result (bLt)
+        use util_mod, only: operator(.arrlt.)
+
+        ! A slightly subtler sort than DetBitLt.
+        ! Sort the iluts integer by integer. If we get to the flags, and they
+        ! are occupied, then sort initiators as 'less than' non-initiators
+        !
+        ! --> Initiators appear earlier in a list than non-initiators
+
+        integer(n_int), intent(in) :: iLutI(0:), iLutJ(0:)
+        integer :: i
+        logical :: bLt, init1, init2
+
+        ! Sort by the first item first ...
+        do i = 0, NOffFlag - 1
+            if (iLutI(i) /= iLutJ(i)) exit
+        enddo
+
+        !! Make the comparison
+        if (i >= NOffFlag) then
+            bLt = .false.
+            if (tTruncInitiator) then
+                ASSERT(NIfFlag == 1)
+                if (test_flag(ilutI, flag_is_initiator) .and. &
+                    .not. test_flag(ilutJ, flag_is_initiator)) bLt = .true.
+            endif
+        else
+            bLt = ilutI(i) < ilutJ(i)
+        endif
+
+    end function
+
+    pure function ilut_gt (iLutI, iLutJ) result(bGt)
+        use util_mod, only: operator(.arrgt.)
+
+        ! A slightly subtler sort than DetBitGt.
+        ! Sort the iluts integer by integer. If we get to the flags, and they
+        ! are occupied, then sort initiators as 'less than' non-initiators
+        !
+        ! --> Initiators appear earlier in a list than non-initiators
+
+        integer(n_int), intent(in) :: iLutI(0:), iLutJ(0:)
+        integer :: i
+        logical :: bGt, init1, init2
+
+        !bGt = iLutI .arrgt. iLutJ
+        
+        ! Sort by the first item first ...
+        do i = 0, NOffFlag - 1
+            if (ilutI(i) /= iLutJ(i)) exit
+        enddo
+
+        ! Make the comparison
+        if (i >= NOffFlag) then
+            bGt = .false.
+            if (tTruncInitiator) then
+                ASSERT(NIfFlag == 1)
+                if (.not. test_flag(ilutI, flag_is_initiator) .and. &
+                    test_flag(ilutJ, flag_is_initiator)) bGt = .true.
+            endif
+        else
+            bGt = ilutI(i) > ilutJ(i)
+        endif
+
+    end function
 
     ! This will return 1 if iLutI is "less" than iLutJ, 0 if the determinants
     ! are identical, or -1 if iLutI is "more" than iLutJ

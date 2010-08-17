@@ -7,7 +7,8 @@ MODULE AnnihilationMod
     USE Parallel
     USE dSFMT_interface , only : genrand_real2_dSFMT
     USE FciMCData
-    use DetBitOps, only: DetBitEQ, DetBitLT, FindBitExcitLevel
+    use DetBitOps, only: DetBitEQ, DetBitLT, FindBitExcitLevel, ilut_lt, &
+                         ilut_gt
     use CalcData , only : tTruncInitiator
     use Determinants, only: get_helement
     use hphf_integrals, only: hphf_diag_helement, hphf_off_diag_helement
@@ -131,6 +132,7 @@ MODULE AnnihilationMod
 !This is a new annihilation algorithm. In this, determinants are kept on predefined processors, and newlyspawned particles are sent here so that all the annihilations are
 !done on a predetermined processor, and not rotated around all of them.
     SUBROUTINE DirectAnnihilation(TotWalkersNew, iter_data, tSingleProc)
+        use bit_reps, only: test_flag
         integer, intent(inout) :: TotWalkersNew
         type(fcimc_iter_data), intent(inout) :: iter_data
         INTEGER :: MaxIndex,ierr
@@ -143,7 +145,7 @@ MODULE AnnihilationMod
 
 !This routine will send all the newly-spawned particles to their correct processor. MaxIndex is returned as the new number of newly-spawned particles on the processor. May have duplicates.
 !The particles are now stored in SpawnedParts2/SpawnedSign2.
-        CALL SendProcNewParts(MaxIndex,tSingleProc)   
+        CALL SendProcNewParts(MaxIndex,tSingleProc)
 
 !        WRITE(6,*) "Sent particles"
 !        WRITE(6,*) 'MaxIndex',MaxIndex
@@ -299,7 +301,7 @@ MODULE AnnihilationMod
 
 !We want to sort the list of newly spawned particles, in order for quicker binary searching later on. (this is not essential, but should proove faster)
 !They should remain sorted after annihilation between spawned
-        call sort(SpawnedParts(:,1:ValidSpawned))
+        call sort(SpawnedParts(:,1:ValidSpawned), ilut_lt, ilut_gt)
         IF(tHistSpawn) HistMinInd2(1:NEl)=FCIDetIndex(1:NEl)
 
 !        WRITE(6,*) "************ - Ordered"
@@ -394,11 +396,11 @@ MODULE AnnihilationMod
                         !     inside the space.
                         init1 = test_flag (SpawnedParts(:,i), flag_parent_initiator)
                         init2 = test_flag (SpawnedParts2(:,VecInd), flag_parent_initiator)
-                        if (init1 /= init2) then
+                        if (init1 .neqv. init2) then
                             if (SpawnedSign2(1) == null_part(1)) then
                                 ! If SpawnedSign2 is zero, determine parent only
                                 ! from spawnedparts.
-                                call clr_flag (SpawnedParts2(:,VecInd), flag_parent_initiator)
+                                call set_flag (SpawnedParts2(:,VecInd), flag_parent_initiator, init1)
                             else
                                 ! We assume that the walkers spawned from an initiator
                                 ! are sign coherent -> others of the same sign are too.
@@ -410,7 +412,7 @@ MODULE AnnihilationMod
                             ! the same sign, they are kept whether they've come
                             ! from inside or outside the active space. This is
                             ! different from before, where both would be killed.
-                            call set_flag (SpawnedParts(:,VecInd), flag_parent_initiator)
+                            call set_flag (SpawnedParts2(:,VecInd), flag_parent_initiator)
                             NoDoubSpawns = NoDoubSpawns + 1
                         endif
                     endif
