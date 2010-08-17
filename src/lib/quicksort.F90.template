@@ -6,6 +6,8 @@ type1 = integer(kind=int32)
 extra_arrs = 
 op_gt = >
 op_lt = <
+custom_comparisons = 
+custom_compare_prefix = !
 type2 = !
 type3 = !
 type4 = !
@@ -58,8 +60,18 @@ op_lt = .arrlt.
 [arr_int64]
 type1 = integer(kind=int64), dimension(:)
 
+[arr_int64_custom]
+custom_comparisons = custom_lt, custom_gt,
+custom_compare_prefix = 
+op_gt = .localgt.
+op_lt = .locallt.
+
 [arr_doub]
 type1 = real*8, dimension(:)
+custom_comparisons =
+custom_compare_prefix = !
+op_gt = .arrgt.
+op_lt = .arrlt.
 
 ##############################################
 ############ Sort by scalars #################
@@ -294,7 +306,7 @@ module sort_mod
     end interface
 
 contains
-    subroutine sort (arr, %(extra_arrs)snskip)
+    subroutine sort (arr, %(extra_arrs)s%(custom_comparisons)snskip)
 
         ! Perform a quicksort on an array of integers, arr(n). Uses the 
         ! sample code in NumericalRecipies as a base.
@@ -332,6 +344,25 @@ contains
         %(type5)s :: tmp5(size(arr5(1)))
         %(type6)s :: tmp6(size(arr6(1)))
         character(*), parameter :: this_routine = 'sort'
+
+        ! Custom comparisons. Use the operator .locallt. & .localgt.
+        %(custom_compare_prefix)s interface operator(.locallt.)
+        %(custom_compare_prefix)s     pure function custom_lt (b, c) result (ret)
+        %(custom_compare_prefix)s         use constants
+        %(custom_compare_prefix)s         %(type1)s, intent(in) :: b(:)
+        %(custom_compare_prefix)s         %(type1)s, intent(in) :: c(:)
+        %(custom_compare_prefix)s         logical :: ret
+        %(custom_compare_prefix)s     end function 
+        %(custom_compare_prefix)s end interface    
+        %(custom_compare_prefix)s interface operator(.localgt.)
+        %(custom_compare_prefix)s     pure function custom_gt (b, c) result (ret)
+        %(custom_compare_prefix)s         use constants
+        %(custom_compare_prefix)s         %(type1)s, intent(in) :: b(:)
+        %(custom_compare_prefix)s         %(type1)s, intent(in) :: c(:)
+        %(custom_compare_prefix)s         logical :: ret
+        %(custom_compare_prefix)s     end function 
+        %(custom_compare_prefix)s end interface    
+
 
         ! Initialise temporary variables if required
         %(tmp_init1)s(a)
