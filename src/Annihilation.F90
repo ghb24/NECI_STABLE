@@ -7,7 +7,8 @@ MODULE AnnihilationMod
     USE Parallel
     USE dSFMT_interface , only : genrand_real2_dSFMT
     USE FciMCData
-    use DetBitOps, only: DetBitEQ, DetBitLT, FindBitExcitLevel
+    use DetBitOps, only: DetBitEQ, DetBitLT, FindBitExcitLevel, ilut_lt, &
+                         ilut_gt
     use CalcData , only : tTruncInitiator
     use Determinants, only: get_helement
     use hphf_integrals, only: hphf_diag_helement, hphf_off_diag_helement
@@ -15,7 +16,8 @@ MODULE AnnihilationMod
     use constants, only: n_int,lenof_sign,null_part
     use bit_rep_data
     use bit_reps, only: decode_bit_det, extract_sign, extract_flags, &
-                        encode_sign, encode_flags
+                        encode_sign, encode_flags, test_flag, set_flag, &
+                        clr_flag, flag_parent_initiator
     use FciMCData, only: fcimc_iter_data
     IMPLICIT NONE
 
@@ -130,6 +132,7 @@ MODULE AnnihilationMod
 !This is a new annihilation algorithm. In this, determinants are kept on predefined processors, and newlyspawned particles are sent here so that all the annihilations are
 !done on a predetermined processor, and not rotated around all of them.
     SUBROUTINE DirectAnnihilation(TotWalkersNew, iter_data, tSingleProc)
+        use bit_reps, only: test_flag
         integer, intent(inout) :: TotWalkersNew
         type(fcimc_iter_data), intent(inout) :: iter_data
         INTEGER :: MaxIndex,ierr
@@ -142,7 +145,7 @@ MODULE AnnihilationMod
 
 !This routine will send all the newly-spawned particles to their correct processor. MaxIndex is returned as the new number of newly-spawned particles on the processor. May have duplicates.
 !The particles are now stored in SpawnedParts2/SpawnedSign2.
-        CALL SendProcNewParts(MaxIndex,tSingleProc)   
+        CALL SendProcNewParts(MaxIndex,tSingleProc)
 
 !        WRITE(6,*) "Sent particles"
 !        WRITE(6,*) 'MaxIndex',MaxIndex
@@ -292,13 +295,13 @@ MODULE AnnihilationMod
 !This is not essential, but should proove worthwhile
     SUBROUTINE CompressSpawnedList(ValidSpawned, iter_data)
         type(fcimc_iter_data), intent(inout) :: iter_data
-        INTEGER :: VecInd,ValidSpawned,DetsMerged,ToRemove,i,PartIndex,ExcitLevel,PassedFlag,FlagParts2,j
+        INTEGER :: VecInd,ValidSpawned,DetsMerged,ToRemove,i,PartIndex,ExcitLevel,PassedFlag,j
         INTEGER, DIMENSION(lenof_sign) :: SignProd,SpawnedSign,SpawnedSign2
-        LOGICAL :: tSuc
+        LOGICAL :: tSuc, init1, init2
 
 !We want to sort the list of newly spawned particles, in order for quicker binary searching later on. (this is not essential, but should proove faster)
 !They should remain sorted after annihilation between spawned
-        call sort(SpawnedParts(:,1:ValidSpawned))
+        call sort(SpawnedParts(:,1:ValidSpawned), ilut_lt, ilut_gt)
         IF(tHistSpawn) HistMinInd2(1:NEl)=FCIDetIndex(1:NEl)
 
 !        WRITE(6,*) "************ - Ordered"
@@ -343,12 +346,13 @@ MODULE AnnihilationMod
 !If we are doing an initiator calculation, we also want to keep track of which parent the remaining walkers came from - those inside the active space or out.                
 !This is only an issue if the two determinants we are merging have different Parent flags - otherwise they just keep whichever.
 !As it is, the SpawnedParts2 determinant will have the parent flag that remains - just need to change this over if the number of walkers on SpawnedParts ends up dominating.
-                            IF(extract_flags(SpawnedParts(:,i)).ne.extract_flags(SpawnedParts2(:,VecInd))) THEN     ! Parent flags are not equal
-                                IF(ABS(SpawnedSign(1)).gt.ABS(SpawnedSign2(1))) THEN
-                                    PassedFlag=extract_flags(SpawnedParts(0:NIfTot,i))
-                                    call encode_flags(SpawnedParts2(0:NIfTot,VecInd),PassedFlag)
-                                ENDIF
-                            ENDIF
+                            if (test_flag(SpawnedParts(:,i), flag_parent_initiator) .neqv. &
+                                test_flag(SpawnedParts2(:,VecInd), flag_parent_initiator)) then
+                                if (abs(SpawnedSign(1)) > abs(SpawnedSign2(1))) then
+                                    PassedFlag = extract_flags(SpawnedParts(:,i))
+                                    call encode_flags(SpawnedParts2(:,VecInd), PassedFlag)
+                                endif
+                            endif
                         ENDIF
 
                         IF(tHistSpawn) THEN
@@ -382,28 +386,36 @@ MODULE AnnihilationMod
                             ENDIF
                         ENDIF
                     ELSEIF(tTruncInitiator) THEN
-!This is the case where the determinants are the same but also have the same sign - so this usually doesn't matter except when we are doing initiator calculations and 
-!the parents are different.
-!In this case we assume the initiator determinants have spawned a second earlier - so the ones from outside the active space are spawning onto an occupied determinant
-!and will therefore live - we can just make these equiv by treating them as they've all come from inside the active space.
-                        PassedFlag=extract_flags(SpawnedParts(0:NIfTot,i))
-                        FlagParts2=extract_flags(SpawnedParts2(0:NIfTot,VecInd))
-!We assume that the walkers spawned from an initiator are sign coherent - so others of the same sign are too.
-                        IF(PassedFlag.ne.FlagParts2) THEN   !Parent flags are not equal
-                            call encode_flags(SpawnedParts2(0:NIfTot,VecInd),0)     !Take all the walkers to have come from inside the CAS space.
-                            IF(SpawnedSign2(1).eq.null_part(1)) THEN
-                                call encode_flags(SpawnedParts2(0:NIfTot,VecInd),PassedFlag)
-                            ENDIF
-                            ! Think there might still be a case where SpawnedSign2 can be 0 - this means that the parent will be determined by SpawnedParts.
-                            ! If its SpawnedParts that is 0 that's fine because the SpawnedParts2 flag is already carried across.
-                        ELSEIF(tKeepDoubleSpawns.and.(FlagParts2.eq.1)) THEN
-!This is the option where if two determinants spawn onto another at the same time with the same sign, they are kept whether they've come from 
-!inside or outside the active space.  This is different from before where two children spawned on the same determinant with the same sign, but both from outside the active
-!space will be killed.
-                            call encode_flags(SpawnedParts2(:,VecInd),0)
-                            NoDoubSpawns=NoDoubSpawns+1.D0
-                        ENDIF
-                    ENDIF
+                        ! Considering compressing two equal determinants with the same sign 
+                        ! --> normally straightforward unless in an initiator calculation
+                        !     and the parents are different.
+                        ! --> Assume the initiator dets. have spawned earlier, so the ones
+                        !     from outside the space are spawning onto an occupied det. and
+                        !     should live.
+                        ! --> Make equiv. by treating as though they'vee all come from
+                        !     inside the space.
+                        init1 = test_flag (SpawnedParts(:,i), flag_parent_initiator)
+                        init2 = test_flag (SpawnedParts2(:,VecInd), flag_parent_initiator)
+                        if (init1 .neqv. init2) then
+                            if (SpawnedSign2(1) == null_part(1)) then
+                                ! If SpawnedSign2 is zero, determine parent only
+                                ! from spawnedparts.
+                                call set_flag (SpawnedParts2(:,VecInd), flag_parent_initiator, init1)
+                            else
+                                ! We assume that the walkers spawned from an initiator
+                                ! are sign coherent -> others of the same sign are too.
+                                ! --> Set parent flag.
+                                call set_flag (SpawnedParts2(:,VecInd), flag_parent_initiator)
+                            endif
+                        elseif (tKeepDoubleSpawns .and. .not. init2) then
+                            ! If two determinants spawn onto a determinant with
+                            ! the same sign, they are kept whether they've come
+                            ! from inside or outside the active space. This is
+                            ! different from before, where both would be killed.
+                            call set_flag (SpawnedParts2(:,VecInd), flag_parent_initiator)
+                            NoDoubSpawns = NoDoubSpawns + 1
+                        endif
+                    endif
 
                 enddo
 
@@ -549,7 +561,7 @@ MODULE AnnihilationMod
 !spawned from determinants outside the active space, then it is like these have been spawned on an unoccupied determinant and they are killed.
                             IF(abs(SpawnedSign(j)).gt.abs(CurrentSign(j))) THEN
                                 !The residual particles were spawned here
-                                IF(extract_flags(SpawnedParts(:,i)).eq.1) THEN
+                                if (.not. test_flag (SpawnedParts(:,i), flag_parent_initiator)) then
                                     !And they were spawned from non-initiator particles. Abort all particles which were initially copied accross
                                     NoAborted = NoAborted + abs(SpawnedSign(j)) - abs(CurrentSign(j))
                                     iter_data%naborted(j) = iter_data%naborted(j) + abs(SpawnedSign(j)) - abs(CurrentSign(j))
@@ -590,14 +602,14 @@ MODULE AnnihilationMod
 !Determinant in newly spawned list is not found in currentdets - usually this would mean the walkers just stay in this list and get merged later - but in this case we            
 !want to check where the walkers came from - because if the newly spawned walkers are from a parent outside the active space they should be killed - as they have been
 !spawned on an unoccupied determinant.
-                IF(extract_flags(SpawnedParts(:,i)).eq.1) THEN      !Walkers came from outside cas space.
-                    call extract_sign(SpawnedParts(:,i),SignTemp)
+                if (.not. test_flag (SpawnedParts(:,i), flag_parent_initiator)) then
+                    ! Walkers came from outside initiator space.
+                    call extract_sign (SpawnedParts(:,i), SignTemp)
                     NoAborted = NoAborted + sum(abs(SignTemp))
                     iter_data%naborted = iter_data%naborted + abs(SignTemp)
-!                    WRITE(6,'(I20,A,3I20)') SpawnedSign(i),'walkers aborted from determinant:',SpawnedParts(:,i)
-                    call encode_sign(SpawnedParts(:,i),null_part)
-                    ToRemove=ToRemove+1
-                ENDIF
+                    call encode_sign (SpawnedParts(:,i), null_part)
+                    ToRemove = ToRemove + 1
+                endif
             ENDIF
 
 !Even if a corresponding particle wasn't found, we can still search a smaller list next time....so not all bad news then...

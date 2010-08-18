@@ -203,70 +203,104 @@ def adj_arrays (template, config):
 	# operable types beginning with 'type'.  dimstring is the string that was used for declaring the variable's dimensions
 
 	# We split the template into sections for each function or subroutine
-	tsplitter=re.compile("(subroutine|function)",flags=re.IGNORECASE)
-	tsplit=tsplitter.split(template)
+	tsplitter=re.compile("\n[^!\n]*(subroutine|function)",flags=re.IGNORECASE)
 
-	newtemplate=""
-	for templpart in tsplit:
-	   if not templpart: continue
-	   vars = dict()
+	# Locate any local interfaces.
+	re_interfaces = re.compile("(interface)((.|\n)+?)(end\s+interface)")
 
-	   # Extract all of the variables of the managed types, so we can adjust
-	   # any required array sizes.
+	# Find splitting points for subroutines excluding those within
+	# interface statements.
+	split_locs = []
+	for s in tsplitter.finditer(template):
+		bInterfaced = False
+		for i in re_interfaces.finditer(template):
+			if s.start() > i.start() and s.end() < i.end():
+				bInterfaced = True
+				break
+		if not bInterfaced:
+			split_locs.append(s.end()-2)
 
-	   # types is a dict with keys being the type line from config (e.g. type1 = integer, dimension(:))
-	   #  and the values being the number of dimensions
-	   for type in types:
-	           #re_var = re.compile ('\n\s*%%\(%s\)s.*::\s*([^()]*)([\s^\n]*\(([:,]*)\))*\n' % type)
-	           re_var = re.compile ('\n\s*%%\(%s\)s.*::\s*([^()]*)([\s^\n]*\(([:,]*)\))*.*\n' % type)
-   # Search for lines of the form
-   # TYPE :: VARIABLE
-   # TYPE :: VARIABLE(:)
-   # TYPE :: VARIABLE(:,:) etc.
-	           v = re_var.search(templpart)
-	           offset = 0
-	           while v:
-	                   if v.group(2) == None:
-	                           vars[v.group(1)] = (type, types[type],"")
-	                   else:
-	                           vars[v.group(1)] = (type, types[type] + v.group(3).count(":"),v.group(3))
+	newtemplate=template[:split_locs[0]]
+	for i in range(len(split_locs)):
+		templpart = ""
+		if (i == len(split_locs)-1):
+			templpart = template[split_locs[i]:]
+		else:
+			templpart = template[split_locs[i]:split_locs[i+1]]
 
-	                   # If we are sizing an array based on the size of another, remove
-	                   # this condition if the type is actually a scalar in this case.
-	                   if types[type] == 0 and v.group(2) == None:
-	                           re_fix = re.compile ('(\n\s*%%\(%s\)s.*::[\s^\n]*([^\(\)\n]*))'
-	                                                '([\s^\n]*\(([^\(\)\n]|\(([^\(\)\n]|'
-	                                                                    '\([^\(\)\n]*\))*\))*\))*' % type)
-	                           templpart = (templpart[0:v.start()+offset] + 
-	                                       re_fix.sub("\\1", templpart[v.start()+offset:], 1))
-	                   offset = offset + v.start() + 1
-	                   v = re_var.search(templpart[offset:])
-   #vars is a dict with keys being the name of the variable and values being (TYPE,TOTALDIMS,DIMSTRING)
-   # TOTALDIMS is the sum of dims in the TYPE and of the VARIABLE
-   # DIMSTRING is the string (e.g. :,: ) which was used to declare the variable's dimensions
+		vars = dict()
 
-	   # Replace the relevant occurrances
-	   for var in vars:
-	           config['dim-%s' % var] = '%d' % vars[var][1]
-	           # Only consider types with a dimenison() term to be adjustable
-	           # based on the num of dimensions in type. Need to get this far
-	           # to set dim-%s.
-	           if types[vars[var][0]] != 0:  # If the type is not a scalar
-	                   # If we are considering dimensionality of 2 or larger
-	                   dimstr = ":,"*(vars[var][1]-1)
-	                   redim = '%s\s*\(' % (var)
-	                   substr = ('%s(' % var) + dimstr
-	                   if vars[var][2]=="":  # If our original dimension string was empty (i.e. didn't contain anything special we had to leave)
-	                      # Then we need to include the full number of dimensions, not one fewer - we do this by changing VARIABLE() to VARIABLE(:)
-	                      re_redim = re.compile (redim+"\)")
-	                      templpart = re_redim.sub (('%s(' % var)+":)", templpart)
-	                   re_redim = re.compile (redim)
-	                   templpart = re_redim.sub (substr, templpart)
-	           elif vars[var][1]==0: # if we've ended up with a scalar just remove the (:)
-	              redim = '%s\s*\(%s\)' % (var,vars[var][2])
-	              re_redim = re.compile(redim)
-	              templpart = re_redim.sub(var,templpart)
-	   newtemplate+=templpart 
+		# Extract all of the variables of the managed types, so we can adjust
+		# any required array sizes.
+
+		# types is a dict with keys being the type line from config 
+		# (e.g. type1 = integer, dimension(:)) and the values being the
+		# number of dimensions
+		for type in types:
+				#re_var = re.compile ('\n\s*%%\(%s\)s.*::\s*([^()]*)([\s^\n]*\(([:,]*)\))*\n' % type)
+				re_var = re.compile ('\n\s*%%\(%s\)s.*::\s*([^()]*)([\s^\n]*\(([:,]*)\))*.*\n' % type)
+				
+				# Search for lines of the form
+				# TYPE :: VARIABLE
+				# TYPE :: VARIABLE(:)
+				# TYPE :: VARIABLE(:,:) etc.
+				
+				v = re_var.search(templpart)
+				offset = 0
+				while v:
+					if v.group(2) == None:
+						vars[v.group(1)] = (type, types[type],"")
+					else:
+						vars[v.group(1)] = (type, types[type] + v.group(3).count(":"),v.group(3))
+
+					# If we are sizing an array based on the size of another, remove
+					# this condition if the type is actually a scalar in this case.
+					if types[type] == 0 and v.group(2) == None:
+						re_fix = re.compile ('(\n\s*%%\(%s\)s.*::[\s^\n]*([^\(\)\n]*))'
+											 '([\s^\n]*\(([^\(\)\n]|\(([^\(\)\n]|'
+											 '\([^\(\)\n]*\))*\))*\))*' % type)
+						templpart = (templpart[0:v.start()+offset] + 
+						re_fix.sub("\\1", templpart[v.start()+offset:], 1))
+					offset = offset + v.start() + 1
+					v = re_var.search(templpart[offset:])
+		
+		# vars is a dict with keys being the name of the variable and values 
+		# being (TYPE,TOTALDIMS,DIMSTRING)
+		# TOTALDIMS is the sum of dims in the TYPE and of the VARIABLE
+		# DIMSTRING is the string (e.g. :,: ) which was used to declare the 
+		# variable's dimensions
+
+		# Replace the relevant occurrances
+		for var in vars:
+			config['dim-%s' % var] = '%d' % vars[var][1]
+			# Only consider types with a dimenison() term to be adjustable
+			# based on the num of dimensions in type. Need to get this far
+			# to set dim-%s.
+			if types[vars[var][0]] != 0:  # If the type is not a scalar
+				# If we are considering dimensionality of 2 or larger
+				dimstr = ":,"*(vars[var][1]-1)
+				redim = '%s\s*\(' % (var)
+				substr = ('%s(' % var) + dimstr
+
+				# If our original dimension string was empty (i.e. didn't 
+				# contain anything special we had to leave) then we need to
+				# include the full number of dimensions, not one fewer
+				#  - we do this by changing VARIABLE() to VARIABLE(:)
+
+				if vars[var][2]=="":
+					re_redim = re.compile (redim+"\)")
+					templpart = re_redim.sub (('%s(' % var)+":)", templpart)
+				re_redim = re.compile (redim)
+				templpart = re_redim.sub (substr, templpart)
+
+			# If we've ended up with a scalar, just remove the (:)
+			elif vars[var][1]==0:
+				redim = '%s\s*\(%s\)' % (var,vars[var][2])
+				re_redim = re.compile(redim)
+				templpart = re_redim.sub(var,templpart)
+				
+		newtemplate += templpart 
+
 	return (newtemplate, config)
 
 def interface_procs (template):
