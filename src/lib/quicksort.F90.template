@@ -377,6 +377,12 @@ contains
         %(tmp_init5)s(tmp5)
         %(tmp_init6)s(a6)
         %(tmp_init6)s(tmp6)
+        
+        ! *** HACK ***
+        ! Workaround for gfortran compiler bug
+        %(custom_compare_prefix)s if (custom_lt(a, a)) i = i
+        %(custom_compare_prefix)s if (custom_gt(a, a)) i = i
+
 
         if (present(nskip)) then
             nskip_ = nskip
