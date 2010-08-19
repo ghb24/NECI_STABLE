@@ -90,7 +90,6 @@ MODULE FciMCParMod
         integer, dimension(lenof_sign) :: tmp_sgn
         integer :: tmp_int(lenof_sign)
         real(dp) :: grow_rate
-        logical :: truncinit_tmp
 
         TDebug=.false.  !Set debugging flag
 
@@ -147,8 +146,6 @@ MODULE FciMCParMod
             ! Are we projecting the spin out between iterations?
             if (tSpinProject .and. (mod(Iter, spin_proj_interval) == 0 .or. &
                                     spin_proj_interval == -1)) then
-                truncinit_tmp = tTruncInitiator
-                tTruncInitiator = .false.
                 call PerformFciMCycPar (generate_excit_spin_proj, &
                                        attempt_create_normal, &
                                        get_spawn_helement_spin_proj, &
@@ -156,7 +153,6 @@ MODULE FciMCParMod
                                        new_child_stats_normal, &
                                        attempt_die_spin_proj, &
                                        iter_data_spin_proj)
-                tTruncInitiator = truncinit_tmp
 !                print*, 'SPIN', iter, iter_data_spin_proj%nborn, &
 !                                      iter_data_spin_proj%ndied
 !                print*, 'TOTWALKRS', totwalkers
@@ -789,6 +785,10 @@ MODULE FciMCParMod
                 ! up by noMCExcits if attempting multiple excitations from 
                 ! each walker (default 1)
                 do p = 1, abs(SignCurr(part_type)) * noMCExcits
+                    ! Zero the bit representation, to ensure no extraneous
+                    ! data gets through.
+                    ilutnJ = 0
+
                     ! Generate a (random) excitation
                     call generate_excitation (DetCurr, CurrentDets(:,j), nJ, &
                                    ilutnJ, exFlag, IC, ex, tParity, prob, HElGen,&
@@ -910,14 +910,16 @@ MODULE FciMCParMod
         integer(kind=n_int), intent(in) :: iLutJ(0:niftot)
         integer, dimension(lenof_sign), intent(in) :: child
         integer, intent(in) :: parent_flags
-        integer :: proc
+        integer :: proc, flags
 
         proc = DetermineDetProc(iLutJ)    ! 0 -> nProcessors-1
 
-        ! This will also set the flag of the walker(parentInitiator) to be either 0 or 1
-        ! according to if its parent is inside or outside the active space.
+        ! We need to include any flags set both from the parent and from the
+        ! spawning steps
+        flags = ior(parent_flags, extract_flags(ilutJ))
+
         call encode_bit_rep(SpawnedParts(:, ValidSpawnedList(proc)), iLutJ, &
-                            child, parent_flags)
+                            child, flags)
 
         ValidSpawnedList(proc) = ValidSpawnedList(proc) + 1
 

@@ -18,7 +18,6 @@ MODULE AnnihilationMod
     use bit_reps, only: decode_bit_det, extract_sign, extract_flags, &
                         encode_sign, encode_flags, test_flag, set_flag, &
                         clr_flag, flag_parent_initiator
-    use FciMCData, only: fcimc_iter_data
     IMPLICIT NONE
 
     contains
@@ -343,9 +342,18 @@ MODULE AnnihilationMod
                                            2*(min(abs(SpawnedSign2(j)), abs(SpawnedSign(j))))
 
                         IF(tTruncInitiator) THEN
-!If we are doing an initiator calculation, we also want to keep track of which parent the remaining walkers came from - those inside the active space or out.                
-!This is only an issue if the two determinants we are merging have different Parent flags - otherwise they just keep whichever.
-!As it is, the SpawnedParts2 determinant will have the parent flag that remains - just need to change this over if the number of walkers on SpawnedParts ends up dominating.
+                            ! If we are doing an initiator calculation, we also want to keep 
+                            ! track of which parent the remaining walkers came from - those 
+                            ! inside the active space or out.
+                            !
+                            ! This is only an issue if the two determinants we are merging have 
+                            ! different Parent flags - otherwise they just keep whichever.
+                            ! As it is, the SpawnedParts2 determinant will have the parent flag 
+                            ! that remains - just need to change this over if the number of 
+                            ! walkers on SpawnedParts ends up dominating.
+                            !
+                            ! This will also cause the flag_make_initiator flag from the new
+                            ! det to dominate if it's sign dominates.
                             if (test_flag(SpawnedParts(:,i), flag_parent_initiator) .neqv. &
                                 test_flag(SpawnedParts2(:,VecInd), flag_parent_initiator)) then
                                 if (abs(SpawnedSign(1)) > abs(SpawnedSign2(1))) then
@@ -415,6 +423,11 @@ MODULE AnnihilationMod
                             call set_flag (SpawnedParts2(:,VecInd), flag_parent_initiator)
                             NoDoubSpawns = NoDoubSpawns + 1
                         endif
+
+                        ! If either of the dets has the flag_make_initiator flag set, then set
+                        ! the flag in the resultant.
+                        if (test_flag(SpawnedParts(:,i), flag_make_initiator)) &
+                            call set_flag (SpawnedParts2(:,VecInd), flag_make_initiator)
                     endif
 
                 enddo
@@ -550,25 +563,37 @@ MODULE AnnihilationMod
 
                 do j=1,lenof_sign   !Run over real (& imag ) components
 
-                    IF(SignProd(j).lt.0) THEN
-!This indicates that the particle has found the same particle of opposite sign to annihilate with
+                    if (SignProd(j) < 0) then
+                        ! This indicates that the particle has found the same particle of 
+                        ! opposite sign to annihilate with
                         Annihilated=Annihilated+2*(min(abs(CurrentSign(j)),abs(SpawnedSign(j))))
                         iter_data%nannihil(j) = iter_data%nannihil(j) + &
                                            2*(min(abs(CurrentSign(j)), abs(SpawnedSign(j))))
 
                         IF(tTruncInitiator) THEN
-!If we are doing an initiator calculation - then if the walkers that are left after annihilation came from the SpawnedParts array, and had 
-!spawned from determinants outside the active space, then it is like these have been spawned on an unoccupied determinant and they are killed.
-                            IF(abs(SpawnedSign(j)).gt.abs(CurrentSign(j))) THEN
-                                !The residual particles were spawned here
-                                if (.not. test_flag (SpawnedParts(:,i), flag_parent_initiator)) then
-                                    !And they were spawned from non-initiator particles. Abort all particles which were initially copied accross
-                                    NoAborted = NoAborted + abs(SpawnedSign(j)) - abs(CurrentSign(j))
-                                    iter_data%naborted(j) = iter_data%naborted(j) + abs(SpawnedSign(j)) - abs(CurrentSign(j))
-!                                    WRITE(6,'(I20,A,3I20)') abs(SpawnedSign(i))-abs(CurrentSign(i)),'walkers aborted from determinant:',SpawnedParts(:,i)
-                                    call encode_sign(CurrentDets(:,PartInd),null_part)
-                                ENDIF
-                            ENDIF
+                            ! If we are doing an initiator calculation - then if the walkers that
+                            ! are left after annihilation came from the SpawnedParts array, and 
+                            ! had spawned from determinants outside the active space, then it is 
+                            ! like these have been spawned on an unoccupied determinant and they 
+                            ! are killed.
+                            ! 
+                            ! If flag_make_initiator is set, it is allowed to survive anyway, and 
+                            ! is actually made into an initiator.
+                            if (abs(SpawnedSign(j)) > abs(CurrentSign(j))) then
+                                if (test_flag (SpawnedParts(:,i), flag_make_initiator)) then
+                                    write(6,*) 'making initiator from make_init'
+                                    call set_flag (CurrentDets(:,PartInd), flag_is_initiator)
+                                    NoAddedInitiators = NoAddedInitiators + 1
+                                else
+                                    ! If the residual particles were spawned from non-initiator 
+                                    ! particles, abort them.
+                                    if (.not. test_flag (SpawnedParts(:,i), flag_parent_initiator)) then
+                                        NoAborted = NoAborted + abs(SpawnedSign(j)) - abs(CurrentSign(j))
+                                        iter_data%naborted(j) = iter_data%naborted(j) + abs(SpawnedSign(j)) - abs(CurrentSign(j))
+                                        call encode_sign(CurrentDets(:,PartInd),null_part)
+                                    endif
+                                endif
+                            endif
                         ENDIF
                         
                         IF(tHistSpawn) THEN
@@ -594,15 +619,31 @@ MODULE AnnihilationMod
                             ENDIF
                         ENDIF
 
-                    ENDIF
+                    else
+                        ! Spawning onto an existing determinant with the same sign
+                        if (tTruncInitiator) then
+                            if (test_flag(SpawnedParts(:,i), flag_make_initiator) .and. &
+                                .not. test_flag(CurrentDets(:,PartInd), flag_is_initiator)) then
+                                call set_flag (CurrentDets(:,PartInd), flag_is_initiator)
+                                write(6,*) 'making initiator from make_init 2', CurrentSign
+                                NoAddedInitiators = NoAddedInitiators + 1
+                            endif
+                        endif
+
+                    endif
 
                 enddo   !Finish running over components of signs
             
             ELSEIF(tTruncInitiator) THEN
-!Determinant in newly spawned list is not found in currentdets - usually this would mean the walkers just stay in this list and get merged later - but in this case we            
-!want to check where the walkers came from - because if the newly spawned walkers are from a parent outside the active space they should be killed - as they have been
-!spawned on an unoccupied determinant.
-                if (.not. test_flag (SpawnedParts(:,i), flag_parent_initiator)) then
+                ! Determinant in newly spawned list is not found in currentdets - usually this 
+                ! would mean the walkers just stay in this list and get merged later - but in 
+                ! this case we want to check where the walkers came from - because if the newly 
+                ! spawned walkers are from a parent outside the active space they should be 
+                ! killed - as they have been spawned on an unoccupied determinant.
+                !
+                ! If flag_make_initiator is set, then obviously these are allowed to survive
+                if (.not. test_flag (SpawnedParts(:,i), flag_parent_initiator) .and. &
+                    .not. test_flag (SpawnedParts(:,i), flag_make_initiator)) then
                     ! Walkers came from outside initiator space.
                     call extract_sign (SpawnedParts(:,i), SignTemp)
                     NoAborted = NoAborted + sum(abs(SignTemp))

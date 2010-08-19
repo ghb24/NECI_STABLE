@@ -33,8 +33,8 @@ module bit_rep_data
 
     ! Flags which we can store
     integer, parameter :: flag_is_initiator = 0, &
-                          flag_parent_initiator = 0 ! n.b. the same
-
+                          flag_parent_initiator = 0, & ! n.b. the same
+                          flag_make_initiator = 1
 
 contains
 

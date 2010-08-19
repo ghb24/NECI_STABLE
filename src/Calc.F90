@@ -5,7 +5,8 @@ MODULE Calc
     use Determinants, only: write_det
     use spin_project, only: spin_proj_interval, tSpinProject, &
                             spin_proj_gamma, spin_proj_shift, &
-                            spin_proj_cutoff, spin_proj_stochastic_yama
+                            spin_proj_cutoff, spin_proj_stochastic_yama, &
+                            spin_proj_spawn_initiators
     use default_sets
     use Determinants, only: iActiveBasis, SpecDet, tSpecDet, nActiveSpace, &
                             tDefineDet
@@ -218,6 +219,7 @@ contains
           spin_proj_gamma = 0.1
           tSpinProject  = .false.
           spin_proj_stochastic_yama = .false.
+          spin_proj_spawn_initiators = .true.
           spin_proj_interval = 5
           spin_proj_shift = 0
           spin_proj_cutoff = 0
@@ -1195,6 +1197,21 @@ contains
                 ! Only project via one Yamanouchi symbol on each iteration, 
                 ! selecting that symbol stochastically.
                 spin_proj_stochastic_yama = .true.
+
+            case("SPIN-PROJECT-SPAWN-INITIATORS")
+                ! If TRUNCINITIATOR is set, then ensure that all children of
+                ! initiators created by spin projection are made into
+                ! initiators.
+                spin_proj_spawn_initiators = .true.
+                if (item < nitems) then
+                    call readu(w)
+                    select case(w)
+                    case("OFF")
+                        write(6,*) 'Disabling spin projected progeny of &
+                                   &initiators automatically being initiators'
+                        spin_proj_spawn_initiators = .false.
+                    end select
+                endif
 
             case default
                 call report("Keyword "                                &
