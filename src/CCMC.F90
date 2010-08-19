@@ -2501,7 +2501,7 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
       iOffsets(1)=0
 !Make a list of offsets from the lengths.
       do i=1,nProcessors-1
-         iOffsets(i+1)=iOffsets(i)+iLengths(1)
+         iOffsets(i+1)=iOffsets(i)+iLengths(i)
       enddo
       IFDEBUG(iDebug,3) write(6,*) "Offsets",iOffsets
       IFDEBUG(iDebug,3) write(6,*) "Lengths",iLengths
