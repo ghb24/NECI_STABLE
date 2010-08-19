@@ -440,9 +440,9 @@ FUNCTION GetNextCluster (CS,Dets,nDet,AL,iCurAmpList,dTotAbsAmpl,iMaxSizeIn,iDeb
    IMPLICIT NONE
    TYPE(ClustSelector) CS
    INTEGER nDet
-   TYPE(AmplitudeList_%(name)s) AL
+   TYPE(AmplitudeList_%(name)s), intent(in) :: AL
    %(type1)s rt
-   INTEGER(KIND=n_int) Dets(0:nIfTot,nDet)
+   INTEGER(KIND=n_int), intent(in) :: Dets(0:nIfTot,nDet)
    REAL*8 dTotAbsAmpl
    INTEGER iDebug,iMaxSizeIn,iCurAmpList
 
@@ -460,7 +460,7 @@ FUNCTION GetNextCluster (CS,Dets,nDet,AL,iCurAmpList,dTotAbsAmpl,iMaxSizeIn,iDeb
    if(CS%%tDynamic.and.CS%%iIndex.eq.0) then
       CS%%nSelects=(dTotAbsAmpl+abs(AL%%Amplitude(CS%%iRefPos,iCurAmpList)))/nProcessors+1
       CS%%nSelects=nint(CS%%nSelects*CS%%dRatio)
-      IFDEBUG(iDebug,4) write(6,*) "Setting #Selectons: ",CS%%nSelects
+      IF(iDebug>2) write(6,*) "Setting #Selections: ",CS%%nSelects
    endif
    GetNextCluster=.true.
    iMaxSize=min(iMaxSizeIn,CS%%iMaxSize)
@@ -649,7 +649,7 @@ SUBROUTINE CollapseCluster (C,iLutHF,Amplitude,nDet,iDebug,tExToDet)
    IMPLICIT NONE
    TYPE(Cluster) C
    INTEGER(KIND=n_int) :: iLutHF(0:nIfTot)
-   %(type1)s Amplitude(1:nDet)
+   %(type1)s, intent(in) :: Amplitude(:)
    INTEGER nDet
    INTEGER iDebug
    LOGICAL tExToDet
@@ -701,7 +701,7 @@ subroutine CalcTotals (iNumExcitors,dTotAbsAmpl,Amplitude,nAmpl,dTol,WalkerScale
    implicit none
    integer iNumExcitors,nAmpl
    real*8 dTotAbsAmpl,dTol
-   %(type1)s Amplitude(nAmpl)
+   %(type1)s, intent(in) :: Amplitude(:)
    integer iDebug
    real*8 WalkerScale
    integer iRefPos
