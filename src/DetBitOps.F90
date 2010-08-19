@@ -412,7 +412,6 @@ module DetBitOps
         if (i >= NOffFlag) then
             bLt = .false.
             if (tTruncInitiator) then
-                ASSERT(NIfFlag == 1)
                 if (test_flag(ilutI, flag_is_initiator) .and. &
                     .not. test_flag(ilutJ, flag_is_initiator)) bLt = .true.
             endif
@@ -435,6 +434,7 @@ module DetBitOps
         integer :: i
         logical :: bGt, init1, init2
 
+
         !bGt = iLutI .arrgt. iLutJ
         
         ! Sort by the first item first ...
@@ -446,7 +446,6 @@ module DetBitOps
         if (i >= NOffFlag) then
             bGt = .false.
             if (tTruncInitiator) then
-                ASSERT(NIfFlag == 1)
                 if (.not. test_flag(ilutI, flag_is_initiator) .and. &
                     test_flag(ilutJ, flag_is_initiator)) bGt = .true.
             endif
