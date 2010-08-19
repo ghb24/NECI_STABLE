@@ -188,7 +188,7 @@ subroutine WriteExcitorListP(iUnit,Dets,offset,nDet,dTol,Title)
    do j=1,nDet
       call extract_sign(Dets(:,j),Amp)
       if(abs(Amp(1)).ge.dTol) THEN
-         write(iUnit,'(I7,G17.9," ")',advance='no') j+offset,REAL(Amp(1),dp)
+         write(iUnit,'(I7,G17.9," ")',advance='no') j+offset,Amp(1)
          call WriteBitEx(iUnit,iLutHF,Dets(:,j),.false.)
          write(iUnit,'(I7)') extract_flags(Dets(:,j))
       ENDIF
