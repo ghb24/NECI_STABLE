@@ -2187,8 +2187,8 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
    use Parallel
    use shared_alloc, only: shared_allocate_iluts, shared_deallocate
    use CalcData, only: tAddToInitiator,InitiatorWalkNo
-   use bit_reps, only: encode_sign
-   use FciMCParMod, only: ChangeVars,WriteToPopsFileParOneArr 
+   use bit_reps, only: encode_sign,extract_sign
+   use FciMCParMod, only: ChangeVars,WriteToPopsFileParOneArr ,tReadPops,ReadFromPopsfileOnly
    IMPLICIT NONE
    real(dp) Weight,EnergyxW
    CHARACTER(len=*), PARAMETER :: this_routine='CCMCStandaloneParticle'
@@ -2248,6 +2248,7 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
 
    LOGICAL tSingBiasChange, tSoftExitFound, tWritePopsFound !For ChangeVars
 
+   INTEGER(int64) i64
 
    WRITE(6,*) "Entering CCMC Standalone Particle..."
    CCMC_time%timer_name='CCMC Standalone Particle'
@@ -2361,6 +2362,17 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
    IF(tHistSpawn) THEN
       Call InitHistMin() !Setup Histogramming arrays if needed 
    ENDIF
+
+   if(tReadPops) then
+      i64=nMaxAmpl 
+      call ReadFromPopsfileOnly(DetList,i64)
+      nAmpl=i64
+      do j=1,nAmpl
+          call extract_sign(DetList(:,j),TempSign)
+          AL%Amplitude(j,iCurAmpList)=TempSign(1)
+      enddo
+   endif
+
    CALL WriteFciMCStatsHeader()
 
    if(tCCMCFCI) THEN
@@ -2375,7 +2387,7 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
 
    dInitThresh=0
    if(tAddToInitiator) dInitThresh=InitiatorWalkNo/WalkerScale
-   write(6,*) "Cluster Initiaaator Threshold: ", dInitThresh
+   write(6,*) "Cluster Initiator Threshold: ", dInitThresh
 
    CALL InitClustSelectorRandom(CS,iNumExcitors,nClustSelections,dClustSelectionRatio,dProbSelNewExcitor,dInitThresh)
 
