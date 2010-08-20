@@ -15,7 +15,10 @@ MODULE FciMCParMod
                           tReal, tRotatedOrbs, tFindCINatOrbs, tFixLz, &
                           LzTot, tUEG, tLatticeGens, tCSF, G1, Arr, &
                           tNoBrillouin,tKPntSym
-    use bit_reps, only: NIfD, NIfTot, NIfDBO, NIfY
+    use bit_reps, only: NIfD, NIfTot, NIfDBO, NIfY, decode_bit_det, &
+                        encode_bit_rep, encode_det, extract_bit_rep, &
+                        test_flag, set_flag, extract_flags, &
+                        flag_is_initiator, clear_all_flags
     use CalcData, only: InitWalkers, NMCyc, DiagSft, Tau, SftDamp, StepsSft, &
                         OccCASorbs, VirtCASorbs, tFindGroundDet, NEquilSteps,&
                         tReadPops, tRegenDiagHEls, iFullSpaceIter, MaxNoAtHF,&
@@ -63,8 +66,6 @@ MODULE FciMCParMod
                                SumInShiftErrorContrib
     use RotateOrbsMod, only: RotateOrbs
     use NatOrbsMod, only: PrintOrbOccs
-    use bit_reps, only: decode_bit_det, encode_bit_rep, encode_det, &
-                        extract_bit_rep
     use spin_project, only: tSpinProject, spin_proj_interval, &
                             spin_proj_gamma, get_spawn_helement_spin_proj, &
                             generate_excit_spin_proj, attempt_die_spin_proj, &
@@ -644,7 +645,7 @@ MODULE FciMCParMod
 
         ! Now the local, iteration specific, variables
         integer :: VecSlot, j, p, error
-        integer :: DetCurr(nel), nJ(nel), FlagsCurr
+        integer :: DetCurr(nel), nJ(nel), FlagsCurr, parent_flags
         integer, dimension(lenof_sign) :: SignCurr, child
         integer(kind=n_int) :: iLutnJ(0:niftot)
         integer :: IC, walkExcitLevel, ex(2,2), TotWalkersNew, part_type
@@ -764,7 +765,10 @@ MODULE FciMCParMod
             call SumEContrib (DetCurr, WalkExcitLevel, SignCurr, &
                               CurrentDets(:,j), HDiagCurr, 1.d0)
 
-            IF(tTruncInitiator) CALL CalcParentFlag(j,VecSlot,Iter)
+            ! TODO: Ensure that the HF determinant has its flags setup
+            !       correctly at the start of a run.
+            if (tTruncInitiator) call CalcParentFlag (j, VecSlot, Iter, &
+                                                      parent_flags)
 
             ! Indicate that the scratch storage used for excitation generation
             ! from the same walker has not been filled (it is filled when we
@@ -818,7 +822,7 @@ MODULE FciMCParMod
                                               iLutnJ, ic, walkExcitLevel, &
                                               child)
 
-                        call create_particle (iLutnJ, child)
+                        call create_particle (iLutnJ, child, parent_flags)
                     
                     endif ! (child /= 0). Child created
 
@@ -895,7 +899,7 @@ MODULE FciMCParMod
 
     end subroutine
                         
-    subroutine create_particle (iLutJ, child)
+    subroutine create_particle (iLutJ, child, parent_flags)
 
         ! Create a child in the spawned particles arrays. We spawn particles
         ! into a separate array, but non-contiguously. The processor that the
@@ -905,13 +909,15 @@ MODULE FciMCParMod
 
         integer(kind=n_int), intent(in) :: iLutJ(0:niftot)
         integer, dimension(lenof_sign), intent(in) :: child
+        integer, intent(in) :: parent_flags
         integer :: proc
 
         proc = DetermineDetProc(iLutJ)    ! 0 -> nProcessors-1
 
         ! This will also set the flag of the walker(parentInitiator) to be either 0 or 1
         ! according to if its parent is inside or outside the active space.
-        call encode_bit_rep(SpawnedParts(:,ValidSpawnedList(proc)),iLutJ,child,parentInitiator)
+        call encode_bit_rep(SpawnedParts(:, ValidSpawnedList(proc)), iLutJ, &
+                            child, parent_flags)
 
         ValidSpawnedList(proc) = ValidSpawnedList(proc) + 1
 
@@ -968,102 +974,79 @@ MODULE FciMCParMod
     end subroutine
 
 
-    SUBROUTINE CalcParentFlag(j,VecSlot,Iter)
+    subroutine CalcParentFlag(j, VecSlot, Iter, parent_flags)
 !In the CurrentDets array, the flag at NIfTot refers to whether that determinant *itself* is an initiator or not.    
 !We need to decide if this willchange due to the determinant acquiring a certain population, or its population dropping
 !below the threshold.
 !The CurrentDets(:,j) is the determinant we are currently spawning from, so this determines the ParentInitiator flag
 !which is passed to the SpawnedDets array and refers to whether or not the walkers *parent* is an initiator or not.
 !A flag of 0 means the determinant is an initiator, and 1 it is a non-initiator.
-        INTEGER , INTENT(IN) :: j,VecSlot,Iter
-        INTEGER , DIMENSION(lenof_sign) :: CurrentSign
-        INTEGER :: ParentInitiatorInit,i
-        LOGICAL :: tDetinCAS
+        integer, intent(in) :: j, VecSlot, Iter
+        integer, intent(out) :: parent_flags
+        integer, dimension(lenof_sign) :: CurrentSign
+        logical :: tDetinCAS, parent_init
 
-        CALL extract_sign(CurrentDets(:,j),CurrentSign)
+        call extract_sign (CurrentDets(:,j), CurrentSign)
 
-        ParentInitiatorInit = extract_flags(CurrentDets(:,j))
+        ! By default, the parent_flags are the flags of the parent...
+        parent_init = test_flag (CurrentDets(:,j), flag_parent_initiator)
 
-        IF(.not.tAddtoInitiator) THEN
-!If tAddtoInitiator is not on, then it is not possible to dynamically add initiators into the intiator space 
-!based on their population - the initiators remain as those in the specified CAS space and this is determined
-!when a new determinant is merged into the main array.
-            ParentInitiator=ParentInitiatorInit
-            IF(ParentInitiator.eq.0) THEN
-                NoInitDets=NoInitDets+1.D0
-                NoInitWalk=NoInitWalk+(ABS(REAL(CurrentSign(1))))
-            ELSE
-                NoNonInitDets=NoNonInitDets+1.D0
-                NoNonInitWalk=NoNonInitWalk+(ABS(REAL(CurrentSign(1))))
-            ENDIF
-        ELSEIF(ParentInitiatorInit.eq.1) THEN
-            ! Determinant wasn't previously initiator 
-            ! - want to test if it has now got a large enough population 
-            ! to become an initiator.
-            IF(ABS(CurrentSign(1)).gt.InitiatorWalkNo) THEN
-                ParentInitiator=0
-                NoAddedInitiators=NoAddedInitiators+1.D0
-                NoInitDets=NoInitDets+1.D0
-                NoInitWalk=NoInitWalk+(ABS(REAL(CurrentSign(1))))
-            ELSE
-                ParentInitiator=1
-                NoNonInitDets=NoNonInitDets+1.D0
-                NoNonInitWalk=NoNonInitWalk+(ABS(REAL(CurrentSign(1))))
-            ENDIF
-        ELSEIF(tRetestAddtoInit) THEN
-!This is the case where determinants are initiators.            
+        ! The default path through this section makes no changes, leaving the
+        ! initiator status of each parent unchanged.
+        ! If tAddToInitiator is set, then the state of the parent may change.
+        if (tAddToInitiator) then
 
-!If tRetestAddtoInit is on, the determinants become non-initiators again if their population falls below  
-!n_add (this is on by default).
-!Otherwise if they are initiators they stay that way.
-            
-            tDetinCAS=.false.
-            IF(tTruncCAS) tDetinCAS=TestIfDetInCASBit(CurrentDets(0:NIfD,j))
-           
-            IF(tDetinCAS) THEN
-                ! If the determinant is in the fixed initiator space, it stays initiator 
-                ! even if its populations drops.
-                ParentInitiator=0
-                NoInitDets=NoInitDets+1.D0
-                NoInitWalk=NoInitWalk+(ABS(REAL(CurrentSign(1))))
-            ELSEIF(DetBitEQ(CurrentDets(:,j),iLutHF,NIfDBO)) THEN
-                ! HF stays initiator.
-                ParentInitiator=0
-                NoInitDets=NoInitDets+1.D0
-                NoInitWalk=NoInitWalk+(ABS(REAL(CurrentSign(1))))
-            ELSEIF(ABS(CurrentSign(1)).le.InitiatorWalkNo) THEN
-                ! Population has fallen too low to remain an 
-                ! initiator - initiator status removed.
-                ParentInitiator=1
-                NoAddedInitiators=NoAddedInitiators-1.D0
-                NoNonInitDets=NoNonInitDets+1.D0
-                NoNonInitWalk=NoNonInitWalk+(ABS(REAL(CurrentSign(1))))
-            ELSE
-                ! Population still high enough - remains initiator.
-                ParentInitiator=0
-                NoInitDets=NoInitDets+1.D0
-                NoInitWalk=NoInitWalk+(ABS(REAL(CurrentSign(1))))
-            ENDIF
+            if (.not. parent_init) then
+                ! Determinant wasn't previously initiator 
+                ! - want to test if it has now got a large enough population 
+                ! to become an initiator.
+                if (abs(CurrentSign(1)) > InitiatorWalkNo) then
+                    parent_init = .true.
+                    NoAddedInitiators = NoAddedInitiators + 1
+                endif
+            elseif (tRetestAddToInit) then
+                ! The source determinant is already an initiator.            
+                ! If tRetestAddToInit is on, the determinants become 
+                ! non-initiators again if their population falls below n_add
+                ! (this is on by default).
+                tDetInCas = .false.
+                if (tTruncCAS) &
+                    tDetInCas = TestIfDetInCASBit (CurrentDets(0:NIfD,j))
+               
+                ! If det. in fixed initiator space, or is the HF det, it must
+                ! remain an initiator.
+                if (.not. tDetInCas .and. &
+                    .not. (DetBitEQ(CurrentDets(:,j), iLutHF, NIfDBO)) &
+                    .and. abs(CurrentSign(1)) <= InitiatorWalkNo) then
+                    ! Population has fallen too low. Initiator status removed.
+                    parent_init = .false.
+                    NoAddedInitiators = NoAddedInitiators - 1
+                endif
+            endif
+        endif
 
-        ELSE
-            !If we are not retesting the initiators, they stay as initiators.
-            ParentInitiator=0
-            NoInitDets=NoInitDets+1.D0
-            NoInitWalk=NoInitWalk+(ABS(REAL(CurrentSign(1))))
+        ! Update counters as required.
+        if (parent_init) then
+            NoInitDets = NoInitDets + 1
+            NoInitWalk = NoInitWalk + abs(CurrentSign(1))
+        else
+            NoNonInitDets = NoNonInitDets + 1
+            NoNonInitWalk = NoNonInitWalk + abs(CurrentSign(1))
+        endif
 
-        ENDIF
+        ! Update the parent flag as required.
+        call set_flag (CurrentDets(:,j), flag_parent_initiator, &
+                       parent_init)
 
-        CALL encode_flags(CurrentDets(:,j),ParentInitiator)
+        ! Store this flag for use in the spawning routines...
+        parent_flags = extract_flags (CurrentDets(:,j))
 
-        IF((tHistInitPops.and.(MOD(Iter,HistInitPopsIter).eq.0))    &
-             .or.tPrintHighPop) THEN
-             CALL HistInitPopulations(CurrentSign(1),VecSlot)
-         ENDIF
+        if ((tHistInitPops .and. mod(iter, histInitPopsIter) == 0) &
+            .or. tPrintHighPop) then
+             call HistInitPopulations (CurrentSign(1), VecSlot)
+        endif
 
-!        WRITE(6,*) 'ParentFlag',ParentInitiator
-        
-
-    END SUBROUTINE CalcParentFlag
+    end subroutine CalcParentFlag
 
 
     SUBROUTINE HistInitPopulations(SignCurr,VecSlot)
@@ -3900,8 +3883,12 @@ MODULE FciMCParMod
         ALLOCATE(iLutRef(0:NIfTot),stat=ierr)
         ALLOCATE(ProjEDet(NEl),stat=ierr)
         IF(ierr.ne.0) CALL Stop_All(this_routine,"Cannot allocate memory for iLutRef")
-        iLutRef(:)=iLutHF(:)
-        ProjEDet(:)=HFDet(:)
+        
+        ! The reference / projected energy determinants are the same as the
+        ! HF determinant.
+        ! TODO: Make these pointers rather than copies?
+        iLutRef = iLutHF
+        ProjEDet = HFDet
 
         IF(tCheckHighestPop) THEN
             ALLOCATE(HighestPopDet(0:NIfDBO),stat=ierr)
@@ -5290,37 +5277,40 @@ MODULE FciMCParMod
 !Setup initial walker local variables
             IF(iProcIndex.eq.iHFProc) THEN
 
+                ! Encode the reference determinant identification.
                 call encode_det(CurrentDets(:,1), iLutHF)
-                InitialSign = 0
-                IF(tTruncInitiator) call encode_flags(CurrentDets(:,1),0)
-                IF(.not.tRegenDiagHEls) CurrentH(1)=0.D0
 
-                IF(TStartSinglePart) THEN
+                ! Clear the flags
+                call clear_all_flags (CurrentDets(:,1))
+
+                ! Set reference determinant as an initiator if
+                ! tTruncInitiator is set
+                if (tTruncInitiator) &
+                    call set_flag (CurrentDets(:,1), flag_is_initiator)
+
+                ! HF energy is equal to 0 (by definition)
+                if (.not. tRegenDiagHEls) CurrentH(1) = 0
+
+                ! Obtain the initial sign
+                InitialSign = 0
+                if (tStartSinglePart) then
                     InitialSign(1) = InitialPart
-                    CALL encode_sign(CurrentDets(:,1), InitialSign)
-                    TotWalkers=1
-                    TotWalkersOld=1
-                    TotParts(1)=InitialPart
-                    TotPartsOld(1)=InitialPart
-                    NoatHF(1)=InitialPart
-                ELSE
-                    InitialSign(1) = InitWalkers 
-                    CALL encode_sign(CurrentDets(:,1), InitialSign)
-                    TotWalkers=1
-                    TotWalkersOld=1
-                    TotParts(1)=InitWalkers
-                    TotPartsOld(1)=InitWalkers
-                ENDIF
+                else
+                    InitialSign(1) = InitWalkers
+                endif
+                call encode_sign (CurrentDets(:,1), InitialSign)
+
+                ! set initial values for global control variables.
+                TotWalkers = 1
+                TotWalkersOld = 1
+                TotParts = InitialSign
+                TotPartsOld = InitialSign
+                NoatHF = InitialSign
 
             ELSE
-                IF(tStartSinglePart) THEN
-                    NoatHF=0
-                    TotWalkers=0
-                    TotWalkersOld=0
-                ELSE
-                    TotWalkers=0
-                    TotWalkersOld=0
-                ENDIF
+                NoatHF = 0
+                TotWalkers = 0
+                TotWalkersOld = 0
             ENDIF
 
         
