@@ -25,7 +25,6 @@ MODULE FciMCData
       REAL*8 , POINTER :: CurrentH(:)
       INTEGER(KIND=n_int) , POINTER :: SpawnedParts(:,:),SpawnedParts2(:,:)
 
-      INTEGER :: ParentInitiator                                !This is a variable for the CASSTAR approximation - keeps track of where spawned walkers have come from.
       INTEGER :: NoAbortedInCAS,NoAbortedOutCAS,NoInCAS,NoOutCAS,HighPopNeg,HighPopPos,MaxInitPopNeg,MaxInitPopPos
 
     integer(int64) :: NoAborted, NoAddedInitiators, NoInitDets, NoNonInitDets

@@ -229,7 +229,7 @@ contains
         character(len=len_trim(nm)+1) :: name_tmp
 
 #ifdef __SHARED_MEM
-        integer :: sz
+        integer(int64) :: sz
         type(c_ptr) :: tmp
 #endif
 
@@ -237,7 +237,7 @@ contains
         name_tmp = trim(nm)//c_null_char
 
 #ifdef __SHARED_MEM
-        sz = %(sizeof)s * product(dims)
+        sz = %(sizeof)s * product(int(dims,int64))
 
         ! Allocate the shared memory
         call alloc_shared_worker (name_tmp, tmp, &
@@ -271,7 +271,7 @@ contains
         character(len=len_trim(nm)+1) :: name_tmp
 
 #ifdef __SHARED_MEM
-        integer :: sz
+        integer(int64) :: sz
         type(c_ptr) :: tmp
 #endif
 
@@ -281,7 +281,7 @@ contains
 #ifdef __SHARED_MEM
         dims_tmp = dims
         dims_tmp(1) = dims_tmp(1) + 1
-        sz = %(sizeof)s * product(dims_tmp)
+        sz = %(sizeof)s * product(int(dims_tmp,int64))
 
         ! Allocate the shared memory
         call alloc_shared_worker (name_tmp, tmp, &
