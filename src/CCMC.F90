@@ -2571,7 +2571,8 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
       if(iProcIndex==Root) then
          CALL WriteToPopsfileParOneArr(DetList,int(nAmpl,int64))
       else
-         CALL WriteToPopsfileParOneArr(DetList,0)
+         i64=0
+         CALL WriteToPopsfileParOneArr(DetList,i64)
       endif
    ENDIF
 
