@@ -1414,7 +1414,7 @@ MODULE FciMCParMod
 !Now, we copy the head nodes data to a new array...
             nMaxDets=maxval(WalkersOnNodes)
             ALLOCATE(Parts(0:NIfTot,nMaxDets),stat=error)
-            CALL LogMemAlloc('Parts',int(nDets,int32)*(NIfTot+1),size_n_int,this_routine,PartsTag,error)
+            CALL LogMemAlloc('Parts',int(nMaxDets,int32)*(NIfTot+1),size_n_int,this_routine,PartsTag,error)
 
 !Now we need to receive the data from each other processor sequentially
 !We can overwrite the head nodes information, since we have now stored it elsewhere.
@@ -1429,8 +1429,8 @@ MODULE FciMCParMod
                 IF(tBinPops) THEN
                     do j=1,WalkersonNodes(i)
                         IF(mod(j,iPopsPartEvery).eq.0) THEN
-                            call extract_sign(Dets(:,j),TempSign)
-                            WRITE(iunit) Dets(0:NIfDBO,j),TempSign(:)
+                            call extract_sign(Parts(:,j),TempSign)
+                            WRITE(iunit) Parts(0:NIfDBO,j),TempSign(:)
                         ENDIF
                     enddo
                 ELSE
