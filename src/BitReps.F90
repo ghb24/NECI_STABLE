@@ -19,6 +19,12 @@ module bit_reps
     ! (1         * 32-bits if needed)   Signs (Im)
     ! (1         * 32-bits if needed)   Flags
 
+
+    interface set_flag
+        module procedure set_flag_single
+        module procedure set_flag_general
+    end interface
+
 contains
 
     subroutine allocate_currentdets ()
@@ -85,6 +91,10 @@ contains
             NIfFlag = 0
         endif
         NOffFlag = NOffSgn + NIfSgn
+
+        ! N.B. Flags MUST be last!!!!!
+        !      If we change this bit, then we need to adjust ilut_lt and 
+        !      ilut_gt.
 
         ! The total number of bits_n_int-bit integers used - 1
         NIfTot = NIfD + NIfY + NIfSgn + NIfFlag
@@ -157,6 +167,17 @@ contains
 
     end subroutine encode_flags
 
+    subroutine clear_all_flags (ilut)
+
+        ! Clear all of the flags
+
+        integer(n_int), intent(inout) :: ilut(0:niftot)
+
+        if (NIfFlag > 0) &
+            iLut(NOffFlag:NOffFlag+NIfFlag-1) = 0
+
+    end subroutine clear_all_flags
+
     subroutine encode_sign (ilut, sgn)
 
         ! Add new sign information to a packaged walker.
@@ -167,6 +188,66 @@ contains
         iLut(NOffSgn:NOffSgn+NIfSgn-1) = sgn
 
     end subroutine encode_sign
+
+    subroutine set_flag_general (ilut, flg, state)
+
+        ! Set or clear the specified flag (0 indexed) according to
+        ! the value in state.
+        !
+        ! In:    flg   - Integer index of flag to set
+        !        state - Flag will be set if state is true.
+        ! InOut: ilut  - Bit representation of determinant
+
+        integer(n_int), intent(inout) :: ilut(0:nIfTot)
+        integer, intent(in) :: flg
+        logical, intent(in) :: state
+
+        if (state) then
+            call set_flag_single (ilut, flg)
+        else
+            call clr_flag (ilut, flg)
+        endif
+    end subroutine set_flag_general
+
+    subroutine set_flag_single (ilut, flg)
+
+        ! Set the specified flag (0 indexed) in the bit representation
+        !
+        ! In:    flg  - Integer index of flag to set
+        ! InOut: ilut - Bit representation of determinant
+
+        integer(n_int), intent(inout) :: ilut(0:nIfTot)
+        integer, intent(in) :: flg
+        integer :: off, ind
+
+        ind = NOffFlag + flg / bits_n_int
+        off = mod(flg, bits_n_int)
+
+        ilut(ind) = ibset(ilut(ind), off)
+
+    end subroutine set_flag_single
+
+
+    subroutine clr_flag (ilut, flg)
+
+        ! Clear the specified flag (0 indexed) in the bit representation
+        !
+        ! In:    flg  - Integer index of flag to clear
+        ! InOut: ilut - Bit representation of determinant
+
+        integer(n_int), intent(inout) :: ilut(0:nIfTot)
+        integer, intent(in) :: flg
+        integer :: off, ind
+
+        ind = NOffFlag + flg / bits_n_int
+        off = mod(flg, bits_n_int)
+
+        ilut(ind) = ibclr(ilut(ind), off)
+
+    end subroutine clr_flag
+
+    ! function test_flag is in bit_rep_data
+    ! This avoids a circular dependence with DetBitOps.
 
     subroutine encode_det (ilut, Det)
 
