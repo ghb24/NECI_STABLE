@@ -581,8 +581,8 @@ MODULE AnnihilationMod
                             ! is actually made into an initiator.
                             if (abs(SpawnedSign(j)) > abs(CurrentSign(j))) then
                                 if (test_flag (SpawnedParts(:,i), flag_make_initiator)) then
-                                    write(6,*) 'making initiator from make_init'
                                     call set_flag (CurrentDets(:,PartInd), flag_is_initiator)
+                                    call set_flag (CurrentDets(:,PartInd), flag_make_initiator)
                                     NoAddedInitiators = NoAddedInitiators + 1
                                 else
                                     ! If the residual particles were spawned from non-initiator 
@@ -625,7 +625,7 @@ MODULE AnnihilationMod
                             if (test_flag(SpawnedParts(:,i), flag_make_initiator) .and. &
                                 .not. test_flag(CurrentDets(:,PartInd), flag_is_initiator)) then
                                 call set_flag (CurrentDets(:,PartInd), flag_is_initiator)
-                                write(6,*) 'making initiator from make_init 2', CurrentSign
+                                call set_flag (CurrentDets(:,PartInd), flag_make_initiator)
                                 NoAddedInitiators = NoAddedInitiators + 1
                             endif
                         endif

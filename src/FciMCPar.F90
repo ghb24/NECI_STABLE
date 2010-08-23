@@ -70,7 +70,7 @@ MODULE FciMCParMod
                             spin_proj_gamma, get_spawn_helement_spin_proj, &
                             generate_excit_spin_proj, attempt_die_spin_proj, &
                             iter_data_spin_proj, test_spin_proj, &
-                            spin_proj_shift
+                            spin_proj_shift, spin_proj_iter_count
 #ifdef __DEBUG                            
     use DeterminantData, only: write_det
 #endif
@@ -88,7 +88,7 @@ MODULE FciMCParMod
         INTEGER(int64) :: MaxWalkers,MinWalkers
         real*8 :: AllTotWalkers,MeanWalkers,Inpair(2),Outpair(2)
         integer, dimension(lenof_sign) :: tmp_sgn
-        integer :: tmp_int(lenof_sign)
+        integer :: tmp_int(lenof_sign), i
         real(dp) :: grow_rate
 
         TDebug=.false.  !Set debugging flag
@@ -138,29 +138,21 @@ MODULE FciMCParMod
                                            ptr_new_child_stats, &
                                            ptr_attempt_die, &
                                            ptr_iter_data)
-!                    print*, 'FCIQMC', iter, iter_data_fciqmc%nborn, &
-!                                            iter_data_fciqmc%ndied
                 endif
             endif
 
             ! Are we projecting the spin out between iterations?
             if (tSpinProject .and. (mod(Iter, spin_proj_interval) == 0 .or. &
                                     spin_proj_interval == -1)) then
-                call PerformFciMCycPar (generate_excit_spin_proj, &
-                                       attempt_create_normal, &
-                                       get_spawn_helement_spin_proj, &
-                                       null_encode_child, &
-                                       new_child_stats_normal, &
-                                       attempt_die_spin_proj, &
-                                       iter_data_spin_proj)
-!                print*, 'SPIN', iter, iter_data_spin_proj%nborn, &
-!                                      iter_data_spin_proj%ndied
-!                print*, 'TOTWALKRS', totwalkers
-!                do i = 1, TotWalkers
-!                    call extract_sign (CurrentDets(:,i), tmp_sgn)
-!                    print*, 'det: ', i, tmp_sgn, &
-!                            real(tmp_sgn(1)) / real(totparts(1))
-!                enddo
+                do i = 1, max(spin_proj_iter_count, 1)
+                    call PerformFciMCycPar (generate_excit_spin_proj, &
+                                           attempt_create_normal, &
+                                           get_spawn_helement_spin_proj, &
+                                           null_encode_child, &
+                                           new_child_stats_normal, &
+                                           attempt_die_spin_proj, &
+                                           iter_data_spin_proj)
+                enddo
             endif
 
             s=etime(tend)
@@ -181,7 +173,6 @@ MODULE FciMCParMod
                 ! Calculate the a new value for the shift (amongst other
                 ! things). Generally, collate information from all processors,
                 ! update statistics and output them to the user.
-!>>>!                iter_data_fciqmc%update_growth = iter_data_fciqmc%update_growth + iter_data_spin_proj%update_growth
                 if (tCCMC) then
                     call calculate_new_shift_wrapper (iter_data_ccmc, &
                                                       TotParts)
@@ -771,9 +762,6 @@ MODULE FciMCParMod
             ! excite from the first particle on a determinant).
             tfilled = .false.
 
-            !print*, '*******************'
-            !call test_spin_proj (DetCurr, CurrentDets(:,j))
-
             ! Loop over the 'type' of particle. 
             ! lenof_sign == 1 --> Only real particles
             ! lenof_sign == 2 --> complex walkers
@@ -1019,7 +1007,8 @@ MODULE FciMCParMod
                 ! remain an initiator.
                 if (.not. tDetInCas .and. &
                     .not. (DetBitEQ(CurrentDets(:,j), iLutHF, NIfDBO)) &
-                    .and. abs(CurrentSign(1)) <= InitiatorWalkNo) then
+                    .and. abs(CurrentSign(1)) <= InitiatorWalkNo &
+                    .and. .not. test_flag(CurrentDets(:,j), flag_make_initiator)) then
                     ! Population has fallen too low. Initiator status removed.
                     parent_init = .false.
                     NoAddedInitiators = NoAddedInitiators - 1
@@ -2511,7 +2500,6 @@ MODULE FciMCParMod
 #endif            
 
     end subroutine
-
 
     function attempt_die_normal (DetCurr, Kii, wSign) result(ndie)
         

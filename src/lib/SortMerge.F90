@@ -393,9 +393,7 @@
                  .or. test_flag (DetCurr, flag_make_initiator)) then
             is_init = .true.
             NoAddedInitiators = NoAddedInitiators + 1
-            call clr_flag (DetCurr, flag_make_initiator)
-            if (test_flag(DetCurr, flag_make_initiator)) &
-                write(6,*) 'FlagDetAsInit from make_initiator'
+            !call clr_flag (DetCurr, flag_make_initiator)
         else if (tInitIncDoubs) then
             ! If the determinant is a double excitation of the reference det, it
             ! will be an initiator automatically
