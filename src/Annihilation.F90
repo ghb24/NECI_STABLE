@@ -304,9 +304,9 @@ MODULE AnnihilationMod
         call sort(SpawnedParts(:,1:ValidSpawned), ilut_lt, ilut_gt)
         IF(tHistSpawn) HistMinInd2(1:NEl)=FCIDetIndex(1:NEl)
 
-!        WRITE(6,*) "************ - Ordered"
+!        WRITE(6,*) "************ - Ordered",ValidSpawned,NIfTot
 !        do i=1,ValidSpawned
-!            WRITE(6,*) SpawnedParts(:,i)
+!            WRITE(6,*) i,SpawnedParts(:,i)
 !        enddo
 
 !First, we compress the list of spawned particles, so that they are only specified at most once in each processors list.
@@ -321,11 +321,13 @@ MODULE AnnihilationMod
             IF(.not.DetBitEQ(SpawnedParts(0:NIfTot,i),SpawnedParts2(0:NIfTot,VecInd),NIfDBO)) THEN
                 !Determinant (i) is not the same as the last one which was copied across (VecInd)
                 call extract_sign(SpawnedParts2(:,VecInd),SpawnedSign)
-#ifndef __CMPLX
-                IF(SpawnedSign(1).eq.0) ToRemove=ToRemove+1
-#else
-                IF((SpawnedSign(1).eq.0).and.(SpawnedSign(2).eq.0)) ToRemove=ToRemove+1
-#endif
+                IF(lenof_sign.eq.1) THEN
+                    IF(SpawnedSign(1).eq.0) ToRemove=ToRemove+1
+                ELSE
+                    IF((SpawnedSign(1).eq.0).and.(SpawnedSign(lenof_sign).eq.0)) THEN
+                        ToRemove=ToRemove+1
+                    ENDIF
+                ENDIF
                 VecInd=VecInd+1
                 SpawnedParts2(:,VecInd)=SpawnedParts(:,i)
             ELSE
@@ -369,8 +371,8 @@ MODULE AnnihilationMod
                             ENDIF
                             HistMinInd2(ExcitLevel)=PartIndex
                             IF(tSuc) THEN
-                                AvAnnihil(PartIndex)=AvAnnihil(PartIndex)+REAL(2*(MIN(abs(SpawnedSign2(j)),abs(SpawnedSign(j)))),dp)
-                                InstAnnihil(PartIndex)=InstAnnihil(PartIndex)+REAL(2*(MIN(abs(SpawnedSign2(j)),abs(SpawnedSign(j)))),dp)
+                                AvAnnihil(j,PartIndex)=AvAnnihil(j,PartIndex)+REAL(2*(MIN(abs(SpawnedSign2(j)),abs(SpawnedSign(j)))),dp)
+                                InstAnnihil(j,PartIndex)=InstAnnihil(j,PartIndex)+REAL(2*(MIN(abs(SpawnedSign2(j)),abs(SpawnedSign(j)))),dp)
                             ELSE
 !                                WRITE(6,*) "Searching between: ",HistMinInd2(ExcitLevel), " and ",FCIDetIndex(ExcitLevel+1)-1
 !                                WRITE(6,*) "***",SpawnedParts(0:NIfTot,i)
@@ -432,11 +434,11 @@ MODULE AnnihilationMod
         ENDIF
         if (ValidSpawned > 0) then
             call extract_sign(SpawnedParts2(:,ValidSpawned),SpawnedSign)
-#ifndef __CMPLX            
-            IF((SpawnedSign(1).eq.0)) ToRemove=ToRemove+1
-#else            
-            IF((SpawnedSign(1).eq.0).and.(SpawnedSign(2).eq.0)) ToRemove=ToRemove+1
-#endif            
+            IF(lenof_sign.eq.1) THEN
+                IF(SpawnedSign(1).eq.0) ToRemove=ToRemove+1
+            ELSE
+                IF((SpawnedSign(1).eq.0).and.(SpawnedSign(lenof_sign).eq.0)) ToRemove=ToRemove+1
+            ENDIF
         endif
 
 !Now remove zeros. Not actually necessary, but will be useful I suppose? Shouldn't be too much hassle.
@@ -585,8 +587,8 @@ MODULE AnnihilationMod
                             ENDIF
                             HistMinInd2(ExcitLevel)=PartIndex
                             IF(tSuc) THEN
-                                AvAnnihil(PartIndex)=AvAnnihil(PartIndex)+REAL(2*(min(abs(CurrentSign(j)),abs(SpawnedSign(j)))))
-                                InstAnnihil(PartIndex)=InstAnnihil(PartIndex)+REAL(2*(min(abs(CurrentSign(j)),abs(SpawnedSign(j)))))
+                                AvAnnihil(j,PartIndex)=AvAnnihil(j,PartIndex)+REAL(2*(min(abs(CurrentSign(j)),abs(SpawnedSign(j)))))
+                                InstAnnihil(j,PartIndex)=InstAnnihil(j,PartIndex)+REAL(2*(min(abs(CurrentSign(j)),abs(SpawnedSign(j)))))
                             ELSE
                                 WRITE(6,*) "***",SpawnedParts(0:NIftot,i)
                                 Call WriteBitDet(6,SpawnedParts(0:NIfTot,i),.true.)

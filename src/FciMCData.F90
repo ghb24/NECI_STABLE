@@ -125,8 +125,8 @@ MODULE FciMCData
     
       REAL(4) :: IterTime
     
-      REAL(KIND=dp) , ALLOCATABLE :: Histogram(:),AllHistogram(:),InstHist(:),AllInstHist(:),AttemptHist(:),AllAttemptHist(:),SpawnHist(:),AllSpawnHist(:)
-      REAL(KIND=dp) , ALLOCATABLE :: AvAnnihil(:),AllAvAnnihil(:),InstAnnihil(:),AllInstAnnihil(:)
+      REAL(KIND=dp) , ALLOCATABLE :: Histogram(:,:),AllHistogram(:,:),InstHist(:,:),AllInstHist(:,:),AttemptHist(:),AllAttemptHist(:),SpawnHist(:),AllSpawnHist(:),HistogramEnergy(:),AllHistogramEnergy(:)
+      REAL(KIND=dp) , ALLOCATABLE :: AvAnnihil(:,:),AllAvAnnihil(:,:),InstAnnihil(:,:),AllInstAnnihil(:,:)
       REAL(KIND=dp) , ALLOCATABLE :: SinglesAttemptHist(:),AllSinglesAttemptHist(:),SinglesHist(:),AllSinglesHist(:),DoublesHist(:),AllDoublesHist(:),DoublesAttemptHist(:),AllDoublesAttemptHist(:)
       REAL(KIND=dp) , ALLOCATABLE :: SinglesHistOccOcc(:),SinglesHistOccVirt(:),SinglesHistVirtOcc(:),SinglesHistVirtVirt(:)
       REAL(KIND=dp) , ALLOCATABLE :: AllSinglesHistOccOcc(:),AllSinglesHistVirtOcc(:),AllSinglesHistOccVirt(:),AllSinglesHistVirtVirt(:)
@@ -184,7 +184,6 @@ MODULE FciMCData
           integer, dimension(lenof_sign) :: update_growth, update_growth_tot
           integer(int64), dimension(lenof_sign) :: tot_parts_old
           integer :: update_iters
-          real(dp), pointer :: shift
       end type
       
       ! These are variables used to control the behaviour of PerformFciMCycPar
