@@ -1607,7 +1607,8 @@ subroutine AttemptSpawnParticle(S,C,iDebug,SpawnList,nSpawned,nMaxSpawn)
    Use CalcData, only: Tau
    use DetBitOps, only: FindBitExcitLevel
    USE dSFMT_interface , only : genrand_real2_dSFMT
-   use bit_reps, only: encode_bit_rep,extract_flags
+   use bit_reps, only: encode_bit_rep,extract_flags,set_flag
+   use bit_rep_data
    implicit none
    type(Spawner) S
    type(Cluster) C
@@ -1655,7 +1656,8 @@ subroutine AttemptSpawnParticle(S,C,iDebug,SpawnList,nSpawned,nMaxSpawn)
       iter_data_ccmc%nborn=iter_data_ccmc%nborn+1
       if(nSpawned>nMaxSpawn) call Stop_All("AttemptSpawnParticle","Not enough space in spawning list.")
       if(rat<0) iSpawnAmp(1)=-iSpawnAmp(1)
-      call encode_bit_rep(SpawnList(:,nSpawned),S%iLutnJ(:),iSpawnAmp,C%initFlag)
+      call encode_bit_rep(SpawnList(:,nSpawned),S%iLutnJ(:),iSpawnAmp,0)
+      if(C%initFlag==0) call set_flag(SpawnList(:,nSpawned),flag_parent_initiator) !meaning is initiator
       IFDEBUG(iDebug,4) THEN
    !We've not printed this out before
          WRITE(6,*) "  Spawned ",iSpawnAmp
@@ -1674,7 +1676,8 @@ subroutine AttemptDieParticle(C,iDebug,SpawnList,nSpawned)
    use FciMCParMod, only: iLutHF
    use dSFMT_interface , only : genrand_real2_dSFMT
    use SystemData, only : nEl
-   use bit_reps, only: encode_bit_rep
+   use bit_reps, only: encode_bit_rep,set_flag
+   use bit_rep_data
    
    implicit none
    Type(Cluster) C
@@ -1782,7 +1785,9 @@ subroutine AttemptDieParticle(C,iDebug,SpawnList,nSpawned)
       if(rat<0) iSpawnAmp(1)=-iSpawnAmp(1)
       initFlag=0
       if(C%iSize>1) initFlag=C%initFlag  !Death is always a certainty despite parentage (except if you're composite)
-      call encode_bit_rep(SpawnList(:,nSpawned),C%iLutDetCurr(:),iSpawnAmp,initFlag)  
+      call encode_bit_rep(SpawnList(:,nSpawned),C%iLutDetCurr(:),iSpawnAmp,0)  
+      if(initFlag==0) call set_flag(SpawnList(:,nSpawned),flag_parent_initiator) !meaning is initiator
+
       IFDEBUG(iDebug,4) then
          Write(6,'(A)',advance='no') " Killing at excitor: "
          call WriteBitEx(6,iLutHF,SpawnList(:,nSpawned),.false.)
