@@ -366,6 +366,16 @@ MODULE AnnihilationMod
             EndBlockDet=CurrentBlockDet-1 !EndBlockDet indicates that we have reached the end of the block of similar dets
 !            WRITE(6,*) "Found Block: ",BeginningBlockDet," -> ",EndBlockDet
 
+            if(EndBlockDet.eq.BeginningBlockDet) then
+                !Optimisation: This block only consists of one entry. Simply copy it across rather than 
+                !               explicitly searching the list.
+                SpawnedParts2(:,VecInd)=SpawnedParts(:,BeginningBlockDet)   !Transfer all info to the other array
+                VecInd=VecInd+1
+                BeginningBlockDet=CurrentBlockDet           !Move onto the next block of determinants
+                CYCLE   !Skip the rest of this block
+            endif
+
+
             do part_type=1,lenof_sign   !Annihilate in this block seperately for real and imag walkers
 
                 !calculate the initial index to loop over initiator determinants
