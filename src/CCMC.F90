@@ -2374,6 +2374,7 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
           call extract_sign(DetList(:,j),TempSign)
           AL%Amplitude(j,iCurAmpList)=TempSign(1)
       enddo
+      call MPIBCast(nAmpl,root)
    endif
 
    CALL WriteFciMCStatsHeader()
