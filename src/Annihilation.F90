@@ -311,6 +311,7 @@ MODULE AnnihilationMod
 !        do i=1,ValidSpawned
 !            WRITE(6,*) i,SpawnedParts(:,i)
 !        enddo
+!        CALL FLUSH(6)
 
 !First, we compress the list of spawned particles, so that they are only specified at most once in each processors list.
 !During this, we transfer the particles from SpawnedParts to SpawnedParts2
@@ -319,6 +320,7 @@ MODULE AnnihilationMod
         VecInd=1    !This is the index in the SpawnedParts2 array to copy the compressed walkers into
         !BeginningBlockDet will indicate the index of the first entry for a given determinant in SpawnedParts
         BeginningBlockDet=1         
+        DetsMerged=0
         do while(BeginningBlockDet.le.ValidSpawned)
             !loop in blocks of the same determinant to the end of the list of walkers
 
@@ -341,27 +343,29 @@ MODULE AnnihilationMod
                 endif
             endif
             
-            do while(DetBitEQ(SpawnedParts(0:NIfTot,BeginningBlockDet),SpawnedParts(0:NIfTot,CurrentBlockDet),NIfDBO))
+            do while((CurrentBlockDet.le.ValidSpawned).and. &
+                DetBitEQ(SpawnedParts(0:NIfTot,BeginningBlockDet),SpawnedParts(0:NIfTot,CurrentBlockDet),NIfDBO))
                 !loop over walkers on the same determinant in SpawnedParts
 
-                if(tTruncInitiator.and.(FirstInitIndex.eq.0).and. &
-                    test_flag(SpawnedParts(:,CurrentBlockDet), flag_parent_initiator(1))) then
-                    !This is the first initiator in the block
-                    FirstInitIndex=CurrentBlockDet
-                    call extract_sign(SpawnedParts(:,CurrentBlockDet),Cum_Sign)
-                    if(lenof_sign.eq.2) then
-                        !If we are dealing with complex walkers, ignore the imaginary component for now.
-                        Cum_Sign(lenof_sign)=0
+                if(tTruncInitiator.and.(FirstInitIndex.eq.0)) then
+                    if(test_flag(SpawnedParts(:,CurrentBlockDet), flag_parent_initiator(1))) then
+                        !This is the first initiator in the block
+                        FirstInitIndex=CurrentBlockDet
+                        call extract_sign(SpawnedParts(:,CurrentBlockDet),Cum_Sign)
+                        if(lenof_sign.eq.2) then
+                            !If we are dealing with complex walkers, ignore the imaginary component for now.
+                            Cum_Sign(lenof_sign)=0
+                        endif
+                        Cum_Flag = .true.   !Indicate that this is an initiator
                     endif
-                    Cum_Flag = .true.   !Indicate that this is an initiator
                 endif
 
                 CurrentBlockDet=CurrentBlockDet+1
-                if(CurrentBlockDet.gt.ValidSpawned) exit
 
             enddo
 
             EndBlockDet=CurrentBlockDet-1 !EndBlockDet indicates that we have reached the end of the block of similar dets
+!            WRITE(6,*) "Found Block: ",BeginningBlockDet," -> ",EndBlockDet
 
             do part_type=1,lenof_sign   !Annihilate in this block seperately for real and imag walkers
 
@@ -393,8 +397,10 @@ MODULE AnnihilationMod
                         endif
                     else
                         call extract_sign(SpawnedParts(:,i),SpawnedSign)
+!                        WRITE(6,*) "Extracting particle sign: ",SpawnedSign(part_type),Cum_Sign(part_type)
                         call FindResidualParticle(Cum_Sign(part_type),Cum_Flag,SpawnedSign(part_type),.false.,part_type,iter_data)
                     endif
+!                    WRITE(6,*) "Running through block - Residual sign=",Cum_Sign(part_type)
                 enddo
                 !Now transfer the correct flag for that particle type to the beginning determinant in the list
                 if(tTruncInitiator) call set_flag (SpawnedParts(:,BeginningBlockDet), flag_parent_initiator(part_type), Cum_Flag)
@@ -420,6 +426,7 @@ MODULE AnnihilationMod
 
             !Copy the final cumulative sign for the block
             if(sum(abs(cum_sign(:))).gt.0) then
+!                WRITE(6,*) "Encoding final sign...",Cum_Sign(:)
                 call encode_sign(SpawnedParts(:,BeginningBlockDet),Cum_Sign) 
                 SpawnedParts2(:,VecInd)=SpawnedParts(:,BeginningBlockDet)   !Transfer all info to the other array
                 VecInd=VecInd+1
@@ -434,7 +441,7 @@ MODULE AnnihilationMod
         enddo   
 
         ValidSpawned=ValidSpawned-DetsMerged    !This is the new number of unique spawned determinants on the processor
-        IF((ValidSpawned.ne.(VecInd-1)).and.(VecInd.ne.1)) THEN
+        IF(ValidSpawned.ne.(VecInd-1)) THEN
             CALL Stop_All(this_routine,"Error in compression of spawned list")
         ENDIF
 
@@ -443,6 +450,12 @@ MODULE AnnihilationMod
         SpawnedParts2 => SpawnedParts
         SpawnedParts => PointTemp
 
+!        WRITE(6,*) "************************"
+!        WRITE(6,*) "Compressed List: "
+!        do i=1,ValidSpawned
+!            WRITE(6,*) SpawnedParts(:,i)
+!        enddo
+!        CALL FLUSH(6)
 
 
 
@@ -639,7 +652,7 @@ MODULE AnnihilationMod
         INTEGER , INTENT(IN) :: Type_Flag    !1 = real particles,2=Imag
         INTEGER :: ProdSign
 
-        if(SpawnInit.eq.0) return   !If the spawned sign is zero, ignore it.
+        if(SpawnedSign.eq.0) return   !If the spawned sign is zero, ignore it.
 
         if(tTruncInitiator) then
         !The rules are as follows:
@@ -662,8 +675,8 @@ MODULE AnnihilationMod
                 !This is equivalent to the tKeepDoubSpawns option, which is now
                 !permanently on.
                 Cum_Init=.true.
-            elseif(ProdSign.le.0) then
-                !Signs are opposite (or Cum_Sign=0, therefore take flag from other)
+            elseif(ProdSign.lt.0) then
+                !Signs are opposite
                 !We are actually annihilating, but just in serial... 
                 !we therefore need to count it anyway.
                 Annihilated=Annihilated+2*(MIN(abs(SpawnedSign),abs(Cum_Sign)))
@@ -678,7 +691,18 @@ MODULE AnnihilationMod
                         Cum_Init=SpawnInit
                     endif
                 endif
+            else
+                !ProdSign=0, therefore just take flag from SpawnInit
+                Cum_Init=SpawnInit
             endif
+        else
+            !Update Annihilation statistics - is this really necessary?
+            if((Cum_Sign*SpawnedSign).lt.0) then
+                Annihilated=Annihilated+2*(MIN(abs(SpawnedSign),abs(Cum_Sign)))
+                iter_data%nannihil(type_flag) = iter_data%nannihil(type_flag) + &
+                                   2*(min(abs(SpawnedSign), abs(Cum_Sign)))
+            endif
+
         endif
         
         Cum_Sign=Cum_Sign+SpawnedSign
