@@ -412,8 +412,17 @@ module DetBitOps
         if (i >= NOffFlag) then
             bLt = .false.
             if (tTruncInitiator) then
-                if (test_flag(ilutI, flag_is_initiator) .and. &
-                    .not. test_flag(ilutJ, flag_is_initiator)) bLt = .true.
+                !if initiator, sort first by real flag, the imaginary.
+                if (test_flag(ilutI, flag_is_initiator(1)) .and. &
+                    .not. test_flag(ilutJ, flag_is_initiator(1))) then
+                        !I<J if real i is initiator, and j is not
+                        bLt = .true.
+                elseif((test_flag(ilutI, flag_is_initiator(1)).eqv. test_flag(ilutJ, flag_is_initiator(1))) &
+                    .and.(test_flag(ilutI, flag_is_initiator(2))).and..not.test_flag(ilutJ, flag_is_initiator(2))) then
+                        !if real flags the same, I<J if imaginary i is initiator and j is not.
+                        bLt = .true.
+                endif
+
             endif
         else
             bLt = ilutI(i) < ilutJ(i)
@@ -446,8 +455,14 @@ module DetBitOps
         if (i >= NOffFlag) then
             bGt = .false.
             if (tTruncInitiator) then
-                if (.not. test_flag(ilutI, flag_is_initiator) .and. &
-                    test_flag(ilutJ, flag_is_initiator)) bGt = .true.
+                if (.not. test_flag(ilutI, flag_is_initiator(1)) .and. &
+                    test_flag(ilutJ, flag_is_initiator(1))) then
+                    bGt = .true.
+                elseif ((test_flag(ilutI, flag_is_initiator(1)) .eqv. test_flag(ilutJ, flag_is_initiator(1))) &
+                    .and. (.not. test_flag(ilutI, flag_is_initiator(2)).and.test_flag(ilutJ, flag_is_initiator(2)))) then
+                    !If real flags same, sort by imaginary flags.
+                    bGt = .true.
+                endif
             endif
         else
             bGt = ilutI(i) > ilutJ(i)

@@ -984,59 +984,63 @@ MODULE FciMCParMod
         integer, intent(in) :: j, VecSlot, Iter
         integer, intent(out) :: parent_flags
         integer, dimension(lenof_sign) :: CurrentSign
+        integer :: part_type
         logical :: tDetinCAS, parent_init
 
         call extract_sign (CurrentDets(:,j), CurrentSign)
 
-        ! By default, the parent_flags are the flags of the parent...
-        parent_init = test_flag (CurrentDets(:,j), flag_parent_initiator)
+        do part_type=1,lenof_sign
+            ! By default, the parent_flags are the flags of the parent...
+            parent_init = test_flag (CurrentDets(:,j), flag_parent_initiator(part_type))
 
-        ! The default path through this section makes no changes, leaving the
-        ! initiator status of each parent unchanged.
-        ! If tAddToInitiator is set, then the state of the parent may change.
-        if (tAddToInitiator) then
+            ! The default path through this section makes no changes, leaving the
+            ! initiator status of each parent unchanged.
+            ! If tAddToInitiator is set, then the state of the parent may change.
+            if (tAddToInitiator) then
 
-            if (.not. parent_init) then
-                ! Determinant wasn't previously initiator 
-                ! - want to test if it has now got a large enough population 
-                ! to become an initiator.
-                if (abs(CurrentSign(1)) > InitiatorWalkNo) then
-                    parent_init = .true.
-                    NoAddedInitiators = NoAddedInitiators + 1
-                endif
-            elseif (tRetestAddToInit) then
-                ! The source determinant is already an initiator.            
-                ! If tRetestAddToInit is on, the determinants become 
-                ! non-initiators again if their population falls below n_add
-                ! (this is on by default).
-                tDetInCas = .false.
-                if (tTruncCAS) &
-                    tDetInCas = TestIfDetInCASBit (CurrentDets(0:NIfD,j))
-               
-                ! If det. in fixed initiator space, or is the HF det, it must
-                ! remain an initiator.
-                if (.not. tDetInCas .and. &
-                    .not. (DetBitEQ(CurrentDets(:,j), iLutHF, NIfDBO)) &
-                    .and. abs(CurrentSign(1)) <= InitiatorWalkNo) then
-                    ! Population has fallen too low. Initiator status removed.
-                    parent_init = .false.
-                    NoAddedInitiators = NoAddedInitiators - 1
+                if (.not. parent_init) then
+                    ! Determinant wasn't previously initiator 
+                    ! - want to test if it has now got a large enough population 
+                    ! to become an initiator.
+                    if (abs(CurrentSign(part_type)) > InitiatorWalkNo) then
+                        parent_init = .true.
+                        NoAddedInitiators = NoAddedInitiators + 1
+                    endif
+                elseif (tRetestAddToInit) then
+                    ! The source determinant is already an initiator.            
+                    ! If tRetestAddToInit is on, the determinants become 
+                    ! non-initiators again if their population falls below n_add
+                    ! (this is on by default).
+                    tDetInCas = .false.
+                    if (tTruncCAS) &
+                        tDetInCas = TestIfDetInCASBit (CurrentDets(0:NIfD,j))
+                   
+                    ! If det. in fixed initiator space, or is the HF det, it must
+                    ! remain an initiator.
+                    if (.not. tDetInCas .and. &
+                        .not. (DetBitEQ(CurrentDets(:,j), iLutHF, NIfDBO)) &
+                        .and. abs(CurrentSign(part_type)) <= InitiatorWalkNo) then
+                        ! Population has fallen too low. Initiator status removed.
+                        parent_init = .false.
+                        NoAddedInitiators = NoAddedInitiators - 1
+                    endif
                 endif
             endif
-        endif
 
-        ! Update counters as required.
-        if (parent_init) then
-            NoInitDets = NoInitDets + 1
-            NoInitWalk = NoInitWalk + abs(CurrentSign(1))
-        else
-            NoNonInitDets = NoNonInitDets + 1
-            NoNonInitWalk = NoNonInitWalk + abs(CurrentSign(1))
-        endif
+            ! Update counters as required.
+            if (parent_init) then
+                NoInitDets = NoInitDets + 1
+                NoInitWalk = NoInitWalk + abs(CurrentSign(part_type))
+            else
+                NoNonInitDets = NoNonInitDets + 1
+                NoNonInitWalk = NoNonInitWalk + abs(CurrentSign(part_type))
+            endif
 
-        ! Update the parent flag as required.
-        call set_flag (CurrentDets(:,j), flag_parent_initiator, &
-                       parent_init)
+            ! Update the parent flag as required.
+            call set_flag (CurrentDets(:,j), flag_parent_initiator(part_type), &
+                           parent_init)
+
+        enddo
 
         ! Store this flag for use in the spawning routines...
         parent_flags = extract_flags (CurrentDets(:,j))
@@ -5747,9 +5751,11 @@ MODULE FciMCParMod
                 call clear_all_flags (CurrentDets(:,1))
 
                 ! Set reference determinant as an initiator if
-                ! tTruncInitiator is set
-                if (tTruncInitiator) &
-                    call set_flag (CurrentDets(:,1), flag_is_initiator)
+                ! tTruncInitiator is set, for both imaginary and real flags
+                if (tTruncInitiator) then
+                    call set_flag (CurrentDets(:,1), flag_is_initiator(1))
+                    call set_flag (CurrentDets(:,1), flag_is_initiator(2))
+                endif
 
                 ! HF energy is equal to 0 (by definition)
                 if (.not. tRegenDiagHEls) CurrentH(1) = 0
