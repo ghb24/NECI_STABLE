@@ -391,6 +391,7 @@ MODULE AnnihilationMod
                     if(test_flag(SpawnedParts(:,i), flag_parent_initiator(part_type))) then
                         !We have found another initiator - find residual sign and flag (will always remain initiator).
                         call extract_sign(SpawnedParts(:,i),SpawnedSign)
+                        if(tHistSpawn) call HistAnnihilEvent(SpawnedParts,SpawnedSign,Cum_Sign,part_type)
                         call FindResidualParticle(Cum_Sign(part_type),Cum_Flag,SpawnedSign(part_type),.true.,part_type,iter_data)
                     endif
                 enddo
@@ -402,11 +403,13 @@ MODULE AnnihilationMod
                         if(.not.test_flag(SpawnedParts(:,i),flag_parent_initiator(part_type))) then
                             !Only consider non-initiators - the initiators have already been dealt with
                             call extract_sign(SpawnedParts(:,i),SpawnedSign)
+                            if(tHistSpawn) call HistAnnihilEvent(SpawnedParts,SpawnedSign,Cum_Sign,part_type)
                             call FindResidualParticle(Cum_Sign(part_type),Cum_Flag,SpawnedSign(part_type),.false.,part_type,iter_data)
                         endif
                     else
                         call extract_sign(SpawnedParts(:,i),SpawnedSign)
 !                        WRITE(6,*) "Extracting particle sign: ",SpawnedSign(part_type),Cum_Sign(part_type)
+                        if(tHistSpawn) call HistAnnihilEvent(SpawnedParts,SpawnedSign,Cum_Sign,part_type)
                         call FindResidualParticle(Cum_Sign(part_type),Cum_Flag,SpawnedSign(part_type),.false.,part_type,iter_data)
                     endif
 !                    WRITE(6,*) "Running through block - Residual sign=",Cum_Sign(part_type)
@@ -468,6 +471,39 @@ MODULE AnnihilationMod
 !        CALL FLUSH(6)
         
     END SUBROUTINE CompressSpawnedList
+
+!Histogram a possible annihilation event
+    subroutine HistAnnihilEvent(iLut,Sign1,Sign2,part_type)
+        implicit none
+        integer(kind=n_int), intent(in) :: iLut(0:NIfTot)
+        integer, dimension(lenof_sign), intent(in) :: Sign1,Sign2
+        integer, intent(in) :: part_type
+        integer :: ExcitLevel,PartIndex
+        logical :: tSuc
+
+!We want to histogram where the particle annihilations are taking place.
+        if((Sign1(part_type)*Sign2(part_type)).ge.0) return   !No annihilation occuring - particles same sign
+
+        ExcitLevel = FindBitExcitLevel(iLut,iLutHF, nel)
+        IF(ExcitLevel.eq.NEl) THEN
+            CALL BinSearchParts2(iLut(:),HistMinInd2(ExcitLevel),Det,PartIndex,tSuc)
+        ELSEIF(ExcitLevel.eq.0) THEN
+            PartIndex=1
+            tSuc=.true.
+        ELSE
+            CALL BinSearchParts2(iLut(:),HistMinInd2(ExcitLevel),FCIDetIndex(ExcitLevel+1)-1,PartIndex,tSuc)
+        ENDIF
+        HistMinInd2(ExcitLevel)=PartIndex
+        IF(tSuc) THEN
+            AvAnnihil(part_type,PartIndex)=AvAnnihil(part_type,PartIndex)+ &
+                REAL(2*(MIN(abs(Sign1(part_type)),abs(Sign2(part_type)))),dp)
+            InstAnnihil(part_type,PartIndex)=InstAnnihil(part_type,PartIndex)+ &
+                REAL(2*(MIN(abs(Sign1(part_type)),abs(Sign2(part_type)))),dp)
+        ELSE
+            CALL Stop_All("CompressSpawnedList","Cannot find corresponding FCI determinant when histogramming")
+        ENDIF
+
+    end subroutine HistAnnihilEvent
 
     !This routine is called when compressing the spawned list.
     !It takes the sign and flags from two particles on the same determinant, 
@@ -540,7 +576,8 @@ MODULE AnnihilationMod
 
     end subroutine FindResidualParticle
     
-!In this routine, we want to search through the list of spawned particles. For each spawned particle, we binary search the list of particles on the processor
+!In this routine, we want to search through the list of spawned particles. For each spawned particle, 
+!we binary search the list of particles on the processor
 !to see if an annihilation event can occur. The annihilated particles are then removed from the spawned list
 !to the whole list of spawned particles at the end of the routine.
 !In the main list, we change the 'sign' element of the array to zero. These will be deleted at the end of the total annihilation step.
@@ -620,16 +657,23 @@ MODULE AnnihilationMod
                                            2*(min(abs(CurrentSign(j)), abs(SpawnedSign(j))))
 
                         IF(tTruncInitiator) THEN
-!If we are doing an initiator calculation - then if the walkers that are left after annihilation came from the SpawnedParts array, and had 
+!If we are doing an initiator calculation - then if the walkers that are left after annihilation came from 
+!the SpawnedParts array, and had 
 !spawned from determinants outside the active space, then it is like these have been spawned on an unoccupied determinant and they are killed.
                             IF(abs(SpawnedSign(j)).gt.abs(CurrentSign(j))) THEN
                                 !The residual particles were spawned here
-                                if (.not. test_flag (SpawnedParts(:,i), flag_parent_initiator(1))) then
-                                    !And they were spawned from non-initiator particles. Abort all particles which were initially copied accross
+                                if (.not. test_flag (SpawnedParts(:,i), flag_parent_initiator(j))) then
+                                    ! And they were spawned from non-initiator particles. 
+                                    ! Abort all particles which were initially copied accross
                                     NoAborted = NoAborted + abs(SpawnedSign(j)) - abs(CurrentSign(j))
-                                    iter_data%naborted(j) = iter_data%naborted(j) + abs(SpawnedSign(j)) - abs(CurrentSign(j))
+                                    iter_data%naborted(j) = iter_data%naborted(j) + abs(SpawnedSign(j))-abs(CurrentSign(j))
 !                                    WRITE(6,'(I20,A,3I20)') abs(SpawnedSign(i))-abs(CurrentSign(i)),'walkers aborted from determinant:',SpawnedParts(:,i)
-                                    call encode_sign(CurrentDets(:,PartInd),null_part)
+                                    !We want to make sure that we only abort particles of the correct type,
+                                    !while leaving the other sign intact.
+                                    !Need to extract the sign again, since the real part may have been set to zero previously
+                                    call extract_sign(CurrentDets(:,PartInd),temp_sign) 
+                                    temp_sign(j)=0  !Set the corresponding particle type to zero
+                                    call encode_sign(CurrentDets(:,PartInd),temp_sign)
                                 ENDIF
                             ENDIF
                         ENDIF
@@ -665,14 +709,21 @@ MODULE AnnihilationMod
 !Determinant in newly spawned list is not found in currentdets - usually this would mean the walkers just stay in this list and get merged later - but in this case we            
 !want to check where the walkers came from - because if the newly spawned walkers are from a parent outside the active space they should be killed - as they have been
 !spawned on an unoccupied determinant.
-                if (.not. test_flag (SpawnedParts(:,i), flag_parent_initiator(1))) then
-                    ! Walkers came from outside initiator space.
+                do j=1,lenof_sign
+                    if (.not. test_flag (SpawnedParts(:,i), flag_parent_initiator(j))) then
+                        ! Walkers came from outside initiator space.
+                        call extract_sign (SpawnedParts(:,i), SignTemp)
+                        NoAborted = NoAborted + abs(SignTemp(j))
+                        iter_data%naborted = iter_data%naborted + abs(SignTemp(j))
+                        SignTemp(j)=0
+                        call encode_sign (SpawnedParts(:,i), SignTemp)
+                    endif
                     call extract_sign (SpawnedParts(:,i), SignTemp)
-                    NoAborted = NoAborted + sum(abs(SignTemp))
-                    iter_data%naborted = iter_data%naborted + abs(SignTemp)
-                    call encode_sign (SpawnedParts(:,i), null_part)
-                    ToRemove = ToRemove + 1
-                endif
+                    if(sum(abs(signtemp(:))).eq.0) then
+                        !All particle 'types' have been aborted
+                        ToRemove = ToRemove + 1
+                    endif
+                enddo
             ENDIF
 
 !Even if a corresponding particle wasn't found, we can still search a smaller list next time....so not all bad news then...
@@ -697,20 +748,21 @@ MODULE AnnihilationMod
             do i=1,ValidSpawned
 !We want to move all the elements above this point down to 'fill in' the annihilated determinant.
                 call extract_sign(SpawnedParts(:,i),SignTemp)
-#ifndef __CMPLX                
-                IF(SignTemp(1).eq.null_part(1)) THEN
-                    DetsMerged=DetsMerged+1
+
+                IF(lenof_sign.eq.1) THEN
+                    IF(SignTemp(1).eq.null_part(1)) THEN
+                        DetsMerged=DetsMerged+1
+                    ELSE
+                        SpawnedParts2(0:NIfTot,i-DetsMerged)=SpawnedParts(0:NIfTot,i)
+                    ENDIF
                 ELSE
-                    SpawnedParts2(0:NIfTot,i-DetsMerged)=SpawnedParts(0:NIfTot,i)
+                !Complex walker case
+                    IF((SignTemp(1).eq.0).and.(SignTemp(lenof_sign).eq.0)) THEN
+                        DetsMerged=DetsMerged+1
+                    ELSE
+                        SpawnedParts2(0:NIfTot,i-DetsMerged)=SpawnedParts(0:NIfTot,i)
+                    ENDIF
                 ENDIF
-#else                    
-                !Complex case
-                IF((SignTemp(1).eq.0).and.(SignTemp(2).eq.0)) THEN
-                    DetsMerged=DetsMerged+1
-                ELSE
-                    SpawnedParts2(0:NIfTot,i-DetsMerged)=SpawnedParts(0:NIfTot,i)
-                ENDIF
-#endif                    
             enddo
             ValidSpawned=ValidSpawned-DetsMerged
             IF(DetsMerged.ne.ToRemove) THEN
