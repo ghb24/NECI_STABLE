@@ -583,7 +583,9 @@ MODULE AnnihilationMod
 !In the main list, we change the 'sign' element of the array to zero. These will be deleted at the end of the total annihilation step.
     SUBROUTINE AnnihilateSpawnedParts(ValidSpawned,TotWalkersNew, iter_data)
         type(fcimc_iter_data), intent(inout) :: iter_data
-        INTEGER :: ValidSpawned,MinInd,TotWalkersNew,PartInd,i,j,ToRemove,DetsMerged,PartIndex
+        integer, intent(in) :: TotWalkersNew
+        integer, intent(inout) :: ValidSpawned 
+        INTEGER :: MinInd,PartInd,i,j,ToRemove,DetsMerged,PartIndex
         INTEGER, DIMENSION(lenof_sign) :: SignProd,CurrentSign,SpawnedSign,SignTemp
         INTEGER :: ExcitLevel
         INTEGER(KIND=n_int) , POINTER :: PointTemp(:,:)
@@ -785,6 +787,20 @@ MODULE AnnihilationMod
 
     END SUBROUTINE AnnihilateSpawnedParts
 
+    PURE LOGICAL FUNCTION IsUnoccDet(CurrentSign)
+        INTEGER, DIMENSION(lenof_sign), INTENT(IN) :: CurrentSign
+
+        IF(lenof_sign.eq.1) THEN
+            IsUnoccDet=CurrentSign(1).eq.0
+        ELSE
+            IF((CurrentSign(1).eq.0).and.(CurrentSign(lenof_sign).eq.0)) THEN
+                IsUnoccDet=.true.
+            ELSE
+                IsUnoccDet=.false.
+            ENDIF
+        ENDIF
+    END FUNCTION IsUnoccDet
+
     
 !This routine will run through the total list of particles (TotWalkersNew in CurrentDets with sign CurrentSign) and the list of newly-spawned but
 !non annihilated particles (ValidSpawned in SpawnedParts and SpawnedSign) and move the new particles into the correct place in the new list,
@@ -814,46 +830,15 @@ MODULE AnnihilationMod
         IF(TotWalkersNew.gt.0) THEN
             do i=1,TotWalkersNew
                 call extract_sign(CurrentDets(:,i),CurrentSign)
-#ifndef __CMPLX
-                !real case
-                IF(CurrentSign(1).eq.null_part(1)) THEN
+                IF(IsUnoccDet(CurrentSign)) THEN
                     DetsMerged=DetsMerged+1
-                    IF(tTruncInitiator.and.CurrentDets(NIfTot,i).ne.1) THEN
-                        NoAddedInitiators=NoAddedInitiators-1.D0
-                    ENDIF
-                ELSE
-!We want to move all the elements above this point down to 'fill in' the annihilated determinant.
-                    IF(DetsMerged.ne.0) THEN
-                        CurrentDets(0:NIfTot,i-DetsMerged)=CurrentDets(0:NIfTot,i)
-                        IF(.not.tRegenDiagHEls) THEN
-                            CurrentH(i-DetsMerged)=CurrentH(i)
-                        ENDIF
-                    ENDIF
-                    TotParts=TotParts+abs(CurrentSign(1))
-                    IF(tCheckHighestPop) THEN
-!If this option is on, then we want to compare the weight on each determinant to the weight at the HF determinant.
-!Record the highest weighted determinant on each processor.
-                        IF((abs(CurrentSign(1))).gt.iHighestPop) THEN
-                            IF(tHPHF) THEN
-                                !For HPHF functions, we restrict ourselves to closed shell determinants for simplicity.
-                                IF(TestClosedShellDet(CurrentDets(0:NIfDBO,i))) THEN
-                                    !HPHF func is closed shell - we can move to this without problems.
-                                    iHighestPop=abs(CurrentSign(1))
-                                    HighestPopDet(:)=CurrentDets(:,i)
-                                ENDIF
-                            ELSE
-                                iHighestPop=abs(CurrentSign(1))
-                                HighestPopDet(:)=CurrentDets(:,i)
-                            ENDIF
-                        ENDIF
-                    ENDIF
-                ENDIF
-#else
-                !complex case
-                IF((CurrentSign(1).eq.0).and.(CurrentSign(2).eq.0)) THEN
-                    DetsMerged=DetsMerged+1
-                    IF(tTruncInitiator.and.CurrentDets(NIfTot,i).ne.1) THEN
-                        NoAddedInitiators=NoAddedInitiators-1.D0
+                    IF(tTruncInitiator) THEN
+                        do part_type=1,lenof_sign
+                            if (test_flag(CurrentDets(:,i),flag_parent_initiator(part_type))) then
+                                !determinant was an initiator...it obviously isn't any more...
+                                NoAddedInitiators=NoAddedInitiators-1.D0
+                            endif
+                        enddo
                     ENDIF
                 ELSE
 !We want to move all the elements above this point down to 'fill in' the annihilated determinant.
@@ -867,6 +852,7 @@ MODULE AnnihilationMod
                     IF(tCheckHighestPop) THEN
 !If this option is on, then we want to compare the weight on each determinant to the weight at the HF determinant.
 !Record the highest weighted determinant on each processor.
+!TODO: NOTE: THIS STILL ONLY WORKS EXPLICITLY FOR REAL WALKERS ONLY
                         IF((abs(CurrentSign(1))).gt.iHighestPop) THEN
                             IF(tHPHF) THEN
                                 !For HPHF functions, we restrict ourselves to closed shell determinants for simplicity.
@@ -882,7 +868,6 @@ MODULE AnnihilationMod
                         ENDIF
                     ENDIF
                 ENDIF
-#endif
             enddo
             TotWalkersNew=TotWalkersNew-DetsMerged
         ENDIF
