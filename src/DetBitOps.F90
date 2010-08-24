@@ -6,7 +6,7 @@ module DetBitOps
     use Systemdata, only: nel, tCSF, tTruncateCSF, csf_trunc_level
     use CalcData, only: tTruncInitiator
     use bit_rep_data, only: NIfY, NIfTot, NIfD, NOffFlag, NIfFlag, &
-                            test_flag, flag_is_initiator
+                            test_flag, flag_is_initiator,NIfDBO
     use csf_data, only: iscsf, csf_yama_bit, csf_orbital_mask, csf_test_bit
     ! TODO: remove
     use systemdata, only: g1
@@ -404,12 +404,13 @@ module DetBitOps
         logical :: bLt, init1, init2
 
         ! Sort by the first item first ...
-        do i = 0, NOffFlag - 1
+        do i = 0, NIfDBO    !   NOffFlag - 1
             if (iLutI(i) /= iLutJ(i)) exit
         enddo
 
         !! Make the comparison
-        if (i >= NOffFlag) then
+!        if (i >= NOffFlag) then
+        if (i > NIfDBO) then
             bLt = .false.
             if (tTruncInitiator) then
                 !if initiator, sort first by real flag, the imaginary.
@@ -447,12 +448,13 @@ module DetBitOps
         !bGt = iLutI .arrgt. iLutJ
         
         ! Sort by the first item first ...
-        do i = 0, NOffFlag - 1
+        do i = 0, NIfDBO    !   NOffFlag - 1
             if (ilutI(i) /= iLutJ(i)) exit
         enddo
 
         ! Make the comparison
-        if (i >= NOffFlag) then
+!        if (i >= NOffFlag) then
+        if (i > NIfDBO) then
             bGt = .false.
             if (tTruncInitiator) then
                 if (.not. test_flag(ilutI, flag_is_initiator(1)) .and. &
