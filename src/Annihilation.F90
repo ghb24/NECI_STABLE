@@ -148,8 +148,8 @@ MODULE AnnihilationMod
         CALL SendProcNewParts(MaxIndex,tSingleProc)
 
 !        WRITE(6,*) "Sent particles"
-        WRITE(6,*) 'MaxIndex',MaxIndex
-        CALL FLUSH(6)
+!        WRITE(6,*) 'MaxIndex',MaxIndex
+!        CALL FLUSH(6)
 
 !CompressSpawnedList works on SpawnedParts arrays, so swap the pointers around.
         PointTemp => SpawnedParts2
@@ -162,14 +162,14 @@ MODULE AnnihilationMod
 
         CALL CompressSpawnedList(MaxIndex, iter_data)  
 
-        WRITE(6,*) "List compressed",MaxIndex,TotWalkersNew
+!        WRITE(6,*) "List compressed",MaxIndex,TotWalkersNew
 
 !Binary search the main list and copy accross/annihilate determinants which are found.
 !This will also remove the found determinants from the spawnedparts lists.
 
         CALL AnnihilateSpawnedParts(MaxIndex,TotWalkersNew, iter_data)  
 
-        WRITE(6,*) "Annihilation finished",MaxIndex,TotWalkersNew
+!        WRITE(6,*) "Annihilation finished",MaxIndex,TotWalkersNew
 
 !Put the surviving particles in the main list, maintaining order of the main list.
 !Now we insert the remaining newly-spawned particles back into the original list (keeping it sorted), and remove the annihilated particles from the main list.
@@ -486,7 +486,6 @@ MODULE AnnihilationMod
 !to the whole list of spawned particles at the end of the routine.
 !In the main list, we change the 'sign' element of the array to zero. These will be deleted at the end of the total annihilation step.
     SUBROUTINE AnnihilateSpawnedParts(ValidSpawned,TotWalkersNew, iter_data)
-        use bit_reps, only: write_bit_rep
         type(fcimc_iter_data), intent(inout) :: iter_data
         INTEGER :: ValidSpawned,MinInd,TotWalkersNew,PartInd,i,j,ToRemove,DetsMerged,PartIndex
         INTEGER, DIMENSION(lenof_sign) :: SignProd,CurrentSign,SpawnedSign,SignTemp
@@ -535,9 +534,9 @@ MODULE AnnihilationMod
 !               call WriteBitDet(6,CurrentDets(:,j),.true.)
 !            enddo
             CALL BinSearchParts(SpawnedParts(:,i),MinInd,TotWalkersNew,PartInd,tSuccess)
-            WRITE(6,"(A,2I6,L)",advance="no") "Binary search complete: ",i,PartInd,tSuccess
-            call write_bit_rep(6,SpawnedParts(:,i),.true.)
-            call write_bit_rep(6,CurrentDets(:,PartInd),.true.)
+!            WRITE(6,"(A,2I6,L)",advance="no") "Binary search complete: ",i,PartInd,tSuccess
+!            call WriteBitDet(6,SpawnedParts(:,i),.true.)
+!            call WriteBitDet(6,CurrentDets(:,PartInd),.true.)
 
             IF(tSuccess) THEN
 !                SearchInd=PartInd   !This can actually be min(1,PartInd-1) once we know that the binary search is working, as we know that PartInd is the same particle.
@@ -624,10 +623,10 @@ MODULE AnnihilationMod
         
         CALL halt_timer(BinSearch_time)
 
-        WRITE(6,*) "Leftover Parts..."
-        do i=1,ValidSpawned
-            call write_bit_rep(6,SpawnedParts(:,i),.true.)
-        enddo
+!        WRITE(6,*) "Leftover Parts..."
+!        do i=1,ValidSpawned
+!            WRITE(6,*) SpawnedParts(:,i)
+!        enddo
 
 !Now we have to remove the annihilated particles from the spawned list. They will be removed from the main list at the end of the annihilation process.
 !It may actually be easier to just move the annihilated particles to the end of the list and resort the list?
@@ -666,10 +665,10 @@ MODULE AnnihilationMod
 
         ENDIF
 
-        WRITE(6,*) "After removal of zeros: "
-        do i=1,ValidSpawned
-            WRITE(6,*) SpawnedParts(:,i)
-        enddo
+!        WRITE(6,*) "After removal of zeros: "
+!        do i=1,ValidSpawned
+!            WRITE(6,*) SpawnedParts(:,i)
+!        enddo
 
         CALL halt_timer(AnnMain_time)
 
