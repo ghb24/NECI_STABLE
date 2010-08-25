@@ -339,5 +339,4 @@ contains
             enddo
         endif
     end subroutine decode_bit_det
-
 end module bit_reps
