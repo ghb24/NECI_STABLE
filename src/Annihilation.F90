@@ -716,7 +716,7 @@ MODULE AnnihilationMod
                     if (.not. test_flag (SpawnedParts(:,i), flag_parent_initiator(j))) then
                         ! Walkers came from outside initiator space.
                         NoAborted = NoAborted + abs(SignTemp(j))
-                        iter_data%naborted = iter_data%naborted + abs(SignTemp(j))
+                        iter_data%naborted(j) = iter_data%naborted(j) + abs(SignTemp(j))
                         SignTemp(j)=0
                         call encode_part_sign (SpawnedParts(:,i), 0, j) 
                     endif

@@ -233,10 +233,12 @@ contains
         integer, intent(in) :: flg
         integer :: off, ind
 
-        ind = NOffFlag + flg / bits_n_int
-        off = mod(flg, bits_n_int)
-
-        ilut(ind) = ibset(ilut(ind), off)
+!        ind = NOffFlag + flg / bits_n_int
+!        off = mod(flg, bits_n_int)
+!        ilut(ind) = ibset(ilut(ind), off)
+        
+!This now assumes that we do not have more flags than bits in an integer.
+         ilut(NOffFlag) = ibset(ilut(NOffFlag),flg)
 
     end subroutine set_flag_single
 
@@ -252,10 +254,12 @@ contains
         integer, intent(in) :: flg
         integer :: off, ind
 
-        ind = NOffFlag + flg / bits_n_int
-        off = mod(flg, bits_n_int)
+!        ind = NOffFlag + flg / bits_n_int
+!        off = mod(flg, bits_n_int)
+!        ilut(ind) = ibclr(ilut(ind), off)
 
-        ilut(ind) = ibclr(ilut(ind), off)
+!This now assumes that we do not have more flags than bits in an integer.
+        ilut(NOffFlag) = ibclr(ilut(NOffFlag),flg)
 
     end subroutine clr_flag
 

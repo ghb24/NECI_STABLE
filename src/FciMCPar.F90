@@ -822,7 +822,7 @@ MODULE FciMCParMod
                                               iLutnJ, ic, walkExcitLevel, &
                                               child)
 
-                        call create_particle (iLutnJ, child, parent_flags)
+                        call create_particle (iLutnJ, child, parent_flags, part_type)
                     
                     endif ! (child /= 0). Child created
 
@@ -899,7 +899,7 @@ MODULE FciMCParMod
 
     end subroutine
                         
-    subroutine create_particle (iLutJ, child, parent_flags)
+    subroutine create_particle (iLutJ, child, parent_flags, part_type)
 
         ! Create a child in the spawned particles arrays. We spawn particles
         ! into a separate array, but non-contiguously. The processor that the
@@ -910,7 +910,9 @@ MODULE FciMCParMod
         integer(kind=n_int), intent(in) :: iLutJ(0:niftot)
         integer, dimension(lenof_sign), intent(in) :: child
         integer, intent(in) :: parent_flags
-        integer :: proc
+        integer, intent(in) :: part_type        !This is the 'type' of the parent particle (i.e. real/imag)
+        logical :: parent_init
+        integer :: proc,j
 
         proc = DetermineDetProc(iLutJ)    ! 0 -> nProcessors-1
 
@@ -918,6 +920,23 @@ MODULE FciMCParMod
         ! according to if its parent is inside or outside the active space.
         call encode_bit_rep(SpawnedParts(:, ValidSpawnedList(proc)), iLutJ, &
                             child, parent_flags)
+
+        IF(lenof_sign.eq.2) THEN
+            !With complex walkers, things are a little more tricky.
+            !We want to transfer the flag for all particles created (both real and imag)
+            !from the specific type of parent particle.
+            !This can mean real walker flags being transfered to imaginary children and
+            !vice versa.
+            !This is unneccesary for real walkers.
+            !Test the specific flag corresponding to the parent, of type 'part_type'
+            parent_init=test_flag(SpawnedParts(:,ValidSpawnedList(proc)),flag_parent_initiator(part_type))
+            !Assign this flag to all spawned children
+            do j=1,lenof_sign
+                if(child(j).ne.0) then
+                    call set_flag_general(SpawnedParts(:,ValidSpawnedList(proc)),flag_parent_initiator(j),parent_init)
+                endif
+            enddo
+        ENDIF
 
         ValidSpawnedList(proc) = ValidSpawnedList(proc) + 1
 
