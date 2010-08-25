@@ -1,7 +1,7 @@
 !This module is to be used for various types of walker MC annihilation in serial and parallel.
 MODULE AnnihilationMod
     use SystemData , only : NEl, tHPHF
-    use CalcData , only : TRegenExcitgens,tRegenDiagHEls,tKeepDoubleSpawns
+    use CalcData , only : TRegenExcitgens,tRegenDiagHEls
     USE DetCalcData , only : Det,FCIDetIndex
     USE Logging , only : tHistSpawn
     USE Parallel
@@ -673,9 +673,9 @@ MODULE AnnihilationMod
                                     !We want to make sure that we only abort particles of the correct type,
                                     !while leaving the other sign intact.
                                     !Need to extract the sign again, since the real part may have been set to zero previously
-                                    call extract_sign(CurrentDets(:,PartInd),temp_sign) 
-                                    temp_sign(j)=0  !Set the corresponding particle type to zero
-                                    call encode_sign(CurrentDets(:,PartInd),temp_sign)
+                                    call extract_sign(CurrentDets(:,PartInd),SignTemp) 
+                                    SignTemp(j)=0  !Set the corresponding particle type to zero
+                                    call encode_sign(CurrentDets(:,PartInd),SignTemp)
                                 ENDIF
                             ENDIF
                         ENDIF
@@ -813,7 +813,7 @@ MODULE AnnihilationMod
         use bit_reps, only: NIfD
         use CalcData , only : tCheckHighestPop
         INTEGER :: TotWalkersNew,ValidSpawned
-        INTEGER :: i,DetsMerged,nJ(NEl)
+        INTEGER :: i,DetsMerged,nJ(NEl),part_type
         INTEGER, DIMENSION(lenof_sign) :: CurrentSign,SpawnedSign
         REAL*8 :: HDiag
         LOGICAL :: TestClosedShellDet
