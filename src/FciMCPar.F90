@@ -5614,7 +5614,7 @@ MODULE FciMCParMod
         ENDIF
 
         IF(tPrintOrbOcc.and.(Iter.ge.StartPrintOrbOcc)) THEN
-            IF((tPrintOrbOccInit.and.(extract_flags(iLutCurr).ne.1)).or.(.not.tPrintOrbOccInit)) then
+            IF((tPrintOrbOccInit.and.(test_flag(iLutCurr,flag_is_initiator(1))).or.(.not.tPrintOrbOccInit)) then
                 do i=1,NEl
                     OrbOccs(DetCurr(i))=OrbOccs(DetCurr(i))+(REAL(WSign(1))*REAL(WSign(1)))
                 enddo
