@@ -17,7 +17,7 @@ MODULE AnnihilationMod
     use bit_rep_data
     use bit_reps, only: decode_bit_det, extract_sign, extract_flags, &
                         encode_sign, encode_flags, test_flag, set_flag, &
-                        clr_flag, flag_parent_initiator
+                        clr_flag, flag_parent_initiator, encode_part_sign
     use FciMCData, only: fcimc_iter_data
     IMPLICIT NONE
 
@@ -711,21 +711,20 @@ MODULE AnnihilationMod
 !Determinant in newly spawned list is not found in currentdets - usually this would mean the walkers just stay in this list and get merged later - but in this case we            
 !want to check where the walkers came from - because if the newly spawned walkers are from a parent outside the active space they should be killed - as they have been
 !spawned on an unoccupied determinant.
+                call extract_sign (SpawnedParts(:,i), SignTemp)
                 do j=1,lenof_sign
                     if (.not. test_flag (SpawnedParts(:,i), flag_parent_initiator(j))) then
                         ! Walkers came from outside initiator space.
-                        call extract_sign (SpawnedParts(:,i), SignTemp)
                         NoAborted = NoAborted + abs(SignTemp(j))
                         iter_data%naborted = iter_data%naborted + abs(SignTemp(j))
                         SignTemp(j)=0
-                        call encode_sign (SpawnedParts(:,i), SignTemp)
-                    endif
-                    call extract_sign (SpawnedParts(:,i), SignTemp)
-                    if(sum(abs(signtemp(:))).eq.0) then
-                        !All particle 'types' have been aborted
-                        ToRemove = ToRemove + 1
+                        call encode_part_sign (SpawnedParts(:,i), 0, j) 
                     endif
                 enddo
+                if(IsUnoccDet(SignTemp)) then
+                    !All particle 'types' have been aborted
+                    ToRemove = ToRemove + 1
+                endif
             ENDIF
 
 !Even if a corresponding particle wasn't found, we can still search a smaller list next time....so not all bad news then...
@@ -750,25 +749,15 @@ MODULE AnnihilationMod
             do i=1,ValidSpawned
 !We want to move all the elements above this point down to 'fill in' the annihilated determinant.
                 call extract_sign(SpawnedParts(:,i),SignTemp)
-
-                IF(lenof_sign.eq.1) THEN
-                    IF(SignTemp(1).eq.null_part(1)) THEN
-                        DetsMerged=DetsMerged+1
-                    ELSE
-                        SpawnedParts2(0:NIfTot,i-DetsMerged)=SpawnedParts(0:NIfTot,i)
-                    ENDIF
+                IF(IsUnoccDet(SignTemp)) THEN
+                    DetsMerged=DetsMerged+1
                 ELSE
-                !Complex walker case
-                    IF((SignTemp(1).eq.0).and.(SignTemp(lenof_sign).eq.0)) THEN
-                        DetsMerged=DetsMerged+1
-                    ELSE
-                        SpawnedParts2(0:NIfTot,i-DetsMerged)=SpawnedParts(0:NIfTot,i)
-                    ENDIF
+                    SpawnedParts2(0:NIfTot,i-DetsMerged)=SpawnedParts(0:NIfTot,i)
                 ENDIF
             enddo
             ValidSpawned=ValidSpawned-DetsMerged
             IF(DetsMerged.ne.ToRemove) THEN
-                WRITE(6,*) "***", Iter
+                WRITE(6,*) "***", Iter, DetsMerged, ToRemove
                 CALL Stop_All("AnnihilateSpawnedParts","Incorrect number of particles removed from spawned list")
             ENDIF
 !We always want to annihilate from the SpawedParts and SpawnedSign arrays, so swap them around.
