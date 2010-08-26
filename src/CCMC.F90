@@ -1607,7 +1607,8 @@ subroutine AttemptSpawnParticle(S,C,iDebug,SpawnList,nSpawned,nMaxSpawn)
    Use CalcData, only: Tau
    use DetBitOps, only: FindBitExcitLevel
    USE dSFMT_interface , only : genrand_real2_dSFMT
-   use bit_reps, only: encode_bit_rep,extract_flags
+   use bit_reps, only: encode_bit_rep,extract_flags,set_flag
+   use bit_rep_data
    implicit none
    type(Spawner) S
    type(Cluster) C
@@ -1655,7 +1656,8 @@ subroutine AttemptSpawnParticle(S,C,iDebug,SpawnList,nSpawned,nMaxSpawn)
       iter_data_ccmc%nborn=iter_data_ccmc%nborn+1
       if(nSpawned>nMaxSpawn) call Stop_All("AttemptSpawnParticle","Not enough space in spawning list.")
       if(rat<0) iSpawnAmp(1)=-iSpawnAmp(1)
-      call encode_bit_rep(SpawnList(:,nSpawned),S%iLutnJ(:),iSpawnAmp,C%initFlag)
+      call encode_bit_rep(SpawnList(:,nSpawned),S%iLutnJ(:),iSpawnAmp,0)
+      if(C%initFlag==0) call set_flag(SpawnList(:,nSpawned),flag_parent_initiator) !meaning is initiator
       IFDEBUG(iDebug,4) THEN
    !We've not printed this out before
          WRITE(6,*) "  Spawned ",iSpawnAmp
@@ -1674,7 +1676,8 @@ subroutine AttemptDieParticle(C,iDebug,SpawnList,nSpawned)
    use FciMCParMod, only: iLutHF
    use dSFMT_interface , only : genrand_real2_dSFMT
    use SystemData, only : nEl
-   use bit_reps, only: encode_bit_rep
+   use bit_reps, only: encode_bit_rep,set_flag
+   use bit_rep_data
    
    implicit none
    Type(Cluster) C
@@ -1782,7 +1785,9 @@ subroutine AttemptDieParticle(C,iDebug,SpawnList,nSpawned)
       if(rat<0) iSpawnAmp(1)=-iSpawnAmp(1)
       initFlag=0
       if(C%iSize>1) initFlag=C%initFlag  !Death is always a certainty despite parentage (except if you're composite)
-      call encode_bit_rep(SpawnList(:,nSpawned),C%iLutDetCurr(:),iSpawnAmp,initFlag)  
+      call encode_bit_rep(SpawnList(:,nSpawned),C%iLutDetCurr(:),iSpawnAmp,0)  
+      if(initFlag==0) call set_flag(SpawnList(:,nSpawned),flag_parent_initiator) !meaning is initiator
+
       IFDEBUG(iDebug,4) then
          Write(6,'(A)',advance='no') " Killing at excitor: "
          call WriteBitEx(6,iLutHF,SpawnList(:,nSpawned),.false.)
@@ -2174,7 +2179,7 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
    use FciMCParMod, only: InitHistMin, calculate_new_shift_wrapper
    use FciMCParMod, only: WriteHistogram,SumEContrib
    Use Logging, only: CCMCDebug,tCCMCLogTransitions,tCCMCLogUniq
-   USE Logging , only : tHistSpawn,iWriteHistEvery
+   USE Logging , only : tHistSpawn,iWriteHistEvery,tPopsFile
    USE DetCalcData , only : ICILevel
    use CalcData, only: InitWalkers,NEquilSteps
    use FciMCParMod, only: WriteFciMCStats, WriteFciMCStatsHeader
@@ -2187,6 +2192,8 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
    use Parallel
    use shared_alloc, only: shared_allocate_iluts, shared_deallocate
    use CalcData, only: tAddToInitiator,InitiatorWalkNo
+   use bit_reps, only: encode_sign,extract_sign
+   use FciMCParMod, only: ChangeVars,WriteToPopsFileParOneArr ,tReadPops,ReadFromPopsfileOnly
    IMPLICIT NONE
    real(dp) Weight,EnergyxW
    CHARACTER(len=*), PARAMETER :: this_routine='CCMCStandaloneParticle'
@@ -2198,7 +2205,7 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
    REAL*8 dTotAbsAmpl            ! The total of the absolute amplitudes
 
    INTEGER iDebug
-   INTEGER i,iMin
+   INTEGER i,j,iMin
 ! Temporary Storage
 
    INTEGER iOldTotParts        ! Info user for update to calculate shift
@@ -2234,7 +2241,7 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
 
    !ghb24: Changes to allow compatibility with the new packaged walkers.
    INTEGER, DIMENSION(lenof_sign) :: TempSign
-   TYPE(timer) :: CCMC_time,SpawnTime,DieTime
+   TYPE(timer) :: CCMC_time,SpawnTime,DieTime,CCMCComms1_time,CCMCWait_time,CCMCComms2_time
    TYPE(timer) :: Etime
    INTEGER :: iOffsets(nProcessors)  !Used to store spawning data for annihilation
    INTEGER :: iLengths(nProcessors)  !Used to store spawning data for annihilation
@@ -2244,10 +2251,16 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
 
    REAL*8 dInitThresh
 
+   LOGICAL tSingBiasChange, tSoftExitFound, tWritePopsFound !For ChangeVars
+
+   INTEGER(int64) i64
 
    WRITE(6,*) "Entering CCMC Standalone Particle..."
    CCMC_time%timer_name='CCMC Standalone Particle'
    call set_timer(CCMC_time,20)
+   CCMCComms1_time%timer_name='CCMC Comms1'
+   CCMCComms2_time%timer_name='CCMC Comms2'
+   CCMCWait_time%timer_name='CCMC Wait'
 
 !   Spawntime%timer_name='SpawnTime'
 !   Dietime%timer_name='DieTime'
@@ -2357,6 +2370,18 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
    IF(tHistSpawn) THEN
       Call InitHistMin() !Setup Histogramming arrays if needed 
    ENDIF
+
+   if(tReadPops) then
+      i64=nMaxAmpl 
+      call ReadFromPopsfileOnly(DetList,i64)
+      nAmpl=i64
+      do j=1,nAmpl
+          call extract_sign(DetList(:,j),TempSign)
+          AL%Amplitude(j,iCurAmpList)=TempSign(1)
+      enddo
+      call MPIBCast(nAmpl,root)
+   endif
+
    CALL WriteFciMCStatsHeader()
 
    if(tCCMCFCI) THEN
@@ -2371,7 +2396,7 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
 
    dInitThresh=0
    if(tAddToInitiator) dInitThresh=InitiatorWalkNo/WalkerScale
-   write(6,*) "Cluster Initiaaator Threshold: ", dInitThresh
+   write(6,*) "Cluster Initiator Threshold: ", dInitThresh
 
    CALL InitClustSelectorRandom(CS,iNumExcitors,nClustSelections,dClustSelectionRatio,dProbSelNewExcitor,dInitThresh)
 
@@ -2383,9 +2408,10 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
 ! First we make sure we have the same lists
       if((.not.tSharedExcitors).and.nProcessors>1) then
          IFDEBUG(iDebug,2) write(6,*) "Synchronizing particle lists among processors"
-         call MPIBCast(nAmpl,root)
-         call MPIBCast(DetList,root)
-         call MPIBCast(AL%Amplitude,root)
+         call set_timer(CCMCComms1_time,20)
+         call MPIBCast(DetList(:,1:nAmpl),root)
+         call MPIBCast(AL%Amplitude(1:nAmpl,iCurAmpList),root)
+         call halt_timer(CCMCComms1_time)
       endif
 
 !Find the HF det
@@ -2488,13 +2514,16 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
 !         call halt_timer(Dietime)
       enddo ! Cluster choices
 
-      call MPIBarrier(ierr)
+!      call set_timer(CCMCWait_time,20)
+!      call MPIBarrier(ierr)
+!      call halt_timer(CCMCWait_time)
+      call set_timer(CCMCComms2_time,20)
       call MPIGather(nSpawned,1,iLengths,1,Root,ierr)
 !iOffsets is now the list of data lengths from each processor
       iOffsets(1)=0
 !Make a list of offsets from the lengths.
       do i=1,nProcessors-1
-         iOffsets(i+1)=iOffsets(i)+iLengths(1)
+         iOffsets(i+1)=iOffsets(i)+iLengths(i)
       enddo
       IFDEBUG(iDebug,3) write(6,*) "Offsets",iOffsets
       IFDEBUG(iDebug,3) write(6,*) "Lengths",iLengths
@@ -2519,6 +2548,7 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
       IFDEBUG(iDebug,3) call WriteExcitorListP(6,SpawnList,0,nSpawned,dAmpPrintTol,"Spawned list")
       call AnnihilationInterface(nAmpl,DetList,AL%Amplitude(:,iCurAmpList),nMaxAmpl,nSpawned,SpawnList,nMaxSpawn,iter_data_ccmc)
       call MPIBCast(nAmpl,root)
+      call halt_timer(CCMCComms2_time)
 !      else
 !         if(iDebug>2) write(6,*) "No spawnings in toto."
 !      endif
@@ -2531,10 +2561,27 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
          dAveTotAbsAmp=dAveTotAbsAmp+dTotAbsAmpl
          dAveNorm=dAveNorm+AL%Amplitude(iRefPos,iCurAmpList)
       endif
+      call ChangeVars(tSingBiasChange, tSoftExitFound, tWritePopsFound)
+      if(tSoftExitFound) exit
       Iter=Iter+1
    enddo !MC Cycles
-
    IFDEBUG(iDebug,2) call WriteExcitorList(6,AL%Amplitude(:,iCurAmpList),DetList,0,nAmpl,dAmpPrintTol,"Final Excitor list")
+   IF(TPopsFile) THEN
+! encode the signs
+      TempSign=0
+      do j=1,nAmpl
+          TempSign(1)=AL%Amplitude(j,iCurAmpList)
+          call encode_sign(DetList(:,j),TempSign)
+      enddo
+!Another fudge for multiprocessors - all dets are currently on the root.  TODO: Fix
+      if(iProcIndex==Root) then
+         CALL WriteToPopsfileParOneArr(DetList,int(nAmpl,int64))
+      else
+         i64=0
+         CALL WriteToPopsfileParOneArr(DetList,i64)
+      endif
+   ENDIF
+
 
 ! Find the largest 10 amplitudes in each level
 !   call WriteMaxExcitorList(6,AL%Amplitude(:,iCurAmpList),DetList,FCIDetIndex,iMaxAmpLevel,10)

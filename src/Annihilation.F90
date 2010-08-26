@@ -304,10 +304,12 @@ MODULE AnnihilationMod
         call sort(SpawnedParts(:,1:ValidSpawned), ilut_lt, ilut_gt)
         IF(tHistSpawn) HistMinInd2(1:NEl)=FCIDetIndex(1:NEl)
 
-!        WRITE(6,*) "************ - Ordered"
+!        IF(Iter.ge.1878) THEN
+!        WRITE(6,*) "************ - Ordered",ValidSpawned,NIfTot
 !        do i=1,ValidSpawned
-!            WRITE(6,*) SpawnedParts(:,i)
+!            WRITE(6,*) i,SpawnedParts(:,i)
 !        enddo
+!    ENDIF
 
 !First, we compress the list of spawned particles, so that they are only specified at most once in each processors list.
 !During this, we transfer the particles over to SpawnedParts2
@@ -468,11 +470,13 @@ MODULE AnnihilationMod
         ENDIF
         ValidSpawned=ValidSpawned-DetsMerged
 
+!        IF(Iter.ge.1878) THEN
 !        WRITE(6,*) "************************"
 !        WRITE(6,*) "Compressed List: "
 !        do i=1,ValidSpawned
 !            WRITE(6,*) SpawnedParts(:,i)
 !        enddo
+!    ENDIF
         
     END SUBROUTINE CompressSpawnedList
 
