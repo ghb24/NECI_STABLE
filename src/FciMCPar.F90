@@ -808,9 +808,11 @@ MODULE FciMCParMod
 #ifdef __CMPLX
                     if ((child(1).ne.0).or.(child(2).ne.0)) then
                         IFDEBUG(FCIMCDebug,3) write(6,"(A,2I4,A)",advance='no') "Creating ",child(1),child(2)," particles: "
+                        IFDEBUG(FCIMCDebug,3) write(6,"(A,2I4,A)",advance='no') "Parent flag: ",parent_flags,part_type
 #else
                     if (child(1).ne.0) then
                         IFDEBUG(FCIMCDebug,3) write(6,"(A,I4,A)",advance='no') "Creating ",child(1)," particles: "
+                        IFDEBUG(FCIMCDebug,3) write(6,"(A,2I4,A)",advance='no') "Parent flag: ",parent_flags,part_type
 #endif                        
                         IFDEBUG(FCIMCDebug,3) CALL Write_Det(6,nJ,.true.)
                         IFDEBUG(FCIMCDebug,3) CALL FLUSH(6) 
@@ -2861,6 +2863,10 @@ MODULE FciMCParMod
         iDie = attempt_die (DetCurr, Kii, wSign)
 
 !        IF(iDie.ne.0) WRITE(6,*) "Death: ",iDie
+        
+        IFDEBUGTHEN(FCIMCDebug,3) 
+            if(sum(abs(iDie)).ne.0) write(6,"(A,2I4)") "Death: ",iDie(:)
+        ENDIFDEBUG
 
         ! Update death counter
         iter_data%ndied = iter_data%ndied + min(iDie, abs(wSign))
@@ -3777,6 +3783,7 @@ MODULE FciMCParMod
         type(fcimc_iter_data) :: iter_data
         integer(int64), dimension(lenof_sign), intent(in) :: tot_parts_new
         integer(int64), dimension(lenof_sign), intent(out) :: tot_parts_new_all
+        character(len=*), parameter :: this_routine='collate_iter_data'
     
         ! Communicate the integers needing summation
         call MPIReduce ((/Annihilated, NoAtDoubs, NoBorn, NoDied, HFCyc, &
@@ -3834,6 +3841,10 @@ MODULE FciMCParMod
         ! ALL processors (n.b. one of these is 32bit, the other 64)
         call MPISum (NoatHF, AllNoatHF)
         call MPISum (SumWalkersCyc, AllSumWalkersCyc)
+
+!        WRITE(6,*) "***",iter_data%update_growth_tot,AllTotParts-AllTotPartsOld
+        ASSERT(iter_data%update_growth_tot(1).eq.AllTotParts(1)-AllTotPartsOld(1))
+        ASSERT(iter_data%update_growth_tot(2).eq.AllTotParts(2)-AllTotPartsOld(2))
         
     end subroutine
 
@@ -3846,7 +3857,7 @@ MODULE FciMCParMod
 
         integer :: error
 
-        call flush(6)
+!        call flush(6)
         CALL MPIBarrier(error)
         ! collate_iter_data --> The values used are only valid on Root
         if (iProcIndex == Root) then
@@ -4140,7 +4151,7 @@ MODULE FciMCParMod
             write(fcimcstats_unit,"(I12,G16.7,2I10,2I12,4G17.9,3I10,&
                                   &G13.5,I12,G13.5,G17.5,I13,G13.5,7G17.9)") &
                 Iter + PreviousCycles, DiagSft, &
-                AllTotParts(1)-AllTotPartsOld(1), AllTotParts(2)-AllTotParts(2), &
+                AllTotParts(1)-AllTotPartsOld(1), AllTotParts(2)-AllTotPartsOld(2), &
                 AllTotParts(1),AllTotParts(2), &
                 REAL(ProjectionE,dp),AIMAG(ProjectionE), REAL(AllENumCyc / AllHFCyc,dp),AIMAG(AllENumCyc / AllHFCyc), &
                 AllNoatHF(1),AllNoatHF(2), &

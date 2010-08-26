@@ -309,7 +309,7 @@ MODULE AnnihilationMod
 
 !        WRITE(6,*) "************ - Ordered",ValidSpawned,NIfTot
 !        do i=1,ValidSpawned
-!            WRITE(6,*) i,SpawnedParts(0:NIfTot-1,i),SpawnedParts(NIfTot,i)-2
+!            WRITE(6,*) i,SpawnedParts(0:NIfTot-1,i),SpawnedParts(NIfTot,i)
 !        enddo
 
 !First, we compress the list of spawned particles, so that they are only specified at most once in each processors list.
@@ -324,43 +324,13 @@ MODULE AnnihilationMod
             !loop in blocks of the same determinant to the end of the list of walkers
 
             Cum_Sign(:)=0
-            Cum_Flag=.false.    !Assume no initiators, unless we find them
             FirstInitIndex=0
             CurrentBlockDet=BeginningBlockDet+1
 
-            if(tTruncInitiator) then
-                !Need to find the first initiator determinant (we deal with the real case first)
-                if (test_flag(SpawnedParts(:,BeginningBlockDet), flag_parent_initiator(1))) then
-                    !Beginning entry is an initiator walker
-                    FirstInitIndex=BeginningBlockDet
-                    call extract_sign(SpawnedParts(:,BeginningBlockDet),Cum_Sign)
-                    if(lenof_sign.eq.2) then
-                        !If we are dealing with complex walkers, ignore the imaginary component for now.
-                        Cum_Sign(lenof_sign)=0
-                    endif
-                    Cum_Flag = .true.     !Indicate that this is an initiator
-                endif
-            endif
-            
             do while((CurrentBlockDet.le.ValidSpawned).and. &
                 DetBitEQ(SpawnedParts(0:NIfTot,BeginningBlockDet),SpawnedParts(0:NIfTot,CurrentBlockDet),NIfDBO))
                 !loop over walkers on the same determinant in SpawnedParts
-
-                if(tTruncInitiator.and.(FirstInitIndex.eq.0)) then
-                    if(test_flag(SpawnedParts(:,CurrentBlockDet), flag_parent_initiator(1))) then
-                        !This is the first initiator in the block
-                        FirstInitIndex=CurrentBlockDet
-                        call extract_sign(SpawnedParts(:,CurrentBlockDet),Cum_Sign)
-                        if(lenof_sign.eq.2) then
-                            !If we are dealing with complex walkers, ignore the imaginary component for now.
-                            Cum_Sign(lenof_sign)=0
-                        endif
-                        Cum_Flag = .true.   !Indicate that this is an initiator
-                    endif
-                endif
-
                 CurrentBlockDet=CurrentBlockDet+1
-
             enddo
 
             EndBlockDet=CurrentBlockDet-1 !EndBlockDet indicates that we have reached the end of the block of similar dets
@@ -374,27 +344,25 @@ MODULE AnnihilationMod
                 BeginningBlockDet=CurrentBlockDet           !Move onto the next block of determinants
                 CYCLE   !Skip the rest of this block
             endif
-
-
+            
             do part_type=1,lenof_sign   !Annihilate in this block seperately for real and imag walkers
-
-                !calculate the initial index to loop over initiator determinants
-                if(FirstInitIndex.eq.0) then
-                    !there are no initiator determinants in the block, or this is not an initiator calc
-                    !Therefore, we can just loop from the end of the block + 1 to skip the next loop
-                    StartCycleInit=EndBlockDet
-                else
-                    StartCycleInit=FirstInitIndex
+                
+!                WRITE(6,*) "Testing particle types: ",part_type
+                    
+                if(tTruncInitiator) then
+                    !Need to find if there are any initiators in this block
+                    do i=BeginningBlockDet,EndBlockDet  !Loop over the block
+                        if (test_flag(SpawnedParts(:,i), flag_parent_initiator(part_type))) then
+                            !Found an initiator walker
+                            call extract_sign(SpawnedParts(:,i),SpawnedSign)
+!                            WRITE(6,*) "Found another initiator: ",i
+                            if(tHistSpawn) call HistAnnihilEvent(SpawnedParts,SpawnedSign,Cum_Sign,part_type)
+                            call FindResidualParticle(Cum_Sign(part_type),Cum_Flag,SpawnedSign(part_type),.true.,part_type,iter_data)
+                        endif
+                    enddo
                 endif
 
-                do i=StartCycleInit+1,EndBlockDet    !Loop over block to count up initiators
-                    if(test_flag(SpawnedParts(:,i), flag_parent_initiator(part_type))) then
-                        !We have found another initiator - find residual sign and flag (will always remain initiator).
-                        call extract_sign(SpawnedParts(:,i),SpawnedSign)
-                        if(tHistSpawn) call HistAnnihilEvent(SpawnedParts,SpawnedSign,Cum_Sign,part_type)
-                        call FindResidualParticle(Cum_Sign(part_type),Cum_Flag,SpawnedSign(part_type),.true.,part_type,iter_data)
-                    endif
-                enddo
+!                WRITE(6,*) "After initiators: ",Cum_Sign(part_type),Cum_Flag
 
                 !Now loop over the same block again, but this time calculating the contribution from non-initiators
                 !We want to loop over the whole block.
@@ -402,9 +370,11 @@ MODULE AnnihilationMod
                     if(tTruncInitiator) then
                         if(.not.test_flag(SpawnedParts(:,i),flag_parent_initiator(part_type))) then
                             !Only consider non-initiators - the initiators have already been dealt with
+!                            WRITE(6,*) "Non-initiator found: ",i
                             call extract_sign(SpawnedParts(:,i),SpawnedSign)
                             if(tHistSpawn) call HistAnnihilEvent(SpawnedParts,SpawnedSign,Cum_Sign,part_type)
                             call FindResidualParticle(Cum_Sign(part_type),Cum_Flag,SpawnedSign(part_type),.false.,part_type,iter_data)
+!                            WRITE(6,*) "Cum_Sign(part_type): ",Cum_Sign(part_type),Cum_Flag
                         endif
                     else
                         call extract_sign(SpawnedParts(:,i),SpawnedSign)
@@ -416,23 +386,6 @@ MODULE AnnihilationMod
                 enddo
                 !Now transfer the correct flag for that particle type to the beginning determinant in the list
                 if(tTruncInitiator) call set_flag (SpawnedParts(:,BeginningBlockDet), flag_parent_initiator(part_type), Cum_Flag)
-
-                if(lenof_sign.eq.2.and.part_type.eq.1.and.tTruncInitiator) then
-                    !we need to reinitialise for the imaginary components.
-                    !i.e. we need to find the initial initiator index.
-                    Cum_Flag=.false.    !Assume no initiators, unless we find them
-                    FirstInitIndex=0
-                    do i=BeginningBlockDet,EndBlockDet  !Loop over the block
-                        if (test_flag(SpawnedParts(:,i), flag_parent_initiator(lenof_sign))) then
-                            !Found our first initiator walker
-                            FirstInitIndex=i
-                            call extract_sign(SpawnedParts(:,BeginningBlockDet),Temp_Sign)
-                            Cum_Sign(lenof_sign)=Temp_Sign(lenof_sign)  !only want to transfer the imaginary compt.
-                            Cum_Flag=.true.
-                            exit
-                        endif
-                    enddo
-                endif
 
             enddo   !End loop over particle type
 
@@ -464,10 +417,11 @@ MODULE AnnihilationMod
         SpawnedParts => PointTemp
 
 !        WRITE(6,*) "************************"
-!        WRITE(6,*) "Compressed List: "
+!        WRITE(6,*) "Compressed List: ",ValidSpawned,DetsMerged
 !        do i=1,ValidSpawned
-!            WRITE(6,*) SpawnedParts(0:NIfTot-1,i),SpawnedParts(NIfTot,i)-2
+!            WRITE(6,*) SpawnedParts(0:NIfTot-1,i),SpawnedParts(NIfTot,i)
 !        enddo
+!        WRITE(6,*) "***","iter_data%naborted: ",iter_data%naborted
 !        CALL FLUSH(6)
         
     END SUBROUTINE CompressSpawnedList
