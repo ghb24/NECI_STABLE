@@ -231,7 +231,7 @@ contains
 
         integer(n_int), intent(inout) :: ilut(0:nIfTot)
         integer, intent(in) :: flg
-        integer :: off, ind
+!        integer :: off, ind
 
 !        ind = NOffFlag + flg / bits_n_int
 !        off = mod(flg, bits_n_int)
@@ -252,7 +252,7 @@ contains
 
         integer(n_int), intent(inout) :: ilut(0:nIfTot)
         integer, intent(in) :: flg
-        integer :: off, ind
+!        integer :: off, ind
 
 !        ind = NOffFlag + flg / bits_n_int
 !        off = mod(flg, bits_n_int)
