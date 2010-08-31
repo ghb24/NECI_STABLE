@@ -2509,11 +2509,11 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
 !         call halt_timer(Dietime)
       enddo ! Cluster choices
 
-!      call set_timer(CCMCWait_time,20)
+      call set_timer(CCMCWait_time,20)
 !      call MPIBarrier(ierr)
-!      call halt_timer(CCMCWait_time)
-      call set_timer(CCMCComms2_time,20)
       call MPIGather(nSpawned,1,iLengths,1,Root,ierr)
+      call halt_timer(CCMCWait_time)
+      call set_timer(CCMCComms2_time,20)
 !iOffsets is now the list of data lengths from each processor
       iOffsets(1)=0
 !Make a list of offsets from the lengths.
