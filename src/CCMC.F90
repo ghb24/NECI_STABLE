@@ -2370,6 +2370,15 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
    IF(tHistSpawn) THEN
       Call InitHistMin() !Setup Histogramming arrays if needed 
    ENDIF
+   if(tCCMCFCI) THEN
+      iNumExcitors=1  !Only one excitor allowed
+   ELSE
+      IF (tTruncSpace) THEN !we can go up to two beyond the max level of truncation
+         iNumExcitors=ICILevel+2  !We need to be able to couple (say) 4 singles to make a quad and then spawn back to the sdoubles space
+      ELSE
+         iNumExcitors=nEl  !Otherwise just the number of electrons is the max number of excitors
+      ENDIF
+   ENDIF
 
    if(tReadPops) then
       i64=nMaxAmpl 
@@ -2380,19 +2389,12 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
           AL%Amplitude(j,iCurAmpList)=TempSign(1)
       enddo
       call MPIBCast(nAmpl,root)
+      call CalcTotals(iNumExcitors,dTotAbsAmpl,AL%Amplitude(:,iCurAmpList),nAmpl,dTolerance*dInitAmplitude,WalkerScale,iRefPos,iOldTotParts,iDebug)
+      iter_data_ccmc%update_growth = 0
    endif
 
    CALL WriteFciMCStatsHeader()
 
-   if(tCCMCFCI) THEN
-      iNumExcitors=1  !Only one excitor allowed
-   ELSE
-      IF (tTruncSpace) THEN !we can go up to two beyond the max level of truncation
-         iNumExcitors=ICILevel+2  !We need to be able to couple (say) 4 singles to make a quad and then spawn back to the sdoubles space
-      ELSE
-         iNumExcitors=nEl  !Otherwise just the number of electrons is the max number of excitors
-      ENDIF
-   ENDIF
 
    dInitThresh=0
    if(tAddToInitiator) dInitThresh=InitiatorWalkNo/WalkerScale
