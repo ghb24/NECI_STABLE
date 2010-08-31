@@ -327,8 +327,8 @@ MODULE AnnihilationMod
             FirstInitIndex=0
             CurrentBlockDet=BeginningBlockDet+1
 
-            do while((CurrentBlockDet.le.ValidSpawned).and. &
-                DetBitEQ(SpawnedParts(0:NIfTot,BeginningBlockDet),SpawnedParts(0:NIfTot,CurrentBlockDet),NIfDBO))
+            do while(CurrentBlockDet.le.ValidSpawned)
+                if(.not.(DetBitEQ(SpawnedParts(:,BeginningBlockDet),SpawnedParts(:,CurrentBlockDet),NIfDBO))) exit
                 !loop over walkers on the same determinant in SpawnedParts
                 CurrentBlockDet=CurrentBlockDet+1
             enddo
