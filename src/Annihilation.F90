@@ -307,9 +307,9 @@ MODULE AnnihilationMod
         call sort(SpawnedParts(:,1:ValidSpawned), ilut_lt, ilut_gt)
         IF(tHistSpawn) HistMinInd2(1:NEl)=FCIDetIndex(1:NEl)
 
-!        WRITE(6,*) "************ - Ordered",ValidSpawned,NIfTot
+!        WRITE(6,*) "************ - Ordered",ValidSpawned,NIfTot,Iter
 !        do i=1,ValidSpawned
-!            WRITE(6,*) i,SpawnedParts(0:NIfTot-1,i),SpawnedParts(NIfTot,i)
+!            WRITE(6,*) i,SpawnedParts(0:NIfTot-1,i),SpawnedParts(NIfTot,i)-2
 !        enddo
 
 !First, we compress the list of spawned particles, so that they are only specified at most once in each processors list.
@@ -344,7 +344,7 @@ MODULE AnnihilationMod
                 BeginningBlockDet=CurrentBlockDet           !Move onto the next block of determinants
                 CYCLE   !Skip the rest of this block
             endif
-            
+
             do part_type=1,lenof_sign   !Annihilate in this block seperately for real and imag walkers
                 
 !                WRITE(6,*) "Testing particle types: ",part_type
@@ -385,7 +385,16 @@ MODULE AnnihilationMod
 !                    WRITE(6,*) "Running through block - Residual sign=",Cum_Sign(part_type)
                 enddo
                 !Now transfer the correct flag for that particle type to the beginning determinant in the list
-                if(tTruncInitiator) call set_flag (SpawnedParts(:,BeginningBlockDet), flag_parent_initiator(part_type), Cum_Flag)
+                if(tTruncInitiator) then
+                    if((EndBlockDet-BeginningBlockDet).ge.2) then
+                        !If more than three seperate spawns to the same determinant, assume the
+                        !resultant particle is from an initiator
+                        call set_flag (SpawnedParts(:,BeginningBlockDet), flag_parent_initiator(part_type), .true.)
+                    else
+                        !two spawns only
+                        call set_flag (SpawnedParts(:,BeginningBlockDet), flag_parent_initiator(part_type), Cum_Flag)
+                    endif
+                endif
 
             enddo   !End loop over particle type
 
@@ -419,7 +428,7 @@ MODULE AnnihilationMod
 !        WRITE(6,*) "************************"
 !        WRITE(6,*) "Compressed List: ",ValidSpawned,DetsMerged
 !        do i=1,ValidSpawned
-!            WRITE(6,*) SpawnedParts(0:NIfTot-1,i),SpawnedParts(NIfTot,i)
+!            WRITE(6,*) SpawnedParts(0:NIfTot-1,i),SpawnedParts(NIfTot,i)-2
 !        enddo
 !        WRITE(6,*) "***","iter_data%naborted: ",iter_data%naborted
 !        CALL FLUSH(6)
@@ -690,7 +699,7 @@ MODULE AnnihilationMod
 
 !        WRITE(6,*) "Leftover Parts..."
 !        do i=1,ValidSpawned
-!            WRITE(6,*) SpawnedParts(:,i)
+!            WRITE(6,*) SpawnedParts(0:NIfTot-1,i),SpawnedParts(NIfTot,i)-2
 !        enddo
 
 !Now we have to remove the annihilated particles from the spawned list. They will be removed from the main list at the end of the annihilation process.
