@@ -2858,10 +2858,10 @@ MODULE FciMCParMod
         if (CopySign(1).ne.0) then
             IF(tTruncInitiator.and.(sign(1,CopySign(1)).ne.sign(1,wSign(1)))) THEN
                 !Abort creation of antiparticles if using initiator
-!                    WRITE(6,*) "Creating Antiparticles"
+!                WRITE(6,*) "Creating Antiparticles"
                 NoAborted=NoAborted+abs(CopySign(1)) 
                 iter_data%naborted(1) = iter_data%naborted(1) + abs(CopySign(1))
-                if(extract_flags(iLutCurr).ne.1) then
+                if(test_flag(iLutCurr,flag_is_initiator)) then
                     NoAddedInitiators=NoAddedInitiators-1.D0
                 endif
 
@@ -2873,7 +2873,7 @@ MODULE FciMCParMod
             ENDIF
         elseif(tTruncInitiator) then
             ! All particles on this determinant have gone. If the determinant was an initiator, update the stats
-            if(extract_flags(iLutCurr).ne.1) then
+            if(test_flag(iLutCurr,flag_is_initiator)) then
                 NoAddedInitiators=NoAddedInitiators-1.D0
             endif
         endif

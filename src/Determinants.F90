@@ -439,6 +439,25 @@ contains
 
       Subroutine DetCleanup()
       End Subroutine DetCleanup
+   
+    subroutine write_bit_rep(iUnit, iLut, lTerm)
+       use bit_reps
+       implicit none
+       integer iUnit
+       logical lTerm 
+       integer(n_int), intent(in) :: iLut(0:NIfTot)
+       integer :: nI(nel), flags,i
+       integer, dimension(lenof_sign) :: sgn
+       call extract_bit_rep(iLut,nI,sgn,flags)
+       call write_det(iUnit,nI,.false.)
+       write(iUnit,"(A)",advance='no') "("
+       do i=1,lenof_sign
+          write(iUnit,"(I7)",advance='no') sgn(i)
+          if(i/=lenof_sign) write(iUnit,"(A)",advance='no') ","
+       enddo
+       write(iUnit,"(A,I5)", advance='no') ") ",flags
+       if(lTerm) write(iUnit,*)
+    end subroutine write_bit_rep
 END MODULE Determinants
 
       subroutine GetH0Element(nI,nEl,Arr,nBasis,ECore,hEl)
