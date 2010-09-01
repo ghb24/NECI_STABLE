@@ -28,12 +28,12 @@ MODULE FciMCData
       INTEGER :: NoAbortedInCAS,NoAbortedOutCAS,NoInCAS,NoOutCAS,HighPopNeg,HighPopPos,MaxInitPopNeg,MaxInitPopPos
 
     integer(int64) :: NoAborted, NoAddedInitiators, NoInitDets, NoNonInitDets
-    integer(int64) :: NoInitWalk, NoNonInitWalk, NoDoubspawns
+    integer(int64) :: NoInitWalk, NoNonInitWalk
     integer(int64) :: NoExtraInitDoubs, InitRemoved
 
     integer(int64) :: AllNoAborted, AllNoAddedInitiators, AllNoInitDets
     integer(int64) :: AllNoNonInitDets, AllNoInitWalk, AllNoNonInitWalk
-    integer(int64) :: AllNodoubSpawns, AllNoExtraInitDoubs, AllInitRemoved
+    integer(int64) :: AllNoExtraInitDoubs, AllInitRemoved
     integer(int64) :: AllNoAbortedOld, AllGrowRateAbort
 
       LOGICAL :: tHFInitiator,tPrintHighPop
@@ -125,8 +125,8 @@ MODULE FciMCData
     
       REAL(4) :: IterTime
     
-      REAL(KIND=dp) , ALLOCATABLE :: Histogram(:),AllHistogram(:),InstHist(:),AllInstHist(:),AttemptHist(:),AllAttemptHist(:),SpawnHist(:),AllSpawnHist(:)
-      REAL(KIND=dp) , ALLOCATABLE :: AvAnnihil(:),AllAvAnnihil(:),InstAnnihil(:),AllInstAnnihil(:)
+      REAL(KIND=dp) , ALLOCATABLE :: Histogram(:,:),AllHistogram(:,:),InstHist(:,:),AllInstHist(:,:),AttemptHist(:),AllAttemptHist(:),SpawnHist(:),AllSpawnHist(:),HistogramEnergy(:),AllHistogramEnergy(:)
+      REAL(KIND=dp) , ALLOCATABLE :: AvAnnihil(:,:),AllAvAnnihil(:,:),InstAnnihil(:,:),AllInstAnnihil(:,:)
       REAL(KIND=dp) , ALLOCATABLE :: SinglesAttemptHist(:),AllSinglesAttemptHist(:),SinglesHist(:),AllSinglesHist(:),DoublesHist(:),AllDoublesHist(:),DoublesAttemptHist(:),AllDoublesAttemptHist(:)
       REAL(KIND=dp) , ALLOCATABLE :: SinglesHistOccOcc(:),SinglesHistOccVirt(:),SinglesHistVirtOcc(:),SinglesHistVirtVirt(:)
       REAL(KIND=dp) , ALLOCATABLE :: AllSinglesHistOccOcc(:),AllSinglesHistVirtOcc(:),AllSinglesHistOccVirt(:),AllSinglesHistVirtVirt(:)
@@ -184,7 +184,6 @@ MODULE FciMCData
           integer, dimension(lenof_sign) :: update_growth, update_growth_tot
           integer(int64), dimension(lenof_sign) :: tot_parts_old
           integer :: update_iters
-          real(dp), pointer :: shift
       end type
       
       ! These are variables used to control the behaviour of PerformFciMCycPar
