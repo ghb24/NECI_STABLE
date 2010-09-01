@@ -189,6 +189,19 @@ contains
 
     end subroutine encode_sign
 
+    subroutine encode_part_sign (ilut, sgn, part_type)
+!This routine is like encode_sign, but it only encodes either the
+!real OR imaginary sign of the walker, while leaving the other
+!sign untouched. part_type=1 indicates real and part_type=2 imaginary.
+!The sign argument is now a simple integer, rather than of dimension(lenof_sign).
+        integer(n_int), intent(inout) :: ilut(0:NIfTot)
+        integer, intent(in) :: sgn, part_type
+
+        iLut(NOffSgn+part_type-1) = sgn
+
+    end subroutine encode_part_sign
+        
+
     subroutine set_flag_general (ilut, flg, state)
 
         ! Set or clear the specified flag (0 indexed) according to
@@ -218,12 +231,14 @@ contains
 
         integer(n_int), intent(inout) :: ilut(0:nIfTot)
         integer, intent(in) :: flg
-        integer :: off, ind
+!        integer :: off, ind
 
-        ind = NOffFlag + flg / bits_n_int
-        off = mod(flg, bits_n_int)
-
-        ilut(ind) = ibset(ilut(ind), off)
+!        ind = NOffFlag + flg / bits_n_int
+!        off = mod(flg, bits_n_int)
+!        ilut(ind) = ibset(ilut(ind), off)
+        
+!This now assumes that we do not have more flags than bits in an integer.
+         ilut(NOffFlag) = ibset(ilut(NOffFlag),flg)
 
     end subroutine set_flag_single
 
@@ -237,12 +252,14 @@ contains
 
         integer(n_int), intent(inout) :: ilut(0:nIfTot)
         integer, intent(in) :: flg
-        integer :: off, ind
+!        integer :: off, ind
 
-        ind = NOffFlag + flg / bits_n_int
-        off = mod(flg, bits_n_int)
+!        ind = NOffFlag + flg / bits_n_int
+!        off = mod(flg, bits_n_int)
+!        ilut(ind) = ibclr(ilut(ind), off)
 
-        ilut(ind) = ibclr(ilut(ind), off)
+!This now assumes that we do not have more flags than bits in an integer.
+        ilut(NOffFlag) = ibclr(ilut(NOffFlag),flg)
 
     end subroutine clr_flag
 

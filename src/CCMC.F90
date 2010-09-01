@@ -1657,7 +1657,7 @@ subroutine AttemptSpawnParticle(S,C,iDebug,SpawnList,nSpawned,nMaxSpawn)
       if(nSpawned>nMaxSpawn) call Stop_All("AttemptSpawnParticle","Not enough space in spawning list.")
       if(rat<0) iSpawnAmp(1)=-iSpawnAmp(1)
       call encode_bit_rep(SpawnList(:,nSpawned),S%iLutnJ(:),iSpawnAmp,0)
-      if(C%initFlag==0) call set_flag(SpawnList(:,nSpawned),flag_parent_initiator) !meaning is initiator
+      if(C%initFlag==0) call set_flag(SpawnList(:,nSpawned),flag_parent_initiator(1)) !meaning is initiator
       IFDEBUG(iDebug,4) THEN
    !We've not printed this out before
          WRITE(6,*) "  Spawned ",iSpawnAmp
@@ -1786,7 +1786,7 @@ subroutine AttemptDieParticle(C,iDebug,SpawnList,nSpawned)
       initFlag=0
       if(C%iSize>1) initFlag=C%initFlag  !Death is always a certainty despite parentage (except if you're composite)
       call encode_bit_rep(SpawnList(:,nSpawned),C%iLutDetCurr(:),iSpawnAmp,0)  
-      if(initFlag==0) call set_flag(SpawnList(:,nSpawned),flag_parent_initiator) !meaning is initiator
+      if(initFlag==0) call set_flag(SpawnList(:,nSpawned),flag_parent_initiator(1)) !meaning is initiator
 
       IFDEBUG(iDebug,4) then
          Write(6,'(A)',advance='no') " Killing at excitor: "
