@@ -4442,8 +4442,11 @@ MODULE FciMCParMod
 !Count all possible excitations - put into HFConn
 !TODO: Get CountExcitations3 working with tKPntSym
             CALL CountExcitations3(HFDet,exflag,nSingles,nDoubles)
-            HFConn=nSingles+nDoubles
+        ELSE
+            !use Alex's old excitation generators to enumerate all excitations.
+            CALL CountExcitsOld(HFDet,exflag,nSingles,nDoubles)
         ENDIF
+        HFConn=nSingles+nDoubles
 
 !Initialise random number seed - since the seeds need to be different on different processors, subract processor rank from random number
         Seed=abs(G_VMC_Seed-iProcIndex)
@@ -4736,12 +4739,7 @@ MODULE FciMCParMod
             WRITE(6,*) "Brillouin theorem specified, but this will not be in use with the non-uniform excitation generators."
         ENDIF
         WRITE(6,*) "Non-uniform excitation generators in use."
-        IF(tKPntSym) THEN
-            !Since we didn't calculate HFConn before, we calculate it in this routine and return it.
-            CALL CalcApproxpDoubles(HFConn)
-        ELSE
-            CALL CalcApproxpDoubles()
-        ENDIF
+        CALL CalcApproxpDoubles()
         IF(TauFactor.ne.0.D0) THEN
             WRITE(6,*) "TauFactor detected. Resetting Tau based on connectivity of: ",HFConn
             Tau=TauFactor/REAL(HFConn,dp)
@@ -5219,7 +5217,7 @@ MODULE FciMCParMod
 
     END SUBROUTINE BinSearchParts3
     
-    SUBROUTINE CalcApproxpDoubles(HFConn)
+    SUBROUTINE CalcApproxpDoubles()
         use SystemData , only : tAssumeSizeExcitgen,tUseBrillouin
         use CalcData , only : SinglesBias
         use SymData , only : SymClassSize
@@ -5228,7 +5226,6 @@ MODULE FciMCParMod
         integer :: nSing, nDoub, ncsf, excitcount, ierr, iExcit
         integer :: nStore(6), iMaxExcit, nExcitMemLen, nJ(nel)
         integer, allocatable :: EXCITGEN(:)
-        integer, intent(out), optional :: HFConn
         character(*), parameter :: this_routine = 'CalcApproxpDoubles'
         logical :: TempUseBrill
 
@@ -5295,7 +5292,6 @@ MODULE FciMCParMod
             CALL CountExcitations3(HFDet,exflag,nSing,nDoub)
         ENDIF
         iTotal=nSing + nDoub + ncsf
-        HFConn=iTotal
 
         WRITE(6,"(I7,A,I7,A)") NDoub, " double excitations, and ",NSing," single excitations found from HF. This will be used to calculate pDoubles."
 
@@ -5877,6 +5873,50 @@ MODULE FciMCParMod
                                                                                     & calculation.  Ordering of orbitals is incorrect.  This may be fixed if needed.")
 
     end subroutine InitFCIMCCalcPar
+            
+    !Count excitations using ajwt3's old excitation generators which can handle non-abelian and
+    !k-point symmetry
+    SUBROUTINE CountExcitsOld(HFDet,exflag,nSing,nDoub)
+        use SystemData , only : tUseBrillouin
+        INTEGER , INTENT(IN) :: HFDet(NEl),exflag
+        INTEGER , INTENT(OUT) :: nSing,nDoub
+        LOGICAL :: TempUseBrill
+        INTEGER :: nExcitMemLen,nJ(NEl),iMaxExcit,nStore(6),ierr,excitcount,iExcit
+        INTEGER , ALLOCATABLE :: EXCITGEN(:)
+        character(len=*) , parameter :: this_routine='CountExcitsOld'
+
+        !However, we have to ensure that brillouins theorem isn't on!
+        IF(tUseBrillouin) THEN
+            TempUseBrill=.true.
+            tUseBrillouin=.false.
+        ELSE
+            TempUseBrill=.false.
+        ENDIF
+
+        iMaxExcit=0
+        nStore(1:6)=0
+        CALL GenSymExcitIt2(HFDet,NEl,G1,nBasis,.TRUE.,nExcitMemLen,nJ,iMaxExcit,nStore,exFlag)
+        ALLOCATE(EXCITGEN(nExcitMemLen),stat=ierr)
+        IF(ierr.ne.0) CALL Stop_All(this_routine,"Problem allocating excitation generator")
+        EXCITGEN(:)=0
+        CALL GenSymExcitIt2(HFDet,NEl,G1,nBasis,.TRUE.,EXCITGEN,nJ,iMaxExcit,nStore,exFlag)
+    !    CALL GetSymExcitCount(EXCITGEN,DetConn)
+        excitcount=0
+
+    lp2: do while(.true.)
+            CALL GenSymExcitIt2(HFDet,nEl,G1,nBasis,.false.,EXCITGEN,nJ,iExcit,nStore,exFlag)
+            IF(nJ(1).eq.0) exit lp2
+            IF(iExcit.eq.1) THEN
+                nSing=nSing+1
+            ELSEIF(iExcit.eq.2) THEN
+                nDoub=nDoub+1
+            ELSE
+                CALL Stop_All(this_routine,"Trying to generate more than doubles!")
+            ENDIF
+        enddo lp2
+        tUseBrillouin=TempUseBrill
+
+    END SUBROUTINE CountExcitsOld
 
     SUBROUTINE DeallocFCIMCMemPar()
         CHARACTER(len=*), PARAMETER :: this_routine='DeallocFciMCMemPar'
