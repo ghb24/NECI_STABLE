@@ -4736,9 +4736,14 @@ MODULE FciMCParMod
             WRITE(6,*) "Brillouin theorem specified, but this will not be in use with the non-uniform excitation generators."
         ENDIF
         WRITE(6,*) "Non-uniform excitation generators in use."
-        CALL CalcApproxpDoubles()
+        IF(tKPntSym) THEN
+            !Since we didn't calculate HFConn before, we calculate it in this routine and return it.
+            CALL CalcApproxpDoubles(HFConn)
+        ELSE
+            CALL CalcApproxpDoubles()
+        ENDIF
         IF(TauFactor.ne.0.D0) THEN
-            WRITE(6,*) "TauFactor detected. Resetting Tau."
+            WRITE(6,*) "TauFactor detected. Resetting Tau based on connectivity of: ",HFConn
             Tau=TauFactor/REAL(HFConn,dp)
             WRITE(6,*) "Tau set to: ",Tau
         ENDIF
@@ -5214,7 +5219,7 @@ MODULE FciMCParMod
 
     END SUBROUTINE BinSearchParts3
     
-    SUBROUTINE CalcApproxpDoubles()
+    SUBROUTINE CalcApproxpDoubles(HFConn)
         use SystemData , only : tAssumeSizeExcitgen,tUseBrillouin
         use CalcData , only : SinglesBias
         use SymData , only : SymClassSize
@@ -5223,6 +5228,7 @@ MODULE FciMCParMod
         integer :: nSing, nDoub, ncsf, excitcount, ierr, iExcit
         integer :: nStore(6), iMaxExcit, nExcitMemLen, nJ(nel)
         integer, allocatable :: EXCITGEN(:)
+        integer, intent(out), optional :: HFConn
         character(*), parameter :: this_routine = 'CalcApproxpDoubles'
         logical :: TempUseBrill
 
@@ -5289,6 +5295,7 @@ MODULE FciMCParMod
             CALL CountExcitations3(HFDet,exflag,nSing,nDoub)
         ENDIF
         iTotal=nSing + nDoub + ncsf
+        HFConn=iTotal
 
         WRITE(6,"(I7,A,I7,A)") NDoub, " double excitations, and ",NSing," single excitations found from HF. This will be used to calculate pDoubles."
 
