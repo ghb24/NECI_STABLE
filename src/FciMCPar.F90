@@ -18,7 +18,7 @@ MODULE FciMCParMod
     use bit_reps, only: NIfD, NIfTot, NIfDBO, NIfY, decode_bit_det, &
                         encode_bit_rep, encode_det, extract_bit_rep, &
                         test_flag, set_flag, extract_flags, &
-                        flag_is_initiator, clear_all_flags
+                        flag_is_initiator, clear_all_flags, set_flag_general
     use CalcData, only: InitWalkers, NMCyc, DiagSft, Tau, SftDamp, StepsSft, &
                         OccCASorbs, VirtCASorbs, tFindGroundDet, NEquilSteps,&
                         tReadPops, tRegenDiagHEls, iFullSpaceIter, MaxNoAtHF,&
@@ -4188,7 +4188,7 @@ MODULE FciMCParMod
 #endif
 
             if (tTruncInitiator .or. tDelayTruncInit) then
-               write(initiatorstats_unit,"(I12,4G16.7,i12.1,1F18.7,5F18.1)")&
+               write(initiatorstats_unit,"(I12,2I15,2G16.7,3F18.7)")&
                    Iter + PreviousCycles, AllNoAborted, AllNoAddedInitiators,&
                    real(AllNoInitDets) / real(AllNoNonInitDets), &
                    real(AllNoInitWalk) / real(AllNoNonInitWalk), &
@@ -4274,7 +4274,7 @@ MODULE FciMCParMod
             end if
             IF(tTruncInitiator.or.tDelayTruncInit) THEN
                 initiatorstats_unit = get_free_unit()
-                OPEN(initiatorstats_unit,file='INITIATORStats',status='unknown')
+                OPEN(initiatorstats_unit,file='INITIATORStats',status='unknown',form='formatted')
             ENDIF
             IF(tLogComplexPops) THEN
                 ComplexStats_unit = get_free_unit()
