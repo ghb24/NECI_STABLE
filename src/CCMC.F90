@@ -2391,6 +2391,7 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
       call MPIBCast(nAmpl,root)
       call CalcTotals(iNumExcitors,dTotAbsAmpl,AL%Amplitude(:,iCurAmpList),nAmpl,dTolerance*dInitAmplitude,WalkerScale,iRefPos,iOldTotParts,iDebug)
       iter_data_ccmc%update_growth = 0
+      iter_data_ccmc%tot_parts_old=TotParts
    endif
 
    CALL WriteFciMCStatsHeader()
