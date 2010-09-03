@@ -32,8 +32,8 @@ module bit_rep_data
     integer :: nIfSgn   ! Number of integers used for signs
 
     ! Flags which we can store
-    integer, parameter :: flag_is_initiator = 0, &
-                          flag_parent_initiator = 0 ! n.b. the same
+    integer, parameter :: flag_is_initiator(2) = (/0,1/), &
+                          flag_parent_initiator(2) = (/0,1/) ! n.b. the same
 
 
 contains
@@ -52,10 +52,12 @@ contains
         logical :: bSet
         integer :: off, ind
 
-        ind = NOffFlag + flg / bits_n_int
-        off = mod(flg, bits_n_int)
+        !Commented out code is for when we need multiple integers for storing flags (unlikely!)
+!        ind = NOffFlag + flg / bits_n_int
+!        off = mod(flg, bits_n_int)
 
-        bSet = btest(ilut(ind), off)
+!        bSet = btest(ilut(ind), off)
+        bSet = btest(ilut(NOffFlag), flg)
 
     end function test_flag
 

@@ -32,13 +32,13 @@ contains
          LOGICAL :: truncate_space,tDummy,tDummy2,tSoftExitFound
          LOGICAL :: tNotAllowed,tAcc
 
-         IF((.not.TwoCycleSymGens).and.(.not.tUEG).and.(.not.tHub)) THEN
-             WRITE(IUNIT,*) "Only for molecular abelian symmetry "      &
-            //" calculations can the exact size of the determinant "    &
-            //" space be calculated currently..."
-             WRITE(IUNIT,*) "Skipping size of space calculation..."
-             RETURN
-         ENDIF
+!         IF((.not.TwoCycleSymGens).and.(.not.tUEG).and.(.not.tHub)) THEN
+!             WRITE(IUNIT,*) "Only for molecular abelian symmetry "      &
+!            //" calculations can the exact size of the determinant "    &
+!            //" space be calculated currently..."
+!             WRITE(IUNIT,*) "Skipping size of space calculation..."
+!             RETURN
+!         ENDIF
 
          WRITE(IUNIT,*) "Calculating exact size of symmetry-allowed "   &
              //"determinant space using MC..."
@@ -380,13 +380,13 @@ contains
          REAL*8 :: Space,SpaceGrow
          LOGICAL :: Sym(0:7)
 
-         IF(.not.TwoCycleSymGens) THEN
-             WRITE(IUNIT,*) "Only for molecular abelian symmetry "      &
-            //" calculations can the exact size of the determinant "    &
-            //" space be calculated currently..."
-             WRITE(IUNIT,*) "Skipping size of space calculation..."
-             RETURN
-         ENDIF
+!         IF(.not.TwoCycleSymGens) THEN
+!             WRITE(IUNIT,*) "Only for molecular abelian symmetry "      &
+!            //" calculations can the exact size of the determinant "    &
+!            //" space be calculated currently..."
+!             WRITE(IUNIT,*) "Skipping size of space calculation..."
+!             RETURN
+!         ENDIF
 
          WRITE(IUNIT,*) "Calculating exact size of symmetry-allowed determinant space..."
          FDetSym=0
