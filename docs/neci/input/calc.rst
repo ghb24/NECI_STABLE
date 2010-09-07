@@ -568,8 +568,17 @@ The following options are applicable for both the **FCIMC** and **MCDETS** metho
 **INITWALKERS** [nWalkers]
     Default 3000.
 
-   Set the initial population of walkers.  
+   The shift is allowed to vary once the total number of walkers exceeds
+   nWalkers*nProcs.
+
+   If **STARTSINGLEPART** is negative, then the this is also the initial
+   population of walkers on the reference determinant.
+
    For CCMC Amplitude, this is the number of samples of the amplitude distribution taken each MC step
+
+**TOTALWALKERS** [nWalkers]
+    Equivalent to **INITWALKERS** but nWalkers is not multiplied by the number
+    of processors to set the varyshift target.
 
 **NMCYC** [NMCYC]
    Set the total number of timesteps to take.
@@ -683,8 +692,13 @@ The following options are only available in **FCIMC** calculations:
 **STARTSINGLEPART** [InitialPart]
     This will start the simulation with a single positive particle at the HF,
     and fix the shift at its initial value, until the number of particles gets
-    to the INITPARTICLES value. The optional integer argument can be used to 
+    to the **INITWALKERS** value. The optional integer argument can be used to 
     augment the number of walkers at the HF determinant.
+
+    If InitialPart is negative, then **INITWALKERS** is used to set the initial
+    number of particles on the reference determinant.
+
+    **STARTSINGLEPART** is ignored if **READPOPS** is specified.
 
 **RANDOMISEHASHORBS** [**OFF**]
     Default on
@@ -1035,7 +1049,9 @@ INITIATOR OPTIONS
     determinant both from inside and outside the active space - in this case we treat the active space to have 
     spawned a second earlier, the determinant is then treated as occupied and the non-active space walkers are 
     allowed to live (providing they are the same sign of course).
-    NOTE: This is currently only possible using **DIRECTANNIHILATION**.
+    NOTE: This is currently only possible using **DIRECTANNIHILATION**.a
+    This also functions for **CCMC** **PARTICLE** using the **ADDTOINITIATOR** keyword, with the HF determinant
+    being the initial initiator space.
 
 **DELAYTRUNCINITIATOR** [IterTruncInit]
     This goes with the above.  This allows us to first start with an active space only calculation and then at some
@@ -1137,6 +1153,11 @@ The following option are only available in **MCSTAR** calculations:
       For CCMC, if this is set, we calculate the projected energy exactly by considering all possible combinations of singles
    amplitudes to form doubles.  This is an O((# singles)^2) per cycle and can become very slow for large systems.
       If this is not set, then we sample the projected energy from every cluster we generate.
+
+**CCMCSHAREDEXCITORS**
+
+      For CCMC if this is set then share the excitor list among all processors on a node.  This will only currently
+   work for jobs on a single node.
 
 **SPAWNPROP**
    For Amplitude CCMC use NSPAWNINGS as a total number of spawnings, and distribute them according to the Amplitudes of clusters.

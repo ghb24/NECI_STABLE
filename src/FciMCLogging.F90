@@ -17,7 +17,6 @@ MODULE FciMCLoggingMod
     IMPLICIT NONE
     save
 
-    INTEGER , PARAMETER :: Root=0   !This is the rank of the root processor
     REAL*8 :: NoNotAccept,NoAccept,TotHElNotAccept,TotHElAccept,MaxHElNotAccept,MinHElAccept
     REAL*8 :: NoPosSpinCoup,NoNegSpinCoup,SumPosSpinCoup,SumNegSpinCoup,SumHFCon,SumSpinCon,InitBinMin,InitBinIter,InitBinMax
 

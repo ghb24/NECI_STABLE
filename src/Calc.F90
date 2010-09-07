@@ -16,7 +16,7 @@ MODULE Calc
     use IntegralsData, only: tNeedsVirts
     use CCMCData, only: dInitAmplitude, dProbSelNewExcitor, nSpawnings, &
                         tSpawnProp, nClustSelections, tExactEnergy,     &
-                        dClustSelectionRatio
+                        dClustSelectionRatio,tSharedExcitors
 
     implicit none
 
@@ -67,7 +67,7 @@ contains
           MemoryFacPart=10.D0
           MemoryFacAnnihil=10.D0
           MemoryFacSpawn=0.5
-          TStartSinglePart=.false.
+          TStartSinglePart=.true.
           TFixParticleSign=.false.
           TProjEMP2=.false.
           THFRetBias=.false.
@@ -101,6 +101,7 @@ contains
           nClustSelections=1
           dClustSelectionRatio=1
           tExactEnergy=.false.
+          tSharedExcitors=.false.
           tSpawnProp=.false.
           NMCyc=2000
           DiagSft=0.D0
@@ -192,7 +193,7 @@ contains
           tDefineDet=.false.
           tTruncInitiator=.false.
           tDelayTruncInit=.false.
-          tKeepDoubleSpawns=.false.
+!          tKeepDoubleSpawns=.false.
           tAddtoInitiator=.false.
           tRetestAddtoInit=.true.
           InitiatorWalkNo=10
@@ -236,7 +237,7 @@ contains
           use IntegralsData, only: tNeedsVirts,NFROZEN
           use UMatCache, only: gen2CPMDInts
           use CCMCData, only: dInitAmplitude,dProbSelNewExcitor,nSpawnings,tSpawnProp,nClustSelections
-          use CCMCData, only: tExactEnergy
+          use CCMCData, only: tExactEnergy,tSharedExcitors
           use global_utilities
           use Parallel, only : nProcessors
           use Logging, only: tLogDets
@@ -770,6 +771,8 @@ contains
                 call getf(dClustSelectionRatio)
             case("CCMCEXACTENERGY")
                tExactEnergy=.true.
+            case("CCMCSHAREDEXCITORS")
+               tSharedExcitors=.true.
             case("SPAWNPROP")
 !For Amplitude CCMC use NSPAWNINGS as a total number of spawnings, and distribute them according to the Amplitudes of clusters.
                tSpawnProp=.true.
@@ -933,6 +936,11 @@ contains
                 IF(item.lt.nitems) THEN
                     !If an optional integer keyword is added, then InitialPart will indicate the number of particles to start at the HF determinant.
                     call readi(InitialPart)
+                    if (InitialPart < 0) then
+                        ! Turn StartSinglePart off.
+                        tStartSinglePart = .false.
+                        InitialPart = 1
+                    end if
                 ENDIF
             case("MEMORYFACPART")
 !An FCIMC option - MemoryFac is the factor by which space will be made available for extra walkers compared to InitWalkers
@@ -1006,7 +1014,8 @@ contains
             case("KEEPDOUBSPAWNS")
 !This means that two sets of walkers spawned on the same determinant with the same sign will live, whether they've come from inside or outside the CAS space.  Before, if both of these
 !were from outside the space, they would've been aborted.
-                tKeepDoubleSpawns=.true.
+!                tKeepDoubleSpawns=.true.
+!This option is now on permanently by default and cannot be turned off.
 
             case("ADDTOINITIATOR")
 !This option means that if a determinant outside the initiator space becomes significantly populated - it is essentially added to the initiator space and is allowed to spawn where it likes.

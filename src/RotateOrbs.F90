@@ -19,7 +19,6 @@ MODULE RotateOrbsMod
     USE RotateOrbsData 
     use sort_mod
     IMPLICIT NONE
-    INTEGER , PARAMETER :: Root=0   !This is the rank of the root processor
     INTEGER , ALLOCATABLE :: Lab(:,:),LabVirtOrbs(:),LabOccOrbs(:),SymLabelList3Inv(:)
     REAL*8 , ALLOCATABLE :: CoeffCorT2(:,:),CoeffUncorT2(:,:)
     REAL*8 , ALLOCATABLE :: Lambdas(:,:),ArrNew(:,:),ArrDiagNew(:),TMAT2DTemp(:,:),TMAT2DRot(:,:),TMAT2DPartRot01(:,:),TMAT2DPartRot02(:,:)

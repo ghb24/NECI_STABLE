@@ -29,16 +29,16 @@ contains
          INTEGER*8 :: ExcitBin(0:NEl),ExcitBinAll(0:NEl)
          REAL*8 :: FullSpace,r,Frac
          REAL*8 :: SizeLevel(0:NEl) 
-         LOGICAL :: tTruncSpace,tDummy,tDummy2,tSoftExitFound
+         LOGICAL :: truncate_space,tDummy,tDummy2,tSoftExitFound
          LOGICAL :: tNotAllowed,tAcc
 
-         IF((.not.TwoCycleSymGens).and.(.not.tUEG).and.(.not.tHub)) THEN
-             WRITE(IUNIT,*) "Only for molecular abelian symmetry "      &
-            //" calculations can the exact size of the determinant "    &
-            //" space be calculated currently..."
-             WRITE(IUNIT,*) "Skipping size of space calculation..."
-             RETURN
-         ENDIF
+!         IF((.not.TwoCycleSymGens).and.(.not.tUEG).and.(.not.tHub)) THEN
+!             WRITE(IUNIT,*) "Only for molecular abelian symmetry "      &
+!            //" calculations can the exact size of the determinant "    &
+!            //" space be calculated currently..."
+!             WRITE(IUNIT,*) "Skipping size of space calculation..."
+!             RETURN
+!         ENDIF
 
          WRITE(IUNIT,*) "Calculating exact size of symmetry-allowed "   &
              //"determinant space using MC..."
@@ -55,9 +55,9 @@ contains
          enddo
 
          IF(ICILevel.gt.0) THEN
-             tTruncSpace=.true.
+             truncate_space=.true.
          ELSE
-             tTruncSpace=.false.
+             truncate_space=.false.
          ENDIF
 
          CALL EncodeBitDet(FDet,FDetiLut)
@@ -186,7 +186,7 @@ contains
                      IF(IsAllowedHPHF(NEl,iLut)) THEN
                          IF(tFixLz) THEN
                              IF(TotalMom.eq.FDetMom) THEN
-                                 IF(tTruncSpace) THEN
+                                 IF(truncate_space) THEN
                                      IF(ExcitLev.le.ICILevel) THEN
                                          Accept=Accept+1
                                          tAcc=.true.
@@ -197,7 +197,7 @@ contains
                                  ENDIF
                              ENDIF
                          ELSE
-                             IF(tTruncSpace) THEN
+                             IF(truncate_space) THEN
                                  IF(ExcitLev.le.ICILevel) THEN
                                      IF(tUEG.or.tHub) THEN
                                          IF((Momx.eq.0).and.(Momy.eq.0).and.(Momz.eq.0)) THEN 
@@ -225,7 +225,7 @@ contains
                  ELSE
                      IF(tFixLz) THEN
                          IF(TotalMom.eq.FDetMom) THEN
-                             IF(tTruncSpace) THEN
+                             IF(truncate_space) THEN
                                  IF(ExcitLev.le.ICILevel) THEN
                                      Accept=Accept+1
                                      tAcc=.true.
@@ -236,7 +236,7 @@ contains
                              ENDIF
                          ENDIF
                      ELSE
-                         IF(tTruncSpace) THEN
+                         IF(truncate_space) THEN
                              IF(ExcitLev.le.ICILevel) THEN
                                  IF(tUEG.or.tHub) THEN
                                      IF((Momx.eq.0).and.(Momy.eq.0).and.(Momz.eq.0)) THEN
@@ -380,13 +380,13 @@ contains
          REAL*8 :: Space,SpaceGrow
          LOGICAL :: Sym(0:7)
 
-         IF(.not.TwoCycleSymGens) THEN
-             WRITE(IUNIT,*) "Only for molecular abelian symmetry "      &
-            //" calculations can the exact size of the determinant "    &
-            //" space be calculated currently..."
-             WRITE(IUNIT,*) "Skipping size of space calculation..."
-             RETURN
-         ENDIF
+!         IF(.not.TwoCycleSymGens) THEN
+!             WRITE(IUNIT,*) "Only for molecular abelian symmetry "      &
+!            //" calculations can the exact size of the determinant "    &
+!            //" space be calculated currently..."
+!             WRITE(IUNIT,*) "Skipping size of space calculation..."
+!             RETURN
+!         ENDIF
 
          WRITE(IUNIT,*) "Calculating exact size of symmetry-allowed determinant space..."
          FDetSym=0

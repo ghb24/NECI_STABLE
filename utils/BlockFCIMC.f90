@@ -30,6 +30,7 @@ PROGRAM BlkFCIMC
 
       READ(11,*) FirstLineRubbish
       READ(11,*) FirstLineRubbish
+      READ(11,*) FirstLineRubbish
 
 !Cunning trick to calculate the number of fields in the FCIMCStats file, to tell us how up-to-date it is
       READ(11,"(A)") Line
@@ -61,6 +62,7 @@ PROGRAM BlkFCIMC
       ENDIF
 
       REWIND(11)
+      READ(11,*) FirstLineRubbish
       READ(11,*) FirstLineRubbish
       READ(11,*) FirstLineRubbish
     
@@ -107,6 +109,7 @@ PROGRAM BlkFCIMC
 
 !Reread in data to fill arrays
       REWIND(11)
+      READ(11,*) FirstLineRubbish
       READ(11,*) FirstLineRubbish
       READ(11,*) FirstLineRubbish
       i=0

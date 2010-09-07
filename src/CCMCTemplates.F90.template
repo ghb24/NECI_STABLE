@@ -18,6 +18,7 @@ module ClusterList
    use constants, only: dp, int32, n_int
    use bit_rep_data, only: NIfDBO,NIfD,NIfTot
    use CCMCData, only: ExcitToDetSign,AddBitExcitor
+   use Parallel
    implicit none
 
    type AmplitudeList_%(name)s
@@ -171,6 +172,29 @@ SUBROUTINE GetNextNonZeroExcitor (Pos,List,iMax)
       Pos=Pos+1
    enddo
 END SUBROUTINE !GetNextNonZeroExcitor 
+
+!Writes out a compressed excitor list where signs are contained within the Particles and whose values are >=dTol
+subroutine WriteExcitorListP(iUnit,Dets,offset,nDet,dTol,Title)
+   use FciMCParMod, only: iLutHF
+   use bit_reps, only: extract_sign,extract_flags
+   IMPLICIT NONE
+   INTEGER iUnit,nDet
+   INTEGER(KIND=n_int) Dets(0:nIfTot,nDet)
+   %(type1)s dTol
+   CHARACTER(len=*) Title
+   INTEGER j,offset
+   INTEGER, dimension(lenof_sign) :: Amp
+   write(6,*) Title
+   do j=1,nDet
+      call extract_sign(Dets(:,j),Amp)
+      if(abs(Amp(1)).ge.dTol) THEN
+         write(iUnit,'(I7,G17.9," ")',advance='no') j+offset,Amp(1)
+         call WriteBitEx(iUnit,iLutHF,Dets(:,j),.false.)
+         write(iUnit,'(I7)') extract_flags(Dets(:,j))
+      ENDIF
+   enddo
+end subroutine !WriteExcitorListP
+
 !Writes out an excitor list of reals whose values are >=dTol
 subroutine WriteExcitorList (iUnit,Amplitude,Dets,offset,nDet,dTol,Title)
    use FciMCParMod, only: iLutHF
@@ -184,7 +208,7 @@ subroutine WriteExcitorList (iUnit,Amplitude,Dets,offset,nDet,dTol,Title)
    do j=1,nDet
       if(abs(Amplitude(j)).ge.dTol) THEN
          write(iUnit,'(I7,G17.9," ")',advance='no') j+offset,Amplitude(j)
-         call WriteBitEx(6,iLutHF,Dets(:,j),.true.)
+         call WriteBitEx(iUnit,iLutHF,Dets(:,j),.true.)
       ENDIF
    enddo
 end subroutine !WriteExcitorList
@@ -201,7 +225,6 @@ end subroutine !WriteExcitorList
 
 SUBROUTINE CalcClusterEnergy (tFCI,Amplitude,nExcit,ExcitList,ExcitLevelIndex,iRefPos,iDebug,ProjE)
    use Parallel, only: iProcIndex
-   use FciMCData, only: root
    use SystemData, only: nEl
    use FciMCData, only: HFDet
    use FciMCParMod, only: iLutHF,SumEContrib
@@ -283,7 +306,7 @@ SUBROUTINE CalcClusterEnergy (tFCI,Amplitude,nExcit,ExcitList,ExcitLevelIndex,iR
       endif
    enddo
 !   write(6,*) "T1Sq:",dT1Sq
-   ProjE=ENumCyc/(HFCyc+0.d0)
+   ProjE=ENumCyc/(HFCyc(1)+0.d0)
 END SUBROUTINE !CalcClusterEnergy
 
 !This runs over all singles and doubles in the list of excitors and calls SumEContrib for them appropriately to give the projected energy.  The excitor list need not be sorted.
@@ -296,7 +319,6 @@ END SUBROUTINE !CalcClusterEnergy
 
 SUBROUTINE CalcClusterEnergyUnsrt (tFCI,Amplitude,nExcit,ExcitList,iRefPos,ProjE)
    use Parallel, only: iProcIndex
-   use FciMCData, only: root
    use CCMCData
    use SystemData, only: nEl
    use FciMCData, only: HFDet
@@ -358,7 +380,7 @@ SUBROUTINE CalcClusterEnergyUnsrt (tFCI,Amplitude,nExcit,ExcitList,iRefPos,ProjE
       endif
    enddo
 !   write(6,*) "T1Sq:",dT1Sq
-   ProjE=ENumCyc/(HFCyc+0.d0)
+   ProjE=ENumCyc/(HFCyc(1)+0.d0)
 END SUBROUTINE !CalcClusterEnergyUnsrt
 
 
@@ -418,9 +440,9 @@ FUNCTION GetNextCluster (CS,Dets,nDet,AL,iCurAmpList,dTotAbsAmpl,iMaxSizeIn,iDeb
    IMPLICIT NONE
    TYPE(ClustSelector) CS
    INTEGER nDet
-   TYPE(AmplitudeList_%(name)s) AL
+   TYPE(AmplitudeList_%(name)s), intent(in) :: AL
    %(type1)s rt
-   INTEGER(KIND=n_int) Dets(0:nIfTot,nDet)
+   INTEGER(KIND=n_int), intent(in) :: Dets(0:nIfTot,nDet)
    REAL*8 dTotAbsAmpl
    INTEGER iDebug,iMaxSizeIn,iCurAmpList
 
@@ -434,10 +456,11 @@ FUNCTION GetNextCluster (CS,Dets,nDet,AL,iCurAmpList,dTotAbsAmpl,iMaxSizeIn,iDeb
 !   CCMC_time%%timer_name="GetNextCluster"
 !   call set_timer(CCMC_time,20)
 
+   CS%%C%%initFlag=0  !This indicates it's going to be an initiator, but we can change that later by looking at the populations.
    if(CS%%tDynamic.and.CS%%iIndex.eq.0) then
       CS%%nSelects=(dTotAbsAmpl+abs(AL%%Amplitude(CS%%iRefPos,iCurAmpList)))/nProcessors+1
       CS%%nSelects=nint(CS%%nSelects*CS%%dRatio)
-      IFDEBUG(iDebug,4) write(6,*) "Setting #Selectons: ",CS%%nSelects
+      IF(iDebug>2) write(6,*) "Setting #Selections: ",CS%%nSelects
    endif
    GetNextCluster=.true.
    iMaxSize=min(iMaxSizeIn,CS%%iMaxSize)
@@ -488,6 +511,7 @@ FUNCTION GetNextCluster (CS,Dets,nDet,AL,iCurAmpList,dTotAbsAmpl,iMaxSizeIn,iDeb
                CS%%C%%SelectedExcitors(:,i)=Dets(:,CS%%C%%SelectedExcitorIndices(i))
                CS%%C%%dAbsAmplitude=CS%%C%%dAbsAmplitude*abs(AL%%Amplitude(CS%%C%%SelectedExcitorIndices(i),iCurAmpList))/abs(AL%%Amplitude(CS%%iRefPos,iCurAmpList))
 !               WRITE(6,*) i,CS%%C%%dAbsAmplitude
+               if(abs(AL%%Amplitude(CS%%C%%SelectedExcitorIndices(i),iCurAmpList))<CS%%dInitiatorThresh) CS%%C%%initFlag=1
             enddo
          endif
          if(CS%%C%%dAbsAmplitude.ne.0) exit
@@ -503,7 +527,7 @@ FUNCTION GetNextCluster (CS,Dets,nDet,AL,iCurAmpList,dTotAbsAmpl,iMaxSizeIn,iDeb
          CS%%C%%dClusterProb=1
          CS%%C%%dAbsAmplitude=abs(AL%%Amplitude(CS%%iRefPos,iCurAmpList))
          CS%%C%%dClusterNorm=1
-         IFDEBUG(iDebug,6) Write(6,*) "Generating New Cluster.  Max size ",iMaxSize
+         IFDEBUG(iDebug,5) Write(6,*) "Generating New Cluster.  Max size ",iMaxSize
          do i=1,iMaxSize
    ! Calculate the probability that we've reached this far in the loop
                      !We must have at least one excitor, so we cannot exit here.
@@ -554,6 +578,7 @@ FUNCTION GetNextCluster (CS,Dets,nDet,AL,iCurAmpList,dTotAbsAmpl,iMaxSizeIn,iDeb
             CS%%C%%SelectedExcitorIndices(i)=k
             CS%%C%%SelectedExcitors(:,i)=Dets(:,k)
             CS%%C%%dAbsAmplitude=CS%%C%%dAbsAmplitude*abs(AL%%Amplitude(k,iCurAmpList))/abs(AL%%Amplitude(CS%%iRefPos,iCurAmpList))  !For each new excit added to the composite, we multiply up to count the number of ways we could've generated it.
+            if(abs(AL%%Amplitude(CS%%C%%SelectedExcitorIndices(i),iCurAmpList))<CS%%dInitiatorThresh) CS%%C%%initFlag=1
             CS%%C%%dClusterProb=CS%%C%%dClusterProb*i*abs(AL%%Amplitude(k,iCurAmpList))/dTotAbsAmpl  !For each new excit added to the composite, we multiply up to count the number of ways we could've generated it.
    !ClusterProb is used for DEATH
 
@@ -595,6 +620,20 @@ FUNCTION GetNextCluster (CS,Dets,nDet,AL,iCurAmpList,dTotAbsAmpl,iMaxSizeIn,iDeb
 !/CS%%C%%dSelectionNorm
       endif
    endif
+   if(CS%%C%%iSize==0) CS%%C%%initFlag=0  !The reference is always an initiator
+   IFDEBUG(iDebug,4) then
+      if(GetNextCluster) then
+         write(6,*) "Selection ",CS%%iIndex
+         WRITE(6,*) " Excitors in composite:", CS%%C%%iSize
+         do i=1,CS%%C%%iSize
+            call WriteBitEx(6,Dets(:,CS%%iRefPos),CS%%C%%SelectedExcitors(:,i),.true.)
+         enddo
+         Write(6,"(A,G25.17)") "   Select Prob given level: ",CS%%C%%dClusterProb
+         Write(6,"(A,G25.17)") "   Prob norm              : ",CS%%C%%dProbNorm
+         Write(6,"(A,G25.17)") "   Cluster norm           : ",CS%%C%%dClusterNorm
+         Write(6,"(A,G25.17)") "   InitiatorFlag          : ",CS%%C%%initFlag
+      endif
+   endif
 !   call halt_timer(CCMC_time)
 END FUNCTION !GetNextCluster
 
@@ -610,7 +649,7 @@ SUBROUTINE CollapseCluster (C,iLutHF,Amplitude,nDet,iDebug,tExToDet)
    IMPLICIT NONE
    TYPE(Cluster) C
    INTEGER(KIND=n_int) :: iLutHF(0:nIfTot)
-   %(type1)s Amplitude(1:nDet)
+   %(type1)s, intent(in) :: Amplitude(:)
    INTEGER nDet
    INTEGER iDebug
    LOGICAL tExToDet
@@ -653,9 +692,8 @@ SUBROUTINE CollapseCluster (C,iLutHF,Amplitude,nDet,iDebug,tExToDet)
 END SUBROUTINE !CollapseCluster
 
 !Calculate the total cluster amplitude as well as the magnitude of the e^T.
-subroutine CalcTotals (iNumExcitors,dTotAbsAmpl,Amplitude,nAmpl,dTol,WalkerScale,iRefPos,iOldTotWalkers,iDebug)
+subroutine CalcTotals (iNumExcitors,dTotAbsAmpl,Amplitude,nAmpl,dTol,WalkerScale,iRefPos,iOldTotParts,iDebug)
    use Parallel, only: iProcIndex
-   use FciMCData, only: root
    use CCMCData, only: tCCMCFCI
    use FciMCData, only: TotParts,TotWalkers,NoatHF,NoatDoubs
    use FciMCParMod, only: iter_data_ccmc
@@ -663,11 +701,11 @@ subroutine CalcTotals (iNumExcitors,dTotAbsAmpl,Amplitude,nAmpl,dTol,WalkerScale
    implicit none
    integer iNumExcitors,nAmpl
    real*8 dTotAbsAmpl,dTol
-   %(type1)s Amplitude(nAmpl)
+   %(type1)s, intent(in) :: Amplitude(:)
    integer iDebug
    real*8 WalkerScale
    integer iRefPos
-   integer iOldTotWalkers
+   integer iOldTotParts
 
    integer i,j
    real*8 dPsiTotAbsAmpl,dTmp
@@ -716,18 +754,25 @@ subroutine CalcTotals (iNumExcitors,dTotAbsAmpl,Amplitude,nAmpl,dTol,WalkerScale
    endif
    IFDEBUG(iDebug,3) WRITE(6,"(A,I5,A,I5)") "Finished calculating total cluster amplitude at level ",i-1,"/",iNumExcitors
    IFDEBUG(iDebug,2) WRITE(6,*) "Total cluster amplitude: ",dPsiTotAbsAmpl
-   TotParts=dTotExcitors*WalkerScale
+   TotParts=0
+   TotParts(1)=dTotExcitors*WalkerScale !TotParts indicates the total number of excitors
    
    if(iProcIndex.eq.root) then 
-      TotWalkers=dTotExcitors*WalkerScale 
+      TotWalkers=iNumExcitors+1  !TotWalkers indicates the total number of unique excitors with a population
    else
       TotWalkers=0
    endif
-   iter_data_ccmc%%update_growth=iter_data_ccmc%%update_growth+TotWalkers-iOldTotWalkers
-   iOldTotWalkers=TotWalkers
+   if(iProcIndex==root) then
+      iter_data_ccmc%%update_growth=iter_data_ccmc%%update_growth+TotParts-iOldTotParts
+      iOldTotParts=TotParts(1)
+   else
+      iter_data_ccmc%%update_growth=0
+      iOldTotParts=0
+   endif
 !   write(6,*) "update growth",iter_data_ccmc%%update_growth
    iter_data_ccmc%%update_iters=iter_data_ccmc%%update_iters+1
-   IFDEBUG(iDebug,2) WRITE(6,*) "Total walkers", TotWalkers
+   IFDEBUG(iDebug,2) WRITE(6,*) "Total unique excitors", TotWalkers
+   IFDEBUG(iDebug,2) WRITE(6,*) "Total excitors", TotWalkers
 !   call halt_timer(CCMC_time)
 end subroutine !CalcTotals
 

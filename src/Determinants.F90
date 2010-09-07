@@ -3,7 +3,7 @@ MODULE Determinants
     use constants, only: dp
     use SystemData, only: BasisFN, tCSF, nel, G1, Brr, ECore, ALat, NMSH, &
                           nBasis, nBasisMax, tStoreAsExcitations, tHPHFInts, &
-                          tCSF
+                          tCSF, tCPMD
     use IntegralsData, only: UMat, FCK, NMAX
     use csf, only: det_to_random_csf, iscsf, csf_orbital_mask, &
                    csf_yama_bit, CSFGetHelement
@@ -212,19 +212,27 @@ contains
                 ENDIF
             enddo
         ENDIF
-        IF(.not.tSuccess) THEN
-            WRITE(6,*) "************************************************"
-            WRITE(6,*) "**                 WARNING!!!                 **"
-            WRITE(6,*) "************************************************"
-            WRITE(6,*) "Symmetry information not set up correctly in NECI initialisation"
-            WRITE(6,*) "Will attempt to set up the symmetry again, but now in terms of spin orbitals"
-            WRITE(6,*) "Old excitation generators will not work"
-            WRITE(6,*) "I strongly suggest you check that the reference energy is correct."
-            CALL SpinOrbSymSetup() !.true.) 
-        ELSE
-            WRITE(6,*) "Symmetry and spin of orbitals correctly set up for excitation generators."
-            WRITE(6,*) "Simply transferring this into a spin orbital representation."
-            CALL SpinOrbSymSetup() !.false.) 
+        ! SpinOrbSymSetup currently sets up the symmetry arrays for use with
+        ! symrandexcit2 excitation routines. These are not currently
+        ! compatible with non-abelian symmetry groups, which CPMD jobs
+        ! invariably used. To avoid this complication, this symmetry
+        ! setup will not be used with CPMD, and thus these excitation 
+        ! generators won't work.
+        IF(.not.tCPMD) THEN
+            IF(.not.tSuccess) THEN
+                WRITE(6,*) "************************************************"
+                WRITE(6,*) "**                 WARNING!!!                 **"
+                WRITE(6,*) "************************************************"
+                WRITE(6,*) "Symmetry information not set up correctly in NECI initialisation"
+                WRITE(6,*) "Will attempt to set up the symmetry again, but now in terms of spin orbitals"
+                WRITE(6,*) "Old excitation generators will not work"
+                WRITE(6,*) "I strongly suggest you check that the reference energy is correct."
+                CALL SpinOrbSymSetup() !.true.) 
+            ELSE
+                WRITE(6,*) "Symmetry and spin of orbitals correctly set up for excitation generators."
+                WRITE(6,*) "Simply transferring this into a spin orbital representation."
+                CALL SpinOrbSymSetup() !.false.) 
+            ENDIF
         ENDIF
 ! From now on, the orbitals are also contained in symlabellist2 and symlabelcounts2.
 ! These are stored using spin orbitals.
@@ -381,7 +389,7 @@ contains
     end function get_helement_excit
 
     function get_helement_det_only (nI, nJ, iLutI, iLutJ, ic, ex, tParity, &
-                                    prob) result (hel)
+                                    HElGen) result (hel)
         
         ! Calculate the Hamiltonian Matrix Element for a determinant as above.
         ! This function assumes that we have got it correct for determinants
@@ -399,12 +407,12 @@ contains
         integer, intent(in) :: nI(nel), nJ(nel), ic, ex(2,2)
         integer(kind=n_int), intent(in) :: iLutI(0:NIfTot), iLutJ(0:NIfTot)
         logical, intent(in) :: tParity
-        real(dp), intent(in) :: prob
         HElement_t :: hel
+        HElement_t , intent(in) :: HElGen    !Not used - here for compatibility with other interfaces.
 
         ! Eliminate compiler warnings
-        real(dp) :: rUnused; integer(n_int) :: iUnused; integer :: iUnused2
-        rUnused=prob; iUnused=iLutJ(1); iUnused=iLutI(1); iUnused2=nJ(1)
+        integer(n_int) :: iUnused; integer :: iUnused2
+        iUnused=iLutJ(1); iUnused=iLutI(1); iUnused2=nJ(1)
 
         hel = sltcnd_excit (nI, IC, ex, tParity)
 
@@ -431,6 +439,25 @@ contains
 
       Subroutine DetCleanup()
       End Subroutine DetCleanup
+   
+    subroutine write_bit_rep(iUnit, iLut, lTerm)
+       use bit_reps
+       implicit none
+       integer iUnit
+       logical lTerm 
+       integer(n_int), intent(in) :: iLut(0:NIfTot)
+       integer :: nI(nel), flags,i
+       integer, dimension(lenof_sign) :: sgn
+       call extract_bit_rep(iLut,nI,sgn,flags)
+       call write_det(iUnit,nI,.false.)
+       write(iUnit,"(A)",advance='no') "("
+       do i=1,lenof_sign
+          write(iUnit,"(I7)",advance='no') sgn(i)
+          if(i/=lenof_sign) write(iUnit,"(A)",advance='no') ","
+       enddo
+       write(iUnit,"(A,I5)", advance='no') ") ",flags
+       if(lTerm) write(iUnit,*)
+    end subroutine write_bit_rep
 END MODULE Determinants
 
       subroutine GetH0Element(nI,nEl,Arr,nBasis,ECore,hEl)

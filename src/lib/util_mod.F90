@@ -1,7 +1,7 @@
 module util_mod
     use util_mod_comparisons
     use util_mod_cpts
-    use constants, only: dp
+    use constants, only: dp, lenof_sign
     implicit none
 
     ! sds: It would be nice to use a proper private/public interface here,
@@ -15,6 +15,28 @@ module util_mod
 !    public :: append_ext, get_unique_filename, get_nan, isnan
     
 contains
+
+!routine to calculation the absolute magnitude of a complex integer variable (to nearest integer)
+    pure integer function abs_int_sign(wsign)
+        integer, dimension(lenof_sign), intent(in) :: wsign
+
+        if(lenof_sign.eq.1) then
+            abs_int_sign=wsign(1)
+        else
+            abs_int_sign=nint(sqrt(real(wsign(1),dp)**2+real(wsign(2),dp)**2),int32)
+        endif
+    end function abs_int_sign
+
+!routine to calculation the absolute magnitude of a complex integer*8 variable (to nearest integer)
+    pure integer(kind=int64) function abs_int8_sign(wsign)
+        integer(kind=int64), dimension(lenof_sign), intent(in) :: wsign
+
+        if(lenof_sign.eq.1) then
+            abs_int8_sign=wsign(1)
+        else
+            abs_int8_sign=nint(sqrt(real(wsign(1),dp)**2+real(wsign(2),dp)**2),int64)
+        endif
+    end function abs_int8_sign
 
 !--- Array utilities ---
 
