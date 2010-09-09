@@ -4596,21 +4596,53 @@ MODULE FciMCParMod
         use CalcData , only : InitialPart
         use CalcData , only : MemoryFacPart,MemoryFacAnnihil,MemoryFacSpawn
         use constants , only : size_n_int
-        INTEGER :: ierr
-        INTEGER :: error,MemoryAlloc
+        INTEGER :: ierr,iunithead
+        LOGICAL :: formpops,binpops
+        INTEGER :: error,MemoryAlloc,PopsVersion,WalkerListSize
         INTEGER, DIMENSION(lenof_sign) :: InitialSign
         CHARACTER(len=*), PARAMETER :: this_routine='InitFCIMCPar'
-            
-        if (tReadPops .and. .not. tPopsAlreadyRead) then
+        integer :: ReadBatch    !This parameter determines the length of the array to batch read in walkers from a popsfile
+        !Variables from popsfile header...
+        logical :: tPop64Bit,tPopHPHF,tPopLz
+        integer :: iPopLenof_sign,iPopNel,iPopIter,PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot
+        integer(8) :: iPopAllTotWalkers
+        real(8) :: PopDiagSft
+        integer(8) , dimension(lenof_sign) :: PopSumNoatHF
+        HElement_t :: PopAllSumENum
+
+        if(tReadPops.and..not.tPopsAlreadyRead) then
+            call open_pops_head(iunithead,formpops,binpops)
+            PopsVersion=FindPopsfileVersion(iunithead)
+            if(iProcIndex.eq.root) close(iunithead)
+            write(6,*) "POPSFILE VERSION ",PopsVersion," detected."
+        endif
+
+        if (tReadPops .and. (PopsVersion.lt.3) .and..not.tPopsAlreadyRead) then
 !Read in particles from multiple POPSFILES for each processor
-            WRITE(6,*) "Reading in initial particle configuration from POPSFILES..."
+            WRITE(6,*) "Reading in initial particle configuration from *OLD* POPSFILES..."
             CALL ReadFromPopsFilePar()
         ELSE
 !initialise the particle positions - start at HF with positive sign
 !Set the maximum number of walkers allowed
-            MaxWalkersPart=NINT(MemoryFacPart*InitWalkers)
+            if(tReadPops.and..not.tPopsAlreadyRead) then
+                !We must have a v.3 popsfile. Read header.
+                call open_pops_head(iunithead,formpops,binpops)
+                call ReadPopsHeadv3(iunithead,tPop64Bit,tPopHPHF,tPopLz,iPopLenof_Sign,iPopNel, &
+                        iPopAllTotWalkers,PopDiagSft,PopSumNoatHF,PopAllSumENum,iPopIter,   &
+                        PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot)
+
+                call CheckPopsParams(tPop64Bit,tPopHPHF,tPopLz,iPopLenof_Sign,iPopNel, &
+                        iPopAllTotWalkers,PopDiagSft,PopSumNoatHF,PopAllSumENum,iPopIter,   &
+                        PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot,WalkerListSize)
+
+                if(iProcIndex.eq.root) close(iunithead)
+            else
+                WalkerListSize=InitWalkers
+            endif
+
+            MaxWalkersPart=NINT(MemoryFacPart*WalkerListSize)
             WRITE(6,"(A,I14)") " Memory allocated for a maximum particle number per node of: ",MaxWalkersPart
-            MaxSpawned=NINT(MemoryFacSpawn*InitWalkers)
+            MaxSpawned=NINT(MemoryFacSpawn*WalkerListSize)
 !            WRITE(6,"(A,I14)") "Memory allocated for a maximum particle number per node for spawning of: ",MaxSpawned
 
 !Put a barrier here so all processes synchronise
@@ -4657,75 +4689,106 @@ MODULE FciMCParMod
             TotParts(:)=0
             TotPartsOld(:)=0
             NoatHF=0
-!            AllTotPartsOld(:)=1     !So that the first update gives a meaningful number
 
-!Setup initial walker local variables
-            IF(iProcIndex.eq.iHFProc) THEN
+!If we have a popsfile, read the walkers in now.
+            if(tReadPops.and..not.tPopsAlreadyRead) then
 
-                ! Encode the reference determinant identification.
-                call encode_det(CurrentDets(:,1), iLutHF)
+                ReadBatch=MaxSpawned    !ReadBatch is the number of walkers to read in from the popsfile at one time.
+                                        !The larger it is, the fewer communications will be needed to scatter the particles.
+                                        !By default, the new array (which is only created on the root processors) is the
+                                        !same length as the spawning arrays.
 
-                ! Clear the flags
-                call clear_all_flags (CurrentDets(:,1))
+                !TotWalkers and TotParts are returned as the dets and parts on each processor.
+                call ReadFromPopsfilev3(iPopAllTotWalkers,ReadBatch,TotWalkers,TotParts,NoatHF)
 
-                ! Set reference determinant as an initiator if
-                ! tTruncInitiator is set, for both imaginary and real flags
-                if (tTruncInitiator) then
-                    call set_flag (CurrentDets(:,1), flag_is_initiator(1))
-                    call set_flag (CurrentDets(:,1), flag_is_initiator(2))
+                !Setup global variables
+                TotWalkersOld=TotWalkers
+                TotPartsOld = TotParts
+                call MPISum(TotWalkers,AllTotWalkers)
+                AllTotWalkersOld = AllTotWalkers
+                call MPISum(TotParts,AllTotParts)
+                AllTotPartsOld=AllTotParts
+                call MPISum(NoatHF,AllNoatHF)
+                OldAllNoatHF=AllNoatHF
+                AllNoAbortedOld=0.D0
+                iter_data_fciqmc%tot_parts_old = AllTotParts
+                
+                if(iProcIndex.eq.iHFProc) then
+                    if((AllNoatHF(1).ne.NoatHF(1)).or.(AllNoatHF(lenof_sign).ne.NoatHF(lenof_sign))) then
+                        call stop_all(this_routine,"HF particles spread across different processors.")
+                    endif
                 endif
 
-                ! HF energy is equal to 0 (by definition)
-                if (.not. tRegenDiagHEls) CurrentH(1) = 0
+            else
 
-                ! Obtain the initial sign
-                InitialSign = 0
-                if (tStartSinglePart) then
-                    InitialSign(1) = InitialPart
-                else
-                    InitialSign(1) = InitWalkers
-                endif
-                call encode_sign (CurrentDets(:,1), InitialSign)
+                !Setup initial walker local variables for HF walkers start
+                IF(iProcIndex.eq.iHFProc) THEN
 
-                ! set initial values for global control variables.
-                TotWalkers = 1
-                TotWalkersOld = 1
-                TotParts = InitialSign
-                TotPartsOld = InitialSign
-                NoatHF = InitialSign
+                    ! Encode the reference determinant identification.
+                    call encode_det(CurrentDets(:,1), iLutHF)
 
-            ELSE
-                NoatHF = 0
-                TotWalkers = 0
-                TotWalkersOld = 0
-            ENDIF
+                    ! Clear the flags
+                    call clear_all_flags (CurrentDets(:,1))
 
-        
-            OldAllNoatHF=0
-            AllNoatHF=0
-            IF(TStartSinglePart) THEN
-!Initialise global variables for calculation on the root node
-                IF(iProcIndex.eq.root) THEN
-                    OldAllNoatHF(1)=InitialPart
-                    AllNoatHF(1)=InitialPart
-                    AllTotWalkers = 1
-                    AllTotWalkersOld = 1
-                    iter_data_fciqmc%tot_parts_old = 1
-                    AllTotParts(1)=REAL(InitialPart,dp)
-                    AllTotPartsOld(1)=REAL(InitialPart,dp)
-                    AllNoAbortedOld=0.D0
+                    ! Set reference determinant as an initiator if
+                    ! tTruncInitiator is set, for both imaginary and real flags
+                    if (tTruncInitiator) then
+                        call set_flag (CurrentDets(:,1), flag_is_initiator(1))
+                        call set_flag (CurrentDets(:,1), flag_is_initiator(2))
+                    endif
+
+                    ! HF energy is equal to 0 (by definition)
+                    if (.not. tRegenDiagHEls) CurrentH(1) = 0
+
+                    ! Obtain the initial sign
+                    InitialSign = 0
+                    if (tStartSinglePart) then
+                        InitialSign(1) = InitialPart
+                    else
+                        InitialSign(1) = InitWalkers
+                    endif
+                    call encode_sign (CurrentDets(:,1), InitialSign)
+
+                    ! set initial values for global control variables.
+                    TotWalkers = 1
+                    TotWalkersOld = 1
+                    TotParts = InitialSign
+                    TotPartsOld = InitialSign
+                    NoatHF = InitialSign
+
+                ELSE
+                    NoatHF = 0
+                    TotWalkers = 0
+                    TotWalkersOld = 0
                 ENDIF
-            ELSE
-!In this, only one processor has initial particles.
-                IF(iProcIndex.eq.Root) THEN
-                    AllTotWalkers=1.D0
-                    AllTotWalkersOld = 1
-                    iter_data_fciqmc%tot_parts_old = AllTotWalkers
-                    AllTotParts(1)=REAL(InitWalkers,dp)
-                    AllTotPartsOld(1)=REAL(InitWalkers,dp)
-                    AllNoAbortedOld=0.D0
+
+                OldAllNoatHF=0
+                AllNoatHF=0
+                IF(TStartSinglePart) THEN
+    !Initialise global variables for calculation on the root node
+                    IF(iProcIndex.eq.root) THEN
+                        OldAllNoatHF(1)=InitialPart
+                        AllNoatHF(1)=InitialPart
+                        AllTotWalkers = 1
+                        AllTotWalkersOld = 1
+                        iter_data_fciqmc%tot_parts_old(1) = InitialPart
+                        AllTotParts(1)=InitialPart
+                        AllTotPartsOld(1)=InitialPart
+                        AllNoAbortedOld=0.D0
+                    ENDIF
+                ELSE
+    !In this, only one processor has initial particles.
+                    IF(iProcIndex.eq.Root) THEN
+                        AllTotWalkers = 1
+                        AllTotWalkersOld = 1
+                        iter_data_fciqmc%tot_parts_old(1) = InitWalkers
+                        AllTotParts(1)=InitWalkers
+                        AllTotPartsOld(1)=InitWalkers
+                        AllNoAbortedOld=0.D0
+                    ENDIF
                 ENDIF
-            ENDIF
+
+            endif   !End if reading in popsfile v.3
         
             WRITE(6,"(A,F14.6,A)") " Initial memory (without excitgens + temp arrays) consists of : ",REAL(MemoryAlloc,dp)/1048576.D0," Mb/Processor"
             WRITE(6,*) "Only one array of memory to store main particle list allocated..."
