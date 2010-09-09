@@ -173,7 +173,7 @@ MODULE FciMCParMod
 !            IF(tBlockEveryIteration) THEN
 !                Inpair(1)=REAL(HFIter,dp)
 !                Inpair(2)=ENumIter
-!                CALL MPISumRoot(Inpair,2,Outpair,Root)
+!                CALL MPISumAll(Inpair,2,Outpair)
 !                IterEnergy=Outpair(2)/Outpair(1)
 !                IF(tErrorBlocking.and.(iProcIndex.eq.Root)) CALL SumInErrorContrib(Iter,Outpair(2),Outpair(1))
 !                ENumIter=0.D0
@@ -667,7 +667,7 @@ MODULE FciMCParMod
                     Tau=Tau/10.D0
                     WRITE(6,'(A,F10.5)') 'Beginning truncated initiator calculation and reducing tau by a factor of 10. New tau is : ',Tau
                 ENDIF
-                CALL MPIBCast(Tau,root)
+                CALL MPIBCast(Tau)
             ENDIF
             tTruncInitiator=.true.
         ENDIF
@@ -1338,8 +1338,8 @@ MODULE FciMCParMod
 !First, make sure we have up-to-date information - again collect AllTotWalkers,AllSumNoatHF and AllSumENum...
 !        CALL MPI_Reduce(TotWalkers,AllTotWalkers,1,MPI_INTEGER,MPI_Sum,root,MPI_COMM_WORLD,error)    
 !Calculate the energy by summing all on HF and doubles - convert number at HF to a real since no int*8 MPI data type
-        CALL MPISumRoot(SumNoatHF,1,AllSumNoatHF,Root)
-        CALL MPISumRoot(SumENum,1,AllSumENum,Root)
+        CALL MPISum(SumNoatHF,1,AllSumNoatHF)
+        CALL MPISum(SumENum,1,AllSumENum)
 
 !We also need to tell the root processor how many particles to expect from each node - these are gathered into WalkersonNodes
         CALL MPIAllGather(nDets,WalkersonNodes,error)
@@ -1675,16 +1675,16 @@ MODULE FciMCParMod
 
 !Now we need to scatter the WalkerstoReceive to each node, and allocate the desired memory to each node...
 !Broadcast info which needs to go to all processors
-        CALL MPIBCast(DiagSft,root)
-        CALL MPIBCast(SumENum,root)
-        CALL MPIBCast(InitWalkers,root)
-        CALL MPIBCast(NEquilSteps,root)
-        CALL MPIBCast(NShiftEquilSteps,root)
-        CALL MPIBCast(TSinglePartPhase,root)
+        CALL MPIBCast(DiagSft)
+        CALL MPIBCast(SumENum)
+        CALL MPIBCast(InitWalkers)
+        CALL MPIBCast(NEquilSteps)
+        CALL MPIBCast(NShiftEquilSteps)
+        CALL MPIBCast(TSinglePartPhase)
 !        CALL MPI_BCast(tChangenProcessors,1,MPI_LOGICAL,root,MPI_COMM_WORLD,error)
 !Scatter the number of walkers each node will receive to TempInitWalkers, and the SumNoatHF for each node which is distributed approximatly equally
-        CALL MPIScatter(WalkerstoReceive,TempInitWalkers,root,error)
-        CALL MPIScatter(NodeSumNoatHF,SumNoatHF(1),root,error)
+        CALL MPIScatter(WalkerstoReceive,TempInitWalkers,error)
+        CALL MPIScatter(NodeSumNoatHF,SumNoatHF(1),error)
 
         IF(MemoryFacPart.le.1.D0) THEN
             WRITE(6,*) 'MemoryFacPart must be larger than 1.0 when reading in a POPSFILE - increasing it to 1.50.'
@@ -2157,12 +2157,12 @@ MODULE FciMCParMod
 
 !Now we need to scatter the WalkerstoReceive to each node, and allocate the desired memory to each node...
 !Broadcast info which needs to go to all processors
-        CALL MPIBCast(DiagSft,root)
-        CALL MPIBCast(SumENum,root)
-        CALL MPIBCast(InitWalkers,root)
-        CALL MPIBCast(NEquilSteps,root)
-        CALL MPIBCast(NShiftEquilSteps,root)
-        CALL MPIBCast(TSinglePartPhase,root)
+        CALL MPIBCast(DiagSft)
+        CALL MPIBCast(SumENum)
+        CALL MPIBCast(InitWalkers)
+        CALL MPIBCast(NEquilSteps)
+        CALL MPIBCast(NShiftEquilSteps)
+        CALL MPIBCast(TSinglePartPhase)
 !        CALL MPI_BCast(tChangenProcessors,1,MPI_LOGICAL,root,MPI_COMM_WORLD,error)
 !Scatter the number of walkers each node will receive to TempInitWalkers, and the SumNoatHF for each node which is distributed approximatly equally
 
@@ -3224,7 +3224,7 @@ MODULE FciMCParMod
         INTEGER :: i,nI(NEl),ExcitLevel,j, iunit
         REAL*8 :: norm,norm1
 
-        CALL MPISum(Histogram,AllHistogram)
+        CALL MPISumAll(Histogram,AllHistogram)
         norm1=0.D0
         do i=1,Det
             IF(lenof_sign.eq.1) THEN
@@ -3839,8 +3839,8 @@ MODULE FciMCParMod
 
         ! We need the total number on the HF and SumWalkersCyc to be valid on
         ! ALL processors (n.b. one of these is 32bit, the other 64)
-        call MPISum (NoatHF, AllNoatHF)
-        call MPISum (SumWalkersCyc, AllSumWalkersCyc)
+        call MPISumAll (NoatHF, AllNoatHF)
+        call MPISumAll (SumWalkersCyc, AllSumWalkersCyc)
 
 !        WRITE(6,*) "***",iter_data%update_growth_tot,AllTotParts-AllTotPartsOld
         ASSERT(iter_data%update_growth_tot(1).eq.AllTotParts(1)-AllTotPartsOld(1))
@@ -4492,7 +4492,7 @@ MODULE FciMCParMod
                 enddo
             ENDIF
             !Now broadcast to all processors
-            CALL MPIBCast(RandomHash,nBasis,Root)
+            CALL MPIBCast(RandomHash,nBasis)
         ENDIF
 
         IF(tHPHF) THEN
