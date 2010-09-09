@@ -446,15 +446,17 @@ contains
         ! If we are in initiator mode, then we may want to make all of the
         ! children into initiators as well
         if (tTruncInitiator) then
-            ! We always want our particles to survive.
-            call set_flag (ilutJ, flag_parent_initiator)
+            do i = 1, lenof_sign
+                ! We always want our particles to survive.
+                call set_flag (ilutJ, flag_parent_initiator(i))
             
-            ! If we are spawning from an initiator, we may want to make the
-            ! target also an initiator.
-            if (spin_proj_spawn_initiators .and. &
-                test_flag(ilutI, flag_is_initiator)) then
-                call set_flag (ilutJ, flag_make_initiator)
-            endif
+                ! If we are spawning from an initiator, we may want to make the
+                ! target also an initiator.
+                if (spin_proj_spawn_initiators .and. &
+                    test_flag(ilutI, flag_is_initiator(i))) then
+                    call set_flag (ilutJ, flag_make_initiator(i))
+                endif
+            enddo
         endif
 
         ! Generation probability, -1 as we exclude the starting det above.

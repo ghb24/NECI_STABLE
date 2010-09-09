@@ -195,7 +195,7 @@ contains
           tDefineDet=.false.
           tTruncInitiator=.false.
           tDelayTruncInit=.false.
-          tKeepDoubleSpawns=.false.
+!          tKeepDoubleSpawns=.false.
           tAddtoInitiator=.false.
           tRetestAddtoInit=.true.
           InitiatorWalkNo=10
@@ -1019,7 +1019,8 @@ contains
             case("KEEPDOUBSPAWNS")
 !This means that two sets of walkers spawned on the same determinant with the same sign will live, whether they've come from inside or outside the CAS space.  Before, if both of these
 !were from outside the space, they would've been aborted.
-                tKeepDoubleSpawns=.true.
+!                tKeepDoubleSpawns=.true.
+!This option is now on permanently by default and cannot be turned off.
 
             case("ADDTOINITIATOR")
 !This option means that if a determinant outside the initiator space becomes significantly populated - it is essentially added to the initiator space and is allowed to spawn where it likes.

@@ -371,6 +371,7 @@
         INTEGER(KIND=n_int), INTENT(INOUT) :: DetCurr(0:NIfTot)
         INTEGER, DIMENSION(lenof_sign) :: SignCurr
         INTEGER :: CurrExcitLevel
+        INTEGER :: part_type
         LOGICAL :: tDetInCAS, is_init
 
 !DetCurr has come from the spawning array.
@@ -381,30 +382,32 @@
 
         tDetInCAS=.false.
         if (tTruncCAS) &
-            tDetInCAS = TestIfDetInCASBit (DetCurr(0:NIfDBO))
+            tDetInCAS = TestIfDetInCASBit (DetCurr(0:NIfDBO)) 
+        tDetInCAS = tDetInCAS .or. DetBitEQ (DetCurr, iLutHF, NIfDBO)
 
         ! Merged particle becomes an initiator if it is in the fixed CAS
         ! space, it is the HF det or if its population > n_add.
-        is_init = .false.
-        if (tDetInCAS .or. &
-            DetBitEQ (DetCurr, iLutHF, NIfDBO)) then
-            is_init = .true.
-        else if ((tAddtoInitiator .and. abs(SignCurr(1)) > InitiatorWalkNo) &
-                 .or. test_flag (DetCurr, flag_make_initiator)) then
-            is_init = .true.
-            NoAddedInitiators = NoAddedInitiators + 1
-            !call clr_flag (DetCurr, flag_make_initiator)
-        else if (tInitIncDoubs) then
-            ! If the determinant is a double excitation of the reference det, it
-            ! will be an initiator automatically
-            CurrExcitLevel = FindBitExcitlevel (iLutRef, DetCurr, 2)
-            if (CurrExcitLevel == 2) then
+        do part_type=1,lenof_sign
+            is_init = .false.
+            if (tDetInCAS) then
                 is_init = .true.
-                NoExtraInitDoubs = NoExtraInitDoubs + 1
+            else if ((tAddtoInitiator .and. &
+                      abs(SignCurr(part_type)) > InitiatorWalkNo) .or. &
+                     test_flag (DetCurr, flag_make_initiator(part_type))) then
+                is_init = .true.
+                NoAddedInitiators = NoAddedInitiators + 1
+            else if (tInitIncDoubs) then
+                ! If the determinant is a double excitation of the reference 
+                ! det, it will be an initiator automatically
+                CurrExcitLevel = FindBitExcitlevel (iLutRef, DetCurr, 2)
+                if (CurrExcitLevel == 2) then
+                    is_init = .true.
+                    NoExtraInitDoubs = NoExtraInitDoubs + 1
+                endif
             endif
-        endif
 
-        call set_flag (DetCurr, flag_is_initiator, is_init)
+            call set_flag (DetCurr, flag_is_initiator(part_type), is_init)
+        enddo
 
     END SUBROUTINE FlagifDetisInitiator 
 
