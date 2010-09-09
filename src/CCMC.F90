@@ -2388,7 +2388,7 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
           call extract_sign(DetList(:,j),TempSign)
           AL%Amplitude(j,iCurAmpList)=TempSign(1)
       enddo
-      call MPIBCast(nAmpl,root)
+      call MPIBCast(nAmpl)
       call CalcTotals(iNumExcitors,dTotAbsAmpl,AL%Amplitude(:,iCurAmpList),nAmpl,dTolerance*dInitAmplitude,WalkerScale,iRefPos,iOldTotParts,iDebug)
       iter_data_ccmc%update_growth = 0
       iter_data_ccmc%tot_parts_old=TotParts
@@ -2412,8 +2412,8 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
       if((.not.tSharedExcitors).and.nProcessors>1) then
          IFDEBUG(iDebug,2) write(6,*) "Synchronizing particle lists among processors"
          call set_timer(CCMCComms1_time,20)
-         call MPIBCast(DetList(:,1:nAmpl),root)
-         call MPIBCast(AL%Amplitude(1:nAmpl,iCurAmpList),root)
+         call MPIBCast(DetList(:,1:nAmpl))
+         call MPIBCast(AL%Amplitude(1:nAmpl,iCurAmpList))
          call halt_timer(CCMCComms1_time)
       endif
 
@@ -2521,7 +2521,7 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
 !      call MPIBarrier(ierr)
 !      call halt_timer(CCMCWait_time)
       call set_timer(CCMCComms2_time,20)
-      call MPIGather(nSpawned,1,iLengths,1,Root,ierr)
+      call MPIGather(nSpawned,1,iLengths,1,ierr)
 !iOffsets is now the list of data lengths from each processor
       iOffsets(1)=0
 !Make a list of offsets from the lengths.
@@ -2539,7 +2539,7 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
          iLengths(i)=iLengths(i)*(nIfTot+1)
       enddo
 !Get the dets themselves (which contain the amplitudes)
-      call MPIGatherV(SpawnList(:,1:nSpawned),nSpawned*(nIfTot+1),SpawnList,iLengths,iOffsets,Root,ierr)
+      call MPIGatherV(SpawnList(:,1:nSpawned),nSpawned*(nIfTot+1),SpawnList,iLengths,iOffsets,ierr)
       if(iProcIndex.eq.Root) then
          nSpawned=sum(iLengths)/(nIfTot+1)
       else

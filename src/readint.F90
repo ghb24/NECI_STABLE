@@ -46,16 +46,16 @@ contains
          ENDIF
 
 !Now broadcast these values to the other processors
-         CALL MPIBCast(NORB,1,0)
-         CALL MPIBCast(NELEC,1,0)
-         CALL MPIBCast(MS2,1,0)
-         CALL MPIBCast(ORBSYM,1000,0)
-         CALL MPIBCast(SYML,1000,0)
-         CALL MPIBCast(SYMLZ,1000,0)
-         CALL MPIBCast(ISYM,1,0)
-         CALL MPIBCast(UHF,1,0)
-         CALL MPIBCast(PROPBITLEN,1,0)
-         CALL MPIBCast(NPROP,3,0)
+         CALL MPIBCast(NORB,1)
+         CALL MPIBCast(NELEC,1)
+         CALL MPIBCast(MS2,1)
+         CALL MPIBCast(ORBSYM,1000)
+         CALL MPIBCast(SYML,1000)
+         CALL MPIBCast(SYMLZ,1000)
+         CALL MPIBCast(ISYM,1)
+         CALL MPIBCast(UHF,1)
+         CALL MPIBCast(PROPBITLEN,1)
+         CALL MPIBCast(NPROP,3)
          ! If PropBitLen has been set then assume we're not using an Abelian
          ! symmetry group which has two cycle generators (ie the group has
          ! complex representations).
@@ -165,16 +165,16 @@ contains
          ENDIF
 
 !Now broadcast these values to the other processors (the values are only read in on root)
-         CALL MPIBCast(NORB,1,0)
-         CALL MPIBCast(NELEC,1,0)
-         CALL MPIBCast(MS2,1,0)
-         CALL MPIBCast(ORBSYM,1000,0)
-         CALL MPIBCast(SYML,1000,0)
-         CALL MPIBCast(SYMLZ,1000,0)
-         CALL MPIBCast(ISYM,1,0)
-         CALL MPIBCast(UHF,1,0)
-         CALL MPIBCast(PROPBITLEN,1,0)
-         CALL MPIBCast(NPROP,3,0)
+         CALL MPIBCast(NORB,1)
+         CALL MPIBCast(NELEC,1)
+         CALL MPIBCast(MS2,1)
+         CALL MPIBCast(ORBSYM,1000)
+         CALL MPIBCast(SYML,1000)
+         CALL MPIBCast(SYMLZ,1000)
+         CALL MPIBCast(ISYM,1)
+         CALL MPIBCast(UHF,1)
+         CALL MPIBCast(PROPBITLEN,1)
+         CALL MPIBCast(NPROP,3)
          ! If PropBitLen has been set then assume we're not using an Abelian
          ! symmetry group which has two cycle generators (ie the group has
          ! complex representations).
@@ -361,11 +361,11 @@ contains
 
 !We now need to broadcast all the information we've just read in...
          IF(tCacheFCIDUMPInts) THEN
-             CALL MPIBCast(MaxSlots,nPairs,0)
+             CALL MPIBCast(MaxSlots,nPairs)
          ENDIF
-         CALL MPIBCast(ISNMAX,1,0)
-         CALL MPIBCast(ISYMNUM,1,0)
-         CALL MPIBCast(Arr,LEN*2,0)
+         CALL MPIBCast(ISNMAX,1)
+         CALL MPIBCast(ISYMNUM,1)
+         CALL MPIBCast(Arr,LEN*2)
          
          SYMMAX=1
          iMaxLz=0
@@ -471,16 +471,16 @@ contains
              READ(iunit,FCI)
          ENDIF
 !Now broadcast these values to the other processors (the values are only read in on root)
-         CALL MPIBCast(NORB,1,0)
-         CALL MPIBCast(NELEC,1,0)
-         CALL MPIBCast(MS2,1,0)
-         CALL MPIBCast(ORBSYM,1000,0)
-         CALL MPIBCast(SYML,1000,0)
-         CALL MPIBCast(SYMLZ,1000,0)
-         CALL MPIBCast(ISYM,1,0)
-         CALL MPIBCast(UHF,1,0)
-         CALL MPIBCast(PROPBITLEN,1,0)
-         CALL MPIBCast(NPROP,3,0)
+         CALL MPIBCast(NORB,1)
+         CALL MPIBCast(NELEC,1)
+         CALL MPIBCast(MS2,1)
+         CALL MPIBCast(ORBSYM,1000)
+         CALL MPIBCast(SYML,1000)
+         CALL MPIBCast(SYMLZ,1000)
+         CALL MPIBCast(ISYM,1)
+         CALL MPIBCast(UHF,1)
+         CALL MPIBCast(PROPBITLEN,1)
+         CALL MPIBCast(NPROP,3)
          ! If PropBitLen has been set then assume we're not using an Abelian
          ! symmetry group which has two cycle generators (ie the group has
          ! complex representations).
@@ -635,28 +635,28 @@ contains
          ENDIF
 
 !Now broadcast the data read in
-         CALL MPIBCast(ZeroedInt,1,0)
-         CALL MPIBCast(NonZeroInt,1,0)
-         CALL MPIBCast(ECore,1,0)
+         CALL MPIBCast(ZeroedInt,1)
+         CALL MPIBCast(NonZeroInt,1)
+         CALL MPIBCast(ECore,1)
 !Need to find out size of TMAT before we can BCast
          CALL CalcTMATSize(nBasis,TMATSize)
          IF(tStarStore) THEN
-             CALL MPIBCast(TMATSYM,TMATSize,0)
+             CALL MPIBCast(TMATSYM,TMATSize)
          ELSE
-             CALL MPIBCast(TMAT2D,TMATSize,0)
+             CALL MPIBCast(TMAT2D,TMATSize)
          ENDIF
          IF(TUMAT2D) THEN
 !Broadcast TUMAT2D...
-             CALL MPIBCast(UMAT2D,nStates**2,0)
+             CALL MPIBCast(UMAT2D,nStates**2)
          ENDIF
          IF((.not.tRIIntegrals).and.(.not.tCacheFCIDUMPInts)) THEN
              CALL GetUMATSize(nBasis,NEl,UMatSize)
-             CALL MPIBCast(UMAT,UMatSize,0)    !This is not an , as it is actually passed in as a real*8, even though it is HElem in IntegralsData
+             CALL MPIBCast(UMAT,UMatSize)    !This is not an , as it is actually passed in as a real*8, even though it is HElem in IntegralsData
          ENDIF
          IF(tCacheFCIDUMPInts) THEN
 !Need to broadcast the cache...
-             CALL MPIBCast(UMATLABELS,nSlots*nPairs,0)
-             CALL MPIBCast(UMatCacheData,nTypes*nSlots*nPairs,0)
+             CALL MPIBCast(UMATLABELS,nSlots*nPairs)
+             CALL MPIBCast(UMatCacheData,nTypes*nSlots*nPairs)
          ENDIF
              
 
