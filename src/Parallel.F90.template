@@ -155,7 +155,11 @@ module Parallel
 #ifdef PARALLEL
    uSe MPI
 #endif
+<<<<<<< HEAD
    use ParallelHelper,  only: CommI, GetComm
+=======
+   use ParallelHelper
+>>>>>>> f2f73f6c73d1b2410c03ba2a6796d59a7914b1db
    use constants
    implicit none
 
@@ -403,6 +407,7 @@ Subroutine MPISum(Values, iLen, Ret, Node)
 #endif
 end subroutine
 
+<<<<<<< HEAD
 subroutine MPIBCast_lenroot (Values, iLen, rt)
 
     ! Call MPI_BCAST to broadcast the value(s) in array Values on processor
@@ -422,6 +427,8 @@ subroutine MPIBCast_lenroot (Values, iLen, rt)
     endif
 #endif
 end subroutine
+=======
+>>>>>>> f2f73f6c73d1b2410c03ba2a6796d59a7914b1db
 subroutine MPIBCast_len (Values, iLen, Node)
 
     ! Call MPI_BCAST to broadcast the value(s) in array Values on processor
@@ -919,11 +926,9 @@ subroutine MPINodes
          write(6,"(2I10,A,A)") i,Nodes(i)%n," ",nms(i)
       enddo
    endif
-   write(6,*) "Broadcast",nNodes,Nodes
    call MPI_BCAST (nNodes, 1, MPI_INTEGER, root, CommGlobal, ierr)
    call MPI_BCAST (Nodes, nProcessors, MPI_INTEGER, root, CommGlobal, ierr)
    call MPI_BCAST (NodeRoots, nProcessors, MPI_INTEGER, root, CommGlobal, ierr)
-   write(6,*) "PostBroadcast"
    allocate(NodeLengths(0:nNodes-1))
    allocate(CommNodes(0:nNodes-1))
    allocate(GroupNodes(0:nNodes-1))
@@ -934,7 +939,6 @@ subroutine MPINodes
       bNodeRoot=.false.
    endif
    do i=0, nNodes-1
-      write(6,*) "Node ", i
       n=0
       do j=0,nProcessors-1
          if(Nodes(j)%n==i) then
@@ -943,11 +947,8 @@ subroutine MPINodes
          endif
       enddo
       NodeLengths(i)=n
-      write(6, *) "Group",GroupProc(1:n)
       call MPI_Group_incl(Group,n,GroupProc,GroupNodes(i),ierr)  !Create a group 
-      write(6, *) "Comm", GroupNodes(i),CommGlobal,ierr,CommNodes(i)
       call MPI_Comm_Create(CommGlobal,GroupNodes(i),CommNodes(i),ierr) !Create the Communicator
-      write(6, *) "PostComm"
    enddo
    Roots%n=-1  !A communicator index between roots
 end subroutine

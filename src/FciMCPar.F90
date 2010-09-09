@@ -173,7 +173,7 @@ MODULE FciMCParMod
 !            IF(tBlockEveryIteration) THEN
 !                Inpair(1)=REAL(HFIter,dp)
 !                Inpair(2)=ENumIter
-!                CALL MPISum(Inpair,2,Outpair)
+!                CALL MPISumAll(Inpair,2,Outpair)
 !                IterEnergy=Outpair(2)/Outpair(1)
 !                IF(tErrorBlocking.and.(iProcIndex.eq.Root)) CALL SumInErrorContrib(Iter,Outpair(2),Outpair(1))
 !                ENumIter=0.D0
