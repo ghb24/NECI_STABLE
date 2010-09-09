@@ -16,17 +16,26 @@ using std::endl;
 // not deallocated memory correctly or caused NECI to crash).
 // Note that this *must* be run from the same working directory as the
 // instantiation of NECI which created the shared memory devices.
-int main ()
+int main (int argc, char* argv[])
 {
+	// If we specify all, then we don't need the directory length etc.
+	bool del_all = false;
+	if (argc > 1 && string(argv[1]) == "all") {
+		cout << "Removing all NECI-like shared memory devices\n";
+		del_all = true;
+	}
+
 	// Get the current working directory and substitute as appropriate
 	char temp[MAXPATHLEN];
 	string cwd;
-	if (getcwd(temp, MAXPATHLEN)) {
-		cwd = string(temp);
-		std::replace (cwd.begin(), cwd.end(), '/', '_');
-	} else {
-		cerr << "Error getting current path\n";
-		return 1;
+	if (!del_all) {
+		if (getcwd(temp, MAXPATHLEN)) {
+			cwd = string(temp);
+			std::replace (cwd.begin(), cwd.end(), '/', '_');
+		} else {
+			cerr << "Error getting current path\n";
+			return 1;
+		}
 	}
 
 	// Open the shared memory directory
@@ -49,13 +58,16 @@ int main ()
 		// running)
 		// NECI creates shared memory devices with the desired name (e.g.
 		// "umat") prepended by the working directory with / replaced by _.
-		if (nm.length() > cwd.length() &&
-			nm.substr(0, cwd.length()).compare(cwd) == 0 &&
-			nm[cwd.length()] != '_') {
+		if (nm[0] == '_') {
+			if (del_all ||
+				(nm.length() > cwd.length() &&
+				 nm.substr(0, cwd.length()).compare(cwd) == 0 &&
+				 nm[cwd.length()] != '_')) {
 
-			cout << "Removing: " << nm << endl;
-			shm_unlink (nm.c_str());
-			found_shm = true;
+				cout << "Removing: " << nm << endl;
+				shm_unlink (nm.c_str());
+				found_shm = true;
+			}
 		}
 	}
 
