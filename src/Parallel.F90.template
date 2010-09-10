@@ -69,7 +69,6 @@ mpilen=1
 mpilen2=1
 ndim=0
 
-
 [arr_int]
 type1=integer(kind=int32), dimension(:)
 mpitype=MPI_INTEGER
@@ -155,11 +154,7 @@ module Parallel
 #ifdef PARALLEL
    uSe MPI
 #endif
-<<<<<<< HEAD
    use ParallelHelper,  only: CommI, GetComm
-=======
-   use ParallelHelper
->>>>>>> f2f73f6c73d1b2410c03ba2a6796d59a7914b1db
    use constants
    implicit none
 
@@ -215,6 +210,11 @@ module Parallel
         module procedure MPIGatherV_len2_%(name)s
         module procedure MPIGatherV_auto_%(name)s
         module procedure MPIGatherV_auto2_%(name)s
+    end interface
+
+    interface MPIScatterV
+        module procedure MPIScatterV_len_%(name)s
+        module procedure MPIScatterV_len2_%(name)s
     end interface
 
 contains
@@ -407,7 +407,6 @@ Subroutine MPISum(Values, iLen, Ret, Node)
 #endif
 end subroutine
 
-<<<<<<< HEAD
 subroutine MPIBCast_lenroot (Values, iLen, rt)
 
     ! Call MPI_BCAST to broadcast the value(s) in array Values on processor
@@ -427,8 +426,6 @@ subroutine MPIBCast_lenroot (Values, iLen, rt)
     endif
 #endif
 end subroutine
-=======
->>>>>>> f2f73f6c73d1b2410c03ba2a6796d59a7914b1db
 subroutine MPIBCast_len (Values, iLen, Node)
 
     ! Call MPI_BCAST to broadcast the value(s) in array Values on processor
@@ -578,6 +575,9 @@ Subroutine MPIGather_auto(Values,Values2,ierr,Node)
 #endif
 end subroutine
 
+!Gather from many processors to the root.
+! Each Processor has data in SendBuf() with length SendSize.
+! The root knows the lengths of the data from each proc, and they are placed on the root into RecvBuf at displacements Disps.
 Subroutine MPIGatherV_len(SendBuf,SendSize,RecvBuf,Lengths,Disps,ierr,Node)
     INTEGER,intent(in) :: SendSize,Lengths(:),Disps(:)
     INTEGER, intent(out) :: ierr
@@ -652,6 +652,45 @@ Subroutine MPIGatherV_auto2(Values,Values2,Lengths,Disps,ierr,Node)
     ierr=0
 #endif
 end subroutine
+
+!From SendBuff send to all processors
+Subroutine MPIScatterV_len(SendBuf,SendSizes,Disps,RecvBuf,Length,ierr,Node)
+    INTEGER,intent(in) :: SendSizes(:),Length,Disps(:)
+    INTEGER, intent(out) :: ierr
+    %(type1)s,intent(in) :: SendBuf()
+    %(type1)s,intent(inout) :: RecvBuf(:)
+    type(CommI), intent(in),optional :: Node
+    integer Comm,rt
+#if PARALLEL
+    call GetComm(Comm,Node,rt)
+!    write(6,*) "AllToAll %(type1)s",SendSize,RecvSize
+    CALL MPI_ScatterV(SendBuf,SendSizes,Disps,%(mpitype)s,RecvBuf,Length,%(mpitype)s,rt,COMM,ierr)
+#else
+    RecvBuf(1)=SendBuf()
+    ierr=0
+#endif
+end subroutine
+
+! This scatters an array into another array with the same number of dims. SendSizes are the lengths to send to each proc
+!  and Disps are the displacements of the data in SendBuf.  Each processor should know its own Length
+Subroutine MPIScatterV_len2(SendBuf,SendSizes,Disps,RecvBuf,Length,ierr,Node)
+    INTEGER,intent(in) :: SendSizes(:),Length,Disps(:)
+    INTEGER, intent(out) :: ierr
+    %(type1)s,intent(in) :: SendBuf(:)
+    %(type1)s,intent(inout) :: RecvBuf(:)
+    type(CommI), intent(in),optional :: Node
+    integer Comm,rt
+#if PARALLEL
+    call GetComm(Comm,Node,rt)
+!    write(6,*) "AllToAll %(type1)s",SendSize,RecvSize
+    CALL MPI_ScatterV(SendBuf,SendSizes,Disps,%(mpitype)s,RecvBuf,Length,%(mpitype)s,rt,COMM,ierr)
+#else
+!    write(6,*) lbound(RecvBuf),ubound(RecvBuf),lbound(SendBuf),ubound(SendBuf)
+    RecvBuf(:)=SendBuf(lbound(SendBuf,%(ndim)s+1):(lbound(SendBuf,%(ndim)s+1)+Length-1))
+    ierr=0
+#endif
+end subroutine
+
 
 Subroutine MPIScatter_len(SendBuf,SendSize,RecvBuf,RecvSize,ierr,Node)
     INTEGER, intent(in)  :: SendSize,RecvSize
