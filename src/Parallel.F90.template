@@ -207,6 +207,11 @@ module Parallel
         module procedure MPIGatherV_auto2_%(name)s
     end interface
 
+    interface MPIScatterV
+        module procedure MPIScatterV_len_%(name)s
+        module procedure MPIScatterV_len2_%(name)s
+    end interface
+
 contains
 
 subroutine MPIReduce_len (Values, iLen, iType, Ret)
@@ -512,6 +517,9 @@ Subroutine MPIGather_auto(Values,Values2,root,ierr)
 #endif
 end subroutine
 
+!Gather from many processors to the root.
+! Each Processor has data in SendBuf() with length SendSize.
+! The root knows the lengths of the data from each proc, and they are placed on the root into RecvBuf at displacements Disps.
 Subroutine MPIGatherV_len(SendBuf,SendSize,RecvBuf,Lengths,Disps,root,ierr)
     INTEGER,intent(in) :: SendSize,Lengths(:),root,Disps(:)
     INTEGER, intent(out) :: ierr
@@ -577,6 +585,37 @@ Subroutine MPIGatherV_auto2(Values,Values2,Lengths,Disps,root,ierr)
 #endif
 end subroutine
 
+!From SendBuff send to all processors
+Subroutine MPIScatterV_len(SendBuf,SendSizes,Disps,RecvBuf,Length,root,ierr)
+    INTEGER,intent(in) :: SendSizes(:),Length,root,Disps(:)
+    INTEGER, intent(out) :: ierr
+    %(type1)s,intent(in) :: SendBuf()
+    %(type1)s,intent(inout) :: RecvBuf(:)
+#ifdef PARALLEL
+!    write(6,*) "AllToAll %(type1)s",SendSize,RecvSize
+    CALL MPI_ScatterV(SendBuf,SendSizes,Disps,%(mpitype)s,RecvBuf,Length,%(mpitype)s,root,MPI_COMM_WORLD,ierr)
+#else
+    RecvBuf(1)=SendBuf()
+    ierr=0
+#endif
+end subroutine
+
+! This scatters an array into another array with the same number of dims. SendSizes are the lengths to send to each proc
+!  and Disps are the displacements of the data in SendBuf.  Each processor should know its own Length
+Subroutine MPIScatterV_len2(SendBuf,SendSizes,Disps,RecvBuf,Length,root,ierr)
+    INTEGER,intent(in) :: SendSizes(:),Length,root,Disps(:)
+    INTEGER, intent(out) :: ierr
+    %(type1)s,intent(in) :: SendBuf(:)
+    %(type1)s,intent(inout) :: RecvBuf(:)
+#ifdef PARALLEL
+!    write(6,*) "AllToAll %(type1)s",SendSize,RecvSize
+    CALL MPI_ScatterV(SendBuf,SendSizes,Disps,%(mpitype)s,RecvBuf,Length,%(mpitype)s,root,MPI_COMM_WORLD,ierr)
+#else
+!    write(6,*) lbound(RecvBuf),ubound(RecvBuf),lbound(SendBuf),ubound(SendBuf)
+    RecvBuf(:)=SendBuf(lbound(SendBuf,%(ndim)s+1):(lbound(SendBuf,%(ndim)s+1)+Length-1))
+    ierr=0
+#endif
+end subroutine
 Subroutine MPIScatter_len(SendBuf,SendSize,RecvBuf,RecvSize,root,ierr)
     INTEGER, intent(in)  :: SendSize,RecvSize,root
     INTEGER, intent(out) :: ierr
