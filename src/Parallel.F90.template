@@ -207,6 +207,13 @@ module Parallel
         module procedure MPIGatherV_auto2_%(name)s
     end interface
 
+    interface MPIScatterV
+        module procedure MPIScatterV_len_%(name)s
+        module procedure MPIScatterV_len2_%(name)s
+        module procedure MPIScatterV_auto_%(name)s
+        module procedure MPIScatterV_auto2_%(name)s
+    end interface
+
 contains
 
 subroutine MPIReduce_len (Values, iLen, iType, Ret)
@@ -573,6 +580,70 @@ Subroutine MPIGatherV_auto2(Values,Values2,Lengths,Disps,root,ierr)
       Disps,%(mpitype)s,root,MPI_COMM_WORLD,ierr)
 #else
     Values2(Disps(1):Disps(1)+Lengths(1))=Values(:)
+    ierr=0
+#endif
+end subroutine
+Subroutine MPIScatterV_len(SendBuf,SendSizes,Disps,RecvBuf,Length,root,ierr)
+    INTEGER,intent(in) :: SendSizes(:),Length,root,Disps(:)
+    INTEGER, intent(out) :: ierr
+    %(type1)s,intent(in) :: SendBuf()
+    %(type1)s,intent(inout) :: RecvBuf(:)
+#ifdef PARALLEL
+!    write(6,*) "AllToAll %(type1)s",SendSize,RecvSize
+    CALL MPI_ScatterV(SendBuf,SendSizes,Disps,%(mpitype)s,RecvBuf,Length,%(mpitype)s,root,MPI_COMM_WORLD,ierr)
+#else
+    RecvBuf(1)=SendBuf()
+    ierr=0
+#endif
+end subroutine
+
+! This gathers an array into another array with the same number of dims.
+Subroutine MPIScatterV_len2(SendBuf,SendSizes,Disps,RecvBuf,Length,root,ierr)
+    INTEGER,intent(in) :: SendSizes(:),Length,root,Disps(:)
+    INTEGER, intent(out) :: ierr
+    %(type1)s,intent(in) :: SendBuf(:)
+    %(type1)s,intent(inout) :: RecvBuf(:)
+#ifdef PARALLEL
+!    write(6,*) "AllToAll %(type1)s",SendSize,RecvSize
+    CALL MPI_ScatterV(SendBuf,SendSizes,Disps,%(mpitype)s,RecvBuf,Length,%(mpitype)s,root,MPI_COMM_WORLD,ierr)
+#else
+!    write(6,*) lbound(RecvBuf),ubound(RecvBuf),lbound(SendBuf),ubound(SendBuf)
+    RecvBuf(lbound(RecvBuf,%(ndim)s+1):(lbound(RecvBuf,%(ndim)s+1)+size(SendBuf,%(ndim)s+1)-1))=SendBuf(:)
+    ierr=0
+#endif
+end subroutine
+
+! Values is the Send Buffer
+! Values2 is the Receive Buffer
+Subroutine MPIScatterV_auto(Values,Disps,Values2,Length,root,ierr)
+    INTEGER, intent(out) :: ierr
+    INTEGER, intent(in) :: root,Disps(:),Length
+    %(type1)s,intent(in) :: Values()
+    %(type1)s,intent(inout) :: Values2(:)
+#ifdef PARALLEL
+    CALL MPI_ScatterV(Values,%(mpilen)s,Disps,&
+      %(mpitype)s,Values2,Length,&
+      %(mpitype)s,root,MPI_COMM_WORLD,ierr)
+#else
+    Values2(1)=Values
+    ierr=0
+#endif
+end subroutine
+
+! This gathers an array into another array with the same number of dims.
+! Values is the Send Buffer
+! Values2 is the Receive Buffer
+Subroutine MPIScatterV_auto2(Values,Disps,Values2,Length,root,ierr)
+    INTEGER, intent(out) :: ierr
+    INTEGER, intent(in) :: root,Disps(:),Length
+    %(type1)s,intent(in) :: Values(:)
+    %(type1)s,intent(inout) :: Values2(:)
+#ifdef PARALLEL
+    CALL MPI_ScatterV(Values,%(mpilen)s,Disps,&
+      %(mpitype)s,Values2,Length,&
+      %(mpitype)s,root,MPI_COMM_WORLD,ierr)
+#else
+    Values2(Disps(1):Disps(1)+Length)=Values(:)
     ierr=0
 #endif
 end subroutine

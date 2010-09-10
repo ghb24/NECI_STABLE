@@ -152,7 +152,7 @@ MODULE PopsfileMod
             !Now scatter the particles read in to their correct processors.
             call MPIScatter(sendcounts,recvcount,Root,err)
             if(err.ne.0) call stop_all(this_routine,"MPI scatter error")
-            call MPI_Scatterv(BatchRead(:,1:MaxSendIndex),sendcounts,disps,MPI_INTEGER8,CurrentDets(:,CurrWalkers+1:MaxWalkersPart),recvcount,MPI_INTEGER8,Root,MPI_COMM_WORLD,err)
+            call MPIScatterV(BatchRead(:,1:MaxSendIndex),sendcounts,disps,CurrentDets(:,CurrWalkers+1:MaxWalkersPart),recvcount,root,err)
             if(err.ne.0) call stop_all(this_routine,"MPI error")
             CurrWalkers=CurrWalkers+recvcount/(NIfTot+1)
             call MPIBCast(tReadAllPops,Root)
