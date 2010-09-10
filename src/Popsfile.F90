@@ -153,12 +153,12 @@ MODULE PopsfileMod
             endif
 
             !Now scatter the particles read in to their correct processors.
-            call MPIScatter(sendcounts,recvcount,Root,err)
+            call MPIScatter(sendcounts,recvcount,err)
             if(err.ne.0) call stop_all(this_routine,"MPI scatter error")
-            call MPIScatterV(BatchRead(:,1:MaxSendIndex),sendcounts,disps,CurrentDets(:,CurrWalkers+1:MaxWalkersPart),recvcount,root,err)
+            call MPIScatterV(BatchRead(:,1:MaxSendIndex),sendcounts,disps,CurrentDets(:,CurrWalkers+1:MaxWalkersPart),recvcount,err)
             if(err.ne.0) call stop_all(this_routine,"MPI error")
             CurrWalkers=CurrWalkers+recvcount/(NIfTot+1)
-            call MPIBCast(tReadAllPops,Root)
+            call MPIBCast(tReadAllPops)
 
         enddo
 
@@ -166,7 +166,7 @@ MODULE PopsfileMod
 
         !Test we have still got all determinants
         TempCurrWalkers=int(CurrWalkers,8)
-        call MPISumRoot(TempCurrWalkers,1,AllCurrWalkers,Root)
+        call MPISum(TempCurrWalkers,1,AllCurrWalkers)
         if(iProcIndex.eq.Root) then
             if((iWeightPopRead.eq.0).and.(AllCurrWalkers.ne.EndPopsList)) then
                 call Stop_All(this_routine,"Not all walkers accounted for when reading in")
@@ -297,21 +297,21 @@ MODULE PopsfileMod
             read(iunithead,*) PopNIfTot
         endif
         !Broadcast the read in values from the header to all nodes.
-        call MPIBCast(tPop64Bit,root)
-        call MPIBCast(tPopHPHF,root)
-        call MPIBCast(tPopLz,root)
-        call MPIBCast(iPopLenof_sign,root)
-        call MPIBCast(iPopNEl,root)
-        call MPIBCast(iPopAllTotWalkers,root)
-        call MPIBCast(PopDiagSft,root)
-        call MPIBCast(PopSumNoatHF,root)
-        call MPIBCast(PopAllSumENum,root)
-        call MPIBCast(iPopIter,root)
-        call MPIBCast(PopNIfD,root)
-        call MPIBCast(PopNIfY,root)
-        call MPIBCast(PopNIfSgn,root)
-        call MPIBCast(PopNIfFlag,root)
-        call MPIBCast(PopNIfTot,root)
+        call MPIBCast(tPop64Bit)
+        call MPIBCast(tPopHPHF)
+        call MPIBCast(tPopLz)
+        call MPIBCast(iPopLenof_sign)
+        call MPIBCast(iPopNEl)
+        call MPIBCast(iPopAllTotWalkers)
+        call MPIBCast(PopDiagSft)
+        call MPIBCast(PopSumNoatHF)
+        call MPIBCast(PopAllSumENum)
+        call MPIBCast(iPopIter)
+        call MPIBCast(PopNIfD)
+        call MPIBCast(PopNIfY)
+        call MPIBCast(PopNIfSgn)
+        call MPIBCast(PopNIfFlag)
+        call MPIBCast(PopNIfTot)
 
     end subroutine ReadPopsHeadv3
     
@@ -337,8 +337,8 @@ MODULE PopsfileMod
             endif
             rewind(iunithead)
         endif
-        call MPIBCast(binpops,Root) 
-        call MPIBCast(formpops,Root) 
+        call MPIBCast(binpops) 
+        call MPIBCast(formpops) 
 
     end subroutine open_pops_head
 
@@ -360,7 +360,7 @@ MODULE PopsfileMod
                 read(iunithead,*) FirstLine,FirstLine,FirstLine,FindPopsfileVersion
             endif
         endif
-        call MPIBCast(FindPopsfileVersion,Root)
+        call MPIBCast(FindPopsfileVersion)
 
     end function FindPopsfileVersion
 
@@ -391,8 +391,8 @@ MODULE PopsfileMod
 !First, make sure we have up-to-date information - again collect AllTotWalkers,AllSumNoatHF and AllSumENum...
 !        CALL MPI_Reduce(TotWalkers,AllTotWalkers,1,MPI_INTEGER,MPI_Sum,root,MPI_COMM_WORLD,error)    
 !Calculate the energy by summing all on HF and doubles - convert number at HF to a real since no int*8 MPI data type
-        CALL MPISumRoot(SumNoatHF,1,AllSumNoatHF,Root)
-        CALL MPISumRoot(SumENum,1,AllSumENum,Root)
+        CALL MPISum(SumNoatHF,1,AllSumNoatHF)
+        CALL MPISum(SumENum,1,AllSumENum)
 
 !We also need to tell the root processor how many particles to expect from each node - these are gathered into WalkersonNodes
         CALL MPIAllGather(nDets,WalkersonNodes,error)
@@ -731,16 +731,16 @@ MODULE PopsfileMod
 
 !Now we need to scatter the WalkerstoReceive to each node, and allocate the desired memory to each node...
 !Broadcast info which needs to go to all processors
-        CALL MPIBCast(DiagSft,root)
-        CALL MPIBCast(SumENum,root)
-        CALL MPIBCast(InitWalkers,root)
-        CALL MPIBCast(NEquilSteps,root)
-        CALL MPIBCast(NShiftEquilSteps,root)
-        CALL MPIBCast(TSinglePartPhase,root)
+        CALL MPIBCast(DiagSft)
+        CALL MPIBCast(SumENum)
+        CALL MPIBCast(InitWalkers)
+        CALL MPIBCast(NEquilSteps)
+        CALL MPIBCast(NShiftEquilSteps)
+        CALL MPIBCast(TSinglePartPhase)
 !        CALL MPI_BCast(tChangenProcessors,1,MPI_LOGICAL,root,MPI_COMM_WORLD,error)
 !Scatter the number of walkers each node will receive to TempInitWalkers, and the SumNoatHF for each node which is distributed approximatly equally
-        CALL MPIScatter(WalkerstoReceive,TempInitWalkers,root,error)
-        CALL MPIScatter(NodeSumNoatHF,SumNoatHF(1),root,error)
+        CALL MPIScatter(WalkerstoReceive,TempInitWalkers,error)
+        CALL MPIScatter(NodeSumNoatHF,SumNoatHF(1),error)
 
         IF(MemoryFacPart.le.1.D0) THEN
             WRITE(6,*) 'MemoryFacPart must be larger than 1.0 when reading in a POPSFILE - increasing it to 1.50.'
@@ -1213,12 +1213,12 @@ MODULE PopsfileMod
 
 !Now we need to scatter the WalkerstoReceive to each node, and allocate the desired memory to each node...
 !Broadcast info which needs to go to all processors
-        CALL MPIBCast(DiagSft,root)
-        CALL MPIBCast(SumENum,root)
-        CALL MPIBCast(InitWalkers,root)
-        CALL MPIBCast(NEquilSteps,root)
-        CALL MPIBCast(NShiftEquilSteps,root)
-        CALL MPIBCast(TSinglePartPhase,root)
+        CALL MPIBCast(DiagSft)
+        CALL MPIBCast(SumENum)
+        CALL MPIBCast(InitWalkers)
+        CALL MPIBCast(NEquilSteps)
+        CALL MPIBCast(NShiftEquilSteps)
+        CALL MPIBCast(TSinglePartPhase)
 !        CALL MPI_BCast(tChangenProcessors,1,MPI_LOGICAL,root,MPI_COMM_WORLD,error)
 !Scatter the number of walkers each node will receive to TempInitWalkers, and the SumNoatHF for each node which is distributed approximatly equally
 

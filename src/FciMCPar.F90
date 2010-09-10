@@ -175,7 +175,7 @@ MODULE FciMCParMod
 !            IF(tBlockEveryIteration) THEN
 !                Inpair(1)=REAL(HFIter,dp)
 !                Inpair(2)=ENumIter
-!                CALL MPISumRoot(Inpair,2,Outpair,Root)
+!                CALL MPISumAll(Inpair,2,Outpair)
 !                IterEnergy=Outpair(2)/Outpair(1)
 !                IF(tErrorBlocking.and.(iProcIndex.eq.Root)) CALL SumInErrorContrib(Iter,Outpair(2),Outpair(1))
 !                ENumIter=0.D0
@@ -216,7 +216,7 @@ MODULE FciMCParMod
 
                 !    endif
 
-                !    call MPIBCast (spin_proj_shift, root)
+                !    call MPIBCast (spin_proj_shift)
 
                 !    iter_data_spin_proj%update_growth = 0
                 !    iter_data_spin_proj%update_iters = 0
@@ -669,7 +669,7 @@ MODULE FciMCParMod
                     Tau=Tau/10.D0
                     WRITE(6,'(A,F10.5)') 'Beginning truncated initiator calculation and reducing tau by a factor of 10. New tau is : ',Tau
                 ENDIF
-                CALL MPIBCast(Tau,root)
+                CALL MPIBCast(Tau)
             ENDIF
             tTruncInitiator=.true.
         ENDIF
@@ -2153,7 +2153,7 @@ MODULE FciMCParMod
         INTEGER :: i,nI(NEl),ExcitLevel,j, iunit
         REAL*8 :: norm,norm1
 
-        CALL MPISum(Histogram,AllHistogram)
+        CALL MPISumAll(Histogram,AllHistogram)
         norm1=0.D0
         do i=1,Det
             IF(lenof_sign.eq.1) THEN
@@ -2768,8 +2768,8 @@ MODULE FciMCParMod
 
         ! We need the total number on the HF and SumWalkersCyc to be valid on
         ! ALL processors (n.b. one of these is 32bit, the other 64)
-        call MPISum (NoatHF, AllNoatHF)
-        call MPISum (SumWalkersCyc, AllSumWalkersCyc)
+        call MPISumAll (NoatHF, AllNoatHF)
+        call MPISumAll (SumWalkersCyc, AllSumWalkersCyc)
 
 !        WRITE(6,*) "***",iter_data%update_growth_tot,AllTotParts-AllTotPartsOld
         ASSERT(iter_data%update_growth_tot(1).eq.AllTotParts(1)-AllTotPartsOld(1))
@@ -2933,9 +2933,9 @@ MODULE FciMCParMod
         endif ! iProcIndex == root
 
         ! Broadcast the shift from root to all the other processors
-        call MPIBcast (tSinglePartPhase, Root)
-        call MPIBcast (VaryShiftIter, Root)
-        call MPIBcast (DiagSft, Root)
+        call MPIBcast (tSinglePartPhase)
+        call MPIBcast (VaryShiftIter)
+        call MPIBcast (DiagSft)
 
     end subroutine
 
@@ -3421,7 +3421,7 @@ MODULE FciMCParMod
                 enddo
             ENDIF
             !Now broadcast to all processors
-            CALL MPIBCast(RandomHash,nBasis,Root)
+            CALL MPIBCast(RandomHash,nBasis)
         ENDIF
 
         IF(tHPHF) THEN
@@ -4704,11 +4704,11 @@ MODULE FciMCParMod
                 !Setup global variables
                 TotWalkersOld=TotWalkers
                 TotPartsOld = TotParts
-                call MPISum(TotWalkers,AllTotWalkers)
+                call MPISumAll(TotWalkers,AllTotWalkers)
                 AllTotWalkersOld = AllTotWalkers
-                call MPISum(TotParts,AllTotParts)
+                call MPISumAll(TotParts,AllTotParts)
                 AllTotPartsOld=AllTotParts
-                call MPISum(NoatHF,AllNoatHF)
+                call MPISumAll(NoatHF,AllNoatHF)
                 OldAllNoatHF=AllNoatHF
                 AllNoAbortedOld=0.D0
                 iter_data_fciqmc%tot_parts_old = AllTotParts
