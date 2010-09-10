@@ -85,6 +85,7 @@ MODULE PopsfileMod
             !Allocate array to store particle to distribute
             allocate(BatchRead(0:NIfTot,1:ReadBatch),stat=ierr)
             CALL LogMemAlloc('BatchRead',ReadBatch*(NIfTot+1),size_n_int,this_routine,BatchReadTag,ierr)
+            write(6,*) "Reading in a maximum of ",ReadBatch," determinants at a time from POPSFILE."
         endif
 
         CurrHF=0        !Number of HF walkers on each node.
@@ -104,6 +105,7 @@ MODULE PopsfileMod
 
                     tStoreDet=.false.
                     do while(.not.tStoreDet)
+!                        write(6,*) "reading entry: ",Det
                         if(BinPops) then
                             read(iunit) WalkerTemp(:)
                         else
@@ -121,6 +123,7 @@ MODULE PopsfileMod
                             enddo
                         else
                             tStoreDet=.true.
+
                         endif
                     enddo
 
@@ -281,7 +284,7 @@ MODULE PopsfileMod
         if(PopsVersion.ne.3) call stop_all("ReadPopsfileHeadv3","Wrong popsfile version for this routine.")
             
         if(iProcIndex.eq.root) then
-            read(iunithead,'(A,L,A,L,A,L,A,I5,A,I7)') junk,tPop64Bit,junk2,tPopHPHF,junk3,tPopLz,junk4,iPopLenof_sign,junk5,iPopNEl
+            read(iunithead,'(A12,L5,A8,L5,A8,L5,A13,I5,A7,I6)') junk,tPop64Bit,junk2,tPopHPHF,junk3,tPopLz,junk4,iPopLenof_sign,junk5,iPopNEl
             read(iunithead,*) iPopAllTotWalkers
             read(iunithead,*) PopDiagSft 
             read(iunithead,*) PopSumNoatHF 
@@ -383,11 +386,6 @@ MODULE PopsfileMod
         character(255) :: popsfile
         INTEGER, DIMENSION(lenof_sign) :: TempSign
 
-
-        IF(lenof_sign.ne.1) THEN
-            WRITE(6,*) "Cannot write complex walkers out to POPSFILE yet..."
-        ENDIF
-
         CALL MPIBarrier(error)  !sync
 
 !First, make sure we have up-to-date information - again collect AllTotWalkers,AllSumNoatHF and AllSumENum...
@@ -451,17 +449,22 @@ MODULE PopsfileMod
             ENDIF
             iunit = get_free_unit()
             OPEN(iunit,FILE=popsfile,Status='replace')
-            WRITE(iunit,"(A)") "# POPSFILE VERSION 2"
+            WRITE(iunit,"(A)") "# POPSFILE VERSION 3"
 #ifdef __INT64
-            WRITE(iunit,'(A12,L5,A8,L5,A8,L5,A12,L5)') '64BitDets=',.TRUE.,'HPHF=',tHPHF,'Lz=',tFixLz,'Initiator=',tTruncInitiator
+            WRITE(iunit,'(A12,L5,A8,L5,A8,L5,A13,I5,A7,I6)') '64BitDets=',.TRUE.,'HPHF=',tHPHF,'Lz=',tFixLz,'Lenof_sign=',lenof_sign,'NEl=',NEl
 #else
-            WRITE(iunit,'(A12,L5,A8,L5,A8,L5,A12,L5)') '64BitDets=',.FALSE.,'HPHF=',tHPHF,'Lz=',tFixLz,'Initiator=',tTruncInitiator
+            WRITE(iunit,'(A12,L5,A8,L5,A8,L5,A13,I5,A7,I6)') '64BitDets=',.FALSE.,'HPHF=',tHPHF,'Lz=',tFixLz,'Lenof_sign=',lenof_sign,'NEl=',NEl
 #endif
             WRITE(iunit,*) AllTotWalkers,"   TOTWALKERS (all nodes)"
             WRITE(iunit,*) DiagSft,"   DIAG SHIFT"
             WRITE(iunit,*) AllSumNoatHF,"   SUMNOATHF (all nodes)"
             WRITE(iunit,*) AllSumENum,"   SUMENUM ( \sum<D0|H|Psi> - all nodes)"
             WRITE(iunit,*) Iter+PreviousCycles,"   PREVIOUS CYCLES"
+            WRITE(iunit,*) NIfD,"    NIfD"
+            WRITE(iunit,*) NIfY,"    NIfY"
+            WRITE(iunit,*) NIfSgn,"    NIfSgn"
+            WRITE(iunit,*) NIfFlag,"    NIfFlag"
+            WRITE(iunit,*) NIfTot,"    NIfTot"
             IF(tBinPops) THEN
                 CLOSE(iunit)
                 call get_unique_filename('POPSFILEBIN',tIncrementPops,.true.,iPopsFileNoWrite,popsfile)
@@ -472,19 +475,20 @@ MODULE PopsfileMod
                 do j=1,nDets
 !First write out walkers on head node
                     IF(mod(j,iPopsPartEvery).eq.0) THEN
-                        call extract_sign(Dets(:,j),TempSign)
-                        WRITE(iunit) Dets(0:NIfDBO,j),TempSign(:)
+!                        call extract_sign(Dets(:,j),TempSign)
+                        WRITE(iunit) Dets(0:NIfTot,j)!,TempSign(:)
                     ENDIF
                 enddo
             ELSE
                 do j=1,nDets
 !First write out walkers on head node
                     IF(mod(j,iPopsPartEvery).eq.0) THEN
-                        do k=0,NIfDBO
+                        do k=0,NIfTot-1
                             WRITE(iunit,"(I24)",advance='no') Dets(k,j)
                         enddo
-                        call extract_sign(Dets(:,j),TempSign)
-                        WRITE(iunit,*) TempSign(:)
+                        WRITE(iunit,"(I24)") Dets(k,NIfTot)
+!                        call extract_sign(Dets(:,j),TempSign)
+!                        WRITE(iunit,*) TempSign(:)
                     ENDIF
                 enddo
             ENDIF
@@ -509,18 +513,18 @@ MODULE PopsfileMod
                 IF(tBinPops) THEN
                     do j=1,WalkersonNodes(i)
                         IF(mod(j,iPopsPartEvery).eq.0) THEN
-                            call extract_sign(Parts(:,j),TempSign)
-                            WRITE(iunit) Parts(0:NIfDBO,j),TempSign(:)
+!                            call extract_sign(Parts(:,j),TempSign)
+                            WRITE(iunit) Parts(0:NIfTot,j)!,TempSign(:)
                         ENDIF
                     enddo
                 ELSE
                     do j=1,WalkersonNodes(i)
                         IF(mod(j,iPopsPartEvery).eq.0) THEN
-                            do k=0,NIfDBO
+                            do k=0,NIfTot
                                 WRITE(iunit,"(I24)",advance='no') Parts(k,j)
                             enddo
-                            call extract_sign(Parts(:,j),TempSign)
-                            WRITE(iunit,*) TempSign(:)
+!                            call extract_sign(Parts(:,j),TempSign)
+!                            WRITE(iunit,*) TempSign(:)
                         ENDIF
                     enddo
                 ENDIF
