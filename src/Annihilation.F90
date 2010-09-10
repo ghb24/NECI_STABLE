@@ -298,7 +298,7 @@ MODULE AnnihilationMod
         INTEGER :: VecInd,ValidSpawned,DetsMerged,i,BeginningBlockDet,FirstInitIndex,CurrentBlockDet
         integer :: EndBlockDet, part_type, StartCycleInit, cum_count
         INTEGER, DIMENSION(lenof_sign) :: SpawnedSign,Temp_Sign
-        LOGICAL :: tSuc
+        LOGICAL :: tSuc, tInc
         INTEGER(Kind=n_int) , POINTER :: PointTemp(:,:)
         integer(n_int) :: cum_det (0:niftot)
         CHARACTER(len=*), parameter :: this_routine='CompressSpawnedList'
@@ -347,6 +347,7 @@ MODULE AnnihilationMod
 
             ! Reset the cumulative determinant
             cum_det = 0
+            cum_det (0:nifdbo) = SpawnedParts(0:nifdbo, BeginningBlockDet)
             do part_type=1,lenof_sign   !Annihilate in this block seperately for real and imag walkers
 
                 ! How many of either real/imaginary spawns are there onto each det
@@ -375,8 +376,11 @@ MODULE AnnihilationMod
                 !Now loop over the same block again, but this time calculating the contribution from non-initiators
                 !We want to loop over the whole block.
                 do i=BeginningBlockDet,EndBlockDet
-                    if (.not. tTruncInitiator .or. &
-                        .not. test_flag (SpawnedParts(:,i), flag_parent_initiator(part_type))) then
+                    tInc = .true.
+                    if (tTruncInitiator) then
+                        if (test_flag (SpawnedParts(:,i), flag_parent_initiator(part_type))) tInc = .false.
+                    endif
+                    if (tInc) then
                         ! If truncinitiator, only consider the non-initiators here 
                         ! (the initiators have already been dealt with).
                         if (tHistSpawn) then
