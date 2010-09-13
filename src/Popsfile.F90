@@ -67,7 +67,9 @@ MODULE PopsfileMod
                 OPEN(iunit,FILE='POPSFILEBIN',Status='old',form='unformatted')
             endif
         ENDIF
-        
+
+        call mpibarrier(err)
+
         IF(iProcIndex.eq.Root) THEN
             IF(iWeightPopRead.ne.0) THEN
                 WRITE(6,"(A,I15,A,I4,A)") "Although ",EndPopsList," configurations will be read in, only determinants with a weight of over ",iWeightPopRead," will be stored."
@@ -162,7 +164,7 @@ MODULE PopsfileMod
 
         enddo
 
-        close(iunit)
+        if(iProcIndex.eq.Root) close(iunit)
 
         !Test we have still got all determinants
         TempCurrWalkers=int(CurrWalkers,8)
@@ -183,6 +185,7 @@ MODULE PopsfileMod
 
         !Run through all determinants on each node, and calculate the total number of walkers, and noathf
         do i=1,CurrWalkers
+!            WRITE(6,*) i,CurrentDets(:,i)
             call extract_sign(CurrentDets(:,i),SignTemp)
             CurrParts=CurrParts+abs(SignTemp)
             if(DetBitEQ(CurrentDets(:,i),iLutRef,NIfDBO)) then
@@ -206,6 +209,7 @@ MODULE PopsfileMod
         enddo
 
         CurrWalkers64=int(CurrWalkers,int64)    !Since this variable is eventually going to be
+        call mpibarrier(err)
                                                 !Totwalkers, it wants to be a 64 bit int.
     
     end subroutine ReadFromPopsfilev3
@@ -252,10 +256,12 @@ MODULE PopsfileMod
         endif
 
         if(tWalkContGrow) then
+            tSinglePartPhase=.true.
             !If continuing to grow, ensure we can allocate enough memory for what we hope to get the walker population to,
             !rather than the average number of determinants in the popsfile.
             WalkerListSize=max(initwalkers,NINT(real(iPopAllTotWalkers,8)/real(nProcessors,8)))
         else
+            tSinglePartPhase=.false.
             WalkerListSize=NINT(real(iPopAllTotWalkers,8)/real(nProcessors,8))
         endif
 
@@ -595,7 +601,7 @@ MODULE PopsfileMod
         integer(n_int) :: ilut_largest(0:NIfTot)
         integer :: sign_largest
 
-        IF(lenof_sign.ne.1) CALL Stop_All("ReadFromPopsfilePar","Popsfile does not work with complex walkers")
+        IF(lenof_sign.ne.1) CALL Stop_All("ReadFromPopsfilePar","Popsfile V.2 does not work with complex walkers")
         
         PreviousCycles=0    !Zero previous cycles
         SumENum=0.D0
@@ -969,8 +975,7 @@ MODULE PopsfileMod
             TotWalkersOld=CurrWalkers
             IF(iProcIndex.eq.root) THEN
 !                AllTotWalkers=TotWalkers
-                aLlTotWalkersOld=AllTotWalkers
-                iter_data_fciqmc%tot_parts_old = AllTotWalkers
+                AllTotWalkersOld=AllTotWalkers
                 WRITE(6,'(A,I10)') " Number of initial walkers on this processor is now: ",INT(TotWalkers,int64)
             ENDIF
 
@@ -982,7 +987,6 @@ MODULE PopsfileMod
             IF(iProcIndex.eq.root) THEN
 !                AllTotWalkers=TotWalkers
                 AllTotWalkersOld=AllTotWalkers
-                iter_data_fciqmc%tot_parts_old = AllTotWalkers
                 WRITE(6,'(A,I10)') " Number of initial walkers on this processor is now: ",INT(TotWalkers,int64)
             ENDIF
 
@@ -1049,12 +1053,13 @@ MODULE PopsfileMod
 
         enddo
 
-        TempTotParts=REAL(TotParts,dp)
-
         CALL MPIBarrier(error)  !Sync
-        CALL MPIReduce(TempTotParts,MPI_SUM,AllTotParts)
+        CALL MPIReduce(TotParts,MPI_SUM,AllTotParts)
 
-        IF(iProcIndex.eq.root) AllTotPartsOld=AllTotParts
+        IF(iProcIndex.eq.root) then
+            AllTotPartsOld=AllTotParts
+            iter_data_fciqmc%tot_parts_old = AllTotParts
+        endif
         write(6,'(A,i20)') ' The total number of particles read from the POPSFILE is: ',AllTotParts(1)
 
         if (tReadPopsRestart) then

@@ -2770,9 +2770,8 @@ MODULE FciMCParMod
         call MPISumAll (NoatHF, AllNoatHF)
         call MPISumAll (SumWalkersCyc, AllSumWalkersCyc)
 
-!        WRITE(6,*) "***",iter_data%update_growth_tot,AllTotParts-AllTotPartsOld
-        ASSERT(iter_data%update_growth_tot(1).eq.AllTotParts(1)-AllTotPartsOld(1))
-!        ASSERT(iter_data%update_growth_tot(2).eq.AllTotParts(2)-AllTotPartsOld(2))
+!        WRITE(6,*) "***",iter_data%update_growth_tot,AllTotParts(1),AllTotPartsOld(1)
+        ASSERTROOT(all(iter_data%update_growth_tot.eq.AllTotParts-AllTotPartsOld))
         
     end subroutine
 
