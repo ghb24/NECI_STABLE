@@ -3,7 +3,7 @@ MODULE PopsfileMod
     use SystemData, only: nel, tHPHF, tFixLz, tCSF, nBasis, tNoBrillouin
     use CalcData, only: tTruncInitiator,DiagSft,tWalkContGrow,nEquilSteps,ScaleWalkers, &
                         tReadPopsRestart, tRegenDiagHEls,InitWalkers, tReadPopsChangeRef, &
-                        nShiftEquilSteps
+                        nShiftEquilSteps,iWeightPopRead
     use DetBitOps, only: DetBitLT,FindBitExcitLevel,DetBitEQ
     use Determinants, only : get_helement,write_det
     use hphf_integrals, only: hphf_diag_helement
@@ -19,6 +19,348 @@ MODULE PopsfileMod
     implicit none
 
     contains
+
+    !   V.3 POPSFILE ROUTINES   !
+!This routine reads in particle configurations from a POPSFILE v.3.
+!EndPopsList is the number of entries in the POPSFILE to read, and ReadBatch is the number of determinants
+!which can be read in in a single batch.
+    SUBROUTINE ReadFromPopsfilev3(EndPopsList,ReadBatch,CurrWalkers64,CurrParts,CurrHF)
+        integer(8) , intent(in) :: EndPopsList  !Number of entries in the POPSFILE.
+        integer , intent(in) :: ReadBatch       !Size of the batch of determinants to read in in one go.
+        integer(int64) , intent(out) :: CurrWalkers64    !Number of determinants which end up on a given processor.
+        integer(int64) , dimension(lenof_sign) , intent(out) :: CurrParts
+        integer , dimension(lenof_sign) , intent(out) :: CurrHF
+        integer :: CurrWalkers
+        integer :: iunit,i,j,BatchReadTag,ierr,PopsInitialSlots(0:nProcessors-1)
+        real(8) :: BatchSize
+        integer :: PopsSendList(0:nProcessors-1),proc,sendcounts(nProcessors),disps(nProcessors)
+        integer :: MaxSendIndex,recvcount,err
+        integer(n_int) , allocatable :: BatchRead(:,:)
+        integer(n_int) :: WalkerTemp(0:NIfTot)
+        integer(8) :: Det,AllCurrWalkers,TempCurrWalkers
+        logical :: FormPops,BinPops,tReadAllPops,tStoreDet
+        integer , dimension(lenof_sign) :: SignTemp
+        integer :: TempNI(NEl) 
+        character(len=*) , parameter :: this_routine='ReadFromPopsfilev3'
+        HElement_t :: HElemTemp
+        !variables from header file
+        logical :: tPop64Bit,tPopHPHF,tPopLz
+        integer :: iPopLenof_sign,iPopNEl,iPopIter,PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot
+        integer(8) :: iPopAllTotWalkers
+        real(8) :: PopDiagSft
+        integer(8) , dimension(lenof_sign) :: PopSumNoatHF
+        HElement_t :: PopAllSumENum
+
+        call open_pops_head(iunit,formpops,binpops)
+        IF(FormPops) THEN
+            call ReadPopsHeadv3(iunit,tPop64Bit,tPopHPHF,tPopLz,iPopLenof_Sign,iPopNel, &
+                iPopAllTotWalkers,PopDiagSft,PopSumNoatHF,PopAllSumENum,iPopIter,   &
+                PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot)
+
+                if(EndPopsList.ne.iPopAllTotWalkers) then
+                    call stop_all(this_routine,"Error in assessing number of entries in POPSFILE")
+                endif
+
+        ELSEIF(BinPops) THEN
+            if(iProcIndex.eq.root) then
+                close(iunit)    !iunit here refers to the header file.
+                OPEN(iunit,FILE='POPSFILEBIN',Status='old',form='unformatted')
+            endif
+        ENDIF
+        
+        IF(iProcIndex.eq.Root) THEN
+            IF(iWeightPopRead.ne.0) THEN
+                WRITE(6,"(A,I15,A,I4,A)") "Although ",EndPopsList," configurations will be read in, only determinants with a weight of over ",iWeightPopRead," will be stored."
+            ENDIF
+            if(ScaleWalkers.ne.1) call warning(this_routine,"ScaleWalkers parameter found, but not implemented in POPSFILE v3 - ignoring.")
+
+        ENDIF
+
+        BatchSize=REAL(ReadBatch,dp)/REAL(nProcessors,dp)
+        if(iProcIndex.eq.Root) then
+            !Create PopsInitialSlots
+            do i=0,nProcessors-1
+                PopsInitialSlots(i)=NINT(BatchSize*i)+1
+            enddo
+            !Allocate array to store particle to distribute
+            allocate(BatchRead(0:NIfTot,1:ReadBatch),stat=ierr)
+            CALL LogMemAlloc('BatchRead',ReadBatch*(NIfTot+1),size_n_int,this_routine,BatchReadTag,ierr)
+        endif
+
+        CurrHF=0        !Number of HF walkers on each node.
+        CurrParts=0     !Number of walkers on each node.
+        CurrWalkers=0   !Number of determinants on each node.
+        Det=1
+        tReadAllPops=.false.
+        do while(.not.tReadAllPops)
+
+            if(iProcIndex.eq.Root) then
+
+                !Get ready for reading in the next batch of walkers
+                BatchRead(:,:)=0
+                PopsSendList(:)=PopsInitialSlots(:)
+
+                do while(Det.le.EndPopsList)
+
+                    tStoreDet=.false.
+                    do while(.not.tStoreDet)
+                        if(BinPops) then
+                            read(iunit) WalkerTemp(:)
+                        else
+                            read(iunit,*) WalkerTemp(:)
+                        endif
+                        Det=Det+1
+
+                        if(iWeightPopRead.ne.0) then
+                            call extract_sign(WalkerTemp(:),SignTemp)
+                            do i=1,lenof_sign
+                                if(SignTemp(i).ge.iWeightPopRead) then
+                                    tStoreDet=.true.
+                                    exit
+                                endif
+                            enddo
+                        else
+                            tStoreDet=.true.
+                        endif
+                    enddo
+
+                    proc = DetermineDetProc(WalkerTemp)
+                    BatchRead(:,PopsSendList(proc)) = WalkerTemp(:)
+                    PopsSendList(proc) = PopsSendList(proc) + 1
+                    if(proc.ne.(nProcessors-1)) then
+                        if(PopsInitialSlots(proc+1)-PopsSendList(proc).lt.2) then
+                            exit  !Now distribute the particles
+                        endif
+                    else
+                        if(ReadBatch-PopsSendList(proc).lt.2) then
+                            exit  !Now distribute the particles
+                        endif
+                    endif
+
+                enddo
+
+                if(Det.gt.EndPopsList) tReadAllPops=.true.
+
+                do j=0,nProcessors-1
+                    sendcounts(j+1)=(PopsSendList(j)-(NINT(BatchSize*j)+1))*(NIfTot+1)
+                    disps(j+1)=(NINT(BatchSize*j))*(NIfTot+1)
+                enddo
+                MaxSendIndex=disps(nProcessors)+sendcounts(nProcessors)
+
+            endif
+
+            !Now scatter the particles read in to their correct processors.
+            call MPIScatter(sendcounts,recvcount,err)
+            if(err.ne.0) call stop_all(this_routine,"MPI scatter error")
+            call MPIScatterV(BatchRead(:,1:MaxSendIndex),sendcounts,disps,CurrentDets(:,CurrWalkers+1:MaxWalkersPart),recvcount,err)
+            if(err.ne.0) call stop_all(this_routine,"MPI error")
+            CurrWalkers=CurrWalkers+recvcount/(NIfTot+1)
+            call MPIBCast(tReadAllPops)
+
+        enddo
+
+        close(iunit)
+
+        !Test we have still got all determinants
+        TempCurrWalkers=int(CurrWalkers,8)
+        call MPISum(TempCurrWalkers,1,AllCurrWalkers)
+        if(iProcIndex.eq.Root) then
+            if((iWeightPopRead.eq.0).and.(AllCurrWalkers.ne.EndPopsList)) then
+                call Stop_All(this_routine,"Not all walkers accounted for when reading in")
+            endif
+        endif
+
+        if(iProcIndex.eq.Root) then
+            deallocate(BatchRead)
+            CALL LogMemDealloc(this_routine,BatchReadTag)
+        endif
+
+        !Order the determinants on all the lists.
+        call sort (currentdets(:,1:CurrWalkers))
+
+        !Run through all determinants on each node, and calculate the total number of walkers, and noathf
+        do i=1,CurrWalkers
+            call extract_sign(CurrentDets(:,i),SignTemp)
+            CurrParts=CurrParts+abs(SignTemp)
+            if(DetBitEQ(CurrentDets(:,i),iLutRef,NIfDBO)) then
+                if(CurrHF(1).ne.0) then
+                    call stop_all(this_routine,"HF already found, but shouldn't have")
+                endif
+                CurrHF=CurrHF+SignTemp 
+                IF(.not.tRegenDiagHEls) CurrentH(i)=0.D0
+            else
+                if(.not.tRegenDiagHEls) THEN
+                !Calculate diagonal matrix element
+                    call decode_bit_det (TempnI, currentDets(:,i))
+                    if (tHPHF) then
+                        HElemTemp = hphf_diag_helement (TempnI,CurrentDets(:,i))
+                    else
+                        HElemTemp = get_helement (TempnI, TempnI, 0)
+                    endif
+                    CurrentH(i)=REAL(HElemTemp,dp)-Hii
+                endif
+            endif
+        enddo
+
+        CurrWalkers64=int(CurrWalkers,int64)    !Since this variable is eventually going to be
+                                                !Totwalkers, it wants to be a 64 bit int.
+    
+    end subroutine ReadFromPopsfilev3
+
+    subroutine CheckPopsParams(tPop64Bit,tPopHPHF,tPopLz,iPopLenof_Sign,iPopNel, &
+                    iPopAllTotWalkers,PopDiagSft,PopSumNoatHF,PopAllSumENum,iPopIter,   &
+                    PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot,WalkerListSize)
+        logical , intent(in) :: tPop64Bit,tPopHPHF,tPopLz
+        integer , intent(in) :: iPopLenof_sign,iPopNel,iPopIter,PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot
+        integer(8) , intent(in) :: iPopAllTotWalkers
+        real(8) , intent(in) :: PopDiagSft
+        integer(8) , dimension(lenof_sign) , intent(in) :: PopSumNoatHF
+        HElement_t , intent(in) :: PopAllSumENum
+        integer , intent(out) :: WalkerListSize
+        character(len=*) , parameter :: this_routine='CheckPopsParams'
+
+        !Ensure all NIF and symmetry options the same as when popsfile was written out.
+#ifdef __INT64
+        if(.not.tPop64Bit) call stop_all(this_routine,"Popsfile created with 32 bit walkers, but now using 64 bit.")
+#else
+        if(tPop64Bit) call stop_all(this_routine,"Popsfile created with 64 bit walkers, but now using 32 bit.")
+#endif
+        if(tPopHPHF.neqv.tHPHF) call stop_all(this_routine,"Popsfile HPHF and input HPHF not same")
+        if(tPopLz.neqv.tFixLz) call stop_all(this_routine,"Popsfile Lz and input Lz not same")
+        if(iPopLenof_sign.ne.lenof_sign) call stop_all(this_routine,"Popsfile lenof_sign and input lenof_sign not same")
+        if(iPopNEl.ne.NEl) call stop_all(this_routine,"Popsfile NEl and input NEl not same")
+        if(PopNIfD.ne.NIfD) call stop_all(this_routine,"Popsfile NIfD and calculated NIfD not same")
+        if(PopNIfY.ne.NIfY) call stop_all(this_routine,"Popsfile NIfY and calculated NIfY not same")
+        if(PopNIfSgn.ne.NIfSgn) call stop_all(this_routine,"Popsfile NIfSgn and calculated NIfSgn not same")
+        if(PopNIfFlag.ne.NIfFlag) call stop_all(this_routine,"Popsfile NIfFlag and calculated NIfFlag not same")
+        if(PopNIfTot.ne.NIfTot) call stop_all(this_routine,"Popsfile NIfTot and calculated NIfTot not same")
+
+
+        IF(.not.tWalkContGrow) THEN
+!If we want the walker number to be stable, take the shift from the POPSFILE, otherwise, keep the input value.
+            DiagSft=PopDiagSft
+        ENDIF
+
+        if(PopDiagSft.eq.0.D0) then
+            !If the popsfile has a shift of zero, continue letting the population grow
+            tWalkContGrow=.true.
+            DiagSft=PopDiagSft
+        endif
+
+        if(tWalkContGrow) then
+            !If continuing to grow, ensure we can allocate enough memory for what we hope to get the walker population to,
+            !rather than the average number of determinants in the popsfile.
+            WalkerListSize=max(initwalkers,NINT(real(iPopAllTotWalkers,8)/real(nProcessors,8)))
+        else
+            WalkerListSize=NINT(real(iPopAllTotWalkers,8)/real(nProcessors,8))
+        endif
+
+        AllSumNoatHF=PopSumNoatHF
+        AllSumENum=PopAllSumENum
+        PreviousCycles=iPopIter
+    
+    end subroutine CheckPopsParams
+
+
+!Routine for reading in from iunit the header information from a popsile v3 file.
+    subroutine ReadPopsHeadv3(iunithead,tPop64Bit,tPopHPHF,tPopLz,iPopLenof_Sign,iPopNel, &
+                iPopAllTotWalkers,PopDiagSft,PopSumNoatHF,PopAllSumENum,iPopIter,   &
+                PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot)
+        integer , intent(in) :: iunithead
+        logical , intent(out) :: tPop64Bit,tPopHPHF,tPopLz
+        integer , intent(out) :: iPopLenof_sign,iPopNel,iPopIter,PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot
+        integer(8) , intent(out) :: iPopAllTotWalkers
+        real(8) , intent(out) :: PopDiagSft
+        integer(8) , dimension(lenof_sign) , intent(out) :: PopSumNoatHF
+        HElement_t , intent(out) :: PopAllSumENum
+        character(len=24) :: junk,junk2,junk3,junk4,junk5
+        character(255) :: FirstLine
+        integer :: PopsVersion
+
+        PopsVersion=FindPopsfileVersion(iunithead)
+        if(PopsVersion.ne.3) call stop_all("ReadPopsfileHeadv3","Wrong popsfile version for this routine.")
+            
+        if(iProcIndex.eq.root) then
+            read(iunithead,'(A,L,A,L,A,L,A,I5,A,I7)') junk,tPop64Bit,junk2,tPopHPHF,junk3,tPopLz,junk4,iPopLenof_sign,junk5,iPopNEl
+            read(iunithead,*) iPopAllTotWalkers
+            read(iunithead,*) PopDiagSft 
+            read(iunithead,*) PopSumNoatHF 
+            read(iunithead,*) PopAllSumENum 
+            read(iunithead,*) iPopIter 
+            read(iunithead,*) PopNIfD 
+            read(iunithead,*) PopNIfY 
+            read(iunithead,*) PopNIfSgn 
+            read(iunithead,*) PopNIfFlag 
+            read(iunithead,*) PopNIfTot
+        endif
+        !Broadcast the read in values from the header to all nodes.
+        call MPIBCast(tPop64Bit)
+        call MPIBCast(tPopHPHF)
+        call MPIBCast(tPopLz)
+        call MPIBCast(iPopLenof_sign)
+        call MPIBCast(iPopNEl)
+        call MPIBCast(iPopAllTotWalkers)
+        call MPIBCast(PopDiagSft)
+        call MPIBCast(PopSumNoatHF)
+        call MPIBCast(PopAllSumENum)
+        call MPIBCast(iPopIter)
+        call MPIBCast(PopNIfD)
+        call MPIBCast(PopNIfY)
+        call MPIBCast(PopNIfSgn)
+        call MPIBCast(PopNIfFlag)
+        call MPIBCast(PopNIfTot)
+
+    end subroutine ReadPopsHeadv3
+    
+    !NOTE: This should only be used for the v3 POPSFILEs, since we only open the POPSFILE on the head node.
+    subroutine open_pops_head(iunithead,formpops,binpops)
+        use util_mod, only: get_free_unit
+        integer , intent(out) :: iunithead
+        logical , intent(out) :: formpops,binpops
+
+        if(iProcIndex.eq.root) then
+            iunithead=get_free_unit()
+            inquire(file='POPSFILE',exist=formpops)
+            if(formpops) then
+                open(iunithead,file='POPSFILE',status='old')
+                binpops=.false.
+            else
+                inquire(file='POPSFILEBIN',exist=binpops)
+                if(binpops) then
+                    open(iunithead,file='POPSFILEHEAD',status='old')
+                else 
+                    call stop_all("open_pops_head","No POPSFILEs detected...")
+                endif
+            endif
+            rewind(iunithead)
+        endif
+        call MPIBCast(binpops) 
+        call MPIBCast(formpops) 
+
+    end subroutine open_pops_head
+
+
+!Return the version number of the popsfile
+    integer function FindPopsfileVersion(iunithead)
+        integer, intent(in) :: iunithead
+        logical :: formpops,binpops
+        character(255) :: FirstLine
+
+        if(iProcIndex.eq.root) then
+            rewind(iunithead)
+            read(iunithead,'(a255)') FirstLine
+
+            if(index(FirstLine,'VERSION').eq.0) then
+                FindPopsfileVersion=1
+            else
+                rewind(iunithead)
+                read(iunithead,*) FirstLine,FirstLine,FirstLine,FindPopsfileVersion
+            endif
+        endif
+        call MPIBCast(FindPopsfileVersion)
+
+    end function FindPopsfileVersion
+
 
 !This routine is the same as WriteToPopsfilePar, but does not require two main arrays to hold the data.
 !The root processors data will be stored in a temporary array while it recieves the data from the other processors.
@@ -51,8 +393,8 @@ MODULE PopsfileMod
 !First, make sure we have up-to-date information - again collect AllTotWalkers,AllSumNoatHF and AllSumENum...
 !        CALL MPI_Reduce(TotWalkers,AllTotWalkers,1,MPI_INTEGER,MPI_Sum,root,MPI_COMM_WORLD,error)    
 !Calculate the energy by summing all on HF and doubles - convert number at HF to a real since no int*8 MPI data type
-        CALL MPISumRoot(SumNoatHF,1,AllSumNoatHF,Root)
-        CALL MPISumRoot(SumENum,1,AllSumENum,Root)
+        CALL MPISum(SumNoatHF,1,AllSumNoatHF)
+        CALL MPISum(SumENum,1,AllSumENum)
 
 !We also need to tell the root processor how many particles to expect from each node - these are gathered into WalkersonNodes
         CALL MPIAllGather(nDets,WalkersonNodes,error)
@@ -209,206 +551,6 @@ MODULE PopsfileMod
         RETURN
 
     END SUBROUTINE WriteToPopsfileParOneArr
-
-!This routine reads in particle configurations from a POPSFILE v.3.
-!EndPopsList is the number of entries in the POPSFILE to read, and ReadBatch is the number of determinants
-!which can be read in in a single batch.
-    SUBROUTINE ReadFromPopsfilev3(EndPopsList,ReadBatch,CurrWalkers)
-        integer(8) , intent(in) :: EndPopsList  !Number of entries in the POPSFILE.
-        integer , intent(in) :: ReadBatch       !Size of the batch of determinants to read in in one go.
-        integer , intent(out) :: CurrWalkers    !Number of determinants which end up on a given processor.
-        integer :: iunit,i,j,BatchReadTag,ierr,PopsInitialSlots(0:nProcessors-1)
-        real(8) :: BatchSize
-        integer :: PopsSendList(0:nProcessors-1),proc,sendcounts(nProcessors),disps(nProcessors)
-        integer :: MaxSendIndex,recvcount,err
-        integer(n_int) , allocatable :: BatchRead(:,:)
-        integer(n_int) :: WalkerTemp(0:NIfTot)
-        integer(8) :: Det,AllCurrWalkers,TempCurrWalkers
-        logical :: FormPops,BinPops,tReadAllPops
-        character(len=*) , parameter :: this_routine='ReadFromPopsfilev3'
-        !variables from header file
-        logical :: tPop64Bit,tPopHPHF,tPopLz
-        integer :: iPopLenof_sign,iPopNEl,iPopIter,PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot
-        integer(8) :: iPopAllTotWalkers
-        real(8) :: PopDiagSft
-        integer(8) , dimension(lenof_sign) :: PopSumNoatHF
-        HElement_t :: PopAllSumENum
-
-
-        call open_pops_head(iunit,formpops,binpops)
-        IF(FormPops) THEN
-            call ReadPopsHeadv3(iunit,tPop64Bit,tPopHPHF,tPopLz,iPopLenof_Sign,iPopNel, &
-                iPopAllTotWalkers,PopDiagSft,PopSumNoatHF,PopAllSumENum,iPopIter,   &
-                PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot)
-            if(EndPopsList.ne.iPopAllTotWalkers) then
-                call stop_all(this_routine,"Error in assessing number of entries in POPSFILE")
-            endif
-        ELSEIF(BinPops) THEN
-            close(iunit)    !iunit here refers to the header file.
-            OPEN(iunit,FILE='POPSFILEBIN',Status='old',form='unformatted')
-        ENDIF
-
-        BatchSize=REAL(ReadBatch,dp)/REAL(nProcessors,dp)
-        if(iProcIndex.eq.Root) then
-            !Create PopsInitialSlots
-            do i=0,nProcessors-1
-                PopsInitialSlots(i)=NINT(BatchSize*i)+1
-            enddo
-            !Allocate array to store particle to distribute
-            allocate(BatchRead(0:NIfTot,1:ReadBatch),stat=ierr)
-            CALL LogMemAlloc('BatchRead',ReadBatch*(NIfTot+1),size_n_int,this_routine,BatchReadTag,ierr)
-        endif
-
-        CurrWalkers=0   !Number of walkers on each node.
-        Det=1
-        tReadAllPops=.false.
-        do while(.not.tReadAllPops)
-
-            if(iProcIndex.eq.Root) then
-
-                !Get ready for reading in the next batch of walkers
-                BatchRead(:,:)=0
-                PopsSendList(:)=PopsInitialSlots(:)
-
-                do while(Det.le.EndPopsList)
-
-                    if(BinPops) then
-                        read(iunit) WalkerTemp(:)
-                    else
-                        read(iunit,*) WalkerTemp(:)
-                    endif
-                    Det=Det+1
-
-                    proc = DetermineDetProc(WalkerTemp)
-                    BatchRead(:,PopsSendList(proc)) = WalkerTemp(:)
-                    PopsSendList(proc) = PopsSendList(proc) + 1
-                    if(proc.ne.(nProcessors-1)) then
-                        if(PopsInitialSlots(proc+1)-PopsSendList(proc).lt.2) then
-                            exit  !Now distribute the particles
-                        endif
-                    else
-                        if(ReadBatch-PopsSendList(proc).lt.2) then
-                            exit  !Now distribute the particles
-                        endif
-                    endif
-
-                enddo
-
-                if(Det.gt.EndPopsList) tReadAllPops=.true.
-
-                do j=0,nProcessors-1
-                    sendcounts(j+1)=(PopsSendList(j)-(NINT(BatchSize*j)+1))*(NIfTot+1)
-                    disps(j+1)=(NINT(BatchSize*j))*(NIfTot+1)
-                enddo
-                MaxSendIndex=disps(nProcessors)+sendcounts(nProcessors)
-
-            endif
-
-            !Now scatter the particles read in to their correct processors.
-            call MPI_Scatter(sendcounts,1,MPI_INTEGER,recvcount,MPI_INTEGER,Root,MPI_COMM_WORLD,err)
-            if(err.ne.0) call stop_all(this_routine,"MPI error")
-            call MPI_Scatterv(BatchRead(:,1:MaxSendIndex),sendcounts,disps,MPI_INTEGER8,CurrentDets(:,CurrWalkers+1:MaxWalkersPart),recvcount,MPI_INTEGER8,Root,MPI_COMM_WORLD,err)
-            if(err.ne.0) call stop_all(this_routine,"MPI error")
-            CurrWalkers=CurrWalkers+recvcount/(NIfTot+1)
-            call MPI_BCast(tReadAllPops,1,MPI_LOGICAL,Root,MPI_COMM_WORLD,err)
-            if(err.ne.0) call stop_all(this_routine,"MPI error")
-
-        enddo
-
-        close(iunit)
-
-        !Test we have still got all determinants
-        TempCurrWalkers=int(CurrWalkers,8)
-        call MPI_AllReduce(TempCurrWalkers,AllCurrWalkers,1,MPI_INTEGER8,MPI_SUM,MPI_COMM_WORLD,err)
-        if(iProcIndex.eq.Root) then
-            if(AllCurrWalkers.ne.EndPopsList) then
-                call Stop_All(this_routine,"Not all walkers accounted for when reading in")
-            endif
-        endif
-
-        if(iProcIndex.eq.Root) then
-            deallocate(BatchRead)
-            CALL LogMemDealloc(this_routine,BatchReadTag)
-        endif
-
-        !Order the determinants on all the lists.
-        call sort (currentdets(:,1:CurrWalkers))
-    
-    end subroutine ReadFromPopsfilev3
-
-!Routine for reading in from iunit the header information from a popsile v3 file.
-    subroutine ReadPopsHeadv3(iunithead,tPop64Bit,tPopHPHF,tPopLz,iPopLenof_Sign,iPopNel, &
-                iPopAllTotWalkers,PopDiagSft,PopSumNoatHF,PopAllSumENum,iPopIter,   &
-                PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot)
-        integer , intent(in) :: iunithead
-        logical , intent(out) :: tPop64Bit,tPopHPHF,tPopLz
-        integer , intent(out) :: iPopLenof_sign,iPopNel,iPopIter,PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot
-        integer(8) , intent(out) :: iPopAllTotWalkers
-        real(8) , intent(out) :: PopDiagSft
-        integer(8) , dimension(lenof_sign) , intent(out) :: PopSumNoatHF
-        HElement_t , intent(out) :: PopAllSumENum
-        character(len=24) :: junk,junk2,junk3,junk4,junk5
-        character(255) :: FirstLine
-        integer :: PopsVersion
-
-        PopsVersion=FindPopsfileVersion(iunithead)
-        if(PopsVersion.ne.3) call stop_all("ReadPopsfileHeadv3","Wrong popsfile version for this routine.")
-        
-        read(iunithead,'(A,L,A,L,A,L,A,I5,A,I7)') junk,tPop64Bit,junk2,tPopHPHF,junk3,tPopLz,junk4,iPopLenof_sign,junk5,iPopNEl
-        read(iunithead,*) iPopAllTotWalkers
-        read(iunithead,*) PopDiagSft 
-        read(iunithead,*) PopSumNoatHF 
-        read(iunithead,*) PopAllSumENum 
-        read(iunithead,*) iPopIter 
-        read(iunithead,*) PopNIfD 
-        read(iunithead,*) PopNIfY 
-        read(iunithead,*) PopNIfSgn 
-        read(iunithead,*) PopNIfFlag 
-        read(iunithead,*) PopNIfTot
-
-        rewind(iunithead)
-    end subroutine ReadPopsHeadv3
-    
-    subroutine open_pops_head(iunithead,formpops,binpops)
-        use util_mod, only: get_free_unit
-        integer , intent(out) :: iunithead
-        logical , intent(out) :: formpops,binpops
-
-        iunithead=get_free_unit()
-        inquire(file='POPSFILE',exist=formpops)
-        if(formpops) then
-            open(iunithead,file='POPSFILE',status='old')
-            binpops=.false.
-        else
-            inquire(file='POPSFILEBIN',exist=binpops)
-            if(binpops) then
-                open(iunithead,file='POPSFILEHEAD',status='old')
-            else 
-                call stop_all("open_pops_head","No POPSFILEs detected...")
-            endif
-        endif
-        rewind(iunithead)
-
-    end subroutine open_pops_head
-
-
-!Return the version number of the popsfile
-    integer function FindPopsfileVersion(iunithead)
-        integer, intent(in) :: iunithead
-        logical :: formpops,binpops
-        character(255) :: FirstLine
-
-        rewind(iunithead)
-        read(iunithead,'(a255)') FirstLine
-
-        if(index(FirstLine,'VERSION').eq.0) then
-            FindPopsfileVersion=1
-        else
-            rewind(iunithead)
-            read(iunithead,*) FirstLine,FirstLine,FirstLine,FindPopsfileVersion
-        endif
-
-    end function FindPopsfileVersion
 
 !This routine reads in particle configurations from a POPSFILE.
     SUBROUTINE ReadFromPopsfilePar()
@@ -585,16 +727,16 @@ MODULE PopsfileMod
 
 !Now we need to scatter the WalkerstoReceive to each node, and allocate the desired memory to each node...
 !Broadcast info which needs to go to all processors
-        CALL MPIBCast(DiagSft,root)
-        CALL MPIBCast(SumENum,root)
-        CALL MPIBCast(InitWalkers,root)
-        CALL MPIBCast(NEquilSteps,root)
-        CALL MPIBCast(NShiftEquilSteps,root)
-        CALL MPIBCast(TSinglePartPhase,root)
+        CALL MPIBCast(DiagSft)
+        CALL MPIBCast(SumENum)
+        CALL MPIBCast(InitWalkers)
+        CALL MPIBCast(NEquilSteps)
+        CALL MPIBCast(NShiftEquilSteps)
+        CALL MPIBCast(TSinglePartPhase)
 !        CALL MPI_BCast(tChangenProcessors,1,MPI_LOGICAL,root,MPI_COMM_WORLD,error)
 !Scatter the number of walkers each node will receive to TempInitWalkers, and the SumNoatHF for each node which is distributed approximatly equally
-        CALL MPIScatter(WalkerstoReceive,TempInitWalkers,root,error)
-        CALL MPIScatter(NodeSumNoatHF,SumNoatHF(1),root,error)
+        CALL MPIScatter(WalkerstoReceive,TempInitWalkers,error)
+        CALL MPIScatter(NodeSumNoatHF,SumNoatHF(1),error)
 
         IF(MemoryFacPart.le.1.D0) THEN
             WRITE(6,*) 'MemoryFacPart must be larger than 1.0 when reading in a POPSFILE - increasing it to 1.50.'
@@ -1067,12 +1209,12 @@ MODULE PopsfileMod
 
 !Now we need to scatter the WalkerstoReceive to each node, and allocate the desired memory to each node...
 !Broadcast info which needs to go to all processors
-        CALL MPIBCast(DiagSft,root)
-        CALL MPIBCast(SumENum,root)
-        CALL MPIBCast(InitWalkers,root)
-        CALL MPIBCast(NEquilSteps,root)
-        CALL MPIBCast(NShiftEquilSteps,root)
-        CALL MPIBCast(TSinglePartPhase,root)
+        CALL MPIBCast(DiagSft)
+        CALL MPIBCast(SumENum)
+        CALL MPIBCast(InitWalkers)
+        CALL MPIBCast(NEquilSteps)
+        CALL MPIBCast(NShiftEquilSteps)
+        CALL MPIBCast(TSinglePartPhase)
 !        CALL MPI_BCast(tChangenProcessors,1,MPI_LOGICAL,root,MPI_COMM_WORLD,error)
 !Scatter the number of walkers each node will receive to TempInitWalkers, and the SumNoatHF for each node which is distributed approximatly equally
 
