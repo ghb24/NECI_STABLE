@@ -76,6 +76,8 @@ MODULE PopsfileMod
         IF(iProcIndex.eq.Root) THEN
             IF(iWeightPopRead.ne.0) THEN
                 WRITE(6,"(A,I15,A,I4,A)") "Although ",EndPopsList," configurations will be read in, only determinants with a weight of over ",iWeightPopRead," will be stored."
+            else
+                write(6,"(A,I15,A)") "Reading in a total of ",EndPopsList, " configurations from POPSFILE."
             ENDIF
             if(ScaleWalkers.ne.1) call warning(this_routine,"ScaleWalkers parameter found, but not implemented in POPSFILE v3 - ignoring.")
 
@@ -186,6 +188,7 @@ MODULE PopsfileMod
         endif
 
         write(6,"(A,I8)") "Number of batches required to distribute all determinants in POPSFILE: ",nBatches
+        write(6,*) "Number of configurations read in to this core: ",CurrWalkers 
 
         !Order the determinants on all the lists.
         call sort (currentdets(:,1:CurrWalkers))

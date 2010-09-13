@@ -211,7 +211,7 @@ MODULE AnnihilationMod
 !Distribute the gaps on all procs
 !TODO:  This should use information from InitialSpawnedSlots for consistency.
             Gap=REAL(MaxSpawned)/REAL(nProcessors)
-   !        WRITE(6,*) "Gap: ",Gap
+!            WRITE(6,*) "Gap: ",Gap
 
            do i=0,nProcessors-1
                sendcounts(i+1)=ValidSpawnedList(i)-(NINT(Gap*i)+1)
@@ -247,6 +247,7 @@ MODULE AnnihilationMod
 
 !Max index is the largest occupied index in the array of hashes to be ordered in each processor 
         IF(MaxIndex.gt.(0.9*MaxSpawned)) THEN
+            write(6,*) MaxIndex,MaxSpawned
             CALL Warning("SendProcNewParts","Maximum index of newly-spawned array is close to maximum length after annihilation send. Increase MemoryFacSpawn")
         ENDIF
 

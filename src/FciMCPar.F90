@@ -851,7 +851,7 @@ MODULE FciMCParMod
             IF(iProcIndex.eq.0) WRITE(6,'(A)') 'Writing out the spread of the initiator determinant populations.'
             CALL WriteInitPops(Iter+PreviousCycles)
         ENDIF
-
+        
         ! Print bloom/memory warnings
         call end_iteration_print_warn (totWalkersNew)
         call halt_timer (walker_time)
@@ -2770,7 +2770,7 @@ MODULE FciMCParMod
         call MPISumAll (NoatHF, AllNoatHF)
         call MPISumAll (SumWalkersCyc, AllSumWalkersCyc)
 
-!        WRITE(6,*) "***",iter_data%update_growth_tot,AllTotParts(1),AllTotPartsOld(1)
+!        WRITE(6,*) "***",iter_data%update_growth_tot(1),AllTotParts(1),AllTotPartsOld(1)
         ASSERTROOT(all(iter_data%update_growth_tot.eq.AllTotParts-AllTotPartsOld))
         
     end subroutine
@@ -3161,11 +3161,10 @@ MODULE FciMCParMod
         INTEGER(KIND=n_int) :: iLutTemp(0:NIfDBO)
         HElement_t :: TempHii
         TYPE(BasisFn) HFSym
-        REAL*8 :: TotDets,SymFactor,r
+        REAL*8 :: TotDets,SymFactor,r,Gap
         CHARACTER(len=*), PARAMETER :: this_routine='SetupParameters'
         CHARACTER(len=12) :: abstr
         LOGICAL :: tSuccess,tFoundOrbs(nBasis),FoundPair
-        REAL :: Gap
         INTEGER :: nSingles,nDoubles,HFLz,ChosenOrb,KPnt(3)
 
 !        CALL MPIInit(.false.)       !Initialises MPI - now have variables iProcIndex and nProcessors
@@ -3686,22 +3685,30 @@ MODULE FciMCParMod
 !            OneRDM(:,:)=0.D0
 !        ENDIF
 
+        IF(tCCMC) then      !Once alex's CCMC/FCIMC unification project is finished we can remove this
+                            !The problem is that ValidSpawnedList is now setup in InitFCIMCCalcPar.
+                            !This is for compatibility with POPSFILE v.3, where MaxSpawned is calculated
+                            !from the number in the POPSFILE.
+                            !Set it up here for CCMC.
+
+            WRITE(6,*) "*Direct Annihilation* in use...Explicit load-balancing disabled."
+            ALLOCATE(ValidSpawnedList(0:nProcessors-1),stat=ierr)
+            !InitialSpawnedSlots is now filled later, once the number of particles wanted is known
+            !(it can change according to the POPSFILE).
+            ALLOCATE(InitialSpawnedSlots(0:nProcessors-1),stat=ierr)
+    !InitialSpawnedSlots now holds the first free position in the newly-spawned list for each processor, so it does not need to be reevaluated each iteration.
+            MaxSpawned=NINT(MemoryFacSpawn*InitWalkers)
+            Gap=REAL(MaxSpawned)/REAL(nProcessors)
+            do j=0,nProcessors-1
+                InitialSpawnedSlots(j)=NINT(Gap*j)+1
+            enddo
+    !ValidSpawndList now holds the next free position in the newly-spawned list, but for each processor.
+            ValidSpawnedList(:)=InitialSpawnedSlots(:)
+        endif
+
         IF(TPopsFile) THEN
             IF(mod(iWritePopsEvery,StepsSft).ne.0) CALL Warning(this_routine,"POPSFILE writeout should be a multiple of the update cycle length.")
         ENDIF
-
-        WRITE(6,*) "*Direct Annihilation* in use...Explicit load-balancing disabled."
-        WRITE(6,*) ""
-        ALLOCATE(ValidSpawnedList(0:nProcessors-1),stat=ierr)
-        ALLOCATE(InitialSpawnedSlots(0:nProcessors-1),stat=ierr)
-!InitialSpawnedSlots now holds the first free position in the newly-spawned list for each processor, so it does not need to be reevaluated each iteration.
-        MaxSpawned=NINT(MemoryFacSpawn*InitWalkers)
-        Gap=REAL(MaxSpawned)/REAL(nProcessors)
-        do j=0,nProcessors-1
-            InitialSpawnedSlots(j)=NINT(Gap*j)+1
-        enddo
-!ValidSpawndList now holds the next free position in the newly-spawned list, but for each processor.
-        ValidSpawnedList(:)=InitialSpawnedSlots(:)
 
         if (TReadPops) then
             if (tStartSinglePart .and. .not. tReadPopsRestart) then
@@ -4596,10 +4603,11 @@ MODULE FciMCParMod
         use constants , only : size_n_int
         INTEGER :: ierr,iunithead
         LOGICAL :: formpops,binpops
-        INTEGER :: error,MemoryAlloc,PopsVersion,WalkerListSize
+        INTEGER :: error,MemoryAlloc,PopsVersion,WalkerListSize,j
         INTEGER, DIMENSION(lenof_sign) :: InitialSign
         CHARACTER(len=*), PARAMETER :: this_routine='InitFCIMCPar'
         integer :: ReadBatch    !This parameter determines the length of the array to batch read in walkers from a popsfile
+        real(8) :: Gap
         !Variables from popsfile header...
         logical :: tPop64Bit,tPopHPHF,tPopLz
         integer :: iPopLenof_sign,iPopNel,iPopIter,PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot
@@ -4643,6 +4651,19 @@ MODULE FciMCParMod
             MaxSpawned=NINT(MemoryFacSpawn*WalkerListSize)
 !            WRITE(6,"(A,I14)") "Memory allocated for a maximum particle number per node for spawning of: ",MaxSpawned
 
+            WRITE(6,*) "*Direct Annihilation* in use...Explicit load-balancing disabled."
+            ALLOCATE(ValidSpawnedList(0:nProcessors-1),stat=ierr)
+            !InitialSpawnedSlots is now filled later, once the number of particles wanted is known
+            !(it can change according to the POPSFILE).
+            ALLOCATE(InitialSpawnedSlots(0:nProcessors-1),stat=ierr)
+    !InitialSpawnedSlots now holds the first free position in the newly-spawned list for each processor, so it does not need to be reevaluated each iteration.
+            Gap=REAL(MaxSpawned)/REAL(nProcessors)
+            do j=0,nProcessors-1
+                InitialSpawnedSlots(j)=NINT(Gap*j)+1
+            enddo
+    !ValidSpawndList now holds the next free position in the newly-spawned list, but for each processor.
+            ValidSpawnedList(:)=InitialSpawnedSlots(:)
+
 !Put a barrier here so all processes synchronise
             CALL MPIBarrier(error)
 !Allocate memory to hold walkers
@@ -4661,7 +4682,7 @@ MODULE FciMCParMod
             ENDIF
             
 
-            WRITE(6,"(A,I12,A)") " Spawning vectors allowing for a total of ",MaxSpawned," particles to be spawned in any one iteration."
+            WRITE(6,"(A,I12,A)") " Spawning vectors allowing for a total of ",MaxSpawned," particles to be spawned in any one iteration per core."
             ALLOCATE(SpawnVec(0:NIftot,MaxSpawned),stat=ierr)
             CALL LogMemAlloc('SpawnVec',MaxSpawned*(NIfTot+1),size_n_int,this_routine,SpawnVecTag,ierr)
             SpawnVec(:,:)=0
