@@ -3369,7 +3369,6 @@ MODULE FciMCParMod
             CALL CountExcitsOld(HFDet,exflag,nSingles,nDoubles)
         ENDIF
         HFConn=nSingles+nDoubles
-        write(6,*) HFConn,nSingles,nDoubles,tKPntSym,HFDet,exflag
 
 !Initialise random number seed - since the seeds need to be different on different processors, subract processor rank from random number
         Seed=abs(G_VMC_Seed-iProcIndex)
@@ -4833,6 +4832,9 @@ MODULE FciMCParMod
         INTEGER , ALLOCATABLE :: EXCITGEN(:)
         character(len=*) , parameter :: this_routine='CountExcitsOld'
 
+        nSing=0
+        nDoub=0
+
         !However, we have to ensure that brillouins theorem isn't on!
         IF(tUseBrillouin) THEN
             TempUseBrill=.true.
@@ -4843,10 +4845,12 @@ MODULE FciMCParMod
 
         iMaxExcit=0
         nStore(1:6)=0
+        nJ(:)=0
         CALL GenSymExcitIt2(HFDet,NEl,G1,nBasis,.TRUE.,nExcitMemLen,nJ,iMaxExcit,nStore,exFlag)
         ALLOCATE(EXCITGEN(nExcitMemLen),stat=ierr)
         IF(ierr.ne.0) CALL Stop_All(this_routine,"Problem allocating excitation generator")
         EXCITGEN(:)=0
+        nJ(:)=0
         CALL GenSymExcitIt2(HFDet,NEl,G1,nBasis,.TRUE.,EXCITGEN,nJ,iMaxExcit,nStore,exFlag)
     !    CALL GetSymExcitCount(EXCITGEN,DetConn)
         excitcount=0
@@ -4863,6 +4867,10 @@ MODULE FciMCParMod
             ENDIF
         enddo lp2
         tUseBrillouin=TempUseBrill
+
+        if(iMaxExcit.ne.(nSing+nDoub)) then
+            call stop_all("CountExcitsOld","Error in counting old excitations")
+        endif
 
     END SUBROUTINE CountExcitsOld
 
