@@ -703,14 +703,20 @@ MODULE FciMCParMod
             ! N.B. j indicates the number of determinants, not the number
             !      of walkers.
 
-            !Debug output.
-            IFDEBUG(FCIMCDebug,3) write(6,"(A,I10)",advance='no') "TW:", j
-            IFDEBUG(FCIMCDebug,3) call WriteBitDet(6,CurrentDets(:,j),.true.)
-            IFDEBUG(FCIMCDebug,3) call Flush(6) 
-
             ! Decode determinant from (stored) bit-representation.
             call extract_bit_rep (CurrentDets(:,j), DetCurr, SignCurr, &
                                   FlagsCurr)
+
+            !Debug output.
+            IFDEBUGTHEN(FCIMCDebug,3)
+                if(lenof_sign.eq.2) then
+                    write(6,"(A,I10,2I7,I5)",advance='no') "TW:", j,SignCurr,FlagsCurr
+                else
+                    write(6,"(A,I10,I7,I5)",advance='no') "TW:", j,SignCurr,FlagsCurr
+                endif
+                call WriteBitDet(6,CurrentDets(:,j),.true.)
+                call Flush(6) 
+            ENDIFDEBUG
 
             ! TODO: The next couple of bits could be done automatically
 
