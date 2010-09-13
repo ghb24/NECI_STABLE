@@ -42,6 +42,11 @@ MODULE GenRandSymExcitNUMod
     IMPLICIT NONE
 !    INTEGER , SAVE :: Counter=0
 
+    interface ClassCountInd
+        module procedure ClassCountInd_full
+        module procedure ClassCountInd_orb
+    end interface
+
     contains
 
     subroutine gen_rand_excit (nI, ilut, nJ, ilutnJ, exFlag, IC, ExcitMat, &
@@ -1372,55 +1377,38 @@ MODULE GenRandSymExcitNUMod
 
     END SUBROUTINE CreateSingleExcit
 
-!This routine returns two arrays of length ScratchSize, which have information about the number of orbitals, occupied and unoccupied respectively, of each symmetry.
-    SUBROUTINE ConstructClassCounts(nI,ClassCount2,ClassCountUnocc2)
-        INTEGER :: i,Ind
-        INTEGER, INTENT(IN) :: nI(NEl)
-        INTEGER, INTENT(OUT) :: ClassCount2(ScratchSize),ClassCountUnocc2(ScratchSize)
+    subroutine construct_class_counts (nI, CCOcc, CCUnocc)
 
-        ClassCount2(:)=0
-        ClassCountUnocc2(:)=OrbClassCount(:)
-
-        IF(tNoSymGenRandExcits) THEN
-
-!            do i=1,NEl
-!Create ILUT for O[1] comparison of orbitals in root determinant - This is now read in
-!                ILUT((nI(I)-1)/bits_n_int)=IBSET(ILUT((NI(I)-1)/bits_n_int),MOD(NI(I)-1,bits_n_int))
-!            enddo
-!All orbitals are in irrep 0
-            ClassCount2(ClassCountInd(1,0,0))=nOccAlpha
-            ClassCount2(ClassCountInd(2,0,0))=nOccBeta
-            ClassCountUnocc2(ClassCountInd(1,0,0))=ClassCountUnocc2(ClassCountInd(1,0,0))-nOccAlpha
-            ClassCountUnocc2(ClassCountInd(2,0,0))=ClassCountUnocc2(ClassCountInd(2,0,0))-nOccBeta
+        ! Return two arrays of length ScratchSize, containing information on
+        ! the number of orbitals - occupied and unoccupied - in each symmetry.
+        !
+        ! The arrays are indexed via the indices returned by ClassCountInd
         
-        ELSE
+        integer, intent(in) :: nI(nel)
+        integer, intent(out) :: CCOcc(ScratchSize), CCUnocc(ScratchSize)
 
-            do i=1,NEl
-                
-!Create ILUT for O[1] comparison of orbitals in root determinant - This is now read in
-!                ILUT((nI(I)-1)/bits_n_int)=IBSET(ILUT((NI(I)-1)/bits_n_int),MOD(NI(I)-1,bits_n_int))
+        integer :: ind_alpha, ind_beta
 
-                IF(G1(nI(i))%Ms.eq.1) THEN
-                    Ind=ClassCountInd(1,SpinOrbSymLabel(nI(i)),G1(nI(i))%Ml)
-                ELSE
-                    Ind=ClassCountInd(2,SpinOrbSymLabel(nI(i)),G1(nI(i))%Ml)
-                ENDIF
+        CCOcc = 0
+        CCUnocc = OrbClassCount
 
-                ClassCount2(Ind)=ClassCount2(Ind)+1
-                ClassCountUnocc2(Ind)=ClassCountUnocc2(Ind)-1
+        if (tNoSymGenRandExcits) then
+            ind_alpha = ClassCountInd(1,0,0)
+            ind_beta = ClassCountInd(2,0,0)
+            CCOcc(ind_alpha) = nOccAlpha
+            CCOcc(ind_beta) = nOccBeta
+            CCUnocc(ind_alpha) = CCUnocc(ind_alpha) - nOccAlpha
+            CCUnocc(ind_beta) = CCUnocc(ind_beta) - nOccBeta
+        else
+            do i = 1, nel
+                ind = ClasscountInd(nI(i))
 
+                CCOcc(ind) = CCOcc(ind) + 1
+                CCUnocc(ind) = CCUnocc(ind) - 1
             enddo
+        endif
 
-        ENDIF
-
-!        WRITE(6,*) nI(:)
-!        WRITE(6,*) "***"
-!        WRITE(6,*) ScratchSize
-!        WRITE(6,*) "***"
-!        WRITE(6,*) ClassCount2(:)
-
-    END SUBROUTINE ConstructClassCounts
-
+    end subroutine
 
 
 !This routine will calculate the PGen between two connected determinants, nI and nJ which are IC excitations of each other, using the unbiased scheme.
@@ -1568,30 +1556,63 @@ MODULE GenRandSymExcitNUMod
 
     END SUBROUTINE CalcNonUniPGen
 
-!ClassCount arrays are not going to be 1D arrays, so that new symmetries can be added more easily.
-!This means that an indexing system is needed for the array.
-!For spin, alpha=1, beta=2. Sym goes from 0:nSymLabels-1 and Mom goes from -Lmax to Lmax.
-!For molecular systems, the sym is actually the symmetry of the irrep.
-!However, for k-points, the sym is the k-point label from SymClasses(state)
-    pure integer function ClassCountInd(Spin,Sym,Mom)
-        integer, intent(in) :: Spin,Sym,Mom
+    pure integer function ClassCountInd_full(Spin, Sym, Mom) result(ind)
+
+        ! Return the index into the ClassCount arrays such that variable
+        ! symmetries can be easily accomodated.
+        !
+        ! For spin, alpha=1, beta=2; Sym = 0:nSymLabels-1; Mom = -Lmax:LMax
+        ! For molecular systems, the sym is actually the symmetry of the irrep
+        ! For k-points, the sym is the k-point label from SymClasses(state)
+        !
+        ! INTERFACED as ClassCountInd
+
+        integer, intent(in) :: Spin, Sym, Mom
+        integer :: ind
 
         if(tFixLz) then
-            ClassCountInd=2*nSymLabels*(Mom+iMaxLz)+2*Sym+Spin
+            ind = 2 * nSymLabels * (Mom + iMaxLz) + (2 * Sym + Spin)
         else
-            ClassCountInd=2*Sym+Spin
+            ind = 2 * Sym + Spin
         endif
 
         if(tNoSymGenRandExcits) then
-            if(Spin.eq.1) then
-                ClassCountInd=1
+            if(Spin == 1) then
+                ind = 1
             else
-                ClassCountInd=2
+                ind = 2
             endif
         endif
+
     end function ClassCountInd
 
-!This function returns the label (0 -> nSymlabels) of the symmetry product of two symmetry labels.
+
+    pure integer function ClassCountInd_orb (orb) result(ind)
+
+        ! The same as ClassCountInd_full, only the values required are 
+        ! obtained for the spin orbital orb.
+        !
+        ! INTERFACED as ClassCountInd
+
+        integer, intent(in) :: orb
+        integer :: ind
+        
+        ! Extract the required values
+        if (is_alpha(orb)) then
+            spin = 1
+        else
+            spin = 2
+        endif
+        sym = SpinOrbSymLabel(nI(i))
+        mom = G1(nI(i))%Ml
+
+        ! Calculate index as usual
+        ind = ClassCountInd_full (spin, sym, mom)
+
+    end function
+
+
+!This function returns the label (0 -> nSymlabels-1) of the symmetry product of two symmetry labels.
     PURE INTEGER FUNCTION RandExcitSymLabelProd(SymLabel1,SymLabel2)
         IMPLICIT NONE
         INTEGER , INTENT(IN) :: SymLabel1,SymLabel2
