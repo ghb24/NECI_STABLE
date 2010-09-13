@@ -41,7 +41,7 @@ MODULE PopsfileMod
         integer(8) :: Det,AllCurrWalkers,TempCurrWalkers
         logical :: FormPops,BinPops,tReadAllPops,tStoreDet
         integer , dimension(lenof_sign) :: SignTemp
-        integer :: TempNI(NEl) 
+        integer :: TempNI(NEl),nBatches
         character(len=*) , parameter :: this_routine='ReadFromPopsfilev3'
         HElement_t :: HElemTemp
         character(255) :: popsfile
@@ -96,6 +96,7 @@ MODULE PopsfileMod
         CurrHF=0        !Number of HF walkers on each node.
         CurrParts=0     !Number of walkers on each node.
         CurrWalkers=0   !Number of determinants on each node.
+        nBatches=0      !Number of batches of walkers it takes to distribute popsfile.
         Det=1
         tReadAllPops=.false.
         do while(.not.tReadAllPops)
@@ -103,6 +104,7 @@ MODULE PopsfileMod
             if(iProcIndex.eq.Root) then
 
                 !Get ready for reading in the next batch of walkers
+                nBatches=nBatches+1
                 BatchRead(:,:)=0
                 PopsSendList(:)=PopsInitialSlots(:)
 
@@ -182,6 +184,8 @@ MODULE PopsfileMod
             deallocate(BatchRead)
             CALL LogMemDealloc(this_routine,BatchReadTag)
         endif
+
+        write(6,"(A,I8)") "Number of batches required to distribute all determinants in POPSFILE: ",nBatches
 
         !Order the determinants on all the lists.
         call sort (currentdets(:,1:CurrWalkers))
