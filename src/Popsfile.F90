@@ -213,6 +213,7 @@ MODULE PopsfileMod
     subroutine CheckPopsParams(tPop64Bit,tPopHPHF,tPopLz,iPopLenof_Sign,iPopNel, &
                     iPopAllTotWalkers,PopDiagSft,PopSumNoatHF,PopAllSumENum,iPopIter,   &
                     PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot,WalkerListSize)
+        use Logging , only : tZeroProjE
         logical , intent(in) :: tPop64Bit,tPopHPHF,tPopLz
         integer , intent(in) :: iPopLenof_sign,iPopNel,iPopIter,PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot
         integer(8) , intent(in) :: iPopAllTotWalkers
@@ -261,6 +262,17 @@ MODULE PopsfileMod
         AllSumNoatHF=PopSumNoatHF
         AllSumENum=PopAllSumENum
         PreviousCycles=iPopIter
+        WRITE(6,*) "Number of cycles in previous simulation: ",PreviousCycles
+        IF(NEquilSteps.gt.0) THEN
+            WRITE(6,*) "Removing equilibration steps since reading in from POPSFILE."
+            NEquilSteps=0
+        ENDIF
+        IF(TZeroProjE) THEN
+            !Reset energy estimator
+            WRITE(6,*) "Resetting projected energy counters to zero..."
+            AllSumENum=0.D0
+            AllSumNoatHF = 0
+        ENDIF
     
     end subroutine CheckPopsParams
 

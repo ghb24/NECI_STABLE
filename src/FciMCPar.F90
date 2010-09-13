@@ -3369,6 +3369,7 @@ MODULE FciMCParMod
             CALL CountExcitsOld(HFDet,exflag,nSingles,nDoubles)
         ENDIF
         HFConn=nSingles+nDoubles
+        write(6,*) HFConn,nSingles,nDoubles,tKPntSym,HFDet,exflag
 
 !Initialise random number seed - since the seeds need to be different on different processors, subract processor rank from random number
         Seed=abs(G_VMC_Seed-iProcIndex)
@@ -4705,13 +4706,14 @@ MODULE FciMCParMod
                 OldAllNoatHF=AllNoatHF
                 AllNoAbortedOld=0.D0
                 iter_data_fciqmc%tot_parts_old = AllTotParts
+                ProjectionE=AllSumENum/real(AllSumNoatHF(1),dp)     !THIS IS ONLY FOR REAL WALKERS!
                 
                 if(iProcIndex.eq.iHFProc) then
                     if((AllNoatHF(1).ne.NoatHF(1)).or.(AllNoatHF(lenof_sign).ne.NoatHF(lenof_sign))) then
                         call stop_all(this_routine,"HF particles spread across different processors.")
                     endif
                 endif
-
+            
             else
 
                 !Setup initial walker local variables for HF walkers start
