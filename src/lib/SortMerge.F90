@@ -363,9 +363,9 @@
         USE FciMCParMOD , only : TestIfDetInCASBit
         USE CalcData , only : tTruncCAS,tInitIncDoubs,tAddtoInitiator,InitiatorWalkNo
         USE DetBitOps , only : FindBitExcitLevel,DetBitEQ
-        use bit_reps, only: extract_sign, encode_flags, set_flag, &
-                              flag_is_initiator
-        use bit_rep_data , only: NIfTot,NIfDBO
+        use bit_reps, only: extract_sign, encode_flags, set_flag, test_flag, &
+                            flag_is_initiator, flag_make_initiator, clr_flag,&
+                            NIfTot, NIfDBO
         use constants, only: n_int,lenof_sign
         implicit none
         INTEGER(KIND=n_int), INTENT(INOUT) :: DetCurr(0:NIfTot)
@@ -391,12 +391,14 @@
             is_init = .false.
             if (tDetInCAS) then
                 is_init = .true.
-            else if (tAddtoInitiator .and. abs(SignCurr(part_type)) > InitiatorWalkNo)then
+            else if ((tAddtoInitiator .and. &
+                      abs(SignCurr(part_type)) > InitiatorWalkNo) .or. &
+                     test_flag (DetCurr, flag_make_initiator(part_type))) then
                 is_init = .true.
                 NoAddedInitiators = NoAddedInitiators + 1
             else if (tInitIncDoubs) then
-                ! If the determinant is a double excitation of the reference det, it
-                ! will be an initiator automatically
+                ! If the determinant is a double excitation of the reference 
+                ! det, it will be an initiator automatically
                 CurrExcitLevel = FindBitExcitlevel (iLutRef, DetCurr, 2)
                 if (CurrExcitLevel == 2) then
                     is_init = .true.

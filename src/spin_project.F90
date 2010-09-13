@@ -1,9 +1,11 @@
 #include "macros.h"
 module spin_project
     use SystemData, only: LMS, STOT, nel, nbasis
-    use CalcData, only: tau
+    use CalcData, only: tau, tTruncInitiator
     use SymExcitDataMod, only: scratchsize
-    use bit_reps, only: NIfD, NIfTot, extract_sign
+    use bit_reps, only: NIfD, NIfTot, extract_sign, flag_is_initiator, &
+                        flag_make_initiator, test_flag, set_flag, &
+                        flag_parent_initiator
     use csf, only: csf_get_yamas, get_num_csfs, csf_coeff, random_spin_permute
     use constants, only: dp, bits_n_int, lenof_sign, n_int, end_n_int, int32
     use FciMCData, only: TotWalkers, CurrentDets, fcimc_iter_data, yama_global
@@ -14,7 +16,8 @@ module spin_project
     implicit none
 
     logical :: tSpinProject, spin_proj_stochastic_yama
-    integer :: spin_proj_interval, spin_proj_cutoff
+    logical :: spin_proj_spawn_initiators, spin_proj_no_death
+    integer :: spin_proj_interval, spin_proj_cutoff, spin_proj_iter_count
     real(dp) :: spin_proj_gamma
     real(dp), target :: spin_proj_shift
 
@@ -341,6 +344,10 @@ contains
         hel = csf_spin_project_elem (dorder_i, dorder_j, nopen)
         hel = - hel * spin_proj_gamma / tau
 
+        ! If we are not permitting death, modify this
+        if (spin_proj_no_death) &
+            hel = hel / csf_spin_project_elem_self (dorder_i, nopen)
+
         ! Avoid warnings
         lUnused = tParity; iUnused = IC; iUnused = ex(1,1)
         iUnused2 = iLutI(0); iUnused2 = iLutJ(0)
@@ -436,6 +443,22 @@ contains
         ! Mark the end of the unpaired electrons section.
         if (nopen < nel) nJ(nopen + 1) = -1
 
+        ! If we are in initiator mode, then we may want to make all of the
+        ! children into initiators as well
+        if (tTruncInitiator) then
+            do i = 1, lenof_sign
+                ! We always want our particles to survive.
+                call set_flag (ilutJ, flag_parent_initiator(i))
+            
+                ! If we are spawning from an initiator, we may want to make the
+                ! target also an initiator.
+                if (spin_proj_spawn_initiators .and. &
+                    test_flag(ilutI, flag_is_initiator(i))) then
+                    call set_flag (ilutJ, flag_make_initiator(i))
+                endif
+            enddo
+        endif
+
         ! Generation probability, -1 as we exclude the starting det above.
         ! Invert sign so that a positive overlap element spawns walkers with
         ! the same sign
@@ -445,6 +468,7 @@ contains
         scratch1(1) = scratch1(1); scratch2(1) = scratch2(1)
         scratch3(1) = scratch3(1); ex(1,1) = ex(1,1); IC = IC
         iUnused = exFlag; tFilled = tFilled; tParity = tParity
+        HelGen = HelGen
 
     end subroutine generate_excit_spin_proj
 
@@ -458,7 +482,10 @@ contains
         real(dp) :: elem, r, rat, rUnused
         integer :: dorder(nel), i, nopen
 
-        if (sum(abs(wSign(1:lenof_sign))) < spin_proj_cutoff) then
+        ! If we are not allowing death, or we are below the cutoff for 
+        ! consideration, then the particle cannot die
+        if (spin_proj_no_death .or. &
+            sum(abs(wSign(1:lenof_sign))) < spin_proj_cutoff) then
             ndie = 0
             return
         endif

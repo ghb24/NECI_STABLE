@@ -72,7 +72,7 @@ MODULE FciMCParMod
                             spin_proj_gamma, get_spawn_helement_spin_proj, &
                             generate_excit_spin_proj, attempt_die_spin_proj, &
                             iter_data_spin_proj, test_spin_proj, &
-                            spin_proj_shift
+                            spin_proj_shift, spin_proj_iter_count
 #ifdef __DEBUG                            
     use DeterminantData, only: write_det
 #endif
@@ -90,9 +90,8 @@ MODULE FciMCParMod
         INTEGER(int64) :: MaxWalkers,MinWalkers
         real*8 :: AllTotWalkers,MeanWalkers,Inpair(2),Outpair(2)
         integer, dimension(lenof_sign) :: tmp_sgn
-        integer :: tmp_int(lenof_sign)
+        integer :: tmp_int(lenof_sign), i
         real(dp) :: grow_rate
-        logical :: truncinit_tmp
 
         TDebug=.false.  !Set debugging flag
 
@@ -141,32 +140,21 @@ MODULE FciMCParMod
                                            ptr_new_child_stats, &
                                            ptr_attempt_die, &
                                            ptr_iter_data)
-!                    print*, 'FCIQMC', iter, iter_data_fciqmc%nborn, &
-!                                            iter_data_fciqmc%ndied
                 endif
             endif
 
             ! Are we projecting the spin out between iterations?
             if (tSpinProject .and. (mod(Iter, spin_proj_interval) == 0 .or. &
                                     spin_proj_interval == -1)) then
-                truncinit_tmp = tTruncInitiator
-                tTruncInitiator = .false.
-                call PerformFciMCycPar (generate_excit_spin_proj, &
-                                       attempt_create_normal, &
-                                       get_spawn_helement_spin_proj, &
-                                       null_encode_child, &
-                                       new_child_stats_normal, &
-                                       attempt_die_spin_proj, &
-                                       iter_data_spin_proj)
-                tTruncInitiator = truncinit_tmp
-!                print*, 'SPIN', iter, iter_data_spin_proj%nborn, &
-!                                      iter_data_spin_proj%ndied
-!                print*, 'TOTWALKRS', totwalkers
-!                do i = 1, TotWalkers
-!                    call extract_sign (CurrentDets(:,i), tmp_sgn)
-!                    print*, 'det: ', i, tmp_sgn, &
-!                            real(tmp_sgn(1)) / real(totparts(1))
-!                enddo
+                do i = 1, max(spin_proj_iter_count, 1)
+                    call PerformFciMCycPar (generate_excit_spin_proj, &
+                                           attempt_create_normal, &
+                                           get_spawn_helement_spin_proj, &
+                                           null_encode_child, &
+                                           new_child_stats_normal, &
+                                           attempt_die_spin_proj, &
+                                           iter_data_spin_proj)
+                enddo
             endif
 
             s=etime(tend)
@@ -187,7 +175,6 @@ MODULE FciMCParMod
                 ! Calculate the a new value for the shift (amongst other
                 ! things). Generally, collate information from all processors,
                 ! update statistics and output them to the user.
-!>>>!                iter_data_fciqmc%update_growth = iter_data_fciqmc%update_growth + iter_data_spin_proj%update_growth
                 if (tCCMC) then
                     call calculate_new_shift_wrapper (iter_data_ccmc, &
                                                       TotParts)
@@ -777,9 +764,6 @@ MODULE FciMCParMod
             ! excite from the first particle on a determinant).
             tfilled = .false.
 
-            !print*, '*******************'
-            !call test_spin_proj (DetCurr, CurrentDets(:,j))
-
             ! Loop over the 'type' of particle. 
             ! lenof_sign == 1 --> Only real particles
             ! lenof_sign == 2 --> complex walkers
@@ -791,6 +775,10 @@ MODULE FciMCParMod
                 ! up by noMCExcits if attempting multiple excitations from 
                 ! each walker (default 1)
                 do p = 1, abs(SignCurr(part_type)) * noMCExcits
+                    ! Zero the bit representation, to ensure no extraneous
+                    ! data gets through.
+                    ilutnJ = 0
+
                     ! Generate a (random) excitation
                     call generate_excitation (DetCurr, CurrentDets(:,j), nJ, &
                                    ilutnJ, exFlag, IC, ex, tParity, prob, HElGen,&
@@ -914,16 +902,19 @@ MODULE FciMCParMod
         integer(kind=n_int), intent(in) :: iLutJ(0:niftot)
         integer, dimension(lenof_sign), intent(in) :: child
         integer, intent(in) :: parent_flags
-        integer, intent(in) :: part_type        !This is the 'type' of the parent particle (i.e. real/imag)
+        ! 'type' of the particle - i.e. real/imag
+        integer, intent(in) :: part_type
+        integer :: proc, flags, j
         logical :: parent_init
-        integer :: proc,j
 
         proc = DetermineDetProc(iLutJ)    ! 0 -> nProcessors-1
 
-        ! This will also set the flag of the walker(parentInitiator) to be either 0 or 1
-        ! according to if its parent is inside or outside the active space.
+        ! We need to include any flags set both from the parent and from the
+        ! spawning steps
+        flags = ior(parent_flags, extract_flags(ilutJ))
+
         call encode_bit_rep(SpawnedParts(:, ValidSpawnedList(proc)), iLutJ, &
-                            child, parent_flags)
+                            child, flags)
 
         IF(lenof_sign.eq.2) THEN
             !With complex walkers, things are a little more tricky.
@@ -1016,15 +1007,15 @@ MODULE FciMCParMod
             ! By default, the parent_flags are the flags of the parent...
             parent_init = test_flag (CurrentDets(:,j), flag_parent_initiator(part_type))
 
-            ! The default path through this section makes no changes, leaving the
-            ! initiator status of each parent unchanged.
-            ! If tAddToInitiator is set, then the state of the parent may change.
+            ! The default path through this section makes no changes, leaving
+            ! the initiator status of each parent unchanged.  If 
+            ! tAddToInitiator is set, then the state of the parent may change.
             if (tAddToInitiator) then
 
                 if (.not. parent_init) then
                     ! Determinant wasn't previously initiator 
-                    ! - want to test if it has now got a large enough population 
-                    ! to become an initiator.
+                    ! - want to test if it has now got a large enough 
+                    !   population to become an initiator.
                     if (abs(CurrentSign(part_type)) > InitiatorWalkNo) then
                         parent_init = .true.
                         NoAddedInitiators = NoAddedInitiators + 1
@@ -1032,18 +1023,21 @@ MODULE FciMCParMod
                 elseif (tRetestAddToInit) then
                     ! The source determinant is already an initiator.            
                     ! If tRetestAddToInit is on, the determinants become 
-                    ! non-initiators again if their population falls below n_add
-                    ! (this is on by default).
+                    ! non-initiators again if their population falls below 
+                    ! n_add (this is on by default).
                     tDetInCas = .false.
                     if (tTruncCAS) &
                         tDetInCas = TestIfDetInCASBit (CurrentDets(0:NIfD,j))
                    
-                    ! If det. in fixed initiator space, or is the HF det, it must
-                    ! remain an initiator.
+                    ! If det. in fixed initiator space, or is the HF det, it 
+                    ! must remain an initiator.
                     if (.not. tDetInCas .and. &
                         .not. (DetBitEQ(CurrentDets(:,j), iLutHF, NIfDBO)) &
-                        .and. abs(CurrentSign(part_type)) <= InitiatorWalkNo) then
-                        ! Population has fallen too low. Initiator status removed.
+                        .and. abs(CurrentSign(part_type)) <= InitiatorWalkNo &
+                        .and. .not. test_flag(CurrentDets(:,j), &
+                        flag_make_initiator(part_type))) then
+                        ! Population has fallen too low. Initiator status 
+                        ! removed.
                         parent_init = .false.
                         NoAddedInitiators = NoAddedInitiators - 1
                     endif
@@ -1845,7 +1839,6 @@ MODULE FciMCParMod
 #endif            
 
     end subroutine
-
 
     function attempt_die_normal (DetCurr, Kii, wSign) result(ndie)
         
