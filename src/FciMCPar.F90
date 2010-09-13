@@ -4711,9 +4711,21 @@ MODULE FciMCParMod
                 OldAllNoatHF=AllNoatHF
                 AllNoAbortedOld=0.D0
                 iter_data_fciqmc%tot_parts_old = AllTotParts
-                ProjectionE=AllSumENum/real(AllSumNoatHF(1),dp)     !THIS IS ONLY FOR REAL WALKERS!
+#ifdef __CMPLX
+                if (AllSumNoatHF(1).ne.0.or.AllSumNoatHF(2).ne.0) then
+                    ProjectionE = AllSumENum / CMPLX(AllSumNoatHF(1), AllSumNoatHF(2), dp) 
+                endif
+#else
+                if (AllSumNoatHF(1) /= 0) ProjectionE = AllSumENum / AllSumNoatHF(1)
+#endif
                 
                 if(iProcIndex.eq.iHFProc) then
+                    !Need to store SumENum and SumNoatHF, since the global variable All... gets wiped each iteration. 
+                    !Rather than POPSFILE v2, where the average values were scattered, just store the previous
+                    !energy contributions on the root node.
+                    SumNoatHF=AllSumNoatHF
+                    SumENum=AllSumENum
+
                     if((AllNoatHF(1).ne.NoatHF(1)).or.(AllNoatHF(lenof_sign).ne.NoatHF(lenof_sign))) then
                         call stop_all(this_routine,"HF particles spread across different processors.")
                     endif
