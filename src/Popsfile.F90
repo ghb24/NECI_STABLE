@@ -3,7 +3,7 @@ MODULE PopsfileMod
     use SystemData, only: nel, tHPHF, tFixLz, tCSF, nBasis, tNoBrillouin
     use CalcData, only: tTruncInitiator,DiagSft,tWalkContGrow,nEquilSteps,ScaleWalkers, &
                         tReadPopsRestart, tRegenDiagHEls,InitWalkers, tReadPopsChangeRef, &
-                        nShiftEquilSteps,iWeightPopRead
+                        nShiftEquilSteps,iWeightPopRead,iPopsFileNoRead
     use DetBitOps, only: DetBitLT,FindBitExcitLevel,DetBitEQ
     use Determinants, only : get_helement,write_det
     use hphf_integrals, only: hphf_diag_helement
@@ -13,7 +13,7 @@ MODULE PopsfileMod
     use Parallel
     use AnnihilationMod, only: DetermineDetProc
     USE Logging , only : iWritePopsEvery,tPopsFile,iPopsPartEvery,tBinPops
-    USE Logging , only : tPrintPopsDefault
+    USE Logging , only : tPrintPopsDefault,tIncrementPops
     use sort_mod
 
     implicit none
@@ -25,6 +25,7 @@ MODULE PopsfileMod
 !EndPopsList is the number of entries in the POPSFILE to read, and ReadBatch is the number of determinants
 !which can be read in in a single batch.
     SUBROUTINE ReadFromPopsfilev3(EndPopsList,ReadBatch,CurrWalkers64,CurrParts,CurrHF)
+        use util_mod , only : get_unique_filename
         integer(8) , intent(in) :: EndPopsList  !Number of entries in the POPSFILE.
         integer , intent(in) :: ReadBatch       !Size of the batch of determinants to read in in one go.
         integer(int64) , intent(out) :: CurrWalkers64    !Number of determinants which end up on a given processor.
@@ -43,6 +44,7 @@ MODULE PopsfileMod
         integer :: TempNI(NEl) 
         character(len=*) , parameter :: this_routine='ReadFromPopsfilev3'
         HElement_t :: HElemTemp
+        character(255) :: popsfile
         !variables from header file
         logical :: tPop64Bit,tPopHPHF,tPopLz
         integer :: iPopLenof_sign,iPopNEl,iPopIter,PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot
@@ -64,7 +66,8 @@ MODULE PopsfileMod
         ELSEIF(BinPops) THEN
             if(iProcIndex.eq.root) then
                 close(iunit)    !iunit here refers to the header file.
-                OPEN(iunit,FILE='POPSFILEBIN',Status='old',form='unformatted')
+                call get_unique_filename('POPSFILEBIN',tIncrementPops,.false.,iPopsFileNoRead,popsfile)
+                OPEN(iunit,FILE=popsfile,Status='old',form='unformatted')
             endif
         ENDIF
 
@@ -335,20 +338,24 @@ MODULE PopsfileMod
     
     !NOTE: This should only be used for the v3 POPSFILEs, since we only open the POPSFILE on the head node.
     subroutine open_pops_head(iunithead,formpops,binpops)
-        use util_mod, only: get_free_unit
+        use util_mod, only: get_free_unit,get_unique_filename
         integer , intent(out) :: iunithead
         logical , intent(out) :: formpops,binpops
+        character(255) :: popsfile
 
         if(iProcIndex.eq.root) then
             iunithead=get_free_unit()
-            inquire(file='POPSFILE',exist=formpops)
+            call get_unique_filename('POPSFILE',tIncrementPops,.false.,iPopsFileNoRead,popsfile)
+            inquire(file=popsfile,exist=formpops)
             if(formpops) then
-                open(iunithead,file='POPSFILE',status='old')
+                open(iunithead,file=popsfile,status='old')
                 binpops=.false.
             else
-                inquire(file='POPSFILEBIN',exist=binpops)
+                call get_unique_filename('POPSFILEBIN',tIncrementPops,.false.,iPopsFileNoRead,popsfile)
+                inquire(file=popsfile,exist=binpops)
                 if(binpops) then
-                    open(iunithead,file='POPSFILEHEAD',status='old')
+                    call get_unique_filename('POPSFILEHEAD',tIncrementPops,.false.,iPopsFileNoRead,popsfile)
+                    open(iunithead,file=popsfile,status='old')
                 else 
                     call stop_all("open_pops_head","No POPSFILEs detected...")
                 endif
@@ -389,7 +396,6 @@ MODULE PopsfileMod
     SUBROUTINE WriteToPopsfileParOneArr(Dets,nDets)
         use util_mod, only: get_unique_filename, get_free_unit
         use CalcData, only: iPopsFileNoWrite
-        use Logging, only: tIncrementPops
         use constants, only: size_n_int,MpiDetInt,n_int
         integer(int64),intent(in) :: nDets !The number of occupied entries in Dets
         integer(kind=n_int),intent(in) :: Dets(0:nIfTot,1:nDets)
@@ -577,9 +583,8 @@ MODULE PopsfileMod
 !This routine reads in particle configurations from a POPSFILE.
     SUBROUTINE ReadFromPopsfilePar()
         use util_mod, only: get_unique_filename, get_free_unit
-        use CalcData, only: iPopsFileNoRead
         use CalcData , only : MemoryFacPart,MemoryFacAnnihil,MemoryFacSpawn,iWeightPopRead
-        use Logging, only: tIncrementPops,tZeroProjE
+        use Logging, only: tZeroProjE
         use constants, only: size_n_int,bits_n_int
         LOGICAL :: exists,tBinRead
         INTEGER :: AvWalkers,WalkerstoReceive(nProcessors)
@@ -1079,9 +1084,8 @@ MODULE PopsfileMod
 ! GHB says he will incorporate this functionality into a rewrite of ReadFromPopsfilePar. 19/8/2010
     SUBROUTINE ReadFromPopsfileOnly(Dets,nDets)
         use util_mod, only: get_unique_filename, get_free_unit
-        use CalcData, only: iPopsFileNoRead
         use CalcData , only : MemoryFacPart,MemoryFacAnnihil,MemoryFacSpawn,iWeightPopRead
-        use Logging, only: tIncrementPops,tZeroProjE
+        use Logging, only: tZeroProjE
         use constants, only: size_n_int,bits_n_int
         integer(int64),intent(inout) :: nDets !The number of occupied entries in Dets
         integer(kind=n_int),intent(out) :: Dets(0:nIfTot,1:nDets)
