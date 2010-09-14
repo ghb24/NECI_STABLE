@@ -2420,8 +2420,8 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
       else if (nNodes>1.and.bNodeRoot) then
          IFDEBUG(iDebug,2) write(6,*) "Synchronizing particle lists among nodes"
          call set_timer(CCMCComms1_time,20)
-         call MPIBCast(DetList(:,1:nAmpl),CommRoot)
-         call MPIBCast(AL%Amplitude(1:nAmpl,iCurAmpList),CommRoot)
+         call MPIBCast(DetList(:,1:nAmpl),Roots)
+         call MPIBCast(AL%Amplitude(1:nAmpl,iCurAmpList),Roots)
          call halt_timer(CCMCComms1_time)
       endif
 
@@ -2558,7 +2558,7 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
       IFDEBUG(iDebug,3) write(6,*) "Calling Annihilation with ", nSpawned, " spawned."
       IFDEBUG(iDebug,3) call WriteExcitorListP(6,SpawnList,0,nSpawned,dAmpPrintTol,"Spawned list")
       call AnnihilationInterface(nAmpl,DetList,AL%Amplitude(:,iCurAmpList),nMaxAmpl,nSpawned,SpawnList,nMaxSpawn,iter_data_ccmc)
-      call MPIBCast(nAmpl,root)
+      call MPIBCast(nAmpl)
       call halt_timer(CCMCComms2_time)
 !      else
 !         if(iDebug>2) write(6,*) "No spawnings in toto."

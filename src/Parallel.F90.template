@@ -819,8 +819,8 @@ supermodule Parallel
         subroutine gethostname(nm, sz) bind(c)
             use, intrinsic :: iso_c_binding
             implicit none
-            character(c_char), intent(out) :: nm
             integer(c_size_t), value :: sz
+            character(kind=c_char), intent(out) :: nm
         end subroutine
    end interface
    save
@@ -937,9 +937,10 @@ subroutine MPINodes
    use, intrinsic :: iso_c_binding
    implicit none
    integer Group,i,j,n
-   character(len=30) nm
-   character(len=30) nms(0:nProcessors-1)
    integer(c_size_t) length
+   character(len=30) nm
+   character(len=30) nm2
+   character(len=30) nms(0:nProcessors-1)
    integer ierr
    integer GroupProc(nProcessors)
    allocate(Nodes(0:nProcessors-1))
@@ -949,7 +950,14 @@ subroutine MPINodes
    call MPI_Comm_Group(CommGlobal,Group,ierr)
    length=30
    call gethostname(nm,length)
-   call MPI_Gather(nm,30,MPI_CHARACTER,nms,30,MPI_CHARACTER,root,CommGlobal,ierr)
+   do i=1,30
+      if (nm(i:i)==char(0)) then
+         nm(i:30)=' '
+         exit
+      endif
+   enddo
+   nm2=nm
+   call MPI_Gather(nm2,30,MPI_CHARACTER,nms,30,MPI_CHARACTER,root,CommGlobal,ierr)
    write(6,*) "Processor      Node hostname"
    if(iProcIndex==root) then
       nNodes=0
@@ -978,6 +986,7 @@ subroutine MPINodes
    Node=Nodes(iProcIndex)
    if (iProcIndex==NodeRoots(Node%n)) then
       bNodeRoot=.true.
+      write(6,*) "I am the node root for node ", Node%n
    else
       bNodeRoot=.false.
    endif
