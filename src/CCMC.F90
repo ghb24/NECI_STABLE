@@ -2409,11 +2409,17 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
    do while (Iter.le.NMCyc)
 
 ! First we make sure we have the same lists
-      if((.not.tSharedExcitors).and.nProcessors>1) then
+      if(((.not.tSharedExcitors).and.nProcessors>1)) then
          IFDEBUG(iDebug,2) write(6,*) "Synchronizing particle lists among processors"
          call set_timer(CCMCComms1_time,20)
          call MPIBCast(DetList(:,1:nAmpl))
          call MPIBCast(AL%Amplitude(1:nAmpl,iCurAmpList))
+         call halt_timer(CCMCComms1_time)
+      else if (nNodes>1.and.bNodeRoot) then
+         IFDEBUG(iDebug,2) write(6,*) "Synchronizing particle lists among nodes"
+         call set_timer(CCMCComms1_time,20)
+         call MPIBCast(DetList(:,1:nAmpl),CommRoot)
+         call MPIBCast(AL%Amplitude(1:nAmpl,iCurAmpList),CommRoot)
          call halt_timer(CCMCComms1_time)
       endif
 
