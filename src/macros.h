@@ -15,6 +15,9 @@
 #define get_beta(orb) (ibclr(orb-1,0)+1)
 #define get_alpha(orb) (ibset(orb-1,0)+1)
 
+! The spin where 1=alpha, 2=beta
+#define get_spin(orb) (1+iand(orb,1))
+
 ! Is the specified orbital part of a doubly occupied pair?
 #define IsDoub(ilut,orb) (IsOcc(ilut,orb) .and. IsOcc(ilut,ab_pair(orb)))
 

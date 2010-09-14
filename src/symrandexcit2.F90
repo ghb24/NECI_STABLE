@@ -1,3 +1,5 @@
+#include "macros.h"
+
 MODULE GenRandSymExcitNUMod
 !This is a new random excitation generator. It still creates excitations with a normalised and calculable probability,
 !but these probabilities are not uniform. They should also be quicker to generate, and have small or no excitation generators
@@ -99,7 +101,7 @@ MODULE GenRandSymExcitNUMod
 !This has the format (Spn,sym), where Spin=1,2 corresponding to alpha and beta.
 !For molecular systems, sym runs from 0 to 7. 
 !This is stored to save doing this multiple times, but shouldn't be too costly an operation.
-            CALL ConstructClassCounts(nI,ClassCount2,ClassCountUnocc2)
+            CALL construct_class_counts(nI,ClassCount2,ClassCountUnocc2)
             tFilled=.true.
         ENDIF
 !        IF(Counter.eq.6) THEN
@@ -197,7 +199,7 @@ MODULE GenRandSymExcitNUMod
 !This has the format (Spn,sym), where Spin=1,2 corresponding to alpha and beta.
 !For molecular systems, sym runs from 0 to 7. This is NOT general and should be made so using SymLabels.
 !This could be stored to save doing this multiple times, but shouldn't be too costly an operation.
-        CALL ConstructClassCounts(nI,ClassCount2,ClassCountUnocc2)
+        CALL construct_class_counts(nI,ClassCount2,ClassCountUnocc2)
 
 !ExFlag is 1 for singles, 2 for just doubles, and 3 for both.
         IF(ExFlag.eq.3) THEN
@@ -1387,7 +1389,7 @@ MODULE GenRandSymExcitNUMod
         integer, intent(in) :: nI(nel)
         integer, intent(out) :: CCOcc(ScratchSize), CCUnocc(ScratchSize)
 
-        integer :: ind_alpha, ind_beta
+        integer :: ind_alpha, ind_beta, i, ind
 
         CCOcc = 0
         CCUnocc = OrbClassCount
@@ -1556,7 +1558,7 @@ MODULE GenRandSymExcitNUMod
 
     END SUBROUTINE CalcNonUniPGen
 
-    pure integer function ClassCountInd_full(Spin, Sym, Mom) result(ind)
+    elemental function ClassCountInd_full(Spin, Sym, Mom) result(ind)
 
         ! Return the index into the ClassCount arrays such that variable
         ! symmetries can be easily accomodated.
@@ -1584,10 +1586,10 @@ MODULE GenRandSymExcitNUMod
             endif
         endif
 
-    end function ClassCountInd
+    end functioN
 
 
-    pure integer function ClassCountInd_orb (orb) result(ind)
+    elemental function ClassCountInd_orb (orb) result(ind)
 
         ! The same as ClassCountInd_full, only the values required are 
         ! obtained for the spin orbital orb.
@@ -1595,7 +1597,7 @@ MODULE GenRandSymExcitNUMod
         ! INTERFACED as ClassCountInd
 
         integer, intent(in) :: orb
-        integer :: ind
+        integer :: ind, spin, sym, mom
         
         ! Extract the required values
         if (is_alpha(orb)) then
@@ -1603,8 +1605,8 @@ MODULE GenRandSymExcitNUMod
         else
             spin = 2
         endif
-        sym = SpinOrbSymLabel(nI(i))
-        mom = G1(nI(i))%Ml
+        sym = SpinOrbSymLabel(orb)
+        mom = G1(orb)%Ml
 
         ! Calculate index as usual
         ind = ClassCountInd_full (spin, sym, mom)
@@ -1720,7 +1722,7 @@ MODULE GenRandSymExcitNUMod
 !This has the format (Spn,sym), where Spin=1,2 corresponding to alpha and beta.
 !For molecular systems, sym runs from 0 to 7. This is NOT general and should be made so using SymLabels.
 !This could be stored to save doing this multiple times, but shouldn't be too costly an operation.
-        CALL ConstructClassCounts(nI,ClassCount2,ClassCountUnocc2)
+        CALL construct_class_counts(nI,ClassCount2,ClassCountUnocc2)
 
 !We need to find out if there are any electrons which have no possible excitations. This is because these will need to be redrawn and so 
 !will affect the probabilities.
@@ -2799,7 +2801,7 @@ END SUBROUTINE SpinOrbSymSetup
 SUBROUTINE TestGenRandSymExcitNU(nI,Iterations,pDoub,exFlag)
     use SystemData, only: NEl, nBasis, G1, nBasisMax, LzTot, tUEG, &
                           tLatticeGens, tHub,tKPntSym, tFixLz
-    use GenRandSymExcitNUMod, only: gen_rand_excit, ConstructClassCounts,ScratchSize
+    use GenRandSymExcitNUMod, only: gen_rand_excit, construct_class_counts,ScratchSize
     Use SymData , only : nSymLabels
     use Parallel
 !    use soft_exit , only : ChangeVars 
@@ -3053,7 +3055,7 @@ lp2: do while(.true.)
         CLOSE(9)
         WRITE(6,*) DetNumS," Single excitations found from nI"
         IF((DetNum+DetNumS).ne.ExcitCount) THEN
-            CALL ConstructClassCounts(nI,ClassCount2,ClassCountUnocc2)
+            CALL construct_class_counts(nI,ClassCount2,ClassCountUnocc2)
             WRITE(6,*) "Total determinants = ", ExcitCount
             WRITE(6,*) "ClassCount2(:)= ",ClassCount2(:)
             WRITE(6,*) "***"

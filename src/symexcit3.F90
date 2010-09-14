@@ -20,14 +20,14 @@ MODULE SymExcit3
 ! only doubles, and anything else both are counted.
         USE SymData, only: nSymLabels
         USE SystemData , only: ElecPairs
-        USE GenRandSymExcitNUMod , only: PickElecPair,ConstructClassCounts,ClassCountInd,ScratchSize 
+        USE GenRandSymExcitNUMod , only: PickElecPair,construct_class_counts,ClassCountInd,ScratchSize 
         INTEGER :: nSingleExcits,nDoubleExcits,Symi,i,Spini,nI(NEl)
         INTEGER :: iSpn,Elec1Ind,Elec2Ind,SymProduct,exflag
         INTEGER :: Syma,Symb,Spina,Spinb,StartSpin,EndSpin
         INTEGER :: ClassCount2(ScratchSize),SumMl
         INTEGER :: ClassCountUnocc2(ScratchSize)
 
-        CALL ConstructClassCounts(nI,ClassCount2,ClassCountUnocc2)
+        CALL construct_class_counts(nI,ClassCount2,ClassCountUnocc2)
 ! This sets up arrays containing the number of occupied and unoccupied in each symmetry.
 ! ClassCounts2(1,:)=No alpha occupied, ClassCounts2(2,:)=No Beta occupied.
 ! ClassCountsUnocc2(1,:)=No alpha unocc, ClassCounts2Unocc2(2,:)=No Beta unocc.

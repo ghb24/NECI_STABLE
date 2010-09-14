@@ -11,7 +11,7 @@ MODULE HPHFRandExcitMod
     use IntegralsData, only: UMat, fck, nMax
     use SymData, only: nSymLabels
     use dSFMT_interface, only : genrand_real2_dSFMT
-    use GenRandSymExcitNUMod, only: gen_rand_excit, ConstructClassCounts, &
+    use GenRandSymExcitNUMod, only: gen_rand_excit, construct_class_counts, &
                                     CalcNonUniPGen, ScratchSize 
     use DetBitOps, only: DetBitLT, DetBitEQ, FindExcitBitDet, &
                          FindBitExcitLevel,MaskAlpha,MaskBeta
@@ -106,7 +106,7 @@ MODULE HPHFRandExcitMod
             CALL GetBitExcitation(iLutnI2,iLutnJ,Ex2,tSign)
 !                CALL GetExcitation(nI2,nJ,NEl,Ex2,tSign)
             tGenClassCountnI2=.true.
-            CALL ConstructClassCounts(nI2,ClassCount3,ClassCountUnocc3)
+            CALL construct_class_counts(nI2,ClassCount3,ClassCountUnocc3)
             CALL CalcNonUniPGen(nI2,Ex2,ExcitLevel,ClassCount3,ClassCountUnocc3,pDoub,pGen2)
             pGen=pGen+pGen2
         ENDIF
@@ -137,7 +137,7 @@ MODULE HPHFRandExcitMod
 !                CALL GetExcitation(nI,nJ,NEl,Ex2,tSign)
 !We need to calculate the new classcount arrays for the original determinant passed in.
                 tGenClassCountnI=.true.
-                CALL ConstructClassCounts(nI,ClassCount2,ClassCountUnocc2)
+                CALL construct_class_counts(nI,ClassCount2,ClassCountUnocc2)
                 CALL CalcNonUniPGen(nI,Ex2,ExcitLevel,ClassCount2,ClassCountUnocc2,pDoub,pGen2)
                 pGen=pGen+pGen2
             ENDIF
@@ -156,7 +156,7 @@ MODULE HPHFRandExcitMod
 !            CALL GetExcitation(nI2,nJ2,NEl,Ex2,tSign)
             IF(.not.tGenClassCountnI2) THEN
 !                tGenClassCountnI2=.true.
-                CALL ConstructClassCounts(nI2,ClassCount3,ClassCountUnocc3)
+                CALL construct_class_counts(nI2,ClassCount3,ClassCountUnocc3)
             ENDIF
             CALL CalcNonUniPGen(nI2,Ex2,ExcitLevel,ClassCount3,ClassCountUnocc3,pDoub,pGen2)
             pGen=pGen+pGen2
@@ -170,7 +170,7 @@ MODULE HPHFRandExcitMod
 !            CALL GetExcitation(nI,nJ2,NEl,Ex2,tSign)
             IF(.not.tGenClassCountnI) THEN
 !                tGenClassCountnI=.true.
-                CALL ConstructClassCounts(nI,ClassCount2,ClassCountUnocc2)
+                CALL construct_class_counts(nI,ClassCount2,ClassCountUnocc2)
             ENDIF
             CALL CalcNonUniPGen(nI,Ex2,ExcitLevel,ClassCount2,ClassCountUnocc2,pDoub,pGen2)
             pGen=pGen+pGen2
