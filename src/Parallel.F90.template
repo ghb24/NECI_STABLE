@@ -942,6 +942,7 @@ subroutine MPINodes
    integer GroupProc(nProcessors)
    allocate(Nodes(0:nProcessors-1))
    allocate(NodeRoots(0:nProcessors-1))
+#ifdef PARALLEL
    CommGlobal=MPI_COMM_WORLD
    call MPI_Comm_Group(CommGlobal,Group,ierr)
    call gethostname(nm,30)
@@ -989,6 +990,13 @@ subroutine MPINodes
       call MPI_Group_incl(Group,n,GroupProc,GroupNodes(i),ierr)  !Create a group 
       call MPI_Comm_Create(CommGlobal,GroupNodes(i),CommNodes(i),ierr) !Create the Communicator
    enddo
+#else
+   nNodes=1
+   allocate(NodeLengths(0:nNodes-1))
+   allocate(CommNodes(0:nNodes-1))
+   allocate(GroupNodes(0:nNodes-1))
+   NodeLengths(0)=1
+#endif //def PARALLEL
    Roots%n=-1  !A communicator index between roots
 end subroutine
 
