@@ -4625,6 +4625,22 @@ MODULE FciMCParMod
 
         if (tReadPops .and. (PopsVersion.lt.3) .and..not.tPopsAlreadyRead) then
 !Read in particles from multiple POPSFILES for each processor
+
+            !Ugh - need to set up ValidSpawnedList here too...
+            WRITE(6,*) "*Direct Annihilation* in use...Explicit load-balancing disabled."
+            ALLOCATE(ValidSpawnedList(0:nProcessors-1),stat=ierr)
+            !InitialSpawnedSlots is now filled later, once the number of particles wanted is known
+            !(it can change according to the POPSFILE).
+            ALLOCATE(InitialSpawnedSlots(0:nProcessors-1),stat=ierr)
+    !InitialSpawnedSlots now holds the first free position in the newly-spawned list for each processor, so it does not need to be reevaluated each iteration.
+            MaxSpawned=NINT(MemoryFacSpawn*InitWalkers)
+            Gap=REAL(MaxSpawned)/REAL(nProcessors)
+            do j=0,nProcessors-1
+                InitialSpawnedSlots(j)=NINT(Gap*j)+1
+            enddo
+    !ValidSpawndList now holds the next free position in the newly-spawned list, but for each processor.
+            ValidSpawnedList(:)=InitialSpawnedSlots(:)
+
             WRITE(6,*) "Reading in initial particle configuration from *OLD* POPSFILES..."
             CALL ReadFromPopsFilePar()
         ELSE
