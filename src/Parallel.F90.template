@@ -915,7 +915,6 @@ Subroutine MPIInit(tExternal)
           WRITE(6,*) "Sum: ",g
        endif
 
-       initialised=.true.
        call MPI_ERRHANDLER_SET(MPI_COMM_WORLD,MPI_ERRORS_RETURN,ierr)
    end if
 
@@ -925,7 +924,8 @@ Subroutine MPIInit(tExternal)
    iProcIndex=0
    nProcessors=1
 #endif
-      Call MPINodes()
+   if(.not.initialised) Call MPINodes()
+   initialised=.true.
    RETURN
    
 end subroutine
