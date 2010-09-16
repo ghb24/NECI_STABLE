@@ -27,7 +27,10 @@ logical :: tKPntSym        !Are we using KPoint symmetry?
 
 logical :: tRIIntegrals   ! Read in RI 2-e integrals from RIDUMP file
 logical :: tStoreSpinOrbs ! This is set when the orbitals are stored in 
-                          ! spin-orbital notation
+                            ! spin-orbital notation
+logical :: tPickVirtUniform ! Use the 3rd generation, random excitation
+                            ! generators, which pick pairs of virtual orbitals
+                            ! at random (but uniformly)
 
 integer :: iParity(5), nMaxX, nMaxY, nMaxZ, nMSH, coulDampOrb, elecPairs
 integer :: roIterMax, iRanLuxLev, DiagMaxMinFac, OneElmaxMinFac, iState

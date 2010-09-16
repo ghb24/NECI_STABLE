@@ -2800,7 +2800,8 @@ END SUBROUTINE SpinOrbSymSetup
 !number of excitations generated using the full enumeration excitation generation. This can be done for both doubles and singles, or one of them.
 SUBROUTINE TestGenRandSymExcitNU(nI,Iterations,pDoub,exFlag)
     use SystemData, only: NEl, nBasis, G1, nBasisMax, LzTot, tUEG, &
-                          tLatticeGens, tHub,tKPntSym, tFixLz
+                          tLatticeGens, tHub,tKPntSym, tFixLz, tNoBrillouin, &
+                          tUseBrillouin
     use GenRandSymExcitNUMod, only: gen_rand_excit, construct_class_counts,ScratchSize
     Use SymData , only : nSymLabels
     use Parallel
@@ -2820,12 +2821,20 @@ SUBROUTINE TestGenRandSymExcitNU(nI,Iterations,pDoub,exFlag)
     REAL*8 , ALLOCATABLE :: DoublesHist(:,:,:,:),SinglesHist(:,:),AllDoublesHist(:,:,:,:),AllSinglesHist(:,:)
     INTEGER , ALLOCATABLE :: EXCITGEN(:)
     INTEGER :: ierr,Ind1,Ind2,Ind3,Ind4,iMaxExcit,nStore(6),nExcitMemLen,j,k,l,DetNum,DetNumS,Lz,excitcount,ForbiddenIter,error
+    logical :: brillouin_tmp(2)
     HElement_t :: HElGen
 
     WRITE(6,*) nI(:)
     WRITE(6,*) Iterations,pDoub,exFlag
     WRITE(6,*) "nSymLabels: ",nSymLabels
     CALL FLUSH(6)
+
+    ! The old excitation generator will not generate singles from the HF
+    ! unless tNoBrillouin is set
+    brillouin_tmp(1) = tNoBrillouin
+    brillouin_tmp(2) = tUseBrillouin
+    tNoBrillouin = .true.
+    tUseBrillouin = .false.
 
 !Find the number of symmetry allowed excitations there should be by looking at the full excitation generator.
 !Setup excit generators for this determinant
@@ -2868,6 +2877,8 @@ lp2: do while(.true.)
             IF(iProcIndex.eq.0) WRITE(25,*) excitcount,iExcit,iLutnJ(0)
         ENDIF
     enddo lp2
+    tNoBrillouin = brillouin_tmp(1)
+    tUseBrillouin = brillouin_tmp(2)
 
     WRITE(6,*) "Determinant has ",excitcount," total excitations from it."
     CALL FLUSH(6)

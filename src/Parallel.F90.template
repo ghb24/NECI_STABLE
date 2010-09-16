@@ -934,6 +934,7 @@ end subroutine
 
 
 subroutine MPINodes
+   use, intrinsic :: iso_c_binding
    implicit none
    integer Group,i,j,n
    character(len=30) nm
@@ -944,7 +945,7 @@ subroutine MPINodes
    allocate(NodeRoots(0:nProcessors-1))
    CommGlobal=MPI_COMM_WORLD
    call MPI_Comm_Group(CommGlobal,Group,ierr)
-   call gethostname(nm,30)
+   call gethostname(nm,int(30,c_size_t))
    call MPI_Gather(nm,30,MPI_CHARACTER,nms,30,MPI_CHARACTER,root,CommGlobal,ierr)
    write(6,*) "Processor      Node hostname"
    if(iProcIndex==root) then
