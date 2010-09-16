@@ -24,7 +24,7 @@ MODULE PopsfileMod
 !This routine reads in particle configurations from a POPSFILE v.3.
 !EndPopsList is the number of entries in the POPSFILE to read, and ReadBatch is the number of determinants
 !which can be read in in a single batch.
-    SUBROUTINE ReadFromPopsfilev3(EndPopsList,ReadBatch,CurrWalkers64,CurrParts,CurrHF)
+    SUBROUTINE ReadFromPopsfilev3(EndPopsList,ReadBatch,CurrWalkers64,CurrParts,CurrHF,Dets)
         use util_mod , only : get_unique_filename
         integer(8) , intent(in) :: EndPopsList  !Number of entries in the POPSFILE.
         integer , intent(in) :: ReadBatch       !Size of the batch of determinants to read in in one go.
@@ -51,6 +51,7 @@ MODULE PopsfileMod
         integer(8) :: iPopAllTotWalkers
         real(8) :: PopDiagSft
         integer(8) , dimension(lenof_sign) :: PopSumNoatHF
+        INTEGER(kind=n_int) :: Dets(:,:)
         HElement_t :: PopAllSumENum
 
         call open_pops_head(iunit,formpops,binpops)
@@ -164,7 +165,7 @@ MODULE PopsfileMod
             !Now scatter the particles read in to their correct processors.
             call MPIScatter(sendcounts,recvcount,err)
             if(err.ne.0) call stop_all(this_routine,"MPI scatter error")
-            call MPIScatterV(BatchRead(:,1:MaxSendIndex),sendcounts,disps,CurrentDets(:,CurrWalkers+1:MaxWalkersPart),recvcount,err)
+            call MPIScatterV(BatchRead(:,1:MaxSendIndex),sendcounts,disps,Dets(:,CurrWalkers+1:MaxWalkersPart),recvcount,err)
             if(err.ne.0) call stop_all(this_routine,"MPI error")
             CurrWalkers=CurrWalkers+recvcount/(NIfTot+1)
             call MPIBCast(tReadAllPops)
@@ -191,14 +192,14 @@ MODULE PopsfileMod
         write(6,*) "Number of configurations read in to this core: ",CurrWalkers 
 
         !Order the determinants on all the lists.
-        call sort (currentdets(:,1:CurrWalkers))
+        call sort (dets(:,1:CurrWalkers))
 
         !Run through all determinants on each node, and calculate the total number of walkers, and noathf
         do i=1,CurrWalkers
-!            WRITE(6,*) i,CurrentDets(:,i)
-            call extract_sign(CurrentDets(:,i),SignTemp)
+!            WRITE(6,*) i,Dets(:,i)
+            call extract_sign(Dets(:,i),SignTemp)
             CurrParts=CurrParts+abs(SignTemp)
-            if(DetBitEQ(CurrentDets(:,i),iLutRef,NIfDBO)) then
+            if(DetBitEQ(Dets(:,i),iLutRef,NIfDBO)) then
                 if(CurrHF(1).ne.0) then
                     call stop_all(this_routine,"HF already found, but shouldn't have")
                 endif
@@ -209,7 +210,7 @@ MODULE PopsfileMod
                 !Calculate diagonal matrix element
                     call decode_bit_det (TempnI, currentDets(:,i))
                     if (tHPHF) then
-                        HElemTemp = hphf_diag_helement (TempnI,CurrentDets(:,i))
+                        HElemTemp = hphf_diag_helement (TempnI,Dets(:,i))
                     else
                         HElemTemp = get_helement (TempnI, TempnI, 0)
                     endif

@@ -4718,7 +4718,7 @@ MODULE FciMCParMod
                                         !same length as the spawning arrays.
 
                 !TotWalkers and TotParts are returned as the dets and parts on each processor.
-                call ReadFromPopsfilev3(iPopAllTotWalkers,ReadBatch,TotWalkers,TotParts,NoatHF)
+                call ReadFromPopsfilev3(iPopAllTotWalkers,ReadBatch,TotWalkers,TotParts,NoatHF,CurrentDets)
 
                 !Setup global variables
                 TotWalkersOld=TotWalkers
