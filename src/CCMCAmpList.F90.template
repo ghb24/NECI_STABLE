@@ -1,0 +1,219 @@
+[int]
+type1=integer(kind=int32)
+unity=1
+size=4
+
+[double]
+type1=real*8
+unity=1.d0
+size=8
+
+===================
+#include "macros.h"
+
+
+module AmpList
+   use memorymanager, only: LogMemAlloc, LogMemDealloc
+   use Determinants, only: get_helement, write_det, write_det_len
+   use constants, only: dp, int32, n_int
+   use bit_rep_data, only: NIfDBO,NIfD,NIfTot
+   use CCMCData, only: ExcitToDetSign,AddBitExcitor
+   use Parallel
+   implicit none
+
+   type AmplitudeList_%(name)s
+      %(type1)s, pointer ::   Amplitude(:,:)
+      %(type1)s, pointer ::   CumlAmplitude(:)
+      integer tagAmplitude
+      integer tagCumlAmplitude
+      logical bShared
+   end type
+
+
+contains
+
+   subroutine AllocateAmplitudeList (AL,nAmpl,nLists,tShared)
+      use shared_alloc
+      CHARACTER(len=*), PARAMETER :: this_routine='AllocateAmplitudeList_%(name)s'
+      Type(AmplitudeList_%(name)s) AL
+      logical tShared
+      integer nAmpl,nLists
+      integer arrdim(2),arrdim1(1)
+      arrdim1(1)=nAmpl
+      arrdim(1)=nAmpl
+      arrdim(2)=nLists
+      AL%%bShared=tShared
+      if(tShared) then
+         call shared_allocate("CCMCAmps",AL%%Amplitude,arrdim)
+         LogAlloc(ierr,'AL%%Amplitude',nAmpl*nLists,%(size)s,AL%%tagAmplitude)
+         call shared_allocate("CumlAmps",AL%%CumlAmplitude,arrdim1)
+         LogAlloc(ierr,'AL%%CumlAmplitude',nAmpl,%(size)s,AL%%tagCumlAmplitude)
+      else
+         Allocate(AL%%Amplitude(nAmpl,nLists))
+         LogAlloc(ierr,'AL%%Amplitude',nAmpl*nLists,%(size)s,AL%%tagAmplitude)
+         Allocate(AL%%CumlAmplitude(nAmpl))
+         LogAlloc(ierr,'AL%%CumlAmplitude',nAmpl,%(size)s,AL%%tagCumlAmplitude)
+      endif
+   end subroutine ! AllocateAmplitudeList 
+
+   subroutine DeallocateAmplitudeList (AL)
+      use shared_alloc
+      CHARACTER(len=*), PARAMETER :: this_routine='DeallocateAmplitudeList_%(name)s'
+      Type(AmplitudeList_%(name)s) AL
+      LogDealloc(AL%%tagAmplitude)
+      if(AL%%bShared) then
+         call shared_deallocate(AL%%Amplitude)
+         call shared_deallocate(AL%%CumlAmplitude)
+      else
+         LogDealloc(AL%%tagCumlAmplitude)
+         Deallocate(AL%%CumlAmplitude)
+      endif
+   end subroutine !DeallocateAmplitudeList 
+
+
+!Writes out an excitor list of reals whose values are >=dTol
+subroutine WriteExcitorList (iUnit,AL,iAmpList,Dets,offset,nDet,dTol,Title)
+   use FciMCParMod, only: iLutHF
+   IMPLICIT NONE
+   INTEGER iUnit,nDet
+   INTEGER(KIND=n_int) Dets(0:nIfTot,nDet)
+   type(AmplitudeList_%(name)s) AL
+   %(type1)s dTol
+   INTEGER iAmpList
+   CHARACTER(len=*) Title
+   INTEGER j,offset
+   write(6,*) Title
+   do j=1,nDet
+      if(abs(AL%%Amplitude(j,iAmpList)).ge.dTol) THEN
+         write(iUnit,'(I7,G17.9," ")',advance='no') j+offset,AL%%Amplitude(j,iAmpList)
+         call WriteBitEx(iUnit,iLutHF,Dets(:,j),.true.)
+      ENDIF
+   enddo
+end subroutine !WriteExcitorList
+
+!Writes out an excitor list of reals whose values are >=dTol
+subroutine WriteExcitorListA (iUnit,Amps,Dets,offset,nDet,dTol,Title)
+   use FciMCParMod, only: iLutHF
+   IMPLICIT NONE
+   INTEGER iUnit,nDet
+   INTEGER(KIND=n_int) Dets(0:nIfTot,nDet)
+   %(type1)s dTol,Amps(:)
+   CHARACTER(len=*) Title
+   INTEGER j,offset
+   write(6,*) Title
+   do j=1,nDet
+      if(abs(Amps(j)).ge.dTol) THEN
+         write(iUnit,'(I7,G17.9," ")',advance='no') j+offset,Amps(j)
+         call WriteBitEx(iUnit,iLutHF,Dets(:,j),.true.)
+      ENDIF
+   enddo
+end subroutine !WriteExcitorList
+
+pure function GetAmpl(AL,iIndex,iAmpList) result(r)
+   type(AmplitudeList_%(name)s), intent(in) :: AL
+   INTEGER, intent(in) ::  iAmpList,iIndex
+   %(type1)s r
+   r=AL%%Amplitude(iIndex,iAmpList)
+   return 
+end function !GetAmpl
+
+end module
+
+supermodule AmpList
+
+   type AmplitudeList_bitrep
+      integer(kind=n_int), pointer, dimension(:,:) ::   BitReps
+      integer, pointer ::   CumlAmplitude(:)
+      integer tagAmplitude
+      integer tagCumlAmplitude
+      logical bShared
+   end type
+
+
+
+   interface AllocateAmplitudeList
+      module procedure AllocateAmplitudeList_bitrep
+   end interface 
+   interface DeallocateAmplitudeList
+      module procedure DeallocateAmplitudeList_bitrep
+   end interface 
+   interface WriteExcitorList
+      module procedure WriteExcitorList_bitrep
+   end interface 
+   interface GetAmpl
+      module procedure GetAmpl_bitrep
+   end interface 
+
+Contains
+
+   subroutine AllocateAmplitudeList_bitrep(AL,nAmpl,nLists,tShared)
+      use shared_alloc
+      CHARACTER(len=*), PARAMETER :: this_routine='AllocateAmplitudeList_bitrep'
+      Type(AmplitudeList_bitrep) AL
+      logical tShared
+      integer nAmpl,nLists
+      integer arrdim(2),arrdim1(1)
+      arrdim1(1)=nAmpl
+      arrdim(1)=nAmpl
+      arrdim(2)=nLists
+      AL%bShared=tShared
+      if(tShared) then
+         call shared_allocate("CumlAmps",AL%CumlAmplitude,arrdim1)
+         LogAlloc(ierr,'AL%CumlAmplitude',nAmpl,4,AL%tagCumlAmplitude)
+      else
+         Allocate(AL%CumlAmplitude(nAmpl))
+         LogAlloc(ierr,'AL%CumlAmplitude',nAmpl,4,AL%tagCumlAmplitude)
+      endif
+   end subroutine ! AllocateAmplitudeList 
+
+
+   subroutine DeallocateAmplitudeList_bitrep(AL)
+      use shared_alloc
+      CHARACTER(len=*), PARAMETER :: this_routine='DeallocateAmplitudeList_bitrep'
+      Type(AmplitudeList_bitrep) AL
+      if(AL%bShared) then
+         call shared_deallocate(AL%CumlAmplitude)
+      else
+         LogDealloc(AL%tagCumlAmplitude)
+         Deallocate(AL%CumlAmplitude)
+      endif
+   end subroutine !DeallocateAmplitudeList 
+
+
+!Writes out a compressed excitor list where signs are contained within the Particles and whose values are >=dTol
+subroutine WriteExcitorList_bitrep(iUnit,AL,iAmpList,offset,nDet,dTol,Title)
+   use FciMCParMod, only: iLutHF
+   use bit_reps, only: extract_sign,extract_flags
+   IMPLICIT NONE
+   INTEGER iUnit,nDet
+   Type(AmplitudeList_bitrep) AL
+   integer iAmpList
+   INTEGER(KIND=n_int) Dets(0:nIfTot,nDet)
+   integer dTol
+   CHARACTER(len=*) Title
+   INTEGER j,offset
+   INTEGER, dimension(lenof_sign) :: Amp
+   write(6,*) Title
+   do j=1,nDet
+      call extract_sign(AL%BitReps(:,j),Amp)
+      if(abs(Amp(1)).ge.dTol) THEN
+         write(iUnit,'(I7,G17.9," ")',advance='no') j+offset,Amp(1)
+         call WriteBitEx(iUnit,iLutHF,AL%BitReps(:,j),.false.)
+         write(iUnit,'(I7)') extract_flags(AL%BitReps(:,j))
+      ENDIF
+   enddo
+end subroutine !WriteExcitorList
+
+pure function GetAmpl_bitrep(AL,iIndex,iAmpList) result(r1)
+   use bit_reps, only: extract_sign
+   type(AmplitudeList_bitrep), intent(in) :: AL
+   INTEGER, intent(in) ::  iAmpList,iIndex
+   integer,dimension(lenof_sign) :: r
+   integer r1
+   call extract_sign(AL%BitReps(:,iIndex),r)
+   r1=r(1)
+   return 
+end function !GetAmpl
+
+
+end supermodule

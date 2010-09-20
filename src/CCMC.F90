@@ -1453,7 +1453,7 @@ subroutine AttemptSpawn(S,C,Amplitude,dTol,TL,WalkerScale,iDebug)
          i=FCIDetIndex(IC)
          j=FCIDetIndex(IC+1)-1
          WRITE(6,*) "Dets ",i,' to ',j
-         call WriteExcitorList(6,Amplitude(i:j),FciDets(:,i:j),i-1,j-i+1,0.d0,"Excitors in that level")
+         call WriteExcitorListA(6,Amplitude(i:j),FciDets(:,i:j),i-1,j-i+1,0.d0,"Excitors in that level")
          call Stop_All("CCMCStandalone","Cannot find excitor in list.")
       endif
 ! We need to calculate the sign change from excitor to det:
@@ -2015,11 +2015,11 @@ SUBROUTINE CCMCStandalone(Weight,Energyxw)
       AL%Amplitude(:,iCurAmpList)=AL%Amplitude(:,iOldAmpList)
       IFDEBUG(iDebug,2) THEN
          write(6,*) "Cycle ",Iter
-         call WriteExcitorList(6,AL%Amplitude(:,iCurAmpList),FciDets,0,nAmpl,dAmpPrintTol,"Excitor list")
+         call WriteExcitorList(6,AL,iCurAmpList,FciDets,0,nAmpl,dAmpPrintTol,"Excitor list")
       endif
-      call CalcTotals(iNumExcitors,dTotAbsAmpl,AL%Amplitude(:,iCurAmpList),nAmpl,dTolerance*dInitAmplitude,WalkerScale,iRefPos,iOldTotParts,iDebug)
+      call CalcTotals(iNumExcitors,dTotAbsAmpl,AL,iCurAmpList,nAmpl,dTolerance*dInitAmplitude,WalkerScale,iRefPos,iOldTotParts,iDebug)
       if(tExactEnergy) then
-         CALL CalcClusterEnergy(tCCMCFCI,AL%Amplitude(:,iCurAmpList),nAmpl,FciDets,FCIDetIndex,iRefPos,iDebug,dProjE)
+         CALL CalcClusterEnergy(tCCMCFCI,AL,iCurAmpList,nAmpl,FciDets,FCIDetIndex,iRefPos,iDebug,dProjE)
       else
          dProjE=ProjectionE
       endif
@@ -2063,7 +2063,7 @@ SUBROUTINE CCMCStandalone(Weight,Energyxw)
                CS=>CSBuff
                OldAL=>ALBuffer
                OldALIndex=1
-               IFDEBUG(iDebug,3) call WriteExcitorList(6,ALBuffer%Amplitude(:,OldALIndex),FciDets,0,nBuffAmpl,dAmpPrintTol,"Cluster expanded wavefunction")
+               IFDEBUG(iDebug,3) call WriteExcitorList(6,ALBuffer,OldALIndex,FciDets,0,nBuffAmpl,dAmpPrintTol,"Cluster expanded wavefunction")
                call AccumulateAmplitudeList(OldAL,nCurAmpl,OldALIndex,iRefPos)
             endif
          endif
@@ -2074,7 +2074,7 @@ SUBROUTINE CCMCStandalone(Weight,Energyxw)
          if(.not.tMoreClusters) exit
 
 !The final logic tells it whether to convert from an excitor to a det.
-         CALL CollapseCluster(CS%C,iLutHF,OldAL%Amplitude(:,OldALIndex),nCurAmpl,iDebug,.not.(tCCBuffer.and.tPostBuffering))
+         CALL CollapseCluster(CS%C,iLutHF,OldAL,OldALIndex,nCurAmpl,iDebug,.not.(tCCBuffer.and.tPostBuffering))
          IF(CS%C%iSgn/=0.and.iDebug.gt.4) then
             WRITE(6,*) "Chosen det/excitor is:"
             WRITE(6,"(A)",advance="no") "  "
@@ -2143,10 +2143,10 @@ SUBROUTINE CCMCStandalone(Weight,Energyxw)
       NoatDoubs=0
    enddo !MC Cycles
 
-      IFDEBUG(iDebug,2) call WriteExcitorList(6,AL%Amplitude(:,iCurAmpList),FciDets,0,nAmpl,dAmpPrintTol,"Final Excitor list")
+      IFDEBUG(iDebug,2) call WriteExcitorList(6,AL,iCurAmpList,FciDets,0,nAmpl,dAmpPrintTol,"Final Excitor list")
 
 ! Find the largest 10 amplitudes in each level
-      call WriteMaxExcitorList(6,AL%Amplitude(:,iCurAmpList),FciDets,FCIDetIndex,iMaxAmpLevel,10)
+      call WriteMaxExcitorList(6,AL,iCurAmpList,FciDets,FCIDetIndex,iMaxAmpLevel,10,iRefPos)
       nullify(OldAL)
       nullify(CS)
       if(lLogTransitions) then
@@ -2389,7 +2389,7 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
           AL%Amplitude(j,iCurAmpList)=TempSign(1)
       enddo
       call MPIBCast(nAmpl)
-      call CalcTotals(iNumExcitors,dTotAbsAmpl,AL%Amplitude(:,iCurAmpList),nAmpl,dTolerance*dInitAmplitude,WalkerScale,iRefPos,iOldTotParts,iDebug)
+      call CalcTotals(iNumExcitors,dTotAbsAmpl,AL,iCurAmpList,nAmpl,dTolerance*dInitAmplitude,WalkerScale,iRefPos,iOldTotParts,iDebug)
       iter_data_ccmc%update_growth = 0
       iter_data_ccmc%tot_parts_old=TotParts
       AllTotPartsOld=TotParts
@@ -2431,11 +2431,11 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
       nSpawned=0
       IFDEBUG(iDebug,2) THEN
          write(6,*) "Cycle ",Iter
-         call WriteExcitorList(6,AL%Amplitude(:,iCurAmpList),DetList,0,nAmpl,dAmpPrintTol,"Excitor list")
+         call WriteExcitorList(6,AL,iCurAmpList,DetList,0,nAmpl,dAmpPrintTol,"Excitor list")
       endif
 
 
-      call CalcTotals(iNumExcitors,dTotAbsAmpl,AL%Amplitude(:,iCurAmpList),nAmpl,dTolerance*dInitAmplitude,WalkerScale,iRefPos,iOldTotParts,iDebug)
+      call CalcTotals(iNumExcitors,dTotAbsAmpl,AL,iCurAmpList,nAmpl,dTolerance*dInitAmplitude,WalkerScale,iRefPos,iOldTotParts,iDebug)
 !      if(.not.tShifting) then
 !         if(iNumExcitors>dInitAmplitude) then
 !            tShifting=.true.
@@ -2481,7 +2481,7 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
          if(.not.tMoreClusters) exit
 !Now form the cluster
 !The final logic tells it whether to convert from an excitor to a det.
-         CALL CollapseCluster(CS%C,iLutHF,AL%Amplitude(:,iCurAmpList),nAmpl,iDebug,.true.)
+         CALL CollapseCluster(CS%C,iLutHF,AL,iCurAmpList,nAmpl,iDebug,.true.)
          IFDEBUG(iDebug,5) THEN
             IF(CS%C%iSgn/=0.and.iDebug.gt.4) then
                WRITE(6,*) " Chosen det/excitor is:"
@@ -2576,7 +2576,7 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
       if(tSoftExitFound) exit
    enddo !MC Cycles
    Iter=Iter-1
-   IFDEBUG(iDebug,2) call WriteExcitorList(6,AL%Amplitude(:,iCurAmpList),DetList,0,nAmpl,dAmpPrintTol,"Final Excitor list")
+   IFDEBUG(iDebug,2) call WriteExcitorList(6,AL,iCurAmpList,DetList,0,nAmpl,dAmpPrintTol,"Final Excitor list")
    IF(TPopsFile) THEN
 ! encode the signs
       TempSign=0
@@ -2898,6 +2898,28 @@ END SUBROUTINE
 !      Call WriteClusterInd(6,i,.false.,TL)
 !      WRITE(6,"(I)") i
    end subroutine LogCluster
+
+!Writes out a compressed excitor list where signs are contained within the Particles and whose values are >=dTol
+subroutine WriteExcitorListP(iUnit,Dets,offset,nDet,dTol,Title)
+   use FciMCParMod, only: iLutHF
+   use bit_reps, only: extract_sign,extract_flags
+   IMPLICIT NONE
+   INTEGER iUnit,nDet
+   INTEGER(KIND=n_int) Dets(0:nIfTot,nDet)
+   integer dTol
+   CHARACTER(len=*) Title
+   INTEGER j,offset
+   INTEGER, dimension(lenof_sign) :: Amp
+   write(6,*) Title
+   do j=1,nDet
+      call extract_sign(Dets(:,j),Amp)
+      if(abs(Amp(1)).ge.dTol) THEN
+         write(iUnit,'(I7,G17.9," ")',advance='no') j+offset,Amp(1)
+         call WriteBitEx(iUnit,iLutHF,Dets(:,j),.false.)
+         write(iUnit,'(I7)') extract_flags(Dets(:,j))
+      ENDIF
+   enddo
+end subroutine !WriteExcitorList
 
 END MODULE CCMC
 
