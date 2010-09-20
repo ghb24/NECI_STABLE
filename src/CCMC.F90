@@ -2199,7 +2199,7 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
    IMPLICIT NONE
    real(dp) Weight,EnergyxW
    CHARACTER(len=*), PARAMETER :: this_routine='CCMCStandaloneParticle'
-   TYPE(AmplitudeList_int),target :: AL
+   TYPE(AmplitudeList_bitrep),target :: AL
    INTEGER(kind=n_int), pointer :: DetList(:,:)
    INTEGER  tagDetList
 
@@ -2216,7 +2216,7 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
    REAL*8 dTolerance             ! The tolerance for when to regard a value as zero
    REAL*8 dAveTotAbsAmp          ! Average of Total absolute amplitude over all post-equil cycles
    REAL*8 dAveNorm               ! Average of Normalization (ampl of Ref) over all post-equil cycles
-   INTEGER dAmpPrintTol           ! What size amplitudes do we bother printing 
+   INTEGER(kind=int32) dAmpPrintTol           ! What size amplitudes do we bother printing 
 
    TYPE(ClustSelector) :: CS   ! A normal ClustSelector based on the current amplitudes
    LOGICAL tMoreClusters                  ! Indicates we've not finished selecting clusters 
@@ -2267,7 +2267,6 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
 !   Spawntime%timer_name='SpawnTime'
 !   Dietime%timer_name='DieTime'
 !   Etime%timer_name='ETime'
-   iRefPos=1
    iDebug=CCMCDebug
 
    Call SetupParameters()
@@ -2287,8 +2286,6 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
    nMaxAmpl=InitWalkers
    WalkerScale=1
 ! Setup Memory
-   write(6,*) "Max Amplitude List size: ", nMaxAmpl
-   call AllocateAmplitudeList(AL,nMaxAmpl,1,tSharedExcitors)
 #ifndef __SHARED_MEM
    if(tSharedExcitors) then
       write(6,*) "Shared excitor memory requested, but not available in this compilation."
@@ -2296,6 +2293,7 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
       tSharedExcitors=.false.
    endif
 #endif   
+   write(6,*) "Max Amplitude List size: ", nMaxAmpl
    if(tSharedExcitors) then
       call shared_allocate_iluts("DetList",DetList,(/nIfTot,nMaxAmpl/))
    else
@@ -2303,6 +2301,7 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
    endif
    ierr=0
    LogAlloc(ierr,'DetList',(nIfTot+1)*nMaxAmpl,4,tagDetList)
+   call AllocateAmplitudeList(AL,nMaxAmpl,1,tSharedExcitors,DetList)
    nMaxSpawn=MemoryFacSpawn*nMaxAmpl
    if(iProcIndex.ne.Root) nMaxSpawn=nMaxSpawn/nProcessors
    Allocate(SpawnList(0:nIfTot,nMaxSpawn))
@@ -2321,7 +2320,7 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
    endif
 
 ! Now setup the amplitude list.  Let's start with nothing initially, and
-   AL%Amplitude(:,:)=0
+!   AL%Amplitude(:,:)=0
 
 !Make sure we've all finished setting it to zero.
    call MPIBarrier(ierr)  
@@ -2331,17 +2330,18 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
 !      write(6,*) "Initializing with MP1 amplitudes."
 !      CALL InitMP1Amplitude(tCCMCFCI,Amplitude(:,iCurAmpList),nAmpl,FciDets,FCIDetIndex,dInitAmplitude,dTotAbsAmpl)
 !   else
+   i=dInitAmplitude
    if(TStartSinglePart) then
-      AL%Amplitude(iRefPos,iCurAmpList)=dInitAmplitude
       tShifting=.false.
    else
-      AL%Amplitude(iRefPos,iCurAmpList)=dInitAmplitude
       tShifting=.true.
    endif
-   DetList(:,1)=iLutHF 
-      nAmpl=1
-      iNumExcitors=0
-   dTotAbsAmpl=AL%Amplitude(iRefPos,iCurAmpList)
+   iRefPos=1
+   DetList(:,iRefPos)=iLutHF 
+   call SetAmpl(AL,iRefPos,iCurAmpList,i)
+   nAmpl=1
+   iNumExcitors=0
+   dTotAbsAmpl=GetAmpl(AL,iRefPos,iCurAmpList)
 !   endif
    dAmpPrintTol=(dTolerance*dInitAmplitude)
    IFDEBUG(iDebug,4) dAmpPrintTol=0
@@ -2384,10 +2384,10 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
 
    if(tReadPops) then
       call ReadPopsFileCCMC(DetList,nMaxAmpl,nAmpl)
-      do j=1,nAmpl
-          call extract_sign(DetList(:,j),TempSign)
-          AL%Amplitude(j,iCurAmpList)=TempSign(1)
-      enddo
+!      do j=1,nAmpl
+!          call extract_sign(DetList(:,j),TempSign)
+!          call SetAmpl(AL%Amplitude(j,iCurAmpList)=TempSign(1)
+!      enddo
       call MPIBCast(nAmpl)
       call CalcTotals(iNumExcitors,dTotAbsAmpl,AL,iCurAmpList,nAmpl,dTolerance*dInitAmplitude,WalkerScale,iRefPos,iOldTotParts,iDebug)
       iter_data_ccmc%update_growth = 0
@@ -2414,13 +2414,13 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
          IFDEBUG(iDebug,2) write(6,*) "Synchronizing particle lists among processors"
          call set_timer(CCMCComms1_time,20)
          call MPIBCast(DetList(:,1:nAmpl))
-         call MPIBCast(AL%Amplitude(1:nAmpl,iCurAmpList))
+!         call MPIBCast(AL%Amplitude(1:nAmpl,iCurAmpList))
          call halt_timer(CCMCComms1_time)
       else if (nNodes>1.and.bNodeRoot) then
          IFDEBUG(iDebug,2) write(6,*) "Synchronizing particle lists among nodes"
          call set_timer(CCMCComms1_time,20)
          call MPIBCast(DetList(:,1:nAmpl),Roots)
-         call MPIBCast(AL%Amplitude(1:nAmpl,iCurAmpList),Roots)
+!         call MPIBCast(AL%Amplitude(1:nAmpl,iCurAmpList),Roots)
          call halt_timer(CCMCComms1_time)
       endif
 
@@ -2456,7 +2456,7 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
 
 !Fix the statistics for multiple threads
       if(iProcIndex==root) then
-         NoAtHF=AL%Amplitude(iRefPos,iCurAmpList)
+         NoAtHF=GetAmpl(AL,iRefPos,iCurAmpList)
       else
          TotParts=0
          NoAtHF=0
@@ -2556,7 +2556,8 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
 !      if(nSpawned>0) then
       IFDEBUG(iDebug,3) write(6,*) "Calling Annihilation with ", nSpawned, " spawned."
       IFDEBUG(iDebug,3) call WriteExcitorListP(6,SpawnList,0,nSpawned,dAmpPrintTol,"Spawned list")
-      call AnnihilationInterface(nAmpl,DetList,AL%Amplitude(:,iCurAmpList),nMaxAmpl,nSpawned,SpawnList,nMaxSpawn,iter_data_ccmc)
+!      call AnnihilationInterface(nAmpl,DetList,AL%Amplitude(:,iCurAmpList),nMaxAmpl,nSpawned,SpawnList,nMaxSpawn,iter_data_ccmc)
+      call AnnihilationInterface(nAmpl,DetList,nMaxAmpl,nSpawned,SpawnList,nMaxSpawn,iter_data_ccmc)
       call MPIBCast(nAmpl)
       call halt_timer(CCMCComms2_time)
 !      else
@@ -2569,7 +2570,7 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
       ENDIF
       if(Iter.gt.NEquilSteps) then
          dAveTotAbsAmp=dAveTotAbsAmp+dTotAbsAmpl
-         dAveNorm=dAveNorm+AL%Amplitude(iRefPos,iCurAmpList)
+         dAveNorm=dAveNorm+GetAmpl(AL,iRefPos,iCurAmpList)
       endif
       call ChangeVars(tSingBiasChange, tSoftExitFound, tWritePopsFound)
       Iter=Iter+1
@@ -2579,11 +2580,11 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
    IFDEBUG(iDebug,2) call WriteExcitorList(6,AL,iCurAmpList,DetList,0,nAmpl,dAmpPrintTol,"Final Excitor list")
    IF(TPopsFile) THEN
 ! encode the signs
-      TempSign=0
-      do j=1,nAmpl
-          TempSign(1)=AL%Amplitude(j,iCurAmpList)
-          call encode_sign(DetList(:,j),TempSign)
-      enddo
+!      TempSign=0
+!      do j=1,nAmpl
+!          TempSign(1)=AL%Amplitude(j,iCurAmpList)
+!          call encode_sign(DetList(:,j),TempSign)
+!      enddo
 !Another fudge for multiprocessors - all dets are currently on the root.  TODO: Fix
       if(iProcIndex==Root) then
          CALL WriteToPopsfileParOneArr(DetList,int(nAmpl,int64))
