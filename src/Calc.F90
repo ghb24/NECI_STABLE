@@ -226,6 +226,7 @@ contains
           spin_proj_shift = 0
           spin_proj_cutoff = 0
           spin_proj_iter_count = 1
+          tUseProcsAsNodes=.false.
       
         end subroutine SetCalcDefaults
 
@@ -1641,7 +1642,7 @@ contains
          use UMatCache , only : TSTARSTORE
          use CalcData , only : CALCP_SUB2VSTAR,CALCP_LOGWEIGHT,TMCDIRECTSUM,g_Multiweight,G_VMC_FAC,TMPTHEORY
          use CalcData, only : STARPROD,TDIAGNODES,TSTARSTARS,TGraphMorph,TStarTrips,THDiag,TMCStar,TFCIMC,TMCDets,tCCMC
-         use CalcData , only : TRhoElems,TReturnPathMC, tFCIMCSerial
+         use CalcData , only : TRhoElems,TReturnPathMC, tFCIMCSerial,tUseProcsAsNodes
          use CCMCData, only: tExactCluster,tCCMCFCI,tAmplitudes,tExactSpawn,tCCBuffer
          use Logging, only: tCalcFCIMCPsi
          implicit none
@@ -1656,6 +1657,7 @@ contains
                case("FCIMC")
                    I_HMAX=-21
                    TFCIMC=.true.
+                   tUseProcsAsNodes=.true.
                    do while(item.lt.nitems)
                       call readu(w)
                       select case(w)

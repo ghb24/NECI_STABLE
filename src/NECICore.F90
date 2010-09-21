@@ -16,6 +16,8 @@ Subroutine NECICore(iCacheFlag,tCPMD,tVASP)
 
     ! main-level modules.
     use Calc, only: CalcDoCalc
+    use CalcData, only: tUseProcsAsNodes
+    use Parallel, only: MPINodes
 
     ! Utility modules.
     use global_utilities
@@ -48,6 +50,8 @@ Subroutine NECICore(iCacheFlag,tCPMD,tVASP)
         call ReadInputMain(Filename,ios)
         If (ios.ne.0) stop 'Error in Read'
     endif
+
+    call MPINodes(tUseProcsAsNodes)  ! Setup MPI Node information - this is dependent upon knowing the job type configurations.
 
     call NECICalcInit(iCacheFlag)
 
