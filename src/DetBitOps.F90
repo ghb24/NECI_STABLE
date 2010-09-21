@@ -870,17 +870,19 @@ end module
 
 
 !This function will return true if the determinant is closed shell, or false if not.
-    LOGICAL FUNCTION TestClosedShellDet(iLut)
+    PURE FUNCTION TestClosedShellDet(iLut) result (tClosed)
         use bit_rep_data, only: NIfD
         use constants, only: n_int
         use DetBitOps, only: MaskAlpha,MaskBeta
         IMPLICIT NONE
-        INTEGER(kind=n_int) :: iLut(0:NIfD),iLutAlpha(0:NIfD),iLutBeta(0:NIfD)
+        INTEGER(kind=n_int), intent(in) :: iLut(0:NIfD)
+        integer(n_int) :: iLutAlpha(0:NIfD),iLutBeta(0:NIfD)
+        logical, intent(out) :: tClosed
         INTEGER :: i
         
         iLutAlpha(:)=0
         iLutBeta(:)=0
-        TestClosedShellDet=.true.
+        tClosed=.true.
 
         do i=0,NIfD
 
@@ -890,7 +892,7 @@ end module
             iLutAlpha(i)=IEOR(iLutAlpha(i),iLutBeta(i)) !Do an XOR on the original beta bits and shifted alpha bits - they should cancel exactly.
             
             IF(iLutAlpha(i).ne.0) THEN
-                TestClosedShellDet=.false.  !Det is not closed shell - return
+                tClosed=.false.  !Det is not closed shell - return
                 RETURN
             ENDIF
         enddo
