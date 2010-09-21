@@ -953,12 +953,12 @@ subroutine MPINodes(tUseProcsAsNodes)
       write(6,*) "Allocating each processor as a separate node."
       if(iProcIndex==root) then
          nNodes=0
-         write(6,*) "Processor      Node hostname"
+         write(6,*) "Processor      Node"
          do i=0,nProcessors-1
             NodeRoots(nNodes)=i
             Nodes(i)%n=nNodes
             nNodes=nNodes+1
-            write(6,"(2I10,A,A)") i,Nodes(i)%n," ",nms(i)
+            write(6,"(2I10)") i,Nodes(i)%n
          enddo
       endif
    else 
