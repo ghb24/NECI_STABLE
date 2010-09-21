@@ -198,8 +198,8 @@ MODULE AnnihilationMod
 !ValidSpawnedList(0:nProcessors-1) indicates the next free index for each processor (for spawnees from this processor)
 !  i.e. the list of spawned particles has already been arranged so that newly spawned particles are grouped according to the processor they go to.
 
-! sendcounts(1:) indicates the number of spawnees to send to each processor (1-based)
-! disps(1:) is the index into the spawned list of the beginning of the list to send to each processor (1-based)
+! sendcounts(1:) indicates the number of spawnees to send to each processor
+! disps(1:) is the index into the spawned list of the beginning of the list to send to each processor (0-based)
            sendcounts(1)=ValidSpawnedList(0)-1
            disps(1)=0
            if(nProcessors>1) then
@@ -208,13 +208,10 @@ MODULE AnnihilationMod
            endif
         else
 !Distribute the gaps on all procs
-!TODO:  This should use information from InitialSpawnedSlots for consistency.
-            Gap=REAL(MaxSpawned)/REAL(nProcessors)
-!            WRITE(6,*) "Gap: ",Gap
-
            do i=0,nProcessors-1
-               sendcounts(i+1)=ValidSpawnedList(i)-(NINT(Gap*i)+1)
-               disps(i+1)=NINT(Gap*i)
+               sendcounts(i+1)=ValidSpawnedList(i)-InitialSpawnedSlots(i)
+! disps is zero-based, but InitialSpawnedSlots is 1-based
+               disps(i+1)=InitialSpawnedSlots(i)-1
            enddo
         endif
 
