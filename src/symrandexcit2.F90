@@ -29,18 +29,22 @@ MODULE GenRandSymExcitNUMod
     use SystemData, only: ALAT, iSpinSkip, tFixLz, iMaxLz, tUEG, tNoFailAb, &
                           tLatticeGens, tHub, nEl,G1, nBasis, nBasisMax, &
                           tNoSymGenRandExcits, Arr, nMax, tCycleOrbs, &
-                          nOccAlpha, nOccBeta, ElecPairs, MaxABPairs,tKPntSym
-    use FciMCData, only: pDoubles
+                          nOccAlpha, nOccBeta, ElecPairs, MaxABPairs, &
+                          tKPntSym, lzTot, tNoBrillouin, tUseBrillouin
+    use FciMCData, only: pDoubles, iter
+    use Parallel
     use IntegralsData, only: UMat
     use Determinants, only: get_helement, write_det
-    use SymData, only: nSymLabels,TwoCycleSymGens
-    use SymData, only: SymLabelList,SymLabelCounts
+    use SymData, only: nSymLabels, TwoCycleSymGens, SymLabelList, &
+                       SymLabelCounts
     use dSFMT_interface , only : genrand_real2_dSFMT
     use SymExcitDataMod 
-    use DetBitOps, only: FindExcitBitDet
+    use DetBitOps, only: FindExcitBitDet, EncodeBitDet
     use sltcnd_mod, only: sltcnd_1
-    use constants, only: dp,n_int,bits_n_int
+    use constants, only: dp, n_int, bits_n_int
     use bit_reps, only: NIfTot
+    use sym_mod, only: mompbcsym, GetLz
+    use timing
     IMPLICIT NONE
 !    INTEGER , SAVE :: Counter=0
 
@@ -1385,6 +1389,7 @@ MODULE GenRandSymExcitNUMod
         ! the number of orbitals - occupied and unoccupied - in each symmetry.
         !
         ! The arrays are indexed via the indices returned by ClassCountInd
+        ! n.b. this is O[nel], so we should store this if we can.
         
         integer, intent(in) :: nI(nel)
         integer, intent(out) :: CCOcc(ScratchSize), CCUnocc(ScratchSize)
@@ -2555,6 +2560,324 @@ MODULE GenRandSymExcitNUMod
 
     END FUNCTION IsMomentumAllowed
 
+    !This routine will take a determinant nI, and find Iterations number of excitations of it. It will then histogram these, summing in 1/pGen for every occurance of
+    !the excitation. This means that all excitations should be 0 or 1 after enough iterations. It will then count the excitations and compare the number to the
+    !number of excitations generated using the full enumeration excitation generation. This can be done for both doubles and singles, or one of them.
+    SUBROUTINE TestGenRandSymExcitNU(nI,Iterations,pDoub,exFlag)
+        IMPLICIT NONE
+        INTEGER :: i,Iterations,exFlag,nI(NEl),nJ(NEl),IC,ExcitMat(2,2),kx,ky,kz,ktrial(3)
+        REAL*8 :: pDoub,pGen,AverageContrib,AllAverageContrib
+        INTEGER :: ClassCount2(ScratchSize),Scratch1(ScratchSize),Scratch2(ScratchSize),scratch3(scratchsize)
+        INTEGER(KIND=n_int) :: iLutnJ(0:NIfTot),iLut(0:NIfTot)
+        INTEGER :: ClassCountUnocc2(ScratchSize),iExcit
+        LOGICAL :: tParity,tFilled,IsMomAllowedDet,test
+
+        ! Accumulator arrays. These need to be allocated on the heap, or we
+        ! get a segfault by overflowing the stack using ifort
+        real(dp), allocatable :: DoublesHist(:,:,:,:)
+        real(dp), allocatable :: AllDoublesHist(:,:,:,:)
+        real(dp), allocatable :: SinglesHist(:,:)
+        real(dp), allocatable :: AllSinglesHist(:,:)
+        integer, allocatable :: DoublesCount(:,:,:,:)
+        integer, allocatable :: AllDoublesCount(:,:,:,:)
+        integer, allocatable :: SinglesCount(:,:)
+        integer, allocatable :: AllSinglesCount(:,:)
+
+        INTEGER , ALLOCATABLE :: EXCITGEN(:)
+        INTEGER :: ierr,Ind1,Ind2,Ind3,Ind4,iMaxExcit,nStore(6),nExcitMemLen,j,k,l,DetNum,DetNumS,Lz,excitcount,ForbiddenIter,error, iter_tmp
+        logical :: brillouin_tmp(2)
+        type(timer), save :: test_timer
+        HElement_t :: HElGen
+
+        write(6,*) 'In HERE'
+        call flush(6)
+
+        WRITE(6,*) nI(:)
+        WRITE(6,*) Iterations,pDoub,exFlag
+        WRITE(6,*) "nSymLabels: ",nSymLabels
+        CALL FLUSH(6)
+
+        ! The old excitation generator will not generate singles from the HF
+        ! unless tNoBrillouin is set
+        brillouin_tmp(1) = tNoBrillouin
+        brillouin_tmp(2) = tUseBrillouin
+        tNoBrillouin = .true.
+        tUseBrillouin = .false.
+
+    !Find the number of symmetry allowed excitations there should be by looking at the full excitation generator.
+    !Setup excit generators for this determinant
+        iMaxExcit=0
+        nStore(1:6)=0
+        CALL GenSymExcitIt2(nI,NEl,G1,nBasis,.TRUE.,nExcitMemLen,nJ,iMaxExcit,nStore,exFlag)
+        ALLOCATE(EXCITGEN(nExcitMemLen),stat=ierr)
+        IF(ierr.ne.0) CALL Stop_All("SetupExcitGen","Problem allocating excitation generator")
+        EXCITGEN(:)=0
+        CALL GenSymExcitIt2(nI,NEl,G1,nBasis,.TRUE.,EXCITGEN,nJ,iMaxExcit,nStore,exFlag)
+    !    CALL GetSymExcitCount(EXCITGEN,DetConn)
+        excitcount=0
+
+    lp2: do while(.true.)
+            CALL GenSymExcitIt2(nI,nEl,G1,nBasis,.false.,EXCITGEN,nJ,iExcit,nStore,exFlag)
+            IF(nJ(1).eq.0) exit lp2
+            IF(tUEG.or.tHub) THEN
+                IF (IsMomentumAllowed(nJ)) THEN
+                    excitcount=excitcount+1
+                    CALL EncodeBitDet(nJ,iLutnJ)
+                    IF(iProcIndex.eq.0) WRITE(25,*) excitcount,iExcit,iLutnJ(0)
+                ENDIF
+            ELSEIF(tFixLz) THEN
+
+                CALL GetLz(nJ,NEl,Lz)
+                IF(Lz.eq.LzTot) THEN
+                    excitcount=excitcount+1
+                    CALL EncodeBitDet(nJ,iLutnJ)
+                    IF(iProcIndex.eq.0) WRITE(25,*) excitcount,iExcit,iLutnJ(0)
+                ENDIF
+            ELSEIF(tKPntSym) THEN
+                IF(IsMomAllowedDet(nJ)) THEN
+                    excitcount=excitcount+1
+                    CALL EncodeBitDet(nJ,iLutnJ)
+                    IF(iProcIndex.eq.0) WRITE(25,*) excitcount,iExcit,nJ(:)
+                ENDIF
+            ELSE
+                excitcount=excitcount+1
+                CALL EncodeBitDet(nJ,iLutnJ)
+                IF(iProcIndex.eq.0) WRITE(25,*) excitcount,iExcit,iLutnJ(0)
+            ENDIF
+        enddo lp2
+        tNoBrillouin = brillouin_tmp(1)
+        tUseBrillouin = brillouin_tmp(2)
+
+        WRITE(6,*) "Determinant has ",excitcount," total excitations from it."
+        CALL FLUSH(6)
+
+        ! Allocate the accumulators
+        allocate (DoublesHist(nbasis, nbasis, nbasis, nbasis))
+        allocate (AllDoublesHist(nbasis, nbasis, nbasis, nbasis))
+        allocate (SinglesHist(nbasis, nbasis))
+        allocate (AllSinglesHist(nbasis, nbasis))
+        allocate (DoublesCount(nbasis, nbasis, nbasis, nbasis))
+        allocate (AllDoublesCount(nbasis, nbasis, nbasis, nbasis))
+        allocate (SinglesCount(nbasis, nbasis))
+        allocate (AllSinglesCount(nbasis, nbasis))
+
+        ! Zero the accumulators
+        DoublesHist = 0
+        SinglesHist = 0
+        AllDoublesHist = 0
+        AllSinglesHist = 0
+        DoublesCount = 0
+        SinglesCount = 0
+        AllDoublesCount = 0
+        AllSinglesCount = 0
+
+        CALL EncodeBitDet(nI,iLut)
+
+        tFilled=.false.
+        Scratch1(:)=0
+        Scratch2(:)=0
+
+        AverageContrib=0.D0
+        AllAverageContrib=0.D0
+        ForbiddenIter=0
+    !    pDoub=1.D0
+    !    IF(iProcIndex.eq.0) OPEN(9,FILE="AvContrib",STATUS="UNKNOWN")
+
+        test_timer%timer_name = 'test_symrandexcit2'
+        call set_timer(test_timer)
+        iter_tmp = iter
+        do i=1,Iterations
+        
+            IF(mod(i,400000).eq.0) THEN
+                WRITE(6,"(A,I10)") "Iteration: ",i
+                CALL FLUSH(6)
+            ENDIF
+
+            call gen_rand_excit (nI, iLut, nJ, iLutnJ, exFlag, IC, ExcitMat, &
+                                 tParity, pGen, HElGen, tFilled, Scratch1, Scratch2, &
+                                 Scratch3)
+            IF(nJ(1).eq.0) THEN
+    !            ForbiddenIter=ForbiddenIter+1
+                CYCLE
+            ENDIF
+            IF(tKPntSym) THEN
+                test=IsMomAllowedDet(nJ)
+            ENDIF
+            ! This is implemented for the old excitation generators, that could only handle momentum conservation under
+            ! zero momentum conditions
+            IF(tUEG.and.(.not.tLatticeGens)) THEN
+                kx=0
+                ky=0
+                kz=0
+                do j=1,NEl
+                    kx=kx+G1(nJ(j))%k(1)
+                    ky=ky+G1(nJ(j))%k(2)
+                    kz=kz+G1(nJ(j))%k(3)
+                enddo
+                IF(.not.(kx.eq.0.and.ky.eq.0.and.kz.eq.0)) THEN
+                    CYCLE
+                ENDIF
+            ELSEIF(tHub.and.(.not.tLatticeGens)) THEN
+                kx=0
+                ky=0
+                kz=0
+                do j=1,NEl
+                    kx=kx+G1(nJ(j))%k(1)
+                    ky=ky+G1(nJ(j))%k(2)
+                    kz=kz+G1(nJ(j))%k(3)
+                enddo
+                ktrial=(/kx,ky,0/)
+                CALL MomPbcSym(ktrial,nBasisMax)
+                IF(.not.(ktrial(1).eq.0.and.ktrial(2).eq.0.and.kz.eq.0)) THEN
+                    CYCLE
+                ENDIF
+            ENDIF
+            AverageContrib=AverageContrib+1.D0/pGen
+
+    !        CALL EncodeBitDet(nJ,iLutnJ)
+    !        IF(IC.eq.1) THEN
+    !            WRITE(6,*) ExcitMat(1,1),ExcitMat(2,1)
+    !        ELSE
+    !            WRITE(6,*) "Double Created"
+    !            WRITE(6,*) ExcitMat(1,1),ExcitMat(1,2),ExcitMat(2,1),ExcitMat(2,2)
+    !        ENDIF
+
+            IF(IC.eq.1) THEN
+                SinglesHist(ExcitMat(1,1),ExcitMat(2,1))=SinglesHist(ExcitMat(1,1),ExcitMat(2,1))+(1.D0/pGen)
+                SinglesCount(ExcitMat(1,1), ExcitMat(2,1)) = &
+                    SinglesCount(ExcitMat(1,1), ExcitMat(2,1)) + 1
+    !            SinglesNum(ExcitMat(1,1),ExcitMat(2,1))=SinglesNum(ExcitMat(1,1),ExcitMat(2,1))+1
+            ELSE
+    !Have to make sure that orbitals are in the same order...
+                IF(ExcitMat(1,1).gt.ExcitMat(1,2)) THEN
+                    Ind1=ExcitMat(1,2)
+                    Ind2=ExcitMat(1,1)
+                ELSE
+                    Ind1=ExcitMat(1,1)
+                    Ind2=ExcitMat(1,2)
+                ENDIF
+                IF(ExcitMat(2,1).gt.ExcitMat(2,2)) THEN
+                    Ind3=ExcitMat(2,2)
+                    Ind4=ExcitMat(2,1)
+                ELSE
+                    Ind3=ExcitMat(2,1)
+                    Ind4=ExcitMat(2,2)
+                ENDIF
+                DoublesHist(Ind1,Ind2,Ind3,Ind4)=DoublesHist(Ind1,Ind2,Ind3,Ind4)+(1.D0/pGen)
+                DoublesCount(ind1,ind2,ind3,ind4) = &
+                DoublesCount(ind1,ind2,ind3,ind4) + 1
+            ENDIF
+            !        IF(mod(i,iWriteEvery).eq.0) THEN
+            !            AllAverageContrib=0.D0
+            !#ifdef PARALLEL
+            !            CALL MPI_AllReduce(AverageContrib,AllAverageContrib,1,MPI_DOUBLE_PRECISION,MPI_SUM,MPI_COMM_WORLD,error)
+            !#else            
+            !            AllAverageContrib=AverageContrib
+            !#endif
+            !            IF(iProcIndex.eq.0) THEN
+            !                WRITE(9,*) i,AllAverageContrib/(REAL(i,8)*excitcount*nProcessors)
+            !            ENDIF
+            !!            CALL ChangeVars(tDummy,tSoftExitFound,tDummy2)
+            !!            IF(tSoftExitFound) EXIT
+            !        ENDIF
+
+            !Check excitation
+            CALL IsSymAllowedExcit(nI,nJ,IC,ExcitMat)
+
+        enddo
+        iter = iter_tmp
+
+        call halt_timer (test_timer)
+
+        !    IF(iProcIndex.eq.0) CLOSE(9)
+
+        #ifdef PARALLEL
+        call MPIBarrier(error)
+        call MPIAllReduce (DoublesHist, MPI_SUM, AllDoublesHist)
+        call MPIAllReduce (SinglesHist, MPI_SUM, AllSinglesHist)
+        call MPIAllReduce (DoublesCount, MPI_SUM, AllDoublesCount)
+        call MPIAllReduce (SinglesCount, MPI_SUM, AllSinglesCount)
+        #else
+        AllDoublesHist = DoublesHist
+        AllSinglesHist = SinglesHist
+        AllDoublesCount = DoublesCount
+        AllSinglesCount = SinglesCount
+        #endif
+        write(6,*) 'sum singles count', sum(AllSinglesCount)
+        write(6,*) 'sum doubles count', sum(AllDoublesCount)
+
+        !Now run through arrays normalising them so that numbers are more managable.
+        IF(iProcIndex.eq.0) THEN
+            OPEN(8,FILE="DoublesHist",STATUS="UNKNOWN")
+            DetNum=0
+            do i=1,nBasis-1
+                do j=i+1,nBasis
+                    do k=1,nBasis-1
+                        do l=k+1,nBasis
+                            IF(AllDoublesHist(i,j,k,l).gt.0.D0) THEN
+                                !                        DoublesHist(i,j,k,l)=DoublesHist(i,j,k,l)/real(Iterations,8)
+                                DetNum=DetNum+1
+                                ExcitMat(1,1)=i
+                                ExcitMat(1,2)=j
+                                ExcitMat(2,1)=k
+                                ExcitMat(2,2)=l
+                                CALL FindExcitBitDet(iLut,iLutnJ,2,ExcitMat)
+                                write(8,"(i12,f20.12,2i5,'->',2i5,2i15)") DetNum,&
+                                AllDoublesHist(i,j,k,l) / (real(Iterations,8)&
+                                * nProcessors), &
+                                i, j, k, l, iLutnJ(0),AllDoublesCount(i,j,k,l)
+                                !                            WRITE(6,*) DetNum,DoublesHist(i,j,k,l),i,j,"->",k,l
+                                IF(tHub.or.tUEG) THEN
+                                    write(8,*) "#",G1(i)%k(1),G1(i)%k(2)
+                                    write(8,*) "#",G1(j)%k(1),G1(j)%k(2)
+                                    write(8,*) "#",G1(k)%k(1),G1(k)%k(2)
+                                    write(8,*) "#",G1(l)%k(1),G1(l)%k(2)
+                                ENDIF
+                            ENDIF
+                        enddo
+                    enddo
+                enddo
+            enddo
+            CLOSE(8)
+            WRITE(6,*) DetNum," Double excitations found from nI"
+            OPEN(9,FILE="SinglesHist",STATUS="UNKNOWN")
+            DetNumS=0
+            do i=1,nBasis
+                do j=1,nBasis
+                    IF(AllSinglesHist(i,j).gt.0.D0) THEN
+                        DetNumS=DetNumS+1
+                        ExcitMat(1,1)=i
+                        ExcitMat(2,1)=j
+                        CALL FindExcitBitDet(iLut,iLutnJ,1,ExcitMat)
+                        write(9,*) DetNumS, AllSinglesHist(i,j) / &
+                        (real(Iterations,8) * nProcessors), &
+                        i, "->", j, ALlSinglesCount(i, j)
+                        !                    WRITE(6,*) DetNumS,AllSinglesHist(i,j),i,"->",j
+                    ENDIF
+                enddo
+            enddo
+            CLOSE(9)
+            WRITE(6,*) DetNumS," Single excitations found from nI"
+            IF((DetNum+DetNumS).ne.ExcitCount) THEN
+                CALL construct_class_counts(nI,ClassCount2,ClassCountUnocc2)
+                WRITE(6,*) "Total determinants = ", ExcitCount
+                WRITE(6,*) "ClassCount2(:)= ",ClassCount2(:)
+                WRITE(6,*) "***"
+                WRITE(6,*) "ClassCountUnocc2(:)= ",ClassCountUnocc2(:)
+                CALL Stop_All("TestGenRandSymExcitNU","Not all excitations accounted for...")
+            ENDIF
+        ENDIF
+        CALL MPIBarrier(error)
+
+        ! Deallocate the accumulators
+        deallocate (DoublesHist, AllDoublesHist, &
+                    SinglesHist, AllSinglesHist, &
+                    DoublesCount, AllDoublesCount, &
+                    SinglesCount, AllSinglesCount)
+
+
+    END SUBROUTINE TestGenRandSymExcitNU
+
 END MODULE GenRandSymExcitNUMod
 
 
@@ -2795,288 +3118,6 @@ SUBROUTINE SpinOrbSymSetup()
 END SUBROUTINE SpinOrbSymSetup
 
 
-!This routine will take a determinant nI, and find Iterations number of excitations of it. It will then histogram these, summing in 1/pGen for every occurance of
-!the excitation. This means that all excitations should be 0 or 1 after enough iterations. It will then count the excitations and compare the number to the
-!number of excitations generated using the full enumeration excitation generation. This can be done for both doubles and singles, or one of them.
-SUBROUTINE TestGenRandSymExcitNU(nI,Iterations,pDoub,exFlag)
-    use SystemData, only: NEl, nBasis, G1, nBasisMax, LzTot, tUEG, &
-                          tLatticeGens, tHub,tKPntSym, tFixLz, tNoBrillouin, &
-                          tUseBrillouin
-    use GenRandSymExcitNUMod, only: gen_rand_excit, construct_class_counts,ScratchSize
-    Use SymData , only : nSymLabels
-    use Parallel
-!    use soft_exit , only : ChangeVars 
-    use DetBitOps , only : EncodeBitDet, FindExcitBitDet
-    use GenRandSymExcitNUMod, only: IsMomentumAllowed
-    use constants, only: n_int
-    use bit_reps, only: NIfTot
-    use sym_mod, only: mompbcsym, GetLz
-    IMPLICIT NONE
-    INTEGER :: i,Iterations,exFlag,nI(NEl),nJ(NEl),IC,ExcitMat(2,2),kx,ky,kz,ktrial(3)
-    REAL*8 :: pDoub,pGen,AverageContrib,AllAverageContrib
-    INTEGER :: ClassCount2(ScratchSize),Scratch1(ScratchSize),Scratch2(ScratchSize),scratch3(scratchsize)
-    INTEGER(KIND=n_int) :: iLutnJ(0:NIfTot),iLut(0:NIfTot)
-    INTEGER :: ClassCountUnocc2(ScratchSize),iExcit
-    LOGICAL :: tParity,tFilled,IsMomAllowedDet,test
-    REAL*8 , ALLOCATABLE :: DoublesHist(:,:,:,:),SinglesHist(:,:),AllDoublesHist(:,:,:,:),AllSinglesHist(:,:)
-    INTEGER , ALLOCATABLE :: EXCITGEN(:)
-    INTEGER :: ierr,Ind1,Ind2,Ind3,Ind4,iMaxExcit,nStore(6),nExcitMemLen,j,k,l,DetNum,DetNumS,Lz,excitcount,ForbiddenIter,error
-    logical :: brillouin_tmp(2)
-    HElement_t :: HElGen
-
-    WRITE(6,*) nI(:)
-    WRITE(6,*) Iterations,pDoub,exFlag
-    WRITE(6,*) "nSymLabels: ",nSymLabels
-    CALL FLUSH(6)
-
-    ! The old excitation generator will not generate singles from the HF
-    ! unless tNoBrillouin is set
-    brillouin_tmp(1) = tNoBrillouin
-    brillouin_tmp(2) = tUseBrillouin
-    tNoBrillouin = .true.
-    tUseBrillouin = .false.
-
-!Find the number of symmetry allowed excitations there should be by looking at the full excitation generator.
-!Setup excit generators for this determinant
-    iMaxExcit=0
-    nStore(1:6)=0
-    CALL GenSymExcitIt2(nI,NEl,G1,nBasis,.TRUE.,nExcitMemLen,nJ,iMaxExcit,nStore,exFlag)
-    ALLOCATE(EXCITGEN(nExcitMemLen),stat=ierr)
-    IF(ierr.ne.0) CALL Stop_All("SetupExcitGen","Problem allocating excitation generator")
-    EXCITGEN(:)=0
-    CALL GenSymExcitIt2(nI,NEl,G1,nBasis,.TRUE.,EXCITGEN,nJ,iMaxExcit,nStore,exFlag)
-!    CALL GetSymExcitCount(EXCITGEN,DetConn)
-    excitcount=0
-
-lp2: do while(.true.)
-        CALL GenSymExcitIt2(nI,nEl,G1,nBasis,.false.,EXCITGEN,nJ,iExcit,nStore,exFlag)
-        IF(nJ(1).eq.0) exit lp2
-        IF(tUEG.or.tHub) THEN
-            IF (IsMomentumAllowed(nJ)) THEN
-                excitcount=excitcount+1
-                CALL EncodeBitDet(nJ,iLutnJ)
-                IF(iProcIndex.eq.0) WRITE(25,*) excitcount,iExcit,iLutnJ(0)
-            ENDIF
-        ELSEIF(tFixLz) THEN
-
-            CALL GetLz(nJ,NEl,Lz)
-            IF(Lz.eq.LzTot) THEN
-                excitcount=excitcount+1
-                CALL EncodeBitDet(nJ,iLutnJ)
-                IF(iProcIndex.eq.0) WRITE(25,*) excitcount,iExcit,iLutnJ(0)
-            ENDIF
-        ELSEIF(tKPntSym) THEN
-            IF(IsMomAllowedDet(nJ)) THEN
-                excitcount=excitcount+1
-                CALL EncodeBitDet(nJ,iLutnJ)
-                IF(iProcIndex.eq.0) WRITE(25,*) excitcount,iExcit,nJ(:)
-            ENDIF
-        ELSE
-            excitcount=excitcount+1
-            CALL EncodeBitDet(nJ,iLutnJ)
-            IF(iProcIndex.eq.0) WRITE(25,*) excitcount,iExcit,iLutnJ(0)
-        ENDIF
-    enddo lp2
-    tNoBrillouin = brillouin_tmp(1)
-    tUseBrillouin = brillouin_tmp(2)
-
-    WRITE(6,*) "Determinant has ",excitcount," total excitations from it."
-    CALL FLUSH(6)
-
-!Allocate memory for histogramming determinants
-    ALLOCATE(DoublesHist(nBasis,nBasis,nBasis,nBasis),stat=ierr)
-    ALLOCATE(AllDoublesHist(nBasis,nBasis,nBasis,nBasis),stat=ierr)
-    IF(ierr.ne.0) THEN
-        CALL Stop_All("TestGenRandSymExcitNU","Not possible to allocate memory to do histogramming")
-    ENDIF
-    ALLOCATE(SinglesHist(nBasis,nBasis),stat=ierr)
-    ALLOCATE(AllSinglesHist(nBasis,nBasis),stat=ierr)
-    IF(ierr.ne.0) THEN
-        CALL Stop_All("TestGenRandSymExcitNU","Not possible to allocate memory to do histogramming")
-    ENDIF
-    DoublesHist(:,:,:,:)=0.D0
-    SinglesHist(:,:)=0.D0
-    AllDoublesHist(:,:,:,:)=0.D0
-    AllSinglesHist(:,:)=0.D0
-
-    CALL EncodeBitDet(nI,iLut)
-
-    tFilled=.false.
-    Scratch1(:)=0
-    Scratch2(:)=0
-
-    AverageContrib=0.D0
-    AllAverageContrib=0.D0
-    ForbiddenIter=0
-!    pDoub=1.D0
-!    IF(iProcIndex.eq.0) OPEN(9,FILE="AvContrib",STATUS="UNKNOWN")
-
-    do i=1,Iterations
-    
-        IF(mod(i,40000).eq.0) THEN
-            WRITE(6,"(A,I10)") "Iteration: ",i
-            CALL FLUSH(6)
-        ENDIF
-
-        call gen_rand_excit (nI, iLut, nJ, iLutnJ, exFlag, IC, ExcitMat, &
-                             tParity, pGen, HElGen, tFilled, Scratch1, Scratch2, &
-                             Scratch3)
-        IF(nJ(1).eq.0) THEN
-!            ForbiddenIter=ForbiddenIter+1
-            CYCLE
-        ENDIF
-        IF(tKPntSym) THEN
-            test=IsMomAllowedDet(nJ)
-        ENDIF
-        ! This is implemented for the old excitation generators, that could only handle momentum conservation under
-        ! zero momentum conditions
-        IF(tUEG.and.(.not.tLatticeGens)) THEN
-            kx=0
-            ky=0
-            kz=0
-            do j=1,NEl
-                kx=kx+G1(nJ(j))%k(1)
-                ky=ky+G1(nJ(j))%k(2)
-                kz=kz+G1(nJ(j))%k(3)
-            enddo
-            IF(.not.(kx.eq.0.and.ky.eq.0.and.kz.eq.0)) THEN
-                CYCLE
-            ENDIF
-        ELSEIF(tHub.and.(.not.tLatticeGens)) THEN
-            kx=0
-            ky=0
-            kz=0
-            do j=1,NEl
-                kx=kx+G1(nJ(j))%k(1)
-                ky=ky+G1(nJ(j))%k(2)
-                kz=kz+G1(nJ(j))%k(3)
-            enddo
-            ktrial=(/kx,ky,0/)
-            CALL MomPbcSym(ktrial,nBasisMax)
-            IF(.not.(ktrial(1).eq.0.and.ktrial(2).eq.0.and.kz.eq.0)) THEN
-                CYCLE
-            ENDIF
-        ENDIF
-        AverageContrib=AverageContrib+1.D0/pGen
-
-!        CALL EncodeBitDet(nJ,iLutnJ)
-!        IF(IC.eq.1) THEN
-!            WRITE(6,*) ExcitMat(1,1),ExcitMat(2,1)
-!        ELSE
-!            WRITE(6,*) "Double Created"
-!            WRITE(6,*) ExcitMat(1,1),ExcitMat(1,2),ExcitMat(2,1),ExcitMat(2,2)
-!        ENDIF
-
-        IF(IC.eq.1) THEN
-            SinglesHist(ExcitMat(1,1),ExcitMat(2,1))=SinglesHist(ExcitMat(1,1),ExcitMat(2,1))+(1.D0/pGen)
-!            SinglesNum(ExcitMat(1,1),ExcitMat(2,1))=SinglesNum(ExcitMat(1,1),ExcitMat(2,1))+1
-        ELSE
-!Have to make sure that orbitals are in the same order...
-            IF(ExcitMat(1,1).gt.ExcitMat(1,2)) THEN
-                Ind1=ExcitMat(1,2)
-                Ind2=ExcitMat(1,1)
-            ELSE
-                Ind1=ExcitMat(1,1)
-                Ind2=ExcitMat(1,2)
-            ENDIF
-            IF(ExcitMat(2,1).gt.ExcitMat(2,2)) THEN
-                Ind3=ExcitMat(2,2)
-                Ind4=ExcitMat(2,1)
-            ELSE
-                Ind3=ExcitMat(2,1)
-                Ind4=ExcitMat(2,2)
-            ENDIF
-            DoublesHist(Ind1,Ind2,Ind3,Ind4)=DoublesHist(Ind1,Ind2,Ind3,Ind4)+(1.D0/pGen)
-        ENDIF
-!        IF(mod(i,iWriteEvery).eq.0) THEN
-!            AllAverageContrib=0.D0
-!#ifdef PARALLEL
-!            CALL MPI_AllReduce(AverageContrib,AllAverageContrib,1,MPI_DOUBLE_PRECISION,MPI_SUM,MPI_COMM_WORLD,error)
-!#else            
-!            AllAverageContrib=AverageContrib
-!#endif
-!            IF(iProcIndex.eq.0) THEN
-!                WRITE(9,*) i,AllAverageContrib/(REAL(i,8)*excitcount*nProcessors)
-!            ENDIF
-!!            CALL ChangeVars(tDummy,tSoftExitFound,tDummy2)
-!!            IF(tSoftExitFound) EXIT
-!        ENDIF
-
-!Check excitation
-        CALL IsSymAllowedExcit(nI,nJ,IC,ExcitMat)
-
-    enddo
-
-!    IF(iProcIndex.eq.0) CLOSE(9)
-
-#ifdef PARALLEL
-    CALL MPI_BARRIER(MPI_COMM_WORLD,error)
-    CALL MPI_AllReduce(DoublesHist,AllDoublesHist,nBasis**4,MPI_DOUBLE_PRECISION,MPI_SUM,MPI_COMM_WORLD,error)
-    CALL MPI_AllReduce(SinglesHist,AllSinglesHist,nBasis**2,MPI_DOUBLE_PRECISION,MPI_SUM,MPI_COMM_WORLD,error)
-#else
-    AllDoublesHist=DoublesHist
-    AllSinglesHist=SinglesHist
-#endif
-
-!Now run through arrays normalising them so that numbers are more managable.
-    IF(iProcIndex.eq.0) THEN
-        OPEN(8,FILE="DoublesHist",STATUS="UNKNOWN")
-        DetNum=0
-        do i=1,nBasis-1
-            do j=i+1,nBasis
-                do k=1,nBasis-1
-                    do l=k+1,nBasis
-                        IF(AllDoublesHist(i,j,k,l).gt.0.D0) THEN
-    !                        DoublesHist(i,j,k,l)=DoublesHist(i,j,k,l)/real(Iterations,8)
-                            DetNum=DetNum+1
-                            ExcitMat(1,1)=i
-                            ExcitMat(1,2)=j
-                            ExcitMat(2,1)=k
-                            ExcitMat(2,2)=l
-                            CALL FindExcitBitDet(iLut,iLutnJ,2,ExcitMat)
-                            WRITE(8,"(I12,F20.12,2I5,A,2I5,I15)") DetNum,AllDoublesHist(i,j,k,l)/(real(Iterations,8)*nProcessors),i,j,"->",k,l,iLutnJ(0)
-!                            WRITE(6,*) DetNum,DoublesHist(i,j,k,l),i,j,"->",k,l
-                            IF(tHub.or.tUEG) THEN
-                                write(8,*) "#",G1(i)%k(1),G1(i)%k(2)
-                                write(8,*) "#",G1(j)%k(1),G1(j)%k(2)
-                                write(8,*) "#",G1(k)%k(1),G1(k)%k(2)
-                                write(8,*) "#",G1(l)%k(1),G1(l)%k(2)
-                            ENDIF
-                        ENDIF
-                    enddo
-                enddo
-            enddo
-        enddo
-        CLOSE(8)
-        WRITE(6,*) DetNum," Double excitations found from nI"
-        OPEN(9,FILE="SinglesHist",STATUS="UNKNOWN")
-        DetNumS=0
-        do i=1,nBasis
-            do j=1,nBasis
-                IF(AllSinglesHist(i,j).gt.0.D0) THEN
-                    DetNumS=DetNumS+1
-                    ExcitMat(1,1)=i
-                    ExcitMat(2,1)=j
-                    CALL FindExcitBitDet(iLut,iLutnJ,1,ExcitMat)
-                    WRITE(9,*) DetNumS,AllSinglesHist(i,j)/(real(Iterations,8)*nProcessors),i,"->",j
-!                    WRITE(6,*) DetNumS,AllSinglesHist(i,j),i,"->",j
-                ENDIF
-            enddo
-        enddo
-        CLOSE(9)
-        WRITE(6,*) DetNumS," Single excitations found from nI"
-        IF((DetNum+DetNumS).ne.ExcitCount) THEN
-            CALL construct_class_counts(nI,ClassCount2,ClassCountUnocc2)
-            WRITE(6,*) "Total determinants = ", ExcitCount
-            WRITE(6,*) "ClassCount2(:)= ",ClassCount2(:)
-            WRITE(6,*) "***"
-            WRITE(6,*) "ClassCountUnocc2(:)= ",ClassCountUnocc2(:)
-            CALL Stop_All("TestGenRandSymExcitNU","Not all excitations accounted for...")
-        ENDIF
-    ENDIF
-    CALL MPIBarrier(error)
-
-END SUBROUTINE TestGenRandSymExcitNU
 
 LOGICAL FUNCTION IsMomAllowedDet(nJ)
     use sym_mod

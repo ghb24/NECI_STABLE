@@ -1,147 +1,113 @@
+#####################
+# Scalar values
+#####################
 [int]
-type1=integer(kind=int32)
+type1=integer(int32)
 mpitype=MPI_INTEGER
 mpilen=1
 mpilen2=1
 ndim=0
 
-[arr_int]
-type1=integer(kind=int32), dimension(:)
-mpilen=(ubound(values,1)-lbound(values,1)+1)
-mpilen2=(ubound(values2,1)-lbound(values2,1)+1)
-ndim=1
-
-[arr2_int]
-type1=integer(kind=int32), dimension(:,:)
-mpilen=((ubound(values,1)-lbound(values,1)+1)*(ubound(values,2)-lbound(values,2)+1))
-mpilen2=((ubound(values2,1)-lbound(values2,1)+1)*(ubound(values2,2)-lbound(values2,2)+1))
-ndim=2
-
 [int64]
-type1=integer(kind=int64)
+type1=integer(int64)
 mpitype=MPI_INTEGER8
-mpilen=1
-mpilen2=1
-ndim=0
-
-[arr_int64]
-type1=integer(kind=int64), dimension(:)
-mpilen=(ubound(values,1)-lbound(values,1)+1)
-mpilen2=(ubound(values2,1)-lbound(values2,1)+1)
-ndim=1
-
-[arr2_int64]
-type1=integer(kind=int64), dimension(:,:)
-mpilen=((ubound(values,1)-lbound(values,1)+1)*(ubound(values,2)-lbound(values,2)+1))
-mpilen2=((ubound(values2,1)-lbound(values2,1)+1)*(ubound(values2,2)-lbound(values2,2)+1))
-ndim=2
-
 
 [double]
-type1=real*8
+type1=real(dp)
 mpitype=MPI_DOUBLE_PRECISION
-mpilen=1
-mpilen2=1
-ndim=0
-
-[arr_double]
-type1=real*8, dimension(:)
-mpilen=(ubound(values,1)-lbound(values,1)+1)
-mpilen2=(ubound(values2,1)-lbound(values2,1)+1)
-ndim=1
-
-[arr2_double]
-type1=real*8, dimension(:,:)
-mpilen=((ubound(values,1)-lbound(values,1)+1)*(ubound(values,2)-lbound(values,2)+1))
-mpilen2=((ubound(values2,1)-lbound(values2,1)+1)*(ubound(values2,2)-lbound(values2,2)+1))
-ndim=2
-
-[arr3_double]
-type1=real*8, dimension(:,:,:)
-mpilen=((ubound(values,1)-lbound(values,1)+1)*(ubound(values,2)-lbound(values,2)+1)*(ubound(values,3)-lbound(values,3)+1))
-mpilen2=((ubound(values2,1)-lbound(values2,1)+1)*(ubound(values2,2)-lbound(values2,2)+1)*(ubound(values2,3)-lbound(values2,3)+1))
-ndim=3
 
 [logical]
 type1=LOGICAL
 mpitype=MPI_LOGICAL
-mpilen=1
-mpilen2=1
-ndim=0
 
+[complex]
+type1=complex(dp)
+mpitype=MPI_DOUBLE_COMPLEX
+
+
+#####################
+# 1-D Arrays
+#####################
 [arr_int]
-type1=integer(kind=int32), dimension(:)
+type1=integer(int32), dimension(:)
 mpitype=MPI_INTEGER
 mpilen=(ubound(values,1)-lbound(values,1)+1)
 mpilen2=(ubound(values2,1)-lbound(values2,1)+1)
 ndim=1
-
-[arr2_int]
-type1=integer(kind=int32), dimension(:,:)
-mpitype=MPI_INTEGER
-mpilen=((ubound(values,1)-lbound(values,1)+1)*(ubound(values,2)-lbound(values,2)+1))
-mpilen2=((ubound(values2,1)-lbound(values2,1)+1)*(ubound(values2,2)-lbound(values2,2)+1))
-ndim=2
 
 [arr_int64]
-type1=integer(kind=int64), dimension(:)
+type1=integer(int64), dimension(:)
 mpitype=MPI_INTEGER8
-mpilen=(ubound(values,1)-lbound(values,1)+1)
-mpilen2=(ubound(values2,1)-lbound(values2,1)+1)
-ndim=1
+
+[arr_double]
+type1=real(dp), dimension(:)
+mpitype=MPI_DOUBLE_PRECISION
+
+[arr_complex]
+type1=complex(dp), dimension(:)
+mpitype=MPI_DOUBLE_COMPLEX
 
 [arr_logical]
 type1=logical, dimension(:)
 mpitype=MPI_LOGICAL
-mpilen=(ubound(values,1)-lbound(values,1)+1)
-mpilen2=(ubound(values2,1)-lbound(values2,1)+1)
-ndim=1
 
-[arr3_double]
-type1=real*8, dimension(:,:,:)
-mpitype=MPI_DOUBLE_PRECISION
-mpilen=((ubound(values,1)-lbound(values,1)+1)*(ubound(values,2)-lbound(values,2)+1)*(ubound(values,3)-lbound(values,3)+1))
-mpilen2=((ubound(values2,1)-lbound(values2,1)+1)*(ubound(values2,2)-lbound(values2,2)+1)*(ubound(values2,3)-lbound(values2,3)+1))
-ndim=3
+######################
+# 2-D Arrays
+######################
+[arr2_int]
+type1=integer(int32), dimension(:,:)
+mpitype=MPI_INTEGER
+mpilen=((ubound(values,1)-lbound(values,1)+1)*(ubound(values,2)-lbound(values,2)+1))
+mpilen2=((ubound(values2,1)-lbound(values2,1)+1)*(ubound(values2,2)-lbound(values2,2)+1))
+ndim=2
+
+[arr2_int64]
+type1=integer(int64), dimension(:,:)
+mpitype=MPI_INTEGER8
 
 [arr2_double]
-type1=real*8, dimension(:,:)
+type1=real(dp), dimension(:,:)
 mpitype=MPI_DOUBLE_PRECISION
-mpilen=((ubound(values,1)-lbound(values,1)+1)*(ubound(values,2)-lbound(values,2)+1))
-mpilen2=((ubound(values2,1)-lbound(values2,1)+1)*(ubound(values2,2)-lbound(values2,2)+1))
-ndim=2
-
-[arr_double]
-type1=real*8, dimension(:)
-mpitype=MPI_DOUBLE_PRECISION
-mpilen=(ubound(values,1)-lbound(values,1)+1)
-mpilen2=(ubound(values2,1)-lbound(values2,1)+1)
-ndim=1
-
-[complex]
-type1=complex*16
-mpitype=MPI_DOUBLE_COMPLEX
-mpilen=1
-mpilen2=1
-ndim=0
-
-[arr_complex]
-type1=complex*16, dimension(:)
-mpilen=(ubound(values,1)-lbound(values,1)+1)
-mpilen2=(ubound(values2,1)-lbound(values2,1)+1)
-ndim=1
 
 [arr2_complex]
-type1=complex*16, dimension(:,:)
-mpilen=((ubound(values,1)-lbound(values,1)+1)*(ubound(values,2)-lbound(values,2)+1))
-mpilen2=((ubound(values2,1)-lbound(values2,1)+1)*(ubound(values2,2)-lbound(values2,2)+1))
-ndim=2
+type1=complex(dp), dimension(:,:)
+mpitype=MPI_DOUBLE_COMPLEX
 
-[arr3_complex]
-type1=complex*16, dimension(:,:,:)
+[arr2_logical]
+type1=logical, dimension(:,:)
+mpitype=MPI_LOGICAL
+
+######################
+# 3-D Arrays
+######################
+[arr3_int]
+type1=integer(int32), dimension(:,:,:)
+mpitype=MPI_INTEGER
 mpilen=((ubound(values,1)-lbound(values,1)+1)*(ubound(values,2)-lbound(values,2)+1)*(ubound(values,3)-lbound(values,3)+1))
 mpilen2=((ubound(values2,1)-lbound(values2,1)+1)*(ubound(values2,2)-lbound(values2,2)+1)*(ubound(values2,3)-lbound(values2,3)+1))
 ndim=3
+
+[arr3_double]
+type1=real(dp), dimension(:,:,:)
+mpitype=MPI_DOUBLE_PRECISION
+
+[arr3_complex]
+type1=complex(dp), dimension(:,:,:)
+mpitype=MPI_DOUBLE_COMPLEX
+
+######################
+# 4-D Arrays
+######################
+[arr4_int]
+type1=integer(int32), dimension(:,:,:,:)
+mpitype=MPI_INTEGER
+mpilen=((ubound(values,1)-lbound(values,1)+1)*(ubound(values,2)-lbound(values,2)+1)*(ubound(values,3)-lbound(values,3)+1)*(ubound(values,4)-lbound(values,4)+1))
+mpilen2=((ubound(values2,1)-lbound(values2,1)+1)*(ubound(values2,2)-lbound(values2,2)+1)*(ubound(values2,3)-lbound(values2,3)+1)*(ubound(values2,4)-lbound(values2,4)+1))
+ndim=4
+
+[arr4_double]
+type1=real(dp), dimension(:,:,:,:)
+mpitype=MPI_DOUBLE_PRECISION
 
 =========================
 

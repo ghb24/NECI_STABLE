@@ -10,18 +10,22 @@ module symrandexcit3
     !    ii) Generate (a bit) more uniform generation probabilities.
 
     use SystemData, only: nel, tFixLz, G1, ElecPairs, tUEG, tHub, &
-                          tLatticeGens, tNoBrillouin, tUseBrillouin
+                          tLatticeGens, tNoBrillouin, tUseBrillouin, &
+                          tNoSymGenRandExcits, nOccAlpha, nOccBeta
     use SymExcitDataMod, only: ScratchSize, SpinOrbSymLabel, SymInvLabel, &
-                               SymLabelList2, SymLabelCounts2, pDoubNew
+                               SymLabelList2, SymLabelCounts2, pDoubNew, &
+                               OrbClassCount
     use SymData, only: nSymLabels
     use dSFMT_interface, only: genrand_real2_dSFMT
     use GenRandSymExcitNUMod, only: RandExcitSymLabelProd, ClassCountInd, &
-                                    construct_class_counts,CreateSingleExcit,&
-                                    CreateExcitLattice
+                                    CreateSingleExcit, CreateExcitLattice
     use FciMCData, only: pDoubles, iter
     use bit_reps, only: niftot
     use constants, only: dp, n_int, bits_n_int
     use Determinants, only: write_det
+    use timing
+    use Parallel
+    use util_mod, only: binary_search_first_ge
     implicit none
 
 contains
@@ -60,7 +64,7 @@ contains
         ! is an O[nel] operation. For efficiency, store these arrays
         ! between invocations of the excitation generator.
         if (.not. tFilled) then
-            call construct_class_counts (nI, CCOcc, CCUnocc)
+            call construct_class_counts (nI, CCOcc, CCUnocc, pair_list)
             tFilled = .true.
         endif
 
@@ -86,8 +90,7 @@ contains
 
         ! Call the actual single/double excitation generators.
         if (IC == 2) then
-            pGen = gen_double (nI, nJ, iLutI, ExcitMat, tParity, CCUnocc, &
-                               pair_list)
+            pGen = gen_double (nI, nJ, iLutI, ExcitMat, tParity, CCUnocc)
         else
             pGen = gen_single (nI, nJ, ilutI, ExcitMat, tParity, CCocc, &
                                CCUnocc, pair_list)
@@ -96,13 +99,11 @@ contains
     end subroutine
 
 
-    function gen_double (nI, nJ, iLutI, ExcitMat, tParity, CCUnocc, &
-                         pair_list) result(pGen)
+    function gen_double (nI, nJ, iLutI, ExcitMat, tParity, CCUnocc) result(pGen)
 
         integer, intent(in) :: nI(nel)
         integer, intent(out) :: nJ(nel)
         integer, intent(in) :: CCUnocc(ScratchSize)
-        integer, intent(inout) :: pair_list(ScratchSize)
         integer(n_int), intent(in) :: iLutI(0:niftot)
         integer, intent(out) :: ExcitMat(2,2)
         logical, intent(out) :: tParity
@@ -111,6 +112,7 @@ contains
         real(dp) :: pElecs
         integer :: elecs(2), spn(2), orbs(2), sym_inds(2)
         integer :: sumMl, sym_prod, rint, tot_pairs
+        integer :: pair_list(0:nSymLabels-1)
 
         ! Pick and unbiased, distinct, electron pair.
         pElecs = pick_elec_pair (nI, elecs, sym_prod, spn, sumMl)
@@ -205,41 +207,43 @@ contains
 
         ! TODO: Are we going to be able to store this one in ScratchSize
         !       arrays as well?
-        num_pairs  = 0
-        do symA = 0, nSymLabels - 1
+        tot_pairs = 0
+        if (spn(1) == spn(2)) then
+            indA = 3 - spn(1)
+            do symA = 0, nSymLabels - 1
+                symB = RandExcitSymLabelProd(SymInvLabel(symA), sym_prod)
 
-            ! Get the required B symmetry to complement the chosen A sym.
-            symB = RandExcitSymLabelProd(SymInvLabel(symA), sym_prod)
-
-            ! We must avoid double counting A/B pairs
-            if (symB < symA) cycle
-
-            ASSERT(.not. tFixLz)
-            indA = ClassCountInd(spn(1), symA, -1)
-            indB = ClassCountInd(spn(2), symB, -1)
-            if (symA == symB) then
-                if (CCUnocc(indA) > 0 .and. CCUnocc(indB) > 0) then
-                    if (spn(1) /= spn(2)) then
-                        num_pairs(symA) = CCUnocc(indA) * CCUnocc(indB)
-                    else
-                        num_pairs(symA) = (CCUnocc(indA) * &
-                                           (CCUnocc(indB) - 1)) / 2
-                    endif
-                endif
-            else
-                if (CCUnocc(indA) > 0 .and. CCUnocc(indB) > 0) &
-                    num_pairs(symA) = CCUnocc(indA) * CCUnocc(indB)
-                if (spn(1) /= spn(2)) then
-                    indA = ClassCountInd(spn(2), symA, -1)
+                if (symA == symB) then
+                    tot_pairs = tot_pairs + (CCUnocc(indA) * &
+                                             max(CCUnocc(indA) - 1,0)) / 2
+                elseif (symB > symA) then
                     indB = ClassCountInd(spn(1), symB, -1)
-                    num_pairs(symA) = num_pairs(symA) + &
-                                      (CCUnocc(indA) * CCUnocc(indB)) 
+                    tot_pairs = tot_pairs + (CCUnocc(indA) * CCUNocc(indB))
                 endif
-            endif
-        enddo
 
-        ! Count the total number of pairs.
-        tot_pairs = sum(num_pairs)
+                num_pairs(symA) = tot_pairs
+                indA = indA + 2
+            enddo
+
+        else ! spn(1) /= spn(2)
+
+            indA = 1
+            do symA = 0, nSymLabels - 1
+                symB = RandExcitSymLabelProd(SymInvLabel(symA), sym_prod)
+
+                if (symA == symB) then
+                    tot_pairs = tot_pairs + (CCUnocc(indA) * CCUNocc(indA+1))
+                elseif (symB > symA) then
+                    indB = ClassCountInd(2, symB, -1)
+                    tot_pairs = tot_pairs + &
+                                (CCUnocc(indA) * CCUnocc(indB)) + &
+                                (CCUnocc(indA+1) * CCUnocc(indB-1))
+                endif
+
+                num_pairs(symA) = tot_pairs
+                indA = indA + 2
+            enddo
+        endif
 
     end function
 
@@ -251,23 +255,21 @@ contains
         integer, intent(in) :: sumMl, sym_prod
         integer, intent(in) :: CCUnocc(ScratchSize), num_pairs(0:nSymLabels-1)
 
-        integer :: tmp_tot, syms(2), npairs, inds(2), tmp, symA
+        integer :: syms(2), npairs, inds(2), tmp, symA
 
         ! Select a symA/symB pair biased by the number of possible 
         ! excitations which can be made into them.
-        tmp_tot = 0
         do symA = 0, nSymLabels - 1
-            if (tmp_tot + num_pairs(symA) >= rint) then
+            if (num_pairs(symA) >= rint) then
                 syms(1) = symA
-                syms(2) = RandExcitsymLabelProd(SymInvLabel(symA), sym_prod)
+                syms(2) = RandExcitSymLabelProd(SymInvLabel(symA), sym_prod)
                 exit
             endif
-            tmp_tot = tmp_tot + num_pairs(symA)
         enddo
-
+        
         ! Modify rint such that it now specifies which of the orbital pairs
         ! within the selected symmetry categories is desired.
-        rint = rint - tmp_tot
+        if (symA /= 0) rint = rint - num_pairs(symA - 1)
 
         ! If there are more than one symmetry index corresponding to these
         !
@@ -380,6 +382,51 @@ contains
 
     end subroutine
 
+    subroutine construct_class_counts (nI, CCOcc, CCUnocc, pair_list)
+
+        ! Return two arrays of length ScratchSize, containing information on
+        ! the number of orbitals - occupied and unoccupied - in each symmetry.
+        !
+        ! The arrays are indexed via the indices returned by ClassCountInd
+        ! n.b. this is O[nel], so we should store this if we can.
+        
+        integer, intent(in) :: nI(nel)
+        integer, intent(out) :: CCOcc(ScratchSize), CCUnocc(ScratchSize)
+        integer, intent(out) :: pair_list(ScratchSize)
+
+        integer :: ind_alpha, ind_beta, i, ind, tot
+
+        CCOcc = 0
+        CCUnocc = OrbClassCount
+        pair_list = 0
+
+        if (tNoSymGenRandExcits) then
+            ind_alpha = ClassCountInd(1,0,0)
+            ind_beta = ClassCountInd(2,0,0)
+            CCOcc(ind_alpha) = nOccAlpha
+            CCOcc(ind_beta) = nOccBeta
+            CCUnocc(ind_alpha) = CCUnocc(ind_alpha) - nOccAlpha
+            CCUnocc(ind_beta) = CCUnocc(ind_beta) - nOccBeta
+
+            ! Assumes ind_alpha < ind_beta
+            pair_list(ind_alpha) = CCOcc(ind_alpha) * CCUnocc(ind_alpha)
+            pair_list(ind_beta) = CCOcc(ind_beta) * CCUnocc(ind_beta) + &
+                                  pair_list(ind_alpha)
+        else
+            do i = 1, nel
+                ind = ClasscountInd(nI(i))
+
+                CCOcc(ind) = CCOcc(ind) + 1
+                CCUnocc(ind) = CCUnocc(ind) - 1
+            enddo
+        endif
+
+        ! Store a -1 to indicate to the singles routine that this 
+        ! structure hasn't been filled in yet.
+        pair_list(1) = -1
+
+    end subroutine
+
     function gen_single (nI, nJ, iLutI, ExcitMat,  tParity, CCOcc, CCUnocc, &
                          pair_list) result(pGen)
 
@@ -392,15 +439,21 @@ contains
         real(dp) :: pGen
         character(*), parameter :: this_routine = 'gen_single'
 
-        integer :: npairs, rint, ind, tot, src, tgt, i, cnt
+        integer :: npairs, rint, ind, src, tgt, i, cnt
         integer :: offset, norbs, orb
+        integer :: lo, hi, pos
 
         ! We still do not work with lz symmetry
         ASSERT(.not. tFixLz)
 
-        ! Find the number of available pairs
-        pair_list = CCOcc * CCUnocc
-        npairs = sum(pair_list)
+        ! Find the number of available pairs in each symmetry & overall
+        if (pair_list(1) == -1) then
+            pair_list(1) = CCOcc(1) * CCUnocc(1)
+            do i = 2, ScratchSize
+                pair_list(i) = pair_list(i-1) + (CCOcc(i) * CCUnocc(i))
+            enddo
+        endif
+        npairs = pair_list(ScratchSize)
 
         ! If there are no possible singles, then abandon.
         if (npairs == 0) then
@@ -412,17 +465,16 @@ contains
         rint = 1 + (genrand_real2_dSFMT() * npairs)
         
         ! Select which symmetry/spin category we want.
-        tot = 0
+        !ind = binary_search_first_ge (pair_list, rint)
         do ind = 1, ScratchSize
-            if (tot + pair_list(ind) >= rint) exit
-            tot = tot + pair_list(ind)
+            if (pair_list(ind) >= rint) exit
         enddo
-        ASSERT(ind <= ScratchSize) ! Ensure we haven't overflowed.
+        ASSERT(ind <= ScratchSize)
 
         ! We are selecting one from the occupied list, and one from the
         ! unoccupied list
         ! --> There must be no overlap, so use a rectangular selection.
-        rint = rint - tot
+        if (ind > 1) rint = rint - pair_list(ind - 1)
         src = mod(rint - 1, CCOcc(ind)) + 1
         tgt = floor((real(rint,dp) - 1) / CCOcc(ind)) + 1
 
@@ -475,7 +527,7 @@ contains
     subroutine test_sym_excit3 (nI, iterations, pDoub, exFlag)
     use SystemData, only: NEl, nBasis, G1, nBasisMax, LzTot, tUEG, &
                           tLatticeGens, tHub,tKPntSym, tFixLz
-    use GenRandSymExcitNUMod, only: gen_rand_excit, construct_class_counts,ScratchSize
+    use GenRandSymExcitNUMod, only: gen_rand_excit, ScratchSize
     Use SymData , only : nSymLabels
     use Parallel
 !    use soft_exit , only : ChangeVars 
@@ -491,11 +543,23 @@ contains
     INTEGER(KIND=n_int) :: iLutnJ(0:NIfTot),iLut(0:NIfTot)
     INTEGER :: ClassCountUnocc2(ScratchSize),iExcit
     LOGICAL :: tParity,tFilled,IsMomAllowedDet,test
-    REAL*8 , ALLOCATABLE :: DoublesHist(:,:,:,:),SinglesHist(:,:),AllDoublesHist(:,:,:,:),AllSinglesHist(:,:)
+    
+    ! Accumulator arrays. These need to be allocated on the heap, or we
+    ! get a segfault by overflowing the stack using ifort
+    real(dp), allocatable :: DoublesHist(:,:,:,:)
+    real(dp), allocatable :: AllDoublesHist(:,:,:,:)
+    real(dp), allocatable :: SinglesHist(:,:)
+    real(dp), allocatable :: AllSinglesHist(:,:)
+    integer, allocatable :: DoublesCount(:,:,:,:)
+    integer, allocatable :: AllDoublesCount(:,:,:,:)
+    integer, allocatable :: SinglesCount(:,:)
+    integer, allocatable :: AllSinglesCount(:,:)
+
     INTEGER , ALLOCATABLE :: EXCITGEN(:)
     INTEGER :: ierr,Ind1,Ind2,Ind3,Ind4,iMaxExcit,nStore(6),nExcitMemLen,j,k,l,DetNum,DetNumS,Lz,excitcount,ForbiddenIter,error, iter_tmp
     HElement_t :: HElGen
     logical :: brillouin_tmp(2)
+    type(timer), save :: test_timer
 
     WRITE(6,*) nI(:)
     WRITE(6,*) Iterations,pDoub,exFlag
@@ -556,27 +620,32 @@ lp2: do while(.true.)
     WRITE(6,*) "Determinant has ",excitcount," total excitations from it."
     CALL FLUSH(6)
 
-!Allocate memory for histogramming determinants
-    ALLOCATE(DoublesHist(nBasis,nBasis,nBasis,nBasis),stat=ierr)
-    ALLOCATE(AllDoublesHist(nBasis,nBasis,nBasis,nBasis),stat=ierr)
-    IF(ierr.ne.0) THEN
-        CALL Stop_All("TestGenRandSymExcitNU","Not possible to allocate memory to do histogramming")
-    ENDIF
-    ALLOCATE(SinglesHist(nBasis,nBasis),stat=ierr)
-    ALLOCATE(AllSinglesHist(nBasis,nBasis),stat=ierr)
-    IF(ierr.ne.0) THEN
-        CALL Stop_All("TestGenRandSymExcitNU","Not possible to allocate memory to do histogramming")
-    ENDIF
-    DoublesHist(:,:,:,:)=0.D0
-    SinglesHist(:,:)=0.D0
-    AllDoublesHist(:,:,:,:)=0.D0
-    AllSinglesHist(:,:)=0.D0
+    ! Allocate the accumulators
+    allocate (DoublesHist(nbasis, nbasis, nbasis, nbasis))
+    allocate (AllDoublesHist(nbasis, nbasis, nbasis, nbasis))
+    allocate (SinglesHist(nbasis, nbasis))
+    allocate (AllSinglesHist(nbasis, nbasis))
+    allocate (DoublesCount(nbasis, nbasis, nbasis, nbasis))
+    allocate (AllDoublesCount(nbasis, nbasis, nbasis, nbasis))
+    allocate (SinglesCount(nbasis, nbasis))
+    allocate (AllSinglesCount(nbasis, nbasis))
+
+    ! Zero the accumulators
+    DoublesHist = 0
+    SinglesHist = 0
+    AllDoublesHist = 0
+    AllSinglesHist = 0
+    DoublesCount = 0
+    SinglesCount = 0
+    AllDoublesCount = 0
+    AllSinglesCount = 0
 
     CALL EncodeBitDet(nI,iLut)
 
     tFilled=.false.
-    Scratch1(:)=0
-    Scratch2(:)=0
+    Scratch1 = 0
+    Scratch2 = 0
+    scratch3 = 0
 
     AverageContrib=0.D0
     AllAverageContrib=0.D0
@@ -584,12 +653,14 @@ lp2: do while(.true.)
 !    pDoub=1.D0
 !    IF(iProcIndex.eq.0) OPEN(9,FILE="AvContrib",STATUS="UNKNOWN")
 
+    test_timer%timer_name = 'test_symrandexcit3'
+    call set_timer (test_timer)
     iter_tmp = iter
     do i=1,Iterations
         iter = i
 
     
-        IF(mod(i,40000).eq.0) THEN
+        IF(mod(i,400000).eq.0) THEN
             WRITE(6,"(A,I10)") "Iteration: ",i
             CALL FLUSH(6)
         ENDIF
@@ -645,6 +716,8 @@ lp2: do while(.true.)
 
         IF(IC.eq.1) THEN
             SinglesHist(ExcitMat(1,1),ExcitMat(2,1))=SinglesHist(ExcitMat(1,1),ExcitMat(2,1))+(1.D0/pGen)
+            SinglesCount(ExcitMat(1,1), ExcitMat(2,1)) = &
+                SinglesCount(ExcitMat(1,1), ExcitMat(2,1)) + 1
 !            SinglesNum(ExcitMat(1,1),ExcitMat(2,1))=SinglesNum(ExcitMat(1,1),ExcitMat(2,1))+1
         ELSE
 !Have to make sure that orbitals are in the same order...
@@ -663,6 +736,8 @@ lp2: do while(.true.)
                 Ind4=ExcitMat(2,2)
             ENDIF
             DoublesHist(Ind1,Ind2,Ind3,Ind4)=DoublesHist(Ind1,Ind2,Ind3,Ind4)+(1.D0/pGen)
+            DoublesCount(ind1,ind2,ind3,ind4) = &
+                DoublesCount(ind1,ind2,ind3,ind4) + 1
         ENDIF
 !        IF(mod(i,iWriteEvery).eq.0) THEN
 !            AllAverageContrib=0.D0
@@ -683,16 +758,21 @@ lp2: do while(.true.)
 
     enddo
     iter = iter_tmp
+    call halt_timer (test_timer)
 
 !    IF(iProcIndex.eq.0) CLOSE(9)
 
 #ifdef PARALLEL
-    CALL MPI_BARRIER(MPI_COMM_WORLD,error)
-    CALL MPI_AllReduce(DoublesHist,AllDoublesHist,nBasis**4,MPI_DOUBLE_PRECISION,MPI_SUM,MPI_COMM_WORLD,error)
-    CALL MPI_AllReduce(SinglesHist,AllSinglesHist,nBasis**2,MPI_DOUBLE_PRECISION,MPI_SUM,MPI_COMM_WORLD,error)
+    call MPIBarrier(error)
+    call MPIAllReduce (DoublesHist, MPI_SUM, AllDoublesHist)
+    call MPIAllReduce (SinglesHist, MPI_SUM, AllSinglesHist)
+    call MPIAllReduce (DoublesCount, MPI_SUM, AllDoublesCount)
+    call MPIAllReduce (SinglesCount, MPI_SUM, AllSinglesCount)
 #else
-    AllDoublesHist=DoublesHist
-    AllSinglesHist=SinglesHist
+    AllDoublesHist = DoublesHist
+    AllSinglesHist = SinglesHist
+    AllDoublesCount = DoublesCount
+    AllSinglesCount = SinglesCount
 #endif
 
 !Now run through arrays normalising them so that numbers are more managable.
@@ -711,7 +791,10 @@ lp2: do while(.true.)
                             ExcitMat(2,1)=k
                             ExcitMat(2,2)=l
                             CALL FindExcitBitDet(iLut,iLutnJ,2,ExcitMat)
-                            WRITE(8,"(I12,F20.12,2I5,A,2I5,I15)") DetNum,AllDoublesHist(i,j,k,l)/(real(Iterations,8)*nProcessors),i,j,"->",k,l,iLutnJ(0)
+                            write(8,"(i12,f20.12,2i5,'->',2i5,2i15)") DetNum,&
+                                AllDoublesHist(i,j,k,l) / (real(Iterations,8)&
+                                                        * nProcessors), &
+                                i, j, k, l, iLutnJ(0),AllDoublesCount(i,j,k,l)
 !                            WRITE(6,*) DetNum,DoublesHist(i,j,k,l),i,j,"->",k,l
                             IF(tHub.or.tUEG) THEN
                                 write(8,*) "#",G1(i)%k(1),G1(i)%k(2)
@@ -735,7 +818,9 @@ lp2: do while(.true.)
                     ExcitMat(1,1)=i
                     ExcitMat(2,1)=j
                     CALL FindExcitBitDet(iLut,iLutnJ,1,ExcitMat)
-                    WRITE(9,*) DetNumS,AllSinglesHist(i,j)/(real(Iterations,8)*nProcessors),i,"->",j
+                    write(9,*) DetNumS, AllSinglesHist(i,j) / &
+                                        (real(Iterations,8) * nProcessors), &
+                               i, "->", j, ALlSinglesCount(i, j)
 !                    WRITE(6,*) DetNumS,AllSinglesHist(i,j),i,"->",j
                 ENDIF
             enddo
@@ -743,7 +828,8 @@ lp2: do while(.true.)
         CLOSE(9)
         WRITE(6,*) DetNumS," Single excitations found from nI"
         IF((DetNum+DetNumS).ne.ExcitCount) THEN
-            CALL construct_class_counts(nI,ClassCount2,ClassCountUnocc2)
+            CALL construct_class_counts(nI,ClassCount2,ClassCountUnocc2,&
+                                        scratch3)
             WRITE(6,*) "Total determinants = ", ExcitCount
             WRITE(6,*) "ClassCount2(:)= ",ClassCount2(:)
             WRITE(6,*) "***"
@@ -751,7 +837,14 @@ lp2: do while(.true.)
             CALL Stop_All("TestGenRandSymExcitNU","Not all excitations accounted for...")
         ENDIF
     ENDIF
+
     CALL MPIBarrier(error)
+
+    ! Deallocate the accumulators
+    deallocate (DoublesHist, AllDoublesHist, &
+                SinglesHist, AllSinglesHist, &
+                DoublesCount, AllDoublesCount, &
+                SinglesCount, AllSinglesCount)
 
     END SUBROUTINE
 
