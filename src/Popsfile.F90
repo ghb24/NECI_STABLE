@@ -51,8 +51,8 @@ MODULE PopsfileMod
         integer(8) :: iPopAllTotWalkers
         real(8) :: PopDiagSft
         integer(8) , dimension(lenof_sign) :: PopSumNoatHF
-        INTEGER(kind=n_int), intent(out) :: Dets(0:nIfTot,DetsLen)
         integer, intent(in) :: DetsLen
+        INTEGER(kind=n_int), intent(out) :: Dets(0:nIfTot,DetsLen)
         HElement_t :: PopAllSumENum
 
         sendcounts=0
