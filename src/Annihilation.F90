@@ -74,7 +74,8 @@ MODULE AnnihilationMod
             call shared_allocate_iluts("SpawnVecLocal",SpawnVecLocal,(/NIfTot,MaxSpawnInd/))
             ierr=0
             CALL LogMemAlloc('SpawnVecLocal',MaxSpawnInd*(NIfTot+1),size_n_int,this_routine,SpawnVec2Tag,ierr)
-            SpawnVecLocal(:,:)=0
+            call MPIBarrier(ierr)
+!            SpawnVecLocal(:,:)=0
 !            ALLOCATE(SpawnSignVec2(0:MaxSpawnInd),stat=ierr)
 !            CALL LogMemAlloc('SpawnSignVec2',MaxSpawnInd+1,size_n_int,this_routine,SpawnSignVec2Tag,ierr)
 !            SpawnSignVec2(:)=0
