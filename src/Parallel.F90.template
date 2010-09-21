@@ -909,6 +909,7 @@ Subroutine MPIInit(tExternal)
              write(6,*) "Processor ",iProcIndex+1,'/',nProcessors, ' on local output.'
           endif
           call GetProcElectrons(iProcIndex,iProcMinE,iProcMaxE) 
+          CommGlobal=MPI_COMM_WORLD
 !  Just synchronize everything briefly
           a=iProcIndex+1
           call MPISumAll(a,1,g)
@@ -946,7 +947,6 @@ subroutine MPINodes
    allocate(Nodes(0:nProcessors-1))
    allocate(NodeRoots(0:nProcessors-1))
 #ifdef PARALLEL
-   CommGlobal=MPI_COMM_WORLD
    call MPI_Comm_Group(CommGlobal,Group,ierr)
    length=30
    call gethostname(nm,length)
