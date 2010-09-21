@@ -24,7 +24,7 @@ MODULE PopsfileMod
 !This routine reads in particle configurations from a POPSFILE v.3.
 !EndPopsList is the number of entries in the POPSFILE to read, and ReadBatch is the number of determinants
 !which can be read in in a single batch.
-    SUBROUTINE ReadFromPopsfilev3(EndPopsList,ReadBatch,CurrWalkers64,CurrParts,CurrHF,Dets)
+    SUBROUTINE ReadFromPopsfilev3(EndPopsList,ReadBatch,CurrWalkers64,CurrParts,CurrHF,Dets,DetsLen)
         use util_mod , only : get_unique_filename
         integer(8) , intent(in) :: EndPopsList  !Number of entries in the POPSFILE.
         integer , intent(in) :: ReadBatch       !Size of the batch of determinants to read in in one go.
@@ -51,9 +51,14 @@ MODULE PopsfileMod
         integer(8) :: iPopAllTotWalkers
         real(8) :: PopDiagSft
         integer(8) , dimension(lenof_sign) :: PopSumNoatHF
-        INTEGER(kind=n_int) :: Dets(:,:)
+        INTEGER(kind=n_int), intent(out) :: Dets(0:nIfTot,DetsLen)
+        integer, intent(in) :: DetsLen
         HElement_t :: PopAllSumENum
 
+        sendcounts=0
+        disps=0
+        MaxSendIndex=1
+      
         call open_pops_head(iunit,formpops,binpops)
         IF(FormPops) THEN
             call ReadPopsHeadv3(iunit,tPop64Bit,tPopHPHF,tPopLz,iPopLenof_Sign,iPopNel, &
@@ -110,7 +115,6 @@ MODULE PopsfileMod
                 nBatches=nBatches+1
                 BatchRead(:,:)=0
                 PopsSendList(:)=PopsInitialSlots(:)
-
                 do while(Det.le.EndPopsList)
 
                     tStoreDet=.false.
@@ -158,14 +162,14 @@ MODULE PopsfileMod
                     sendcounts(j+1)=(PopsSendList(j)-(NINT(BatchSize*j)+1))*(NIfTot+1)
                     disps(j+1)=(NINT(BatchSize*j))*(NIfTot+1)
                 enddo
-                MaxSendIndex=disps(nProcessors)+sendcounts(nProcessors)
+                MaxSendIndex=(disps(nProcessors)+sendcounts(nProcessors))/(nIfTot+1)
 
             endif
 
             !Now scatter the particles read in to their correct processors.
             call MPIScatter(sendcounts,recvcount,err)
             if(err.ne.0) call stop_all(this_routine,"MPI scatter error")
-            call MPIScatterV(BatchRead(:,1:MaxSendIndex),sendcounts,disps,Dets(:,CurrWalkers+1:MaxWalkersPart),recvcount,err)
+            call MPIScatterV(BatchRead(:,1:MaxSendIndex),sendcounts,disps,Dets(:,CurrWalkers+1:DetsLen),recvcount,err)
             if(err.ne.0) call stop_all(this_routine,"MPI error")
             CurrWalkers=CurrWalkers+recvcount/(NIfTot+1)
             call MPIBCast(tReadAllPops)
