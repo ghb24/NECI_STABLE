@@ -398,7 +398,6 @@ contains
 
         CCOcc = 0
         CCUnocc = OrbClassCount
-        pair_list = 0
 
         if (tNoSymGenRandExcits) then
             ind_alpha = ClassCountInd(1,0,0)
@@ -407,11 +406,6 @@ contains
             CCOcc(ind_beta) = nOccBeta
             CCUnocc(ind_alpha) = CCUnocc(ind_alpha) - nOccAlpha
             CCUnocc(ind_beta) = CCUnocc(ind_beta) - nOccBeta
-
-            ! Assumes ind_alpha < ind_beta
-            pair_list(ind_alpha) = CCOcc(ind_alpha) * CCUnocc(ind_alpha)
-            pair_list(ind_beta) = CCOcc(ind_beta) * CCUnocc(ind_beta) + &
-                                  pair_list(ind_alpha)
         else
             do i = 1, nel
                 ind = ClasscountInd(nI(i))
