@@ -60,4 +60,6 @@ LOGICAL :: lNoTriples
 
 LOGICAL tFCIMCSerial
 
+LOGICAL tUseProcsAsNodes  !Set if we treat each processor as its own node.
+
 end module CalcData

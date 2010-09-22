@@ -3145,7 +3145,7 @@ MODULE FciMCParMod
         use CalcData, only : tFCIMC
         use CalcData , only : tRandomiseHashOrbs
         use CalcData, only : VirtCASorbs,OccCASorbs,G_VMC_Seed
-        use CalcData , only : MemoryFacPart,MemoryFacAnnihil,MemoryFacSpawn,TauFactor,StepsSftImag,tCheckHighestPop
+        use CalcData , only : MemoryFacPart,MemoryFacAnnihil,TauFactor,StepsSftImag,tCheckHighestPop
         use Determinants , only : GetH0Element3
         use SymData , only : nSymLabels,SymLabelList,SymLabelCounts,TwoCycleSymGens
         use Logging , only : tTruncRODump
@@ -3690,20 +3690,7 @@ MODULE FciMCParMod
                             !This is for compatibility with POPSFILE v.3, where MaxSpawned is calculated
                             !from the number in the POPSFILE.
                             !Set it up here for CCMC.
-
-            WRITE(6,*) "*Direct Annihilation* in use...Explicit load-balancing disabled."
-            ALLOCATE(ValidSpawnedList(0:nProcessors-1),stat=ierr)
-            !InitialSpawnedSlots is now filled later, once the number of particles wanted is known
-            !(it can change according to the POPSFILE).
-            ALLOCATE(InitialSpawnedSlots(0:nProcessors-1),stat=ierr)
-    !InitialSpawnedSlots now holds the first free position in the newly-spawned list for each processor, so it does not need to be reevaluated each iteration.
-            MaxSpawned=NINT(MemoryFacSpawn*InitWalkers)
-            Gap=REAL(MaxSpawned)/REAL(nProcessors)
-            do j=0,nProcessors-1
-                InitialSpawnedSlots(j)=NINT(Gap*j)+1
-            enddo
-    !ValidSpawndList now holds the next free position in the newly-spawned list, but for each processor.
-            ValidSpawnedList(:)=InitialSpawnedSlots(:)
+            Call SetupValidSpawned(InitWalkers)
         endif
 
         IF(TPopsFile) THEN
@@ -4599,7 +4586,7 @@ MODULE FciMCParMod
         use FciMCLoggingMOD , only : InitHistInitPops
         use SystemData , only : tRotateOrbs
         use CalcData , only : InitialPart
-        use CalcData , only : MemoryFacPart,MemoryFacAnnihil,MemoryFacSpawn
+        use CalcData , only : MemoryFacPart,MemoryFacAnnihil
         use constants , only : size_n_int
         INTEGER :: ierr,iunithead
         LOGICAL :: formpops,binpops
@@ -4625,22 +4612,8 @@ MODULE FciMCParMod
 
         if (tReadPops .and. (PopsVersion.lt.3) .and..not.tPopsAlreadyRead) then
 !Read in particles from multiple POPSFILES for each processor
-
             !Ugh - need to set up ValidSpawnedList here too...
-            WRITE(6,*) "*Direct Annihilation* in use...Explicit load-balancing disabled."
-            ALLOCATE(ValidSpawnedList(0:nProcessors-1),stat=ierr)
-            !InitialSpawnedSlots is now filled later, once the number of particles wanted is known
-            !(it can change according to the POPSFILE).
-            ALLOCATE(InitialSpawnedSlots(0:nProcessors-1),stat=ierr)
-    !InitialSpawnedSlots now holds the first free position in the newly-spawned list for each processor, so it does not need to be reevaluated each iteration.
-            MaxSpawned=NINT(MemoryFacSpawn*InitWalkers)
-            Gap=REAL(MaxSpawned)/REAL(nProcessors)
-            do j=0,nProcessors-1
-                InitialSpawnedSlots(j)=NINT(Gap*j)+1
-            enddo
-    !ValidSpawndList now holds the next free position in the newly-spawned list, but for each processor.
-            ValidSpawnedList(:)=InitialSpawnedSlots(:)
-
+            call SetupValidSpawned(InitWalkers)
             WRITE(6,*) "Reading in initial particle configuration from *OLD* POPSFILES..."
             CALL ReadFromPopsFilePar()
         ELSE
@@ -4664,21 +4637,7 @@ MODULE FciMCParMod
 
             MaxWalkersPart=NINT(MemoryFacPart*WalkerListSize)
             WRITE(6,"(A,I14)") " Memory allocated for a maximum particle number per node of: ",MaxWalkersPart
-            MaxSpawned=NINT(MemoryFacSpawn*WalkerListSize)
-!            WRITE(6,"(A,I14)") "Memory allocated for a maximum particle number per node for spawning of: ",MaxSpawned
-
-            WRITE(6,*) "*Direct Annihilation* in use...Explicit load-balancing disabled."
-            ALLOCATE(ValidSpawnedList(0:nProcessors-1),stat=ierr)
-            !InitialSpawnedSlots is now filled later, once the number of particles wanted is known
-            !(it can change according to the POPSFILE).
-            ALLOCATE(InitialSpawnedSlots(0:nProcessors-1),stat=ierr)
-    !InitialSpawnedSlots now holds the first free position in the newly-spawned list for each processor, so it does not need to be reevaluated each iteration.
-            Gap=REAL(MaxSpawned)/REAL(nProcessors)
-            do j=0,nProcessors-1
-                InitialSpawnedSlots(j)=NINT(Gap*j)+1
-            enddo
-    !ValidSpawndList now holds the next free position in the newly-spawned list, but for each processor.
-            ValidSpawnedList(:)=InitialSpawnedSlots(:)
+            Call SetupValidSpawned(WalkerListSize)
 
 !Put a barrier here so all processes synchronise
             CALL MPIBarrier(error)
@@ -5044,6 +5003,30 @@ MODULE FciMCParMod
 !        ENDIF
 
     END SUBROUTINE DeallocFCIMCMemPar
+
+   subroutine SetupValidSpawned(WalkerListSize)
+      use CalcData, only: MemoryFacSpawn
+      implicit none
+      integer, intent(in) :: WalkerListSize
+      integer ierr,i,j
+      real*8 Gap
+      MaxSpawned=NINT(MemoryFacSpawn*WalkerListSize)
+!            WRITE(6,"(A,I14)") "Memory allocated for a maximum particle number per node for spawning of: ",MaxSpawned
+            
+      WRITE(6,*) "*Direct Annihilation* in use...Explicit load-balancing disabled."
+      ALLOCATE(ValidSpawnedList(0:nProcessors-1),stat=ierr)
+      !InitialSpawnedSlots is now filled later, once the number of particles wanted is known
+      !(it can change according to the POPSFILE).
+      ALLOCATE(InitialSpawnedSlots(0:nProcessors-1),stat=ierr)
+!InitialSpawnedSlots now holds the first free position in the newly-spawned list for each processor, so it does not need to be reevaluated each iteration.
+      MaxSpawned=NINT(MemoryFacSpawn*InitWalkers)
+      Gap=REAL(MaxSpawned)/REAL(nProcessors)
+      do j=0,nProcessors-1
+          InitialSpawnedSlots(j)=NINT(Gap*j)+1
+      enddo
+!ValidSpawndList now holds the next free position in the newly-spawned list, but for each processor.
+      ValidSpawnedList(:)=InitialSpawnedSlots(:)
+   end subroutine
 
 END MODULE FciMCParMod
 

@@ -27,7 +27,7 @@ MODULE AnnihilationMod
     !   H Elements - send through logical to decide whether to create or not.
     !   Parallel spawned parts - create the ValidSpawnedList itself.
     !   Going to have to sort this out for the new packaged walkers - will have to package them up in this interface.
-    SUBROUTINE AnnihilationInterface(TotDets,MainParts,MainSign,MaxMainInd,SpawnDets,SpawnParts,MaxSpawnInd,iter_data)
+    SUBROUTINE AnnihilationInterface(TotDets,MainParts,MaxMainInd,SpawnDets,SpawnParts,MaxSpawnInd,iter_data)
         use constants, only: size_n_int
         use shared_alloc, only: shared_allocate_iluts, shared_deallocate
 !This is an interface routine to the Direct Annihilation routines.
@@ -45,8 +45,6 @@ MODULE AnnihilationMod
 !       TotDets             in: This is number of determinants specified in MainParticles on each process.
 !                           out: This is the new number of determinants, having been annihilated and merged with the
 !                                spawned list.
-!       MainSign(:)         This is the signed number of particles on the determinants specified in the equivalent
-!                           entry in the MainParticles array.
 !       SpawnParts(:,:)     This is the list of particles to attempt to annihilate. Unlike the Main list, this list
 !                           does *not* need to be ordered or sign coherent, and can also contain 'zero' sign particles.  Each particle contains its own sign
 !       MaxSpawnInd         This is the size of the SpawnParts array.
@@ -57,11 +55,11 @@ MODULE AnnihilationMod
         INTEGER, INTENT(INOUT) :: TotDets
         type(fcimc_iter_data), intent(inout) :: iter_data
         INTEGER(KIND=n_int), INTENT(INOUT) , TARGET :: MainParts(0:NIfTot,MaxMainInd),SpawnParts(0:NIfTot,MaxSpawnInd)
-        INTEGER, INTENT(INOUT) , TARGET :: MainSign(MaxMainInd)
+!        INTEGER, INTENT(INOUT) , TARGET :: MainSign(MaxMainInd)
         INTEGER, INTENT(INOUT) :: SpawnDets
         INTEGER :: ierr,i
         CHARACTER(len=*) , PARAMETER :: this_routine='AnnihilationInterface'
-        INTEGER, DIMENSION(lenof_sign) :: TempSign
+!        INTEGER, DIMENSION(lenof_sign) :: TempSign
         TYPE(timer),save :: Annihil_time
         integer(kind=n_int), pointer,save :: SpawnVecLocal(:,:)
         Annihil_time%timer_name='Annihilation interface'
@@ -102,11 +100,11 @@ MODULE AnnihilationMod
             ValidSpawnedList(i)=MaxSpawnInd
         enddo 
 
-        TempSign=0
-        do i=1,TotDets
-            TempSign(1)=MainSign(i)
-            call encode_sign(MainParts(:,i),TempSign)
-        enddo
+!        TempSign=0
+!        do i=1,TotDets
+!            TempSign(1)=MainSign(i)
+!            call encode_sign(MainParts(:,i),TempSign)
+!        enddo
 ! The SpawnParts already have their signs inside them
 
         MaxWalkersPart=MaxMainInd
@@ -117,13 +115,13 @@ MODULE AnnihilationMod
         SpawnedParts2 => SpawnVecLocal
 
         CALL DirectAnnihilation(TotDets, iter_data,.true.) !.true. for single processor annihilation
-        if(iProcIndex==root) then        
+!        if(iProcIndex==root) then        
 !Signs put back again into seperate array
-           do i=1,TotDets
-               call extract_sign(CurrentDets(:,i),TempSign)
-               MainSign(i)=TempSign(1)
-           enddo
-         endif
+!           do i=1,TotDets
+!               call extract_sign(CurrentDets(:,i),TempSign)
+!               MainSign(i)=TempSign(1)
+!           enddo
+!         endif
          call MPIBarrier(ierr)
 
         call halt_timer(Annihil_time)
@@ -200,8 +198,8 @@ MODULE AnnihilationMod
 !ValidSpawnedList(0:nProcessors-1) indicates the next free index for each processor (for spawnees from this processor)
 !  i.e. the list of spawned particles has already been arranged so that newly spawned particles are grouped according to the processor they go to.
 
-! sendcounts(1:) indicates the number of spawnees to send to each processor (1-based)
-! disps(1:) is the index into the spawned list of the beginning of the list to send to each processor (1-based)
+! sendcounts(1:) indicates the number of spawnees to send to each processor
+! disps(1:) is the index into the spawned list of the beginning of the list to send to each processor (0-based)
            sendcounts(1)=ValidSpawnedList(0)-1
            disps(1)=0
            if(nProcessors>1) then
@@ -210,13 +208,10 @@ MODULE AnnihilationMod
            endif
         else
 !Distribute the gaps on all procs
-!TODO:  This should use information from InitialSpawnedSlots for consistency.
-            Gap=REAL(MaxSpawned)/REAL(nProcessors)
-!            WRITE(6,*) "Gap: ",Gap
-
            do i=0,nProcessors-1
-               sendcounts(i+1)=ValidSpawnedList(i)-(NINT(Gap*i)+1)
-               disps(i+1)=NINT(Gap*i)
+               sendcounts(i+1)=ValidSpawnedList(i)-InitialSpawnedSlots(i)
+! disps is zero-based, but InitialSpawnedSlots is 1-based
+               disps(i+1)=InitialSpawnedSlots(i)-1
            enddo
         endif
 
