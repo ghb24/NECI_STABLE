@@ -3158,9 +3158,9 @@ MODULE FciMCParMod
         use SystemData, only : tUseBrillouin,iRanLuxLev,tSpn,tHPHFInts,tRotateOrbs,tNoBrillouin,tROHF,tFindCINatOrbs,nOccBeta,nOccAlpha,tUHF
         use SystemData, only : tFixLz,LzTot,BasisFN,tBrillouinsDefault
         USE dSFMT_interface , only : dSFMT_init
-        use CalcData, only : tFCIMC
-        use CalcData, only : VirtCASorbs,OccCASorbs,G_VMC_Seed
-        use CalcData , only : MemoryFacPart,MemoryFacAnnihil,TauFactor,StepsSftImag,tCheckHighestPop
+        use CalcData, only: tFCIMC, VirtCASorbs, OccCASorbs, G_VMC_Seed, &
+                            MemoryFacPart, MemoryFacAnnihil, TauFactor, &
+                            StepsSftImag, tCheckHighestPop, tSpatialOnlyHash
         use Determinants , only : GetH0Element3
         use SymData , only : nSymLabels,SymLabelList,SymLabelCounts,TwoCycleSymGens
         use Logging , only : tTruncRODump
@@ -3405,19 +3405,29 @@ MODULE FciMCParMod
         RandomHash(:)=0
         IF(iProcIndex.eq.root) THEN
             do i=1,nBasis
+                ! If we want to hash only by spatial orbitals, then the
+                ! spin paired orbitals must be set equal
+                if (tSpatialOnlyHash) then
+                    if (.not. btest(i, 0)) then
+                        RandomHash(i) = RandomHash(i - 1)
+                        cycle
+                    endif
+                endif
+
+                ! Ensure that we don't set two values to be equal accidentally
                 FoundPair=.false.
                 do while(.not.FoundPair)
                     r = genrand_real2_dSFMT()
                     ChosenOrb=INT(nBasis*r*1000)+1
+
+                    ! Check all values which have already been set.
                     do j=1,nBasis
                         IF(RandomHash(j).eq.ChosenOrb) EXIT
                     enddo
-                    IF(j.eq.nBasis+1) THEN
-                        RandomHash(i)=ChosenOrb
-                        FoundPair=.true.
-                    ELSE
-                        FoundPair=.false.
-                    ENDIF
+
+                    ! If not already used, then we can move on
+                    if (j == nBasis+1) FoundPair = .true.
+                    RandomHash(i) = ChosenOrb
                 enddo
             enddo
 

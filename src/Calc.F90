@@ -202,6 +202,7 @@ contains
           tInitIncDoubs=.false.
           MaxNoatHF=0
           HFPopThresh=0
+          tSpatialOnlyHash = .false.
 
           tNeedsVirts=.true.! Set if we need virtual orbitals  (usually set).  Will be unset (by Calc readinput) if I_VMAX=1 and TENERGY is false
 
@@ -1104,6 +1105,12 @@ contains
                 ! (now on always - sds)
                 call stop_all (t_r, "RANDOMISEHASHORBS - option removed &
                                     &(now default)")
+
+            case("SPATIAL-ONLY-HASH")
+                ! Base hash values only on spatial orbitals
+                ! --> All determinants with the same spatial structure will
+                !     end up on the same processor
+                tSpatialOnlyHash = .true.
 
             case("SPAWNASDETS")
 !This is a parallel FCIMC option, which means that the particles at the same determinant on each processor, will choose the same determinant to attempt spawning to and the 
