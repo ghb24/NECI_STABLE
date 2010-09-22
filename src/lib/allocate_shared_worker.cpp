@@ -90,9 +90,22 @@ extern "C" void dealloc_shared_worker (void * ptr)
 
 	munmap (ptr, det->second.size);
 
-	shm_unlink (det->second.name.c_str());
-
 	g_shared_mem_map.erase(det);
+}
+
+//
+// Remove item's name from the shared list (this will cause it to disappear
+// if all of the threads bail).
+extern "C" void shm_unlink_shared_worker (void * ptr)
+{
+	// Find the shared memory in the global list
+	map<void*,map_det_t>::iterator det;
+	det = g_shared_mem_map.find(ptr);
+
+	if (det == g_shared_mem_map.end())
+		stop_all (__FUNCTION__, "The specified shared memory was not found.");
+
+	shm_unlink (det->second.name.c_str());
 }
 
 //
@@ -111,7 +124,6 @@ extern "C" void cleanup_shared_alloc ()
 				name.c_str(), int(size));
 
 		munmap (ptr, size);
-		shm_unlink (name.c_str());
 	}
 
 	g_shared_mem_map.clear();
