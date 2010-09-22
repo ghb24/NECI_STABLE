@@ -646,7 +646,7 @@ MODULE CCMC
 !In direct annihilation, we spawn particles into a seperate array, but we do not store them contiguously in the SpawnedParts/SpawnedSign arrays.
 !The processor that the newly-spawned particle is going to be sent to has to be determined, and then it will get put into the the appropriate element determined by ValidSpawnedList.
 
-                       Proc=DetermineDetProc(iLutnJ)   !This wants to return a value between 0 -> nProcessors-1
+                       Proc=DetermineDetProc(nJ)   !This wants to return a value between 0 -> nProcessors-1
    !                    WRITE(6,*) iLutnJ(:),Proc,ValidSpawnedList(Proc),Child,TotWalkers
    !                    CALL FLUSH(6)
                        call encode_det(SpawnedParts(:,ValidSpawnedList(Proc)),iLutnJ)

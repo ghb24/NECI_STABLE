@@ -50,7 +50,6 @@ contains
           StepsSftImag=0.D0
           TauFactor=0.D0
           tStartMP1=.false.
-          tRandomiseHashOrbs=.true.
           iAnnInterval=1
           tTruncCAS=.false.
           iFullSpaceIter=0
@@ -1100,16 +1099,11 @@ contains
                 call stop_all (t_r, "GLOBALSHIFT - option removed")
 
             case("RANDOMISEHASHORBS")
-!This will create a random 1-to-1 mapping between the orbitals, which should hopefully improve load balancing.
-                if(item.lt.nitems) then
-                    call readu(w)
-                    select case(w)
-                    case("OFF")
-                        tRandomiseHashOrbs=.false.
-                    end select
-                else
-                    tRandomiseHashOrbs=.true.
-                end if
+                ! This will create a random 1-to-1 mapping between the 
+                ! orbitals, which should hopefully improve load balancing.
+                ! (now on always - sds)
+                call stop_all (t_r, "RANDOMISEHASHORBS - option removed &
+                                    &(now default)")
 
             case("SPAWNASDETS")
 !This is a parallel FCIMC option, which means that the particles at the same determinant on each processor, will choose the same determinant to attempt spawning to and the 
