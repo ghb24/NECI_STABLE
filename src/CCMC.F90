@@ -2254,8 +2254,8 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
    REAL*8 dInitThresh
 
    LOGICAL tSingBiasChange, tSoftExitFound, tWritePopsFound !For ChangeVars
-
    INTEGER(int64) i64
+
 
    WRITE(6,*) "Entering CCMC Standalone Particle..."
    CCMC_time%timer_name='CCMC Standalone Particle'
@@ -2383,9 +2383,7 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
    ENDIF
 
    if(tReadPops) then
-      i64=nMaxAmpl 
-      call ReadFromPopsfileOnly(DetList,i64)
-      nAmpl=i64
+      call ReadPopsFileCCMC(DetList,nMaxAmpl,nAmpl)
       do j=1,nAmpl
           call extract_sign(DetList(:,j),TempSign)
           AL%Amplitude(j,iCurAmpList)=TempSign(1)
@@ -2394,6 +2392,7 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
       call CalcTotals(iNumExcitors,dTotAbsAmpl,AL%Amplitude(:,iCurAmpList),nAmpl,dTolerance*dInitAmplitude,WalkerScale,iRefPos,iOldTotParts,iDebug)
       iter_data_ccmc%update_growth = 0
       iter_data_ccmc%tot_parts_old=TotParts
+      AllTotPartsOld=TotParts
    endif
 
    CALL WriteFciMCStatsHeader()
@@ -2565,7 +2564,7 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
 !      endif
 
 
-      IF(tHistSpawn.and.(mod(Iter,iWriteHistEvery).eq.0)) THEN
+      IF(tHistSpawn.and.(mod(Iter,iWriteHistEvery).eq.1)) THEN
           CALL WriteHistogram()
       ENDIF
       if(Iter.gt.NEquilSteps) then
@@ -2573,9 +2572,10 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
          dAveNorm=dAveNorm+AL%Amplitude(iRefPos,iCurAmpList)
       endif
       call ChangeVars(tSingBiasChange, tSoftExitFound, tWritePopsFound)
-      if(tSoftExitFound) exit
       Iter=Iter+1
+      if(tSoftExitFound) exit
    enddo !MC Cycles
+   Iter=Iter-1
    IFDEBUG(iDebug,2) call WriteExcitorList(6,AL%Amplitude(:,iCurAmpList),DetList,0,nAmpl,dAmpPrintTol,"Final Excitor list")
    IF(TPopsFile) THEN
 ! encode the signs
@@ -2610,6 +2610,51 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
    call halt_timer(CCMC_time)
 END SUBROUTINE CCMCStandaloneParticle
 
+
+SUBROUTINE ReadPopsFileCCMC(DetList,nMaxAmpl,nAmpl)
+      use PopsfileMod
+      INTEGER :: ierr,iunithead
+      LOGICAL :: formpops,binpops
+      INTEGER :: PopsVersion,WalkerListSize
+      INTEGER(kind=n_int), pointer :: DetList(:,:)
+      logical :: tPop64Bit,tPopHPHF,tPopLz
+      integer :: iPopLenof_sign,iPopNel,iPopIter,PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot
+      integer(8) :: iPopAllTotWalkers
+      real(8) :: PopDiagSft
+      integer(8) , dimension(lenof_sign) :: PopSumNoatHF
+      integer nMaxAmpl,nAmpl
+      integer(int64) , dimension(lenof_sign) :: CurrParts
+      integer :: ReadBatch    !This parameter determines the length of the array to batch read in walkers from a popsfile
+      HElement_t :: PopAllSumENum
+      ReadBatch=nMaxAmpl
+      call open_pops_head(iunithead,formpops,binpops)
+      PopsVersion=FindPopsfileVersion(iunithead)
+      if(iProcIndex.eq.root) close(iunithead)
+      write(6,*) "POPSFILE VERSION ",PopsVersion," detected."
+
+      if(PopsVersion.lt.3)  then
+!Read in particles from multiple POPSFILES for each processor
+         WRITE(6,*) "Reading in initial particle configuration from *OLD* POPSFILES..."
+         CurrParts(1)=nMaxAmpl 
+         call ReadFromPopsfileOnly(DetList,CurrParts(1))
+         nAmpl=CurrParts(1)
+      else
+         !We must have a v.3 popsfile. Read header.
+         call open_pops_head(iunithead,formpops,binpops)
+         call ReadPopsHeadv3(iunithead,tPop64Bit,tPopHPHF,tPopLz,iPopLenof_Sign,iPopNel, &
+               iPopAllTotWalkers,PopDiagSft,PopSumNoatHF,PopAllSumENum,iPopIter,   &
+               PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot)
+
+         call CheckPopsParams(tPop64Bit,tPopHPHF,tPopLz,iPopLenof_Sign,iPopNel, &
+               iPopAllTotWalkers,PopDiagSft,PopSumNoatHF,PopAllSumENum,iPopIter,   &
+               PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot,WalkerListSize)
+
+         if(iProcIndex.eq.root) close(iunithead)
+         call ReadFromPopsfilev3(iPopAllTotWalkers,ReadBatch,TotWalkers,CurrParts,NoatHF,DetList,nMaxAmpl)
+         nAmpl=TotWalkers
+      endif
+
+END SUBROUTINE
 
    SUBROUTINE InitTransitionLog(TL,nAmpl,nMaxClusterSize,tNonUniq)
       use CCMCData, only: CCTransitionLog
