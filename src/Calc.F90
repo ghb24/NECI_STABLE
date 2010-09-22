@@ -50,7 +50,6 @@ contains
           StepsSftImag=0.D0
           TauFactor=0.D0
           tStartMP1=.false.
-          tRandomiseHashOrbs=.true.
           iAnnInterval=1
           tTruncCAS=.false.
           iFullSpaceIter=0
@@ -203,6 +202,7 @@ contains
           tInitIncDoubs=.false.
           MaxNoatHF=0
           HFPopThresh=0
+          tSpatialOnlyHash = .false.
 
           tNeedsVirts=.true.! Set if we need virtual orbitals  (usually set).  Will be unset (by Calc readinput) if I_VMAX=1 and TENERGY is false
 
@@ -226,6 +226,7 @@ contains
           spin_proj_shift = 0
           spin_proj_cutoff = 0
           spin_proj_iter_count = 1
+          tUseProcsAsNodes=.false.
       
         end subroutine SetCalcDefaults
 
@@ -1099,16 +1100,17 @@ contains
                 call stop_all (t_r, "GLOBALSHIFT - option removed")
 
             case("RANDOMISEHASHORBS")
-!This will create a random 1-to-1 mapping between the orbitals, which should hopefully improve load balancing.
-                if(item.lt.nitems) then
-                    call readu(w)
-                    select case(w)
-                    case("OFF")
-                        tRandomiseHashOrbs=.false.
-                    end select
-                else
-                    tRandomiseHashOrbs=.true.
-                end if
+                ! This will create a random 1-to-1 mapping between the 
+                ! orbitals, which should hopefully improve load balancing.
+                ! (now on always - sds)
+                call stop_all (t_r, "RANDOMISEHASHORBS - option removed &
+                                    &(now default)")
+
+            case("SPATIAL-ONLY-HASH")
+                ! Base hash values only on spatial orbitals
+                ! --> All determinants with the same spatial structure will
+                !     end up on the same processor
+                tSpatialOnlyHash = .true.
 
             case("SPAWNASDETS")
 !This is a parallel FCIMC option, which means that the particles at the same determinant on each processor, will choose the same determinant to attempt spawning to and the 
@@ -1641,7 +1643,7 @@ contains
          use UMatCache , only : TSTARSTORE
          use CalcData , only : CALCP_SUB2VSTAR,CALCP_LOGWEIGHT,TMCDIRECTSUM,g_Multiweight,G_VMC_FAC,TMPTHEORY
          use CalcData, only : STARPROD,TDIAGNODES,TSTARSTARS,TGraphMorph,TStarTrips,THDiag,TMCStar,TFCIMC,TMCDets,tCCMC
-         use CalcData , only : TRhoElems,TReturnPathMC, tFCIMCSerial
+         use CalcData , only : TRhoElems,TReturnPathMC, tFCIMCSerial,tUseProcsAsNodes
          use CCMCData, only: tExactCluster,tCCMCFCI,tAmplitudes,tExactSpawn,tCCBuffer
          use Logging, only: tCalcFCIMCPsi
          implicit none
@@ -1656,6 +1658,7 @@ contains
                case("FCIMC")
                    I_HMAX=-21
                    TFCIMC=.true.
+                   tUseProcsAsNodes=.true.
                    do while(item.lt.nitems)
                       call readu(w)
                       select case(w)

@@ -623,7 +623,7 @@ module DetBitOps
     ! This is a routine to encode a determinant as natural ordered integers
     ! (nI) as a bit string (iLut(0:NIfTot)) where NIfD=INT(nBasis/32)
     ! If this is a csf, the csf is contained afterwards.
-    subroutine EncodeBitDet(nI,iLut)
+    pure subroutine EncodeBitDet(nI,iLut)
         integer, intent(in) :: nI(nel)
         integer(kind=n_int), intent(out) :: iLut(0:NIfTot)
         integer :: i, det, pos, nopen
