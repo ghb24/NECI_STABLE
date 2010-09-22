@@ -57,6 +57,7 @@ MODULE ISKRandExcit
         call FindExcitBitDet(iLutnI,iLutnJ,IC,ExcitMat)
 
 
+
     end subroutine gen_ISK_excit
 
 !Function to determine whether a determinant is its own self inverse when inverted.
