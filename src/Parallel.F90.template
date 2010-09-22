@@ -950,6 +950,7 @@ subroutine MPINodes(tUseProcsAsNodes)
    allocate(NodeRoots(0:nProcessors-1))
 #ifdef PARALLEL
    if(tUseProcsAsNodes) then
+      call MPI_Comm_Group(CommGlobal,Group,ierr)
       write(6,*) "Allocating each processor as a separate node."
       if(iProcIndex==root) then
          nNodes=0
