@@ -129,6 +129,8 @@ end module
 
 supermodule AmpList
 
+   use constants, only: n_int
+
    type AmplitudeList_bitrep
       integer(kind=n_int), pointer, dimension(:,:) ::   BitReps
       integer, pointer ::   CumlAmplitude(:)
@@ -197,6 +199,7 @@ Contains
 subroutine WriteExcitorList_bitrep(iUnit,AL,iAmpList,Dets,offset,nDet,dTol,Title)
    use FciMCParMod, only: iLutHF
    use bit_reps, only: extract_sign,extract_flags
+   use bit_rep_data, only: nIfTot
    IMPLICIT NONE
    INTEGER iUnit,nDet
    Type(AmplitudeList_bitrep) AL

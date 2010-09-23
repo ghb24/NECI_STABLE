@@ -3173,7 +3173,7 @@ MODULE FciMCParMod
         use HElem
         INTEGER :: ierr,i,j,HFDetTest(NEl),Seed,alpha,beta,symalpha,symbeta,endsymstate
         INTEGER :: HFConn,LargestOrb,nBits,HighEDet(NEl)
-        INTEGER(KIND=n_int) :: iLutTemp(0:NIfDBO)
+        INTEGER(KIND=n_int) :: iLutTemp(0:NIfTot)
         HElement_t :: TempHii
         TYPE(BasisFn) HFSym
         REAL*8 :: TotDets,SymFactor,r,Gap
