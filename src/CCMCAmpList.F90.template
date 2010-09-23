@@ -129,6 +129,8 @@ end module
 
 supermodule AmpList
 
+   use constants, only: n_int
+
    type AmplitudeList_bitrep
       integer(kind=n_int), pointer, dimension(:,:) ::   BitReps
       integer, pointer ::   CumlAmplitude(:)
