@@ -95,7 +95,7 @@ module soft_exit
     use FciMCData, only: iter, CASMin, CASMax, tTruncSpace, tSinglePartPhase,&
                          SumENum, SumNoatHF, HFPopCyc, ProjEIterSum, &
                          Histogram, AvAnnihil, VaryShiftCycles, SumDiagSft, &
-                         VaryShiftIter, CurrentDets, iLutHF, &
+                         VaryShiftIter, CurrentDets, iLutHF, HFDet, &
                          TotWalkers,tPrintHighPop
     use CalcData, only: DiagSft, SftDamp, StepsSft, OccCASOrbs, VirtCASOrbs, &
                         tTruncCAS,  NEquilSteps, tTruncInitiator, &
@@ -583,7 +583,7 @@ contains
                            hfScaleFactor
 
                 SumNoatHF = SumNoatHF * hfScaleFactor
-                if (iProcIndex == DetermineDetProc(ilutHF)) then
+                if (iProcIndex == DetermineDetProc(HFDet)) then
                     pos = binary_search (CurrentDets, iLutHF, NIfTot+1, &
                                          int(TotWalkers,int32))
                     call extract_sign (CurrentDets(:,pos), hfsign)

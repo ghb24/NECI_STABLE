@@ -132,7 +132,7 @@ contains
 
     end subroutine extract_bit_rep
 
-    subroutine extract_sign (ilut,sgn)
+    pure subroutine extract_sign (ilut,sgn)
         integer(n_int), intent(in) :: ilut(0:nIfTot)
         integer, dimension(lenof_sign), intent(out) :: sgn
 

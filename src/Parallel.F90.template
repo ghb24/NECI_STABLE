@@ -785,8 +785,8 @@ supermodule Parallel
         subroutine gethostname(nm, sz) bind(c)
             use, intrinsic :: iso_c_binding
             implicit none
-            character(c_char), intent(out) :: nm
             integer(c_size_t), value :: sz
+            character(kind=c_char), intent(out) :: nm
         end subroutine
    end interface
    save
@@ -875,13 +875,13 @@ Subroutine MPIInit(tExternal)
              write(6,*) "Processor ",iProcIndex+1,'/',nProcessors, ' on local output.'
           endif
           call GetProcElectrons(iProcIndex,iProcMinE,iProcMaxE) 
+          CommGlobal=MPI_COMM_WORLD
 !  Just synchronize everything briefly
           a=iProcIndex+1
           call MPISumAll(a,1,g)
           WRITE(6,*) "Sum: ",g
        endif
 
-       initialised=.true.
        call MPI_ERRHANDLER_SET(MPI_COMM_WORLD,MPI_ERRORS_RETURN,ierr)
    end if
 
@@ -891,7 +891,6 @@ Subroutine MPIInit(tExternal)
    iProcIndex=0
    nProcessors=1
 #endif
-      Call MPINodes()
    RETURN
    
 end subroutine
@@ -902,35 +901,64 @@ end subroutine
 subroutine MPINodes
    use, intrinsic :: iso_c_binding
    implicit none
+   logical, intent(in) :: tUseProcsAsNodes !Set if we use Procs as Nodes.
    integer Group,i,j,n
+   integer(c_size_t) length
    character(len=30) nm
+   character(len=30) nm2
    character(len=30) nms(0:nProcessors-1)
    integer ierr
    integer GroupProc(nProcessors)
+   logical, save :: initialised=.false.
+   if(initialised) return
+   initialised=.true.
    allocate(Nodes(0:nProcessors-1))
    allocate(NodeRoots(0:nProcessors-1))
-   CommGlobal=MPI_COMM_WORLD
-   call MPI_Comm_Group(CommGlobal,Group,ierr)
-   call gethostname(nm,int(30,c_size_t))
-   call MPI_Gather(nm,30,MPI_CHARACTER,nms,30,MPI_CHARACTER,root,CommGlobal,ierr)
-   write(6,*) "Processor      Node hostname"
-   if(iProcIndex==root) then
-      nNodes=0
-      do i=0,nProcessors-1
-         Nodes(i)%n=-1
-         do j=0,nNodes-1
-            if (nms(i)==nms(NodeRoots(j))) then
-               Nodes(i)%n=j
-               exit
-            endif 
-         enddo
-         if (Nodes(i)%n==-1) then
+#ifdef PARALLEL
+   if(tUseProcsAsNodes) then
+      call MPI_Comm_Group(CommGlobal,Group,ierr)
+      write(6,*) "Allocating each processor as a separate node."
+      if(iProcIndex==root) then
+         nNodes=0
+         write(6,*) "Processor      Node"
+         do i=0,nProcessors-1
             NodeRoots(nNodes)=i
             Nodes(i)%n=nNodes
             nNodes=nNodes+1
+            write(6,"(2I10)") i,Nodes(i)%n
+         enddo
+      endif
+   else 
+      call MPI_Comm_Group(CommGlobal,Group,ierr)
+      length=30
+      call gethostname(nm,length)
+      do i=1,30
+         if (nm(i:i)==char(0)) then
+            nm(i:30)=' '
+            exit
          endif
-         write(6,"(2I10,A,A)") i,Nodes(i)%n," ",nms(i)
       enddo
+      nm2=nm
+      call MPI_Gather(nm2,30,MPI_CHARACTER,nms,30,MPI_CHARACTER,root,CommGlobal,ierr)
+      write(6,*) "Processor      Node hostname"
+      if(iProcIndex==root) then
+         nNodes=0
+         do i=0,nProcessors-1
+            Nodes(i)%n=-1
+            do j=0,nNodes-1
+               if (nms(i)==nms(NodeRoots(j))) then
+                  Nodes(i)%n=j
+                  exit
+               endif 
+            enddo
+            if (Nodes(i)%n==-1) then
+               NodeRoots(nNodes)=i
+               Nodes(i)%n=nNodes
+               nNodes=nNodes+1
+            endif
+            write(6,"(2I10,A,A)") i,Nodes(i)%n," ",nms(i)
+         enddo
+      endif
    endif
    call MPI_BCAST (nNodes, 1, MPI_INTEGER, root, CommGlobal, ierr)
    call MPI_BCAST (Nodes, nProcessors, MPI_INTEGER, root, CommGlobal, ierr)
@@ -941,6 +969,7 @@ subroutine MPINodes
    Node=Nodes(iProcIndex)
    if (iProcIndex==NodeRoots(Node%n)) then
       bNodeRoot=.true.
+      write(6,*) "I am the node root for node ", Node%n
    else
       bNodeRoot=.false.
    endif
@@ -956,6 +985,13 @@ subroutine MPINodes
       call MPI_Group_incl(Group,n,GroupProc,GroupNodes(i),ierr)  !Create a group 
       call MPI_Comm_Create(CommGlobal,GroupNodes(i),CommNodes(i),ierr) !Create the Communicator
    enddo
+#else
+   nNodes=1
+   allocate(NodeLengths(0:nNodes-1))
+   allocate(CommNodes(0:nNodes-1))
+   allocate(GroupNodes(0:nNodes-1))
+   NodeLengths(0)=1
+#endif //def PARALLEL
    Roots%n=-1  !A communicator index between roots
 end subroutine
 
