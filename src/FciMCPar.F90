@@ -467,15 +467,17 @@ MODULE FciMCParMod
         use, intrinsic :: iso_c_binding
         implicit none
         interface
-            subroutine new_child_stats (iter_data, iLutI, iLutJ, ic, &
-                                        walkExLevel, child)
+            subroutine new_child_stats (iter_data, iLutI, nJ, iLutJ, ic, &
+                                        walkExLevel, child, parent_flags, &
+                                        part_type)
                 use SystemData, only: nel
                 use bit_reps, only: niftot
                 use constants, only: n_int, lenof_sign
                 use FciMCData, only: fcimc_iter_data
                 implicit none
                 integer(kind=n_int), intent(in) :: ilutI(0:niftot), iLutJ(0:niftot)
-                integer, intent(in) :: ic, walkExLevel
+                integer, intent(in) :: ic, walkExLevel, parent_flags, nJ(nel)
+                integer, intent(in) :: part_type
                 integer, dimension(lenof_sign) , intent(in) :: child
                 type(fcimc_iter_data), intent(inout) :: iter_data
             end subroutine
@@ -606,15 +608,17 @@ MODULE FciMCParMod
                 integer, intent(in) :: ic, ex(2,2)
                 integer(kind=n_int), intent(inout) :: iLutJ(0:nIfTot)
             end subroutine
-            subroutine new_child_stats (iter_data, iLutI, iLutJ, ic, &
-                                        walkExLevel, child)
+            subroutine new_child_stats (iter_data, iLutI, nJ, iLutJ, ic, &
+                                        walkExLevel, child, parent_flags, &
+                                        part_type)
                 use SystemData, only: nel
                 use bit_reps, only: niftot
                 use constants, only: n_int, lenof_sign
                 use FciMCData, only: fcimc_iter_data
                 implicit none
                 integer(kind=n_int), intent(in) :: ilutI(0:niftot), iLutJ(0:niftot)
-                integer, intent(in) :: ic, walkExLevel
+                integer, intent(in) :: ic, walkExLevel, parent_flags, nJ(nel)
+                integer, intent(in) :: part_type
                 integer, dimension(lenof_sign), intent(in) :: child
                 type(fcimc_iter_data), intent(inout) :: iter_data
             end subroutine
@@ -800,27 +804,18 @@ MODULE FciMCParMod
                         child = 0
                     endif
 
-                    !Children have been chosen to be spawned.
-#ifdef __CMPLX
-                    if ((child(1).ne.0).or.(child(2).ne.0)) then
-                        IFDEBUG(FCIMCDebug,3) write(6,"(A,2I4,A)",advance='no') "Creating ",child(1),child(2)," particles: "
-                        IFDEBUG(FCIMCDebug,3) write(6,"(A,2I4,A)",advance='no') "Parent flag: ",parent_flags,part_type
-#else
-                    if (child(1).ne.0) then
-                        IFDEBUG(FCIMCDebug,3) write(6,"(A,I4,A)",advance='no') "Creating ",child(1)," particles: "
-                        IFDEBUG(FCIMCDebug,3) write(6,"(A,2I4,A)",advance='no') "Parent flag: ",parent_flags,part_type
-#endif                        
-                        IFDEBUG(FCIMCDebug,3) CALL Write_Det(6,nJ,.true.)
-                        IFDEBUG(FCIMCDebug,3) CALL FLUSH(6) 
+                    ! Children have been chosen to be spawned.
+                    if (any(child /= 0)) then
                         ! We know we want to create a particle of this type.
                         ! Encode the bit representation if it isn't already.
                         call encode_child (CurrentDets(:,j), iLutnJ, ic, ex)
 
                         call new_child_stats (iter_data, CurrentDets(:,j), &
-                                              iLutnJ, ic, walkExcitLevel, &
-                                              child)
+                                              nJ, iLutnJ, ic, walkExcitLevel,&
+                                              child, parent_flags, part_type)
 
-                        call create_particle (iLutnJ, child, parent_flags, part_type)
+                        call create_particle (nJ, iLutnJ, child, &
+                                              parent_flags, part_type)
                     
                     endif ! (child /= 0). Child created
 
@@ -873,14 +868,31 @@ MODULE FciMCParMod
 
     end subroutine
 
-    subroutine new_child_stats_normal (iter_data, iLutI, iLutJ, ic, &
-                                       walkExLevel, child)
+    subroutine new_child_stats_normal (iter_data, iLutI, nJ, iLutJ, ic, &
+                                       walkExLevel, child, parent_flags, &
+                                       part_type)
 
         integer(kind=n_int), intent(in) :: iLutI(0:niftot), iLutJ(0:niftot)
-        integer, intent(in) :: ic, walkExLevel
+        integer, intent(in) :: ic, walkExLevel, parent_flags, nJ(nel)
+        integer, intent(in) :: part_type
         integer, dimension(lenof_sign), intent(in) :: child
         type(fcimc_iter_data), intent(inout) :: iter_data
         integer(n_int) :: iUnused
+
+        ! Write out some debugging information if asked
+        IFDEBUG(FCIMCDebug,3) then
+#ifdef __CMPLX
+            write(6,"(A,2I4,A)", advance='no') &
+                               "Creating ", child(1), child(2), " particles: "
+#else
+            write(6,"(A,I4,A)",advance='no') &
+                                         "Creating ", child(1), " particles: "
+#endif
+            write(6,"(A,2I4,A)",advance='no') &
+                                      "Parent flag: ", parent_flags, part_type
+            call writebitdet (6, nJ, .true.)
+            call flush(6)
+        endif
        
         ! Count the number of children born
         NoBorn = NoBorn + sum(abs(child))
@@ -897,7 +909,7 @@ MODULE FciMCParMod
 
     end subroutine
                         
-    subroutine create_particle (iLutJ, child, parent_flags, part_type)
+    subroutine create_particle (nJ, iLutJ, child, parent_flags, part_type)
 
         ! Create a child in the spawned particles arrays. We spawn particles
         ! into a separate array, but non-contiguously. The processor that the
@@ -905,6 +917,7 @@ MODULE FciMCParMod
         ! and then it will be put into the appropriate element determined by
         ! ValidSpawnedList
 
+        integer, intent(in) :: nJ(nel)
         integer(kind=n_int), intent(in) :: iLutJ(0:niftot)
         integer, dimension(lenof_sign), intent(in) :: child
         integer, intent(in) :: parent_flags
@@ -913,7 +926,7 @@ MODULE FciMCParMod
         integer :: proc, flags, j
         logical :: parent_init
 
-        proc = DetermineDetProc(iLutJ)    ! 0 -> nProcessors-1
+        proc = DetermineDetProc(nJ)    ! 0 -> nProcessors-1
 
         ! We need to include any flags set both from the parent and from the
         ! spawning steps
@@ -2420,13 +2433,15 @@ MODULE FciMCParMod
 
     END SUBROUTINE WriteHamilHistogram
 
-    subroutine new_child_stats_hist_hamil (iter_data, iLutI, iLutJ, ic, &
-                                           walkExLevel, child)
+    subroutine new_child_stats_hist_hamil (iter_data, iLutI, nJ, iLutJ, ic, &
+                                           walkExLevel, child, parent_flags, &
+                                           part_type)
         ! Based on old AddHistHamilEl. Histograms the hamiltonian matrix, and 
         ! then calls the normal statistics routine.
 
         integer(kind=n_int), intent(in) :: iLutI(0:niftot), iLutJ(0:niftot)
-        integer, intent(in) :: ic, walkExLevel
+        integer, intent(in) :: ic, walkExLevel, parent_flags, nJ(nel)
+        integer, intent(in) :: part_type
         integer, dimension(lenof_sign) , intent(in) :: child
         type(fcimc_iter_data), intent(inout) :: iter_data
         character(*), parameter :: this_routine = 'new_child_stats_hist_hamil'
@@ -2468,8 +2483,9 @@ MODULE FciMCParMod
                 avHistHamil (partInd, partIndChild) + (1.0_dp * child(1))
 
         ! Call the normal stats routine
-        call new_child_stats_normal (iter_data, iLutI, iLutJ, ic, &
-                                     walkExLevel, child)
+        call new_child_stats_normal (iter_data, iLutI, nJ, iLutJ, ic, &
+                                     walkExLevel, child, parent_flags, &
+                                     part_type)
 
     end subroutine
 
@@ -3142,10 +3158,9 @@ MODULE FciMCParMod
         use SystemData, only : tUseBrillouin,iRanLuxLev,tSpn,tHPHFInts,tRotateOrbs,tNoBrillouin,tROHF,tFindCINatOrbs,nOccBeta,nOccAlpha,tUHF
         use SystemData, only : tFixLz,LzTot,BasisFN,tBrillouinsDefault
         USE dSFMT_interface , only : dSFMT_init
-        use CalcData, only : tFCIMC
-        use CalcData , only : tRandomiseHashOrbs
-        use CalcData, only : VirtCASorbs,OccCASorbs,G_VMC_Seed
-        use CalcData , only : MemoryFacPart,MemoryFacAnnihil,MemoryFacSpawn,TauFactor,StepsSftImag,tCheckHighestPop
+        use CalcData, only: tFCIMC, VirtCASorbs, OccCASorbs, G_VMC_Seed, &
+                            MemoryFacPart, MemoryFacAnnihil, TauFactor, &
+                            StepsSftImag, tCheckHighestPop, tSpatialOnlyHash
         use Determinants , only : GetH0Element3
         use SymData , only : nSymLabels,SymLabelList,SymLabelCounts,TwoCycleSymGens
         use Logging , only : tTruncRODump
@@ -3158,7 +3173,7 @@ MODULE FciMCParMod
         use HElem
         INTEGER :: ierr,i,j,HFDetTest(NEl),Seed,alpha,beta,symalpha,symbeta,endsymstate
         INTEGER :: HFConn,LargestOrb,nBits,HighEDet(NEl)
-        INTEGER(KIND=n_int) :: iLutTemp(0:NIfDBO)
+        INTEGER(KIND=n_int) :: iLutTemp(0:NIfTot)
         HElement_t :: TempHii
         TYPE(BasisFn) HFSym
         REAL*8 :: TotDets,SymFactor,r,Gap
@@ -3380,46 +3395,57 @@ MODULE FciMCParMod
 !Initialise...
         CALL dSFMT_init(Seed)
         
-        IF(tRandomiseHashOrbs) THEN
-            ALLOCATE(RandomHash(nBasis),stat=ierr)
-            IF(ierr.ne.0) THEN
-                CALL Stop_All(this_routine,"Error in allocating RandomHash")
-            ENDIF
-            RandomHash(:)=0
-            IF(iProcIndex.eq.root) THEN
-                do i=1,nBasis
-                    FoundPair=.false.
-                    do while(.not.FoundPair)
-                        r = genrand_real2_dSFMT()
-                        ChosenOrb=INT(nBasis*r*1000)+1
-                        do j=1,nBasis
-                            IF(RandomHash(j).eq.ChosenOrb) EXIT
-                        enddo
-                        IF(j.eq.nBasis+1) THEN
-                            RandomHash(i)=ChosenOrb
-                            FoundPair=.true.
-                        ELSE
-                            FoundPair=.false.
-                        ENDIF
+        ! Option tRandomiseHashOrbs has now been removed.
+        ! Its behaviour is now considered default
+        ! --> Create a random mapping for the orbitals 
+        ALLOCATE(RandomHash(nBasis),stat=ierr)
+        IF(ierr.ne.0) THEN
+            CALL Stop_All(this_routine,"Error in allocating RandomHash")
+        ENDIF
+        RandomHash(:)=0
+        IF(iProcIndex.eq.root) THEN
+            do i=1,nBasis
+                ! If we want to hash only by spatial orbitals, then the
+                ! spin paired orbitals must be set equal
+                if (tSpatialOnlyHash) then
+                    if (.not. btest(i, 0)) then
+                        RandomHash(i) = RandomHash(i - 1)
+                        cycle
+                    endif
+                endif
+
+                ! Ensure that we don't set two values to be equal accidentally
+                FoundPair=.false.
+                do while(.not.FoundPair)
+                    r = genrand_real2_dSFMT()
+                    ChosenOrb=INT(nBasis*r*1000)+1
+
+                    ! Check all values which have already been set.
+                    do j=1,nBasis
+                        IF(RandomHash(j).eq.ChosenOrb) EXIT
                     enddo
+
+                    ! If not already used, then we can move on
+                    if (j == nBasis+1) FoundPair = .true.
+                    RandomHash(i) = ChosenOrb
                 enddo
+            enddo
 
 !                WRITE(6,*) "Random Orbital Indexing for hash:"
 !                WRITE(6,*) RandomHash(:)
-                do i=1,nBasis
-                    IF((RandomHash(i).eq.0).or.(RandomHash(i).gt.nBasis*1000)) THEN
+            do i=1,nBasis
+                IF((RandomHash(i).eq.0).or.(RandomHash(i).gt.nBasis*1000)) THEN
+                    CALL Stop_All(this_routine,"Random Hash incorrectly calculated")
+                ENDIF
+                do j=i+1,nBasis
+                    IF(RandomHash(i).eq.RandomHash(j)) THEN
                         CALL Stop_All(this_routine,"Random Hash incorrectly calculated")
                     ENDIF
-                    do j=i+1,nBasis
-                        IF(RandomHash(i).eq.RandomHash(j)) THEN
-                            CALL Stop_All(this_routine,"Random Hash incorrectly calculated")
-                        ENDIF
-                    enddo
                 enddo
-            ENDIF
-            !Now broadcast to all processors
-            CALL MPIBCast(RandomHash,nBasis)
+            enddo
         ENDIF
+        !Now broadcast to all processors
+        CALL MPIBCast(RandomHash,nBasis)
 
         IF(tHPHF) THEN
             !IF(tLatticeGens) CALL Stop_All("SetupParameters","Cannot use HPHF with model systems currently.")
@@ -3690,20 +3716,7 @@ MODULE FciMCParMod
                             !This is for compatibility with POPSFILE v.3, where MaxSpawned is calculated
                             !from the number in the POPSFILE.
                             !Set it up here for CCMC.
-
-            WRITE(6,*) "*Direct Annihilation* in use...Explicit load-balancing disabled."
-            ALLOCATE(ValidSpawnedList(0:nProcessors-1),stat=ierr)
-            !InitialSpawnedSlots is now filled later, once the number of particles wanted is known
-            !(it can change according to the POPSFILE).
-            ALLOCATE(InitialSpawnedSlots(0:nProcessors-1),stat=ierr)
-    !InitialSpawnedSlots now holds the first free position in the newly-spawned list for each processor, so it does not need to be reevaluated each iteration.
-            MaxSpawned=NINT(MemoryFacSpawn*InitWalkers)
-            Gap=REAL(MaxSpawned)/REAL(nProcessors)
-            do j=0,nProcessors-1
-                InitialSpawnedSlots(j)=NINT(Gap*j)+1
-            enddo
-    !ValidSpawndList now holds the next free position in the newly-spawned list, but for each processor.
-            ValidSpawnedList(:)=InitialSpawnedSlots(:)
+            Call SetupValidSpawned(InitWalkers)
         endif
 
         IF(TPopsFile) THEN
@@ -4599,7 +4612,7 @@ MODULE FciMCParMod
         use FciMCLoggingMOD , only : InitHistInitPops
         use SystemData , only : tRotateOrbs
         use CalcData , only : InitialPart
-        use CalcData , only : MemoryFacPart,MemoryFacAnnihil,MemoryFacSpawn
+        use CalcData , only : MemoryFacPart,MemoryFacAnnihil
         use constants , only : size_n_int
         INTEGER :: ierr,iunithead
         LOGICAL :: formpops,binpops
@@ -4625,22 +4638,8 @@ MODULE FciMCParMod
 
         if (tReadPops .and. (PopsVersion.lt.3) .and..not.tPopsAlreadyRead) then
 !Read in particles from multiple POPSFILES for each processor
-
             !Ugh - need to set up ValidSpawnedList here too...
-            WRITE(6,*) "*Direct Annihilation* in use...Explicit load-balancing disabled."
-            ALLOCATE(ValidSpawnedList(0:nProcessors-1),stat=ierr)
-            !InitialSpawnedSlots is now filled later, once the number of particles wanted is known
-            !(it can change according to the POPSFILE).
-            ALLOCATE(InitialSpawnedSlots(0:nProcessors-1),stat=ierr)
-    !InitialSpawnedSlots now holds the first free position in the newly-spawned list for each processor, so it does not need to be reevaluated each iteration.
-            MaxSpawned=NINT(MemoryFacSpawn*InitWalkers)
-            Gap=REAL(MaxSpawned)/REAL(nProcessors)
-            do j=0,nProcessors-1
-                InitialSpawnedSlots(j)=NINT(Gap*j)+1
-            enddo
-    !ValidSpawndList now holds the next free position in the newly-spawned list, but for each processor.
-            ValidSpawnedList(:)=InitialSpawnedSlots(:)
-
+            call SetupValidSpawned(InitWalkers)
             WRITE(6,*) "Reading in initial particle configuration from *OLD* POPSFILES..."
             CALL ReadFromPopsFilePar()
         ELSE
@@ -4664,21 +4663,7 @@ MODULE FciMCParMod
 
             MaxWalkersPart=NINT(MemoryFacPart*WalkerListSize)
             WRITE(6,"(A,I14)") " Memory allocated for a maximum particle number per node of: ",MaxWalkersPart
-            MaxSpawned=NINT(MemoryFacSpawn*WalkerListSize)
-!            WRITE(6,"(A,I14)") "Memory allocated for a maximum particle number per node for spawning of: ",MaxSpawned
-
-            WRITE(6,*) "*Direct Annihilation* in use...Explicit load-balancing disabled."
-            ALLOCATE(ValidSpawnedList(0:nProcessors-1),stat=ierr)
-            !InitialSpawnedSlots is now filled later, once the number of particles wanted is known
-            !(it can change according to the POPSFILE).
-            ALLOCATE(InitialSpawnedSlots(0:nProcessors-1),stat=ierr)
-    !InitialSpawnedSlots now holds the first free position in the newly-spawned list for each processor, so it does not need to be reevaluated each iteration.
-            Gap=REAL(MaxSpawned)/REAL(nProcessors)
-            do j=0,nProcessors-1
-                InitialSpawnedSlots(j)=NINT(Gap*j)+1
-            enddo
-    !ValidSpawndList now holds the next free position in the newly-spawned list, but for each processor.
-            ValidSpawnedList(:)=InitialSpawnedSlots(:)
+            Call SetupValidSpawned(WalkerListSize)
 
 !Put a barrier here so all processes synchronise
             CALL MPIBarrier(error)
@@ -4718,7 +4703,8 @@ MODULE FciMCParMod
                 CurrentH=>WalkVecH
             ENDIF
         
-            iHFProc=DetermineDetProc(iLutHF)   !This wants to return a value between 0 -> nProcessors-1
+            ! Get the (0-based) processor index for the HF det.
+            iHFProc = DetermineDetProc(HFDet)
             WRITE(6,*) "HF processor is: ",iHFProc
 
             TotParts(:)=0
@@ -5044,6 +5030,30 @@ MODULE FciMCParMod
 !        ENDIF
 
     END SUBROUTINE DeallocFCIMCMemPar
+
+   subroutine SetupValidSpawned(WalkerListSize)
+      use CalcData, only: MemoryFacSpawn
+      implicit none
+      integer, intent(in) :: WalkerListSize
+      integer ierr,i,j
+      real*8 Gap
+      MaxSpawned=NINT(MemoryFacSpawn*WalkerListSize)
+!            WRITE(6,"(A,I14)") "Memory allocated for a maximum particle number per node for spawning of: ",MaxSpawned
+            
+      WRITE(6,*) "*Direct Annihilation* in use...Explicit load-balancing disabled."
+      ALLOCATE(ValidSpawnedList(0:nProcessors-1),stat=ierr)
+      !InitialSpawnedSlots is now filled later, once the number of particles wanted is known
+      !(it can change according to the POPSFILE).
+      ALLOCATE(InitialSpawnedSlots(0:nProcessors-1),stat=ierr)
+!InitialSpawnedSlots now holds the first free position in the newly-spawned list for each processor, so it does not need to be reevaluated each iteration.
+      MaxSpawned=NINT(MemoryFacSpawn*InitWalkers)
+      Gap=REAL(MaxSpawned)/REAL(nProcessors)
+      do j=0,nProcessors-1
+          InitialSpawnedSlots(j)=NINT(Gap*j)+1
+      enddo
+!ValidSpawndList now holds the next free position in the newly-spawned list, but for each processor.
+      ValidSpawnedList(:)=InitialSpawnedSlots(:)
+   end subroutine
 
 END MODULE FciMCParMod
 

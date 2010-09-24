@@ -141,7 +141,8 @@ MODULE PopsfileMod
                         endif
                     enddo
 
-                    proc = DetermineDetProc(WalkerTemp)
+                    call decode_bit_det (TempnI, WalkerTemp)
+                    proc = DetermineDetProc (TempnI)
                     BatchRead(:,PopsSendList(proc)) = WalkerTemp(:)
                     PopsSendList(proc) = PopsSendList(proc) + 1
                     if(proc.ne.(nProcessors-1)) then
@@ -927,7 +928,7 @@ MODULE PopsfileMod
         
 #endif
             call decode_bit_det (TempnI, iLutTemp)
-            Proc=DetermineDetProc(iLutTemp)   !This wants to return a value between 0 -> nProcessors-1
+            Proc = DetermineDetProc(TempnI)
             IF((Proc.eq.iProcIndex).and.(abs(TempSign(1)).ge.iWeightPopRead)) THEN
                 CurrWalkers=CurrWalkers+1
                 call encode_bit_rep(CurrentDets(:,CurrWalkers),iLutTemp(0:NIfDBO),TempSign,0)   !Do not need to send a flag here...
@@ -1360,7 +1361,7 @@ MODULE PopsfileMod
         
 #endif
             call decode_bit_det (TempnI, iLutTemp)
-            Proc=0  !DetermineDetProc(iLutTemp)   !This wants to return a value between 0 -> nProcessors-1
+            Proc=0  !DetermineDetProc(TempnI)   !This wants to return a value between 0 -> nProcessors-1
             IF((Proc.eq.iProcIndex).and.(abs(TempSign(1)).ge.iWeightPopRead)) THEN
                 CurrWalkers=CurrWalkers+1
                 call encode_bit_rep(Dets(:,CurrWalkers),iLutTemp(0:NIfDBO),TempSign,0)   !Do not need to send a flag here...

@@ -23,8 +23,12 @@ LOGICAL :: TUnbiasPGeninProjE, tCheckHighestPopOnce
 LOGICAL :: tCheckHighestPop,tRestartHighPop,tChangeProjEDet
 LOGICAL :: tRotoAnnihil,tRegenDiagHEls,tSpawnAsDet,tFindGroundDet
 LOGICAL :: tTruncCAS,tTruncInitiator,tDelayTruncInit,tAddtoInitiator    !Truncation the FCIMC excitation space by CAS
-LOGICAL :: tInitIncDoubs,tWalkContGrow,tRandomiseHashOrbs,tAnnihilatebyRange,tRetestAddtoInit
+LOGICAL :: tInitIncDoubs,tWalkContGrow,tAnnihilatebyRange,tRetestAddtoInit
 logical :: tReadPopsRestart, tReadPopsChangeRef
+
+! Base hash values only on spatial orbitals
+! --> All dets with same spatial structure on the same processor.
+logical :: tSpatialOnlyHash
 
 INTEGER :: NWHTAY(3,10),NPATHS,NoMoveDets,NoMCExcits,IterTruncInit,InitiatorWalkNo,NShiftEquilSteps
 INTEGER :: NDETWORK,I_HMAX,I_VMAX,G_VMC_SEED,HApp,iFullSpaceIter
@@ -59,5 +63,7 @@ REAL*8 :: RHOEPS ! calculated from RHOEPSILON
 LOGICAL :: lNoTriples
 
 LOGICAL tFCIMCSerial
+
+LOGICAL tUseProcsAsNodes  !Set if we treat each processor as its own node.
 
 end module CalcData

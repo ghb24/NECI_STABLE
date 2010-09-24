@@ -19,6 +19,7 @@ MODULE AnnihilationMod
                         encode_sign, encode_flags, test_flag, set_flag, &
                         clr_flag, flag_parent_initiator, encode_part_sign, &
                         extract_part_sign, copy_flag
+    use csf_data, only: csf_orbital_mask
     IMPLICIT NONE
 
     contains
@@ -27,7 +28,7 @@ MODULE AnnihilationMod
     !   H Elements - send through logical to decide whether to create or not.
     !   Parallel spawned parts - create the ValidSpawnedList itself.
     !   Going to have to sort this out for the new packaged walkers - will have to package them up in this interface.
-    SUBROUTINE AnnihilationInterface(TotDets,MainParts,MainSign,MaxMainInd,SpawnDets,SpawnParts,MaxSpawnInd,iter_data)
+    SUBROUTINE AnnihilationInterface(TotDets,MainParts,MaxMainInd,SpawnDets,SpawnParts,MaxSpawnInd,iter_data)
         use constants, only: size_n_int
         use shared_alloc, only: shared_allocate_iluts, shared_deallocate
 !This is an interface routine to the Direct Annihilation routines.
@@ -45,8 +46,6 @@ MODULE AnnihilationMod
 !       TotDets             in: This is number of determinants specified in MainParticles on each process.
 !                           out: This is the new number of determinants, having been annihilated and merged with the
 !                                spawned list.
-!       MainSign(:)         This is the signed number of particles on the determinants specified in the equivalent
-!                           entry in the MainParticles array.
 !       SpawnParts(:,:)     This is the list of particles to attempt to annihilate. Unlike the Main list, this list
 !                           does *not* need to be ordered or sign coherent, and can also contain 'zero' sign particles.  Each particle contains its own sign
 !       MaxSpawnInd         This is the size of the SpawnParts array.
@@ -57,11 +56,11 @@ MODULE AnnihilationMod
         INTEGER, INTENT(INOUT) :: TotDets
         type(fcimc_iter_data), intent(inout) :: iter_data
         INTEGER(KIND=n_int), INTENT(INOUT) , TARGET :: MainParts(0:NIfTot,MaxMainInd),SpawnParts(0:NIfTot,MaxSpawnInd)
-        INTEGER, INTENT(INOUT) , TARGET :: MainSign(MaxMainInd)
+!        INTEGER, INTENT(INOUT) , TARGET :: MainSign(MaxMainInd)
         INTEGER, INTENT(INOUT) :: SpawnDets
         INTEGER :: ierr,i
         CHARACTER(len=*) , PARAMETER :: this_routine='AnnihilationInterface'
-        INTEGER, DIMENSION(lenof_sign) :: TempSign
+!        INTEGER, DIMENSION(lenof_sign) :: TempSign
         TYPE(timer),save :: Annihil_time
         integer(kind=n_int), pointer,save :: SpawnVecLocal(:,:)
         Annihil_time%timer_name='Annihilation interface'
@@ -102,11 +101,11 @@ MODULE AnnihilationMod
             ValidSpawnedList(i)=MaxSpawnInd
         enddo 
 
-        TempSign=0
-        do i=1,TotDets
-            TempSign(1)=MainSign(i)
-            call encode_sign(MainParts(:,i),TempSign)
-        enddo
+!        TempSign=0
+!        do i=1,TotDets
+!            TempSign(1)=MainSign(i)
+!            call encode_sign(MainParts(:,i),TempSign)
+!        enddo
 ! The SpawnParts already have their signs inside them
 
         MaxWalkersPart=MaxMainInd
@@ -117,13 +116,13 @@ MODULE AnnihilationMod
         SpawnedParts2 => SpawnVecLocal
 
         CALL DirectAnnihilation(TotDets, iter_data,.true.) !.true. for single processor annihilation
-        if(iProcIndex==root) then        
+!        if(iProcIndex==root) then        
 !Signs put back again into seperate array
-           do i=1,TotDets
-               call extract_sign(CurrentDets(:,i),TempSign)
-               MainSign(i)=TempSign(1)
-           enddo
-         endif
+!           do i=1,TotDets
+!               call extract_sign(CurrentDets(:,i),TempSign)
+!               MainSign(i)=TempSign(1)
+!           enddo
+!         endif
          call MPIBarrier(ierr)
 
         call halt_timer(Annihil_time)
@@ -200,8 +199,8 @@ MODULE AnnihilationMod
 !ValidSpawnedList(0:nProcessors-1) indicates the next free index for each processor (for spawnees from this processor)
 !  i.e. the list of spawned particles has already been arranged so that newly spawned particles are grouped according to the processor they go to.
 
-! sendcounts(1:) indicates the number of spawnees to send to each processor (1-based)
-! disps(1:) is the index into the spawned list of the beginning of the list to send to each processor (1-based)
+! sendcounts(1:) indicates the number of spawnees to send to each processor
+! disps(1:) is the index into the spawned list of the beginning of the list to send to each processor (0-based)
            sendcounts(1)=ValidSpawnedList(0)-1
            disps(1)=0
            if(nProcessors>1) then
@@ -210,13 +209,10 @@ MODULE AnnihilationMod
            endif
         else
 !Distribute the gaps on all procs
-!TODO:  This should use information from InitialSpawnedSlots for consistency.
-            Gap=REAL(MaxSpawned)/REAL(nProcessors)
-!            WRITE(6,*) "Gap: ",Gap
-
            do i=0,nProcessors-1
-               sendcounts(i+1)=ValidSpawnedList(i)-(NINT(Gap*i)+1)
-               disps(i+1)=NINT(Gap*i)
+               sendcounts(i+1)=ValidSpawnedList(i)-InitialSpawnedSlots(i)
+! disps is zero-based, but InitialSpawnedSlots is 1-based
+               disps(i+1)=InitialSpawnedSlots(i)-1
            enddo
         endif
 
@@ -941,59 +937,29 @@ MODULE AnnihilationMod
 !        CALL CheckOrdering(CurrentDets,CurrentSign(1:TotWalkers),TotWalkers,.true.)
 
     END SUBROUTINE InsertRemoveParts
-    
-    INTEGER FUNCTION DetermineDetProc(iLut)
-        use bit_reps, only: NIfDBO
-        use CalcData , only: tRandomiseHashOrbs
-        use FciMCData, only: RandomHash 
-        use constants, only: bits_n_int
-        INTEGER(KIND=n_int) :: iLut(0:NIfTot)
-        INTEGER :: i,j,Elecs!,TempDet(NEl),MurmurHash2Wrapper
-        INTEGER(KIND=int64) :: Summ!,RangeofBins,NextBin
 
-!        CALL DecodeBitDet(TempDet,iLut)
-!        i=MurmurHash2Wrapper(TempDet,NEl,13)
-!        write(6,*) i
-        IF(tRandomiseHashOrbs) THEN
-            Summ=0
-            Elecs=0
-            lp1: do i=0,NIfDBO
-                do j=0,bits_n_int-1
-                    IF(BTEST(iLut(i),j)) THEN
-                        Elecs=Elecs+1
-#ifdef __INT64
-                        Summ=(1099511628211_8*Summ)+RandomHash((i*64)+(j+1))*Elecs
-#else
-                        Summ=(1099511628211_8*Summ)+RandomHash((i*32)+(j+1))*Elecs
-#endif
-                        IF(Elecs.eq.NEl) EXIT lp1
-                    ENDIF
-                enddo
-            enddo lp1
-            DetermineDetProc=abs(mod(Summ,INT(nProcessors,8)))
+    pure function DetermineDetProc (nI) result(proc)
 
-        ELSE
-            Summ=0
-            Elecs=0
-            lp2: do i=0,NIfDBO
-                do j=0,bits_n_int-1
-                    IF(BTEST(iLut(i),j)) THEN
-                        Elecs=Elecs+1
-#ifdef __INT64
-                        Summ=(1099511628211_8*Summ)+((i*64)+(j+1))*Elecs
-#else
-                        Summ=(1099511628211_8*Summ)+((i*32)+(j+1))*Elecs
-#endif
-                        IF(Elecs.eq.NEl) EXIT lp2
-                    ENDIF
-                enddo
-            enddo lp2
-            DetermineDetProc=abs(mod(Summ,INT(nProcessors,8)))
-        ENDIF
-!        WRITE(6,*) iLut(0:niftot),DetermineDetProc,Summ,nProcessors
+        ! Depending on the Hash, determine which processor determinant nI
+        ! belongs to in the DirectAnnihilation scheme.
+        !
+        ! In:  nI   - Integer ordered list for the determinant
+        ! Out: proc - The (0-based) processor index.
 
-    END FUNCTION DetermineDetProc
+        integer, intent(in) :: nI(nel)
+        integer :: proc
+        
+        integer :: i
+        integer(int64) :: acc
 
+        acc = 0
+        do i = 1, nel
+            acc = (1099511628211_int64 * acc) + &
+                    (RandomHash(iand(nI(i), csf_orbital_mask)) * i)
+        enddo
+        proc = abs(mod(acc, int(nProcessors, 8)))
+
+    end function
     
     FUNCTION CreateHash(DetCurr)
         INTEGER :: DetCurr(NEl),i
