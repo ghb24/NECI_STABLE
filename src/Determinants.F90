@@ -3,7 +3,7 @@ MODULE Determinants
     use constants, only: dp
     use SystemData, only: BasisFN, tCSF, nel, G1, Brr, ECore, ALat, NMSH, &
                           nBasis, nBasisMax, tStoreAsExcitations, tHPHFInts, &
-                          tCSF, tCPMD
+                          tCSF, tCPMD, tPickVirtUniform
     use IntegralsData, only: UMat, FCK, NMAX
     use csf, only: det_to_random_csf, iscsf, csf_orbital_mask, &
                    csf_yama_bit, CSFGetHelement
@@ -227,12 +227,21 @@ contains
                 WRITE(6,*) "Will attempt to set up the symmetry again, but now in terms of spin orbitals"
                 WRITE(6,*) "Old excitation generators will not work"
                 WRITE(6,*) "I strongly suggest you check that the reference energy is correct."
-                CALL SpinOrbSymSetup() !.true.) 
+                !CALL SpinOrbSymSetup() !.true.) 
             ELSE
                 WRITE(6,*) "Symmetry and spin of orbitals correctly set up for excitation generators."
                 WRITE(6,*) "Simply transferring this into a spin orbital representation."
-                CALL SpinOrbSymSetup() !.false.) 
+                !CALL SpinOrbSymSetup() !.false.) 
             ENDIF
+
+            if (tCSF) then
+                call csf_sym_setup ()
+            elseif (tPickVirtUniform) then
+                call virt_uniform_sym_setup ()
+            else
+                ! Includes normal & HPHF
+                call SpinOrbSymSetup ()
+            endif
         ENDIF
 ! From now on, the orbitals are also contained in symlabellist2 and symlabelcounts2.
 ! These are stored using spin orbitals.

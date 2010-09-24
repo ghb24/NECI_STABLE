@@ -8,7 +8,8 @@ module spin_project
                         flag_parent_initiator
     use csf, only: csf_get_yamas, get_num_csfs, csf_coeff, random_spin_permute
     use constants, only: dp, bits_n_int, lenof_sign, n_int, end_n_int, int32
-    use FciMCData, only: TotWalkers, CurrentDets, fcimc_iter_data, yama_global
+    use FciMCData, only: TotWalkers, CurrentDets, fcimc_iter_data, &
+                         yama_global, excit_gen_store_type
     use DeterminantData, only: write_det
     use dSFMT_interface, only: genrand_real2_dSFMT
     use util_mod, only: choose, binary_search
@@ -355,8 +356,7 @@ contains
     end function get_spawn_helement_spin_proj
 
     subroutine generate_excit_spin_proj (nI, iLutI, nJ, iLutJ, exFlag, IC, &
-                                         ex, tParity, pGen, HElGen, tFilled, &
-                                         scratch1, scratch2, scratch3)
+                                         ex, tParity, pGen, HElGen, store)
 
         ! This returns an excitation of the source determiant (iLutI).
         !
@@ -369,16 +369,13 @@ contains
         integer, intent(in) :: nI(nel)
         integer(kind=n_int), intent(in) :: iLutI(0:niftot)
         integer, intent(in) :: exFlag
-        integer, intent(inout) :: scratch1(scratchsize)
-        integer, intent(inout) :: scratch2(scratchsize)
-        integer, intent(inout) :: scratch3(scratchsize)
         integer, intent(out) :: nJ(nel) 
         integer(kind=n_int), intent(out) :: iLutJ(0:niftot)
         integer, intent(out) :: ic, ex(2,2)
         real(dp), intent(out) :: pGen
-        logical, intent(inout) :: tFilled
         logical, intent(out) :: tParity
         HElement_t, intent(out) :: HElGen
+        type(excit_gen_store_type), intent(inout), target :: store
 
         integer :: nopen, nchoose, i
         integer :: nTmp(nel), iUnused
@@ -465,9 +462,7 @@ contains
         pGen = 1_dp / real(nchoose - 1, dp)
 
         ! Protect against compiler warnings
-        scratch1(1) = scratch1(1); scratch2(1) = scratch2(1)
-        scratch3(1) = scratch3(1); ex(1,1) = ex(1,1); IC = IC
-        iUnused = exFlag; tFilled = tFilled; tParity = tParity
+        ex(1,1) = ex(1,1); IC = IC; iUnused = exFlag; tParity = tParity
         HelGen = HelGen
 
     end subroutine generate_excit_spin_proj

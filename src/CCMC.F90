@@ -81,6 +81,7 @@ MODULE CCMC
       use CCMCData
       Use Logging, only: CCMCDebug
       use bit_reps, only: decode_bit_det
+      use FciMCData, only: fcimc_excit_gen_store
         IMPLICIT NONE
         INTEGER :: VecSlot,i,j,k,l,CopySign
         INTEGER :: nJ(NEl),IC,DetCurr(NEl)
@@ -88,8 +89,8 @@ MODULE CCMC
         INTEGER(KIND=n_int) :: iLutnJ(0:NIfTot)
         REAL*8 :: Prob,rat,HDiagCurr,r
         INTEGER :: iDie,WalkExcitLevel,Proc
-        INTEGER :: TotWalkersNew,Ex(2,2),Scratch1(ScratchSize),Scratch2(ScratchSize)
-        LOGICAL :: tParity,tFilled
+        INTEGER :: TotWalkersNew,Ex(2,2)
+        LOGICAL :: tParity
         
 ! We select up to nEl excitors at a time and store them here
         INTEGER(KIND=n_int) :: SelectedExcitors(0:NIfTot,nEl)     
@@ -97,9 +98,6 @@ MODULE CCMC
 
 ! Temporary Storage
         INTEGER(KIND=n_int) :: iLutnI(0:nIfTot)
-
-        ! Unused
-        integer :: scratch3(scratchsize)
 
         ! The sign of the resultant composite
         integer, dimension(lenof_sign) :: iSgn
@@ -557,15 +555,15 @@ MODULE CCMC
 
 
 
-               tFilled=.false.     !This is for regenerating excitations from the same determinant multiple times. There will be a time saving if we can store the excitation generators temporarily.
+               fcimc_excit_gen_store%tFilled = .false.     !This is for regenerating excitations from the same determinant multiple times. There will be a time saving if we can store the excitation generators temporarily.
 
 !Here, we spawn each particle on the determinant in a seperate attempt.
 !we are simply looping over all the particles on the determinant
 !This will only be a help if most determinants are multiply occupied.
 
                call gen_rand_excit (DetCurr, iLutnI, nJ, iLutnJ, exFlag, IC, &
-                                    Ex, tParity, Prob, HElGen, tFilled, Scratch1, &
-                                    Scratch2, Scratch3)
+                                    Ex, tParity, Prob, HElGen, &
+                                    fcimc_excit_gen_store)
                if(.not.IsNullDet(nJ)) then  !Check it hasn't given us a null determinant as it couldn't find one in a sensible time.
 !We need to calculate the bit-representation of this new child. This can be done easily since the ExcitMat is known.
                   IF(.not.tHPHF) CALL FindExcitBitDet(iLutnI,iLutnJ,IC,Ex)
@@ -1059,14 +1057,15 @@ MODULE CCMC
 
 LOGICAL FUNCTION GetNextSpawner(S,iDebug)
    use CCMCData
-   use FciMCData, only: pDoubles,tTruncSpace
+   use FciMCData, only: pDoubles, tTruncSpace
+   use SymExcitDataMod, only: excit_gen_store_type
    use FciMCParMod, only: CheckAllowedTruncSpawn
    use SystemData, only : nEl
    use GenRandSymExcitNUMod , only : gen_rand_excit, scratchsize
    use SymExcit3, only: GenExcitations3
    use DetBitOps, only: FindExcitBitDet
    IMPLICIT NONE
-   TYPE(Spawner) S
+   TYPE(Spawner), target :: S
    INTEGER iDebug
 
    LOGICAL tFilled
@@ -1075,8 +1074,12 @@ LOGICAL FUNCTION GetNextSpawner(S,iDebug)
 
     ! unused
     integer(kind=n_int) :: iLutnJ(0:nifTot)
-    integer :: scratch3(scratchsize)
+    type(excit_gen_store_type) :: store
     HElement_t :: HElGen
+
+    ! Init store
+    store%ClassCountOcc => S%scratch1
+    store%ClassCountUnocc => S%scratch2
 
    tDone=.false.
    S%iIndex=S%iIndex+1
@@ -1085,11 +1088,10 @@ LOGICAL FUNCTION GetNextSpawner(S,iDebug)
       if(S%iIndex.gt.S%nSpawnings) THEN
          GetNextSpawner=.false.
       else
-         tFilled=S%iIndex.gt.1     !This is for regenerating excitations from the same determinant multiple times. There will be a time saving if we can store the excitation generators temporarily.
+         store%tFilled = S%iIndex.gt.1     !This is for regenerating excitations from the same determinant multiple times. There will be a time saving if we can store the excitation generators temporarily.
          call gen_rand_excit (S%C%DetCurr, S%C%iLutDetCurr, S%nJ, iLutnJ, &
                               S%exFlag, S%iExcitLevel, S%ExcitMat, tParity, &
-                              S%dProbSpawn, HElGen, tFilled, S%Scratch1, S%Scratch2, &
-                              scratch3)
+                              S%dProbSpawn, HElGen, store)
          GetNextSpawner=.true.
          S%dProbSpawn=S%dProbSpawn*S%nSpawnings
       endif

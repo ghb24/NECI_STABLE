@@ -4,6 +4,7 @@ MODULE System
     use SystemData
     use CalcData, only: tRotoAnnihil
     use sort_mod
+    use SymExcitDataMod, only: tBuildOccVirtList
 
     IMPLICIT NONE
 
@@ -16,6 +17,9 @@ MODULE System
       USE SymData, only: tAbelianFastExcitGen
       USE SymData, only: tStoreStateList
       implicit none
+
+      ! Default from SymExcitDataMod
+      tBuildOccVirtList = .false.
 
 !     SYSTEM defaults - leave these as the default defaults
 !     Any further addition of defaults should change these after via
@@ -736,6 +740,7 @@ MODULE System
                         ! 3rd generation of random excitation generators
                         ! (symrandexcit3.F90)
                         tPickVirtUniform = .true.
+                        tBuildOccVirtList = .true.
                     case default
                         call Stop_All("ReadSysInp",trim(w)//" not a valid keyword")
                 end select

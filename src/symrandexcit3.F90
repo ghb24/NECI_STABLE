@@ -14,15 +14,16 @@ module symrandexcit3
                           tNoSymGenRandExcits, nOccAlpha, nOccBeta
     use SymExcitDataMod, only: ScratchSize, SpinOrbSymLabel, SymInvLabel, &
                                SymLabelList2, SymLabelCounts2, pDoubNew, &
-                               OrbClassCount
+                               OrbClassCount, ScratchSize1, ScratchSize2, &
+                               ScratchSize3
     use SymData, only: nSymLabels
     use dSFMT_interface, only: genrand_real2_dSFMT
     use GenRandSymExcitNUMod, only: RandExcitSymLabelProd, ClassCountInd, &
-                                    CreateSingleExcit, CreateExcitLattice
-    use FciMCData, only: pDoubles, iter
+                                    CreateSingleExcit, CreateExcitLattice, &
+                                    init_excit_gen_store,clean_excit_gen_store
+    use FciMCData, only: pDoubles, iter, excit_gen_store_type
     use bit_reps, only: niftot
     use constants, only: dp, n_int, bits_n_int
-    use Determinants, only: write_det
     use timing
     use Parallel
     use util_mod, only: binary_search_first_ge
@@ -31,8 +32,7 @@ module symrandexcit3
 contains
 
     subroutine gen_rand_excit3 (nI, ilutI, nJ, ilutJ, exFlag, IC, ExcitMat, &
-                                tParity, pGen, HElGen, tFilled, CCOcc, &
-                                CCUnocc, pair_list)
+                                tParity, pGen, HElGen, store)
 
         integer, intent(in) :: nI(nel), exFlag
         integer(n_int), intent(in) :: ilutI(0:niftot)
@@ -40,11 +40,8 @@ contains
         integer(n_int), intent(out) :: ilutJ(0:niftot)
         logical, intent(out) :: tParity
         real(dp), intent(out) :: pgen
-        integer, intent(inout) :: CCOcc(ScratchSize)
-        integer, intent(inout) :: CCUnocc(ScratchSize)
-        integer, intent(inout) :: pair_list(ScratchSize)
-        logical, intent(inout) :: tFilled
         HElement_t, intent(out) :: HElGen
+        type(excit_gen_store_type), intent(inout), target :: store
 
         real(dp) :: r
         character(*), parameter :: this_routine = 'gen_rand_excit3'
@@ -63,9 +60,12 @@ contains
         ! Count occupied/unoccupied orbitals in each symmetry class. This
         ! is an O[nel] operation. For efficiency, store these arrays
         ! between invocations of the excitation generator.
-        if (.not. tFilled) then
-            call construct_class_counts (nI, CCOcc, CCUnocc, pair_list)
-            tFilled = .true.
+        if (.not. store%tFilled) then
+            write(6,*) 'filling'
+            call construct_class_counts (nI, store%ClassCountOcc, &
+                                             store%ClassCountUnocc, &
+                                             store%scratch3)
+            store%tFilled = .true.
         endif
 
         ! If exFlag is 3, select singles or doubles randomly, according
@@ -90,10 +90,12 @@ contains
 
         ! Call the actual single/double excitation generators.
         if (IC == 2) then
-            pGen = gen_double (nI, nJ, iLutI, ExcitMat, tParity, CCUnocc)
+            pGen = gen_double (nI, nJ, iLutI, ExcitMat, tParity, &
+                               store%ClassCountUnocc)
         else
-            pGen = gen_single (nI, nJ, ilutI, ExcitMat, tParity, CCocc, &
-                               CCUnocc, pair_list)
+            pGen = gen_single (nI, nJ, ilutI, ExcitMat, tParity, &
+                               store%ClassCountOcc, store%ClassCountUnocc, &
+                               store%scratch3)
         endif
 
     end subroutine
@@ -397,23 +399,18 @@ contains
         integer :: ind_alpha, ind_beta, i, ind, tot
 
         CCOcc = 0
-        CCUnocc = OrbClassCount
-
         if (tNoSymGenRandExcits) then
             ind_alpha = ClassCountInd(1,0,0)
             ind_beta = ClassCountInd(2,0,0)
             CCOcc(ind_alpha) = nOccAlpha
             CCOcc(ind_beta) = nOccBeta
-            CCUnocc(ind_alpha) = CCUnocc(ind_alpha) - nOccAlpha
-            CCUnocc(ind_beta) = CCUnocc(ind_beta) - nOccBeta
         else
             do i = 1, nel
                 ind = ClasscountInd(nI(i))
-
                 CCOcc(ind) = CCOcc(ind) + 1
-                CCUnocc(ind) = CCUnocc(ind) - 1
             enddo
         endif
+        CCUnocc = OrbClassCount - CCOcc
 
         ! Store a -1 to indicate to the singles routine that this 
         ! structure hasn't been filled in yet.
@@ -533,10 +530,9 @@ contains
     IMPLICIT NONE
     INTEGER :: i,Iterations,exFlag,nI(NEl),nJ(NEl),IC,ExcitMat(2,2),kx,ky,kz,ktrial(3)
     REAL*8 :: pDoub,pGen,AverageContrib,AllAverageContrib
-    INTEGER :: ClassCount2(ScratchSize),Scratch1(ScratchSize),Scratch2(ScratchSize),scratch3(scratchsize)
     INTEGER(KIND=n_int) :: iLutnJ(0:NIfTot),iLut(0:NIfTot)
-    INTEGER :: ClassCountUnocc2(ScratchSize),iExcit
-    LOGICAL :: tParity,tFilled,IsMomAllowedDet,test
+    INTEGER :: iExcit
+    LOGICAL :: tParity,IsMomAllowedDet,test
     
     ! Accumulator arrays. These need to be allocated on the heap, or we
     ! get a segfault by overflowing the stack using ifort
@@ -552,6 +548,7 @@ contains
     INTEGER , ALLOCATABLE :: EXCITGEN(:)
     INTEGER :: ierr,Ind1,Ind2,Ind3,Ind4,iMaxExcit,nStore(6),nExcitMemLen,j,k,l,DetNum,DetNumS,Lz,excitcount,ForbiddenIter,error, iter_tmp
     HElement_t :: HElGen
+    type(excit_gen_store_type) :: store
     logical :: brillouin_tmp(2)
     type(timer), save :: test_timer
 
@@ -624,6 +621,9 @@ lp2: do while(.true.)
     allocate (SinglesCount(nbasis, nbasis))
     allocate (AllSinglesCount(nbasis, nbasis))
 
+    ! Initialise the excitation generator store
+    call init_excit_gen_store (store)
+
     ! Zero the accumulators
     DoublesHist = 0
     SinglesHist = 0
@@ -636,10 +636,10 @@ lp2: do while(.true.)
 
     CALL EncodeBitDet(nI,iLut)
 
-    tFilled=.false.
-    Scratch1 = 0
-    Scratch2 = 0
-    scratch3 = 0
+    store%tFilled = .false.
+    store%ClassCountOcc = 0
+    store%ClassCountUnocc = 0
+    store%scratch3 = 0
 
     AverageContrib=0.D0
     AllAverageContrib=0.D0
@@ -660,8 +660,7 @@ lp2: do while(.true.)
         ENDIF
 
         call gen_rand_excit3 (nI, iLut, nJ, iLutnJ, exFlag, IC, ExcitMat, &
-                             tParity, pGen, HElGen, tFilled, Scratch1, Scratch2, &
-                             Scratch3)
+                             tParity, pGen, HElGen, store)
         IF(nJ(1).eq.0) THEN
 !            ForbiddenIter=ForbiddenIter+1
             CYCLE
@@ -822,12 +821,13 @@ lp2: do while(.true.)
         CLOSE(9)
         WRITE(6,*) DetNumS," Single excitations found from nI"
         IF((DetNum+DetNumS).ne.ExcitCount) THEN
-            CALL construct_class_counts(nI,ClassCount2,ClassCountUnocc2,&
-                                        scratch3)
+            CALL construct_class_counts(nI, store%ClassCountOcc, &
+                                            store%ClassCountUnocc, &
+                                            store%scratch3)
             WRITE(6,*) "Total determinants = ", ExcitCount
-            WRITE(6,*) "ClassCount2(:)= ",ClassCount2(:)
+            WRITE(6,*) "ClassCount2(:)= ", store%ClassCountOcc
             WRITE(6,*) "***"
-            WRITE(6,*) "ClassCountUnocc2(:)= ",ClassCountUnocc2(:)
+            WRITE(6,*) "ClassCountUnocc2(:)= ", store%ClassCountUnocc
             CALL Stop_All("TestGenRandSymExcitNU","Not all excitations accounted for...")
         ENDIF
     ENDIF
@@ -839,8 +839,26 @@ lp2: do while(.true.)
                 SinglesHist, AllSinglesHist, &
                 DoublesCount, AllDoublesCount, &
                 SinglesCount, AllSinglesCount)
+    call clean_excit_gen_store (store)
 
     END SUBROUTINE
 
 end module
+
+
+
+! N.B. This is outside the module *sigh*
+subroutine virt_uniform_sym_setup ()
+
+    use SymExcitDataMod, only: ScratchSize, ScratchSize3
+    implicit none
+
+    ! We use the third scratch array to store data for single
+    ! excitations
+
+    call SpinOrbSymSetup ()
+
+    ScratchSize3 = ScratchSize
+
+end subroutine
 

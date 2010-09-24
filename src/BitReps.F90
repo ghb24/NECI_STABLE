@@ -6,6 +6,10 @@ module bit_reps
     use constants, only: lenof_sign, end_n_int, bits_n_int, n_int
     use DetBitOps, only: count_open_orbs
     use bit_rep_data
+    use SymExcitDataMod, only: excit_gen_store_type, tBuildOccVirtList, &
+                               OrbClassCount, ScratchSize, SymLabelList2, &
+                               SymLabelCounts2
+    use sym_general_mod, only: ClassCountInd
     implicit none
 
     ! Structure of a bit representation:
@@ -104,15 +108,20 @@ contains
          
     end subroutine
 
-    subroutine extract_bit_rep (ilut, nI, sgn, flags)
+    subroutine extract_bit_rep (ilut, nI, sgn, flags, store)
         
         ! Extract useful terms out of the bit-representation of a walker
 
         integer(n_int), intent(in) :: ilut(0:nIfTot)
         integer, intent(out) :: nI(nel), flags
         integer, dimension(lenof_sign), intent(out) :: sgn
+        type(excit_gen_store_type), intent(inout), optional :: store
 
-        call decode_bit_det (nI, ilut)
+        if (tBuildOccVirtList .and. present(store)) then
+            call decode_bit_det_lists (nI, ilut, store)
+        else
+            call decode_bit_det (nI, ilut)
+        endif
 
         sgn = iLut(NOffSgn:NOffSgn+lenof_sign-1)
         IF(NifFlag.eq.1) THEN
@@ -300,6 +309,58 @@ contains
         iLut(0:NIfDBO) = Det
 
     end subroutine encode_det
+
+    subroutine decode_bit_det_lists (nI, iLut, store)
+
+        ! This routine decodes a determinant in bit form and constructs
+        ! the natural ordered NEl integer representation of the det.
+        !
+        ! It also constructs lists of the occupied and unoccupied orbitals
+        ! within a symmetry.
+
+        integer(n_int), intent(in) :: iLut(0:niftot)
+        integer, intent(out) :: nI(nel)
+        type(excit_gen_store_type), intent(inout) :: store
+        integer :: i, j, elec, orb, ind, virt(ScratchSize)
+
+        ! Initialise the class counts
+        store%ClassCountOcc = 0
+        virt = 0
+
+        elec = 0
+        do i = 0, NIfD
+            do j = 0, end_n_int
+                orb = (i * bits_n_int) + (j + 1)
+                ind = ClassCountInd(orb)
+                if (btest(iLut(i), j)) then
+                    !An electron is at this orbital
+                    elec = elec + 1
+                    nI(elec) = orb
+
+                    ! Update class counts
+                    store%ClassCountOcc(ind) = store%ClassCountOcc(ind) + 1
+
+                    ! Store orbital in list of occ. orbs.
+                    store%occ_list(store%ClassCountOcc(ind), ind) = orb
+
+                    if (elec == nel) exit
+                else
+                    ! Update count
+                    virt(ind) = virt(ind)+1
+
+                    ! Store orbital in list of unocc. orbs.
+                    store%virt_list(virt(ind), ind) = orb
+                endif
+            enddo
+            if (elec == nel) exit
+        enddo
+
+        ! Give final class count
+        store%ClassCountUnocc = OrbClassCount - store%ClassCountOcc
+
+    end subroutine
+
+
 
     subroutine decode_bit_det (nI, iLut)
 

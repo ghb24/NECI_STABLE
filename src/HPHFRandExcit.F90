@@ -15,7 +15,7 @@ MODULE HPHFRandExcitMod
                                     CalcNonUniPGen, ScratchSize 
     use DetBitOps, only: DetBitLT, DetBitEQ, FindExcitBitDet, &
                          FindBitExcitLevel,MaskAlpha,MaskBeta
-    use FciMCData, only: pDoubles
+    use FciMCData, only: pDoubles, excit_gen_store_type
     use constants, only: dp,n_int
     use HElem
     use sltcnd_mod, only: sltcnd_excit
@@ -27,171 +27,21 @@ MODULE HPHFRandExcitMod
 
     contains
 
-!nI will always be the determinant with the first open-shell having an alpha spin-orbital occupied.
-    SUBROUTINE GenRandHPHFExcit(nI,iLutnI,nJ,iLutnJ,pDoub,exFlag,pGen)
-        INTEGER :: nI(NEl),nJ(NEl),exFlag,ExcitMat(2,2),IC
-        INTEGER(KIND=n_int) :: iLutnI(0:NIfTot),iLutnJ(0:NIfTot)
-        INTEGER(KIND=n_int) :: iLutnJ2(0:NIfTot),iLutnI2(0:NIfTot)
-        INTEGER :: nI2(NEl),nJ2(NEl),Ex2(2,2),ExcitLevel
-        REAL*8 :: pDoub,pGen,r,pGen2
-        INTEGER :: ClassCount2(ScratchSize),ClassCount3(ScratchSize)
-        integer :: arrunused(scratchsize)
-        INTEGER :: ClassCountUnocc2(ScratchSize),ClassCountUnocc3(ScratchSize)
-        LOGICAL :: tGenClassCountnI,tGenClassCountnI2,TestClosedShellDet,tParity,tSign,tSwapped
-
-        HElement_t :: HElGen    !Unused variable
-
-!        Count=Count+1
-!        WRITE(6,*) "COUNT: ",Count
-!        CALL FLUSH(6)
-        tGenClassCountnI=.false.
-        tGenClassCountnI2=.false.
-
-
-!Test is nI is a closed-shell determinant
-        IF(TestClosedShellDet(iLutnI)) THEN
-!If determinant is closed shell, then all probabilities are the same, so P=2*Prob since both spins are equally likely to be generated (as long as generates open shell HPHF).
-!Just need to return the right spin.
-
-            call gen_rand_excit (nI, iLutni, nJ, iLutnJ, exFlag, Ic, &
-                                 ExcitMat, tParity, pGen, HElGen, tGenClassCountnI, &
-                                 ClassCount2, ClassCountUnocc2, arrunused)
-                                 
-            IF(IsNullDet(nJ)) RETURN
-            
-!Create bit representation of excitation - iLutnJ
-            CALL FindExcitBitDet(iLutnI,iLutnJ,IC,ExcitMat)
-
-            IF(IC.eq.2) THEN
-                IF(.not.TestClosedShellDet(iLutnJ)) THEN
-                    pGen=pGen*2.D0
-                    CALL ReturnAlphaOpenDet(nJ,nJ2,iLutnJ,iLutnJ2,.true.,.true.,tSwapped)
-                ELSE
-!Excitation is closed shell: Closed shell -> Closed Shell
-                    RETURN
-                ENDIF
-            ELSE
-!Excitation is definitely open-shell
-                pGen=pGen*2.D0
-                CALL ReturnAlphaOpenDet(nJ,nJ2,iLutnJ,iLutnJ2,.true.,.true.,tSwapped)
-            ENDIF
-
-            RETURN
-        ENDIF
-
-!If det is open-shell we choose one of the determinants with 50% chance to create an excitation from.
-        r = genrand_real2_dSFMT()
-!This will find the full ordered form for nI2 and its bit representation. (Is this always needed?)
-        CALL FindDetSpinSym(nI,nI2,NEl)
-        CALL FindExcitBitDetSym(iLutnI,iLutnI2)
-
-        IF(r.lt.0.D5) THEN
-            ! Excite to nJ from nI
-            call gen_rand_excit (nI, iLutni, nJ, iLutnJ, exFlag, Ic, &
-                                 ExcitMat, tParity, pGen, HElGen, tGenClassCountnI, &
-                                 ClassCount2, ClassCountUnocc2, arrunused)
-            IF(IsNullDet(nJ)) RETURN
-
-!Find Bit-representation of excitation.
-        CALL FindExcitBitDet(iLutnI,iLutnJ,IC,ExcitMat)
-        IF(TestClosedShellDet(iLutnJ)) THEN
-!Excitation created is a closed shell determinant. Both determinants are connected to it, and crucially with the same probability. This means that the final pGen is unchanged.
-            RETURN
-        ENDIF
-
-!We may have been able to excite from nI2 to this determinant. see if it in connected.
-        ExcitLevel = FindBitExcitLevel(iLutnI2, iLutnJ, 2)
-        IF((ExcitLevel.le.2).and.(ExcitLevel.ne.0)) THEN
-            Ex2(1,1)=ExcitLevel
-            CALL GetBitExcitation(iLutnI2,iLutnJ,Ex2,tSign)
-!                CALL GetExcitation(nI2,nJ,NEl,Ex2,tSign)
-            tGenClassCountnI2=.true.
-            CALL construct_class_counts(nI2,ClassCount3,ClassCountUnocc3)
-            CALL CalcNonUniPGen(nI2,Ex2,ExcitLevel,ClassCount3,ClassCountUnocc3,pDoub,pGen2)
-            pGen=pGen+pGen2
-        ENDIF
-
-    ELSE
-!Excite from the spin-pair of nI (called nI2)
-
-!            CALL DecodeBitDet(nI2,iLutnI2)
-!            CALL FindDetSpinSym(nI,nI2,NEl)
-        call gen_rand_excit (nI2, iLutni2, nJ, iLutnJ, exFlag, Ic, ExcitMat, &
-                             tParity, pGen, HElGen, tGenClassCountnI2, ClassCount3, &
-                             ClassCountUnocc3, arrunused)
-        IF(IsNullDet(nJ)) RETURN
-
-!Find Bit-representation of excitation.
-        CALL FindExcitBitDet(iLutnI2,iLutnJ,IC,ExcitMat)
-            IF(TestClosedShellDet(iLutnJ)) THEN
-!Excitation created is a closed shell determinant. Both determinants are connected to it, and crucially with the same probability. This means that the final pGen is unchanged.
-                RETURN
-            ENDIF
-
-!We know we have gone from open-shell HPHF to open-shell HPHF. We need all four pGens.
-!We have nI2 -> nJ. Find nI -> nJ. First, we need to know whether it is connected or not.
-            ExcitLevel = FindBitExcitLevel(iLutnI, iLutnJ, 2)
-            IF((ExcitLevel.le.2).and.(ExcitLevel.ne.0)) THEN
-                Ex2(1,1)=ExcitLevel
-                CALL GetBitExcitation(iLutnI,iLutnJ,Ex2,tSign)
-!                CALL GetExcitation(nI,nJ,NEl,Ex2,tSign)
-!We need to calculate the new classcount arrays for the original determinant passed in.
-                tGenClassCountnI=.true.
-                CALL construct_class_counts(nI,ClassCount2,ClassCountUnocc2)
-                CALL CalcNonUniPGen(nI,Ex2,ExcitLevel,ClassCount2,ClassCountUnocc2,pDoub,pGen2)
-                pGen=pGen+pGen2
-            ENDIF
-
-        ENDIF
-
-!We also need to look at how we *could* have excited to the spin-coupled determinant of nJ.
-        CALL FindExcitBitDetSym(iLutnJ,iLutnJ2)
-        CALL FindDetSpinSym(nJ,nJ2,NEl)
-
-!Firstly, nI2 -> nJ2
-        ExcitLevel = FindBitExcitLevel(iLutnI2, iLutnJ2, 2)
-        IF((ExcitLevel.le.2).and.(ExcitLevel.ne.0)) THEN
-            Ex2(1,1)=ExcitLevel
-            CALL GetBitExcitation(iLutnI2,iLutnJ2,Ex2,tSign)
-!            CALL GetExcitation(nI2,nJ2,NEl,Ex2,tSign)
-            IF(.not.tGenClassCountnI2) THEN
-!                tGenClassCountnI2=.true.
-                CALL construct_class_counts(nI2,ClassCount3,ClassCountUnocc3)
-            ENDIF
-            CALL CalcNonUniPGen(nI2,Ex2,ExcitLevel,ClassCount3,ClassCountUnocc3,pDoub,pGen2)
-            pGen=pGen+pGen2
-        ENDIF
-
-!Finally, nI -> nJ2
-        ExcitLevel = FindBitExcitLevel(iLutnI, iLutnJ2, 2)
-        IF((ExcitLevel.le.2).and.(ExcitLevel.ne.0)) THEN
-            Ex2(1,1)=ExcitLevel
-            CALL GetBitExcitation(iLutnI,iLutnJ2,Ex2,tSign)
-!            CALL GetExcitation(nI,nJ2,NEl,Ex2,tSign)
-            IF(.not.tGenClassCountnI) THEN
-!                tGenClassCountnI=.true.
-                CALL construct_class_counts(nI,ClassCount2,ClassCountUnocc2)
-            ENDIF
-            CALL CalcNonUniPGen(nI,Ex2,ExcitLevel,ClassCount2,ClassCountUnocc2,pDoub,pGen2)
-            pGen=pGen+pGen2
-        ENDIF
-
-        pGen=pGen/2.D0  !Normalize pGens.
-
-!Excitation is open-shell. We need to find the correct spin-pair to send back. 
-        CALL ReturnAlphaOpenDet(nJ,nJ2,iLutnJ,iLutnJ2,.false.,.false.,tSwapped)
-
-    END SUBROUTINE GenRandHPHFExcit
-
-!This routine will be faster than the one above - it only generates excitations from one of the determinants in the HPHF function to be excited from.
-!This relies on the fact that both determinants in the HPHF function to be excited from will always be connected to all excited HPHF functions.
-!nI will always need to be a unique choice of determinant within each HPHF function, and then we never actually need to refer to its spin-coupled partner.
-!If tGenMatEl is true, then the hamiltonian matrix element between the two determinants will be calculated, and pGen will actually return pGen/HEl.
-
     subroutine gen_hphf_excit (nI, iLutnI, nJ, iLutnJ, exFlag, IC, ExcitMat, &
-                               tParity, pGen, HEl, tFilled, ClassCount2, &
-                               ClassCountUnocc2, scratch)
+                               tParity, pGen, HEl, store)
+
         use FciMCData, only: tGenMatHEl
+
+        ! Generate an HPHF excitation using only one of the determinants in 
+        ! the source HPHF function.
+        !
+        ! --> Relies on both determinants in the HPHF function being connected
+        !     to all excited HPHF functions.
+        ! --> nI will always need to be a unique choice of determinant within
+        !     each HPHF function, and then we nevver need to (explicitly) 
+        !     refering to its spin-coupled partner.
+        ! --> If tGenMatEl is true, the Hamiltonian matrix element between the
+        !     two determinants will be calculated, and returned in Hel.
 
         integer, intent(in) :: nI(nel) 
         integer(kind=n_int), intent(in) :: iLutnI(0:niftot)
@@ -199,13 +49,10 @@ MODULE HPHFRandExcitMod
         integer, intent(out) :: nJ(nel)
         integer(kind=n_int), intent(out) :: iLutnJ(0:niftot)
         integer, intent(out) :: IC, ExcitMat(2,2)
-        integer, intent(inout) :: ClassCount2(ScratchSize)
-        integer, intent(inout) :: ClasscountUnocc2(ScratchSize)
-        integer, intent(inout) :: scratch(ScratchSize) ! Not used
         logical, intent(out) :: tParity ! Not used
-        logical, intent(inout) :: tFilled
         real*8, intent(out) :: pGen
         HElement_t, intent(out) :: HEl
+        type(excit_gen_store_type), intent(inout), target :: store
 
         integer(kind=n_int) :: iLutnJ2(0:niftot)
         integer :: openOrbsI, openOrbsJ, nJ2(nel), ex2(2,2), excitLevel 
@@ -218,8 +65,7 @@ MODULE HPHFRandExcitMod
         tParity = .false.
 
         call gen_rand_excit (nI, iLutnI, nJ, iLutnJ, exFlag, IC, ExcitMat, &
-                             tSignOrig, pGen, HEl, tFilled, Classcount2, &
-                             ClassCountUnocc2, scratch)
+                             tSignOrig, pGen, HEl, store)
 
 !        Count=Count+1
 !        WRITE(6,*) "COUNT: ",Count
@@ -276,7 +122,8 @@ MODULE HPHFRandExcitMod
 !                    CALL GetExcitation(nI,nJ2,NEl,Ex2,tSign)
                     CALL GetBitExcitation(iLutnI,iLutnJ2,Ex2,tSign)
                 ENDIF
-                CALL CalcNonUniPGen(nI,Ex2,ExcitLevel,ClassCount2,ClassCountUnocc2,pDoubles,pGen2)    
+                CALL CalcNonUniPGen(nI, Ex2, ExcitLevel, store%ClassCountOcc,&
+                                    store%ClassCountUnocc, pDoubles, pGen2)
 !!We cannot guarentee that the pGens are going to be the same - in fact, generally, they wont be.
                 pGen=pGen+pGen2
 

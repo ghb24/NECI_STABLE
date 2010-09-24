@@ -31,7 +31,7 @@ MODULE GenRandSymExcitNUMod
                           tNoSymGenRandExcits, Arr, nMax, tCycleOrbs, &
                           nOccAlpha, nOccBeta, ElecPairs, MaxABPairs, &
                           tKPntSym, lzTot, tNoBrillouin, tUseBrillouin
-    use FciMCData, only: pDoubles, iter
+    use FciMCData, only: pDoubles, iter, excit_gen_store_type
     use Parallel
     use IntegralsData, only: UMat
     use Determinants, only: get_helement, write_det
@@ -45,19 +45,14 @@ MODULE GenRandSymExcitNUMod
     use bit_reps, only: NIfTot
     use sym_mod, only: mompbcsym, GetLz
     use timing
+    use sym_general_mod
     IMPLICIT NONE
 !    INTEGER , SAVE :: Counter=0
-
-    interface ClassCountInd
-        module procedure ClassCountInd_full
-        module procedure ClassCountInd_orb
-    end interface
 
     contains
 
     subroutine gen_rand_excit (nI, ilut, nJ, ilutnJ, exFlag, IC, ExcitMat, &
-                               tParity, pGen, HElGen, tFilled, ClassCount2, &
-                               ClassCountUnocc2, scratchUnused)
+                               tParity, pGen, HElGen, store)
 
         ! This routine is the same as GenRandSymexcitNu, but you can pass in 
         ! the class count arrays so that they do not have to be recalculated 
@@ -66,20 +61,15 @@ MODULE GenRandSymExcitNUMod
         ! and tFilled=T.
         ! The two arrays want to be integers, both of size (1, 1:nSymLabels)
 
-        integer, intent(in) :: nI(nel)
-        integer(kind=n_int), intent(in) :: iLut(0:niftot)
-        integer, intent(in) :: exFlag
-        integer, intent(out) :: nJ(nel)
-        integer, intent(out) :: IC, ExcitMat(2,2)
-        integer, intent(inout) :: ClassCount2(ScratchSize)
-        integer, intent(inout) :: ClasscountUnocc2(ScratchSize)
+        integer, intent(in) :: nI(nel), exFlag
+        integer(n_int), intent(in) :: iLut(0:niftot)
+        integer, intent(out) :: nJ(nel), IC, ExcitMat(2,2)
         logical, intent(out) :: tParity
-        logical, intent(inout) :: tFilled
-        real*8, intent(out) :: pgen
+        real(dp), intent(out) :: pgen
+        type(excit_gen_store_type), intent(inout), target :: store
 
         ! Not used
-        integer(kind=n_int), intent(out) :: ilutnJ(0:niftot)
-        integer, intent(inout) :: scratchUnused(ScratchSize)
+        integer(n_int), intent(out) :: ilutnJ(0:niftot)
         HElement_t, intent(out) :: HElGen
 
         real*8 :: r
@@ -88,10 +78,6 @@ MODULE GenRandSymExcitNUMod
         ! Just in case
         ilutnJ(0) = -1
 
-        ! Eliminate warnings
-        scratchunused(1)=scratchunused(1)
-!        Counter=Counter+1
-
         IF((tUEG.and.tLatticeGens) .or. (tHub.and.tLatticeGens)) THEN
             call CreateExcitLattice(nI,iLut,nJ,tParity,ExcitMat,pGen)
             IC=2
@@ -99,14 +85,15 @@ MODULE GenRandSymExcitNUMod
         ENDIF       
 
         !TODO: Not quite sure what conditions we need to check for now...
-        IF(.not.tFilled) THEN
+        if (.not. store%tFilled) then
 !First, we need to do an O[N] operation to find the number of occupied alpha electrons, number of occupied beta electrons
 !and number of occupied electrons of each symmetry class and spin. This is similar to the ClassCount array.
 !This has the format (Spn,sym), where Spin=1,2 corresponding to alpha and beta.
 !For molecular systems, sym runs from 0 to 7. 
 !This is stored to save doing this multiple times, but shouldn't be too costly an operation.
-            CALL construct_class_counts(nI,ClassCount2,ClassCountUnocc2)
-            tFilled=.true.
+            CALL construct_class_counts(nI, store%ClassCountOcc, &
+                                        store%ClassCountUnocc)
+            store%tFilled = .true.
         ENDIF
 !        IF(Counter.eq.6) THEN
 !                WRITE(6,*) "ClassCount2: ",ClassCount2(:)
@@ -138,9 +125,12 @@ MODULE GenRandSymExcitNUMod
         ENDIF
 
         IF(IC.eq.2) THEN
-            CALL CreateDoubExcit(nI,nJ,ClassCountUnocc2,ILUT,ExcitMat,tParity,pGen)
+            CALL CreateDoubExcit (nI, nJ, store%ClassCountUnocc, ILUT, &
+                                  ExcitMat, tParity, pGen)
         ELSE
-            CALL CreateSingleExcit(nI,nJ,ClassCount2,ClassCountUnocc2,ILUT,ExcitMat,tParity,pGen)
+            CALL CreateSingleExcit (nI, nJ, store%ClassCountOcc, &
+                                    store%ClassCountUnocc, ILUT, ExcitMat, &
+                                    tParity, pGen)
 
 !            IF(pGen.eq.-1.D0) THEN
 !NOTE: ghb24 5/6/09 Cannot choose to create double instead, since you could have chosen a double first and it would have a different pGen.
@@ -1563,61 +1553,6 @@ MODULE GenRandSymExcitNUMod
 
     END SUBROUTINE CalcNonUniPGen
 
-    elemental function ClassCountInd_full(Spin, Sym, Mom) result(ind)
-
-        ! Return the index into the ClassCount arrays such that variable
-        ! symmetries can be easily accomodated.
-        !
-        ! For spin, alpha=1, beta=2; Sym = 0:nSymLabels-1; Mom = -Lmax:LMax
-        ! For molecular systems, the sym is actually the symmetry of the irrep
-        ! For k-points, the sym is the k-point label from SymClasses(state)
-        !
-        ! INTERFACED as ClassCountInd
-
-        integer, intent(in) :: Spin, Sym, Mom
-        integer :: ind
-
-        if(tFixLz) then
-            ind = 2 * nSymLabels * (Mom + iMaxLz) + (2 * Sym + Spin)
-        else
-            ind = 2 * Sym + Spin
-        endif
-
-        if(tNoSymGenRandExcits) then
-            if(Spin == 1) then
-                ind = 1
-            else
-                ind = 2
-            endif
-        endif
-
-    end functioN
-
-
-    elemental function ClassCountInd_orb (orb) result(ind)
-
-        ! The same as ClassCountInd_full, only the values required are 
-        ! obtained for the spin orbital orb.
-        !
-        ! INTERFACED as ClassCountInd
-
-        integer, intent(in) :: orb
-        integer :: ind, spin, sym, mom
-        
-        ! Extract the required values
-        if (is_alpha(orb)) then
-            spin = 1
-        else
-            spin = 2
-        endif
-        sym = SpinOrbSymLabel(orb)
-        mom = G1(orb)%Ml
-
-        ! Calculate index as usual
-        ind = ClassCountInd_full (spin, sym, mom)
-
-    end function
-
 
 !This function returns the label (0 -> nSymlabels-1) of the symmetry product of two symmetry labels.
     PURE INTEGER FUNCTION RandExcitSymLabelProd(SymLabel1,SymLabel2)
@@ -2567,10 +2502,9 @@ MODULE GenRandSymExcitNUMod
         IMPLICIT NONE
         INTEGER :: i,Iterations,exFlag,nI(NEl),nJ(NEl),IC,ExcitMat(2,2),kx,ky,kz,ktrial(3)
         REAL*8 :: pDoub,pGen,AverageContrib,AllAverageContrib
-        INTEGER :: ClassCount2(ScratchSize),Scratch1(ScratchSize),Scratch2(ScratchSize),scratch3(scratchsize)
         INTEGER(KIND=n_int) :: iLutnJ(0:NIfTot),iLut(0:NIfTot)
-        INTEGER :: ClassCountUnocc2(ScratchSize),iExcit
-        LOGICAL :: tParity,tFilled,IsMomAllowedDet,test
+        INTEGER :: iExcit
+        LOGICAL :: tParity,IsMomAllowedDet,test
 
         ! Accumulator arrays. These need to be allocated on the heap, or we
         ! get a segfault by overflowing the stack using ifort
@@ -2587,6 +2521,7 @@ MODULE GenRandSymExcitNUMod
         INTEGER :: ierr,Ind1,Ind2,Ind3,Ind4,iMaxExcit,nStore(6),nExcitMemLen,j,k,l,DetNum,DetNumS,Lz,excitcount,ForbiddenIter,error, iter_tmp
         logical :: brillouin_tmp(2)
         type(timer), save :: test_timer
+        type(excit_gen_store_type) :: store
         HElement_t :: HElGen
 
         write(6,*) 'In HERE'
@@ -2661,6 +2596,9 @@ MODULE GenRandSymExcitNUMod
         allocate (SinglesCount(nbasis, nbasis))
         allocate (AllSinglesCount(nbasis, nbasis))
 
+        ! Initialise the excitation generator store
+        call init_excit_gen_store (store)
+
         ! Zero the accumulators
         DoublesHist = 0
         SinglesHist = 0
@@ -2673,9 +2611,9 @@ MODULE GenRandSymExcitNUMod
 
         CALL EncodeBitDet(nI,iLut)
 
-        tFilled=.false.
-        Scratch1(:)=0
-        Scratch2(:)=0
+        store%tFilled = .false.
+        store%ClassCountOcc = 0
+        store%ClassCountUnocc = 0
 
         AverageContrib=0.D0
         AllAverageContrib=0.D0
@@ -2694,8 +2632,7 @@ MODULE GenRandSymExcitNUMod
             ENDIF
 
             call gen_rand_excit (nI, iLut, nJ, iLutnJ, exFlag, IC, ExcitMat, &
-                                 tParity, pGen, HElGen, tFilled, Scratch1, Scratch2, &
-                                 Scratch3)
+                                 tParity, pGen, HElGen, store)
             IF(nJ(1).eq.0) THEN
     !            ForbiddenIter=ForbiddenIter+1
                 CYCLE
@@ -2791,18 +2728,18 @@ MODULE GenRandSymExcitNUMod
 
         !    IF(iProcIndex.eq.0) CLOSE(9)
 
-        #ifdef PARALLEL
+#ifdef PARALLEL
         call MPIBarrier(error)
         call MPIAllReduce (DoublesHist, MPI_SUM, AllDoublesHist)
         call MPIAllReduce (SinglesHist, MPI_SUM, AllSinglesHist)
         call MPIAllReduce (DoublesCount, MPI_SUM, AllDoublesCount)
         call MPIAllReduce (SinglesCount, MPI_SUM, AllSinglesCount)
-        #else
+#else
         AllDoublesHist = DoublesHist
         AllSinglesHist = SinglesHist
         AllDoublesCount = DoublesCount
         AllSinglesCount = SinglesCount
-        #endif
+#endif
         write(6,*) 'sum singles count', sum(AllSinglesCount)
         write(6,*) 'sum doubles count', sum(AllDoublesCount)
 
@@ -2859,11 +2796,12 @@ MODULE GenRandSymExcitNUMod
             CLOSE(9)
             WRITE(6,*) DetNumS," Single excitations found from nI"
             IF((DetNum+DetNumS).ne.ExcitCount) THEN
-                CALL construct_class_counts(nI,ClassCount2,ClassCountUnocc2)
+                CALL construct_class_counts(nI, store%ClassCountOcc, &
+                                            store%ClassCountUnocc)
                 WRITE(6,*) "Total determinants = ", ExcitCount
-                WRITE(6,*) "ClassCount2(:)= ",ClassCount2(:)
+                WRITE(6,*) "ClassCount2(:)= ", store%ClassCountOcc
                 WRITE(6,*) "***"
-                WRITE(6,*) "ClassCountUnocc2(:)= ",ClassCountUnocc2(:)
+                WRITE(6,*) "ClassCountUnocc2(:)= ", store%ClassCountUnocc
                 CALL Stop_All("TestGenRandSymExcitNU","Not all excitations accounted for...")
             ENDIF
         ENDIF
@@ -2874,9 +2812,44 @@ MODULE GenRandSymExcitNUMod
                     SinglesHist, AllSinglesHist, &
                     DoublesCount, AllDoublesCount, &
                     SinglesCount, AllSinglesCount)
-
+        call clean_excit_gen_store (store)
 
     END SUBROUTINE TestGenRandSymExcitNU
+
+    ! Initialise or clean the excitation generation storage.
+    subroutine init_excit_gen_store (store)
+
+        type(excit_gen_store_type), intent(inout) :: store
+
+        call clean_excit_gen_store (store)
+
+        allocate(store%ClassCountOcc(ScratchSize1))
+        allocate(store%ClassCountUnocc(ScratchSize2))
+        allocate(store%scratch3(ScratchSize3))
+
+        if (tBuildOccVirtList) then
+            allocate(store%occ_list(nel, ScratchSize1))
+            allocate(store%virt_list(maxval(OrbClassCount), Scratchsize1))
+        endif
+
+    end subroutine
+
+    subroutine clean_excit_gen_store (store)
+
+        type(excit_gen_store_type), intent(inout) :: store
+
+        if (associated(store%ClassCountOcc)) &
+            deallocate(store%ClassCountOcc)
+        if (associated(store%ClassCountUnocc)) &
+            deallocate(store%ClassCountUnocc)
+        if (allocated(store%scratch3)) &
+            deallocate(store%scratch3)
+        if (allocated(store%occ_list)) &
+            deallocate(store%occ_list)
+        if (allocated(store%virt_list)) &
+            deallocate(store%virt_list)
+
+    end subroutine
 
 END MODULE GenRandSymExcitNUMod
 
@@ -2884,7 +2857,9 @@ END MODULE GenRandSymExcitNUMod
 !Sometimes (especially UHF orbitals), the symmetry routines will not set up the orbitals correctly. Therefore, this routine will set up symlabellist and symlabelcounts
 !to be cast in terms of spin orbitals, and the symrandexcit2 routines will use these arrays.
 SUBROUTINE SpinOrbSymSetup()
-    use SymExcitDataMod , only : ScratchSize,SymLabelList2,SymLabelCounts2,OrbClassCount,kPointToBasisFn,kTotal
+    use SymExcitDataMod, only:  ScratchSize, ScratchSize1, ScratchSize2, &
+                                SymLabelList2, SymLabelCounts2, kTotal, &
+                                OrbClassCount, kPointToBasisFn
     use SymExcitDataMod , only : SpinOrbSymLabel,SymInvLabel,SymTableLabels
     use GenRandSymExcitNUMod , only : ClassCountInd
     use SymData, only: nSymLabels,TwoCycleSymGens,SymClasses
@@ -2911,6 +2886,11 @@ SUBROUTINE SpinOrbSymSetup()
     IF(tNoSymGenRandExcits.or.tUEG) THEN
         ScratchSize=2
     ENDIF
+
+    ! We only need the first 2 scratch arrays
+    ScratchSize1 = ScratchSize
+    ScratchSize2 = ScratchSize
+
 !    WRITE(6,*) "SCRATCHSIZE: ",ScratchSize,tNoSymGenRandExcits,tUEG
 
     !Create SpinOrbSymLabel array.

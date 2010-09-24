@@ -3,6 +3,7 @@ MODULE FciMCData
       use SystemData, only: BasisFN
       use constants, only: dp, int64, n_int, lenof_sign
       use global_utilities
+      use SymExcitDataMod, only: excit_gen_store_type
 
       implicit none
       save
@@ -245,7 +246,9 @@ MODULE FciMCData
       ! InitFCIMCCalcPar again without reading the popsfile.
       logical :: tPopsAlreadyRead
 
-
+      ! Excitation generation storage for FCIMC (and others)
+      type(excit_gen_store_type) :: fcimc_excit_gen_store
+      
       interface assignment(=)
           module procedure excitgenerator_assign
       end interface

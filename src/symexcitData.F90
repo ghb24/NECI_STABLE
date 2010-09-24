@@ -1,9 +1,21 @@
 MODULE SymExcitDataMod
     IMPLICIT NONE
+    SAVE
 
     REAL*8 :: pDoubNew
     INTEGER , ALLOCATABLE :: SymLabelList2(:),SymLabelCounts2(:,:)
-    INTEGER , SAVE :: ScratchSize          !This indicates the upper bound of the arrays needed for the excitation generation. The array bounds are ScratchSize.
+
+    ! What are the upper bounds for the scratch arrays neede for excitation
+    ! generation.
+    integer :: ScratchSize
+
+    ! Often ScratchSize1-4 will == ScratchSize, but not necessarily.
+    integer :: ScratchSize1 = 0, ScratchSize2 = 0, ScratchSize3 = 0
+
+    ! Do we want to extract lists of occupied / unoccupied orbitals when
+    ! decoding bit determinants in the main FCIMC loop?
+    logical :: tBuildOccVirtList = .false.
+
     INTEGER , ALLOCATABLE :: OrbClassCount(:)  !This is set up in SpinOrbSymSetup, and is a default ClassCount excitation generator, from which it is then easier to set up the determinant specific ones.
     INTEGER , ALLOCATABLE :: kPointToBasisFn(:,:,:,:) !This is set up in SpinOrbSymSetup for the hubbard model, indicies are kx, ky, kz and a spin index value
     INTEGER :: kTotal(3) !This is the total momentum of the reference configuration
@@ -11,5 +23,22 @@ MODULE SymExcitDataMod
     INTEGER , ALLOCATABLE :: SpinOrbSymLabel(:)        !Find symmetry label (for symexcit routines: 0 -> nSymLabels-1) from BasisFn
     INTEGER , ALLOCATABLE :: SymInvLabel(:)  !Find inverse symmetry label (0 -> nSymLabels-1)
     INTEGER , ALLOCATABLE :: SymTableLabels(:,:)    !Symmetry table for symexcit labels (not syms themselves)
+
+      ! Excitation generator stored information
+      ! --> Due to the allocatables, we can add as many things to here as
+      !     we like without causing any problems :-).
+    type excit_gen_store_type
+        ! These next two need to be pointers, rather than allocatable, to
+        ! work with the GetNextSpawner stuff in CCMC.F90. It isn't really
+        ! desirable
+        ! --> Must ensure that init/clean_excit_gen_store is NEVER called on
+        !     a store object being used in that way.
+        integer, pointer :: ClassCountOcc(:) => null()
+        integer, pointer :: ClassCountUnocc(:) => null()
+        integer, allocatable :: scratch3(:)
+        integer, allocatable :: occ_list(:,:)
+        integer, allocatable :: virt_list(:,:)
+        logical :: tFilled
+    end type
 
 END MODULE SymExcitDataMod

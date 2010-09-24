@@ -32,13 +32,14 @@ MODULE FciMCParMod
                         tReadPopsRestart, tCheckHighestPopOnce, &
                         iRestartWalkNum, tRestartHighPop, FracLargerDet, &
                         tChangeProjEDet, tCheckHighestPop
-    use HPHFRandExcitMod, only: FindExcitBitDetSym, GenRandHPHFExcit, &
-                                gen_hphf_excit
+    use HPHFRandExcitMod, only: FindExcitBitDetSym, gen_hphf_excit
     use Determinants, only: FDet, get_helement, write_det, &
                             get_helement_det_only
     USE DetCalcData , only : ICILevel,nDet,Det,FCIDetIndex
     use GenRandSymExcitNUMod, only: gen_rand_excit, GenRandSymExcitNU, &
-                                    ScratchSize, TestGenRandSymExcitNU
+                                    ScratchSize, TestGenRandSymExcitNU, &
+                                    ScratchSize1, ScratchSize2, ScratchSize3,&
+                                    init_excit_gen_store,clean_excit_gen_store
     use GenRandSymExcitCSF, only: gen_csf_excit
     use IntegralsData , only : fck,NMax,UMat,tPartFreezeCore,NPartFrozen,NHolesFrozen,tPartFreezeVirt,NVirtPartFrozen,NElVirtFrozen
     USE Logging , only : iWritePopsEvery,TPopsFile,iPopsPartEvery,tBinPops,tHistSpawn,iWriteHistEvery,tHistEnergies,IterShiftBlock,AllHistInitPops
@@ -338,27 +339,25 @@ MODULE FciMCParMod
         implicit none
         interface
             subroutine gen (nI, iLutI, nJ, iLutJ, exFlag, IC, ex, tParity, &
-                            pGen, HEl, tFilled, scratch1, scratch2, scratch3)
+                            pGen, HEl, store)
 
                 use SystemData, only: nel
                 use bit_reps, only: niftot
                 use GenRandSymExcitNUMod, only: scratchsize
                 use constants, only: n_int,dp
+                use FciMCData, only: excit_gen_store_type
                 implicit none
 
                 integer, intent(in) :: nI(nel) 
                 integer(kind=n_int), intent(in) :: iLutI(0:niftot)
                 integer, intent(in) :: exFlag
-                integer, intent(inout) :: scratch1(scratchsize)
-                integer, intent(inout) :: scratch2(scratchsize)
-                integer, intent(inout) :: scratch3(scratchsize)
                 integer, intent(out) :: nJ(nel) 
                 integer(kind=n_int), intent(out) :: iLutJ(0:niftot)
                 integer, intent(out) :: ic, ex(2,2)
                 real*8, intent(out) :: pGen
-                logical, intent(inout) :: tFilled
                 logical, intent(out) :: tParity
                 HElement_t, intent(out) :: HEl
+                type(excit_gen_store_type), intent(inout), target :: store
             end subroutine
         end interface
 
@@ -529,26 +528,23 @@ MODULE FciMCParMod
         ! **********************************************************
         interface
             subroutine generate_excitation (nI, iLutI, nJ, iLutJ, &
-                             exFlag, IC, ex, tParity, pGen, HEl, tFilled, &
-                             scratch1, scratch2, scratch3)
+                             exFlag, IC, ex, tParity, pGen, HEl, store)
                 use SystemData, only: nel
                 use bit_reps, only: niftot
                 use GenRandSymExcitNUMod, only: scratchsize
                 use constants, only: dp,n_int
+                use FciMCData, only: excit_gen_store_type
                 implicit none
                 integer, intent(in) :: nI(nel)
                 integer(kind=n_int), intent(in) :: iLutI(0:niftot)
                 integer, intent(in) :: exFlag
-                integer, intent(inout) :: scratch1(scratchsize)
-                integer, intent(inout) :: scratch2(scratchsize)
-                integer, intent(inout) :: scratch3(scratchsize)
                 integer, intent(out) :: nJ(nel) 
                 integer(kind=n_int), intent(out) :: iLutJ(0:niftot)
                 integer, intent(out) :: ic, ex(2,2)
                 real(dp), intent(out) :: pGen
-                logical, intent(inout) :: tFilled
                 logical, intent(out) :: tParity
                 HElement_t, intent(out) :: HEl
+                type(excit_gen_store_type), intent(inout), target :: store
             end subroutine
             function attempt_create (get_spawn_helement, nI, iLutI, wSign, &
                                      nJ, iLutJ, prob, HElGen, ic, ex, tPar, exLevel, part_type)&
@@ -639,9 +635,8 @@ MODULE FciMCParMod
         integer, dimension(lenof_sign) :: SignCurr, child
         integer(kind=n_int) :: iLutnJ(0:niftot)
         integer :: IC, walkExcitLevel, ex(2,2), TotWalkersNew, part_type
-        integer, dimension(ScratchSize) :: scratch1, scratch2, scratch3
         integer(int64) :: tot_parts_tmp(lenof_sign)
-        logical :: tFilled, tParity
+        logical :: tParity
         real(dp) :: prob, HDiagCurr
         HElement_t :: HDiagTemp,HElGen
 #ifdef __DEBUG
@@ -677,7 +672,7 @@ MODULE FciMCParMod
         iPartBloom = 0 ! Max number spawned from an excitation
         ! Next free position in newly spawned list.
         ValidSpawnedList = InitialSpawnedSlots
-        
+
         ! Reset iteration specific counts
         ! n.b. this can be extracted to a separate function. This could even
         !      be function-pointerised!
@@ -711,7 +706,15 @@ MODULE FciMCParMod
 
             ! Decode determinant from (stored) bit-representation.
             call extract_bit_rep (CurrentDets(:,j), DetCurr, SignCurr, &
-                                  FlagsCurr)
+                                  FlagsCurr, fcimc_excit_gen_store)
+
+            ! Some testing!!!!
+            !write(6,*) 'about to go in'
+            !call flush(6)
+            call TestGenRandSymExcitNU (DetCurr, 10000000, 1.0_dp, 2)
+            call test_sym_excit3 (DetCurr, 10000000, 1.0_dp, 2)
+!            if (iter == 30) &
+           ! call stop_all("end", "test")
 
             ! TODO: The next couple of bits could be done automatically
 
@@ -763,7 +766,7 @@ MODULE FciMCParMod
             ! Indicate that the scratch storage used for excitation generation
             ! from the same walker has not been filled (it is filled when we
             ! excite from the first particle on a determinant).
-            tfilled = .false.
+            fcimc_excit_gen_store%tFilled = .false.
 
             ! Loop over the 'type' of particle. 
             ! lenof_sign == 1 --> Only real particles
@@ -782,15 +785,15 @@ MODULE FciMCParMod
 
                     ! Generate a (random) excitation
                     call generate_excitation (DetCurr, CurrentDets(:,j), nJ, &
-                                   ilutnJ, exFlag, IC, ex, tParity, prob, HElGen,&
-                                   tFilled, scratch1, scratch2, scratch3)
+                                   ilutnJ, exFlag, IC, ex, tParity, prob, &
+                                   HElGen, fcimc_excit_gen_store)
 
                     ! If a valid excitation, see if we should spawn children.
                     if (.not. IsNullDet(nJ)) then
                         child = attempt_create (get_spawn_helement, DetCurr, &
                                             CurrentDets(:,j), SignCurr, &
-                                            nJ,iLutnJ, Prob, HElGen, IC, ex, tParity, &
-                                            walkExcitLevel,part_type)
+                                            nJ,iLutnJ, Prob, HElGen, IC, ex, &
+                                            tParity, walkExcitLevel,part_type)
                     else
                         child = 0
                     endif
@@ -4817,6 +4820,9 @@ MODULE FciMCParMod
             HFPopThresh=MaxNoatHF
         ENDIF
 
+        ! Initialise excitation generation storage
+        call init_excit_gen_store (fcimc_excit_gen_store)
+
         IF((NMCyc.ne.0).and.(tRotateOrbs.and.(.not.tFindCINatOrbs))) CALL Stop_All(this_routine,"Currently not set up to rotate and then go straight into a spawning &
                                                                                     & calculation.  Ordering of orbitals is incorrect.  This may be fixed if needed.")
 
@@ -4964,6 +4970,8 @@ MODULE FciMCParMod
             ENDIF
         ENDIF
 
+        ! Cleanup excitation generation storage
+        call clean_excit_gen_store (fcimc_excit_gen_store)
 
 !There seems to be some problems freeing the derived mpi type.
 !        IF((.not.TNoAnnihil).and.(.not.TAnnihilonproc)) THEN
