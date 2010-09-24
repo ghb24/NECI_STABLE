@@ -300,7 +300,7 @@ MODULE FciMCParMod
         CALL MPIReduce(TotWalkers,MPI_MIN,MinWalkers)
         CALL MPIAllReduce(Real(TotWalkers,dp),MPI_SUM,AllTotWalkers)
         if (iProcIndex.eq.Root) then
-            MeanWalkers=AllTotWalkers/nProcessors
+            MeanWalkers=AllTotWalkers/nNodes
             write (6,'(/,1X,a55)') 'Load balancing information based on the last iteration:'
             write (6,'(1X,a33,1X,f18.10)') 'Mean number of walkers/processor:',MeanWalkers
             write (6,'(1X,a32,1X,i18)') 'Min number of walkers/processor:',MinWalkers
@@ -926,7 +926,7 @@ MODULE FciMCParMod
         integer :: proc, flags, j
         logical :: parent_init
 
-        proc = DetermineDetProc(nJ)    ! 0 -> nProcessors-1
+        proc = DetermineDetNode(nJ)    ! 0 -> nNodes-1
 
         ! We need to include any flags set both from the parent and from the
         ! spawning steps
@@ -985,8 +985,8 @@ MODULE FciMCParMod
         end if
 
         ! Are ony of the sublists near the end of their alloted space?
-        if (nProcessors > 1) then
-            do i = 0, nProcessors-1
+        if (nNodes > 1) then
+            do i = 0, nNodes-1
                 rat = real(ValidSpawnedList(i) - InitialSpawnedSlots(i),dp) /&
                              real(InitialSpawnedSlots(1), dp)
                 if (rat > 0.95) then
@@ -2539,9 +2539,9 @@ MODULE FciMCParMod
                ! Check how balanced the load on each processor is (even though
                ! we cannot load balance with direct annihilation).
                walkers_diff = MaxWalkersProc - MinWalkersProc
-               mean_walkers = AllTotWalkers / real(nProcessors,dp)
+               mean_walkers = AllTotWalkers / real(nNodes,dp)
                if (walkers_diff > nint(mean_walkers / 10.d0) .and. &
-                   sum(AllTotParts) > real(nProcessors * 500, dp)) then
+                   sum(AllTotParts) > real(nNodes * 500, dp)) then
                    root_write (6, '(a, f20.10, 2i12)') &
                        'Number of determinants assigned to each processor &
                        &unbalanced: ', (walkers_diff * 10.d0) / &
@@ -2849,7 +2849,7 @@ MODULE FciMCParMod
 ! AJWT dislikes doing this type of if based on a (seeminly unrelated) input option, but can't see another easy way.
 !  TODO:  Something to make it better
                 if(.not.tCCMC) then
-                    tot_walkers = int(InitWalkers, int64) * int(nProcessors,int64)
+                    tot_walkers = int(InitWalkers, int64) * int(nNodes,int64)
                 else
                     tot_walkers = int(InitWalkers, int64)
                 endif
@@ -4704,7 +4704,7 @@ MODULE FciMCParMod
             ENDIF
         
             ! Get the (0-based) processor index for the HF det.
-            iHFProc = DetermineDetProc(HFDet)
+            iHFProc = DetermineDetNode(HFDet)
             WRITE(6,*) "HF processor is: ",iHFProc
 
             TotParts(:)=0
@@ -4852,7 +4852,7 @@ MODULE FciMCParMod
         MaxInitPopNeg=0
 
         IF(MaxNoatHF.eq.0) THEN
-            MaxNoatHF=InitWalkers*nProcessors
+            MaxNoatHF=InitWalkers*nNodes
             HFPopThresh=MaxNoatHF
         ENDIF
 
@@ -5041,14 +5041,14 @@ MODULE FciMCParMod
 !            WRITE(6,"(A,I14)") "Memory allocated for a maximum particle number per node for spawning of: ",MaxSpawned
             
       WRITE(6,*) "*Direct Annihilation* in use...Explicit load-balancing disabled."
-      ALLOCATE(ValidSpawnedList(0:nProcessors-1),stat=ierr)
+      ALLOCATE(ValidSpawnedList(0:nNodes-1),stat=ierr)
       !InitialSpawnedSlots is now filled later, once the number of particles wanted is known
       !(it can change according to the POPSFILE).
-      ALLOCATE(InitialSpawnedSlots(0:nProcessors-1),stat=ierr)
+      ALLOCATE(InitialSpawnedSlots(0:nNodes-1),stat=ierr)
 !InitialSpawnedSlots now holds the first free position in the newly-spawned list for each processor, so it does not need to be reevaluated each iteration.
       MaxSpawned=NINT(MemoryFacSpawn*InitWalkers)
-      Gap=REAL(MaxSpawned)/REAL(nProcessors)
-      do j=0,nProcessors-1
+      Gap=REAL(MaxSpawned)/REAL(nNodes)
+      do j=0,nNodes-1
           InitialSpawnedSlots(j)=NINT(Gap*j)+1
       enddo
 !ValidSpawndList now holds the next free position in the newly-spawned list, but for each processor.
