@@ -708,14 +708,6 @@ MODULE FciMCParMod
             call extract_bit_rep (CurrentDets(:,j), DetCurr, SignCurr, &
                                   FlagsCurr, fcimc_excit_gen_store)
 
-            ! Some testing!!!!
-            !write(6,*) 'about to go in'
-            !call flush(6)
-            call TestGenRandSymExcitNU (DetCurr, 10000000, 1.0_dp, 2)
-            call test_sym_excit3 (DetCurr, 10000000, 1.0_dp, 2)
-!            if (iter == 30) &
-           ! call stop_all("end", "test")
-
             ! TODO: The next couple of bits could be done automatically
 
             ! We only need to find out if determinant is connected to the
