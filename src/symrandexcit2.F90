@@ -2539,21 +2539,23 @@ END MODULE GenRandSymExcitNUMod
 !to be cast in terms of spin orbitals, and the symrandexcit2 routines will use these arrays.
 SUBROUTINE SpinOrbSymSetup()
     use SymExcitDataMod , only : ScratchSize,SymLabelList2,SymLabelCounts2,OrbClassCount,kPointToBasisFn,kTotal
-    use SymExcitDataMod , only : SpinOrbSymLabel,SymInvLabel,SymTableLabels
+    use SymExcitDataMod , only : SpinOrbSymLabel,SymInvLabel,SymTableLabels,KPntInvSymOrb
     use GenRandSymExcitNUMod , only : ClassCountInd
     use SymData, only: nSymLabels,TwoCycleSymGens,SymClasses
     use SymData, only: SymLabelList,SymLabelCounts,SymConjTab,SymLabels
-    use SystemData , only : G1,tFixLz,tNoSymGenRandExcits,nBasis,iMaxLz,tUEG,tHub,NMAXZ,NEl,nBasisMax,tKPntSym
-    use SystemData , only : Symmetry
+    use SystemData , only : NMAXZ,tFixLz,iMaxLz,nBasis,tUEG,tKPntSym,G1,tHub,nBasisMax,NEl
+    use SystemData , only : Symmetry,tHPHF,tSpn,tISKFuncs,Arr,tNoSymGenRandExcits
     use Determinants, only : FDet
     use sym_mod, only: mompbcsym,SymProd
     IMPLICIT NONE
-    INTEGER :: i,j,SymInd,Lab
-    INTEGER :: Spin
+    INTEGER :: i,j,k,SymInd,Lab
+    INTEGER :: Spin,ierr,OrbSym,InvSym
+    real(8) :: OrbEnergy
     INTEGER , ALLOCATABLE :: Temp(:)
     ! These are for the hubbard and UEG model look-up table
     INTEGER :: kmaxX,kmaxY,kminX,kminY,kminZ,kmaxz,iSpinIndex,ktrial(3)
     type(Symmetry) :: SymProduct, SymI, SymJ
+    character(len=*), parameter :: this_routine='SpinOrbSymSetup'
     
     IF(tFixLz) THEN
 !Calculate the upper array bound for the ClassCount2 arrays. This will be dependant on the number of symmetries needed.
@@ -2632,6 +2634,69 @@ SUBROUTINE SpinOrbSymSetup()
 !        enddo
 
     endif
+
+    if(tISKFuncs) then
+        write(6,*) "Setting up inverse orbital lookup for use with ISK functions..."
+        if(.not.tKPntSym) call stop_all(this_routine,"Cannot use ISK funcs without KPoint symmetry")
+        if(tSpn) call stop_all(this_routine,"Cannot use ISK on open shell systems")
+        if(tHPHF) call stop_all(this_routine,"HPHF is not yet working with ISK")
+        allocate(KPntInvSymOrb(1:nBasis),stat=ierr)
+        if(ierr.ne.0) call stop_all(this_routine,"Allocation error")
+        do i=1,nBasis
+            !Find k-inverse orbital for each spin orbital.
+            !If the orbital is a self inverse, then just lookup itself.
+            OrbSym=SpinOrbSymLabel(i)
+            InvSym=SymInvLabel(OrbSym)
+            if(InvSym.eq.OrbSym) then
+                !Orbital is self-inverse
+                KPntInvSymOrb(i)=i
+            endif
+            !Run through all orbitals looking for inverse
+            OrbEnergy=Arr(i,2)  !Fock energy of orbital
+            do j=1,nBasis
+                if(SpinOrbSymLabel(j).eq.InvSym) then
+                    !This orbital is the right symmetry - is it the inverse orbital? Check Energy.
+                    if((abs(OrbEnergy-Arr(j,2))).lt.1.D-7) then
+                        !Assume that this is the inverse orbital.
+                        KPntInvSymOrb(i)=j
+                        exit
+                    endif
+                endif
+            enddo
+            if(j.gt.nBasis) then
+                write(6,*) "Orbital: ",i
+                write(6,*) "Symmetry label: ",OrbSym
+                write(6,*) "Inverse Symmetry label: ",InvSym
+                write(6,*) "Fock energy: ",Arr(i,2)
+                WRITE(6,*) "SpinOrbSymLabel: "
+                do k=1,nBasis
+                    WRITE(6,*) k,SpinOrbSymLabel(k)
+                enddo
+                write(6,*) "SymInvLavel: "
+                do k=0,nSymLabels-1
+                    write(6,*) k,SymInvLabel(k)
+                enddo
+                call stop_all(this_routine,"Could not find inverse orbital pair for ISK setup.")
+            endif
+        enddo
+        do i=1,nBasis
+            if(KPntInvSymOrb(i).ne.i) exit
+        enddo
+        if(i.gt.nBasis) then
+            write(6,*) "!! All kpoints are self-inverse, i.e. at the Gamma point or BZ boundary !!"
+            write(6,*) "This means that ISK functions cannot be constructed."
+            write(6,*) "However, through correct rotation of orbitals, all orbitals should be made real, and the code run in real mode."
+            write(6,*) "If ISK functions are desired, the kpoint lattice must be shifted from this position."
+            call stop_all(this_routine,"All kpoints are self-inverse")
+        endif
+        write(6,*) "All inverse kpoint orbitals correctly assigned."
+        write(6,*) "Orbital     Inverse Orbital"
+        do i=1,nBasis
+            write(6,*) i,KPntInvSymOrb(i) 
+        enddo
+    endif
+
+
 
 !SymLabelList2 and SymLabelCounts2 are now organised differently, so that it is more efficient, and easier to add new symmetries.
 !SymLabelCounts is of size (2,ScratchSize), where 1,x gives the index in SymlabelList2 where the orbitals of symmetry x start.

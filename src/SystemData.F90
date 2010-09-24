@@ -28,7 +28,8 @@ logical :: tKPntSym        !Are we using KPoint symmetry?
 logical :: tRIIntegrals   ! Read in RI 2-e integrals from RIDUMP file
 logical :: tStoreSpinOrbs ! This is set when the orbitals are stored in 
                           ! spin-orbital notation
-
+logical :: tISKFuncs      ! Only for use in systems where the kpoint mesh has inversion symmetry,this ensures all
+                          ! integrals are real.
 integer :: iParity(5), nMaxX, nMaxY, nMaxZ, nMSH, coulDampOrb, elecPairs
 integer :: roIterMax, iRanLuxLev, DiagMaxMinFac, OneElmaxMinFac, iState
 integer :: iTiltX, iTiltY, nOccAlpha, nOccBeta, ShakeIterMax, ShakeStart
@@ -136,7 +137,7 @@ REAL*8 :: Beta
 !   Arr(10,1) is the energy of the 10th lowest energy
 !   spin-orbital.
 ! Arr(:,2)
-!     ordered by spin-orbital index.  Arr(10,1) is the energy of the 10th
+!     ordered by spin-orbital index.  Arr(10,2) is the energy of the 10th
 !     spin-orbital (given the index scheme in use).
 ! Reallocated with the correct (new) size during freezing.
 REAL*8, pointer :: Arr(:,:) 
