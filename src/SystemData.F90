@@ -24,6 +24,11 @@ logical :: tShakeIter, tRotateOccOnly, tDoubExcMin, tUseHFOrbs, tRotateOrbs
 logical :: tNonUniRandExcits, tNoSymGenRandExcits, tLagrange, tShakeApprox
 logical :: tShake, tRotateVirtOnly, tMaxHLGap, tCacheFCIDUMPInts, tNoRODump
 logical :: tKPntSym        !Are we using KPoint symmetry?
+logical :: tRotatedOrbsReal     !This means we are reading in a complex FCIDUMP, but all 
+                                !orbitals have been rotated to be real. This requires all
+                                !kpoints to be at the gamma point or BZ boundary.
+                                !At the reading in, the integrals will be converted to reals,
+                                !but kpoint symmetry can still be used.
 
 logical :: tRIIntegrals   ! Read in RI 2-e integrals from RIDUMP file
 logical :: tStoreSpinOrbs ! This is set when the orbitals are stored in 

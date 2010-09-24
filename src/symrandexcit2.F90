@@ -2685,7 +2685,8 @@ SUBROUTINE SpinOrbSymSetup()
         if(i.gt.nBasis) then
             write(6,*) "!! All kpoints are self-inverse, i.e. at the Gamma point or BZ boundary !!"
             write(6,*) "This means that ISK functions cannot be constructed."
-            write(6,*) "However, through correct rotation of orbitals, all orbitals should be made real, and the code run in real mode."
+            write(6,*) "However, through correct rotation of orbitals, all orbitals should be made real, and the code run in real mode (with tRotatedOrbsReal set)."
+            write(6,*) "Alternatively, run again in complex mode without ISK functions."
             write(6,*) "If ISK functions are desired, the kpoint lattice must be shifted from this position."
             call stop_all(this_routine,"All kpoints are self-inverse")
         endif
