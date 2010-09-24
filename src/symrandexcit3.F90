@@ -22,7 +22,7 @@ module symrandexcit3
                                     CreateSingleExcit, CreateExcitLattice, &
                                     init_excit_gen_store,clean_excit_gen_store
     use FciMCData, only: pDoubles, iter, excit_gen_store_type
-    use bit_reps, only: niftot
+    use bit_reps, only: niftot, decode_bit_det_lists
     use constants, only: dp, n_int, bits_n_int
     use timing
     use Parallel
@@ -33,6 +33,9 @@ contains
 
     subroutine gen_rand_excit3 (nI, ilutI, nJ, ilutJ, exFlag, IC, ExcitMat, &
                                 tParity, pGen, HElGen, store)
+
+        ! This generator _requires_ store to have already been filled. This
+        ! involves calling decode_bit_det_lists.
 
         integer, intent(in) :: nI(nel), exFlag
         integer(n_int), intent(in) :: ilutI(0:niftot)
@@ -57,16 +60,8 @@ contains
             return
         endif
 
-        ! Count occupied/unoccupied orbitals in each symmetry class. This
-        ! is an O[nel] operation. For efficiency, store these arrays
-        ! between invocations of the excitation generator.
-        if (.not. store%tFilled) then
-            write(6,*) 'filling'
-            call construct_class_counts (nI, store%ClassCountOcc, &
-                                             store%ClassCountUnocc, &
-                                             store%scratch3)
-            store%tFilled = .true.
-        endif
+        !if (.not. store%tFilled)    ** n.b. not needed anymore **
+        !    call construct_class_counts (~)
 
         ! If exFlag is 3, select singles or doubles randomly, according
         ! to the value in pDoubles. Otherwise exFlag = 1 gives a single,
@@ -91,21 +86,24 @@ contains
         ! Call the actual single/double excitation generators.
         if (IC == 2) then
             pGen = gen_double (nI, nJ, iLutI, ExcitMat, tParity, &
-                               store%ClassCountUnocc)
+                               store%ClassCountUnocc, store%virt_list)
         else
             pGen = gen_single (nI, nJ, ilutI, ExcitMat, tParity, &
                                store%ClassCountOcc, store%ClassCountUnocc, &
-                               store%scratch3)
+                               store%scratch3, store%occ_list, &
+                               store%virt_list)
         endif
 
     end subroutine
 
 
-    function gen_double (nI, nJ, iLutI, ExcitMat, tParity, CCUnocc) result(pGen)
+    function gen_double (nI, nJ, iLutI, ExcitMat, tParity, CCUnocc, &
+                         virt_list) result(pGen)
 
         integer, intent(in) :: nI(nel)
         integer, intent(out) :: nJ(nel)
         integer, intent(in) :: CCUnocc(ScratchSize)
+        integer, intent(in) :: virt_list(:,:)
         integer(n_int), intent(in) :: iLutI(0:niftot)
         integer, intent(out) :: ExcitMat(2,2)
         logical, intent(out) :: tParity
@@ -113,14 +111,14 @@ contains
 
         real(dp) :: pElecs
         integer :: elecs(2), spn(2), orbs(2), sym_inds(2)
-        integer :: sumMl, sym_prod, rint, tot_pairs
+        integer :: sym_prod, rint, tot_pairs
         integer :: pair_list(0:nSymLabels-1)
 
         ! Pick and unbiased, distinct, electron pair.
-        pElecs = pick_elec_pair (nI, elecs, sym_prod, spn, sumMl)
+        call pick_elec_pair (nI, elecs, sym_prod, spn)
 
         ! Pick a pair of symmetries, such that 
-        tot_pairs = count_orb_pairs (sym_prod, spn, sumMl, CCUnocc, pair_list)
+        tot_pairs = count_orb_pairs (sym_prod, spn, CCUnocc, pair_list)
 
         ! If there are no possible excitations for the electron pair picked, 
         ! then we abort the excitation
@@ -134,22 +132,23 @@ contains
         rint = 1 + int(genrand_real2_dSFMT() * tot_pairs)
 
         ! Select a pair of symmetries to choose from
-        call select_syms(rint, sym_inds, sym_prod, spn, sumMl, CCUnocc, &
+        call select_syms(rint, sym_inds, sym_prod, spn, CCUnocc, &
                          pair_list)
 
         ! Select a pair of orbitals from the symmetries above.
-        call select_orb_pair (rint, sym_inds, ilutI, orbs, CCUnocc)
+        call select_orb_pair (rint, sym_inds, ilutI, orbs, CCUnocc, &
+                              virt_list)
 
         ! Generate the final determinant.
         call create_excit_det2 (nI, nJ, tParity, ExcitMat, elecs, orbs)
        
         ! Return the final probability
-        pGen = pDoubNew * pElecs / real(tot_pairs, dp)
+        pGen = pDoubNew / real(ElecPairs * tot_pairs, dp)
 
     end function
 
 
-    function pick_elec_pair (nI, elecs, sym_prod, spn, sumMl) result(pElec)
+    subroutine pick_elec_pair (nI, elecs, sym_prod, spn)
 
         ! Use a triangular indexing system.
         !  --> Only need one random number to pick two distinct electrons
@@ -168,8 +167,7 @@ contains
         !   --> B = i - (A-1)(A-2)/2
 
         integer, intent(in) :: nI(nel)
-        integer, intent(out) :: elecs(2), sym_prod, spn(2), sumMl
-        real(dp) :: pElec
+        integer, intent(out) :: elecs(2), sym_prod, spn(2)
 
         integer :: ind, orbs(2)
 
@@ -188,18 +186,12 @@ contains
         ! Obtain spins
         spn = get_spin(orbs)
 
-        ! Store the Lz value to preserve
-        if (tFixLz) sumMl = product(G1(orbs)%Ml)
-
-        ! Return the generation probability
-        pElec = 2 / real(nel*(nel-1), dp)
-
-    end function
+    end subroutine
     
-    function count_orb_pairs (sym_prod, spn, sumMl, CCUnocc, num_pairs) &
+    function count_orb_pairs (sym_prod, spn, CCUnocc, num_pairs) &
                               result(tot_pairs)
 
-        integer, intent(in) :: sym_prod, spn(2), sumMl
+        integer, intent(in) :: sym_prod, spn(2)
         integer, intent(in) :: CCUnocc(ScratchSize)
         integer, intent(inout) :: num_pairs(0:nSymLabels-1)
         integer :: tot_pairs
@@ -235,11 +227,11 @@ contains
 
                 if (symA == symB) then
                     tot_pairs = tot_pairs + (CCUnocc(indA) * CCUNocc(indA+1))
-                elseif (symB > symA) then
+                else
+                    ! Don't restrict to A < B. Use the B < A case to count
+                    ! the equivalent with the spins swapped.
                     indB = ClassCountInd(2, symB, -1)
-                    tot_pairs = tot_pairs + &
-                                (CCUnocc(indA) * CCUnocc(indB)) + &
-                                (CCUnocc(indA+1) * CCUnocc(indB-1))
+                    tot_pairs = tot_pairs + (CCUnocc(indA) * CCUnocc(indB))
                 endif
 
                 num_pairs(symA) = tot_pairs
@@ -249,12 +241,12 @@ contains
 
     end function
 
-    subroutine select_syms (rint, sym_inds, sym_prod, spn, sumMl, CCUnocc, &
+    subroutine select_syms (rint, sym_inds, sym_prod, spn, CCUnocc, &
                             num_pairs)
 
         integer, intent(inout) :: rint, spn(2)
         integer, intent(out) :: sym_inds(2)
-        integer, intent(in) :: sumMl, sym_prod
+        integer, intent(in) :: sym_prod
         integer, intent(in) :: CCUnocc(ScratchSize), num_pairs(0:nSymLabels-1)
 
         integer :: syms(2), npairs, inds(2), tmp, symA
@@ -273,23 +265,6 @@ contains
         ! within the selected symmetry categories is desired.
         if (symA /= 0) rint = rint - num_pairs(symA - 1)
 
-        ! If there are more than one symmetry index corresponding to these
-        !
-        ! n.b. need to look in SymLabelList2(SymLabelCounts2(1,Ind)+i)
-        !      which is a list of length SymLabelCounts2(2,ind)
-        if (spn(1) /= spn(2) .and. syms(1) /= syms(2)) then
-            inds = ClassCountInd(spn, syms, -1)
-            npairs = CCUnocc(inds(1)) * CCUnocc(inds(2))
-            if (rint > npairs) then
-                ! Swap the spins around --> the other possibility, and adjust
-                ! the random number to select a pair in this set.
-                tmp = spn(1)
-                spn(1) = spn(2)
-                spn(2) = tmp
-                rint = rint - npairs
-            endif
-        endif
-
         ! Return the symmetry indices, rather than the symmetry labels
         ! as that is what we will need for the selections.        
         sym_inds = ClassCountInd(spn, syms, -1)
@@ -297,15 +272,17 @@ contains
     end subroutine
 
 
-    subroutine select_orb_pair (rint, sym_inds, ilutI, orbs, CCUnocc)
+    subroutine select_orb_pair (rint, sym_inds, ilutI, orbs, CCUnocc, &
+                                virt_list)
 
         integer, intent(in) :: rint, sym_inds(2)
         integer(n_int), intent(in) :: ilutI(0:niftot)
         integer, intent(in) :: CCUnocc(ScratchSize)
+        integer, intent(in) :: virt_list(:,:)
         integer :: orbs(2)
         character(*), parameter :: this_routine = 'select_orb_pair'
 
-        integer :: a, b, i, nvac, pos, orb, offset, norbs
+        integer :: i
 
         if (sym_inds(1) == sym_inds(2)) then
             ! We are picking two orbitals from the same category
@@ -313,57 +290,18 @@ contains
             !     electrons.
 
             ! Select the positions of the two orbitals in the vacant list.
-            a = ceiling((1 + sqrt(1 + 8*real(rint,dp))) / 2)
-            b = rint - ((a - 1) * (a - 2) / 2)
-            orbs(1) = min(a, b)
-            orbs(2) = max(a, b)
-
-            nvac = 0
-            pos = 1
-            offset = SymLabelCounts2(1, sym_inds(1))
-            norbs = SymLabelCounts2(2, sym_inds(1))
-            do i = 0, norbs
-                orb = SymLabelList2(offset + i)
-                if (IsNotOcc(ilutI, orb)) then
-                    nvac = nvac + 1
-                    if (nvac == orbs(pos)) then
-                        orbs(pos) = orb
-                        pos = pos + 1
-                        if (pos > 2) exit
-                    endif
-                endif
-            enddo
-
-            if (i == norbs) &
-                call stop_all (this_routine, 'Unable to find enough vacant &
-                                             &orbitals in SymLabelList2')
+            orbs(1) = ceiling((1 + sqrt(1 + 8*real(rint,dp))) / 2)
+            orbs(2) = rint - ((orbs(1) - 1) * (orbs(1) - 2) / 2)
         else
             ! We are picking two orbitals from different categories
             ! --> use a 'rectangular', mapping scheme.
             orbs(1) = mod(rint - 1, CCUnocc(sym_inds(1))) + 1
             orbs(2) = floor((real(rint,dp) - 1) / CCUnocc(sym_inds(1))) + 1
-
-            do pos = 1, 2
-                nvac = 0
-                offset = SymLabelCounts2(1, sym_inds(pos))
-                norbs = SymLabelCounts2(2, sym_inds(pos))
-                do i = 0, norbs-1
-                    orb = SymLabelList2(offset + i)
-                    if (IsNotOcc(ilutI, orb)) then
-                        nvac = nvac + 1
-                        if (nvac == orbs(pos)) then
-                            orbs(pos) = orb
-                            exit
-                        endif
-                    endif
-                enddo
-
-                if (i == norbs) &
-                    call stop_all (this_routine, 'Unable to find enough &
-                                          &vacant orbitals in SymLabelList2')
-            enddo
-
         endif
+
+        ! Extract the orbitals from the vacant list.
+        orbs(1) = virt_list (orbs(1), sym_inds(1))
+        orbs(2) = virt_list (orbs(2), sym_inds(2))
 
     end subroutine
 
@@ -374,7 +312,6 @@ contains
         integer, intent(out) :: nJ(nel), ExcitMat(2,2)
         logical, intent(out) :: tParity
 
-        ! TODO: Update the bit representations here as well?
         ExcitMat(1,:) = elecs
         ExcitMat(2,:) = orbs
         nJ = nI
@@ -419,7 +356,7 @@ contains
     end subroutine
 
     function gen_single (nI, nJ, iLutI, ExcitMat,  tParity, CCOcc, CCUnocc, &
-                         pair_list) result(pGen)
+                         pair_list, occ_list, virt_list) result(pGen)
 
         integer, intent(in) :: nI(nel)
         integer(n_int), intent(in) :: ilutI(0:niftot)
@@ -427,15 +364,15 @@ contains
         logical, intent(out) :: tParity
         integer, intent(in) :: CCOcc(ScratchSize), CCUnocc(ScratchSize)
         integer, intent(out) :: pair_list(ScratchSize)
+        integer, intent(in) :: occ_list(:,:), virt_list(:,:)
         real(dp) :: pGen
         character(*), parameter :: this_routine = 'gen_single'
 
-        integer :: npairs, rint, ind, src, tgt, i, cnt
-        integer :: offset, norbs, orb
-        integer :: lo, hi, pos
+        integer :: npairs, rint, ind, src, tgt, i
 
         ! We still do not work with lz symmetry
         ASSERT(.not. tFixLz)
+
 
         ! Find the number of available pairs in each symmetry & overall
         if (pair_list(1) == -1) then
@@ -469,38 +406,13 @@ contains
         src = mod(rint - 1, CCOcc(ind)) + 1
         tgt = floor((real(rint,dp) - 1) / CCOcc(ind)) + 1
 
-        ! Find the index of the src orbital in the list
-        cnt = 0
-        do i = 1, nel
-            if (ClassCountInd(nI(i)) == ind) then
-                cnt = cnt + 1
-                if (cnt == src) exit
-            endif
-        enddo
-        ASSERT(i <= nel) ! Ensure we haven't overflowed.
-        src = i
-
-        ! Find the target orbital, as the tgt'th vacant orbital under the
-        ! given symmetry index.
-        cnt = 0
-        offset = SymLabelCounts2(1, ind)
-        norbs = SymLabelCounts2(2, ind)
-        do i = 0, norbs - 1
-            orb = SymLabelList2(offset + i)
-            if (IsNotOcc(ilutI, orb)) then
-                cnt = cnt + 1
-                if (cnt == tgt) then
-                    tgt = orb
-                    exit
-                endif
-            endif
-        enddo
-        ASSERT(i < norbs) ! Ensure we haven't overflowed.
+        ! Find the index of the src orbital in the list and the target orbital
+        ! (the tgt'th vacant orbital in the given symmetry)
+        ExcitMat(1,1) = occ_list(src, ind)
+        ExcitMat(2,1) = virt_list(tgt, ind)
 
         ! Generate the new determinant
         nJ = nI
-        ExcitMat(1,1) = src
-        ExcitMat(2,1) = tgt
         call FindExcitDet (ExcitMat, nJ, 1, tParity)
 
 #ifdef __DEBUG
@@ -634,12 +546,14 @@ lp2: do while(.true.)
     AllDoublesCount = 0
     AllSinglesCount = 0
 
-    CALL EncodeBitDet(nI,iLut)
+    CALL EncodeBitDet(nI, iLut)
 
+    ! Build the lists we need
     store%tFilled = .false.
     store%ClassCountOcc = 0
     store%ClassCountUnocc = 0
     store%scratch3 = 0
+    call decode_bit_det_lists (nI, ilut, store)
 
     AverageContrib=0.D0
     AllAverageContrib=0.D0

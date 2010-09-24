@@ -340,8 +340,8 @@ contains
                     ! Update class counts
                     store%ClassCountOcc(ind) = store%ClassCountOcc(ind) + 1
 
-                    ! Store orbital in list of occ. orbs.
-                    store%occ_list(store%ClassCountOcc(ind), ind) = orb
+                    ! Store orbital INDEX in list of occ. orbs.
+                    store%occ_list(store%ClassCountOcc(ind), ind) = elec
 
                     if (elec == nel) exit
                 else
@@ -357,6 +357,15 @@ contains
 
         ! Give final class count
         store%ClassCountUnocc = OrbClassCount - store%ClassCountOcc
+        store%tFilled = .true.
+        store%scratch3(1) = -1
+
+        ! Fill in the remaineder of the virtuals list
+        forall (ind = 1:ScratchSize)
+            store%virt_list(virt(ind) + 1:store%ClassCountUnocc(ind), ind) &
+                = SymLabelList2(SymLabelCounts2(1,ind) + virt(ind) + &
+                                store%ClassCountOcc(ind) : OrbClassCount(ind))
+        endforall
 
     end subroutine
 
