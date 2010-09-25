@@ -13,8 +13,9 @@ module ParallelHelper
    integer, allocatable :: NodeRoots(:)      !The root for each node (zero-based)
    integer, allocatable :: NodeLengths(:)    !The number of procs in each node
    integer              :: CommGlobal        !A Communicator to all processors
+   integer              :: GroupRoots        ! A group with all node roots in it
    integer              :: CommRoot          !A Communicator between the Roots on each nodes
-   type(CommI)          :: Roots             !A 'node' which communiccates between all roots
+   type(CommI)          :: Roots             !A 'node' which communiccates between roots on each node
 
 contains
    Subroutine GetComm(Comm,Node,rt)

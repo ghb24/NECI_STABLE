@@ -11,7 +11,7 @@ MODULE PopsfileMod
     use FciMCData
     use bit_reps
     use Parallel
-    use AnnihilationMod, only: DetermineDetProc
+    use AnnihilationMod, only: DetermineDetNode
     USE Logging , only : iWritePopsEvery,tPopsFile,iPopsPartEvery,tBinPops
     USE Logging , only : tPrintPopsDefault,tIncrementPops
     use sort_mod
@@ -142,7 +142,7 @@ MODULE PopsfileMod
                     enddo
 
                     call decode_bit_det (TempnI, WalkerTemp)
-                    proc = DetermineDetProc (TempnI)
+                    proc = DetermineDetNode (TempnI)
                     BatchRead(:,PopsSendList(proc)) = WalkerTemp(:)
                     PopsSendList(proc) = PopsSendList(proc) + 1
                     if(proc.ne.(nProcessors-1)) then
@@ -928,8 +928,8 @@ MODULE PopsfileMod
         
 #endif
             call decode_bit_det (TempnI, iLutTemp)
-            Proc = DetermineDetProc(TempnI)
-            IF((Proc.eq.iProcIndex).and.(abs(TempSign(1)).ge.iWeightPopRead)) THEN
+            Proc = DetermineDetNode(TempnI)
+            IF((Proc.eq.iNodeIndex).and.(abs(TempSign(1)).ge.iWeightPopRead)) THEN
                 CurrWalkers=CurrWalkers+1
                 call encode_bit_rep(CurrentDets(:,CurrWalkers),iLutTemp(0:NIfDBO),TempSign,0)   !Do not need to send a flag here...
                                                                                                 !TODO: Add flag for complex walkers to read in both
@@ -1361,7 +1361,7 @@ MODULE PopsfileMod
         
 #endif
             call decode_bit_det (TempnI, iLutTemp)
-            Proc=0  !DetermineDetProc(TempnI)   !This wants to return a value between 0 -> nProcessors-1
+            Proc=0  !DetermineDetNode(TempnI)   !This wants to return a value between 0 -> nProcessors-1
             IF((Proc.eq.iProcIndex).and.(abs(TempSign(1)).ge.iWeightPopRead)) THEN
                 CurrWalkers=CurrWalkers+1
                 call encode_bit_rep(Dets(:,CurrWalkers),iLutTemp(0:NIfDBO),TempSign,0)   !Do not need to send a flag here...

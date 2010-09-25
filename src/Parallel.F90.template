@@ -825,6 +825,7 @@ supermodule Parallel
    end interface
    save
    integer iProcIndex,iProcMinE,iProcMaxE
+   integer iNodeIndex  ! Set from ParallelHelper.  Use this if an integer rather than a CommI object is needed.
    integer nProcessors
 
 #ifndef PARALLEL
@@ -1001,6 +1002,7 @@ subroutine MPINodes(tUseProcsAsNodes)
    allocate(CommNodes(0:nNodes-1))
    allocate(GroupNodes(0:nNodes-1))
    Node=Nodes(iProcIndex)
+   iNodeIndex=Node%n  !Used as a plain integer version.
    if (iProcIndex==NodeRoots(Node%n)) then
       bNodeRoot=.true.
       write(6,*) "I am the node root for node ", Node%n
@@ -1019,6 +1021,8 @@ subroutine MPINodes(tUseProcsAsNodes)
       call MPI_Group_incl(Group,n,GroupProc,GroupNodes(i),ierr)  !Create a group 
       call MPI_Comm_Create(CommGlobal,GroupNodes(i),CommNodes(i),ierr) !Create the Communicator
    enddo
+   call MPI_Group_incl(Group,nNodes,NodeRoots,GroupRoots,ierr)  !Create a group 
+   call MPI_Comm_Create(CommGlobal,GroupRoots,CommRoot,ierr) !Create the Communicator
 #else
    nNodes=1
    allocate(NodeLengths(0:nNodes-1))

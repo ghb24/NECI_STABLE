@@ -646,7 +646,7 @@ MODULE CCMC
 !In direct annihilation, we spawn particles into a seperate array, but we do not store them contiguously in the SpawnedParts/SpawnedSign arrays.
 !The processor that the newly-spawned particle is going to be sent to has to be determined, and then it will get put into the the appropriate element determined by ValidSpawnedList.
 
-                       Proc=DetermineDetProc(nJ)   !This wants to return a value between 0 -> nProcessors-1
+                       Proc=DetermineDetNode(nJ)   !This wants to return a value between 0 -> nProcessors-1
    !                    WRITE(6,*) iLutnJ(:),Proc,ValidSpawnedList(Proc),Child,TotWalkers
    !                    CALL FLUSH(6)
                        call encode_det(SpawnedParts(:,ValidSpawnedList(Proc)),iLutnJ)
@@ -2900,8 +2900,12 @@ END SUBROUTINE
 !      WRITE(6,"(I)") i
    end subroutine LogCluster
 
+END MODULE CCMC
+
 !Writes out a compressed excitor list where signs are contained within the Particles and whose values are >=dTol
 subroutine WriteExcitorListP(iUnit,Dets,offset,nDet,dTol,Title)
+   use constants, only:  n_int, lenof_sign
+   use bit_rep_data, only: NIfDBO,NIfTot
    use FciMCParMod, only: iLutHF
    use bit_reps, only: extract_sign,extract_flags
    IMPLICIT NONE
@@ -2922,7 +2926,6 @@ subroutine WriteExcitorListP(iUnit,Dets,offset,nDet,dTol,Title)
    enddo
 end subroutine !WriteExcitorList
 
-END MODULE CCMC
 
 SUBROUTINE PerformCCMCCycPar
    use CCMC
