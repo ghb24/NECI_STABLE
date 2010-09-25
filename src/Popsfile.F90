@@ -57,7 +57,7 @@ MODULE PopsfileMod
 
         sendcounts=0
         disps=0
-        MaxSendIndex=1
+        MaxSendIndex=0
       
         call open_pops_head(iunit,formpops,binpops)
         IF(FormPops) THEN
