@@ -37,7 +37,7 @@ module DetBitOps
     ! A value of nBitsMax+1 indicates that more bits are set than was expected.
     ! The total number of set bits can exceed nBitsMax+1, however.
     ! Counts bits set in integer array (0:nLast)
-    integer function CountBits_sparse (iLut, nLast, nBitsMax)
+    pure integer function CountBits_sparse (iLut, nLast, nBitsMax)
         integer, intent(in), optional :: nBitsMax
         integer, intent(in) :: nLast 
         integer(kind=n_int), intent(in) :: iLut(0:nLast)
@@ -65,7 +65,7 @@ module DetBitOps
 
     ! Try counting using a nifty bit of bitwise arithmetic
     ! See comments for CountBits_sparse and count_set_bits.
-    integer function Countbits_nifty (iLut, nLast, nBitsMax)
+    pure integer function Countbits_nifty (iLut, nLast, nBitsMax)
         integer, intent(in), optional :: nBitsMax
         integer, intent(in) :: nLast
         integer(kind=n_int), intent(in) :: iLut(0:nLast)
@@ -91,7 +91,7 @@ module DetBitOps
 
     ! Using elemental routines rather than an explicit do-loop. Should be
     ! faster.
-    function CountBits_elemental (iLut, nLast, nBitsMax) result(nbits)
+    pure function CountBits_elemental (iLut, nLast, nBitsMax) result(nbits)
         integer, intent(in), optional :: nBitsMax
         integer, intent(in) :: nLast
         integer(kind=n_int), intent(in) :: iLut(0:nLast)
@@ -179,7 +179,7 @@ module DetBitOps
     end function
 
 
-    integer function FindBitExcitLevel(iLutnI, iLutnJ, maxExLevel)
+    pure function FindBitExcitLevel(iLutnI, iLutnJ, maxExLevel) result(IC)
 
         ! Find the excitation level of one determinant relative to another
         ! given their bit strings (the number of orbitals they differ by)
@@ -191,6 +191,7 @@ module DetBitOps
         integer(kind=n_int), intent(in) :: iLutnI(0:NIfD), iLutnJ(0:NIfD)
         integer, intent(in), optional :: maxExLevel
         integer(kind=n_int) :: tmp(0:NIfD)
+        integer :: IC
 
         ! Obtain a bit string with only the excited orbitals one one det.
         tmp = ieor(iLutnI, iLutnJ)
@@ -198,9 +199,9 @@ module DetBitOps
 
         ! Then count them
         if (present(maxExLevel)) then
-            FindBitExcitLevel = CountBits(tmp, NIfD, maxExLevel)
+            IC = CountBits(tmp, NIfD, maxExLevel)
         else
-            FindBitExcitLevel = CountBits(tmp, NIfD)
+            IC = CountBits(tmp, NIfD)
         endif
 
     end function FindBitExcitLevel
@@ -870,17 +871,19 @@ end module
 
 
 !This function will return true if the determinant is closed shell, or false if not.
-    LOGICAL FUNCTION TestClosedShellDet(iLut)
+    PURE FUNCTION TestClosedShellDet(iLut) result(tClosed)
         use bit_rep_data, only: NIfD
         use constants, only: n_int
         use DetBitOps, only: MaskAlpha,MaskBeta
         IMPLICIT NONE
-        INTEGER(kind=n_int) :: iLut(0:NIfD),iLutAlpha(0:NIfD),iLutBeta(0:NIfD)
+        INTEGER(kind=n_int), intent(in) :: iLut(0:NIfD)
+        integer(n_int) :: iLutAlpha(0:NIfD),iLutBeta(0:NIfD)
+        logical :: tClosed
         INTEGER :: i
         
         iLutAlpha(:)=0
         iLutBeta(:)=0
-        TestClosedShellDet=.true.
+        tClosed=.true.
 
         do i=0,NIfD
 
@@ -890,7 +893,7 @@ end module
             iLutAlpha(i)=IEOR(iLutAlpha(i),iLutBeta(i)) !Do an XOR on the original beta bits and shifted alpha bits - they should cancel exactly.
             
             IF(iLutAlpha(i).ne.0) THEN
-                TestClosedShellDet=.false.  !Det is not closed shell - return
+                tClosed=.false.  !Det is not closed shell - return
                 RETURN
             ENDIF
         enddo
