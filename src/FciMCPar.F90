@@ -926,8 +926,7 @@ MODULE FciMCParMod
         integer :: proc, flags, j
         logical :: parent_init
 
-        proc = DetermineDetNode(nJ)    ! 0 -> nNodes-1
-
+        proc = DetermineDetNode(nJ)    ! 0 -> nNodes-1)
         ! We need to include any flags set both from the parent and from the
         ! spawning steps
         flags = ior(parent_flags, extract_flags(ilutJ))
@@ -953,6 +952,7 @@ MODULE FciMCParMod
         ENDIF
 
         ValidSpawnedList(proc) = ValidSpawnedList(proc) + 1
+        
 
         ! Sum the number of created children to use in acceptance ratio.
         acceptances = acceptances + sum(abs(child))

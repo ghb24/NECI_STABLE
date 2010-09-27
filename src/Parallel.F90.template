@@ -948,6 +948,7 @@ subroutine MPINodes(tUseProcsAsNodes)
    if(initialised) return
    initialised=.true.
    allocate(Nodes(0:nProcessors-1))
+   allocate(ProcNode(0:nProcessors-1))
    allocate(NodeRoots(0:nProcessors-1))
 #ifdef PARALLEL
    if(tUseProcsAsNodes) then
@@ -958,6 +959,7 @@ subroutine MPINodes(tUseProcsAsNodes)
          write(6,*) "Processor      Node"
          do i=0,nProcessors-1
             NodeRoots(nNodes)=i
+            ProcNode(i)=nNodes
             Nodes(i)%n=nNodes
             nNodes=nNodes+1
             write(6,"(2I10)") i,Nodes(i)%n
@@ -983,12 +985,14 @@ subroutine MPINodes(tUseProcsAsNodes)
             do j=0,nNodes-1
                if (nms(i)==nms(NodeRoots(j))) then
                   Nodes(i)%n=j
+                  ProcNode(i)=j
                   exit
                endif 
             enddo
             if (Nodes(i)%n==-1) then
                NodeRoots(nNodes)=i
                Nodes(i)%n=nNodes
+               ProcNode(i)=nNodes
                nNodes=nNodes+1
             endif
             write(6,"(2I10,A,A)") i,Nodes(i)%n," ",nms(i)
@@ -997,6 +1001,7 @@ subroutine MPINodes(tUseProcsAsNodes)
    endif
    call MPI_BCAST (nNodes, 1, MPI_INTEGER, root, CommGlobal, ierr)
    call MPI_BCAST (Nodes, nProcessors, MPI_INTEGER, root, CommGlobal, ierr)
+   call MPI_BCAST (ProcNode, nProcessors, MPI_INTEGER, root, CommGlobal, ierr)
    call MPI_BCAST (NodeRoots, nProcessors, MPI_INTEGER, root, CommGlobal, ierr)
    allocate(NodeLengths(0:nNodes-1))
    allocate(CommNodes(0:nNodes-1))
@@ -1025,6 +1030,7 @@ subroutine MPINodes(tUseProcsAsNodes)
    call MPI_Comm_Create(CommGlobal,GroupRoots,CommRoot,ierr) !Create the Communicator
 #else
    nNodes=1
+   ProcNode(0)=0
    allocate(NodeLengths(0:nNodes-1))
    allocate(CommNodes(0:nNodes-1))
    allocate(GroupNodes(0:nNodes-1))

@@ -9,7 +9,8 @@ module ParallelHelper
    logical              :: bNodeRoot         !Set if this processor is root of its node
    integer, allocatable :: CommNodes(:)      !Each node has a separate communicator
    integer, allocatable :: GroupNodes(:)     !Each node has a separate communicator
-   type(CommI), allocatable :: Nodes(:)          !The node for each processor
+   type(CommI), allocatable :: Nodes(:)      !The node for each processor
+   integer, allocatable :: ProcNode(:)   !The node for each processor (as a zero-based integer)
    integer, allocatable :: NodeRoots(:)      !The root for each node (zero-based)
    integer, allocatable :: NodeLengths(:)    !The number of procs in each node
    integer              :: CommGlobal        !A Communicator to all processors
@@ -29,7 +30,7 @@ contains
             if (present(rt)) rt=Root
          else
             Comm=CommNodes(Node%n)
-            if (present(rt)) rt=NodeRoots(Node%n)
+            if (present(rt)) rt=0 !NodeRoots(Node%n) is the procindex of the root, but not the index within the communicator
          endif
        else
          Comm=CommGlobal
