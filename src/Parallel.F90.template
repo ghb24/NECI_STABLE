@@ -1031,6 +1031,7 @@ subroutine MPINodes(tUseProcsAsNodes)
 #else
    nNodes=1
    ProcNode(0)=0
+   bNodeRoot=.true.
    allocate(NodeLengths(0:nNodes-1))
    allocate(CommNodes(0:nNodes-1))
    allocate(GroupNodes(0:nNodes-1))
