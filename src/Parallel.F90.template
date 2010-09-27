@@ -1025,6 +1025,7 @@ subroutine MPINodes(tUseProcsAsNodes)
    call MPI_Comm_Create(CommGlobal,GroupRoots,CommRoot,ierr) !Create the Communicator
 #else
    nNodes=1
+   bNodeRoot=.true.
    allocate(NodeLengths(0:nNodes-1))
    allocate(CommNodes(0:nNodes-1))
    allocate(GroupNodes(0:nNodes-1))
