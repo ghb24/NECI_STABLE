@@ -86,7 +86,7 @@ MODULE PopsfileMod
                 write(6,"(A,I15,A)") "Reading in a total of ",EndPopsList, " configurations from POPSFILE."
             ENDIF
             if(ScaleWalkers.ne.1) call warning(this_routine,"ScaleWalkers parameter found, but not implemented in POPSFILE v3 - ignoring.")
-
+            call flush(6)
         ENDIF
 
         BatchSize=REAL(ReadBatch,dp)/REAL(nProcessors,dp)
@@ -99,6 +99,7 @@ MODULE PopsfileMod
             allocate(BatchRead(0:NIfTot,1:ReadBatch),stat=ierr)
             CALL LogMemAlloc('BatchRead',ReadBatch*(NIfTot+1),size_n_int,this_routine,BatchReadTag,ierr)
             write(6,*) "Reading in a maximum of ",ReadBatch," determinants at a time from POPSFILE."
+            call flush(6)
         endif
 
         CurrHF=0        !Number of HF walkers on each node.
