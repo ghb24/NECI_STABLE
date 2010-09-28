@@ -1136,16 +1136,15 @@ MODULE GenRandSymExcitNUMod
         IF(tFixLz.or.tKPntSym) THEN
 !Here, we also have to check that the electron is momentum allowed.
 !Since there are many more irreps, it will be quicker here to check all electrons, rather than all the symmetries.
-!We check the inverse symmetry array, which will be the same unless we are using kPointSym.
             
             do i=1,NEl
 
                 IF(G1(nI(i))%Ms.eq.1) THEN
-                    IF(ClassCountUnocc2(ClassCountInd(1,SymInvLabel(SpinOrbSymLabel(nI(i))),G1(nI(i))%Ml)).eq.0) THEN
+                    IF(ClassCountUnocc2(ClassCountInd(1,SpinOrbSymLabel(nI(i)),G1(nI(i))%Ml)).eq.0) THEN
                         ElecsWNoExcits=ElecsWNoExcits+1
                     ENDIF
                 ELSE
-                    IF(ClassCountUnocc2(ClassCountInd(2,SymInvLabel(SpinOrbSymLabel(nI(i))),G1(nI(i))%Ml)).eq.0) THEN
+                    IF(ClassCountUnocc2(ClassCountInd(2,SpinOrbSymLabel(nI(i)),G1(nI(i))%Ml)).eq.0) THEN
                         ElecsWNoExcits=ElecsWNoExcits+1
                     ENDIF
                 ENDIF
@@ -1211,9 +1210,9 @@ MODULE GenRandSymExcitNUMod
             IF(tNoSymGenRandExcits) THEN
                 ElecSym=0
             ELSE
-!For real abelian symmetry, the irrep of i and a must be the same. However, for
-!kpoint symmetry, it must be the inverse (which is now not itself).
-                ElecSym=SymInvLabel(SpinOrbSymLabel(nI(Eleci)))
+!For abelian symmetry, the irrep of i and a must be the same.
+!For solids, this means that the excitation must be within the same k-point
+                ElecSym=SpinOrbSymLabel(nI(Eleci))
                 ElecK=G1(nI(Eleci))%Ml
             ENDIF
 
@@ -2584,10 +2583,12 @@ SUBROUTINE SpinOrbSymSetup()
             SpinOrbSymLabel(i)=INT(G1(i)%Sym%S,4)
         endif
     enddo
-!    WRITE(6,*) "SpinOrbSymLabel: "
-!    do i=1,nBasis
-!        WRITE(6,*) i,SpinOrbSymLabel(i)
-!    enddo
+#ifdef __DEBUG
+    WRITE(6,*) "SpinOrbSymLabel: "
+    do i=1,nBasis
+        WRITE(6,*) i,SpinOrbSymLabel(i)
+    enddo
+#endif
 
 !SymInvLabel takes the label (0 -> nSymLabels-1) of a spin orbital, and returns the inverse symmetry label, suitable for
 !use in ClassCountInd.
@@ -2601,6 +2602,12 @@ SUBROUTINE SpinOrbSymSetup()
             SymInvLabel(i)=i    !They are self-inverses
         endif
     enddo
+#ifdef __DEBUG
+    WRITE(6,*) "SymInvLabel: "
+    do i=0,nSymLabels-1
+        WRITE(6,*) i,SymInvLabel(i)
+    enddo
+#endif
 
     if(tKPntSym) then
         Allocate(SymTableLabels(0:nSymLabels-1,0:nSymLabels-1))
@@ -2650,11 +2657,13 @@ SUBROUTINE SpinOrbSymSetup()
             if(InvSym.eq.OrbSym) then
                 !Orbital is self-inverse
                 KPntInvSymOrb(i)=i
+                cycle
             endif
             !Run through all orbitals looking for inverse
             OrbEnergy=Arr(i,2)  !Fock energy of orbital
+            !Ensure that we get a same-spin orbital
             do j=1,nBasis
-                if(SpinOrbSymLabel(j).eq.InvSym) then
+                if((SpinOrbSymLabel(j).eq.InvSym).and.(mod(i,2).eq.mod(j,2))) then
                     !This orbital is the right symmetry - is it the inverse orbital? Check Energy.
                     if((abs(OrbEnergy-Arr(j,2))).lt.1.D-7) then
                         !Assume that this is the inverse orbital.
@@ -3153,7 +3162,9 @@ END FUNCTION IsMomAllowedDet
 
 
 SUBROUTINE IsSymAllowedExcit(nI,nJ,IC,ExcitMat)
-    Use SystemData , only : G1,NEl,tFixLz
+    use GenRandSymExcitNUMod , only: RandExcitSymLabelProd
+    use SymExcitDataMod , only: SymInvLabel,SpinOrbSymLabel 
+    Use SystemData , only : G1,NEl,tFixLz,tKPntSym
     Use SystemData , only : Symmetry,tNoSymGenRandExcits
     use Determinants, only: write_det
     use sym_mod
@@ -3161,7 +3172,7 @@ SUBROUTINE IsSymAllowedExcit(nI,nJ,IC,ExcitMat)
     Type(Symmetry) :: SymProduct,SymProduct2
     LOGICAL :: ISVALIDDET
     INTEGER :: IC,ExcitMat(2,2),nI(NEl),nJ(NEl),ExcitLevel,iGetExcitLevel
-    INTEGER :: KOcc,KUnocc
+    INTEGER :: KOcc,KUnocc,SymprodnJ,SymprodnI,i
 
      Excitlevel=iGetExcitLevel(nI,nJ,NEl)
      IF(Excitlevel.ne.IC) THEN
@@ -3176,8 +3187,19 @@ SUBROUTINE IsSymAllowedExcit(nI,nJ,IC,ExcitMat)
          call write_det (6, nJ, .true.)
          STOP "INVALID DET"
      ENDIF
+
+     SymprodnI=0
+     SymprodnJ=0
+     do i=1,NEl
+        SymprodnI=RandExcitSymLabelProd(SymInvLabel(SpinOrbSymLabel(nI(i))),SymProdnI)
+        SymprodnJ=RandExcitSymLabelProd(SymInvLabel(SpinOrbSymLabel(nJ(i))),SymProdnJ)
+     enddo
+     if(SymprodnJ.ne.SymprodnI) then
+         write(6,*) SymProdnI,SymProdnJ,IC,ExcitMat(1,1),ExcitMat(2,1)
+         call stop_all("IsSymAllowedExcit","Excitation not of same symmetry as root.")
+     endif
      
-     IF(.not.tNoSymGenRandExcits) THEN
+     IF(.not.tNoSymGenRandExcits.and..not.tKPntSym) THEN
          IF(IC.eq.2) THEN
             SymProduct=SYMPROD(G1(ExcitMat(1,1))%Sym,G1(ExcitMat(1,2))%Sym)
             SymProduct2=SYMPROD(G1(ExcitMat(2,1))%Sym,G1(ExcitMat(2,2))%Sym)
