@@ -2024,6 +2024,7 @@ SUBROUTINE CCMCStandalone(Weight,Energyxw)
          write(6,*) "Cycle ",Iter
          call WriteExcitorList(6,AL,iCurAmpList,FciDets,0,nAmpl,dAmpPrintTol,"Excitor list")
       endif
+      dNorm=AL%Amplitude(iRefPos,iCurAmpList)
       call CalcTotals(iNumExcitors,dTotAbsAmpl,dNorm, AL,iCurAmpList,nAmpl,dTolerance*dInitAmplitude,WalkerScale,iRefPos,iOldTotParts,iDebug)
       if(tExactEnergy) then
          CALL CalcClusterEnergy(tCCMCFCI,AL,iCurAmpList,nAmpl,FciDets,FCIDetIndex,iRefPos,dNorm, iDebug,dProjE)
@@ -2435,6 +2436,7 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
        if(((.not.tSharedExcitors).and.nProcessors>1)) then
          IFDEBUG(iDebug,2) write(6,*) "Synchronizing particle lists among processors on node"
          call set_timer(CCMCComms1_time,20)
+         call MPIBCast(nAmpl,Node)
          call MPIBCast(DetList(:,1:nAmpl),Node)
          call halt_timer(CCMCComms1_time)
        endif
@@ -2458,8 +2460,6 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
          write(6,*) "Cycle ",Iter
          call WriteExcitorList(6,AL,iCurAmpList,DetList,0,nAmpl,dAmpPrintTol,"Excitor list")
       endif
-
-
       call CalcTotals(iNumExcitors,dTotAbsAmpl,dNorm,AL,iCurAmpList,nAmpl,dTolerance*dInitAmplitude,WalkerScale,iRefPos, iOldTotParts,iDebug)
 
       

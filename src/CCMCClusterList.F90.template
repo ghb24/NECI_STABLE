@@ -640,7 +640,7 @@ subroutine CalcTotals (iNumExcitors,dTotAbsAmpl,dNorm,AL,iAmpList,nAmpl,dTol,Wal
    integer iRefPos
    integer iOldTotParts
 
-   integer i,j
+   integer i,j,ierr
    real*8 dPsiTotAbsAmpl,dTmp
    real*8 dTotExcitors
 

@@ -154,7 +154,7 @@ module Parallel
 #ifdef PARALLEL
    uSe MPI
 #endif
-   use ParallelHelper,  only: CommI, GetComm
+   use ParallelHelper,  only: CommI, GetComm, MPIErr
    use constants
    implicit none
 
@@ -462,11 +462,13 @@ subroutine MPIBCast_auto (Values, Node)
     integer :: error
     type(CommI), intent(in),optional :: Node
     integer Comm,rt
+
 #if PARALLEL
     call GetComm(Comm,Node,rt)
     call MPI_BCAST (Values, %(mpilen)s, %(mpitype)s, rt, Comm, &
                     error)
     if (error /= MPI_SUCCESS) then
+        call MPIErr(error)
         call stop_all("MPIBCast", 'Error in MPI_BCAST. Terminating.')
     endif
 #endif
@@ -489,7 +491,7 @@ subroutine MPIBCast_logic (Values, tMe, Node)
     call GetComm(Comm,Node,rt,tMe)
     call MPI_AllReduce(rt,nrt,1,MPI_INTEGER, MPI_MAX,Comm,error)  !Work out which processor is the root
     call MPI_BCAST (Values, %(mpilen)s, %(mpitype)s, nrt, Comm, &
-                    error)
+      error)
     if (error /= MPI_SUCCESS) then
         call stop_all("MPIBCast", 'Error in MPI_BCAST. Terminating.')
     endif
@@ -1146,5 +1148,4 @@ Subroutine MPIBarrier(error,Node)
     CALL MPI_Barrier(Comm,error)
 #endif
 end subroutine
-
 end supermodule

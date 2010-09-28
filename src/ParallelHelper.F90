@@ -77,4 +77,14 @@ contains
          endif
        endif
    end subroutine
+
+   subroutine MPIErr(error)
+      uSE MPI
+      INTEGER error,l,e
+#ifdef PARALLEL
+      character(len=MPI_MAX_ERROR_STRING) s
+      call MPI_ERROR_STRING(error,s,l,e)
+      write(6,*) s
+#endif
+   end subroutine
 end module
