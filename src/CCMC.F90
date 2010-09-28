@@ -2295,7 +2295,7 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
 #endif   
    write(6,*) "Max Amplitude List size: ", nMaxAmpl
    if(tSharedExcitors) then
-      call shared_allocate_iluts("DetList",DetList,(/nIfTot,nMaxAmpl/))
+      call shared_allocate_iluts("DetList",DetList,(/nIfTot,nMaxAmpl/),iNodeIndex)
    else
       Allocate(DetList(0:nIfTot,nMaxAmpl))
    endif

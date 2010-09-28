@@ -935,6 +935,7 @@ end subroutine
 
 subroutine MPINodes(tUseProcsAsNodes)
    use, intrinsic :: iso_c_binding
+   use CalcData, only : iLogicalNodeSize
    implicit none
    logical, intent(in) :: tUseProcsAsNodes !Set if we use Procs as Nodes.
    integer Group,i,j,n
@@ -950,6 +951,8 @@ subroutine MPINodes(tUseProcsAsNodes)
    allocate(Nodes(0:nProcessors-1))
    allocate(NodeRoots(0:nProcessors-1))
 #ifdef PARALLEL
+   allocate(NodeLengths(0:nProcessors))  !Temp allocate for now
+   NodeLengths=0
    if(tUseProcsAsNodes) then
       call MPI_Comm_Group(CommGlobal,Group,ierr)
       write(6,*) "Allocating each processor as a separate node."
@@ -982,8 +985,11 @@ subroutine MPINodes(tUseProcsAsNodes)
             Nodes(i)%n=-1
             do j=0,nNodes-1
                if (nms(i)==nms(NodeRoots(j))) then
-                  Nodes(i)%n=j
-                  exit
+                  if(iLogicalNodeSize>0.and.NodeLengths(j)< iLogicalNodeSize) then
+                     Nodes(i)%n=j
+                     NodeLengths(j)=NodeLengths(j)+1
+                     exit
+                  endif
                endif 
             enddo
             if (Nodes(i)%n==-1) then
@@ -995,12 +1001,13 @@ subroutine MPINodes(tUseProcsAsNodes)
          enddo
       endif
    endif
+   deallocate(NodeLengths)
    call MPI_BCAST (nNodes, 1, MPI_INTEGER, root, CommGlobal, ierr)
    call MPI_BCAST (Nodes, nProcessors, MPI_INTEGER, root, CommGlobal, ierr)
    call MPI_BCAST (NodeRoots, nProcessors, MPI_INTEGER, root, CommGlobal, ierr)
-   allocate(NodeLengths(0:nNodes-1))
    allocate(CommNodes(0:nNodes-1))
    allocate(GroupNodes(0:nNodes-1))
+   allocate(NodeLengths(0:nNodes-1))
    Node=Nodes(iProcIndex)
    iNodeIndex=Node%n  !Used as a plain integer version.
    if (iProcIndex==NodeRoots(Node%n)) then
