@@ -148,7 +148,7 @@ MODULE ISKRandExcit
         !i = ex(1,1)
         !j = ex(1,2)
         if(CrossIC.eq.1) then
-            if(SpinOrbSymLabel(ExCross(1,1)).ne.SymInvLabel(SpinOrbSymLabel(ExCross(2,1)))) then
+            if(SpinOrbSymLabel(ExCross(1,1)).ne.SpinOrbSymLabel(ExCross(2,1))) then
                 !symmetry forbidden
                 tcross_conn=.false.
             else
