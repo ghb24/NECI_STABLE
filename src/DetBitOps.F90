@@ -755,6 +755,7 @@ module DetBitOps
             if (i < first_beta_bit) is_canonical_ms_order = .true.
         endif
     end function
+
 end module
 
     pure subroutine GetBitExcitation(iLutnI,iLutnJ,Ex,tSign)

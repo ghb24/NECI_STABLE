@@ -9,7 +9,8 @@ MODULE AnnihilationMod
     USE FciMCData
     use DetBitOps, only: DetBitEQ, DetBitLT, FindBitExcitLevel, ilut_lt, &
                          ilut_gt
-    use CalcData , only : tTruncInitiator
+    use spatial_initiator, only: add_initiator_list, rm_initiator_list
+    use CalcData , only : tTruncInitiator, tSpawnSpatialInit
     use Determinants, only: get_helement
     use hphf_integrals, only: hphf_diag_helement, hphf_off_diag_helement
     use sort_mod
@@ -670,6 +671,8 @@ MODULE AnnihilationMod
                                     call set_flag (CurrentDets(:,PartInd), flag_is_initiator(j))
                                     call set_flag (CurrentDets(:,PartInd), flag_make_initiator(j))
                                     NoAddedInitiators = NoAddedInitiators + 1
+                                    if (tSpawnSpatialInit) &
+                                        call add_initiator_list (CurrentDets(:,PartInd))
                                 else
                                     ! If the residual particles were spawned from non-initiator 
                                     ! particles, abort them. Encode only the correct 'type'
@@ -714,6 +717,8 @@ MODULE AnnihilationMod
                                 call set_flag (CurrentDets(:,PartInd), flag_is_initiator(j))
                                 call set_flag (CurrentDets(:,PartInd), flag_make_initiator(j))
                                 NoAddedInitiators = NoAddedInitiators + 1
+                                if (tSpawnSpatialInit) &
+                                    call add_initiator_list (CurrentDets(:,PartInd))
                             endif
                         endif
 
@@ -845,6 +850,8 @@ MODULE AnnihilationMod
                             if (test_flag(CurrentDets(:,i),flag_parent_initiator(part_type))) then
                                 !determinant was an initiator...it obviously isn't any more...
                                 NoAddedInitiators=NoAddedInitiators-1.D0
+                                if (tSpawnSpatialInit) &
+                                    call rm_initiator_list (CurrentDets(:,i))
                             endif
                         enddo
                     ENDIF

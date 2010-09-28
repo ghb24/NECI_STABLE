@@ -281,14 +281,14 @@ contains
         integer(kind=n_int), intent(in) :: arr(:,:)
         integer(kind=n_int), intent(in) :: val(:)
         integer, intent(in), optional :: cf_len
-        integer :: num_items, data_lo, data_hi
+        integer :: data_lo, data_hi
         integer :: pos, len
 
         integer :: hi, lo
 
         ! The search range
-        lo = 1
-        hi = num_items
+        lo = lbound(arr,2)
+        hi = ubound(arr,2)
 
         ! Have we specified how much to look at?
         data_lo = lbound(arr, 1)

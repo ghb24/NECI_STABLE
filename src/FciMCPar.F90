@@ -55,7 +55,7 @@ MODULE FciMCParMod
     USE AnnihilationMod
     use PopsfileMod
     use DetBitops, only: EncodeBitDet, DetBitEQ, DetBitLT, FindExcitBitDet, &
-                         FindBitExcitLevel, countbits, MaskAlpha, MaskBeta
+                         FindBitExcitLevel, countbits
     use csf, only: get_csf_bit_yama, iscsf, csf_orbital_mask, get_csf_helement
     use hphf_integrals, only: hphf_diag_helement, hphf_off_diag_helement, &
                               hphf_spawn_sign, hphf_off_diag_helement_spawn
@@ -1005,6 +1005,17 @@ MODULE FciMCParMod
                 call flush(6)
             endif
         endif
+
+        ! Are we near the end of the spatial initiator list
+        if (tSpawnSpatialInit) then
+            rat = real(no_spatial_init_dets) / real(max_inits)
+            if (rat > 0.95) then
+                write(6, '(a)') '*WARNING* - Number of spatial initiators has&
+                                & reached over 95% f max_inits.'
+                call flush(6)
+            endif
+        endif
+
     end subroutine
 
 
@@ -1039,6 +1050,8 @@ MODULE FciMCParMod
                     if (abs(CurrentSign(part_type)) > InitiatorWalkNo) then
                         parent_init = .true.
                         NoAddedInitiators = NoAddedInitiators + 1
+                        if (tSpawnSpatialInit) &
+                            call add_initiator_list (CurrentDets(:,j))
                     endif
                 elseif (tRetestAddToInit) then
                     ! The source determinant is already an initiator.            
@@ -1060,6 +1073,8 @@ MODULE FciMCParMod
                         ! removed.
                         parent_init = .false.
                         NoAddedInitiators = NoAddedInitiators - 1
+                        if (tSpawnSpatialInit) &
+                            call rm_initiator_list (CurrentDets(:,j))
                     endif
                 endif
             endif
@@ -1807,9 +1822,9 @@ MODULE FciMCParMod
 
 !        IF(iDie.ne.0) WRITE(6,*) "Death: ",iDie
         
-        IFDEBUGTHEN(FCIMCDebug,3) 
+        IFDEBUG(FCIMCDebug,3) then 
             if(sum(abs(iDie)).ne.0) write(6,"(A,2I4)") "Death: ",iDie(:)
-        ENDIFDEBUG
+        endif
 
         ! Update death counter
         iter_data%ndied = iter_data%ndied + min(iDie, abs(wSign))
@@ -1835,6 +1850,8 @@ MODULE FciMCParMod
                 iter_data%naborted(1) = iter_data%naborted(1) + abs(CopySign(1))
                 if(test_flag(iLutCurr,flag_is_initiator(1))) then
                     NoAddedInitiators=NoAddedInitiators-1.D0
+                    if (tSpawnSpatialInit) &
+                        call rm_initiator_list (ilutCurr)
                 endif
 
             ELSE
@@ -1847,6 +1864,8 @@ MODULE FciMCParMod
             ! All particles on this determinant have gone. If the determinant was an initiator, update the stats
             if(test_flag(iLutCurr,flag_is_initiator(1))) then
                 NoAddedInitiators=NoAddedInitiators-1.D0
+                if (tSpawnSpatialInit) &
+                    call rm_initiator_list (ilutCurr)
             endif
         endif
 #else
@@ -3181,7 +3200,7 @@ MODULE FciMCParMod
         CHARACTER(len=*), PARAMETER :: this_routine='SetupParameters'
         CHARACTER(len=12) :: abstr
         LOGICAL :: tSuccess,tFoundOrbs(nBasis),FoundPair
-        INTEGER :: nSingles,nDoubles,HFLz,ChosenOrb,KPnt(3)
+        INTEGER :: nSingles,nDoubles,HFLz,ChosenOrb,KPnt(3), step
 
 !        CALL MPIInit(.false.)       !Initialises MPI - now have variables iProcIndex and nProcessors
         WRITE(6,*) ""
@@ -3434,11 +3453,16 @@ MODULE FciMCParMod
 
 !                WRITE(6,*) "Random Orbital Indexing for hash:"
 !                WRITE(6,*) RandomHash(:)
+            if (tSpatialOnlyHash) then
+                step = 2
+            else
+                step = 1
+            endif
             do i=1,nBasis
                 IF((RandomHash(i).eq.0).or.(RandomHash(i).gt.nBasis*1000)) THEN
                     CALL Stop_All(this_routine,"Random Hash incorrectly calculated")
                 ENDIF
-                do j=i+1,nBasis
+                do j = i+step, nBasis, step
                     IF(RandomHash(i).eq.RandomHash(j)) THEN
                         CALL Stop_All(this_routine,"Random Hash incorrectly calculated")
                     ENDIF
@@ -5064,103 +5088,6 @@ MODULE FciMCParMod
 !ValidSpawndList now holds the next free position in the newly-spawned list, but for each processor.
       ValidSpawnedList(:)=InitialSpawnedSlots(:)
    end subroutine
-
-    subroutine add_initiator_list (Ilut)
-        
-        ! Add an initiator to the spatial initiator list.
-        !
-        ! In: IlutI - The spin orbital bit representation of the determinant
-        !             to add to the spatial initiator list.
-
-        integer(n_int) :: ilut(0:nifTot)
-        integer(n_int), dimension(0:NIfDBO) :: alpha, beta, a_sft, b_sft, spat
-        integer, dimension(lenof_sign) :: sgn
-        integer :: flag, pos
-
-        ! Obtain alpha/beta orbital representations
-        alpha = iand(ilut, MaskAlpha)
-        beta = iand(ilut, MaskBeta)
-
-        ! Shift alphas to beta pos and vice versa
-        a_sft = ishft(alpha, -1)
-        b_sft = ishft(beta, +1)
-
-        ! Obtain the representation with all singly occupied orbitals in the
-        ! beta position, and double occupied orbitals doubly occupied.
-        spat = ior(beta, ior(a_sft, iand(b_sft, alpha)))
-
-        if (no_spatial_init_dets == 0) then
-            ! If list is empty, start it.
-            sgn(1) = 1
-            call encode_bit_rep (CurrentInits(:,1), spat, sgn, flag)
-            no_spatial_init_dets = 1
-        else
-            pos = binary_search(CurrentInits(:, 1:no_spatial_init_dets), &
-                                spat(0:NIfD), NIfD+1)
-            if (pos < 0) then
-                ! If det not in the list, add it.
-                sgn(1) = 1
-                CurrentInits(:, pos+1:no_spatial_init_dets+1) = &
-                    CurrentInits(:, pos:no_spatial_init_dets)
-                call encode_bit_rep (CurrentInits(:,pos), spat, sgn, flag)
-                no_spatial_init_dets = no_spatial_init_dets + 1
-            else
-                ! If we have found the det already, then increment its count.
-                sgn(1) = extract_part_sign (CurrentInits(:, pos), 1) + 1
-                call encode_part_sign (CurrentInits(:, pos), sgn(1), 1)
-            endif
-        endif
-
-    end subroutine
-
-    subroutine rm_initiator_list (ilut)
-
-        ! Remove an initiator from the spatial initiator list.
-        !
-        ! In: Ilut - The spin orbital bit representation of the determinant
-        !             to remove from the spatial initiator list.
-
-        integer(n_int) :: ilut(0:nifTot)
-        integer(n_int), dimension(0:NIfDBO) :: alpha, beta, a_sft, b_sft, spat
-        integer :: pos, sgn
-        character(*), parameter :: this_routine = 'rm_initiator_list'
-
-        ! Obtain alpha/beta orbital representations
-        alpha = iand(ilut, MaskAlpha)
-        beta = iand(ilut, MaskBeta)
-
-        ! Shift alphas to beta pos and vice versa
-        a_sft = ishft(alpha, -1)
-        b_sft = ishft(beta, +1)
-
-        ! Obtain the representation with all singly occupied orbitals in the
-        ! beta position, and double occupied orbitals doubly occupied.
-        spat = ior(beta, ior(a_sft, iand(b_sft, alpha)))
-
-        ! Find the spatial initiator in the list. If it is not there, then
-        ! something is very wrong.
-        pos = binary_search(CurrentInits(:, 1:no_spatial_init_dets), &
-                            spat(0:NIfD), NIfD+1)
-        if (pos < 0) &
-            call stop_all (this_routine, "Spatial initiator to remove from &
-                                         &list not found.")
-        
-        sgn = extract_part_sign (CurrentInits(:,pos), 1)
-        ASSERT(sgn > 0)
-        if (sgn == 1) then
-            ! Remove this determinant from the list.
-            if (no_spatial_init_dets > 1) then
-                CurrentInits(:, pos:no_spatial_init_dets - 1) = &
-                    CurrentInits(:, pos+1:no_spatial_init_dets)
-            endif
-            no_spatial_init_dets = no_spatial_init_dets - 1
-        else
-            ! If more than one determinant with this spatial configuration is
-            ! in the list, just decrement the count.
-            call encode_part_sign (CurrentInits(:,pos), sgn - 1, 1)
-        endif
-
-    end subroutine
 
 END MODULE FciMCParMod
 
