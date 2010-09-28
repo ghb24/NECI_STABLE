@@ -274,14 +274,14 @@ contains
     ! NOTE: This can only be used for binary searching determinant bit 
     !       strings now. We can template it if it wants to be more general 
     !       in the future if needed.
-    pure function binary_search (arr, val, data_size, num_items, cf_len) &
+    pure function binary_search (arr, val, cf_len) &
                                  result(pos)
         use constants, only: n_int
 
-        integer, intent(in) :: data_size, num_items
-        integer(kind=n_int), intent(in) :: arr(data_size, num_items)
-        integer(kind=n_int), intent(in) :: val(data_size)
+        integer(kind=n_int), intent(in) :: arr(:,:)
+        integer(kind=n_int), intent(in) :: val(:)
         integer, intent(in), optional :: cf_len
+        integer :: num_items, data_lo, data_hi
         integer :: pos, len
 
         integer :: hi, lo
@@ -291,19 +291,20 @@ contains
         hi = num_items
 
         ! Have we specified how much to look at?
+        data_lo = lbound(arr, 1)
         if (present(cf_len)) then
-            len = cf_len
+            data_hi = data_lo + cf_len - 1
         else
-            len = data_size
+            data_hi = ubound(arr, 1)
         endif
 
         ! Narrow the search range down in steps.
         do while (hi /= lo)
             pos = int(real(hi + lo) / 2)
 
-            if (all(arr(:len,pos) == val)) then
+            if (all(arr(data_lo:data_hi,pos) == val)) then
                 exit
-            else if (arr_gt(val(:len), arr(:len,pos))) then
+            else if (arr_gt(val, arr(data_lo:data_hi,pos))) then
                 ! val is "greater" than arr(:len,pos).
                 ! The lowest position val can take is hence pos + 1 (i.e. if
                 ! val is greater than pos by smaller than pos + 1).
@@ -325,9 +326,9 @@ contains
         ! then return -pos to indicate that the item is not present, but that
         ! this is the location it should be in.
         if (hi == lo) then
-            if (all(arr(:len,hi) == val(:len))) then
+            if (all(arr(data_lo:data_hi,hi) == val)) then
                 pos = hi
-            else if (arr_gt(val(:len), arr(:len,hi))) then
+            else if (arr_gt(val, arr(data_lo:data_hi,hi))) then
                 pos = -hi - 1
             else
                 pos = -hi

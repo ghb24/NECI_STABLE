@@ -158,10 +158,12 @@ MODULE ReadInput
       use SystemData , only : NEL,TSTARSTORE,TUseBrillouin, Beta,tFindCINatOrbs
       USE PrecalcData , only : PREIV_MAX,USEVAR,PRE_TAYLOG,             &
      &  TGRIDVAR,TLINEVAR,TOTALERROR,TRUECYCLES
-      use CalcData , only : I_VMAX,NPATHS,                 &
-     &  G_VMC_EXCITWEIGHT,G_VMC_EXCITWEIGHTS,EXCITFUNCS,TMCDIRECTSUM,   &
-     & TDIAGNODES,TSTARSTARS,TBiasing,TMoveDets,TNoSameExcit,TInitStar,tMP2Standalone, &
-     & GrowMaxFactor,MemoryFacPart
+      use CalcData, only: I_VMAX, NPATHS, G_VMC_EXCITWEIGHT, &
+                          G_VMC_EXCITWEIGHTS, EXCITFUNCS, TMCDIRECTSUM, &
+                          TDIAGNODES, TSTARSTARS, TBiasing, TMoveDets, &
+                          TNoSameExcit, TInitStar, tMP2Standalone, &
+                          GrowMaxFactor, MemoryFacPart, tTruncInitiator, &
+                          tSpawnSpatialInit, tSpatialOnlyHash
       Use Determinants, only : SpecDet,tagSpecDet
       use IntegralsData , only : NFROZEN,TDISCONODES,TQuadValMax,TQuadVecMax,TCalcExcitStar,TJustQuads,TNoDoubs,TDiagStarStars,TExcitStarsRootChange,TRmRootExcitStarsRootChange,TLinRootChange
       USE Logging , only : ILOGGING,tCalcFCIMCPsi,tHistSpawn,tHistHamil
@@ -380,6 +382,16 @@ MODULE ReadInput
           
           ! Set the value of STOT as required
           STOT = LMS
+      endif
+
+      if (tSpawnSpatialInit) then
+          if (.not. tTruncInitiator) &
+              call stop_all (t_r, "The spatial initiator survival critereon &
+                                  &requires TRUNCINITIATOR to be set")
+          if (.not. tSpatialOnlyHash) &
+              call stop_all (t_r, "The spatial initiator survival criteron &
+                                  &requires a spatial-only hash to be used. &
+                                  &(SPATIAL-ONLY-HASH)")
       endif
 
       end subroutine checkinput

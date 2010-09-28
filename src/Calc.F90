@@ -68,6 +68,7 @@ contains
           MemoryFacPart=10.D0
           MemoryFacAnnihil=10.D0
           MemoryFacSpawn=0.5
+          MemoryFacInit = 0.3
           TStartSinglePart=.true.
           TFixParticleSign=.false.
           TProjEMP2=.false.
@@ -227,6 +228,8 @@ contains
           spin_proj_cutoff = 0
           spin_proj_iter_count = 1
           tUseProcsAsNodes=.false.
+
+          tSpawnSpatialInit = .false.
       
         end subroutine SetCalcDefaults
 
@@ -959,6 +962,11 @@ contains
 !A parallel FCIMC option for use with ROTOANNIHILATION. This is the factor by which space will be made available for spawned particles each iteration. 
 !Several of these arrays are needed for the annihilation process. With ROTOANNIHILATION, MEMORYFACANNIHIL is redundant, but MEMORYFACPART still need to be specified.
                 CALL Getf(MemoryFacSpawn)
+            case("MEMORYFACINIT")
+                ! If we are maintaining a list of initiators on each
+                ! processor, this is the factor of InitWalkers which will be
+                ! used for the size
+                call getf(MemoryFacInit)
             case("REGENEXCITGENS")
 !An FCIMC option. With this, the excitation generators for the walkers will NOT be stored, and regenerated each time. This will be slower, but save on memory.
                 TRegenExcitGens=.true.
@@ -1223,6 +1231,12 @@ contains
                 ! How many times should the spin projection step be applied 
                 ! on each occasion it gets called? (default 1)
                 call geti (spin_proj_iter_count)
+
+            case("ALLOW-SPATIAL-INIT-SPAWNS")
+                ! If a determinant is an initiator, all spawns to other dets
+                ! with the same spatial structure should be allowed.
+                tSpawnSpatialInit = .true.
+                tSpatialOnlyHash = .true.
 
             case default
                 call report("Keyword "                                &

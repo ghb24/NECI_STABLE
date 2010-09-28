@@ -31,7 +31,8 @@ MODULE FciMCParMod
                         tRetestAddtoInit, tReadPopsChangeRef, &
                         tReadPopsRestart, tCheckHighestPopOnce, &
                         iRestartWalkNum, tRestartHighPop, FracLargerDet, &
-                        tChangeProjEDet, tCheckHighestPop
+                        tChangeProjEDet, tCheckHighestPop, tSpawnSpatialInit,&
+                        MemoryFacInit
     use HPHFRandExcitMod, only: FindExcitBitDetSym, GenRandHPHFExcit, &
                                 gen_hphf_excit
     use Determinants, only: FDet, get_helement, write_det, &
@@ -54,11 +55,11 @@ MODULE FciMCParMod
     USE AnnihilationMod
     use PopsfileMod
     use DetBitops, only: EncodeBitDet, DetBitEQ, DetBitLT, FindExcitBitDet, &
-                         FindBitExcitLevel, countbits
+                         FindBitExcitLevel, countbits, MaskAlpha, MaskBeta
     use csf, only: get_csf_bit_yama, iscsf, csf_orbital_mask, get_csf_helement
     use hphf_integrals, only: hphf_diag_helement, hphf_off_diag_helement, &
                               hphf_spawn_sign, hphf_off_diag_helement_spawn
-    use util_mod, only: choose,abs_int_sign,abs_int8_sign
+    use util_mod, only: choose, abs_int_sign, abs_int8_sign, binary_search
     use constants, only: dp, int64, n_int, lenof_sign
     use soft_exit, only: ChangeVars 
     use FciMCLoggingMod, only: FinaliseBlocking, FinaliseShiftBlocking, &
@@ -4711,6 +4712,15 @@ MODULE FciMCParMod
             TotPartsOld(:)=0
             NoatHF=0
 
+            if (tSpawnSpatialInit) then
+                max_inits = int(MemoryFacInit * INitWalkers)
+                no_spatial_init_dets = 0
+                allocate(CurrentInits(0:nIfTot, max_inits), stat=ierr)
+                call LogMemAlloc('CurrentInits', max_inits * (NIfTot+1), &
+                                 size_n_int, this_routine, CurrentInitTag, &
+                                 ierr)
+            endif
+
 !If we have a popsfile, read the walkers in now.
             if(tReadPops.and..not.tPopsAlreadyRead) then
 
@@ -5054,6 +5064,103 @@ MODULE FciMCParMod
 !ValidSpawndList now holds the next free position in the newly-spawned list, but for each processor.
       ValidSpawnedList(:)=InitialSpawnedSlots(:)
    end subroutine
+
+    subroutine add_initiator_list (Ilut)
+        
+        ! Add an initiator to the spatial initiator list.
+        !
+        ! In: IlutI - The spin orbital bit representation of the determinant
+        !             to add to the spatial initiator list.
+
+        integer(n_int) :: ilut(0:nifTot)
+        integer(n_int), dimension(0:NIfDBO) :: alpha, beta, a_sft, b_sft, spat
+        integer, dimension(lenof_sign) :: sgn
+        integer :: flag, pos
+
+        ! Obtain alpha/beta orbital representations
+        alpha = iand(ilut, MaskAlpha)
+        beta = iand(ilut, MaskBeta)
+
+        ! Shift alphas to beta pos and vice versa
+        a_sft = ishft(alpha, -1)
+        b_sft = ishft(beta, +1)
+
+        ! Obtain the representation with all singly occupied orbitals in the
+        ! beta position, and double occupied orbitals doubly occupied.
+        spat = ior(beta, ior(a_sft, iand(b_sft, alpha)))
+
+        if (no_spatial_init_dets == 0) then
+            ! If list is empty, start it.
+            sgn(1) = 1
+            call encode_bit_rep (CurrentInits(:,1), spat, sgn, flag)
+            no_spatial_init_dets = 1
+        else
+            pos = binary_search(CurrentInits(:, 1:no_spatial_init_dets), &
+                                spat(0:NIfD), NIfD+1)
+            if (pos < 0) then
+                ! If det not in the list, add it.
+                sgn(1) = 1
+                CurrentInits(:, pos+1:no_spatial_init_dets+1) = &
+                    CurrentInits(:, pos:no_spatial_init_dets)
+                call encode_bit_rep (CurrentInits(:,pos), spat, sgn, flag)
+                no_spatial_init_dets = no_spatial_init_dets + 1
+            else
+                ! If we have found the det already, then increment its count.
+                sgn(1) = extract_part_sign (CurrentInits(:, pos), 1) + 1
+                call encode_part_sign (CurrentInits(:, pos), sgn(1), 1)
+            endif
+        endif
+
+    end subroutine
+
+    subroutine rm_initiator_list (ilut)
+
+        ! Remove an initiator from the spatial initiator list.
+        !
+        ! In: Ilut - The spin orbital bit representation of the determinant
+        !             to remove from the spatial initiator list.
+
+        integer(n_int) :: ilut(0:nifTot)
+        integer(n_int), dimension(0:NIfDBO) :: alpha, beta, a_sft, b_sft, spat
+        integer :: pos, sgn
+        character(*), parameter :: this_routine = 'rm_initiator_list'
+
+        ! Obtain alpha/beta orbital representations
+        alpha = iand(ilut, MaskAlpha)
+        beta = iand(ilut, MaskBeta)
+
+        ! Shift alphas to beta pos and vice versa
+        a_sft = ishft(alpha, -1)
+        b_sft = ishft(beta, +1)
+
+        ! Obtain the representation with all singly occupied orbitals in the
+        ! beta position, and double occupied orbitals doubly occupied.
+        spat = ior(beta, ior(a_sft, iand(b_sft, alpha)))
+
+        ! Find the spatial initiator in the list. If it is not there, then
+        ! something is very wrong.
+        pos = binary_search(CurrentInits(:, 1:no_spatial_init_dets), &
+                            spat(0:NIfD), NIfD+1)
+        if (pos < 0) &
+            call stop_all (this_routine, "Spatial initiator to remove from &
+                                         &list not found.")
+        
+        sgn = extract_part_sign (CurrentInits(:,pos), 1)
+        ASSERT(sgn > 0)
+        if (sgn == 1) then
+            ! Remove this determinant from the list.
+            if (no_spatial_init_dets > 1) then
+                CurrentInits(:, pos:no_spatial_init_dets - 1) = &
+                    CurrentInits(:, pos+1:no_spatial_init_dets)
+            endif
+            no_spatial_init_dets = no_spatial_init_dets - 1
+        else
+            ! If more than one determinant with this spatial configuration is
+            ! in the list, just decrement the count.
+            call encode_part_sign (CurrentInits(:,pos), sgn - 1, 1)
+        endif
+
+    end subroutine
 
 END MODULE FciMCParMod
 
