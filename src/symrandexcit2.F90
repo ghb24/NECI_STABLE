@@ -1450,7 +1450,7 @@ MODULE GenRandSymExcitNUMod
 !Find symmetry of chosen electron
                 ElecSym=0
             ELSE
-                ElecSym=SymInvLabel(SpinOrbSymLabel((Ex(1,1))))
+                ElecSym=SpinOrbSymLabel((Ex(1,1)))
                 IF(tFixLz) THEN
                     Elec1Ml=G1(Ex(1,1))%Ml
                 ENDIF
