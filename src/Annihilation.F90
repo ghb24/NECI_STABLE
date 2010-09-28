@@ -70,6 +70,7 @@ MODULE AnnihilationMod
 !This needs to be filled correctly before annihilation can take place.
             ALLOCATE(ValidSpawnedList(0:nNodes-1),stat=ierr)
         ENDIF
+        call MPIBarrier(ierr)
         IF(.not.(ASSOCIATED(SpawnVecLocal))) THEN
 !This is required scratch space of the size of the spawned arrays
             call shared_allocate_iluts("SpawnVecLocal",SpawnVecLocal,(/NIfTot,MaxSpawnInd/))
@@ -81,7 +82,6 @@ MODULE AnnihilationMod
 !            CALL LogMemAlloc('SpawnSignVec2',MaxSpawnInd+1,size_n_int,this_routine,SpawnSignVec2Tag,ierr)
 !            SpawnSignVec2(:)=0
         ENDIF
-
 !ValidSpawnedList indicates the next free index for each processor.
 !For CCMC using shared memory, we will have a single processor on each node handling this.
 !Say there are 2 nodes with 4 processors on each.  ValidSpawnedList will contain
@@ -96,10 +96,10 @@ MODULE AnnihilationMod
 
 ! Since we've no way of knowing about nodes as yet, we just assume all processors are on the same node.  AJWT  TODO Multinodes.
 
-        ValidSpawnedList(0)=SpawnDets+1   !Add one since it always indicates the next free slot.
-        do i=1,nNodes-1
-            ValidSpawnedList(i)=MaxSpawnInd
-        enddo 
+!        ValidSpawnedList(0)=SpawnDets+1   !Add one since it always indicates the next free slot.
+!        do i=1,nNodes-1
+!            ValidSpawnedList(i)=MaxSpawnInd
+!        enddo 
 
 !        TempSign=0
 !        do i=1,TotDets
@@ -115,7 +115,8 @@ MODULE AnnihilationMod
 !These point to the scratch space
         SpawnedParts2 => SpawnVecLocal
 
-        CALL DirectAnnihilation(TotDets, iter_data,.true.) !.true. for single processor annihilation
+!          CALL DirectAnnihilation(TotDets, iter_data,.true.) !.true. for single processor annihilation
+        CALL DirectAnnihilation(TotDets, iter_data,.false.) !.true. for single processor annihilation
 !        if(iProcIndex==root) then        
 !Signs put back again into seperate array
 !           do i=1,TotDets
@@ -145,8 +146,9 @@ MODULE AnnihilationMod
 
 !This routine will send all the newly-spawned particles to their correct processor. MaxIndex is returned as the new number of newly-spawned particles on the processor. May have duplicates.
 !The particles are now stored in SpawnedParts2/SpawnedSign2.
-!        call WriteExcitorListP(6,SpawnedParts,0,ValidSpawnedList(0),0,"Local")
-        if(bNodeRoot) CALL SendProcNewParts(MaxIndex,tSingleProc)
+!        call WriteExcitorListP2(6,SpawnedParts,InitialSpawnedSlots,ValidSpawnedList,0,"Local")
+!        if(bNodeRoot) 
+        CALL SendProcNewParts(MaxIndex,tSingleProc)
 
 !        WRITE(6,*) "Sent particles"
 !        WRITE(6,*) 'MaxIndex',MaxIndex
@@ -160,10 +162,8 @@ MODULE AnnihilationMod
 !Now we want to order and compress the spawned list of particles. This will also annihilate the newly spawned particles amongst themselves.
 !MaxIndex will change to reflect the final number of unique determinants in the newly-spawned list, and the particles will end up in the spawnedSign/SpawnedParts lists.
 !        WRITE(6,*) "Transferred",MaxIndex
-         call MPIBarrier(ierr)
 
         CALL CompressSpawnedList(MaxIndex, iter_data)  
-         call MPIBarrier(ierr)
 
 !        WRITE(6,*) "List compressed",MaxIndex,TotWalkersNew
 
@@ -171,7 +171,6 @@ MODULE AnnihilationMod
 !This will also remove the found determinants from the spawnedparts lists.
 
         CALL AnnihilateSpawnedParts(MaxIndex,TotWalkersNew, iter_data)  
-         call MPIBarrier(ierr)
 
  !       WRITE(6,*) "Annihilation finished",MaxIndex,TotWalkersNew
 
@@ -191,13 +190,12 @@ MODULE AnnihilationMod
     SUBROUTINE SendProcNewParts(MaxIndex,tSingleProc)
         use constants, only: MpiDetInt
         REAL :: Gap
-        INTEGER :: i,sendcounts(nNodes),disps(nNodes),recvcounts(nNodes),recvdisps(nNodes),error
+        INTEGER :: i,sendcounts(nProcessors),disps(nProcessors),recvcounts(nProcessors),recvdisps(nProcessors),error
         INTEGER :: MaxSendIndex
         INTEGER, INTENT(OUT) :: MaxIndex
         LOGICAL, intent(in) :: tSingleProc
       
 
-!        WRITE(6,*) "ValidSpawnedList ",ValidSpawnedList(:)
         if(tSingleProc) then
 !Put all particles and gap on one proc.
 
@@ -214,10 +212,15 @@ MODULE AnnihilationMod
            endif
         else
 !Distribute the gaps on all procs
-           do i=0,nNodes-1
-               sendcounts(i+1)=ValidSpawnedList(i)-InitialSpawnedSlots(i)
+           do i=0,nProcessors-1
+               if(NodeRoots(ProcNode(i))==i) then  !This is a root 
+                  sendcounts(i+1)=ValidSpawnedList(ProcNode(i))-InitialSpawnedSlots(ProcNode(i))
 ! disps is zero-based, but InitialSpawnedSlots is 1-based
-               disps(i+1)=InitialSpawnedSlots(i)-1
+                  disps(i+1)=InitialSpawnedSlots(ProcNode(i))-1
+               else
+                  sendcounts(i+1)=0
+                  disps(i+1)=disps(i)
+               endif
            enddo
         endif
 
@@ -228,19 +231,19 @@ MODULE AnnihilationMod
         MaxSendIndex=ValidSpawnedList(nNodes-1)-1
 
 !We now need to calculate the recvcounts and recvdisps - this is a job for AlltoAll
-        recvcounts(1:nNodes)=0
+        recvcounts(1:nProcessors)=0
         
         CALL set_timer(Comms_Time,30)
         
-        CALL MPIAlltoAll(sendcounts,1,recvcounts,1,error,Roots)
+        CALL MPIAlltoAll(sendcounts,1,recvcounts,1,error)
 
 !We can now get recvdisps from recvcounts, since we want the data to be contiguous after the move.
         recvdisps(1)=0
-        do i=2,nNodes
+        do i=2,nProcessors
             recvdisps(i)=recvdisps(i-1)+recvcounts(i-1)
         enddo
-        MaxIndex=recvdisps(nNodes)+recvcounts(nNodes)
-        do i=1,nNodes
+        MaxIndex=recvdisps(nProcessors)+recvcounts(nProcessors)
+        do i=1,nProcessors
             recvdisps(i)=recvdisps(i)*(NIfTot+1)
             recvcounts(i)=recvcounts(i)*(NIfTot+1)
             sendcounts(i)=sendcounts(i)*(NIfTot+1)
@@ -283,7 +286,7 @@ MODULE AnnihilationMod
 !            write(6,*) i, '***', CountBits(spawnedparts(:,i), nifd)
 !            WRITE(6,*) i,"***",SpawnedParts(:,i)
 !        enddo
-        CALL MPIAlltoAllv(SpawnedParts,sendcounts,disps,SpawnedParts2,recvcounts,recvdisps,error,Roots)
+        CALL MPIAlltoAllv(SpawnedParts,sendcounts,disps,SpawnedParts2,recvcounts,recvdisps,error)
 
 !        WRITE(6,*) MaxIndex, "Recieved particles: "
 !        do i=1,MaxIndex
@@ -313,7 +316,7 @@ MODULE AnnihilationMod
         call sort(SpawnedParts(:,1:ValidSpawned), ilut_lt, ilut_gt)
         IF(tHistSpawn) HistMinInd2(1:NEl)=FCIDetIndex(1:NEl)
 
- !       call WriteExcitorListP(6,SpawnedParts,0,ValidSpawned,0,"Ordered")
+!        call WriteExcitorListP(6,SpawnedParts,0,ValidSpawned,0,"Ordered")
 
 
 !!        WRITE(6,*) "************ - Ordered",ValidSpawned,NIfTot,Iter
@@ -786,6 +789,7 @@ MODULE AnnihilationMod
             SpawnedParts => PointTemp
 
         ENDIF
+!        call WriteExcitorListP(6,SpawnedParts,0,ValidSpawned,0,"After zero-removal")
 
 !        WRITE(6,*) "After removal of zeros: "
 !        do i=1,ValidSpawned
@@ -957,15 +961,17 @@ MODULE AnnihilationMod
 
     END SUBROUTINE InsertRemoveParts
 
-    pure function DetermineDetNode (nI) result(node)
+    pure function DetermineDetNode (nI, iIterOffset) result(node)
 
         ! Depending on the Hash, determine which node determinant nI
         ! belongs to in the DirectAnnihilation scheme. NB FCIMC has each processor as a separate logical node.
         !
         ! In:  nI   - Integer ordered list for the determinant
+        ! In:  iIterOffset - Offset this iteration by this amount
         ! Out: proc - The (0-based) processor index.
 
         integer, intent(in) :: nI(nel)
+        integer, intent(in) :: iIterOffset
         integer :: node
         
         integer :: i
@@ -974,7 +980,7 @@ MODULE AnnihilationMod
         acc = 0
         do i = 1, nel
             acc = (1099511628211_int64 * acc) + &
-                    (RandomHash(iand(nI(i), csf_orbital_mask)) * i)
+                    (ishft(RandomHash(iand(nI(i), csf_orbital_mask))+hash_iter+iIterOffset,hash_shift) * i)
         enddo
         node = abs(mod(acc, int(nNodes, 8)))
 

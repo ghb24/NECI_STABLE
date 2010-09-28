@@ -86,7 +86,7 @@ MODULE PopsfileMod
                 write(6,"(A,I15,A)") "Reading in a total of ",EndPopsList, " configurations from POPSFILE."
             ENDIF
             if(ScaleWalkers.ne.1) call warning(this_routine,"ScaleWalkers parameter found, but not implemented in POPSFILE v3 - ignoring.")
-
+            call flush(6)
         ENDIF
 
         BatchSize=REAL(ReadBatch,dp)/REAL(nProcessors,dp)
@@ -99,6 +99,7 @@ MODULE PopsfileMod
             allocate(BatchRead(0:NIfTot,1:ReadBatch),stat=ierr)
             CALL LogMemAlloc('BatchRead',ReadBatch*(NIfTot+1),size_n_int,this_routine,BatchReadTag,ierr)
             write(6,*) "Reading in a maximum of ",ReadBatch," determinants at a time from POPSFILE."
+            call flush(6)
         endif
 
         CurrHF=0        !Number of HF walkers on each node.
@@ -142,7 +143,7 @@ MODULE PopsfileMod
                     enddo
 
                     call decode_bit_det (TempnI, WalkerTemp)
-                    proc = DetermineDetNode (TempnI)
+                    proc = DetermineDetNode (TempnI,0)
                     BatchRead(:,PopsSendList(proc)) = WalkerTemp(:)
                     PopsSendList(proc) = PopsSendList(proc) + 1
                     if(proc.ne.(nProcessors-1)) then
@@ -928,7 +929,7 @@ MODULE PopsfileMod
         
 #endif
             call decode_bit_det (TempnI, iLutTemp)
-            Proc = DetermineDetNode(TempnI)
+            Proc = DetermineDetNode(TempnI,0)
             IF((Proc.eq.iNodeIndex).and.(abs(TempSign(1)).ge.iWeightPopRead)) THEN
                 CurrWalkers=CurrWalkers+1
                 call encode_bit_rep(CurrentDets(:,CurrWalkers),iLutTemp(0:NIfDBO),TempSign,0)   !Do not need to send a flag here...
