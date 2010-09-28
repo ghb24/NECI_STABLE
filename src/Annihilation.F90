@@ -242,7 +242,7 @@ MODULE AnnihilationMod
         do i=2,nProcessors
             recvdisps(i)=recvdisps(i-1)+recvcounts(i-1)
         enddo
-        MaxIndex=recvdisps(nNodes)+recvcounts(nNodes)
+        MaxIndex=recvdisps(nProcessors)+recvcounts(nProcessors)
         do i=1,nProcessors
             recvdisps(i)=recvdisps(i)*(NIfTot+1)
             recvcounts(i)=recvcounts(i)*(NIfTot+1)
@@ -961,15 +961,17 @@ MODULE AnnihilationMod
 
     END SUBROUTINE InsertRemoveParts
 
-    pure function DetermineDetNode (nI) result(node)
+    pure function DetermineDetNode (nI, iIterOffset) result(node)
 
         ! Depending on the Hash, determine which node determinant nI
         ! belongs to in the DirectAnnihilation scheme. NB FCIMC has each processor as a separate logical node.
         !
         ! In:  nI   - Integer ordered list for the determinant
+        ! In:  iIterOffset - Offset this iteration by this amount
         ! Out: proc - The (0-based) processor index.
 
         integer, intent(in) :: nI(nel)
+        integer, intent(in) :: iIterOffset
         integer :: node
         
         integer :: i
@@ -978,7 +980,7 @@ MODULE AnnihilationMod
         acc = 0
         do i = 1, nel
             acc = (1099511628211_int64 * acc) + &
-                    (RandomHash(iand(nI(i), csf_orbital_mask)) * i)
+                    (ishft(RandomHash(iand(nI(i), csf_orbital_mask))+hash_iter+iIterOffset,hash_shift) * i)
         enddo
         node = abs(mod(acc, int(nNodes, 8)))
 

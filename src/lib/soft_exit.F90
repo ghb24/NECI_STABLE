@@ -583,7 +583,7 @@ contains
                            hfScaleFactor
 
                 SumNoatHF = SumNoatHF * hfScaleFactor
-                if (iNodeIndex == DetermineDetNode(HFDet).and. bNodeRoot) then
+                if (iNodeIndex == DetermineDetNode(HFDet,0).and. bNodeRoot) then
                     pos = binary_search (CurrentDets, iLutHF, NIfTot+1, &
                                          int(TotWalkers,int32))
                     call extract_sign (CurrentDets(:,pos), hfsign)

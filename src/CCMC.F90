@@ -646,7 +646,7 @@ MODULE CCMC
 !In direct annihilation, we spawn particles into a seperate array, but we do not store them contiguously in the SpawnedParts/SpawnedSign arrays.
 !The processor that the newly-spawned particle is going to be sent to has to be determined, and then it will get put into the the appropriate element determined by ValidSpawnedList.
 
-                       Proc=DetermineDetNode(nJ)   !This wants to return a value between 0 -> nProcessors-1
+                       Proc=DetermineDetNode(nJ,0)   !This wants to return a value between 0 -> nProcessors-1
    !                    WRITE(6,*) iLutnJ(:),Proc,ValidSpawnedList(Proc),Child,TotWalkers
    !                    CALL FLUSH(6)
                        call encode_det(SpawnedParts(:,ValidSpawnedList(Proc)),iLutnJ)
@@ -1859,6 +1859,7 @@ SUBROUTINE CCMCStandalone(Weight,Energyxw)
 
    INTEGER iOldTotParts        ! Info user for update to calculate shift
    INTEGER iShiftLeft            ! Number of steps left until we recalculate shift
+   REAL*8 dNorm
    REAL*8 WalkerScale            ! Scale factor for turning floating point amplitudes into integer walkers.
    REAL*8 dProjE                 ! Stores the Projected Energy
    REAL*8 dTolerance             ! The tolerance for when to regard a value as zero
@@ -1890,6 +1891,8 @@ SUBROUTINE CCMCStandalone(Weight,Energyxw)
    TYPE(timer) :: CCMC_time
 
    REAL*8 dInitThresh
+
+   REAL*8 dLocAbsAmpl         !Not used as parallel not implemented here
 
    WRITE(6,*) "Entering CCMC Standalone..."
    CCMC_time%timer_name='CCMC Standalone'
@@ -2021,9 +2024,9 @@ SUBROUTINE CCMCStandalone(Weight,Energyxw)
          write(6,*) "Cycle ",Iter
          call WriteExcitorList(6,AL,iCurAmpList,FciDets,0,nAmpl,dAmpPrintTol,"Excitor list")
       endif
-      call CalcTotals(iNumExcitors,dTotAbsAmpl,AL,iCurAmpList,nAmpl,dTolerance*dInitAmplitude,WalkerScale,iRefPos,iOldTotParts,iDebug)
+      call CalcTotals(iNumExcitors,dTotAbsAmpl,dNorm, AL,iCurAmpList,nAmpl,dTolerance*dInitAmplitude,WalkerScale,iRefPos,iOldTotParts,iDebug)
       if(tExactEnergy) then
-         CALL CalcClusterEnergy(tCCMCFCI,AL,iCurAmpList,nAmpl,FciDets,FCIDetIndex,iRefPos,iDebug,dProjE)
+         CALL CalcClusterEnergy(tCCMCFCI,AL,iCurAmpList,nAmpl,FciDets,FCIDetIndex,iRefPos,dNorm, iDebug,dProjE)
       else
          dProjE=ProjectionE
       endif
@@ -2054,12 +2057,12 @@ SUBROUTINE CCMCStandalone(Weight,Energyxw)
 !A standard run has PostBuffering .false. and selects purely from the main cluster selector.
 !A buffered run first has PostBuffering .false., selecting from the main CS, and storing the cumulative amplitudes in ALBuffer
 !        second, it has   PostBuffering .true.,  selecting from the CSBuff and spawning and dying from there.
-      call AccumulateAmplitudeList(OldAL,nCurAmpl,OldALIndex,iRefPos)
+      call AccumulateAmplitudeList(OldAL,nCurAmpl,OldALIndex,iRefPos,dLocAbsAmpl)
 
       do while (tMoreClusters)
          if(.not.tPostBuffering) then
             i=min(iNumExcitors,nEl)
-            tMoreClusters=GetNextCluster(CS,FciDets,nAmpl,AL,iOldAmpList,dTotAbsAmpl,i,iDebug)
+            tMoreClusters=GetNextCluster(CS,FciDets,nAmpl,AL,iOldAmpList,dTotAbsAmpl,dTotAbsAmpl,dNorm, i,iDebug)
             if(tCCBuffer.and..not.tMoreClusters) then
                IFDEBUG(iDebug,3) WRITE(6,*) "Buffering Complete.  Now Spawning."
                tPostBuffering=.true.
@@ -2068,12 +2071,12 @@ SUBROUTINE CCMCStandalone(Weight,Energyxw)
                OldAL=>ALBuffer
                OldALIndex=1
                IFDEBUG(iDebug,3) call WriteExcitorList(6,ALBuffer,OldALIndex,FciDets,0,nBuffAmpl,dAmpPrintTol,"Cluster expanded wavefunction")
-               call AccumulateAmplitudeList(OldAL,nCurAmpl,OldALIndex,iRefPos)
+               call AccumulateAmplitudeList(OldAL,nCurAmpl,OldALIndex,iRefPos,dLocAbsAmpl)
             endif
          endif
          if(tPostBuffering) then  !If we've finished buffering, we read from the buffer (which is now pointed to by OldAL
             i=min(iNumExcitors,nEl)
-            tMoreClusters=GetNextCluster(CSBuff,FciDets,nBuffAmpl,OldAL,OldALIndex,dTotAbsAmpl,i,iDebug)
+            tMoreClusters=GetNextCluster(CSBuff,FciDets,nBuffAmpl,OldAL,OldALIndex,dTotAbsAmpl,dTotAbsAmpl,dNorm, i,iDebug)
          endif
          if(.not.tMoreClusters) exit
 
@@ -2150,7 +2153,7 @@ SUBROUTINE CCMCStandalone(Weight,Energyxw)
       IFDEBUG(iDebug,2) call WriteExcitorList(6,AL,iCurAmpList,FciDets,0,nAmpl,dAmpPrintTol,"Final Excitor list")
 
 ! Find the largest 10 amplitudes in each level
-      call WriteMaxExcitorList(6,AL,iCurAmpList,FciDets,FCIDetIndex,iMaxAmpLevel,10,iRefPos)
+      call WriteMaxExcitorList(6,AL,iCurAmpList,FciDets,FCIDetIndex,iMaxAmpLevel,10,dNorm)
       nullify(OldAL)
       nullify(CS)
       if(lLogTransitions) then
@@ -2201,6 +2204,7 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
    use bit_reps, only: encode_sign,extract_sign
    use FciMCParMod, only: ChangeVars,WriteToPopsFileParOneArr ,tReadPops,ReadFromPopsfileOnly
    use FciMCData, only: SpawnedParts,ValidSpawnedList,InitialSpawnedSlots
+   use FciMCData, only: hash_shift, hash_iter !For cycle-dependent hashes
    IMPLICIT NONE
    real(dp) Weight,EnergyxW
    CHARACTER(len=*), PARAMETER :: this_routine='CCMCStandaloneParticle'
@@ -2210,6 +2214,8 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
 
    INTEGER iNumExcitors          ! The number of non-zero excitors (excluding the ref det)
    REAL*8 dTotAbsAmpl            ! The total of the absolute amplitudes
+   REAL*8 dTotLocAbsAmpl         ! The total of the absolute amplitudes on this node alone
+   REAL*8 dNorm                  ! The amplitude at the HF det
 
    INTEGER iDebug
    INTEGER i,j,iMin
@@ -2275,7 +2281,9 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
    iDebug=CCMCDebug
 
    Call SetupParameters()
-
+!Init hash shifting data
+   hash_iter=0
+   hash_shift=0
    ! Reset counters
    iter_data_ccmc%nborn = 0
    iter_data_ccmc%ndied = 0
@@ -2340,10 +2348,15 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
    else
       tShifting=.true.
    endif
-   iRefPos=1
-   DetList(:,iRefPos)=iLutHF 
-   call SetAmpl(AL,iRefPos,iCurAmpList,i)
-   nAmpl=1
+   if(iProcIndex==Root) then
+      iRefPos=1
+      DetList(:,iRefPos)=iLutHF 
+      call SetAmpl(AL,iRefPos,iCurAmpList,i)
+      nAmpl=1
+   else
+      iRefPos=-1
+      nAmpl=0
+   endif
    iNumExcitors=0
    dTotAbsAmpl=GetAmpl(AL,iRefPos,iCurAmpList)
 !   endif
@@ -2393,7 +2406,7 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
 !          call SetAmpl(AL%Amplitude(j,iCurAmpList)=TempSign(1)
 !      enddo
       call MPIBCast(nAmpl)
-      call CalcTotals(iNumExcitors,dTotAbsAmpl,AL,iCurAmpList,nAmpl,dTolerance*dInitAmplitude,WalkerScale,iRefPos,iOldTotParts,iDebug)
+      call CalcTotals(iNumExcitors,dTotAbsAmpl,dNorm, AL,iCurAmpList,nAmpl,dTolerance*dInitAmplitude,WalkerScale,iRefPos,iOldTotParts,iDebug)
       iter_data_ccmc%update_growth = 0
       iter_data_ccmc%tot_parts_old=TotParts
       AllTotPartsOld=TotParts
@@ -2413,25 +2426,11 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
 ! Each cycle we select combinations of excitors randomly, and spawn and birth/die from them
    do while (Iter.le.NMCyc)
 
-! First we make sure we have the same lists
-!      if(((.not.tSharedExcitors).and.nProcessors>1)) then
-!         IFDEBUG(iDebug,2) write(6,*) "Synchronizing particle lists among processors"
-!         call set_timer(CCMCComms1_time,20)
-!         call MPIBCast(DetList(:,1:nAmpl))
-!!         call MPIBCast(AL%Amplitude(1:nAmpl,iCurAmpList))
-!         call halt_timer(CCMCComms1_time)
-!      else if (nNodes>1.and.bNodeRoot) then
-!         IFDEBUG(iDebug,2) write(6,*) "Synchronizing particle lists among nodes"
-!         call set_timer(CCMCComms1_time,20)
-!         call MPIBCast(DetList(:,1:nAmpl),Roots)
-!!         call MPIBCast(AL%Amplitude(1:nAmpl,iCurAmpList),Roots)
-!         call halt_timer(CCMCComms1_time)
-!      endif
-
-         !Abuse FciMC interfaces
+       !Abuse FciMC interfaces
        ValidSpawnedList=InitialSpawnedSlots
        SpawnedParts=>SpawnList  !It appears this gets spontaneously reset occasionally, so we make sure it's set now
 
+       hash_iter=hash_iter+1
 
        if(((.not.tSharedExcitors).and.nProcessors>1)) then
          IFDEBUG(iDebug,2) write(6,*) "Synchronizing particle lists among processors on node"
@@ -2442,7 +2441,17 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
 
 !Find the HF det
       CALL BinSearchParts3(iLutHF,DetList,nAmpl,1,nAmpl,iRefPos,tS)
-      if(.not.tS) call Stop_All("CCMCStandaloneParticle","Failed to find HF det.")
+      if(tS) then
+         dNorm=GetAmpl(AL,iRefPos,iCurAmpList)
+         call MPIBCast(dNorm,bNodeRoot)  !Broadcast from Here (if we're the root of that node)
+         IFDEBUG(iDebug,2) write(6,*) "Ref Det on this processor, pos ", iRefPos
+      else
+         iRefPos=-1
+         call MPIBCast(dNorm,.false.)
+      endif
+      IFDEBUG(iDebug,2) write(6,*) "Ref Det norm ", dNorm
+! If we fail to find the HF det, the broadcast above will fail.
+!      if(.not.tS) call Stop_All("CCMCStandaloneParticle","Failed to find HF det.")
 ! Collate stats
       nSpawned=0
       IFDEBUG(iDebug,2) THEN
@@ -2451,14 +2460,7 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
       endif
 
 
-      call CalcTotals(iNumExcitors,dTotAbsAmpl,AL,iCurAmpList,nAmpl,dTolerance*dInitAmplitude,WalkerScale,iRefPos,iOldTotParts,iDebug)
-!      if(.not.tShifting) then
-!         if(iNumExcitors>dInitAmplitude) then
-!            tShifting=.true.
-!         else
-!            iShiftLeft=2
-!         endif
-!      endif
+      call CalcTotals(iNumExcitors,dTotAbsAmpl,dNorm,AL,iCurAmpList,nAmpl,dTolerance*dInitAmplitude,WalkerScale,iRefPos, iOldTotParts,iDebug)
 
       
       IFDEBUG(iDebug,2) THEN
@@ -2491,9 +2493,9 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
       call ResetClustSelector(CS,iRefPos)
       tMoreClusters=.true.
       iMin=min(iNumExcitors,nEl)
-      call AccumulateAmplitudeList(AL,nAmpl,iCurAmpList,iRefPos)
+      call AccumulateAmplitudeList(AL,nAmpl,iCurAmpList,iRefPos, dTotLocAbsAmpl)
       do while (tMoreClusters)
-         tMoreClusters=GetNextCluster(CS,DetList,nAmpl,AL,iCurAmpList,dTotAbsAmpl,iMin,iDebug)
+         tMoreClusters=GetNextCluster(CS,DetList,nAmpl,AL,iCurAmpList,dTotAbsAmpl,dTotLocAbsAmpl,dNorm, iMin,iDebug)
          if(.not.tMoreClusters) exit
 !Now form the cluster
 !The final logic tells it whether to convert from an excitor to a det.
@@ -2518,12 +2520,8 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
          endif
 
          IFDEBUG(iDebug,4) WRITE(6,*) " Cluster Amplitude: ",CS%C%iSgn*CS%C%dAbsAmplitude 
-!         IFDEBUG(iDebug,4) WRITE(6,*) " Cluster Prob: ",CS%C%dSelectionProb
          TempSign(1)=CS%C%iSgn
-!         call set_timer(Etime,20)
          CALL SumEContrib(CS%C%DetCurr,CS%C%iExcitLevel,TempSign,CS%C%iLutDetCurr,0.d0,1/CS%C%dSelectionNorm)
-!         call halt_timer(Etime)
-!         call set_timer(Spawntime,20)
 !Now consider a number of possible spawning events
          CALL ResetSpawner(S,CS%C,nSpawnings)
 
@@ -2533,54 +2531,24 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
             call AttemptSpawnParticle(S,CS%C,iDebug,SpawnList(:,:),nSpawned,nMaxSpawn)
          enddo !GetNextSpawner
 ! Now deal with birth/death.
-!         call halt_timer(Spawntime)
-!         call set_timer(Dietime,20)
          if((.not.tTruncSpace).or.CS%C%iExcitLevel<=iMaxAmpLevel)          &
   &         call AttemptDieParticle(CS%C,iDebug,SpawnList,nSpawned)
-!         call halt_timer(Dietime)
       enddo ! Cluster choices
 
-!!      call set_timer(CCMCWait_time,20)
-!!      call MPIBarrier(ierr)
-!!      call halt_timer(CCMCWait_time)
-      call set_timer(CCMCComms2_time,20)
-!      call MPIGather(nSpawned,1,iLengths,1,ierr)
-!iOffsets is now the list of data lengths from each processor
-!      iOffsets(1)=0
-!Make a list of offsets from the lengths.
-!      do i=1,nProcessors-1
-!         iOffsets(i+1)=iOffsets(i)+iLengths(i)
-!      enddo
-!      IFDEBUG(iDebug,3) write(6,*) "Offsets",iOffsets
-!      IFDEBUG(iDebug,3) write(6,*) "Lengths",iLengths
-!      IFDEBUG(iDebug,4) then
-!         write(6,*) "Processor ",iProcIndex," has ", nSpawned, " spawned."
-!         call WriteExcitorListP(6,SpawnList,0,nSpawned,dAmpPrintTol,"Spawned list")
-!      endif
-!      do i=1,nProcessors
-!         iOffsets(i)=iOffsets(i)*(nIfTot+1)
-!         iLengths(i)=iLengths(i)*(nIfTot+1)
-!      enddo
-!!Get the dets themselves (which contain the amplitudes)
-!      call MPIGatherV(SpawnList(:,1:nSpawned),nSpawned*(nIfTot+1),SpawnList,iLengths,iOffsets,ierr)
-!      if(iProcIndex.eq.Root) then
-!         nSpawned=sum(iLengths)/(nIfTot+1)
-!      else
-!         nSpawned=0
-!      endif
-!! At this point SpawnList contains a set of newly spawned particles (each containing the amount spawned)
-!!      if(nSpawned>0) then
-      IFDEBUG(iDebug,3) write(6,*) "Calling Annihilation with ", nSpawned, " spawned."
-      call MPIBarrier(ierr)
+!Now we move any dets which need a home to the Annihilation list
       IFDEBUG(iDebug,3) call WriteExcitorListP2(6,SpawnList,InitialSpawnedSlots,ValidSpawnedList, dAmpPrintTol,"Spawned list")
-      call MPIBarrier(ierr)
-!      call AnnihilationInterface(nAmpl,DetList,AL%Amplitude(:,iCurAmpList),nMaxAmpl,nSpawned,SpawnList,nMaxSpawn,iter_data_ccmc)
+      call MPIBarrier(ierr,Node) !Make sure everyone on our node has finished using the list
+      call ReHouseExcitors(DetList, nAmpl, SpawnList, ValidSpawnedList,iDebug)
+      call MPIBCast(nAmpl,Node)
+      IFDEBUG(iDebug,3) call WriteExcitorListP(6,DetList,0,nAmpl,dAmpPrintTol,"Remaining excitor list")
+
+      call set_timer(CCMCComms2_time,20)
+      IFDEBUG(iDebug,3) write(6,*) "Calling Annihilation with ", nSpawned, " spawned."
+      IFDEBUG(iDebug,3) call WriteExcitorListP2(6,SpawnList,InitialSpawnedSlots,ValidSpawnedList, dAmpPrintTol,"Spawned/ReHoused list")
       call AnnihilationInterface(nAmpl,DetList,nMaxAmpl,nSpawned,SpawnList,nMaxSpawn,iter_data_ccmc)
       call MPIBCast(nAmpl,Node)
       call halt_timer(CCMCComms2_time)
-!      else
-!         if(iDebug>2) write(6,*) "No spawnings in toto."
-!      endif
+      IFDEBUG(iDebug,3) call WriteExcitorListP(6,DetList,0,nAmpl,dAmpPrintTol,"After Annihilation")
 
 
       IF(tHistSpawn.and.(mod(Iter,iWriteHistEvery).eq.1)) THEN
@@ -2597,12 +2565,6 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
    Iter=Iter-1
    IFDEBUG(iDebug,2) call WriteExcitorList(6,AL,iCurAmpList,DetList,0,nAmpl,dAmpPrintTol,"Final Excitor list")
    IF(TPopsFile) THEN
-! encode the signs
-!      TempSign=0
-!      do j=1,nAmpl
-!          TempSign(1)=AL%Amplitude(j,iCurAmpList)
-!          call encode_sign(DetList(:,j),TempSign)
-!      enddo
 !Another fudge for multiprocessors - all dets are currently on the root.  TODO: Fix
       if(iProcIndex==Root) then
          CALL WriteToPopsfileParOneArr(DetList,int(nAmpl,int64))
@@ -2629,6 +2591,41 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
    call halt_timer(CCMC_time)
 END SUBROUTINE CCMCStandaloneParticle
 
+subroutine ReHouseExcitors(DetList, nAmpl, SpawnList, ValidSpawnedList,iDebug)
+      use AnnihilationMod, only: DetermineDetNode
+      use bit_reps, only: decode_bit_det
+      implicit none
+      INTEGER(kind=n_int) :: DetList(:,:)
+      integer nAmpl
+      integer(kind=n_int) :: SpawnList(:,:)
+      integer ValidSpawnedList(0:nNodes-1)
+      integer nI(nEl)
+      integer iDebug
+
+      integer i,p,iNext
+      if(.not.bNodeRoot) return
+      iNext=0
+      IFDEBUG(iDebug,3) THEN
+         write(6,*) "Before ReHouse",nAmpl
+         write(6,*) ValidSpawnedList
+      ENDIF
+      do i=1,nAmpl
+         call decode_bit_det(nI,DetList(:,i))
+         p=DetermineDetNode(nI,0)  !NB This doesn't have an offset of 1, because actually we're working out what happens for the same cycle that the create_particle is spawning to.
+         if(p/=iNodeIndex) then
+            SpawnList(:,ValidSpawnedList(p))=DetList(:,i)
+            ValidSpawnedList(p)=ValidSpawnedList(p)+1
+         else
+            iNext=iNext+1
+            if(iNext/=i) DetList(:,iNext)=DetList(:,i)
+         endif
+      enddo 
+      nAmpl=iNext
+      IFDEBUG(iDebug,3) THEN
+         write(6,*) "After ReHouse",nAmpl
+         write(6,*) ValidSpawnedList
+      ENDIF
+end subroutine
 
 SUBROUTINE ReadPopsFileCCMC(DetList,nMaxAmpl,nAmpl)
       use PopsfileMod

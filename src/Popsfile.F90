@@ -142,7 +142,7 @@ MODULE PopsfileMod
                     enddo
 
                     call decode_bit_det (TempnI, WalkerTemp)
-                    proc = DetermineDetNode (TempnI)
+                    proc = DetermineDetNode (TempnI,0)
                     BatchRead(:,PopsSendList(proc)) = WalkerTemp(:)
                     PopsSendList(proc) = PopsSendList(proc) + 1
                     if(proc.ne.(nProcessors-1)) then
@@ -928,7 +928,7 @@ MODULE PopsfileMod
         
 #endif
             call decode_bit_det (TempnI, iLutTemp)
-            Proc = DetermineDetNode(TempnI)
+            Proc = DetermineDetNode(TempnI,0)
             IF((Proc.eq.iNodeIndex).and.(abs(TempSign(1)).ge.iWeightPopRead)) THEN
                 CurrWalkers=CurrWalkers+1
                 call encode_bit_rep(CurrentDets(:,CurrWalkers),iLutTemp(0:NIfDBO),TempSign,0)   !Do not need to send a flag here...

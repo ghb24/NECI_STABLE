@@ -178,6 +178,7 @@ module Parallel
         module procedure MPIBcast_lenroot_%(name)s
         module procedure MPIBcast_len_%(name)s
         module procedure MPIBcast_auto_%(name)s
+        module procedure MPIBcast_logic_%(name)s
     end interface
 
     interface MPISumAll
@@ -464,6 +465,30 @@ subroutine MPIBCast_auto (Values, Node)
 #if PARALLEL
     call GetComm(Comm,Node,rt)
     call MPI_BCAST (Values, %(mpilen)s, %(mpitype)s, rt, Comm, &
+                    error)
+    if (error /= MPI_SUCCESS) then
+        call stop_all("MPIBCast", 'Error in MPI_BCAST. Terminating.')
+    endif
+#endif
+end subroutine
+
+subroutine MPIBCast_logic (Values, tMe, Node)
+
+    ! The same as MPIBcast_len, but the number of elements in values is 
+    ! determined automagically
+    !
+    ! In:    tMe    - Set to be true by the processor which is sending the info
+    ! InOut: Values - The data to broadcast, and the returned values
+
+    %(type1)s, intent(inout) :: Values()
+    logical, intent(in) :: tMe
+    integer :: error
+    type(CommI), intent(in),optional :: Node
+    integer Comm,rt,nrt
+#if PARALLEL
+    call GetComm(Comm,Node,rt,tMe)
+    call MPI_AllReduce(rt,nrt,1,MPI_INTEGER, MPI_MAX,Comm,error)  !Work out which processor is the root
+    call MPI_BCAST (Values, %(mpilen)s, %(mpitype)s, nrt, Comm, &
                     error)
     if (error /= MPI_SUCCESS) then
         call stop_all("MPIBCast", 'Error in MPI_BCAST. Terminating.')
@@ -824,8 +849,7 @@ supermodule Parallel
         end subroutine
    end interface
    save
-   integer iProcIndex,iProcMinE,iProcMaxE
-   integer iNodeIndex  ! Set from ParallelHelper.  Use this if an integer rather than a CommI object is needed.
+   integer iProcMinE,iProcMaxE
    integer nProcessors
 
 #ifndef PARALLEL
@@ -857,7 +881,8 @@ Subroutine MPIInit(tExternal)
    character*20 NodeFile
    logical, save :: initialised=.false.
 #if PARALLEL
-
+   nNodes=0  !Indicate we haven't setup nodes yet
+   CommGlobal=MPI_COMM_WORLD
    if (.not.initialised) then
 
        if(tExternal) then
@@ -910,7 +935,6 @@ Subroutine MPIInit(tExternal)
              write(6,*) "Processor ",iProcIndex+1,'/',nProcessors, ' on local output.'
           endif
           call GetProcElectrons(iProcIndex,iProcMinE,iProcMaxE) 
-          CommGlobal=MPI_COMM_WORLD
 !  Just synchronize everything briefly
           a=iProcIndex+1
           call MPISumAll(a,1,g)
@@ -1018,6 +1042,7 @@ subroutine MPINodes(tUseProcsAsNodes)
       n=0
       do j=0,nProcessors-1
          if(Nodes(j)%n==i) then
+            if(j==iProcIndex) iIndexInNode=n 
             n=n+1
             GroupProc(n)=j
          endif
@@ -1030,6 +1055,7 @@ subroutine MPINodes(tUseProcsAsNodes)
    call MPI_Comm_Create(CommGlobal,GroupRoots,CommRoot,ierr) !Create the Communicator
 #else
    nNodes=1
+   iIndexInNode=0
    ProcNode(0)=0
    bNodeRoot=.true.
    allocate(NodeLengths(0:nNodes-1))
@@ -1111,10 +1137,13 @@ Subroutine GetProcElectrons(iProcIndex,iMinElec,iMaxElec)
 #endif
 end subroutine
 
-Subroutine MPIBarrier(error)
+Subroutine MPIBarrier(error,Node)
     INTEGER :: error
+    type(CommI), intent(in),optional :: Node
+    integer Comm
 #ifdef PARALLEL
-    CALL MPI_Barrier(MPI_COMM_WORLD,error)
+    call GetComm(Comm,Node)
+    CALL MPI_Barrier(Comm,error)
 #endif
 end subroutine
 
