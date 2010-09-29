@@ -957,7 +957,58 @@ Subroutine MPIInit(tExternal)
 end subroutine
 
 ! Create communicators for within and between each of the nodes
+! As yet a work in progress, but hopefully the structure is there and usable.
+! ParallelHelper.F90 contains various globals for this work.
 
+! A parallel job is parallellized over many cores (denoted processors here).
+! Various parallel architectures make it useful to introduce the concept of nodes,
+!  which are a group of processors with a (fast-access) shared memory space.  
+! These may be physical nodes (in which case all the cores on all the physical CPUs
+!  sharing the same motherboard and memory) would be grouped together into a node,
+!  or alternatively, may be subgroups of this set.
+! Currently nodes are determined as those cores which have the same hostname. 
+!  This is not overly portable, and will need to be customized for different parallel architectures.
+! Each node has a node root core designated.
+
+!
+!  With the concept of nodes comes the introduction of different levels of communicators.
+!   CommGlobal      is a synonym for MPI_COMM_WORLD and communicates between all cores
+!   CommNodes(i)    is the communicator for node i (zero-based)
+!   CommRoots       is the communicator between roots of all nodes
+!
+!  Explicit use of these shoudl be avoided, as almost all the MPI... functions in this module 
+!  take some optional arguments to make the communicator selction easier.
+!
+!  e.g.
+!    !The following work for most MPI... functions
+!    integer :: i
+!    MPIBCast(i)            !This will broadcast with CommGlobal
+!    MPIBCast(i,Node)       !This will broadcast with the communicator within each node
+!    if(bNodeRoot) then
+!       MPIBCast(i,Roots)   !Broadcast between roots of all nodes.  Remember the IF, otherwise horrors occur.
+!    endif                       ! (TODO: Perhaps the if should be put inside the MPIBCast?)
+!
+!
+!    !Now for BCast-specfic ones.
+!    MPIBCast(i,.true.)     !Broadcast to all cores from this core
+!    ! MPIBCast(i,.false.)  ! This should be on the other cores otherwise more horrors
+!    MPIBCast(i,.true.,Node)!Broadcast to the node from this code
+!    ! etc
+!
+!    Node is of the TYPE(CommI) which allows overloading of these functions. For actual indices, use
+!      iProcIndex       ! index of this Core.  0...(nProcessors-1)
+!      iNodeIndex       ! index of this node.  0...(nNodes-1)
+!      iIndexInNode     ! index of this core in this node.  0...(NodeLengths(iNodeIndex)-1)
+!
+!    Currently FCIMCPar is setup to allocate one core per node.  This is a hack for the moment.
+!    There's a more sophisticated system of logical nodes, specified by CALC/LOGICALNODESIZE
+!    Shared memory has been modified to deal with this.  If shared memory within only a logical
+!    node is required use a form like
+!
+!      call shared_allocate_iluts("DetList",DetList,(/nIfTot,nMaxAmpl/),iNodeIndex)
+!
+!     where iNodeIndex is the logical node.  Otherwise shared memory is over physical nodes,
+!       irrespective of the logical node structure.
 
 subroutine MPINodes(tUseProcsAsNodes)
    use, intrinsic :: iso_c_binding
