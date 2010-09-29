@@ -1136,16 +1136,15 @@ MODULE GenRandSymExcitNUMod
         IF(tFixLz.or.tKPntSym) THEN
 !Here, we also have to check that the electron is momentum allowed.
 !Since there are many more irreps, it will be quicker here to check all electrons, rather than all the symmetries.
-!We check the inverse symmetry array, which will be the same unless we are using kPointSym.
             
             do i=1,NEl
 
                 IF(G1(nI(i))%Ms.eq.1) THEN
-                    IF(ClassCountUnocc2(ClassCountInd(1,SymInvLabel(SpinOrbSymLabel(nI(i))),G1(nI(i))%Ml)).eq.0) THEN
+                    IF(ClassCountUnocc2(ClassCountInd(1,SpinOrbSymLabel(nI(i)),G1(nI(i))%Ml)).eq.0) THEN
                         ElecsWNoExcits=ElecsWNoExcits+1
                     ENDIF
                 ELSE
-                    IF(ClassCountUnocc2(ClassCountInd(2,SymInvLabel(SpinOrbSymLabel(nI(i))),G1(nI(i))%Ml)).eq.0) THEN
+                    IF(ClassCountUnocc2(ClassCountInd(2,SpinOrbSymLabel(nI(i)),G1(nI(i))%Ml)).eq.0) THEN
                         ElecsWNoExcits=ElecsWNoExcits+1
                     ENDIF
                 ENDIF
@@ -1211,9 +1210,9 @@ MODULE GenRandSymExcitNUMod
             IF(tNoSymGenRandExcits) THEN
                 ElecSym=0
             ELSE
-!For real abelian symmetry, the irrep of i and a must be the same. However, for
-!kpoint symmetry, it must be the inverse (which is now not itself).
-                ElecSym=SymInvLabel(SpinOrbSymLabel(nI(Eleci)))
+!For abelian symmetry, the irrep of i and a must be the same.
+!For solids, this means that the excitation must be within the same k-point
+                ElecSym=SpinOrbSymLabel(nI(Eleci))
                 ElecK=G1(nI(Eleci))%Ml
             ENDIF
 
@@ -1451,7 +1450,7 @@ MODULE GenRandSymExcitNUMod
 !Find symmetry of chosen electron
                 ElecSym=0
             ELSE
-                ElecSym=SymInvLabel(SpinOrbSymLabel((Ex(1,1))))
+                ElecSym=SpinOrbSymLabel((Ex(1,1)))
                 IF(tFixLz) THEN
                     Elec1Ml=G1(Ex(1,1))%Ml
                 ENDIF
@@ -2539,21 +2538,23 @@ END MODULE GenRandSymExcitNUMod
 !to be cast in terms of spin orbitals, and the symrandexcit2 routines will use these arrays.
 SUBROUTINE SpinOrbSymSetup()
     use SymExcitDataMod , only : ScratchSize,SymLabelList2,SymLabelCounts2,OrbClassCount,kPointToBasisFn,kTotal
-    use SymExcitDataMod , only : SpinOrbSymLabel,SymInvLabel,SymTableLabels
+    use SymExcitDataMod , only : SpinOrbSymLabel,SymInvLabel,SymTableLabels,KPntInvSymOrb
     use GenRandSymExcitNUMod , only : ClassCountInd
     use SymData, only: nSymLabels,TwoCycleSymGens,SymClasses
     use SymData, only: SymLabelList,SymLabelCounts,SymConjTab,SymLabels
-    use SystemData , only : G1,tFixLz,tNoSymGenRandExcits,nBasis,iMaxLz,tUEG,tHub,NMAXZ,NEl,nBasisMax,tKPntSym
-    use SystemData , only : Symmetry
+    use SystemData , only : NMAXZ,tFixLz,iMaxLz,nBasis,tUEG,tKPntSym,G1,tHub,nBasisMax,NEl
+    use SystemData , only : Symmetry,tHPHF,tSpn,tISKFuncs,Arr,tNoSymGenRandExcits
     use Determinants, only : FDet
     use sym_mod, only: mompbcsym,SymProd
     IMPLICIT NONE
-    INTEGER :: i,j,SymInd,Lab
-    INTEGER :: Spin
+    INTEGER :: i,j,k,SymInd,Lab
+    INTEGER :: Spin,ierr,OrbSym,InvSym
+    real(8) :: OrbEnergy
     INTEGER , ALLOCATABLE :: Temp(:)
     ! These are for the hubbard and UEG model look-up table
     INTEGER :: kmaxX,kmaxY,kminX,kminY,kminZ,kmaxz,iSpinIndex,ktrial(3)
     type(Symmetry) :: SymProduct, SymI, SymJ
+    character(len=*), parameter :: this_routine='SpinOrbSymSetup'
     
     IF(tFixLz) THEN
 !Calculate the upper array bound for the ClassCount2 arrays. This will be dependant on the number of symmetries needed.
@@ -2582,10 +2583,12 @@ SUBROUTINE SpinOrbSymSetup()
             SpinOrbSymLabel(i)=INT(G1(i)%Sym%S,4)
         endif
     enddo
-!    WRITE(6,*) "SpinOrbSymLabel: "
-!    do i=1,nBasis
-!        WRITE(6,*) i,SpinOrbSymLabel(i)
-!    enddo
+#ifdef __DEBUG
+    WRITE(6,*) "SpinOrbSymLabel: "
+    do i=1,nBasis
+        WRITE(6,*) i,SpinOrbSymLabel(i)
+    enddo
+#endif
 
 !SymInvLabel takes the label (0 -> nSymLabels-1) of a spin orbital, and returns the inverse symmetry label, suitable for
 !use in ClassCountInd.
@@ -2599,6 +2602,12 @@ SUBROUTINE SpinOrbSymSetup()
             SymInvLabel(i)=i    !They are self-inverses
         endif
     enddo
+#ifdef __DEBUG
+    WRITE(6,*) "SymInvLabel: "
+    do i=0,nSymLabels-1
+        WRITE(6,*) i,SymInvLabel(i)
+    enddo
+#endif
 
     if(tKPntSym) then
         Allocate(SymTableLabels(0:nSymLabels-1,0:nSymLabels-1))
@@ -2632,6 +2641,72 @@ SUBROUTINE SpinOrbSymSetup()
 !        enddo
 
     endif
+
+    if(tISKFuncs) then
+        write(6,*) "Setting up inverse orbital lookup for use with ISK functions..."
+        if(.not.tKPntSym) call stop_all(this_routine,"Cannot use ISK funcs without KPoint symmetry")
+        if(tSpn) call stop_all(this_routine,"Cannot use ISK on open shell systems")
+        if(tHPHF) call stop_all(this_routine,"HPHF is not yet working with ISK")
+        allocate(KPntInvSymOrb(1:nBasis),stat=ierr)
+        if(ierr.ne.0) call stop_all(this_routine,"Allocation error")
+        do i=1,nBasis
+            !Find k-inverse orbital for each spin orbital.
+            !If the orbital is a self inverse, then just lookup itself.
+            OrbSym=SpinOrbSymLabel(i)
+            InvSym=SymInvLabel(OrbSym)
+            if(InvSym.eq.OrbSym) then
+                !Orbital is self-inverse
+                KPntInvSymOrb(i)=i
+                cycle
+            endif
+            !Run through all orbitals looking for inverse
+            OrbEnergy=Arr(i,2)  !Fock energy of orbital
+            !Ensure that we get a same-spin orbital
+            do j=1,nBasis
+                if((SpinOrbSymLabel(j).eq.InvSym).and.(mod(i,2).eq.mod(j,2))) then
+                    !This orbital is the right symmetry - is it the inverse orbital? Check Energy.
+                    if((abs(OrbEnergy-Arr(j,2))).lt.1.D-7) then
+                        !Assume that this is the inverse orbital.
+                        KPntInvSymOrb(i)=j
+                        exit
+                    endif
+                endif
+            enddo
+            if(j.gt.nBasis) then
+                write(6,*) "Orbital: ",i
+                write(6,*) "Symmetry label: ",OrbSym
+                write(6,*) "Inverse Symmetry label: ",InvSym
+                write(6,*) "Fock energy: ",Arr(i,2)
+                WRITE(6,*) "SpinOrbSymLabel: "
+                do k=1,nBasis
+                    WRITE(6,*) k,SpinOrbSymLabel(k)
+                enddo
+                write(6,*) "SymInvLavel: "
+                do k=0,nSymLabels-1
+                    write(6,*) k,SymInvLabel(k)
+                enddo
+                call stop_all(this_routine,"Could not find inverse orbital pair for ISK setup.")
+            endif
+        enddo
+        do i=1,nBasis
+            if(KPntInvSymOrb(i).ne.i) exit
+        enddo
+        if(i.gt.nBasis) then
+            write(6,*) "!! All kpoints are self-inverse, i.e. at the Gamma point or BZ boundary !!"
+            write(6,*) "This means that ISK functions cannot be constructed."
+            write(6,*) "However, through correct rotation of orbitals, all orbitals should be made real, and the code run in real mode (with tRotatedOrbsReal set)."
+            write(6,*) "Alternatively, run again in complex mode without ISK functions."
+            write(6,*) "If ISK functions are desired, the kpoint lattice must be shifted from this position."
+            call stop_all(this_routine,"All kpoints are self-inverse")
+        endif
+        write(6,*) "All inverse kpoint orbitals correctly assigned."
+        write(6,*) "Orbital     Inverse Orbital"
+        do i=1,nBasis
+            write(6,*) i,KPntInvSymOrb(i) 
+        enddo
+    endif
+
+
 
 !SymLabelList2 and SymLabelCounts2 are now organised differently, so that it is more efficient, and easier to add new symmetries.
 !SymLabelCounts is of size (2,ScratchSize), where 1,x gives the index in SymlabelList2 where the orbitals of symmetry x start.
@@ -3087,7 +3162,9 @@ END FUNCTION IsMomAllowedDet
 
 
 SUBROUTINE IsSymAllowedExcit(nI,nJ,IC,ExcitMat)
-    Use SystemData , only : G1,NEl,tFixLz
+    use GenRandSymExcitNUMod , only: RandExcitSymLabelProd
+    use SymExcitDataMod , only: SymInvLabel,SpinOrbSymLabel 
+    Use SystemData , only : G1,NEl,tFixLz,tKPntSym
     Use SystemData , only : Symmetry,tNoSymGenRandExcits
     use Determinants, only: write_det
     use sym_mod
@@ -3095,7 +3172,7 @@ SUBROUTINE IsSymAllowedExcit(nI,nJ,IC,ExcitMat)
     Type(Symmetry) :: SymProduct,SymProduct2
     LOGICAL :: ISVALIDDET
     INTEGER :: IC,ExcitMat(2,2),nI(NEl),nJ(NEl),ExcitLevel,iGetExcitLevel
-    INTEGER :: KOcc,KUnocc
+    INTEGER :: KOcc,KUnocc,SymprodnJ,SymprodnI,i
 
      Excitlevel=iGetExcitLevel(nI,nJ,NEl)
      IF(Excitlevel.ne.IC) THEN
@@ -3110,8 +3187,19 @@ SUBROUTINE IsSymAllowedExcit(nI,nJ,IC,ExcitMat)
          call write_det (6, nJ, .true.)
          STOP "INVALID DET"
      ENDIF
+
+     SymprodnI=0
+     SymprodnJ=0
+     do i=1,NEl
+        SymprodnI=RandExcitSymLabelProd(SymInvLabel(SpinOrbSymLabel(nI(i))),SymProdnI)
+        SymprodnJ=RandExcitSymLabelProd(SymInvLabel(SpinOrbSymLabel(nJ(i))),SymProdnJ)
+     enddo
+     if(SymprodnJ.ne.SymprodnI) then
+         write(6,*) SymProdnI,SymProdnJ,IC,ExcitMat(1,1),ExcitMat(2,1)
+         call stop_all("IsSymAllowedExcit","Excitation not of same symmetry as root.")
+     endif
      
-     IF(.not.tNoSymGenRandExcits) THEN
+     IF(.not.tNoSymGenRandExcits.and..not.tKPntSym) THEN
          IF(IC.eq.2) THEN
             SymProduct=SYMPROD(G1(ExcitMat(1,1))%Sym,G1(ExcitMat(1,2))%Sym)
             SymProduct2=SYMPROD(G1(ExcitMat(2,1))%Sym,G1(ExcitMat(2,2))%Sym)

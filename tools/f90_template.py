@@ -309,7 +309,7 @@ def interface_procs (template):
 	print "Interface generation"
 
 	# Do we have procedures in this template file?
-	re_contains = re.compile ('\n\s*contains\s*\n')
+	re_contains = re.compile ('\n\s*contains\s*\n',flags=re.IGNORECASE)
 	re_end_mod = re.compile ('\n\s*end\s*module')
 	m = re_contains.search(template)
 	if m:
@@ -324,6 +324,7 @@ def interface_procs (template):
 		m_end_mod = re_end_mod.search(template[offset:])
 		proc = re_proc.search(template[offset:])
 		while proc:
+			print "Procedure: ",proc.group(5)
 			# For each procedure, append _%(name)s to all of the names.
 			template = (template[0:offset + proc.start()] +
 					   re_proc.sub("\\1\\5_%(name)s\\6", template[proc.start()+offset:], 1))

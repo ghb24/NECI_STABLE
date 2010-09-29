@@ -154,8 +154,11 @@ module Parallel
 #ifdef PARALLEL
    uSe MPI
 #endif
+   use ParallelHelper,  only: CommI, GetComm
    use constants
    implicit none
+
+
 #ifndef PARALLEL
 ! These don't exist in serial, so fudge them
    integer, private, parameter :: MPI_MIN=0
@@ -165,19 +168,21 @@ module Parallel
    integer, private, parameter :: MPI_MAX_ERROR_STRING=255
 #endif
 
+
     interface MPIReduce
         module procedure MPIReduce_len_%(name)s
         module procedure MPIReduce_auto_%(name)s
     end interface
 
     interface MPIBcast
+        module procedure MPIBcast_lenroot_%(name)s
         module procedure MPIBcast_len_%(name)s
         module procedure MPIBcast_auto_%(name)s
     end interface
 
-    interface MPISum
-        module procedure MPISum_len_%(name)s
-        module procedure MPISum_auto_%(name)s
+    interface MPISumAll
+        module procedure MPISumAll_len_%(name)s
+        module procedure MPISumAll_auto_%(name)s
     end interface
 
     interface MPIAllReduce
@@ -207,9 +212,14 @@ module Parallel
         module procedure MPIGatherV_auto2_%(name)s
     end interface
 
+    interface MPIScatterV
+        module procedure MPIScatterV_len_%(name)s
+        module procedure MPIScatterV_len2_%(name)s
+    end interface
+
 contains
 
-subroutine MPIReduce_len (Values, iLen, iType, Ret)
+subroutine MPIReduce_len (Values, iLen, iType, Ret, Node)
 
     ! Call MPI_REDUCE of type iType on the elements values --> ret. The
     ! number of elements to transmit is specified by iLen.
@@ -222,10 +232,13 @@ subroutine MPIReduce_len (Values, iLen, iType, Ret)
     %(type1)s, intent(in)  :: Values()
     %(type1)s, intent(out) :: Ret()
     integer, intent(in) :: iLen, iType
+    type(CommI), intent(in),optional :: Node
+    integer Comm,rt
     integer ierr
 #if PARALLEL
-    call MPI_REDUCE (Values, Ret, iLen, %(mpitype)s, iType, 0, &
-                     MPI_COMM_WORLD, ierr)
+    call GetComm(Comm,Node,rt)
+    call MPI_REDUCE (Values, Ret, iLen, %(mpitype)s, iType, rt, &
+                     Comm, ierr)
     if (ierr .ne. MPI_SUCCESS) then
         call Stop_All("MPIReduce", 'Error in MPI_REDUCE. Terminating.')
     end if
@@ -234,7 +247,7 @@ subroutine MPIReduce_len (Values, iLen, iType, Ret)
 #endif
 end subroutine
 
-subroutine MPIReduce_auto (Values, iType, Ret)
+subroutine MPIReduce_auto (Values, iType, Ret, Node)
 
     ! The same as MPIReduce_len, without the iLen specification. The number
     ! of elements is determined automatically.
@@ -243,9 +256,12 @@ subroutine MPIReduce_auto (Values, iType, Ret)
     %(type1)s, intent(out) :: Ret()
     integer, intent(in) :: iType
     integer ierr
+    type(CommI), intent(in),optional :: Node
+    integer Comm,rt
 #if PARALLEL
-    call MPI_REDUCE (Values, Ret, %(mpilen)s, %(mpitype)s, iType, 0, &
-                     MPI_COMM_WORLD, ierr)
+    call GetComm(Comm,Node,rt)
+    call MPI_REDUCE (Values, Ret, %(mpilen)s, %(mpitype)s, iType, rt, &
+                     Comm, ierr)
     if (ierr .ne. MPI_SUCCESS) then
         call Stop_All("MPIReduce", 'Error in MPI_REDUCE. Terminating.')
     end if
@@ -254,7 +270,7 @@ subroutine MPIReduce_auto (Values, iType, Ret)
 #endif
 end subroutine
 
-subroutine MPIAllReduce_len (Values, iLen, iType, Ret)
+subroutine MPIAllReduce_len (Values, iLen, iType, Ret, Node)
 
     ! Call MPI_REDUCE with the type iType on the array Values (with length
     ! iLen) outputting the results on ALL processors in the array Ret.
@@ -268,10 +284,13 @@ subroutine MPIAllReduce_len (Values, iLen, iType, Ret)
     %(type1)s, intent(out) :: Ret()
     integer, intent(in) :: iLen, iType
     integer :: ierr
-
+    type(CommI), intent(in),optional :: Node
+    integer Comm
 #if PARALLEL
+    call GetComm(Comm,Node)
+
     call MPI_ALLREDUCE (Values, Ret, iLen, %(mpitype)s, iType, &
-                        MPI_COMM_WORLD, ierr)
+                        Comm, ierr)
     if (ierr /= MPI_SUCCESS) then
         call stop_all ("MPIAllReduce", 'Error in MPI_ALLREDUCE. Terminating.')
     endif
@@ -280,7 +299,7 @@ subroutine MPIAllReduce_len (Values, iLen, iType, Ret)
 #endif
 end subroutine
 
-subroutine MPIAllReduce_auto (Values, iType, Ret)
+subroutine MPIAllReduce_auto (Values, iType, Ret, Node)
 
     ! The same as MPIAllReduce_len, but the length of array Value (and thus
     ! Ret) is determinend automagically
@@ -289,10 +308,12 @@ subroutine MPIAllReduce_auto (Values, iType, Ret)
     %(type1)s, intent(out) :: Ret()
     integer, intent(in) :: iType
     integer :: ierr
-
+    type(CommI), intent(in),optional :: Node
+    integer Comm
 #if PARALLEL
+    call GetComm(Comm,Node)
     call MPI_ALLREDUCE (Values, Ret, %(mpilen)s, %(mpitype)s, iType, &
-                        MPI_COMM_WORLD, ierr)
+                        Comm, ierr)
     if (ierr /= MPI_SUCCESS) then
         call stop_all ("MPIAllReduce", 'Error in MPI_ALLREDUCE. Terminating.')
     endif
@@ -301,7 +322,7 @@ subroutine MPIAllReduce_auto (Values, iType, Ret)
 #endif
 end subroutine
 
-Subroutine MPIAllReduceDatatype(Values, iLen, iType, iDatatype, Ret)
+Subroutine MPIAllReduceDatatype(Values, iLen, iType, iDatatype, Ret, Node)
    !=  In:
    !=     Values         The corresponding elements for each
    !=                    processor are reduced over the processors and returned in 
@@ -315,10 +336,12 @@ Subroutine MPIAllReduceDatatype(Values, iLen, iType, iDatatype, Ret)
    %(type1)s, intent(out) :: Ret()
    integer, intent(in) :: iLen, iDatatype
    integer g, ierr, itype
+   type(CommI), intent(in),optional :: Node
+   integer Comm
 #if PARALLEL
+   call GetComm(Comm,Node)
 !   write(6,*) "AllReduceDatatype %(type1)s",iLen,iType
-   g=MPI_COMM_WORLD
-   call MPI_ALLREDUCE(Values,Ret,iLen,iDatatype,iType,g,ierr)
+   call MPI_ALLREDUCE(Values,Ret,iLen,iDatatype,iType,Comm,ierr)
    if (ierr .ne. MPI_SUCCESS) then
       call Stop_All("MPIAllReduceDatatype",'Error in MPIAllReduce. Terminating.')
    end if
@@ -327,7 +350,7 @@ Subroutine MPIAllReduceDatatype(Values, iLen, iType, iDatatype, Ret)
 #endif
 end subroutine
 
-subroutine MPISum_len (Values, iLen, Ret)
+subroutine MPISumAll_len (Values, iLen, Ret, Node)
 
     ! Sum data on different processors, leaving the result in Ret on all 
     ! of the processors
@@ -340,69 +363,93 @@ subroutine MPISum_len (Values, iLen, Ret)
     %(type1)s, intent(in) :: Values()
     %(type1)s, intent(out) :: Ret()
     integer, intent(in) :: iLen
+    type(CommI), intent(in),optional :: Node
 
-    call MPIAllReduce (Values, iLen, MPI_SUM, Ret)
+    call MPIAllReduce (Values, iLen, MPI_SUM, Ret, Node)
 
 end subroutine
 
-subroutine MPISum_auto (Values, Ret)
+subroutine MPISumAll_auto (Values, Ret, Node)
 
     ! The same as MPISum_auto, but the length of Values is determined
     ! automagically
 
     %(type1)s, intent(in) :: Values()
     %(type1)s, intent(out) :: Ret()
+    type(CommI), intent(in),optional :: Node
 
-    call MPIAllReduce (Values, MPI_SUM, Ret)
+    call MPIAllReduce (Values, MPI_SUM, Ret, Node)
 
 end subroutine
 
-Subroutine MPISumRoot(Values, iLen, Ret, root)
+Subroutine MPISum(Values, iLen, Ret, Node)
    !=  Sum data among all processors, and give the results to the root 
    !=  In:
    !=     Values(iLen)   Data (array possibly)  The corresponding elements for each
    !=                    processor are summed and returnd into Ret
    !=     iLen           Length of the data (in elements of its type)
-   !=     root           Processor which to sum the result to.
    !=  Out:
    !=     Return(iLen)   Variable (array possibly) to get the results.
    %(type1)s, intent(in)  :: Values()
    %(type1)s, intent(out) :: Ret()
-   integer, intent(in) :: iLen, root
+   integer, intent(in) :: iLen
    integer ierr
-#ifdef PARALLEL
-!   write(6,*) "SumRoot %(type1)s",iLen,Root
-   call MPI_REDUCE(Values,Ret,iLen,%(mpitype)s,MPI_SUM,root,MPI_COMM_WORLD,ierr)
+   type(CommI), intent(in),optional :: Node
+   integer Comm,rt
+#if PARALLEL
+    call GetComm(Comm,Node,rt)
+   call MPI_REDUCE(Values,Ret,iLen,%(mpitype)s,MPI_SUM,rt,Comm,ierr)
    if (ierr .ne. MPI_SUCCESS) then
-      call Stop_All("MPIDSumRootArr",'Error in MPIDSumRootArr. Terminating.')
+      call Stop_All("MPISum",'Error in MPISum. Terminating.')
    end if
 #else
    Ret=Values
 #endif
 end subroutine
 
-subroutine MPIBCast_len (Values, iLen, Root)
+subroutine MPIBCast_lenroot (Values, iLen, rt)
 
     ! Call MPI_BCAST to broadcast the value(s) in array Values on processor
     ! Root to all processors, where the number of elements in array Values is
     ! specified by iLen.
     !
     ! In:    iLen   - The number of elements in Values
-    !        Root   - The processor to broadcast from
+    ! InOut: Values - The data to broadcast, and the returned values
+    use ParallelHelper, only: CommGlobal
+    %(type1)s, intent(inout) :: Values()
+    integer, intent(in) :: iLen,rt
+    integer :: error
+#if PARALLEL
+    call MPI_BCAST (Values, iLen, %(mpitype)s, rt, CommGlobal, error)
+    if (error /= MPI_SUCCESS) then
+        call stop_all("MPIBCast", 'Error in MPI_BCAST. Terminating.')
+    endif
+#endif
+end subroutine
+subroutine MPIBCast_len (Values, iLen, Node)
+
+    ! Call MPI_BCAST to broadcast the value(s) in array Values on processor
+    ! Root to all processors, where the number of elements in array Values is
+    ! specified by iLen.
+    !
+    ! In:    iLen   - The number of elements in Values
     ! InOut: Values - The data to broadcast, and the returned values
 
     %(type1)s, intent(inout) :: Values()
-    integer, intent(in) :: iLen, Root
+    integer, intent(in) :: iLen
     integer :: error
-#ifdef PARALLEL
-    call MPI_BCAST (Values, iLen, %(mpitype)s, Root, MPI_COMM_WORLD, error)
+    type(CommI), intent(in),optional :: Node
+    integer Comm,rt
+#if PARALLEL
+    call GetComm(Comm,Node,rt)
+    call MPI_BCAST (Values, iLen, %(mpitype)s, rt, Comm, error)
     if (error /= MPI_SUCCESS) then
         call stop_all("MPIBCast", 'Error in MPI_BCAST. Terminating.')
     endif
 #endif
 end subroutine
 
-subroutine MPIBCast_auto (Values, Root)
+subroutine MPIBCast_auto (Values, Node)
 
     ! The same as MPIBcast_len, but the number of elements in values is 
     ! determined automagically
@@ -411,10 +458,12 @@ subroutine MPIBCast_auto (Values, Root)
     ! InOut: Values - The data to broadcast, and the returned values
 
     %(type1)s, intent(inout) :: Values()
-    integer, intent(in) :: Root
     integer :: error
-#ifdef PARALLEL
-    call MPI_BCAST (Values, %(mpilen)s, %(mpitype)s, Root, MPI_COMM_WORLD, &
+    type(CommI), intent(in),optional :: Node
+    integer Comm,rt
+#if PARALLEL
+    call GetComm(Comm,Node,rt)
+    call MPI_BCAST (Values, %(mpilen)s, %(mpitype)s, rt, Comm, &
                     error)
     if (error /= MPI_SUCCESS) then
         call stop_all("MPIBCast", 'Error in MPI_BCAST. Terminating.')
@@ -422,43 +471,50 @@ subroutine MPIBCast_auto (Values, Root)
 #endif
 end subroutine
 
-Subroutine MPIAlltoAll(SendBuf,SendSize,RecvBuf,RecvSize,ierr)
+Subroutine MPIAlltoAll(SendBuf,SendSize,RecvBuf,RecvSize,ierr, Node)
     INTEGER,intent(in) :: SendSize,RecvSize
     INTEGER, intent(out) :: ierr
     %(type1)s, intent(in) :: SendBuf(:)
     %(type1)s, intent(inout):: RecvBuf(:)
-#ifdef PARALLEL
-!    write(6,*) "AllToAll %(type1)s",SendSize,RecvSize
-    CALL MPI_AlltoAll(SendBuf,SendSize,%(mpitype)s,RecvBuf,RecvSize,%(mpitype)s,MPI_COMM_WORLD,ierr)
+    type(CommI), intent(in),optional :: Node
+    integer Comm
+#if PARALLEL
+    call GetComm(Comm,Node)
+    CALL MPI_AlltoAll(SendBuf,SendSize,%(mpitype)s,RecvBuf,RecvSize,%(mpitype)s,Comm,ierr)
 #else
     RecvBuf=SendBuf
     ierr=0
 #endif
 end subroutine
 
-Subroutine MPIAlltoAllV(SendBuf,SendSizes,SendOffsets,RecvBuf,RecvSizes,RecvOffsets,ierr)
+Subroutine MPIAlltoAllV(SendBuf,SendSizes,SendOffsets,RecvBuf,RecvSizes,RecvOffsets,ierr,Node)
     INTEGER,intent(in) :: SendSizes(:),SendOffsets(:),RecvSizes(:),RecvOffsets(:)
     INTEGER, intent(out) :: ierr
     %(type1)s, intent(in) :: SendBuf(:)
     %(type1)s, intent(inout):: RecvBuf(:)
 !    write(6,*) "AllToAllV %(type1)s",SendSizes,SendOffSets,RecvSizes,RecvOffsets
 !    write(6,*) "AllToAllV %(type1)s",shape(SendBuf),shape(RecvBuf)
-#ifdef PARALLEL
-    CALL MPI_AlltoAllV(SendBuf,SendSizes,SendOffsets,%(mpitype)s,RecvBuf,RecvSizes,RecvOffsets,%(mpitype)s,MPI_COMM_WORLD,ierr)
+    type(CommI), intent(in),optional :: Node
+    integer Comm
+#if PARALLEL
+    call GetComm(Comm,Node)
+    CALL MPI_AlltoAllV(SendBuf,SendSizes,SendOffsets,%(mpitype)s,RecvBuf,RecvSizes,RecvOffsets,%(mpitype)s,Comm,ierr)
 #else
     RecvBuf=SendBuf
     ierr=0
 #endif
 end subroutine
 
-Subroutine MPIAllGather_len(SendBuf,SendSize,RecvBuf,RecvSize,ierr)
+Subroutine MPIAllGather_len(SendBuf,SendSize,RecvBuf,RecvSize,ierr,Node)
     INTEGER,intent(in) :: SendSize,RecvSize
     INTEGER, intent(out) :: ierr
     %(type1)s,intent(in) :: SendBuf()
     %(type1)s,intent(inout) :: RecvBuf(:)
-#ifdef PARALLEL
-!    write(6,*) "AllToAll %(type1)s",SendSize,RecvSize
-    CALL MPI_AllGather(SendBuf,SendSize,%(mpitype)s,RecvBuf,RecvSize,%(mpitype)s,MPI_COMM_WORLD,ierr)
+    type(CommI), intent(in),optional :: Node
+    integer Comm,rt
+#if PARALLEL
+    call GetComm(Comm,Node)
+    CALL MPI_AllGather(SendBuf,SendSize,%(mpitype)s,RecvBuf,RecvSize,%(mpitype)s,Comm,ierr)
 #else
     RecvBuf(1)=SendBuf
     ierr=0
@@ -467,28 +523,33 @@ end subroutine
 
 ! Values is the Send Buffer
 ! Values2 is the Receive Buffer
-Subroutine MPIAllGather_auto(Values,Values2,ierr)
+Subroutine MPIAllGather_auto(Values,Values2,ierr,Node)
     INTEGER, intent(out) :: ierr
     %(type1)s,intent(in) :: Values()
     %(type1)s,intent(inout) :: Values2(:)
-#ifdef PARALLEL
+    type(CommI), intent(in),optional :: Node
+    integer Comm,rt
+#if PARALLEL
+    call GetComm(Comm,Node,rt)
     CALL MPI_AllGather(Values,%(mpilen)s,&
       %(mpitype)s,Values2,%(mpilen2)s,&
-      %(mpitype)s,MPI_COMM_WORLD,ierr)
+      %(mpitype)s,Comm,ierr)
 #else
     Values2(1)=Values
     ierr=0
 #endif
 end subroutine
 
-Subroutine MPIGather_len(SendBuf,SendSize,RecvBuf,RecvSize,root,ierr)
-    INTEGER,intent(in) :: SendSize,RecvSize,root
+Subroutine MPIGather_len(SendBuf,SendSize,RecvBuf,RecvSize,ierr,Node)
+    INTEGER,intent(in) :: SendSize,RecvSize
     INTEGER, intent(out) :: ierr
     %(type1)s,intent(in) :: SendBuf()
     %(type1)s,intent(inout) :: RecvBuf(:)
-#ifdef PARALLEL
-!    write(6,*) "AllToAll %(type1)s",SendSize,RecvSize
-    CALL MPI_Gather(SendBuf,SendSize,%(mpitype)s,RecvBuf,RecvSize,%(mpitype)s,root,MPI_COMM_WORLD,ierr)
+    type(CommI), intent(in),optional :: Node
+    integer Comm,rt
+#if PARALLEL
+    call GetComm(Comm,Node,rt)
+    CALL MPI_Gather(SendBuf,SendSize,%(mpitype)s,RecvBuf,RecvSize,%(mpitype)s,rt,Comm,ierr)
 #else
     RecvBuf(1)=SendBuf
     ierr=0
@@ -497,29 +558,36 @@ end subroutine
 
 ! Values is the Send Buffer
 ! Values2 is the Receive Buffer
-Subroutine MPIGather_auto(Values,Values2,root,ierr)
+Subroutine MPIGather_auto(Values,Values2,ierr,Node)
     INTEGER, intent(out) :: ierr
-    INTEGER, intent(in) :: root
     %(type1)s,intent(in) :: Values()
     %(type1)s,intent(inout) :: Values2(:)
-#ifdef PARALLEL
+    type(CommI), intent(in),optional :: Node
+    integer Comm,rt
+#if PARALLEL
+    call GetComm(Comm,Node,rt)
     CALL MPI_Gather(Values,%(mpilen)s,&
       %(mpitype)s,Values2,%(mpilen2)s,&
-      %(mpitype)s,root,MPI_COMM_WORLD,ierr)
+      %(mpitype)s,rt,COMM,ierr)
 #else
     Values2(1)=Values
     ierr=0
 #endif
 end subroutine
 
-Subroutine MPIGatherV_len(SendBuf,SendSize,RecvBuf,Lengths,Disps,root,ierr)
-    INTEGER,intent(in) :: SendSize,Lengths(:),root,Disps(:)
+!Gather from many processors to the root.
+! Each Processor has data in SendBuf() with length SendSize.
+! The root knows the lengths of the data from each proc, and they are placed on the root into RecvBuf at displacements Disps.
+Subroutine MPIGatherV_len(SendBuf,SendSize,RecvBuf,Lengths,Disps,ierr,Node)
+    INTEGER,intent(in) :: SendSize,Lengths(:),Disps(:)
     INTEGER, intent(out) :: ierr
     %(type1)s,intent(in) :: SendBuf()
     %(type1)s,intent(inout) :: RecvBuf(:)
-#ifdef PARALLEL
-!    write(6,*) "AllToAll %(type1)s",SendSize,RecvSize
-    CALL MPI_GatherV(SendBuf,SendSize,%(mpitype)s,RecvBuf,Lengths,Disps,%(mpitype)s,root,MPI_COMM_WORLD,ierr)
+    type(CommI), intent(in),optional :: Node
+    integer Comm,rt
+#if PARALLEL
+    call GetComm(Comm,Node,rt)
+    CALL MPI_GatherV(SendBuf,SendSize,%(mpitype)s,RecvBuf,Lengths,Disps,%(mpitype)s,rt,COMM,ierr)
 #else
     RecvBuf(1)=SendBuf()
     ierr=0
@@ -527,14 +595,16 @@ Subroutine MPIGatherV_len(SendBuf,SendSize,RecvBuf,Lengths,Disps,root,ierr)
 end subroutine
 
 ! This gathers an array into another array with the same number of dims.
-Subroutine MPIGatherV_len2(SendBuf,SendSize,RecvBuf,Lengths,Disps,root,ierr)
-    INTEGER,intent(in) :: SendSize,Lengths(:),root,Disps(:)
+Subroutine MPIGatherV_len2(SendBuf,SendSize,RecvBuf,Lengths,Disps,ierr,Node)
+    INTEGER,intent(in) :: SendSize,Lengths(:),Disps(:)
     INTEGER, intent(out) :: ierr
     %(type1)s,intent(in) :: SendBuf(:)
     %(type1)s,intent(inout) :: RecvBuf(:)
-#ifdef PARALLEL
-!    write(6,*) "AllToAll %(type1)s",SendSize,RecvSize
-    CALL MPI_GatherV(SendBuf,SendSize,%(mpitype)s,RecvBuf,Lengths,Disps,%(mpitype)s,root,MPI_COMM_WORLD,ierr)
+    type(CommI), intent(in),optional :: Node
+    integer Comm,rt
+#if PARALLEL
+    call GetComm(Comm,Node,rt)
+    CALL MPI_GatherV(SendBuf,SendSize,%(mpitype)s,RecvBuf,Lengths,Disps,%(mpitype)s,rt,COMM,ierr)
 #else
 !    write(6,*) lbound(RecvBuf),ubound(RecvBuf),lbound(SendBuf),ubound(SendBuf)
     RecvBuf(lbound(RecvBuf,%(ndim)s+1):(lbound(RecvBuf,%(ndim)s+1)+size(SendBuf,%(ndim)s+1)-1))=SendBuf(:)
@@ -544,15 +614,18 @@ end subroutine
 
 ! Values is the Send Buffer
 ! Values2 is the Receive Buffer
-Subroutine MPIGatherV_auto(Values,Values2,Lengths,Disps,root,ierr)
+Subroutine MPIGatherV_auto(Values,Values2,Lengths,Disps,ierr,Node)
     INTEGER, intent(out) :: ierr
-    INTEGER, intent(in) :: root,Disps(:),Lengths(:)
+    INTEGER, intent(in) :: Disps(:),Lengths(:)
     %(type1)s,intent(in) :: Values()
     %(type1)s,intent(inout) :: Values2(:)
-#ifdef PARALLEL
+    type(CommI), intent(in),optional :: Node
+    integer Comm,rt
+#if PARALLEL
+    call GetComm(Comm,Node,rt)
     CALL MPI_GatherV(Values,%(mpilen)s,&
       %(mpitype)s,Values2,Lengths,&
-      Disps,%(mpitype)s,root,MPI_COMM_WORLD,ierr)
+      Disps,%(mpitype)s,rt,COMM,ierr)
 #else
     Values2(1)=Values
     ierr=0
@@ -562,28 +635,73 @@ end subroutine
 ! This gathers an array into another array with the same number of dims.
 ! Values is the Send Buffer
 ! Values2 is the Receive Buffer
-Subroutine MPIGatherV_auto2(Values,Values2,Lengths,Disps,root,ierr)
+Subroutine MPIGatherV_auto2(Values,Values2,Lengths,Disps,ierr,Node)
     INTEGER, intent(out) :: ierr
-    INTEGER, intent(in) :: root,Disps(:),Lengths(:)
+    INTEGER, intent(in) :: Disps(:),Lengths(:)
     %(type1)s,intent(in) :: Values(:)
     %(type1)s,intent(inout) :: Values2(:)
-#ifdef PARALLEL
+    type(CommI), intent(in),optional :: Node
+    integer Comm,rt
+#if PARALLEL
+    call GetComm(Comm,Node,rt)
     CALL MPI_GatherV(Values,%(mpilen)s,&
       %(mpitype)s,Values2,Lengths,&
-      Disps,%(mpitype)s,root,MPI_COMM_WORLD,ierr)
+      Disps,%(mpitype)s,rt,COMM,ierr)
 #else
     Values2(Disps(1):Disps(1)+Lengths(1))=Values(:)
     ierr=0
 #endif
 end subroutine
 
-Subroutine MPIScatter_len(SendBuf,SendSize,RecvBuf,RecvSize,root,ierr)
-    INTEGER, intent(in)  :: SendSize,RecvSize,root
+!From SendBuff send to all processors
+Subroutine MPIScatterV_len(SendBuf,SendSizes,Disps,RecvBuf,Length,ierr,Node)
+    INTEGER,intent(in) :: SendSizes(:),Length,Disps(:)
+    INTEGER, intent(out) :: ierr
+    %(type1)s,intent(in) :: SendBuf()
+    %(type1)s,intent(inout) :: RecvBuf(:)
+    type(CommI), intent(in),optional :: Node
+    integer Comm,rt
+#if PARALLEL
+    call GetComm(Comm,Node,rt)
+!    write(6,*) "AllToAll %(type1)s",SendSize,RecvSize
+    CALL MPI_ScatterV(SendBuf,SendSizes,Disps,%(mpitype)s,RecvBuf,Length,%(mpitype)s,rt,COMM,ierr)
+#else
+    RecvBuf(1)=SendBuf()
+    ierr=0
+#endif
+end subroutine
+
+! This scatters an array into another array with the same number of dims. SendSizes are the lengths to send to each proc
+!  and Disps are the displacements of the data in SendBuf.  Each processor should know its own Length
+Subroutine MPIScatterV_len2(SendBuf,SendSizes,Disps,RecvBuf,Length,ierr,Node)
+    INTEGER,intent(in) :: SendSizes(:),Length,Disps(:)
+    INTEGER, intent(out) :: ierr
+    %(type1)s,intent(in) :: SendBuf(:)
+    %(type1)s,intent(inout) :: RecvBuf(:)
+    type(CommI), intent(in),optional :: Node
+    integer Comm,rt
+#if PARALLEL
+    call GetComm(Comm,Node,rt)
+!    write(6,*) "AllToAll %(type1)s",SendSize,RecvSize
+    CALL MPI_ScatterV(SendBuf,SendSizes,Disps,%(mpitype)s,RecvBuf,Length,%(mpitype)s,rt,COMM,ierr)
+#else
+!    write(6,*) lbound(RecvBuf),ubound(RecvBuf),lbound(SendBuf),ubound(SendBuf)
+    RecvBuf(:)=SendBuf(lbound(SendBuf,%(ndim)s+1):(lbound(SendBuf,%(ndim)s+1)+Length-1))
+    ierr=0
+#endif
+end subroutine
+
+
+Subroutine MPIScatter_len(SendBuf,SendSize,RecvBuf,RecvSize,ierr,Node)
+    INTEGER, intent(in)  :: SendSize,RecvSize
     INTEGER, intent(out) :: ierr
     %(type1)s, intent(in) :: SendBuf(:)
     %(type1)s, intent(inout) :: RecvBuf()
-#ifdef PARALLEL
-    CALL MPI_Scatter(SendBuf,SendSize,%(mpitype)s,RecvBuf,RecvSize,%(mpitype)s,root,MPI_COMM_WORLD,ierr)
+    type(CommI), intent(in),optional :: Node
+    integer Comm,rt
+#if PARALLEL
+    call GetComm(Comm,Node,rt)
+    CALL MPI_Scatter(SendBuf,SendSize,%(mpitype)s,RecvBuf,RecvSize,%(mpitype)s,rt,COMM,ierr)
 #else
     RecvBuf=SendBuf(1)
     ierr=0
@@ -592,15 +710,17 @@ end subroutine
 
 ! Values is the Send Buffer
 ! Values2 is the Receive Buffer
-Subroutine MPIScatter_auto(Values,Values2,root,ierr)
-    INTEGER, intent(in) :: root
+Subroutine MPIScatter_auto(Values,Values2,ierr,Node)
     INTEGER, intent(out) :: ierr
     %(type1)s, intent(in) :: Values(:)
     %(type1)s, intent(inout) :: Values2()
-#ifdef PARALLEL
+    type(CommI), intent(in),optional :: Node
+    integer Comm,rt
+#if PARALLEL
+    call GetComm(Comm,Node,rt)
     CALL MPI_Scatter(Values,%(mpilen2)s,&
       %(mpitype)s,Values2,%(mpilen2)s,&
-      %(mpitype)s,root,MPI_COMM_WORLD,ierr)
+      %(mpitype)s,rt,COMM,ierr)
 #else
     Values2=Values(1)
     ierr=0
@@ -693,13 +813,21 @@ supermodule Parallel
    uSE mpi
 
 #endif
+   use ParallelHelper
    IMPLICIT NONE
+   interface
+        subroutine gethostname(nm, sz) bind(c)
+            use, intrinsic :: iso_c_binding
+            implicit none
+            integer(c_size_t), value :: sz
+            character(kind=c_char), intent(out) :: nm
+        end subroutine
+   end interface
    save
    integer iProcIndex,iProcMinE,iProcMaxE
+   integer iNodeIndex  ! Set from ParallelHelper.  Use this if an integer rather than a CommI object is needed.
    integer nProcessors
 
-   ! Rank of the root processor
-   integer, parameter :: root = 0
 #ifndef PARALLEL
    integer, parameter :: MPI_2INTEGER=0
    integer, parameter :: MPI_MIN=0
@@ -711,6 +839,8 @@ supermodule Parallel
    integer, parameter :: MPI_MAX_ERROR_STRING=255
 #endif
 
+
+   
 Contains
 
 
@@ -780,13 +910,13 @@ Subroutine MPIInit(tExternal)
              write(6,*) "Processor ",iProcIndex+1,'/',nProcessors, ' on local output.'
           endif
           call GetProcElectrons(iProcIndex,iProcMinE,iProcMaxE) 
+          CommGlobal=MPI_COMM_WORLD
 !  Just synchronize everything briefly
           a=iProcIndex+1
-          call MPISum(a,1,g)
+          call MPISumAll(a,1,g)
           WRITE(6,*) "Sum: ",g
        endif
 
-       initialised=.true.
        call MPI_ERRHANDLER_SET(MPI_COMM_WORLD,MPI_ERRORS_RETURN,ierr)
    end if
 
@@ -796,12 +926,113 @@ Subroutine MPIInit(tExternal)
    iProcIndex=0
    nProcessors=1
 #endif
-
    RETURN
    
 end subroutine
 
+! Create communicators for within and between each of the nodes
 
+
+subroutine MPINodes(tUseProcsAsNodes)
+   use, intrinsic :: iso_c_binding
+   implicit none
+   logical, intent(in) :: tUseProcsAsNodes !Set if we use Procs as Nodes.
+   integer Group,i,j,n
+   integer(c_size_t) length
+   character(len=30) nm
+   character(len=30) nm2
+   character(len=30) nms(0:nProcessors-1)
+   integer ierr
+   integer GroupProc(nProcessors)
+   logical, save :: initialised=.false.
+   if(initialised) return
+   initialised=.true.
+   allocate(Nodes(0:nProcessors-1))
+   allocate(NodeRoots(0:nProcessors-1))
+#ifdef PARALLEL
+   if(tUseProcsAsNodes) then
+      call MPI_Comm_Group(CommGlobal,Group,ierr)
+      write(6,*) "Allocating each processor as a separate node."
+      if(iProcIndex==root) then
+         nNodes=0
+         write(6,*) "Processor      Node"
+         do i=0,nProcessors-1
+            NodeRoots(nNodes)=i
+            Nodes(i)%n=nNodes
+            nNodes=nNodes+1
+            write(6,"(2I10)") i,Nodes(i)%n
+         enddo
+      endif
+   else 
+      call MPI_Comm_Group(CommGlobal,Group,ierr)
+      length=30
+      call gethostname(nm,length)
+      do i=1,30
+         if (nm(i:i)==char(0)) then
+            nm(i:30)=' '
+            exit
+         endif
+      enddo
+      nm2=nm
+      call MPI_Gather(nm2,30,MPI_CHARACTER,nms,30,MPI_CHARACTER,root,CommGlobal,ierr)
+      write(6,*) "Processor      Node hostname"
+      if(iProcIndex==root) then
+         nNodes=0
+         do i=0,nProcessors-1
+            Nodes(i)%n=-1
+            do j=0,nNodes-1
+               if (nms(i)==nms(NodeRoots(j))) then
+                  Nodes(i)%n=j
+                  exit
+               endif 
+            enddo
+            if (Nodes(i)%n==-1) then
+               NodeRoots(nNodes)=i
+               Nodes(i)%n=nNodes
+               nNodes=nNodes+1
+            endif
+            write(6,"(2I10,A,A)") i,Nodes(i)%n," ",nms(i)
+         enddo
+      endif
+   endif
+   call MPI_BCAST (nNodes, 1, MPI_INTEGER, root, CommGlobal, ierr)
+   call MPI_BCAST (Nodes, nProcessors, MPI_INTEGER, root, CommGlobal, ierr)
+   call MPI_BCAST (NodeRoots, nProcessors, MPI_INTEGER, root, CommGlobal, ierr)
+   allocate(NodeLengths(0:nNodes-1))
+   allocate(CommNodes(0:nNodes-1))
+   allocate(GroupNodes(0:nNodes-1))
+   Node=Nodes(iProcIndex)
+   iNodeIndex=Node%n  !Used as a plain integer version.
+   if (iProcIndex==NodeRoots(Node%n)) then
+      bNodeRoot=.true.
+      write(6,*) "I am the node root for node ", Node%n
+   else
+      bNodeRoot=.false.
+   endif
+   do i=0, nNodes-1
+      n=0
+      do j=0,nProcessors-1
+         if(Nodes(j)%n==i) then
+            n=n+1
+            GroupProc(n)=j
+         endif
+      enddo
+      NodeLengths(i)=n
+      call MPI_Group_incl(Group,n,GroupProc,GroupNodes(i),ierr)  !Create a group 
+      call MPI_Comm_Create(CommGlobal,GroupNodes(i),CommNodes(i),ierr) !Create the Communicator
+   enddo
+   call MPI_Group_incl(Group,nNodes,NodeRoots,GroupRoots,ierr)  !Create a group 
+   call MPI_Comm_Create(CommGlobal,GroupRoots,CommRoot,ierr) !Create the Communicator
+#else
+   nNodes=1
+   bNodeRoot=.true.
+   allocate(NodeLengths(0:nNodes-1))
+   allocate(CommNodes(0:nNodes-1))
+   allocate(GroupNodes(0:nNodes-1))
+   NodeLengths(0)=1
+#endif //def PARALLEL
+   Roots%n=-1  !A communicator index between roots
+end subroutine
 
 Subroutine MPIEnd(tExternal)
    !=  Shutdown our MPI Interface if we're not using CPMD/VASP's

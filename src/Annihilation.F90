@@ -17,8 +17,9 @@ MODULE AnnihilationMod
     use bit_rep_data
     use bit_reps, only: decode_bit_det, extract_sign, extract_flags, &
                         encode_sign, encode_flags, test_flag, set_flag, &
-                        clr_flag, flag_parent_initiator, encode_part_sign
-    use FciMCData, only: fcimc_iter_data
+                        clr_flag, flag_parent_initiator, encode_part_sign, &
+                        extract_part_sign, copy_flag
+    use csf_data, only: csf_orbital_mask
     IMPLICIT NONE
 
     contains
@@ -27,7 +28,7 @@ MODULE AnnihilationMod
     !   H Elements - send through logical to decide whether to create or not.
     !   Parallel spawned parts - create the ValidSpawnedList itself.
     !   Going to have to sort this out for the new packaged walkers - will have to package them up in this interface.
-    SUBROUTINE AnnihilationInterface(TotDets,MainParts,MainSign,MaxMainInd,SpawnDets,SpawnParts,MaxSpawnInd,iter_data)
+    SUBROUTINE AnnihilationInterface(TotDets,MainParts,MaxMainInd,SpawnDets,SpawnParts,MaxSpawnInd,iter_data)
         use constants, only: size_n_int
         use shared_alloc, only: shared_allocate_iluts, shared_deallocate
 !This is an interface routine to the Direct Annihilation routines.
@@ -45,8 +46,6 @@ MODULE AnnihilationMod
 !       TotDets             in: This is number of determinants specified in MainParticles on each process.
 !                           out: This is the new number of determinants, having been annihilated and merged with the
 !                                spawned list.
-!       MainSign(:)         This is the signed number of particles on the determinants specified in the equivalent
-!                           entry in the MainParticles array.
 !       SpawnParts(:,:)     This is the list of particles to attempt to annihilate. Unlike the Main list, this list
 !                           does *not* need to be ordered or sign coherent, and can also contain 'zero' sign particles.  Each particle contains its own sign
 !       MaxSpawnInd         This is the size of the SpawnParts array.
@@ -57,11 +56,11 @@ MODULE AnnihilationMod
         INTEGER, INTENT(INOUT) :: TotDets
         type(fcimc_iter_data), intent(inout) :: iter_data
         INTEGER(KIND=n_int), INTENT(INOUT) , TARGET :: MainParts(0:NIfTot,MaxMainInd),SpawnParts(0:NIfTot,MaxSpawnInd)
-        INTEGER, INTENT(INOUT) , TARGET :: MainSign(MaxMainInd)
+!        INTEGER, INTENT(INOUT) , TARGET :: MainSign(MaxMainInd)
         INTEGER, INTENT(INOUT) :: SpawnDets
         INTEGER :: ierr,i
         CHARACTER(len=*) , PARAMETER :: this_routine='AnnihilationInterface'
-        INTEGER, DIMENSION(lenof_sign) :: TempSign
+!        INTEGER, DIMENSION(lenof_sign) :: TempSign
         TYPE(timer),save :: Annihil_time
         integer(kind=n_int), pointer,save :: SpawnVecLocal(:,:)
         Annihil_time%timer_name='Annihilation interface'
@@ -69,14 +68,15 @@ MODULE AnnihilationMod
 
         IF(.not.(ALLOCATED(ValidSpawnedList))) THEN
 !This needs to be filled correctly before annihilation can take place.
-            ALLOCATE(ValidSpawnedList(0:nProcessors-1),stat=ierr)
+            ALLOCATE(ValidSpawnedList(0:nNodes-1),stat=ierr)
         ENDIF
         IF(.not.(ASSOCIATED(SpawnVecLocal))) THEN
 !This is required scratch space of the size of the spawned arrays
             call shared_allocate_iluts("SpawnVecLocal",SpawnVecLocal,(/NIfTot,MaxSpawnInd/))
             ierr=0
             CALL LogMemAlloc('SpawnVecLocal',MaxSpawnInd*(NIfTot+1),size_n_int,this_routine,SpawnVec2Tag,ierr)
-            SpawnVecLocal(:,:)=0
+            call MPIBarrier(ierr)
+!            SpawnVecLocal(:,:)=0
 !            ALLOCATE(SpawnSignVec2(0:MaxSpawnInd),stat=ierr)
 !            CALL LogMemAlloc('SpawnSignVec2',MaxSpawnInd+1,size_n_int,this_routine,SpawnSignVec2Tag,ierr)
 !            SpawnSignVec2(:)=0
@@ -97,15 +97,15 @@ MODULE AnnihilationMod
 ! Since we've no way of knowing about nodes as yet, we just assume all processors are on the same node.  AJWT  TODO Multinodes.
 
         ValidSpawnedList(0)=SpawnDets+1   !Add one since it always indicates the next free slot.
-        do i=1,nProcessors-1
+        do i=1,nNodes-1
             ValidSpawnedList(i)=MaxSpawnInd
         enddo 
 
-        TempSign=0
-        do i=1,TotDets
-            TempSign(1)=MainSign(i)
-            call encode_sign(MainParts(:,i),TempSign)
-        enddo
+!        TempSign=0
+!        do i=1,TotDets
+!            TempSign(1)=MainSign(i)
+!            call encode_sign(MainParts(:,i),TempSign)
+!        enddo
 ! The SpawnParts already have their signs inside them
 
         MaxWalkersPart=MaxMainInd
@@ -116,13 +116,13 @@ MODULE AnnihilationMod
         SpawnedParts2 => SpawnVecLocal
 
         CALL DirectAnnihilation(TotDets, iter_data,.true.) !.true. for single processor annihilation
-        if(iProcIndex==root) then        
+!        if(iProcIndex==root) then        
 !Signs put back again into seperate array
-           do i=1,TotDets
-               call extract_sign(CurrentDets(:,i),TempSign)
-               MainSign(i)=TempSign(1)
-           enddo
-         endif
+!           do i=1,TotDets
+!               call extract_sign(CurrentDets(:,i),TempSign)
+!               MainSign(i)=TempSign(1)
+!           enddo
+!         endif
          call MPIBarrier(ierr)
 
         call halt_timer(Annihil_time)
@@ -145,7 +145,8 @@ MODULE AnnihilationMod
 
 !This routine will send all the newly-spawned particles to their correct processor. MaxIndex is returned as the new number of newly-spawned particles on the processor. May have duplicates.
 !The particles are now stored in SpawnedParts2/SpawnedSign2.
-        CALL SendProcNewParts(MaxIndex,tSingleProc)
+!        call WriteExcitorListP(6,SpawnedParts,0,ValidSpawnedList(0),0,"Local")
+        if(bNodeRoot) CALL SendProcNewParts(MaxIndex,tSingleProc)
 
 !        WRITE(6,*) "Sent particles"
 !        WRITE(6,*) 'MaxIndex',MaxIndex
@@ -159,8 +160,10 @@ MODULE AnnihilationMod
 !Now we want to order and compress the spawned list of particles. This will also annihilate the newly spawned particles amongst themselves.
 !MaxIndex will change to reflect the final number of unique determinants in the newly-spawned list, and the particles will end up in the spawnedSign/SpawnedParts lists.
 !        WRITE(6,*) "Transferred",MaxIndex
+         call MPIBarrier(ierr)
 
         CALL CompressSpawnedList(MaxIndex, iter_data)  
+         call MPIBarrier(ierr)
 
 !        WRITE(6,*) "List compressed",MaxIndex,TotWalkersNew
 
@@ -168,13 +171,14 @@ MODULE AnnihilationMod
 !This will also remove the found determinants from the spawnedparts lists.
 
         CALL AnnihilateSpawnedParts(MaxIndex,TotWalkersNew, iter_data)  
+         call MPIBarrier(ierr)
 
-!        WRITE(6,*) "Annihilation finished",MaxIndex,TotWalkersNew
+ !       WRITE(6,*) "Annihilation finished",MaxIndex,TotWalkersNew
 
 !Put the surviving particles in the main list, maintaining order of the main list.
 !Now we insert the remaining newly-spawned particles back into the original list (keeping it sorted), and remove the annihilated particles from the main list.
         CALL set_timer(Sort_Time,30)
-        CALL InsertRemoveParts(MaxIndex,TotWalkersNew,tSingleProc)
+        CALL InsertRemoveParts(MaxIndex,TotWalkersNew)
 
 !       WRITE(6,*) "Surviving particles merged"
 
@@ -187,35 +191,33 @@ MODULE AnnihilationMod
     SUBROUTINE SendProcNewParts(MaxIndex,tSingleProc)
         use constants, only: MpiDetInt
         REAL :: Gap
-        INTEGER :: i,sendcounts(nProcessors),disps(nProcessors),recvcounts(nProcessors),recvdisps(nProcessors),error
+        INTEGER :: i,sendcounts(nNodes),disps(nNodes),recvcounts(nNodes),recvdisps(nNodes),error
         INTEGER :: MaxSendIndex
         INTEGER, INTENT(OUT) :: MaxIndex
         LOGICAL, intent(in) :: tSingleProc
+      
 
 !        WRITE(6,*) "ValidSpawnedList ",ValidSpawnedList(:)
         if(tSingleProc) then
 !Put all particles and gap on one proc.
 
-!ValidSpawnedList(0:nProcessors-1) indicates the next free index for each processor (for spawnees from this processor)
+!ValidSpawnedList(0:nNodes-1) indicates the next free index for each processor (for spawnees from this processor)
 !  i.e. the list of spawned particles has already been arranged so that newly spawned particles are grouped according to the processor they go to.
 
-! sendcounts(1:) indicates the number of spawnees to send to each processor (1-based)
-! disps(1:) is the index into the spawned list of the beginning of the list to send to each processor (1-based)
+! sendcounts(1:) indicates the number of spawnees to send to each processor
+! disps(1:) is the index into the spawned list of the beginning of the list to send to each processor (0-based)
            sendcounts(1)=ValidSpawnedList(0)-1
            disps(1)=0
-           if(nProcessors>1) then
-              sendcounts(2:nProcessors)=0
-              disps(2:nProcessors)=ValidSpawnedList(1)
+           if(nNodes>1) then
+              sendcounts(2:nNodes)=0
+              disps(2:nNodes)=ValidSpawnedList(1)
            endif
         else
 !Distribute the gaps on all procs
-!TODO:  This should use information from InitialSpawnedSlots for consistency.
-            Gap=REAL(MaxSpawned)/REAL(nProcessors)
-   !        WRITE(6,*) "Gap: ",Gap
-
-           do i=0,nProcessors-1
-               sendcounts(i+1)=ValidSpawnedList(i)-(NINT(Gap*i)+1)
-               disps(i+1)=NINT(Gap*i)
+           do i=0,nNodes-1
+               sendcounts(i+1)=ValidSpawnedList(i)-InitialSpawnedSlots(i)
+! disps is zero-based, but InitialSpawnedSlots is 1-based
+               disps(i+1)=InitialSpawnedSlots(i)-1
            enddo
         endif
 
@@ -223,22 +225,22 @@ MODULE AnnihilationMod
 !        WRITE(6,*) 'sendcounts',sendcounts
 !        WRITE(6,*) 'disps',disps
 
-        MaxSendIndex=ValidSpawnedList(nProcessors-1)-1
+        MaxSendIndex=ValidSpawnedList(nNodes-1)-1
 
 !We now need to calculate the recvcounts and recvdisps - this is a job for AlltoAll
-        recvcounts(1:nProcessors)=0
+        recvcounts(1:nNodes)=0
         
         CALL set_timer(Comms_Time,30)
         
-        CALL MPIAlltoAll(sendcounts,1,recvcounts,1,error)
+        CALL MPIAlltoAll(sendcounts,1,recvcounts,1,error,Roots)
 
 !We can now get recvdisps from recvcounts, since we want the data to be contiguous after the move.
         recvdisps(1)=0
-        do i=2,nProcessors
+        do i=2,nNodes
             recvdisps(i)=recvdisps(i-1)+recvcounts(i-1)
         enddo
-        MaxIndex=recvdisps(nProcessors)+recvcounts(nProcessors)
-        do i=1,nProcessors
+        MaxIndex=recvdisps(nNodes)+recvcounts(nNodes)
+        do i=1,nNodes
             recvdisps(i)=recvdisps(i)*(NIfTot+1)
             recvcounts(i)=recvcounts(i)*(NIfTot+1)
             sendcounts(i)=sendcounts(i)*(NIfTot+1)
@@ -247,6 +249,7 @@ MODULE AnnihilationMod
 
 !Max index is the largest occupied index in the array of hashes to be ordered in each processor 
         IF(MaxIndex.gt.(0.9*MaxSpawned)) THEN
+            write(6,*) MaxIndex,MaxSpawned
             CALL Warning("SendProcNewParts","Maximum index of newly-spawned array is close to maximum length after annihilation send. Increase MemoryFacSpawn")
         ENDIF
 
@@ -268,7 +271,7 @@ MODULE AnnihilationMod
 !        enddo
 
 !Update the number of integers we need to send.
-!        do i=1,nProcessors
+!        do i=1,nNodes
 !            sendcounts(i)=sendcounts(i)*(NIfTot+1)
 !            disps(i)=disps(i)*(NIfTot+1)
 !            recvcounts(i)=recvcounts(i)*(NIfTot+1)
@@ -280,7 +283,7 @@ MODULE AnnihilationMod
 !            write(6,*) i, '***', CountBits(spawnedparts(:,i), nifd)
 !            WRITE(6,*) i,"***",SpawnedParts(:,i)
 !        enddo
-        CALL MPIAlltoAllv(SpawnedParts,sendcounts,disps,SpawnedParts2,recvcounts,recvdisps,error)
+        CALL MPIAlltoAllv(SpawnedParts,sendcounts,disps,SpawnedParts2,recvcounts,recvdisps,error,Roots)
 
 !        WRITE(6,*) MaxIndex, "Recieved particles: "
 !        do i=1,MaxIndex
@@ -296,21 +299,27 @@ MODULE AnnihilationMod
     SUBROUTINE CompressSpawnedList(ValidSpawned, iter_data)
         type(fcimc_iter_data), intent(inout) :: iter_data
         INTEGER :: VecInd,ValidSpawned,DetsMerged,i,BeginningBlockDet,FirstInitIndex,CurrentBlockDet
-        INTEGER :: EndBlockDet,part_type,StartCycleInit
-        INTEGER, DIMENSION(lenof_sign) :: Cum_Sign,SpawnedSign,Temp_Sign
-        LOGICAL :: tSuc,Cum_Flag
+        integer :: EndBlockDet, part_type, StartCycleInit, cum_count
+        INTEGER, DIMENSION(lenof_sign) :: SpawnedSign,Temp_Sign
+        LOGICAL :: tSuc, tInc
         INTEGER(Kind=n_int) , POINTER :: PointTemp(:,:)
+        integer(n_int) :: cum_det (0:niftot)
         CHARACTER(len=*), parameter :: this_routine='CompressSpawnedList'
 
 !We want to sort the list of newly spawned particles, in order for quicker binary searching later on. (this is not essential, but should proove faster)
 !They should remain sorted after annihilation between spawned
+        if(.not.bNodeRoot) return
+!        call WriteExcitorListP(6,SpawnedParts,0,ValidSpawned,0,"UnOrdered")
         call sort(SpawnedParts(:,1:ValidSpawned), ilut_lt, ilut_gt)
         IF(tHistSpawn) HistMinInd2(1:NEl)=FCIDetIndex(1:NEl)
 
-!        WRITE(6,*) "************ - Ordered",ValidSpawned,NIfTot,Iter
-!        do i=1,ValidSpawned
-!            WRITE(6,*) i,SpawnedParts(0:NIfTot-1,i),SpawnedParts(NIfTot,i)-2
-!        enddo
+ !       call WriteExcitorListP(6,SpawnedParts,0,ValidSpawned,0,"Ordered")
+
+
+!!        WRITE(6,*) "************ - Ordered",ValidSpawned,NIfTot,Iter
+!!        do i=1,ValidSpawned
+!!            WRITE(6,*) i,SpawnedParts(0:NIfTot-1,i),SpawnedParts(NIfTot,i)-2
+!!        enddo
 
 !First, we compress the list of spawned particles, so that they are only specified at most once in each processors list.
 !During this, we transfer the particles from SpawnedParts to SpawnedParts2
@@ -323,7 +332,6 @@ MODULE AnnihilationMod
         do while(BeginningBlockDet.le.ValidSpawned)
             !loop in blocks of the same determinant to the end of the list of walkers
 
-            Cum_Sign(:)=0
             FirstInitIndex=0
             CurrentBlockDet=BeginningBlockDet+1
 
@@ -345,7 +353,13 @@ MODULE AnnihilationMod
                 CYCLE   !Skip the rest of this block
             endif
 
+            ! Reset the cumulative determinant
+            cum_det = 0
+            cum_det (0:nifdbo) = SpawnedParts(0:nifdbo, BeginningBlockDet)
             do part_type=1,lenof_sign   !Annihilate in this block seperately for real and imag walkers
+
+                ! How many of either real/imaginary spawns are there onto each det
+                cum_count = 0
                 
 !                WRITE(6,*) "Testing particle types: ",part_type
                     
@@ -354,10 +368,13 @@ MODULE AnnihilationMod
                     do i=BeginningBlockDet,EndBlockDet  !Loop over the block
                         if (test_flag(SpawnedParts(:,i), flag_parent_initiator(part_type))) then
                             !Found an initiator walker
-                            call extract_sign(SpawnedParts(:,i),SpawnedSign)
 !                            WRITE(6,*) "Found another initiator: ",i
-                            if(tHistSpawn) call HistAnnihilEvent(SpawnedParts,SpawnedSign,Cum_Sign,part_type)
-                            call FindResidualParticle(Cum_Sign(part_type),Cum_Flag,SpawnedSign(part_type),.true.,part_type,iter_data)
+                            if (tHistSpawn) then
+                                call extract_sign (SpawnedParts(:,i), SpawnedSign)
+                                call extract_sign (SpawnedParts(:,BeginningBlockDet), temp_sign)
+                                call HistAnnihilEvent(SpawnedParts, SpawnedSign, temp_sign, part_type)
+                            endif
+                            call FindResidualParticle (cum_det, SpawnedParts(:,i), cum_count, part_type, iter_data)
                         endif
                     enddo
                 endif
@@ -367,50 +384,36 @@ MODULE AnnihilationMod
                 !Now loop over the same block again, but this time calculating the contribution from non-initiators
                 !We want to loop over the whole block.
                 do i=BeginningBlockDet,EndBlockDet
-                    if(tTruncInitiator) then
-                        if(.not.test_flag(SpawnedParts(:,i),flag_parent_initiator(part_type))) then
-                            !Only consider non-initiators - the initiators have already been dealt with
-!                            WRITE(6,*) "Non-initiator found: ",i
-                            call extract_sign(SpawnedParts(:,i),SpawnedSign)
-                            if(tHistSpawn) call HistAnnihilEvent(SpawnedParts,SpawnedSign,Cum_Sign,part_type)
-                            call FindResidualParticle(Cum_Sign(part_type),Cum_Flag,SpawnedSign(part_type),.false.,part_type,iter_data)
-!                            WRITE(6,*) "Cum_Sign(part_type): ",Cum_Sign(part_type),Cum_Flag
+                    tInc = .true.
+                    if (tTruncInitiator) then
+                        if (test_flag (SpawnedParts(:,i), flag_parent_initiator(part_type))) tInc = .false.
+                    endif
+                    if (tInc) then
+                        ! If truncinitiator, only consider the non-initiators here 
+                        ! (the initiators have already been dealt with).
+                        if (tHistSpawn) then
+                            call extract_sign (SpawnedParts(:,i), SpawnedSign)
+                            call extract_sign (SpawnedParts(:,BeginningBlockDet), temp_sign)
+                            call HistAnnihilEvent (SpawnedParts, SpawnedSign, temp_sign, part_type)
                         endif
-                    else
-                        call extract_sign(SpawnedParts(:,i),SpawnedSign)
-!                        WRITE(6,*) "Extracting particle sign: ",SpawnedSign(part_type),Cum_Sign(part_type)
-                        if(tHistSpawn) call HistAnnihilEvent(SpawnedParts,SpawnedSign,Cum_Sign,part_type)
-                        call FindResidualParticle(Cum_Sign(part_type),Cum_Flag,SpawnedSign(part_type),.false.,part_type,iter_data)
+                        call FindResidualParticle (cum_det, SpawnedParts(:,i), cum_count, part_type, iter_data)
                     endif
-!                    WRITE(6,*) "Running through block - Residual sign=",Cum_Sign(part_type)
                 enddo
-                !Now transfer the correct flag for that particle type to the beginning determinant in the list
-                if(tTruncInitiator) then
-                    if((EndBlockDet-BeginningBlockDet).ge.2) then
-                        !If more than three seperate spawns to the same determinant, assume the
-                        !resultant particle is from an initiator
-                        call set_flag (SpawnedParts(:,BeginningBlockDet), flag_parent_initiator(part_type), .true.)
-                    else
-                        !two spawns only
-                        call set_flag (SpawnedParts(:,BeginningBlockDet), flag_parent_initiator(part_type), Cum_Flag)
-                    endif
-                endif
 
-            enddo   !End loop over particle type
+            enddo ! End loop over particle type
 
-            !Copy the final cumulative sign for the block
-            if(sum(abs(cum_sign(:))).gt.0) then
-!                WRITE(6,*) "Encoding final sign...",Cum_Sign(:)
-                call encode_sign(SpawnedParts(:,BeginningBlockDet),Cum_Sign) 
-                SpawnedParts2(:,VecInd)=SpawnedParts(:,BeginningBlockDet)   !Transfer all info to the other array
-                VecInd=VecInd+1
-                DetsMerged=DetsMerged+(EndBlockDet-BeginningBlockDet)
+            ! Copy details into the final array
+            call extract_sign (cum_det, temp_sign)
+            if (sum(abs(temp_sign)) > 0) then
+                ! Transfer all ino into the other array.
+                SpawnedParts2(:,VecInd) = cum_det
+                VecInd = VecInd + 1
+                DetsMerged = DetsMerged + EndBlockDet - BeginningBlockDet
             else
-!                WRITE(6,*) "All particles annihilated in this block..."
-                !all particles have been annihilated away from the block
-                DetsMerged=DetsMerged+(EndBlockDet-BeginningBlockDet)+1     
+                ! All particles from block have been annihilated.
+                DetsMerged = DetsMerged + EndBlockDet - BeginningBlockDet + 1
             endif
-        
+
             BeginningBlockDet=CurrentBlockDet           !Move onto the next block of determinants
 
         enddo   
@@ -426,12 +429,20 @@ MODULE AnnihilationMod
         SpawnedParts => PointTemp
 
 !        WRITE(6,*) "************************"
-!        WRITE(6,*) "Compressed List: ",ValidSpawned,DetsMerged
-!        do i=1,ValidSpawned
-!            WRITE(6,*) SpawnedParts(0:NIfTot-1,i),SpawnedParts(NIfTot,i)-2
-!        enddo
-!        WRITE(6,*) "***","iter_data%naborted: ",iter_data%naborted
-!        CALL FLUSH(6)
+!        call WriteExcitorListP(6,SpawnedParts,0,ValidSpawned,0,"Compressed Spawned")
+
+
+!!        WRITE(6,*) "Compressed List: ",ValidSpawned,DetsMerged
+!!        do i=1,ValidSpawned
+!!            WRITE(6,*) SpawnedParts(0:NIfTot-1,i),SpawnedParts(NIfTot,i)-2
+!!        enddo
+!!        WRITE(6,*) "************************"
+!!        WRITE(6,*) "Compressed List: ",ValidSpawned,DetsMerged
+!!        do i=1,ValidSpawned
+!!            WRITE(6,*) SpawnedParts(0:NIfTot-1,i),SpawnedParts(NIfTot,i)-2
+!!        enddo
+!!        WRITE(6,*) "***","iter_data%naborted: ",iter_data%naborted
+!!        CALL FLUSH(6)
         
     END SUBROUTINE CompressSpawnedList
 
@@ -472,72 +483,93 @@ MODULE AnnihilationMod
     !It takes the sign and flags from two particles on the same determinant, 
     !and calculates what the residual particles and signs should be from them.
     !This deals with real and imaginary signs seperately, and so the 'signs' are integers.
-    subroutine FindResidualParticle(Cum_Sign,Cum_Init,SpawnedSign,SpawnInit,Type_Flag,iter_data)
-        IMPLICIT NONE
+
+    subroutine FindResidualParticle (cum_det, new_det, cum_count, part_type, &
+                                     iter_data)
+
+        ! This routine is called whilst compressing the spawned list during
+        ! annihilation. It considers the sign and flags from two particles
+        ! on the same determinant, and calculates the correct sign/flags
+        ! for the compressed particle.
+        !
+        ! --> The information is stored within the first particle in a block
+        ! --> Should be called for real/imaginary particles seperately
+
+        integer(n_int), intent(inout) :: cum_det(0:nIfTot)
+        integer(n_int), intent(in) :: new_det(0:niftot)
+        integer, intent(inout) :: cum_count
+        integer, intent(in) :: part_type
         type(fcimc_iter_data), intent(inout) :: iter_data
-        INTEGER , INTENT(INOUT) :: Cum_Sign
-        LOGICAL , INTENT(INOUT) :: Cum_Init
-        INTEGER , INTENT(IN) :: SpawnedSign
-        LOGICAL , INTENT(IN) :: SpawnInit
-        INTEGER , INTENT(IN) :: Type_Flag    !1 = real particles,2=Imag
-        INTEGER :: ProdSign
+        integer :: new_sgn, cum_sgn, sgn_prod
 
-        if(SpawnedSign.eq.0) return   !If the spawned sign is zero, ignore it.
+        ! Obtain the signs and sign product. Ignore new particel if zero.
+        new_sgn = extract_part_sign (new_det, part_type)
+        if (new_sgn == 0) return
+        cum_sgn = extract_part_sign (cum_det, part_type)
+        sgn_prod = cum_sgn * new_sgn
 
-        if(tTruncInitiator) then
-        !The rules are as follows:
-        !If particles are of the same sign:
-            !Init + Init = Init
-            !Init + Non = Init
-            !Non + Non = Init
+        ! If we are including this det, then increment the count
+        cum_count = cum_count + 1
 
-        !If particles are of opposite sign:
-            !Init + Init = Init
-            !Non + Init = Whichever is largest
-            !Non + Non = Non
+        if (tTruncInitiator) then
+            !The rules are as follows:
+            !If particles are of the same sign:
+                !Init + Init = Init
+                !Init + Non = Init
+                !Non + Non = Init
 
-        !Care needs to be taken that if the sign of either is zero, then it is
-        !treated as a non-initiator.
-            ProdSign=Cum_Sign*SpawnedSign
-            if(ProdSign.gt.0) then
-                !Signs are the same
-                !Regardless of flags, this is an initiator.
-                !This is equivalent to the tKeepDoubSpawns option, which is now
-                !permanently on.
-                Cum_Init=.true.
-            elseif(ProdSign.lt.0) then
-                !Signs are opposite
-                !We are actually annihilating, but just in serial... 
-                !we therefore need to count it anyway.
-                Annihilated=Annihilated+2*(MIN(abs(SpawnedSign),abs(Cum_Sign)))
-                iter_data%nannihil(type_flag) = iter_data%nannihil(type_flag) + &
-                                   2*(min(abs(SpawnedSign), abs(Cum_Sign)))
+            !If particles are of opposite sign:
+                !Init + Init = Init
+                !Non + Init = Whichever is largest
+                !Non + Non = Non
 
-                if(Cum_Init.neqv.SpawnInit) then
-                !if the flags are the same, then we don't need to do anything - we want
-                !to keep the same flags. However, if they are different, then we need
-                !to just take the flag corresponding to the largest weighted contribution.
-                    if(abs(SpawnedSign).gt.abs(Cum_Sign)) then
-                        Cum_Init=SpawnInit
-                    endif
+            ! If flag_make_initiator is set, it always becomes an initiator.
+            ! n.b. we are using flag_is_initiator and flag_parent_initiator
+            !      somwhat interchangably here...
+            if (sgn_prod > 0) then
+                ! Signs are the same. This must be an initiator.
+                ! Equivalent to (deprecated) tKeepDoubSpawns
+                call set_flag (cum_det, flag_is_initiator(part_type))
+            elseif (sgn_prod < 0) then
+                ! Annihilating (serially)
+                ! --> Retain the initiator flag of the largest term.
+                if (abs(new_sgn) > abs(cum_sgn)) then
+                    call copy_flag (new_det, cum_det, &
+                                    flag_is_initiator(part_type))
                 endif
             else
-                !ProdSign=0, therefore just take flag from SpawnInit
-                Cum_Init=SpawnInit
-            endif
-        else
-            !Update Annihilation statistics - is this really necessary?
-            if((Cum_Sign*SpawnedSign).lt.0) then
-                Annihilated=Annihilated+2*(MIN(abs(SpawnedSign),abs(Cum_Sign)))
-                iter_data%nannihil(type_flag) = iter_data%nannihil(type_flag) + &
-                                   2*(min(abs(SpawnedSign), abs(Cum_Sign)))
+                ! cum_sgn == 0, new_sgn /= 0, therefore just take the flags
+                ! from the new particles.
+                call encode_flags (cum_det, extract_flags (new_det))
             endif
 
+            ! If we have set the make_initiator flag, then the target
+            ! particle must become an initiator.
+            if (test_flag (new_det, flag_make_initiator(part_type))) then
+                ! If make_initiator is set, then the particle must become
+                ! an initiator.
+                call set_flag (cum_det, flag_make_initiator(part_type))
+                call set_flag (cum_det, flag_is_initiator(part_type))
+            endif
+
+            ! This could be carried via more flags, but this is cleaner.
+            if (cum_count > 2) then
+                call set_flag (cum_det, flag_parent_initiator(part_type))
+            endif
         endif
-        
-        Cum_Sign=Cum_Sign+SpawnedSign
+
+        ! Update annihilation statistics (is this really necessary?)
+        if (sgn_prod < 0) then
+            Annihilated = Annihilated + 2*min(abs(cum_sgn), abs(new_sgn))
+            iter_data%nannihil(part_type) = iter_data%nannihil(part_type)&
+                + 2 * min(abs(cum_sgn), abs(new_sgn))
+        endif
+
+        ! Update the cumulative sign count
+        call encode_part_sign (cum_det, cum_sgn + new_sgn, part_type)
 
     end subroutine FindResidualParticle
+
     
 !In this routine, we want to search through the list of spawned particles. For each spawned particle, 
 !we binary search the list of particles on the processor
@@ -553,6 +585,8 @@ MODULE AnnihilationMod
         INTEGER :: ExcitLevel
         INTEGER(KIND=n_int) , POINTER :: PointTemp(:,:)
         LOGICAL :: tSuccess,tSuc
+
+        if(.not.bNodeRoot) return  !Only node roots to do this.
 
         CALL set_timer(AnnMain_time,30)
 
@@ -615,32 +649,38 @@ MODULE AnnihilationMod
 
                 do j=1,lenof_sign   !Run over real (& imag ) components
 
-                    IF(SignProd(j).lt.0) THEN
-!This indicates that the particle has found the same particle of opposite sign to annihilate with
+                    if (SignProd(j) < 0) then
+                        ! This indicates that the particle has found the same particle of 
+                        ! opposite sign to annihilate with
                         Annihilated=Annihilated+2*(min(abs(CurrentSign(j)),abs(SpawnedSign(j))))
                         iter_data%nannihil(j) = iter_data%nannihil(j) + &
                                            2*(min(abs(CurrentSign(j)), abs(SpawnedSign(j))))
 
                         IF(tTruncInitiator) THEN
-!If we are doing an initiator calculation - then if the walkers that are left after annihilation came from 
-!the SpawnedParts array, and had 
-!spawned from determinants outside the active space, then it is like these have been spawned on an unoccupied determinant and they are killed.
-                            IF(abs(SpawnedSign(j)).gt.abs(CurrentSign(j))) THEN
-                                !The residual particles were spawned here
-                                if (.not. test_flag (SpawnedParts(:,i), flag_parent_initiator(j))) then
-                                    ! And they were spawned from non-initiator particles. 
-                                    ! Abort all particles which were initially copied accross
-                                    NoAborted = NoAborted + abs(SpawnedSign(j)) - abs(CurrentSign(j))
-                                    iter_data%naborted(j) = iter_data%naborted(j) + abs(SpawnedSign(j))-abs(CurrentSign(j))
-!                                    WRITE(6,'(I20,A,3I20)') abs(SpawnedSign(i))-abs(CurrentSign(i)),'walkers aborted from determinant:',SpawnedParts(:,i)
-                                    !We want to make sure that we only abort particles of the correct type,
-                                    !while leaving the other sign intact.
-                                    !Need to extract the sign again, since the real part may have been set to zero previously
-                                    call extract_sign(CurrentDets(:,PartInd),SignTemp) 
-                                    SignTemp(j)=0  !Set the corresponding particle type to zero
-                                    call encode_sign(CurrentDets(:,PartInd),SignTemp)
-                                ENDIF
-                            ENDIF
+                            ! If we are doing an initiator calculation - then if the walkers that
+                            ! are left after annihilation came from the SpawnedParts array, and 
+                            ! had spawned from determinants outside the active space, then it is 
+                            ! like these have been spawned on an unoccupied determinant and they 
+                            ! are killed.
+                            ! 
+                            ! If flag_make_initiator is set, it is allowed to survive anyway, and 
+                            ! is actually made into an initiator.
+                            if (abs(SpawnedSign(j)) > abs(CurrentSign(j))) then
+                                if (test_flag (SpawnedParts(:,i), flag_make_initiator(j))) then
+                                    call set_flag (CurrentDets(:,PartInd), flag_is_initiator(j))
+                                    call set_flag (CurrentDets(:,PartInd), flag_make_initiator(j))
+                                    NoAddedInitiators = NoAddedInitiators + 1
+                                else
+                                    ! If the residual particles were spawned from non-initiator 
+                                    ! particles, abort them. Encode only the correct 'type'
+                                    ! of sign.
+                                    if (.not. test_flag (SpawnedParts(:,i), flag_parent_initiator(j))) then
+                                        NoAborted = NoAborted + abs(SpawnedSign(j)) - abs(CurrentSign(j))
+                                        iter_data%naborted(j) = iter_data%naborted(j) + abs(SpawnedSign(j)) - abs(CurrentSign(j))
+                                        call encode_part_sign (CurrentDets(:,PartInd), 0, j)
+                                    endif
+                                endif
+                            endif
                         ENDIF
                         
                         IF(tHistSpawn) THEN
@@ -666,31 +706,48 @@ MODULE AnnihilationMod
                             ENDIF
                         ENDIF
 
-                    ENDIF
+                    else
+                        ! Spawning onto an existing determinant with the same sign
+                        if (tTruncInitiator) then
+                            if (test_flag(SpawnedParts(:,i), flag_make_initiator(j)) .and. &
+                                .not. test_flag(CurrentDets(:,PartInd), flag_is_initiator(j))) then
+                                call set_flag (CurrentDets(:,PartInd), flag_is_initiator(j))
+                                call set_flag (CurrentDets(:,PartInd), flag_make_initiator(j))
+                                NoAddedInitiators = NoAddedInitiators + 1
+                            endif
+                        endif
+
+                    endif
 
                 enddo   !Finish running over components of signs
             
-            ELSEIF(tTruncInitiator) THEN
-!Determinant in newly spawned list is not found in currentdets - usually this would mean the walkers just stay in this list and get merged later - but in this case we            
-!want to check where the walkers came from - because if the newly spawned walkers are from a parent outside the active space they should be killed - as they have been
-!spawned on an unoccupied determinant.
+            elseif (tTruncInitiator) then
+                ! Determinant in newly spawned list is not found in currentdets - usually this 
+                ! would mean the walkers just stay in this list and get merged later - but in 
+                ! this case we want to check where the walkers came from - because if the newly 
+                ! spawned walkers are from a parent outside the active space they should be 
+                ! killed - as they have been spawned on an unoccupied determinant.
+                !
+                ! If flag_make_initiator is set, then obviously these are allowed to survive
                 call extract_sign (SpawnedParts(:,i), SignTemp)
-                do j=1,lenof_sign
-                    if (.not. test_flag (SpawnedParts(:,i), flag_parent_initiator(j))) then
+                do j = 1, lenof_sign
+                    if (.not. test_flag (SpawnedParts(:,i), flag_parent_initiator(j)) .and. &
+                        .not. test_flag (SpawnedParts(:,i), flag_make_initiator(j))) then
                         ! Walkers came from outside initiator space.
                         NoAborted = NoAborted + abs(SignTemp(j))
                         iter_data%naborted(j) = iter_data%naborted(j) + abs(SignTemp(j))
-                        SignTemp(j)=0
-                        call encode_part_sign (SpawnedParts(:,i), 0, j) 
+                        SignTemp(j) = 0
+                        call encode_part_sign (SpawnedParts(:,i), 0, j)
                     endif
                 enddo
-                if(IsUnoccDet(SignTemp)) then
-                    !All particle 'types' have been aborted
+                if (IsUnoccDet(SignTemp)) then
+                    ! All particle 'types' have been aborted
                     ToRemove = ToRemove + 1
                 endif
-            ENDIF
+            endif
 
-!Even if a corresponding particle wasn't found, we can still search a smaller list next time....so not all bad news then...
+            ! Even if a corresponding particle wasn't found, we can still
+            ! search a smaller list next time....so not all bad news then...
             MinInd=PartInd
 
         enddo
@@ -760,7 +817,7 @@ MODULE AnnihilationMod
 !Binary searching can be used to speed up this transfer substantially.
 !The key feature which makes this work, is that it is impossible for the same determinant to be specified in both the spawned and main list at the end of
 !the annihilation process. Therefore we will not multiply specify determinants when we merge the lists.
-    SUBROUTINE InsertRemoveParts(ValidSpawned,TotWalkersNew,tSingleProc)
+    SUBROUTINE InsertRemoveParts(ValidSpawned,TotWalkersNew)
         use SystemData, only: tHPHF
         use bit_reps, only: NIfD
         use CalcData , only : tCheckHighestPop
@@ -769,11 +826,10 @@ MODULE AnnihilationMod
         INTEGER, DIMENSION(lenof_sign) :: CurrentSign,SpawnedSign
         REAL*8 :: HDiag
         LOGICAL :: TestClosedShellDet
-        LOGICAL, intent(in) ::tSingleProc
         HElement_t :: HDiagTemp
 
 !It appears that the rest of this routine isn't thread-safe if ValidSpawned is zero.
-        if(tSingleProc.and.iProcIndex/=root) return
+        if(.not.bNodeRoot) return
 !Annihilated determinants first are removed from the main array (zero sign). 
 !Surely we only need to perform this loop if the number of annihilated particles > 0?
         TotParts=0
@@ -900,59 +956,29 @@ MODULE AnnihilationMod
 !        CALL CheckOrdering(CurrentDets,CurrentSign(1:TotWalkers),TotWalkers,.true.)
 
     END SUBROUTINE InsertRemoveParts
-    
-    INTEGER FUNCTION DetermineDetProc(iLut)
-        use bit_reps, only: NIfDBO
-        use CalcData , only: tRandomiseHashOrbs
-        use FciMCData, only: RandomHash 
-        use constants, only: bits_n_int
-        INTEGER(KIND=n_int) :: iLut(0:NIfTot)
-        INTEGER :: i,j,Elecs!,TempDet(NEl),MurmurHash2Wrapper
-        INTEGER(KIND=int64) :: Summ!,RangeofBins,NextBin
 
-!        CALL DecodeBitDet(TempDet,iLut)
-!        i=MurmurHash2Wrapper(TempDet,NEl,13)
-!        write(6,*) i
-        IF(tRandomiseHashOrbs) THEN
-            Summ=0
-            Elecs=0
-            lp1: do i=0,NIfDBO
-                do j=0,bits_n_int-1
-                    IF(BTEST(iLut(i),j)) THEN
-                        Elecs=Elecs+1
-#ifdef __INT64
-                        Summ=(1099511628211_8*Summ)+RandomHash((i*64)+(j+1))*Elecs
-#else
-                        Summ=(1099511628211_8*Summ)+RandomHash((i*32)+(j+1))*Elecs
-#endif
-                        IF(Elecs.eq.NEl) EXIT lp1
-                    ENDIF
-                enddo
-            enddo lp1
-            DetermineDetProc=abs(mod(Summ,INT(nProcessors,8)))
+    pure function DetermineDetNode (nI) result(node)
 
-        ELSE
-            Summ=0
-            Elecs=0
-            lp2: do i=0,NIfDBO
-                do j=0,bits_n_int-1
-                    IF(BTEST(iLut(i),j)) THEN
-                        Elecs=Elecs+1
-#ifdef __INT64
-                        Summ=(1099511628211_8*Summ)+((i*64)+(j+1))*Elecs
-#else
-                        Summ=(1099511628211_8*Summ)+((i*32)+(j+1))*Elecs
-#endif
-                        IF(Elecs.eq.NEl) EXIT lp2
-                    ENDIF
-                enddo
-            enddo lp2
-            DetermineDetProc=abs(mod(Summ,INT(nProcessors,8)))
-        ENDIF
-!        WRITE(6,*) iLut(0:niftot),DetermineDetProc,Summ,nProcessors
+        ! Depending on the Hash, determine which node determinant nI
+        ! belongs to in the DirectAnnihilation scheme. NB FCIMC has each processor as a separate logical node.
+        !
+        ! In:  nI   - Integer ordered list for the determinant
+        ! Out: proc - The (0-based) processor index.
 
-    END FUNCTION DetermineDetProc
+        integer, intent(in) :: nI(nel)
+        integer :: node
+        
+        integer :: i
+        integer(int64) :: acc
 
+        acc = 0
+        do i = 1, nel
+            acc = (1099511628211_int64 * acc) + &
+                    (RandomHash(iand(nI(i), csf_orbital_mask)) * i)
+        enddo
+        node = abs(mod(acc, int(nNodes, 8)))
+
+    end function
     
     FUNCTION CreateHash(DetCurr)
         INTEGER :: DetCurr(NEl),i

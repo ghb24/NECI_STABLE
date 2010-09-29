@@ -95,7 +95,7 @@ module soft_exit
     use FciMCData, only: iter, CASMin, CASMax, tTruncSpace, tSinglePartPhase,&
                          SumENum, SumNoatHF, HFPopCyc, ProjEIterSum, &
                          Histogram, AvAnnihil, VaryShiftCycles, SumDiagSft, &
-                         VaryShiftIter, CurrentDets, iLutHF, &
+                         VaryShiftIter, CurrentDets, iLutHF, HFDet, &
                          TotWalkers,tPrintHighPop
     use CalcData, only: DiagSft, SftDamp, StepsSft, OccCASOrbs, VirtCASOrbs, &
                         tTruncCAS,  NEquilSteps, tTruncInitiator, &
@@ -112,12 +112,13 @@ module soft_exit
     use FCIMCLoggingMOD, only: PrintBlocking, RestartBlocking, &
                                PrintShiftBlocking_proc => PrintShiftBlocking,&
                                RestartShiftBlocking_proc=>RestartShiftBlocking
-    use AnnihilationMod, only: DetermineDetProc
+    use AnnihilationMod, only: DetermineDetNode
     use constants, only: lenof_sign, int32, dp
     use bit_reps, only: extract_sign,encode_sign
     use spin_project, only: tSpinProject, spin_proj_gamma, &
                             spin_proj_interval, spin_proj_shift, &
-                            spin_proj_cutoff
+                            spin_proj_cutoff, spin_proj_spawn_initiators, &
+                            spin_proj_no_death, spin_proj_iter_count
     use Parallel
     implicit none
 
@@ -151,44 +152,50 @@ contains
                               restarthighpop = 29, spin_project = 30, &
                               spin_project_gamma = 31, &
                               spin_project_shift = 32, &
-                              spin_project_cutoff = 33
+                              spin_project_cutoff = 33, &
+                              spin_project_spawn_initiators = 34, &
+                              spin_project_no_death = 35, &
+                              spin_project_iter_count = 36
 
-        integer, parameter :: last_item = spin_project_cutoff
-        integer, parameter :: max_item_len = 25
+        integer, parameter :: last_item = spin_project_iter_count
+        integer, parameter :: max_item_len = 29
         character(max_item_len), parameter :: option_list(last_item) &
-                               = (/"excite                   ", &
-                                   "truncatecas              ", &
-                                   "softexit                 ", &
-                                   "writepops                ", &
-                                   "varyshift                ", &
-                                   "nmcyc                    ", &
-                                   "tau                      ", &
-                                   "diagshift                ", &
-                                   "shiftdamp                ", &
-                                   "stepsshift               ", &
-                                   "singlesbias              ", &
-                                   "zeroproje                ", &
-                                   "zerohist                 ", &
-                                   "partiallyfreeze          ", &
-                                   "partiallyfreezevirt      ", &
-                                   "printerrorblocking       ", &
-                                   "starterrorblocking       ", &
-                                   "restarterrorblocking     ", &
-                                   "printshiftblocking       ", &
-                                   "restartshiftblocking     ", &
-                                   "equilsteps               ", &
-                                   "starthist                ", &
-                                   "histequilsteps           ", &
-                                   "truncinitiator           ", &
-                                   "addtoinit                ", &
-                                   "scalehf                  ", &
-                                   "printhighpopdet          ", &
-                                   "changerefdet             ", &
-                                   "restarthighpop           ", &
-                                   "spin-project             ", &
-                                   "spin-project-gamma       ", &
-                                   "spin-project-shift       ", &
-                                   "spin-project-cutoff      "/)
+                               = (/"excite                       ", &
+                                   "truncatecas                  ", &
+                                   "softexit                     ", &
+                                   "writepops                    ", &
+                                   "varyshift                    ", &
+                                   "nmcyc                        ", &
+                                   "tau                          ", &
+                                   "diagshift                    ", &
+                                   "shiftdamp                    ", &
+                                   "stepsshift                   ", &
+                                   "singlesbias                  ", &
+                                   "zeroproje                    ", &
+                                   "zerohist                     ", &
+                                   "partiallyfreeze              ", &
+                                   "partiallyfreezevirt          ", &
+                                   "printerrorblocking           ", &
+                                   "starterrorblocking           ", &
+                                   "restarterrorblocking         ", &
+                                   "printshiftblocking           ", &
+                                   "restartshiftblocking         ", &
+                                   "equilsteps                   ", &
+                                   "starthist                    ", &
+                                   "histequilsteps               ", &
+                                   "truncinitiator               ", &
+                                   "addtoinit                    ", &
+                                   "scalehf                      ", &
+                                   "printhighpopdet              ", &
+                                   "changerefdet                 ", &
+                                   "restarthighpop               ", &
+                                   "spin-project                 ", &
+                                   "spin-project-gamma           ", &
+                                   "spin-project-shift           ", &
+                                   "spin-project-cutoff          ", &
+                                   "spin-project-spawn-initiators", &
+                                   "spin-project-no-death        ", &
+                                   "spin-project-iter-count      "/)
 
 
         logical :: exists, any_exist, eof, deleted, any_deleted
@@ -285,6 +292,12 @@ contains
                             call readf (spin_proj_shift)
                         elseif (i == spin_project_cutoff) then
                             call readi (spin_proj_cutoff)
+                        elseif (i == spin_project_spawn_initiators) then
+                            spin_proj_spawn_initiators = readt_default(.true.)
+                        elseif (i == spin_project_no_death) then
+                            spin_proj_no_death = readt_default (.true.)
+                        elseif (i == spin_project_iter_count) then
+                            call readi (spin_proj_iter_count)
                         endif
                     enddo
 
@@ -315,7 +328,7 @@ contains
                         root_print 'Cannot increase truncation level, since &
                                    &histogramming wavefunction.'
                     else
-                        call MPIBcast (ICILevel, 1, proc)
+                        call MPIBcast (ICILevel, proc)
 
                         if ((ICILevel < 0) .or. (ICILevel > nel)) then
                             tTruncSpace = .false.
@@ -336,8 +349,8 @@ contains
                                &effect'
                 else
 
-                    call MPIBCast (OccCASORbs, 1, proc)
-                    call MPIBCast (VirtCASOrbs, 1, proc)
+                    call MPIBCast (OccCASORbs, proc)
+                    call MPIBCast (VirtCASOrbs, proc)
 
                     if ( ((occCASOrbs>nel) .and. (VirtCASOrbs>nBasis - nel)) &
                         .or. (occCASORbs < 0) .or. (VirtCASORbs < 0) ) then
@@ -380,7 +393,7 @@ contains
 
             ! Change number of MC steps
             if (opts_selected(nmcyc)) then
-                call MPIBCast (nmcyc_new, 1, proc)
+                call MPIBCast (nmcyc_new, proc)
 
                 if (nmcyc_new < iter) then
                     root_print 'New value of NMCyc is LESS than the current &
@@ -396,31 +409,31 @@ contains
 
             ! Change Tau
             if (opts_selected(tau)) then
-                call MPIBCast (tau_value, 1, proc)
+                call MPIBCast (tau_value, proc)
                 root_print 'Tau changed to: ', tau_value
             endif
 
             ! Change the shift value
             if (opts_selected(diagshift)) then
-                call MPIBCast (DiagSft, 1, proc)
+                call MPIBCast (DiagSft, proc)
                 root_print 'DIAGSHIFT change to: ', DiagSft
             endif
 
             ! Change the shift damping parameter
             if (opts_selected(shiftdamp)) then
-                call MPIBCast (SftDamp, 1, proc)
+                call MPIBCast (SftDamp, proc)
                 root_print 'SHIFTDAMP changed to: ', SftDamp
             endif
 
             ! Change the shift update (and output) interval
             if (opts_selected(stepsshift)) then
-                call MPIBCast (StepsSft, 1, proc)
+                call MPIBCast (StepsSft, proc)
                 root_print 'STEPSSHIFT changed to: ', StepsSft
             endif
 
             ! Change the singles bias
             if (opts_selected(singlesbias)) then
-                call MPIBcast (SinglesBias_value, 1, proc)
+                call MPIBcast (SinglesBias_value, proc)
                 tSingBiasChange = .true.
                 root_print 'SINGLESBIAS changed to: ', SinglesBias
             endif
@@ -445,8 +458,8 @@ contains
 
             ! Change the number of holes/electrons in the core valence region
             if (opts_selected(partiallyfreeze)) then
-                call MPIBCast (NPartFrozen, 1, proc)
-                call MPIBcast (NHolesFrozen, 1, proc)
+                call MPIBCast (NPartFrozen, proc)
+                call MPIBcast (NHolesFrozen, proc)
 
                 root_print 'Allowing ', nHolesFrozen, ' holes in ', &
                            nPartFrozen, ' partially frozen orbitals.'
@@ -462,8 +475,8 @@ contains
             endif
 
             if (opts_selected(partiallyfreezevirt)) then
-                call MPIBcast (nVirtPartFrozen, 1, proc)
-                call MPIBcast (nelVirtFrozen, 1, proc)
+                call MPIBcast (nVirtPartFrozen, proc)
+                call MPIBcast (nelVirtFrozen, proc)
 
                 root_print 'Allowing ', nelVirtFrozen, ' electrons in ', &
                            nVirtPartFrozen, ' partially frozen virtual &
@@ -517,7 +530,7 @@ contains
 
             ! Change the number of equilibration steps
             if (opts_selected(equilsteps)) then
-                call MPIBcast (nEquilSteps, 1, proc)
+                call MPIBcast (nEquilSteps, proc)
                 root_print 'Changing the number of equilibration steps to ', &
                            nEquilSteps
             endif
@@ -557,7 +570,7 @@ contains
 
             ! Change the initiator cutoff parameter
             if (opts_selected(addtoinit)) then
-                call MPIBCast (InitiatorWalkNo, 1, proc)
+                call MPIBCast (InitiatorWalkNo, proc)
                 root_print 'Cutoff propulation for determinants to be added &
                            &to the initiator space changed to ', &
                            InitiatorWalkNo
@@ -565,12 +578,12 @@ contains
             
             ! Scale the number of walkers on the HF det
             if (opts_selected(scalehf)) then
-                call MPIBcast (HFScaleFactor, 1, proc)
+                call MPIBcast (HFScaleFactor, proc)
                 root_print 'Number at Hartree-Fock scaled by factor: ', &
                            hfScaleFactor
 
                 SumNoatHF = SumNoatHF * hfScaleFactor
-                if (iProcIndex == DetermineDetProc(ilutHF)) then
+                if (iNodeIndex == DetermineDetNode(HFDet).and. bNodeRoot) then
                     pos = binary_search (CurrentDets, iLutHF, NIfTot+1, &
                                          int(TotWalkers,int32))
                     call extract_sign (CurrentDets(:,pos), hfsign)
@@ -610,7 +623,7 @@ contains
 
             ! Enable spin projection, and change application interval
             if (opts_selected(spin_project)) then
-                call MPIBcast (spin_proj_interval, 1, proc)
+                call MPIBcast (spin_proj_interval, proc)
                 if (spin_proj_interval == 0) then
                     tSpinProject = .false.
                     root_print 'Stochastic spin projection disabled'
@@ -623,24 +636,47 @@ contains
 
             ! Change delta-gamma for spin projection
             if (opts_selected(spin_project_gamma)) then
-                call MPIBcast (spin_proj_gamma, 1, proc)
+                call MPIBcast (spin_proj_gamma, proc)
                 root_print 'Changed gamma value for spin projection to ', &
                            spin_proj_gamma
             endif
 
             ! Change shift value for spin projection
             if (opts_selected(spin_project_shift)) then
-                call MPIBcast (spin_proj_shift, 1, proc)
+                call MPIBcast (spin_proj_shift, proc)
                 root_print 'Changed shift value for spin projection to ', &
                            spin_proj_shift
             endif
 
             ! Change walker number cutoff value for spin projection
             if (opts_selected(spin_project_shift)) then
-                call MPIBcast (spin_proj_cutoff, 1, proc)
+                call MPIBcast (spin_proj_cutoff, proc)
                 root_print 'Changed walker number cutoff value for spin &
                            &projection to ', spin_proj_shift
             endif
+
+            ! Change the way spin projection deals with initiators
+            if (opts_selected(spin_project_spawn_initiators)) then
+                call MPIBCast (spin_proj_spawn_initiators, proc)
+                root_print 'Changed initiator behaviour with spin projection:&
+                           & ', spin_project_spawn_initiators
+            endif
+
+            ! Enable or disable walker death in spin projection
+            if (opts_selected(spin_project_no_death)) then
+                call MPIBcast (spin_proj_no_death, proc)
+                root_print 'Walker death in spin projection enabled: ', &
+                           spin_project_no_death
+            endif
+
+            ! Apply the spin projection operator N times for each application
+            if (opts_selected(spin_project_iter_count)) then
+                call MPIBcast (spin_proj_iter_count, proc)
+                root_print 'The stochastic spin projection operator will now &
+                           &be applied ', spin_proj_iter_count, ' times on &
+                           &each occasion.'
+            endif
+
         endif
 
     end subroutine ChangeVars

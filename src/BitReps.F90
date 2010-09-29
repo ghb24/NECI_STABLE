@@ -123,7 +123,7 @@ contains
 
     end subroutine extract_bit_rep
 
-    subroutine extract_sign (ilut,sgn)
+    pure subroutine extract_sign (ilut,sgn)
         integer(n_int), intent(in) :: ilut(0:nIfTot)
         integer, dimension(lenof_sign), intent(out) :: sgn
 
@@ -141,6 +141,16 @@ contains
         ENDIF
 
     end function extract_flags
+
+    function extract_part_sign (ilut, part_type) result(sgn)
+
+        integer(n_int), intent(in) :: ilut(0:niftot)
+        integer, intent(in) :: part_type
+        integer :: sgn
+
+        sgn = ilut(nOffSgn + part_type - 1)
+
+    end function
 
     subroutine encode_bit_rep (ilut, Det, sgn, flag)
         integer(n_int), intent(inout) :: ilut(0:nIfTot)
@@ -241,6 +251,20 @@ contains
          ilut(NOffFlag) = ibset(ilut(NOffFlag),flg)
 
     end subroutine set_flag_single
+
+    subroutine copy_flag (ilut_src, ilut_dest, flg)
+
+        ! Copy the selected flag between iluts
+
+        integer(n_int), intent(in) :: ilut_src(0:niftot)
+        integer(n_int), intent(inout) :: ilut_dest(0:niftot)
+        integer, intent(in) :: flg
+        logical :: state
+
+        state = test_flag (ilut_src, flg)
+        call set_flag_general (ilut_dest, flg, state)
+
+    end subroutine
 
 
     subroutine clr_flag (ilut, flg)

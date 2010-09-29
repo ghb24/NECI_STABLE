@@ -34,6 +34,7 @@ subroutine stop_all(sub_name,error_msg)
 !=    sub_name:  calling subroutine name.
 !=    error_msg: error message.
 
+use shared_alloc, only: cleanup_shared_alloc
 #ifdef PARALLEL
 use Parallel, only: iProcIndex,MPIStopAll
 #endif
@@ -50,6 +51,7 @@ write (6,'(a9,18X,a)') 'Reason: ',adjustl(error_msg)
 write (6,'(a11)') 'EXITING...'
 CALL FLUSH(6)
 
+call cleanup_shared_alloc()
 #ifdef PARALLEL
 write (6,'(a12,15X,i3)') 'Processor: ',iProcIndex
 call MPIStopAll(error_str)

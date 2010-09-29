@@ -55,7 +55,7 @@ PRIVATE
 PUBLIC :: item, nitems, read_line, stream, reada, readu, readl,        &
     readf, readi,readiLong, getf, geta, geti, getiLong, reread,        &
     input_options, upcase, locase, report, die, assert, find_io,       &
-    read_colour, getargs, parse, char, ir
+    read_colour, getargs, parse, char, ir, readt_default
 !  AJWT - added , ir to above
 !  Free-format input routines
 
@@ -736,6 +736,54 @@ case(2)
 end select
 
 END SUBROUTINE readi
+
+!---------------------------------------------------
+
+    function readt_default (def) result(val)
+
+        logical, intent(in), optional :: def
+        logical :: val
+        character(100) :: w
+
+        ! Default value
+        if (present(def)) then
+            val = def
+        else
+            val = .true.
+        endif
+
+        ! Or read it in from the input file if present.
+        if (item < nitems) then
+            call readu(w)
+            select case(w)
+            case("OFF")
+                val = .false.
+            case("NO")
+                val = .false.
+            case("N")
+                val = .false.
+            case("FALSE")
+                val = .false.
+            case("F")
+                val = .false.
+            case("ON")
+                val = .true.
+            case("YES")
+                val = .true.
+            case("Y")
+                val = .true.
+            case("TRUE")
+                val = .true.
+            case("T")
+                val = .true.
+            case default
+                write(6,*) 'Error interpreting value: ', trim(w)
+            end select
+        endif
+
+    end function
+                
+
 
 !-----------------------------------------------------------------------
 

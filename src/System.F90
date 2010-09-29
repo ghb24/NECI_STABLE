@@ -20,6 +20,8 @@ MODULE System
 !     SYSTEM defaults - leave these as the default defaults
 !     Any further addition of defaults should change these after via
 !     specifying a new set of DEFAULTS.
+      tRotatedOrbsReal=.false.  !This is set if compiled in real, but reading in a complex FCIDUMP.
+      tISKFuncs=.false.       !This is for kpoint symmetry with inversion so that determinants can be combined.
       tKPntSym=.false.        !This is for k-point symmetry with the symrandexcit2 excitation generators.
       tMCSizeSpace=.false.
       CalcDetPrint=1000
