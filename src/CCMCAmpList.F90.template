@@ -44,9 +44,9 @@ contains
       arrdim(2)=nLists
       AL%%bShared=tShared
       if(tShared) then
-         call shared_allocate("CCMCAmps",AL%%Amplitude,arrdim)
+         call shared_allocate("CCMCAmps",AL%%Amplitude,arrdim, iNodeIndex)
          LogAlloc(ierr,'AL%%Amplitude',nAmpl*nLists,%(size)s,AL%%tagAmplitude)
-         call shared_allocate("CumlAmps",AL%%CumlAmplitude,arrdim1)
+         call shared_allocate("CumlAmps",AL%%CumlAmplitude,arrdim1, iNodeIndex)
          LogAlloc(ierr,'AL%%CumlAmplitude',nAmpl,%(size)s,AL%%tagCumlAmplitude)
       else
          Allocate(AL%%Amplitude(nAmpl,nLists))
@@ -173,7 +173,7 @@ Contains
       AL%bShared=tShared
       AL%BitReps=>DetList
       if(tShared) then
-         call shared_allocate("CumlAmps",AL%CumlAmplitude,arrdim1)
+         call shared_allocate("CumlAmps",AL%CumlAmplitude,arrdim1,iNodeIndex)
          LogAlloc(ierr,'AL%CumlAmplitude',nAmpl,4,AL%tagCumlAmplitude)
       else
          Allocate(AL%CumlAmplitude(nAmpl))
