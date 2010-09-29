@@ -1608,7 +1608,7 @@ subroutine AttemptSpawnParticle(S,C,iDebug,SpawnList,nSpawned,nMaxSpawn)
    Use CalcData, only: Tau
    use DetBitOps, only: FindBitExcitLevel
    USE dSFMT_interface , only : genrand_real2_dSFMT
-   use bit_reps, only: encode_bit_rep,extract_flags,set_flag
+   use bit_reps, only: encode_bit_rep,extract_flags,set_flag,clr_flag
    use bit_rep_data
    use FciMCParMod, only: create_particle
    implicit none
