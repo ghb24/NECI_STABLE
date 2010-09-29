@@ -1014,7 +1014,7 @@ subroutine MPINodes(tUseProcsAsNodes)
             Nodes(i)%n=-1
             do j=0,nNodes-1
                if (nms(i)==nms(NodeRoots(j))) then
-                  if(iLogicalNodeSize==0.or.NodeLengths(j)< iLogicalNodeSize) then
+                  if((iLogicalNodeSize==0).or.NodeLengths(j)< iLogicalNodeSize) then
                      Nodes(i)%n=j
                      ProcNode(i)=j
                      NodeLengths(j)=NodeLengths(j)+1
@@ -1026,6 +1026,7 @@ subroutine MPINodes(tUseProcsAsNodes)
                NodeRoots(nNodes)=i
                Nodes(i)%n=nNodes
                ProcNode(i)=nNodes
+               NodeLengths(nNodes)=NodeLengths(nNodes)+1
                nNodes=nNodes+1
             endif
             write(6,"(2I10,A,A)") i,Nodes(i)%n," ",nms(i)

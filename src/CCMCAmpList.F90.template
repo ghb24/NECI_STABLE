@@ -173,7 +173,7 @@ Contains
       AL%bShared=tShared
       AL%BitReps=>DetList
       if(tShared) then
-         call shared_allocate("CumlAmps",AL%CumlAmplitude,arrdim1)
+         call shared_allocate("CumlAmps",AL%CumlAmplitude,arrdim1,iNodeIndex)
          LogAlloc(ierr,'AL%CumlAmplitude',nAmpl,4,AL%tagCumlAmplitude)
       else
          Allocate(AL%CumlAmplitude(nAmpl))
