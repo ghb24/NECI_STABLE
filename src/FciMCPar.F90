@@ -82,7 +82,6 @@ MODULE FciMCParMod
     contains
 
     SUBROUTINE FciMCPar(Weight,Energyxw)
-
         real(dp) :: Weight, Energyxw
         INTEGER :: error
         LOGICAL :: TIncrement,tWritePopsFound,tSoftExitFound,tSingBiasChange

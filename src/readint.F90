@@ -422,11 +422,14 @@ contains
             ENDDO
          ENDDO
          IF(.not.tFixLz) iMaxLz=0
-         if (.not.TwoCycleSymGens) SYMMAX = ISYM
-         ! We use bit strings to store symmetry information.
-         ! SYMMAX needs to be the smallest power of 2 greater or equal to
-         ! the actual number of symmetry representations spanned by the basis.
-         SYMMAX = 2**ceiling(log(real(SYMMAX))/log(2.0))
+         if (.not.TwoCycleSymGens) then
+             SYMMAX = ISYM
+         else
+             ! We use bit strings to store symmetry information.
+             ! SYMMAX needs to be the smallest power of 2 greater or equal to
+             ! the actual number of symmetry representations spanned by the basis.
+             SYMMAX = 2**ceiling(log(real(SYMMAX))/log(2.0))
+         endif
          IF(tFixLz) WRITE(6,"(A,I3)") "Maximum Lz orbital: ",iMaxLz
          WRITE(6,"(A,I3)") "  Maximum number of symmetries: ",SYMMAX
          NBASISMAX(1,1)=0

@@ -326,7 +326,7 @@ contains
       SUBROUTINE GENMOLPSYMREPS()
          use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB,Arr
          use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB,Brr
-         use SystemData, only: tSymIgnoreEnergies,nBasis,G1
+         use SystemData, only: tSymIgnoreEnergies,nBasis,G1,tKPntSym
          use SymData, only: SymReps,tagSymReps
          use global_utilities
          IMPLICIT NONE
@@ -336,6 +336,14 @@ contains
 !         REAL*8 ARR(NBASIS)
          character(*), parameter :: this_routine='GENMOLPSYMREPS'
          LOGICAL tNew
+
+         if(tKPntSym) then
+             !These symmetry routines only work for cases where all irreps are their
+             !own inverse. In systems with multiple kpoints, this will not be the
+             !case. Setup the symreps for non-abelian symmetries.
+             CALL GENSYMREPS(G1,NBASIS,ARR,1.d-6)
+             return
+         endif
          
 !   now work out which reps are degenerate and label them
          allocate(SymReps(2,nBasis))
