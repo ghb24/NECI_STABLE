@@ -229,9 +229,11 @@ contains
     subroutine conv_name(nm,name_tmp,node)
         character(*), intent(in) :: nm
         integer, intent(in),optional :: node
-        character(len=len_trim(nm)+10) :: name_tmp, name_tmp2
+        character(*), intent(inout) :: name_tmp
+        character(len=10) :: name_tmp2
         if(present(node)) then
-         write(name_tmp2, "(A,I8)"), trim(nm),node
+         write(name_tmp2, "(I6)") node
+         name_tmp=trim(nm)//adjustl(name_tmp2)
         else
          name_tmp=trim(nm)
         endif
@@ -291,7 +293,7 @@ contains
         %(type)s, dimension(%(dim)s), pointer :: ptr_tmp
         integer, intent(in) :: dims((len_trim('%(dim)s') + 1) / 2) ! compile time const.
         integer :: dims_tmp((len_trim('%(dim)s') + 1) / 2)
-        character(len=len_trim(nm)+1) :: name_tmp
+        character(len=len_trim(nm)+10) :: name_tmp
         integer, intent(in),optional :: node
 
 #ifdef __SHARED_MEM
@@ -303,7 +305,6 @@ contains
 
         ! Prepare name of shared memory object to pass to C.
         name_tmp = trim(name_tmp)//c_null_char
-
 #ifdef __SHARED_MEM
         dims_tmp = dims
         dims_tmp(1) = dims_tmp(1) + 1
