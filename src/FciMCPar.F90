@@ -5061,6 +5061,8 @@ END MODULE FciMCParMod
     SUBROUTINE ChangeRefDet(DetCurr)
         use FciMCParMod
         use Determinants , only : GetH0Element3
+        use SystemData , only : NEl
+        IMPLICIT NONE
         INTEGER :: DetCurr(NEl),i
 
         do i=1,NEl
@@ -5091,7 +5093,8 @@ SUBROUTINE BinSearchParts2(iLut,MinInd,MaxInd,PartInd,tSuccess)
     use DetCalcData , only : FCIDets
     use DetBitOps, only: DetBitLT
     use constants, only: n_int
-    use bit_reps, only: NIfTot
+    use bit_reps, only: NIfTot,NIfDBO
+    IMPLICIT NONE
     INTEGER :: MinInd,MaxInd,PartInd
     INTEGER(KIND=n_int) :: iLut(0:NIfTot)
     INTEGER :: i,j,N,Comp
