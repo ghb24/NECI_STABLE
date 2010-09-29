@@ -2401,12 +2401,22 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
    ENDIF
 
    if(tReadPops) then
-      call ReadPopsFileCCMC(DetList,nMaxAmpl,nAmpl)
+      call ReadPopsFileCCMC(DetList,nMaxAmpl,nAmpl,dNorm)
 !      do j=1,nAmpl
 !          call extract_sign(DetList(:,j),TempSign)
 !          call SetAmpl(AL%Amplitude(j,iCurAmpList)=TempSign(1)
 !      enddo
       call MPIBCast(nAmpl)
+!Find the HF det
+      CALL BinSearchParts3(iLutHF,DetList,nAmpl,1,nAmpl,iRefPos,tS)
+      if(tS) then
+         dNorm=GetAmpl(AL,iRefPos,iCurAmpList)
+         call MPIBCast(dNorm,bNodeRoot)  !Broadcast from Here (if we're the root of that node)
+         IFDEBUG(iDebug,2) write(6,*) "Ref Det on this processor, pos ", iRefPos
+      else
+         iRefPos=-1
+         call MPIBCast(dNorm,.false.)
+      endif
       call CalcTotals(iNumExcitors,dTotAbsAmpl,dNorm, AL,iCurAmpList,nAmpl,dTolerance*dInitAmplitude,WalkerScale,iRefPos,iOldTotParts,iDebug)
       iter_data_ccmc%update_growth = 0
       iter_data_ccmc%tot_parts_old=TotParts
@@ -2538,17 +2548,20 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
 !Now we move any dets which need a home to the Annihilation list
       IFDEBUG(iDebug,3) call WriteExcitorListP2(6,SpawnList,InitialSpawnedSlots,ValidSpawnedList, dAmpPrintTol,"Spawned list")
       call MPIBarrier(ierr,Node) !Make sure everyone on our node has finished using the list
-      call ReHouseExcitors(DetList, nAmpl, SpawnList, ValidSpawnedList,iDebug)
-      call MPIBCast(nAmpl,Node)
-      IFDEBUG(iDebug,3) call WriteExcitorListP(6,DetList,0,nAmpl,dAmpPrintTol,"Remaining excitor list")
+      if(nNodes>1) then
+         call ReHouseExcitors(DetList, nAmpl, SpawnList, ValidSpawnedList,iDebug)
+         call MPIBCast(nAmpl,Node)
+         IFDEBUG(iDebug,3) call WriteExcitorListP(6,DetList,0,nAmpl,dAmpPrintTol,"Remaining excitor list")
+      endif
 
       call set_timer(CCMCComms2_time,20)
       IFDEBUG(iDebug,3) write(6,*) "Calling Annihilation with ", nSpawned, " spawned."
-      IFDEBUG(iDebug,3) call WriteExcitorListP2(6,SpawnList,InitialSpawnedSlots,ValidSpawnedList, dAmpPrintTol,"Spawned/ReHoused list")
+      IFDEBUG(iDebug,3.and.nNodes>1) call WriteExcitorListP2(6,SpawnList,InitialSpawnedSlots,ValidSpawnedList, dAmpPrintTol,"Spawned/ReHoused list")
       call AnnihilationInterface(nAmpl,DetList,nMaxAmpl,nSpawned,SpawnList,nMaxSpawn,iter_data_ccmc)
       call MPIBCast(nAmpl,Node)
       call halt_timer(CCMCComms2_time)
-      IFDEBUG(iDebug,3) call WriteExcitorListP(6,DetList,0,nAmpl,dAmpPrintTol,"After Annihilation")
+      call MPIBarrier(ierr)
+      IFDEBUG(iDebug,3.and.bNodeRoot.or.tSharedExcitors) call WriteExcitorListP(6,DetList,0,nAmpl,dAmpPrintTol,"After Annihilation")
 
 
       IF(tHistSpawn.and.(mod(Iter,iWriteHistEvery).eq.1)) THEN
@@ -2565,15 +2578,8 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
    Iter=Iter-1
    IFDEBUG(iDebug,2) call WriteExcitorList(6,AL,iCurAmpList,DetList,0,nAmpl,dAmpPrintTol,"Final Excitor list")
    IF(TPopsFile) THEN
-!Another fudge for multiprocessors - all dets are currently on the root.  TODO: Fix
-      if(iProcIndex==Root) then
-         CALL WriteToPopsfileParOneArr(DetList,int(nAmpl,int64))
-      else
-         i64=0
-         CALL WriteToPopsfileParOneArr(DetList,i64)
-      endif
+      CALL WriteToPopsfileParOneArr(DetList,int(nAmpl,int64))
    ENDIF
-
 
 ! Find the largest 10 amplitudes in each level
 !   call WriteMaxExcitorList(6,AL%Amplitude(:,iCurAmpList),DetList,FCIDetIndex,iMaxAmpLevel,10)
@@ -2592,6 +2598,7 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
 END SUBROUTINE CCMCStandaloneParticle
 
 subroutine ReHouseExcitors(DetList, nAmpl, SpawnList, ValidSpawnedList,iDebug)
+      use SystemData, only : nEl
       use AnnihilationMod, only: DetermineDetNode
       use bit_reps, only: decode_bit_det
       implicit none
@@ -2627,8 +2634,9 @@ subroutine ReHouseExcitors(DetList, nAmpl, SpawnList, ValidSpawnedList,iDebug)
       ENDIF
 end subroutine
 
-SUBROUTINE ReadPopsFileCCMC(DetList,nMaxAmpl,nAmpl)
+SUBROUTINE ReadPopsFileCCMC(DetList,nMaxAmpl,nAmpl,dNorm)
       use PopsfileMod
+      real*8 ::  dNorm
       INTEGER :: ierr,iunithead
       LOGICAL :: formpops,binpops
       INTEGER :: PopsVersion,WalkerListSize
@@ -2668,6 +2676,7 @@ SUBROUTINE ReadPopsFileCCMC(DetList,nMaxAmpl,nAmpl)
          if(iProcIndex.eq.root) close(iunithead)
          call ReadFromPopsfilev3(iPopAllTotWalkers,ReadBatch,TotWalkers,CurrParts,NoatHF,DetList,nMaxAmpl)
          nAmpl=TotWalkers
+         dNorm=NoatHF(1)
       endif
 
 END SUBROUTINE
