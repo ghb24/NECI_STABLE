@@ -58,6 +58,7 @@ TYPE ClustSelector
    REAL*8 dProbSelNewExcitor  !The probability that we quit at every stage of selecting a new excitor for a cluster  
    INTEGER iRefPos   !The Location in teh amplitude list of the reference det
    LOGICAL tDynamic  !If set, we choose as many clusters as there are excitors.
+   LOGICAL tInitiators !Set if we are using initiators
    REAL*8 dInitiatorThresh !Threshold for creating intiator cluster
    TYPE(Cluster) C
 

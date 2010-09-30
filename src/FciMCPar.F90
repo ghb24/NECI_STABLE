@@ -82,7 +82,6 @@ MODULE FciMCParMod
     contains
 
     SUBROUTINE FciMCPar(Weight,Energyxw)
-
         real(dp) :: Weight, Energyxw
         INTEGER :: error
         LOGICAL :: TIncrement,tWritePopsFound,tSoftExitFound,tSingBiasChange
@@ -926,8 +925,7 @@ MODULE FciMCParMod
         integer :: proc, flags, j
         logical :: parent_init
 
-        proc = DetermineDetNode(nJ)    ! 0 -> nNodes-1
-
+        proc = DetermineDetNode(nJ,0)    ! 0 -> nNodes-1)
         ! We need to include any flags set both from the parent and from the
         ! spawning steps
         flags = ior(parent_flags, extract_flags(ilutJ))
@@ -953,6 +951,7 @@ MODULE FciMCParMod
         ENDIF
 
         ValidSpawnedList(proc) = ValidSpawnedList(proc) + 1
+        
 
         ! Sum the number of created children to use in acceptance ratio.
         acceptances = acceptances + sum(abs(child))
@@ -2720,8 +2719,7 @@ MODULE FciMCParMod
     end subroutine
 
     subroutine collate_iter_data (iter_data, tot_parts_new, tot_parts_new_all)
-
-        integer :: int_tmp(7+lenof_sign)
+        integer :: int_tmp(5+2*lenof_sign)
         HElement_t :: real_tmp(2)
         integer(int64) :: int64_tmp(9)
         type(fcimc_iter_data) :: iter_data
@@ -3229,6 +3227,11 @@ MODULE FciMCParMod
         do i=1,NEl
             HFDet(i)=FDet(i)
         enddo
+
+!Init hash shifting data
+        hash_iter=0
+        hash_shift=0
+
         HFHash=CreateHash(HFDet)
         CALL GetSym(HFDet,NEl,G1,NBasisMax,HFSym)
         WRITE(6,"(A,I10)") "Symmetry of reference determinant is: ",INT(HFSym%Sym%S,4)
@@ -4704,7 +4707,7 @@ MODULE FciMCParMod
             ENDIF
         
             ! Get the (0-based) processor index for the HF det.
-            iHFProc = DetermineDetNode(HFDet)
+            iHFProc = DetermineDetNode(HFDet,0)
             WRITE(6,*) "HF processor is: ",iHFProc
 
             TotParts(:)=0

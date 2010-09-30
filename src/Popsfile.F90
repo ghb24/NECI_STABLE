@@ -143,7 +143,7 @@ MODULE PopsfileMod
                     enddo
 
                     call decode_bit_det (TempnI, WalkerTemp)
-                    proc = DetermineDetNode (TempnI)
+                    proc = DetermineDetNode (TempnI,0)
                     BatchRead(:,PopsSendList(proc)) = WalkerTemp(:)
                     PopsSendList(proc) = PopsSendList(proc) + 1
                     if(proc.ne.(nProcessors-1)) then
@@ -414,7 +414,7 @@ MODULE PopsfileMod
         integer(int64),intent(in) :: nDets !The number of occupied entries in Dets
         integer(kind=n_int),intent(in) :: Dets(0:nIfTot,1:nDets)
         INTEGER :: error
-        integer(int64) :: WalkersonNodes(0:nProcessors-1)
+        integer(int64) :: WalkersonNodes(0:nNodes-1)
         INTEGER :: Tag,Total,i,j,k
         INTEGER(KIND=n_int), ALLOCATABLE :: Parts(:,:)
         INTEGER :: PartsTag=0
@@ -425,6 +425,8 @@ MODULE PopsfileMod
         INTEGER, DIMENSION(lenof_sign) :: TempSign
 
         CALL MPIBarrier(error)  !sync
+!        WRITE(6,*) "Get Here"
+!        CALL FLUSH(6)
 
 !First, make sure we have up-to-date information - again collect AllTotWalkers,AllSumNoatHF and AllSumENum...
 !        CALL MPI_Reduce(TotWalkers,AllTotWalkers,1,MPI_INTEGER,MPI_Sum,root,MPI_COMM_WORLD,error)    
@@ -433,16 +435,14 @@ MODULE PopsfileMod
         CALL MPISum(SumENum,1,AllSumENum)
 
 !We also need to tell the root processor how many particles to expect from each node - these are gathered into WalkersonNodes
-        CALL MPIAllGather(nDets,WalkersonNodes,error)
+        if(bNodeRoot) CALL MPIAllGather(nDets,WalkersonNodes,error,Roots)
 
         Tag=125
-!        WRITE(6,*) "Get Here"
-!        CALL FLUSH(6)
 
         IF(iProcIndex.eq.root) THEN
 !First, check that we are going to receive the correct number of particles...
             Total=0
-            do i=0,nProcessors-1
+            do i=0,nNodes-1
                 Total=Total+INT(WalkersonNodes(i)/iPopsPartEvery)
             enddo
             AllTotWalkers=REAL(Total,dp)
@@ -524,7 +524,7 @@ MODULE PopsfileMod
                         do k=0,NIfTot-1
                             WRITE(iunit,"(I24)",advance='no') Dets(k,j)
                         enddo
-                        WRITE(iunit,"(I24)") Dets(k,NIfTot)
+                        WRITE(iunit,"(I24)") Dets(NIfTot,j)
 !                        call extract_sign(Dets(:,j),TempSign)
 !                        WRITE(iunit,*) TempSign(:)
                     ENDIF
@@ -540,10 +540,10 @@ MODULE PopsfileMod
 
 !Now we need to receive the data from each other processor sequentially
 !We can overwrite the head nodes information, since we have now stored it elsewhere.
-            do i=1,nProcessors-1
+            do i=1,nNodes-1
 !Run through all other processors...receive the data...
                 j=WalkersonNodes(i)*(NIfTot+1)
-                CALL MPIRecv(Parts(0:NIfTot,1:WalkersonNodes(i)),j,i,Tag,error)
+                CALL MPIRecv(Parts(0:NIfTot,1:WalkersonNodes(i)),j,NodeRoots(i),Tag,error)
 !                WRITE(6,*) "Recieved walkers for processor ",i
 !                CALL FLUSH(6)
                 
@@ -558,9 +558,10 @@ MODULE PopsfileMod
                 ELSE
                     do j=1,WalkersonNodes(i)
                         IF(mod(j,iPopsPartEvery).eq.0) THEN
-                            do k=0,NIfTot
+                            do k=0,NIfTot-1
                                 WRITE(iunit,"(I24)",advance='no') Parts(k,j)
                             enddo
+                            WRITE(iunit,"(I24)") Dets(NIfTot,j)
 !                            call extract_sign(Parts(:,j),TempSign)
 !                            WRITE(iunit,*) TempSign(:)
                         ENDIF
@@ -577,7 +578,7 @@ MODULE PopsfileMod
             DEALLOCATE(Parts)
             CALL LogMemDealloc(this_routine,PartsTag)
 
-        ELSE
+        ELSEIF(bNodeRoot) THEN
 !All other processors need to send their data to root...
             j=nDets*(NIfTot+1)
             CALL MPISend(Dets(0:NIfTot,1:nDets),j,root,Tag,error)
@@ -589,7 +590,6 @@ MODULE PopsfileMod
         AllSumNoatHF = 0
         AllSumENum=0.D0
         AllTotWalkers=0.D0
-
         RETURN
 
     END SUBROUTINE WriteToPopsfileParOneArr
@@ -929,7 +929,7 @@ MODULE PopsfileMod
         
 #endif
             call decode_bit_det (TempnI, iLutTemp)
-            Proc = DetermineDetNode(TempnI)
+            Proc = DetermineDetNode(TempnI,0)
             IF((Proc.eq.iNodeIndex).and.(abs(TempSign(1)).ge.iWeightPopRead)) THEN
                 CurrWalkers=CurrWalkers+1
                 call encode_bit_rep(CurrentDets(:,CurrWalkers),iLutTemp(0:NIfDBO),TempSign,0)   !Do not need to send a flag here...
