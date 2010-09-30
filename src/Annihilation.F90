@@ -9,7 +9,8 @@ MODULE AnnihilationMod
     USE FciMCData
     use DetBitOps, only: DetBitEQ, DetBitLT, FindBitExcitLevel, ilut_lt, &
                          ilut_gt
-    use spatial_initiator, only: add_initiator_list, rm_initiator_list
+    use spatial_initiator, only: add_initiator_list, rm_initiator_list, &
+                                 is_spatial_init
     use CalcData , only : tTruncInitiator, tSpawnSpatialInit
     use Determinants, only: get_helement
     use hphf_integrals, only: hphf_diag_helement, hphf_off_diag_helement
@@ -738,6 +739,17 @@ MODULE AnnihilationMod
                 do j = 1, lenof_sign
                     if (.not. test_flag (SpawnedParts(:,i), flag_parent_initiator(j)) .and. &
                         .not. test_flag (SpawnedParts(:,i), flag_make_initiator(j))) then
+                        ! Are we allowing particles to survive if there is an
+                        ! initiator with the same spatial structure?
+                        ! TODO: optimise this. Only call it once?
+                        if (tSpawnSpatialInit) then
+                            if (is_spatial_init(SpawnedParts(:,i))) then
+                                call set_flag (SpawnedParts(:,i), &
+                                               flag_parent_initiator(j))
+                            endif
+                        endif
+
+
                         ! Walkers came from outside initiator space.
                         NoAborted = NoAborted + abs(SignTemp(j))
                         iter_data%naborted(j) = iter_data%naborted(j) + abs(SignTemp(j))

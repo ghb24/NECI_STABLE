@@ -274,7 +274,7 @@ contains
     ! NOTE: This can only be used for binary searching determinant bit 
     !       strings now. We can template it if it wants to be more general 
     !       in the future if needed.
-    pure function binary_search (arr, val, cf_len) &
+    function binary_search (arr, val, cf_len) &
                                  result(pos)
         use constants, only: n_int
 
@@ -289,6 +289,7 @@ contains
         ! The search range
         lo = lbound(arr,2)
         hi = ubound(arr,2)
+!>>>!        write(6,*) 'hi, lo', hi, lo
 
         ! Have we specified how much to look at?
         data_lo = lbound(arr, 1)
@@ -301,6 +302,8 @@ contains
         ! Narrow the search range down in steps.
         do while (hi /= lo)
             pos = int(real(hi + lo) / 2)
+!>>>!            write(6,*) 'pos', pos
+!>>>!            call flush(6)
 
             if (all(arr(data_lo:data_hi,pos) == val)) then
                 exit

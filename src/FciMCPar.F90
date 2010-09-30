@@ -18,8 +18,8 @@ MODULE FciMCParMod
     use bit_reps, only: NIfD, NIfTot, NIfDBO, NIfY, decode_bit_det, &
                         encode_bit_rep, encode_det, extract_bit_rep, &
                         test_flag, set_flag, extract_flags, &
-                        flag_is_initiator, clear_all_flags, set_flag_general, &
-                        extract_sign
+                        flag_is_initiator, clear_all_flags, set_flag_general,&
+                        extract_sign, nOffSgn
     use CalcData, only: InitWalkers, NMCyc, DiagSft, Tau, SftDamp, StepsSft, &
                         OccCASorbs, VirtCASorbs, tFindGroundDet, NEquilSteps,&
                         tReadPops, tRegenDiagHEls, iFullSpaceIter, MaxNoAtHF,&
@@ -160,7 +160,7 @@ MODULE FciMCParMod
 
             s=etime(tend)
             IterTime=IterTime+(tend(1)-tstart(1))
-
+            
 !            IF(tBlockEveryIteration) THEN
 !                Inpair(1)=REAL(HFIter,dp)
 !                Inpair(2)=ENumIter
@@ -682,13 +682,7 @@ MODULE FciMCParMod
         ! Next free position in newly spawned list.
         ValidSpawnedList = InitialSpawnedSlots
         
-        ! Reset iteration specific counts
-        ! n.b. this can be extracted to a separate function. This could even
-        !      be function-pointerised!
-        iter_data%nborn = 0
-        iter_data%ndied = 0
-        iter_data%nannihil = 0
-        iter_data%naborted = 0
+        call rezero_iter_stats_each_iter (iter_data)
         tot_parts_tmp = TotParts
 
         ! The processor with the HF determinant on it will have to check 
@@ -2974,9 +2968,27 @@ MODULE FciMCParMod
     end subroutine
 
 
-    subroutine rezero_iter_stats (iter_data, tot_parts_new_all)
+    subroutine rezero_iter_stats_each_iter (iter_data)
+
+        type(fcimc_iter_data), intent(inout) :: iter_data
+
+        NoInitDets = 0
+        NoNonInitDets = 0
+        NoInitWalk = 0
+        NoNonInitWalk = 0
+        InitRemoved = 0
+
+        iter_data%nborn = 0
+        iter_data%ndied = 0
+        iter_data%nannihil = 0
+        iter_data%naborted = 0
+
+    end subroutine
+
+
+    subroutine rezero_iter_stats_update_cycle (iter_data, tot_parts_new_all)
         
-        type(fcimc_iter_data) :: iter_data
+        type(fcimc_iter_data), intent(inout) :: iter_data
         integer(int64), dimension(lenof_sign), intent(in) :: tot_parts_new_all
         
         ! Zero all of the variables which accumulate for each iteration.
@@ -2996,11 +3008,6 @@ MODULE FciMCParMod
 
         HFCyc = 0
         NoAborted = 0
-        NoInitDets = 0
-        NoNonInitDets = 0
-        NoInitWalk = 0
-        NoNonInitWalk = 0
-        InitRemoved = 0
 
         ! Reset TotWalkersOld so that it is the number of walkers now
         TotWalkersOld = TotWalkers
@@ -3009,32 +3016,10 @@ MODULE FciMCParMod
         ! Save the number at HF to use in the HFShift
         OldAllNoatHF = AllNoatHF
 
-        ! Also reinitialise the global variables
-        !  --> should not necessarily need to do this...
-        ! TODO: Remove these zeroes?
-        AllSumENum = 0
-        AllSumNoatHF = 0
+        ! Also the cumulative global variables
         AllTotWalkersOld = AllTotWalkers
         AllTotPartsOld = AllTotParts
         AllNoAbortedOld = AllNoAborted
-        AllTotWalkers = 0
-        AllTotParts = 0
-        AllGrowRate = 0
-        AllSumWalkersCyc = 0
-        AllAnnihilated = 0
-        AllNoatHF = 0
-        AllNoatDoubs = 0
-        AllNoBorn = 0
-        AllSpawnFromSing = 0
-        AllNoDied = 0
-        AllNoAborted = 0
-        AllNoAddedInitiators = 0
-        AllNoInitDets = 0
-        AllNoNonInitDets = 0
-        AllNoInitWalk = 0
-        AllNoNonInitWalk = 0
-        AllNoExtraInitDoubs = 0
-        AllInitRemoved = 0
 
         ! Reset the counters
         iter_data%update_growth = 0
@@ -3054,7 +3039,7 @@ MODULE FciMCParMod
         call population_check ()
         call update_shift (iter_data)
         call WriteFCIMCStats ()
-        call rezero_iter_stats (iter_data, tot_parts_new_all)
+        call rezero_iter_stats_update_cycle (iter_data, tot_parts_new_all)
 
     end subroutine calculate_new_shift_wrapper
 
@@ -4803,6 +4788,8 @@ MODULE FciMCParMod
                     if (tTruncInitiator) then
                         call set_flag (CurrentDets(:,1), flag_is_initiator(1))
                         call set_flag (CurrentDets(:,1), flag_is_initiator(2))
+                        if (tSpawnSpatialInit) &
+                            call add_initiator_list (CurrentDets(:,1))
                     endif
 
                     ! HF energy is equal to 0 (by definition)
