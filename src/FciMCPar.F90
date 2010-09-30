@@ -2719,8 +2719,7 @@ MODULE FciMCParMod
     end subroutine
 
     subroutine collate_iter_data (iter_data, tot_parts_new, tot_parts_new_all)
-
-        integer :: int_tmp(7+lenof_sign)
+        integer :: int_tmp(5+2*lenof_sign)
         HElement_t :: real_tmp(2)
         integer(int64) :: int64_tmp(9)
         type(fcimc_iter_data) :: iter_data

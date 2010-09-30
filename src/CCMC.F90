@@ -1169,20 +1169,22 @@ end subroutine DelCluster
 
 !iMaxSize is the maximum number of excitors in a cluster.
 !dInitThresh is the initiator threshold
-SUBROUTINE InitClustSelectorFull(CS,iMaxSize,dInitThresh)
+SUBROUTINE InitClustSelectorFull(CS,iMaxSize,tTruncInit,dInitThresh)
    use CCMCData
    IMPLICIT NONE
    TYPE(ClustSelector) CS
    INTEGER iMaxSize
    REAL*8 dInitThresh
+   LOGICAL tTruncInit
    CS%tFull=.true.
    CS%iMaxSize=iMaxSize
    CS%tDynamic=.false.
+   CS%tInitiators=tTruncInit
    CS%dInitiatorThresh=dInitThresh
    Call InitCluster(CS%C)
 END SUBROUTINE InitClustSelectorFull
 
-SUBROUTINE InitClustSelectorRandom(CS,iMaxSize,nSelects,dRatio,dProbSelNewEx,dInitThresh)
+SUBROUTINE InitClustSelectorRandom(CS,iMaxSize,nSelects,dRatio,dProbSelNewEx,tTruncInit,dInitThresh)
    use CCMCData
    use Parallel, only: nProcessors
    IMPLICIT NONE
@@ -1190,6 +1192,7 @@ SUBROUTINE InitClustSelectorRandom(CS,iMaxSize,nSelects,dRatio,dProbSelNewEx,dIn
    INTEGER iMaxSize,nSelects
    REAL*8 dProbSelNewEx,dRatio
    REAL*8 dInitThresh
+   LOGICAL tTruncInit
    if(nSelects<0) then
       CS%tDynamic=.true.
       CS%dRatio=dRatio
@@ -1200,6 +1203,7 @@ SUBROUTINE InitClustSelectorRandom(CS,iMaxSize,nSelects,dRatio,dProbSelNewEx,dIn
    CS%iMaxSize=iMaxSize
    CS%nSelects=nSelects/nProcessors
    CS%dProbSelNewExcitor=dProbSelNewEx
+   CS%tInitiators=tTruncInit
    CS%dInitiatorThresh=dInitThresh
    Call InitCluster(CS%C)
 END SUBROUTINE InitClustSelectorRandom
@@ -1842,7 +1846,7 @@ SUBROUTINE CCMCStandalone(Weight,Energyxw)
    use CCMCData, only: WriteCluster
    use ClusterList
    use CalcData, only: DiagSft
-   use CalcData, only: tAddToInitiator,InitiatorWalkNo
+   use CalcData, only: tAddToInitiator,InitiatorWalkNo,tTruncInitiator
    IMPLICIT NONE
    real(dp) Weight,EnergyxW
    TYPE(AmplitudeList_double),target :: AL
@@ -2004,12 +2008,12 @@ SUBROUTINE CCMCStandalone(Weight,Energyxw)
    if(tAddToInitiator) dInitThresh=InitiatorWalkNo/WalkerScale
    write(6,*) "Cluster Initiator Threshold: ", dInitThresh
    if(tExactCluster) then
-      CALL InitClustSelectorFull(CSMain,iNumExcitors,dInitThresh)
+      CALL InitClustSelectorFull(CSMain,iNumExcitors,tTruncInitiator,dInitThresh)
    else
-      CALL InitClustSelectorRandom(CSMain,iNumExcitors,nClustSelections,dClustSelectionRatio,dProbSelNewExcitor,dInitThresh)
+      CALL InitClustSelectorRandom(CSMain,iNumExcitors,nClustSelections,dClustSelectionRatio,dProbSelNewExcitor,tTruncInitiator,dInitThresh)
    endif
    if(tCCBuffer) then
-      CALL InitClustSelectorFull(CSBuff,1,dInitThresh)
+      CALL InitClustSelectorFull(CSBuff,1,tTruncInitiator, dInitThresh)
    endif
 
    CALL InitSpawner(S,tExactSpawn,ICILevel)
@@ -2201,7 +2205,7 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
    use timing, only: print_timing_report
    use Parallel
    use shared_alloc, only: shared_allocate_iluts, shared_deallocate
-   use CalcData, only: tAddToInitiator,InitiatorWalkNo
+   use CalcData, only: tAddToInitiator,InitiatorWalkNo,tTruncInitiator
    use bit_reps, only: encode_sign,extract_sign
    use FciMCParMod, only: ChangeVars,WriteToPopsFileParOneArr ,tReadPops,ReadFromPopsfileOnly
    use FciMCData, only: SpawnedParts,ValidSpawnedList,InitialSpawnedSlots
@@ -2430,7 +2434,7 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
    if(tAddToInitiator) dInitThresh=InitiatorWalkNo/WalkerScale
    write(6,*) "Cluster Initiator Threshold: ", dInitThresh
 
-   CALL InitClustSelectorRandom(CS,iNumExcitors,nClustSelections,dClustSelectionRatio,dProbSelNewExcitor,dInitThresh)
+   CALL InitClustSelectorRandom(CS,iNumExcitors,nClustSelections,dClustSelectionRatio,dProbSelNewExcitor,tTruncInitiator, dInitThresh)
 
    CALL InitSpawner(S,tExactSpawn,ICILevel)
 

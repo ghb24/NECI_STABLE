@@ -999,6 +999,7 @@ end subroutine
 !      iProcIndex       ! index of this Core.  0...(nProcessors-1)
 !      iNodeIndex       ! index of this node.  0...(nNodes-1)
 !      iIndexInNode     ! index of this core in this node.  0...(NodeLengths(iNodeIndex)-1)
+!      ProcNode(i)      ! The node which Core i is on
 !
 !    Currently FCIMCPar is setup to allocate one core per node.  This is a hack for the moment.
 !    There's a more sophisticated system of logical nodes, specified by CALC/LOGICALNODESIZE
@@ -1119,6 +1120,7 @@ subroutine MPINodes(tUseProcsAsNodes)
    nNodes=1
    iIndexInNode=0
    ProcNode(0)=0
+   NodeRoots(0)=0
    bNodeRoot=.true.
    allocate(NodeLengths(0:nNodes-1))
    allocate(CommNodes(0:nNodes-1))

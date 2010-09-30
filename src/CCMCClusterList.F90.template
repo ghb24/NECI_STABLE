@@ -361,6 +361,7 @@ END SUBROUTINE !CalcClusterEnergyUnsrt
 !  and is placed in CS%%C%%dSelectionProb
 
 FUNCTION GetNextCluster (CS,Dets,nDet,AL,iCurAmpList,dTotAbsAmpl,dTotLocAbsAmpl,dNorm,iMaxSizeIn,iDebug) result (NextCluster)
+   use CalcData, only: tTruncInitiator
    use CCMCData, only: ClustSelector
    use BinSearch, only: BinarySearch
    use dSFMT_interface , only : genrand_real2_dSFMT
@@ -392,7 +393,7 @@ FUNCTION GetNextCluster (CS,Dets,nDet,AL,iCurAmpList,dTotAbsAmpl,dTotLocAbsAmpl,
 !   call set_timer(CCMC_time,20)
 
    ilutFlag=0
-   call set_flag(ilutFlag,flag_parent_initiator(1))
+   if(CS%%tInitiators) call set_flag(ilutFlag,flag_parent_initiator(1))
    !This indicates it's going to be an initiator, but we can change that later by looking at the populations.
    if(CS%%tDynamic.and.CS%%iIndex.eq.0) then
       CS%%nSelects=(dTotAbsAmpl+abs(dNorm))/nProcessors+1
@@ -448,7 +449,7 @@ FUNCTION GetNextCluster (CS,Dets,nDet,AL,iCurAmpList,dTotAbsAmpl,dTotLocAbsAmpl,
                CS%%C%%SelectedExcitors(:,i)=Dets(:,CS%%C%%SelectedExcitorIndices(i))
                CS%%C%%dAbsAmplitude=CS%%C%%dAbsAmplitude*abs(GetAmpl(AL,CS%%C%%SelectedExcitorIndices(i),iCurAmpList))/abs(GetAmpl(AL,CS%%iRefPos,iCurAmpList))
 !               WRITE(6,*) i,CS%%C%%dAbsAmplitude
-               if(abs(GetAmpl(AL,CS%%C%%SelectedExcitorIndices(i),iCurAmpList))<CS%%dInitiatorThresh) then
+               if(CS%%tInitiators.and.abs(GetAmpl(AL,CS%%C%%SelectedExcitorIndices(i),iCurAmpList))<CS%%dInitiatorThresh) then
 ! This won't be an initiator
                   call clr_flag(ilutFlag,flag_parent_initiator(1))
                endif
@@ -517,7 +518,7 @@ FUNCTION GetNextCluster (CS,Dets,nDet,AL,iCurAmpList,dTotAbsAmpl,dTotLocAbsAmpl,
             CS%%C%%SelectedExcitorIndices(i)=k
             CS%%C%%SelectedExcitors(:,i)=Dets(:,k)
             CS%%C%%dAbsAmplitude=CS%%C%%dAbsAmplitude*abs(GetAmpl(AL,k,iCurAmpList))/abs(dNorm)  !For each new excit added to the composite, we multiply up to count the number of ways we could've generated it.
-            if(abs(GetAmpl(AL,CS%%C%%SelectedExcitorIndices(i),iCurAmpList))<CS%%dInitiatorThresh) then
+            if(CS%%tInitiators.and.abs(GetAmpl(AL,CS%%C%%SelectedExcitorIndices(i),iCurAmpList))<CS%%dInitiatorThresh) then
                !This won't be an initiator
                call clr_flag(ilutFlag,flag_parent_initiator(1))
             endif
@@ -562,7 +563,11 @@ FUNCTION GetNextCluster (CS,Dets,nDet,AL,iCurAmpList,dTotAbsAmpl,dTotLocAbsAmpl,
 !/CS%%C%%dSelectionNorm
       endif
    endif
-   CS%%C%%initFlag=ilutFlag(NOffFlag)
+   if(CS%%tInitiators) then
+      CS%%C%%initFlag=ilutFlag(NOffFlag)
+   else
+      CS%%C%%initFlag=0
+   endif
    IFDEBUG(iDebug,4) then
       if(NextCluster) then
          write(6,*) "Selection ",CS%%iIndex
