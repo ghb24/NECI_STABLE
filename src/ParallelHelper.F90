@@ -79,7 +79,9 @@ contains
    end subroutine
 
    subroutine MPIErr(error)
+#ifdef PARALLEL
       uSE MPI
+#endif
       INTEGER error,l,e
 #ifdef PARALLEL
       character(len=MPI_MAX_ERROR_STRING) s
