@@ -703,6 +703,11 @@ MODULE FciMCParMod
             ! N.B. j indicates the number of determinants, not the number
             !      of walkers.
 
+            ! Indicate that the scratch storage used for excitation generation
+            ! from the same walker has not been filled (it is filled when we
+            ! excite from the first particle on a determinant).
+            fcimc_excit_gen_store%tFilled = .false.
+
             ! Decode determinant from (stored) bit-representation.
             call extract_bit_rep (CurrentDets(:,j), DetCurr, SignCurr, &
                                   FlagsCurr, fcimc_excit_gen_store)
@@ -717,6 +722,8 @@ MODULE FciMCParMod
                 call WriteBitDet(6,CurrentDets(:,j),.true.)
                 call Flush(6) 
             ENDIFDEBUG
+
+!            call test_sym_excit3 (DetCurr, 1000000, pDoubles, 3)
 
             ! TODO: The next couple of bits could be done automatically
 
@@ -764,11 +771,6 @@ MODULE FciMCParMod
             !       correctly at the start of a run.
             if (tTruncInitiator) call CalcParentFlag (j, VecSlot, Iter, &
                                                       parent_flags)
-
-            ! Indicate that the scratch storage used for excitation generation
-            ! from the same walker has not been filled (it is filled when we
-            ! excite from the first particle on a determinant).
-            fcimc_excit_gen_store%tFilled = .false.
 
             ! Loop over the 'type' of particle. 
             ! lenof_sign == 1 --> Only real particles

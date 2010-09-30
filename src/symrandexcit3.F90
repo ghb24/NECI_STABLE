@@ -191,7 +191,8 @@ contains
     function count_orb_pairs (sym_prod, spn, CCUnocc, num_pairs) &
                               result(tot_pairs)
 
-        integer, intent(in) :: sym_prod, spn(2)
+        integer, intent(in) :: sym_prod
+        integer, intent(inout) :: spn(2)
         integer, intent(in) :: CCUnocc(ScratchSize)
         integer, intent(inout) :: num_pairs(0:nSymLabels-1)
         integer :: tot_pairs
@@ -203,7 +204,7 @@ contains
         !       arrays as well?
         tot_pairs = 0
         if (spn(1) == spn(2)) then
-            indA = 3 - spn(1)
+            indA = spn(1)
             do symA = 0, nSymLabels - 1
                 symB = RandExcitSymLabelProd(SymInvLabel(symA), sym_prod)
 
@@ -221,16 +222,17 @@ contains
 
         else ! spn(1) /= spn(2)
 
-            indA = 1
+            indA = spn(1)
             do symA = 0, nSymLabels - 1
                 symB = RandExcitSymLabelProd(SymInvLabel(symA), sym_prod)
 
                 if (symA == symB) then
-                    tot_pairs = tot_pairs + (CCUnocc(indA) * CCUNocc(indA+1))
+                    tot_pairs = tot_pairs + (CCUnocc(indA) * &
+                                             CCUNocc(ieor(indA-1,1)+1))
                 else
                     ! Don't restrict to A < B. Use the B < A case to count
                     ! the equivalent with the spins swapped.
-                    indB = ClassCountInd(2, symB, -1)
+                    indB = ClassCountInd(spn(2), symB, -1)
                     tot_pairs = tot_pairs + (CCUnocc(indA) * CCUnocc(indB))
                 endif
 
@@ -260,7 +262,7 @@ contains
                 exit
             endif
         enddo
-        
+
         ! Modify rint such that it now specifies which of the orbital pairs
         ! within the selected symmetry categories is desired.
         if (symA /= 0) rint = rint - num_pairs(symA - 1)
@@ -298,7 +300,7 @@ contains
             orbs(1) = mod(rint - 1, CCUnocc(sym_inds(1))) + 1
             orbs(2) = floor((real(rint,dp) - 1) / CCUnocc(sym_inds(1))) + 1
         endif
-
+        
         ! Extract the orbitals from the vacant list.
         orbs(1) = virt_list (orbs(1), sym_inds(1))
         orbs(2) = virt_list (orbs(2), sym_inds(2))

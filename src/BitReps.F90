@@ -362,9 +362,15 @@ contains
 
         ! Fill in the remaineder of the virtuals list
         forall (ind = 1:ScratchSize)
-            store%virt_list(virt(ind) + 1:store%ClassCountUnocc(ind), ind) &
-                = SymLabelList2(SymLabelCounts2(1,ind) + virt(ind) + &
-                                store%ClassCountOcc(ind) : OrbClassCount(ind))
+            !if (virt(ind) /= store%ClassCountUnocc(ind)) then
+                store%virt_list ( &
+                    virt(ind) + 1 : &
+                    store%ClassCountUnocc(ind), ind) = &
+                SymLabelList2 (&
+                    SymLabelCounts2(1, ind) + virt(ind) + &
+                        store%ClassCountOcc(ind) : &
+                    SymLabelCounts2(1, ind) + OrbClassCount(ind) - 1)
+            !endif
         endforall
 
     end subroutine
