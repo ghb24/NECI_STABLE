@@ -15,6 +15,10 @@ Calc
 General options
 ---------------
 
+**LOGICALNODESIZE** [iLogicalNodeSize]
+   For Nodal parallel calculations, make the maximum node size this. Further cores will be split
+   into a different logical node.
+
 **ALLPATHS**
     Choose all determinants (i.e. set NPATHS = -1).
 

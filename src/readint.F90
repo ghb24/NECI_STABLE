@@ -4,13 +4,14 @@ contains
 
     SUBROUTINE INITFROMFCID(NEL,NBASISMAX,LEN,LMS,TBIN)
          use SystemData , only : tNoSymGenRandExcits,lNoSymmetry,tROHF
-         use SystemData , only : tStoreSpinOrbs,tKPntSym
+         use SystemData , only : tStoreSpinOrbs,tKPntSym,tRotatedOrbsReal
          use SymData, only: nProp, PropBitLen, TwoCycleSymGens
          use Parallel
          use util_mod, only: get_free_unit
          IMPLICIT NONE
          logical, intent(in) :: tbin
-         integer, intent(out) :: NEL,nBasisMax(5,*),LEN,LMS
+         integer, intent(out) :: nBasisMax(5,*),LEN,LMS
+         integer, intent(in) :: NEL
          integer SYMLZ(1000)
          INTEGER*8 :: ORBSYM(1000)
          INTEGER NORB,NELEC,MS2,ISYM,i,SYML(1000), iunit
@@ -68,6 +69,17 @@ contains
          ELSE
              tKPntSym=.false.
          ENDIF
+
+#ifndef __CMPLX
+         if(PropBitLen.ne.0) then
+             !We have compiled the code in real, but we are looking at a complex FCIDUMP, potentially 
+             !even with multiple k-points. However, these orbitals must be real, and ensure that the
+             !integrals are read in as real.
+             write(6,"(A)") "Neci compiled in real mode, but kpoints detected."
+             write(6,"(A)") "This will be ok if kpoints are all at Gamma or BZ boundary and are correctly rotated."
+             tRotatedOrbsReal=.true.
+         endif
+#endif
 
          IF(tROHF.and.(.not.UHF)) THEN
              CALL Stop_All("INITFROMFCID","ROHF specified, but FCIDUMP is not in a high-spin format.")
@@ -127,7 +139,7 @@ contains
 
       SUBROUTINE GETFCIBASIS(NBASISMAX,ARR,BRR,G1,LEN,TBIN)
          use SystemData, only: BasisFN,BasisFNSize,Symmetry,NullBasisFn
-         use SystemData, only: tCacheFCIDUMPInts,tROHF,tFixLz,iMaxLz
+         use SystemData, only: tCacheFCIDUMPInts,tROHF,tFixLz,iMaxLz,tRotatedOrbsReal
          use UMatCache, only: nSlotsInit,CalcNSlotsInit
          use UMatCache, only: GetCacheIndexStates,GTID
          use SymData, only: nProp, PropBitLen, TwoCycleSymGens
@@ -141,6 +153,7 @@ contains
          REAL*8, intent(out) :: ARR(LEN,2)
          type(BasisFN), intent(out) :: G1(LEN)
          HElement_t Z
+         COMPLEX(dp) :: CompInt
          INTEGER*8 IND,MASK
          INTEGER I,J,K,L,I1, iunit
          INTEGER ISYMNUM,ISNMAX,SYMMAX,SYMLZ(1000)
@@ -283,7 +296,24 @@ contains
 #ifdef __CMPLX
 1               READ(iunit,*,END=99) Z,I,J,K,L
 #else
-1               READ(iunit,'(1X,G20.12,4I3)',END=99) Z,I,J,K,L
+1               CONTINUE
+                !It is possible that the FCIDUMP can be written out in complex notation, but still only
+                !have real orbitals. This occurs with solid systems, where all kpoints are at the 
+                !gamma point or BZ boundary and have been appropriately rotated. In this case, all imaginary
+                !components should be zero to numerical precision.
+                if(tRotatedOrbsReal) then
+                    !Still need to read in integrals as complex numbers - this FCIDUMP will be from VASP.
+                    READ(iunit,*,END=99) CompInt,I,J,K,L
+                    Z=real(CompInt,dp)
+                    if(abs(aimag(CompInt)).gt.1.D-7) then
+                        write(6,*) "Using the *real* neci compiled code, however non-zero imaginary parts of integrals found"
+                        write(6,*) "If all k-points are at Gamma or BZ boundary, orbitals should be able to be rotated to be real"
+                        write(6,*) "Check this is the case, or rerun in complex mode to handle complex integrals."
+                        call stop_all("GETFCIBASIS","Real orbitals indicated, but imaginary part of integrals larger than 1.D-7")
+                    endif
+                else
+                    READ(iunit,'(1X,G20.12,4I3)',END=99) Z,I,J,K,L
+                endif
 #endif
 
                 IF(tROHF) THEN
@@ -392,11 +422,14 @@ contains
             ENDDO
          ENDDO
          IF(.not.tFixLz) iMaxLz=0
-         if (.not.TwoCycleSymGens) SYMMAX = ISYM
-         ! We use bit strings to store symmetry information.
-         ! SYMMAX needs to be the smallest power of 2 greater or equal to
-         ! the actual number of symmetry representations spanned by the basis.
-         SYMMAX = 2**ceiling(log(real(SYMMAX))/log(2.0))
+         if (.not.TwoCycleSymGens) then
+             SYMMAX = ISYM
+         else
+             ! We use bit strings to store symmetry information.
+             ! SYMMAX needs to be the smallest power of 2 greater or equal to
+             ! the actual number of symmetry representations spanned by the basis.
+             SYMMAX = 2**ceiling(log(real(SYMMAX))/log(2.0))
+         endif
          IF(tFixLz) WRITE(6,"(A,I3)") "Maximum Lz orbital: ",iMaxLz
          WRITE(6,"(A,I3)") "  Maximum number of symmetries: ",SYMMAX
          NBASISMAX(1,1)=0
@@ -435,7 +468,7 @@ contains
          use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB,NEl
          use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
          use SystemData, only: UMatEps,tUMatEps,tCacheFCIDUMPInts
-         use SystemData, only: tRIIntegrals,nBasisMax,tROHF
+         use SystemData, only: tRIIntegrals,nBasisMax,tROHF,tRotatedOrbsReal
          USE UMatCache, only: UMatInd,UMatConj,UMAT2D,TUMAT2D,nPairs,CacheFCIDUMP
          USE UMatCache, only: FillUpCache,GTID,nStates,nSlots,nTypes
          USE UMatCache, only: UMatCacheData,UMatLabels,GetUMatSize
@@ -450,6 +483,7 @@ contains
          REAL*8, intent(out) :: ECORE
          HElement_t, intent(out) :: UMAT(:)
          HElement_t Z
+         COMPLEX(dp) :: CompInt
          INTEGER ZeroedInt,NonZeroInt
          INTEGER I,J,K,L,X,Y,iunit
          INTEGER NORB,NELEC,MS2,ISYM,SYML(1000)
@@ -513,7 +547,21 @@ contains
 #ifdef __CMPLX
 101          READ(iunit,*,END=199) Z,I,J,K,L
 #else
-101          READ(iunit,'(1X,G20.12,4I3)',END=199) Z,I,J,K,L
+101          CONTINUE
+             !It is possible that the FCIDUMP can be written out in complex notation, but still only
+             !have real orbitals. This occurs with solid systems, where all kpoints are at the 
+             !gamma point or BZ boundary and have been appropriately rotated. In this case, all imaginary
+             !components should be zero to numerical precision.
+             if(tRotatedOrbsReal) then
+                 !Still need to read in integrals as complex numbers - this FCIDUMP will be from VASP.
+                 READ(iunit,*,END=199) CompInt,I,J,K,L
+                 Z=real(CompInt,dp)
+                 if(abs(aimag(CompInt)).gt.1.D-7) then
+                     call stop_all("READFCIINT","Real orbitals indicated, but imaginary part of integrals larger than 1.D-7")
+                 endif
+             else
+                 READ(iunit,'(1X,G20.12,4I3)',END=199) Z,I,J,K,L
+             endif
 #endif
              IF(tROHF) THEN
 !The FCIDUMP file is in spin-orbitals - we need to transfer them to spatial orbitals.

@@ -143,7 +143,7 @@ MODULE FciMCData
 
       INTEGER :: WalkersDiffProc
 
-      LOGICAL , PARAMETER :: tGenMatHEl=.true.      !This is whether to generate matrix elements as generating excitations for the HPHF option
+      LOGICAL , PARAMETER :: tGenMatHEl=.true.      !This is whether to generate matrix elements as generating excitations for the HPHF or ISK options
 
       INTEGER :: VaryShiftCycles                    !This is the number of update cycles that the shift has allowed to vary for.
       INTEGER :: VaryShiftIter                     !This is the iteration that the shift can vary.
@@ -209,6 +209,10 @@ MODULE FciMCData
       type(c_ptr) :: ptr_iter_data
 
       integer :: yama_global (4)
+
+      !*****************  Yucky globals for AJWT iter-dependent hashes ***********
+      integer :: hash_iter       ! An iteration number added to make iteration-dependent hashes
+      integer :: hash_shift      ! -Ln_2 (Cycletime), where CycleTime is the average number of cycles until a det returns to its processor
       
       !*****************  Redundant variables ************************
     
