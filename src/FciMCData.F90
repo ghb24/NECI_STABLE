@@ -213,6 +213,10 @@ MODULE FciMCData
       type(c_ptr) :: ptr_iter_data
 
       integer :: yama_global (4)
+
+      !*****************  Yucky globals for AJWT iter-dependent hashes ***********
+      integer :: hash_iter       ! An iteration number added to make iteration-dependent hashes
+      integer :: hash_shift      ! -Ln_2 (Cycletime), where CycleTime is the average number of cycles until a det returns to its processor
       
       !*****************  Redundant variables ************************
     

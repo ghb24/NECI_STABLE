@@ -52,7 +52,7 @@ MODULE ISKRandExcit
         call gen_rand_excit (nI, iLutnI, nJ, iLutnJ, exFlag, IC, ExcitMat, &
                              tSignOrig, pGen, HEl, tFilled, Classcount2, &
                              ClassCountUnocc2, scratch)
-         if(IsNullDet(nJ)) return    !No excitation created
+        if(IsNullDet(nJ)) return    !No excitation created
 
 !Create bit representation of excitation - iLutnJ
         call FindExcitBitDet(iLutnI,iLutnJ,IC,ExcitMat)
@@ -148,7 +148,7 @@ MODULE ISKRandExcit
         !i = ex(1,1)
         !j = ex(1,2)
         if(CrossIC.eq.1) then
-            if(SpinOrbSymLabel(ExCross(1,1)).ne.SymInvLabel(SpinOrbSymLabel(ExCross(2,1)))) then
+            if(SpinOrbSymLabel(ExCross(1,1)).ne.SpinOrbSymLabel(ExCross(2,1))) then
                 !symmetry forbidden
                 tcross_conn=.false.
             else
@@ -274,6 +274,7 @@ MODULE ISKRandExcit
         use util_mod, only: get_free_unit
         use sort_mod
         use HPHFRandExcitMod, only: BinSearchListHPHF
+        use Parallel
         IMPLICIT NONE
         INTEGER :: ClassCount2(ScratchSize),nIX(NEl)
         INTEGER :: ClassCountUnocc2(ScratchSize)
@@ -284,7 +285,7 @@ MODULE ISKRandExcit
         INTEGER(KIND=n_int) :: iLutnI(0:NIfTot),iLutnJ(0:NIfTot),iLutnI2(0:NIfTot),iLutSym(0:NIfTot)
         INTEGER(KIND=n_int), ALLOCATABLE :: ConnsAlpha(:,:),ConnsBeta(:,:),UniqueHPHFList(:,:)
         INTEGER , ALLOCATABLE :: ExcitGen(:)
-        REAL*8 , ALLOCATABLE :: Weights(:)
+        REAL*8 , ALLOCATABLE :: Weights(:),AllWeights(:)
         INTEGER :: iMaxExcit,nStore(6),nExcitMemLen,j,k,l, iunit
         integer :: icunused, exunused(2,2), scratch3(scratchsize)
         logical :: tParityunused, tTmp
@@ -503,6 +504,8 @@ MODULE ISKRandExcit
         enddo
 
         ALLOCATE(Weights(iUniqueHPHF))
+        ALLOCATE(AllWeights(iUniqueHPHF))
+        AllWeights(:)=0.D0
         Weights(:)=0.D0
         tGenClassCountnI=.false.
 
@@ -536,32 +539,43 @@ MODULE ISKRandExcit
 !            CALL IsSymAllowedExcit(nI,nJ,IC,ExcitMat)
 
         enddo
+
+        call MPISumAll(Weights,AllWeights)
+
+        if(iProcIndex.eq.Root) then
         
-        iunit = get_free_unit()
-        OPEN(iunit,FILE="PGenHist",STATUS="UNKNOWN")
+            iunit = get_free_unit()
+            OPEN(iunit,FILE="PGenHist",STATUS="UNKNOWN")
 
-!normalise excitation probabilities
-        Die=.false.
-        do i=1,iUniqueHPHF
-            Weights(i)=Weights(i)/real(Iterations,8)
-            IF(abs(Weights(i)-1.D0).gt.0.1) THEN
-                WRITE(6,*) "Error here!"
-                Die=.true.
-            ENDIF
-            WRITE(6,*) i,UniqueHPHFList(0:NIfTot,i),Weights(i)
-            call decode_bit_det (nIX, UniqueHPHFList(0:NIfTot,i))
-            WRITE(6,*) nIX(:)
-            WRITE(iunit,"(I8,G25.10)",advance='no') i,Weights(i)
-            do j=0,NIfTot-1
-                WRITE(iunit,"(I16)",advance='no') UniqueHPHFList(j,i)
+    !normalise excitation probabilities
+            Die=.false.
+            do i=1,iUniqueHPHF
+                AllWeights(i)=AllWeights(i)/(real(Iterations,8)*real(nNodes,8))
+                IF(abs(AllWeights(i)-1.D0).gt.0.1) THEN
+                    WRITE(6,*) "Error here!",i
+                    Die=.true.
+                ENDIF
+    !            WRITE(6,*) i,UniqueHPHFList(0:NIfTot,i),Weights(i)
+                call decode_bit_det (nIX, UniqueHPHFList(0:NIfTot,i))
+    !            WRITE(6,*) nIX(:)
+                WRITE(iunit,"(I8,G25.10)",advance='no') i,AllWeights(i)
+                do j=0,NIfTot-1
+                    WRITE(iunit,"(I24)",advance='no') UniqueHPHFList(j,i)
+                enddo
+                WRITE(iunit,"(I24)") UniqueHPHFList(NIfTot,i)
+                write(79,*) i,"***"
+                do j=1,NEl-1
+                    write(79,"(I5)",advance='no') nIX(j)
+                enddo
+                write(79,"(I5)") nIX(NEl)
             enddo
-            WRITE(iunit,"(I16)") UniqueHPHFList(NIfTot,i)
-        enddo
 
-        CLOSE(iunit)
-        IF(Die) THEN
-            CALL Stop_All("IUB","TestFail")
-        ENDIF
+            CLOSE(iunit)
+            IF(Die) THEN
+                CALL Stop_All("IUB","TestFail")
+            ENDIF
+        endif
+        call mpiBarrier(ierr)
 
     END SUBROUTINE TestGenRandISKExcit
 

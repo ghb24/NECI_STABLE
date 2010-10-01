@@ -211,6 +211,7 @@ contains
           tFCIMCSerial=.false.  !If set we force the parallel version to run the serial code.
           tReadPopsChangeRef = .false.
           tReadPopsRestart = .false.
+          iLogicalNodeSize = 0 !Meaning use the physical node size
 
 !Feb 08 default set.
           IF(Feb08) THEN
@@ -607,7 +608,10 @@ contains
                      call geti(SPECDET(I))
                    end do
                 endif
-            
+            case("LOGICALNODESIZE")
+!Sets the Logical node size to this value, rather than using the physical node size.
+!Use to simulate a multi-node process on a single node.
+               call geti(iLogicalNodeSize)
             case("DEFINEDET")
 !This defines the reference determinant to be that specified in the input here, rather than the determinant 
 !chosen from the lowest energy orbitals.

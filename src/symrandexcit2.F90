@@ -2590,25 +2590,6 @@ SUBROUTINE SpinOrbSymSetup()
     enddo
 #endif
 
-!SymInvLabel takes the label (0 -> nSymLabels-1) of a spin orbital, and returns the inverse symmetry label, suitable for
-!use in ClassCountInd.
-    Allocate(SymInvLabel(0:nSymLabels-1))
-    do i=0,nSymLabels-1
-        if(tKPntSym) then
-            SymInvLabel(i)=SymConjTab(i+1)-1    !Change the sym label back to the representation used by the
-                                                                        !rest of the code, use SymConjTab, then change back to other 
-                                                                        !representation of the labels.
-        else
-            SymInvLabel(i)=i    !They are self-inverses
-        endif
-    enddo
-#ifdef __DEBUG
-    WRITE(6,*) "SymInvLabel: "
-    do i=0,nSymLabels-1
-        WRITE(6,*) i,SymInvLabel(i)
-    enddo
-#endif
-
     if(tKPntSym) then
         Allocate(SymTableLabels(0:nSymLabels-1,0:nSymLabels-1))
         SymTableLabels(:,:)=-9000    !To make it easier to track bugs
@@ -2632,15 +2613,54 @@ SUBROUTINE SpinOrbSymSetup()
                 SymTableLabels(j,i)=Lab-1
             enddo
         enddo
-!        WRITE(6,*) "SymTable:"
-!        do i=0,nSymLabels-1
-!            do j=0,nSymLabels-1
-!                WRITE(6,"(I6)",advance='no') SymTableLabels(i,j)
-!            enddo
-!            WRITE(6,*) ""
-!        enddo
+#ifdef __DEBUG
+        WRITE(6,*) "SymTable:"
+        do i=0,nSymLabels-1
+            do j=0,nSymLabels-1
+                WRITE(6,"(I6)",advance='no') SymTableLabels(i,j)
+            enddo
+            WRITE(6,*) ""
+        enddo
+#endif        
 
     endif
+!SymInvLabel takes the label (0 -> nSymLabels-1) of a spin orbital, and returns the inverse symmetry label, suitable for
+!use in ClassCountInd.
+    Allocate(SymInvLabel(0:nSymLabels-1))
+    SymInvLabel=-999
+    do i=0,nSymLabels-1
+        if(tKPntSym) then
+!            SymInvLabel(i)=SymConjTab(i+1)-1    !Change the sym label back to the representation used by the
+                                                 !rest of the code, use SymConjTab, then change back to other rep of labels 
+            !SymConjTab only works when all irreps are self-inverse. 
+            !Therefore, instead, we will calculate the inverses by just finding the symmetry which will give A1.
+            !Assume that label '0' is always the totally symmetric representation.
+            do j=0,nSymLabels-1
+                !Run through all labels to find what gives totally symmetric rep
+                if(SymTableLabels(i,j).eq.0) then
+                    if(SymInvLabel(i).ne.-999) then
+                        write(6,*) "SymLabel: ",i
+                        call stop_all(this_routine,"Multiple inverse irreps found - error")
+                    endif
+                    !This is the inverse
+                    SymInvLabel(i)=j
+                endif
+            enddo
+            if(SymInvLabel(i).eq.-999) then
+                write(6,*) "SymLabel: ",i
+                call stop_all(this_routine,"No inverse symmetry found - error")
+            endif
+        else
+            SymInvLabel(i)=i    !They are self-inverses
+        endif
+    enddo
+#ifdef __DEBUG
+    WRITE(6,*) "SymInvLabel: "
+    do i=0,nSymLabels-1
+        WRITE(6,*) i,SymInvLabel(i)
+    enddo
+#endif
+
 
     if(tISKFuncs) then
         write(6,*) "Setting up inverse orbital lookup for use with ISK functions..."
@@ -2697,7 +2717,7 @@ SUBROUTINE SpinOrbSymSetup()
             write(6,*) "However, through correct rotation of orbitals, all orbitals should be made real, and the code run in real mode (with tRotatedOrbsReal set)."
             write(6,*) "Alternatively, run again in complex mode without ISK functions."
             write(6,*) "If ISK functions are desired, the kpoint lattice must be shifted from this position."
-            call stop_all(this_routine,"All kpoints are self-inverse")
+!            call stop_all(this_routine,"All kpoints are self-inverse")
         endif
         write(6,*) "All inverse kpoint orbitals correctly assigned."
         write(6,*) "Orbital     Inverse Orbital"
