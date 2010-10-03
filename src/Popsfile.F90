@@ -57,7 +57,7 @@ MODULE PopsfileMod
 
         sendcounts=0
         disps=0
-        MaxSendIndex=0
+        MaxSendIndex=1
       
         call open_pops_head(iunit,formpops,binpops)
         IF(FormPops) THEN
@@ -100,6 +100,9 @@ MODULE PopsfileMod
             CALL LogMemAlloc('BatchRead',ReadBatch*(NIfTot+1),size_n_int,this_routine,BatchReadTag,ierr)
             write(6,*) "Reading in a maximum of ",ReadBatch," determinants at a time from POPSFILE."
             call flush(6)
+        else
+            allocate(BatchRead(0:NIfTot,1:MaxSendIndex),stat=ierr)
+            CALL LogMemAlloc('BatchRead',MaxSendIndex*(NIfTot+1),size_n_int,this_routine,BatchReadTag,ierr)
         endif
 
         CurrHF=0        !Number of HF walkers on each node.
@@ -189,10 +192,8 @@ MODULE PopsfileMod
             endif
         endif
 
-        if(iProcIndex.eq.Root) then
             deallocate(BatchRead)
             CALL LogMemDealloc(this_routine,BatchReadTag)
-        endif
 
         write(6,"(A,I8)") "Number of batches required to distribute all determinants in POPSFILE: ",nBatches
         write(6,*) "Number of configurations read in to this core: ",CurrWalkers 
