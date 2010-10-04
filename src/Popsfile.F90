@@ -426,7 +426,7 @@ MODULE PopsfileMod
         INTEGER, DIMENSION(lenof_sign) :: TempSign
 
         CALL MPIBarrier(error)  !sync
-!        WRITE(6,*) "Get Here"
+!        WRITE(6,*) "Get Here",nDets
 !        CALL FLUSH(6)
 
 !First, make sure we have up-to-date information - again collect AllTotWalkers,AllSumNoatHF and AllSumENum...
@@ -532,7 +532,8 @@ MODULE PopsfileMod
                 enddo
             ENDIF
 !            WRITE(6,*) "Written out own walkers..."
-!            CALL FLUSH(6)
+!            write(6,*) WalkersOnNodes
+            CALL FLUSH(6)
 
 !Now, we copy the head nodes data to a new array...
             nMaxDets=maxval(WalkersOnNodes)
@@ -545,7 +546,7 @@ MODULE PopsfileMod
 !Run through all other processors...receive the data...
                 j=WalkersonNodes(i)*(NIfTot+1)
                 CALL MPIRecv(Parts(0:NIfTot,1:WalkersonNodes(i)),j,NodeRoots(i),Tag,error)
-!                WRITE(6,*) "Recieved walkers for processor ",i
+!                WRITE(6,*) "Recieved walkers for processor ",i,WalkersOnNodes(i)
 !                CALL FLUSH(6)
                 
 !Then write it out...
@@ -562,7 +563,7 @@ MODULE PopsfileMod
                             do k=0,NIfTot-1
                                 WRITE(iunit,"(I24)",advance='no') Parts(k,j)
                             enddo
-                            WRITE(iunit,"(I24)") Dets(NIfTot,j)
+                            WRITE(iunit,"(I24)") Parts(NIfTot,j)
 !                            call extract_sign(Parts(:,j),TempSign)
 !                            WRITE(iunit,*) TempSign(:)
                         ENDIF
