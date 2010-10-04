@@ -684,6 +684,7 @@ subroutine CalcTotals (iNumExcitors,dTotAbsAmpl,dNorm,AL,iAmpList,nAmpl,dTol,Wal
    call MPIBcast(dTotAbsAmpl,Node)
    IFDEBUG(iDebug,2) WRITE(6,*) "N: ",dNorm
    IFDEBUG(iDebug,2) WRITE(6,*) "|T|: ",dTotAbsAmpl
+   IFDEBUG(iDebug,2) WRITE(6,*) "#non-zero excitors: ",iNumExcitors
 
 !  The total cluster wavefunction has the following structure
 !

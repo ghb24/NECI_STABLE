@@ -2410,7 +2410,14 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
 !          call extract_sign(DetList(:,j),TempSign)
 !          call SetAmpl(AL%Amplitude(j,iCurAmpList)=TempSign(1)
 !      enddo
-      call MPIBCast(nAmpl)
+      call MPIBCast(nAmpl,Node)
+      if(((.not.tSharedExcitors).and.NodeLengths(iNodeIndex)>1)) then
+         IFDEBUG(iDebug,2) write(6,*) "Synchronizing particle lists among processors on node"
+         call set_timer(CCMCComms1_time,20)
+         call MPIBCast(DetList(:,1:nAmpl),Node)
+         call halt_timer(CCMCComms1_time)
+      endif
+      write(6,*) nAmpl, " excitors on this node"
 !Find the HF det
       CALL BinSearchParts3(iLutHF,DetList,nAmpl,1,nAmpl,iRefPos,tS)
       if(tS) then
@@ -2567,8 +2574,8 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
       call MPIBarrier(ierr)
       IFDEBUG(iDebug,3.and.bNodeRoot.or.tSharedExcitors) THEN
          call WriteExcitorListP(6,DetList,0,nAmpl,dAmpPrintTol,"After Annihilation")
-         call MPIBarrier(ierr)
       endif
+      call MPIBarrier(ierr)
 
 
       IF(tHistSpawn.and.(mod(Iter,iWriteHistEvery).eq.1)) THEN
