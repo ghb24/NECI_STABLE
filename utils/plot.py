@@ -29,6 +29,7 @@ Arguments:
 	                    on the plot. Each line in the file gives a new line. The energy
 						may be followed by a name to put in the legend.
 	--no-projE, -P      Don't plot the projected energy
+	--eps, -p           Produce an eps output file, rather than outputting to screen
 	--print-ref-E, -r   Print the reference energies being used.
 	--repeat, -R        Repeat the plot every (arg, default=10) seconds. 
 	--split, -s         Plot walkers and energies in separate axes
@@ -73,13 +74,14 @@ class plotter:
 		self.legend_pos = None
 		self.plot_shift = True
 		self.plot_projE = True
+		self.eps_out = None
 
 	def proc_args (self, args):
 		'''Read in the command line options. For default arguments see __init__'''
 
 		# Use getopt to process the arguments
 		try:
-			opts, self.files = getopt.getopt(args, "htalE:efFWsI:O:cro:R:L:SP", ["help", "time", "average", "linear", "total-energy", "energy-limits=", "atom-first", "final", "no-walkers", "split", "iterations=", "output-file=", "reset-colours", "reset-colors", "print-ref-E", "E-other=", "repeat", "legend-pos", "no-shift", "no-projE"])
+			opts, self.files = getopt.getopt(args, "htalE:efFWsI:O:cro:R:L:SPp:", ["help", "time", "average", "linear", "total-energy", "energy-limits=", "atom-first", "final", "no-walkers", "split", "iterations=", "output-file=", "reset-colours", "reset-colors", "print-ref-E", "E-other=", "repeat", "legend-pos", "no-shift", "no-projE", "eps="])
 		except getopt.GetoptError, err:
 			print str(err)
 			usage()
@@ -166,6 +168,8 @@ class plotter:
 				self.plot_shift = False
 			elif o in ("-P", "--no-projE"):
 				self.plot_projE = False
+			elif o in ("-p", "--eps"):
+				self.eps_out = a
 			else:
 				assert False, "Unhandled Option"	
 
@@ -300,8 +304,16 @@ class plotter:
 
 		# Enable TeX output and set default line formatting
 		rc('text', usetex=True)
-		rc('lines', linewidth=1)
-		rc('legend', fontsize=rcParams['axes.labelsize'])
+		if self.eps_out:
+			rc('lines', linewidth=2)
+			rc('axes', labelsize=10)
+			rc('text', fontsize=10)
+			rc('legend', fontsize=10)
+			rc('xtick', labelsize=10)
+			rc('ytick', labelsize=10)
+		else:
+			rc('lines', linewidth=1)
+			rc('legend', fontsize=rcParams['axes.labelsize'])
 
 		# Generate the axes
 		new_plot = False
@@ -340,6 +352,7 @@ class plotter:
 		done_first = False
 		for fl in self.files:
 			file_start_col = self.num_lines
+			file_top_col = self.num_lines
 			with open(fl, 'r') as f:
 				it, sft, wlk, avProj, avSft, proj, atRef, itime = \
 						loadtxt (f, usecols=(0,1,4,8,9,10,11,15), unpack=True)
@@ -455,7 +468,10 @@ class plotter:
 		# Connect callback(s)
 		self.fig.canvas.mpl_connect('key_release_event', keypress_callback)
 
-		show()
+		if self.eps_out:
+			savefig(self.eps_out)
+		else:
+			show()
 
 ###########################################
 # Declare the plot object as global, so the callbacks can access it!
