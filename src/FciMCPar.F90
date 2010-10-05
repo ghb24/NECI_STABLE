@@ -110,9 +110,10 @@ MODULE FciMCParMod
         ! Initial output
         call WriteFciMCStatsHeader()
         ! Prepend a # to the initial status line so analysis doesn't pick up
-        ! repetitions in the FCIMCSTATS file from restarts.
+        ! repetitions in the FCIMCStats or INITIATORStats files from restarts.
 !        write (6,'("#")', advance='no')
         write (fcimcstats_unit,'("#")', advance='no')
+        write (initiatorstats_unit,'("#")', advance='no')
         call WriteFCIMCStats()
 
         ! Put a barrier here so all processes synchronise before we begin.
@@ -3213,7 +3214,12 @@ MODULE FciMCParMod
             end if
             IF(tTruncInitiator.or.tDelayTruncInit) THEN
                 initiatorstats_unit = get_free_unit()
-                OPEN(initiatorstats_unit,file='INITIATORStats',status='unknown',form='formatted')
+            	if (tReadPops) then
+		! Restart calculation.  Append to stats file (if it exists)
+                	OPEN(initiatorstats_unit,file='INITIATORStats',status='unknown',form='formatted',position='append')
+		else
+                	OPEN(initiatorstats_unit,file='INITIATORStats',status='unknown',form='formatted')
+		endif
             ENDIF
             IF(tLogComplexPops) THEN
                 ComplexStats_unit = get_free_unit()
