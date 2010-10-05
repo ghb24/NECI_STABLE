@@ -806,13 +806,16 @@ C..   loops, so C is zero.  Solve easily (Numerical Recipes)
             Z1=0.D0
             Z2=Q
             Z3=B/Q
-               CALCPATHS_3_=
-     &      CP3F(Z1,P,RHOII(0),RHOII(1),RHOII(2),RIJK,RIJ,RIK)
-     &               /((Z1-Z2)*(Z1-Z3))
-     &     +CP3F(Z2,P,RHOII(0),RHOII(1),RHOII(2),RIJK,RIJ,RIK)
-     &               /((Z2-Z1)*(Z2-Z3))
-     &     +CP3F(Z3,P,RHOII(0),RHOII(1),RHOII(2),RIJK,RIJ,RIK)
-     &               /((Z3-Z1)*(Z3-Z2))
+            call stop_all("Code", "Removed")
+C sds - Code removed due to mismatching number of arguments. I don't
+C know which ones are right (I blame AJWT?).
+C               CALCPATHS_3_=
+C     &      CP3F(Z1,P,RHOII(0),RHOII(1),RHOII(2),RIJK,RIJ,RIK)
+C     &               /((Z1-Z2)*(Z1-Z3))
+C     &     +CP3F(Z2,P,RHOII(0),RHOII(1),RHOII(2),RIJK,RIJ,RIK)
+C     &               /((Z2-Z1)*(Z2-Z3))
+C     &     +CP3F(Z3,P,RHOII(0),RHOII(1),RHOII(2),RIJK,RIJ,RIK)
+C     &               /((Z3-Z1)*(Z3-Z2))
          ELSE
             Q=(A*A-3.D0*B)/9.D0
             R=(A*(2.D0*A*A-9.D0*B)+27.D0*C)/54.D0
