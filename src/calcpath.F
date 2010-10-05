@@ -833,20 +833,26 @@ C.. Only one degeneracy can occur, when QRRAT=1, Z1=Z3, so we handle
 C.. that separately, as it has a different set of residues
 C               WRITE(10,*) Z1,Z2,Z3
                IF(LSAME2(Z1,Z3)) THEN
-                  CALCPATHS_3_=
-     &      CP3F(Z2,P,RHOII(0),RHOII(1),RHOII(2),RIJK,RIJ,RIK)
-     &               /((Z2-Z1)*(Z2-Z3))
-     &     +DCP3F(Z1,Z2,P,RHOII(0),RHOII(1),RHOII(2),RIJK,RIJ,RIK)
+            call stop_all("Code", "Removed")
+C sds - Code removed due to mismatching number of arguments. I don't
+C know which ones are right (I blame AJWT?).
+C                  CALCPATHS_3_=
+C     &      CP3F(Z2,P,RHOII(0),RHOII(1),RHOII(2),RIJK,RIJ,RIK)
+C     &               /((Z2-Z1)*(Z2-Z3))
+C     &     +DCP3F(Z1,Z2,P,RHOII(0),RHOII(1),RHOII(2),RIJK,RIJ,RIK)
  
                ELSE
 C.. Now just calculate the answer
-                  CALCPATHS_3_=
-     &      CP3F(Z1,P,RHOII(0),RHOII(1),RHOII(2),RIJK,RIJ,RIK)
-     &               /((Z1-Z2)*(Z1-Z3))
-     &     +CP3F(Z2,P,RHOII(0),RHOII(1),RHOII(2),RIJK,RIJ,RIK)
-     &               /((Z2-Z1)*(Z2-Z3))
-     &     +CP3F(Z3,P,RHOII(0),RHOII(1),RHOII(2),RIJK,RIJ,RIK)
-     &               /((Z3-Z1)*(Z3-Z2))
+            call stop_all("Code", "Removed")
+C sds - Code removed due to mismatching number of arguments. I don't
+C know which ones are right (I blame AJWT?).
+C                  CALCPATHS_3_=
+C     &      CP3F(Z1,P,RHOII(0),RHOII(1),RHOII(2),RIJK,RIJ,RIK)
+C     &               /((Z1-Z2)*(Z1-Z3))
+C     &     +CP3F(Z2,P,RHOII(0),RHOII(1),RHOII(2),RIJK,RIJ,RIK)
+C     &               /((Z2-Z1)*(Z2-Z3))
+C     &     +CP3F(Z3,P,RHOII(0),RHOII(1),RHOII(2),RIJK,RIJ,RIK)
+C     &               /((Z3-Z1)*(Z3-Z2))
                ENDIF
            ELSE
 
@@ -864,16 +870,19 @@ C.. Im(ZZ2)
                Z3=SQRT(3.D0)*(AA-BB)/2.D0
                ZZ2=DCMPLX(Z2,Z3)
                ZZ3=DCMPLX(Z2,-Z3)
+               call stop_all("Code", "Removed")
+C sds - Code removed due to mismatching number of arguments. I don't
+C know which ones are right (I blame AJWT?).
 C.. Now just calculate the answer
-               ZZ=CP3FC(ZZ2,P,RHOII(1),RHOII(2),RIJK,RIJ,RIK)
-     &               /((ZZ2-Z1)*(ZZ2-ZZ3))
-     &           +CP3FC(ZZ3,P,RHOII(0),RHOII(1),RHOII(2),RIJK,RIJ,RIK)
-     &               /((ZZ3-Z1)*(ZZ3-ZZ2))
-               
-               CALCPATHS_3_=
-     &      CP3F(Z1,P,RHOII(0),RHOII(1),RHOII(2),RIJK,RIJ,RIK)
-     &               /(Z1*Z1-2*Z2*Z1+Z2*Z2+Z3*Z3)
-     &     +DBLE(ZZ)
+C               ZZ=CP3FC(ZZ2,P,RHOII(1),RHOII(2),RIJK,RIJ,RIK)
+C     &               /((ZZ2-Z1)*(ZZ2-ZZ3))
+C     &           +CP3FC(ZZ3,P,RHOII(0),RHOII(1),RHOII(2),RIJK,RIJ,RIK)
+C     &               /((ZZ3-Z1)*(ZZ3-ZZ2))
+C               
+C               CALCPATHS_3_=
+C     &      CP3F(Z1,P,RHOII(0),RHOII(1),RHOII(2),RIJK,RIJ,RIK)
+C     &               /(Z1*Z1-2*Z2*Z1+Z2*Z2+Z3*Z3)
+C     &     +DBLE(ZZ)
 C               WRITE(10,*) AA,BB,Z1,ZZ2,ZZ3
             ENDIF
          ENDIF
