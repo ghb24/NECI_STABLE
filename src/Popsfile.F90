@@ -57,7 +57,7 @@ MODULE PopsfileMod
 
         sendcounts=0
         disps=0
-        MaxSendIndex=0
+        MaxSendIndex=1
       
         call open_pops_head(iunit,formpops,binpops)
         IF(FormPops) THEN
@@ -100,6 +100,9 @@ MODULE PopsfileMod
             CALL LogMemAlloc('BatchRead',ReadBatch*(NIfTot+1),size_n_int,this_routine,BatchReadTag,ierr)
             write(6,*) "Reading in a maximum of ",ReadBatch," determinants at a time from POPSFILE."
             call flush(6)
+        else
+            allocate(BatchRead(0:NIfTot,1:MaxSendIndex),stat=ierr)
+            CALL LogMemAlloc('BatchRead',MaxSendIndex*(NIfTot+1),size_n_int,this_routine,BatchReadTag,ierr)
         endif
 
         CurrHF=0        !Number of HF walkers on each node.
@@ -189,10 +192,8 @@ MODULE PopsfileMod
             endif
         endif
 
-        if(iProcIndex.eq.Root) then
             deallocate(BatchRead)
             CALL LogMemDealloc(this_routine,BatchReadTag)
-        endif
 
         write(6,"(A,I8)") "Number of batches required to distribute all determinants in POPSFILE: ",nBatches
         write(6,*) "Number of configurations read in to this core: ",CurrWalkers 
@@ -425,7 +426,7 @@ MODULE PopsfileMod
         INTEGER, DIMENSION(lenof_sign) :: TempSign
 
         CALL MPIBarrier(error)  !sync
-!        WRITE(6,*) "Get Here"
+!        WRITE(6,*) "Get Here",nDets
 !        CALL FLUSH(6)
 
 !First, make sure we have up-to-date information - again collect AllTotWalkers,AllSumNoatHF and AllSumENum...
@@ -531,7 +532,8 @@ MODULE PopsfileMod
                 enddo
             ENDIF
 !            WRITE(6,*) "Written out own walkers..."
-!            CALL FLUSH(6)
+!            write(6,*) WalkersOnNodes
+            CALL FLUSH(6)
 
 !Now, we copy the head nodes data to a new array...
             nMaxDets=maxval(WalkersOnNodes)
@@ -544,7 +546,7 @@ MODULE PopsfileMod
 !Run through all other processors...receive the data...
                 j=WalkersonNodes(i)*(NIfTot+1)
                 CALL MPIRecv(Parts(0:NIfTot,1:WalkersonNodes(i)),j,NodeRoots(i),Tag,error)
-!                WRITE(6,*) "Recieved walkers for processor ",i
+!                WRITE(6,*) "Recieved walkers for processor ",i,WalkersOnNodes(i)
 !                CALL FLUSH(6)
                 
 !Then write it out...
@@ -561,7 +563,7 @@ MODULE PopsfileMod
                             do k=0,NIfTot-1
                                 WRITE(iunit,"(I24)",advance='no') Parts(k,j)
                             enddo
-                            WRITE(iunit,"(I24)") Dets(NIfTot,j)
+                            WRITE(iunit,"(I24)") Parts(NIfTot,j)
 !                            call extract_sign(Parts(:,j),TempSign)
 !                            WRITE(iunit,*) TempSign(:)
                         ENDIF
