@@ -28,9 +28,12 @@ Arguments:
 	--E-other, -o       Plot the discrete energies in file E-file as horizontal lines
 	                    on the plot. Each line in the file gives a new line. The energy
 						may be followed by a name to put in the legend.
+	--no-projE, -P      Don't plot the projected energy
+	--eps, -p           Produce an eps output file, rather than outputting to screen
 	--print-ref-E, -r   Print the reference energies being used.
 	--repeat, -R        Repeat the plot every (arg, default=10) seconds. 
-	--split, -S         Plot walkers and energies in separate axes
+	--split, -s         Plot walkers and energies in separate axes
+	--no-shift, -S      Don't plot the shift
 	--time, -t          Plot using cumulative time rather than iteration on x-axis
 	--no-walkers, -W    Don't plot walker numbers
 '''
@@ -69,13 +72,16 @@ class plotter:
 		self.E_other = None
 		self.repeat = None
 		self.legend_pos = None
+		self.plot_shift = True
+		self.plot_projE = True
+		self.eps_out = None
 
 	def proc_args (self, args):
 		'''Read in the command line options. For default arguments see __init__'''
 
 		# Use getopt to process the arguments
 		try:
-			opts, self.files = getopt.getopt(args, "htalE:efFWSI:O:cro:R:L:", ["help", "time", "average", "linear", "total-energy", "energy-limits=", "atom-first", "final", "no-walkers", "split", "iterations=", "output-file=", "reset-colours", "reset-colors", "print-ref-E", "E-other=", "repeat", "legend-pos"])
+			opts, self.files = getopt.getopt(args, "htalE:efFWsI:O:cro:R:L:SPp:", ["help", "time", "average", "linear", "total-energy", "energy-limits=", "atom-first", "final", "no-walkers", "split", "iterations=", "output-file=", "reset-colours", "reset-colors", "print-ref-E", "E-other=", "repeat", "legend-pos", "no-shift", "no-projE", "eps="])
 		except getopt.GetoptError, err:
 			print str(err)
 			usage()
@@ -109,7 +115,7 @@ class plotter:
 				self.atom_first = True
 			elif o in ("-W", "--no-walkers"):
 				self.plot_walkers = False
-			elif o in ("-S", "--split"):
+			elif o in ("-s", "--split"):
 				self.split_plot = True
 			elif o in ("-I", "--iterations"):
 				limits = a.replace(',', ' ').split()
@@ -158,6 +164,12 @@ class plotter:
 					self.legend_pos = []
 					for i in range(len(positions)):
 						self.legend_pos.append(int(positions[i]))
+			elif o in ("-S", "--no-shift"):
+				self.plot_shift = False
+			elif o in ("-P", "--no-projE"):
+				self.plot_projE = False
+			elif o in ("-p", "--eps"):
+				self.eps_out = a
 			else:
 				assert False, "Unhandled Option"	
 
@@ -292,8 +304,16 @@ class plotter:
 
 		# Enable TeX output and set default line formatting
 		rc('text', usetex=True)
-		rc('lines', linewidth=1)
-		rc('legend', fontsize=rcParams['axes.labelsize'])
+		if self.eps_out:
+			rc('lines', linewidth=2)
+			rc('axes', labelsize=10)
+			rc('text', fontsize=10)
+			rc('legend', fontsize=10)
+			rc('xtick', labelsize=10)
+			rc('ytick', labelsize=10)
+		else:
+			rc('lines', linewidth=1)
+			rc('legend', fontsize=rcParams['axes.labelsize'])
 
 		# Generate the axes
 		new_plot = False
@@ -332,6 +352,7 @@ class plotter:
 		done_first = False
 		for fl in self.files:
 			file_start_col = self.num_lines
+			file_top_col = self.num_lines
 			with open(fl, 'r') as f:
 				it, sft, wlk, avProj, avSft, proj, atRef, itime = \
 						loadtxt (f, usecols=(0,1,4,8,9,10,11,15), unpack=True)
@@ -356,27 +377,40 @@ class plotter:
 					avProj = 2 * avProj
 					avSft = 2 * avSft
 
+				# Are we using cumulative time as one axis?
 				if self.x_cum_time:
 					x = cumulative_time(it, itime)
 				else:
 					x = it
 
+				# Plot the walker counts
 				if self.plot_walkers:
 					ax1.plot(x, wlk, self.get_colour(), label='No. Walkers')
 					ax1.plot(x, atRef, self.get_colour(), label='No. at Ref')
 
+				# Do we want the colours of each of the files to match between the
+				# walker and energy plots?
 				if self.reset_colours:
+					file_top_col = self.num_lines
 					self.num_lines = file_start_col
 
-				ax2.plot(x, proj, self.get_colour(), label='Proj. E')
-				ax2.plot(x, sft, self.get_colour(), label='Inst. Shift')
+				# Plot the energies
+				if self.plot_projE:
+					ax2.plot(x, proj, self.get_colour(), label='Proj. E')
+				if self.plot_shift:
+					ax2.plot(x, sft, self.get_colour(), label='Inst. Shift')
 
+				# Plot the final energy
 				if self.plot_E_final:
 					ax2.plot([x[0],x[len(x)-1]], [E_final, E_final], self.get_colour(), label='Final E')
 
-				if self.disp_avg:
+				# Plot the averages
+				if self.disp_avg and self.plot_projE:
 					ax2.plot(x, avProj, self.get_colour(), label='Av. Proj. E')
+				if self.disp_avg and self.plot_shift:
 					ax2.plot(x, avSft, self.get_colour(), label='Av. Shift')
+
+				self.num_lines = max(self.num_lines, file_top_col)
 
 		# Plot extra energy values as requested
 		if self.E_other:
@@ -434,7 +468,10 @@ class plotter:
 		# Connect callback(s)
 		self.fig.canvas.mpl_connect('key_release_event', keypress_callback)
 
-		show()
+		if self.eps_out:
+			savefig(self.eps_out)
+		else:
+			show()
 
 ###########################################
 # Declare the plot object as global, so the callbacks can access it!

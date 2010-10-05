@@ -584,8 +584,8 @@ contains
 
                 SumNoatHF = SumNoatHF * hfScaleFactor
                 if (iNodeIndex == DetermineDetNode(HFDet,0).and. bNodeRoot) then
-                    pos = binary_search (CurrentDets, iLutHF, NIfTot+1, &
-                                         int(TotWalkers,int32))
+                    pos = binary_search (CurrentDets(:,1:TotWalkers), &
+                                         iLutHF)
                     call extract_sign (CurrentDets(:,pos), hfsign)
                     do i = 1, lenof_sign
                         hfsign(i) = hfsign(i) * hfScaleFactor
