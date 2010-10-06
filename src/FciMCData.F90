@@ -25,11 +25,16 @@ MODULE FciMCData
       REAL*8 , POINTER :: CurrentH(:)
       INTEGER(KIND=n_int) , POINTER :: SpawnedParts(:,:),SpawnedParts2(:,:)
 
+      ! Be able to store a list of the current initiators
+      integer(n_int), allocatable :: CurrentInits(:,:)
+      integer :: max_inits, CurrentInitTag=0
+
       INTEGER :: NoAbortedInCAS,NoAbortedOutCAS,NoInCAS,NoOutCAS,HighPopNeg,HighPopPos,MaxInitPopNeg,MaxInitPopPos
 
     integer(int64) :: NoAborted, NoAddedInitiators, NoInitDets, NoNonInitDets
     integer(int64) :: NoInitWalk, NoNonInitWalk
     integer(int64) :: NoExtraInitDoubs, InitRemoved
+    integer :: no_spatial_init_dets
 
     integer(int64) :: AllNoAborted, AllNoAddedInitiators, AllNoInitDets
     integer(int64) :: AllNoNonInitDets, AllNoInitWalk, AllNoNonInitWalk
@@ -208,6 +213,10 @@ MODULE FciMCData
       type(c_ptr) :: ptr_iter_data
 
       integer :: yama_global (4)
+
+      !*****************  Yucky globals for AJWT iter-dependent hashes ***********
+      integer :: hash_iter       ! An iteration number added to make iteration-dependent hashes
+      integer :: hash_shift      ! -Ln_2 (Cycletime), where CycleTime is the average number of cycles until a det returns to its processor
       
       !*****************  Redundant variables ************************
     

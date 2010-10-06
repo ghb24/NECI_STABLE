@@ -112,7 +112,7 @@ module soft_exit
     use FCIMCLoggingMOD, only: PrintBlocking, RestartBlocking, &
                                PrintShiftBlocking_proc => PrintShiftBlocking,&
                                RestartShiftBlocking_proc=>RestartShiftBlocking
-    use AnnihilationMod, only: DetermineDetProc
+    use AnnihilationMod, only: DetermineDetNode
     use constants, only: lenof_sign, int32, dp
     use bit_reps, only: extract_sign,encode_sign
     use spin_project, only: tSpinProject, spin_proj_gamma, &
@@ -583,9 +583,9 @@ contains
                            hfScaleFactor
 
                 SumNoatHF = SumNoatHF * hfScaleFactor
-                if (iProcIndex == DetermineDetProc(HFDet)) then
-                    pos = binary_search (CurrentDets, iLutHF, NIfTot+1, &
-                                         int(TotWalkers,int32))
+                if (iNodeIndex == DetermineDetNode(HFDet,0).and. bNodeRoot) then
+                    pos = binary_search (CurrentDets(:,1:TotWalkers), &
+                                         iLutHF)
                     call extract_sign (CurrentDets(:,pos), hfsign)
                     do i = 1, lenof_sign
                         hfsign(i) = hfsign(i) * hfScaleFactor

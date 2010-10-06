@@ -361,7 +361,9 @@
     SUBROUTINE FlagifDetisInitiator(DetCurr)
         USE FciMCData , only : NoExtraInitDoubs,iLutRef,NoAddedInitiators,iLutHF,Iter
         USE FciMCParMOD , only : TestIfDetInCASBit
-        USE CalcData , only : tTruncCAS,tInitIncDoubs,tAddtoInitiator,InitiatorWalkNo
+        USE CalcData, only: tTruncCAS, tInitIncDoubs, tAddtoInitiator, &
+                            InitiatorWalkNo, tSpawnSpatialInit
+        use spatial_initiator, only: add_initiator_list
         USE DetBitOps , only : FindBitExcitLevel,DetBitEQ
         use bit_reps, only: extract_sign, encode_flags, set_flag, test_flag, &
                             flag_is_initiator, flag_make_initiator, clr_flag,&
@@ -396,6 +398,8 @@
                      test_flag (DetCurr, flag_make_initiator(part_type))) then
                 is_init = .true.
                 NoAddedInitiators = NoAddedInitiators + 1
+                if (tSpawnSpatialInit) &
+                    call add_initiator_list (DetCurr)
             else if (tInitIncDoubs) then
                 ! If the determinant is a double excitation of the reference 
                 ! det, it will be an initiator automatically

@@ -9,7 +9,9 @@ MODULE AnnihilationMod
     USE FciMCData
     use DetBitOps, only: DetBitEQ, DetBitLT, FindBitExcitLevel, ilut_lt, &
                          ilut_gt
-    use CalcData , only : tTruncInitiator
+    use spatial_initiator, only: add_initiator_list, rm_initiator_list, &
+                                 is_spatial_init
+    use CalcData , only : tTruncInitiator, tSpawnSpatialInit
     use Determinants, only: get_helement
     use hphf_integrals, only: hphf_diag_helement, hphf_off_diag_helement
     use sort_mod
@@ -68,11 +70,12 @@ MODULE AnnihilationMod
 
         IF(.not.(ALLOCATED(ValidSpawnedList))) THEN
 !This needs to be filled correctly before annihilation can take place.
-            ALLOCATE(ValidSpawnedList(0:nProcessors-1),stat=ierr)
+            ALLOCATE(ValidSpawnedList(0:nNodes-1),stat=ierr)
         ENDIF
+        call MPIBarrier(ierr)
         IF(.not.(ASSOCIATED(SpawnVecLocal))) THEN
 !This is required scratch space of the size of the spawned arrays
-            call shared_allocate_iluts("SpawnVecLocal",SpawnVecLocal,(/NIfTot,MaxSpawnInd/))
+            call shared_allocate_iluts("SpawnVecLocal",SpawnVecLocal,(/NIfTot,MaxSpawnInd/),iNodeIndex)
             ierr=0
             CALL LogMemAlloc('SpawnVecLocal',MaxSpawnInd*(NIfTot+1),size_n_int,this_routine,SpawnVec2Tag,ierr)
             call MPIBarrier(ierr)
@@ -81,7 +84,6 @@ MODULE AnnihilationMod
 !            CALL LogMemAlloc('SpawnSignVec2',MaxSpawnInd+1,size_n_int,this_routine,SpawnSignVec2Tag,ierr)
 !            SpawnSignVec2(:)=0
         ENDIF
-
 !ValidSpawnedList indicates the next free index for each processor.
 !For CCMC using shared memory, we will have a single processor on each node handling this.
 !Say there are 2 nodes with 4 processors on each.  ValidSpawnedList will contain
@@ -96,10 +98,10 @@ MODULE AnnihilationMod
 
 ! Since we've no way of knowing about nodes as yet, we just assume all processors are on the same node.  AJWT  TODO Multinodes.
 
-        ValidSpawnedList(0)=SpawnDets+1   !Add one since it always indicates the next free slot.
-        do i=1,nProcessors-1
-            ValidSpawnedList(i)=MaxSpawnInd
-        enddo 
+!        ValidSpawnedList(0)=SpawnDets+1   !Add one since it always indicates the next free slot.
+!        do i=1,nNodes-1
+!            ValidSpawnedList(i)=MaxSpawnInd
+!        enddo 
 
 !        TempSign=0
 !        do i=1,TotDets
@@ -115,7 +117,8 @@ MODULE AnnihilationMod
 !These point to the scratch space
         SpawnedParts2 => SpawnVecLocal
 
-        CALL DirectAnnihilation(TotDets, iter_data,.true.) !.true. for single processor annihilation
+!          CALL DirectAnnihilation(TotDets, iter_data,.true.) !.true. for single processor annihilation
+        CALL DirectAnnihilation(TotDets, iter_data,.false.) !.true. for single processor annihilation
 !        if(iProcIndex==root) then        
 !Signs put back again into seperate array
 !           do i=1,TotDets
@@ -145,6 +148,8 @@ MODULE AnnihilationMod
 
 !This routine will send all the newly-spawned particles to their correct processor. MaxIndex is returned as the new number of newly-spawned particles on the processor. May have duplicates.
 !The particles are now stored in SpawnedParts2/SpawnedSign2.
+!        call WriteExcitorListP2(6,SpawnedParts,InitialSpawnedSlots,ValidSpawnedList,0,"Local")
+!        if(bNodeRoot) 
         CALL SendProcNewParts(MaxIndex,tSingleProc)
 
 !        WRITE(6,*) "Sent particles"
@@ -169,12 +174,12 @@ MODULE AnnihilationMod
 
         CALL AnnihilateSpawnedParts(MaxIndex,TotWalkersNew, iter_data)  
 
-!        WRITE(6,*) "Annihilation finished",MaxIndex,TotWalkersNew
+ !       WRITE(6,*) "Annihilation finished",MaxIndex,TotWalkersNew
 
 !Put the surviving particles in the main list, maintaining order of the main list.
 !Now we insert the remaining newly-spawned particles back into the original list (keeping it sorted), and remove the annihilated particles from the main list.
         CALL set_timer(Sort_Time,30)
-        CALL InsertRemoveParts(MaxIndex,TotWalkersNew,tSingleProc)
+        CALL InsertRemoveParts(MaxIndex,TotWalkersNew)
 
 !       WRITE(6,*) "Surviving particles merged"
 
@@ -191,28 +196,33 @@ MODULE AnnihilationMod
         INTEGER :: MaxSendIndex
         INTEGER, INTENT(OUT) :: MaxIndex
         LOGICAL, intent(in) :: tSingleProc
+      
 
-!        WRITE(6,*) "ValidSpawnedList ",ValidSpawnedList(:)
         if(tSingleProc) then
 !Put all particles and gap on one proc.
 
-!ValidSpawnedList(0:nProcessors-1) indicates the next free index for each processor (for spawnees from this processor)
+!ValidSpawnedList(0:nNodes-1) indicates the next free index for each processor (for spawnees from this processor)
 !  i.e. the list of spawned particles has already been arranged so that newly spawned particles are grouped according to the processor they go to.
 
 ! sendcounts(1:) indicates the number of spawnees to send to each processor
 ! disps(1:) is the index into the spawned list of the beginning of the list to send to each processor (0-based)
            sendcounts(1)=ValidSpawnedList(0)-1
            disps(1)=0
-           if(nProcessors>1) then
-              sendcounts(2:nProcessors)=0
-              disps(2:nProcessors)=ValidSpawnedList(1)
+           if(nNodes>1) then
+              sendcounts(2:nNodes)=0
+              disps(2:nNodes)=ValidSpawnedList(1)
            endif
         else
 !Distribute the gaps on all procs
            do i=0,nProcessors-1
-               sendcounts(i+1)=ValidSpawnedList(i)-InitialSpawnedSlots(i)
+               if(NodeRoots(ProcNode(i))==i) then  !This is a root 
+                  sendcounts(i+1)=ValidSpawnedList(ProcNode(i))-InitialSpawnedSlots(ProcNode(i))
 ! disps is zero-based, but InitialSpawnedSlots is 1-based
-               disps(i+1)=InitialSpawnedSlots(i)-1
+                  disps(i+1)=InitialSpawnedSlots(ProcNode(i))-1
+               else
+                  sendcounts(i+1)=0
+                  disps(i+1)=disps(i)
+               endif
            enddo
         endif
 
@@ -220,7 +230,7 @@ MODULE AnnihilationMod
 !        WRITE(6,*) 'sendcounts',sendcounts
 !        WRITE(6,*) 'disps',disps
 
-        MaxSendIndex=ValidSpawnedList(nProcessors-1)-1
+        MaxSendIndex=ValidSpawnedList(nNodes-1)-1
 
 !We now need to calculate the recvcounts and recvdisps - this is a job for AlltoAll
         recvcounts(1:nProcessors)=0
@@ -266,7 +276,7 @@ MODULE AnnihilationMod
 !        enddo
 
 !Update the number of integers we need to send.
-!        do i=1,nProcessors
+!        do i=1,nNodes
 !            sendcounts(i)=sendcounts(i)*(NIfTot+1)
 !            disps(i)=disps(i)*(NIfTot+1)
 !            recvcounts(i)=recvcounts(i)*(NIfTot+1)
@@ -303,13 +313,18 @@ MODULE AnnihilationMod
 
 !We want to sort the list of newly spawned particles, in order for quicker binary searching later on. (this is not essential, but should proove faster)
 !They should remain sorted after annihilation between spawned
+        if(.not.bNodeRoot) return
+!        call WriteExcitorListP(6,SpawnedParts,0,ValidSpawned,0,"UnOrdered")
         call sort(SpawnedParts(:,1:ValidSpawned), ilut_lt, ilut_gt)
         IF(tHistSpawn) HistMinInd2(1:NEl)=FCIDetIndex(1:NEl)
 
-!        WRITE(6,*) "************ - Ordered",ValidSpawned,NIfTot,Iter
-!        do i=1,ValidSpawned
-!            WRITE(6,*) i,SpawnedParts(0:NIfTot-1,i),SpawnedParts(NIfTot,i)-2
-!        enddo
+!        call WriteExcitorListP(6,SpawnedParts,0,ValidSpawned,0,"Ordered")
+
+
+!!        WRITE(6,*) "************ - Ordered",ValidSpawned,NIfTot,Iter
+!!        do i=1,ValidSpawned
+!!            WRITE(6,*) i,SpawnedParts(0:NIfTot-1,i),SpawnedParts(NIfTot,i)-2
+!!        enddo
 
 !First, we compress the list of spawned particles, so that they are only specified at most once in each processors list.
 !During this, we transfer the particles from SpawnedParts to SpawnedParts2
@@ -419,12 +434,20 @@ MODULE AnnihilationMod
         SpawnedParts => PointTemp
 
 !        WRITE(6,*) "************************"
-!        WRITE(6,*) "Compressed List: ",ValidSpawned,DetsMerged
-!        do i=1,ValidSpawned
-!            WRITE(6,*) SpawnedParts(0:NIfTot-1,i),SpawnedParts(NIfTot,i)-2
-!        enddo
-!        WRITE(6,*) "***","iter_data%naborted: ",iter_data%naborted
-!        CALL FLUSH(6)
+!        call WriteExcitorListP(6,SpawnedParts,0,ValidSpawned,0,"Compressed Spawned")
+
+
+!!        WRITE(6,*) "Compressed List: ",ValidSpawned,DetsMerged
+!!        do i=1,ValidSpawned
+!!            WRITE(6,*) SpawnedParts(0:NIfTot-1,i),SpawnedParts(NIfTot,i)-2
+!!        enddo
+!!        WRITE(6,*) "************************"
+!!        WRITE(6,*) "Compressed List: ",ValidSpawned,DetsMerged
+!!        do i=1,ValidSpawned
+!!            WRITE(6,*) SpawnedParts(0:NIfTot-1,i),SpawnedParts(NIfTot,i)-2
+!!        enddo
+!!        WRITE(6,*) "***","iter_data%naborted: ",iter_data%naborted
+!!        CALL FLUSH(6)
         
     END SUBROUTINE CompressSpawnedList
 
@@ -568,6 +591,8 @@ MODULE AnnihilationMod
         INTEGER(KIND=n_int) , POINTER :: PointTemp(:,:)
         LOGICAL :: tSuccess,tSuc
 
+        if(.not.bNodeRoot) return  !Only node roots to do this.
+
         CALL set_timer(AnnMain_time,30)
 
 !MinInd indicates the minimum bound of the main array in which the particle can be found.
@@ -650,6 +675,8 @@ MODULE AnnihilationMod
                                     call set_flag (CurrentDets(:,PartInd), flag_is_initiator(j))
                                     call set_flag (CurrentDets(:,PartInd), flag_make_initiator(j))
                                     NoAddedInitiators = NoAddedInitiators + 1
+                                    if (tSpawnSpatialInit) &
+                                        call add_initiator_list (CurrentDets(:,PartInd))
                                 else
                                     ! If the residual particles were spawned from non-initiator 
                                     ! particles, abort them. Encode only the correct 'type'
@@ -694,6 +721,8 @@ MODULE AnnihilationMod
                                 call set_flag (CurrentDets(:,PartInd), flag_is_initiator(j))
                                 call set_flag (CurrentDets(:,PartInd), flag_make_initiator(j))
                                 NoAddedInitiators = NoAddedInitiators + 1
+                                if (tSpawnSpatialInit) &
+                                    call add_initiator_list (CurrentDets(:,PartInd))
                             endif
                         endif
 
@@ -713,6 +742,17 @@ MODULE AnnihilationMod
                 do j = 1, lenof_sign
                     if (.not. test_flag (SpawnedParts(:,i), flag_parent_initiator(j)) .and. &
                         .not. test_flag (SpawnedParts(:,i), flag_make_initiator(j))) then
+                        ! Are we allowing particles to survive if there is an
+                        ! initiator with the same spatial structure?
+                        ! TODO: optimise this. Only call it once?
+                        if (tSpawnSpatialInit) then
+                            if (is_spatial_init(SpawnedParts(:,i))) then
+                                call set_flag (SpawnedParts(:,i), &
+                                               flag_parent_initiator(j))
+                            endif
+                        endif
+
+
                         ! Walkers came from outside initiator space.
                         NoAborted = NoAborted + abs(SignTemp(j))
                         iter_data%naborted(j) = iter_data%naborted(j) + abs(SignTemp(j))
@@ -766,6 +806,7 @@ MODULE AnnihilationMod
             SpawnedParts => PointTemp
 
         ENDIF
+!        call WriteExcitorListP(6,SpawnedParts,0,ValidSpawned,0,"After zero-removal")
 
 !        WRITE(6,*) "After removal of zeros: "
 !        do i=1,ValidSpawned
@@ -797,7 +838,7 @@ MODULE AnnihilationMod
 !Binary searching can be used to speed up this transfer substantially.
 !The key feature which makes this work, is that it is impossible for the same determinant to be specified in both the spawned and main list at the end of
 !the annihilation process. Therefore we will not multiply specify determinants when we merge the lists.
-    SUBROUTINE InsertRemoveParts(ValidSpawned,TotWalkersNew,tSingleProc)
+    SUBROUTINE InsertRemoveParts(ValidSpawned,TotWalkersNew)
         use SystemData, only: tHPHF
         use bit_reps, only: NIfD
         use CalcData , only : tCheckHighestPop
@@ -806,11 +847,10 @@ MODULE AnnihilationMod
         INTEGER, DIMENSION(lenof_sign) :: CurrentSign,SpawnedSign
         REAL*8 :: HDiag
         LOGICAL :: TestClosedShellDet
-        LOGICAL, intent(in) ::tSingleProc
         HElement_t :: HDiagTemp
 
 !It appears that the rest of this routine isn't thread-safe if ValidSpawned is zero.
-        if(tSingleProc.and.iProcIndex/=root) return
+        if(.not.bNodeRoot) return
 !Annihilated determinants first are removed from the main array (zero sign). 
 !Surely we only need to perform this loop if the number of annihilated particles > 0?
         TotParts=0
@@ -826,6 +866,8 @@ MODULE AnnihilationMod
                             if (test_flag(CurrentDets(:,i),flag_parent_initiator(part_type))) then
                                 !determinant was an initiator...it obviously isn't any more...
                                 NoAddedInitiators=NoAddedInitiators-1.D0
+                                if (tSpawnSpatialInit) &
+                                    call rm_initiator_list (CurrentDets(:,i))
                             endif
                         enddo
                     ENDIF
@@ -938,16 +980,18 @@ MODULE AnnihilationMod
 
     END SUBROUTINE InsertRemoveParts
 
-    pure function DetermineDetProc (nI) result(proc)
+    pure function DetermineDetNode (nI, iIterOffset) result(node)
 
-        ! Depending on the Hash, determine which processor determinant nI
-        ! belongs to in the DirectAnnihilation scheme.
+        ! Depending on the Hash, determine which node determinant nI
+        ! belongs to in the DirectAnnihilation scheme. NB FCIMC has each processor as a separate logical node.
         !
         ! In:  nI   - Integer ordered list for the determinant
+        ! In:  iIterOffset - Offset this iteration by this amount
         ! Out: proc - The (0-based) processor index.
 
         integer, intent(in) :: nI(nel)
-        integer :: proc
+        integer, intent(in) :: iIterOffset
+        integer :: node
         
         integer :: i
         integer(int64) :: acc
@@ -955,9 +999,9 @@ MODULE AnnihilationMod
         acc = 0
         do i = 1, nel
             acc = (1099511628211_int64 * acc) + &
-                    (RandomHash(iand(nI(i), csf_orbital_mask)) * i)
+                    (ishft(RandomHash(iand(nI(i), csf_orbital_mask))+hash_iter+iIterOffset,hash_shift) * i)
         enddo
-        proc = abs(mod(acc, int(nProcessors, 8)))
+        node = abs(mod(acc, int(nNodes, 8)))
 
     end function
     

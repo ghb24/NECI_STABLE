@@ -68,6 +68,7 @@ contains
           MemoryFacPart=10.D0
           MemoryFacAnnihil=10.D0
           MemoryFacSpawn=0.5
+          MemoryFacInit = 0.3
           TStartSinglePart=.true.
           TFixParticleSign=.false.
           TProjEMP2=.false.
@@ -210,6 +211,7 @@ contains
           tFCIMCSerial=.false.  !If set we force the parallel version to run the serial code.
           tReadPopsChangeRef = .false.
           tReadPopsRestart = .false.
+          iLogicalNodeSize = 0 !Meaning use the physical node size
 
 !Feb 08 default set.
           IF(Feb08) THEN
@@ -227,6 +229,8 @@ contains
           spin_proj_cutoff = 0
           spin_proj_iter_count = 1
           tUseProcsAsNodes=.false.
+
+          tSpawnSpatialInit = .false.
       
         end subroutine SetCalcDefaults
 
@@ -604,7 +608,10 @@ contains
                      call geti(SPECDET(I))
                    end do
                 endif
-            
+            case("LOGICALNODESIZE")
+!Sets the Logical node size to this value, rather than using the physical node size.
+!Use to simulate a multi-node process on a single node.
+               call geti(iLogicalNodeSize)
             case("DEFINEDET")
 !This defines the reference determinant to be that specified in the input here, rather than the determinant 
 !chosen from the lowest energy orbitals.
@@ -959,6 +966,11 @@ contains
 !A parallel FCIMC option for use with ROTOANNIHILATION. This is the factor by which space will be made available for spawned particles each iteration. 
 !Several of these arrays are needed for the annihilation process. With ROTOANNIHILATION, MEMORYFACANNIHIL is redundant, but MEMORYFACPART still need to be specified.
                 CALL Getf(MemoryFacSpawn)
+            case("MEMORYFACINIT")
+                ! If we are maintaining a list of initiators on each
+                ! processor, this is the factor of InitWalkers which will be
+                ! used for the size
+                call getf(MemoryFacInit)
             case("REGENEXCITGENS")
 !An FCIMC option. With this, the excitation generators for the walkers will NOT be stored, and regenerated each time. This will be slower, but save on memory.
                 TRegenExcitGens=.true.
@@ -1223,6 +1235,12 @@ contains
                 ! How many times should the spin projection step be applied 
                 ! on each occasion it gets called? (default 1)
                 call geti (spin_proj_iter_count)
+
+            case("ALLOW-SPATIAL-INIT-SPAWNS")
+                ! If a determinant is an initiator, all spawns to other dets
+                ! with the same spatial structure should be allowed.
+                tSpawnSpatialInit = .true.
+                tSpatialOnlyHash = .true.
 
             case default
                 call report("Keyword "                                &

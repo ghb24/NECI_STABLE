@@ -18,8 +18,8 @@ MODULE FciMCParMod
     use bit_reps, only: NIfD, NIfTot, NIfDBO, NIfY, decode_bit_det, &
                         encode_bit_rep, encode_det, extract_bit_rep, &
                         test_flag, set_flag, extract_flags, &
-                        flag_is_initiator, clear_all_flags, set_flag_general, &
-                        extract_sign
+                        flag_is_initiator, clear_all_flags, set_flag_general,&
+                        extract_sign, nOffSgn
     use CalcData, only: InitWalkers, NMCyc, DiagSft, Tau, SftDamp, StepsSft, &
                         OccCASorbs, VirtCASorbs, tFindGroundDet, NEquilSteps,&
                         tReadPops, tRegenDiagHEls, iFullSpaceIter, MaxNoAtHF,&
@@ -31,7 +31,8 @@ MODULE FciMCParMod
                         tRetestAddtoInit, tReadPopsChangeRef, &
                         tReadPopsRestart, tCheckHighestPopOnce, &
                         iRestartWalkNum, tRestartHighPop, FracLargerDet, &
-                        tChangeProjEDet, tCheckHighestPop
+                        tChangeProjEDet, tCheckHighestPop, tSpawnSpatialInit,&
+                        MemoryFacInit
     use HPHFRandExcitMod, only: FindExcitBitDetSym, GenRandHPHFExcit, &
                                 gen_hphf_excit
     use Determinants, only: FDet, get_helement, write_det, &
@@ -58,7 +59,7 @@ MODULE FciMCParMod
     use csf, only: get_csf_bit_yama, iscsf, csf_orbital_mask, get_csf_helement
     use hphf_integrals, only: hphf_diag_helement, hphf_off_diag_helement, &
                               hphf_spawn_sign, hphf_off_diag_helement_spawn
-    use util_mod, only: choose,abs_int_sign,abs_int8_sign
+    use util_mod, only: choose, abs_int_sign, abs_int8_sign, binary_search
     use constants, only: dp, int64, n_int, lenof_sign
     use soft_exit, only: ChangeVars 
     use FciMCLoggingMod, only: FinaliseBlocking, FinaliseShiftBlocking, &
@@ -82,7 +83,6 @@ MODULE FciMCParMod
     contains
 
     SUBROUTINE FciMCPar(Weight,Energyxw)
-
         real(dp) :: Weight, Energyxw
         INTEGER :: error
         LOGICAL :: TIncrement,tWritePopsFound,tSoftExitFound,tSingBiasChange
@@ -111,9 +111,10 @@ MODULE FciMCParMod
         ! Initial output
         call WriteFciMCStatsHeader()
         ! Prepend a # to the initial status line so analysis doesn't pick up
-        ! repetitions in the FCIMCSTATS file from restarts.
+        ! repetitions in the FCIMCStats or INITIATORStats files from restarts.
 !        write (6,'("#")', advance='no')
         write (fcimcstats_unit,'("#")', advance='no')
+        write (initiatorstats_unit,'("#")', advance='no')
         call WriteFCIMCStats()
 
         ! Put a barrier here so all processes synchronise before we begin.
@@ -159,7 +160,7 @@ MODULE FciMCParMod
 
             s=etime(tend)
             IterTime=IterTime+(tend(1)-tstart(1))
-
+            
 !            IF(tBlockEveryIteration) THEN
 !                Inpair(1)=REAL(HFIter,dp)
 !                Inpair(2)=ENumIter
@@ -300,7 +301,7 @@ MODULE FciMCParMod
         CALL MPIReduce(TotWalkers,MPI_MIN,MinWalkers)
         CALL MPIAllReduce(Real(TotWalkers,dp),MPI_SUM,AllTotWalkers)
         if (iProcIndex.eq.Root) then
-            MeanWalkers=AllTotWalkers/nProcessors
+            MeanWalkers=AllTotWalkers/nNodes
             write (6,'(/,1X,a55)') 'Load balancing information based on the last iteration:'
             write (6,'(1X,a33,1X,f18.10)') 'Mean number of walkers/processor:',MeanWalkers
             write (6,'(1X,a32,1X,i18)') 'Min number of walkers/processor:',MinWalkers
@@ -681,13 +682,7 @@ MODULE FciMCParMod
         ! Next free position in newly spawned list.
         ValidSpawnedList = InitialSpawnedSlots
         
-        ! Reset iteration specific counts
-        ! n.b. this can be extracted to a separate function. This could even
-        !      be function-pointerised!
-        iter_data%nborn = 0
-        iter_data%ndied = 0
-        iter_data%nannihil = 0
-        iter_data%naborted = 0
+        call rezero_iter_stats_each_iter (iter_data)
         tot_parts_tmp = TotParts
 
         ! The processor with the HF determinant on it will have to check 
@@ -926,8 +921,7 @@ MODULE FciMCParMod
         integer :: proc, flags, j
         logical :: parent_init
 
-        proc = DetermineDetProc(nJ)    ! 0 -> nProcessors-1
-
+        proc = DetermineDetNode(nJ,0)    ! 0 -> nNodes-1)
         ! We need to include any flags set both from the parent and from the
         ! spawning steps
         flags = ior(parent_flags, extract_flags(ilutJ))
@@ -953,6 +947,7 @@ MODULE FciMCParMod
         ENDIF
 
         ValidSpawnedList(proc) = ValidSpawnedList(proc) + 1
+        
 
         ! Sum the number of created children to use in acceptance ratio.
         acceptances = acceptances + sum(abs(child))
@@ -985,8 +980,8 @@ MODULE FciMCParMod
         end if
 
         ! Are ony of the sublists near the end of their alloted space?
-        if (nProcessors > 1) then
-            do i = 0, nProcessors-1
+        if (nNodes > 1) then
+            do i = 0, nNodes-1
                 rat = real(ValidSpawnedList(i) - InitialSpawnedSlots(i),dp) /&
                              real(InitialSpawnedSlots(1), dp)
                 if (rat > 0.95) then
@@ -1004,6 +999,17 @@ MODULE FciMCParMod
                 call flush(6)
             endif
         endif
+
+        ! Are we near the end of the spatial initiator list
+        if (tSpawnSpatialInit) then
+            rat = real(no_spatial_init_dets) / real(max_inits)
+            if (rat > 0.95) then
+                write(6, '(a)') '*WARNING* - Number of spatial initiators has&
+                                & reached over 95% f max_inits.'
+                call flush(6)
+            endif
+        endif
+
     end subroutine
 
 
@@ -1038,6 +1044,8 @@ MODULE FciMCParMod
                     if (abs(CurrentSign(part_type)) > InitiatorWalkNo) then
                         parent_init = .true.
                         NoAddedInitiators = NoAddedInitiators + 1
+                        if (tSpawnSpatialInit) &
+                            call add_initiator_list (CurrentDets(:,j))
                     endif
                 elseif (tRetestAddToInit) then
                     ! The source determinant is already an initiator.            
@@ -1059,6 +1067,8 @@ MODULE FciMCParMod
                         ! removed.
                         parent_init = .false.
                         NoAddedInitiators = NoAddedInitiators - 1
+                        if (tSpawnSpatialInit) &
+                            call rm_initiator_list (CurrentDets(:,j))
                     endif
                 endif
             endif
@@ -1806,9 +1816,9 @@ MODULE FciMCParMod
 
 !        IF(iDie.ne.0) WRITE(6,*) "Death: ",iDie
         
-        IFDEBUGTHEN(FCIMCDebug,3) 
+        IFDEBUG(FCIMCDebug,3) then 
             if(sum(abs(iDie)).ne.0) write(6,"(A,2I4)") "Death: ",iDie(:)
-        ENDIFDEBUG
+        endif
 
         ! Update death counter
         iter_data%ndied = iter_data%ndied + min(iDie, abs(wSign))
@@ -1834,6 +1844,8 @@ MODULE FciMCParMod
                 iter_data%naborted(1) = iter_data%naborted(1) + abs(CopySign(1))
                 if(test_flag(iLutCurr,flag_is_initiator(1))) then
                     NoAddedInitiators=NoAddedInitiators-1.D0
+                    if (tSpawnSpatialInit) &
+                        call rm_initiator_list (ilutCurr)
                 endif
 
             ELSE
@@ -1846,6 +1858,8 @@ MODULE FciMCParMod
             ! All particles on this determinant have gone. If the determinant was an initiator, update the stats
             if(test_flag(iLutCurr,flag_is_initiator(1))) then
                 NoAddedInitiators=NoAddedInitiators-1.D0
+                if (tSpawnSpatialInit) &
+                    call rm_initiator_list (ilutCurr)
             endif
         endif
 #else
@@ -2539,9 +2553,9 @@ MODULE FciMCParMod
                ! Check how balanced the load on each processor is (even though
                ! we cannot load balance with direct annihilation).
                walkers_diff = MaxWalkersProc - MinWalkersProc
-               mean_walkers = AllTotWalkers / real(nProcessors,dp)
+               mean_walkers = AllTotWalkers / real(nNodes,dp)
                if (walkers_diff > nint(mean_walkers / 10.d0) .and. &
-                   sum(AllTotParts) > real(nProcessors * 500, dp)) then
+                   sum(AllTotParts) > real(nNodes * 500, dp)) then
                    root_write (6, '(a, f20.10, 2i12)') &
                        'Number of determinants assigned to each processor &
                        &unbalanced: ', (walkers_diff * 10.d0) / &
@@ -2720,8 +2734,7 @@ MODULE FciMCParMod
     end subroutine
 
     subroutine collate_iter_data (iter_data, tot_parts_new, tot_parts_new_all)
-
-        integer :: int_tmp(7+lenof_sign)
+        integer :: int_tmp(5+2*lenof_sign)
         HElement_t :: real_tmp(2)
         integer(int64) :: int64_tmp(9)
         type(fcimc_iter_data) :: iter_data
@@ -2849,7 +2862,7 @@ MODULE FciMCParMod
 ! AJWT dislikes doing this type of if based on a (seeminly unrelated) input option, but can't see another easy way.
 !  TODO:  Something to make it better
                 if(.not.tCCMC) then
-                    tot_walkers = int(InitWalkers, int64) * int(nProcessors,int64)
+                    tot_walkers = int(InitWalkers, int64) * int(nNodes,int64)
                 else
                     tot_walkers = int(InitWalkers, int64)
                 endif
@@ -2954,9 +2967,27 @@ MODULE FciMCParMod
     end subroutine
 
 
-    subroutine rezero_iter_stats (iter_data, tot_parts_new_all)
+    subroutine rezero_iter_stats_each_iter (iter_data)
+
+        type(fcimc_iter_data), intent(inout) :: iter_data
+
+        NoInitDets = 0
+        NoNonInitDets = 0
+        NoInitWalk = 0
+        NoNonInitWalk = 0
+        InitRemoved = 0
+
+        iter_data%nborn = 0
+        iter_data%ndied = 0
+        iter_data%nannihil = 0
+        iter_data%naborted = 0
+
+    end subroutine
+
+
+    subroutine rezero_iter_stats_update_cycle (iter_data, tot_parts_new_all)
         
-        type(fcimc_iter_data) :: iter_data
+        type(fcimc_iter_data), intent(inout) :: iter_data
         integer(int64), dimension(lenof_sign), intent(in) :: tot_parts_new_all
         
         ! Zero all of the variables which accumulate for each iteration.
@@ -2976,11 +3007,6 @@ MODULE FciMCParMod
 
         HFCyc = 0
         NoAborted = 0
-        NoInitDets = 0
-        NoNonInitDets = 0
-        NoInitWalk = 0
-        NoNonInitWalk = 0
-        InitRemoved = 0
 
         ! Reset TotWalkersOld so that it is the number of walkers now
         TotWalkersOld = TotWalkers
@@ -2989,32 +3015,10 @@ MODULE FciMCParMod
         ! Save the number at HF to use in the HFShift
         OldAllNoatHF = AllNoatHF
 
-        ! Also reinitialise the global variables
-        !  --> should not necessarily need to do this...
-        ! TODO: Remove these zeroes?
-        AllSumENum = 0
-        AllSumNoatHF = 0
+        ! Also the cumulative global variables
         AllTotWalkersOld = AllTotWalkers
         AllTotPartsOld = AllTotParts
         AllNoAbortedOld = AllNoAborted
-        AllTotWalkers = 0
-        AllTotParts = 0
-        AllGrowRate = 0
-        AllSumWalkersCyc = 0
-        AllAnnihilated = 0
-        AllNoatHF = 0
-        AllNoatDoubs = 0
-        AllNoBorn = 0
-        AllSpawnFromSing = 0
-        AllNoDied = 0
-        AllNoAborted = 0
-        AllNoAddedInitiators = 0
-        AllNoInitDets = 0
-        AllNoNonInitDets = 0
-        AllNoInitWalk = 0
-        AllNoNonInitWalk = 0
-        AllNoExtraInitDoubs = 0
-        AllInitRemoved = 0
 
         ! Reset the counters
         iter_data%update_growth = 0
@@ -3034,7 +3038,7 @@ MODULE FciMCParMod
         call population_check ()
         call update_shift (iter_data)
         call WriteFCIMCStats ()
-        call rezero_iter_stats (iter_data, tot_parts_new_all)
+        call rezero_iter_stats_update_cycle (iter_data, tot_parts_new_all)
 
     end subroutine calculate_new_shift_wrapper
 
@@ -3180,7 +3184,7 @@ MODULE FciMCParMod
         CHARACTER(len=*), PARAMETER :: this_routine='SetupParameters'
         CHARACTER(len=12) :: abstr
         LOGICAL :: tSuccess,tFoundOrbs(nBasis),FoundPair
-        INTEGER :: nSingles,nDoubles,HFLz,ChosenOrb,KPnt(3)
+        INTEGER :: nSingles,nDoubles,HFLz,ChosenOrb,KPnt(3), step
 
 !        CALL MPIInit(.false.)       !Initialises MPI - now have variables iProcIndex and nProcessors
         WRITE(6,*) ""
@@ -3215,7 +3219,12 @@ MODULE FciMCParMod
             end if
             IF(tTruncInitiator.or.tDelayTruncInit) THEN
                 initiatorstats_unit = get_free_unit()
-                OPEN(initiatorstats_unit,file='INITIATORStats',status='unknown',form='formatted')
+            	if (tReadPops) then
+		! Restart calculation.  Append to stats file (if it exists)
+                	OPEN(initiatorstats_unit,file='INITIATORStats',status='unknown',form='formatted',position='append')
+		else
+                	OPEN(initiatorstats_unit,file='INITIATORStats',status='unknown',form='formatted')
+		endif
             ENDIF
             IF(tLogComplexPops) THEN
                 ComplexStats_unit = get_free_unit()
@@ -3229,6 +3238,11 @@ MODULE FciMCParMod
         do i=1,NEl
             HFDet(i)=FDet(i)
         enddo
+
+!Init hash shifting data
+        hash_iter=0
+        hash_shift=0
+
         HFHash=CreateHash(HFDet)
         CALL GetSym(HFDet,NEl,G1,NBasisMax,HFSym)
         WRITE(6,"(A,I10)") "Symmetry of reference determinant is: ",INT(HFSym%Sym%S,4)
@@ -3433,11 +3447,16 @@ MODULE FciMCParMod
 
 !                WRITE(6,*) "Random Orbital Indexing for hash:"
 !                WRITE(6,*) RandomHash(:)
+            if (tSpatialOnlyHash) then
+                step = 2
+            else
+                step = 1
+            endif
             do i=1,nBasis
                 IF((RandomHash(i).eq.0).or.(RandomHash(i).gt.nBasis*1000)) THEN
                     CALL Stop_All(this_routine,"Random Hash incorrectly calculated")
                 ENDIF
-                do j=i+1,nBasis
+                do j = i+step, nBasis, step
                     IF(RandomHash(i).eq.RandomHash(j)) THEN
                         CALL Stop_All(this_routine,"Random Hash incorrectly calculated")
                     ENDIF
@@ -4704,12 +4723,21 @@ MODULE FciMCParMod
             ENDIF
         
             ! Get the (0-based) processor index for the HF det.
-            iHFProc = DetermineDetProc(HFDet)
+            iHFProc = DetermineDetNode(HFDet,0)
             WRITE(6,*) "HF processor is: ",iHFProc
 
             TotParts(:)=0
             TotPartsOld(:)=0
             NoatHF=0
+
+            if (tSpawnSpatialInit) then
+                max_inits = int(MemoryFacInit * INitWalkers)
+                no_spatial_init_dets = 0
+                allocate(CurrentInits(0:nIfTot, max_inits), stat=ierr)
+                call LogMemAlloc('CurrentInits', max_inits * (NIfTot+1), &
+                                 size_n_int, this_routine, CurrentInitTag, &
+                                 ierr)
+            endif
 
 !If we have a popsfile, read the walkers in now.
             if(tReadPops.and..not.tPopsAlreadyRead) then
@@ -4769,6 +4797,8 @@ MODULE FciMCParMod
                     if (tTruncInitiator) then
                         call set_flag (CurrentDets(:,1), flag_is_initiator(1))
                         call set_flag (CurrentDets(:,1), flag_is_initiator(2))
+                        if (tSpawnSpatialInit) &
+                            call add_initiator_list (CurrentDets(:,1))
                     endif
 
                     ! HF energy is equal to 0 (by definition)
@@ -4852,7 +4882,7 @@ MODULE FciMCParMod
         MaxInitPopNeg=0
 
         IF(MaxNoatHF.eq.0) THEN
-            MaxNoatHF=InitWalkers*nProcessors
+            MaxNoatHF=InitWalkers*nNodes
             HFPopThresh=MaxNoatHF
         ENDIF
 
@@ -5041,14 +5071,14 @@ MODULE FciMCParMod
 !            WRITE(6,"(A,I14)") "Memory allocated for a maximum particle number per node for spawning of: ",MaxSpawned
             
       WRITE(6,*) "*Direct Annihilation* in use...Explicit load-balancing disabled."
-      ALLOCATE(ValidSpawnedList(0:nProcessors-1),stat=ierr)
+      ALLOCATE(ValidSpawnedList(0:nNodes-1),stat=ierr)
       !InitialSpawnedSlots is now filled later, once the number of particles wanted is known
       !(it can change according to the POPSFILE).
-      ALLOCATE(InitialSpawnedSlots(0:nProcessors-1),stat=ierr)
+      ALLOCATE(InitialSpawnedSlots(0:nNodes-1),stat=ierr)
 !InitialSpawnedSlots now holds the first free position in the newly-spawned list for each processor, so it does not need to be reevaluated each iteration.
       MaxSpawned=NINT(MemoryFacSpawn*InitWalkers)
-      Gap=REAL(MaxSpawned)/REAL(nProcessors)
-      do j=0,nProcessors-1
+      Gap=REAL(MaxSpawned)/REAL(nNodes)
+      do j=0,nNodes-1
           InitialSpawnedSlots(j)=NINT(Gap*j)+1
       enddo
 !ValidSpawndList now holds the next free position in the newly-spawned list, but for each processor.
@@ -5062,6 +5092,8 @@ END MODULE FciMCParMod
     SUBROUTINE ChangeRefDet(DetCurr)
         use FciMCParMod
         use Determinants , only : GetH0Element3
+        use SystemData , only : NEl
+        IMPLICIT NONE
         INTEGER :: DetCurr(NEl),i
 
         do i=1,NEl
@@ -5092,7 +5124,8 @@ SUBROUTINE BinSearchParts2(iLut,MinInd,MaxInd,PartInd,tSuccess)
     use DetCalcData , only : FCIDets
     use DetBitOps, only: DetBitLT
     use constants, only: n_int
-    use bit_reps, only: NIfTot
+    use bit_reps, only: NIfTot,NIfDBO
+    IMPLICIT NONE
     INTEGER :: MinInd,MaxInd,PartInd
     INTEGER(KIND=n_int) :: iLut(0:NIfTot)
     INTEGER :: i,j,N,Comp

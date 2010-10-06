@@ -154,7 +154,7 @@ module Parallel
 #ifdef PARALLEL
    uSe MPI
 #endif
-   use ParallelHelper,  only: CommI, GetComm
+   use ParallelHelper,  only: CommI, GetComm, MPIErr
    use constants
    implicit none
 
@@ -178,6 +178,7 @@ module Parallel
         module procedure MPIBcast_lenroot_%(name)s
         module procedure MPIBcast_len_%(name)s
         module procedure MPIBcast_auto_%(name)s
+        module procedure MPIBcast_logic_%(name)s
     end interface
 
     interface MPISumAll
@@ -461,10 +462,36 @@ subroutine MPIBCast_auto (Values, Node)
     integer :: error
     type(CommI), intent(in),optional :: Node
     integer Comm,rt
+
 #if PARALLEL
     call GetComm(Comm,Node,rt)
     call MPI_BCAST (Values, %(mpilen)s, %(mpitype)s, rt, Comm, &
                     error)
+    if (error /= MPI_SUCCESS) then
+        call MPIErr(error)
+        call stop_all("MPIBCast", 'Error in MPI_BCAST. Terminating.')
+    endif
+#endif
+end subroutine
+
+subroutine MPIBCast_logic (Values, tMe, Node)
+
+    ! The same as MPIBcast_len, but the number of elements in values is 
+    ! determined automagically
+    !
+    ! In:    tMe    - Set to be true by the processor which is sending the info
+    ! InOut: Values - The data to broadcast, and the returned values
+
+    %(type1)s, intent(inout) :: Values()
+    logical, intent(in) :: tMe
+    integer :: error
+    type(CommI), intent(in),optional :: Node
+    integer Comm,rt,nrt
+#if PARALLEL
+    call GetComm(Comm,Node,rt,tMe)
+    call MPI_AllReduce(rt,nrt,1,MPI_INTEGER, MPI_MAX,Comm,error)  !Work out which processor is the root
+    call MPI_BCAST (Values, %(mpilen)s, %(mpitype)s, nrt, Comm, &
+      error)
     if (error /= MPI_SUCCESS) then
         call stop_all("MPIBCast", 'Error in MPI_BCAST. Terminating.')
     endif
@@ -824,7 +851,7 @@ supermodule Parallel
         end subroutine
    end interface
    save
-   integer iProcIndex,iProcMinE,iProcMaxE
+   integer iProcMinE,iProcMaxE
    integer nProcessors
 
 #ifndef PARALLEL
@@ -856,7 +883,8 @@ Subroutine MPIInit(tExternal)
    character*20 NodeFile
    logical, save :: initialised=.false.
 #if PARALLEL
-
+   nNodes=0  !Indicate we haven't setup nodes yet
+   CommGlobal=MPI_COMM_WORLD
    if (.not.initialised) then
 
        if(tExternal) then
@@ -909,7 +937,6 @@ Subroutine MPIInit(tExternal)
              write(6,*) "Processor ",iProcIndex+1,'/',nProcessors, ' on local output.'
           endif
           call GetProcElectrons(iProcIndex,iProcMinE,iProcMaxE) 
-          CommGlobal=MPI_COMM_WORLD
 !  Just synchronize everything briefly
           a=iProcIndex+1
           call MPISumAll(a,1,g)
@@ -930,10 +957,63 @@ Subroutine MPIInit(tExternal)
 end subroutine
 
 ! Create communicators for within and between each of the nodes
+! As yet a work in progress, but hopefully the structure is there and usable.
+! ParallelHelper.F90 contains various globals for this work.
 
+! A parallel job is parallellized over many cores (denoted processors here).
+! Various parallel architectures make it useful to introduce the concept of nodes,
+!  which are a group of processors with a (fast-access) shared memory space.  
+! These may be physical nodes (in which case all the cores on all the physical CPUs
+!  sharing the same motherboard and memory) would be grouped together into a node,
+!  or alternatively, may be subgroups of this set.
+! Currently nodes are determined as those cores which have the same hostname. 
+!  This is not overly portable, and will need to be customized for different parallel architectures.
+! Each node has a node root core designated.
+
+!
+!  With the concept of nodes comes the introduction of different levels of communicators.
+!   CommGlobal      is a synonym for MPI_COMM_WORLD and communicates between all cores
+!   CommNodes(i)    is the communicator for node i (zero-based)
+!   CommRoots       is the communicator between roots of all nodes
+!
+!  Explicit use of these shoudl be avoided, as almost all the MPI... functions in this module 
+!  take some optional arguments to make the communicator selction easier.
+!
+!  e.g.
+!    !The following work for most MPI... functions
+!    integer :: i
+!    MPIBCast(i)            !This will broadcast with CommGlobal
+!    MPIBCast(i,Node)       !This will broadcast with the communicator within each node
+!    if(bNodeRoot) then
+!       MPIBCast(i,Roots)   !Broadcast between roots of all nodes.  Remember the IF, otherwise horrors occur.
+!    endif                       ! (TODO: Perhaps the if should be put inside the MPIBCast?)
+!
+!
+!    !Now for BCast-specfic ones.
+!    MPIBCast(i,.true.)     !Broadcast to all cores from this core
+!    ! MPIBCast(i,.false.)  ! This should be on the other cores otherwise more horrors
+!    MPIBCast(i,.true.,Node)!Broadcast to the node from this code
+!    ! etc
+!
+!    Node is of the TYPE(CommI) which allows overloading of these functions. For actual indices, use
+!      iProcIndex       ! index of this Core.  0...(nProcessors-1)
+!      iNodeIndex       ! index of this node.  0...(nNodes-1)
+!      iIndexInNode     ! index of this core in this node.  0...(NodeLengths(iNodeIndex)-1)
+!      ProcNode(i)      ! The node which Core i is on
+!
+!    Currently FCIMCPar is setup to allocate one core per node.  This is a hack for the moment.
+!    There's a more sophisticated system of logical nodes, specified by CALC/LOGICALNODESIZE
+!    Shared memory has been modified to deal with this.  If shared memory within only a logical
+!    node is required use a form like
+!
+!      call shared_allocate_iluts("DetList",DetList,(/nIfTot,nMaxAmpl/),iNodeIndex)
+!
+!     where iNodeIndex is the logical node.  Otherwise shared memory is over physical nodes,
+!       irrespective of the logical node structure.
 
 subroutine MPINodes(tUseProcsAsNodes)
    use, intrinsic :: iso_c_binding
+   use CalcData, only : iLogicalNodeSize
    implicit none
    logical, intent(in) :: tUseProcsAsNodes !Set if we use Procs as Nodes.
    integer Group,i,j,n
@@ -947,8 +1027,12 @@ subroutine MPINodes(tUseProcsAsNodes)
    if(initialised) return
    initialised=.true.
    allocate(Nodes(0:nProcessors-1))
+   allocate(ProcNode(0:nProcessors-1))
    allocate(NodeRoots(0:nProcessors-1))
 #ifdef PARALLEL
+   allocate(NodeLengths(0:nProcessors))  !Temp allocate for now
+   NodeLengths=0
+   if(iLogicalNodeSize/=0) write(6,*)  "Using Logical Node Size ", iLogicalNodeSize
    if(tUseProcsAsNodes) then
       call MPI_Comm_Group(CommGlobal,Group,ierr)
       write(6,*) "Allocating each processor as a separate node."
@@ -957,6 +1041,7 @@ subroutine MPINodes(tUseProcsAsNodes)
          write(6,*) "Processor      Node"
          do i=0,nProcessors-1
             NodeRoots(nNodes)=i
+            ProcNode(i)=nNodes
             Nodes(i)%n=nNodes
             nNodes=nNodes+1
             write(6,"(2I10)") i,Nodes(i)%n
@@ -981,26 +1066,35 @@ subroutine MPINodes(tUseProcsAsNodes)
             Nodes(i)%n=-1
             do j=0,nNodes-1
                if (nms(i)==nms(NodeRoots(j))) then
-                  Nodes(i)%n=j
-                  exit
+                  if((iLogicalNodeSize==0).or.NodeLengths(j)< iLogicalNodeSize) then
+                     Nodes(i)%n=j
+                     ProcNode(i)=j
+                     NodeLengths(j)=NodeLengths(j)+1
+                     exit
+                  endif
                endif 
             enddo
             if (Nodes(i)%n==-1) then
                NodeRoots(nNodes)=i
                Nodes(i)%n=nNodes
+               ProcNode(i)=nNodes
+               NodeLengths(nNodes)=NodeLengths(nNodes)+1
                nNodes=nNodes+1
             endif
             write(6,"(2I10,A,A)") i,Nodes(i)%n," ",nms(i)
          enddo
       endif
    endif
+   deallocate(NodeLengths)
    call MPI_BCAST (nNodes, 1, MPI_INTEGER, root, CommGlobal, ierr)
    call MPI_BCAST (Nodes, nProcessors, MPI_INTEGER, root, CommGlobal, ierr)
+   call MPI_BCAST (ProcNode, nProcessors, MPI_INTEGER, root, CommGlobal, ierr)
    call MPI_BCAST (NodeRoots, nProcessors, MPI_INTEGER, root, CommGlobal, ierr)
-   allocate(NodeLengths(0:nNodes-1))
    allocate(CommNodes(0:nNodes-1))
    allocate(GroupNodes(0:nNodes-1))
+   allocate(NodeLengths(0:nNodes-1))
    Node=Nodes(iProcIndex)
+   iNodeIndex=Node%n  !Used as a plain integer version.
    if (iProcIndex==NodeRoots(Node%n)) then
       bNodeRoot=.true.
       write(6,*) "I am the node root for node ", Node%n
@@ -1011,6 +1105,7 @@ subroutine MPINodes(tUseProcsAsNodes)
       n=0
       do j=0,nProcessors-1
          if(Nodes(j)%n==i) then
+            if(j==iProcIndex) iIndexInNode=n 
             n=n+1
             GroupProc(n)=j
          endif
@@ -1019,8 +1114,14 @@ subroutine MPINodes(tUseProcsAsNodes)
       call MPI_Group_incl(Group,n,GroupProc,GroupNodes(i),ierr)  !Create a group 
       call MPI_Comm_Create(CommGlobal,GroupNodes(i),CommNodes(i),ierr) !Create the Communicator
    enddo
+   call MPI_Group_incl(Group,nNodes,NodeRoots,GroupRoots,ierr)  !Create a group 
+   call MPI_Comm_Create(CommGlobal,GroupRoots,CommRoot,ierr) !Create the Communicator
 #else
    nNodes=1
+   iIndexInNode=0
+   ProcNode(0)=0
+   NodeRoots(0)=0
+   bNodeRoot=.true.
    allocate(NodeLengths(0:nNodes-1))
    allocate(CommNodes(0:nNodes-1))
    allocate(GroupNodes(0:nNodes-1))
@@ -1100,11 +1201,13 @@ Subroutine GetProcElectrons(iProcIndex,iMinElec,iMaxElec)
 #endif
 end subroutine
 
-Subroutine MPIBarrier(error)
+Subroutine MPIBarrier(error,Node)
     INTEGER :: error
+    type(CommI), intent(in),optional :: Node
+    integer Comm
 #ifdef PARALLEL
-    CALL MPI_Barrier(MPI_COMM_WORLD,error)
+    call GetComm(Comm,Node)
+    CALL MPI_Barrier(Comm,error)
 #endif
 end subroutine
-
 end supermodule
