@@ -1654,19 +1654,6 @@ C.. If the new basis fn's in our original det or our new one, we loop again
          RETURN
       END
 
-      SUBROUTINE GETEXCITCOUNTSYM(INODE,NEL,NBASIS,G1,NBASISMAX,
-     &            KSYM,BRR,ICOUNT)
-         use SystemData, only: BasisFN
-         IMPLICIT NONE
-         INTEGER NEL,INODE(NEL),NBASIS,G1(*),nBasisMax(5,*)
-         INTEGER ICOUNT,BRR(NBASIS)
-         TYPE(BasisFN) KSYM
-         ICOUNT=0
-         CALL GENSYMDETSSD(INODE,KSYM,NEL,G1,BRR,NBASIS,0,
-     &        ICOUNT,NBASISMAX,0.D0,0,0,0,0,0,0,0,0,0.D0,0.D0,0.D0,0.D0,
-     &        0.D0,0.D0)
-         RETURN
-      END
 
       SUBROUTINE GENRANDOMSPINEXCIT(NI,NEL,G1,NBASIS,NBASISMAX,NEXCITS,
      &      ISEED,NJ)
@@ -2712,6 +2699,7 @@ C.. NB TMAT has sometimes been hidden in ZIA
          INTEGER ISEED,I_V
          INTEGER IPATH(NEL,0:I_V)
          REAL*8 RHOIJ(0:I_V,0:I_V)
+         REAL*8 RHOII(0:I_V)
          REAL*8 HIJS(0:I_V)
          REAL*8 ETILDE,WEIGHT
          REAL*8 OETILDE
@@ -2874,8 +2862,8 @@ C.. Now we have all the information we need to work out the weight of
 C.. the new graph
          WEIGHT=0.D0
          IF(IACC.NE.0)
-     &       WEIGHT=CALCPATHS_N(0.D0,NRHOIJ,I_V,I_HMAX,
-     &               I_P,0.D0,NEL,DBETA,ETILDE,NHIJS,ICLS)
+     &       WEIGHT=CALCPATHS_N(RHOII,NRHOIJ,I_V,I_HMAX,
+     &               I_P,0.D0,DBETA,ETILDE,NHIJS,ICLS)
 C.. we now accept or reject with the correct prob
 C.. Pacc(G'|G)=min(1,|w'(G')| Psel(k'|G') w(k)/ (|w(G)| Psel(k|G) w(k')))
          IF(ABS(WEIGHT).LT.WMIN) WEIGHT=0.D0
@@ -2971,6 +2959,7 @@ C..  (|w'(ijk)| Sum_(j' in G&j'-l) w1(j')/N(j'))/Sum_(j''in G) w1(j'')
          IMPLICIT NONE
          INTEGER I_V,NEL,IPATH(NEL,0:I_V)
          REAL*8 RHOIJ(0:I_V,0:I_V)
+         REAL*8 RHOII(0:I_V)
          REAL*8 HIJS(0:I_V),VWEIGHTS(2,0:I_V)
 #ifdef POINTER8
          INTEGER*8 VEXCITS(0:I_V)
@@ -3111,7 +3100,7 @@ C.. Now work out the weight of the new det
          WT1=(RH/RHOIJ(0,0))**(I_P*PFAC)
          WT2=1.D0/WT1
 C.. and the weight of the new graph
-         WEIGHT=CALCPATHS_N(0.D0,RHOIJ2,I_V+1,I_HMAX,
+         WEIGHT=CALCPATHS_N(RHOII,RHOIJ2,I_V+1,I_HMAX,
      &              I_P,0.D0,DBETA,ETILDE,HIJS2,ICLS)
          IF(ABS(WEIGHT).LT.WMIN) WEIGHT=0.D0
          PR=ABS((WEIGHT*WT2/(VWEIGHTS(2,I_V)+WT2-VWEIGHTS(2,0)))
@@ -3229,6 +3218,7 @@ C.  We choose the vertex to remove with prob rho_ii^-P (w2)
          REAL*8 ETILDERET,WEIGHTRET,DBETA
          INTEGER ITREE,IACC,ICLS,IOCLS
          REAL*8 WMIN
+         REAL*8 RHOII(0:I_V)
  
          LOGICAL AREDETSEXCITS
          REAL*8 CALCPATHS_N
@@ -3290,7 +3280,7 @@ C.. a new matrix without the removed det, and generate its weight.
                I2=I2+1
             ENDIF
          ENDDO      
-         WEIGHT=CALCPATHS_N(0.D0,RHOIJ2,I_V-1,I_HMAX,
+         WEIGHT=CALCPATHS_N(RHOII,RHOIJ2,I_V-1,I_HMAX,
      &              I_P,0.D0,DBETA,ETILDE,HIJS2,ICLS)
          IF(ABS(WEIGHT).LT.WMIN) WEIGHT=0.D0
          PR=ABS(WEIGHT*WTJ/(OWEIGHT*WTL))

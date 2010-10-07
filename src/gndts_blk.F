@@ -55,8 +55,7 @@ C.. we've found an occupied block
                   NBLOCKSTARTS(I)=OII+1
                   BLOCKSYM(I) = ISYM
                   IF(TGENFDET) THEN
-                     TDETSC=CALCT(NMRKS(1:NEL,OII+1),NEL,
-     &                 G1,NBASIS)
+                     TDETSC=CALCT(NMRKS(1:NEL,OII+1),NEL)
                      IF(TDETSC.LT.DETSC) THEN
                         IFDET=OII+1
                         DETSC=TDETSC
