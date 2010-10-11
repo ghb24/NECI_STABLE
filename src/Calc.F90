@@ -44,6 +44,7 @@ contains
 
 
 !       Calc defaults 
+          tMaxBloom=.false.
           iRestartWalkNum=0
           iWeightPopRead=0
           tCheckHighestPop=.false.
@@ -943,6 +944,9 @@ contains
 !This uses a modified hamiltonian, whereby all the positive off-diagonal hamiltonian matrix elements are zero. Instead, their diagonals are modified to change the
 !on-site death rate. Particles now have a fixed (positive) sign which cannot be changed and so no annihilation occurs.
                 TFixParticleSign=.true.
+            case("MAXBLOOMWARNONLY")
+                !This means that we only get a particle bloom warning if the bloom is larger than any previous blooming event.
+                tMaxBloom=.true.
             case("STARTSINGLEPART")
 !A FCIMC option - this will start the simulation with a single positive particle at the HF, and fix the shift at its initial value, until the number of particles gets to the INITPARTICLES value.
                 TStartSinglePart=.true.

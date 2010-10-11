@@ -32,7 +32,7 @@ MODULE FciMCParMod
                         tReadPopsRestart, tCheckHighestPopOnce, &
                         iRestartWalkNum, tRestartHighPop, FracLargerDet, &
                         tChangeProjEDet, tCheckHighestPop, tSpawnSpatialInit,&
-                        MemoryFacInit
+                        MemoryFacInit, tMaxBloom
     use HPHFRandExcitMod, only: FindExcitBitDetSym, GenRandHPHFExcit, &
                                 gen_hphf_excit
     use Determinants, only: FDet, get_helement, write_det, &
@@ -85,7 +85,7 @@ MODULE FciMCParMod
     SUBROUTINE FciMCPar(Weight,Energyxw)
         real(dp) :: Weight, Energyxw
         INTEGER :: error
-        LOGICAL :: TIncrement,tWritePopsFound,tSoftExitFound,tSingBiasChange
+        LOGICAL :: TIncrement,tWritePopsFound,tSoftExitFound,tSingBiasChange,tPrintWarn
         REAL(4) :: s,etime,tstart(2),tend(2)
         INTEGER(int64) :: MaxWalkers,MinWalkers
         real*8 :: AllTotWalkers,MeanWalkers,Inpair(2),Outpair(2)
@@ -175,15 +175,30 @@ MODULE FciMCParMod
 
                 ! Has there been a particle bloom this update cycle?
                 if(iProcIndex.eq.Root) then
-                    if ( abs(iPartBloom) > InitiatorWalkNo) then
+                    if(tMaxBloom) then
+                        ! Only print out warnings if it is a larger bloom that has been experienced before.
+                        if(abs(iPartBloom) > iMaxBloom) then
+                            if(abs(iPartBloom) > InitiatorWalkNo) tPrintWarn=.true.
+                            iMaxBloom=abs(iPartBloom)
+                        else
+                            tPrintWarn=.false.
+                        endif
+                    else
+                        if(abs(iPartBloom) > InitiatorWalkNo) then
+                            tPrintWarn=.true.
+                        else
+                            tPrintWarn=.false.
+                        endif
+                    endif
+                    if (tPrintWarn) then
                         write (6, bloom_warn_string, advance='no') abs(iPartBloom)
                         if (iPartBloom > 0) then
                             write (6, '("double excit.")')
                         else
                             write (6, '("single excit.")')
                         endif
-                        iPartBloom = 0 ! Max number spawned from an excitation
                     endif
+                    iPartBloom = 0 ! Max number spawned from an excitation
                 endif
 
                 ! Calculate the a new value for the shift (amongst other
@@ -1274,6 +1289,7 @@ MODULE FciMCParMod
                                 &iteration ", i14, ": A max of ", i8, &
                                 &"particles created in one attempt from ")'
         endif
+        iMaxBloom=0 !The largest bloom to date.
 
         ! Perform the correct statistics on new child particles
         if (tHistHamil) then
