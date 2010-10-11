@@ -52,9 +52,9 @@ C            IF(I_V.EQ.3) CALCPATHS=CP3CI2(RHOII,RHOIJ,I_P)
             WRITE(6,*) "I_HMAX>0"
             STOP 'WARNING: Running old disfunctional CALCPATHS I_HMAX>0'
       
-            CALCPATHS=CALCPATHS_R(IPATH,RHOII,RHOIJ,I_V,I_HMAX,I_P,
-     &               NWHTAY,I_HIND,NEL,IPATH2,IP2,1.D0,RHOII2,I_VMAX,
-     &               ILOGGING)
+C            CALCPATHS=CALCPATHS_R(IPATH,RHOII,RHOIJ,I_V,I_HMAX,I_P,
+C     &               NWHTAY,I_HIND,NEL,IPATH2,IP2,1.D0,RHOII2,I_VMAX,
+C     &               ILOGGING)
          ENDIF
          call halt_timer(proc_timer)
          RETURN
@@ -133,9 +133,9 @@ C            WRITE(6,*) "-----"
             WRITE(6,*) "I_HMAX=0"
             STOP 'WARNING: Running old disfunctional CALCPATHS I_HMAX=0'
             CALCPATHS=0.D0
-            IF(I_V.EQ.2) CALCPATHS=CALCPATHS_2(RHOII,RHOIJ,I_P)
-            IF(I_V.EQ.3) CALCPATHS=CALCPATHS_3(RHOII,RHOIJ,I_P)
-            IF(I_V.EQ.4) CALCPATHS=CALCPATHS_4(RHOII,RHOIJ,I_P)
+C            IF(I_V.EQ.2) CALCPATHS=CALCPATHS_2(RHOII,RHOIJ,I_P)
+C            IF(I_V.EQ.3) CALCPATHS=CALCPATHS_3(RHOII,RHOIJ,I_P)
+C            IF(I_V.EQ.4) CALCPATHS=CALCPATHS_4(RHOII,RHOIJ,I_P)
 C            IF(I_V.EQ.3) CALCPATHS=CP3CI2(RHOII,RHOIJ,I_P)
          ELSE
             WRITE(6,*) "I_HMAX>0"
@@ -242,111 +242,5 @@ C            WRITE(32,*) I_V,ICLASS,RHOC
          CALCP_N=0
          CALCP_SUM=0.d0
          CALCP_HSUM=0.d0
-      END
-
-      RECURSIVE REAL*8 FUNCTION CALCPATHS_R(IPATH,RHOII,RHOIJ,I_V,
-     &      I_HMAX,I_P,NWHTAY,I_HIND,NEL,IPATH2,IP2,RHOCUML,RHOII2,
-     &      I_VMAX,ILOGGING) RESULT (CALCPATHS_RRES)
-         use util_mod, only: NECI_ICOPY
-         IMPLICIT REAL*8 (A-H,O-Z)
-         INTEGER NEL,I_V,I_P,NWHTAY,I_HMAX,I_VMAX
-C.. IPATH contains the vertices we can choose from
-C.. IPATH2 contains the path we are constructing (listing the dets)
-C.. IP2 contains the path we are constructing as an index into IPATH
-         INTEGER IPATH(1:NEL,0:I_V),IPATH2(1:NEL,0:I_HMAX),IP2(0:I_HMAX)
-         INTEGER IP1(0:I_V)
-C.. RHOII contains the RHO_II for each vertex.
-C.. RHOII2 is constructed to contain the RHOII for each point in the path
-         REAL*8 RHOII(0:I_V),RHOIJ(0:I_V,0:I_V),TOTAL,RHOCUML,RH
-         REAL*8 RHOII2(0:I_HMAX),T2
-         INTEGER I_HIND,I,J,TOT
-         TOTAL=0.D0
-c           WRITE(10,"A$") "{{"
-c           DO J=0,I_HIND-1
-c              WRITE(10,"A$") "("
-c              DO K=1,NEL
-c                 WRITE(10,"I3,A$") IPATH2(K,J),","
-c              ENDDO
-c              WRITE(10,"A$") "),"
-c           ENDDO
-c           WRITE(10,*) "}}"
-C.. We need to sum over all permutations of IJK...L which are valid, up to a
-C.. length I_HMAX.  We do this crudely here.  Slight optimizations are possible
-         IF(I_HIND.EQ.0) THEN
-C.. first node must be I
-            CALL NECI_ICOPY(NEL,IPATH(1:NEL,0),1,
-     &                     IPATH2(1:NEL,0),1)
-            IP2(0)=0
-            RHOII2(0)=RHOII(0)
-            TOTAL=TOTAL+CALCPATHS_R(IPATH,RHOII,RHOIJ,I_V,I_HMAX,
-     &               I_P,NWHTAY,1,NEL,IPATH2,IP2,RHOCUML,RHOII2,I_VMAX,
-     &               ILOGGING)
-         ELSE
-            DO I=0,I_V-1
-C.. we can't have two successive nodes the same
-               IF(IP2(I_HIND-1).NE.I) THEN
-                  RH=RHOIJ(IP2(I_HIND-1),I)
-                  IF(RH.NE.0.D0) THEN
-C.. we try all possible vertices in this position.  If one happens to be I
-C.. then we calculate the Z-sum for that, and add it into the total.  We then
-C.. recurse to the next node if we're below I_HMAX)
-                     CALL NECI_ICOPY(NEL,IPATH(1:NEL,I),1,
-     &                     IPATH2(1:NEL,I_HIND),1)
-                     IP2(I_HIND)=I
-                     RHOII2(I_HIND)=RHOII(I)
-                     IF(I.EQ.0) THEN
-C.. need to check we have used all the vertices at least once
-                        DO J=0,I_V
-                           IP1(J)=0
-                        ENDDO
-                        TOT=0
-                        DO J=0,I_HIND
-                           IF(IP1(IP2(J)).EQ.0) THEN
-                              IP1(IP2(J))=1
-                              TOT=TOT+1
-                           ENDIF
-                        ENDDO
-                        IF(TOT.EQ.I_V) THEN
-C.. do the Z-sum
-                           T2=CALCPATH7(IPATH2,RHOII2,RHOCUML*RH,I_HIND,
-     &                        I_P,NWHTAY)
-                           TOTAL=TOTAL+T2
-         IF(BTEST(ILOGGING,4)) THEN
-            WRITE(10,"(A)",advance='no') "{"
-            DO J=0,I_HIND
-               WRITE(10,"(A)",advance='no') "("
-               DO K=1,NEL
-                  WRITE(10,"(I3,A)",advance='no') IPATH2(K,J),","
-               ENDDO
-               WRITE(10,"(A)",advance='no') "),"
-            ENDDO
-            WRITE(10,"(A)",advance='no') "}"
-            IF(BTEST(ILOGGING,5)) THEN
-               WRITE(10,"(A)",advance='no') "("
-               WRITE(10,"(E25.16,A)",advance='no') 1.D0,","
-               DO J=1,I_HIND-1
-                  WRITE(10,"(E25.16,A)",advance='no')
-     &                                       RHOIJ(IP2(J),IP2(J-1)),","
-               ENDDO
-               WRITE(10,"(E25.16)",advance='no')
-     &                                      RHOIJ(IP2(0),IP2(I_HIND-1))
-               WRITE(10,*) ")"
-            ENDIF
-            WRITE(10,*) T2
-         ENDIF
-                        ENDIF
-                     ENDIF
-                     IF(I_HIND.LT.I_HMAX) THEN
-                        TOTAL=TOTAL+
-     &                     CALCPATHS_R(IPATH,RHOII,RHOIJ,I_V,I_HMAX,
-     &                    I_P,NWHTAY,I_HIND+1,NEL,IPATH2,IP2,RHOCUML*RH,
-     &                     RHOII2,I_VMAX,ILOGGING)
-                     ENDIF
-                  ENDIF
-               ENDIF
-            ENDDO
-         ENDIF
-         CALCPATHS_RRES=TOTAL
-         RETURN
       END
 
