@@ -173,6 +173,19 @@ MODULE FciMCParMod
 
             if (mod(Iter, StepsSft) == 0) then
 
+                ! Has there been a particle bloom this update cycle?
+                if(iProcIndex.eq.Root) then
+                    if ( abs(iPartBloom) > InitiatorWalkNo) then
+                        write (6, bloom_warn_string, advance='no') abs(iPartBloom)
+                        if (iPartBloom > 0) then
+                            write (6, '("double excit.")')
+                        else
+                            write (6, '("single excit.")')
+                        endif
+                        iPartBloom = 0 ! Max number spawned from an excitation
+                    endif
+                endif
+
                 ! Calculate the a new value for the shift (amongst other
                 ! things). Generally, collate information from all processors,
                 ! update statistics and output them to the user.
@@ -678,7 +691,6 @@ MODULE FciMCParMod
         VecSlot = 1    ! Next position to write into CurrentDets
         NoatHF = 0     ! Number at HF and doubles for stats
         NoatDoubs = 0
-        iPartBloom = 0 ! Max number spawned from an excitation
         ! Next free position in newly spawned list.
         ValidSpawnedList = InitialSpawnedSlots
         
@@ -895,8 +907,10 @@ MODULE FciMCParMod
 
         if (ic == 1) SpawnFromSing = SpawnFromSing + sum(abs(child))
 
-        if (sum(abs(child)) > abs(iPartBloom)) then
-            iPartBloom = sign(sum(abs(child)), 2*ic - 3)
+        if(iProcIndex.eq.Root) then
+            if (sum(abs(child)) > abs(iPartBloom)) then
+                iPartBloom = sign(sum(abs(child)), 2*ic - 3)
+            endif
         endif
 
         ! Avoid compiler warnings
@@ -960,16 +974,6 @@ MODULE FciMCParMod
         integer, intent(in) :: totWalkersNew
         integer :: i
         real(dp) :: rat
-
-        ! Has there been a particle bloom this iteration?
-        if ( abs(iPartBloom) > InitiatorWalkNo) then
-            write (6, bloom_warn_string, advance='no') iter, abs(iPartBloom)
-            if (iPartBloom > 0) then
-                write (6, '("double excit.")')
-            else
-                write (6, '("single excit.")')
-            endif
-        endif
 
         ! Too many particles?
         rat = real(TotWalkersNew,dp) / real(MaxWalkersPart,dp)
@@ -1260,9 +1264,9 @@ MODULE FciMCParMod
 
         ! What message should we display for a particle bloom?
         if (tAddToInitiator) then
-            bloom_warn_string = '("Particle blooms of more than n_add in &
-                                &iteration ", i14, ": A max of ", i8, &
-                                &"particles created in one attempt from ")'
+            bloom_warn_string = '("Bloom of more than n_add: &
+                                &A max of ", i8, &
+                                &"particles created from ")'
         else
             ! Use this variable to store the bloom cutoff level.
             InitiatorWalkNo = 25

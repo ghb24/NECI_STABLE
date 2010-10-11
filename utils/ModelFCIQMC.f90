@@ -302,7 +302,7 @@ SUBROUTINE SetUpKMat(NDet,KMat)
                     KMat(i,j)=-OffDiagEl
                     KMat(j,i)=-OffDiagEl
                 ELSE
-                    !Matrix element is positive with probability 0.49
+                    !Matrix element is positive with probability 0.51
                     KMat(i,j)=OffDiagEl
                     KMat(j,i)=OffDiagEl
                 ENDIF
