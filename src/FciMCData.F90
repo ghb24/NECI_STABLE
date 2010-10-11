@@ -176,6 +176,7 @@ MODULE FciMCData
       integer(int64) :: MaxWalkersProc, MinWalkersProc
 
       TYPE(BasisFN) :: HFSym
+      integer :: iMaxBloom !If tMaxBloom is on, this stores the largest bloom to date.
 
 
       ! ********************** FCIMCPar control variables *****************

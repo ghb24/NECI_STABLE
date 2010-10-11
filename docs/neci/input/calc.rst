@@ -811,6 +811,13 @@ The following options are only available in **FCIMC** calculations:
     the number of singles in the total excitations term is multiplied by SinglesBias. Alternatively,
     SinglesBias can be set to less than 1 to bias towards doubles.
 
+**MAXBLOOMWARNONLY**
+    Default .false.
+
+    If this is set, then the FCIMC output will only print a warning if a particle bloom represents the 
+    largest particle bloom to date. Otherwise, this warning will be supressed. Useful if you want to
+    set tau such that the blooms are ever present.
+
 **FINDGROUNDDET**
     Default=.false.
 
