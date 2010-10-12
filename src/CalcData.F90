@@ -34,6 +34,8 @@ logical :: tSpatialOnlyHash
 ! with the same spatial configuration is an initiator?
 logical :: tSpawnSpatialInit
 
+logical :: tMaxBloom    !If this is on, then we only print out a bloom warning if it is the biggest to date.
+
 INTEGER :: NWHTAY(3,10),NPATHS,NoMoveDets,NoMCExcits,IterTruncInit,InitiatorWalkNo,NShiftEquilSteps
 INTEGER :: NDETWORK,I_HMAX,I_VMAX,G_VMC_SEED,HApp,iFullSpaceIter
 INTEGER :: IMCSTEPS,IEQSTEPS,MDK(5),Iters,NDets,iDetGroup
