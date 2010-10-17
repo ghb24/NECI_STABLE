@@ -2997,6 +2997,8 @@ MODULE FciMCParMod
         NoNonInitWalk = 0
         InitRemoved = 0
 
+        NoAborted = 0
+
         iter_data%nborn = 0
         iter_data%ndied = 0
         iter_data%nannihil = 0
@@ -3026,7 +3028,6 @@ MODULE FciMCParMod
         ! ProjEIter = 0
 
         HFCyc = 0
-        NoAborted = 0
 
         ! Reset TotWalkersOld so that it is the number of walkers now
         TotWalkersOld = TotWalkers
@@ -3085,8 +3086,8 @@ MODULE FciMCParMod
 !Print out initial starting configurations
             WRITE(6,*) ""
             IF(tTruncInitiator.or.tDelayTruncInit) THEN
-                WRITE(initiatorstats_unit,"(A2,A10,2A16,2A16,1A20,6A18)") "# ","1.Step","2.No Aborted","3.NoAddedtoInit","4.FracDetsInit","5.FracWalksInit","6.InstAbortShift",&
-&               "7.NoInit","8.NoNonInit"
+                WRITE(initiatorstats_unit,"(A2,A10,10A20)") "# ","1.Step","2.TotWalk","3.Annihil","4.Died","5.Born","6.TotUniqDets",&
+&               "7.InitDets","8.NonInitDets","9.InitWalks","10.NonInitWalks","11.AbortedWalks"
             ENDIF
             IF(tLogComplexPops) THEN
                 WRITE(complexstats_unit,"(A)") '#   1.Step  2.Shift     3.RealShift     4.ImShift   5.TotParts      6.RealTotParts      7.ImTotParts'
@@ -3155,13 +3156,11 @@ MODULE FciMCParMod
 #endif
 
             if (tTruncInitiator .or. tDelayTruncInit) then
-               write(initiatorstats_unit,"(I12,2I15,2G16.7,3F18.7)")&
-                   Iter + PreviousCycles, AllNoAborted, AllNoAddedInitiators,&
-                   real(AllNoInitDets) / real(AllNoNonInitDets), &
-                   real(AllNoInitWalk) / real(AllNoNonInitWalk), &
-                   DiagSftAbort, &
-                   AllNoInitDets / real(StepsSft), &
-                   AllNoNonInitDets / real(StepsSft)
+               write(initiatorstats_unit,"(I12,10I20)")&
+                   Iter + PreviousCycles, sum(AllTotParts), &
+                   AllAnnihilated, AllNoDied, AllNoBorn, AllTotWalkers,&
+                   AllNoInitDets, AllNoNonInitDets, AllNoInitWalk, &
+                   AllNoNonInitWalk,AllNoAborted
             endif
 
             if (tLogComplexPops) then
@@ -3569,14 +3568,14 @@ MODULE FciMCParMod
         SumDiagSft=0.D0
         SumDiagSftAbort=0.D0
         AvDiagSftAbort=0.D0
-        NoAborted=0.D0
-        NoAddedInitiators=0.D0
-        NoInitDets=0.D0
-        NoNonInitDets=0.D0
-        NoInitWalk=0.D0
-        NoNonInitWalk=0.D0
-        NoExtraInitDoubs=0.D0
-        InitRemoved=0.D0
+        NoAborted=0
+        NoAddedInitiators=0
+        NoInitDets=0
+        NoNonInitDets=0
+        NoInitWalk=0
+        NoNonInitWalk=0
+        NoExtraInitDoubs=0
+        InitRemoved=0
         TotImagTime=0.D0
         DiagSftRe=0.D0
         DiagSftIm=0.D0
@@ -3601,14 +3600,14 @@ MODULE FciMCParMod
 !        AllDetsNorm=0.D0
         CullInfo(1:10,1:3)=0
         NoCulls=0
-        AllNoAborted=0.D0
-        AllNoAddedInitiators=0.D0
-        AllNoInitDets=0.D0
-        AllNoNonInitDets=0.D0
-        AllNoInitWalk=0.D0
-        AllNoNonInitWalk=0.D0
-        AllNoExtraInitDoubs=0.D0
-        AllInitRemoved=0.D0
+        AllNoAborted=0
+        AllNoAddedInitiators=0
+        AllNoInitDets=0
+        AllNoNonInitDets=0
+        AllNoInitWalk=0
+        AllNoNonInitWalk=0
+        AllNoExtraInitDoubs=0
+        AllInitRemoved=0
 
         ! Initialise the fciqmc counters
         iter_data_fciqmc%update_growth = 0
