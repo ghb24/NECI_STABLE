@@ -1,5 +1,9 @@
 MODULE Logging
 
+    use input
+    use MemoryManager, only: LogMemAlloc, LogMemDealloc
+    use SystemData, only: nel
+
     IMPLICIT NONE
     Save
 
@@ -26,6 +30,10 @@ MODULE Logging
     LOGICAL :: tBlockEveryIteration
     LOGICAL tLogDets       ! Write out the DETS and SymDETS files.
     LOGICAL tLogComplexPops     ! Write out complex walker information 
+
+    ! Should we histogram the distribution of spin dets within a given
+    ! spatial structure --> Analyse spin development
+    logical :: tHistSpinDist
 
     contains
 
@@ -99,6 +107,7 @@ MODULE Logging
       tCCMCLogTransitions=.false.
       tCCMCLogUniq=.true.
       tHistInitPops=.false.
+      tHistSpinDist = .false.
       HistInitPopsIter=100000
       tLogDets=.false.
 
@@ -112,14 +121,15 @@ MODULE Logging
 
 
 
-    SUBROUTINE LogReadInput()
-      USE input
-      USE MemoryManager, only: LogMemAlloc,LogMemDealloc
-      IMPLICIT NONE
-      LOGICAL eof
-      INTEGER :: i,ierr
-      CHARACTER (LEN=100) w
-      CHARACTER(*),PARAMETER :: t_r='LogReadInput'
+    subroutine LogReadInput()
+
+        ! Read the logging section from the input file
+
+        logical eof
+        integer :: i, ierr, nI_tmp(nel)
+        character
+        character(100) :: w
+        character(*), parameter :: t_r = 'LogReadInput'
 
       ILogging=iLoggingDef
 
@@ -240,6 +250,18 @@ MODULE Logging
 !with writing and reading binary - this option is only compatible with QChem if the code is compiled using PGI - this will be fixed at 
 !some stage.  Also - QChem INTDUMP files must be used to be compatible.  
             tWriteTransMat=.true.
+
+
+        case("HIST-SPIN-DIST")
+            ! Histogram the distribution of walkers within determinants of the
+            ! given spatial configuration
+            ! --> The determinant is specified using SPIN orbitals, but these
+            !     are converted to a spatial structure for use.
+
+            tHistSpinDist = .true.
+            do i = 1, nel
+                call geti(nI_tmp(i))
+            enddo
 
 
         case("ROHISTOGRAMALL")
