@@ -2865,7 +2865,8 @@ SUBROUTINE SpinOrbSymSetup()
     use SymData, only: nSymLabels,TwoCycleSymGens,SymClasses
     use SymData, only: SymLabelList,SymLabelCounts,SymConjTab,SymLabels
     use SystemData , only : NMAXZ,tFixLz,iMaxLz,nBasis,tUEG,tKPntSym,G1,tHub,nBasisMax,NEl
-    use SystemData , only : Symmetry,tHPHF,tSpn,tISKFuncs,Arr,tNoSymGenRandExcits
+    use SystemData , only : Symmetry,tHPHF,tSpn,tISKFuncs,Arr,tNoSymGenRandExcits, Elecpairs
+    use SystemData , only : MaxABPairs
     use Determinants, only : FDet
     use sym_mod, only: mompbcsym,SymProd
     IMPLICIT NONE
@@ -2878,6 +2879,10 @@ SUBROUTINE SpinOrbSymSetup()
     type(Symmetry) :: SymProduct, SymI, SymJ
     character(len=*), parameter :: this_routine='SpinOrbSymSetup'
     
+    ElecPairs=(NEl*(NEl-1))/2
+    MaxABPairs=(nBasis*(nBasis-1)/2)
+!    WRITE(6,*) "SETTING UP SYMMETRY!!",nBasis,elecpairs
+
     IF(tFixLz) THEN
 !Calculate the upper array bound for the ClassCount2 arrays. This will be dependant on the number of symmetries needed.
         ScratchSize=2*nSymLabels*(2*iMaxLz+1)
@@ -3093,6 +3098,8 @@ SUBROUTINE SpinOrbSymSetup()
         Temp(SymInd)=Temp(SymInd)+1
     enddo
 
+!    write(6,*) "SymLabelCounts2: ",SymLabelCounts2(1,:)
+!    write(6,*) "SymLabelCounts2: ",SymLabelCounts2(2,:)
     Deallocate(Temp)
 
     ALLOCATE(OrbClassCount(ScratchSize))
@@ -3240,15 +3247,19 @@ END FUNCTION IsMomAllowedDet
 SUBROUTINE IsSymAllowedExcit(nI,nJ,IC,ExcitMat)
     use GenRandSymExcitNUMod , only: RandExcitSymLabelProd
     use SymExcitDataMod , only: SymInvLabel,SpinOrbSymLabel 
-    Use SystemData , only : G1,NEl,tFixLz,tKPntSym
-    Use SystemData , only : Symmetry,tNoSymGenRandExcits
+    Use SystemData , only : G1,NEl,tFixLz,tKPntSym,nBasis
+    Use SystemData , only : Symmetry,tNoSymGenRandExcits,ElecPairs
     use Determinants, only: write_det
+    use Bit_Reps, only: NIfTot
     use sym_mod
+    use constants
+    use DetBitOps, only: EncodeBitDet
     IMPLICIT NONE
     Type(Symmetry) :: SymProduct,SymProduct2
     LOGICAL :: ISVALIDDET
     INTEGER :: IC,ExcitMat(2,2),nI(NEl),nJ(NEl),ExcitLevel,iGetExcitLevel
     INTEGER :: KOcc,KUnocc,SymprodnJ,SymprodnI,i
+    integer(n_int) :: iLutnI(0:NIfTot),iLutnJ(0:NIfTot)
 
      Excitlevel=iGetExcitLevel(nI,nJ,NEl)
      IF(Excitlevel.ne.IC) THEN
@@ -3271,7 +3282,12 @@ SUBROUTINE IsSymAllowedExcit(nI,nJ,IC,ExcitMat)
         SymprodnJ=RandExcitSymLabelProd(SymInvLabel(SpinOrbSymLabel(nJ(i))),SymProdnJ)
      enddo
      if(SymprodnJ.ne.SymprodnI) then
-         write(6,*) SymProdnI,SymProdnJ,IC,ExcitMat(1,1),ExcitMat(2,1)
+         write(6,*) SymProdnI,SymProdnJ,IC,nBasis,elecpairs
+         call encodeBitDet(nI,iLutnI)
+         call encodeBitDet(nJ,iLutnJ)
+         call writebitex(6,iLutnI,iLutnJ,.true.)
+         write(6,*) nI
+         write(6,*) nJ
          call stop_all("IsSymAllowedExcit","Excitation not of same symmetry as root.")
      endif
      

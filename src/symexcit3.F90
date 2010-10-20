@@ -333,12 +333,15 @@ MODULE SymExcit3
         USE SystemData , only: ElecPairs
         USE GenRandSymExcitNUMod , only: PickElecPair,FindNewDet 
         use constants, only: bits_n_int
-        INTEGER :: nI(NEl),Orbj,Orbi,Orba,Orbb,Syma,Symb,NewSym,SymInd
+        INTEGER :: nI(NEl),Orbj,Orbi,Orba,Orbb,Syma,Symb,NewSym
         INTEGER(KIND=n_int) :: iLut(0:NIfTot)
         INTEGER :: Elec1Ind,Elec2Ind,SymProduct,iSpn,Spinb,nJ(NEl),ExcitMat3(2,2),SumMl
-        INTEGER , SAVE :: ijInd,OrbaChosen,OrbbIndex,Spina
+        INTEGER , SAVE :: ijInd,OrbaChosen,OrbbIndex,Spina,SymInd
         LOGICAL :: tDoubleExcitFound,tFirsta,tFirstb,tNewij,tNewa,tAllExcitFound,tParity
 
+!        write(6,*) "SymLabelCounts2: ",SymLabelCounts2(1,:)
+!        write(6,*) "SymLabelCounts2: ",SymLabelCounts2(2,:)
+!        write(6,*) "Entering routine",nI
         tDoubleExcitFound=.false.
         tFirsta=.false.
         tFirstb=.false.
@@ -357,7 +360,7 @@ MODULE SymExcit3
             tFirstb=.true.
         ENDIF
 
-        do while (.not.tDoubleExcitFound)
+        lp: do while (.not.tDoubleExcitFound)
 
 ! Otherwise we use the previous ijInd and the saved indexes for a and b.
 ! This routine allows us to pick an electron pair i,j specified by the index ijInd.
@@ -461,28 +464,35 @@ MODULE SymExcit3
                     Symb=IEOR(Syma,SymProduct)
 
 !                    WRITE(6,*) "SymLabelList2:" ,SymLabelList2(1:nBasis)
+!                    write(6,*) "tFirstb: ",tFirstb
 
 ! If this is the first time we've picked an orbital b for these i,j and a, begin at the start of the symmetry block.
 ! Otherwise pick up where we left off last time.
                     IF(tFirstb) THEN
-                        OrbbIndex=SymLabelCounts2(1,ClassCountInd(Spinb,Symb,0))
+                        SymInd=ClassCountInd(Spinb,Symb,0)
+!                        write(6,*) SymInd
+                        OrbbIndex=SymLabelCounts2(1,SymInd)
                     ELSE
 !Update new orbital b index
                         OrbbIndex=OrbbIndex+1
                     ENDIF
+!                    WRITE(6,*) "OrbbIndex: ",OrbbIndex
 
-! If the new b orbital is still within the limits, check it is unoccupied and move onto the next orbital if it is.                    
+! If the new b orbital is still within the limits, check it is unoccupied and move onto the next orbital if it is.  
                     IF(OrbbIndex.gt.nBasis) THEN
                         tNewa=.true.
                         tFirsta=.false.
-                    ELSE
-                        IF(tNoSymGenRandExcits) THEN
-                            NewSym=0
-                        ELSE
-                            NewSym=INT(G1(SymLabelList2(OrbbIndex))%Sym%S,4)
-                        ENDIF
-                        SymInd=ClassCountInd(Spinb,NewSym,0)
+!                        write(6,*) "Need new a"
+!                    ELSE
+!                        IF(tNoSymGenRandExcits) THEN
+!                            NewSym=0
+!                        ELSE
+!                            NewSym=INT(G1(SymLabelList2(OrbbIndex))%Sym%S,4)
+!                        ENDIF
+!                        SymInd=ClassCountInd(Spinb,NewSym,0)
+!                        write(6,*) "Calculating symind: ",Spinb,NewSym,SymInd
                     ENDIF
+!                    write(6,*) "***",SymInd,tNewa
 
                     IF(.not.tNewa) THEN
                         IF(OrbbIndex.gt.(SymLabelCounts2(1,SymInd)+SymLabelCounts2(2,SymInd)-1)) THEN
@@ -491,20 +501,24 @@ MODULE SymExcit3
                             tFirsta=.false.
                         ELSE
                             Orbb=SymLabelList2(OrbbIndex)
+!                            write(6,"(B64.64)") iLut(0)
 ! Checking the orbital b is unoccupied and > a.                        
                             do while ((BTEST(iLut((Orbb-1)/bits_n_int),MOD((Orbb-1),bits_n_int))).or.(Orbb.le.Orba))
                                 !Orbital is occupied - try again
                                 IF(OrbbIndex.ge.(SymLabelCounts2(1,SymInd)+SymLabelCounts2(2,SymInd)-1)) THEN
                                     !Reached end of symmetry block - need new a
+!                                    write(6,*) "Reached end of sym block",Orbb,Orba
                                     tNewa=.true.
                                     tFirsta=.false.
                                     EXIT
                                 ENDIF
 
+!                                write(6,*) "Cycling through orbitals: ",OrbbIndex,Orbb
                                 !Update new orbital b index
                                 OrbbIndex=OrbbIndex+1
                                 Orbb=SymLabelList2(OrbbIndex)
 
+!                                write(6,*) "Attempting again with orbital: ",Orbb
                             enddo
                         ENDIF
                     ENDIF
@@ -526,13 +540,16 @@ MODULE SymExcit3
 !                            tFirsta=.false.
                         ENDIF
                         tFirstb=.true.
+!                        write(6,*) "New OrbaChosen: ",OrbaChosen
                         IF(OrbaChosen.gt.nBasis) THEN
 !We have reached the end of all allowed symmetries for the a orbital, only taking into account spin symmetry. Choose new ij pair now.
                             tNewij=.true.
                             ijInd=ijInd+1
+!                            write(6,*) "ijInd: ",ijInd
                             IF(ijInd.gt.ElecPairs) THEN
                                 tAllExcitFound=.true.
-                                tDoubleExcitFound=.true.
+                                tDoubleExcitFound=.false.
+                                EXIT lp
                             ENDIF
                         ENDIF
                     ELSE
@@ -542,21 +559,24 @@ MODULE SymExcit3
 
                 enddo
 
-            enddo
+            enddo 
 
 ! This is the loop for new ij pairs - if we are choosing a new ij we are automatically choosing a new a and b also.            
             
             tFirsta=.true.
             tFirstb=.true.
 
-        enddo
+        enddo lp
 
-
-        CALL FindNewDet(nI,nJ,Elec1Ind,Elec2Ind,Orba,Orbb,ExcitMat3,tParity)
+        if(tDoubleExcitFound) then
+            CALL FindNewDet(nI,nJ,Elec1Ind,Elec2Ind,Orba,Orbb,ExcitMat3,tParity)
+!        else
+!            write(6,*) "Exiting loop with all excitations found: ",tAllExcitFound
+        endif
 
 !        WRITE(6,*) 'From',ExcitMat3(1,:)
 !        WRITE(6,*) 'To',ExcitMat3(2,:)
-
+!
 !        WRITE(6,*) 'Excitation from : ',ExcitMat3(1,1),ExcitMat3(1,2),' to ',Orba,Orbb
 !        WRITE(6,*) 'These have symmetries : ',INT(G1(ExcitMat3(1,1))%Sym%S,4),INT(G1(ExcitMat3(1,2))%Sym%S,4),' to ',INT(G1(Orba)%Sym%S,4),INT(G1(Orbb)%Sym%S,4)
 !        WRITE(6,*) 'The new determinant is : ',nJ(:)

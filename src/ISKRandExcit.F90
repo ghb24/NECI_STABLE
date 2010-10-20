@@ -237,6 +237,73 @@ MODULE ISKRandExcit
 
     end subroutine returned_invsym
 
+!When inverting a determinant, the ordering of the orbitals can change.
+!By ordering, we can introduce a phase to the calculation, which we have to
+!calculate. Here, we take a non-ordered determinant, and the same ordered
+!determinant, and calculate the number of permutations required to line up the
+!determinants.
+!Other routines for finding permutations look at excitations between normal-ordered
+!determinants which are excitations of each other, and are therefore no use here.
+    subroutine find_invsym_permut(nINonOrder,nIOrder,tPermute)
+        use util_mod, only : swap 
+        integer, intent(in) :: nINonOrder(NEl),nIOrder(Nel)
+        logical, intent(out) :: tPermute
+        integer :: nITemp(NEl),permute,i,j,orb
+        logical :: tFoundOrb
+
+        !Initially, do this is a very inefficient way.
+        nITemp=nINonOrder
+        permute=0
+
+        do i=1,NEl
+            if(nITemp(i).eq.nIOrder(i)) then
+                cycle
+            endif
+
+            !Need to find nIOrder(i) in nITemp and count permutations
+            tFoundOrb=.false.
+            do j=Nel,i+1,-1
+                !Orbital must be higher
+                !Search from the end of the list to find orbital we want.
+                !Once found, cycle back to where we started, swapping orbitals as we go.
+                !If optimisation needed, then we should be able to skip the rest of the loop
+                !once the correct orbital has been found.
+                if((.not.tFoundOrb).and.(nITemp(j).ne.nIOrder(i))) then
+                    cycle
+                else
+                    !We have found the orbital / it is at position j.
+                    tFoundOrb=.true.
+                    !Move it to j-1
+                    call swap(nITemp(j),nITemp(j-1))
+                    permute=permute+1
+                endif
+            enddo
+
+            !Now, the correct orbital should be at i.
+            if(nIOrder(i).ne.nITemp(i)) then
+                call stop_all("find_invsym_permut","Error in finding permutation between differently ordered determinants")
+            endif
+        enddo
+
+        tpermute = mod(permute,2) == 1  !Odd or even number of permutations?
+
+    end subroutine find_invsym_permut
+
+!Find the inverse of a determinant *without* reordering the new determinant into natural ordering.
+    subroutine find_invsym_det_noorder(nI,nISym,iLutnISym)
+        integer , intent(in) :: nI(NEl)
+        integer(n_int) , intent(out) :: iLutnISym(0:NIfTot)
+        integer , intent(out) :: nISym(NEl)
+        integer :: orb,pos,i
+        iLutnISym(:)=0
+        do i=1,NEl
+            orb=KPntInvSymOrb(nI(i))
+            nISym(i)=orb
+            pos=(orb-1)/bits_n_int
+            iLutnISym(pos)=ibset(iLutnISym(pos),mod(orb-1,bits_n_int))
+        enddo
+    end subroutine find_invsym_det_noorder
+
     subroutine find_invsym_det(nI,nISym,iLutnISym)
 !        use systemdata, only: nBasis
         use sort_mod

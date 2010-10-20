@@ -92,8 +92,8 @@ contains
                     clr_orb(iluttmp, ab_pair(orb))
                 enddo
 
-                pos = binary_search (CurrentDets, iLutTmp, nIfTot+1, &
-                                     int(TotWalkers,int32), nIfD+1)
+                pos = binary_search (CurrentDets(:,1:TotWalkers), iLutTmp, &
+                                     nIfD + 1)
 
                 call extract_sign (CurrentDets(:,pos), sgnJ)
 

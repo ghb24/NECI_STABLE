@@ -41,7 +41,7 @@ def signal_handler(signal, frame):
 def job_cleanup():
     '''Perform specified operations to perform when the job is approaching the end of its walltime.'''
     f = open('CHANGEVARS','w')
-    f.write("SOFTEXIT")
+    f.write("SOFTEXIT\n")
     f.close()
 
 

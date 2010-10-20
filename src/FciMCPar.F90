@@ -18,8 +18,8 @@ MODULE FciMCParMod
     use bit_reps, only: NIfD, NIfTot, NIfDBO, NIfY, decode_bit_det, &
                         encode_bit_rep, encode_det, extract_bit_rep, &
                         test_flag, set_flag, extract_flags, &
-                        flag_is_initiator, clear_all_flags, set_flag_general, &
-                        extract_sign
+                        flag_is_initiator, clear_all_flags, set_flag_general,&
+                        extract_sign, nOffSgn
     use CalcData, only: InitWalkers, NMCyc, DiagSft, Tau, SftDamp, StepsSft, &
                         OccCASorbs, VirtCASorbs, tFindGroundDet, NEquilSteps,&
                         tReadPops, tRegenDiagHEls, iFullSpaceIter, MaxNoAtHF,&
@@ -31,7 +31,8 @@ MODULE FciMCParMod
                         tRetestAddtoInit, tReadPopsChangeRef, &
                         tReadPopsRestart, tCheckHighestPopOnce, &
                         iRestartWalkNum, tRestartHighPop, FracLargerDet, &
-                        tChangeProjEDet, tCheckHighestPop
+                        tChangeProjEDet, tCheckHighestPop, tSpawnSpatialInit,&
+                        MemoryFacInit, tMaxBloom
     use HPHFRandExcitMod, only: FindExcitBitDetSym, gen_hphf_excit
     use Determinants, only: FDet, get_helement, write_det, &
                             get_helement_det_only
@@ -59,7 +60,7 @@ MODULE FciMCParMod
     use csf, only: get_csf_bit_yama, iscsf, csf_orbital_mask, get_csf_helement
     use hphf_integrals, only: hphf_diag_helement, hphf_off_diag_helement, &
                               hphf_spawn_sign, hphf_off_diag_helement_spawn
-    use util_mod, only: choose,abs_int_sign,abs_int8_sign
+    use util_mod, only: choose, abs_int_sign, abs_int8_sign, binary_search
     use constants, only: dp, int64, n_int, lenof_sign
     use soft_exit, only: ChangeVars 
     use FciMCLoggingMod, only: FinaliseBlocking, FinaliseShiftBlocking, &
@@ -86,7 +87,7 @@ MODULE FciMCParMod
     SUBROUTINE FciMCPar(Weight,Energyxw)
         real(dp) :: Weight, Energyxw
         INTEGER :: error
-        LOGICAL :: TIncrement,tWritePopsFound,tSoftExitFound,tSingBiasChange
+        LOGICAL :: TIncrement,tWritePopsFound,tSoftExitFound,tSingBiasChange,tPrintWarn
         REAL(4) :: s,etime,tstart(2),tend(2)
         INTEGER(int64) :: MaxWalkers,MinWalkers
         real*8 :: AllTotWalkers,MeanWalkers,Inpair(2),Outpair(2)
@@ -112,9 +113,10 @@ MODULE FciMCParMod
         ! Initial output
         call WriteFciMCStatsHeader()
         ! Prepend a # to the initial status line so analysis doesn't pick up
-        ! repetitions in the FCIMCSTATS file from restarts.
+        ! repetitions in the FCIMCStats or INITIATORStats files from restarts.
 !        write (6,'("#")', advance='no')
         write (fcimcstats_unit,'("#")', advance='no')
+        write (initiatorstats_unit,'("#")', advance='no')
         call WriteFCIMCStats()
 
         ! Put a barrier here so all processes synchronise before we begin.
@@ -160,7 +162,7 @@ MODULE FciMCParMod
 
             s=etime(tend)
             IterTime=IterTime+(tend(1)-tstart(1))
-
+            
 !            IF(tBlockEveryIteration) THEN
 !                Inpair(1)=REAL(HFIter,dp)
 !                Inpair(2)=ENumIter
@@ -172,6 +174,34 @@ MODULE FciMCParMod
 !            ENDIF
 
             if (mod(Iter, StepsSft) == 0) then
+
+                ! Has there been a particle bloom this update cycle?
+                if(iProcIndex.eq.Root) then
+                    if(tMaxBloom) then
+                        ! Only print out warnings if it is a larger bloom that has been experienced before.
+                        if(abs(iPartBloom) > iMaxBloom) then
+                            if(abs(iPartBloom) > InitiatorWalkNo) tPrintWarn=.true.
+                            iMaxBloom=abs(iPartBloom)
+                        else
+                            tPrintWarn=.false.
+                        endif
+                    else
+                        if(abs(iPartBloom) > InitiatorWalkNo) then
+                            tPrintWarn=.true.
+                        else
+                            tPrintWarn=.false.
+                        endif
+                    endif
+                    if (tPrintWarn) then
+                        write (6, bloom_warn_string, advance='no') abs(iPartBloom)
+                        if (iPartBloom > 0) then
+                            write (6, '("double excit.")')
+                        else
+                            write (6, '("single excit.")')
+                        endif
+                    endif
+                    iPartBloom = 0 ! Max number spawned from an excitation
+                endif
 
                 ! Calculate the a new value for the shift (amongst other
                 ! things). Generally, collate information from all processors,
@@ -672,18 +702,10 @@ MODULE FciMCParMod
         VecSlot = 1    ! Next position to write into CurrentDets
         NoatHF = 0     ! Number at HF and doubles for stats
         NoatDoubs = 0
-        iPartBloom = 0 ! Max number spawned from an excitation
         ! Next free position in newly spawned list.
         ValidSpawnedList = InitialSpawnedSlots
-
-        ! Reset iteration specific counts
-        ! n.b. this can be extracted to a separate function. This could even
-        !      be function-pointerised!
-        iter_data%nborn = 0
-        iter_data%ndied = 0
-        iter_data%nannihil = 0
-        iter_data%naborted = 0
-        tot_parts_tmp = TotParts
+        
+        call rezero_iter_stats_each_iter (iter_data)
 
         ! The processor with the HF determinant on it will have to check 
         ! through each determinant until it's found. Once found, tHFFound is
@@ -897,8 +919,10 @@ MODULE FciMCParMod
 
         if (ic == 1) SpawnFromSing = SpawnFromSing + sum(abs(child))
 
-        if (sum(abs(child)) > abs(iPartBloom)) then
-            iPartBloom = sign(sum(abs(child)), 2*ic - 3)
+        if(iProcIndex.eq.Root) then
+            if (sum(abs(child)) > abs(iPartBloom)) then
+                iPartBloom = sign(sum(abs(child)), 2*ic - 3)
+            endif
         endif
 
         ! Avoid compiler warnings
@@ -963,16 +987,6 @@ MODULE FciMCParMod
         integer :: i
         real(dp) :: rat
 
-        ! Has there been a particle bloom this iteration?
-        if ( abs(iPartBloom) > InitiatorWalkNo) then
-            write (6, bloom_warn_string, advance='no') iter, abs(iPartBloom)
-            if (iPartBloom > 0) then
-                write (6, '("double excit.")')
-            else
-                write (6, '("single excit.")')
-            endif
-        endif
-
         ! Too many particles?
         rat = real(TotWalkersNew,dp) / real(MaxWalkersPart,dp)
         if (rat > 0.95) then
@@ -1001,6 +1015,17 @@ MODULE FciMCParMod
                 call flush(6)
             endif
         endif
+
+        ! Are we near the end of the spatial initiator list
+        if (tSpawnSpatialInit) then
+            rat = real(no_spatial_init_dets) / real(max_inits)
+            if (rat > 0.95) then
+                write(6, '(a)') '*WARNING* - Number of spatial initiators has&
+                                & reached over 95% f max_inits.'
+                call flush(6)
+            endif
+        endif
+
     end subroutine
 
 
@@ -1035,6 +1060,8 @@ MODULE FciMCParMod
                     if (abs(CurrentSign(part_type)) > InitiatorWalkNo) then
                         parent_init = .true.
                         NoAddedInitiators = NoAddedInitiators + 1
+                        if (tSpawnSpatialInit) &
+                            call add_initiator_list (CurrentDets(:,j))
                     endif
                 elseif (tRetestAddToInit) then
                     ! The source determinant is already an initiator.            
@@ -1056,6 +1083,8 @@ MODULE FciMCParMod
                         ! removed.
                         parent_init = .false.
                         NoAddedInitiators = NoAddedInitiators - 1
+                        if (tSpawnSpatialInit) &
+                            call rm_initiator_list (CurrentDets(:,j))
                     endif
                 endif
             endif
@@ -1249,9 +1278,9 @@ MODULE FciMCParMod
 
         ! What message should we display for a particle bloom?
         if (tAddToInitiator) then
-            bloom_warn_string = '("Particle blooms of more than n_add in &
-                                &iteration ", i14, ": A max of ", i8, &
-                                &"particles created in one attempt from ")'
+            bloom_warn_string = '("Bloom of more than n_add: &
+                                &A max of ", i8, &
+                                &"particles created from ")'
         else
             ! Use this variable to store the bloom cutoff level.
             InitiatorWalkNo = 25
@@ -1259,6 +1288,7 @@ MODULE FciMCParMod
                                 &iteration ", i14, ": A max of ", i8, &
                                 &"particles created in one attempt from ")'
         endif
+        iMaxBloom=0 !The largest bloom to date.
 
         ! Perform the correct statistics on new child particles
         if (tHistHamil) then
@@ -1805,9 +1835,9 @@ MODULE FciMCParMod
 
 !        IF(iDie.ne.0) WRITE(6,*) "Death: ",iDie
         
-        IFDEBUGTHEN(FCIMCDebug,3) 
+        IFDEBUG(FCIMCDebug,3) then 
             if(sum(abs(iDie)).ne.0) write(6,"(A,2I4)") "Death: ",iDie(:)
-        ENDIFDEBUG
+        endif
 
         ! Update death counter
         iter_data%ndied = iter_data%ndied + min(iDie, abs(wSign))
@@ -1833,6 +1863,8 @@ MODULE FciMCParMod
                 iter_data%naborted(1) = iter_data%naborted(1) + abs(CopySign(1))
                 if(test_flag(iLutCurr,flag_is_initiator(1))) then
                     NoAddedInitiators=NoAddedInitiators-1.D0
+                    if (tSpawnSpatialInit) &
+                        call rm_initiator_list (ilutCurr)
                 endif
 
             ELSE
@@ -1845,6 +1877,8 @@ MODULE FciMCParMod
             ! All particles on this determinant have gone. If the determinant was an initiator, update the stats
             if(test_flag(iLutCurr,flag_is_initiator(1))) then
                 NoAddedInitiators=NoAddedInitiators-1.D0
+                if (tSpawnSpatialInit) &
+                    call rm_initiator_list (ilutCurr)
             endif
         endif
 #else
@@ -2719,8 +2753,7 @@ MODULE FciMCParMod
     end subroutine
 
     subroutine collate_iter_data (iter_data, tot_parts_new, tot_parts_new_all)
-
-        integer :: int_tmp(7+lenof_sign)
+        integer :: int_tmp(5+2*lenof_sign)
         HElement_t :: real_tmp(2)
         integer(int64) :: int64_tmp(9)
         type(fcimc_iter_data) :: iter_data
@@ -2953,9 +2986,29 @@ MODULE FciMCParMod
     end subroutine
 
 
-    subroutine rezero_iter_stats (iter_data, tot_parts_new_all)
+    subroutine rezero_iter_stats_each_iter (iter_data)
+
+        type(fcimc_iter_data), intent(inout) :: iter_data
+
+        NoInitDets = 0
+        NoNonInitDets = 0
+        NoInitWalk = 0
+        NoNonInitWalk = 0
+        InitRemoved = 0
+
+        NoAborted = 0
+
+        iter_data%nborn = 0
+        iter_data%ndied = 0
+        iter_data%nannihil = 0
+        iter_data%naborted = 0
+
+    end subroutine
+
+
+    subroutine rezero_iter_stats_update_cycle (iter_data, tot_parts_new_all)
         
-        type(fcimc_iter_data) :: iter_data
+        type(fcimc_iter_data), intent(inout) :: iter_data
         integer(int64), dimension(lenof_sign), intent(in) :: tot_parts_new_all
         
         ! Zero all of the variables which accumulate for each iteration.
@@ -2974,12 +3027,6 @@ MODULE FciMCParMod
         ! ProjEIter = 0
 
         HFCyc = 0
-        NoAborted = 0
-        NoInitDets = 0
-        NoNonInitDets = 0
-        NoInitWalk = 0
-        NoNonInitWalk = 0
-        InitRemoved = 0
 
         ! Reset TotWalkersOld so that it is the number of walkers now
         TotWalkersOld = TotWalkers
@@ -2988,32 +3035,10 @@ MODULE FciMCParMod
         ! Save the number at HF to use in the HFShift
         OldAllNoatHF = AllNoatHF
 
-        ! Also reinitialise the global variables
-        !  --> should not necessarily need to do this...
-        ! TODO: Remove these zeroes?
-        AllSumENum = 0
-        AllSumNoatHF = 0
+        ! Also the cumulative global variables
         AllTotWalkersOld = AllTotWalkers
         AllTotPartsOld = AllTotParts
         AllNoAbortedOld = AllNoAborted
-        AllTotWalkers = 0
-        AllTotParts = 0
-        AllGrowRate = 0
-        AllSumWalkersCyc = 0
-        AllAnnihilated = 0
-        AllNoatHF = 0
-        AllNoatDoubs = 0
-        AllNoBorn = 0
-        AllSpawnFromSing = 0
-        AllNoDied = 0
-        AllNoAborted = 0
-        AllNoAddedInitiators = 0
-        AllNoInitDets = 0
-        AllNoNonInitDets = 0
-        AllNoInitWalk = 0
-        AllNoNonInitWalk = 0
-        AllNoExtraInitDoubs = 0
-        AllInitRemoved = 0
 
         ! Reset the counters
         iter_data%update_growth = 0
@@ -3033,7 +3058,7 @@ MODULE FciMCParMod
         call population_check ()
         call update_shift (iter_data)
         call WriteFCIMCStats ()
-        call rezero_iter_stats (iter_data, tot_parts_new_all)
+        call rezero_iter_stats_update_cycle (iter_data, tot_parts_new_all)
 
     end subroutine calculate_new_shift_wrapper
 
@@ -3060,8 +3085,8 @@ MODULE FciMCParMod
 !Print out initial starting configurations
             WRITE(6,*) ""
             IF(tTruncInitiator.or.tDelayTruncInit) THEN
-                WRITE(initiatorstats_unit,"(A2,A10,2A16,2A16,1A20,6A18)") "# ","1.Step","2.No Aborted","3.NoAddedtoInit","4.FracDetsInit","5.FracWalksInit","6.InstAbortShift",&
-&               "7.NoInit","8.NoNonInit"
+                WRITE(initiatorstats_unit,"(A2,A10,10A20)") "# ","1.Step","2.TotWalk","3.Annihil","4.Died","5.Born","6.TotUniqDets",&
+&               "7.InitDets","8.NonInitDets","9.InitWalks","10.NonInitWalks","11.AbortedWalks"
             ENDIF
             IF(tLogComplexPops) THEN
                 WRITE(complexstats_unit,"(A)") '#   1.Step  2.Shift     3.RealShift     4.ImShift   5.TotParts      6.RealTotParts      7.ImTotParts'
@@ -3130,13 +3155,11 @@ MODULE FciMCParMod
 #endif
 
             if (tTruncInitiator .or. tDelayTruncInit) then
-               write(initiatorstats_unit,"(I12,2I15,2G16.7,3F18.7)")&
-                   Iter + PreviousCycles, AllNoAborted, AllNoAddedInitiators,&
-                   real(AllNoInitDets) / real(AllNoNonInitDets), &
-                   real(AllNoInitWalk) / real(AllNoNonInitWalk), &
-                   DiagSftAbort, &
-                   AllNoInitDets / real(StepsSft), &
-                   AllNoNonInitDets / real(StepsSft)
+               write(initiatorstats_unit,"(I12,10I20)")&
+                   Iter + PreviousCycles, sum(AllTotParts), &
+                   AllAnnihilated, AllNoDied, AllNoBorn, AllTotWalkers,&
+                   AllNoInitDets, AllNoNonInitDets, AllNoInitWalk, &
+                   AllNoNonInitWalk,AllNoAborted
             endif
 
             if (tLogComplexPops) then
@@ -3179,7 +3202,7 @@ MODULE FciMCParMod
         CHARACTER(len=*), PARAMETER :: this_routine='SetupParameters'
         CHARACTER(len=12) :: abstr
         LOGICAL :: tSuccess,tFoundOrbs(nBasis),FoundPair
-        INTEGER :: nSingles,nDoubles,HFLz,ChosenOrb,KPnt(3)
+        INTEGER :: nSingles,nDoubles,HFLz,ChosenOrb,KPnt(3), step
 
 !        CALL MPIInit(.false.)       !Initialises MPI - now have variables iProcIndex and nProcessors
         WRITE(6,*) ""
@@ -3214,7 +3237,12 @@ MODULE FciMCParMod
             end if
             IF(tTruncInitiator.or.tDelayTruncInit) THEN
                 initiatorstats_unit = get_free_unit()
-                OPEN(initiatorstats_unit,file='INITIATORStats',status='unknown',form='formatted')
+            	if (tReadPops) then
+		! Restart calculation.  Append to stats file (if it exists)
+                	OPEN(initiatorstats_unit,file='INITIATORStats',status='unknown',form='formatted',position='append')
+		else
+                	OPEN(initiatorstats_unit,file='INITIATORStats',status='unknown',form='formatted')
+		endif
             ENDIF
             IF(tLogComplexPops) THEN
                 ComplexStats_unit = get_free_unit()
@@ -3437,11 +3465,16 @@ MODULE FciMCParMod
 
 !                WRITE(6,*) "Random Orbital Indexing for hash:"
 !                WRITE(6,*) RandomHash(:)
+            if (tSpatialOnlyHash) then
+                step = 2
+            else
+                step = 1
+            endif
             do i=1,nBasis
                 IF((RandomHash(i).eq.0).or.(RandomHash(i).gt.nBasis*1000)) THEN
                     CALL Stop_All(this_routine,"Random Hash incorrectly calculated")
                 ENDIF
-                do j=i+1,nBasis
+                do j = i+step, nBasis, step
                     IF(RandomHash(i).eq.RandomHash(j)) THEN
                         CALL Stop_All(this_routine,"Random Hash incorrectly calculated")
                     ENDIF
@@ -3534,14 +3567,14 @@ MODULE FciMCParMod
         SumDiagSft=0.D0
         SumDiagSftAbort=0.D0
         AvDiagSftAbort=0.D0
-        NoAborted=0.D0
-        NoAddedInitiators=0.D0
-        NoInitDets=0.D0
-        NoNonInitDets=0.D0
-        NoInitWalk=0.D0
-        NoNonInitWalk=0.D0
-        NoExtraInitDoubs=0.D0
-        InitRemoved=0.D0
+        NoAborted=0
+        NoAddedInitiators=0
+        NoInitDets=0
+        NoNonInitDets=0
+        NoInitWalk=0
+        NoNonInitWalk=0
+        NoExtraInitDoubs=0
+        InitRemoved=0
         TotImagTime=0.D0
         DiagSftRe=0.D0
         DiagSftIm=0.D0
@@ -3566,14 +3599,14 @@ MODULE FciMCParMod
 !        AllDetsNorm=0.D0
         CullInfo(1:10,1:3)=0
         NoCulls=0
-        AllNoAborted=0.D0
-        AllNoAddedInitiators=0.D0
-        AllNoInitDets=0.D0
-        AllNoNonInitDets=0.D0
-        AllNoInitWalk=0.D0
-        AllNoNonInitWalk=0.D0
-        AllNoExtraInitDoubs=0.D0
-        AllInitRemoved=0.D0
+        AllNoAborted=0
+        AllNoAddedInitiators=0
+        AllNoInitDets=0
+        AllNoNonInitDets=0
+        AllNoInitWalk=0
+        AllNoNonInitWalk=0
+        AllNoExtraInitDoubs=0
+        AllInitRemoved=0
 
         ! Initialise the fciqmc counters
         iter_data_fciqmc%update_growth = 0
@@ -4715,6 +4748,15 @@ MODULE FciMCParMod
             TotPartsOld(:)=0
             NoatHF=0
 
+            if (tSpawnSpatialInit) then
+                max_inits = int(MemoryFacInit * INitWalkers)
+                no_spatial_init_dets = 0
+                allocate(CurrentInits(0:nIfTot, max_inits), stat=ierr)
+                call LogMemAlloc('CurrentInits', max_inits * (NIfTot+1), &
+                                 size_n_int, this_routine, CurrentInitTag, &
+                                 ierr)
+            endif
+
 !If we have a popsfile, read the walkers in now.
             if(tReadPops.and..not.tPopsAlreadyRead) then
 
@@ -4773,6 +4815,8 @@ MODULE FciMCParMod
                     if (tTruncInitiator) then
                         call set_flag (CurrentDets(:,1), flag_is_initiator(1))
                         call set_flag (CurrentDets(:,1), flag_is_initiator(2))
+                        if (tSpawnSpatialInit) &
+                            call add_initiator_list (CurrentDets(:,1))
                     endif
 
                     ! HF energy is equal to 0 (by definition)

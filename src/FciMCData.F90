@@ -26,11 +26,16 @@ MODULE FciMCData
       REAL*8 , POINTER :: CurrentH(:)
       INTEGER(KIND=n_int) , POINTER :: SpawnedParts(:,:),SpawnedParts2(:,:)
 
+      ! Be able to store a list of the current initiators
+      integer(n_int), allocatable :: CurrentInits(:,:)
+      integer :: max_inits, CurrentInitTag=0
+
       INTEGER :: NoAbortedInCAS,NoAbortedOutCAS,NoInCAS,NoOutCAS,HighPopNeg,HighPopPos,MaxInitPopNeg,MaxInitPopPos
 
     integer(int64) :: NoAborted, NoAddedInitiators, NoInitDets, NoNonInitDets
     integer(int64) :: NoInitWalk, NoNonInitWalk
     integer(int64) :: NoExtraInitDoubs, InitRemoved
+    integer :: no_spatial_init_dets
 
     integer(int64) :: AllNoAborted, AllNoAddedInitiators, AllNoInitDets
     integer(int64) :: AllNoNonInitDets, AllNoInitWalk, AllNoNonInitWalk
@@ -172,6 +177,7 @@ MODULE FciMCData
       integer(int64) :: MaxWalkersProc, MinWalkersProc
 
       TYPE(BasisFN) :: HFSym
+      integer :: iMaxBloom !If tMaxBloom is on, this stores the largest bloom to date.
 
 
       ! ********************** FCIMCPar control variables *****************
