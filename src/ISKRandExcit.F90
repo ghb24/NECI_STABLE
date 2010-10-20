@@ -11,11 +11,11 @@ MODULE ISKRandExcit
 !This means that only one constituent determinant will be considered in the space.
 
     use SystemData, only: nel, tCSF
-    use GenRandSymExcitNUMod, only: gen_rand_excit, ConstructClassCounts, &
-                                    CalcNonUniPGen, ScratchSize 
+    use GenRandSymExcitNUMod, only: gen_rand_excit, CalcNonUniPGen, &
+                                    ScratchSize 
     use DetBitOps, only: DetBitLT, DetBitEQ, FindExcitBitDet, &
                          FindBitExcitLevel
-    use FciMCData, only: pDoubles
+    use FciMCData, only: pDoubles, excit_gen_store_type
     use constants, only: dp,n_int,bits_n_int
     use HElem
     use bit_reps, only: NIfD, NIfDBO, NIfTot
@@ -26,8 +26,7 @@ MODULE ISKRandExcit
     contains
 
     subroutine gen_ISK_excit (nI, iLutnI, nJ, iLutnJ, exFlag, IC, ExcitMat, &
-                               tParity, pGen, HEl, tFilled, ClassCount2, &
-                               ClassCountUnocc2, scratch)
+                               tParity, pGen, HEl, store)
         use FciMCData, only: tGenMatHEl
         integer, intent(in) :: nI(nel) 
         integer(kind=n_int), intent(in) :: iLutnI(0:niftot)
@@ -35,11 +34,8 @@ MODULE ISKRandExcit
         integer, intent(out) :: nJ(nel)
         integer(kind=n_int), intent(out) :: iLutnJ(0:niftot)
         integer, intent(out) :: IC, ExcitMat(2,2)
-        integer, intent(inout) :: ClassCount2(ScratchSize)
-        integer, intent(inout) :: ClasscountUnocc2(ScratchSize)
-        integer, intent(inout) :: scratch(ScratchSize) ! Not used
         logical, intent(out) :: tParity ! Not used
-        logical, intent(inout) :: tFilled
+        type(excit_gen_store_type), intent(inout), target :: store
         real(dp), intent(out) :: pGen
         HElement_t, intent(out) :: HEl
         character(*), parameter :: this_routine='gen_ISK_excit'
@@ -50,8 +46,7 @@ MODULE ISKRandExcit
 
         !First, generate a random excitation from the determinant which is given in the argument
         call gen_rand_excit (nI, iLutnI, nJ, iLutnJ, exFlag, IC, ExcitMat, &
-                             tSignOrig, pGen, HEl, tFilled, Classcount2, &
-                             ClassCountUnocc2, scratch)
+                             tSignOrig, pGen, HEl, store)
         if(IsNullDet(nJ)) return    !No excitation created
 
 !Create bit representation of excitation - iLutnJ
@@ -84,7 +79,9 @@ MODULE ISKRandExcit
                 if(tGenMatHEl) HEl=0.D0
             elseif(tCrossConnected) then
                 !The cross-term is connected. Calculate the probability that we created this det instead (in same ISK)
-                CALL CalcNonUniPGen(nI,CrossEx,CrossIC,ClassCount2,ClassCountUnocc2,pDoubles,pGen2)
+                CALL CalcNonUniPGen(nI, CrossEx, CrossIC, &
+                                    store%ClassCountOcc, &
+                                    store%ClassCountUnocc,pDoubles,pGen2)
                 pGen=pGen+pGen2
 
                 if(tGenMatHEl) then
@@ -107,6 +104,9 @@ MODULE ISKRandExcit
                 endif
             endif
         endif
+
+        ! Eliminate compiler warnings
+        tParity = tParity
 
     end subroutine gen_ISK_excit
 
@@ -276,19 +276,19 @@ MODULE ISKRandExcit
         use HPHFRandExcitMod, only: BinSearchListHPHF
         use Parallel
         IMPLICIT NONE
-        INTEGER :: ClassCount2(ScratchSize),nIX(NEl)
-        INTEGER :: ClassCountUnocc2(ScratchSize)
+        INTEGER :: nIX(NEl)
         INTEGER :: i,Iterations,nI(NEl),nJ(NEl),DetConn,nI2(NEl),nJ2(NEl),DetConn2
         INTEGER :: iUniqueHPHF,iUniqueBeta,PartInd,ierr,iExcit
         REAL*8 :: pDoub,pGen
-        LOGICAL :: Unique,TestClosedShellDet,Die,tGenClassCountnI,tSwapped
+        LOGICAL :: Unique,TestClosedShellDet,Die,tSwapped
         INTEGER(KIND=n_int) :: iLutnI(0:NIfTot),iLutnJ(0:NIfTot),iLutnI2(0:NIfTot),iLutSym(0:NIfTot)
         INTEGER(KIND=n_int), ALLOCATABLE :: ConnsAlpha(:,:),ConnsBeta(:,:),UniqueHPHFList(:,:)
         INTEGER , ALLOCATABLE :: ExcitGen(:)
         REAL*8 , ALLOCATABLE :: Weights(:),AllWeights(:)
         INTEGER :: iMaxExcit,nStore(6),nExcitMemLen,j,k,l, iunit
-        integer :: icunused, exunused(2,2), scratch3(scratchsize)
+        integer :: icunused, exunused(2,2)
         logical :: tParityunused, tTmp
+        type(excit_gen_store_type) :: store
         HElement_t :: HEl
 
         tUseBrillouin=.false.
@@ -507,7 +507,7 @@ MODULE ISKRandExcit
         ALLOCATE(AllWeights(iUniqueHPHF))
         AllWeights(:)=0.D0
         Weights(:)=0.D0
-        tGenClassCountnI=.false.
+        store%tFilled = .false.
 
         write(6,*) "Generating ISK random excitations..."
 
@@ -518,9 +518,7 @@ MODULE ISKRandExcit
 !            tTmp = tGenMatHEl
 !            tGenMatHel = .false.
             call gen_ISK_excit (nI, iLutnI, nJ, iLutnJ, 3, icunused, &
-                                 exunused, tparityunused, pGen, HEl,&
-                                 tGenClassCountnI, ClassCount2, &
-                                 ClassCountUnocc2, scratch3)
+                                 exunused, tparityunused, pGen, HEl, store)
 !            tGenMatHel = tTmp
 !            CALL GenRandSymExcitNU(nI,iLut,nJ,pDoub,IC,ExcitMat,TParity,exFlag,pGen)
 
