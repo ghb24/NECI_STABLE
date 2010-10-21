@@ -660,6 +660,36 @@ module DetBitOps
     end subroutine EncodeBitDet
 
 
+    pure function spatial_bit_det (ilut) result(ilut_s)
+
+        ! Convert the spin orbital representation in ilut_s into a spatial
+        ! orbital representation, with all singly occupied orbitals in the 
+        ! 'beta' position.
+        !
+        ! In:  ilut   - Spin orbital, bit representation
+        ! Out: ilut_s - Spatial orbital, bit representation. Loses all sign
+        !               etc. info (i.e. for ints > NIfD --> 0)
+
+        integer(n_int), intent(in) :: ilut(0:NIfTot)
+        integer(n_int) :: ilut_s (0:NIfTot)
+        integer(n_int), dimension(0:NIfD) :: alpha, beta, a_sft, b_sft
+
+        ! Obtain alpha/beta orbital representations
+        alpha = iand(ilut(0:NIfD), MaskAlpha)
+        beta = iand(ilut(0:NIfD), MaskBeta)
+
+        ! Shift alphas to beta pos and vice-versa
+        a_sft = ishft(alpha, -1)
+        b_sft = ishft(beta, +1)
+
+        ! Obtain representation with all singly occupied orbitals in the beta
+        ! position, and doubly occupied orbitals doubly occupied
+        ilut_s(NIfD+1:NIfTot) = 0
+        ilut_s(0:NIfD) = ior(beta, ior(a_sft, iand(b_sft, alpha)))
+
+    end function
+
+
     subroutine FindExcitBitDet(iLutnI, iLutnJ, IC, ExcitMat)
 
         ! This routine will find the bit-representation of an excitation by

@@ -3,6 +3,9 @@ MODULE Logging
     use input
     use MemoryManager, only: LogMemAlloc, LogMemDealloc
     use SystemData, only: nel
+    use constants, only: n_int
+    use bit_rep_data, only: NIfTot
+    use DetBitOps, only: EncodeBitDet
 
     IMPLICIT NONE
     Save
@@ -127,7 +130,7 @@ MODULE Logging
 
         logical eof
         integer :: i, ierr, nI_tmp(nel)
-        character
+        integer(n_int) :: ilut_tmp(0:NIfTot)
         character(100) :: w
         character(*), parameter :: t_r = 'LogReadInput'
 
@@ -262,6 +265,7 @@ MODULE Logging
             do i = 1, nel
                 call geti(nI_tmp(i))
             enddo
+            call EncodeBitDet(nI_tmp, ilut_tmp)
 
 
         case("ROHISTOGRAMALL")
